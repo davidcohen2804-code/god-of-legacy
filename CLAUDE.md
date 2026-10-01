@@ -8,3 +8,4 @@
 - Implement only what each stage spec asks. Do not add features, guess missing details, or change approved decisions without approval.
 - No QA summary documents unless explicitly requested.
 - Update `CURRENT_STAGE` in `src/config/layout.ts` when a new stage is approved.
+- QA screenshots of every screen are generated automatically by CI on each push (`scripts/qa-screenshots.mjs`) and published to the `gh-pages` branch under `qa/`.
