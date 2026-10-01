@@ -6,7 +6,7 @@ import { BootScene } from './scenes/BootScene';
 import { MainMenuScene } from './scenes/MainMenuScene';
 import { CharacterSelectScene } from './scenes/CharacterSelectScene';
 import { CharacterCreateScene } from './scenes/CharacterCreateScene';
-import { WorldScenePlaceholder } from './scenes/WorldScenePlaceholder';
+import { LegacyCourtyardScene } from './scenes/LegacyCourtyardScene';
 import { ErrorCapture } from './qa/ErrorCapture';
 import { isQAMode, startQAPanel } from './qa/QAPanel';
 
@@ -30,7 +30,7 @@ loadFonts().then(() => {
     height: DESIGN.height,
     backgroundColor: '#000000',
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-    scene: [BootScene, MainMenuScene, CharacterSelectScene, CharacterCreateScene, WorldScenePlaceholder],
+    scene: [BootScene, MainMenuScene, CharacterSelectScene, CharacterCreateScene, LegacyCourtyardScene],
   });
 
   ErrorCapture.attachGame(game);

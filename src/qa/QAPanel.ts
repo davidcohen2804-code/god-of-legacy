@@ -11,7 +11,7 @@ const STATE_BY_SCENE: Record<string, string> = {
   MainMenuScene: 'main-menu',
   CharacterSelectScene: 'character-select',
   CharacterCreateScene: 'character-create (placeholder)',
-  WorldScenePlaceholder: 'world (placeholder)',
+  LegacyCourtyardScene: 'world: legacy-courtyard',
 };
 
 const fmt = (n: number) => Math.round(n);

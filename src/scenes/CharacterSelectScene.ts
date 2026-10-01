@@ -27,7 +27,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.ui = new CharacterSelectUI(this.game.canvas.parentElement!, this.game.canvas, {
       onBack: () => this.scene.start('MainMenuScene'),
       onCreate: () => this.scene.start('CharacterCreateScene'),
-      onEnterWorld: () => this.scene.start('WorldScenePlaceholder'),
+      onEnterWorld: () => this.scene.start('LegacyCourtyardScene'),
     });
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, () => this.ui?.layout());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {

@@ -129,8 +129,14 @@ export const CHARACTER_CREATE = {
   appearanceId: 'warrior_default',
 } as const;
 
-/** Stage 2 placeholder scenes (Character Create / World). */
-export const PLACEHOLDER = { textSize: 40, back: { y: 760, w: 255, h: 64 } } as const;
+// ======================= Stage 4: Legacy Courtyard =======================
+
+/** World HUD (DOM overlay, 1920x1080 design coords). Map/movement data live in src/data/legacy-courtyard.json. */
+export const WORLD_HUD = {
+  name: { x: 40, y: 30, w: 380, h: 70, size: 28 },
+  back: { x: 1540, y: 33, w: 340, h: 64, size: 24 },
+  shadow: { w: 36, h: 12, offsetY: -2, alpha: 0.33 },
+} as const;
 
 // ======================= Build / QA =======================
-export const CURRENT_STAGE = 'Stage 3 — Character Creation';
+export const CURRENT_STAGE = 'Stage 4 — Legacy Courtyard';

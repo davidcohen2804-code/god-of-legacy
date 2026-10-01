@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "textures": {
+    "map": {
+      "key": "legacy-courtyard",
+      "file": "assets/environment/Legacy_Courtyard.png",
+      "width": 1672,
+      "height": 941
+    },
+    "walk": {
+      "key": "warrior-walk",
+      "file": "assets/characters/Warrior_Walk.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "columns": 4,
+      "rows": 4,
+      "frameCount": 16
+    },
+    "idle": {
+      "key": "warrior-idle",
+      "file": "assets/characters/Warrior_Idle.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "columns": 2,
+      "rows": 2,
+      "frameCount": 4
+    }
+  },
+  "directions": {
+    "down": {
+      "walkFrames": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "idleFrame": 0
+    },
+    "left": {
+      "walkFrames": [
+        4,
+        5,
+        6,
+        7
+      ],
+      "idleFrame": 1
+    },
+    "right": {
+      "walkFrames": [
+        8,
+        9,
+        10,
+        11
+      ],
+      "idleFrame": 2
+    },
+    "up": {
+      "walkFrames": [
+        12,
+        13,
+        14,
+        15
+      ],
+      "idleFrame": 3
+    }
+  },
+  "walkFrameRate": 8,
+  "walkRepeat": -1,
+  "idleAnimated": false,
+  "origin": {
+    "x": 0.5,
+    "y": 1
+  },
+  "frameIndexing": "zero-based row-major",
+  "initialDirection": "down"
+}

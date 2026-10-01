@@ -1,0 +1,79 @@
+{
+  "id": "legacy-courtyard",
+  "name": "Legacy Courtyard",
+  "coordinateSpace": {
+    "width": 1672,
+    "height": 941,
+    "units": "source image pixels, x right, y down"
+  },
+  "spawn": {
+    "x": 835,
+    "y": 780
+  },
+  "player": {
+    "displayHeight": 108,
+    "speed": 188,
+    "footRadius": 10,
+    "spriteOrigin": {
+      "x": 0.5,
+      "y": 1
+    }
+  },
+  "camera": {
+    "mode": "fixed",
+    "fit": "contain",
+    "worldWidth": 1672,
+    "worldHeight": 941
+  },
+  "walkablePolygon": [
+    [
+      340,
+      286
+    ],
+    [
+      1430,
+      286
+    ],
+    [
+      1552,
+      386
+    ],
+    [
+      1600,
+      880
+    ],
+    [
+      100,
+      880
+    ],
+    [
+      96,
+      433
+    ],
+    [
+      230,
+      316
+    ]
+  ],
+  "obstacles": [
+    {
+      "id": "stone-pedestal",
+      "shape": "rect",
+      "x": 415,
+      "y": 409,
+      "width": 132,
+      "height": 136
+    },
+    {
+      "id": "flower-planter",
+      "shape": "rect",
+      "x": 1290,
+      "y": 580,
+      "width": 151,
+      "height": 153
+    }
+  ],
+  "collisionPolicy": "Keep the whole foot circle inside walkable polygon. Block the whole drawn obstacle rectangle, not just its base, because this single-layer map has baked obstacles and no separate foreground layer. Sprite height never participates in collision.",
+  "directionPolicy": "Use dominant screen axis; equal diagonal uses horizontal facing. Keep last facing when stopped.",
+  "savePosition": false
+}
