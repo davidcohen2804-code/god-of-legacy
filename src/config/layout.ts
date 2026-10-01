@@ -82,6 +82,7 @@ export type Resolution = (typeof RESOLUTIONS)[number];
 export const ASSET_MANIFEST = {
   'characterSelect.background': 'assets/CharacterSelect_Background_1920x1080.png',
   'characterSelect.slotFrame': 'assets/CharacterSlot_Frame.png',
+  'characterCreate.warriorPreview': 'assets/Warrior_Preview.png',
 } as const;
 export type AssetKey = keyof typeof ASSET_MANIFEST;
 
@@ -107,8 +108,29 @@ export const CHARACTER_SELECT = {
   modal: { w: 620, h: 280, titleSize: 32 },
 } as const;
 
+// ======================= Stage 3: Character Creation =======================
+
+/** Display names for stored classId values. */
+export const CLASS_NAMES: Record<string, string> = { warrior: 'Warrior' };
+
+export const CHARACTER_CREATE = {
+  title: { text: 'CREATE YOUR LEGACY', top: 46, size: 46 },
+  character: {
+    x: 90, y: 190, w: 470, h: 330, headerSize: 32, headerTop: 30,
+    labelTop: 110, labelSize: 20, input: { top: 145, h: 58, size: 24, maxLength: 16 },
+  },
+  classPanel: { x: 1390, y: 190, w: 425, h: 330, headerSize: 32, headerTop: 30, nameTop: 150, nameSize: 40 },
+  preview: { centerX: 985, top: 110, height: 790, pedestalY: 885, rx: 235, ry: 57 },
+  buttons: {
+    back: { x: 90, y: 855, w: 255, h: 64, size: 28 },
+    create: { x: 1390, y: 842, w: 425, h: 70, size: 28 },
+  },
+  classId: 'warrior',
+  appearanceId: 'warrior_default',
+} as const;
+
 /** Stage 2 placeholder scenes (Character Create / World). */
 export const PLACEHOLDER = { textSize: 40, back: { y: 760, w: 255, h: 64 } } as const;
 
 // ======================= Build / QA =======================
-export const CURRENT_STAGE = 'Stage 2 — Character Select';
+export const CURRENT_STAGE = 'Stage 3 — Character Creation';

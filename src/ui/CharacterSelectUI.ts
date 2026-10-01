@@ -1,5 +1,5 @@
 // DOM overlay for Character Select: slots, text, buttons, info panel and modal.
-import { ASSET_MANIFEST, CHARACTER_SELECT as L, COLORS, DESIGN, FONT_FAMILY } from '../config/layout';
+import { ASSET_MANIFEST, CHARACTER_SELECT as L, CLASS_NAMES, COLORS, DESIGN, FONT_FAMILY } from '../config/layout';
 import { CharacterStore } from '../characters/CharacterStore';
 import { Character, SlotId } from '../characters/CharacterTypes';
 
@@ -63,21 +63,40 @@ const CSS = `
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 `;
 
+/** Shared by the Character Select and Character Create overlays. */
+export function ensureCharacterUIStyles(): void {
+  if (document.getElementById(STYLE_ID)) return;
+  const st = document.createElement('style');
+  st.id = STYLE_ID; st.textContent = CSS; document.head.appendChild(st);
+}
+
+/** Locks a 1920x1080 DOM overlay to the canvas; returns the new cache key. */
+export function syncOverlay(root: HTMLElement, host: HTMLElement, canvas: HTMLCanvasElement, prevKey: string): string {
+  const c = canvas.getBoundingClientRect();
+  const p = host.getBoundingClientRect();
+  const key = `${c.left - p.left},${c.top - p.top},${c.width}`;
+  if (key === prevKey) return key;
+  root.style.left = `${c.left - p.left}px`;
+  root.style.top = `${c.top - p.top}px`;
+  root.style.transform = `scale(${c.width / DESIGN.width})`;
+  return key;
+}
+
+const className = (id: string) => CLASS_NAMES[id] ?? id;
+
 export class CharacterSelectUI {
   private root: HTMLDivElement;
   private slotEls = new Map<SlotId, HTMLDivElement>();
   private fields: Record<'name' | 'cls' | 'level' | 'last', HTMLSpanElement>;
   private btnEnter: HTMLButtonElement;
   private btnDelete: HTMLButtonElement;
+  private btnCreate: HTMLButtonElement;
   private modal?: HTMLDivElement;
   private lastRect = '';
   private readonly onKey = (e: KeyboardEvent) => this.handleKey(e);
 
   constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, private h: CharacterSelectHandlers) {
-    if (!document.getElementById(STYLE_ID)) {
-      const st = document.createElement('style');
-      st.id = STYLE_ID; st.textContent = CSS; document.head.appendChild(st);
-    }
+    ensureCharacterUIStyles();
     this.root = this.el('div', 'gol-cs');
     host.appendChild(this.root);
 
@@ -113,7 +132,7 @@ export class CharacterSelectUI {
     this.button('BACK', B.back, () => this.h.onBack());
     this.btnDelete = this.button('DELETE', B.delete, () => this.openDeleteConfirm());
     this.btnEnter = this.button('ENTER WORLD', B.enter, () => this.enterWorld(), true);
-    this.button('CREATE CHARACTER', B.create, () => this.h.onCreate());
+    this.btnCreate = this.button('CREATE CHARACTER', B.create, () => this.h.onCreate());
 
     window.addEventListener('keydown', this.onKey);
     this.render();
@@ -122,14 +141,7 @@ export class CharacterSelectUI {
 
   /** Keep the 1920x1080 overlay locked to the canvas (call every frame; cheap). */
   layout(): void {
-    const c = this.canvas.getBoundingClientRect();
-    const p = this.host.getBoundingClientRect();
-    const key = `${c.left - p.left},${c.top - p.top},${c.width}`;
-    if (key === this.lastRect) return;
-    this.lastRect = key;
-    this.root.style.left = `${c.left - p.left}px`;
-    this.root.style.top = `${c.top - p.top}px`;
-    this.root.style.transform = `scale(${c.width / DESIGN.width})`;
+    this.lastRect = syncOverlay(this.root, this.host, this.canvas, this.lastRect);
   }
 
   destroy(): void {
@@ -199,15 +211,17 @@ export class CharacterSelectUI {
       const d = this.slotEls.get(slot.slotId)!;
       const c = slot.character;
       (d.children[0] as HTMLElement).textContent = c ? c.name : `CHARACTER SLOT ${slot.slotId}`;
-      (d.children[1] as HTMLElement).textContent = c ? `${c.classId} · Level ${c.level}` : 'EMPTY';
+      (d.children[1] as HTMLElement).textContent = c ? `${className(c.classId)} · Level ${c.level}` : 'EMPTY';
       d.classList.toggle('sel', slot.slotId === sel);
     }
     const ch: Character | null = CharacterStore.getSelectedCharacter();
     this.fields.name.textContent = ch ? ch.name : DASH;
-    this.fields.cls.textContent = ch ? ch.classId : DASH;
+    this.fields.cls.textContent = ch ? className(ch.classId) : DASH;
     this.fields.level.textContent = ch ? String(ch.level) : DASH;
     this.fields.last.textContent = ch?.lastPlayedAt ? formatDate(ch.lastPlayedAt) : DASH;
     this.btnEnter.disabled = !ch;
+    // CREATE CHARACTER only for a selected empty slot (never overwrites).
+    this.btnCreate.disabled = !(sel && !CharacterStore.getSlot(sel).character);
     this.btnDelete.disabled = !ch;
   }
 

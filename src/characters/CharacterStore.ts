@@ -72,6 +72,20 @@ class Store {
 
   deleteCharacter(id: SlotId): void { this.getSlot(id).character = null; this.save(); }
 
+  /** Creates a character in an EMPTY slot only; returns false (and changes nothing) otherwise. */
+  createCharacter(slotId: SlotId, name: string, classId: string, appearanceId: string): boolean {
+    const slot = this.getSlot(slotId);
+    const clean = name.trim();
+    if (slot.character || !clean || !classId) return false;
+    slot.character = {
+      id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `c${Date.now()}`,
+      name: clean, classId, level: 1,
+      createdAt: new Date().toISOString(), lastPlayedAt: null, appearanceId,
+    };
+    this.save();
+    return true;
+  }
+
   private save(): void {
     try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch { /* storage unavailable */ }
   }
