@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "world": "legacy-courtyard",
+  "coordinateSpace": "Stage 4 source map pixels (1672x941), x right, y down",
+  "attack": {
+    "key": "Space",
+    "phaseDurationMs": [
+      120,
+      80,
+      100,
+      160
+    ],
+    "totalDurationMs": 460,
+    "hitAtMs": 120,
+    "cooldownMs": 550,
+    "damage": 25,
+    "range": 100,
+    "rangeMeasure": "feet center to feet center",
+    "sectorHalfAngleDegrees": 60,
+    "minimumFacingDot": 0.5,
+    "maxHitsPerTargetPerAttack": 1,
+    "movementLocked": true,
+    "turnLocked": true,
+    "ignoreKeyboardRepeat": true,
+    "queueInput": false,
+    "cancelOnBlur": true
+  },
+  "facing": {
+    "up": [
+      0,
+      -1
+    ],
+    "down": [
+      0,
+      1
+    ],
+    "left": [
+      -1,
+      0
+    ],
+    "right": [
+      1,
+      0
+    ]
+  },
+  "dummy": {
+    "id": "courtyard-training-dummy",
+    "x": 1050,
+    "y": 520,
+    "maxHp": 100,
+    "collisionRadius": 26,
+    "respawnDelayMs": 1200,
+    "deferRespawnIfPlayerOverlaps": true,
+    "playerFootRadius": 10,
+    "hitFlashMs": 80,
+    "impactOffset": {
+      "x": 0,
+      "y": -68
+    },
+    "healthBar": {
+      "width": 76,
+      "height": 8,
+      "offsetY": -132,
+      "fill": "#A73125",
+      "background": "#1B1F25",
+      "border": "#B79A5B"
+    },
+    "depthRule": "Sort player and dummy by feet y; HUD and impact above both."
+  },
+  "persistence": "None: initialize dummy at 100 hp on scene entry; do not change character saves."
+}

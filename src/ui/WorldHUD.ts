@@ -33,6 +33,16 @@ export class WorldHUD {
     btn.addEventListener('click', onBack);
     this.root.appendChild(btn);
 
+    const hint = document.createElement('div');
+    hint.className = 'abs panel';
+    this.box(hint, H.hint.centerX - H.hint.w / 2, H.hint.y - H.hint.h / 2, H.hint.w, H.hint.h);
+    Object.assign(hint.style, {
+      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: `${H.hint.size}px`,
+      letterSpacing: '2px', color: '#F3E7CF', opacity: '0.9',
+    });
+    hint.textContent = H.hint.text;
+    this.root.appendChild(hint);
+
     this.layout();
   }
 

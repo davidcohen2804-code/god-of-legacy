@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CHARACTER_SELECT as L, COLORS, DESIGN } from '../config/layout';
+import { CHARACTER_SELECT as L, CHARACTER_SELECT_PREVIEW as PV, COLORS, DESIGN } from '../config/layout';
 import { CharacterSelectUI } from '../ui/CharacterSelectUI';
 
 // Background/world presentation only; all UI lives in CharacterSelectUI (DOM overlay).
@@ -24,10 +24,15 @@ export class CharacterSelectScene extends Phaser.Scene {
       g.fillStyle(COLORS.gold, 0.4).fillCircle(x, y, 2);
     }
 
+    // Selected character's full-body preview, feet on the platform (hidden when no character is selected).
+    const hero = this.add.image(PV.centerX, PV.feetY, 'characterCreate.warriorPreview').setOrigin(0.5, 1).setVisible(false);
+    hero.setScale(PV.height / hero.height);
+
     this.ui = new CharacterSelectUI(this.game.canvas.parentElement!, this.game.canvas, {
       onBack: () => this.scene.start('MainMenuScene'),
       onCreate: () => this.scene.start('CharacterCreateScene'),
       onEnterWorld: () => this.scene.start('LegacyCourtyardScene'),
+      onPreview: (key) => { if (key) hero.setTexture(key); hero.setVisible(!!key); },
     });
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, () => this.ui?.layout());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {

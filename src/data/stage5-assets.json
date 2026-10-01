@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "paths": "Relative URL assets/...; no leading slash. Keep existing Vite base handling.",
+  "textures": {
+    "attack": {
+      "key": "warrior-attack",
+      "file": "assets/characters/Warrior_Attack.png",
+      "width": 1024,
+      "height": 1024,
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "columns": 4,
+      "rows": 4,
+      "frameCount": 16,
+      "origin": {
+        "x": 0.5,
+        "y": 0.875
+      },
+      "displayHeight": 216
+    },
+    "dummy": {
+      "key": "training-dummy",
+      "file": "assets/props/Training_Dummy.png",
+      "width": 256,
+      "height": 256,
+      "origin": {
+        "x": 0.5,
+        "y": 0.96875
+      },
+      "displayHeight": 128
+    },
+    "impact": {
+      "key": "sword-impact",
+      "file": "assets/fx/Sword_Impact.png",
+      "width": 512,
+      "height": 128,
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "columns": 4,
+      "rows": 1,
+      "frameCount": 4,
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "displayHeight": 64
+    }
+  },
+  "attackFrames": {
+    "down": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "left": [
+      4,
+      5,
+      6,
+      7
+    ],
+    "right": [
+      8,
+      9,
+      10,
+      11
+    ],
+    "up": [
+      12,
+      13,
+      14,
+      15
+    ]
+  },
+  "frameIndexing": "zero-based row-major",
+  "attackPhases": [
+    "windup",
+    "strike",
+    "follow-through",
+    "recovery"
+  ],
+  "impactFrames": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "impactFrameDurationMs": 45,
+  "impactRepeat": 0,
+  "idleAndWalk": "Reuse Stage 4 textures, scale and origins. Reset texture/display size/origin when switching states."
+}

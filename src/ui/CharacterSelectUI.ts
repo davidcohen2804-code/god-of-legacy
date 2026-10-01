@@ -1,5 +1,5 @@
 // DOM overlay for Character Select: slots, text, buttons, info panel and modal.
-import { ASSET_MANIFEST, CHARACTER_SELECT as L, CLASS_NAMES, COLORS, DESIGN, FONT_FAMILY } from '../config/layout';
+import { ASSET_MANIFEST, CHARACTER_PREVIEWS, CHARACTER_SELECT as L, CLASS_NAMES, COLORS, DESIGN, FONT_FAMILY } from '../config/layout';
 import { CharacterStore } from '../characters/CharacterStore';
 import { Character, SlotId } from '../characters/CharacterTypes';
 
@@ -7,6 +7,8 @@ export interface CharacterSelectHandlers {
   onBack: () => void;
   onCreate: () => void;
   onEnterWorld: () => void;
+  /** Called on every render with the selected character's full-body preview asset key (or null to hide). */
+  onPreview?: (assetKey: string | null) => void;
 }
 
 const DASH = '—';
@@ -27,6 +29,8 @@ const CSS = `
 .gol-cs .slot:active,.gol-cs .slot.sel:active{transform:scale(${L.slots.pressedScale})}
 .gol-cs .slot .name{position:absolute;left:${L.slots.textX}px;top:30px;font-size:${L.slots.nameSize}px;font-weight:700;
   white-space:nowrap;letter-spacing:.5px;text-shadow:0 1px 3px #000}
+.gol-cs .slot .portrait{position:absolute;left:${L.slots.portrait.x}px;top:${L.slots.portrait.y}px;
+  width:${L.slots.portrait.size}px;height:${L.slots.portrait.size}px;border-radius:6px;background-repeat:no-repeat}
 .gol-cs .slot .sub{position:absolute;left:${L.slots.textX}px;top:72px;font-size:${L.slots.subSize}px;opacity:.75;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:${L.slots.w - L.slots.textX - 34}px}
 .gol-cs .panel{background:rgba(10,18,28,.96);border:2px solid ${COLORS.goldCss};border-radius:10px;
@@ -83,6 +87,7 @@ export function syncOverlay(root: HTMLElement, host: HTMLElement, canvas: HTMLCa
 }
 
 const className = (id: string) => CLASS_NAMES[id] ?? id;
+const previewFor = (c: Character) => CHARACTER_PREVIEWS[`${c.classId}/${c.appearanceId}`];
 
 export class CharacterSelectUI {
   private root: HTMLDivElement;
@@ -110,7 +115,7 @@ export class CharacterSelectUI {
       const d = this.el('div', 'abs slot', this.root);
       this.box(d, S.x, S.firstY + i * S.step, S.w, S.h);
       d.style.backgroundImage = `url("${ASSET_MANIFEST['characterSelect.slotFrame']}")`;
-      this.el('div', 'name', d); this.el('div', 'sub', d);
+      this.el('div', 'name', d); this.el('div', 'sub', d); this.el('div', 'portrait', d);
       d.addEventListener('click', () => this.select(slot.slotId));
       this.slotEls.set(slot.slotId, d);
     });
@@ -213,8 +218,20 @@ export class CharacterSelectUI {
       (d.children[0] as HTMLElement).textContent = c ? c.name : `CHARACTER SLOT ${slot.slotId}`;
       (d.children[1] as HTMLElement).textContent = c ? `${className(c.classId)} · Level ${c.level}` : 'EMPTY';
       d.classList.toggle('sel', slot.slotId === sel);
+      // Face/upper-body crop of the same full-body preview (display-only; empty slots stay blank).
+      const pv = c ? previewFor(c) : undefined;
+      const po = d.children[2] as HTMLElement;
+      if (pv) {
+        const k = L.slots.portrait.size / pv.crop.w;
+        Object.assign(po.style, {
+          backgroundImage: `url("${pv.file}")`,
+          backgroundSize: `${pv.width * k}px ${pv.height * k}px`,
+          backgroundPosition: `${-pv.crop.x * k}px ${-pv.crop.y * k}px`,
+        });
+      } else po.style.backgroundImage = '';
     }
     const ch: Character | null = CharacterStore.getSelectedCharacter();
+    this.h.onPreview?.(ch ? previewFor(ch)?.key ?? null : null);
     this.fields.name.textContent = ch ? ch.name : DASH;
     this.fields.cls.textContent = ch ? className(ch.classId) : DASH;
     this.fields.level.textContent = ch ? String(ch.level) : DASH;

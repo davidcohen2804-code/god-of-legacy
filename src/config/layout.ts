@@ -129,6 +129,17 @@ export const CHARACTER_CREATE = {
   appearanceId: 'warrior_default',
 } as const;
 
+/** classId/appearanceId -> full-body preview (Character Select stage + slot portrait crop in source pixels). */
+export const CHARACTER_PREVIEWS: Record<string, { key: string; file: string; width: number; height: number; crop: { x: number; y: number; w: number } }> = {
+  'warrior/warrior_default': {
+    key: 'characterCreate.warriorPreview', file: 'assets/Warrior_Preview.png', width: 1024, height: 1536,
+    crop: { x: 400, y: 40, w: 420 },
+  },
+};
+
+/** Full-body preview on the Character Select platform (feet on the pedestal). */
+export const CHARACTER_SELECT_PREVIEW = { centerX: 985, feetY: 835, height: 700 } as const;
+
 // ======================= Stage 4: Legacy Courtyard =======================
 
 /** World HUD (DOM overlay, 1920x1080 design coords). Map/movement data live in src/data/legacy-courtyard.json. */
@@ -136,7 +147,8 @@ export const WORLD_HUD = {
   name: { x: 40, y: 30, w: 380, h: 70, size: 28 },
   back: { x: 1540, y: 33, w: 340, h: 64, size: 24 },
   shadow: { w: 36, h: 12, offsetY: -2, alpha: 0.33 },
+  hint: { text: 'SPACE — ATTACK', centerX: 960, y: 1005, w: 300, h: 50, size: 22 },
 } as const;
 
 // ======================= Build / QA =======================
-export const CURRENT_STAGE = 'Stage 4 — Legacy Courtyard';
+export const CURRENT_STAGE = 'Stage 5 — Training Combat';
