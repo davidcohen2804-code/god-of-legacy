@@ -38,6 +38,7 @@ for (const [w, h] of [[1920, 1080], [1280, 720]]) {
   await p.keyboard.press('Escape'); await W(p, 300);
   await p.click('.gol-cs .btn:has-text("CREATE CHARACTER")'); await W(p, 1200); await shot(p, '10_create_placeholder', w);
   await p.goto(URL + '?qa=1'); await p.waitForFunction(() => window.__game?.scene.isActive('MainMenuScene'), null, { timeout: 30000 }); await W(p, 1500);
+  await p.keyboard.press('F9'); await W(p, 500);
   await shot(p, '11_qa_panel', w);
   await p.close();
 }

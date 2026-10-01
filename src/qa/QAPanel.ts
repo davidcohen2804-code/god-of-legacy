@@ -24,10 +24,11 @@ export function startQAPanel(game: Phaser.Game): void {
     background: 'rgba(0,0,0,.72)', border: '1px solid rgba(201,154,69,.6)', borderRadius: '4px',
     padding: '6px 8px', maxWidth: '360px', overflow: 'hidden',
   } as CSSStyleDeclaration);
+  panel.style.display = 'none'; // starts hidden; F9 shows/hides
   document.body.appendChild(panel);
 
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'F9') { e.preventDefault(); panel.style.display = panel.style.display === 'none' ? '' : 'none'; }
+    if (e.key === 'F9') { e.preventDefault(); panel.style.display = panel.style.display === 'none' ? '' : 'none'; update(); }
   });
 
   const update = () => {
@@ -59,7 +60,6 @@ export function startQAPanel(game: Phaser.Game): void {
       `Last err  ${last ? `[${last.kind}] ${last.message}`.slice(0, 160) : '—'}`,
     ].join('\n');
   };
-  update();
   window.setInterval(update, 250);
   (window as unknown as { __qa: unknown }).__qa = { build: BuildInfo, errors: ErrorCapture.getErrors, assets: ErrorCapture.getAssetCounts };
   console.info('[GodOfLegacy:qa] QA mode active', BuildInfo);
