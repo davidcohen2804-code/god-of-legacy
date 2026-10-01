@@ -75,19 +75,33 @@ export class MainMenuUI {
     });
   }
 
-  private openExit(): void {
+  /** 'confirm' = Exit God Of Legacy? (EXIT / CANCEL); 'blocked' = web build could not close the tab. */
+  private openExit(mode: 'confirm' | 'blocked' = 'confirm'): void {
     if (this.exitModal) return;
     const s = this.scene;
     const cx = DESIGN.width / 2, cy = DESIGN.height / 2;
     const m = createModalBase(s, E.w, E.h);
-    m.add(s.add.text(cx, cy - E.h / 2 + E.titleOffsetY, 'Exit God Of Legacy?', {
+    const title = mode === 'confirm' ? 'Exit God Of Legacy?' : 'Close this browser tab to exit.';
+    m.add(s.add.text(cx, cy - E.h / 2 + E.titleOffsetY, title, {
       fontFamily: FONT_FAMILY, fontSize: `${E.titleSize}px`, color: COLORS.text,
     }).setOrigin(0.5));
     const by = cy + E.h / 2 - E.buttonsOffsetY;
-    m.add(createTextButton(s, cx - E.buttonGap, by, E.button.w, E.button.h, 'EXIT', () => PlatformAdapter.exitGame()));
-    m.add(createTextButton(s, cx + E.buttonGap, by, E.button.w, E.button.h, 'CANCEL', () => this.closeExit()));
+    if (mode === 'confirm') {
+      m.add(createTextButton(s, cx - E.buttonGap, by, E.button.w, E.button.h, 'EXIT', () => { void this.confirmExit(); }));
+      m.add(createTextButton(s, cx + E.buttonGap, by, E.button.w, E.button.h, 'CANCEL', () => this.closeExit()));
+    } else {
+      m.add(createTextButton(s, cx, by, E.button.w, E.button.h, 'OK', () => this.closeExit()));
+    }
     this.exitModal = m;
     s.input.keyboard?.on('keydown-ESC', this.onEscExit);
+  }
+
+  private async confirmExit(): Promise<void> {
+    const result = await PlatformAdapter.exitGame();
+    if (result === 'blocked' && this.scene.sys.isActive()) {
+      this.closeExit();
+      this.openExit('blocked');
+    }
   }
 
   private closeExit(): void {

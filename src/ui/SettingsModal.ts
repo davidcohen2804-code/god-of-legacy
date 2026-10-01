@@ -62,6 +62,8 @@ export class SettingsModal {
   private root?: Phaser.GameObjects.Container;
   private dropdownList?: Phaser.GameObjects.Container;
   private refreshFullscreen?: () => void;
+  /** Scene-level input listeners owned by this modal (removed individually on close). */
+  private inputListeners: [string, (...args: never[]) => void][] = [];
   private readonly onEsc = () => (this.dropdownList ? this.closeDropdown() : this.close());
 
   constructor(private scene: Phaser.Scene) {}
@@ -93,8 +95,8 @@ export class SettingsModal {
     if (!this.root) return;
     this.closeDropdown();
     this.scene.input.keyboard?.off('keydown-ESC', this.onEsc);
-    this.scene.input.off('pointermove');
-    this.scene.input.off('pointerup');
+    for (const [evt, fn] of this.inputListeners) this.scene.input.off(evt, fn);
+    this.inputListeners = [];
     this.root.destroy();
     this.root = undefined;
     this.refreshFullscreen = undefined;
@@ -102,6 +104,11 @@ export class SettingsModal {
 
   /** Called when fullscreen changes outside the toggle (e.g. browser Esc). */
   syncFullscreen(): void { this.refreshFullscreen?.(); }
+
+  private listen(evt: string, fn: (...args: never[]) => void): void {
+    this.scene.input.on(evt, fn);
+    this.inputListeners.push([evt, fn]);
+  }
 
   private label(y: number, text: string): void {
     this.root!.add(this.scene.add.text(P.labelX, y, text, {
@@ -141,8 +148,8 @@ export class SettingsModal {
     const hit = s.add.zone(x0 + w / 2, y, w + 24, 32).setInteractive({ useHandCursor: true });
     let dragging = false;
     hit.on('pointerdown', (p: Phaser.Input.Pointer) => { dragging = true; setFrom(p.x); });
-    s.input.on('pointermove', (p: Phaser.Input.Pointer) => { if (dragging) setFrom(p.x); });
-    s.input.on('pointerup', () => { dragging = false; });
+    this.listen('pointermove', (p: Phaser.Input.Pointer) => { if (dragging) setFrom(p.x); });
+    this.listen('pointerup', () => { dragging = false; });
     this.root!.add([g, hit]);
   }
 

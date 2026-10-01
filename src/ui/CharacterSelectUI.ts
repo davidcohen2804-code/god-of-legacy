@@ -26,7 +26,7 @@ const CSS = `
   filter:brightness(${L.slots.selectedBrightness}) drop-shadow(0 0 10px rgba(255,180,90,.55))}
 .gol-cs .slot:active,.gol-cs .slot.sel:active{transform:scale(${L.slots.pressedScale})}
 .gol-cs .slot .name{position:absolute;left:${L.slots.textX}px;top:30px;font-size:${L.slots.nameSize}px;font-weight:700;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:${L.slots.w - L.slots.textX - 34}px;text-shadow:0 1px 3px #000}
+  white-space:nowrap;letter-spacing:.5px;text-shadow:0 1px 3px #000}
 .gol-cs .slot .sub{position:absolute;left:${L.slots.textX}px;top:72px;font-size:${L.slots.subSize}px;opacity:.75;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:${L.slots.w - L.slots.textX - 34}px}
 .gol-cs .panel{background:rgba(10,18,28,.96);border:2px solid ${COLORS.goldCss};border-radius:10px;
@@ -36,16 +36,28 @@ const CSS = `
 .gol-cs .info .f{position:absolute;left:${L.info.padX}px;right:24px;font-size:${L.info.fieldSize}px;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
 .gol-cs .info .f b{font-weight:400;opacity:.75}
-.gol-cs .btn{pointer-events:auto;cursor:pointer;background:#142131;border:2px solid ${COLORS.goldCss};border-radius:6px;
-  color:${COLORS.text};font-family:inherit;font-weight:700;letter-spacing:1px;padding:0;
-  transition:transform 120ms ease-out,background-color 120ms ease-out,filter 120ms ease-out;box-shadow:0 4px 12px rgba(0,0,0,.45)}
-.gol-cs .btn:hover{background:#1d2e42;transform:scale(1.025);filter:brightness(1.12)}
+.gol-cs .btn{pointer-events:auto;cursor:pointer;padding:0;border:2px solid ${COLORS.goldCss};border-radius:4px;
+  font-family:inherit;font-weight:700;letter-spacing:1.5px;overflow:visible;
+  background:radial-gradient(ellipse at 50% -10%,rgba(232,199,126,.20),transparent 62%),
+    linear-gradient(180deg,#1d1a1e 0%,#0e0c10 55%,#16121a 100%);
+  box-shadow:inset 0 0 0 1px #3d2c12,inset 0 0 0 4px rgba(14,12,16,.95),inset 0 0 0 5px rgba(232,199,126,.42),
+    0 0 0 1px #24190a,0 6px 16px rgba(0,0,0,.6);
+  transition:transform 120ms ease-out,filter 120ms ease-out}
+.gol-cs .btn span{background:linear-gradient(180deg,#fff2cc 0%,#e8c77e 48%,#b07c2c 100%);-webkit-background-clip:text;
+  background-clip:text;color:transparent;filter:drop-shadow(0 2px 1px rgba(0,0,0,.9))}
+.gol-cs .btn::before,.gol-cs .btn::after{content:'';position:absolute;left:50%;width:11px;height:11px;margin-left:-7.5px;
+  transform:rotate(45deg);border:2px solid ${COLORS.goldCss};background:radial-gradient(circle at 35% 35%,#ff6a4a,#8e1414 60%,#3a0606);
+  box-shadow:0 0 6px rgba(255,90,60,.45)}
+.gol-cs .btn::before{top:-9px}
+.gol-cs .btn::after{bottom:-9px}
+.gol-cs .btn.primary::after{display:none} /* ENTER WORLD sits 14px above CREATE CHARACTER: avoid touching gems */
+.gol-cs .btn.primary{background:radial-gradient(ellipse at 50% 0%,rgba(255,120,80,.28),transparent 65%),
+    linear-gradient(180deg,#8a1d1d 0%,#4b0d10 58%,#6a1616 100%);
+  box-shadow:inset 0 0 0 1px #3d2c12,inset 0 0 0 4px rgba(60,10,12,.9),inset 0 0 0 5px rgba(232,199,126,.5),
+    inset 0 0 18px rgba(255,90,60,.25),0 0 0 1px #24190a,0 6px 16px rgba(0,0,0,.6)}
+.gol-cs .btn:hover{transform:scale(1.025);filter:brightness(1.12) drop-shadow(0 0 8px rgba(255,180,90,.45))}
 .gol-cs .btn:active{transform:translateY(2px) scale(.985);filter:brightness(.92)}
-.gol-cs .btn.primary{background:#6b1c21}
-.gol-cs .btn.primary:hover{background:#7d242a}
-.gol-cs .btn:disabled{cursor:default;opacity:.42;transform:none;filter:grayscale(.35)}
-.gol-cs .btn:disabled:hover{background:#142131}
-.gol-cs .btn.primary:disabled:hover{background:#6b1c21}
+.gol-cs .btn:disabled{cursor:default;opacity:.55;transform:none;filter:grayscale(.55) brightness(.7)}
 .gol-cs .overlay{pointer-events:auto;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,${COLORS.overlayAlpha})}
 .gol-cs .modal .q{position:absolute;left:24px;right:24px;top:72px;text-align:center;font-size:${L.modal.titleSize}px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -164,7 +176,7 @@ export class CharacterSelectUI {
     const bw = 200, bh = 56, by = M.h - 70 - bh / 2;
     const mkBtn = (label: string, cx: number, fn: () => void, primary = false) => {
       const b = this.el('button', `btn abs${primary ? ' primary' : ''}`, p) as HTMLButtonElement;
-      b.textContent = label; b.style.fontSize = '26px';
+      this.el('span', '', b).textContent = label; b.style.fontSize = '26px';
       this.box(b, cx - bw / 2, by, bw, bh);
       b.addEventListener('mousedown', (e) => e.preventDefault());
       b.addEventListener('click', fn);
@@ -201,7 +213,7 @@ export class CharacterSelectUI {
 
   private button(label: string, b: { x: number; y: number; w: number; h: number; size: number }, fn: () => void, primary = false) {
     const el = this.el('button', `btn abs${primary ? ' primary' : ''}`, this.root) as HTMLButtonElement;
-    el.textContent = label;
+    this.el('span', '', el).textContent = label;
     el.style.fontSize = `${b.size}px`;
     this.box(el, b.x, b.y, b.w, b.h);
     el.addEventListener('mousedown', (e) => e.preventDefault()); // keep focus off buttons (keyboard handled globally)

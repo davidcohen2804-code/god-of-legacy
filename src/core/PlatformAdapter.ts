@@ -13,10 +13,13 @@ const desktop = (): DesktopBridge | undefined =>
   (window as unknown as { godOfLegacyDesktop?: DesktopBridge }).godOfLegacyDesktop;
 
 export const PlatformAdapter = {
-  exitGame(): void {
+  /** Resolves 'closed' when the game was exited, 'blocked' when the browser refused to close the tab. */
+  async exitGame(): Promise<'closed' | 'blocked'> {
     const d = desktop();
-    if (d) { d.exit(); return; }
+    if (d) { d.exit(); return 'closed'; }
     window.close(); // Browser: only works if the tab was opened by script.
+    await new Promise((r) => setTimeout(r, 300));
+    return window.closed ? 'closed' : 'blocked';
   },
 
   setFullscreen(game: Phaser.Game, on: boolean): void {

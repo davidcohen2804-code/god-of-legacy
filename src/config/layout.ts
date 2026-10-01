@@ -90,7 +90,7 @@ export const CHARACTER_SELECT = {
   slots: {
     x: 90, firstY: 190, step: 155, w: 430, h: 132,
     portrait: { x: 19, y: 19, size: 84 },
-    textX: 120, nameSize: 27, subSize: 21,
+    textX: 120, nameSize: 23, subSize: 21,
     hoverBrightness: 1.05, selectedBrightness: 1.08, selectedScale: 1.015, pressedScale: 0.99, duration: 120,
   },
   preview: { x0: 650, x1: 1320, pedestalY: 822, rx: 235, ry: 57 },
