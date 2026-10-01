@@ -1,62 +1,67 @@
-// Stage 4/5: Legacy Courtyard — fixed-camera map, 4-direction idle/walk/attack, foot-circle collision,
-// one training dummy. All geometry, timing and sizes come from src/data (world coords = original map pixels).
+// Stage 4–6: Legacy Courtyard — fixed camera, smooth 4-direction movement, sword attack with feel polish,
+// training dummy and one Cursed Swordsman. Numbers come from src/data JSON + STAGE6 (world = map pixels).
 import Phaser from 'phaser';
 import WORLD from '../data/legacy-courtyard.json';
 import ATLAS from '../data/asset-manifest.json';
 import COMBAT_ASSETS from '../data/stage5-assets.json';
 import COMBAT from '../data/training-combat.json';
-import { WORLD_HUD } from '../config/layout';
+import S6 from '../data/stage6-combat.json';
+import { STAGE6, WORLD_HUD } from '../config/layout';
 import { CharacterStore } from '../characters/CharacterStore';
 import { WorldHUD } from '../ui/WorldHUD';
-
-type Dir = 'down' | 'left' | 'right' | 'up';
-type Pt = readonly number[];
+import { Dir, facingFrom, footAllowedStatic } from '../world/collision';
+import { CursedSwordsman, preloadEnemyFrames } from '../world/CursedSwordsman';
 
 const T = ATLAS.textures;
 const CT = COMBAT_ASSETS.textures;
 const A = COMBAT.attack;
 const D = COMBAT.dummy;
 const R = WORLD.player.footRadius;
-const POLY = WORLD.walkablePolygon as Pt[];
+const MOVE = S6.player.movement;
+const FEEL = S6.player.attackFeel;
+const P6 = STAGE6.player;
 const TOP_DEPTH = 100000; // effects and health bar above every feet-sorted object
+const FACING = COMBAT.facing as Record<Dir, number[]>;
 
-function insidePolygon(x: number, y: number): boolean {
-  let c = false;
-  for (let i = 0, j = POLY.length - 1; i < POLY.length; j = i++) {
-    const a = POLY[i], b = POLY[j];
-    if ((a[1] > y) !== (b[1] > y) && x < ((b[0] - a[0]) * (y - a[1])) / (b[1] - a[1]) + a[0]) c = !c;
-  }
-  return c;
+interface Attack { id: number; dir: Dir; elapsed: number; hitChecked: boolean; slashSpawned: boolean; lungeApplied: number }
+interface Fx { sprite: Phaser.GameObjects.Image; elapsed: number; frameMs: number; keys: string[] }
+
+const slashKey = (i: number) => `fx-slash-${i}`;
+const dustKey = (i: number) => `fx-dust-${i}`;
+
+/** Lunge distance along the facing for an attack elapsed time: ease-out during strike, hold, ease back in recovery. */
+function lungeAt(e: number): number {
+  const [w, s, f, r] = A.phaseDurationMs;
+  if (e < w) return 0;
+  if (e < w + s) { const t = (e - w) / s; return FEEL.lungePx * (1 - (1 - t) * (1 - t)); }
+  if (e < w + s + f) return FEEL.lungePx;
+  if (e < w + s + f + r) { const t = (e - w - s - f) / r; return FEEL.lungePx * (1 - t * t * (3 - 2 * t)); }
+  return 0;
 }
-
-function distToSegment(x: number, y: number, a: Pt, b: Pt): number {
-  const dx = b[0] - a[0], dy = b[1] - a[1];
-  const t = Phaser.Math.Clamp(((x - a[0]) * dx + (y - a[1]) * dy) / (dx * dx + dy * dy), 0, 1);
-  return Math.hypot(x - a[0] - t * dx, y - a[1] - t * dy);
-}
-
-/** Whole foot circle inside the walkable polygon and outside every obstacle rectangle. */
-function footAllowedStatic(x: number, y: number): boolean {
-  if (!insidePolygon(x, y)) return false;
-  for (let i = 0; i < POLY.length; i++) if (distToSegment(x, y, POLY[i], POLY[(i + 1) % POLY.length]) < R) return false;
-  return !WORLD.obstacles.some((o) =>
-    Math.hypot(x - Phaser.Math.Clamp(x, o.x, o.x + o.width), y - Phaser.Math.Clamp(y, o.y, o.y + o.height)) <= R);
-}
-
-interface Attack { id: number; dir: Dir; elapsed: number; hitChecked: boolean }
 
 export class LegacyCourtyardScene extends Phaser.Scene {
   /** Read by the QA panel: x,y are the feet. */
   player?: Phaser.GameObjects.Sprite;
+  /** Read by the QA panel. */
+  playerHP = S6.player.maxHp;
+  enemy?: CursedSwordsman;
   private shadow?: Phaser.GameObjects.Ellipse;
   private keys?: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' | 'SPACE', Phaser.Input.Keyboard.Key>;
   private dir: Dir = ATLAS.initialDirection as Dir;
   private hud?: WorldHUD;
 
+  // Movement (Stage 6 polish).
+  private vx = 0;
+  private vy = 0;
+  private hadInput = false;
+  private lastInput = { x: 0, y: 0 };
+  private sinceDust = Infinity;
+
   // Combat (scene-local, never saved).
   private attack: Attack | null = null;
   private attackSeq = 0;
   private sinceAttackStart = Infinity; // cooldown is measured from attack start
+  private hitStopLeft = 0;
   private dummy?: Phaser.GameObjects.Image;
   private dummyBar?: Phaser.GameObjects.Graphics;
   private dummyHp = D.maxHp;
@@ -65,6 +70,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private flashLeft = 0;
   private respawnLeft = 0;
   private impacts: { sprite: Phaser.GameObjects.Sprite; elapsed: number }[] = [];
+  private fx: Fx[] = [];
+
+  // Player damage / death (Stage 6).
+  private playerFlashMs = -1;
+  private playerDeadMs = -1; // >= 0 while dead
 
   constructor() { super('LegacyCourtyardScene'); }
 
@@ -74,22 +84,29 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (!this.textures.exists(t.key)) this.load.spritesheet(t.key, t.file, { frameWidth: t.frameWidth, frameHeight: t.frameHeight });
     }
     if (!this.textures.exists(CT.dummy.key)) this.load.image(CT.dummy.key, CT.dummy.file);
+    for (let i = 0; i < STAGE6.slash.frames; i++) if (!this.textures.exists(slashKey(i))) this.load.image(slashKey(i), `${STAGE6.slash.path}/0${i}.png`);
+    for (let i = 0; i < STAGE6.dust.frames; i++) if (!this.textures.exists(dustKey(i))) this.load.image(dustKey(i), `${STAGE6.dust.path}/0${i}.png`);
+    preloadEnemyFrames(this);
   }
 
   create(): void {
     const character = CharacterStore.getSelectedCharacter();
     if (!character) { this.scene.start('CharacterSelectScene'); return; }
 
-    // Reset scene-local combat state on every entry.
-    this.attack = null; this.sinceAttackStart = Infinity; this.dummyHp = D.maxHp; this.dummyAlive = true;
-    this.lastHitAttackId = -1; this.flashLeft = 0; this.respawnLeft = 0; this.impacts = [];
+    // Reset scene-local state on every entry.
+    this.attack = null; this.sinceAttackStart = Infinity; this.hitStopLeft = 0;
+    this.dummyHp = D.maxHp; this.dummyAlive = true;
+    this.lastHitAttackId = -1; this.flashLeft = 0; this.respawnLeft = 0; this.impacts = []; this.fx = [];
     this.dir = ATLAS.initialDirection as Dir;
+    this.vx = 0; this.vy = 0; this.hadInput = false; this.sinceDust = Infinity;
+    this.playerHP = S6.player.maxHp; this.playerFlashMs = -1; this.playerDeadMs = -1;
 
-    // Map in world pixels; fixed camera fits it (contain), no stretching.
+    // Map in world pixels; fixed camera fits it (contain), no stretching; crisp pixel positions.
     this.add.image(0, 0, T.map.key).setOrigin(0, 0).setDepth(-1);
     const cam = this.cameras.main;
     cam.setZoom(Math.min(cam.width / WORLD.camera.worldWidth, cam.height / WORLD.camera.worldHeight));
     cam.centerOn(WORLD.coordinateSpace.width / 2, WORLD.coordinateSpace.height / 2);
+    cam.setRoundPixels(true);
 
     for (const [d, def] of Object.entries(ATLAS.directions)) {
       const key = `warrior-walk-${d}`;
@@ -107,6 +124,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.dummyBar = this.add.graphics().setDepth(TOP_DEPTH);
     this.drawDummyBar();
 
+    this.enemy = new CursedSwordsman(this);
+
     const { x, y } = WORLD.spawn;
     const S = WORLD_HUD.shadow;
     this.shadow = this.add.ellipse(x, y + S.offsetY, S.w, S.h, 0x000000, S.alpha);
@@ -119,8 +138,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const onSpace = (e: KeyboardEvent) => { if (!e.repeat) this.beginAttack(); };
     kb.on('keydown-SPACE', onSpace);
 
-    // Losing focus clears keys and cancels an attack before it can hit.
-    const stop = () => { kb.resetKeys(); this.cancelAttack(); };
+    // Losing focus clears keys, stops movement and cancels an attack before it can hit.
+    const stop = () => { kb.resetKeys(); this.vx = 0; this.vy = 0; this.cancelAttack(); };
     this.game.events.on(Phaser.Core.Events.BLUR, stop);
     this.game.events.on(Phaser.Core.Events.HIDDEN, stop);
 
@@ -135,8 +154,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       kb.resetKeys();
       kb.removeAllKeys(true);
       for (const i of this.impacts) i.sprite.destroy();
-      this.impacts = [];
+      for (const f of this.fx) f.sprite.destroy();
+      this.impacts = []; this.fx = [];
       this.attack = null;
+      this.enemy?.destroy();
+      this.enemy = undefined;
       this.hud?.destroy();
       this.hud = undefined;
       this.keys = undefined;
@@ -149,30 +171,77 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     const k = this.keys, p = this.player;
     if (!k || !p) return;
+    if (this.hitStopLeft > 0) { this.hitStopLeft -= delta; return; } // whole simulation freezes on a confirmed hit
     const ms = delta;
     this.sinceAttackStart += ms;
+    this.sinceDust += ms;
     this.updateDummy(ms);
     this.updateImpacts(ms);
+    this.updateFx(ms);
+    this.updatePlayerFlash(ms);
+    this.enemy?.update(ms, {
+      player: { x: p.x, y: p.y, alive: this.playerDeadMs < 0 },
+      blocked: (x, y) =>
+        (this.playerDeadMs < 0 && Math.hypot(x - p.x, y - p.y) < STAGE6.enemy.collisionRadius + R) ||
+        (this.dummyAlive && Math.hypot(x - D.x, y - D.y) < D.collisionRadius + STAGE6.enemy.footRadius),
+      onHitPlayer: (dmg) => this.damagePlayer(dmg),
+    });
 
+    if (this.playerDeadMs >= 0) { this.updateDeath(ms); this.syncDepths(); return; }
     if (this.attack) { this.updateAttack(ms); this.syncDepths(); return; } // movement and turning locked
 
-    const dx = (k.D.isDown || k.RIGHT.isDown ? 1 : 0) - (k.A.isDown || k.LEFT.isDown ? 1 : 0);
-    const dy = (k.S.isDown || k.DOWN.isDown ? 1 : 0) - (k.W.isDown || k.UP.isDown ? 1 : 0);
-
-    if (dx === 0 && dy === 0) { this.setIdle(); this.syncDepths(); return; }
-
-    // Dominant screen axis decides facing; an exact diagonal faces horizontally.
-    this.dir = Math.abs(dx) >= Math.abs(dy) && dx !== 0 ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
-    this.setBodyScale(T.walk.frameHeight, WORLD.player.displayHeight, WORLD.player.spriteOrigin);
-    p.anims.play(`warrior-walk-${this.dir}`, true);
-
-    const dt = Math.min(0.05, ms / 1000);
-    const len = Math.hypot(dx, dy), step = WORLD.player.speed * dt;
-    const nx = p.x + (dx / len) * step, ny = p.y + (dy / len) * step;
-    // Axis-separated: blocked on one axis still slides on the other.
-    if (this.footAllowed(nx, p.y)) p.x = nx;
-    if (this.footAllowed(p.x, ny)) p.y = ny;
+    this.updateMovement(ms);
     this.syncDepths();
+  }
+
+  // ---------------- movement (acceleration / deceleration) ----------------
+
+  private updateMovement(ms: number): void {
+    const k = this.keys!, p = this.player!;
+    const ix = (k.D.isDown || k.RIGHT.isDown ? 1 : 0) - (k.A.isDown || k.LEFT.isDown ? 1 : 0);
+    const iy = (k.S.isDown || k.DOWN.isDown ? 1 : 0) - (k.W.isDown || k.UP.isDown ? 1 : 0);
+    const hasInput = ix !== 0 || iy !== 0;
+    const dt = Math.min(0.05, ms / 1000);
+    const maxV = WORLD.player.speed;
+    const speedBefore = Math.hypot(this.vx, this.vy);
+
+    if (hasInput) {
+      const len = Math.hypot(ix, iy); // normalized diagonal
+      const tx = (ix / len) * maxV, ty = (iy / len) * maxV;
+      const ddx = tx - this.vx, ddy = ty - this.vy, dl = Math.hypot(ddx, ddy), step = MOVE.accelerationPxPerSec2 * dt;
+      if (dl <= step) { this.vx = tx; this.vy = ty; } else { this.vx += (ddx / dl) * step; this.vy += (ddy / dl) * step; }
+      this.dir = facingFrom(ix, iy, this.dir); // facing follows input, never velocity jitter
+      // Dust: start from (near) rest, or a sharp (>90°) direction change.
+      const sharp = this.hadInput && ix * this.lastInput.x + iy * this.lastInput.y < 0;
+      if ((!this.hadInput && speedBefore < maxV * 0.25) || sharp) this.spawnDust();
+      this.lastInput = { x: ix, y: iy };
+    } else {
+      if (this.hadInput && speedBefore > maxV * 0.5) this.spawnDust(); // stop
+      const ns = Math.max(0, speedBefore - MOVE.decelerationPxPerSec2 * dt);
+      if (speedBefore > 0) { this.vx *= ns / speedBefore; this.vy *= ns / speedBefore; }
+    }
+    this.hadInput = hasInput;
+
+    // Axis-separated: blocked on one axis still slides on the other; a blocked axis loses its velocity.
+    const nx = p.x + this.vx * dt, ny = p.y + this.vy * dt;
+    if (this.vx !== 0) { if (this.footAllowed(nx, p.y)) p.x = nx; else this.vx = 0; }
+    if (this.vy !== 0) { if (this.footAllowed(p.x, ny)) p.y = ny; else this.vy = 0; }
+
+    if (Math.hypot(this.vx, this.vy) > P6.walkThreshold) {
+      this.setBodyScale(T.walk.frameHeight, WORLD.player.displayHeight, WORLD.player.spriteOrigin);
+      p.anims.play(`warrior-walk-${this.dir}`, true); // continues; never restarts per update
+    } else {
+      this.setIdle();
+    }
+  }
+
+  private spawnDust(): void {
+    if (this.sinceDust < STAGE6.dust.minIntervalMs) return;
+    this.sinceDust = 0;
+    const p = this.player!;
+    const s = this.add.image(p.x, p.y, dustKey(0)).setOrigin(0.5, 0.5).setDepth(p.y - 1);
+    s.setScale(STAGE6.dust.displayWidth / s.width);
+    this.fx.push({ sprite: s, elapsed: 0, frameMs: 1000 / S6.fx.movementDustFps, keys: [...Array(STAGE6.dust.frames).keys()].map(dustKey) });
   }
 
   // ---------------- player states (feet x/y never change between states) ----------------
@@ -191,8 +260,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   private footAllowed(x: number, y: number): boolean {
-    if (!footAllowedStatic(x, y)) return false;
-    return !(this.dummyAlive && Math.hypot(x - D.x, y - D.y) < D.collisionRadius + R);
+    if (!footAllowedStatic(x, y, R)) return false;
+    if (this.dummyAlive && Math.hypot(x - D.x, y - D.y) < D.collisionRadius + R) return false;
+    const e = this.enemy;
+    return !(e && e.alive && Math.hypot(x - e.x, y - e.y) < STAGE6.enemy.collisionRadius + R);
   }
 
   private syncDepths(): void {
@@ -204,9 +275,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   // ---------------- attack ----------------
 
   private beginAttack(): void {
-    if (!this.player || this.attack || this.sinceAttackStart < A.cooldownMs) return; // no queue
-    this.attack = { id: ++this.attackSeq, dir: this.dir, elapsed: 0, hitChecked: false };
+    if (!this.player || this.playerDeadMs >= 0 || this.attack || this.sinceAttackStart < A.cooldownMs) return; // no queue
+    this.attack = { id: ++this.attackSeq, dir: this.dir, elapsed: 0, hitChecked: false, slashSpawned: false, lungeApplied: 0 };
     this.sinceAttackStart = 0;
+    this.vx = 0; this.vy = 0;
     const p = this.player;
     if (p.anims.isPlaying) p.anims.stop();
     this.setBodyScale(CT.attack.frameHeight, CT.attack.displayHeight, CT.attack.origin);
@@ -215,6 +287,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private cancelAttack(): void {
     if (!this.attack || !this.player) return;
+    this.applyLunge(this.attack, 0); // step back from any lunge
     this.attack = null;
     this.setIdle();
   }
@@ -223,8 +296,19 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const a = this.attack!;
     a.elapsed += ms;
     if (!a.hitChecked && a.elapsed >= A.hitAtMs) { a.hitChecked = true; this.resolveHit(a); }
-    if (a.elapsed >= A.totalDurationMs) { this.attack = null; this.setIdle(); return; }
+    if (!a.slashSpawned && a.elapsed >= A.hitAtMs) { a.slashSpawned = true; this.spawnSlash(a.dir); }
+    if (a.elapsed >= A.totalDurationMs) { this.applyLunge(a, 0); this.attack = null; this.setIdle(); return; }
+    this.applyLunge(a, lungeAt(a.elapsed));
     this.showAttackFrame();
+  }
+
+  /** Moves the feet toward the wanted lunge offset along the facing, never into colliders. */
+  private applyLunge(a: Attack, want: number): void {
+    const p = this.player!, f = FACING[a.dir];
+    const delta = want - a.lungeApplied;
+    if (delta === 0) return;
+    const nx = p.x + f[0] * delta, ny = p.y + f[1] * delta;
+    if (this.footAllowed(nx, ny) || delta < 0) { p.x = nx; p.y = ny; a.lungeApplied = want; }
   }
 
   private showAttackFrame(): void {
@@ -235,25 +319,87 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.player!.setTexture(CT.attack.key, frames[phase]);
   }
 
-  /** Single range + facing check against the dummy's feet; at most one hit per attack id. */
-  private resolveHit(a: Attack): void {
+  private inSwing(a: Attack, tx: number, ty: number): boolean {
     const p = this.player!;
-    if (!this.dummyAlive || this.lastHitAttackId === a.id) return;
-    const vx = D.x - p.x, vy = D.y - p.y, dist = Math.hypot(vx, vy);
-    if (dist > A.range || dist === 0) return;
-    const f = COMBAT.facing[a.dir];
-    if ((vx * f[0] + vy * f[1]) / dist < A.minimumFacingDot) return;
-    this.lastHitAttackId = a.id;
-    this.dummyHp = Math.max(0, this.dummyHp - A.damage);
-    this.flashLeft = D.hitFlashMs;
-    this.dummy!.setTintFill(0xffffff);
-    this.spawnImpact();
-    if (this.dummyHp === 0) {
-      this.dummyAlive = false;
-      this.dummy!.setVisible(false);
-      this.respawnLeft = D.respawnDelayMs;
+    const vx = tx - p.x, vy = ty - p.y, dist = Math.hypot(vx, vy);
+    if (dist > A.range || dist === 0) return false;
+    const f = FACING[a.dir];
+    return (vx * f[0] + vy * f[1]) / dist >= A.minimumFacingDot;
+  }
+
+  /** Single range + facing check per target at the hit moment; at most one hit per target per attack id. */
+  private resolveHit(a: Attack): void {
+    let landed = false;
+    if (this.dummyAlive && this.lastHitAttackId !== a.id && this.inSwing(a, D.x, D.y)) {
+      this.lastHitAttackId = a.id;
+      this.dummyHp = Math.max(0, this.dummyHp - A.damage);
+      this.flashLeft = D.hitFlashMs;
+      this.dummy!.setTintFill(0xffffff);
+      this.spawnImpact(D.x + D.impactOffset.x, D.y + D.impactOffset.y);
+      if (this.dummyHp === 0) { this.dummyAlive = false; this.dummy!.setVisible(false); this.respawnLeft = D.respawnDelayMs; }
+      this.drawDummyBar();
+      landed = true;
     }
-    this.drawDummyBar();
+    const e = this.enemy;
+    if (e && e.alive && this.inSwing(a, e.x, e.y) && e.takeHit(S6.player.existingDamage)) {
+      this.spawnImpact(e.x, e.y + STAGE6.enemy.impactOffsetY);
+      landed = true;
+    }
+    if (landed) { // feel only: tiny hit-stop + camera shake
+      this.hitStopLeft = FEEL.hitStopMs;
+      this.cameras.main.shake(FEEL.cameraShakeMs, FEEL.cameraShakeIntensity);
+    }
+  }
+
+  private spawnSlash(dir: Dir): void {
+    const p = this.player!, f = FACING[dir], C = STAGE6.slash;
+    const s = this.add.image(p.x + f[0] * C.forward, p.y + f[1] * C.forward - C.up, slashKey(0))
+      .setOrigin(0.5, 0.5).setDepth(TOP_DEPTH).setAngle(C.rotationDeg[dir]);
+    s.setScale(C.displayHeight / s.height);
+    this.fx.push({ sprite: s, elapsed: 0, frameMs: 1000 / S6.fx.swordSlashFps, keys: [...Array(C.frames).keys()].map(slashKey) });
+  }
+
+  // ---------------- player damage / death ----------------
+
+  private damagePlayer(dmg: number): void {
+    if (this.playerDeadMs >= 0) return;
+    this.playerHP = Math.max(0, this.playerHP - dmg);
+    this.playerFlashMs = 0;
+    this.player!.setTintFill(0xffffff);
+    if (this.playerHP === 0) this.killPlayer();
+  }
+
+  private updatePlayerFlash(ms: number): void {
+    if (this.playerFlashMs < 0 || this.playerDeadMs >= 0) return;
+    this.playerFlashMs += ms;
+    const p = this.player!;
+    if (this.playerFlashMs >= P6.hitFlashRedMs) { p.clearTint(); this.playerFlashMs = -1; }
+    else if (this.playerFlashMs >= P6.hitFlashWhiteMs) p.setTint(0xff6a6a);
+  }
+
+  private killPlayer(): void {
+    this.cancelAttack();
+    this.keys && this.input.keyboard!.resetKeys();
+    this.vx = 0; this.vy = 0; this.hadInput = false;
+    this.playerDeadMs = 0;
+    this.player!.setTint(0xff4a4a);
+  }
+
+  private updateDeath(ms: number): void {
+    const p = this.player!;
+    this.playerDeadMs += ms;
+    const t = Math.min(1, this.playerDeadMs / P6.deathFadeMs);
+    p.setAlpha(1 - (1 - P6.deathAlpha) * t);
+    this.shadow?.setAlpha(1 - t);
+    if (this.playerDeadMs >= P6.deathFadeMs + P6.deathPauseMs) {
+      // Reset to courtyard spawn with full HP (no game-over screen in this stage).
+      p.setPosition(WORLD.spawn.x, WORLD.spawn.y).setAlpha(1).clearTint();
+      this.shadow?.setAlpha(1);
+      this.playerHP = S6.player.maxHp; this.playerDeadMs = -1; this.playerFlashMs = -1;
+      this.dir = ATLAS.initialDirection as Dir;
+      this.setIdle();
+      this.enemy?.alive && this.enemy.reset(); // the enemy returns to its post
+    }
   }
 
   // ---------------- dummy + effects ----------------
@@ -288,8 +434,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     g.lineStyle(1, col(h.border), 1).strokeRect(bx, by, h.width, h.height);
   }
 
-  private spawnImpact(): void {
-    const s = this.add.sprite(D.x + D.impactOffset.x, D.y + D.impactOffset.y, CT.impact.key, COMBAT_ASSETS.impactFrames[0])
+  private spawnImpact(x: number, y: number): void {
+    const s = this.add.sprite(x, y, CT.impact.key, COMBAT_ASSETS.impactFrames[0])
       .setOrigin(CT.impact.origin.x, CT.impact.origin.y).setDepth(TOP_DEPTH + 1);
     s.setScale(CT.impact.displayHeight / CT.impact.frameHeight);
     this.impacts.push({ sprite: s, elapsed: 0 });
@@ -302,6 +448,17 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const idx = Math.floor(i.elapsed / step);
       if (idx >= frames.length) { i.sprite.destroy(); return false; } // single play, never loops
       i.sprite.setFrame(frames[idx]);
+      return true;
+    });
+  }
+
+  /** Slash + dust: single-play image sequences, destroyed at the end. */
+  private updateFx(ms: number): void {
+    this.fx = this.fx.filter((f) => {
+      f.elapsed += ms;
+      const idx = Math.floor(f.elapsed / f.frameMs);
+      if (idx >= f.keys.length) { f.sprite.destroy(); return false; }
+      f.sprite.setTexture(f.keys[idx]);
       return true;
     });
   }

@@ -150,5 +150,25 @@ export const WORLD_HUD = {
   hint: { text: 'SPACE — ATTACK', centerX: 960, y: 1005, w: 300, h: 50, size: 22 },
 } as const;
 
+// ======================= Stage 6: Enemy Combat + Feel Polish =======================
+// Gameplay numbers live in src/data/stage6-combat.json; these are the approved placement/size/timing values
+// that the JSON does not define. World values are Stage 4 map pixels; Character Select values are 1920x1080 screen pixels.
+export const STAGE6 = {
+  floorFx: { key: 'characterSelect.floorFx', file: 'assets/character_select/selected_floor_fx.png', centerX: 985, centerY: 835, displayWidth: 470 },
+  enemy: {
+    spawn: { x: 1240, y: 430 }, collisionRadius: 18, footRadius: 10, respawnClearRadius: 28,
+    origin: { x: 0.5, y: 0.95 }, framePath: 'assets/enemy/cursed_swordsman',
+    actions: { idle: 4, walk: 6, attack: 6, hurt: 2, death: 6 },
+    idleFps: 8, walkFps: 10, deathFps: 10,
+    attackFrames: { windup: 2, active: 1, recovery: 3 }, // frames per phase (phase ms come from JSON)
+    hitCone: 0.5, // cos(60°): ±60° facing cone
+    impactOffsetY: -60, hitFlashMs: 80,
+  },
+  slash: { path: 'assets/fx/sword_slash', frames: 6, displayHeight: 90, forward: 40, up: 40,
+    rotationDeg: { right: 0, down: 90, left: 180, up: -90 } },
+  dust: { path: 'assets/fx/movement_dust', frames: 6, displayWidth: 44, minIntervalMs: 140 },
+  player: { walkThreshold: 12, hitFlashWhiteMs: 60, hitFlashRedMs: 140, deathFadeMs: 400, deathPauseMs: 1200, deathAlpha: 0.25 },
+} as const;
+
 // ======================= Build / QA =======================
-export const CURRENT_STAGE = 'Stage 5 — Training Combat';
+export const CURRENT_STAGE = 'Stage 6 — Enemy Combat + Feel Polish';

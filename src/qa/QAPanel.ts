@@ -37,6 +37,7 @@ export function startQAPanel(game: Phaser.Game): void {
     const top = active[active.length - 1];
     const key = top?.scene.key ?? '—';
     const cam = top?.cameras?.main;
+    const world = top as unknown as { playerHP?: number; enemy?: { state: string; hp: number } } | undefined;
     const player = (top as unknown as { player?: { x: number; y: number } } | undefined)?.player;
     const canvas = game.canvas.getBoundingClientRect();
     const a = ErrorCapture.getAssetCounts();
@@ -55,6 +56,8 @@ export function startQAPanel(game: Phaser.Game): void {
       `Player    ${player ? `${fmt(player.x)}, ${fmt(player.y)}` : '—'}`,
       `Camera    ${cam ? `${fmt(cam.scrollX)}, ${fmt(cam.scrollY)} zoom ${cam.zoom}` : '—'}`,
       `Slot      ${CharacterStore.getSelectedId() ?? '—'}`,
+      `PlayerHP  ${world?.playerHP ?? '—'}`,
+      `Enemy     ${world?.enemy ? `${world.enemy.state} ${world.enemy.hp}hp` : '—'}`,
       `Assets    ${a.loaded} loaded / ${a.failed} failed`,
       `Errors    ${ErrorCapture.getErrors().length}`,
       `Last err  ${last ? `[${last.kind}] ${last.message}`.slice(0, 160) : '—'}`,

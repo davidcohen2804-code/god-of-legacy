@@ -1,0 +1,47 @@
+{
+  "stage": "Stage 6 — Enemy Combat + Feel Polish",
+  "enemy": {
+    "id": "cursed_swordsman",
+    "maxHp": 100,
+    "damage": 10,
+    "aggroRadiusPx": 260,
+    "attackRangePx": 58,
+    "moveSpeedPxPerSec": 78,
+    "attackCooldownMs": 900,
+    "windupMs": 180,
+    "activeMs": 120,
+    "recoveryMs": 260,
+    "hurtLockMs": 140,
+    "deathRespawnMs": 1600
+  },
+  "player": {
+    "maxHp": 100,
+    "existingDamage": 25,
+    "movement": {
+      "accelerationPxPerSec2": 1350,
+      "decelerationPxPerSec2": 1750,
+      "keepExistingMaxSpeed": true,
+      "normalizeDiagonal": true
+    },
+    "attackFeel": {
+      "keepExistingDamageTimingAndCooldown": true,
+      "lungePx": 8,
+      "hitStopMs": 45,
+      "cameraShakeMs": 60,
+      "cameraShakeIntensity": 0.0015
+    }
+  },
+  "fx": {
+    "movementDustFps": 18,
+    "swordSlashFps": 24,
+    "characterSelectFloorPulseMs": 1400,
+    "characterSelectFloorAlpha": [
+      0.55,
+      0.82
+    ],
+    "characterSelectFloorScale": [
+      0.96,
+      1.03
+    ]
+  }
+}

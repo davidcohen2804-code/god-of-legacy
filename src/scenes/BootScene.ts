@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { ASSETS, ASSET_MANIFEST } from '../config/layout';
+import { ASSETS, ASSET_MANIFEST, STAGE6 } from '../config/layout';
 import { SettingsStore } from '../core/SettingsStore';
 import { PlatformAdapter } from '../core/PlatformAdapter';
 
@@ -9,6 +9,7 @@ export class BootScene extends Phaser.Scene {
   preload(): void {
     for (const a of Object.values(ASSETS)) this.load.image(a.key, a.file);
     for (const [key, file] of Object.entries(ASSET_MANIFEST)) this.load.image(key, file);
+    this.load.image(STAGE6.floorFx.key, STAGE6.floorFx.file);
   }
 
   create(): void {
