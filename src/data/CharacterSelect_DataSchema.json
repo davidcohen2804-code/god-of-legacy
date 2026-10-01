@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "maxSlots": 4,
+  "selectedSlotId": null,
+  "slots": [
+    {
+      "slotId": 1,
+      "character": null
+    },
+    {
+      "slotId": 2,
+      "character": null
+    },
+    {
+      "slotId": 3,
+      "character": null
+    },
+    {
+      "slotId": 4,
+      "character": null
+    }
+  ],
+  "characterShape": {
+    "id": "string",
+    "name": "string",
+    "classId": "string",
+    "level": "integer >= 1",
+    "createdAt": "ISO-8601 string",
+    "lastPlayedAt": "ISO-8601 string | null",
+    "appearanceId": "string | null"
+  }
+}
