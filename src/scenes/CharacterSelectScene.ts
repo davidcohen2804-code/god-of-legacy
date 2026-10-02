@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { CHARACTER_SELECT as L, CHARACTER_SELECT_PREVIEW as PV, COLORS, DESIGN, SELECT_HALO } from '../config/layout';
 import { CharacterSelectUI } from '../ui/CharacterSelectUI';
+import { isPvpUrl } from '../pvp/Room';
+import { enterPvp } from '../pvp/enterPvp';
 
 // Background/world presentation only; all UI lives in CharacterSelectUI (DOM overlay).
 export class CharacterSelectScene extends Phaser.Scene {
@@ -52,7 +54,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.ui = new CharacterSelectUI(this.game.canvas.parentElement!, this.game.canvas, {
       onBack: () => this.scene.start('MainMenuScene'),
       onCreate: () => this.scene.start('CharacterCreateScene'),
-      onEnterWorld: () => this.scene.start('LegacyCourtyardScene'),
+      onEnterWorld: () => (isPvpUrl() ? enterPvp(this) : this.scene.start('LegacyCourtyardScene')), // arrived via a PvP link
       onPreview: (key) => { if (key) { hero.setTexture(key); hero.setScale(PV.height / hero.height); } hero.setVisible(!!key); halo.setVisible(!!key); shadow.setVisible(!!key); },
     });
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, () => this.ui?.layout());

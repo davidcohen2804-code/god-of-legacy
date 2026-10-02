@@ -10,16 +10,18 @@ export const ASSETS = {
   start: { key: 'btn-start', file: 'assets/StartButton.png' },
   settings: { key: 'btn-settings', file: 'assets/SettingsButton.png' },
   exit: { key: 'btn-exit', file: 'assets/ExitButton.png' },
+  pvp: { key: 'btn-pvp', file: 'assets/PvpArenaButton.png' },
 } as const;
 
 export const LOGO = { centerX: 960, top: 28, width: 900 } as const;
 
 export interface ButtonLayout { x: number; y: number; w: number; h: number }
 
-export const MENU_BUTTONS: Record<'start' | 'settings' | 'exit', ButtonLayout> = {
-  start: { x: 960, y: 585, w: 600, h: 150 },
-  settings: { x: 960, y: 735, w: 500, h: 120 },
-  exit: { x: 960, y: 860, w: 500, h: 120 },
+export const MENU_BUTTONS: Record<'start' | 'pvp' | 'settings' | 'exit', ButtonLayout> = {
+  start: { x: 960, y: 560, w: 600, h: 150 },
+  pvp: { x: 960, y: 690, w: 500, h: 120 },
+  settings: { x: 960, y: 800, w: 500, h: 120 },
+  exit: { x: 960, y: 910, w: 500, h: 120 },
 };
 
 export const BUTTON_FX = {
@@ -202,5 +204,26 @@ export const AMBIENCE = {
   },
 } as const;
 
+// ======================= PVP Arena (basic) =======================
+/** World values are courtyard map pixels. Combat numbers (damage 25, range, facing, timing) come from training-combat.json. */
+export const PVP = {
+  maxPlayers: 8,
+  maxHp: 100,
+  respawnMs: 1600,
+  sendHz: 20, // movement snapshots per second while something changes
+  idleResendMs: 500, // keep-alive snapshot when nothing changes (late joiners get state)
+  interpDelayMs: 100, // remote players render this far in the past, interpolated
+  spawnPoints: [
+    { x: 835, y: 780 }, { x: 330, y: 770 }, { x: 1300, y: 800 }, { x: 640, y: 370 },
+    { x: 1100, y: 370 }, { x: 240, y: 560 }, { x: 1490, y: 500 }, { x: 835, y: 560 },
+  ],
+  spawnClearRadius: 120, // a spawn point closer than this to another player counts as occupied
+  remoteLabel: { size: 13, color: '#F3E7CF', gap: 6 },
+  hpBar: { w: 46, h: 5, fill: '#A73125', background: '#1B1F25', border: '#B79A5B' },
+  labelDepth: 100000,
+  impactUp: 64,
+  hud: { exitText: 'EXIT ARENA', status: { centerX: 960, centerY: 540, w: 420, h: 70, size: 28 } },
+} as const;
+
 // ======================= Build / QA =======================
-export const CURRENT_STAGE = 'Stage 6 — Enemy Combat + Feel Polish';
+export const CURRENT_STAGE = 'PVP Arena — basic multiplayer';

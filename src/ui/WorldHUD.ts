@@ -1,12 +1,13 @@
 // Minimal world HUD (DOM overlay): character name + Back to Characters.
-import { WORLD_HUD as H } from '../config/layout';
+import { PVP, WORLD_HUD as H } from '../config/layout';
 import { ensureCharacterUIStyles, syncOverlay } from './CharacterSelectUI';
 
 export class WorldHUD {
   private root: HTMLDivElement;
   private lastRect = '';
+  private status?: HTMLDivElement;
 
-  constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, name: string, onBack: () => void, showAttackHint = true) {
+  constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, name: string, onBack: () => void, showAttackHint = true, backText = 'BACK TO CHARACTERS') {
     ensureCharacterUIStyles();
     this.root = document.createElement('div');
     this.root.className = 'gol-cs';
@@ -25,7 +26,7 @@ export class WorldHUD {
     const btn = document.createElement('button');
     btn.className = 'btn abs';
     const label = document.createElement('span');
-    label.textContent = 'BACK TO CHARACTERS';
+    label.textContent = backText;
     btn.appendChild(label);
     btn.style.fontSize = `${H.back.size}px`;
     this.box(btn, H.back.x, H.back.y, H.back.w, H.back.h);
@@ -44,6 +45,23 @@ export class WorldHUD {
     if (showAttackHint) this.root.appendChild(hint);
 
     this.layout();
+  }
+
+  /** PvP: simple centered status line (CONNECTING… / ROOM FULL); null hides it. */
+  setStatus(text: string | null): void {
+    if (!text) { this.status?.remove(); this.status = undefined; return; }
+    if (!this.status) {
+      const S = PVP.hud.status;
+      this.status = document.createElement('div');
+      this.status.className = 'abs panel';
+      this.box(this.status, S.centerX - S.w / 2, S.centerY - S.h / 2, S.w, S.h);
+      Object.assign(this.status.style, {
+        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: `${S.size}px`,
+        fontWeight: '700', letterSpacing: '2px', color: '#E8C77E',
+      });
+      this.root.appendChild(this.status);
+    }
+    this.status.textContent = text;
   }
 
   layout(): void {

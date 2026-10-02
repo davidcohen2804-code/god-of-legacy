@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { ASSETS, ASSET_MANIFEST } from '../config/layout';
 import { SettingsStore } from '../core/SettingsStore';
 import { PlatformAdapter } from '../core/PlatformAdapter';
+import { isPvpUrl } from '../pvp/Room';
+import { enterPvp } from '../pvp/enterPvp';
 
 export class BootScene extends Phaser.Scene {
   constructor() { super('BootScene'); }
@@ -18,6 +20,7 @@ export class BootScene extends Phaser.Scene {
     // Fullscreen needs a user gesture in browsers, so a saved "On" is applied
     // when the player toggles it; keep the stored value in sync with reality.
     if (s.fullscreen && !this.scale.isFullscreen) SettingsStore.set('fullscreen', false);
-    this.scene.start('MainMenuScene');
+    if (isPvpUrl()) enterPvp(this); // shared ?mode=pvp&room=ID link opens the arena directly
+    else this.scene.start('MainMenuScene');
   }
 }

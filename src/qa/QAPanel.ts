@@ -37,7 +37,8 @@ export function startQAPanel(game: Phaser.Game): void {
     const top = active[active.length - 1];
     const key = top?.scene.key ?? '—';
     const cam = top?.cameras?.main;
-    const world = top as unknown as { playerHP?: number; enemy?: { state: string; hp: number } } | undefined;
+    const world = top as unknown as { playerHP?: number; enemy?: { state: string; hp: number }; pvp?: { qaInfo(): Record<string, string> } } | undefined;
+    const pvp = world?.pvp?.qaInfo();
     const player = (top as unknown as { player?: { x: number; y: number } } | undefined)?.player;
     const canvas = game.canvas.getBoundingClientRect();
     const a = ErrorCapture.getAssetCounts();
@@ -49,7 +50,7 @@ export function startQAPanel(game: Phaser.Game): void {
       `Built     ${BuildInfo.builtAt.replace('T', ' ').slice(0, 19)} UTC`,
       `Stage     ${BuildInfo.stage}`,
       `Scene     ${active.map((s) => s.scene.key).join(', ') || '—'}`,
-      `State     ${(STATE_BY_SCENE[key] ?? key) + modal}`,
+      `State     ${(pvp ? 'world: pvp-arena' : STATE_BY_SCENE[key] ?? key) + modal}`,
       `FPS       ${game.loop.actualFps.toFixed(0)}`,
       `Viewport  ${window.innerWidth}x${window.innerHeight}`,
       `Game      ${game.scale.width}x${game.scale.height} → ${fmt(canvas.width)}x${fmt(canvas.height)}`,
@@ -58,6 +59,10 @@ export function startQAPanel(game: Phaser.Game): void {
       `Slot      ${CharacterStore.getSelectedId() ?? '—'}`,
       `PlayerHP  ${world?.playerHP ?? '—'}`,
       `Enemy     ${world?.enemy ? `${world.enemy.state} ${world.enemy.hp}hp` : '—'}`,
+      ...(pvp ? [
+        `Mode      ${pvp.Mode}`, `Room      ${pvp.Room}`, `Transport ${pvp.Transport}`, `Connection ${pvp.Connection}`,
+        `LocalId   ${pvp.LocalId}`, `Players   ${pvp.Players}`, `LastNet   ${pvp.LastNet}`,
+      ] : []),
       `Assets    ${a.loaded} loaded / ${a.failed} failed`,
       `Errors    ${ErrorCapture.getErrors().length}`,
       `Last err  ${last ? `[${last.kind}] ${last.message}`.slice(0, 160) : '—'}`,
