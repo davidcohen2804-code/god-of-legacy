@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "character": {
+    "id": "book_mage",
+    "name": "Book Mage",
+    "classId": "book_mage",
+    "appearanceId": "book_mage_default",
+    "sprite": "assets/characters/book-mage/Book_Mage_Full_Sheet.png",
+    "portrait": "assets/characters/book-mage/Book_Mage_Portrait.png",
+    "preview": "assets/characters/book-mage/Book_Mage_Preview.png"
+  },
+  "spriteSheet": {
+    "width": 1448,
+    "height": 1086,
+    "layout": "irregular; use explicit atlas rectangles, not a uniform spritesheet grid",
+    "initialDownFrame": {
+      "x": 20,
+      "y": 10,
+      "width": 75,
+      "height": 155
+    },
+    "animationSetup": "Inspect and map idle/walk poses from original artwork during integration. Align to a common foot anchor. Do not activate spell or attack poses."
+  },
+  "provenance": {
+    "fullSheet": "Unmodified supplied image; irregular layout, not a uniform Phaser grid.",
+    "portraitCropXYXY": [
+      295,
+      0,
+      725,
+      430
+    ],
+    "inEngineValidation": "Required during integration; package is not a runtime test."
+  },
+  "scope": {
+    "newSkills": false,
+    "newAttacks": false,
+    "combatRework": false,
+    "networking": false
+  }
+}

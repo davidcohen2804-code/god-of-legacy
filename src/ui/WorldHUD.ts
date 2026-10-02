@@ -6,7 +6,7 @@ export class WorldHUD {
   private root: HTMLDivElement;
   private lastRect = '';
 
-  constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, name: string, onBack: () => void) {
+  constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, name: string, onBack: () => void, showAttackHint = true) {
     ensureCharacterUIStyles();
     this.root = document.createElement('div');
     this.root.className = 'gol-cs';
@@ -41,7 +41,7 @@ export class WorldHUD {
       letterSpacing: '2px', color: '#F3E7CF', opacity: '0.9',
     });
     hint.textContent = H.hint.text;
-    this.root.appendChild(hint);
+    if (showAttackHint) this.root.appendChild(hint);
 
     this.layout();
   }

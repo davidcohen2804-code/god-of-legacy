@@ -1,11 +1,13 @@
 // DOM overlay for Character Creation: name field, fixed Warrior class panel, BACK / CREATE CHARACTER.
-import { CHARACTER_CREATE as L, CLASS_NAMES } from '../config/layout';
+import { CHARACTER_CREATE as L, CLASS_NAMES, CLASS_OPTIONS } from '../config/layout';
 import { CharacterStore } from '../characters/CharacterStore';
 import { ensureCharacterUIStyles, syncOverlay } from './CharacterSelectUI';
 
 export interface CharacterCreateHandlers {
   onBack: () => void;
   onCreated: () => void;
+  /** Selected class changed (scene swaps the centre preview). */
+  onClassChange: (classId: string, appearanceId: string) => void;
 }
 
 const STYLE_ID = 'gol-charcreate-style';
@@ -17,14 +19,17 @@ const CSS = `
   box-shadow:inset 0 0 0 3px rgba(5,9,14,.9),inset 0 0 0 4px rgba(232,199,126,.25)}
 .gol-cs .cc-input::placeholder{color:rgba(243,231,207,.4)}
 .gol-cs .cc-input:focus{border-color:#E8C77E;box-shadow:inset 0 0 0 3px rgba(5,9,14,.9),inset 0 0 0 4px rgba(232,199,126,.4),0 0 10px rgba(232,199,126,.35)}
-.gol-cs .cc-class{position:absolute;left:0;width:100%;text-align:center;font-weight:700;letter-spacing:2px;
-  font-size:${L.classPanel.nameSize}px;color:#E8C77E;text-shadow:0 2px 4px #000}
+.gol-cs .cc-opt{left:40px}
+.gol-cs .cc-opt:not(.primary){opacity:.72}
+.gol-cs .cc-opt:not(.primary):hover{opacity:1}
 `;
 
 export class CharacterCreateUI {
   private root: HTMLDivElement;
   private input: HTMLInputElement;
   private btnCreate: HTMLButtonElement;
+  private classBtns: HTMLButtonElement[] = [];
+  private classIdx = 0;
   private lastRect = '';
   private readonly onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape') { e.preventDefault(); this.h.onBack(); }
@@ -60,14 +65,23 @@ export class CharacterCreateUI {
     const kp = this.el('div', 'abs panel info', this.root);
     this.box(kp, K.x, K.y, K.w, K.h);
     const h3 = this.el('h2', '', kp); h3.textContent = 'CLASS'; h3.style.top = `${K.headerTop}px`;
-    const cn = this.el('div', 'cc-class', kp); cn.textContent = (CLASS_NAMES[L.classId] ?? L.classId).toUpperCase();
-    cn.style.top = `${K.nameTop}px`;
+    // Class choice: one button per class; the selected one uses the primary (crimson) style.
+    CLASS_OPTIONS.forEach((opt, i) => {
+      const b = this.el('button', 'btn abs cc-opt', kp) as HTMLButtonElement;
+      this.el('span', '', b).textContent = (CLASS_NAMES[opt.classId] ?? opt.classId).toUpperCase();
+      b.style.fontSize = `${K.optionSize}px`;
+      this.box(b, (K.w - K.optionW) / 2, K.optionTop + i * K.optionGap, K.optionW, K.optionH);
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('click', () => this.selectClass(i));
+      this.classBtns.push(b);
+    });
 
     // Buttons.
     this.button('BACK', L.buttons.back, () => this.h.onBack());
     this.btnCreate = this.button('CREATE CHARACTER', L.buttons.create, () => this.create(), true);
 
     window.addEventListener('keydown', this.onKey);
+    this.selectClass(0);
     this.render();
     this.layout();
     this.input.focus();
@@ -91,7 +105,15 @@ export class CharacterCreateUI {
   private create(): void {
     const id = CharacterStore.getSelectedId();
     if (!id || !this.canCreate()) return;
-    if (CharacterStore.createCharacter(id, this.input.value, L.classId, L.appearanceId)) this.h.onCreated();
+    const opt = CLASS_OPTIONS[this.classIdx];
+    if (CharacterStore.createCharacter(id, this.input.value, opt.classId, opt.appearanceId)) this.h.onCreated();
+  }
+
+  private selectClass(i: number): void {
+    this.classIdx = i;
+    this.classBtns.forEach((b, k) => b.classList.toggle('primary', k === i));
+    const opt = CLASS_OPTIONS[i];
+    this.h.onClassChange(opt.classId, opt.appearanceId);
   }
 
   private render(): void {

@@ -83,6 +83,7 @@ export const ASSET_MANIFEST = {
   'characterSelect.background': 'assets/CharacterSelect_Background_1920x1080.png',
   'characterSelect.slotFrame': 'assets/CharacterSlot_Frame.png',
   'characterCreate.warriorPreview': 'assets/Warrior_Preview.png',
+  'bookMage.preview': 'assets/characters/book-mage/Book_Mage_Preview.png',
 } as const;
 export type AssetKey = keyof typeof ASSET_MANIFEST;
 
@@ -111,7 +112,13 @@ export const CHARACTER_SELECT = {
 // ======================= Stage 3: Character Creation =======================
 
 /** Display names for stored classId values. */
-export const CLASS_NAMES: Record<string, string> = { warrior: 'Warrior' };
+export const CLASS_NAMES: Record<string, string> = { warrior: 'Warrior', book_mage: 'Book Mage' };
+
+/** Selectable classes in Character Creation (classId + its single appearance). */
+export const CLASS_OPTIONS = [
+  { classId: 'warrior', appearanceId: 'warrior_default' },
+  { classId: 'book_mage', appearanceId: 'book_mage_default' },
+] as const;
 
 export const CHARACTER_CREATE = {
   title: { text: 'CREATE YOUR LEGACY', top: 46, size: 46 },
@@ -119,23 +126,30 @@ export const CHARACTER_CREATE = {
     x: 90, y: 190, w: 470, h: 330, headerSize: 32, headerTop: 30,
     labelTop: 110, labelSize: 20, input: { top: 145, h: 58, size: 24, maxLength: 16 },
   },
-  classPanel: { x: 1390, y: 190, w: 425, h: 330, headerSize: 32, headerTop: 30, nameTop: 150, nameSize: 40 },
+  classPanel: { x: 1390, y: 190, w: 425, h: 330, headerSize: 32, headerTop: 30, optionTop: 110, optionGap: 88, optionW: 345, optionH: 66, optionSize: 26 },
   preview: { centerX: 985, top: 110, height: 790, pedestalY: 885, rx: 235, ry: 57 },
   buttons: {
     back: { x: 90, y: 855, w: 255, h: 64, size: 28 },
     create: { x: 1390, y: 842, w: 425, h: 70, size: 28 },
   },
-  classId: 'warrior',
-  appearanceId: 'warrior_default',
 } as const;
 
 /** classId/appearanceId -> full-body preview (Character Select stage + slot portrait crop in source pixels). */
-export const CHARACTER_PREVIEWS: Record<string, { key: string; file: string; width: number; height: number; crop: { x: number; y: number; w: number } }> = {
+export const CHARACTER_PREVIEWS: Record<string, { key: string; file: string; width: number; height: number; crop: { x: number; y: number; w: number }; portrait?: string }> = {
   'warrior/warrior_default': {
     key: 'characterCreate.warriorPreview', file: 'assets/Warrior_Preview.png', width: 1024, height: 1536,
     crop: { x: 400, y: 40, w: 420 },
   },
+  'book_mage/book_mage_default': {
+    key: 'bookMage.preview', file: 'assets/characters/book-mage/Book_Mage_Preview.png', width: 1086, height: 1448,
+    crop: { x: 295, y: 0, w: 430 }, portrait: 'assets/characters/book-mage/Book_Mage_Portrait.png',
+  },
 };
+
+/** Book Mage world sprite: explicit rects in src/data/book-mage-atlas.json (irregular sheet, no uniform grid). */
+export const BOOK_MAGE_WORLD = {
+  sheetKey: 'bookMage.sheet', sheetFile: 'assets/characters/book-mage/Book_Mage_Full_Sheet.png', walkFps: 8,
+} as const;
 
 /** Full-body preview on the Character Select platform (feet on the pedestal). */
 export const CHARACTER_SELECT_PREVIEW = { centerX: 985, feetY: 835, height: 700 } as const;

@@ -53,7 +53,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       onBack: () => this.scene.start('MainMenuScene'),
       onCreate: () => this.scene.start('CharacterCreateScene'),
       onEnterWorld: () => this.scene.start('LegacyCourtyardScene'),
-      onPreview: (key) => { if (key) hero.setTexture(key); hero.setVisible(!!key); halo.setVisible(!!key); shadow.setVisible(!!key); },
+      onPreview: (key) => { if (key) { hero.setTexture(key); hero.setScale(PV.height / hero.height); } hero.setVisible(!!key); halo.setVisible(!!key); shadow.setVisible(!!key); },
     });
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, () => this.ui?.layout());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {

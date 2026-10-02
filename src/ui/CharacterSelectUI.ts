@@ -221,7 +221,10 @@ export class CharacterSelectUI {
       // Face/upper-body crop of the same full-body preview (display-only; empty slots stay blank).
       const pv = c ? previewFor(c) : undefined;
       const po = d.children[2] as HTMLElement;
-      if (pv) {
+      if (pv?.portrait) {
+        // Dedicated portrait file (face/shoulders), scaled to the frame.
+        Object.assign(po.style, { backgroundImage: `url("${pv.portrait}")`, backgroundSize: 'cover', backgroundPosition: 'center top' });
+      } else if (pv) {
         const k = L.slots.portrait.size / pv.crop.w;
         Object.assign(po.style, {
           backgroundImage: `url("${pv.file}")`,

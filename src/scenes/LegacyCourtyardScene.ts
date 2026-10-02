@@ -6,7 +6,8 @@ import ATLAS from '../data/asset-manifest.json';
 import COMBAT_ASSETS from '../data/stage5-assets.json';
 import COMBAT from '../data/training-combat.json';
 import S6 from '../data/stage6-combat.json';
-import { STAGE6, WORLD_HUD } from '../config/layout';
+import { BOOK_MAGE_WORLD, STAGE6, WORLD_HUD } from '../config/layout';
+import MAGE_ATLAS from '../data/book-mage-atlas.json';
 import { CharacterStore } from '../characters/CharacterStore';
 import { WorldHUD } from '../ui/WorldHUD';
 import { Dir, facingFrom, footAllowedStatic } from '../world/collision';
@@ -27,6 +28,9 @@ const FACING = COMBAT.facing as Record<Dir, number[]>;
 interface Attack { id: number; dir: Dir; elapsed: number; hitChecked: boolean; slashSpawned: boolean; lungeApplied: number }
 interface Fx { sprite: Phaser.GameObjects.Image; elapsed: number; frameMs: number; keys: string[] }
 
+type MageRect = { x: number; y: number; w: number; h: number; ax: number; ay: number };
+const MAGE = MAGE_ATLAS as unknown as Record<Dir, { idle: MageRect[]; walk: MageRect[] }>;
+const mageFrameName = (dir: Dir, action: 'idle' | 'walk', i: number) => `mage-${dir}-${action}-${i}`;
 const slashKey = (i: number) => `fx-slash-${i}`;
 const dustKey = (i: number) => `fx-dust-${i}`;
 
@@ -47,6 +51,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   playerHP = S6.player.maxHp;
   enemy?: CursedSwordsman;
   private ambience?: CourtyardAmbience;
+  /** Book Mage uses its own sheet frames and has no attack in this build. */
+  private isMage = false;
+  private mageWalkMs = 0;
   private shadow?: Phaser.GameObjects.Ellipse;
   private keys?: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' | 'SPACE', Phaser.Input.Keyboard.Key>;
   private dir: Dir = ATLAS.initialDirection as Dir;
@@ -89,11 +96,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     for (let i = 0; i < STAGE6.slash.frames; i++) if (!this.textures.exists(slashKey(i))) this.load.image(slashKey(i), `${STAGE6.slash.path}/0${i}.png`);
     for (let i = 0; i < STAGE6.dust.frames; i++) if (!this.textures.exists(dustKey(i))) this.load.image(dustKey(i), `${STAGE6.dust.path}/0${i}.png`);
     preloadEnemyFrames(this);
+    if (!this.textures.exists(BOOK_MAGE_WORLD.sheetKey)) this.load.image(BOOK_MAGE_WORLD.sheetKey, BOOK_MAGE_WORLD.sheetFile);
   }
 
   create(): void {
     const character = CharacterStore.getSelectedCharacter();
     if (!character) { this.scene.start('CharacterSelectScene'); return; }
+    this.isMage = character.classId === 'book_mage';
+    this.mageWalkMs = 0;
+    if (this.isMage) this.registerMageFrames();
 
     // Reset scene-local state on every entry.
     this.attack = null; this.sinceAttackStart = Infinity; this.hitStopLeft = 0;
@@ -146,7 +157,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.game.events.on(Phaser.Core.Events.BLUR, stop);
     this.game.events.on(Phaser.Core.Events.HIDDEN, stop);
 
-    this.hud = new WorldHUD(this.game.canvas.parentElement!, this.game.canvas, character.name, () => this.scene.start('CharacterSelectScene'));
+    this.hud = new WorldHUD(this.game.canvas.parentElement!, this.game.canvas, character.name, () => this.scene.start('CharacterSelectScene'), !this.isMage);
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, () => this.hud?.layout());
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -233,7 +244,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.vx !== 0) { if (this.footAllowed(nx, p.y)) p.x = nx; else this.vx = 0; }
     if (this.vy !== 0) { if (this.footAllowed(p.x, ny)) p.y = ny; else this.vy = 0; }
 
-    if (Math.hypot(this.vx, this.vy) > P6.walkThreshold) {
+    if (Math.hypot(this.vx, this.vy) > P6.walkThreshold && this.isMage) {
+      this.mageWalkMs += ms;
+      this.setMageFrame('walk', Math.floor((this.mageWalkMs * BOOK_MAGE_WORLD.walkFps) / 1000) % MAGE[this.dir].walk.length);
+    } else if (Math.hypot(this.vx, this.vy) > P6.walkThreshold) {
       this.setBodyScale(T.walk.frameHeight, WORLD.player.displayHeight, WORLD.player.spriteOrigin);
       p.anims.play(`warrior-walk-${this.dir}`, true); // continues; never restarts per update
     } else {
@@ -258,8 +272,28 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     p.setScale(displayHeight / frameHeight);
   }
 
+  /** Explicit rectangles from the irregular Book Mage sheet, registered once as named texture frames. */
+  private registerMageFrames(): void {
+    const tex = this.textures.get(BOOK_MAGE_WORLD.sheetKey);
+    for (const dir of ['down', 'left', 'right', 'up'] as Dir[]) {
+      for (const action of ['idle', 'walk'] as const) {
+        MAGE[dir][action].forEach((r, i) => { const n = mageFrameName(dir, action, i); if (!tex.has(n)) tex.add(n, 0, r.x, r.y, r.w, r.h); });
+      }
+    }
+  }
+
+  /** Sets a Book Mage frame with its foot anchor as origin; scale matches the Warrior's visible body height. */
+  private setMageFrame(action: 'idle' | 'walk', i: number): void {
+    const p = this.player!, r = MAGE[this.dir][action][i];
+    if (p.anims.isPlaying) p.anims.stop();
+    p.setTexture(BOOK_MAGE_WORLD.sheetKey, mageFrameName(this.dir, action, i));
+    p.setOrigin((r.ax - r.x) / r.w, (r.ay - r.y) / r.h);
+    p.setScale(WORLD.player.displayHeight / MAGE.down.idle[0].h);
+  }
+
   private setIdle(): void {
     const p = this.player!;
+    if (this.isMage) { this.mageWalkMs = 0; this.setMageFrame('idle', 0); return; }
     if (p.anims.isPlaying) p.anims.stop();
     p.setTexture(T.idle.key, ATLAS.directions[this.dir].idleFrame);
     this.setBodyScale(T.idle.frameHeight, WORLD.player.displayHeight, WORLD.player.spriteOrigin);
@@ -281,6 +315,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   // ---------------- attack ----------------
 
   private beginAttack(): void {
+    if (this.isMage) return; // Book Mage has no attack in this build (never uses Warrior attack/slash assets)
     if (!this.player || this.playerDeadMs >= 0 || this.attack || this.sinceAttackStart < A.cooldownMs) return; // no queue
     this.attack = { id: ++this.attackSeq, dir: this.dir, elapsed: 0, hitChecked: false, slashSpawned: false, lungeApplied: 0 };
     this.sinceAttackStart = 0;
