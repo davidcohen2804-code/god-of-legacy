@@ -225,5 +225,24 @@ export const PVP = {
   hud: { exitText: 'EXIT ARENA', status: { centerX: 960, centerY: 540, w: 420, h: 70, size: 28 } },
 } as const;
 
+// ======================= In-game HUD (God-Of-Legacy-HUD package, hud-manifest.json) =======================
+/** 1920x1080 design pixels; the shared DOM overlay scales them to the displayed game rect (1280x720 => x2/3). */
+export const HUD = {
+  path: 'assets/hud',
+  player: { x: 28, y: 28, w: 430, h: 144 },
+  buffs: { x: 28, y: 184, w: 224, h: 32, icon: 32, gap: 6, max: 6 },
+  target: { x: 780, y: 28, w: 360, h: 108, icon: 40, effectsY: 120, effectIcon: 24 },
+  minimap: { x: 1700, y: 28, w: 192, h: 224, inset: [14, 14, 14, 46] as const, marker: 20, updateMs: 100 },
+  pvp: { x: 1700, y: 264, w: 192, h: 52 },
+  skills: { x: 635, y: 950, w: 650, h: 108, slot: 64, gap: 12, inner: [25, 14] as const, hotkeys: ['Space', '1', '2', '3', '4', '5', '6', '7'] },
+  combat: { x: 1652, y: 976, w: 240, h: 72 },
+  back: { x: 28, y: 1000, w: 300, h: 52, size: 20 },
+  /** Target = nearest living hostile within this many world px of the player (display only). */
+  targetRadius: 260,
+  pressMs: 80, barEaseMs: 120, feedbackFadeMs: 180,
+  palette: { surface: '#0d131b', gold: '#b49a59', text: '#efddb0', secondary: '#bbc3cc' },
+  bodyFont: '"Segoe UI", Arial, sans-serif',
+} as const;
+
 // ======================= Build / QA =======================
 export const CURRENT_STAGE = 'PVP Arena — basic multiplayer';

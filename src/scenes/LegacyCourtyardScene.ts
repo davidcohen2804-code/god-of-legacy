@@ -6,9 +6,11 @@ import ATLAS from '../data/asset-manifest.json';
 import COMBAT_ASSETS from '../data/stage5-assets.json';
 import COMBAT from '../data/training-combat.json';
 import S6 from '../data/stage6-combat.json';
-import { BOOK_MAGE_WORLD, PVP, STAGE6, WORLD_HUD } from '../config/layout';
+import { BOOK_MAGE_WORLD, CHARACTER_PREVIEWS, CLASS_NAMES, HUD, PVP, STAGE6, WORLD_HUD } from '../config/layout';
 import { CharacterStore } from '../characters/CharacterStore';
 import { WorldHUD } from '../ui/WorldHUD';
+import { HudMarker, HudSlot, HudState, PortraitRef } from '../ui/hud/HudState';
+import { Character } from '../characters/CharacterTypes';
 import { Dir, facingFrom, footAllowedStatic } from '../world/collision';
 import { CursedSwordsman, preloadEnemyFrames } from '../world/CursedSwordsman';
 import { CourtyardAmbience } from '../world/Ambience';
@@ -43,6 +45,13 @@ function lungeAt(e: number): number {
   return 0;
 }
 
+/** Existing class portrait: dedicated portrait file, else the Character Select crop of the full-body preview. */
+function portraitOf(classId: string, appearanceId: string): PortraitRef | undefined {
+  const pv = CHARACTER_PREVIEWS[`${classId}/${appearanceId}`];
+  if (!pv) return undefined;
+  return pv.portrait ? { url: pv.portrait } : { url: pv.file, crop: { x: pv.crop.x, y: pv.crop.y, w: pv.crop.w, imgW: pv.width, imgH: pv.height } };
+}
+
 /** Stage 5 hit rule: target feet within range and inside the facing cone of the attacker's feet. */
 function swingHits(ax: number, ay: number, dir: Dir, tx: number, ty: number): boolean {
   const vx = tx - ax, vy = ty - ay, dist = Math.hypot(vx, vy);
@@ -65,6 +74,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private keys?: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' | 'SPACE', Phaser.Input.Keyboard.Key>;
   private dir: Dir = ATLAS.initialDirection as Dir;
   private hud?: WorldHUD;
+  private character?: Character;
 
   // Movement (Stage 6 polish).
   private vx = 0;
@@ -177,10 +187,17 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.game.events.on(Phaser.Core.Events.HIDDEN, stop);
 
     const exitArena = () => { clearPvpFromUrl(); this.scene.start('MainMenuScene'); };
-    this.hud = pvpRoom
-      ? new WorldHUD(this.game.canvas.parentElement!, this.game.canvas, character.name, exitArena, !this.isMage, PVP.hud.exitText)
-      : new WorldHUD(this.game.canvas.parentElement!, this.game.canvas, character.name, () => this.scene.start('CharacterSelectScene'), !this.isMage);
-    this.events.on(Phaser.Scenes.Events.POST_UPDATE, () => this.hud?.layout());
+    this.character = character;
+    this.hud = new WorldHUD(this.game.canvas.parentElement!, this.game.canvas, {
+      returnLabel: pvpRoom ? PVP.hud.exitText : 'BACK TO CHARACTERS',
+      onReturn: pvpRoom ? exitArena : () => this.scene.start('CharacterSelectScene'),
+      onBasicAttack: () => { if (this.pvpReady) this.beginAttack(); }, // same permission checks as Space
+    });
+    this.events.on(Phaser.Scenes.Events.POST_UPDATE, (_t: number, d: number) => {
+      if (!this.hud) return;
+      this.hud.layout();
+      if (this.player) this.hud.update(this.hudState(), this.time.now, d);
+    });
     if (pvpRoom) {
       kb.on('keydown-ESC', exitArena);
       this.startPvp(pvpRoom, { playerId: newPlayerId(), characterId: character.id, classId: character.classId, name: character.name });
@@ -207,6 +224,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.ambience = undefined;
       this.hud?.destroy();
       this.hud = undefined;
+      this.character = undefined;
       this.keys = undefined;
       this.player = undefined;
       this.dummy = undefined;
@@ -459,6 +477,63 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const free = pts.filter((s) => clearance(s) >= PVP.spawnClearRadius);
     if (free.length) return free[Math.floor(Math.random() * free.length)];
     return pts.reduce((best, s) => (clearance(s) > clearance(best) ? s : best), pts[0]);
+  }
+
+  // ---------------- HUD adapter (reads existing state only; no gameplay) ----------------
+
+  private hudState(): HudState {
+    const p = this.player!, ch = this.character!, now = this.time.now;
+    const alive = this.playerDeadMs < 0;
+    const pvp = this.pvp;
+    const markers: HudMarker[] = [];
+    if (this.pvpReady) markers.push({ id: 'local', kind: 'player', x: p.x, y: p.y });
+    for (const r of pvp?.remotes.values() ?? []) if (r.alive) markers.push({ id: r.meta.playerId, kind: 'remote', x: r.x, y: r.y });
+    if (this.enemy?.alive) markers.push({ id: 'enemy', kind: 'enemy', x: this.enemy.x, y: this.enemy.y });
+
+    const cooling = !this.isMage && this.sinceAttackStart < A.cooldownMs;
+    const slots: HudSlot[] = HUD.skills.hotkeys.map((hotkey, i) => i === 0
+      ? {
+        id: 'basic-attack', hotkey, iconUrl: `${HUD.path}/icon-attack.png`,
+        label: this.isMage ? 'No basic attack' : 'Basic Attack',
+        assigned: true, enabled: !this.isMage && alive && this.pvpReady,
+        pressed: !!this.keys?.SPACE.isDown,
+        cooldown: cooling ? { endTimeMs: now + (A.cooldownMs - this.sinceAttackStart), durationMs: A.cooldownMs } : null,
+      }
+      : { id: `slot-${hotkey}`, hotkey, label: 'Unassigned', assigned: false, enabled: false, pressed: false, cooldown: null });
+
+    return {
+      mode: pvp ? 'pvp' : 'pve',
+      player: {
+        id: pvp?.meta.playerId ?? ch.id, name: ch.name, level: ch.level, portrait: portraitOf(ch.classId, ch.appearanceId ?? `${ch.classId}_default`),
+        hp: this.playerHP, maxHp: pvp ? PVP.maxHp : S6.player.maxHp, resource: null, effects: [],
+      },
+      target: alive && this.pvpReady ? this.hudTarget() : null,
+      slots,
+      minimap: {
+        label: WORLD.name, imageUrl: T.map.file, markers,
+        bounds: { minX: 0, minY: 0, width: WORLD.coordinateSpace.width, height: WORLD.coordinateSpace.height },
+      },
+      room: pvp ? { label: `ROOM ${pvp.room}`, playerCount: pvp.connected ? pvp.remotes.size + 1 : 0, maxPlayers: PVP.maxPlayers } : null,
+      combatFeedback: null,
+    };
+  }
+
+  /** Contextual target: nearest living hostile within HUD.targetRadius of the player (display only). */
+  private hudTarget(): HudState['target'] {
+    const p = this.player!;
+    let best: HudState['target'] = null, bestD: number = HUD.targetRadius;
+    const consider = (d: number, t: NonNullable<HudState['target']>) => { if (d <= bestD) { bestD = d; best = t; } };
+    const e = this.enemy;
+    if (e?.alive) consider(Math.hypot(e.x - p.x, e.y - p.y), { id: 'enemy', name: 'Cursed Swordsman', type: 'Enemy', hp: e.hp, maxHp: S6.enemy.maxHp, effects: [] });
+    if (this.dummy && this.dummyAlive) consider(Math.hypot(D.x - p.x, D.y - p.y), { id: 'dummy', name: 'Training Dummy', type: 'Training Target', hp: this.dummyHp, maxHp: D.maxHp, effects: [] });
+    for (const r of this.pvp?.remotes.values() ?? []) {
+      if (!r.alive) continue;
+      consider(Math.hypot(r.x - p.x, r.y - p.y), {
+        id: r.meta.playerId, name: r.meta.name, type: `Player · ${CLASS_NAMES[r.meta.classId] ?? r.meta.classId}`,
+        portrait: portraitOf(r.meta.classId, `${r.meta.classId}_default`), hp: r.hp, maxHp: PVP.maxHp, effects: [],
+      });
+    }
+    return best;
   }
 
   private damagePlayer(dmg: number): void {
