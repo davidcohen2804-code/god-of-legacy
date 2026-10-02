@@ -14,7 +14,13 @@ import { Character } from '../characters/CharacterTypes';
 import { Dir, facingFrom, footAllowedStatic } from '../world/collision';
 import { CursedSwordsman, preloadEnemyFrames } from '../world/CursedSwordsman';
 import { CourtyardAmbience } from '../world/Ambience';
-import { mageWalkIndex, registerMageFrames, setMageFrame, setWarriorAttackFrame, setWarriorIdle, setWarriorWalk } from '../world/CharacterSprite';
+import { mageWalkIndex, registerMageFrames, setMageFrame, setWarriorAttackFrame, setWarriorAttackPhase, setWarriorIdle, setWarriorWalk, skillPoseIndex } from '../world/CharacterSprite';
+import { CastRun, EVENTS, SkillSystem } from '../skills/SkillSystem';
+import { SkillDef, UNASSIGNED_ICON, damageFor, getSkill, slotsForClass } from '../skills/SkillRegistry';
+import { HitTarget, dashEnd, knockbackDir, placementLegal, runePlacement, shapeHits, spawnProjectile, stepProjectile, sweepStatic } from '../skills/HitResolver';
+import { ControlState } from '../skills/ControlPolicy';
+import { preloadSkillVfx } from '../skills/SkillVfx';
+import { isQAMode } from '../qa/QAPanel';
 import { PvpController } from '../pvp/PvpController';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
 
@@ -33,6 +39,14 @@ interface Attack { id: number; dir: Dir; elapsed: number; hitChecked: boolean; s
 interface Fx { sprite: Phaser.GameObjects.Image; elapsed: number; frameMs: number; keys: string[] }
 
 const slashKey = (i: number) => `fx-slash-${i}`;
+const SLOT_KEYS = ['SPACE', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN'] as const;
+type KeyName = 'W' | 'A' | 'S' | 'D' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' | (typeof SLOT_KEYS)[number];
+/** PvP victim-side sanity checks for a remote cast intent (network jitter tolerances). */
+const CAST_COOLDOWN_TOLERANCE_MS = 250;
+const CAST_ORIGIN_TOLERANCE_PX = 120;
+const CAST_FLASH_MS = 80; // Book Mage release flash (existing pose, no new animation)
+const skillLabel = (id: string) => id.split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
+const BASIC = () => getSkill('warrior_basic')!;
 const dustKey = (i: number) => `fx-dust-${i}`;
 
 /** Lunge distance along the facing for an attack elapsed time: ease-out during strike, hold, ease back in recovery. */
@@ -71,7 +85,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private isMage = false;
   private mageWalkMs = 0;
   private shadow?: Phaser.GameObjects.Ellipse;
-  private keys?: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' | 'SPACE', Phaser.Input.Keyboard.Key>;
+  private keys?: Record<KeyName, Phaser.Input.Keyboard.Key>;
   private dir: Dir = ATLAS.initialDirection as Dir;
   private hud?: WorldHUD;
   private character?: Character;
@@ -108,6 +122,19 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private pvpReady = false; // local player spawned after joining the room
   private hitsTaken = new Set<string>(); // attackerId:attackId already applied (one hit per attack)
 
+  // Skill System V1: one engine for PvE and PvP (read by QA).
+  skills?: SkillSystem;
+  private slotDefs: (SkillDef | null)[] = [];
+  private simMs = 0; // authority clock for this client's simulation (cooldowns, control)
+  private castSeq = 0;
+  private localId = 'local';
+  /** Hard-control state of the local player (this client is its authority in PvP). */
+  readonly control = new ControlState();
+  private selfKb: { vx: number; vy: number; left: number } | null = null;
+  private remoteCasts = new Map<string, number>(); // attackerId:skillId -> last accepted cast time
+  private seenCasts = new Set<string>();
+  private castFlashMs = -1;
+
   constructor() { super('LegacyCourtyardScene'); }
 
   preload(): void {
@@ -119,6 +146,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     for (let i = 0; i < STAGE6.slash.frames; i++) if (!this.textures.exists(slashKey(i))) this.load.image(slashKey(i), `${STAGE6.slash.path}/0${i}.png`);
     for (let i = 0; i < STAGE6.dust.frames; i++) if (!this.textures.exists(dustKey(i))) this.load.image(dustKey(i), `${STAGE6.dust.path}/0${i}.png`);
     preloadEnemyFrames(this);
+    preloadSkillVfx(this);
     if (!this.textures.exists(BOOK_MAGE_WORLD.sheetKey)) this.load.image(BOOK_MAGE_WORLD.sheetKey, BOOK_MAGE_WORLD.sheetFile);
   }
 
@@ -130,6 +158,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.mageWalkMs = 0;
     registerMageFrames(this); // remote PvP players may be Book Mages too
     this.pvp = undefined; this.pvpReady = !pvpRoom; this.hitsTaken = new Set();
+    const playerId = newPlayerId();
+    this.localId = pvpRoom ? playerId : 'local';
+    this.slotDefs = slotsForClass(character.classId);
+    this.simMs = 0; this.castSeq = 0; this.control.reset(); this.selfKb = null; this.castFlashMs = -1;
+    this.remoteCasts = new Map(); this.seenCasts = new Set();
 
     // Reset scene-local state on every entry.
     this.attack = null; this.sinceAttackStart = Infinity; this.hitStopLeft = 0;
@@ -176,10 +209,25 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.syncDepths();
     if (pvpRoom) { this.player.setVisible(false); this.shadow.setVisible(false); } // shown once the room is joined
 
+    this.skills = new SkillSystem(this, {
+      now: () => this.simMs,
+      targets: (r) => this.skillTargets(r),
+      onHit: (r, t) => this.onSkillHit(r, t),
+      casterPos: (id) => this.casterPos(id),
+      onPhase: (r, ph) => this.onSkillPhase(r, ph),
+    });
+    if (isQAMode()) {
+      (window as unknown as { __skillsQA: unknown }).__skillsQA = { shapeHits, stepProjectile, spawnProjectile, sweepStatic, damageFor, getSkill, ControlState, EVENTS };
+    }
+
     const kb = this.input.keyboard!;
-    this.keys = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SPACE') as LegacyCourtyardScene['keys'];
-    const onSpace = (e: KeyboardEvent) => { if (!e.repeat) this.beginAttack(); };
-    kb.on('keydown-SPACE', onSpace);
+    this.keys = kb.addKeys(`W,A,S,D,UP,DOWN,LEFT,RIGHT,${SLOT_KEYS.join(',')}`) as LegacyCourtyardScene['keys'];
+    // Space / 1–7: one action handler per slot (the HUD buttons call the same handler).
+    const slotHandlers = SLOT_KEYS.map((name, i) => {
+      const h = (e: KeyboardEvent) => { if (!e.repeat) this.useSlot(i); };
+      kb.on(`keydown-${name}`, h);
+      return [name, h] as const;
+    });
 
     // Losing focus clears keys, stops movement and cancels an attack before it can hit.
     const stop = () => { kb.resetKeys(); this.vx = 0; this.vy = 0; this.cancelAttack(); };
@@ -191,23 +239,27 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.hud = new WorldHUD(this.game.canvas.parentElement!, this.game.canvas, {
       returnLabel: pvpRoom ? PVP.hud.exitText : 'BACK TO CHARACTERS',
       onReturn: pvpRoom ? exitArena : () => this.scene.start('CharacterSelectScene'),
-      onBasicAttack: () => { if (this.pvpReady) this.beginAttack(); }, // same permission checks as Space
+      onSlot: (i) => this.useSlot(i), // same handler as the hotkey
     });
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, (_t: number, d: number) => {
       if (!this.hud) return;
       this.hud.layout();
-      if (this.player) this.hud.update(this.hudState(), this.time.now, d);
+      if (this.player) this.hud.update(this.hudState(), this.simMs, d);
     });
     if (pvpRoom) {
       kb.on('keydown-ESC', exitArena);
-      this.startPvp(pvpRoom, { playerId: newPlayerId(), characterId: character.id, classId: character.classId, name: character.name });
+      this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: character.classId, name: character.name });
     }
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off(Phaser.Scenes.Events.POST_UPDATE);
       this.game.events.off(Phaser.Core.Events.BLUR, stop);
       this.game.events.off(Phaser.Core.Events.HIDDEN, stop);
-      kb.off('keydown-SPACE', onSpace);
+      for (const [name, h] of slotHandlers) kb.off(`keydown-${name}`, h);
+      this.skills?.cancelOwn(this.localId, 'sceneExit');
+      this.skills?.destroy(); // runs, projectiles, VFX, event listeners
+      this.skills = undefined;
+      this.selfKb = null;
       kb.off('keydown-ESC', exitArena);
       this.pvp?.destroy(); // presence, channel, listeners, remote players, names, HP bars, timers
       this.pvp = undefined;
@@ -240,12 +292,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!this.pvpReady) return; // PvP: waiting for the room (or room full)
     if (this.hitStopLeft > 0) { this.hitStopLeft -= delta; return; } // whole simulation freezes on a confirmed hit
     const ms = delta;
+    this.simMs += ms;
     this.sinceAttackStart += ms;
     this.sinceDust += ms;
     this.updateDummy(ms);
     this.updateImpacts(ms);
     this.updateFx(ms);
     this.updatePlayerFlash(ms);
+    this.updateCastFlash(ms);
+    this.skills?.update(ms);
+    this.updateSelfKnockback(ms);
     this.enemy?.update(ms, {
       player: { x: p.x, y: p.y, alive: this.playerDeadMs < 0 },
       blocked: (x, y) =>
@@ -256,8 +312,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
     if (this.playerDeadMs >= 0) { this.updateDeath(ms); this.syncDepths(); return; }
     if (this.attack) { this.updateAttack(ms); this.syncDepths(); return; } // movement and turning locked
+    if (this.control.controlled(this.simMs)) { this.vx = 0; this.vy = 0; this.hadInput = false; this.syncDepths(); return; } // hard control
+    const run = this.skills?.ownRun;
+    if (run && (run.phase === 'cast' || run.phase === 'active')) { this.updateOwnCast(run); this.syncDepths(); return; }
 
-    this.updateMovement(ms);
+    this.updateMovement(ms); // recovery: movement permitted (moveDuringRecovery)
+    if (run && run.phase === 'recovery' && !this.isMage && Math.hypot(this.vx, this.vy) <= P6.walkThreshold) {
+      setWarriorAttackPhase(p, run.dir, 3);
+    }
     this.syncDepths();
   }
 
@@ -339,15 +401,22 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private beginAttack(): void {
     if (this.isMage) return; // Book Mage has no attack in this build (never uses Warrior attack/slash assets)
     if (!this.player || this.playerDeadMs >= 0 || this.attack || this.sinceAttackStart < A.cooldownMs) return; // no queue
+    if (this.skills?.locked() || this.control.controlled(this.simMs)) return; // one action lock at a time
     this.attack = { id: ++this.attackSeq, dir: this.dir, elapsed: 0, hitChecked: false, slashSpawned: false, lungeApplied: 0 };
     this.sinceAttackStart = 0;
     this.vx = 0; this.vy = 0;
     this.showAttackFrame();
     this.pvp?.sendAttack(this.attack.id, this.attack.dir, this.player.x, this.player.y);
+    this.basicEvent(EVENTS.castStarted, this.attack.id); // existing basic wrapped in the shared cast event adapter
+  }
+
+  private basicEvent(name: string, id: number): void {
+    this.skills?.emitEvent(name, `${this.localId}:b${id}`, BASIC().id, this.localId);
   }
 
   private cancelAttack(): void {
     if (!this.attack || !this.player) return;
+    this.basicEvent(EVENTS.cancelled, this.attack.id);
     this.applyLunge(this.attack, 0); // step back from any lunge
     this.attack = null;
     this.setIdle();
@@ -356,9 +425,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private updateAttack(ms: number): void {
     const a = this.attack!;
     a.elapsed += ms;
-    if (!a.hitChecked && a.elapsed >= A.hitAtMs) { a.hitChecked = true; this.resolveHit(a); }
+    const prev = a.elapsed - ms, b = BASIC();
+    if (!a.hitChecked && a.elapsed >= A.hitAtMs) { a.hitChecked = true; this.basicEvent(EVENTS.activeStarted, a.id); this.resolveHit(a); }
     if (!a.slashSpawned && a.elapsed >= A.hitAtMs) { a.slashSpawned = true; this.spawnSlash(a.dir); }
-    if (a.elapsed >= A.totalDurationMs) { this.applyLunge(a, 0); this.attack = null; this.setIdle(); return; }
+    if (prev < b.castMs + b.activeMs && a.elapsed >= b.castMs + b.activeMs) this.basicEvent(EVENTS.recoveryStarted, a.id);
+    if (a.elapsed >= A.totalDurationMs) { this.applyLunge(a, 0); this.attack = null; this.basicEvent(EVENTS.finished, a.id); this.setIdle(); return; }
     this.applyLunge(a, lungeAt(a.elapsed));
     this.showAttackFrame();
   }
@@ -391,20 +462,22 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.pvp.sendStrike(a.id, a.dir, Math.round(p.x), Math.round(p.y));
       for (const r of this.pvp.remotes.values()) if (r.alive && this.inSwing(a, r.x, r.y)) landed = true;
     }
-    if (this.dummyAlive && this.lastHitAttackId !== a.id && this.inSwing(a, D.x, D.y)) {
-      this.lastHitAttackId = a.id;
-      this.dummyHp = Math.max(0, this.dummyHp - A.damage);
-      this.flashLeft = D.hitFlashMs;
-      this.dummy!.setTintFill(0xffffff);
-      this.spawnImpact(D.x + D.impactOffset.x, D.y + D.impactOffset.y);
-      if (this.dummyHp === 0) { this.dummyAlive = false; this.dummy!.setVisible(false); this.respawnLeft = D.respawnDelayMs; }
-      this.drawDummyBar();
-      landed = true;
-    }
-    const e = this.enemy;
-    if (e && e.alive && this.inSwing(a, e.x, e.y) && e.takeHit(S6.player.existingDamage)) {
-      this.spawnImpact(e.x, e.y + STAGE6.enemy.impactOffsetY);
-      landed = true;
+    // PvE: the shared resolver with the existing basic geometry (feet range + facing dot), existing damage rules.
+    const p = this.player!, b = BASIC(), castId = `${this.localId}:b${a.id}`;
+    const pve = this.skillTargets({ own: true } as CastRun).filter((t) => t.kind === 'enemy');
+    for (const t of shapeHits(b, this.localId, p, a.dir, 1, null, pve)) {
+      const dmg = damageFor(b, 'enemy');
+      if (t.id === 'dummy' && this.lastHitAttackId !== a.id) {
+        this.lastHitAttackId = a.id;
+        this.damageDummy(dmg);
+        this.spawnImpact(D.x + D.impactOffset.x, D.y + D.impactOffset.y);
+        this.skills?.confirmHit(castId, b, this.localId, t.id, 'enemy', dmg, 0, 0);
+        landed = true;
+      } else if (t.id === 'enemy' && this.enemy?.takeHit(dmg)) {
+        this.spawnImpact(this.enemy.x, this.enemy.y + STAGE6.enemy.impactOffsetY);
+        this.skills?.confirmHit(castId, b, this.localId, t.id, 'enemy', dmg, 0, 0);
+        landed = true;
+      }
     }
     if (landed) { // feel only: tiny hit-stop + camera shake
       this.hitStopLeft = FEEL.hitStopMs;
@@ -431,9 +504,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const p = this.player;
     if (!p || !this.pvpReady || this.playerDeadMs >= 0 || !FACING[dir]) return;
     const key = `${from}:${id}`;
-    if (this.hitsTaken.has(key) || !swingHits(ax, ay, dir, p.x, p.y)) return;
+    if (this.hitsTaken.has(key)) return;
+    const b = BASIC(), self: HitTarget = { id: this.localId, kind: 'player', x: p.x, y: p.y, radius: R, alive: true };
+    if (!shapeHits(b, from, { x: ax, y: ay }, dir, 1, null, [self]).length) return; // same resolver, same basic geometry
     this.hitsTaken.add(key);
-    this.damagePlayer(A.damage);
+    const dmg = damageFor(b, 'player');
+    this.damagePlayer(dmg);
+    this.skills?.confirmHit(`${from}:b${id}`, b, from, this.localId, 'player', dmg, 0, 0);
     this.spawnImpact(p.x, p.y - PVP.impactUp);
     this.pvp?.sendHp(this.playerHP, from);
     if (this.playerHP === 0) this.pvp?.sendDeath(from);
@@ -457,11 +534,17 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onFull: () => this.hud?.setStatus('ROOM FULL'),
       onError: () => this.hud?.setStatus('CONNECTION FAILED'),
       onStrike: (from, id, x, y, dir) => this.receiveStrike(from, id, x, y, dir),
+      onCast: (from, m) => this.receiveCast(from, m),
+      onConfirmed: (victim, m) => {
+        const sk = m.castId && m.skillId ? getSkill(m.skillId) : undefined;
+        if (sk) this.skills?.confirmHit(m.castId!, sk, m.by, victim, 'player', damageFor(sk, 'player'), m.stun ?? 0, m.kb ?? 0);
+      },
+      onRemoteLeft: (id) => this.skills?.cancelAttacker(id),
       getLocal: () => {
         const p = this.player;
         if (!p || !this.pvpReady) return null;
         const dead = this.playerDeadMs >= 0;
-        const anim = dead ? 'dead' : this.attack ? 'attack' : Math.hypot(this.vx, this.vy) > P6.walkThreshold ? 'walk' : 'idle';
+        const anim = dead ? 'dead' : this.attack || this.skills?.ownRun ? 'attack' : Math.hypot(this.vx, this.vy) > P6.walkThreshold ? 'walk' : 'idle';
         return { x: p.x, y: p.y, dir: this.attack?.dir ?? this.dir, anim, hp: this.playerHP, alive: !dead };
       },
     }, fx);
@@ -482,7 +565,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   // ---------------- HUD adapter (reads existing state only; no gameplay) ----------------
 
   private hudState(): HudState {
-    const p = this.player!, ch = this.character!, now = this.time.now;
+    const p = this.player!, ch = this.character!, now = this.simMs;
     const alive = this.playerDeadMs < 0;
     const pvp = this.pvp;
     const markers: HudMarker[] = [];
@@ -490,16 +573,18 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     for (const r of pvp?.remotes.values() ?? []) if (r.alive) markers.push({ id: r.meta.playerId, kind: 'remote', x: r.x, y: r.y });
     if (this.enemy?.alive) markers.push({ id: 'enemy', kind: 'enemy', x: this.enemy.x, y: this.enemy.y });
 
-    const cooling = !this.isMage && this.sinceAttackStart < A.cooldownMs;
-    const slots: HudSlot[] = HUD.skills.hotkeys.map((hotkey, i) => i === 0
-      ? {
-        id: 'basic-attack', hotkey, iconUrl: `${HUD.path}/icon-attack.png`,
-        label: this.isMage ? 'No basic attack' : 'Basic Attack',
-        assigned: true, enabled: !this.isMage && alive && this.pvpReady,
-        pressed: !!this.keys?.SPACE.isDown,
-        cooldown: cooling ? { endTimeMs: now + (A.cooldownMs - this.sinceAttackStart), durationMs: A.cooldownMs } : null,
-      }
-      : { id: `slot-${hotkey}`, hotkey, label: 'Unassigned', assigned: false, enabled: false, pressed: false, cooldown: null });
+    const busy = this.busy();
+    const slots: HudSlot[] = HUD.skills.hotkeys.map((hotkey, i) => {
+      const s = this.slotDefs[i];
+      if (!s) return { id: `slot-${hotkey}`, hotkey, label: 'Unassigned', iconUrl: UNASSIGNED_ICON, assigned: false, enabled: false, pressed: false, cooldown: null };
+      let cooldown: HudSlot['cooldown'] = null; // real cooldowns only
+      if (s.adapter) { if (this.sinceAttackStart < A.cooldownMs) cooldown = { endTimeMs: now + (A.cooldownMs - this.sinceAttackStart), durationMs: A.cooldownMs }; }
+      else { const rem = this.skills?.cooldownRemaining(s.id) ?? 0; if (rem > 0) cooldown = { endTimeMs: now + rem, durationMs: s.cooldownMs }; }
+      return {
+        id: s.id, hotkey, label: skillLabel(s.id), iconUrl: s.icon, assigned: true, enabled: alive && this.pvpReady, busy,
+        pressed: !!this.keys?.[SLOT_KEYS[i]].isDown, cooldown,
+      };
+    });
 
     return {
       mode: pvp ? 'pvp' : 'pve',
@@ -536,6 +621,203 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     return best;
   }
 
+  // ---------------- Skill System V1: input, CombatAdapter (PvE local authority / PvP victim authority) ----------------
+
+  private busy(): boolean { return !!this.attack || !!this.skills?.locked() || this.control.controlled(this.simMs) || this.playerDeadMs >= 0; }
+
+  /** Space / 1–7 and HUD clicks share this handler. */
+  private useSlot(i: number): void {
+    if (!this.player || !this.pvpReady || this.playerDeadMs >= 0) return;
+    const s = this.slotDefs[i];
+    if (!s) return; // unassigned / disabled slots (4–7)
+    if (s.adapter === 'warriorBasic') { this.beginAttack(); return; } // existing basic, unchanged
+    this.tryCast(s);
+  }
+
+  /** Validate (alive/class/slot/cooldown/action lock/control) -> unique castId -> snapshot -> cooldown starts. */
+  private tryCast(s: SkillDef): void {
+    const sys = this.skills, p = this.player!;
+    if (!sys || this.busy() || sys.cooldownRemaining(s.id) > 0) return;
+    const origin = { x: p.x, y: p.y }, dir = this.dir;
+    let place: { x: number; y: number } | null = null;
+    if (s.geometry.kind === 'groundCircle') {
+      place = runePlacement(s, origin, dir, this.selectedTargetPos());
+      if (!place) return; // blocked point: rejected, no cooldown
+    }
+    const castId = `${this.localId}:${++this.castSeq}`;
+    this.vx = 0; this.vy = 0; this.hadInput = false;
+    sys.start({ castId, skill: s, attackerId: this.localId, own: true, origin, dir, place });
+    this.pvp?.sendCast(castId, s.id, origin.x, origin.y, dir, place);
+  }
+
+  /** Own cast/active: no movement or turning; Warrior reuses attack frames by phase, Mage keeps its pose; dash moves. */
+  private updateOwnCast(run: CastRun): void {
+    const p = this.player!, s = run.skill;
+    this.vx = 0; this.vy = 0; this.hadInput = false; this.dir = run.dir;
+    if (s.geometry.kind === 'sweptCapsule' && run.phase === 'active') {
+      const e = dashEnd(s, run.origin, run.dir, (run.elapsed - s.castMs) / s.activeMs);
+      p.setPosition(e.x, e.y);
+    }
+    if (this.isMage) this.setIdle();
+    else setWarriorAttackPhase(p, run.dir, skillPoseIndex(run.elapsed, s.castMs, s.activeMs));
+  }
+
+  private onSkillPhase(run: CastRun, phase: string): void {
+    const s = run.skill;
+    if (run.own) {
+      const p = this.player!;
+      if (phase === 'active' && this.isMage) { this.castFlashMs = 0; if (this.playerFlashMs < 0) p.setTint(0xb8d8ff); }
+      if (phase === 'recovery' && s.geometry.kind === 'sweptCapsule') {
+        // Dash ends at the swept end point; never inside a body (step back along the path).
+        const e = dashEnd(s, run.origin, run.dir, 1), f = FACING[run.dir];
+        let x = e.x, y = e.y, back = 0;
+        while (!this.footAllowed(x, y) && back < (s.geometry.travelDistance ?? s.range)) { x -= f[0] * 2; y -= f[1] * 2; back += 2; }
+        p.setPosition(x, y);
+      }
+      return;
+    }
+    if (phase === 'cast') {
+      const detached = !!s.detachedActive;
+      this.pvp?.remotes.get(run.attackerId)?.startSkill(run.dir, s.castMs, detached ? 0 : s.activeMs, detached ? s.actionLockMs : s.castMs + s.activeMs + s.recoveryMs);
+    }
+  }
+
+  /** Targets this client may test: own casts -> PvE entities (local authority); remote casts -> the local player. */
+  private skillTargets(run: CastRun): HitTarget[] {
+    const out: HitTarget[] = [];
+    const p = this.player;
+    if (run.own) {
+      const e = this.enemy;
+      if (e) out.push({ id: 'enemy', kind: 'enemy', x: e.x, y: e.y, radius: STAGE6.enemy.collisionRadius, alive: e.alive });
+      if (this.dummy) out.push({ id: 'dummy', kind: 'enemy', x: D.x, y: D.y, radius: D.collisionRadius, alive: this.dummyAlive, controlImmune: true });
+    } else if (p && this.pvpReady) {
+      out.push({ id: this.localId, kind: 'player', x: p.x, y: p.y, radius: R, alive: this.playerDeadMs < 0 });
+    }
+    // Other players: their own clients are the authority; here they only stop projectiles (cosmetic).
+    for (const r of this.pvp?.remotes.values() ?? []) out.push({ id: r.meta.playerId, kind: 'player', x: r.x, y: r.y, radius: R, alive: r.alive });
+    return out;
+  }
+
+  private onSkillHit(run: CastRun, t: HitTarget): void {
+    if (!run.own && t.id === this.localId) { this.applySkillToSelf(run); return; }
+    if (run.own && t.kind === 'enemy') this.applySkillToEnemy(run, t);
+    // Remote players: resolved and confirmed by their own client (existing PvP authority).
+  }
+
+  /** PvE local authority: damage first, then permitted stun/knockback/launch (none on a lethal hit). */
+  private applySkillToEnemy(run: CastRun, t: HitTarget): void {
+    const s = run.skill, dmg = damageFor(s, 'enemy');
+    if (t.id === 'dummy') {
+      if (!this.dummyAlive) return;
+      this.damageDummy(dmg); // existing dummy damage rules; stationary target (control immune)
+      this.skills?.vfx.impact(D.x + D.impactOffset.x, D.y + D.impactOffset.y);
+      this.skills?.confirmHit(run.castId, s, run.attackerId, t.id, 'enemy', dmg, 0, 0);
+      return;
+    }
+    const e = this.enemy;
+    if (!e || !e.takeHit(dmg)) return;
+    this.skills?.vfx.impact(e.x, e.y + STAGE6.enemy.impactOffsetY);
+    let stun = 0, kb = 0;
+    if (e.alive) {
+      const c = e.control.apply(s, 'enemy', this.simMs);
+      const d = knockbackDir(run.origin, e, run.dir);
+      e.applyControl(c.durationMs, d.x * c.knockbackDistance, d.y * c.knockbackDistance, c.knockbackDistance > 0 ? c.knockbackMs : 0,
+        c.durationMs > 0 ? s.launch.heightPx : 0, s.launch.durationMs, this.simMs);
+      stun = c.durationMs; kb = c.knockbackDistance;
+    }
+    this.skills?.confirmHit(run.castId, s, run.attackerId, t.id, 'enemy', dmg, stun, kb);
+  }
+
+  /** PvP victim authority (existing model): this client resolved the remote cast against itself. */
+  private applySkillToSelf(run: CastRun): void {
+    const p = this.player!, s = run.skill;
+    if (this.playerDeadMs >= 0) return;
+    const dmg = damageFor(s, 'player');
+    this.damagePlayer(dmg);
+    this.skills?.vfx.impact(p.x, p.y - PVP.impactUp);
+    let c = { durationMs: 0, knockbackDistance: 0, knockbackMs: 0 };
+    if (this.playerHP > 0) {
+      c = this.control.apply(s, 'player', this.simMs); // DR + immunity, shared across all attackers
+      if (c.durationMs > 0) {
+        this.skills?.cancelOwn(this.localId, 'control'); // interrupts pending cast/active; projectiles continue
+        this.cancelAttack();
+        this.vx = 0; this.vy = 0;
+        if (c.knockbackDistance > 0 && c.knockbackMs > 0) {
+          const d = knockbackDir(run.origin, p, run.dir);
+          this.selfKb = { vx: (d.x * c.knockbackDistance) / c.knockbackMs, vy: (d.y * c.knockbackDistance) / c.knockbackMs, left: c.knockbackMs };
+        }
+      }
+    }
+    this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, stun: c.durationMs, kb: c.knockbackDistance });
+    if (this.playerHP === 0) this.pvp?.sendDeath(run.attackerId);
+    this.skills?.confirmHit(run.castId, s, run.attackerId, this.localId, 'player', dmg, c.durationMs, c.knockbackDistance);
+  }
+
+  /** Remote cast intent: validated here (class, cooldown, origin near the caster, legal rune point), then simulated. */
+  private receiveCast(from: string, m: { castId: string; skillId: string; x: number; y: number; dir: string; px?: number; py?: number }): void {
+    const r = this.pvp?.remotes.get(from), s = getSkill(m.skillId), dir = m.dir as Dir;
+    if (!r || !r.alive || !s || s.adapter || s.class !== r.meta.classId || !FACING[dir] || this.seenCasts.has(m.castId)) return;
+    const key = `${from}:${s.id}`, last = this.remoteCasts.get(key);
+    if (last !== undefined && this.simMs - last < s.cooldownMs - CAST_COOLDOWN_TOLERANCE_MS) return;
+    if (Math.hypot(m.x - r.x, m.y - r.y) > CAST_ORIGIN_TOLERANCE_PX) return;
+    const origin = { x: m.x, y: m.y };
+    let place: { x: number; y: number } | null = null;
+    if (s.geometry.kind === 'groundCircle') {
+      if (m.px === undefined || m.py === undefined) return;
+      place = { x: m.px, y: m.py };
+      if (!placementLegal(s, origin, place)) return;
+    }
+    this.seenCasts.add(m.castId);
+    this.remoteCasts.set(key, this.simMs);
+    this.skills?.start({ castId: m.castId, skill: s, attackerId: from, own: false, origin, dir, place });
+  }
+
+  private casterPos(id: string): { x: number; y: number } | null {
+    if (id === this.localId) return this.player ? { x: this.player.x, y: this.player.y } : null;
+    const r = this.pvp?.remotes.get(id);
+    return r ? { x: r.x, y: r.y } : null;
+  }
+
+  /** Binding Rune "selected target": the HUD's contextual target (no new targeting system). */
+  private selectedTargetPos(): { x: number; y: number } | null {
+    const t = this.hudTarget();
+    if (!t) return null;
+    if (t.id === 'enemy' && this.enemy) return { x: this.enemy.x, y: this.enemy.y };
+    if (t.id === 'dummy') return { x: D.x, y: D.y };
+    const r = this.pvp?.remotes.get(t.id);
+    return r ? { x: r.x, y: r.y } : null;
+  }
+
+  /** Knockback on the local player: swept world-plane displacement, stops at blockers. */
+  private updateSelfKnockback(ms: number): void {
+    const k = this.selfKb, p = this.player;
+    if (!k || !p) return;
+    const dt = Math.min(ms, k.left);
+    k.left -= dt;
+    const dx = k.vx * dt, dy = k.vy * dt, n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 2));
+    for (let i = 0; i < n; i++) {
+      const nx = p.x + dx / n, ny = p.y + dy / n;
+      if (!this.footAllowed(nx, ny)) { this.selfKb = null; return; }
+      p.x = nx; p.y = ny;
+    }
+    if (k.left <= 0) this.selfKb = null;
+  }
+
+  private updateCastFlash(ms: number): void {
+    if (this.castFlashMs < 0) return;
+    this.castFlashMs += ms;
+    if (this.castFlashMs >= CAST_FLASH_MS) { this.castFlashMs = -1; if (this.playerFlashMs < 0 && this.playerDeadMs < 0) this.player?.clearTint(); }
+  }
+
+  /** Existing training-dummy damage rules (shared by the basic attack and skills). */
+  private damageDummy(dmg: number): void {
+    this.dummyHp = Math.max(0, this.dummyHp - dmg);
+    this.flashLeft = D.hitFlashMs;
+    this.dummy!.setTintFill(0xffffff);
+    if (this.dummyHp === 0) { this.dummyAlive = false; this.dummy!.setVisible(false); this.respawnLeft = D.respawnDelayMs; }
+    this.drawDummyBar();
+  }
+
   private damagePlayer(dmg: number): void {
     if (this.playerDeadMs >= 0) return;
     this.playerHP = Math.max(0, this.playerHP - dmg);
@@ -554,6 +836,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private killPlayer(): void {
     this.cancelAttack();
+    this.skills?.cancelOwn(this.localId, 'death'); // owner casts + projectiles end with the owner
+    this.selfKb = null;
     this.keys && this.input.keyboard!.resetKeys();
     this.vx = 0; this.vy = 0; this.hadInput = false;
     this.playerDeadMs = 0;
@@ -564,7 +848,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const p = this.player!, sp = this.freeSpawnPoint();
     p.setPosition(sp.x, sp.y).setAlpha(1).clearTint();
     this.shadow?.setAlpha(1);
-    this.playerHP = PVP.maxHp; this.playerDeadMs = -1; this.playerFlashMs = -1;
+    this.playerHP = PVP.maxHp; this.playerDeadMs = -1; this.playerFlashMs = -1; this.control.reset();
     this.input.keyboard?.resetKeys(); this.vx = 0; this.vy = 0; this.hadInput = false; // no input carried over from death
     this.setIdle();
     this.pvp?.sendRespawn(p.x, p.y, this.playerHP);

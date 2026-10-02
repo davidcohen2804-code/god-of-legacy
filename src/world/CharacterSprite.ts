@@ -64,3 +64,17 @@ export function setWarriorAttackFrame(p: Phaser.GameObjects.Sprite, dir: Dir, el
   for (let i = 0; i < A.phaseDurationMs.length; i++) { acc += A.phaseDurationMs[i]; if (elapsed < acc) { phase = i; break; } phase = i; }
   p.setTexture(CT.attack.key, COMBAT_ASSETS.attackFrames[dir][phase]);
 }
+
+/** Skill poses reuse the existing Warrior attack frames by phase index (0 windup, 1 strike, 2 follow-through, 3 recovery). */
+export function setWarriorAttackPhase(p: Phaser.GameObjects.Sprite, dir: Dir, phase: number): void {
+  if (p.anims.isPlaying) p.anims.stop();
+  setBodyScale(p, CT.attack.frameHeight, CT.attack.displayHeight, CT.attack.origin);
+  p.setTexture(CT.attack.key, COMBAT_ASSETS.attackFrames[dir][Math.max(0, Math.min(3, phase))]);
+}
+
+/** Phase index for a skill timeline (cast -> 0, active first/second half -> 1/2, recovery -> 3). */
+export function skillPoseIndex(elapsed: number, castMs: number, activeMs: number): number {
+  if (elapsed < castMs) return 0;
+  if (elapsed < castMs + activeMs) return elapsed < castMs + activeMs / 2 ? 1 : 2;
+  return 3;
+}

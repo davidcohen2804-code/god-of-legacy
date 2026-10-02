@@ -15,6 +15,8 @@ export interface HudSlot {
   assigned: boolean;
   enabled: boolean;
   pressed: boolean;
+  /** Action lock / hard control: cannot execute now (aria-disabled + "Busy"), visual state unchanged. */
+  busy?: boolean;
   /** Only real cooldowns from the game, on the adapter clock (`now` passed to update). */
   cooldown: null | { endTimeMs: number; durationMs: number };
 }

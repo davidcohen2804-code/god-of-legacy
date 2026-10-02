@@ -5,13 +5,15 @@ import ATLAS from '../data/asset-manifest.json';
 import COMBAT from '../data/training-combat.json';
 import { FONT_FAMILY, PVP, STAGE6, WORLD_HUD } from '../config/layout';
 import { Dir } from '../world/collision';
-import { mageWalkIndex, setMageFrame, setWarriorAttackFrame, setWarriorIdle, setWarriorWalk } from '../world/CharacterSprite';
+import { mageWalkIndex, setMageFrame, setWarriorAttackFrame, setWarriorAttackPhase, setWarriorIdle, setWarriorWalk, skillPoseIndex } from '../world/CharacterSprite';
 import { PeerMeta } from './Transport';
 
 const A = COMBAT.attack;
 const P6 = STAGE6.player;
 const DIRS: Dir[] = ['down', 'left', 'right', 'up'];
 const asDir = (d: string): Dir => (DIRS.includes(d as Dir) ? (d as Dir) : 'down');
+
+const CAST_FLASH_MS = 80; // Book Mage release flash (pose stays the existing idle frame)
 
 interface Snap { t: number; x: number; y: number }
 
@@ -27,6 +29,9 @@ export class RemotePlayer {
   private anim = 'idle';
   private walkMs = 0;
   private attack: { elapsed: number; dir: Dir; slashed: boolean } | null = null;
+  /** Skill pose: Warrior reuses attack frames by phase; Mage keeps its pose with a short book flash at release. */
+  private castFlash = -1;
+  private skill: { elapsed: number; dir: Dir; castMs: number; activeMs: number; lockMs: number; flashed: boolean } | null = null;
   private flashMs = -1;
   private deadMs = -1;
   hp: number = PVP.maxHp;
@@ -62,6 +67,13 @@ export class RemotePlayer {
     if (hp !== this.hp) { this.hp = hp; this.drawBar(); }
     if (alive && !this.alive) this.revive(x, y);
     else if (!alive && this.alive) this.die();
+  }
+
+  startSkill(dir: string, castMs: number, activeMs: number, lockMs: number): void {
+    if (!this.alive) return;
+    this.attack = null;
+    this.skill = { elapsed: 0, dir: asDir(dir), castMs, activeMs, lockMs, flashed: false };
+    this.dir = this.skill.dir;
   }
 
   startAttack(dir: string): void {
@@ -134,6 +146,18 @@ export class RemotePlayer {
       this.shadow.setAlpha(1 - t);
     }
 
+    if (this.castFlash >= 0) { this.castFlash += ms; if (this.castFlash >= CAST_FLASH_MS) { this.castFlash = -1; if (this.flashMs < 0 && this.alive) this.sprite.clearTint(); } }
+    if (this.skill) {
+      const k = this.skill;
+      k.elapsed += ms;
+      if (!this.alive || k.elapsed >= k.lockMs) this.skill = null;
+      else if (this.isMage) {
+        if (!k.flashed && k.elapsed >= k.castMs) { k.flashed = true; this.castFlash = 0; this.sprite.setTint(0xb8d8ff); }
+      } else if (this.anim !== 'walk' || k.elapsed < k.castMs + k.activeMs) {
+        setWarriorAttackPhase(this.sprite, k.dir, skillPoseIndex(k.elapsed, k.castMs, k.activeMs));
+        return;
+      }
+    }
     if (this.attack) {
       const a = this.attack;
       a.elapsed += ms;

@@ -34,7 +34,7 @@ const CSS = `
 .gol-hud .aslot:focus-visible{box-shadow:0 0 0 2px ${P.text}}
 .gol-hud .aslot[aria-disabled=true]{cursor:default}
 .gol-hud .aslot .ic{position:absolute;left:8px;top:8px;width:48px;height:48px}
-.gol-hud .aslot[aria-disabled=true] .ic{opacity:.45;filter:grayscale(1)}
+.gol-hud .aslot.off .ic{opacity:.45;filter:grayscale(1)}
 .gol-hud .aslot .cd{position:absolute;inset:6px;border-radius:50%;display:none;align-items:center;justify-content:center;
   font-size:20px;font-weight:700;text-shadow:0 1px 2px #000}
 .gol-hud .key{position:absolute;width:64px;text-align:center;font-size:18px;color:${P.secondary};text-shadow:0 1px 2px #000}
@@ -57,8 +57,8 @@ interface SlotEl { btn: HTMLButtonElement; icon: HTMLImageElement; cd: HTMLDivEl
 export interface WorldHUDOptions {
   returnLabel: string;
   onReturn: () => void;
-  /** Click on the Space slot: dispatches the character's EXISTING basic attack (scene checks permission). */
-  onBasicAttack: () => void;
+  /** Click on a slot: the same action handler as its hotkey (scene validates; never a second Space attack). */
+  onSlot: (index: number) => void;
 }
 
 export class WorldHUD {
@@ -170,7 +170,7 @@ export class WorldHUD {
       btn.addEventListener('mousedown', (e) => e.preventDefault()); // no focus steal from the game
       btn.addEventListener('keyup', (e) => { if (e.key === ' ') e.preventDefault(); }); // Phaser owns Space: block the button's own Space click (no 2nd attack)
       const el: SlotEl = { btn, icon, cd, last: '' };
-      btn.addEventListener('click', () => { if (i === 0 && el.slot?.enabled) this.opts.onBasicAttack(); });
+      btn.addEventListener('click', () => { if (el.slot?.assigned && el.slot.enabled && !el.slot.busy) this.opts.onSlot(i); });
       tray.appendChild(btn);
       const k = this.div('key', tray); this.at(k, x, y + S.slot + 2, S.slot, 22); k.textContent = key === 'Space' ? 'SPACE' : key;
       this.slots.push(el);
@@ -251,20 +251,22 @@ export class WorldHUD {
     const state = disabled ? 'disabled' : rem > 0 ? 'cooldown' : s.pressed ? 'pressed' : 'ready'; // manifest precedence
     const icon = s.iconUrl ?? (s.assigned ? A('icon-attack') : A('icon-lock'));
     const label = s.assigned ? s.label : 'Unassigned';
-    const key = `${state}|${icon}|${label}|${s.hotkey}`;
+    const busy = !disabled && !!s.busy; // action lock / control: looks ready or cooling, but cannot execute
+    const key = `${state}|${icon}|${label}|${s.hotkey}|${busy}`;
     if (key !== el.last) {
       el.last = key;
       el.btn.style.backgroundImage = `url("${A(`slot-${state}`)}")`;
+      el.btn.classList.toggle('off', disabled);
       el.icon.src = icon;
-      el.btn.setAttribute('aria-disabled', String(disabled));
-      el.btn.setAttribute('aria-label', `${label} (${s.hotkey})`);
-      el.btn.title = `${label} — ${s.hotkey}`;
+      el.btn.setAttribute('aria-disabled', String(disabled || busy));
+      el.btn.setAttribute('aria-label', `${label} (${s.hotkey})${busy ? ' — Busy' : ''}`);
+      el.btn.title = busy ? `${label} — Busy` : `${label} — ${s.hotkey}`;
     }
     if (rem > 0) {
       const pct = (rem / cd!.durationMs) * 100;
       el.cd.style.display = 'flex';
       el.cd.style.background = `conic-gradient(rgba(0,0,0,.62) 0 ${pct}%, transparent ${pct}% 100%)`;
-      el.cd.textContent = (rem / 1000).toFixed(1);
+      el.cd.textContent = String(Math.ceil(rem / 1000)); // ceil(seconds); 0 => ready
     } else if (el.cd.style.display !== 'none') el.cd.style.display = 'none';
   }
 

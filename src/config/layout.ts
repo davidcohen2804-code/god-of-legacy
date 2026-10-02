@@ -245,4 +245,4 @@ export const HUD = {
 } as const;
 
 // ======================= Build / QA =======================
-export const CURRENT_STAGE = 'PVP Arena — basic multiplayer';
+export const CURRENT_STAGE = 'Skill System V1';

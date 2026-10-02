@@ -1,0 +1,473 @@
+{
+  "version": 1,
+  "units": "existing world units, milliseconds; adapt only if current world coordinate scale differs",
+  "balanceStatus": "provisional starting values, not live-tested",
+  "skills": [
+    {
+      "id": "dash_slash",
+      "class": "warrior",
+      "slot": 1,
+      "hotkey": "1",
+      "damage": 26,
+      "range": 180,
+      "cooldownMs": 3000,
+      "castMs": 70,
+      "activeMs": 180,
+      "recoveryMs": 140,
+      "hitStunMs": 100,
+      "knockback": {
+        "distance": 12,
+        "durationMs": 100,
+        "direction": "awayFromCastOrigin",
+        "pvpMultiplier": 0.5,
+        "collision": "swept, stop at blockers"
+      },
+      "launch": {
+        "heightPx": 0,
+        "durationMs": 0,
+        "visualOnly": true,
+        "pvpHeightMultiplier": 0
+      },
+      "maxHits": 1,
+      "maxHitsScope": "per target per cast; projectile has separate maxTargets",
+      "canHitPlayers": true,
+      "canHitEnemies": true,
+      "pvpMultiplier": 0.7,
+      "pveMultiplier": 1,
+      "comboTags": [
+        "opener",
+        "gapCloser"
+      ],
+      "canChainInto": [
+        "rising_slash",
+        "ground_breaker"
+      ],
+      "chainMode": "metadataOnly; no recovery cancel or bonus damage in V1",
+      "resourceCost": 0,
+      "cooldownStarts": "acceptedCast",
+      "icon": "assets/skills/icons/dash_slash.png",
+      "vfx": "dash_slash",
+      "geometry": {
+        "kind": "sweptCapsule",
+        "travelDistance": 180,
+        "radius": 28,
+        "maxTargets": null,
+        "speed": 1000
+      },
+      "hitTiming": "active phase only",
+      "moveDuringCast": false,
+      "moveDuringRecovery": true,
+      "interruptOn": [
+        "death",
+        "sceneExit",
+        "confirmedHardControl"
+      ],
+      "actionLockMs": 390,
+      "damageRounding": "floor(baseDamage*targetKindMultiplier), minimum1 for positive base damage"
+    },
+    {
+      "id": "rising_slash",
+      "class": "warrior",
+      "slot": 2,
+      "hotkey": "2",
+      "damage": 30,
+      "range": 92,
+      "cooldownMs": 5000,
+      "castMs": 100,
+      "activeMs": 100,
+      "recoveryMs": 180,
+      "hitStunMs": 280,
+      "knockback": {
+        "distance": 8,
+        "durationMs": 100,
+        "direction": "awayFromCastOrigin",
+        "pvpMultiplier": 0.5,
+        "collision": "swept, stop at blockers"
+      },
+      "launch": {
+        "heightPx": 22,
+        "durationMs": 220,
+        "visualOnly": true,
+        "pvpHeightMultiplier": 0,
+        "note": "Enemy sprite offset only; never change physical feet position or extend hitStun."
+      },
+      "maxHits": 1,
+      "maxHitsScope": "per target per cast; projectile has separate maxTargets",
+      "canHitPlayers": true,
+      "canHitEnemies": true,
+      "pvpMultiplier": 0.7,
+      "pveMultiplier": 1,
+      "comboTags": [
+        "launcher",
+        "chainStarter"
+      ],
+      "canChainInto": [
+        "ground_breaker"
+      ],
+      "chainMode": "metadataOnly; no recovery cancel or bonus damage in V1",
+      "resourceCost": 0,
+      "cooldownStarts": "acceptedCast",
+      "icon": "assets/skills/icons/rising_slash.png",
+      "vfx": "rising_slash",
+      "geometry": {
+        "kind": "sector",
+        "angleDegrees": 100,
+        "maxTargets": null
+      },
+      "hitTiming": "active phase only",
+      "moveDuringCast": false,
+      "moveDuringRecovery": true,
+      "interruptOn": [
+        "death",
+        "sceneExit",
+        "confirmedHardControl"
+      ],
+      "actionLockMs": 380,
+      "damageRounding": "floor(baseDamage*targetKindMultiplier), minimum1 for positive base damage"
+    },
+    {
+      "id": "ground_breaker",
+      "class": "warrior",
+      "slot": 3,
+      "hotkey": "3",
+      "damage": 44,
+      "range": 112,
+      "cooldownMs": 7500,
+      "castMs": 160,
+      "activeMs": 100,
+      "recoveryMs": 220,
+      "hitStunMs": 180,
+      "knockback": {
+        "distance": 60,
+        "durationMs": 100,
+        "direction": "awayFromCastOrigin",
+        "pvpMultiplier": 0.5,
+        "collision": "swept, stop at blockers"
+      },
+      "launch": {
+        "heightPx": 0,
+        "durationMs": 0,
+        "visualOnly": true,
+        "pvpHeightMultiplier": 0
+      },
+      "maxHits": 1,
+      "maxHitsScope": "per target per cast; projectile has separate maxTargets",
+      "canHitPlayers": true,
+      "canHitEnemies": true,
+      "pvpMultiplier": 0.7,
+      "pveMultiplier": 1,
+      "comboTags": [
+        "heavy",
+        "area"
+      ],
+      "canChainInto": [],
+      "chainMode": "metadataOnly; no recovery cancel or bonus damage in V1",
+      "resourceCost": 0,
+      "cooldownStarts": "acceptedCast",
+      "icon": "assets/skills/icons/ground_breaker.png",
+      "vfx": "ground_breaker",
+      "geometry": {
+        "kind": "circle",
+        "center": "casterFeet",
+        "maxTargets": null
+      },
+      "hitTiming": "active phase only",
+      "moveDuringCast": false,
+      "moveDuringRecovery": true,
+      "interruptOn": [
+        "death",
+        "sceneExit",
+        "confirmedHardControl"
+      ],
+      "actionLockMs": 480,
+      "damageRounding": "floor(baseDamage*targetKindMultiplier), minimum1 for positive base damage"
+    },
+    {
+      "id": "arcane_bolt",
+      "class": "book_mage",
+      "slot": 0,
+      "hotkey": "Space",
+      "damage": 12,
+      "range": 480,
+      "cooldownMs": 450,
+      "castMs": 80,
+      "activeMs": 650,
+      "recoveryMs": 140,
+      "hitStunMs": 0,
+      "knockback": {
+        "distance": 0,
+        "durationMs": 100,
+        "direction": "awayFromCastOrigin",
+        "pvpMultiplier": 0.5,
+        "collision": "swept, stop at blockers"
+      },
+      "launch": {
+        "heightPx": 0,
+        "durationMs": 0,
+        "visualOnly": true,
+        "pvpHeightMultiplier": 0
+      },
+      "maxHits": 1,
+      "maxHitsScope": "per target per cast; projectile has separate maxTargets",
+      "canHitPlayers": true,
+      "canHitEnemies": true,
+      "pvpMultiplier": 0.7,
+      "pveMultiplier": 1,
+      "comboTags": [
+        "ranged",
+        "basic"
+      ],
+      "canChainInto": [
+        "binding_rune"
+      ],
+      "chainMode": "metadataOnly; no recovery cancel or bonus damage in V1",
+      "resourceCost": 0,
+      "cooldownStarts": "acceptedCast",
+      "icon": "assets/skills/icons/arcane_bolt.png",
+      "vfx": "arcane_bolt",
+      "geometry": {
+        "kind": "projectile",
+        "speed": 800,
+        "radius": 10,
+        "maxTargets": 1,
+        "maxDistance": 480,
+        "ttlMs": 650,
+        "spawn": "casterFeet + facing*18; visual muzzle offset y=-36 only"
+      },
+      "hitTiming": "projectile active after cast; actor recovers independently; expires on first legal hit, wall, range or TTL",
+      "moveDuringCast": false,
+      "moveDuringRecovery": true,
+      "interruptOn": [
+        "death",
+        "sceneExit",
+        "confirmedHardControl"
+      ],
+      "actionLockMs": 220,
+      "detachedActive": true,
+      "damageRounding": "floor(baseDamage*targetKindMultiplier), minimum1 for positive base damage"
+    },
+    {
+      "id": "arcane_wave",
+      "class": "book_mage",
+      "slot": 1,
+      "hotkey": "1",
+      "damage": 28,
+      "range": 240,
+      "cooldownMs": 3500,
+      "castMs": 100,
+      "activeMs": 200,
+      "recoveryMs": 150,
+      "hitStunMs": 110,
+      "knockback": {
+        "distance": 18,
+        "durationMs": 100,
+        "direction": "awayFromCastOrigin",
+        "pvpMultiplier": 0.5,
+        "collision": "swept, stop at blockers"
+      },
+      "launch": {
+        "heightPx": 0,
+        "durationMs": 0,
+        "visualOnly": true,
+        "pvpHeightMultiplier": 0
+      },
+      "maxHits": 1,
+      "maxHitsScope": "per target per cast; projectile has separate maxTargets",
+      "canHitPlayers": true,
+      "canHitEnemies": true,
+      "pvpMultiplier": 0.7,
+      "pveMultiplier": 1,
+      "comboTags": [
+        "ranged",
+        "area",
+        "followUp"
+      ],
+      "canChainInto": [
+        "binding_rune"
+      ],
+      "chainMode": "metadataOnly; no recovery cancel or bonus damage in V1",
+      "resourceCost": 0,
+      "cooldownStarts": "acceptedCast",
+      "icon": "assets/skills/icons/arcane_wave.png",
+      "vfx": "arcane_wave",
+      "geometry": {
+        "kind": "forwardRectangle",
+        "width": 70,
+        "length": 240,
+        "maxTargets": null,
+        "persistMs": 200
+      },
+      "hitTiming": "active phase only",
+      "moveDuringCast": false,
+      "moveDuringRecovery": true,
+      "interruptOn": [
+        "death",
+        "sceneExit",
+        "confirmedHardControl"
+      ],
+      "actionLockMs": 450,
+      "damageRounding": "floor(baseDamage*targetKindMultiplier), minimum1 for positive base damage"
+    },
+    {
+      "id": "binding_rune",
+      "class": "book_mage",
+      "slot": 2,
+      "hotkey": "2",
+      "damage": 20,
+      "range": 220,
+      "cooldownMs": 6500,
+      "castMs": 140,
+      "activeMs": 100,
+      "recoveryMs": 180,
+      "hitStunMs": 320,
+      "knockback": {
+        "distance": 0,
+        "durationMs": 100,
+        "direction": "awayFromCastOrigin",
+        "pvpMultiplier": 0.5,
+        "collision": "swept, stop at blockers"
+      },
+      "launch": {
+        "heightPx": 0,
+        "durationMs": 0,
+        "visualOnly": true,
+        "pvpHeightMultiplier": 0
+      },
+      "maxHits": 1,
+      "maxHitsScope": "per target per cast; projectile has separate maxTargets",
+      "canHitPlayers": true,
+      "canHitEnemies": true,
+      "pvpMultiplier": 0.7,
+      "pveMultiplier": 1,
+      "comboTags": [
+        "control",
+        "chainStarter"
+      ],
+      "canChainInto": [
+        "arcane_wave",
+        "astral_burst"
+      ],
+      "chainMode": "metadataOnly; no recovery cancel or bonus damage in V1",
+      "resourceCost": 0,
+      "cooldownStarts": "acceptedCast",
+      "icon": "assets/skills/icons/binding_rune.png",
+      "vfx": "binding_rune",
+      "geometry": {
+        "kind": "groundCircle",
+        "radius": 66,
+        "placement": "snapshot current legal target position within220 and LOS; otherwise casterFeet+facing*160; reject blocked point",
+        "maxTargets": null
+      },
+      "hitTiming": "active phase only",
+      "moveDuringCast": false,
+      "moveDuringRecovery": true,
+      "interruptOn": [
+        "death",
+        "sceneExit",
+        "confirmedHardControl"
+      ],
+      "actionLockMs": 420,
+      "damageRounding": "floor(baseDamage*targetKindMultiplier), minimum1 for positive base damage"
+    },
+    {
+      "id": "astral_burst",
+      "class": "book_mage",
+      "slot": 3,
+      "hotkey": "3",
+      "damage": 42,
+      "range": 118,
+      "cooldownMs": 8000,
+      "castMs": 130,
+      "activeMs": 100,
+      "recoveryMs": 210,
+      "hitStunMs": 140,
+      "knockback": {
+        "distance": 40,
+        "durationMs": 100,
+        "direction": "awayFromCastOrigin",
+        "pvpMultiplier": 0.5,
+        "collision": "swept, stop at blockers"
+      },
+      "launch": {
+        "heightPx": 0,
+        "durationMs": 0,
+        "visualOnly": true,
+        "pvpHeightMultiplier": 0
+      },
+      "maxHits": 1,
+      "maxHitsScope": "per target per cast; projectile has separate maxTargets",
+      "canHitPlayers": true,
+      "canHitEnemies": true,
+      "pvpMultiplier": 0.7,
+      "pveMultiplier": 1,
+      "comboTags": [
+        "area",
+        "peel",
+        "heavy"
+      ],
+      "canChainInto": [],
+      "chainMode": "metadataOnly; no recovery cancel or bonus damage in V1",
+      "resourceCost": 0,
+      "cooldownStarts": "acceptedCast",
+      "icon": "assets/skills/icons/astral_burst.png",
+      "vfx": "astral_burst",
+      "geometry": {
+        "kind": "circle",
+        "center": "casterFeet",
+        "maxTargets": null
+      },
+      "hitTiming": "active phase only",
+      "moveDuringCast": false,
+      "moveDuringRecovery": true,
+      "interruptOn": [
+        "death",
+        "sceneExit",
+        "confirmedHardControl"
+      ],
+      "actionLockMs": 440,
+      "damageRounding": "floor(baseDamage*targetKindMultiplier), minimum1 for positive base damage"
+    }
+  ],
+  "existingWarriorBasic": {
+    "id": "warrior_basic",
+    "class": "warrior",
+    "slot": 0,
+    "hotkey": "Space",
+    "behavior": "Wrap existing basic attack in the shared cast/hit event adapter; preserve current damage, geometry, timings, animation and cooldown. Do not run old and new damage paths twice.",
+    "icon": "assets/skills/icons/warrior_basic.png"
+  },
+  "disabledSlots": [
+    4,
+    5,
+    6,
+    7
+  ],
+  "controlPolicy": {
+    "pvp": {
+      "maxSingleControlMs": 350,
+      "diminishingWindowMs": 2000,
+      "durationMultipliers": [
+        1,
+        0.5,
+        0.25,
+        0
+      ],
+      "postControlImmunityMs": 450,
+      "sharedAcrossAllAttackers": true,
+      "launchGameplay": false,
+      "refreshExtendsControl": false
+    },
+    "pve": {
+      "maxSingleControlMs": 600,
+      "durationMultiplier": 1,
+      "respectTargetControlImmunity": true
+    }
+  },
+  "comboPolicy": {
+    "runtimeChaining": false,
+    "resetWindowMs": 1200,
+    "emitHitEvents": true,
+    "counterConsumer": "future; count only authoritative confirmed hits, keyed by attacker+target",
+    "escape": "No added escape skill; PVP post-control immunity is the mandatory V1 action opportunity."
+  }
+}

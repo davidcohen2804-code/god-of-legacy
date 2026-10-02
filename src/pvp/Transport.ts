@@ -8,7 +8,8 @@ export type NetMsg =
   | { t: 'state'; from: string; x: number; y: number; dir: string; anim: string; hp: number; alive: boolean }
   | { t: 'attack'; from: string; id: number; dir: string; x: number; y: number }
   | { t: 'strike'; from: string; id: number; dir: string; x: number; y: number }
-  | { t: 'hp'; from: string; hp: number; by: string }
+  | { t: 'hp'; from: string; hp: number; by: string; castId?: string; skillId?: string; stun?: number; kb?: number }
+  | { t: 'cast'; from: string; castId: string; skillId: string; x: number; y: number; dir: string; px?: number; py?: number }
   | { t: 'death'; from: string; by: string }
   | { t: 'respawn'; from: string; x: number; y: number; hp: number }
   | { t: 'leave'; from: string };

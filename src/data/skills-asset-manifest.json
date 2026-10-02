@@ -1,0 +1,473 @@
+{
+  "version": 1,
+  "sheets": [
+    {
+      "id": "dash_slash",
+      "path": "assets/skills/vfx/dash_slash.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frameCount": 8,
+      "columns": 8,
+      "rows": 1,
+      "fps": 24,
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "displaySize": {
+        "width": 256,
+        "height": 256
+      },
+      "repeat": 0,
+      "blendMode": "NORMAL",
+      "nativeDirection": "right",
+      "rotation": "rotate about shared origin to facing; rising slash retains vertical swing, flipX by facing; ground effects stay ground-aligned",
+      "alphaMode": "straight RGBA",
+      "margin": 0,
+      "spacing": 0,
+      "start": "accepted cast: frames0..2 over castMs; frame3 exactly on active start; frames3..7 at24FPS then remove",
+      "note": "Visual footprint is decorative, not the authoritative hitbox. Scale to displaySize and do not infer range from glow.",
+      "timeline": {
+        "anticipationFrames": [
+          0,
+          1,
+          2
+        ],
+        "anticipationDuration": "skill.castMs",
+        "impactFrame": 3,
+        "releaseFrames": [
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "releaseFps": 24,
+        "repeat": 0,
+        "implementation": "Override anticipation frame durations per skill; default fps24 only for preview/release. Never drive damage from animation callbacks."
+      }
+    },
+    {
+      "id": "rising_slash",
+      "path": "assets/skills/vfx/rising_slash.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frameCount": 8,
+      "columns": 8,
+      "rows": 1,
+      "fps": 24,
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "displaySize": {
+        "width": 256,
+        "height": 256
+      },
+      "repeat": 0,
+      "blendMode": "NORMAL",
+      "nativeDirection": "up-right",
+      "rotation": "rotate about shared origin to facing; rising slash retains vertical swing, flipX by facing; ground effects stay ground-aligned",
+      "alphaMode": "straight RGBA",
+      "margin": 0,
+      "spacing": 0,
+      "start": "accepted cast: frames0..2 over castMs; frame3 exactly on active start; frames3..7 at24FPS then remove",
+      "note": "Visual footprint is decorative, not the authoritative hitbox. Scale to displaySize and do not infer range from glow.",
+      "timeline": {
+        "anticipationFrames": [
+          0,
+          1,
+          2
+        ],
+        "anticipationDuration": "skill.castMs",
+        "impactFrame": 3,
+        "releaseFrames": [
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "releaseFps": 24,
+        "repeat": 0,
+        "implementation": "Override anticipation frame durations per skill; default fps24 only for preview/release. Never drive damage from animation callbacks."
+      }
+    },
+    {
+      "id": "ground_breaker",
+      "path": "assets/skills/vfx/ground_breaker.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frameCount": 8,
+      "columns": 8,
+      "rows": 1,
+      "fps": 24,
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "displaySize": {
+        "width": 256,
+        "height": 256
+      },
+      "repeat": 0,
+      "blendMode": "NORMAL",
+      "nativeDirection": "ground-plane",
+      "rotation": "rotate about shared origin to facing; rising slash retains vertical swing, flipX by facing; ground effects stay ground-aligned",
+      "alphaMode": "straight RGBA",
+      "margin": 0,
+      "spacing": 0,
+      "start": "accepted cast: frames0..2 over castMs; frame3 exactly on active start; frames3..7 at24FPS then remove",
+      "note": "Visual footprint is decorative, not the authoritative hitbox. Scale to displaySize and do not infer range from glow.",
+      "timeline": {
+        "anticipationFrames": [
+          0,
+          1,
+          2
+        ],
+        "anticipationDuration": "skill.castMs",
+        "impactFrame": 3,
+        "releaseFrames": [
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "releaseFps": 24,
+        "repeat": 0,
+        "implementation": "Override anticipation frame durations per skill; default fps24 only for preview/release. Never drive damage from animation callbacks."
+      }
+    },
+    {
+      "id": "arcane_bolt",
+      "path": "assets/skills/vfx/arcane_bolt.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "frameCount": 8,
+      "columns": 8,
+      "rows": 1,
+      "fps": 24,
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "displaySize": {
+        "width": 128,
+        "height": 128
+      },
+      "repeat": -1,
+      "blendMode": "NORMAL",
+      "nativeDirection": "right",
+      "rotation": "rotate about shared origin to facing; rising slash retains vertical swing, flipX by facing; ground effects stay ground-aligned",
+      "alphaMode": "straight RGBA",
+      "margin": 0,
+      "spacing": 0,
+      "start": "projectile spawn after castMs; loop until first collision/range/TTL; remove immediately on termination",
+      "note": "Visual footprint is decorative, not the authoritative hitbox. Scale to displaySize and do not infer range from glow.",
+      "timeline": {
+        "frames": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "fps": 24,
+        "repeat": -1
+      }
+    },
+    {
+      "id": "arcane_wave",
+      "path": "assets/skills/vfx/arcane_wave.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frameCount": 8,
+      "columns": 8,
+      "rows": 1,
+      "fps": 24,
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "displaySize": {
+        "width": 256,
+        "height": 256
+      },
+      "repeat": 0,
+      "blendMode": "NORMAL",
+      "nativeDirection": "right",
+      "rotation": "rotate about shared origin to facing; rising slash retains vertical swing, flipX by facing; ground effects stay ground-aligned",
+      "alphaMode": "straight RGBA",
+      "margin": 0,
+      "spacing": 0,
+      "start": "accepted cast: frames0..2 over castMs; frame3 exactly on active start; frames3..7 at24FPS then remove",
+      "note": "Visual footprint is decorative, not the authoritative hitbox. Scale to displaySize and do not infer range from glow.",
+      "timeline": {
+        "anticipationFrames": [
+          0,
+          1,
+          2
+        ],
+        "anticipationDuration": "skill.castMs",
+        "impactFrame": 3,
+        "releaseFrames": [
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "releaseFps": 24,
+        "repeat": 0,
+        "implementation": "Override anticipation frame durations per skill; default fps24 only for preview/release. Never drive damage from animation callbacks."
+      }
+    },
+    {
+      "id": "binding_rune",
+      "path": "assets/skills/vfx/binding_rune.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frameCount": 8,
+      "columns": 8,
+      "rows": 1,
+      "fps": 24,
+      "origin": {
+        "x": 0.5,
+        "y": 0.65
+      },
+      "displaySize": {
+        "width": 256,
+        "height": 256
+      },
+      "repeat": 0,
+      "blendMode": "NORMAL",
+      "nativeDirection": "ground-plane",
+      "rotation": "rotate about shared origin to facing; rising slash retains vertical swing, flipX by facing; ground effects stay ground-aligned",
+      "alphaMode": "straight RGBA",
+      "margin": 0,
+      "spacing": 0,
+      "start": "accepted cast: frames0..2 over castMs; frame3 exactly on active start; frames3..7 at24FPS then remove",
+      "note": "Visual footprint is decorative, not the authoritative hitbox. Scale to displaySize and do not infer range from glow.",
+      "timeline": {
+        "anticipationFrames": [
+          0,
+          1,
+          2
+        ],
+        "anticipationDuration": "skill.castMs",
+        "impactFrame": 3,
+        "releaseFrames": [
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "releaseFps": 24,
+        "repeat": 0,
+        "implementation": "Override anticipation frame durations per skill; default fps24 only for preview/release. Never drive damage from animation callbacks."
+      }
+    },
+    {
+      "id": "astral_burst",
+      "path": "assets/skills/vfx/astral_burst.png",
+      "frameWidth": 256,
+      "frameHeight": 256,
+      "frameCount": 8,
+      "columns": 8,
+      "rows": 1,
+      "fps": 24,
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "displaySize": {
+        "width": 256,
+        "height": 256
+      },
+      "repeat": 0,
+      "blendMode": "NORMAL",
+      "nativeDirection": "ground-plane",
+      "rotation": "rotate about shared origin to facing; rising slash retains vertical swing, flipX by facing; ground effects stay ground-aligned",
+      "alphaMode": "straight RGBA",
+      "margin": 0,
+      "spacing": 0,
+      "start": "accepted cast: frames0..2 over castMs; frame3 exactly on active start; frames3..7 at24FPS then remove",
+      "note": "Visual footprint is decorative, not the authoritative hitbox. Scale to displaySize and do not infer range from glow.",
+      "timeline": {
+        "anticipationFrames": [
+          0,
+          1,
+          2
+        ],
+        "anticipationDuration": "skill.castMs",
+        "impactFrame": 3,
+        "releaseFrames": [
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "releaseFps": 24,
+        "repeat": 0,
+        "implementation": "Override anticipation frame durations per skill; default fps24 only for preview/release. Never drive damage from animation callbacks."
+      }
+    },
+    {
+      "id": "impact",
+      "path": "assets/skills/vfx/impact.png",
+      "frameWidth": 128,
+      "frameHeight": 128,
+      "frameCount": 8,
+      "columns": 8,
+      "rows": 1,
+      "fps": 24,
+      "origin": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "displaySize": {
+        "width": 128,
+        "height": 128
+      },
+      "repeat": 0,
+      "blendMode": "NORMAL",
+      "nativeDirection": "ground-plane",
+      "rotation": "rotate about shared origin to facing; rising slash retains vertical swing, flipX by facing; ground effects stay ground-aligned",
+      "alphaMode": "straight RGBA",
+      "margin": 0,
+      "spacing": 0,
+      "start": "confirmed hit; start at peak frame2, then play3..7 at24FPS",
+      "note": "Visual footprint is decorative, not the authoritative hitbox. Scale to displaySize and do not infer range from glow.",
+      "timeline": {
+        "frames": [
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "fps": 24,
+        "repeat": 0
+      }
+    }
+  ],
+  "icons": [
+    {
+      "id": "dash_slash",
+      "path": "assets/skills/icons/dash_slash.png",
+      "width": 128,
+      "height": 128,
+      "hudDisplay": [
+        48,
+        48
+      ]
+    },
+    {
+      "id": "rising_slash",
+      "path": "assets/skills/icons/rising_slash.png",
+      "width": 128,
+      "height": 128,
+      "hudDisplay": [
+        48,
+        48
+      ]
+    },
+    {
+      "id": "ground_breaker",
+      "path": "assets/skills/icons/ground_breaker.png",
+      "width": 128,
+      "height": 128,
+      "hudDisplay": [
+        48,
+        48
+      ]
+    },
+    {
+      "id": "arcane_wave",
+      "path": "assets/skills/icons/arcane_wave.png",
+      "width": 128,
+      "height": 128,
+      "hudDisplay": [
+        48,
+        48
+      ]
+    },
+    {
+      "id": "binding_rune",
+      "path": "assets/skills/icons/binding_rune.png",
+      "width": 128,
+      "height": 128,
+      "hudDisplay": [
+        48,
+        48
+      ]
+    },
+    {
+      "id": "astral_burst",
+      "path": "assets/skills/icons/astral_burst.png",
+      "width": 128,
+      "height": 128,
+      "hudDisplay": [
+        48,
+        48
+      ]
+    },
+    {
+      "id": "arcane_bolt",
+      "path": "assets/skills/icons/arcane_bolt.png",
+      "width": 128,
+      "height": 128,
+      "hudDisplay": [
+        48,
+        48
+      ]
+    },
+    {
+      "id": "warrior_basic",
+      "path": "assets/skills/icons/warrior_basic.png",
+      "width": 128,
+      "height": 128,
+      "hudDisplay": [
+        48,
+        48
+      ]
+    },
+    {
+      "id": "unassigned",
+      "path": "assets/skills/icons/unassigned.png",
+      "width": 128,
+      "height": 128,
+      "hudDisplay": [
+        48,
+        48
+      ]
+    }
+  ],
+  "hudStates": {
+    "frames": {
+      "ready": "assets/skills/icons/state_ready.png",
+      "cooldown": "assets/skills/icons/state_cooldown.png",
+      "pressed": "assets/skills/icons/state_pressed.png",
+      "disabled": "assets/skills/icons/state_disabled.png"
+    },
+    "precedence": [
+      "disabled",
+      "cooldown",
+      "pressed",
+      "ready"
+    ],
+    "cooldownOverlay": "DOM conic-gradient radial mask from remainingMs/cooldownMs; show ceil(seconds); no new timer owner",
+    "source": "Existing HUD package state frames copied for compatibility"
+  },
+  "packing": "one row per sheet; no gutter; use frameWidth/frameHeight; no image substitutions",
+  "provenance": "ImageGen artwork, normalized with common per-row scale and shared anchors. Sheet edge taper and terminal fade added during packing. Effects only, no new actor animation sheets.",
+  "validation": "Files, alpha, frame boundaries and preview checked offline; not verified in engine.",
+  "visualValidation": "Static contact sheet visually inspected. Animated GIF included for offline review; no in-engine approval claimed."
+}

@@ -16,6 +16,12 @@ export interface PvpHandlers {
   /** A remote attacker's strike reached its hit moment; the scene validates it against the local player. */
   onStrike(from: string, id: number, x: number, y: number, dir: Dir): void;
   getLocal(): LocalSnapshot | null;
+  /** Skill System: a remote cast intent (the receiving client validates it and resolves hits on its own player). */
+  onCast?(from: string, m: Extract<NetMsg, { t: 'cast' }>): void;
+  /** Skill System: a victim's confirmed result for a cast (HitConfirmed / combo-ready event). */
+  onConfirmed?(victim: string, m: Extract<NetMsg, { t: 'hp' }>): void;
+  /** A remote player left: its pending casts/projectiles stop. */
+  onRemoteLeft?(id: string): void;
 }
 
 export class PvpController {
@@ -74,7 +80,12 @@ export class PvpController {
   sendStrike(id: number, dir: Dir, x: number, y: number): void {
     this.transport.send({ t: 'strike', from: this.meta.playerId, id, dir, x, y });
   }
-  sendHp(hp: number, by: string): void { this.transport.send({ t: 'hp', from: this.meta.playerId, hp, by }); }
+  sendHp(hp: number, by: string, extra?: { castId: string; skillId: string; stun: number; kb: number }): void {
+    this.transport.send({ t: 'hp', from: this.meta.playerId, hp, by, ...extra });
+  }
+  sendCast(castId: string, skillId: string, x: number, y: number, dir: Dir, place: { x: number; y: number } | null): void {
+    this.transport.send({ t: 'cast', from: this.meta.playerId, castId, skillId, x: Math.round(x), y: Math.round(y), dir, ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}) });
+  }
   sendDeath(by: string): void { this.transport.send({ t: 'death', from: this.meta.playerId, by }); }
   sendRespawn(x: number, y: number, hp: number): void {
     this.transport.send({ t: 'respawn', from: this.meta.playerId, x: Math.round(x), y: Math.round(y), hp });
@@ -93,9 +104,10 @@ export class PvpController {
     }
     const r = this.remotes.get(m.from);
     if (m.t === 'strike') { if (this.peers.has(m.from)) this.h.onStrike(m.from, m.id, m.x, m.y, m.dir as Dir); return; }
+    if (m.t === 'cast') { if (r) this.h.onCast?.(m.from, m); return; }
     if (!r) return;
     if (m.t === 'attack') r.startAttack(m.dir);
-    else if (m.t === 'hp') r.setHp(m.hp);
+    else if (m.t === 'hp') { r.setHp(m.hp); if (m.castId) this.h.onConfirmed?.(m.from, m); }
     else if (m.t === 'death') r.die();
     else if (m.t === 'respawn') r.revive(m.x, m.y, m.hp);
   }
@@ -125,6 +137,7 @@ export class PvpController {
   }
 
   private removeRemote(id: string): void {
+    if (this.remotes.has(id)) this.h.onRemoteLeft?.(id);
     this.remotes.get(id)?.destroy();
     this.remotes.delete(id);
     this.pending.delete(id);
