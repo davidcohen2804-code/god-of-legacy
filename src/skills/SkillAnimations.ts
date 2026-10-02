@@ -34,6 +34,28 @@ for (const [skillId, sheetId] of Object.entries(EXTENSION_BODY)) {
 }
 const key = (id: string) => `skillanim-${id}`;
 
+/**
+ * Facing correction (checked frame by frame against the world idle sprites): the Warrior sheets and the Book Mage
+ * Binding Rune / Astral Burst sheets have their side rows swapped (the 'right' row faces left and vice versa);
+ * Book Mage Cast has both side rows facing right, so left = the right row mirrored. Down / up rows are correct.
+ */
+const SIDE_FIX: Record<string, Partial<Record<Dir, { row: number; flip: boolean }>>> = {
+  warrior_dash_slash: { right: { row: 2, flip: false }, left: { row: 1, flip: false } },
+  warrior_rising_slash: { right: { row: 2, flip: false }, left: { row: 1, flip: false } },
+  warrior_ground_breaker: { right: { row: 2, flip: false }, left: { row: 1, flip: false } },
+  book_mage_binding_rune: { right: { row: 2, flip: false }, left: { row: 1, flip: false } },
+  book_mage_astral_burst: { right: { row: 2, flip: false }, left: { row: 1, flip: false } },
+  book_mage_cast: { left: { row: 1, flip: true } },
+};
+
+/** Row + mirror used for a sheet and facing (QA reads this too). */
+export function skillAnimationRow(sheetId: string, dir: Dir): { row: number; flip: boolean } {
+  const s = SHEETS.get(sheetId)!;
+  return SIDE_FIX[sheetId]?.[dir] ?? { row: (s.directionRows as Record<Dir, number>)[dir] ?? 0, flip: false };
+}
+
+export function skillAnimationSheet(skillId: string): string | null { return PROFILES.get(skillId)?.sheet.id ?? null; }
+
 export function preloadSkillAnimations(scene: Phaser.Scene): void {
   for (const s of MANIFEST.sheets) {
     if (!scene.textures.exists(key(s.id))) scene.load.spritesheet(key(s.id), s.path, { frameWidth: s.frameWidth, frameHeight: s.frameHeight });
@@ -51,11 +73,12 @@ export function applySkillAnimation(p: Phaser.GameObjects.Sprite, skillId: strin
   if (!pr || elapsed >= pr.total || elapsed < 0) return false;
   let col = 0, acc = 0;
   for (let i = 0; i < pr.durations.length; i++) { acc += pr.durations[i]; if (elapsed < acc) { col = i; break; } }
-  const s = pr.sheet, row = (s.directionRows as Record<Dir, number>)[dir] ?? 0;
+  const s = pr.sheet, { row, flip } = skillAnimationRow(s.id, dir);
   if (p.anims.isPlaying) p.anims.stop();
   p.setTexture(key(s.id), row * s.framesPerDirection + col);
-  p.setOrigin(s.origin.x, s.origin.y);
+  p.setOrigin(s.origin.x, s.origin.y); // mirroring happens about the feet origin
   p.setScale(s.recommendedWorldScale);
+  p.setFlipX(flip);
   return true;
 }
 

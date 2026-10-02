@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { addClothWind } from '../ui/VisualLife';
 import { CHARACTER_CREATE as L, CHARACTER_PREVIEWS, COLORS, DESIGN } from '../config/layout';
 import { CharacterCreateUI } from '../ui/CharacterCreateUI';
 
@@ -20,6 +21,7 @@ export class CharacterCreateScene extends Phaser.Scene {
 
     // Selected class preview: aspect ratio preserved, fixed display height, feet on the pedestal.
     const hero = this.add.image(P.centerX, P.top + P.height, 'characterCreate.warriorPreview').setOrigin(0.5, 1);
+    addClothWind(this, hero); // subtle cloak wind (render only)
     const showPreview = (classId: string, appearanceId: string) => {
       const pv = CHARACTER_PREVIEWS[`${classId}/${appearanceId}`];
       if (!pv) return;

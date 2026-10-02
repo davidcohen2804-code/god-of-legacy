@@ -5,10 +5,11 @@ import ATLAS from '../data/asset-manifest.json';
 import COMBAT from '../data/training-combat.json';
 import { FONT_FAMILY, PVP, STAGE6, WORLD_HUD } from '../config/layout';
 import { Dir } from '../world/collision';
-import { mageWalkIndex, setMageFrame, setWarriorAttackFrame, setWarriorAttackPhase, setWarriorIdle, setWarriorWalk, skillPoseIndex } from '../world/CharacterSprite';
+import { mageRunIndex, mageWalkIndex, setMageFrame, setWarriorAttackFrame, setWarriorAttackPhase, setWarriorIdle, setWarriorRun, setWarriorWalk, setWarriorWalkFrame, skillPoseIndex } from '../world/CharacterSprite';
+import { BodyMods, JUMP, applyBodyMods, breathe, deathTopple, hurtLean, jumpState } from '../world/BodyFx';
 import { PeerMeta } from './Transport';
 import { applySkillAnimation } from '../skills/SkillAnimations';
-import { isAtlasClass, setAtlasDeath, setAtlasHurt, setAtlasLoop, setAtlasSkillPose } from '../world/ClassAtlas';
+import { isAtlasClass, setAtlasDeath, setAtlasHurt, setAtlasJump, setAtlasLoop, setAtlasSkillPose } from '../world/ClassAtlas';
 
 const A = COMBAT.attack;
 const P6 = STAGE6.player;
@@ -55,7 +56,9 @@ export class RemotePlayer {
   get isMage(): boolean { return this.meta.classId === 'book_mage'; }
   /** Archer / Samurai use the explicit-rect class atlas. */
   get atlasClass(): string | null { return isAtlasClass(this.meta.classId) ? this.meta.classId : null; }
-  private wasWalking = false;
+  private loopMode = '';
+  private jumpMs = -1; // remote jump arc, started when its state switches to 'jump' (cosmetic)
+  private lifeMs = 0;
   get x(): number { return this.sprite.x; }
   get y(): number { return this.sprite.y; }
 
@@ -65,6 +68,7 @@ export class RemotePlayer {
     this.snaps.push({ t: this.lastSeen, x, y });
     if (this.snaps.length > 30) this.snaps.shift();
     if (!this.attack) this.dir = asDir(dir);
+    if (anim === 'jump' && this.anim !== 'jump') this.jumpMs = 0;
     this.anim = anim;
     if (hp !== this.hp) { this.hp = hp; this.drawBar(); }
     if (alive && !this.alive) this.revive(x, y);
@@ -115,12 +119,30 @@ export class RemotePlayer {
     this.sprite.clearTint().setAlpha(1);
     this.shadow.setAlpha(1);
     this.anim = 'idle';
+    this.jumpMs = -1;
     this.place(x, y);
     this.pose();
     this.drawBar();
   }
 
   update(ms: number): void {
+    this.lifeMs += ms;
+    if (this.jumpMs >= 0) { this.jumpMs += ms; if (this.jumpMs >= JUMP.totalMs || !this.alive) this.jumpMs = -1; }
+    this.updateBody(ms);
+    // Render-only modifiers (same rules as the local player).
+    const m: BodyMods = { lift: 0, sx: 1, sy: 1, angle: 0 };
+    let shadowK = 1;
+    const plain = !this.atlasClass;
+    if (this.jumpMs >= 0 && !this.skill && !this.attack) {
+      const j = jumpState(this.jumpMs); m.lift = j.lift; m.sx = j.sx; m.sy = j.sy; shadowK = 1 - 0.38 * j.air;
+    } else if (this.deadMs >= 0) { if (plain) m.angle = deathTopple(this.deadMs, P6.deathFadeMs, this.dir); }
+    else if (this.flashMs >= 0 && plain && !this.skill && !this.attack) m.angle = hurtLean(this.flashMs, P6.hitFlashRedMs, this.dir);
+    else if (plain && !this.skill && !this.attack && this.anim === 'idle') m.sy = breathe(this.lifeMs);
+    applyBodyMods(this.sprite, m);
+    this.shadow.setScale(shadowK, shadowK);
+  }
+
+  private updateBody(ms: number): void {
     // Render slightly in the past and interpolate between the two snapshots around that time.
     const rt = performance.now() - PVP.interpDelayMs;
     const s = this.snaps;
@@ -153,9 +175,9 @@ export class RemotePlayer {
       const k = this.skill;
       k.elapsed += ms;
       if (!this.alive || k.elapsed >= k.lockMs) this.skill = null;
-      else if (this.anim !== 'walk' || k.elapsed < k.castMs + k.activeMs) {
+      else if ((this.anim !== 'walk' && this.anim !== 'run') || k.elapsed < k.castMs + k.activeMs) {
         // Same body animation as the caster sees (cosmetic); recovery walking shows the normal walk.
-        if (this.atlasClass) { setAtlasSkillPose(this.sprite, this.atlasClass, k.dir, k.elapsed, k.castMs, k.activeMs); return; }
+        if (this.atlasClass) { setAtlasSkillPose(this.sprite, this.atlasClass, k.skillId, k.dir, k.elapsed, k.castMs, k.activeMs, k.lockMs); return; }
         if (applySkillAnimation(this.sprite, k.skillId, k.dir, k.elapsed)) return;
         if (!this.isMage) { setWarriorAttackPhase(this.sprite, k.dir, skillPoseIndex(k.elapsed, k.castMs, k.activeMs)); return; }
       }
@@ -171,18 +193,29 @@ export class RemotePlayer {
   }
 
   private pose(ms = 0): void {
-    const walking = this.alive && this.anim === 'walk';
+    const moving = this.alive && (this.anim === 'walk' || this.anim === 'run');
+    const running = moving && this.anim === 'run';
+    if (this.alive && this.jumpMs >= 0) {
+      const ph = jumpState(this.jumpMs).phase, air = ph === 'rise' || ph === 'fall';
+      if (this.atlasClass) setAtlasJump(this.sprite, this.atlasClass, this.dir, ph);
+      else if (this.isMage) setMageFrame(this.sprite, this.dir, air ? 'walk' : 'idle', air ? 1 : 0);
+      else if (air) setWarriorWalkFrame(this.sprite, this.dir, ph === 'rise' ? 1 : 3);
+      else setWarriorIdle(this.sprite, this.dir);
+      return;
+    }
     if (this.atlasClass) {
-      if (!walking && this.flashMs >= 0) { setAtlasHurt(this.sprite, this.atlasClass, this.dir, this.flashMs, P6.hitFlashRedMs); return; }
-      this.walkMs = walking === this.wasWalking ? this.walkMs + ms : 0;
-      this.wasWalking = walking;
-      setAtlasLoop(this.sprite, this.atlasClass, this.dir, walking ? 'walk' : 'idle', this.walkMs);
+      if (!moving && this.flashMs >= 0) { setAtlasHurt(this.sprite, this.atlasClass, this.dir, this.flashMs, P6.hitFlashRedMs); return; }
+      const mode = running ? 'run' : moving ? 'walk' : 'idle';
+      this.walkMs = mode === this.loopMode ? this.walkMs + ms : 0;
+      this.loopMode = mode;
+      setAtlasLoop(this.sprite, this.atlasClass, this.dir, mode, this.walkMs);
       return;
     }
     if (this.isMage) {
-      if (walking) { this.walkMs += ms; setMageFrame(this.sprite, this.dir, 'walk', mageWalkIndex(this.dir, this.walkMs)); }
+      if (moving) { this.walkMs += ms; setMageFrame(this.sprite, this.dir, 'walk', running ? mageRunIndex(this.dir, this.walkMs, 1.6) : mageWalkIndex(this.dir, this.walkMs)); }
       else { this.walkMs = 0; setMageFrame(this.sprite, this.dir, 'idle', 0); }
-    } else if (walking) setWarriorWalk(this.sprite, this.dir);
+    } else if (running) setWarriorRun(this.sprite, this.dir, 1.6);
+    else if (moving) setWarriorWalk(this.sprite, this.dir);
     else setWarriorIdle(this.sprite, this.dir);
   }
 

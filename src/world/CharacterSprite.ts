@@ -34,6 +34,7 @@ export function setMageFrame(p: Phaser.GameObjects.Sprite, dir: Dir, action: 'id
   p.setTexture(BOOK_MAGE_WORLD.sheetKey, mageFrameName(dir, action, i));
   p.setOrigin((r.ax - r.x) / r.w, (r.ay - r.y) / r.h);
   p.setScale(WORLD.player.displayHeight / MAGE.down.idle[0].h);
+  p.setFlipX(false);
 }
 
 export function mageWalkIndex(dir: Dir, walkMs: number): number {
@@ -43,6 +44,7 @@ export function mageWalkIndex(dir: Dir, walkMs: number): number {
 function setBodyScale(p: Phaser.GameObjects.Sprite, frameHeight: number, displayHeight: number, origin: { x: number; y: number }): void {
   p.setOrigin(origin.x, origin.y);
   p.setScale(displayHeight / frameHeight);
+  p.setFlipX(false);
 }
 
 export function setWarriorIdle(p: Phaser.GameObjects.Sprite, dir: Dir): void {
@@ -53,7 +55,27 @@ export function setWarriorIdle(p: Phaser.GameObjects.Sprite, dir: Dir): void {
 
 export function setWarriorWalk(p: Phaser.GameObjects.Sprite, dir: Dir): void {
   setBodyScale(p, T.walk.frameHeight, WORLD.player.displayHeight, WORLD.player.spriteOrigin);
+  p.anims.timeScale = 1;
   p.anims.play(`warrior-walk-${dir}`, true); // continues; never restarts per update
+}
+
+/** One held walk-cycle frame (airborne stride for the jump). */
+export function setWarriorWalkFrame(p: Phaser.GameObjects.Sprite, dir: Dir, i: number): void {
+  if (p.anims.isPlaying) p.anims.stop();
+  const f = ATLAS.directions[dir].walkFrames;
+  p.setTexture(T.walk.key, f[Math.max(0, Math.min(f.length - 1, i))]);
+  setBodyScale(p, T.walk.frameHeight, WORLD.player.displayHeight, WORLD.player.spriteOrigin);
+}
+
+/** Run: same walk cycle, faster cadence (the sheet has no dedicated run row). */
+export function setWarriorRun(p: Phaser.GameObjects.Sprite, dir: Dir, timeScale: number): void {
+  setWarriorWalk(p, dir);
+  p.anims.timeScale = timeScale;
+}
+
+/** Book Mage run frame index (walk frames at a faster cadence). */
+export function mageRunIndex(dir: Dir, ms: number, fpsScale: number): number {
+  return Math.floor((ms * BOOK_MAGE_WORLD.walkFps * fpsScale) / 1000) % MAGE[dir].walk.length;
 }
 
 /** Attack pose for an attack elapsed time (Stage 5 phases). */

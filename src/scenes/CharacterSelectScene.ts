@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { addClothWind } from '../ui/VisualLife';
 import { CHARACTER_SELECT as L, CHARACTER_SELECT_PREVIEW as PV, COLORS, DESIGN, SELECT_HALO } from '../config/layout';
 import { CharacterSelectUI } from '../ui/CharacterSelectUI';
 import { isPvpUrl } from '../pvp/Room';
@@ -50,6 +51,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     // Selected character's full-body preview, feet on the platform (hidden when no character is selected).
     const hero = this.add.image(PV.centerX, PV.feetY, 'characterCreate.warriorPreview').setOrigin(0.5, 1).setVisible(false);
     hero.setScale(PV.height / hero.height);
+    addClothWind(this, hero); // subtle cloak wind (render only)
 
     this.ui = new CharacterSelectUI(this.game.canvas.parentElement!, this.game.canvas, {
       onBack: () => this.scene.start('MainMenuScene'),

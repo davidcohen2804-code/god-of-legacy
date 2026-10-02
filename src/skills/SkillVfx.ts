@@ -18,6 +18,24 @@ const sheetKey = (id: string) => `skillfx-${id}`;
 const MAX_INSTANCES = 48;
 const RELEASE_MS = 1000 / 24;
 const ANGLE: Record<Dir, number> = { right: 0, down: 90, left: 180, up: -90 };
+/** Upright bursts (rise from the ground in front of the caster): never rotated, mirrored on left. */
+const UPRIGHT = new Set(['final_strike', 'dragon_slash']);
+/** Projectile flight loops (frame range) for sheets whose later frames are the impact / build-up. */
+const LOOP: Record<string, [number, number]> = {
+  quick_shot: [3, 6], piercing_arrow: [3, 6], explosive_arrow: [0, 2], sword_wave: [3, 6],
+};
+
+/**
+ * Orientation by facing for a sheet drawn pointing right: left mirrors (never upside-down), up/down rotate ±90°.
+ * Ground-plane and upright effects are never rotated (left mirrors so asymmetric art still faces the caster's way).
+ */
+export function orientVfx(img: Phaser.GameObjects.Image, id: string, dir: Dir): void {
+  const s = SHEETS.get(id);
+  const ground = s?.nativeDirection === 'ground-plane';
+  img.setFlipX(dir === 'left');
+  img.setAngle(ground || UPRIGHT.has(id) || id === 'rising_slash' || dir === 'left' ? 0 : ANGLE[dir]);
+}
+
 export const GROUND_DEPTH = 1; // ground sigils lie on the floor, under every actor (actors sort by feet y >= 286)
 export const TOP_DEPTH = 100000;
 
@@ -45,8 +63,7 @@ export class SkillVfx {
     const img = this.scene.add.image(p.x, p.y, sheetKey(id), 0).setOrigin(s.origin.x, s.origin.y);
     img.setDisplaySize(s.displaySize.width, s.displaySize.height);
     const ground = s.nativeDirection === 'ground-plane';
-    if (id === 'rising_slash') img.setFlipX(dir === 'left');
-    else if (!ground) img.setAngle(ANGLE[dir]);
+    orientVfx(img, id, dir);
     img.setDepth(ground ? GROUND_DEPTH : TOP_DEPTH);
     this.push({ img, t: startElapsed, castMs, mode: 'cast', follow: typeof at === 'function' ? at : undefined });
   }
@@ -62,15 +79,16 @@ export class SkillVfx {
   /** Looping projectile visual (caller positions it and destroys it on termination). */
   projectile(id: string, dir: Dir): Phaser.GameObjects.Image {
     const s = SHEETS.get(id)!;
-    const img = this.scene.add.image(0, 0, sheetKey(id), 0).setOrigin(s.origin.x, s.origin.y).setAngle(ANGLE[dir]);
+    const img = this.scene.add.image(0, 0, sheetKey(id), LOOP[id]?.[0] ?? 0).setOrigin(s.origin.x, s.origin.y);
+    orientVfx(img, id, dir);
     img.setDisplaySize(s.displaySize.width, s.displaySize.height);
     return img;
   }
 
   /** Loop frame for a projectile age. */
   static loopFrame(id: string, ageMs: number): number {
-    const s = SHEETS.get(id)!;
-    return Math.floor((ageMs * s.fps) / 1000) % s.frameCount;
+    const s = SHEETS.get(id)!, [a, b] = LOOP[id] ?? [0, s.frameCount - 1];
+    return a + (Math.floor((ageMs * s.fps) / 1000) % (b - a + 1));
   }
 
   update(ms: number): void {

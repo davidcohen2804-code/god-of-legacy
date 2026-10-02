@@ -48,6 +48,7 @@ export const EVENTS = {
 } as const;
 
 const BODY_UP = 40; // visual body-centre lift for melee strips (render only)
+const FAST_PROJECTILE_MS = 200; // cosmetic end flash for projectiles that live this short
 
 export class SkillSystem {
   readonly events = new Phaser.Events.EventEmitter();
@@ -206,6 +207,9 @@ export class SkillSystem {
           e.run.hits.add(t.id); this.world.onHit(e.run, t);
         }
         this.vfx.playCast(e.p.skill.vfx ?? e.p.skill.id, { x: e.p.x, y: e.p.y }, e.p.dir, 0);
+      } else if (e.p.done && (g.ttlMs ?? Infinity) <= FAST_PROJECTILE_MS) {
+        // Near-instant bolts (e.g. Lightning Chain) would be invisible in flight: flash the sheet where they end.
+        this.vfx.playCast(e.p.skill.vfx ?? e.p.skill.id, { x: e.p.x, y: e.p.y - 36 }, e.p.dir, 0);
       }
       this.placeProjectile(e.p, e.img);
     }
