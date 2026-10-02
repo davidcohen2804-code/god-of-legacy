@@ -11,6 +11,7 @@ import { CharacterStore } from '../characters/CharacterStore';
 import { WorldHUD } from '../ui/WorldHUD';
 import { Dir, facingFrom, footAllowedStatic } from '../world/collision';
 import { CursedSwordsman, preloadEnemyFrames } from '../world/CursedSwordsman';
+import { CourtyardAmbience } from '../world/Ambience';
 
 const T = ATLAS.textures;
 const CT = COMBAT_ASSETS.textures;
@@ -45,6 +46,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Read by the QA panel. */
   playerHP = S6.player.maxHp;
   enemy?: CursedSwordsman;
+  private ambience?: CourtyardAmbience;
   private shadow?: Phaser.GameObjects.Ellipse;
   private keys?: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' | 'SPACE', Phaser.Input.Keyboard.Key>;
   private dir: Dir = ATLAS.initialDirection as Dir;
@@ -107,6 +109,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     cam.setZoom(Math.min(cam.width / WORLD.camera.worldWidth, cam.height / WORLD.camera.worldHeight));
     cam.centerOn(WORLD.coordinateSpace.width / 2, WORLD.coordinateSpace.height / 2);
     cam.setRoundPixels(true);
+    this.ambience = new CourtyardAmbience(this, WORLD.coordinateSpace.width, WORLD.coordinateSpace.height);
 
     for (const [d, def] of Object.entries(ATLAS.directions)) {
       const key = `warrior-walk-${d}`;
@@ -159,6 +162,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.attack = null;
       this.enemy?.destroy();
       this.enemy = undefined;
+      this.ambience?.destroy();
+      this.ambience = undefined;
       this.hud?.destroy();
       this.hud = undefined;
       this.keys = undefined;
@@ -171,6 +176,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     const k = this.keys, p = this.player;
     if (!k || !p) return;
+    this.ambience?.update(delta); // purely visual; keeps drifting even during hit-stop
     if (this.hitStopLeft > 0) { this.hitStopLeft -= delta; return; } // whole simulation freezes on a confirmed hit
     const ms = delta;
     this.sinceAttackStart += ms;

@@ -154,7 +154,6 @@ export const WORLD_HUD = {
 // Gameplay numbers live in src/data/stage6-combat.json; these are the approved placement/size/timing values
 // that the JSON does not define. World values are Stage 4 map pixels; Character Select values are 1920x1080 screen pixels.
 export const STAGE6 = {
-  floorFx: { key: 'characterSelect.floorFx', file: 'assets/character_select/selected_floor_fx.png', centerX: 985, centerY: 835, displayWidth: 470 },
   enemy: {
     spawn: { x: 1240, y: 430 }, collisionRadius: 18, footRadius: 10, respawnClearRadius: 28,
     origin: { x: 0.5, y: 0.95 }, framePath: 'assets/enemy/cursed_swordsman',
@@ -168,6 +167,25 @@ export const STAGE6 = {
     rotationDeg: { right: 0, down: 90, left: 180, up: -90 } },
   dust: { path: 'assets/fx/movement_dust', frames: 6, displayWidth: 44, minIntervalMs: 140 },
   player: { walkThreshold: 12, hitFlashWhiteMs: 60, hitFlashRedMs: 140, deathFadeMs: 400, deathPauseMs: 1200, deathAlpha: 0.25 },
+} as const;
+
+// ======================= Visual polish (after Stage 6) =======================
+
+/** Character Select: one soft golden halo under the boots, concentric with the pedestal ellipse, plus a contact shadow. */
+export const SELECT_HALO = {
+  centerX: 985, centerY: 822, rx: 175, ry: 42, // same centre as CHARACTER_SELECT.preview pedestal
+  alpha: [0.38, 0.62], scale: [0.97, 1.03], pulseMs: 3200,
+  shadow: { x: 985, y: 832, rx: 80, ry: 13, alpha: 0.5 },
+} as const;
+
+/** Courtyard ambience (world = map pixels). Light comes from the upper right, like the baked map lighting. */
+export const AMBIENCE = {
+  clouds: { size: 512, blobs: 9, groundTop: 250, tileScale: 1.6, squash: 0.6, alpha: 0.3, driftX: 9, driftY: 3 },
+  sun: { x: 1450, y: 230, width: 1400, height: 820, alpha: 0.12, breatheMs: 9000 },
+  rays: {
+    angle: 25, length: 900, breatheMs: 7000,
+    list: [{ x: 1350, y: 200, width: 140, alpha: 0.06 }, { x: 1150, y: 220, width: 90, alpha: 0.045 }, { x: 1520, y: 260, width: 110, alpha: 0.05 }],
+  },
 } as const;
 
 // ======================= Build / QA =======================
