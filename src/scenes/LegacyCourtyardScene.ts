@@ -20,6 +20,8 @@ import { SkillDef, UNASSIGNED_ICON, damageFor, getSkill, slotsForClass } from '.
 import { HitTarget, dashEnd, knockbackDir, placementLegal, runePlacement, shapeHits, spawnProjectile, stepProjectile, sweepStatic } from '../skills/HitResolver';
 import { ControlState } from '../skills/ControlPolicy';
 import { preloadSkillVfx } from '../skills/SkillVfx';
+import { applySkillAnimation, preloadSkillAnimations } from '../skills/SkillAnimations';
+import { isAtlasClass, preloadClassAtlases, registerClassAtlasFrames, setAtlasDeath, setAtlasFrame, setAtlasHurt, setAtlasLoop, setAtlasSkillPose } from '../world/ClassAtlas';
 import { isQAMode } from '../qa/QAPanel';
 import { PvpController } from '../pvp/PvpController';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
@@ -44,7 +46,6 @@ type KeyName = 'W' | 'A' | 'S' | 'D' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' | (typeo
 /** PvP victim-side sanity checks for a remote cast intent (network jitter tolerances). */
 const CAST_COOLDOWN_TOLERANCE_MS = 250;
 const CAST_ORIGIN_TOLERANCE_PX = 120;
-const CAST_FLASH_MS = 80; // Book Mage release flash (existing pose, no new animation)
 const skillLabel = (id: string) => id.split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
 const BASIC = () => getSkill('warrior_basic')!;
 const dustKey = (i: number) => `fx-dust-${i}`;
@@ -83,6 +84,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private ambience?: CourtyardAmbience;
   /** Book Mage uses its own sheet frames and has no attack in this build. */
   private isMage = false;
+  /** Archer / Samurai: explicit-rect atlas body (null for Warrior / Book Mage, which keep their existing sprites). */
+  private atlasClass: string | null = null;
+  private bodyMs = 0; // idle / walk loop clock for atlas classes
+  private atlasWalking = false;
   private mageWalkMs = 0;
   private shadow?: Phaser.GameObjects.Ellipse;
   private keys?: Record<KeyName, Phaser.Input.Keyboard.Key>;
@@ -133,7 +138,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private selfKb: { vx: number; vy: number; left: number } | null = null;
   private remoteCasts = new Map<string, number>(); // attackerId:skillId -> last accepted cast time
   private seenCasts = new Set<string>();
-  private castFlashMs = -1;
 
   constructor() { super('LegacyCourtyardScene'); }
 
@@ -147,6 +151,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     for (let i = 0; i < STAGE6.dust.frames; i++) if (!this.textures.exists(dustKey(i))) this.load.image(dustKey(i), `${STAGE6.dust.path}/0${i}.png`);
     preloadEnemyFrames(this);
     preloadSkillVfx(this);
+    preloadSkillAnimations(this);
+    preloadClassAtlases(this);
     if (!this.textures.exists(BOOK_MAGE_WORLD.sheetKey)) this.load.image(BOOK_MAGE_WORLD.sheetKey, BOOK_MAGE_WORLD.sheetFile);
   }
 
@@ -155,13 +161,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!character) { this.scene.start('CharacterSelectScene'); return; } // never auto-create a character
     const pvpRoom = data?.pvpRoom ?? null;
     this.isMage = character.classId === 'book_mage';
+    this.atlasClass = isAtlasClass(character.classId) ? character.classId : null;
+    this.bodyMs = 0;
+    registerClassAtlasFrames(this); // local or remote Archer / Samurai
     this.mageWalkMs = 0;
     registerMageFrames(this); // remote PvP players may be Book Mages too
     this.pvp = undefined; this.pvpReady = !pvpRoom; this.hitsTaken = new Set();
     const playerId = newPlayerId();
     this.localId = pvpRoom ? playerId : 'local';
     this.slotDefs = slotsForClass(character.classId);
-    this.simMs = 0; this.castSeq = 0; this.control.reset(); this.selfKb = null; this.castFlashMs = -1;
+    this.simMs = 0; this.castSeq = 0; this.control.reset(); this.selfKb = null;
     this.remoteCasts = new Map(); this.seenCasts = new Set();
 
     // Reset scene-local state on every entry.
@@ -299,7 +308,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.updateImpacts(ms);
     this.updateFx(ms);
     this.updatePlayerFlash(ms);
-    this.updateCastFlash(ms);
     this.skills?.update(ms);
     this.updateSelfKnockback(ms);
     this.enemy?.update(ms, {
@@ -317,8 +325,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (run && (run.phase === 'cast' || run.phase === 'active')) { this.updateOwnCast(run); this.syncDepths(); return; }
 
     this.updateMovement(ms); // recovery: movement permitted (moveDuringRecovery)
-    if (run && run.phase === 'recovery' && !this.isMage && Math.hypot(this.vx, this.vy) <= P6.walkThreshold) {
-      setWarriorAttackPhase(p, run.dir, 3);
+    if (run && run.phase === 'recovery' && Math.hypot(this.vx, this.vy) <= P6.walkThreshold) {
+      // Standing still in recovery: finish the body animation; moving shows the normal walk (no new movement lock).
+      if (this.atlasClass) setAtlasSkillPose(p, this.atlasClass, run.dir, run.elapsed, run.skill.castMs, run.skill.detachedActive ? 0 : run.skill.activeMs);
+      else if (!applySkillAnimation(p, run.skill.id, run.dir, run.elapsed) && !this.isMage) setWarriorAttackPhase(p, run.dir, 3);
     }
     this.syncDepths();
   }
@@ -356,7 +366,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.vx !== 0) { if (this.footAllowed(nx, p.y)) p.x = nx; else this.vx = 0; }
     if (this.vy !== 0) { if (this.footAllowed(p.x, ny)) p.y = ny; else this.vy = 0; }
 
-    if (Math.hypot(this.vx, this.vy) > P6.walkThreshold && this.isMage) {
+    if (this.atlasClass) {
+      const walking = Math.hypot(this.vx, this.vy) > P6.walkThreshold;
+      if (!walking && this.playerFlashMs >= 0) { setAtlasHurt(p, this.atlasClass, this.dir, this.playerFlashMs, P6.hitFlashRedMs); return; }
+      this.bodyMs = walking === this.atlasWalking ? this.bodyMs + ms : 0;
+      this.atlasWalking = walking;
+      setAtlasLoop(p, this.atlasClass, this.dir, walking ? 'walk' : 'idle', this.bodyMs);
+    } else if (Math.hypot(this.vx, this.vy) > P6.walkThreshold && this.isMage) {
       this.mageWalkMs += ms;
       setMageFrame(p, this.dir, 'walk', mageWalkIndex(this.dir, this.mageWalkMs));
     } else if (Math.hypot(this.vx, this.vy) > P6.walkThreshold) {
@@ -379,6 +395,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private setIdle(): void {
     const p = this.player!;
+    if (this.atlasClass) { setAtlasLoop(p, this.atlasClass, this.dir, 'idle', this.bodyMs); return; }
     if (this.isMage) { this.mageWalkMs = 0; setMageFrame(p, this.dir, 'idle', 0); return; }
     setWarriorIdle(p, this.dir);
   }
@@ -658,6 +675,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const e = dashEnd(s, run.origin, run.dir, (run.elapsed - s.castMs) / s.activeMs);
       p.setPosition(e.x, e.y);
     }
+    if (this.atlasClass) { setAtlasSkillPose(p, this.atlasClass, run.dir, run.elapsed, s.castMs, s.detachedActive ? 0 : s.activeMs); return; }
+    if (applySkillAnimation(p, s.id, run.dir, run.elapsed)) return; // body animation (cosmetic; frame 3 = active start)
     if (this.isMage) this.setIdle();
     else setWarriorAttackPhase(p, run.dir, skillPoseIndex(run.elapsed, s.castMs, s.activeMs));
   }
@@ -666,7 +685,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const s = run.skill;
     if (run.own) {
       const p = this.player!;
-      if (phase === 'active' && this.isMage) { this.castFlashMs = 0; if (this.playerFlashMs < 0) p.setTint(0xb8d8ff); }
       if (phase === 'recovery' && s.geometry.kind === 'sweptCapsule') {
         // Dash ends at the swept end point; never inside a body (step back along the path).
         const e = dashEnd(s, run.origin, run.dir, 1), f = FACING[run.dir];
@@ -678,7 +696,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (phase === 'cast') {
       const detached = !!s.detachedActive;
-      this.pvp?.remotes.get(run.attackerId)?.startSkill(run.dir, s.castMs, detached ? 0 : s.activeMs, detached ? s.actionLockMs : s.castMs + s.activeMs + s.recoveryMs);
+      this.pvp?.remotes.get(run.attackerId)?.startSkill(s.id, run.dir, s.castMs, detached ? 0 : s.activeMs, detached ? s.actionLockMs : s.castMs + s.activeMs + s.recoveryMs);
     }
   }
 
@@ -803,12 +821,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (k.left <= 0) this.selfKb = null;
   }
 
-  private updateCastFlash(ms: number): void {
-    if (this.castFlashMs < 0) return;
-    this.castFlashMs += ms;
-    if (this.castFlashMs >= CAST_FLASH_MS) { this.castFlashMs = -1; if (this.playerFlashMs < 0 && this.playerDeadMs < 0) this.player?.clearTint(); }
-  }
-
   /** Existing training-dummy damage rules (shared by the basic attack and skills). */
   private damageDummy(dmg: number): void {
     this.dummyHp = Math.max(0, this.dummyHp - dmg);
@@ -860,6 +872,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const t = Math.min(1, this.playerDeadMs / P6.deathFadeMs);
     p.setAlpha(1 - (1 - P6.deathAlpha) * t);
     this.shadow?.setAlpha(1 - t);
+    if (this.atlasClass) setAtlasDeath(p, this.atlasClass, this.dir, this.playerDeadMs, P6.deathFadeMs); // death frames, then hold
     if (this.pvp) { if (this.playerDeadMs >= PVP.respawnMs) this.respawnPvp(); return; }
     if (this.playerDeadMs >= P6.deathFadeMs + P6.deathPauseMs) {
       // Reset to courtyard spawn with full HP (no game-over screen in this stage).

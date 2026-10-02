@@ -3,7 +3,7 @@
 // cosmetic VFX and combo-ready events. Damage/control are applied by the scene's CombatAdapter callbacks.
 import Phaser from 'phaser';
 import { Dir } from '../world/collision';
-import { HitTarget, Projectile, Vec, shapeHits, spawnProjectile, stepProjectile } from './HitResolver';
+import { HitTarget, Projectile, Vec, burstHits, shapeHits, spawnProjectile, stepPiercing, stepProjectile } from './HitResolver';
 import { SkillDef } from './SkillRegistry';
 import { SkillVfx } from './SkillVfx';
 
@@ -193,8 +193,20 @@ export class SkillSystem {
   private stepProjectiles(ms: number): void {
     for (const e of this.projectiles) {
       // Projectile lifetime is independent of the caster's action lock (the run may already be finished).
-      const hit = stepProjectile(e.p, ms, this.world.targets(e.run));
-      if (hit && !e.run.hits.has(hit.id)) { e.run.hits.add(hit.id); this.world.onHit(e.run, hit); }
+      const g = e.p.skill.geometry, targets = this.world.targets(e.run);
+      if (g.pierce) {
+        for (const t of stepPiercing(e.p, ms, targets, e.run.hits)) { e.run.hits.add(t.id); this.world.onHit(e.run, t); }
+      } else {
+        const hit = stepProjectile(e.p, ms, targets);
+        if (hit && !e.run.hits.has(hit.id)) { e.run.hits.add(hit.id); this.world.onHit(e.run, hit); }
+      }
+      if (e.p.done && g.explodeRadius) { // burst at the impact point (each target still once per cast)
+        for (const t of burstHits(e.p.skill, e.p.attackerId, e.p, g.explodeRadius, targets)) {
+          if (e.run.hits.has(t.id)) continue;
+          e.run.hits.add(t.id); this.world.onHit(e.run, t);
+        }
+        this.vfx.playCast(e.p.skill.vfx ?? e.p.skill.id, { x: e.p.x, y: e.p.y }, e.p.dir, 0);
+      }
       this.placeProjectile(e.p, e.img);
     }
     this.dropProjectiles((p) => p.done);
@@ -220,7 +232,13 @@ export class SkillSystem {
       case 'rising_slash': at = { x: o.x + f[0] * 46, y: o.y + f[1] * 46 - BODY_UP }; break;
       case 'arcane_wave': at = { x: o.x + f[0] * ((s.geometry.length ?? s.range) / 2), y: o.y + f[1] * ((s.geometry.length ?? s.range) / 2) - 24 }; break;
       case 'binding_rune': at = r.place ?? o; break;
-      default: at = o; // ground_breaker / astral_burst: centred on the caster's feet
+      default: // V1 ground_breaker / astral_burst and extension circles: caster's feet; other extension shapes by geometry
+        if (s.geometry.kind === 'sweptCapsule') at = () => { const c = this.world.casterPos(r.attackerId) ?? o; return { x: c.x, y: c.y - BODY_UP }; };
+        else if (s.geometry.kind === 'sector' || s.geometry.kind === 'forwardRectangle') {
+          const d = (s.geometry.length ?? s.range) / 2;
+          at = { x: o.x + f[0] * d, y: o.y + f[1] * d - BODY_UP };
+        } else if (s.geometry.kind === 'groundCircle') at = r.place ?? o;
+        else at = o;
     }
     this.vfx.playCast(id, at, r.dir, s.castMs, r.elapsed);
   }

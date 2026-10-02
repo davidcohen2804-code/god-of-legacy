@@ -1,6 +1,7 @@
 // Skill System V1 — data registry. Source of truth: src/data/skills.json (+ the existing Warrior basic adapter).
 import SKILLS from '../data/skills.json';
 import COMBAT from '../data/training-combat.json';
+import { EXTENSION_SKILLS } from './SkillExtension';
 
 export type GeometryKind = 'sweptCapsule' | 'sector' | 'circle' | 'projectile' | 'forwardRectangle' | 'groundCircle' | 'basicSector';
 
@@ -9,6 +10,10 @@ export interface SkillGeometry {
   travelDistance?: number; radius?: number; speed?: number; maxTargets?: number | null;
   angleDegrees?: number; center?: string; maxDistance?: number; ttlMs?: number;
   width?: number; length?: number; persistMs?: number; placement?: string; spawn?: string;
+  /** Extension: projectile passes through targets (each hit once). */
+  pierce?: boolean;
+  /** Extension: projectile bursts on termination (circle radius around the impact point). */
+  explodeRadius?: number;
 }
 
 export interface SkillDef {
@@ -64,6 +69,8 @@ const WARRIOR_BASIC: SkillDef = {
 const BY_ID = new Map<string, SkillDef>();
 for (const s of SKILLS.skills as unknown as SkillDef[]) BY_ID.set(s.id, s);
 BY_ID.set(WARRIOR_BASIC.id, WARRIOR_BASIC);
+const EXTENSION_IDS = new Set<string>();
+for (const s of EXTENSION_SKILLS) if (!BY_ID.has(s.id)) { BY_ID.set(s.id, s); EXTENSION_IDS.add(s.id); } // never overrides V1
 
 export const SLOT_COUNT = 8;
 export const DISABLED_SLOTS: readonly number[] = SKILLS.disabledSlots;
@@ -77,7 +84,10 @@ export function getSkill(id: string): SkillDef | undefined { return BY_ID.get(id
 export function slotsForClass(classId: string): (SkillDef | null)[] {
   const out: (SkillDef | null)[] = Array(SLOT_COUNT).fill(null);
   if (classId === 'warrior') out[0] = WARRIOR_BASIC;
-  for (const s of BY_ID.values()) if (s.class === classId && !s.adapter && !DISABLED_SLOTS.includes(s.slot)) out[s.slot] = s;
+  for (const s of BY_ID.values()) {
+    if (s.class !== classId || s.adapter) continue;
+    if (EXTENSION_IDS.has(s.id) ? out[s.slot] === null : !DISABLED_SLOTS.includes(s.slot)) out[s.slot] = s; // V1 slots win; extension fills 4–7 / new classes
+  }
   return out;
 }
 

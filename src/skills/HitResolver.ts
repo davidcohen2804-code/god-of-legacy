@@ -179,6 +179,38 @@ export function stepProjectile(p: Projectile, ms: number, targets: HitTarget[]):
   return null;
 }
 
+/** Piercing projectile step: every legal target entered before the first wall, nearest first (each once per cast). */
+export function stepPiercing(p: Projectile, ms: number, targets: HitTarget[], already: Set<string>): HitTarget[] {
+  if (p.done) return [];
+  const g = p.skill.geometry, f = FACING[p.dir], r = g.radius ?? 0;
+  const maxD = g.maxDistance ?? p.skill.range, ttl = g.ttlMs ?? Infinity;
+  const len = Math.min(((g.speed ?? 0) * Math.min(ms, Math.max(0, ttl - p.ageMs))) / 1000, maxD - p.travelled);
+  p.ageMs += ms;
+  let wallAt = Infinity;
+  for (let s = STEP; s <= len + 1e-6; s += STEP) if (!footAllowedStatic(p.x + f.x * s, p.y + f.y * s, r)) { wallAt = s; break; }
+  if (!footAllowedStatic(p.x, p.y, r)) wallAt = 0;
+  const reach = Math.min(len, wallAt);
+  const hits: { t: HitTarget; at: number }[] = [];
+  for (const t of targets) {
+    if (already.has(t.id) || !legal(p.skill, p.attackerId, t)) continue;
+    const R = t.radius + r, ox = p.x - t.x, oy = p.y - t.y;
+    const b = ox * f.x + oy * f.y, c = ox * ox + oy * oy - R * R;
+    let at: number;
+    if (c <= 0) at = 0; else { const disc = b * b - c; if (disc < 0) continue; at = -b - Math.sqrt(disc); if (at < 0) continue; }
+    if (at <= reach) hits.push({ t, at });
+  }
+  hits.sort((a, b) => a.at - b.at || (a.t.id < b.t.id ? -1 : 1));
+  p.x += f.x * reach; p.y += f.y * reach; p.travelled += reach;
+  if (wallAt <= len || p.travelled >= maxD - 1e-6 || p.ageMs >= ttl) p.done = true;
+  return hits.map((h) => h.t);
+}
+
+/** Burst around a point (Explosive Arrow): legal targets within radius + their own radius, with line of sight. */
+export function burstHits(s: SkillDef, attackerId: string, at: Vec, radius: number, targets: HitTarget[]): HitTarget[] {
+  return targets.filter((t) => legal(s, attackerId, t) && Math.hypot(t.x - at.x, t.y - at.y) <= radius + t.radius && hasLineOfSight(at.x, at.y, t.x, t.y))
+    .sort((a, b) => (a.id < b.id ? -1 : 1));
+}
+
 /** Knockback direction: away from the cast origin (facing when overlapping). */
 export function knockbackDir(origin: Vec, t: Vec, dir: Dir): Vec {
   const dx = t.x - origin.x, dy = t.y - origin.y, d = Math.hypot(dx, dy);

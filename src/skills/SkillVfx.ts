@@ -4,9 +4,16 @@
 import Phaser from 'phaser';
 import MANIFEST from '../data/skills-asset-manifest.json';
 import { Dir } from '../world/collision';
+import { EXTENSION_VFX } from './SkillExtension';
 
 type Sheet = (typeof MANIFEST.sheets)[number];
 const SHEETS = new Map<string, Sheet>(MANIFEST.sheets.map((s) => [s.id, s]));
+// Four-class extension sheets: 8 frames x 256, one row, 24 FPS, centred origin (same timeline rules).
+for (const v of EXTENSION_VFX) {
+  if (SHEETS.has(v.id)) continue;
+  const base = SHEETS.get('ground_breaker')!;
+  SHEETS.set(v.id, { ...base, id: v.id, path: v.path, origin: { x: 0.5, y: 0.5 }, displaySize: { width: 256, height: 256 }, nativeDirection: v.ground ? 'ground-plane' : 'right', repeat: v.ground ? 0 : base.repeat } as Sheet);
+}
 const sheetKey = (id: string) => `skillfx-${id}`;
 const MAX_INSTANCES = 48;
 const RELEASE_MS = 1000 / 24;
@@ -15,7 +22,7 @@ export const GROUND_DEPTH = 1; // ground sigils lie on the floor, under every ac
 export const TOP_DEPTH = 100000;
 
 export function preloadSkillVfx(scene: Phaser.Scene): void {
-  for (const s of MANIFEST.sheets) {
+  for (const s of SHEETS.values()) {
     if (!scene.textures.exists(sheetKey(s.id))) scene.load.spritesheet(sheetKey(s.id), s.path, { frameWidth: s.frameWidth, frameHeight: s.frameHeight });
   }
   for (const i of MANIFEST.icons) if (!scene.textures.exists(`skillicon-${i.id}`)) scene.load.image(`skillicon-${i.id}`, i.path);

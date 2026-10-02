@@ -7,13 +7,13 @@ import { FONT_FAMILY, PVP, STAGE6, WORLD_HUD } from '../config/layout';
 import { Dir } from '../world/collision';
 import { mageWalkIndex, setMageFrame, setWarriorAttackFrame, setWarriorAttackPhase, setWarriorIdle, setWarriorWalk, skillPoseIndex } from '../world/CharacterSprite';
 import { PeerMeta } from './Transport';
+import { applySkillAnimation } from '../skills/SkillAnimations';
+import { isAtlasClass, setAtlasDeath, setAtlasHurt, setAtlasLoop, setAtlasSkillPose } from '../world/ClassAtlas';
 
 const A = COMBAT.attack;
 const P6 = STAGE6.player;
 const DIRS: Dir[] = ['down', 'left', 'right', 'up'];
 const asDir = (d: string): Dir => (DIRS.includes(d as Dir) ? (d as Dir) : 'down');
-
-const CAST_FLASH_MS = 80; // Book Mage release flash (pose stays the existing idle frame)
 
 interface Snap { t: number; x: number; y: number }
 
@@ -30,8 +30,7 @@ export class RemotePlayer {
   private walkMs = 0;
   private attack: { elapsed: number; dir: Dir; slashed: boolean } | null = null;
   /** Skill pose: Warrior reuses attack frames by phase; Mage keeps its pose with a short book flash at release. */
-  private castFlash = -1;
-  private skill: { elapsed: number; dir: Dir; castMs: number; activeMs: number; lockMs: number; flashed: boolean } | null = null;
+  private skill: { skillId: string; elapsed: number; dir: Dir; castMs: number; activeMs: number; lockMs: number } | null = null;
   private flashMs = -1;
   private deadMs = -1;
   hp: number = PVP.maxHp;
@@ -54,6 +53,9 @@ export class RemotePlayer {
   }
 
   get isMage(): boolean { return this.meta.classId === 'book_mage'; }
+  /** Archer / Samurai use the explicit-rect class atlas. */
+  get atlasClass(): string | null { return isAtlasClass(this.meta.classId) ? this.meta.classId : null; }
+  private wasWalking = false;
   get x(): number { return this.sprite.x; }
   get y(): number { return this.sprite.y; }
 
@@ -69,10 +71,10 @@ export class RemotePlayer {
     else if (!alive && this.alive) this.die();
   }
 
-  startSkill(dir: string, castMs: number, activeMs: number, lockMs: number): void {
+  startSkill(skillId: string, dir: string, castMs: number, activeMs: number, lockMs: number): void {
     if (!this.alive) return;
     this.attack = null;
-    this.skill = { elapsed: 0, dir: asDir(dir), castMs, activeMs, lockMs, flashed: false };
+    this.skill = { skillId, elapsed: 0, dir: asDir(dir), castMs, activeMs, lockMs };
     this.dir = this.skill.dir;
   }
 
@@ -144,18 +146,18 @@ export class RemotePlayer {
       const t = Math.min(1, this.deadMs / P6.deathFadeMs);
       this.sprite.setAlpha(1 - (1 - P6.deathAlpha) * t);
       this.shadow.setAlpha(1 - t);
+      if (this.atlasClass) { setAtlasDeath(this.sprite, this.atlasClass, this.dir, this.deadMs, P6.deathFadeMs); return; }
     }
 
-    if (this.castFlash >= 0) { this.castFlash += ms; if (this.castFlash >= CAST_FLASH_MS) { this.castFlash = -1; if (this.flashMs < 0 && this.alive) this.sprite.clearTint(); } }
     if (this.skill) {
       const k = this.skill;
       k.elapsed += ms;
       if (!this.alive || k.elapsed >= k.lockMs) this.skill = null;
-      else if (this.isMage) {
-        if (!k.flashed && k.elapsed >= k.castMs) { k.flashed = true; this.castFlash = 0; this.sprite.setTint(0xb8d8ff); }
-      } else if (this.anim !== 'walk' || k.elapsed < k.castMs + k.activeMs) {
-        setWarriorAttackPhase(this.sprite, k.dir, skillPoseIndex(k.elapsed, k.castMs, k.activeMs));
-        return;
+      else if (this.anim !== 'walk' || k.elapsed < k.castMs + k.activeMs) {
+        // Same body animation as the caster sees (cosmetic); recovery walking shows the normal walk.
+        if (this.atlasClass) { setAtlasSkillPose(this.sprite, this.atlasClass, k.dir, k.elapsed, k.castMs, k.activeMs); return; }
+        if (applySkillAnimation(this.sprite, k.skillId, k.dir, k.elapsed)) return;
+        if (!this.isMage) { setWarriorAttackPhase(this.sprite, k.dir, skillPoseIndex(k.elapsed, k.castMs, k.activeMs)); return; }
       }
     }
     if (this.attack) {
@@ -170,6 +172,13 @@ export class RemotePlayer {
 
   private pose(ms = 0): void {
     const walking = this.alive && this.anim === 'walk';
+    if (this.atlasClass) {
+      if (!walking && this.flashMs >= 0) { setAtlasHurt(this.sprite, this.atlasClass, this.dir, this.flashMs, P6.hitFlashRedMs); return; }
+      this.walkMs = walking === this.wasWalking ? this.walkMs + ms : 0;
+      this.wasWalking = walking;
+      setAtlasLoop(this.sprite, this.atlasClass, this.dir, walking ? 'walk' : 'idle', this.walkMs);
+      return;
+    }
     if (this.isMage) {
       if (walking) { this.walkMs += ms; setMageFrame(this.sprite, this.dir, 'walk', mageWalkIndex(this.dir, this.walkMs)); }
       else { this.walkMs = 0; setMageFrame(this.sprite, this.dir, 'idle', 0); }
