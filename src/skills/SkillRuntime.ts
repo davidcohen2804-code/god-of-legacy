@@ -24,6 +24,8 @@ export interface CastRun extends CastRequest {
   elapsed: number;
   phase: Phase;
   fired: Set<number>;
+  /** Dash-through: already turned to face the crossed target. */
+  turned?: boolean;
   hitKeys: Set<string>;
   /** First confirmed hit (authority or predicted) — opens the hit-confirm cancel window. */
   confirmedAt: number;

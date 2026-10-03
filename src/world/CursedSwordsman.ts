@@ -52,12 +52,14 @@ export class CursedSwordsman {
   private kdMs = 0;
   private lastNow = 0;
   frozen = false; // QA: AI disabled (training target)
+  private ring?: Phaser.GameObjects.Ellipse;
   get facing(): Dir { return this.dir; }
   get maxHp(): number { return E.maxHp; }
 
   constructor(private scene: Phaser.Scene) {
     this.kin = newKin(C.spawn.x, C.spawn.y);
     this.body = new CombatBody(this.kin, false);
+    this.body.maxHp = E.maxHp;
     this.shadow = scene.add.ellipse(C.spawn.x, C.spawn.y - 2, 36, 12, 0x000000, 0.33);
     this.sprite = scene.add.image(C.spawn.x, C.spawn.y, enemyFrameKey('down', 'idle', 0)).setOrigin(C.origin.x, C.origin.y);
     this.sync();
@@ -70,7 +72,7 @@ export class CursedSwordsman {
   /** Legacy QA accessors. */
   get state(): string { return this.ai === 'dead' ? 'dead' : this.body.state === 'free' ? this.ai : 'hurt'; }
 
-  target(): HitTarget { return { id: 'enemy', kind: 'enemy', x: this.kin.x, y: this.kin.y, z: this.kin.z, radius: C.collisionRadius, height: 74, alive: this.alive }; }
+  target(): HitTarget { return { id: 'enemy', kind: 'enemy', x: this.kin.x, y: this.kin.y, z: this.kin.z, radius: C.collisionRadius, height: 74, alive: this.alive, invulnerable: this.lastNow < this.body.invulnUntil }; }
 
   /** HP change from a confirmed hit (reactions already applied to `body` by the scene). */
   damage(dmg: number): void {
@@ -182,5 +184,7 @@ export class CursedSwordsman {
     this.sprite.setPosition(k.x, k.y - k.z).setDepth(k.y);
     const h = Math.max(0, k.z - k.supportZ), s = Math.max(0.4, 1 - h / 140);
     this.shadow.setPosition(k.x, k.y - k.supportZ - 2).setDepth(k.y - 0.5).setVisible(this.alive).setScale(s);
+    if (!this.ring) this.ring = this.sprite.scene.add.ellipse(0, 0, 70, 26).setStrokeStyle(3, 0xff4a4a, 0.85).setFillStyle(0xff4a4a, 0.1);
+    this.ring.setPosition(k.x, k.y - k.supportZ - 1).setDepth(k.y - 0.55).setVisible(this.alive).setScale(s);
   }
 }

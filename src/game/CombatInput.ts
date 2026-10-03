@@ -4,6 +4,8 @@ import Phaser from 'phaser';
 
 export const RUN_RULES = { doubleTapMs: 240, adjacentGraceMs: 180, releaseGraceMs: 110 };
 export const BUFFER_MS = 160;
+/** Skill presses made during an action stay queued this long (fires at the first legal frame). */
+export const SKILL_BUFFER_MS = 600;
 
 type DirKey = 'L' | 'R' | 'U' | 'D';
 const VEC: Record<DirKey, [number, number]> = { L: [-1, 0], R: [1, 0], U: [0, -1], D: [0, 1] };
@@ -70,7 +72,7 @@ export class CombatInput {
   /** Buffer an action (slot) that could not start yet; fires on the first legal frame within BUFFER_MS. */
   bufferAction(slot: number): void { this.buffer = { slot, at: this.now }; }
   takeBuffered(): BufferedAction | null {
-    if (this.buffer && this.now - this.buffer.at > BUFFER_MS) this.buffer = null;
+    if (this.buffer && this.now - this.buffer.at > SKILL_BUFFER_MS) this.buffer = null;
     return this.buffer;
   }
   consumeBuffer(): void { this.buffer = null; }

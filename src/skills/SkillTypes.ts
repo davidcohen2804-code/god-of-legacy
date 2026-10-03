@@ -44,6 +44,10 @@ export interface Reaction {
   hardCC?: { kind: 'root' | 'freeze' | 'stun'; ms: number };
   slow?: { pct: number; ms: number };
   juggleCost?: number;
+  /** Pin the victim in place (no gravity, no drift) for this long (ms). */
+  pin?: number;
+  /** Grab: ignores the combo-protection gauges. */
+  grab?: boolean;
 }
 
 export interface HitEvent {
@@ -82,6 +86,10 @@ export interface FinalSkill {
   placeRange?: number;
   /** Persistent zone / trap lifetime after active (ms). */
   zoneMs?: number;
+  /** Detached lingering hits (cracks / summons): keep striking after the caster moves on or cancels. */
+  linger?: { at: 'origin' | 'aim'; offset?: number; startMs: number; everyMs: number; count: number; radius: number; maxZ: number; hit: HitEvent };
+  /** Dash passes through bodies and turns to face the target behind. */
+  through?: boolean;
   trap?: { radius: number; lifeMs: number };
   armor?: [number, number]; // elapsed window (ms from cast) with armor
   counter?: { window: number; sidestep: number };

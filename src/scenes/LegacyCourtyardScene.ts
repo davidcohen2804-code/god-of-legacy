@@ -26,7 +26,7 @@ import { CombatInput } from '../game/CombatInput';
 import { ActorView, Equipped, preloadCosmetics } from '../game/ActorView';
 import { ClassKey, dirOf, preloadBodies, registerBodies, resolvePose } from '../game/Body';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, poseQuery } from '../game/PoseState';
-import { CombatBody, HitOutcome, Kin, PHYS, jump, newKin, steer, stepKin } from '../combat/Combat';
+import { CombatBody, GAUGE, HitOutcome, Kin, PHYS, jump, newKin, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import { finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
 import { CastRun, SkillRuntime } from '../skills/SkillRuntime';
@@ -96,6 +96,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Attacker-side combo display (from confirmed hits only). */
   /** War Cry buff (+20% damage, super armor while attacking) and its looping aura. */
   warCryUntil = -1;
+  /** Detached lingering strikes (Ground Breaker cracks, Blade Storm phantom blades) of own casts. */
+  private lingers: { run: CastRun; x: number; y: number; next: number; left: number }[] = [];
   private cryAura?: Phaser.GameObjects.Image;
   combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1 };
   confirmedLog: { skill: string; target: string; damage: number; idx: number; reaction: string; at: number; z: number }[] = [];
@@ -168,7 +170,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.dummy.setScale(CT.dummy.displayHeight / CT.dummy.height).setDepth(D.y);
       this.dummyBar = this.add.graphics().setDepth(TOP_DEPTH);
       const dk = newKin(D.x, D.y);
-      this.dummyState = { hp: D.maxHp, alive: true, flash: 0, respawn: 0, kin: dk, body: new CombatBody(dk, false) };
+      this.dummyState = { hp: D.maxHp, alive: true, flash: 0, respawn: 0, kin: dk, body: Object.assign(new CombatBody(dk, false), { maxHp: D.maxHp }) };
       this.drawDummyBar();
       this.enemy = new CursedSwordsman(this);
     }
@@ -176,6 +178,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const { x, y } = WORLD.spawn;
     this.kin = newKin(x, y);
     this.body = new CombatBody(this.kin, !!pvpRoom);
+    this.body.maxHp = pvpRoom ? PVP.maxHp : S6.player.maxHp;
     this.view = new ActorView(this, character.classId as ClassKey, x, y);
     this.loadCosmetics();
 
@@ -260,6 +263,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.ci.update(now);
     this.stepPlayer(ms, now);
     this.rt.update(ms);
+    this.stepLingers(now);
     this.fx.update(ms, this.rt.projectiles.map((e) => e.p));
     this.updateDummy(ms);
     this.enemy?.update(ms, {
@@ -355,6 +359,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const phase = run.phase === 'startup' ? 'startup' : run.phase === 'active' ? 'active' : 'recovery';
     const scale = s.move[phase];
     if (s.dash && run.phase === 'active') { this.dashMotion(run); return; }
+    if (s.through && run.phase === 'recovery' && !run.turned) { // crossed the target: turn to face it (sets up Back Attack)
+      run.turned = true;
+      const t = this.targetsFor(run).filter((x) => x.alive && x.id !== this.localId).sort((a, b) => Math.hypot(a.x - k.x, a.y - k.y) - Math.hypot(b.x - k.x, b.y - k.y))[0];
+      if (t && Math.hypot(t.x - k.x, t.y - k.y) < 200 && (t.x - k.x) * run.aim.x + (t.y - k.y) * run.aim.y < 0) { this.aim = unit(t.x - k.x, t.y - k.y); this.dir = dirOf(this.aim.x, this.aim.y, this.dir); }
+    }
     if (k.grounded) {
       if (scale > 0) steer(k, inp.moveX * PHYS.walk * scale * this.body.moveScale(now), inp.moveY * PHYS.walk * scale * this.body.moveScale(now), ms);
       else { k.vx *= 0.7; k.vy *= 0.7; }
@@ -390,7 +399,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const steps = Math.ceil(Math.hypot(want.x - k.x, want.y - k.y) / 2);
     for (let i = 0; i < steps; i++) {
       const nx = k.x + (want.x - k.x) / (steps - i), ny = k.y + (want.y - k.y) / (steps - i);
-      if (!footAllowed(nx, ny, k.z, R) || this.blockedByActors(nx, ny, k.z)) break;
+      if (!footAllowed(nx, ny, k.z, R) || (!s.through && this.blockedByActors(nx, ny, k.z))) break;
       k.x = nx; k.y = ny;
     }
     k.vx = 0; k.vy = 0;
@@ -399,6 +408,23 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       k.z = d.crash ? run.origin.z + d.lift * Math.sin(Math.PI * Math.min(1, p * 1.06)) : Math.max(k.z, run.origin.z + d.lift * Math.sin(Math.PI * p));
       k.vz = p < 0.5 ? 40 : -40;
     }
+  }
+
+  private stepLingers(now: number): void {
+    for (const l of this.lingers) {
+      const L = l.run.skill.linger!;
+      while (l.left > 0 && now >= l.next) {
+        l.left--; l.next += L.everyMs;
+        if (l.run.skill.id === 'blade_storm') this.fx!.phantomBlade(l.x + (Math.random() - 0.5) * 70, l.y + (Math.random() - 0.5) * 30);
+        else this.fx!.crack(l.x, l.y, L.radius);
+        for (const t of this.targetsFor(l.run)) {
+          if (!t.alive || t.invulnerable || t.id === this.localId || t.kind !== 'enemy') continue;
+          if (Math.hypot(t.x - l.x, t.y - l.y) > L.radius + t.radius || t.z > L.maxZ) continue;
+          this.applyToPve({ ...l.run, origin: { x: l.x, y: l.y, z: 0 } } as CastRun, L.hit, t, { x: t.x, y: t.y, z: t.z + 40 });
+        }
+      }
+    }
+    this.lingers = this.lingers.filter((l) => l.left > 0);
   }
 
   private blockedByActors(x: number, y: number, z: number): boolean {
@@ -478,9 +504,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const s = run.skill, T = run.timings, e = run.elapsed;
     if (s.id === next.id && s.chain) return e >= T.startup + T.active - 20;
     if (s.slot === 7) return false; // Ultimate cannot be cancelled
-    if (run.confirmedAt < 0) return false; // whiffs get no cancel
-    if (!s.cancelOnHit.includes(next.id)) return false;
-    return e <= T.startup + T.active + 0.7 * T.recovery;
+    if (next.id === s.id) return false;
+    // Free cancel (DFO-style): after a confirmed hit any other skill can cancel this one until it ends;
+    // a whiff can only be cancelled late in its recovery.
+    if (run.confirmedAt >= 0) return e >= run.confirmedAt;
+    return e >= T.startup + T.active + 0.5 * T.recovery;
   }
 
   /** Aim / placement / lock-on for a cast. Null = rejected (illegal placement): no cooldown is spent. */
@@ -531,6 +559,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private onRunPhase(run: CastRun, phase: string): void {
     if (run.own) {
+      const L = run.skill.linger;
+      if (phase === 'active' && L) {
+        const off = L.at === 'aim' ? (L.offset ?? 0) : 0;
+        this.lingers.push({ run, x: run.origin.x + run.aim.x * off, y: run.origin.y + run.aim.y * off, next: this.simMs + L.startMs, left: L.count });
+      }
       if (phase === 'active' && run.skill.armor) this.body.armorUntil = this.simMs + Math.max(0, run.skill.armor[1] - run.timings.startup);
       if (phase === 'done') this.endRun(run, false);
       return;
@@ -557,9 +590,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const out: HitTarget[] = [];
     if (run.own) {
       if (this.enemy) out.push(this.enemy.target());
-      if (this.dummy && this.dummyState) out.push({ id: 'dummy', kind: 'enemy', x: D.x, y: D.y, z: this.dummyState.kin.z, radius: D.collisionRadius, height: 80, alive: this.dummyState.alive });
+      if (this.dummy && this.dummyState) out.push({ id: 'dummy', kind: 'enemy', x: D.x, y: D.y, z: this.dummyState.kin.z, radius: D.collisionRadius, height: 80, alive: this.dummyState.alive, invulnerable: this.simMs < this.dummyState.body.invulnUntil });
     } else if (this.view && this.pvpReady) {
-      out.push({ id: this.localId, kind: 'player', x: this.kin.x, y: this.kin.y, z: this.kin.z, radius: R + 4, height: 74, alive: this.dead < 0 });
+      out.push({ id: this.localId, kind: 'player', x: this.kin.x, y: this.kin.y, z: this.kin.z, radius: R + 4, height: 74, alive: this.dead < 0, invulnerable: this.simMs < this.body.invulnUntil });
     }
     for (const r of this.pvp?.remotes.values() ?? []) if (r.meta.playerId !== run.attackerId) out.push({ id: r.meta.playerId, kind: 'player', x: r.x, y: r.y, z: r.z, radius: R + 4, height: 74, alive: r.alive });
     return out;
@@ -587,6 +620,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const f = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[en.facing];
       const back = en.body.state === 'free' && (from.x - en.kin.x) * f[0] + (from.y - en.kin.y) * f[1] < -12;
       out = en.body.receive(run.attackerId, s, hit, from, now);
+      if (s.id === 'iron_grip' && hit === s.hits[0]) { // hoist and swing the target behind you
+        const nx = from.x - run.aim.x * 46, ny = from.y - run.aim.y * 46;
+        if (footAllowed(nx, ny, en.kin.z, 10)) { en.kin.x = nx; en.kin.y = ny; en.body.push = null; }
+      }
+      if (s.id === 'shield_slam' && hit === s.hits[1]) { // driven into a wall / prop: extra stun
+        const dx = en.kin.x - from.x, dy = en.kin.y - from.y, d = Math.hypot(dx, dy) || 1;
+        if (!footAllowed(en.kin.x + (dx / d) * 150, en.kin.y + (dy / d) * 150, en.kin.z, 14)) {
+          en.body.state = 'hitstun'; en.body.stateEnd = now + 900; this.fx!.callout(at, 'WALL CRASH!!', '#9ed8ff', 0); this.fx!.shockwave(en.kin.x, en.kin.y, 90, 0x9ed8ff);
+        }
+      }
       const crit = hit.damage > 0 && Math.random() < 0.12;
       const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 : 1) * (run.attackerId === this.localId && now < this.warCryUntil ? 1.2 : 1);
       out.damage = Math.round(out.damage * mult);
@@ -829,8 +872,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     let best: HudState['target'] = null, bestD: number = HUD.targetRadius;
     const consider = (d: number, t: NonNullable<HudState['target']>) => { if (d <= bestD) { bestD = d; best = t; } };
     const e = this.enemy;
-    if (e?.alive) consider(Math.hypot(e.x - k.x, e.y - k.y), { id: 'enemy', name: 'Cursed Swordsman', type: 'Enemy', hp: e.hp, maxHp: S6.enemy.maxHp, effects: this.statusEffects(e.body, now) });
-    if (this.dummy && this.dummyState?.alive) consider(Math.hypot(D.x - k.x, D.y - k.y), { id: 'dummy', name: 'Training Dummy', type: 'Training Target', hp: this.dummyState.hp, maxHp: D.maxHp, effects: [] });
+    const combat = (b: CombatBody, z: number) => ({
+      state: b.state === 'launched' || z > 8 ? 'AERIAL' : b.state === 'knockdown' || b.state === 'getup' ? 'DOWN' : b.state === 'hitstun' ? 'STAND' : '',
+      gauges: { stand: b.gauge.stand / GAUGE.stand, air: b.gauge.air / GAUGE.air, down: b.gauge.down / GAUGE.down },
+    });
+    if (e?.alive) consider(Math.hypot(e.x - k.x, e.y - k.y), { id: 'enemy', name: 'Cursed Swordsman', type: 'Enemy', hp: e.hp, maxHp: S6.enemy.maxHp, effects: this.statusEffects(e.body, now), ...combat(e.body, e.kin.z) });
+    if (this.dummy && this.dummyState?.alive) consider(Math.hypot(D.x - k.x, D.y - k.y), { id: 'dummy', name: 'Training Dummy', type: 'Training Target', hp: this.dummyState.hp, maxHp: D.maxHp, effects: [], ...combat(this.dummyState.body, this.dummyState.kin.z) });
     for (const r of this.pvp?.remotes.values() ?? []) {
       if (!r.alive) continue;
       const eff: HudEffect[] = [];

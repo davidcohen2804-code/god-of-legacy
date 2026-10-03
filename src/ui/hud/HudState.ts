@@ -35,7 +35,9 @@ export interface HudState {
     effects: HudEffect[];
   };
   /** null => target panel hidden. */
-  target: null | { id: string; name: string; type: string; portrait?: PortraitRef; hp: number; maxHp: number; effects: HudEffect[] };
+  target: null | { id: string; name: string; type: string; portrait?: PortraitRef; hp: number; maxHp: number; effects: HudEffect[];
+    /** Combat state chip (AERIAL / DOWN / STAND) and combo-protection gauges (0..1 of each threshold). */
+    state?: string; gauges?: { stand: number; air: number; down: number } };
   slots: HudSlot[];
   minimap: null | { label: string; bounds: { minX: number; minY: number; width: number; height: number }; imageUrl?: string; markers: HudMarker[] };
   /** PvP only. score/kills/deaths reserved, not displayed. */

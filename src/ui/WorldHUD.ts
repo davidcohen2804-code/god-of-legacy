@@ -97,6 +97,7 @@ export class WorldHUD {
   private res!: Bar;
   private thp!: Bar;
   private slots: SlotEl[] = [];
+  private tGauge: HTMLElement[] = [];
   private markers = new Map<string, HTMLImageElement>();
   private mmRect?: { x: number; y: number; w: number; h: number };
   private mmImage = '';
@@ -160,6 +161,15 @@ export class WorldHUD {
     this.els.tName = this.div('h', t); this.els.tName.style.fontSize = '24px';
     this.els.tType = this.div('t', t); Object.assign(this.els.tType.style, { fontSize: '18px', color: P.secondary });
     this.thp = this.bar(t, 0, 52, H.target.w - 32, 22, 'bar-hp', false);
+    // Combat state chip + three combo-protection gauges (standing / air / down) under the HP bar.
+    const chip = this.div('chip', t); Object.assign(chip.style, { position: 'absolute', right: '6px', top: '-4px', fontSize: '16px', fontWeight: '700', fontStyle: 'italic', letterSpacing: '1px', textShadow: '0 2px 0 #000' });
+    this.els.tChip = chip;
+    const gw = (H.target.w - 32 - 8) / 3;
+    this.tGauge = (['#ff5a4a', '#5ab8ff', '#ffd25a'] as const).map((c, i) => {
+      const bg = this.div('g', t); this.at(bg, i * (gw + 4), 78, gw, 6); Object.assign(bg.style, { background: 'rgba(0,0,0,.55)', border: '1px solid rgba(255,255,255,.18)' });
+      const f = this.div('gf', bg); Object.assign(f.style, { position: 'absolute', left: '0', top: '0', bottom: '0', width: '0%', background: c, boxShadow: `0 0 6px ${c}` });
+      return f;
+    });
     this.els.tFx = this.div('fx', this.root); this.at(this.els.tFx, H.target.x, H.target.y + H.target.effectsY, H.target.w, H.target.effectIcon);
   }
 
@@ -254,6 +264,10 @@ export class WorldHUD {
       this.text(this.els.tName, t.name, 'tName');
       this.text(this.els.tType, t.type, 'tType');
       this.setBar(this.thp, t.hp, t.maxHp);
+      const st = t.state ?? '';
+      if (this.changed('tChip', st)) { this.els.tChip.textContent = st; this.els.tChip.style.color = st === 'AERIAL' ? '#7fd0ff' : st === 'DOWN' ? '#ffd25a' : '#ff8a6a'; }
+      const g = t.gauges;
+      this.tGauge.forEach((f, i) => { const v = g ? [g.stand, g.air, g.down][i] : 0; f.style.width = `${Math.min(100, v * 100)}%`; f.style.opacity = v >= 1 ? '1' : '0.75'; });
       this.effects(this.els.tFx, t.effects, H.target.effectIcon, now, 'tFx');
     } else this.effects(this.els.tFx, [], H.target.effectIcon, now, 'tFx');
 

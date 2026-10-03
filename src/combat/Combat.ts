@@ -33,6 +33,8 @@ function pointInPolyNear(x: number, y: number, poly: Parameters<typeof pointInPo
 
 /** Gravity multiplier of a juggled body at juggle 0 (long, readable hang time for air follow-ups). */
 const LAUNCH_G = 0.72;
+/** Combo-protection thresholds (fractions of max HP) and their effects. */
+export const GAUGE = { stand: 0.3, air: 0.4, airRamp: 0.15, down: 0.15, resetMs: 3000, holdVz: 300, holdCeil: 120, gravityRamp: 1.6, wakeInvulnMs: 600 };
 
 export function stepKin(k: Kin, ms: number, gravityScale = 1, blocked?: (x: number, y: number, z: number) => boolean): StepResult {
   const dt = Math.min(0.05, ms / 1000), r: StepResult = { landed: false, impactVz: 0, blockedX: false, blockedY: false, leftSupport: false };
@@ -179,13 +181,25 @@ export class CombatBody {
   lastHitAt = -Infinity;
   /** One ground bounce pending (slams): the body pops back up on impact for an OTG follow-up. */
   bounce = false;
+  /** Max HP of this body (damage gauges are fractions of it). */
+  maxHp = 100;
+  /**
+   * DFO-style combo protection: damage taken while standing / airborne / downed, as fractions of max HP.
+   * Below its threshold a state is fully free; past it the engine pushes the body out of the combo
+   * (standing → forced knockdown, air → rising gravity and no holds/launches, down → quick invulnerable getup).
+   * All three reset ~3s after the last hit.
+   */
+  gauge = { stand: 0, air: 0, down: 0 };
+  invulnUntil = -1;
+  pinUntil = -1;
+  airOver(): number { return Math.max(0, (this.gauge.air - GAUGE.air) / GAUGE.airRamp); }
 
   constructor(readonly kin: Kin, readonly pvp: boolean) {}
 
   canAct(now: number): boolean { return this.state === 'free' && !this.hard.active(now); }
   canMove(now: number): boolean { return this.canAct(now); }
   moveScale(now: number): number { return now < this.slowUntil ? 1 - this.slowPct : 1; }
-  reset(): void { this.bounce = false; this.state = 'free'; this.stateEnd = 0; this.hard.reset(); this.combos.clear(); this.push = null; this.slowUntil = 0; this.armorUntil = -1; }
+  reset(): void { this.pinUntil = -1; this.gauge = { stand: 0, air: 0, down: 0 }; this.invulnUntil = -1; this.bounce = false; this.state = 'free'; this.stateEnd = 0; this.hard.reset(); this.combos.clear(); this.push = null; this.slowUntil = 0; this.armorUntil = -1; }
 
   /**
    * Apply a confirmed, legal hit from `attacker` (this body's owner is the authority).
@@ -201,12 +215,18 @@ export class CombatBody {
     const R: Reaction = hit.reaction;
     const k = this.kin;
     const out: HitOutcome = { damage, hitIndex: c.hits, comboId: c.id, reaction: 'hit', stunMs: 0, ccMs: 0, juggle: c.juggle, endsCombo: !!skill.endsCombo, pushX: 0, pushY: 0, launchVz: 0 };
+    if (now < this.invulnUntil) { out.damage = 0; out.reaction = 'armor'; return out; }
     this.lastHitAt = now;
+    const R0: Reaction = hit.reaction;
+    const downNow = this.state === 'knockdown' && this.kdPhase !== 'fall' && this.kin.grounded;
+    const airNow = !this.kin.grounded || this.state === 'launched';
+    const frac = damage / Math.max(1, this.maxHp);
+    if (!R0.grab) { if (downNow) this.gauge.down += frac; else if (airNow) this.gauge.air += frac; else this.gauge.stand += frac; }
     const armored = now < this.armorUntil;
     // Push / pull direction.
     let dx = k.x - from.x, dy = k.y - from.y; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
     if (!armored) {
-      const pushPx = (R.push ?? 0) * (this.pvp ? 0.7 : 1) - (R.pull ?? 0);
+      const pushPx = (R.push ?? 0) * (this.pvp ? 1.4 : 2) - (R.pull ?? 0);
       if (pushPx !== 0) { out.pushX = dx * pushPx; out.pushY = dy * pushPx; this.push = { vx: out.pushX / 110, vy: out.pushY / 110, left: 110 }; }
     }
     if (R.slow) { this.slowPct = R.slow.pct; this.slowUntil = Math.max(this.slowUntil, now + R.slow.ms); }
@@ -215,7 +235,7 @@ export class CombatBody {
     const juggleCost = R.juggleCost ?? 0;
     const air = !k.grounded || this.state === 'launched';
     if (R.slam && air) {
-      out.reaction = 'slam'; k.vz = -620; this.enterKnockdown(now, 'light', -620); out.launchVz = k.vz; this.bounce = c.juggle < COMBO.juggleBudgetMax;
+      out.reaction = 'slam'; k.vz = -620; this.enterKnockdown(now, 'light', -620); out.launchVz = k.vz; this.bounce = this.airOver() < 1;
     } else if (R.knockdown) {
       out.reaction = 'knockdown';
       this.enterKnockdown(now, R.knockdown, air ? -260 : 160);
@@ -223,9 +243,10 @@ export class CombatBody {
       if (skill.endsCombo) this.combos.end(attacker);
     } else if (R.launch) {
       const relaunch = air;
-      const budgetOk = c.juggle < COMBO.juggleBudgetMax && (!relaunch || c.relaunches < COMBO.maxRelaunchesPerCombo);
+      const over = R.grab ? 0 : this.airOver();
+      const budgetOk = over < 1 && (!relaunch || c.relaunches < COMBO.maxRelaunchesPerCombo + 2);
       if (budgetOk) {
-        const h = relaunch ? R.launch * 0.75 : R.launch;
+        const h = (relaunch ? R.launch * 0.8 : R.launch) * (1 - 0.6 * over);
         k.grounded = false; k.vz = Math.sqrt(2 * PHYS.gravity * LAUNCH_G * h); out.launchVz = k.vz;
         if (relaunch) c.relaunches++;
         c.juggle += relaunch ? COMBO.juggleCosts.relaunch : juggleCost;
@@ -237,10 +258,21 @@ export class CombatBody {
     } else if (air && this.state === 'launched') {
       // Air extender: keep the target afloat while budget remains, otherwise it falls.
       c.juggle += juggleCost;
-      if (R.float && c.juggle < COMBO.juggleBudgetMax) { k.vz = Math.max(k.vz, 150); out.reaction = 'float'; out.launchVz = k.vz; }
-      else k.vz = Math.min(k.vz, -80);
+      const over = this.airOver();
+      if (over < 1) { // hold: lift while low, only stall the fall when already high (keeps targets inside melee reach)
+        const lift = GAUGE.holdVz * (R.float ? 1 : 0.8) * (1 - over) * Math.max(0, Math.min(1, (GAUGE.holdCeil - k.z) / GAUGE.holdCeil));
+        k.vz = Math.max(k.vz, k.z > GAUGE.holdCeil ? -60 : lift); out.reaction = 'float'; out.launchVz = k.vz;
+      }
+      else k.vz = Math.min(k.vz, -160);
     } else if (R.stun && out.reaction !== 'cc') {
       this.hitstun(now, R.stun, c.hits, out);
+    }
+    if (R.pin) { this.pinUntil = now + R.pin; this.push = null; k.vx = 0; k.vy = 0; k.vz = Math.max(0, Math.min(k.vz, 0)); if (this.state === 'free') { this.state = 'hitstun'; this.stateEnd = now + R.pin; } }
+    if (!airNow && !downNow && this.gauge.stand >= GAUGE.stand && this.state !== 'knockdown' && out.reaction === 'hit') { // standing limit → forced fall
+      this.enterKnockdown(now, 'light', 200); out.reaction = 'knockdown'; out.launchVz = k.vz;
+    }
+    if (downNow && this.gauge.down >= GAUGE.down) { // ground limit → quick invulnerable getup
+      this.state = 'getup'; this.kdPhase = 'up'; this.stateEnd = now + 160; this.invulnUntil = now + 160 + GAUGE.wakeInvulnMs;
     }
     out.juggle = c.juggle;
     return out;
@@ -283,6 +315,7 @@ export class CombatBody {
       if (this.push.left <= 0) { this.push = null; k.vx = 0; k.vy = 0; }
     }
     let ev: 'land' | 'kdImpact' | 'getupDone' | null = null;
+    if (now - this.lastHitAt > GAUGE.resetMs && this.state === 'free') this.gauge = { stand: 0, air: 0, down: 0 };
     switch (this.state) {
       case 'hitstun': if (now >= this.stateEnd) this.state = 'free'; break;
       case 'launched':
@@ -299,7 +332,7 @@ export class CombatBody {
         if (k.grounded && now >= this.stateEnd) { this.state = 'getup'; this.kdPhase = 'up'; this.stateEnd = now + 260; }
         break;
       case 'getup':
-        if (now >= this.stateEnd) { this.state = 'free'; this.hard.grantImmunity(now, 220); this.combos.endAll(); ev = 'getupDone'; }
+        if (now >= this.stateEnd) { this.state = 'free'; this.hard.grantImmunity(now, 220); this.combos.endAll(); this.gauge = { stand: 0, air: 0, down: 0 }; ev = 'getupDone'; }
         break;
       default: break;
     }
@@ -309,8 +342,10 @@ export class CombatBody {
 
   /** Gravity multiplier while juggled (mildly heavier as the juggle score rises). */
   gravityScale(now: number): number {
+    if (now < this.pinUntil) { this.kin.vz = 0; return 0; }
     if (this.state !== 'launched') return 1;
     const c = this.combos.live(now);
-    return LAUNCH_G + 0.4 * Math.min(1, (c?.juggle ?? 0) / COMBO.juggleBudgetMax); // floaty first launch, heavier as the juggle grows
+    void c;
+    return LAUNCH_G + GAUGE.gravityRamp * Math.min(1.5, this.airOver()); // free below the air limit, then heavier and heavier
   }
 }

@@ -48,6 +48,8 @@ export class ActorView {
   readonly weapon: Phaser.GameObjects.Sprite;
   readonly weaponGlow: Phaser.GameObjects.Sprite;
   readonly shadow: Phaser.GameObjects.Image;
+  /** Team ring on the floor (DFO-style): readable position even under heavy effects. */
+  readonly ring: Phaser.GameObjects.Ellipse;
   private layers: Partial<Record<CosSlot, Phaser.GameObjects.Image>> = {};
   private equipped: Equipped = {};
   private t = 0;
@@ -55,10 +57,13 @@ export class ActorView {
 
   constructor(private scene: Phaser.Scene, readonly cls: ClassKey, x: number, y: number) {
     this.shadow = scene.add.image(x, y, 'contact-shadow').setOrigin(0.5, 0.5);
+    this.ring = scene.add.ellipse(x, y, 70, 26).setStrokeStyle(3, 0x4aa8ff, 0.85).setFillStyle(0x4aa8ff, 0.1);
     this.sprite = scene.add.sprite(x, y, '__DEFAULT');
     this.weapon = scene.add.sprite(x, y, '__DEFAULT').setVisible(false);
     this.weaponGlow = scene.add.sprite(x, y, '__DEFAULT').setVisible(false).setBlendMode(Phaser.BlendModes.ADD);
   }
+
+  setRing(color: number): void { this.ring.setStrokeStyle(3, color, 0.85).setFillStyle(color, 0.1); }
 
   setEquipped(e: Equipped): void {
     this.equipped = { ...e };
@@ -85,6 +90,7 @@ export class ActorView {
     if (tint === null) p.clearTint(); else if (tintFill) p.setTintFill(tint); else p.setTint(tint);
     // Contact shadow on the support plane, smaller/fainter with height above it.
     const h = Math.max(0, z - supportZ), k = Math.max(0.35, 1 - h / 140);
+    this.ring.setPosition(x, y - supportZ + 2).setDepth(actorDepth(x, y, supportZ) - 0.65).setAlpha(alpha * k).setScale(k).setVisible(this.visible);
     this.shadow.setPosition(x, y - supportZ + 1).setDepth(actorDepth(x, y, supportZ) - 0.6).setScale(0.42 * k, 0.4 * k).setAlpha(alpha * (0.9 * k)).setVisible(this.visible);
     // Weapon skin: tinted copy of the real weapon pixels of this exact frame.
     const ws = this.equipped.weapon ? WEAPON_TINT[this.equipped.weapon] : undefined;
@@ -138,12 +144,12 @@ export class ActorView {
 
   setVisible(v: boolean): void {
     this.visible = v;
-    this.sprite.setVisible(v); this.shadow.setVisible(v); this.weapon.setVisible(v && this.weapon.visible); this.weaponGlow.setVisible(v && this.weaponGlow.visible);
+    this.sprite.setVisible(v); this.shadow.setVisible(v); this.ring.setVisible(v); this.weapon.setVisible(v && this.weapon.visible); this.weaponGlow.setVisible(v && this.weaponGlow.visible);
     for (const l of Object.values(this.layers)) l?.setVisible(v);
   }
 
   destroy(): void {
-    this.sprite.destroy(); this.weapon.destroy(); this.weaponGlow.destroy(); this.shadow.destroy();
+    this.sprite.destroy(); this.weapon.destroy(); this.weaponGlow.destroy(); this.shadow.destroy(); this.ring.destroy();
     for (const l of Object.values(this.layers)) l?.destroy();
     this.layers = {};
   }

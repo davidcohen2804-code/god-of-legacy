@@ -10,7 +10,7 @@ import { WORLD_OBJECTS } from '../world/WorldGeometry';
 
 const F = 'assets/final';
 /** Skills that borrow another skill's VFX sheet (no art of their own). */
-const VFX_ALIAS: Record<string, string> = { iron_grip: 'shield_slam', guard_counter: 'shield_slam', wave_slash: 'warrior_basic' };
+const VFX_ALIAS: Record<string, string> = { wave_slash: 'warrior_basic' };
 const vfxKey = (id: string) => `vfx-${VFX_ALIAS[id] ?? id}`;
 const isBig = (s: FinalSkill) => s.slot === 6 || s.slot === 7;
 const TOP = 100000;
@@ -22,7 +22,7 @@ const GROUND = 2;
 const GROUND_ANCHORED = new Map<string, number>([['titans_verdict', 0.742], ['ground_breaker', 0.8], ['whirlwind', 0.56], ['leap_crash', 0.88], ['war_cry', 0.88]]);
 /** Frames played during startup (anticipation) — the next frame is the impact at active start. */
 const PRE_FRAMES: Record<string, number> = { titans_verdict: 7 };
-const UPRIGHT = new Set(['leap_crash', 'war_cry', 'titans_verdict', 'ground_breaker', 'whirlwind', 'shield_slam', 'blade_storm', 'binding_rune', 'astral_burst', 'frost_nova', 'storm_field',
+const UPRIGHT = new Set(['iron_grip', 'leap_crash', 'war_cry', 'titans_verdict', 'ground_breaker', 'whirlwind', 'shield_slam', 'blade_storm', 'binding_rune', 'astral_burst', 'frost_nova', 'storm_field',
   'time_collapse', 'explosive_arrow', 'vine_trap', 'rain_of_arrows', 'verdant_judgment', 'spin_cut']);
 const PROJECTILE_SHEETS: Record<string, { cell: number; frames: number }> = {
   arcane_bolt: { cell: 128, frames: 8 }, lightning_chain: { cell: 192, frames: 8 }, quick_shot: { cell: 128, frames: 8 },
@@ -50,7 +50,8 @@ export function preloadSkillFx(scene: Phaser.Scene): void {
   const I = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.image(k, p); };
   I('tg-circle', `${F}/world/telegraph_circle.png`); I('tg-cone', `${F}/world/telegraph_cone.png`);
   I('tg-line', `${F}/world/telegraph_line.png`); I('tg-traj', `${F}/world/telegraph_trajectory.png`);
-  I('magic-circle', `${F}/impact/magic_circle.png`); I('dmg-glow', `${F}/ui/hud/damage_glow.png`);
+  I('magic-circle', `${F}/impact/magic_circle.png`);
+  if (!scene.textures.exists('phantom-blade')) scene.load.spritesheet('phantom-blade', `${F}/skills/warrior/blade_storm/phantom.png`, { frameWidth: 256, frameHeight: 256 }); I('dmg-glow', `${F}/ui/hud/damage_glow.png`);
 }
 
 interface Anim { glow?: Phaser.GameObjects.Image; img: Phaser.GameObjects.Image; t: number; total: number; frames: number[]; frameMs: number[]; follow?: () => V3 | null; z?: number; fadeLast?: number; onDone?: () => void; loop?: [number, number]; until?: number }
@@ -58,7 +59,7 @@ interface Tele { g: Phaser.GameObjects.Image; run: CastRun; follow?: boolean }
 
 export type HitTier = 'basic' | 'core' | 'signature' | 'ultimate';
 export const tierOf = (s: FinalSkill, hit?: HitEvent): HitTier => (s.slot === 7 ? 'ultimate' : s.slot === 6 ? (hit?.heavy ? 'signature' : 'core') : s.slot === 0 ? 'basic' : 'core');
-const HITSTOP: Record<HitTier, number> = { basic: 22, core: 36, signature: 55, ultimate: 90 };
+const HITSTOP: Record<HitTier, number> = { basic: 45, core: 70, signature: 95, ultimate: 140 };
 /** Presentation scale of the main skill VFX per class (DFO-style: effects dwarf the character). */
 const VFX_MULT: Record<string, number> = { warrior: 1.5 };
 /** Warrior skills that get a ground shockwave ring at their impact. */
@@ -143,6 +144,23 @@ export class SkillFx {
     this.scene.tweens.add({ targets: img, alpha: 0, delay: life - 180, duration: 180, onComplete: () => { tick.remove(); img.destroy(); } });
   }
 
+  /** Blade Storm summon: one phantom blade drops and stabs (dedicated sheet when present, else the storm sheet). */
+  phantomBlade(x: number, y: number): void {
+    if (this.scene.textures.exists('phantom-blade')) {
+      const img = this.scene.add.image(x, y, 'phantom-blade', 0).setOrigin(0.5, 0.92).setDepth(y + 1).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(170, 170);
+      const fms = [40, 40, 60, 60, 40, 60, 70, 80];
+      this.anims.push({ img, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: [0, 1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 80 });
+    } else this.spark(vfxKey('blade_storm'), x, y - 60, 12, 200, 0.9, 5);
+    this.spark(IMPACT.warrior.key, x, y - 30, IMPACT.warrior.frames, 90, 0.9);
+  }
+
+  /** Ground Breaker aftershock: glowing crack pulse + dust on the floor. */
+  crack(x: number, y: number, radius: number): void {
+    const img = this.scene.add.image(x, y, vfxKey('ground_breaker'), 6).setOrigin(0.5, 0.8).setDepth(GROUND + 2).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(radius * 2.4, radius * 2.4).setAlpha(0.7);
+    this.anims.push({ img, t: 0, total: 300, frames: [5, 6, 7], frameMs: [100, 100, 100], fadeLast: 120 });
+    this.dust(x + (Math.random() - 0.5) * radius, y + (Math.random() - 0.5) * radius * 0.4, 60, 0.5);
+  }
+
   /** DFO-style callout above a target (COUNTER!! / BACK ATTACK!! / CRITICAL!!). */
   callout(at: V3, text: string, color: string, row = 0): void {
     const t = this.scene.add.text(at.x, at.y - at.z - 120 - row * 30, text, {
@@ -182,12 +200,12 @@ export class SkillFx {
     const rest = frames - preFrames - 1;
     const per = Math.max(34, active / rest);
     for (let i = 0; i < rest; i++) { fr.push(preFrames + i); fms.push(per); }
-    fr.push(frames - 1); fms.push(120);
+    fr.push(frames - 1); fms.push(s.cls === 'warrior' ? 280 : 120); // the effect lingers on screen
     const zone = s.zoneMs && s.zoneMs > 600;
     const glow = VFX_MULT[s.cls] ? this.scene.add.image(img.x, img.y, key, 0).setOrigin(img.originX, img.originY).setBlendMode(Phaser.BlendModes.ADD)
       .setDepth(img.depth - 0.01).setAngle(img.angle).setFlipX(img.flipX).setFlipY(img.flipY).setAlpha(0.45).setTint(CLASS_COLOR[s.cls]) : undefined;
     glow?.setData('a0', 0.45);
-    this.anims.push({ img, glow, t: Math.min(r.elapsed, T.startup), total: fms.reduce((a, b) => a + b, 0), frames: fr, frameMs: fms, follow, z: pos.z, fadeLast: 140,
+    this.anims.push({ img, glow, t: Math.min(r.elapsed, T.startup), total: fms.reduce((a, b) => a + b, 0), frames: fr, frameMs: fms, follow, z: pos.z, fadeLast: s.cls === 'warrior' ? 260 : 140,
       loop: zone ? [preFrames + 1, frames - 2] : undefined, until: zone ? T.startup + (s.zoneMs ?? 0) : undefined });
     if (s.cls === 'warrior') this.aura(r);
     // Anticipation scale-in (never starts at full size).
@@ -292,7 +310,7 @@ export class SkillFx {
 
   private onCounter(r: CastRun): void {
     const c = this.casterPos(r.attackerId); if (!c) return;
-    if (r.skill.cls === 'warrior') { this.spark(vfxKey('shield_slam'), c.x + r.aim.x * 40, c.y + r.aim.y * 40 - c.z - 40, 8, 240, 1, 1); this.shockwave(c.x, c.y, 120, 0xfff0c0); return; }
+    if (r.skill.cls === 'warrior') { this.spark(vfxKey('guard_counter'), c.x + r.aim.x * 50, c.y + r.aim.y * 50 - c.z - 40, 8, 260, 1, 2); this.shockwave(c.x, c.y, 120, 0x9ed8ff); return; }
     this.spark(vfxKey('mirage'), c.x + r.aim.x * 40, c.y + r.aim.y * 40 - c.z - 40, 8, 200, 1, 2);
   }
 
@@ -356,7 +374,8 @@ export class SkillFx {
     if (tier !== 'ultimate' && (reaction === 'knockdown' || reaction === 'slam')) this.spark(IMPACT.dust.key, at.x, at.y + 6, 6, 110, 0.55);
     if (damage > 0) this.damageNumber(at, damage, hit.heavy || tier === 'ultimate' || tier === 'signature', combo);
     if (local) {
-      this.hitStopLeft = Math.max(this.hitStopLeft, HITSTOP[tier] + (hit.heavy && tier === 'core' ? 9 : 0));
+      const multi = (s.chain ? 1 : s.hits.length) > 3 && !hit.heavy; // rapid multi-hits: lighter per-hit freeze
+      this.hitStopLeft = Math.max(this.hitStopLeft, HITSTOP[tier] * (multi ? 0.45 : 1) + (hit.heavy && tier === 'core' ? 20 : 0));
       const [d, i] = SHAKE[tier];
       if (tier !== 'basic' || hit.heavy) this.scene.cameras.main.shake(d, i);
     }
