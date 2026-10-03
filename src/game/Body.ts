@@ -153,6 +153,10 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
         const p = q.elapsed / (q.startup + q.active + q.recovery);
         return mv(cls, 'air_attack', dir, Math.min(5, Math.floor(p * 6)));
       }
+      if (sk?.chain && q.stage === 3) { // fourth chain strike: the rising cut
+        const rs = FINAL_SKILLS.find((x) => x.id === 'rising_slash' && x.cls === cls);
+        if (rs) return sheetFrame(skillKey(cls, rs.id), skillPath(cls, rs.id), dir, skillColumn(6, q, 0), 6);
+      }
       const col = skillColumn(cols, q, sk?.chain && q.stage === 1 ? 1 : 0);
       return sheetFrame(skillKey(cls, q.id), skillPath(cls, q.id), dir, col, cols);
     }

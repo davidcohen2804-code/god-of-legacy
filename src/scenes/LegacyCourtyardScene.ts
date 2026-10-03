@@ -96,6 +96,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Attacker-side combo display (from confirmed hits only). */
   /** War Cry buff (+20% damage, super armor while attacking) and its looping aura. */
   warCryUntil = -1;
+  /** Startup lunge toward the target / post-hit momentum following the push (px still to travel, ms left). */
+  private lunge: { x: number; y: number; left: number } | null = null;
+  private momentum: { x: number; y: number; left: number } | null = null;
   /** Detached lingering strikes (Ground Breaker cracks, Blade Storm phantom blades) of own casts. */
   private lingers: { run: CastRun; x: number; y: number; next: number; left: number }[] = [];
   private cryAura?: Phaser.GameObjects.Image;
@@ -257,7 +260,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!this.pvpReady) return;
     // Hit-stop: in PvE the local simulation freezes briefly; in PvP only local presentation does
     // (remote simulation and networking never freeze).
-    if (this.fx.hitStopLeft > 0 && !this.pvp) { this.fx.update(ms, []); return; }
+    if (this.fx.hitStopLeft > 0 && !this.pvp) {
+      this.fx.update(ms, []);
+      const j = () => (Math.random() - 0.5) * 7; // impact shake of the victims (DFO hit feel)
+      if (this.enemy?.alive && this.simMs - this.enemy.body.lastHitAt < 200) this.enemy.sprite.setPosition(this.enemy.kin.x + j(), this.enemy.kin.y - this.enemy.kin.z + j() * 0.4);
+      if (this.dummy && this.dummyState && this.simMs - this.dummyState.body.lastHitAt < 200) this.dummy.setPosition(D.x + j(), D.y - this.dummyState.kin.z);
+      return;
+    }
     this.simMs += ms;
     const now = this.simMs;
     this.ci.update(now);
@@ -319,6 +328,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // Buffered action fires on the first legal frame (within the buffer window).
     const buf = this.ci!.takeBuffered();
     if (buf && this.tryStartSlot(buf.slot)) this.ci!.consumeBuffer();
+    else if (!buf && this.ci!.attackHeld && this.kit[0]?.chain) { // hold Space: chain continues on its own
+      const run = this.rt!.ownRun;
+      if (!run || (run.skill.id === this.kit[0].id && run.elapsed >= run.timings.startup + run.timings.active)) this.tryStartSlot(0);
+    }
   }
 
   /** Free locomotion: walk / double-tap run, jump take-off, air control, landing settle, idle breathing. */
@@ -359,6 +372,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const phase = run.phase === 'startup' ? 'startup' : run.phase === 'active' ? 'active' : 'recovery';
     const scale = s.move[phase];
     if (s.dash && run.phase === 'active') { this.dashMotion(run); return; }
+    for (const key of ['lunge', 'momentum'] as const) { // glide toward the target / along the push
+      const m = this[key]; if (!m) continue;
+      const f = Math.min(1, ms / Math.max(1, m.left)), nx = k.x + m.x * f, ny = k.y + m.y * f;
+      if (footAllowed(nx, ny, k.z, R) && !this.blockedByActors(nx, ny, k.z)) { k.x = nx; k.y = ny; }
+      m.x -= m.x * f; m.y -= m.y * f; m.left -= ms; if (m.left <= 0) this[key] = null;
+    }
     if (s.through && run.phase === 'recovery' && !run.turned) { // crossed the target: turn to face it (sets up Back Attack)
       run.turned = true;
       const t = this.targetsFor(run).filter((x) => x.alive && x.id !== this.localId).sort((a, b) => Math.hypot(a.x - k.x, a.y - k.y) - Math.hypot(b.x - k.x, b.y - k.y))[0];
@@ -408,6 +427,19 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       k.z = d.crash ? run.origin.z + d.lift * Math.sin(Math.PI * Math.min(1, p * 1.06)) : Math.max(k.z, run.origin.z + d.lift * Math.sin(Math.PI * p));
       k.vz = p < 0.5 ? 40 : -40;
     }
+  }
+
+  /** Nearest live enemy within `range` whose direction is within the facing half-plane (dot > minDot). */
+  private softTarget(range: number, minDot: number): HitTarget | null {
+    const k = this.kin, f = FACE[this.dir];
+    let best: HitTarget | null = null, bd = range;
+    for (const t of this.targetsFor({ own: true, attackerId: this.localId } as CastRun)) {
+      if (!t.alive || t.id === this.localId) continue;
+      const dx = t.x - k.x, dy = t.y - k.y, d = Math.hypot(dx, dy);
+      const dot = d > 1 ? (dx * (this.ci?.hasMove ? this.aim.x : f.x) + dy * (this.ci?.hasMove ? this.aim.y : f.y)) / d : 1;
+      if (d < bd && dot > minDot) { bd = d; best = t; }
+    }
+    return best;
   }
 
   private stepLingers(now: number): void {
@@ -514,6 +546,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Aim / placement / lock-on for a cast. Null = rejected (illegal placement): no cooldown is spent. */
   private resolveCast(s: FinalSkill): { aim: V2; place: V2 | null; lock: string | null } | null {
     const k = this.kin, inp = this.ci!;
+    // Soft lock (DFO-style tracking): snap the aim to the nearest enemy roughly in front, so attacks never whiff on a near-miss angle.
+    const lockT = this.softTarget(260, 0.05);
+    if (lockT) this.aim = unit(lockT.x - k.x, lockT.y - k.y, this.aim.x, this.aim.y);
     const reach = s.targeting === 'mouseGround' ? Math.min(180, s.placeRange ?? 180) : 160;
     const mouse = { x: k.x + this.aim.x * reach, y: k.y + this.aim.y * reach };
     let aim = unit(mouse.x - k.x, mouse.y - k.y, FACE[this.dir].x, FACE[this.dir].y);
@@ -537,6 +572,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private startCast(s: FinalSkill, stage: number, aim: V2, place: V2 | null, lock: string | null): void {
     const k = this.kin;
+    // Lunge-in: melee skills step toward a soft-locked target that is just out of reach.
+    this.lunge = null;
+    const shape = (s.chain ? s.chain.stages[stage] : s.hits)[0]?.shape;
+    const want = shape && (shape.kind === 'sector' ? shape.range * 0.75 : shape.kind === 'line' ? shape.length * 0.6 : shape.kind === 'circle' && !shape.at ? shape.radius * 0.7 : 0);
+    const t = want && !s.dash ? this.softTarget(want + 70, 0.3) : null;
+    if (t) { const d = Math.hypot(t.x - k.x, t.y - k.y) - want; if (d > 4) this.lunge = { x: aim.x * Math.min(70, d), y: aim.y * Math.min(70, d), left: Math.max(60, s.chain?.timings?.[stage]?.startup ?? s.startup) }; }
     const castId = `${this.localId}:${++this.castSeq}`;
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
     this.body.armorUntil = -1;
@@ -620,6 +661,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const f = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[en.facing];
       const back = en.body.state === 'free' && (from.x - en.kin.x) * f[0] + (from.y - en.kin.y) * f[1] < -12;
       out = en.body.receive(run.attackerId, s, hit, from, now);
+      if (run.attackerId === this.localId && (out.pushX || out.pushY) && s.id !== 'shield_slam') this.momentum = { x: out.pushX * 0.7, y: out.pushY * 0.7, left: 120 };
       if (s.id === 'iron_grip' && hit === s.hits[0]) { // hoist and swing the target behind you
         const nx = from.x - run.aim.x * 46, ny = from.y - run.aim.y * 46;
         if (footAllowed(nx, ny, en.kin.z, 10)) { en.kin.x = nx; en.kin.y = ny; en.body.push = null; }

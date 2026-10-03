@@ -34,7 +34,7 @@ export class CombatInput {
 
   constructor(readonly scene: Phaser.Scene, onSlot: (slot: number) => void, onJump: () => void, onToggle: (key: 'K' | 'I' | 'O') => void) {
     const kb = scene.input.keyboard!;
-    this.keys = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,E') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.keys = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,E,SPACE') as Record<string, Phaser.Input.Keyboard.Key>;
     const map: [string, DirKey][] = [['A', 'L'], ['LEFT', 'L'], ['D', 'R'], ['RIGHT', 'R'], ['W', 'U'], ['UP', 'U'], ['S', 'D'], ['DOWN', 'D']];
     for (const [name, d] of map) {
       const down = (e: KeyboardEvent) => { if (!e.repeat) this.tap(d); };
@@ -106,6 +106,9 @@ export class CombatInput {
     const p = this.scene.input.activePointer;
     if (this.pointerActive) this.setPointer(p);
   }
+
+  /** Space held: the basic chain auto-continues (DFO-style hold attack). */
+  get attackHeld(): boolean { return !!this.keys.SPACE?.isDown; }
 
   get hasMove(): boolean { return this.moveX !== 0 || this.moveY !== 0; }
 

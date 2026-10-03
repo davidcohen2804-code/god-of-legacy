@@ -22,18 +22,19 @@ const warrior: FinalSkill[] = [
     startup: 90, active: 80, recovery: 120, cooldown: 0, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(0, 12, { kind: 'sector', range: 78, angle: 110 }, { stun: 160, push: 4 }, { reachUp: 70 })],
     chain: {
-      resetMs: 650,
+      resetMs: 700,
       stages: [
-        [H(0, 12, { kind: 'sector', range: 78, angle: 110 }, { stun: 160, push: 4 }, { reachUp: 70 })],
-        [H(0, 12, { kind: 'sector', range: 80, angle: 110 }, { stun: 170, push: 6 }, { reachUp: 70 })],
-        [H(0, 8, { kind: 'sector', range: 86, angle: 120 }, { stun: 200, float: true, juggleCost: 4 }, { reachUp: 90 }),
-          H(60, 12, { kind: 'sector', range: 90, angle: 120 }, { stun: 300, push: 16, juggleCost: 12 }, { reachUp: 90, heavy: true })],
+        [H(0, 7, { kind: 'sector', range: 84, angle: 120 }, { stun: 320, push: 3 }, { reachUp: 110 })],
+        [H(0, 7, { kind: 'sector', range: 86, angle: 120 }, { stun: 320, push: 3 }, { reachUp: 110 })],
+        [H(0, 5, { kind: 'sector', range: 88, angle: 130 }, { stun: 320, push: 2 }, { reachUp: 110 }),
+          H(70, 6, { kind: 'sector', range: 88, angle: 130 }, { stun: 340, push: 3 }, { reachUp: 110 })],
+        [H(0, 10, { kind: 'sector', range: 92, angle: 120 }, { stun: 420, launch: 75 }, { reachUp: 130, heavy: true })],
       ],
-      timings: [{ startup: 90, active: 80, recovery: 120 }, { startup: 80, active: 80, recovery: 120 }, { startup: 120, active: 90, recovery: 190 }],
+      timings: [{ startup: 60, active: 70, recovery: 150 }, { startup: 55, active: 70, recovery: 150 }, { startup: 60, active: 130, recovery: 160 }, { startup: 90, active: 90, recovery: 260 }],
     },
     cancelOnHit: ['dash_slash', 'rising_slash', 'ground_breaker', 'whirlwind', 'shield_slam'],
-    description: 'Three-strike sword chain. Repeated Space continues the chain; the third strike knocks back.',
-    relations: ['Confirm into Rising Slash', 'Chain resets after 0.65s'],
+    description: 'Four-strike chain: tap or hold Space. Slash, slash, double cut, then a rising cut that pops the target up for your skills.',
+    relations: ['Hold Space to auto-chain', 'Cancel into any skill on hit'],
   }),
   S({
     id: 'dash_slash', cls: 'warrior', slot: 1, name: 'Dash Slash', roles: ['gapClose', 'opener'], targeting: 'mouseDir',
@@ -393,6 +394,11 @@ const samurai: FinalSkill[] = [
   }),
 ];
 
+// Warrior skills: longer, weightier presence (free cancel keeps the flow): stretch timings and hit spacing.
+for (const w of warrior) if (w.slot >= 1 && w.id !== 'war_cry' && w.id !== 'guard_counter') {
+  w.startup = Math.round(w.startup * 1.15); w.active = Math.round(w.active * 1.25); w.recovery = Math.round(w.recovery * 1.1);
+  for (const h of w.hits) h.at = Math.round(h.at * 1.25);
+}
 // Warrior extended kit: every core skill (and the basic chain) can cancel into the new extenders on a confirmed hit.
 for (const w of warrior) if (w.slot <= 5) for (const id of ['leap_crash', 'wave_slash', 'iron_grip', 'lance_thrust']) if (!w.cancelOnHit.includes(id) && id !== w.id) w.cancelOnHit.push(id);
 export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...mage, ...archer, ...samurai];
