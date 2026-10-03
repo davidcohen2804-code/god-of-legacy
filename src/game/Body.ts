@@ -16,7 +16,7 @@ const ROW: Record<Dir, number> = { down: 0, right: 1, left: 2, up: 3 };
 const CELL = 352, ORIGIN_Y = 310 / 352, SHEET_SCALE = 108 / 172;
 
 type MoveState = 'idle' | 'walk' | 'run' | 'jump' | 'air_attack' | 'hurt' | 'recovery' | 'death';
-const MOVE_COLS: Record<MoveState, number> = { idle: 6, walk: 8, run: 8, jump: 8, air_attack: 6, hurt: 4, recovery: 4, death: 8 };
+const MOVE_COLS: Record<MoveState, number> = { idle: 12, walk: 8, run: 8, jump: 8, air_attack: 6, hurt: 4, recovery: 4, death: 8 };
 const SHEET_CLASSES = ['warrior', 'book_mage'] as const;
 const sheetKey = (cls: string, st: string) => `body-${cls}-${st}`;
 const skillKey = (cls: string, id: string) => `sbody-${cls}-${id}`;
@@ -118,7 +118,7 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
   switch (q.k) {
     case 'loop': {
       if (q.state === 'idle') { // one clean frame + smooth procedural breathing (separately painted idle frames flicker)
-        const f = mv(cls, 'idle', dir, 0), b = Math.sin((q.t / 2600) * Math.PI * 2);
+        const f = mv(cls, 'idle', dir, cls === 'warrior' ? Math.floor((q.t * 10) / 1000) % 12 : 0), b = Math.sin((q.t / 2600) * Math.PI * 2); // warrior: wind-blown cape cycle
         f.sy = 1 + 0.014 * b; f.sx = 1 - 0.005 * b;
         if (f.anchor) f.anchor = f.anchor.map((v, i) => (i % 2 ? v * f.sy! : v * f.sx!));
         if (f.hair) f.hair = [f.hair[0] * f.sx!, f.hair[1] * f.sx!, f.hair[2] * f.sy!];
