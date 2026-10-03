@@ -50,12 +50,19 @@ export function preloadSkillFx(scene: Phaser.Scene): void {
   I('magic-circle', `${F}/impact/magic_circle.png`); I('dmg-glow', `${F}/ui/hud/damage_glow.png`);
 }
 
-interface Anim { img: Phaser.GameObjects.Image; t: number; total: number; frames: number[]; frameMs: number[]; follow?: () => V3 | null; z?: number; fadeLast?: number; onDone?: () => void; loop?: [number, number]; until?: number }
+interface Anim { glow?: Phaser.GameObjects.Image; img: Phaser.GameObjects.Image; t: number; total: number; frames: number[]; frameMs: number[]; follow?: () => V3 | null; z?: number; fadeLast?: number; onDone?: () => void; loop?: [number, number]; until?: number }
 interface Tele { g: Phaser.GameObjects.Image; run: CastRun; follow?: boolean }
 
 export type HitTier = 'basic' | 'core' | 'signature' | 'ultimate';
 export const tierOf = (s: FinalSkill, hit?: HitEvent): HitTier => (s.slot === 7 ? 'ultimate' : s.slot === 6 ? (hit?.heavy ? 'signature' : 'core') : s.slot === 0 ? 'basic' : 'core');
 const HITSTOP: Record<HitTier, number> = { basic: 22, core: 36, signature: 55, ultimate: 90 };
+/** Presentation scale of the main skill VFX per class (DFO-style: effects dwarf the character). */
+const VFX_MULT: Record<string, number> = { warrior: 1.5 };
+/** Warrior skills that get a ground shockwave ring at their impact. */
+const SHOCK: Record<string, { r: number; c: number }> = {
+  ground_breaker: { r: 170, c: 0xffc070 }, shield_slam: { r: 110, c: 0xfff0c0 }, titans_verdict: { r: 260, c: 0xffd27a },
+  blade_storm: { r: 180, c: 0xffb04a }, rising_slash: { r: 90, c: 0xfff0c0 }, whirlwind: { r: 150, c: 0xffe0a0 },
+};
 const SHAKE: Record<HitTier, [number, number]> = { basic: [50, 0.0012], core: [80, 0.002], signature: [110, 0.003], ultimate: [170, 0.0048] };
 
 export class SkillFx {
@@ -100,7 +107,46 @@ export class SkillFx {
     if (s.slot === 7) this.ultimateStage(r);
   }
 
-  private onActive(_r: CastRun): void { /* VFX timelines are pre-scheduled from the cast; telegraphs end here */ this.dropTele(_r, true); }
+  private onActive(r: CastRun): void {
+    this.dropTele(r, true); // VFX timelines are pre-scheduled from the cast; telegraphs end here
+    const sh = SHOCK[r.skill.id];
+    if (sh) {
+      const shape = this.firstShape(r.skill), o = r.origin, a = r.aim;
+      const off = shape.kind === 'sector' ? shape.range * 0.6 : 0;
+      this.shockwave(o.x + a.x * off, o.y + a.y * off, sh.r, sh.c);
+    }
+    if (r.skill.slot === 7 && r.skill.cls === 'warrior') (this.cam ?? this.scene.cameras.main).flash(160, 255, 226, 170, false);
+  }
+
+  /** Ground shockwave: an expanding additive ellipse on the floor plane + a thin bright rim. */
+  shockwave(x: number, y: number, radius: number, color: number): void {
+    for (const [w, a, d] of [[10, 0.85, 320], [26, 0.35, 420]] as const) {
+      const g = this.scene.add.ellipse(x, y, radius * 0.4, radius * 0.4 * 0.42).setStrokeStyle(w, color, a).setDepth(GROUND + 2).setBlendMode(Phaser.BlendModes.ADD);
+      this.scene.tweens.add({ targets: g, scaleX: 5, scaleY: 5, alpha: 0, duration: d, ease: 'Cubic.easeOut', onComplete: () => g.destroy() });
+    }
+  }
+
+  /** Class aura around the caster for the cast (stronger on signature / ultimate). */
+  private aura(r: CastRun): void {
+    const s = r.skill, T = r.timings, lvl = s.slot === 7 ? 1 : s.slot === 6 ? 0.8 : s.slot === 0 ? 0 : 0.5;
+    if (lvl <= 0) return;
+    const c0 = this.casterPos(r.attackerId); if (!c0) return;
+    const img = this.scene.add.image(c0.x, c0.y - c0.z - 40, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(CLASS_COLOR[s.cls]).setDepth(c0.y - 1).setAlpha(0);
+    img.setDisplaySize(150 + 90 * lvl, 190 + 110 * lvl);
+    const life = T.startup + T.active + T.recovery * 0.5;
+    this.scene.tweens.add({ targets: img, alpha: 0.5 + 0.4 * lvl, duration: Math.min(160, T.startup) });
+    const tick = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { const c = this.casterPos(r.attackerId); if (c) img.setPosition(c.x, c.y - c.z - 40).setDepth(c.y - 1); } });
+    this.scene.tweens.add({ targets: img, alpha: 0, delay: life - 180, duration: 180, onComplete: () => { tick.remove(); img.destroy(); } });
+  }
+
+  /** DFO-style callout above a target (COUNTER!! / BACK ATTACK!! / CRITICAL!!). */
+  callout(at: V3, text: string, color: string, row = 0): void {
+    const t = this.scene.add.text(at.x, at.y - at.z - 120 - row * 30, text, {
+      fontFamily: 'Cinzel, Georgia, serif', fontStyle: 'bold italic', fontSize: '30px', color, stroke: '#1a0602', strokeThickness: 6, resolution: 2,
+    }).setOrigin(0.5).setDepth(TOP + 30).setScale(1.6).setAlpha(0);
+    this.scene.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 110, ease: 'Back.easeOut' });
+    this.scene.tweens.add({ targets: t, y: t.y - 26, alpha: 0, delay: 520, duration: 260, onComplete: () => t.destroy() });
+  }
 
   /** Main VFX sprite for a melee / area cast, placed from the authoritative shape. */
   private castVfx(r: CastRun): void {
@@ -117,6 +163,7 @@ export class SkillFx {
       case 'placed': pos = { x: r.place?.x ?? o.x, y: r.place?.y ?? o.y, z: 0 }; size = shape.radius * 2.5; break;
     }
     if (big) size *= 1.15;
+    size *= VFX_MULT[s.cls] ?? 1;
     if (GROUND_ANCHORED.has(s.id)) pos = { ...pos, z: o.z };
     const key = vfxKey(s.id);
     const img = this.scene.add.image(pos.x, pos.y - pos.z, key, 0).setOrigin(0.5, GROUND_ANCHORED.get(s.id) ?? (upright && shape.kind !== 'sector' ? 0.62 : 0.5));
@@ -133,8 +180,12 @@ export class SkillFx {
     for (let i = 0; i < rest; i++) { fr.push(preFrames + i); fms.push(per); }
     fr.push(frames - 1); fms.push(120);
     const zone = s.zoneMs && s.zoneMs > 600;
-    this.anims.push({ img, t: Math.min(r.elapsed, T.startup), total: fms.reduce((a, b) => a + b, 0), frames: fr, frameMs: fms, follow, z: pos.z, fadeLast: 140,
+    const glow = VFX_MULT[s.cls] ? this.scene.add.image(img.x, img.y, key, 0).setOrigin(img.originX, img.originY).setBlendMode(Phaser.BlendModes.ADD)
+      .setDepth(img.depth - 0.01).setAngle(img.angle).setFlipX(img.flipX).setFlipY(img.flipY).setAlpha(0.45).setTint(CLASS_COLOR[s.cls]) : undefined;
+    glow?.setData('a0', 0.45);
+    this.anims.push({ img, glow, t: Math.min(r.elapsed, T.startup), total: fms.reduce((a, b) => a + b, 0), frames: fr, frameMs: fms, follow, z: pos.z, fadeLast: 140,
       loop: zone ? [preFrames + 1, frames - 2] : undefined, until: zone ? T.startup + (s.zoneMs ?? 0) : undefined });
+    if (s.cls === 'warrior') this.aura(r);
     // Anticipation scale-in (never starts at full size).
     img.setScale(img.scaleX * 0.55, img.scaleY * 0.55);
     const sx = (size / img.width) * (img.flipX ? 1 : 1), sy = size / img.height;
@@ -283,7 +334,12 @@ export class SkillFx {
   confirmed(s: FinalSkill, hit: HitEvent, at: V3, damage: number, reaction: string, local: boolean, combo: number): void {
     const tier = tierOf(s, hit);
     const k = IMPACT[s.cls] ?? IMPACT.warrior;
-    this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * (tier === 'ultimate' ? 1.6 : hit.heavy ? 1.25 : 1), 1);
+    const im = s.cls === 'warrior' ? 1.45 : 1;
+    this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.6 : hit.heavy ? 1.25 : 1), 1);
+    if (s.cls === 'warrior') { // white core flash on every confirmed hit
+      const f = this.scene.add.image(at.x, at.y - at.z - 38, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 3).setDisplaySize(hit.heavy ? 150 : 100, hit.heavy ? 150 : 100);
+      this.scene.tweens.add({ targets: f, alpha: 0, scale: f.scale * 1.4, duration: 140, onComplete: () => f.destroy() });
+    }
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).
     if (tier !== 'ultimate' && reaction === 'launch') this.spark(IMPACT.dust.key, at.x, at.y + 4, 6, 90, 0.5);
     if (tier !== 'ultimate' && (reaction === 'knockdown' || reaction === 'slam')) this.spark(IMPACT.dust.key, at.x, at.y + 6, 6, 110, 0.55);
@@ -335,12 +391,13 @@ export class SkillFx {
         const pre = a.frameMs.slice(0, a.frames.indexOf(a.loop[0])).reduce((x, y) => x + y, 0);
         if (a.t >= pre) { const span = a.loop[1] - a.loop[0] + 1; a.img.setFrame(a.loop[0] + (Math.floor((a.t - pre) / 70) % span)); this.place(a); return true; }
       } else if (a.loop && a.until !== undefined) tt = a.total - a.frameMs[a.frameMs.length - 1] + (a.t - a.until);
-      if (tt >= a.total) { a.img.destroy(); a.onDone?.(); return false; }
+      if (tt >= a.total) { a.img.destroy(); a.glow?.destroy(); a.onDone?.(); return false; }
       let acc = 0;
       for (let i = 0; i < a.frames.length; i++) { acc += a.frameMs[i]; if (tt < acc) { idx = i; break; } }
       a.img.setFrame(a.frames[idx]);
       if (a.fadeLast && tt > a.total - a.fadeLast) a.img.setAlpha(Math.max(0, (a.total - tt) / a.fadeLast) * (a.img.getData('a0') ?? 1));
       this.place(a);
+      if (a.glow) a.glow.setFrame(a.frames[idx]).setPosition(a.img.x, a.img.y).setScale(a.img.scaleX * 1.12, a.img.scaleY * 1.12).setAlpha(a.img.alpha * 0.45);
       return true;
     });
     for (const t of this.teles) if (t.follow) { const c = this.casterPos(t.run.attackerId); if (c) t.g.setPosition(c.x, c.y); }
@@ -372,7 +429,7 @@ export class SkillFx {
   }
 
   destroy(): void {
-    for (const a of this.anims) a.img.destroy();
+    for (const a of this.anims) { a.img.destroy(); a.glow?.destroy(); }
     for (const t of this.teles) t.g.destroy();
     for (const i of this.projs.values()) i.destroy();
     for (const l of this.traps.values()) for (const i of l) i.destroy();

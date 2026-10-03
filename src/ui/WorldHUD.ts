@@ -56,10 +56,10 @@ const CSS = `
 @keyframes golUlt{to{background-position:-1280px 0}}
 .gol-hud .combo{position:absolute;left:1560px;top:480px;width:300px;height:96px;background:url("assets/final/ui/hud/combo_frame.png") 0 0/100% 100%;
   pointer-events:none;transition:opacity .18s}
-.gol-hud .combo .n{position:absolute;left:0;right:0;top:10px;text-align:center;font-family:${FONT_FAMILY};font-weight:700;font-size:44px;color:#ffe2a0;
+.gol-hud .combo .n{position:absolute;left:-40px;right:-40px;top:2px;text-align:center;font-family:${FONT_FAMILY};font-weight:700;font-style:italic;font-size:54px;color:#ffe2a0;
   text-shadow:0 2px 0 #3a1406,0 0 12px rgba(255,160,60,.6)}
 .gol-hud .combo .n small{font-size:24px;margin-left:8px;color:#f3d9a5}
-.gol-hud .combo .l{position:absolute;left:0;right:0;top:62px;text-align:center;font-size:16px;letter-spacing:3px;color:#9fe8ff;font-weight:700}
+.gol-hud .combo .l{position:absolute;left:-40px;right:-40px;top:64px;text-align:center;font-size:17px;letter-spacing:2px;color:#9fe8ff;font-weight:700;font-style:italic;text-shadow:0 2px 0 #06141c}
 .gol-hud .combo .pulse{position:absolute;left:-40px;top:-16px;width:380px;height:128px;mix-blend-mode:screen;opacity:0;
   background:url("assets/final/ui/hud/combo_pulse.png") 0 0/3040px 128px}
 .gol-hud .combo.bump .pulse{animation:golPulse .32s steps(8) 1}
@@ -277,7 +277,7 @@ export class WorldHUD {
     this.show(this.els.combat, !!f);
     if (f) {
       if (this.changed('cN', String(f.count))) {
-        this.els.cN.innerHTML = `${f.count}<small>HIT</small>`;
+        this.els.cN.innerHTML = `${f.count}<small>HIT COMBO</small>`;
         this.els.combat.classList.remove('bump'); void this.els.combat.offsetWidth; this.els.combat.classList.add('bump');
       }
       this.text(this.els.cL, f.chain ?? '', 'cL');

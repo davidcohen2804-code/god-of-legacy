@@ -45,7 +45,7 @@ const FACE: Record<Dir, V2> = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left:
 /** PvP victim-side sanity checks for a remote cast intent (network jitter tolerances). */
 const CAST_COOLDOWN_TOLERANCE_MS = 250;
 const CAST_ORIGIN_TOLERANCE_PX = 140;
-const COMBO_SHOW_MS = 850;
+const COMBO_SHOW_MS = 1400;
 
 function portraitOf(classId: string, appearanceId: string): PortraitRef | undefined {
   const pv = CHARACTER_PREVIEWS[`${classId}/${appearanceId}`];
@@ -94,7 +94,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private castSeq = 0;
   localId = 'local';
   /** Attacker-side combo display (from confirmed hits only). */
-  combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '' };
+  combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1 };
   confirmedLog: { skill: string; target: string; damage: number; idx: number; reaction: string; at: number; z: number }[] = [];
   private remoteCasts = new Map<string, number>();
   private seenCasts = new Set<string>();
@@ -135,7 +135,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.kit = kitFor(character.classId);
     this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;
     this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
-    this.combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '' };
+    this.combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1 };
     this.confirmedLog = [];
     this.remoteCasts = new Map(); this.seenCasts = new Set();
     this.playerHP = pvpRoom ? PVP.maxHp : S6.player.maxHp;
@@ -541,7 +541,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const out: HitTarget[] = [];
     if (run.own) {
       if (this.enemy) out.push(this.enemy.target());
-      if (this.dummy && this.dummyState) out.push({ id: 'dummy', kind: 'enemy', x: D.x, y: D.y, z: 0, radius: D.collisionRadius, height: 80, alive: this.dummyState.alive, controlImmune: true });
+      if (this.dummy && this.dummyState) out.push({ id: 'dummy', kind: 'enemy', x: D.x, y: D.y, z: this.dummyState.kin.z, radius: D.collisionRadius, height: 80, alive: this.dummyState.alive });
     } else if (this.view && this.pvpReady) {
       out.push({ id: this.localId, kind: 'player', x: this.kin.x, y: this.kin.y, z: this.kin.z, radius: R + 4, height: 74, alive: this.dead < 0 });
     }
@@ -562,11 +562,22 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (t.id === 'dummy' && this.dummyState?.alive) {
       const ds = this.dummyState;
       out = ds.body.receive(run.attackerId, s, hit, run.origin, now);
-      ds.body.push = null; ds.kin.vz = 0; ds.kin.z = 0; ds.kin.grounded = true; ds.body.state = 'free'; // stationary target
+      ds.body.push = null; ds.kin.vx = 0; ds.kin.vy = 0; // anchored post: launches / knockdowns are vertical only (juggle practice)
       this.damageDummy(out.damage);
     } else if (t.id === 'enemy' && this.enemy?.alive) {
-      out = this.enemy.body.receive(run.attackerId, s, hit, this.casterPos(run.attackerId) ?? run.origin, now);
-      this.enemy.damage(out.damage);
+      const en = this.enemy, from = this.casterPos(run.attackerId) ?? run.origin;
+      const counter = en.ai === 'attack' && en.body.state === 'free';
+      const f = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[en.facing];
+      const back = en.body.state === 'free' && (from.x - en.kin.x) * f[0] + (from.y - en.kin.y) * f[1] < -12;
+      out = en.body.receive(run.attackerId, s, hit, from, now);
+      const crit = hit.damage > 0 && Math.random() < 0.12;
+      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 : 1);
+      out.damage = Math.round(out.damage * mult);
+      en.damage(out.damage);
+      let row = 0;
+      if (counter) this.fx!.callout(at, 'COUNTER!!', '#7ff0ff', row++);
+      if (back) this.fx!.callout(at, 'BACK ATTACK!!', '#ffb04a', row++);
+      if (crit) this.fx!.callout(at, 'CRITICAL!!', '#ff5a6a', row++);
     }
     if (!out) return;
     this.confirm(run, hit, t.id, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!s.endsCombo, t.z);
@@ -578,7 +589,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!s) return;
     if (run && run.confirmedAt < 0) run.confirmedAt = run.elapsed;
     this.fx!.confirmed(s, hit, at, damage, reaction, true, idx);
-    this.combo = { count: idx, at: this.simMs, comboId, target, label: ends ? 'FINISHER' : tz > 8 || reaction === 'launch' || reaction === 'float' ? 'AIR' : '' };
+    const same = this.combo.comboId === comboId && this.combo.target === target;
+    const max = target === 'enemy' ? (this.enemy?.maxHp ?? 1) : target === 'dummy' ? D.maxHp : 100;
+    const tb = target === 'enemy' ? this.enemy?.body : target === 'dummy' ? this.dummyState?.body : undefined;
+    const state = ends ? 'FINISHER' : tb?.state === 'knockdown' && tb.kdPhase !== 'fall' ? 'DOWN' : tz > 8 || reaction === 'launch' || reaction === 'float' || tb?.state === 'launched' ? 'AERIAL' : 'STAND';
+    this.combo = { count: idx, at: this.simMs, comboId, target, label: state, dmg: (same ? this.combo.dmg : 0) + damage, max };
     this.confirmedLog.push({ skill: s.id, target, damage, idx, reaction, at: this.simMs, z: Math.round(tz) });
     if (this.confirmedLog.length > 300) this.confirmedLog.shift();
   }
@@ -779,7 +794,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       slots,
       minimap: { label: WORLD.name, imageUrl: ATLAS.textures.map.file, markers, bounds: { minX: 0, minY: 0, width: WORLD.coordinateSpace.width, height: WORLD.coordinateSpace.height } },
       room: pvp ? { label: `ROOM ${pvp.room}`, playerCount: pvp.connected ? pvp.remotes.size + 1 : 0, maxPlayers: PVP.maxPlayers } : null,
-      combatFeedback: showCombo ? { count: this.combo.count, chain: this.combo.label || undefined, expiresAtMs: this.combo.at + COMBO_SHOW_MS } : null,
+      combatFeedback: showCombo ? { count: this.combo.count, chain: `${this.combo.label}  ·  TOTAL ${Math.min(999, Math.round((this.combo.dmg / this.combo.max) * 100))}%`, expiresAtMs: this.combo.at + COMBO_SHOW_MS } : null,
     };
   }
 
@@ -827,10 +842,22 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const ds = this.dummyState;
     if (!this.dummy || !ds) return;
     if (ds.flash > 0) { ds.flash -= ms; if (ds.flash <= 0) this.dummy.clearTint(); }
+    if (ds.alive) { // juggle physics on the anchored post (z only), tilt while knocked down
+      const now = this.simMs, k = ds.kin;
+      k.vx = 0; k.vy = 0; ds.body.push = null;
+      const r = stepKin(k, ms, ds.body.gravityScale(now));
+      k.x = D.x; k.y = D.y;
+      ds.body.update(now, ms, r.landed, r.impactVz);
+      if (r.landed && r.impactVz > 220) this.fx?.dust(D.x, D.y, 70, 0.8);
+      const down = ds.body.state === 'knockdown' && ds.body.kdPhase !== 'fall' ? 1 : 0;
+      const tilt = ds.body.state === 'launched' ? Math.max(-0.5, Math.min(0.5, -k.vz / 900)) : down * 0.35;
+      this.dummy.setPosition(D.x, D.y - k.z).setRotation(tilt).setDepth(actorDepth(D.x, D.y, k.z));
+      if (k.z > 0 || ds.body.state !== 'free') this.drawDummyBar();
+    }
     if (!ds.alive) {
       ds.respawn -= ms;
       if (ds.respawn <= 0 && !(Math.hypot(this.kin.x - D.x, this.kin.y - D.y) < D.collisionRadius + D.playerFootRadius)) {
-        ds.hp = D.maxHp; ds.alive = true; ds.body.reset();
+        ds.hp = D.maxHp; ds.alive = true; ds.body.reset(); ds.kin.z = 0; ds.kin.vz = 0; ds.kin.grounded = true;
         this.dummy.clearTint().setVisible(true);
         this.drawDummyBar();
       }
@@ -841,7 +868,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const g = this.dummyBar!, ds = this.dummyState!;
     g.clear();
     if (!ds.alive) return;
-    const h = D.healthBar, bx = D.x - h.width / 2, by = D.y + h.offsetY;
+    const h = D.healthBar, bx = D.x - h.width / 2, by = D.y + h.offsetY - ds.kin.z;
     const col = (s: string) => Phaser.Display.Color.HexStringToColor(s).color;
     g.fillStyle(col(h.background), 1).fillRect(bx, by, h.width, h.height);
     g.fillStyle(col(h.fill), 1).fillRect(bx, by, (h.width * ds.hp) / D.maxHp, h.height);

@@ -177,13 +177,15 @@ export class CombatBody {
   armorUntil = -1;
   airTechCdUntil = 0;
   lastHitAt = -Infinity;
+  /** One ground bounce pending (slams): the body pops back up on impact for an OTG follow-up. */
+  bounce = false;
 
   constructor(readonly kin: Kin, readonly pvp: boolean) {}
 
   canAct(now: number): boolean { return this.state === 'free' && !this.hard.active(now); }
   canMove(now: number): boolean { return this.canAct(now); }
   moveScale(now: number): number { return now < this.slowUntil ? 1 - this.slowPct : 1; }
-  reset(): void { this.state = 'free'; this.stateEnd = 0; this.hard.reset(); this.combos.clear(); this.push = null; this.slowUntil = 0; this.armorUntil = -1; }
+  reset(): void { this.bounce = false; this.state = 'free'; this.stateEnd = 0; this.hard.reset(); this.combos.clear(); this.push = null; this.slowUntil = 0; this.armorUntil = -1; }
 
   /**
    * Apply a confirmed, legal hit from `attacker` (this body's owner is the authority).
@@ -212,13 +214,13 @@ export class CombatBody {
     if (armored) { out.reaction = 'armor'; return out; }
     const juggleCost = R.juggleCost ?? 0;
     const air = !k.grounded || this.state === 'launched';
-    if (R.knockdown) {
+    if (R.slam && air) {
+      out.reaction = 'slam'; k.vz = -620; this.enterKnockdown(now, 'light', -620); out.launchVz = k.vz; this.bounce = c.juggle < COMBO.juggleBudgetMax;
+    } else if (R.knockdown) {
       out.reaction = 'knockdown';
       this.enterKnockdown(now, R.knockdown, air ? -260 : 160);
       out.launchVz = k.vz;
       if (skill.endsCombo) this.combos.end(attacker);
-    } else if (R.slam && air) {
-      out.reaction = 'slam'; k.vz = -620; this.enterKnockdown(now, 'light', -620); out.launchVz = k.vz;
     } else if (R.launch) {
       const relaunch = air;
       const budgetOk = c.juggle < COMBO.juggleBudgetMax && (!relaunch || c.relaunches < COMBO.maxRelaunchesPerCombo);
@@ -289,6 +291,9 @@ export class CombatBody {
         }
         break;
       case 'knockdown':
+        if (this.kdPhase === 'fall' && landed && this.bounce) { // ground bounce: back into the air, still juggleable
+          this.bounce = false; k.grounded = false; k.vz = 330; this.state = 'launched'; ev = 'kdImpact'; break;
+        }
         if (this.kdPhase === 'fall' && landed) { this.kdPhase = 'impact'; ev = 'kdImpact'; this.stateEnd = Math.max(this.stateEnd, now + 430); }
         else if (this.kdPhase === 'impact' && k.grounded) { this.kdPhase = 'down'; }
         if (k.grounded && now >= this.stateEnd) { this.state = 'getup'; this.kdPhase = 'up'; this.stateEnd = now + 260; }
@@ -306,6 +311,6 @@ export class CombatBody {
   gravityScale(now: number): number {
     if (this.state !== 'launched') return 1;
     const c = this.combos.live(now);
-    return LAUNCH_G + 0.4 * Math.min(1, (c?.juggle ?? 0) / 100); // floaty first launch, heavier as the juggle grows
+    return LAUNCH_G + 0.4 * Math.min(1, (c?.juggle ?? 0) / COMBO.juggleBudgetMax); // floaty first launch, heavier as the juggle grows
   }
 }

@@ -52,6 +52,8 @@ export class CursedSwordsman {
   private kdMs = 0;
   private lastNow = 0;
   frozen = false; // QA: AI disabled (training target)
+  get facing(): Dir { return this.dir; }
+  get maxHp(): number { return E.maxHp; }
 
   constructor(private scene: Phaser.Scene) {
     this.kin = newKin(C.spawn.x, C.spawn.y);
