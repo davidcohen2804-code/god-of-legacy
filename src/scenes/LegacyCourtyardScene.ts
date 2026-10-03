@@ -279,8 +279,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const k = this.kin, b = this.body, inp = this.ci!;
     this.modeT += ms; this.loopT += ms;
     if (this.flash >= 0) { this.flash += ms; if (this.flash >= P6.hitFlashRedMs) this.flash = -1; }
-    // Aim: mouse world point treated as a ground point at the actor's height, else facing.
-    if (inp.pointerActive) this.aim = unit(inp.aimX - k.x, inp.aimY + k.z - k.y, this.aim.x, this.aim.y);
+    // Aim: keyboard only — the held movement direction (8-way), else the last one.
+    if (inp.hasMove) this.aim = unit(inp.moveX, inp.moveY, this.aim.x, this.aim.y);
 
     if (this.dead >= 0) { this.dead += ms; this.setMode('dead'); k.vx = 0; k.vy = 0; stepKin(k, ms); this.updateDeath(); return; }
 
@@ -472,7 +472,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Aim / placement / lock-on for a cast. Null = rejected (illegal placement): no cooldown is spent. */
   private resolveCast(s: FinalSkill): { aim: V2; place: V2 | null; lock: string | null } | null {
     const k = this.kin, inp = this.ci!;
-    const mouse = inp.pointerActive ? { x: inp.aimX, y: inp.aimY + k.z } : { x: k.x + this.aim.x * 160, y: k.y + this.aim.y * 160 };
+    const reach = s.targeting === 'mouseGround' ? Math.min(180, s.placeRange ?? 180) : 160;
+    const mouse = { x: k.x + this.aim.x * reach, y: k.y + this.aim.y * reach };
     let aim = unit(mouse.x - k.x, mouse.y - k.y, FACE[this.dir].x, FACE[this.dir].y);
     let place: V2 | null = null, lock: string | null = null;
     if (s.targeting === 'mouseGround') {

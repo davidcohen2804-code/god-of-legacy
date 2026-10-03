@@ -40,6 +40,8 @@ export function preloadCosmetics(scene: Phaser.Scene): void {
 }
 
 const DIR_COL: Record<Dir, number> = { down: 0, right: 1, left: 2, up: 3 };
+/** Head-item fit per view (down/right/left/up): width = hair width × w; lower edge = hair bottom + b × hair width; dx = forward shift. */
+const HEAD_FIT = [{ w: 1.3, b: 0.12, dx: 0 }, { w: 1.32, b: 0.12, dx: 0.04 }, { w: 1.32, b: 0.12, dx: 0.04 }, { w: 1.4, b: 0.18, dx: 0 }];
 
 export class ActorView {
   readonly sprite: Phaser.GameObjects.Sprite;
@@ -118,7 +120,11 @@ export class ActorView {
       // Item art centre inside its cell (fraction) → origin so the item centre lands on the anchor.
       const cx = (bb[0] + bb[2]) / 2 / cell, cy = (bb[1] + bb[3]) / 2 / cell;
       let ax: number, ay: number, s: number, d = depth + 0.05, show = this.visible;
-      if (slot === 'head') { s = SIZE.head / Math.max(bw, bh * 0.9); ax = a[2]; ay = a[1] + (bh * s) * 0.42; }
+      if (slot === 'head' && pose.hair) {
+        // Fitted to this frame's head: covers the hair box (stable per-direction width), seated by its lower edge.
+        const [hcx, hw, hb] = pose.hair, f = HEAD_FIT[col];
+        s = (hw * f.w) / bw; ax = hcx + f.dx * hw * (dir === 'left' ? -1 : 1); ay = hb + f.b * hw - (bh * s) / 2;
+      } else if (slot === 'head') { s = SIZE.head / Math.max(bw, bh * 0.9); ax = a[2]; ay = a[1] + (bh * s) * 0.42; }
       else if (slot === 'face') { s = SIZE.face / bw; ax = a[2] + (dir === 'right' ? 3 : dir === 'left' ? -3 : 0); ay = a[1] + (a[6] ?? 100) * 0.2; show = show && dir !== 'up'; }
       else { // back
         s = SIZE.back / Math.max(bh, 1);

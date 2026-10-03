@@ -52,9 +52,7 @@ export class CombatInput {
       kb.on(`keydown-${k}`, h);
       this.detach.push(() => kb.off(`keydown-${k}`, h));
     }
-    const move = (p: Phaser.Input.Pointer) => { this.pointerActive = true; this.setPointer(p); };
-    scene.input.on('pointermove', move);
-    this.detach.push(() => scene.input.off('pointermove', move));
+    // Keyboard-only control: the mouse never aims or steers (pointerActive stays false).
   }
 
   private setPointer(p: Phaser.Input.Pointer): void {

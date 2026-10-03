@@ -31,6 +31,9 @@ function pointInPolyNear(x: number, y: number, poly: Parameters<typeof pointInPo
   return x >= Math.min(...xs) - PHYS.footR && x <= Math.max(...xs) + PHYS.footR && y >= Math.min(...ys) - PHYS.footR && y <= Math.max(...ys) + PHYS.footR;
 }
 
+/** Gravity multiplier of a juggled body at juggle 0 (long, readable hang time for air follow-ups). */
+const LAUNCH_G = 0.72;
+
 export function stepKin(k: Kin, ms: number, gravityScale = 1, blocked?: (x: number, y: number, z: number) => boolean): StepResult {
   const dt = Math.min(0.05, ms / 1000), r: StepResult = { landed: false, impactVz: 0, blockedX: false, blockedY: false, leftSupport: false };
   const ok = (x: number, y: number) => {
@@ -221,7 +224,7 @@ export class CombatBody {
       const budgetOk = c.juggle < COMBO.juggleBudgetMax && (!relaunch || c.relaunches < COMBO.maxRelaunchesPerCombo);
       if (budgetOk) {
         const h = relaunch ? R.launch * 0.75 : R.launch;
-        k.grounded = false; k.vz = Math.sqrt(2 * PHYS.gravity * h); out.launchVz = k.vz;
+        k.grounded = false; k.vz = Math.sqrt(2 * PHYS.gravity * LAUNCH_G * h); out.launchVz = k.vz;
         if (relaunch) c.relaunches++;
         c.juggle += relaunch ? COMBO.juggleCosts.relaunch : juggleCost;
         this.state = 'launched'; out.reaction = 'launch';
@@ -303,6 +306,6 @@ export class CombatBody {
   gravityScale(now: number): number {
     if (this.state !== 'launched') return 1;
     const c = this.combos.live(now);
-    return 1 + 0.35 * Math.min(1, (c?.juggle ?? 0) / 100);
+    return LAUNCH_G + 0.4 * Math.min(1, (c?.juggle ?? 0) / 100); // floaty first launch, heavier as the juggle grows
   }
 }

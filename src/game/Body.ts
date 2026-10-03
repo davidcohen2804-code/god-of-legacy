@@ -16,7 +16,7 @@ const ROW: Record<Dir, number> = { down: 0, right: 1, left: 2, up: 3 };
 const CELL = 352, ORIGIN_Y = 310 / 352, SHEET_SCALE = 108 / 172;
 
 type MoveState = 'idle' | 'walk' | 'run' | 'jump' | 'air_attack' | 'hurt' | 'recovery' | 'death';
-const MOVE_COLS: Record<MoveState, number> = { idle: 6, walk: 6, run: 8, jump: 8, air_attack: 6, hurt: 4, recovery: 4, death: 8 };
+const MOVE_COLS: Record<MoveState, number> = { idle: 6, walk: 8, run: 8, jump: 8, air_attack: 6, hurt: 4, recovery: 4, death: 8 };
 const SHEET_CLASSES = ['warrior', 'book_mage'] as const;
 const sheetKey = (cls: string, st: string) => `body-${cls}-${st}`;
 const skillKey = (cls: string, id: string) => `sbody-${cls}-${id}`;
@@ -63,18 +63,23 @@ export function registerBodies(scene: Phaser.Scene): void {
 /** Resolved frame for one pose. Anchor values are in world px relative to the feet (x right, y down). */
 export interface PoseFrame {
   key: string; frame: string | number; wkey: string; ox: number; oy: number; scale: number;
+  /** Optional per-axis multipliers around the feet (procedural breathing). */
+  sx?: number; sy?: number;
   /** [headTopX, headTopY, headCx, headCy, backX, backY] relative to the feet, world px (already scaled). */
   anchor: number[] | null;
+  /** Head (hair) box for helmets: [centerX, width (direction median, stable), bottomY], world px rel. feet. */
+  hair?: number[] | null;
 }
 
 type AnchorTable = Record<string, (number[] | null)[][] | Record<string, (number[] | null)[]>>;
 const ANCH = ANCHORS as unknown as AnchorTable;
 function scaleAnchor(a: number[] | null | undefined, k: number): number[] | null { return a ? a.slice(0, 6).map((v) => v * k) : null; }
+function scaleHair(a: number[] | null | undefined, k: number): number[] | null { return a && a.length > 9 ? [a[7] * k, a[8] * k, a[9] * k] : null; }
 
 function sheetFrame(key: string, path: string, dir: Dir, col: number, cols: number): PoseFrame {
   const c = Math.max(0, Math.min(cols - 1, col)), row = ROW[dir];
   const table = ANCH[path] as (number[] | null)[][] | undefined;
-  return { key, frame: row * cols + c, wkey: `${key}-w`, ox: 0.5, oy: ORIGIN_Y, scale: SHEET_SCALE, anchor: scaleAnchor(table?.[row]?.[c], SHEET_SCALE) };
+  return { key, frame: row * cols + c, wkey: `${key}-w`, ox: 0.5, oy: ORIGIN_Y, scale: SHEET_SCALE, anchor: scaleAnchor(table?.[row]?.[c], SHEET_SCALE), hair: scaleHair(table?.[row]?.[c], SHEET_SCALE) };
 }
 
 function atlasPose(cls: string, dir: Dir, act: AtlasAction, i: number): PoseFrame {
@@ -112,8 +117,18 @@ function mv(cls: string, st: MoveState, dir: Dir, col: number): PoseFrame { retu
 function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
   switch (q.k) {
     case 'loop': {
-      if (q.state === 'idle') { const i = Math.floor((q.t * 5) / 1000) % 10; return mv(cls, 'idle', dir, i < 6 ? i : 10 - i); } // breathing ping-pong, no wrap jump
-      if (q.state === 'walk') { const fps = 8 * Math.max(0.7, Math.min(1.2, q.speed / 188)); return mv(cls, 'walk', dir, Math.floor((q.t * fps) / 1000) % 6); }
+      if (q.state === 'idle') { // one clean frame + smooth procedural breathing (separately painted idle frames flicker)
+        const f = mv(cls, 'idle', dir, 0), b = Math.sin((q.t / 2600) * Math.PI * 2);
+        f.sy = 1 + 0.014 * b; f.sx = 1 - 0.005 * b;
+        if (f.anchor) f.anchor = f.anchor.map((v, i) => (i % 2 ? v * f.sy! : v * f.sx!));
+        if (f.hair) f.hair = [f.hair[0] * f.sx!, f.hair[1] * f.sx!, f.hair[2] * f.sy!];
+        return f;
+      }
+      if (q.state === 'walk') { // 8-frame cycles (down/up rows of the old 6-frame art until replaced)
+        const n = cls === 'warrior' && (dir === 'right' || dir === 'left') ? 8 : 6;
+        const fps = (n === 8 ? 10 : 8) * Math.max(0.7, Math.min(1.2, q.speed / 188));
+        return mv(cls, 'walk', dir, Math.floor((q.t * fps) / 1000) % n);
+      }
       const fps = 13 * Math.max(0.75, Math.min(1.15, q.speed / 270));
       return mv(cls, 'run', dir, Math.floor((q.t * fps) / 1000) % 8);
     }
@@ -213,10 +228,10 @@ function atlasPoseFor(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
 /** Apply a resolved pose to a body sprite (and its aligned weapon-mask sprite). */
 export function applyPose(p: Phaser.GameObjects.Sprite, f: PoseFrame, weapon?: Phaser.GameObjects.Sprite | null): void {
   if (p.texture.key !== f.key || p.frame.name !== String(f.frame)) p.setTexture(f.key, f.frame);
-  p.setOrigin(f.ox, f.oy).setScale(f.scale);
+  p.setOrigin(f.ox, f.oy).setScale(f.scale * (f.sx ?? 1), f.scale * (f.sy ?? 1));
   if (weapon && weapon.scene.textures.exists(f.wkey)) {
     if (weapon.texture.key !== f.wkey || weapon.frame.name !== String(f.frame)) weapon.setTexture(f.wkey, f.frame);
-    weapon.setOrigin(f.ox, f.oy).setScale(f.scale);
+    weapon.setOrigin(f.ox, f.oy).setScale(f.scale * (f.sx ?? 1), f.scale * (f.sy ?? 1));
   }
 }
 

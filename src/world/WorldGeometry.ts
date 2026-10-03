@@ -30,7 +30,7 @@ export const WORLD_OBJECTS: WorldObject[] = [
   {
     id: 'flower-planter',
     footprint: [[1296, 664], [1437, 664], [1437, 722], [1300, 722]],
-    height: 96, cover: 'hard', frontY: 723,
+    height: 62, topZ: 62, cover: 'hard', frontY: 723,
     occluder: [[1300, 602], [1334, 582], [1376, 584], [1418, 609], [1435, 643], [1438, 690], [1435, 723], [1313, 723], [1297, 694], [1291, 655], [1293, 615]],
   },
 ];
