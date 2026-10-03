@@ -16,7 +16,7 @@ const GROUND = 2;
 /** Orientation of each final VFX sheet: 'dir' sheets are drawn pointing right and rotate with the aim. */
 /** Upright sheets whose bottom edge is the ground line (drawn standing on the impact point). */
 /** Ground-point origin (fraction of the cell height) for sheets drawn standing on the impact point. */
-const GROUND_ANCHORED = new Map<string, number>([['titans_verdict', 0.742], ['ground_breaker', 0.8]]);
+const GROUND_ANCHORED = new Map<string, number>([['titans_verdict', 0.742], ['ground_breaker', 0.8], ['whirlwind', 0.56]]);
 /** Frames played during startup (anticipation) — the next frame is the impact at active start. */
 const PRE_FRAMES: Record<string, number> = { titans_verdict: 7 };
 const UPRIGHT = new Set(['titans_verdict', 'ground_breaker', 'whirlwind', 'shield_slam', 'blade_storm', 'binding_rune', 'astral_burst', 'frost_nova', 'storm_field',
