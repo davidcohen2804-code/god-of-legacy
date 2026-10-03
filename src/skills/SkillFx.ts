@@ -14,7 +14,11 @@ const TOP = 100000;
 const GROUND = 2;
 
 /** Orientation of each final VFX sheet: 'dir' sheets are drawn pointing right and rotate with the aim. */
-const UPRIGHT = new Set(['ground_breaker', 'whirlwind', 'shield_slam', 'blade_storm', 'binding_rune', 'astral_burst', 'frost_nova', 'storm_field',
+/** Upright sheets whose bottom edge is the ground line (drawn standing on the impact point). */
+const GROUND_ANCHORED = new Set(['titans_verdict']);
+/** Frames played during startup (anticipation) — the next frame is the impact at active start. */
+const PRE_FRAMES: Record<string, number> = { titans_verdict: 7 };
+const UPRIGHT = new Set(['titans_verdict', 'ground_breaker', 'whirlwind', 'shield_slam', 'blade_storm', 'binding_rune', 'astral_burst', 'frost_nova', 'storm_field',
   'time_collapse', 'explosive_arrow', 'vine_trap', 'rain_of_arrows', 'verdant_judgment', 'spin_cut']);
 const PROJECTILE_SHEETS: Record<string, { cell: number; frames: number }> = {
   arcane_bolt: { cell: 128, frames: 8 }, lightning_chain: { cell: 192, frames: 8 }, quick_shot: { cell: 128, frames: 8 },
@@ -23,7 +27,7 @@ const PROJECTILE_SHEETS: Record<string, { cell: number; frames: number }> = {
 /** Projectile skills without a dedicated projectile sheet fly with a sibling's arrow (multi shot / skyhunter arrows). */
 const PROJ_ALIAS: Record<string, string> = { multi_shot: 'quick_shot', skyhunters_step: 'quick_shot' };
 const IMPACT: Record<string, { key: string; path: string; cell: number; frames: number; size: number }> = {
-  warrior: { key: 'imp-warrior', path: 'assets/fx/Sword_Impact.png', cell: 128, frames: 4, size: 96 },
+  warrior: { key: 'imp-warrior', path: `${F}/impact/warrior_steel.png`, cell: 256, frames: 6, size: 110 },
   book_mage: { key: 'imp-mage', path: `${F}/skills/book_mage/astral_burst/vfx.png`, cell: 256, frames: 8, size: 92 },
   archer: { key: 'imp-archer', path: `${F}/impact/archer_burst.png`, cell: 160, frames: 1, size: 78 },
   samurai: { key: 'imp-samurai', path: `${F}/impact/samurai_cross.png`, cell: 160, frames: 6, size: 104 },
@@ -101,7 +105,7 @@ export class SkillFx {
   private castVfx(r: CastRun): void {
     const s = r.skill, shape = this.firstShape(s);
     const big = s.slot >= 6, frames = s.slot === 7 ? 14 : s.slot === 6 ? 12 : 8;
-    const preFrames = s.slot === 7 ? 4 : 3;
+    const preFrames = PRE_FRAMES[s.id] ?? (s.slot === 7 ? 4 : 3);
     const o = r.origin, aim = r.aim, upright = UPRIGHT.has(s.id);
     let pos: V3 = { ...o }, size = 200, follow: (() => V3 | null) | undefined;
     switch (shape.kind) {
@@ -112,8 +116,9 @@ export class SkillFx {
       case 'placed': pos = { x: r.place?.x ?? o.x, y: r.place?.y ?? o.y, z: 0 }; size = shape.radius * 2.5; break;
     }
     if (big) size *= 1.15;
+    if (GROUND_ANCHORED.has(s.id)) pos = { ...pos, z: o.z };
     const key = vfxKey(s.id);
-    const img = this.scene.add.image(pos.x, pos.y - pos.z, key, 0).setOrigin(0.5, upright && shape.kind !== 'sector' ? 0.62 : 0.5);
+    const img = this.scene.add.image(pos.x, pos.y - pos.z, key, 0).setOrigin(0.5, GROUND_ANCHORED.has(s.id) ? 0.95 : upright && shape.kind !== 'sector' ? 0.62 : 0.5);
     img.setDisplaySize(size, size);
     if (!upright) { const ang = Math.atan2(aim.y, aim.x) * (180 / Math.PI); img.setAngle(ang); img.setFlipY(aim.x < -0.01); }
     else img.setFlipX(aim.x < -0.01);
@@ -213,7 +218,6 @@ export class SkillFx {
     }
     if (s.id === 'dragon_eclipse') this.eclipseSlash(r, o);
     if (s.id === 'verdant_judgment' && i === 1) this.spark(IMPACT.explosion.key, r.place?.x ?? o.x, (r.place?.y ?? o.y) - 50, 5, 260, 1);
-    if (s.id === 'titans_verdict') this.spark(vfxKey('ground_breaker'), o.x + r.aim.x * 90, o.y + r.aim.y * 90 - 40, 8, 300, 1, 3);
   }
 
   private eclipseSlash(r: CastRun, o: V3): void {
@@ -279,8 +283,9 @@ export class SkillFx {
     const tier = tierOf(s, hit);
     const k = IMPACT[s.cls] ?? IMPACT.warrior;
     this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * (tier === 'ultimate' ? 1.6 : hit.heavy ? 1.25 : 1), 1);
-    if (reaction === 'launch') this.spark(IMPACT.dust.key, at.x, at.y + 4, 6, 110, 0.9);
-    if (reaction === 'knockdown' || reaction === 'slam') this.spark(IMPACT.dust.key, at.x, at.y + 6, 6, 150, 1);
+    // Ground dust only where the skill has no ground impact art of its own (kept subtle).
+    if (tier !== 'ultimate' && reaction === 'launch') this.spark(IMPACT.dust.key, at.x, at.y + 4, 6, 90, 0.5);
+    if (tier !== 'ultimate' && (reaction === 'knockdown' || reaction === 'slam')) this.spark(IMPACT.dust.key, at.x, at.y + 6, 6, 110, 0.55);
     if (damage > 0) this.damageNumber(at, damage, hit.heavy || tier === 'ultimate' || tier === 'signature', combo);
     if (local) {
       this.hitStopLeft = Math.max(this.hitStopLeft, HITSTOP[tier] + (hit.heavy && tier === 'core' ? 9 : 0));
