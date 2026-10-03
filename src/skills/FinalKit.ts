@@ -116,7 +116,7 @@ const mage: FinalSkill[] = [
   S({
     id: 'arcane_wave', cls: 'book_mage', slot: 1, name: 'Arcane Wave', roles: ['confirm', 'peel'], targeting: 'mouseLine',
     startup: 150, active: 180, recovery: 180, cooldown: 3500, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    hits: [H(0, 24, { kind: 'line', length: 230, width: 74 }, { stun: 240, push: 30, float: true, juggleCost: 15 })],
+    hits: [H(0, 24, { kind: 'line', length: 230, width: 74 }, { stun: 240, push: 30, float: true, juggleCost: 15 }, { reachUp: 170 })],
     cancelOnHit: ['astral_burst', 'storm_field', 'lightning_chain', 'binding_rune', 'time_collapse'], telegraph: 'line',
     description: 'Wide short wave toward the cursor. Pushes grounded targets, stabilises airborne ones for a follow-up.',
     relations: ['Confirm', 'Air stabiliser'],
@@ -133,7 +133,7 @@ const mage: FinalSkill[] = [
   S({
     id: 'astral_burst', cls: 'book_mage', slot: 3, name: 'Astral Lift', roles: ['launcher', 'pull'], targeting: 'selfAim',
     startup: 180, active: 140, recovery: 220, cooldown: 8000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 30, { kind: 'circle', radius: 104, at: 'aimBias', bias: 60 }, { stun: 420, pull: 26, launch: 150, juggleCost: 35 }, { reachUp: 120 })],
+    hits: [H(0, 30, { kind: 'circle', radius: 104, at: 'aimBias', bias: 60 }, { stun: 420, pull: 26, launch: 100, juggleCost: 35 }, { reachUp: 120 })],
     cancelOnHit: ['lightning_chain', 'arcane_wave', 'storm_field', 'arcane_bolt'], telegraph: 'circle',
     description: 'Short inward pull, then lifts the target ~82px. Ideal starter after Binding Rune.',
     relations: ['Launcher', 'Air → Lightning Chain'],
@@ -211,7 +211,7 @@ const archer: FinalSkill[] = [
   S({
     id: 'explosive_arrow', cls: 'archer', slot: 3, name: 'Explosive Arrow', roles: ['projectile', 'launcher'], targeting: 'mouseProjectile',
     startup: 190, active: 0, recovery: 200, cooldown: 6000, ground: true, air: true, cover: 'EXPLODES_ON_COVER', move: LOCK,
-    hits: [H(0, 30, { kind: 'projectile', speed: 760, range: 460, radius: 10, explodeRadius: 72 }, { stun: 300, launch: 80, push: 18, juggleCost: 25 })],
+    hits: [H(0, 30, { kind: 'projectile', speed: 760, range: 460, radius: 10, explodeRadius: 72 }, { stun: 300, launch: 55, push: 18, juggleCost: 25 })],
     cancelOnHit: ['quick_shot', 'rain_of_arrows', 'skyhunters_step'],
     description: 'Visible arrow that bursts at the target, cover or max range. A direct hit pops the target up modestly.',
     relations: ['Pop', 'Jump → Quick Shot'],
