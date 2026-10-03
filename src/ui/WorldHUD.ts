@@ -162,7 +162,7 @@ export class WorldHUD {
     this.els.tType = this.div('t', t); Object.assign(this.els.tType.style, { fontSize: '18px', color: P.secondary });
     this.thp = this.bar(t, 0, 52, H.target.w - 32, 22, 'bar-hp', false);
     // Combat state chip + three combo-protection gauges (standing / air / down) under the HP bar.
-    const chip = this.div('chip', t); Object.assign(chip.style, { position: 'absolute', right: '6px', top: '-4px', fontSize: '16px', fontWeight: '700', fontStyle: 'italic', letterSpacing: '1px', textShadow: '0 2px 0 #000' });
+    const chip = this.div('chip', t); Object.assign(chip.style, { position: 'absolute', right: '22px', top: '26px', fontSize: '16px', fontWeight: '700', fontStyle: 'italic', letterSpacing: '1px', textShadow: '0 2px 0 #000' });
     this.els.tChip = chip;
     const gw = (H.target.w - 32 - 8) / 3;
     this.tGauge = (['#ff5a4a', '#5ab8ff', '#ffd25a'] as const).map((c, i) => {
