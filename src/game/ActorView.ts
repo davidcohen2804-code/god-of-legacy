@@ -29,7 +29,7 @@ const WEAPON_TINT: Record<string, { tint: number; glow?: number; rainbow?: boole
 };
 
 /** On-body size targets (world px) for anchored cosmetics. */
-const SIZE: Record<string, number> = { head: 34, face: 18, back: 56, aura: 92 };
+const SIZE: Record<string, number> = { head: 40, face: 18, back: 56, aura: 92 };
 
 export function preloadCosmetics(scene: Phaser.Scene): void {
   for (const list of Object.values(COSMETICS)) for (const it of list) {
