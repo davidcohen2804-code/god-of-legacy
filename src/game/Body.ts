@@ -125,7 +125,7 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
         return f;
       }
       if (q.state === 'walk') { // 8-frame cycles (down/up rows of the old 6-frame art until replaced)
-        const n = cls === 'warrior' && (dir === 'right' || dir === 'left') ? 8 : 6;
+        const n = cls === 'warrior' && dir !== 'up' ? 8 : 6;
         const fps = (n === 8 ? 10 : 8) * Math.max(0.7, Math.min(1.2, q.speed / 188));
         return mv(cls, 'walk', dir, Math.floor((q.t * fps) / 1000) % n);
       }
