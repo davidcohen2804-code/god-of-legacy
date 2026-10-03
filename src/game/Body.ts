@@ -112,8 +112,8 @@ function mv(cls: string, st: MoveState, dir: Dir, col: number): PoseFrame { retu
 function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
   switch (q.k) {
     case 'loop': {
-      if (q.state === 'idle') return mv(cls, 'idle', dir, Math.floor((q.t * 6) / 1000) % 6);
-      if (q.state === 'walk') { const fps = 9 * Math.max(0.7, Math.min(1.2, q.speed / 188)); return mv(cls, 'walk', dir, Math.floor((q.t * fps) / 1000) % 6); }
+      if (q.state === 'idle') { const i = Math.floor((q.t * 5) / 1000) % 10; return mv(cls, 'idle', dir, i < 6 ? i : 10 - i); } // breathing ping-pong, no wrap jump
+      if (q.state === 'walk') { const fps = 8 * Math.max(0.7, Math.min(1.2, q.speed / 188)); return mv(cls, 'walk', dir, Math.floor((q.t * fps) / 1000) % 6); }
       const fps = 13 * Math.max(0.75, Math.min(1.15, q.speed / 270));
       return mv(cls, 'run', dir, Math.floor((q.t * fps) / 1000) % 8);
     }
