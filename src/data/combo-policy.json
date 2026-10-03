@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 2,
+  "inputBufferMs": 160,
+  "comboTimeoutMs": 1100,
+  "hitStunScaleByHit": [
+    1,
+    1,
+    0.9,
+    0.9,
+    0.8,
+    0.8,
+    0.7,
+    0.7,
+    0.6
+  ],
+  "hitStunFloorMs": 55,
+  "damageScaleByHit": [
+    1,
+    1,
+    0.9,
+    0.85,
+    0.8,
+    0.75,
+    0.7
+  ],
+  "damageScaleFloor": 0.7,
+  "juggleBudgetMax": 100,
+  "juggleCosts": {
+    "launcher": 35,
+    "airExtender": 20,
+    "relaunch": 45,
+    "signatureAir": 30
+  },
+  "maxRelaunchesPerCombo": 1,
+  "airTech": {
+    "comboDurationThresholdMs": 1500,
+    "juggleThreshold": 80,
+    "windowMs": 140,
+    "lateralPx": 45,
+    "hardCcImmunityMs": 260,
+    "cooldownMs": 3000
+  },
+  "hardCC": {
+    "maxSingleMs": 350,
+    "drWindowMs": 2000,
+    "multipliers": [
+      1,
+      0.5,
+      0.25,
+      0
+    ],
+    "postImmunityMs": 450
+  }
+}

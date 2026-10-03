@@ -1,27 +1,24 @@
 // PvP session for one courtyard scene: transport, remote players, outgoing snapshots, incoming events.
-// Prototype hit model: the attacker broadcasts its strike; the victim validates and applies damage to itself.
+// Prototype authority model (unchanged): each client is the authority for its own body. The caster broadcasts a cast
+// intent; every victim validates it and resolves the hits against itself, then broadcasts its confirmed HP/reaction.
 import Phaser from 'phaser';
 import { PVP } from '../config/layout';
-import { Dir } from '../world/collision';
-import { RemoteFx, RemotePlayer } from './RemotePlayer';
+import { RemotePlayer } from './RemotePlayer';
 import { createTransport, NetMsg, PeerMeta, Transport } from './Transport';
 
-export interface LocalSnapshot { x: number; y: number; dir: Dir; anim: string; hp: number; alive: boolean }
+export interface LocalSnapshot { x: number; y: number; z: number; sz: number; dir: string; anim: string; mode: string; sp: number; vz: number; ax: number; ay: number; hp: number; alive: boolean; cos: string }
 
 export interface PvpHandlers {
-  /** Joined the room: spawn the local player. */
   onJoined(): void;
   onFull(): void;
   onError(): void;
-  /** A remote attacker's strike reached its hit moment; the scene validates it against the local player. */
-  onStrike(from: string, id: number, x: number, y: number, dir: Dir): void;
   getLocal(): LocalSnapshot | null;
-  /** Skill System: a remote cast intent (the receiving client validates it and resolves hits on its own player). */
-  onCast?(from: string, m: Extract<NetMsg, { t: 'cast' }>): void;
-  /** Skill System: a victim's confirmed result for a cast (HitConfirmed / combo-ready event). */
-  onConfirmed?(victim: string, m: Extract<NetMsg, { t: 'hp' }>): void;
-  /** A remote player left: its pending casts/projectiles stop. */
-  onRemoteLeft?(id: string): void;
+  onCast(from: string, m: Extract<NetMsg, { t: 'cast' }>): void;
+  onCounter(from: string, m: Extract<NetMsg, { t: 'ctr' }>): void;
+  /** A victim confirmed (and applied) a hit from a cast. */
+  onConfirmed(victim: string, m: Extract<NetMsg, { t: 'hp' }>): void;
+  onRemoteLeft(id: string): void;
+  onRemoteDeath?(id: string, by: string): void;
 }
 
 export class PvpController {
@@ -36,7 +33,7 @@ export class PvpController {
   private destroyed = false;
   private readonly onPageHide = () => this.destroy();
 
-  constructor(private scene: Phaser.Scene, readonly room: string, readonly meta: PeerMeta, private h: PvpHandlers, private fx: RemoteFx) {
+  constructor(private scene: Phaser.Scene, readonly room: string, readonly meta: PeerMeta, private h: PvpHandlers) {
     this.transport = createTransport(room);
     this.transport.onMessage((m) => this.receive(m));
     this.transport.onPeers((list) => this.syncPeers(list));
@@ -50,42 +47,42 @@ export class PvpController {
     if (r === 'error') { this.h.onError(); return; }
     this.h.onJoined();
     this.sendState(true);
-    // Keep-alive snapshot on a timer (still runs when this tab's game loop is paused in the background).
     this.keepAlive = window.setInterval(() => this.sendState(false, true), PVP.idleResendMs);
   }
 
   get connected(): boolean { return this.transport.status === 'connected'; }
 
-  /** Per frame: remote interpolation + outgoing movement at PVP.sendHz when something changed. */
   update(ms: number): void {
     for (const r of this.remotes.values()) r.update(ms);
     this.sinceSend += ms;
-    if (this.sinceSend >= 1000 / PVP.sendHz) this.sendState(false);
+    if (this.sinceSend >= 1000 / 30) this.sendState(false);
   }
 
   private sendState(force: boolean, keepAlive = false): void {
     const s = this.h.getLocal();
     if (!s || !this.connected) return;
-    const key = `${Math.round(s.x)},${Math.round(s.y)},${s.dir},${s.anim},${s.hp},${s.alive}`;
+    const msg = {
+      t: 'state' as const, from: this.meta.playerId, x: Math.round(s.x), y: Math.round(s.y), z: Math.round(s.z), sz: Math.round(s.sz), dir: s.dir,
+      anim: s.anim, mode: s.mode, sp: Math.round(s.sp), vz: Math.round(s.vz), ax: Math.round(s.ax * 100), ay: Math.round(s.ay * 100), hp: s.hp, alive: s.alive, cos: s.cos,
+    };
+    const key = `${msg.x},${msg.y},${msg.z},${msg.dir},${msg.mode},${msg.ax},${msg.ay},${msg.hp},${msg.alive},${msg.cos}`;
     if (!force && !keepAlive && key === this.lastSent) return;
     this.sinceSend = 0;
     this.lastSent = key;
-    this.transport.send({ t: 'state', from: this.meta.playerId, x: Math.round(s.x), y: Math.round(s.y), dir: s.dir, anim: s.anim, hp: s.hp, alive: s.alive });
+    this.transport.send(msg);
   }
 
-  sendAttack(id: number, dir: Dir, x: number, y: number): void {
-    this.transport.send({ t: 'attack', from: this.meta.playerId, id, dir, x: Math.round(x), y: Math.round(y) });
+  forceState(): void { this.sendState(true); }
+
+  sendHp(hp: number, by: string, extra?: Omit<Extract<NetMsg, { t: 'hp' }>, 't' | 'from' | 'hp' | 'by'>): void {
+    this.transport.send({ t: 'hp', from: this.meta.playerId, hp, by, ...extra });
     this.sendState(true);
   }
-  sendStrike(id: number, dir: Dir, x: number, y: number): void {
-    this.transport.send({ t: 'strike', from: this.meta.playerId, id, dir, x, y });
+  sendCast(m: Omit<Extract<NetMsg, { t: 'cast' }>, 't' | 'from'>): void {
+    this.transport.send({ t: 'cast', from: this.meta.playerId, ...m });
+    this.sendState(true);
   }
-  sendHp(hp: number, by: string, extra?: { castId: string; skillId: string; stun: number; kb: number }): void {
-    this.transport.send({ t: 'hp', from: this.meta.playerId, hp, by, ...extra });
-  }
-  sendCast(castId: string, skillId: string, x: number, y: number, dir: Dir, place: { x: number; y: number } | null): void {
-    this.transport.send({ t: 'cast', from: this.meta.playerId, castId, skillId, x: Math.round(x), y: Math.round(y), dir, ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}) });
-  }
+  sendCounter(m: Omit<Extract<NetMsg, { t: 'ctr' }>, 't' | 'from'>): void { this.transport.send({ t: 'ctr', from: this.meta.playerId, ...m }); }
   sendDeath(by: string): void { this.transport.send({ t: 'death', from: this.meta.playerId, by }); }
   sendRespawn(x: number, y: number, hp: number): void {
     this.transport.send({ t: 'respawn', from: this.meta.playerId, x: Math.round(x), y: Math.round(y), hp });
@@ -98,17 +95,16 @@ export class PvpController {
     if (m.t === 'leave') { this.removeRemote(m.from); this.peers.delete(m.from); return; }
     if (m.t === 'state') {
       const r = this.remotes.get(m.from);
-      if (r) r.applyState(m.x, m.y, m.dir, m.anim, m.hp, m.alive);
+      if (r) r.applyState(m);
       else { this.pending.set(m.from, m); this.tryCreate(m.from); }
       return;
     }
     const r = this.remotes.get(m.from);
-    if (m.t === 'strike') { if (this.peers.has(m.from)) this.h.onStrike(m.from, m.id, m.x, m.y, m.dir as Dir); return; }
-    if (m.t === 'cast') { if (r) this.h.onCast?.(m.from, m); return; }
     if (!r) return;
-    if (m.t === 'attack') r.startAttack(m.dir);
-    else if (m.t === 'hp') { r.setHp(m.hp); if (m.castId) this.h.onConfirmed?.(m.from, m); }
-    else if (m.t === 'death') r.die();
+    if (m.t === 'cast') this.h.onCast(m.from, m);
+    else if (m.t === 'ctr') this.h.onCounter(m.from, m);
+    else if (m.t === 'hp') { r.setHp(m.hp, m); if (m.castId) this.h.onConfirmed(m.from, m); }
+    else if (m.t === 'death') { r.die(); this.h.onRemoteDeath?.(m.from, m.by); }
     else if (m.t === 'respawn') r.revive(m.x, m.y, m.hp);
   }
 
@@ -123,40 +119,33 @@ export class PvpController {
       this.peers.set(p.playerId, p);
       this.tryCreate(p.playerId);
     }
-    if (added) this.sendState(true); // newcomers see us immediately
+    if (added) this.sendState(true);
   }
 
-  /** A remote player appears once both its presence (who) and a snapshot (where) are known. */
   private tryCreate(id: string): void {
     const meta = this.peers.get(id), st = this.pending.get(id);
     if (!meta || !st || this.remotes.has(id)) return;
-    const r = new RemotePlayer(this.scene, meta, st.x, st.y, this.fx);
-    r.applyState(st.x, st.y, st.dir, st.anim, st.hp, st.alive);
+    const r = new RemotePlayer(this.scene, meta, st.x, st.y);
+    r.applyState(st);
     this.remotes.set(id, r);
     this.pending.delete(id);
   }
 
   private removeRemote(id: string): void {
-    if (this.remotes.has(id)) this.h.onRemoteLeft?.(id);
+    if (this.remotes.has(id)) this.h.onRemoteLeft(id);
     this.remotes.get(id)?.destroy();
     this.remotes.delete(id);
     this.pending.delete(id);
   }
 
-  /** QA panel lines. */
   qaInfo(): Record<string, string> {
     return {
-      Mode: 'PVP',
-      Room: this.room,
-      Transport: this.transport.kind,
-      Connection: this.transport.status,
-      LocalId: this.meta.playerId,
+      Mode: 'PVP', Room: this.room, Transport: this.transport.kind, Connection: this.transport.status, LocalId: this.meta.playerId,
       Players: `${this.connected ? this.remotes.size + 1 : 0} / ${PVP.maxPlayers}`,
       LastNet: this.lastNet ? `${Math.round(performance.now() - this.lastNet)} ms ago` : '—',
     };
   }
 
-  /** Leaves the room and removes every listener, remote object and timer. */
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;

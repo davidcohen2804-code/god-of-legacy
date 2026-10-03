@@ -66,7 +66,7 @@ export class MainMenuUI {
     img.on('pointerout', () => { hover = false; down = false; img.y = L.y; go(1, 1, 0, BUTTON_FX.hoverDuration); });
     img.on('pointerdown', () => {
       down = true; img.y = L.y + BUTTON_FX.pressedOffsetY;
-      go(BUTTON_FX.pressedScale, BUTTON_FX.pressedBrightness, BUTTON_FX.hoverGlowStrength * 0.5, 0);
+      go(BUTTON_FX.pressedScale, BUTTON_FX.pressedBrightness, BUTTON_FX.hoverGlowStrength * 0.5, BUTTON_FX.hoverDuration);
     });
     img.on('pointerup', () => {
       if (!down) return;

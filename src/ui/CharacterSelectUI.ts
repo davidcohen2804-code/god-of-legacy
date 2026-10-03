@@ -9,6 +9,8 @@ export interface CharacterSelectHandlers {
   onEnterWorld: () => void;
   /** Called on every render with the selected character's full-body preview asset key (or null to hide). */
   onPreview?: (assetKey: string | null) => void;
+  /** Pointer over a slot: its character's class (null when leaving / empty slot). */
+  onHover?: (classId: string | null) => void;
 }
 
 const DASH = '—';
@@ -117,6 +119,8 @@ export class CharacterSelectUI {
       d.style.backgroundImage = `url("${ASSET_MANIFEST['characterSelect.slotFrame']}")`;
       this.el('div', 'name', d); this.el('div', 'sub', d); this.el('div', 'portrait', d);
       d.addEventListener('click', () => this.select(slot.slotId));
+      d.addEventListener('mouseenter', () => this.h.onHover?.(CharacterStore.getSlot(slot.slotId).character?.classId ?? null));
+      d.addEventListener('mouseleave', () => this.h.onHover?.(null));
       this.slotEls.set(slot.slotId, d);
     });
 

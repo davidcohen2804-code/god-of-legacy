@@ -26,7 +26,7 @@ export const MENU_BUTTONS: Record<'start' | 'pvp' | 'settings' | 'exit', ButtonL
 
 export const BUTTON_FX = {
   hoverDuration: 120,
-  hoverScale: 1.025,
+  hoverScale: 1.02,
   hoverBrightness: 1.12,
   hoverGlowColor: 0xffb45a,
   hoverGlowStrength: 1.4,
@@ -35,7 +35,7 @@ export const BUTTON_FX = {
   pressedOffsetY: 2,
 } as const;
 
-export const VERSION = { text: 'v0.1.0', right: 28, bottom: 22, size: 24, color: '#F3E7CF' } as const;
+export const VERSION = { text: 'v0.2.0', right: 28, bottom: 22, size: 24, color: '#F3E7CF' } as const;
 
 export const COLORS = {
   gold: 0xc99a45,
@@ -257,4 +257,4 @@ export const HUD = {
 } as const;
 
 // ======================= Build / QA =======================
-export const CURRENT_STAGE = 'Skill System V1';
+export const CURRENT_STAGE = 'Final Master V3';

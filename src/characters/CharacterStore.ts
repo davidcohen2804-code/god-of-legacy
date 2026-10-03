@@ -45,6 +45,13 @@ function sanitize(raw: unknown): CharacterSelectData {
         id: c.id, name: c.name, classId: c.classId, level: c.level,
         createdAt: c.createdAt, lastPlayedAt: c.lastPlayedAt, appearanceId: c.appearanceId,
       };
+      const cos = (c as unknown as { cosmetics?: { owned?: unknown; equipped?: unknown } }).cosmetics;
+      if (cos && Array.isArray(cos.owned) && cos.equipped && typeof cos.equipped === 'object') {
+        target.character.cosmetics = {
+          owned: (cos.owned as unknown[]).filter(isStr),
+          equipped: Object.fromEntries(Object.entries(cos.equipped as Record<string, unknown>).filter(([, v]) => isStr(v))) as Record<string, string>,
+        };
+      }
     }
   }
   d.selectedSlotId = isSlotId(o.selectedSlotId) ? o.selectedSlotId : null;
@@ -84,6 +91,19 @@ class Store {
     };
     this.save();
     return true;
+  }
+
+  /** Cosmetics of a stored character (ownership API kept abstract for a later backend). */
+  getCosmetics(charId: string): { owned: string[]; equipped: Record<string, string> } {
+    const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
+    return c?.cosmetics ? { owned: [...c.cosmetics.owned], equipped: { ...c.cosmetics.equipped } } : { owned: [], equipped: {} };
+  }
+
+  setCosmetics(charId: string, v: { owned: string[]; equipped: Record<string, string> }): void {
+    const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
+    if (!c) return;
+    c.cosmetics = { owned: [...new Set(v.owned)], equipped: { ...v.equipped } };
+    this.save();
   }
 
   private save(): void {

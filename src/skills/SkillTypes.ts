@@ -1,0 +1,101 @@
+// Final skill model (PvP V1 roster, 03_FINAL_CLASS_SKILL_ROSTER.md). Gameplay data only — art never drives damage.
+
+export type ClassId = 'warrior' | 'book_mage' | 'archer' | 'samurai';
+export type Targeting =
+  | 'aimAssist' // basic: facing snapped toward the mouse when it is near
+  | 'mouseDir' // dash / directional action toward the mouse
+  | 'mouseProjectile'
+  | 'mouseLine'
+  | 'mouseCone'
+  | 'mouseGround'
+  | 'mouseTarget' // first legal target in an aim corridor
+  | 'self'
+  | 'selfAim'; // self-centred, biased toward the aim
+export type Role =
+  | 'basic' | 'opener' | 'gapClose' | 'launcher' | 'extender' | 'airExtender' | 'knockdown' | 'antiAir' | 'confirm' | 'peel'
+  | 'setup' | 'hardCC' | 'zone' | 'pull' | 'projectile' | 'precision' | 'trap' | 'mobility' | 'chase' | 'counter' | 'escape'
+  | 'finisher' | 'signature' | 'ultimate';
+export type CoverMode = 'BLOCKED_BY_COVER' | 'EXPLODES_ON_COVER' | 'PIERCES_ACTORS' | 'ARCS_OVER_LOW_COVER' | 'IGNORES_COVER';
+
+/** Shape of one hit, evaluated relative to the cast origin/aim (or a placed point). World units = map px. */
+export type HitShape =
+  | { kind: 'sector'; range: number; angle: number; offset?: number }
+  | { kind: 'circle'; radius: number; at?: 'self' | 'place' | 'aimBias'; bias?: number }
+  | { kind: 'line'; length: number; width: number }
+  | { kind: 'capsule'; radius: number } // swept along the caster's dash path
+  | { kind: 'projectile'; speed: number; range: number; radius: number; count?: number; spread?: number; pierce?: boolean; explodeRadius?: number; arc?: number }
+  | { kind: 'chain'; corridor: number; width: number; jump: number }
+  | { kind: 'placed'; radius: number }; // ground point (rune / trap / zone)
+
+export interface Reaction {
+  /** Ordinary combo hit-stun (soft, repeatable, scaled by combo index). */
+  stun?: number;
+  /** Knockback distance (world px, away from the hit origin). */
+  push?: number;
+  /** Pull toward the hit centre (px). */
+  pull?: number;
+  /** Launch apex above the victim's current height (px). */
+  launch?: number;
+  /** Airborne victim: slam down (ground breaker) / stabilise for follow-ups. */
+  slam?: boolean;
+  float?: boolean;
+  knockdown?: 'light' | 'heavy';
+  /** Hard crowd control (shared DR policy). */
+  hardCC?: { kind: 'root' | 'freeze' | 'stun'; ms: number };
+  slow?: { pct: number; ms: number };
+  juggleCost?: number;
+}
+
+export interface HitEvent {
+  /** ms after the active start. */
+  at: number;
+  damage: number;
+  shape: HitShape;
+  reaction: Reaction;
+  /** Vertical reach above the attacker's feet (melee), px. */
+  reachUp?: number;
+  heavy?: boolean;
+}
+
+export interface FinalSkill {
+  id: string;
+  cls: ClassId;
+  slot: number; // 0 = Space
+  name: string;
+  roles: Role[];
+  targeting: Targeting;
+  startup: number;
+  active: number;
+  recovery: number;
+  cooldown: number;
+  ground: boolean;
+  air: boolean;
+  hits: HitEvent[];
+  /** Basic chains: stage list (Space repeats cycle stages; reset after `chainResetMs`). */
+  chain?: { stages: HitEvent[][]; resetMs: number; timings?: { startup: number; active: number; recovery: number }[] };
+  cover: CoverMode;
+  /** Locomotion scalar while the action runs (0 = locked). */
+  move: { startup: number; active: number; recovery: number };
+  /** Dash / leap of the caster during active (px, toward aim). */
+  dash?: { distance: number; lift?: number; stopOnHit?: boolean };
+  /** Ranged placement limit for ground target skills. */
+  placeRange?: number;
+  /** Persistent zone / trap lifetime after active (ms). */
+  zoneMs?: number;
+  trap?: { radius: number; lifeMs: number };
+  armor?: [number, number]; // elapsed window (ms from cast) with armor
+  counter?: { window: number; sidestep: number };
+  /** Tags of skills this one may cancel into on a confirmed hit. */
+  cancelOnHit: string[];
+  tags: string[];
+  endsCombo?: boolean;
+  /** Visual: telegraph shown to everyone during startup. */
+  telegraph?: 'circle' | 'cone' | 'line' | 'trajectory' | 'ground';
+  pvpMultiplier: number;
+  pveMultiplier: number;
+  description: string;
+  unlockLevel: number;
+  relations: string[];
+}
+
+export const PVP_MULT = 0.7;

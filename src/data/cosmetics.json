@@ -1,0 +1,1500 @@
+{
+ "classes": {
+  "warrior": [
+   {
+    "id": "war_head_lion_helm",
+    "type": "head",
+    "icon": "assets/final/cosmetics/warrior/war_head_lion_helm/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_head_lion_helm/runtime.png",
+    "attachment": "head",
+    "cell": [
+     128,
+     128
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      22,
+      9,
+      107,
+      85
+     ],
+     [
+      22,
+      9,
+      107,
+      85
+     ],
+     [
+      22,
+      9,
+      107,
+      85
+     ],
+     [
+      22,
+      9,
+      107,
+      85
+     ]
+    ],
+    "name": "Lion Helm",
+    "desc": "large lion-crested helmet."
+   },
+   {
+    "id": "war_head_broken_crown",
+    "type": "head",
+    "icon": "assets/final/cosmetics/warrior/war_head_broken_crown/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_head_broken_crown/runtime.png",
+    "attachment": "head",
+    "cell": [
+     128,
+     128
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      26,
+      25,
+      103,
+      71
+     ],
+     [
+      26,
+      25,
+      103,
+      71
+     ],
+     [
+      26,
+      25,
+      103,
+      71
+     ],
+     [
+      26,
+      25,
+      103,
+      71
+     ]
+    ],
+    "name": "Broken Crown",
+    "desc": "battle-worn crown/helm silhouette."
+   },
+   {
+    "id": "war_cape_crimson_banner",
+    "type": "cape",
+    "icon": "assets/final/cosmetics/warrior/war_cape_crimson_banner/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_cape_crimson_banner/runtime.png",
+    "attachment": "back",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      94,
+      24,
+      149,
+      159
+     ],
+     [
+      94,
+      24,
+      149,
+      159
+     ],
+     [
+      94,
+      24,
+      149,
+      159
+     ],
+     [
+      94,
+      24,
+      149,
+      159
+     ]
+    ],
+    "name": "Crimson Banner",
+    "desc": "long red banner cape."
+   },
+   {
+    "id": "war_cape_white_oath",
+    "type": "cape",
+    "icon": "assets/final/cosmetics/warrior/war_cape_white_oath/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_cape_white_oath/runtime.png",
+    "attachment": "back",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      44,
+      36,
+      149,
+      177
+     ],
+     [
+      44,
+      36,
+      149,
+      177
+     ],
+     [
+      44,
+      36,
+      149,
+      177
+     ],
+     [
+      44,
+      36,
+      149,
+      177
+     ]
+    ],
+    "name": "White Oath",
+    "desc": "broad off-white cape."
+   },
+   {
+    "id": "war_weapon_obsidian_greatsword",
+    "type": "weapon",
+    "icon": "assets/final/cosmetics/warrior/war_weapon_obsidian_greatsword/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_weapon_obsidian_greatsword/runtime.png",
+    "attachment": "weaponHand",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      68,
+      62,
+      151,
+      172
+     ],
+     [
+      61,
+      61,
+      181,
+      119
+     ],
+     [
+      11,
+      61,
+      131,
+      119
+     ],
+     [
+      41,
+      20,
+      124,
+      130
+     ]
+    ],
+    "name": "Obsidian Greatsword",
+    "desc": ""
+   },
+   {
+    "id": "war_weapon_sunblade",
+    "type": "weapon",
+    "icon": "assets/final/cosmetics/warrior/war_weapon_sunblade/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_weapon_sunblade/runtime.png",
+    "attachment": "weaponHand",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      68,
+      62,
+      150,
+      171
+     ],
+     [
+      61,
+      63,
+      181,
+      119
+     ],
+     [
+      11,
+      63,
+      131,
+      119
+     ],
+     [
+      42,
+      21,
+      124,
+      130
+     ]
+    ],
+    "name": "Sunblade",
+    "desc": ""
+   },
+   {
+    "id": "war_weapon_storm_edge",
+    "type": "weapon",
+    "icon": "assets/final/cosmetics/warrior/war_weapon_storm_edge/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_weapon_storm_edge/runtime.png",
+    "attachment": "weaponHand",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      64,
+      58,
+      155,
+      175
+     ],
+     [
+      54,
+      57,
+      183,
+      123
+     ],
+     [
+      9,
+      57,
+      138,
+      123
+     ],
+     [
+      37,
+      17,
+      128,
+      134
+     ]
+    ],
+    "name": "Storm Edge",
+    "desc": ""
+   },
+   {
+    "id": "war_aura_ember_ring",
+    "type": "aura",
+    "icon": "assets/final/cosmetics/warrior/war_aura_ember_ring/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_aura_ember_ring/runtime.png",
+    "attachment": "auraGround",
+    "cell": [
+     256,
+     256
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "bbox": [
+     [
+      64,
+      103,
+      192,
+      179
+     ]
+    ],
+    "name": "Ember Ring",
+    "desc": ""
+   },
+   {
+    "id": "war_aura_thunder_ground",
+    "type": "aura",
+    "icon": "assets/final/cosmetics/warrior/war_aura_thunder_ground/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_aura_thunder_ground/runtime.png",
+    "attachment": "auraGround",
+    "cell": [
+     256,
+     256
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "bbox": [
+     [
+      64,
+      103,
+      192,
+      179
+     ]
+    ],
+    "name": "Thunder Ground",
+    "desc": ""
+   },
+   {
+    "id": "war_set_iron_legacy",
+    "type": "set",
+    "icon": "assets/final/cosmetics/warrior/war_set_iron_legacy/icon.png",
+    "parts": [
+     "war_head_lion_helm",
+     "war_cape_crimson_banner",
+     "war_weapon_obsidian_greatsword",
+     "war_aura_ember_ring"
+    ],
+    "name": "Iron Legacy",
+    "desc": "full bundle: dark steel helm + broad red cape + heavy sword."
+   },
+   {
+    "id": "war_set_sunforged",
+    "type": "set",
+    "icon": "assets/final/cosmetics/warrior/war_set_sunforged/icon.png",
+    "parts": [
+     "war_head_broken_crown",
+     "war_cape_white_oath",
+     "war_weapon_sunblade",
+     "war_aura_thunder_ground"
+    ],
+    "name": "Sunforged",
+    "desc": "bright gold shoulder/body overlay + white cape + gold blade."
+   },
+   {
+    "id": "war_set_ember_guard",
+    "type": "set",
+    "icon": "assets/final/cosmetics/warrior/war_set_ember_guard/icon.png",
+    "parts": [
+     "war_head_lion_helm",
+     "war_cape_crimson_banner",
+     "war_weapon_storm_edge",
+     "war_aura_ember_ring"
+    ],
+    "name": "Ember Guard",
+    "desc": "blackened armor accents + ember cape + fire-edge sword."
+   }
+  ],
+  "book_mage": [
+   {
+    "id": "mage_head_crystal_circlet",
+    "type": "head",
+    "icon": "assets/final/cosmetics/book_mage/mage_head_crystal_circlet/icon.png",
+    "runtime": "assets/final/cosmetics/book_mage/mage_head_crystal_circlet/runtime.png",
+    "attachment": "head",
+    "cell": [
+     128,
+     128
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      26,
+      25,
+      103,
+      71
+     ],
+     [
+      26,
+      25,
+      103,
+      71
+     ],
+     [
+      26,
+      25,
+      103,
+      71
+     ],
+     [
+      26,
+      25,
+      103,
+      71
+     ]
+    ],
+    "name": "Crystal Circlet",
+    "desc": ""
+   },
+   {
+    "id": "mage_head_deep_hood",
+    "type": "head",
+    "icon": "assets/final/cosmetics/book_mage/mage_head_deep_hood/icon.png",
+    "runtime": "assets/final/cosmetics/book_mage/mage_head_deep_hood/runtime.png",
+    "attachment": "head",
+    "cell": [
+     128,
+     128
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      22,
+      16,
+      107,
+      107
+     ],
+     [
+      22,
+      16,
+      107,
+      107
+     ],
+     [
+      22,
+      16,
+      107,
+      107
+     ],
+     [
+      22,
+      16,
+      107,
+      107
+     ]
+    ],
+    "name": "Deep Hood",
+    "desc": ""
+   },
+   {
+    "id": "mage_back_twin_crystals",
+    "type": "back",
+    "icon": "assets/final/cosmetics/book_mage/mage_back_twin_crystals/icon.png",
+    "runtime": "assets/final/cosmetics/book_mage/mage_back_twin_crystals/runtime.png",
+    "attachment": "back",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      60,
+      36,
+      133,
+      132
+     ],
+     [
+      60,
+      36,
+      133,
+      132
+     ],
+     [
+      60,
+      36,
+      133,
+      132
+     ],
+     [
+      60,
+      36,
+      133,
+      132
+     ]
+    ],
+    "name": "Twin Crystals",
+    "desc": ""
+   },
+   {
+    "id": "mage_back_arcane_ring",
+    "type": "back",
+    "icon": "assets/final/cosmetics/book_mage/mage_back_arcane_ring/icon.png",
+    "runtime": "assets/final/cosmetics/book_mage/mage_back_arcane_ring/runtime.png",
+    "attachment": "back",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      38,
+      38,
+      155,
+      155
+     ],
+     [
+      38,
+      38,
+      155,
+      155
+     ],
+     [
+      38,
+      38,
+      155,
+      155
+     ],
+     [
+      38,
+      38,
+      155,
+      155
+     ]
+    ],
+    "name": "Arcane Ring",
+    "desc": ""
+   },
+   {
+    "id": "mage_book_storm_codex",
+    "type": "book",
+    "icon": "assets/final/cosmetics/book_mage/mage_book_storm_codex/icon.png",
+    "runtime": "assets/final/cosmetics/book_mage/mage_book_storm_codex/runtime.png",
+    "attachment": "weaponHand",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      46,
+      53,
+      147,
+      141
+     ],
+     [
+      46,
+      53,
+      147,
+      141
+     ],
+     [
+      46,
+      53,
+      147,
+      141
+     ],
+     [
+      46,
+      53,
+      147,
+      141
+     ]
+    ],
+    "name": "Storm Codex",
+    "desc": ""
+   },
+   {
+    "id": "mage_book_void_tome",
+    "type": "book",
+    "icon": "assets/final/cosmetics/book_mage/mage_book_void_tome/icon.png",
+    "runtime": "assets/final/cosmetics/book_mage/mage_book_void_tome/runtime.png",
+    "attachment": "weaponHand",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      46,
+      53,
+      147,
+      141
+     ],
+     [
+      46,
+      53,
+      147,
+      141
+     ],
+     [
+      46,
+      53,
+      147,
+      141
+     ],
+     [
+      46,
+      53,
+      147,
+      141
+     ]
+    ],
+    "name": "Void Tome",
+    "desc": ""
+   },
+   {
+    "id": "mage_book_sun_scripture",
+    "type": "book",
+    "icon": "assets/final/cosmetics/book_mage/mage_book_sun_scripture/icon.png",
+    "runtime": "assets/final/cosmetics/book_mage/mage_book_sun_scripture/runtime.png",
+    "attachment": "weaponHand",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      46,
+      53,
+      147,
+      141
+     ],
+     [
+      46,
+      53,
+      147,
+      141
+     ],
+     [
+      46,
+      53,
+      147,
+      141
+     ],
+     [
+      46,
+      53,
+      147,
+      141
+     ]
+    ],
+    "name": "Sun Scripture",
+    "desc": ""
+   },
+   {
+    "id": "mage_aura_arcane_orbit",
+    "type": "aura",
+    "icon": "assets/final/cosmetics/book_mage/mage_aura_arcane_orbit/icon.png",
+    "runtime": "assets/final/cosmetics/book_mage/mage_aura_arcane_orbit/runtime.png",
+    "attachment": "auraGround",
+    "cell": [
+     256,
+     256
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "bbox": [
+     [
+      64,
+      103,
+      192,
+      179
+     ]
+    ],
+    "name": "Arcane Orbit",
+    "desc": ""
+   },
+   {
+    "id": "mage_aura_time_fragments",
+    "type": "aura",
+    "icon": "assets/final/cosmetics/book_mage/mage_aura_time_fragments/icon.png",
+    "runtime": "assets/final/cosmetics/book_mage/mage_aura_time_fragments/runtime.png",
+    "attachment": "auraGround",
+    "cell": [
+     256,
+     256
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "bbox": [
+     [
+      64,
+      103,
+      192,
+      179
+     ]
+    ],
+    "name": "Time Fragments",
+    "desc": ""
+   },
+   {
+    "id": "mage_set_arcane_scholar",
+    "type": "set",
+    "icon": "assets/final/cosmetics/book_mage/mage_set_arcane_scholar/icon.png",
+    "parts": [
+     "mage_head_crystal_circlet",
+     "mage_back_twin_crystals",
+     "mage_book_storm_codex",
+     "mage_aura_arcane_orbit"
+    ],
+    "name": "Arcane Scholar",
+    "desc": "blue hood + floating book + crystal back."
+   },
+   {
+    "id": "mage_set_void_scribe",
+    "type": "set",
+    "icon": "assets/final/cosmetics/book_mage/mage_set_void_scribe/icon.png",
+    "parts": [
+     "mage_head_deep_hood",
+     "mage_back_arcane_ring",
+     "mage_book_void_tome",
+     "mage_aura_time_fragments"
+    ],
+    "name": "Void Scribe",
+    "desc": "dark violet hood + black book + void motes."
+   },
+   {
+    "id": "mage_set_celestial_oracle",
+    "type": "set",
+    "icon": "assets/final/cosmetics/book_mage/mage_set_celestial_oracle/icon.png",
+    "parts": [
+     "mage_head_crystal_circlet",
+     "mage_back_arcane_ring",
+     "mage_book_sun_scripture",
+     "mage_aura_arcane_orbit"
+    ],
+    "name": "Celestial Oracle",
+    "desc": "pale robes overlay + gold/blue book + star aura."
+   }
+  ],
+  "archer": [
+   {
+    "id": "arch_head_antler_hood",
+    "type": "head",
+    "icon": "assets/final/cosmetics/archer/arch_head_antler_hood/icon.png",
+    "runtime": "assets/final/cosmetics/archer/arch_head_antler_hood/runtime.png",
+    "attachment": "head",
+    "cell": [
+     128,
+     128
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      22,
+      16,
+      107,
+      107
+     ],
+     [
+      22,
+      16,
+      107,
+      107
+     ],
+     [
+      22,
+      16,
+      107,
+      107
+     ],
+     [
+      22,
+      16,
+      107,
+      107
+     ]
+    ],
+    "name": "Antler Hood",
+    "desc": ""
+   },
+   {
+    "id": "arch_head_falcon_mask",
+    "type": "head",
+    "icon": "assets/final/cosmetics/archer/arch_head_falcon_mask/icon.png",
+    "runtime": "assets/final/cosmetics/archer/arch_head_falcon_mask/runtime.png",
+    "attachment": "head",
+    "cell": [
+     128,
+     128
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      28,
+      40,
+      103,
+      93
+     ],
+     [
+      28,
+      40,
+      103,
+      93
+     ],
+     [
+      28,
+      40,
+      103,
+      93
+     ],
+     [
+      28,
+      40,
+      103,
+      93
+     ]
+    ],
+    "name": "Falcon Mask",
+    "desc": ""
+   },
+   {
+    "id": "arch_back_leaf_quiver",
+    "type": "back",
+    "icon": "assets/final/cosmetics/archer/arch_back_leaf_quiver/icon.png",
+    "runtime": "assets/final/cosmetics/archer/arch_back_leaf_quiver/runtime.png",
+    "attachment": "back",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      82,
+      14,
+      117,
+      155
+     ],
+     [
+      82,
+      14,
+      117,
+      155
+     ],
+     [
+      75,
+      14,
+      111,
+      155
+     ],
+     [
+      82,
+      14,
+      117,
+      155
+     ]
+    ],
+    "name": "Leaf Quiver",
+    "desc": ""
+   },
+   {
+    "id": "arch_back_storm_quiver",
+    "type": "back",
+    "icon": "assets/final/cosmetics/archer/arch_back_storm_quiver/icon.png",
+    "runtime": "assets/final/cosmetics/archer/arch_back_storm_quiver/runtime.png",
+    "attachment": "back",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      82,
+      14,
+      117,
+      155
+     ],
+     [
+      82,
+      14,
+      117,
+      155
+     ],
+     [
+      75,
+      14,
+      111,
+      155
+     ],
+     [
+      82,
+      14,
+      117,
+      155
+     ]
+    ],
+    "name": "Storm Quiver",
+    "desc": ""
+   },
+   {
+    "id": "arch_bow_greatwood",
+    "type": "bow",
+    "icon": "assets/final/cosmetics/archer/arch_bow_greatwood/icon.png",
+    "runtime": "assets/final/cosmetics/archer/arch_bow_greatwood/runtime.png",
+    "attachment": "weaponHand",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      112,
+      30,
+      152,
+      163
+     ],
+     [
+      112,
+      30,
+      152,
+      163
+     ],
+     [
+      112,
+      30,
+      152,
+      163
+     ],
+     [
+      112,
+      30,
+      152,
+      163
+     ]
+    ],
+    "name": "Greatwood",
+    "desc": ""
+   },
+   {
+    "id": "arch_bow_sunstring",
+    "type": "bow",
+    "icon": "assets/final/cosmetics/archer/arch_bow_sunstring/icon.png",
+    "runtime": "assets/final/cosmetics/archer/arch_bow_sunstring/runtime.png",
+    "attachment": "weaponHand",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      112,
+      30,
+      152,
+      163
+     ],
+     [
+      112,
+      30,
+      152,
+      163
+     ],
+     [
+      112,
+      30,
+      152,
+      163
+     ],
+     [
+      112,
+      30,
+      152,
+      163
+     ]
+    ],
+    "name": "Sunstring",
+    "desc": ""
+   },
+   {
+    "id": "arch_bow_tempest",
+    "type": "bow",
+    "icon": "assets/final/cosmetics/archer/arch_bow_tempest/icon.png",
+    "runtime": "assets/final/cosmetics/archer/arch_bow_tempest/runtime.png",
+    "attachment": "weaponHand",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      49,
+      30,
+      152,
+      163
+     ],
+     [
+      49,
+      30,
+      152,
+      163
+     ],
+     [
+      49,
+      30,
+      152,
+      163
+     ],
+     [
+      49,
+      30,
+      152,
+      163
+     ]
+    ],
+    "name": "Tempest",
+    "desc": ""
+   },
+   {
+    "id": "arch_aura_wind_leaves",
+    "type": "aura",
+    "icon": "assets/final/cosmetics/archer/arch_aura_wind_leaves/icon.png",
+    "runtime": "assets/final/cosmetics/archer/arch_aura_wind_leaves/runtime.png",
+    "attachment": "auraGround",
+    "cell": [
+     256,
+     256
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "bbox": [
+     [
+      64,
+      103,
+      192,
+      179
+     ]
+    ],
+    "name": "Wind Leaves",
+    "desc": ""
+   },
+   {
+    "id": "arch_aura_nature_runic",
+    "type": "aura",
+    "icon": "assets/final/cosmetics/archer/arch_aura_nature_runic/icon.png",
+    "runtime": "assets/final/cosmetics/archer/arch_aura_nature_runic/runtime.png",
+    "attachment": "auraGround",
+    "cell": [
+     256,
+     256
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "bbox": [
+     [
+      64,
+      103,
+      192,
+      179
+     ]
+    ],
+    "name": "Nature Runic",
+    "desc": ""
+   },
+   {
+    "id": "arch_set_verdant_hunter",
+    "type": "set",
+    "icon": "assets/final/cosmetics/archer/arch_set_verdant_hunter/icon.png",
+    "parts": [
+     "arch_head_antler_hood",
+     "arch_back_leaf_quiver",
+     "arch_bow_greatwood",
+     "arch_aura_nature_runic"
+    ],
+    "name": "Verdant Hunter",
+    "desc": "green hood + leaf cape + carved bow."
+   },
+   {
+    "id": "arch_set_white_wind",
+    "type": "set",
+    "icon": "assets/final/cosmetics/archer/arch_set_white_wind/icon.png",
+    "parts": [
+     "arch_head_falcon_mask",
+     "arch_back_storm_quiver",
+     "arch_bow_sunstring",
+     "arch_aura_wind_leaves"
+    ],
+    "name": "White Wind",
+    "desc": "white hood + pale cape + silver bow."
+   },
+   {
+    "id": "arch_set_night_ranger",
+    "type": "set",
+    "icon": "assets/final/cosmetics/archer/arch_set_night_ranger/icon.png",
+    "parts": [
+     "arch_head_falcon_mask",
+     "arch_back_leaf_quiver",
+     "arch_bow_tempest",
+     "arch_aura_wind_leaves"
+    ],
+    "name": "Night Ranger",
+    "desc": "dark hood + short black cape + purple-energy bow."
+   }
+  ],
+  "samurai": [
+   {
+    "id": "sam_face_oni_mask_red",
+    "type": "mask",
+    "icon": "assets/final/cosmetics/samurai/sam_face_oni_mask_red/icon.png",
+    "runtime": "assets/final/cosmetics/samurai/sam_face_oni_mask_red/runtime.png",
+    "attachment": "face",
+    "cell": [
+     128,
+     128
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      30,
+      22,
+      99,
+      103
+     ],
+     [
+      30,
+      22,
+      99,
+      103
+     ],
+     [
+      30,
+      22,
+      99,
+      103
+     ],
+     [
+      30,
+      22,
+      99,
+      103
+     ]
+    ],
+    "name": "Oni Mask Red",
+    "desc": ""
+   },
+   {
+    "id": "sam_face_half_mask_white",
+    "type": "mask",
+    "icon": "assets/final/cosmetics/samurai/sam_face_half_mask_white/icon.png",
+    "runtime": "assets/final/cosmetics/samurai/sam_face_half_mask_white/runtime.png",
+    "attachment": "face",
+    "cell": [
+     128,
+     128
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      28,
+      40,
+      103,
+      93
+     ],
+     [
+      28,
+      40,
+      103,
+      93
+     ],
+     [
+      28,
+      40,
+      103,
+      93
+     ],
+     [
+      28,
+      40,
+      103,
+      93
+     ]
+    ],
+    "name": "Half Mask White",
+    "desc": ""
+   },
+   {
+    "id": "sam_back_black_banner",
+    "type": "back",
+    "icon": "assets/final/cosmetics/samurai/sam_back_black_banner/icon.png",
+    "runtime": "assets/final/cosmetics/samurai/sam_back_black_banner/runtime.png",
+    "attachment": "back",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      94,
+      24,
+      149,
+      159
+     ],
+     [
+      94,
+      24,
+      149,
+      159
+     ],
+     [
+      94,
+      24,
+      149,
+      159
+     ],
+     [
+      94,
+      24,
+      149,
+      159
+     ]
+    ],
+    "name": "Black Banner",
+    "desc": ""
+   },
+   {
+    "id": "sam_back_red_scarf",
+    "type": "back",
+    "icon": "assets/final/cosmetics/samurai/sam_back_red_scarf/icon.png",
+    "runtime": "assets/final/cosmetics/samurai/sam_back_red_scarf/runtime.png",
+    "attachment": "back",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      82,
+      42,
+      172,
+      156
+     ],
+     [
+      82,
+      42,
+      172,
+      156
+     ],
+     [
+      22,
+      43,
+      108,
+      155
+     ],
+     [
+      82,
+      42,
+      172,
+      156
+     ]
+    ],
+    "name": "Red Scarf",
+    "desc": ""
+   },
+   {
+    "id": "sam_katana_crimson",
+    "type": "weapon",
+    "icon": "assets/final/cosmetics/samurai/sam_katana_crimson/icon.png",
+    "runtime": "assets/final/cosmetics/samurai/sam_katana_crimson/runtime.png",
+    "attachment": "weaponHand",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      68,
+      62,
+      150,
+      171
+     ],
+     [
+      61,
+      63,
+      181,
+      119
+     ],
+     [
+      11,
+      63,
+      131,
+      119
+     ],
+     [
+      42,
+      21,
+      124,
+      130
+     ]
+    ],
+    "name": "Crimson",
+    "desc": ""
+   },
+   {
+    "id": "sam_katana_green_energy",
+    "type": "weapon",
+    "icon": "assets/final/cosmetics/samurai/sam_katana_green_energy/icon.png",
+    "runtime": "assets/final/cosmetics/samurai/sam_katana_green_energy/runtime.png",
+    "attachment": "weaponHand",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      64,
+      58,
+      155,
+      175
+     ],
+     [
+      54,
+      57,
+      183,
+      123
+     ],
+     [
+      9,
+      57,
+      138,
+      123
+     ],
+     [
+      37,
+      17,
+      128,
+      134
+     ]
+    ],
+    "name": "Green Energy",
+    "desc": ""
+   },
+   {
+    "id": "sam_katana_prismatic_animated",
+    "type": "weapon_animated",
+    "icon": "assets/final/cosmetics/samurai/sam_katana_prismatic_animated/icon.png",
+    "runtime": "assets/final/cosmetics/samurai/sam_katana_prismatic_animated/runtime.png",
+    "attachment": "weaponHand",
+    "cell": [
+     192,
+     192
+    ],
+    "frames": 8,
+    "layout": "8x4",
+    "bbox": [
+     [
+      64,
+      58,
+      155,
+      175
+     ],
+     [
+      64,
+      58,
+      155,
+      175
+     ],
+     [
+      64,
+      58,
+      155,
+      175
+     ],
+     [
+      64,
+      58,
+      155,
+      175
+     ]
+    ],
+    "name": "Prismatic Animated",
+    "desc": ""
+   },
+   {
+    "id": "sam_aura_dark_embers",
+    "type": "aura",
+    "icon": "assets/final/cosmetics/samurai/sam_aura_dark_embers/icon.png",
+    "runtime": "assets/final/cosmetics/samurai/sam_aura_dark_embers/runtime.png",
+    "attachment": "auraGround",
+    "cell": [
+     256,
+     256
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "bbox": [
+     [
+      64,
+      103,
+      192,
+      179
+     ]
+    ],
+    "name": "Dark Embers",
+    "desc": ""
+   },
+   {
+    "id": "sam_aura_light_blade",
+    "type": "aura",
+    "icon": "assets/final/cosmetics/samurai/sam_aura_light_blade/icon.png",
+    "runtime": "assets/final/cosmetics/samurai/sam_aura_light_blade/runtime.png",
+    "attachment": "auraGround",
+    "cell": [
+     256,
+     256
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "bbox": [
+     [
+      64,
+      103,
+      192,
+      179
+     ]
+    ],
+    "name": "Light Blade",
+    "desc": ""
+   },
+   {
+    "id": "sam_set_black_red_ronin",
+    "type": "set",
+    "icon": "assets/final/cosmetics/samurai/sam_set_black_red_ronin/icon.png",
+    "parts": [
+     "sam_face_oni_mask_red",
+     "sam_back_black_banner",
+     "sam_katana_crimson",
+     "sam_aura_dark_embers"
+    ],
+    "name": "Black Red Ronin",
+    "desc": ""
+   },
+   {
+    "id": "sam_set_white_ronin",
+    "type": "set",
+    "icon": "assets/final/cosmetics/samurai/sam_set_white_ronin/icon.png",
+    "parts": [
+     "sam_face_half_mask_white",
+     "sam_back_red_scarf",
+     "sam_katana_prismatic_animated",
+     "sam_aura_light_blade"
+    ],
+    "name": "White Ronin",
+    "desc": ""
+   },
+   {
+    "id": "sam_set_ash_dragon",
+    "type": "set",
+    "icon": "assets/final/cosmetics/samurai/sam_set_ash_dragon/icon.png",
+    "parts": [
+     "sam_face_oni_mask_red",
+     "sam_back_red_scarf",
+     "sam_katana_green_energy",
+     "sam_aura_dark_embers"
+    ],
+    "name": "Ash Dragon",
+    "desc": ""
+   }
+  ]
+ }
+}

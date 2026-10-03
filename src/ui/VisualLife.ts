@@ -48,7 +48,8 @@ export function addClothWind(scene: Phaser.Scene, img: Phaser.GameObjects.Image,
       const v = y / (H - 1), wv = smooth(0.3, 0.58, v) * (1 - smooth(0.86, 0.97, v));
       const wave = Math.sin(v * Math.PI * 2 * 1.6 + phase);
       for (let x = 0; x < W; x++) {
-        const u = x / (W - 1), wu = 0.35 + 0.65 * smooth(0.06, 0.28, Math.abs(u - 0.5));
+        // Zero on the body's centre line (head / torso never sway as a whole), cloth edges only.
+        const u = x / (W - 1), wu = smooth(0.1, 0.3, Math.abs(u - 0.5));
         const r = Math.round(255 * (0.5 + 0.5 * wv * wu * wave)), i = (y * W + x) * 4;
         d.data[i] = r; d.data[i + 1] = r; d.data[i + 2] = r; d.data[i + 3] = 255;
       }

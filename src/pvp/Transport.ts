@@ -4,12 +4,12 @@
 
 export interface PeerMeta { playerId: string; characterId: string; classId: string; name: string }
 
+/** Network messages. Movement state carries ground x/y, height z, support z, aim, animation mode and cosmetics. */
 export type NetMsg =
-  | { t: 'state'; from: string; x: number; y: number; dir: string; anim: string; hp: number; alive: boolean }
-  | { t: 'attack'; from: string; id: number; dir: string; x: number; y: number }
-  | { t: 'strike'; from: string; id: number; dir: string; x: number; y: number }
-  | { t: 'hp'; from: string; hp: number; by: string; castId?: string; skillId?: string; stun?: number; kb?: number }
-  | { t: 'cast'; from: string; castId: string; skillId: string; x: number; y: number; dir: string; px?: number; py?: number }
+  | { t: 'state'; from: string; x: number; y: number; z: number; sz: number; dir: string; anim: string; mode: string; sp: number; vz: number; ax: number; ay: number; hp: number; alive: boolean; cos?: string }
+  | { t: 'hp'; from: string; hp: number; by: string; castId?: string; skillId?: string; hit?: number; dmg?: number; idx?: number; cid?: number; rx?: string; ends?: boolean; vz?: number; z?: number }
+  | { t: 'cast'; from: string; castId: string; skillId: string; stage: number; x: number; y: number; z: number; ax: number; ay: number; px?: number; py?: number; lock?: string | null }
+  | { t: 'ctr'; from: string; castId: string; x: number; y: number; z: number; ax: number; ay: number }
   | { t: 'death'; from: string; by: string }
   | { t: 'respawn'; from: string; x: number; y: number; hp: number }
   | { t: 'leave'; from: string };

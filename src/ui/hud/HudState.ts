@@ -19,6 +19,8 @@ export interface HudSlot {
   busy?: boolean;
   /** Only real cooldowns from the game, on the adapter clock (`now` passed to update). */
   cooldown: null | { endTimeMs: number; durationMs: number };
+  /** Signature (6) / Ultimate (7): stronger slot trim, same control scheme. */
+  tier?: 'signature' | 'ultimate';
 }
 
 export interface HudMarker { id: string; kind: 'player' | 'remote' | 'enemy' | 'npc' | 'quest'; x: number; y: number }

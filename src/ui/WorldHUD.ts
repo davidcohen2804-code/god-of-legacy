@@ -49,16 +49,43 @@ const CSS = `
 .gol-hud .mm .na{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:18px;color:${P.secondary};opacity:.7}
 .gol-hud.compact .room .n2,.gol-hud.compact .combat{display:none!important}
 @media (prefers-reduced-motion:reduce){.gol-hud .bar .fill{transition:none}}
+.gol-hud .aslot .trim{position:absolute;left:-8px;top:-8px;width:80px;height:80px;pointer-events:none}
+.gol-hud .aslot .upulse{position:absolute;left:-48px;top:-48px;width:160px;height:160px;pointer-events:none;mix-blend-mode:screen;
+  background:url("assets/final/ui/hud/ultimate_ready_pulse.png") 0 0/1280px 160px;animation:golUlt 0.9s steps(8) infinite;display:none}
+.gol-hud .aslot.ult-ready .upulse{display:block}
+@keyframes golUlt{to{background-position:-1280px 0}}
+.gol-hud .combo{position:absolute;left:1560px;top:480px;width:300px;height:96px;background:url("assets/final/ui/hud/combo_frame.png") 0 0/100% 100%;
+  pointer-events:none;transition:opacity .18s}
+.gol-hud .combo .n{position:absolute;left:0;right:0;top:10px;text-align:center;font-family:${FONT_FAMILY};font-weight:700;font-size:44px;color:#ffe2a0;
+  text-shadow:0 2px 0 #3a1406,0 0 12px rgba(255,160,60,.6)}
+.gol-hud .combo .n small{font-size:24px;margin-left:8px;color:#f3d9a5}
+.gol-hud .combo .l{position:absolute;left:0;right:0;top:62px;text-align:center;font-size:16px;letter-spacing:3px;color:#9fe8ff;font-weight:700}
+.gol-hud .combo .pulse{position:absolute;left:-40px;top:-16px;width:380px;height:128px;mix-blend-mode:screen;opacity:0;
+  background:url("assets/final/ui/hud/combo_pulse.png") 0 0/3040px 128px}
+.gol-hud .combo.bump .pulse{animation:golPulse .32s steps(8) 1}
+@keyframes golPulse{0%{opacity:1;background-position:0 0}100%{opacity:0;background-position:-3040px 0}}
+.gol-hud .banner{position:absolute;left:560px;top:300px;width:800px;height:110px;display:none;align-items:center;justify-content:center;
+  font-family:${FONT_FAMILY};font-weight:700;font-size:64px;letter-spacing:10px;color:#f0c27a;text-shadow:0 3px 0 #2a0a04,0 0 24px rgba(200,40,20,.7);
+  background:radial-gradient(ellipse at center,rgba(40,6,4,.75) 0%,rgba(40,6,4,0) 70%)}
+.gol-hud .banner small{display:block;font-size:22px;letter-spacing:4px;color:#e9d9b8;margin-top:4px}
+.gol-hud .menu{position:absolute;left:1700px;top:330px;width:192px;display:flex;flex-direction:column;gap:6px;pointer-events:auto}
+.gol-hud .menu button{height:34px;border:1px solid #6d5a33;background:linear-gradient(#1b2230,#0d131b);color:#efddb0;font:600 16px ${FONT_FAMILY};
+  letter-spacing:1px;cursor:pointer;border-radius:3px;transition:transform .12s, box-shadow .12s}
+.gol-hud .menu button:hover{transform:scale(1.02);box-shadow:0 0 10px rgba(232,180,95,.45)}
+.gol-hud .menu button:active{transform:scale(.985)}
+.gol-hud .menu button b{color:#e8b45f;margin-right:8px}
 `;
 
 interface Bar { root: HTMLDivElement; fill: HTMLDivElement; img: HTMLImageElement; val?: HTMLSpanElement; w: number; last: string }
-interface SlotEl { btn: HTMLButtonElement; icon: HTMLImageElement; cd: HTMLDivElement; last: string; slot?: HudSlot }
+interface SlotEl { btn: HTMLButtonElement; icon: HTMLImageElement; cd: HTMLDivElement; trim: HTMLImageElement; last: string; slot?: HudSlot }
 
 export interface WorldHUDOptions {
   returnLabel: string;
   onReturn: () => void;
   /** Click on a slot: the same action handler as its hotkey (scene validates; never a second Space attack). */
   onSlot: (index: number) => void;
+  /** Skill Book (K) / Inventory (I) / Cosmetic Shop (O) toggles. */
+  onMenu?: (key: 'K' | 'I' | 'O') => void;
 }
 
 export class WorldHUD {
@@ -167,9 +194,11 @@ export class WorldHUD {
       const icon = document.createElement('img'); icon.className = 'ic'; icon.alt = ''; icon.draggable = false;
       const cd = this.div('cd', btn);
       btn.insertBefore(icon, cd);
+      const trim = document.createElement('img'); trim.className = 'trim'; trim.alt = ''; trim.style.display = 'none'; btn.insertBefore(trim, icon);
+      this.div('upulse', btn);
       btn.addEventListener('mousedown', (e) => e.preventDefault()); // no focus steal from the game
       btn.addEventListener('keyup', (e) => { if (e.key === ' ') e.preventDefault(); }); // Phaser owns Space: block the button's own Space click (no 2nd attack)
-      const el: SlotEl = { btn, icon, cd, last: '' };
+      const el: SlotEl = { btn, icon, cd, trim, last: '' };
       btn.addEventListener('click', () => { if (el.slot?.assigned && el.slot.enabled && !el.slot.busy) this.opts.onSlot(i); });
       tray.appendChild(btn);
       const k = this.div('key', tray); this.at(k, x, y + S.slot + 2, S.slot, 22); k.textContent = key === 'Space' ? 'SPACE' : key;
@@ -180,10 +209,22 @@ export class WorldHUD {
   private buildCombat(): void {
     const c = this.panel('combat', H.combat);
     c.style.display = 'none';
-    const ic = document.createElement('img'); ic.alt = ''; c.appendChild(ic); this.at(ic, -4, -4, 48, 48);
-    const l1 = this.div('h', c); this.at(l1, 50, -8, H.combat.w - 82, 26); l1.style.fontSize = '20px';
-    const l2 = this.div('t', c); this.at(l2, 50, 18, H.combat.w - 82, 22); Object.assign(l2.style, { fontSize: '18px', color: P.secondary });
-    this.els.combat = c; this.els.cIcon = ic; this.els.cL1 = l1; this.els.cL2 = l2;
+    c.remove();
+    const combo = this.div('combo', this.root); combo.style.display = 'none';
+    const n = this.div('n', combo), l = this.div('l', combo);
+    this.div('pulse', combo);
+    this.els.combat = combo; this.els.cN = n; this.els.cL = l;
+    const ban = this.div('banner', this.root); this.els.banner = ban;
+    if (this.opts.onMenu) {
+      const m = this.div('menu', this.root);
+      for (const [k, label] of [['K', 'SKILL BOOK'], ['I', 'INVENTORY'], ['O', 'COSMETIC SHOP']] as const) {
+        const b = document.createElement('button'); b.type = 'button';
+        b.innerHTML = `<b>${k}</b>${label}`;
+        b.addEventListener('mousedown', (e) => e.preventDefault());
+        b.addEventListener('click', () => this.opts.onMenu?.(k));
+        m.appendChild(b);
+      }
+    }
   }
 
   // ------------------------------------------------------------------ update
@@ -231,15 +272,29 @@ export class WorldHUD {
       this.text(this.els.roomCount, `${s.room.playerCount}${s.room.maxPlayers ? ` / ${s.room.maxPlayers}` : ''} PLAYERS`, 'roomCount');
     }
 
-    // Transient combat feedback hook
+    // Combo counter: confirmed hits only (shown from the 2nd hit, persists ~850ms after the last one).
     const f = s.combatFeedback && Number.isFinite(s.combatFeedback.expiresAtMs) && s.combatFeedback.expiresAtMs > now ? s.combatFeedback : null;
     this.show(this.els.combat, !!f);
     if (f) {
-      const icon = f.hitStun ? 'icon-stun' : f.nextHit ? 'icon-finisher' : f.chain ? 'icon-chain' : 'icon-combo';
-      (this.els.cIcon as HTMLImageElement).src = A(icon);
-      this.text(this.els.cL1, f.count ? `${f.count} HIT ${f.chain ?? 'COMBO'}` : (f.chain ?? (f.hitStun ? 'STUN' : '')), 'cL1');
-      this.text(this.els.cL2, f.nextHit ? `NEXT HIT · ${f.nextHit}` : '', 'cL2');
-    }
+      if (this.changed('cN', String(f.count))) {
+        this.els.cN.innerHTML = `${f.count}<small>HIT</small>`;
+        this.els.combat.classList.remove('bump'); void this.els.combat.offsetWidth; this.els.combat.classList.add('bump');
+      }
+      this.text(this.els.cL, f.chain ?? '', 'cL');
+      this.els.combat.style.opacity = String(Math.min(1, (f.expiresAtMs - now) / 180));
+    } else this.changed('cN', '');
+    if (this.bannerLeft > 0) { this.bannerLeft -= ms; if (this.bannerLeft <= 0) this.show(this.els.banner, false); else this.els.banner.querySelector('small')!.textContent = this.bannerSub(); }
+  }
+
+  private bannerLeft = 0;
+  private bannerTotal = 0;
+  private bannerSub(): string { return this.bannerTotal > 900 ? `RESPAWN IN ${Math.ceil(this.bannerLeft / 1000)}` : ''; }
+
+  /** Short centre banner (defeat / KO); `ms` = how long it stays (respawn countdown shown when long enough). */
+  banner(text: string, ms: number): void {
+    this.bannerLeft = ms; this.bannerTotal = ms;
+    this.els.banner.innerHTML = `<div style="text-align:center">${text}<small></small></div>`;
+    this.els.banner.style.display = 'flex';
   }
 
   private renderSlot(el: SlotEl, s: HudSlot, now: number): void {
@@ -252,8 +307,11 @@ export class WorldHUD {
     const icon = s.iconUrl ?? (s.assigned ? A('icon-attack') : A('icon-lock'));
     const label = s.assigned ? s.label : 'Unassigned';
     const busy = !disabled && !!s.busy; // action lock / control: looks ready or cooling, but cannot execute
-    const key = `${state}|${icon}|${label}|${s.hotkey}|${busy}`;
+    const key = `${state}|${icon}|${label}|${s.hotkey}|${busy}|${s.tier ?? ''}`;
     if (key !== el.last) {
+      el.trim.style.display = s.tier ? '' : 'none';
+      if (s.tier) el.trim.src = `assets/final/ui/hud/${s.tier === 'ultimate' ? 'ultimate' : 'signature'}_slot_frame.png`;
+      el.btn.classList.toggle('ult-ready', s.tier === 'ultimate' && state === 'ready');
       el.last = key;
       el.btn.style.backgroundImage = `url("${A(`slot-${state}`)}")`;
       el.btn.classList.toggle('off', disabled);

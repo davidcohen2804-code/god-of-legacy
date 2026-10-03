@@ -1,0 +1,9 @@
+{
+  "id": "mage_set_arcane_scholar",
+  "parts": [
+    "mage_head_crystal_circlet",
+    "mage_back_twin_crystals",
+    "mage_book_storm_codex",
+    "mage_aura_arcane_orbit"
+  ]
+}

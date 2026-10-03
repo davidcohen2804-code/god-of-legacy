@@ -1,1036 +1,853 @@
-// Stage 4–6: Legacy Courtyard — fixed camera, smooth 4-direction movement, sword attack with feel polish,
-// training dummy and one Cursed Swordsman. Numbers come from src/data JSON + STAGE6 (world = map pixels).
+// Legacy Courtyard — PvE training ground and PvP V1 arena on one combat foundation:
+// CombatInput (double-tap run, jump, Space/1–7, mouse aim, buffer) → real x/y/z kinematics with the stone pedestal as a
+// platform → combat state (hit-stun / launch / knockdown / getup / hard CC with DR) → final 4-class kits on the shared
+// SkillRuntime with hit-confirm cancels, combo scaling and juggle budget → confirmed-hit feedback (damage numbers, combo
+// counter, hit-stop / shake hierarchy) → HUD, Skill Book (K), Inventory (I) and Cosmetic Shop (O).
 import Phaser from 'phaser';
 import WORLD from '../data/legacy-courtyard.json';
 import ATLAS from '../data/asset-manifest.json';
 import COMBAT_ASSETS from '../data/stage5-assets.json';
-import COMBAT from '../data/training-combat.json';
 import S6 from '../data/stage6-combat.json';
-import { BOOK_MAGE_WORLD, CHARACTER_PREVIEWS, CLASS_NAMES, HUD, PVP, STAGE6, WORLD_HUD } from '../config/layout';
+import TRAINING from '../data/training-combat.json';
+import { CHARACTER_PREVIEWS, CLASS_NAMES, HUD, PVP, STAGE6 } from '../config/layout';
 import { CharacterStore } from '../characters/CharacterStore';
 import { WorldHUD } from '../ui/WorldHUD';
-import { HudMarker, HudSlot, HudState, PortraitRef } from '../ui/hud/HudState';
+import { HudEffect, HudMarker, HudSlot, HudState, PortraitRef } from '../ui/hud/HudState';
 import { Character } from '../characters/CharacterTypes';
-import { Dir, facingFrom, footAllowedStatic } from '../world/collision';
+import { Dir } from '../world/collision';
 import { CursedSwordsman, preloadEnemyFrames } from '../world/CursedSwordsman';
 import { CourtyardAmbience } from '../world/Ambience';
-import { mageRunIndex, mageWalkIndex, registerMageFrames, setMageFrame, setWarriorAttackFrame, setWarriorAttackPhase, setWarriorIdle, setWarriorRun, setWarriorWalk, setWarriorWalkFrame, skillPoseIndex } from '../world/CharacterSprite';
-import { BodyMods, JUMP, applyBodyMods, breathe, deathTopple, hurtLean, jumpState } from '../world/BodyFx';
-import { CastRun, EVENTS, SkillSystem } from '../skills/SkillSystem';
-import { SkillDef, UNASSIGNED_ICON, damageFor, getSkill, slotsForClass } from '../skills/SkillRegistry';
-import { HitTarget, dashEnd, knockbackDir, placementLegal, runePlacement, shapeHits, spawnProjectile, stepProjectile, sweepStatic } from '../skills/HitResolver';
-import { ControlState } from '../skills/ControlPolicy';
-import { preloadSkillVfx } from '../skills/SkillVfx';
-import { applySkillAnimation, preloadSkillAnimations } from '../skills/SkillAnimations';
-import { isAtlasClass, preloadClassAtlases, registerClassAtlasFrames, setAtlasDeath, setAtlasHurt, setAtlasJump, setAtlasLoop, setAtlasSkillPose } from '../world/ClassAtlas';
+import { WORLD_OBJECTS, actorDepth, footAllowed, insideArena, placementOk } from '../world/WorldGeometry';
 import { isQAMode } from '../qa/QAPanel';
 import { PvpController } from '../pvp/PvpController';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
+import { NetMsg } from '../pvp/Transport';
+import { CombatInput } from '../game/CombatInput';
+import { ActorView, Equipped, preloadCosmetics } from '../game/ActorView';
+import { ClassKey, dirOf, preloadBodies, registerBodies, resolvePose } from '../game/Body';
+import { AnimSnap, LAND_MS, Mode, RECOVER_MS, poseQuery } from '../game/PoseState';
+import { CombatBody, HitOutcome, Kin, PHYS, jump, newKin, steer, stepKin } from '../combat/Combat';
+import { FinalSkill, HitEvent } from '../skills/SkillTypes';
+import { finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
+import { CastRun, SkillRuntime } from '../skills/SkillRuntime';
+import { HitTarget, V2, V3, clampPlace, unit } from '../skills/HitGeometry';
+import { SkillFx, preloadSkillFx } from '../skills/SkillFx';
+import { SkillBook } from '../ui/SkillBook';
+import { CosmeticPanel } from '../ui/CosmeticPanel';
+import { preloadPanelArt } from '../ui/PreviewStage';
+import { addMotes, preloadLife } from '../ui/PresentationLife';
 
-const T = ATLAS.textures;
-const CT = COMBAT_ASSETS.textures;
-const A = COMBAT.attack;
-const D = COMBAT.dummy;
-const R = WORLD.player.footRadius;
-const MOVE = S6.player.movement;
-const FEEL = S6.player.attackFeel;
+const D = TRAINING.dummy;
+const R = PHYS.footR;
 const P6 = STAGE6.player;
-const TOP_DEPTH = 100000; // effects and health bar above every feet-sorted object
-const FACING = COMBAT.facing as Record<Dir, number[]>;
-
-interface Attack { id: number; dir: Dir; elapsed: number; hitChecked: boolean; slashSpawned: boolean; lungeApplied: number }
-interface Fx { sprite: Phaser.GameObjects.Image; elapsed: number; frameMs: number; keys: string[] }
-
-const slashKey = (i: number) => `fx-slash-${i}`;
-const SLOT_KEYS = ['SPACE', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN'] as const;
-type KeyName = 'W' | 'A' | 'S' | 'D' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' | 'SHIFT' | 'E' | (typeof SLOT_KEYS)[number];
-/** Run (hold Shift): movement speed multiplier and animation cadence. */
-const RUN_SPEED_MULT = 1.55;
-const RUN_ANIM_MULT = 1.6;
-const RUN_DUST_MS = 280;
+const TOP_DEPTH = 100000;
+const FACE: Record<Dir, V2> = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
 /** PvP victim-side sanity checks for a remote cast intent (network jitter tolerances). */
 const CAST_COOLDOWN_TOLERANCE_MS = 250;
-const CAST_ORIGIN_TOLERANCE_PX = 120;
-const skillLabel = (id: string) => id.split('_').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
-const BASIC = () => getSkill('warrior_basic')!;
-const dustKey = (i: number) => `fx-dust-${i}`;
+const CAST_ORIGIN_TOLERANCE_PX = 140;
+const COMBO_SHOW_MS = 850;
 
-/** Lunge distance along the facing for an attack elapsed time: ease-out during strike, hold, ease back in recovery. */
-function lungeAt(e: number): number {
-  const [w, s, f, r] = A.phaseDurationMs;
-  if (e < w) return 0;
-  if (e < w + s) { const t = (e - w) / s; return FEEL.lungePx * (1 - (1 - t) * (1 - t)); }
-  if (e < w + s + f) return FEEL.lungePx;
-  if (e < w + s + f + r) { const t = (e - w - s - f) / r; return FEEL.lungePx * (1 - t * t * (3 - 2 * t)); }
-  return 0;
-}
-
-/** Existing class portrait: dedicated portrait file, else the Character Select crop of the full-body preview. */
 function portraitOf(classId: string, appearanceId: string): PortraitRef | undefined {
   const pv = CHARACTER_PREVIEWS[`${classId}/${appearanceId}`];
   if (!pv) return undefined;
   return pv.portrait ? { url: pv.portrait } : { url: pv.file, crop: { x: pv.crop.x, y: pv.crop.y, w: pv.crop.w, imgW: pv.width, imgH: pv.height } };
 }
 
-/** Stage 5 hit rule: target feet within range and inside the facing cone of the attacker's feet. */
-function swingHits(ax: number, ay: number, dir: Dir, tx: number, ty: number): boolean {
-  const vx = tx - ax, vy = ty - ay, dist = Math.hypot(vx, vy);
-  if (dist > A.range || dist === 0) return false;
-  const f = FACING[dir];
-  return (vx * f[0] + vy * f[1]) / dist >= A.minimumFacingDot;
-}
+interface DummyState { hp: number; alive: boolean; flash: number; respawn: number; body: CombatBody; kin: Kin }
+
+/** The Cursed Swordsman's strike expressed as a skill for the shared reaction path (PvE only). */
+const ENEMY_SKILL: FinalSkill = {
+  id: 'enemy_strike', cls: 'warrior', slot: 0, name: 'Cursed Strike', roles: ['basic'], targeting: 'aimAssist', startup: 180, active: 120, recovery: 260,
+  cooldown: 900, ground: true, air: false, hits: [], cover: 'IGNORES_COVER', move: { startup: 0, active: 0, recovery: 0 }, cancelOnHit: [], tags: [],
+  pvpMultiplier: 1, pveMultiplier: 1, description: '', unlockLevel: 1, relations: [],
+};
 
 export class LegacyCourtyardScene extends Phaser.Scene {
-  /** Read by the QA panel: x,y are the feet. */
-  player?: Phaser.GameObjects.Sprite;
-  /** Read by the QA panel. */
+  // ---- local actor (read by QA)
+  kin!: Kin;
+  body!: CombatBody;
+  view?: ActorView;
+  ci?: CombatInput;
   playerHP = S6.player.maxHp;
+  dir: Dir = 'down';
+  aim: V2 = { x: 0, y: 1 };
+  mode: Mode = 'idle';
+  modeT = 0;
+  private loopT = 0;
+  dead = -1; // >= 0: ms since death
+  private flash = -1;
+  chain = { stage: -1, lastEnd: -Infinity, skill: '' };
+  private equipped: Equipped = {};
+  private lastFootFrame = -1;
+  // ---- world
   enemy?: CursedSwordsman;
+  dummy?: Phaser.GameObjects.Image;
+  private dummyBar?: Phaser.GameObjects.Graphics;
+  dummyState?: DummyState;
   private ambience?: CourtyardAmbience;
-  /** Book Mage uses its own sheet frames and has no attack in this build. */
-  private isMage = false;
-  /** Archer / Samurai: explicit-rect atlas body (null for Warrior / Book Mage, which keep their existing sprites). */
-  private atlasClass: string | null = null;
-  private bodyMs = 0; // idle / walk loop clock for atlas classes
-  private atlasMode = '';
-  private mageWalkMs = 0;
-  private shadow?: Phaser.GameObjects.Ellipse;
-  private keys?: Record<KeyName, Phaser.Input.Keyboard.Key>;
-  private dir: Dir = ATLAS.initialDirection as Dir;
+  private occluders: Phaser.GameObjects.Image[] = [];
+  // ---- combat
+  rt?: SkillRuntime;
+  fx?: SkillFx;
+  kit: FinalSkill[] = [];
+  simMs = 0;
+  private castSeq = 0;
+  localId = 'local';
+  /** Attacker-side combo display (from confirmed hits only). */
+  combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '' };
+  confirmedLog: { skill: string; target: string; damage: number; idx: number; reaction: string; at: number; z: number }[] = [];
+  private remoteCasts = new Map<string, number>();
+  private seenCasts = new Set<string>();
+  pvpReady = false;
+  pvp?: PvpController;
   private hud?: WorldHUD;
   private character?: Character;
-
-  // Movement (Stage 6 polish).
-  private vx = 0;
-  private vy = 0;
-  private hadInput = false;
-  private lastInput = { x: 0, y: 0 };
-  private sinceDust = Infinity;
-  private running = false;
-  /** Jump (E): visual arc only — feet, collision and hit tests stay on the ground; no invulnerability. */
-  private jump: { ms: number; landed: boolean } | null = null;
-  private lifeMs = 0; // idle secondary-motion clock
-  private sinceRunDust = 0;
-  private hitShakeCast = '';
-
-  // Combat (scene-local, never saved).
-  private attack: Attack | null = null;
-  private attackSeq = 0;
-  private sinceAttackStart = Infinity; // cooldown is measured from attack start
-  private hitStopLeft = 0;
-  private dummy?: Phaser.GameObjects.Image;
-  private dummyBar?: Phaser.GameObjects.Graphics;
-  private dummyHp = D.maxHp;
-  private dummyAlive = true;
-  private lastHitAttackId = -1;
-  private flashLeft = 0;
-  private respawnLeft = 0;
-  private impacts: { sprite: Phaser.GameObjects.Sprite; elapsed: number }[] = [];
-  private fx: Fx[] = [];
-
-  // Player damage / death (Stage 6).
-  private playerFlashMs = -1;
-  private playerDeadMs = -1; // >= 0 while dead
-
-  // PVP Arena (scene started with { pvpRoom }): no dummy / enemy; remote players over the network.
-  /** Read by the QA panel. */
-  pvp?: PvpController;
-  private pvpReady = false; // local player spawned after joining the room
-  private hitsTaken = new Set<string>(); // attackerId:attackId already applied (one hit per attack)
-
-  // Skill System V1: one engine for PvE and PvP (read by QA).
-  skills?: SkillSystem;
-  private slotDefs: (SkillDef | null)[] = [];
-  private simMs = 0; // authority clock for this client's simulation (cooldowns, control)
-  private castSeq = 0;
-  private localId = 'local';
-  /** Hard-control state of the local player (this client is its authority in PvP). */
-  readonly control = new ControlState();
-  private selfKb: { vx: number; vy: number; left: number } | null = null;
-  private remoteCasts = new Map<string, number>(); // attackerId:skillId -> last accepted cast time
-  private seenCasts = new Set<string>();
+  skillBook?: SkillBook;
+  cosPanel?: CosmeticPanel;
 
   constructor() { super('LegacyCourtyardScene'); }
 
+  /** QA / legacy accessors. */
+  get player(): Phaser.GameObjects.Sprite | undefined { return this.view?.sprite; }
+  get skills(): SkillRuntime | undefined { return this.rt; }
+
   preload(): void {
+    const T = ATLAS.textures, CT = COMBAT_ASSETS.textures;
     if (!this.textures.exists(T.map.key)) this.load.image(T.map.key, T.map.file);
-    for (const t of [T.walk, T.idle, CT.attack, CT.impact]) {
-      if (!this.textures.exists(t.key)) this.load.spritesheet(t.key, t.file, { frameWidth: t.frameWidth, frameHeight: t.frameHeight });
-    }
     if (!this.textures.exists(CT.dummy.key)) this.load.image(CT.dummy.key, CT.dummy.file);
-    for (let i = 0; i < STAGE6.slash.frames; i++) if (!this.textures.exists(slashKey(i))) this.load.image(slashKey(i), `${STAGE6.slash.path}/0${i}.png`);
-    for (let i = 0; i < STAGE6.dust.frames; i++) if (!this.textures.exists(dustKey(i))) this.load.image(dustKey(i), `${STAGE6.dust.path}/0${i}.png`);
     preloadEnemyFrames(this);
-    preloadSkillVfx(this);
-    preloadSkillAnimations(this);
-    preloadClassAtlases(this);
-    if (!this.textures.exists(BOOK_MAGE_WORLD.sheetKey)) this.load.image(BOOK_MAGE_WORLD.sheetKey, BOOK_MAGE_WORLD.sheetFile);
+    preloadBodies(this);
+    preloadSkillFx(this);
+    preloadCosmetics(this);
+    preloadPanelArt(this);
+    preloadLife(this);
   }
 
   create(data?: { pvpRoom?: string }): void {
     const character = CharacterStore.getSelectedCharacter();
-    if (!character) { this.scene.start('CharacterSelectScene'); return; } // never auto-create a character
+    if (!character) { this.scene.start('CharacterSelectScene'); return; }
     const pvpRoom = data?.pvpRoom ?? null;
-    this.isMage = character.classId === 'book_mage';
-    this.atlasClass = isAtlasClass(character.classId) ? character.classId : null;
-    this.bodyMs = 0;
-    registerClassAtlasFrames(this); // local or remote Archer / Samurai
-    this.mageWalkMs = 0;
-    registerMageFrames(this); // remote PvP players may be Book Mages too
-    this.pvp = undefined; this.pvpReady = !pvpRoom; this.hitsTaken = new Set();
+    this.character = character;
+    registerBodies(this);
+    this.pvp = undefined; this.pvpReady = !pvpRoom;
     const playerId = newPlayerId();
     this.localId = pvpRoom ? playerId : 'local';
-    this.slotDefs = slotsForClass(character.classId);
-    this.simMs = 0; this.castSeq = 0; this.control.reset(); this.selfKb = null;
+    this.kit = kitFor(character.classId);
+    this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;
+    this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
+    this.combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '' };
+    this.confirmedLog = [];
     this.remoteCasts = new Map(); this.seenCasts = new Set();
+    this.playerHP = pvpRoom ? PVP.maxHp : S6.player.maxHp;
+    this.dir = 'down'; this.aim = { x: 0, y: 1 };
 
-    // Reset scene-local state on every entry.
-    this.attack = null; this.sinceAttackStart = Infinity; this.hitStopLeft = 0;
-    this.dummyHp = D.maxHp; this.dummyAlive = true;
-    this.lastHitAttackId = -1; this.flashLeft = 0; this.respawnLeft = 0; this.impacts = []; this.fx = [];
-    this.dir = ATLAS.initialDirection as Dir;
-    this.vx = 0; this.vy = 0; this.hadInput = false; this.sinceDust = Infinity;
-    this.running = false; this.jump = null; this.lifeMs = 0; this.sinceRunDust = 0; this.hitShakeCast = '';
-    this.playerHP = S6.player.maxHp; this.playerFlashMs = -1; this.playerDeadMs = -1;
-
-    // Map in world pixels; fixed camera fits it (contain), no stretching; crisp pixel positions.
+    // Map + fixed camera (contain), crisp pixels.
+    const T = ATLAS.textures;
     this.add.image(0, 0, T.map.key).setOrigin(0, 0).setDepth(-1);
     const cam = this.cameras.main;
     cam.setZoom(Math.min(cam.width / WORLD.camera.worldWidth, cam.height / WORLD.camera.worldHeight));
     cam.centerOn(WORLD.coordinateSpace.width / 2, WORLD.coordinateSpace.height / 2);
     cam.setRoundPixels(true);
     this.ambience = new CourtyardAmbience(this, WORLD.coordinateSpace.width, WORLD.coordinateSpace.height);
-
-    for (const [d, def] of Object.entries(ATLAS.directions)) {
-      const key = `warrior-walk-${d}`;
-      if (!this.anims.exists(key)) {
-        this.anims.create({
-          key, frames: this.anims.generateFrameNumbers(T.walk.key, { frames: def.walkFrames }),
-          frameRate: ATLAS.walkFrameRate, repeat: ATLAS.walkRepeat,
-        });
-      }
-    }
+    // Very low density warm dust drifting in the sun (never over telegraphs: faint, small, sparse).
+    addMotes(this, { x: 60, y: 220, w: WORLD.coordinateSpace.width - 120, h: WORLD.coordinateSpace.height - 260 }, 7,
+      { depth: 1500, tint: 0xffd9a0, size: [5, 9], speed: [3, 8], drift: 10, alpha: 0.32 });
+    // Baked-map occlusion: each prop silhouette is redrawn from the map at its footprint depth (no floor crop).
+    this.occluders = WORLD_OBJECTS.map((o) => {
+      const g = this.make.graphics({}, false);
+      g.fillStyle(0xffffff).fillPoints(o.occluder.map(([x, y]) => new Phaser.Geom.Point(x, y)), true);
+      return this.add.image(0, 0, T.map.key).setOrigin(0, 0).setDepth(o.frontY).setMask(g.createGeometryMask());
+    });
 
     if (!pvpRoom) {
-      // Training dummy (stationary, round collision body).
+      const CT = COMBAT_ASSETS.textures;
       this.dummy = this.add.image(D.x, D.y, CT.dummy.key).setOrigin(CT.dummy.origin.x, CT.dummy.origin.y);
       this.dummy.setScale(CT.dummy.displayHeight / CT.dummy.height).setDepth(D.y);
       this.dummyBar = this.add.graphics().setDepth(TOP_DEPTH);
+      const dk = newKin(D.x, D.y);
+      this.dummyState = { hp: D.maxHp, alive: true, flash: 0, respawn: 0, kin: dk, body: new CombatBody(dk, false) };
       this.drawDummyBar();
       this.enemy = new CursedSwordsman(this);
-    } else {
-      this.dummyAlive = false; // PvP: no single-player combat objects
     }
 
     const { x, y } = WORLD.spawn;
-    const S = WORLD_HUD.shadow;
-    this.shadow = this.add.ellipse(x, y + S.offsetY, S.w, S.h, 0x000000, S.alpha);
-    this.player = this.add.sprite(x, y, T.idle.key, ATLAS.directions[this.dir].idleFrame);
-    this.setIdle();
-    this.syncDepths();
-    if (pvpRoom) { this.player.setVisible(false); this.shadow.setVisible(false); } // shown once the room is joined
+    this.kin = newKin(x, y);
+    this.body = new CombatBody(this.kin, !!pvpRoom);
+    this.view = new ActorView(this, character.classId as ClassKey, x, y);
+    this.loadCosmetics();
 
-    this.skills = new SkillSystem(this, {
+    this.rt = new SkillRuntime({
       now: () => this.simMs,
-      targets: (r) => this.skillTargets(r),
-      onHit: (r, t) => this.onSkillHit(r, t),
+      targets: (r) => this.targetsFor(r),
+      onHit: (r, h, i, t, at) => this.onSkillHit(r, h, i, t, at),
       casterPos: (id) => this.casterPos(id),
-      onPhase: (r, ph) => this.onSkillPhase(r, ph),
+      onPhase: (r, ph) => this.onRunPhase(r, ph),
     });
-    if (isQAMode()) {
-      (window as unknown as { __skillsQA: unknown }).__skillsQA = { shapeHits, stepProjectile, spawnProjectile, sweepStatic, damageFor, getSkill, ControlState, EVENTS };
-    }
+    this.fx = new SkillFx(this, this.rt, (id) => this.casterPos(id));
+    this.renderPlayer(0);
+    if (pvpRoom) this.view.setVisible(false);
+    if (isQAMode()) (window as unknown as { __combatQA: unknown }).__combatQA = { finalSkill, kitFor, WORLD_OBJECTS, footAllowed, placementOk };
 
-    const kb = this.input.keyboard!;
-    this.keys = kb.addKeys(`W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,E,${SLOT_KEYS.join(',')}`) as LegacyCourtyardScene['keys'];
-    // Space / 1–7: one action handler per slot (the HUD buttons call the same handler).
-    const slotHandlers = SLOT_KEYS.map((name, i) => {
-      const h = (e: KeyboardEvent) => { if (!e.repeat) this.useSlot(i); };
-      kb.on(`keydown-${name}`, h);
-      return [name, h] as const;
-    });
-    const onJump = (e: KeyboardEvent) => { if (!e.repeat) this.startJump(); };
-    kb.on('keydown-E', onJump);
-
-    // Losing focus clears keys, stops movement and cancels an attack before it can hit.
-    const stop = () => { kb.resetKeys(); this.vx = 0; this.vy = 0; this.running = false; this.cancelAttack(); };
+    this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k));
+    const stop = () => { this.ci?.reset(); };
     this.game.events.on(Phaser.Core.Events.BLUR, stop);
     this.game.events.on(Phaser.Core.Events.HIDDEN, stop);
 
     const exitArena = () => { clearPvpFromUrl(); this.scene.start('MainMenuScene'); };
-    this.character = character;
     this.hud = new WorldHUD(this.game.canvas.parentElement!, this.game.canvas, {
       returnLabel: pvpRoom ? PVP.hud.exitText : 'BACK TO CHARACTERS',
       onReturn: pvpRoom ? exitArena : () => this.scene.start('CharacterSelectScene'),
-      onSlot: (i) => this.useSlot(i), // same handler as the hotkey
+      onSlot: (i) => this.useSlot(i),
+      onMenu: (k) => this.togglePanel(k),
     });
+    const host = this.game.canvas.parentElement!;
+    this.skillBook = new SkillBook(this, host, this.game.canvas, character.classId as ClassKey, character.level, isQAMode());
+    this.cosPanel = new CosmeticPanel(this, host, this.game.canvas, character, () => this.equipped, (e) => this.setEquipped(e));
+    this.skillBook.setEquipped(this.equipped);
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, (_t: number, d: number) => {
       if (!this.hud) return;
-      this.hud.layout();
-      if (this.player) this.hud.update(this.hudState(), this.simMs, d);
+      this.hud.layout(); this.skillBook?.layout(); this.cosPanel?.layout();
+      if (this.view) this.hud.update(this.hudState(), this.simMs, d);
     });
-    if (pvpRoom) {
-      kb.on('keydown-ESC', exitArena);
-      this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: character.classId, name: character.name });
-    }
+    const kb = this.input.keyboard!;
+    const esc = () => { if (this.skillBook?.open || this.cosPanel?.open) { this.skillBook?.close(); this.cosPanel?.close(); } else if (pvpRoom) exitArena(); };
+    kb.on('keydown-ESC', esc);
+    if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: character.classId, name: character.name });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off(Phaser.Scenes.Events.POST_UPDATE);
       this.game.events.off(Phaser.Core.Events.BLUR, stop);
       this.game.events.off(Phaser.Core.Events.HIDDEN, stop);
-      for (const [name, h] of slotHandlers) kb.off(`keydown-${name}`, h);
-      kb.off('keydown-E', onJump);
-      this.skills?.cancelOwn(this.localId, 'sceneExit');
-      this.skills?.destroy(); // runs, projectiles, VFX, event listeners
-      this.skills = undefined;
-      this.selfKb = null;
-      kb.off('keydown-ESC', exitArena);
-      this.pvp?.destroy(); // presence, channel, listeners, remote players, names, HP bars, timers
-      this.pvp = undefined;
-      this.pvpReady = false;
-      kb.resetKeys();
+      kb.off('keydown-ESC', esc);
+      this.rt?.cancelOwn('sceneExit');
+      this.fx?.destroy(); this.fx = undefined;
+      this.rt?.destroy(); this.rt = undefined;
+      this.ci?.reset();
+      this.ci?.destroy(); this.ci = undefined;
       kb.removeAllKeys(true);
-      for (const i of this.impacts) i.sprite.destroy();
-      for (const f of this.fx) f.sprite.destroy();
-      this.impacts = []; this.fx = [];
-      this.attack = null;
-      this.enemy?.destroy();
-      this.enemy = undefined;
-      this.ambience?.destroy();
-      this.ambience = undefined;
-      this.hud?.destroy();
-      this.hud = undefined;
+      this.pvp?.destroy(); this.pvp = undefined; this.pvpReady = false;
+      this.enemy?.destroy(); this.enemy = undefined;
+      this.ambience?.destroy(); this.ambience = undefined;
+      for (const o of this.occluders) { o.clearMask(true); o.destroy(); }
+      this.occluders = [];
+      this.hud?.destroy(); this.hud = undefined;
+      this.skillBook?.destroy(); this.skillBook = undefined;
+      this.cosPanel?.destroy(); this.cosPanel = undefined;
+      this.view?.destroy(); this.view = undefined;
       this.character = undefined;
-      this.keys = undefined;
-      this.player = undefined;
-      this.dummy = undefined;
-      this.dummyBar = undefined;
+      this.dummy = undefined; this.dummyBar = undefined; this.dummyState = undefined;
     });
   }
+
+  // ======================================================================= frame
 
   update(_time: number, delta: number): void {
-    const k = this.keys, p = this.player;
-    if (!k || !p) return;
-    this.ambience?.update(delta); // purely visual; keeps drifting even during hit-stop
-    this.pvp?.update(delta);
-    if (!this.pvpReady) return; // PvP: waiting for the room (or room full)
-    if (this.hitStopLeft > 0) { this.hitStopLeft -= delta; return; } // whole simulation freezes on a confirmed hit
-    const ms = delta;
+    if (!this.view || !this.rt || !this.fx || !this.ci) return;
+    const ms = Math.min(delta, 50);
+    this.ambience?.update(ms);
+    this.pvp?.update(ms);
+    this.skillBook?.update(ms);
+    this.cosPanel?.update(ms);
+    if (!this.pvpReady) return;
+    // Hit-stop: in PvE the local simulation freezes briefly; in PvP only local presentation does
+    // (remote simulation and networking never freeze).
+    if (this.fx.hitStopLeft > 0 && !this.pvp) { this.fx.update(ms, []); return; }
     this.simMs += ms;
-    this.sinceAttackStart += ms;
-    this.sinceDust += ms;
+    const now = this.simMs;
+    this.ci.update(now);
+    this.stepPlayer(ms, now);
+    this.rt.update(ms);
+    this.fx.update(ms, this.rt.projectiles.map((e) => e.p));
     this.updateDummy(ms);
-    this.updateImpacts(ms);
-    this.updateFx(ms);
-    this.updatePlayerFlash(ms);
-    this.skills?.update(ms);
-    this.updateSelfKnockback(ms);
     this.enemy?.update(ms, {
-      player: { x: p.x, y: p.y, alive: this.playerDeadMs < 0 },
-      blocked: (x, y) =>
-        (this.playerDeadMs < 0 && Math.hypot(x - p.x, y - p.y) < STAGE6.enemy.collisionRadius + R) ||
-        (this.dummyAlive && Math.hypot(x - D.x, y - D.y) < D.collisionRadius + STAGE6.enemy.footRadius),
-      onHitPlayer: (dmg) => this.damagePlayer(dmg),
+      player: { x: this.kin.x, y: this.kin.y, z: this.kin.z - this.kin.supportZ, alive: this.dead < 0 },
+      now,
+      blocked: (x, y) => (this.dead < 0 && Math.hypot(x - this.kin.x, y - this.kin.y) < STAGE6.enemy.collisionRadius + R && this.kin.z < 40)
+        || (!!this.dummyState?.alive && Math.hypot(x - D.x, y - D.y) < D.collisionRadius + STAGE6.enemy.footRadius),
+      onStrikePlayer: (dmg, from) => this.enemyStrike(dmg, from),
     });
-
-    this.lifeMs += ms;
-    this.stepPlayer(ms);
-    this.applyBodyLife();
-    this.syncDepths();
+    this.renderPlayer(this.fx.hitStopLeft > 0 ? 0 : ms);
   }
 
-  private stepPlayer(ms: number): void {
-    const p = this.player!;
-    if (this.playerDeadMs >= 0) { this.jump = null; this.updateDeath(ms); return; }
-    if (this.attack) { this.jump = null; this.updateAttack(ms); return; } // movement and turning locked
-    if (this.control.controlled(this.simMs)) { this.jump = null; this.running = false; this.vx = 0; this.vy = 0; this.hadInput = false; return; } // hard control
-    const run = this.skills?.ownRun;
-    if (run && (run.phase === 'cast' || run.phase === 'active')) { this.jump = null; this.updateOwnCast(run); return; }
+  // ======================================================================= local player
 
-    this.updateMovement(ms); // recovery: movement permitted (moveDuringRecovery)
-    if (run && run.phase === 'recovery' && !this.jump && Math.hypot(this.vx, this.vy) <= P6.walkThreshold) {
-      // Standing still in recovery: finish the body animation; moving shows the normal walk (no new movement lock).
-      if (this.atlasClass) setAtlasSkillPose(p, this.atlasClass, run.skill.id, run.dir, run.elapsed, run.skill.castMs, run.skill.detachedActive ? 0 : run.skill.activeMs, run.skill.actionLockMs);
-      else if (!applySkillAnimation(p, run.skill.id, run.dir, run.elapsed) && !this.isMage) setWarriorAttackPhase(p, run.dir, 3);
-    }
-  }
+  busy(): boolean { return this.dead >= 0 || !this.body.canAct(this.simMs) || this.rt?.locked() === true; }
 
-  // ---------------- jump (E) and body life (render only) ----------------
+  private setMode(m: Mode): void { if (m !== this.mode) { this.mode = m; this.modeT = 0; } }
 
-  /** Jump: allowed when free to act; never during attack / skill / control / death. Feet and collision stay grounded. */
-  private startJump(): void {
-    if (!this.player || !this.pvpReady || this.jump || this.busy()) return;
-    this.jump = { ms: 0, landed: false };
-  }
+  private stepPlayer(ms: number, now: number): void {
+    const k = this.kin, b = this.body, inp = this.ci!;
+    this.modeT += ms; this.loopT += ms;
+    if (this.flash >= 0) { this.flash += ms; if (this.flash >= P6.hitFlashRedMs) this.flash = -1; }
+    // Aim: mouse world point treated as a ground point at the actor's height, else facing.
+    if (inp.pointerActive) this.aim = unit(inp.aimX - k.x, inp.aimY + k.z - k.y, this.aim.x, this.aim.y);
 
-  /** Render-only modifiers on top of the pose: jump lift + squash, idle breathing, hurt lean, death topple; shadow. */
-  private applyBodyLife(): void {
-    const p = this.player!, S = WORLD_HUD.shadow;
-    const m: BodyMods = { lift: 0, sx: 1, sy: 1, angle: 0 };
-    let shadowK = 1;
-    const sprite = !this.atlasClass; // Warrior / Book Mage have no hurt / death frames: lean and topple instead
-    if (this.jump) {
-      const j = jumpState(this.jump.ms);
-      m.lift = j.lift; m.sx = j.sx; m.sy = j.sy;
-      shadowK = 1 - 0.38 * j.air;
-    } else if (this.playerDeadMs >= 0) {
-      if (sprite) m.angle = deathTopple(this.playerDeadMs, P6.deathFadeMs, this.dir);
-    } else if (this.playerFlashMs >= 0 && sprite && !this.attack && !this.skills?.ownRun) {
-      m.angle = hurtLean(this.playerFlashMs, P6.hitFlashRedMs, this.dir);
-    } else if (sprite && !this.attack && !this.skills?.ownRun && Math.hypot(this.vx, this.vy) <= P6.walkThreshold) {
-      m.sy = breathe(this.lifeMs);
-    }
-    applyBodyMods(p, m);
-    this.shadow?.setScale(shadowK, shadowK);
-  }
+    if (this.dead >= 0) { this.dead += ms; this.setMode('dead'); k.vx = 0; k.vy = 0; stepKin(k, ms); this.updateDeath(); return; }
 
-  // ---------------- movement (acceleration / deceleration) ----------------
-
-  private updateMovement(ms: number): void {
-    const k = this.keys!, p = this.player!;
-    const ix = (k.D.isDown || k.RIGHT.isDown ? 1 : 0) - (k.A.isDown || k.LEFT.isDown ? 1 : 0);
-    const iy = (k.S.isDown || k.DOWN.isDown ? 1 : 0) - (k.W.isDown || k.UP.isDown ? 1 : 0);
-    const hasInput = ix !== 0 || iy !== 0;
-    const dt = Math.min(0.05, ms / 1000);
-    this.running = hasInput && !!k.SHIFT.isDown;
-    const maxV = WORLD.player.speed * (this.running ? RUN_SPEED_MULT : 1);
-    const speedBefore = Math.hypot(this.vx, this.vy);
-
-    if (hasInput) {
-      const len = Math.hypot(ix, iy); // normalized diagonal
-      const tx = (ix / len) * maxV, ty = (iy / len) * maxV;
-      const ddx = tx - this.vx, ddy = ty - this.vy, dl = Math.hypot(ddx, ddy), step = MOVE.accelerationPxPerSec2 * dt;
-      if (dl <= step) { this.vx = tx; this.vy = ty; } else { this.vx += (ddx / dl) * step; this.vy += (ddy / dl) * step; }
-      this.dir = facingFrom(ix, iy, this.dir); // facing follows input, never velocity jitter
-      // Dust: start from (near) rest, or a sharp (>90°) direction change.
-      const sharp = this.hadInput && ix * this.lastInput.x + iy * this.lastInput.y < 0;
-      if ((!this.hadInput && speedBefore < maxV * 0.25) || sharp) this.spawnDust();
-      this.lastInput = { x: ix, y: iy };
+    const run = this.rt!.ownRun;
+    const reacting = b.state !== 'free';
+    const ccLocked = b.hard.active(now) && b.hard.kind !== 'root';
+    if (reacting || ccLocked) {
+      if (run && b.state !== 'free') this.rt!.cancelOwn('hit');
+      if (b.state === 'hitstun' && k.grounded && !b.push) { k.vx *= 0.8; k.vy *= 0.8; }
+      if (b.state === 'launched' && inp.takeJump() && b.tryAirTech(now, inp.moveX || -this.aim.x, inp.moveY || -this.aim.y)) this.fx!.dust(k.x, k.y - k.z, 60, 0.6);
+      if (ccLocked && b.state === 'free') { k.vx = 0; k.vy = 0; if (run) this.rt!.cancelOwn('hit'); }
+    } else if (run) {
+      this.stepCast(run, ms, now);
     } else {
-      if (this.hadInput && speedBefore > maxV * 0.5) this.spawnDust(); // stop
-      const ns = Math.max(0, speedBefore - MOVE.decelerationPxPerSec2 * dt);
-      if (speedBefore > 0) { this.vx *= ns / speedBefore; this.vy *= ns / speedBefore; }
+      this.stepLocomotion(ms, now);
     }
-    this.hadInput = hasInput;
+    const r = stepKin(k, ms, b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z));
+    const ev = b.update(now, ms, r.landed, r.impactVz);
+    if (r.landed) {
+      if (r.impactVz > 180) this.fx!.dust(k.x, k.y - k.z, 48 + Math.min(70, r.impactVz / 8), 0.75);
+      if (b.state === 'free' && !this.rt!.ownRun) this.setMode('land');
+    }
+    if (ev === 'kdImpact') this.fx!.dust(k.x, k.y - k.z, 120, 0.9);
+    if (b.state === 'hitstun') this.setMode('hurt');
+    else if (b.state === 'launched') this.setMode('launched');
+    else if (b.state === 'knockdown') this.setMode(k.grounded ? 'down' : 'launched');
+    else if (b.state === 'getup') this.setMode('getup');
+    else if (this.mode === 'hurt' || this.mode === 'launched' || this.mode === 'down' || this.mode === 'getup') this.setMode(k.grounded ? 'idle' : 'air');
+    // Buffered action fires on the first legal frame (within the buffer window).
+    const buf = this.ci!.takeBuffered();
+    if (buf && this.tryStartSlot(buf.slot)) this.ci!.consumeBuffer();
+  }
 
-    // Axis-separated: blocked on one axis still slides on the other; a blocked axis loses its velocity.
-    const nx = p.x + this.vx * dt, ny = p.y + this.vy * dt;
-    if (this.vx !== 0) { if (this.footAllowed(nx, p.y)) p.x = nx; else this.vx = 0; }
-    if (this.vy !== 0) { if (this.footAllowed(p.x, ny)) p.y = ny; else this.vy = 0; }
+  /** Free locomotion: walk / double-tap run, jump take-off, air control, landing settle, idle breathing. */
+  private stepLocomotion(ms: number, now: number): void {
+    const k = this.kin, inp = this.ci!, b = this.body;
+    const rooted = b.hard.active(now) && b.hard.kind === 'root';
+    const speed = (inp.running ? PHYS.run : PHYS.walk) * b.moveScale(now);
+    steer(k, rooted ? 0 : inp.moveX * speed, rooted ? 0 : inp.moveY * speed, ms);
+    if (inp.hasMove && !rooted) this.dir = dirOf(inp.moveX, inp.moveY, this.dir);
+    if (inp.takeJump() && k.grounded && !rooted) { jump(k); this.setMode('takeoff'); }
+    const sp = Math.hypot(k.vx, k.vy);
+    if (!k.grounded) { if (this.mode !== 'takeoff' || this.modeT > PHYS.takeoffMs) this.setMode('air'); return; }
+    if (this.mode === 'land' && this.modeT < LAND_MS && !inp.hasMove) return;
+    if (this.mode === 'recover' && this.modeT < RECOVER_MS && !inp.hasMove) return;
+    if (sp > 12) {
+      const m: Mode = inp.running && sp > PHYS.walk + 20 ? 'run' : 'walk';
+      if (m !== this.mode) this.setMode(m);
+      this.footDust(sp);
+    } else if (this.mode !== 'idle') this.setMode('idle');
+  }
 
-    const moving = Math.hypot(this.vx, this.vy) > P6.walkThreshold;
-    const runningNow = moving && this.running;
-    if (runningNow) {
-      this.sinceRunDust += ms;
-      if (this.sinceRunDust >= RUN_DUST_MS && !this.jump) { this.sinceRunDust = 0; this.spawnDust(); }
-    } else this.sinceRunDust = 0;
+  /** Dust only on run foot-contact frames (cadence follows speed). */
+  private footDust(sp: number): void {
+    if (this.mode !== 'run') { this.lastFootFrame = -1; return; }
+    const sheet = this.character!.classId === 'warrior' || this.character!.classId === 'book_mage';
+    const fps = (sheet ? 13 : 10) * Math.max(0.75, Math.min(1.15, sp / 270)), n = sheet ? 8 : 5;
+    const f = Math.floor((this.loopT * fps) / 1000) % n;
+    const contact = sheet ? [0, 4] : [0, 3];
+    if (f !== this.lastFootFrame && contact.includes(f)) this.fx!.dust(this.kin.x - (this.kin.vx / sp) * 10, this.kin.y - this.kin.z, 34, 0.55);
+    this.lastFootFrame = f;
+  }
 
-    if (this.jump) { this.updateJumpPose(ms); return; }
-    if (this.atlasClass) {
-      if (!moving && this.playerFlashMs >= 0) { setAtlasHurt(p, this.atlasClass, this.dir, this.playerFlashMs, P6.hitFlashRedMs); return; }
-      const mode = runningNow ? 'run' : moving ? 'walk' : 'idle';
-      this.bodyMs = mode === this.atlasMode ? this.bodyMs + ms : 0;
-      this.atlasMode = mode;
-      setAtlasLoop(p, this.atlasClass, this.dir, mode, this.bodyMs);
-    } else if (moving && this.isMage) {
-      this.mageWalkMs += ms;
-      setMageFrame(p, this.dir, 'walk', runningNow ? mageRunIndex(this.dir, this.mageWalkMs, RUN_ANIM_MULT) : mageWalkIndex(this.dir, this.mageWalkMs));
-    } else if (moving) {
-      if (runningNow) setWarriorRun(p, this.dir, RUN_ANIM_MULT); else setWarriorWalk(p, this.dir);
-    } else {
-      this.setIdle();
+  /** Own cast: locomotion scalar per phase, dash / leap motion, air momentum, recovery movement cancel. */
+  private stepCast(run: CastRun, ms: number, now: number): void {
+    const k = this.kin, inp = this.ci!, s = run.skill, T = run.timings;
+    this.setMode('skill');
+    this.dir = dirOf(run.aim.x, run.aim.y, this.dir);
+    const phase = run.phase === 'startup' ? 'startup' : run.phase === 'active' ? 'active' : 'recovery';
+    const scale = s.move[phase];
+    if (s.dash && run.phase === 'active') { this.dashMotion(run); return; }
+    if (k.grounded) {
+      if (scale > 0) steer(k, inp.moveX * PHYS.walk * scale * this.body.moveScale(now), inp.moveY * PHYS.walk * scale * this.body.moveScale(now), ms);
+      else { k.vx *= 0.7; k.vy *= 0.7; }
+    } else if (scale > 0) steer(k, inp.moveX * PHYS.walk * scale, inp.moveY * PHYS.walk * scale, ms, 0.6);
+    else { k.vx *= 0.97; k.vy *= 0.97; } // air skill keeps most of its momentum
+    // Movement cancel from recovery after 35% (whiffed counters stay committed).
+    if (run.phase === 'recovery' && inp.hasMove && !s.counter && run.elapsed >= T.startup + T.active + 0.35 * T.recovery) {
+      this.rt!.cancelForFollowUp(run);
+      this.endRun(run, true);
+      return;
+    }
+    // Jump cancel from recovery: after a confirmed hit (chase), or after 35% of recovery; never the Ultimate / a whiffed counter.
+    const jumpOk = run.phase === 'recovery' && k.grounded && !s.counter && s.slot !== 7
+      && (run.confirmedAt >= 0 || run.elapsed >= T.startup + T.active + 0.35 * T.recovery);
+    if (jumpOk && inp.takeJump()) {
+      this.rt!.cancelForFollowUp(run);
+      this.endRun(run, true);
+      jump(k); this.setMode('takeoff');
     }
   }
 
-  /** Jump pose by phase (Archer / Samurai: real jump frames; Warrior / Mage: their body with squash & stretch). */
-  private updateJumpPose(ms: number): void {
-    const p = this.player!, j = this.jump!;
-    j.ms += ms;
-    const st = jumpState(j.ms);
-    if (st.phase === 'land' && !j.landed) { j.landed = true; this.sinceDust = Infinity; this.spawnDust(); }
-    if (j.ms >= JUMP.totalMs) { this.jump = null; this.bodyMs = 0; this.atlasMode = ''; this.setIdle(); return; }
-    if (this.atlasClass) setAtlasJump(p, this.atlasClass, this.dir, st.phase);
-    else if (this.isMage) setMageFrame(p, this.dir, st.phase === 'rise' || st.phase === 'fall' ? 'walk' : 'idle', st.phase === 'rise' || st.phase === 'fall' ? 1 : 0);
-    else if (st.phase === 'rise' || st.phase === 'fall') setWarriorWalkFrame(p, this.dir, st.phase === 'rise' ? 1 : 3); // airborne stride
-    else setWarriorIdle(p, this.dir);
+  /** Dash / leap: swept along the aim (or toward the locked target), stopped by cover and bodies; never through walls. */
+  private dashMotion(run: CastRun): void {
+    const k = this.kin, s = run.skill, d = s.dash!;
+    const p = Math.min(1, (run.elapsed - run.timings.startup) / Math.max(1, run.timings.active));
+    const ease = 1 - (1 - p) * (1 - p);
+    let dist = d.distance;
+    if (run.lock) {
+      const t = this.targetsFor(run).find((x) => x.id === run.lock);
+      if (t) dist = Math.min(d.distance, Math.max(0, Math.hypot(t.x - run.origin.x, t.y - run.origin.y) - 34));
+    }
+    const want = { x: run.origin.x + run.aim.x * dist * ease, y: run.origin.y + run.aim.y * dist * ease };
+    const steps = Math.ceil(Math.hypot(want.x - k.x, want.y - k.y) / 2);
+    for (let i = 0; i < steps; i++) {
+      const nx = k.x + (want.x - k.x) / (steps - i), ny = k.y + (want.y - k.y) / (steps - i);
+      if (!footAllowed(nx, ny, k.z, R) || this.blockedByActors(nx, ny, k.z)) break;
+      k.x = nx; k.y = ny;
+    }
+    k.vx = 0; k.vy = 0;
+    if (d.lift) { // acrobatic leap: real height (shots fire from it), lands by gravity afterwards
+      k.grounded = false;
+      k.z = Math.max(k.z, run.origin.z + d.lift * Math.sin(Math.PI * p));
+      k.vz = p < 0.5 ? 40 : -40;
+    }
   }
 
-  private spawnDust(): void {
-    if (this.sinceDust < STAGE6.dust.minIntervalMs) return;
-    this.sinceDust = 0;
-    const p = this.player!;
-    const s = this.add.image(p.x, p.y, dustKey(0)).setOrigin(0.5, 0.5).setDepth(p.y - 1);
-    s.setScale(STAGE6.dust.displayWidth / s.width);
-    this.fx.push({ sprite: s, elapsed: 0, frameMs: 1000 / S6.fx.movementDustFps, keys: [...Array(STAGE6.dust.frames).keys()].map(dustKey) });
-  }
-
-  // ---------------- player states (feet x/y never change between states) ----------------
-
-  private setIdle(): void {
-    const p = this.player!;
-    if (this.atlasClass) { if (this.atlasMode !== 'idle') { this.atlasMode = 'idle'; this.bodyMs = 0; } setAtlasLoop(p, this.atlasClass, this.dir, 'idle', this.bodyMs); return; }
-    if (this.isMage) { this.mageWalkMs = 0; setMageFrame(p, this.dir, 'idle', 0); return; }
-    setWarriorIdle(p, this.dir);
-  }
-
-  private footAllowed(x: number, y: number): boolean {
-    if (!footAllowedStatic(x, y, R)) return false;
-    if (this.dummy && this.dummyAlive && Math.hypot(x - D.x, y - D.y) < D.collisionRadius + R) return false;
+  private blockedByActors(x: number, y: number, z: number): boolean {
     const e = this.enemy;
-    return !(e && e.alive && Math.hypot(x - e.x, y - e.y) < STAGE6.enemy.collisionRadius + R);
+    if (e && e.alive && Math.abs(e.z - z) < 50 && Math.hypot(x - e.x, y - e.y) < STAGE6.enemy.collisionRadius + R) return true;
+    if (this.dummyState?.alive && z < 40 && Math.hypot(x - D.x, y - D.y) < D.collisionRadius + R) return true;
+    return false;
   }
 
-  private syncDepths(): void {
-    const p = this.player!;
-    p.setDepth(p.y);
-    this.shadow?.setPosition(p.x, p.y + WORLD_HUD.shadow.offsetY).setDepth(p.y - 0.5);
+  private renderPlayer(ms: number): void {
+    const v = this.view!, k = this.kin, run = this.rt?.ownRun;
+    const snap: AnimSnap = {
+      mode: this.mode, t: this.mode === 'walk' || this.mode === 'run' || this.mode === 'idle' ? this.loopT : this.modeT,
+      speed: Math.hypot(k.vx, k.vy), vz: k.vz, stunMs: 220,
+      skill: run ? { id: run.skill.id, stage: run.stage, elapsed: run.elapsed, ...run.timings } : undefined,
+    };
+    const pose = resolvePose(this.character!.classId as ClassKey, this.dir, poseQuery(snap));
+    let tint: number | null = null, fill = false, alpha = 1;
+    if (this.flash >= 0) { if (this.flash < P6.hitFlashWhiteMs) { tint = 0xffffff; fill = true; } else tint = 0xff6a6a; }
+    else if (this.body.hard.active(this.simMs)) tint = this.body.hard.kind === 'freeze' ? 0x9fd8ff : 0xb6ffb0;
+    else if (run && run.skill.armor && run.elapsed >= run.skill.armor[0] && run.elapsed < run.skill.armor[1]) tint = 0xffe0a0;
+    if (this.dead >= 0) { alpha = 1 - (1 - P6.deathAlpha) * Math.min(1, this.dead / P6.deathFadeMs); tint = 0xff4a4a; fill = false; }
+    v.render(ms, pose, k.x, k.y, k.z, k.supportZ, this.dir, alpha, tint, fill);
   }
 
-  // ---------------- attack ----------------
+  // ======================================================================= actions
 
-  private beginAttack(): void {
-    if (this.isMage) return; // Book Mage has no attack in this build (never uses Warrior attack/slash assets)
-    if (!this.player || this.playerDeadMs >= 0 || this.attack || this.sinceAttackStart < A.cooldownMs) return; // no queue
-    if (this.skills?.locked() || this.control.controlled(this.simMs)) return; // one action lock at a time
-    this.attack = { id: ++this.attackSeq, dir: this.dir, elapsed: 0, hitChecked: false, slashSpawned: false, lungeApplied: 0 };
-    this.sinceAttackStart = 0;
-    this.vx = 0; this.vy = 0;
-    this.showAttackFrame();
-    this.pvp?.sendAttack(this.attack.id, this.attack.dir, this.player.x, this.player.y);
-    this.basicEvent(EVENTS.castStarted, this.attack.id); // existing basic wrapped in the shared cast event adapter
+  /** Space / 1–7 and HUD clicks share this handler: start now, cancel on a confirmed hit, or buffer. */
+  useSlot(i: number): void {
+    if (!this.view || !this.pvpReady || this.dead >= 0) return;
+    if (this.skillBook?.open || this.cosPanel?.open) return;
+    if (!this.tryStartSlot(i)) this.ci?.bufferAction(i);
   }
 
-  private basicEvent(name: string, id: number): void {
-    this.skills?.emitEvent(name, `${this.localId}:b${id}`, BASIC().id, this.localId);
-  }
+  private onJumpKey(): void { if (this.pvpReady && this.dead < 0) this.ci?.queueJump(); }
 
-  private cancelAttack(): void {
-    if (!this.attack || !this.player) return;
-    this.basicEvent(EVENTS.cancelled, this.attack.id);
-    this.applyLunge(this.attack, 0); // step back from any lunge
-    this.attack = null;
-    this.setIdle();
-  }
-
-  private updateAttack(ms: number): void {
-    const a = this.attack!;
-    a.elapsed += ms;
-    const prev = a.elapsed - ms, b = BASIC();
-    if (!a.hitChecked && a.elapsed >= A.hitAtMs) { a.hitChecked = true; this.basicEvent(EVENTS.activeStarted, a.id); this.resolveHit(a); }
-    if (!a.slashSpawned && a.elapsed >= A.hitAtMs) { a.slashSpawned = true; this.spawnSlash(a.dir); }
-    if (prev < b.castMs + b.activeMs && a.elapsed >= b.castMs + b.activeMs) this.basicEvent(EVENTS.recoveryStarted, a.id);
-    if (a.elapsed >= A.totalDurationMs) { this.applyLunge(a, 0); this.attack = null; this.basicEvent(EVENTS.finished, a.id); this.setIdle(); return; }
-    this.applyLunge(a, lungeAt(a.elapsed));
-    this.showAttackFrame();
-  }
-
-  /** Moves the feet toward the wanted lunge offset along the facing, never into colliders. */
-  private applyLunge(a: Attack, want: number): void {
-    const p = this.player!, f = FACING[a.dir];
-    const delta = want - a.lungeApplied;
-    if (delta === 0) return;
-    const nx = p.x + f[0] * delta, ny = p.y + f[1] * delta;
-    if (this.footAllowed(nx, ny) || delta < 0) { p.x = nx; p.y = ny; a.lungeApplied = want; }
-  }
-
-  private showAttackFrame(): void {
-    const a = this.attack!;
-    setWarriorAttackFrame(this.player!, a.dir, a.elapsed);
-  }
-
-  private inSwing(a: Attack, tx: number, ty: number): boolean {
-    const p = this.player!;
-    return swingHits(p.x, p.y, a.dir, tx, ty);
-  }
-
-  /** Single range + facing check per target at the hit moment; at most one hit per target per attack id. */
-  private resolveHit(a: Attack): void {
-    let landed = false;
-    if (this.pvp) {
-      // PvP: broadcast the strike; each victim validates and applies it to itself. Feel only when it looks like a hit.
-      const p = this.player!;
-      this.pvp.sendStrike(a.id, a.dir, Math.round(p.x), Math.round(p.y));
-      for (const r of this.pvp.remotes.values()) if (r.alive && this.inSwing(a, r.x, r.y)) landed = true;
+  /** Start a slot now if legal (incl. hit-confirm cancel / chain continuation from the current action). */
+  tryStartSlot(i: number): boolean {
+    const s = this.kit[i];
+    if (!s || !this.rt || this.dead >= 0) return false;
+    const now = this.simMs, k = this.kin, b = this.body;
+    if (b.state !== 'free') return false;
+    if (b.hard.active(now) && b.hard.kind !== 'root') return false;
+    if (!(k.grounded ? s.ground : s.air)) return false;
+    if (s.dash && b.hard.active(now)) return false; // rooted: no dashes
+    if (this.mode === 'takeoff' && this.modeT < PHYS.takeoffMs) return false;
+    const run = this.rt.ownRun;
+    if (run && !this.cancelAllowed(run, s)) return false;
+    if (this.rt.cooldownRemaining(s.id) > 0) return false;
+    let stage = 0;
+    if (s.chain) {
+      const mid = run && run.skill.id === s.id;
+      const cont = this.chain.skill === s.id && now - this.chain.lastEnd <= s.chain.resetMs && this.chain.stage < s.chain.stages.length - 1;
+      stage = mid ? Math.min(s.chain.stages.length - 1, run!.stage + 1) : cont ? this.chain.stage + 1 : 0;
+      if (mid && run!.stage >= s.chain.stages.length - 1) return false;
     }
-    // PvE: the shared resolver with the existing basic geometry (feet range + facing dot), existing damage rules.
-    const p = this.player!, b = BASIC(), castId = `${this.localId}:b${a.id}`;
-    const pve = this.skillTargets({ own: true } as CastRun).filter((t) => t.kind === 'enemy');
-    for (const t of shapeHits(b, this.localId, p, a.dir, 1, null, pve)) {
-      const dmg = damageFor(b, 'enemy');
-      if (t.id === 'dummy' && this.lastHitAttackId !== a.id) {
-        this.lastHitAttackId = a.id;
-        this.damageDummy(dmg);
-        this.spawnImpact(D.x + D.impactOffset.x, D.y + D.impactOffset.y);
-        this.skills?.confirmHit(castId, b, this.localId, t.id, 'enemy', dmg, 0, 0);
-        landed = true;
-      } else if (t.id === 'enemy' && this.enemy?.takeHit(dmg)) {
-        this.spawnImpact(this.enemy.x, this.enemy.y + STAGE6.enemy.impactOffsetY);
-        this.skills?.confirmHit(castId, b, this.localId, t.id, 'enemy', dmg, 0, 0);
-        landed = true;
+    const target = this.resolveCast(s);
+    if (!target) return false;
+    if (run) { this.rt.cancelForFollowUp(run); this.endRun(run, true); }
+    this.startCast(s, stage, target.aim, target.place, target.lock);
+    return true;
+  }
+
+  /** Hit-confirm cancel windows (and the basic chain): only after a confirmed hit, until 70% of recovery. */
+  private cancelAllowed(run: CastRun, next: FinalSkill): boolean {
+    const s = run.skill, T = run.timings, e = run.elapsed;
+    if (s.id === next.id && s.chain) return e >= T.startup + T.active - 20;
+    if (s.slot === 7) return false; // Ultimate cannot be cancelled
+    if (run.confirmedAt < 0) return false; // whiffs get no cancel
+    if (!s.cancelOnHit.includes(next.id)) return false;
+    return e <= T.startup + T.active + 0.7 * T.recovery;
+  }
+
+  /** Aim / placement / lock-on for a cast. Null = rejected (illegal placement): no cooldown is spent. */
+  private resolveCast(s: FinalSkill): { aim: V2; place: V2 | null; lock: string | null } | null {
+    const k = this.kin, inp = this.ci!;
+    const mouse = inp.pointerActive ? { x: inp.aimX, y: inp.aimY + k.z } : { x: k.x + this.aim.x * 160, y: k.y + this.aim.y * 160 };
+    let aim = unit(mouse.x - k.x, mouse.y - k.y, FACE[this.dir].x, FACE[this.dir].y);
+    let place: V2 | null = null, lock: string | null = null;
+    if (s.targeting === 'mouseGround') {
+      place = clampPlace(k, mouse, s.placeRange ?? 260);
+      if (!placementOk(place.x, place.y)) return null;
+    }
+    if (s.targeting === 'mouseTarget') {
+      let best: HitTarget | null = null, bd = Infinity;
+      for (const t of this.targetsFor({ own: true, attackerId: this.localId } as CastRun)) {
+        if (!t.alive || t.id === this.localId) continue;
+        const vx = t.x - k.x, vy = t.y - k.y, along = vx * aim.x + vy * aim.y, lat = Math.abs(-vx * aim.y + vy * aim.x);
+        if (along < -10 || along > 320 || lat > 110) continue;
+        if (along < bd) { bd = along; best = t; }
       }
+      if (best) { lock = best.id; aim = unit(best.x - k.x, best.y - k.y, aim.x, aim.y); }
     }
-    if (landed) { // feel only: tiny hit-stop + camera shake
-      this.hitStopLeft = FEEL.hitStopMs;
-      this.cameras.main.shake(FEEL.cameraShakeMs, FEEL.cameraShakeIntensity);
+    return { aim, place, lock };
+  }
+
+  private startCast(s: FinalSkill, stage: number, aim: V2, place: V2 | null, lock: string | null): void {
+    const k = this.kin;
+    const castId = `${this.localId}:${++this.castSeq}`;
+    this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
+    this.body.armorUntil = -1;
+    this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: { x: k.x, y: k.y, z: k.z }, aim, place, lock });
+    if (s.chain) this.chain = { stage, lastEnd: Infinity, skill: s.id };
+    this.setMode('skill');
+    this.pvp?.sendCast({ castId, skillId: s.id, stage, x: Math.round(k.x), y: Math.round(k.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000), ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}), lock });
+  }
+
+  /** A run ended (finished or cancelled into a follow-up): chain bookkeeping + recovery → breathing transition. */
+  private endRun(run: CastRun, toMove: boolean): void {
+    if (!run.own) return;
+    if (run.skill.chain) this.chain = { stage: run.stage, lastEnd: this.simMs, skill: run.skill.id };
+    this.body.armorUntil = -1;
+    if (!toMove && this.kin.grounded) this.setMode('recover');
+    else if (!this.kin.grounded) this.setMode('air');
+  }
+
+  private onRunPhase(run: CastRun, phase: string): void {
+    if (run.own) {
+      if (phase === 'active' && run.skill.armor) this.body.armorUntil = this.simMs + Math.max(0, run.skill.armor[1] - run.timings.startup);
+      if (phase === 'done') this.endRun(run, false);
+      return;
+    }
+    if (phase === 'startup') this.pvp?.remotes.get(run.attackerId)?.startSkill(run.skill.id, run.stage, dirOf(run.aim.x, run.aim.y, 'down'), run.aim);
+  }
+
+  private togglePanel(k: 'K' | 'I' | 'O'): void {
+    if (k === 'K') { this.cosPanel?.close(); this.skillBook?.toggle(); }
+    else { this.skillBook?.close(); this.cosPanel?.toggle(k === 'I' ? 'inventory' : 'shop'); }
+    this.ci?.reset();
+  }
+
+  // ======================================================================= targets / hits
+
+  casterPos(id: string): V3 | null {
+    if (id === this.localId) return this.view ? { x: this.kin.x, y: this.kin.y, z: this.kin.z } : null;
+    const r = this.pvp?.remotes.get(id);
+    return r ? { x: r.x, y: r.y, z: r.z } : null;
+  }
+
+  /** Own casts test PvE entities (local authority) + remote players (prediction only); remote casts test the local player. */
+  private targetsFor(run: CastRun): HitTarget[] {
+    const out: HitTarget[] = [];
+    if (run.own) {
+      if (this.enemy) out.push(this.enemy.target());
+      if (this.dummy && this.dummyState) out.push({ id: 'dummy', kind: 'enemy', x: D.x, y: D.y, z: 0, radius: D.collisionRadius, height: 80, alive: this.dummyState.alive, controlImmune: true });
+    } else if (this.view && this.pvpReady) {
+      out.push({ id: this.localId, kind: 'player', x: this.kin.x, y: this.kin.y, z: this.kin.z, radius: R + 4, height: 74, alive: this.dead < 0 });
+    }
+    for (const r of this.pvp?.remotes.values() ?? []) if (r.meta.playerId !== run.attackerId) out.push({ id: r.meta.playerId, kind: 'player', x: r.x, y: r.y, z: r.z, radius: R + 4, height: 74, alive: r.alive });
+    return out;
+  }
+
+  private onSkillHit(run: CastRun, hit: HitEvent, hi: number, t: HitTarget, at: V3): void {
+    if (!run.own) { if (t.id === this.localId) this.applyRemoteHitToSelf(run, hit, hi, at); return; }
+    if (t.kind === 'enemy') { this.applyToPve(run, hit, t, at); return; }
+    if (run.confirmedAt < 0) run.confirmedAt = run.elapsed; // predicted contact on a remote player (their client is authority)
+  }
+
+  /** PvE authority: combat body reaction on the enemy/dummy, damage, confirmed-hit feedback. */
+  private applyToPve(run: CastRun, hit: HitEvent, t: HitTarget, at: V3): void {
+    const now = this.simMs, s = run.skill;
+    let out: HitOutcome | null = null;
+    if (t.id === 'dummy' && this.dummyState?.alive) {
+      const ds = this.dummyState;
+      out = ds.body.receive(run.attackerId, s, hit, run.origin, now);
+      ds.body.push = null; ds.kin.vz = 0; ds.kin.z = 0; ds.kin.grounded = true; ds.body.state = 'free'; // stationary target
+      this.damageDummy(out.damage);
+    } else if (t.id === 'enemy' && this.enemy?.alive) {
+      out = this.enemy.body.receive(run.attackerId, s, hit, this.casterPos(run.attackerId) ?? run.origin, now);
+      this.enemy.damage(out.damage);
+    }
+    if (!out) return;
+    this.confirm(run, hit, t.id, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!s.endsCombo, t.z);
+  }
+
+  /** Attacker-side confirmed hit (PvE immediate; PvP from the victim's confirmation). */
+  private confirm(run: CastRun | null, hit: HitEvent, target: string, at: V3, damage: number, idx: number, comboId: number, reaction: string, ends: boolean, tz: number): void {
+    const s = run?.skill;
+    if (!s) return;
+    if (run && run.confirmedAt < 0) run.confirmedAt = run.elapsed;
+    this.fx!.confirmed(s, hit, at, damage, reaction, true, idx);
+    this.combo = { count: idx, at: this.simMs, comboId, target, label: ends ? 'FINISHER' : tz > 8 || reaction === 'launch' || reaction === 'float' ? 'AIR' : '' };
+    this.confirmedLog.push({ skill: s.id, target, damage, idx, reaction, at: this.simMs, z: Math.round(tz) });
+    if (this.confirmedLog.length > 300) this.confirmedLog.shift();
+  }
+
+  /** Enemy (PvE) strike on the local player: Mirage counter first, then the usual reaction rules. */
+  private enemyStrike(dmg: number, from: { x: number; y: number }): void {
+    if (this.dead >= 0) return;
+    if (this.tryCounter(from)) return;
+    const hit: HitEvent = { at: 0, damage: dmg, shape: { kind: 'sector', range: 58, angle: 120 }, reaction: { stun: 220, push: 14 } };
+    const out = this.body.receive('enemy', ENEMY_SKILL, hit, from, this.simMs);
+    this.takeDamage(out.damage);
+    this.fx!.confirmed(ENEMY_SKILL, hit, { x: this.kin.x, y: this.kin.y, z: this.kin.z + 30 }, out.damage, out.reaction, false, out.hitIndex);
+  }
+
+  /** Mirage counter: a legal strike crossing the body during the window → sidestep + reappearing slash. */
+  private tryCounter(from: { x: number; y: number }): boolean {
+    const run = this.rt!.counterOpen(this.localId);
+    if (!run) return false;
+    const k = this.kin, c = run.skill.counter!;
+    const away = unit(k.x - from.x, k.y - from.y), side = { x: -away.y, y: away.x };
+    for (let d = c.sidestep; d > 0; d -= 4) { const nx = k.x + side.x * d, ny = k.y + side.y * d; if (footAllowed(nx, ny, k.z, R)) { k.x = nx; k.y = ny; break; } }
+    const aim = unit(from.x - k.x, from.y - k.y);
+    this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
+    this.rt!.triggerCounter(run, aim, { x: k.x, y: k.y, z: k.z });
+    this.pvp?.sendCounter({ castId: run.castId, x: Math.round(k.x), y: Math.round(k.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000) });
+    return true;
+  }
+
+  /** PvP victim authority: this client resolved a remote cast against its own body. */
+  private applyRemoteHitToSelf(run: CastRun, hit: HitEvent, hi: number, at: V3): void {
+    if (this.dead >= 0) return;
+    const s = run.skill;
+    if (hit.shape.kind !== 'placed' && hit.damage > 0 && this.tryCounter(this.casterPos(run.attackerId) ?? run.origin)) {
+      this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'countered' });
+      return;
+    }
+    const out = this.body.receive(run.attackerId, s, hit, this.casterPos(run.attackerId) ?? run.origin, this.simMs);
+    this.takeDamage(out.damage);
+    this.fx!.confirmed(s, hit, at, out.damage, out.reaction, false, out.hitIndex);
+    this.pvp?.sendHp(this.playerHP, run.attackerId, {
+      castId: run.castId, skillId: s.id, hit: hi, dmg: out.damage, idx: out.hitIndex, cid: out.comboId, rx: out.reaction, ends: out.endsCombo, vz: Math.round(this.kin.vz), z: Math.round(this.kin.z),
+    });
+    if (this.playerHP === 0) this.pvp?.sendDeath(run.attackerId);
+  }
+
+  private takeDamage(dmg: number): void {
+    if (this.dead >= 0 || dmg <= 0) return;
+    this.playerHP = Math.max(0, this.playerHP - dmg);
+    this.flash = 0;
+    if (this.playerHP === 0) this.killPlayer();
+  }
+
+  private killPlayer(): void {
+    this.rt?.cancelOwn('death');
+    this.ci?.reset();
+    this.kin.vx = 0; this.kin.vy = 0;
+    this.dead = 0;
+    this.body.state = 'dead';
+    this.setMode('dead');
+    this.hud?.banner('DEFEATED', this.pvp ? PVP.respawnMs : P6.deathFadeMs + P6.deathPauseMs);
+  }
+
+  private updateDeath(): void {
+    if (this.pvp) { if (this.dead >= PVP.respawnMs) this.respawnPvp(); return; }
+    if (this.dead >= P6.deathFadeMs + P6.deathPauseMs) {
+      this.respawnAt(WORLD.spawn.x, WORLD.spawn.y, S6.player.maxHp);
+      if (this.enemy?.alive) this.enemy.reset();
     }
   }
 
-  private spawnSlash(dir: Dir): void {
-    this.spawnSlashAt(this.player!.x, this.player!.y, dir);
+  private respawnAt(x: number, y: number, hp: number): void {
+    const k = this.kin;
+    k.x = x; k.y = y; k.z = 0; k.vx = 0; k.vy = 0; k.vz = 0; k.grounded = true; k.supportZ = 0;
+    this.body.reset();
+    this.playerHP = hp; this.dead = -1; this.flash = -1; this.setMode('idle');
+    this.ci?.reset();
   }
 
-  private spawnSlashAt(x: number, y: number, dir: Dir): void {
-    const f = FACING[dir], C = STAGE6.slash;
-    const s = this.add.image(x + f[0] * C.forward, y + f[1] * C.forward - C.up, slashKey(0))
-      .setOrigin(0.5, 0.5).setDepth(TOP_DEPTH).setAngle(C.rotationDeg[dir]);
-    s.setScale(C.displayHeight / s.height);
-    this.fx.push({ sprite: s, elapsed: 0, frameMs: 1000 / S6.fx.swordSlashFps, keys: [...Array(C.frames).keys()].map(slashKey) });
+  private respawnPvp(): void {
+    const sp = this.freeSpawnPoint();
+    this.respawnAt(sp.x, sp.y, PVP.maxHp);
+    this.pvp?.sendRespawn(sp.x, sp.y, this.playerHP);
   }
 
-  // ---------------- player damage / death ----------------
-
-  /** PvP victim-side validation of a remote strike: alive, range + facing (same Stage 5 rule), one hit per attack. */
-  private receiveStrike(from: string, id: number, ax: number, ay: number, dir: Dir): void {
-    const p = this.player;
-    if (!p || !this.pvpReady || this.playerDeadMs >= 0 || !FACING[dir]) return;
-    const key = `${from}:${id}`;
-    if (this.hitsTaken.has(key)) return;
-    const b = BASIC(), self: HitTarget = { id: this.localId, kind: 'player', x: p.x, y: p.y, radius: R, alive: true };
-    if (!shapeHits(b, from, { x: ax, y: ay }, dir, 1, null, [self]).length) return; // same resolver, same basic geometry
-    this.hitsTaken.add(key);
-    const dmg = damageFor(b, 'player');
-    this.damagePlayer(dmg);
-    this.skills?.confirmHit(`${from}:b${id}`, b, from, this.localId, 'player', dmg, 0, 0);
-    this.spawnImpact(p.x, p.y - PVP.impactUp);
-    this.pvp?.sendHp(this.playerHP, from);
-    if (this.playerHP === 0) this.pvp?.sendDeath(from);
-  }
+  // ======================================================================= PvP
 
   private startPvp(room: string, meta: { playerId: string; characterId: string; classId: string; name: string }): void {
-    const fx = {
-      slash: (x: number, y: number, dir: Dir) => this.spawnSlashAt(x, y, dir),
-      impact: (x: number, y: number) => this.spawnImpact(x, y),
-    };
     this.hud?.setStatus('CONNECTING…');
     const pvp = new PvpController(this, room, meta, {
       onJoined: () => {
         const sp = this.freeSpawnPoint();
-        this.player!.setPosition(sp.x, sp.y).setVisible(true);
-        this.shadow!.setVisible(true);
+        this.kin.x = sp.x; this.kin.y = sp.y;
+        this.view!.setVisible(true);
         this.pvpReady = true;
-        this.syncDepths();
         this.hud?.setStatus(null);
       },
       onFull: () => this.hud?.setStatus('ROOM FULL'),
       onError: () => this.hud?.setStatus('CONNECTION FAILED'),
-      onStrike: (from, id, x, y, dir) => this.receiveStrike(from, id, x, y, dir),
       onCast: (from, m) => this.receiveCast(from, m),
+      onCounter: (from, m) => {
+        const r = this.rt?.runs.find((x) => x.castId === m.castId && x.attackerId === from);
+        if (r) this.rt!.triggerCounter(r, { x: m.ax / 1000, y: m.ay / 1000 }, { x: m.x, y: m.y, z: m.z });
+      },
       onConfirmed: (victim, m) => {
-        const sk = m.castId && m.skillId ? getSkill(m.skillId) : undefined;
-        if (sk) this.skills?.confirmHit(m.castId!, sk, m.by, victim, 'player', damageFor(sk, 'player'), m.stun ?? 0, m.kb ?? 0);
-        if (sk && m.by === this.localId) this.skillHitFeel(m.castId!, damageFor(sk, 'player'), false);
+        if (m.by !== this.localId || !m.skillId || m.dmg === undefined || m.rx === 'countered') return;
+        const s = finalSkill(m.skillId);
+        if (!s) return;
+        const hits = s.chain ? s.chain.stages.flat() : s.hits;
+        const run = this.rt?.runs.find((r) => r.castId === m.castId) ?? ({ skill: s, confirmedAt: 0, elapsed: 0 } as unknown as CastRun);
+        const r = this.pvp?.remotes.get(victim);
+        const at = r ? { x: r.x, y: r.y, z: (m.z ?? r.z) + 40 } : { x: 0, y: 0, z: 0 };
+        this.confirm(run, hits[m.hit ?? 0] ?? hits[0], victim, at, m.dmg, m.idx ?? 1, m.cid ?? 0, m.rx ?? 'hit', !!m.ends, m.z ?? 0);
       },
-      onRemoteLeft: (id) => this.skills?.cancelAttacker(id),
+      onRemoteLeft: (id) => this.rt?.cancelAttacker(id),
       getLocal: () => {
-        const p = this.player;
-        if (!p || !this.pvpReady) return null;
-        const dead = this.playerDeadMs >= 0;
-        const moving = Math.hypot(this.vx, this.vy) > P6.walkThreshold;
-        const anim = dead ? 'dead' : this.attack || this.skills?.ownRun ? 'attack' : this.jump ? 'jump' : moving ? (this.running ? 'run' : 'walk') : 'idle';
-        return { x: p.x, y: p.y, dir: this.attack?.dir ?? this.dir, anim, hp: this.playerHP, alive: !dead };
+        if (!this.view || !this.pvpReady) return null;
+        const k = this.kin, dead = this.dead >= 0;
+        const cos = Object.entries(this.equipped).filter(([, v]) => v).map(([s, v]) => `${s}:${v}`).join(',');
+        return { x: k.x, y: k.y, z: k.z, sz: k.supportZ, dir: this.dir, anim: dead ? 'dead' : this.mode, mode: this.mode, sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: this.aim.x, ay: this.aim.y, hp: this.playerHP, alive: !dead, cos };
       },
-    }, fx);
+    });
     this.pvp = pvp;
     void pvp.join();
   }
 
-  /** Random safe spawn point that is not near another player; the least crowded one if all are occupied. */
+  /** Remote cast intent: validated (class, cooldown, origin near the caster, legal placement), then simulated here. */
+  private receiveCast(from: string, m: Extract<NetMsg, { t: 'cast' }>): void {
+    const r = this.pvp?.remotes.get(from), s = finalSkill(m.skillId);
+    if (!r || !r.alive || !s || s.cls !== r.meta.classId || this.seenCasts.has(m.castId)) return;
+    const key = `${from}:${s.id}`, last = this.remoteCasts.get(key);
+    if (s.cooldown > 0 && last !== undefined && this.simMs - last < s.cooldown - CAST_COOLDOWN_TOLERANCE_MS) return;
+    if (Math.hypot(m.x - r.x, m.y - r.y) > CAST_ORIGIN_TOLERANCE_PX) return;
+    let place: V2 | null = null;
+    if (s.targeting === 'mouseGround') {
+      if (m.px === undefined || m.py === undefined) return;
+      place = { x: m.px, y: m.py };
+      if (Math.hypot(place.x - m.x, place.y - m.y) > (s.placeRange ?? 260) + 2 || !placementOk(place.x, place.y)) return;
+    }
+    this.seenCasts.add(m.castId);
+    this.remoteCasts.set(key, this.simMs);
+    this.rt?.start({ castId: m.castId, skill: s, stage: Math.max(0, Math.min(2, m.stage ?? 0)), attackerId: from, own: false, origin: { x: m.x, y: m.y, z: m.z ?? 0 }, aim: unit(m.ax, m.ay), place, lock: m.lock ?? null });
+  }
+
   private freeSpawnPoint(): { x: number; y: number } {
     const others = [...(this.pvp?.remotes.values() ?? [])].filter((r) => r.alive).map((r) => ({ x: r.x, y: r.y }));
-    const pts = PVP.spawnPoints.filter((s) => footAllowedStatic(s.x, s.y, R));
+    const pts = PVP.spawnPoints.filter((s) => footAllowed(s.x, s.y, 0, R));
     const clearance = (s: { x: number; y: number }) => Math.min(Infinity, ...others.map((o) => Math.hypot(o.x - s.x, o.y - s.y)));
     const free = pts.filter((s) => clearance(s) >= PVP.spawnClearRadius);
     if (free.length) return free[Math.floor(Math.random() * free.length)];
     return pts.reduce((best, s) => (clearance(s) > clearance(best) ? s : best), pts[0]);
   }
 
-  // ---------------- HUD adapter (reads existing state only; no gameplay) ----------------
+  // ======================================================================= cosmetics
+
+  private loadCosmetics(): void { this.setEquipped(CharacterStore.getCosmetics(this.character!.id).equipped as Equipped, false); }
+
+  setEquipped(e: Equipped, save = true): void {
+    this.equipped = { ...e };
+    this.view?.setEquipped(this.equipped);
+    this.skillBook?.setEquipped(this.equipped);
+    if (save && this.character) {
+      const c = CharacterStore.getCosmetics(this.character.id);
+      CharacterStore.setCosmetics(this.character.id, { owned: c.owned, equipped: this.equipped as Record<string, string> });
+    }
+    this.pvp?.forceState();
+  }
+
+  get equippedItems(): Equipped { return this.equipped; }
+
+  // ======================================================================= HUD
 
   private hudState(): HudState {
-    const p = this.player!, ch = this.character!, now = this.simMs;
-    const alive = this.playerDeadMs < 0;
-    const pvp = this.pvp;
+    const ch = this.character!, now = this.simMs, k = this.kin;
+    const alive = this.dead < 0, pvp = this.pvp;
     const markers: HudMarker[] = [];
-    if (this.pvpReady) markers.push({ id: 'local', kind: 'player', x: p.x, y: p.y });
+    if (this.pvpReady) markers.push({ id: 'local', kind: 'player', x: k.x, y: k.y });
     for (const r of pvp?.remotes.values() ?? []) if (r.alive) markers.push({ id: r.meta.playerId, kind: 'remote', x: r.x, y: r.y });
     if (this.enemy?.alive) markers.push({ id: 'enemy', kind: 'enemy', x: this.enemy.x, y: this.enemy.y });
-
     const busy = this.busy();
     const slots: HudSlot[] = HUD.skills.hotkeys.map((hotkey, i) => {
-      const s = this.slotDefs[i];
-      if (!s) return { id: `slot-${hotkey}`, hotkey, label: 'Unassigned', iconUrl: UNASSIGNED_ICON, assigned: false, enabled: false, pressed: false, cooldown: null };
-      let cooldown: HudSlot['cooldown'] = null; // real cooldowns only
-      if (s.adapter) { if (this.sinceAttackStart < A.cooldownMs) cooldown = { endTimeMs: now + (A.cooldownMs - this.sinceAttackStart), durationMs: A.cooldownMs }; }
-      else { const rem = this.skills?.cooldownRemaining(s.id) ?? 0; if (rem > 0) cooldown = { endTimeMs: now + rem, durationMs: s.cooldownMs }; }
+      const s = this.kit[i];
+      if (!s) return { id: `slot-${hotkey}`, hotkey, label: 'Unassigned', assigned: false, enabled: false, pressed: false, cooldown: null };
+      const rem = this.rt?.cooldownRemaining(s.id) ?? 0;
+      const airBlocked = !k.grounded && !s.air;
       return {
-        id: s.id, hotkey, label: skillLabel(s.id), iconUrl: s.icon, assigned: true, enabled: alive && this.pvpReady, busy,
-        pressed: !!this.keys?.[SLOT_KEYS[i]].isDown, cooldown,
+        id: s.id, hotkey, label: s.name, iconUrl: iconUrl(s), assigned: true, enabled: alive && this.pvpReady && !airBlocked, busy,
+        pressed: false, cooldown: rem > 0 ? { endTimeMs: now + rem, durationMs: s.cooldown } : null, tier: s.slot === 7 ? 'ultimate' : s.slot === 6 ? 'signature' : undefined,
       };
     });
-
+    const showCombo = now - this.combo.at <= COMBO_SHOW_MS && this.combo.count >= 2;
     return {
       mode: pvp ? 'pvp' : 'pve',
       player: {
         id: pvp?.meta.playerId ?? ch.id, name: ch.name, level: ch.level, portrait: portraitOf(ch.classId, ch.appearanceId ?? `${ch.classId}_default`),
-        hp: this.playerHP, maxHp: pvp ? PVP.maxHp : S6.player.maxHp, resource: null, effects: [],
+        hp: this.playerHP, maxHp: pvp ? PVP.maxHp : S6.player.maxHp, resource: null, effects: this.statusEffects(this.body, now),
       },
       target: alive && this.pvpReady ? this.hudTarget() : null,
       slots,
-      minimap: {
-        label: WORLD.name, imageUrl: T.map.file, markers,
-        bounds: { minX: 0, minY: 0, width: WORLD.coordinateSpace.width, height: WORLD.coordinateSpace.height },
-      },
+      minimap: { label: WORLD.name, imageUrl: ATLAS.textures.map.file, markers, bounds: { minX: 0, minY: 0, width: WORLD.coordinateSpace.width, height: WORLD.coordinateSpace.height } },
       room: pvp ? { label: `ROOM ${pvp.room}`, playerCount: pvp.connected ? pvp.remotes.size + 1 : 0, maxPlayers: PVP.maxPlayers } : null,
-      combatFeedback: null,
+      combatFeedback: showCombo ? { count: this.combo.count, chain: this.combo.label || undefined, expiresAtMs: this.combo.at + COMBO_SHOW_MS } : null,
     };
   }
 
-  /** Contextual target: nearest living hostile within HUD.targetRadius of the player (display only). */
+  /** Small status icons, only when meaningful: hard CC, launched, knockdown. */
+  private statusEffects(b: CombatBody, now: number): HudEffect[] {
+    const out: HudEffect[] = [], U = 'assets/final/ui/hud';
+    if (b.hard.active(now)) out.push({ id: 'cc', label: b.hard.kind === 'root' ? 'Rooted' : b.hard.kind === 'freeze' ? 'Frozen' : 'Stunned', iconUrl: `${U}/${b.hard.kind === 'root' ? 'status_root' : 'status_hard_cc'}.png`, harmful: true });
+    if (b.state === 'launched') out.push({ id: 'air', label: 'Launched', iconUrl: `${U}/status_launch.png`, harmful: true });
+    if (b.state === 'knockdown' || b.state === 'getup') out.push({ id: 'kd', label: 'Knocked down', iconUrl: `${U}/status_knockdown.png`, harmful: true });
+    return out;
+  }
+
   private hudTarget(): HudState['target'] {
-    const p = this.player!;
+    const k = this.kin, now = this.simMs;
     let best: HudState['target'] = null, bestD: number = HUD.targetRadius;
     const consider = (d: number, t: NonNullable<HudState['target']>) => { if (d <= bestD) { bestD = d; best = t; } };
     const e = this.enemy;
-    if (e?.alive) consider(Math.hypot(e.x - p.x, e.y - p.y), { id: 'enemy', name: 'Cursed Swordsman', type: 'Enemy', hp: e.hp, maxHp: S6.enemy.maxHp, effects: [] });
-    if (this.dummy && this.dummyAlive) consider(Math.hypot(D.x - p.x, D.y - p.y), { id: 'dummy', name: 'Training Dummy', type: 'Training Target', hp: this.dummyHp, maxHp: D.maxHp, effects: [] });
+    if (e?.alive) consider(Math.hypot(e.x - k.x, e.y - k.y), { id: 'enemy', name: 'Cursed Swordsman', type: 'Enemy', hp: e.hp, maxHp: S6.enemy.maxHp, effects: this.statusEffects(e.body, now) });
+    if (this.dummy && this.dummyState?.alive) consider(Math.hypot(D.x - k.x, D.y - k.y), { id: 'dummy', name: 'Training Dummy', type: 'Training Target', hp: this.dummyState.hp, maxHp: D.maxHp, effects: [] });
     for (const r of this.pvp?.remotes.values() ?? []) {
       if (!r.alive) continue;
-      consider(Math.hypot(r.x - p.x, r.y - p.y), {
+      const eff: HudEffect[] = [];
+      if (r.mode === 'launched') eff.push({ id: 'air', label: 'Launched', iconUrl: 'assets/final/ui/hud/status_launch.png', harmful: true });
+      if (r.mode === 'down' || r.mode === 'getup') eff.push({ id: 'kd', label: 'Knocked down', iconUrl: 'assets/final/ui/hud/status_knockdown.png', harmful: true });
+      consider(Math.hypot(r.x - k.x, r.y - k.y), {
         id: r.meta.playerId, name: r.meta.name, type: `Player · ${CLASS_NAMES[r.meta.classId] ?? r.meta.classId}`,
-        portrait: portraitOf(r.meta.classId, `${r.meta.classId}_default`), hp: r.hp, maxHp: PVP.maxHp, effects: [],
+        portrait: portraitOf(r.meta.classId, `${r.meta.classId}_default`), hp: r.hp, maxHp: PVP.maxHp, effects: eff,
       });
     }
     return best;
   }
 
-  // ---------------- Skill System V1: input, CombatAdapter (PvE local authority / PvP victim authority) ----------------
+  // ======================================================================= dummy
 
-  private busy(): boolean { return !!this.attack || !!this.skills?.locked() || this.control.controlled(this.simMs) || this.playerDeadMs >= 0; }
-
-  /** Space / 1–7 and HUD clicks share this handler. */
-  private useSlot(i: number): void {
-    if (!this.player || !this.pvpReady || this.playerDeadMs >= 0 || this.jump) return; // no skills in the air
-    const s = this.slotDefs[i];
-    if (!s) return; // unassigned / disabled slots (4–7)
-    if (s.adapter === 'warriorBasic') { this.beginAttack(); return; } // existing basic, unchanged
-    this.tryCast(s);
-  }
-
-  /** Validate (alive/class/slot/cooldown/action lock/control) -> unique castId -> snapshot -> cooldown starts. */
-  private tryCast(s: SkillDef): void {
-    const sys = this.skills, p = this.player!;
-    if (!sys || this.busy() || sys.cooldownRemaining(s.id) > 0) return;
-    const origin = { x: p.x, y: p.y }, dir = this.dir;
-    let place: { x: number; y: number } | null = null;
-    if (s.geometry.kind === 'groundCircle') {
-      place = runePlacement(s, origin, dir, this.selectedTargetPos());
-      if (!place) return; // blocked point: rejected, no cooldown
-    }
-    const castId = `${this.localId}:${++this.castSeq}`;
-    this.vx = 0; this.vy = 0; this.hadInput = false;
-    sys.start({ castId, skill: s, attackerId: this.localId, own: true, origin, dir, place });
-    this.pvp?.sendCast(castId, s.id, origin.x, origin.y, dir, place);
-  }
-
-  /** Own cast/active: no movement or turning; Warrior reuses attack frames by phase, Mage keeps its pose; dash moves. */
-  private updateOwnCast(run: CastRun): void {
-    const p = this.player!, s = run.skill;
-    this.vx = 0; this.vy = 0; this.hadInput = false; this.dir = run.dir;
-    if (s.geometry.kind === 'sweptCapsule' && run.phase === 'active') {
-      const e = dashEnd(s, run.origin, run.dir, (run.elapsed - s.castMs) / s.activeMs);
-      p.setPosition(e.x, e.y);
-    }
-    if (this.atlasClass) { setAtlasSkillPose(p, this.atlasClass, s.id, run.dir, run.elapsed, s.castMs, s.detachedActive ? 0 : s.activeMs, s.actionLockMs); return; }
-    if (applySkillAnimation(p, s.id, run.dir, run.elapsed)) return; // body animation (cosmetic; frame 3 = active start)
-    if (this.isMage) this.setIdle();
-    else setWarriorAttackPhase(p, run.dir, skillPoseIndex(run.elapsed, s.castMs, s.activeMs));
-  }
-
-  private onSkillPhase(run: CastRun, phase: string): void {
-    const s = run.skill;
-    if (run.own) {
-      const p = this.player!;
-      if (phase === 'recovery' && s.geometry.kind === 'sweptCapsule') {
-        // Dash ends at the swept end point; never inside a body (step back along the path).
-        const e = dashEnd(s, run.origin, run.dir, 1), f = FACING[run.dir];
-        let x = e.x, y = e.y, back = 0;
-        while (!this.footAllowed(x, y) && back < (s.geometry.travelDistance ?? s.range)) { x -= f[0] * 2; y -= f[1] * 2; back += 2; }
-        p.setPosition(x, y);
-      }
-      return;
-    }
-    if (phase === 'cast') {
-      const detached = !!s.detachedActive;
-      this.pvp?.remotes.get(run.attackerId)?.startSkill(s.id, run.dir, s.castMs, detached ? 0 : s.activeMs, detached ? s.actionLockMs : s.castMs + s.activeMs + s.recoveryMs);
-    }
-  }
-
-  /** Targets this client may test: own casts -> PvE entities (local authority); remote casts -> the local player. */
-  private skillTargets(run: CastRun): HitTarget[] {
-    const out: HitTarget[] = [];
-    const p = this.player;
-    if (run.own) {
-      const e = this.enemy;
-      if (e) out.push({ id: 'enemy', kind: 'enemy', x: e.x, y: e.y, radius: STAGE6.enemy.collisionRadius, alive: e.alive });
-      if (this.dummy) out.push({ id: 'dummy', kind: 'enemy', x: D.x, y: D.y, radius: D.collisionRadius, alive: this.dummyAlive, controlImmune: true });
-    } else if (p && this.pvpReady) {
-      out.push({ id: this.localId, kind: 'player', x: p.x, y: p.y, radius: R, alive: this.playerDeadMs < 0 });
-    }
-    // Other players: their own clients are the authority; here they only stop projectiles (cosmetic).
-    for (const r of this.pvp?.remotes.values() ?? []) out.push({ id: r.meta.playerId, kind: 'player', x: r.x, y: r.y, radius: R, alive: r.alive });
-    return out;
-  }
-
-  private onSkillHit(run: CastRun, t: HitTarget): void {
-    if (!run.own && t.id === this.localId) { this.applySkillToSelf(run); return; }
-    if (run.own && t.kind === 'enemy') this.applySkillToEnemy(run, t);
-    // Remote players: resolved and confirmed by their own client (existing PvP authority).
-  }
-
-  /** PvE local authority: damage first, then permitted stun/knockback/launch (none on a lethal hit). */
-  private applySkillToEnemy(run: CastRun, t: HitTarget): void {
-    const s = run.skill, dmg = damageFor(s, 'enemy');
-    if (t.id === 'dummy') {
-      if (!this.dummyAlive) return;
-      this.damageDummy(dmg); // existing dummy damage rules; stationary target (control immune)
-      this.skills?.vfx.impact(D.x + D.impactOffset.x, D.y + D.impactOffset.y);
-      this.skills?.confirmHit(run.castId, s, run.attackerId, t.id, 'enemy', dmg, 0, 0);
-      this.skillHitFeel(run.castId, dmg, true);
-      return;
-    }
-    const e = this.enemy;
-    if (!e || !e.takeHit(dmg)) return;
-    this.skills?.vfx.impact(e.x, e.y + STAGE6.enemy.impactOffsetY);
-    let stun = 0, kb = 0;
-    if (e.alive) {
-      const c = e.control.apply(s, 'enemy', this.simMs);
-      const d = knockbackDir(run.origin, e, run.dir);
-      e.applyControl(c.durationMs, d.x * c.knockbackDistance, d.y * c.knockbackDistance, c.knockbackDistance > 0 ? c.knockbackMs : 0,
-        c.durationMs > 0 ? s.launch.heightPx : 0, s.launch.durationMs, this.simMs);
-      stun = c.durationMs; kb = c.knockbackDistance;
-    }
-    this.skills?.confirmHit(run.castId, s, run.attackerId, t.id, 'enemy', dmg, stun, kb);
-    this.skillHitFeel(run.castId, dmg, true);
-  }
-
-  /** Own confirmed skill hit: a short camera shake scaled by damage; tiny hit-stop in PvE only. Once per cast. */
-  private skillHitFeel(castId: string, dmg: number, pve: boolean): void {
-    if (this.hitShakeCast === castId) return;
-    this.hitShakeCast = castId;
-    const k = Phaser.Math.Clamp(dmg / 56, 0.25, 1);
-    this.cameras.main.shake(60 + 50 * k, 0.0012 + 0.0022 * k);
-    if (pve && !this.pvp) this.hitStopLeft = Math.max(this.hitStopLeft, Math.round(18 + 16 * k));
-  }
-
-  /** PvP victim authority (existing model): this client resolved the remote cast against itself. */
-  private applySkillToSelf(run: CastRun): void {
-    const p = this.player!, s = run.skill;
-    if (this.playerDeadMs >= 0) return;
-    const dmg = damageFor(s, 'player');
-    this.damagePlayer(dmg);
-    this.skills?.vfx.impact(p.x, p.y - PVP.impactUp);
-    this.cameras.main.shake(70, 0.0016); // being hit: brief, lighter than dealing a hit
-    let c = { durationMs: 0, knockbackDistance: 0, knockbackMs: 0 };
-    if (this.playerHP > 0) {
-      c = this.control.apply(s, 'player', this.simMs); // DR + immunity, shared across all attackers
-      if (c.durationMs > 0) {
-        this.skills?.cancelOwn(this.localId, 'control'); // interrupts pending cast/active; projectiles continue
-        this.cancelAttack();
-        this.vx = 0; this.vy = 0;
-        if (c.knockbackDistance > 0 && c.knockbackMs > 0) {
-          const d = knockbackDir(run.origin, p, run.dir);
-          this.selfKb = { vx: (d.x * c.knockbackDistance) / c.knockbackMs, vy: (d.y * c.knockbackDistance) / c.knockbackMs, left: c.knockbackMs };
-        }
-      }
-    }
-    this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, stun: c.durationMs, kb: c.knockbackDistance });
-    if (this.playerHP === 0) this.pvp?.sendDeath(run.attackerId);
-    this.skills?.confirmHit(run.castId, s, run.attackerId, this.localId, 'player', dmg, c.durationMs, c.knockbackDistance);
-  }
-
-  /** Remote cast intent: validated here (class, cooldown, origin near the caster, legal rune point), then simulated. */
-  private receiveCast(from: string, m: { castId: string; skillId: string; x: number; y: number; dir: string; px?: number; py?: number }): void {
-    const r = this.pvp?.remotes.get(from), s = getSkill(m.skillId), dir = m.dir as Dir;
-    if (!r || !r.alive || !s || s.adapter || s.class !== r.meta.classId || !FACING[dir] || this.seenCasts.has(m.castId)) return;
-    const key = `${from}:${s.id}`, last = this.remoteCasts.get(key);
-    if (last !== undefined && this.simMs - last < s.cooldownMs - CAST_COOLDOWN_TOLERANCE_MS) return;
-    if (Math.hypot(m.x - r.x, m.y - r.y) > CAST_ORIGIN_TOLERANCE_PX) return;
-    const origin = { x: m.x, y: m.y };
-    let place: { x: number; y: number } | null = null;
-    if (s.geometry.kind === 'groundCircle') {
-      if (m.px === undefined || m.py === undefined) return;
-      place = { x: m.px, y: m.py };
-      if (!placementLegal(s, origin, place)) return;
-    }
-    this.seenCasts.add(m.castId);
-    this.remoteCasts.set(key, this.simMs);
-    this.skills?.start({ castId: m.castId, skill: s, attackerId: from, own: false, origin, dir, place });
-  }
-
-  private casterPos(id: string): { x: number; y: number } | null {
-    if (id === this.localId) return this.player ? { x: this.player.x, y: this.player.y } : null;
-    const r = this.pvp?.remotes.get(id);
-    return r ? { x: r.x, y: r.y } : null;
-  }
-
-  /** Binding Rune "selected target": the HUD's contextual target (no new targeting system). */
-  private selectedTargetPos(): { x: number; y: number } | null {
-    const t = this.hudTarget();
-    if (!t) return null;
-    if (t.id === 'enemy' && this.enemy) return { x: this.enemy.x, y: this.enemy.y };
-    if (t.id === 'dummy') return { x: D.x, y: D.y };
-    const r = this.pvp?.remotes.get(t.id);
-    return r ? { x: r.x, y: r.y } : null;
-  }
-
-  /** Knockback on the local player: swept world-plane displacement, stops at blockers. */
-  private updateSelfKnockback(ms: number): void {
-    const k = this.selfKb, p = this.player;
-    if (!k || !p) return;
-    const dt = Math.min(ms, k.left);
-    k.left -= dt;
-    const dx = k.vx * dt, dy = k.vy * dt, n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 2));
-    for (let i = 0; i < n; i++) {
-      const nx = p.x + dx / n, ny = p.y + dy / n;
-      if (!this.footAllowed(nx, ny)) { this.selfKb = null; return; }
-      p.x = nx; p.y = ny;
-    }
-    if (k.left <= 0) this.selfKb = null;
-  }
-
-  /** Existing training-dummy damage rules (shared by the basic attack and skills). */
   private damageDummy(dmg: number): void {
-    this.dummyHp = Math.max(0, this.dummyHp - dmg);
-    this.flashLeft = D.hitFlashMs;
+    const ds = this.dummyState!;
+    ds.hp = Math.max(0, ds.hp - dmg);
+    ds.flash = D.hitFlashMs;
     this.dummy!.setTintFill(0xffffff);
-    if (this.dummyHp === 0) { this.dummyAlive = false; this.dummy!.setVisible(false); this.respawnLeft = D.respawnDelayMs; }
+    if (ds.hp === 0) { ds.alive = false; this.dummy!.setVisible(false); ds.respawn = D.respawnDelayMs; }
     this.drawDummyBar();
   }
 
-  private damagePlayer(dmg: number): void {
-    if (this.playerDeadMs >= 0) return;
-    this.playerHP = Math.max(0, this.playerHP - dmg);
-    this.playerFlashMs = 0;
-    this.player!.setTintFill(0xffffff);
-    if (this.playerHP === 0) this.killPlayer();
-  }
-
-  private updatePlayerFlash(ms: number): void {
-    if (this.playerFlashMs < 0 || this.playerDeadMs >= 0) return;
-    this.playerFlashMs += ms;
-    const p = this.player!;
-    if (this.playerFlashMs >= P6.hitFlashRedMs) { p.clearTint(); this.playerFlashMs = -1; }
-    else if (this.playerFlashMs >= P6.hitFlashWhiteMs) p.setTint(0xff6a6a);
-  }
-
-  private killPlayer(): void {
-    this.cancelAttack();
-    this.skills?.cancelOwn(this.localId, 'death'); // owner casts + projectiles end with the owner
-    this.selfKb = null;
-    this.keys && this.input.keyboard!.resetKeys();
-    this.vx = 0; this.vy = 0; this.hadInput = false;
-    this.playerDeadMs = 0;
-    this.player!.setTint(0xff4a4a);
-  }
-
-  private respawnPvp(): void {
-    const p = this.player!, sp = this.freeSpawnPoint();
-    p.setPosition(sp.x, sp.y).setAlpha(1).clearTint();
-    this.shadow?.setAlpha(1);
-    this.playerHP = PVP.maxHp; this.playerDeadMs = -1; this.playerFlashMs = -1; this.control.reset();
-    this.input.keyboard?.resetKeys(); this.vx = 0; this.vy = 0; this.hadInput = false; // no input carried over from death
-    this.setIdle();
-    this.pvp?.sendRespawn(p.x, p.y, this.playerHP);
-  }
-
-  private updateDeath(ms: number): void {
-    const p = this.player!;
-    this.playerDeadMs += ms;
-    const t = Math.min(1, this.playerDeadMs / P6.deathFadeMs);
-    p.setAlpha(1 - (1 - P6.deathAlpha) * t);
-    this.shadow?.setAlpha(1 - t);
-    if (this.atlasClass) setAtlasDeath(p, this.atlasClass, this.dir, this.playerDeadMs, P6.deathFadeMs); // death frames, then hold
-    if (this.pvp) { if (this.playerDeadMs >= PVP.respawnMs) this.respawnPvp(); return; }
-    if (this.playerDeadMs >= P6.deathFadeMs + P6.deathPauseMs) {
-      // Reset to courtyard spawn with full HP (no game-over screen in this stage).
-      p.setPosition(WORLD.spawn.x, WORLD.spawn.y).setAlpha(1).clearTint();
-      this.shadow?.setAlpha(1);
-      this.playerHP = S6.player.maxHp; this.playerDeadMs = -1; this.playerFlashMs = -1;
-      this.dir = ATLAS.initialDirection as Dir;
-      this.setIdle();
-      this.enemy?.alive && this.enemy.reset(); // the enemy returns to its post
-    }
-  }
-
-  // ---------------- dummy + effects ----------------
-
   private updateDummy(ms: number): void {
-    if (!this.dummy) return; // PvP has no training dummy
-    if (this.flashLeft > 0) {
-      this.flashLeft -= ms;
-      if (this.flashLeft <= 0) this.dummy?.clearTint();
-    }
-    if (!this.dummyAlive) {
-      this.respawnLeft -= ms;
-      if (this.respawnLeft <= 0) {
-        const p = this.player!;
-        const overlaps = D.deferRespawnIfPlayerOverlaps && Math.hypot(p.x - D.x, p.y - D.y) < D.collisionRadius + D.playerFootRadius;
-        if (!overlaps) {
-          this.dummyHp = D.maxHp; this.dummyAlive = true;
-          this.dummy!.clearTint().setVisible(true);
-          this.drawDummyBar();
-        }
+    const ds = this.dummyState;
+    if (!this.dummy || !ds) return;
+    if (ds.flash > 0) { ds.flash -= ms; if (ds.flash <= 0) this.dummy.clearTint(); }
+    if (!ds.alive) {
+      ds.respawn -= ms;
+      if (ds.respawn <= 0 && !(Math.hypot(this.kin.x - D.x, this.kin.y - D.y) < D.collisionRadius + D.playerFootRadius)) {
+        ds.hp = D.maxHp; ds.alive = true; ds.body.reset();
+        this.dummy.clearTint().setVisible(true);
+        this.drawDummyBar();
       }
     }
   }
 
   private drawDummyBar(): void {
-    const g = this.dummyBar!;
+    const g = this.dummyBar!, ds = this.dummyState!;
     g.clear();
-    if (!this.dummyAlive) return;
+    if (!ds.alive) return;
     const h = D.healthBar, bx = D.x - h.width / 2, by = D.y + h.offsetY;
     const col = (s: string) => Phaser.Display.Color.HexStringToColor(s).color;
     g.fillStyle(col(h.background), 1).fillRect(bx, by, h.width, h.height);
-    g.fillStyle(col(h.fill), 1).fillRect(bx, by, (h.width * this.dummyHp) / D.maxHp, h.height);
+    g.fillStyle(col(h.fill), 1).fillRect(bx, by, (h.width * ds.hp) / D.maxHp, h.height);
     g.lineStyle(1, col(h.border), 1).strokeRect(bx, by, h.width, h.height);
   }
 
-  private spawnImpact(x: number, y: number): void {
-    const s = this.add.sprite(x, y, CT.impact.key, COMBAT_ASSETS.impactFrames[0])
-      .setOrigin(CT.impact.origin.x, CT.impact.origin.y).setDepth(TOP_DEPTH + 1);
-    s.setScale(CT.impact.displayHeight / CT.impact.frameHeight);
-    this.impacts.push({ sprite: s, elapsed: 0 });
-  }
-
-  private updateImpacts(ms: number): void {
-    const frames = COMBAT_ASSETS.impactFrames, step = COMBAT_ASSETS.impactFrameDurationMs;
-    this.impacts = this.impacts.filter((i) => {
-      i.elapsed += ms;
-      const idx = Math.floor(i.elapsed / step);
-      if (idx >= frames.length) { i.sprite.destroy(); return false; } // single play, never loops
-      i.sprite.setFrame(frames[idx]);
-      return true;
-    });
-  }
-
-  /** Slash + dust: single-play image sequences, destroyed at the end. */
-  private updateFx(ms: number): void {
-    this.fx = this.fx.filter((f) => {
-      f.elapsed += ms;
-      const idx = Math.floor(f.elapsed / f.frameMs);
-      if (idx >= f.keys.length) { f.sprite.destroy(); return false; }
-      f.sprite.setTexture(f.keys[idx]);
-      return true;
-    });
-  }
+  /** QA helpers. */
+  qaLegal(x: number, y: number): boolean { return insideArena(x, y, R); }
+  qaDepth(x: number, y: number, z: number): number { return actorDepth(x, y, z); }
 }
