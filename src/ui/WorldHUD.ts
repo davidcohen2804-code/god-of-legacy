@@ -258,7 +258,7 @@ export class WorldHUD {
     } else this.effects(this.els.tFx, [], H.target.effectIcon, now, 'tFx');
 
     // Slots
-    s.slots.slice(0, 8).forEach((sl, i) => this.renderSlot(this.slots[i], sl, now));
+    s.slots.slice(0, this.slots.length).forEach((sl, i) => this.renderSlot(this.slots[i], sl, now));
 
     // Minimap (markers ~10Hz)
     this.sinceMarkers += ms;

@@ -9,7 +9,7 @@ const base = { pvpMultiplier: PVP_MULT, pveMultiplier: 1, cancelOnHit: [] as str
 const CORE = (ids: string[]) => ids;
 
 /** Unlock levels (11_SKILL_BOOK_PROGRESSION_SPEC.md). */
-export const UNLOCK = [1, 2, 4, 6, 9, 12, 16, 20];
+export const UNLOCK = [1, 2, 4, 6, 9, 12, 16, 20, 3, 5, 8, 10, 14, 18];
 
 function S(s: Omit<FinalSkill, 'pvpMultiplier' | 'pveMultiplier' | 'unlockLevel' | 'tags' | 'cancelOnHit'> & { tags?: string[]; cancelOnHit?: string[] }): FinalSkill {
   return { ...base, ...s, tags: s.tags ?? [], cancelOnHit: s.cancelOnHit ?? [], unlockLevel: UNLOCK[s.slot] };
@@ -42,7 +42,7 @@ const warrior: FinalSkill[] = [
     hits: [0, 50, 100].map((t, i) => H(t, i === 2 ? 10 : 7, { kind: 'capsule', radius: 32 }, { stun: 240, push: i === 2 ? 10 : 2, float: true, juggleCost: 4 }, { reachUp: 90 })),
     cancelOnHit: CORE(['rising_slash', 'whirlwind', 'shield_slam', 'warrior_basic', 'blade_storm', 'titans_verdict']),
     telegraph: 'line',
-    description: 'Charge up to 180px toward the cursor; stops on cover. A confirmed hit can cancel into Rising Slash, Whirlwind or Shield Slam.',
+    description: 'Charge up to 180px in the facing direction; stops on cover. A confirmed hit can cancel into Rising Slash, Whirlwind or Shield Slam.',
     relations: ['Opener', 'Cancel → Rising Slash'],
   }),
   S({
@@ -101,6 +101,58 @@ const warrior: FinalSkill[] = [
     description: 'Sword lifted, ground-crack telegraph, overhead impact. Heavy knockdown; ends the combo.',
     relations: ['Ultimate', 'Ends combo'],
   }),
+  // ---- extended kit (Q R F G C V)
+  S({
+    id: 'leap_crash', cls: 'warrior', slot: 8, name: 'Leap Crash', roles: ['gapClose', 'knockdown'], targeting: 'mouseTarget',
+    startup: 120, active: 300, recovery: 220, cooldown: 6500, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    dash: { distance: 210, lift: 120, crash: true },
+    hits: [H(285, 24, { kind: 'circle', radius: 120 }, { stun: 300, slam: true, launch: 95, juggleCost: 25 }, { reachUp: 150, heavy: true })],
+    cancelOnHit: ['whirlwind', 'warrior_basic', 'rising_slash', 'blade_storm', 'lance_thrust', 'iron_grip'], telegraph: 'circle',
+    description: 'Leap up to 210px onto the target and crash down: airborne targets are slammed into a bounce, grounded targets are popped up.',
+    relations: ['Gap close', 'Pop-up → air chase'],
+  }),
+  S({
+    id: 'wave_slash', cls: 'warrior', slot: 9, name: 'Wave Slash', roles: ['projectile', 'precision'], targeting: 'mouseProjectile',
+    startup: 140, active: 0, recovery: 170, cooldown: 4500, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(0, 20, { kind: 'projectile', speed: 760, range: 420, radius: 22, pierce: true }, { stun: 260, push: 14, float: true, juggleCost: 10 }, { reachUp: 120 })],
+    cancelOnHit: ['dash_slash', 'leap_crash', 'lance_thrust'],
+    description: 'A crescent shockwave that skims the ground and pierces every target in its path.',
+    relations: ['Ranged check', 'Pierces'],
+  }),
+  S({
+    id: 'iron_grip', cls: 'warrior', slot: 10, name: 'Iron Grip', roles: ['setup', 'knockdown'], targeting: 'mouseCone',
+    startup: 100, active: 260, recovery: 240, cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 10, { kind: 'sector', range: 74, angle: 90 }, { stun: 500, pull: 30, launch: 70, juggleCost: 15 }, { reachUp: 110 }),
+      H(200, 22, { kind: 'circle', radius: 96 }, { stun: 320, slam: true, push: 10 }, { reachUp: 160, heavy: true })],
+    cancelOnHit: ['warrior_basic', 'whirlwind', 'ground_breaker', 'lance_thrust', 'wave_slash'],
+    description: 'Seize the target, hoist it and smash it into the floor. The slam bounces it for an on-the-ground follow-up.',
+    relations: ['Grab', 'Ground bounce → OTG'],
+  }),
+  S({
+    id: 'lance_thrust', cls: 'warrior', slot: 11, name: 'Lance Thrust', roles: ['extender', 'peel'], targeting: 'mouseDir',
+    startup: 110, active: 320, recovery: 200, cooldown: 5500, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [0, 60, 120, 180, 260].map((t, i) => H(t, i === 4 ? 12 : 5, { kind: 'line', length: 150, width: 46 }, i === 4 ? { stun: 300, push: 44, juggleCost: 8 } : { stun: 240, push: 6, float: true, juggleCost: 3 }, { reachUp: 140, heavy: i === 4 })),
+    cancelOnHit: ['rising_slash', 'leap_crash', 'blade_storm', 'titans_verdict', 'wave_slash'],
+    description: 'Five lightning thrusts that drive the target back; the last one blasts it away.',
+    relations: ['Extender', 'Carry'],
+  }),
+  S({
+    id: 'war_cry', cls: 'warrior', slot: 12, name: 'War Cry', roles: ['setup', 'pull'], targeting: 'self',
+    startup: 180, active: 140, recovery: 200, cooldown: 20000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 4, { kind: 'circle', radius: 150 }, { stun: 360, pull: 28 }, { reachUp: 120 })],
+    cancelOnHit: ['dash_slash', 'leap_crash', 'lance_thrust', 'blade_storm'], tags: ['buff'],
+    description: 'Battle roar: pulls nearby foes in and grants a golden aura for 8s — +20% damage and super armor while attacking.',
+    relations: ['Buff 8s', 'Super armor'],
+  }),
+  S({
+    id: 'guard_counter', cls: 'warrior', slot: 13, name: 'Guard Counter', roles: ['counter', 'peel'], targeting: 'mouseDir',
+    startup: 80, active: 450, recovery: 280, cooldown: 7000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    counter: { window: 450, sidestep: 0 },
+    hits: [H(0, 26, { kind: 'sector', range: 100, angle: 130 }, { stun: 360, push: 16, launch: 80, juggleCost: 20 }, { reachUp: 100, heavy: true })],
+    cancelOnHit: ['warrior_basic', 'rising_slash', 'leap_crash', 'lance_thrust', 'blade_storm'],
+    description: 'Raise the shield for 450ms. A strike caught on it triggers an instant riposte that pops the attacker up. No catch = long recovery.',
+    relations: ['Counter', 'Riposte → air chase'],
+  }),
 ];
 
 // ------------------------------------------------------------------ BOOK MAGE
@@ -110,7 +162,7 @@ const mage: FinalSkill[] = [
     startup: 90, active: 0, recovery: 130, cooldown: 450, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: { startup: 0.8, active: 0.8, recovery: 0.8 },
     hits: [H(0, 11, { kind: 'projectile', speed: 720, range: 480, radius: 10 }, { stun: 140, push: 4 })],
     cancelOnHit: ['arcane_wave', 'binding_rune', 'astral_burst', 'frost_nova', 'lightning_chain'],
-    description: 'Mobile arcane projectile fired toward the cursor (you can keep moving at 80%).',
+    description: 'Mobile arcane projectile fired in the facing direction (you can keep moving at 80%).',
     relations: ['Poke', 'Confirm → Arcane Wave'],
   }),
   S({
@@ -118,7 +170,7 @@ const mage: FinalSkill[] = [
     startup: 150, active: 180, recovery: 180, cooldown: 3500, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     hits: [H(0, 24, { kind: 'line', length: 230, width: 74 }, { stun: 240, push: 30, float: true, juggleCost: 15 }, { reachUp: 170 })],
     cancelOnHit: ['astral_burst', 'storm_field', 'lightning_chain', 'binding_rune', 'time_collapse'], telegraph: 'line',
-    description: 'Wide short wave toward the cursor. Pushes grounded targets, stabilises airborne ones for a follow-up.',
+    description: 'Wide short wave in the facing direction. Pushes grounded targets, stabilises airborne ones for a follow-up.',
     relations: ['Confirm', 'Air stabiliser'],
   }),
   S({
@@ -127,7 +179,7 @@ const mage: FinalSkill[] = [
     placeRange: 280,
     hits: [H(0, 16, { kind: 'placed', radius: 68 }, { hardCC: { kind: 'root', ms: 350 }, stun: 120 })],
     cancelOnHit: ['astral_burst', 'lightning_chain', 'arcane_wave', 'frost_nova'], telegraph: 'ground',
-    description: 'Rune at the cursor (clear circle telegraph). Roots for 350ms (shared diminishing returns).',
+    description: 'Rune at the facing direction (clear circle telegraph). Roots for 350ms (shared diminishing returns).',
     relations: ['Setup', 'Rune → Astral Lift'],
   }),
   S({
@@ -189,7 +241,7 @@ const archer: FinalSkill[] = [
     startup: 85, active: 0, recovery: 110, cooldown: 350, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: { startup: 0.85, active: 0.85, recovery: 0.85 },
     hits: [H(0, 12, { kind: 'projectile', speed: 900, range: 430, radius: 9 }, { stun: 120, push: 3 })],
     cancelOnHit: ['multi_shot', 'piercing_arrow', 'explosive_arrow', 'vine_trap', 'rain_of_arrows'],
-    description: 'Fast bow shot toward the cursor; usable while moving at 85% speed.',
+    description: 'Fast bow shot in the facing direction; usable while moving at 85% speed.',
     relations: ['Poke', 'Air follow-up'],
   }),
   S({
@@ -222,7 +274,7 @@ const archer: FinalSkill[] = [
     placeRange: 260, trap: { radius: 42, lifeMs: 4000 },
     hits: [H(0, 14, { kind: 'placed', radius: 42 }, { hardCC: { kind: 'root', ms: 300 }, stun: 120 })],
     cancelOnHit: [], telegraph: 'ground',
-    description: 'Visible trap at the cursor; persists 4s or until triggered. Roots for 300ms (shared diminishing returns).',
+    description: 'Visible trap at the facing direction; persists 4s or until triggered. Roots for 300ms (shared diminishing returns).',
     relations: ['Setup', 'Trap → Multi Shot'],
   }),
   S({
@@ -231,7 +283,7 @@ const archer: FinalSkill[] = [
     placeRange: 360,
     hits: [0, 380, 760].map((t) => H(t, 12, { kind: 'placed', radius: 112 }, { stun: 110, float: true, juggleCost: 10 }, { reachUp: 160 })),
     zoneMs: 900, cancelOnHit: ['quick_shot', 'skyhunters_step'], telegraph: 'ground',
-    description: 'Three waves of arrows on the cursor area. Low hit-stun: keeps pressure without locking forever.',
+    description: 'Three waves of arrows on the facing direction area. Low hit-stun: keeps pressure without locking forever.',
     relations: ['Area control', 'Keeps juggles alive'],
   }),
   S({
@@ -240,7 +292,7 @@ const archer: FinalSkill[] = [
     dash: { distance: 220, lift: 46 },
     hits: [80, 230, 380, 530, 680].map((t, i) => H(t, [8, 8, 9, 9, 10][i], { kind: 'projectile', speed: 980, range: 420, radius: 9 }, { stun: 200, float: true, juggleCost: 12 })),
     cancelOnHit: ['verdant_judgment'], tags: ['signature'], telegraph: 'trajectory',
-    description: 'Acrobatic leap toward the cursor while firing five aimed shots. Collision and cover still apply; no invulnerability.',
+    description: 'Acrobatic leap in the facing direction while firing five aimed shots. Collision and cover still apply; no invulnerability.',
     relations: ['Signature', 'Chases a launch'],
   }),
   S({
@@ -282,7 +334,7 @@ const samurai: FinalSkill[] = [
     dash: { distance: 160 },
     hits: [H(0, 22, { kind: 'capsule', radius: 28 }, { stun: 220, push: 8 }, { reachUp: 90 })],
     cancelOnHit: ['spin_cut', 'iai_strike', 'quick_slash', 'blossom_storm', 'dragon_eclipse'], telegraph: 'line',
-    description: 'Fast step through the cursor direction (no invulnerability). A confirmed hit cancels into Spin Cut or Iai Strike.',
+    description: 'Fast step through the facing direction direction (no invulnerability). A confirmed hit cancels into Spin Cut or Iai Strike.',
     relations: ['Chase', 'Cancel → Spin Cut'],
   }),
   S({
@@ -306,7 +358,7 @@ const samurai: FinalSkill[] = [
     startup: 150, active: 0, recovery: 180, cooldown: 5000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     hits: [H(0, 26, { kind: 'projectile', speed: 800, range: 380, radius: 18 }, { stun: 230, push: 12, float: true, juggleCost: 15 })],
     cancelOnHit: ['shadow_step', 'blossom_storm'],
-    description: 'Fast crescent projectile toward the cursor; hard cover blocks it.',
+    description: 'Fast crescent projectile in the facing direction; hard cover blocks it.',
     relations: ['Ranged check', 'Air follow-up'],
   }),
   S({
@@ -339,6 +391,8 @@ const samurai: FinalSkill[] = [
   }),
 ];
 
+// Warrior extended kit: every core skill (and the basic chain) can cancel into the new extenders on a confirmed hit.
+for (const w of warrior) if (w.slot <= 5) for (const id of ['leap_crash', 'wave_slash', 'iron_grip', 'lance_thrust']) if (!w.cancelOnHit.includes(id) && id !== w.id) w.cancelOnHit.push(id);
 export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...mage, ...archer, ...samurai];
 const BY_ID = new Map(FINAL_SKILLS.map((s) => [s.id, s]));
 /** Old ids from earlier builds (save-data / QA migration only; never shown in the HUD/tree). */

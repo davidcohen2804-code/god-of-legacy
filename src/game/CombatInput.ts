@@ -39,7 +39,7 @@ export class CombatInput {
       kb.on(`keydown-${name}`, down);
       this.detach.push(() => kb.off(`keydown-${name}`, down));
     }
-    ['SPACE', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN'].forEach((name, i) => {
+    ['SPACE', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'Q', 'R', 'F', 'G', 'C', 'V'].forEach((name, i) => {
       const h = (e: KeyboardEvent) => { if (!e.repeat) onSlot(i); };
       kb.on(`keydown-${name}`, h);
       this.detach.push(() => kb.off(`keydown-${name}`, h));

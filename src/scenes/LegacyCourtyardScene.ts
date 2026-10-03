@@ -94,6 +94,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private castSeq = 0;
   localId = 'local';
   /** Attacker-side combo display (from confirmed hits only). */
+  /** War Cry buff (+20% damage, super armor while attacking) and its looping aura. */
+  warCryUntil = -1;
+  private cryAura?: Phaser.GameObjects.Image;
   combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1 };
   confirmedLog: { skill: string; target: string; damage: number; idx: number; reaction: string; at: number; z: number }[] = [];
   private remoteCasts = new Map<string, number>();
@@ -393,7 +396,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     k.vx = 0; k.vy = 0;
     if (d.lift) { // acrobatic leap: real height (shots fire from it), lands by gravity afterwards
       k.grounded = false;
-      k.z = Math.max(k.z, run.origin.z + d.lift * Math.sin(Math.PI * p));
+      k.z = d.crash ? run.origin.z + d.lift * Math.sin(Math.PI * Math.min(1, p * 1.06)) : Math.max(k.z, run.origin.z + d.lift * Math.sin(Math.PI * p));
       k.vz = p < 0.5 ? 40 : -40;
     }
   }
@@ -419,6 +422,17 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     else if (run && run.skill.armor && run.elapsed >= run.skill.armor[0] && run.elapsed < run.skill.armor[1]) tint = 0xffe0a0;
     if (this.dead >= 0) { alpha = 1 - (1 - P6.deathAlpha) * Math.min(1, this.dead / P6.deathFadeMs); tint = 0xff4a4a; fill = false; }
     v.render(ms, pose, k.x, k.y, k.z, k.supportZ, this.dir, alpha, tint, fill);
+    // War Cry aura: steady flame loop (sheet frames 4–6) around the body while the buff lasts.
+    const cry = this.simMs < this.warCryUntil && this.dead < 0 && this.textures.exists('vfx-war_cry');
+    if (cry && !this.cryAura) this.cryAura = this.add.image(0, 0, 'vfx-war_cry', 4).setOrigin(0.5, 0.88).setBlendMode(Phaser.BlendModes.ADD);
+    if (this.cryAura) {
+      this.cryAura.setVisible(cry);
+      if (cry) {
+        const left = this.warCryUntil - this.simMs;
+        this.cryAura.setFrame(4 + (Math.floor(this.simMs / 90) % 3)).setPosition(k.x, k.y - k.z + 4).setDepth(actorDepth(k.x, k.y, k.z) - 0.2)
+          .setDisplaySize(190, 190).setAlpha(0.55 * Math.min(1, left / 400));
+      }
+    }
   }
 
   // ======================================================================= actions
@@ -498,6 +512,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const castId = `${this.localId}:${++this.castSeq}`;
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
     this.body.armorUntil = -1;
+    if (s.id === 'war_cry') this.warCryUntil = this.simMs + s.startup + 8000;
+    else if (this.simMs < this.warCryUntil) this.body.armorUntil = this.simMs + s.startup + s.active; // War Cry: super armor while attacking
     this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: { x: k.x, y: k.y, z: k.z }, aim, place, lock });
     if (s.chain) this.chain = { stage, lastEnd: Infinity, skill: s.id };
     this.setMode('skill');
@@ -562,6 +578,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (t.id === 'dummy' && this.dummyState?.alive) {
       const ds = this.dummyState;
       out = ds.body.receive(run.attackerId, s, hit, run.origin, now);
+      if (run.attackerId === this.localId && now < this.warCryUntil) out.damage = Math.round(out.damage * 1.2);
       ds.body.push = null; ds.kin.vx = 0; ds.kin.vy = 0; // anchored post: launches / knockdowns are vertical only (juggle practice)
       this.damageDummy(out.damage);
     } else if (t.id === 'enemy' && this.enemy?.alive) {
@@ -571,7 +588,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const back = en.body.state === 'free' && (from.x - en.kin.x) * f[0] + (from.y - en.kin.y) * f[1] < -12;
       out = en.body.receive(run.attackerId, s, hit, from, now);
       const crit = hit.damage > 0 && Math.random() < 0.12;
-      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 : 1);
+      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 : 1) * (run.attackerId === this.localId && now < this.warCryUntil ? 1.2 : 1);
       out.damage = Math.round(out.damage * mult);
       en.damage(out.damage);
       let row = 0;

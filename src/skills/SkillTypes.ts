@@ -77,7 +77,7 @@ export interface FinalSkill {
   /** Locomotion scalar while the action runs (0 = locked). */
   move: { startup: number; active: number; recovery: number };
   /** Dash / leap of the caster during active (px, toward aim). */
-  dash?: { distance: number; lift?: number; stopOnHit?: boolean };
+  dash?: { distance: number; lift?: number; stopOnHit?: boolean; /** arc back down to the ground by the end of active (leap attacks) */ crash?: boolean };
   /** Ranged placement limit for ground target skills. */
   placeRange?: number;
   /** Persistent zone / trap lifetime after active (ms). */

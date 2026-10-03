@@ -19,9 +19,12 @@ type MoveState = 'idle' | 'walk' | 'run' | 'jump' | 'air_attack' | 'hurt' | 'rec
 const MOVE_COLS: Record<MoveState, number> = { idle: 12, walk: 8, run: 8, jump: 8, air_attack: 6, hurt: 4, recovery: 4, death: 8 };
 const SHEET_CLASSES = ['warrior', 'book_mage'] as const;
 const sheetKey = (cls: string, st: string) => `body-${cls}-${st}`;
-const skillKey = (cls: string, id: string) => `sbody-${cls}-${id}`;
+/** Extended-kit skills reuse an existing body animation (pose family) until they get their own sheet. */
+const BODY_ALIAS: Record<string, string> = { leap_crash: 'titans_verdict', wave_slash: 'warrior_basic', iron_grip: 'shield_slam', lance_thrust: 'dash_slash', war_cry: 'ground_breaker', guard_counter: 'shield_slam' };
+export const bodyIdOf = (id: string) => BODY_ALIAS[id] ?? id;
+const skillKey = (cls: string, id: string) => `sbody-${cls}-${bodyIdOf(id)}`;
 const sheetPath = (cls: string, st: string) => `assets/final/body/${cls}/movement/${st}.png`;
-const skillPath = (cls: string, id: string) => `assets/final/skills/${cls}/${id}/body.png`;
+const skillPath = (cls: string, id: string) => `assets/final/skills/${cls}/${bodyIdOf(id)}/body.png`;
 
 // ---- atlas classes
 type AtlasAction = 'idle' | 'walk' | 'run' | 'jump' | 'attack' | 'hurt' | 'death';
@@ -42,7 +45,7 @@ export function preloadBodies(scene: Phaser.Scene): void {
   };
   for (const cls of SHEET_CLASSES) {
     for (const st of Object.keys(MOVE_COLS)) { L(sheetKey(cls, st), sheetPath(cls, st), true); L(`${sheetKey(cls, st)}-w`, sheetPath(cls, st).replace('.png', '_weapon.png'), true); }
-    for (const s of FINAL_SKILLS.filter((x) => x.cls === cls)) { L(skillKey(cls, s.id), skillPath(cls, s.id), true); L(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id).replace('.png', '_weapon.png'), true); }
+    for (const s of FINAL_SKILLS.filter((x) => x.cls === cls && !BODY_ALIAS[x.id])) { L(skillKey(cls, s.id), skillPath(cls, s.id), true); L(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id).replace('.png', '_weapon.png'), true); }
   }
   for (const [cls, a] of Object.entries(ATLAS)) { L(atlasKey(cls), a.sheet, false); L(`${atlasKey(cls)}-w`, a.sheet.replace('.png', '_weapon.png'), false); }
 }
@@ -144,7 +147,7 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
     case 'recovery': return mv(cls, 'recovery', dir, 1 + Math.min(2, Math.floor(q.p * 3)));
     case 'death': return mv(cls, 'death', dir, Math.min(7, Math.floor(q.p * 8)));
     case 'skill': {
-      const sk = FINAL_SKILLS.find((s) => s.id === q.id);
+      const sk = FINAL_SKILLS.find((s) => s.id === bodyIdOf(q.id));
       const cols = sk && sk.slot === 7 ? 12 : sk && sk.slot === 6 ? 10 : 6;
       if (sk?.chain && q.stage === 2) { // third chain strike: the big overhead swing of the air-attack set
         const p = q.elapsed / (q.startup + q.active + q.recovery);

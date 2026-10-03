@@ -24,12 +24,15 @@ const along = (tip: { x: number; y: number }, t: number) => ({ x: ROOT.x + (tip.
 const NODE: { x: number; y: number }[] = [
   along(TIPS.c, 0.07), along(TIPS.l, 0.36), along(TIPS.r, 0.36), along(TIPS.l, 0.68),
   along(TIPS.c, 0.5), along(TIPS.r, 0.68), along(TIPS.l, 1), along(TIPS.r, 1),
+  // extended kit (Q R F G C V)
+  // two side columns in the open parchment (clear of the branches, preview and detail panels)
+  { x: 115, y: 225 }, { x: 115, y: 395 }, { x: 255, y: 395 }, { x: 1385, y: 225 }, { x: 1385, y: 395 }, { x: 1245, y: 395 },
 ];
 /** Prerequisite edges (drawn along the book's branches). */
 const EDGES: [number, number][] = [[0, 1], [0, 2], [0, 4], [1, 3], [3, 6], [2, 5], [5, 7]];
 const PREVIEW: Rect = { x: 40, y: 512, w: 440, h: 280 };
 const DETAIL: Rect = { x: 1036, y: 490, w: 430, h: 384 };
-const HOTKEY = ['SPACE', '1', '2', '3', '4', '5', '6', '7'];
+const HOTKEY = ['SPACE', '1', '2', '3', '4', '5', '6', '7', 'Q', 'R', 'F', 'G', 'C', 'V'];
 const NODE_SIZE = 96;
 
 const ROLE_LABEL: Partial<Record<Role, string>> = {
@@ -39,9 +42,9 @@ const ROLE_LABEL: Partial<Record<Role, string>> = {
   escape: 'Escape', finisher: 'Finisher', signature: 'Signature', ultimate: 'Ultimate',
 };
 const TARGETING: Record<Targeting, string> = {
-  aimAssist: 'Facing snaps toward the mouse', mouseDir: 'Dash toward the mouse', mouseProjectile: 'Projectile along the mouse angle',
-  mouseLine: 'Line toward the mouse', mouseCone: 'Cone toward the mouse', mouseGround: 'Ground point at the mouse',
-  mouseTarget: 'First target along the mouse line', self: 'Around the caster', selfAim: 'Around the caster, biased to the mouse',
+  aimAssist: 'In the facing direction', mouseDir: 'Dash in the facing direction', mouseProjectile: 'Projectile in the facing direction',
+  mouseLine: 'Line in the facing direction', mouseCone: 'Cone in the facing direction', mouseGround: 'Ground point ahead of you',
+  mouseTarget: 'Locks the first target ahead', self: 'Around the caster', selfAim: 'Around the caster, biased forward',
 };
 
 const STYLE_ID = 'gol-skillbook-style';
@@ -261,7 +264,7 @@ export class SkillBook {
     this.bg = this.div('bg', this.root);
     holeMask(this.bg, PREVIEW);
     this.div('ttl', this.bg).textContent = `SKILL BOOK — ${(CLASS_NAMES[cls] ?? cls).toUpperCase()}`;
-    this.div('sub', this.bg).textContent = qaUnlockAll ? `QA build · all skills unlocked · level ${level}` : `Level ${level} · all 8 skills equipped on SPACE / 1–7`;
+    this.div('sub', this.bg).textContent = qaUnlockAll ? `QA build · all skills unlocked · level ${level}` : `Level ${level} · ${this.kit.length} skills on SPACE / 1–7${this.kit.length > 8 ? ' / Q R F G C V' : ''}`;
     const x = document.createElement('button'); x.className = 'x'; x.textContent = '✕'; x.title = 'Close (K / Esc)';
     x.addEventListener('click', () => this.close()); this.bg.appendChild(x);
     for (const [a, b] of EDGES) {

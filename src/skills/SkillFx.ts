@@ -9,21 +9,24 @@ import { FINAL_SKILLS } from './FinalKit';
 import { WORLD_OBJECTS } from '../world/WorldGeometry';
 
 const F = 'assets/final';
-const vfxKey = (id: string) => `vfx-${id}`;
+/** Skills that borrow another skill's VFX sheet (no art of their own). */
+const VFX_ALIAS: Record<string, string> = { iron_grip: 'shield_slam', guard_counter: 'shield_slam', wave_slash: 'warrior_basic' };
+const vfxKey = (id: string) => `vfx-${VFX_ALIAS[id] ?? id}`;
+const isBig = (s: FinalSkill) => s.slot === 6 || s.slot === 7;
 const TOP = 100000;
 const GROUND = 2;
 
 /** Orientation of each final VFX sheet: 'dir' sheets are drawn pointing right and rotate with the aim. */
 /** Upright sheets whose bottom edge is the ground line (drawn standing on the impact point). */
 /** Ground-point origin (fraction of the cell height) for sheets drawn standing on the impact point. */
-const GROUND_ANCHORED = new Map<string, number>([['titans_verdict', 0.742], ['ground_breaker', 0.8], ['whirlwind', 0.56]]);
+const GROUND_ANCHORED = new Map<string, number>([['titans_verdict', 0.742], ['ground_breaker', 0.8], ['whirlwind', 0.56], ['leap_crash', 0.88], ['war_cry', 0.88]]);
 /** Frames played during startup (anticipation) — the next frame is the impact at active start. */
 const PRE_FRAMES: Record<string, number> = { titans_verdict: 7 };
-const UPRIGHT = new Set(['titans_verdict', 'ground_breaker', 'whirlwind', 'shield_slam', 'blade_storm', 'binding_rune', 'astral_burst', 'frost_nova', 'storm_field',
+const UPRIGHT = new Set(['leap_crash', 'war_cry', 'titans_verdict', 'ground_breaker', 'whirlwind', 'shield_slam', 'blade_storm', 'binding_rune', 'astral_burst', 'frost_nova', 'storm_field',
   'time_collapse', 'explosive_arrow', 'vine_trap', 'rain_of_arrows', 'verdant_judgment', 'spin_cut']);
 const PROJECTILE_SHEETS: Record<string, { cell: number; frames: number }> = {
   arcane_bolt: { cell: 128, frames: 8 }, lightning_chain: { cell: 192, frames: 8 }, quick_shot: { cell: 128, frames: 8 },
-  piercing_arrow: { cell: 160, frames: 8 }, explosive_arrow: { cell: 160, frames: 8 }, sword_wave: { cell: 192, frames: 8 },
+  piercing_arrow: { cell: 160, frames: 8 }, explosive_arrow: { cell: 160, frames: 8 }, sword_wave: { cell: 192, frames: 8 }, wave_slash: { cell: 192, frames: 8 },
 };
 /** Projectile skills without a dedicated projectile sheet fly with a sibling's arrow (multi shot / skyhunter arrows). */
 const PROJ_ALIAS: Record<string, string> = { multi_shot: 'quick_shot', skyhunters_step: 'quick_shot' };
@@ -41,7 +44,7 @@ export const CLASS_COLOR: Record<string, number> = { warrior: 0xffb04a, book_mag
 
 export function preloadSkillFx(scene: Phaser.Scene): void {
   const L = (k: string, p: string, w: number, h = w) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: w, frameHeight: h }); };
-  for (const s of FINAL_SKILLS) { const big = s.slot >= 6 ? 384 : 256; L(vfxKey(s.id), `${F}/skills/${s.cls}/${s.id}/vfx.png`, big); }
+  for (const s of FINAL_SKILLS) { if (VFX_ALIAS[s.id]) continue; const big = isBig(s) ? 384 : 256; L(vfxKey(s.id), `${F}/skills/${s.cls}/${s.id}/vfx.png`, big); }
   for (const [id, p] of Object.entries(PROJECTILE_SHEETS)) { const cls = FINAL_SKILLS.find((s) => s.id === id)!.cls; L(`proj-${id}`, `${F}/projectiles/${cls}/${id}.png`, p.cell); }
   for (const v of Object.values(IMPACT)) L(v.key, v.path, v.cell);
   const I = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.image(k, p); };
@@ -99,11 +102,12 @@ export class SkillFx {
 
   private onCast(r: CastRun): void {
     const s = r.skill;
-    if (s.telegraph || s.slot >= 6) this.telegraph(r);
+    if (s.telegraph || isBig(s)) this.telegraph(r);
     // Anticipation frames 0..k during startup at the cast point, release frame exactly at the active start.
     const shape = this.firstShape(s);
     if (shape.kind === 'projectile' || shape.kind === 'chain') { this.castFlare(r); return; }
-    this.castVfx(r);
+    if (s.id !== 'leap_crash') this.castVfx(r);
+    else this.aura(r);
     if (s.slot === 7) this.ultimateStage(r);
   }
 
@@ -151,7 +155,7 @@ export class SkillFx {
   /** Main VFX sprite for a melee / area cast, placed from the authoritative shape. */
   private castVfx(r: CastRun): void {
     const s = r.skill, shape = this.firstShape(s);
-    const big = s.slot >= 6, frames = s.slot === 7 ? 14 : s.slot === 6 ? 12 : 8;
+    const big = isBig(s), frames = s.slot === 7 ? 14 : s.slot === 6 ? 12 : 8;
     const preFrames = PRE_FRAMES[s.id] ?? (s.slot === 7 ? 4 : 3);
     const o = r.origin, aim = r.aim, upright = UPRIGHT.has(s.id);
     let pos: V3 = { ...o }, size = 200, follow: (() => V3 | null) | undefined;
@@ -197,7 +201,7 @@ export class SkillFx {
   private castFlare(r: CastRun): void {
     const s = r.skill, o = r.origin, aim = r.aim;
     const img = this.scene.add.image(o.x + aim.x * 26, o.y + aim.y * 26 - o.z - 40, vfxKey(s.id), 0).setDepth(TOP).setBlendMode(Phaser.BlendModes.ADD);
-    const size = s.slot >= 6 ? 170 : 110;
+    const size = isBig(s) ? 170 : 110;
     img.setDisplaySize(size, size).setAngle(Math.atan2(aim.y, aim.x) * (180 / Math.PI)).setFlipY(aim.x < -0.01).setAlpha(0.85);
     const T = r.timings, n = s.slot === 6 ? 12 : 8;
     const fr = [0, 1, 2, 3, 4, n - 1], fms = [T.startup / 3, T.startup / 3, T.startup / 3, 60, 60, 80];
@@ -269,6 +273,12 @@ export class SkillFx {
       this.spark(k.key, c.x, c.y - (h.shape.kind === 'placed' ? 30 : o.z + 40), k.frames, (h.shape.kind === 'placed' ? h.shape.radius : (h.shape as { radius: number }).radius) * 1.2, 0.8);
     }
     if (s.id === 'dragon_eclipse') this.eclipseSlash(r, o);
+    if (s.id === 'leap_crash') { // crater at the landing point
+      const img = this.scene.add.image(o.x, o.y, vfxKey(s.id), 0).setOrigin(0.5, 0.88).setDepth(o.y + 2).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(330, 330);
+      const fr = [0, 1, 2, 3, 4, 5, 6, 7], fms = [30, 40, 50, 70, 70, 80, 90, 110];
+      this.anims.push({ img, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: fr, frameMs: fms, fadeLast: 120 });
+      this.shockwave(o.x, o.y, 200, 0xffc070);
+    }
     if (s.id === 'verdant_judgment' && i === 1) this.spark(IMPACT.explosion.key, r.place?.x ?? o.x, (r.place?.y ?? o.y) - 50, 5, 260, 1);
   }
 
@@ -282,6 +292,7 @@ export class SkillFx {
 
   private onCounter(r: CastRun): void {
     const c = this.casterPos(r.attackerId); if (!c) return;
+    if (r.skill.cls === 'warrior') { this.spark(vfxKey('shield_slam'), c.x + r.aim.x * 40, c.y + r.aim.y * 40 - c.z - 40, 8, 240, 1, 1); this.shockwave(c.x, c.y, 120, 0xfff0c0); return; }
     this.spark(vfxKey('mirage'), c.x + r.aim.x * 40, c.y + r.aim.y * 40 - c.z - 40, 8, 200, 1, 2);
   }
 
@@ -289,7 +300,7 @@ export class SkillFx {
     const id = PROJ_ALIAS[p.skill.id] ?? p.skill.id, sheet = PROJECTILE_SHEETS[id];
     if (!sheet) return;
     const img = this.scene.add.image(p.x, p.y - p.z, `proj-${id}`, 0).setDepth(p.y).setAngle(Math.atan2(p.dy, p.dx) * (180 / Math.PI));
-    const size = id === 'sword_wave' ? 120 : id === 'arcane_bolt' ? 64 : id === 'lightning_chain' ? 120 : 92;
+    const size = id === 'wave_slash' ? 150 : id === 'sword_wave' ? 120 : id === 'arcane_bolt' ? 64 : id === 'lightning_chain' ? 120 : 92;
     img.setDisplaySize(size, size).setFlipY(p.dx < -0.01);
     if (r.skill.slot === 6) img.setTint(0xd8ffe0).setBlendMode(Phaser.BlendModes.ADD);
     this.projs.set(p, img);
