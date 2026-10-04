@@ -140,7 +140,7 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'war_cry', cls: 'warrior', slot: 12, name: 'War Cry', roles: ['setup', 'pull'], targeting: 'self',
-    startup: 320, active: 160, recovery: 200, cooldown: 15000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 680],
+    startup: 360, active: 900, recovery: 240, cooldown: 15000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1500],
     hits: [H(0, 6, { kind: 'circle', radius: 170 }, { stun: 420, pull: 34 }, { reachUp: 140 })],
     cancelOnHit: ['dash_slash', 'leap_crash', 'lance_thrust', 'blade_storm'], tags: ['buff'],
     description: 'Battle roar — also breaks free from stun, hits and knockdowns: pulls nearby foes in and grants a golden aura for 8s — +20% damage and super armor while attacking.',
