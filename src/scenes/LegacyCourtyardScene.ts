@@ -102,6 +102,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Detached lingering strikes (Ground Breaker cracks, Blade Storm phantom blades) of own casts. */
   private lingers: { run: CastRun; x: number; y: number; next: number; left: number }[] = [];
   private cryAura?: Phaser.GameObjects.Image;
+  private cryFront?: Phaser.GameObjects.Image;
+  private cryBody?: Phaser.GameObjects.Sprite;
+  private emberT = 0;
   combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1 };
   confirmedLog: { skill: string; target: string; damage: number; idx: number; reaction: string; at: number; z: number }[] = [];
   private remoteCasts = new Map<string, number>();
@@ -510,12 +513,27 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // War Cry aura: steady flame loop (sheet frames 4–6) around the body while the buff lasts.
     const cry = this.simMs < this.warCryUntil && this.dead < 0 && this.textures.exists('vfx-war_cry');
     if (cry && !this.cryAura) this.cryAura = this.add.image(0, 0, 'vfx-war_cry', 4).setOrigin(0.5, 0.88).setBlendMode(Phaser.BlendModes.ADD);
-    if (this.cryAura) {
-      this.cryAura.setVisible(cry);
+    if (cry && !this.cryFront) {
+      this.cryFront = this.add.image(0, 0, 'vfx-war_cry', 5).setOrigin(0.5, 0.88).setBlendMode(Phaser.BlendModes.ADD);
+      this.cryBody = this.add.sprite(0, 0, '__DEFAULT').setBlendMode(Phaser.BlendModes.ADD);
+    }
+    if (this.cryAura && this.cryFront && this.cryBody) {
+      for (const o of [this.cryAura, this.cryFront, this.cryBody]) o.setVisible(cry && v.visible);
       if (cry) {
-        const left = this.warCryUntil - this.simMs;
-        this.cryAura.setFrame(4 + (Math.floor(this.simMs / 90) % 3)).setPosition(k.x, k.y - k.z + 4).setDepth(actorDepth(k.x, k.y, k.z) - 0.2)
-          .setDisplaySize(190, 190).setAlpha(0.55 * Math.min(1, left / 400));
+        const left = this.warCryUntil - this.simMs, fade = Math.min(1, left / 400), fl = 0.8 + 0.2 * Math.sin(this.simMs / 55);
+        const d = actorDepth(k.x, k.y, k.z), f = Math.floor(this.simMs / 80);
+        // Engulfed in fire: tall flames behind, thinner flames in front, the body itself glowing ember-orange.
+        this.cryAura.setFrame(4 + (f % 3)).setPosition(k.x, k.y - k.z + 6).setDepth(d - 0.2).setDisplaySize(250, 250).setAlpha(0.85 * fade * fl);
+        this.cryFront.setFrame(4 + ((f + 1) % 3)).setPosition(k.x, k.y - k.z + 6).setDepth(d + 0.06).setDisplaySize(210, 210).setAlpha(0.38 * fade);
+        const sp = v.sprite;
+        if (this.cryBody.texture.key !== sp.texture.key || this.cryBody.frame.name !== sp.frame.name) this.cryBody.setTexture(sp.texture.key, sp.frame.name);
+        this.cryBody.setOrigin(sp.originX, sp.originY).setScale(sp.scaleX * 1.04, sp.scaleY * 1.04).setPosition(sp.x, sp.y).setDepth(d + 0.04)
+          .setTint(0xff7a20).setAlpha((0.35 + 0.15 * Math.sin(this.simMs / 70)) * fade);
+        if (this.simMs - this.emberT > 70) { // rising embers
+          this.emberT = this.simMs;
+          const e = this.add.ellipse(k.x + (Math.random() - 0.5) * 60, k.y - k.z - 10 - Math.random() * 60, 4, 4, Math.random() < 0.5 ? 0xffc060 : 0xff6a20).setBlendMode(Phaser.BlendModes.ADD).setDepth(d + 0.07);
+          this.tweens.add({ targets: e, y: e.y - 50 - Math.random() * 30, alpha: 0, duration: 600 + Math.random() * 300, onComplete: () => e.destroy() });
+        }
       }
     }
   }
@@ -609,6 +627,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
     this.body.armorUntil = -1;
     if (s.id === 'war_cry') this.warCryUntil = this.simMs + s.startup + 8000;
+    if (s.id === 'guard_counter') this.body.invulnUntil = this.simMs + s.startup + 600; // Aegis barrier
     else if (this.simMs < this.warCryUntil) this.body.armorUntil = this.simMs + s.startup + s.active; // War Cry: super armor while attacking
     this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: { x: k.x, y: k.y, z: k.z }, aim, place, lock });
     if (s.chain) this.chain = { stage, lastEnd: Infinity, skill: s.id };
@@ -739,6 +758,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.tryCounter(from)) return;
     const hit: HitEvent = { at: 0, damage: dmg, shape: { kind: 'sector', range: 58, angle: 120 }, reaction: { stun: 220, push: 14 } };
     const out = this.body.receive('enemy', ENEMY_SKILL, hit, from, this.simMs);
+    if (out.reaction === 'armor' && this.simMs < this.body.invulnUntil) { this.fx!.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 }, 'BLOCK!!', '#9ed8ff', 0); this.fx!.shockwave(this.kin.x, this.kin.y, 70, 0x9ed8ff); }
     this.takeDamage(out.damage);
     this.fx!.confirmed(ENEMY_SKILL, hit, { x: this.kin.x, y: this.kin.y, z: this.kin.z + 30 }, out.damage, out.reaction, false, out.hitIndex);
   }

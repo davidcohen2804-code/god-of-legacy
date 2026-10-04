@@ -142,20 +142,19 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'war_cry', cls: 'warrior', slot: 12, name: 'War Cry', roles: ['setup', 'pull'], targeting: 'self',
-    startup: 180, active: 140, recovery: 200, cooldown: 15000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 4, { kind: 'circle', radius: 150 }, { stun: 360, pull: 28 }, { reachUp: 120 })],
+    startup: 420, active: 200, recovery: 300, cooldown: 15000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 920],
+    hits: [H(0, 6, { kind: 'circle', radius: 170 }, { stun: 420, pull: 34 }, { reachUp: 140 })],
     cancelOnHit: ['dash_slash', 'leap_crash', 'lance_thrust', 'blade_storm'], tags: ['buff'],
     description: 'Battle roar: pulls nearby foes in and grants a golden aura for 8s — +20% damage and super armor while attacking.',
     relations: ['Buff 8s', 'Super armor'],
   }),
   S({
-    id: 'guard_counter', cls: 'warrior', slot: 13, name: 'Guard Counter', roles: ['counter', 'peel'], targeting: 'mouseDir',
-    startup: 80, active: 450, recovery: 280, cooldown: 4000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    counter: { window: 450, sidestep: 0 },
-    hits: [H(0, 26, { kind: 'sector', range: 100, angle: 130 }, { stun: 360, push: 16, launch: 80, juggleCost: 20 }, { reachUp: 100, heavy: true })],
+    id: 'guard_counter', cls: 'warrior', slot: 13, name: 'Aegis Burst', roles: ['counter', 'peel'], targeting: 'mouseDir',
+    startup: 80, active: 720, recovery: 280, cooldown: 5000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(620, 26, { kind: 'sector', range: 130, angle: 150 }, { stun: 460, launch: 95, push: 18 }, { reachUp: 130, heavy: true })],
     cancelOnHit: ['warrior_basic', 'rising_slash', 'leap_crash', 'lance_thrust', 'blade_storm'],
-    description: 'Raise the shield for 450ms. A strike caught on it triggers an instant riposte that pops the attacker up. No catch = long recovery.',
-    relations: ['Counter', 'Riposte → air chase'],
+    description: 'Raise a hexagon shield barrier: for 0.6s nothing can hurt you (every blocked strike flashes BLOCK!!). Then the barrier bursts forward as a crescent wave that blasts the target into the air.',
+    relations: ['Block 0.6s', 'Burst → air chase'],
   }),
 ];
 

@@ -107,7 +107,8 @@ export class SkillFx {
     // Anticipation frames 0..k during startup at the cast point, release frame exactly at the active start.
     const shape = this.firstShape(s);
     if (shape.kind === 'projectile' || shape.kind === 'chain') { this.castFlare(r); return; }
-    if (s.id !== 'leap_crash') this.castVfx(r);
+    if (s.id === 'guard_counter') this.aegis(r);
+    else if (s.id !== 'leap_crash') this.castVfx(r);
     else this.aura(r);
     if (s.slot === 7) this.ultimateStage(r);
   }
@@ -128,6 +129,14 @@ export class SkillFx {
       this.scene.tweens.add({ targets: mc, alpha: 0, delay: 3100, duration: 300, onComplete: () => mc.destroy() });
     }
     if (r.skill.id === 'shield_slam') (this.cam ?? this.scene.cameras.main).shake(120, 0.004);
+    if (r.skill.id === 'war_cry') { // the roar: burst of flame, gold flash, double shock ring
+      const c = this.casterPos(r.attackerId) ?? r.origin;
+      const img = this.scene.add.image(c.x, c.y + 4, vfxKey('war_cry'), 0).setOrigin(0.5, 0.88).setDepth(c.y + 3).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(340, 340);
+      const fms = [40, 50, 60, 90, 110, 120, 130, 220];
+      this.anims.push({ img, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: [0, 1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 240 });
+      const cam = this.cam ?? this.scene.cameras.main; cam.flash(140, 255, 170, 60, false); cam.shake(200, 0.006);
+      this.shockwave(c.x, c.y, 220, 0xffb040); this.scene.time.delayedCall(120, () => this.shockwave(c.x, c.y, 300, 0xff7a20));
+    }
     if (r.skill.id === 'ground_breaker') { // the earth answers: heavy quake shake, double ring, dust burst
       (this.cam ?? this.scene.cameras.main).shake(220, 0.007);
       this.scene.time.delayedCall(90, () => this.shockwave(r.origin.x, r.origin.y, 240, 0xff9a40));
@@ -155,6 +164,17 @@ export class SkillFx {
     this.scene.tweens.add({ targets: img, alpha: 0.5 + 0.4 * lvl, duration: Math.min(160, T.startup) });
     const tick = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { const c = this.casterPos(r.attackerId); if (c) img.setPosition(c.x, c.y - c.z - 40).setDepth(c.y - 1); } });
     this.scene.tweens.add({ targets: img, alpha: 0, delay: life - 180, duration: 180, onComplete: () => { tick.remove(); img.destroy(); } });
+  }
+
+  /** Aegis Burst: the hex barrier holds in front of the caster, then bursts into the crescent wave. */
+  private aegis(r: CastRun): void {
+    const a = r.aim, key = vfxKey('guard_counter');
+    const img = this.scene.add.image(0, 0, key, 0).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(230, 230).setAngle(Math.atan2(a.y, a.x) * (180 / Math.PI)).setFlipY(a.x < -0.01);
+    const fr = [0, 1, 2, 3, 2, 3, 2, 3, 4, 5, 6, 7], fms = [50, 60, 80, 100, 100, 100, 100, 110, 60, 80, 100, 220];
+    const follow = () => { const c = this.casterPos(r.attackerId); return c ? { x: c.x + a.x * 46, y: c.y + a.y * 46, z: c.z + 40 } : null; };
+    const p = follow(); if (p) img.setPosition(p.x, p.y - p.z).setDepth(p.y + 2);
+    this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: fr, frameMs: fms, follow, fadeLast: 220 });
+    this.scene.time.delayedCall(700, () => { const c = this.casterPos(r.attackerId); if (c) { this.shockwave(c.x + a.x * 60, c.y + a.y * 60, 140, 0x9ed8ff); (this.cam ?? this.scene.cameras.main).shake(120, 0.004); } });
   }
 
   /** Blade Storm summon: one phantom blade drops and stabs (dedicated sheet when present, else the storm sheet). */
