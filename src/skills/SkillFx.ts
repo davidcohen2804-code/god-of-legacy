@@ -297,7 +297,7 @@ export class SkillFx {
   /** Titan's Verdict: a colossal lightning dragon dives from the sky onto the target zone (after the cut-in and screen split). */
   private dragon(r: CastRun): void {
     const T = r.timings, a = r.aim, at = { x: r.origin.x + a.x * 110, y: r.origin.y + a.y * 110 };
-    const dive = Math.round(T.startup * 0.62), pre = T.startup - dive; // frames 0-3 dive in, frame 4 = impact on the active start
+    const pre = 420, dive = T.startup - pre; // the dragon dives after the cut-in and the tear // frames 0-3 dive in, frame 4 = impact on the active start
     const img = this.scene.add.image(at.x, at.y + 10, 'titan-dragon', 0).setOrigin(0.5, 0.97).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(470, 740).setDepth(TOP + 2);
     const fr = [12, 0, 1, 2, 3, 4, 5, 5, 6, 7, 8, 9, 10, 11]; // 12 = empty frame while the cut-in plays (sim-timed)
     const fms = [dive, pre * 0.25, pre * 0.25, pre * 0.25, pre * 0.25, 130, 160, 140, 170, 170, 170, 180, 200, 240];
@@ -592,10 +592,10 @@ export class SkillFx {
       img.setDisplaySize(w, w / 3);
       const band = this.scene.add.rectangle(v.centerX, cy, v.width, w / 3 + 16, 0x000000, 0.55).setDepth(TOP + 49).setScale(1, 0);
       this.scene.tweens.add({ targets: band, scaleY: 1, duration: 120, ease: 'Cubic.easeOut' });
-      this.scene.tweens.add({ targets: img, x: v.centerX - w * 0.04, duration: 260, ease: 'Cubic.easeOut' });
-      this.scene.tweens.add({ targets: img, x: v.centerX + w * 0.02, delay: 260, duration: 420 }); // slow drift while holding
-      this.scene.tweens.add({ targets: img, x: v.right + w / 2, alpha: 0, delay: 680, duration: 180, ease: 'Cubic.easeIn', onComplete: () => img.destroy() });
-      this.scene.tweens.add({ targets: band, scaleY: 0, delay: 700, duration: 150, onComplete: () => band.destroy() });
+      this.scene.tweens.add({ targets: img, x: v.centerX - w * 0.04, duration: 300, ease: 'Cubic.easeOut' });
+      this.scene.tweens.add({ targets: img, x: v.centerX + w * 0.03, delay: 300, duration: 800 }); // slow drift while holding (a real beat)
+      this.scene.tweens.add({ targets: img, x: v.right + w / 2, alpha: 0, delay: 1100, duration: 200, ease: 'Cubic.easeIn', onComplete: () => img.destroy() });
+      this.scene.tweens.add({ targets: band, scaleY: 0, delay: 1120, duration: 160, onComplete: () => band.destroy() });
     }
     // Cinematic cut-in (screen space): two golden slash bars cross the screen, then a white flash at the impact.
     const W = cam.width, H = cam.height;
@@ -607,8 +607,16 @@ export class SkillFx {
     };
     void mk;
     // The screen rips open like paper right after the cut-in, light pouring through the tear.
-    if (this.scene.textures.exists('titan-tear')) this.scene.time.delayedCall(820, () => {
-      const v = cam.worldView, tear = this.scene.add.image(v.centerX, v.centerY, 'titan-tear', 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 48).setDisplaySize(v.width * 1.05, v.height * 1.05);
+    if (this.scene.textures.exists('titan-tear')) this.scene.time.delayedCall(1240, () => {
+      const v = cam.worldView;
+      // golden sparks burst out along the rip (top-left → bottom-right diagonal)
+      for (let i = 0; i < 46; i++) {
+        const t = Math.random(), px = v.x + v.width * (0.12 + 0.76 * t), py = v.y + v.height * (0.18 + 0.64 * t) + (Math.random() - 0.5) * 30;
+        const sp = this.scene.add.image(px, py, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(Math.random() < 0.5 ? 0xffe9a0 : 0xffb040).setDepth(TOP + 49).setDisplaySize(8 + Math.random() * 10, 8 + Math.random() * 10);
+        const side = Math.random() < 0.5 ? -1 : 1, d = 60 + Math.random() * 180;
+        this.scene.tweens.add({ targets: sp, x: px + side * d * 0.55, y: py - side * d * 0.85 + 60, alpha: 0, scale: sp.scale * 0.3, duration: 380 + Math.random() * 420, ease: 'Quad.easeOut', delay: Math.random() * 120, onComplete: () => sp.destroy() });
+      }
+      const tear = this.scene.add.image(v.centerX, v.centerY, 'titan-tear', 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 48).setDisplaySize(v.width * 1.05, v.height * 1.05);
       const fms = [70, 110, 230, 200];
       this.anims.push({ img: tear, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: [0, 1, 2, 3], frameMs: fms, fadeLast: 200 });
       cam.shake(200, 0.006);
