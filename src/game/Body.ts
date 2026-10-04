@@ -154,6 +154,10 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
     case 'skill': {
       const sk = FINAL_SKILLS.find((s) => s.id === bodyIdOf(q.id));
       const bid = bodyIdOf(q.id), cols = CELLS[bid]?.cols ?? (sk && sk.slot === 7 ? 12 : sk && sk.slot === 6 ? 10 : 6);
+      if (sk?.chain && CELLS[bid]) { // basic chain sheet: 2 frames per strike (wind-up during startup, the hit from the active start)
+        const st = Math.max(0, Math.min(3, q.stage));
+        return sheetFrame(skillKey(cls, q.id), skillPath(cls, q.id), dir, 2 * st + (q.elapsed < q.startup ? 0 : 1), cols, CELLS[bid].h);
+      }
       if (sk?.chain && q.stage === 2) { // third chain strike: the big overhead swing of the air-attack set
         const p = q.elapsed / (q.startup + q.active + q.recovery);
         return mv(cls, 'air_attack', dir, Math.min(5, Math.floor(p * 6)));
@@ -175,7 +179,8 @@ const SKILL_PLAN: Record<string, { st: number[]; ac: number[]; rc: number[] }> =
   blade_storm: { st: [0, 1, 2, 2], ac: [3, 4, 4, 5], rc: [5, 6, 7] },
   wave_slash: { st: [0, 1, 1, 1, 1, 1, 1, 2], ac: [3, 4, 4, 5], rc: [5, 6, 7] },
   iron_grip: { st: [0, 1], ac: [2, 3, 3, 4, 5, 5], rc: [6, 7] },
-  lance_thrust: { st: [0, 1], ac: [2, 3, 2, 3, 4, 5], rc: [6, 7] } };
+  lance_thrust: { st: [0, 1], ac: [2, 3, 2, 3, 4, 5], rc: [6, 7] },
+  war_cry: { st: [0, 1, 2, 2, 3], ac: [3, 4], rc: [4, 5, 6, 7] } };
 
 function skillColumn(cols: number, q: Extract<PoseQuery, { k: 'skill' }>, offset: number): number {
   const { elapsed: e, startup: s, active: a, recovery: r } = q;
