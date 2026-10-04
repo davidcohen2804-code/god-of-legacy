@@ -509,7 +509,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     let tint: number | null = null, fill = false, alpha = 1;
     if (this.flash >= 0) { if (this.flash < P6.hitFlashWhiteMs) { tint = 0xffffff; fill = true; } else tint = 0xff6a6a; }
     else if (this.body.hard.active(this.simMs)) tint = this.body.hard.kind === 'freeze' ? 0x9fd8ff : 0xb6ffb0;
-    else if (run && run.skill.armor && run.elapsed >= run.skill.armor[0] && run.elapsed < run.skill.armor[1]) tint = 0xffe0a0;
+    else if (run && run.skill.armor && run.elapsed >= run.skill.armor[0] && run.elapsed < run.skill.armor[1] + 220) {
+      // armor glow fades in/out smoothly (a hard on/off read as a flicker at the end of the move)
+      const a0 = run.skill.armor[0], a1 = run.skill.armor[1], e = run.elapsed;
+      const w = Math.max(0, Math.min(1, (e - a0) / 120, e < a1 ? 1 : 1 - (e - a1) / 220));
+      const c = (lo: number, hi: number) => Math.round(255 - (255 - lo) * w * (hi / 255));
+      tint = (255 << 16) | (c(0xe0, 255) << 8) | c(0xa0, 255);
+    }
     if (this.dead >= 0) { alpha = 1 - (1 - P6.deathAlpha) * Math.min(1, this.dead / P6.deathFadeMs); tint = 0xff4a4a; fill = false; }
     v.render(ms, pose, k.x, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
     // War Cry aura: steady flame loop (sheet frames 4–6) around the body while the buff lasts.
