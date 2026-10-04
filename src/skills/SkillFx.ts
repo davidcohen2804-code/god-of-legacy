@@ -424,7 +424,8 @@ export class SkillFx {
     }
     if (s.id === 'dragon_eclipse') this.eclipseSlash(r, o);
     if (s.id === 'leap_crash') { // crater at the landing point
-      const img = this.scene.add.image(o.x, o.y, vfxKey(s.id), 0).setOrigin(0.5, 0.88).setDepth(o.y + 2).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(330, 330);
+      // lies flat on the floor under the actors (never painted over the warrior)
+      const img = this.scene.add.image(o.x, o.y, vfxKey(s.id), 0).setOrigin(0.5, 0.62).setDepth(GROUND + 1).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(360, 150);
       const fr = [0, 1, 2, 3, 4, 5, 6, 7], fms = [40, 60, 80, 110, 120, 140, 170, 300];
       this.anims.push({ img, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: fr, frameMs: fms, fadeLast: 320 });
       (this.cam ?? this.scene.cameras.main).shake(160, 0.005);
