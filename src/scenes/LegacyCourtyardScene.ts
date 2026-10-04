@@ -101,7 +101,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   radiantUntil = -1;
   /** Sanctuary dome (fixed in the world): full damage immunity while the player stands inside. */
   private domeAt = -1;
-  private dome: { x: number; y: number; rx: number; ry: number; until: number; t0: number; img: Phaser.GameObjects.Image } | null = null;
+  private dome: { x: number; y: number; rx: number; ry: number; until: number; t0: number; img: Phaser.GameObjects.Image; wx: number; side: number } | null = null;
   private beam?: Phaser.GameObjects.Image;
   private beamGlow?: Phaser.GameObjects.Image;
   /** Startup lunge toward the target / post-hit momentum following the push (px still to travel, ms left). */
@@ -608,8 +608,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private inDome(): boolean {
     const d = this.dome; if (!d || this.simMs >= d.until) return false;
-    const k = this.kin, nx = (k.x - d.x) / d.rx, ny = (k.y - d.y) / d.ry;
-    return nx * nx + ny * ny <= 1;
+    // behind the wall across its whole depth: up to 280px back, ±180 along the floor depth (the wall's full span)
+    const k = this.kin, back = d.side * (d.wx - k.x);
+    return back > -30 && back < 280 && Math.abs(k.y - d.y) < 180;
   }
 
   private domeBlock(from: { x: number; y: number }): void {
@@ -621,17 +622,18 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.tweens.add({ targets: f, alpha: 0, scale: f.scale * 1.6, duration: 260, onComplete: () => f.destroy() });
   }
 
-  /** The painted half-dome of light rises where it was cast and stays put for 15s. */
+  /** A tall curved wall of light rises in front of the caster (toward the facing side) and stays put for 15s.
+   *  Everyone standing behind it — on the caster's side, across its whole depth — takes no damage. */
   private raiseDome(): void {
     if (this.dead >= 0) return;
     this.dome?.img.destroy();
-    // Big footprint on the 2.5D floor, centred on the caster: covers depth (up/down) as well as left/right.
-    const k = this.kin, rx = 190, ry = 60;
-    const img = this.add.image(k.x, k.y, 'sanctuary-dome', 0).setOrigin(188 / 380, 305 / 380).setBlendMode(Phaser.BlendModes.ADD);
-    const sx = rx / 158; img.setScale(sx, sx * 1.15).setFlipX(this.aim.x < -0.01); // floor ring stretched toward the game's floor perspective
-    this.dome = { x: k.x, y: k.y, rx, ry, until: this.simMs + 15000, t0: this.simMs, img };
-    this.fx!.shockwave(k.x, k.y, 200, 0xffe08a);
-    this.cameras.main.shake(140, 0.004);
+    const k = this.kin, side = this.aim.x < -0.01 ? -1 : 1, S = 1.15;
+    const wx = k.x + side * 26; // the wall's chord sits just in front of the caster
+    const img = this.add.image(wx, k.y, 'sanctuary-wall', 0).setOrigin(70 / 256, 252 / 512).setBlendMode(Phaser.BlendModes.ADD).setScale(S).setFlipX(side < 0);
+    // protected zone: an ellipse behind the wall covering its full depth
+    this.dome = { x: wx - side * 200, y: k.y, rx: 240, ry: 175, until: this.simMs + 15000, t0: this.simMs, img, wx, side };
+    this.fx!.shockwave(wx + side * 60, k.y, 220, 0xffe08a);
+    this.cameras.main.shake(180, 0.006);
   }
 
   private renderDome(): void {
@@ -640,7 +642,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const left = d.until - this.simMs, age = this.simMs - d.t0;
     if (left <= 0) { d.img.destroy(); this.dome = null; return; }
     const f = age < 6 * 70 ? Math.floor(age / 70) : 6 + (Math.floor((age - 420) / 120) % 6); // rise, then shimmer loop
-    d.img.setFrame(f).setAlpha(Math.min(1, left / 600)).setDepth(actorDepth(d.x, d.y + d.ry, 0) + 1); // glass drawn over whoever stands inside
+    d.img.setFrame(f).setAlpha(Math.min(1, left / 600)).setDepth(actorDepth(d.x, d.y + 160, 0) + 1); // translucent wall drawn over the actors near it
   }
 
   // ======================================================================= actions
