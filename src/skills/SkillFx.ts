@@ -329,7 +329,7 @@ export class SkillFx {
     let a = r.aim, land = { x: r.origin.x + a.x * 150, y: r.origin.y + a.y * 150 };
     const aimNow = () => { a = r.aim; const c = this.casterPos(r.attackerId) ?? r.origin; land = { x: c.x + a.x * 150, y: c.y + a.y * 150 }; };
     // Charge-up in the air: the light-sword materialises above the raised hand, crackling, growing.
-    const charge = this.scene.add.image(0, 0, key, 3).setOrigin(0.5, 0.52).setFlipY(true).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(40, 40).setAlpha(0); // hilt sits in the palm
+    const charge = this.scene.add.image(0, 0, key, 3).setOrigin(0.5, 0.5).setFlipY(true).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(40, 40).setAlpha(0); // hilt sits in the palm
     const mark = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(GROUND + 3);
     const drawMark = (t: number) => {
       const p = 0.5 + 0.5 * Math.sin(t / 120); mark.clear();
@@ -340,17 +340,19 @@ export class SkillFx {
     const st0 = { k: 0.25 };
     this.scene.tweens.add({ targets: charge, alpha: 1, duration: 120 });
     this.scene.tweens.add({ targets: st0, k: 1, duration: T.startup, ease: 'Cubic.easeOut' });
+    let released = false;
     const tick = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
+      if (!released && (r.phase !== 'startup' || r.elapsed >= r.timings.startup)) { released = true; release(); return; } // timer ran out, or V pressed again
       const c = this.casterPos(r.attackerId); if (!c) return; aimNow();
       const ang = Math.atan2(land.y - (c.y - c.z), land.x - c.x) - Math.PI / 2; // follows the player's aim while hovering
       const h = this.handPos?.(r.attackerId) ?? { x: c.x - a.x * 6, y: c.y - c.z - 105 }; // forms in the raised hand
       drawMark(this.scene.time.now);
-      charge.setPosition(h.x, h.y + 4).setDepth(TOP).setRotation(a.x * 0.35 * st0.k + 0 * ang).setDisplaySize(150 * st0.k, 150 * st0.k)
+      charge.setPosition(h.x, h.y).setDepth(TOP).setRotation((Math.abs(a.x) > 0.3 ? Math.sign(a.x) * 0.62 : 0) + 0 * ang) // gripped through its middle, slanted forward like a thunderbolt.setDisplaySize(150 * st0.k, 150 * st0.k)
         .setFrame(3 + (Math.floor(this.scene.time.now / 70) % 3));
     } });
-    this.scene.time.delayedCall(T.startup, () => { tick.remove(); charge.destroy(); this.scene.tweens.add({ targets: mark, alpha: 0, duration: 300, onComplete: () => mark.destroy() }); });
     this.spark(IMPACT.warrior.key, r.origin.x, r.origin.y - 110, IMPACT.warrior.frames, 80, 0.8);
-    this.scene.time.delayedCall(T.startup, () => {
+    const release = () => {
+      tick.remove(); charge.destroy(); this.scene.tweens.add({ targets: mark, alpha: 0, duration: 300, onComplete: () => mark.destroy() });
       aimNow();
       const c = this.casterPos(r.attackerId) ?? r.origin;
       const h = this.handPos?.(r.attackerId) ?? { x: c.x, y: c.y - c.z - 95 };
@@ -368,7 +370,7 @@ export class SkillFx {
         this.shockwave(land.x, land.y, 150, 0x6fe0ff); (this.cam ?? this.scene.cameras.main).shake(150, 0.005);
         this.stormRing(land.x, land.y, 5000);
       } });
-    });
+    };
   }
 
   /** Electric circle on the floor: double ring + jumping lightning (sheet-free). */

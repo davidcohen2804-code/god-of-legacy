@@ -724,6 +724,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   useSlot(i: number): void {
     if (!this.view || !this.pvpReady || this.dead >= 0) return;
     if (this.skillBook?.open || this.cosPanel?.open) return;
+    const own = this.rt?.ownRun;
+    if (own && own.skill.id === 'judgment_blade' && this.kit[i]?.id === 'judgment_blade') { // V again while hovering: throw now
+      if (own.phase === 'startup' && own.elapsed >= 600) own.timings.startup = own.elapsed;
+      return;
+    }
     if (!this.tryStartSlot(i)) this.ci?.bufferAction(i);
   }
 
