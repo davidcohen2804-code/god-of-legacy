@@ -50,9 +50,9 @@ export function preloadBodies(scene: Phaser.Scene): void {
     if (sheet) scene.load.spritesheet(k, p, { frameWidth: CELL, frameHeight: CELL }); else scene.load.image(k, p);
   };
   for (const cls of SHEET_CLASSES) {
-    for (const st of Object.keys(MOVE_COLS).filter((x) => x !== 'react' || cls === 'warrior')) { L(sheetKey(cls, st), sheetPath(cls, st), true); L(`${sheetKey(cls, st)}-w`, sheetPath(cls, st).replace('.png', '_weapon.png'), true); if (cls === 'warrior') { L(`${sheetKey(cls, st)}-c`, sheetPath(cls, st).replace('.png', '_cut.png'), true); L(`${sheetKey(cls, st)}-k`, sheetPath(cls, st).replace('.png', '_cape.png'), true); L(`${sheetKey(cls, st)}-h`, sheetPath(cls, st).replace('.png', '_hair.png'), true); L(`${sheetKey(cls, st)}-a`, sheetPath(cls, st).replace('.png', '_armor.png'), true); } }
+    for (const st of Object.keys(MOVE_COLS).filter((x) => x !== 'react' || cls === 'warrior')) { L(sheetKey(cls, st), sheetPath(cls, st), true); L(`${sheetKey(cls, st)}-w`, sheetPath(cls, st).replace('.png', '_weapon.png'), true); if (cls === 'warrior') SHEET_PATH[sheetKey(cls, st)] = sheetPath(cls, st); }
     for (const s of FINAL_SKILLS.filter((x) => x.cls === cls && !BODY_ALIAS[x.id])) { const cs = CELLS[s.id]; const LS = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: cs?.w ?? CELL, frameHeight: cs?.h ?? CELL }); };
-      LS(skillKey(cls, s.id), skillPath(cls, s.id)); LS(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id).replace('.png', '_weapon.png')); if (cls === 'warrior') { LS(`${skillKey(cls, s.id)}-c`, skillPath(cls, s.id).replace('.png', '_cut.png')); LS(`${skillKey(cls, s.id)}-k`, skillPath(cls, s.id).replace('.png', '_cape.png')); LS(`${skillKey(cls, s.id)}-h`, skillPath(cls, s.id).replace('.png', '_hair.png')); LS(`${skillKey(cls, s.id)}-a`, skillPath(cls, s.id).replace('.png', '_armor.png')); } }
+      LS(skillKey(cls, s.id), skillPath(cls, s.id)); LS(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id).replace('.png', '_weapon.png')); if (cls === 'warrior') SHEET_PATH[skillKey(cls, s.id)] = skillPath(cls, s.id); }
   }
   for (const [cls, a] of Object.entries(ATLAS)) { L(atlasKey(cls), a.sheet, false); L(`${atlasKey(cls)}-w`, a.sheet.replace('.png', '_weapon.png'), false); }
 }
@@ -91,6 +91,9 @@ type AnchorTable = Record<string, (number[] | null)[][] | Record<string, (number
 const ANCH = ANCHORS as unknown as AnchorTable;
 function scaleAnchor(a: number[] | null | undefined, k: number): number[] | null { return a ? a.slice(0, 6).map((v) => v * k) : null; }
 function scaleHair(a: number[] | null | undefined, k: number): number[] | null { return a && a.length > 9 ? [a[7] * k, a[8] * k, a[9] * k] : null; }
+
+/** Sheet texture key → file path (warrior), for lazily loaded cosmetic masks (<sheet>_m.png). */
+export const SHEET_PATH: Record<string, string> = {};
 
 function headOf(path: string, row: number, c: number): number[] | null {
   const h = (HEADS as unknown as Record<string, (number[] | null)[][]>)[path]?.[row]?.[c];

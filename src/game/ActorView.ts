@@ -5,16 +5,16 @@ import Phaser from 'phaser';
 import COS from '../data/cosmetics.json';
 import { Dir } from '../world/collision';
 import { actorDepth } from '../world/WorldGeometry';
-import { ClassKey, PoseFrame, applyPose } from './Body';
+import { ClassKey, PoseFrame, applyPose, SHEET_PATH } from './Body';
 
-export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet' | 'hair' | 'armor' | 'hairstyle';
+export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet' | 'hair' | 'armor' | 'hairstyle' | 'top' | 'gloves' | 'shoes' | 'pants';
 export type Equipped = Partial<Record<CosSlot, string>>;
 
 interface CosItem { id: string; type: string; icon: string; runtime?: string; skin?: string; blade?: { w: number; h: number; guard: number; cy: number }; color?: string; fit?: { w: number; lift: number }; ring?: { cy: number }; widths?: number[]; wip?: boolean; fabric?: string; lut?: number[][]; hs?: number[][]; attachment?: string; cell?: number[]; frames?: number; layout?: string; bbox?: number[][]; parts?: string[]; name: string; desc: string }
 export const COSMETICS = Object.fromEntries(Object.entries(COS.classes as unknown as Record<string, CosItem[]>).map(([k, l]) => [k, l.filter((i) => !i.wip)])) as Record<string, CosItem[]>; // wip items stay out of the shop until verified on every frame
 export const slotOf = (type: string): CosSlot | null =>
   type === 'head' ? 'head' : type === 'mask' ? 'face' : type === 'cape' || type === 'back' ? 'back'
-    : type === 'weapon' || type === 'weapon_animated' || type === 'bow' || type === 'book' ? 'weapon' : type === 'aura' ? 'aura' : type === 'damage' ? 'damage' : type === 'pet' ? 'pet' : type === 'hair' ? 'hair' : type === 'armor' ? 'armor' : type === 'hairstyle' ? 'hairstyle' : null;
+    : type === 'weapon' || type === 'weapon_animated' || type === 'bow' || type === 'book' ? 'weapon' : type === 'aura' ? 'aura' : type === 'damage' ? 'damage' : type === 'pet' ? 'pet' : type === 'hair' ? 'hair' : type === 'armor' ? 'armor' : type === 'hairstyle' ? 'hairstyle' : type === 'top' ? 'top' : type === 'gloves' ? 'gloves' : type === 'shoes' ? 'shoes' : type === 'pants' ? 'pants' : null;
 export function cosmetic(id: string): CosItem | undefined { for (const l of Object.values(COSMETICS)) { const f = l.find((i) => i.id === id); if (f) return f; } return undefined; }
 
 /** Weapon skin palettes (tint of the real weapon pixels; `glow` adds an energy edge). */
@@ -68,52 +68,80 @@ export function grayKey(scene: Phaser.Scene, key: string, boost = 1.5): string |
 /** Body sheet with the original blade cut out (built once per sheet, from its blade-only mask). */
 /** Body sheet variant: cape fabric painted over the cape pixels (keeps the original shading) and/or the original blade cut out.
  *  Built once per sheet + combination, on first use. */
-function bodyVariant(scene: Phaser.Scene, key: string, wkey: string, cut: boolean, capeId: string | null, hairId: string | null = null, armorId: string | null = null): string | null {
-  const vk = `${key}${capeId ? `|${capeId}` : ''}${hairId ? `|${hairId}` : ''}${armorId ? `|${armorId}` : ''}${cut ? '-nb' : ''}`;
+/** Recolour layers, in paint order (later ones override earlier ones on shared pixels): [slot, mask suffix]. */
+/** Recolour layers: [slot, region labels in the packed mask (R channel)]. Later layers override earlier ones. */
+const RECOLOR: [CosSlot, number[]][] = [['hair', [40]], ['armor', [80, 120, 160]], ['top', [80]], ['gloves', [120]], ['shoes', [160]], ['pants', [200]]];
+const maskData = new Map<string, Uint8ClampedArray | 'loading'>();
+/** Packed per-sheet mask (R = region, G = sword cut), loaded on first need. */
+function sheetMask(scene: Phaser.Scene, key: string): Uint8ClampedArray | null {
+  const m = maskData.get(key);
+  if (m === 'loading') return null;
+  if (m) return m;
+  const path = SHEET_PATH[key]; if (!path) return null;
+  const mk = `${key}-m`;
+  const read = () => {
+    const im = scene.textures.get(mk).getSourceImage() as HTMLImageElement;
+    const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d', { willReadFrequently: true })!; x.drawImage(im, 0, 0);
+    maskData.set(key, x.getImageData(0, 0, im.width, im.height).data);
+  };
+  if (scene.textures.exists(mk)) { read(); return maskData.get(key) as Uint8ClampedArray; }
+  maskData.set(key, 'loading');
+  scene.load.image(mk, path.replace('.png', '_m.png'));
+  scene.load.once(`filecomplete-image-${mk}`, read);
+  scene.load.once('loaderror', () => maskData.delete(key));
+  if (!scene.load.isLoading()) scene.load.start();
+  return null;
+}
+/** Body sheet variant: cape fabric, hair/armor/cloth recolours (own shading through the item's colour ramp) and the original
+ *  sword cut out — one pass over the sheet, built once per combination. null while the sheet's mask is still loading. */
+function bodyVariant(scene: Phaser.Scene, key: string, wkey: string, cut: boolean, capeId: string | null, rec: (string | null)[] = []): string | null {
+  const vk = `${key}${capeId ? `|${capeId}` : ''}${rec.map((r) => (r ? `|${r}` : '')).join('')}${cut ? '-nb' : ''}`;
   if (scene.textures.exists(vk)) return vk;
   if (!scene.textures.exists(key)) return null;
-  const src = scene.textures.get(key), img = src.getSourceImage() as HTMLImageElement;
-  const ct = scene.textures.createCanvas(vk, img.width, img.height); if (!ct) return null;
-  const ctx = ct.getContext(); ctx.drawImage(img, 0, 0);
-  const kk = `${key}-k`, fk = capeId ? `cosf-${capeId}` : '';
-  if (capeId && scene.textures.exists(kk) && scene.textures.exists(fk)) {
-    const W = img.width, H = img.height;
-    const mc = document.createElement('canvas'); mc.width = W; mc.height = H; const mx = mc.getContext('2d')!;
-    mx.drawImage(scene.textures.get(kk).getSourceImage() as HTMLImageElement, 0, 0); const mask = mx.getImageData(0, 0, W, H).data;
-    const fimg = scene.textures.get(fk).getSourceImage() as HTMLImageElement, FW = fimg.width, FH = fimg.height;
-    const fc = document.createElement('canvas'); fc.width = FW; fc.height = FH; const fx = fc.getContext('2d')!; fx.drawImage(fimg, 0, 0); const fab = fx.getImageData(0, 0, FW, FH).data;
-    const d = ctx.getImageData(0, 0, W, H), a = d.data, S = FW / 130; // one fabric tile ≈ 130 sheet px (≈80 px on screen)
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      const i = (y * W + x) * 4; if (mask[i + 3] < 128 || a[i + 3] === 0) continue;
-      const shade = Math.min(1.5, Math.max(0.25, a[i] / 170)); // cape is red: its red channel carries the folds and shadows
-      const fi = ((Math.floor(y * S) % FH) * FW + (Math.floor(x * S) % FW)) * 4;
-      a[i] = Math.min(255, fab[fi] * shade); a[i + 1] = Math.min(255, fab[fi + 1] * shade); a[i + 2] = Math.min(255, fab[fi + 2] * shade);
-    }
-    ctx.putImageData(d, 0, 0);
+  const mask = sheetMask(scene, key);
+  if (!mask) { // no packed mask (other classes) or still loading: sword cut from the raw blade mask only
+    if (SHEET_PATH[key]) return null;
+    if (!cut || !scene.textures.exists(wkey)) return null;
   }
-  for (const [mk2, id2] of [[`${key}-h`, hairId], [`${key}-a`, armorId]] as const) { // hair / armor: own light & shadow mapped through the item's colour ramp
-  const hk = mk2, lut = id2 ? cosmetic(id2)?.lut : undefined;
-  if (lut && scene.textures.exists(hk)) { // hair colour: the hair's own light/shadow mapped through the colour's gradient
-    const W = img.width, H = img.height;
-    const mc = document.createElement('canvas'); mc.width = W; mc.height = H; const mx = mc.getContext('2d')!;
-    mx.drawImage(scene.textures.get(hk).getSourceImage() as HTMLImageElement, 0, 0); const mask = mx.getImageData(0, 0, W, H).data;
-    const d = ctx.getImageData(0, 0, W, H), a = d.data, n = lut.length;
-    for (let i = 0; i < a.length; i += 4) {
-      if (mask[i + 3] < 128 || a[i + 3] === 0) continue;
-      const l = 0.3 * a[i] + 0.59 * a[i + 1] + 0.11 * a[i + 2], q = Math.max(0, Math.min(n - 1, Math.floor(((l - 12) / 175) * n)));
+  const src = scene.textures.get(key), img = src.getSourceImage() as HTMLImageElement, W = img.width, H = img.height;
+  const ct = scene.textures.createCanvas(vk, W, H); if (!ct) return null;
+  const ctx = ct.getContext(); ctx.drawImage(img, 0, 0);
+  if (mask) {
+    const d = ctx.getImageData(0, 0, W, H), a = d.data;
+    const lab = new Int16Array(256).fill(-1); // region label → ramp index
+    const ramps: number[][][] = [];
+    RECOLOR.forEach(([, labels], ri) => { const lut = rec[ri] ? cosmetic(rec[ri]!)?.lut : undefined; if (lut) { ramps[ri] = lut; for (const l of labels) lab[l] = ri; } });
+    let fab: Uint8ClampedArray | null = null, FW = 0, FH = 0;
+    if (capeId && scene.textures.exists(`cosf-${capeId}`)) {
+      const fimg = scene.textures.get(`cosf-${capeId}`).getSourceImage() as HTMLImageElement; FW = fimg.width; FH = fimg.height;
+      const fc = document.createElement('canvas'); fc.width = FW; fc.height = FH; const fx = fc.getContext('2d')!; fx.drawImage(fimg, 0, 0); fab = fx.getImageData(0, 0, FW, FH).data;
+    }
+    const S = FW / 130; // one fabric tile ≈ 130 sheet px (≈80 px on screen)
+    for (let i = 0, p = 0; i < a.length; i += 4, p++) {
+      if (a[i + 3] === 0) continue;
+      if (cut && mask[i + 1] > 127) { a[i + 3] = 0; continue; }
+      const r = mask[i];
+      if (r === 0) continue;
+      if (r === 240) {
+        if (!fab) continue;
+        const x = p % W, y = (p - x) / W, shade = Math.min(1.5, Math.max(0.25, a[i] / 170)); // the red cape's own folds and shadows
+        const fi = ((Math.floor(y * S) % FH) * FW + (Math.floor(x * S) % FW)) * 4;
+        a[i] = Math.min(255, fab[fi] * shade); a[i + 1] = Math.min(255, fab[fi + 1] * shade); a[i + 2] = Math.min(255, fab[fi + 2] * shade);
+        continue;
+      }
+      // the most specific slot wins (top/gloves/shoes over the full armor finish)
+      let ri = -1; for (let k = RECOLOR.length - 1; k >= 0; k--) if (ramps[k] && RECOLOR[k][1].includes(r)) { ri = k; break; }
+      if (ri < 0) continue;
+      const lut = ramps[ri], n = lut.length, l = 0.3 * a[i] + 0.59 * a[i + 1] + 0.11 * a[i + 2], q = Math.max(0, Math.min(n - 1, Math.floor(((l - 12) / 175) * n)));
       a[i] = lut[q][0]; a[i + 1] = lut[q][1]; a[i + 2] = lut[q][2];
     }
+    void lab;
     ctx.putImageData(d, 0, 0);
-  }
-  }
-  if (cut) {
-    const ck = `${key}-c`, mk = scene.textures.exists(ck) ? ck : wkey; // verified cut mask (blade + its line), else the raw blade mask
-    if (scene.textures.exists(mk)) {
-      const wimg = scene.textures.get(mk).getSourceImage() as HTMLImageElement;
-      ctx.globalCompositeOperation = 'destination-out';
-      for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) ctx.drawImage(wimg, dx, dy); // 1px wider: no grey rim left behind
-      ctx.globalCompositeOperation = 'source-over';
-    }
+  } else if (cut) {
+    const wimg = scene.textures.get(wkey).getSourceImage() as HTMLImageElement;
+    ctx.globalCompositeOperation = 'destination-out';
+    for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) ctx.drawImage(wimg, dx, dy);
+    ctx.globalCompositeOperation = 'source-over';
   }
   for (const name of src.getFrameNames()) { const f = src.get(name); ct.add(name, 0, f.cutX, f.cutY, f.cutWidth, f.cutHeight); }
   ct.refresh();
@@ -163,7 +191,7 @@ export class ActorView {
       this.bladeTop = this.scene.add.image(0, 0, `cosw-${wi.id}`).setCrop(cut, 0, wi.blade.w - cut, wi.blade.h);
     }
     for (const [slot, id] of Object.entries(e) as [CosSlot, string][]) {
-      if (!id || slot === 'weapon' || slot === 'damage' || slot === 'hair' || slot === 'armor') continue;
+      if (!id || slot === 'weapon' || slot === 'damage' || slot === 'hair' || slot === 'armor' || slot === 'top' || slot === 'gloves' || slot === 'shoes' || slot === 'pants') continue;
       const it = cosmetic(id);
       if (!it || !this.scene.textures.exists(`cos-${id}`)) continue;
       const img = this.scene.add.image(0, 0, `cos-${id}`, 0);
@@ -188,10 +216,11 @@ export class ActorView {
     this.shadow.setPosition(x, y - supportZ + 1).setDepth(actorDepth(x, y, supportZ) - 0.6).setScale(0.42 * k, 0.4 * k).setAlpha(alpha * (0.9 * k)).setVisible(this.visible);
     // Sword skin (warrior): original blade cut out of this frame, the new sword laid on the frame's hilt→tip line.
     const capeId = this.equipped.back && cosmetic(this.equipped.back)?.fabric ? this.equipped.back : null;
-    const hairId = this.equipped.hair && cosmetic(this.equipped.hair)?.lut ? this.equipped.hair : null;
-    const armorId = this.equipped.armor && cosmetic(this.equipped.armor)?.lut ? this.equipped.armor : null;
-    if (this.blade || capeId || hairId || armorId) { const vk = bodyVariant(this.scene, pose.key, pose.wkey, !!this.blade, capeId, hairId, armorId); if (vk) p.setTexture(vk, pose.frame); }
-    if (this.blade) {
+    const rec = RECOLOR.map(([sl]) => { const id = this.equipped[sl]; return id && cosmetic(id)?.lut ? id : null; });
+    let ready = true;
+    if (this.blade || capeId || rec.some((r) => r)) { const vk = bodyVariant(this.scene, pose.key, pose.wkey, !!this.blade, capeId, rec); if (vk) p.setTexture(vk, pose.frame); else ready = false; }
+    if (this.blade && !ready) { this.blade.setVisible(false); this.bladeTop?.setVisible(false); } // mask still loading: keep the original sword for a moment
+    else if (this.blade) {
       const bi = cosmetic(this.equipped.weapon!)!.blade!, bl = pose.blade;
       if (bl && this.visible) {
         const dx = bl[2] - bl[0], dy = bl[3] - bl[1], L = Math.hypot(dx, dy), ang = Math.atan2(dy, dx), flip = Math.cos(ang) < 0;
