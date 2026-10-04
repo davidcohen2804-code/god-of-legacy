@@ -130,10 +130,9 @@ export function clearLine(ax: number, ay: number, bx: number, by: number, h = 30
 export function actorDepth(x: number, y: number, z: number): number {
   let d = y;
   for (const o of WORLD_OBJECTS) {
-    if (z >= o.height - 4 && y <= o.frontY + 2) {
-      const xs = o.occluder.map((p) => p[0]);
-      if (x >= Math.min(...xs) - 40 && x <= Math.max(...xs) + 40) d = Math.max(d, o.frontY + 1 + y * 0.001);
-    }
+    // Drawn over a prop only when actually on / above its top (feet over the footprint); an airborne actor
+    // behind the prop stays behind it.
+    if (z >= o.height - 4 && y <= o.frontY + 2 && polyDist(x, y, o.footprint) < 14) d = Math.max(d, o.frontY + 1 + y * 0.001);
   }
   return d;
 }
