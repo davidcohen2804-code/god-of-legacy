@@ -10,7 +10,7 @@ import { ClassKey, PoseFrame, applyPose } from './Body';
 export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura';
 export type Equipped = Partial<Record<CosSlot, string>>;
 
-interface CosItem { id: string; type: string; icon: string; runtime?: string; skin?: string; blade?: { w: number; h: number; guard: number; cy: number }; color?: string; attachment?: string; cell?: number[]; frames?: number; layout?: string; bbox?: number[][]; parts?: string[]; name: string; desc: string }
+interface CosItem { id: string; type: string; icon: string; runtime?: string; skin?: string; blade?: { w: number; h: number; guard: number; cy: number }; color?: string; fit?: { w: number; lift: number }; ring?: { cy: number }; attachment?: string; cell?: number[]; frames?: number; layout?: string; bbox?: number[][]; parts?: string[]; name: string; desc: string }
 export const COSMETICS = COS.classes as unknown as Record<string, CosItem[]>;
 export const slotOf = (type: string): CosSlot | null =>
   type === 'head' ? 'head' : type === 'mask' ? 'face' : type === 'cape' || type === 'back' ? 'back'
@@ -29,6 +29,7 @@ const WEAPON_TINT: Record<string, { tint: number; glow?: number; rainbow?: boole
 };
 
 /** On-body size targets (world px) for anchored cosmetics. */
+const HEAD_SEAT = 0.42; // fitted head items: lower edge this far (× hair width) above the hair's lower edge — on top of the hair, never over the face
 const SKIN_THICK = 1.05; // sword skins: a touch bigger than the base sword
 const SIZE: Record<string, number> = { head: 40, face: 18, back: 56, aura: 92 };
 
@@ -170,8 +171,9 @@ export class ActorView {
       if (slot === 'aura') {
         const n = it.frames ?? 8;
         img.setFrame(Math.floor((this.t * 8) / 1000) % n);
-        const s = SIZE.aura / ((it.bbox?.[0][2] ?? 128) - (it.bbox?.[0][0] ?? 0));
-        img.setScale(s).setPosition(x, y - supportZ - 12).setDepth(actorDepth(x, y, supportZ) - 0.7).setAlpha(alpha * 0.9).setVisible(this.visible);
+        const s = (it.ring ? 138 : SIZE.aura) / ((it.bbox?.[0][2] ?? 128) - (it.bbox?.[0][0] ?? 0));
+        if (it.ring) img.setOrigin(0.5, it.ring.cy); // ring centred on the feet, particles rise above it
+        img.setScale(s).setPosition(x, y - supportZ - (it.ring ? 0 : 12)).setDepth(actorDepth(x, y, supportZ) - 0.7).setAlpha(alpha * 0.9).setVisible(this.visible);
         continue;
       }
       if (!a) { img.setVisible(false); continue; }
@@ -185,7 +187,9 @@ export class ActorView {
       if (slot === 'head' && pose.hair) {
         // Fitted to this frame's head: covers the hair box (stable per-direction width), seated by its lower edge.
         const [hcx, hw, hb] = pose.hair, f = HEAD_FIT[col];
-        s = (hw * f.w) / bw; ax = hcx + f.dx * hw * (dir === 'left' ? -1 : 1); ay = hb + f.b * hw - (bh * s) / 2;
+        if (it.fit) { // one scale for all views (from the front view), seated on the hair line, optional float (halo)
+          const fb = it.bbox![0]; s = (hw * f.w * it.fit.w) / (fb[2] - fb[0]); ax = hcx + f.dx * hw * (dir === 'left' ? -1 : 1); ay = hb - HEAD_SEAT * hw - (bh * s) / 2 - it.fit.lift * hw;
+        } else { s = (hw * f.w) / bw; ax = hcx + f.dx * hw * (dir === 'left' ? -1 : 1); ay = hb + f.b * hw - (bh * s) / 2; }
       } else if (slot === 'head') { s = SIZE.head / Math.max(bw, bh * 0.9); ax = a[2]; ay = a[1] + (bh * s) * 0.42; }
       else if (slot === 'face') { s = SIZE.face / bw; ax = a[2] + (dir === 'right' ? 3 : dir === 'left' ? -3 : 0); ay = a[1] + (a[6] ?? 100) * 0.2; show = show && dir !== 'up'; }
       else { // back

@@ -84,6 +84,186 @@
     "desc": "battle-worn crown/helm silhouette."
    },
    {
+    "id": "war_head_royal_crown",
+    "type": "head",
+    "icon": "assets/final/cosmetics/warrior/war_head_royal_crown/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_head_royal_crown/runtime.png",
+    "attachment": "head",
+    "cell": [
+     256,
+     256
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      50,
+      59,
+      214,
+      192
+     ],
+     [
+      54,
+      60,
+      205,
+      197
+     ],
+     [
+      51,
+      60,
+      201,
+      197
+     ],
+     [
+      42,
+      59,
+      205,
+      192
+     ]
+    ],
+    "fit": {
+     "w": 0.8,
+     "lift": 0
+    },
+    "name": "Royal Crown",
+    "desc": "gold crown with ruby jewels."
+   },
+   {
+    "id": "war_head_holy_halo",
+    "type": "head",
+    "icon": "assets/final/cosmetics/warrior/war_head_holy_halo/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_head_holy_halo/runtime.png",
+    "attachment": "head",
+    "cell": [
+     256,
+     256
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      39,
+      66,
+      224,
+      172
+     ],
+     [
+      61,
+      64,
+      214,
+      191
+     ],
+     [
+      41,
+      64,
+      194,
+      191
+     ],
+     [
+      31,
+      66,
+      216,
+      172
+     ]
+    ],
+    "fit": {
+     "w": 0.85,
+     "lift": 0.25
+    },
+    "name": "Holy Halo",
+    "desc": "a glowing halo floating above the head."
+   },
+   {
+    "id": "war_head_ice_tiara",
+    "type": "head",
+    "icon": "assets/final/cosmetics/warrior/war_head_ice_tiara/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_head_ice_tiara/runtime.png",
+    "attachment": "head",
+    "cell": [
+     256,
+     256
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      45,
+      52,
+      218,
+      196
+     ],
+     [
+      65,
+      51,
+      179,
+      205
+     ],
+     [
+      76,
+      51,
+      190,
+      205
+     ],
+     [
+      37,
+      52,
+      209,
+      196
+     ]
+    ],
+    "fit": {
+     "w": 0.85,
+     "lift": 0
+    },
+    "name": "Frost Tiara",
+    "desc": "ice-crystal tiara."
+   },
+   {
+    "id": "war_head_flame_crown",
+    "type": "head",
+    "icon": "assets/final/cosmetics/warrior/war_head_flame_crown/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_head_flame_crown/runtime.png",
+    "attachment": "head",
+    "cell": [
+     256,
+     256
+    ],
+    "frames": 1,
+    "layout": "4x1",
+    "bbox": [
+     [
+      40,
+      45,
+      225,
+      204
+     ],
+     [
+      41,
+      56,
+      205,
+      210
+     ],
+     [
+      50,
+      55,
+      214,
+      210
+     ],
+     [
+      30,
+      45,
+      215,
+      204
+     ]
+    ],
+    "fit": {
+     "w": 0.85,
+     "lift": 0
+    },
+    "name": "Flame Crown",
+    "desc": "a crown of living fire."
+   },
+   {
     "id": "war_cape_crimson_banner",
     "type": "cape",
     "icon": "assets/final/cosmetics/warrior/war_cape_crimson_banner/icon.png",
@@ -338,6 +518,162 @@
     ],
     "name": "Thunder Ground",
     "desc": ""
+   },
+   {
+    "id": "war_aura_holy_runes",
+    "type": "aura",
+    "icon": "assets/final/cosmetics/warrior/war_aura_holy_runes/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_aura_holy_runes/runtime.png",
+    "attachment": "auraGround",
+    "cell": [
+     222,
+     148
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "bbox": [
+     [
+      12,
+      0,
+      204,
+      148
+     ]
+    ],
+    "ring": {
+     "cy": 0.642
+    },
+    "name": "Holy Rune Aura",
+    "desc": "golden rune circle with rising light."
+   },
+   {
+    "id": "war_aura_shadow_flame",
+    "type": "aura",
+    "icon": "assets/final/cosmetics/warrior/war_aura_shadow_flame/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_aura_shadow_flame/runtime.png",
+    "attachment": "auraGround",
+    "cell": [
+     222,
+     148
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "bbox": [
+     [
+      22,
+      0,
+      194,
+      148
+     ]
+    ],
+    "ring": {
+     "cy": 0.574
+    },
+    "name": "Shadow Flame Aura",
+    "desc": "violet flames from a dark ring."
+   },
+   {
+    "id": "war_aura_frost_ring",
+    "type": "aura",
+    "icon": "assets/final/cosmetics/warrior/war_aura_frost_ring/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_aura_frost_ring/runtime.png",
+    "attachment": "auraGround",
+    "cell": [
+     222,
+     148
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "bbox": [
+     [
+      13,
+      0,
+      206,
+      148
+     ]
+    ],
+    "ring": {
+     "cy": 0.507
+    },
+    "name": "Frost Ring Aura",
+    "desc": "ice crystals and snowflakes."
+   },
+   {
+    "id": "war_aura_crimson_sigil",
+    "type": "aura",
+    "icon": "assets/final/cosmetics/warrior/war_aura_crimson_sigil/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_aura_crimson_sigil/runtime.png",
+    "attachment": "auraGround",
+    "cell": [
+     222,
+     148
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "bbox": [
+     [
+      20,
+      0,
+      194,
+      148
+     ]
+    ],
+    "ring": {
+     "cy": 0.453
+    },
+    "name": "Crimson Sigil Aura",
+    "desc": "blood-red demonic sigil with embers."
+   },
+   {
+    "id": "war_aura_verdant",
+    "type": "aura",
+    "icon": "assets/final/cosmetics/warrior/war_aura_verdant/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_aura_verdant/runtime.png",
+    "attachment": "auraGround",
+    "cell": [
+     222,
+     148
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "bbox": [
+     [
+      12,
+      0,
+      206,
+      148
+     ]
+    ],
+    "ring": {
+     "cy": 0.412
+    },
+    "name": "Verdant Aura",
+    "desc": "swirling leaves and petals."
+   },
+   {
+    "id": "war_aura_prism_star",
+    "type": "aura",
+    "icon": "assets/final/cosmetics/warrior/war_aura_prism_star/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_aura_prism_star/runtime.png",
+    "attachment": "auraGround",
+    "cell": [
+     222,
+     148
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "bbox": [
+     [
+      11,
+      0,
+      209,
+      148
+     ]
+    ],
+    "ring": {
+     "cy": 0.419
+    },
+    "name": "Prism Star Aura",
+    "desc": "rainbow star ring with sparkles."
    },
    {
     "id": "war_set_iron_legacy",
