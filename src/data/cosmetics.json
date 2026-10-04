@@ -166,127 +166,132 @@
     "desc": "broad off-white cape."
    },
    {
+    "id": "war_weapon_dragonbone",
+    "type": "weapon",
+    "icon": "assets/final/cosmetics/warrior/war_weapon_dragonbone/icon.png",
+    "skin": "assets/final/cosmetics/warrior/war_weapon_dragonbone/skin.png",
+    "attachment": "blade",
+    "blade": {
+     "w": 504,
+     "h": 172,
+     "guard": 172,
+     "cy": 85.5
+    },
+    "color": "#ff7a5a",
+    "name": "Dragonbone Greatsword",
+    "desc": "bone blade with a red marrow core."
+   },
+   {
     "id": "war_weapon_obsidian_greatsword",
     "type": "weapon",
     "icon": "assets/final/cosmetics/warrior/war_weapon_obsidian_greatsword/icon.png",
-    "runtime": "assets/final/cosmetics/warrior/war_weapon_obsidian_greatsword/runtime.png",
-    "attachment": "weaponHand",
-    "cell": [
-     192,
-     192
-    ],
-    "frames": 1,
-    "layout": "4x1",
-    "bbox": [
-     [
-      68,
-      62,
-      151,
-      172
-     ],
-     [
-      61,
-      61,
-      181,
-      119
-     ],
-     [
-      11,
-      61,
-      131,
-      119
-     ],
-     [
-      41,
-      20,
-      124,
-      130
-     ]
-    ],
-    "name": "Obsidian Greatsword",
-    "desc": ""
+    "skin": "assets/final/cosmetics/warrior/war_weapon_obsidian_greatsword/skin.png",
+    "attachment": "blade",
+    "blade": {
+     "w": 510,
+     "h": 186,
+     "guard": 147,
+     "cy": 92.5
+    },
+    "color": "#ff8a30",
+    "name": "Obsidian Flame Blade",
+    "desc": "black obsidian with molten cracks."
+   },
+   {
+    "id": "war_weapon_ice_crystal",
+    "type": "weapon",
+    "icon": "assets/final/cosmetics/warrior/war_weapon_ice_crystal/icon.png",
+    "skin": "assets/final/cosmetics/warrior/war_weapon_ice_crystal/skin.png",
+    "attachment": "blade",
+    "blade": {
+     "w": 509,
+     "h": 183,
+     "guard": 137,
+     "cy": 90.5
+    },
+    "color": "#7ad8ff",
+    "name": "Frostcrystal Sword",
+    "desc": "a blade of living ice."
    },
    {
     "id": "war_weapon_sunblade",
     "type": "weapon",
     "icon": "assets/final/cosmetics/warrior/war_weapon_sunblade/icon.png",
-    "runtime": "assets/final/cosmetics/warrior/war_weapon_sunblade/runtime.png",
-    "attachment": "weaponHand",
-    "cell": [
-     192,
-     192
-    ],
-    "frames": 1,
-    "layout": "4x1",
-    "bbox": [
-     [
-      68,
-      62,
-      150,
-      171
-     ],
-     [
-      61,
-      63,
-      181,
-      119
-     ],
-     [
-      11,
-      63,
-      131,
-      119
-     ],
-     [
-      42,
-      21,
-      124,
-      130
-     ]
-    ],
-    "name": "Sunblade",
-    "desc": ""
+    "skin": "assets/final/cosmetics/warrior/war_weapon_sunblade/skin.png",
+    "attachment": "blade",
+    "blade": {
+     "w": 508,
+     "h": 193,
+     "guard": 142,
+     "cy": 95.5
+    },
+    "color": "#ffe08a",
+    "name": "Holy Sunblade",
+    "desc": "paladin gold with a sapphire heart."
+   },
+   {
+    "id": "war_weapon_shadow_demon",
+    "type": "weapon",
+    "icon": "assets/final/cosmetics/warrior/war_weapon_shadow_demon/icon.png",
+    "skin": "assets/final/cosmetics/warrior/war_weapon_shadow_demon/skin.png",
+    "attachment": "blade",
+    "blade": {
+     "w": 505,
+     "h": 191,
+     "guard": 157,
+     "cy": 95.5
+    },
+    "color": "#b070ff",
+    "name": "Demon Shadowblade",
+    "desc": "violet shadow flames."
    },
    {
     "id": "war_weapon_storm_edge",
     "type": "weapon",
     "icon": "assets/final/cosmetics/warrior/war_weapon_storm_edge/icon.png",
-    "runtime": "assets/final/cosmetics/warrior/war_weapon_storm_edge/runtime.png",
-    "attachment": "weaponHand",
-    "cell": [
-     192,
-     192
-    ],
-    "frames": 1,
-    "layout": "4x1",
-    "bbox": [
-     [
-      64,
-      58,
-      155,
-      175
-     ],
-     [
-      54,
-      57,
-      183,
-      123
-     ],
-     [
-      9,
-      57,
-      138,
-      123
-     ],
-     [
-      37,
-      17,
-      128,
-      134
-     ]
-    ],
-    "name": "Storm Edge",
-    "desc": ""
+    "skin": "assets/final/cosmetics/warrior/war_weapon_storm_edge/skin.png",
+    "attachment": "blade",
+    "blade": {
+     "w": 510,
+     "h": 180,
+     "guard": 149,
+     "cy": 89.5
+    },
+    "color": "#ffe060",
+    "name": "Thunder Edge",
+    "desc": "crackling with lightning runes."
+   },
+   {
+    "id": "war_weapon_jade_katana",
+    "type": "weapon",
+    "icon": "assets/final/cosmetics/warrior/war_weapon_jade_katana/icon.png",
+    "skin": "assets/final/cosmetics/warrior/war_weapon_jade_katana/skin.png",
+    "attachment": "blade",
+    "blade": {
+     "w": 509,
+     "h": 169,
+     "guard": 148,
+     "cy": 58.2
+    },
+    "color": "#5aff9a",
+    "name": "Jade Dragon Blade",
+    "desc": "curved emerald blade with a jade tassel."
+   },
+   {
+    "id": "war_weapon_ruby_royal",
+    "type": "weapon",
+    "icon": "assets/final/cosmetics/warrior/war_weapon_ruby_royal/icon.png",
+    "skin": "assets/final/cosmetics/warrior/war_weapon_ruby_royal/skin.png",
+    "attachment": "blade",
+    "blade": {
+     "w": 496,
+     "h": 191,
+     "guard": 137,
+     "cy": 95.5
+    },
+    "color": "#ff3a5a",
+    "name": "Ruby Royal Sword",
+    "desc": "a king's blade of crimson crystal."
    },
    {
     "id": "war_aura_ember_ring",

@@ -10,7 +10,7 @@ import { ClassKey, PoseFrame, applyPose } from './Body';
 export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura';
 export type Equipped = Partial<Record<CosSlot, string>>;
 
-interface CosItem { id: string; type: string; icon: string; runtime?: string; attachment?: string; cell?: number[]; frames?: number; layout?: string; bbox?: number[][]; parts?: string[]; name: string; desc: string }
+interface CosItem { id: string; type: string; icon: string; runtime?: string; skin?: string; blade?: { w: number; h: number; guard: number; cy: number }; color?: string; attachment?: string; cell?: number[]; frames?: number; layout?: string; bbox?: number[][]; parts?: string[]; name: string; desc: string }
 export const COSMETICS = COS.classes as unknown as Record<string, CosItem[]>;
 export const slotOf = (type: string): CosSlot | null =>
   type === 'head' ? 'head' : type === 'mask' ? 'face' : type === 'cape' || type === 'back' ? 'back'
@@ -29,14 +29,51 @@ const WEAPON_TINT: Record<string, { tint: number; glow?: number; rainbow?: boole
 };
 
 /** On-body size targets (world px) for anchored cosmetics. */
+const SKIN_THICK = 1.05; // sword skins: a touch bigger than the base sword
 const SIZE: Record<string, number> = { head: 40, face: 18, back: 56, aura: 92 };
 
 export function preloadCosmetics(scene: Phaser.Scene): void {
   for (const list of Object.values(COSMETICS)) for (const it of list) {
+    if (it.skin && !scene.textures.exists(`cosw-${it.id}`)) scene.load.image(`cosw-${it.id}`, it.skin);
     if (!it.runtime || scene.textures.exists(`cos-${it.id}`)) continue;
     scene.load.spritesheet(`cos-${it.id}`, it.runtime, { frameWidth: it.cell![0], frameHeight: it.cell![1] });
   }
   if (!scene.textures.exists('contact-shadow')) scene.load.image('contact-shadow', 'assets/final/world/contact_shadow.png');
+}
+
+/** Weapon-skin colour (also tints the warrior's light-blade effects). */
+export function skinColor(id: string | undefined): number | null { const c = id ? cosmetic(id)?.color : undefined; return c ? parseInt(c.slice(1), 16) : null; }
+
+/** White (luminance) copy of a sheet, so a tint recolours it fully (skin-coloured light blades). */
+export function grayKey(scene: Phaser.Scene, key: string, boost = 1.5): string | null {
+  const gk = `${key}-gray`;
+  if (scene.textures.exists(gk)) return gk;
+  if (!scene.textures.exists(key)) return null;
+  const src = scene.textures.get(key), img = src.getSourceImage() as HTMLImageElement;
+  const ct = scene.textures.createCanvas(gk, img.width, img.height); if (!ct) return null;
+  const ctx = ct.getContext(); ctx.drawImage(img, 0, 0);
+  const d = ctx.getImageData(0, 0, img.width, img.height), a = d.data;
+  for (let i = 0; i < a.length; i += 4) { const l = Math.min(255, Math.max(a[i], a[i + 1], a[i + 2]) * boost); a[i] = a[i + 1] = a[i + 2] = l; }
+  ctx.putImageData(d, 0, 0);
+  for (const name of src.getFrameNames()) { const f = src.get(name); ct.add(name, 0, f.cutX, f.cutY, f.cutWidth, f.cutHeight); }
+  ct.refresh();
+  return gk;
+}
+
+/** Body sheet with the original blade cut out (built once per sheet, from its blade-only mask). */
+function noBladeKey(scene: Phaser.Scene, key: string, wkey: string): string | null {
+  const nk = `${key}-nb`;
+  if (scene.textures.exists(nk)) return nk;
+  if (!scene.textures.exists(key) || !scene.textures.exists(wkey)) return null;
+  const src = scene.textures.get(key), wsrc = scene.textures.get(wkey);
+  const img = src.getSourceImage() as HTMLImageElement, wimg = wsrc.getSourceImage() as HTMLImageElement;
+  const ct = scene.textures.createCanvas(nk, img.width, img.height); if (!ct) return null;
+  const ctx = ct.getContext(); ctx.drawImage(img, 0, 0); ctx.globalCompositeOperation = 'destination-out';
+  for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) ctx.drawImage(wimg, dx, dy); // 1px wider: no grey rim left behind
+  ctx.globalCompositeOperation = 'source-over';
+  for (const name of src.getFrameNames()) { const f = src.get(name); ct.add(name, 0, f.cutX, f.cutY, f.cutWidth, f.cutHeight); }
+  ct.refresh();
+  return nk;
 }
 
 const DIR_COL: Record<Dir, number> = { down: 0, right: 1, left: 2, up: 3 };
@@ -51,6 +88,8 @@ export class ActorView {
   /** Team ring on the floor (DFO-style): readable position even under heavy effects. */
   readonly ring: Phaser.GameObjects.Ellipse;
   private layers: Partial<Record<CosSlot, Phaser.GameObjects.Image>> = {};
+  /** Warrior sword skin: drawn along the real sword line of every frame (never drifts off the hand). */
+  private blade: Phaser.GameObjects.Image | null = null;
   private equipped: Equipped = {};
   private t = 0;
   visible = true;
@@ -68,6 +107,9 @@ export class ActorView {
   setEquipped(e: Equipped): void {
     this.equipped = { ...e };
     for (const s of Object.keys(this.layers) as CosSlot[]) { this.layers[s]?.destroy(); delete this.layers[s]; }
+    this.blade?.destroy(); this.blade = null;
+    const wi = e.weapon ? cosmetic(e.weapon) : undefined;
+    if (wi?.blade && this.scene.textures.exists(`cosw-${wi.id}`)) this.blade = this.scene.add.image(0, 0, `cosw-${wi.id}`);
     for (const [slot, id] of Object.entries(e) as [CosSlot, string][]) {
       if (!id || slot === 'weapon') continue;
       const it = cosmetic(id);
@@ -92,6 +134,20 @@ export class ActorView {
     const h = Math.max(0, z - supportZ), k = Math.max(0.35, 1 - h / 140);
     this.ring.setPosition(x, y - supportZ + 2).setDepth(actorDepth(x, y, supportZ) - 0.65).setAlpha(alpha * k).setScale(k).setVisible(this.visible);
     this.shadow.setPosition(x, y - supportZ + 1).setDepth(actorDepth(x, y, supportZ) - 0.6).setScale(0.42 * k, 0.4 * k).setAlpha(alpha * (0.9 * k)).setVisible(this.visible);
+    // Sword skin (warrior): original blade cut out of this frame, the new sword laid on the frame's hilt→tip line.
+    if (this.blade) {
+      const bi = cosmetic(this.equipped.weapon!)!.blade!, bl = pose.blade;
+      const nb = noBladeKey(this.scene, pose.key, pose.wkey);
+      if (nb) p.setTexture(nb, pose.frame);
+      if (bl && this.visible) {
+        const dx = bl[2] - bl[0], dy = bl[3] - bl[1], L = Math.hypot(dx, dy), ang = Math.atan2(dy, dx), flip = Math.cos(ang) < 0;
+        const bladePx = bi.w - bi.guard, sx = (L * 0.98) / bladePx, sy = (52 * SKIN_THICK) / bladePx;
+        const gx = p.x + bl[0] + (dx / L) * L * 0.04, gy = p.y + bl[1] + (dy / L) * L * 0.04;
+        this.blade.setOrigin(bi.guard / bi.w, (flip ? bi.h - bi.cy : bi.cy) / bi.h).setFlipY(flip).setRotation(ang).setScale(sx, sy)
+          .setPosition(gx, gy).setDepth(dir === 'up' ? depth - 0.02 : depth + 0.02).setAlpha(alpha).setVisible(true);
+        if (tint === null) this.blade.clearTint(); else if (tintFill) this.blade.setTintFill(tint); else this.blade.setTint(tint);
+      } else this.blade.setVisible(false);
+    }
     // Weapon skin: tinted copy of the real weapon pixels of this exact frame.
     const ws = this.equipped.weapon ? WEAPON_TINT[this.equipped.weapon] : undefined;
     const showW = !!ws && this.visible && this.scene.textures.exists(pose.wkey);
@@ -144,13 +200,13 @@ export class ActorView {
 
   setVisible(v: boolean): void {
     this.visible = v;
-    this.sprite.setVisible(v); this.shadow.setVisible(v); this.ring.setVisible(v); this.weapon.setVisible(v && this.weapon.visible); this.weaponGlow.setVisible(v && this.weaponGlow.visible);
+    this.sprite.setVisible(v); this.shadow.setVisible(v); this.ring.setVisible(v); this.weapon.setVisible(v && this.weapon.visible); this.weaponGlow.setVisible(v && this.weaponGlow.visible); this.blade?.setVisible(v && this.blade.visible);
     for (const l of Object.values(this.layers)) l?.setVisible(v);
   }
 
   destroy(): void {
     this.sprite.destroy(); this.weapon.destroy(); this.weaponGlow.destroy(); this.shadow.destroy(); this.ring.destroy();
     for (const l of Object.values(this.layers)) l?.destroy();
-    this.layers = {};
+    this.layers = {}; this.blade?.destroy(); this.blade = null;
   }
 }

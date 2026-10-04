@@ -23,7 +23,7 @@ import { PvpController } from '../pvp/PvpController';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
 import { NetMsg } from '../pvp/Transport';
 import { CombatInput } from '../game/CombatInput';
-import { ActorView, Equipped, preloadCosmetics } from '../game/ActorView';
+import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey } from '../game/ActorView';
 import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
 import { ClassKey, dirOf, preloadBodies, registerBodies, resolvePose, PoseFrame } from '../game/Body';
@@ -666,6 +666,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!this.beam || !this.beamGlow) return;
     this.beam.setVisible(on); this.beamGlow.setVisible(false); // no extra glow layer: the blade art only
     if (!on) return;
+    const skinC = skinColor(this.equipped.weapon), bkey = skinC !== null ? grayKey(this, 'radiant-blade', 1.7) ?? 'radiant-blade' : 'radiant-blade'; // light blade takes the sword skin's colour
+    if (this.beam.texture.key !== bkey) this.beam.setTexture(bkey, 0);
+    if (skinC !== null) this.beam.setTint(skinC); else this.beam.clearTint();
     const b = pose.blade!, sp = this.view!.sprite, k = this.kin;
 
     if (!this.boltDone && b[3] < b[1] - 10) { // strike once the blade points up: the bolt lands on its tip
