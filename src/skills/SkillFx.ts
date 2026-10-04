@@ -19,10 +19,12 @@ const GROUND = 2;
 /** Orientation of each final VFX sheet: 'dir' sheets are drawn pointing right and rotate with the aim. */
 /** Upright sheets whose bottom edge is the ground line (drawn standing on the impact point). */
 /** Ground-point origin (fraction of the cell height) for sheets drawn standing on the impact point. */
-const GROUND_ANCHORED = new Map<string, number>([['titans_verdict', 0.742], ['ground_breaker', 0.8], ['whirlwind', 0.56], ['leap_crash', 0.88], ['war_cry', 0.88]]);
+const GROUND_ANCHORED = new Map<string, number>([['titans_verdict', 0.84], ['rising_slash', 0.84], ['ground_breaker', 0.8], ['whirlwind', 0.56], ['leap_crash', 0.88], ['war_cry', 0.88]]);
 /** Frames played during startup (anticipation) — the next frame is the impact at active start. */
-const PRE_FRAMES: Record<string, number> = { titans_verdict: 7 };
-const UPRIGHT = new Set(['iron_grip', 'leap_crash', 'war_cry', 'titans_verdict', 'ground_breaker', 'whirlwind', 'shield_slam', 'blade_storm', 'binding_rune', 'astral_burst', 'frost_nova', 'storm_field',
+const PRE_FRAMES: Record<string, number> = { titans_verdict: 3 };
+/** Sheets whose frame count differs from the slot default. */
+const VFX_FRAMES: Record<string, number> = { titans_verdict: 8 };
+const UPRIGHT = new Set(['rising_slash', 'iron_grip', 'leap_crash', 'war_cry', 'titans_verdict', 'ground_breaker', 'whirlwind', 'shield_slam', 'blade_storm', 'binding_rune', 'astral_burst', 'frost_nova', 'storm_field',
   'time_collapse', 'explosive_arrow', 'vine_trap', 'rain_of_arrows', 'verdant_judgment', 'spin_cut']);
 const PROJECTILE_SHEETS: Record<string, { cell: number; frames: number }> = {
   arcane_bolt: { cell: 128, frames: 8 }, lightning_chain: { cell: 192, frames: 8 }, quick_shot: { cell: 128, frames: 8 },
@@ -330,7 +332,7 @@ export class SkillFx {
   /** Main VFX sprite for a melee / area cast, placed from the authoritative shape. */
   private castVfx(r: CastRun): void {
     const s = r.skill, shape = this.firstShape(s);
-    const big = isBig(s), frames = s.slot === 7 ? 14 : s.slot === 6 ? 12 : 8;
+    const big = isBig(s), frames = VFX_FRAMES[s.id] ?? (s.slot === 7 ? 14 : s.slot === 6 ? 12 : 8);
     const preFrames = PRE_FRAMES[s.id] ?? (s.slot === 7 ? 4 : 3);
     const o = r.origin, aim = r.aim, upright = UPRIGHT.has(s.id);
     let pos: V3 = { ...o }, size = 200, follow: (() => V3 | null) | undefined;
