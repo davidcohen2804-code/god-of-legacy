@@ -187,7 +187,7 @@ export class SkillFx {
     if (big) size *= 1.15;
     size *= s.slot === 0 ? 0.75 : VFX_MULT[s.cls] ?? 1; // the basic chain stays a compact, proportional slash
     if (GROUND_ANCHORED.has(s.id)) pos = { ...pos, z: o.z };
-    const key = s.id === 'warrior_basic' && r.stage === 3 ? vfxKey('rising_slash') : vfxKey(s.id);
+    const key = vfxKey(s.id);
     const img = this.scene.add.image(pos.x, pos.y - pos.z, key, 0).setOrigin(0.5, GROUND_ANCHORED.get(s.id) ?? (upright && shape.kind !== 'sector' ? 0.62 : 0.5));
     img.setDisplaySize(size, size);
     if (!upright) { const ang = Math.atan2(aim.y, aim.x) * (180 / Math.PI); img.setAngle(ang); img.setFlipY(aim.x < -0.01); }
