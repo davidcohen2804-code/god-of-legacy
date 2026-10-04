@@ -7,14 +7,14 @@ import { Dir } from '../world/collision';
 import { actorDepth } from '../world/WorldGeometry';
 import { ClassKey, PoseFrame, applyPose } from './Body';
 
-export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet' | 'hair' | 'armor';
+export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet' | 'hair' | 'armor' | 'hairstyle';
 export type Equipped = Partial<Record<CosSlot, string>>;
 
-interface CosItem { id: string; type: string; icon: string; runtime?: string; skin?: string; blade?: { w: number; h: number; guard: number; cy: number }; color?: string; fit?: { w: number; lift: number }; ring?: { cy: number }; widths?: number[]; wip?: boolean; fabric?: string; lut?: number[][]; attachment?: string; cell?: number[]; frames?: number; layout?: string; bbox?: number[][]; parts?: string[]; name: string; desc: string }
+interface CosItem { id: string; type: string; icon: string; runtime?: string; skin?: string; blade?: { w: number; h: number; guard: number; cy: number }; color?: string; fit?: { w: number; lift: number }; ring?: { cy: number }; widths?: number[]; wip?: boolean; fabric?: string; lut?: number[][]; hs?: number[][]; attachment?: string; cell?: number[]; frames?: number; layout?: string; bbox?: number[][]; parts?: string[]; name: string; desc: string }
 export const COSMETICS = Object.fromEntries(Object.entries(COS.classes as unknown as Record<string, CosItem[]>).map(([k, l]) => [k, l.filter((i) => !i.wip)])) as Record<string, CosItem[]>; // wip items stay out of the shop until verified on every frame
 export const slotOf = (type: string): CosSlot | null =>
   type === 'head' ? 'head' : type === 'mask' ? 'face' : type === 'cape' || type === 'back' ? 'back'
-    : type === 'weapon' || type === 'weapon_animated' || type === 'bow' || type === 'book' ? 'weapon' : type === 'aura' ? 'aura' : type === 'damage' ? 'damage' : type === 'pet' ? 'pet' : type === 'hair' ? 'hair' : type === 'armor' ? 'armor' : null;
+    : type === 'weapon' || type === 'weapon_animated' || type === 'bow' || type === 'book' ? 'weapon' : type === 'aura' ? 'aura' : type === 'damage' ? 'damage' : type === 'pet' ? 'pet' : type === 'hair' ? 'hair' : type === 'armor' ? 'armor' : type === 'hairstyle' ? 'hairstyle' : null;
 export function cosmetic(id: string): CosItem | undefined { for (const l of Object.values(COSMETICS)) { const f = l.find((i) => i.id === id); if (f) return f; } return undefined; }
 
 /** Weapon skin palettes (tint of the real weapon pixels; `glow` adds an energy edge). */
@@ -30,6 +30,7 @@ const WEAPON_TINT: Record<string, { tint: number; glow?: number; rainbow?: boole
 
 /** On-body size targets (world px) for anchored cosmetics. */
 const HEAD_SEAT = 0.42; // fitted head items: lower edge this far (× hair width) above the hair's lower edge — on top of the hair, never over the face
+const SHEET_K = 108 / 172; // body sheet px → world px
 const SKIN_THICK = 1.05; // sword skins: a touch bigger than the base sword
 const SIZE: Record<string, number> = { head: 40, face: 18, back: 56, aura: 92 };
 
@@ -222,6 +223,20 @@ export class ActorView {
     const a = pose.anchor;
     for (const [slot, img] of Object.entries(this.layers) as [CosSlot, Phaser.GameObjects.Image][]) {
       const it = cosmetic(this.equipped[slot]!)!;
+      if (slot === 'hairstyle') { // fitted to this frame's head: crown point + head tilt (follows looking up, bowing, lying down)
+        const hd = pose.head, v = it.hs?.[DIR_COL[dir]];
+        if (!hd || !v) { img.setVisible(false); continue; }
+        const col = DIR_COL[dir], k = SHEET_K;
+        img.setFrame(col).setOrigin(v[0], v[1]).setScale(v[2] * k)
+          .setPosition(p.x + hd[0] + v[4] * k, p.y + hd[1] - v[3] * k).setAngle(hd[2])
+          .setDepth(dir === 'up' ? depth + 0.04 : depth + 0.035).setAlpha(alpha).setVisible(this.visible);
+        const hl = this.equipped.hair ? cosmetic(this.equipped.hair)?.lut : undefined; // hair colour applies to the hairstyle too
+        const want = hl ? grayKey(this.scene, `cos-${it.id}`, 1.25) ?? `cos-${it.id}` : `cos-${it.id}`;
+        if (img.texture.key !== want) img.setTexture(want, col);
+        if (tint !== null) { if (tintFill) img.setTintFill(tint); else img.setTint(tint); }
+        else if (hl) { const c = hl[Math.floor(hl.length * 0.62)]; img.setTint((c[0] << 16) | (c[1] << 8) | c[2]); } else img.clearTint();
+        continue;
+      }
       if (slot === 'pet') { // hovers behind the shoulder, follows with a lag, gentle bob
         const n = it.frames ?? 8, side = dir === 'left' ? 1 : dir === 'right' ? -1 : -0.8;
         const tx = x + side * 38, ty = y - z - 104 + Math.sin(this.t / 420) * 6;

@@ -10,6 +10,7 @@ import ANCHORS from '../data/body-anchors.json';
 import BODY_CELLS from '../data/body-cells.json';
 import BLADES from '../data/blade-lines.json';
 import BEHIND from '../data/blade-behind.json';
+import HEADS from '../data/head-frames.json';
 import { Dir } from '../world/collision';
 import { FINAL_SKILLS } from '../skills/FinalKit';
 
@@ -82,6 +83,8 @@ export interface PoseFrame {
   blade?: number[] | null;
   /** Sword passes behind the head/body in this frame (skins drawn under the body only). */
   bladeBehind?: boolean;
+  /** Head fit for hairstyles: [crownX, crownY (rel. feet, world px), tilt deg] (warrior). */
+  head?: number[] | null;
 }
 
 type AnchorTable = Record<string, (number[] | null)[][] | Record<string, (number[] | null)[]>>;
@@ -89,10 +92,15 @@ const ANCH = ANCHORS as unknown as AnchorTable;
 function scaleAnchor(a: number[] | null | undefined, k: number): number[] | null { return a ? a.slice(0, 6).map((v) => v * k) : null; }
 function scaleHair(a: number[] | null | undefined, k: number): number[] | null { return a && a.length > 9 ? [a[7] * k, a[8] * k, a[9] * k] : null; }
 
+function headOf(path: string, row: number, c: number): number[] | null {
+  const h = (HEADS as unknown as Record<string, (number[] | null)[][]>)[path]?.[row]?.[c];
+  return h ? [h[0] * SHEET_SCALE, h[1] * SHEET_SCALE, h[2]] : null;
+}
+
 function sheetFrame(key: string, path: string, dir: Dir, col: number, cols: number, ch = CELL): PoseFrame {
   const c = Math.max(0, Math.min(cols - 1, col)), row = ROW[dir];
   const table = ANCH[path] as (number[] | null)[][] | undefined;
-  return { key, frame: row * cols + c, wkey: `${key}-w`, ox: 0.5, oy: (ch - CELL * (1 - ORIGIN_Y)) / ch, scale: SHEET_SCALE, anchor: scaleAnchor(table?.[row]?.[c], SHEET_SCALE), hair: scaleHair(table?.[row]?.[c], SHEET_SCALE), blade: ((BLADES as Record<string, (number[] | null)[][]>)[path]?.[row]?.[c] ?? null)?.map((v) => v * SHEET_SCALE) ?? null, bladeBehind: !!(BEHIND as Record<string, number[][]>)[path]?.[row]?.[c] };
+  return { key, frame: row * cols + c, wkey: `${key}-w`, ox: 0.5, oy: (ch - CELL * (1 - ORIGIN_Y)) / ch, scale: SHEET_SCALE, anchor: scaleAnchor(table?.[row]?.[c], SHEET_SCALE), hair: scaleHair(table?.[row]?.[c], SHEET_SCALE), blade: ((BLADES as Record<string, (number[] | null)[][]>)[path]?.[row]?.[c] ?? null)?.map((v) => v * SHEET_SCALE) ?? null, bladeBehind: !!(BEHIND as Record<string, number[][]>)[path]?.[row]?.[c], head: headOf(path, row, c) };
 }
 
 function atlasPose(cls: string, dir: Dir, act: AtlasAction, i: number): PoseFrame {

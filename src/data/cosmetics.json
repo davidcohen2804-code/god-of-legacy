@@ -2306,6 +2306,276 @@
     "desc": "hair colour."
    },
    {
+    "id": "war_hairstyle_long",
+    "type": "hairstyle",
+    "icon": "assets/final/cosmetics/warrior/war_hairstyle_long/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_hairstyle_long/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     192,
+     174
+    ],
+    "frames": 4,
+    "layout": "4x1",
+    "hs": [
+     [
+      0.5208,
+      0.0,
+      0.5254,
+      5.8,
+      0
+     ],
+     [
+      0.5729,
+      0.0,
+      0.45,
+      5.4,
+      0
+     ],
+     [
+      0.4089,
+      0.0,
+      0.4698,
+      5.6,
+      0
+     ],
+     [
+      0.4714,
+      0.0,
+      0.4653,
+      5.1,
+      0
+     ]
+    ],
+    "name": "Long Flowing Hair",
+    "desc": "hairstyle."
+   },
+   {
+    "id": "war_hairstyle_undercut",
+    "type": "hairstyle",
+    "icon": "assets/final/cosmetics/warrior/war_hairstyle_undercut/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_hairstyle_undercut/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     171,
+     146
+    ],
+    "frames": 4,
+    "layout": "4x1",
+    "hs": [
+     [
+      0.4825,
+      0.0,
+      0.562,
+      5.8,
+      0
+     ],
+     [
+      0.4678,
+      0.0068,
+      0.4272,
+      5.4,
+      0
+     ],
+     [
+      0.5322,
+      0.0,
+      0.4487,
+      5.6,
+      0
+     ],
+     [
+      0.4737,
+      0.0,
+      0.4554,
+      5.1,
+      0
+     ]
+    ],
+    "name": "Undercut",
+    "desc": "hairstyle."
+   },
+   {
+    "id": "war_hairstyle_spiky",
+    "type": "hairstyle",
+    "icon": "assets/final/cosmetics/warrior/war_hairstyle_spiky/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_hairstyle_spiky/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     197,
+     184
+    ],
+    "frames": 4,
+    "layout": "4x1",
+    "hs": [
+     [
+      0.5152,
+      0.0,
+      0.449,
+      22.0,
+      0
+     ],
+     [
+      0.4467,
+      0.0,
+      0.3528,
+      17.3,
+      0
+     ],
+     [
+      0.5482,
+      0.0,
+      0.3659,
+      17.9,
+      0
+     ],
+     [
+      0.4594,
+      0.0,
+      0.4113,
+      10.2,
+      0
+     ]
+    ],
+    "name": "Spiky Hero Hair",
+    "desc": "hairstyle."
+   },
+   {
+    "id": "war_hairstyle_topknot",
+    "type": "hairstyle",
+    "icon": "assets/final/cosmetics/warrior/war_hairstyle_topknot/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_hairstyle_topknot/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     189,
+     178
+    ],
+    "frames": 4,
+    "layout": "4x1",
+    "hs": [
+     [
+      0.4365,
+      0.0,
+      0.5903,
+      24.4,
+      0
+     ],
+     [
+      0.4497,
+      0.0056,
+      0.3494,
+      19.4,
+      -4.3
+     ],
+     [
+      0.5423,
+      0.0056,
+      0.3602,
+      20.2,
+      4.5
+     ],
+     [
+      0.3942,
+      0.0,
+      0.5642,
+      10.2,
+      0
+     ]
+    ],
+    "name": "Samurai Top-knot",
+    "desc": "hairstyle."
+   },
+   {
+    "id": "war_hairstyle_wolf",
+    "type": "hairstyle",
+    "icon": "assets/final/cosmetics/warrior/war_hairstyle_wolf/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_hairstyle_wolf/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     197,
+     179
+    ],
+    "frames": 4,
+    "layout": "4x1",
+    "hs": [
+     [
+      0.4797,
+      0.0,
+      0.4749,
+      9.3,
+      0
+     ],
+     [
+      0.5305,
+      0.0,
+      0.4127,
+      7.6,
+      0
+     ],
+     [
+      0.4645,
+      0.0,
+      0.428,
+      7.8,
+      0
+     ],
+     [
+      0.4569,
+      0.0,
+      0.4307,
+      5.1,
+      0
+     ]
+    ],
+    "name": "Wolf Cut",
+    "desc": "hairstyle."
+   },
+   {
+    "id": "war_hairstyle_ponytail",
+    "type": "hairstyle",
+    "icon": "assets/final/cosmetics/warrior/war_hairstyle_ponytail/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_hairstyle_ponytail/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     229,
+     237
+    ],
+    "frames": 4,
+    "layout": "4x1",
+    "hs": [
+     [
+      0.3493,
+      0.0,
+      0.4697,
+      19.7,
+      0
+     ],
+     [
+      0.5524,
+      0.0042,
+      0.3218,
+      11.9,
+      0
+     ],
+     [
+      0.441,
+      0.0,
+      0.3354,
+      12.3,
+      0
+     ],
+     [
+      0.4869,
+      0.0,
+      0.4586,
+      5.1,
+      0
+     ]
+    ],
+    "name": "High Ponytail",
+    "desc": "hairstyle."
+   },
+   {
     "id": "war_armor_gold",
     "type": "armor",
     "icon": "assets/final/cosmetics/warrior/war_armor_gold/icon.png",
