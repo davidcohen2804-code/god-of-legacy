@@ -263,7 +263,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.fx.hitStopLeft > 0 && !this.pvp) {
       this.fx.update(ms, []);
       const j = () => (Math.random() - 0.5) * 7; // impact shake of the victims (DFO hit feel)
-      if (this.enemy?.alive && this.simMs - this.enemy.body.lastHitAt < 200) this.enemy.sprite.setPosition(this.enemy.kin.x + j(), this.enemy.kin.y - this.enemy.kin.z + j() * 0.4);
+      if (this.enemy?.alive && this.simMs - this.enemy.body.lastHitAt < 200) this.enemy.shake(j(), j() * 0.4);
       if (this.dummy && this.dummyState && this.simMs - this.dummyState.body.lastHitAt < 200) this.dummy.setPosition(D.x + j(), D.y - this.dummyState.kin.z);
       return;
     }
@@ -282,6 +282,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         || (!!this.dummyState?.alive && Math.hypot(x - D.x, y - D.y) < D.collisionRadius + STAGE6.enemy.footRadius),
       onStrikePlayer: (dmg, from) => this.enemyStrike(dmg, from),
     });
+    this.reactionFx(ms);
     this.renderPlayer(this.fx.hitStopLeft > 0 ? 0 : ms);
   }
 
@@ -427,6 +428,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       k.z = d.crash ? run.origin.z + d.lift * Math.sin(Math.PI * Math.min(1, p * 1.06)) : Math.max(k.z, run.origin.z + d.lift * Math.sin(Math.PI * p));
       k.vz = p < 0.5 ? 40 : -40;
     }
+  }
+
+  /** Physical reaction feedback on the enemy: knockback skid dust, heavy landing slam, bounce puff. */
+  private skidT = 0;
+  private reactionFx(ms: number): void {
+    const e = this.enemy; if (!e?.alive) return;
+    const k = e.kin, sp = Math.hypot(k.vx, k.vy);
+    this.skidT -= ms;
+    if (k.grounded && e.body.push && sp > 140 && this.skidT <= 0) { this.fx!.dust(k.x - (k.vx / sp) * 14, k.y, 46, 0.7); this.skidT = 55; }
+    if (e.lastEv === 'kdImpact') { this.fx!.dust(k.x, k.y, 130, 0.95); this.fx!.shockwave(k.x, k.y, 70, 0xd8c8a8); this.cameras.main.shake(90, 0.004); }
   }
 
   /** Nearest live enemy within `range` whose direction is within the facing half-plane (dot > minDot). */
@@ -661,6 +672,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const f = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[en.facing];
       const back = en.body.state === 'free' && (from.x - en.kin.x) * f[0] + (from.y - en.kin.y) * f[1] < -12;
       out = en.body.receive(run.attackerId, s, hit, from, now);
+      if (out.damage > 0) { en.hitFromX = from.x; en.faceToward(from.x, from.y); }
       if (run.attackerId === this.localId && (out.pushX || out.pushY) && s.id !== 'shield_slam') this.momentum = { x: out.pushX * 0.7, y: out.pushY * 0.7, left: 120 };
       if (s.id === 'iron_grip' && hit === s.hits[0]) { // hoist and swing the target behind you
         const nx = from.x - run.aim.x * 46, ny = from.y - run.aim.y * 46;

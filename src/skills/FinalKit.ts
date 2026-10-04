@@ -396,8 +396,8 @@ const samurai: FinalSkill[] = [
 
 // Warrior skills: longer, weightier presence (free cancel keeps the flow): stretch timings and hit spacing.
 for (const w of warrior) if (w.slot >= 1 && w.id !== 'war_cry' && w.id !== 'guard_counter') {
-  w.startup = Math.round(w.startup * 1.15); w.active = Math.round(w.active * 1.25); w.recovery = Math.round(w.recovery * 1.1);
-  for (const h of w.hits) h.at = Math.round(h.at * 1.25);
+  w.startup = Math.round(w.startup * 1.3); w.active = Math.round(w.active * 1.4); w.recovery = Math.round(w.recovery * 1.15);
+  for (const h of w.hits) h.at = Math.round(h.at * 1.4);
 }
 // Warrior extended kit: every core skill (and the basic chain) can cancel into the new extenders on a confirmed hit.
 for (const w of warrior) if (w.slot <= 5) for (const id of ['leap_crash', 'wave_slash', 'iron_grip', 'lance_thrust']) if (!w.cancelOnHit.includes(id) && id !== w.id) w.cancelOnHit.push(id);

@@ -366,7 +366,7 @@ export class SkillFx {
     const im = s.cls === 'warrior' ? 1.45 : 1;
     this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.6 : hit.heavy ? 1.25 : 1), 1);
     if (s.cls === 'warrior') { // white core flash on every confirmed hit
-      const f = this.scene.add.image(at.x, at.y - at.z - 38, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 3).setDisplaySize(hit.heavy ? 150 : 100, hit.heavy ? 150 : 100);
+      const f = this.scene.add.image(at.x, at.y - at.z - 38, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 3).setDisplaySize(hit.heavy ? 100 : 64, hit.heavy ? 100 : 64).setAlpha(0.75);
       this.scene.tweens.add({ targets: f, alpha: 0, scale: f.scale * 1.4, duration: 140, onComplete: () => f.destroy() });
     }
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).

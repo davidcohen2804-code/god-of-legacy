@@ -53,6 +53,17 @@ export class CursedSwordsman {
   private lastNow = 0;
   frozen = false; // QA: AI disabled (training target)
   private ring?: Phaser.GameObjects.Ellipse;
+  /** Last attacker x (lean / tumble away from it) and procedural reaction state. */
+  hitFromX = 0;
+  lastEv: string | null = null;
+  private airMs = 0;
+  private baseScale = 1;
+  private pos = { x: 0, y: 0 };
+  /** Hit-stop jitter around the last rendered position. */
+  shake(jx: number, jy: number): void { this.sprite.setPosition(this.pos.x + jx, this.pos.y + jy); }
+  private tumble = 0;
+  /** Victim turns to face the attacker (DFO: hits always read from the front unless it was a back attack). */
+  faceToward(x: number, y: number): void { this.dir = facingFrom(x - this.kin.x, y - this.kin.y, this.dir); }
   get facing(): Dir { return this.dir; }
   get maxHp(): number { return E.maxHp; }
 
@@ -107,6 +118,8 @@ export class CursedSwordsman {
     const r = stepKin(this.kin, ms, b.gravityScale(now), (x, y) => w.blocked(x, y));
     const ev = b.update(now, ms, r.landed, r.impactVz);
     if (ev === 'kdImpact') this.kdMs = 0;
+    this.lastEv = ev;
+    this.airMs = b.state === 'launched' ? this.airMs + ms : 0;
     this.kdMs += ms;
     if (this.ai === 'dead') {
       this.respawnLeft -= ms;
@@ -180,8 +193,24 @@ export class CursedSwordsman {
   }
 
   private sync(): void {
-    const k = this.kin;
-    this.sprite.setPosition(k.x, k.y - k.z).setDepth(k.y);
+    const k = this.kin, b = this.body, t = this.lastNow - b.lastHitAt;
+    const away = this.hitFromX <= k.x ? 1 : -1;
+    // Procedural reactions on top of the frame art: flinch lean + squash on every hit, tumble while juggled.
+    let ang = 0, sx = 1, sy = 1;
+    if (b.state === 'launched' && this.lastNow >= b.pinUntil) {
+      const target = away * Math.min(1.45, 0.5 + this.airMs / 380);
+      this.tumble += (target - this.tumble) * 0.25;
+      ang = this.tumble + (t < 120 ? away * 0.25 * (1 - t / 120) : 0);
+    } else {
+      this.tumble *= 0.6;
+      if (t < 150 && b.state !== 'knockdown' && b.state !== 'getup') { const p = 1 - t / 150; ang = away * 0.26 * p; sx = 1 + 0.1 * p; sy = 1 - 0.07 * p; }
+      ang += this.tumble;
+    }
+    const H = 46; // rotate around the body centre, not the feet
+    const cx = k.x, cy = k.y - k.z - H;
+    this.sprite.setRotation(ang).setScale(this.baseScale * sx, this.baseScale * sy)
+      .setPosition(cx - Math.sin(ang) * H, cy + Math.cos(ang) * H).setDepth(k.y);
+    this.pos = { x: this.sprite.x, y: this.sprite.y };
     const h = Math.max(0, k.z - k.supportZ), s = Math.max(0.4, 1 - h / 140);
     this.shadow.setPosition(k.x, k.y - k.supportZ - 2).setDepth(k.y - 0.5).setVisible(this.alive).setScale(s);
     if (!this.ring) this.ring = this.sprite.scene.add.ellipse(0, 0, 70, 26).setStrokeStyle(3, 0xff4a4a, 0.85).setFillStyle(0xff4a4a, 0.1);
