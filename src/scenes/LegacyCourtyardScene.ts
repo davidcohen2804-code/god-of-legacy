@@ -603,6 +603,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.id === next.id && s.chain) return e >= T.startup + T.active - 20;
     if (s.slot === 7) return false; // Ultimate cannot be cancelled
     if (next.id === s.id) return false;
+    if (s.id === 'whirlwind' && e >= T.startup + 200) return true; // channelled spin: break out into any skill at will
     // Free cancel (DFO-style): after a confirmed hit any other skill can cancel this one until it ends;
     // a whiff can only be cancelled late in its recovery.
     if (run.confirmedAt >= 0) return e >= run.confirmedAt;
