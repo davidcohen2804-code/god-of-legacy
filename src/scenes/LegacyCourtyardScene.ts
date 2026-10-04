@@ -646,7 +646,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (left <= 0) { d.img.destroy(); d.glow.destroy(); this.dome = null; return; }
     // The wall wraps around the player: whoever stands on the protected side is always drawn cleanly ON TOP of it
     // (never washed out underneath); anyone on the far side is seen through the glass.
-    const k = this.kin, behind = d.side * (d.wx - k.x) > -40;
+    const k = this.kin, behind = true; // the player is never drawn under the wall, wherever he stands
     const fade = Math.min(1, left / 600), dep = behind ? actorDepth(k.x, k.y, k.z) - 0.3 : actorDepth(d.x, d.y + 160, 0) + 1;
     d.glow.setAlpha(fade * (0.18 + 0.1 * Math.sin(age / 700))).setDepth(dep - 0.01); // soft breathing glow, no frame flicker
     const g = 1 - Math.pow(1 - Math.min(1, age / 380), 3), sy = 1.15 * 1.4 * Math.max(0.05, g); // rises from the floor (sim clock)
