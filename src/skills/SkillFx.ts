@@ -111,6 +111,7 @@ export class SkillFx {
     if (shape.kind === 'projectile' || shape.kind === 'chain') { this.castFlare(r); return; }
     if (s.id === 'judgment_blade') this.judgment(r);
     else if (s.id === 'guard_counter') this.aegis(r);
+    else if (s.id === 'war_cry') this.roar(r);
     else if (s.id !== 'leap_crash') this.castVfx(r);
     else this.aura(r);
     if (s.slot === 7) this.ultimateStage(r);
@@ -132,14 +133,6 @@ export class SkillFx {
       this.scene.tweens.add({ targets: mc, alpha: 0, delay: 3100, duration: 300, onComplete: () => mc.destroy() });
     }
     if (r.skill.id === 'shield_slam') (this.cam ?? this.scene.cameras.main).shake(120, 0.004);
-    if (r.skill.id === 'war_cry') { // the roar: burst of flame, gold flash, double shock ring
-      const c = this.casterPos(r.attackerId) ?? r.origin;
-      const img = this.scene.add.image(c.x, c.y + 4, vfxKey('war_cry'), 0).setOrigin(0.5, 0.88).setDepth(c.y + 3).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(340, 340);
-      const fms = [40, 50, 60, 90, 110, 120, 130, 220];
-      this.anims.push({ img, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: [0, 1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 240 });
-      const cam = this.cam ?? this.scene.cameras.main; cam.flash(140, 255, 170, 60, false); cam.shake(200, 0.006);
-      this.shockwave(c.x, c.y, 220, 0xffb040); this.scene.time.delayedCall(120, () => this.shockwave(c.x, c.y, 300, 0xff7a20));
-    }
     if (r.skill.id === 'ground_breaker') { // the earth answers: heavy quake shake, double ring, dust burst
       (this.cam ?? this.scene.cameras.main).shake(220, 0.007);
       this.scene.time.delayedCall(90, () => this.shockwave(r.origin.x, r.origin.y, 240, 0xff9a40));
@@ -201,6 +194,24 @@ export class SkillFx {
         (this.cam ?? this.scene.cameras.main).shake(110, 0.004);
       }
     } });
+  }
+
+  /** War Cry: power gathers, then the roar bursts out as a golden light pillar and floor shockwaves (no fire). */
+  private roar(r: CastRun): void {
+    const T = r.timings, c0 = this.casterPos(r.attackerId); if (!c0) return;
+    const glow = this.scene.add.image(c0.x, c0.y - c0.z - 46, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd36a).setDepth(c0.y - 1).setDisplaySize(60, 80).setAlpha(0);
+    this.scene.tweens.add({ targets: glow, alpha: 0.8, displayWidth: 170, displayHeight: 210, duration: T.startup, ease: 'Quad.easeIn' });
+    this.scene.time.delayedCall(T.startup, () => {
+      const c = this.casterPos(r.attackerId) ?? c0;
+      glow.destroy();
+      const pillar = this.scene.add.image(c.x, c.y - c.z - 10, 'dmg-glow').setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff1b8).setDepth(c.y + 1).setDisplaySize(110, 60);
+      this.scene.tweens.add({ targets: pillar, displayHeight: 420, displayWidth: 70, duration: 160, ease: 'Cubic.easeOut' });
+      this.scene.tweens.add({ targets: pillar, alpha: 0, delay: 160, duration: 420, onComplete: () => pillar.destroy() });
+      const flash = this.scene.add.image(c.x, c.y - c.z - 50, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffffff).setDepth(TOP).setDisplaySize(120, 120);
+      this.scene.tweens.add({ targets: flash, displayWidth: 380, displayHeight: 380, alpha: 0, duration: 260, ease: 'Cubic.easeOut', onComplete: () => flash.destroy() });
+      for (let i = 0; i < 3; i++) this.scene.time.delayedCall(i * 110, () => this.shockwave(c.x, c.y, 200 + i * 70, i === 1 ? 0xffffff : 0xffd36a));
+      (this.cam ?? this.scene.cameras.main).shake(260, 0.008);
+    });
   }
 
   /** Judgment Blade: the light-sword is hurled forward on an arc, plants itself, and a storm ring crackles around it for 5s. */

@@ -104,7 +104,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Detached lingering strikes (Ground Breaker cracks, Blade Storm phantom blades) of own casts. */
   private lingers: { run: CastRun; x: number; y: number; next: number; left: number }[] = [];
   private cryAura?: Phaser.GameObjects.Image;
-  private cryFront?: Phaser.GameObjects.Image;
   private cryFire?: Phaser.GameObjects.Particles.ParticleEmitter[];
   private cryBody?: Phaser.GameObjects.Sprite;
   private emberT = 0;
@@ -527,48 +526,51 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (this.dead >= 0) { alpha = 1 - (1 - P6.deathAlpha) * Math.min(1, this.dead / P6.deathFadeMs); tint = 0xff4a4a; fill = false; }
     v.render(ms, pose, k.x, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
-    // War Cry aura: steady flame loop (sheet frames 4–6) around the body while the buff lasts.
-    const cry = this.simMs < this.warCryUntil && this.dead < 0 && this.textures.exists('vfx-war_cry');
-    if (cry && !this.cryAura) this.cryAura = this.add.image(0, 0, 'vfx-war_cry', 4).setOrigin(0.5, 0.88).setBlendMode(Phaser.BlendModes.ADD);
+    // War Cry: a golden battle-spirit aura (no fire): rim light on the body, light streaks rising from a floor sigil, ripples.
+    const cry = this.simMs < this.warCryUntil && this.dead < 0;
     if (cry && !this.cryFire) {
-      if (!this.textures.exists('flame-dot')) { // soft additive flame particle
+      if (!this.textures.exists('flame-dot')) {
         const g = this.make.graphics({}, false);
         for (let i = 12; i > 0; i--) g.fillStyle(0xffffff, 0.09 + (12 - i) * 0.03).fillCircle(16, 16, i * 1.3);
         g.generateTexture('flame-dot', 32, 32); g.destroy();
       }
       const zone = (w: number, h: number) => ({ type: 'random' as const, source: new Phaser.Geom.Ellipse(0, 0, w, h), quantity: 1 });
-      const fire = (front: boolean) => this.add.particles(0, 0, 'flame-dot', {
-        speed: { min: 20, max: 70 }, angle: { min: 255, max: 285 }, gravityY: -260, lifespan: { min: 420, max: 760 },
-        scale: { start: front ? 1.2 : 2.0, end: 0.1 }, alpha: { start: front ? 0.5 : 0.85, end: 0 },
-        tint: [0xfff0a0, 0xffc040, 0xff8a20, 0xff5a10], blendMode: 'ADD', frequency: front ? 28 : 14, quantity: front ? 1 : 2,
-        emitZone: zone(front ? 34 : 46, front ? 70 : 92), emitting: false,
+      const streaks = (front: boolean) => this.add.particles(0, 0, 'flame-dot', {
+        speedY: { min: -170, max: -90 }, speedX: { min: -6, max: 6 }, lifespan: { min: 520, max: 820 },
+        scaleX: { start: 0.22, end: 0.05 }, scaleY: { start: front ? 1.1 : 1.5, end: 0.3 }, alpha: { start: front ? 0.55 : 0.8, end: 0 },
+        tint: [0xffffff, 0xfff1b8, 0xffd36a], blendMode: 'ADD', frequency: front ? 70 : 45, quantity: 1,
+        emitZone: zone(front ? 52 : 70, front ? 14 : 22), emitting: false,
       });
-      this.cryFire = [fire(false), fire(true)];
+      const motes = this.add.particles(0, 0, 'flame-dot', {
+        speedY: { min: -60, max: -25 }, speedX: { min: -14, max: 14 }, lifespan: { min: 700, max: 1100 },
+        scale: { start: 0.28, end: 0 }, alpha: { start: 0.9, end: 0 }, tint: [0xffffff, 0xffe28a], blendMode: 'ADD',
+        frequency: 60, emitZone: zone(60, 110), emitting: false,
+      });
+      this.cryFire = [streaks(false), streaks(true), motes];
     }
-    if (this.cryFire) { // flames pour out of the body (world-space particles: they trail behind when moving)
-      const [back, front] = this.cryFire, d = actorDepth(k.x, k.y, k.z);
-      for (const [em, dd] of [[back, -0.2], [front, 0.06]] as const) { em.setPosition(k.x, k.y - k.z - 44).setDepth(d + dd); em.emitting = cry && v.visible; }
+    if (this.cryFire) {
+      const [back, front, motes] = this.cryFire, d = actorDepth(k.x, k.y, k.z), on = cry && v.visible;
+      back.setPosition(k.x, k.y - k.z - 4).setDepth(d - 0.2); front.setPosition(k.x, k.y - k.z + 2).setDepth(d + 0.06);
+      motes.setPosition(k.x, k.y - k.z - 50).setDepth(d + 0.07);
+      for (const em of this.cryFire) em.emitting = on;
     }
-    if (cry && !this.cryFront) {
-      this.cryFront = this.add.image(0, 0, 'vfx-war_cry', 5).setOrigin(0.5, 0.88).setBlendMode(Phaser.BlendModes.ADD);
+    if (cry && !this.cryBody) {
       this.cryBody = this.add.sprite(0, 0, '__DEFAULT').setBlendMode(Phaser.BlendModes.ADD);
+      this.cryAura = this.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd36a);
     }
-    if (this.cryAura && this.cryFront && this.cryBody) {
-      for (const o of [this.cryAura, this.cryFront, this.cryBody]) o.setVisible(cry && v.visible);
+    if (this.cryBody && this.cryAura) {
+      this.cryBody.setVisible(cry && v.visible); this.cryAura.setVisible(cry && v.visible);
       if (cry) {
-        const left = this.warCryUntil - this.simMs, fade = Math.min(1, left / 400), fl = 0.8 + 0.2 * Math.sin(this.simMs / 55);
-        const d = actorDepth(k.x, k.y, k.z), f = Math.floor(this.simMs / 80);
-        // Engulfed in fire: tall flames behind, thinner flames in front, the body itself glowing ember-orange.
-        this.cryAura.setFrame(4 + (f % 3)).setPosition(k.x, k.y - k.z + 6).setDepth(d - 0.2).setDisplaySize(220, 220).setAlpha(0.28 * fade * fl);
-        this.cryFront.setFrame(4 + ((f + 1) % 3)).setPosition(k.x, k.y - k.z + 6).setDepth(d + 0.06).setDisplaySize(200, 200).setAlpha(0.0);
+        const left = this.warCryUntil - this.simMs, fade = Math.min(1, left / 400), d = actorDepth(k.x, k.y, k.z);
         const sp = v.sprite;
         if (this.cryBody.texture.key !== sp.texture.key || this.cryBody.frame.name !== sp.frame.name) this.cryBody.setTexture(sp.texture.key, sp.frame.name);
-        this.cryBody.setOrigin(sp.originX, sp.originY).setScale(sp.scaleX * 1.04, sp.scaleY * 1.04).setPosition(sp.x, sp.y).setDepth(d + 0.04)
-          .setTint(0xff7a20).setAlpha((0.35 + 0.15 * Math.sin(this.simMs / 70)) * fade);
-        if (this.simMs - this.emberT > 70) { // rising embers
+        this.cryBody.setOrigin(sp.originX, sp.originY).setScale(sp.scaleX * 1.03, sp.scaleY * 1.03).setPosition(sp.x, sp.y).setDepth(d + 0.04)
+          .setTint(0xffe9a8).setAlpha((0.2 + 0.08 * Math.sin(this.simMs / 260)) * fade);
+        this.cryAura.setPosition(k.x, k.y - k.z - 48).setDepth(d - 0.25).setDisplaySize(150, 200).setAlpha((0.3 + 0.08 * Math.sin(this.simMs / 300)) * fade);
+        if (this.simMs - this.emberT > 900) { // golden ripple on the floor
           this.emberT = this.simMs;
-          const e = this.add.ellipse(k.x + (Math.random() - 0.5) * 60, k.y - k.z - 10 - Math.random() * 60, 4, 4, Math.random() < 0.5 ? 0xffc060 : 0xff6a20).setBlendMode(Phaser.BlendModes.ADD).setDepth(d + 0.07);
-          this.tweens.add({ targets: e, y: e.y - 50 - Math.random() * 30, alpha: 0, duration: 600 + Math.random() * 300, onComplete: () => e.destroy() });
+          const r = this.add.ellipse(k.x, k.y - k.supportZ, 60, 22).setStrokeStyle(3, 0xffd36a, 0.8).setBlendMode(Phaser.BlendModes.ADD).setDepth(actorDepth(k.x, k.y, k.supportZ) - 0.7);
+          this.tweens.add({ targets: r, scaleX: 2.6, scaleY: 2.6, alpha: 0, duration: 800, ease: 'Cubic.easeOut', onComplete: () => r.destroy() });
         }
       }
     }
