@@ -32,7 +32,7 @@ function pointInPolyNear(x: number, y: number, poly: Parameters<typeof pointInPo
 }
 
 /** Gravity multiplier of a juggled body at juggle 0 (long, readable hang time for air follow-ups). */
-const LAUNCH_G = 0.72;
+const LAUNCH_G = 0.55; // floaty launches: long hang time so the attacker can follow up
 /** Combo-protection thresholds (fractions of max HP) and their effects. */
 export const GAUGE = { stand: 0.3, air: 0.4, airRamp: 0.15, down: 0.15, resetMs: 3000, holdVz: 300, holdCeil: 120, gravityRamp: 1.6, wakeInvulnMs: 600 };
 
@@ -246,7 +246,7 @@ export class CombatBody {
       const over = R.grab ? 0 : this.airOver();
       const budgetOk = over < 1 && (!relaunch || c.relaunches < COMBO.maxRelaunchesPerCombo + 2);
       if (budgetOk) {
-        const h = (relaunch ? R.launch * 0.8 : R.launch) * (1 - 0.6 * over);
+        const h = (relaunch ? R.launch * 0.8 : R.launch) * 1.3 * (1 - 0.6 * over);
         k.grounded = false; k.vz = Math.sqrt(2 * PHYS.gravity * LAUNCH_G * h); out.launchVz = k.vz;
         if (relaunch) c.relaunches++;
         c.juggle += relaunch ? COMBO.juggleCosts.relaunch : juggleCost;
