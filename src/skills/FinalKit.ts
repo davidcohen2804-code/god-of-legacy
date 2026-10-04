@@ -87,10 +87,10 @@ const warrior: FinalSkill[] = [
     id: 'blade_storm', cls: 'warrior', slot: 6, name: 'Blade Storm', roles: ['signature', 'extender'], targeting: 'selfAim',
     startup: 380, active: 260, recovery: 320, cooldown: 9000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     armor: [100, 640],
-    hits: [H(0, 8, { kind: 'circle', radius: 132, at: 'aimBias', bias: 90 }, { stun: 300, pull: 14, float: true, juggleCost: 4 }, { reachUp: 180 })],
-    linger: { at: 'aim', offset: 90, startMs: 200, everyMs: 300, count: 10, radius: 120, maxZ: 230, hit: H(0, 4, { kind: 'circle', radius: 120 }, { stun: 280, pull: 10, float: true }, { reachUp: 230 }) },
+    hits: [H(0, 8, { kind: 'circle', radius: 140, at: 'aimBias', bias: 90 }, { stun: 300, pull: 14, launch: 110, juggleCost: 4 }, { reachUp: 180 })],
+    linger: { at: 'aim', offset: 90, startMs: 300, everyMs: 200, count: 15, radius: 150, maxZ: 300, hit: H(0, 3, { kind: 'circle', radius: 150 }, { stun: 300, pull: 18, float: true }, { reachUp: 300 }) },
     cancelOnHit: ['titans_verdict'], tags: ['signature'], telegraph: 'circle',
-    description: 'Summons phantom blades in front of you that keep striking on their own for 3s (pull + air hold) while you continue the combo.',
+    description: 'A field of blades erupts from the ground in front of you for 3s: swords keep bursting up, launching foes and keeping them in the air while you continue the combo.',
     relations: ['Signature', 'Final cut relaunch', 'Cancel → Titan’s Verdict'],
   }),
   S({

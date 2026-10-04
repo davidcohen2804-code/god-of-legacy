@@ -147,7 +147,7 @@ export class SkillFx {
     }
     if (r.skill.id === 'blade_storm') { // summoning circle stays under the phantom blades for the whole storm
       const c = { x: r.origin.x + r.aim.x * 90, y: r.origin.y + r.aim.y * 90 };
-      const mc = this.scene.add.image(c.x, c.y, 'magic-circle').setDisplaySize(260, 260 * 0.42).setDepth(GROUND + 1).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd27a).setAlpha(0);
+      const mc = this.scene.add.image(c.x, c.y, 'magic-circle').setDisplaySize(330, 330 * 0.6).setDepth(GROUND + 1).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd27a).setAlpha(0);
       this.scene.tweens.add({ targets: mc, alpha: 0.85, duration: 200 });
       this.scene.tweens.add({ targets: mc, angle: 90, duration: 3300 });
       this.scene.tweens.add({ targets: mc, alpha: 0, delay: 3100, duration: 300, onComplete: () => mc.destroy() });
@@ -347,6 +347,19 @@ export class SkillFx {
       this.anims.push({ img, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: [0, 1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 80 });
     } else this.spark(vfxKey('blade_storm'), x, y - 60, 12, 200, 0.9, 5);
     this.spark(IMPACT.warrior.key, x, y - 30, IMPACT.warrior.frames, 90, 0.9);
+  }
+
+  /** Blade field: a sword of light bursts up out of the ground, hangs a moment, then fades. */
+  risingBlade(x: number, y: number, delay = 0): void {
+    ensureLightBeam(this.scene);
+    this.scene.time.delayedCall(delay, () => {
+      const len = 90 + Math.random() * 40, tilt = -90 + (Math.random() - 0.5) * 24;
+      const glow = this.scene.add.image(x, y, 'light-beam').setOrigin(0, 0.5).setAngle(tilt).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc860).setDisplaySize(4, 30).setDepth(y + 1).setAlpha(0.8);
+      const core = this.scene.add.image(x, y, 'light-beam').setOrigin(0, 0.5).setAngle(tilt).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(4, 11).setDepth(y + 1.01);
+      this.scene.tweens.add({ targets: [glow, core], displayWidth: len, duration: 90, ease: 'Back.easeOut' });
+      this.spark(IMPACT.warrior.key, x, y - 8, IMPACT.warrior.frames, 70, 0.8);
+      this.scene.tweens.add({ targets: [glow, core], alpha: 0, delay: 380, duration: 260, onComplete: () => { glow.destroy(); core.destroy(); } });
+    });
   }
 
   /** Ground Breaker aftershock: glowing crack pulse + dust on the floor. */
