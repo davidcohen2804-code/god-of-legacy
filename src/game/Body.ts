@@ -158,6 +158,10 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
     case 'skill': {
       const sk = FINAL_SKILLS.find((s) => s.id === bodyIdOf(q.id));
       const bid = bodyIdOf(q.id), cols = CELLS[bid]?.cols ?? (sk && sk.slot === 7 ? 12 : sk && sk.slot === 6 ? 10 : 6);
+      if (q.id === 'radiant_blade' && q.elapsed >= q.startup * 0.3 && q.elapsed < q.startup) { // hold: sword to the sky, LOOKING UP (Blade Storm's hold frames)
+        const bs = CELLS['blade_storm'];
+        if (bs) return sheetFrame(skillKey(cls, 'blade_storm'), skillPath(cls, 'blade_storm'), dir, 3 + (Math.floor(q.elapsed / 140) % 3), bs.cols, bs.h);
+      }
       if (sk?.chain && CELLS[bid]) { // basic chain sheet: 2 frames per strike (wind-up during startup, the hit from the active start)
         const st = Math.max(0, Math.min(3, q.stage));
         return sheetFrame(skillKey(cls, q.id), skillPath(cls, q.id), dir, 2 * st + (q.elapsed < q.startup ? 0 : 1), cols, CELLS[bid].h);

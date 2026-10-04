@@ -102,7 +102,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   radiantUntil = -1;
   /** Sanctuary dome (fixed in the world): full damage immunity while the player stands inside. */
   private domeAt = -1;
-  private dome: { x: number; y: number; rx: number; ry: number; until: number; t0: number; img: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image; wx: number; side: number } | null = null;
+  private dome: { x: number; y: number; rx: number; ry: number; until: number; t0: number; img: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image; wx: number; side: number; vis?: number } | null = null;
   private beam?: Phaser.GameObjects.Image;
   private beamGlow?: Phaser.GameObjects.Image;
   private eyes?: Phaser.GameObjects.Image;
@@ -511,6 +511,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
           const max = this.pvp ? PVP.maxHp : S6.player.maxHp, before = this.playerHP;
           this.playerHP = Math.min(max, this.playerHP + 2);
           if (this.playerHP > before) this.fx!.healNumber({ x: this.kin.x, y: this.kin.y, z: this.kin.z }, this.playerHP - before);
+          for (let n = 0; n < 2; n++) this.fx!.hpGlyph(this.kin.x + (Math.random() - 0.5) * 90, this.kin.y + (Math.random() - 0.5) * 30);
         }
         for (const t of this.targetsFor(l.run)) {
           if (!t.alive || t.invulnerable || t.id === this.localId || t.kind !== 'enemy') continue;
@@ -523,8 +524,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   private blockedByActors(x: number, y: number, z: number): boolean {
-    const d = this.dome; // the Sanctuary wall is solid: nobody walks through or onto it
-    if (d && this.simMs < d.until && Math.abs(y - (d.y + 5)) < 185 && Math.abs(x - (d.wx + d.side * 18)) < 26) return true;
     const e = this.enemy;
     if (e && e.alive && Math.abs(e.z - z) < 50 && Math.hypot(x - e.x, y - e.y) < STAGE6.enemy.collisionRadius + R) return true;
     if (this.dummyState?.alive && z < 40 && Math.hypot(x - D.x, y - D.y) < D.collisionRadius + R) return true;
@@ -691,8 +690,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // (never washed out underneath); anyone on the far side is seen through the glass.
     // The wall is drawn OVER whoever stands behind it, as see-through glass: the player is hidden behind the light
     // but stays readable (lighter glass where it overlaps him instead of a washed-out white sheet).
-    const k = this.kin, over = Math.abs(k.x - d.wx) < 200 && Math.abs(k.y - d.y) < 200;
-    const fade = Math.min(1, left / 600) * (over ? 0.62 : 0.9), dep = actorDepth(d.x, d.y + 200, 0) + 1; // in front of everything along its whole span (its near end reaches y+186)
+    const k = this.kin, over = Math.abs(k.x - d.wx) < 200 && Math.abs(k.y - d.y) < 200, prot = this.inDome();
+    d.vis = (d.vis ?? 1) + ((prot || !over ? 1 : 0.22) - (d.vis ?? 1)) * 0.15; // crossed to the open side: the wall fades (no protection)
+    const fade = Math.min(1, left / 600) * (over && prot ? 0.62 : 0.9) * d.vis, dep = actorDepth(d.x, d.y + 200, 0) + 1; // in front of everything along its whole span (its near end reaches y+186)
     d.glow.setAlpha(fade * (0.18 + 0.1 * Math.sin(age / 700))).setDepth(dep - 0.01); // soft breathing glow, no frame flicker
     const g = 1 - Math.pow(1 - Math.min(1, age / 380), 3), sy = 1.15 * 1.4 * Math.max(0.05, g); // rises from the floor (sim clock)
     d.img.setScale(1.15, sy).setAlpha(fade).setDepth(dep);

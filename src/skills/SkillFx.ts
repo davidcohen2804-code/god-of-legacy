@@ -140,9 +140,10 @@ export class SkillFx {
     else if (s.id === 'guard_counter') this.aegis(r);
     else if (s.id === 'war_cry') this.roar(r);
     else if (s.id === 'radiant_blade') { /* lightning fired by the scene at the real sword tip */ }
-    else if (s.id === 'sanctuary') this.traceArc(r);
+    else if (s.id === 'sanctuary') { /* the wall itself is the effect: no ring on the floor */ }
     else if (s.id === 'blade_storm' && this.scene.textures.exists('bs-storm')) this.lightningStorm(r);
     else if (s.id === 'titans_verdict' && this.scene.textures.exists('titan-dragon')) this.dragon(r);
+    else if (s.id === 'ground_breaker') this.quakeBurst(r);
     else if (s.id !== 'leap_crash' && s.id !== 'blade_storm' && !(s.id === 'titans_verdict' && this.scene.textures.exists('titan-dragon'))) this.castVfx(r);
     else this.aura(r);
     if (s.slot === 7) this.ultimateStage(r);
@@ -260,6 +261,26 @@ export class SkillFx {
     });
   }
 
+  /** Ground Breaker: a column of golden light erupts straight up from the smash point. */
+  private quakeBurst(r: CastRun): void {
+    const T = r.timings, c = r.origin;
+    this.scene.time.delayedCall(T.startup, () => {
+      const col = this.scene.add.image(c.x, c.y + 4, 'dmg-glow').setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc870).setDepth(c.y + 2).setDisplaySize(90, 30);
+      this.scene.tweens.add({ targets: col, displayHeight: 300, displayWidth: 120, duration: 160, ease: 'Cubic.easeOut' });
+      this.scene.tweens.add({ targets: col, alpha: 0, delay: 160, duration: 420, onComplete: () => col.destroy() });
+      this.spark(IMPACT.warrior.key, c.x, c.y - 40, IMPACT.warrior.frames, 220, 0.9);
+    });
+  }
+
+  /** Ground Breaker heal: a yellow "HP" glyph rises softly out of the ground. */
+  hpGlyph(x: number, y: number): void {
+    const t = this.scene.add.text(x, y, 'HP', { fontFamily: 'Impact, "Arial Black", sans-serif', fontSize: '22px', color: '#ffe46a', stroke: '#5a3a00', strokeThickness: 4, resolution: 2 })
+      .setOrigin(0.5).setDepth(y + 300).setAlpha(0).setScale(0.7);
+    this.scene.tweens.add({ targets: t, alpha: 1, scale: 1, duration: 200, ease: 'Quad.easeOut' });
+    this.scene.tweens.add({ targets: t, y: y - 70, duration: 1100, ease: 'Sine.easeOut' });
+    this.scene.tweens.add({ targets: t, alpha: 0, delay: 650, duration: 450, onComplete: () => t.destroy() });
+  }
+
   /** Blade Storm: the painted lightning storm crashes down onto the raised sword and rages for the whole hold. */
   private lightningStorm(r: CastRun): void {
     const T = r.timings, c = this.casterPos(r.attackerId) ?? r.origin;
@@ -306,7 +327,14 @@ export class SkillFx {
     let a = r.aim, land = { x: r.origin.x + a.x * 150, y: r.origin.y + a.y * 150 };
     const aimNow = () => { a = r.aim; const c = this.casterPos(r.attackerId) ?? r.origin; land = { x: c.x + a.x * 150, y: c.y + a.y * 150 }; };
     // Charge-up in the air: the light-sword materialises above the raised hand, crackling, growing.
-    const charge = this.scene.add.image(0, 0, key, 3).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(40, 40).setAlpha(0);
+    const charge = this.scene.add.image(0, 0, key, 3).setOrigin(0.5, 0.9).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(40, 40).setAlpha(0); // hilt sits in the palm
+    const mark = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(GROUND + 3);
+    const drawMark = (t: number) => {
+      const p = 0.5 + 0.5 * Math.sin(t / 120); mark.clear();
+      mark.fillStyle(0x6fe0ff, 0.18 + 0.12 * p).fillEllipse(land.x, land.y, 70, 30);
+      mark.lineStyle(3, 0x9ff0ff, 0.9).strokeEllipse(land.x, land.y, 70, 30);
+      mark.fillStyle(0xdfffff, 0.95).fillEllipse(land.x, land.y, 10, 5);
+    };
     const st0 = { k: 0.25 };
     this.scene.tweens.add({ targets: charge, alpha: 1, duration: 120 });
     this.scene.tweens.add({ targets: st0, k: 1, duration: T.startup, ease: 'Cubic.easeOut' });
@@ -314,17 +342,18 @@ export class SkillFx {
       const c = this.casterPos(r.attackerId); if (!c) return; aimNow();
       const ang = Math.atan2(land.y - (c.y - c.z), land.x - c.x) - Math.PI / 2; // follows the player's aim while hovering
       const h = this.handPos?.(r.attackerId) ?? { x: c.x - a.x * 6, y: c.y - c.z - 105 }; // forms in the raised hand
-      charge.setPosition(h.x, h.y - 28 * st0.k).setDepth(TOP).setRotation(ang * st0.k).setDisplaySize(150 * st0.k, 150 * st0.k)
+      drawMark(this.scene.time.now);
+      charge.setPosition(h.x, h.y + 4).setDepth(TOP).setRotation(ang * st0.k).setDisplaySize(150 * st0.k, 150 * st0.k)
         .setFrame(3 + (Math.floor(this.scene.time.now / 70) % 3));
     } });
-    this.scene.time.delayedCall(T.startup, () => { tick.remove(); charge.destroy(); });
+    this.scene.time.delayedCall(T.startup, () => { tick.remove(); charge.destroy(); this.scene.tweens.add({ targets: mark, alpha: 0, duration: 300, onComplete: () => mark.destroy() }); });
     this.spark(IMPACT.warrior.key, r.origin.x, r.origin.y - 110, IMPACT.warrior.frames, 80, 0.8);
     this.scene.time.delayedCall(T.startup, () => {
       aimNow();
       const c = this.casterPos(r.attackerId) ?? r.origin;
       const h = this.handPos?.(r.attackerId) ?? { x: c.x, y: c.y - c.z - 95 };
-      const fly = this.scene.add.image(h.x, h.y - 28, key, 0).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(150, 150).setDepth(TOP);
-      const from = { x: h.x, y: h.y - 28 }, to = { x: land.x, y: land.y - 40 };
+      const fly = this.scene.add.image(h.x, h.y - 40, key, 0).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(150, 150).setDepth(TOP);
+      const from = { x: h.x, y: h.y - 40 }, to = { x: land.x, y: land.y - 40 };
       const st = { p: 0 };
       fly.setRotation(Math.atan2(to.y - from.y, to.x - from.x) - Math.PI / 2); // straight dart: tip points along the line
       this.scene.tweens.add({ targets: st, p: 1, duration: 240, ease: 'Back.easeIn', onUpdate: () => { // small pull-back, then the throw
@@ -575,7 +604,7 @@ export class SkillFx {
       this.scene.tweens.add({ targets: [bar, glow], scaleX: 1, delay, duration: 120, ease: 'Cubic.easeOut' });
       this.scene.tweens.add({ targets: [bar, glow], scaleY: 0, alpha: 0, delay: delay + 260, duration: 220, onComplete: () => { bar.destroy(); glow.destroy(); } });
     };
-    mk(H * 0.42, -18, 780); mk(H * 0.5, 18, 880); // the screen splits after the cut-in
+    void mk; // screen-tear art pending (light bars removed)
     this.scene.time.delayedCall(r.timings.startup, () => {
       const f = this.scene.add.rectangle(0, 0, W, H, 0xfff4d8, 1).setOrigin(0, 0).setScrollFactor(0).setDepth(TOP + 45).setBlendMode(Phaser.BlendModes.ADD);
       this.scene.tweens.add({ targets: f, alpha: 0, duration: 380, ease: 'Quad.easeOut', onComplete: () => f.destroy() });
