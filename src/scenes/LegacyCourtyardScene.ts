@@ -587,8 +587,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private renderRadiant(pose: PoseFrame, dir: Dir): void {
     const on = this.simMs < this.radiantUntil && this.dead < 0 && this.view!.visible && !!pose.blade;
     if (on && !this.beam) {
-      this.beam = this.add.image(0, 0, 'radiant-blade', 0).setOrigin(49 / 711, 0.5).setBlendMode(Phaser.BlendModes.ADD);
-      this.beamGlow = this.add.image(0, 0, 'radiant-blade', 0).setOrigin(49 / 711, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd27a);
+      this.beam = this.add.image(0, 0, 'radiant-blade', 0).setOrigin(17.6 / 256, 0.5).setBlendMode(Phaser.BlendModes.ADD);
+      this.beamGlow = this.add.image(0, 0, 'radiant-blade', 0).setOrigin(17.6 / 256, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd27a);
     }
     if (!this.beam || !this.beamGlow) return;
     this.beam.setVisible(on); this.beamGlow.setVisible(on);
@@ -596,10 +596,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const b = pose.blade!, sp = this.view!.sprite, k = this.kin;
     const hx = sp.x + b[0], hy = sp.y + b[1], dx = b[2] - b[0], dy = b[3] - b[1], len = Math.hypot(dx, dy) * 2.7, ang = Math.atan2(dy, dx) * (180 / Math.PI);
     const left = this.radiantUntil - this.simMs, fade = Math.min(1, left / 500), f = Math.floor(this.simMs / 90) % 4;
-    const sx = len / 662, sy = sx * 1.1; // broad translucent blade of light (black-backed art, additive)
+    const sx = len / 238, sy = sx * 1.1; // broad translucent blade of light (pre-downscaled smooth art, additive)
     const d = actorDepth(k.x, k.y, k.z) + (dir === 'up' ? -0.05 : 0.05);
     this.beam.setFrame(f).setPosition(hx, hy).setAngle(ang).setScale(sx, sy).setDepth(d + 0.01).setAlpha(fade);
-    this.beamGlow.setFrame(f).setPosition(hx, hy).setAngle(ang).setScale(sx * 1.03, sy * 1.35).setDepth(d + 0.02).setAlpha(0.35 * fade * (0.85 + 0.15 * Math.sin(this.simMs / 90)));
+    this.beamGlow.setFrame(f).setPosition(hx, hy).setAngle(ang).setScale(sx * 1.02, sy * 1.25).setDepth(d + 0.02).setAlpha(0.12 * fade * (0.85 + 0.15 * Math.sin(this.simMs / 90)));
   }
 
   // ======================================================================= actions
