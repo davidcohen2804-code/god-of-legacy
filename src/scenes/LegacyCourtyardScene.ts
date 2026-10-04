@@ -496,7 +496,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         l.left--; l.next += L.everyMs;
         if (L.at === 'caster') { const c = this.casterPos(l.run.attackerId); if (c) { l.x = c.x; l.y = c.y; } } // the quake travels with you
         if (l.run.skill.id === 'blade_storm') this.fx!.phantomBlade(l.x + (Math.random() - 0.5) * 70, l.y + (Math.random() - 0.5) * 30);
-        else this.fx!.crack(l.x, l.y, L.radius);
+        else if (l.run.skill.id !== 'ground_breaker') this.fx!.crack(l.x, l.y, L.radius); // the quake has one steady rotating ring instead of per-tick sparks
         for (const t of this.targetsFor(l.run)) {
           if (!t.alive || t.invulnerable || t.id === this.localId || t.kind !== 'enemy') continue;
           if (Math.hypot(t.x - l.x, t.y - l.y) > L.radius + t.radius || t.z > L.maxZ) continue;

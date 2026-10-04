@@ -157,11 +157,15 @@ export class SkillFx {
       (this.cam ?? this.scene.cameras.main).shake(220, 0.007);
       this.scene.time.delayedCall(90, () => this.shockwave(r.origin.x, r.origin.y, 240, 0xff9a40));
       for (let i = 0; i < 6; i++) { const t = (i / 6) * Math.PI * 2; this.dust(r.origin.x + Math.cos(t) * 80, r.origin.y + Math.sin(t) * 34, 70, 0.7); }
-      // the living quake: a glowing crack field that travels under the warrior for 3s
-      const q = this.scene.add.image(r.origin.x, r.origin.y, vfxKey('ground_breaker'), 6).setOrigin(0.5, 0.8).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(360, 360).setAlpha(0);
-      this.scene.tweens.add({ targets: q, alpha: 0.75, duration: 200 });
-      const tick = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { const c = this.casterPos(r.attackerId); if (c) q.setPosition(c.x, c.y).setDepth(GROUND + 2).setFrame(5 + (Math.floor(this.scene.time.now / 110) % 3)); } });
-      this.scene.tweens.add({ targets: q, alpha: 0, delay: 3100, duration: 300, onComplete: () => { tick.remove(); q.destroy(); } });
+      // one burst of sparks at the impact, fading out gradually
+      this.spark(IMPACT.warrior.key, r.origin.x, r.origin.y - 30, IMPACT.warrior.frames, 220, 0.9);
+      // the living quake: one golden rune ring that slowly turns on the floor around the warrior and fades away over 3s
+      const ring = this.scene.add.image(0, 0, 'magic-circle').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc070).setDisplaySize(360, 360);
+      const plane = this.scene.add.container(r.origin.x, r.origin.y, [ring]).setScale(1, 0.42).setDepth(GROUND + 2).setAlpha(0); // floor perspective
+      this.scene.tweens.add({ targets: plane, alpha: 0.85, duration: 220 });
+      this.scene.tweens.add({ targets: ring, angle: 140, duration: 3100 });
+      const tick = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { const c = this.casterPos(r.attackerId); if (c) plane.setPosition(c.x, c.y); } });
+      this.scene.tweens.add({ targets: plane, alpha: 0, delay: 800, duration: 2300, ease: 'Sine.easeIn', onComplete: () => { tick.remove(); plane.destroy(); } });
     }
     if (r.skill.slot === 7 && r.skill.cls === 'warrior') (this.cam ?? this.scene.cameras.main).flash(160, 255, 226, 170, false);
   }
