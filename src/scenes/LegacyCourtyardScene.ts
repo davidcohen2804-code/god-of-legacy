@@ -201,7 +201,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onHit: (r, h, i, t, at) => this.onSkillHit(r, h, i, t, at),
       casterPos: (id) => this.casterPos(id),
       onPhase: (r, ph) => this.onRunPhase(r, ph),
-      reachMul: (req) => (req.own && req.skill.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.7 : 1),
+      reachMul: (req) => (req.own && req.skill.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.85 : 1),
     });
     this.fx = new SkillFx(this, this.rt, (id) => this.casterPos(id));
     this.renderPlayer(0);
@@ -587,19 +587,19 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private renderRadiant(pose: PoseFrame, dir: Dir): void {
     const on = this.simMs < this.radiantUntil && this.dead < 0 && this.view!.visible && !!pose.blade;
     if (on && !this.beam) {
-      ensureLightBeam(this);
-      this.beamGlow = this.add.image(0, 0, 'light-beam').setOrigin(0, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc860);
-      this.beam = this.add.image(0, 0, 'light-beam').setOrigin(0, 0.5).setBlendMode(Phaser.BlendModes.ADD);
+      this.beam = this.add.image(0, 0, 'radiant-blade', 0).setOrigin(83 / 1225, 0.5);
+      this.beamGlow = this.add.image(0, 0, 'radiant-blade', 0).setOrigin(83 / 1225, 0.5).setBlendMode(Phaser.BlendModes.ADD);
     }
     if (!this.beam || !this.beamGlow) return;
     this.beam.setVisible(on); this.beamGlow.setVisible(on);
     if (!on) return;
     const b = pose.blade!, sp = this.view!.sprite, k = this.kin;
-    const hx = sp.x + b[0], hy = sp.y + b[1], dx = b[2] - b[0], dy = b[3] - b[1], len = Math.hypot(dx, dy) * 2.3, ang = Math.atan2(dy, dx) * (180 / Math.PI);
-    const left = this.radiantUntil - this.simMs, fade = Math.min(1, left / 500), pulse = 0.85 + 0.15 * Math.sin(this.simMs / 90);
+    const hx = sp.x + b[0], hy = sp.y + b[1], dx = b[2] - b[0], dy = b[3] - b[1], len = Math.hypot(dx, dy) * 2.7, ang = Math.atan2(dy, dx) * (180 / Math.PI);
+    const left = this.radiantUntil - this.simMs, fade = Math.min(1, left / 500), f = Math.floor(this.simMs / 90) % 4;
+    const sx = len / 1142, sy = sx * 2.2; // wide, majestic blade
     const d = actorDepth(k.x, k.y, k.z) + (dir === 'up' ? -0.05 : 0.05);
-    this.beam.setPosition(hx, hy).setAngle(ang).setDisplaySize(len, 18).setDepth(d + 0.01).setAlpha(fade);
-    this.beamGlow.setPosition(hx, hy).setAngle(ang).setDisplaySize(len * 1.05, 50).setDepth(d).setAlpha(0.6 * fade * pulse);
+    this.beam.setFrame(f).setPosition(hx, hy).setAngle(ang).setScale(sx, sy).setDepth(d + 0.01).setAlpha(fade);
+    this.beamGlow.setFrame(f).setPosition(hx, hy).setAngle(ang).setScale(sx * 1.02, sy * 1.15).setDepth(d + 0.02).setAlpha(0.45 * fade * (0.85 + 0.15 * Math.sin(this.simMs / 90)));
   }
 
   // ======================================================================= actions
