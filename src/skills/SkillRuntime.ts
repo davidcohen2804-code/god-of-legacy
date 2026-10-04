@@ -47,6 +47,8 @@ export interface RuntimeWorld {
   onHit(run: CastRun, hit: HitEvent, hitIndex: number, target: HitTarget, at: V3): void;
   casterPos(attackerId: string): V3 | null;
   onPhase?(run: CastRun, phase: Phase): void;
+  /** Reach multiplier for the caster's melee sword shapes (Radiant Blade). */
+  reachMul?(req: CastRequest): number;
 }
 
 export const RT_EVENTS = {
@@ -73,7 +75,10 @@ export class SkillRuntime {
   start(req: CastRequest, startElapsed = 0): CastRun {
     const s = req.skill;
     const timings = s.chain?.timings?.[req.stage] ?? { startup: s.startup, active: s.active, recovery: s.recovery };
-    const hits = s.chain ? s.chain.stages[req.stage] : s.hits;
+    let hits = s.chain ? s.chain.stages[req.stage] : s.hits;
+    const rm = this.world.reachMul?.(req) ?? 1;
+    if (rm !== 1) hits = hits.map((h) => h.shape.kind === 'sector' ? { ...h, shape: { ...h.shape, range: h.shape.range * rm } }
+      : h.shape.kind === 'line' ? { ...h, shape: { ...h.shape, length: h.shape.length * rm } } : h);
     const run: CastRun = {
       ...req, elapsed: startElapsed, phase: 'startup', fired: new Set(), hitKeys: new Set(), confirmedAt: -1,
       pathStart: { x: req.origin.x, y: req.origin.y }, counterTriggered: false, extraRecovery: 0, timings, hits,

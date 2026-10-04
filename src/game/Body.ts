@@ -8,6 +8,7 @@ import ARCHER from '../data/archer-atlas.json';
 import SAMURAI from '../data/samurai-atlas.json';
 import ANCHORS from '../data/body-anchors.json';
 import BODY_CELLS from '../data/body-cells.json';
+import BLADES from '../data/blade-lines.json';
 import { Dir } from '../world/collision';
 import { FINAL_SKILLS } from '../skills/FinalKit';
 
@@ -23,7 +24,7 @@ const MOVE_COLS: Record<MoveState, number> = { idle: 12, walk: 8, run: 8, jump: 
 const SHEET_CLASSES = ['warrior', 'book_mage'] as const;
 const sheetKey = (cls: string, st: string) => `body-${cls}-${st}`;
 /** Extended-kit skills reuse an existing body animation (pose family) until they get their own sheet. */
-const BODY_ALIAS: Record<string, string> = { guard_counter: 'iron_grip' };
+const BODY_ALIAS: Record<string, string> = { guard_counter: 'iron_grip', radiant_blade: 'war_cry' };
 export const bodyIdOf = (id: string) => BODY_ALIAS[id] ?? id;
 const skillKey = (cls: string, id: string) => `sbody-${cls}-${bodyIdOf(id)}`;
 const sheetPath = (cls: string, st: string) => `assets/final/body/${cls}/movement/${st}.png`;
@@ -76,6 +77,8 @@ export interface PoseFrame {
   anchor: number[] | null;
   /** Head (hair) box for helmets: [centerX, width (direction median, stable), bottomY], world px rel. feet. */
   hair?: number[] | null;
+  /** Sword line [hiltX, hiltY, tipX, tipY] rel. feet, world px (warrior). */
+  blade?: number[] | null;
 }
 
 type AnchorTable = Record<string, (number[] | null)[][] | Record<string, (number[] | null)[]>>;
@@ -86,7 +89,7 @@ function scaleHair(a: number[] | null | undefined, k: number): number[] | null {
 function sheetFrame(key: string, path: string, dir: Dir, col: number, cols: number, ch = CELL): PoseFrame {
   const c = Math.max(0, Math.min(cols - 1, col)), row = ROW[dir];
   const table = ANCH[path] as (number[] | null)[][] | undefined;
-  return { key, frame: row * cols + c, wkey: `${key}-w`, ox: 0.5, oy: (ch - CELL * (1 - ORIGIN_Y)) / ch, scale: SHEET_SCALE, anchor: scaleAnchor(table?.[row]?.[c], SHEET_SCALE), hair: scaleHair(table?.[row]?.[c], SHEET_SCALE) };
+  return { key, frame: row * cols + c, wkey: `${key}-w`, ox: 0.5, oy: (ch - CELL * (1 - ORIGIN_Y)) / ch, scale: SHEET_SCALE, anchor: scaleAnchor(table?.[row]?.[c], SHEET_SCALE), hair: scaleHair(table?.[row]?.[c], SHEET_SCALE), blade: ((BLADES as Record<string, (number[] | null)[][]>)[path]?.[row]?.[c] ?? null)?.map((v) => v * SHEET_SCALE) ?? null };
 }
 
 function atlasPose(cls: string, dir: Dir, act: AtlasAction, i: number): PoseFrame {
@@ -180,6 +183,7 @@ const SKILL_PLAN: Record<string, { st: number[]; ac: number[]; rc: number[] }> =
   blade_storm: { st: [0, 1, 2, 2], ac: [3, 4, 4, 5], rc: [5, 6, 7] },
   wave_slash: { st: [0, 1, 1, 1, 1, 1, 1, 2], ac: [3, 4, 4, 5], rc: [5, 6, 7] },
   iron_grip: { st: [0, 1], ac: [2, 3, 3, 4, 5, 5], rc: [6, 7] },
+  radiant_blade: { st: [0, 1, 2, 5], ac: [5, 5], rc: [5, 6, 7] },
   lance_thrust: { st: [0, 1], ac: [2, 3, 2, 3, 4, 5], rc: [6, 7] },
   war_cry: { st: [0, 1, 2, 2, 3], ac: [3, 4], rc: [4, 5, 6, 7] } };
 

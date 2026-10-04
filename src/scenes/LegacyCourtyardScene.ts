@@ -24,7 +24,7 @@ import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
 import { NetMsg } from '../pvp/Transport';
 import { CombatInput } from '../game/CombatInput';
 import { ActorView, Equipped, preloadCosmetics } from '../game/ActorView';
-import { ClassKey, dirOf, preloadBodies, registerBodies, resolvePose } from '../game/Body';
+import { ClassKey, dirOf, preloadBodies, registerBodies, resolvePose, PoseFrame } from '../game/Body';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, poseQuery } from '../game/PoseState';
 import { CombatBody, GAUGE, HitOutcome, Kin, PHYS, jump, newKin, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
@@ -96,6 +96,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Attacker-side combo display (from confirmed hits only). */
   /** War Cry buff (+20% damage, super armor while attacking) and its looping aura. */
   warCryUntil = -1;
+  /** Radiant Blade: the sword is a long blade of light until this time. */
+  radiantUntil = -1;
+  private beam?: Phaser.GameObjects.Image;
+  private beamGlow?: Phaser.GameObjects.Image;
   /** Startup lunge toward the target / post-hit momentum following the push (px still to travel, ms left). */
   private lunge: { x: number; y: number; left: number } | null = null;
   private momentum: { x: number; y: number; left: number } | null = null;
@@ -196,6 +200,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onHit: (r, h, i, t, at) => this.onSkillHit(r, h, i, t, at),
       casterPos: (id) => this.casterPos(id),
       onPhase: (r, ph) => this.onRunPhase(r, ph),
+      reachMul: (req) => (req.own && req.skill.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.7 : 1),
     });
     this.fx = new SkillFx(this, this.rt, (id) => this.casterPos(id));
     this.renderPlayer(0);
@@ -526,6 +531,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (this.dead >= 0) { alpha = 1 - (1 - P6.deathAlpha) * Math.min(1, this.dead / P6.deathFadeMs); tint = 0xff4a4a; fill = false; }
     v.render(ms, pose, k.x, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
+    this.renderRadiant(pose, dir);
     // War Cry: a golden battle-spirit aura (no fire): rim light on the body, light streaks rising from a floor sigil, ripples.
     const cry = this.simMs < this.warCryUntil && this.dead < 0;
     if (cry && !this.cryFire) {
@@ -574,6 +580,35 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         }
       }
     }
+  }
+
+  /** Radiant Blade: a long blade of pure light extends from the real hilt along the sword of the current frame. */
+  private renderRadiant(pose: PoseFrame, dir: Dir): void {
+    const on = this.simMs < this.radiantUntil && this.dead < 0 && this.view!.visible && !!pose.blade;
+    if (on && !this.beam) {
+      if (!this.textures.exists('light-beam')) {
+        const W = 256, H = 32, c = this.textures.createCanvas('light-beam', W, H)!, g = c.getContext();
+        for (let x = 0; x < W; x++) {
+          const t = x / W, fade = t < 0.06 ? t / 0.06 : t > 0.86 ? Math.max(0, (1 - t) / 0.14) : 1;
+          const grad = g.createLinearGradient(0, 0, 0, H);
+          grad.addColorStop(0, 'rgba(255,200,90,0)'); grad.addColorStop(0.3, `rgba(255,220,130,${0.55 * fade})`);
+          grad.addColorStop(0.5, `rgba(255,255,255,${fade})`); grad.addColorStop(0.7, `rgba(255,220,130,${0.55 * fade})`); grad.addColorStop(1, 'rgba(255,200,90,0)');
+          g.fillStyle = grad; g.fillRect(x, 0, 1, H * (t > 0.86 ? 0.5 + 0.5 * fade : 1)); // tapering point
+        }
+        c.refresh();
+      }
+      this.beamGlow = this.add.image(0, 0, 'light-beam').setOrigin(0, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc860);
+      this.beam = this.add.image(0, 0, 'light-beam').setOrigin(0, 0.5).setBlendMode(Phaser.BlendModes.ADD);
+    }
+    if (!this.beam || !this.beamGlow) return;
+    this.beam.setVisible(on); this.beamGlow.setVisible(on);
+    if (!on) return;
+    const b = pose.blade!, sp = this.view!.sprite, k = this.kin;
+    const hx = sp.x + b[0], hy = sp.y + b[1], dx = b[2] - b[0], dy = b[3] - b[1], len = Math.hypot(dx, dy) * 2.3, ang = Math.atan2(dy, dx) * (180 / Math.PI);
+    const left = this.radiantUntil - this.simMs, fade = Math.min(1, left / 500), pulse = 0.85 + 0.15 * Math.sin(this.simMs / 90);
+    const d = actorDepth(k.x, k.y, k.z) + (dir === 'up' ? -0.05 : 0.05);
+    this.beam.setPosition(hx, hy).setAngle(ang).setDisplaySize(len, 18).setDepth(d + 0.01).setAlpha(fade);
+    this.beamGlow.setPosition(hx, hy).setAngle(ang).setDisplaySize(len * 1.05, 50).setDepth(d).setAlpha(0.6 * fade * pulse);
   }
 
   // ======================================================================= actions
@@ -666,6 +701,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
     this.body.armorUntil = -1;
     if (s.id === 'war_cry') this.warCryUntil = this.simMs + s.startup + 8000;
+    if (s.id === 'radiant_blade') this.radiantUntil = this.simMs + Math.round(s.startup * 0.7) + 10000;
     if (s.id === 'guard_counter') this.body.invulnUntil = this.simMs + s.startup + 600; // Aegis barrier
     if (s.armor) this.body.armorUntil = Math.max(this.body.armorUntil, this.simMs + s.armor[1]); // super armor from the first frame (never interrupted mid-windup)
     if (s.slot === 7) this.body.invulnUntil = this.simMs + s.startup + s.active; // ultimate: untouchable while it plays
@@ -773,7 +809,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         }
       }
       const crit = hit.damage > 0 && Math.random() < 0.12;
-      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 : 1) * (run.attackerId === this.localId && now < this.warCryUntil ? 1.2 : 1);
+      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 : 1) * (run.attackerId === this.localId && now < this.warCryUntil ? 1.2 : 1) * (run.attackerId === this.localId && now < this.radiantUntil ? 1.15 : 1);
       out.damage = Math.round(out.damage * mult);
       en.damage(out.damage);
       let row = 0;

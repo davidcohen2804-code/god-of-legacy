@@ -111,7 +111,7 @@ const warrior: FinalSkill[] = [
     dash: { distance: 210, lift: 80, crash: true },
     hits: [H(140, 10, { kind: 'circle', radius: 90 }, { stun: 300, slam: true }, { reachUp: 160 }),
       H(285, 20, { kind: 'circle', radius: 125 }, { stun: 300, launch: 95, juggleCost: 25 }, { reachUp: 60, heavy: true })],
-    cancelOnHit: ['whirlwind', 'warrior_basic', 'rising_slash', 'blade_storm', 'lance_thrust', 'iron_grip'], telegraph: 'circle',
+    cancelOnHit: ['whirlwind', 'warrior_basic', 'rising_slash', 'blade_storm', 'lance_thrust', 'radiant_blade'], telegraph: 'circle',
     description: 'Leap up to 210px onto the target and crash down: airborne targets are slammed into a bounce, grounded targets are popped up.',
     relations: ['Gap close', 'Pop-up → air chase'],
   }),
@@ -124,13 +124,12 @@ const warrior: FinalSkill[] = [
     relations: ['Ranged check', 'Pierces'],
   }),
   S({
-    id: 'iron_grip', cls: 'warrior', slot: 10, name: 'Iron Grip', roles: ['setup', 'knockdown'], targeting: 'mouseCone',
-    startup: 160, active: 480, recovery: 300, cooldown: 5000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 10, { kind: 'sector', range: 90, angle: 110 }, { stun: 700, pin: 300, grab: true }, { reachUp: 150 }),
-      H(320, 24, { kind: 'circle', radius: 140 }, { stun: 360, slam: true, grab: true }, { reachUp: 200, heavy: true })],
-    cancelOnHit: ['warrior_basic', 'whirlwind', 'ground_breaker', 'lance_thrust', 'wave_slash'],
-    description: 'Seize the target, hoist it and smash it into the floor. The slam bounces it for an on-the-ground follow-up.',
-    relations: ['Grab', 'Ground bounce → OTG'],
+    id: 'radiant_blade', cls: 'warrior', slot: 10, name: 'Radiant Blade', roles: ['setup', 'extender'], targeting: 'self',
+    startup: 380, active: 160, recovery: 260, cooldown: 20000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 700],
+    hits: [H(0, 8, { kind: 'circle', radius: 130 }, { stun: 360, push: 30 }, { reachUp: 140 })],
+    cancelOnHit: ['warrior_basic', 'dash_slash', 'rising_slash', 'whirlwind', 'blade_storm'], tags: ['buff'],
+    description: 'Your sword becomes a long blade of pure light for 10s: every sword strike reaches 70% farther and deals +15% damage. The transformation releases a light burst around you.',
+    relations: ['Buff 10s', 'Range +70%'],
   }),
   S({
     id: 'lance_thrust', cls: 'warrior', slot: 11, name: 'Impaling Rush', roles: ['extender', 'peel'], targeting: 'mouseDir',
@@ -398,12 +397,12 @@ const samurai: FinalSkill[] = [
 ];
 
 // Warrior skills: longer, weightier presence (free cancel keeps the flow): stretch timings and hit spacing.
-for (const w of warrior) if (w.slot >= 1 && w.id !== 'war_cry' && w.id !== 'guard_counter') {
+for (const w of warrior) if (w.slot >= 1 && w.id !== 'war_cry' && w.id !== 'guard_counter' && w.id !== 'radiant_blade') {
   w.startup = Math.round(w.startup * 1.3); w.active = Math.round(w.active * 1.4); w.recovery = Math.round(w.recovery * 1.15);
   for (const h of w.hits) h.at = Math.round(h.at * 1.4);
 }
 // Warrior extended kit: every core skill (and the basic chain) can cancel into the new extenders on a confirmed hit.
-for (const w of warrior) if (w.slot <= 5) for (const id of ['leap_crash', 'wave_slash', 'iron_grip', 'lance_thrust']) if (!w.cancelOnHit.includes(id) && id !== w.id) w.cancelOnHit.push(id);
+for (const w of warrior) if (w.slot <= 5) for (const id of ['leap_crash', 'wave_slash', 'lance_thrust']) if (!w.cancelOnHit.includes(id) && id !== w.id) w.cancelOnHit.push(id);
 export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...mage, ...archer, ...samurai];
 const BY_ID = new Map(FINAL_SKILLS.map((s) => [s.id, s]));
 /** Old ids from earlier builds (save-data / QA migration only; never shown in the HUD/tree). */

@@ -10,7 +10,7 @@ import { WORLD_OBJECTS } from '../world/WorldGeometry';
 
 const F = 'assets/final';
 /** Skills that borrow another skill's VFX sheet (no art of their own). */
-const VFX_ALIAS: Record<string, string> = { wave_slash: 'warrior_basic' };
+const VFX_ALIAS: Record<string, string> = { wave_slash: 'warrior_basic', radiant_blade: 'war_cry' };
 const vfxKey = (id: string) => `vfx-${VFX_ALIAS[id] ?? id}`;
 const isBig = (s: FinalSkill) => s.slot === 6 || s.slot === 7;
 const TOP = 100000;
@@ -113,7 +113,7 @@ export class SkillFx {
     if (shape.kind === 'projectile' || shape.kind === 'chain') { this.castFlare(r); return; }
     if (s.id === 'judgment_blade') this.judgment(r);
     else if (s.id === 'guard_counter') this.aegis(r);
-    else if (s.id === 'war_cry') this.roar(r);
+    else if (s.id === 'war_cry' || s.id === 'radiant_blade') this.roar(r);
     else if (s.id !== 'leap_crash') this.castVfx(r);
     else this.aura(r);
     if (s.slot === 7) this.ultimateStage(r);
@@ -331,7 +331,7 @@ export class SkillFx {
 
   /** Main VFX sprite for a melee / area cast, placed from the authoritative shape. */
   private castVfx(r: CastRun): void {
-    const s = r.skill, shape = this.firstShape(s);
+    const s = r.skill, shape = r.hits.find((h) => h.damage > 0)?.shape ?? this.firstShape(s); // run hits: includes Radiant Blade reach
     const big = isBig(s), frames = VFX_FRAMES[s.id] ?? (s.slot === 7 ? 14 : s.slot === 6 ? 12 : 8);
     const preFrames = PRE_FRAMES[s.id] ?? (s.slot === 7 ? 4 : 3);
     const o = r.origin, aim = r.aim, upright = UPRIGHT.has(s.id);
