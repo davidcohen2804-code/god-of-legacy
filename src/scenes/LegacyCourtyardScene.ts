@@ -591,7 +591,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.beamGlow = this.add.image(0, 0, 'radiant-blade', 0).setOrigin(17.6 / 256, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd27a);
     }
     if (!this.beam || !this.beamGlow) return;
-    this.beam.setVisible(on); this.beamGlow.setVisible(on);
+    this.beam.setVisible(on); this.beamGlow.setVisible(false); // no extra glow layer: the blade art only
     if (!on) return;
     const b = pose.blade!, sp = this.view!.sprite, k = this.kin;
     const hx = sp.x + b[0], hy = sp.y + b[1], dx = b[2] - b[0], dy = b[3] - b[1], len = Math.hypot(dx, dy) * 2.7, ang = Math.atan2(dy, dx) * (180 / Math.PI);
