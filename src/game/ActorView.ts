@@ -7,14 +7,14 @@ import { Dir } from '../world/collision';
 import { actorDepth } from '../world/WorldGeometry';
 import { ClassKey, PoseFrame, applyPose } from './Body';
 
-export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet';
+export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet' | 'hair';
 export type Equipped = Partial<Record<CosSlot, string>>;
 
-interface CosItem { id: string; type: string; icon: string; runtime?: string; skin?: string; blade?: { w: number; h: number; guard: number; cy: number }; color?: string; fit?: { w: number; lift: number }; ring?: { cy: number }; widths?: number[]; wip?: boolean; fabric?: string; attachment?: string; cell?: number[]; frames?: number; layout?: string; bbox?: number[][]; parts?: string[]; name: string; desc: string }
+interface CosItem { id: string; type: string; icon: string; runtime?: string; skin?: string; blade?: { w: number; h: number; guard: number; cy: number }; color?: string; fit?: { w: number; lift: number }; ring?: { cy: number }; widths?: number[]; wip?: boolean; fabric?: string; lut?: number[][]; attachment?: string; cell?: number[]; frames?: number; layout?: string; bbox?: number[][]; parts?: string[]; name: string; desc: string }
 export const COSMETICS = Object.fromEntries(Object.entries(COS.classes as unknown as Record<string, CosItem[]>).map(([k, l]) => [k, l.filter((i) => !i.wip)])) as Record<string, CosItem[]>; // wip items stay out of the shop until verified on every frame
 export const slotOf = (type: string): CosSlot | null =>
   type === 'head' ? 'head' : type === 'mask' ? 'face' : type === 'cape' || type === 'back' ? 'back'
-    : type === 'weapon' || type === 'weapon_animated' || type === 'bow' || type === 'book' ? 'weapon' : type === 'aura' ? 'aura' : type === 'damage' ? 'damage' : type === 'pet' ? 'pet' : null;
+    : type === 'weapon' || type === 'weapon_animated' || type === 'bow' || type === 'book' ? 'weapon' : type === 'aura' ? 'aura' : type === 'damage' ? 'damage' : type === 'pet' ? 'pet' : type === 'hair' ? 'hair' : null;
 export function cosmetic(id: string): CosItem | undefined { for (const l of Object.values(COSMETICS)) { const f = l.find((i) => i.id === id); if (f) return f; } return undefined; }
 
 /** Weapon skin palettes (tint of the real weapon pixels; `glow` adds an energy edge). */
@@ -67,8 +67,8 @@ export function grayKey(scene: Phaser.Scene, key: string, boost = 1.5): string |
 /** Body sheet with the original blade cut out (built once per sheet, from its blade-only mask). */
 /** Body sheet variant: cape fabric painted over the cape pixels (keeps the original shading) and/or the original blade cut out.
  *  Built once per sheet + combination, on first use. */
-function bodyVariant(scene: Phaser.Scene, key: string, wkey: string, cut: boolean, capeId: string | null): string | null {
-  const vk = `${key}${capeId ? `|${capeId}` : ''}${cut ? '-nb' : ''}`;
+function bodyVariant(scene: Phaser.Scene, key: string, wkey: string, cut: boolean, capeId: string | null, hairId: string | null = null): string | null {
+  const vk = `${key}${capeId ? `|${capeId}` : ''}${hairId ? `|${hairId}` : ''}${cut ? '-nb' : ''}`;
   if (scene.textures.exists(vk)) return vk;
   if (!scene.textures.exists(key)) return null;
   const src = scene.textures.get(key), img = src.getSourceImage() as HTMLImageElement;
@@ -87,6 +87,19 @@ function bodyVariant(scene: Phaser.Scene, key: string, wkey: string, cut: boolea
       const shade = Math.min(1.5, Math.max(0.25, a[i] / 170)); // cape is red: its red channel carries the folds and shadows
       const fi = ((Math.floor(y * S) % FH) * FW + (Math.floor(x * S) % FW)) * 4;
       a[i] = Math.min(255, fab[fi] * shade); a[i + 1] = Math.min(255, fab[fi + 1] * shade); a[i + 2] = Math.min(255, fab[fi + 2] * shade);
+    }
+    ctx.putImageData(d, 0, 0);
+  }
+  const hk = `${key}-h`, lut = hairId ? cosmetic(hairId)?.lut : undefined;
+  if (lut && scene.textures.exists(hk)) { // hair colour: the hair's own light/shadow mapped through the colour's gradient
+    const W = img.width, H = img.height;
+    const mc = document.createElement('canvas'); mc.width = W; mc.height = H; const mx = mc.getContext('2d')!;
+    mx.drawImage(scene.textures.get(hk).getSourceImage() as HTMLImageElement, 0, 0); const mask = mx.getImageData(0, 0, W, H).data;
+    const d = ctx.getImageData(0, 0, W, H), a = d.data, n = lut.length;
+    for (let i = 0; i < a.length; i += 4) {
+      if (mask[i + 3] < 128 || a[i + 3] === 0) continue;
+      const l = 0.3 * a[i] + 0.59 * a[i + 1] + 0.11 * a[i + 2], q = Math.max(0, Math.min(n - 1, Math.floor(((l - 12) / 175) * n)));
+      a[i] = lut[q][0]; a[i + 1] = lut[q][1]; a[i + 2] = lut[q][2];
     }
     ctx.putImageData(d, 0, 0);
   }
@@ -147,7 +160,7 @@ export class ActorView {
       this.bladeTop = this.scene.add.image(0, 0, `cosw-${wi.id}`).setCrop(cut, 0, wi.blade.w - cut, wi.blade.h);
     }
     for (const [slot, id] of Object.entries(e) as [CosSlot, string][]) {
-      if (!id || slot === 'weapon' || slot === 'damage') continue;
+      if (!id || slot === 'weapon' || slot === 'damage' || slot === 'hair') continue;
       const it = cosmetic(id);
       if (!it || !this.scene.textures.exists(`cos-${id}`)) continue;
       const img = this.scene.add.image(0, 0, `cos-${id}`, 0);
@@ -172,7 +185,8 @@ export class ActorView {
     this.shadow.setPosition(x, y - supportZ + 1).setDepth(actorDepth(x, y, supportZ) - 0.6).setScale(0.42 * k, 0.4 * k).setAlpha(alpha * (0.9 * k)).setVisible(this.visible);
     // Sword skin (warrior): original blade cut out of this frame, the new sword laid on the frame's hilt→tip line.
     const capeId = this.equipped.back && cosmetic(this.equipped.back)?.fabric ? this.equipped.back : null;
-    if (this.blade || capeId) { const vk = bodyVariant(this.scene, pose.key, pose.wkey, !!this.blade, capeId); if (vk) p.setTexture(vk, pose.frame); }
+    const hairId = this.equipped.hair && cosmetic(this.equipped.hair)?.lut ? this.equipped.hair : null;
+    if (this.blade || capeId || hairId) { const vk = bodyVariant(this.scene, pose.key, pose.wkey, !!this.blade, capeId, hairId); if (vk) p.setTexture(vk, pose.frame); }
     if (this.blade) {
       const bi = cosmetic(this.equipped.weapon!)!.blade!, bl = pose.blade;
       if (bl && this.visible) {
