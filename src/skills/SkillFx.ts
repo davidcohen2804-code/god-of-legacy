@@ -120,6 +120,14 @@ export class SkillFx {
       const off = shape.kind === 'sector' ? shape.range * 0.6 : 0;
       this.shockwave(o.x + a.x * off, o.y + a.y * off, sh.r, sh.c);
     }
+    if (r.skill.id === 'blade_storm') { // summoning circle stays under the phantom blades for the whole storm
+      const c = { x: r.origin.x + r.aim.x * 90, y: r.origin.y + r.aim.y * 90 };
+      const mc = this.scene.add.image(c.x, c.y, 'magic-circle').setDisplaySize(260, 260 * 0.42).setDepth(GROUND + 1).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd27a).setAlpha(0);
+      this.scene.tweens.add({ targets: mc, alpha: 0.85, duration: 200 });
+      this.scene.tweens.add({ targets: mc, angle: 90, duration: 3300 });
+      this.scene.tweens.add({ targets: mc, alpha: 0, delay: 3100, duration: 300, onComplete: () => mc.destroy() });
+    }
+    if (r.skill.id === 'shield_slam') (this.cam ?? this.scene.cameras.main).shake(120, 0.004);
     if (r.skill.id === 'ground_breaker') { // the earth answers: heavy quake shake, double ring, dust burst
       (this.cam ?? this.scene.cameras.main).shake(220, 0.007);
       this.scene.time.delayedCall(90, () => this.shockwave(r.origin.x, r.origin.y, 240, 0xff9a40));
@@ -183,7 +191,9 @@ export class SkillFx {
     const o = r.origin, aim = r.aim, upright = UPRIGHT.has(s.id);
     let pos: V3 = { ...o }, size = 200, follow: (() => V3 | null) | undefined;
     switch (shape.kind) {
-      case 'sector': pos = { x: o.x + aim.x * shape.range * 0.5, y: o.y + aim.y * shape.range * 0.5, z: o.z + 40 }; size = shape.range * 2.2; break;
+      case 'sector': pos = { x: o.x + aim.x * shape.range * 0.5, y: o.y + aim.y * shape.range * 0.5, z: o.z + 40 }; size = shape.range * 2.2;
+        if (s.dash) follow = () => { const c = this.casterPos(r.attackerId); return c ? { x: c.x + aim.x * shape.range * 0.5, y: c.y + aim.y * shape.range * 0.5, z: c.z + 40 } : null; };
+        break;
       case 'line': pos = { x: o.x + aim.x * shape.length * 0.5, y: o.y + aim.y * shape.length * 0.5, z: o.z + 34 }; size = shape.length * 1.25; break;
       case 'capsule': follow = () => { const c = this.casterPos(r.attackerId); return c ? { x: c.x, y: c.y, z: c.z + 40 } : null; }; size = 190; break;
       case 'circle': { const c = circleCentre(shape, o, aim, r.place); pos = { x: c.x, y: c.y, z: o.z + (upright ? 0 : 40) }; size = shape.radius * 2.5; if (shape.at !== 'place' && (s.move.active > 0 || s.dash)) follow = () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x + aim.x * (shape.bias ?? 0), y: p.y + aim.y * (shape.bias ?? 0), z: p.z } : null; }; break; }
@@ -298,8 +308,9 @@ export class SkillFx {
     if (s.id === 'dragon_eclipse') this.eclipseSlash(r, o);
     if (s.id === 'leap_crash') { // crater at the landing point
       const img = this.scene.add.image(o.x, o.y, vfxKey(s.id), 0).setOrigin(0.5, 0.88).setDepth(o.y + 2).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(330, 330);
-      const fr = [0, 1, 2, 3, 4, 5, 6, 7], fms = [30, 40, 50, 70, 70, 80, 90, 110];
-      this.anims.push({ img, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: fr, frameMs: fms, fadeLast: 120 });
+      const fr = [0, 1, 2, 3, 4, 5, 6, 7], fms = [40, 60, 80, 110, 120, 140, 170, 300];
+      this.anims.push({ img, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: fr, frameMs: fms, fadeLast: 320 });
+      (this.cam ?? this.scene.cameras.main).shake(160, 0.005);
       this.shockwave(o.x, o.y, 200, 0xffc070);
     }
     if (s.id === 'verdant_judgment' && i === 1) this.spark(IMPACT.explosion.key, r.place?.x ?? o.x, (r.place?.y ?? o.y) - 50, 5, 260, 1);

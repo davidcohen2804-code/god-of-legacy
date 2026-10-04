@@ -372,7 +372,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.dir = dirOf(run.aim.x, run.aim.y, this.dir);
     const phase = run.phase === 'startup' ? 'startup' : run.phase === 'active' ? 'active' : 'recovery';
     const scale = s.move[phase];
-    if (s.dash && run.phase === 'active') { this.dashMotion(run); return; }
+    if (s.dash && run.phase === 'active') { this.dashMotion(run); if (s.carry) this.carryTarget(run); return; }
     for (const key of ['lunge', 'momentum'] as const) { // glide toward the target / along the push
       const m = this[key]; if (!m) continue;
       const f = Math.min(1, ms / Math.max(1, m.left)), nx = k.x + m.x * f, ny = k.y + m.y * f;
@@ -419,7 +419,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const steps = Math.ceil(Math.hypot(want.x - k.x, want.y - k.y) / 2);
     for (let i = 0; i < steps; i++) {
       const nx = k.x + (want.x - k.x) / (steps - i), ny = k.y + (want.y - k.y) / (steps - i);
-      if (!footAllowed(nx, ny, k.z, R) || (!s.through && this.blockedByActors(nx, ny, k.z))) break;
+      if (!footAllowed(nx, ny, k.z, R) || (!s.through && !s.carry && this.blockedByActors(nx, ny, k.z))) break;
       k.x = nx; k.y = ny;
     }
     k.vx = 0; k.vy = 0;
@@ -428,6 +428,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       k.z = d.crash ? run.origin.z + d.lift * Math.sin(Math.PI * Math.min(1, p * 1.06)) : Math.max(k.z, run.origin.z + d.lift * Math.sin(Math.PI * p));
       k.vz = p < 0.5 ? 40 : -40;
     }
+  }
+
+  /** Impaling Rush: the confirmed target rides on the blade in front of the dashing warrior; a wall stops it hard. */
+  private carryTarget(run: CastRun): void {
+    const e = this.enemy, k = this.kin;
+    if (!e?.alive || run.confirmedAt < 0) return;
+    if (Math.hypot(e.kin.x - k.x, e.kin.y - k.y) > 110) return;
+    const nx = k.x + run.aim.x * 46, ny = k.y + run.aim.y * 46;
+    if (footAllowed(nx, ny, e.kin.z, 12)) { e.kin.x = nx; e.kin.y = ny; e.body.push = null; e.kin.vx = 0; e.kin.vy = 0; }
+    else if (!run.turned) { run.turned = true; e.body.state = 'hitstun'; e.body.stateEnd = this.simMs + 900; this.fx!.callout({ x: e.kin.x, y: e.kin.y, z: e.kin.z + 40 }, 'WALL CRASH!!', '#9ed8ff', 0); this.fx!.shockwave(e.kin.x, e.kin.y, 100, 0x9ed8ff); this.cameras.main.shake(140, 0.005); }
   }
 
   /** Physical reaction feedback on the enemy: knockback skid dust, heavy landing slam, bounce puff. */
@@ -484,13 +494,19 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       speed: Math.hypot(k.vx, k.vy), vz: k.vz, stunMs: 220,
       skill: run ? { id: run.skill.id, stage: run.stage, elapsed: run.elapsed, ...run.timings } : undefined,
     };
-    const pose = resolvePose(this.character!.classId as ClassKey, this.dir, poseQuery(snap));
+    // Whirlwind: a real spin — the body cycles through the four facings during the active phase.
+    let dir = this.dir;
+    if (run && run.skill.id === 'whirlwind' && run.phase === 'active') {
+      const spin: Dir[] = ['down', 'left', 'up', 'right'], i0 = spin.indexOf(this.dir);
+      dir = spin[(i0 + Math.floor((run.elapsed - run.timings.startup) / 50)) % 4];
+    }
+    const pose = resolvePose(this.character!.classId as ClassKey, dir, poseQuery(snap));
     let tint: number | null = null, fill = false, alpha = 1;
     if (this.flash >= 0) { if (this.flash < P6.hitFlashWhiteMs) { tint = 0xffffff; fill = true; } else tint = 0xff6a6a; }
     else if (this.body.hard.active(this.simMs)) tint = this.body.hard.kind === 'freeze' ? 0x9fd8ff : 0xb6ffb0;
     else if (run && run.skill.armor && run.elapsed >= run.skill.armor[0] && run.elapsed < run.skill.armor[1]) tint = 0xffe0a0;
     if (this.dead >= 0) { alpha = 1 - (1 - P6.deathAlpha) * Math.min(1, this.dead / P6.deathFadeMs); tint = 0xff4a4a; fill = false; }
-    v.render(ms, pose, k.x, k.y, k.z, k.supportZ, this.dir, alpha, tint, fill);
+    v.render(ms, pose, k.x, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
     // War Cry aura: steady flame loop (sheet frames 4–6) around the body while the buff lasts.
     const cry = this.simMs < this.warCryUntil && this.dead < 0 && this.textures.exists('vfx-war_cry');
     if (cry && !this.cryAura) this.cryAura = this.add.image(0, 0, 'vfx-war_cry', 4).setOrigin(0.5, 0.88).setBlendMode(Phaser.BlendModes.ADD);
@@ -674,9 +690,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       out = en.body.receive(run.attackerId, s, hit, from, now);
       if (out.damage > 0) { en.hitFromX = from.x; en.faceToward(from.x, from.y); }
       if (run.attackerId === this.localId && (out.pushX || out.pushY) && s.id !== 'shield_slam') this.momentum = { x: out.pushX * 0.7, y: out.pushY * 0.7, left: 120 };
-      if (s.id === 'iron_grip' && hit === s.hits[0]) { // hoist and swing the target behind you
-        const nx = from.x - run.aim.x * 46, ny = from.y - run.aim.y * 46;
-        if (footAllowed(nx, ny, en.kin.z, 10)) { en.kin.x = nx; en.kin.y = ny; en.body.push = null; }
+      if (s.id === 'iron_grip' && hit === s.hits[0]) { // seized: hoisted into the air, held in the energy hands
+        en.kin.grounded = false; en.kin.z = Math.max(en.kin.z, 70); en.kin.vz = 0; en.body.state = 'launched'; en.body.push = null;
+        this.fx!.callout(at, 'GRAB!!', '#ffd27a', 0);
+      }
+      if (s.id === 'iron_grip' && hit === s.hits[1]) { // swung over your head and smashed down behind you
+        const nx = from.x - run.aim.x * 52, ny = from.y - run.aim.y * 52;
+        if (footAllowed(nx, ny, 0, 10)) { en.kin.x = nx; en.kin.y = ny; }
+        this.fx!.shockwave(en.kin.x, en.kin.y, 160, 0xffc070); this.cameras.main.shake(160, 0.006);
       }
       if (s.id === 'shield_slam' && hit === s.hits[1]) { // driven into a wall / prop: extra stun
         const dx = en.kin.x - from.x, dy = en.kin.y - from.y, d = Math.hypot(dx, dy) || 1;
