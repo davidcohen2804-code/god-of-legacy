@@ -99,6 +99,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Startup lunge toward the target / post-hit momentum following the push (px still to travel, ms left). */
   private lunge: { x: number; y: number; left: number } | null = null;
   private momentum: { x: number; y: number; left: number } | null = null;
+  /** Iron Grip: the foe is held in the fist between the seize and the slam. */
+  private gripHeld = false;
   /** Detached lingering strikes (Ground Breaker cracks, Blade Storm phantom blades) of own casts. */
   private lingers: { run: CastRun; x: number; y: number; next: number; left: number }[] = [];
   private cryAura?: Phaser.GameObjects.Image;
@@ -377,6 +379,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const phase = run.phase === 'startup' ? 'startup' : run.phase === 'active' ? 'active' : 'recovery';
     const scale = s.move[phase];
     if (s.dash && run.phase === 'active') { this.dashMotion(run); if (s.carry) this.carryTarget(run); return; }
+    if (s.id === 'iron_grip' && this.gripHeld && this.enemy?.alive) { // the seized foe rides the fist up overhead until the slam
+      const en = this.enemy, h1 = s.hits[1]?.at ?? 400, p = Math.max(0, Math.min(1, (run.elapsed - T.startup) / Math.max(1, h1)));
+      const lift = 1 - Math.pow(1 - Math.min(1, p / 0.8), 3);
+      const reach = 30 - 18 * lift;
+      en.kin.x = k.x + run.aim.x * reach; en.kin.y = k.y + run.aim.y * reach + 1; en.kin.z = k.z + 40 + 120 * lift;
+      en.kin.vz = 0; en.kin.vx = 0; en.kin.vy = 0; en.kin.grounded = false;
+    }
     if (s.id === 'dash_slash' && run.phase === 'recovery' && !run.slid) { run.slid = true; this.momentum = { x: run.aim.x * 46, y: run.aim.y * 46, left: Math.max(120, T.recovery * 0.7) }; } // skid to a stop instead of freezing
     if (s.id === 'judgment_blade') { // leap high, hang at the apex while the light-blade charges, throw, then drop
       const e = run.elapsed, rise = Math.min(1, e / (T.startup * 0.45)), apex = run.origin.z > 5 ? 45 : 105; // from a jump: a shorter extra rise
@@ -668,6 +677,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** A run ended (finished or cancelled into a follow-up): chain bookkeeping + recovery → breathing transition. */
   private endRun(run: CastRun, toMove: boolean): void {
     if (!run.own) return;
+    if (run.skill.id === 'iron_grip') this.gripHeld = false;
     if (run.skill.chain) this.chain = { stage: run.stage, lastEnd: this.simMs, skill: run.skill.id };
     this.body.armorUntil = -1;
     // Warrior skill sheets end in their own battle stance: go straight to idle (the old recovery frames popped and froze the body).
@@ -741,13 +751,18 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (out.damage > 0) { en.hitFromX = from.x; en.faceToward(from.x, from.y); }
       if (run.attackerId === this.localId && (out.pushX || out.pushY) && s.id !== 'shield_slam') this.momentum = { x: out.pushX * 0.7, y: out.pushY * 0.7, left: 120 };
       if (s.id === 'iron_grip' && hit === s.hits[0]) { // seized: hoisted into the air, held in the energy hands
-        en.kin.grounded = false; en.kin.z = Math.max(en.kin.z, 70); en.kin.vz = 0; en.body.state = 'launched'; en.body.push = null;
+        en.kin.grounded = false; en.kin.z = Math.max(en.kin.z, 40); en.kin.vz = 0; en.body.state = 'launched'; en.body.push = null;
+        this.gripHeld = true; this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 70);
         this.fx!.callout(at, 'GRAB!!', '#ffd27a', 0);
       }
       if (s.id === 'iron_grip' && hit === s.hits[1]) { // swung over your head and smashed down behind you
-        const nx = from.x - run.aim.x * 52, ny = from.y - run.aim.y * 52;
+        this.gripHeld = false;
+        const nx = from.x + run.aim.x * 62, ny = from.y + run.aim.y * 62; // smashed into the floor right in front of you
         if (footAllowed(nx, ny, 0, 10)) { en.kin.x = nx; en.kin.y = ny; }
-        this.fx!.shockwave(en.kin.x, en.kin.y, 160, 0xffc070); this.cameras.main.shake(160, 0.006);
+        en.kin.z = Math.min(en.kin.z, 30);
+        this.fx!.crack(en.kin.x, en.kin.y, 120); this.fx!.shockwave(en.kin.x, en.kin.y, 200, 0xffc070);
+        this.time.delayedCall(70, () => this.fx!.shockwave(en.kin.x, en.kin.y, 280, 0xff8a30));
+        this.fx!.callout(at, 'SLAM!!', '#ff9a4a', 1); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 120); this.cameras.main.shake(220, 0.011);
       }
       if (s.id === 'shield_slam' && hit === s.hits[1]) { // driven into a wall / prop: extra stun
         const dx = en.kin.x - from.x, dy = en.kin.y - from.y, d = Math.hypot(dx, dy) || 1;
