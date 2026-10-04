@@ -61,9 +61,9 @@ const warrior: FinalSkill[] = [
     startup: 300, active: 260, recovery: 300, cooldown: 4000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(0, 26, { kind: 'circle', radius: 118 }, { stun: 280, slam: true, knockdown: 'light', push: 10 }, { reachUp: 130, heavy: true }),
       H(200, 12, { kind: 'circle', radius: 150 }, { stun: 260, launch: 70, juggleCost: 10 }, { reachUp: 120 })],
-    linger: { at: 'origin', startMs: 450, everyMs: 400, count: 5, radius: 150, maxZ: 24, hit: H(0, 3, { kind: 'circle', radius: 150 }, { stun: 260, launch: 40 }, { reachUp: 30 }) },
+    linger: { at: 'caster', startMs: 300, everyMs: 300, count: 10, radius: 150, maxZ: 130, hit: H(0, 3, { kind: 'circle', radius: 150 }, { stun: 380, pull: 40, float: true }, { reachUp: 130 }) },
     cancelOnHit: ['titans_verdict'], telegraph: 'circle',
-    description: 'Heavy ground impact. Airborne targets are slammed down; grounded targets are knocked down.',
+    description: 'Smash the earth: a living quake follows you for 3s, dragging in and holding any foe it touches while you keep fighting.',
     relations: ['Finisher', 'Anti-air slam'],
   }),
   S({

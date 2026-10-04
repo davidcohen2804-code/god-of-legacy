@@ -87,7 +87,7 @@ export interface FinalSkill {
   /** Persistent zone / trap lifetime after active (ms). */
   zoneMs?: number;
   /** Detached lingering hits (cracks / summons): keep striking after the caster moves on or cancels. */
-  linger?: { at: 'origin' | 'aim'; offset?: number; startMs: number; everyMs: number; count: number; radius: number; maxZ: number; hit: HitEvent };
+  linger?: { at: 'origin' | 'aim' | 'caster'; offset?: number; startMs: number; everyMs: number; count: number; radius: number; maxZ: number; hit: HitEvent };
   /** Dash passes through bodies and turns to face the target behind. */
   through?: boolean;
   /** Dash carries the first confirmed target along on the blade. */

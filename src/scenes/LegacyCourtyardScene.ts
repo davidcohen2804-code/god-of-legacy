@@ -103,6 +103,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private lingers: { run: CastRun; x: number; y: number; next: number; left: number }[] = [];
   private cryAura?: Phaser.GameObjects.Image;
   private cryFront?: Phaser.GameObjects.Image;
+  private cryFire?: Phaser.GameObjects.Particles.ParticleEmitter[];
   private cryBody?: Phaser.GameObjects.Sprite;
   private emberT = 0;
   combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1 };
@@ -471,6 +472,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const L = l.run.skill.linger!;
       while (l.left > 0 && now >= l.next) {
         l.left--; l.next += L.everyMs;
+        if (L.at === 'caster') { const c = this.casterPos(l.run.attackerId); if (c) { l.x = c.x; l.y = c.y; } } // the quake travels with you
         if (l.run.skill.id === 'blade_storm') this.fx!.phantomBlade(l.x + (Math.random() - 0.5) * 70, l.y + (Math.random() - 0.5) * 30);
         else this.fx!.crack(l.x, l.y, L.radius);
         for (const t of this.targetsFor(l.run)) {
@@ -513,6 +515,25 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // War Cry aura: steady flame loop (sheet frames 4–6) around the body while the buff lasts.
     const cry = this.simMs < this.warCryUntil && this.dead < 0 && this.textures.exists('vfx-war_cry');
     if (cry && !this.cryAura) this.cryAura = this.add.image(0, 0, 'vfx-war_cry', 4).setOrigin(0.5, 0.88).setBlendMode(Phaser.BlendModes.ADD);
+    if (cry && !this.cryFire) {
+      if (!this.textures.exists('flame-dot')) { // soft additive flame particle
+        const g = this.make.graphics({}, false);
+        for (let i = 12; i > 0; i--) g.fillStyle(0xffffff, 0.09 + (12 - i) * 0.03).fillCircle(16, 16, i * 1.3);
+        g.generateTexture('flame-dot', 32, 32); g.destroy();
+      }
+      const zone = (w: number, h: number) => ({ type: 'random' as const, source: new Phaser.Geom.Ellipse(0, 0, w, h), quantity: 1 });
+      const fire = (front: boolean) => this.add.particles(0, 0, 'flame-dot', {
+        speed: { min: 20, max: 70 }, angle: { min: 255, max: 285 }, gravityY: -260, lifespan: { min: 420, max: 760 },
+        scale: { start: front ? 1.2 : 2.0, end: 0.1 }, alpha: { start: front ? 0.5 : 0.85, end: 0 },
+        tint: [0xfff0a0, 0xffc040, 0xff8a20, 0xff5a10], blendMode: 'ADD', frequency: front ? 28 : 14, quantity: front ? 1 : 2,
+        emitZone: zone(front ? 34 : 46, front ? 70 : 92), emitting: false,
+      });
+      this.cryFire = [fire(false), fire(true)];
+    }
+    if (this.cryFire) { // flames pour out of the body (world-space particles: they trail behind when moving)
+      const [back, front] = this.cryFire, d = actorDepth(k.x, k.y, k.z);
+      for (const [em, dd] of [[back, -0.2], [front, 0.06]] as const) { em.setPosition(k.x, k.y - k.z - 44).setDepth(d + dd); em.emitting = cry && v.visible; }
+    }
     if (cry && !this.cryFront) {
       this.cryFront = this.add.image(0, 0, 'vfx-war_cry', 5).setOrigin(0.5, 0.88).setBlendMode(Phaser.BlendModes.ADD);
       this.cryBody = this.add.sprite(0, 0, '__DEFAULT').setBlendMode(Phaser.BlendModes.ADD);
@@ -523,8 +544,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const left = this.warCryUntil - this.simMs, fade = Math.min(1, left / 400), fl = 0.8 + 0.2 * Math.sin(this.simMs / 55);
         const d = actorDepth(k.x, k.y, k.z), f = Math.floor(this.simMs / 80);
         // Engulfed in fire: tall flames behind, thinner flames in front, the body itself glowing ember-orange.
-        this.cryAura.setFrame(4 + (f % 3)).setPosition(k.x, k.y - k.z + 6).setDepth(d - 0.2).setDisplaySize(250, 250).setAlpha(0.85 * fade * fl);
-        this.cryFront.setFrame(4 + ((f + 1) % 3)).setPosition(k.x, k.y - k.z + 6).setDepth(d + 0.06).setDisplaySize(210, 210).setAlpha(0.38 * fade);
+        this.cryAura.setFrame(4 + (f % 3)).setPosition(k.x, k.y - k.z + 6).setDepth(d - 0.2).setDisplaySize(220, 220).setAlpha(0.28 * fade * fl);
+        this.cryFront.setFrame(4 + ((f + 1) % 3)).setPosition(k.x, k.y - k.z + 6).setDepth(d + 0.06).setDisplaySize(200, 200).setAlpha(0.0);
         const sp = v.sprite;
         if (this.cryBody.texture.key !== sp.texture.key || this.cryBody.frame.name !== sp.frame.name) this.cryBody.setTexture(sp.texture.key, sp.frame.name);
         this.cryBody.setOrigin(sp.originX, sp.originY).setScale(sp.scaleX * 1.04, sp.scaleY * 1.04).setPosition(sp.x, sp.y).setDepth(d + 0.04)
