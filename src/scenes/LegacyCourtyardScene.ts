@@ -374,7 +374,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const rooted = b.hard.active(now) && b.hard.kind === 'root';
     const speed = (inp.running ? PHYS.run : PHYS.walk) * b.moveScale(now);
     steer(k, rooted ? 0 : inp.moveX * speed, rooted ? 0 : inp.moveY * speed, ms);
-    if (inp.hasMove && !rooted) this.dir = dirOf(inp.moveX, inp.moveY, this.dir);
+    if (inp.hasMove && !rooted) this.dir = Math.abs(inp.moveX) > 0.05 && Math.abs(inp.moveX) >= 0.45 * Math.abs(inp.moveY) ? (inp.moveX > 0 ? 'right' : 'left') : dirOf(inp.moveX, inp.moveY, this.dir); // diagonals face sideways: no flicker to the front/back rows
     if (inp.takeJump() && k.grounded && !rooted) { jump(k); this.setMode('takeoff'); }
     const sp = Math.hypot(k.vx, k.vy);
     if (!k.grounded) { if (this.mode !== 'takeoff' || this.modeT > PHYS.takeoffMs) this.setMode('air'); return; }
