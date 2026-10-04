@@ -51,6 +51,7 @@ export function preloadSkillFx(scene: Phaser.Scene): void {
   I('tg-circle', `${F}/world/telegraph_circle.png`); I('tg-cone', `${F}/world/telegraph_cone.png`);
   I('tg-line', `${F}/world/telegraph_line.png`); I('tg-traj', `${F}/world/telegraph_trajectory.png`);
   I('magic-circle', `${F}/impact/magic_circle.png`);
+  if (!scene.textures.exists('storm-ring')) scene.load.spritesheet('storm-ring', `${F}/skills/warrior/judgment_blade/ring.png`, { frameWidth: 256, frameHeight: 256 });
   if (!scene.textures.exists('phantom-blade')) scene.load.spritesheet('phantom-blade', `${F}/skills/warrior/blade_storm/phantom.png`, { frameWidth: 256, frameHeight: 256 }); I('dmg-glow', `${F}/ui/hud/damage_glow.png`);
 }
 
@@ -107,7 +108,8 @@ export class SkillFx {
     // Anticipation frames 0..k during startup at the cast point, release frame exactly at the active start.
     const shape = this.firstShape(s);
     if (shape.kind === 'projectile' || shape.kind === 'chain') { this.castFlare(r); return; }
-    if (s.id === 'guard_counter') this.aegis(r);
+    if (s.id === 'judgment_blade') this.judgment(r);
+    else if (s.id === 'guard_counter') this.aegis(r);
     else if (s.id !== 'leap_crash') this.castVfx(r);
     else this.aura(r);
     if (s.slot === 7) this.ultimateStage(r);
@@ -169,6 +171,62 @@ export class SkillFx {
     this.scene.tweens.add({ targets: img, alpha: 0.5 + 0.4 * lvl, duration: Math.min(160, T.startup) });
     const tick = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { const c = this.casterPos(r.attackerId); if (c) img.setPosition(c.x, c.y - c.z - 40).setDepth(c.y - 1); } });
     this.scene.tweens.add({ targets: img, alpha: 0, delay: life - 180, duration: 180, onComplete: () => { tick.remove(); img.destroy(); } });
+  }
+
+  /** Judgment Blade: the light-sword is hurled forward on an arc, plants itself, and a storm ring crackles around it for 5s. */
+  private judgment(r: CastRun): void {
+    const a = r.aim, key = vfxKey('judgment_blade'), T = r.timings;
+    const land = { x: r.origin.x + a.x * 150, y: r.origin.y + a.y * 150 };
+    this.scene.time.delayedCall(T.startup, () => {
+      const c = this.casterPos(r.attackerId) ?? r.origin;
+      const fly = this.scene.add.image(c.x, c.y - c.z - 70, key, 0).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(150, 150).setDepth(TOP);
+      const from = { x: c.x, y: c.y - c.z - 70 }, to = { x: land.x, y: land.y - 60 };
+      const st = { p: 0 };
+      this.scene.tweens.add({ targets: st, p: 1, duration: 240, ease: 'Quad.easeIn', onUpdate: () => {
+        const x = from.x + (to.x - from.x) * st.p, y = from.y + (to.y - from.y) * st.p - Math.sin(Math.PI * st.p) * 50;
+        const dx = to.x - from.x, dy = (to.y - from.y) - Math.cos(Math.PI * st.p) * 50 * Math.PI;
+        fly.setPosition(x, y).setRotation(Math.atan2(dy, dx) - Math.PI / 2); // tip leads the flight
+      }, onComplete: () => {
+        fly.destroy();
+        const img = this.scene.add.image(land.x, land.y + 4, key, 1).setOrigin(0.5, 0.97).setDepth(land.y + 1).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(190, 190);
+        const fms = [90, 100, 100, 100, 100, 120, 260];
+        this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: [1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 260, loop: [2, 4], until: 5000 });
+        this.shockwave(land.x, land.y, 150, 0x6fe0ff); (this.cam ?? this.scene.cameras.main).shake(150, 0.005);
+        this.stormRing(land.x, land.y, 5000);
+      } });
+    });
+  }
+
+  /** Electric circle on the floor: double ring + jumping lightning (sheet-free). */
+  stormRing(x: number, y: number, ms: number): void {
+    if (this.scene.textures.exists('storm-ring')) {
+      const img = this.scene.add.image(x, y, 'storm-ring', 0).setOrigin(0.5, 0.6).setDepth(GROUND + 1.5).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(310, 310).setAlpha(0);
+      this.scene.tweens.add({ targets: img, alpha: 1, duration: 150 });
+      const ev = this.scene.time.addEvent({ delay: 80, loop: true, callback: () => img.setFrame((Number(img.frame.name) + 1) % 8) });
+      this.scene.tweens.add({ targets: img, alpha: 0, delay: ms - 250, duration: 250, onComplete: () => { ev.remove(); img.destroy(); } });
+      return;
+    }
+    const g = this.scene.add.graphics().setDepth(GROUND + 1.5).setBlendMode(Phaser.BlendModes.ADD);
+    const W = 140, H = 56;
+    const draw = () => {
+      g.clear();
+      const fl = 0.75 + Math.random() * 0.25;
+      g.lineStyle(5, 0x6fe0ff, 0.85 * fl).strokeEllipse(x, y, W * 2, H * 2);
+      g.lineStyle(2, 0xffffff, 0.9 * fl).strokeEllipse(x, y, W * 2 - 6, H * 2 - 4);
+      g.lineStyle(3, 0x3a8cff, 0.7).strokeEllipse(x, y, W * 1.35, H * 1.35);
+      for (let i = 0; i < 6; i++) { // lightning bolts between the rings
+        const t = Math.random() * Math.PI * 2, r0 = 0.66, r1 = 1;
+        let px = x + Math.cos(t) * W * r0, py = y + Math.sin(t) * H * r0;
+        g.lineStyle(2, i % 2 ? 0xffffff : 0x9ee8ff, 0.95);
+        g.beginPath(); g.moveTo(px, py);
+        for (let k = 1; k <= 4; k++) { const rr = r0 + ((r1 - r0) * k) / 4, tt = t + (Math.random() - 0.5) * 0.25; px = x + Math.cos(tt) * W * rr + (Math.random() - 0.5) * 6; py = y + Math.sin(tt) * H * rr + (Math.random() - 0.5) * 4; g.lineTo(px, py); }
+        g.strokePath();
+      }
+    };
+    draw();
+    const ev = this.scene.time.addEvent({ delay: 70, loop: true, callback: draw });
+    g.setAlpha(0); this.scene.tweens.add({ targets: g, alpha: 1, duration: 150 });
+    this.scene.tweens.add({ targets: g, alpha: 0, delay: ms - 250, duration: 250, onComplete: () => { ev.remove(); g.destroy(); } });
   }
 
   /** Aegis Burst: the hex barrier holds in front of the caster, then bursts into the crescent wave. */

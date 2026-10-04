@@ -20,7 +20,7 @@ const MOVE_COLS: Record<MoveState, number> = { idle: 12, walk: 8, run: 8, jump: 
 const SHEET_CLASSES = ['warrior', 'book_mage'] as const;
 const sheetKey = (cls: string, st: string) => `body-${cls}-${st}`;
 /** Extended-kit skills reuse an existing body animation (pose family) until they get their own sheet. */
-const BODY_ALIAS: Record<string, string> = { leap_crash: 'titans_verdict', wave_slash: 'warrior_basic', iron_grip: 'shield_slam', lance_thrust: 'dash_slash', war_cry: 'ground_breaker', guard_counter: 'shield_slam' };
+const BODY_ALIAS: Record<string, string> = { leap_crash: 'titans_verdict', wave_slash: 'warrior_basic', iron_grip: 'shield_slam', lance_thrust: 'dash_slash', war_cry: 'ground_breaker', guard_counter: 'shield_slam', judgment_blade: 'rising_slash' };
 export const bodyIdOf = (id: string) => BODY_ALIAS[id] ?? id;
 const skillKey = (cls: string, id: string) => `sbody-${cls}-${bodyIdOf(id)}`;
 const sheetPath = (cls: string, st: string) => `assets/final/body/${cls}/movement/${st}.png`;

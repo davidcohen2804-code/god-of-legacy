@@ -150,12 +150,14 @@ const warrior: FinalSkill[] = [
     relations: ['Buff 8s', 'Super armor'],
   }),
   S({
-    id: 'guard_counter', cls: 'warrior', slot: 13, name: 'Aegis Burst', roles: ['counter', 'peel'], targeting: 'mouseDir',
-    startup: 80, active: 720, recovery: 280, cooldown: 5000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(620, 26, { kind: 'sector', range: 130, angle: 150 }, { stun: 460, launch: 95, push: 18 }, { reachUp: 130, heavy: true })],
+    id: 'judgment_blade', cls: 'warrior', slot: 13, name: 'Judgment Blade', roles: ['zone', 'setup'], targeting: 'mouseDir',
+    startup: 220, active: 320, recovery: 260, cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: 0, lift: 46 },
+    hits: [H(260, 14, { kind: 'circle', radius: 80, at: 'aimBias', bias: 150 }, { stun: 420, pin: 400 }, { reachUp: 90, heavy: true })],
+    linger: { at: 'aim', offset: 150, startMs: 760, everyMs: 500, count: 10, radius: 130, maxZ: 40, hit: H(0, 3, { kind: 'circle', radius: 130 }, { stun: 560, pin: 480 }, { reachUp: 40 }) },
     cancelOnHit: ['warrior_basic', 'rising_slash', 'leap_crash', 'lance_thrust', 'blade_storm'],
-    description: 'Raise a hexagon shield barrier: for 0.6s nothing can hurt you (every blocked strike flashes BLOCK!!). Then the barrier bursts forward as a crescent wave that blasts the target into the air.',
-    relations: ['Block 0.6s', 'Burst → air chase'],
+    description: 'Hop and hurl your sword, transformed into a blade of light, into the ground ahead. It stays planted for 5s inside a storm ring that shocks and roots anyone standing in it.',
+    relations: ['Zone 5s', 'Root → free combo'],
   }),
 ];
 
