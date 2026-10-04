@@ -7,11 +7,17 @@ function gitCommit(): string {
   catch { return 'unknown'; }
 }
 
+const COMMIT = gitCommit();
+
 export default defineConfig({
+  plugins: [{ // version.json next to index.html: open pages poll it and reload themselves on a new deploy
+    name: 'version-file',
+    generateBundle() { this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ commit: COMMIT }) }); },
+  }],
   base: './', // works at any sub-path (GitHub Pages project URL)
   define: {
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
-    __BUILD_COMMIT__: JSON.stringify(gitCommit()),
+    __BUILD_COMMIT__: JSON.stringify(COMMIT),
   },
   build: {
     // QA build ships source maps; set NO_SOURCEMAP=1 for a production build later.

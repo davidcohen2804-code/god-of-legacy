@@ -12,6 +12,23 @@ import { isQAMode, startQAPanel } from './qa/QAPanel';
 
 ErrorCapture.installGlobal();
 
+// Auto-update: when a newer build is deployed, reload onto a fresh URL (bypasses the CDN/browser cache).
+function watchForUpdates(): void {
+  const check = async () => {
+    try {
+      const r = await fetch(`version.json?t=${Date.now()}`, { cache: 'no-store' });
+      if (!r.ok) return;
+      const { commit } = await r.json() as { commit: string };
+      if (commit && commit !== __BUILD_COMMIT__ && commit !== 'unknown') {
+        const u = new URL(location.href); u.searchParams.set('v', commit); location.replace(u.toString());
+      }
+    } catch { /* offline: try again later */ }
+  };
+  setInterval(check, 20000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+}
+if (!location.hostname.includes('localhost')) watchForUpdates();
+
 // Phaser draws text once, so Cinzel must be loaded before any scene creates text (Georgia stays as fallback).
 async function loadFonts(): Promise<void> {
   try {
