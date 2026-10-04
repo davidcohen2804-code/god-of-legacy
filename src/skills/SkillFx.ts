@@ -333,7 +333,7 @@ export class SkillFx {
     let a = r.aim, land = { x: r.origin.x + a.x * 150, y: r.origin.y + a.y * 150 };
     const aimNow = () => { a = r.aim; const c = this.casterPos(r.attackerId) ?? r.origin; land = { x: c.x + a.x * 150, y: c.y + a.y * 150 }; };
     // Charge-up in the air: the light-sword materialises above the raised hand, crackling, growing.
-    const charge = this.scene.add.image(0, 0, key, 3).setOrigin(0.5, 0.5).setFlipY(true).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(40, 40).setAlpha(0); // hilt sits in the palm
+    const charge = this.scene.add.image(0, 0, key, 3).setOrigin(0.5, 0.38).setFlipY(true).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(40, 40).setAlpha(0); // hilt sits in the palm
     const mark = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(GROUND + 3);
     const drawMark = (t: number) => {
       const p = 0.5 + 0.5 * Math.sin(t / 120); mark.clear();
