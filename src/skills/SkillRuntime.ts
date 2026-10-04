@@ -59,6 +59,7 @@ export class SkillRuntime {
   projectiles: { p: Projectile; run: CastRun; hit: HitEvent }[] = [];
   traps: Trap[] = [];
   readonly cooldownEnd = new Map<string, number>();
+  private charges = new Map<string, { used: number; last: number }>();
 
   constructor(private world: RuntimeWorld) {}
 
@@ -76,7 +77,14 @@ export class SkillRuntime {
       ...req, elapsed: startElapsed, phase: 'startup', fired: new Set(), hitKeys: new Set(), confirmedAt: -1,
       pathStart: { x: req.origin.x, y: req.origin.y }, counterTriggered: false, extraRecovery: 0, timings, hits,
     };
-    if (req.own && s.cooldown > 0) this.cooldownEnd.set(s.id, this.world.now() + s.cooldown);
+    if (req.own && s.cooldown > 0) {
+      // Charged skills: N quick uses in a row (window 4s between uses), then the full cooldown.
+      const now = this.world.now(), ch = this.charges.get(s.id);
+      const used = s.charges && ch && now - ch.last < 4000 ? ch.used + 1 : 1;
+      this.charges.set(s.id, { used, last: now });
+      if (!s.charges || used >= s.charges) { this.cooldownEnd.set(s.id, now + s.cooldown); this.charges.delete(s.id); }
+      else this.cooldownEnd.set(s.id, now + 350); // tiny gap between charges
+    }
     this.runs.push(run);
     this.events.emit(RT_EVENTS.cast, run);
     this.world.onPhase?.(run, 'startup');
@@ -141,7 +149,7 @@ export class SkillRuntime {
     for (const r of this.runs) if (r.phase !== 'done') { r.phase = 'done'; this.events.emit(RT_EVENTS.cancelled, r); }
     this.runs = []; this.projectiles = []; this.traps = [];
     this.events.removeAllListeners();
-    this.cooldownEnd.clear();
+    this.cooldownEnd.clear(); this.charges.clear();
   }
 
   // ------------------------------------------------------------------ internals

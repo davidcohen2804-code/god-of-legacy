@@ -90,6 +90,8 @@ export interface FinalSkill {
   linger?: { at: 'origin' | 'aim' | 'caster'; offset?: number; startMs: number; everyMs: number; count: number; radius: number; maxZ: number; hit: HitEvent };
   /** Dash passes through bodies and turns to face the target behind. */
   through?: boolean;
+  /** Uses in a row before the full cooldown. */
+  charges?: number;
   /** Dash carries the first confirmed target along on the blade. */
   carry?: boolean;
   trap?: { radius: number; lifeMs: number };

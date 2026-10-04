@@ -177,6 +177,19 @@ export class SkillFx {
   private judgment(r: CastRun): void {
     const a = r.aim, key = vfxKey('judgment_blade'), T = r.timings;
     const land = { x: r.origin.x + a.x * 150, y: r.origin.y + a.y * 150 };
+    // Charge-up in the air: the light-sword materialises above the raised hand, crackling, growing.
+    const charge = this.scene.add.image(0, 0, key, 3).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(40, 40).setAlpha(0);
+    const st0 = { k: 0.25 };
+    this.scene.tweens.add({ targets: charge, alpha: 1, duration: 120 });
+    this.scene.tweens.add({ targets: st0, k: 1, duration: T.startup, ease: 'Cubic.easeOut' });
+    const tick = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
+      const c = this.casterPos(r.attackerId); if (!c) return;
+      const ang = Math.atan2(land.y - (c.y - c.z), land.x - c.x) - Math.PI / 2; // already aimed at the landing point
+      charge.setPosition(c.x - a.x * 6, c.y - c.z - 95).setDepth(TOP).setRotation(ang * st0.k).setDisplaySize(150 * st0.k, 150 * st0.k)
+        .setFrame(3 + (Math.floor(this.scene.time.now / 70) % 3));
+    } });
+    this.scene.time.delayedCall(T.startup, () => { tick.remove(); charge.destroy(); });
+    this.spark(IMPACT.warrior.key, r.origin.x, r.origin.y - 110, IMPACT.warrior.frames, 80, 0.8);
     this.scene.time.delayedCall(T.startup, () => {
       const c = this.casterPos(r.attackerId) ?? r.origin;
       const fly = this.scene.add.image(c.x, c.y - c.z - 70, key, 0).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(150, 150).setDepth(TOP);

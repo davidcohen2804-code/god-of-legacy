@@ -151,12 +151,12 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'judgment_blade', cls: 'warrior', slot: 13, name: 'Judgment Blade', roles: ['zone', 'setup'], targeting: 'mouseDir',
-    startup: 220, active: 320, recovery: 260, cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    dash: { distance: 0, lift: 46 },
-    hits: [H(260, 14, { kind: 'circle', radius: 80, at: 'aimBias', bias: 150 }, { stun: 420, pin: 400 }, { reachUp: 90, heavy: true })],
-    linger: { at: 'aim', offset: 150, startMs: 760, everyMs: 500, count: 10, radius: 130, maxZ: 40, hit: H(0, 3, { kind: 'circle', radius: 130 }, { stun: 560, pin: 480 }, { reachUp: 40 }) },
+    startup: 340, active: 320, recovery: 240, cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: 0, lift: 70 }, charges: 3,
+    hits: [H(180, 14, { kind: 'circle', radius: 80, at: 'aimBias', bias: 150 }, { stun: 420, pin: 400 }, { reachUp: 90, heavy: true })],
+    linger: { at: 'aim', offset: 150, startMs: 520, everyMs: 500, count: 10, radius: 130, maxZ: 40, hit: H(0, 3, { kind: 'circle', radius: 130 }, { stun: 560, pin: 480 }, { reachUp: 40 }) },
     cancelOnHit: ['warrior_basic', 'rising_slash', 'leap_crash', 'lance_thrust', 'blade_storm'],
-    description: 'Hop and hurl your sword, transformed into a blade of light, into the ground ahead. It stays planted for 5s inside a storm ring that shocks and roots anyone standing in it.',
+    description: 'Up to 3 throws in a row. Hop and hurl your sword, transformed into a blade of light, into the ground ahead. It stays planted for 5s inside a storm ring that shocks and roots anyone standing in it.',
     relations: ['Zone 5s', 'Root → free combo'],
   }),
 ];
