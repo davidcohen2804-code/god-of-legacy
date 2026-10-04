@@ -23,7 +23,7 @@ const MOVE_COLS: Record<MoveState, number> = { idle: 12, walk: 8, run: 8, jump: 
 const SHEET_CLASSES = ['warrior', 'book_mage'] as const;
 const sheetKey = (cls: string, st: string) => `body-${cls}-${st}`;
 /** Extended-kit skills reuse an existing body animation (pose family) until they get their own sheet. */
-const BODY_ALIAS: Record<string, string> = { wave_slash: 'warrior_basic', iron_grip: 'shield_slam', lance_thrust: 'dash_slash', war_cry: 'ground_breaker', guard_counter: 'shield_slam' };
+const BODY_ALIAS: Record<string, string> = { wave_slash: 'warrior_basic', iron_grip: 'shield_slam', lance_thrust: 'dash_slash', guard_counter: 'shield_slam' };
 export const bodyIdOf = (id: string) => BODY_ALIAS[id] ?? id;
 const skillKey = (cls: string, id: string) => `sbody-${cls}-${bodyIdOf(id)}`;
 const sheetPath = (cls: string, st: string) => `assets/final/body/${cls}/movement/${st}.png`;
@@ -167,7 +167,8 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
 /** Per-skill column plans where the art's beats differ from the default split. */
 const SKILL_PLAN: Record<string, { st: number[]; ac: number[]; rc: number[] }> = { judgment_blade: { st: [0, 1, 2, 2], ac: [3, 4, 4], rc: [5] }, leap_crash: { st: [0], ac: [1, 2, 2, 3, 3, 4], rc: [4, 5] },
   titans_verdict: { st: [0, 1, 1, 1, 2, 2, 3, 4, 5], ac: [6], rc: [6, 6, 7, 7] },
-  rising_slash: { st: [0, 1, 2], ac: [3, 3, 4, 4, 5], rc: [5, 6, 7] } };
+  rising_slash: { st: [0, 1, 2], ac: [3, 3, 4, 4, 5], rc: [5, 6, 7] },
+  ground_breaker: { st: [0, 1, 2, 2, 3], ac: [4, 5, 5, 5], rc: [5, 6, 7] } };
 
 function skillColumn(cols: number, q: Extract<PoseQuery, { k: 'skill' }>, offset: number): number {
   const { elapsed: e, startup: s, active: a, recovery: r } = q;
