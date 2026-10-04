@@ -275,9 +275,9 @@ export class SkillFx {
 
   /** Ground Breaker heal: a yellow "HP" glyph rises softly out of the ground. */
   hpGlyph(x: number, y: number): void {
-    const t = this.scene.add.text(x, y, 'HP', { fontFamily: 'Impact, "Arial Black", sans-serif', fontSize: '22px', color: '#ffe46a', stroke: '#5a3a00', strokeThickness: 4, resolution: 2 })
+    const t = this.scene.add.text(x, y, 'HP', { fontFamily: 'Impact, "Arial Black", sans-serif', fontSize: '12px', color: '#fff2a0', stroke: '#5a3a00', strokeThickness: 2, resolution: 2 })
       .setOrigin(0.5).setDepth(y + 300).setAlpha(0).setScale(0.7);
-    this.scene.tweens.add({ targets: t, alpha: 1, scale: 1, duration: 200, ease: 'Quad.easeOut' });
+    this.scene.tweens.add({ targets: t, alpha: 0.55, scale: 1, duration: 200, ease: 'Quad.easeOut' });
     this.scene.tweens.add({ targets: t, y: y - 70, duration: 1100, ease: 'Sine.easeOut' });
     this.scene.tweens.add({ targets: t, alpha: 0, delay: 650, duration: 450, onComplete: () => t.destroy() });
   }

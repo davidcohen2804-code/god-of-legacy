@@ -511,7 +511,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
           const max = this.pvp ? PVP.maxHp : S6.player.maxHp, before = this.playerHP;
           this.playerHP = Math.min(max, this.playerHP + 2);
           if (this.playerHP > before) this.fx!.healNumber({ x: this.kin.x, y: this.kin.y, z: this.kin.z }, this.playerHP - before);
-          for (let n = 0; n < 2; n++) this.fx!.hpGlyph(this.kin.x + (Math.random() - 0.5) * 90, this.kin.y + (Math.random() - 0.5) * 30);
+          for (let n = 0; n < 1; n++) this.fx!.hpGlyph(this.kin.x + (Math.random() - 0.5) * 90, this.kin.y + (Math.random() - 0.5) * 30);
         }
         for (const t of this.targetsFor(l.run)) {
           if (!t.alive || t.invulnerable || t.id === this.localId || t.kind !== 'enemy') continue;
