@@ -152,7 +152,7 @@ const warrior: FinalSkill[] = [
   S({
     id: 'judgment_blade', cls: 'warrior', slot: 13, name: 'Judgment Blade', roles: ['zone', 'setup'], targeting: 'mouseDir',
     startup: 340, active: 320, recovery: 240, cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    dash: { distance: 0, lift: 70 }, charges: 3,
+    dash: { distance: 0, lift: 24 }, charges: 3,
     hits: [H(180, 14, { kind: 'circle', radius: 80, at: 'aimBias', bias: 150 }, { stun: 420, pin: 400 }, { reachUp: 90, heavy: true })],
     linger: { at: 'aim', offset: 150, startMs: 520, everyMs: 500, count: 10, radius: 130, maxZ: 40, hit: H(0, 3, { kind: 'circle', radius: 130 }, { stun: 560, pin: 480 }, { reachUp: 40 }) },
     cancelOnHit: ['warrior_basic', 'rising_slash', 'leap_crash', 'lance_thrust', 'blade_storm'],
