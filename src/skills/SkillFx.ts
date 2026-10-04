@@ -96,6 +96,7 @@ export class SkillFx {
   private dark?: Phaser.GameObjects.Rectangle;
   private darkLeft = 0;
   private dmgSeq = 0;
+  private dmgStacks: { x: number; y: number; line: number; last: number }[] = [];
   /** Local presentation freeze (ms) requested by confirmed hits (scene applies it to the local actor + VFX only). */
   hitStopLeft = 0;
 
@@ -467,7 +468,21 @@ export class SkillFx {
     if (!this.dark) this.dark = this.scene.add.rectangle(0, 0, 4000, 3000, 0x05030a, 0).setOrigin(0, 0).setDepth(TOP - 10).setScrollFactor(1);
     this.dark.setPosition(cam.worldView.x - 200, cam.worldView.y - 200);
     this.darkLeft = r.timings.startup + r.timings.active + 160;
-    this.scene.tweens.add({ targets: this.dark, fillAlpha: 0.38, duration: Math.min(220, r.timings.startup) });
+    this.scene.tweens.add({ targets: this.dark, fillAlpha: 0.55, duration: Math.min(220, r.timings.startup) });
+    // Cinematic cut-in (screen space): two golden slash bars cross the screen, then a white flash at the impact.
+    const W = cam.width, H = cam.height;
+    const mk = (y: number, ang: number, delay: number) => {
+      const bar = this.scene.add.rectangle(W / 2, y, W * 1.6, 10, 0xffe6a0, 1).setScrollFactor(0).setDepth(TOP + 40).setAngle(ang).setBlendMode(Phaser.BlendModes.ADD).setScale(0, 1);
+      const glow = this.scene.add.rectangle(W / 2, y, W * 1.6, 46, 0xffb030, 0.45).setScrollFactor(0).setDepth(TOP + 39).setAngle(ang).setBlendMode(Phaser.BlendModes.ADD).setScale(0, 1);
+      this.scene.tweens.add({ targets: [bar, glow], scaleX: 1, delay, duration: 120, ease: 'Cubic.easeOut' });
+      this.scene.tweens.add({ targets: [bar, glow], scaleY: 0, alpha: 0, delay: delay + 260, duration: 220, onComplete: () => { bar.destroy(); glow.destroy(); } });
+    };
+    mk(H * 0.42, -18, 80); mk(H * 0.5, 18, 200);
+    this.scene.time.delayedCall(r.timings.startup, () => {
+      const f = this.scene.add.rectangle(0, 0, W, H, 0xfff4d8, 1).setOrigin(0, 0).setScrollFactor(0).setDepth(TOP + 45).setBlendMode(Phaser.BlendModes.ADD);
+      this.scene.tweens.add({ targets: f, alpha: 0, duration: 380, ease: 'Quad.easeOut', onComplete: () => f.destroy() });
+      cam.shake(420, 0.014);
+    });
   }
 
   // ------------------------------------------------------------------ hit-timed visuals
@@ -555,10 +570,10 @@ export class SkillFx {
   confirmed(s: FinalSkill, hit: HitEvent, at: V3, damage: number, reaction: string, local: boolean, combo: number): void {
     const tier = tierOf(s, hit);
     const k = IMPACT[s.cls] ?? IMPACT.warrior;
-    const im = s.cls === 'warrior' ? 1.45 : 1;
+    const im = s.cls === 'warrior' ? 1.9 : 1;
     this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.6 : hit.heavy ? 1.25 : 1), 1);
     if (s.cls === 'warrior') { // white core flash on every confirmed hit
-      const f = this.scene.add.image(at.x, at.y - at.z - 38, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 3).setDisplaySize(hit.heavy ? 100 : 64, hit.heavy ? 100 : 64).setAlpha(0.75);
+      const f = this.scene.add.image(at.x, at.y - at.z - 38, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 3).setDisplaySize(hit.heavy ? 150 : 96, hit.heavy ? 150 : 96).setAlpha(0.8);
       this.scene.tweens.add({ targets: f, alpha: 0, scale: f.scale * 1.4, duration: 140, onComplete: () => f.destroy() });
     }
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).
@@ -573,19 +588,28 @@ export class SkillFx {
     }
   }
 
-  /** Damage number: rises 28px over 520ms, scale 0.82 → 1.08 in 70ms, fades the last 180ms. */
+  /** MapleStory-style damage: each hit of a burst stacks one line higher above the target; big bold gradient digits. */
   damageNumber(at: V3, dmg: number, heavy: boolean, combo: number): void {
-    const off = [0, 10, -10, 6, -6][this.dmgSeq++ % 5];
-    const x = at.x + off, y = at.y - at.z - 84;
-    const c = this.scene.add.container(x, y).setDepth(TOP + 20);
-    if (heavy) c.add(this.scene.add.image(0, 0, 'dmg-glow').setDisplaySize(84, 84).setAlpha(0.7).setBlendMode(Phaser.BlendModes.ADD));
+    // One column per target: a new hit within 700ms near the last column stacks on top of it (same x, next line up).
+    const now = this.scene.time.now;
+    let st = this.dmgStacks.find((d) => now - d.last < 700 && Math.abs(d.x - at.x) < 160 && Math.abs(d.y - at.y) < 120);
+    if (st) { st.line = (st.line + 1) % 10; st.last = now; } else { st = { x: at.x, y: at.y - at.z, line: 0, last: now }; this.dmgStacks.push(st); }
+    this.dmgStacks = this.dmgStacks.filter((d) => now - d.last < 1500);
+    const line = st.line, x = st.x, y = st.y - 96 - line * 30;
+    const c = this.scene.add.container(x, y).setDepth(TOP + 20 + line * 0.01);
+    if (heavy) c.add(this.scene.add.image(0, 0, 'dmg-glow').setDisplaySize(130, 70).setAlpha(0.55).setBlendMode(Phaser.BlendModes.ADD));
     const txt = this.scene.add.text(0, 0, String(dmg), {
-      fontFamily: 'Cinzel, Georgia, serif', fontStyle: 'bold', fontSize: heavy ? '30px' : '22px',
-      color: heavy ? '#ffd27a' : '#fff1d0', stroke: '#2a0e05', strokeThickness: heavy ? 5 : 4, resolution: 2,
+      fontFamily: 'Impact, "Arial Black", sans-serif', fontSize: heavy ? '40px' : '32px',
+      color: '#ffffff', stroke: heavy ? '#4a1200' : '#3a1a00', strokeThickness: heavy ? 7 : 6, resolution: 2,
     }).setOrigin(0.5);
+    const g = txt.context.createLinearGradient(0, 0, 0, txt.height); // orange→gold like the Maple crit skin
+    if (heavy) { g.addColorStop(0, '#fff6c8'); g.addColorStop(0.45, '#ffc93a'); g.addColorStop(1, '#ff6a12'); }
+    else { g.addColorStop(0, '#ffe9b0'); g.addColorStop(0.5, '#ffab3a'); g.addColorStop(1, '#ff7a1a'); }
+    txt.setFill(g);
+    txt.setShadow(0, 3, '#000000', 4, true, true);
     c.add(txt);
-    c.setScale(0.82);
-    this.scene.tweens.add({ targets: c, scale: 1.08, duration: 70, ease: 'Quad.easeOut', yoyo: false, onComplete: () => this.scene.tweens.add({ targets: c, scale: 1, duration: 120 }) });
+    c.setScale(1.6).setAlpha(0);
+    this.scene.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 90, ease: 'Back.easeOut' });
     this.texts.push({ t: c, age: 0, x, y });
     void combo;
   }
@@ -632,10 +656,10 @@ export class SkillFx {
     }
     this.texts = this.texts.filter((d) => {
       d.age += ms;
-      const k = Math.min(1, d.age / 520);
-      d.t.setPosition(d.x, d.y - 28 * (1 - (1 - k) * (1 - k)));
-      d.t.setAlpha(d.age > 340 ? Math.max(0, 1 - (d.age - 340) / 180) : 1);
-      if (d.age >= 520) { d.t.destroy(); return false; }
+      const k = Math.min(1, d.age / 900);
+      d.t.setPosition(d.x, d.y - 18 * (1 - (1 - k) * (1 - k)));
+      if (d.age > 90) d.t.setAlpha(d.age > 680 ? Math.max(0, 1 - (d.age - 680) / 220) : 1);
+      if (d.age >= 900) { d.t.destroy(); return false; }
       return true;
     });
     if (this.dark && this.darkLeft > 0) {
