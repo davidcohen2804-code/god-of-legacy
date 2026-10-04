@@ -117,10 +117,10 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'wave_slash', cls: 'warrior', slot: 9, name: 'Wave Slash', roles: ['projectile', 'precision'], targeting: 'mouseProjectile',
-    startup: 140, active: 0, recovery: 170, cooldown: 2500, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    hits: [H(0, 18, { kind: 'projectile', speed: 720, range: 440, radius: 22, pierce: true, count: 3, spread: 28 }, { stun: 320, launch: 80, juggleCost: 10 }, { reachUp: 120 })],
+    startup: 700, active: 0, recovery: 220, cooldown: 2500, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(0, 18, { kind: 'projectile', speed: 400, range: 520, radius: 22, pierce: true, count: 3, spread: 28 }, { stun: 320, launch: 80, juggleCost: 10 }, { reachUp: 120 })],
     cancelOnHit: ['dash_slash', 'leap_crash', 'lance_thrust'],
-    description: 'Three crescent shockwaves in a fan; they pierce, and any target they catch is popped into the air.',
+    description: 'Charge the blade for a second, then release three crescent shockwaves in a fan; they pierce, and any target they catch is popped into the air.',
     relations: ['Ranged check', 'Pierces'],
   }),
   S({

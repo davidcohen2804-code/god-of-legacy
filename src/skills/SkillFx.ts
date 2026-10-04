@@ -107,6 +107,7 @@ export class SkillFx {
     if (s.telegraph || isBig(s)) this.telegraph(r);
     // Anticipation frames 0..k during startup at the cast point, release frame exactly at the active start.
     const shape = this.firstShape(s);
+    if (s.id === 'wave_slash') { this.chargeUp(r); return; }
     if (shape.kind === 'projectile' || shape.kind === 'chain') { this.castFlare(r); return; }
     if (s.id === 'judgment_blade') this.judgment(r);
     else if (s.id === 'guard_counter') this.aegis(r);
@@ -171,6 +172,35 @@ export class SkillFx {
     this.scene.tweens.add({ targets: img, alpha: 0.5 + 0.4 * lvl, duration: Math.min(160, T.startup) });
     const tick = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { const c = this.casterPos(r.attackerId); if (c) img.setPosition(c.x, c.y - c.z - 40).setDepth(c.y - 1); } });
     this.scene.tweens.add({ targets: img, alpha: 0, delay: life - 180, duration: 180, onComplete: () => { tick.remove(); img.destroy(); } });
+  }
+
+  /** Charged release (Wave Slash): power gathers into the blade for the whole wind-up, then a bright flash on release. */
+  private chargeUp(r: CastRun): void {
+    const T = r.timings, col = CLASS_COLOR[r.skill.cls], a = r.aim;
+    const at = () => { const c = this.casterPos(r.attackerId); return c ? { x: c.x - a.x * 22, y: c.y - a.y * 22 - c.z - 34, d: c.y + 1 } : null; };
+    const p0 = at(); if (!p0) return;
+    const core = this.scene.add.image(p0.x, p0.y, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(col).setDepth(p0.d).setDisplaySize(20, 20).setAlpha(0.2);
+    const halo = this.scene.add.image(p0.x, p0.y + 30, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(col).setDepth(p0.d - 2).setDisplaySize(120, 150).setAlpha(0);
+    this.scene.tweens.add({ targets: core, displayWidth: 110, displayHeight: 110, alpha: 1, duration: T.startup, ease: 'Quad.easeIn' });
+    this.scene.tweens.add({ targets: halo, alpha: 0.55, displayWidth: 200, displayHeight: 240, duration: T.startup, ease: 'Quad.easeIn' });
+    let t = 0;
+    const tick = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
+      t += 16; const p = at(); if (!p) return;
+      core.setPosition(p.x, p.y).setDepth(p.d); halo.setPosition(p.x, p.y + 30).setDepth(p.d - 2);
+      core.setScale(core.scaleX * (1 + 0.04 * Math.sin(t / 40)), core.scaleY * (1 + 0.04 * Math.sin(t / 40)));
+      if (t < T.startup - 80 && t % 48 < 16) { // sparks drawn into the blade
+        const ang = Math.random() * Math.PI * 2, d = 70 + Math.random() * 50;
+        const sp = this.scene.add.image(p.x + Math.cos(ang) * d, p.y + Math.sin(ang) * d * 0.7, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff2c0).setDepth(p.d + 1).setDisplaySize(14, 14);
+        this.scene.tweens.add({ targets: sp, x: p.x, y: p.y, displayWidth: 4, displayHeight: 4, duration: 220, ease: 'Quad.easeIn', onComplete: () => sp.destroy() });
+      }
+      if (t >= T.startup) { // release flash
+        tick.remove();
+        const f = this.scene.add.image(p.x + a.x * 50, p.y + a.y * 50, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffffff).setDepth(TOP).setDisplaySize(90, 90);
+        this.scene.tweens.add({ targets: f, displayWidth: 260, displayHeight: 260, alpha: 0, duration: 220, ease: 'Cubic.easeOut', onComplete: () => f.destroy() });
+        this.scene.tweens.add({ targets: [core, halo], alpha: 0, duration: 160, onComplete: () => { core.destroy(); halo.destroy(); } });
+        (this.cam ?? this.scene.cameras.main).shake(110, 0.004);
+      }
+    } });
   }
 
   /** Judgment Blade: the light-sword is hurled forward on an arc, plants itself, and a storm ring crackles around it for 5s. */
