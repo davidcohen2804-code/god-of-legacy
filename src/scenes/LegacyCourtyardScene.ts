@@ -503,12 +503,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       speed: Math.hypot(k.vx, k.vy), vz: k.vz, stunMs: 220,
       skill: run ? { id: run.skill.id, stage: run.stage, elapsed: run.elapsed, ...run.timings } : undefined,
     };
-    // Whirlwind: a real spin — the body cycles through the four facings during the active phase.
-    let dir = this.dir;
-    if (run && run.skill.id === 'whirlwind' && run.phase === 'active') {
-      const spin: Dir[] = ['down', 'left', 'up', 'right'], i0 = spin.indexOf(this.dir);
-      dir = spin[(i0 + Math.floor((run.elapsed - run.timings.startup) / 50)) % 4];
-    }
+    const dir = this.dir; // Whirlwind spins inside its own 360° body loop
     const pose = resolvePose(this.character!.classId as ClassKey, dir, poseQuery(snap));
     let tint: number | null = null, fill = false, alpha = 1;
     if (this.flash >= 0) { if (this.flash < P6.hitFlashWhiteMs) { tint = 0xffffff; fill = true; } else tint = 0xff6a6a; }

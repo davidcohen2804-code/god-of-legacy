@@ -23,7 +23,7 @@ const MOVE_COLS: Record<MoveState, number> = { idle: 12, walk: 8, run: 8, jump: 
 const SHEET_CLASSES = ['warrior', 'book_mage'] as const;
 const sheetKey = (cls: string, st: string) => `body-${cls}-${st}`;
 /** Extended-kit skills reuse an existing body animation (pose family) until they get their own sheet. */
-const BODY_ALIAS: Record<string, string> = { wave_slash: 'warrior_basic', iron_grip: 'shield_slam', guard_counter: 'shield_slam' };
+const BODY_ALIAS: Record<string, string> = { wave_slash: 'warrior_basic', guard_counter: 'iron_grip' };
 export const bodyIdOf = (id: string) => BODY_ALIAS[id] ?? id;
 const skillKey = (cls: string, id: string) => `sbody-${cls}-${bodyIdOf(id)}`;
 const sheetPath = (cls: string, st: string) => `assets/final/body/${cls}/movement/${st}.png`;
@@ -176,6 +176,11 @@ function skillColumn(cols: number, q: Extract<PoseQuery, { k: 'skill' }>, offset
   const plan = SKILL_PLAN[q.id] ?? (cols === 12 ? { st: [0, 1, 2, 3], ac: [4, 5, 6, 7, 8, 9], rc: [10, 11] }
     : cols === 10 ? { st: [0, 1], ac: [2, 3, 4, 5, 6, 7, 8], rc: [9] }
       : { st: [0 + offset, 1], ac: [2, 3, 4], rc: [5] });
+  if (q.id === 'whirlwind') { // true 360° spin: wind-up, 8-angle loop for the whole channel, off-balance finish
+    if (e < s) return 0;
+    if (e < s + a) return 1 + (Math.floor((e - s) / 45) % 8);
+    return 9;
+  }
   const act = Math.max(a, 120);
   if (e < s) return pick(plan.st, e / Math.max(1, s));
   if (e < s + act) return pick(plan.ac, (e - s) / act);
