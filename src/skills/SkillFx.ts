@@ -68,6 +68,7 @@ export function preloadSkillFx(scene: Phaser.Scene): void {
   I('tg-line', `${F}/world/telegraph_line.png`); I('tg-traj', `${F}/world/telegraph_trajectory.png`);
   I('magic-circle', `${F}/impact/magic_circle.png`);
   if (!scene.textures.exists('storm-ring')) scene.load.spritesheet('storm-ring', `${F}/skills/warrior/judgment_blade/ring.png`, { frameWidth: 256, frameHeight: 256 });
+  if (!scene.textures.exists('sanctuary-dome')) scene.load.spritesheet('sanctuary-dome', `${F}/skills/warrior/sanctuary/dome.png`, { frameWidth: 380, frameHeight: 380 });
   if (!scene.textures.exists('radiant-blade')) scene.load.spritesheet('radiant-blade', `${F}/skills/warrior/radiant_blade/blade_small.png`, { frameWidth: 256, frameHeight: 81 });
   if (!scene.textures.exists('phantom-blade')) scene.load.spritesheet('phantom-blade', `${F}/skills/warrior/blade_storm/phantom.png`, { frameWidth: 256, frameHeight: 256 }); I('dmg-glow', `${F}/ui/hud/damage_glow.png`);
 }
