@@ -625,9 +625,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private raiseDome(): void {
     if (this.dead >= 0) return;
     this.dome?.img.destroy();
-    const k = this.kin, rx = 120, ry = 50;
-    const img = this.add.image(k.x, k.y, 'sanctuary-dome', 0).setOrigin(190 / 380, 308 / 380).setBlendMode(Phaser.BlendModes.ADD);
-    img.setScale((rx * 2) / 316).setFlipX(this.aim.x < -0.01); // open side behind the caster
+    // Big footprint on the 2.5D floor, centred on the caster: covers depth (up/down) as well as left/right.
+    const k = this.kin, rx = 190, ry = 60;
+    const img = this.add.image(k.x, k.y, 'sanctuary-dome', 0).setOrigin(188 / 380, 305 / 380).setBlendMode(Phaser.BlendModes.ADD);
+    const sx = rx / 158; img.setScale(sx, sx * 1.15).setFlipX(this.aim.x < -0.01); // floor ring stretched toward the game's floor perspective
     this.dome = { x: k.x, y: k.y, rx, ry, until: this.simMs + 15000, t0: this.simMs, img };
     this.fx!.shockwave(k.x, k.y, 200, 0xffe08a);
     this.cameras.main.shake(140, 0.004);
