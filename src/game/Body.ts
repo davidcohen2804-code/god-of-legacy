@@ -125,7 +125,8 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
   switch (q.k) {
     case 'loop': {
       if (q.state === 'idle') { // one clean frame + smooth procedural breathing (separately painted idle frames flicker)
-        const f = mv(cls, 'idle', dir, cls === 'warrior' ? Math.floor((q.t * 10) / 1000) % 12 : 0), b = Math.sin((q.t / 2600) * Math.PI * 2); // warrior: wind-blown cape cycle
+        if (cls === 'warrior') return mv(cls, 'idle', dir, Math.floor((q.t * 10) / 1000) % 12); // wind-blown cape cycle only, body stays still
+        const f = mv(cls, 'idle', dir, 0), b = Math.sin((q.t / 2600) * Math.PI * 2);
         f.sy = 1 + 0.014 * b; f.sx = 1 - 0.005 * b;
         if (f.anchor) f.anchor = f.anchor.map((v, i) => (i % 2 ? v * f.sy! : v * f.sx!));
         if (f.hair) f.hair = [f.hair[0] * f.sx!, f.hair[1] * f.sx!, f.hair[2] * f.sy!];
