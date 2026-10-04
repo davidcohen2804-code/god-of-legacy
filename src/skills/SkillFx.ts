@@ -173,13 +173,21 @@ export class SkillFx {
 
   /** Aegis Burst: the hex barrier holds in front of the caster, then bursts into the crescent wave. */
   private aegis(r: CastRun): void {
-    const a = r.aim, key = vfxKey('guard_counter');
-    const img = this.scene.add.image(0, 0, key, 0).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(230, 230).setAngle(Math.atan2(a.y, a.x) * (180 / Math.PI)).setFlipY(a.x < -0.01);
-    const fr = [0, 1, 2, 3, 2, 3, 2, 3, 4, 5, 6, 7], fms = [50, 60, 80, 100, 100, 100, 100, 110, 60, 80, 100, 220];
-    const follow = () => { const c = this.casterPos(r.attackerId); return c ? { x: c.x + a.x * 46, y: c.y + a.y * 46, z: c.z + 40 } : null; };
+    const a = r.aim, key = vfxKey('guard_counter'), ang = Math.atan2(a.y, a.x) * (180 / Math.PI);
+    const st = { off: 44, k: 0.6 };
+    const img = this.scene.add.image(0, 0, key, 0).setBlendMode(Phaser.BlendModes.ADD).setAngle(ang).setFlipY(a.x < -0.01);
+    // barrier grows in, breathes softly while it holds, then the burst sweeps forward
+    const fr = [0, 1, 1, 1, 1, 1, 1, 2, 3, 4, 5, 6, 7], fms = [70, 90, 100, 100, 100, 100, 70, 50, 50, 60, 80, 100, 240];
+    const follow = () => { const c = this.casterPos(r.attackerId); if (!c) return null; img.setDisplaySize(230 * st.k, 230 * st.k); return { x: c.x + a.x * st.off, y: c.y + a.y * st.off, z: c.z + 40 }; };
     const p = follow(); if (p) img.setPosition(p.x, p.y - p.z).setDepth(p.y + 2);
-    this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: fr, frameMs: fms, follow, fadeLast: 220 });
-    this.scene.time.delayedCall(700, () => { const c = this.casterPos(r.attackerId); if (c) { this.shockwave(c.x + a.x * 60, c.y + a.y * 60, 140, 0x9ed8ff); (this.cam ?? this.scene.cameras.main).shake(120, 0.004); } });
+    this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: fr, frameMs: fms, follow, fadeLast: 260 });
+    this.scene.tweens.add({ targets: st, k: 1, duration: 160, ease: 'Back.easeOut' });
+    this.scene.tweens.add({ targets: st, k: 1.06, duration: 220, delay: 160, yoyo: true, repeat: 1, ease: 'Sine.easeInOut' });
+    this.scene.time.delayedCall(630, () => {
+      this.scene.tweens.add({ targets: st, off: 130, k: 1.35, duration: 260, ease: 'Cubic.easeOut' });
+      const c = this.casterPos(r.attackerId);
+      if (c) { this.shockwave(c.x + a.x * 70, c.y + a.y * 70, 140, 0x9ed8ff); (this.cam ?? this.scene.cameras.main).shake(110, 0.004); }
+    });
   }
 
   /** Blade Storm summon: one phantom blade drops and stabs (dedicated sheet when present, else the storm sheet). */
