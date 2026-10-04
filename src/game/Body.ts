@@ -173,7 +173,8 @@ const SKILL_PLAN: Record<string, { st: number[]; ac: number[]; rc: number[] }> =
   shield_slam: { st: [0, 1, 2], ac: [3, 3, 4, 4, 5], rc: [6, 7] },
   blade_storm: { st: [0, 1, 2, 2], ac: [3, 4, 4, 5], rc: [5, 6, 7] },
   wave_slash: { st: [0, 1, 2], ac: [3, 4, 4, 5], rc: [6, 7] },
-  iron_grip: { st: [0, 1], ac: [2, 3, 3, 4, 5, 5], rc: [6, 7] } };
+  iron_grip: { st: [0, 1], ac: [2, 3, 3, 4, 5, 5], rc: [6, 7] },
+  lance_thrust: { st: [0, 1], ac: [2, 3, 2, 3, 4, 5], rc: [6, 7] } };
 
 function skillColumn(cols: number, q: Extract<PoseQuery, { k: 'skill' }>, offset: number): number {
   const { elapsed: e, startup: s, active: a, recovery: r } = q;
