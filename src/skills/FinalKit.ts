@@ -89,7 +89,7 @@ const warrior: FinalSkill[] = [
     armor: [0, 2900],
     hits: [H(0, 8, { kind: 'circle', radius: 170 }, { stun: 300, pull: 14, launch: 110, juggleCost: 4 }, { reachUp: 200 })],
     linger: { at: 'caster', startMs: 400, everyMs: 200, count: 13, radius: 180, maxZ: 300, hit: H(0, 3, { kind: 'circle', radius: 180 }, { stun: 300, pull: 16, float: true }, { reachUp: 300 }) },
-    cancelOnHit: ['titans_verdict'], tags: ['signature'], telegraph: 'circle',
+    cancelOnHit: ['titans_verdict'], tags: ['signature'],
     description: 'Raise your sword to the sky and hold it there: lightning crackles around you and a storm of light swords erupts from the ground all around you, launching foes and keeping them in the air.',
     relations: ['Signature', 'Air hold', 'Cancel → Titan’s Verdict'],
   }),
