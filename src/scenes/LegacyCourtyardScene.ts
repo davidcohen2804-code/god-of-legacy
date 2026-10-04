@@ -612,7 +612,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!this.holyAura) this.holyAura = this.add.image(0, 0, 'holy-aura', 0).setOrigin(0.5, 515 / 667).setBlendMode(Phaser.BlendModes.ADD);
     const k = this.kin, left = this.radiantUntil - this.simMs, age = this.simMs - this.radiantFrom;
     const a = Math.min(1, age / 400, left / 600);
-    this.holyAura.setVisible(true).setFrame(Math.floor(this.simMs / 90) % 8).setPosition(k.x, k.y - k.supportZ + 4)
+    this.holyAura.setVisible(true).setFrame(Math.floor(this.simMs / 90) % 8).setPosition(k.x, k.y - k.z + 4)
       .setDisplaySize(125, 333).setDepth(actorDepth(k.x, k.y, k.z) - 0.2).setAlpha(0.85 * a);
   }
 
