@@ -30,7 +30,7 @@ const warrior: FinalSkill[] = [
           H(120, 6, { kind: 'sector', range: 88, angle: 130 }, { stun: 380, push: 3 }, { reachUp: 110 })],
         [H(0, 10, { kind: 'sector', range: 92, angle: 130 }, { stun: 440, push: 10 }, { reachUp: 110, heavy: true })],
       ],
-      timings: [{ startup: 80, active: 70, recovery: 170 }, { startup: 80, active: 70, recovery: 170 }, { startup: 90, active: 150, recovery: 190 }, { startup: 120, active: 100, recovery: 300 }],
+      timings: [{ startup: 100, active: 85, recovery: 195 }, { startup: 100, active: 85, recovery: 195 }, { startup: 110, active: 170, recovery: 215 }, { startup: 140, active: 115, recovery: 320 }],
     },
     cancelOnHit: ['dash_slash', 'rising_slash', 'ground_breaker', 'whirlwind', 'shield_slam'],
     description: 'Four-strike chain: tap or hold Space. Slash, slash, double cut, then a heavy finishing slash with a long stun — the opening for your skills.',
