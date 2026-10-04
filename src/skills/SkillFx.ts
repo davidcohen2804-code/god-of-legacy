@@ -67,6 +67,7 @@ export function preloadSkillFx(scene: Phaser.Scene): void {
   I('tg-circle', `${F}/world/telegraph_circle.png`); I('tg-cone', `${F}/world/telegraph_cone.png`);
   I('tg-line', `${F}/world/telegraph_line.png`); I('tg-traj', `${F}/world/telegraph_trajectory.png`);
   I('magic-circle', `${F}/impact/magic_circle.png`);
+  if (!scene.textures.exists('jb-bolt')) scene.load.spritesheet('jb-bolt', `${F}/skills/warrior/judgment_blade/bolt.png`, { frameWidth: 256, frameHeight: 512 });
   if (!scene.textures.exists('storm-ring')) scene.load.spritesheet('storm-ring', `${F}/skills/warrior/judgment_blade/ring.png`, { frameWidth: 256, frameHeight: 256 });
   if (!scene.textures.exists('sanctuary-wall')) scene.load.spritesheet('sanctuary-wall', `${F}/skills/warrior/sanctuary/wall.png`, { frameWidth: 256, frameHeight: 512 });
   if (!scene.textures.exists('cry-shield')) scene.load.spritesheet('cry-shield', `${F}/skills/warrior/war_cry/shield.png`, { frameWidth: 300, frameHeight: 300 });
@@ -332,8 +333,9 @@ export class SkillFx {
     const key = vfxKey('judgment_blade'), T = r.timings;
     let a = r.aim, land = { x: r.origin.x + a.x * 150, y: r.origin.y + a.y * 150 };
     const aimNow = () => { a = r.aim; const c = this.casterPos(r.attackerId) ?? r.origin; land = { x: c.x + a.x * 150, y: c.y + a.y * 150 }; };
-    // Charge-up in the air: the light-sword materialises above the raised hand, crackling, growing.
-    const charge = this.scene.add.image(0, 0, key, 3).setOrigin(0.5, 0.38).setFlipY(true).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(40, 40).setAlpha(0); // hilt sits in the palm
+    // Charge-up in the air: a cyan Zeus thunderbolt crackles in the raised fist, gripped through its middle.
+    const BW = 125, BH = 250; // on-screen size of the bolt (256x512 art)
+    const charge = this.scene.add.image(0, 0, 'jb-bolt', 0).setOrigin(0.5, 0.475).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(BW * 0.6, BH * 0.6).setAlpha(0);
     const mark = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(GROUND + 3);
     const drawMark = (t: number) => {
       const p = 0.5 + 0.5 * Math.sin(t / 120); mark.clear();
@@ -351,8 +353,8 @@ export class SkillFx {
       const ang = Math.atan2(land.y - (c.y - c.z), land.x - c.x) - Math.PI / 2; // follows the player's aim while hovering
       const h = this.handPos?.(r.attackerId) ?? { x: c.x - a.x * 6, y: c.y - c.z - 105 }; // forms in the raised hand
       drawMark(this.scene.time.now);
-      charge.setPosition(h.x, h.y).setDepth(TOP).setRotation((Math.abs(a.x) > 0.3 ? Math.sign(a.x) * 0.62 : 0) + 0 * ang) // gripped through its middle, slanted forward like a thunderbolt.setDisplaySize(260 * st0.k, 260 * st0.k)
-        .setFrame(3 + (Math.floor(this.scene.time.now / 70) % 3));
+      charge.setPosition(h.x, h.y).setDepth(TOP).setRotation((Math.abs(a.x) > 0.3 ? Math.sign(a.x) * 0.62 : 0) + 0 * ang) // slanted forward like Zeus' bolt
+        .setDisplaySize(BW * st0.k, BH * st0.k).setFrame(Math.floor(this.scene.time.now / 70) % 6);
     } });
     this.spark(IMPACT.warrior.key, r.origin.x, r.origin.y - 110, IMPACT.warrior.frames, 80, 0.8);
     const release = () => {
@@ -360,17 +362,17 @@ export class SkillFx {
       aimNow();
       const c = this.casterPos(r.attackerId) ?? r.origin;
       const h = this.handPos?.(r.attackerId) ?? { x: c.x, y: c.y - c.z - 95 };
-      const fly = this.scene.add.image(h.x, h.y - 40, key, 0).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(150, 150).setDepth(TOP);
-      const from = { x: h.x, y: h.y - 40 }, to = { x: land.x, y: land.y - 40 };
+      const fly = this.scene.add.image(h.x, h.y, 'jb-bolt', 6).setOrigin(0.5, 0.5).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(BW, BH).setDepth(TOP);
+      const from = { x: h.x, y: h.y }, to = { x: land.x, y: land.y - BH * 0.3 };
       const st = { p: 0 };
       fly.setRotation(Math.atan2(to.y - from.y, to.x - from.x) - Math.PI / 2); // straight dart: tip points along the line
       this.scene.tweens.add({ targets: st, p: 1, duration: 240, ease: 'Back.easeIn', onUpdate: () => { // small pull-back, then the throw
         fly.setPosition(from.x + (to.x - from.x) * st.p, from.y + (to.y - from.y) * st.p);
       }, onComplete: () => {
         fly.destroy();
-        const img = this.scene.add.image(land.x, land.y + 4, key, 1).setOrigin(0.5, 0.97).setDepth(land.y + 1).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(190, 190);
-        const fms = [90, 100, 100, 100, 100, 120, 260];
-        this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: [1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 260, loop: [2, 4], until: 5000 });
+        const img = this.scene.add.image(land.x, land.y + 6, 'jb-bolt', 7).setOrigin(0.5, 0.95).setDepth(land.y + 1).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(BW * 1.15, BH * 1.15);
+        const fms = [90, 110, 110, 110, 280];
+        this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: [7, 8, 9, 10, 11], frameMs: fms, fadeLast: 280, loop: [1, 3], until: 5000 });
         this.shockwave(land.x, land.y, 150, 0x6fe0ff); (this.cam ?? this.scene.cameras.main).shake(150, 0.005);
         this.stormRing(land.x, land.y, 5000);
       } });

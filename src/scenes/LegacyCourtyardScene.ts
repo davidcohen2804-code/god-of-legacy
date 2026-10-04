@@ -111,6 +111,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private boltDone = true;
   private radiantFrom = -1;
   private lastHand: { x: number; y: number } | null = null;
+  /** Judgment Blade air sequence: hover altitude + time since the last throw ended (up to 3 throws, then a slow descent). */
+  private jb: { z: number; idle: number } | null = null;
   /** Startup lunge toward the target / post-hit momentum following the push (px still to travel, ms left). */
   private lunge: { x: number; y: number; left: number } | null = null;
   private momentum: { x: number; y: number; left: number } | null = null;
@@ -333,8 +335,17 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (ccLocked && b.state === 'free') { k.vx = 0; k.vy = 0; if (run) this.rt!.cancelOwn('hit'); }
     } else if (run) {
       this.stepCast(run, ms, now);
+    } else if (this.jb && !k.grounded) { // between Judgment throws: hang a moment, then float down slowly
+      this.jb.idle += ms; k.vx = 0; k.vy = 0;
+      if (this.jb.idle < 700) { k.z = this.jb.z; k.vz = 0; } else k.vz = -230;
+      if (inp.hasMove) this.dir = dirOf(inp.moveX, inp.moveY, this.dir);
+      this.setMode('air');
     } else {
       this.stepLocomotion(ms, now);
+    }
+    if (this.jb && (reacting || (k.grounded && !(run && run.skill.id === 'judgment_blade')))) { // sequence over: full cooldown from now
+      const jbs = this.kit.find((x) => x.id === 'judgment_blade'); if (jbs) this.rt!.closeCharges(jbs);
+      this.jb = null;
     }
     const r = stepKin(k, ms, b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z));
     const ev = b.update(now, ms, r.landed, r.impactVz);
@@ -404,9 +415,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (s.id === 'dash_slash' && run.phase === 'recovery' && !run.slid) { run.slid = true; this.momentum = { x: run.aim.x * 46, y: run.aim.y * 46, left: Math.max(120, T.recovery * 0.7) }; } // skid to a stop instead of freezing
     if (s.id === 'judgment_blade') { // leap high, hang at the apex while the light-blade charges, throw, then drop
-      const e = run.elapsed, rise = Math.min(1, e / 380), apex = run.origin.z > 5 ? 80 : 185; // from a jump: a shorter extra rise
+      if (!run.jbInit) { run.jbInit = true; run.jbApex = this.jb ? 0 : run.origin.z > 5 ? 80 : 185; if (this.jb) { run.timings.startup = 420; run.origin = { ...run.origin, z: this.jb.z }; } } // follow-up throw: no new leap, quick charge
+      const e = run.elapsed, rise = Math.min(1, e / 380), apex = run.jbApex ?? 0; // from a jump: a shorter extra rise
       if (run.phase === 'startup' && inp.hasMove) { run.aim = unit(inp.moveX, inp.moveY); this.aim = run.aim; } // aim the throw while hovering
-      if (run.phase === 'startup' || e < T.startup + 120) { k.grounded = false; k.z = run.origin.z + apex * (1 - (1 - rise) * (1 - rise)); k.vz = 0; k.vx = 0; k.vy = 0; return; }
+      k.grounded = false; k.z = run.origin.z + apex * (1 - (1 - rise) * (1 - rise)); k.vz = 0; k.vx = 0; k.vy = 0;
+      if (e >= T.startup) this.jb = { z: k.z, idle: 0 }; // stays up for the next throw
+      return;
     }
     for (const key of ['lunge', 'momentum'] as const) { // glide toward the target / along the push
       const m = this[key]; if (!m) continue;
@@ -725,8 +739,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!this.view || !this.pvpReady || this.dead >= 0) return;
     if (this.skillBook?.open || this.cosPanel?.open) return;
     const own = this.rt?.ownRun;
-    if (own && own.skill.id === 'judgment_blade' && this.kit[i]?.id === 'judgment_blade') { // V again while hovering: throw now
-      if (own.phase === 'startup' && own.elapsed >= 600) own.timings.startup = own.elapsed;
+    if (own && own.skill.id === 'judgment_blade' && this.kit[i]?.id === 'judgment_blade' && own.phase === 'startup') { // V again while charging: throw now
+      if (own.elapsed >= 300) own.timings.startup = own.elapsed;
       return;
     }
     if (!this.tryStartSlot(i)) this.ci?.bufferAction(i);

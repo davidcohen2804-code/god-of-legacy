@@ -27,6 +27,8 @@ export interface CastRun extends CastRequest {
   /** Dash-through: already turned to face the crossed target. */
   turned?: boolean;
   slid?: boolean;
+  jbInit?: boolean;
+  jbApex?: number;
   hitKeys: Set<string>;
   /** First confirmed hit (authority or predicted) — opens the hit-confirm cancel window. */
   confirmedAt: number;
@@ -66,6 +68,8 @@ export class SkillRuntime {
 
   constructor(private world: RuntimeWorld) {}
 
+  /** End a charge sequence early: the skill goes on its full cooldown now. */
+  closeCharges(s: { id: string; cooldown: number }): void { if (!this.charges.has(s.id)) return; this.charges.delete(s.id); this.cooldownEnd.set(s.id, Math.max(this.cooldownEnd.get(s.id) ?? 0, this.world.now() + s.cooldown)); }
   get ownRun(): CastRun | undefined { return this.runs.find((r) => r.own && r.phase !== 'done'); }
   locked(): boolean { return !!this.ownRun; }
   cooldownRemaining(id: string): number { return Math.max(0, (this.cooldownEnd.get(id) ?? 0) - this.world.now()); }
