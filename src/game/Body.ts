@@ -14,6 +14,9 @@ export type ClassKey = 'warrior' | 'book_mage' | 'archer' | 'samurai';
 export const DIRS: Dir[] = ['down', 'right', 'left', 'up'];
 const ROW: Record<Dir, number> = { down: 0, right: 1, left: 2, up: 3 };
 const CELL = 352, ORIGIN_Y = 310 / 352, SHEET_SCALE = 108 / 172;
+/** Skill sheets with taller cells (extra headroom above, feet still 42px above the cell bottom) and their column counts. */
+const CELL_H: Record<string, number> = { titans_verdict: 440 };
+const BODY_COLS: Record<string, number> = { titans_verdict: 8 };
 
 type MoveState = 'idle' | 'walk' | 'run' | 'jump' | 'air_attack' | 'hurt' | 'recovery' | 'death';
 const MOVE_COLS: Record<MoveState, number> = { idle: 12, walk: 8, run: 8, jump: 8, air_attack: 6, hurt: 4, recovery: 4, death: 8 };
@@ -45,7 +48,8 @@ export function preloadBodies(scene: Phaser.Scene): void {
   };
   for (const cls of SHEET_CLASSES) {
     for (const st of Object.keys(MOVE_COLS)) { L(sheetKey(cls, st), sheetPath(cls, st), true); L(`${sheetKey(cls, st)}-w`, sheetPath(cls, st).replace('.png', '_weapon.png'), true); }
-    for (const s of FINAL_SKILLS.filter((x) => x.cls === cls && !BODY_ALIAS[x.id])) { L(skillKey(cls, s.id), skillPath(cls, s.id), true); L(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id).replace('.png', '_weapon.png'), true); }
+    for (const s of FINAL_SKILLS.filter((x) => x.cls === cls && !BODY_ALIAS[x.id])) { const h = CELL_H[s.id] ?? CELL; const LS = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: CELL, frameHeight: h }); };
+      LS(skillKey(cls, s.id), skillPath(cls, s.id)); LS(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id).replace('.png', '_weapon.png')); }
   }
   for (const [cls, a] of Object.entries(ATLAS)) { L(atlasKey(cls), a.sheet, false); L(`${atlasKey(cls)}-w`, a.sheet.replace('.png', '_weapon.png'), false); }
 }
@@ -79,10 +83,10 @@ const ANCH = ANCHORS as unknown as AnchorTable;
 function scaleAnchor(a: number[] | null | undefined, k: number): number[] | null { return a ? a.slice(0, 6).map((v) => v * k) : null; }
 function scaleHair(a: number[] | null | undefined, k: number): number[] | null { return a && a.length > 9 ? [a[7] * k, a[8] * k, a[9] * k] : null; }
 
-function sheetFrame(key: string, path: string, dir: Dir, col: number, cols: number): PoseFrame {
+function sheetFrame(key: string, path: string, dir: Dir, col: number, cols: number, ch = CELL): PoseFrame {
   const c = Math.max(0, Math.min(cols - 1, col)), row = ROW[dir];
   const table = ANCH[path] as (number[] | null)[][] | undefined;
-  return { key, frame: row * cols + c, wkey: `${key}-w`, ox: 0.5, oy: ORIGIN_Y, scale: SHEET_SCALE, anchor: scaleAnchor(table?.[row]?.[c], SHEET_SCALE), hair: scaleHair(table?.[row]?.[c], SHEET_SCALE) };
+  return { key, frame: row * cols + c, wkey: `${key}-w`, ox: 0.5, oy: (ch - CELL * (1 - ORIGIN_Y)) / ch, scale: SHEET_SCALE, anchor: scaleAnchor(table?.[row]?.[c], SHEET_SCALE), hair: scaleHair(table?.[row]?.[c], SHEET_SCALE) };
 }
 
 function atlasPose(cls: string, dir: Dir, act: AtlasAction, i: number): PoseFrame {
@@ -148,26 +152,27 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
     case 'death': return mv(cls, 'death', dir, Math.min(7, Math.floor(q.p * 8)));
     case 'skill': {
       const sk = FINAL_SKILLS.find((s) => s.id === bodyIdOf(q.id));
-      const cols = sk && sk.slot === 7 ? 12 : sk && sk.slot === 6 ? 10 : 6;
+      const bid = bodyIdOf(q.id), cols = BODY_COLS[bid] ?? (sk && sk.slot === 7 ? 12 : sk && sk.slot === 6 ? 10 : 6);
       if (sk?.chain && q.stage === 2) { // third chain strike: the big overhead swing of the air-attack set
         const p = q.elapsed / (q.startup + q.active + q.recovery);
         return mv(cls, 'air_attack', dir, Math.min(5, Math.floor(p * 6)));
       }
       const col = skillColumn(cols, q, sk?.chain && (q.stage === 1 || q.stage === 3) ? 1 : 0);
-      return sheetFrame(skillKey(cls, q.id), skillPath(cls, q.id), dir, col, cols);
+      return sheetFrame(skillKey(cls, q.id), skillPath(cls, q.id), dir, col, cols, CELL_H[bid]);
     }
   }
 }
 
 /** Column of a skill body for the run phase: anticipation in startup, release exactly at the active start. */
 /** Per-skill column plans where the art's beats differ from the default split. */
-const SKILL_PLAN: Record<string, { st: number[]; ac: number[]; rc: number[] }> = { judgment_blade: { st: [0, 1, 2, 2], ac: [3, 4, 4], rc: [5] }, leap_crash: { st: [0], ac: [1, 2, 2, 3, 3, 4], rc: [4, 5] } };
+const SKILL_PLAN: Record<string, { st: number[]; ac: number[]; rc: number[] }> = { judgment_blade: { st: [0, 1, 2, 2], ac: [3, 4, 4], rc: [5] }, leap_crash: { st: [0], ac: [1, 2, 2, 3, 3, 4], rc: [4, 5] },
+  titans_verdict: { st: [0, 1, 1, 1, 2, 2, 3, 4, 5], ac: [6], rc: [6, 6, 7, 7] } };
 
 function skillColumn(cols: number, q: Extract<PoseQuery, { k: 'skill' }>, offset: number): number {
   const { elapsed: e, startup: s, active: a, recovery: r } = q;
-  const plan = SKILL_PLAN[q.id] ?? cols === 12 ? { st: [0, 1, 2, 3], ac: [4, 5, 6, 7, 8, 9], rc: [10, 11] }
+  const plan = SKILL_PLAN[q.id] ?? (cols === 12 ? { st: [0, 1, 2, 3], ac: [4, 5, 6, 7, 8, 9], rc: [10, 11] }
     : cols === 10 ? { st: [0, 1], ac: [2, 3, 4, 5, 6, 7, 8], rc: [9] }
-      : { st: [0 + offset, 1], ac: [2, 3, 4], rc: [5] };
+      : { st: [0 + offset, 1], ac: [2, 3, 4], rc: [5] });
   const act = Math.max(a, 120);
   if (e < s) return pick(plan.st, e / Math.max(1, s));
   if (e < s + act) return pick(plan.ac, (e - s) / act);
