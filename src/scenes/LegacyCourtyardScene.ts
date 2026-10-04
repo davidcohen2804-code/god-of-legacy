@@ -596,7 +596,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const b = pose.blade!, sp = this.view!.sprite, k = this.kin;
     const hx = sp.x + b[0], hy = sp.y + b[1], dx = b[2] - b[0], dy = b[3] - b[1], len = Math.hypot(dx, dy) * 2.7, ang = Math.atan2(dy, dx) * (180 / Math.PI);
     const left = this.radiantUntil - this.simMs, fade = Math.min(1, left / 500), f = Math.floor(this.simMs / 90) % 4;
-    const sx = len / 1142, sy = sx * 2.2; // wide, majestic blade
+    const sx = len / 1142, sy = sx * 1.4; // wide, majestic blade
     const d = actorDepth(k.x, k.y, k.z) + (dir === 'up' ? -0.05 : 0.05);
     this.beam.setFrame(f).setPosition(hx, hy).setAngle(ang).setScale(sx, sy).setDepth(d + 0.01).setAlpha(fade);
     this.beamGlow.setFrame(f).setPosition(hx, hy).setAngle(ang).setScale(sx * 1.02, sy * 1.15).setDepth(d + 0.02).setAlpha(0.45 * fade * (0.85 + 0.15 * Math.sin(this.simMs / 90)));
