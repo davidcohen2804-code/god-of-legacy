@@ -107,6 +107,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private beamGlow?: Phaser.GameObjects.Image;
   private eyes?: Phaser.GameObjects.Image;
   private holyAura?: Phaser.GameObjects.Image;
+  private cryShields: Phaser.GameObjects.Image[] = [];
   private boltDone = true;
   private radiantFrom = -1;
   private lastHand: { x: number; y: number } | null = null;
@@ -554,6 +555,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.renderRadiant(pose, dir);
     this.renderEyes(pose, dir);
     this.renderHolyAura();
+    this.renderCryShields();
     if (pose.anchor) { const sp = v.sprite, a = pose.anchor, f = dir === 'left' ? -1 : dir === 'right' ? 1 : 0; this.lastHand = { x: sp.x + a[0] + f * 12, y: sp.y + a[1] - 14 }; }
     if (run?.skill.id === 'judgment_blade' && typeof pose.frame === 'number') { // the light-sword forms in the raised palm
       const row = { down: 0, right: 1, left: 2, up: 3 }[dir], col = pose.frame % 6, h = (HANDS as number[][][])[row]?.[col];
@@ -603,6 +605,21 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         this.cryAura.setPosition(k.x, k.y - k.z - 48).setDepth(d - 0.25).setDisplaySize(150, 200).setAlpha((0.3 + 0.08 * Math.sin(this.simMs / 300)) * fade);
       }
     }
+  }
+
+  /** War Cry: three spectral shields of light orbit the warrior for the whole buff. */
+  private renderCryShields(): void {
+    const on = this.simMs < this.warCryUntil && this.dead < 0 && this.view!.visible && this.textures.exists('cry-shield');
+    if (!on) { for (const s of this.cryShields) s.setVisible(false); return; }
+    if (!this.cryShields.length) for (let i = 0; i < 3; i++) this.cryShields.push(this.add.image(0, 0, 'cry-shield', 0).setBlendMode(Phaser.BlendModes.ADD));
+    const k = this.kin, d = actorDepth(k.x, k.y, k.z), left = this.warCryUntil - this.simMs, fade = Math.min(1, left / 500);
+    const rise = Math.min(1, (this.simMs - (this.warCryUntil - 8000 - 320)) / 400); // spread out from the body on cast
+    this.cryShields.forEach((img, i) => {
+      const th = this.simMs / 650 + (i * Math.PI * 2) / 3, sn = Math.sin(th), R = 78 * rise;
+      const f = ((Math.round(((th + Math.PI / 2) / (Math.PI * 2)) * 8) % 8) + 8) % 8; // the shield turns as it travels round
+      img.setVisible(true).setFrame(f).setPosition(k.x + Math.cos(th) * R, k.y - k.z - 52 + sn * R * 0.38)
+        .setDisplaySize(64, 64).setDepth(d + (sn > 0 ? 0.08 : -0.3)).setAlpha(fade * (sn > 0 ? 0.95 : 0.55));
+    });
   }
 
   /** Radiant Blade: painted holy aura (flames of light + floor circle) around the player for the whole buff. */
