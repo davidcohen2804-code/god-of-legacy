@@ -628,7 +628,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.dead >= 0) return;
     this.dome?.img.destroy(); this.dome?.glow.destroy();
     const k = this.kin, side = this.aim.x < -0.01 ? -1 : 1, S = 1.15;
-    const wx = k.x + side * 26; // the wall's chord sits just in front of the caster
+    const wx = k.x + side * 80; // the wall stands clearly in front of the caster (he is never swallowed by it)
     // One steady frame (no flickering loop), anchored at the near end of its base and stretched UPWARD: a towering wall.
     const img = this.add.image(wx, k.y + 186, 'sanctuary-wall', 11).setOrigin(70 / 256, 414 / 512).setBlendMode(Phaser.BlendModes.ADD).setFlipX(side < 0);
     img.setScale(S, 0.05);
