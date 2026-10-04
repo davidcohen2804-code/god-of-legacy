@@ -68,11 +68,11 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'whirlwind', cls: 'warrior', slot: 4, name: 'Whirlwind', roles: ['extender', 'airExtender'], targeting: 'self',
-    startup: 130, active: 3000, recovery: 190, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: { startup: 0, active: 0.85, recovery: 0 },
-    zoneMs: 4200,
-    hits: Array.from({ length: 23 }, (_, i) => i * 130).map((t) => H(t, 3, { kind: 'circle', radius: 108 }, { stun: 200, pull: 6, float: true, juggleCost: 6 }, { reachUp: 140 })),
+    startup: 130, active: 1570, recovery: 190, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: { startup: 0, active: 0.85, recovery: 0 },
+    zoneMs: 2200,
+    hits: Array.from({ length: 12 }, (_, i) => i * 130).map((t) => H(t, 3, { kind: 'circle', radius: 108 }, { stun: 200, pull: 6, float: true, juggleCost: 6 }, { reachUp: 140 })),
     cancelOnHit: ['ground_breaker', 'warrior_basic', 'blade_storm', 'titans_verdict'],
-    description: 'A 4-second steerable blade cyclone: walk while you spin, sucking foes in and keeping them afloat with a hit every 0.18s.',
+    description: 'A 2-second steerable blade cyclone: walk while you spin, sucking foes in and keeping them afloat with a hit every 0.18s.',
     relations: ['Air extender', 'Finish with Ground Breaker'],
   }),
   S({

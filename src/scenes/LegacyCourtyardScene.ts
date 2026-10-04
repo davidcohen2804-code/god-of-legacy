@@ -664,7 +664,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!run.own) return;
     if (run.skill.chain) this.chain = { stage: run.stage, lastEnd: this.simMs, skill: run.skill.id };
     this.body.armorUntil = -1;
-    if (!toMove && this.kin.grounded) this.setMode('recover');
+    // Warrior skill sheets end in their own battle stance: go straight to idle (the old recovery frames popped and froze the body).
+    if (!toMove && this.kin.grounded) this.setMode(this.character?.classId === 'warrior' ? 'idle' : 'recover');
     else if (!this.kin.grounded) this.setMode('air');
   }
 
