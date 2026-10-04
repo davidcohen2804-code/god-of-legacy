@@ -100,6 +100,8 @@ export class SkillFx {
   private dmgStacks: { x: number; y: number; line: number; last: number }[] = [];
   /** Local presentation freeze (ms) requested by confirmed hits (scene applies it to the local actor + VFX only). */
   hitStopLeft = 0;
+  /** Where the caster's raised hand is right now (set by the scene from the body pose). */
+  handPos?: (id: string) => { x: number; y: number } | null;
 
   constructor(private scene: Phaser.Scene, rt: SkillRuntime, private casterPos: (id: string) => V3 | null, private cam?: Phaser.Cameras.Scene2D.Camera) {
     rt.events.on(RT_EVENTS.cast, (r: CastRun) => this.onCast(r));
@@ -147,8 +149,8 @@ export class SkillFx {
       this.shockwave(o.x + a.x * off, o.y + a.y * off, sh.r, sh.c);
     }
     if (r.skill.id === 'blade_storm') { // summoning circle stays under the phantom blades for the whole storm
-      const c = { x: r.origin.x + r.aim.x * 90, y: r.origin.y + r.aim.y * 90 };
-      const mc = this.scene.add.image(c.x, c.y, 'magic-circle').setDisplaySize(330, 330 * 0.6).setDepth(GROUND + 1).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd27a).setAlpha(0);
+      const c = { x: r.origin.x, y: r.origin.y };
+      const mc = this.scene.add.image(c.x, c.y, 'magic-circle').setDisplaySize(380, 380 * 0.6).setDepth(GROUND + 1).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd27a).setAlpha(0);
       this.scene.tweens.add({ targets: mc, alpha: 0.85, duration: 200 });
       this.scene.tweens.add({ targets: mc, angle: 90, duration: 3300 });
       this.scene.tweens.add({ targets: mc, alpha: 0, delay: 3100, duration: 300, onComplete: () => mc.destroy() });
@@ -195,7 +197,7 @@ export class SkillFx {
   /** Charged release (Wave Slash): power gathers into the blade for the whole wind-up, then a bright flash on release. */
   private chargeUp(r: CastRun): void {
     const T = r.timings, col = CLASS_COLOR[r.skill.cls], a = r.aim;
-    const at = () => { const c = this.casterPos(r.attackerId); return c ? { x: c.x - a.x * 22, y: c.y - a.y * 22 - c.z - 34, d: c.y + 1 } : null; };
+    const at = () => { const c = this.casterPos(r.attackerId); return c ? { x: c.x + a.x * 36, y: c.y + a.y * 10 - c.z - 44, d: c.y + 1 } : null; }; // gathers at the sword, out to the attacking side
     const p0 = at(); if (!p0) return;
     const core = this.scene.add.image(p0.x, p0.y, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(col).setDepth(p0.d).setDisplaySize(20, 20).setAlpha(0.2);
     const halo = this.scene.add.image(p0.x, p0.y + 30, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(col).setDepth(p0.d - 2).setDisplaySize(120, 150).setAlpha(0);
@@ -223,7 +225,7 @@ export class SkillFx {
 
   /** War Cry: power gathers, then the roar bursts out as a golden light pillar and floor shockwaves (no fire). */
   /** Radiant Blade: a lightning bolt strikes down from the sky onto the sword tip (clean finish, no rings). */
-  lightningAt(tx: number, ty: number): void {
+  lightningAt(tx: number, ty: number, small = false): void {
     const g = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 4);
     const pts: [number, number][] = []; const off = (Math.random() < 0.5 ? -1 : 1) * 40;
     for (let i = 0; i <= 10; i++) { const y = ty - 560 + (560 * i) / 10, f = 1 - i / 10; pts.push([i === 10 ? tx : tx + off * f + (Math.random() - 0.5) * 60 * f, y]); }
@@ -231,7 +233,7 @@ export class SkillFx {
     const flash = this.scene.add.image(tx, ty, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff0b0).setDepth(TOP + 5).setDisplaySize(90, 90);
     this.scene.tweens.add({ targets: flash, displayWidth: 220, displayHeight: 220, alpha: 0, duration: 300, onComplete: () => flash.destroy() });
     this.scene.tweens.add({ targets: g, alpha: 0, duration: 280, ease: 'Quad.easeIn', onComplete: () => g.destroy() });
-    (this.cam ?? this.scene.cameras.main).shake(140, 0.006);
+    if (!small) (this.cam ?? this.scene.cameras.main).shake(140, 0.006);
   }
 
   private roar(r: CastRun): void {
@@ -277,18 +279,20 @@ export class SkillFx {
     const tick = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
       const c = this.casterPos(r.attackerId); if (!c) return;
       const ang = Math.atan2(land.y - (c.y - c.z), land.x - c.x) - Math.PI / 2; // already aimed at the landing point
-      charge.setPosition(c.x - a.x * 6, c.y - c.z - 105).setDepth(TOP).setRotation(ang * st0.k).setDisplaySize(150 * st0.k, 150 * st0.k)
+      const h = this.handPos?.(r.attackerId) ?? { x: c.x - a.x * 6, y: c.y - c.z - 105 }; // forms in the raised hand
+      charge.setPosition(h.x, h.y - 40 * st0.k).setDepth(TOP).setRotation(ang * st0.k).setDisplaySize(150 * st0.k, 150 * st0.k)
         .setFrame(3 + (Math.floor(this.scene.time.now / 70) % 3));
     } });
     this.scene.time.delayedCall(T.startup, () => { tick.remove(); charge.destroy(); });
     this.spark(IMPACT.warrior.key, r.origin.x, r.origin.y - 110, IMPACT.warrior.frames, 80, 0.8);
     this.scene.time.delayedCall(T.startup, () => {
       const c = this.casterPos(r.attackerId) ?? r.origin;
-      const fly = this.scene.add.image(c.x, c.y - c.z - 70, key, 0).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(150, 150).setDepth(TOP);
-      const from = { x: c.x, y: c.y - c.z - 95 }, to = { x: land.x, y: land.y - 40 };
+      const h = this.handPos?.(r.attackerId) ?? { x: c.x, y: c.y - c.z - 95 };
+      const fly = this.scene.add.image(h.x, h.y - 40, key, 0).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(150, 150).setDepth(TOP);
+      const from = { x: h.x, y: h.y - 40 }, to = { x: land.x, y: land.y - 40 };
       const st = { p: 0 };
       fly.setRotation(Math.atan2(to.y - from.y, to.x - from.x) - Math.PI / 2); // straight dart: tip points along the line
-      this.scene.tweens.add({ targets: st, p: 1, duration: 150, ease: 'Quad.easeIn', onUpdate: () => {
+      this.scene.tweens.add({ targets: st, p: 1, duration: 240, ease: 'Back.easeIn', onUpdate: () => { // small pull-back, then the throw
         fly.setPosition(from.x + (to.x - from.x) * st.p, from.y + (to.y - from.y) * st.p);
       }, onComplete: () => {
         fly.destroy();
@@ -404,7 +408,7 @@ export class SkillFx {
         break;
       case 'line': pos = { x: o.x + aim.x * shape.length * 0.5, y: o.y + aim.y * shape.length * 0.5, z: o.z + 34 }; size = shape.length * 1.25; break;
       case 'capsule': follow = () => { const c = this.casterPos(r.attackerId); return c ? { x: c.x, y: c.y, z: c.z + 40 } : null; }; size = 190; break;
-      case 'circle': { const c = circleCentre(shape, o, aim, r.place); pos = { x: c.x, y: c.y, z: o.z + (upright ? 0 : 40) }; size = shape.radius * 2.5; if (shape.at !== 'place' && (s.move.active > 0 || s.dash)) follow = () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x + aim.x * (shape.bias ?? 0), y: p.y + aim.y * (shape.bias ?? 0), z: p.z } : null; }; break; }
+      case 'circle': { const c = circleCentre(shape, o, aim, r.place); pos = { x: c.x, y: c.y, z: o.z + (upright ? 0 : 40) }; size = shape.radius * 2.5; if (shape.at !== 'place' && (s.move.active > 0 || s.dash || s.id === 'ground_breaker')) follow = () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x + aim.x * (shape.bias ?? 0), y: p.y + aim.y * (shape.bias ?? 0), z: p.z } : null; }; break; }
       case 'placed': pos = { x: r.place?.x ?? o.x, y: r.place?.y ?? o.y, z: 0 }; size = shape.radius * 2.5; break;
     }
     if (big) size *= 1.15;
