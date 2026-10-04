@@ -318,19 +318,14 @@ export class SkillFx {
     });
   }
 
-  /** Blade Storm summon: a blade of pure light plunges into the floor and stays planted, pulsing, for a few seconds. */
+  /** Blade Storm summon: one phantom blade drops and stabs (dedicated sheet when present, else the storm sheet). */
   phantomBlade(x: number, y: number): void {
-    ensureLightBeam(this.scene);
-    const len = 150, top = y - len;
-    const glow = this.scene.add.image(x, top - 90, 'light-beam').setOrigin(0, 0.5).setAngle(90).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc860).setDisplaySize(len, 46).setDepth(y + 1).setAlpha(0.7);
-    const core = this.scene.add.image(x, top - 90, 'light-beam').setOrigin(0, 0.5).setAngle(90).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(len, 16).setDepth(y + 1.01);
-    const guard = this.scene.add.image(x, top - 90, 'light-beam').setOrigin(0.5, 0.5).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(44, 12).setDepth(y + 1.02);
-    this.scene.tweens.add({ targets: [glow, core, guard], y: `+=90`, duration: 110, ease: 'Quad.easeIn', onComplete: () => {
-      this.spark(IMPACT.warrior.key, x, y - 10, IMPACT.warrior.frames, 110, 1);
-      this.dust(x, y, 40, 0.5);
-      const hold = 1700, pulse = this.scene.tweens.add({ targets: glow, alpha: 0.35, duration: 260, yoyo: true, repeat: -1 });
-      this.scene.tweens.add({ targets: [glow, core, guard], alpha: 0, delay: hold, duration: 320, onComplete: () => { pulse.remove(); glow.destroy(); core.destroy(); guard.destroy(); } });
-    } });
+    if (this.scene.textures.exists('phantom-blade')) {
+      const img = this.scene.add.image(x, y, 'phantom-blade', 0).setOrigin(0.5, 0.92).setDepth(y + 1).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(170, 170);
+      const fms = [40, 40, 60, 60, 40, 60, 70, 80];
+      this.anims.push({ img, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: [0, 1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 80 });
+    } else this.spark(vfxKey('blade_storm'), x, y - 60, 12, 200, 0.9, 5);
+    this.spark(IMPACT.warrior.key, x, y - 30, IMPACT.warrior.frames, 90, 0.9);
   }
 
   /** Ground Breaker aftershock: glowing crack pulse + dust on the floor. */

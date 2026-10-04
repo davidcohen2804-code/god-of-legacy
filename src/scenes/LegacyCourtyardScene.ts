@@ -692,6 +692,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
     this.body.armorUntil = -1;
     if (s.id === 'war_cry') this.warCryUntil = this.simMs + s.startup + 8000;
+    if (s.id === 'blade_storm') this.radiantUntil = Math.max(this.radiantUntil, this.simMs + s.startup + s.active + 5000); // the storm leaves the blade of light in your hand
     if (s.id === 'radiant_blade') this.radiantUntil = this.simMs + Math.round(s.startup * 0.7) + 10000;
     if (s.id === 'guard_counter') this.body.invulnUntil = this.simMs + s.startup + 600; // Aegis barrier
     if (s.armor) this.body.armorUntil = Math.max(this.body.armorUntil, this.simMs + s.armor[1]); // super armor from the first frame (never interrupted mid-windup)
