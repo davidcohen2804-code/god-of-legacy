@@ -84,9 +84,9 @@ export class SkillRuntime {
       pathStart: { x: req.origin.x, y: req.origin.y }, counterTriggered: false, extraRecovery: 0, timings, hits,
     };
     if (req.own && s.cooldown > 0) {
-      // Charged skills: N quick uses in a row (window 4s between uses), then the full cooldown.
+      // Charged skills: N quick uses in a row (window 7s between uses), then the full cooldown.
       const now = this.world.now(), ch = this.charges.get(s.id);
-      const used = s.charges && ch && now - ch.last < 4000 ? ch.used + 1 : 1;
+      const used = s.charges && ch && now - ch.last < 7000 ? ch.used + 1 : 1;
       this.charges.set(s.id, { used, last: now });
       if (!s.charges || used >= s.charges) { this.cooldownEnd.set(s.id, now + s.cooldown); this.charges.delete(s.id); }
       else this.cooldownEnd.set(s.id, now + 350); // tiny gap between charges

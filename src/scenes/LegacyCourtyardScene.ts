@@ -25,6 +25,7 @@ import { NetMsg } from '../pvp/Transport';
 import { CombatInput } from '../game/CombatInput';
 import { ActorView, Equipped, preloadCosmetics } from '../game/ActorView';
 import { ensureLightBeam } from '../skills/SkillFx';
+import HANDS from '../data/judgment-hands.json';
 import { ClassKey, dirOf, preloadBodies, registerBodies, resolvePose, PoseFrame } from '../game/Body';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, poseQuery } from '../game/PoseState';
 import { CombatBody, GAUGE, HitOutcome, Kin, PHYS, jump, newKin, steer, stepKin } from '../combat/Combat';
@@ -402,7 +403,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (s.id === 'dash_slash' && run.phase === 'recovery' && !run.slid) { run.slid = true; this.momentum = { x: run.aim.x * 46, y: run.aim.y * 46, left: Math.max(120, T.recovery * 0.7) }; } // skid to a stop instead of freezing
     if (s.id === 'judgment_blade') { // leap high, hang at the apex while the light-blade charges, throw, then drop
-      const e = run.elapsed, rise = Math.min(1, e / (T.startup * 0.45)), apex = run.origin.z > 5 ? 45 : 105; // from a jump: a shorter extra rise
+      const e = run.elapsed, rise = Math.min(1, e / 380), apex = run.origin.z > 5 ? 80 : 185; // from a jump: a shorter extra rise
+      if (run.phase === 'startup' && inp.hasMove) { run.aim = unit(inp.moveX, inp.moveY); this.aim = run.aim; } // aim the throw while hovering
       if (run.phase === 'startup' || e < T.startup + 120) { k.grounded = false; k.z = run.origin.z + apex * (1 - (1 - rise) * (1 - rise)); k.vz = 0; k.vx = 0; k.vy = 0; return; }
     }
     for (const key of ['lunge', 'momentum'] as const) { // glide toward the target / along the push
@@ -506,6 +508,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
           if (l.left % 2 === 0) { const a = Math.random() * Math.PI * 2, rr = 40 + Math.random() * 130; this.fx!.lightningAt(l.x + Math.cos(a) * rr, l.y + Math.sin(a) * rr * 0.6, true); }
         }
         else if (l.run.skill.id !== 'ground_breaker') this.fx!.crack(l.x, l.y, L.radius); // the quake has one steady rotating ring instead of per-tick sparks
+        if (l.run.skill.id === 'ground_breaker' && l.run.own && this.dead < 0) { // the quake mends the warrior: +2 HP per pulse
+          const max = this.pvp ? PVP.maxHp : S6.player.maxHp, before = this.playerHP;
+          this.playerHP = Math.min(max, this.playerHP + 2);
+          if (this.playerHP > before) this.fx!.healNumber({ x: this.kin.x, y: this.kin.y, z: this.kin.z }, this.playerHP - before);
+        }
         for (const t of this.targetsFor(l.run)) {
           if (!t.alive || t.invulnerable || t.id === this.localId || t.kind !== 'enemy') continue;
           if (Math.hypot(t.x - l.x, t.y - l.y) > L.radius + t.radius || t.z > L.maxZ) continue;
@@ -517,6 +524,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   private blockedByActors(x: number, y: number, z: number): boolean {
+    const d = this.dome; // the Sanctuary wall is solid: nobody walks through or onto it
+    if (d && this.simMs < d.until && Math.abs(y - (d.y + 5)) < 185 && Math.abs(x - (d.wx + d.side * 18)) < 26) return true;
     const e = this.enemy;
     if (e && e.alive && Math.abs(e.z - z) < 50 && Math.hypot(x - e.x, y - e.y) < STAGE6.enemy.collisionRadius + R) return true;
     if (this.dummyState?.alive && z < 40 && Math.hypot(x - D.x, y - D.y) < D.collisionRadius + R) return true;
@@ -548,6 +557,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.renderEyes(pose, dir);
     this.renderHolyAura();
     if (pose.anchor) { const sp = v.sprite, a = pose.anchor, f = dir === 'left' ? -1 : dir === 'right' ? 1 : 0; this.lastHand = { x: sp.x + a[0] + f * 12, y: sp.y + a[1] - 14 }; }
+    if (run?.skill.id === 'judgment_blade' && typeof pose.frame === 'number') { // the light-sword forms in the raised palm
+      const row = { down: 0, right: 1, left: 2, up: 3 }[dir], col = pose.frame % 6, h = (HANDS as number[][][])[row]?.[col];
+      if (h) this.lastHand = { x: v.sprite.x + h[0] * pose.scale, y: v.sprite.y + h[1] * pose.scale };
+    }
     this.renderDome();
     // War Cry: a golden battle-spirit aura (no fire): rim light on the body, light streaks rising from a floor sigil, ripples.
     const cry = this.simMs < this.warCryUntil && this.dead < 0;

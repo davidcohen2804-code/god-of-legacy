@@ -151,13 +151,6 @@ export class SkillFx {
       const off = shape.kind === 'sector' ? shape.range * 0.6 : 0;
       this.shockwave(o.x + a.x * off, o.y + a.y * off, sh.r, sh.c);
     }
-    if (r.skill.id === 'blade_storm') { // summoning circle stays under the phantom blades for the whole storm
-      const c = { x: r.origin.x, y: r.origin.y };
-      const mc = this.scene.add.image(c.x, c.y, 'magic-circle').setDisplaySize(380, 380 * 0.6).setDepth(GROUND + 1).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd27a).setAlpha(0);
-      this.scene.tweens.add({ targets: mc, alpha: 0.85, duration: 200 });
-      this.scene.tweens.add({ targets: mc, angle: 90, duration: 3300 });
-      this.scene.tweens.add({ targets: mc, alpha: 0, delay: 3100, duration: 300, onComplete: () => mc.destroy() });
-    }
     if (r.skill.id === 'shield_slam') (this.cam ?? this.scene.cameras.main).shake(120, 0.004);
     if (r.skill.id === 'ground_breaker') { // the earth answers: heavy quake shake, double ring, dust burst
       (this.cam ?? this.scene.cameras.main).shake(220, 0.007);
@@ -170,8 +163,7 @@ export class SkillFx {
       const plane = this.scene.add.container(r.origin.x, r.origin.y, [ring]).setScale(1, 0.42).setDepth(GROUND + 2).setAlpha(0); // floor perspective
       this.scene.tweens.add({ targets: plane, alpha: 0.85, duration: 220 });
       this.scene.tweens.add({ targets: ring, angle: 140, duration: 3100 });
-      const tick = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { const c = this.casterPos(r.attackerId); if (c) plane.setPosition(c.x, c.y); } });
-      this.scene.tweens.add({ targets: plane, alpha: 0, delay: 800, duration: 2300, ease: 'Sine.easeIn', onComplete: () => { tick.remove(); plane.destroy(); } });
+      this.scene.tweens.add({ targets: plane, alpha: 0, delay: 800, duration: 2300, ease: 'Sine.easeIn', onComplete: () => plane.destroy() }); // stays where it was created
     }
     if (r.skill.slot === 7 && r.skill.cls === 'warrior') (this.cam ?? this.scene.cameras.main).flash(160, 255, 226, 170, false);
   }
@@ -231,8 +223,8 @@ export class SkillFx {
   lightningAt(tx: number, ty: number, small = false): void {
     if (!small && this.scene.textures.exists('holy-bolt')) { // painted holy lightning strike onto the sword tip
       const img = this.scene.add.image(tx, ty, 'holy-bolt', 0).setOrigin(0.5, 0.79).setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 4).setDisplaySize(260, 520);
-      const fms = [50, 50, 90, 110, 100, 100, 110, 160];
-      this.anims.push({ img, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: [0, 1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 160 });
+      const fr = [0, 1, 2, 3, 2, 3, 4, 3, 2, 3, 4, 3, 4, 5, 6, 7], fms = [60, 60, 90, 90, 80, 90, 90, 80, 80, 90, 90, 90, 100, 110, 130, 180]; // a sustained surge of power
+      this.anims.push({ img, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: fr, frameMs: fms, fadeLast: 180 });
       this.scene.time.delayedCall(100, () => (this.cam ?? this.scene.cameras.main).shake(180, 0.008));
       return;
     }
@@ -279,27 +271,29 @@ export class SkillFx {
 
   /** Judgment Blade: the light-sword is hurled forward on an arc, plants itself, and a storm ring crackles around it for 5s. */
   private judgment(r: CastRun): void {
-    const a = r.aim, key = vfxKey('judgment_blade'), T = r.timings;
-    const land = { x: r.origin.x + a.x * 150, y: r.origin.y + a.y * 150 };
+    const key = vfxKey('judgment_blade'), T = r.timings;
+    let a = r.aim, land = { x: r.origin.x + a.x * 150, y: r.origin.y + a.y * 150 };
+    const aimNow = () => { a = r.aim; const c = this.casterPos(r.attackerId) ?? r.origin; land = { x: c.x + a.x * 150, y: c.y + a.y * 150 }; };
     // Charge-up in the air: the light-sword materialises above the raised hand, crackling, growing.
     const charge = this.scene.add.image(0, 0, key, 3).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(40, 40).setAlpha(0);
     const st0 = { k: 0.25 };
     this.scene.tweens.add({ targets: charge, alpha: 1, duration: 120 });
     this.scene.tweens.add({ targets: st0, k: 1, duration: T.startup, ease: 'Cubic.easeOut' });
     const tick = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
-      const c = this.casterPos(r.attackerId); if (!c) return;
-      const ang = Math.atan2(land.y - (c.y - c.z), land.x - c.x) - Math.PI / 2; // already aimed at the landing point
+      const c = this.casterPos(r.attackerId); if (!c) return; aimNow();
+      const ang = Math.atan2(land.y - (c.y - c.z), land.x - c.x) - Math.PI / 2; // follows the player's aim while hovering
       const h = this.handPos?.(r.attackerId) ?? { x: c.x - a.x * 6, y: c.y - c.z - 105 }; // forms in the raised hand
-      charge.setPosition(h.x, h.y - 40 * st0.k).setDepth(TOP).setRotation(ang * st0.k).setDisplaySize(150 * st0.k, 150 * st0.k)
+      charge.setPosition(h.x, h.y - 28 * st0.k).setDepth(TOP).setRotation(ang * st0.k).setDisplaySize(150 * st0.k, 150 * st0.k)
         .setFrame(3 + (Math.floor(this.scene.time.now / 70) % 3));
     } });
     this.scene.time.delayedCall(T.startup, () => { tick.remove(); charge.destroy(); });
     this.spark(IMPACT.warrior.key, r.origin.x, r.origin.y - 110, IMPACT.warrior.frames, 80, 0.8);
     this.scene.time.delayedCall(T.startup, () => {
+      aimNow();
       const c = this.casterPos(r.attackerId) ?? r.origin;
       const h = this.handPos?.(r.attackerId) ?? { x: c.x, y: c.y - c.z - 95 };
-      const fly = this.scene.add.image(h.x, h.y - 40, key, 0).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(150, 150).setDepth(TOP);
-      const from = { x: h.x, y: h.y - 40 }, to = { x: land.x, y: land.y - 40 };
+      const fly = this.scene.add.image(h.x, h.y - 28, key, 0).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(150, 150).setDepth(TOP);
+      const from = { x: h.x, y: h.y - 28 }, to = { x: land.x, y: land.y - 40 };
       const st = { p: 0 };
       fly.setRotation(Math.atan2(to.y - from.y, to.x - from.x) - Math.PI / 2); // straight dart: tip points along the line
       this.scene.tweens.add({ targets: st, p: 1, duration: 240, ease: 'Back.easeIn', onUpdate: () => { // small pull-back, then the throw
@@ -418,7 +412,7 @@ export class SkillFx {
         break;
       case 'line': pos = { x: o.x + aim.x * shape.length * 0.5, y: o.y + aim.y * shape.length * 0.5, z: o.z + 34 }; size = shape.length * 1.25; break;
       case 'capsule': follow = () => { const c = this.casterPos(r.attackerId); return c ? { x: c.x, y: c.y, z: c.z + 40 } : null; }; size = 190; break;
-      case 'circle': { const c = circleCentre(shape, o, aim, r.place); pos = { x: c.x, y: c.y, z: o.z + (upright ? 0 : 40) }; size = shape.radius * 2.5; if (shape.at !== 'place' && (s.move.active > 0 || s.dash || s.id === 'ground_breaker')) follow = () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x + aim.x * (shape.bias ?? 0), y: p.y + aim.y * (shape.bias ?? 0), z: p.z } : null; }; break; }
+      case 'circle': { const c = circleCentre(shape, o, aim, r.place); pos = { x: c.x, y: c.y, z: o.z + (upright ? 0 : 40) }; size = shape.radius * 2.5; if (shape.at !== 'place' && (s.move.active > 0 || s.dash )) follow = () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x + aim.x * (shape.bias ?? 0), y: p.y + aim.y * (shape.bias ?? 0), z: p.z } : null; }; break; }
       case 'placed': pos = { x: r.place?.x ?? o.x, y: r.place?.y ?? o.y, z: 0 }; size = shape.radius * 2.5; break;
     }
     if (big) size *= 1.15;
@@ -533,14 +527,14 @@ export class SkillFx {
     // Anime cut-in: the roaring hero slides across the screen during the wind-up (MapleStory 5th-job style).
     if (r.skill.id === 'titans_verdict' && this.scene.textures.exists('titan-cutin')) {
       const v = cam.worldView, w = v.width * 0.9, cy = v.y + v.height * 0.42;
-      const img = this.scene.add.image(v.right + w / 2, cy, 'titan-cutin').setDepth(TOP + 50);
+      const img = this.scene.add.image(v.x - w / 2, cy, 'titan-cutin').setDepth(TOP + 50); // slides in from the left
       img.setDisplaySize(w, w / 3);
       const band = this.scene.add.rectangle(v.centerX, cy, v.width, w / 3 + 16, 0x000000, 0.55).setDepth(TOP + 49).setScale(1, 0);
       this.scene.tweens.add({ targets: band, scaleY: 1, duration: 120, ease: 'Cubic.easeOut' });
-      this.scene.tweens.add({ targets: img, x: v.centerX + w * 0.04, duration: 200, ease: 'Cubic.easeOut' });
-      this.scene.tweens.add({ targets: img, x: v.centerX - w * 0.02, delay: 200, duration: 380 }); // slow drift while holding
-      this.scene.tweens.add({ targets: img, x: v.x - w / 2, alpha: 0, delay: 580, duration: 150, ease: 'Cubic.easeIn', onComplete: () => img.destroy() });
-      this.scene.tweens.add({ targets: band, scaleY: 0, delay: 600, duration: 130, onComplete: () => band.destroy() });
+      this.scene.tweens.add({ targets: img, x: v.centerX - w * 0.04, duration: 260, ease: 'Cubic.easeOut' });
+      this.scene.tweens.add({ targets: img, x: v.centerX + w * 0.02, delay: 260, duration: 420 }); // slow drift while holding
+      this.scene.tweens.add({ targets: img, x: v.right + w / 2, alpha: 0, delay: 680, duration: 180, ease: 'Cubic.easeIn', onComplete: () => img.destroy() });
+      this.scene.tweens.add({ targets: band, scaleY: 0, delay: 700, duration: 150, onComplete: () => band.destroy() });
     }
     // Cinematic cut-in (screen space): two golden slash bars cross the screen, then a white flash at the impact.
     const W = cam.width, H = cam.height;
@@ -550,7 +544,7 @@ export class SkillFx {
       this.scene.tweens.add({ targets: [bar, glow], scaleX: 1, delay, duration: 120, ease: 'Cubic.easeOut' });
       this.scene.tweens.add({ targets: [bar, glow], scaleY: 0, alpha: 0, delay: delay + 260, duration: 220, onComplete: () => { bar.destroy(); glow.destroy(); } });
     };
-    mk(H * 0.42, -18, 80); mk(H * 0.5, 18, 200);
+    mk(H * 0.42, -18, 780); mk(H * 0.5, 18, 880); // the screen splits after the cut-in
     this.scene.time.delayedCall(r.timings.startup, () => {
       const f = this.scene.add.rectangle(0, 0, W, H, 0xfff4d8, 1).setOrigin(0, 0).setScrollFactor(0).setDepth(TOP + 45).setBlendMode(Phaser.BlendModes.ADD);
       this.scene.tweens.add({ targets: f, alpha: 0, duration: 380, ease: 'Quad.easeOut', onComplete: () => f.destroy() });
@@ -685,6 +679,13 @@ export class SkillFx {
     this.scene.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 90, ease: 'Back.easeOut' });
     this.texts.push({ t: c, age: 0, x, y });
     void combo;
+  }
+
+  /** Green heal number rising from the player. */
+  healNumber(at: V3, hp: number): void {
+    const x = at.x + (Math.random() - 0.5) * 20, y = at.y - at.z - 90;
+    const t = this.scene.add.text(x, y, `+${hp}`, { fontFamily: 'Impact, "Arial Black", sans-serif', fontSize: '24px', color: '#7dff8a', stroke: '#0b3a12', strokeThickness: 5, resolution: 2 }).setOrigin(0.5).setDepth(TOP + 20);
+    this.scene.tweens.add({ targets: t, y: y - 34, alpha: 0, duration: 800, ease: 'Quad.easeOut', onComplete: () => t.destroy() });
   }
 
   /** One-shot animated sprite (impacts, bursts). */
