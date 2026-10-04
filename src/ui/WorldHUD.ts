@@ -50,10 +50,10 @@ const CSS = `
 .gol-hud.compact .room .n2,.gol-hud.compact .combat{display:none!important}
 @media (prefers-reduced-motion:reduce){.gol-hud .bar .fill{transition:none}}
 .gol-hud .aslot .trim{position:absolute;left:-8px;top:-8px;width:80px;height:80px;pointer-events:none}
-.gol-hud .aslot .upulse{position:absolute;left:-48px;top:-48px;width:160px;height:160px;pointer-events:none;mix-blend-mode:screen;
-  background:url("assets/final/ui/hud/ultimate_ready_pulse.png") 0 0/1280px 160px;animation:golUlt 0.9s steps(8) infinite;display:none}
+.gol-hud .aslot .upulse{position:absolute;inset:-3px;border-radius:8px;pointer-events:none;border:2px solid rgba(255,70,50,.9);
+  box-shadow:0 0 10px 3px rgba(255,40,30,.75),0 0 22px 6px rgba(255,30,20,.35),inset 0 0 10px 2px rgba(255,60,40,.5);animation:golUlt 1.4s ease-in-out infinite;display:none}
 .gol-hud .aslot.ult-ready .upulse{display:block}
-@keyframes golUlt{to{background-position:-1280px 0}}
+@keyframes golUlt{0%,100%{opacity:.55}50%{opacity:1}}
 .gol-hud .combo{position:absolute;left:1560px;top:480px;width:300px;height:96px;background:url("assets/final/ui/hud/combo_frame.png") 0 0/100% 100%;
   pointer-events:none;transition:opacity .18s}
 .gol-hud .combo .n{position:absolute;left:-40px;right:-40px;top:2px;text-align:center;font-family:${FONT_FAMILY};font-weight:700;font-style:italic;font-size:54px;color:#ffe2a0;
