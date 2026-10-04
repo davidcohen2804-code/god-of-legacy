@@ -10,7 +10,7 @@ import { WORLD_OBJECTS } from '../world/WorldGeometry';
 
 const F = 'assets/final';
 /** Skills that borrow another skill's VFX sheet (no art of their own). */
-const VFX_ALIAS: Record<string, string> = { wave_slash: 'warrior_basic', radiant_blade: 'war_cry' };
+const VFX_ALIAS: Record<string, string> = { wave_slash: 'warrior_basic', radiant_blade: 'war_cry', sanctuary: 'war_cry' };
 const vfxKey = (id: string) => `vfx-${VFX_ALIAS[id] ?? id}`;
 const isBig = (s: FinalSkill) => s.slot === 6 || s.slot === 7;
 const TOP = 100000;
@@ -130,6 +130,7 @@ export class SkillFx {
     if (s.id === 'judgment_blade') this.judgment(r);
     else if (s.id === 'guard_counter') this.aegis(r);
     else if (s.id === 'war_cry' || s.id === 'radiant_blade') this.roar(r);
+    else if (s.id === 'sanctuary') this.traceArc(r);
     else if (s.id !== 'leap_crash') this.castVfx(r);
     else this.aura(r);
     if (s.slot === 7) this.ultimateStage(r);
@@ -230,6 +231,20 @@ export class SkillFx {
       for (let i = 0; i < 3; i++) this.scene.time.delayedCall(i * 110, () => this.shockwave(c.x, c.y, 200 + i * 70, i === 1 ? 0xffffff : 0xffd36a));
       (this.cam ?? this.scene.cameras.main).shake(260, 0.008);
     });
+  }
+
+  /** Sanctuary: the sword tip traces a glowing half-circle on the floor during the wind-up. */
+  private traceArc(r: CastRun): void {
+    const c = this.casterPos(r.attackerId) ?? r.origin, T = r.timings, rx = 120, ry = 56;
+    const g = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(GROUND + 2).setPosition(c.x, c.y);
+    const st = { p: 0 };
+    this.scene.tweens.add({ targets: st, p: 1, duration: T.startup * 0.9, ease: 'Sine.easeInOut', onUpdate: () => {
+      g.clear(); g.lineStyle(6, 0xffe08a, 0.9).beginPath();
+      const n = Math.max(2, Math.round(40 * st.p));
+      for (let j = 0; j <= n; j++) { const th = Math.PI + Math.PI * (j / 40); const px = rx * Math.cos(th), py = -ry * Math.sin(th) * -1; if (j === 0) g.moveTo(px, py); else g.lineTo(px, py); }
+      g.strokePath();
+    } });
+    this.scene.tweens.add({ targets: g, alpha: 0, delay: T.startup + 200, duration: 400, onComplete: () => g.destroy() });
   }
 
   /** Judgment Blade: the light-sword is hurled forward on an arc, plants itself, and a storm ring crackles around it for 5s. */

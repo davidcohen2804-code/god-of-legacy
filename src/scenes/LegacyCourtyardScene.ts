@@ -99,6 +99,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   warCryUntil = -1;
   /** Radiant Blade: the sword is a long blade of light until this time. */
   radiantUntil = -1;
+  /** Sanctuary dome (fixed in the world): full damage immunity while the player stands inside. */
+  private domeAt = -1;
+  private dome: { x: number; y: number; rx: number; ry: number; until: number; g: Phaser.GameObjects.Graphics; rim: Phaser.GameObjects.Graphics } | null = null;
   private beam?: Phaser.GameObjects.Image;
   private beamGlow?: Phaser.GameObjects.Image;
   /** Startup lunge toward the target / post-hit momentum following the push (px still to travel, ms left). */
@@ -533,6 +536,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.dead >= 0) { alpha = 1 - (1 - P6.deathAlpha) * Math.min(1, this.dead / P6.deathFadeMs); tint = 0xff4a4a; fill = false; }
     v.render(ms, pose, k.x, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
     this.renderRadiant(pose, dir);
+    this.renderDome();
     // War Cry: a golden battle-spirit aura (no fire): rim light on the body, light streaks rising from a floor sigil, ripples.
     const cry = this.simMs < this.warCryUntil && this.dead < 0;
     if (cry && !this.cryFire) {
@@ -600,6 +604,67 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const d = actorDepth(k.x, k.y, k.z) + (dir === 'up' ? -0.05 : 0.05);
     this.beam.setFrame(f).setPosition(hx, hy).setAngle(ang).setScale(sx, sy).setDepth(d + 0.01).setAlpha(fade);
     this.beamGlow.setFrame(f).setPosition(hx, hy).setAngle(ang).setScale(sx * 1.02, sy * 1.25).setDepth(d + 0.02).setAlpha(0.12 * fade * (0.85 + 0.15 * Math.sin(this.simMs / 90)));
+  }
+
+  private inDome(): boolean {
+    const d = this.dome; if (!d || this.simMs >= d.until) return false;
+    const k = this.kin, nx = (k.x - d.x) / d.rx, ny = (k.y - d.y) / d.ry;
+    return nx * nx + ny * ny <= 1;
+  }
+
+  private domeBlock(from: { x: number; y: number }): void {
+    const k = this.kin;
+    this.fx!.callout({ x: k.x, y: k.y, z: k.z + 40 }, 'IMMUNE', '#ffe7a0', 0);
+    const d = this.dome!, ang = Math.atan2(from.y - d.y, from.x - d.x);
+    const sx = d.x + Math.cos(ang) * d.rx, sy = d.y + Math.sin(ang) * d.ry - 40;
+    const f = this.add.image(sx, sy, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff0b0).setDepth(sy + 400).setDisplaySize(70, 90);
+    this.tweens.add({ targets: f, alpha: 0, scale: f.scale * 1.6, duration: 260, onComplete: () => f.destroy() });
+  }
+
+  /** The translucent dome rises from the traced half-circle and stays put for 15s. */
+  private raiseDome(): void {
+    if (this.dead >= 0) return;
+    this.dome?.g.destroy(); this.dome?.rim.destroy();
+    const k = this.kin, rx = 120, ry = 56, H = 150;
+    const g = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+    const rim = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+    this.dome = { x: k.x, y: k.y, rx, ry, until: this.simMs + 15000, g, rim };
+    this.fx!.shockwave(k.x, k.y, 180, 0xffe08a);
+    g.setScale(1, 0.05); this.tweens.add({ targets: g, scaleY: 1, duration: 320, ease: 'Back.easeOut' });
+    void H;
+  }
+
+  private renderDome(): void {
+    if (this.domeAt >= 0 && this.simMs >= this.domeAt) { this.domeAt = -1; if (this.rt?.ownRun?.skill.id === 'sanctuary') this.raiseDome(); }
+    const d = this.dome; if (!d) return;
+    const left = d.until - this.simMs;
+    if (left <= 0) { d.g.destroy(); d.rim.destroy(); this.dome = null; return; }
+    const a = Math.min(1, left / 600) * (0.85 + 0.15 * Math.sin(this.simMs / 260)), H = 150, t = this.simMs / 1000;
+    const g = d.g, r = d.rim;
+    g.clear(); r.clear();
+    g.setPosition(d.x, d.y); r.setPosition(d.x, d.y);
+    // back half of the dome (behind actors) + floor ring
+    g.setDepth(actorDepth(d.x, d.y - d.ry, 0) - 1);
+    for (let i = 0; i < 6; i++) { // translucent shell: stacked soft ellipse bands
+      const h = (i / 6) * H, w = Math.sqrt(1 - (i / 6) ** 2);
+      g.fillStyle(0xffd77a, 0.035 * a).fillEllipse(0, -h, d.rx * 2 * w, d.ry * 2 * w);
+    }
+    g.lineStyle(3, 0xffe9a8, 0.8 * a).strokeEllipse(0, 0, d.rx * 2, d.ry * 2);
+    g.lineStyle(2, 0xffd060, 0.35 * a);
+    for (let m = 0; m < 5; m++) { // meridians sweeping around slowly
+      const ph = t * 0.4 + (m / 5) * Math.PI;
+      const cx = Math.cos(ph);
+      g.beginPath();
+      for (let j = 0; j <= 16; j++) { const th = (j / 16) * Math.PI / 2; const px = cx * d.rx * Math.cos(th), py = -H * Math.sin(th) + Math.sin(ph) * d.ry * Math.cos(th); if (j === 0) g.moveTo(px, py); else g.lineTo(px, py); }
+      g.strokePath();
+    }
+    // front rim + outline over the actors
+    r.setDepth(actorDepth(d.x, d.y + d.ry, 0) + 1);
+    r.lineStyle(4, 0xfff3c4, 0.75 * a);
+    r.beginPath(); for (let j = 0; j <= 40; j++) { const th = Math.PI * (j / 40); const px = -d.rx * Math.cos(th), py = -H * Math.sin(th) * 1.0; if (j === 0) r.moveTo(px, py); else r.lineTo(px, py); } r.strokePath();
+    r.lineStyle(2, 0xffe08a, 0.5 * a).beginPath();
+    for (let j = 0; j <= 30; j++) { const th = Math.PI * (j / 30); const px = d.rx * Math.cos(th), py = d.ry * Math.sin(th); if (j === 0) r.moveTo(px, py); else r.lineTo(px, py); } r.strokePath();
+    r.fillStyle(0xffe6a0, 0.06 * a).fillEllipse(0, -H * 0.45, d.rx * 1.9, H * 0.95);
   }
 
   // ======================================================================= actions
@@ -693,6 +758,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.body.armorUntil = -1;
     if (s.id === 'war_cry') this.warCryUntil = this.simMs + s.startup + 8000;
     if (s.id === 'blade_storm') this.radiantUntil = Math.max(this.radiantUntil, this.simMs + s.startup + s.active + 5000); // the storm leaves the blade of light in your hand
+    if (s.id === 'sanctuary') this.domeAt = this.simMs + Math.round(s.startup * 0.95); // sim clock (hit-stop/fast-step safe)
     if (s.id === 'radiant_blade') this.radiantUntil = this.simMs + Math.round(s.startup * 0.7) + 10000;
     if (s.id === 'guard_counter') this.body.invulnUntil = this.simMs + s.startup + 600; // Aegis barrier
     if (s.armor) this.body.armorUntil = Math.max(this.body.armorUntil, this.simMs + s.armor[1]); // super armor from the first frame (never interrupted mid-windup)
@@ -831,6 +897,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Enemy (PvE) strike on the local player: Mirage counter first, then the usual reaction rules. */
   private enemyStrike(dmg: number, from: { x: number; y: number }): void {
     if (this.dead >= 0) return;
+    if (this.inDome()) { this.domeBlock(from); return; }
     if (this.tryCounter(from)) return;
     const hit: HitEvent = { at: 0, damage: dmg, shape: { kind: 'sector', range: 58, angle: 120 }, reaction: { stun: 220, push: 14 } };
     const out = this.body.receive('enemy', ENEMY_SKILL, hit, from, this.simMs);
@@ -856,6 +923,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** PvP victim authority: this client resolved a remote cast against its own body. */
   private applyRemoteHitToSelf(run: CastRun, hit: HitEvent, hi: number, at: V3): void {
     if (this.dead >= 0) return;
+    if (this.inDome()) { this.domeBlock(this.casterPos(run.attackerId) ?? run.origin); this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: run.skill.id, hit: hi, dmg: 0, rx: 'armor' }); return; }
     const s = run.skill;
     if (hit.shape.kind !== 'placed' && hit.damage > 0 && this.tryCounter(this.casterPos(run.attackerId) ?? run.origin)) {
       this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'countered' });

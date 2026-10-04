@@ -24,7 +24,7 @@ const MOVE_COLS: Record<MoveState, number> = { idle: 12, walk: 8, run: 8, jump: 
 const SHEET_CLASSES = ['warrior', 'book_mage'] as const;
 const sheetKey = (cls: string, st: string) => `body-${cls}-${st}`;
 /** Extended-kit skills reuse an existing body animation (pose family) until they get their own sheet. */
-const BODY_ALIAS: Record<string, string> = { guard_counter: 'iron_grip', radiant_blade: 'war_cry' };
+const BODY_ALIAS: Record<string, string> = { guard_counter: 'iron_grip', radiant_blade: 'war_cry', sanctuary: 'wave_slash' };
 export const bodyIdOf = (id: string) => BODY_ALIAS[id] ?? id;
 const skillKey = (cls: string, id: string) => `sbody-${cls}-${bodyIdOf(id)}`;
 const sheetPath = (cls: string, st: string) => `assets/final/body/${cls}/movement/${st}.png`;
@@ -184,6 +184,7 @@ const SKILL_PLAN: Record<string, { st: number[]; ac: number[]; rc: number[] }> =
   wave_slash: { st: [0, 1, 1, 1, 1, 1, 1, 2], ac: [3, 4, 4, 5], rc: [5, 6, 7] },
   iron_grip: { st: [0, 1], ac: [2, 3, 3, 4, 5, 5], rc: [6, 7] },
   radiant_blade: { st: [0, 1, 2, 5], ac: [5, 5], rc: [5, 6, 7] },
+  sanctuary: { st: [0, 1, 2, 3, 4], ac: [5, 5], rc: [5, 6, 7] },
   lance_thrust: { st: [0, 1], ac: [2, 3, 2, 3, 4, 5], rc: [6, 7] },
   war_cry: { st: [0, 1, 2, 2, 3], ac: [3, 4], rc: [4, 5, 6, 7] } };
 
