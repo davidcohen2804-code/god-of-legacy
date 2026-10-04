@@ -111,6 +111,8 @@ export class SkillFx {
   hitStopLeft = 0;
   /** Where the caster's raised hand is right now (set by the scene from the body pose). */
   handPos?: (id: string) => { x: number; y: number } | null;
+  /** Local player's damage-number skin (cash shop). */
+  damageSkin: { key: string; widths: number[]; cell: number[] } | null = null;
 
   constructor(private scene: Phaser.Scene, rt: SkillRuntime, private casterPos: (id: string) => V3 | null, private cam?: Phaser.Cameras.Scene2D.Camera) {
     rt.events.on(RT_EVENTS.cast, (r: CastRun) => this.onCast(r));
@@ -765,7 +767,7 @@ export class SkillFx {
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).
     if (tier !== 'ultimate' && reaction === 'launch') this.spark(IMPACT.dust.key, at.x, at.y + 4, 6, 90, 0.5);
     if (tier !== 'ultimate' && (reaction === 'knockdown' || reaction === 'slam')) this.spark(IMPACT.dust.key, at.x, at.y + 6, 6, 110, 0.55);
-    if (damage > 0) this.damageNumber(at, damage, hit.heavy || tier === 'ultimate' || tier === 'signature', combo);
+    if (damage > 0) this.damageNumber(at, damage, hit.heavy || tier === 'ultimate' || tier === 'signature', combo, local);
     if (local) {
       const multi = (s.chain ? 1 : s.hits.length) > 3 && !hit.heavy; // rapid multi-hits: lighter per-hit freeze
       this.hitStopLeft = Math.max(this.hitStopLeft, HITSTOP[tier] * (multi ? 0.45 : 1) + (hit.heavy && tier === 'core' ? 20 : 0));
@@ -775,7 +777,7 @@ export class SkillFx {
   }
 
   /** MapleStory-style damage: each hit of a burst stacks one line higher above the target; big bold gradient digits. */
-  damageNumber(at: V3, dmg: number, heavy: boolean, combo: number): void {
+  damageNumber(at: V3, dmg: number, heavy: boolean, combo: number, local = false): void {
     // One column per target: a new hit within 700ms near the last column stacks on top of it (same x, next line up).
     const now = this.scene.time.now;
     let st = this.dmgStacks.find((d) => now - d.last < 700 && Math.abs(d.x - at.x) < 160 && Math.abs(d.y - at.y) < 120);
@@ -784,6 +786,18 @@ export class SkillFx {
     const line = st.line, x = st.x, y = st.y - 96 - line * 30;
     const c = this.scene.add.container(x, y).setDepth(TOP + 20 + line * 0.01);
     if (heavy) c.add(this.scene.add.image(0, 0, 'dmg-glow').setDisplaySize(130, 70).setAlpha(0.55).setBlendMode(Phaser.BlendModes.ADD));
+    const sk = local ? this.damageSkin : null;
+    if (sk && this.scene.textures.exists(sk.key)) { // cash-shop damage skin: painted digits
+      const H = heavy ? 74 : 60, sc = H / sk.cell[1], digits = String(dmg).split('').map(Number);
+      const adv = digits.map((d) => sk.widths[d] * sc * 0.86), total = adv.reduce((a, b) => a + b, 0);
+      if (heavy) c.add(this.scene.add.image(-total / 2 - H * 0.35, -4, sk.key, 10).setScale(sc * 1.05));
+      let xx = -total / 2;
+      digits.forEach((d, i) => { c.add(this.scene.add.image(xx + adv[i] / 2, (i % 2 ? 2 : -2), sk.key, d).setScale(sc)); xx += adv[i]; });
+      c.setScale(1.6).setAlpha(0);
+      this.scene.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 90, ease: 'Back.easeOut' });
+      this.texts.push({ t: c, age: 0, x, y });
+      return;
+    }
     const txt = this.scene.add.text(0, 0, String(dmg), {
       fontFamily: 'Impact, "Arial Black", sans-serif', fontSize: heavy ? '40px' : '32px',
       color: '#ffffff', stroke: heavy ? '#4a1200' : '#3a1a00', strokeThickness: heavy ? 7 : 6, resolution: 2,

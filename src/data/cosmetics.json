@@ -359,7 +359,8 @@
     },
     "color": "#ff7a5a",
     "name": "Dragonbone Greatsword",
-    "desc": "bone blade with a red marrow core."
+    "desc": "bone blade with a red marrow core.",
+    "wip": true
    },
    {
     "id": "war_weapon_obsidian_greatsword",
@@ -375,7 +376,8 @@
     },
     "color": "#ff8a30",
     "name": "Obsidian Flame Blade",
-    "desc": "black obsidian with molten cracks."
+    "desc": "black obsidian with molten cracks.",
+    "wip": true
    },
    {
     "id": "war_weapon_ice_crystal",
@@ -391,7 +393,8 @@
     },
     "color": "#7ad8ff",
     "name": "Frostcrystal Sword",
-    "desc": "a blade of living ice."
+    "desc": "a blade of living ice.",
+    "wip": true
    },
    {
     "id": "war_weapon_sunblade",
@@ -407,7 +410,8 @@
     },
     "color": "#ffe08a",
     "name": "Holy Sunblade",
-    "desc": "paladin gold with a sapphire heart."
+    "desc": "paladin gold with a sapphire heart.",
+    "wip": true
    },
    {
     "id": "war_weapon_shadow_demon",
@@ -423,7 +427,8 @@
     },
     "color": "#b070ff",
     "name": "Demon Shadowblade",
-    "desc": "violet shadow flames."
+    "desc": "violet shadow flames.",
+    "wip": true
    },
    {
     "id": "war_weapon_storm_edge",
@@ -439,7 +444,8 @@
     },
     "color": "#ffe060",
     "name": "Thunder Edge",
-    "desc": "crackling with lightning runes."
+    "desc": "crackling with lightning runes.",
+    "wip": true
    },
    {
     "id": "war_weapon_jade_katana",
@@ -455,7 +461,8 @@
     },
     "color": "#5aff9a",
     "name": "Jade Dragon Blade",
-    "desc": "curved emerald blade with a jade tassel."
+    "desc": "curved emerald blade with a jade tassel.",
+    "wip": true
    },
    {
     "id": "war_weapon_ruby_royal",
@@ -471,7 +478,8 @@
     },
     "color": "#ff3a5a",
     "name": "Ruby Royal Sword",
-    "desc": "a king's blade of crimson crystal."
+    "desc": "a king's blade of crimson crystal.",
+    "wip": true
    },
    {
     "id": "war_aura_ember_ring",
@@ -674,6 +682,264 @@
     },
     "name": "Prism Star Aura",
     "desc": "rainbow star ring with sparkles."
+   },
+   {
+    "id": "war_pet_sun_wisp",
+    "type": "pet",
+    "icon": "assets/final/cosmetics/warrior/war_pet_sun_wisp/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_pet_sun_wisp/runtime.png",
+    "attachment": "float",
+    "cell": [
+     212,
+     212
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "name": "Sun Wisp",
+    "desc": "a tiny crowned wisp of sunlight."
+   },
+   {
+    "id": "war_pet_frost_owl",
+    "type": "pet",
+    "icon": "assets/final/cosmetics/warrior/war_pet_frost_owl/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_pet_frost_owl/runtime.png",
+    "attachment": "float",
+    "cell": [
+     212,
+     212
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "name": "Frost Owl",
+    "desc": "a little owl of living ice."
+   },
+   {
+    "id": "war_pet_ember_skull",
+    "type": "pet",
+    "icon": "assets/final/cosmetics/warrior/war_pet_ember_skull/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_pet_ember_skull/runtime.png",
+    "attachment": "float",
+    "cell": [
+     212,
+     212
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "name": "Ember Skull",
+    "desc": "a flaming skull with an ember trail."
+   },
+   {
+    "id": "war_pet_jade_dragon",
+    "type": "pet",
+    "icon": "assets/final/cosmetics/warrior/war_pet_jade_dragon/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_pet_jade_dragon/runtime.png",
+    "attachment": "float",
+    "cell": [
+     212,
+     212
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "name": "Jade Dragon Pup",
+    "desc": "a jade dragon curled in the air."
+   },
+   {
+    "id": "war_pet_arcane_cube",
+    "type": "pet",
+    "icon": "assets/final/cosmetics/warrior/war_pet_arcane_cube/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_pet_arcane_cube/runtime.png",
+    "attachment": "float",
+    "cell": [
+     212,
+     212
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "name": "Arcane Cube",
+    "desc": "a rotating rune cube."
+   },
+   {
+    "id": "war_pet_star_fox",
+    "type": "pet",
+    "icon": "assets/final/cosmetics/warrior/war_pet_star_fox/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_pet_star_fox/runtime.png",
+    "attachment": "float",
+    "cell": [
+     212,
+     212
+    ],
+    "frames": 8,
+    "layout": "8x1",
+    "name": "Starlight Fox",
+    "desc": "a spirit fox of soft starlight."
+   },
+   {
+    "id": "war_dmg_lava",
+    "type": "damage",
+    "icon": "assets/final/cosmetics/warrior/war_dmg_lava/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_dmg_lava/runtime.png",
+    "attachment": "none",
+    "cell": [
+     150,
+     180
+    ],
+    "frames": 11,
+    "layout": "11x1",
+    "widths": [
+     111,
+     79,
+     104,
+     98,
+     98,
+     96,
+     103,
+     87,
+     105,
+     99,
+     129
+    ],
+    "name": "Molten Damage",
+    "desc": "lava-rock damage numbers."
+   },
+   {
+    "id": "war_dmg_ice",
+    "type": "damage",
+    "icon": "assets/final/cosmetics/warrior/war_dmg_ice/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_dmg_ice/runtime.png",
+    "attachment": "none",
+    "cell": [
+     150,
+     180
+    ],
+    "frames": 11,
+    "layout": "11x1",
+    "widths": [
+     116,
+     89,
+     110,
+     99,
+     111,
+     98,
+     111,
+     95,
+     116,
+     103,
+     130
+    ],
+    "name": "Frost Damage",
+    "desc": "ice-crystal damage numbers."
+   },
+   {
+    "id": "war_dmg_royal",
+    "type": "damage",
+    "icon": "assets/final/cosmetics/warrior/war_dmg_royal/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_dmg_royal/runtime.png",
+    "attachment": "none",
+    "cell": [
+     150,
+     180
+    ],
+    "frames": 11,
+    "layout": "11x1",
+    "widths": [
+     93,
+     59,
+     95,
+     89,
+     103,
+     92,
+     91,
+     88,
+     92,
+     85,
+     130
+    ],
+    "name": "Royal Damage",
+    "desc": "gold & ruby damage numbers."
+   },
+   {
+    "id": "war_dmg_thunder",
+    "type": "damage",
+    "icon": "assets/final/cosmetics/warrior/war_dmg_thunder/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_dmg_thunder/runtime.png",
+    "attachment": "none",
+    "cell": [
+     150,
+     180
+    ],
+    "frames": 11,
+    "layout": "11x1",
+    "widths": [
+     118,
+     79,
+     112,
+     109,
+     112,
+     106,
+     109,
+     103,
+     113,
+     108,
+     131
+    ],
+    "name": "Thunder Damage",
+    "desc": "violet lightning numbers."
+   },
+   {
+    "id": "war_dmg_shadow",
+    "type": "damage",
+    "icon": "assets/final/cosmetics/warrior/war_dmg_shadow/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_dmg_shadow/runtime.png",
+    "attachment": "none",
+    "cell": [
+     150,
+     180
+    ],
+    "frames": 11,
+    "layout": "11x1",
+    "widths": [
+     109,
+     82,
+     107,
+     106,
+     104,
+     98,
+     110,
+     92,
+     106,
+     109,
+     130
+    ],
+    "name": "Shadow Damage",
+    "desc": "smoke with a crimson core."
+   },
+   {
+    "id": "war_dmg_jade",
+    "type": "damage",
+    "icon": "assets/final/cosmetics/warrior/war_dmg_jade/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_dmg_jade/runtime.png",
+    "attachment": "none",
+    "cell": [
+     150,
+     180
+    ],
+    "frames": 11,
+    "layout": "11x1",
+    "widths": [
+     114,
+     76,
+     100,
+     99,
+     102,
+     94,
+     107,
+     92,
+     101,
+     100,
+     130
+    ],
+    "name": "Jade Damage",
+    "desc": "dragon-scale numbers."
    },
    {
     "id": "war_set_iron_legacy",

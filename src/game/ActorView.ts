@@ -7,14 +7,14 @@ import { Dir } from '../world/collision';
 import { actorDepth } from '../world/WorldGeometry';
 import { ClassKey, PoseFrame, applyPose } from './Body';
 
-export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura';
+export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet';
 export type Equipped = Partial<Record<CosSlot, string>>;
 
-interface CosItem { id: string; type: string; icon: string; runtime?: string; skin?: string; blade?: { w: number; h: number; guard: number; cy: number }; color?: string; fit?: { w: number; lift: number }; ring?: { cy: number }; attachment?: string; cell?: number[]; frames?: number; layout?: string; bbox?: number[][]; parts?: string[]; name: string; desc: string }
-export const COSMETICS = COS.classes as unknown as Record<string, CosItem[]>;
+interface CosItem { id: string; type: string; icon: string; runtime?: string; skin?: string; blade?: { w: number; h: number; guard: number; cy: number }; color?: string; fit?: { w: number; lift: number }; ring?: { cy: number }; widths?: number[]; wip?: boolean; attachment?: string; cell?: number[]; frames?: number; layout?: string; bbox?: number[][]; parts?: string[]; name: string; desc: string }
+export const COSMETICS = Object.fromEntries(Object.entries(COS.classes as unknown as Record<string, CosItem[]>).map(([k, l]) => [k, l.filter((i) => !i.wip)])) as Record<string, CosItem[]>; // wip items stay out of the shop until verified on every frame
 export const slotOf = (type: string): CosSlot | null =>
   type === 'head' ? 'head' : type === 'mask' ? 'face' : type === 'cape' || type === 'back' ? 'back'
-    : type === 'weapon' || type === 'weapon_animated' || type === 'bow' || type === 'book' ? 'weapon' : type === 'aura' ? 'aura' : null;
+    : type === 'weapon' || type === 'weapon_animated' || type === 'bow' || type === 'book' ? 'weapon' : type === 'aura' ? 'aura' : type === 'damage' ? 'damage' : type === 'pet' ? 'pet' : null;
 export function cosmetic(id: string): CosItem | undefined { for (const l of Object.values(COSMETICS)) { const f = l.find((i) => i.id === id); if (f) return f; } return undefined; }
 
 /** Weapon skin palettes (tint of the real weapon pixels; `glow` adds an energy edge). */
@@ -43,6 +43,8 @@ export function preloadCosmetics(scene: Phaser.Scene): void {
 }
 
 /** Weapon-skin colour (also tints the warrior's light-blade effects). */
+/** Equipped damage-number skin: sheet key + per-digit widths (digits 0–9, then the critical burst). */
+export function damageSkin(id: string | undefined): { key: string; widths: number[]; cell: number[] } | null { const it = id ? cosmetic(id) : undefined; return it && it.type === 'damage' && it.widths && it.cell ? { key: `cos-${it.id}`, widths: it.widths, cell: it.cell } : null; }
 export function skinColor(id: string | undefined): number | null { const c = id ? cosmetic(id)?.color : undefined; return c ? parseInt(c.slice(1), 16) : null; }
 
 /** White (luminance) copy of a sheet, so a tint recolours it fully (skin-coloured light blades). */
@@ -91,8 +93,12 @@ export class ActorView {
   private layers: Partial<Record<CosSlot, Phaser.GameObjects.Image>> = {};
   /** Warrior sword skin: drawn along the real sword line of every frame (never drifts off the hand). */
   private blade: Phaser.GameObjects.Image | null = null;
+  /** Same sword, cropped from the guard forward, drawn over the body (the handle stays under the fist). */
+  private bladeTop: Phaser.GameObjects.Image | null = null;
   private equipped: Equipped = {};
   private t = 0;
+  /** Floating companion: trails the hero with a soft lag. */
+  private petPos: { x: number; y: number } | null = null;
   visible = true;
 
   constructor(private scene: Phaser.Scene, readonly cls: ClassKey, x: number, y: number) {
@@ -108,11 +114,15 @@ export class ActorView {
   setEquipped(e: Equipped): void {
     this.equipped = { ...e };
     for (const s of Object.keys(this.layers) as CosSlot[]) { this.layers[s]?.destroy(); delete this.layers[s]; }
-    this.blade?.destroy(); this.blade = null;
+    this.blade?.destroy(); this.blade = null; this.bladeTop?.destroy(); this.bladeTop = null;
     const wi = e.weapon ? cosmetic(e.weapon) : undefined;
-    if (wi?.blade && this.scene.textures.exists(`cosw-${wi.id}`)) this.blade = this.scene.add.image(0, 0, `cosw-${wi.id}`);
+    if (wi?.blade && this.scene.textures.exists(`cosw-${wi.id}`)) {
+      this.blade = this.scene.add.image(0, 0, `cosw-${wi.id}`);
+      const cut = Math.max(0, wi.blade.guard - wi.blade.h * 0.18); // keep the guard on top, the grip goes under the hand
+      this.bladeTop = this.scene.add.image(0, 0, `cosw-${wi.id}`).setCrop(cut, 0, wi.blade.w - cut, wi.blade.h);
+    }
     for (const [slot, id] of Object.entries(e) as [CosSlot, string][]) {
-      if (!id || slot === 'weapon') continue;
+      if (!id || slot === 'weapon' || slot === 'damage') continue;
       const it = cosmetic(id);
       if (!it || !this.scene.textures.exists(`cos-${id}`)) continue;
       const img = this.scene.add.image(0, 0, `cos-${id}`, 0);
@@ -143,11 +153,13 @@ export class ActorView {
       if (bl && this.visible) {
         const dx = bl[2] - bl[0], dy = bl[3] - bl[1], L = Math.hypot(dx, dy), ang = Math.atan2(dy, dx), flip = Math.cos(ang) < 0;
         const bladePx = bi.w - bi.guard, sx = (L * 0.98) / bladePx, sy = (52 * SKIN_THICK) / bladePx;
-        const gx = p.x + bl[0] + (dx / L) * L * 0.04, gy = p.y + bl[1] + (dy / L) * L * 0.04;
-        this.blade.setOrigin(bi.guard / bi.w, (flip ? bi.h - bi.cy : bi.cy) / bi.h).setFlipY(flip).setRotation(ang).setScale(sx, sy)
-          .setPosition(gx, gy).setDepth(dir === 'up' ? depth - 0.02 : depth + 0.02).setAlpha(alpha).setVisible(true);
-        if (tint === null) this.blade.clearTint(); else if (tintFill) this.blade.setTintFill(tint); else this.blade.setTint(tint);
-      } else this.blade.setVisible(false);
+        const gx = p.x + bl[0], gy = p.y + bl[1]; // guard on the real hilt point
+        for (const [im, top] of [[this.blade, false], [this.bladeTop!, true]] as const) {
+          im.setOrigin(bi.guard / bi.w, (flip ? bi.h - bi.cy : bi.cy) / bi.h).setFlipY(flip).setRotation(ang).setScale(sx, sy)
+            .setPosition(gx, gy).setDepth(dir === 'up' ? depth - 0.02 : top ? depth + 0.02 : depth - 0.01).setAlpha(alpha).setVisible(!(top && dir === 'up'));
+          if (tint === null) im.clearTint(); else if (tintFill) im.setTintFill(tint); else im.setTint(tint);
+        }
+      } else { this.blade.setVisible(false); this.bladeTop?.setVisible(false); }
     }
     // Weapon skin: tinted copy of the real weapon pixels of this exact frame.
     const ws = this.equipped.weapon ? WEAPON_TINT[this.equipped.weapon] : undefined;
@@ -168,6 +180,15 @@ export class ActorView {
     const a = pose.anchor;
     for (const [slot, img] of Object.entries(this.layers) as [CosSlot, Phaser.GameObjects.Image][]) {
       const it = cosmetic(this.equipped[slot]!)!;
+      if (slot === 'pet') { // hovers behind the shoulder, follows with a lag, gentle bob
+        const n = it.frames ?? 8, side = dir === 'left' ? 1 : dir === 'right' ? -1 : -0.8;
+        const tx = x + side * 38, ty = y - z - 104 + Math.sin(this.t / 420) * 6;
+        if (!this.petPos) this.petPos = { x: tx, y: ty };
+        const f = Math.min(1, ms / 140); this.petPos.x += (tx - this.petPos.x) * f; this.petPos.y += (ty - this.petPos.y) * f;
+        img.setFrame(Math.floor((this.t * 9) / 1000) % n).setScale(40 / (it.cell?.[0] ?? 160) * 1.6).setFlipX(dir === 'left')
+          .setPosition(this.petPos.x, this.petPos.y).setDepth(dir === 'up' ? depth + 0.06 : depth - 0.06).setAlpha(alpha).setVisible(this.visible);
+        continue;
+      }
       if (slot === 'aura') {
         const n = it.frames ?? 8;
         img.setFrame(Math.floor((this.t * 8) / 1000) % n);
@@ -204,13 +225,13 @@ export class ActorView {
 
   setVisible(v: boolean): void {
     this.visible = v;
-    this.sprite.setVisible(v); this.shadow.setVisible(v); this.ring.setVisible(v); this.weapon.setVisible(v && this.weapon.visible); this.weaponGlow.setVisible(v && this.weaponGlow.visible); this.blade?.setVisible(v && this.blade.visible);
+    this.sprite.setVisible(v); this.shadow.setVisible(v); this.ring.setVisible(v); this.weapon.setVisible(v && this.weapon.visible); this.weaponGlow.setVisible(v && this.weaponGlow.visible); this.blade?.setVisible(v && this.blade.visible); this.bladeTop?.setVisible(v && this.bladeTop.visible);
     for (const l of Object.values(this.layers)) l?.setVisible(v);
   }
 
   destroy(): void {
     this.sprite.destroy(); this.weapon.destroy(); this.weaponGlow.destroy(); this.shadow.destroy(); this.ring.destroy();
     for (const l of Object.values(this.layers)) l?.destroy();
-    this.layers = {}; this.blade?.destroy(); this.blade = null;
+    this.layers = {}; this.blade?.destroy(); this.blade = null; this.bladeTop?.destroy(); this.bladeTop = null;
   }
 }

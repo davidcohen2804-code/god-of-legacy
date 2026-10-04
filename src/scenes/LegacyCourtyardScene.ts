@@ -23,7 +23,7 @@ import { PvpController } from '../pvp/PvpController';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
 import { NetMsg } from '../pvp/Transport';
 import { CombatInput } from '../game/CombatInput';
-import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey } from '../game/ActorView';
+import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey, damageSkin } from '../game/ActorView';
 import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
 import { ClassKey, dirOf, preloadBodies, registerBodies, resolvePose, PoseFrame } from '../game/Body';
@@ -216,6 +216,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       reachMul: (req) => (req.own && req.skill.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.85 : 1),
     });
     this.fx = new SkillFx(this, this.rt, (id) => this.casterPos(id));
+    this.fx.damageSkin = damageSkin(this.equipped.damage);
     this.fx.handPos = (id) => (id === this.localId ? this.lastHand : null);
     this.renderPlayer(0);
     if (pvpRoom) this.view.setVisible(false);
@@ -1132,6 +1133,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   setEquipped(e: Equipped, save = true): void {
     this.equipped = { ...e };
     this.view?.setEquipped(this.equipped);
+    if (this.fx) this.fx.damageSkin = damageSkin(this.equipped.damage);
     this.skillBook?.setEquipped(this.equipped);
     if (save && this.character) {
       const c = CharacterStore.getCosmetics(this.character.id);

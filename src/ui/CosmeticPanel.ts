@@ -25,13 +25,13 @@ const INV_BG = { x: 360, y: 140, w: 1200, h: 800 };
 const SHOP_BG = { x: 210, y: 90, w: 1500, h: 900 };
 const INV_PREVIEW: Rect = { x: 36, y: 104, w: 400, h: 564 };
 const SHOP_PREVIEW: Rect = { x: 40, y: 104, w: 470, h: 540 };
-const SLOT_LABEL: Record<CosSlot, string> = { head: 'Head', face: 'Face', back: 'Cape / Back', weapon: 'Weapon', aura: 'Aura' };
+const SLOT_LABEL: Record<CosSlot, string> = { head: 'Head', face: 'Face', back: 'Cape / Back', weapon: 'Weapon', aura: 'Aura', damage: 'Damage Skin', pet: 'Companion' };
 const TYPE_LABEL: Record<string, string> = {
   head: 'Head', mask: 'Face', cape: 'Cape', back: 'Back', weapon: 'Weapon skin', weapon_animated: 'Animated weapon skin', bow: 'Bow skin',
   book: 'Book skin', aura: 'Aura', set: 'Full set',
 };
 const INV_TABS: [InvCat, string][] = [['equipped', 'Equipped'], ['owned', 'Owned'], ['sets', 'Sets'], ['weapon', 'Weapon Skins'], ['headface', 'Head / Face'], ['back', 'Cape / Back'], ['aura', 'Aura / Effects']];
-const SHOP_TABS: [ShopCat, string][] = [['all', 'All'], ['sets', 'Sets'], ['weapon', 'Weapons'], ['headface', 'Head / Face'], ['back', 'Cape / Back'], ['aura', 'Aura']];
+const SHOP_TABS: [ShopCat, string][] = [['all', 'All'], ['sets', 'Sets'], ['weapon', 'Weapons'], ['headface', 'Head / Face'], ['back', 'Cape / Back'], ['aura', 'Aura / Effects']];
 const STATES: [PState, string][] = [['idle', 'Idle'], ['walk', 'Walk'], ['run', 'Run'], ['jump', 'Jump'], ['attack', 'Attack'], ['hurt', 'Hit'], ['dead', 'Death']];
 const DIRS: Dir[] = ['down', 'right', 'up', 'left'];
 
