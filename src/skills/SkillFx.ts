@@ -44,6 +44,20 @@ const IMPACT: Record<string, { key: string; path: string; cell: number; frames: 
 };
 export const CLASS_COLOR: Record<string, number> = { warrior: 0xffb04a, book_mage: 0x6fc8ff, archer: 0x9be35a, samurai: 0xff4a5a };
 
+/** Procedural blade-of-light texture (hilt at x=0, tapering tip at the right end). */
+export function ensureLightBeam(scene: Phaser.Scene): void {
+  if (scene.textures.exists('light-beam')) return;
+  const W = 256, H = 32, c = scene.textures.createCanvas('light-beam', W, H)!, g = c.getContext();
+  for (let x = 0; x < W; x++) {
+    const t = x / W, fade = t < 0.06 ? t / 0.06 : t > 0.86 ? Math.max(0, (1 - t) / 0.14) : 1;
+    const grad = g.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, 'rgba(255,200,90,0)'); grad.addColorStop(0.3, `rgba(255,220,130,${0.55 * fade})`);
+    grad.addColorStop(0.5, `rgba(255,255,255,${fade})`); grad.addColorStop(0.7, `rgba(255,220,130,${0.55 * fade})`); grad.addColorStop(1, 'rgba(255,200,90,0)');
+    g.fillStyle = grad; g.fillRect(x, 0, 1, H);
+  }
+  c.refresh();
+}
+
 export function preloadSkillFx(scene: Phaser.Scene): void {
   const L = (k: string, p: string, w: number, h = w) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: w, frameHeight: h }); };
   for (const s of FINAL_SKILLS) { if (VFX_ALIAS[s.id]) continue; const big = isBig(s) ? 384 : 256; L(vfxKey(s.id), `${F}/skills/${s.cls}/${s.id}/vfx.png`, big); }
@@ -303,14 +317,19 @@ export class SkillFx {
     });
   }
 
-  /** Blade Storm summon: one phantom blade drops and stabs (dedicated sheet when present, else the storm sheet). */
+  /** Blade Storm summon: a blade of pure light plunges into the floor and stays planted, pulsing, for a few seconds. */
   phantomBlade(x: number, y: number): void {
-    if (this.scene.textures.exists('phantom-blade')) {
-      const img = this.scene.add.image(x, y, 'phantom-blade', 0).setOrigin(0.5, 0.92).setDepth(y + 1).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(170, 170);
-      const fms = [40, 40, 60, 60, 40, 60, 70, 80];
-      this.anims.push({ img, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: [0, 1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 80 });
-    } else this.spark(vfxKey('blade_storm'), x, y - 60, 12, 200, 0.9, 5);
-    this.spark(IMPACT.warrior.key, x, y - 30, IMPACT.warrior.frames, 90, 0.9);
+    ensureLightBeam(this.scene);
+    const len = 150, top = y - len;
+    const glow = this.scene.add.image(x, top - 90, 'light-beam').setOrigin(0, 0.5).setAngle(90).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc860).setDisplaySize(len, 46).setDepth(y + 1).setAlpha(0.7);
+    const core = this.scene.add.image(x, top - 90, 'light-beam').setOrigin(0, 0.5).setAngle(90).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(len, 16).setDepth(y + 1.01);
+    const guard = this.scene.add.image(x, top - 90, 'light-beam').setOrigin(0.5, 0.5).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(44, 12).setDepth(y + 1.02);
+    this.scene.tweens.add({ targets: [glow, core, guard], y: `+=90`, duration: 110, ease: 'Quad.easeIn', onComplete: () => {
+      this.spark(IMPACT.warrior.key, x, y - 10, IMPACT.warrior.frames, 110, 1);
+      this.dust(x, y, 40, 0.5);
+      const hold = 1700, pulse = this.scene.tweens.add({ targets: glow, alpha: 0.35, duration: 260, yoyo: true, repeat: -1 });
+      this.scene.tweens.add({ targets: [glow, core, guard], alpha: 0, delay: hold, duration: 320, onComplete: () => { pulse.remove(); glow.destroy(); core.destroy(); guard.destroy(); } });
+    } });
   }
 
   /** Ground Breaker aftershock: glowing crack pulse + dust on the floor. */

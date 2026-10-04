@@ -24,6 +24,7 @@ import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
 import { NetMsg } from '../pvp/Transport';
 import { CombatInput } from '../game/CombatInput';
 import { ActorView, Equipped, preloadCosmetics } from '../game/ActorView';
+import { ensureLightBeam } from '../skills/SkillFx';
 import { ClassKey, dirOf, preloadBodies, registerBodies, resolvePose, PoseFrame } from '../game/Body';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, poseQuery } from '../game/PoseState';
 import { CombatBody, GAUGE, HitOutcome, Kin, PHYS, jump, newKin, steer, stepKin } from '../combat/Combat';
@@ -586,17 +587,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private renderRadiant(pose: PoseFrame, dir: Dir): void {
     const on = this.simMs < this.radiantUntil && this.dead < 0 && this.view!.visible && !!pose.blade;
     if (on && !this.beam) {
-      if (!this.textures.exists('light-beam')) {
-        const W = 256, H = 32, c = this.textures.createCanvas('light-beam', W, H)!, g = c.getContext();
-        for (let x = 0; x < W; x++) {
-          const t = x / W, fade = t < 0.06 ? t / 0.06 : t > 0.86 ? Math.max(0, (1 - t) / 0.14) : 1;
-          const grad = g.createLinearGradient(0, 0, 0, H);
-          grad.addColorStop(0, 'rgba(255,200,90,0)'); grad.addColorStop(0.3, `rgba(255,220,130,${0.55 * fade})`);
-          grad.addColorStop(0.5, `rgba(255,255,255,${fade})`); grad.addColorStop(0.7, `rgba(255,220,130,${0.55 * fade})`); grad.addColorStop(1, 'rgba(255,200,90,0)');
-          g.fillStyle = grad; g.fillRect(x, 0, 1, H * (t > 0.86 ? 0.5 + 0.5 * fade : 1)); // tapering point
-        }
-        c.refresh();
-      }
+      ensureLightBeam(this);
       this.beamGlow = this.add.image(0, 0, 'light-beam').setOrigin(0, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc860);
       this.beam = this.add.image(0, 0, 'light-beam').setOrigin(0, 0.5).setBlendMode(Phaser.BlendModes.ADD);
     }
