@@ -24,13 +24,13 @@ const warrior: FinalSkill[] = [
     chain: {
       resetMs: 700,
       stages: [
-        [H(0, 7, { kind: 'sector', range: 84, angle: 120 }, { stun: 320, push: 3 }, { reachUp: 110 })],
+        [H(0, 7, { kind: 'sector', range: 84, angle: 120 }, { stun: 380, push: 3 }, { reachUp: 110 })],
         [H(0, 7, { kind: 'sector', range: 86, angle: 120 }, { stun: 320, push: 3 }, { reachUp: 110 })],
         [H(0, 5, { kind: 'sector', range: 88, angle: 130 }, { stun: 320, push: 2 }, { reachUp: 110 }),
-          H(70, 6, { kind: 'sector', range: 88, angle: 130 }, { stun: 340, push: 3 }, { reachUp: 110 })],
+          H(120, 6, { kind: 'sector', range: 88, angle: 130 }, { stun: 380, push: 3 }, { reachUp: 110 })],
         [H(0, 10, { kind: 'sector', range: 92, angle: 120 }, { stun: 420, launch: 75 }, { reachUp: 130, heavy: true })],
       ],
-      timings: [{ startup: 60, active: 70, recovery: 150 }, { startup: 55, active: 70, recovery: 150 }, { startup: 60, active: 130, recovery: 160 }, { startup: 90, active: 90, recovery: 260 }],
+      timings: [{ startup: 130, active: 110, recovery: 210 }, { startup: 120, active: 110, recovery: 210 }, { startup: 130, active: 200, recovery: 230 }, { startup: 170, active: 130, recovery: 330 }],
     },
     cancelOnHit: ['dash_slash', 'rising_slash', 'ground_breaker', 'whirlwind', 'shield_slam'],
     description: 'Four-strike chain: tap or hold Space. Slash, slash, double cut, then a rising cut that pops the target up for your skills.',
