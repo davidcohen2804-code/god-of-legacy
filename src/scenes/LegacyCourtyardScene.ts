@@ -335,9 +335,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (ccLocked && b.state === 'free') { k.vx = 0; k.vy = 0; if (run) this.rt!.cancelOwn('hit'); }
     } else if (run) {
       this.stepCast(run, ms, now);
-    } else if (this.jb && !k.grounded) { // between Judgment throws: hang a moment, then float down slowly
+    } else if (this.jb && !k.grounded) { // between Judgment throws: hang a moment, then fall normally
       this.jb.idle += ms; k.vx = 0; k.vy = 0;
-      if (this.jb.idle < 700) { k.z = this.jb.z; k.vz = 0; } else k.vz = -230;
+      if (this.jb.idle < 450) { k.z = this.jb.z; k.vz = 0; } // brief window for the next throw, then a normal fall
       if (inp.hasMove) this.dir = dirOf(inp.moveX, inp.moveY, this.dir);
       this.setMode('air');
     } else {
