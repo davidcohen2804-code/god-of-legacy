@@ -130,7 +130,8 @@ export class SkillFx {
     if (shape.kind === 'projectile' || shape.kind === 'chain') { this.castFlare(r); return; }
     if (s.id === 'judgment_blade') this.judgment(r);
     else if (s.id === 'guard_counter') this.aegis(r);
-    else if (s.id === 'war_cry' || s.id === 'radiant_blade') this.roar(r);
+    else if (s.id === 'war_cry') this.roar(r);
+    else if (s.id === 'radiant_blade') { /* lightning fired by the scene at the real sword tip */ }
     else if (s.id === 'sanctuary') this.traceArc(r);
     else if (s.id !== 'leap_crash') this.castVfx(r);
     else this.aura(r);
@@ -221,6 +222,18 @@ export class SkillFx {
   }
 
   /** War Cry: power gathers, then the roar bursts out as a golden light pillar and floor shockwaves (no fire). */
+  /** Radiant Blade: a lightning bolt strikes down from the sky onto the sword tip (clean finish, no rings). */
+  lightningAt(tx: number, ty: number): void {
+    const g = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 4);
+    const pts: [number, number][] = []; const off = (Math.random() < 0.5 ? -1 : 1) * 40;
+    for (let i = 0; i <= 10; i++) { const y = ty - 560 + (560 * i) / 10, f = 1 - i / 10; pts.push([i === 10 ? tx : tx + off * f + (Math.random() - 0.5) * 60 * f, y]); }
+    for (const [w, col, a] of [[16, 0xffd27a, 0.3], [6, 0xfff4d0, 0.9], [2, 0xffffff, 1]] as const) { g.lineStyle(w, col, a).beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (const p of pts.slice(1)) g.lineTo(p[0], p[1]); g.strokePath(); }
+    const flash = this.scene.add.image(tx, ty, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff0b0).setDepth(TOP + 5).setDisplaySize(90, 90);
+    this.scene.tweens.add({ targets: flash, displayWidth: 220, displayHeight: 220, alpha: 0, duration: 300, onComplete: () => flash.destroy() });
+    this.scene.tweens.add({ targets: g, alpha: 0, duration: 280, ease: 'Quad.easeIn', onComplete: () => g.destroy() });
+    (this.cam ?? this.scene.cameras.main).shake(140, 0.006);
+  }
+
   private roar(r: CastRun): void {
     const T = r.timings, c0 = this.casterPos(r.attackerId); if (!c0) return;
     const glow = this.scene.add.image(c0.x, c0.y - c0.z - 46, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd36a).setDepth(c0.y - 1).setDisplaySize(60, 80).setAlpha(0);

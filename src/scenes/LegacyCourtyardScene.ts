@@ -104,6 +104,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private dome: { x: number; y: number; rx: number; ry: number; until: number; t0: number; img: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image; wx: number; side: number } | null = null;
   private beam?: Phaser.GameObjects.Image;
   private beamGlow?: Phaser.GameObjects.Image;
+  private eyes?: Phaser.GameObjects.Image;
+  private boltDone = true;
+  private radiantFrom = -1;
   /** Startup lunge toward the target / post-hit momentum following the push (px still to travel, ms left). */
   private lunge: { x: number; y: number; left: number } | null = null;
   private momentum: { x: number; y: number; left: number } | null = null;
@@ -536,6 +539,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.dead >= 0) { alpha = 1 - (1 - P6.deathAlpha) * Math.min(1, this.dead / P6.deathFadeMs); tint = 0xff4a4a; fill = false; }
     v.render(ms, pose, k.x, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
     this.renderRadiant(pose, dir);
+    this.renderEyes(pose, dir);
     this.renderDome();
     // War Cry: a golden battle-spirit aura (no fire): rim light on the body, light streaks rising from a floor sigil, ripples.
     const cry = this.simMs < this.warCryUntil && this.dead < 0;
@@ -578,18 +582,22 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         this.cryBody.setOrigin(sp.originX, sp.originY).setScale(sp.scaleX * 1.03, sp.scaleY * 1.03).setPosition(sp.x, sp.y).setDepth(d + 0.04)
           .setTint(0xffe9a8).setAlpha((0.2 + 0.08 * Math.sin(this.simMs / 260)) * fade);
         this.cryAura.setPosition(k.x, k.y - k.z - 48).setDepth(d - 0.25).setDisplaySize(150, 200).setAlpha((0.3 + 0.08 * Math.sin(this.simMs / 300)) * fade);
-        if (this.simMs - this.emberT > 900) { // golden ripple on the floor
-          this.emberT = this.simMs;
-          const r = this.add.ellipse(k.x, k.y - k.supportZ, 60, 22).setStrokeStyle(3, 0xffd36a, 0.8).setBlendMode(Phaser.BlendModes.ADD).setDepth(actorDepth(k.x, k.y, k.supportZ) - 0.7);
-          this.tweens.add({ targets: r, scaleX: 2.6, scaleY: 2.6, alpha: 0, duration: 800, ease: 'Cubic.easeOut', onComplete: () => r.destroy() });
-        }
       }
     }
   }
 
+  /** Glowing eyes while Radiant Blade or War Cry is active. */
+  private renderEyes(pose: PoseFrame, dir: Dir): void {
+    const on = (this.simMs < this.radiantUntil || this.simMs < this.warCryUntil) && this.dead < 0 && this.view!.visible && !!pose.anchor && dir !== 'up';
+    if (!on) { this.eyes?.setVisible(false); return; }
+    if (!this.eyes) this.eyes = this.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff0a0);
+    const sp = this.view!.sprite, a = pose.anchor!, ex = sp.x + a[2] + (dir === 'right' ? 4 : dir === 'left' ? -4 : 0), ey = sp.y + a[3] + 3;
+    this.eyes.setVisible(true).setPosition(ex, ey).setDisplaySize(dir === 'down' ? 22 : 14, 7).setDepth(sp.depth + 0.05).setAlpha(0.8 + 0.2 * Math.sin(this.simMs / 160));
+  }
+
   /** Radiant Blade: a long blade of pure light extends from the real hilt along the sword of the current frame. */
   private renderRadiant(pose: PoseFrame, dir: Dir): void {
-    const on = this.simMs < this.radiantUntil && this.dead < 0 && this.view!.visible && !!pose.blade;
+    const on = this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && this.dead < 0 && this.view!.visible && !!pose.blade;
     if (on && !this.beam) {
       this.beam = this.add.image(0, 0, 'radiant-blade', 0).setOrigin(17.6 / 256, 0.5).setBlendMode(Phaser.BlendModes.ADD);
       this.beamGlow = this.add.image(0, 0, 'radiant-blade', 0).setOrigin(17.6 / 256, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd27a);
@@ -598,6 +606,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.beam.setVisible(on); this.beamGlow.setVisible(false); // no extra glow layer: the blade art only
     if (!on) return;
     const b = pose.blade!, sp = this.view!.sprite, k = this.kin;
+
+    if (!this.boltDone && b[3] < b[1] - 10) { // strike once the blade points up: the bolt lands on its tip
+      this.boltDone = true; this.fx!.lightningAt(sp.x + b[0] + (b[2] - b[0]) * 2.7, sp.y + b[1] + (b[3] - b[1]) * 2.7);
+    }
     const hx = sp.x + b[0], hy = sp.y + b[1], dx = b[2] - b[0], dy = b[3] - b[1], len = Math.hypot(dx, dy) * 2.7, ang = Math.atan2(dy, dx) * (180 / Math.PI);
     const left = this.radiantUntil - this.simMs, fade = Math.min(1, left / 500), f = Math.floor(this.simMs / 90) % 4;
     const sx = len / 238, sy = sx * 1.1; // broad translucent blade of light (pre-downscaled smooth art, additive)
@@ -672,6 +684,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const s = this.kit[i];
     if (!s || !this.rt || this.dead >= 0) return false;
     const now = this.simMs, k = this.kin, b = this.body;
+    // War Cry breaks free: usable while stunned / hit / launched / knocked down (cooldown permitting) — clears all CC.
+    if (s.id === 'war_cry' && (b.state !== 'free' || b.hard.active(now)) && this.rt.cooldownRemaining(s.id) <= 0) {
+      b.hard.reset(); b.combos.clear(); b.push = null; b.pinUntil = -1; b.state = 'free'; b.stateEnd = 0; b.invulnUntil = now + 600;
+      if (!k.grounded) { k.vz = Math.min(k.vz, 0); }
+      this.fx!.callout({ x: k.x, y: k.y, z: k.z + 40 }, 'BREAK FREE!!', '#ffe7a0', 0);
+    }
     if (b.state !== 'free') return false;
     if (b.hard.active(now) && b.hard.kind !== 'root') return false;
     if (!(k.grounded ? s.ground : s.air)) return false;
@@ -748,7 +766,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.id === 'war_cry') this.warCryUntil = this.simMs + s.startup + 8000;
     if (s.id === 'blade_storm') this.radiantUntil = Math.max(this.radiantUntil, this.simMs + s.startup + s.active + 5000); // the storm leaves the blade of light in your hand
     if (s.id === 'sanctuary') this.domeAt = this.simMs + Math.round(s.startup * 0.95); // sim clock (hit-stop/fast-step safe)
-    if (s.id === 'radiant_blade') this.radiantUntil = this.simMs + Math.round(s.startup * 0.7) + 10000;
+    if (s.id === 'radiant_blade') { this.boltDone = false; this.radiantFrom = this.simMs + Math.round(s.startup * 0.7); } // light appears when the sword is raised
+    if (s.id === 'radiant_blade') this.radiantUntil = this.simMs + Math.round(s.startup * 0.7) + 15000;
     if (s.id === 'guard_counter') this.body.invulnUntil = this.simMs + s.startup + 600; // Aegis barrier
     if (s.armor) this.body.armorUntil = Math.max(this.body.armorUntil, this.simMs + s.armor[1]); // super armor from the first frame (never interrupted mid-windup)
     if (s.slot === 7) this.body.invulnUntil = this.simMs + s.startup + s.active; // ultimate: untouchable while it plays
