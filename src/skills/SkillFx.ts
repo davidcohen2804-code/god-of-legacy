@@ -341,9 +341,9 @@ export class SkillFx {
       mark.lineStyle(3, 0x9ff0ff, 0.9).strokeEllipse(land.x, land.y, 70, 30);
       mark.fillStyle(0xdfffff, 0.95).fillEllipse(land.x, land.y, 10, 5);
     };
-    const st0 = { k: 0.25 };
+    const st0 = { k: 0.6 };
     this.scene.tweens.add({ targets: charge, alpha: 1, duration: 120 });
-    this.scene.tweens.add({ targets: st0, k: 1, duration: T.startup, ease: 'Cubic.easeOut' });
+    this.scene.tweens.add({ targets: st0, k: 1, duration: 420, ease: 'Back.easeOut' }); // the whole thunder-sword is in hand almost at once
     let released = false;
     const tick = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
       if (!released && (r.phase !== 'startup' || r.elapsed >= r.timings.startup)) { released = true; release(); return; } // timer ran out, or V pressed again
@@ -351,7 +351,7 @@ export class SkillFx {
       const ang = Math.atan2(land.y - (c.y - c.z), land.x - c.x) - Math.PI / 2; // follows the player's aim while hovering
       const h = this.handPos?.(r.attackerId) ?? { x: c.x - a.x * 6, y: c.y - c.z - 105 }; // forms in the raised hand
       drawMark(this.scene.time.now);
-      charge.setPosition(h.x, h.y).setDepth(TOP).setRotation((Math.abs(a.x) > 0.3 ? Math.sign(a.x) * 0.62 : 0) + 0 * ang) // gripped through its middle, slanted forward like a thunderbolt.setDisplaySize(150 * st0.k, 150 * st0.k)
+      charge.setPosition(h.x, h.y).setDepth(TOP).setRotation((Math.abs(a.x) > 0.3 ? Math.sign(a.x) * 0.62 : 0) + 0 * ang) // gripped through its middle, slanted forward like a thunderbolt.setDisplaySize(260 * st0.k, 260 * st0.k)
         .setFrame(3 + (Math.floor(this.scene.time.now / 70) % 3));
     } });
     this.spark(IMPACT.warrior.key, r.origin.x, r.origin.y - 110, IMPACT.warrior.frames, 80, 0.8);
