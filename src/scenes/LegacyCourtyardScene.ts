@@ -558,7 +558,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.renderCryShields();
     if (pose.anchor) { const sp = v.sprite, a = pose.anchor, f = dir === 'left' ? -1 : dir === 'right' ? 1 : 0; this.lastHand = { x: sp.x + a[0] + f * 12, y: sp.y + a[1] - 14 }; }
     if (run?.skill.id === 'judgment_blade' && typeof pose.frame === 'number') { // the light-sword forms in the raised palm
-      const row = { down: 0, right: 1, left: 2, up: 3 }[dir], col = pose.frame % 6, h = (HANDS as number[][][])[row]?.[col];
+      const row = { down: 0, right: 1, left: 2, up: 3 }[dir], col = pose.frame % 8, h = (HANDS as number[][][])[row]?.[col];
       if (h) this.lastHand = { x: v.sprite.x + h[0] * pose.scale, y: v.sprite.y + h[1] * pose.scale };
     }
     this.renderDome();

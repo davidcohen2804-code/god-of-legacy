@@ -122,7 +122,8 @@ export function resolvePose(cls: ClassKey, dir: Dir, q: PoseQuery): PoseFrame {
   return isSheetClass(cls) ? sheetPose(cls, dir, q) : atlasPoseFor(cls, dir, q);
 }
 
-function mv(cls: string, st: MoveState, dir: Dir, col: number): PoseFrame { return sheetFrame(sheetKey(cls, st), sheetPath(cls, st), dir, col, MOVE_COLS[st]); }
+const moveCols = (cls: string, st: MoveState) => (st === 'air_attack' && cls === 'warrior' ? 8 : MOVE_COLS[st]);
+function mv(cls: string, st: MoveState, dir: Dir, col: number): PoseFrame { return sheetFrame(sheetKey(cls, st), sheetPath(cls, st), dir, col, moveCols(cls, st)); }
 
 function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
   switch (q.k) {
@@ -147,7 +148,7 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
       const col = { takeoff: q.t < 40 ? 0 : 1, rise: q.t < 120 ? 2 : 3, apex: 4, fall: q.t < 120 ? 5 : 6, land: 7 }[q.phase];
       return mv(cls, 'jump', dir, col);
     }
-    case 'airAttack': return mv(cls, 'air_attack', dir, Math.floor(q.p * 6));
+    case 'airAttack': { const n = moveCols(cls, 'air_attack'); return mv(cls, 'air_attack', dir, Math.min(n - 1, Math.floor(q.p * n))); }
     // warrior reaction sheet: 0 hit, 1 heavy stagger, 2 launched, 3 knocked down, 4–6 getting up, 7 stance
     case 'hurt': return cls === 'warrior' ? mv(cls, 'react', dir, q.p < 0.5 ? 0 : 1) : mv(cls, 'hurt', dir, Math.min(3, Math.floor(q.p * 4)));
     case 'launched': return cls === 'warrior' ? mv(cls, 'react', dir, 2) : mv(cls, 'hurt', dir, q.vz > 0 ? 1 : 2);
@@ -168,7 +169,8 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
       }
       if (sk?.chain && q.stage === 2) { // third chain strike: the big overhead swing of the air-attack set
         const p = q.elapsed / (q.startup + q.active + q.recovery);
-        return mv(cls, 'air_attack', dir, Math.min(5, Math.floor(p * 6)));
+        const n = moveCols(cls, 'air_attack');
+        return mv(cls, 'air_attack', dir, Math.min(n - 1, Math.floor(p * n)));
       }
       const col = skillColumn(cols, q, sk?.chain && (q.stage === 1 || q.stage === 3) ? 1 : 0);
       return sheetFrame(skillKey(cls, q.id), skillPath(cls, q.id), dir, col, cols, CELLS[bid]?.h);
@@ -178,7 +180,7 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
 
 /** Column of a skill body for the run phase: anticipation in startup, release exactly at the active start. */
 /** Per-skill column plans where the art's beats differ from the default split. */
-const SKILL_PLAN: Record<string, { st: number[]; ac: number[]; rc: number[] }> = { judgment_blade: { st: [0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], ac: [3, 4, 4], rc: [5] }, leap_crash: { st: [0], ac: [1, 2, 2, 3, 3, 4], rc: [4, 5] },
+const SKILL_PLAN: Record<string, { st: number[]; ac: number[]; rc: number[] }> = { judgment_blade: { st: [0, 1, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4], ac: [5, 6, 6], rc: [7] }, leap_crash: { st: [0], ac: [1, 2, 2, 3, 3, 4], rc: [4, 5] },
   titans_verdict: { st: [0, 1, 1, 1, 2, 2, 3, 4, 5], ac: [6], rc: [6, 6, 7, 7] },
   rising_slash: { st: [0, 1, 2], ac: [3, 3, 4, 4, 5], rc: [5, 6, 7] },
   ground_breaker: { st: [0, 1, 2, 2, 3], ac: [4, 5, 5, 5], rc: [5, 6, 7] },
