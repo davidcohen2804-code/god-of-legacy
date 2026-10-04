@@ -185,7 +185,7 @@ export class SkillFx {
     const tick = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
       const c = this.casterPos(r.attackerId); if (!c) return;
       const ang = Math.atan2(land.y - (c.y - c.z), land.x - c.x) - Math.PI / 2; // already aimed at the landing point
-      charge.setPosition(c.x - a.x * 6, c.y - c.z - 95).setDepth(TOP).setRotation(ang * st0.k).setDisplaySize(150 * st0.k, 150 * st0.k)
+      charge.setPosition(c.x - a.x * 6, c.y - c.z - 105).setDepth(TOP).setRotation(ang * st0.k).setDisplaySize(150 * st0.k, 150 * st0.k)
         .setFrame(3 + (Math.floor(this.scene.time.now / 70) % 3));
     } });
     this.scene.time.delayedCall(T.startup, () => { tick.remove(); charge.destroy(); });
