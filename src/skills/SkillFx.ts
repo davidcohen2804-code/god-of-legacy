@@ -132,7 +132,7 @@ export class SkillFx {
 
   private onCast(r: CastRun): void {
     const s = r.skill;
-    if ((s.telegraph || isBig(s)) && s.id !== 'blade_storm') this.telegraph(r);
+    if ((s.telegraph || isBig(s)) && s.cls !== 'warrior') this.telegraph(r); // warrior skills read through their own art: no red ground markers
     // Anticipation frames 0..k during startup at the cast point, release frame exactly at the active start.
     const shape = this.firstShape(s);
     if (s.id === 'wave_slash') { this.chargeUp(r); return; }

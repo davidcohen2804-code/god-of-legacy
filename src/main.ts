@@ -12,6 +12,17 @@ import { isQAMode, startQAPanel } from './qa/QAPanel';
 
 ErrorCapture.installGlobal();
 
+// Cache-bust every game asset per build: same file names (e.g. run.png) would otherwise stay cached after an update.
+{
+  const LP = Phaser.Loader.LoaderPlugin.prototype as unknown as { addFile(f: unknown): void };
+  const orig = LP.addFile;
+  LP.addFile = function (this: unknown, file: unknown) {
+    const list = Array.isArray(file) ? file : [file];
+    for (const f of list as { url?: unknown }[]) if (typeof f.url === 'string' && !f.url.startsWith('data:') && !f.url.includes('?v=')) f.url += (f.url.includes('?') ? '&' : '?') + 'v=' + __BUILD_COMMIT__;
+    return orig.call(this, file);
+  };
+}
+
 // Auto-update: when a newer build is deployed, reload onto a fresh URL (bypasses the CDN/browser cache).
 function watchForUpdates(): void {
   const check = async () => {
