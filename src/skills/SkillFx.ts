@@ -69,6 +69,7 @@ export function preloadSkillFx(scene: Phaser.Scene): void {
   I('magic-circle', `${F}/impact/magic_circle.png`);
   if (!scene.textures.exists('storm-ring')) scene.load.spritesheet('storm-ring', `${F}/skills/warrior/judgment_blade/ring.png`, { frameWidth: 256, frameHeight: 256 });
   if (!scene.textures.exists('sanctuary-wall')) scene.load.spritesheet('sanctuary-wall', `${F}/skills/warrior/sanctuary/wall.png`, { frameWidth: 256, frameHeight: 512 });
+  if (!scene.textures.exists('titan-dragon')) scene.load.spritesheet('titan-dragon', `${F}/skills/warrior/titans_verdict/dragon.png`, { frameWidth: 280, frameHeight: 440 });
   if (!scene.textures.exists('titan-cutin')) scene.load.image('titan-cutin', `${F}/skills/warrior/titans_verdict/cutin.png`);
   if (!scene.textures.exists('holy-aura')) scene.load.spritesheet('holy-aura', `${F}/skills/warrior/radiant_blade/aura.png`, { frameWidth: 250, frameHeight: 667 });
   if (!scene.textures.exists('holy-bolt')) scene.load.spritesheet('holy-bolt', `${F}/skills/warrior/radiant_blade/bolt.png`, { frameWidth: 250, frameHeight: 500 });
@@ -138,7 +139,8 @@ export class SkillFx {
     else if (s.id === 'war_cry') this.roar(r);
     else if (s.id === 'radiant_blade') { /* lightning fired by the scene at the real sword tip */ }
     else if (s.id === 'sanctuary') this.traceArc(r);
-    else if (s.id !== 'leap_crash') this.castVfx(r);
+    else if (s.id === 'titans_verdict' && this.scene.textures.exists('titan-dragon')) this.dragon(r);
+    else if (s.id !== 'leap_crash' && !(s.id === 'titans_verdict' && this.scene.textures.exists('titan-dragon'))) this.castVfx(r);
     else this.aura(r);
     if (s.slot === 7) this.ultimateStage(r);
   }
@@ -252,6 +254,20 @@ export class SkillFx {
       this.scene.tweens.add({ targets: flash, displayWidth: 380, displayHeight: 380, alpha: 0, duration: 260, ease: 'Cubic.easeOut', onComplete: () => flash.destroy() });
       for (let i = 0; i < 3; i++) this.scene.time.delayedCall(i * 110, () => this.shockwave(c.x, c.y, 200 + i * 70, i === 1 ? 0xffffff : 0xffd36a));
       (this.cam ?? this.scene.cameras.main).shake(260, 0.008);
+    });
+  }
+
+  /** Titan's Verdict: a colossal lightning dragon dives from the sky onto the target zone (after the cut-in and screen split). */
+  private dragon(r: CastRun): void {
+    const T = r.timings, a = r.aim, at = { x: r.origin.x + a.x * 110, y: r.origin.y + a.y * 110 };
+    const dive = Math.round(T.startup * 0.62), pre = T.startup - dive; // frames 0-3 dive in, frame 4 = impact on the active start
+    const img = this.scene.add.image(at.x, at.y + 10, 'titan-dragon', 0).setOrigin(0.5, 0.97).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(470, 740).setDepth(TOP + 2);
+    const fr = [12, 0, 1, 2, 3, 4, 5, 5, 6, 7, 8, 9, 10, 11]; // 12 = empty frame while the cut-in plays (sim-timed)
+    const fms = [dive, pre * 0.25, pre * 0.25, pre * 0.25, pre * 0.25, 130, 160, 140, 170, 170, 170, 180, 200, 240];
+    this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: fr, frameMs: fms, fadeLast: 240 });
+    this.scene.time.delayedCall(T.startup, () => { // impact flash rings
+      this.shockwave(at.x, at.y, 320, 0xfff0b0); this.scene.time.delayedCall(90, () => this.shockwave(at.x, at.y, 420, 0xffc860));
+      (this.cam ?? this.scene.cameras.main).shake(420, 0.014);
     });
   }
 
