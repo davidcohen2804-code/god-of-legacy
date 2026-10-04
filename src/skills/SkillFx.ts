@@ -180,12 +180,11 @@ export class SkillFx {
     this.scene.time.delayedCall(T.startup, () => {
       const c = this.casterPos(r.attackerId) ?? r.origin;
       const fly = this.scene.add.image(c.x, c.y - c.z - 70, key, 0).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(150, 150).setDepth(TOP);
-      const from = { x: c.x, y: c.y - c.z - 70 }, to = { x: land.x, y: land.y - 60 };
+      const from = { x: c.x, y: c.y - c.z - 95 }, to = { x: land.x, y: land.y - 40 };
       const st = { p: 0 };
-      this.scene.tweens.add({ targets: st, p: 1, duration: 240, ease: 'Quad.easeIn', onUpdate: () => {
-        const x = from.x + (to.x - from.x) * st.p, y = from.y + (to.y - from.y) * st.p - Math.sin(Math.PI * st.p) * 50;
-        const dx = to.x - from.x, dy = (to.y - from.y) - Math.cos(Math.PI * st.p) * 50 * Math.PI;
-        fly.setPosition(x, y).setRotation(Math.atan2(dy, dx) - Math.PI / 2); // tip leads the flight
+      fly.setRotation(Math.atan2(to.y - from.y, to.x - from.x) - Math.PI / 2); // straight dart: tip points along the line
+      this.scene.tweens.add({ targets: st, p: 1, duration: 150, ease: 'Quad.easeIn', onUpdate: () => {
+        fly.setPosition(from.x + (to.x - from.x) * st.p, from.y + (to.y - from.y) * st.p);
       }, onComplete: () => {
         fly.destroy();
         const img = this.scene.add.image(land.x, land.y + 4, key, 1).setOrigin(0.5, 0.97).setDepth(land.y + 1).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(190, 190);
