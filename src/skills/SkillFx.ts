@@ -120,6 +120,11 @@ export class SkillFx {
       const off = shape.kind === 'sector' ? shape.range * 0.6 : 0;
       this.shockwave(o.x + a.x * off, o.y + a.y * off, sh.r, sh.c);
     }
+    if (r.skill.id === 'ground_breaker') { // the earth answers: heavy quake shake, double ring, dust burst
+      (this.cam ?? this.scene.cameras.main).shake(220, 0.007);
+      this.scene.time.delayedCall(90, () => this.shockwave(r.origin.x, r.origin.y, 240, 0xff9a40));
+      for (let i = 0; i < 6; i++) { const t = (i / 6) * Math.PI * 2; this.dust(r.origin.x + Math.cos(t) * 80, r.origin.y + Math.sin(t) * 34, 70, 0.7); }
+    }
     if (r.skill.slot === 7 && r.skill.cls === 'warrior') (this.cam ?? this.scene.cameras.main).flash(160, 255, 226, 170, false);
   }
 
@@ -198,7 +203,7 @@ export class SkillFx {
     const fms: number[] = [], fr: number[] = [];
     for (let i = 0; i < preFrames; i++) { fr.push(i); fms.push(T.startup / preFrames); }
     const rest = frames - preFrames - 1;
-    const per = Math.max(34, active / rest);
+    const per = Math.max(34, (active + (s.cls === 'warrior' ? 0.6 * T.recovery : 0)) / rest); // warrior: the swing plays out through the follow-through
     for (let i = 0; i < rest; i++) { fr.push(preFrames + i); fms.push(per); }
     fr.push(frames - 1); fms.push(s.cls === 'warrior' ? 280 : 120); // the effect lingers on screen
     const zone = s.zoneMs && s.zoneMs > 600;
