@@ -304,28 +304,42 @@ export class SkillFx {
     }
     if (big) size *= 1.15;
     size *= s.slot === 0 ? 0.75 : VFX_MULT[s.cls] ?? 1; // the basic chain stays a compact, proportional slash
+    const basic = !!s.chain, st = r.stage ?? 0;
+    if (basic && st === 3) size *= 1.3; // finisher: a bigger, heavier arc
     if (GROUND_ANCHORED.has(s.id)) pos = { ...pos, z: o.z };
     const key = vfxKey(s.id);
     const img = this.scene.add.image(pos.x, pos.y - pos.z, key, 0).setOrigin(0.5, GROUND_ANCHORED.get(s.id) ?? (upright && shape.kind !== 'sector' ? 0.62 : 0.5));
     img.setDisplaySize(size, size);
-    if (!upright) { const ang = Math.atan2(aim.y, aim.x) * (180 / Math.PI); img.setAngle(ang); img.setFlipY(aim.x < -0.01); }
+    if (!upright) {
+      // Basic chain: each strike cuts a different line (forehand, backhand, rising diagonal, heavy overhead).
+      const tilt = basic ? [0, 0, -28, 22][st] * (aim.x < -0.01 ? -1 : 1) : 0;
+      const ang = Math.atan2(aim.y, aim.x) * (180 / Math.PI) + tilt; img.setAngle(ang); img.setFlipY((aim.x < -0.01) !== (basic && st % 2 === 1));
+    }
     else img.setFlipX(aim.x < -0.01);
     img.setDepth(upright && (shape.kind === 'placed') ? GROUND + 1 : TOP).setBlendMode(Phaser.BlendModes.SCREEN);
     if (shape.kind === 'placed' || (upright && shape.kind === 'circle')) img.setDepth(Math.max(GROUND + 1, pos.y - 2)).setBlendMode(Phaser.BlendModes.ADD);
     const T = r.timings, active = Math.max(T.active, 60);
     const fms: number[] = [], fr: number[] = [];
-    for (let i = 0; i < preFrames; i++) { fr.push(i); fms.push(T.startup / preFrames); }
-    const rest = frames - preFrames - 1;
-    const per = Math.max(34, (active + (s.cls === 'warrior' ? 0.6 * T.recovery : 0)) / rest); // warrior: the swing plays out through the follow-through
-    for (let i = 0; i < rest; i++) { fr.push(preFrames + i); fms.push(per); }
-    fr.push(frames - 1); fms.push(s.cls === 'warrior' ? 280 : 120); // the effect lingers on screen
+    if (basic) { // crisp: nothing during the wind-up, the arc snaps out exactly on the swing, short trail
+      fr.push(0); fms.push(T.startup); img.setVisible(false);
+      const per = Math.max(28, (active + 0.3 * T.recovery) / (frames - 3));
+      for (let i = 2; i < frames - 1; i++) { fr.push(i); fms.push(per); }
+      fr.push(frames - 1); fms.push(90);
+    } else {
+      for (let i = 0; i < preFrames; i++) { fr.push(i); fms.push(T.startup / preFrames); }
+      const rest = frames - preFrames - 1;
+      const per = Math.max(34, (active + (s.cls === 'warrior' ? 0.6 * T.recovery : 0)) / rest); // warrior: the swing plays out through the follow-through
+      for (let i = 0; i < rest; i++) { fr.push(preFrames + i); fms.push(per); }
+      fr.push(frames - 1); fms.push(s.cls === 'warrior' ? 280 : 120); // the effect lingers on screen
+    }
     const zone = s.zoneMs && s.zoneMs > 600;
     const glow = VFX_MULT[s.cls] ? this.scene.add.image(img.x, img.y, key, 0).setOrigin(img.originX, img.originY).setBlendMode(Phaser.BlendModes.ADD)
       .setDepth(img.depth - 0.01).setAngle(img.angle).setFlipX(img.flipX).setFlipY(img.flipY).setAlpha(0.45).setTint(CLASS_COLOR[s.cls]) : undefined;
     glow?.setData('a0', 0.45);
-    this.anims.push({ img, glow, t: Math.min(r.elapsed, T.startup), total: fms.reduce((a, b) => a + b, 0), frames: fr, frameMs: fms, follow, z: pos.z, fadeLast: s.cls === 'warrior' ? 260 : 140,
+    if (basic) glow?.setVisible(false);
+    this.anims.push({ img, glow, t: Math.min(r.elapsed, T.startup), total: fms.reduce((a, b) => a + b, 0), frames: fr, frameMs: fms, follow, z: pos.z, fadeLast: basic ? 110 : s.cls === 'warrior' ? 260 : 140,
       loop: zone ? [preFrames + 1, frames - 2] : undefined, until: zone ? T.startup + (s.zoneMs ?? 0) : undefined });
-    if (s.cls === 'warrior') this.aura(r);
+    if (s.cls === 'warrior' && !basic) this.aura(r);
     // Anticipation scale-in (never starts at full size).
     img.setScale(img.scaleX * 0.55, img.scaleY * 0.55);
     const sx = (size / img.width) * (img.flipX ? 1 : 1), sy = size / img.height;
@@ -543,7 +557,7 @@ export class SkillFx {
       if (tt >= a.total) { a.img.destroy(); a.glow?.destroy(); a.onDone?.(); return false; }
       let acc = 0;
       for (let i = 0; i < a.frames.length; i++) { acc += a.frameMs[i]; if (tt < acc) { idx = i; break; } }
-      a.img.setFrame(a.frames[idx]);
+      a.img.setFrame(a.frames[idx]); if (idx > 0 && !a.img.visible) a.img.setVisible(true);
       if (a.fadeLast && tt > a.total - a.fadeLast) a.img.setAlpha(Math.max(0, (a.total - tt) / a.fadeLast) * (a.img.getData('a0') ?? 1));
       this.place(a);
       if (a.glow) a.glow.setFrame(a.frames[idx]).setPosition(a.img.x, a.img.y).setScale(a.img.scaleX * 1.12, a.img.scaleY * 1.12).setAlpha(a.img.alpha * 0.45);
