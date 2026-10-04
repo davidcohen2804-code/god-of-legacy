@@ -19,11 +19,11 @@ const GROUND = 2;
 /** Orientation of each final VFX sheet: 'dir' sheets are drawn pointing right and rotate with the aim. */
 /** Upright sheets whose bottom edge is the ground line (drawn standing on the impact point). */
 /** Ground-point origin (fraction of the cell height) for sheets drawn standing on the impact point. */
-const GROUND_ANCHORED = new Map<string, number>([['titans_verdict', 0.84], ['rising_slash', 0.84], ['ground_breaker', 0.8], ['whirlwind', 0.56], ['leap_crash', 0.88], ['war_cry', 0.88]]);
+const GROUND_ANCHORED = new Map<string, number>([['titans_verdict', 0.97], ['rising_slash', 0.84], ['ground_breaker', 0.8], ['whirlwind', 0.56], ['leap_crash', 0.88], ['war_cry', 0.88]]);
 /** Frames played during startup (anticipation) — the next frame is the impact at active start. */
-const PRE_FRAMES: Record<string, number> = { titans_verdict: 3 };
+const PRE_FRAMES: Record<string, number> = { titans_verdict: 4 };
 /** Sheets whose frame count differs from the slot default. */
-const VFX_FRAMES: Record<string, number> = { titans_verdict: 8 };
+const VFX_FRAMES: Record<string, number> = { titans_verdict: 12 };
 const UPRIGHT = new Set(['rising_slash', 'iron_grip', 'leap_crash', 'war_cry', 'titans_verdict', 'ground_breaker', 'whirlwind', 'shield_slam', 'blade_storm', 'binding_rune', 'astral_burst', 'frost_nova', 'storm_field',
   'time_collapse', 'explosive_arrow', 'vine_trap', 'rain_of_arrows', 'verdant_judgment', 'spin_cut']);
 const PROJECTILE_SHEETS: Record<string, { cell: number; frames: number }> = {
@@ -69,6 +69,7 @@ export function preloadSkillFx(scene: Phaser.Scene): void {
   I('magic-circle', `${F}/impact/magic_circle.png`);
   if (!scene.textures.exists('storm-ring')) scene.load.spritesheet('storm-ring', `${F}/skills/warrior/judgment_blade/ring.png`, { frameWidth: 256, frameHeight: 256 });
   if (!scene.textures.exists('sanctuary-wall')) scene.load.spritesheet('sanctuary-wall', `${F}/skills/warrior/sanctuary/wall.png`, { frameWidth: 256, frameHeight: 512 });
+  if (!scene.textures.exists('titan-cutin')) scene.load.image('titan-cutin', `${F}/skills/warrior/titans_verdict/cutin.png`);
   if (!scene.textures.exists('radiant-blade')) scene.load.spritesheet('radiant-blade', `${F}/skills/warrior/radiant_blade/blade_small.png`, { frameWidth: 256, frameHeight: 81 });
   if (!scene.textures.exists('phantom-blade')) scene.load.spritesheet('phantom-blade', `${F}/skills/warrior/blade_storm/phantom.png`, { frameWidth: 256, frameHeight: 256 }); I('dmg-glow', `${F}/ui/hud/damage_glow.png`);
 }
@@ -412,6 +413,7 @@ export class SkillFx {
       case 'placed': pos = { x: r.place?.x ?? o.x, y: r.place?.y ?? o.y, z: 0 }; size = shape.radius * 2.5; break;
     }
     if (big) size *= 1.15;
+    if (s.id === 'titans_verdict') size *= 1.35; // the giant of light towers over the arena
     size *= s.slot === 0 ? 0.75 : VFX_MULT[s.cls] ?? 1; // the basic chain stays a compact, proportional slash
     const basic = !!s.chain, st = r.stage ?? 0;
     if (basic && st === 3) size *= 1.3; // finisher: a bigger, heavier arc
@@ -519,6 +521,18 @@ export class SkillFx {
     this.dark.setPosition(cam.worldView.x - 200, cam.worldView.y - 200);
     this.darkLeft = r.timings.startup + r.timings.active + 160;
     this.scene.tweens.add({ targets: this.dark, fillAlpha: 0.55, duration: Math.min(220, r.timings.startup) });
+    // Anime cut-in: the roaring hero slides across the screen during the wind-up (MapleStory 5th-job style).
+    if (r.skill.id === 'titans_verdict' && this.scene.textures.exists('titan-cutin')) {
+      const v = cam.worldView, w = v.width * 0.9, cy = v.y + v.height * 0.42;
+      const img = this.scene.add.image(v.right + w / 2, cy, 'titan-cutin').setDepth(TOP + 50);
+      img.setDisplaySize(w, w / 3);
+      const band = this.scene.add.rectangle(v.centerX, cy, v.width, w / 3 + 16, 0x000000, 0.55).setDepth(TOP + 49).setScale(1, 0);
+      this.scene.tweens.add({ targets: band, scaleY: 1, duration: 120, ease: 'Cubic.easeOut' });
+      this.scene.tweens.add({ targets: img, x: v.centerX + w * 0.04, duration: 200, ease: 'Cubic.easeOut' });
+      this.scene.tweens.add({ targets: img, x: v.centerX - w * 0.02, delay: 200, duration: 380 }); // slow drift while holding
+      this.scene.tweens.add({ targets: img, x: v.x - w / 2, alpha: 0, delay: 580, duration: 150, ease: 'Cubic.easeIn', onComplete: () => img.destroy() });
+      this.scene.tweens.add({ targets: band, scaleY: 0, delay: 600, duration: 130, onComplete: () => band.destroy() });
+    }
     // Cinematic cut-in (screen space): two golden slash bars cross the screen, then a white flash at the impact.
     const W = cam.width, H = cam.height;
     const mk = (y: number, ang: number, delay: number) => {
