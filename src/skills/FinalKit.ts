@@ -96,7 +96,7 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'titans_verdict', cls: 'warrior', slot: 7, name: "Titan's Verdict", roles: ['ultimate', 'finisher'], targeting: 'mouseCone',
-    startup: 760, active: 420, recovery: 650, cooldown: 30000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    startup: 760, active: 420, recovery: 650, cooldown: 30000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1700],
     hits: [...[0, 110, 220].map((t) => H(t, 8, { kind: 'sector', range: 170, angle: 80 }, { stun: 420, float: true }, { reachUp: 200 })),
       H(340, 38, { kind: 'sector', range: 170, angle: 80 }, { stun: 400, knockdown: 'heavy', push: 30 }, { reachUp: 200, heavy: true })],
     endsCombo: true, tags: ['ultimate'], telegraph: 'cone',
