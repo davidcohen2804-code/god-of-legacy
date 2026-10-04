@@ -40,7 +40,8 @@
      ]
     ],
     "name": "Lion Helm",
-    "desc": "large lion-crested helmet."
+    "desc": "large lion-crested helmet.",
+    "wip": true
    },
    {
     "id": "war_head_broken_crown",
@@ -81,7 +82,8 @@
      ]
     ],
     "name": "Broken Crown",
-    "desc": "battle-worn crown/helm silhouette."
+    "desc": "battle-worn crown/helm silhouette.",
+    "wip": true
    },
    {
     "id": "war_head_royal_crown",
@@ -302,7 +304,8 @@
      ]
     ],
     "name": "Crimson Banner",
-    "desc": "long red banner cape."
+    "desc": "long red banner cape.",
+    "wip": true
    },
    {
     "id": "war_cape_white_oath",
@@ -343,7 +346,116 @@
      ]
     ],
     "name": "White Oath",
-    "desc": "broad off-white cape."
+    "desc": "broad off-white cape.",
+    "wip": true
+   },
+   {
+    "id": "war_cape_royal_velvet",
+    "type": "cape",
+    "icon": "assets/final/cosmetics/warrior/war_cape_royal_velvet/icon.png",
+    "fabric": "assets/final/cosmetics/warrior/war_cape_royal_velvet/fabric.png",
+    "attachment": "recolor",
+    "name": "Royal Velvet Cape",
+    "desc": "purple velvet with gold fleurs."
+   },
+   {
+    "id": "war_cape_black_flame",
+    "type": "cape",
+    "icon": "assets/final/cosmetics/warrior/war_cape_black_flame/icon.png",
+    "fabric": "assets/final/cosmetics/warrior/war_cape_black_flame/fabric.png",
+    "attachment": "recolor",
+    "name": "Black Flame Cape",
+    "desc": "black silk with crimson flames."
+   },
+   {
+    "id": "war_cape_white_sun",
+    "type": "cape",
+    "icon": "assets/final/cosmetics/warrior/war_cape_white_sun/icon.png",
+    "fabric": "assets/final/cosmetics/warrior/war_cape_white_sun/fabric.png",
+    "attachment": "recolor",
+    "name": "White Sun Cape",
+    "desc": "white silk with gold suns."
+   },
+   {
+    "id": "war_cape_ocean_wave",
+    "type": "cape",
+    "icon": "assets/final/cosmetics/warrior/war_cape_ocean_wave/icon.png",
+    "fabric": "assets/final/cosmetics/warrior/war_cape_ocean_wave/fabric.png",
+    "attachment": "recolor",
+    "name": "Ocean Wave Cape",
+    "desc": "blue with silver waves."
+   },
+   {
+    "id": "war_cape_jade_scale",
+    "type": "cape",
+    "icon": "assets/final/cosmetics/warrior/war_cape_jade_scale/icon.png",
+    "fabric": "assets/final/cosmetics/warrior/war_cape_jade_scale/fabric.png",
+    "attachment": "recolor",
+    "name": "Jade Scale Cape",
+    "desc": "emerald dragon scales."
+   },
+   {
+    "id": "war_cape_starfield",
+    "type": "cape",
+    "icon": "assets/final/cosmetics/warrior/war_cape_starfield/icon.png",
+    "fabric": "assets/final/cosmetics/warrior/war_cape_starfield/fabric.png",
+    "attachment": "recolor",
+    "name": "Starfield Cape",
+    "desc": "a cape of night sky."
+   },
+   {
+    "id": "war_cape_molten",
+    "type": "cape",
+    "icon": "assets/final/cosmetics/warrior/war_cape_molten/icon.png",
+    "fabric": "assets/final/cosmetics/warrior/war_cape_molten/fabric.png",
+    "attachment": "recolor",
+    "name": "Molten Cape",
+    "desc": "glowing lava cracks."
+   },
+   {
+    "id": "war_cape_frost",
+    "type": "cape",
+    "icon": "assets/final/cosmetics/warrior/war_cape_frost/icon.png",
+    "fabric": "assets/final/cosmetics/warrior/war_cape_frost/fabric.png",
+    "attachment": "recolor",
+    "name": "Frost Cape",
+    "desc": "ice crystals on pale blue."
+   },
+   {
+    "id": "war_cape_sakura",
+    "type": "cape",
+    "icon": "assets/final/cosmetics/warrior/war_cape_sakura/icon.png",
+    "fabric": "assets/final/cosmetics/warrior/war_cape_sakura/fabric.png",
+    "attachment": "recolor",
+    "name": "Sakura Cape",
+    "desc": "pink with cherry blossoms."
+   },
+   {
+    "id": "war_cape_gold_scale",
+    "type": "cape",
+    "icon": "assets/final/cosmetics/warrior/war_cape_gold_scale/icon.png",
+    "fabric": "assets/final/cosmetics/warrior/war_cape_gold_scale/fabric.png",
+    "attachment": "recolor",
+    "name": "Golden Scale Cape",
+    "desc": "gilded scale mail."
+   },
+   {
+    "id": "war_cape_shadow_smoke",
+    "type": "cape",
+    "icon": "assets/final/cosmetics/warrior/war_cape_shadow_smoke/icon.png",
+    "fabric": "assets/final/cosmetics/warrior/war_cape_shadow_smoke/fabric.png",
+    "attachment": "recolor",
+    "name": "Shadow Smoke Cape",
+    "desc": "swirling violet smoke."
+   },
+   {
+    "id": "war_cape_prism",
+    "type": "cape",
+    "icon": "assets/final/cosmetics/warrior/war_cape_prism/icon.png",
+    "fabric": "assets/final/cosmetics/warrior/war_cape_prism/fabric.png",
+    "attachment": "recolor",
+    "name": "Prism Cape",
+    "desc": "rainbow shimmer."
    },
    {
     "id": "war_weapon_dragonbone",
@@ -494,7 +606,8 @@
      ]
     ],
     "name": "Ember Ring",
-    "desc": ""
+    "desc": "",
+    "wip": true
    },
    {
     "id": "war_aura_thunder_ground",
@@ -517,7 +630,8 @@
      ]
     ],
     "name": "Thunder Ground",
-    "desc": ""
+    "desc": "",
+    "wip": true
    },
    {
     "id": "war_aura_holy_runes",
@@ -938,39 +1052,39 @@
     "type": "set",
     "icon": "assets/final/cosmetics/warrior/war_set_iron_legacy/icon.png",
     "parts": [
-     "war_head_lion_helm",
-     "war_cape_crimson_banner",
+     "war_head_royal_crown",
+     "war_cape_black_flame",
      "war_weapon_obsidian_greatsword",
-     "war_aura_ember_ring"
+     "war_aura_crimson_sigil"
     ],
     "name": "Iron Legacy",
-    "desc": "full bundle: dark steel helm + broad red cape + heavy sword."
+    "desc": "royal crown + black flame cape + obsidian blade + crimson sigil."
    },
    {
     "id": "war_set_sunforged",
     "type": "set",
     "icon": "assets/final/cosmetics/warrior/war_set_sunforged/icon.png",
     "parts": [
-     "war_head_broken_crown",
-     "war_cape_white_oath",
+     "war_head_holy_halo",
+     "war_cape_white_sun",
      "war_weapon_sunblade",
-     "war_aura_thunder_ground"
+     "war_aura_holy_runes"
     ],
     "name": "Sunforged",
-    "desc": "bright gold shoulder/body overlay + white cape + gold blade."
+    "desc": "holy halo + white sun cape + sunblade + holy runes."
    },
    {
     "id": "war_set_ember_guard",
     "type": "set",
     "icon": "assets/final/cosmetics/warrior/war_set_ember_guard/icon.png",
     "parts": [
-     "war_head_lion_helm",
-     "war_cape_crimson_banner",
-     "war_weapon_storm_edge",
-     "war_aura_ember_ring"
+     "war_head_flame_crown",
+     "war_cape_molten",
+     "war_weapon_ruby_royal",
+     "war_aura_shadow_flame"
     ],
     "name": "Ember Guard",
-    "desc": "blackened armor accents + ember cape + fire-edge sword."
+    "desc": "flame crown + molten cape + ruby sword + shadow flames."
    }
   ],
   "book_mage": [
