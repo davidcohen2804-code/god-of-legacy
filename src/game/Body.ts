@@ -7,6 +7,7 @@ import Phaser from 'phaser';
 import ARCHER from '../data/archer-atlas.json';
 import SAMURAI from '../data/samurai-atlas.json';
 import ANCHORS from '../data/body-anchors.json';
+import BODY_CELLS from '../data/body-cells.json';
 import { Dir } from '../world/collision';
 import { FINAL_SKILLS } from '../skills/FinalKit';
 
@@ -15,8 +16,7 @@ export const DIRS: Dir[] = ['down', 'right', 'left', 'up'];
 const ROW: Record<Dir, number> = { down: 0, right: 1, left: 2, up: 3 };
 const CELL = 352, ORIGIN_Y = 310 / 352, SHEET_SCALE = 108 / 172;
 /** Skill sheets with taller cells (extra headroom above, feet still 42px above the cell bottom) and their column counts. */
-const CELL_H: Record<string, number> = { titans_verdict: 440 };
-const BODY_COLS: Record<string, number> = { titans_verdict: 8 };
+const CELLS = BODY_CELLS as Record<string, { w: number; h: number; cols: number }>;
 
 type MoveState = 'idle' | 'walk' | 'run' | 'jump' | 'air_attack' | 'hurt' | 'recovery' | 'death';
 const MOVE_COLS: Record<MoveState, number> = { idle: 12, walk: 8, run: 8, jump: 8, air_attack: 6, hurt: 4, recovery: 4, death: 8 };
@@ -48,7 +48,7 @@ export function preloadBodies(scene: Phaser.Scene): void {
   };
   for (const cls of SHEET_CLASSES) {
     for (const st of Object.keys(MOVE_COLS)) { L(sheetKey(cls, st), sheetPath(cls, st), true); L(`${sheetKey(cls, st)}-w`, sheetPath(cls, st).replace('.png', '_weapon.png'), true); }
-    for (const s of FINAL_SKILLS.filter((x) => x.cls === cls && !BODY_ALIAS[x.id])) { const h = CELL_H[s.id] ?? CELL; const LS = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: CELL, frameHeight: h }); };
+    for (const s of FINAL_SKILLS.filter((x) => x.cls === cls && !BODY_ALIAS[x.id])) { const cs = CELLS[s.id]; const LS = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: cs?.w ?? CELL, frameHeight: cs?.h ?? CELL }); };
       LS(skillKey(cls, s.id), skillPath(cls, s.id)); LS(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id).replace('.png', '_weapon.png')); }
   }
   for (const [cls, a] of Object.entries(ATLAS)) { L(atlasKey(cls), a.sheet, false); L(`${atlasKey(cls)}-w`, a.sheet.replace('.png', '_weapon.png'), false); }
@@ -152,13 +152,13 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
     case 'death': return mv(cls, 'death', dir, Math.min(7, Math.floor(q.p * 8)));
     case 'skill': {
       const sk = FINAL_SKILLS.find((s) => s.id === bodyIdOf(q.id));
-      const bid = bodyIdOf(q.id), cols = BODY_COLS[bid] ?? (sk && sk.slot === 7 ? 12 : sk && sk.slot === 6 ? 10 : 6);
+      const bid = bodyIdOf(q.id), cols = CELLS[bid]?.cols ?? (sk && sk.slot === 7 ? 12 : sk && sk.slot === 6 ? 10 : 6);
       if (sk?.chain && q.stage === 2) { // third chain strike: the big overhead swing of the air-attack set
         const p = q.elapsed / (q.startup + q.active + q.recovery);
         return mv(cls, 'air_attack', dir, Math.min(5, Math.floor(p * 6)));
       }
       const col = skillColumn(cols, q, sk?.chain && (q.stage === 1 || q.stage === 3) ? 1 : 0);
-      return sheetFrame(skillKey(cls, q.id), skillPath(cls, q.id), dir, col, cols, CELL_H[bid]);
+      return sheetFrame(skillKey(cls, q.id), skillPath(cls, q.id), dir, col, cols, CELLS[bid]?.h);
     }
   }
 }
@@ -166,7 +166,8 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
 /** Column of a skill body for the run phase: anticipation in startup, release exactly at the active start. */
 /** Per-skill column plans where the art's beats differ from the default split. */
 const SKILL_PLAN: Record<string, { st: number[]; ac: number[]; rc: number[] }> = { judgment_blade: { st: [0, 1, 2, 2], ac: [3, 4, 4], rc: [5] }, leap_crash: { st: [0], ac: [1, 2, 2, 3, 3, 4], rc: [4, 5] },
-  titans_verdict: { st: [0, 1, 1, 1, 2, 2, 3, 4, 5], ac: [6], rc: [6, 6, 7, 7] } };
+  titans_verdict: { st: [0, 1, 1, 1, 2, 2, 3, 4, 5], ac: [6], rc: [6, 6, 7, 7] },
+  rising_slash: { st: [0, 1, 2], ac: [3, 3, 4, 4, 5], rc: [5, 6, 7] } };
 
 function skillColumn(cols: number, q: Extract<PoseQuery, { k: 'skill' }>, offset: number): number {
   const { elapsed: e, startup: s, active: a, recovery: r } = q;
