@@ -18,8 +18,8 @@ const CELL = 352, ORIGIN_Y = 310 / 352, SHEET_SCALE = 108 / 172;
 /** Skill sheets with taller cells (extra headroom above, feet still 42px above the cell bottom) and their column counts. */
 const CELLS = BODY_CELLS as Record<string, { w: number; h: number; cols: number }>;
 
-type MoveState = 'idle' | 'walk' | 'run' | 'jump' | 'air_attack' | 'hurt' | 'recovery' | 'death';
-const MOVE_COLS: Record<MoveState, number> = { idle: 12, walk: 8, run: 8, jump: 8, air_attack: 6, hurt: 4, recovery: 4, death: 8 };
+type MoveState = 'idle' | 'walk' | 'run' | 'jump' | 'air_attack' | 'hurt' | 'recovery' | 'death' | 'react';
+const MOVE_COLS: Record<MoveState, number> = { idle: 12, walk: 8, run: 8, jump: 8, air_attack: 6, hurt: 4, recovery: 4, death: 8, react: 8 };
 const SHEET_CLASSES = ['warrior', 'book_mage'] as const;
 const sheetKey = (cls: string, st: string) => `body-${cls}-${st}`;
 /** Extended-kit skills reuse an existing body animation (pose family) until they get their own sheet. */
@@ -47,7 +47,7 @@ export function preloadBodies(scene: Phaser.Scene): void {
     if (sheet) scene.load.spritesheet(k, p, { frameWidth: CELL, frameHeight: CELL }); else scene.load.image(k, p);
   };
   for (const cls of SHEET_CLASSES) {
-    for (const st of Object.keys(MOVE_COLS)) { L(sheetKey(cls, st), sheetPath(cls, st), true); L(`${sheetKey(cls, st)}-w`, sheetPath(cls, st).replace('.png', '_weapon.png'), true); }
+    for (const st of Object.keys(MOVE_COLS).filter((x) => x !== 'react' || cls === 'warrior')) { L(sheetKey(cls, st), sheetPath(cls, st), true); L(`${sheetKey(cls, st)}-w`, sheetPath(cls, st).replace('.png', '_weapon.png'), true); }
     for (const s of FINAL_SKILLS.filter((x) => x.cls === cls && !BODY_ALIAS[x.id])) { const cs = CELLS[s.id]; const LS = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: cs?.w ?? CELL, frameHeight: cs?.h ?? CELL }); };
       LS(skillKey(cls, s.id), skillPath(cls, s.id)); LS(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id).replace('.png', '_weapon.png')); }
   }
@@ -145,10 +145,11 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
       return mv(cls, 'jump', dir, col);
     }
     case 'airAttack': return mv(cls, 'air_attack', dir, Math.floor(q.p * 6));
-    case 'hurt': return mv(cls, 'hurt', dir, Math.min(3, Math.floor(q.p * 4)));
-    case 'launched': return mv(cls, 'hurt', dir, q.vz > 0 ? 1 : 2);
-    case 'down': return mv(cls, 'death', dir, Math.min(5, Math.floor(q.p * 6)));
-    case 'getup': return mv(cls, 'death', dir, Math.max(0, 5 - Math.floor(q.p * 6)));
+    // warrior reaction sheet: 0 hit, 1 heavy stagger, 2 launched, 3 knocked down, 4–6 getting up, 7 stance
+    case 'hurt': return cls === 'warrior' ? mv(cls, 'react', dir, q.p < 0.5 ? 0 : 1) : mv(cls, 'hurt', dir, Math.min(3, Math.floor(q.p * 4)));
+    case 'launched': return cls === 'warrior' ? mv(cls, 'react', dir, 2) : mv(cls, 'hurt', dir, q.vz > 0 ? 1 : 2);
+    case 'down': return cls === 'warrior' ? mv(cls, 'react', dir, q.p < 0.15 ? 2 : 3) : mv(cls, 'death', dir, Math.min(5, Math.floor(q.p * 6)));
+    case 'getup': return cls === 'warrior' ? mv(cls, 'react', dir, 4 + Math.min(2, Math.floor(q.p * 3))) : mv(cls, 'death', dir, Math.max(0, 5 - Math.floor(q.p * 6)));
     case 'recovery': return mv(cls, 'recovery', dir, 1 + Math.min(2, Math.floor(q.p * 3)));
     case 'death': return mv(cls, 'death', dir, Math.min(7, Math.floor(q.p * 8)));
     case 'skill': {
