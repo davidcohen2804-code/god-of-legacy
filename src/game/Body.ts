@@ -9,6 +9,7 @@ import SAMURAI from '../data/samurai-atlas.json';
 import ANCHORS from '../data/body-anchors.json';
 import BODY_CELLS from '../data/body-cells.json';
 import BLADES from '../data/blade-lines.json';
+import BEHIND from '../data/blade-behind.json';
 import { Dir } from '../world/collision';
 import { FINAL_SKILLS } from '../skills/FinalKit';
 
@@ -48,9 +49,9 @@ export function preloadBodies(scene: Phaser.Scene): void {
     if (sheet) scene.load.spritesheet(k, p, { frameWidth: CELL, frameHeight: CELL }); else scene.load.image(k, p);
   };
   for (const cls of SHEET_CLASSES) {
-    for (const st of Object.keys(MOVE_COLS).filter((x) => x !== 'react' || cls === 'warrior')) { L(sheetKey(cls, st), sheetPath(cls, st), true); L(`${sheetKey(cls, st)}-w`, sheetPath(cls, st).replace('.png', '_weapon.png'), true); }
+    for (const st of Object.keys(MOVE_COLS).filter((x) => x !== 'react' || cls === 'warrior')) { L(sheetKey(cls, st), sheetPath(cls, st), true); L(`${sheetKey(cls, st)}-w`, sheetPath(cls, st).replace('.png', '_weapon.png'), true); if (cls === 'warrior') L(`${sheetKey(cls, st)}-c`, sheetPath(cls, st).replace('.png', '_cut.png'), true); }
     for (const s of FINAL_SKILLS.filter((x) => x.cls === cls && !BODY_ALIAS[x.id])) { const cs = CELLS[s.id]; const LS = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: cs?.w ?? CELL, frameHeight: cs?.h ?? CELL }); };
-      LS(skillKey(cls, s.id), skillPath(cls, s.id)); LS(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id).replace('.png', '_weapon.png')); }
+      LS(skillKey(cls, s.id), skillPath(cls, s.id)); LS(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id).replace('.png', '_weapon.png')); if (cls === 'warrior') LS(`${skillKey(cls, s.id)}-c`, skillPath(cls, s.id).replace('.png', '_cut.png')); }
   }
   for (const [cls, a] of Object.entries(ATLAS)) { L(atlasKey(cls), a.sheet, false); L(`${atlasKey(cls)}-w`, a.sheet.replace('.png', '_weapon.png'), false); }
 }
@@ -79,6 +80,8 @@ export interface PoseFrame {
   hair?: number[] | null;
   /** Sword line [hiltX, hiltY, tipX, tipY] rel. feet, world px (warrior). */
   blade?: number[] | null;
+  /** Sword passes behind the head/body in this frame (skins drawn under the body only). */
+  bladeBehind?: boolean;
 }
 
 type AnchorTable = Record<string, (number[] | null)[][] | Record<string, (number[] | null)[]>>;
@@ -89,7 +92,7 @@ function scaleHair(a: number[] | null | undefined, k: number): number[] | null {
 function sheetFrame(key: string, path: string, dir: Dir, col: number, cols: number, ch = CELL): PoseFrame {
   const c = Math.max(0, Math.min(cols - 1, col)), row = ROW[dir];
   const table = ANCH[path] as (number[] | null)[][] | undefined;
-  return { key, frame: row * cols + c, wkey: `${key}-w`, ox: 0.5, oy: (ch - CELL * (1 - ORIGIN_Y)) / ch, scale: SHEET_SCALE, anchor: scaleAnchor(table?.[row]?.[c], SHEET_SCALE), hair: scaleHair(table?.[row]?.[c], SHEET_SCALE), blade: ((BLADES as Record<string, (number[] | null)[][]>)[path]?.[row]?.[c] ?? null)?.map((v) => v * SHEET_SCALE) ?? null };
+  return { key, frame: row * cols + c, wkey: `${key}-w`, ox: 0.5, oy: (ch - CELL * (1 - ORIGIN_Y)) / ch, scale: SHEET_SCALE, anchor: scaleAnchor(table?.[row]?.[c], SHEET_SCALE), hair: scaleHair(table?.[row]?.[c], SHEET_SCALE), blade: ((BLADES as Record<string, (number[] | null)[][]>)[path]?.[row]?.[c] ?? null)?.map((v) => v * SHEET_SCALE) ?? null, bladeBehind: !!(BEHIND as Record<string, number[][]>)[path]?.[row]?.[c] };
 }
 
 function atlasPose(cls: string, dir: Dir, act: AtlasAction, i: number): PoseFrame {

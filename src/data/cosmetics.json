@@ -359,8 +359,7 @@
     },
     "color": "#ff7a5a",
     "name": "Dragonbone Greatsword",
-    "desc": "bone blade with a red marrow core.",
-    "wip": true
+    "desc": "bone blade with a red marrow core."
    },
    {
     "id": "war_weapon_obsidian_greatsword",
@@ -376,8 +375,7 @@
     },
     "color": "#ff8a30",
     "name": "Obsidian Flame Blade",
-    "desc": "black obsidian with molten cracks.",
-    "wip": true
+    "desc": "black obsidian with molten cracks."
    },
    {
     "id": "war_weapon_ice_crystal",
@@ -393,8 +391,7 @@
     },
     "color": "#7ad8ff",
     "name": "Frostcrystal Sword",
-    "desc": "a blade of living ice.",
-    "wip": true
+    "desc": "a blade of living ice."
    },
    {
     "id": "war_weapon_sunblade",
@@ -410,8 +407,7 @@
     },
     "color": "#ffe08a",
     "name": "Holy Sunblade",
-    "desc": "paladin gold with a sapphire heart.",
-    "wip": true
+    "desc": "paladin gold with a sapphire heart."
    },
    {
     "id": "war_weapon_shadow_demon",
@@ -427,8 +423,7 @@
     },
     "color": "#b070ff",
     "name": "Demon Shadowblade",
-    "desc": "violet shadow flames.",
-    "wip": true
+    "desc": "violet shadow flames."
    },
    {
     "id": "war_weapon_storm_edge",
@@ -444,8 +439,7 @@
     },
     "color": "#ffe060",
     "name": "Thunder Edge",
-    "desc": "crackling with lightning runes.",
-    "wip": true
+    "desc": "crackling with lightning runes."
    },
    {
     "id": "war_weapon_jade_katana",
@@ -461,8 +455,7 @@
     },
     "color": "#5aff9a",
     "name": "Jade Dragon Blade",
-    "desc": "curved emerald blade with a jade tassel.",
-    "wip": true
+    "desc": "curved emerald blade with a jade tassel."
    },
    {
     "id": "war_weapon_ruby_royal",
@@ -478,8 +471,7 @@
     },
     "color": "#ff3a5a",
     "name": "Ruby Royal Sword",
-    "desc": "a king's blade of crimson crystal.",
-    "wip": true
+    "desc": "a king's blade of crimson crystal."
    },
    {
     "id": "war_aura_ember_ring",

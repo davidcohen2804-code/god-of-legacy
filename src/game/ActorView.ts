@@ -67,8 +67,9 @@ export function grayKey(scene: Phaser.Scene, key: string, boost = 1.5): string |
 function noBladeKey(scene: Phaser.Scene, key: string, wkey: string): string | null {
   const nk = `${key}-nb`;
   if (scene.textures.exists(nk)) return nk;
-  if (!scene.textures.exists(key) || !scene.textures.exists(wkey)) return null;
-  const src = scene.textures.get(key), wsrc = scene.textures.get(wkey);
+  const ck = `${key}-c`, mk = scene.textures.exists(ck) ? ck : wkey; // verified cut mask (blade + its line), else the raw blade mask
+  if (!scene.textures.exists(key) || !scene.textures.exists(mk)) return null;
+  const src = scene.textures.get(key), wsrc = scene.textures.get(mk);
   const img = src.getSourceImage() as HTMLImageElement, wimg = wsrc.getSourceImage() as HTMLImageElement;
   const ct = scene.textures.createCanvas(nk, img.width, img.height); if (!ct) return null;
   const ctx = ct.getContext(); ctx.drawImage(img, 0, 0); ctx.globalCompositeOperation = 'destination-out';
@@ -156,7 +157,7 @@ export class ActorView {
         const gx = p.x + bl[0], gy = p.y + bl[1]; // guard on the real hilt point
         for (const [im, top] of [[this.blade, false], [this.bladeTop!, true]] as const) {
           im.setOrigin(bi.guard / bi.w, (flip ? bi.h - bi.cy : bi.cy) / bi.h).setFlipY(flip).setRotation(ang).setScale(sx, sy)
-            .setPosition(gx, gy).setDepth(dir === 'up' ? depth - 0.02 : top ? depth + 0.02 : depth - 0.01).setAlpha(alpha).setVisible(!(top && dir === 'up'));
+            .setPosition(gx, gy).setDepth(top ? depth + 0.02 : depth - 0.01).setAlpha(alpha).setVisible(!(top && pose.bladeBehind));
           if (tint === null) im.clearTint(); else if (tintFill) im.setTintFill(tint); else im.setTint(tint);
         }
       } else { this.blade.setVisible(false); this.bladeTop?.setVisible(false); }
