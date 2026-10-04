@@ -105,6 +105,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private beam?: Phaser.GameObjects.Image;
   private beamGlow?: Phaser.GameObjects.Image;
   private eyes?: Phaser.GameObjects.Image;
+  private holyAura?: Phaser.GameObjects.Image;
   private boltDone = true;
   private radiantFrom = -1;
   private lastHand: { x: number; y: number } | null = null;
@@ -545,6 +546,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     v.render(ms, pose, k.x, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
     this.renderRadiant(pose, dir);
     this.renderEyes(pose, dir);
+    this.renderHolyAura();
     if (pose.anchor) { const sp = v.sprite, a = pose.anchor, f = dir === 'left' ? -1 : dir === 'right' ? 1 : 0; this.lastHand = { x: sp.x + a[0] + f * 12, y: sp.y + a[1] - 14 }; }
     this.renderDome();
     // War Cry: a golden battle-spirit aura (no fire): rim light on the body, light streaks rising from a floor sigil, ripples.
@@ -590,6 +592,17 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         this.cryAura.setPosition(k.x, k.y - k.z - 48).setDepth(d - 0.25).setDisplaySize(150, 200).setAlpha((0.3 + 0.08 * Math.sin(this.simMs / 300)) * fade);
       }
     }
+  }
+
+  /** Radiant Blade: painted holy aura (flames of light + floor circle) around the player for the whole buff. */
+  private renderHolyAura(): void {
+    const on = this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && this.dead < 0 && this.view!.visible && this.textures.exists('holy-aura');
+    if (!on) { this.holyAura?.setVisible(false); return; }
+    if (!this.holyAura) this.holyAura = this.add.image(0, 0, 'holy-aura', 0).setOrigin(0.5, 515 / 667).setBlendMode(Phaser.BlendModes.ADD);
+    const k = this.kin, left = this.radiantUntil - this.simMs, age = this.simMs - this.radiantFrom;
+    const a = Math.min(1, age / 400, left / 600);
+    this.holyAura.setVisible(true).setFrame(Math.floor(this.simMs / 90) % 8).setPosition(k.x, k.y - k.supportZ + 4)
+      .setDisplaySize(125, 333).setDepth(actorDepth(k.x, k.y, k.z) - 0.2).setAlpha(0.85 * a);
   }
 
   /** Glowing eyes while Radiant Blade or War Cry is active. */
