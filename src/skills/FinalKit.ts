@@ -108,7 +108,7 @@ const warrior: FinalSkill[] = [
   S({
     id: 'leap_crash', cls: 'warrior', slot: 8, name: 'Leap Crash', roles: ['gapClose', 'knockdown'], targeting: 'mouseTarget',
     startup: 160, active: 320, recovery: 380, cooldown: 3500, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    dash: { distance: 210, lift: 130, crash: true },
+    dash: { distance: 210, lift: 80, crash: true },
     hits: [H(140, 10, { kind: 'circle', radius: 90 }, { stun: 300, slam: true }, { reachUp: 160 }),
       H(285, 20, { kind: 'circle', radius: 125 }, { stun: 300, launch: 95, juggleCost: 25 }, { reachUp: 60, heavy: true })],
     cancelOnHit: ['whirlwind', 'warrior_basic', 'rising_slash', 'blade_storm', 'lance_thrust', 'iron_grip'], telegraph: 'circle',
