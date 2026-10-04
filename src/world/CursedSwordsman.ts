@@ -88,7 +88,8 @@ export class CursedSwordsman {
   /** HP change from a confirmed hit (reactions already applied to `body` by the scene). */
   damage(dmg: number): void {
     if (!this.alive) return;
-    this.hp = Math.max(0, this.hp - dmg);
+    this.hp = Math.max(1, this.hp - dmg); // training opponent: endless HP (never dies)
+    if (this.hp <= 1) this.hp = this.maxHp;
     this.flashLeft = C.hitFlashMs;
     this.sprite.setTintFill(0xffffff);
     this.attackHit = true; // a hit interrupts the pending strike

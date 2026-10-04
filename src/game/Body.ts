@@ -180,7 +180,7 @@ const SKILL_PLAN: Record<string, { st: number[]; ac: number[]; rc: number[] }> =
   ground_breaker: { st: [0, 1, 2, 2, 3], ac: [4, 5, 5, 5], rc: [5, 6, 7] },
   dash_slash: { st: [0, 1], ac: [2, 3, 4, 5], rc: [5, 6, 6, 6, 7] },
   shield_slam: { st: [0, 1, 2], ac: [3, 3, 4, 4, 5], rc: [6, 7] },
-  blade_storm: { st: [0, 1, 2], ac: [2], rc: [6, 7] }, // sword raised to the sky and held for the whole storm
+  blade_storm: { st: [0, 1, 2], ac: Array.from({ length: 30 }, (_, i) => 3 + (i % 3)), rc: [2, 1, 0] }, // sword to the sky, looking up, cape fluttering for the whole storm
   wave_slash: { st: [0, 1, 1, 1, 1, 1, 1, 2], ac: [3, 4, 4, 5], rc: [5, 6, 7] },
   iron_grip: { st: [0, 1], ac: [2, 3, 3, 4, 5, 5], rc: [6, 7] },
   radiant_blade: { st: [0, 1, 2, 3, 3, 4, 4, 4, 4, 5], ac: [6], rc: [6, 7, 7] }, // raise, hold for the lightning, brace, sweep down, ready

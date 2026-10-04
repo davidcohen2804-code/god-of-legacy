@@ -193,7 +193,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.dummyBar = this.add.graphics().setDepth(TOP_DEPTH);
       const dk = newKin(D.x, D.y);
       this.dummyState = { hp: D.maxHp, alive: true, flash: 0, respawn: 0, kin: dk, body: Object.assign(new CombatBody(dk, false), { maxHp: D.maxHp }) };
-      this.drawDummyBar();
+      this.dummyState.alive = false; this.dummy.setVisible(false); this.dummyBar.setVisible(false); // training: the swordsman only
       this.enemy = new CursedSwordsman(this);
     }
 
@@ -504,8 +504,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         l.left--; l.next += L.everyMs;
         if (L.at === 'caster') { const c = this.casterPos(l.run.attackerId); if (c) { l.x = c.x; l.y = c.y; } } // the quake travels with you
         if (l.run.skill.id === 'blade_storm') { // swords erupt all around the caster + lightning crackles
-          for (let n = 0; n < 4; n++) { const a = Math.random() * Math.PI * 2, rr = 50 + Math.random() * (L.radius - 50); this.fx!.risingBlade(l.x + Math.cos(a) * rr, l.y + Math.sin(a) * rr * 0.6, n * 45); }
-          if (l.left % 2 === 0) { const a = Math.random() * Math.PI * 2, rr = 40 + Math.random() * 130; this.fx!.lightningAt(l.x + Math.cos(a) * rr, l.y + Math.sin(a) * rr * 0.6, true); }
+          for (let n = 0; n < 2; n++) { const a = (l.left * 2.4 + n * Math.PI) + (Math.random() - 0.5) * 0.9, rr = 70 + Math.random() * (L.radius - 40); this.fx!.risingBlade(l.x + Math.cos(a) * rr, l.y + Math.sin(a) * rr * 0.6, n * 90); }
         }
         else if (l.run.skill.id !== 'ground_breaker') this.fx!.crack(l.x, l.y, L.radius); // the quake has one steady rotating ring instead of per-tick sparks
         if (l.run.skill.id === 'ground_breaker' && l.run.own && this.dead < 0) { // the quake mends the warrior: +2 HP per pulse
@@ -544,7 +543,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     let tint: number | null = null, fill = false, alpha = 1;
     if (this.flash >= 0) { if (this.flash < P6.hitFlashWhiteMs) { tint = 0xffffff; fill = true; } else tint = 0xff6a6a; }
     else if (this.body.hard.active(this.simMs)) tint = this.body.hard.kind === 'freeze' ? 0x9fd8ff : 0xb6ffb0;
-    else if (run && run.skill.armor && run.elapsed >= run.skill.armor[0] && run.elapsed < run.skill.armor[1] + 220) {
+    else if (run && run.skill.armor && run.skill.id !== 'blade_storm' && run.elapsed >= run.skill.armor[0] && run.elapsed < run.skill.armor[1] + 220) { // the storm itself lights him: no tint
       // armor glow fades in/out smoothly (a hard on/off read as a flicker at the end of the move)
       const a0 = run.skill.armor[0], a1 = run.skill.armor[1], e = run.elapsed;
       const w = Math.max(0, Math.min(1, (e - a0) / 120, e < a1 ? 1 : 1 - (e - a1) / 220));
@@ -1177,7 +1176,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     ds.hp = Math.max(0, ds.hp - dmg);
     ds.flash = D.hitFlashMs;
     this.dummy!.setTintFill(0xffffff);
-    if (ds.hp === 0) { ds.alive = false; this.dummy!.setVisible(false); ds.respawn = D.respawnDelayMs; }
+    if (ds.hp === 0) { ds.alive = false; this.dummy!.setVisible(false); ds.respawn = 0; }
     this.drawDummyBar();
   }
 
@@ -1197,7 +1196,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.dummy.setPosition(D.x, D.y - k.z).setRotation(tilt).setDepth(actorDepth(D.x, D.y, k.z));
       if (k.z > 0 || ds.body.state !== 'free') this.drawDummyBar();
     }
-    if (!ds.alive) {
+    if (!ds.alive && ds.respawn > 0) { // the training dummy is removed (never respawns)
       ds.respawn -= ms;
       if (ds.respawn <= 0 && !(Math.hypot(this.kin.x - D.x, this.kin.y - D.y) < D.collisionRadius + D.playerFootRadius)) {
         ds.hp = D.maxHp; ds.alive = true; ds.body.reset(); ds.kin.z = 0; ds.kin.vz = 0; ds.kin.grounded = true;

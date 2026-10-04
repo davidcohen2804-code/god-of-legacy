@@ -69,6 +69,8 @@ export function preloadSkillFx(scene: Phaser.Scene): void {
   I('magic-circle', `${F}/impact/magic_circle.png`);
   if (!scene.textures.exists('storm-ring')) scene.load.spritesheet('storm-ring', `${F}/skills/warrior/judgment_blade/ring.png`, { frameWidth: 256, frameHeight: 256 });
   if (!scene.textures.exists('sanctuary-wall')) scene.load.spritesheet('sanctuary-wall', `${F}/skills/warrior/sanctuary/wall.png`, { frameWidth: 256, frameHeight: 512 });
+  if (!scene.textures.exists('bs-storm')) scene.load.spritesheet('bs-storm', `${F}/skills/warrior/blade_storm/storm.png`, { frameWidth: 280, frameHeight: 440 });
+  if (!scene.textures.exists('bs-erupt')) scene.load.spritesheet('bs-erupt', `${F}/skills/warrior/blade_storm/erupt_a.png`, { frameWidth: 250, frameHeight: 667 });
   if (!scene.textures.exists('titan-dragon')) scene.load.spritesheet('titan-dragon', `${F}/skills/warrior/titans_verdict/dragon.png`, { frameWidth: 280, frameHeight: 440 });
   if (!scene.textures.exists('titan-cutin')) scene.load.image('titan-cutin', `${F}/skills/warrior/titans_verdict/cutin.png`);
   if (!scene.textures.exists('holy-aura')) scene.load.spritesheet('holy-aura', `${F}/skills/warrior/radiant_blade/aura.png`, { frameWidth: 250, frameHeight: 667 });
@@ -139,8 +141,9 @@ export class SkillFx {
     else if (s.id === 'war_cry') this.roar(r);
     else if (s.id === 'radiant_blade') { /* lightning fired by the scene at the real sword tip */ }
     else if (s.id === 'sanctuary') this.traceArc(r);
+    else if (s.id === 'blade_storm' && this.scene.textures.exists('bs-storm')) this.lightningStorm(r);
     else if (s.id === 'titans_verdict' && this.scene.textures.exists('titan-dragon')) this.dragon(r);
-    else if (s.id !== 'leap_crash' && !(s.id === 'titans_verdict' && this.scene.textures.exists('titan-dragon'))) this.castVfx(r);
+    else if (s.id !== 'leap_crash' && s.id !== 'blade_storm' && !(s.id === 'titans_verdict' && this.scene.textures.exists('titan-dragon'))) this.castVfx(r);
     else this.aura(r);
     if (s.slot === 7) this.ultimateStage(r);
   }
@@ -255,6 +258,18 @@ export class SkillFx {
       for (let i = 0; i < 3; i++) this.scene.time.delayedCall(i * 110, () => this.shockwave(c.x, c.y, 200 + i * 70, i === 1 ? 0xffffff : 0xffd36a));
       (this.cam ?? this.scene.cameras.main).shake(260, 0.008);
     });
+  }
+
+  /** Blade Storm: the painted lightning storm crashes down onto the raised sword and rages for the whole hold. */
+  private lightningStorm(r: CastRun): void {
+    const T = r.timings, c = this.casterPos(r.attackerId) ?? r.origin;
+    const img = this.scene.add.image(c.x, c.y + 6, 'bs-storm', 12).setOrigin(0.5, 342 / 440).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(360, 570).setDepth(c.y - 1).setAlpha(0.72);
+    const fr = [12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 11], up = T.startup;
+    const fms = [up * 0.55, up * 0.15, up * 0.15, up * 0.15, 90, 90, 90, 70, 70, 70, 70, 70, 70, 260];
+    img.setData('a0', 0.72);
+    this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: fr, frameMs: fms, fadeLast: 260, loop: [6, 11], until: T.startup + T.active,
+      follow: () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x, y: p.y + 6, z: 0 } : null; } });
+    this.scene.time.delayedCall(Math.round(up * 0.85), () => (this.cam ?? this.scene.cameras.main).shake(220, 0.007));
   }
 
   /** Titan's Verdict: a colossal lightning dragon dives from the sky onto the target zone (after the cut-in and screen split). */
@@ -386,16 +401,16 @@ export class SkillFx {
     this.spark(IMPACT.warrior.key, x, y - 30, IMPACT.warrior.frames, 90, 0.9);
   }
 
-  /** Blade field: a sword of light bursts up out of the ground, hangs a moment, then fades. */
+  /** Blade field: a painted sword of light erupts from the ground, stands, then shatters into shards. */
   risingBlade(x: number, y: number, delay = 0): void {
-    ensureLightBeam(this.scene);
     this.scene.time.delayedCall(delay, () => {
-      const len = 90 + Math.random() * 40, tilt = -90 + (Math.random() - 0.5) * 24;
-      const glow = this.scene.add.image(x, y, 'light-beam').setOrigin(0, 0.5).setAngle(tilt).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc860).setDisplaySize(4, 30).setDepth(y + 1).setAlpha(0.8);
-      const core = this.scene.add.image(x, y, 'light-beam').setOrigin(0, 0.5).setAngle(tilt).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(4, 11).setDepth(y + 1.01);
-      this.scene.tweens.add({ targets: [glow, core], displayWidth: len, duration: 90, ease: 'Back.easeOut' });
-      this.spark(IMPACT.warrior.key, x, y - 8, IMPACT.warrior.frames, 70, 0.8);
-      this.scene.tweens.add({ targets: [glow, core], alpha: 0, delay: 380, duration: 260, onComplete: () => { glow.destroy(); core.destroy(); } });
+      if (!this.scene.textures.exists('bs-erupt')) return;
+      const s = 0.8 + Math.random() * 0.4;
+      const img = this.scene.add.image(x, y, 'bs-erupt', 0).setOrigin(0.5, 560 / 667).setDisplaySize(125 * s, 335 * s).setDepth(y + 1); // solid painted sword (readable on any floor)
+      const glow = this.scene.add.image(x, y, 'bs-erupt', 0).setOrigin(0.5, 560 / 667).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(125 * s, 335 * s).setDepth(y + 1.01).setAlpha(0.45);
+      glow.setData('a0', 0.45);
+      const fms = [50, 50, 60, 90, 110, 110, 120, 140];
+      this.anims.push({ img, glow, t: 0, total: fms.reduce((p, q) => p + q, 0), frames: [0, 1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 140 });
     });
   }
 
