@@ -378,7 +378,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const scale = s.move[phase];
     if (s.dash && run.phase === 'active') { this.dashMotion(run); if (s.carry) this.carryTarget(run); return; }
     if (s.id === 'judgment_blade') { // leap high, hang at the apex while the light-blade charges, throw, then drop
-      const e = run.elapsed, rise = Math.min(1, e / (T.startup * 0.45)), apex = 105;
+      const e = run.elapsed, rise = Math.min(1, e / (T.startup * 0.45)), apex = run.origin.z > 5 ? 45 : 105; // from a jump: a shorter extra rise
       if (run.phase === 'startup' || e < T.startup + 120) { k.grounded = false; k.z = run.origin.z + apex * (1 - (1 - rise) * (1 - rise)); k.vz = 0; k.vx = 0; k.vy = 0; return; }
     }
     for (const key of ['lunge', 'momentum'] as const) { // glide toward the target / along the push
