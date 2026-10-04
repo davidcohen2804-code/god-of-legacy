@@ -38,7 +38,7 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'dash_slash', cls: 'warrior', slot: 1, name: 'Dash Slash', roles: ['gapClose', 'opener'], targeting: 'mouseDir',
-    startup: 110, active: 150, recovery: 170, cooldown: 2500, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    startup: 110, active: 150, recovery: 230, cooldown: 2500, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 210 }, through: true,
     hits: [0, 50, 100].map((t, i) => H(t, i === 2 ? 10 : 7, { kind: 'capsule', radius: 32 }, { stun: 240, push: i === 2 ? 10 : 2, float: true, juggleCost: 4 }, { reachUp: 90 })),
     cancelOnHit: CORE(['rising_slash', 'whirlwind', 'shield_slam', 'warrior_basic', 'blade_storm', 'titans_verdict']),

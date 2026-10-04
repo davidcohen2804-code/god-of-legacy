@@ -26,6 +26,7 @@ export interface CastRun extends CastRequest {
   fired: Set<number>;
   /** Dash-through: already turned to face the crossed target. */
   turned?: boolean;
+  slid?: boolean;
   hitKeys: Set<string>;
   /** First confirmed hit (authority or predicted) — opens the hit-confirm cancel window. */
   confirmedAt: number;

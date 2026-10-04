@@ -377,6 +377,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const phase = run.phase === 'startup' ? 'startup' : run.phase === 'active' ? 'active' : 'recovery';
     const scale = s.move[phase];
     if (s.dash && run.phase === 'active') { this.dashMotion(run); if (s.carry) this.carryTarget(run); return; }
+    if (s.id === 'dash_slash' && run.phase === 'recovery' && !run.slid) { run.slid = true; this.momentum = { x: run.aim.x * 46, y: run.aim.y * 46, left: Math.max(120, T.recovery * 0.7) }; } // skid to a stop instead of freezing
     if (s.id === 'judgment_blade') { // leap high, hang at the apex while the light-blade charges, throw, then drop
       const e = run.elapsed, rise = Math.min(1, e / (T.startup * 0.45)), apex = run.origin.z > 5 ? 45 : 105; // from a jump: a shorter extra rise
       if (run.phase === 'startup' || e < T.startup + 120) { k.grounded = false; k.z = run.origin.z + apex * (1 - (1 - rise) * (1 - rise)); k.vz = 0; k.vx = 0; k.vy = 0; return; }
@@ -387,7 +388,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (footAllowed(nx, ny, k.z, R) && !this.blockedByActors(nx, ny, k.z)) { k.x = nx; k.y = ny; }
       m.x -= m.x * f; m.y -= m.y * f; m.left -= ms; if (m.left <= 0) this[key] = null;
     }
-    if (s.through && run.phase === 'recovery' && !run.turned) { // crossed the target: turn to face it (sets up Back Attack)
+    if (s.through && run.phase === 'recovery' && !run.turned && run.elapsed >= T.startup + T.active + 0.75 * T.recovery) { // crossed the target: after the skid, turn to face it
       run.turned = true;
       const t = this.targetsFor(run).filter((x) => x.alive && x.id !== this.localId).sort((a, b) => Math.hypot(a.x - k.x, a.y - k.y) - Math.hypot(b.x - k.x, b.y - k.y))[0];
       if (t && Math.hypot(t.x - k.x, t.y - k.y) < 200 && (t.x - k.x) * run.aim.x + (t.y - k.y) * run.aim.y < 0) { this.aim = unit(t.x - k.x, t.y - k.y); this.dir = dirOf(this.aim.x, this.aim.y, this.dir); }
