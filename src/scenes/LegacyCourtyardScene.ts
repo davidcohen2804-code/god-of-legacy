@@ -651,8 +651,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private inDome(): boolean {
     const d = this.dome; if (!d || this.simMs >= d.until) return false;
     // behind the wall across its whole depth: up to 280px back, ±180 along the floor depth (the wall's full span)
-    const k = this.kin, back = d.side * (d.wx - k.x);
-    return back > -30 && back < 280 && Math.abs(k.y - d.y) < 180;
+    // follows the wall's curve: the shell bows out ~150px at its middle, so the protected side ends exactly at the glass
+    const k = this.kin, dy = (k.y - d.y) / 185, bulge = 150 * Math.max(0, 1 - dy * dy);
+    const past = d.side * (k.x - d.wx) - bulge; // > 0 once the feet cross the wall surface
+    return past < -6 && d.side * (d.wx - k.x) < 280 && Math.abs(k.y - d.y) < 180;
   }
 
   private domeBlock(from: { x: number; y: number }): void {
