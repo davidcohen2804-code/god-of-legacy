@@ -90,21 +90,22 @@ for f in meta['frames']:
   outline = nd.binary_dilation(sword, iterations=7) & (sat1 < 0.35) & (mx1 <= 140)   # GPT's dark blade outline right next to the real blade
   gsword = band & (gold | blade | outline) & ~gskin & (a2 > 0.5)
   # keep the white shirt: blade-like pixels that touch the shirt blob (outside the band core) stay
-  core = nd.binary_dilation(sword, iterations=4)
+  core = nd.binary_dilation(sword, iterations=10)
   lab_, n_ = nd.label(gsword); keep = np.zeros_like(gsword)
   for i_ in range(1, n_ + 1):
     comp = lab_ == i_
     if (comp & core).any(): keep |= comp
   gsword = keep
-  red = (R1 > 140) & (G1 < 0.5 * R1) & (B1 < 0.5 * R1)   # cape fragments GPT left behind: the base has no red
-  useGptHead = iou < 0.35   # acrobatic frame where the hair could not be matched: keep GPT's whole figure
-  if useGptHead: ghead[:] = False; head = np.zeros_like(head)
-  body = (a2 > 0.5) & ~ghead & ~gsword & ~head & ~sword & ~red
-  lb, nb = nd.label(body)   # drop stray bits (redrawn guard/pommel fragments) that are not the body
-  if nb > 1:
-    sz = nd.sum(body, lb, range(1, nb + 1)); body &= np.isin(lb, 1 + np.nonzero((sz >= 260) | (sz == sz.max()))[0])
-  rgb = e2.copy(); alpha = np.where(body, a2, 0)
-  rgb[head | sword] = o[..., :3][head | sword]; alpha[head | sword] = o[..., 3][head | sword] / 255
+  red = (R1 > 150) & (G1 < 0.33 * R1) & (B1 < 0.4 * R1) & ~nd.binary_dilation(gh2, iterations=3)   # cape fragments GPT left behind: the base has no red
+  # the whole figure is GPT's (head, arms and sword drawn together: no seams, no doubled blades)
+  useGptHead = True
+  fig = (a2 > 0.5) & ~red
+  lf, nf = nd.label(fig)
+  if nf > 1:
+    sz = nd.sum(fig, lf, range(1, nf + 1)); fig &= np.isin(lf, 1 + np.nonzero((sz >= 260) | (sz == sz.max()))[0])
+  sword = gsword & fig; hair = gh2 & fig
+  body = fig & ~sword & ~hair
+  rgb = e2.copy(); alpha = np.where(fig, a2, 0)
   out = np.dstack([rgb.clip(0, 255), alpha * 255]).astype(np.uint8)
   # regions on GPT's body: shirt (white), shorts (blue), shoes (brown, low), skin
   R, Gc, B = e2[..., 0], e2[..., 1], e2[..., 2]; mx = np.maximum(np.maximum(R, Gc), B); mn = np.minimum(np.minimum(R, Gc), B); sat = (mx - mn) / np.maximum(mx, 1)
