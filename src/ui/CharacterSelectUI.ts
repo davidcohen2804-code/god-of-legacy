@@ -14,6 +14,44 @@ export interface CharacterSelectHandlers {
 }
 
 const DASH = '—';
+const KIT = (f: string) => `assets/final/ui/kit/${f}.png`;
+/** Kit layout (design px). Card zones measured on kit/char_slot.png (310x474: art 39..295 x 72..369, plaque y 378..420). */
+const K = {
+  plaque: { x: 580, y: 6, w: 760, h: 161 },
+  card: { x: 92, y: 150, w: 230, h: 352, gx: 30, gy: 36, art: { x: 29, y: 53, w: 190, h: 221 }, plq: { y: 281, h: 31 } },
+  info: { x: 1388, y: 196, w: 430, h: 280 },
+  enter: { x: 1408, y: 500, w: 390, h: 150 },
+  create: { x: 1428, y: 662, w: 350, h: 128 },
+  back: { x: 92, y: 930, w: 280, h: 110 },
+  del: { x: 404, y: 942, w: 82, h: 86 },
+} as const;
+const SEL_CSS = `
+.gol-sel .plq{background:url("${KIT('logo_plaque')}") 0 0/100% 100% no-repeat;pointer-events:none}
+.gol-sel .title{left:${K.plaque.x}px!important;width:${K.plaque.w}px!important;top:${K.plaque.y + 60}px!important;font-size:30px!important;letter-spacing:4px!important;line-height:36px}
+.gol-sel .slot{background:url("${KIT('char_slot')}") 0 0/100% 100% no-repeat!important;filter:drop-shadow(0 6px 12px rgba(0,0,0,.55))}
+.gol-sel .slot.empty{background-image:url("${KIT('char_slot_empty')}")!important}
+.gol-sel .slot.sel{background-image:url("${KIT('char_slot_sel')}")!important;transform:translateY(-4px);filter:brightness(1.05) drop-shadow(0 0 14px rgba(255,190,90,.55))}
+.gol-sel .slot:hover{filter:brightness(1.12) drop-shadow(0 6px 12px rgba(0,0,0,.55))}
+.gol-sel .slot .portrait{left:${K.card.art.x}px!important;top:${K.card.art.y}px!important;width:${K.card.art.w}px!important;height:${K.card.art.h}px!important;border-radius:4px!important}
+.gol-sel .slot .name{left:14px!important;right:14px;top:${K.card.plq.y}px!important;height:${K.card.plq.h}px;line-height:${K.card.plq.h}px;text-align:center;font-size:16px!important;
+  color:#2a1806;text-shadow:0 1px 0 rgba(255,236,180,.6)!important;overflow:hidden;text-overflow:ellipsis}
+.gol-sel .slot .sub{left:10px!important;right:10px;width:auto!important;top:${K.card.h + 2}px!important;text-align:center;font-size:13px!important;opacity:.9!important;color:#e8dcc2;text-shadow:0 1px 2px #000}
+.gol-sel .slot.empty .sub{display:none}
+.gol-sel .panel.info{background:url("${KIT('modal_window')}") 0 0/100% 100% no-repeat;border:0;box-shadow:none;border-radius:0;filter:drop-shadow(0 6px 14px rgba(0,0,0,.5))}
+.gol-sel .info h2{top:43px!important;font-size:18px!important;letter-spacing:3px!important;line-height:20px}
+.gol-sel .info .f{left:58px!important;right:52px!important;font-size:17px!important}
+.gol-sel .kbtn{pointer-events:auto;cursor:pointer;padding:0 40px;text-align:center;border:0;background:url("${KIT('menu_btn')}") 0 0/100% 100% no-repeat;font-family:inherit;font-weight:700;
+  letter-spacing:2px;color:#f3e2bf;text-shadow:0 2px 3px #000,0 0 8px rgba(0,0,0,.6);transition:transform 120ms,filter 120ms;white-space:nowrap}
+.gol-sel .kbtn:hover:not(:disabled){background-image:url("${KIT('menu_btn_hover')}");transform:scale(1.03);color:#fff1c8}
+.gol-sel .kbtn:active:not(:disabled){background-image:url("${KIT('menu_btn_pressed')}");transform:translateY(2px) scale(.985)}
+.gol-sel .kbtn.primary{background-image:url("${KIT('menu_btn_hover')}");color:#ffe7a8}
+.gol-sel .kbtn:disabled{cursor:default;filter:grayscale(.6) brightness(.6)}
+.gol-sel .ktrash{pointer-events:auto;cursor:pointer;border:0;padding:0;background:url("${KIT('btn_trash')}") center/contain no-repeat;transition:transform 120ms}
+.gol-sel .ktrash:hover:not(:disabled){background-image:url("${KIT('btn_trash_hover')}");transform:scale(1.06)}
+.gol-sel .ktrash:disabled{cursor:default;filter:grayscale(.8) brightness(.55)}
+.gol-sel .modal.kit{background:url("${KIT('dialog_window')}") 0 0/100% 100% no-repeat;border:0;box-shadow:none}
+`;
+const SEL_STYLE_ID = 'gol-charselect-kit';
 const STYLE_ID = 'gol-charselect-style';
 
 const CSS = `
@@ -104,9 +142,11 @@ export class CharacterSelectUI {
 
   constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, private h: CharacterSelectHandlers) {
     ensureCharacterUIStyles();
-    this.root = this.el('div', 'gol-cs');
+    if (!document.getElementById(SEL_STYLE_ID)) { const st = document.createElement('style'); st.id = SEL_STYLE_ID; st.textContent = SEL_CSS; document.head.appendChild(st); }
+    this.root = this.el('div', 'gol-cs gol-sel');
     host.appendChild(this.root);
 
+    const pq = this.el('div', 'abs plq', this.root); this.box(pq, K.plaque.x, K.plaque.y, K.plaque.w, K.plaque.h);
     const t = this.el('div', 'abs title', this.root);
     t.textContent = L.title.text;
     Object.assign(t.style, { top: `${L.title.top}px`, fontSize: `${L.title.size}px` });
@@ -115,8 +155,8 @@ export class CharacterSelectUI {
     const S = L.slots;
     CharacterStore.getSlots().forEach((slot, i) => {
       const d = this.el('div', 'abs slot', this.root);
-      this.box(d, S.x, S.firstY + i * S.step, S.w, S.h);
-      d.style.backgroundImage = `url("${ASSET_MANIFEST['characterSelect.slotFrame']}")`;
+      const C = K.card;
+      this.box(d, C.x + (i % 2) * (C.w + C.gx), C.y + Math.floor(i / 2) * (C.h + C.gy), C.w, C.h);
       this.el('div', 'name', d); this.el('div', 'sub', d); this.el('div', 'portrait', d);
       d.addEventListener('click', () => this.select(slot.slotId));
       d.addEventListener('mouseenter', () => this.h.onHover?.(CharacterStore.getSlot(slot.slotId).character?.classId ?? null));
@@ -125,23 +165,25 @@ export class CharacterSelectUI {
     });
 
     // Info panel.
-    const I = L.info;
     const info = this.el('div', 'abs panel info', this.root);
-    this.box(info, I.x, I.y, I.w, I.h);
-    const h2 = this.el('h2', '', info); h2.textContent = 'CHARACTER INFO'; h2.style.top = `${I.headerTop}px`;
+    this.box(info, K.info.x, K.info.y, K.info.w, K.info.h);
+    const h2 = this.el('h2', '', info); h2.textContent = 'CHARACTER INFO';
     const mk = (i: number, label: string) => {
-      const f = this.el('div', 'f', info); f.style.top = `${I.fieldsTop + i * I.fieldStep}px`;
+      const f = this.el('div', 'f', info); f.style.top = `${92 + i * 40}px`;
       const b = this.el('b', '', f); b.textContent = `${label}: `;
       return this.el('span', '', f) as HTMLSpanElement;
     };
     this.fields = { name: mk(0, 'Name'), cls: mk(1, 'Class'), level: mk(2, 'Level'), last: mk(3, 'Last played') };
 
     // Buttons.
-    const B = L.buttons;
-    this.button('BACK', B.back, () => this.h.onBack());
-    this.btnDelete = this.button('DELETE', B.delete, () => this.openDeleteConfirm());
-    this.btnEnter = this.button('ENTER WORLD', B.enter, () => this.enterWorld(), true);
-    this.btnCreate = this.button('CREATE CHARACTER', B.create, () => this.h.onCreate());
+    this.button('BACK', { ...K.back, size: 22 }, () => this.h.onBack());
+    this.btnDelete = this.el('button', 'abs ktrash', this.root) as HTMLButtonElement;
+    this.box(this.btnDelete, K.del.x, K.del.y, K.del.w, K.del.h); this.btnDelete.title = 'Delete character';
+    this.btnDelete.setAttribute('aria-label', 'Delete character');
+    this.btnDelete.addEventListener('mousedown', (e) => e.preventDefault());
+    this.btnDelete.addEventListener('click', () => this.openDeleteConfirm());
+    this.btnEnter = this.button('ENTER WORLD', { ...K.enter, size: 26 }, () => this.enterWorld(), true);
+    this.btnCreate = this.button('CREATE CHARACTER', { ...K.create, size: 18 }, () => this.h.onCreate());
 
     window.addEventListener('keydown', this.onKey);
     this.render();
@@ -179,8 +221,10 @@ export class CharacterSelectUI {
     const idx = cur ? ids.indexOf(cur) : -1;
     switch (e.key) {
       case 'Escape': e.preventDefault(); this.h.onBack(); break;
-      case 'ArrowDown': e.preventDefault(); this.select(ids[Math.min(ids.length - 1, idx + 1)]); break;
-      case 'ArrowUp': e.preventDefault(); this.select(ids[Math.max(0, idx - 1)]); break;
+      case 'ArrowDown': e.preventDefault(); this.select(ids[Math.min(ids.length - 1, idx + 2)]); break;
+      case 'ArrowUp': e.preventDefault(); this.select(ids[Math.max(0, idx - 2)]); break;
+      case 'ArrowRight': e.preventDefault(); this.select(ids[Math.min(ids.length - 1, idx + 1)]); break;
+      case 'ArrowLeft': e.preventDefault(); this.select(ids[Math.max(0, idx - 1)]); break;
       case 'Enter': e.preventDefault(); this.enterWorld(); break;
     }
   }
@@ -191,13 +235,13 @@ export class CharacterSelectUI {
     if (!id || !ch || this.modal) return;
     const M = L.modal;
     const m = this.el('div', 'abs overlay', this.root);
-    const p = this.el('div', 'abs panel modal', m);
+    const p = this.el('div', 'abs panel modal kit', m);
     this.box(p, (DESIGN.width - M.w) / 2, (DESIGN.height - M.h) / 2, M.w, M.h);
     const q = this.el('div', 'q', p); q.textContent = `Delete ${ch.name}?`;
-    const bw = 200, bh = 56, by = M.h - 70 - bh / 2;
+    const bw = 220, bh = 92, by = M.h - 54 - bh / 2;
     const mkBtn = (label: string, cx: number, fn: () => void, primary = false) => {
-      const b = this.el('button', `btn abs${primary ? ' primary' : ''}`, p) as HTMLButtonElement;
-      this.el('span', '', b).textContent = label; b.style.fontSize = '26px';
+      const b = this.el('button', `kbtn abs${primary ? ' primary' : ''}`, p) as HTMLButtonElement;
+      b.textContent = label; b.style.fontSize = '20px';
       this.box(b, cx - bw / 2, by, bw, bh);
       b.addEventListener('mousedown', (e) => e.preventDefault());
       b.addEventListener('click', fn);
@@ -221,7 +265,9 @@ export class CharacterSelectUI {
       const c = slot.character;
       (d.children[0] as HTMLElement).textContent = c ? c.name : `CHARACTER SLOT ${slot.slotId}`;
       (d.children[1] as HTMLElement).textContent = c ? `${className(c.classId)} · Level ${c.level}` : 'EMPTY';
+      if (!c) (d.children[0] as HTMLElement).textContent = 'EMPTY SLOT';
       d.classList.toggle('sel', slot.slotId === sel);
+      d.classList.toggle('empty', !c);
       // Face/upper-body crop of the same full-body preview (display-only; empty slots stay blank).
       const pv = c ? previewFor(c) : undefined;
       const po = d.children[2] as HTMLElement;
@@ -229,7 +275,7 @@ export class CharacterSelectUI {
         // Dedicated portrait file (face/shoulders), scaled to the frame.
         Object.assign(po.style, { backgroundImage: `url("${pv.portrait}")`, backgroundSize: 'cover', backgroundPosition: 'center top' });
       } else if (pv) {
-        const k = L.slots.portrait.size / pv.crop.w;
+        const k = K.card.art.w / pv.crop.w;
         Object.assign(po.style, {
           backgroundImage: `url("${pv.file}")`,
           backgroundSize: `${pv.width * k}px ${pv.height * k}px`,
@@ -250,8 +296,8 @@ export class CharacterSelectUI {
   }
 
   private button(label: string, b: { x: number; y: number; w: number; h: number; size: number }, fn: () => void, primary = false) {
-    const el = this.el('button', `btn abs${primary ? ' primary' : ''}`, this.root) as HTMLButtonElement;
-    this.el('span', '', el).textContent = label;
+    const el = this.el('button', `kbtn abs${primary ? ' primary' : ''}`, this.root) as HTMLButtonElement;
+    el.textContent = label;
     el.style.fontSize = `${b.size}px`;
     this.box(el, b.x, b.y, b.w, b.h);
     el.addEventListener('mousedown', (e) => e.preventDefault()); // keep focus off buttons (keyboard handled globally)
