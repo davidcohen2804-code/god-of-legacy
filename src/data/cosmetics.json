@@ -561,7 +561,7 @@
     ],
     "name": "Violet Witch Hat",
     "desc": "hat.",
-    "wip": true
+    "layers": "assets/final/cosmetics/warrior/war_hat_witch/layers"
    },
    {
     "id": "war_hat_winter",
