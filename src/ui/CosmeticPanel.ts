@@ -23,17 +23,19 @@ interface Item { id: string; type: string; icon: string; name: string; desc: str
 const INV = 'assets/final/ui/inventory', SHOP = 'assets/final/ui/cash_shop';
 const KIT = 'assets/final/ui/kit';
 const INV_BG = { x: 160, y: 140, w: 1600, h: 800 };
-const SHOP_BG = { x: 210, y: 90, w: 1500, h: 900 };
+const SHOP_BG = { x: 160, y: 140, w: 1600, h: 800 };
 const INV_PREVIEW: Rect = { x: 48, y: 104, w: 430, h: 556 };
 type InvTab = 'gear' | 'items' | 'materials' | 'key' | 'cosmetics';
 const MAIN_TABS: [InvTab, string, string][] = [['gear', 'GEAR', 'icon_gear'], ['items', 'ITEMS', 'icon_items'], ['materials', 'MATERIALS', 'icon_materials'], ['key', 'KEY ITEMS', 'icon_key'], ['cosmetics', 'COSMETICS', 'icon_cosmetics']];
 // sockets painted into kit/doll_panel.png (374x578): [label, centre x, centre y]
 const DOLL: [string, number, number][] = [['Head', 187, 114], ['Weapon', 81, 168], ['Necklace', 293, 168], ['Armor', 73, 272], ['Earring', 299, 272], ['Gloves', 79, 372], ['Shield', 296, 372], ['Ring', 85, 464], ['Belt', 190, 462], ['Ring', 282, 464]];
-const SHOP_PREVIEW: Rect = { x: 40, y: 104, w: 470, h: 540 };
+const SHOP_PREVIEW: Rect = { x: 48, y: 104, w: 430, h: 556 };
 const SLOT_LABEL: Record<CosSlot, string> = { head: 'Head', face: 'Face', back: 'Cape / Back', weapon: 'Weapon', aura: 'Aura', damage: 'Damage Skin', pet: 'Companion', hair: 'Hair Colour', armor: 'Armor Finish', hairstyle: 'Hairstyle', top: 'Chest Plate', gloves: 'Gauntlets', shoes: 'Boots', pants: 'Trousers', hat: 'Hat', faceacc: 'Face', earring: 'Earring', nametag: 'Name Tag', trail: 'Footstep Trail' };
 const TYPE_LABEL: Record<string, string> = {
   head: 'Head', mask: 'Face', cape: 'Cape', back: 'Back', weapon: 'Weapon skin', weapon_animated: 'Animated weapon skin', bow: 'Bow skin',
-  book: 'Book skin', aura: 'Aura', set: 'Full set',
+  book: 'Book skin', aura: 'Aura', set: 'Full set', hat: 'Hat', faceacc: 'Face accessory', earring: 'Earring', hair: 'Hair colour',
+  hairstyle: 'Hairstyle', armor: 'Armor finish', top: 'Chest plate', gloves: 'Gauntlets', shoes: 'Boots', pants: 'Trousers',
+  nametag: 'Name tag', trail: 'Footstep trail', damage: 'Damage skin', pet: 'Companion',
 };
 const INV_TABS: [InvCat, string][] = [['equipped', 'Equipped'], ['owned', 'Owned'], ['sets', 'Sets'], ['weapon', 'Weapon Skins'], ['headface', 'Head / Face'], ['back', 'Cape / Back'], ['aura', 'Aura / Effects']];
 const SHOP_TABS: [ShopCat, string][] = [['all', 'All'], ['sets', 'Sets'], ['weapon', 'Weapons'], ['headface', 'Head / Face'], ['back', 'Cape / Back'], ['aura', 'Aura / Effects']];
@@ -65,12 +67,12 @@ const CSS = `
 .gol-cp .tab.on{color:#ffe2a0;filter:brightness(1.35) drop-shadow(0 0 8px rgba(240,190,90,.55))}
 .gol-cp .grid{position:absolute;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#6a5630 transparent}
 .gol-cp .cell{position:absolute;width:120px;height:146px;cursor:pointer;text-align:center}
-.gol-cp .cell .sl{position:absolute;left:12px;top:0;width:96px;height:96px;background:url("${INV}/slot.png") 0 0/100% 100%;transition:transform 120ms,filter 120ms}
-.gol-cp .cell.eq .sl{background-image:url("${INV}/slot_equipped.png");filter:drop-shadow(0 0 8px rgba(90,220,130,.6))}
+.gol-cp .cell .sl{position:absolute;left:12px;top:0;width:96px;height:96px;background:url("${KIT}/slot_filled.png") 0 0/100% 100%;transition:transform 120ms,filter 120ms}
+.gol-cp .cell.eq .sl{background-image:url("${KIT}/slot_selected.png");filter:drop-shadow(0 0 8px rgba(90,220,130,.6))}
 .gol-cp .cell:hover .sl{transform:scale(1.04);filter:brightness(1.2)}
 .gol-cp .cell img{position:absolute;left:12px;top:12px;width:72px;height:72px;object-fit:contain;pointer-events:none}
 .gol-cp .cell .nm{position:absolute;left:0;right:0;top:100px;font-size:13px;line-height:15px;color:#e8dcc2;text-shadow:0 1px 2px #000}
-.gol-cp .cell .eqt{position:absolute;left:14px;top:3px;font-size:10px;letter-spacing:1px;color:#8ff0a8;font-weight:700}
+.gol-cp .cell .eqt{position:absolute;left:50%;top:76px;transform:translateX(-50%);padding:1px 6px;border-radius:4px;background:#0b121bd9;border:1px solid #3f7a52;font-size:9px;letter-spacing:1px;color:#8ff0a8;font-weight:700;white-space:nowrap}
 .gol-cp .row{position:absolute;left:0;width:100%;height:84px;background:url("${INV}/set_bundle_frame.png") 0 0/100% 100%;display:flex;align-items:center;gap:12px;padding:0 70px 0 72px}
 .gol-cp .row .rn{width:190px;font-size:16px;font-weight:700;color:#f3e2bf;line-height:19px}
 .gol-cp .row .rn small{display:block;font-size:12px;font-weight:400;color:#9fb0c0;font-family:Georgia,serif}
@@ -130,10 +132,10 @@ const CSS = `
 .gol-cp .kitbar::-webkit-scrollbar-thumb{background:url("${KIT}/scroll_handle.png") center/contain no-repeat;min-height:30px}
 .gol-cp .tip{position:absolute;width:224px;height:406px;background:url("${KIT}/tip_common.png") 0 0/100% 100% no-repeat;pointer-events:none;display:none;z-index:5;color:#dfe6ee;font-family:Georgia,serif}
 .gol-cp .tip.on{display:block}
-.gol-cp .tip .tn{position:absolute;left:66px;right:18px;top:24px;font:700 15px ${FONT_FAMILY};line-height:18px;color:#f3e2bf;text-shadow:0 1px 2px #000}
-.gol-cp .tip .tt{position:absolute;left:66px;right:18px;top:64px;font-size:11px;letter-spacing:1.5px;color:#e8b25a;font-family:${FONT_FAMILY};text-transform:uppercase}
-.gol-cp .tip img{position:absolute;left:62px;top:112px;width:100px;height:100px;object-fit:contain;filter:drop-shadow(0 4px 6px #000)}
-.gol-cp .tip .td{position:absolute;left:24px;right:24px;top:226px;font-size:13px;line-height:1.4;color:#d7dee6}
+.gol-cp .tip .tn{position:absolute;left:100px;right:14px;top:28px;font:700 14px ${FONT_FAMILY};line-height:17px;color:#f3e2bf;text-shadow:0 1px 2px #000;max-height:34px;overflow:hidden}
+.gol-cp .tip .tt{position:absolute;left:100px;right:14px;top:66px;font-size:10px;letter-spacing:1.5px;color:#e8b25a;font-family:${FONT_FAMILY};text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gol-cp .tip img{position:absolute;left:62px;top:142px;width:100px;height:100px;object-fit:contain;filter:drop-shadow(0 4px 6px #000)}
+.gol-cp .tip .td{position:absolute;left:26px;right:26px;top:254px;font-size:13px;line-height:1.4;color:#d7dee6}
 .gol-cp .tip .te{position:absolute;left:24px;right:24px;bottom:26px;font:700 11px ${FONT_FAMILY};letter-spacing:1.5px;color:#8ff0a8;text-align:center}
 .gol-cp .pnl{position:absolute;background:0 0/100% 100% no-repeat}
 .gol-cp .sock{position:absolute;width:78px;height:78px;margin:-39px 0 0 -39px;border-radius:50%;cursor:pointer}
@@ -150,6 +152,25 @@ const CSS = `
 .gol-cp .row.kit{height:76px;background:linear-gradient(90deg,#15233a,#0b1422 60%,#0b1422);border:1px solid #6a5630;border-radius:8px;box-shadow:inset 0 0 0 1px #0a1018,0 2px 6px rgba(0,0,0,.5);padding:0 22px 0 18px}
 .gol-cp .row.kit:before{content:'';width:6px;height:46px;border-radius:3px;background:linear-gradient(#f3d27a,#8a6420);margin-right:6px}
 .gol-cp .row.kit .rn{width:220px}
+.gol-cp .kcard{position:absolute;width:176px;height:245px;background:url("${KIT}/shop_card.png") center/100% 100% no-repeat;cursor:pointer;transition:transform 120ms,filter 120ms}
+.gol-cp .kcard:hover{transform:translateY(-2px);filter:brightness(1.1)}
+.gol-cp .kcard.sel{background-image:url("${KIT}/shop_card_sel.png")}
+.gol-cp .kcard img.ic{position:absolute;left:37px;top:51px;width:102px;height:102px;object-fit:contain;pointer-events:none;filter:drop-shadow(0 3px 4px rgba(0,0,0,.6))}
+.gol-cp .kcard .nm{position:absolute;left:10px;right:10px;top:166px;text-align:center;font-size:12px;line-height:14px;font-weight:700;color:#f3e2bf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px #000}
+.gol-cp .kcard .pr{position:absolute;left:26px;right:26px;top:188px;height:28px;display:flex;justify-content:center;align-items:center;gap:5px;font-size:13px;font-weight:700;color:#3a2606;letter-spacing:.5px}
+.gol-cp .kcard .pr img{width:18px;height:18px}
+.gol-cp .kcard .seal{position:absolute;right:-6px;top:-6px;width:44px;height:44px;background:url("${KIT}/seal_owned.png") center/contain no-repeat;filter:drop-shadow(0 2px 3px #000)}
+.gol-cp .kcard.eq .seal{filter:drop-shadow(0 0 6px rgba(140,255,170,.8))}
+.gol-cp .abar{position:absolute;display:flex;align-items:center;gap:14px;padding:0 10px}
+.gol-cp .abar .ai{width:60px;height:60px;object-fit:contain;filter:drop-shadow(0 3px 4px rgba(0,0,0,.6))}
+.gol-cp .abar .at{flex:1;min-width:0;color:#dfe6ee;font-family:Georgia,serif;font-size:13px;line-height:1.3}
+.gol-cp .abar .at b{display:block;font:700 17px ${FONT_FAMILY};color:#f3e2bf;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gol-cp .abar .at span{color:#9fb0c0}
+.gol-cp .abar .at .parts{display:flex;gap:4px;margin-top:3px}
+.gol-cp .abar .at .parts img{width:26px;height:26px;object-fit:contain;border-radius:4px;background:rgba(0,0,0,.3)}
+.gol-cp .plate{width:160px;height:62px;padding:0 14px;border:0;background:url("${KIT}/plate_normal.png") center/100% 100% no-repeat;font-size:13px;font-weight:700;letter-spacing:1px;color:#ffe2a0;text-shadow:0 1px 2px #000;flex:none}
+.gol-cp .plate:hover:not(:disabled){background-image:url("${KIT}/plate_hover.png");filter:none;transform:scale(1.02)}
+.gol-cp .plate:disabled{background-image:url("${KIT}/plate_disabled.png");color:#9aa3ab;opacity:1}
 .gol-cp .x.kit{border:0;background:url("${KIT}/close.png") 0 0/100% 100%;color:transparent;width:52px;height:52px}
 `;
 
@@ -261,9 +282,9 @@ export class CosmeticPanel {
     this.inv = this.buildInventory();
     this.shop = this.buildShop();
     this.invStage = new PreviewStage(scene, { x: INV_BG.x + INV_PREVIEW.x, y: INV_BG.y + INV_PREVIEW.y, w: INV_PREVIEW.w, h: INV_PREVIEW.h }, -26000, 30000, 2.0, 'ui-inv-preview');
-    this.shopStage = new PreviewStage(scene, { x: SHOP_BG.x + SHOP_PREVIEW.x, y: SHOP_BG.y + SHOP_PREVIEW.y, w: SHOP_PREVIEW.w, h: SHOP_PREVIEW.h }, -22000, 30000, 2.2, 'ui-shop-preview');
+    this.shopStage = new PreviewStage(scene, { x: SHOP_BG.x + SHOP_PREVIEW.x, y: SHOP_BG.y + SHOP_PREVIEW.y, w: SHOP_PREVIEW.w, h: SHOP_PREVIEW.h }, -22000, 30000, 2.0, 'ui-inv-preview');
     this.invPrev = new CosPreview(scene, this.invStage, this.cls, 104);
-    this.shopPrev = new CosPreview(scene, this.shopStage, this.cls);
+    this.shopPrev = new CosPreview(scene, this.shopStage, this.cls, 104);
     this.invPrev.setVisible(false); this.shopPrev.setVisible(false);
   }
 
@@ -385,12 +406,12 @@ export class CosmeticPanel {
 
   /** Hover tooltip card (kit art, rarity-tinted gem) following the pointer inside the inventory window. */
   private hoverTip(cell: HTMLElement, it: Item): void {
-    const rarity = it.type === 'set' ? 'epic' : it.type === 'weapon_animated' ? 'legendary' : it.type === 'aura' || it.type === 'weapon' || it.type === 'bow' || it.type === 'book' ? 'rare' : it.type === 'cape' || it.type === 'back' || it.type === 'head' || it.type === 'mask' ? 'uncommon' : 'common';
+    const rarity = it.type === 'set' ? 'epic' : it.type === 'weapon_animated' || it.type === 'damage' ? 'legendary' : ['aura', 'weapon', 'bow', 'book', 'trail', 'pet'].includes(it.type) ? 'rare' : ['cape', 'back', 'head', 'mask', 'hat', 'armor', 'hairstyle'].includes(it.type) ? 'uncommon' : 'common';
     cell.addEventListener('mouseenter', () => {
       const t = this.tip; t.innerHTML = ''; t.style.backgroundImage = `url("${KIT}/tip_${rarity}.png")`;
       this.el('div', 'tn', t, it.name); this.el('div', 'tt', t, TYPE_LABEL[it.type] ?? it.type);
       const im = this.el('img', '', t); im.src = it.icon; im.alt = '';
-      this.el('div', 'td', t, it.desc); this.el('div', 'te', t, this.isEquipped(it) ? 'EQUIPPED' : 'CLICK TO EQUIP');
+      this.el('div', 'td', t, it.desc.charAt(0).toUpperCase() + it.desc.slice(1)); this.el('div', 'te', t, this.isEquipped(it) ? 'EQUIPPED · CLICK TO UNEQUIP' : 'CLICK TO EQUIP');
       t.classList.add('on');
     });
     cell.addEventListener('mousemove', (ev) => {
@@ -409,20 +430,23 @@ export class CosmeticPanel {
 
   private buildShop(): HTMLDivElement {
     const bg = this.el('div', 'bg', this.root); this.place(bg, SHOP_BG.x, SHOP_BG.y, SHOP_BG.w, SHOP_BG.h);
-    bg.style.backgroundImage = `url("${SHOP}/cashshop_background.png")`;
+    bg.style.backgroundImage = `url("${KIT}/window.png")`;
     holeMask(bg, SHOP_PREVIEW);
-    const sub = this.qa ? 'QA build: every catalog item costs 0 · no payment integration' : 'The cosmetic shop is not open in this build';
-    this.header(bg, 'COSMETIC SHOP', `Class: ${CLASS_NAMES[this.cls] ?? this.cls} · ${sub}`, 'INVENTORY  (I)', 'inventory');
+    const sub = this.qa ? 'QA build · every item costs 0 · no payment' : 'Not open in this build';
+    this.header(bg, 'COSMETIC SHOP', `${CLASS_NAMES[this.cls] ?? this.cls} · ${sub}`, 'INVENTORY  (I)', 'inventory');
+    const x = bg.querySelector('.x') as HTMLElement; x.classList.add('kit'); x.style.right = '34px'; x.style.top = '26px';
+    const sw = bg.querySelector('.sw') as HTMLElement; sw.classList.add('kit'); sw.style.right = '92px'; sw.style.top = '22px';
+    const hdr = this.el('div', 'hdr', bg); hdr.appendChild(bg.querySelector('.ttl')!); hdr.appendChild(bg.querySelector('.sub')!);
     this.stateBar(bg, SHOP_PREVIEW.x, SHOP_PREVIEW.y + SHOP_PREVIEW.h + 12, SHOP_PREVIEW.w, () => this.shopPrev);
-    this.bundle = this.el('div', 'bundle', bg); this.place(this.bundle, SHOP_PREVIEW.x - 6, 752, SHOP_PREVIEW.w + 12, 118);
-    SHOP_TABS.forEach(([c, label], i) => {
-      const b = this.el('button', 'tab', bg, label);
-      b.style.backgroundImage = `url("${SHOP}/category_tab.png")`;
-      this.place(b, 560 + i * 150, 100, 142, 42);
+    const ct = this.el('div', 'ctabs', bg); this.place(ct, 508, 112, 1050);
+    SHOP_TABS.forEach(([c, label]) => {
+      const b = this.el('button', '', ct, label);
       b.addEventListener('click', () => { this.shopCat = c; this.refresh(); });
       this.shopTabs.set(c, b);
     });
-    this.shopGrid = this.el('div', 'grid', bg); this.place(this.shopGrid, 560, 160, 900, 712);
+    const pnl = this.el('div', 'pnl', bg); this.place(pnl, 508, 164, 1050, 500); pnl.style.backgroundImage = `url("${KIT}/grid_panel_wide.png")`;
+    this.shopGrid = this.el('div', 'grid kitbar', pnl); this.place(this.shopGrid, 44, 44, 980, 418);
+    this.bundle = this.el('div', 'abar', bg); this.place(this.bundle, 508, 672, 1050, 70);
     return bg;
   }
 
@@ -495,27 +519,15 @@ export class CosmeticPanel {
     const list = this.items.filter((it) => this.shopCat === 'all' || catOf(it) === this.shopCat)
       .sort((a, b) => (a.type === 'set' ? 0 : 1) - (b.type === 'set' ? 0 : 1));
     list.forEach((it, i) => {
-      const c = this.el('div', 'card', g); this.place(c, 74 + (i % 4) * 192, Math.floor(i / 4) * 240);
+      const c = this.el('div', 'kcard', g); this.place(c, 12 + (i % 5) * 194, Math.floor(i / 5) * 258);
       c.classList.toggle('sel', this.selected === it.id);
       const im = this.el('img', 'ic', c); im.src = it.icon; im.alt = '';
       this.el('div', 'nm', c, it.name);
-      this.el('div', 'ty', c, it.type === 'set' ? `Full set · ${(it.parts ?? []).length} pieces` : TYPE_LABEL[it.type] ?? it.type);
       const pr = this.el('div', 'pr', c);
       const has = owned.has(it.id);
-      if (has) this.el('span', 'own', pr, this.isEquipped(it) ? 'OWNED · EQUIPPED' : 'OWNED');
-      else if (this.qa) { this.el('span', '', pr, '0'); const b = this.el('img', '', pr); b.src = `${SHOP}/qa_free_badge.png`; b.alt = 'QA free'; }
+      if (has) { this.el('span', '', pr, this.isEquipped(it) ? 'EQUIPPED' : 'OWNED'); this.el('div', 'seal', c); c.classList.toggle('eq', this.isEquipped(it)); }
+      else if (this.qa) { const b = this.el('img', '', pr); b.src = `${KIT}/gem_premium.png`; b.alt = ''; this.el('span', '', pr, '0'); }
       else this.el('span', '', pr, '—');
-      const bt = this.el('div', 'bt', c);
-      const tryB = this.el('button', 'act alt', bt, 'TRY ON');
-      tryB.addEventListener('click', (ev) => { ev.stopPropagation(); this.select(it); });
-      const label = !has ? (this.qa ? 'GET FREE' : 'UNAVAILABLE') : this.isEquipped(it) ? 'UNEQUIP' : 'EQUIP';
-      const act = this.el('button', 'act', bt, label);
-      act.disabled = !has && !this.qa;
-      act.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        if (!has) { this.grant(it.type === 'set' ? [it.id, ...(it.parts ?? [])] : [it.id]); this.tryOn = {}; this.equip(it); return; }
-        this.tryOn = {}; this.toggleEquip(it);
-      });
       c.addEventListener('click', () => this.select(it));
     });
     this.renderBundle();
@@ -529,20 +541,26 @@ export class CosmeticPanel {
     this.refresh();
   }
 
+  /** Action bar under the shop grid: the selected item (being previewed), its set pieces, TRY ON / GET / EQUIP. */
   private renderBundle(): void {
     const it = this.items.find((x) => x.id === this.selected);
-    const b = this.bundle;
-    b.classList.toggle('on', !!it);
-    b.innerHTML = '';
-    if (!it) return;
-    this.el('div', 'bh', b, it.type === 'set' ? `SET BUNDLE — ${it.name.toUpperCase()} (previewing)` : `PREVIEWING — ${it.name.toUpperCase()}`);
-    const bp = this.el('div', 'bp', b);
-    const parts = it.type === 'set' ? it.parts ?? [] : [it.id];
-    for (const p of parts) {
-      const d = this.el('div', '', bp); const im = this.el('img', '', d); im.src = this.icon(p); im.alt = '';
-      const c = cosmetic(p); this.el('span', '', d, c ? `${c.name}` : p);
-    }
-    if (it.type !== 'set') this.el('div', '', bp, it.desc.charAt(0).toUpperCase() + it.desc.slice(1));
+    const b = this.bundle; b.innerHTML = '';
+    if (!it) { const t = this.el('div', 'at', b); this.el('span', '', t, 'Select an item to preview it on your character.'); return; }
+    const im = this.el('img', 'ai', b); im.src = it.icon; im.alt = '';
+    const t = this.el('div', 'at', b); this.el('b', '', t, it.name);
+    const parts = it.type === 'set' ? it.parts ?? [] : [];
+    this.el('span', '', t, it.type === 'set' ? `Full set · ${parts.length} pieces · previewing` : `${TYPE_LABEL[it.type] ?? it.type} · ${it.desc.charAt(0).toUpperCase() + it.desc.slice(1)}`);
+    if (parts.length) { const pp = this.el('div', 'parts', t); for (const p of parts) { const pi = this.el('img', '', pp); pi.src = this.icon(p); pi.alt = ''; pi.title = cosmetic(p)?.name ?? p; } }
+    const has = this.owned.has(it.id);
+    const stop = this.el('button', 'plate', b, 'STOP PREVIEW'); stop.title = 'Back to what you actually wear';
+    stop.addEventListener('click', () => { this.selected = null; this.tryOn = {}; this.refresh(); });
+    const label = !has ? (this.qa ? 'GET FREE' : 'UNAVAILABLE') : this.isEquipped(it) ? 'UNEQUIP' : 'EQUIP';
+    const act = this.el('button', 'plate', b, label);
+    act.disabled = !has && !this.qa;
+    act.addEventListener('click', () => {
+      if (!has) { this.grant(it.type === 'set' ? [it.id, ...(it.parts ?? [])] : [it.id]); this.tryOn = {}; this.equip(it); return; }
+      this.tryOn = {}; this.toggleEquip(it);
+    });
   }
 
   // ------------------------------------------------------------------ open / close
