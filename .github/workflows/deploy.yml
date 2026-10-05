@@ -2,6 +2,9 @@ name: Deploy QA build (gh-pages)
 
 # Every push to main builds the game and publishes it to the gh-pages branch,
 # which GitHub Pages serves at the same permanent URL.
+# Two jobs so a busy push stream never starves the game deploy:
+#   deploy — build + publish (about a minute); a newer push waits for it, never cancels it half-way
+#   qa     — the slow screenshot pass, published afterwards into gh-pages/qa; a newer push cancels it
 on:
   push:
     branches: [main]
@@ -10,13 +13,12 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,14 +29,12 @@ jobs:
       - run: npx tsc -p .
       - run: npm run build
       - run: touch dist/.nojekyll
-      # QA: automatic screenshots of every screen, published with the build at dist/qa/
-      - name: QA screenshots
+      # keep the latest QA screenshots on gh-pages (the qa job refreshes them afterwards)
+      - name: Carry over previous QA screenshots
         continue-on-error: true
         run: |
-          npm i --no-save playwright@1.56.1
-          npx playwright install --with-deps chromium
-          (npx vite preview --port 4173 --strictPort &) ; npx -y wait-on@8 -t 60000 http://localhost:4173/
-          QA_OUT=dist/qa node scripts/qa-screenshots.mjs
+          git fetch --depth=1 origin gh-pages
+          git archive origin/gh-pages qa | tar -x -C dist
       - name: Publish dist to gh-pages
         run: |
           cd dist
@@ -44,9 +44,43 @@ jobs:
           git add -A
           git commit -qm "QA build ${GITHUB_SHA::7}"
           git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+
+  qa:
+    needs: deploy
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages-qa
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: QA screenshots
+        run: |
+          npm i --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+          (npx vite preview --port 4173 --strictPort &) ; npx -y wait-on@8 -t 60000 http://localhost:4173/
+          QA_OUT=qa-out node scripts/qa-screenshots.mjs
+      - name: Publish screenshots into gh-pages/qa
+        run: |
+          git fetch --depth=1 origin gh-pages
+          git worktree add -f pages origin/gh-pages
+          rm -rf pages/qa && mv qa-out pages/qa
+          cd pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          git add -A qa
+          git commit -qm "QA screenshots ${GITHUB_SHA::7}" || exit 0
+          # only publish onto the build of this same commit (a newer deploy already replaced it otherwise)
+          git log -1 --format=%s HEAD~1 | grep -q "${GITHUB_SHA::7}" || exit 0
+          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" HEAD:gh-pages
       - name: Refresh jsDelivr cache for QA screenshots
         continue-on-error: true
         run: |
-          for f in README.md index.html build.json $(ls dist/qa | grep jpg); do
+          for f in README.md index.html build.json $(ls pages/qa | grep jpg); do
             curl -s "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@gh-pages/qa/$f" > /dev/null
           done
