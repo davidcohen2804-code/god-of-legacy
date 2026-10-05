@@ -21,7 +21,8 @@ def sheet(key):
   return sheets[key][1]
 for i,it in enumerate(items):
   rp=assign[i]
-  if rp not in rl: continue
+  if rp not in rl:   # sheet not drawn for this pose: nearest drawn pose by hair shape
+    mh0=it['hair']; rp=max(rl,key=lambda q:(items[q]['hair']&mh0).sum()/max(1,(items[q]['hair']|mh0).sum()))
   L=rl[rp]; rh=items[rp]['hair']; mh=it['hair']; best=(-1,0,0)
   for dy in range(-12,13):
     for dx in range(-12,13):
