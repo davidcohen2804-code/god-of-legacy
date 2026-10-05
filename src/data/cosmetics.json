@@ -393,7 +393,7 @@
     ],
     "name": "Straw Kasa",
     "desc": "hat.",
-    "wip": true
+    "layers": "assets/final/cosmetics/warrior/war_hat_kasa/layers"
    },
    {
     "id": "war_hat_tophat",
