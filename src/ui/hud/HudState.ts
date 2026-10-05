@@ -32,6 +32,8 @@ export interface HudState {
     hp: number; maxHp: number;
     /** null => resource row hidden (no MP/energy system yet). */
     resource: null | { kind: 'mp' | 'energy'; value: number; max: number };
+    /** Progress to the next level; omitted => the EXP bar shows empty. */
+    exp?: { value: number; max: number };
     effects: HudEffect[];
   };
   /** null => target panel hidden. */
