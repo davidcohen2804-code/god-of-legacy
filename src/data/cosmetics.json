@@ -477,7 +477,7 @@
     ],
     "name": "Crimson Beret",
     "desc": "hat.",
-    "wip": true
+    "layers": "assets/final/cosmetics/warrior/war_hat_beret/layers"
    },
    {
     "id": "war_hat_viking",
