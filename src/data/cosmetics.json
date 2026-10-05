@@ -435,7 +435,7 @@
     ],
     "name": "Gentleman Top Hat",
     "desc": "hat.",
-    "wip": true
+    "layers": "assets/final/cosmetics/warrior/war_hat_tophat/layers"
    },
    {
     "id": "war_hat_beret",
