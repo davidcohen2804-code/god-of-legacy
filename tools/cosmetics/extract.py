@@ -3,7 +3,8 @@
 import sys, numpy as np
 from PIL import Image
 from scipy import ndimage as nd
-base=np.array(Image.open(sys.argv[1]).convert('RGBA')).astype(float); W=int(sys.argv[4]); H=int(sys.argv[5])
+base=np.array(Image.open(sys.argv[1]).convert('RGBA')).astype(float); import os
+PM=np.array(Image.open(os.environ['PMASK']))[...,0] if os.environ.get('PMASK') else None; W=int(sys.argv[4]); H=int(sys.argv[5])
 ed=Image.open(sys.argv[2]).convert('RGB')
 rows=base.shape[0]//H; cols=base.shape[1]//W
 # GPT output may be rescaled: fit to base size
@@ -16,6 +17,7 @@ for r in range(rows):
     ba=b[...,3]>128
     # register: best integer shift (±12) and scale by silhouette IoU of the lower body (unchanged part)
     best=(-1,0,0); low=np.zeros_like(ba); low[int(H*0.62):]=True
+
     for dy in range(-12,13,2):
       for dx in range(-12,13,2):
         sh=np.roll(np.roll(ea>0.5,dy,0),dx,1)
@@ -27,9 +29,51 @@ for r in range(rows):
         sh=np.roll(np.roll(ea>0.5,ddy,0),ddx,1); iou=((sh&ba)&low).sum()/max(1,((sh|ba)&low).sum())
         if iou>best[0]: best=(iou,ddy,ddx)
     iou,dy,dx=best
+    if iou<0.86:
+      # scale search (GPT sometimes redraws a row slightly bigger): rescale the edited cell about the feet point
+      bestS=(-1,1.0)
+      low=np.zeros_like(ba); low[int(H*0.55):]=True
+      for scl in (0.86,0.9,0.94,0.97,1.0,1.03,1.06,1.1):
+        if scl!=1.0:
+          im=Image.fromarray(np.dstack([e,ea*255]).clip(0,255).astype(np.uint8)).resize((round(W*scl),round(H*scl)),Image.LANCZOS)
+          cv=Image.new('RGBA',(W,H)); fxp,fyp=W//2,310+H-352
+          cv.paste(im,(round(fxp-fxp*scl),round(fyp-fyp*scl)))
+          arr=np.array(cv).astype(float); ec,ac=arr[...,:3],arr[...,3]/255
+        else: ec,ac=e,ea
+        for dy in range(-16,17,4):
+          for dx in range(-16,17,4):
+            sh=np.roll(np.roll(ac>0.5,dy,0),dx,1); iou=((sh&ba)&low).sum()/max(1,((sh|ba)&low).sum())
+            if iou>bestS[0]: bestS=(iou,scl,ec,ac)
+      _,scl,e,ea=bestS
+      best=(-1,0,0)
+      for dy in range(-16,17):
+        for dx in range(-16,17):
+          sh=np.roll(np.roll(ea>0.5,dy,0),dx,1); iou2=((sh&ba)&low).sum()/max(1,((sh|ba)&low).sum())
+          if iou2>best[0]: best=(iou2,dy,dx)
+      iou,dy,dx=best
     e2=np.roll(np.roll(e,dy,0),dx,1); a2=np.roll(np.roll(ea,dy,0),dx,1)
     diff=np.abs(e2-b[...,:3]).sum(2)
-    ch=((a2>0.5)&((~ba)|(diff>90)))|((a2<0.5)&ba)
+    strong=((a2>0.5)&((~ba)|(diff>90)))|((a2<0.5)&ba)
+    weak=(a2>0.5)&(diff>55)
+    lab_,n_=nd.label(weak|strong)
+    keepw=nd.binary_dilation(strong,iterations=2)   # weak changes count only right next to a clear change (dark hat over dark hair)
+    ch=strong|(weak&keepw)
+    holes=nd.binary_fill_holes(ch)&~ch; hl,hn=nd.label(holes)
+    if hn: hs=nd.sum(holes,hl,range(1,hn+1)); ch|=np.isin(hl,1+np.nonzero(hs<350)[0])   # only pinholes inside the piece
+    ch=(ch&(a2>0.5))|((a2<0.5)&ba)
+    bR,bG,bB=b[...,0],b[...,1],b[...,2]
+    bskin=(ba)&(bR>170)&(bG>110)&(bG<215)&(bB>80)&(bB<190)&(bR>bG+12)&(bG>bB+8)
+    eR,eG,eB=e2[...,0],e2[...,1],e2[...,2]
+    eskin=(eR>150)&(eG>95)&(eB>70)&(eR>eG+10)&(eG>eB+5)
+    ch&=~(nd.binary_dilation(bskin,iterations=1)&eskin)        # GPT's re-drawn face stays out
+    if PM is not None:
+      arm=np.isin(PM[r*H:(r+1)*H,c*W:(c+1)*W],[80,120,160,240])
+      ch&=~(arm&(diff<160))                                      # re-drawn armor/cape stays out
+    lab3,n3=nd.label(nd.binary_dilation(ch&(a2>0.5),iterations=1))
+    if n3:
+      s3=nd.sum(ch&(a2>0.5),lab3,range(1,n3+1)); ch=(ch&~(a2>0.5))|((a2>0.5)&ch&np.isin(lab3,1+np.nonzero(s3>=s3.max()*0.25)[0]))  # the piece, not stray redraw noise
+    ys_=np.nonzero((ba|(a2>0.5)).any(1))[0]; zt=ys_.min(); zb=int(zt+(ys_.max()-zt)*float(__import__('os').environ.get('ZONE','0.42')))
+    zone=np.zeros_like(ch); zone[:zb]=True; ch&=zone   # item zone (head pieces: top ~42% of the figure)
     ch=nd.binary_opening(ch,iterations=1); lab,n=nd.label(ch)
     if n: sz=nd.sum(ch,lab,range(1,n+1)); ch=np.isin(lab,1+np.nonzero(sz>=60)[0])
     ch=nd.binary_closing(ch,iterations=2)

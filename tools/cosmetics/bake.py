@@ -37,6 +37,12 @@ for key in HM:
       a=np.array(cell); mag=(a[...,0]==255)&(a[...,1]==0)&(a[...,2]==255)&(a[...,3]>0)
       hair=pm[r*H:(r+1)*H,k*W:(k+1)*W]==40
       a[mag&~hair]=0          # only hide this frame's own hair under the piece
+      op=(a[...,3]>0)&~mag
+      if op.any():  # hide only hair poking out ABOVE the hat body (per column: bottom of the first solid run from the top)
+        top=np.argmax(op,axis=0); has=op.any(0); run=np.cumprod(op[::1] | ~np.arange(op.shape[0])[:,None].__ge__(top[None,:]),axis=0).astype(bool)&op
+        bot=np.where(has, run.shape[0]-1-np.argmax(run[::-1],axis=0), -1)
+        yy=np.arange(op.shape[0])[:,None]; under=(yy<=bot[None,:]-2)&has[None,:]&hair&~op
+        a[under]=[255,0,255,255]
       out.paste(Image.fromarray(a),(k*W,r*H))
   sn=name if name else key.split('/')[-1][:-4]
   out.save(f'{outdir}/{sn}.png',optimize=True)

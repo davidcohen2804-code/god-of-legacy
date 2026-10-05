@@ -1,7 +1,7 @@
 # addworn.sh <gpt_image> <item_id>   — extract from the idle "wearing" sheet, bake into every warrior sheet, quantize, register
 set -e
 cd /tmp/claude-0/cos
-python3 extract.py idle4.png "$1" "lay_$2.png" 352 352 >/dev/null
+PMASK=/tmp/claude-0/cos/idle4_m.png python3 extract.py idle4.png "$1" "lay_$2.png" 352 352 >/dev/null
 python3 bake.py "lay_$2.png" "$2" >/dev/null
 D=/home/claude/god-of-legacy/public/assets/final/cosmetics/warrior/$2/layers
 for f in $D/*.png; do python3 -c "
