@@ -8,8 +8,8 @@ export interface Rect { x: number; y: number; w: number; h: number }
 export function preloadPanelArt(scene: Phaser.Scene): void {
   const I = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.image(k, p); };
   I('ui-sb-preview', 'assets/final/ui/kit/preview_backdrop.png');
-  I('ui-inv-preview', 'assets/final/ui/kit/preview_frame.png');
-  I('ui-shop-preview', 'assets/final/ui/cash_shop/preview_stage.png');
+  I('ui-inv-preview', 'assets/final/ui/kit/inv_alcove.png');
+  I('ui-shop-preview', 'assets/final/ui/kit/preview_frame.png');
 }
 
 /** CSS that removes `r` (panel-local design px) from an element, letting the canvas camera show through. */

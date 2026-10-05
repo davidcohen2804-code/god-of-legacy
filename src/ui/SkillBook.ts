@@ -19,13 +19,16 @@ import { ADV_LABEL, Job, jobsFor } from '../skills/Jobs';
 const A = (f: string) => `assets/final/ui/skill_book/${f}.png`;
 const K = (f: string) => `assets/final/ui/kit/${f}.png`;
 const BG = { x: 160, y: 140, w: 1600, h: 800 };
-const PREVIEW: Rect = { x: 56, y: 372, w: 900, h: 360 };
-const DETAIL: Rect = { x: 990, y: 352, w: 552, h: 392 };
+// zones measured on kit/skillbook_window.png (the window art paints banner, tab strip, 4 card frames, two book pages)
+const PREVIEW: Rect = { x: 80, y: 446, w: 809, h: 274 };
+const DETAIL: Rect = { x: 995, y: 446, w: 530, h: 274 };
+const TAB_X = [50, 355, 659, 962, 1263], TAB_W = 287, TAB_Y = 149, TAB_H = 52;
+const FRAME_CX = [363, 662, 941, 1233], FRAME_Y = 236;
 /** Pre-recorded in-game clips of each skill (exact final visuals); falls back to the live preview when missing. */
 const CLIPS = new Set(['warrior_basic', 'dash_slash', 'rising_slash', 'ground_breaker', 'whirlwind', 'sanctuary', 'blade_storm', 'titans_verdict', 'leap_crash', 'wave_slash', 'radiant_blade', 'lance_thrust', 'war_cry', 'judgment_blade']);
 const clipUrl = (id: string) => `assets/final/skills/clips/${id}.mp4?v=${__BUILD_COMMIT__}`;
 const HOTKEY = ['SPACE', '1', '2', '3', '4', '5', '6', '7', 'Q', 'R', 'F', 'G', 'C', 'V'];
-const CARD = 118;
+const CARD = 112;
 
 const ROLE_LABEL: Partial<Record<Role, string>> = {
   basic: 'Basic', opener: 'Opener', gapClose: 'Gap Close', launcher: 'Launcher', extender: 'Extender', airExtender: 'Air Extender',
@@ -43,54 +46,51 @@ const STYLE_ID = 'gol-skillbook-style';
 const CSS = `
 .gol-sb{z-index:40;display:none}
 .gol-sb.open{display:block}
-.gol-sb .bg{position:absolute;left:${BG.x}px;top:${BG.y}px;width:${BG.w}px;height:${BG.h}px;background:url("${K('window')}") 0 0/100% 100%;
+.gol-sb .bg{position:absolute;left:${BG.x}px;top:${BG.y}px;width:${BG.w}px;height:${BG.h}px;background:url("${K('skillbook_window')}") 0 0/100% 100%;
   pointer-events:auto;animation:golSbIn 220ms ease-out}
 @keyframes golSbIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
-.gol-sb .hdr{position:absolute;left:450px;top:18px;width:700px;height:82px;background:url("${K('header')}") 0 0/100% 100% no-repeat;text-align:center;pointer-events:none}
-.gol-sb .ttl{display:block;margin-top:27px;font:700 21px/24px ${FONT_FAMILY};letter-spacing:4px;color:#f0d9a6;text-shadow:0 2px 6px #000}
+.gol-sb .hdr{position:absolute;left:482px;top:44px;width:632px;height:62px;text-align:center;pointer-events:none}
+.gol-sb .ttl{display:block;margin-top:6px;font:700 22px/26px ${FONT_FAMILY};letter-spacing:4px;color:#f0d9a6;text-shadow:0 2px 6px #000}
 .gol-sb .sub{display:block;font-size:11px;line-height:14px;letter-spacing:2px;color:#9fb0c0;text-transform:uppercase;white-space:nowrap}
-.gol-sb .x{position:absolute;right:34px;top:26px;width:52px;height:52px;border:0;background:url("${K('close')}") 0 0/100% 100%;cursor:pointer;pointer-events:auto;transition:transform 120ms,filter 120ms}
-.gol-sb .x:hover{filter:brightness(1.3);transform:scale(1.06)}
-.gol-sb .tabs{position:absolute;left:52px;top:104px;right:52px;display:flex;gap:10px}
-.gol-sb .tab{flex:1;height:62px;position:relative;background:url("${K('tab_normal')}") 0 0/100% 100%;cursor:pointer;text-align:left;padding:9px 0 0 76px;transition:filter 120ms}
-.gol-sb .tab:hover{background-image:url("${K('tab_hover')}")}
-.gol-sb .tab.on{background-image:url("${K('tab_selected')}");filter:drop-shadow(0 0 10px rgba(110,170,255,.45))}
-.gol-sb .tab .em{position:absolute;left:12px;top:3px;width:56px;height:56px;background:0 0/100% 100% no-repeat;filter:drop-shadow(0 2px 3px #000)}
-.gol-sb .tab .lv{position:absolute;right:10px;top:9px;width:40px;height:46px;background:url("${K('hex_badge')}") center/100% 100% no-repeat;font:700 13px/46px ${FONT_FAMILY};color:#ffe2a0;text-align:center;text-shadow:0 1px 2px #000}
-.gol-sb .tab b{display:block;font:700 14px ${FONT_FAMILY};letter-spacing:1px;color:#f3e2bf;white-space:nowrap}
-.gol-sb .tab span{display:block;font-size:12px;letter-spacing:1px;color:#9fb0c0;margin-top:2px;white-space:nowrap}
+.gol-sb .x{position:absolute;left:1522px;top:90px;width:56px;height:56px;border:0;border-radius:50%;background:transparent;cursor:pointer;pointer-events:auto;transition:box-shadow 120ms}
+.gol-sb .x:hover{box-shadow:0 0 16px 6px rgba(255,214,130,.45)}
+.gol-sb .tab{position:absolute;top:${TAB_Y}px;width:${TAB_W}px;height:${TAB_H}px;cursor:pointer;text-align:left;padding:7px 0 0 60px;border-radius:6px;transition:background 120ms,box-shadow 120ms}
+.gol-sb .tab:hover{background:rgba(255,214,130,.08)}
+.gol-sb .tab.on{background:linear-gradient(90deg,rgba(255,200,90,.22),rgba(255,200,90,.06));box-shadow:inset 0 -3px 0 #e8b25a}
+.gol-sb .tab .em{position:absolute;left:6px;top:1px;width:50px;height:50px;background:0 0/100% 100% no-repeat;filter:drop-shadow(0 2px 3px #000)}
+.gol-sb .tab .lv{position:absolute;right:8px;top:6px;width:34px;height:40px;background:url("${K('hex_badge')}") center/100% 100% no-repeat;font:700 12px/40px ${FONT_FAMILY};color:#ffe2a0;text-align:center;text-shadow:0 1px 2px #000}
+.gol-sb .tab b{display:block;font:700 13px ${FONT_FAMILY};letter-spacing:1px;color:#f3e2bf;white-space:nowrap}
+.gol-sb .tab span{display:block;font-size:11px;letter-spacing:1px;color:#9fb0c0;margin-top:2px;white-space:nowrap}
 .gol-sb .tab.lk b{color:#8c939b}
 .gol-sb .tab.lk .em{filter:grayscale(.7) brightness(.6)}
 .gol-sb .tab.lk .lv{color:#9aa3ab}
-.gol-sb .tab.lk:after{content:'';position:absolute;right:54px;top:14px;width:24px;height:34px;background:url("${K('lock')}") center/contain no-repeat;filter:drop-shadow(0 1px 2px #000)}
-.gol-sb .row{position:absolute;left:52px;right:52px;top:186px;height:170px;display:flex;justify-content:center;gap:56px}
-.gol-sb .card{position:relative;width:${CARD}px;height:${CARD}px;background:url("${K('card_normal')}") center/100% 100% no-repeat;cursor:pointer;transition:transform 120ms,filter 120ms}
+.gol-sb .tab.lk:after{content:'';position:absolute;right:48px;top:10px;width:22px;height:30px;background:url("${K('lock')}") center/contain no-repeat;filter:drop-shadow(0 1px 2px #000)}
+.gol-sb .row{position:absolute;left:0;top:0;width:${BG.w}px;height:0}
+.gol-sb .card{position:absolute;top:${FRAME_Y + 10}px;width:${CARD}px;height:${CARD}px;margin-left:${-CARD / 2}px;background:url("${K('card_normal')}") center/100% 100% no-repeat;cursor:pointer;transition:transform 120ms,filter 120ms}
 .gol-sb .card:hover{transform:scale(1.05);filter:brightness(1.15)}
 .gol-sb .card.sel{background-image:url("${K('card_selected')}");transform:scale(1.07)}
-.gol-sb .card img{position:absolute;left:19px;top:19px;width:80px;height:80px;border-radius:6px;pointer-events:none}
+.gol-sb .card img{position:absolute;left:18px;top:18px;width:76px;height:76px;border-radius:6px;pointer-events:none}
 .gol-sb .card.lk{background-image:url("${K('card_locked')}")}
 .gol-sb .card.lk img{filter:grayscale(1) brightness(.4)}
-.gol-sb .card .hk{position:absolute;right:-8px;top:-8px;min-width:28px;height:24px;padding:0 6px;border-radius:5px;background:#0b121b;border:1px solid #c99a45;
-  font:700 13px/22px ${FONT_FAMILY};color:#f0d9a6;text-align:center}
-.gol-sb .card .nm{position:absolute;left:-40px;right:-40px;top:${CARD + 6}px;text-align:center;font:700 15px ${FONT_FAMILY};color:#f3e2bf;white-space:nowrap;text-shadow:0 1px 3px #000}
+.gol-sb .card .hk{position:absolute;right:-10px;top:-10px;min-width:26px;height:22px;padding:0 6px;border-radius:5px;background:#0b121b;border:1px solid #c99a45;
+  font:700 12px/20px ${FONT_FAMILY};color:#f0d9a6;text-align:center}
+.gol-sb .card .nm{position:absolute;left:-40px;right:-40px;top:${CARD + 5}px;text-align:center;font:700 13px ${FONT_FAMILY};color:#f3e2bf;white-space:nowrap;text-shadow:0 1px 3px #000}
 .gol-sb .card.lk .nm{color:#8c939b}
-.gol-sb .pvf{position:absolute;left:${PREVIEW.x - 32}px;top:${PREVIEW.y - 48}px;width:964px;height:452px;background:url("${K('frame_preview')}") 0 0/100% 100% no-repeat;pointer-events:none;filter:drop-shadow(0 8px 18px rgba(0,0,0,.55))}
-.gol-sb .pv{position:absolute;left:${PREVIEW.x}px;top:${PREVIEW.y}px;width:${PREVIEW.w}px;height:${PREVIEW.h}px;overflow:hidden;background:#0a1018}
+.gol-sb .pv{position:absolute;left:${PREVIEW.x}px;top:${PREVIEW.y}px;width:${PREVIEW.w}px;height:${PREVIEW.h}px;overflow:hidden;background:#0a1018;border-radius:4px}
 .gol-sb .pv video{width:100%;height:100%;object-fit:cover;display:block}
-.gol-sb .pcap{position:absolute;left:${PREVIEW.x}px;top:${PREVIEW.y - 70}px;width:${PREVIEW.w}px;font-size:13px;letter-spacing:2px;color:#9fc6e8}
-.gol-sb .det{position:absolute;left:${DETAIL.x}px;top:${DETAIL.y}px;width:${DETAIL.w}px;height:${DETAIL.h}px;background:url("${K('tooltip_panel')}") 0 0/100% 100%;
-  padding:34px 40px 30px;color:#dfe6ee;font-family:Georgia,serif}
-.gol-sb .det .hd{display:flex;gap:14px;align-items:center}
-.gol-sb .det .hd img{width:64px;height:64px;border-radius:8px;border:1px solid #6a5630}
-.gol-sb .det .nm{font:700 22px ${FONT_FAMILY};color:#f3e2bf}
-.gol-sb .det .tier{font:700 12px ${FONT_FAMILY};letter-spacing:2px;color:#e8b25a}
-.gol-sb .det .roles{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap}
-.gol-sb .det .roles i{font-style:normal;font-size:12px;padding:2px 8px;border-radius:10px;background:#1b2a3a;border:1px solid #3d5a78;color:#bcd6ef}
-.gol-sb .det .ds{margin-top:10px;font-size:15px;line-height:1.35;color:#e4e9ef;min-height:40px}
-.gol-sb .det table{margin-top:8px;border-collapse:collapse;width:100%;font-size:14px}
-.gol-sb .det td{padding:3px 0;vertical-align:top}
-.gol-sb .det td:first-child{width:118px;color:#9fb0c0}
-.gol-sb .det .rel{margin-top:6px;font-size:14px;color:#f0d9a6}
+.gol-sb .pcap{display:none}
+.gol-sb .det{position:absolute;left:${DETAIL.x}px;top:${DETAIL.y}px;width:${DETAIL.w}px;height:${DETAIL.h}px;padding:0 6px;color:#dfe6ee;font-family:Georgia,serif;overflow:hidden}
+.gol-sb .det .hd{display:flex;gap:10px;align-items:center;height:42px}
+.gol-sb .det .hd img{width:38px;height:38px;border-radius:6px;border:1px solid #6a5630}
+.gol-sb .det .nm{font:700 18px/20px ${FONT_FAMILY};color:#f3e2bf;white-space:nowrap}
+.gol-sb .det .tier{font:700 10px ${FONT_FAMILY};letter-spacing:2px;color:#e8b25a;white-space:nowrap}
+.gol-sb .det .roles{margin-top:10px;display:flex;gap:5px;flex-wrap:wrap}
+.gol-sb .det .roles i{font-style:normal;font-size:11px;padding:1px 7px;border-radius:10px;background:#1b2a3a;border:1px solid #3d5a78;color:#bcd6ef}
+.gol-sb .det .ds{margin-top:6px;font-size:12.5px;line-height:1.3;color:#e4e9ef;max-height:66px;overflow:hidden}
+.gol-sb .det table{margin-top:5px;border-collapse:collapse;width:100%;font-size:12px}
+.gol-sb .det td{padding:1px 0;vertical-align:top}
+.gol-sb .det td:first-child{width:92px;color:#9fb0c0}
+.gol-sb .det .rel{margin-top:4px;font-size:12px;color:#f0d9a6;display:flex;gap:14px;flex-wrap:wrap}
 .gol-sb .det .rel div:before{content:'\\2192  ';color:#c99a45}
 .gol-sb .det .lock{color:#ff9a7a}
 `;
@@ -277,9 +277,8 @@ export class SkillBook {
     this.div('sub', hdr).textContent = qaUnlockAll ? `QA build · all job advancements unlocked · level ${level}` : `Level ${level} · ${cur.name} — skills unlock with each job advancement`;
     const x = document.createElement('button'); x.className = 'x'; x.title = 'Close (K / Esc)';
     x.addEventListener('click', () => this.close()); this.bg.appendChild(x);
-    const tabs = this.div('tabs', this.bg);
     this.jobs.forEach((j, k) => {
-      const t = this.div('tab', tabs);
+      const t = this.div('tab', this.bg); t.style.left = `${TAB_X[k]}px`;
       t.innerHTML = '<div class="em"></div><b></b><span></span><div class="lv"></div>';
       (t.children[1] as HTMLElement).textContent = j.name.toUpperCase();
       (t.children[2] as HTMLElement).textContent = `${ADV_LABEL[k]} · Lv ${j.level}–${j.to}`;
@@ -291,12 +290,11 @@ export class SkillBook {
     this.row = this.div('row', this.bg);
     this.cap = this.div('pcap', this.bg);
     this.pv = this.div('pv', this.bg);
-    this.div('pvf', this.bg);
     this.video = document.createElement('video');
     this.video.muted = true; this.video.loop = true; this.video.playsInline = true; this.video.autoplay = true;
     this.pv.appendChild(this.video);
     this.det = this.div('det', this.bg);
-    this.stage = new PreviewStage(scene, { x: BG.x + PREVIEW.x, y: BG.y + PREVIEW.y, w: PREVIEW.w, h: PREVIEW.h }, -30000, 30000, 1.0, 'ui-sb-preview');
+    this.stage = new PreviewStage(scene, { x: BG.x + PREVIEW.x, y: BG.y + PREVIEW.y, w: PREVIEW.w, h: PREVIEW.h }, -30000, 30000, 0.88, 'ui-sb-preview');
     this.preview = new SkillPreview(scene, this.stage, cls);
     this.preview.setVisible(false);
     this.job = Math.max(0, this.jobs.indexOf(cur));
@@ -313,9 +311,9 @@ export class SkillBook {
 
   private buildRow(): void {
     this.row.innerHTML = ''; this.cards = [];
-    for (const slot of this.jobs[this.job].slots) {
-      const i = this.kit.findIndex((s) => s.slot === slot); if (i < 0) continue;
-      const s = this.kit[i], c = this.div('card', this.row);
+    this.jobs[this.job].slots.forEach((slot, n) => {
+      const i = this.kit.findIndex((s) => s.slot === slot); if (i < 0 || n >= FRAME_CX.length) return;
+      const s = this.kit[i], c = this.div('card', this.row); c.style.left = `${FRAME_CX[n]}px`;
       const img = document.createElement('img'); img.src = iconUrl(s); img.alt = ''; img.draggable = false; c.appendChild(img);
       this.div('hk', c).textContent = HOTKEY[s.slot];
       this.div('nm', c).textContent = s.name;
@@ -323,7 +321,7 @@ export class SkillBook {
       c.addEventListener('mouseleave', () => { if (this.hover === i) { this.hover = -1; this.refresh(); } });
       c.addEventListener('click', () => { this.selected = i; this.refresh(); });
       this.cards.push({ el: c, i });
-    }
+    });
   }
 
   /** Equip the preview body with the character's cosmetics (book preview = this character). */

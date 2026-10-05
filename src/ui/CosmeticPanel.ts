@@ -24,12 +24,17 @@ const INV = 'assets/final/ui/inventory', SHOP = 'assets/final/ui/cash_shop';
 const KIT = 'assets/final/ui/kit';
 const INV_BG = { x: 160, y: 140, w: 1600, h: 800 };
 const SHOP_BG = { x: 160, y: 140, w: 1600, h: 800 };
-const INV_PREVIEW: Rect = { x: 48, y: 104, w: 430, h: 556 };
+// zones measured on kit/inventory_window.png (1600x800): alcove, 5 tab frames, grid panel, currency bar
+const INV_PREVIEW: Rect = { x: 61, y: 119, w: 351, h: 527 };
+const INV_TAB_X = [467, 678, 892, 1107, 1322], INV_TAB_W = 205, INV_TAB_Y = 136, INV_TAB_H = 61;
+const INV_PANEL: Rect = { x: 476, y: 232, w: 1062, h: 414 };
 type InvTab = 'gear' | 'items' | 'materials' | 'key' | 'cosmetics';
 const MAIN_TABS: [InvTab, string, string][] = [['gear', 'GEAR', 'icon_gear'], ['items', 'ITEMS', 'icon_items'], ['materials', 'MATERIALS', 'icon_materials'], ['key', 'KEY ITEMS', 'icon_key'], ['cosmetics', 'COSMETICS', 'icon_cosmetics']];
 // sockets painted into kit/doll_panel.png (374x578): [label, centre x, centre y]
 const DOLL: [string, number, number][] = [['Head', 187, 114], ['Weapon', 81, 168], ['Necklace', 293, 168], ['Armor', 73, 272], ['Earring', 299, 272], ['Gloves', 79, 372], ['Shield', 296, 372], ['Ring', 85, 464], ['Belt', 190, 462], ['Ring', 282, 464]];
+const DOLL_SCALE = 400 / 578;
 const SHOP_PREVIEW: Rect = { x: 48, y: 104, w: 430, h: 556 };
+const SHOP_TABS_Y = 112;
 const SLOT_LABEL: Record<CosSlot, string> = { head: 'Head', face: 'Face', back: 'Cape / Back', weapon: 'Weapon', aura: 'Aura', damage: 'Damage Skin', pet: 'Companion', hair: 'Hair Colour', armor: 'Armor Finish', hairstyle: 'Hairstyle', top: 'Chest Plate', gloves: 'Gauntlets', shoes: 'Boots', pants: 'Trousers', hat: 'Hat', faceacc: 'Face', earring: 'Earring', nametag: 'Name Tag', trail: 'Footstep Trail' };
 const TYPE_LABEL: Record<string, string> = {
   head: 'Head', mask: 'Face', cape: 'Cape', back: 'Back', weapon: 'Weapon skin', weapon_animated: 'Animated weapon skin', bow: 'Bow skin',
@@ -171,6 +176,19 @@ const CSS = `
 .gol-cp .plate{width:160px;height:62px;padding:0 14px;border:0;background:url("${KIT}/plate_normal.png") center/100% 100% no-repeat;font-size:13px;font-weight:700;letter-spacing:1px;color:#ffe2a0;text-shadow:0 1px 2px #000;flex:none}
 .gol-cp .plate:hover:not(:disabled){background-image:url("${KIT}/plate_hover.png");filter:none;transform:scale(1.02)}
 .gol-cp .plate:disabled{background-image:url("${KIT}/plate_disabled.png");color:#9aa3ab;opacity:1}
+.gol-cp .wtab{position:absolute;top:${INV_TAB_Y}px;width:${INV_TAB_W}px;height:${INV_TAB_H}px;border:0;background:transparent;border-radius:6px;display:flex;align-items:center;justify-content:center;gap:7px;
+  color:#c9d3dc;font-size:14px;font-weight:700;letter-spacing:1.2px;transition:background 120ms,box-shadow 120ms}
+.gol-cp .wtab:hover{background:rgba(255,214,130,.08);filter:none;transform:none}
+.gol-cp .wtab.on{background:linear-gradient(90deg,rgba(255,200,90,.06),rgba(255,200,90,.22),rgba(255,200,90,.06));box-shadow:inset 0 -3px 0 #e8b25a;color:#ffe2a0}
+.gol-cp .wtab img{width:30px;height:30px;object-fit:contain}
+.gol-cp .st.sm button{height:26px;padding:0 7px;font-size:10.5px}
+.gol-cp .st.sm button.arw{width:30px;height:28px}
+.gol-cp .cico{position:absolute;background:center/contain no-repeat;pointer-events:none;filter:drop-shadow(0 2px 3px #000)}
+.gol-cp .cval{position:absolute;font:700 17px ${FONT_FAMILY};color:#ffe2a0;text-shadow:0 1px 2px #000;letter-spacing:1px}
+.gol-cp .x.win{position:absolute;left:1515px;top:87px;width:56px;height:56px;border:0;border-radius:50%;background:transparent;color:transparent;transition:box-shadow 120ms}
+.gol-cp .x.win:hover{box-shadow:0 0 16px 6px rgba(255,214,130,.45);filter:none;transform:none}
+.gol-cp .hdr.win{left:503px;top:36px;width:597px;height:60px;background:none}
+.gol-cp .hdr.win .ttl{margin-top:8px}
 .gol-cp .x.kit{border:0;background:url("${KIT}/close.png") 0 0/100% 100%;color:transparent;width:52px;height:52px}
 `;
 
@@ -259,6 +277,7 @@ export class CosmeticPanel {
   private mainTabs = new Map<InvTab, HTMLButtonElement>();
   private content!: HTMLDivElement;
   private tip!: HTMLDivElement;
+  private invHint!: HTMLDivElement;
   private shopCat: ShopCat = 'all';
   private selected: string | null = null;
   private tryOn: Equipped = {};
@@ -282,8 +301,8 @@ export class CosmeticPanel {
     this.inv = this.buildInventory();
     this.shop = this.buildShop();
     this.invStage = new PreviewStage(scene, { x: INV_BG.x + INV_PREVIEW.x, y: INV_BG.y + INV_PREVIEW.y, w: INV_PREVIEW.w, h: INV_PREVIEW.h }, -26000, 30000, 2.0, 'ui-inv-preview');
-    this.shopStage = new PreviewStage(scene, { x: SHOP_BG.x + SHOP_PREVIEW.x, y: SHOP_BG.y + SHOP_PREVIEW.y, w: SHOP_PREVIEW.w, h: SHOP_PREVIEW.h }, -22000, 30000, 2.0, 'ui-inv-preview');
-    this.invPrev = new CosPreview(scene, this.invStage, this.cls, 104);
+    this.shopStage = new PreviewStage(scene, { x: SHOP_BG.x + SHOP_PREVIEW.x, y: SHOP_BG.y + SHOP_PREVIEW.y, w: SHOP_PREVIEW.w, h: SHOP_PREVIEW.h }, -22000, 30000, 2.0, 'ui-shop-preview');
+    this.invPrev = new CosPreview(scene, this.invStage, this.cls, 109);
     this.shopPrev = new CosPreview(scene, this.shopStage, this.cls, 104);
     this.invPrev.setVisible(false); this.shopPrev.setVisible(false);
   }
@@ -330,14 +349,14 @@ export class CosmeticPanel {
     const b = this.el('button', 'sw', bg, swLabel); b.addEventListener('click', () => this.show(sw));
   }
 
-  private stateBar(bg: HTMLDivElement, x: number, y: number, w: number, prev: () => CosPreview): void {
-    const bar = this.el('div', 'st', bg); this.place(bar, x, y, w);
+  private stateBar(bg: HTMLDivElement, x: number, y: number, w: number, prev: () => CosPreview, small = false): void {
+    const bar = this.el('div', small ? 'st sm' : 'st', bg); this.place(bar, x, y, w);
     for (const [s, label] of STATES) {
       const b = this.el('button', '', bar, label);
       b.addEventListener('click', () => { prev().setState(s); this.syncStates(); });
       this.stateBtns.push({ el: b, s });
     }
-    const bar2 = this.el('div', 'st', bg); this.place(bar2, x, y + 38, w);
+    const bar2 = this.el('div', small ? 'st sm' : 'st', bg); this.place(bar2, x, y + (small ? 30 : 38), w);
     const l = this.el('button', 'arw', bar2, 'Turn left'); l.title = 'Turn left'; l.addEventListener('click', () => { prev().turn(-1); this.syncStates(); });
     const r = this.el('button', 'arw r', bar2, 'Turn right'); r.title = 'Turn right'; r.addEventListener('click', () => { prev().turn(1); this.syncStates(); });
     const a = this.el('button', 'auto', bar2, 'Auto-rotate'); a.addEventListener('click', () => { const p = prev(); p.autoTurn = !p.autoTurn; this.syncStates(); });
@@ -351,20 +370,25 @@ export class CosmeticPanel {
 
   private buildInventory(): HTMLDivElement {
     const bg = this.el('div', 'bg', this.root); this.place(bg, INV_BG.x, INV_BG.y, INV_BG.w, INV_BG.h);
-    bg.style.backgroundImage = `url("${KIT}/window.png")`;
+    bg.style.backgroundImage = `url("${KIT}/inventory_window.png")`;
     holeMask(bg, INV_PREVIEW);
     this.header(bg, 'INVENTORY', `${this.character.name} · ${CLASS_NAMES[this.cls] ?? this.cls}`, 'COSMETIC SHOP  (O)', 'shop');
-    const x = bg.querySelector('.x') as HTMLElement; x.classList.add('kit'); x.style.right = '34px'; x.style.top = '26px';
-    const sw = bg.querySelector('.sw') as HTMLElement; sw.classList.add('kit'); sw.style.right = '92px'; sw.style.top = '22px';
-    const hdr = this.el('div', 'hdr', bg); hdr.appendChild(bg.querySelector('.ttl')!); hdr.appendChild(bg.querySelector('.sub')!);
-    this.stateBar(bg, INV_PREVIEW.x, INV_PREVIEW.y + INV_PREVIEW.h + 12, INV_PREVIEW.w, () => this.invPrev);
-    const mt = this.el('div', 'mt', bg); this.place(mt, 508, 104);
-    for (const [t, label, ic] of MAIN_TABS) {
-      const b = this.el('button', '', mt); const im = this.el('img', '', b); im.src = `${KIT}/${ic}.png`; im.alt = ''; this.el('span', '', b, label);
+    (bg.querySelector('.x') as HTMLElement).classList.add('win');
+    const sw = bg.querySelector('.sw') as HTMLElement; sw.classList.add('kit'); sw.style.right = 'auto'; sw.style.left = '1270px'; sw.style.top = '40px';
+    const hdr = this.el('div', 'hdr win', bg); hdr.appendChild(bg.querySelector('.ttl')!); hdr.appendChild(bg.querySelector('.sub')!);
+    this.stateBar(bg, 46, 686, 380, () => this.invPrev, true);
+    for (const [i, [t, label, ic]] of MAIN_TABS.entries()) {
+      const b = this.el('button', 'wtab', bg); b.style.left = `${INV_TAB_X[i]}px`;
+      const im = this.el('img', '', b); im.src = `${KIT}/${ic}.png`; im.alt = ''; this.el('span', '', b, label);
       b.addEventListener('click', () => { this.mainTab = t; this.refresh(); });
       this.mainTabs.set(t, b);
     }
-    this.content = this.el('div', 'ct', bg); this.place(this.content, 508, 182, 1050, 578);
+    this.content = this.el('div', 'ct', bg); this.place(this.content, INV_PANEL.x, INV_PANEL.y, INV_PANEL.w, INV_PANEL.h);
+    // currency bar painted at the bottom of the window: coin + gem in its two ring sockets, amounts beside them
+    const coin = this.el('div', 'cico', bg); this.place(coin, 522 - 34, 715 - 34, 68, 68); coin.style.backgroundImage = `url("${KIT}/coin_gold.png")`;
+    const gem = this.el('div', 'cico', bg); this.place(gem, 618 - 38, 715 - 38, 76, 76); gem.style.backgroundImage = `url("${KIT}/gem_premium.png")`;
+    this.place(this.el('div', 'cval', bg, '0'), 700, 704); this.place(this.el('div', 'cval', bg, '0'), 820, 704);
+    this.invHint = this.el('div', 'hint', bg); this.place(this.invHint, 960, 707);
     this.tip = this.el('div', 'tip', bg);
     return bg;
   }
@@ -376,31 +400,30 @@ export class CosmeticPanel {
   private renderMain(): void {
     const c = this.content; c.innerHTML = '';
     for (const [t, b] of this.mainTabs) b.classList.toggle('on', t === this.mainTab);
+    const W = INV_PANEL.w;
     if (this.mainTab === 'cosmetics') {
-      const ct = this.el('div', 'ctabs', c); this.place(ct, 0, 2, 1050);
+      this.invHint.textContent = '';
+      const ct = this.el('div', 'ctabs', c); this.place(ct, 10, 4, W);
       INV_TABS.forEach(([cat, label]) => { const b = this.el('button', '', ct, label); b.classList.toggle('on', cat === this.invCat); b.addEventListener('click', () => { this.invCat = cat; this.refresh(); }); });
-      const pnl = this.el('div', 'pnl', c); this.place(pnl, 0, 56, 1050, 500); pnl.style.backgroundImage = `url("${KIT}/grid_panel_wide.png")`;
-      this.invGrid = this.el('div', 'grid kitbar', pnl); this.place(this.invGrid, 44, 44, 980, 420);
+      this.invGrid = this.el('div', 'grid kitbar', c); this.place(this.invGrid, 14, 58, W - 28, INV_PANEL.h - 64);
       this.renderInventory();
       return;
     }
     if (this.mainTab === 'gear') {
-      const doll = this.el('div', 'pnl', c); this.place(doll, 0, 0, 374, 578); doll.style.backgroundImage = `url("${KIT}/doll_panel.png")`;
-      for (const [label, x, y] of DOLL) { const s = this.el('div', 'sock', doll); this.place(s, x, y); this.el('span', '', s, label.toUpperCase()); }
-      const bag = this.el('div', 'pnl', c); this.place(bag, 400, 0, 650, 500); bag.style.backgroundImage = `url("${KIT}/grid_panel_bag.png")`;
-      this.toolbar(bag, 650); this.slotGrid(bag, 61, 80, 6, 4);
-      this.footer(c, 400, 'Gear drops and upgrades arrive with the adventure update.');
+      const dw = Math.round(374 * DOLL_SCALE), dh = 400;
+      const doll = this.el('div', 'pnl', c); this.place(doll, 8, 7, dw, dh); doll.style.backgroundImage = `url("${KIT}/doll_panel.png")`;
+      for (const [label, x, y] of DOLL) { const s = this.el('div', 'sock', doll); this.place(s, Math.round(x * DOLL_SCALE), Math.round(y * DOLL_SCALE)); s.style.width = s.style.height = '56px'; s.style.margin = '-28px 0 0 -28px'; this.el('span', '', s, label.toUpperCase()); }
+      this.toolbar(c, W); this.slotGrid(c, dw + 40, 56, 8, 4);
+      this.invHint.textContent = 'Gear drops and upgrades arrive with the adventure update.';
       return;
     }
-    const pnl = this.el('div', 'pnl', c); this.place(pnl, 0, 0, 1050, 500); pnl.style.backgroundImage = `url("${KIT}/grid_panel_wide.png")`;
-    this.toolbar(pnl, 1050); this.slotGrid(pnl, 85, 80, 10, 4);
-    const label = { items: 'Potions, buffs and consumables will appear here.', materials: 'Upgrade stones, ores and monster drops will appear here.', key: 'Quest items, keys and tokens will appear here.' }[this.mainTab];
-    this.footer(c, 0, label);
+    this.toolbar(c, W); this.slotGrid(c, 47, 56, 11, 4);
+    this.invHint.textContent = { items: 'Potions, buffs and consumables will appear here.', materials: 'Upgrade stones, ores and monster drops will appear here.', key: 'Quest items, keys and tokens will appear here.' }[this.mainTab];
   }
 
   /** Sort / filter / search buttons (kit art) in a panel's top-right corner — visual only until items exist. */
   private toolbar(pnl: HTMLElement, w: number): void {
-    const tb = this.el('div', 'tb', pnl); this.place(tb, w - 3 * 44 - 2 * 8 - 44, 16);
+    const tb = this.el('div', 'tb', pnl); this.place(tb, w - 3 * 44 - 2 * 8 - 16, 6);
     for (const k of ['sort', 'filter', 'search']) { const b = this.el('button', k, tb); b.title = k[0].toUpperCase() + k.slice(1); }
   }
 
@@ -420,12 +443,6 @@ export class CosmeticPanel {
       this.place(this.tip, x, y);
     });
     cell.addEventListener('mouseleave', () => this.tip.classList.remove('on'));
-  }
-
-  private footer(c: HTMLElement, x: number, hint: string): void {
-    const cur = this.el('div', 'cur', c); this.place(cur, x, 504);
-    this.el('b', '', cur, '0').style.left = '76px'; this.el('b', '', cur, '0').style.left = '232px';
-    const n = this.el('div', 'hint', c, hint); this.place(n, x + 360, 530);
   }
 
   private buildShop(): HTMLDivElement {
