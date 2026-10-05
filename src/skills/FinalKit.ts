@@ -2,6 +2,7 @@
 // Shape sub-parameters the roster leaves open (ranges / radii / angles) are fixed here once and reused by the telegraph,
 // the hit resolver and the VFX placement, so telegraph == hitbox by construction.
 import { FinalSkill, HitEvent, HitShape, PVP_MULT, Reaction } from './SkillTypes';
+import { jobOfSlot } from './Jobs';
 
 const H = (at: number, damage: number, shape: HitShape, reaction: Reaction, extra: Partial<HitEvent> = {}): HitEvent => ({ at, damage, shape, reaction, ...extra });
 const LOCK = { startup: 0, active: 0, recovery: 0 };
@@ -12,7 +13,7 @@ const CORE = (ids: string[]) => ids;
 export const UNLOCK = [1, 2, 4, 6, 9, 12, 16, 20, 3, 5, 8, 10, 14, 18];
 
 function S(s: Omit<FinalSkill, 'pvpMultiplier' | 'pveMultiplier' | 'unlockLevel' | 'tags' | 'cancelOnHit'> & { tags?: string[]; cancelOnHit?: string[] }): FinalSkill {
-  return { ...base, ...s, tags: s.tags ?? [], cancelOnHit: s.cancelOnHit ?? [], unlockLevel: UNLOCK[s.slot] };
+  return { ...base, ...s, tags: s.tags ?? [], cancelOnHit: s.cancelOnHit ?? [], unlockLevel: jobOfSlot(s.cls, s.slot).level }; // unlocks with the job advancement
 }
 
 // ------------------------------------------------------------------ WARRIOR
