@@ -7,14 +7,14 @@ import { Dir } from '../world/collision';
 import { actorDepth } from '../world/WorldGeometry';
 import { ClassKey, PoseFrame, applyPose, SHEET_PATH } from './Body';
 
-export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet' | 'hair' | 'armor' | 'hairstyle' | 'top' | 'gloves' | 'shoes' | 'pants' | 'hat' | 'faceacc' | 'earring';
+export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet' | 'hair' | 'armor' | 'hairstyle' | 'top' | 'gloves' | 'shoes' | 'pants' | 'hat' | 'faceacc' | 'earring' | 'nametag' | 'trail';
 export type Equipped = Partial<Record<CosSlot, string>>;
 
-interface CosItem { id: string; type: string; icon: string; runtime?: string; skin?: string; blade?: { w: number; h: number; guard: number; cy: number }; color?: string; fit?: { w: number; lift: number }; ring?: { cy: number }; widths?: number[]; wip?: boolean; fabric?: string; lut?: number[][]; hs?: number[][]; box?: number[][]; attachment?: string; cell?: number[]; frames?: number; layout?: string; bbox?: number[][]; parts?: string[]; name: string; desc: string }
+interface CosItem { id: string; type: string; icon: string; runtime?: string; skin?: string; blade?: { w: number; h: number; guard: number; cy: number }; color?: string; fit?: { w: number; lift: number }; ring?: { cy: number }; widths?: number[]; wip?: boolean; fabric?: string; lut?: number[][]; hs?: number[][]; box?: number[][]; layers?: string; attachment?: string; cell?: number[]; frames?: number; layout?: string; bbox?: number[][];  parts?: string[]; name: string; desc: string }
 export const COSMETICS = Object.fromEntries(Object.entries(COS.classes as unknown as Record<string, CosItem[]>).map(([k, l]) => [k, l.filter((i) => !i.wip)])) as Record<string, CosItem[]>; // wip items stay out of the shop until verified on every frame
 export const slotOf = (type: string): CosSlot | null =>
   type === 'head' ? 'head' : type === 'mask' ? 'face' : type === 'cape' || type === 'back' ? 'back'
-    : type === 'weapon' || type === 'weapon_animated' || type === 'bow' || type === 'book' ? 'weapon' : type === 'aura' ? 'aura' : type === 'damage' ? 'damage' : type === 'pet' ? 'pet' : type === 'hair' ? 'hair' : type === 'armor' ? 'armor' : type === 'hairstyle' ? 'hairstyle' : type === 'top' ? 'top' : type === 'gloves' ? 'gloves' : type === 'shoes' ? 'shoes' : type === 'pants' ? 'pants' : type === 'hat' ? 'hat' : type === 'faceacc' ? 'faceacc' : type === 'earring' ? 'earring' : null;
+    : type === 'weapon' || type === 'weapon_animated' || type === 'bow' || type === 'book' ? 'weapon' : type === 'aura' ? 'aura' : type === 'damage' ? 'damage' : type === 'pet' ? 'pet' : type === 'hair' ? 'hair' : type === 'armor' ? 'armor' : type === 'hairstyle' ? 'hairstyle' : type === 'top' ? 'top' : type === 'gloves' ? 'gloves' : type === 'shoes' ? 'shoes' : type === 'pants' ? 'pants' : type === 'hat' ? 'hat' : type === 'faceacc' ? 'faceacc' : type === 'earring' ? 'earring' : type === 'nametag' ? 'nametag' : type === 'trail' ? 'trail' : null;
 export function cosmetic(id: string): CosItem | undefined { for (const l of Object.values(COSMETICS)) { const f = l.find((i) => i.id === id); if (f) return f; } return undefined; }
 
 /** Weapon skin palettes (tint of the real weapon pixels; `glow` adds an energy edge). */
@@ -80,6 +80,30 @@ export function grayKey(scene: Phaser.Scene, key: string, boost = 1.5): string |
 /** Recolour layers: [slot, region labels in the packed mask (R channel)]. Later layers override earlier ones. */
 const RECOLOR: [CosSlot, number[]][] = [['back', [240]], ['hair', [40]], ['armor', [80, 120, 160]], ['top', [80]], ['gloves', [120]], ['shoes', [160]], ['pants', [200]]];
 const maskData = new Map<string, Uint8ClampedArray | 'loading'>();
+const imgData = new Map<string, Uint8ClampedArray | 'loading' | 'missing'>();
+/** Lazily loaded image pixels (for per-sheet cosmetic layers). undefined while loading, null if the file doesn't exist. */
+function lazyPixels(scene: Phaser.Scene, tkey: string, url: string): Uint8ClampedArray | null | undefined {
+  const m = imgData.get(tkey);
+  if (m === 'loading') return undefined;
+  if (m === 'missing') return null;
+  if (m) return m;
+  const read = () => {
+    const im = scene.textures.get(tkey).getSourceImage() as HTMLImageElement;
+    const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const x = c.getContext('2d', { willReadFrequently: true })!; x.drawImage(im, 0, 0);
+    imgData.set(tkey, x.getImageData(0, 0, im.width, im.height).data);
+  };
+  if (scene.textures.exists(tkey)) { read(); return imgData.get(tkey) as Uint8ClampedArray; }
+  imgData.set(tkey, 'loading');
+  scene.load.image(tkey, url);
+  scene.load.once(`filecomplete-image-${tkey}`, read);
+  scene.load.once(`loaderror`, (f: Phaser.Loader.File) => { if (f.key === tkey) imgData.set(tkey, 'missing'); });
+  if (!scene.load.isLoading()) scene.load.start();
+  return undefined;
+}
+/** Worn pieces painted into the body art per sheet (hairstyle, hat, face, earring): drawn for this exact frame, in paint order. */
+const WORN: CosSlot[] = ['hairstyle', 'hat', 'faceacc', 'earring'];
+const sheetName = (path: string) => (path.includes('/skills/') ? path.split('/').slice(-2, -1)[0] : path.split('/').pop()!.replace('.png', ''));
+
 /** Packed per-sheet mask (R = region, G = sword cut), loaded on first need. */
 function sheetMask(scene: Phaser.Scene, key: string): Uint8ClampedArray | null {
   const m = maskData.get(key);
@@ -102,10 +126,18 @@ function sheetMask(scene: Phaser.Scene, key: string): Uint8ClampedArray | null {
 }
 /** Body sheet variant: cape fabric, hair/armor/cloth recolours (own shading through the item's colour ramp) and the original
  *  sword cut out — one pass over the sheet, built once per combination. null while the sheet's mask is still loading. */
-function bodyVariant(scene: Phaser.Scene, key: string, wkey: string, cut: boolean, capeId: string | null, rec: (string | null)[] = []): string | null {
-  const vk = `${key}${capeId ? `|${capeId}` : ''}${rec.map((r) => (r ? `|${r}` : '')).join('')}${cut ? '-nb' : ''}`;
+function bodyVariant(scene: Phaser.Scene, key: string, wkey: string, cut: boolean, capeId: string | null, rec: (string | null)[] = [], worn: (string | null)[] = []): string | null {
+  const vk = `${key}${capeId ? `|${capeId}` : ''}${rec.map((r) => (r ? `|${r}` : '')).join('')}${worn.map((r) => (r ? `|${r}` : '')).join('')}${cut ? '-nb' : ''}`;
   if (scene.textures.exists(vk)) return vk;
   if (!scene.textures.exists(key)) return null;
+  const layers: Uint8ClampedArray[] = [];
+  for (const id of worn) {
+    if (!id || !SHEET_PATH[key]) continue;
+    const it = cosmetic(id); if (!it?.layers) continue;
+    const px = lazyPixels(scene, `cosl-${id}-${key}`, `${it.layers}/${sheetName(SHEET_PATH[key])}.png`);
+    if (px === undefined) return null; // still loading
+    if (px) layers.push(px);
+  }
   const mask = sheetMask(scene, key);
   if (!mask) { // no packed mask (other classes) or still loading: sword cut from the raw blade mask only
     if (SHEET_PATH[key]) return null;
@@ -144,6 +176,12 @@ function bodyVariant(scene: Phaser.Scene, key: string, wkey: string, cut: boolea
       a[i] = lut[q][0]; a[i + 1] = lut[q][1]; a[i + 2] = lut[q][2];
     }
     void lab;
+    for (const L of layers) for (let i = 0; i < a.length; i += 4) { // worn pieces: magenta = hair hidden under the piece, else alpha-over
+      const la = L[i + 3]; if (la === 0) continue;
+      if (L[i] === 255 && L[i + 1] === 0 && L[i + 2] === 255) { a[i + 3] = 0; continue; }
+      const t = la / 255, u = 1 - t, ba = a[i + 3] / 255, oa = t + ba * u;
+      a[i] = (L[i] * t + a[i] * ba * u) / oa; a[i + 1] = (L[i + 1] * t + a[i + 1] * ba * u) / oa; a[i + 2] = (L[i + 2] * t + a[i + 2] * ba * u) / oa; a[i + 3] = oa * 255;
+    }
     ctx.putImageData(d, 0, 0);
   } else if (cut) {
     const wimg = scene.textures.get(wkey).getSourceImage() as HTMLImageElement;
@@ -176,6 +214,20 @@ export class ActorView {
   private t = 0;
   /** Floating companion: trails the hero with a soft lag. */
   private petPos: { x: number; y: number } | null = null;
+  /** Name plate under the feet (MapleStory style); framed when a name-tag item is equipped. */
+  private nameText: Phaser.GameObjects.Text | null = null;
+  private nameFrame: Phaser.GameObjects.Image | null = null;
+  private trailT = 0; private lastFeet: { x: number; y: number } | null = null;
+  setName(name: string): void {
+    this.nameText?.destroy();
+    this.nameText = this.scene.add.text(0, 0, name, { fontFamily: 'Arial, sans-serif', fontSize: '12px', fontStyle: 'bold', color: '#ffffff', stroke: '#000000', strokeThickness: 3, resolution: 2 }).setOrigin(0.5);
+    this.refreshNameFrame();
+  }
+  private refreshNameFrame(): void {
+    this.nameFrame?.destroy(); this.nameFrame = null;
+    const id = this.equipped.nametag; if (!id || !this.nameText) return;
+    if (this.scene.textures.exists(`cos-${id}`)) this.nameFrame = this.scene.add.image(0, 0, `cos-${id}`);
+  }
   visible = true;
 
   constructor(private scene: Phaser.Scene, readonly cls: ClassKey, x: number, y: number) {
@@ -192,6 +244,7 @@ export class ActorView {
     this.equipped = { ...e };
     for (const s of Object.keys(this.layers) as CosSlot[]) { this.layers[s]?.destroy(); delete this.layers[s]; }
     this.blade?.destroy(); this.blade = null; this.bladeTop?.destroy(); this.bladeTop = null;
+    this.refreshNameFrame();
     const wi = e.weapon ? cosmetic(e.weapon) : undefined;
     if (wi?.blade && this.scene.textures.exists(`cosw-${wi.id}`)) {
       this.blade = this.scene.add.image(0, 0, `cosw-${wi.id}`);
@@ -199,7 +252,7 @@ export class ActorView {
       this.bladeTop = this.scene.add.image(0, 0, `cosw-${wi.id}`).setCrop(cut, 0, wi.blade.w - cut, wi.blade.h);
     }
     for (const [slot, id] of Object.entries(e) as [CosSlot, string][]) {
-      if (!id || slot === 'weapon' || slot === 'damage' || slot === 'hair' || slot === 'armor' || slot === 'top' || slot === 'gloves' || slot === 'shoes' || slot === 'pants') continue;
+      if (!id || cosmetic(id)?.layers || slot === 'weapon' || slot === 'damage' || slot === 'hair' || slot === 'armor' || slot === 'top' || slot === 'gloves' || slot === 'shoes' || slot === 'pants' || slot === 'nametag' || slot === 'trail') continue;
       const it = cosmetic(id);
       if (!it || !this.scene.textures.exists(`cos-${id}`)) continue;
       const img = this.scene.add.image(0, 0, `cos-${id}`, 0);
@@ -226,7 +279,8 @@ export class ActorView {
     const capeId = this.equipped.back && cosmetic(this.equipped.back)?.fabric ? this.equipped.back : null;
     const rec = RECOLOR.map(([sl]) => { const id = this.equipped[sl]; return id && cosmetic(id)?.lut ? id : null; });
     let ready = true;
-    if (this.blade || capeId || rec.some((r) => r)) { const vk = bodyVariant(this.scene, pose.key, pose.wkey, !!this.blade, capeId, rec); if (vk) p.setTexture(vk, pose.frame); else ready = false; }
+    const worn = WORN.map((sl) => { const id = this.equipped[sl]; return id && cosmetic(id)?.layers ? id : null; });
+    if (this.blade || capeId || rec.some((r) => r) || worn.some((r) => r)) { const vk = bodyVariant(this.scene, pose.key, pose.wkey, !!this.blade, capeId, rec, worn); if (vk) p.setTexture(vk, pose.frame); else ready = false; }
     if (this.blade && !ready) { this.blade.setVisible(false); this.bladeTop?.setVisible(false); } // mask still loading: keep the original sword for a moment
     else if (this.blade) {
       const bi = cosmetic(this.equipped.weapon!)!.blade!, bl = pose.blade;
@@ -254,6 +308,23 @@ export class ActorView {
         const g = ws.rainbow ? tintC : ws.glow;
         this.weaponGlow.setOrigin(pose.ox, pose.oy).setScale(pose.scale * 1.04).setPosition(p.x, p.y).setDepth(depth + 0.03).setTint(g)
           .setAlpha(alpha * (0.45 + 0.2 * Math.sin(this.t / 180)));
+      }
+    }
+    // Name plate + running trail.
+    if (this.nameText) {
+      const ny = y - supportZ + 22, d0 = actorDepth(x, y, supportZ) + 0.5;
+      this.nameText.setPosition(x, ny).setDepth(d0 + 0.01).setAlpha(alpha).setVisible(this.visible);
+      if (this.nameFrame) { const w = Math.max(96, this.nameText.width + 54); this.nameFrame.setDisplaySize(w, w * (this.nameFrame.height / this.nameFrame.width) * 1.0).setPosition(x, ny).setDepth(d0).setAlpha(alpha).setVisible(this.visible); }
+    }
+    const tr = this.equipped.trail;
+    if (tr && this.visible && this.scene.textures.exists(`cos-${tr}`)) {
+      const lf = this.lastFeet, moved = lf ? Math.hypot(x - lf.x, y - lf.y) : 0; this.lastFeet = { x, y };
+      this.trailT += ms;
+      if (moved > 2.2 * (ms / 16.7) && z - supportZ < 4 && this.trailT > 95) {
+        this.trailT = 0;
+        const it = cosmetic(tr)!, n = it.frames ?? 6, t = this.scene.add.image(x + (Math.random() - 0.5) * 10, y - supportZ + 2, `cos-${tr}`, 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(actorDepth(x, y, supportZ) - 0.62).setScale(0.42);
+        let f = 0; const ev = this.scene.time.addEvent({ delay: 85, repeat: n - 1, callback: () => { f++; if (f >= n) { t.destroy(); return; } t.setFrame(f); } });
+        void ev;
       }
     }
     // Anchored cosmetics.
@@ -338,6 +409,7 @@ export class ActorView {
   destroy(): void {
     this.sprite.destroy(); this.weapon.destroy(); this.weaponGlow.destroy(); this.shadow.destroy(); this.ring.destroy();
     for (const l of Object.values(this.layers)) l?.destroy();
+    this.nameText?.destroy(); this.nameFrame?.destroy();
     this.layers = {}; this.blade?.destroy(); this.blade = null; this.bladeTop?.destroy(); this.bladeTop = null;
   }
 }

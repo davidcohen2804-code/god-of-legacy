@@ -205,6 +205,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.body = new CombatBody(this.kin, !!pvpRoom);
     this.body.maxHp = pvpRoom ? PVP.maxHp : S6.player.maxHp;
     this.view = new ActorView(this, character.classId as ClassKey, x, y);
+    this.view.setName(character.name);
     this.loadCosmetics();
 
     this.rt = new SkillRuntime({

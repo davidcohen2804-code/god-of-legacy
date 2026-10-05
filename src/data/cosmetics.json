@@ -309,7 +309,7 @@
     ],
     "name": "Starry Wizard Hat",
     "desc": "hat.",
-    "wip": true
+    "layers": "assets/final/cosmetics/warrior/war_hat_wizard/layers"
    },
    {
     "id": "war_hat_pirate",
@@ -351,7 +351,7 @@
     ],
     "name": "Captain Tricorn",
     "desc": "hat.",
-    "wip": true
+    "layers": "assets/final/cosmetics/warrior/war_hat_pirate/layers"
    },
    {
     "id": "war_hat_kasa",
@@ -16491,6 +16491,276 @@
     ],
     "name": "Ember Guard",
     "desc": "flame crown + molten cape + ruby sword + shadow flames."
+   },
+   {
+    "id": "war_tag_0",
+    "type": "nametag",
+    "icon": "assets/final/cosmetics/shared/war_tag_0/icon.png",
+    "runtime": "assets/final/cosmetics/shared/war_tag_0/tag.png",
+    "attachment": "none",
+    "cell": [
+     360,
+     110
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "name": "Seraph Wings Name Tag",
+    "desc": "name tag frame."
+   },
+   {
+    "id": "war_tag_1",
+    "type": "nametag",
+    "icon": "assets/final/cosmetics/shared/war_tag_1/icon.png",
+    "runtime": "assets/final/cosmetics/shared/war_tag_1/tag.png",
+    "attachment": "none",
+    "cell": [
+     360,
+     105
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "name": "Crimson Drake Name Tag",
+    "desc": "name tag frame."
+   },
+   {
+    "id": "war_tag_2",
+    "type": "nametag",
+    "icon": "assets/final/cosmetics/shared/war_tag_2/icon.png",
+    "runtime": "assets/final/cosmetics/shared/war_tag_2/tag.png",
+    "attachment": "none",
+    "cell": [
+     360,
+     113
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "name": "Frost Crystal Name Tag",
+    "desc": "name tag frame."
+   },
+   {
+    "id": "war_tag_3",
+    "type": "nametag",
+    "icon": "assets/final/cosmetics/shared/war_tag_3/icon.png",
+    "runtime": "assets/final/cosmetics/shared/war_tag_3/tag.png",
+    "attachment": "none",
+    "cell": [
+     360,
+     102
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "name": "Void Rune Name Tag",
+    "desc": "name tag frame."
+   },
+   {
+    "id": "war_tag_4",
+    "type": "nametag",
+    "icon": "assets/final/cosmetics/shared/war_tag_4/icon.png",
+    "runtime": "assets/final/cosmetics/shared/war_tag_4/tag.png",
+    "attachment": "none",
+    "cell": [
+     360,
+     108
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "name": "Verdant Vine Name Tag",
+    "desc": "name tag frame."
+   },
+   {
+    "id": "war_tag_5",
+    "type": "nametag",
+    "icon": "assets/final/cosmetics/shared/war_tag_5/icon.png",
+    "runtime": "assets/final/cosmetics/shared/war_tag_5/tag.png",
+    "attachment": "none",
+    "cell": [
+     360,
+     103
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "name": "Sakura Branch Name Tag",
+    "desc": "name tag frame."
+   },
+   {
+    "id": "war_tag_6",
+    "type": "nametag",
+    "icon": "assets/final/cosmetics/shared/war_tag_6/icon.png",
+    "runtime": "assets/final/cosmetics/shared/war_tag_6/tag.png",
+    "attachment": "none",
+    "cell": [
+     360,
+     106
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "name": "Infernal Horns Name Tag",
+    "desc": "name tag frame."
+   },
+   {
+    "id": "war_tag_7",
+    "type": "nametag",
+    "icon": "assets/final/cosmetics/shared/war_tag_7/icon.png",
+    "runtime": "assets/final/cosmetics/shared/war_tag_7/tag.png",
+    "attachment": "none",
+    "cell": [
+     358,
+     120
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "name": "Holy Halo Name Tag",
+    "desc": "name tag frame."
+   },
+   {
+    "id": "war_tag_8",
+    "type": "nametag",
+    "icon": "assets/final/cosmetics/shared/war_tag_8/icon.png",
+    "runtime": "assets/final/cosmetics/shared/war_tag_8/tag.png",
+    "attachment": "none",
+    "cell": [
+     360,
+     105
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "name": "Storm Bolt Name Tag",
+    "desc": "name tag frame."
+   },
+   {
+    "id": "war_tag_9",
+    "type": "nametag",
+    "icon": "assets/final/cosmetics/shared/war_tag_9/icon.png",
+    "runtime": "assets/final/cosmetics/shared/war_tag_9/tag.png",
+    "attachment": "none",
+    "cell": [
+     360,
+     105
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "name": "Tide Curl Name Tag",
+    "desc": "name tag frame."
+   },
+   {
+    "id": "war_tag_10",
+    "type": "nametag",
+    "icon": "assets/final/cosmetics/shared/war_tag_10/icon.png",
+    "runtime": "assets/final/cosmetics/shared/war_tag_10/tag.png",
+    "attachment": "none",
+    "cell": [
+     360,
+     108
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "name": "Starlit Night Name Tag",
+    "desc": "name tag frame."
+   },
+   {
+    "id": "war_tag_11",
+    "type": "nametag",
+    "icon": "assets/final/cosmetics/shared/war_tag_11/icon.png",
+    "runtime": "assets/final/cosmetics/shared/war_tag_11/tag.png",
+    "attachment": "none",
+    "cell": [
+     360,
+     111
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "name": "Prism Shard Name Tag",
+    "desc": "name tag frame."
+   },
+   {
+    "id": "war_trail_0",
+    "type": "trail",
+    "icon": "assets/final/cosmetics/shared/war_trail_0/icon.png",
+    "runtime": "assets/final/cosmetics/shared/war_trail_0/trail.png",
+    "attachment": "none",
+    "cell": [
+     241,
+     181
+    ],
+    "frames": 6,
+    "layout": "6x1",
+    "name": "Golden Sparkle Trail",
+    "desc": "footstep trail while running."
+   },
+   {
+    "id": "war_trail_1",
+    "type": "trail",
+    "icon": "assets/final/cosmetics/shared/war_trail_1/icon.png",
+    "runtime": "assets/final/cosmetics/shared/war_trail_1/trail.png",
+    "attachment": "none",
+    "cell": [
+     241,
+     181
+    ],
+    "frames": 6,
+    "layout": "6x1",
+    "name": "Frost Crack Trail",
+    "desc": "footstep trail while running."
+   },
+   {
+    "id": "war_trail_2",
+    "type": "trail",
+    "icon": "assets/final/cosmetics/shared/war_trail_2/icon.png",
+    "runtime": "assets/final/cosmetics/shared/war_trail_2/trail.png",
+    "attachment": "none",
+    "cell": [
+     241,
+     181
+    ],
+    "frames": 6,
+    "layout": "6x1",
+    "name": "Ember Step Trail",
+    "desc": "footstep trail while running."
+   },
+   {
+    "id": "war_trail_3",
+    "type": "trail",
+    "icon": "assets/final/cosmetics/shared/war_trail_3/icon.png",
+    "runtime": "assets/final/cosmetics/shared/war_trail_3/trail.png",
+    "attachment": "none",
+    "cell": [
+     241,
+     181
+    ],
+    "frames": 6,
+    "layout": "6x1",
+    "name": "Sakura Step Trail",
+    "desc": "footstep trail while running."
+   },
+   {
+    "id": "war_trail_4",
+    "type": "trail",
+    "icon": "assets/final/cosmetics/shared/war_trail_4/icon.png",
+    "runtime": "assets/final/cosmetics/shared/war_trail_4/trail.png",
+    "attachment": "none",
+    "cell": [
+     241,
+     181
+    ],
+    "frames": 6,
+    "layout": "6x1",
+    "name": "Shadow Wisp Trail",
+    "desc": "footstep trail while running."
+   },
+   {
+    "id": "war_trail_5",
+    "type": "trail",
+    "icon": "assets/final/cosmetics/shared/war_trail_5/icon.png",
+    "runtime": "assets/final/cosmetics/shared/war_trail_5/trail.png",
+    "attachment": "none",
+    "cell": [
+     241,
+     181
+    ],
+    "frames": 6,
+    "layout": "6x1",
+    "name": "Stardust Trail",
+    "desc": "footstep trail while running."
    }
   ],
   "book_mage": [
