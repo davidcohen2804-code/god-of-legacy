@@ -114,6 +114,9 @@ export const BASE_GEOM: Record<string, { W: number; H: number; cols: number; ori
 let BASE_MODE = false;
 /** Base body available for this animation (sheet baked)? */
 export const hasBase = (cls: string, anim: string): boolean => cls === 'warrior' && BASE_ANIMS.has(anim);
+/** Every animation the warrior uses has its base strip (death is the ghost, no frames needed). */
+const BASE_NEEDED = ['air_attack', 'blade_storm', 'dash_slash', 'ground_breaker', 'idle', 'iron_grip', 'judgment_blade', 'jump', 'lance_thrust', 'leap_crash', 'radiant_blade', 'react', 'recovery', 'rising_slash', 'run', 'sanctuary', 'shield_slam', 'titans_verdict', 'walk', 'war_cry', 'warrior_basic', 'wave_slash', 'whirlwind'];
+export const baseComplete = (cls: string): boolean => cls === 'warrior' && BASE_NEEDED.every((a) => BASE_ANIMS.has(a));
 
 function headOf(path: string, row: number, c: number): number[] | null {
   const h = (HEADS as unknown as Record<string, (number[] | null)[][]>)[path]?.[row]?.[c];

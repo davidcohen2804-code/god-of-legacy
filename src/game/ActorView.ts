@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import COS from '../data/cosmetics.json';
 import { Dir } from '../world/collision';
 import { actorDepth } from '../world/WorldGeometry';
-import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM } from './Body';
+import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM, baseComplete } from './Body';
 
 export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet' | 'hair' | 'armor' | 'hairstyle' | 'top' | 'gloves' | 'shoes' | 'pants' | 'hat' | 'faceacc' | 'earring' | 'nametag' | 'trail';
 export type Equipped = Partial<Record<CosSlot, string>>;
@@ -272,7 +272,8 @@ export class ActorView {
   get equippedItems(): Equipped { return this.equipped; }
 
   /** Fashion (top / pants / shoes) is drawn on the beginner base body, not on the class armour. */
-  get wantsBase(): boolean { return !!(this.equipped.top || this.equipped.pants || this.equipped.shoes); }
+  /** Warrior = sword only, no shield: the base body is his default look once every animation is baked; until then fashion turns it on. */
+  get wantsBase(): boolean { return baseComplete(this.cls) || !!(this.equipped.top || this.equipped.pants || this.equipped.shoes); }
 
   /** Render one frame. pose = resolved body frame; x/y = ground feet; z = height; supportZ = surface under the feet. */
   render(ms: number, pose: PoseFrame, x: number, y: number, z: number, supportZ: number, dir: Dir, alpha = 1, tint: number | null = null, tintFill = false): void {
