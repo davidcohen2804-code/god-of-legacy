@@ -16,7 +16,9 @@ for r in range(4):
   c=idle[r*352:(r+1)*352,0:352]; hm=idle_m[r*352:(r+1)*352,0:352]==40; sk=skinm(c); ys,xs=np.nonzero(hm|sk)
   TT.append((ys.min()-2,ys.max()+2,xs.min()-2,xs.max()+2))
 IF=F['assets/final/body/warrior/movement/idle.png']
+ONLY=os.environ.get('ONLY')
 for key in HM:
+  if ONLY and ONLY not in key: continue
   name=key.split('/')[-2] if '/skills/' in key else None; cc=cells.get(name,{}) if name else {}
   W=cc.get('w',352); H=cc.get('h',352); fx0=W//2; fy0=310+H-352
   pm=np.array(Image.open(G+'public/'+key[:-4]+'_m.png'))[...,0]

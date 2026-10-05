@@ -60,7 +60,11 @@ for key in keys:
       row.append(None if e>=1e8 else [round(float(e),1),ang,int(x-t['x0']),int(y-t['y0'])])
     rows.append(row)
   out[key]=rows
-json.dump(out,open('headmatch.json','w'))
+import os
+if os.path.exists('headmatch.json') and sys.argv[1:]:
+  prev=json.load(open('headmatch.json')); prev.update(out); out_all=prev
+else: out_all=out
+json.dump(out_all,open('headmatch.json','w'))
 for k,v in out.items():
   es=[x[0] for rr in v for x in rr if x]
   print(k.split('/')[-2] if '/skills/' in k else k.split('/')[-1], 'frames',len(es),'good(<22)',sum(e<22 for e in es),'median',round(float(np.median(es)),1) if es else None)
