@@ -519,7 +519,7 @@
     ],
     "name": "Viking Cap",
     "desc": "hat.",
-    "wip": true
+    "layers": "assets/final/cosmetics/warrior/war_hat_viking/layers"
    },
    {
     "id": "war_hat_witch",
