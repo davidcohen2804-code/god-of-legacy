@@ -128,7 +128,8 @@
      "lift": 0
     },
     "name": "Royal Crown",
-    "desc": "gold crown with ruby jewels."
+    "desc": "gold crown with ruby jewels.",
+    "wip": true
    },
    {
     "id": "war_head_holy_halo",
@@ -173,7 +174,8 @@
      "lift": 0.25
     },
     "name": "Holy Halo",
-    "desc": "a glowing halo floating above the head."
+    "desc": "a glowing halo floating above the head.",
+    "wip": true
    },
    {
     "id": "war_head_ice_tiara",
@@ -218,7 +220,8 @@
      "lift": 0
     },
     "name": "Frost Tiara",
-    "desc": "ice-crystal tiara."
+    "desc": "ice-crystal tiara.",
+    "wip": true
    },
    {
     "id": "war_head_flame_crown",
@@ -263,7 +266,920 @@
      "lift": 0
     },
     "name": "Flame Crown",
-    "desc": "a crown of living fire."
+    "desc": "a crown of living fire.",
+    "wip": true
+   },
+   {
+    "id": "war_hat_wizard",
+    "type": "hat",
+    "icon": "assets/final/cosmetics/warrior/war_hat_wizard/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_hat_wizard/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     239,
+     164
+    ],
+    "frames": 4,
+    "layout": "4x1",
+    "box": [
+     [
+      239,
+      158,
+      0,
+      6
+     ],
+     [
+      200,
+      158,
+      19,
+      6
+     ],
+     [
+      198,
+      158,
+      20,
+      6
+     ],
+     [
+      222,
+      164,
+      8,
+      0
+     ]
+    ],
+    "name": "Starry Wizard Hat",
+    "desc": "hat.",
+    "wip": true
+   },
+   {
+    "id": "war_hat_pirate",
+    "type": "hat",
+    "icon": "assets/final/cosmetics/warrior/war_hat_pirate/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_hat_pirate/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     241,
+     167
+    ],
+    "frames": 4,
+    "layout": "4x1",
+    "box": [
+     [
+      241,
+      140,
+      0,
+      27
+     ],
+     [
+      202,
+      167,
+      19,
+      0
+     ],
+     [
+      196,
+      167,
+      22,
+      0
+     ],
+     [
+      235,
+      142,
+      3,
+      25
+     ]
+    ],
+    "name": "Captain Tricorn",
+    "desc": "hat.",
+    "wip": true
+   },
+   {
+    "id": "war_hat_kasa",
+    "type": "hat",
+    "icon": "assets/final/cosmetics/warrior/war_hat_kasa/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_hat_kasa/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     241,
+     188
+    ],
+    "frames": 4,
+    "layout": "4x1",
+    "box": [
+     [
+      241,
+      188,
+      0,
+      0
+     ],
+     [
+      220,
+      188,
+      10,
+      0
+     ],
+     [
+      217,
+      188,
+      12,
+      0
+     ],
+     [
+      236,
+      188,
+      2,
+      0
+     ]
+    ],
+    "name": "Straw Kasa",
+    "desc": "hat.",
+    "wip": true
+   },
+   {
+    "id": "war_hat_tophat",
+    "type": "hat",
+    "icon": "assets/final/cosmetics/warrior/war_hat_tophat/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_hat_tophat/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     195,
+     188
+    ],
+    "frames": 4,
+    "layout": "4x1",
+    "box": [
+     [
+      187,
+      188,
+      4,
+      0
+     ],
+     [
+      195,
+      188,
+      0,
+      0
+     ],
+     [
+      193,
+      188,
+      1,
+      0
+     ],
+     [
+      191,
+      188,
+      2,
+      0
+     ]
+    ],
+    "name": "Gentleman Top Hat",
+    "desc": "hat.",
+    "wip": true
+   },
+   {
+    "id": "war_hat_beret",
+    "type": "hat",
+    "icon": "assets/final/cosmetics/warrior/war_hat_beret/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_hat_beret/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     225,
+     188
+    ],
+    "frames": 4,
+    "layout": "4x1",
+    "box": [
+     [
+      225,
+      188,
+      0,
+      0
+     ],
+     [
+      189,
+      188,
+      18,
+      0
+     ],
+     [
+      182,
+      188,
+      21,
+      0
+     ],
+     [
+      222,
+      188,
+      1,
+      0
+     ]
+    ],
+    "name": "Crimson Beret",
+    "desc": "hat.",
+    "wip": true
+   },
+   {
+    "id": "war_hat_viking",
+    "type": "hat",
+    "icon": "assets/final/cosmetics/warrior/war_hat_viking/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_hat_viking/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     211,
+     188
+    ],
+    "frames": 4,
+    "layout": "4x1",
+    "box": [
+     [
+      211,
+      188,
+      0,
+      0
+     ],
+     [
+      178,
+      188,
+      16,
+      0
+     ],
+     [
+      180,
+      188,
+      15,
+      0
+     ],
+     [
+      208,
+      188,
+      1,
+      0
+     ]
+    ],
+    "name": "Viking Cap",
+    "desc": "hat.",
+    "wip": true
+   },
+   {
+    "id": "war_hat_witch",
+    "type": "hat",
+    "icon": "assets/final/cosmetics/warrior/war_hat_witch/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_hat_witch/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     232,
+     188
+    ],
+    "frames": 4,
+    "layout": "4x1",
+    "box": [
+     [
+      232,
+      188,
+      0,
+      0
+     ],
+     [
+      209,
+      188,
+      11,
+      0
+     ],
+     [
+      205,
+      188,
+      13,
+      0
+     ],
+     [
+      227,
+      188,
+      2,
+      0
+     ]
+    ],
+    "name": "Violet Witch Hat",
+    "desc": "hat.",
+    "wip": true
+   },
+   {
+    "id": "war_hat_winter",
+    "type": "hat",
+    "icon": "assets/final/cosmetics/warrior/war_hat_winter/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_hat_winter/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     225,
+     110
+    ],
+    "frames": 4,
+    "layout": "4x1",
+    "box": [
+     [
+      225,
+      110,
+      0,
+      0
+     ],
+     [
+      216,
+      109,
+      4,
+      1
+     ],
+     [
+      212,
+      109,
+      6,
+      1
+     ],
+     [
+      217,
+      110,
+      4,
+      0
+     ]
+    ],
+    "name": "Winter Fur Cap",
+    "desc": "hat.",
+    "wip": true
+   },
+   {
+    "id": "war_face_round",
+    "type": "faceacc",
+    "icon": "assets/final/cosmetics/warrior/war_face_round/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_face_round/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     287,
+     105
+    ],
+    "frames": 3,
+    "layout": "3x1",
+    "box": [
+     [
+      287,
+      96,
+      0,
+      4
+     ],
+     [
+      284,
+      105,
+      1,
+      0
+     ],
+     [
+      258,
+      105,
+      14,
+      0
+     ]
+    ],
+    "name": "Golden Round Glasses",
+    "desc": "face accessory.",
+    "wip": true
+   },
+   {
+    "id": "war_face_shades",
+    "type": "faceacc",
+    "icon": "assets/final/cosmetics/warrior/war_face_shades/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_face_shades/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     316,
+     116
+    ],
+    "frames": 3,
+    "layout": "3x1",
+    "box": [
+     [
+      316,
+      115,
+      0,
+      0
+     ],
+     [
+      302,
+      116,
+      7,
+      0
+     ],
+     [
+      289,
+      116,
+      13,
+      0
+     ]
+    ],
+    "name": "Cool Shades",
+    "desc": "face accessory.",
+    "wip": true
+   },
+   {
+    "id": "war_face_visor",
+    "type": "faceacc",
+    "icon": "assets/final/cosmetics/warrior/war_face_visor/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_face_visor/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     318,
+     124
+    ],
+    "frames": 3,
+    "layout": "3x1",
+    "box": [
+     [
+      318,
+      124,
+      0,
+      0
+     ],
+     [
+      282,
+      124,
+      18,
+      0
+     ],
+     [
+      282,
+      124,
+      18,
+      0
+     ]
+    ],
+    "name": "Cyber Visor",
+    "desc": "face accessory.",
+    "wip": true
+   },
+   {
+    "id": "war_face_oni",
+    "type": "faceacc",
+    "icon": "assets/final/cosmetics/warrior/war_face_oni/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_face_oni/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     220,
+     124
+    ],
+    "frames": 3,
+    "layout": "3x1",
+    "box": [
+     [
+      220,
+      124,
+      0,
+      0
+     ],
+     [
+      208,
+      124,
+      6,
+      0
+     ],
+     [
+      198,
+      124,
+      11,
+      0
+     ]
+    ],
+    "name": "Oni Half-mask",
+    "desc": "face accessory.",
+    "wip": true
+   },
+   {
+    "id": "war_face_fox",
+    "type": "faceacc",
+    "icon": "assets/final/cosmetics/warrior/war_face_fox/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_face_fox/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     212,
+     124
+    ],
+    "frames": 3,
+    "layout": "3x1",
+    "box": [
+     [
+      212,
+      124,
+      0,
+      0
+     ],
+     [
+      201,
+      124,
+      5,
+      0
+     ],
+     [
+      198,
+      124,
+      7,
+      0
+     ]
+    ],
+    "name": "Fox Mask",
+    "desc": "face accessory.",
+    "wip": true
+   },
+   {
+    "id": "war_face_patch",
+    "type": "faceacc",
+    "icon": "assets/final/cosmetics/warrior/war_face_patch/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_face_patch/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     322,
+     124
+    ],
+    "frames": 3,
+    "layout": "3x1",
+    "box": [
+     [
+      322,
+      124,
+      0,
+      0
+     ],
+     [
+      244,
+      124,
+      39,
+      0
+     ],
+     [
+      237,
+      124,
+      42,
+      0
+     ]
+    ],
+    "name": "Gilded Eyepatch",
+    "desc": "face accessory.",
+    "wip": true
+   },
+   {
+    "id": "war_face_heart",
+    "type": "faceacc",
+    "icon": "assets/final/cosmetics/warrior/war_face_heart/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_face_heart/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     321,
+     124
+    ],
+    "frames": 3,
+    "layout": "3x1",
+    "box": [
+     [
+      321,
+      124,
+      0,
+      0
+     ],
+     [
+      295,
+      124,
+      13,
+      0
+     ],
+     [
+      292,
+      124,
+      14,
+      0
+     ]
+    ],
+    "name": "Heart Glasses",
+    "desc": "face accessory.",
+    "wip": true
+   },
+   {
+    "id": "war_face_guard",
+    "type": "faceacc",
+    "icon": "assets/final/cosmetics/warrior/war_face_guard/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_face_guard/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     239,
+     114
+    ],
+    "frames": 3,
+    "layout": "3x1",
+    "box": [
+     [
+      239,
+      114,
+      0,
+      0
+     ],
+     [
+      205,
+      113,
+      17,
+      0
+     ],
+     [
+      195,
+      113,
+      22,
+      0
+     ]
+    ],
+    "name": "Knight Face-guard",
+    "desc": "face accessory.",
+    "wip": true
+   },
+   {
+    "id": "war_ear_0",
+    "type": "earring",
+    "icon": "assets/final/cosmetics/warrior/war_ear_0/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_ear_0/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     140,
+     376
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "box": [
+     [
+      140,
+      376,
+      0,
+      0
+     ]
+    ],
+    "name": "Gold Hoop Earring",
+    "desc": "earring.",
+    "wip": true
+   },
+   {
+    "id": "war_ear_1",
+    "type": "earring",
+    "icon": "assets/final/cosmetics/warrior/war_ear_1/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_ear_1/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     105,
+     379
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "box": [
+     [
+      105,
+      379,
+      0,
+      0
+     ]
+    ],
+    "name": "Ruby Drop Earring",
+    "desc": "earring.",
+    "wip": true
+   },
+   {
+    "id": "war_ear_2",
+    "type": "earring",
+    "icon": "assets/final/cosmetics/warrior/war_ear_2/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_ear_2/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     136,
+     431
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "box": [
+     [
+      136,
+      431,
+      0,
+      0
+     ]
+    ],
+    "name": "Silver Feather Earring",
+    "desc": "earring.",
+    "wip": true
+   },
+   {
+    "id": "war_ear_3",
+    "type": "earring",
+    "icon": "assets/final/cosmetics/warrior/war_ear_3/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_ear_3/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     99,
+     397
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "box": [
+     [
+      99,
+      397,
+      0,
+      0
+     ]
+    ],
+    "name": "Crystal Shard Earring",
+    "desc": "earring.",
+    "wip": true
+   },
+   {
+    "id": "war_ear_4",
+    "type": "earring",
+    "icon": "assets/final/cosmetics/warrior/war_ear_4/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_ear_4/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     145,
+     426
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "box": [
+     [
+      145,
+      426,
+      0,
+      0
+     ]
+    ],
+    "name": "Jade Dragon Earring",
+    "desc": "earring.",
+    "wip": true
+   },
+   {
+    "id": "war_ear_5",
+    "type": "earring",
+    "icon": "assets/final/cosmetics/warrior/war_ear_5/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_ear_5/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     180,
+     387
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "box": [
+     [
+      180,
+      387,
+      0,
+      0
+     ]
+    ],
+    "name": "Onyx Cross Earring",
+    "desc": "earring.",
+    "wip": true
+   },
+   {
+    "id": "war_ear_6",
+    "type": "earring",
+    "icon": "assets/final/cosmetics/warrior/war_ear_6/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_ear_6/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     112,
+     393
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "box": [
+     [
+      112,
+      393,
+      0,
+      0
+     ]
+    ],
+    "name": "Pearl Drop Earring",
+    "desc": "earring.",
+    "wip": true
+   },
+   {
+    "id": "war_ear_7",
+    "type": "earring",
+    "icon": "assets/final/cosmetics/warrior/war_ear_7/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_ear_7/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     136,
+     403
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "box": [
+     [
+      136,
+      403,
+      0,
+      0
+     ]
+    ],
+    "name": "Flame Gem Earring",
+    "desc": "earring.",
+    "wip": true
+   },
+   {
+    "id": "war_ear_8",
+    "type": "earring",
+    "icon": "assets/final/cosmetics/warrior/war_ear_8/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_ear_8/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     132,
+     434
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "box": [
+     [
+      132,
+      434,
+      0,
+      0
+     ]
+    ],
+    "name": "Moon & Star Earring",
+    "desc": "earring.",
+    "wip": true
+   },
+   {
+    "id": "war_ear_9",
+    "type": "earring",
+    "icon": "assets/final/cosmetics/warrior/war_ear_9/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_ear_9/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     157,
+     406
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "box": [
+     [
+      157,
+      406,
+      0,
+      0
+     ]
+    ],
+    "name": "Void Gem Earring",
+    "desc": "earring.",
+    "wip": true
+   },
+   {
+    "id": "war_ear_10",
+    "type": "earring",
+    "icon": "assets/final/cosmetics/warrior/war_ear_10/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_ear_10/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     124,
+     422
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "box": [
+     [
+      124,
+      422,
+      0,
+      0
+     ]
+    ],
+    "name": "Thunder Charm Earring",
+    "desc": "earring.",
+    "wip": true
+   },
+   {
+    "id": "war_ear_11",
+    "type": "earring",
+    "icon": "assets/final/cosmetics/warrior/war_ear_11/icon.png",
+    "runtime": "assets/final/cosmetics/warrior/war_ear_11/runtime.png",
+    "attachment": "headFrame",
+    "cell": [
+     179,
+     426
+    ],
+    "frames": 1,
+    "layout": "1x1",
+    "box": [
+     [
+      179,
+      426,
+      0,
+      0
+     ]
+    ],
+    "name": "Sakura Dangle Earring",
+    "desc": "earring.",
+    "wip": true
    },
    {
     "id": "war_hair_platinum",
@@ -2348,7 +3264,8 @@
      ]
     ],
     "name": "Long Flowing Hair",
-    "desc": "hairstyle."
+    "desc": "hairstyle.",
+    "wip": true
    },
    {
     "id": "war_hairstyle_undercut",
@@ -2393,7 +3310,8 @@
      ]
     ],
     "name": "Undercut",
-    "desc": "hairstyle."
+    "desc": "hairstyle.",
+    "wip": true
    },
    {
     "id": "war_hairstyle_spiky",
@@ -2438,7 +3356,8 @@
      ]
     ],
     "name": "Spiky Hero Hair",
-    "desc": "hairstyle."
+    "desc": "hairstyle.",
+    "wip": true
    },
    {
     "id": "war_hairstyle_topknot",
@@ -2483,7 +3402,8 @@
      ]
     ],
     "name": "Samurai Top-knot",
-    "desc": "hairstyle."
+    "desc": "hairstyle.",
+    "wip": true
    },
    {
     "id": "war_hairstyle_wolf",
@@ -2528,7 +3448,8 @@
      ]
     ],
     "name": "Wolf Cut",
-    "desc": "hairstyle."
+    "desc": "hairstyle.",
+    "wip": true
    },
    {
     "id": "war_hairstyle_ponytail",
@@ -2573,7 +3494,8 @@
      ]
     ],
     "name": "High Ponytail",
-    "desc": "hairstyle."
+    "desc": "hairstyle.",
+    "wip": true
    },
    {
     "id": "war_armor_gold",
@@ -6823,7 +7745,8 @@
      ]
     ],
     "name": "Gilded Gauntlets",
-    "desc": "gauntlets finish."
+    "desc": "gauntlets finish.",
+    "wip": true
    },
    {
     "id": "war_gloves_obsidian",
@@ -6993,7 +7916,8 @@
      ]
     ],
     "name": "Obsidian Gauntlets",
-    "desc": "gauntlets finish."
+    "desc": "gauntlets finish.",
+    "wip": true
    },
    {
     "id": "war_gloves_snow",
@@ -7163,7 +8087,8 @@
      ]
     ],
     "name": "Snow Gauntlets",
-    "desc": "gauntlets finish."
+    "desc": "gauntlets finish.",
+    "wip": true
    },
    {
     "id": "war_gloves_crimson",
@@ -7333,7 +8258,8 @@
      ]
     ],
     "name": "Crimson Gauntlets",
-    "desc": "gauntlets finish."
+    "desc": "gauntlets finish.",
+    "wip": true
    },
    {
     "id": "war_gloves_ice",
@@ -7503,7 +8429,8 @@
      ]
     ],
     "name": "Ice Gauntlets",
-    "desc": "gauntlets finish."
+    "desc": "gauntlets finish.",
+    "wip": true
    },
    {
     "id": "war_gloves_jade",
@@ -7673,7 +8600,8 @@
      ]
     ],
     "name": "Jade Gauntlets",
-    "desc": "gauntlets finish."
+    "desc": "gauntlets finish.",
+    "wip": true
    },
    {
     "id": "war_gloves_royal",
@@ -7843,7 +8771,8 @@
      ]
     ],
     "name": "Royal Violet Gauntlets",
-    "desc": "gauntlets finish."
+    "desc": "gauntlets finish.",
+    "wip": true
    },
    {
     "id": "war_gloves_rose",
@@ -8013,7 +8942,8 @@
      ]
     ],
     "name": "Rose Gold Gauntlets",
-    "desc": "gauntlets finish."
+    "desc": "gauntlets finish.",
+    "wip": true
    },
    {
     "id": "war_gloves_bronze",
@@ -8183,7 +9113,8 @@
      ]
     ],
     "name": "Bronze Gauntlets",
-    "desc": "gauntlets finish."
+    "desc": "gauntlets finish.",
+    "wip": true
    },
    {
     "id": "war_gloves_gunmetal",
@@ -8353,7 +9284,8 @@
      ]
     ],
     "name": "Gunmetal Gauntlets",
-    "desc": "gauntlets finish."
+    "desc": "gauntlets finish.",
+    "wip": true
    },
    {
     "id": "war_gloves_bone",
@@ -8523,7 +9455,8 @@
      ]
     ],
     "name": "Bone Gauntlets",
-    "desc": "gauntlets finish."
+    "desc": "gauntlets finish.",
+    "wip": true
    },
    {
     "id": "war_gloves_prism",
@@ -8693,7 +9626,8 @@
      ]
     ],
     "name": "Prism Gauntlets",
-    "desc": "gauntlets finish."
+    "desc": "gauntlets finish.",
+    "wip": true
    },
    {
     "id": "war_shoes_gold",
@@ -8863,7 +9797,8 @@
      ]
     ],
     "name": "Gilded Sabatons",
-    "desc": "sabatons finish."
+    "desc": "sabatons finish.",
+    "wip": true
    },
    {
     "id": "war_shoes_obsidian",
@@ -9033,7 +9968,8 @@
      ]
     ],
     "name": "Obsidian Sabatons",
-    "desc": "sabatons finish."
+    "desc": "sabatons finish.",
+    "wip": true
    },
    {
     "id": "war_shoes_snow",
@@ -9203,7 +10139,8 @@
      ]
     ],
     "name": "Snow Sabatons",
-    "desc": "sabatons finish."
+    "desc": "sabatons finish.",
+    "wip": true
    },
    {
     "id": "war_shoes_crimson",
@@ -9373,7 +10310,8 @@
      ]
     ],
     "name": "Crimson Sabatons",
-    "desc": "sabatons finish."
+    "desc": "sabatons finish.",
+    "wip": true
    },
    {
     "id": "war_shoes_ice",
@@ -9543,7 +10481,8 @@
      ]
     ],
     "name": "Ice Sabatons",
-    "desc": "sabatons finish."
+    "desc": "sabatons finish.",
+    "wip": true
    },
    {
     "id": "war_shoes_jade",
@@ -9713,7 +10652,8 @@
      ]
     ],
     "name": "Jade Sabatons",
-    "desc": "sabatons finish."
+    "desc": "sabatons finish.",
+    "wip": true
    },
    {
     "id": "war_shoes_royal",
@@ -9883,7 +10823,8 @@
      ]
     ],
     "name": "Royal Violet Sabatons",
-    "desc": "sabatons finish."
+    "desc": "sabatons finish.",
+    "wip": true
    },
    {
     "id": "war_shoes_rose",
@@ -10053,7 +10994,8 @@
      ]
     ],
     "name": "Rose Gold Sabatons",
-    "desc": "sabatons finish."
+    "desc": "sabatons finish.",
+    "wip": true
    },
    {
     "id": "war_shoes_bronze",
@@ -10223,7 +11165,8 @@
      ]
     ],
     "name": "Bronze Sabatons",
-    "desc": "sabatons finish."
+    "desc": "sabatons finish.",
+    "wip": true
    },
    {
     "id": "war_shoes_gunmetal",
@@ -10393,7 +11336,8 @@
      ]
     ],
     "name": "Gunmetal Sabatons",
-    "desc": "sabatons finish."
+    "desc": "sabatons finish.",
+    "wip": true
    },
    {
     "id": "war_shoes_bone",
@@ -10563,7 +11507,8 @@
      ]
     ],
     "name": "Bone Sabatons",
-    "desc": "sabatons finish."
+    "desc": "sabatons finish.",
+    "wip": true
    },
    {
     "id": "war_shoes_prism",
@@ -10733,7 +11678,8 @@
      ]
     ],
     "name": "Prism Sabatons",
-    "desc": "sabatons finish."
+    "desc": "sabatons finish.",
+    "wip": true
    },
    {
     "id": "war_pants_black",
@@ -10903,7 +11849,8 @@
      ]
     ],
     "name": "Black Trousers",
-    "desc": "trouser colour."
+    "desc": "trouser colour.",
+    "wip": true
    },
    {
     "id": "war_pants_crimson",
@@ -11073,7 +12020,8 @@
      ]
     ],
     "name": "Crimson Trousers",
-    "desc": "trouser colour."
+    "desc": "trouser colour.",
+    "wip": true
    },
    {
     "id": "war_pants_royal",
@@ -11243,7 +12191,8 @@
      ]
     ],
     "name": "Royal Blue Trousers",
-    "desc": "trouser colour."
+    "desc": "trouser colour.",
+    "wip": true
    },
    {
     "id": "war_pants_forest",
@@ -11413,7 +12362,8 @@
      ]
     ],
     "name": "Forest Trousers",
-    "desc": "trouser colour."
+    "desc": "trouser colour.",
+    "wip": true
    },
    {
     "id": "war_pants_white",
@@ -11583,7 +12533,8 @@
      ]
     ],
     "name": "White Trousers",
-    "desc": "trouser colour."
+    "desc": "trouser colour.",
+    "wip": true
    },
    {
     "id": "war_pants_purple",
@@ -11753,7 +12704,8 @@
      ]
     ],
     "name": "Purple Trousers",
-    "desc": "trouser colour."
+    "desc": "trouser colour.",
+    "wip": true
    },
    {
     "id": "war_pants_gold",
@@ -11923,7 +12875,8 @@
      ]
     ],
     "name": "Gold Trousers",
-    "desc": "trouser colour."
+    "desc": "trouser colour.",
+    "wip": true
    },
    {
     "id": "war_pants_brown",
@@ -12093,7 +13046,8 @@
      ]
     ],
     "name": "Leather Trousers",
-    "desc": "trouser colour."
+    "desc": "trouser colour.",
+    "wip": true
    },
    {
     "id": "war_pants_teal",
@@ -12263,7 +13217,8 @@
      ]
     ],
     "name": "Teal Trousers",
-    "desc": "trouser colour."
+    "desc": "trouser colour.",
+    "wip": true
    },
    {
     "id": "war_pants_pink",
@@ -12433,7 +13388,8 @@
      ]
     ],
     "name": "Rose Trousers",
-    "desc": "trouser colour."
+    "desc": "trouser colour.",
+    "wip": true
    },
    {
     "id": "war_pants_grey",
@@ -12603,7 +13559,8 @@
      ]
     ],
     "name": "Ash Trousers",
-    "desc": "trouser colour."
+    "desc": "trouser colour.",
+    "wip": true
    },
    {
     "id": "war_pants_orange",
@@ -12773,7 +13730,8 @@
      ]
     ],
     "name": "Ember Trousers",
-    "desc": "trouser colour."
+    "desc": "trouser colour.",
+    "wip": true
    },
    {
     "id": "war_cape_crimson_banner",
@@ -12863,109 +13821,2041 @@
     "id": "war_cape_royal_velvet",
     "type": "cape",
     "icon": "assets/final/cosmetics/warrior/war_cape_royal_velvet/icon.png",
-    "fabric": "assets/final/cosmetics/warrior/war_cape_royal_velvet/fabric.png",
     "attachment": "recolor",
     "name": "Royal Velvet Cape",
-    "desc": "purple velvet with gold fleurs."
+    "desc": "purple velvet with gold fleurs.",
+    "lut": [
+     [
+      12,
+      0,
+      20
+     ],
+     [
+      21,
+      0,
+      33
+     ],
+     [
+      24,
+      0,
+      38
+     ],
+     [
+      27,
+      1,
+      42
+     ],
+     [
+      30,
+      1,
+      46
+     ],
+     [
+      33,
+      1,
+      49
+     ],
+     [
+      35,
+      1,
+      52
+     ],
+     [
+      38,
+      1,
+      55
+     ],
+     [
+      40,
+      1,
+      58
+     ],
+     [
+      43,
+      1,
+      61
+     ],
+     [
+      46,
+      2,
+      64
+     ],
+     [
+      48,
+      2,
+      67
+     ],
+     [
+      51,
+      2,
+      70
+     ],
+     [
+      54,
+      2,
+      73
+     ],
+     [
+      58,
+      3,
+      77
+     ],
+     [
+      61,
+      3,
+      81
+     ],
+     [
+      65,
+      3,
+      85
+     ],
+     [
+      69,
+      4,
+      89
+     ],
+     [
+      74,
+      6,
+      93
+     ],
+     [
+      79,
+      7,
+      99
+     ],
+     [
+      86,
+      9,
+      105
+     ],
+     [
+      93,
+      14,
+      110
+     ],
+     [
+      104,
+      33,
+      68
+     ],
+     [
+      123,
+      62,
+      35
+     ],
+     [
+      145,
+      81,
+      30
+     ],
+     [
+      163,
+      98,
+      32
+     ],
+     [
+      178,
+      113,
+      39
+     ],
+     [
+      192,
+      129,
+      47
+     ],
+     [
+      205,
+      147,
+      57
+     ],
+     [
+      219,
+      166,
+      72
+     ],
+     [
+      233,
+      191,
+      95
+     ],
+     [
+      248,
+      226,
+      140
+     ]
+    ]
    },
    {
     "id": "war_cape_black_flame",
     "type": "cape",
     "icon": "assets/final/cosmetics/warrior/war_cape_black_flame/icon.png",
-    "fabric": "assets/final/cosmetics/warrior/war_cape_black_flame/fabric.png",
     "attachment": "recolor",
     "name": "Black Flame Cape",
-    "desc": "black silk with crimson flames."
+    "desc": "black silk with crimson flames.",
+    "lut": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      2,
+      2,
+      2
+     ],
+     [
+      4,
+      3,
+      3
+     ],
+     [
+      6,
+      4,
+      4
+     ],
+     [
+      7,
+      6,
+      6
+     ],
+     [
+      9,
+      7,
+      7
+     ],
+     [
+      10,
+      8,
+      8
+     ],
+     [
+      12,
+      10,
+      10
+     ],
+     [
+      13,
+      11,
+      11
+     ],
+     [
+      14,
+      12,
+      12
+     ],
+     [
+      16,
+      14,
+      14
+     ],
+     [
+      17,
+      15,
+      15
+     ],
+     [
+      19,
+      16,
+      17
+     ],
+     [
+      20,
+      18,
+      18
+     ],
+     [
+      22,
+      19,
+      20
+     ],
+     [
+      24,
+      20,
+      21
+     ],
+     [
+      25,
+      22,
+      23
+     ],
+     [
+      27,
+      24,
+      25
+     ],
+     [
+      29,
+      25,
+      26
+     ],
+     [
+      32,
+      27,
+      28
+     ],
+     [
+      34,
+      29,
+      30
+     ],
+     [
+      41,
+      30,
+      31
+     ],
+     [
+      65,
+      25,
+      29
+     ],
+     [
+      97,
+      17,
+      24
+     ],
+     [
+      125,
+      12,
+      23
+     ],
+     [
+      151,
+      10,
+      23
+     ],
+     [
+      173,
+      11,
+      24
+     ],
+     [
+      192,
+      13,
+      25
+     ],
+     [
+      206,
+      20,
+      29
+     ],
+     [
+      211,
+      37,
+      35
+     ],
+     [
+      212,
+      69,
+      47
+     ],
+     [
+      227,
+      126,
+      79
+     ]
+    ]
    },
    {
     "id": "war_cape_white_sun",
     "type": "cape",
     "icon": "assets/final/cosmetics/warrior/war_cape_white_sun/icon.png",
-    "fabric": "assets/final/cosmetics/warrior/war_cape_white_sun/fabric.png",
     "attachment": "recolor",
     "name": "White Sun Cape",
-    "desc": "white silk with gold suns."
+    "desc": "white silk with gold suns.",
+    "lut": [
+     [
+      148,
+      67,
+      4
+     ],
+     [
+      180,
+      97,
+      10
+     ],
+     [
+      197,
+      116,
+      19
+     ],
+     [
+      207,
+      131,
+      33
+     ],
+     [
+      215,
+      146,
+      48
+     ],
+     [
+      220,
+      159,
+      67
+     ],
+     [
+      223,
+      172,
+      90
+     ],
+     [
+      213,
+      182,
+      142
+     ],
+     [
+      205,
+      187,
+      170
+     ],
+     [
+      206,
+      190,
+      175
+     ],
+     [
+      208,
+      193,
+      179
+     ],
+     [
+      209,
+      195,
+      181
+     ],
+     [
+      211,
+      197,
+      184
+     ],
+     [
+      212,
+      199,
+      186
+     ],
+     [
+      214,
+      201,
+      189
+     ],
+     [
+      216,
+      203,
+      191
+     ],
+     [
+      217,
+      206,
+      194
+     ],
+     [
+      219,
+      208,
+      197
+     ],
+     [
+      221,
+      210,
+      200
+     ],
+     [
+      222,
+      213,
+      203
+     ],
+     [
+      224,
+      215,
+      205
+     ],
+     [
+      226,
+      217,
+      208
+     ],
+     [
+      228,
+      220,
+      212
+     ],
+     [
+      229,
+      222,
+      215
+     ],
+     [
+      232,
+      225,
+      218
+     ],
+     [
+      234,
+      228,
+      221
+     ],
+     [
+      236,
+      231,
+      225
+     ],
+     [
+      238,
+      234,
+      228
+     ],
+     [
+      240,
+      237,
+      232
+     ],
+     [
+      243,
+      240,
+      235
+     ],
+     [
+      246,
+      243,
+      240
+     ],
+     [
+      249,
+      248,
+      245
+     ]
+    ]
    },
    {
     "id": "war_cape_ocean_wave",
     "type": "cape",
     "icon": "assets/final/cosmetics/warrior/war_cape_ocean_wave/icon.png",
-    "fabric": "assets/final/cosmetics/warrior/war_cape_ocean_wave/fabric.png",
     "attachment": "recolor",
     "name": "Ocean Wave Cape",
-    "desc": "blue with silver waves."
+    "desc": "blue with silver waves.",
+    "lut": [
+     [
+      0,
+      18,
+      64
+     ],
+     [
+      0,
+      25,
+      77
+     ],
+     [
+      1,
+      30,
+      85
+     ],
+     [
+      1,
+      34,
+      92
+     ],
+     [
+      1,
+      38,
+      98
+     ],
+     [
+      1,
+      41,
+      103
+     ],
+     [
+      1,
+      45,
+      109
+     ],
+     [
+      1,
+      48,
+      115
+     ],
+     [
+      1,
+      52,
+      120
+     ],
+     [
+      1,
+      55,
+      125
+     ],
+     [
+      1,
+      59,
+      131
+     ],
+     [
+      1,
+      63,
+      136
+     ],
+     [
+      2,
+      68,
+      141
+     ],
+     [
+      2,
+      73,
+      147
+     ],
+     [
+      2,
+      78,
+      152
+     ],
+     [
+      3,
+      83,
+      157
+     ],
+     [
+      4,
+      89,
+      163
+     ],
+     [
+      5,
+      95,
+      169
+     ],
+     [
+      9,
+      102,
+      173
+     ],
+     [
+      18,
+      109,
+      177
+     ],
+     [
+      41,
+      113,
+      172
+     ],
+     [
+      67,
+      118,
+      164
+     ],
+     [
+      87,
+      126,
+      166
+     ],
+     [
+      106,
+      135,
+      168
+     ],
+     [
+      120,
+      145,
+      175
+     ],
+     [
+      135,
+      156,
+      181
+     ],
+     [
+      147,
+      165,
+      188
+     ],
+     [
+      160,
+      176,
+      196
+     ],
+     [
+      174,
+      188,
+      205
+     ],
+     [
+      191,
+      202,
+      215
+     ],
+     [
+      210,
+      218,
+      226
+     ],
+     [
+      235,
+      239,
+      241
+     ]
+    ]
    },
    {
     "id": "war_cape_jade_scale",
     "type": "cape",
     "icon": "assets/final/cosmetics/warrior/war_cape_jade_scale/icon.png",
-    "fabric": "assets/final/cosmetics/warrior/war_cape_jade_scale/fabric.png",
     "attachment": "recolor",
     "name": "Jade Scale Cape",
-    "desc": "emerald dragon scales."
+    "desc": "emerald dragon scales.",
+    "lut": [
+     [
+      1,
+      9,
+      2
+     ],
+     [
+      2,
+      21,
+      5
+     ],
+     [
+      1,
+      30,
+      7
+     ],
+     [
+      1,
+      36,
+      10
+     ],
+     [
+      1,
+      42,
+      12
+     ],
+     [
+      1,
+      46,
+      14
+     ],
+     [
+      1,
+      51,
+      16
+     ],
+     [
+      1,
+      55,
+      17
+     ],
+     [
+      1,
+      60,
+      19
+     ],
+     [
+      1,
+      64,
+      21
+     ],
+     [
+      1,
+      69,
+      23
+     ],
+     [
+      1,
+      73,
+      25
+     ],
+     [
+      1,
+      78,
+      27
+     ],
+     [
+      1,
+      83,
+      29
+     ],
+     [
+      1,
+      88,
+      31
+     ],
+     [
+      1,
+      93,
+      34
+     ],
+     [
+      1,
+      98,
+      36
+     ],
+     [
+      2,
+      103,
+      40
+     ],
+     [
+      2,
+      109,
+      42
+     ],
+     [
+      2,
+      115,
+      47
+     ],
+     [
+      2,
+      122,
+      51
+     ],
+     [
+      2,
+      130,
+      55
+     ],
+     [
+      2,
+      138,
+      61
+     ],
+     [
+      3,
+      146,
+      66
+     ],
+     [
+      3,
+      155,
+      73
+     ],
+     [
+      4,
+      165,
+      80
+     ],
+     [
+      5,
+      176,
+      89
+     ],
+     [
+      7,
+      187,
+      97
+     ],
+     [
+      11,
+      200,
+      109
+     ],
+     [
+      25,
+      215,
+      123
+     ],
+     [
+      177,
+      193,
+      121
+     ],
+     [
+      242,
+      233,
+      164
+     ]
+    ]
    },
    {
     "id": "war_cape_starfield",
     "type": "cape",
     "icon": "assets/final/cosmetics/warrior/war_cape_starfield/icon.png",
-    "fabric": "assets/final/cosmetics/warrior/war_cape_starfield/fabric.png",
     "attachment": "recolor",
     "name": "Starfield Cape",
-    "desc": "a cape of night sky."
+    "desc": "a cape of night sky.",
+    "lut": [
+     [
+      1,
+      2,
+      32
+     ],
+     [
+      1,
+      4,
+      39
+     ],
+     [
+      1,
+      5,
+      43
+     ],
+     [
+      2,
+      7,
+      47
+     ],
+     [
+      1,
+      8,
+      51
+     ],
+     [
+      2,
+      9,
+      53
+     ],
+     [
+      2,
+      10,
+      56
+     ],
+     [
+      2,
+      11,
+      59
+     ],
+     [
+      2,
+      12,
+      62
+     ],
+     [
+      2,
+      13,
+      64
+     ],
+     [
+      3,
+      14,
+      67
+     ],
+     [
+      3,
+      15,
+      70
+     ],
+     [
+      3,
+      17,
+      74
+     ],
+     [
+      3,
+      18,
+      76
+     ],
+     [
+      4,
+      19,
+      79
+     ],
+     [
+      4,
+      21,
+      83
+     ],
+     [
+      6,
+      22,
+      87
+     ],
+     [
+      6,
+      24,
+      90
+     ],
+     [
+      6,
+      25,
+      95
+     ],
+     [
+      8,
+      27,
+      98
+     ],
+     [
+      8,
+      29,
+      103
+     ],
+     [
+      9,
+      32,
+      109
+     ],
+     [
+      12,
+      34,
+      114
+     ],
+     [
+      14,
+      37,
+      122
+     ],
+     [
+      15,
+      41,
+      131
+     ],
+     [
+      19,
+      45,
+      139
+     ],
+     [
+      23,
+      50,
+      150
+     ],
+     [
+      31,
+      56,
+      164
+     ],
+     [
+      50,
+      63,
+      178
+     ],
+     [
+      72,
+      75,
+      193
+     ],
+     [
+      105,
+      97,
+      203
+     ],
+     [
+      187,
+      168,
+      209
+     ]
+    ]
    },
    {
     "id": "war_cape_molten",
     "type": "cape",
     "icon": "assets/final/cosmetics/warrior/war_cape_molten/icon.png",
-    "fabric": "assets/final/cosmetics/warrior/war_cape_molten/fabric.png",
     "attachment": "recolor",
     "name": "Molten Cape",
-    "desc": "glowing lava cracks."
+    "desc": "glowing lava cracks.",
+    "lut": [
+     [
+      3,
+      0,
+      1
+     ],
+     [
+      12,
+      2,
+      2
+     ],
+     [
+      20,
+      3,
+      4
+     ],
+     [
+      27,
+      5,
+      6
+     ],
+     [
+      33,
+      6,
+      7
+     ],
+     [
+      39,
+      7,
+      9
+     ],
+     [
+      44,
+      8,
+      10
+     ],
+     [
+      46,
+      10,
+      12
+     ],
+     [
+      51,
+      10,
+      13
+     ],
+     [
+      53,
+      12,
+      15
+     ],
+     [
+      60,
+      12,
+      15
+     ],
+     [
+      59,
+      15,
+      18
+     ],
+     [
+      67,
+      14,
+      17
+     ],
+     [
+      71,
+      15,
+      18
+     ],
+     [
+      69,
+      19,
+      21
+     ],
+     [
+      78,
+      18,
+      21
+     ],
+     [
+      85,
+      18,
+      21
+     ],
+     [
+      96,
+      16,
+      20
+     ],
+     [
+      101,
+      18,
+      19
+     ],
+     [
+      112,
+      17,
+      20
+     ],
+     [
+      122,
+      16,
+      20
+     ],
+     [
+      139,
+      14,
+      14
+     ],
+     [
+      150,
+      14,
+      13
+     ],
+     [
+      170,
+      11,
+      8
+     ],
+     [
+      189,
+      10,
+      6
+     ],
+     [
+      207,
+      11,
+      3
+     ],
+     [
+      222,
+      14,
+      3
+     ],
+     [
+      237,
+      21,
+      2
+     ],
+     [
+      245,
+      40,
+      2
+     ],
+     [
+      250,
+      74,
+      2
+     ],
+     [
+      252,
+      130,
+      3
+     ],
+     [
+      253,
+      210,
+      32
+     ]
+    ]
    },
    {
     "id": "war_cape_frost",
     "type": "cape",
     "icon": "assets/final/cosmetics/warrior/war_cape_frost/icon.png",
-    "fabric": "assets/final/cosmetics/warrior/war_cape_frost/fabric.png",
     "attachment": "recolor",
     "name": "Frost Cape",
-    "desc": "ice crystals on pale blue."
+    "desc": "ice crystals on pale blue.",
+    "lut": [
+     [
+      2,
+      118,
+      235
+     ],
+     [
+      10,
+      137,
+      242
+     ],
+     [
+      24,
+      148,
+      243
+     ],
+     [
+      39,
+      153,
+      242
+     ],
+     [
+      50,
+      158,
+      243
+     ],
+     [
+      59,
+      163,
+      243
+     ],
+     [
+      66,
+      167,
+      244
+     ],
+     [
+      72,
+      171,
+      245
+     ],
+     [
+      78,
+      174,
+      246
+     ],
+     [
+      84,
+      177,
+      247
+     ],
+     [
+      90,
+      180,
+      247
+     ],
+     [
+      95,
+      183,
+      248
+     ],
+     [
+      101,
+      186,
+      248
+     ],
+     [
+      106,
+      189,
+      249
+     ],
+     [
+      111,
+      191,
+      249
+     ],
+     [
+      116,
+      194,
+      249
+     ],
+     [
+      122,
+      197,
+      250
+     ],
+     [
+      128,
+      200,
+      250
+     ],
+     [
+      133,
+      203,
+      250
+     ],
+     [
+      139,
+      205,
+      250
+     ],
+     [
+      145,
+      208,
+      251
+     ],
+     [
+      151,
+      211,
+      251
+     ],
+     [
+      157,
+      214,
+      251
+     ],
+     [
+      163,
+      217,
+      252
+     ],
+     [
+      169,
+      220,
+      252
+     ],
+     [
+      176,
+      224,
+      252
+     ],
+     [
+      184,
+      228,
+      252
+     ],
+     [
+      192,
+      232,
+      252
+     ],
+     [
+      201,
+      236,
+      252
+     ],
+     [
+      212,
+      241,
+      253
+     ],
+     [
+      227,
+      247,
+      253
+     ],
+     [
+      247,
+      253,
+      254
+     ]
+    ]
    },
    {
     "id": "war_cape_sakura",
     "type": "cape",
     "icon": "assets/final/cosmetics/warrior/war_cape_sakura/icon.png",
-    "fabric": "assets/final/cosmetics/warrior/war_cape_sakura/fabric.png",
     "attachment": "recolor",
     "name": "Sakura Cape",
-    "desc": "pink with cherry blossoms."
+    "desc": "pink with cherry blossoms.",
+    "lut": [
+     [
+      200,
+      68,
+      86
+     ],
+     [
+      207,
+      76,
+      92
+     ],
+     [
+      211,
+      80,
+      96
+     ],
+     [
+      215,
+      83,
+      99
+     ],
+     [
+      218,
+      86,
+      102
+     ],
+     [
+      220,
+      89,
+      104
+     ],
+     [
+      222,
+      91,
+      107
+     ],
+     [
+      224,
+      93,
+      109
+     ],
+     [
+      226,
+      96,
+      111
+     ],
+     [
+      227,
+      98,
+      113
+     ],
+     [
+      229,
+      100,
+      115
+     ],
+     [
+      231,
+      103,
+      117
+     ],
+     [
+      232,
+      105,
+      120
+     ],
+     [
+      234,
+      108,
+      122
+     ],
+     [
+      235,
+      111,
+      124
+     ],
+     [
+      236,
+      115,
+      126
+     ],
+     [
+      237,
+      120,
+      129
+     ],
+     [
+      238,
+      125,
+      133
+     ],
+     [
+      239,
+      131,
+      136
+     ],
+     [
+      241,
+      138,
+      141
+     ],
+     [
+      242,
+      145,
+      147
+     ],
+     [
+      244,
+      153,
+      154
+     ],
+     [
+      245,
+      159,
+      161
+     ],
+     [
+      247,
+      167,
+      168
+     ],
+     [
+      247,
+      174,
+      175
+     ],
+     [
+      247,
+      180,
+      180
+     ],
+     [
+      247,
+      186,
+      186
+     ],
+     [
+      247,
+      192,
+      190
+     ],
+     [
+      248,
+      198,
+      195
+     ],
+     [
+      249,
+      204,
+      199
+     ],
+     [
+      250,
+      212,
+      206
+     ],
+     [
+      252,
+      225,
+      217
+     ]
+    ]
    },
    {
     "id": "war_cape_gold_scale",
     "type": "cape",
     "icon": "assets/final/cosmetics/warrior/war_cape_gold_scale/icon.png",
-    "fabric": "assets/final/cosmetics/warrior/war_cape_gold_scale/fabric.png",
     "attachment": "recolor",
     "name": "Golden Scale Cape",
-    "desc": "gilded scale mail."
+    "desc": "gilded scale mail.",
+    "lut": [
+     [
+      37,
+      8,
+      0
+     ],
+     [
+      65,
+      21,
+      0
+     ],
+     [
+      85,
+      33,
+      1
+     ],
+     [
+      101,
+      44,
+      1
+     ],
+     [
+      113,
+      52,
+      1
+     ],
+     [
+      123,
+      61,
+      1
+     ],
+     [
+      133,
+      69,
+      2
+     ],
+     [
+      141,
+      76,
+      4
+     ],
+     [
+      148,
+      83,
+      6
+     ],
+     [
+      153,
+      89,
+      9
+     ],
+     [
+      157,
+      94,
+      12
+     ],
+     [
+      162,
+      98,
+      16
+     ],
+     [
+      165,
+      103,
+      18
+     ],
+     [
+      170,
+      107,
+      20
+     ],
+     [
+      175,
+      111,
+      22
+     ],
+     [
+      179,
+      115,
+      24
+     ],
+     [
+      183,
+      119,
+      27
+     ],
+     [
+      188,
+      124,
+      29
+     ],
+     [
+      193,
+      128,
+      31
+     ],
+     [
+      198,
+      133,
+      33
+     ],
+     [
+      204,
+      138,
+      35
+     ],
+     [
+      210,
+      144,
+      38
+     ],
+     [
+      216,
+      150,
+      41
+     ],
+     [
+      223,
+      158,
+      45
+     ],
+     [
+      231,
+      167,
+      50
+     ],
+     [
+      238,
+      176,
+      57
+     ],
+     [
+      244,
+      187,
+      66
+     ],
+     [
+      248,
+      199,
+      80
+     ],
+     [
+      251,
+      211,
+      96
+     ],
+     [
+      253,
+      226,
+      121
+     ],
+     [
+      253,
+      240,
+      159
+     ],
+     [
+      254,
+      253,
+      228
+     ]
+    ]
    },
    {
     "id": "war_cape_shadow_smoke",
     "type": "cape",
     "icon": "assets/final/cosmetics/warrior/war_cape_shadow_smoke/icon.png",
-    "fabric": "assets/final/cosmetics/warrior/war_cape_shadow_smoke/fabric.png",
     "attachment": "recolor",
     "name": "Shadow Smoke Cape",
-    "desc": "swirling violet smoke."
+    "desc": "swirling violet smoke.",
+    "lut": [
+     [
+      7,
+      3,
+      16
+     ],
+     [
+      10,
+      5,
+      23
+     ],
+     [
+      12,
+      6,
+      28
+     ],
+     [
+      13,
+      7,
+      32
+     ],
+     [
+      15,
+      7,
+      37
+     ],
+     [
+      17,
+      8,
+      41
+     ],
+     [
+      18,
+      8,
+      46
+     ],
+     [
+      20,
+      8,
+      49
+     ],
+     [
+      21,
+      8,
+      52
+     ],
+     [
+      24,
+      8,
+      57
+     ],
+     [
+      25,
+      8,
+      61
+     ],
+     [
+      27,
+      9,
+      66
+     ],
+     [
+      29,
+      9,
+      70
+     ],
+     [
+      31,
+      9,
+      75
+     ],
+     [
+      33,
+      10,
+      80
+     ],
+     [
+      36,
+      10,
+      85
+     ],
+     [
+      38,
+      10,
+      90
+     ],
+     [
+      40,
+      11,
+      95
+     ],
+     [
+      43,
+      11,
+      101
+     ],
+     [
+      46,
+      12,
+      105
+     ],
+     [
+      49,
+      13,
+      110
+     ],
+     [
+      52,
+      15,
+      116
+     ],
+     [
+      55,
+      16,
+      122
+     ],
+     [
+      59,
+      17,
+      129
+     ],
+     [
+      62,
+      19,
+      136
+     ],
+     [
+      68,
+      21,
+      143
+     ],
+     [
+      73,
+      24,
+      152
+     ],
+     [
+      83,
+      26,
+      163
+     ],
+     [
+      93,
+      30,
+      177
+     ],
+     [
+      114,
+      34,
+      196
+     ],
+     [
+      145,
+      44,
+      217
+     ],
+     [
+      209,
+      79,
+      242
+     ]
+    ]
    },
    {
     "id": "war_cape_prism",
     "type": "cape",
     "icon": "assets/final/cosmetics/warrior/war_cape_prism/icon.png",
-    "fabric": "assets/final/cosmetics/warrior/war_cape_prism/fabric.png",
     "attachment": "recolor",
     "name": "Prism Cape",
-    "desc": "rainbow shimmer."
+    "desc": "rainbow shimmer.",
+    "lut": [
+     [
+      67,
+      91,
+      234
+     ],
+     [
+      80,
+      98,
+      242
+     ],
+     [
+      94,
+      101,
+      245
+     ],
+     [
+      106,
+      102,
+      246
+     ],
+     [
+      116,
+      105,
+      247
+     ],
+     [
+      124,
+      109,
+      247
+     ],
+     [
+      138,
+      110,
+      245
+     ],
+     [
+      149,
+      111,
+      243
+     ],
+     [
+      161,
+      110,
+      235
+     ],
+     [
+      174,
+      110,
+      224
+     ],
+     [
+      211,
+      105,
+      209
+     ],
+     [
+      196,
+      113,
+      218
+     ],
+     [
+      196,
+      117,
+      212
+     ],
+     [
+      215,
+      121,
+      207
+     ],
+     [
+      190,
+      130,
+      215
+     ],
+     [
+      199,
+      134,
+      212
+     ],
+     [
+      225,
+      139,
+      204
+     ],
+     [
+      242,
+      145,
+      189
+     ],
+     [
+      245,
+      152,
+      185
+     ],
+     [
+      248,
+      158,
+      179
+     ],
+     [
+      249,
+      165,
+      178
+     ],
+     [
+      248,
+      171,
+      173
+     ],
+     [
+      248,
+      176,
+      173
+     ],
+     [
+      249,
+      182,
+      167
+     ],
+     [
+      250,
+      187,
+      152
+     ],
+     [
+      249,
+      193,
+      142
+     ],
+     [
+      246,
+      200,
+      138
+     ],
+     [
+      246,
+      207,
+      122
+     ],
+     [
+      250,
+      213,
+      109
+     ],
+     [
+      251,
+      219,
+      117
+     ],
+     [
+      251,
+      225,
+      133
+     ],
+     [
+      253,
+      239,
+      215
+     ]
+    ]
    },
    {
     "id": "war_weapon_dragonbone",

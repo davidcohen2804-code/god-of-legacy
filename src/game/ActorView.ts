@@ -7,14 +7,14 @@ import { Dir } from '../world/collision';
 import { actorDepth } from '../world/WorldGeometry';
 import { ClassKey, PoseFrame, applyPose, SHEET_PATH } from './Body';
 
-export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet' | 'hair' | 'armor' | 'hairstyle' | 'top' | 'gloves' | 'shoes' | 'pants';
+export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet' | 'hair' | 'armor' | 'hairstyle' | 'top' | 'gloves' | 'shoes' | 'pants' | 'hat' | 'faceacc' | 'earring';
 export type Equipped = Partial<Record<CosSlot, string>>;
 
-interface CosItem { id: string; type: string; icon: string; runtime?: string; skin?: string; blade?: { w: number; h: number; guard: number; cy: number }; color?: string; fit?: { w: number; lift: number }; ring?: { cy: number }; widths?: number[]; wip?: boolean; fabric?: string; lut?: number[][]; hs?: number[][]; attachment?: string; cell?: number[]; frames?: number; layout?: string; bbox?: number[][]; parts?: string[]; name: string; desc: string }
+interface CosItem { id: string; type: string; icon: string; runtime?: string; skin?: string; blade?: { w: number; h: number; guard: number; cy: number }; color?: string; fit?: { w: number; lift: number }; ring?: { cy: number }; widths?: number[]; wip?: boolean; fabric?: string; lut?: number[][]; hs?: number[][]; box?: number[][]; attachment?: string; cell?: number[]; frames?: number; layout?: string; bbox?: number[][]; parts?: string[]; name: string; desc: string }
 export const COSMETICS = Object.fromEntries(Object.entries(COS.classes as unknown as Record<string, CosItem[]>).map(([k, l]) => [k, l.filter((i) => !i.wip)])) as Record<string, CosItem[]>; // wip items stay out of the shop until verified on every frame
 export const slotOf = (type: string): CosSlot | null =>
   type === 'head' ? 'head' : type === 'mask' ? 'face' : type === 'cape' || type === 'back' ? 'back'
-    : type === 'weapon' || type === 'weapon_animated' || type === 'bow' || type === 'book' ? 'weapon' : type === 'aura' ? 'aura' : type === 'damage' ? 'damage' : type === 'pet' ? 'pet' : type === 'hair' ? 'hair' : type === 'armor' ? 'armor' : type === 'hairstyle' ? 'hairstyle' : type === 'top' ? 'top' : type === 'gloves' ? 'gloves' : type === 'shoes' ? 'shoes' : type === 'pants' ? 'pants' : null;
+    : type === 'weapon' || type === 'weapon_animated' || type === 'bow' || type === 'book' ? 'weapon' : type === 'aura' ? 'aura' : type === 'damage' ? 'damage' : type === 'pet' ? 'pet' : type === 'hair' ? 'hair' : type === 'armor' ? 'armor' : type === 'hairstyle' ? 'hairstyle' : type === 'top' ? 'top' : type === 'gloves' ? 'gloves' : type === 'shoes' ? 'shoes' : type === 'pants' ? 'pants' : type === 'hat' ? 'hat' : type === 'faceacc' ? 'faceacc' : type === 'earring' ? 'earring' : null;
 export function cosmetic(id: string): CosItem | undefined { for (const l of Object.values(COSMETICS)) { const f = l.find((i) => i.id === id); if (f) return f; } return undefined; }
 
 /** Weapon skin palettes (tint of the real weapon pixels; `glow` adds an energy edge). */
@@ -30,7 +30,15 @@ const WEAPON_TINT: Record<string, { tint: number; glow?: number; rainbow?: boole
 
 /** On-body size targets (world px) for anchored cosmetics. */
 const HEAD_SEAT = 0.42; // fitted head items: lower edge this far (× hair width) above the hair's lower edge — on top of the hair, never over the face
-const SHEET_K = 108 / 172; // body sheet px → world px
+const SHEET_K = 108 / 172;
+/** Head items per view (down/right/left/up), in body-sheet px relative to the frame's crown point:
+ *  dx/dy = anchor, w = item width, ox/oy = anchor inside the item art (fraction), flip = mirror the art. */
+type HeadFit = { dx: number; dy: number; w: number; ox: number; oy: number; flip?: boolean; behind?: boolean } | null;
+const HEAD_ITEM: Record<'hat' | 'faceacc' | 'earring', HeadFit[]> = {
+  hat: [{ dx: 1, dy: 14, w: 74, ox: 0.5, oy: 0.86 }, { dx: 2, dy: 14, w: 74, ox: 0.5, oy: 0.86 }, { dx: -2, dy: 14, w: 74, ox: 0.5, oy: 0.86 }, { dx: 0, dy: 14, w: 74, ox: 0.5, oy: 0.86 }],
+  faceacc: [{ dx: 3.5, dy: 38, w: 34, ox: 0.5, oy: 0.5 }, { dx: 9, dy: 40, w: 30, ox: 0.5, oy: 0.5 }, { dx: -10, dy: 40, w: 30, ox: 0.5, oy: 0.5 }, null],
+  earring: [{ dx: -12, dy: 47, w: 7, ox: 0.5, oy: 0 }, { dx: -6, dy: 46, w: 7, ox: 0.5, oy: 0 }, { dx: 6, dy: 46, w: 7, ox: 0.5, oy: 0 }, { dx: 20, dy: 46, w: 7, ox: 0.5, oy: 0, behind: true }],
+}; // body sheet px → world px
 const SKIN_THICK = 1.05; // sword skins: a touch bigger than the base sword
 const SIZE: Record<string, number> = { head: 40, face: 18, back: 56, aura: 92 };
 
@@ -70,7 +78,7 @@ export function grayKey(scene: Phaser.Scene, key: string, boost = 1.5): string |
  *  Built once per sheet + combination, on first use. */
 /** Recolour layers, in paint order (later ones override earlier ones on shared pixels): [slot, mask suffix]. */
 /** Recolour layers: [slot, region labels in the packed mask (R channel)]. Later layers override earlier ones. */
-const RECOLOR: [CosSlot, number[]][] = [['hair', [40]], ['armor', [80, 120, 160]], ['top', [80]], ['gloves', [120]], ['shoes', [160]], ['pants', [200]]];
+const RECOLOR: [CosSlot, number[]][] = [['back', [240]], ['hair', [40]], ['armor', [80, 120, 160]], ['top', [80]], ['gloves', [120]], ['shoes', [160]], ['pants', [200]]];
 const maskData = new Map<string, Uint8ClampedArray | 'loading'>();
 /** Packed per-sheet mask (R = region, G = sword cut), loaded on first need. */
 function sheetMask(scene: Phaser.Scene, key: string): Uint8ClampedArray | null {
@@ -252,6 +260,18 @@ export class ActorView {
     const a = pose.anchor;
     for (const [slot, img] of Object.entries(this.layers) as [CosSlot, Phaser.GameObjects.Image][]) {
       const it = cosmetic(this.equipped[slot]!)!;
+      if (slot === 'hat' || slot === 'faceacc' || slot === 'earring') { // on this frame's head: offset from the crown, turned with the head tilt
+        const hd = pose.head, col = DIR_COL[dir], f = HEAD_ITEM[slot][col];
+        if (!hd || !f) { img.setVisible(false); continue; }
+        const frame = Math.min(col, (it.frames ?? 1) - 1), bx = it.box?.[frame] ?? [it.cell![0], it.cell![1], 0, 0];
+        const k = SHEET_K, sc = (f.w * k) / bx[0], a = (hd[2] * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a);
+        const ox = f.dx * k, oy = f.dy * k; // crown-relative point, rotated with the head
+        img.setFrame(frame).setOrigin((bx[2] + bx[0] * f.ox) / it.cell![0], (bx[3] + bx[1] * f.oy) / it.cell![1]).setScale(sc).setFlipX(!!f.flip)
+          .setPosition(p.x + hd[0] + ox * ca - oy * sa, p.y + hd[1] + ox * sa + oy * ca).setAngle(hd[2])
+          .setDepth(depth + (slot === 'hat' ? 0.045 : slot === 'earring' && f.behind ? -0.01 : 0.04)).setAlpha(alpha).setVisible(this.visible);
+        if (tint === null) img.clearTint(); else if (tintFill) img.setTintFill(tint); else img.setTint(tint);
+        continue;
+      }
       if (slot === 'hairstyle') { // fitted to this frame's head: crown point + head tilt (follows looking up, bowing, lying down)
         const hd = pose.head, v = it.hs?.[DIR_COL[dir]];
         if (!hd || !v) { img.setVisible(false); continue; }
