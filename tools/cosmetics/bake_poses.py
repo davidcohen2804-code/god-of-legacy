@@ -3,13 +3,16 @@ import json, numpy as np, pickle, sys, subprocess, os
 from PIL import Image
 G='/home/claude/god-of-legacy/'
 P=pickle.load(open('/tmp/claude-0/cos/poses2.pkl','rb')); items,reps,assign=P['items'],P['reps'],P['assign']
+MREP=os.environ.get('MREP')
+if MREP: reps,assign=P['mreps'],P['massign']
 iid=sys.argv[1]; S=352; rl={}
+SRC=[('/tmp/claude-0/cos/master_pose_base.png','/tmp/claude-0/cos/master_pose_m.png')] if MREP else [(f'/tmp/claude-0/cos/skill_poses_{k+1}_base.png',f'/tmp/claude-0/cos/skill_poses_{k+1}_m.png') for k in range(3)]
 for s,img in enumerate(sys.argv[2:5]):
   if img=='-': continue
   out=f'/tmp/claude-0/cos/pl{s}.png'
-  subprocess.run(['python3','/tmp/claude-0/cos/extract.py',f'/tmp/claude-0/cos/skill_poses_{s+1}_base.png',img,out,'352','352'],check=True,capture_output=True,env={**os.environ,'HEADZONE':'176,150,80','PMASK':f'/tmp/claude-0/cos/skill_poses_{s+1}_m.png'})
+  subprocess.run(['python3','/tmp/claude-0/cos/extract.py',SRC[s][0],img,out,'352','352'],check=True,capture_output=True,env={**os.environ,'HEADZONE':'176,150,80','PMASK':SRC[s][1]})
   L=np.array(Image.open(out).convert('RGBA'))
-  for j,rp in enumerate(reps[s*16:(s+1)*16]): rl[rp]=L[(j//4)*S:(j//4+1)*S,(j%4)*S:(j%4+1)*S]
+  for j,rp in enumerate(reps if MREP else reps[s*16:(s+1)*16]): rl[rp]=L[(j//4)*S:(j//4+1)*S,(j%4)*S:(j%4+1)*S]
 outdir=G+f'public/assets/final/cosmetics/warrior/{iid}/layers'; sheets={}
 def sheet(key):
   if key not in sheets:
@@ -24,7 +27,18 @@ for i,it in enumerate(items):
     for dx in range(-12,13):
       sh=np.roll(np.roll(rh,dy,0),dx,1); s_=(sh&mh).sum()/max(1,(sh|mh).sum())
       if s_>best[0]: best=(s_,dy,dx)
-  _,dy,dx=best; lay=np.roll(np.roll(L,dy,0),dx,1)
+  bang=0
+  if MREP:
+    from PIL import Image as _I
+    for ang in (-24,-16,-8,8,16,24):
+      rr=np.array(_I.fromarray(rh.astype(np.uint8)*255).rotate(ang,center=(176,150)))>127
+      for ddy in range(-8,9,2):
+        for ddx in range(-8,9,2):
+          sh=np.roll(np.roll(rr,best[1]+ddy,0),best[2]+ddx,1); s_=(sh&mh).sum()/max(1,(sh|mh).sum())
+          if s_>best[0]+0.02: best=(s_,best[1]+ddy,best[2]+ddx); bang=ang
+  _,dy,dx=best
+  Lr=L if bang==0 else np.array(_I.fromarray(L).rotate(bang,center=(176,150),resample=_I.NEAREST))
+  lay=np.roll(np.roll(Lr,dy,0),dx,1)
   W,H=it['W'],it['H']; r,c=it['r'],it['c']; oy,ox=it['oy'],it['ox']
   big=np.zeros((H,W,4),np.uint8)
   sy0,sx0=max(0,oy),max(0,ox); sy1,sx1=min(H,oy+S),min(W,ox+S)
