@@ -10,8 +10,7 @@ import { ClassKey, resolvePose } from '../game/Body';
 import { AnimSnap, Mode, poseQuery } from '../game/PoseState';
 import { finalSkill } from '../skills/FinalKit';
 
-const DIRS: Dir[] = ['down', 'left', 'right', 'up'];
-const asDir = (d: string): Dir => (DIRS.includes(d as Dir) ? (d as Dir) : 'down');
+const asDir = (d: string): Dir => (d === 'left' ? 'left' : 'right'); // side view only
 interface Snap { t: number; x: number; y: number; z: number }
 
 export class RemotePlayer {
@@ -19,7 +18,7 @@ export class RemotePlayer {
   private label: Phaser.GameObjects.Text;
   private bar: Phaser.GameObjects.Graphics;
   private snaps: Snap[] = [];
-  dir: Dir = 'down';
+  dir: Dir = 'right';
   mode: Mode = 'idle';
   private modeT = 0;
   private speed = 0;

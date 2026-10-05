@@ -291,8 +291,12 @@ export function applyPose(p: Phaser.GameObjects.Sprite, f: PoseFrame, weapon?: P
   }
 }
 
-/** 4-direction body facing from a vector (dominant axis; exact diagonal faces horizontally). */
+/** Body facing from a vector. Side view only (MapleStory-style): the character faces right or left; moving or aiming
+ *  up/down keeps the current horizontal facing. The front/back rows of the sheets are never shown. */
 export function dirOf(x: number, y: number, fallback: Dir): Dir {
-  if (Math.abs(x) < 1e-6 && Math.abs(y) < 1e-6) return fallback;
-  return Math.abs(x) >= Math.abs(y) ? (x > 0 ? 'right' : 'left') : (y > 0 ? 'down' : 'up');
+  const fb: Dir = fallback === 'left' ? 'left' : 'right';
+  if (Math.abs(x) < 1e-6) return fb;
+  return x > 0 ? 'right' : 'left';
 }
+/** Side-view facing for any stored/remote direction value. */
+export const sideDir = (d: Dir | string): Dir => (d === 'left' ? 'left' : 'right');

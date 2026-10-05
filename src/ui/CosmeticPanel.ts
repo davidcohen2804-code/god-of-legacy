@@ -38,7 +38,7 @@ const TYPE_LABEL: Record<string, string> = {
 const INV_TABS: [InvCat, string][] = [['equipped', 'Equipped'], ['owned', 'Owned'], ['sets', 'Sets'], ['weapon', 'Weapon Skins'], ['headface', 'Head / Face'], ['back', 'Cape / Back'], ['aura', 'Aura / Effects']];
 const SHOP_TABS: [ShopCat, string][] = [['all', 'All'], ['sets', 'Sets'], ['weapon', 'Weapons'], ['headface', 'Head / Face'], ['back', 'Cape / Back'], ['aura', 'Aura / Effects']];
 const STATES: [PState, string][] = [['idle', 'Idle'], ['walk', 'Walk'], ['run', 'Run'], ['jump', 'Jump'], ['attack', 'Attack'], ['hurt', 'Hit'], ['dead', 'Death']];
-const DIRS: Dir[] = ['down', 'right', 'up', 'left'];
+const DIRS: Dir[] = ['right', 'left']; // side view only
 
 const catOf = (it: Item): Exclude<ShopCat, 'all'> => {
   if (it.type === 'set') return 'sets';
@@ -163,7 +163,7 @@ function ensureStyles(): void {
 class CosPreview {
   private view: ActorView;
   state: PState = 'idle';
-  dir: Dir = 'down';
+  dir: Dir = 'right';
   autoTurn = true;
   private t = 0;
   private turnT = 0;
@@ -178,11 +178,11 @@ class CosPreview {
 
   setEquipped(e: Equipped): void { this.view.setEquipped(e); }
   setState(s: PState): void { this.state = s; this.t = 0; this.z = 0; this.vz = 0; }
-  turn(step: number): void { this.dir = DIRS[(DIRS.indexOf(this.dir) + step + 4) % 4]; this.autoTurn = false; this.turnT = 0; }
+  turn(step: number): void { this.dir = DIRS[(DIRS.indexOf(this.dir) + step + 2) % 2]; this.autoTurn = false; this.turnT = 0; }
 
   update(ms: number): void {
     this.t += ms;
-    if (this.autoTurn) { this.turnT += ms; if (this.turnT > 2200) { this.turnT = 0; this.dir = DIRS[(DIRS.indexOf(this.dir) + 1) % 4]; } }
+    if (this.autoTurn) { this.turnT += ms; if (this.turnT > 2200) { this.turnT = 0; this.dir = DIRS[(DIRS.indexOf(this.dir) + 1) % 2]; } }
     let mode: Mode = 'idle', mt = this.t, speed = 0, vz = 0;
     let skill: AnimSnap['skill'];
     switch (this.state) {

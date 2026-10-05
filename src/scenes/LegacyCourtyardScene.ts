@@ -71,7 +71,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   view?: ActorView;
   ci?: CombatInput;
   playerHP = S6.player.maxHp;
-  dir: Dir = 'down';
+  dir: Dir = 'right';
   aim: V2 = { x: 0, y: 1 };
   mode: Mode = 'idle';
   modeT = 0;
@@ -169,7 +169,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.confirmedLog = [];
     this.remoteCasts = new Map(); this.seenCasts = new Set();
     this.playerHP = pvpRoom ? PVP.maxHp : S6.player.maxHp;
-    this.dir = 'down'; this.aim = { x: 0, y: 1 };
+    this.dir = 'right'; this.aim = { x: 1, y: 0 };
 
     // Map + fixed camera (contain), crisp pixels.
     const T = ATLAS.textures;
@@ -376,7 +376,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const rooted = b.hard.active(now) && b.hard.kind === 'root';
     const speed = (inp.running ? PHYS.run : PHYS.walk) * b.moveScale(now);
     steer(k, rooted ? 0 : inp.moveX * speed, rooted ? 0 : inp.moveY * speed, ms);
-    if (inp.hasMove && !rooted) this.dir = Math.abs(inp.moveX) > 0.05 && Math.abs(inp.moveX) >= 0.45 * Math.abs(inp.moveY) ? (inp.moveX > 0 ? 'right' : 'left') : dirOf(inp.moveX, inp.moveY, this.dir); // diagonals face sideways: no flicker to the front/back rows
+    if (inp.hasMove && !rooted) this.dir = dirOf(inp.moveX, inp.moveY, this.dir); // side view only: up/down keeps the facing
     if (inp.takeJump() && k.grounded && !rooted) { jump(k); this.setMode('takeoff'); }
     const sp = Math.hypot(k.vx, k.vy);
     if (!k.grounded) { if (this.mode !== 'takeoff' || this.modeT > PHYS.takeoffMs) this.setMode('air'); return; }
@@ -874,7 +874,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (phase === 'done') this.endRun(run, false);
       return;
     }
-    if (phase === 'startup') this.pvp?.remotes.get(run.attackerId)?.startSkill(run.skill.id, run.stage, dirOf(run.aim.x, run.aim.y, 'down'), run.aim);
+    if (phase === 'startup') this.pvp?.remotes.get(run.attackerId)?.startSkill(run.skill.id, run.stage, dirOf(run.aim.x, run.aim.y, 'right'), run.aim);
   }
 
   private togglePanel(k: 'K' | 'I' | 'O'): void {
