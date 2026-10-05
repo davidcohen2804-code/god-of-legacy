@@ -1,0 +1,1974 @@
+[
+ {
+  "sheet": 1,
+  "frames": [
+   {
+    "anim": "idle",
+    "key": "assets/final/body/warrior/movement/idle.png",
+    "r": 1,
+    "k": 0,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 0
+   },
+   {
+    "anim": "idle",
+    "key": "assets/final/body/warrior/movement/idle.png",
+    "r": 1,
+    "k": 1,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 1
+   },
+   {
+    "anim": "idle",
+    "key": "assets/final/body/warrior/movement/idle.png",
+    "r": 1,
+    "k": 2,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 2
+   },
+   {
+    "anim": "idle",
+    "key": "assets/final/body/warrior/movement/idle.png",
+    "r": 1,
+    "k": 3,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 3
+   },
+   {
+    "anim": "idle",
+    "key": "assets/final/body/warrior/movement/idle.png",
+    "r": 1,
+    "k": 4,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 4
+   },
+   {
+    "anim": "idle",
+    "key": "assets/final/body/warrior/movement/idle.png",
+    "r": 1,
+    "k": 5,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 5
+   },
+   {
+    "anim": "idle",
+    "key": "assets/final/body/warrior/movement/idle.png",
+    "r": 1,
+    "k": 6,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 6
+   },
+   {
+    "anim": "idle",
+    "key": "assets/final/body/warrior/movement/idle.png",
+    "r": 1,
+    "k": 7,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 7
+   },
+   {
+    "anim": "idle",
+    "key": "assets/final/body/warrior/movement/idle.png",
+    "r": 1,
+    "k": 8,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 8
+   },
+   {
+    "anim": "idle",
+    "key": "assets/final/body/warrior/movement/idle.png",
+    "r": 1,
+    "k": 9,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 9
+   },
+   {
+    "anim": "idle",
+    "key": "assets/final/body/warrior/movement/idle.png",
+    "r": 1,
+    "k": 10,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 10
+   },
+   {
+    "anim": "idle",
+    "key": "assets/final/body/warrior/movement/idle.png",
+    "r": 1,
+    "k": 11,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 11
+   },
+   {
+    "anim": "whirlwind",
+    "key": "assets/final/skills/warrior/whirlwind/body.png",
+    "r": 1,
+    "k": 0,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 12
+   },
+   {
+    "anim": "whirlwind",
+    "key": "assets/final/skills/warrior/whirlwind/body.png",
+    "r": 1,
+    "k": 1,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 13
+   },
+   {
+    "anim": "whirlwind",
+    "key": "assets/final/skills/warrior/whirlwind/body.png",
+    "r": 1,
+    "k": 2,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 14
+   },
+   {
+    "anim": "whirlwind",
+    "key": "assets/final/skills/warrior/whirlwind/body.png",
+    "r": 1,
+    "k": 3,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 15
+   },
+   {
+    "anim": "whirlwind",
+    "key": "assets/final/skills/warrior/whirlwind/body.png",
+    "r": 1,
+    "k": 4,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 16
+   },
+   {
+    "anim": "whirlwind",
+    "key": "assets/final/skills/warrior/whirlwind/body.png",
+    "r": 1,
+    "k": 5,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 17
+   },
+   {
+    "anim": "whirlwind",
+    "key": "assets/final/skills/warrior/whirlwind/body.png",
+    "r": 1,
+    "k": 6,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 18
+   },
+   {
+    "anim": "whirlwind",
+    "key": "assets/final/skills/warrior/whirlwind/body.png",
+    "r": 1,
+    "k": 7,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 19
+   },
+   {
+    "anim": "whirlwind",
+    "key": "assets/final/skills/warrior/whirlwind/body.png",
+    "r": 1,
+    "k": 8,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 20
+   },
+   {
+    "anim": "whirlwind",
+    "key": "assets/final/skills/warrior/whirlwind/body.png",
+    "r": 1,
+    "k": 9,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 21
+   },
+   {
+    "anim": "air_attack",
+    "key": "assets/final/body/warrior/movement/air_attack.png",
+    "r": 1,
+    "k": 0,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 22
+   },
+   {
+    "anim": "air_attack",
+    "key": "assets/final/body/warrior/movement/air_attack.png",
+    "r": 1,
+    "k": 1,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 23
+   }
+  ],
+  "anims": [
+   "air_attack",
+   "idle",
+   "whirlwind"
+  ]
+ },
+ {
+  "sheet": 2,
+  "frames": [
+   {
+    "anim": "air_attack",
+    "key": "assets/final/body/warrior/movement/air_attack.png",
+    "r": 1,
+    "k": 2,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 0
+   },
+   {
+    "anim": "air_attack",
+    "key": "assets/final/body/warrior/movement/air_attack.png",
+    "r": 1,
+    "k": 3,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 1
+   },
+   {
+    "anim": "air_attack",
+    "key": "assets/final/body/warrior/movement/air_attack.png",
+    "r": 1,
+    "k": 4,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 2
+   },
+   {
+    "anim": "air_attack",
+    "key": "assets/final/body/warrior/movement/air_attack.png",
+    "r": 1,
+    "k": 5,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 3
+   },
+   {
+    "anim": "air_attack",
+    "key": "assets/final/body/warrior/movement/air_attack.png",
+    "r": 1,
+    "k": 6,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 4
+   },
+   {
+    "anim": "air_attack",
+    "key": "assets/final/body/warrior/movement/air_attack.png",
+    "r": 1,
+    "k": 7,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 5
+   },
+   {
+    "anim": "death",
+    "key": "assets/final/body/warrior/movement/death.png",
+    "r": 1,
+    "k": 0,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 6
+   },
+   {
+    "anim": "death",
+    "key": "assets/final/body/warrior/movement/death.png",
+    "r": 1,
+    "k": 1,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 7
+   },
+   {
+    "anim": "death",
+    "key": "assets/final/body/warrior/movement/death.png",
+    "r": 1,
+    "k": 2,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 8
+   },
+   {
+    "anim": "death",
+    "key": "assets/final/body/warrior/movement/death.png",
+    "r": 1,
+    "k": 3,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 9
+   },
+   {
+    "anim": "death",
+    "key": "assets/final/body/warrior/movement/death.png",
+    "r": 1,
+    "k": 4,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 10
+   },
+   {
+    "anim": "death",
+    "key": "assets/final/body/warrior/movement/death.png",
+    "r": 1,
+    "k": 5,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 11
+   },
+   {
+    "anim": "death",
+    "key": "assets/final/body/warrior/movement/death.png",
+    "r": 1,
+    "k": 6,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 12
+   },
+   {
+    "anim": "death",
+    "key": "assets/final/body/warrior/movement/death.png",
+    "r": 1,
+    "k": 7,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 13
+   },
+   {
+    "anim": "jump",
+    "key": "assets/final/body/warrior/movement/jump.png",
+    "r": 1,
+    "k": 0,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 14
+   },
+   {
+    "anim": "jump",
+    "key": "assets/final/body/warrior/movement/jump.png",
+    "r": 1,
+    "k": 1,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 15
+   },
+   {
+    "anim": "jump",
+    "key": "assets/final/body/warrior/movement/jump.png",
+    "r": 1,
+    "k": 2,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 16
+   },
+   {
+    "anim": "jump",
+    "key": "assets/final/body/warrior/movement/jump.png",
+    "r": 1,
+    "k": 3,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 17
+   },
+   {
+    "anim": "jump",
+    "key": "assets/final/body/warrior/movement/jump.png",
+    "r": 1,
+    "k": 4,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 18
+   },
+   {
+    "anim": "jump",
+    "key": "assets/final/body/warrior/movement/jump.png",
+    "r": 1,
+    "k": 5,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 19
+   },
+   {
+    "anim": "jump",
+    "key": "assets/final/body/warrior/movement/jump.png",
+    "r": 1,
+    "k": 6,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 20
+   },
+   {
+    "anim": "jump",
+    "key": "assets/final/body/warrior/movement/jump.png",
+    "r": 1,
+    "k": 7,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 21
+   },
+   {
+    "anim": "react",
+    "key": "assets/final/body/warrior/movement/react.png",
+    "r": 1,
+    "k": 0,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 22
+   },
+   {
+    "anim": "react",
+    "key": "assets/final/body/warrior/movement/react.png",
+    "r": 1,
+    "k": 1,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 23
+   }
+  ],
+  "anims": [
+   "air_attack",
+   "death",
+   "jump",
+   "react"
+  ]
+ },
+ {
+  "sheet": 3,
+  "frames": [
+   {
+    "anim": "run",
+    "key": "assets/final/body/warrior/movement/run.png",
+    "r": 1,
+    "k": 0,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 0
+   },
+   {
+    "anim": "run",
+    "key": "assets/final/body/warrior/movement/run.png",
+    "r": 1,
+    "k": 1,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 1
+   },
+   {
+    "anim": "run",
+    "key": "assets/final/body/warrior/movement/run.png",
+    "r": 1,
+    "k": 2,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 2
+   },
+   {
+    "anim": "run",
+    "key": "assets/final/body/warrior/movement/run.png",
+    "r": 1,
+    "k": 3,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 3
+   },
+   {
+    "anim": "run",
+    "key": "assets/final/body/warrior/movement/run.png",
+    "r": 1,
+    "k": 4,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 4
+   },
+   {
+    "anim": "run",
+    "key": "assets/final/body/warrior/movement/run.png",
+    "r": 1,
+    "k": 5,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 5
+   },
+   {
+    "anim": "run",
+    "key": "assets/final/body/warrior/movement/run.png",
+    "r": 1,
+    "k": 6,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 6
+   },
+   {
+    "anim": "run",
+    "key": "assets/final/body/warrior/movement/run.png",
+    "r": 1,
+    "k": 7,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 7
+   },
+   {
+    "anim": "walk",
+    "key": "assets/final/body/warrior/movement/walk.png",
+    "r": 1,
+    "k": 0,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 8
+   },
+   {
+    "anim": "walk",
+    "key": "assets/final/body/warrior/movement/walk.png",
+    "r": 1,
+    "k": 1,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 9
+   },
+   {
+    "anim": "walk",
+    "key": "assets/final/body/warrior/movement/walk.png",
+    "r": 1,
+    "k": 2,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 10
+   },
+   {
+    "anim": "walk",
+    "key": "assets/final/body/warrior/movement/walk.png",
+    "r": 1,
+    "k": 3,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 11
+   },
+   {
+    "anim": "walk",
+    "key": "assets/final/body/warrior/movement/walk.png",
+    "r": 1,
+    "k": 4,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 12
+   },
+   {
+    "anim": "walk",
+    "key": "assets/final/body/warrior/movement/walk.png",
+    "r": 1,
+    "k": 5,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 13
+   },
+   {
+    "anim": "walk",
+    "key": "assets/final/body/warrior/movement/walk.png",
+    "r": 1,
+    "k": 6,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 14
+   },
+   {
+    "anim": "walk",
+    "key": "assets/final/body/warrior/movement/walk.png",
+    "r": 1,
+    "k": 7,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 15
+   },
+   {
+    "anim": "dash_slash",
+    "key": "assets/final/skills/warrior/dash_slash/body.png",
+    "r": 1,
+    "k": 0,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 16
+   },
+   {
+    "anim": "dash_slash",
+    "key": "assets/final/skills/warrior/dash_slash/body.png",
+    "r": 1,
+    "k": 1,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 17
+   },
+   {
+    "anim": "dash_slash",
+    "key": "assets/final/skills/warrior/dash_slash/body.png",
+    "r": 1,
+    "k": 2,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 18
+   },
+   {
+    "anim": "dash_slash",
+    "key": "assets/final/skills/warrior/dash_slash/body.png",
+    "r": 1,
+    "k": 3,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 19
+   },
+   {
+    "anim": "dash_slash",
+    "key": "assets/final/skills/warrior/dash_slash/body.png",
+    "r": 1,
+    "k": 4,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 20
+   },
+   {
+    "anim": "dash_slash",
+    "key": "assets/final/skills/warrior/dash_slash/body.png",
+    "r": 1,
+    "k": 5,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 21
+   },
+   {
+    "anim": "dash_slash",
+    "key": "assets/final/skills/warrior/dash_slash/body.png",
+    "r": 1,
+    "k": 6,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 22
+   },
+   {
+    "anim": "dash_slash",
+    "key": "assets/final/skills/warrior/dash_slash/body.png",
+    "r": 1,
+    "k": 7,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 23
+   }
+  ],
+  "anims": [
+   "dash_slash",
+   "run",
+   "walk"
+  ]
+ },
+ {
+  "sheet": 4,
+  "frames": [
+   {
+    "anim": "ground_breaker",
+    "key": "assets/final/skills/warrior/ground_breaker/body.png",
+    "r": 1,
+    "k": 0,
+    "W": 416,
+    "H": 440,
+    "dups": [],
+    "cell": 0
+   },
+   {
+    "anim": "ground_breaker",
+    "key": "assets/final/skills/warrior/ground_breaker/body.png",
+    "r": 1,
+    "k": 1,
+    "W": 416,
+    "H": 440,
+    "dups": [],
+    "cell": 1
+   },
+   {
+    "anim": "ground_breaker",
+    "key": "assets/final/skills/warrior/ground_breaker/body.png",
+    "r": 1,
+    "k": 2,
+    "W": 416,
+    "H": 440,
+    "dups": [],
+    "cell": 2
+   },
+   {
+    "anim": "ground_breaker",
+    "key": "assets/final/skills/warrior/ground_breaker/body.png",
+    "r": 1,
+    "k": 3,
+    "W": 416,
+    "H": 440,
+    "dups": [],
+    "cell": 3
+   },
+   {
+    "anim": "ground_breaker",
+    "key": "assets/final/skills/warrior/ground_breaker/body.png",
+    "r": 1,
+    "k": 4,
+    "W": 416,
+    "H": 440,
+    "dups": [],
+    "cell": 4
+   },
+   {
+    "anim": "ground_breaker",
+    "key": "assets/final/skills/warrior/ground_breaker/body.png",
+    "r": 1,
+    "k": 5,
+    "W": 416,
+    "H": 440,
+    "dups": [],
+    "cell": 5
+   },
+   {
+    "anim": "ground_breaker",
+    "key": "assets/final/skills/warrior/ground_breaker/body.png",
+    "r": 1,
+    "k": 6,
+    "W": 416,
+    "H": 440,
+    "dups": [],
+    "cell": 6
+   },
+   {
+    "anim": "ground_breaker",
+    "key": "assets/final/skills/warrior/ground_breaker/body.png",
+    "r": 1,
+    "k": 7,
+    "W": 416,
+    "H": 440,
+    "dups": [],
+    "cell": 7
+   },
+   {
+    "anim": "iron_grip",
+    "key": "assets/final/skills/warrior/iron_grip/body.png",
+    "r": 1,
+    "k": 0,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 8
+   },
+   {
+    "anim": "iron_grip",
+    "key": "assets/final/skills/warrior/iron_grip/body.png",
+    "r": 1,
+    "k": 1,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 9
+   },
+   {
+    "anim": "iron_grip",
+    "key": "assets/final/skills/warrior/iron_grip/body.png",
+    "r": 1,
+    "k": 2,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 10
+   },
+   {
+    "anim": "iron_grip",
+    "key": "assets/final/skills/warrior/iron_grip/body.png",
+    "r": 1,
+    "k": 3,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 11
+   },
+   {
+    "anim": "iron_grip",
+    "key": "assets/final/skills/warrior/iron_grip/body.png",
+    "r": 1,
+    "k": 4,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 12
+   },
+   {
+    "anim": "iron_grip",
+    "key": "assets/final/skills/warrior/iron_grip/body.png",
+    "r": 1,
+    "k": 5,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 13
+   },
+   {
+    "anim": "iron_grip",
+    "key": "assets/final/skills/warrior/iron_grip/body.png",
+    "r": 1,
+    "k": 6,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 14
+   },
+   {
+    "anim": "iron_grip",
+    "key": "assets/final/skills/warrior/iron_grip/body.png",
+    "r": 1,
+    "k": 7,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 15
+   },
+   {
+    "anim": "judgment_blade",
+    "key": "assets/final/skills/warrior/judgment_blade/body.png",
+    "r": 1,
+    "k": 0,
+    "W": 416,
+    "H": 440,
+    "dups": [],
+    "cell": 16
+   },
+   {
+    "anim": "judgment_blade",
+    "key": "assets/final/skills/warrior/judgment_blade/body.png",
+    "r": 1,
+    "k": 1,
+    "W": 416,
+    "H": 440,
+    "dups": [],
+    "cell": 17
+   },
+   {
+    "anim": "judgment_blade",
+    "key": "assets/final/skills/warrior/judgment_blade/body.png",
+    "r": 1,
+    "k": 2,
+    "W": 416,
+    "H": 440,
+    "dups": [],
+    "cell": 18
+   },
+   {
+    "anim": "judgment_blade",
+    "key": "assets/final/skills/warrior/judgment_blade/body.png",
+    "r": 1,
+    "k": 3,
+    "W": 416,
+    "H": 440,
+    "dups": [],
+    "cell": 19
+   },
+   {
+    "anim": "judgment_blade",
+    "key": "assets/final/skills/warrior/judgment_blade/body.png",
+    "r": 1,
+    "k": 4,
+    "W": 416,
+    "H": 440,
+    "dups": [],
+    "cell": 20
+   },
+   {
+    "anim": "judgment_blade",
+    "key": "assets/final/skills/warrior/judgment_blade/body.png",
+    "r": 1,
+    "k": 5,
+    "W": 416,
+    "H": 440,
+    "dups": [],
+    "cell": 21
+   },
+   {
+    "anim": "judgment_blade",
+    "key": "assets/final/skills/warrior/judgment_blade/body.png",
+    "r": 1,
+    "k": 6,
+    "W": 416,
+    "H": 440,
+    "dups": [],
+    "cell": 22
+   },
+   {
+    "anim": "judgment_blade",
+    "key": "assets/final/skills/warrior/judgment_blade/body.png",
+    "r": 1,
+    "k": 7,
+    "W": 416,
+    "H": 440,
+    "dups": [],
+    "cell": 23
+   }
+  ],
+  "anims": [
+   "ground_breaker",
+   "iron_grip",
+   "judgment_blade"
+  ]
+ },
+ {
+  "sheet": 5,
+  "frames": [
+   {
+    "anim": "lance_thrust",
+    "key": "assets/final/skills/warrior/lance_thrust/body.png",
+    "r": 1,
+    "k": 0,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 0
+   },
+   {
+    "anim": "lance_thrust",
+    "key": "assets/final/skills/warrior/lance_thrust/body.png",
+    "r": 1,
+    "k": 1,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 1
+   },
+   {
+    "anim": "lance_thrust",
+    "key": "assets/final/skills/warrior/lance_thrust/body.png",
+    "r": 1,
+    "k": 2,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 2
+   },
+   {
+    "anim": "lance_thrust",
+    "key": "assets/final/skills/warrior/lance_thrust/body.png",
+    "r": 1,
+    "k": 3,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 3
+   },
+   {
+    "anim": "lance_thrust",
+    "key": "assets/final/skills/warrior/lance_thrust/body.png",
+    "r": 1,
+    "k": 4,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 4
+   },
+   {
+    "anim": "lance_thrust",
+    "key": "assets/final/skills/warrior/lance_thrust/body.png",
+    "r": 1,
+    "k": 5,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 5
+   },
+   {
+    "anim": "lance_thrust",
+    "key": "assets/final/skills/warrior/lance_thrust/body.png",
+    "r": 1,
+    "k": 6,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 6
+   },
+   {
+    "anim": "lance_thrust",
+    "key": "assets/final/skills/warrior/lance_thrust/body.png",
+    "r": 1,
+    "k": 7,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 7
+   },
+   {
+    "anim": "radiant_blade",
+    "key": "assets/final/skills/warrior/radiant_blade/body.png",
+    "r": 1,
+    "k": 0,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 8
+   },
+   {
+    "anim": "radiant_blade",
+    "key": "assets/final/skills/warrior/radiant_blade/body.png",
+    "r": 1,
+    "k": 1,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 9
+   },
+   {
+    "anim": "radiant_blade",
+    "key": "assets/final/skills/warrior/radiant_blade/body.png",
+    "r": 1,
+    "k": 2,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 10
+   },
+   {
+    "anim": "radiant_blade",
+    "key": "assets/final/skills/warrior/radiant_blade/body.png",
+    "r": 1,
+    "k": 3,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 11
+   },
+   {
+    "anim": "radiant_blade",
+    "key": "assets/final/skills/warrior/radiant_blade/body.png",
+    "r": 1,
+    "k": 4,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 12
+   },
+   {
+    "anim": "radiant_blade",
+    "key": "assets/final/skills/warrior/radiant_blade/body.png",
+    "r": 1,
+    "k": 5,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 13
+   },
+   {
+    "anim": "radiant_blade",
+    "key": "assets/final/skills/warrior/radiant_blade/body.png",
+    "r": 1,
+    "k": 6,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 14
+   },
+   {
+    "anim": "radiant_blade",
+    "key": "assets/final/skills/warrior/radiant_blade/body.png",
+    "r": 1,
+    "k": 7,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 15
+   },
+   {
+    "anim": "rising_slash",
+    "key": "assets/final/skills/warrior/rising_slash/body.png",
+    "r": 1,
+    "k": 0,
+    "W": 416,
+    "H": 540,
+    "dups": [],
+    "cell": 16
+   },
+   {
+    "anim": "rising_slash",
+    "key": "assets/final/skills/warrior/rising_slash/body.png",
+    "r": 1,
+    "k": 1,
+    "W": 416,
+    "H": 540,
+    "dups": [],
+    "cell": 17
+   },
+   {
+    "anim": "rising_slash",
+    "key": "assets/final/skills/warrior/rising_slash/body.png",
+    "r": 1,
+    "k": 2,
+    "W": 416,
+    "H": 540,
+    "dups": [],
+    "cell": 18
+   },
+   {
+    "anim": "rising_slash",
+    "key": "assets/final/skills/warrior/rising_slash/body.png",
+    "r": 1,
+    "k": 3,
+    "W": 416,
+    "H": 540,
+    "dups": [],
+    "cell": 19
+   },
+   {
+    "anim": "rising_slash",
+    "key": "assets/final/skills/warrior/rising_slash/body.png",
+    "r": 1,
+    "k": 4,
+    "W": 416,
+    "H": 540,
+    "dups": [],
+    "cell": 20
+   },
+   {
+    "anim": "rising_slash",
+    "key": "assets/final/skills/warrior/rising_slash/body.png",
+    "r": 1,
+    "k": 5,
+    "W": 416,
+    "H": 540,
+    "dups": [],
+    "cell": 21
+   },
+   {
+    "anim": "rising_slash",
+    "key": "assets/final/skills/warrior/rising_slash/body.png",
+    "r": 1,
+    "k": 6,
+    "W": 416,
+    "H": 540,
+    "dups": [],
+    "cell": 22
+   },
+   {
+    "anim": "rising_slash",
+    "key": "assets/final/skills/warrior/rising_slash/body.png",
+    "r": 1,
+    "k": 7,
+    "W": 416,
+    "H": 540,
+    "dups": [],
+    "cell": 23
+   }
+  ],
+  "anims": [
+   "lance_thrust",
+   "radiant_blade",
+   "rising_slash"
+  ]
+ },
+ {
+  "sheet": 6,
+  "frames": [
+   {
+    "anim": "sanctuary",
+    "key": "assets/final/skills/warrior/sanctuary/body.png",
+    "r": 1,
+    "k": 0,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 0
+   },
+   {
+    "anim": "sanctuary",
+    "key": "assets/final/skills/warrior/sanctuary/body.png",
+    "r": 1,
+    "k": 1,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 1
+   },
+   {
+    "anim": "sanctuary",
+    "key": "assets/final/skills/warrior/sanctuary/body.png",
+    "r": 1,
+    "k": 2,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 2
+   },
+   {
+    "anim": "sanctuary",
+    "key": "assets/final/skills/warrior/sanctuary/body.png",
+    "r": 1,
+    "k": 3,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 3
+   },
+   {
+    "anim": "sanctuary",
+    "key": "assets/final/skills/warrior/sanctuary/body.png",
+    "r": 1,
+    "k": 4,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 4
+   },
+   {
+    "anim": "sanctuary",
+    "key": "assets/final/skills/warrior/sanctuary/body.png",
+    "r": 1,
+    "k": 5,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 5
+   },
+   {
+    "anim": "sanctuary",
+    "key": "assets/final/skills/warrior/sanctuary/body.png",
+    "r": 1,
+    "k": 6,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 6
+   },
+   {
+    "anim": "sanctuary",
+    "key": "assets/final/skills/warrior/sanctuary/body.png",
+    "r": 1,
+    "k": 7,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 7
+   },
+   {
+    "anim": "shield_slam",
+    "key": "assets/final/skills/warrior/shield_slam/body.png",
+    "r": 1,
+    "k": 0,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 8
+   },
+   {
+    "anim": "shield_slam",
+    "key": "assets/final/skills/warrior/shield_slam/body.png",
+    "r": 1,
+    "k": 1,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 9
+   },
+   {
+    "anim": "shield_slam",
+    "key": "assets/final/skills/warrior/shield_slam/body.png",
+    "r": 1,
+    "k": 2,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 10
+   },
+   {
+    "anim": "shield_slam",
+    "key": "assets/final/skills/warrior/shield_slam/body.png",
+    "r": 1,
+    "k": 3,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 11
+   },
+   {
+    "anim": "shield_slam",
+    "key": "assets/final/skills/warrior/shield_slam/body.png",
+    "r": 1,
+    "k": 4,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 12
+   },
+   {
+    "anim": "shield_slam",
+    "key": "assets/final/skills/warrior/shield_slam/body.png",
+    "r": 1,
+    "k": 5,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 13
+   },
+   {
+    "anim": "shield_slam",
+    "key": "assets/final/skills/warrior/shield_slam/body.png",
+    "r": 1,
+    "k": 6,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 14
+   },
+   {
+    "anim": "shield_slam",
+    "key": "assets/final/skills/warrior/shield_slam/body.png",
+    "r": 1,
+    "k": 7,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 15
+   },
+   {
+    "anim": "titans_verdict",
+    "key": "assets/final/skills/warrior/titans_verdict/body.png",
+    "r": 1,
+    "k": 0,
+    "W": 352,
+    "H": 440,
+    "dups": [],
+    "cell": 16
+   },
+   {
+    "anim": "titans_verdict",
+    "key": "assets/final/skills/warrior/titans_verdict/body.png",
+    "r": 1,
+    "k": 1,
+    "W": 352,
+    "H": 440,
+    "dups": [],
+    "cell": 17
+   },
+   {
+    "anim": "titans_verdict",
+    "key": "assets/final/skills/warrior/titans_verdict/body.png",
+    "r": 1,
+    "k": 2,
+    "W": 352,
+    "H": 440,
+    "dups": [],
+    "cell": 18
+   },
+   {
+    "anim": "titans_verdict",
+    "key": "assets/final/skills/warrior/titans_verdict/body.png",
+    "r": 1,
+    "k": 3,
+    "W": 352,
+    "H": 440,
+    "dups": [],
+    "cell": 19
+   },
+   {
+    "anim": "titans_verdict",
+    "key": "assets/final/skills/warrior/titans_verdict/body.png",
+    "r": 1,
+    "k": 4,
+    "W": 352,
+    "H": 440,
+    "dups": [],
+    "cell": 20
+   },
+   {
+    "anim": "titans_verdict",
+    "key": "assets/final/skills/warrior/titans_verdict/body.png",
+    "r": 1,
+    "k": 5,
+    "W": 352,
+    "H": 440,
+    "dups": [],
+    "cell": 21
+   },
+   {
+    "anim": "titans_verdict",
+    "key": "assets/final/skills/warrior/titans_verdict/body.png",
+    "r": 1,
+    "k": 6,
+    "W": 352,
+    "H": 440,
+    "dups": [],
+    "cell": 22
+   },
+   {
+    "anim": "titans_verdict",
+    "key": "assets/final/skills/warrior/titans_verdict/body.png",
+    "r": 1,
+    "k": 7,
+    "W": 352,
+    "H": 440,
+    "dups": [],
+    "cell": 23
+   }
+  ],
+  "anims": [
+   "sanctuary",
+   "shield_slam",
+   "titans_verdict"
+  ]
+ },
+ {
+  "sheet": 7,
+  "frames": [
+   {
+    "anim": "war_cry",
+    "key": "assets/final/skills/warrior/war_cry/body.png",
+    "r": 1,
+    "k": 0,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 0
+   },
+   {
+    "anim": "war_cry",
+    "key": "assets/final/skills/warrior/war_cry/body.png",
+    "r": 1,
+    "k": 1,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 1
+   },
+   {
+    "anim": "war_cry",
+    "key": "assets/final/skills/warrior/war_cry/body.png",
+    "r": 1,
+    "k": 2,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 2
+   },
+   {
+    "anim": "war_cry",
+    "key": "assets/final/skills/warrior/war_cry/body.png",
+    "r": 1,
+    "k": 3,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 3
+   },
+   {
+    "anim": "war_cry",
+    "key": "assets/final/skills/warrior/war_cry/body.png",
+    "r": 1,
+    "k": 4,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 4
+   },
+   {
+    "anim": "war_cry",
+    "key": "assets/final/skills/warrior/war_cry/body.png",
+    "r": 1,
+    "k": 5,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 5
+   },
+   {
+    "anim": "war_cry",
+    "key": "assets/final/skills/warrior/war_cry/body.png",
+    "r": 1,
+    "k": 6,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 6
+   },
+   {
+    "anim": "war_cry",
+    "key": "assets/final/skills/warrior/war_cry/body.png",
+    "r": 1,
+    "k": 7,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 7
+   },
+   {
+    "anim": "warrior_basic",
+    "key": "assets/final/skills/warrior/warrior_basic/body.png",
+    "r": 1,
+    "k": 0,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 8
+   },
+   {
+    "anim": "warrior_basic",
+    "key": "assets/final/skills/warrior/warrior_basic/body.png",
+    "r": 1,
+    "k": 1,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 9
+   },
+   {
+    "anim": "warrior_basic",
+    "key": "assets/final/skills/warrior/warrior_basic/body.png",
+    "r": 1,
+    "k": 2,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 10
+   },
+   {
+    "anim": "warrior_basic",
+    "key": "assets/final/skills/warrior/warrior_basic/body.png",
+    "r": 1,
+    "k": 3,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 11
+   },
+   {
+    "anim": "warrior_basic",
+    "key": "assets/final/skills/warrior/warrior_basic/body.png",
+    "r": 1,
+    "k": 4,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 12
+   },
+   {
+    "anim": "warrior_basic",
+    "key": "assets/final/skills/warrior/warrior_basic/body.png",
+    "r": 1,
+    "k": 5,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 13
+   },
+   {
+    "anim": "warrior_basic",
+    "key": "assets/final/skills/warrior/warrior_basic/body.png",
+    "r": 1,
+    "k": 6,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 14
+   },
+   {
+    "anim": "warrior_basic",
+    "key": "assets/final/skills/warrior/warrior_basic/body.png",
+    "r": 1,
+    "k": 7,
+    "W": 480,
+    "H": 440,
+    "dups": [],
+    "cell": 15
+   },
+   {
+    "anim": "wave_slash",
+    "key": "assets/final/skills/warrior/wave_slash/body.png",
+    "r": 1,
+    "k": 0,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 16
+   },
+   {
+    "anim": "wave_slash",
+    "key": "assets/final/skills/warrior/wave_slash/body.png",
+    "r": 1,
+    "k": 1,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 17
+   },
+   {
+    "anim": "wave_slash",
+    "key": "assets/final/skills/warrior/wave_slash/body.png",
+    "r": 1,
+    "k": 2,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 18
+   },
+   {
+    "anim": "wave_slash",
+    "key": "assets/final/skills/warrior/wave_slash/body.png",
+    "r": 1,
+    "k": 3,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 19
+   },
+   {
+    "anim": "wave_slash",
+    "key": "assets/final/skills/warrior/wave_slash/body.png",
+    "r": 1,
+    "k": 4,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 20
+   },
+   {
+    "anim": "wave_slash",
+    "key": "assets/final/skills/warrior/wave_slash/body.png",
+    "r": 1,
+    "k": 5,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 21
+   },
+   {
+    "anim": "wave_slash",
+    "key": "assets/final/skills/warrior/wave_slash/body.png",
+    "r": 1,
+    "k": 6,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 22
+   },
+   {
+    "anim": "wave_slash",
+    "key": "assets/final/skills/warrior/wave_slash/body.png",
+    "r": 1,
+    "k": 7,
+    "W": 480,
+    "H": 352,
+    "dups": [],
+    "cell": 23
+   }
+  ],
+  "anims": [
+   "war_cry",
+   "warrior_basic",
+   "wave_slash"
+  ]
+ },
+ {
+  "sheet": 8,
+  "frames": [
+   {
+    "anim": "react",
+    "key": "assets/final/body/warrior/movement/react.png",
+    "r": 1,
+    "k": 2,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 0
+   },
+   {
+    "anim": "react",
+    "key": "assets/final/body/warrior/movement/react.png",
+    "r": 1,
+    "k": 3,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 1
+   },
+   {
+    "anim": "react",
+    "key": "assets/final/body/warrior/movement/react.png",
+    "r": 1,
+    "k": 4,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 2
+   },
+   {
+    "anim": "react",
+    "key": "assets/final/body/warrior/movement/react.png",
+    "r": 1,
+    "k": 5,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 3
+   },
+   {
+    "anim": "react",
+    "key": "assets/final/body/warrior/movement/react.png",
+    "r": 1,
+    "k": 6,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 4
+   },
+   {
+    "anim": "react",
+    "key": "assets/final/body/warrior/movement/react.png",
+    "r": 1,
+    "k": 7,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 5
+   },
+   {
+    "anim": "blade_storm",
+    "key": "assets/final/skills/warrior/blade_storm/body.png",
+    "r": 1,
+    "k": 0,
+    "W": 480,
+    "H": 480,
+    "dups": [],
+    "cell": 6
+   },
+   {
+    "anim": "blade_storm",
+    "key": "assets/final/skills/warrior/blade_storm/body.png",
+    "r": 1,
+    "k": 1,
+    "W": 480,
+    "H": 480,
+    "dups": [],
+    "cell": 7
+   },
+   {
+    "anim": "blade_storm",
+    "key": "assets/final/skills/warrior/blade_storm/body.png",
+    "r": 1,
+    "k": 2,
+    "W": 480,
+    "H": 480,
+    "dups": [],
+    "cell": 8
+   },
+   {
+    "anim": "blade_storm",
+    "key": "assets/final/skills/warrior/blade_storm/body.png",
+    "r": 1,
+    "k": 3,
+    "W": 480,
+    "H": 480,
+    "dups": [],
+    "cell": 9
+   },
+   {
+    "anim": "blade_storm",
+    "key": "assets/final/skills/warrior/blade_storm/body.png",
+    "r": 1,
+    "k": 4,
+    "W": 480,
+    "H": 480,
+    "dups": [],
+    "cell": 10
+   },
+   {
+    "anim": "blade_storm",
+    "key": "assets/final/skills/warrior/blade_storm/body.png",
+    "r": 1,
+    "k": 5,
+    "W": 480,
+    "H": 480,
+    "dups": [],
+    "cell": 11
+   },
+   {
+    "anim": "leap_crash",
+    "key": "assets/final/skills/warrior/leap_crash/body.png",
+    "r": 1,
+    "k": 0,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 12
+   },
+   {
+    "anim": "leap_crash",
+    "key": "assets/final/skills/warrior/leap_crash/body.png",
+    "r": 1,
+    "k": 1,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 13
+   },
+   {
+    "anim": "leap_crash",
+    "key": "assets/final/skills/warrior/leap_crash/body.png",
+    "r": 1,
+    "k": 2,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 14
+   },
+   {
+    "anim": "leap_crash",
+    "key": "assets/final/skills/warrior/leap_crash/body.png",
+    "r": 1,
+    "k": 3,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 15
+   },
+   {
+    "anim": "leap_crash",
+    "key": "assets/final/skills/warrior/leap_crash/body.png",
+    "r": 1,
+    "k": 4,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 16
+   },
+   {
+    "anim": "leap_crash",
+    "key": "assets/final/skills/warrior/leap_crash/body.png",
+    "r": 1,
+    "k": 5,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 17
+   },
+   {
+    "anim": "recovery",
+    "key": "assets/final/body/warrior/movement/recovery.png",
+    "r": 1,
+    "k": 1,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 18
+   },
+   {
+    "anim": "recovery",
+    "key": "assets/final/body/warrior/movement/recovery.png",
+    "r": 1,
+    "k": 2,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 19
+   },
+   {
+    "anim": "recovery",
+    "key": "assets/final/body/warrior/movement/recovery.png",
+    "r": 1,
+    "k": 3,
+    "W": 352,
+    "H": 352,
+    "dups": [],
+    "cell": 20
+   }
+  ],
+  "anims": [
+   "blade_storm",
+   "leap_crash",
+   "react",
+   "recovery"
+  ]
+ }
+]

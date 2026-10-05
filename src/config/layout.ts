@@ -194,7 +194,7 @@ export const STAGE6 = {
   slash: { path: 'assets/fx/sword_slash', frames: 6, displayHeight: 90, forward: 40, up: 40,
     rotationDeg: { right: 0, down: 90, left: 180, up: -90 } },
   dust: { path: 'assets/fx/movement_dust', frames: 6, displayWidth: 44, minIntervalMs: 140 },
-  player: { walkThreshold: 12, hitFlashWhiteMs: 60, hitFlashRedMs: 140, deathFadeMs: 400, deathPauseMs: 1200, deathAlpha: 0.25 },
+  player: { walkThreshold: 12, hitFlashWhiteMs: 60, hitFlashRedMs: 140, deathFadeMs: 450, deathPauseMs: 2100, deathAlpha: 0 },
 } as const;
 
 // ======================= Visual polish (after Stage 6) =======================

@@ -232,7 +232,7 @@ class CosPreview {
       case 'hurt': { const c = this.t % 900; mode = c < 320 ? 'hurt' : 'idle'; mt = c; break; }
       case 'dead': { const c = this.t % 2200; mode = c < 1700 ? 'dead' : 'idle'; mt = c; break; }
     }
-    const pose = resolvePose(this.cls, this.dir, poseQuery({ mode, t: mt, speed, vz, skill, stunMs: 320 }));
+    const pose = resolvePose(this.cls, this.dir, poseQuery({ mode, t: mt, speed, vz, skill, stunMs: 320 }), this.view.wantsBase);
     this.view.render(ms, pose, this.stage.ox, this.stage.oy + this.floor, this.z, 0, this.dir);
   }
 

@@ -5,6 +5,7 @@ import Phaser from 'phaser';
 import { FONT_FAMILY, PVP } from '../config/layout';
 import { Dir } from '../world/collision';
 import { PeerMeta, NetMsg } from './Transport';
+import { DeathFx } from '../game/DeathFx';
 import { ActorView, CosSlot, Equipped } from '../game/ActorView';
 import { ClassKey, resolvePose } from '../game/Body';
 import { AnimSnap, Mode, poseQuery } from '../game/PoseState';
@@ -28,6 +29,7 @@ export class RemotePlayer {
   private skill: { id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number } | null = null;
   private flashMs = -1;
   private deadMs = -1;
+  private deathFx: DeathFx;
   private cosKey = '';
   hp: number = PVP.maxHp;
   alive = true;
@@ -38,6 +40,7 @@ export class RemotePlayer {
     const L = PVP.remoteLabel;
     this.x = x; this.y = y;
     this.view = new ActorView(scene, meta.classId as ClassKey, x, y);
+    this.deathFx = new DeathFx(scene);
     this.label = scene.add.text(x, y, meta.name, {
       fontFamily: FONT_FAMILY, fontSize: `${L.size}px`, fontStyle: 'bold', color: L.color, stroke: '#000000', strokeThickness: 3, resolution: 2,
     }).setOrigin(0.5, 1).setDepth(PVP.labelDepth);
@@ -87,11 +90,12 @@ export class RemotePlayer {
   die(): void {
     if (!this.alive) return;
     this.alive = false; this.hp = 0; this.skill = null; this.deadMs = 0; this.mode = 'dead'; this.modeT = 0;
+    this.deathFx.start(this.x, this.y, this.z - this.sz, this.dir === 'left');
     this.drawBar();
   }
 
   revive(x: number, y: number, hp: number = PVP.maxHp): void {
-    this.alive = true; this.hp = hp; this.deadMs = -1; this.flashMs = -1; this.mode = 'idle'; this.modeT = 0; this.skill = null;
+    this.alive = true; this.hp = hp; this.deadMs = -1; this.flashMs = -1; this.mode = 'idle'; this.modeT = 0; this.skill = null; this.deathFx.stop();
     this.snaps = [{ t: performance.now(), x, y, z: 0 }];
     this.x = x; this.y = y; this.z = 0;
     this.drawBar();
@@ -117,9 +121,9 @@ export class RemotePlayer {
     }
     let tint: number | null = null, fill = false, alpha = 1;
     if (this.flashMs >= 0) { this.flashMs += ms; if (this.flashMs < 60) { tint = 0xffffff; fill = true; } else if (this.flashMs < 140) tint = 0xff6a6a; else this.flashMs = -1; }
-    if (this.deadMs >= 0) { this.deadMs += ms; alpha = 1 - 0.75 * Math.min(1, this.deadMs / 400); tint = 0xff4a4a; }
+    if (this.deadMs >= 0) { this.deadMs += ms; alpha = 1 - Math.min(1, this.deadMs / 450); this.deathFx.update(ms); }
     const snap: AnimSnap = { mode: this.skill ? 'skill' : this.mode, t: this.modeT, speed: this.speed, vz: this.vz, skill: this.skill ?? undefined, stunMs: 200 };
-    const pose = resolvePose(this.meta.classId as ClassKey, this.dir, poseQuery(snap));
+    const pose = resolvePose(this.meta.classId as ClassKey, this.dir, poseQuery(snap), this.view.wantsBase);
     this.view.render(ms, pose, x, y, z, this.sz, this.dir, alpha, tint, fill);
     const top = y - z - 116 - PVP.remoteLabel.gap;
     this.label.setPosition(Math.round(x), Math.round(top - PVP.hpBar.h - 3));
@@ -136,5 +140,5 @@ export class RemotePlayer {
     g.lineStyle(1, col(H.border), 1).strokeRect(-H.w / 2, 0, H.w, H.h);
   }
 
-  destroy(): void { this.view.destroy(); this.label.destroy(); this.bar.destroy(); }
+  destroy(): void { this.view.destroy(); this.label.destroy(); this.bar.destroy(); this.deathFx.destroy(); }
 }

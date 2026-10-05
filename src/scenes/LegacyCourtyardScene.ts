@@ -34,6 +34,7 @@ import { finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
 import { CastRun, SkillRuntime } from '../skills/SkillRuntime';
 import { HitTarget, V2, V3, clampPlace, unit } from '../skills/HitGeometry';
 import { SkillFx, preloadSkillFx } from '../skills/SkillFx';
+import { DeathFx, preloadDeathFx } from '../game/DeathFx';
 import { SkillBook } from '../ui/SkillBook';
 import { CosmeticPanel } from '../ui/CosmeticPanel';
 import { preloadPanelArt } from '../ui/PreviewStage';
@@ -67,6 +68,7 @@ const ENEMY_SKILL: FinalSkill = {
 export class LegacyCourtyardScene extends Phaser.Scene {
   // ---- local actor (read by QA)
   kin!: Kin;
+  private deathFx?: DeathFx;
   body!: CombatBody;
   view?: ActorView;
   ci?: CombatInput;
@@ -148,6 +150,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     preloadEnemyFrames(this);
     preloadBodies(this);
     preloadSkillFx(this);
+    preloadDeathFx(this);
     preloadCosmetics(this);
     preloadPanelArt(this);
     preloadLife(this);
@@ -217,6 +220,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       reachMul: (req) => (req.own && req.skill.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.85 : 1),
     });
     this.fx = new SkillFx(this, this.rt, (id) => this.casterPos(id));
+    this.deathFx = new DeathFx(this);
     this.fx.damageSkin = damageSkin(this.equipped.damage);
     this.fx.handPos = (id) => (id === this.localId ? this.lastHand : null);
     this.renderPlayer(0);
@@ -256,6 +260,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       kb.off('keydown-ESC', esc);
       this.rt?.cancelOwn('sceneExit');
       this.fx?.destroy(); this.fx = undefined;
+      this.deathFx?.destroy(); this.deathFx = undefined;
       this.rt?.destroy(); this.rt = undefined;
       this.ci?.reset();
       this.ci?.destroy(); this.ci = undefined;
@@ -325,7 +330,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // Aim: keyboard only — the held movement direction (8-way), else the last one.
     if (inp.hasMove) this.aim = unit(inp.moveX, inp.moveY, this.aim.x, this.aim.y);
 
-    if (this.dead >= 0) { this.dead += ms; this.setMode('dead'); k.vx = 0; k.vy = 0; stepKin(k, ms); this.updateDeath(); return; }
+    if (this.dead >= 0) { this.dead += ms; this.setMode('dead'); k.vx = 0; k.vy = 0; stepKin(k, ms); this.deathFx?.update(ms); this.updateDeath(); return; }
 
     const run = this.rt!.ownRun;
     const reacting = b.state !== 'free';
@@ -555,7 +560,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       skill: run ? { id: run.skill.id, stage: run.stage, elapsed: run.elapsed, ...run.timings } : undefined,
     };
     const dir = this.dir; // Whirlwind spins inside its own 360° body loop
-    const pose = resolvePose(this.character!.classId as ClassKey, dir, poseQuery(snap));
+    const pose = resolvePose(this.character!.classId as ClassKey, dir, poseQuery(snap), v.wantsBase);
     let tint: number | null = null, fill = false, alpha = 1;
     if (this.flash >= 0) { if (this.flash < P6.hitFlashWhiteMs) { tint = 0xffffff; fill = true; } else tint = 0xff6a6a; }
     else if (this.body.hard.active(this.simMs)) tint = this.body.hard.kind === 'freeze' ? 0x9fd8ff : 0xb6ffb0;
@@ -566,7 +571,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const c = (lo: number, hi: number) => Math.round(255 - (255 - lo) * w * (hi / 255));
       tint = (255 << 16) | (c(0xe0, 255) << 8) | c(0xa0, 255);
     }
-    if (this.dead >= 0) { alpha = 1 - (1 - P6.deathAlpha) * Math.min(1, this.dead / P6.deathFadeMs); tint = 0xff4a4a; fill = false; }
+    if (this.dead >= 0) { alpha = 1 - (1 - P6.deathAlpha) * Math.min(1, this.dead / P6.deathFadeMs); tint = null; fill = false; } // the body just fades; the ghost rises (DeathFx)
     v.render(ms, pose, k.x, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
     this.renderRadiant(pose, dir);
     this.renderEyes(pose, dir);
@@ -1034,6 +1039,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.dead = 0;
     this.body.state = 'dead';
     this.setMode('dead');
+    this.deathFx?.start(this.kin.x, this.kin.y, this.kin.z - this.kin.supportZ, this.dir === 'left');
     this.hud?.banner('DEFEATED', this.pvp ? PVP.respawnMs : P6.deathFadeMs + P6.deathPauseMs);
   }
 
@@ -1049,7 +1055,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const k = this.kin;
     k.x = x; k.y = y; k.z = 0; k.vx = 0; k.vy = 0; k.vz = 0; k.grounded = true; k.supportZ = 0;
     this.body.reset();
-    this.playerHP = hp; this.dead = -1; this.flash = -1; this.setMode('idle');
+    this.playerHP = hp; this.dead = -1; this.flash = -1; this.setMode('idle'); this.deathFx?.stop();
     this.ci?.reset();
   }
 

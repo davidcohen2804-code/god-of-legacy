@@ -55,6 +55,11 @@ export function preloadBodies(scene: Phaser.Scene): void {
       LS(skillKey(cls, s.id), skillPath(cls, s.id)); LS(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id).replace('.png', '_weapon.png')); if (cls === 'warrior') SHEET_PATH[skillKey(cls, s.id)] = skillPath(cls, s.id); }
   }
   for (const [cls, a] of Object.entries(ATLAS)) { L(atlasKey(cls), a.sheet, false); L(`${atlasKey(cls)}-w`, a.sheet.replace('.png', '_weapon.png'), false); }
+  for (const anim of BASE_ANIMS) {
+    const k = baseKey(anim); L(k, basePath(anim), true); L(`${k}-w`, basePath(anim).replace('.png', '_weapon.png'), true); SHEET_PATH[k] = basePath(anim);
+    const cs = CELLS[anim], skill = !(anim in MOVE_COLS), W = cs?.w ?? CELL, H = cs?.h ?? CELL;
+    BASE_GEOM[k] = { W, H, cols: skill ? (cs?.cols ?? 6) : moveCols('warrior', anim as MoveState), orig: skill ? skillPath('warrior', anim) : sheetPath('warrior', anim), ox: Math.floor(W / 2) - 176, oy: H - CELL };
+  }
 }
 
 /** Explicit atlas rectangles registered once as named frames (body + weapon-mask textures share frame names). */
@@ -75,6 +80,8 @@ export interface PoseFrame {
   key: string; frame: string | number; wkey: string; ox: number; oy: number; scale: number;
   /** Optional per-axis multipliers around the feet (procedural breathing). */
   sx?: number; sy?: number;
+  /** Drawn mirrored (facing left = the right-facing art flipped, MapleStory-style); anchors are already mirrored. */
+  flip?: boolean;
   /** [headTopX, headTopY, headCx, headCy, backX, backY] relative to the feet, world px (already scaled). */
   anchor: number[] | null;
   /** Head (hair) box for helmets: [centerX, width (direction median, stable), bottomY], world px rel. feet. */
@@ -95,15 +102,36 @@ function scaleHair(a: number[] | null | undefined, k: number): number[] | null {
 /** Sheet texture key → file path (warrior), for lazily loaded cosmetic masks (<sheet>_m.png). */
 export const SHEET_PATH: Record<string, string> = {};
 
+// ---- base body (beginner clothes, side view, one right-facing row per animation; left = mirrored).
+// Baked by tools/base/bake.py from the armour frames; cosmetics (fashion colours, hats…) are drawn on it.
+import BASE_LIST from '../data/base-sheets.json';
+const BASE_ANIMS = new Set<string>(BASE_LIST as string[]);
+const baseKey = (anim: string) => `base-warrior-${anim}`;
+const basePath = (anim: string) => `assets/final/body/warrior/base/${anim}.png`;
+const animOf = (path: string) => (path.includes('/skills/') ? path.split('/').slice(-2, -1)[0] : path.split('/').pop()!.replace('.png', ''));
+/** Base-sheet geometry: the original sheet's cell (W×H, cols) the 352-cells were cut from, for mask/layer remapping. */
+export const BASE_GEOM: Record<string, { W: number; H: number; cols: number; orig: string; ox: number; oy: number }> = {};
+let BASE_MODE = false;
+/** Base body available for this animation (sheet baked)? */
+export const hasBase = (cls: string, anim: string): boolean => cls === 'warrior' && BASE_ANIMS.has(anim);
+
 function headOf(path: string, row: number, c: number): number[] | null {
   const h = (HEADS as unknown as Record<string, (number[] | null)[][]>)[path]?.[row]?.[c];
   return h ? [h[0] * SHEET_SCALE, h[1] * SHEET_SCALE, h[2]] : null;
 }
 
+/** Mirror x-values (even indices up to `n`) of an anchor list for a flipped frame. */
+const mirror = (a: number[] | null | undefined, xs: number[]): number[] | null => (a ? a.map((v, i) => (xs.includes(i) ? -v : v)) : null);
+
 function sheetFrame(key: string, path: string, dir: Dir, col: number, cols: number, ch = CELL): PoseFrame {
-  const c = Math.max(0, Math.min(cols - 1, col)), row = ROW[dir];
+  // Side view only: the left-facing pose is the right-facing art mirrored (one drawing per frame, like MapleStory).
+  const flip = dir === 'left', row = ROW[flip ? 'right' : dir];
+  const c = Math.max(0, Math.min(cols - 1, col));
   const table = ANCH[path] as (number[] | null)[][] | undefined;
-  return { key, frame: row * cols + c, wkey: `${key}-w`, ox: 0.5, oy: (ch - CELL * (1 - ORIGIN_Y)) / ch, scale: SHEET_SCALE, anchor: scaleAnchor(table?.[row]?.[c], SHEET_SCALE), hair: scaleHair(table?.[row]?.[c], SHEET_SCALE), blade: ((BLADES as Record<string, (number[] | null)[][]>)[path]?.[row]?.[c] ?? null)?.map((v) => v * SHEET_SCALE) ?? null, bladeBehind: !!(BEHIND as Record<string, number[][]>)[path]?.[row]?.[c], head: headOf(path, row, c) };
+  const f: PoseFrame = { key, frame: row * cols + c, wkey: `${key}-w`, ox: 0.5, oy: (ch - CELL * (1 - ORIGIN_Y)) / ch, scale: SHEET_SCALE, anchor: scaleAnchor(table?.[row]?.[c], SHEET_SCALE), hair: scaleHair(table?.[row]?.[c], SHEET_SCALE), blade: ((BLADES as Record<string, (number[] | null)[][]>)[path]?.[row]?.[c] ?? null)?.map((v) => v * SHEET_SCALE) ?? null, bladeBehind: !!(BEHIND as Record<string, number[][]>)[path]?.[row]?.[c], head: headOf(path, row, c) };
+  if (BASE_MODE) { const anim = animOf(path); if (BASE_ANIMS.has(anim)) { f.key = baseKey(anim); f.wkey = `${f.key}-w`; f.frame = c; f.oy = ORIGIN_Y; } } // 352-cell base strip, same anchors
+  if (flip) { f.flip = true; f.anchor = mirror(f.anchor, [0, 2, 4]); f.hair = mirror(f.hair, [0]); f.blade = mirror(f.blade, [0, 2]); f.head = mirror(f.head, [0, 2]); }
+  return f;
 }
 
 function atlasPose(cls: string, dir: Dir, act: AtlasAction, i: number): PoseFrame {
@@ -132,8 +160,10 @@ export type PoseQuery =
 
 const pick = <T,>(list: T[], p: number): T => list[Math.max(0, Math.min(list.length - 1, Math.floor(p * list.length)))];
 
-export function resolvePose(cls: ClassKey, dir: Dir, q: PoseQuery): PoseFrame {
-  return isSheetClass(cls) ? sheetPose(cls, dir, q) : atlasPoseFor(cls, dir, q);
+/** base = draw the beginner-clothes base body (fashion cosmetics) instead of the class armour, where baked. */
+export function resolvePose(cls: ClassKey, dir: Dir, q: PoseQuery, base = false): PoseFrame {
+  BASE_MODE = base && cls === 'warrior';
+  try { return isSheetClass(cls) ? sheetPose(cls, dir, q) : atlasPoseFor(cls, dir, q); } finally { BASE_MODE = false; }
 }
 
 const moveCols = (cls: string, st: MoveState) => (st === 'air_attack' && cls === 'warrior' ? 8 : MOVE_COLS[st]);
@@ -143,7 +173,7 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
   switch (q.k) {
     case 'loop': {
       if (q.state === 'idle') { // one clean frame + smooth procedural breathing (separately painted idle frames flicker)
-        if (cls === 'warrior') return mv(cls, 'idle', dir, Math.floor((q.t * 10) / 1000) % 12); // wind-blown cape cycle only, body stays still
+        if (cls === 'warrior' && !BASE_MODE) return mv(cls, 'idle', dir, Math.floor((q.t * 10) / 1000) % 12); // wind-blown cape cycle only, body stays still (base body: no cape → one frame + breathing)
         const f = mv(cls, 'idle', dir, 0), b = Math.sin((q.t / 2600) * Math.PI * 2);
         f.sy = 1 + 0.014 * b; f.sx = 1 - 0.005 * b;
         if (f.anchor) f.anchor = f.anchor.map((v, i) => (i % 2 ? v * f.sy! : v * f.sx!));
@@ -168,7 +198,7 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
     case 'launched': return cls === 'warrior' ? mv(cls, 'react', dir, 2) : mv(cls, 'hurt', dir, q.vz > 0 ? 1 : 2);
     case 'down': return cls === 'warrior' ? mv(cls, 'react', dir, q.p < 0.15 ? 2 : 3) : mv(cls, 'death', dir, Math.min(5, Math.floor(q.p * 6)));
     case 'getup': return cls === 'warrior' ? mv(cls, 'react', dir, 4 + Math.min(2, Math.floor(q.p * 3))) : mv(cls, 'death', dir, Math.max(0, 5 - Math.floor(q.p * 6)));
-    case 'recovery': return mv(cls, 'recovery', dir, 1 + Math.min(2, Math.floor(q.p * 3)));
+    case 'recovery': return BASE_MODE ? mv(cls, 'react', dir, 7) : mv(cls, 'recovery', dir, 1 + Math.min(2, Math.floor(q.p * 3))); // base body: the stance frame (no recovery sheet)
     case 'death': return mv(cls, 'death', dir, Math.min(7, Math.floor(q.p * 8)));
     case 'skill': {
       const sk = FINAL_SKILLS.find((s) => s.id === bodyIdOf(q.id));
@@ -284,10 +314,10 @@ function atlasPoseFor(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
 /** Apply a resolved pose to a body sprite (and its aligned weapon-mask sprite). */
 export function applyPose(p: Phaser.GameObjects.Sprite, f: PoseFrame, weapon?: Phaser.GameObjects.Sprite | null): void {
   if (p.texture.key !== f.key || p.frame.name !== String(f.frame)) p.setTexture(f.key, f.frame);
-  p.setOrigin(f.ox, f.oy).setScale(f.scale * (f.sx ?? 1), f.scale * (f.sy ?? 1));
+  p.setOrigin(f.ox, f.oy).setScale(f.scale * (f.sx ?? 1), f.scale * (f.sy ?? 1)).setFlipX(!!f.flip);
   if (weapon && weapon.scene.textures.exists(f.wkey)) {
     if (weapon.texture.key !== f.wkey || weapon.frame.name !== String(f.frame)) weapon.setTexture(f.wkey, f.frame);
-    weapon.setOrigin(f.ox, f.oy).setScale(f.scale * (f.sx ?? 1), f.scale * (f.sy ?? 1));
+    weapon.setOrigin(f.ox, f.oy).setScale(f.scale * (f.sx ?? 1), f.scale * (f.sy ?? 1)).setFlipX(!!f.flip);
   }
 }
 

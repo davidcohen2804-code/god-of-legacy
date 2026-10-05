@@ -34,6 +34,6 @@ export function poseQuery(s: AnimSnap): PoseQuery {
     case 'launched': return { k: 'launched', vz: s.vz };
     case 'down': return { k: 'down', p: Math.min(1, s.t / 260) };
     case 'getup': return { k: 'getup', p: Math.min(1, s.t / 260) };
-    case 'dead': return { k: 'death', p: Math.min(1, s.t / 420) };
+    case 'dead': return { k: 'hurt', p: 1 }; // MapleStory-style death: the body holds its stagger and fades while the ghost rises (no fall frames)
   }
 }

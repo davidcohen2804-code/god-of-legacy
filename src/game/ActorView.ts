@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import COS from '../data/cosmetics.json';
 import { Dir } from '../world/collision';
 import { actorDepth } from '../world/WorldGeometry';
-import { ClassKey, PoseFrame, applyPose, SHEET_PATH } from './Body';
+import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM } from './Body';
 
 export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet' | 'hair' | 'armor' | 'hairstyle' | 'top' | 'gloves' | 'shoes' | 'pants' | 'hat' | 'faceacc' | 'earring' | 'nametag' | 'trail';
 export type Equipped = Partial<Record<CosSlot, string>>;
@@ -150,7 +150,8 @@ function bodyVariant(scene: Phaser.Scene, key: string, wkey: string, cut: boolea
     const d = ctx.getImageData(0, 0, W, H), a = d.data;
     const lab = new Int16Array(256).fill(-1); // region label → ramp index
     const ramps: number[][][] = [];
-    RECOLOR.forEach(([, labels], ri) => { const lut = rec[ri] ? cosmetic(rec[ri]!)?.lut : undefined; if (lut) { ramps[ri] = lut; for (const l of labels) lab[l] = ri; } });
+    const geom = BASE_GEOM[key]; // base body strip: masks match, worn layers still have the armour sheet's geometry
+    RECOLOR.forEach(([slot, labels], ri) => { if (geom && slot === 'armor') return; const lut = rec[ri] ? cosmetic(rec[ri]!)?.lut : undefined; if (lut) { ramps[ri] = lut; for (const l of labels) lab[l] = ri; } });
     let fab: Uint8ClampedArray | null = null, FW = 0, FH = 0;
     if (capeId && scene.textures.exists(`cosf-${capeId}`)) {
       const fimg = scene.textures.get(`cosf-${capeId}`).getSourceImage() as HTMLImageElement; FW = fimg.width; FH = fimg.height;
@@ -176,11 +177,18 @@ function bodyVariant(scene: Phaser.Scene, key: string, wkey: string, cut: boolea
       a[i] = lut[q][0]; a[i + 1] = lut[q][1]; a[i + 2] = lut[q][2];
     }
     void lab;
+    const LW = geom ? geom.cols * geom.W : W; // layer row stride (armour sheet geometry)
     for (const L of layers) for (let i = 0; i < a.length; i += 4) { // worn pieces: magenta = hair hidden under the piece, else alpha-over
-      const la = L[i + 3]; if (la === 0) continue;
-      if (L[i] === 255 && L[i + 1] === 0 && L[i + 2] === 255) { a[i + 3] = 0; continue; }
+      let li = i;
+      if (geom) { // base strip pixel (col c, lx, ly) → armour sheet row 1 (right-facing) pixel
+        const p = i >> 2, x = p % W, y = (p - x) / W, c = Math.floor(x / 352), lx = x - c * 352, sx = c * geom.W + lx + geom.ox, sy = geom.H + y + geom.oy;
+        if (lx + geom.ox < 0 || lx + geom.ox >= geom.W || y + geom.oy < 0 || y + geom.oy >= geom.H) continue;
+        li = (sy * LW + sx) * 4; if (li + 3 >= L.length) continue;
+      }
+      const la = L[li + 3]; if (la === 0) continue;
+      if (L[li] === 255 && L[li + 1] === 0 && L[li + 2] === 255) { a[i + 3] = 0; continue; }
       const t = la / 255, u = 1 - t, ba = a[i + 3] / 255, oa = t + ba * u;
-      a[i] = (L[i] * t + a[i] * ba * u) / oa; a[i + 1] = (L[i + 1] * t + a[i + 1] * ba * u) / oa; a[i + 2] = (L[i + 2] * t + a[i + 2] * ba * u) / oa; a[i + 3] = oa * 255;
+      a[i] = (L[li] * t + a[i] * ba * u) / oa; a[i + 1] = (L[li + 1] * t + a[i + 1] * ba * u) / oa; a[i + 2] = (L[li + 2] * t + a[i + 2] * ba * u) / oa; a[i + 3] = oa * 255;
     }
     ctx.putImageData(d, 0, 0);
   } else if (cut) {
@@ -263,6 +271,9 @@ export class ActorView {
 
   get equippedItems(): Equipped { return this.equipped; }
 
+  /** Fashion (top / pants / shoes) is drawn on the beginner base body, not on the class armour. */
+  get wantsBase(): boolean { return !!(this.equipped.top || this.equipped.pants || this.equipped.shoes); }
+
   /** Render one frame. pose = resolved body frame; x/y = ground feet; z = height; supportZ = surface under the feet. */
   render(ms: number, pose: PoseFrame, x: number, y: number, z: number, supportZ: number, dir: Dir, alpha = 1, tint: number | null = null, tintFill = false): void {
     this.t += ms;
@@ -305,6 +316,7 @@ export class ActorView {
       this.weapon.setPosition(p.x, p.y).setDepth(depth + 0.02).setTint(tintC).setAlpha(alpha);
       if (ws.glow) {
         if (this.weaponGlow.texture.key !== pose.wkey || this.weaponGlow.frame.name !== String(pose.frame)) this.weaponGlow.setTexture(pose.wkey, pose.frame);
+        this.weaponGlow.setFlipX(!!pose.flip);
         const g = ws.rainbow ? tintC : ws.glow;
         this.weaponGlow.setOrigin(pose.ox, pose.oy).setScale(pose.scale * 1.04).setPosition(p.x, p.y).setDepth(depth + 0.03).setTint(g)
           .setAlpha(alpha * (0.45 + 0.2 * Math.sin(this.t / 180)));

@@ -230,7 +230,7 @@ class SkillPreview {
       mode: this.mode, t: this.modeT, speed: 0, vz: 0,
       skill: r ? { id: s.id, stage: r.stage, elapsed: el, startup: r.timings.startup, active: r.timings.active, recovery: r.timings.recovery } : undefined,
     };
-    const pose = resolvePose(this.cls, 'right', poseQuery(snap));
+    const pose = resolvePose(this.cls, 'right', poseQuery(snap), this.view.wantsBase);
     this.view.render(ms, pose, this.caster.x, this.caster.y, this.caster.z, 0, 'right');
   }
 
