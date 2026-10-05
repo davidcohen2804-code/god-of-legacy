@@ -5,8 +5,9 @@ G='/home/claude/god-of-legacy/'
 P=pickle.load(open('/tmp/claude-0/cos/poses2.pkl','rb')); items,reps,assign=P['items'],P['reps'],P['assign']
 iid=sys.argv[1]; S=352; rl={}
 for s,img in enumerate(sys.argv[2:5]):
+  if img=='-': continue
   out=f'/tmp/claude-0/cos/pl{s}.png'
-  subprocess.run(['python3','/tmp/claude-0/cos/extract.py',f'/tmp/claude-0/cos/skill_poses_{s+1}_base.png',img,out,'352','352'],check=True,capture_output=True,env={**os.environ,'ZONE':'0.6'})
+  subprocess.run(['python3','/tmp/claude-0/cos/extract.py',f'/tmp/claude-0/cos/skill_poses_{s+1}_base.png',img,out,'352','352'],check=True,capture_output=True,env={**os.environ,'HEADZONE':'176,150,80','PMASK':f'/tmp/claude-0/cos/skill_poses_{s+1}_m.png'})
   L=np.array(Image.open(out).convert('RGBA'))
   for j,rp in enumerate(reps[s*16:(s+1)*16]): rl[rp]=L[(j//4)*S:(j//4+1)*S,(j%4)*S:(j%4+1)*S]
 outdir=G+f'public/assets/final/cosmetics/warrior/{iid}/layers'; sheets={}
@@ -16,7 +17,9 @@ def sheet(key):
     sheets[key]=(f'{outdir}/{name}.png', np.array(Image.open(f'{outdir}/{name}.png').convert('RGBA')))
   return sheets[key][1]
 for i,it in enumerate(items):
-  rp=assign[i]; L=rl[rp]; rh=items[rp]['hair']; mh=it['hair']; best=(-1,0,0)
+  rp=assign[i]
+  if rp not in rl: continue
+  L=rl[rp]; rh=items[rp]['hair']; mh=it['hair']; best=(-1,0,0)
   for dy in range(-12,13):
     for dx in range(-12,13):
       sh=np.roll(np.roll(rh,dy,0),dx,1); s_=(sh&mh).sum()/max(1,(sh|mh).sum())

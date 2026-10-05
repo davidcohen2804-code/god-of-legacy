@@ -17,6 +17,9 @@ for r in range(rows):
     ba=b[...,3]>128
     # register: best integer shift (±12) and scale by silhouette IoU of the lower body (unchanged part)
     best=(-1,0,0); low=np.zeros_like(ba); low[int(H*0.62):]=True
+    _hz=__import__('os').environ.get('HEADZONE')
+    if _hz:
+      _x,_y,_r=[float(v) for v in _hz.split(',')]; _yy,_xx=np.mgrid[0:H,0:W]; low=((_xx-_x)**2+(_yy-_y)**2)>(_r*1.3)**2
 
     for dy in range(-12,13,2):
       for dx in range(-12,13,2):
@@ -67,13 +70,18 @@ for r in range(rows):
     eskin=(eR>150)&(eG>95)&(eB>70)&(eR>eG+10)&(eG>eB+5)
     ch&=~(nd.binary_dilation(bskin,iterations=1)&eskin)        # GPT's re-drawn face stays out
     if PM is not None:
-      arm=np.isin(PM[r*H:(r+1)*H,c*W:(c+1)*W],[80,120,160,240])
-      ch&=~(arm&(diff<160))                                      # re-drawn armor/cape stays out
+      reg_=PM[r*H:(r+1)*H,c*W:(c+1)*W]; arm=np.isin(reg_,[80,120,160,240])
+      ch&=~(arm&(diff<160))
+      if _hz: ch&=~((reg_==0)&ba&(diff<160))   # pose sheets: re-drawn sword/shield/skin stays out                                      # re-drawn armor/cape stays out
     lab3,n3=nd.label(nd.binary_dilation(ch&(a2>0.5),iterations=1))
     if n3:
       s3=nd.sum(ch&(a2>0.5),lab3,range(1,n3+1)); ch=(ch&~(a2>0.5))|((a2>0.5)&ch&np.isin(lab3,1+np.nonzero(s3>=s3.max()*0.25)[0]))  # the piece, not stray redraw noise
     ys_=np.nonzero((ba|(a2>0.5)).any(1))[0]; zt=ys_.min(); zb=int(zt+(ys_.max()-zt)*float(__import__('os').environ.get('ZONE','0.42')))
-    zone=np.zeros_like(ch); zone[:zb]=True; ch&=zone   # item zone (head pieces: top ~42% of the figure)
+    zone=np.zeros_like(ch); zone[:zb]=True
+    hz=__import__('os').environ.get('HEADZONE')
+    if hz:  # pose sheets: the head sits at a fixed point of every cell
+      hx_,hy_,hr_=[float(v) for v in hz.split(',')]; yy_,xx_=np.mgrid[0:H,0:W]; zone=((xx_-hx_)**2+(yy_-hy_)**2)<hr_**2
+    ch&=zone   # item zone
     ch=nd.binary_opening(ch,iterations=1); lab,n=nd.label(ch)
     if n: sz=nd.sum(ch,lab,range(1,n+1)); ch=np.isin(lab,1+np.nonzero(sz>=60)[0])
     ch=nd.binary_closing(ch,iterations=2)
