@@ -20,10 +20,10 @@ const A = (f: string) => `assets/final/ui/skill_book/${f}.png`;
 const K = (f: string) => `assets/final/ui/kit/${f}.png`;
 const BG = { x: 160, y: 140, w: 1600, h: 800 };
 // zones measured on kit/skillbook_window.png (the window art paints banner, tab strip, 4 card frames, two book pages)
-const PREVIEW: Rect = { x: 80, y: 446, w: 809, h: 274 };
-const DETAIL: Rect = { x: 995, y: 446, w: 530, h: 274 };
+const PREVIEW: Rect = { x: 78, y: 447, w: 815, h: 279 };
+const DETAIL: Rect = { x: 1000, y: 449, w: 518, h: 276 };
 const TAB_X = [50, 355, 659, 962, 1263], TAB_W = 287, TAB_Y = 149, TAB_H = 52;
-const FRAME_CX = [363, 662, 941, 1233], FRAME_Y = 236;
+const FRAME_CX = [362, 661, 940, 1235], FRAME_Y = 245, FRAME_IN = 150; // painted card frames: inner box FRAME_IN x 135
 /** Pre-recorded in-game clips of each skill (exact final visuals); falls back to the live preview when missing. */
 const CLIPS = new Set(['warrior_basic', 'dash_slash', 'rising_slash', 'ground_breaker', 'whirlwind', 'sanctuary', 'blade_storm', 'titans_verdict', 'leap_crash', 'wave_slash', 'radiant_blade', 'lance_thrust', 'war_cry', 'judgment_blade']);
 const clipUrl = (id: string) => `assets/final/skills/clips/${id}.mp4?v=${__BUILD_COMMIT__}`;
@@ -66,31 +66,33 @@ const CSS = `
 .gol-sb .tab.lk .lv{color:#9aa3ab}
 .gol-sb .tab.lk:after{content:'';position:absolute;right:48px;top:10px;width:22px;height:30px;background:url("${K('lock')}") center/contain no-repeat;filter:drop-shadow(0 1px 2px #000)}
 .gol-sb .row{position:absolute;left:0;top:0;width:${BG.w}px;height:0}
-.gol-sb .card{position:absolute;top:${FRAME_Y + 10}px;width:${CARD}px;height:${CARD}px;margin-left:${-CARD / 2}px;background:url("${K('card_normal')}") center/100% 100% no-repeat;cursor:pointer;transition:transform 120ms,filter 120ms}
-.gol-sb .card:hover{transform:scale(1.05);filter:brightness(1.15)}
-.gol-sb .card.sel{background-image:url("${K('card_selected')}");transform:scale(1.07)}
-.gol-sb .card img{position:absolute;left:18px;top:18px;width:76px;height:76px;border-radius:6px;pointer-events:none}
-.gol-sb .card.lk{background-image:url("${K('card_locked')}")}
+.gol-sb .card{position:absolute;top:${FRAME_Y}px;width:${FRAME_IN}px;height:136px;margin-left:${-FRAME_IN / 2}px;cursor:pointer;border-radius:6px;transition:background 120ms,box-shadow 120ms}
+.gol-sb .card:hover{background:rgba(255,214,130,.07)}
+.gol-sb .card.sel{background:radial-gradient(ellipse at 50% 40%,rgba(255,200,90,.22),rgba(255,200,90,0) 70%);box-shadow:inset 0 0 0 2px rgba(232,178,90,.85),0 0 16px rgba(232,178,90,.45)}
+.gol-sb .card img{position:absolute;left:${(FRAME_IN - 84) / 2}px;top:10px;width:84px;height:84px;border-radius:8px;box-shadow:0 0 0 1px #6a5630,0 4px 10px rgba(0,0,0,.6);pointer-events:none;transition:transform 120ms}
+.gol-sb .card:hover img,.gol-sb .card.sel img{transform:scale(1.05)}
 .gol-sb .card.lk img{filter:grayscale(1) brightness(.4)}
-.gol-sb .card .hk{position:absolute;right:-10px;top:-10px;min-width:26px;height:22px;padding:0 6px;border-radius:5px;background:#0b121b;border:1px solid #c99a45;
+.gol-sb .card.lk:after{content:'';position:absolute;left:${FRAME_IN / 2 - 13}px;top:34px;width:26px;height:36px;background:url("${K('lock')}") center/contain no-repeat;filter:drop-shadow(0 1px 3px #000)}
+.gol-sb .card .hk{position:absolute;right:4px;top:4px;min-width:24px;height:22px;padding:0 5px;border-radius:5px;background:#0b121bee;border:1px solid #c99a45;
   font:700 12px/20px ${FONT_FAMILY};color:#f0d9a6;text-align:center}
-.gol-sb .card .nm{position:absolute;left:-40px;right:-40px;top:${CARD + 5}px;text-align:center;font:700 13px ${FONT_FAMILY};color:#f3e2bf;white-space:nowrap;text-shadow:0 1px 3px #000}
+.gol-sb .card .nm{position:absolute;left:4px;right:4px;top:102px;text-align:center;font:700 13px/16px ${FONT_FAMILY};color:#f3e2bf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px #000}
 .gol-sb .card.lk .nm{color:#8c939b}
 .gol-sb .pv{position:absolute;left:${PREVIEW.x}px;top:${PREVIEW.y}px;width:${PREVIEW.w}px;height:${PREVIEW.h}px;overflow:hidden;background:#0a1018;border-radius:4px}
-.gol-sb .pv video{width:100%;height:100%;object-fit:cover;display:block}
-.gol-sb .pcap{display:none}
-.gol-sb .det{position:absolute;left:${DETAIL.x}px;top:${DETAIL.y}px;width:${DETAIL.w}px;height:${DETAIL.h}px;padding:0 6px;color:#dfe6ee;font-family:Georgia,serif;overflow:hidden}
-.gol-sb .det .hd{display:flex;gap:10px;align-items:center;height:42px}
-.gol-sb .det .hd img{width:38px;height:38px;border-radius:6px;border:1px solid #6a5630}
-.gol-sb .det .nm{font:700 18px/20px ${FONT_FAMILY};color:#f3e2bf;white-space:nowrap}
-.gol-sb .det .tier{font:700 10px ${FONT_FAMILY};letter-spacing:2px;color:#e8b25a;white-space:nowrap}
-.gol-sb .det .roles{margin-top:10px;display:flex;gap:5px;flex-wrap:wrap}
-.gol-sb .det .roles i{font-style:normal;font-size:11px;padding:1px 7px;border-radius:10px;background:#1b2a3a;border:1px solid #3d5a78;color:#bcd6ef}
-.gol-sb .det .ds{margin-top:6px;font-size:12.5px;line-height:1.3;color:#e4e9ef;max-height:66px;overflow:hidden}
-.gol-sb .det table{margin-top:5px;border-collapse:collapse;width:100%;font-size:12px}
-.gol-sb .det td{padding:1px 0;vertical-align:top}
-.gol-sb .det td:first-child{width:92px;color:#9fb0c0}
-.gol-sb .det .rel{margin-top:4px;font-size:12px;color:#f0d9a6;display:flex;gap:14px;flex-wrap:wrap}
+.gol-sb .pv video{width:100%;height:100%;object-fit:cover;object-position:50% 62%;display:block}
+.gol-sb .pcap{position:absolute;left:${BG.x + PREVIEW.x + 18}px;top:${BG.y + PREVIEW.y + 13}px;width:${PREVIEW.w - 36}px;font:700 12px ${FONT_FAMILY};letter-spacing:2.5px;color:#f0d9a6;text-shadow:0 1px 3px #000,0 0 8px #000;pointer-events:none;z-index:2}
+.gol-sb .det{position:absolute;left:${DETAIL.x}px;top:${DETAIL.y}px;width:${DETAIL.w}px;height:${DETAIL.h}px;color:#dfe6ee;font-family:Georgia,serif;overflow:hidden}
+.gol-sb .det .hd{display:flex;gap:12px;align-items:center;height:40px;padding:0 6px}
+.gol-sb .det .hd img{width:34px;height:34px;border-radius:6px;box-shadow:0 0 0 1px #c99a45}
+.gol-sb .det .nm{font:700 17px/19px ${FONT_FAMILY};color:#f3e2bf;white-space:nowrap}
+.gol-sb .det .tier{font:700 9.5px/12px ${FONT_FAMILY};letter-spacing:2px;color:#e8b25a;white-space:nowrap}
+.gol-sb .det .body{position:absolute;left:8px;right:8px;top:52px;bottom:6px;display:flex;flex-direction:column;gap:8px}
+.gol-sb .det .roles{display:flex;gap:6px;flex-wrap:wrap}
+.gol-sb .det .roles i{font-style:normal;font-size:11.5px;padding:2px 9px;border-radius:10px;background:#1b2a3a;border:1px solid #3d5a78;color:#bcd6ef}
+.gol-sb .det .ds{font-size:14px;line-height:1.38;color:#e4e9ef}
+.gol-sb .det table{border-collapse:collapse;width:100%;font-size:13px}
+.gol-sb .det td{padding:2px 0;vertical-align:top;border-bottom:1px solid rgba(201,154,69,.14)}
+.gol-sb .det td:first-child{width:110px;color:#9fb0c0}
+.gol-sb .det .rel{font-size:13px;color:#f0d9a6;display:flex;flex-direction:column;gap:2px}
 .gol-sb .det .rel div:before{content:'\\2192  ';color:#c99a45}
 .gol-sb .det .lock{color:#ff9a7a}
 `;
@@ -288,7 +290,7 @@ export class SkillBook {
       this.tabs.push(t);
     });
     this.row = this.div('row', this.bg);
-    this.cap = this.div('pcap', this.bg);
+    this.cap = this.div('pcap', this.root); // outside .bg: the window has a hole over the live preview
     this.pv = this.div('pv', this.bg);
     this.video = document.createElement('video');
     this.video.muted = true; this.video.loop = true; this.video.playsInline = true; this.video.autoplay = true;
@@ -338,9 +340,9 @@ export class SkillBook {
     const cd = s.cooldown > 0 ? `${(s.cooldown / 1000).toFixed(s.cooldown % 1000 ? 1 : 0)} s` : 'None (chain)';
     const lock = this.unlocked(s) ? `Unlocked · key ${HOTKEY[s.slot]}` : `<span class="lock">Unlocks with ${ADV_LABEL[jk]} (${job.name}) · Lv ${job.level}</span>`;
     this.det.innerHTML = `<div class="hd"><img alt=""><div><div class="tier"></div><div class="nm"></div></div></div>
-      <div class="roles"></div><div class="ds"></div>
+      <div class="body"><div class="roles"></div><div class="ds"></div>
       <table><tr><td>Targeting</td><td class="tg"></td></tr><tr><td>Cooldown</td><td class="cd"></td></tr>
-      <tr><td>Use</td><td class="us"></td></tr><tr><td>Unlock</td><td class="ul"></td></tr></table><div class="rel"></div>`;
+      <tr><td>Use</td><td class="us"></td></tr><tr><td>Unlock</td><td class="ul"></td></tr></table><div class="rel"></div></div>`;
     const q = (c: string) => this.det.querySelector(c) as HTMLElement;
     (q('img') as HTMLImageElement).src = iconUrl(s);
     q('.tier').textContent = tierName(s, job, jk); q('.nm').textContent = s.name;
@@ -349,7 +351,7 @@ export class SkillBook {
     q('.ds').textContent = s.description;
     q('.tg').textContent = TARGETING[s.targeting]; q('.cd').textContent = cd; q('.us').textContent = use; q('.ul').innerHTML = lock;
     const rel = q('.rel');
-    for (const r of s.relations.slice(0, 4)) { const d = document.createElement('div'); d.textContent = r; rel.appendChild(d); }
+    for (const r of s.relations.slice(0, 3)) { const d = document.createElement('div'); d.textContent = r; rel.appendChild(d); }
     if (this.open) this.showPreview(s);
   }
 
