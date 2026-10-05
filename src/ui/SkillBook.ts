@@ -56,7 +56,9 @@ const CSS = `
 .gol-sb .x:hover{box-shadow:0 0 16px 6px rgba(255,214,130,.45)}
 .gol-sb .tab{position:absolute;top:${TAB_Y}px;width:${TAB_W}px;height:${TAB_H}px;cursor:pointer;text-align:left;padding:7px 0 0 60px;border-radius:6px;transition:background 120ms,box-shadow 120ms}
 .gol-sb .tab:hover{background:rgba(255,214,130,.08)}
-.gol-sb .tab.on{background:linear-gradient(90deg,rgba(255,200,90,.22),rgba(255,200,90,.06));box-shadow:inset 0 -3px 0 #e8b25a}
+.gol-sb .tab.on{background:rgba(6,12,24,.55);box-shadow:inset 0 -3px 0 #e8b25a,inset 0 0 0 1px rgba(232,178,90,.55)}
+.gol-sb .tab.on b{color:#ffe7a8;text-shadow:0 0 8px rgba(255,200,90,.55),0 1px 2px #000}
+.gol-sb .tab.on span{color:#d9c49a}
 .gol-sb .tab .em{position:absolute;left:6px;top:1px;width:50px;height:50px;background:0 0/100% 100% no-repeat;filter:drop-shadow(0 2px 3px #000)}
 .gol-sb .tab .lv{position:absolute;right:8px;top:6px;width:34px;height:40px;background:url("${K('hex_badge')}") center/100% 100% no-repeat;font:700 12px/40px ${FONT_FAMILY};color:#ffe2a0;text-align:center;text-shadow:0 1px 2px #000}
 .gol-sb .tab b{display:block;font:700 13px ${FONT_FAMILY};letter-spacing:1px;color:#f3e2bf;white-space:nowrap}
@@ -81,14 +83,14 @@ const CSS = `
 .gol-sb .pv video{width:100%;height:100%;object-fit:cover;object-position:50% 62%;display:block}
 .gol-sb .pcap{position:absolute;left:${BG.x + PREVIEW.x + 18}px;top:${BG.y + PREVIEW.y + 13}px;width:${PREVIEW.w - 36}px;font:700 12px ${FONT_FAMILY};letter-spacing:2.5px;color:#f0d9a6;text-shadow:0 1px 3px #000,0 0 8px #000;pointer-events:none;z-index:2}
 .gol-sb .det{position:absolute;left:${DETAIL.x}px;top:${DETAIL.y}px;width:${DETAIL.w}px;height:${DETAIL.h}px;color:#dfe6ee;font-family:Georgia,serif;overflow:hidden}
-.gol-sb .det .hd{display:flex;gap:12px;align-items:center;height:40px;padding:0 6px}
+.gol-sb .det .hd{display:flex;gap:12px;align-items:center;height:40px;padding:0 26px}
 .gol-sb .det .hd img{width:34px;height:34px;border-radius:6px;box-shadow:0 0 0 1px #c99a45}
 .gol-sb .det .nm{font:700 17px/19px ${FONT_FAMILY};color:#f3e2bf;white-space:nowrap}
 .gol-sb .det .tier{font:700 9.5px/12px ${FONT_FAMILY};letter-spacing:2px;color:#e8b25a;white-space:nowrap}
-.gol-sb .det .body{position:absolute;left:8px;right:8px;top:52px;bottom:6px;display:flex;flex-direction:column;gap:8px}
+.gol-sb .det .body{position:absolute;left:30px;right:30px;top:54px;bottom:16px;display:flex;flex-direction:column;gap:7px}
 .gol-sb .det .roles{display:flex;gap:6px;flex-wrap:wrap}
 .gol-sb .det .roles i{font-style:normal;font-size:11.5px;padding:2px 9px;border-radius:10px;background:#1b2a3a;border:1px solid #3d5a78;color:#bcd6ef}
-.gol-sb .det .ds{font-size:14px;line-height:1.38;color:#e4e9ef}
+.gol-sb .det .ds{font-size:13.5px;line-height:1.42;color:#e4e9ef}
 .gol-sb .det table{border-collapse:collapse;width:100%;font-size:13px}
 .gol-sb .det td{padding:2px 0;vertical-align:top;border-bottom:1px solid rgba(201,154,69,.14)}
 .gol-sb .det td:first-child{width:110px;color:#9fb0c0}
@@ -331,7 +333,7 @@ export class SkillBook {
 
   private refresh(): void {
     const show = this.hover >= 0 ? this.hover : this.selected;
-    this.tabs.forEach((t, k) => { const on = k === this.job; t.classList.toggle('on', on); (t.firstChild as HTMLElement).style.backgroundImage = `url("${K(`job${k}${on ? '_sel' : ''}_icon`)}")`; });
+    this.tabs.forEach((t, k) => { const on = k === this.job; t.classList.toggle('on', on); (t.firstChild as HTMLElement).style.backgroundImage = `url("${K(`job${k}_icon`)}")`; (t.firstChild as HTMLElement).style.filter = on ? 'drop-shadow(0 0 6px rgba(255,200,90,.8))' : ''; });
     for (const c of this.cards) { c.el.classList.toggle('sel', c.i === this.selected); c.el.classList.toggle('lk', !this.unlocked(this.kit[c.i])); }
     const s = this.kit[show], jk = this.jobIndexOf(s), job = this.jobs[jk];
     this.cap.textContent = `SKILL PREVIEW — ${s.name.toUpperCase()}`;
@@ -351,7 +353,7 @@ export class SkillBook {
     q('.ds').textContent = s.description;
     q('.tg').textContent = TARGETING[s.targeting]; q('.cd').textContent = cd; q('.us').textContent = use; q('.ul').innerHTML = lock;
     const rel = q('.rel');
-    for (const r of s.relations.slice(0, 3)) { const d = document.createElement('div'); d.textContent = r; rel.appendChild(d); }
+    for (const r of s.relations.slice(0, 2)) { const d = document.createElement('div'); d.textContent = r; rel.appendChild(d); }
     if (this.open) this.showPreview(s);
   }
 
