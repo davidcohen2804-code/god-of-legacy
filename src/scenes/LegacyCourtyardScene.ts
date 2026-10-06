@@ -156,7 +156,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const T = ATLAS.textures, CT = COMBAT_ASSETS.textures;
     // The world holds only your own class; the PvP arena can hold any class (other players, the sparring knight).
     const pvp = !!(this.sys.settings.data as { pvpRoom?: string } | undefined)?.pvpRoom;
-    const me = CharacterStore.getSelectedCharacter(), cls = me?.classId;
+    const me = CharacterStore.getSelectedCharacter();
+    const cls = me ? (me.level < BEGINNER_TO ? 'warrior' : me.classId) : undefined; // the class actually played (Beginner = warrior base)
     const classes = pvp || !cls ? undefined : [cls];
     // Weapon masks only when your own look already needs them (others load on first need).
     const masks = me && cls && wantsWeaponMasks(cls, CharacterStore.getCosmetics(me.id).equipped as Equipped) ? [cls] : [];
@@ -257,7 +258,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onMenu: (k) => this.togglePanel(k),
     });
     const host = this.game.canvas.parentElement!;
-    this.skillBook = new SkillBook(this, host, this.game.canvas, this.cls, character.level, isQAMode());
+    this.skillBook = new SkillBook(this, host, this.game.canvas, this.cls, character.level, isQAMode() || !!pvpRoom); // arena: all skills open
     this.cosPanel = new CosmeticPanel(this, host, this.game.canvas, character, () => this.equipped, (e) => this.setEquipped(e));
     this.skillBook.setEquipped(this.equipped);
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, (_t: number, d: number) => {
@@ -777,11 +778,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private onJumpKey(): void { if (this.pvpReady && this.dead < 0) this.ci?.queueJump(); }
 
+  /** Skills open with the job advancements; in the PvP arena every skill is open (testing the combat). */
+  private skillOpen(s: FinalSkill): boolean {
+    return isQAMode() || this.localId !== 'local' || jobOfSlot(this.cls, s.slot).level <= (this.character?.level ?? 1);
+  }
+
   /** Start a slot now if legal (incl. hit-confirm cancel / chain continuation from the current action). */
   tryStartSlot(i: number): boolean {
     const s = this.kit[i];
     if (!s || !this.rt || this.dead >= 0) return false;
-    if (!isQAMode() && jobOfSlot(this.cls, s.slot).level > (this.character?.level ?? 1)) return false; // skills open with the job advancements
+    if (!this.skillOpen(s)) return false; // skills open with the job advancements (all open in the arena)
     const now = this.simMs, k = this.kin, b = this.body;
     // War Cry breaks free: usable while stunned / hit / launched / knocked down (cooldown permitting) — clears all CC.
     if (s.id === 'war_cry' && (b.state !== 'free' || b.hard.active(now)) && this.rt.cooldownRemaining(s.id) <= 0) {
@@ -1221,7 +1227,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const busy = this.busy();
     const slots: HudSlot[] = HUD.skills.hotkeys.map((hotkey, i) => {
       const s = this.kit[i];
-      if (!s || (!isQAMode() && jobOfSlot(this.cls, s.slot).level > ch.level)) return { id: `slot-${hotkey}`, hotkey, label: s ? 'Locked' : 'Unassigned', assigned: false, enabled: false, pressed: false, cooldown: null }; // opens with its job
+      if (!s || !this.skillOpen(s)) return { id: `slot-${hotkey}`, hotkey, label: s ? 'Locked' : 'Unassigned', assigned: false, enabled: false, pressed: false, cooldown: null }; // opens with its job
       const rem = this.rt?.cooldownRemaining(s.id) ?? 0;
       const airBlocked = !k.grounded && !s.air;
       return {
