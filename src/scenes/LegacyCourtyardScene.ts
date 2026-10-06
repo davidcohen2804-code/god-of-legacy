@@ -15,7 +15,8 @@ import { WorldHUD } from '../ui/WorldHUD';
 import { HudEffect, HudMarker, HudSlot, HudState, PortraitRef } from '../ui/hud/HudState';
 import { Character } from '../characters/CharacterTypes';
 import { Dir } from '../world/collision';
-import { CursedSwordsman, preloadEnemyFrames } from '../world/CursedSwordsman';
+import type { CursedSwordsman } from '../world/CursedSwordsman';
+import { showLoading } from '../ui/LoadingScreen';
 import { CourtyardAmbience } from '../world/Ambience';
 import { WORLD_OBJECTS, actorDepth, footAllowed, insideArena, placementOk } from '../world/WorldGeometry';
 import { isQAMode } from '../qa/QAPanel';
@@ -24,7 +25,7 @@ import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
 import { NetMsg } from '../pvp/Transport';
 import { BOT_ID, BOT_NAME, SparringBot } from '../pvp/SparringBot';
 import { CombatInput } from '../game/CombatInput';
-import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey, damageSkin } from '../game/ActorView';
+import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey, damageSkin, wantsWeaponMasks } from '../game/ActorView';
 import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
 import { ClassKey, dirOf, preloadBodies, registerBodies, resolvePose, PoseFrame } from '../game/Body';
@@ -153,15 +154,21 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   preload(): void {
     const T = ATLAS.textures, CT = COMBAT_ASSETS.textures;
+    // The world holds only your own class; the PvP arena can hold any class (other players, the sparring knight).
+    const pvp = !!(this.sys.settings.data as { pvpRoom?: string } | undefined)?.pvpRoom;
+    const me = CharacterStore.getSelectedCharacter(), cls = me?.classId;
+    const classes = pvp || !cls ? undefined : [cls];
+    // Weapon masks only when your own look already needs them (others load on first need).
+    const masks = me && cls && wantsWeaponMasks(cls, CharacterStore.getCosmetics(me.id).equipped as Equipped) ? [cls] : [];
     if (!this.textures.exists(T.map.key)) this.load.image(T.map.key, T.map.file);
     if (!this.textures.exists(CT.dummy.key)) this.load.image(CT.dummy.key, CT.dummy.file);
-    preloadEnemyFrames(this);
-    preloadBodies(this);
-    preloadSkillFx(this);
+    preloadBodies(this, classes, masks);
+    preloadSkillFx(this, classes);
     preloadDeathFx(this);
-    preloadCosmetics(this);
+    preloadCosmetics(this, classes);
     preloadPanelArt(this);
     preloadLife(this);
+    showLoading(this, pvp ? 'PVP ARENA' : 'LEGACY COURTYARD');
   }
 
   create(data?: { pvpRoom?: string }): void {
@@ -209,8 +216,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.dummyBar = this.add.graphics().setDepth(TOP_DEPTH);
       const dk = newKin(D.x, D.y);
       this.dummyState = { hp: D.maxHp, alive: true, flash: 0, respawn: 0, kin: dk, body: Object.assign(new CombatBody(dk, false), { maxHp: D.maxHp }) };
-      this.dummyState.alive = false; this.dummy.setVisible(false); this.dummyBar.setVisible(false); // training: the swordsman only
-      this.enemy = new CursedSwordsman(this);
+      this.dummyState.alive = false; this.dummy.setVisible(false); this.dummyBar.setVisible(false);
+      // No hostile NPC in the world (ENTER WORLD): fighting happens in the PvP arena (sparring knight).
     }
 
     const { x, y } = WORLD.spawn;

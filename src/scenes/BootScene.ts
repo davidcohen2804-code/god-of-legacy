@@ -4,6 +4,7 @@ import { SettingsStore } from '../core/SettingsStore';
 import { PlatformAdapter } from '../core/PlatformAdapter';
 import { isPvpUrl } from '../pvp/Room';
 import { enterPvp } from '../pvp/enterPvp';
+import { LOADING_KIT } from '../ui/LoadingScreen';
 
 export class BootScene extends Phaser.Scene {
   constructor() { super('BootScene'); }
@@ -13,7 +14,7 @@ export class BootScene extends Phaser.Scene {
     for (const [key, file] of Object.entries(ASSET_MANIFEST)) this.load.image(key, file);
     // GPT UI kit pieces used by the Phaser-drawn menus (settings / exit dialogs)
     for (const f of ['modal_window', 'dialog_window', 'menu_btn', 'menu_btn_hover', 'menu_btn_pressed', 'toggle_on', 'toggle_off',
-      'slider_track', 'slider_knob', 'dropdown', 'dropdown_open', 'ico_sound', 'ico_music', 'ico_display', 'ico_controls']) this.load.image(`kit.${f}`, `assets/final/ui/kit/${f}.png`);
+      'slider_track', 'slider_knob', 'dropdown', 'dropdown_open', 'ico_sound', 'ico_music', 'ico_display', 'ico_controls', ...LOADING_KIT]) this.load.image(`kit.${f}`, `assets/final/ui/kit/${f}.png`);
   }
 
   create(): void {

@@ -140,6 +140,7 @@ for f in meta['frames']:
   mask = np.zeros((S, S, 4), np.uint8); mask[..., 0] = lab; mask[..., 1] = np.where(sword, 255, 0); mask[..., 3] = 255
   # weapon layer: luminance copy with sword alpha (weapon skins tint it)
   lum = (0.3 * rgb[..., 0] + 0.59 * rgb[..., 1] + 0.11 * rgb[..., 2]).clip(0, 255)
+  lum = np.where(sword, lum, 0)  # colour only under the sword: hidden colour (alpha 0) is never drawn and only bloats the file
   wl = np.dstack([lum, lum, lum, np.where(sword, 255, 0)]).astype(np.uint8)
   cov = body.sum() / max(1, (oa & ~head & ~sword).sum())
   report.append(dict(cell=j, anim=f['anim'], col=f['k'], iou=round(float(iou), 2), gptHead=bool(useGptHead), dy=dy, dx=dx, bodyCover=round(float(cov), 2), shirt=int(white.sum()), shorts=int(blue.sum()), shoes=int(brown.sum()), skin=int(skin.sum())))

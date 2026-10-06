@@ -9,16 +9,22 @@ import { CharacterCreateScene } from './scenes/CharacterCreateScene';
 import { LegacyCourtyardScene } from './scenes/LegacyCourtyardScene';
 import { ErrorCapture } from './qa/ErrorCapture';
 import { isQAMode, startQAPanel } from './qa/QAPanel';
+import ASSET_HASH from 'virtual:asset-hashes';
 
 ErrorCapture.installGlobal();
 
-// Cache-bust every game asset per build: same file names (e.g. run.png) would otherwise stay cached after an update.
+// Cache-bust every game asset by its content hash (computed at build time): same file names (e.g. run.png) never stay
+// stale after an update, and a deploy only re-downloads the files that really changed. Unknown files: per build.
 {
   const LP = Phaser.Loader.LoaderPlugin.prototype as unknown as { addFile(f: unknown): void };
   const orig = LP.addFile;
   LP.addFile = function (this: unknown, file: unknown) {
     const list = Array.isArray(file) ? file : [file];
-    for (const f of list as { url?: unknown }[]) if (typeof f.url === 'string' && !f.url.startsWith('data:') && !f.url.includes('?v=')) f.url += (f.url.includes('?') ? '&' : '?') + 'v=' + __BUILD_COMMIT__;
+    for (const f of list as { url?: unknown }[]) {
+      if (typeof f.url !== 'string' || f.url.startsWith('data:') || f.url.startsWith('blob:') || f.url.includes('?v=')) continue;
+      const v = ASSET_HASH[f.url.replace(/^\.?\//, '').split('?')[0]] ?? __BUILD_COMMIT__;
+      f.url += (f.url.includes('?') ? '&' : '?') + 'v=' + v;
+    }
     return orig.call(this, file);
   };
 }

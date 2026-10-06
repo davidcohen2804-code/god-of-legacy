@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import COS from '../data/cosmetics.json';
 import { Dir } from '../world/collision';
 import { actorDepth } from '../world/WorldGeometry';
-import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM, baseComplete } from './Body';
+import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM, baseComplete, ensureWeaponMasks } from './Body';
 
 export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet' | 'hair' | 'armor' | 'hairstyle' | 'top' | 'gloves' | 'shoes' | 'pants' | 'hat' | 'faceacc' | 'earring' | 'nametag' | 'trail';
 export type Equipped = Partial<Record<CosSlot, string>>;
@@ -15,6 +15,11 @@ export const COSMETICS = Object.fromEntries(Object.entries(COS.classes as unknow
 export const slotOf = (type: string): CosSlot | null =>
   type === 'head' ? 'head' : type === 'mask' ? 'face' : type === 'cape' || type === 'back' ? 'back'
     : type === 'weapon' || type === 'weapon_animated' || type === 'bow' || type === 'book' ? 'weapon' : type === 'aura' ? 'aura' : type === 'damage' ? 'damage' : type === 'pet' ? 'pet' : type === 'hair' ? 'hair' : type === 'armor' ? 'armor' : type === 'hairstyle' ? 'hairstyle' : type === 'top' ? 'top' : type === 'gloves' ? 'gloves' : type === 'shoes' ? 'shoes' : type === 'pants' ? 'pants' : type === 'hat' ? 'hat' : type === 'faceacc' ? 'faceacc' : type === 'earring' ? 'earring' : type === 'nametag' ? 'nametag' : type === 'trail' ? 'trail' : null;
+/** The look needs the weapon-mask sheets right away (a tint weapon skin, or a sword skin on a class without packed masks). */
+export function wantsWeaponMasks(cls: string, e: Equipped): boolean {
+  const w = e.weapon; if (!w) return false;
+  return !!WEAPON_TINT[w] || (!!cosmetic(w)?.blade && cls !== 'warrior');
+}
 export function cosmetic(id: string): CosItem | undefined { for (const l of Object.values(COSMETICS)) { const f = l.find((i) => i.id === id); if (f) return f; } return undefined; }
 
 /** Weapon skin palettes (tint of the real weapon pixels; `glow` adds an energy edge). */
@@ -42,8 +47,10 @@ const HEAD_ITEM: Record<'hat' | 'faceacc' | 'earring', HeadFit[]> = {
 const SKIN_THICK = 1.05; // sword skins: a touch bigger than the base sword
 const SIZE: Record<string, number> = { head: 40, face: 18, back: 56, aura: 92 };
 
-export function preloadCosmetics(scene: Phaser.Scene): void {
-  for (const list of Object.values(COSMETICS)) for (const it of list) {
+/** Cosmetics of the given classes (all classes when omitted: the PvP arena can hold any class). */
+export function preloadCosmetics(scene: Phaser.Scene, classes?: readonly string[]): void {
+  for (const [cls, list] of Object.entries(COSMETICS)) for (const it of list) {
+    if (classes && !classes.includes(cls)) continue;
     if (it.skin && !scene.textures.exists(`cosw-${it.id}`)) scene.load.image(`cosw-${it.id}`, it.skin);
     if (it.fabric && !scene.textures.exists(`cosf-${it.id}`)) scene.load.image(`cosf-${it.id}`, it.fabric);
     if (!it.runtime || scene.textures.exists(`cos-${it.id}`)) continue;
@@ -274,6 +281,8 @@ export class ActorView {
   render(ms: number, pose: PoseFrame, x: number, y: number, z: number, supportZ: number, dir: Dir, alpha = 1, tint: number | null = null, tintFill = false): void {
     this.t += ms;
     const p = this.sprite;
+    // Weapon masks load on first need: a tint skin draws them, a sword skin cuts with them (classes without a packed mask).
+    if ((WEAPON_TINT[this.equipped.weapon ?? ''] || (this.blade && !SHEET_PATH[pose.key])) && !this.scene.textures.exists(pose.wkey)) ensureWeaponMasks(this.scene, this.cls);
     applyPose(p, pose, this.weapon);
     const depth = actorDepth(x, y, z);
     p.setPosition(x, y - z).setDepth(depth).setAlpha(alpha).setVisible(this.visible);

@@ -44,19 +44,59 @@ const JUMP_FALL: Record<string, Partial<Record<Dir, number>>> = { archer: { down
 
 export const isSheetClass = (cls: string): boolean => (SHEET_CLASSES as readonly string[]).includes(cls);
 
-export function preloadBodies(scene: Phaser.Scene): void {
+/** Weapon-mask sheets (`<body key>-w`) are only drawn by weapon skins (and the sword cut of classes without a packed
+ *  mask), so they load on first need instead of with the world: ~0.6 GB of texture memory for the warrior alone. */
+const MASK_SRC: Record<string, { url: string; w: number; h: number; atlas: boolean; cls: string }> = {};
+
+function loadMask(scene: Phaser.Scene, k: string): void {
+  const m = MASK_SRC[k];
+  if (!m || scene.textures.exists(k)) return;
+  if (m.atlas) {
+    scene.load.image(k, m.url);
+    scene.load.once(`filecomplete-image-${k}`, () => registerBodies(scene)); // named atlas frames on the mask too
+  } else scene.load.spritesheet(k, m.url, { frameWidth: m.w, frameHeight: m.h });
+}
+
+/** Queued, loading or loaded-but-not-yet-processed in this scene's loader. */
+function pending(scene: Phaser.Scene, k: string): boolean {
+  const L = scene.load as unknown as Record<'list' | 'inflight' | 'queue', { entries: Phaser.Loader.File[] }>;
+  return [L.list, L.inflight, L.queue].some((set) => set.entries.some((f) => f.key === k));
+}
+
+const MASK_TRIES = new Map<string, number>();
+/** Starts loading every weapon mask of a class (in the background) unless they are loaded or on the way.
+ *  A request dropped by a scene change is retried once; a missing file is not requested again and again. */
+export function ensureWeaponMasks(scene: Phaser.Scene, cls: string): void {
+  let added = false;
+  for (const [k, m] of Object.entries(MASK_SRC)) {
+    if (m.cls !== cls || scene.textures.exists(k) || pending(scene, k) || (MASK_TRIES.get(k) ?? 0) >= 2) continue;
+    MASK_TRIES.set(k, (MASK_TRIES.get(k) ?? 0) + 1);
+    loadMask(scene, k); added = true;
+  }
+  if (added && !scene.load.isLoading()) scene.load.start();
+}
+
+/** Body sheets of the given classes (all classes when omitted: the PvP arena can hold any class). Weapon masks only for
+ *  `masks` (classes whose wearer already has a weapon skin); the rest load on first need (ensureWeaponMasks). */
+export function preloadBodies(scene: Phaser.Scene, classes?: readonly string[], masks: readonly string[] = []): void {
+  const want = (cls: string) => !classes || classes.includes(cls);
   const L = (k: string, p: string, sheet: boolean) => {
     if (scene.textures.exists(k)) return;
     if (sheet) scene.load.spritesheet(k, p, { frameWidth: CELL, frameHeight: CELL }); else scene.load.image(k, p);
   };
+  const M = (k: string, p: string, cls: string, w = CELL, h = CELL, atlas = false) => {
+    MASK_SRC[k] = { url: p.replace('.png', '_weapon.png'), w, h, atlas, cls };
+    if (masks.includes(cls)) loadMask(scene, k);
+  };
   for (const cls of SHEET_CLASSES) {
-    for (const st of Object.keys(MOVE_COLS).filter((x) => x !== 'react' || cls === 'warrior')) { L(sheetKey(cls, st), sheetPath(cls, st), true); L(`${sheetKey(cls, st)}-w`, sheetPath(cls, st).replace('.png', '_weapon.png'), true); if (cls === 'warrior') SHEET_PATH[sheetKey(cls, st)] = sheetPath(cls, st); }
+    if (!want(cls)) continue;
+    for (const st of Object.keys(MOVE_COLS).filter((x) => x !== 'react' || cls === 'warrior')) { L(sheetKey(cls, st), sheetPath(cls, st), true); M(`${sheetKey(cls, st)}-w`, sheetPath(cls, st), cls); if (cls === 'warrior') SHEET_PATH[sheetKey(cls, st)] = sheetPath(cls, st); }
     for (const s of FINAL_SKILLS.filter((x) => x.cls === cls && !BODY_ALIAS[x.id])) { const cs = CELLS[s.id]; const LS = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: cs?.w ?? CELL, frameHeight: cs?.h ?? CELL }); };
-      LS(skillKey(cls, s.id), skillPath(cls, s.id)); LS(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id).replace('.png', '_weapon.png')); if (cls === 'warrior') SHEET_PATH[skillKey(cls, s.id)] = skillPath(cls, s.id); }
+      LS(skillKey(cls, s.id), skillPath(cls, s.id)); M(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id), cls, cs?.w ?? CELL, cs?.h ?? CELL); if (cls === 'warrior') SHEET_PATH[skillKey(cls, s.id)] = skillPath(cls, s.id); }
   }
-  for (const [cls, a] of Object.entries(ATLAS)) { L(atlasKey(cls), a.sheet, false); L(`${atlasKey(cls)}-w`, a.sheet.replace('.png', '_weapon.png'), false); }
-  for (const anim of BASE_ANIMS) {
-    const k = baseKey(anim); L(k, basePath(anim), true); L(`${k}-w`, basePath(anim).replace('.png', '_weapon.png'), true); SHEET_PATH[k] = basePath(anim);
+  for (const [cls, a] of Object.entries(ATLAS)) { if (!want(cls)) continue; L(atlasKey(cls), a.sheet, false); M(`${atlasKey(cls)}-w`, a.sheet, cls, 0, 0, true); }
+  if (want('warrior')) for (const anim of BASE_ANIMS) {
+    const k = baseKey(anim); L(k, basePath(anim), true); M(`${k}-w`, basePath(anim), 'warrior'); SHEET_PATH[k] = basePath(anim);
     const cs = CELLS[anim], skill = !(anim in MOVE_COLS), W = cs?.w ?? CELL, H = cs?.h ?? CELL;
     BASE_GEOM[k] = { W, H, cols: skill ? (cs?.cols ?? 6) : moveCols('warrior', anim as MoveState), orig: skill ? skillPath('warrior', anim) : sheetPath('warrior', anim), ox: Math.floor(W / 2) - 176, oy: H - CELL };
   }

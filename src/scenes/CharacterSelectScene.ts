@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { addClothWind } from '../ui/VisualLife';
 import { CHARACTER_PREVIEWS, CHARACTER_SELECT as L, CHARACTER_SELECT_PREVIEW as PV, COLORS, DESIGN, SELECT_HALO } from '../config/layout';
 import { CharacterSelectUI } from '../ui/CharacterSelectUI';
-import { isPvpUrl } from '../pvp/Room';
+import { clearPvpFromUrl } from '../pvp/Room';
 import { enterPvp } from '../pvp/enterPvp';
 import { ClassPresence, preloadLife } from '../ui/PresentationLife';
 import { ThroneHero, preloadThrone } from '../ui/ThronePresence';
@@ -72,7 +72,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.ui = new CharacterSelectUI(this.game.canvas.parentElement!, this.game.canvas, {
       onBack: () => this.scene.start('MainMenuScene'),
       onCreate: () => this.scene.start('CharacterCreateScene'),
-      onEnterWorld: () => (isPvpUrl() ? enterPvp(this) : this.scene.start('LegacyCourtyardScene')), // arrived via a PvP link
+      onEnterWorld: () => { clearPvpFromUrl(); this.scene.start('LegacyCourtyardScene'); }, // always the world, never the arena (PvP has its own button)
       onPvp: () => enterPvp(this),
       onPreview: (key) => {
         const cls = key ? classOfKey(key) : null, onThrone = !!throne && cls === 'warrior';
