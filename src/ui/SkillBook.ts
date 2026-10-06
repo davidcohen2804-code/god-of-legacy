@@ -16,6 +16,12 @@ import { CastRun, SkillRuntime } from '../skills/SkillRuntime';
 import { HitTarget, V3 } from '../skills/HitGeometry';
 import { SkillFx } from '../skills/SkillFx';
 import { ADV_LABEL, Job, jobsFor } from '../skills/Jobs';
+import { PassiveSkill, passiveIconUrl, passivesFor } from '../skills/Passives';
+
+/** A card in the book: an active skill (key) or a passive / movement skill (always on). */
+type Entry = FinalSkill | PassiveSkill;
+const isPassive = (e: Entry): e is PassiveSkill => 'kind' in e;
+const entryIcon = (e: Entry) => (isPassive(e) ? passiveIconUrl(e) : iconUrl(e));
 
 const A = (f: string) => `assets/final/ui/skill_book/${f}.png`;
 const K = (f: string) => `assets/final/ui/kit/${f}.png`;
@@ -98,6 +104,18 @@ const CSS = `
 .gol-sb .det .rel{font-size:13px;color:#f0d9a6;display:flex;flex-direction:column;gap:2px}
 .gol-sb .det .rel div:before{content:'\\2192  ';color:#c99a45}
 .gol-sb .det .lock{color:#ff9a7a}
+.gol-sb .card .pt{position:absolute;right:4px;top:4px;min-width:24px;height:22px;padding:0 5px;box-sizing:border-box;border-radius:5px;background:#0b121bee;border:1px solid #6f8fb0;font:700 12px/20px ${FONT_FAMILY};color:#bcd6ef;text-align:center}
+.gol-sb .card .nm.sm{font-size:11px}
+.gol-sb .pg{position:absolute;top:${FRAME_Y + 40}px;width:56px;height:56px;background:0 0/100% 100% no-repeat;cursor:pointer;pointer-events:auto;filter:drop-shadow(0 2px 4px #000)}
+.gol-sb .pg.l{left:150px;background-image:url("${K('btn_left')}")}.gol-sb .pg.l:hover{background-image:url("${K('btn_left_hover')}")}
+.gol-sb .pg.r{left:1394px;background-image:url("${K('btn_right')}")}.gol-sb .pg.r:hover{background-image:url("${K('btn_right_hover')}")}
+.gol-sb .pg.off{opacity:.25;pointer-events:none}
+.gol-sb .pgn{position:absolute;top:${FRAME_Y + 104}px;width:90px;text-align:center;font:700 11px ${FONT_FAMILY};letter-spacing:2px;color:#9fb0c0;text-transform:uppercase;pointer-events:none}
+.gol-sb .pps{position:absolute;left:${PREVIEW.x}px;top:${PREVIEW.y}px;width:${PREVIEW.w}px;height:${PREVIEW.h}px;display:none;align-items:center;justify-content:center;gap:40px;
+  background:radial-gradient(ellipse at 30% 50%,rgba(232,178,90,.16),rgba(10,16,24,0) 60%),#0a1018;border-radius:4px;padding:40px 56px;box-sizing:border-box}
+.gol-sb .pps img{width:150px;height:150px;border-radius:14px;box-shadow:0 0 0 2px #c99a45,0 0 34px rgba(255,200,90,.35);flex:none}
+.gol-sb .pps ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px;font:700 17px/22px ${FONT_FAMILY};color:#f3e2bf;text-shadow:0 1px 3px #000}
+.gol-sb .pps li:before{content:'\\25C6  ';color:#e8b25a}
 `;
 
 function ensureStyles(): void {
@@ -252,7 +270,10 @@ export class SkillBook {
   private bg: HTMLDivElement;
   private tabs: HTMLDivElement[] = [];
   private row: HTMLDivElement;
-  private cards: { el: HTMLDivElement; i: number }[] = [];
+  private cards: { el: HTMLDivElement; e: Entry }[] = [];
+  private page = 0;
+  private pager: HTMLDivElement[] = [];
+  private pps!: HTMLDivElement;
   private det: HTMLDivElement;
   private cap: HTMLDivElement;
   private pv: HTMLDivElement;
@@ -261,8 +282,8 @@ export class SkillBook {
   private kit: FinalSkill[];
   private jobs: Job[];
   private job = 0;
-  private selected = 0;
-  private hover = -1;
+  private selected!: Entry;
+  private hover: Entry | null = null;
   private stage: PreviewStage;
   private preview: SkillPreview;
   private shownClip = '';
@@ -289,7 +310,7 @@ export class SkillBook {
       (t.children[2] as HTMLElement).textContent = `${ADV_LABEL[k]} · Lv ${j.level}–${j.to}`;
       (t.children[3] as HTMLElement).textContent = String(j.level);
       if (!this.jobOpen(k)) t.classList.add('lk');
-      t.addEventListener('click', () => { this.job = k; this.selected = Math.max(0, this.kit.findIndex((s) => s.slot === j.slots[0])); this.buildRow(); this.refresh(); });
+      t.addEventListener('click', () => { this.job = k; this.page = 0; this.selected = this.entries()[0]; this.buildRow(); this.refresh(); });
       this.tabs.push(t);
     });
     this.row = this.div('row', this.bg);
@@ -298,12 +319,18 @@ export class SkillBook {
     this.video = document.createElement('video');
     this.video.muted = true; this.video.loop = true; this.video.playsInline = true; this.video.autoplay = true;
     this.pv.appendChild(this.video);
+    this.pps = this.div('pps', this.bg);
     this.det = this.div('det', this.bg);
+    for (const side of ['l', 'r'] as const) {
+      const b = this.div(`pg ${side}`, this.bg); b.title = side === 'l' ? 'Active skills' : 'Passive skills';
+      b.addEventListener('click', () => { this.page += side === 'l' ? -1 : 1; this.buildRow(); this.selected = this.cards[0]?.e ?? this.selected; this.refresh(); });
+      this.pager.push(b);
+    }
     this.stage = new PreviewStage(scene, { x: BG.x + PREVIEW.x, y: BG.y + PREVIEW.y, w: PREVIEW.w, h: PREVIEW.h }, -30000, 30000, 0.88, 'ui-sb-preview');
     this.preview = new SkillPreview(scene, this.stage, cls);
     this.preview.setVisible(false);
     this.job = Math.max(0, this.jobs.indexOf(cur));
-    this.selected = Math.max(0, this.kit.findIndex((s) => s.slot === this.jobs[this.job].slots[0]));
+    this.selected = this.entries()[0];
     this.buildRow();
     this.refresh();
   }
@@ -311,32 +338,49 @@ export class SkillBook {
   private div(cls: string, parent: HTMLElement): HTMLDivElement { const d = document.createElement('div'); d.className = cls; parent.appendChild(d); return d; }
 
   private jobOpen(k: number): boolean { return this.qaUnlockAll || this.level >= this.jobs[k].level; }
-  private jobIndexOf(s: FinalSkill): number { return Math.max(0, this.jobs.findIndex((j) => j.slots.includes(s.slot))); }
-  unlocked(s: FinalSkill): boolean { return this.jobOpen(this.jobIndexOf(s)); }
+  private jobIndexOf(s: Entry): number { return isPassive(s) ? s.job : Math.max(0, this.jobs.findIndex((j) => j.slots.includes(s.slot))); }
+  unlocked(s: Entry): boolean { return this.jobOpen(this.jobIndexOf(s)); }
+
+  /** Pages of the current job tab: its active skills (4 frames), then its passive / movement skills. */
+  private pages(): Entry[][] {
+    const act = this.jobs[this.job].slots.map((slot) => this.kit.find((s) => s.slot === slot)).filter((s): s is FinalSkill => !!s);
+    const pas = passivesFor(this.cls, this.job), out: Entry[][] = [];
+    for (let i = 0; i < act.length; i += FRAME_CX.length) out.push(act.slice(i, i + FRAME_CX.length));
+    for (let i = 0; i < pas.length; i += FRAME_CX.length) out.push(pas.slice(i, i + FRAME_CX.length));
+    return out.length ? out : [[]];
+  }
+  private entries(): Entry[] { return this.pages().flat(); }
 
   private buildRow(): void {
     this.row.innerHTML = ''; this.cards = [];
-    this.jobs[this.job].slots.forEach((slot, n) => {
-      const i = this.kit.findIndex((s) => s.slot === slot); if (i < 0 || n >= FRAME_CX.length) return;
-      const s = this.kit[i], c = this.div('card', this.row); c.style.left = `${FRAME_CX[n]}px`;
-      const img = document.createElement('img'); img.src = iconUrl(s); img.alt = ''; img.draggable = false; c.appendChild(img);
-      this.div('hk', c).textContent = HOTKEY[s.slot];
-      this.div('nm', c).textContent = s.name;
-      c.addEventListener('mouseenter', () => { this.hover = i; this.refresh(); });
-      c.addEventListener('mouseleave', () => { if (this.hover === i) { this.hover = -1; this.refresh(); } });
-      c.addEventListener('click', () => { this.selected = i; this.refresh(); });
-      this.cards.push({ el: c, i });
+    const pages = this.pages();
+    this.page = Math.max(0, Math.min(this.page, pages.length - 1));
+    const list = pages[this.page];
+    list.forEach((e, n) => {
+      const c = this.div('card', this.row); c.style.left = `${FRAME_CX[n]}px`;
+      const img = document.createElement('img'); img.src = entryIcon(e); img.alt = ''; img.draggable = false; c.appendChild(img);
+      if (isPassive(e)) { const t = this.div('pt', c); t.textContent = e.kind === 'movement' ? '\u2934' : 'P'; t.title = e.kind === 'movement' ? 'Movement skill' : 'Passive skill'; }
+      else this.div('hk', c).textContent = HOTKEY[e.slot];
+      const nm = this.div('nm', c); nm.textContent = e.name; if (e.name.length > 17) nm.classList.add('sm');
+      c.addEventListener('mouseenter', () => { this.hover = e; this.refresh(); });
+      c.addEventListener('mouseleave', () => { if (this.hover === e) { this.hover = null; this.refresh(); } });
+      c.addEventListener('click', () => { this.selected = e; this.refresh(); });
+      this.cards.push({ el: c, e });
     });
+    const many = pages.length > 1;
+    this.pager.forEach((b, k) => { b.style.display = many ? 'block' : 'none'; b.classList.toggle('off', k === 0 ? this.page === 0 : this.page === pages.length - 1); });
   }
 
   /** Equip the preview body with the character's cosmetics (book preview = this character). */
   setEquipped(e: Parameters<ActorView['setEquipped']>[0]): void { this.preview.setEquipped(e); }
 
   private refresh(): void {
-    const show = this.hover >= 0 ? this.hover : this.selected;
+    const show = this.hover ?? this.selected;
     this.tabs.forEach((t, k) => { const on = k === this.job; t.classList.toggle('on', on); (t.firstChild as HTMLElement).style.backgroundImage = `url("${K(`job${k}_icon`)}")`; (t.firstChild as HTMLElement).style.filter = on ? 'drop-shadow(0 0 6px rgba(255,200,90,.8))' : ''; });
-    for (const c of this.cards) { c.el.classList.toggle('sel', c.i === this.selected); c.el.classList.toggle('lk', !this.unlocked(this.kit[c.i])); }
-    const s = this.kit[show], jk = this.jobIndexOf(s), job = this.jobs[jk];
+    for (const c of this.cards) { c.el.classList.toggle('sel', c.e === this.selected); c.el.classList.toggle('lk', !this.unlocked(c.e)); }
+    if (isPassive(show)) { this.refreshPassive(show); return; }
+    this.pps.style.display = 'none';
+    const s = show, jk = this.jobIndexOf(s), job = this.jobs[jk];
     this.cap.textContent = `SKILL PREVIEW — ${s.name.toUpperCase()}`;
     const roles = s.roles.map((r) => ROLE_LABEL[r] ?? r);
     const use = s.ground && s.air ? 'Ground and air' : s.air ? 'Air only' : 'Ground only';
@@ -356,6 +400,32 @@ export class SkillBook {
     const rel = q('.rel');
     for (const r of s.relations.slice(0, 2)) { const d = document.createElement('div'); d.textContent = r; rel.appendChild(d); }
     if (this.open) this.showPreview(s);
+  }
+
+  /** Passive / movement card: effects table + a still showcase in the preview area (no animation to play). */
+  private refreshPassive(p: PassiveSkill): void {
+    const job = this.jobs[p.job];
+    this.cap.textContent = `${p.kind === 'movement' ? 'MOVEMENT SKILL' : 'PASSIVE SKILL'} — ${p.name.toUpperCase()}`;
+    const lock = this.unlocked(p) ? (p.kind === 'movement' ? 'Unlocked · press Jump in mid-air' : 'Unlocked · always active') : `<span class="lock">Unlocks with ${ADV_LABEL[p.job]} (${job.name}) · Lv ${job.level}</span>`;
+    this.det.innerHTML = `<div class="hd"><img alt=""><div><div class="tier"></div><div class="nm"></div></div></div>
+      <div class="body"><div class="roles"><i></i></div><div class="ds"></div>
+      <table><tr><td>Activation</td><td class="ac"></td></tr><tr><td>Cooldown</td><td>None</td></tr><tr><td>Unlock</td><td class="ul"></td></tr></table></div>`;
+    const q = (c: string) => this.det.querySelector(c) as HTMLElement;
+    (q('img') as HTMLImageElement).src = passiveIconUrl(p);
+    q('.tier').textContent = `${ADV_LABEL[p.job].toUpperCase()} · ${job.name.toUpperCase()} · ${p.kind === 'movement' ? 'MOVEMENT' : 'PASSIVE'}`;
+    q('.nm').textContent = p.name; q('.roles i').textContent = p.kind === 'movement' ? 'Movement' : 'Passive';
+    q('.ds').textContent = p.description;
+    q('.ac').textContent = p.kind === 'movement' ? 'Jump again in mid-air' : 'Always on (no key)';
+    q('.ul').innerHTML = lock;
+    this.pps.innerHTML = '<img alt=""><ul></ul>';
+    (this.pps.firstChild as HTMLImageElement).src = passiveIconUrl(p);
+    const ul = this.pps.querySelector('ul')!;
+    for (const e of p.effects) { const li = document.createElement('li'); li.textContent = e; ul.appendChild(li); }
+    if (!this.open) return;
+    this.pps.style.display = 'flex';
+    this.pv.style.display = 'none'; this.video.pause(); this.shownClip = ''; this.video.removeAttribute('src');
+    this.stage.setVisible(false); this.preview.setVisible(false);
+    for (const pre of ['', '-webkit-']) this.bg.style.removeProperty(`${pre}mask-image`);
   }
 
   private showPreview(s: FinalSkill): void {
@@ -379,7 +449,7 @@ export class SkillBook {
   private show(): void {
     this.open = true;
     this.root.classList.add('open');
-    this.hover = -1; this.refresh();
+    this.hover = null; this.refresh();
     this.layout();
   }
 
@@ -395,8 +465,10 @@ export class SkillBook {
   update(ms: number): void { if (this.open && !this.shownClip) this.preview.update(ms); }
 
   /** QA: which skill the preview / detail currently shows. */
-  get shownSkill(): string { return this.kit[this.hover >= 0 ? this.hover : this.selected].id; }
-  select(slot: number): void { const i = this.kit.findIndex((s) => s.slot === slot); if (i >= 0) { this.job = this.jobIndexOf(this.kit[i]); this.selected = i; this.buildRow(); this.refresh(); } }
+  get shownSkill(): string { return (this.hover ?? this.selected).id; }
+  select(slot: number): void { const s = this.kit.find((x) => x.slot === slot); if (s) { this.job = this.jobIndexOf(s); this.page = this.pages().findIndex((pg) => pg.includes(s)); this.selected = s; this.buildRow(); this.refresh(); } }
+  /** QA: open a passive / movement card by id. */
+  selectPassive(id: string): void { const p = passivesFor(this.cls).find((x) => x.id === id); if (p) { this.job = p.job; this.page = this.pages().findIndex((pg) => pg.includes(p)); this.selected = p; this.buildRow(); this.refresh(); } }
 
   destroy(): void { this.preview.destroy(); this.stage.destroy(); this.root.remove(); }
 }

@@ -499,6 +499,18 @@ export class SkillFx {
     this.dust(x + (Math.random() - 0.5) * radius, y + (Math.random() - 0.5) * radius * 0.4, 60, 0.5);
   }
 
+  /** Final Attack: a quick diagonal streak of light across the target + the warrior impact spark. */
+  finalSlash(at: V3, dir: number): void {
+    const x = at.x, y = at.y - at.z - 40;
+    const g = this.scene.add.graphics().setDepth(TOP + 5).setBlendMode(Phaser.BlendModes.ADD);
+    g.lineStyle(10, 0xffd98a, 0.45).lineBetween(-60 * dir, -46, 60 * dir, 40);
+    g.lineStyle(4, 0xfff6dc, 1).lineBetween(-60 * dir, -46, 60 * dir, 40);
+    g.setPosition(x, y).setScale(0.3, 1);
+    this.scene.tweens.add({ targets: g, scaleX: 1, duration: 70, ease: 'Cubic.easeOut' });
+    this.scene.tweens.add({ targets: g, alpha: 0, delay: 90, duration: 170, onComplete: () => g.destroy() });
+    this.spark(IMPACT.warrior.key, x, y + 10, IMPACT.warrior.frames, 80, 0.85);
+  }
+
   /** DFO-style callout above a target (COUNTER!! / BACK ATTACK!! / CRITICAL!!). */
   callout(at: V3, text: string, color: string, row = 0): void {
     const t = this.scene.add.text(at.x, at.y - at.z - 120 - row * 30, text, {

@@ -23,6 +23,7 @@ import { QuestLog, QuestTracker } from '../ui/HudExtras';
 import { KeySettings } from '../ui/KeySettings';
 import { BindAction, loadBindings, slotKeyLabels } from '../game/KeyBindings';
 import { CourtyardAmbience } from '../world/Ambience';
+import { NO_PASSIVES, ORBS, PassiveStats, REGEN, WAR_LEAP, ownedPassives, passiveStats } from '../skills/Passives';
 import { WORLD_OBJECTS, actorDepth, footAllowed, insideArena, placementOk } from '../world/WorldGeometry';
 import { isQAMode } from '../qa/QAPanel';
 import { PvpController } from '../pvp/PvpController';
@@ -117,6 +118,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Attacker-side combo display (from confirmed hits only). */
   /** War Cry buff (+20% damage, super armor while attacking) and its looping aura. */
   warCryUntil = -1;
+  /** Passive skills (job advancements): stat bonuses, War Leap, Final Attack, Combo Force orbs, Self Recovery. */
+  passives: PassiveStats = NO_PASSIVES;
+  private leapUsed = false;
+  private leapUntil = -1;
+  orbs = { n: 0, lastAt: -Infinity, cast: '' };
+  private orbGfx?: Phaser.GameObjects.Graphics;
+  private regenAt = 0;
+  /** PvP arena scene (fixed HP for everyone). */
+  private arena = false;
   /** Radiant Blade: the sword is a long blade of light until this time. */
   radiantUntil = -1;
   /** Sanctuary dome (fixed in the world): full damage immunity while the player stands inside. */
@@ -200,6 +210,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const character = CharacterStore.getSelectedCharacter();
     if (!character) { this.scene.start('CharacterSelectScene'); return; }
     const pvpRoom = data?.pvpRoom ?? null;
+    this.arena = !!pvpRoom;
     this.character = character;
     buildLook(this, character); // portrait = the full style
     registerBodies(this);
@@ -249,7 +260,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const { x, y } = WORLD.spawn;
     this.kin = newKin(x, y);
     this.body = new CombatBody(this.kin, !!pvpRoom);
-    this.body.maxHp = pvpRoom ? PVP.maxHp : S6.player.maxHp;
+    const lvl = character.level, allOpen = isQAMode() || !!pvpRoom;
+    this.passives = this.cls === 'warrior' && (allOpen || lvl >= BEGINNER_TO) ? passiveStats(ownedPassives('warrior', lvl, allOpen)) : NO_PASSIVES;
+    this.body.ccResist = this.passives.ccResist; this.body.kbResist = this.passives.kbResist;
+    this.orbs = { n: 0, lastAt: -Infinity, cast: '' }; this.leapUsed = false; this.regenAt = 0; this.orbGfx = undefined;
+    this.playerHP = this.maxHpNow();
+    this.body.maxHp = this.maxHpNow();
     this.view = new ActorView(this, this.cls, x, y);
     this.view.setName(character.name);
     this.loadCosmetics();
@@ -364,6 +380,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.stepPlayer(ms, now);
     this.rt.update(ms);
     this.stepLingers(now);
+    this.stepPassives(ms, now);
     this.fx.update(ms, this.rt.projectiles.map((e) => e.p));
     this.updateDummy(ms);
     this.enemy?.update(ms, {
@@ -447,10 +464,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private stepLocomotion(ms: number, now: number): void {
     const k = this.kin, inp = this.ci!, b = this.body;
     const rooted = b.hard.active(now) && b.hard.kind === 'root';
-    const speed = (inp.running ? PHYS.run : PHYS.walk) * b.moveScale(now);
-    steer(k, rooted ? 0 : inp.moveX * speed, rooted ? 0 : inp.moveY * speed, ms);
+    const speed = (inp.running ? PHYS.run : PHYS.walk) * b.moveScale(now) * this.passives.moveMul;
+    steer(k, rooted ? 0 : inp.moveX * speed, rooted ? 0 : inp.moveY * speed, ms, now < this.leapUntil ? 0.12 : 1); // War Leap keeps its burst
     if (inp.hasMove && !rooted) this.dir = dirOf(inp.moveX, inp.moveY, this.dir); // side view only: up/down keeps the facing
-    if (inp.takeJump() && k.grounded && !rooted) { jump(k); this.setMode('takeoff'); }
+    if (k.grounded) { this.leapUsed = false; if (!rooted && inp.takeJump()) { jump(k, PHYS.jumpVz * this.passives.jumpMul); this.setMode('takeoff'); } }
+    else if (this.passives.airLeap && !this.leapUsed && !rooted && this.modeT > PHYS.takeoffMs && inp.takeJump()) this.warLeap(now);
     const sp = Math.hypot(k.vx, k.vy);
     if (!k.grounded) { if (this.mode !== 'takeoff' || this.modeT > PHYS.takeoffMs) this.setMode('air'); return; }
     if (this.mode === 'land' && this.modeT < LAND_MS && !inp.hasMove) return;
@@ -538,8 +556,72 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (jumpOk && inp.takeJump()) {
       this.rt!.cancelForFollowUp(run);
       this.endRun(run, true);
-      jump(k); this.setMode('takeoff');
+      jump(k, PHYS.jumpVz * this.passives.jumpMul); this.setMode('takeoff');
     }
+  }
+
+  /** War Leap: a second, farther jump in mid-air (once per airtime) with a burst of wind. */
+  private warLeap(now: number): void {
+    const k = this.kin, inp = this.ci!;
+    const d = inp.hasMove ? unit(inp.moveX, inp.moveY) : FACE[this.dir];
+    k.vz = Math.max(k.vz, WAR_LEAP.vz); k.vx = d.x * WAR_LEAP.forward; k.vy = d.y * WAR_LEAP.forward * 0.6;
+    this.leapUsed = true; this.leapUntil = now + 320;
+    this.setMode('takeoff');
+    this.fx!.dust(k.x - d.x * 18, k.y - k.z, 70, 0.7);
+    this.fx!.shockwave(k.x, k.y - k.z + 6, 46, 0xdff4ff);
+  }
+
+  /** Max HP: fixed in the PvP arena (fair fights), raised by passives in the world. */
+  maxHpNow(): number { return this.arena ? PVP.maxHp : Math.round(S6.player.maxHp * this.passives.hpMul); }
+
+  /** Passive damage multiplier: Sword Mastery × Combo Force orbs. */
+  private passiveDmgMul(): number { return this.passives.dmg * (1 + ORBS.perOrb * this.orbs.n); }
+
+  /** Chance Attack: helpless target (hit-stun / down / hard CC). */
+  private chanceMul(b: CombatBody | undefined): number {
+    if (!b || this.passives.chanceAttack === 1) return 1;
+    return b.state === 'hitstun' || b.state === 'knockdown' || b.hard.active(this.simMs) ? this.passives.chanceAttack : 1;
+  }
+
+  /** Final Attack: a chance for an extra slash right after an own hit lands on a PvE target / the sparring knight. */
+  private finalAttack(run: CastRun, target: string, at: V3, dmg: number): void {
+    const fa = this.passives.fa;
+    if (!fa || dmg <= 0 || run.attackerId !== this.localId || Math.random() >= fa.chance) return;
+    const extra = Math.max(1, Math.round(dmg * fa.mul)), side = run.aim.x < 0 ? -1 : 1;
+    this.time.delayedCall(90, () => {
+      if (target === 'enemy') { if (!this.enemy?.alive) return; this.enemy.damage(extra); }
+      else if (target === 'dummy') { if (!this.dummyState?.alive) return; this.damageDummy(extra); }
+      else if (target === BOT_ID) { const b = this.bot; if (!b) return; b.hp = Math.max(1, b.hp - extra); b.view.setHp(b.hp); }
+      else return;
+      this.fx!.finalSlash(at, side);
+      this.fx!.damageNumber(at, extra, false, 0, true);
+    });
+  }
+
+  /** Self Recovery tick, Combo Force orb decay + orbit render. */
+  private stepPassives(ms: number, now: number): void {
+    const P = this.passives;
+    if (P.regen && this.dead < 0) {
+      this.regenAt += ms;
+      if (this.regenAt >= REGEN.everyMs) {
+        this.regenAt = 0;
+        const max = this.maxHpNow(), before = this.playerHP;
+        this.playerHP = Math.min(max, this.playerHP + Math.max(1, Math.round(max * REGEN.frac)));
+        if (this.playerHP > before) this.fx!.healNumber({ x: this.kin.x, y: this.kin.y, z: this.kin.z }, this.playerHP - before);
+      }
+    }
+    if (this.orbs.n > 0 && (now - this.orbs.lastAt > ORBS.fadeMs || this.dead >= 0)) this.orbs.n = 0;
+    if (!P.orbs) return;
+    const g = this.orbGfx ?? (this.orbGfx = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD));
+    g.clear();
+    if (this.orbs.n <= 0 || this.dead >= 0 || !this.view?.visible) return;
+    const k = this.kin, cy = k.y - k.z - 62, t = now / 1000;
+    for (let i = 0; i < this.orbs.n; i++) {
+      const a = t * 2.4 + (i * Math.PI * 2) / this.orbs.n, x = k.x + Math.cos(a) * 34, y = cy + Math.sin(a) * 12;
+      g.fillStyle(0xffc34a, 0.28).fillCircle(x, y, 9);
+      g.fillStyle(0xfff1c2, 0.95).fillCircle(x, y, 4);
+    }
+    g.setDepth(k.y + 2);
   }
 
   /** Dash / leap: swept along the aim (or toward the locked target), stopped by cover and bodies; never through walls. */
@@ -623,7 +705,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         }
         else if (l.run.skill.id !== 'ground_breaker') this.fx!.crack(l.x, l.y, L.radius); // the quake has one steady rotating ring instead of per-tick sparks
         if (l.run.skill.id === 'ground_breaker' && l.run.own && this.dead < 0) { // the quake mends the warrior: +2 HP per pulse
-          const max = this.pvp ? PVP.maxHp : S6.player.maxHp, before = this.playerHP;
+          const max = this.maxHpNow(), before = this.playerHP;
           this.playerHP = Math.min(max, this.playerHP + 2);
           if (this.playerHP > before) this.fx!.healNumber({ x: this.kin.x, y: this.kin.y, z: this.kin.z }, this.playerHP - before);
           for (let n = 0; n < 1; n++) this.fx!.hpGlyph(this.kin.x + (Math.random() - 0.5) * 90, this.kin.y + (Math.random() - 0.5) * 30);
@@ -858,7 +940,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private onJumpKey(): void { if (this.pvpReady && this.dead < 0) this.ci?.queueJump(); }
 
   /** Own damage buffs right now: War Cry +20%, Radiant Blade +15% (same as against monsters). */
-  private ownDamageMul(): number { return (this.simMs < this.warCryUntil ? 1.2 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1); }
+  private ownDamageMul(): number { return (this.simMs < this.warCryUntil ? 1.2 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * this.passiveDmgMul(); }
 
   /** Skills open with the job advancements; in the PvP arena every skill is open (testing the combat). */
   private skillOpen(s: FinalSkill): boolean {
@@ -1085,8 +1167,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     let out: HitOutcome | null = null;
     if (t.id === 'dummy' && this.dummyState?.alive) {
       const ds = this.dummyState;
+      const ch = run.attackerId === this.localId ? this.chanceMul(ds.body) : 1;
       out = ds.body.receive(run.attackerId, s, hit, run.origin, now);
-      if (run.attackerId === this.localId && now < this.warCryUntil) out.damage = Math.round(out.damage * 1.2);
+      if (run.attackerId === this.localId) out.damage = Math.round(out.damage * (now < this.warCryUntil ? 1.2 : 1) * this.passiveDmgMul() * ch);
       ds.body.push = null; ds.kin.vx = 0; ds.kin.vy = 0; // anchored post: launches / knockdowns are vertical only (juggle practice)
       this.damageDummy(out.damage);
     } else if (t.id === 'enemy' && this.enemy?.alive) {
@@ -1094,6 +1177,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const counter = en.ai === 'attack' && en.body.state === 'free';
       const f = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[en.facing];
       const back = en.body.state === 'free' && (from.x - en.kin.x) * f[0] + (from.y - en.kin.y) * f[1] < -12;
+      const ch = run.attackerId === this.localId ? this.chanceMul(en.body) : 1;
       out = en.body.receive(run.attackerId, s, hit, from, now);
       if (out.damage > 0) { en.hitFromX = from.x; en.faceToward(from.x, from.y); }
       if (run.attackerId === this.localId && (out.pushX || out.pushY) && s.id !== 'shield_slam') this.momentum = { x: out.pushX * 0.7, y: out.pushY * 0.7, left: 120 };
@@ -1117,8 +1201,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
           en.body.state = 'hitstun'; en.body.stateEnd = now + 900; this.fx!.callout(at, 'WALL CRASH!!', '#9ed8ff', 0); this.fx!.shockwave(en.kin.x, en.kin.y, 90, 0x9ed8ff);
         }
       }
-      const crit = hit.damage > 0 && Math.random() < 0.12;
-      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 : 1) * (run.attackerId === this.localId && now < this.warCryUntil ? 1.2 : 1) * (run.attackerId === this.localId && now < this.radiantUntil ? 1.15 : 1);
+      const own = run.attackerId === this.localId;
+      const crit = hit.damage > 0 && Math.random() < 0.12 + (own ? this.passives.critAdd : 0);
+      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.passives.critDmgAdd : 0) : 1) * (own && now < this.warCryUntil ? 1.2 : 1) * (own && now < this.radiantUntil ? 1.15 : 1) * (own ? this.passiveDmgMul() * ch : 1);
       out.damage = Math.round(out.damage * mult);
       en.damage(out.damage);
       let row = 0;
@@ -1128,6 +1213,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (!out) return;
     this.confirm(run, hit, t.id, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!s.endsCombo, t.z);
+    if (out.reaction !== 'armor') this.finalAttack(run, t.id, at, out.damage);
   }
 
   /** Attacker-side confirmed hit (PvE immediate; PvP from the victim's confirmation). */
@@ -1135,6 +1221,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const s = run?.skill;
     if (!s) return;
     if (run && run.confirmedAt < 0) run.confirmedAt = run.elapsed;
+    if (run && run.own && this.passives.orbs && damage > 0) { // Combo Force: one orb per skill that connects
+      if (this.orbs.cast !== run.castId) { this.orbs.cast = run.castId; this.orbs.n = Math.min(ORBS.max, this.orbs.n + 1); }
+      this.orbs.lastAt = this.simMs;
+    }
     this.fx!.confirmed(s, hit, at, damage, reaction, true, idx);
     const same = this.combo.comboId === comboId && this.combo.target === target;
     const max = target === 'enemy' ? (this.enemy?.maxHp ?? 1) : target === 'dummy' ? D.maxHp : 100;
@@ -1153,7 +1243,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const hit: HitEvent = { at: 0, damage: dmg, shape: { kind: 'sector', range: 58, angle: 120 }, reaction: { stun: 220, push: 14 } };
     const out = this.body.receive('enemy', ENEMY_SKILL, hit, from, this.simMs);
     if (out.reaction === 'armor' && this.simMs < this.body.invulnUntil) { this.fx!.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 }, 'BLOCK!!', '#9ed8ff', 0); this.fx!.shockwave(this.kin.x, this.kin.y, 70, 0x9ed8ff); }
-    this.takeDamage(out.damage);
+    out.damage = this.takeDamage(out.damage);
     this.fx!.confirmed(ENEMY_SKILL, hit, { x: this.kin.x, y: this.kin.y, z: this.kin.z + 30 }, out.damage, out.reaction, false, out.hitIndex);
   }
 
@@ -1182,7 +1272,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     const h = run.dmgMul && run.dmgMul !== 1 ? { ...hit, damage: hit.damage * run.dmgMul } : hit; // caster's War Cry / Radiant Blade
     const out = this.body.receive(run.attackerId, s, h, this.casterPos(run.attackerId) ?? run.origin, this.simMs);
-    this.takeDamage(out.damage);
+    out.damage = this.takeDamage(out.damage);
     this.fx!.confirmed(s, hit, at, out.damage, out.reaction, false, out.hitIndex);
     if (s.carry && out.reaction !== 'armor' && out.damage > 0) this.carriedBy = run; // Impaling Rush: ride the blade
     this.pvp?.sendHp(this.playerHP, run.attackerId, {
@@ -1191,11 +1281,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.playerHP === 0) this.pvp?.sendDeath(run.attackerId);
   }
 
-  private takeDamage(dmg: number): void {
-    if (this.dead >= 0 || dmg <= 0) return;
+  /** Returns the damage actually taken (Iron Body cuts it). */
+  private takeDamage(raw: number): number {
+    if (this.dead >= 0 || raw <= 0) return 0;
+    const dmg = Math.max(1, Math.round(raw * this.passives.takenMul));
     this.playerHP = Math.max(0, this.playerHP - dmg);
     this.flash = 0;
     if (this.playerHP === 0) this.killPlayer();
+    return dmg;
   }
 
   private killPlayer(): void {
@@ -1213,7 +1306,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private updateDeath(): void {
     if (this.pvp) { if (this.dead >= PVP.respawnMs) this.respawnPvp(); return; }
     if (this.dead >= P6.deathFadeMs + P6.deathPauseMs) {
-      this.respawnAt(WORLD.spawn.x, WORLD.spawn.y, S6.player.maxHp);
+      this.respawnAt(WORLD.spawn.x, WORLD.spawn.y, this.maxHpNow());
       if (this.enemy?.alive) this.enemy.reset();
     }
   }
@@ -1261,10 +1354,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private applyToBot(run: CastRun, hit: HitEvent, t: HitTarget, at: V3): void {
     const b = this.bot;
     if (!b) return;
-    const m = run.attackerId === this.localId ? this.ownDamageMul() : 1, h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
+    const m = run.attackerId === this.localId ? this.ownDamageMul() * this.chanceMul(b.body) : 1, h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
     const out = b.receive(run.attackerId, run.skill, h, this.casterPos(run.attackerId) ?? run.origin, this.simMs);
     if (b.refilled) this.fx!.healNumber({ x: b.x, y: b.y, z: b.z }, b.refilled);
     this.confirm(run, hit, BOT_ID, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!run.skill.endsCombo, t.z);
+    if (out.reaction !== 'armor') this.finalAttack(run, BOT_ID, at, out.damage);
   }
 
   // ======================================================================= PvP
@@ -1393,7 +1487,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       mode: pvp ? 'pvp' : 'pve',
       player: {
         id: pvp?.meta.playerId ?? ch.id, name: ch.name, level: ch.level, portrait: portraitOf(previewKeyOf(ch)),
-        hp: this.playerHP, maxHp: pvp ? PVP.maxHp : S6.player.maxHp, resource: null, effects: this.statusEffects(this.body, now),
+        hp: this.playerHP, maxHp: this.maxHpNow(), resource: null, effects: this.statusEffects(this.body, now),
       },
       target: alive && this.pvpReady ? this.hudTarget() : null,
       slots,
