@@ -215,13 +215,9 @@ function mv(cls: string, st: MoveState, dir: Dir, col: number): PoseFrame { retu
 function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
   switch (q.k) {
     case 'loop': {
-      if (q.state === 'idle') { // one clean frame + smooth procedural breathing (separately painted idle frames flicker)
-        if (cls === 'warrior' && !BASE_MODE) return mv(cls, 'idle', dir, Math.floor((q.t * 10) / 1000) % 12); // wind-blown cape cycle only, body stays still (base body: no cape → one frame + breathing)
-        const f = mv(cls, 'idle', dir, 0), b = Math.sin((q.t / 2600) * Math.PI * 2);
-        f.sy = 1 + 0.014 * b; f.sx = 1 - 0.005 * b;
-        if (f.anchor) f.anchor = f.anchor.map((v, i) => (i % 2 ? v * f.sy! : v * f.sx!));
-        if (f.hair) f.hair = [f.hair[0] * f.sx!, f.hair[1] * f.sx!, f.hair[2] * f.sy!];
-        return f;
+      if (q.state === 'idle') { // agreed look: the body never breathes / grows / shrinks — one still frame (separately painted idle frames flicker)
+        if (cls === 'warrior' && !BASE_MODE) return mv(cls, 'idle', dir, Math.floor((q.t * 10) / 1000) % 12); // wind-blown cape cycle only, body stays still
+        return mv(cls, 'idle', dir, 0);
       }
       if (q.state === 'walk') { // 8-frame cycles (down/up rows of the old 6-frame art until replaced)
         const n = cls === 'warrior' ? 8 : 6;
