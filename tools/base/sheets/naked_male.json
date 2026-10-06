@@ -29,6 +29,11 @@
    ["naked_both_swing2.png", 1, "asd:walk", "farR", "feet", "clean:0", "sword"],
    ["naked_both_swing2.png", 2, "asd:walk", "farR", "feet", "clean:0", "sword"]
   ],
+  "swing3": [
+   ["naked_both_swing3.png", 0, "asd:walk", "farR", "feet", "clean:0", "sword"],
+   ["naked_both_swing3.png", 1, "asd:walk", "farR", "feet", "clean:0", "sword"],
+   ["naked_both_swing3.png", 2, "asd:walk", "farR", "feet", "clean:0", "sword"]
+  ],
   "run": {"from": "walk", "lean": [0.08, 0.14], "lift": [4, 0, 4, 0]}
  },
  "preview": ["naked_male_set1.png", 0]

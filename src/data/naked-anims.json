@@ -6,6 +6,7 @@
   "jump": 1,
   "swing1": 3,
   "swing2": 3,
+  "swing3": 3,
   "run": 4
  },
  "female": {
@@ -15,6 +16,7 @@
   "jump": 1,
   "swing1": 3,
   "swing2": 3,
+  "swing3": 3,
   "run": 4
  }
 }

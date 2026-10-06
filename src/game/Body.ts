@@ -179,6 +179,7 @@ function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): P
     const c = baseLoop(q.state, q.speed); frame = Math.floor((q.t * c.fps) / 1000) % has[anim];
   } else if (q.k === 'loop' && q.state === 'alert' && has.alert) { anim = 'alert'; frame = Math.floor(q.t / 500) % has.alert; } // 0.5 s a frame (Maple)
   else if (q.k === 'jump' && q.phase !== 'land' && has.jump) anim = 'jump'; // Maple: one frame the whole time off the ground
+  else if ((q.k === 'recovery' || q.k === 'hurt') && has.alert) anim = 'alert'; // Maple: after a swing / when hit, the combat stance
   else if (q.k === 'skill' && q.id === 'warrior_basic' && has.swing1) { // a sword swing (Maple: one of the drawn ones at random)
     const sw = ['swing1', 'swing2', 'swing3'].filter((a) => has[a]);
     anim = sw[(q.seed ?? 0) % sw.length]; frame = q.elapsed < q.startup ? 0 : q.elapsed < q.startup + q.active * 0.5 ? 1 : 2; // wind-up, strike, follow-through
