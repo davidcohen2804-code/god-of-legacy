@@ -10,6 +10,7 @@ import ANCHORS from '../data/body-anchors.json';
 import BODY_CELLS from '../data/body-cells.json';
 import BLADES from '../data/blade-lines.json';
 import BEHIND from '../data/blade-behind.json';
+import BASE_BLADES from '../data/base-blade-lines.json';
 import HEADS from '../data/head-frames.json';
 import { Dir } from '../world/collision';
 import { FINAL_SKILLS } from '../skills/FinalKit';
@@ -172,7 +173,11 @@ function sheetFrame(key: string, path: string, dir: Dir, col: number, cols: numb
   const c = Math.max(0, Math.min(cols - 1, col));
   const table = ANCH[path] as (number[] | null)[][] | undefined;
   const f: PoseFrame = { key, frame: row * cols + c, wkey: `${key}-w`, ox: 0.5, oy: (ch - CELL * (1 - ORIGIN_Y)) / ch, scale: SHEET_SCALE, anchor: scaleAnchor(table?.[row]?.[c], SHEET_SCALE), hair: scaleHair(table?.[row]?.[c], SHEET_SCALE), blade: ((BLADES as Record<string, (number[] | null)[][]>)[path]?.[row]?.[c] ?? null)?.map((v) => v * SHEET_SCALE) ?? null, bladeBehind: !!(BEHIND as Record<string, number[][]>)[path]?.[row]?.[c], head: headOf(path, row, c) };
-  if (BASE_MODE) { const anim = animOf(path); if (BASE_ANIMS.has(anim)) { f.key = baseKey(anim); f.wkey = `${f.key}-w`; f.frame = c; f.oy = ORIGIN_Y; } } // 352-cell base strip, same anchors
+  if (BASE_MODE) { const anim = animOf(path); if (BASE_ANIMS.has(anim)) { // 352-cell base strip, same anchors…
+    f.key = baseKey(anim); f.wkey = `${f.key}-w`; f.frame = c; f.oy = ORIGIN_Y;
+    const bl = (BASE_BLADES as Record<string, (number[] | null)[]>)[anim]?.[c]; // …but its own sword line (the base frames were redrawn)
+    f.blade = bl ? bl.map((v) => v * SHEET_SCALE) : null; f.bladeBehind = false;
+  } }
   if (flip) { f.flip = true; f.anchor = mirror(f.anchor, [0, 2, 4]); f.hair = mirror(f.hair, [0]); f.blade = mirror(f.blade, [0, 2]); f.head = mirror(f.head, [0, 2]); }
   return f;
 }
