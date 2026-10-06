@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import { CLASS_NAMES, FONT_FAMILY } from '../config/layout';
 import { Character } from '../characters/CharacterTypes';
 import { CharacterStore } from '../characters/CharacterStore';
-import { genderOf } from '../characters/Look';
+import { genderOf, hairOf } from '../characters/Look';
 import { syncOverlay } from './CharacterSelectUI';
 import { PreviewStage, Rect, holeMask } from './PreviewStage';
 import { ActorView, COSMETICS, CosSlot, Equipped, cosmetic, slotOf } from '../game/ActorView';
@@ -212,7 +212,7 @@ class CosPreview {
   private vz = 0;
   private basic;
 
-  constructor(scene: Phaser.Scene, private stage: PreviewStage, readonly cls: ClassKey, private floor = 80, private gender: 'male' | 'female' = 'male') {
+  constructor(scene: Phaser.Scene, private stage: PreviewStage, readonly cls: ClassKey, private floor = 80, private gender: 'male' | 'female' = 'male', private hair: number | null = null) {
     this.basic = kitFor(cls)[0];
     this.view = new ActorView(scene, cls, stage.ox, stage.oy);
   }
@@ -252,7 +252,7 @@ class CosPreview {
       case 'hurt': { const c = this.t % 900; mode = c < 320 ? 'hurt' : 'idle'; mt = c; break; }
       case 'dead': { const c = this.t % 2200; mode = c < 1700 ? 'dead' : 'idle'; mt = c; break; }
     }
-    const pose = resolvePose(this.cls, this.dir, poseQuery({ mode, t: mt, speed, vz, skill, stunMs: 320 }), this.view.wantsBase, this.gender);
+    const pose = resolvePose(this.cls, this.dir, poseQuery({ mode, t: mt, speed, vz, skill, stunMs: 320 }), this.view.wantsBase, this.gender, this.hair);
     this.view.render(ms, pose, this.stage.ox, this.stage.oy + this.floor, this.z, 0, this.dir);
   }
 
@@ -304,8 +304,8 @@ export class CosmeticPanel {
     this.shop = this.buildShop();
     this.invStage = new PreviewStage(scene, { x: INV_BG.x + INV_PREVIEW.x, y: INV_BG.y + INV_PREVIEW.y, w: INV_PREVIEW.w, h: INV_PREVIEW.h }, -26000, 30000, 2.0, 'ui-inv-preview');
     this.shopStage = new PreviewStage(scene, { x: SHOP_BG.x + SHOP_PREVIEW.x, y: SHOP_BG.y + SHOP_PREVIEW.y, w: SHOP_PREVIEW.w, h: SHOP_PREVIEW.h }, -22000, 30000, 2.0, 'ui-shop-preview');
-    this.invPrev = new CosPreview(scene, this.invStage, this.cls, 109, genderOf(character));
-    this.shopPrev = new CosPreview(scene, this.shopStage, this.cls, 104, genderOf(character));
+    this.invPrev = new CosPreview(scene, this.invStage, this.cls, 109, genderOf(character), hairOf(character));
+    this.shopPrev = new CosPreview(scene, this.shopStage, this.cls, 104, genderOf(character), hairOf(character));
     this.invPrev.setVisible(false); this.shopPrev.setVisible(false);
   }
 

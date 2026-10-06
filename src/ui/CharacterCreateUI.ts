@@ -2,6 +2,14 @@
 import { CHARACTER_CREATE as L, CHARACTER_PREVIEWS, CLASS_NAMES, CLASS_OPTIONS } from '../config/layout';
 import { CharacterStore } from '../characters/CharacterStore';
 import { KIT_LAYOUT, ensureCharacterUIStyles, ensureSelectKitStyles, syncOverlay } from './CharacterSelectUI';
+import OUTFIT_COLORS from '../data/outfit-colors.json';
+import NAKED_HAIR from '../data/naked-hair.json';
+
+/** What the new character looks like: body, hairstyle, the colour of each starter piece (indices). */
+export interface CreateLook { gender: 'male' | 'female'; hair: number; top: number; pants: number; shoes: number }
+type Piece = 'top' | 'pants' | 'shoes';
+const PIECES: { id: Piece; label: string }[] = [{ id: 'top', label: 'SHIRT' }, { id: 'pants', label: 'PANTS' }, { id: 'shoes', label: 'BOOTS' }];
+const COLORS_OF = OUTFIT_COLORS as Record<Piece, { name: string; swatch: string }[]>;
 
 const KIT = (f: string) => `assets/final/ui/kit/${f}.png`;
 /** Kit layout (design px). kit/modal_window.png: header strip at 15..22% of its height, body 25..85%. */
@@ -9,6 +17,7 @@ const C = {
   char: { x: 92, y: 196, w: 470, h: 350 },
   cls: { x: 1388, y: 196, w: 430, h: 470, optTop: 126, optGap: 68, optW: 370, optH: 62 },
   create: { x: 1398, y: 690, w: 410, h: 150 },
+  look: { x: 92, y: 560, w: 470, h: 360, lab: 44, col: 150, hairTop: 92, hair: 56, hairGap: 16, rowTop: 168, row: 46, sw: 36, swGap: 20 },
 } as const;
 
 export interface CharacterCreateHandlers {
@@ -18,6 +27,8 @@ export interface CharacterCreateHandlers {
   onClassChange: (classId: string, appearanceId: string) => void;
   /** Male / female base character chosen (scene shows him / her). */
   onGenderChange?: (gender: 'male' | 'female') => void;
+  /** Body, hairstyle or a piece's colour changed (scene dresses the preview). */
+  onLookChange?: (look: CreateLook) => void;
 }
 
 const STYLE_ID = 'gol-charcreate-style';
@@ -43,6 +54,11 @@ const CSS = `
   box-shadow:inset 0 0 0 3px rgba(5,9,14,.9),inset 0 0 0 4px rgba(232,199,126,.25)}
 .gol-cs .cc-input::placeholder{color:rgba(243,231,207,.4)}
 .gol-cs .cc-input:focus{border-color:#E8C77E;box-shadow:inset 0 0 0 3px rgba(5,9,14,.9),inset 0 0 0 4px rgba(232,199,126,.4),0 0 10px rgba(232,199,126,.35)}
+.gol-cc .info.p-look h2{top:${Math.round(C.look.h * 0.186) - 10}px!important}
+.gol-cc .hbtn,.gol-cc .swb{position:absolute;pointer-events:auto;cursor:pointer;border:0;padding:0;border-radius:50%;
+  background:#0a1018 center/cover no-repeat;box-shadow:0 0 0 2px #c99a45,0 2px 6px rgba(0,0,0,.6);transition:transform 120ms,box-shadow 120ms}
+.gol-cc .hbtn:hover,.gol-cc .swb:hover{transform:scale(1.08)}
+.gol-cc .hbtn.on,.gol-cc .swb.on{box-shadow:0 0 0 3px #ffe2a0,0 0 12px rgba(255,200,90,.85)}
 .gol-cs .cc-opt{left:40px}
 .gol-cs .cc-opt:not(.primary){opacity:.72}
 .gol-cs .cc-opt:not(.primary):hover{opacity:1}
@@ -55,6 +71,9 @@ export class CharacterCreateUI {
   private classBtns: HTMLButtonElement[] = [];
   private genderBtns: HTMLButtonElement[] = [];
   private gender: 'male' | 'female' = 'male';
+  private hairBtns: HTMLButtonElement[] = [];
+  private swatches: Record<Piece, HTMLButtonElement[]> = { top: [], pants: [], shoes: [] };
+  private look: CreateLook = { gender: 'male', hair: 0, top: 0, pants: 0, shoes: 0 };
   private classIdx = 0;
   private lastRect = '';
   private readonly onKey = (e: KeyboardEvent) => {
@@ -100,6 +119,33 @@ export class CharacterCreateUI {
       b.addEventListener('mousedown', (e) => e.preventDefault());
       b.addEventListener('click', () => this.selectGender(g));
       this.genderBtns.push(b);
+    });
+
+    // Look panel: hairstyle (head icons) and the colour of each starter piece (swatches).
+    const Lk = C.look;
+    const lp = this.el('div', 'abs panel info p-look', this.root);
+    this.box(lp, Lk.x, Lk.y, Lk.w, Lk.h);
+    const h4 = this.el('h2', '', lp); h4.textContent = 'STYLE';
+    const lh = this.el('div', 'cc-label', lp); lh.textContent = 'HAIR'; lh.style.top = `${Lk.hairTop + Lk.hair / 2 - 9}px`;
+    const nHair = Math.max(...Object.values(NAKED_HAIR as Record<string, number>));
+    for (let k = 0; k < nHair; k++) {
+      const b = this.el('button', 'hbtn', lp) as HTMLButtonElement;
+      this.box(b, Lk.col + k * (Lk.hair + Lk.hairGap), Lk.hairTop, Lk.hair, Lk.hair);
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('click', () => this.setLook({ hair: k }));
+      this.hairBtns.push(b);
+    }
+    PIECES.forEach((p, r) => {
+      const y = Lk.rowTop + r * Lk.row;
+      const lb = this.el('div', 'cc-label', lp); lb.textContent = p.label; lb.style.top = `${y + Lk.sw / 2 - 9}px`;
+      COLORS_OF[p.id].forEach((c, i) => {
+        const b = this.el('button', 'swb', lp) as HTMLButtonElement;
+        this.box(b, Lk.col + i * (Lk.sw + Lk.swGap), y, Lk.sw, Lk.sw);
+        b.style.backgroundColor = c.swatch; b.title = c.name;
+        b.addEventListener('mousedown', (e) => e.preventDefault());
+        b.addEventListener('click', () => this.setLook({ [p.id]: i } as Partial<CreateLook>));
+        this.swatches[p.id].push(b);
+      });
     });
 
     // Class panel: the single fixed class.
@@ -152,13 +198,25 @@ export class CharacterCreateUI {
     const id = CharacterStore.getSelectedId();
     if (!id || !this.canCreate()) return;
     const opt = CLASS_OPTIONS[this.classIdx];
-    if (CharacterStore.createCharacter(id, this.input.value, opt.classId, opt.appearanceId, this.gender)) this.h.onCreated();
+    const { hair, top, pants, shoes } = this.look;
+    if (CharacterStore.createCharacter(id, this.input.value, opt.classId, opt.appearanceId, this.gender, { hair, top, pants, shoes })) this.h.onCreated();
   }
 
   private selectGender(g: 'male' | 'female'): void {
     this.gender = g;
     this.genderBtns.forEach((b, k) => b.classList.toggle('on', (k === 0 ? 'male' : 'female') === g));
     this.h.onGenderChange?.(g);
+    const G = g === 'male' ? 'Male' : 'Female', n = (NAKED_HAIR as Record<string, number>)[g] ?? 0;
+    this.hairBtns.forEach((b, k) => { b.style.display = k < n ? '' : 'none'; b.style.backgroundImage = `url("assets/characters/base/hair/${G}_${k}_icon.png")`; });
+    this.setLook({ gender: g, hair: Math.min(this.look.hair, Math.max(0, n - 1)) });
+  }
+
+  /** One choice changed: buttons light up, the scene dresses the preview. */
+  private setLook(p: Partial<CreateLook>): void {
+    this.look = { ...this.look, ...p };
+    this.hairBtns.forEach((b, k) => b.classList.toggle('on', k === this.look.hair));
+    for (const pc of PIECES) this.swatches[pc.id].forEach((b, i) => b.classList.toggle('on', i === this.look[pc.id]));
+    this.h.onLookChange?.(this.look);
   }
 
   private selectClass(i: number): void {

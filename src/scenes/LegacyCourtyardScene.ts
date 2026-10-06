@@ -28,13 +28,13 @@ import { isQAMode } from '../qa/QAPanel';
 import { PvpController } from '../pvp/PvpController';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
 import { NetMsg, PeerMeta } from '../pvp/Transport';
-import { genderOf, previewKeyOf } from '../characters/Look';
+import { genderOf, hairOf, previewKeyOf } from '../characters/Look';
 import { BOT_ID, BOT_NAME, SparringBot } from '../pvp/SparringBot';
 import { CombatInput } from '../game/CombatInput';
 import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey, damageSkin, wantsWeaponMasks } from '../game/ActorView';
 import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
-import { baseLoop, ClassKey, dirOf, preloadBodies, registerBodies, resolvePose, PoseFrame } from '../game/Body';
+import { baseLoop, ClassKey, dirOf, loadNakedHair, preloadBodies, registerBodies, resolvePose, PoseFrame } from '../game/Body';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
 import { CombatBody, GAUGE, HitOutcome, Kin, PHYS, jump, newKin, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
@@ -184,6 +184,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!this.textures.exists(T.map.key)) this.load.image(T.map.key, T.map.file);
     if (!this.textures.exists(CT.dummy.key)) this.load.image(CT.dummy.key, CT.dummy.file);
     preloadBodies(this, classes, masks);
+    if (me) loadNakedHair(this, genderOf(me), hairOf(me)); // your hairstyle, baked into every base frame
     preloadSkillFx(this, classes);
     preloadDeathFx(this);
     preloadCosmetics(this, classes && me ? [...new Set([...classes, me.classId])] : classes); // a Beginner still owns its class's items
@@ -301,7 +302,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const kb = this.input.keyboard!;
     const esc = () => { if (this.skillBook?.open || this.cosPanel?.open || this.questLog?.isOpen) { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); } else if (pvpRoom) exitArena(); };
     kb.on('keydown-ESC', esc);
-    if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name, gender: genderOf(character) });
+    if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name, gender: genderOf(character), ...(hairOf(character) != null ? { hair: hairOf(character)! } : {}) });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off(Phaser.Scenes.Events.POST_UPDATE);
@@ -655,7 +656,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       skill: run ? { id: run.skill.id, stage: run.stage, elapsed: run.elapsed, ...run.timings, seed: castSeed(run.castId) } : undefined,
     };
     const dir = this.dir; // Whirlwind spins inside its own 360° body loop
-    const pose = resolvePose(this.cls, dir, poseQuery(snap), v.wantsBase || this.character!.level < BEGINNER_TO, genderOf(this.character));
+    const pose = resolvePose(this.cls, dir, poseQuery(snap), v.wantsBase || this.character!.level < BEGINNER_TO, genderOf(this.character), hairOf(this.character));
     let tint: number | null = null, fill = false, alpha = 1;
     if (this.flash >= 0) { if (this.flash < P6.hitFlashWhiteMs) { tint = 0xffffff; fill = true; } else tint = 0xff6a6a; }
     else if (this.body.hard.active(this.simMs)) tint = this.body.hard.kind === 'freeze' ? 0x9fd8ff : 0xb6ffb0;

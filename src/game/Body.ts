@@ -166,11 +166,32 @@ let BASE_MODE = false;
  *  (cell px from the standing head) — the anchors follow it. The run has its own 4 frames (strides in the air). */
 import NAKED_LIST from '../data/naked-anims.json';
 import NAKED_HEADS_LIST from '../data/naked-heads.json';
+import NAKED_HAIR_LIST from '../data/naked-hair.json';
 const NAKED = NAKED_LIST as Record<string, Record<string, number>>;
 const NAKED_HEADS = NAKED_HEADS_LIST as Record<string, Record<string, number[][]>>;
 const nakedKey = (g: string, anim = 'idle') => `naked-${g}-${anim}`;
+/** Hairstyles per gender (tools/base/hair_extract.py → naked_frames.py): each one baked into every frame of the base
+ *  (back hair behind the body, the rest over the head, the sword arm in front of it), loaded for the looks in play. */
+const NAKED_HAIR = NAKED_HAIR_LIST as Record<string, number>;
+export const hairCount = (g: string): number => NAKED_HAIR[g] ?? 0;
+const hairKey = (g: string, k: number, anim: string) => `naked-${g}-h${k}-${anim}`;
+const HAIR_READY = new Set<string>();
+/** Queue this hairstyle's strips (in a preload, or now with start = true); until they arrive the base shows bald. */
+export function loadNakedHair(scene: Phaser.Scene, g: string, k: number | null | undefined, start = false): void {
+  if (k == null || k < 0 || k >= hairCount(g)) return;
+  let queued = false;
+  for (const anim of Object.keys(NAKED[g] ?? {})) {
+    const key = hairKey(g, k, anim);
+    if (scene.textures.exists(key)) { HAIR_READY.add(key); continue; }
+    if (HAIR_READY.has(key)) continue;
+    scene.load.spritesheet(key, `assets/final/body/naked/${g}/h${k}/${anim}.png`, { frameWidth: CELL, frameHeight: CELL });
+    scene.load.once(`filecomplete-spritesheet-${key}`, () => HAIR_READY.add(key));
+    queued = true;
+  }
+  if (queued && start && !scene.load.isLoading()) scene.load.start();
+}
 const NAKED_HEAD_DROP = 10; // his bald head top sits this much (cell px) lower than the beginner's hair top
-function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): PoseFrame {
+function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery, hair?: number | null): PoseFrame {
   const f = sheetPose(cls, dir, { k: 'loop', state: 'idle', t: 0, speed: 0 }); // the standing beginner's anchors (head, chest)
   const has = NAKED[g] ?? {};
   let anim = 'idle', frame = 0;
@@ -184,8 +205,9 @@ function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): P
     const sw = ['swing1', 'swing2', 'swing3'].filter((a) => has[a]);
     anim = sw[(q.seed ?? 0) % sw.length]; frame = q.elapsed < q.startup ? 0 : q.elapsed < q.startup + q.active * 0.5 ? 1 : 2; // wind-up, strike, follow-through
   }
-  const key = nakedKey(g, anim), [hx, hy] = NAKED_HEADS[g]?.[anim]?.[frame] ?? [0, 0], fx = f.flip ? -1 : 1;
-  return { ...f, key, frame, wkey: `${key}-w`, blade: null, bladeBehind: false, hair: null, head: null,
+  const hk = hair != null ? hairKey(g, hair, anim) : '', key = hk && HAIR_READY.has(hk) ? hk : nakedKey(g, anim);
+  const [hx, hy] = NAKED_HEADS[g]?.[anim]?.[frame] ?? [0, 0], fx = f.flip ? -1 : 1;
+  return { ...f, key, frame, wkey: `${nakedKey(g, anim)}-w`, blade: null, bladeBehind: false, hair: null, head: null,
     anchor: f.anchor ? f.anchor.map((v, i) => (i % 2 === 0 ? v + hx * fx * SHEET_SCALE : v + (hy + (i === 1 ? NAKED_HEAD_DROP : 0)) * SHEET_SCALE)) : null };
 }
 /** Base body available for this animation (sheet baked)? */
@@ -254,10 +276,10 @@ const pick = <T,>(list: T[], p: number): T => list[Math.max(0, Math.min(list.len
 /** base = draw the beginner-clothes base body (fashion cosmetics) instead of the class armour, where baked. */
 /** Pose query once the combat stance is folded into standing (bodies without stance frames). */
 type BodyQuery = Exclude<PoseQuery, { k: 'loop' }> | { k: 'loop'; state: 'idle' | 'walk' | 'run'; t: number; speed: number };
-export function resolvePose(cls: ClassKey, dir: Dir, q: PoseQuery, base = false, gender?: 'male' | 'female'): PoseFrame {
+export function resolvePose(cls: ClassKey, dir: Dir, q: PoseQuery, base = false, gender?: 'male' | 'female', hair?: number | null): PoseFrame {
   BASE_MODE = base && cls === 'warrior';
   try {
-    if (BASE_MODE && gender) return nakedPose(cls, dir, gender, q); // the clean base character
+    if (BASE_MODE && gender) return nakedPose(cls, dir, gender, q, hair); // the clean base character (with its hairstyle)
     const b: BodyQuery = q.k === 'loop' && q.state === 'alert' ? { ...q, state: 'idle' } : (q as BodyQuery);
     return isSheetClass(cls) ? sheetPose(cls, dir, b) : atlasPoseFor(cls, dir, b);
   } finally { BASE_MODE = false; }

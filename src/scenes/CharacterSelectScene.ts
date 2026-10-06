@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { addClothWind } from '../ui/VisualLife';
 import { CHARACTER_PREVIEWS, CHARACTER_SELECT as L, CHARACTER_SELECT_PREVIEW as PV, COLORS, DESIGN, SELECT_HALO } from '../config/layout';
 import { CharacterSelectUI } from '../ui/CharacterSelectUI';
+import { CharacterStore } from '../characters/CharacterStore';
+import { previewKeyOf } from '../characters/Look';
 import { clearPvpFromUrl } from '../pvp/Room';
 import { enterPvp } from '../pvp/enterPvp';
 import { ClassPresence, preloadLife } from '../ui/PresentationLife';
@@ -18,7 +20,13 @@ export class CharacterSelectScene extends Phaser.Scene {
 
   constructor() { super('CharacterSelectScene'); }
 
-  preload(): void { preloadLife(this); preloadThrone(this); }
+  preload(): void {
+    preloadLife(this); preloadThrone(this);
+    for (const s of CharacterStore.getSlots()) { // characters shown with their hairstyle: those images load here
+      const pv = s.character ? CHARACTER_PREVIEWS[previewKeyOf(s.character)] : undefined;
+      if (pv && !this.textures.exists(pv.key)) this.load.image(pv.key, pv.file);
+    }
+  }
 
   create(): void {
     this.cameras.main.fadeIn(240, 0, 0, 0);

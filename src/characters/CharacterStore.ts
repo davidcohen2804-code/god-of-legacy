@@ -47,6 +47,11 @@ function sanitize(raw: unknown): CharacterSelectData {
       };
       const gd = (c as unknown as { gender?: unknown }).gender;
       if (gd === 'male' || gd === 'female') target.character.gender = gd;
+      const lk = (c as unknown as { look?: Record<string, unknown> }).look;
+      const ix = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 10 ? v : null);
+      if (lk && typeof lk === 'object' && ['hair', 'top', 'pants', 'shoes'].every((k) => ix(lk[k]) !== null)) {
+        target.character.look = { hair: lk.hair as number, top: lk.top as number, pants: lk.pants as number, shoes: lk.shoes as number };
+      }
       const cos = (c as unknown as { cosmetics?: { owned?: unknown; equipped?: unknown } }).cosmetics;
       if (cos && Array.isArray(cos.owned) && cos.equipped && typeof cos.equipped === 'object') {
         target.character.cosmetics = {
@@ -82,14 +87,14 @@ class Store {
   deleteCharacter(id: SlotId): void { this.getSlot(id).character = null; this.save(); }
 
   /** Creates a character in an EMPTY slot only; returns false (and changes nothing) otherwise. */
-  createCharacter(slotId: SlotId, name: string, classId: string, appearanceId: string, gender: 'male' | 'female' = 'male'): boolean {
+  createCharacter(slotId: SlotId, name: string, classId: string, appearanceId: string, gender: 'male' | 'female' = 'male', look?: Character['look']): boolean {
     const slot = this.getSlot(slotId);
     const clean = name.trim();
     if (slot.character || !clean || !classId) return false;
     slot.character = {
       id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `c${Date.now()}`,
       name: clean, classId, level: 1,
-      createdAt: new Date().toISOString(), lastPlayedAt: null, appearanceId, gender,
+      createdAt: new Date().toISOString(), lastPlayedAt: null, appearanceId, gender, ...(look ? { look: { ...look } } : {}),
     };
     this.save();
     return true;

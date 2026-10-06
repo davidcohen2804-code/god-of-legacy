@@ -1,0 +1,44 @@
+{
+ "top": [
+  {
+   "name": "white",
+   "swatch": "#ece9e2"
+  },
+  {
+   "name": "blue",
+   "swatch": "#3e70b8"
+  },
+  {
+   "name": "red",
+   "swatch": "#c44034"
+  }
+ ],
+ "pants": [
+  {
+   "name": "denim",
+   "swatch": "#3c60a8"
+  },
+  {
+   "name": "brown",
+   "swatch": "#7c5432"
+  },
+  {
+   "name": "black",
+   "swatch": "#34343c"
+  }
+ ],
+ "shoes": [
+  {
+   "name": "brown",
+   "swatch": "#804e28"
+  },
+  {
+   "name": "black",
+   "swatch": "#2e2a2a"
+  },
+  {
+   "name": "red",
+   "swatch": "#8e2c24"
+  }
+ ]
+}

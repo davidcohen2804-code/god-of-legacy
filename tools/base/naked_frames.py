@@ -228,7 +228,27 @@ def frame(path, idx, sc, opts=()):
   sh = np.nonzero(lab == 200)
   dx = int(round(HIPX - np.median(sh[1]))); dy = GROUND - int(np.nonzero(fig.any(1))[0].max())
   r = lambda v: np.roll(np.roll(v, dy, 0), dx, 1)
+  global LAST_GEOM
+  LAST_GEOM = dict(X0=X0, Y0=Y0, x1=x1, y1=y1, pad=pad, size=im.size, at=(int(S / 2 - im.width / 2), int(GROUND - im.height + pad * sc)), dy=dy, dx=dx)
   return r(e), r(a), r(fig), r(lab)
+
+
+def layer_to_cell(rgba, g_):
+  """A layer drawn in the GPT image's space (RGBA, straight alpha) → the cell, exactly as frame() placed that figure."""
+  sub = rgba[g_['Y0']:g_['y1'] + g_['pad'], g_['X0']:g_['x1'] + g_['pad']].astype(np.float32)
+  al = sub[..., 3:4] / 255; pm = np.concatenate([sub[..., :3] * al, al * 255], -1).clip(0, 255).astype(np.uint8)
+  im = Image.fromarray(pm, 'RGBA').resize(g_['size'], Image.LANCZOS)
+  cv = Image.new('RGBA', (S, S), (0, 0, 0, 0)); cv.paste(im, g_['at'])
+  w = np.asarray(cv).astype(np.float32); a_ = w[..., 3:4] / 255
+  out = np.concatenate([np.where(a_ > 1e-3, w[..., :3] / np.maximum(a_, 1e-3), 0), a_], -1)
+  return np.roll(np.roll(out, g_['dy'], 0), g_['dx'], 1)               # colour 0..255, alpha 0..1
+
+
+def over(top, bot):
+  """Straight-alpha 'top over bottom' (colour 0..255, alpha 0..1 in the last channel)."""
+  ta, ba = top[..., 3:4], bot[..., 3:4]; oa = ta + ba * (1 - ta)
+  oc = np.where(oa > 1e-4, (top[..., :3] * ta + bot[..., :3] * ba * (1 - ta)) / np.maximum(oa, 1e-4), 0)
+  return np.concatenate([oc, oa], -1)
 
 
 def jaw_split(sil, nrow):
@@ -287,7 +307,7 @@ def occluders(e, fig, lab, gm, zone, ay, ref, ax, reach):
   sh = lambda v: np.roll(np.roll(v, sy0 + best[2], 0), sx0 + best[1], 1)
   xe, xf = sh(ref['e']), sh(ref['fig'])
   sword = fig & (lab == 255)
-  if not sword.any(): return np.zeros((S, S), bool)
+  if not sword.any(): return np.zeros((S, S), bool), np.zeros((S, S), bool)
   inner = nd.binary_dilation(gm, iterations=1)
   through = fig & ((e.max(-1) >= 140) | sword) & ~inner                                # never through GPT's head
   arm = sword.copy(); front = arm.copy()
@@ -303,7 +323,9 @@ def occluders(e, fig, lab, gm, zone, ay, ref, ax, reach):
   occ = skin | over | (sword & zone)
   occ = nd.binary_fill_holes(nd.binary_closing(occ, iterations=2)) & fig & zone          # one solid arm, no see-through
   dark = e.max(-1) < 140                                         # the arm's own outline (not GPT's head outline at its edge)
-  return occ | (nd.binary_dilation(skin, iterations=1) & fig & dark & zone & ~nd.binary_dilation(gm, iterations=2))
+  occ = occ | (nd.binary_dilation(skin, iterations=1) & fig & dark & zone & ~nd.binary_dilation(gm, iterations=2))
+  whole = nd.binary_dilation(arm, iterations=2) & fig & ~inner   # the sword arm with its outline (in front of any hair)
+  return occ, whole
 
 
 def put_head(e, a, fig, lab, hd, r, follow=False, ref=None, search=False, sway=0.0, bob=0, hold=None):
@@ -322,14 +344,18 @@ def put_head(e, a, fig, lab, hd, r, follow=False, ref=None, search=False, sway=0
   ax += dx
   sh = lambda v: np.roll(np.roll(v, dy, 0), hx, 1)
   cut = nd.binary_dilation(gm, iterations=2)                                       # GPT's head
-  occ = occluders(e, fig, lab, gm, cut | sh(hd['head']), ay, ref, ax, int(hd['row'] - hd['top'])) if ref else np.zeros((S, S), bool)
+  occ, arm = occluders(e, fig, lab, gm, cut | sh(hd['head']), ay, ref, ax, int(hd['row'] - hd['top'])) if ref else (np.zeros((S, S), bool), np.zeros((S, S), bool))
   keep = [v.copy() for v in (e, a, lab)]
   e[cut] = 0; a[cut] = 0; fig[cut] = False; lab[cut] = 0
   he, ha, hl = sh(hd['e']), sh(hd['a']), sh(hd['lab'])
+  pasted = np.zeros((S, S), bool)
   for m in (sh(hd['neck']) & ~fig, sh(hd['head'])):                               # neck behind, head over
-    e[m] = he[m]; a[m] = ha[m]; fig[m] = True; lab[m] = hl[m]
+    e[m] = he[m]; a[m] = ha[m]; fig[m] = True; lab[m] = hl[m]; pasted |= m
   e[occ], a[occ], lab[occ] = keep[0][occ], keep[1][occ], keep[2][occ]; fig[occ] = True   # arm / sword in front of it
-  return e, a, fig, lab, dict(dx=dx, hx=hx, dy=dy, occ=int(occ.sum()))
+  # in front of the hair: the sword arm as it shows — none of it when it passes behind the head
+  front = arm & fig & ~(pasted & ~occ)
+  if (arm & pasted).sum() > 30 and occ.sum() < 0.25 * (arm & pasted).sum(): front[:] = False
+  return e, a, fig, lab, dict(dx=dx, hx=hx, dy=dy, occ=int(occ.sum()), front=front)
 
 
 def feet_x(fig):
@@ -370,6 +396,7 @@ fi = figures(idle_path)[idle_idx]
 SC0 = FIG_H / (fi['box'][3] - fi['box'][1]); HEADW = fi['headw'] * SC0; SHORTSW = fi['shortsw'] * SC0     # the standing frame sets the size
 # the standing head (and neck) every other frame wears
 e0, a0, f0, l0 = frame(idle_path, idle_idx, SC0)
+IDLE_GEOM = dict(LAST_GEOM)
 nrow, nl, nr = neck_of(f0)
 sil0 = f0 & (np.arange(S)[:, None] <= nrow); hp0, nk0 = jaw_split(sil0, nrow)
 HEAD = dict(e=e0, a=a0, fig=f0, lab=l0, row=nrow, cx=(nl + nr) / 2, sil=sil0, head=hp0, neck=nk0, top=int(np.nonzero(f0.any(1))[0].min()))
@@ -377,11 +404,18 @@ BODY_H = GROUND - nrow                                                  # standi
 HEADD = fi['headd'] * SC0                                               # the standing head's inscribed size (cell px)
 print(gender, 'standing neck row', nrow, 'x', HEAD['cx'], 'width', nr - nl, 'neck→sole', BODY_H)
 os.makedirs(OUT, exist_ok=True)
+# hairstyles (tools/base/hair_extract.py): drawn on the standing head, in the standing GPT image's space → the idle cell
+HAIRS = []
+while os.path.exists(H + f'/hair/{gender}_{len(HAIRS)}_front.png'):
+  k_ = len(HAIRS); rd = lambda n: np.asarray(Image.open(H + f'/hair/{gender}_{k_}_{n}.png').convert('RGBA'))
+  HAIRS.append((layer_to_cell(rd('front'), IDLE_GEOM), layer_to_cell(rd('back'), IDLE_GEOM)))
+hstrips = [{} for _ in HAIRS]                                  # per style: the strips with that hair (back behind, front over)
 strips, masks, heads, refs, holds = {}, {}, {}, {}, {}         # heads: where the standing head sits per frame (cell px)
 move_sc, move_hw, move_hd = {}, {}, {}                         # per move: its scale, its GPT head width / inscribed size
 for anim, cells in spec['anims'].items():
   if isinstance(cells, dict): continue                         # derived moves (run) below
   n = len(cells); px = np.zeros((S, n * S, 4), np.uint8); mk = np.zeros((S, n * S, 4), np.uint8); heads[anim] = []
+  for hs_ in hstrips: hs_[anim] = np.zeros((S, n * S, 4), np.uint8)
   order = list(range(n)); cl = [o for c_ in cells for o in c_[2:] if str(o).startswith('clean:')]; cell_sc = {}
   if cl: k0 = int(cl[0][6:]); order = [k0] + [k for k in order if k != k0]
   for c in order:
@@ -427,7 +461,7 @@ for anim, cells in spec['anims'].items():
       rr = sc * figures(path)[idx]['headd'] / HEADD
       rax, ray, _, _ = find_head(fig, HEAD, rr, True)
       refs[anim] = dict(e=e.copy(), fig=fig.copy(), ax=rax, ay=ray)
-    hxy = [0, 0]
+    hxy = [0, 0]; hfront = None
     if anim != 'idle' and 'ownhead' not in opts:
       if samed: r = sc * figures(path)[idx]['headd'] / HEADD       # GPT's head size / the standing head's
       else: r = sc * figures(path)[idx]['headw'] / HEADW
@@ -442,9 +476,16 @@ for anim, cells in spec['anims'].items():
       e, a, fig, lab, info = put_head(e, a, fig, lab, HEAD, r, follow='feet' in opts or 'follow' in opts,
                                       ref=refs.get(anim), search=bool(samed), sway=sway[0] if sway else 0.0, bob=bob[0] if bob else 0,
                                       hold=(holds[anim], hold[0]) if hold else None)
-      print(' ', anim, c, 'scale', round(sc, 4), 'head', info); hxy = [int(info['hx']), int(info['dy'])]
+      hfront = info.pop('front')
+      print(' ', anim, c, 'scale', round(sc, 4), 'head', info, 'sword arm over hair', int(hfront.sum())); hxy = [int(info['hx']), int(info['dy'])]
     heads[anim].append((c, hxy))
     px[:, c * S:(c + 1) * S, :3] = e.clip(0, 255).astype(np.uint8); px[:, c * S:(c + 1) * S, 3] = np.where(fig, (a * 255).clip(0, 255), 0).astype(np.uint8)
+    base = np.concatenate([e, np.where(fig, a, 0)[..., None]], -1)
+    for (hf, hb), hs_ in zip(HAIRS, hstrips):                   # the same hair on the same head, wherever it sits
+      shf = lambda v: np.roll(np.roll(v, hxy[1], 0), hxy[0], 1)
+      o = over(shf(hf), over(base, shf(hb)))                    # back hair behind the body, the rest over the head
+      if hfront is not None and hfront.any(): o = over(np.concatenate([e, np.where(hfront, a, 0)[..., None]], -1), o)   # sword arm in front
+      hs_[anim][:, c * S:(c + 1) * S, :3] = o[..., :3].clip(0, 255).astype(np.uint8); hs_[anim][:, c * S:(c + 1) * S, 3] = (o[..., 3] * 255).clip(0, 255).astype(np.uint8)
     mk[:, c * S:(c + 1) * S, 0] = np.where(fig & (lab != 255), lab, 0); mk[:, c * S:(c + 1) * S, 1] = np.where(fig & (lab == 255), 255, 0)
     mk[:, c * S:(c + 1) * S, 3] = 255
   heads[anim] = [h for _, h in sorted(heads[anim], key=lambda t: t[0])]
@@ -465,6 +506,13 @@ for anim, d in spec['anims'].items():                          # derived: the ru
 for anim in strips:
   Image.fromarray(strips[anim]).save(OUT + anim + '.png', optimize=True); Image.fromarray(masks[anim]).save(OUT + anim + '_m.png', optimize=True)
   print(gender, anim, strips[anim].shape[1] // S, 'frames')
+for k, hs_ in enumerate(hstrips):
+  os.makedirs(OUT + f'h{k}', exist_ok=True)
+  for anim, v in hs_.items(): Image.fromarray(v).save(OUT + f'h{k}/{anim}.png', optimize=True)
+print(gender, len(hstrips), 'hairstyles baked')
+np_ = G + 'src/data/naked-hair.json'                            # how many hairstyles each gender has
+nh = json.load(open(np_)) if os.path.exists(np_) else {}
+nh[gender] = len(hstrips); json.dump(nh, open(np_, 'w'), indent=1)
 # what each gender has (the game draws standing for the rest)
 lp = G + 'src/data/naked-anims.json'
 have = json.load(open(lp)) if os.path.exists(lp) else {}
@@ -481,6 +529,22 @@ gh, gw = f['gi'].shape[:2]
 e, a = keyed(f['gi'][max(0, y0 - 30):min(gh, y1 + 13), max(0, x0 - 40):min(gw, x1 + 41)])
 fig = a > 0.5; L, n = nd.label(fig); sz = nd.sum(fig, L, range(1, n + 1)); fig = L == 1 + int(np.argmax(sz))
 Image.fromarray(np.dstack([e, np.where(fig, a * 255, 0)]).clip(0, 255).astype(np.uint8)).save(G + f'public/assets/characters/base/Base_{gender.capitalize()}.png', optimize=True)
+assert (pp, pi) == (idle_path, idle_idx)                        # the hair layers are drawn in this image's space
+os.makedirs(G + 'public/assets/characters/base/hair', exist_ok=True)
+menu_fig = Image.open(G + f'public/assets/characters/base/Base_{gender.capitalize()}.png').convert('RGBA')
+mh = np.nonzero(np.asarray(menu_fig)[..., 3] > 128); mtop = mh[0].min()
+hrow = mtop + int(0.36 * (mh[0].max() - mtop)); hx_ = np.nonzero(np.asarray(menu_fig)[mtop:hrow, :, 3].max(0) > 128)[0]
+hcx, hcy, side = (hx_.min() + hx_.max()) / 2, mtop + 0.42 * (hrow - mtop), 1.55 * (hx_.max() - hx_.min())
+for k in range(len(HAIRS)):                                     # menu hair: the same crop as the menu figure
+  lay = {}
+  for n_ in ('front', 'back'):
+    L_ = np.asarray(Image.open(H + f'/hair/{gender}_{k}_{"backm" if n_ == "back" else n_}.png').convert('RGBA'))   # menu: no filled band
+    lay[n_] = Image.fromarray(L_[max(0, y0 - 30):min(gh, y1 + 13), max(0, x0 - 40):min(gw, x1 + 41)])
+    lay[n_].save(G + f'public/assets/characters/base/hair/{gender.capitalize()}_{k}_{n_}.png', optimize=True)
+  comp = Image.new('RGBA', menu_fig.size, (0, 0, 0, 0)); comp.alpha_composite(lay['back']); comp.alpha_composite(menu_fig); comp.alpha_composite(lay['front'])
+  comp.save(G + f'public/assets/characters/base/Base_{gender.capitalize()}_h{k}.png', optimize=True)   # menus / portraits with the hair
+  ic = comp.crop((int(hcx - side / 2), int(hcy - side / 2), int(hcx + side / 2), int(hcy + side / 2))).resize((96, 96), Image.LANCZOS)
+  ic.save(G + f'public/assets/characters/base/hair/{gender.capitalize()}_{k}_icon.png', optimize=True)   # creation: the hairstyle button
 # QC: every strip on the game background
 rows = []
 for anim, px in strips.items():
