@@ -35,7 +35,7 @@ import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey, damageSkin, 
 import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
 import { baseLoop, ClassKey, dirOf, preloadBodies, registerBodies, resolvePose, PoseFrame } from '../game/Body';
-import { AnimSnap, LAND_MS, Mode, RECOVER_MS, poseQuery } from '../game/PoseState';
+import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
 import { CombatBody, GAUGE, HitOutcome, Kin, PHYS, jump, newKin, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import { finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
@@ -652,7 +652,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const snap: AnimSnap = {
       mode, t: this.mode === 'walk' || this.mode === 'run' || this.mode === 'idle' ? this.loopT : this.modeT,
       speed: Math.hypot(k.vx, k.vy), vz: k.vz, stunMs: 220,
-      skill: run ? { id: run.skill.id, stage: run.stage, elapsed: run.elapsed, ...run.timings } : undefined,
+      skill: run ? { id: run.skill.id, stage: run.stage, elapsed: run.elapsed, ...run.timings, seed: castSeed(run.castId) } : undefined,
     };
     const dir = this.dir; // Whirlwind spins inside its own 360° body loop
     const pose = resolvePose(this.cls, dir, poseQuery(snap), v.wantsBase || this.character!.level < BEGINNER_TO, genderOf(this.character));
@@ -984,7 +984,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (phase === 'done') this.endRun(run, false);
       return;
     }
-    if (phase === 'startup') (run.attackerId === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(run.attackerId))?.startSkill(run.skill.id, run.stage, dirOf(run.aim.x, run.aim.y, 'right'), run.aim);
+    if (phase === 'startup') (run.attackerId === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(run.attackerId))?.startSkill(run.skill.id, run.stage, dirOf(run.aim.x, run.aim.y, 'right'), run.aim, castSeed(run.castId));
   }
 
   private togglePanel(k: 'K' | 'I' | 'O' | 'J'): void {

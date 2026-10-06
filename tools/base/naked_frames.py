@@ -145,7 +145,8 @@ def gpt_sword(f):
     along = (xx - hx_) * ux + (yy - hy_) * uy; perp = np.abs((xx - hx_) * uy - (yy - hy_) * ux)
     guard = (along > -0.06 * ln) & (along < 0.06 * ln) & (perp < 0.14 * ln)       # the crossguard
     grip = (along >= 0) & (along < 0.48 * ln) & (perp < 0.06 * ln + 0.12 * np.clip(along, 0, None))   # grip, pommel
-    hiltm |= (guard | grip) & m & ~skin & (dark | brown | steel)
+    gold = (sat > 0.45) & (R > 120) & (R > B + 60)                                 # a brass guard
+    hiltm |= (guard | grip) & m & ((~skin & (dark | brown | steel)) | (guard & gold))
   return nd.binary_closing(blade | hiltm, iterations=1) & m
 
 

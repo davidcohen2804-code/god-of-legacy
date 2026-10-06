@@ -5,7 +5,15 @@ import { PoseQuery } from './Body';
 
 export type Mode = 'idle' | 'alert' | 'walk' | 'run' | 'takeoff' | 'air' | 'land' | 'skill' | 'recover' | 'hurt' | 'launched' | 'down' | 'getup' | 'dead';
 
-export interface SkillPose { id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number }
+export interface SkillPose { id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number; seed?: number }
+
+/** Stable number of a cast (its id): picks the attack's drawn variant the same way on every screen (Maple: random). */
+export const castSeed = (id: string): number => {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16; // well mixed: casts in a row differ at random
+  return h >>> 0;
+};
 
 export interface AnimSnap {
   mode: Mode;

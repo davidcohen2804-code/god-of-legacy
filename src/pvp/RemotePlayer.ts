@@ -26,7 +26,7 @@ export class RemotePlayer {
   private vz = 0;
   sz = 0;
   aim = { x: 0, y: 1 };
-  private skill: { id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number } | null = null;
+  private skill: { id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number; seed?: number } | null = null;
   private flashMs = -1;
   private deadMs = -1;
   private deathFx: DeathFx;
@@ -74,11 +74,11 @@ export class RemotePlayer {
   }
 
   /** Cast intent from this player: show the same body animation locally (timing from the cast moment). */
-  startSkill(id: string, stage: number, dir: Dir, aim: { x: number; y: number }): void {
+  startSkill(id: string, stage: number, dir: Dir, aim: { x: number; y: number }, seed = 0): void {
     const s = finalSkill(id);
     if (!s || !this.alive) return;
     const t = s.chain?.timings?.[stage] ?? s;
-    this.skill = { id: s.id, stage, elapsed: 0, startup: t.startup, active: t.active, recovery: t.recovery };
+    this.skill = { id: s.id, stage, elapsed: 0, startup: t.startup, active: t.active, recovery: t.recovery, seed };
     this.dir = dir; this.aim = aim; this.mode = 'skill'; this.modeT = 0;
   }
 
