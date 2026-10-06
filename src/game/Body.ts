@@ -198,9 +198,10 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
     case 'airAttack': { const n = moveCols(cls, 'air_attack'); return mv(cls, 'air_attack', dir, Math.min(n - 1, Math.floor(q.p * n))); }
     // warrior reaction sheet: 0 hit, 1 heavy stagger, 2 launched, 3 knocked down, 4–6 getting up, 7 stance
     case 'hurt': return cls === 'warrior' ? mv(cls, 'react', dir, q.p < 0.5 ? 0 : 1) : mv(cls, 'hurt', dir, Math.min(3, Math.floor(q.p * 4)));
-    case 'launched': return cls === 'warrior' ? mv(cls, 'react', dir, 2) : mv(cls, 'hurt', dir, q.vz > 0 ? 1 : 2);
-    case 'down': return cls === 'warrior' ? mv(cls, 'react', dir, q.p < 0.15 ? 2 : 3) : mv(cls, 'death', dir, Math.min(5, Math.floor(q.p * 6)));
-    case 'getup': return cls === 'warrior' ? mv(cls, 'react', dir, 4 + Math.min(2, Math.floor(q.p * 3))) : mv(cls, 'death', dir, Math.max(0, 5 - Math.floor(q.p * 6)));
+    // No lying down (MapleStory-style): launched / knocked down / getting up all read as the heavy stagger, pushed back.
+    case 'launched': return cls === 'warrior' ? mv(cls, 'react', dir, 1) : mv(cls, 'hurt', dir, q.vz > 0 ? 1 : 2);
+    case 'down': return cls === 'warrior' ? mv(cls, 'react', dir, 1) : mv(cls, 'hurt', dir, 2);
+    case 'getup': return cls === 'warrior' ? mv(cls, 'react', dir, q.p < 0.5 ? 1 : 0) : mv(cls, 'hurt', dir, 0);
     case 'recovery': return BASE_MODE ? mv(cls, 'react', dir, 7) : mv(cls, 'recovery', dir, 1 + Math.min(2, Math.floor(q.p * 3))); // base body: the stance frame (no recovery sheet)
     case 'death': return mv(cls, 'death', dir, Math.min(7, Math.floor(q.p * 8)));
     case 'skill': {

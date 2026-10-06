@@ -35,6 +35,7 @@ import { finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
 import { CastRun, SkillRuntime } from '../skills/SkillRuntime';
 import { HitTarget, V2, V3, clampPlace, unit } from '../skills/HitGeometry';
 import { SkillFx, preloadSkillFx } from '../skills/SkillFx';
+import { BEGINNER_TO, jobOfSlot } from '../skills/Jobs';
 import { DeathFx, preloadDeathFx } from '../game/DeathFx';
 import { SkillBook } from '../ui/SkillBook';
 import { CosmeticPanel } from '../ui/CosmeticPanel';
@@ -69,6 +70,8 @@ const ENEMY_SKILL: FinalSkill = {
 export class LegacyCourtyardScene extends Phaser.Scene {
   // ---- local actor (read by QA)
   kin!: Kin;
+  /** Class actually played: the class, or the shared Beginner (warrior base body) before the 1st job. */
+  cls: ClassKey = 'warrior';
   private deathFx?: DeathFx;
   body!: CombatBody;
   view?: ActorView;
@@ -170,7 +173,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.pvp = undefined; this.pvpReady = !pvpRoom;
     const playerId = newPlayerId();
     this.localId = pvpRoom ? playerId : 'local';
-    this.kit = kitFor(character.classId);
+    // Beginner (below the 1st job advancement): every class plays the same sword-only beginner with the basic attack.
+    this.cls = character.level < BEGINNER_TO ? 'warrior' : (character.classId as ClassKey);
+    this.kit = kitFor(this.cls);
     this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;
     this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
     this.combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1 };
@@ -212,7 +217,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.kin = newKin(x, y);
     this.body = new CombatBody(this.kin, !!pvpRoom);
     this.body.maxHp = pvpRoom ? PVP.maxHp : S6.player.maxHp;
-    this.view = new ActorView(this, character.classId as ClassKey, x, y);
+    this.view = new ActorView(this, this.cls, x, y);
     this.view.setName(character.name);
     this.loadCosmetics();
 
@@ -245,7 +250,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onMenu: (k) => this.togglePanel(k),
     });
     const host = this.game.canvas.parentElement!;
-    this.skillBook = new SkillBook(this, host, this.game.canvas, character.classId as ClassKey, character.level, isQAMode());
+    this.skillBook = new SkillBook(this, host, this.game.canvas, this.cls, character.level, isQAMode());
     this.cosPanel = new CosmeticPanel(this, host, this.game.canvas, character, () => this.equipped, (e) => this.setEquipped(e));
     this.skillBook.setEquipped(this.equipped);
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, (_t: number, d: number) => {
@@ -256,7 +261,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const kb = this.input.keyboard!;
     const esc = () => { if (this.skillBook?.open || this.cosPanel?.open) { this.skillBook?.close(); this.cosPanel?.close(); } else if (pvpRoom) exitArena(); };
     kb.on('keydown-ESC', esc);
-    if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: character.classId, name: character.name });
+    if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off(Phaser.Scenes.Events.POST_UPDATE);
@@ -404,7 +409,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Dust only on run foot-contact frames (cadence follows speed). */
   private footDust(sp: number): void {
     if (this.mode !== 'run') { this.lastFootFrame = -1; return; }
-    const sheet = this.character!.classId === 'warrior' || this.character!.classId === 'book_mage';
+    const sheet = this.cls === 'warrior' || this.cls === 'book_mage';
     const fps = (sheet ? 13 : 10) * Math.max(0.75, Math.min(1.15, sp / 270)), n = sheet ? 8 : 5;
     const f = Math.floor((this.loopT * fps) / 1000) % n;
     const contact = sheet ? [0, 4] : [0, 3];
@@ -567,7 +572,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       skill: run ? { id: run.skill.id, stage: run.stage, elapsed: run.elapsed, ...run.timings } : undefined,
     };
     const dir = this.dir; // Whirlwind spins inside its own 360° body loop
-    const pose = resolvePose(this.character!.classId as ClassKey, dir, poseQuery(snap), v.wantsBase);
+    const pose = resolvePose(this.cls, dir, poseQuery(snap), v.wantsBase || this.character!.level < BEGINNER_TO);
     let tint: number | null = null, fill = false, alpha = 1;
     if (this.flash >= 0) { if (this.flash < P6.hitFlashWhiteMs) { tint = 0xffffff; fill = true; } else tint = 0xff6a6a; }
     else if (this.body.hard.active(this.simMs)) tint = this.body.hard.kind === 'freeze' ? 0x9fd8ff : 0xb6ffb0;
@@ -769,6 +774,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   tryStartSlot(i: number): boolean {
     const s = this.kit[i];
     if (!s || !this.rt || this.dead >= 0) return false;
+    if (!isQAMode() && jobOfSlot(this.cls, s.slot).level > (this.character?.level ?? 1)) return false; // skills open with the job advancements
     const now = this.simMs, k = this.kin, b = this.body;
     // War Cry breaks free: usable while stunned / hit / launched / knocked down (cooldown permitting) — clears all CC.
     if (s.id === 'war_cry' && (b.state !== 'free' || b.hard.active(now)) && this.rt.cooldownRemaining(s.id) <= 0) {
@@ -871,7 +877,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (run.skill.chain) this.chain = { stage: run.stage, lastEnd: this.simMs, skill: run.skill.id };
     this.body.armorUntil = -1;
     // Warrior skill sheets end in their own battle stance: go straight to idle (the old recovery frames popped and froze the body).
-    if (!toMove && this.kin.grounded) this.setMode(this.character?.classId === 'warrior' ? 'idle' : 'recover');
+    if (!toMove && this.kin.grounded) this.setMode(this.cls === 'warrior' ? 'idle' : 'recover');
     else if (!this.kin.grounded) this.setMode('air');
   }
 
@@ -1208,7 +1214,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const busy = this.busy();
     const slots: HudSlot[] = HUD.skills.hotkeys.map((hotkey, i) => {
       const s = this.kit[i];
-      if (!s) return { id: `slot-${hotkey}`, hotkey, label: 'Unassigned', assigned: false, enabled: false, pressed: false, cooldown: null };
+      if (!s || (!isQAMode() && jobOfSlot(this.cls, s.slot).level > ch.level)) return { id: `slot-${hotkey}`, hotkey, label: s ? 'Locked' : 'Unassigned', assigned: false, enabled: false, pressed: false, cooldown: null }; // opens with its job
       const rem = this.rt?.cooldownRemaining(s.id) ?? 0;
       const airBlocked = !k.grounded && !s.air;
       return {
