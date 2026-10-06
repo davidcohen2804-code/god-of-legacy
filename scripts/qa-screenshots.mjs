@@ -34,9 +34,9 @@ for (const [w, h] of [[1920, 1080], [1280, 720]]) {
   await p.click('.gol-cs .slot >> nth=1'); await p.mouse.move(1000 * k, 500 * k); await W(p, 500); await shot(p, '07_slot_selected', w);
   await p.evaluate((d) => localStorage.setItem('godoflegacy.characters', JSON.stringify(d)), QA_CHAR); await boot();
   await click(960, 585); await p.waitForSelector('.gol-cs .slot'); await W(p, 700); await shot(p, '08_character_filled_QA_data', w);
-  await p.click('.gol-cs > .btn:has-text("DELETE")'); await W(p, 400); await shot(p, '09_delete_confirm', w);
+  await p.click('.gol-cs .ktrash'); await W(p, 400); await shot(p, '09_delete_confirm', w);
   await p.keyboard.press('Escape'); await W(p, 300);
-  await p.click('.gol-cs .btn:has-text("CREATE CHARACTER")'); await W(p, 1200); await shot(p, '10_create_placeholder', w);
+  await p.click('.gol-cs .slot >> nth=0'); await W(p, 300); await p.click('.gol-cs .kbtn:has-text("CREATE CHARACTER")'); // create opens from an empty slot await W(p, 1200); await shot(p, '10_create_placeholder', w);
   await p.goto(URL + '?qa=1'); await p.waitForFunction(() => window.__game?.scene.isActive('MainMenuScene'), null, { timeout: 30000 }); await W(p, 1500);
   await p.keyboard.press('F9'); await W(p, 500);
   await shot(p, '11_qa_panel', w);
