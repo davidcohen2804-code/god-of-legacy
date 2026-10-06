@@ -22,8 +22,9 @@
 #   "clean:N"  cell N of the move has GPT's head clear: what other frames draw over their head (arm, sword) stays in front
 #   "sword"  the sword is found (blade + hilt) and goes to the mask's G channel (not the body labels)
 #   "swapg"  the two legs' tones exchanged (found at GPT's size): GPT drew the same leg forward again
-#   "airK"   the move's frames keep K of GPT's height off the ground (heads level as drawn, the lowest feet grounded);
-#            "liftN": that frame N px higher still (the top of the stride)
+#   "airK"   the move's frames keep K of GPT's height off the ground (heads level as drawn, the lowest feet grounded;
+#            per GPT image); "liftN": that frame N px higher still (the top of the stride)
+#   "sc:N"   the scale of cell N of the move (another GPT image of the move, its body drawn at that size)
 #   "holdK"  (with follow) the head stays near the move's mean x, keeping K of GPT's own shift; the frame moves under it
 # "run": {"from": "walk", "lean": [body, torso], "lift": [px per frame]} — the walk frames leaning forward (the whole
 #   body tilts from the feet, the torso a little more from the waist; the head stays upright), optional lift per frame.
@@ -198,9 +199,17 @@ def frame(path, idx, sc, opts=()):
     e = np.where(back[..., None], np.clip(e * (mf / mb), 0, 255), np.where(front[..., None], np.clip(e * (mb / mf), 0, 255), e))
   if 'swapg' in opts:                                           # near / far leg tones exchanged (GPT drew the same leg again)
     legs = gpt_legs(f); eg, _ = keyed(f['gi']); bright = eg.max(-1) > 150
-    m0, m1 = np.median(eg[legs[0] & bright], 0), np.median(eg[legs[1] & bright], 0)
-    s0, s1 = [nd.gaussian_filter(to_cell(l), 0.6).clip(0, 1)[..., None] for l in legs]
-    e = e * (1 - (1 - (m1 / m0).clip(0.7, 1.4)) * s0) * (1 - (1 - (m0 / m1).clip(0.7, 1.4)) * s1)
+    px_ = [eg[l & bright] for l in legs]; med = [np.median(p, 0) for p in px_]
+    skin_ = ((e.max(-1) - 120) / 30).clip(0, 1)[..., None]                          # not the outline
+    out = e.copy(); q = np.linspace(0, 100, 101)
+    for k in (0, 1):
+      s = nd.gaussian_filter(to_cell(legs[k]), 0.6).clip(0, 1)[..., None]
+      if med[k].sum() < med[1 - k].sum():                       # the shaded leg lit like the other one: its own light / dark
+        tgt = np.stack([np.interp(e[..., ch], np.percentile(px_[k][:, ch], q) + q * 1e-6, np.percentile(px_[1 - k][:, ch], q))
+                        for ch in range(3)], -1)                #   order kept, never lighter than the lit leg (a lit sole)
+      else: tgt = e * (med[1 - k] / med[k]).clip(0.7, 1.4)      # the lit leg in the shaded leg's tone
+      out += (tgt - e) * s * skin_
+    e = out
   far = [o for o in opts if o in ('farL', 'farR')]
   if far:                                                       # the far leg darker: its GPT mask through the same resize
     legs = gpt_legs(f); k = 0 if far[0] == 'farL' else 1
@@ -365,7 +374,7 @@ move_sc, move_hw, move_hd = {}, {}, {}                         # per move: its s
 for anim, cells in spec['anims'].items():
   if isinstance(cells, dict): continue                         # derived moves (run) below
   n = len(cells); px = np.zeros((S, n * S, 4), np.uint8); mk = np.zeros((S, n * S, 4), np.uint8); heads[anim] = []
-  order = list(range(n)); cl = [o for c_ in cells for o in c_[2:] if str(o).startswith('clean:')]
+  order = list(range(n)); cl = [o for c_ in cells for o in c_[2:] if str(o).startswith('clean:')]; cell_sc = {}
   if cl: k0 = int(cl[0][6:]); order = [k0] + [k for k in order if k != k0]
   for c in order:
     cell = cells[c]
@@ -386,17 +395,20 @@ for anim, cells in spec['anims'].items():
     samed = [o for o in opts if str(o).startswith('asd:')]
     if samed:                                                  # the same size as that move by the heads' inscribed circles
       ref_ = samed[0][4:]; cl = [o for o in opts if str(o).startswith('clean:')]
-      hd_ = figures(cells[int(cl[0][6:])][0])[cells[int(cl[0][6:])][1]]['headd'] if cl else np.mean([figures(cc[0])[cc[1]]['headd'] for cc in cells])
+      hd_ = figures(cells[int(cl[0][6:])][0])[cells[int(cl[0][6:])][1]]['headd'] if cl else np.mean([figures(cc[0])[cc[1]]['headd'] for cc in cells if cc[0] == path])
       sc = move_sc[ref_] * move_hd[ref_] / hd_
     same = [o for o in opts if str(o).startswith('as:')]
     if same:                                                   # drawn at the size of that move's GPT image: its scale
       ref = same[0][3:]
       sc = move_sc[ref] * move_hw[ref] / np.mean([figures(cc[0])[cc[1]]['headw'] for cc in cells])
+    scn = [o for o in opts if str(o).startswith('sc:')]
+    if scn: sc = cell_sc[int(scn[0][3:])]                      # another GPT image, the body drawn at that cell's size
+    cell_sc[c] = sc
     e, a, fig, lab = frame(path, idx, sc, opts)
     air = [float(o[3:]) for o in opts if str(o).startswith('air')]
     if air:                                                    # off the ground as GPT drew it (same head height, feet up)
-      hs = [figures(cc[0])[cc[1]]['box'][3] - figures(cc[0])[cc[1]]['box'][1] for cc in cells]
-      up = int(round((max(hs) - hs[c]) * sc * air[0])) + sum(int(o[4:]) for o in opts if str(o).startswith('lift'))
+      hs = {k: figures(cc[0])[cc[1]]['box'][3] - figures(cc[0])[cc[1]]['box'][1] for k, cc in enumerate(cells) if cc[0] == path}
+      up = int(round((max(hs.values()) - hs[c]) * sc * air[0])) + sum(int(o[4:]) for o in opts if str(o).startswith('lift'))
       if up: e, a, fig, lab = [np.roll(v, -up, 0) for v in (e, a, fig, lab)]
     if 'feet' in opts:                                         # planted: the feet of the move's first frame done
       if c == order[0]: feet0 = feet_x(fig)
