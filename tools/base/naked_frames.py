@@ -16,6 +16,9 @@
 #   "ownhead"  keep GPT's head (no standing head)
 #   "feet"   the feet stay planted: every frame's feet where the move's first frame has them, the head goes with the neck
 #   "follow" the head goes with the neck (the frame is not moved under the standing head's x)
+#   "asd:<move>"  the same size as that move, measured by the heads' inscribed circles (works with swords / raised arms)
+#   "clean:N"  cell N of the move has GPT's head clear: what other frames draw over their head (arm, sword) stays in front
+#   "sword"  the sword is found (blade + hilt) and goes to the mask's G channel (not the body labels)
 # "run": {"from": "walk", "lean": [body, torso], "lift": [px per frame]} — the walk frames leaning forward (the whole
 #   body tilts from the feet, the torso a little more from the waist; the head stays upright), optional lift per frame.
 import json, os, sys, numpy as np
@@ -59,11 +62,14 @@ def figures(path):
     if max(runs) > 1:                                          # hands up beside the head: the rows above them only
       head = head[:runs.index(next(v for v in runs if v > 1))]
     hx = np.nonzero(head.any(0))[0]
+    dt = nd.distance_transform_edt(m[y0:y1 + 1]); dt[int((y1 - y0) * 0.6):] = 0
+    headd = 2 * float(dt.max())                                # head size from its inscribed circle (arms, swords: any pose)
+    if len(hx) < 2: hx = np.array([0, headd / 0.92])
     R_, G_, B_ = [e[..., k] for k in range(3)]; mx_ = np.maximum(np.maximum(R_, G_), B_); mn_ = np.minimum(np.minimum(R_, G_), B_)
     grey = m & ((mx_ - mn_) / np.maximum(mx_, 1) < 0.13) & (mx_ > 105) & (np.arange(m.shape[0])[:, None] > y0 + (y1 - y0) * 0.45)
     gx = np.nonzero(grey.any(0))[0]
     nk = neck_of(m)
-    figs.append(dict(gi=gi, m=m, box=(x0, y0, x1, y1), cx=xs.mean(), cy=ys.mean(), headw=float(hx.max() - hx.min()),
+    figs.append(dict(gi=gi, m=m, box=(x0, y0, x1, y1), cx=xs.mean(), cy=ys.mean(), headw=float(hx.max() - hx.min()), headd=headd,
                      shortsw=float(gx.max() - gx.min()) if len(gx) else 0.0, nts=float(y1 - nk[0])))
   # rows (top row first), each left to right
   figs.sort(key=lambda f: f['cy']); hmed = np.median([f['box'][3] - f['box'][1] for f in figs]); row, last = 0, None
@@ -109,11 +115,45 @@ def gpt_legs(f):
   return [l | (near & (di <= dj)) for l, di, dj in ((legs[0], d[0], d[1]), (legs[1], d[1], d[0]))]
 
 
-def label(e, a):
+def gpt_sword(f):
+  """The sword a GPT figure holds: the long thin light-steel blade, and the guard / grip / pommel at its hilt end."""
+  m = f['m']; e, _ = keyed(f['gi'])
+  R, Gc, B = e[..., 0], e[..., 1], e[..., 2]; mx = np.maximum(np.maximum(R, Gc), B); mn = np.minimum(np.minimum(R, Gc), B)
+  sat = (mx - mn) / np.maximum(mx, 1)
+  skin = (R > 150) & (Gc > 95) & (B > 60) & (R > Gc + 10) & (Gc > B + 8)
+  steel = nd.binary_opening(m & (mx > 120) & (B >= R - 4) & (sat < 0.3) & ~skin, iterations=1)
+  L, n = nd.label(steel); blade = np.zeros_like(m); ends = []
+  for k in range(1, n + 1):
+    ys, xs = np.nonzero(L == k)
+    if len(ys) < 300: continue
+    c = np.cov(np.vstack([xs, ys])); ev, vec = np.linalg.eigh(c)
+    if ev[1] < 8 * max(ev[0], 1e-3) or np.sqrt(ev[1]) < 25: continue
+    blade |= L == k
+    u = vec[:, 1]; t = (xs - xs.mean()) * u[0] + (ys - ys.mean()) * u[1]
+    p0, p1 = (xs[t.argmin()], ys[t.argmin()]), (xs[t.argmax()], ys[t.argmax()])
+    ln = t.max() - t.min()
+    ds = nd.distance_transform_edt(~(skin & m))
+    hilt, tip = (p0, p1) if ds[p0[1], p0[0]] < ds[p1[1], p1[0]] else (p1, p0)      # the end at the fist
+    ax_ = np.array([hilt[0] - tip[0], hilt[1] - tip[1]], float); ax_ /= np.linalg.norm(ax_)
+    ends.append((hilt, ax_, ln))
+  if not ends: return blade
+  yy, xx = np.mgrid[0:m.shape[0], 0:m.shape[1]]
+  hiltm = np.zeros_like(m)
+  dark = mx < 150                                                                 # guard, pommel
+  brown = (R > Gc + 12) & (Gc > B + 6) & (sat > 0.25) & (mx < 200) & ~skin         # grip
+  for (hx_, hy_), (ux, uy), ln in ends:                                           # along the blade's line, past its base:
+    along = (xx - hx_) * ux + (yy - hy_) * uy; perp = np.abs((xx - hx_) * uy - (yy - hy_) * ux)
+    guard = (along > -0.06 * ln) & (along < 0.06 * ln) & (perp < 0.14 * ln)       # the crossguard
+    grip = (along >= 0) & (along < 0.48 * ln) & (perp < 0.06 * ln + 0.12 * np.clip(along, 0, None))   # grip, pommel
+    hiltm |= (guard | grip) & m & ~skin & (dark | brown | steel)
+  return nd.binary_closing(blade | hiltm, iterations=1) & m
+
+
+def label(e, a, excl=None):
   fig = a > 0.5
   R, Gc, B = e[..., 0], e[..., 1], e[..., 2]
   mx = np.maximum(np.maximum(R, Gc), B); mn = np.minimum(np.minimum(R, Gc), B); sat = (mx - mn) / np.maximum(mx, 1)
-  grey = nd.binary_opening(fig & (sat < 0.13) & (mx > 105), iterations=1)
+  grey = nd.binary_opening(fig & (sat < 0.13) & (mx > 105) & (True if excl is None else ~excl), iterations=1)
   lab = np.where(fig, 60, 0).astype(np.uint8)
   gL, gn = nd.label(grey)
   parts = [(np.nonzero(gL == k)[0].mean(), gL == k) for k in range(1, gn + 1) if (gL == k).sum() >= 40]
@@ -122,6 +162,7 @@ def label(e, a):
     lab[nd.binary_fill_holes(nd.binary_closing(cm, iterations=2)) & fig] = 200 if cy > low - 15 else 80
   for part in (80, 200):
     lab[nd.binary_dilation(lab == part, iterations=2) & fig & (lab == 60) & (mx < 120)] = part
+  if excl is not None: lab[excl & fig] = 255                    # the sword (its own mask channel)
   return fig, lab
 
 
@@ -135,7 +176,12 @@ def frame(path, idx, sc, opts=()):
   im = Image.fromarray(sub.clip(0, 255).astype(np.uint8)).resize((max(1, int(round(w * sc))), max(1, int(round(h * sc)))), Image.LANCZOS)
   canvas = Image.new('RGB', (S, S), (255, 0, 255)); canvas.paste(im, (int(S / 2 - im.width / 2), int(GROUND - im.height + pad * sc)))
   e, a = keyed(np.array(canvas).astype(np.float32))
-  fig, lab = label(e, a)
+  def to_cell(mask):                                            # a GPT-space mask → this cell, exactly like the picture
+    lm = Image.fromarray((mask[Y0:y1 + pad, X0:x1 + pad] * 255).astype(np.uint8)).resize(im.size, Image.LANCZOS)
+    cm = Image.new('L', (S, S), 0); cm.paste(lm, (int(S / 2 - im.width / 2), int(GROUND - im.height + pad * sc)))
+    return np.array(cm).astype(np.float32) / 255
+  sw = to_cell(gpt_sword(f)) > 0.5 if 'sword' in opts else None
+  fig, lab = label(e, a, sw)
   if 'swap' in opts:
     back, front = split_legs(e, fig, lab)
     deep = np.arange(S)[:, None] > np.percentile(np.nonzero(lab == 200)[0], 97) + 3
@@ -146,10 +192,7 @@ def frame(path, idx, sc, opts=()):
     legs = gpt_legs(f); k = 0 if far[0] == 'farL' else 1
     eg, _ = keyed(f['gi']); bright = eg.max(-1) > 150
     gain = (np.median(eg[legs[1 - k] & bright], 0) * TONE / np.median(eg[legs[k] & bright], 0)).clip(0.7, 1.05)
-    leg = legs[k][Y0:y1 + pad, X0:x1 + pad]
-    lm = Image.fromarray((leg * 255).astype(np.uint8)).resize(im.size, Image.LANCZOS)
-    cm = Image.new('L', (S, S), 0); cm.paste(lm, (int(S / 2 - im.width / 2), int(GROUND - im.height + pad * sc)))
-    soft = nd.gaussian_filter(np.array(cm).astype(np.float32) / 255, 0.6).clip(0, 1)
+    soft = nd.gaussian_filter(to_cell(legs[k]), 0.6).clip(0, 1)
     e = e * (1 - (1 - gain) * soft[..., None])
   sh = np.nonzero(lab == 200)
   dx = int(round(HIPX - np.median(sh[1]))); dy = GROUND - int(np.nonzero(fig.any(1))[0].max())
@@ -170,7 +213,17 @@ def jaw_split(sil, nrow):
   return sil & ~neck, neck
 
 
-def find_head(fig, hd, r):
+def find_head(fig, hd, r, search=False):
+  if search:                                                    # several sizes: the best fit (score per template pixel)
+    best = None
+    for k in np.arange(0.9, 1.101, 0.025):
+      res = find_head(fig, hd, r * k)
+      if best is None or res[3] > best[3]: best = res
+    return best
+  return _find_head(fig, hd, r)
+
+
+def _find_head(fig, hd, r):
   """Where GPT drew its head: the standing head's outline (scaled to GPT's head size, r) laid over this figure — the
   head inside the figure, the band just outside its upper half clear of it. → GPT's neck point (x, y), the scaled
   standing head (without its neck) laid there = GPT's head."""
@@ -184,27 +237,64 @@ def find_head(fig, hd, r):
   sc = signal.correlate(fig.astype(np.float32), K, mode='valid', method='fft')
   top = int(np.nonzero(fig.any(1))[0].min())
   win = np.full(sc.shape, -1e9, np.float32); lo, hi = max(0, top - 20), min(sc.shape[0], top + 60); win[lo:hi] = sc[lo:hi]
-  ty, tx = np.unravel_index(np.argmax(win), win.shape); ty, tx = ty + 4, tx + 4
+  ty, tx = np.unravel_index(np.argmax(win), win.shape); score = float(win[ty, tx]) / T.sum(); ty, tx = ty + 4, tx + 4
   m = np.zeros((S, S), bool); m[ty:ty + TH.shape[0], tx:tx + TH.shape[1]] = TH
-  return tx + (hd['cx'] - x0) * r, ty + (hd['row'] - y0) * r, m
+  return tx + (hd['cx'] - x0) * r, ty + (hd['row'] - y0) * r, m, score
 
 
-def put_head(e, a, fig, lab, hd, r, follow=False):
+def occluders(e, fig, lab, gm, zone, ay, ref, ax, reach):
+  """What GPT drew in front of its own head — the sword and the arm holding it — kept in front of the standing head.
+  The arm = what is within an arm's length of the sword's hilt, going through the inside of the arm (not across
+  outlines); over GPT's head, only where this frame differs from the same head drawn clean (another frame)."""
+  sx0, sy0 = int(round(ax - ref['ax'])), int(round(ay - ref['ay']))
+  best = None                                                    # the clean head laid exactly over this one
+  for oy in range(-4, 5):
+    for ox in range(-4, 5):
+      xe_ = np.roll(np.roll(ref['e'], sy0 + oy, 0), sx0 + ox, 1)
+      err = float(np.minimum(np.abs(e - xe_).sum(-1), 200)[gm & fig].mean())
+      if best is None or err < best[0]: best = (err, ox, oy)
+  sh = lambda v: np.roll(np.roll(v, sy0 + best[2], 0), sx0 + best[1], 1)
+  xe, xf = sh(ref['e']), sh(ref['fig'])
+  sword = fig & (lab == 255)
+  if not sword.any(): return np.zeros((S, S), bool)
+  inner = nd.binary_dilation(gm, iterations=1)
+  through = fig & ((e.max(-1) >= 140) | sword) & ~inner                                # never through GPT's head
+  arm = sword.copy(); front = arm.copy()
+  for _ in range(int(reach * 0.85)):                             # within an arm's length of the sword, inside the arm
+    front = nd.binary_dilation(front) & through & ~arm
+    if not front.any(): break
+    arm |= front
+  diff = np.abs(e - xe).sum(-1)
+  cand = nd.binary_opening(gm & fig & (~xf | (diff > 150)), iterations=2)   # no thin strips (outlines 1-2 px apart)
+  L, n = nd.label(cand); near = nd.binary_dilation(arm & ~gm, iterations=2)
+  over = np.isin(L, [k for k in range(1, n + 1) if ((L == k) & near).any()])   # over GPT's head: joined to the arm
+  skin = zone & ~inner & arm & ~sword
+  occ = skin | over | (sword & zone)
+  occ = nd.binary_fill_holes(nd.binary_closing(occ, iterations=2)) & fig & zone          # one solid arm, no see-through
+  dark = e.max(-1) < 140                                         # the arm's own outline (not GPT's head outline at its edge)
+  return occ | (nd.binary_dilation(skin, iterations=1) & fig & dark & zone & ~nd.binary_dilation(gm, iterations=2))
+
+
+def put_head(e, a, fig, lab, hd, r, follow=False, ref=None, search=False):
   """GPT's head off, the standing head on (the same drawing), on GPT's neck point; its neck goes behind the body (the
   frame keeps its own neck). follow=False: the head keeps the standing x and the frame moves under it (walk);
   follow=True: the frame stays (planted feet), the head goes with it."""
-  ax, ay, gm = find_head(fig, hd, r)
+  ax, ay, gm, _ = find_head(fig, hd, r, search)
   dy = int(round(ay - hd['row'])); hx = int(round(ax - hd['cx']))
   dx = 0
   if not follow: dx, hx = -hx, 0
   e, a, fig, lab, gm = [np.roll(v, dx, 1) for v in (e, a, fig, lab, gm)]
-  cut = nd.binary_dilation(gm, iterations=2)                                       # GPT's head
-  e[cut] = 0; a[cut] = 0; fig[cut] = False; lab[cut] = 0
+  ax += dx
   sh = lambda v: np.roll(np.roll(v, dy, 0), hx, 1)
+  cut = nd.binary_dilation(gm, iterations=2)                                       # GPT's head
+  occ = occluders(e, fig, lab, gm, cut | sh(hd['head']), ay, ref, ax, int(hd['row'] - hd['top'])) if ref else np.zeros((S, S), bool)
+  keep = [v.copy() for v in (e, a, lab)]
+  e[cut] = 0; a[cut] = 0; fig[cut] = False; lab[cut] = 0
   he, ha, hl = sh(hd['e']), sh(hd['a']), sh(hd['lab'])
   for m in (sh(hd['neck']) & ~fig, sh(hd['head'])):                               # neck behind, head over
     e[m] = he[m]; a[m] = ha[m]; fig[m] = True; lab[m] = hl[m]
-  return e, a, fig, lab, dict(dx=dx, hx=hx, dy=dy)
+  e[occ], a[occ], lab[occ] = keep[0][occ], keep[1][occ], keep[2][occ]; fig[occ] = True   # arm / sword in front of it
+  return e, a, fig, lab, dict(dx=dx, hx=hx, dy=dy, occ=int(occ.sum()))
 
 
 def feet_x(fig):
@@ -247,16 +337,20 @@ SC0 = FIG_H / (fi['box'][3] - fi['box'][1]); HEADW = fi['headw'] * SC0; SHORTSW 
 e0, a0, f0, l0 = frame(idle_path, idle_idx, SC0)
 nrow, nl, nr = neck_of(f0)
 sil0 = f0 & (np.arange(S)[:, None] <= nrow); hp0, nk0 = jaw_split(sil0, nrow)
-HEAD = dict(e=e0, a=a0, fig=f0, lab=l0, row=nrow, cx=(nl + nr) / 2, sil=sil0, head=hp0, neck=nk0)
+HEAD = dict(e=e0, a=a0, fig=f0, lab=l0, row=nrow, cx=(nl + nr) / 2, sil=sil0, head=hp0, neck=nk0, top=int(np.nonzero(f0.any(1))[0].min()))
 BODY_H = GROUND - nrow                                                  # standing neck → sole
+HEADD = fi['headd'] * SC0                                               # the standing head's inscribed size (cell px)
 print(gender, 'standing neck row', nrow, 'x', HEAD['cx'], 'width', nr - nl, 'neck→sole', BODY_H)
 os.makedirs(OUT, exist_ok=True)
-strips, masks, heads = {}, {}, {}                              # heads: where the standing head sits per frame (cell px)
-move_sc, move_hw = {}, {}                                      # per move: its scale and its GPT head width
+strips, masks, heads, refs = {}, {}, {}, {}                    # heads: where the standing head sits per frame (cell px)
+move_sc, move_hw, move_hd = {}, {}, {}                         # per move: its scale, its GPT head width / inscribed size
 for anim, cells in spec['anims'].items():
   if isinstance(cells, dict): continue                         # derived moves (run) below
   n = len(cells); px = np.zeros((S, n * S, 4), np.uint8); mk = np.zeros((S, n * S, 4), np.uint8); heads[anim] = []
-  for c, cell in enumerate(cells):
+  order = list(range(n)); cl = [o for c_ in cells for o in c_[2:] if str(o).startswith('clean:')]
+  if cl: k0 = int(cl[0][6:]); order = [k0] + [k for k in order if k != k0]
+  for c in order:
+    cell = cells[c]
     path, idx = cell[0], cell[1]
     opts = cell[2:]
     sc = HEADW / figures(path)[idx]['headw']
@@ -271,25 +365,39 @@ for anim, cells in spec['anims'].items():
     if like:                                                   # same pose as cell N of this move: same height as it
       rp, ri = cells[int(like[0][4:])][:2]; rf = figures(rp)[ri]; tf = figures(path)[idx]
       sc = (HEADW / rf['headw']) * (rf['box'][3] - rf['box'][1]) / (tf['box'][3] - tf['box'][1])
+    samed = [o for o in opts if str(o).startswith('asd:')]
+    if samed:                                                  # the same size as that move by the heads' inscribed circles
+      ref_ = samed[0][4:]; cl = [o for o in opts if str(o).startswith('clean:')]
+      hd_ = figures(cells[int(cl[0][6:])][0])[cells[int(cl[0][6:])][1]]['headd'] if cl else np.mean([figures(cc[0])[cc[1]]['headd'] for cc in cells])
+      sc = move_sc[ref_] * move_hd[ref_] / hd_
     same = [o for o in opts if str(o).startswith('as:')]
     if same:                                                   # drawn at the size of that move's GPT image: its scale
       ref = same[0][3:]
       sc = move_sc[ref] * move_hw[ref] / np.mean([figures(cc[0])[cc[1]]['headw'] for cc in cells])
     e, a, fig, lab = frame(path, idx, sc, opts)
-    if 'feet' in opts:                                         # planted: the feet of the move's first frame
-      if c == 0: feet0 = feet_x(fig)
+    if 'feet' in opts:                                         # planted: the feet of the move's first frame done
+      if c == order[0]: feet0 = feet_x(fig)
       else:
         k = int(round(feet0 - feet_x(fig))); e, a, fig, lab = [np.roll(v, k, 1) for v in (e, a, fig, lab)]
+    if cl and c == order[0] and anim not in refs:              # the clean GPT head every frame of the move is compared to
+      rr = sc * figures(path)[idx]['headd'] / HEADD
+      rax, ray, _, _ = find_head(fig, HEAD, rr, True)
+      refs[anim] = dict(e=e.copy(), fig=fig.copy(), ax=rax, ay=ray)
     hxy = [0, 0]
     if anim != 'idle' and 'ownhead' not in opts:
-      r = sc * figures(path)[idx]['headw'] / HEADW                 # GPT's head size / the standing head's
-      e, a, fig, lab, info = put_head(e, a, fig, lab, HEAD, r, follow='feet' in opts or 'follow' in opts)
+      if samed: r = sc * figures(path)[idx]['headd'] / HEADD       # GPT's head size / the standing head's
+      else: r = sc * figures(path)[idx]['headw'] / HEADW
+      e, a, fig, lab, info = put_head(e, a, fig, lab, HEAD, r, follow='feet' in opts or 'follow' in opts,
+                                      ref=refs.get(anim), search=bool(samed))
       print(' ', anim, c, 'scale', round(sc, 4), 'head', info); hxy = [int(info['hx']), int(info['dy'])]
-    heads[anim].append(hxy)
+    heads[anim].append((c, hxy))
     px[:, c * S:(c + 1) * S, :3] = e.clip(0, 255).astype(np.uint8); px[:, c * S:(c + 1) * S, 3] = np.where(fig, (a * 255).clip(0, 255), 0).astype(np.uint8)
-    mk[:, c * S:(c + 1) * S, 0] = np.where(fig, lab, 0); mk[:, c * S:(c + 1) * S, 3] = 255
+    mk[:, c * S:(c + 1) * S, 0] = np.where(fig & (lab != 255), lab, 0); mk[:, c * S:(c + 1) * S, 1] = np.where(fig & (lab == 255), 255, 0)
+    mk[:, c * S:(c + 1) * S, 3] = 255
+  heads[anim] = [h for _, h in sorted(heads[anim], key=lambda t: t[0])]
   strips[anim] = px; masks[anim] = mk
   move_sc[anim] = sc; move_hw[anim] = float(np.mean([figures(cc[0])[cc[1]]['headw'] for cc in cells]))
+  move_hd[anim] = float(np.mean([figures(cc[0])[cc[1]]['headd'] for cc in cells]))
 for anim, d in spec['anims'].items():                          # derived: the run = the walk leaning forward
   if not isinstance(d, dict): continue
   base, bmk = strips[d['from']], masks[d['from']]; n = base.shape[1] // S

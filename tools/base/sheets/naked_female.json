@@ -1,6 +1,6 @@
 {
  "gender": "female",
- "_note": "figures are counted per GPT image row by row, left to right; farL / farR = that leg (as drawn) is the far one (drawn darker); body1.0 = the move's tallest neck-to-sole = the standing one; every frame wears the standing head; as:walk = the same scale as the walk (same GPT size); feet = planted feet, the head goes with the neck; follow = the head goes with the neck",
+ "_note": "figures are counted per GPT image row by row, left to right; farL / farR = that leg (as drawn) is the far one (drawn darker); body1.0 = the move's tallest neck-to-sole = the standing one; every frame wears the standing head; as:walk = the same scale as the walk (same GPT size); feet = planted feet, the head goes with the neck; follow = the head goes with the neck; asd:walk = the walk's size by the heads' inscribed circles; clean:N = cell N has GPT's head clear (what other frames draw over the head stays in front); sword = the sword goes to the mask's G channel",
  "anims": {
   "idle": [
    ["naked_female_idle.png", 0]
@@ -18,6 +18,11 @@
   ],
   "jump": [
    ["naked_both_jump.png", 1, "as:walk", "farR", "follow"]
+  ],
+  "swing1": [
+   ["naked_both_swing1.png", 3, "asd:walk", "farR", "feet", "clean:2", "sword"],
+   ["naked_both_swing1.png", 4, "asd:walk", "farR", "feet", "clean:2", "sword"],
+   ["naked_both_swing1.png", 5, "asd:walk", "farR", "feet", "clean:2", "sword"]
   ],
   "run": {"from": "walk", "lean": [0.08, 0.14], "lift": [4, 0, 4, 0]}
  },

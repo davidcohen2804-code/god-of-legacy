@@ -179,6 +179,9 @@ function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): P
     const c = baseLoop(q.state, q.speed); frame = Math.floor((q.t * c.fps) / 1000) % has[anim];
   } else if (q.k === 'loop' && q.state === 'alert' && has.alert) { anim = 'alert'; frame = Math.floor(q.t / 500) % has.alert; } // 0.5 s a frame (Maple)
   else if (q.k === 'jump' && q.phase !== 'land' && has.jump) anim = 'jump'; // Maple: one frame the whole time off the ground
+  else if (q.k === 'skill' && q.id === 'warrior_basic' && has.swing1) { // the sword swing: wind-up, strike, follow-through
+    anim = 'swing1'; frame = q.elapsed < q.startup ? 0 : q.elapsed < q.startup + q.active * 0.5 ? 1 : 2;
+  }
   const key = nakedKey(g, anim), [hx, hy] = NAKED_HEADS[g]?.[anim]?.[frame] ?? [0, 0], fx = f.flip ? -1 : 1;
   return { ...f, key, frame, wkey: `${key}-w`, blade: null, bladeBehind: false, hair: null, head: null,
     anchor: f.anchor ? f.anchor.map((v, i) => (i % 2 === 0 ? v + hx * fx * SHEET_SCALE : v + (hy + (i === 1 ? NAKED_HEAD_DROP : 0)) * SHEET_SCALE)) : null };
