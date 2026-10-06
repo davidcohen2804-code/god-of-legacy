@@ -91,6 +91,7 @@ for f in frames:
   out = np.zeros((S, S, 4), np.uint8); out[..., :3] = e.astype(np.uint8); out[..., 3] = np.where(fig, (a * 255).clip(0, 255), 0).astype(np.uint8)
   m = np.zeros((S, S, 4), np.uint8); m[..., 0] = lab; m[..., 1] = np.where(sword, 255, 0); m[..., 3] = 255
   lum = (0.3 * e[..., 0] + 0.59 * e[..., 1] + 0.11 * e[..., 2]).clip(0, 255)
+  lum = np.where(sword, lum, 0)  # colour only under the sword (hidden colour under alpha 0 only bloats the file)
   w = np.dstack([lum, lum, lum, np.where(sword, 255, 0)]).astype(np.uint8)
   px[:, c * S:(c + 1) * S] = out; mk[:, c * S:(c + 1) * S] = m; wp[:, c * S:(c + 1) * S] = w
 for an, (px, mk, wp) in strips.items():
