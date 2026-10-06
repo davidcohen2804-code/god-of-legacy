@@ -405,17 +405,38 @@ HEADD = fi['headd'] * SC0                                               # the st
 print(gender, 'standing neck row', nrow, 'x', HEAD['cx'], 'width', nr - nl, 'neck→sole', BODY_H)
 os.makedirs(OUT, exist_ok=True)
 # hairstyles (tools/base/hair_extract.py): drawn on the standing head, in the standing GPT image's space → the idle cell
-HAIRS = []
-while os.path.exists(H + f'/hair/{gender}_{len(HAIRS)}_front.png'):
-  k_ = len(HAIRS); rd = lambda n: np.asarray(Image.open(H + f'/hair/{gender}_{k_}_{n}.png').convert('RGBA'))
-  HAIRS.append((layer_to_cell(rd('front'), IDLE_GEOM), layer_to_cell(rd('back'), IDLE_GEOM)))
-hstrips = [{} for _ in HAIRS]                                  # per style: the strips with that hair (back behind, front over)
+# The game draws them as layers on the frame's head (MapleStory): back hair behind the body, front hair over the head,
+# then the sword arm again where it passes in front of the head (<anim>_o.png).
+NSTY = 0
+while os.path.exists(H + f'/hair/{gender}_{NSTY}_c0_front.png'): NSTY += 1
+NCOL = 0
+while os.path.exists(H + f'/hair/{gender}_0_c{NCOL}_front.png'): NCOL += 1
+os.makedirs(OUT + 'hair', exist_ok=True)
+def save_cell(L_, path_):                                      # a layer in the idle cell (straight alpha 0..1) → png
+  Image.fromarray(np.dstack([L_[..., :3], L_[..., 3] * 255]).clip(0, 255).astype(np.uint8)).save(path_, optimize=True)
+for old in [OUT + 'hair/' + f_ for f_ in os.listdir(OUT + 'hair')]: os.remove(old)
+GAPS = []                                                      # hairstyles with forehead between the bangs (its own layer)
+for k_ in range(NSTY):
+  for c_ in range(NCOL):
+    for n_ in ('front', 'back'):
+      save_cell(layer_to_cell(np.asarray(Image.open(H + f'/hair/{gender}_{k_}_c{c_}_{n_}.png').convert('RGBA')), IDLE_GEOM), OUT + f'hair/h{k_}c{c_}_{n_}.png')
+  gp_ = np.asarray(Image.open(H + f'/hair/{gender}_{k_}_gap.png').convert('RGBA'))
+  GAPS.append(bool((gp_[..., 3] > 0).any()))
+  if GAPS[-1]: save_cell(layer_to_cell(gp_, IDLE_GEOM), OUT + f'hair/h{k_}_gap.png')
+# face styles (tools/base/face_extract.py): face 0 is the head's own; the others are layers over it, on the head
+NFACE = 1
+while os.path.exists(H + f'/face/{gender}_{NFACE}.png'): NFACE += 1
+os.makedirs(OUT + 'face', exist_ok=True)
+for old in [OUT + 'face/' + f_ for f_ in os.listdir(OUT + 'face')]: os.remove(old)
+for k_ in range(1, NFACE):
+  save_cell(layer_to_cell(np.asarray(Image.open(H + f'/face/{gender}_{k_}.png').convert('RGBA')), IDLE_GEOM), OUT + f'face/f{k_}.png')
+ostrips = {}                                                   # per move: the sword arm where it is in front of the head
 strips, masks, heads, refs, holds = {}, {}, {}, {}, {}         # heads: where the standing head sits per frame (cell px)
 move_sc, move_hw, move_hd = {}, {}, {}                         # per move: its scale, its GPT head width / inscribed size
 for anim, cells in spec['anims'].items():
   if isinstance(cells, dict): continue                         # derived moves (run) below
   n = len(cells); px = np.zeros((S, n * S, 4), np.uint8); mk = np.zeros((S, n * S, 4), np.uint8); heads[anim] = []
-  for hs_ in hstrips: hs_[anim] = np.zeros((S, n * S, 4), np.uint8)
+  ostrips[anim] = np.zeros((S, n * S, 4), np.uint8)
   order = list(range(n)); cl = [o for c_ in cells for o in c_[2:] if str(o).startswith('clean:')]; cell_sc = {}
   if cl: k0 = int(cl[0][6:]); order = [k0] + [k for k in order if k != k0]
   for c in order:
@@ -480,12 +501,9 @@ for anim, cells in spec['anims'].items():
       print(' ', anim, c, 'scale', round(sc, 4), 'head', info, 'sword arm over hair', int(hfront.sum())); hxy = [int(info['hx']), int(info['dy'])]
     heads[anim].append((c, hxy))
     px[:, c * S:(c + 1) * S, :3] = e.clip(0, 255).astype(np.uint8); px[:, c * S:(c + 1) * S, 3] = np.where(fig, (a * 255).clip(0, 255), 0).astype(np.uint8)
-    base = np.concatenate([e, np.where(fig, a, 0)[..., None]], -1)
-    for (hf, hb), hs_ in zip(HAIRS, hstrips):                   # the same hair on the same head, wherever it sits
-      shf = lambda v: np.roll(np.roll(v, hxy[1], 0), hxy[0], 1)
-      o = over(shf(hf), over(base, shf(hb)))                    # back hair behind the body, the rest over the head
-      if hfront is not None and hfront.any(): o = over(np.concatenate([e, np.where(hfront, a, 0)[..., None]], -1), o)   # sword arm in front
-      hs_[anim][:, c * S:(c + 1) * S, :3] = o[..., :3].clip(0, 255).astype(np.uint8); hs_[anim][:, c * S:(c + 1) * S, 3] = (o[..., 3] * 255).clip(0, 255).astype(np.uint8)
+    if hfront is not None and hfront.any():                     # the sword arm, drawn again over the hair / face
+      ostrips[anim][:, c * S:(c + 1) * S, :3] = np.where(hfront[..., None], e, 0).clip(0, 255).astype(np.uint8)
+      ostrips[anim][:, c * S:(c + 1) * S, 3] = np.where(hfront & fig, (a * 255).clip(0, 255), 0).astype(np.uint8)
     mk[:, c * S:(c + 1) * S, 0] = np.where(fig & (lab != 255), lab, 0); mk[:, c * S:(c + 1) * S, 1] = np.where(fig & (lab == 255), 255, 0)
     mk[:, c * S:(c + 1) * S, 3] = 255
   heads[anim] = [h for _, h in sorted(heads[anim], key=lambda t: t[0])]
@@ -506,13 +524,12 @@ for anim, d in spec['anims'].items():                          # derived: the ru
 for anim in strips:
   Image.fromarray(strips[anim]).save(OUT + anim + '.png', optimize=True); Image.fromarray(masks[anim]).save(OUT + anim + '_m.png', optimize=True)
   print(gender, anim, strips[anim].shape[1] // S, 'frames')
-for k, hs_ in enumerate(hstrips):
-  os.makedirs(OUT + f'h{k}', exist_ok=True)
-  for anim, v in hs_.items(): Image.fromarray(v).save(OUT + f'h{k}/{anim}.png', optimize=True)
-print(gender, len(hstrips), 'hairstyles baked')
-np_ = G + 'src/data/naked-hair.json'                            # how many hairstyles each gender has
-nh = json.load(open(np_)) if os.path.exists(np_) else {}
-nh[gender] = len(hstrips); json.dump(nh, open(np_, 'w'), indent=1)
+OVER = [a_ for a_, v in ostrips.items() if v[..., 3].any()]
+for a_ in OVER: Image.fromarray(ostrips[a_]).save(OUT + a_ + '_o.png', optimize=True)
+print(gender, NSTY, 'hairstyles x', NCOL, 'colours,', NFACE, 'faces; sword arm over the head in', OVER)
+np_ = G + 'src/data/naked-look.json'                            # per gender: hairstyles (with a forehead layer?), hair colours, faces,
+nh = json.load(open(np_)) if os.path.exists(np_) else {}        #   moves with a sword-arm strip
+nh[gender] = dict(styles=NSTY, colors=NCOL, gaps=GAPS, faces=NFACE, over=OVER); json.dump(nh, open(np_, 'w'), indent=1)
 # what each gender has (the game draws standing for the rest)
 lp = G + 'src/data/naked-anims.json'
 have = json.load(open(lp)) if os.path.exists(lp) else {}
@@ -531,20 +548,49 @@ fig = a > 0.5; L, n = nd.label(fig); sz = nd.sum(fig, L, range(1, n + 1)); fig =
 Image.fromarray(np.dstack([e, np.where(fig, a * 255, 0)]).clip(0, 255).astype(np.uint8)).save(G + f'public/assets/characters/base/Base_{gender.capitalize()}.png', optimize=True)
 assert (pp, pi) == (idle_path, idle_idx)                        # the hair layers are drawn in this image's space
 os.makedirs(G + 'public/assets/characters/base/hair', exist_ok=True)
-menu_fig = Image.open(G + f'public/assets/characters/base/Base_{gender.capitalize()}.png').convert('RGBA')
-mh = np.nonzero(np.asarray(menu_fig)[..., 3] > 128); mtop = mh[0].min()
-hrow = mtop + int(0.36 * (mh[0].max() - mtop)); hx_ = np.nonzero(np.asarray(menu_fig)[mtop:hrow, :, 3].max(0) > 128)[0]
+X0, Y0, X1, Y1 = max(0, x0 - 40), max(0, y0 - 30), min(gw, x1 + 41), min(gh, y1 + 13)   # the menu figure's window
+hb_ = [np.nonzero(np.asarray(Image.open(H + f'/hair/{gender}_{k}_c0_{n_}.png'))[..., 3] > 8) for k in range(NSTY) for n_ in ('front', 'backm')]
+hx0_ = min(v[1].min() for v in hb_); hx1_ = max(v[1].max() for v in hb_); hy0_ = min(v[0].min() for v in hb_)
+EX = max(0, X0 - hx0_, hx1_ - X1) + 10; EY = max(0, Y0 - hy0_) + 10   # both sides alike: the figure stays centred
+WX0, WY0, WX1, WY1 = X0 - EX, Y0 - EY, X1 + EX, Y1
+def menu_win(L_):                                               # standing-image layer → the wide menu canvas (padded)
+  cv = np.zeros((WY1 - WY0, WX1 - WX0, 4), np.uint8)
+  sy0, sx0 = max(0, WY0), max(0, WX0); sy1, sx1 = min(L_.shape[0], WY1), min(L_.shape[1], WX1)
+  cv[sy0 - WY0:sy1 - WY0, sx0 - WX0:sx1 - WX0] = L_[sy0:sy1, sx0:sx1]
+  return Image.fromarray(cv)
+json.dump(dict(win=[int(WX0), int(WY0), int(WX1), int(WY1)], ox=int(EX), oy=int(EY), fit=int(Y1 - Y0)), open(H + f'/hair/{gender}_menu.json', 'w'))
+bare = menu_win(np.pad(np.asarray(Image.open(G + f'public/assets/characters/base/Base_{gender.capitalize()}.png').convert('RGBA')), ((Y0, 0), (X0, 0), (0, 0))))   # the bare figure, in the wide canvas
+ba_ = np.asarray(bare)[..., 3]; mh = np.nonzero(ba_ > 128); mtop = mh[0].min()
+hrow = mtop + int(0.36 * (mh[0].max() - mtop)); hx_ = np.nonzero(ba_[mtop:hrow].max(0) > 128)[0]
 hcx, hcy, side = (hx_.min() + hx_.max()) / 2, mtop + 0.42 * (hrow - mtop), 1.55 * (hx_.max() - hx_.min())
-for k in range(len(HAIRS)):                                     # menu hair: the same crop as the menu figure
-  lay = {}
-  for n_ in ('front', 'back'):
-    L_ = np.asarray(Image.open(H + f'/hair/{gender}_{k}_{"backm" if n_ == "back" else n_}.png').convert('RGBA'))   # menu: no filled band
-    lay[n_] = Image.fromarray(L_[max(0, y0 - 30):min(gh, y1 + 13), max(0, x0 - 40):min(gw, x1 + 41)])
-    lay[n_].save(G + f'public/assets/characters/base/hair/{gender.capitalize()}_{k}_{n_}.png', optimize=True)
-  comp = Image.new('RGBA', menu_fig.size, (0, 0, 0, 0)); comp.alpha_composite(lay['back']); comp.alpha_composite(menu_fig); comp.alpha_composite(lay['front'])
-  comp.save(G + f'public/assets/characters/base/Base_{gender.capitalize()}_h{k}.png', optimize=True)   # menus / portraits with the hair
-  ic = comp.crop((int(hcx - side / 2), int(hcy - side / 2), int(hcx + side / 2), int(hcy + side / 2))).resize((96, 96), Image.LANCZOS)
-  ic.save(G + f'public/assets/characters/base/hair/{gender.capitalize()}_{k}_icon.png', optimize=True)   # creation: the hairstyle button
+GB = G + 'public/assets/characters/base/'; G2 = gender.capitalize()
+os.makedirs(GB + 'face', exist_ok=True)
+for old in [GB + d_ + f_ for d_ in ('hair/', 'face/') for f_ in os.listdir(GB + d_) if f_.startswith(G2 + '_')]: os.remove(old)
+for k in range(NSTY):
+  for c_ in range(NCOL):
+    for n_ in ('front', 'back'):                               # menu: the back hair without the filled band
+      menu_win(np.asarray(Image.open(H + f'/hair/{gender}_{k}_c{c_}_{"backm" if n_ == "back" else n_}.png').convert('RGBA'))).save(GB + f'hair/{G2}_{k}_c{c_}_{n_}.png', optimize=True)
+  if GAPS[k]: menu_win(np.asarray(Image.open(H + f'/hair/{gender}_{k}_gap.png').convert('RGBA'))).save(GB + f'hair/{G2}_{k}_gap.png', optimize=True)
+hu_ = np.zeros(np.asarray(bare).shape[:2], bool)               # the hairstyle buttons: the head and every hairstyle's width
+for k in range(NSTY):
+  for n_ in ('front', 'back'): hu_ |= np.asarray(Image.open(GB + f'hair/{G2}_{k}_c0_{n_}.png'))[..., 3] > 40
+for _ in range(3):
+  r0_, r1_ = int(max(0, hcy - side / 2)), int(min(hu_.shape[0], hcy + side / 2)); xs_ = np.nonzero(hu_[r0_:r1_].any(0))[0]
+  if not len(xs_): break
+  sx0_, sx1_ = min(xs_.min() - 12, hcx - side / 2), max(xs_.max() + 12, hcx + side / 2)
+  hcx, side = (sx0_ + sx1_) / 2, sx1_ - sx0_
+if hu_.any(): hcy = min(hcy, np.nonzero(hu_.any(1))[0].min() + 0.38 * side)   # the hair's top well inside the round button
+fb_ = []                                                       # where the faces are (the face buttons show that part)
+for k in range(1, NFACE):
+  L_ = menu_win(np.asarray(Image.open(H + f'/face/{gender}_{k}.png').convert('RGBA'))); L_.save(GB + f'face/{G2}_{k}.png', optimize=True)
+  fb_.append(np.nonzero(np.asarray(L_)[..., 3] > 128))
+ml = G + 'src/data/menu-look.json'                              # the game: canvas size, where the bare figure sits in it, its height,
+mlj = json.load(open(ml)) if os.path.exists(ml) else {}        #   the head (hairstyle buttons) and the face (face buttons): [cx, cy, side]
+mlj[gender] = dict(w=int(WX1 - WX0), h=int(WY1 - WY0), ox=int(EX), oy=int(EY), fit=int(Y1 - Y0), head=[round(float(hcx), 1), round(float(hcy), 1), round(float(side), 1)])
+if fb_:
+  fy0_, fy1_ = min(v[0].min() for v in fb_), max(v[0].max() for v in fb_); fx0_, fx1_ = min(v[1].min() for v in fb_), max(v[1].max() for v in fb_)
+  mlj[gender]['face'] = [round((fx0_ + fx1_) / 2, 1), round((fy0_ + fy1_) / 2, 1), round(1.5 * max(fx1_ - fx0_, fy1_ - fy0_), 1)]   # the whole face inside the round button
+json.dump(mlj, open(ml, 'w'), indent=1)
 # QC: every strip on the game background
 rows = []
 for anim, px in strips.items():

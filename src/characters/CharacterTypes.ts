@@ -12,8 +12,9 @@ export interface Character {
   appearanceId: string | null;
   /** The clean base character he / she is built on (default male). */
   gender?: 'male' | 'female';
-  /** Chosen at creation: hairstyle and the colour of each starter piece (indices; absent = bald, no outfit). */
-  look?: { hair: number; top: number; pants: number; shoes: number };
+  /** Chosen at creation: hairstyle, hair colour, skin tone, face and the colour of each starter piece (indices; absent =
+   *  bald, no outfit; hair colour / skin / face absent = brown, the drawn tone, the head's own face). */
+  look?: { hair: number; top: number; pants: number; shoes: number; hairColor?: number; skin?: number; face?: number };
   /** Cosmetic ownership + equipped slots (visual only). */
   cosmetics?: { owned: string[]; equipped: Record<string, string> };
 }

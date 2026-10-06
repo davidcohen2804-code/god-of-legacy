@@ -1,11 +1,15 @@
 import Phaser from 'phaser';
 import { CHARACTER_CREATE as L, COLORS, DESIGN } from '../config/layout';
-import { CharacterCreateUI, CreateLook } from '../ui/CharacterCreateUI';
-import { lookFiles } from '../characters/LookArt';
+import { CharacterCreateUI, CreateLook, FIRST_LOOK } from '../ui/CharacterCreateUI';
+import { lookFiles, lookIconLayers, lookIcons, queueLayers } from '../characters/LookArt';
+import { toneTexture } from '../characters/Skin';
+import MENU_LOOK from '../data/menu-look.json';
 
-/** The new character on the pedestal, dressed as chosen: back hair, the dressed body (starter outfit, sword), each piece in
- *  its colour, the hair over the head — one image each, the same size as the menu figure (tools/base/outfit/outfit_layers.py). */
-const FIRST: CreateLook = { gender: 'male', hair: 0, top: 0, pants: 0, shoes: 0 };
+/** The new character on the pedestal, dressed as chosen: back hair, the dressed body (starter outfit, sword) in its skin
+ *  tone, the face, each piece in its colour, the forehead between the bangs, the hair over the head — one image each,
+ *  all on the menu canvas (tools/base/outfit/outfit_layers.py, tools/base/naked_frames.py). The face and hairstyle
+ *  buttons are pictures of this same look, redrawn with every choice. */
+const FIT = MENU_LOOK as Record<string, { fit: number }>;
 
 // Background, pedestal and the dressed preview; all UI lives in CharacterCreateUI (DOM overlay).
 export class CharacterCreateScene extends Phaser.Scene {
@@ -14,7 +18,7 @@ export class CharacterCreateScene extends Phaser.Scene {
   constructor() { super('CharacterCreateScene'); }
 
   preload(): void {
-    for (const [k, f] of lookFiles(FIRST)) if (!this.textures.exists(k)) this.load.image(k, f); // the first look shown
+    queueLayers(this, [...lookFiles(FIRST_LOOK), ...lookIconLayers(FIRST_LOOK)]); // the first look shown and its buttons
   }
 
   create(): void {
@@ -27,25 +31,26 @@ export class CharacterCreateScene extends Phaser.Scene {
     g.lineStyle(2, COLORS.gold, 0.55).strokeEllipse(P.centerX, P.pedestalY, P.rx * 2, P.ry * 2);
     g.lineStyle(1, COLORS.gold, 0.35).strokeEllipse(P.centerX, P.pedestalY, P.rx * 1.45, P.ry * 1.1);
 
-    // The new character: the clean base, dressed in the starter outfit with the chosen hair and colours.
-    const layers = Array.from({ length: 6 }, () => this.add.image(P.centerX, P.top + P.height, '__DEFAULT').setOrigin(0.5, 1).setVisible(false));
-    let want: CreateLook = FIRST;
-    const apply = () => {
-      const files = lookFiles(want);
-      if (!files.every(([k]) => this.textures.exists(k))) return; // the rest still loading
-      const body = this.textures.get(files[1][0]).getSourceImage() as HTMLImageElement;
-      const s = (P.height * 0.84) / body.height; // the bare figure fills its image: a little smaller than the class paintings
-      files.forEach(([k], i) => layers[i].setTexture(k).setScale(s).setVisible(true));
+    // The new character: the clean base, dressed in the starter outfit with the chosen face, hair, skin and colours.
+    const layers: Phaser.GameObjects.Image[] = [];
+    let want: CreateLook = FIRST_LOOK, ver = 0;
+    const apply = (v: number) => {
+      if (v !== ver) return; // a newer choice is on its way
+      const l = want, files = lookFiles(l);
+      const keys = files.map(([k, , toned]) => (toned ? toneTexture(this, k, l.skin) : this.textures.exists(k) ? k : null));
+      if (keys.some((k) => !k)) return; // the rest still loading
+      const s = (P.height * 0.84) / FIT[l.gender].fit; // sized by the figure (the canvas has room above for the hair)
+      while (layers.length < keys.length) layers.push(this.add.image(P.centerX, P.top + P.height, '__DEFAULT').setOrigin(0.5, 1));
+      layers.forEach((im, i) => { if (i < keys.length) im.setTexture(keys[i]!).setScale(s).setVisible(true); else im.setVisible(false); });
+      const icons = lookIcons(this, l);
+      if (icons) this.ui?.setIcons(icons);
     };
     const dress = (l: CreateLook) => {
-      want = l;
-      const missing = lookFiles(l).filter(([k]) => !this.textures.exists(k));
-      if (!missing.length) { apply(); return; }
-      for (const [k, f] of missing) this.load.image(k, f);
-      this.load.once(Phaser.Loader.Events.COMPLETE, apply);
+      want = l; const v = ++ver;
+      if (!queueLayers(this, [...lookFiles(l), ...lookIconLayers(l)])) { apply(v); return; }
+      this.load.once(Phaser.Loader.Events.COMPLETE, () => apply(v));
       if (!this.load.isLoading()) this.load.start();
     };
-    dress(FIRST);
 
     this.ui = new CharacterCreateUI(this.game.canvas.parentElement!, this.game.canvas, {
       onBack: () => this.scene.start('CharacterSelectScene'),
@@ -53,6 +58,7 @@ export class CharacterCreateScene extends Phaser.Scene {
       onClassChange: () => { /* the class is chosen; the character shown stays the base body */ },
       onLookChange: dress,
     });
+    apply(ver); // the buttons' pictures (the first look was dressed before the panel existed)
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, () => this.ui?.layout());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off(Phaser.Scenes.Events.POST_UPDATE);

@@ -19,6 +19,25 @@ OUTD = H + '/../../public/assets/characters/base/outfit/'; os.makedirs(OUTD, exi
 SRC = '../outfit/base_outfit_fixed.png'
 STD = {'male': ('naked_male_set1.png', 0), 'female': ('naked_female_idle.png', 0)}
 # the colours offered: base tone of each, shaded like GPT's own folds and highlights
+# skin tones (MapleStory's base set): the drawn skin x a gain per channel, shadows and shine kept (the game applies the same)
+SKIN_BASE = (253, 212, 145)
+SKINS = [('white', (252, 226, 204)), ('light', SKIN_BASE), ('tan', (236, 176, 116)), ('dark', (184, 124, 80))]
+KNEE = 230.0                                                    # a lighter tone: shine rolls off softly into white (no flat white)
+
+
+def toned(ce, gain):
+  """The skin colour x the tone's gain per channel; where a channel is lightened, its top end eases into 255."""
+  v = ce * gain
+  soft = KNEE + (255 - KNEE) * (1 - np.exp(-np.clip(v - KNEE, 0, None) / (255 - KNEE)))
+  return np.where((gain > 1) & (v > KNEE), soft, np.minimum(v, 255))
+
+
+def skin_w(ce, al):
+  """How much a pixel is skin (warm, light, opaque): 1 inside the skin, fading at its outline (no light rim on dark skin)."""
+  R, G, B = ce[..., 0], ce[..., 1], ce[..., 2]; lum = 0.3 * R + 0.59 * G + 0.11 * B
+  return np.clip((lum - 70) / 40, 0, 1) * ((R >= G) & (G >= B) & (R - B > 15)) * (al > 0.02)
+
+
 COLORS = {
   'top': [('white', (236, 233, 226)), ('blue', (62, 112, 184)), ('red', (196, 64, 52))],
   'pants': [('denim', (60, 96, 168)), ('brown', (124, 84, 50)), ('black', (52, 52, 60))],
@@ -99,12 +118,19 @@ for g, (sp, si) in STD.items():
     p = nd.binary_fill_holes(nd.binary_closing(parts[name], iterations=2)) & fig
     rim = nd.binary_dilation(p, iterations=3) & ink & ~taken
     soft[name] = (p | rim) & ~taken; taken |= soft[name]
-  # menu crop (the same window as Base_<Gender>.png)
-  x0, y0, x1, y1 = fs['box']; gh, gw = shape
-  cy0, cy1, cx0, cx1 = max(0, y0 - 30), min(gh, y1 + 13), max(0, x0 - 40), min(gw, x1 + 41)
-  crop = lambda v: v[cy0:cy1, cx0:cx1]
+  # the menu canvas (naked_frames.py: wide / tall enough for every hairstyle), padded where it leaves the image
+  WX0, WY0, WX1, WY1 = json.load(open(H + f'/hair/{g}_menu.json'))['win']
+  def crop(v):
+    cv = np.zeros((WY1 - WY0, WX1 - WX0) + v.shape[2:], v.dtype)
+    sy0, sx0 = max(0, WY0), max(0, WX0); sy1, sx1 = min(v.shape[0], WY1), min(v.shape[1], WX1)
+    cv[sy0 - WY0:sy1 - WY0, sx0 - WX0:sx1 - WX0] = v[sy0:sy1, sx0:sx1]
+    return cv
   G2 = g.capitalize()
-  Image.fromarray(crop(np.dstack([Fe, Fa * 255])).clip(0, 255).astype(np.uint8), 'RGBA').save(OUTD + f'{G2}_body.png', optimize=True)
+  sw = skin_w(Fe, Fa) * ~(soft['top'] | soft['pants'] | soft['shoes'])
+  for ti, (tname, tc) in enumerate(SKINS):                     # the dressed body in each skin tone
+    gain = np.array(tc, np.float32) / np.array(SKIN_BASE, np.float32)
+    body = Fe * (1 - sw[..., None]) + toned(Fe, gain) * sw[..., None]
+    Image.fromarray(crop(np.dstack([body, Fa * 255])).clip(0, 255).astype(np.uint8), 'RGBA').save(OUTD + f'{G2}_body_s{ti}.png', optimize=True)
   for name, cols in COLORS.items():
     msk = soft[name]
     v = lum[msk & ~ink]; lo, md, hi = np.percentile(v, 2), np.percentile(v, 50), np.percentile(v, 99.5)
@@ -118,3 +144,5 @@ for g, (sp, si) in STD.items():
   print(g, info[g])
 json.dump({k: [{'name': n, 'swatch': '#%02x%02x%02x' % c} for n, c in v] for k, v in COLORS.items()},
           open(H + '/../../src/data/outfit-colors.json', 'w'), indent=1)
+json.dump([{'name': n, 'swatch': '#%02x%02x%02x' % c, 'gain': [round(c[i] / SKIN_BASE[i], 4) for i in range(3)]} for n, c in SKINS],
+          open(H + '/../../src/data/skin-tones.json', 'w'), indent=1)

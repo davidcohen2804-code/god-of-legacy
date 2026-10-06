@@ -51,6 +51,7 @@ function sanitize(raw: unknown): CharacterSelectData {
       const ix = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 10 ? v : null);
       if (lk && typeof lk === 'object' && ['hair', 'top', 'pants', 'shoes'].every((k) => ix(lk[k]) !== null)) {
         target.character.look = { hair: lk.hair as number, top: lk.top as number, pants: lk.pants as number, shoes: lk.shoes as number };
+        for (const k of ['hairColor', 'skin', 'face'] as const) { const v = ix(lk[k]); if (v !== null) target.character.look[k] = v; } // added later: older characters lack them
       }
       const cos = (c as unknown as { cosmetics?: { owned?: unknown; equipped?: unknown } }).cosmetics;
       if (cos && Array.isArray(cos.owned) && cos.equipped && typeof cos.equipped === 'object') {

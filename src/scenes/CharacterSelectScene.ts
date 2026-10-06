@@ -14,6 +14,8 @@ const classOfKey = (key: string): string | null => {
   const e = Object.entries(CHARACTER_PREVIEWS).find(([, v]) => v.key === key);
   return e ? e[0].split('/')[0] : null;
 };
+/** The height a preview picture is sized by (a full-style picture has room above the figure for the hair). */
+const fitOfKey = (key: string): number | undefined => Object.values(CHARACTER_PREVIEWS).find((v) => v.key === key)?.fit;
 
 // Background/world presentation only; all UI lives in CharacterSelectUI (DOM overlay).
 export class CharacterSelectScene extends Phaser.Scene {
@@ -88,7 +90,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       onPvp: () => enterPvp(this),
       onPreview: (key) => {
         const cls = key ? classOfKey(key) : null, onThrone = !!throne && cls === 'warrior';
-        if (key && !onThrone) { const base = key.startsWith('base.'); hero.setTexture(key).setData('calm', base); hero.setScale((PV.height * (base ? 0.84 : 1)) / hero.height); } // the base body: no cloth to sway, fills its image
+        if (key && !onThrone) { const base = key.startsWith('base.'); hero.setTexture(key).setData('calm', base); hero.setScale((PV.height * (base ? 0.84 : 1)) / (fitOfKey(key) ?? hero.height)); } // the base body: no cloth to sway, fills its image
         const stand = !!key && !onThrone;
         hero.setVisible(stand); halo.setVisible(stand); shadow.setVisible(stand); g.setVisible(!onThrone);
         throne?.setVisible(onThrone);

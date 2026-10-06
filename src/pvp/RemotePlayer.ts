@@ -7,7 +7,8 @@ import { Dir } from '../world/collision';
 import { PeerMeta, NetMsg } from './Transport';
 import { DeathFx } from '../game/DeathFx';
 import { ActorView, CosSlot, Equipped } from '../game/ActorView';
-import { ClassKey, loadNakedHair, resolvePose } from '../game/Body';
+import { ClassKey, cleanLook, loadBaseLook, resolvePose } from '../game/Body';
+import { DEFAULT_SKIN, SKIN_TONES } from '../characters/Skin';
 import { AnimSnap, Mode, poseQuery } from '../game/PoseState';
 import { finalSkill } from '../skills/FinalKit';
 
@@ -42,7 +43,10 @@ export class RemotePlayer {
     const L = PVP.remoteLabel;
     this.x = x; this.y = y;
     this.view = new ActorView(scene, meta.classId as ClassKey, x, y);
-    loadNakedHair(scene, meta.gender === 'female' ? 'female' : 'male', typeof meta.hair === 'number' ? meta.hair : null, true); // bald until it arrives
+    const g = meta.gender === 'female' ? 'female' : 'male';
+    const look = cleanLook(g, meta.look ?? (typeof meta.hair === 'number' ? { hair: meta.hair } : null), DEFAULT_SKIN, SKIN_TONES.length); // (older builds sent the hairstyle only)
+    loadBaseLook(scene, g, look, true); // bald until its layers arrive
+    this.view.setBaseLook(look, g);
     this.deathFx = new DeathFx(scene);
     this.label = scene.add.text(x, y, meta.name, {
       fontFamily: FONT_FAMILY, fontSize: `${L.size}px`, fontStyle: 'bold', color: L.color, stroke: '#000000', strokeThickness: 3, resolution: 2,
@@ -133,7 +137,7 @@ export class RemotePlayer {
     if (this.flashMs >= 0) { this.flashMs += ms; if (this.flashMs < 60) { tint = 0xffffff; fill = true; } else if (this.flashMs < 140) tint = 0xff6a6a; else this.flashMs = -1; }
     if (this.deadMs >= 0) { this.deadMs += ms; alpha = 1 - Math.min(1, this.deadMs / 450); this.deathFx.update(ms); }
     const snap: AnimSnap = { mode: this.skill ? 'skill' : this.mode, t: this.modeT, speed: this.speed, vz: this.vz, skill: this.skill ?? undefined, stunMs: 200 };
-    const pose = resolvePose(this.meta.classId as ClassKey, this.dir, poseQuery(snap), this.view.wantsBase, this.meta.gender === 'female' ? 'female' : 'male', typeof this.meta.hair === 'number' ? this.meta.hair : null);
+    const pose = resolvePose(this.meta.classId as ClassKey, this.dir, poseQuery(snap), this.view.wantsBase, this.meta.gender === 'female' ? 'female' : 'male');
     this.view.render(ms, pose, x, y, z, this.sz, this.dir, alpha, tint, fill);
     const top = y - z - 116 - PVP.remoteLabel.gap;
     this.label.setPosition(Math.round(x), Math.round(top - PVP.hpBar.h - 3));

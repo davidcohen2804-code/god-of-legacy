@@ -5,7 +5,8 @@ import Phaser from 'phaser';
 import COS from '../data/cosmetics.json';
 import { Dir } from '../world/collision';
 import { actorDepth } from '../world/WorldGeometry';
-import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM, baseComplete, ensureWeaponMasks } from './Body';
+import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM, baseComplete, ensureWeaponMasks, BaseLook, baseLookLayers, hasOver, overKey, NAKED_LOOK } from './Body';
+import { DEFAULT_SKIN, toneTexture } from '../characters/Skin';
 
 export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet' | 'hair' | 'armor' | 'hairstyle' | 'top' | 'gloves' | 'shoes' | 'pants' | 'hat' | 'faceacc' | 'earring' | 'nametag' | 'trail';
 export type Equipped = Partial<Record<CosSlot, string>>;
@@ -250,6 +251,20 @@ export class ActorView {
   visible = true;
   /** Height of the top of the head above the feet (world px), smoothed over frames (speech bubbles sit above it). */
   headHeight = 0;
+  /** The base character's look (hairstyle, hair colour, skin tone, face): layers on every frame, MapleStory-style —
+   *  back hair behind the body, then on the head (moving with it) the face, the forehead between the bangs and the front
+   *  hair, and the sword arm again where it passes in front of the head. */
+  private look: BaseLook | null = null;
+  private lookParts: { b: Phaser.GameObjects.Image; face: Phaser.GameObjects.Image; gap: Phaser.GameObjects.Image; f: Phaser.GameObjects.Image; over: Phaser.GameObjects.Sprite } | null = null;
+  setBaseLook(l: BaseLook | null, gender: 'male' | 'female' = 'male'): void {
+    this.look = l ? { ...l } : null;
+    if (l && !this.lookParts) {
+      const im = () => this.scene.add.image(0, 0, '__DEFAULT').setVisible(false);
+      this.lookParts = { b: im(), face: im(), gap: im(), f: im(), over: this.scene.add.sprite(0, 0, '__DEFAULT').setVisible(false) };
+    }
+    if (l && l.skin !== DEFAULT_SKIN && NAKED_LOOK[gender]) for (const k of this.scene.textures.getTextureKeys()) // re-shade the moves now, not on their first frame
+      if (k.startsWith(`naked-${gender}-`) && !k.includes('~')) toneTexture(this.scene, k, l.skin);
+  }
 
   constructor(private scene: Phaser.Scene, readonly cls: ClassKey, x: number, y: number) {
     this.shadow = scene.add.image(x, y, 'contact-shadow').setOrigin(0.5, 0.5);
@@ -294,6 +309,7 @@ export class ActorView {
   render(ms: number, pose: PoseFrame, x: number, y: number, z: number, supportZ: number, dir: Dir, alpha = 1, tint: number | null = null, tintFill = false): void {
     this.t += ms;
     const p = this.sprite;
+    if (pose.naked && this.look && this.look.skin !== DEFAULT_SKIN) { const tk = toneTexture(this.scene, pose.key, this.look.skin); if (tk) pose = { ...pose, key: tk }; } // the body in its skin tone
     const top = pose.anchor ? -pose.anchor[1] : 100;
     this.headHeight = this.headHeight ? this.headHeight + (top - this.headHeight) * Math.min(1, ms / 90) : top;
     // Weapon masks load on first need: a tint skin draws them, a sword skin cuts with them (classes without a packed mask).
@@ -331,6 +347,7 @@ export class ActorView {
         }
       } else { this.blade.setVisible(false); this.bladeTop?.setVisible(false); }
     }
+    this.renderLook(pose, depth, alpha, tint, tintFill);
     // Weapon skin: tinted copy of the real weapon pixels of this exact frame.
     const ws = this.equipped.weapon ? WEAPON_TINT[this.equipped.weapon] : undefined;
     const showW = !!ws && this.visible && this.scene.textures.exists(pose.wkey);
@@ -441,7 +458,32 @@ export class ActorView {
     }
   }
 
+  /** The look's layers on this frame: the idle cell's head moved to this frame's head (naked-heads.json), same origin,
+   *  scale and mirroring as the body; skin layers in the skin tone. */
+  private renderLook(pose: PoseFrame, depth: number, alpha: number, tint: number | null, tintFill: boolean): void {
+    const P = this.lookParts; if (!P) return;
+    const nk = pose.naked, l = this.look, p = this.sprite;
+    if (!nk || !l || !this.visible) { for (const im of Object.values(P)) im.setVisible(false); return; }
+    const L = baseLookLayers(nk.g, l), fx = pose.flip ? -1 : 1;
+    const hx = p.x + nk.hx * p.scaleX * fx, hy = p.y + nk.hy * p.scaleY;
+    const put = (im: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite, key: string | null, x: number, y: number, d: number, frame?: number) => {
+      if (!key) { im.setVisible(false); return; }
+      if (im.texture.key !== key || (frame !== undefined && im.frame.name !== String(frame))) im.setTexture(key, frame);
+      im.setOrigin(pose.ox, pose.oy).setScale(p.scaleX, p.scaleY).setFlipX(!!pose.flip).setPosition(x, y).setDepth(depth + d).setAlpha(alpha).setVisible(true);
+      if (tint === null) im.clearTint(); else if (tintFill) im.setTintFill(tint); else im.setTint(tint);
+    };
+    const has = (kf?: [string, string]) => (kf && this.scene.textures.exists(kf[0]) ? kf[0] : null);
+    const tone = (k: string | null) => (k ? toneTexture(this.scene, k, l.skin) : null);
+    put(P.b, has(L.b), hx, hy, -0.005);
+    put(P.face, tone(has(L.face)), hx, hy, 0.003);
+    put(P.gap, tone(has(L.gap)), hx, hy, 0.004);
+    put(P.f, has(L.f), hx, hy, 0.006);
+    const ok = hasOver(nk.g, nk.anim) && this.scene.textures.exists(overKey(nk.g, nk.anim));
+    put(P.over, ok ? tone(overKey(nk.g, nk.anim)) : null, p.x, p.y, 0.008, nk.frame);
+  }
+
   setVisible(v: boolean): void {
+    if (!v && this.lookParts) for (const im of Object.values(this.lookParts)) im.setVisible(false);
     this.visible = v;
     this.sprite.setVisible(v); this.shadow.setVisible(v); this.ring.setVisible(v); this.weapon.setVisible(v && this.weapon.visible); this.weaponGlow.setVisible(v && this.weaponGlow.visible); this.blade?.setVisible(v && this.blade.visible); this.bladeTop?.setVisible(v && this.bladeTop.visible);
     for (const l of Object.values(this.layers)) l?.setVisible(v);
@@ -452,5 +494,7 @@ export class ActorView {
     for (const l of Object.values(this.layers)) l?.destroy();
     this.nameText?.destroy(); this.nameFrame?.destroy();
     this.layers = {}; this.blade?.destroy(); this.blade = null; this.bladeTop?.destroy(); this.bladeTop = null;
+    if (this.lookParts) for (const im of Object.values(this.lookParts)) im.destroy();
+    this.lookParts = null;
   }
 }

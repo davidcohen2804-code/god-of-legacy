@@ -1,4 +1,3 @@
-import NAKED_HAIR from '../data/naked-hair.json';
 // All layout and style constants for the Main Menu stage (design space 1920x1080).
 
 export const DESIGN = { width: 1920, height: 1080 } as const;
@@ -146,13 +145,11 @@ export const CHARACTER_CREATE = {
 } as const;
 
 /** classId/appearanceId -> full-body preview (Character Select stage + slot portrait crop in source pixels). */
-export const CHARACTER_PREVIEWS: Record<string, { key: string; file: string; width: number; height: number; crop: { x: number; y: number; w: number }; portrait?: string }> = {
+/** fit: the height the figure is sized by (a full-style picture is taller than its figure: room for the hair). */
+export const CHARACTER_PREVIEWS: Record<string, { key: string; file: string; width: number; height: number; crop: { x: number; y: number; w: number }; portrait?: string; fit?: number }> = {
   // the clean base character (menus show him / her standing; portraits crop the head)
   'base/male': { key: 'base.male', file: 'assets/characters/base/Base_Male.png', width: 317, height: 630, crop: { x: 48, y: 14, w: 228 } },
   'base/female': { key: 'base.female', file: 'assets/characters/base/Base_Female.png', width: 374, height: 765, crop: { x: 60, y: 14, w: 261 } },
-  ...Object.fromEntries((['male', 'female'] as const).flatMap((g) => Array.from({ length: (NAKED_HAIR as Record<string, number>)[g] ?? 0 }, (_, k) => [
-    `base/${g}/h${k}`, { key: `base.${g}.h${k}`, file: `assets/characters/base/Base_${g === 'male' ? 'Male' : 'Female'}_h${k}.png`,
-      width: g === 'male' ? 317 : 374, height: g === 'male' ? 630 : 765, crop: g === 'male' ? { x: 48, y: 14, w: 228 } : { x: 60, y: 14, w: 261 } }]))), // with each hairstyle (loaded when shown)
   'warrior/warrior_default': {
     key: 'characterCreate.warriorPreview', file: 'assets/Warrior_Preview.png', width: 1024, height: 1536,
     crop: { x: 400, y: 40, w: 420 },

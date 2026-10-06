@@ -1,0 +1,34 @@
+{
+ "male": {
+  "styles": 4,
+  "colors": 3,
+  "gaps": [
+   true,
+   true,
+   true,
+   true
+  ],
+  "faces": 4,
+  "over": [
+   "swing1",
+   "swing2",
+   "swing3"
+  ]
+ },
+ "female": {
+  "styles": 4,
+  "colors": 3,
+  "gaps": [
+   true,
+   true,
+   true,
+   true
+  ],
+  "faces": 4,
+  "over": [
+   "swing1",
+   "swing2",
+   "swing3"
+  ]
+ }
+}
