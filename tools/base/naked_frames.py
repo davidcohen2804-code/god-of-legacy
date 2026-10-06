@@ -15,6 +15,7 @@
 #   "farL" / "farR"  the left / right leg (as drawn) is the far one: drawn darker (GPT drew both legs alike)
 #   "ownhead"  keep GPT's head (no standing head)
 #   "feet"   the feet stay planted: every frame's feet where the move's first frame has them, the head goes with the neck
+#   "follow" the head goes with the neck (the frame is not moved under the standing head's x)
 # "run": {"from": "walk", "lean": [body, torso], "lift": [px per frame]} — the walk frames leaning forward (the whole
 #   body tilts from the feet, the torso a little more from the waist; the head stays upright), optional lift per frame.
 import json, os, sys, numpy as np
@@ -54,6 +55,9 @@ def figures(path):
     m = L == i; ys, xs = np.nonzero(m)
     y0, y1, x0, x1 = ys.min(), ys.max(), xs.min(), xs.max()
     head = m[y0:y0 + int((y1 - y0) * 0.28)]
+    runs = [np.count_nonzero(np.diff(np.concatenate([[0], r.astype(np.int8), [0]])) == 1) for r in head]
+    if max(runs) > 1:                                          # hands up beside the head: the rows above them only
+      head = head[:runs.index(next(v for v in runs if v > 1))]
     hx = np.nonzero(head.any(0))[0]
     R_, G_, B_ = [e[..., k] for k in range(3)]; mx_ = np.maximum(np.maximum(R_, G_), B_); mn_ = np.minimum(np.minimum(R_, G_), B_)
     grey = m & ((mx_ - mn_) / np.maximum(mx_, 1) < 0.13) & (mx_ > 105) & (np.arange(m.shape[0])[:, None] > y0 + (y1 - y0) * 0.45)
@@ -111,12 +115,11 @@ def label(e, a):
   mx = np.maximum(np.maximum(R, Gc), B); mn = np.minimum(np.minimum(R, Gc), B); sat = (mx - mn) / np.maximum(mx, 1)
   grey = nd.binary_opening(fig & (sat < 0.13) & (mx > 105), iterations=1)
   lab = np.where(fig, 60, 0).astype(np.uint8)
-  gL, gn = nd.label(grey); ys = np.nonzero(fig.any(1))[0]; top, bot = ys.min(), ys.max()
-  for k in range(1, gn + 1):
-    cm = gL == k
-    if cm.sum() < 40: continue
-    part = 80 if np.nonzero(cm)[0].mean() < top + (bot - top) * 0.47 else 200
-    lab[nd.binary_fill_holes(nd.binary_closing(cm, iterations=2)) & fig] = part
+  gL, gn = nd.label(grey)
+  parts = [(np.nonzero(gL == k)[0].mean(), gL == k) for k in range(1, gn + 1) if (gL == k).sum() >= 40]
+  low = max((cy for cy, _ in parts), default=0)                  # the shorts: the lowest grey piece; the top: above it
+  for cy, cm in parts:
+    lab[nd.binary_fill_holes(nd.binary_closing(cm, iterations=2)) & fig] = 200 if cy > low - 15 else 80
   for part in (80, 200):
     lab[nd.binary_dilation(lab == part, iterations=2) & fig & (lab == 60) & (mx < 120)] = part
   return fig, lab
@@ -280,7 +283,7 @@ for anim, cells in spec['anims'].items():
     hxy = [0, 0]
     if anim != 'idle' and 'ownhead' not in opts:
       r = sc * figures(path)[idx]['headw'] / HEADW                 # GPT's head size / the standing head's
-      e, a, fig, lab, info = put_head(e, a, fig, lab, HEAD, r, follow='feet' in opts)
+      e, a, fig, lab, info = put_head(e, a, fig, lab, HEAD, r, follow='feet' in opts or 'follow' in opts)
       print(' ', anim, c, 'scale', round(sc, 4), 'head', info); hxy = [int(info['hx']), int(info['dy'])]
     heads[anim].append(hxy)
     px[:, c * S:(c + 1) * S, :3] = e.clip(0, 255).astype(np.uint8); px[:, c * S:(c + 1) * S, 3] = np.where(fig, (a * 255).clip(0, 255), 0).astype(np.uint8)

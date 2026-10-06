@@ -3,12 +3,14 @@
   "idle": 1,
   "walk": 4,
   "alert": 3,
+  "jump": 1,
   "run": 4
  },
  "female": {
   "idle": 1,
   "walk": 4,
   "alert": 3,
+  "jump": 1,
   "run": 4
  }
 }
