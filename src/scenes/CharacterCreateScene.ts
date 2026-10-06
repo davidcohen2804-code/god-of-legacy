@@ -1,21 +1,10 @@
 import Phaser from 'phaser';
 import { CHARACTER_CREATE as L, COLORS, DESIGN } from '../config/layout';
 import { CharacterCreateUI, CreateLook } from '../ui/CharacterCreateUI';
+import { lookFiles } from '../characters/LookArt';
 
 /** The new character on the pedestal, dressed as chosen: back hair, the dressed body (starter outfit, sword), each piece in
  *  its colour, the hair over the head — one image each, the same size as the menu figure (tools/base/outfit/outfit_layers.py). */
-const G_ = (g: CreateLook['gender']) => (g === 'male' ? 'Male' : 'Female');
-const lookFiles = (l: CreateLook): [string, string][] => {
-  const G = G_(l.gender), B = 'assets/characters/base';
-  return [
-    [`cc.${G}.hair${l.hair}b`, `${B}/hair/${G}_${l.hair}_back.png`],
-    [`cc.${G}.body`, `${B}/outfit/${G}_body.png`],
-    [`cc.${G}.pants${l.pants}`, `${B}/outfit/${G}_pants_${l.pants}.png`],
-    [`cc.${G}.shoes${l.shoes}`, `${B}/outfit/${G}_shoes_${l.shoes}.png`],
-    [`cc.${G}.top${l.top}`, `${B}/outfit/${G}_top_${l.top}.png`],
-    [`cc.${G}.hair${l.hair}f`, `${B}/hair/${G}_${l.hair}_front.png`],
-  ];
-};
 const FIRST: CreateLook = { gender: 'male', hair: 0, top: 0, pants: 0, shoes: 0 };
 
 // Background, pedestal and the dressed preview; all UI lives in CharacterCreateUI (DOM overlay).

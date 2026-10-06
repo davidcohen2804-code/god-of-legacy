@@ -29,6 +29,7 @@ import { PvpController } from '../pvp/PvpController';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
 import { NetMsg, PeerMeta } from '../pvp/Transport';
 import { genderOf, hairOf, previewKeyOf } from '../characters/Look';
+import { buildLook, preloadLooks } from '../characters/LookArt';
 import { BOT_ID, BOT_NAME, SparringBot } from '../pvp/SparringBot';
 import { CombatInput } from '../game/CombatInput';
 import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey, damageSkin, wantsWeaponMasks } from '../game/ActorView';
@@ -185,6 +186,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!this.textures.exists(CT.dummy.key)) this.load.image(CT.dummy.key, CT.dummy.file);
     preloadBodies(this, classes, masks);
     if (me) loadNakedHair(this, genderOf(me), hairOf(me)); // your hairstyle, baked into every base frame
+    if (me) preloadLooks(this, [me]); // your full style for the portrait
     preloadSkillFx(this, classes);
     preloadDeathFx(this);
     preloadCosmetics(this, classes && me ? [...new Set([...classes, me.classId])] : classes); // a Beginner still owns its class's items
@@ -199,6 +201,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!character) { this.scene.start('CharacterSelectScene'); return; }
     const pvpRoom = data?.pvpRoom ?? null;
     this.character = character;
+    buildLook(this, character); // portrait = the full style
     registerBodies(this);
     this.pvp = undefined; this.pvpReady = !pvpRoom;
     const playerId = newPlayerId();

@@ -4,6 +4,7 @@ import { CHARACTER_PREVIEWS, CHARACTER_SELECT as L, CHARACTER_SELECT_PREVIEW as 
 import { CharacterSelectUI } from '../ui/CharacterSelectUI';
 import { CharacterStore } from '../characters/CharacterStore';
 import { previewKeyOf } from '../characters/Look';
+import { buildLook, preloadLooks } from '../characters/LookArt';
 import { clearPvpFromUrl } from '../pvp/Room';
 import { enterPvp } from '../pvp/enterPvp';
 import { ClassPresence, preloadLife } from '../ui/PresentationLife';
@@ -22,13 +23,16 @@ export class CharacterSelectScene extends Phaser.Scene {
 
   preload(): void {
     preloadLife(this); preloadThrone(this);
-    for (const s of CharacterStore.getSlots()) { // characters shown with their hairstyle: those images load here
-      const pv = s.character ? CHARACTER_PREVIEWS[previewKeyOf(s.character)] : undefined;
+    const chars = CharacterStore.getSlots().map((s) => s.character);
+    preloadLooks(this, chars); // each character's full style (hair, outfit, colours): its layers load here
+    for (const c of chars) { // without a chosen look: the bare base picture
+      const pv = c && !c.look ? CHARACTER_PREVIEWS[previewKeyOf(c)] : undefined;
       if (pv && !this.textures.exists(pv.key)) this.load.image(pv.key, pv.file);
     }
   }
 
   create(): void {
+    for (const s of CharacterStore.getSlots()) buildLook(this, s.character); // one picture per look: stage + slot portraits
     this.cameras.main.fadeIn(240, 0, 0, 0);
     const bg = this.add.image(DESIGN.width / 2, DESIGN.height / 2, 'characterSelect.background');
     bg.setScale(Math.max(DESIGN.width / bg.width, DESIGN.height / bg.height));
