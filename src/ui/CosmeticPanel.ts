@@ -15,8 +15,8 @@ import { kitFor } from '../skills/FinalKit';
 import { isQAMode } from '../qa/QAPanel';
 
 type Tab = 'inventory' | 'shop';
-type InvCat = 'equipped' | 'owned' | 'sets' | 'weapon' | 'headface' | 'back' | 'aura';
-type ShopCat = 'all' | 'sets' | 'weapon' | 'headface' | 'back' | 'aura';
+type InvCat = 'equipped' | 'owned' | 'sets' | 'fashion' | 'weapon' | 'headface' | 'back' | 'aura';
+type ShopCat = 'all' | 'sets' | 'fashion' | 'weapon' | 'headface' | 'back' | 'aura';
 type PState = 'idle' | 'walk' | 'run' | 'jump' | 'attack' | 'hurt' | 'dead';
 interface Item { id: string; type: string; icon: string; name: string; desc: string; parts?: string[] }
 
@@ -35,22 +35,23 @@ const DOLL: [string, number, number][] = [['Head', 187, 114], ['Weapon', 81, 168
 const DOLL_SCALE = 400 / 578;
 const SHOP_PREVIEW: Rect = { x: 48, y: 104, w: 430, h: 556 };
 const SHOP_TABS_Y = 112;
-const SLOT_LABEL: Record<CosSlot, string> = { head: 'Head', face: 'Face', back: 'Cape / Back', weapon: 'Weapon', aura: 'Aura', damage: 'Damage Skin', pet: 'Companion', hair: 'Hair Colour', armor: 'Armor Finish', hairstyle: 'Hairstyle', top: 'Chest Plate', gloves: 'Gauntlets', shoes: 'Boots', pants: 'Trousers', hat: 'Hat', faceacc: 'Face', earring: 'Earring', nametag: 'Name Tag', trail: 'Footstep Trail' };
+const SLOT_LABEL: Record<CosSlot, string> = { head: 'Head', face: 'Face', back: 'Cape / Back', weapon: 'Weapon', aura: 'Aura', damage: 'Damage Skin', pet: 'Companion', hair: 'Hair Colour', armor: 'Armor Finish', hairstyle: 'Hairstyle', top: 'Top', gloves: 'Gloves', shoes: 'Shoes', pants: 'Bottoms', hat: 'Hat', faceacc: 'Face', earring: 'Earring', nametag: 'Name Tag', trail: 'Footstep Trail' };
 const TYPE_LABEL: Record<string, string> = {
   head: 'Head', mask: 'Face', cape: 'Cape', back: 'Back', weapon: 'Weapon skin', weapon_animated: 'Animated weapon skin', bow: 'Bow skin',
   book: 'Book skin', aura: 'Aura', set: 'Full set', hat: 'Hat', faceacc: 'Face accessory', earring: 'Earring', hair: 'Hair colour',
-  hairstyle: 'Hairstyle', armor: 'Armor finish', top: 'Chest plate', gloves: 'Gauntlets', shoes: 'Boots', pants: 'Trousers',
+  hairstyle: 'Hairstyle', armor: 'Armor finish', top: 'Top', gloves: 'Gloves', shoes: 'Shoes', pants: 'Bottoms',
   nametag: 'Name tag', trail: 'Footstep trail', damage: 'Damage skin', pet: 'Companion',
 };
-const INV_TABS: [InvCat, string][] = [['equipped', 'Equipped'], ['owned', 'Owned'], ['sets', 'Sets'], ['weapon', 'Weapon Skins'], ['headface', 'Head / Face'], ['back', 'Cape / Back'], ['aura', 'Aura / Effects']];
-const SHOP_TABS: [ShopCat, string][] = [['all', 'All'], ['sets', 'Sets'], ['weapon', 'Weapons'], ['headface', 'Head / Face'], ['back', 'Cape / Back'], ['aura', 'Aura / Effects']];
+const INV_TABS: [InvCat, string][] = [['equipped', 'Equipped'], ['owned', 'Owned'], ['sets', 'Sets'], ['fashion', 'Clothes'], ['weapon', 'Weapon Skins'], ['headface', 'Head / Face'], ['back', 'Cape / Back'], ['aura', 'Aura / Effects']];
+const SHOP_TABS: [ShopCat, string][] = [['all', 'All'], ['sets', 'Sets'], ['fashion', 'Clothes'], ['weapon', 'Weapons'], ['headface', 'Head / Face'], ['back', 'Cape / Back'], ['aura', 'Aura / Effects']];
 const STATES: [PState, string][] = [['idle', 'Idle'], ['walk', 'Walk'], ['run', 'Run'], ['jump', 'Jump'], ['attack', 'Attack'], ['hurt', 'Hit'], ['dead', 'Death']];
 const DIRS: Dir[] = ['right', 'left']; // side view only
 
 const catOf = (it: Item): Exclude<ShopCat, 'all'> => {
   if (it.type === 'set') return 'sets';
   const s = slotOf(it.type);
-  return s === 'weapon' ? 'weapon' : s === 'head' || s === 'face' ? 'headface' : s === 'back' ? 'back' : 'aura';
+  if (s === 'top' || s === 'pants' || s === 'shoes' || s === 'gloves' || s === 'hair' || s === 'hairstyle') return 'fashion';
+  return s === 'weapon' ? 'weapon' : s === 'head' || s === 'face' || s === 'hat' || s === 'faceacc' || s === 'earring' ? 'headface' : s === 'back' ? 'back' : 'aura';
 };
 
 const STYLE_ID = 'gol-cosmetic-style';

@@ -10,7 +10,7 @@ import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM, baseComplete } f
 export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet' | 'hair' | 'armor' | 'hairstyle' | 'top' | 'gloves' | 'shoes' | 'pants' | 'hat' | 'faceacc' | 'earring' | 'nametag' | 'trail';
 export type Equipped = Partial<Record<CosSlot, string>>;
 
-interface CosItem { id: string; type: string; icon: string; runtime?: string; skin?: string; blade?: { w: number; h: number; guard: number; cy: number }; color?: string; fit?: { w: number; lift: number }; ring?: { cy: number }; widths?: number[]; wip?: boolean; fabric?: string; lut?: number[][]; hs?: number[][]; box?: number[][]; layers?: string; attachment?: string; cell?: number[]; frames?: number; layout?: string; bbox?: number[][];  parts?: string[]; name: string; desc: string }
+interface CosItem { id: string; type: string; icon: string; runtime?: string; skin?: string; blade?: { w: number; h: number; guard: number; cy: number }; color?: string; fit?: { w: number; lift: number }; ring?: { cy: number }; widths?: number[]; wip?: boolean; fabric?: string; lut?: number[][]; lr?: number[]; hs?: number[][]; box?: number[][]; layers?: string; attachment?: string; cell?: number[]; frames?: number; layout?: string; bbox?: number[][];  parts?: string[]; name: string; desc: string }
 export const COSMETICS = Object.fromEntries(Object.entries(COS.classes as unknown as Record<string, CosItem[]>).map(([k, l]) => [k, l.filter((i) => !i.wip)])) as Record<string, CosItem[]>; // wip items stay out of the shop until verified on every frame
 export const slotOf = (type: string): CosSlot | null =>
   type === 'head' ? 'head' : type === 'mask' ? 'face' : type === 'cape' || type === 'back' ? 'back'
@@ -151,7 +151,8 @@ function bodyVariant(scene: Phaser.Scene, key: string, wkey: string, cut: boolea
     const lab = new Int16Array(256).fill(-1); // region label → ramp index
     const ramps: number[][][] = [];
     const geom = BASE_GEOM[key]; // base body strip: masks match, worn layers still have the armour sheet's geometry
-    RECOLOR.forEach(([slot, labels], ri) => { if (geom && slot === 'armor') return; const lut = rec[ri] ? cosmetic(rec[ri]!)?.lut : undefined; if (lut) { ramps[ri] = lut; for (const l of labels) lab[l] = ri; } });
+    const lrs: number[][] = []; // per-ramp luminance range of the source material (beginner clothes); default 12..187
+    RECOLOR.forEach(([slot, labels], ri) => { if (geom && slot === 'armor') return; const it = rec[ri] ? cosmetic(rec[ri]!) : undefined; if (it?.lut) { ramps[ri] = it.lut; lrs[ri] = it.lr ?? [12, 187]; for (const l of labels) lab[l] = ri; } });
     let fab: Uint8ClampedArray | null = null, FW = 0, FH = 0;
     if (capeId && scene.textures.exists(`cosf-${capeId}`)) {
       const fimg = scene.textures.get(`cosf-${capeId}`).getSourceImage() as HTMLImageElement; FW = fimg.width; FH = fimg.height;
@@ -173,7 +174,7 @@ function bodyVariant(scene: Phaser.Scene, key: string, wkey: string, cut: boolea
       // the most specific slot wins (top/gloves/shoes over the full armor finish)
       let ri = -1; for (let k = RECOLOR.length - 1; k >= 0; k--) if (ramps[k] && RECOLOR[k][1].includes(r)) { ri = k; break; }
       if (ri < 0) continue;
-      const lut = ramps[ri], n = lut.length, l = 0.3 * a[i] + 0.59 * a[i + 1] + 0.11 * a[i + 2], q = Math.max(0, Math.min(n - 1, Math.floor(((l - 12) / 175) * n)));
+      const lut = ramps[ri], n = lut.length, lr = lrs[ri], l = 0.3 * a[i] + 0.59 * a[i + 1] + 0.11 * a[i + 2], q = Math.max(0, Math.min(n - 1, Math.floor(((l - lr[0]) / (lr[1] - lr[0])) * n)));
       a[i] = lut[q][0]; a[i + 1] = lut[q][1]; a[i + 2] = lut[q][2];
     }
     void lab;
