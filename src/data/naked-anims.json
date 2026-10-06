@@ -8,6 +8,7 @@
  "female": {
   "idle": 1,
   "walk": 4,
+  "alert": 3,
   "run": 4
  }
 }

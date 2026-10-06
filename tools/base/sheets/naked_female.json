@@ -1,6 +1,6 @@
 {
  "gender": "female",
- "_note": "figures are counted per GPT image row by row, left to right; farL / farR = that leg (as drawn) is the far one (drawn darker); body1.0 = the move's tallest neck-to-sole = the standing one; every frame wears the standing head",
+ "_note": "figures are counted per GPT image row by row, left to right; farL / farR = that leg (as drawn) is the far one (drawn darker); body1.0 = the move's tallest neck-to-sole = the standing one; every frame wears the standing head; as:walk = the same scale as the walk (same GPT size); feet = planted feet, the head goes with the neck",
  "anims": {
   "idle": [
    ["naked_female_idle.png", 0]
@@ -10,6 +10,11 @@
    ["naked_both_walk.png", 5, "body1.0", "farR"],
    ["naked_both_walk.png", 6, "body1.0", "farR"],
    ["naked_both_walk.png", 7, "body1.0", "farR"]
+  ],
+  "alert": [
+   ["naked_both_alert.png", 3, "as:walk", "farR", "feet"],
+   ["naked_both_alert.png", 4, "as:walk", "farR", "feet"],
+   ["naked_both_alert.png", 5, "as:walk", "farR", "feet"]
   ],
   "run": {"from": "walk", "lean": [0.08, 0.14], "lift": [4, 0, 4, 0]}
  },

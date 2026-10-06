@@ -10,14 +10,16 @@
 #            the bodies match, the head is the standing one anyway)
 #   "tallR"  one scale for the move: its tallest frame = R x the standing height
 #   "likeN"  same height as cell N of the move
+#   "as:<move>"  the same scale as that move (GPT drew both images at one size: same head width → same scale)
 #   "swap"   near / far leg tones exchanged (GPT shaded them and drew the near leg forward again)
 #   "farL" / "farR"  the left / right leg (as drawn) is the far one: drawn darker (GPT drew both legs alike)
 #   "ownhead"  keep GPT's head (no standing head)
+#   "feet"   the feet stay planted: every frame's feet where the move's first frame has them, the head goes with the neck
 # "run": {"from": "walk", "lean": [body, torso], "lift": [px per frame]} — the walk frames leaning forward (the whole
 #   body tilts from the feet, the torso a little more from the waist; the head stays upright), optional lift per frame.
 import json, os, sys, numpy as np
 from PIL import Image
-from scipy import ndimage as nd
+from scipy import ndimage as nd, signal
 H = os.path.dirname(os.path.abspath(__file__)); G = H + '/../../'; S = 352; GROUND = 310
 src = open(H + '/bake_pose.py').read()
 exec(src[src.index('def keyed('):src.index('def labels(')])          # keyed() of the pose baker
@@ -152,20 +154,60 @@ def frame(path, idx, sc, opts=()):
   return r(e), r(a), r(fig), r(lab)
 
 
-def put_head(e, a, fig, lab, hd):
-  """GPT's head off, the standing head on: same drawing, same x (the frame moves under it), on this frame's neck."""
-  row, l, rr = neck_of(fig)
-  dx = int(round(hd['cx'] - (l + rr) / 2))
-  e, a, fig, lab = [np.roll(v, dx, 1) for v in (e, a, fig, lab)]
+def jaw_split(sil, nrow):
+  """Standing head (everything above the neck row) → (head, neck stub): parted by the jaw line, from the corner where
+  the back of the skull meets the neck to the bottom of the chin."""
+  rows = range(int(np.argmax(sil.sum(1))), nrow + 1)
+  L = {y: np.nonzero(sil[y])[0].min() for y in rows}; R = {y: np.nonzero(sil[y])[0].max() for y in rows}
+  back = max(L.values()); yb = min(y for y in rows if L[y] >= back - 1); xb = L[yb]
+  yf = max((y for y in rows if y < nrow), key=lambda y: R[y] - R[y + 1]); xf = R[yf]
+  yy, xx = np.mgrid[0:S, 0:S]
+  line = yb + (yf - yb) * np.clip((xx - xb) / max(1, xf - xb), 0, 1)
+  neck = sil & (yy > line) & (yy > yb)
+  return sil & ~neck, neck
+
+
+def find_head(fig, hd, r):
+  """Where GPT drew its head: the standing head's outline (scaled to GPT's head size, r) laid over this figure — the
+  head inside the figure, the band just outside its upper half clear of it. → GPT's neck point (x, y), the scaled
+  standing head (without its neck) laid there = GPT's head."""
+  sm = hd['sil']; ys, xs = np.nonzero(sm); y0, x0, y1, x1 = ys.min(), xs.min(), ys.max(), xs.max()
+  size = (max(1, round((x1 - x0 + 1) * r)), max(1, round((y1 - y0 + 1) * r)))
+  rs = lambda m: np.array(Image.fromarray((m[y0:y1 + 1, x0:x1 + 1] * 255).astype(np.uint8)).resize(size, Image.LANCZOS)) > 127
+  T, TH = rs(sm), rs(hd['head'])
+  wide = int(np.argmax(T.sum(1)))
+  ring = nd.binary_dilation(np.pad(T, 4), iterations=3) & ~np.pad(T, 4); ring[4 + wide:] = False
+  K = np.pad(T, 4).astype(np.float32) - ring.astype(np.float32)
+  sc = signal.correlate(fig.astype(np.float32), K, mode='valid', method='fft')
   top = int(np.nonzero(fig.any(1))[0].min())
-  dy = row - hd['row']
-  e[:row + 1] = 0; a[:row + 1] = 0; fig[:row + 1] = False; lab[:row + 1] = 0
-  h0 = hd['top']
-  for y in range(h0, hd['row'] + 1):
-    ty = y + dy
-    if 0 <= ty < S:
-      e[ty] = hd['e'][y]; a[ty] = hd['a'][y]; fig[ty] = hd['fig'][y]; lab[ty] = hd['lab'][y]
-  return e, a, fig, lab, dict(dx=dx, dy=dy, neckw=rr - l, removed_top=top)
+  win = np.full(sc.shape, -1e9, np.float32); lo, hi = max(0, top - 20), min(sc.shape[0], top + 60); win[lo:hi] = sc[lo:hi]
+  ty, tx = np.unravel_index(np.argmax(win), win.shape); ty, tx = ty + 4, tx + 4
+  m = np.zeros((S, S), bool); m[ty:ty + TH.shape[0], tx:tx + TH.shape[1]] = TH
+  return tx + (hd['cx'] - x0) * r, ty + (hd['row'] - y0) * r, m
+
+
+def put_head(e, a, fig, lab, hd, r, follow=False):
+  """GPT's head off, the standing head on (the same drawing), on GPT's neck point; its neck goes behind the body (the
+  frame keeps its own neck). follow=False: the head keeps the standing x and the frame moves under it (walk);
+  follow=True: the frame stays (planted feet), the head goes with it."""
+  ax, ay, gm = find_head(fig, hd, r)
+  dy = int(round(ay - hd['row'])); hx = int(round(ax - hd['cx']))
+  dx = 0
+  if not follow: dx, hx = -hx, 0
+  e, a, fig, lab, gm = [np.roll(v, dx, 1) for v in (e, a, fig, lab, gm)]
+  cut = nd.binary_dilation(gm, iterations=2)                                       # GPT's head
+  e[cut] = 0; a[cut] = 0; fig[cut] = False; lab[cut] = 0
+  sh = lambda v: np.roll(np.roll(v, dy, 0), hx, 1)
+  he, ha, hl = sh(hd['e']), sh(hd['a']), sh(hd['lab'])
+  for m in (sh(hd['neck']) & ~fig, sh(hd['head'])):                               # neck behind, head over
+    e[m] = he[m]; a[m] = ha[m]; fig[m] = True; lab[m] = hl[m]
+  return e, a, fig, lab, dict(dx=dx, hx=hx, dy=dy)
+
+
+def feet_x(fig):
+  """Middle of the feet (the lowest rows of the figure)."""
+  ys = np.nonzero(fig.any(1))[0]; xs = np.nonzero(fig[ys.max() - 14:ys.max() + 1].any(0))[0]
+  return (xs.min() + xs.max()) / 2
 
 
 def lean(px, mk, kb, kt, lift):
@@ -201,11 +243,13 @@ SC0 = FIG_H / (fi['box'][3] - fi['box'][1]); HEADW = fi['headw'] * SC0; SHORTSW 
 # the standing head (and neck) every other frame wears
 e0, a0, f0, l0 = frame(idle_path, idle_idx, SC0)
 nrow, nl, nr = neck_of(f0)
-HEAD = dict(e=e0, a=a0, fig=f0, lab=l0, row=nrow, cx=(nl + nr) / 2, top=int(np.nonzero(f0.any(1))[0].min()))
+sil0 = f0 & (np.arange(S)[:, None] <= nrow); hp0, nk0 = jaw_split(sil0, nrow)
+HEAD = dict(e=e0, a=a0, fig=f0, lab=l0, row=nrow, cx=(nl + nr) / 2, sil=sil0, head=hp0, neck=nk0)
 BODY_H = GROUND - nrow                                                  # standing neck → sole
 print(gender, 'standing neck row', nrow, 'x', HEAD['cx'], 'width', nr - nl, 'neck→sole', BODY_H)
 os.makedirs(OUT, exist_ok=True)
 strips, masks, heads = {}, {}, {}                              # heads: where the standing head sits per frame (cell px)
+move_sc, move_hw = {}, {}                                      # per move: its scale and its GPT head width
 for anim, cells in spec['anims'].items():
   if isinstance(cells, dict): continue                         # derived moves (run) below
   n = len(cells); px = np.zeros((S, n * S, 4), np.uint8); mk = np.zeros((S, n * S, 4), np.uint8); heads[anim] = []
@@ -224,15 +268,25 @@ for anim, cells in spec['anims'].items():
     if like:                                                   # same pose as cell N of this move: same height as it
       rp, ri = cells[int(like[0][4:])][:2]; rf = figures(rp)[ri]; tf = figures(path)[idx]
       sc = (HEADW / rf['headw']) * (rf['box'][3] - rf['box'][1]) / (tf['box'][3] - tf['box'][1])
+    same = [o for o in opts if str(o).startswith('as:')]
+    if same:                                                   # drawn at the size of that move's GPT image: its scale
+      ref = same[0][3:]
+      sc = move_sc[ref] * move_hw[ref] / np.mean([figures(cc[0])[cc[1]]['headw'] for cc in cells])
     e, a, fig, lab = frame(path, idx, sc, opts)
+    if 'feet' in opts:                                         # planted: the feet of the move's first frame
+      if c == 0: feet0 = feet_x(fig)
+      else:
+        k = int(round(feet0 - feet_x(fig))); e, a, fig, lab = [np.roll(v, k, 1) for v in (e, a, fig, lab)]
     hxy = [0, 0]
     if anim != 'idle' and 'ownhead' not in opts:
-      e, a, fig, lab, info = put_head(e, a, fig, lab, HEAD)
-      print(' ', anim, c, 'scale', round(sc, 4), 'head', info); hxy = [0, int(info['dy'])]
+      r = sc * figures(path)[idx]['headw'] / HEADW                 # GPT's head size / the standing head's
+      e, a, fig, lab, info = put_head(e, a, fig, lab, HEAD, r, follow='feet' in opts)
+      print(' ', anim, c, 'scale', round(sc, 4), 'head', info); hxy = [int(info['hx']), int(info['dy'])]
     heads[anim].append(hxy)
     px[:, c * S:(c + 1) * S, :3] = e.clip(0, 255).astype(np.uint8); px[:, c * S:(c + 1) * S, 3] = np.where(fig, (a * 255).clip(0, 255), 0).astype(np.uint8)
     mk[:, c * S:(c + 1) * S, 0] = np.where(fig, lab, 0); mk[:, c * S:(c + 1) * S, 3] = 255
   strips[anim] = px; masks[anim] = mk
+  move_sc[anim] = sc; move_hw[anim] = float(np.mean([figures(cc[0])[cc[1]]['headw'] for cc in cells]))
 for anim, d in spec['anims'].items():                          # derived: the run = the walk leaning forward
   if not isinstance(d, dict): continue
   base, bmk = strips[d['from']], masks[d['from']]; n = base.shape[1] // S
