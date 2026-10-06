@@ -13,6 +13,8 @@ export type NetMsg =
   /** Held skill released (Judgment Blade thrown) `at` ms into the cast, with its final aim (x1000). */
   | { t: 'rel'; from: string; castId: string; at: number; ax: number; ay: number }
   | { t: 'death'; from: string; by: string }
+  /** Chat line: to everyone in the room, or a whisper (`to` = player id). */
+  | { t: 'chat'; from: string; text: string; to?: string; emo?: number }
   | { t: 'respawn'; from: string; x: number; y: number; hp: number }
   | { t: 'leave'; from: string };
 

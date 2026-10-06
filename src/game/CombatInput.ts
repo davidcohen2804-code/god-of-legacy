@@ -32,7 +32,7 @@ export class CombatInput {
   private keys: Record<string, Phaser.Input.Keyboard.Key>;
   private detach: (() => void)[] = [];
 
-  constructor(readonly scene: Phaser.Scene, onSlot: (slot: number) => void, onJump: () => void, onToggle: (key: 'K' | 'I' | 'O') => void) {
+  constructor(readonly scene: Phaser.Scene, onSlot: (slot: number) => void, onJump: () => void, onToggle: (key: 'K' | 'I' | 'O' | 'J') => void) {
     const kb = scene.input.keyboard!;
     this.keys = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,E,SPACE') as Record<string, Phaser.Input.Keyboard.Key>;
     const map: [string, DirKey][] = [['A', 'L'], ['LEFT', 'L'], ['D', 'R'], ['RIGHT', 'R'], ['W', 'U'], ['UP', 'U'], ['S', 'D'], ['DOWN', 'D']];
@@ -49,7 +49,7 @@ export class CombatInput {
     const j = (e: KeyboardEvent) => { if (!e.repeat) onJump(); };
     kb.on('keydown-E', j);
     this.detach.push(() => kb.off('keydown-E', j));
-    for (const k of ['K', 'I', 'O'] as const) {
+    for (const k of ['K', 'I', 'O', 'J'] as const) {
       const h = (e: KeyboardEvent) => { if (!e.repeat) onToggle(k); };
       kb.on(`keydown-${k}`, h);
       this.detach.push(() => kb.off(`keydown-${k}`, h));

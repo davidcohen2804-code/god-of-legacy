@@ -227,6 +227,8 @@ export class ActorView {
   /** Name plate under the feet (MapleStory style); framed when a name-tag item is equipped. */
   private nameText: Phaser.GameObjects.Text | null = null;
   private nameFrame: Phaser.GameObjects.Image | null = null;
+  /** The default kit name plate (no name-tag item): sized to the name, not to the item art. */
+  private plainPlate = false;
   private trailT = 0; private lastFeet: { x: number; y: number } | null = null;
   setName(name: string): void {
     this.nameText?.destroy();
@@ -235,8 +237,11 @@ export class ActorView {
   }
   private refreshNameFrame(): void {
     this.nameFrame?.destroy(); this.nameFrame = null;
-    const id = this.equipped.nametag; if (!id || !this.nameText) return;
-    if (this.scene.textures.exists(`cos-${id}`)) this.nameFrame = this.scene.add.image(0, 0, `cos-${id}`);
+    if (!this.nameText) return;
+    const id = this.equipped.nametag;
+    if (id && this.scene.textures.exists(`cos-${id}`)) this.nameFrame = this.scene.add.image(0, 0, `cos-${id}`);
+    else if (this.scene.textures.exists('kit.player_plate')) { this.nameFrame = this.scene.add.image(0, 0, 'kit.player_plate'); this.plainPlate = true; return; } // default name plate
+    this.plainPlate = false;
   }
   visible = true;
 
@@ -331,7 +336,11 @@ export class ActorView {
     if (this.nameText) {
       const ny = y - supportZ + 22, d0 = actorDepth(x, y, supportZ) + 0.5;
       this.nameText.setPosition(x, ny).setDepth(d0 + 0.01).setAlpha(alpha).setVisible(this.visible);
-      if (this.nameFrame) { const w = Math.max(96, this.nameText.width + 54); this.nameFrame.setDisplaySize(w, w * (this.nameFrame.height / this.nameFrame.width) * 1.0).setPosition(x, ny).setDepth(d0).setAlpha(alpha).setVisible(this.visible); }
+      if (this.nameFrame) {
+        if (this.plainPlate) this.nameFrame.setDisplaySize(this.nameText.width + 48, 22); // name clear of the end gems
+        else { const w = Math.max(96, this.nameText.width + 54); this.nameFrame.setDisplaySize(w, w * (this.nameFrame.height / this.nameFrame.width) * 1.0); }
+        this.nameFrame.setPosition(x, ny).setDepth(d0).setAlpha(alpha).setVisible(this.visible);
+      }
     }
     const tr = this.equipped.trail;
     if (tr && this.visible && this.scene.textures.exists(`cos-${tr}`)) {

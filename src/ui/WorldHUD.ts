@@ -4,6 +4,7 @@
 import { FONT_FAMILY, HUD as H, PVP } from '../config/layout';
 import { ensureCharacterUIStyles, syncOverlay } from './CharacterSelectUI';
 import { HudEffect, HudSlot, HudState, PortraitRef } from './hud/HudState';
+import { GameMenu } from './HudExtras';
 
 const A = (f: string) => `${H.path}/${f}.png`;
 const P = H.palette;
@@ -121,6 +122,7 @@ export interface WorldHUDOptions {
 
 export class WorldHUD {
   private root: HTMLDivElement;
+  private menu: GameMenu;
   private lastRect = '';
   private status?: HTMLDivElement;
   private els: Record<string, HTMLElement> = {};
@@ -152,15 +154,13 @@ export class WorldHUD {
     this.buildSkills();
     this.buildCombat();
 
-    const btn = document.createElement('button');
-    btn.className = 'kback';
-    btn.type = 'button';
-    btn.setAttribute('aria-label', opts.returnLabel);
-    btn.textContent = opts.returnLabel;
-    btn.addEventListener('mousedown', (e) => e.preventDefault()); // keep keyboard focus on the game
-    btn.addEventListener('keyup', (e) => { if (e.key === ' ') e.preventDefault(); }); // Space belongs to the game, not this button
-    btn.addEventListener('click', () => opts.onReturn());
-    this.root.appendChild(btn);
+    // Gear MENU (bottom-right): the panels and the way back (Back to Characters / Exit Arena).
+    this.menu = new GameMenu(this.root, [
+      { key: 'K', label: 'SKILL BOOK', run: () => opts.onMenu?.('K') },
+      { key: 'I', label: 'INVENTORY', run: () => opts.onMenu?.('I') },
+      { key: 'O', label: 'COSMETIC SHOP', run: () => opts.onMenu?.('O') },
+      { label: opts.returnLabel, run: () => opts.onReturn() },
+    ]);
     this.layout();
   }
 
@@ -503,7 +503,11 @@ export class WorldHUD {
     this.root.classList.toggle('compact', scale < 1279 / 1920); // below 1280x720: hide optional detail
   }
 
+  /** The 1920x1080 overlay element (chat, quest tracker and other HUD parts live inside it). */
+  get overlay(): HTMLElement { return this.root; }
+
   destroy(): void {
+    this.menu.destroy();
     this.root.remove();
     this.markers.clear();
     this.cache.clear();

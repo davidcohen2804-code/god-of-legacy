@@ -17,6 +17,9 @@ import { Character } from '../characters/CharacterTypes';
 import { Dir } from '../world/collision';
 import type { CursedSwordsman } from '../world/CursedSwordsman';
 import { showLoading } from '../ui/LoadingScreen';
+import { CHAT_MAX_LEN, ChatBox, ChatKind, EMOTES } from '../ui/ChatBox';
+import { SpeechBubbles } from '../ui/SpeechBubbles';
+import { QuestLog, QuestTracker } from '../ui/HudExtras';
 import { CourtyardAmbience } from '../world/Ambience';
 import { WORLD_OBJECTS, actorDepth, footAllowed, insideArena, placementOk } from '../world/WorldGeometry';
 import { isQAMode } from '../qa/QAPanel';
@@ -151,6 +154,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private character?: Character;
   skillBook?: SkillBook;
   cosPanel?: CosmeticPanel;
+  chat?: ChatBox;
+  private bubbles?: SpeechBubbles;
+  private quests?: QuestTracker;
+  questLog?: QuestLog;
 
   constructor() { super('LegacyCourtyardScene'); }
 
@@ -175,6 +182,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     preloadCosmetics(this, classes && me ? [...new Set([...classes, me.classId])] : classes); // a Beginner still owns its class's items
     preloadPanelArt(this);
     preloadLife(this);
+    for (let n = 0; n < EMOTES; n++) if (!this.textures.exists(`kit.emote_${n}`)) this.load.image(`kit.emote_${n}`, `assets/final/ui/kit/emote_${n}.png`);
     showLoading(this, pvp ? 'PVP ARENA' : 'LEGACY COURTYARD');
   }
 
@@ -267,13 +275,20 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.skillBook = new SkillBook(this, host, this.game.canvas, this.cls, character.level, isQAMode() || !!pvpRoom); // arena: all skills open
     this.cosPanel = new CosmeticPanel(this, host, this.game.canvas, character, () => this.equipped, (e) => this.setEquipped(e));
     this.skillBook.setEquipped(this.equipped);
+    // Chat (Enter), speech bubbles, quest tracker and quest log (J).
+    const ov = this.hud.overlay;
+    this.chat = new ChatBox(ov, (text, kind) => this.sendChat(text, kind), (on) => this.chatTyping(on), (n) => { this.bubbles?.emote(this.localId, n, this.simMs); this.pvp?.sendChat('', undefined, n); });
+    this.bubbles = new SpeechBubbles(this);
+    this.quests = new QuestTracker(ov);
+    this.questLog = new QuestLog(ov, () => this.ci?.reset());
+    this.chat.add({ kind: 'system', text: pvpRoom ? 'Welcome to the PvP Arena! Press Enter to chat.' : 'Welcome to God Of Legacy! Press Enter to chat.' });
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, (_t: number, d: number) => {
       if (!this.hud) return;
       this.hud.layout(); this.skillBook?.layout(); this.cosPanel?.layout();
       if (this.view) this.hud.update(this.hudState(), this.simMs, d);
     });
     const kb = this.input.keyboard!;
-    const esc = () => { if (this.skillBook?.open || this.cosPanel?.open) { this.skillBook?.close(); this.cosPanel?.close(); } else if (pvpRoom) exitArena(); };
+    const esc = () => { if (this.skillBook?.open || this.cosPanel?.open || this.questLog?.isOpen) { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); } else if (pvpRoom) exitArena(); };
     kb.on('keydown-ESC', esc);
     if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name });
 
@@ -298,6 +313,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.hud?.destroy(); this.hud = undefined;
       this.skillBook?.destroy(); this.skillBook = undefined;
       this.cosPanel?.destroy(); this.cosPanel = undefined;
+      this.chat?.destroy(); this.chat = undefined;
+      this.bubbles?.destroy(); this.bubbles = undefined;
+      this.quests?.destroy(); this.quests = undefined;
+      this.questLog?.destroy(); this.questLog = undefined;
       this.view?.destroy(); this.view = undefined;
       this.character = undefined;
       this.dummy = undefined; this.dummyBar = undefined; this.dummyState = undefined;
@@ -341,6 +360,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.updateBot(ms, now);
     this.reactionFx(ms);
     this.renderPlayer(this.fx.hitStopLeft > 0 ? 0 : ms);
+    this.bubbles?.update(now, (id) => {
+      if (id === this.localId) return this.dead < 0 ? { x: this.kin.x, y: this.kin.y, z: this.kin.z } : null;
+      const r = this.pvp?.remotes.get(id); return r && r.alive ? { x: r.x, y: r.y, z: r.z } : null;
+    });
   }
 
   // ======================================================================= local player
@@ -946,10 +969,55 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (phase === 'startup') (run.attackerId === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(run.attackerId))?.startSkill(run.skill.id, run.stage, dirOf(run.aim.x, run.aim.y, 'right'), run.aim);
   }
 
-  private togglePanel(k: 'K' | 'I' | 'O'): void {
-    if (k === 'K') { this.cosPanel?.close(); this.skillBook?.toggle(); }
-    else { this.skillBook?.close(); this.cosPanel?.toggle(k === 'I' ? 'inventory' : 'shop'); }
+  private togglePanel(k: 'K' | 'I' | 'O' | 'J'): void {
+    if (k === 'J') { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.toggle(); }
+    else if (k === 'K') { this.cosPanel?.close(); this.questLog?.close(); this.skillBook?.toggle(); }
+    else { this.skillBook?.close(); this.questLog?.close(); this.cosPanel?.toggle(k === 'I' ? 'inventory' : 'shop'); }
     this.ci?.reset();
+  }
+
+  // ======================================================================= chat
+
+  /** While the chat's typing row has the keyboard, the game ignores keys (and forgets held ones). */
+  private chatTyping(on: boolean): void {
+    this.ci?.reset();
+    const kb = this.input.keyboard;
+    if (kb) { kb.enabled = !on; if (!on) kb.resetKeys(); }
+  }
+
+  private nameOf(id: string): string {
+    if (id === this.localId) return this.character?.name ?? 'You';
+    if (id === BOT_ID) return BOT_NAME;
+    return this.pvp?.remotes.get(id)?.meta.name ?? 'Someone';
+  }
+
+  /** Your line: everyone in the room (bubble over your head), a whisper (/w Name text), or a note when it can't go out. */
+  private sendChat(raw: string, kind: ChatKind): void {
+    const me = this.character?.name ?? 'You';
+    const w = /^\/w\s+(\S+)\s+(.+)$/i.exec(raw);
+    if (w || kind === 'whisper') {
+      if (!w) { this.chat?.add({ kind: 'system', text: 'Whisper: /w Name message' }); return; }
+      const to = [...(this.pvp?.remotes.values() ?? [])].find((r) => r.meta.name.toLowerCase() === w[1].toLowerCase());
+      if (!to) { this.chat?.add({ kind: 'system', text: `${w[1]} is not here.` }); return; }
+      this.pvp?.sendChat(w[2], to.meta.playerId);
+      this.chat?.add({ kind: 'whisper', name: me, me: true, to: to.meta.name, text: w[2] });
+      return;
+    }
+    if (kind === 'party') { this.chat?.add({ kind: 'system', text: 'You are not in a party.' }); return; }
+    this.chat?.add({ kind: 'all', name: me, me: true, text: raw });
+    this.bubbles?.say(this.localId, raw, this.simMs);
+    this.pvp?.sendChat(raw);
+  }
+
+  private receiveChat(from: string, m: Extract<NetMsg, { t: 'chat' }>): void {
+    const r = this.pvp?.remotes.get(from);
+    if (!r || typeof m.text !== 'string') return;
+    if (typeof m.emo === 'number') { if (m.emo >= 0 && m.emo < EMOTES && Number.isInteger(m.emo)) this.bubbles?.emote(from, m.emo, this.simMs); return; }
+    const text = m.text.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, CHAT_MAX_LEN);
+    if (!text) return;
+    if (m.to) { if (m.to === this.localId) this.chat?.add({ kind: 'whisper', name: r.meta.name, text }); return; }
+    this.chat?.add({ kind: 'all', name: r.meta.name, text });
+    this.bubbles?.say(from, text, this.simMs);
   }
 
   // ======================================================================= targets / hits
@@ -1141,7 +1209,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private updateBot(ms: number, now: number): void {
     if (!this.pvp || !this.pvpReady) return;
     if (this.pvp.remotes.size > 0) {
-      if (this.bot) { this.rt?.cancelAttacker(BOT_ID); this.bot.destroy(); this.bot = undefined; }
+      if (this.bot) { this.rt?.cancelAttacker(BOT_ID); this.bot.destroy(); this.bot = undefined; this.chat?.add({ kind: 'system', text: `${BOT_NAME} left the arena.` }); }
       this.botAwayMs = 0;
       return;
     }
@@ -1155,6 +1223,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         cancel: () => { for (const r of this.rt?.runs ?? []) if (r.attackerId === BOT_ID && (r.phase === 'startup' || r.phase === 'active')) r.phase = 'done'; },
       }, now);
       this.fx?.callout({ x: sp.x, y: sp.y, z: 60 }, `${BOT_NAME.toUpperCase()} ENTERS`, '#ffd27a', 0);
+      this.chat?.add({ kind: 'system', text: `${BOT_NAME} entered the arena (sparring partner while you are alone).` });
     }
     this.bot.update(ms, { now, player: { x: this.kin.x, y: this.kin.y, z: this.kin.z - this.kin.supportZ, alive: this.dead < 0 } });
   }
@@ -1203,7 +1272,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const at = r ? { x: r.x, y: r.y, z: (m.z ?? r.z) + 40 } : { x: 0, y: 0, z: 0 };
         this.confirm(run, hits[m.hit ?? 0] ?? hits[0], victim, at, m.dmg, m.idx ?? 1, m.cid ?? 0, m.rx ?? 'hit', !!m.ends, m.z ?? 0);
       },
-      onRemoteLeft: (id) => this.rt?.cancelAttacker(id),
+      onRemoteLeft: (id) => { this.rt?.cancelAttacker(id); this.bubbles?.clear(id); this.chat?.add({ kind: 'system', text: `${this.nameOf(id)} left the arena.` }); },
+      onRemoteJoined: (id) => this.chat?.add({ kind: 'system', text: `${this.nameOf(id)} entered the arena.` }),
+      onRemoteDeath: (id, by) => this.chat?.add({ kind: 'system', text: `${this.nameOf(id)} was defeated by ${this.nameOf(by)}.` }),
+      onChat: (from, m) => this.receiveChat(from, m),
       getLocal: () => {
         if (!this.view || !this.pvpReady) return null;
         const k = this.kin, dead = this.dead >= 0;
