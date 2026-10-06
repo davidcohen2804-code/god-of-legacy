@@ -52,6 +52,12 @@ const SEL_CSS = `
 .gol-sel .modal.kit{background:url("${KIT('dialog_window')}") 0 0/100% 100% no-repeat;border:0;box-shadow:none}
 `;
 const SEL_STYLE_ID = 'gol-charselect-kit';
+/** Kit styles (plaque title, plate buttons, kit windows) shared by Character Select and Character Create. */
+export function ensureSelectKitStyles(): void {
+  if (document.getElementById(SEL_STYLE_ID)) return;
+  const st = document.createElement('style'); st.id = SEL_STYLE_ID; st.textContent = SEL_CSS; document.head.appendChild(st);
+}
+export const KIT_LAYOUT = K;
 const STYLE_ID = 'gol-charselect-style';
 
 const CSS = `
@@ -142,7 +148,7 @@ export class CharacterSelectUI {
 
   constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, private h: CharacterSelectHandlers) {
     ensureCharacterUIStyles();
-    if (!document.getElementById(SEL_STYLE_ID)) { const st = document.createElement('style'); st.id = SEL_STYLE_ID; st.textContent = SEL_CSS; document.head.appendChild(st); }
+    ensureSelectKitStyles();
     this.root = this.el('div', 'gol-cs gol-sel');
     host.appendChild(this.root);
 
