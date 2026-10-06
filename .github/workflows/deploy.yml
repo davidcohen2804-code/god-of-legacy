@@ -9,6 +9,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # safety net: if a push's deploy was lost (stuck runner / superseded in the queue), republish within minutes
+  schedule:
+    - cron: '*/10 * * * *'
 
 permissions:
   contents: write
@@ -16,26 +19,44 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 6   # a stuck runner fails fast instead of blocking the queue
     concurrency:
       group: pages-deploy
       cancel-in-progress: false
+    outputs:
+      fresh: ${{ steps.check.outputs.fresh }}
     steps:
+      - name: Skip if this commit is already live
+        id: check
+        run: |
+          live=$(curl -fsS -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github.raw" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/version.json?ref=gh-pages" | sed -n 's/.*"commit":"\([^"]*\)".*/\1/p' || true)
+          echo "live=$live this=${GITHUB_SHA::7}"
+          if [ "$live" = "${GITHUB_SHA::7}" ]; then echo "fresh=0" >> $GITHUB_OUTPUT; else echo "fresh=1" >> $GITHUB_OUTPUT; fi
       - uses: actions/checkout@v4
+        if: steps.check.outputs.fresh == '1'
       - uses: actions/setup-node@v4
+        if: steps.check.outputs.fresh == '1'
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+        if: steps.check.outputs.fresh == '1'
       - run: npx tsc -p .
+        if: steps.check.outputs.fresh == '1'
       - run: npm run build
+        if: steps.check.outputs.fresh == '1'
       - run: touch dist/.nojekyll
+        if: steps.check.outputs.fresh == '1'
       # keep the latest QA screenshots on gh-pages (the qa job refreshes them afterwards)
       - name: Carry over previous QA screenshots
+        if: steps.check.outputs.fresh == '1'
         continue-on-error: true
         run: |
           git fetch --depth=1 origin gh-pages
           git archive origin/gh-pages qa | tar -x -C dist
       - name: Publish dist to gh-pages
+        if: steps.check.outputs.fresh == '1'
         run: |
           cd dist
           git init -q -b gh-pages
@@ -47,7 +68,9 @@ jobs:
 
   qa:
     needs: deploy
+    if: needs.deploy.outputs.fresh == '1'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     concurrency:
       group: pages-qa
       cancel-in-progress: true
