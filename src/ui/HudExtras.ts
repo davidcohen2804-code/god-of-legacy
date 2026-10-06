@@ -5,7 +5,7 @@ import { FONT_FAMILY, HUD } from '../config/layout';
 const K = (f: string) => `assets/final/ui/kit/${f}.png`;
 const STYLE_ID = 'gol-hudx-style';
 /** quest_frame.png (671x933): header strip on top (art y 38-193), hollow body; nine-slice at the width's scale. */
-const Q = { x: 1660, y: 600, w: 240, k: 240 / 671, t: 205, r: 64, b: 70, l: 64 };
+const Q = { x: 22, y: 212, w: 240, k: 240 / 671, t: 205, r: 64, b: 70, l: 64 }; // top-left, under the portrait (and the buff row)
 const M = { x: 1828, y: 984, d: 76, itemW: 230, itemH: 46 };
 /** questlog_window.png (1578x976) shown at 1100 px wide, centred; zones measured on the art. */
 const QL = { w: 1100, s: 1100 / 1578, x: (1920 - 1100) / 2, y: 190 };
