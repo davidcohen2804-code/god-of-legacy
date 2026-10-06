@@ -1,0 +1,61 @@
+# God Of Legacy — automatic screenshots of build ea9cda3 (2026-10-06 11:09 UTC)
+
+### 1920_01_main_menu.jpg
+![1920_01_main_menu.jpg](1920_01_main_menu.jpg)
+
+### 1920_02_start_hover.jpg
+![1920_02_start_hover.jpg](1920_02_start_hover.jpg)
+
+### 1920_03_settings.jpg
+![1920_03_settings.jpg](1920_03_settings.jpg)
+
+### 1920_04_exit_confirm.jpg
+![1920_04_exit_confirm.jpg](1920_04_exit_confirm.jpg)
+
+### 1920_05_exit_web_message.jpg
+![1920_05_exit_web_message.jpg](1920_05_exit_web_message.jpg)
+
+### 1920_06_character_select.jpg
+![1920_06_character_select.jpg](1920_06_character_select.jpg)
+
+### 1920_07_slot_selected.jpg
+![1920_07_slot_selected.jpg](1920_07_slot_selected.jpg)
+
+### 1920_08_character_filled_QA_data.jpg
+![1920_08_character_filled_QA_data.jpg](1920_08_character_filled_QA_data.jpg)
+
+### 1920_09_delete_confirm.jpg
+![1920_09_delete_confirm.jpg](1920_09_delete_confirm.jpg)
+
+### 1920_11_qa_panel.jpg
+![1920_11_qa_panel.jpg](1920_11_qa_panel.jpg)
+
+### 1280_01_main_menu.jpg
+![1280_01_main_menu.jpg](1280_01_main_menu.jpg)
+
+### 1280_02_start_hover.jpg
+![1280_02_start_hover.jpg](1280_02_start_hover.jpg)
+
+### 1280_03_settings.jpg
+![1280_03_settings.jpg](1280_03_settings.jpg)
+
+### 1280_04_exit_confirm.jpg
+![1280_04_exit_confirm.jpg](1280_04_exit_confirm.jpg)
+
+### 1280_05_exit_web_message.jpg
+![1280_05_exit_web_message.jpg](1280_05_exit_web_message.jpg)
+
+### 1280_06_character_select.jpg
+![1280_06_character_select.jpg](1280_06_character_select.jpg)
+
+### 1280_07_slot_selected.jpg
+![1280_07_slot_selected.jpg](1280_07_slot_selected.jpg)
+
+### 1280_08_character_filled_QA_data.jpg
+![1280_08_character_filled_QA_data.jpg](1280_08_character_filled_QA_data.jpg)
+
+### 1280_09_delete_confirm.jpg
+![1280_09_delete_confirm.jpg](1280_09_delete_confirm.jpg)
+
+### 1280_11_qa_panel.jpg
+![1280_11_qa_panel.jpg](1280_11_qa_panel.jpg)
