@@ -1,8 +1,17 @@
 {
  "gender": "female",
- "_note": "figures are counted left to right in each GPT image",
+ "_note": "figures are counted per GPT image row by row, left to right; farL / farR = that leg (as drawn) is the far one (drawn darker); body1.0 = the move's tallest neck-to-sole = the standing one; every frame wears the standing head",
  "anims": {
-  "idle": [["naked_female_idle.png", 0]]
+  "idle": [
+   ["naked_female_idle.png", 0]
+  ],
+  "walk": [
+   ["naked_both_walk.png", 4, "body1.0", "farL"],
+   ["naked_both_walk.png", 5, "body1.0", "farR"],
+   ["naked_both_walk.png", 6, "body1.0", "farR"],
+   ["naked_both_walk.png", 7, "body1.0", "farR"]
+  ],
+  "run": {"from": "walk", "lean": [0.08, 0.14], "lift": [4, 0, 4, 0]}
  },
  "preview": ["naked_female_idle.png", 0]
 }

@@ -162,20 +162,25 @@ export const BASE_GEOM: Record<string, { W: number; H: number; cols: number; ori
 let BASE_MODE = false;
 /** The clean base character (no hair / clothes / weapon), male or female. Its drawn moves are listed per gender in
  *  naked-anims.json (tools/base/naked_frames.py); every other move shows him / her standing until it is drawn.
- *  The run plays the walk frames faster. */
+ *  MapleStory head: every frame wears the standing head (same drawing); naked-heads.json = where it sits per frame
+ *  (cell px from the standing head) — the anchors follow it. The run = the walk frames leaning forward, played faster. */
 import NAKED_LIST from '../data/naked-anims.json';
+import NAKED_HEADS_LIST from '../data/naked-heads.json';
 const NAKED = NAKED_LIST as Record<string, Record<string, number>>;
+const NAKED_HEADS = NAKED_HEADS_LIST as Record<string, Record<string, number[][]>>;
 const nakedKey = (g: string, anim = 'idle') => `naked-${g}-${anim}`;
 const NAKED_HEAD_DROP = 10; // his bald head top sits this much (cell px) lower than the beginner's hair top
 function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): PoseFrame {
   const f = sheetPose(cls, dir, { k: 'loop', state: 'idle', t: 0, speed: 0 }); // the standing beginner's anchors (head, chest)
   const has = NAKED[g] ?? {};
-  let key = nakedKey(g), frame = 0;
+  let anim = 'idle', frame = 0;
   if (q.k === 'loop' && (q.state === 'walk' || q.state === 'run') && has.walk) {
-    const c = baseLoop(q.state, q.speed); key = nakedKey(g, 'walk'); frame = Math.floor((q.t * c.fps) / 1000) % has.walk;
-  } else if (q.k === 'loop' && q.state === 'alert' && has.alert) { key = nakedKey(g, 'alert'); frame = Math.floor(q.t / 500) % has.alert; } // 0.5 s a frame (Maple)
+    anim = q.state === 'run' && has.run ? 'run' : 'walk';
+    const c = baseLoop(q.state, q.speed); frame = Math.floor((q.t * c.fps) / 1000) % has[anim];
+  } else if (q.k === 'loop' && q.state === 'alert' && has.alert) { anim = 'alert'; frame = Math.floor(q.t / 500) % has.alert; } // 0.5 s a frame (Maple)
+  const key = nakedKey(g, anim), [hx, hy] = NAKED_HEADS[g]?.[anim]?.[frame] ?? [0, 0], fx = f.flip ? -1 : 1;
   return { ...f, key, frame, wkey: `${key}-w`, blade: null, bladeBehind: false, hair: null, head: null,
-    anchor: f.anchor ? f.anchor.map((v, i) => (i === 1 ? v + NAKED_HEAD_DROP * SHEET_SCALE : v)) : null };
+    anchor: f.anchor ? f.anchor.map((v, i) => (i % 2 === 0 ? v + hx * fx * SHEET_SCALE : v + (hy + (i === 1 ? NAKED_HEAD_DROP : 0)) * SHEET_SCALE)) : null };
 }
 /** Base body available for this animation (sheet baked)? */
 export const hasBase = (cls: string, anim: string): boolean => cls === 'warrior' && BASE_ANIMS.has(anim);
@@ -232,10 +237,11 @@ export type PoseQuery =
   | { k: 'skill'; id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number };
 
 /** Beginner base body locomotion: 4 key poses per cycle (contact, passing, contact, passing — legs one after the other);
- *  the run plays the same legs faster. contact = the frames a foot lands (dust puffs). */
+ *  the run plays the same legs faster, leaning forward, the strides off the ground. contact = the frames a foot lands
+ *  (dust puffs): the run lands on the passing frames. */
 export const baseLoop = (state: 'walk' | 'run', speed: number): { n: number; fps: number; contact: number[] } => state === 'walk'
   ? { n: 4, fps: 7 * Math.max(0.7, Math.min(1.2, speed / 188)), contact: [0, 2] }
-  : { n: 4, fps: 11 * Math.max(0.75, Math.min(1.15, speed / 270)), contact: [0, 2] };
+  : { n: 4, fps: 11 * Math.max(0.75, Math.min(1.15, speed / 270)), contact: [1, 3] };
 
 const pick = <T,>(list: T[], p: number): T => list[Math.max(0, Math.min(list.length - 1, Math.floor(p * list.length)))];
 

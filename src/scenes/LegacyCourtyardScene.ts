@@ -453,7 +453,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.mode === 'recover' && this.modeT < RECOVER_MS && !inp.hasMove) return;
     if (sp > 12) {
       const m: Mode = inp.running && sp > PHYS.walk + 20 ? 'run' : 'walk';
-      if (m !== this.mode) this.setMode(m);
+      if (m !== this.mode) { if (this.mode !== 'walk' && this.mode !== 'run') this.loopT = 0; this.setMode(m); } // every walk starts on its first step (walk↔run keep the stride)
       this.footDust(sp);
     } else if (this.mode !== 'idle') this.setMode('idle');
   }

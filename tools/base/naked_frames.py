@@ -1,10 +1,20 @@
 # naked_frames.py <sheet json> : the clean base character's animations (male / female) from GPT drawings → game strips
 #   public/assets/final/body/naked/<gender>/<anim>.png (+ _m.png labels: skin 60, top 80, shorts 200), one 352 cell per
 #   frame, feet origin 176,310; src/data/naked-anims.json lists what each gender has (the game falls back to standing).
-# Per figure: magenta keyed, scaled so the HEAD is the same size in every frame (GPT draws each image at its own size;
-# the standing frame sets the scale: head top to sole = FIG_H), hips (shorts) on one x, lowest foot on the ground.
-# "swap": the near / far leg shading is exchanged (back leg gets the near leg's tones, front leg the far one's) — GPT
-# keeps drawing the near leg in front, this gives the step of the other leg. The run plays the walk frames faster.
+# Figures are counted per GPT image row by row (top row first), left to right.
+# The standing frame sets the size (head top to sole = FIG_H), hips (shorts) on the beginner's x, sole on the ground.
+# MapleStory head: every other frame gets the STANDING head, the same drawing in every frame — GPT's own head of that
+# frame is removed and the standing head is set on the frame's neck, always at the same x (the body moves under it).
+# Cell options:
+#   "bodyR"  one scale for the move: its tallest neck→sole = R x the standing neck→sole (GPT draws its own proportions;
+#            the bodies match, the head is the standing one anyway)
+#   "tallR"  one scale for the move: its tallest frame = R x the standing height
+#   "likeN"  same height as cell N of the move
+#   "swap"   near / far leg tones exchanged (GPT shaded them and drew the near leg forward again)
+#   "farL" / "farR"  the left / right leg (as drawn) is the far one: drawn darker (GPT drew both legs alike)
+#   "ownhead"  keep GPT's head (no standing head)
+# "run": {"from": "walk", "lean": [body, torso], "lift": [px per frame]} — the walk frames leaning forward (the whole
+#   body tilts from the feet, the torso a little more from the waist; the head stays upright), optional lift per frame.
 import json, os, sys, numpy as np
 from PIL import Image
 from scipy import ndimage as nd
@@ -12,11 +22,23 @@ H = os.path.dirname(os.path.abspath(__file__)); G = H + '/../../'; S = 352; GROU
 src = open(H + '/bake_pose.py').read()
 exec(src[src.index('def keyed('):src.index('def labels(')])          # keyed() of the pose baker
 FIG_H = 185
+TONE = np.array([1.0, 0.91, 0.83], np.float32)                       # far leg = near leg tone x this (GPT's own shading)
 spec = json.load(open(sys.argv[1])); gender = spec['gender']
 OUT = G + 'public/assets/final/body/naked/' + gender + '/'
 bm = np.array(Image.open(G + 'public/assets/final/body/warrior/base/idle_m.png'))[:, :S, 0]
 HIPX = float(np.median(np.nonzero(bm == 200)[1]))                     # where the beginner always stood
 _cache = {}
+
+
+def neck_of(m):
+  """Neck = the narrowest row between the head and the shoulders → (row, left, right)."""
+  ys = np.nonzero(m.any(1))[0]; top, bot = ys.min(), ys.max(); h = bot - top
+  best = None
+  for y in range(top + int(h * 0.22), top + int(h * 0.45)):
+    xs = np.nonzero(m[y])[0]
+    if not len(xs): continue
+    if best is None or xs.max() - xs.min() < best[2] - best[1]: best = (y, xs.min(), xs.max())
+  return best
 
 
 def figures(path):
@@ -26,7 +48,7 @@ def figures(path):
   L, n = nd.label(fig); sz = nd.sum(fig, L, range(1, n + 1))
   big = [1 + i for i in range(n) if sz[i] > 0.25 * sz.max()]
   figs = []
-  for i in sorted(big, key=lambda i: np.nonzero(L == i)[1].mean()):
+  for i in big:
     m = L == i; ys, xs = np.nonzero(m)
     y0, y1, x0, x1 = ys.min(), ys.max(), xs.min(), xs.max()
     head = m[y0:y0 + int((y1 - y0) * 0.28)]
@@ -34,13 +56,21 @@ def figures(path):
     R_, G_, B_ = [e[..., k] for k in range(3)]; mx_ = np.maximum(np.maximum(R_, G_), B_); mn_ = np.minimum(np.minimum(R_, G_), B_)
     grey = m & ((mx_ - mn_) / np.maximum(mx_, 1) < 0.13) & (mx_ > 105) & (np.arange(m.shape[0])[:, None] > y0 + (y1 - y0) * 0.45)
     gx = np.nonzero(grey.any(0))[0]
-    figs.append(dict(gi=gi, box=(x0, y0, x1, y1), headw=float(hx.max() - hx.min()), shortsw=float(gx.max() - gx.min()) if len(gx) else 0.0))
+    nk = neck_of(m)
+    figs.append(dict(gi=gi, m=m, box=(x0, y0, x1, y1), cx=xs.mean(), cy=ys.mean(), headw=float(hx.max() - hx.min()),
+                     shortsw=float(gx.max() - gx.min()) if len(gx) else 0.0, nts=float(y1 - nk[0])))
+  # rows (top row first), each left to right
+  figs.sort(key=lambda f: f['cy']); hmed = np.median([f['box'][3] - f['box'][1] for f in figs]); row, last = 0, None
+  for f in figs:
+    if last is not None and f['cy'] - last > 0.5 * hmed: row += 1
+    f['row'] = row; last = f['cy']
+  figs.sort(key=lambda f: (f['row'], f['cx']))
   _cache[path] = figs
   return figs
 
 
 def split_legs(e, fig, lab):
-  """Leg pixels below the shorts → (back leg, front leg): skin areas parted by the dark outline between them."""
+  """Leg pixels below the shorts → (left leg, right leg) as drawn: skin areas parted by the dark outline between them."""
   R, Gc, B = e[..., 0], e[..., 1], e[..., 2]; mx = np.maximum(np.maximum(R, Gc), B)
   sh = np.nonzero(lab == 200); low = np.arange(S)[:, None] > np.percentile(sh[0], 90)
   skin = fig & (lab == 60) & low & (mx >= 120)
@@ -51,6 +81,26 @@ def split_legs(e, fig, lab):
   db = nd.distance_transform_edt(~back); df = nd.distance_transform_edt(~front)
   back |= rest & (db <= df); front |= rest & (df < db)
   return back, front
+
+
+def gpt_legs(f):
+  """The two legs of a GPT figure (its own resolution, where the outline between them is clear) → (left, right) as
+  drawn: skin below the shorts parted by the outline, the outline to the nearest leg, up to the shorts' lower edge."""
+  m = f['m']; e, _ = keyed(f['gi'])
+  R, Gc, B = e[..., 0], e[..., 1], e[..., 2]; mx = np.maximum(np.maximum(R, Gc), B); mn = np.minimum(np.minimum(R, Gc), B)
+  x0, y0, x1, y1 = f['box']; yy = np.arange(m.shape[0])[:, None]
+  grey = m & ((mx - mn) / np.maximum(mx, 1) < 0.13) & (mx > 105) & (yy > y0 + (y1 - y0) * 0.45)
+  hem = int(np.percentile(np.nonzero(grey)[0], 90))
+  skin = m & ~grey & (mx >= 120) & (yy > hem)
+  L, n = nd.label(skin); sz = nd.sum(skin, L, range(1, n + 1))
+  two = sorted([1 + i for i in np.argsort(-sz)[:2]], key=lambda i: np.nonzero(L == i)[1].mean())
+  legs = [L == i for i in two]
+  # under the shorts: per column, the figure below the shorts' lowest pixel (no hands: they hang beside the shorts)
+  gb = np.where(grey.any(0), grey.shape[0] - 1 - np.argmax(grey[::-1], 0), m.shape[0])
+  under = m & ~grey & (yy > gb[None, :])
+  d = [nd.distance_transform_edt(~l) for l in legs]
+  near = under & (np.minimum(d[0], d[1]) <= 14)
+  return [l | (near & (di <= dj)) for l, di, dj in ((legs[0], d[0], d[1]), (legs[1], d[1], d[0]))]
 
 
 def label(e, a):
@@ -71,7 +121,8 @@ def label(e, a):
 
 
 def frame(path, idx, sc, opts=()):
-  f = figures(path)[idx]; x0, y0, x1, y1 = f['box']; gi = f['gi']
+  f = figures(path)[idx]; x0, y0, x1, y1 = f['box']
+  gi = np.where(nd.binary_dilation(f['m'], iterations=3)[..., None], f['gi'], np.array([255, 0, 255], np.float32))   # this figure only
   pad = 24
   X0, Y0 = max(0, x0 - pad), max(0, y0 - pad)
   sub = gi[Y0:y1 + pad, X0:x1 + pad]
@@ -85,41 +136,126 @@ def frame(path, idx, sc, opts=()):
     deep = np.arange(S)[:, None] > np.percentile(np.nonzero(lab == 200)[0], 97) + 3
     mb, mf = e[back & deep & (e.max(-1) > 120)].mean(0), e[front & deep & (e.max(-1) > 120)].mean(0)
     e = np.where(back[..., None], np.clip(e * (mf / mb), 0, 255), np.where(front[..., None], np.clip(e * (mb / mf), 0, 255), e))
+  far = [o for o in opts if o in ('farL', 'farR')]
+  if far:                                                       # the far leg darker: its GPT mask through the same resize
+    legs = gpt_legs(f); k = 0 if far[0] == 'farL' else 1
+    eg, _ = keyed(f['gi']); bright = eg.max(-1) > 150
+    gain = (np.median(eg[legs[1 - k] & bright], 0) * TONE / np.median(eg[legs[k] & bright], 0)).clip(0.7, 1.05)
+    leg = legs[k][Y0:y1 + pad, X0:x1 + pad]
+    lm = Image.fromarray((leg * 255).astype(np.uint8)).resize(im.size, Image.LANCZOS)
+    cm = Image.new('L', (S, S), 0); cm.paste(lm, (int(S / 2 - im.width / 2), int(GROUND - im.height + pad * sc)))
+    soft = nd.gaussian_filter(np.array(cm).astype(np.float32) / 255, 0.6).clip(0, 1)
+    e = e * (1 - (1 - gain) * soft[..., None])
   sh = np.nonzero(lab == 200)
   dx = int(round(HIPX - np.median(sh[1]))); dy = GROUND - int(np.nonzero(fig.any(1))[0].max())
   r = lambda v: np.roll(np.roll(v, dy, 0), dx, 1)
   return r(e), r(a), r(fig), r(lab)
 
 
+def put_head(e, a, fig, lab, hd):
+  """GPT's head off, the standing head on: same drawing, same x (the frame moves under it), on this frame's neck."""
+  row, l, rr = neck_of(fig)
+  dx = int(round(hd['cx'] - (l + rr) / 2))
+  e, a, fig, lab = [np.roll(v, dx, 1) for v in (e, a, fig, lab)]
+  top = int(np.nonzero(fig.any(1))[0].min())
+  dy = row - hd['row']
+  e[:row + 1] = 0; a[:row + 1] = 0; fig[:row + 1] = False; lab[:row + 1] = 0
+  h0 = hd['top']
+  for y in range(h0, hd['row'] + 1):
+    ty = y + dy
+    if 0 <= ty < S:
+      e[ty] = hd['e'][y]; a[ty] = hd['a'][y]; fig[ty] = hd['fig'][y]; lab[ty] = hd['lab'][y]
+  return e, a, fig, lab, dict(dx=dx, dy=dy, neckw=rr - l, removed_top=top)
+
+
+def lean(px, mk, kb, kt, lift):
+  """Run lean: each row shifted forward by kb·(height above the sole) + kt·(height above the waist), the head rows all by
+  the neck's amount (upright head); then the whole figure lifted by `lift` px."""
+  al = px[..., 3] > 0
+  ys = np.nonzero(al.any(1))[0]
+  sh = np.nonzero(mk[..., 0] == 200)[0]; waist = int(np.percentile(sh, 5)) if len(sh) else int(ys.mean())
+  row = neck_of(al)[0]
+  out = np.zeros_like(px, dtype=np.float32); mo = np.zeros_like(mk)
+  pm = px.astype(np.float32); pm[..., :3] *= pm[..., 3:4] / 255
+  xs = np.arange(S, dtype=np.float32)
+  for y in range(S):
+    yy = max(y, row)
+    d = kb * (GROUND - yy) + kt * max(0, waist - yy)
+    src = xs - d; x0 = np.floor(src).astype(int); f = (src - x0)[:, None]
+    ok = (x0 >= 0) & (x0 + 1 < S)
+    v = np.zeros((S, 4), np.float32)
+    v[ok] = pm[y, x0[ok]] * (1 - f[ok]) + pm[y, x0[ok] + 1] * f[ok]
+    out[y] = v
+    xi = np.clip(np.round(src).astype(int), 0, S - 1); mo[y] = mk[y, xi]
+  if lift: out = np.roll(out, -lift, 0); mo = np.roll(mo, -lift, 0)
+  a = out[..., 3]
+  rgb = np.where(a[..., None] > 0, out[..., :3] / np.maximum(a[..., None], 1e-6) * 255, 0)
+  res = np.dstack([rgb, a]).round().clip(0, 255).astype(np.uint8)
+  mo[..., 3] = 255; mo[..., 0] = np.where(res[..., 3] > 0, mo[..., 0], 0)
+  return res, mo, kb * (GROUND - row) + kt * max(0, waist - row)
+
+
 idle_path, idle_idx = spec['anims']['idle'][0][:2]
 fi = figures(idle_path)[idle_idx]
 SC0 = FIG_H / (fi['box'][3] - fi['box'][1]); HEADW = fi['headw'] * SC0; SHORTSW = fi['shortsw'] * SC0     # the standing frame sets the size
+# the standing head (and neck) every other frame wears
+e0, a0, f0, l0 = frame(idle_path, idle_idx, SC0)
+nrow, nl, nr = neck_of(f0)
+HEAD = dict(e=e0, a=a0, fig=f0, lab=l0, row=nrow, cx=(nl + nr) / 2, top=int(np.nonzero(f0.any(1))[0].min()))
+BODY_H = GROUND - nrow                                                  # standing neck → sole
+print(gender, 'standing neck row', nrow, 'x', HEAD['cx'], 'width', nr - nl, 'neck→sole', BODY_H)
 os.makedirs(OUT, exist_ok=True)
-strips = {}
+strips, masks, heads = {}, {}, {}                              # heads: where the standing head sits per frame (cell px)
 for anim, cells in spec['anims'].items():
-  n = len(cells); px = np.zeros((S, n * S, 4), np.uint8); mk = np.zeros((S, n * S, 4), np.uint8)
+  if isinstance(cells, dict): continue                         # derived moves (run) below
+  n = len(cells); px = np.zeros((S, n * S, 4), np.uint8); mk = np.zeros((S, n * S, 4), np.uint8); heads[anim] = []
   for c, cell in enumerate(cells):
     path, idx = cell[0], cell[1]
+    opts = cell[2:]
     sc = HEADW / figures(path)[idx]['headw']
-    tall = [o for o in cell[2:] if str(o).startswith('tall')]
+    tall = [o for o in opts if str(o).startswith('tall')]
     if tall:                                                   # one scale for the move: its tallest frame = ratio x standing height
       hmax = max(figures(cc[0])[cc[1]]['box'][3] - figures(cc[0])[cc[1]]['box'][1] for cc in cells)
       sc = FIG_H * float(tall[0][4:]) / hmax
-    like = [o for o in cell[2:] if str(o).startswith('like')]
+    body = [o for o in opts if str(o).startswith('body')]
+    if body:                                                   # one scale for the move: its tallest neck→sole = ratio x standing
+      sc = BODY_H * float(body[0][4:]) / max(figures(cc[0])[cc[1]]['nts'] for cc in cells)
+    like = [o for o in opts if str(o).startswith('like')]
     if like:                                                   # same pose as cell N of this move: same height as it
       rp, ri = cells[int(like[0][4:])][:2]; rf = figures(rp)[ri]; tf = figures(path)[idx]
       sc = (HEADW / rf['headw']) * (rf['box'][3] - rf['box'][1]) / (tf['box'][3] - tf['box'][1])
-    e, a, fig, lab = frame(path, idx, sc, cell[2:])
+    e, a, fig, lab = frame(path, idx, sc, opts)
+    hxy = [0, 0]
+    if anim != 'idle' and 'ownhead' not in opts:
+      e, a, fig, lab, info = put_head(e, a, fig, lab, HEAD)
+      print(' ', anim, c, 'scale', round(sc, 4), 'head', info); hxy = [0, int(info['dy'])]
+    heads[anim].append(hxy)
     px[:, c * S:(c + 1) * S, :3] = e.clip(0, 255).astype(np.uint8); px[:, c * S:(c + 1) * S, 3] = np.where(fig, (a * 255).clip(0, 255), 0).astype(np.uint8)
     mk[:, c * S:(c + 1) * S, 0] = np.where(fig, lab, 0); mk[:, c * S:(c + 1) * S, 3] = 255
-  Image.fromarray(px).save(OUT + anim + '.png', optimize=True); Image.fromarray(mk).save(OUT + anim + '_m.png', optimize=True)
-  strips[anim] = px
-  print(gender, anim, n, 'frames')
+  strips[anim] = px; masks[anim] = mk
+for anim, d in spec['anims'].items():                          # derived: the run = the walk leaning forward
+  if not isinstance(d, dict): continue
+  base, bmk = strips[d['from']], masks[d['from']]; n = base.shape[1] // S
+  px = np.zeros_like(base); mk = np.zeros_like(bmk)
+  lifts = d.get('lift', [0] * n); heads[anim] = []
+  for c in range(n):
+    lf = lifts[c % len(lifts)]
+    p, m, dh = lean(base[:, c * S:(c + 1) * S], bmk[:, c * S:(c + 1) * S], d['lean'][0], d['lean'][1], lf)
+    px[:, c * S:(c + 1) * S] = p; mk[:, c * S:(c + 1) * S] = m
+    heads[anim].append([round(float(dh), 1), heads[d['from']][c][1] - lf])
+  strips[anim] = px; masks[anim] = mk
+for anim in strips:
+  Image.fromarray(strips[anim]).save(OUT + anim + '.png', optimize=True); Image.fromarray(masks[anim]).save(OUT + anim + '_m.png', optimize=True)
+  print(gender, anim, strips[anim].shape[1] // S, 'frames')
 # what each gender has (the game draws standing for the rest)
 lp = G + 'src/data/naked-anims.json'
 have = json.load(open(lp)) if os.path.exists(lp) else {}
-have[gender] = {a: len(c) for a, c in spec['anims'].items()}
+have[gender] = {a: strips[a].shape[1] // S for a in spec['anims']}
 json.dump(have, open(lp, 'w'), indent=1)
+hp = G + 'src/data/naked-heads.json'                           # per frame: the head's offset from the standing head
+hh = json.load(open(hp)) if os.path.exists(hp) else {}
+hh[gender] = heads
+open(hp, 'w').write(json.dumps(hh, separators=(',', ':')) + '\n')
 # menu image (full size standing figure) for character select / create / portraits
 pp, pi = spec.get('preview', spec['anims']['idle'][0][:2])
 f = figures(pp)[pi]; x0, y0, x1, y1 = f['box']

@@ -1,54 +1,22 @@
 {
  "gender": "male",
- "_note": "figures are counted left to right in each GPT image; swap = the near / far leg shading swapped (GPT drew the near leg forward again: this makes the step of the other leg)",
+ "_note": "figures are counted per GPT image row by row, left to right; farL / farR = that leg (as drawn) is the far one (drawn darker); body1.0 = the move's tallest neck-to-sole = the standing one; every frame wears the standing head",
  "anims": {
   "idle": [
-   [
-    "naked_male_set1.png",
-    0
-   ]
+   ["naked_male_set1.png", 0]
   ],
   "walk": [
-   [
-    "naked_male_set1.png",
-    1
-   ],
-   [
-    "naked_male_set1.png",
-    2
-   ],
-   [
-    "naked_male_set2.png",
-    0,
-    "swap",
-    "like0"
-   ],
-   [
-    "naked_male_set2.png",
-    1,
-    "like1"
-   ]
+   ["naked_both_walk.png", 0, "body1.0", "farL"],
+   ["naked_both_walk.png", 1, "body1.0", "farR"],
+   ["naked_both_walk.png", 2, "body1.0", "farR"],
+   ["naked_both_walk.png", 3, "body1.0", "farR"]
   ],
   "alert": [
-   [
-    "naked_male_alert.png",
-    0,
-    "tall0.96"
-   ],
-   [
-    "naked_male_alert.png",
-    1,
-    "tall0.96"
-   ],
-   [
-    "naked_male_alert.png",
-    2,
-    "tall0.96"
-   ]
-  ]
+   ["naked_male_alert.png", 0, "tall0.96"],
+   ["naked_male_alert.png", 1, "tall0.96"],
+   ["naked_male_alert.png", 2, "tall0.96"]
+  ],
+  "run": {"from": "walk", "lean": [0.08, 0.14], "lift": [4, 0, 4, 0]}
  },
- "preview": [
-  "naked_male_set1.png",
-  0
- ]
+ "preview": ["naked_male_set1.png", 0]
 }

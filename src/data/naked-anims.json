@@ -2,9 +2,12 @@
  "male": {
   "idle": 1,
   "walk": 4,
-  "alert": 3
+  "alert": 3,
+  "run": 4
  },
  "female": {
-  "idle": 1
+  "idle": 1,
+  "walk": 4,
+  "run": 4
  }
 }
