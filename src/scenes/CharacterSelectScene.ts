@@ -73,6 +73,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       onBack: () => this.scene.start('MainMenuScene'),
       onCreate: () => this.scene.start('CharacterCreateScene'),
       onEnterWorld: () => (isPvpUrl() ? enterPvp(this) : this.scene.start('LegacyCourtyardScene')), // arrived via a PvP link
+      onPvp: () => enterPvp(this),
       onPreview: (key) => {
         const cls = key ? classOfKey(key) : null, onThrone = !!throne && cls === 'warrior';
         if (key && !onThrone) { hero.setTexture(key); hero.setScale(PV.height / hero.height); }

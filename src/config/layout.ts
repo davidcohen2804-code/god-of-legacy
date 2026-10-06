@@ -18,10 +18,10 @@ export const LOGO = { centerX: 960, top: 28, width: 900 } as const;
 export interface ButtonLayout { x: number; y: number; w: number; h: number }
 
 export const MENU_BUTTONS: Record<'start' | 'pvp' | 'settings' | 'exit', ButtonLayout> = {
-  start: { x: 960, y: 560, w: 600, h: 150 },
-  pvp: { x: 960, y: 690, w: 500, h: 120 },
-  settings: { x: 960, y: 800, w: 500, h: 120 },
-  exit: { x: 960, y: 910, w: 500, h: 120 },
+  start: { x: 960, y: 590, w: 600, h: 150 },
+  pvp: { x: 960, y: 690, w: 500, h: 120 }, // PvP moved to Character Select (under ENTER WORLD); not on the main menu
+  settings: { x: 960, y: 730, w: 500, h: 120 },
+  exit: { x: 960, y: 850, w: 500, h: 120 },
 };
 
 export const BUTTON_FX = {

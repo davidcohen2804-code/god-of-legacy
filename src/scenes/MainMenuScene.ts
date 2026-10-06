@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 import { ASSETS, DESIGN, LOGO } from '../config/layout';
 import { MainMenuUI } from '../ui/MainMenuUI';
 import { clearPvpFromUrl } from '../pvp/Room';
-import { enterPvp } from '../pvp/enterPvp';
 import { addCapeWind, addGemPulse, addLightSweep, addMotes, addParallax, preloadLife } from '../ui/PresentationLife';
 
 /** Centre of the logo's red gem in logo image pixels (measured on the art). */
@@ -42,7 +41,6 @@ export class MainMenuScene extends Phaser.Scene {
     this.cameras.main.fadeIn(220, 0, 0, 0);
     new MainMenuUI(this, {
       onStart: () => this.leave(() => this.scene.start('CharacterSelectScene')),
-      onPvp: () => this.leave(() => enterPvp(this)),
     });
   }
 

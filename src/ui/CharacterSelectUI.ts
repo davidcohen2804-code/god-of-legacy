@@ -7,6 +7,8 @@ export interface CharacterSelectHandlers {
   onBack: () => void;
   onCreate: () => void;
   onEnterWorld: () => void;
+  /** PvP arena with the selected character (moved here from the main menu). */
+  onPvp?: () => void;
   /** Called on every render with the selected character's full-body preview asset key (or null to hide). */
   onPreview?: (assetKey: string | null) => void;
   /** Pointer over a slot: its character's class (null when leaving / empty slot). */
@@ -20,8 +22,9 @@ const K = {
   plaque: { x: 580, y: 6, w: 760, h: 161 },
   card: { x: 92, y: 150, w: 230, h: 352, gx: 30, gy: 36, art: { x: 29, y: 53, w: 190, h: 221 }, plq: { y: 281, h: 31 } },
   info: { x: 1388, y: 196, w: 430, h: 280 },
-  enter: { x: 1408, y: 500, w: 390, h: 150 },
-  create: { x: 1428, y: 662, w: 350, h: 128 },
+  enter: { x: 1408, y: 494, w: 390, h: 150 },
+  pvp: { x: 1428, y: 628, w: 350, h: 128 },
+  create: { x: 1428, y: 748, w: 350, h: 128 },
   back: { x: 92, y: 930, w: 280, h: 110 },
   del: { x: 404, y: 942, w: 82, h: 86 },
 } as const;
@@ -142,6 +145,7 @@ export class CharacterSelectUI {
   private btnEnter: HTMLButtonElement;
   private btnDelete: HTMLButtonElement;
   private btnCreate: HTMLButtonElement;
+  private btnPvp?: HTMLButtonElement;
   private modal?: HTMLDivElement;
   private lastRect = '';
   private readonly onKey = (e: KeyboardEvent) => this.handleKey(e);
@@ -189,6 +193,7 @@ export class CharacterSelectUI {
     this.btnDelete.addEventListener('mousedown', (e) => e.preventDefault());
     this.btnDelete.addEventListener('click', () => this.openDeleteConfirm());
     this.btnEnter = this.button('ENTER WORLD', { ...K.enter, size: 26 }, () => this.enterWorld(), true);
+    if (this.h.onPvp) this.btnPvp = this.button('PVP ARENA', { ...K.pvp, size: 18 }, () => { if (CharacterStore.getSelectedCharacter()) this.h.onPvp?.(); });
     this.btnCreate = this.button('CREATE CHARACTER', { ...K.create, size: 18 }, () => this.h.onCreate());
 
     window.addEventListener('keydown', this.onKey);
@@ -296,6 +301,7 @@ export class CharacterSelectUI {
     this.fields.level.textContent = ch ? String(ch.level) : DASH;
     this.fields.last.textContent = ch?.lastPlayedAt ? formatDate(ch.lastPlayedAt) : DASH;
     this.btnEnter.disabled = !ch;
+    if (this.btnPvp) this.btnPvp.disabled = !ch;
     // CREATE CHARACTER only for a selected empty slot (never overwrites).
     this.btnCreate.disabled = !(sel && !CharacterStore.getSlot(sel).character);
     this.btnDelete.disabled = !ch;
