@@ -10,6 +10,8 @@ export interface Character {
   createdAt: string; // ISO-8601
   lastPlayedAt: string | null; // ISO-8601 | null
   appearanceId: string | null;
+  /** The clean base character he / she is built on (default male). */
+  gender?: 'male' | 'female';
   /** Cosmetic ownership + equipped slots (visual only). */
   cosmetics?: { owned: string[]; equipped: Record<string, string> };
 }

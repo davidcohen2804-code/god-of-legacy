@@ -2,6 +2,7 @@
 import { ASSET_MANIFEST, CHARACTER_PREVIEWS, CHARACTER_SELECT as L, CLASS_NAMES, COLORS, DESIGN, FONT_FAMILY } from '../config/layout';
 import { CharacterStore } from '../characters/CharacterStore';
 import { Character, SlotId } from '../characters/CharacterTypes';
+import { previewKeyOf } from '../characters/Look';
 
 export interface CharacterSelectHandlers {
   onBack: () => void;
@@ -136,7 +137,7 @@ export function syncOverlay(root: HTMLElement, host: HTMLElement, canvas: HTMLCa
 }
 
 const className = (id: string) => CLASS_NAMES[id] ?? id;
-const previewFor = (c: Character) => CHARACTER_PREVIEWS[`${c.classId}/${c.appearanceId}`];
+const previewFor = (c: Character) => CHARACTER_PREVIEWS[previewKeyOf(c)];
 
 export class CharacterSelectUI {
   private root: HTMLDivElement;

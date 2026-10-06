@@ -45,6 +45,8 @@ function sanitize(raw: unknown): CharacterSelectData {
         id: c.id, name: c.name, classId: c.classId, level: c.level,
         createdAt: c.createdAt, lastPlayedAt: c.lastPlayedAt, appearanceId: c.appearanceId,
       };
+      const gd = (c as unknown as { gender?: unknown }).gender;
+      if (gd === 'male' || gd === 'female') target.character.gender = gd;
       const cos = (c as unknown as { cosmetics?: { owned?: unknown; equipped?: unknown } }).cosmetics;
       if (cos && Array.isArray(cos.owned) && cos.equipped && typeof cos.equipped === 'object') {
         target.character.cosmetics = {
@@ -80,14 +82,14 @@ class Store {
   deleteCharacter(id: SlotId): void { this.getSlot(id).character = null; this.save(); }
 
   /** Creates a character in an EMPTY slot only; returns false (and changes nothing) otherwise. */
-  createCharacter(slotId: SlotId, name: string, classId: string, appearanceId: string): boolean {
+  createCharacter(slotId: SlotId, name: string, classId: string, appearanceId: string, gender: 'male' | 'female' = 'male'): boolean {
     const slot = this.getSlot(slotId);
     const clean = name.trim();
     if (slot.character || !clean || !classId) return false;
     slot.character = {
       id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `c${Date.now()}`,
       name: clean, classId, level: 1,
-      createdAt: new Date().toISOString(), lastPlayedAt: null, appearanceId,
+      createdAt: new Date().toISOString(), lastPlayedAt: null, appearanceId, gender,
     };
     this.save();
     return true;

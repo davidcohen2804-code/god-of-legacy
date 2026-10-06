@@ -27,19 +27,21 @@ export class CharacterCreateScene extends Phaser.Scene {
     addClothWind(this, hero); // subtle cloak wind (render only)
     // Warrior: seated on his throne with the sword of light (animated painting) instead of the standing preview.
     const throne = this.textures.exists('throne.hero') ? new ThroneHero(this, { x: P.centerX, y: 900 }, 700, 2) : null;
-    const showPreview = (classId: string, appearanceId: string) => {
-      const pv = CHARACTER_PREVIEWS[`${classId}/${appearanceId}`];
+    // The new character is the clean base (male / female): he / she stands on the pedestal whatever the class.
+    const showBase = (gender: 'male' | 'female') => {
+      const pv = CHARACTER_PREVIEWS[`base/${gender}`];
       if (!pv) return;
-      const onThrone = !!throne && classId === 'warrior';
-      throne?.setVisible(onThrone); hero.setVisible(!onThrone); g.setVisible(!onThrone);
-      hero.setTexture(pv.key);
-      hero.setScale(P.height / hero.height);
+      throne?.setVisible(false); hero.setVisible(true); g.setVisible(true);
+      hero.setTexture(pv.key).setData('calm', true);
+      hero.setScale((P.height * 0.84) / hero.height); // the bare figure fills its image: a little smaller than the class paintings
     };
+    showBase('male');
 
     this.ui = new CharacterCreateUI(this.game.canvas.parentElement!, this.game.canvas, {
       onBack: () => this.scene.start('CharacterSelectScene'),
       onCreated: () => this.scene.start('CharacterSelectScene'),
-      onClassChange: showPreview,
+      onClassChange: () => { /* the class is chosen; the character shown stays the base body */ },
+      onGenderChange: showBase,
     });
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, () => this.ui?.layout());
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {

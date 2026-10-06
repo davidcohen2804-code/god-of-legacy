@@ -6,7 +6,7 @@ import { KIT_LAYOUT, ensureCharacterUIStyles, ensureSelectKitStyles, syncOverlay
 const KIT = (f: string) => `assets/final/ui/kit/${f}.png`;
 /** Kit layout (design px). kit/modal_window.png: header strip at 15..22% of its height, body 25..85%. */
 const C = {
-  char: { x: 92, y: 196, w: 470, h: 236 },
+  char: { x: 92, y: 196, w: 470, h: 350 },
   cls: { x: 1388, y: 196, w: 430, h: 470, optTop: 126, optGap: 68, optW: 370, optH: 62 },
   create: { x: 1398, y: 690, w: 410, h: 150 },
 } as const;
@@ -16,6 +16,8 @@ export interface CharacterCreateHandlers {
   onCreated: () => void;
   /** Selected class changed (scene swaps the centre preview). */
   onClassChange: (classId: string, appearanceId: string) => void;
+  /** Male / female base character chosen (scene shows him / her). */
+  onGenderChange?: (gender: 'male' | 'female') => void;
 }
 
 const STYLE_ID = 'gol-charcreate-style';
@@ -32,6 +34,8 @@ const CSS = `
 .gol-cc .kopt.on{background-image:url("${KIT('choice_btn_hover')}");color:#ffe7a8}
 .gol-cc .kopt .pf{position:absolute;left:24px;top:7px;width:48px;height:48px;border-radius:50%;background-repeat:no-repeat;background-color:#0a1018;box-shadow:0 0 0 2px #c99a45,0 2px 6px rgba(0,0,0,.6)}
 .gol-cc .kopt.on .pf{box-shadow:0 0 0 2px #ffe2a0,0 0 10px rgba(255,200,90,.7)}
+.gol-cc .kopt.gd{padding:0 0 0 76px;font-size:17px}
+.gol-cc .kopt.gd .pf{left:16px}
 .gol-cs .cc-label{position:absolute;left:34px;font-size:${L.character.labelSize}px;letter-spacing:1.5px;opacity:.8}
 .gol-cs .cc-input{position:absolute;left:34px;right:34px;pointer-events:auto;box-sizing:border-box;
   height:${L.character.input.h}px;padding:0 18px;font-family:inherit;font-size:${L.character.input.size}px;letter-spacing:1px;
@@ -49,6 +53,8 @@ export class CharacterCreateUI {
   private input: HTMLInputElement;
   private btnCreate: HTMLButtonElement;
   private classBtns: HTMLButtonElement[] = [];
+  private genderBtns: HTMLButtonElement[] = [];
+  private gender: 'male' | 'female' = 'male';
   private classIdx = 0;
   private lastRect = '';
   private readonly onKey = (e: KeyboardEvent) => {
@@ -76,11 +82,25 @@ export class CharacterCreateUI {
     const cp = this.el('div', 'abs panel info p-char', this.root);
     this.box(cp, C.char.x, C.char.y, C.char.w, C.char.h);
     const h2 = this.el('h2', '', cp); h2.textContent = 'CHARACTER';
-    const lab = this.el('div', 'cc-label', cp); lab.textContent = 'NAME'; lab.style.top = '74px';
+    const lab = this.el('div', 'cc-label', cp); lab.textContent = 'NAME'; lab.style.top = '96px';
     this.input = this.el('input', 'cc-input', cp) as HTMLInputElement;
     Object.assign(this.input, { type: 'text', placeholder: 'Your name', maxLength: L.character.input.maxLength, autocomplete: 'off', spellcheck: false });
-    Object.assign(this.input.style, { top: '98px', left: '30px', right: '30px' });
+    Object.assign(this.input.style, { top: '120px', left: '30px', right: '30px' });
     this.input.addEventListener('input', () => this.render());
+    // Body: the clean base character, male or female.
+    const lb2 = this.el('div', 'cc-label', cp); lb2.textContent = 'BODY'; lb2.style.top = '204px';
+    const GW = Math.floor((C.char.w - 60 - 14) / 2);
+    (['male', 'female'] as const).forEach((g, i) => {
+      const b = this.el('button', 'kopt gd', cp) as HTMLButtonElement;
+      const pf = this.el('div', 'pf', b);
+      const pv = CHARACTER_PREVIEWS[`base/${g}`];
+      if (pv) { const k = 48 / (pv.crop.w * 0.8); Object.assign(pf.style, { backgroundImage: `url("${pv.file}")`, backgroundSize: `${pv.width * k}px ${pv.height * k}px`, backgroundPosition: `${-(pv.crop.x + pv.crop.w * 0.1) * k}px ${-(pv.crop.y + 10) * k}px` }); }
+      b.appendChild(document.createTextNode(g === 'male' ? 'MALE' : 'FEMALE'));
+      this.box(b, 30 + i * (GW + 14), 228, GW, 62);
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('click', () => this.selectGender(g));
+      this.genderBtns.push(b);
+    });
 
     // Class panel: the single fixed class.
     const K = C.cls;
@@ -107,6 +127,7 @@ export class CharacterCreateUI {
 
     window.addEventListener('keydown', this.onKey);
     this.selectClass(0);
+    this.selectGender('male');
     this.render();
     this.layout();
     this.input.focus();
@@ -131,7 +152,13 @@ export class CharacterCreateUI {
     const id = CharacterStore.getSelectedId();
     if (!id || !this.canCreate()) return;
     const opt = CLASS_OPTIONS[this.classIdx];
-    if (CharacterStore.createCharacter(id, this.input.value, opt.classId, opt.appearanceId)) this.h.onCreated();
+    if (CharacterStore.createCharacter(id, this.input.value, opt.classId, opt.appearanceId, this.gender)) this.h.onCreated();
+  }
+
+  private selectGender(g: 'male' | 'female'): void {
+    this.gender = g;
+    this.genderBtns.forEach((b, k) => b.classList.toggle('on', (k === 0 ? 'male' : 'female') === g));
+    this.h.onGenderChange?.(g);
   }
 
   private selectClass(i: number): void {

@@ -132,7 +132,7 @@ export class RemotePlayer {
     if (this.flashMs >= 0) { this.flashMs += ms; if (this.flashMs < 60) { tint = 0xffffff; fill = true; } else if (this.flashMs < 140) tint = 0xff6a6a; else this.flashMs = -1; }
     if (this.deadMs >= 0) { this.deadMs += ms; alpha = 1 - Math.min(1, this.deadMs / 450); this.deathFx.update(ms); }
     const snap: AnimSnap = { mode: this.skill ? 'skill' : this.mode, t: this.modeT, speed: this.speed, vz: this.vz, skill: this.skill ?? undefined, stunMs: 200 };
-    const pose = resolvePose(this.meta.classId as ClassKey, this.dir, poseQuery(snap), this.view.wantsBase);
+    const pose = resolvePose(this.meta.classId as ClassKey, this.dir, poseQuery(snap), this.view.wantsBase, this.meta.gender === 'female' ? 'female' : 'male');
     this.view.render(ms, pose, x, y, z, this.sz, this.dir, alpha, tint, fill);
     const top = y - z - 116 - PVP.remoteLabel.gap;
     this.label.setPosition(Math.round(x), Math.round(top - PVP.hpBar.h - 3));

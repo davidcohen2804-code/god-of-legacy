@@ -98,6 +98,7 @@ export function preloadBodies(scene: Phaser.Scene, classes?: readonly string[], 
       LS(skillKey(cls, s.id), skillPath(cls, s.id)); M(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id), cls, cs?.w ?? CELL, cs?.h ?? CELL); if (cls === 'warrior') SHEET_PATH[skillKey(cls, s.id)] = skillPath(cls, s.id); }
   }
   for (const [cls, a] of Object.entries(ATLAS)) { if (!want(cls)) continue; L(atlasKey(cls), a.sheet, false); M(`${atlasKey(cls)}-w`, a.sheet, cls, 0, 0, true); }
+  if (want('warrior')) for (const g of ['male', 'female']) L(nakedKey(g), `assets/final/body/naked/${g}/idle.png`, true);
   if (want('warrior')) for (const anim of BASE_ANIMS) {
     const k = baseKey(anim); L(k, basePath(anim), true); M(`${k}-w`, basePath(anim), 'warrior'); SHEET_PATH[k] = basePath(anim);
     const cs = CELLS[anim], skill = !(anim in MOVE_COLS), W = cs?.w ?? CELL, H = cs?.h ?? CELL;
@@ -159,6 +160,15 @@ const animOf = (path: string) => (path.includes('/skills/') ? path.split('/').sl
 /** Base-sheet geometry: the original sheet's cell (W×H, cols) the 352-cells were cut from, for mask/layer remapping. */
 export const BASE_GEOM: Record<string, { W: number; H: number; cols: number; orig: string; ox: number; oy: number }> = {};
 let BASE_MODE = false;
+/** The clean base character (no hair / clothes / weapon), male or female — one standing frame until its moves are drawn. */
+const nakedKey = (g: string) => `naked-${g}-idle`;
+const NAKED_HEAD_DROP = 10; // his bald head top sits this much (cell px) lower than the beginner's hair top
+function nakedPose(cls: string, dir: Dir, g: 'male' | 'female'): PoseFrame {
+  const f = sheetPose(cls, dir, { k: 'loop', state: 'idle', t: 0, speed: 0 }); // the standing beginner's anchors (head, chest)
+  const key = nakedKey(g);
+  return { ...f, key, frame: 0, wkey: `${key}-w`, blade: null, bladeBehind: false, hair: null, head: null,
+    anchor: f.anchor ? f.anchor.map((v, i) => (i === 1 ? v + NAKED_HEAD_DROP * SHEET_SCALE : v)) : null };
+}
 /** Base body available for this animation (sheet baked)? */
 export const hasBase = (cls: string, anim: string): boolean => cls === 'warrior' && BASE_ANIMS.has(anim);
 /** Every animation the warrior uses has its base strip (death is the ghost and recovery is react's stance: no frames). */
@@ -222,9 +232,12 @@ export const baseLoop = (state: 'walk' | 'run', speed: number): { n: number; fps
 const pick = <T,>(list: T[], p: number): T => list[Math.max(0, Math.min(list.length - 1, Math.floor(p * list.length)))];
 
 /** base = draw the beginner-clothes base body (fashion cosmetics) instead of the class armour, where baked. */
-export function resolvePose(cls: ClassKey, dir: Dir, q: PoseQuery, base = false): PoseFrame {
+export function resolvePose(cls: ClassKey, dir: Dir, q: PoseQuery, base = false, gender?: 'male' | 'female'): PoseFrame {
   BASE_MODE = base && cls === 'warrior';
-  try { return isSheetClass(cls) ? sheetPose(cls, dir, q) : atlasPoseFor(cls, dir, q); } finally { BASE_MODE = false; }
+  try {
+    if (BASE_MODE && gender) return nakedPose(cls, dir, gender); // the clean base character
+    return isSheetClass(cls) ? sheetPose(cls, dir, q) : atlasPoseFor(cls, dir, q);
+  } finally { BASE_MODE = false; }
 }
 
 const moveCols = (cls: string, st: MoveState) => (st === 'air_attack' && cls === 'warrior' ? 8 : MOVE_COLS[st]);

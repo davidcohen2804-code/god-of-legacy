@@ -64,7 +64,7 @@ export function addClothWind(scene: Phaser.Scene, img: Phaser.GameObjects.Image,
   const tick = (_time: number, dt: number) => {
     t += dt;
     if (!img.active) return;
-    const amp = (2 * pixels) / Math.max(1, img.displayWidth); // disp = (r - 0.5) * amount, |r - 0.5| <= 0.5
+    const amp = img.getData('calm') ? 0 : (2 * pixels) / Math.max(1, img.displayWidth); // disp = (r - 0.5) * amount; calm = no cloth (the base character)
     const gust = 0.75 + 0.25 * Math.sin((t / 5200) * Math.PI * 2); // slow gusts
     const w = (t / 1700) * Math.PI * 2;
     a.x = amp * gust * Math.cos(w); a.y = 0;

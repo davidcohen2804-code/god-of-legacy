@@ -27,7 +27,8 @@ import { WORLD_OBJECTS, actorDepth, footAllowed, insideArena, placementOk } from
 import { isQAMode } from '../qa/QAPanel';
 import { PvpController } from '../pvp/PvpController';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
-import { NetMsg } from '../pvp/Transport';
+import { NetMsg, PeerMeta } from '../pvp/Transport';
+import { genderOf, previewKeyOf } from '../characters/Look';
 import { BOT_ID, BOT_NAME, SparringBot } from '../pvp/SparringBot';
 import { CombatInput } from '../game/CombatInput';
 import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey, damageSkin, wantsWeaponMasks } from '../game/ActorView';
@@ -60,8 +61,8 @@ const JB = { firstMin: 250, follow: 90, followMin: 40 } as const;
 const CAST_ORIGIN_TOLERANCE_PX = 140;
 const COMBO_SHOW_MS = 1400;
 
-function portraitOf(classId: string, appearanceId: string): PortraitRef | undefined {
-  const pv = CHARACTER_PREVIEWS[`${classId}/${appearanceId}`];
+function portraitOf(previewKey: string): PortraitRef | undefined {
+  const pv = CHARACTER_PREVIEWS[previewKey];
   if (!pv) return undefined;
   return pv.portrait ? { url: pv.portrait } : { url: pv.file, crop: { x: pv.crop.x, y: pv.crop.y, w: pv.crop.w, imgW: pv.width, imgH: pv.height } };
 }
@@ -297,7 +298,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const kb = this.input.keyboard!;
     const esc = () => { if (this.skillBook?.open || this.cosPanel?.open || this.questLog?.isOpen) { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); } else if (pvpRoom) exitArena(); };
     kb.on('keydown-ESC', esc);
-    if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name });
+    if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name, gender: genderOf(character) });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off(Phaser.Scenes.Events.POST_UPDATE);
@@ -646,7 +647,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       skill: run ? { id: run.skill.id, stage: run.stage, elapsed: run.elapsed, ...run.timings } : undefined,
     };
     const dir = this.dir; // Whirlwind spins inside its own 360° body loop
-    const pose = resolvePose(this.cls, dir, poseQuery(snap), v.wantsBase || this.character!.level < BEGINNER_TO);
+    const pose = resolvePose(this.cls, dir, poseQuery(snap), v.wantsBase || this.character!.level < BEGINNER_TO, genderOf(this.character));
     let tint: number | null = null, fill = false, alpha = 1;
     if (this.flash >= 0) { if (this.flash < P6.hitFlashWhiteMs) { tint = 0xffffff; fill = true; } else tint = 0xff6a6a; }
     else if (this.body.hard.active(this.simMs)) tint = this.body.hard.kind === 'freeze' ? 0x9fd8ff : 0xb6ffb0;
@@ -1256,7 +1257,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   // ======================================================================= PvP
 
-  private startPvp(room: string, meta: { playerId: string; characterId: string; classId: string; name: string }): void {
+  private startPvp(room: string, meta: PeerMeta): void {
     this.hud?.setStatus('CONNECTING…');
     const pvp = new PvpController(this, room, meta, {
       onJoined: () => {
@@ -1379,7 +1380,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     return {
       mode: pvp ? 'pvp' : 'pve',
       player: {
-        id: pvp?.meta.playerId ?? ch.id, name: ch.name, level: ch.level, portrait: portraitOf(ch.classId, ch.appearanceId ?? `${ch.classId}_default`),
+        id: pvp?.meta.playerId ?? ch.id, name: ch.name, level: ch.level, portrait: portraitOf(previewKeyOf(ch)),
         hp: this.playerHP, maxHp: pvp ? PVP.maxHp : S6.player.maxHp, resource: null, effects: this.statusEffects(this.body, now),
       },
       target: alive && this.pvpReady ? this.hudTarget() : null,
@@ -1412,7 +1413,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.dummy && this.dummyState?.alive) consider(Math.hypot(D.x - k.x, D.y - k.y), { id: 'dummy', name: 'Training Dummy', type: 'Training Target', hp: this.dummyState.hp, maxHp: D.maxHp, effects: [], ...combat(this.dummyState.body, this.dummyState.kin.z) });
     const bt = this.bot;
     if (bt) consider(Math.hypot(bt.x - k.x, bt.y - k.y), {
-      id: BOT_ID, name: BOT_NAME, type: 'NPC · PvP sparring', portrait: portraitOf('warrior', 'warrior_default'), hp: bt.hp, maxHp: PVP.maxHp,
+      id: BOT_ID, name: BOT_NAME, type: 'NPC · PvP sparring', portrait: portraitOf('base/male'), hp: bt.hp, maxHp: PVP.maxHp,
       effects: this.statusEffects(bt.body, now), ...combat(bt.body, bt.kin.z),
     });
     for (const r of this.pvp?.remotes.values() ?? []) {
@@ -1422,7 +1423,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (r.mode === 'down' || r.mode === 'getup') eff.push({ id: 'kd', label: 'Knocked down', iconUrl: 'assets/final/ui/hud/status_knockdown.png', harmful: true });
       consider(Math.hypot(r.x - k.x, r.y - k.y), {
         id: r.meta.playerId, name: r.meta.name, type: `Player · ${CLASS_NAMES[r.meta.classId] ?? r.meta.classId}`,
-        portrait: portraitOf(r.meta.classId, `${r.meta.classId}_default`), hp: r.hp, maxHp: PVP.maxHp, effects: eff,
+        portrait: portraitOf(r.meta.classId === 'warrior' ? `base/${r.meta.gender ?? 'male'}` : `${r.meta.classId}/${r.meta.classId}_default`), hp: r.hp, maxHp: PVP.maxHp, effects: eff,
       });
     }
     return best;

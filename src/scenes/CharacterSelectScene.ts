@@ -76,7 +76,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       onPvp: () => enterPvp(this),
       onPreview: (key) => {
         const cls = key ? classOfKey(key) : null, onThrone = !!throne && cls === 'warrior';
-        if (key && !onThrone) { hero.setTexture(key); hero.setScale(PV.height / hero.height); }
+        if (key && !onThrone) { const base = key.startsWith('base.'); hero.setTexture(key).setData('calm', base); hero.setScale((PV.height * (base ? 0.84 : 1)) / hero.height); } // the base body: no cloth to sway, fills its image
         const stand = !!key && !onThrone;
         hero.setVisible(stand); halo.setVisible(stand); shadow.setVisible(stand); g.setVisible(!onThrone);
         throne?.setVisible(onThrone);
