@@ -134,7 +134,7 @@ function bodyVariant(scene: Phaser.Scene, key: string, wkey: string, cut: boolea
   for (const id of worn) {
     if (!id || !SHEET_PATH[key]) continue;
     const it = cosmetic(id); if (!it?.layers) continue;
-    const px = lazyPixels(scene, `cosl-${id}-${key}`, `${it.layers}/${sheetName(SHEET_PATH[key])}.png`);
+    const px = lazyPixels(scene, `cosl-${id}-${key}`, `${it.layers}${BASE_GEOM[key] ? '/base' : ''}/${sheetName(SHEET_PATH[key])}.png`); // base body: pieces fitted to the base frames
     if (px === undefined) return null; // still loading
     if (px) layers.push(px);
   }
@@ -177,14 +177,8 @@ function bodyVariant(scene: Phaser.Scene, key: string, wkey: string, cut: boolea
       a[i] = lut[q][0]; a[i + 1] = lut[q][1]; a[i + 2] = lut[q][2];
     }
     void lab;
-    const LW = geom ? geom.cols * geom.W : W; // layer row stride (armour sheet geometry)
     for (const L of layers) for (let i = 0; i < a.length; i += 4) { // worn pieces: magenta = hair hidden under the piece, else alpha-over
-      let li = i;
-      if (geom) { // base strip pixel (col c, lx, ly) → armour sheet row 1 (right-facing) pixel
-        const p = i >> 2, x = p % W, y = (p - x) / W, c = Math.floor(x / 352), lx = x - c * 352, sx = c * geom.W + lx + geom.ox, sy = geom.H + y + geom.oy;
-        if (lx + geom.ox < 0 || lx + geom.ox >= geom.W || y + geom.oy < 0 || y + geom.oy >= geom.H) continue;
-        li = (sy * LW + sx) * 4; if (li + 3 >= L.length) continue;
-      }
+      const li = i; // base pieces share the base strip geometry
       const la = L[li + 3]; if (la === 0) continue;
       if (L[li] === 255 && L[li + 1] === 0 && L[li + 2] === 255) { a[i + 3] = 0; continue; }
       const t = la / 255, u = 1 - t, ba = a[i + 3] / 255, oa = t + ba * u;
