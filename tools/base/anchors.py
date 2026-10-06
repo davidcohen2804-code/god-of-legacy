@@ -2,7 +2,7 @@
 # The upright idle head (hair + face masks) is the template; for each frame we find the rotation, scale and position
 # that lay the template head onto this frame's head. Head items are then ONE sprite placed with this transform —
 # identical in every frame, so they never jitter, stretch or break.
-# Output: tools/base/head_anchors.json  {anim: [[dx, dy, angle, scale, score] per column]} — template → frame.
+# Used by headtable.py (the cached table of every frame, tools/base/head_table.json).
 import json, os, numpy as np
 from PIL import Image
 from scipy import ndimage as nd
@@ -90,18 +90,6 @@ def fit(T, F, R=2, arange=None, allow_flip=True):
   # translation of the template head centre (rounded, as used for the windows) onto the frame
   return [int(round(gx)) + dx - int(round(cx)), int(round(gy)) + dy - int(round(cy)), ang, round(k, 3), round(v, 3), bool(flip)], (int(round(cx)), int(round(cy)))
 
-if __name__ == '__main__':
-  T = masks('idle', 0)
-  anims = sorted(a for a in json.load(open(G + 'src/data/base-sheets.json')) if a != 'death')
-  out = {}; low = []
-  for a in anims:
-    n = np.array(Image.open(BASE + a + '_m.png')).shape[1] // S; row = []
-    for c in range(n):
-      F = masks(a, c)
-      if F[0].sum() < 50: row.append(None); continue
-      r, ctr = fit(T, F); row.append(r)
-      if r[4] < 1.0: low.append((a, c, r[4]))
-    out[a] = row; print(a, [x[2] if x else None for x in row], flush=True)
-  ty, tx = np.nonzero(T[0])
-  json.dump({'center': [int(round(tx.mean())), int(round(ty.mean()))], 'frames': out}, open(G + 'tools/base/head_anchors.json', 'w'))
-  print('low', low)
+if __name__ == '__main__':   # the table every item uses: tools/base/headtable.py
+  import headtable
+  headtable.table()

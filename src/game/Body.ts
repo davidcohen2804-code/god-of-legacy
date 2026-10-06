@@ -148,7 +148,11 @@ export const SHEET_PATH: Record<string, string> = {};
 // ---- base body (beginner clothes, side view, one right-facing row per animation; left = mirrored).
 // Baked by tools/base/bake.py from the armour frames; cosmetics (fashion colours, hats…) are drawn on it.
 import BASE_LIST from '../data/base-sheets.json';
+import BASE_COLS_LIST from '../data/base-cols.json';
 const BASE_ANIMS = new Set<string>(BASE_LIST as string[]);
+/** Strips trimmed to the frames the game shows (tools/base/compact.py): kept original columns, in strip order. */
+const BASE_COLS = BASE_COLS_LIST as Record<string, number[]>;
+const baseCol = (anim: string, c: number): number => { const m = BASE_COLS[anim]; if (!m) return c; const i = m.indexOf(c); return i >= 0 ? i : 0; };
 const baseKey = (anim: string) => `base-warrior-${anim}`;
 const basePath = (anim: string) => `assets/final/body/warrior/base/${anim}.png`;
 const animOf = (path: string) => (path.includes('/skills/') ? path.split('/').slice(-2, -1)[0] : path.split('/').pop()!.replace('.png', ''));
@@ -157,8 +161,8 @@ export const BASE_GEOM: Record<string, { W: number; H: number; cols: number; ori
 let BASE_MODE = false;
 /** Base body available for this animation (sheet baked)? */
 export const hasBase = (cls: string, anim: string): boolean => cls === 'warrior' && BASE_ANIMS.has(anim);
-/** Every animation the warrior uses has its base strip (death is the ghost, no frames needed). */
-const BASE_NEEDED = ['air_attack', 'blade_storm', 'dash_slash', 'ground_breaker', 'idle', 'iron_grip', 'judgment_blade', 'jump', 'lance_thrust', 'leap_crash', 'radiant_blade', 'react', 'recovery', 'rising_slash', 'run', 'sanctuary', 'shield_slam', 'titans_verdict', 'walk', 'war_cry', 'warrior_basic', 'wave_slash', 'whirlwind'];
+/** Every animation the warrior uses has its base strip (death is the ghost and recovery is react's stance: no frames). */
+const BASE_NEEDED = ['air_attack', 'blade_storm', 'dash_slash', 'ground_breaker', 'idle', 'iron_grip', 'judgment_blade', 'jump', 'lance_thrust', 'leap_crash', 'radiant_blade', 'react', 'rising_slash', 'run', 'sanctuary', 'shield_slam', 'titans_verdict', 'walk', 'war_cry', 'warrior_basic', 'wave_slash', 'whirlwind'];
 export const baseComplete = (cls: string): boolean => cls === 'warrior' && BASE_NEEDED.every((a) => BASE_ANIMS.has(a));
 
 function headOf(path: string, row: number, c: number): number[] | null {
@@ -176,8 +180,9 @@ function sheetFrame(key: string, path: string, dir: Dir, col: number, cols: numb
   const table = ANCH[path] as (number[] | null)[][] | undefined;
   const f: PoseFrame = { key, frame: row * cols + c, wkey: `${key}-w`, ox: 0.5, oy: (ch - CELL * (1 - ORIGIN_Y)) / ch, scale: SHEET_SCALE, anchor: scaleAnchor(table?.[row]?.[c], SHEET_SCALE), hair: scaleHair(table?.[row]?.[c], SHEET_SCALE), blade: ((BLADES as Record<string, (number[] | null)[][]>)[path]?.[row]?.[c] ?? null)?.map((v) => v * SHEET_SCALE) ?? null, bladeBehind: !!(BEHIND as Record<string, number[][]>)[path]?.[row]?.[c], head: headOf(path, row, c) };
   if (BASE_MODE) { const anim = animOf(path); if (BASE_ANIMS.has(anim)) { // 352-cell base strip, same anchors…
-    f.key = baseKey(anim); f.wkey = `${f.key}-w`; f.frame = c; f.oy = ORIGIN_Y;
-    const bl = (BASE_BLADES as Record<string, (number[] | null)[]>)[anim]?.[c]; // …but its own sword line (the base frames were redrawn)
+    const bc = baseCol(anim, c); // (strips trimmed to the frames the game shows)
+    f.key = baseKey(anim); f.wkey = `${f.key}-w`; f.frame = bc; f.oy = ORIGIN_Y;
+    const bl = (BASE_BLADES as Record<string, (number[] | null)[]>)[anim]?.[bc]; // …but its own sword line (the base frames were redrawn)
     f.blade = bl ? bl.map((v) => v * SHEET_SCALE) : null; f.bladeBehind = false;
   } }
   if (flip) { f.flip = true; f.anchor = mirror(f.anchor, [0, 2, 4]); f.hair = mirror(f.hair, [0]); f.blade = mirror(f.blade, [0, 2]); f.head = mirror(f.head, [0, 2]); }
@@ -246,7 +251,7 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
     case 'down': return cls === 'warrior' ? mv(cls, 'react', dir, 1) : mv(cls, 'hurt', dir, 2);
     case 'getup': return cls === 'warrior' ? mv(cls, 'react', dir, q.p < 0.5 ? 1 : 0) : mv(cls, 'hurt', dir, 0);
     case 'recovery': return BASE_MODE ? mv(cls, 'react', dir, 7) : mv(cls, 'recovery', dir, 1 + Math.min(2, Math.floor(q.p * 3))); // base body: the stance frame (no recovery sheet)
-    case 'death': return mv(cls, 'death', dir, Math.min(7, Math.floor(q.p * 8)));
+    case 'death': return BASE_MODE ? mv(cls, 'react', dir, 1) : mv(cls, 'death', dir, Math.min(7, Math.floor(q.p * 8))); // base body: no fall frames (the ghost)
     case 'skill': {
       if (q.id in POSE_AS_BASIC && CELLS.warrior_basic) { // e.g. Wave Slash (R): the regular attack's swing — wind-up, then the strike
         const B = CELLS.warrior_basic, st = POSE_AS_BASIC[q.id];

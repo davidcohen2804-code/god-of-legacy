@@ -30136,6 +30136,42 @@
     ],
     "name": "Tan Shoes",
     "desc": "tan shoes for the beginner outfit."
+   },
+   {
+    "id": "hat_cap_red",
+    "type": "hat",
+    "attachment": "worn",
+    "name": "Red Cap",
+    "desc": "sporty red cap.",
+    "layers": "assets/final/cosmetics/warrior/hat_cap_red/layers",
+    "icon": "assets/final/cosmetics/warrior/hat_cap_red/icon.png"
+   },
+   {
+    "id": "hat_beanie_navy",
+    "type": "hat",
+    "attachment": "worn",
+    "name": "Navy Beanie",
+    "desc": "knitted navy beanie with a white pom-pom.",
+    "layers": "assets/final/cosmetics/warrior/hat_beanie_navy/layers",
+    "icon": "assets/final/cosmetics/warrior/hat_beanie_navy/icon.png"
+   },
+   {
+    "id": "hat_cat_ears",
+    "type": "hat",
+    "attachment": "worn",
+    "name": "Cat Ears",
+    "desc": "black cat-ears headband with pink ears.",
+    "layers": "assets/final/cosmetics/warrior/hat_cat_ears/layers",
+    "icon": "assets/final/cosmetics/warrior/hat_cat_ears/icon.png"
+   },
+   {
+    "id": "hat_crown_gold",
+    "type": "hat",
+    "attachment": "worn",
+    "name": "Golden Crown",
+    "desc": "small golden crown with a ruby and sapphires.",
+    "layers": "assets/final/cosmetics/warrior/hat_crown_gold/layers",
+    "icon": "assets/final/cosmetics/warrior/hat_crown_gold/icon.png"
    }
   ],
   "book_mage": [

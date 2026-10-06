@@ -185,7 +185,7 @@ function bodyVariant(scene: Phaser.Scene, key: string, wkey: string, cut: boolea
       a[i] = lut[q][0]; a[i + 1] = lut[q][1]; a[i + 2] = lut[q][2];
     }
     void lab;
-    for (const L of layers) for (let i = 0; i < a.length; i += 4) { // worn pieces: magenta = hair hidden under the piece, else alpha-over
+    for (const L of layers) for (let i = 0; i < a.length && L.length === a.length; i += 4) { // worn pieces (same size as the sheet): magenta = hair hidden under the piece, else alpha-over
       const li = i; // base pieces share the base strip geometry
       const la = L[li + 3]; if (la === 0) continue;
       if (L[li] === 255 && L[li + 1] === 0 && L[li + 2] === 255) { a[i + 3] = 0; continue; }
@@ -221,6 +221,10 @@ export class ActorView {
   /** Same sword, cropped from the guard forward, drawn over the body (the handle stays under the fist). */
   private bladeTop: Phaser.GameObjects.Image | null = null;
   private equipped: Equipped = {};
+  /** Base strips whose dressed variant is still to be built (one per frame after equipping), so an item never blinks off
+   *  the first time an animation plays. */
+  private warm: string[] = [];
+  private warmTries = new Map<string, number>();
   private t = 0;
   /** Floating companion: trails the hero with a soft lag. */
   private petPos: { x: number; y: number } | null = null;
@@ -259,6 +263,8 @@ export class ActorView {
 
   setEquipped(e: Equipped): void {
     this.equipped = { ...e };
+    const first = ['walk', 'run', 'jump', 'warrior_basic', 'react', 'air_attack'].map((a) => `base-warrior-${a}`); // the common moves first
+    this.warm = [...first.filter((k) => BASE_GEOM[k]), ...Object.keys(BASE_GEOM).filter((k) => !first.includes(k))]; this.warmTries.clear();
     for (const s of Object.keys(this.layers) as CosSlot[]) { this.layers[s]?.destroy(); delete this.layers[s]; }
     this.blade?.destroy(); this.blade = null; this.bladeTop?.destroy(); this.bladeTop = null;
     this.refreshNameFrame();
@@ -305,7 +311,12 @@ export class ActorView {
     const rec = RECOLOR.map(([sl]) => { const id = this.equipped[sl]; return id && cosmetic(id)?.lut ? id : null; });
     let ready = true;
     const worn = WORN.map((sl) => { const id = this.equipped[sl]; return id && cosmetic(id)?.layers ? id : null; });
-    if (this.blade || capeId || rec.some((r) => r) || worn.some((r) => r)) { const vk = bodyVariant(this.scene, pose.key, pose.wkey, !!this.blade, capeId, rec, worn); if (vk) p.setTexture(vk, pose.frame); else ready = false; }
+    const dressed = !!this.blade || !!capeId || rec.some((r) => r) || worn.some((r) => r);
+    if (dressed) { const vk = bodyVariant(this.scene, pose.key, pose.wkey, !!this.blade, capeId, rec, worn); if (vk) p.setTexture(vk, pose.frame); else ready = false; }
+    if (dressed && this.wantsBase && this.warm.length) { // build the other animations' variants ahead, one per frame
+      const k = this.warm.shift()!, n = (this.warmTries.get(k) ?? 0) + 1;
+      if (!bodyVariant(this.scene, k, `${k}-w`, !!this.blade, capeId, rec, worn) && n < 600) { this.warmTries.set(k, n); this.warm.push(k); }
+    }
     if (this.blade && !ready) { this.blade.setVisible(false); this.bladeTop?.setVisible(false); } // mask still loading: keep the original sword for a moment
     else if (this.blade) {
       const bi = cosmetic(this.equipped.weapon!)!.blade!, bl = pose.blade;

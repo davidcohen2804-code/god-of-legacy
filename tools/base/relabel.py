@@ -32,7 +32,23 @@ def relabel_frame(p, mk):
     keep = (newlab != 40) & (newlab != 0)
     idx = nd.distance_transform_edt(~keep, return_distances=False, return_indices=True)
     newlab[lost] = newlab[idx[0][lost], idx[1][lost]]
-  return newlab
+  return ring_to_hair(p, newlab, sword)
+
+def ring_to_hair(p, lab, sword):
+  """The hair's dark outline belongs to the hair (it was labelled skin): dark pixels hugging the hair, closer to it than to
+  any light skin (an arm or the face keeps its own outline)."""
+  lab = lab.copy(); R, Gc, B = p[..., 0], p[..., 1], p[..., 2]; L = 0.3 * R + 0.59 * Gc + 0.11 * B
+  dark = (p[..., 3] > 0) & (L < 110) & np.isin(lab, [0, 60]) & ~sword
+  light = (lab == 60) & (L >= 110)
+  dl = nd.distance_transform_edt(~light) if light.any() else np.full(lab.shape, 1e9)
+  for _ in range(2):
+    hair = lab == 40
+    if hair.sum() < 50: break
+    dh = nd.distance_transform_edt(~hair)
+    ring = dark & (dh <= 1.5) & (dh < dl) & (lab != 40)
+    if not ring.any(): break
+    lab[ring] = 40
+  return lab
 
 if __name__ == '__main__':
  for a in anims:
