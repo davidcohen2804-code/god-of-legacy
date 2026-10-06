@@ -173,10 +173,11 @@ const NAKED_HEAD_DROP = 10; // his bald head top sits this much (cell px) lower 
 function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): PoseFrame {
   const f = sheetPose(cls, dir, { k: 'loop', state: 'idle', t: 0, speed: 0 }); // the standing beginner's anchors (head, chest)
   const has = NAKED[g] ?? {};
-  let anim = 'idle', frame = 0;
+  let anim = 'idle', frame = 0, sx = 1, sy = 1;
   if (q.k === 'loop' && (q.state === 'walk' || q.state === 'run') && has.walk) {
     anim = q.state === 'run' && has.run ? 'run' : 'walk';
     const c = baseLoop(q.state, q.speed); frame = Math.floor((q.t * c.fps) / 1000) % has[anim];
+    if (anim === 'run') { const air = frame % 2 === 0; sx = air ? 0.985 : 1.02; sy = air ? 1.025 : 0.975; } // stretch in the stride, squash on landing
   } else if (q.k === 'loop' && q.state === 'alert' && has.alert) { anim = 'alert'; frame = Math.floor(q.t / 500) % has.alert; } // 0.5 s a frame (Maple)
   else if (q.k === 'jump' && q.phase !== 'land' && has.jump) anim = 'jump'; // Maple: one frame the whole time off the ground
   else if ((q.k === 'recovery' || q.k === 'hurt') && has.alert) anim = 'alert'; // Maple: after a swing / when hit, the combat stance
@@ -185,7 +186,7 @@ function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): P
     anim = sw[(q.seed ?? 0) % sw.length]; frame = q.elapsed < q.startup ? 0 : q.elapsed < q.startup + q.active * 0.5 ? 1 : 2; // wind-up, strike, follow-through
   }
   const key = nakedKey(g, anim), [hx, hy] = NAKED_HEADS[g]?.[anim]?.[frame] ?? [0, 0], fx = f.flip ? -1 : 1;
-  return { ...f, key, frame, wkey: `${key}-w`, blade: null, bladeBehind: false, hair: null, head: null,
+  return { ...f, key, frame, sx, sy, wkey: `${key}-w`, blade: null, bladeBehind: false, hair: null, head: null,
     anchor: f.anchor ? f.anchor.map((v, i) => (i % 2 === 0 ? v + hx * fx * SHEET_SCALE : v + (hy + (i === 1 ? NAKED_HEAD_DROP : 0)) * SHEET_SCALE)) : null };
 }
 /** Base body available for this animation (sheet baked)? */
@@ -247,7 +248,7 @@ export type PoseQuery =
  *  (dust puffs): the run lands on the passing frames. */
 export const baseLoop = (state: 'walk' | 'run', speed: number): { n: number; fps: number; contact: number[] } => state === 'walk'
   ? { n: 4, fps: 7 * Math.max(0.7, Math.min(1.2, speed / 188)), contact: [0, 2] }
-  : { n: 4, fps: 11 * Math.max(0.75, Math.min(1.15, speed / 270)), contact: [1, 3] };
+  : { n: 4, fps: 13 * Math.max(0.75, Math.min(1.15, speed / 270)), contact: [1, 3] }; // the steps keep up with the ground
 
 const pick = <T,>(list: T[], p: number): T => list[Math.max(0, Math.min(list.length - 1, Math.floor(p * list.length)))];
 
