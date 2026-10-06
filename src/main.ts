@@ -35,7 +35,9 @@ function watchForUpdates(): void {
       }
     } catch { /* offline: try again later */ }
   };
-  setInterval(check, 20000);
+  // a browser-cached page (Pages sends max-age=600) corrects itself right after loading, then every 15 s
+  setTimeout(check, 1500);
+  setInterval(check, 15000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
 }
 if (!location.hostname.includes('localhost')) watchForUpdates();
