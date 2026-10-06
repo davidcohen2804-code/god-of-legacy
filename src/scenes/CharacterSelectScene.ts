@@ -5,6 +5,7 @@ import { CharacterSelectUI } from '../ui/CharacterSelectUI';
 import { isPvpUrl } from '../pvp/Room';
 import { enterPvp } from '../pvp/enterPvp';
 import { ClassPresence, preloadLife } from '../ui/PresentationLife';
+import { ThroneHero, preloadThrone } from '../ui/ThronePresence';
 
 const classOfKey = (key: string): string | null => {
   const e = Object.entries(CHARACTER_PREVIEWS).find(([, v]) => v.key === key);
@@ -17,7 +18,7 @@ export class CharacterSelectScene extends Phaser.Scene {
 
   constructor() { super('CharacterSelectScene'); }
 
-  preload(): void { preloadLife(this); }
+  preload(): void { preloadLife(this); preloadThrone(this); }
 
   create(): void {
     this.cameras.main.fadeIn(240, 0, 0, 0);
@@ -63,6 +64,9 @@ export class CharacterSelectScene extends Phaser.Scene {
     hero.setScale(PV.height / hero.height);
     addClothWind(this, hero);
     const presence = new ClassPresence(this, hero, halo, { x: HL.centerX, y: HL.centerY });
+    // Warrior: seated on his throne with the sword of light (animated painting) instead of the standing preview.
+    const throne = this.textures.exists('throne.hero') ? new ThroneHero(this, { x: PV.centerX, y: 900 }, 700, 2) : null;
+    throne?.setVisible(false);
     let lastKey: string | null = null, selectedCls: string | null = null;
 
     this.ui = new CharacterSelectUI(this.game.canvas.parentElement!, this.game.canvas, {
@@ -70,12 +74,15 @@ export class CharacterSelectScene extends Phaser.Scene {
       onCreate: () => this.scene.start('CharacterCreateScene'),
       onEnterWorld: () => (isPvpUrl() ? enterPvp(this) : this.scene.start('LegacyCourtyardScene')), // arrived via a PvP link
       onPreview: (key) => {
-        if (key) { hero.setTexture(key); hero.setScale(PV.height / hero.height); }
-        hero.setVisible(!!key); halo.setVisible(!!key); shadow.setVisible(!!key);
+        const cls = key ? classOfKey(key) : null, onThrone = !!throne && cls === 'warrior';
+        if (key && !onThrone) { hero.setTexture(key); hero.setScale(PV.height / hero.height); }
+        const stand = !!key && !onThrone;
+        hero.setVisible(stand); halo.setVisible(stand); shadow.setVisible(stand); g.setVisible(!onThrone);
+        throne?.setVisible(onThrone);
         if (key !== lastKey) {
-          selectedCls = key ? classOfKey(key) : null;
-          presence.setClass(selectedCls);
-          if (key && lastKey !== null) presence.pop();
+          selectedCls = cls;
+          presence.setClass(onThrone ? null : selectedCls);
+          if (stand && lastKey !== null) presence.pop();
           lastKey = key;
         }
       },
