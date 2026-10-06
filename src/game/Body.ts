@@ -28,6 +28,8 @@ const SHEET_CLASSES = ['warrior', 'book_mage'] as const;
 const sheetKey = (cls: string, st: string) => `body-${cls}-${st}`;
 /** Extended-kit skills reuse an existing body animation (pose family) until they get their own sheet. */
 const BODY_ALIAS: Record<string, string> = { guard_counter: 'iron_grip' };
+/** Skills that play the regular attack's movement (one strike of the basic chain sheet) instead of their own body. */
+const POSE_AS_BASIC: Record<string, number> = { wave_slash: 0 };
 export const bodyIdOf = (id: string) => BODY_ALIAS[id] ?? id;
 const skillKey = (cls: string, id: string) => `sbody-${cls}-${bodyIdOf(id)}`;
 const sheetPath = (cls: string, st: string) => `assets/final/body/${cls}/movement/${st}.png`;
@@ -92,7 +94,7 @@ export function preloadBodies(scene: Phaser.Scene, classes?: readonly string[], 
   for (const cls of SHEET_CLASSES) {
     if (!want(cls)) continue;
     for (const st of Object.keys(MOVE_COLS).filter((x) => x !== 'react' || cls === 'warrior')) { L(sheetKey(cls, st), sheetPath(cls, st), true); M(`${sheetKey(cls, st)}-w`, sheetPath(cls, st), cls); if (cls === 'warrior') SHEET_PATH[sheetKey(cls, st)] = sheetPath(cls, st); }
-    for (const s of FINAL_SKILLS.filter((x) => x.cls === cls && !BODY_ALIAS[x.id])) { const cs = CELLS[s.id]; const LS = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: cs?.w ?? CELL, frameHeight: cs?.h ?? CELL }); };
+    for (const s of FINAL_SKILLS.filter((x) => x.cls === cls && !BODY_ALIAS[x.id] && !(x.id in POSE_AS_BASIC))) { const cs = CELLS[s.id]; const LS = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: cs?.w ?? CELL, frameHeight: cs?.h ?? CELL }); };
       LS(skillKey(cls, s.id), skillPath(cls, s.id)); M(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id), cls, cs?.w ?? CELL, cs?.h ?? CELL); if (cls === 'warrior') SHEET_PATH[skillKey(cls, s.id)] = skillPath(cls, s.id); }
   }
   for (const [cls, a] of Object.entries(ATLAS)) { if (!want(cls)) continue; L(atlasKey(cls), a.sheet, false); M(`${atlasKey(cls)}-w`, a.sheet, cls, 0, 0, true); }
@@ -246,6 +248,10 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
     case 'recovery': return BASE_MODE ? mv(cls, 'react', dir, 7) : mv(cls, 'recovery', dir, 1 + Math.min(2, Math.floor(q.p * 3))); // base body: the stance frame (no recovery sheet)
     case 'death': return mv(cls, 'death', dir, Math.min(7, Math.floor(q.p * 8)));
     case 'skill': {
+      if (q.id in POSE_AS_BASIC && CELLS.warrior_basic) { // e.g. Wave Slash (R): the regular attack's swing — wind-up, then the strike
+        const B = CELLS.warrior_basic, st = POSE_AS_BASIC[q.id];
+        return sheetFrame(skillKey(cls, 'warrior_basic'), skillPath(cls, 'warrior_basic'), dir, 2 * st + (q.elapsed < q.startup ? 0 : 1), B.cols, B.h);
+      }
       const sk = FINAL_SKILLS.find((s) => s.id === bodyIdOf(q.id));
       const bid = bodyIdOf(q.id), cols = CELLS[bid]?.cols ?? (sk && sk.slot === 7 ? 12 : sk && sk.slot === 6 ? 10 : 6);
       if (q.id === 'radiant_blade' && q.elapsed >= q.startup * 0.3 && q.elapsed < q.startup) { // hold: sword to the sky, LOOKING UP (Blade Storm's hold frames)
