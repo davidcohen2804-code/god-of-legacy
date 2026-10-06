@@ -150,11 +150,11 @@ const warrior: FinalSkill[] = [
   S({
     id: 'judgment_blade', cls: 'warrior', slot: 13, name: 'Judgment Blade', roles: ['zone', 'setup'], targeting: 'mouseDir',
     startup: 2220, active: 320, recovery: 240, cooldown: 9000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    charges: 3,
+    charges: 3, chargeGap: 120,
     hits: [H(180, 14, { kind: 'circle', radius: 80, at: 'aimBias', bias: 150 }, { stun: 420, pin: 400 }, { reachUp: 280, heavy: true })],
     linger: { at: 'aim', offset: 150, startMs: 520, everyMs: 500, count: 10, radius: 130, maxZ: 40, hit: H(0, 3, { kind: 'circle', radius: 130 }, { stun: 560, pin: 480 }, { reachUp: 40 }) },
     cancelOnHit: ['warrior_basic', 'rising_slash', 'leap_crash', 'lance_thrust', 'blade_storm'],
-    description: 'Leap once and hurl up to 3 blades in a row from the air (press again to throw sooner); if you stop, you float slowly back down. Each blade stays planted for 5s inside a storm ring that shocks and roots anyone standing in it.',
+    description: 'Leap once and hurl up to 3 blades in a row from the air: every press of V throws the next blade at once (no wait between throws); if you stop, you float slowly back down. Each blade stays planted for 5s inside a storm ring that shocks and roots anyone standing in it.',
     relations: ['Zone 5s', 'Root → free combo'],
   }),
 ];

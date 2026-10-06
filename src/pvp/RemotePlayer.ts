@@ -82,6 +82,9 @@ export class RemotePlayer {
     this.dir = dir; this.aim = aim; this.mode = 'skill'; this.modeT = 0;
   }
 
+  /** A held skill's startup became known (Judgment Blade: the blade left the hand): the body throws then. */
+  setSkillStartup(id: string, startup: number): void { if (this.skill && this.skill.id === id) this.skill.startup = Math.max(this.skill.elapsed, startup); }
+
   setHp(hp: number, m?: Extract<NetMsg, { t: 'hp' }>): void {
     const hit = hp < this.hp;
     this.hp = hp;

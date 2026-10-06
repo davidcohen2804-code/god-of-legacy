@@ -29,6 +29,10 @@ export interface CastRun extends CastRequest {
   slid?: boolean;
   jbInit?: boolean;
   jbApex?: number;
+  /** Judgment Blade: the blade has left the hand (release sent to the other players). */
+  jbOut?: boolean;
+  /** Judgment Blade: chained by a press of V, flies right away. */
+  jbQuick?: boolean;
   hitKeys: Set<string>;
   /** First confirmed hit (authority or predicted) — opens the hit-confirm cancel window. */
   confirmedAt: number;
@@ -93,7 +97,7 @@ export class SkillRuntime {
       const used = s.charges && ch && now - ch.last < 7000 ? ch.used + 1 : 1;
       this.charges.set(s.id, { used, last: now });
       if (!s.charges || used >= s.charges) { this.cooldownEnd.set(s.id, now + s.cooldown); this.charges.delete(s.id); }
-      else this.cooldownEnd.set(s.id, now + 350); // tiny gap between charges
+      else this.cooldownEnd.set(s.id, now + (s.chargeGap ?? 350)); // tiny gap between charges
     }
     this.runs.push(run);
     this.events.emit(RT_EVENTS.cast, run);

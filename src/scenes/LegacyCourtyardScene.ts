@@ -50,6 +50,8 @@ const TOP_DEPTH = 100000;
 const FACE: Record<Dir, V2> = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
 /** PvP victim-side sanity checks for a remote cast intent (network jitter tolerances). */
 const CAST_COOLDOWN_TOLERANCE_MS = 250;
+/** Judgment Blade pacing: earliest throw after the leap starts, auto-throw of a follow-up blade, earliest follow-up throw. */
+const JB = { firstMin: 250, follow: 90, followMin: 40 } as const;
 const CAST_ORIGIN_TOLERANCE_PX = 140;
 const COMBO_SHOW_MS = 1400;
 
@@ -120,6 +122,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private lastHand: { x: number; y: number } | null = null;
   /** Judgment Blade air sequence: hover altitude + time since the last throw ended (up to 3 throws, then a slow descent). */
   private jb: { z: number; idle: number } | null = null;
+  /** Judgment Blade: extra presses of V waiting to become blades (each press = one more blade, thrown at once). */
+  private jbWant = 0;
   /** Startup lunge toward the target / post-hit momentum following the push (px still to travel, ms left). */
   private lunge: { x: number; y: number; left: number } | null = null;
   private momentum: { x: number; y: number; left: number } | null = null;
@@ -133,7 +137,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private emberT = 0;
   combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1 };
   confirmedLog: { skill: string; target: string; damage: number; idx: number; reaction: string; at: number; z: number }[] = [];
-  private remoteCasts = new Map<string, number>();
+  private remoteCasts = new Map<string, number[]>();
   private seenCasts = new Set<string>();
   pvpReady = false;
   pvp?: PvpController;
@@ -166,7 +170,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     preloadBodies(this, classes, masks);
     preloadSkillFx(this, classes);
     preloadDeathFx(this);
-    preloadCosmetics(this, classes);
+    preloadCosmetics(this, classes && me ? [...new Set([...classes, me.classId])] : classes); // a Beginner still owns its class's items
     preloadPanelArt(this);
     preloadLife(this);
     showLoading(this, pvp ? 'PVP ARENA' : 'LEGACY COURTYARD');
@@ -188,7 +192,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
     this.combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1 };
     this.confirmedLog = [];
-    this.remoteCasts = new Map(); this.seenCasts = new Set();
+    this.remoteCasts = new Map(); this.seenCasts = new Set(); this.jb = null; this.jbWant = 0;
     this.playerHP = pvpRoom ? PVP.maxHp : S6.player.maxHp;
     this.dir = 'right'; this.aim = { x: 1, y: 0 };
 
@@ -372,7 +376,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (this.jb && (reacting || (k.grounded && !(run && run.skill.id === 'judgment_blade')))) { // sequence over: full cooldown from now
       const jbs = this.kit.find((x) => x.id === 'judgment_blade'); if (jbs) this.rt!.closeCharges(jbs);
-      this.jb = null;
+      this.jb = null; this.jbWant = 0;
     }
     const r = stepKin(k, ms, b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z));
     const ev = b.update(now, ms, r.landed, r.impactVz);
@@ -442,11 +446,23 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (s.id === 'dash_slash' && run.phase === 'recovery' && !run.slid) { run.slid = true; this.momentum = { x: run.aim.x * 46, y: run.aim.y * 46, left: Math.max(120, T.recovery * 0.7) }; } // skid to a stop instead of freezing
     if (s.id === 'judgment_blade') { // leap high, hang at the apex while the light-blade charges, throw, then drop
-      if (!run.jbInit) { run.jbInit = true; run.jbApex = this.jb ? 0 : run.origin.z > 5 ? 80 : 185; if (this.jb) { run.timings.startup = 420; run.origin = { ...run.origin, z: this.jb.z }; } } // follow-up throw: no new leap, quick charge
+      if (!run.jbInit) { run.jbInit = true; run.jbApex = this.jb ? 0 : run.origin.z > 5 ? 80 : 185; if (this.jb) { run.timings.startup = run.jbQuick ? JB.followMin : JB.follow; run.origin = { ...run.origin, z: this.jb.z }; } } // follow-up throw: no new leap, no charge
       const e = run.elapsed, rise = Math.min(1, e / 380), apex = run.jbApex ?? 0; // from a jump: a shorter extra rise
       if (run.phase === 'startup' && inp.hasMove) { run.aim = unit(inp.moveX, inp.moveY); this.aim = run.aim; } // aim the throw while hovering
+      // Every extra press of V is one more blade, at once: the blade in hand flies as soon as it has formed…
+      if (run.phase === 'startup' && this.jbWant > 0 && e < T.startup && e >= (apex ? JB.firstMin : JB.followMin)) { run.timings.startup = e; this.jbWant--; }
       k.grounded = false; k.z = run.origin.z + apex * (1 - (1 - rise) * (1 - rise)); k.vz = 0; k.vx = 0; k.vy = 0;
-      if (e >= T.startup) this.jb = { z: k.z, idle: 0 }; // stays up for the next throw
+      if (e >= T.startup) {
+        this.jb = { z: k.z, idle: 0 }; // stays up for the next throw
+        if (!run.jbOut) { run.jbOut = true; this.pvp?.sendRelease({ castId: run.castId, at: Math.round(T.startup), ax: Math.round(run.aim.x * 1000), ay: Math.round(run.aim.y * 1000) }); }
+      }
+      // …and the next one right after this one strikes (no recovery wait between throws).
+      if (this.jbWant > 0 && run.phase !== 'startup' && e >= T.startup + (s.hits[0]?.at ?? 0)) {
+        const i = this.kit.findIndex((x) => x.id === 'judgment_blade');
+        this.jbWant--;
+        if (i >= 0 && this.rt!.cooldownRemaining(s.id) <= 0) { this.rt!.cancelForFollowUp(run); this.endRun(run, false); if (!this.tryStartSlot(i)) this.jbWant = 0; else { const nr = this.rt!.ownRun; if (nr) nr.jbQuick = true; } }
+        else this.jbWant = 0; // every blade is out
+      }
       return;
     }
     for (const key of ['lunge', 'momentum'] as const) { // glide toward the target / along the push
@@ -769,8 +785,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!this.view || !this.pvpReady || this.dead >= 0) return;
     if (this.skillBook?.open || this.cosPanel?.open) return;
     const own = this.rt?.ownRun;
-    if (own && own.skill.id === 'judgment_blade' && this.kit[i]?.id === 'judgment_blade' && own.phase === 'startup') { // V again while charging: throw now
-      if (own.elapsed >= 300) own.timings.startup = own.elapsed;
+    if (own && own.skill.id === 'judgment_blade' && this.kit[i]?.id === 'judgment_blade') { // V again during the sequence: one more blade, at once
+      this.jbWant = Math.min(3, this.jbWant + 1);
       return;
     }
     if (!this.tryStartSlot(i)) this.ci?.bufferAction(i);
@@ -1063,6 +1079,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private killPlayer(): void {
     this.rt?.cancelOwn('death');
+    if (this.jb) { const jbs = this.kit.find((x) => x.id === 'judgment_blade'); if (jbs) this.rt?.closeCharges(jbs); this.jb = null; this.jbWant = 0; }
     this.ci?.reset();
     this.kin.vx = 0; this.kin.vy = 0;
     this.dead = 0;
@@ -1146,6 +1163,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const r = this.rt?.runs.find((x) => x.castId === m.castId && x.attackerId === from);
         if (r) this.rt!.triggerCounter(r, { x: m.ax / 1000, y: m.ay / 1000 }, { x: m.x, y: m.y, z: m.z });
       },
+      onRelease: (from, m) => { // Judgment Blade thrown: final aim + the moment it left the hand
+        const r = this.rt?.runs.find((x) => x.castId === m.castId && x.attackerId === from);
+        if (r && r.phase === 'startup') { r.aim = unit(m.ax, m.ay); r.timings.startup = Math.max(r.elapsed, m.at); }
+        this.pvp?.remotes.get(from)?.setSkillStartup(r?.skill.id ?? '', r ? r.timings.startup : m.at);
+      },
       onConfirmed: (victim, m) => {
         if (m.by !== this.localId || !m.skillId || m.dmg === undefined || m.rx === 'countered') return;
         const s = finalSkill(m.skillId);
@@ -1172,8 +1194,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private receiveCast(from: string, m: Extract<NetMsg, { t: 'cast' }>): void {
     const r = this.pvp?.remotes.get(from), s = finalSkill(m.skillId);
     if (!r || !r.alive || !s || s.cls !== r.meta.classId || this.seenCasts.has(m.castId)) return;
-    const key = `${from}:${s.id}`, last = this.remoteCasts.get(key);
-    if (s.cooldown > 0 && last !== undefined && this.simMs - last < s.cooldown - CAST_COOLDOWN_TOLERANCE_MS) return;
+    // Cooldown check: at most `charges` casts (1 for most skills) inside one cooldown window.
+    const key = `${from}:${s.id}`, recent = (this.remoteCasts.get(key) ?? []).filter((t) => this.simMs - t < s.cooldown - CAST_COOLDOWN_TOLERANCE_MS);
+    if (s.cooldown > 0 && recent.length >= (s.charges ?? 1)) return;
     if (Math.hypot(m.x - r.x, m.y - r.y) > CAST_ORIGIN_TOLERANCE_PX) return;
     let place: V2 | null = null;
     if (s.targeting === 'mouseGround') {
@@ -1182,8 +1205,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (Math.hypot(place.x - m.x, place.y - m.y) > (s.placeRange ?? 260) + 2 || !placementOk(place.x, place.y)) return;
     }
     this.seenCasts.add(m.castId);
-    this.remoteCasts.set(key, this.simMs);
-    this.rt?.start({ castId: m.castId, skill: s, stage: Math.max(0, Math.min(2, m.stage ?? 0)), attackerId: from, own: false, origin: { x: m.x, y: m.y, z: m.z ?? 0 }, aim: unit(m.ax, m.ay), place, lock: m.lock ?? null });
+    this.remoteCasts.set(key, [...recent, this.simMs]);
+    const run = this.rt?.start({ castId: m.castId, skill: s, stage: Math.max(0, Math.min(2, m.stage ?? 0)), attackerId: from, own: false, origin: { x: m.x, y: m.y, z: m.z ?? 0 }, aim: unit(m.ax, m.ay), place, lock: m.lock ?? null });
+    if (run && s.id === 'judgment_blade') { // the blade leaves the caster's hand when its release message arrives (fallback: a little after the full charge)
+      run.timings.startup = s.startup + 600; r.setSkillStartup(s.id, run.timings.startup);
+    }
   }
 
   private freeSpawnPoint(): { x: number; y: number } {

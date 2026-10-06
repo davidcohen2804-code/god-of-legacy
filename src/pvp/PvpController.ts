@@ -15,6 +15,7 @@ export interface PvpHandlers {
   getLocal(): LocalSnapshot | null;
   onCast(from: string, m: Extract<NetMsg, { t: 'cast' }>): void;
   onCounter(from: string, m: Extract<NetMsg, { t: 'ctr' }>): void;
+  onRelease(from: string, m: Extract<NetMsg, { t: 'rel' }>): void;
   /** A victim confirmed (and applied) a hit from a cast. */
   onConfirmed(victim: string, m: Extract<NetMsg, { t: 'hp' }>): void;
   onRemoteLeft(id: string): void;
@@ -83,6 +84,7 @@ export class PvpController {
     this.sendState(true);
   }
   sendCounter(m: Omit<Extract<NetMsg, { t: 'ctr' }>, 't' | 'from'>): void { this.transport.send({ t: 'ctr', from: this.meta.playerId, ...m }); }
+  sendRelease(m: Omit<Extract<NetMsg, { t: 'rel' }>, 't' | 'from'>): void { this.transport.send({ t: 'rel', from: this.meta.playerId, ...m }); }
   sendDeath(by: string): void { this.transport.send({ t: 'death', from: this.meta.playerId, by }); }
   sendRespawn(x: number, y: number, hp: number): void {
     this.transport.send({ t: 'respawn', from: this.meta.playerId, x: Math.round(x), y: Math.round(y), hp });
@@ -103,6 +105,7 @@ export class PvpController {
     if (!r) return;
     if (m.t === 'cast') this.h.onCast(m.from, m);
     else if (m.t === 'ctr') this.h.onCounter(m.from, m);
+    else if (m.t === 'rel') this.h.onRelease(m.from, m);
     else if (m.t === 'hp') { r.setHp(m.hp, m); if (m.castId) this.h.onConfirmed(m.from, m); }
     else if (m.t === 'death') { r.die(); this.h.onRemoteDeath?.(m.from, m.by); }
     else if (m.t === 'respawn') r.revive(m.x, m.y, m.hp);

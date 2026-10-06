@@ -92,6 +92,8 @@ export interface FinalSkill {
   through?: boolean;
   /** Uses in a row before the full cooldown. */
   charges?: number;
+  /** Minimum gap between two charges (ms, from cast to cast); default 350. */
+  chargeGap?: number;
   /** Dash carries the first confirmed target along on the blade. */
   carry?: boolean;
   trap?: { radius: number; lifeMs: number };

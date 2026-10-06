@@ -10,6 +10,8 @@ export type NetMsg =
   | { t: 'hp'; from: string; hp: number; by: string; castId?: string; skillId?: string; hit?: number; dmg?: number; idx?: number; cid?: number; rx?: string; ends?: boolean; vz?: number; z?: number }
   | { t: 'cast'; from: string; castId: string; skillId: string; stage: number; x: number; y: number; z: number; ax: number; ay: number; px?: number; py?: number; lock?: string | null }
   | { t: 'ctr'; from: string; castId: string; x: number; y: number; z: number; ax: number; ay: number }
+  /** Held skill released (Judgment Blade thrown) `at` ms into the cast, with its final aim (x1000). */
+  | { t: 'rel'; from: string; castId: string; at: number; ax: number; ay: number }
   | { t: 'death'; from: string; by: string }
   | { t: 'respawn'; from: string; x: number; y: number; hp: number }
   | { t: 'leave'; from: string };
