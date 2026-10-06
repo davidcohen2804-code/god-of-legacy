@@ -118,6 +118,8 @@ export interface WorldHUDOptions {
   onSlot: (index: number) => void;
   /** Skill Book (K) / Inventory (I) / Cosmetic Shop (O) toggles. */
   onMenu?: (key: 'K' | 'I' | 'O') => void;
+  /** Gear menu: open the Key Settings window. */
+  onKeys?: () => void;
 }
 
 export class WorldHUD {
@@ -131,6 +133,9 @@ export class WorldHUD {
   private exp!: Bar;
   private thp!: Bar;
   private slots: SlotEl[] = [];
+  private keyEls: { el: HTMLDivElement; x: number; y: number }[] = [];
+  /** Current hotkey label per slot (aria / tooltips). */
+  labels: string[] = [];
   private tGauge: HTMLElement[] = [];
   private markers = new Map<string, HTMLImageElement>();
   private mmRect?: { x: number; y: number; w: number; h: number };
@@ -152,6 +157,7 @@ export class WorldHUD {
     this.buildMinimap();
     this.buildRoom();
     this.buildSkills();
+    this.setKeyLabels(H.skills.hotkeys.map((k) => (k === 'Space' ? 'SPACE' : k)));
     this.buildCombat();
 
     // Gear MENU (bottom-right): the panels and the way back (Back to Characters / Exit Arena).
@@ -159,6 +165,7 @@ export class WorldHUD {
       { key: 'K', label: 'SKILL BOOK', run: () => opts.onMenu?.('K') },
       { key: 'I', label: 'INVENTORY', run: () => opts.onMenu?.('I') },
       { key: 'O', label: 'COSMETIC SHOP', run: () => opts.onMenu?.('O') },
+      { label: 'KEY SETTINGS', run: () => opts.onKeys?.() },
       { label: opts.returnLabel, run: () => opts.onReturn() },
     ]);
     this.layout();
@@ -242,8 +249,8 @@ export class WorldHUD {
       const el: SlotEl = { btn, icon, cd, last: '' };
       btn.addEventListener('click', () => { if (el.slot?.assigned && el.slot.enabled && !el.slot.busy) this.opts.onSlot(i); });
       tray.appendChild(btn);
-      const wide = key === 'Space';
-      const k = this.div(wide ? 'key wide' : 'key', tray); this.at(k, wide ? x - 2 : x + 20, y + T.slot + 2, wide ? T.slot + 4 : 24, 24); k.textContent = wide ? 'SPACE' : key;
+      const k = this.div('key', tray);
+      this.keyEls.push({ el: k, x, y: y + T.slot + 2 });
       this.slots.push(el);
     });
   }
@@ -501,6 +508,18 @@ export class WorldHUD {
     this.lastRect = syncOverlay(this.root, this.host, this.canvas, this.lastRect);
     const scale = this.canvas.getBoundingClientRect().width / 1920;
     this.root.classList.toggle('compact', scale < 1279 / 1920); // below 1280x720: hide optional detail
+  }
+
+  /** Hotkey caps under the tray slots (Key Settings): long names (SPACE, SHIFT…) on the wide cap. */
+  setKeyLabels(labels: string[]): void {
+    const T = G.tray;
+    this.keyEls.forEach((k, i) => {
+      const t = labels[i] ?? '', wide = t.length > 2;
+      k.el.className = wide ? 'key wide' : 'key';
+      this.at(k.el, wide ? k.x - 2 : k.x + 20, k.y, wide ? T.slot + 4 : 24, 24);
+      k.el.textContent = t; k.el.style.visibility = t ? '' : 'hidden';
+    });
+    this.labels = labels;
   }
 
   /** The 1920x1080 overlay element (chat, quest tracker and other HUD parts live inside it). */

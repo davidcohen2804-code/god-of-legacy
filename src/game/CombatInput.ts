@@ -1,6 +1,7 @@
 // One combat input layer: keyboard movement intent, directional double-tap run, jump, Space/1–7 (+ HUD clicks),
 // mouse world aim and a short action buffer. Movement intent and aim intent are independent.
 import Phaser from 'phaser';
+import { BindAction, SLOT_COUNT, loadBindings } from './KeyBindings';
 
 export const RUN_RULES = { doubleTapMs: 240, adjacentGraceMs: 180, releaseGraceMs: 110 };
 export const BUFFER_MS = 160;
@@ -32,28 +33,27 @@ export class CombatInput {
   private keys: Record<string, Phaser.Input.Keyboard.Key>;
   private detach: (() => void)[] = [];
 
-  constructor(readonly scene: Phaser.Scene, onSlot: (slot: number) => void, onJump: () => void, onToggle: (key: 'K' | 'I' | 'O' | 'J') => void) {
+  /** Bound key names (Key Settings); arrows always move. */
+  private bind: Record<BindAction, string>;
+  private dirKeys: Record<DirKey, string[]>;
+
+  constructor(readonly scene: Phaser.Scene, onSlot: (slot: number) => void, onJump: () => void, onToggle: (key: 'K' | 'I' | 'O' | 'J') => void, bindings = loadBindings()) {
     const kb = scene.input.keyboard!;
-    this.keys = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,E,SPACE') as Record<string, Phaser.Input.Keyboard.Key>;
-    const map: [string, DirKey][] = [['A', 'L'], ['LEFT', 'L'], ['D', 'R'], ['RIGHT', 'R'], ['W', 'U'], ['UP', 'U'], ['S', 'D'], ['DOWN', 'D']];
-    for (const [name, d] of map) {
-      const down = (e: KeyboardEvent) => { if (!e.repeat) this.tap(d); };
-      kb.on(`keydown-${name}`, down);
-      this.detach.push(() => kb.off(`keydown-${name}`, down));
-    }
-    ['SPACE', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'Q', 'R', 'F', 'G', 'C', 'V'].forEach((name, i) => {
-      const h = (e: KeyboardEvent) => { if (!e.repeat) onSlot(i); };
+    const b = this.bind = bindings;
+    this.dirKeys = { L: ['LEFT', b.left], R: ['RIGHT', b.right], U: ['UP', b.up], D: ['DOWN', b.down] } as Record<DirKey, string[]>;
+    for (const d of Object.keys(this.dirKeys) as DirKey[]) this.dirKeys[d] = this.dirKeys[d].filter(Boolean);
+    const names = new Set(['SHIFT', ...Object.values(this.dirKeys).flat(), b.slot0].filter(Boolean));
+    this.keys = kb.addKeys([...names].join(',')) as Record<string, Phaser.Input.Keyboard.Key>;
+    const on = (name: string | undefined, fn: () => void) => {
+      if (!name) return;
+      const h = (e: KeyboardEvent) => { if (!e.repeat) fn(); };
       kb.on(`keydown-${name}`, h);
       this.detach.push(() => kb.off(`keydown-${name}`, h));
-    });
-    const j = (e: KeyboardEvent) => { if (!e.repeat) onJump(); };
-    kb.on('keydown-E', j);
-    this.detach.push(() => kb.off('keydown-E', j));
-    for (const k of ['K', 'I', 'O', 'J'] as const) {
-      const h = (e: KeyboardEvent) => { if (!e.repeat) onToggle(k); };
-      kb.on(`keydown-${k}`, h);
-      this.detach.push(() => kb.off(`keydown-${k}`, h));
-    }
+    };
+    for (const d of Object.keys(this.dirKeys) as DirKey[]) for (const name of this.dirKeys[d]) on(name, () => this.tap(d));
+    for (let i = 0; i < SLOT_COUNT; i++) on(b[`slot${i}`], () => onSlot(i));
+    on(b.jump, onJump);
+    on(b.book, () => onToggle('K')); on(b.bag, () => onToggle('I')); on(b.shop, () => onToggle('O')); on(b.quests, () => onToggle('J'));
     // Keyboard-only control: the mouse never aims or steers (pointerActive stays false).
   }
 
@@ -84,7 +84,8 @@ export class CombatInput {
   update(now: number): void {
     this.now = now;
     const k = this.keys;
-    this.held = { L: k.A.isDown || k.LEFT.isDown, R: k.D.isDown || k.RIGHT.isDown, U: k.W.isDown || k.UP.isDown, D: k.S.isDown || k.DOWN.isDown };
+    const down = (d: DirKey) => this.dirKeys[d].some((n) => k[n]?.isDown);
+    this.held = { L: down('L'), R: down('R'), U: down('U'), D: down('D') };
     const ix = (this.held.R ? 1 : 0) - (this.held.L ? 1 : 0), iy = (this.held.D ? 1 : 0) - (this.held.U ? 1 : 0);
     const len = Math.hypot(ix, iy) || 1;
     this.moveX = ix / len; this.moveY = iy / len;
@@ -102,13 +103,14 @@ export class CombatInput {
         if (now - this.runLostAt > RUN_RULES.releaseGraceMs) this.runDir = null;
       }
     }
-    this.running = (!!this.runDir || k.SHIFT.isDown) && (ix !== 0 || iy !== 0);
+    const shiftRun = !Object.values(this.bind).includes('SHIFT') && !!k.SHIFT?.isDown; // Shift runs unless it is bound to an action
+    this.running = (!!this.runDir || shiftRun) && (ix !== 0 || iy !== 0);
     const p = this.scene.input.activePointer;
     if (this.pointerActive) this.setPointer(p);
   }
 
   /** Space held: the basic chain auto-continues (DFO-style hold attack). */
-  get attackHeld(): boolean { return !!this.keys.SPACE?.isDown; }
+  get attackHeld(): boolean { return !!this.keys[this.bind.slot0]?.isDown; }
 
   get hasMove(): boolean { return this.moveX !== 0 || this.moveY !== 0; }
 

@@ -1,6 +1,7 @@
 // Skill Book (K): the class's 8 final skills as a tree on the supplied book art — root (Space) at the bottom, branches
 // upward, Signature / Ultimate at the branch tips. Hover/select shows the detail card and a live Phaser preview that
 // replays the real runtime cast (body sheet pose + SkillRuntime/SkillFx VFX) on a neutral dummy in a 2–3 s loop.
+import { slotKeyLabels } from '../game/KeyBindings';
 import Phaser from 'phaser';
 import COMBAT_ASSETS from '../data/stage5-assets.json';
 import { CLASS_NAMES, FONT_FAMILY } from '../config/layout';
@@ -27,7 +28,7 @@ const FRAME_CX = [362, 661, 940, 1235], FRAME_Y = 245, FRAME_IN = 150; // painte
 /** Pre-recorded in-game clips of each skill (exact final visuals); falls back to the live preview when missing. */
 const CLIPS = new Set(['warrior_basic', 'dash_slash', 'rising_slash', 'ground_breaker', 'whirlwind', 'sanctuary', 'blade_storm', 'titans_verdict', 'leap_crash', 'wave_slash', 'radiant_blade', 'lance_thrust', 'war_cry', 'judgment_blade']);
 const clipUrl = (id: string) => `assets/final/skills/clips/${id}.mp4?v=${__BUILD_COMMIT__}`;
-const HOTKEY = ['SPACE', '1', '2', '3', '4', '5', '6', '7', 'Q', 'R', 'F', 'G', 'C', 'V'];
+const HOTKEY = new Proxy([] as string[], { get: (_t, p) => (typeof p === 'string' && /^\d+$/.test(p) ? slotKeyLabels()[+p] : undefined) }); // live: Key Settings
 const CARD = 112;
 
 const ROLE_LABEL: Partial<Record<Role, string>> = {

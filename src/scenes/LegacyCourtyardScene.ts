@@ -20,6 +20,8 @@ import { showLoading } from '../ui/LoadingScreen';
 import { CHAT_MAX_LEN, ChatBox, ChatKind, EMOTES } from '../ui/ChatBox';
 import { SpeechBubbles } from '../ui/SpeechBubbles';
 import { QuestLog, QuestTracker } from '../ui/HudExtras';
+import { KeySettings } from '../ui/KeySettings';
+import { BindAction, loadBindings, slotKeyLabels } from '../game/KeyBindings';
 import { CourtyardAmbience } from '../world/Ambience';
 import { WORLD_OBJECTS, actorDepth, footAllowed, insideArena, placementOk } from '../world/WorldGeometry';
 import { isQAMode } from '../qa/QAPanel';
@@ -158,6 +160,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private bubbles?: SpeechBubbles;
   private quests?: QuestTracker;
   questLog?: QuestLog;
+  keySettings?: KeySettings;
 
   constructor() { super('LegacyCourtyardScene'); }
 
@@ -270,7 +273,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onReturn: pvpRoom ? exitArena : () => this.scene.start('CharacterSelectScene'),
       onSlot: (i) => this.useSlot(i),
       onMenu: (k) => this.togglePanel(k),
+      onKeys: () => { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.keySettings?.open(loadBindings()); },
     });
+    this.hud.setKeyLabels(slotKeyLabels());
     const host = this.game.canvas.parentElement!;
     this.skillBook = new SkillBook(this, host, this.game.canvas, this.cls, character.level, isQAMode() || !!pvpRoom); // arena: all skills open
     this.cosPanel = new CosmeticPanel(this, host, this.game.canvas, character, () => this.equipped, (e) => this.setEquipped(e));
@@ -281,6 +286,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.bubbles = new SpeechBubbles(this);
     this.quests = new QuestTracker(ov);
     this.questLog = new QuestLog(ov, () => this.ci?.reset());
+    this.keySettings = new KeySettings(ov, Array.from({ length: 14 }, (_, i) => ({ name: this.kit[i]?.name ?? '', icon: this.kit[i] ? iconUrl(this.kit[i]) : '' })),
+      (b) => this.applyKeys(b), (open) => this.chatTyping(open));
     this.chat.add({ kind: 'system', text: pvpRoom ? 'Welcome to the PvP Arena! Press Enter to chat.' : 'Welcome to God Of Legacy! Press Enter to chat.' });
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, (_t: number, d: number) => {
       if (!this.hud) return;
@@ -317,6 +324,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.bubbles?.destroy(); this.bubbles = undefined;
       this.quests?.destroy(); this.quests = undefined;
       this.questLog?.destroy(); this.questLog = undefined;
+      this.keySettings?.destroy(); this.keySettings = undefined;
       this.view?.destroy(); this.view = undefined;
       this.character = undefined;
       this.dummy = undefined; this.dummyBar = undefined; this.dummyState = undefined;
@@ -976,6 +984,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.ci?.reset();
   }
 
+  /** Key Settings saved: the input layer is rebuilt on the new keys; tray and skill book show them. */
+  private applyKeys(b: Record<BindAction, string>): void {
+    this.ci?.destroy();
+    this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), b);
+    this.hud?.setKeyLabels(slotKeyLabels(b));
+  }
+
   // ======================================================================= chat
 
   /** While the chat's typing row has the keyboard, the game ignores keys (and forgets held ones). */
@@ -1349,8 +1364,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.bot) markers.push({ id: BOT_ID, kind: 'enemy', x: this.bot.x, y: this.bot.y });
     if (this.enemy?.alive) markers.push({ id: 'enemy', kind: 'enemy', x: this.enemy.x, y: this.enemy.y });
     const busy = this.busy();
-    const slots: HudSlot[] = HUD.skills.hotkeys.map((hotkey, i) => {
-      const s = this.kit[i];
+    const slots: HudSlot[] = HUD.skills.hotkeys.map((hk, i) => {
+      const s = this.kit[i], hotkey = this.hud?.labels[i] || hk; // Key Settings label
       if (!s || !this.skillOpen(s)) return { id: `slot-${hotkey}`, hotkey, label: s ? 'Locked' : 'Unassigned', assigned: false, enabled: false, pressed: false, cooldown: null }; // opens with its job
       const rem = this.rt?.cooldownRemaining(s.id) ?? 0;
       const airBlocked = !k.grounded && !s.air;
