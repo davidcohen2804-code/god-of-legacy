@@ -3,7 +3,7 @@
 // rise → apex → fall → landing, hit → hurt, launch → air hurt → knockdown → getup.
 import { PoseQuery } from './Body';
 
-export type Mode = 'idle' | 'walk' | 'run' | 'takeoff' | 'air' | 'land' | 'skill' | 'recover' | 'hurt' | 'launched' | 'down' | 'getup' | 'dead';
+export type Mode = 'idle' | 'alert' | 'walk' | 'run' | 'takeoff' | 'air' | 'land' | 'skill' | 'recover' | 'hurt' | 'launched' | 'down' | 'getup' | 'dead';
 
 export interface SkillPose { id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number }
 
@@ -23,6 +23,7 @@ export const LAND_MS = 90;
 export function poseQuery(s: AnimSnap): PoseQuery {
   switch (s.mode) {
     case 'idle': return { k: 'loop', state: 'idle', t: s.t, speed: 0 };
+    case 'alert': return { k: 'loop', state: 'alert', t: s.t, speed: 0 }; // standing still in the combat stance
     case 'walk': return { k: 'loop', state: 'walk', t: s.t, speed: s.speed };
     case 'run': return { k: 'loop', state: 'run', t: s.t, speed: s.speed };
     case 'takeoff': return { k: 'jump', phase: 'takeoff', t: s.t };

@@ -76,6 +76,9 @@ const ENEMY_SKILL: FinalSkill = {
   pvpMultiplier: 1, pveMultiplier: 1, description: '', unlockLevel: 1, relations: [],
 };
 
+/** How long he keeps the combat stance after an attack / a hit while standing still (MapleStory: a few seconds). */
+const ALERT_MS = 4000;
+
 export class LegacyCourtyardScene extends Phaser.Scene {
   // ---- local actor (read by QA)
   kin!: Kin;
@@ -379,6 +382,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   busy(): boolean { return this.dead >= 0 || !this.body.canAct(this.simMs) || this.rt?.locked() === true; }
 
+  /** Combat stance until (sim ms): set by attacks and hits, shown while standing still. */
+  private alertUntil = -1;
   private setMode(m: Mode): void { if (m !== this.mode) { this.mode = m; this.modeT = 0; } }
 
   private stepPlayer(ms: number, now: number): void {
@@ -641,8 +646,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private renderPlayer(ms: number): void {
     const v = this.view!, k = this.kin, run = this.rt?.ownRun;
+    // MapleStory: after an attack or a hit he keeps the combat stance a few seconds while standing still
+    if (this.mode === 'skill' || this.mode === 'recover' || this.mode === 'hurt' || this.mode === 'launched' || this.mode === 'down' || this.mode === 'getup') this.alertUntil = this.simMs + ALERT_MS;
+    const mode = this.mode === 'idle' && this.simMs < this.alertUntil ? 'alert' : this.mode;
     const snap: AnimSnap = {
-      mode: this.mode, t: this.mode === 'walk' || this.mode === 'run' || this.mode === 'idle' ? this.loopT : this.modeT,
+      mode, t: this.mode === 'walk' || this.mode === 'run' || this.mode === 'idle' ? this.loopT : this.modeT,
       speed: Math.hypot(k.vx, k.vy), vz: k.vz, stunMs: 220,
       skill: run ? { id: run.skill.id, stage: run.stage, elapsed: run.elapsed, ...run.timings } : undefined,
     };

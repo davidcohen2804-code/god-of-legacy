@@ -1,0 +1,54 @@
+{
+ "gender": "male",
+ "_note": "figures are counted left to right in each GPT image; swap = the near / far leg shading swapped (GPT drew the near leg forward again: this makes the step of the other leg)",
+ "anims": {
+  "idle": [
+   [
+    "naked_male_set1.png",
+    0
+   ]
+  ],
+  "walk": [
+   [
+    "naked_male_set1.png",
+    1
+   ],
+   [
+    "naked_male_set1.png",
+    2
+   ],
+   [
+    "naked_male_set2.png",
+    0,
+    "swap",
+    "like0"
+   ],
+   [
+    "naked_male_set2.png",
+    1,
+    "like1"
+   ]
+  ],
+  "alert": [
+   [
+    "naked_male_alert.png",
+    0,
+    "tall0.96"
+   ],
+   [
+    "naked_male_alert.png",
+    1,
+    "tall0.96"
+   ],
+   [
+    "naked_male_alert.png",
+    2,
+    "tall0.96"
+   ]
+  ]
+ },
+ "preview": [
+  "naked_male_set1.png",
+  0
+ ]
+}

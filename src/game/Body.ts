@@ -98,7 +98,7 @@ export function preloadBodies(scene: Phaser.Scene, classes?: readonly string[], 
       LS(skillKey(cls, s.id), skillPath(cls, s.id)); M(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id), cls, cs?.w ?? CELL, cs?.h ?? CELL); if (cls === 'warrior') SHEET_PATH[skillKey(cls, s.id)] = skillPath(cls, s.id); }
   }
   for (const [cls, a] of Object.entries(ATLAS)) { if (!want(cls)) continue; L(atlasKey(cls), a.sheet, false); M(`${atlasKey(cls)}-w`, a.sheet, cls, 0, 0, true); }
-  if (want('warrior')) for (const g of ['male', 'female']) L(nakedKey(g), `assets/final/body/naked/${g}/idle.png`, true);
+  if (want('warrior')) for (const [g, anims] of Object.entries(NAKED)) for (const anim of Object.keys(anims)) L(nakedKey(g, anim), `assets/final/body/naked/${g}/${anim}.png`, true);
   if (want('warrior')) for (const anim of BASE_ANIMS) {
     const k = baseKey(anim); L(k, basePath(anim), true); M(`${k}-w`, basePath(anim), 'warrior'); SHEET_PATH[k] = basePath(anim);
     const cs = CELLS[anim], skill = !(anim in MOVE_COLS), W = cs?.w ?? CELL, H = cs?.h ?? CELL;
@@ -160,13 +160,21 @@ const animOf = (path: string) => (path.includes('/skills/') ? path.split('/').sl
 /** Base-sheet geometry: the original sheet's cell (W×H, cols) the 352-cells were cut from, for mask/layer remapping. */
 export const BASE_GEOM: Record<string, { W: number; H: number; cols: number; orig: string; ox: number; oy: number }> = {};
 let BASE_MODE = false;
-/** The clean base character (no hair / clothes / weapon), male or female — one standing frame until its moves are drawn. */
-const nakedKey = (g: string) => `naked-${g}-idle`;
+/** The clean base character (no hair / clothes / weapon), male or female. Its drawn moves are listed per gender in
+ *  naked-anims.json (tools/base/naked_frames.py); every other move shows him / her standing until it is drawn.
+ *  The run plays the walk frames faster. */
+import NAKED_LIST from '../data/naked-anims.json';
+const NAKED = NAKED_LIST as Record<string, Record<string, number>>;
+const nakedKey = (g: string, anim = 'idle') => `naked-${g}-${anim}`;
 const NAKED_HEAD_DROP = 10; // his bald head top sits this much (cell px) lower than the beginner's hair top
-function nakedPose(cls: string, dir: Dir, g: 'male' | 'female'): PoseFrame {
+function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): PoseFrame {
   const f = sheetPose(cls, dir, { k: 'loop', state: 'idle', t: 0, speed: 0 }); // the standing beginner's anchors (head, chest)
-  const key = nakedKey(g);
-  return { ...f, key, frame: 0, wkey: `${key}-w`, blade: null, bladeBehind: false, hair: null, head: null,
+  const has = NAKED[g] ?? {};
+  let key = nakedKey(g), frame = 0;
+  if (q.k === 'loop' && (q.state === 'walk' || q.state === 'run') && has.walk) {
+    const c = baseLoop(q.state, q.speed); key = nakedKey(g, 'walk'); frame = Math.floor((q.t * c.fps) / 1000) % has.walk;
+  } else if (q.k === 'loop' && q.state === 'alert' && has.alert) { key = nakedKey(g, 'alert'); frame = Math.floor(q.t / 500) % has.alert; } // 0.5 s a frame (Maple)
+  return { ...f, key, frame, wkey: `${key}-w`, blade: null, bladeBehind: false, hair: null, head: null,
     anchor: f.anchor ? f.anchor.map((v, i) => (i === 1 ? v + NAKED_HEAD_DROP * SHEET_SCALE : v)) : null };
 }
 /** Base body available for this animation (sheet baked)? */
@@ -212,7 +220,7 @@ const atlasCount = (cls: string, dir: Dir, act: AtlasAction) => ATLAS[cls].direc
 // ------------------------------------------------------------------ pose queries
 
 export type PoseQuery =
-  | { k: 'loop'; state: 'idle' | 'walk' | 'run'; t: number; speed: number }
+  | { k: 'loop'; state: 'idle' | 'walk' | 'run' | 'alert'; t: number; speed: number } // alert: combat stance after an attack / a hit (MapleStory)
   | { k: 'jump'; phase: 'takeoff' | 'rise' | 'apex' | 'fall' | 'land'; t: number }
   | { k: 'airAttack'; p: number }
   | { k: 'hurt'; p: number }
@@ -232,18 +240,21 @@ export const baseLoop = (state: 'walk' | 'run', speed: number): { n: number; fps
 const pick = <T,>(list: T[], p: number): T => list[Math.max(0, Math.min(list.length - 1, Math.floor(p * list.length)))];
 
 /** base = draw the beginner-clothes base body (fashion cosmetics) instead of the class armour, where baked. */
+/** Pose query once the combat stance is folded into standing (bodies without stance frames). */
+type BodyQuery = Exclude<PoseQuery, { k: 'loop' }> | { k: 'loop'; state: 'idle' | 'walk' | 'run'; t: number; speed: number };
 export function resolvePose(cls: ClassKey, dir: Dir, q: PoseQuery, base = false, gender?: 'male' | 'female'): PoseFrame {
   BASE_MODE = base && cls === 'warrior';
   try {
-    if (BASE_MODE && gender) return nakedPose(cls, dir, gender); // the clean base character
-    return isSheetClass(cls) ? sheetPose(cls, dir, q) : atlasPoseFor(cls, dir, q);
+    if (BASE_MODE && gender) return nakedPose(cls, dir, gender, q); // the clean base character
+    const b: BodyQuery = q.k === 'loop' && q.state === 'alert' ? { ...q, state: 'idle' } : (q as BodyQuery);
+    return isSheetClass(cls) ? sheetPose(cls, dir, b) : atlasPoseFor(cls, dir, b);
   } finally { BASE_MODE = false; }
 }
 
 const moveCols = (cls: string, st: MoveState) => (st === 'air_attack' && cls === 'warrior' ? 8 : MOVE_COLS[st]);
 function mv(cls: string, st: MoveState, dir: Dir, col: number): PoseFrame { return sheetFrame(sheetKey(cls, st), sheetPath(cls, st), dir, col, moveCols(cls, st)); }
 
-function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
+function sheetPose(cls: string, dir: Dir, q: BodyQuery): PoseFrame {
   switch (q.k) {
     case 'loop': {
       if (q.state === 'idle') { // agreed look: the body never breathes / grows / shrinks — one still frame (separately painted idle frames flicker)
@@ -357,7 +368,7 @@ const CHAIN_SEQ: Record<string, Seq[]> = {
 };
 const MIN_ACTIVE = 110;
 
-function atlasPoseFor(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
+function atlasPoseFor(cls: string, dir: Dir, q: BodyQuery): PoseFrame {
   switch (q.k) {
     case 'loop': {
       const fps = q.state === 'idle' ? 5 : q.state === 'walk' ? 8 * Math.max(0.7, Math.min(1.2, q.speed / 188)) : 10 * Math.max(0.75, Math.min(1.15, q.speed / 270));
