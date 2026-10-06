@@ -124,6 +124,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private jb: { z: number; idle: number } | null = null;
   /** Judgment Blade: extra presses of V waiting to become blades (each press = one more blade, thrown at once). */
   private jbWant = 0;
+  /** Impaling Rush that hit you: you ride its blade while it dashes. */
+  private carriedBy: CastRun | null = null;
   /** Startup lunge toward the target / post-hit momentum following the push (px still to travel, ms left). */
   private lunge: { x: number; y: number; left: number } | null = null;
   private momentum: { x: number; y: number; left: number } | null = null;
@@ -192,7 +194,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
     this.combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1 };
     this.confirmedLog = [];
-    this.remoteCasts = new Map(); this.seenCasts = new Set(); this.jb = null; this.jbWant = 0;
+    this.remoteCasts = new Map(); this.seenCasts = new Set(); this.jb = null; this.jbWant = 0; this.carriedBy = null;
     this.playerHP = pvpRoom ? PVP.maxHp : S6.player.maxHp;
     this.dir = 'right'; this.aim = { x: 1, y: 0 };
 
@@ -239,7 +241,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onHit: (r, h, i, t, at) => this.onSkillHit(r, h, i, t, at),
       casterPos: (id) => this.casterPos(id),
       onPhase: (r, ph) => this.onRunPhase(r, ph),
-      reachMul: (req) => (req.own && req.skill.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.85 : 1),
+      reachMul: (req) => (req.own ? (req.skill.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.85 : 1) : (req.reach ?? 1)),
     });
     this.fx = new SkillFx(this, this.rt, (id) => this.casterPos(id));
     this.deathFx = new DeathFx(this);
@@ -361,6 +363,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const ccLocked = b.hard.active(now) && b.hard.kind !== 'root';
     if (reacting || ccLocked) {
       if (run && b.state !== 'free') this.rt!.cancelOwn('hit');
+      this.rideBlade();
       if (b.state === 'hitstun' && k.grounded && !b.push) { k.vx *= 0.8; k.vy *= 0.8; }
       if (b.state === 'launched' && inp.takeJump() && b.tryAirTech(now, inp.moveX || -this.aim.x, inp.moveY || -this.aim.y)) this.fx!.dust(k.x, k.y - k.z, 60, 0.6);
       if (ccLocked && b.state === 'free') { k.vx = 0; k.vy = 0; if (run) this.rt!.cancelOwn('hit'); }
@@ -522,14 +525,26 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
   }
 
-  /** Impaling Rush: the confirmed target rides on the blade in front of the dashing warrior; a wall stops it hard. */
+  /** Impaling Rush: the confirmed target (enemy or sparring knight) rides on the blade in front of the dashing warrior; a wall stops it hard. */
   private carryTarget(run: CastRun): void {
-    const e = this.enemy, k = this.kin;
-    if (!e?.alive || run.confirmedAt < 0) return;
+    const k = this.kin, e = this.enemy?.alive ? this.enemy : this.bot && this.simMs - this.bot.body.lastHitAt < 400 ? this.bot : null;
+    if (!e || run.confirmedAt < 0) return;
     if (Math.hypot(e.kin.x - k.x, e.kin.y - k.y) > 110) return;
     const nx = k.x + run.aim.x * 46, ny = k.y + run.aim.y * 46;
     if (footAllowed(nx, ny, e.kin.z, 12)) { e.kin.x = nx; e.kin.y = ny; e.body.push = null; e.kin.vx = 0; e.kin.vy = 0; }
     else if (!run.turned) { run.turned = true; e.body.state = 'hitstun'; e.body.stateEnd = this.simMs + 900; this.fx!.callout({ x: e.kin.x, y: e.kin.y, z: e.kin.z + 40 }, 'WALL CRASH!!', '#9ed8ff', 0); this.fx!.shockwave(e.kin.x, e.kin.y, 100, 0x9ed8ff); this.cameras.main.shake(140, 0.005); }
+  }
+
+  /** Hit by another player's / the knight's Impaling Rush: carried in front of the blade while it dashes; a wall stops you hard. */
+  private rideBlade(): void {
+    const run = this.carriedBy, k = this.kin, b = this.body;
+    if (!run) return;
+    const c = this.casterPos(run.attackerId);
+    if (run.phase !== 'active' || !c || this.dead >= 0 || Math.hypot(c.x - k.x, c.y - k.y) > 110) { this.carriedBy = null; return; }
+    const nx = c.x + run.aim.x * 46, ny = c.y + run.aim.y * 46;
+    if (footAllowed(nx, ny, k.z, 12)) { k.x = nx; k.y = ny; b.push = null; k.vx = 0; k.vy = 0; return; }
+    this.carriedBy = null; b.state = 'hitstun'; b.stateEnd = this.simMs + 900;
+    this.fx!.callout({ x: k.x, y: k.y, z: k.z + 40 }, 'WALL CRASH!!', '#9ed8ff', 0); this.fx!.shockwave(k.x, k.y, 100, 0x9ed8ff); this.cameras.main.shake(140, 0.005);
   }
 
   /** Physical reaction feedback on the enemy: knockback skid dust, heavy landing slam, bounce puff. */
@@ -571,10 +586,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
           if (this.playerHP > before) this.fx!.healNumber({ x: this.kin.x, y: this.kin.y, z: this.kin.z }, this.playerHP - before);
           for (let n = 0; n < 1; n++) this.fx!.hpGlyph(this.kin.x + (Math.random() - 0.5) * 90, this.kin.y + (Math.random() - 0.5) * 30);
         }
+        const zr = { ...l.run, origin: { x: l.x, y: l.y, z: 0 } } as CastRun; // hits come from the zone, not the caster
         for (const t of this.targetsFor(l.run)) {
-          if (!t.alive || t.invulnerable || t.id === this.localId || t.kind !== 'enemy') continue;
+          if (!t.alive || t.invulnerable || t.id === l.run.attackerId) continue;
           if (Math.hypot(t.x - l.x, t.y - l.y) > L.radius + t.radius || t.z > L.maxZ) continue;
-          this.applyToPve({ ...l.run, origin: { x: l.x, y: l.y, z: 0 } } as CastRun, L.hit, t, { x: t.x, y: t.y, z: t.z + 40 });
+          const at = { x: t.x, y: t.y, z: t.z + 40 };
+          if (l.run.own) { if (t.kind === 'enemy') this.applyToPve(zr, L.hit, t, at); else if (t.id === BOT_ID) this.applyToBot(zr, L.hit, t, at); } // remote players resolve your zone on their side
+          else if (t.id === this.localId) this.applyRemoteHitToSelf(zr, L.hit, 0, at); // another player's / the knight's zone on you
         }
       }
     }
@@ -794,6 +812,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private onJumpKey(): void { if (this.pvpReady && this.dead < 0) this.ci?.queueJump(); }
 
+  /** Own damage buffs right now: War Cry +20%, Radiant Blade +15% (same as against monsters). */
+  private ownDamageMul(): number { return (this.simMs < this.warCryUntil ? 1.2 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1); }
+
   /** Skills open with the job advancements; in the PvP arena every skill is open (testing the combat). */
   private skillOpen(s: FinalSkill): boolean {
     return isQAMode() || this.localId !== 'local' || jobOfSlot(this.cls, s.slot).level <= (this.character?.level ?? 1);
@@ -896,7 +917,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: { x: k.x, y: k.y, z: k.z }, aim, place, lock });
     if (s.chain) this.chain = { stage, lastEnd: Infinity, skill: s.id };
     this.setMode('skill');
-    this.pvp?.sendCast({ castId, skillId: s.id, stage, x: Math.round(k.x), y: Math.round(k.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000), ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}), lock });
+    const dm = this.ownDamageMul(), rm = s.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.85 : 1; // buffs travel with the cast (victim-side damage / reach)
+    this.pvp?.sendCast({ castId, skillId: s.id, stage, x: Math.round(k.x), y: Math.round(k.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000), ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}), lock, ...(dm !== 1 ? { dm: Math.round(dm * 100) } : {}), ...(rm !== 1 ? { rm: Math.round(rm * 100) } : {}) });
   }
 
   /** A run ended (finished or cancelled into a follow-up): chain bookkeeping + recovery → breathing transition. */
@@ -911,12 +933,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   private onRunPhase(run: CastRun, phase: string): void {
+    const L = run.skill.linger;
+    if (phase === 'active' && L) { // every caster's lingering zone (yours, other players', the sparring knight's)
+      const off = L.at === 'aim' ? (L.offset ?? 0) : 0;
+      this.lingers.push({ run, x: run.origin.x + run.aim.x * off, y: run.origin.y + run.aim.y * off, next: this.simMs + L.startMs, left: L.count });
+    }
     if (run.own) {
-      const L = run.skill.linger;
-      if (phase === 'active' && L) {
-        const off = L.at === 'aim' ? (L.offset ?? 0) : 0;
-        this.lingers.push({ run, x: run.origin.x + run.aim.x * off, y: run.origin.y + run.aim.y * off, next: this.simMs + L.startMs, left: L.count });
-      }
       if (phase === 'active' && run.skill.armor) this.body.armorUntil = this.simMs + Math.max(0, run.skill.armor[1] - run.timings.startup);
       if (phase === 'done') this.endRun(run, false);
       return;
@@ -1061,9 +1083,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'countered' });
       return;
     }
-    const out = this.body.receive(run.attackerId, s, hit, this.casterPos(run.attackerId) ?? run.origin, this.simMs);
+    const h = run.dmgMul && run.dmgMul !== 1 ? { ...hit, damage: hit.damage * run.dmgMul } : hit; // caster's War Cry / Radiant Blade
+    const out = this.body.receive(run.attackerId, s, h, this.casterPos(run.attackerId) ?? run.origin, this.simMs);
     this.takeDamage(out.damage);
     this.fx!.confirmed(s, hit, at, out.damage, out.reaction, false, out.hitIndex);
+    if (s.carry && out.reaction !== 'armor' && out.damage > 0) this.carriedBy = run; // Impaling Rush: ride the blade
     this.pvp?.sendHp(this.playerHP, run.attackerId, {
       castId: run.castId, skillId: s.id, hit: hi, dmg: out.damage, idx: out.hitIndex, cid: out.comboId, rx: out.reaction, ends: out.endsCombo, vz: Math.round(this.kin.vz), z: Math.round(this.kin.z),
     });
@@ -1139,7 +1163,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private applyToBot(run: CastRun, hit: HitEvent, t: HitTarget, at: V3): void {
     const b = this.bot;
     if (!b) return;
-    const out = b.receive(run.attackerId, run.skill, hit, this.casterPos(run.attackerId) ?? run.origin, this.simMs);
+    const m = run.attackerId === this.localId ? this.ownDamageMul() : 1, h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
+    const out = b.receive(run.attackerId, run.skill, h, this.casterPos(run.attackerId) ?? run.origin, this.simMs);
     if (b.refilled) this.fx!.healNumber({ x: b.x, y: b.y, z: b.z }, b.refilled);
     this.confirm(run, hit, BOT_ID, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!run.skill.endsCombo, t.z);
   }
@@ -1206,7 +1231,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     this.seenCasts.add(m.castId);
     this.remoteCasts.set(key, [...recent, this.simMs]);
-    const run = this.rt?.start({ castId: m.castId, skill: s, stage: Math.max(0, Math.min(2, m.stage ?? 0)), attackerId: from, own: false, origin: { x: m.x, y: m.y, z: m.z ?? 0 }, aim: unit(m.ax, m.ay), place, lock: m.lock ?? null });
+    const run = this.rt?.start({ castId: m.castId, skill: s, stage: Math.max(0, Math.min(2, m.stage ?? 0)), attackerId: from, own: false, origin: { x: m.x, y: m.y, z: m.z ?? 0 }, aim: unit(m.ax, m.ay), place, lock: m.lock ?? null,
+      dmgMul: Math.max(1, Math.min(1.4, (m.dm ?? 100) / 100)), reach: Math.max(1, Math.min(1.85, (m.rm ?? 100) / 100)) });
     if (run && s.id === 'judgment_blade') { // the blade leaves the caster's hand when its release message arrives (fallback: a little after the full charge)
       run.timings.startup = s.startup + 600; r.setSkillStartup(s.id, run.timings.startup);
     }

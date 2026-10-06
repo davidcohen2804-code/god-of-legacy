@@ -18,6 +18,9 @@ export interface CastRequest {
   place: V2 | null;
   /** Locked-on target for 'mouseTarget' skills (id), if any. */
   lock?: string | null;
+  /** Remote caster's buffs at cast time (War Cry / Radiant Blade): damage and reach multipliers. */
+  dmgMul?: number;
+  reach?: number;
 }
 
 export interface CastRun extends CastRequest {
