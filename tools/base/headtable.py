@@ -43,11 +43,19 @@ def table(verbose=True):
   json.dump(A, open(CACHE, 'w'))
   fix = json.load(open(FIXP)) if os.path.exists(FIXP) else {}
   out = {'center': A['center'], 'frames': {a: [list(x) if x else None for x in row] for a, row in A['frames'].items()}, 'fixed': []}
-  for k, v in fix.items():
-    if k.startswith('_'): continue
-    a, c = k.split(':'); c = int(c)
-    if a in out['frames'] and c < len(out['frames'][a]):
-      tx_, ty_, ang, sc, fl = v; out['frames'][a][c] = [tx_, ty_, ang, sc, 9.0, bool(fl)]; out['fixed'].append(k)
+  if fix:   # a hand-set frame sets every frame drawn identically (moves reuse frames of other moves)
+    same = {}
+    for a in anims:
+      P = np.array(Image.open(BASE + a + '.png').convert('RGBA'))
+      for c in range(P.shape[1] // S): same.setdefault(hashlib.md5(P[:, c * S:(c + 1) * S].tobytes()).hexdigest(), []).append((a, c))
+    key_of = {f: k for k, fs in same.items() for f in fs}
+    for k, v in fix.items():
+      if k.startswith('_'): continue
+      a, c = k.split(':'); c = int(c)
+      if a not in out['frames'] or c >= len(out['frames'][a]): continue
+      tx_, ty_, ang, sc, fl = v
+      for a2, c2 in same[key_of[(a, c)]]:
+        out['frames'][a2][c2] = [tx_, ty_, ang, sc, 9.0, bool(fl)]; out['fixed'].append(f'{a2}:{c2}')
   return out
 
 if __name__ == '__main__':

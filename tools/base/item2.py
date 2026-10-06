@@ -142,23 +142,29 @@ def extract(e, ea, b, lab0, K, RW, RH, x0, y0, x1, y1, from_layer=False):
   it = max(1, int(round(K)))
   if from_layer: e = np.where((ea > 0)[..., None], e, b[..., :3]); ea = np.where(ea > 0, 1.0, b[..., 3] / 255)   # piece over the frame = 'after'
   hz = nd.binary_dilation(hair, iterations=int(round(64 * K)))   # the item stays within ~64 game px of the hair
+  if KIND == 'face':   # glasses / masks: on the head only (hair + the face beside it), never the shirt below
+    face_near = skin & nd.binary_dilation(hair, iterations=int(round(22 * K)))
+    hz = nd.binary_dilation(hair | face_near, iterations=int(round(5 * K)))
   diff = np.abs(e - b[..., :3]).sum(2)
   strong = (ea > 0.5) & (~ba | (diff > 90)); weak = (ea > 0.5) & (diff > 55)
   ch = (strong | (weak & nd.binary_dilation(strong, iterations=2 * it))) & hz
   ch = drop_small(ch, 12 * it * it)                            # noise only: fine parts (spikes, beads, thin arms) stay
   ch = nd.binary_closing(ch, iterations=2 * it) & (ea > 0.5); dbg('1_change', ch)
-  # GPT redraws the boy's own hair/skin a little: those colours are not the item (reds, blacks, greys, golds stay)
-  # (a skin-like colour only counts as the boy's skin next to his skin — a pink ear lining on the hair stays)
-  for reg, near in ((hair, nd.binary_dilation(hair, iterations=4 * it) | ~ba), (skin, nd.binary_dilation(skin, iterations=4 * it))):
-    pal = b[..., :3][reg & ba]
-    if len(pal) <= 50: continue
-    pal = pal[np.random.RandomState(0).choice(len(pal), min(600, len(pal)), replace=False)]
-    idx = np.nonzero(ch & near)
-    for s0 in range(0, len(idx[0]), 20000):
-      yy_, xx_ = idx[0][s0:s0 + 20000], idx[1][s0:s0 + 20000]; px_ = e[yy_, xx_]
-      d = np.sqrt(((px_[:, None, :] - pal[None]) ** 2).sum(2)).min(1)
-      warm = ((px_[:, 0] - px_[:, 2]) > 18) & (px_[:, 1] > 0.32 * px_[:, 0])
-      rm = (d < 30) & warm; ch[yy_[rm], xx_[rm]] = False
+  # GPT redraws the boy's own hair/skin a little (strands shifted, outlines moved): a changed pixel whose colour the
+  # boy already has right there (within a few px) is that redraw, not the item — warm (hair / skin family) colours and
+  # the dark outline strokes. A gold frame across the hair, a black band over it, a pink lining stay; a lens over the
+  # dark eye keeps its shape (enclosed holes are closed below).
+  r_ = max(2, int(round(5 * K))); bb_ = np.where(ba[..., None], b[..., :3], 1e4)
+  dloc = np.full(ch.shape, 1e9, np.float32)
+  for dy_ in range(-r_, r_ + 1):
+    for dx_ in range(-r_, r_ + 1):
+      if dy_ * dy_ + dx_ * dx_ > r_ * r_: continue
+      sh_ = np.roll(np.roll(bb_, dy_, 0), dx_, 1)
+      dloc = np.minimum(dloc, np.sqrt(((e - sh_) ** 2).sum(2)))
+  warm_ = ((e[..., 0] - e[..., 2]) > 18) & (e[..., 1] > 0.32 * e[..., 0])
+  mxe_ = e.max(2); dk_ = ch & (mxe_ < 70)
+  solid_ = nd.binary_dilation(nd.binary_opening(dk_, iterations=2 * it), iterations=it)   # a lens, a hat body: not a stroke
+  ch &= ~((dloc < 28) & (warm_ | (dk_ & ~solid_)))
   dbg('2_palette', ch)
   # GPT also re-draws the hair around the item (new spikes, darker locks): hair-coloured changes — brown, or dark
   # crimson shadow; not pink, gold or a bright red jewel — outside the area the item's own colours enclose are hair.
@@ -170,18 +176,14 @@ def extract(e, ea, b, lab0, K, RW, RH, x0, y0, x1, y1, from_layer=False):
   crimson = (mx_ > 30) & (mx_ < 125) & (sat_ > 0.5) & (R_ >= B_) & (gr_ < 0.3)
   hairish = brown | crimson
   empty = ch & ~ba & ~nd.binary_dilation(hair, iterations=3 * it)
-  share = (hairish & empty).sum() / max(1, empty.sum())
+  share = (hairish & empty).sum() / max(1, empty.sum()) if KIND != 'face' else 0.0   # (face items sit on the face: what
+  # GPT changes outside the boy there is re-drawn hair)
   print('hair-coloured share of the new shape', round(float(share), 2), '(dropped)' if share < 0.35 else '(kept: the item is hair-coloured)')
   if share < 0.35 and not from_layer:   # (an old armour-era layer is the item as painted: no re-drawn hair in it)
     core = ch & ~hairish
     inside = nd.binary_fill_holes(nd.binary_closing(core, iterations=2 * it))   # jewels / shading enclosed by the item
     removed = ch & hairish & ~inside
     ch = ch & ~removed
-    # the dark outline strokes of that re-drawn hair (thin dark lines touching only the removed hair) go with it
-    dark = mx_ < 60
-    itemcol = ch & ~dark
-    thin_dark = ch & dark & ~nd.binary_opening(ch, iterations=2 * it)
-    ch &= ~(thin_dark & nd.binary_dilation(removed, iterations=2 * it) & ~nd.binary_dilation(itemcol, iterations=2 * it))
     dbg('2_hairish', removed)
   # thin dark-brown strands at the rim are GPT's hair poking out around the item (they read as dark specks): drop them
   thin = ch & ~nd.binary_opening(ch, iterations=2 * it)

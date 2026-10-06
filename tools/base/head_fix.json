@@ -1,0 +1,4 @@
+{
+ "_": "frames the head fit cannot read: [tx, ty, angle, scale, mirrored] of the idle head on that frame (headtable.py); identical frames of other moves follow",
+ "warrior_basic:3": [-11, 29, 5, 0.95, true]
+}
