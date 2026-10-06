@@ -71,10 +71,8 @@ def legs_of(f):
   return back, front
 
 
-if '--swap3' in sys.argv:
-  # cell 3: near (lighter) leg was drawn in front again — give the back leg the near leg's tones and the front leg the
-  # far one's (faded in under the shorts' hem, so no seam)
-  f = frames[2]; e, lab = f['e'], f['lab']
+def swap_legs(f):
+  e, lab = f['e'], f['lab']
   back, front = legs_of(f)
   bottom = int(np.percentile(np.nonzero(lab == 200)[0], 97))
   wy = np.clip((np.arange(S) - (bottom - 10)) / 12.0, 0, 1)[:, None, None]
@@ -85,6 +83,13 @@ if '--swap3' in sys.argv:
     mb, mf = e[b & deep].mean(0), e[fr & deep].mean(0)
     gb = 1 + (mf / mb - 1) * wy; gf = 1 + (mb / mf - 1) * wy
     e[:] = np.where(b[..., None], np.clip(e * gb, 0, 255), np.where(fr[..., None], np.clip(e * gf, 0, 255), e))
+
+if '--swap3' in sys.argv:
+  # cell 3: near (lighter) leg was drawn in front again — give the back leg the near leg's tones and the front leg the
+  # far one's (faded in under the shorts' hem, so no seam)
+  for f in [frames[2]] + ([runs[2]] if runs else []):
+    swap_legs(f)
+
 
 def axis(sw):
   L, n = nd.label(nd.binary_dilation(sw, iterations=2)); sz = nd.sum(sw, L, range(1, n + 1))
