@@ -24,7 +24,7 @@
 #   "swapg"  the two legs' tones exchanged (found at GPT's size): GPT drew the same leg forward again
 #   "airK"   the move's frames keep K of GPT's height off the ground (heads level as drawn, the lowest feet grounded;
 #            per GPT image); "liftN": that frame N px higher still (the top of the stride)
-#   "sc:N"   the scale of cell N of the move (another GPT image of the move, its body drawn at that size)
+#   "sc:N" / "sc:<move>"  the scale of cell N of the move / of that move (GPT drew the body at that size, its head bigger)
 #   "holdK"  (with follow) the head stays near the move's mean x, keeping K of GPT's own shift; the frame moves under it
 # "run": {"from": "walk", "lean": [body, torso], "lift": [px per frame]} — the walk frames leaning forward (the whole
 #   body tilts from the feet, the torso a little more from the waist; the head stays upright), optional lift per frame.
@@ -116,6 +116,14 @@ def gpt_legs(f):
     if n > 1 and np.sort(sz)[-2] > 0.15 * sz.max(): break
   two = sorted([1 + i for i in np.argsort(-sz)[:2]], key=lambda i: np.nonzero(L == i)[1].mean())
   legs = [L == i for i in two]
+  # a thigh raised beside the shorts (knee up): the same skin above the hem, up to the shorts' waist, joined to that leg
+  gL, gn = nd.label(grey); big = [k for k in range(1, gn + 1) if (gL == k).sum() >= 400]
+  if big:
+    top = int(np.nonzero(gL == max(big, key=lambda k: np.nonzero(gL == k)[0].mean()))[0].min())
+    up = m & ~grey & (mx >= thr) & (yy > top)
+    U, _ = nd.label(up)
+    ids = [set(np.unique(U[l & up])) - {0} for l in legs]
+    legs = [l | np.isin(U, list(ids[k] - ids[1 - k])) for k, l in enumerate(legs)]   # never a piece joined to both
   # under the shorts: per column, the figure below the shorts' lowest pixel (no hands: they hang beside the shorts)
   gb = np.where(grey.any(0), grey.shape[0] - 1 - np.argmax(grey[::-1], 0), m.shape[0])
   under = m & ~grey & (yy > gb[None, :])
@@ -402,7 +410,8 @@ for anim, cells in spec['anims'].items():
       ref = same[0][3:]
       sc = move_sc[ref] * move_hw[ref] / np.mean([figures(cc[0])[cc[1]]['headw'] for cc in cells])
     scn = [o for o in opts if str(o).startswith('sc:')]
-    if scn: sc = cell_sc[int(scn[0][3:])]                      # another GPT image, the body drawn at that cell's size
+    if scn:                                                    # the body drawn at that cell's / move's size (GPT's head may differ)
+      sc = cell_sc[int(scn[0][3:])] if scn[0][3:].isdigit() else move_sc[scn[0][3:]]
     cell_sc[c] = sc
     e, a, fig, lab = frame(path, idx, sc, opts)
     air = [float(o[3:]) for o in opts if str(o).startswith('air')]
