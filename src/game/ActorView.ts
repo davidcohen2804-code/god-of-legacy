@@ -244,6 +244,8 @@ export class ActorView {
     this.plainPlate = false;
   }
   visible = true;
+  /** Height of the top of the head above the feet (world px), smoothed over frames (speech bubbles sit above it). */
+  headHeight = 0;
 
   constructor(private scene: Phaser.Scene, readonly cls: ClassKey, x: number, y: number) {
     this.shadow = scene.add.image(x, y, 'contact-shadow').setOrigin(0.5, 0.5);
@@ -286,6 +288,8 @@ export class ActorView {
   render(ms: number, pose: PoseFrame, x: number, y: number, z: number, supportZ: number, dir: Dir, alpha = 1, tint: number | null = null, tintFill = false): void {
     this.t += ms;
     const p = this.sprite;
+    const top = pose.anchor ? -pose.anchor[1] : 100;
+    this.headHeight = this.headHeight ? this.headHeight + (top - this.headHeight) * Math.min(1, ms / 90) : top;
     // Weapon masks load on first need: a tint skin draws them, a sword skin cuts with them (classes without a packed mask).
     if ((WEAPON_TINT[this.equipped.weapon ?? ''] || (this.blade && !SHEET_PATH[pose.key])) && !this.scene.textures.exists(pose.wkey)) ensureWeaponMasks(this.scene, this.cls);
     applyPose(p, pose, this.weapon);

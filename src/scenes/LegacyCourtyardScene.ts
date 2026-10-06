@@ -361,8 +361,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.reactionFx(ms);
     this.renderPlayer(this.fx.hitStopLeft > 0 ? 0 : ms);
     this.bubbles?.update(now, (id) => {
-      if (id === this.localId) return this.dead < 0 ? { x: this.kin.x, y: this.kin.y, z: this.kin.z } : null;
-      const r = this.pvp?.remotes.get(id); return r && r.alive ? { x: r.x, y: r.y, z: r.z } : null;
+      if (id === this.localId) return this.dead < 0 && this.view ? { x: this.kin.x, y: this.kin.y, z: this.kin.z, head: this.view.headHeight } : null;
+      const r = this.pvp?.remotes.get(id); return r && r.alive ? { x: r.x, y: r.y, z: r.z, head: r.headHeight } : null;
     });
   }
 

@@ -82,6 +82,9 @@ export class RemotePlayer {
     this.dir = dir; this.aim = aim; this.mode = 'skill'; this.modeT = 0;
   }
 
+  /** Top of the head above the feet (world px), for speech bubbles. */
+  get headHeight(): number { return this.view.headHeight || 100; }
+
   /** A held skill's startup became known (Judgment Blade: the blade left the hand): the body throws then. */
   setSkillStartup(id: string, startup: number): void { if (this.skill && this.skill.id === id) this.skill.startup = Math.max(this.skill.elapsed, startup); }
 
