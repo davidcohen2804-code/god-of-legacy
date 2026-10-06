@@ -51,26 +51,28 @@ export const COLORS = {
 } as const;
 
 export const SETTINGS_PANEL = {
+  // kit/modal_window.png stretched to w x h: header strip centre ~116px, body 158..527px from the top
   w: 760,
-  h: 560,
-  headerSize: 38,
-  labelSize: 24,
-  headerOffsetY: 62, // from panel top
-  firstRowOffsetY: 150, // from panel top
-  rowGap: 68,
-  labelX: 620,
-  controlX: 880,
-  controlW: 320,
-  valueRightX: 1300,
-  back: { offsetY: 70, w: 220, h: 56 }, // offsetY measured from panel bottom
+  h: 620,
+  headerSize: 30,
+  labelSize: 22,
+  headerOffsetY: 116, // from panel top
+  firstRowOffsetY: 190, // from panel top
+  rowGap: 56,
+  iconX: 652,
+  labelX: 684,
+  controlX: 900,
+  controlW: 300,
+  valueRightX: 1290,
+  back: { offsetY: 112, w: 200, h: 50 }, // offsetY measured from panel bottom
 } as const;
 
 export const EXIT_PANEL = {
   w: 620,
   h: 280,
   titleSize: 32,
-  titleOffsetY: 95,
-  buttonsOffsetY: 70, // from panel bottom
+  titleOffsetY: 112,
+  buttonsOffsetY: 78, // from panel bottom
   buttonGap: 130,
   button: { w: 200, h: 56 },
 } as const;
