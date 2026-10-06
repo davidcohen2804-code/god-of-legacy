@@ -34,6 +34,8 @@ export class RemotePlayer {
   hp: number = PVP.maxHp;
   alive = true;
   lastSeen = performance.now();
+  /** How far in the past the body is shown (network jitter buffer); 0 = latest snapshot (locally simulated NPC). */
+  interpDelay: number = PVP.interpDelayMs;
   x: number; y: number; z = 0;
 
   constructor(private scene: Phaser.Scene, readonly meta: PeerMeta, x: number, y: number) {
@@ -102,9 +104,10 @@ export class RemotePlayer {
   }
 
   update(ms: number): void {
-    const rt = performance.now() - PVP.interpDelayMs, s = this.snaps;
+    const rt = performance.now() - this.interpDelay, s = this.snaps;
     let x = s[s.length - 1].x, y = s[s.length - 1].y, z = s[s.length - 1].z;
-    for (let i = s.length - 1; i > 0; i--) {
+    if (this.interpDelay <= 0) s.splice(0, s.length - 1);
+    else for (let i = s.length - 1; i > 0; i--) {
       if (s[i - 1].t <= rt) {
         const a = s[i - 1], b = s[i], k = Phaser.Math.Clamp((rt - a.t) / Math.max(1, b.t - a.t), 0, 1);
         x = a.x + (b.x - a.x) * k; y = a.y + (b.y - a.y) * k; z = a.z + (b.z - a.z) * k;

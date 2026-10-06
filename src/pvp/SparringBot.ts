@@ -1,0 +1,287 @@
+// PvP sparring partner (NPC): a warrior that fights like a player whenever you are alone in an arena room.
+// Local only (never sent over the network). Its body follows the PvP combat rules (CombatBody with pvp = true, combo
+// protection gauges, launches, knockdowns, getups) and its HP never runs out: a hit that would bring it to zero refills
+// it. Its moves are real warrior casts started on the scene's SkillRuntime as a non-own attacker, so they hit the local
+// player through the normal PvP victim path (reactions, damage, death and respawn of the player).
+import Phaser from 'phaser';
+import { PVP } from '../config/layout';
+import { CombatBody, HitOutcome, Kin, PHYS, newKin, steer, stepKin } from '../combat/Combat';
+import { FinalSkill, HitEvent } from '../skills/SkillTypes';
+import { finalSkill } from '../skills/FinalKit';
+import { HitTarget, V2, V3, unit } from '../skills/HitGeometry';
+import { Mode } from '../game/PoseState';
+import { Dir } from '../world/collision';
+import { footAllowed } from '../world/WorldGeometry';
+import { RemotePlayer } from './RemotePlayer';
+
+export const BOT_ID = 'npc-sparring';
+export const BOT_NAME = 'Sparring Knight';
+
+export interface BotApi {
+  /** Start a real cast of `skill` for the bot (non-own run on the shared runtime). */
+  cast(skill: FinalSkill, stage: number, origin: V3, aim: V2): void;
+  /** Cancel the bot's pending runs (it was interrupted by a hit). */
+  cancel(): void;
+}
+
+export interface BotWorld {
+  now: number;
+  player: { x: number; y: number; z: number; alive: boolean };
+}
+
+const R = PHYS.footR;
+/** The bot uses its skills less often than a player could (cooldown × this). */
+const CD_MUL = 2;
+/** First use of the big moves only after a while (a sparring partner, not an ambush). */
+const OPENING_CD: Record<string, number> = { titans_verdict: 30000, blade_storm: 18000, whirlwind: 6000, ground_breaker: 5000, leap_crash: 2500 };
+/** Its own look (cape + aura) so it never reads as the player. */
+const BOT_LOOK = 'back:war_cape_shadow_smoke,aura:war_aura_shadow_flame';
+const rnd = (a: number, b: number) => a + Math.random() * (b - a);
+/** Open middle of the courtyard (fallback direction when wedged against a prop). */
+const ARENA_CENTRE = { x: 835, y: 640 };
+
+interface BotCast { s: FinalSkill; stage: number; t: number; T: { startup: number; active: number; recovery: number }; origin: V3; aim: V2; dist: number }
+
+export class SparringBot {
+  readonly kin: Kin;
+  readonly body: CombatBody;
+  readonly view: RemotePlayer;
+  hp: number = PVP.maxHp;
+  /** Set by the last receive() when the HP bar was refilled (the scene shows the heal). */
+  refilled = 0;
+  private dir: Dir = 'left';
+  private aim: V2 = { x: -1, y: 0 };
+  private cast: BotCast | null = null;
+  private cdEnd = new Map<string, number>();
+  private nextAct = 0;
+  private thinkT = 0;
+  private chainStage = -1;
+  private chainEnd = -Infinity;
+  private strafe = 0;
+  private strafeT = 0;
+  private wasFree = true;
+  private avoidSide = 1;
+  private avoidT = 0;
+  private lastNow = 0;
+
+  constructor(scene: Phaser.Scene, x: number, y: number, private api: BotApi, now: number) {
+    this.kin = newKin(x, y);
+    this.body = new CombatBody(this.kin, true);
+    this.body.maxHp = PVP.maxHp;
+    this.view = new RemotePlayer(scene, { playerId: BOT_ID, characterId: BOT_ID, classId: 'warrior', name: `${BOT_NAME} · NPC` }, x, y);
+    this.view.interpDelay = 0; // simulated locally: show the body exactly where it is
+    this.nextAct = now + 1400; // a breath before the first attack
+    for (const [id, ms] of Object.entries(OPENING_CD)) this.cdEnd.set(id, now + ms);
+    this.lastNow = now;
+    this.pushState();
+  }
+
+  get x(): number { return this.kin.x; }
+  get y(): number { return this.kin.y; }
+  get z(): number { return this.kin.z; }
+
+  target(now: number): HitTarget {
+    return { id: BOT_ID, kind: 'player', x: this.kin.x, y: this.kin.y, z: this.kin.z, radius: R + 4, height: 74, alive: true, invulnerable: now < this.body.invulnUntil };
+  }
+
+  /** A confirmed hit from the local player (this client is the authority for the bot). HP never reaches zero. */
+  receive(attacker: string, skill: FinalSkill, hit: HitEvent, from: { x: number; y: number }, now: number): HitOutcome {
+    const out = this.body.receive(attacker, skill, hit, from, now);
+    this.refilled = 0;
+    const msg = { t: 'hp' as const, from: BOT_ID, hp: 0, by: attacker, rx: out.reaction };
+    if (out.damage > 0) {
+      this.hp -= out.damage;
+      if (this.hp <= 0) { // never dies: the bar refills (the hit itself still lands and flashes)
+        this.view.setHp(1, { ...msg, hp: 1 });
+        this.refilled = PVP.maxHp;
+        this.hp = PVP.maxHp;
+      }
+    }
+    if (out.reaction !== 'armor' && this.cast && this.body.state !== 'free') this.interrupt();
+    this.view.setHp(this.hp, { ...msg, hp: this.hp });
+    return out;
+  }
+
+  update(ms: number, w: BotWorld): void {
+    const now = w.now, k = this.kin, b = this.body;
+    this.lastNow = now;
+    const free = b.canAct(now);
+    if (!free && this.cast) this.interrupt();
+    if (free && !this.wasFree) this.nextAct = Math.min(this.nextAct, now + rnd(120, 420)); // recovered: answer quickly
+    this.wasFree = free;
+
+    if (this.cast) this.stepCast(ms, w);
+    else if (free) this.thinkAndMove(ms, w);
+    else if (b.state === 'hitstun' && k.grounded && !b.push) { k.vx *= 0.8; k.vy *= 0.8; }
+
+    const r = stepKin(k, ms, b.gravityScale(now));
+    b.update(now, ms, r.landed, r.impactVz);
+    this.pushState();
+    this.view.update(ms);
+  }
+
+  destroy(): void { this.view.destroy(); }
+
+  // ------------------------------------------------------------------ brain
+
+  private thinkAndMove(ms: number, w: BotWorld): void {
+    const k = this.kin, p = w.player, now = w.now;
+    const dx = p.x - k.x, dy = p.y - k.y, dist = Math.hypot(dx, dy), ady = Math.abs(dy);
+    if (Math.abs(dx) > 4) this.dir = dx > 0 ? 'right' : 'left';
+    this.aim = unit(dx, dy, this.dir === 'right' ? 1 : -1, 0);
+
+    this.thinkT -= ms;
+    if (p.alive && now >= this.nextAct && this.thinkT <= 0) {
+      this.thinkT = rnd(110, 210); // reaction time
+      if (this.decide(w, dx, dy, dist, ady)) return;
+    }
+    this.move(ms, w, dx, dy, dist);
+  }
+
+  /** Pick a move; true when a cast started. */
+  private decide(w: BotWorld, dx: number, dy: number, dist: number, ady: number): boolean {
+    const now = w.now, p = w.player;
+    const ready = (id: string) => (this.cdEnd.get(id) ?? 0) <= now;
+    // keep the basic chain going while it lands in range
+    if (this.chainStage >= 0 && this.chainStage < 3 && now - this.chainEnd < 520 && dist < 115 && ady < 46) {
+      if (Math.random() < 0.72) return this.start('warrior_basic', this.chainStage + 1, w);
+      this.chainStage = -1;
+      this.nextAct = now + rnd(500, 900);
+      return false;
+    }
+    this.chainStage = -1;
+    // juggle / anti-air: the player is in the air close by (only sometimes — it leaves openings)
+    if (p.z > 24 && dist < 125 && ady < 50) {
+      if (ready('rising_slash') && Math.random() < 0.35) return this.start('rising_slash', 0, w);
+      if (ready('whirlwind') && Math.random() < 0.25) return this.start('whirlwind', 0, w);
+    }
+    if (dist < 108 && ady < 44) {
+      const r = Math.random();
+      if (r < 0.05 && ready('titans_verdict')) return this.start('titans_verdict', 0, w);
+      if (r < 0.12 && ready('blade_storm')) return this.start('blade_storm', 0, w);
+      if (r < 0.24 && ready('ground_breaker')) return this.start('ground_breaker', 0, w);
+      if (r < 0.38 && ready('rising_slash')) return this.start('rising_slash', 0, w);
+      if (r < 0.46 && ready('whirlwind')) return this.start('whirlwind', 0, w);
+      if (r < 0.9) return this.start('warrior_basic', 0, w);
+      this.nextAct = now + rnd(250, 500); // hold back a moment
+      return false;
+    }
+    if (dist > 140 && dist < 235 && ady < 30 && ready('dash_slash') && Math.random() < 0.45) return this.start('dash_slash', 0, w);
+    if (dist > 150 && dist < 235 && ready('leap_crash') && Math.random() < 0.22) return this.start('leap_crash', 0, w);
+    if (dist > 200 && dist < 470 && ady < 40 && ready('wave_slash') && Math.random() < 0.3) return this.start('wave_slash', 0, w);
+    return false;
+  }
+
+  /** Close in to sword range on the player's lane, with a little lateral drift; steers around props (whiskers). */
+  private move(ms: number, w: BotWorld, dx: number, dy: number, dist: number): void {
+    const k = this.kin, p = w.player;
+    this.strafeT -= ms;
+    if (this.strafeT <= 0) { this.strafeT = rnd(700, 1600); this.strafe = Math.random() < 0.35 ? (Math.random() < 0.5 ? -1 : 1) : 0; }
+    this.avoidT -= ms;
+    if (k.grounded && !footAllowed(k.x, k.y, k.z, R)) { // knocked into a prop's edge: ease back out toward the open courtyard
+      const c = unit(ARENA_CENTRE.x - k.x, ARENA_CENTRE.y - k.y);
+      k.x += c.x * 2; k.y += c.y * 2;
+    }
+    let tx = 0, ty = 0;
+    if (p.alive) {
+      const want = 78, side = dx >= 0 ? -1 : 1; // stand on our side of the player
+      const gx = p.x + side * want - k.x, gy = p.y + this.strafe * 26 - k.y;
+      const gd = Math.hypot(gx, gy);
+      if (gd > 10) {
+        let d = unit(gx, gy);
+        const probe = 30, free = (v: V2) => footAllowed(k.x + v.x * probe, k.y + v.y * probe, k.z, R);
+        if (!free(d)) {
+          if (this.avoidT <= 0) this.avoidSide = Math.random() < 0.5 ? 1 : -1;
+          search: for (const deg of [35, 70, 105, 140]) {
+            for (const sg of [this.avoidSide, -this.avoidSide]) {
+              const a = (sg * deg * Math.PI) / 180, v = { x: d.x * Math.cos(a) - d.y * Math.sin(a), y: d.x * Math.sin(a) + d.y * Math.cos(a) };
+              if (free(v)) { d = v; this.avoidSide = sg; this.avoidT = 900; break search; }
+            }
+          }
+        }
+        const sp = dist > 320 ? PHYS.run : PHYS.walk * (dist < 140 ? 0.75 : 1);
+        tx = d.x * sp; ty = d.y * sp;
+      }
+    }
+    steer(k, tx * this.body.moveScale(w.now), ty * this.body.moveScale(w.now), ms);
+  }
+
+  // ------------------------------------------------------------------ casting
+
+  private start(id: string, stage: number, w: BotWorld): boolean {
+    const s = finalSkill(id);
+    if (!s || !this.kin.grounded && !s.air) return false;
+    const k = this.kin, p = w.player;
+    const aim = unit(p.x - k.x, p.y - k.y, this.dir === 'right' ? 1 : -1, 0);
+    this.aim = aim; this.dir = aim.x >= 0 ? 'right' : 'left';
+    const T = s.chain?.timings?.[stage] ?? { startup: s.startup, active: s.active, recovery: s.recovery };
+    let dist = s.dash?.distance ?? 0;
+    if (s.dash && s.targeting === 'mouseTarget') dist = Math.min(dist, Math.max(0, Math.hypot(p.x - k.x, p.y - k.y) - 34));
+    this.cast = { s, stage, t: 0, T, origin: { x: k.x, y: k.y, z: k.z }, aim, dist };
+    if (s.cooldown > 0) this.cdEnd.set(s.id, w.now + s.cooldown * CD_MUL);
+    if (s.chain) this.chainStage = stage;
+    k.vx *= 0.3; k.vy *= 0.3;
+    this.api.cast(s, stage, this.cast.origin, aim);
+    return true;
+  }
+
+  private stepCast(ms: number, w: BotWorld): void {
+    const c = this.cast!, k = this.kin, s = c.s, T = c.T;
+    c.t += ms;
+    const activeStart = T.startup, activeEnd = T.startup + T.active;
+    if (s.dash && c.t >= activeStart && c.t <= activeEnd + ms) {
+      const p = Math.min(1, (c.t - activeStart) / Math.max(1, T.active)), ease = 1 - (1 - p) * (1 - p);
+      const want = { x: c.origin.x + c.aim.x * c.dist * ease, y: c.origin.y + c.aim.y * c.dist * ease };
+      const steps = Math.ceil(Math.hypot(want.x - k.x, want.y - k.y) / 2);
+      for (let i = 0; i < steps; i++) {
+        const nx = k.x + (want.x - k.x) / (steps - i), ny = k.y + (want.y - k.y) / (steps - i);
+        if (!footAllowed(nx, ny, k.z, R)) break;
+        k.x = nx; k.y = ny;
+      }
+      k.vx = 0; k.vy = 0;
+      if (s.dash.lift) {
+        k.grounded = false;
+        k.z = c.origin.z + s.dash.lift * Math.sin(Math.PI * Math.min(1, p * 1.06));
+        k.vz = p < 0.5 ? 40 : -40;
+      }
+    } else if (s.id === 'whirlwind' && c.t >= activeStart && c.t < activeEnd) {
+      const p = w.player, d = unit(p.x - k.x, p.y - k.y);
+      steer(k, d.x * PHYS.walk * 0.7, d.y * PHYS.walk * 0.7, ms);
+    } else if (k.grounded) { k.vx *= 0.7; k.vy *= 0.7; }
+    if (c.t >= activeEnd + T.recovery) {
+      this.cast = null;
+      if (s.chain) { this.chainEnd = w.now; this.nextAct = w.now + (c.stage >= 3 ? rnd(700, 1200) : rnd(40, 120)); }
+      else this.nextAct = w.now + rnd(700, 1400);
+    }
+  }
+
+  private interrupt(): void {
+    if (!this.cast) return;
+    this.cast = null;
+    this.chainStage = -1;
+    this.api.cancel();
+  }
+
+  // ------------------------------------------------------------------ presentation
+
+  private mode(): Mode {
+    const b = this.body, k = this.kin;
+    if (b.state === 'hitstun') return 'hurt';
+    if (b.state === 'launched') return 'launched';
+    if (b.state === 'knockdown') return k.grounded ? 'down' : 'launched';
+    if (b.state === 'getup') return 'getup';
+    if (this.cast) return 'skill';
+    if (!k.grounded) return 'air';
+    const sp = Math.hypot(k.vx, k.vy);
+    return sp > PHYS.walk + 20 ? 'run' : sp > 12 ? 'walk' : 'idle';
+  }
+
+  /** Feed the shared remote-player view exactly like a network snapshot would. */
+  private pushState(): void {
+    const k = this.kin, m = this.mode();
+    this.view.applyState({
+      t: 'state', from: BOT_ID, x: k.x, y: k.y, z: k.z, sz: k.supportZ, dir: this.dir, anim: m, mode: m,
+      sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: Math.round(this.aim.x * 100), ay: Math.round(this.aim.y * 100), hp: this.hp, alive: true, cos: BOT_LOOK,
+    });
+  }
+}

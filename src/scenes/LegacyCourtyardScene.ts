@@ -22,6 +22,7 @@ import { isQAMode } from '../qa/QAPanel';
 import { PvpController } from '../pvp/PvpController';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
 import { NetMsg } from '../pvp/Transport';
+import { BOT_ID, BOT_NAME, SparringBot } from '../pvp/SparringBot';
 import { CombatInput } from '../game/CombatInput';
 import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey, damageSkin } from '../game/ActorView';
 import { ensureLightBeam } from '../skills/SkillFx';
@@ -132,6 +133,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private seenCasts = new Set<string>();
   pvpReady = false;
   pvp?: PvpController;
+  /** PvP sparring NPC: present while you are alone in the arena room (local only, endless HP). */
+  private bot?: SparringBot;
+  private botAwayMs = 0;
+  private botSeq = 0;
   private hud?: WorldHUD;
   private character?: Character;
   skillBook?: SkillBook;
@@ -267,6 +272,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       kb.removeAllKeys(true);
       this.pvp?.destroy(); this.pvp = undefined; this.pvpReady = false;
       this.enemy?.destroy(); this.enemy = undefined;
+      this.bot?.destroy(); this.bot = undefined;
       this.ambience?.destroy(); this.ambience = undefined;
       for (const o of this.occluders) { o.clearMask(true); o.destroy(); }
       this.occluders = [];
@@ -313,6 +319,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         || (!!this.dummyState?.alive && Math.hypot(x - D.x, y - D.y) < D.collisionRadius + STAGE6.enemy.footRadius),
       onStrikePlayer: (dmg, from) => this.enemyStrike(dmg, from),
     });
+    this.updateBot(ms, now);
     this.reactionFx(ms);
     this.renderPlayer(this.fx.hitStopLeft > 0 ? 0 : ms);
   }
@@ -879,7 +886,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (phase === 'done') this.endRun(run, false);
       return;
     }
-    if (phase === 'startup') this.pvp?.remotes.get(run.attackerId)?.startSkill(run.skill.id, run.stage, dirOf(run.aim.x, run.aim.y, 'right'), run.aim);
+    if (phase === 'startup') (run.attackerId === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(run.attackerId))?.startSkill(run.skill.id, run.stage, dirOf(run.aim.x, run.aim.y, 'right'), run.aim);
   }
 
   private togglePanel(k: 'K' | 'I' | 'O'): void {
@@ -892,6 +899,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   casterPos(id: string): V3 | null {
     if (id === this.localId) return this.view ? { x: this.kin.x, y: this.kin.y, z: this.kin.z } : null;
+    if (id === BOT_ID) return this.bot ? { x: this.bot.x, y: this.bot.y, z: this.bot.z } : null;
     const r = this.pvp?.remotes.get(id);
     return r ? { x: r.x, y: r.y, z: r.z } : null;
   }
@@ -902,6 +910,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (run.own) {
       if (this.enemy) out.push(this.enemy.target());
       if (this.dummy && this.dummyState) out.push({ id: 'dummy', kind: 'enemy', x: D.x, y: D.y, z: this.dummyState.kin.z, radius: D.collisionRadius, height: 80, alive: this.dummyState.alive, invulnerable: this.simMs < this.dummyState.body.invulnUntil });
+      if (this.bot) out.push(this.bot.target(this.simMs));
     } else if (this.view && this.pvpReady) {
       out.push({ id: this.localId, kind: 'player', x: this.kin.x, y: this.kin.y, z: this.kin.z, radius: R + 4, height: 74, alive: this.dead < 0, invulnerable: this.simMs < this.body.invulnUntil });
     }
@@ -912,6 +921,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private onSkillHit(run: CastRun, hit: HitEvent, hi: number, t: HitTarget, at: V3): void {
     if (!run.own) { if (t.id === this.localId) this.applyRemoteHitToSelf(run, hit, hi, at); return; }
     if (t.kind === 'enemy') { this.applyToPve(run, hit, t, at); return; }
+    if (t.id === BOT_ID) { this.applyToBot(run, hit, t, at); return; }
     if (run.confirmedAt < 0) run.confirmedAt = run.elapsed; // predicted contact on a remote player (their client is authority)
   }
 
@@ -974,7 +984,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.fx!.confirmed(s, hit, at, damage, reaction, true, idx);
     const same = this.combo.comboId === comboId && this.combo.target === target;
     const max = target === 'enemy' ? (this.enemy?.maxHp ?? 1) : target === 'dummy' ? D.maxHp : 100;
-    const tb = target === 'enemy' ? this.enemy?.body : target === 'dummy' ? this.dummyState?.body : undefined;
+    const tb = target === 'enemy' ? this.enemy?.body : target === 'dummy' ? this.dummyState?.body : target === BOT_ID ? this.bot?.body : undefined;
     const state = ends ? 'FINISHER' : tb?.state === 'knockdown' && tb.kdPhase !== 'fall' ? 'DOWN' : tz > 8 || reaction === 'launch' || reaction === 'float' || tb?.state === 'launched' ? 'AERIAL' : 'STAND';
     this.combo = { count: idx, at: this.simMs, comboId, target, label: state, dmg: (same ? this.combo.dmg : 0) + damage, max };
     this.confirmedLog.push({ skill: s.id, target, damage, idx, reaction, at: this.simMs, z: Math.round(tz) });
@@ -1065,6 +1075,39 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.pvp?.sendRespawn(sp.x, sp.y, this.playerHP);
   }
 
+  // ======================================================================= PvP sparring NPC
+
+  /** The sparring knight joins when you are alone in the room and leaves as soon as a real player is there. */
+  private updateBot(ms: number, now: number): void {
+    if (!this.pvp || !this.pvpReady) return;
+    if (this.pvp.remotes.size > 0) {
+      if (this.bot) { this.rt?.cancelAttacker(BOT_ID); this.bot.destroy(); this.bot = undefined; }
+      this.botAwayMs = 0;
+      return;
+    }
+    if (!this.bot) {
+      this.botAwayMs += ms;
+      if (this.botAwayMs < 1200) return;
+      const k = this.kin, pts = PVP.spawnPoints.filter((p) => footAllowed(p.x, p.y, 0, R));
+      const sp = pts.reduce((best, p) => (Math.hypot(p.x - k.x, p.y - k.y) > Math.hypot(best.x - k.x, best.y - k.y) && Math.hypot(p.x - k.x, p.y - k.y) < 700 ? p : best), pts[0]);
+      this.bot = new SparringBot(this, sp.x, sp.y, {
+        cast: (skill, stage, origin, aim) => { this.rt?.start({ castId: `${BOT_ID}-${++this.botSeq}`, skill, stage, attackerId: BOT_ID, own: false, origin, aim, place: null, lock: null }); },
+        cancel: () => { for (const r of this.rt?.runs ?? []) if (r.attackerId === BOT_ID && (r.phase === 'startup' || r.phase === 'active')) r.phase = 'done'; },
+      }, now);
+      this.fx?.callout({ x: sp.x, y: sp.y, z: 60 }, `${BOT_NAME.toUpperCase()} ENTERS`, '#ffd27a', 0);
+    }
+    this.bot.update(ms, { now, player: { x: this.kin.x, y: this.kin.y, z: this.kin.z - this.kin.supportZ, alive: this.dead < 0 } });
+  }
+
+  /** The local player's confirmed hit on the sparring NPC (this client is its authority; PvP reaction rules). */
+  private applyToBot(run: CastRun, hit: HitEvent, t: HitTarget, at: V3): void {
+    const b = this.bot;
+    if (!b) return;
+    const out = b.receive(run.attackerId, run.skill, hit, this.casterPos(run.attackerId) ?? run.origin, this.simMs);
+    if (b.refilled) this.fx!.healNumber({ x: b.x, y: b.y, z: b.z }, b.refilled);
+    this.confirm(run, hit, BOT_ID, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!run.skill.endsCombo, t.z);
+  }
+
   // ======================================================================= PvP
 
   private startPvp(room: string, meta: { playerId: string; characterId: string; classId: string; name: string }): void {
@@ -1126,6 +1169,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private freeSpawnPoint(): { x: number; y: number } {
     const others = [...(this.pvp?.remotes.values() ?? [])].filter((r) => r.alive).map((r) => ({ x: r.x, y: r.y }));
+    if (this.bot) others.push({ x: this.bot.x, y: this.bot.y });
     const pts = PVP.spawnPoints.filter((s) => footAllowed(s.x, s.y, 0, R));
     const clearance = (s: { x: number; y: number }) => Math.min(Infinity, ...others.map((o) => Math.hypot(o.x - s.x, o.y - s.y)));
     const free = pts.filter((s) => clearance(s) >= PVP.spawnClearRadius);
@@ -1159,6 +1203,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const markers: HudMarker[] = [];
     if (this.pvpReady) markers.push({ id: 'local', kind: 'player', x: k.x, y: k.y });
     for (const r of pvp?.remotes.values() ?? []) if (r.alive) markers.push({ id: r.meta.playerId, kind: 'remote', x: r.x, y: r.y });
+    if (this.bot) markers.push({ id: BOT_ID, kind: 'enemy', x: this.bot.x, y: this.bot.y });
     if (this.enemy?.alive) markers.push({ id: 'enemy', kind: 'enemy', x: this.enemy.x, y: this.enemy.y });
     const busy = this.busy();
     const slots: HudSlot[] = HUD.skills.hotkeys.map((hotkey, i) => {
@@ -1206,6 +1251,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     });
     if (e?.alive) consider(Math.hypot(e.x - k.x, e.y - k.y), { id: 'enemy', name: 'Cursed Swordsman', type: 'Enemy', hp: e.hp, maxHp: S6.enemy.maxHp, effects: this.statusEffects(e.body, now), ...combat(e.body, e.kin.z) });
     if (this.dummy && this.dummyState?.alive) consider(Math.hypot(D.x - k.x, D.y - k.y), { id: 'dummy', name: 'Training Dummy', type: 'Training Target', hp: this.dummyState.hp, maxHp: D.maxHp, effects: [], ...combat(this.dummyState.body, this.dummyState.kin.z) });
+    const bt = this.bot;
+    if (bt) consider(Math.hypot(bt.x - k.x, bt.y - k.y), {
+      id: BOT_ID, name: BOT_NAME, type: 'NPC · PvP sparring', portrait: portraitOf('warrior', 'warrior_default'), hp: bt.hp, maxHp: PVP.maxHp,
+      effects: this.statusEffects(bt.body, now), ...combat(bt.body, bt.kin.z),
+    });
     for (const r of this.pvp?.remotes.values() ?? []) {
       if (!r.alive) continue;
       const eff: HudEffect[] = [];
