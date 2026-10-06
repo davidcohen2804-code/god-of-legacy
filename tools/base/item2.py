@@ -409,11 +409,6 @@ if ent is None:   # new item: shop entry + icon (the item worn on the idle head)
   W_.append(ent)
 ent['layers'] = f'assets/final/cosmetics/warrior/{iid}/layers'; ent.pop('wip', None)
 ip = f'assets/final/cosmetics/warrior/{iid}/icon.png'; ent['icon'] = ip
-fr = np.array(Image.open(BASE + 'idle.png').convert('RGBA'))[:, 0:S].copy(); ly = np.array(Image.open(OUT + 'idle.png').convert('RGBA'))[:, 0:S].copy()
-mg = (ly[..., 0] == 255) & (ly[..., 1] == 0) & (ly[..., 2] == 255) & (ly[..., 3] > 0); fr[mg, 3] = 0; ly[mg] = 0
-im = Image.fromarray(fr); im.alpha_composite(Image.fromarray(ly))
-opq = np.array(im)[..., 3] > 0; hy_, hx_ = np.nonzero(np.array(Image.fromarray(ly))[..., 3] > 0)
-cyi, cxi = (int(hy_.mean()), int(hx_.mean())) if len(hy_) else (150, 176)
-half = 46; im.crop((cxi - half, cyi - half + 14, cxi + half, cyi + half + 14)).resize((128, 128), Image.LANCZOS).save(G + 'public/' + ip, optimize=True)
+import icons; icons.icon(iid)   # the item on the idle head, whole item and whole head in frame
 json.dump(D, open(cp, 'w'), indent=1)
 print('baked', iid)
