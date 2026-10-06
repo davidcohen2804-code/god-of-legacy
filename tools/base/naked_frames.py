@@ -16,6 +16,8 @@
 #   "ownhead"  keep GPT's head (no standing head)
 #   "feet"   the feet stay planted: every frame's feet where the move's first frame has them, the head goes with the neck
 #   "follow" the head goes with the neck (the frame is not moved under the standing head's x)
+#   "swayK"  (walk) the head keeps K of GPT's own forward / back shift of that frame (MapleStory: the same head moves
+#            a little with each step); "bobN": the head sits N px lower on the neck (the low point of the step)
 #   "asd:<move>"  the same size as that move, measured by the heads' inscribed circles (works with swords / raised arms)
 #   "clean:N"  cell N of the move has GPT's head clear: what other frames draw over their head (arm, sword) stays in front
 #   "sword"  the sword is found (blade + hilt) and goes to the mask's G channel (not the body labels)
@@ -276,14 +278,16 @@ def occluders(e, fig, lab, gm, zone, ay, ref, ax, reach):
   return occ | (nd.binary_dilation(skin, iterations=1) & fig & dark & zone & ~nd.binary_dilation(gm, iterations=2))
 
 
-def put_head(e, a, fig, lab, hd, r, follow=False, ref=None, search=False):
+def put_head(e, a, fig, lab, hd, r, follow=False, ref=None, search=False, sway=0.0, bob=0):
   """GPT's head off, the standing head on (the same drawing), on GPT's neck point; its neck goes behind the body (the
-  frame keeps its own neck). follow=False: the head keeps the standing x and the frame moves under it (walk);
-  follow=True: the frame stays (planted feet), the head goes with it."""
+  frame keeps its own neck). follow=False: the head stays near the standing x and the frame moves under it (walk):
+  sway = how much of GPT's own head shift is kept (MapleStory: the same head, a little forward / back each step);
+  bob = the head sits this much lower on the neck (the step's low point). follow=True: the frame stays (planted feet),
+  the head goes with it."""
   ax, ay, gm, _ = find_head(fig, hd, r, search)
-  dy = int(round(ay - hd['row'])); hx = int(round(ax - hd['cx']))
+  dy = int(round(ay - hd['row'])) + bob; hx = int(round(ax - hd['cx']))
   dx = 0
-  if not follow: dx, hx = -hx, 0
+  if not follow: keep_ = int(round(sway * hx)); dx, hx = keep_ - hx, keep_
   e, a, fig, lab, gm = [np.roll(v, dx, 1) for v in (e, a, fig, lab, gm)]
   ax += dx
   sh = lambda v: np.roll(np.roll(v, dy, 0), hx, 1)
@@ -388,8 +392,9 @@ for anim, cells in spec['anims'].items():
     if anim != 'idle' and 'ownhead' not in opts:
       if samed: r = sc * figures(path)[idx]['headd'] / HEADD       # GPT's head size / the standing head's
       else: r = sc * figures(path)[idx]['headw'] / HEADW
+      sway = [float(o[4:]) for o in opts if str(o).startswith('sway')]; bob = [int(o[3:]) for o in opts if str(o).startswith('bob')]
       e, a, fig, lab, info = put_head(e, a, fig, lab, HEAD, r, follow='feet' in opts or 'follow' in opts,
-                                      ref=refs.get(anim), search=bool(samed))
+                                      ref=refs.get(anim), search=bool(samed), sway=sway[0] if sway else 0.0, bob=bob[0] if bob else 0)
       print(' ', anim, c, 'scale', round(sc, 4), 'head', info); hxy = [int(info['hx']), int(info['dy'])]
     heads[anim].append((c, hxy))
     px[:, c * S:(c + 1) * S, :3] = e.clip(0, 255).astype(np.uint8); px[:, c * S:(c + 1) * S, 3] = np.where(fig, (a * 255).clip(0, 255), 0).astype(np.uint8)
@@ -408,7 +413,7 @@ for anim, d in spec['anims'].items():                          # derived: the ru
     lf = lifts[c % len(lifts)]
     p, m, dh = lean(base[:, c * S:(c + 1) * S], bmk[:, c * S:(c + 1) * S], d['lean'][0], d['lean'][1], lf)
     px[:, c * S:(c + 1) * S] = p; mk[:, c * S:(c + 1) * S] = m
-    heads[anim].append([round(float(dh), 1), heads[d['from']][c][1] - lf])
+    heads[anim].append([round(float(dh) + heads[d['from']][c][0], 1), heads[d['from']][c][1] - lf])
   strips[anim] = px; masks[anim] = mk
 for anim in strips:
   Image.fromarray(strips[anim]).save(OUT + anim + '.png', optimize=True); Image.fromarray(masks[anim]).save(OUT + anim + '_m.png', optimize=True)

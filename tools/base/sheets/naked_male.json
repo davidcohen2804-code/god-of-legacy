@@ -1,15 +1,15 @@
 {
  "gender": "male",
- "_note": "figures are counted per GPT image row by row, left to right; farL / farR = that leg (as drawn) is the far one (drawn darker); body1.0 = the move's tallest neck-to-sole = the standing one; every frame wears the standing head; as:walk = the same scale as the walk (same GPT size); feet = planted feet, the head goes with the neck; follow = the head goes with the neck; asd:walk = the walk's size by the heads' inscribed circles; clean:N = cell N has GPT's head clear (what other frames draw over the head stays in front); sword = the sword goes to the mask's G channel",
+ "_note": "figures are counted per GPT image row by row, left to right; farL / farR = that leg (as drawn) is the far one (drawn darker); body1.0 = the move's tallest neck-to-sole = the standing one; every frame wears the standing head; as:walk = the same scale as the walk (same GPT size); feet = planted feet, the head goes with the neck; follow = the head goes with the neck; asd:walk = the walk's size by the heads' inscribed circles; clean:N = cell N has GPT's head clear (what other frames draw over the head stays in front); sword = the sword goes to the mask's G channel; swayK / bobN = the walk head moves a little with each step (forward, and lower on the step)",
  "anims": {
   "idle": [
    ["naked_male_set1.png", 0]
   ],
   "walk": [
-   ["naked_both_walk.png", 0, "body1.0", "farL"],
-   ["naked_both_walk.png", 1, "body1.0", "farR"],
-   ["naked_both_walk.png", 2, "body1.0", "farR"],
-   ["naked_both_walk.png", 3, "body1.0", "farR"]
+   ["naked_both_walk.png", 0, "body1.0", "farL", "sway0.25", "bob2"],
+   ["naked_both_walk.png", 1, "body1.0", "farR", "sway0.25", "bob0"],
+   ["naked_both_walk.png", 2, "body1.0", "farR", "sway0.25", "bob2"],
+   ["naked_both_walk.png", 3, "body1.0", "farR", "sway0.25", "bob0"]
   ],
   "alert": [
    ["naked_both_alert.png", 0, "as:walk", "farR", "feet"],
