@@ -33,7 +33,7 @@ import { CombatInput } from '../game/CombatInput';
 import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey, damageSkin, wantsWeaponMasks } from '../game/ActorView';
 import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
-import { ClassKey, dirOf, preloadBodies, registerBodies, resolvePose, PoseFrame } from '../game/Body';
+import { baseLoop, ClassKey, dirOf, preloadBodies, registerBodies, resolvePose, PoseFrame } from '../game/Body';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, poseQuery } from '../game/PoseState';
 import { CombatBody, GAUGE, HitOutcome, Kin, PHYS, jump, newKin, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
@@ -456,9 +456,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private footDust(sp: number): void {
     if (this.mode !== 'run') { this.lastFootFrame = -1; return; }
     const sheet = this.cls === 'warrior' || this.cls === 'book_mage';
-    const fps = (sheet ? 13 : 10) * Math.max(0.75, Math.min(1.15, sp / 270)), n = sheet ? 8 : 5;
+    const base = this.cls === 'warrior' && (this.view!.wantsBase || this.character!.level < BEGINNER_TO) ? baseLoop('run', sp) : null;
+    const fps = base ? base.fps : (sheet ? 13 : 10) * Math.max(0.75, Math.min(1.15, sp / 270)), n = base ? base.n : sheet ? 8 : 5;
     const f = Math.floor((this.loopT * fps) / 1000) % n;
-    const contact = sheet ? [0, 4] : [0, 3];
+    const contact = base ? base.contact : sheet ? [0, 4] : [0, 3];
     if (f !== this.lastFootFrame && contact.includes(f)) this.fx!.dust(this.kin.x - (this.kin.vx / sp) * 10, this.kin.y - this.kin.z, 34, 0.55);
     this.lastFootFrame = f;
   }

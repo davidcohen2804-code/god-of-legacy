@@ -213,6 +213,12 @@ export type PoseQuery =
   | { k: 'death'; p: number }
   | { k: 'skill'; id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number };
 
+/** Beginner base body locomotion: 4 key poses per cycle (contact, passing, contact, passing — legs one after the other);
+ *  the run plays the same legs faster. contact = the frames a foot lands (dust puffs). */
+export const baseLoop = (state: 'walk' | 'run', speed: number): { n: number; fps: number; contact: number[] } => state === 'walk'
+  ? { n: 4, fps: 7 * Math.max(0.7, Math.min(1.2, speed / 188)), contact: [0, 2] }
+  : { n: 4, fps: 11 * Math.max(0.75, Math.min(1.15, speed / 270)), contact: [0, 2] };
+
 const pick = <T,>(list: T[], p: number): T => list[Math.max(0, Math.min(list.length - 1, Math.floor(p * list.length)))];
 
 /** base = draw the beginner-clothes base body (fashion cosmetics) instead of the class armour, where baked. */
@@ -231,6 +237,7 @@ function sheetPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
         if (cls === 'warrior' && !BASE_MODE) return mv(cls, 'idle', dir, Math.floor((q.t * 10) / 1000) % 12); // wind-blown cape cycle only, body stays still
         return mv(cls, 'idle', dir, 0);
       }
+      if (BASE_MODE && cls === 'warrior') { const c = baseLoop(q.state, q.speed); return mv(cls, q.state, dir, Math.floor((q.t * c.fps) / 1000) % c.n); }
       if (q.state === 'walk') { // 8-frame cycles (down/up rows of the old 6-frame art until replaced)
         const n = cls === 'warrior' ? 8 : 6;
         const fps = (n === 8 ? 10 : 8) * Math.max(0.7, Math.min(1.2, q.speed / 188));
