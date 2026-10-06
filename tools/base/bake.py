@@ -11,8 +11,12 @@ S = 352; C = 256
 no = int(sys.argv[1]); meta = json.load(open(G + 'tools/base/sheets/sheets.json'))[no - 1]
 cells = json.load(open(G + 'src/data/body-cells.json'))
 gpt = Image.open(G + f'tools/base/gpt/base_{no:02d}.png').convert('RGB')
-if gpt.size != (1536, 1024): gpt = gpt.resize((1536, 1024), Image.LANCZOS)
+if gpt.size != (1536, 1024) and os.environ.get('STRETCH'): gpt = gpt.resize((1536, 1024), Image.LANCZOS)
+if gpt.size != (1536, 1024):  # scale to the sheet's height, keep the aspect (figures stay undistorted)
+  k = 1024 / gpt.size[1]; gpt = gpt.resize((min(1536, round(gpt.size[0] * k)), 1024), Image.LANCZOS)
 gpt = np.array(gpt).astype(np.float32)
+basesheet = np.array(Image.open(G + f'tools/base/sheets/base_{no:02d}.png').convert('RGB')).astype(np.float32)
+gpad = np.zeros((1024, 1536, 3), np.float32); gpad[...] = (255, 0, 255); gpad[:gpt.shape[0], :gpt.shape[1]] = gpt
 OUT = G + 'public/assets/final/body/warrior/base/'; os.makedirs(OUT, exist_ok=True); QC = G + 'tools/base/qc/'; os.makedirs(QC, exist_ok=True)
 
 def key_magenta(rgb):
@@ -39,7 +43,17 @@ def orig_cell(f):
 frames = {}
 for f in meta['frames']:
   j = f['cell']; cy, cx = (j // 6) * C, (j % 6) * C
-  g = gpt[cy:cy + C, cx:cx + C]
+  # GPT sometimes returns a re-framed sheet (other size/aspect): find this cell's figure near its expected place
+  bs = basesheet[cy:cy + C, cx:cx + C]; bm = key_magenta(bs) > 0.5
+  best_c = (-1, 0, 0)
+  for ddy in range(-56, 57, 4):
+    for ddx in range(-56, 57, 4):
+      y0, x0 = cy + ddy, cx + ddx
+      if y0 < 0 or x0 < 0 or y0 + C > gpad.shape[0] - 0 or x0 + C > gpad.shape[1]: continue
+      gm = key_magenta(gpad[y0:y0 + C, x0:x0 + C]) > 0.5
+      v = (gm & bm).sum() / max(1, (gm | bm).sum())
+      if v > best_c[0]: best_c = (v, ddy, ddx)
+  g = gpad[cy + best_c[1]:cy + best_c[1] + C, cx + best_c[2]:cx + best_c[2] + C]
   ga = key_magenta(g)
   # upscale to the game cell
   gi = Image.fromarray(np.dstack([g, ga * 255]).clip(0, 255).astype(np.uint8)).resize((S, S), Image.LANCZOS)
@@ -140,6 +154,8 @@ for anim, cols in frames.items():
   imgs = [np.array(Image.open(p).convert('RGBA')) if os.path.exists(p) else np.zeros((S, n * S, 4), np.uint8) for p in paths]
   for k, (out, mask, wl, f) in cols.items():
     for im, src in zip(imgs, (out, mask, wl)): im[:, k * S:(k + 1) * S] = src
+  if anim == 'recovery':  # column 0 is never shown (recovery uses 1-3): mirror column 1 so the strip is complete
+    for im in imgs: im[:, 0:S] = im[:, S:2 * S]
   for p, im in zip(paths, imgs): Image.fromarray(im).save(p, optimize=True)
 json.dump(report, open(QC + f'base_{no:02d}.json', 'w'), indent=1)
 lp = G + 'src/data/base-sheets.json'; done = set()
