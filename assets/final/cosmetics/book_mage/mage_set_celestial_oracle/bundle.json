@@ -1,0 +1,9 @@
+{
+  "id": "mage_set_celestial_oracle",
+  "parts": [
+    "mage_head_crystal_circlet",
+    "mage_back_arcane_ring",
+    "mage_book_sun_scripture",
+    "mage_aura_arcane_orbit"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "id": "mage_set_void_scribe",
+  "parts": [
+    "mage_head_deep_hood",
+    "mage_back_arcane_ring",
+    "mage_book_void_tome",
+    "mage_aura_time_fragments"
+  ]
+}
