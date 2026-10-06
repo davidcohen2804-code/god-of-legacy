@@ -1,0 +1,8 @@
+{
+ "gender": "female",
+ "_note": "figures are counted left to right in each GPT image",
+ "anims": {
+  "idle": [["naked_female_idle.png", 0]]
+ },
+ "preview": ["naked_female_idle.png", 0]
+}
