@@ -117,7 +117,7 @@ export class ThroneHero {
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.events.off(Phaser.Scenes.Events.UPDATE, tick));
   }
 
-  setVisible(v: boolean): void { this.root.setVisible(v); this.motes.emitting = v; }
+  setVisible(v: boolean): void { this.root.setVisible(v); this.motes.emitting = v && ThroneHero.PROCEDURAL_FX; }
   get visible(): boolean { return this.root.visible; }
 
   /** Painting pixel → screen. */
@@ -139,6 +139,9 @@ export class ThroneHero {
     }
   }
 
+  /** Procedural electricity / dot motes read as cheap: off until painted effect sheets replace them. */
+  private static readonly PROCEDURAL_FX = false;
+
   private update(dt: number): void {
     if (!this.root.visible) return;
     this.t += dt;
@@ -156,14 +159,15 @@ export class ThroneHero {
 
     // Light blade pulse.
     const p = 0.5 + 0.5 * Math.sin((t / 1300) * Math.PI * 2), flick = 0.06 * Math.sin(t / 37) * Math.sin(t / 53);
-    this.bladeGlow.setAlpha(0.28 + 0.2 * p + flick);
-    this.bladeCore.setAlpha(0.1 + 0.12 * p);
+    this.bladeGlow.setAlpha(0.12 + 0.12 * p + flick * 0.5);
+    this.bladeCore.setAlpha(0.04 + 0.06 * p);
     const tp = 0.5 + 0.5 * Math.sin((t / 1700) * Math.PI * 2 + 1.2);
-    this.tipGlow.setAlpha(0.45 + 0.3 * tp).setDisplaySize((130 + 40 * tp) * k * 2, (46 + 12 * tp) * k * 2);
-    this.pommelGlow.setAlpha(0.35 + 0.25 * p).setDisplaySize((60 + 16 * p) * k * 2, (60 + 16 * p) * k * 2);
+    this.tipGlow.setAlpha(0.25 + 0.2 * tp).setDisplaySize((130 + 40 * tp) * k * 2, (46 + 12 * tp) * k * 2);
+    this.pommelGlow.setAlpha(0.2 + 0.15 * p).setDisplaySize((60 + 16 * p) * k * 2, (60 + 16 * p) * k * 2);
 
     // Electricity: crawling arcs hugging the blade (re-drawn every ~70 ms), outward arcs with branches, and a
     // discharge into the dais around the tip every couple of seconds.
+    if (!ThroneHero.PROCEDURAL_FX) { this.bolts.clear(); this.bladeCyan.setAlpha(0); return; }
     this.nextCrawl -= dt;
     if (this.nextCrawl <= 0) {
       this.nextCrawl = 55 + Math.random() * 40;
