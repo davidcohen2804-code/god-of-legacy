@@ -3,6 +3,8 @@ import { ASSET_MANIFEST, CHARACTER_PREVIEWS, CHARACTER_SELECT as L, CLASS_NAMES,
 import { CharacterStore } from '../characters/CharacterStore';
 import { Character, SlotId } from '../characters/CharacterTypes';
 import { previewKeyOf } from '../characters/Look';
+import { jobsFor } from '../skills/Jobs';
+import { expToNext } from '../game/Progression';
 
 export interface CharacterSelectHandlers {
   onBack: () => void;
@@ -22,10 +24,12 @@ const KIT = (f: string) => `assets/final/ui/kit/${f}.png`;
 const K = {
   plaque: { x: 580, y: 6, w: 760, h: 161 },
   card: { x: 92, y: 150, w: 230, h: 352, gx: 30, gy: 36, art: { x: 29, y: 53, w: 190, h: 221 }, plq: { y: 281, h: 31 } },
-  info: { x: 1388, y: 196, w: 430, h: 280 },
-  enter: { x: 1408, y: 494, w: 390, h: 150 },
-  pvp: { x: 1428, y: 628, w: 350, h: 128 },
-  create: { x: 1428, y: 748, w: 350, h: 128 },
+  info: { x: 1388, y: 196, w: 430, h: 300 },
+  roster: { x: 66, y: 98, w: 542, h: 818 },
+  stageName: { cx: 985, y: 868, w: 460 },
+  enter: { x: 1408, y: 510, w: 390, h: 150 },
+  pvp: { x: 1428, y: 648, w: 350, h: 128 },
+  create: { x: 1408, y: 510, w: 390, h: 150 },
   back: { x: 92, y: 930, w: 280, h: 110 },
   del: { x: 404, y: 942, w: 82, h: 86 },
 } as const;
@@ -35,6 +39,7 @@ const SEL_CSS = `
 .gol-sel .slot{background:url("${KIT('char_slot')}") 0 0/100% 100% no-repeat!important;filter:drop-shadow(0 6px 12px rgba(0,0,0,.55))}
 .gol-sel .slot.empty{background-image:url("${KIT('char_slot_empty')}")!important}
 .gol-sel .slot.sel{background-image:url("${KIT('char_slot_sel')}")!important;transform:translateY(-4px);filter:brightness(1.05) drop-shadow(0 0 14px rgba(255,190,90,.55))}
+.gol-sel .slot.empty.sel{background-image:url("${KIT('char_slot_empty')}")!important;filter:brightness(1.15) drop-shadow(0 0 16px rgba(255,190,90,.6))}
 .gol-sel .slot:hover{filter:brightness(1.12) drop-shadow(0 6px 12px rgba(0,0,0,.55))}
 .gol-sel .slot .portrait{left:${K.card.art.x}px!important;top:${K.card.art.y}px!important;width:${K.card.art.w}px!important;height:${K.card.art.h}px!important;border-radius:4px!important}
 .gol-sel .slot .name{left:14px!important;right:14px;top:${K.card.plq.y}px!important;height:${K.card.plq.h}px;line-height:${K.card.plq.h}px;text-align:center;font-size:16px!important;
@@ -53,6 +58,27 @@ const SEL_CSS = `
 .gol-sel .ktrash{pointer-events:auto;cursor:pointer;border:0;padding:0;background:url("${KIT('btn_trash')}") center/contain no-repeat;transition:transform 120ms}
 .gol-sel .ktrash:hover:not(:disabled){background-image:url("${KIT('btn_trash_hover')}");transform:scale(1.06)}
 .gol-sel .ktrash:disabled{cursor:default;filter:grayscale(.8) brightness(.55)}
+.gol-sel .roster{border-radius:18px;background:linear-gradient(180deg,rgba(6,10,20,.62),rgba(6,10,20,.42));box-shadow:inset 0 0 0 1px rgba(201,154,69,.32),0 10px 30px rgba(0,0,0,.35);pointer-events:none}
+.gol-sel .roster .rh{position:absolute;left:28px;right:28px;top:14px;height:26px;display:flex;justify-content:space-between;align-items:center;font:700 14px ${FONT_FAMILY};letter-spacing:3px;color:#e8c77e;text-shadow:0 1px 3px #000}
+.gol-sel .roster .rh i{font-style:normal;color:#bfb08e;letter-spacing:1px;font-size:13px}
+.gol-sel .slot .chip{position:absolute;left:50%;transform:translateX(-50%);top:${K.card.h + 6}px;padding:3px 14px;border-radius:12px;white-space:nowrap;
+  background:rgba(8,12,22,.82);box-shadow:inset 0 0 0 1px rgba(232,199,126,.55);font:700 12px ${FONT_FAMILY};letter-spacing:1px;color:#f0e2bf;pointer-events:none}
+.gol-sel .slot.empty .chip{display:none}
+.gol-sel .slot.empty .plus-hint{position:absolute;left:0;right:0;top:${K.card.art.y + K.card.art.h - 30}px;text-align:center;font:700 12px ${FONT_FAMILY};letter-spacing:2px;color:#cdb98a;opacity:0;transition:opacity 150ms;pointer-events:none}
+.gol-sel .slot.empty:hover .plus-hint,.gol-sel .slot.empty.sel .plus-hint{opacity:1}
+.gol-sel .slot:not(.empty) .plus-hint{display:none}
+.gol-sel .info .row{position:absolute;left:62px;right:58px;display:flex;justify-content:space-between;align-items:baseline;gap:16px;font-size:17px;border-bottom:1px solid rgba(201,154,69,.18);padding-bottom:6px}
+.gol-sel .info .row.lv{border-bottom:0}
+.gol-sel .info .row b{font-weight:400;color:#bfb08e;font-size:15px;letter-spacing:.5px}
+.gol-sel .info .row span{color:#f3e2bf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
+.gol-sel .info .xpb{position:absolute;left:62px;right:58px;height:8px;border-radius:4px;background:rgba(0,0,0,.55);box-shadow:inset 0 0 0 1px rgba(201,154,69,.35);overflow:hidden}
+.gol-sel .info .xpb i{display:block;height:100%;background:linear-gradient(90deg,#c88a2c,#ffd76e)}
+.gol-sel .info .none{position:absolute;left:50px;right:50px;top:118px;text-align:center;font-size:16px;line-height:24px;color:#cdb98a}
+.gol-sel .stagename{position:absolute;text-align:center;pointer-events:none}
+.gol-sel .stagename .n{font:700 28px ${FONT_FAMILY};letter-spacing:3px;color:#f3e2bf;text-shadow:0 2px 6px #000,0 0 14px rgba(0,0,0,.7)}
+.gol-sel .stagename .j{margin-top:2px;font:700 14px ${FONT_FAMILY};letter-spacing:3px;color:#e8c77e;text-shadow:0 1px 3px #000}
+.gol-sel .hint{position:absolute;left:0;right:0;bottom:22px;text-align:center;font-size:14px;letter-spacing:1px;color:rgba(232,220,194,.85);text-shadow:0 1px 3px #000;pointer-events:none}
+.gol-sel .vign{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.45) 0%,rgba(0,0,0,0) 34%,rgba(0,0,0,0) 66%,rgba(0,0,0,.45) 100%)}
 .gol-sel .modal.kit{background:url("${KIT('dialog_window')}") 0 0/100% 100% no-repeat;border:0;box-shadow:none}
 `;
 const SEL_STYLE_ID = 'gol-charselect-kit';
@@ -147,6 +173,12 @@ export class CharacterSelectUI {
   private btnDelete: HTMLButtonElement;
   private btnCreate: HTMLButtonElement;
   private btnPvp?: HTMLButtonElement;
+  private rosterCount!: HTMLElement;
+  private jobField!: HTMLSpanElement;
+  private xpBar!: HTMLDivElement;
+  private noneMsg!: HTMLDivElement;
+  private infoRows: HTMLElement[] = [];
+  private stage!: HTMLDivElement;
   private modal?: HTMLDivElement;
   private lastRect = '';
   private readonly onKey = (e: KeyboardEvent) => this.handleKey(e);
@@ -157,6 +189,9 @@ export class CharacterSelectUI {
     this.root = this.el('div', 'gol-cs gol-sel');
     host.appendChild(this.root);
 
+    this.el('div', 'vign', this.root);
+    const ro = this.el('div', 'abs roster', this.root); this.box(ro, K.roster.x, K.roster.y, K.roster.w, K.roster.h);
+    const rh = this.el('div', 'rh', ro); this.el('span', '', rh).textContent = 'CHARACTERS'; this.rosterCount = this.el('i', '', rh);
     const pq = this.el('div', 'abs plq', this.root); this.box(pq, K.plaque.x, K.plaque.y, K.plaque.w, K.plaque.h);
     const t = this.el('div', 'abs title', this.root);
     t.textContent = L.title.text;
@@ -168,8 +203,9 @@ export class CharacterSelectUI {
       const d = this.el('div', 'abs slot', this.root);
       const C = K.card;
       this.box(d, C.x + (i % 2) * (C.w + C.gx), C.y + Math.floor(i / 2) * (C.h + C.gy), C.w, C.h);
-      this.el('div', 'name', d); this.el('div', 'sub', d); this.el('div', 'portrait', d);
+      this.el('div', 'name', d); this.el('div', 'sub', d); this.el('div', 'portrait', d); this.el('div', 'chip', d); this.el('div', 'plus-hint', d).textContent = 'CREATE NEW';
       d.addEventListener('click', () => this.select(slot.slotId));
+      d.addEventListener('dblclick', () => { const c = CharacterStore.getSlot(slot.slotId).character; if (c) this.enterWorld(); else this.h.onCreate(); });
       d.addEventListener('mouseenter', () => this.h.onHover?.(CharacterStore.getSlot(slot.slotId).character?.classId ?? null));
       d.addEventListener('mouseleave', () => this.h.onHover?.(null));
       this.slotEls.set(slot.slotId, d);
@@ -180,11 +216,20 @@ export class CharacterSelectUI {
     this.box(info, K.info.x, K.info.y, K.info.w, K.info.h);
     const h2 = this.el('h2', '', info); h2.textContent = 'CHARACTER INFO';
     const mk = (i: number, label: string) => {
-      const f = this.el('div', 'f', info); f.style.top = `${92 + i * 40}px`;
-      const b = this.el('b', '', f); b.textContent = `${label}: `;
+      const f = this.el('div', 'row', info); f.style.top = `${[84, 120, 156, 206, 242][i]}px`;
+      this.el('b', '', f).textContent = label;
       return this.el('span', '', f) as HTMLSpanElement;
     };
-    this.fields = { name: mk(0, 'Name'), cls: mk(1, 'Class'), level: mk(2, 'Level'), last: mk(3, 'Last played') };
+    this.fields = { name: mk(0, 'Name'), cls: mk(1, 'Class'), level: mk(2, 'Level'), last: mk(4, 'Last played') };
+    this.jobField = mk(3, 'Job');
+    info.querySelectorAll('.row')[2]?.classList.add('lv');
+    this.xpBar = this.el('div', 'xpb', info); this.xpBar.style.top = '188px'; this.el('i', '', this.xpBar);
+    this.noneMsg = this.el('div', 'none', info);
+    this.infoRows = [...info.querySelectorAll<HTMLElement>('.row')];
+    // name + job under the character on the stage
+    this.stage = this.el('div', 'stagename', this.root); this.box(this.stage, K.stageName.cx - K.stageName.w / 2, K.stageName.y, K.stageName.w, 70);
+    this.el('div', 'n', this.stage); this.el('div', 'j', this.stage);
+    this.el('div', 'hint', this.root).textContent = 'Double-click a character to play  ·  Enter: enter the world  ·  Arrow keys: choose';
 
     // Buttons.
     this.button('BACK', { ...K.back, size: 22 }, () => this.h.onBack());
@@ -195,7 +240,7 @@ export class CharacterSelectUI {
     this.btnDelete.addEventListener('click', () => this.openDeleteConfirm());
     this.btnEnter = this.button('ENTER WORLD', { ...K.enter, size: 26 }, () => this.enterWorld(), true);
     if (this.h.onPvp) this.btnPvp = this.button('PVP ARENA', { ...K.pvp, size: 18 }, () => { if (CharacterStore.getSelectedCharacter()) this.h.onPvp?.(); });
-    this.btnCreate = this.button('CREATE CHARACTER', { ...K.create, size: 18 }, () => this.h.onCreate());
+    this.btnCreate = this.button('CREATE CHARACTER', { ...K.create, size: 22 }, () => this.h.onCreate(), true);
 
     window.addEventListener('keydown', this.onKey);
     this.render();
@@ -276,7 +321,8 @@ export class CharacterSelectUI {
       const d = this.slotEls.get(slot.slotId)!;
       const c = slot.character;
       (d.children[0] as HTMLElement).textContent = c ? c.name : `CHARACTER SLOT ${slot.slotId}`;
-      (d.children[1] as HTMLElement).textContent = c ? `${className(c.classId)} · Level ${c.level}` : 'EMPTY';
+      (d.children[1] as HTMLElement).textContent = '';
+      (d.children[3] as HTMLElement).textContent = c ? `${className(c.classId)} · Lv ${c.level}` : '';
       if (!c) (d.children[0] as HTMLElement).textContent = 'EMPTY SLOT';
       d.classList.toggle('sel', slot.slotId === sel);
       d.classList.toggle('empty', !c);
@@ -297,14 +343,32 @@ export class CharacterSelectUI {
     }
     const ch: Character | null = CharacterStore.getSelectedCharacter();
     this.h.onPreview?.(ch ? previewFor(ch)?.key ?? null : null);
+    const job = ch ? (jobsFor(ch.level < 19 ? 'warrior' : ch.classId).filter((j) => ch.level >= j.level).pop()?.name ?? 'Beginner') : DASH;
     this.fields.name.textContent = ch ? ch.name : DASH;
     this.fields.cls.textContent = ch ? className(ch.classId) : DASH;
-    this.fields.level.textContent = ch ? String(ch.level) : DASH;
-    this.fields.last.textContent = ch?.lastPlayedAt ? formatDate(ch.lastPlayedAt) : DASH;
+    const need = ch ? expToNext(ch.level) : 0, pct = ch && Number.isFinite(need) ? Math.min(100, ((ch.exp ?? 0) / need) * 100) : 0;
+    this.fields.level.textContent = ch ? `${ch.level}  ·  ${pct.toFixed(1)}% EXP` : DASH;
+    this.jobField.textContent = job;
+    this.fields.last.textContent = ch?.lastPlayedAt ? formatDate(ch.lastPlayedAt) : 'Never';
+    (this.xpBar.firstChild as HTMLElement).style.width = `${pct}%`;
+    for (const r of this.infoRows) r.style.display = ch ? 'flex' : 'none';
+    this.xpBar.style.display = ch ? 'block' : 'none';
+    this.noneMsg.style.display = ch ? 'none' : 'block';
+    this.noneMsg.textContent = sel && !CharacterStore.getSlot(sel).character ? 'This slot is empty.\nCreate a new hero to begin your legacy.' : 'Select a character.';
+    this.noneMsg.style.whiteSpace = 'pre-line';
+    const used = CharacterStore.getSlots().filter((x) => x.character).length;
+    this.rosterCount.textContent = `${used} / ${CharacterStore.getSlots().length}`;
+    const emptySel = !!sel && !CharacterStore.getSlot(sel).character;
+    (this.stage.children[0] as HTMLElement).textContent = ch ? ch.name : emptySel ? 'NEW HERO' : '';
+    (this.stage.children[1] as HTMLElement).textContent = ch ? `${className(ch.classId).toUpperCase()}  ·  ${job.toUpperCase()}  ·  LV ${ch.level}` : emptySel ? 'PRESS CREATE CHARACTER' : '';
+    // Context buttons: a character → ENTER WORLD + PVP ARENA; an empty slot → CREATE CHARACTER in the same place.
+    const empty = !!sel && !CharacterStore.getSlot(sel).character;
+    this.btnEnter.style.display = empty ? 'none' : '';
+    if (this.btnPvp) this.btnPvp.style.display = empty ? 'none' : '';
+    this.btnCreate.style.display = empty ? '' : 'none';
     this.btnEnter.disabled = !ch;
     if (this.btnPvp) this.btnPvp.disabled = !ch;
-    // CREATE CHARACTER only for a selected empty slot (never overwrites).
-    this.btnCreate.disabled = !(sel && !CharacterStore.getSlot(sel).character);
+    this.btnCreate.disabled = !empty;
     this.btnDelete.disabled = !ch;
   }
 
