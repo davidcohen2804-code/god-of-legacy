@@ -210,6 +210,9 @@ export class CombatBody {
   /** Passives (Endure / Warrior Mastery / Power Stance): CC & slow duration cut, chance to ignore knockback. */
   ccResist = 0;
   kbResist = 0;
+  /** Last time a passive visibly worked (stance held / CC shortened): the scene plays its effect. */
+  stanceAt = -Infinity;
+  endureAt = -Infinity;
   airOver(): number { return Math.max(0, (this.gauge.air - GAUGE.air) / GAUGE.airRamp); }
 
   constructor(readonly kin: Kin, readonly pvp: boolean) {}
@@ -245,11 +248,12 @@ export class CombatBody {
     let dx = k.x - from.x, dy = k.y - from.y; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
     if (!armored) {
       const pushPx = (R.push ?? 0) * (this.pvp ? 1.4 : 2) - (R.pull ?? 0);
-      if (pushPx > 0 && this.kbResist > 0 && Math.random() < this.kbResist) { /* stance: not pushed back */ }
+      if (pushPx > 0 && this.kbResist > 0 && Math.random() < this.kbResist) this.stanceAt = now; // stance: not pushed back
       else if (pushPx !== 0) { out.pushX = dx * pushPx; out.pushY = dy * pushPx; this.push = { vx: out.pushX / 110, vy: out.pushY / 110, left: 110 }; }
     }
     const cr = 1 - this.ccResist;
     if (R.slow) { this.slowPct = R.slow.pct; this.slowUntil = Math.max(this.slowUntil, now + R.slow.ms * cr); }
+    if (this.ccResist > 0 && (R.hardCC || R.slow)) this.endureAt = now;
     if (R.hardCC) { out.ccMs = this.hard.apply(R.hardCC.kind, Math.round(R.hardCC.ms * cr), now, this.pvp); if (out.ccMs > 0) out.reaction = 'cc'; }
     if (armored) { out.reaction = 'armor'; return out; }
     const juggleCost = R.juggleCost ?? 0;

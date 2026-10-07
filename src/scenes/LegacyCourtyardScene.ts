@@ -133,6 +133,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   orbs = { n: 0, lastAt: -Infinity, cast: '' };
   private orbImgs: Phaser.GameObjects.Image[] = [];
   private regenAt = 0;
+  private seenStance = -Infinity;
+  private seenEndure = -Infinity;
+  private markAt = new Map<string, number>();
   /** PvP arena scene (fixed HP for everyone). */
   private arena = false;
   /** Radiant Blade: the sword is a long blade of light until this time. */
@@ -680,6 +683,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     return b.state === 'hitstun' || b.state === 'knockdown' || b.hard.active(this.simMs) ? this.passives.chanceAttack : 1;
   }
 
+  /** Chance Attack landed: target sigil over the foe (at most every 0.5 s per target). */
+  private chanceMark(id: string, at: V3): void {
+    if ((this.markAt.get(id) ?? -Infinity) > this.simMs - 500) return;
+    this.markAt.set(id, this.simMs);
+    this.fx!.passiveFx('target_mark', { x: at.x, y: at.y, z: at.z }, 120, { depth: 100000, ms: [40, 40, 50, 60, 60, 70, 80, 90] });
+  }
+
   /** Final Attack: a chance for an extra slash right after an own hit lands on a PvE target / the sparring knight. */
   private finalAttack(run: CastRun, target: string, at: V3, dmg: number): void {
     const fa = this.passives.fa;
@@ -694,7 +704,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (m.damage(extra, this.simMs)) { this.questKill(m); if (this.gripFoe === m) { this.gripFoe = null; this.gripHeld = false; } }
       }
       else return;
-      this.fx!.finalSlash(at, side);
+      const big = fa.mul >= 0.5; // Advanced Final Attack: a bigger triple cut
+      this.fx!.finalSlash(at, side, big);
+      if (big) for (const [d, dx, dz] of [[60, 18, 14], [120, -16, -12]] as const) this.time.delayedCall(d, () => this.fx!.finalSlash({ x: at.x + dx, y: at.y, z: at.z + dz }, side, true));
       this.fx!.damageNumber(at, extra, false, 0, true);
     });
   }
@@ -708,8 +720,21 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         this.regenAt = 0;
         const max = this.maxHpNow(), before = this.playerHP;
         this.playerHP = Math.min(max, this.playerHP + Math.max(1, Math.round(max * REGEN.frac)));
-        if (this.playerHP > before) this.fx!.healNumber({ x: this.kin.x, y: this.kin.y, z: this.kin.z }, this.playerHP - before);
+        if (this.playerHP > before) {
+          this.fx!.healNumber({ x: this.kin.x, y: this.kin.y, z: this.kin.z }, this.playerHP - before);
+          this.fx!.passiveFx('heal_sparkle', { x: this.kin.x, y: this.kin.y, z: this.kin.z }, 220, { originY: 0.8, normal: true, depth: 100000 - 1, ms: [70, 80, 100, 120, 130, 140, 150, 160], follow: () => (this.dead < 0 ? { x: this.kin.x, y: this.kin.y, z: this.kin.z } : null) });
+        }
       }
+    }
+    const b = this.body, kn = this.kin;
+    if (b.stanceAt > this.seenStance) { // Power Stance / Warrior Mastery held the ground
+      this.seenStance = b.stanceAt;
+      this.fx!.passiveFx('stance_ring', { x: kn.x, y: kn.y, z: kn.z }, 230, { originY: 0.66, depth: kn.y - 1, normal: true });
+      this.fx!.callout({ x: kn.x, y: kn.y, z: kn.z + 20 }, 'STANCE!', '#ffd27a', 1);
+    }
+    if (b.endureAt > this.seenEndure) { // Endure shortened the stun / slow
+      this.seenEndure = b.endureAt;
+      this.fx!.passiveFx('chains_break', { x: kn.x, y: kn.y, z: kn.z + 46 }, 150, { depth: kn.y + 3, follow: () => ({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 46 }) });
     }
     if (this.orbs.n > 0 && (now - this.orbs.lastAt > ORBS.fadeMs || this.dead >= 0)) this.orbs.n = 0;
     if (!P.orbs) return;
@@ -847,7 +872,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const dir = this.dir; // Whirlwind spins inside its own 360° body loop
     const pose = resolvePose(this.cls, dir, poseQuery(snap), v.wantsBase || this.character!.level < BEGINNER_TO, genderOf(this.character));
     let tint: number | null = null, fill = false, alpha = 1;
-    if (this.flash >= 0) { if (this.flash < P6.hitFlashWhiteMs) { tint = 0xffffff; fill = true; } else tint = 0xff6a6a; }
+    if (this.flash >= 0) { const iron = this.passives.takenMul < 1; if (this.flash < P6.hitFlashWhiteMs) { tint = iron ? 0xbcd6ef : 0xffffff; fill = true; } else tint = iron ? 0xc8d4e6 : 0xff6a6a; } // Iron Body: steel sheen
     else if (this.body.hard.active(this.simMs)) tint = this.body.hard.kind === 'freeze' ? 0x9fd8ff : 0xb6ffb0;
     else if (run && run.skill.armor && run.skill.id !== 'blade_storm' && run.elapsed >= run.skill.armor[0] && run.elapsed < run.skill.armor[1] + 220) { // the storm itself lights him: no tint
       // armor glow fades in/out smoothly (a hard on/off read as a flicker at the end of the move)
@@ -1279,6 +1304,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (run.attackerId === this.localId) out.damage = Math.round(out.damage * (now < this.warCryUntil ? 1.2 : 1) * this.passiveDmgMul() * ch);
       ds.body.push = null; ds.kin.vx = 0; ds.kin.vy = 0; // anchored post: launches / knockdowns are vertical only (juggle practice)
       this.damageDummy(out.damage);
+      if (ch > 1 && out.damage > 0) this.chanceMark(t.id, at);
     } else if (t.id === 'enemy' && this.enemy?.alive) {
       const en = this.enemy, from = this.casterPos(run.attackerId) ?? run.origin;
       const counter = en.ai === 'attack' && en.body.state === 'free';
@@ -1317,6 +1343,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (counter) this.fx!.callout(at, 'COUNTER!!', '#7ff0ff', row++);
       if (back) this.fx!.callout(at, 'BACK ATTACK!!', '#ffb04a', row++);
       if (crit) this.fx!.callout(at, 'CRITICAL!!', '#ff5a6a', row++);
+      if (crit && own && this.passives.critDmgAdd > 0) { this.fx!.shockwave(at.x, at.y, 110, 0xff8a5a); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 40); } // Combat Mastery: heavier crits
+      if (ch > 1 && out.damage > 0) this.chanceMark(t.id, at);
     }
     else if (t.id.startsWith('mob:')) {
       const m = this.mobById(t.id); if (!m?.alive) return;
@@ -1343,6 +1371,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (counter) this.fx!.callout(at, 'COUNTER!!', '#7ff0ff', row++);
       if (back) this.fx!.callout(at, 'BACK ATTACK!!', '#ffb04a', row++);
       if (crit) this.fx!.callout(at, 'CRITICAL!!', '#ff5a6a', row++);
+      if (crit && own && this.passives.critDmgAdd > 0) { this.fx!.shockwave(at.x, at.y, 110, 0xff8a5a); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 40); } // Combat Mastery: heavier crits
+      if (ch > 1 && out.damage > 0) this.chanceMark(t.id, at);
       if (killed) { // defeated: counts for the quests that ask for it
         this.questKill(m);
         this.gainExp(m.kind.exp ?? Math.round(m.kind.hp / 5), { x: m.kin.x, y: m.kin.y, z: m.kin.z });
@@ -1499,8 +1529,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private applyToBot(run: CastRun, hit: HitEvent, t: HitTarget, at: V3): void {
     const b = this.bot;
     if (!b) return;
-    const m = run.attackerId === this.localId ? this.ownDamageMul() * this.chanceMul(b.body) : 1, h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
+    const chB = run.attackerId === this.localId ? this.chanceMul(b.body) : 1;
+    const m = run.attackerId === this.localId ? this.ownDamageMul() * chB : 1, h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
     const out = b.receive(run.attackerId, run.skill, h, this.casterPos(run.attackerId) ?? run.origin, this.simMs);
+    if (chB > 1 && out.damage > 0) this.chanceMark(BOT_ID, at);
     if (b.refilled) this.fx!.healNumber({ x: b.x, y: b.y, z: b.z }, b.refilled);
     this.confirm(run, hit, BOT_ID, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!run.skill.endsCombo, t.z);
     if (out.reaction !== 'armor') this.finalAttack(run, BOT_ID, at, out.damage);
