@@ -5,6 +5,7 @@
 import DATA from '../data/world-areas.json';
 import STRIP from '../data/world-strip.json';
 import ARENA_DATA from '../data/world-arena.json';
+import GATE_DATA from '../data/world-gate.json';
 import { Pt, WorldObject } from './WorldGeometry';
 
 export const AREA_W = DATA.size[0];
@@ -66,6 +67,10 @@ export const ARENA_AREA: AreaDef = { id: 'sealplaza', name: ARENA.name, x: ARENA
 /** Below the courtyard's front edge: on the stairs or in the plaza. */
 export const belowTerrace = (y: number): boolean => y > ARENA.edgeY;
 
+/** The Temple Gate between the Crimson Ruins and Temple Road (tools/world/gate.py): two picture layers (the back tower
+ *  behind everyone, the arch and the front tower in front) and its two towers' footprints. */
+export const GATE = GATE_DATA as { q: number; back: { x: number; y: number; depth: number }; front: { x: number; y: number; depth: number }; props: { id: string; foot: Pt[]; h: number }[] };
+
 /** The walkable floor of the whole world (world px, one polygon): the strip's, the stairs and the plaza. */
 export const WORLD_FLOOR = ARENA.walk;
 /** The strip's picture tiles: [x, width] each (they overlap by 2 px). */
@@ -93,7 +98,7 @@ export const areaAt = (x: number): AreaDef => ROW.find((a) => x < a.span[1]) ?? 
 /** Every prop of the world — the maps' and the joins' (and blocks standing in the middle of a floor) — in world px, as
  *  tools/world/strip.py laid them out; id = "<area>-<prop>" / "<a>_<b>-<prop>" (= its occluder cut-out). */
 export function worldObjects(): WorldObject[] {
-  return (STRIP.props as { id: string; foot: Pt[]; base?: Pt[]; h: number; top?: number; stand?: [number, number] }[]).map((p) => ({
+  return ([...STRIP.props, ...GATE.props] as { id: string; foot: Pt[]; base?: Pt[]; h: number; top?: number; stand?: [number, number] }[]).map((p) => ({
     id: p.id, footprint: p.foot, height: p.h, ...(p.top !== undefined ? { topZ: p.top } : {}), ...(p.stand ? { stand: p.stand } : {}),
     ...(p.base ? { base: p.base } : {}),
     cover: 'hard' as const, occluder: [], frontY: Math.max(...p.foot.map((q) => q[1])) + 1,

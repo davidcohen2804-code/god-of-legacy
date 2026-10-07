@@ -6,7 +6,7 @@
 import Phaser from 'phaser';
 import PROPS from '../data/world-props.json';
 import NPC_ART from '../data/npc-sprites.json';
-import { ARENA, ARENA_AREA, ARENA_MINIMAP_URL, AREA_H, AREA_W, AreaDef, arenaTileKey, arenaTileUrl, belowTerrace, AreaNpc, BACKDROP, MINIMAP_URL, MOB_KINDS, ROW, START, TILES, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
+import { ARENA, ARENA_AREA, GATE, ARENA_MINIMAP_URL, AREA_H, AREA_W, AreaDef, arenaTileKey, arenaTileUrl, belowTerrace, AreaNpc, BACKDROP, MINIMAP_URL, MOB_KINDS, ROW, START, TILES, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
 import { WorldObject, actorDepth, setWorldGeometry } from './WorldGeometry';
 import { Backdrop, preloadBackdrop } from './Backdrop';
 import { Monster, preloadMonsterFrames } from './Monster';
@@ -47,6 +47,7 @@ export function preloadOpenWorld(scene: Phaser.Scene): void {
   // the world around the start comes with the scene; the rest streams in right after
   for (const i of tilesNear(toWorld(START.area, [START.x, START.y]).x, AREA_W * 1.5)) L(tileKey(i), tileUrl(i));
   ARENA.tiles.forEach((_, i) => L(arenaTileKey(i), arenaTileUrl(i)));
+  L('world-gate-back', 'assets/world/gate/back.png'); L('world-gate-front', 'assets/world/gate/front.png');
   for (const id of Object.keys(CUTS)) L(`prop-${id}`, `assets/world/props/${id}.png`);
   for (const [name, a] of Object.entries(ART)) if (!scene.textures.exists(`npc-${name}`)) scene.load.spritesheet(`npc-${name}`, `assets/world/npc/${name}.png`, { frameWidth: a.w, frameHeight: a.h });
   L('kit.keycap', KIT('keycap')); L('kit.npc_plate', KIT('npc_plate'));
@@ -63,6 +64,7 @@ export class OpenWorld {
   private tiles: (Phaser.GameObjects.Image | null)[] = TILES.map(() => null);
   private arenaTiles: (Phaser.GameObjects.Image | null)[] = ARENA.tiles.map(() => null);
   private occluders: Phaser.GameObjects.Image[] = [];
+  private gate: Phaser.GameObjects.Image[] = [];
   private npcs: NpcView[] = [];
   private prompt: Phaser.GameObjects.Container;
   private promptKey: Phaser.GameObjects.Text;
@@ -85,7 +87,7 @@ export class OpenWorld {
     ARENA.tiles.forEach((_, i) => this.ensureArenaTile(i));
     scene.load.on(Phaser.Loader.Events.FILE_COMPLETE, this.onFile, this);
     if (!scene.load.isLoading()) scene.load.start();
-    this.buildOccluders(); this.buildNpcs(); this.buildPortal(); this.spawnMobs();
+    this.buildOccluders(); this.buildGate(); this.buildNpcs(); this.buildPortal(); this.spawnMobs();
     if (BACKDROP) this.backdrop = new Backdrop(scene);
     const cam = scene.cameras.main;
     this.ambience = new CourtyardAmbience(scene, Math.ceil(cam.width / cam.zoom) + 4, AREA_H, BACKDROP ? [330, 668] : undefined);
@@ -122,6 +124,14 @@ export class OpenWorld {
     for (const [id, [x, y]] of Object.entries(CUTS)) {
       const f = front.get(id); if (f === undefined) continue;
       this.occluders.push(this.scene.add.image(x, y, `prop-${id}`).setOrigin(0, 0).setDepth(f));
+    }
+  }
+
+  /** The Temple Gate: its back tower behind anyone on the floor, its arch and front tower in front of everyone. */
+  private buildGate(): void {
+    for (const k of ['back', 'front'] as const) {
+      const g = GATE[k];
+      this.gate.push(this.scene.add.image(g.x, g.y, `world-gate-${k}`).setOrigin(0, 0).setScale(1 / GATE.q).setDepth(g.depth));
     }
   }
 
@@ -293,6 +303,7 @@ export class OpenWorld {
     for (const im of this.arenaTiles) im?.destroy();
     this.arenaTiles = ARENA.tiles.map(() => null);
     for (const o of this.occluders) o.destroy();
+    for (const g of this.gate) g.destroy(); this.gate = [];
     for (const n of this.npcs) { n.sprite.destroy(); n.shadow.destroy(); n.plate.destroy(); n.name.destroy(); n.title.destroy(); n.mark.destroy(); }
     if (this.portal) { this.portal.beam.destroy(); this.portal.ring.destroy(); this.portal.glow.destroy(); this.portal.motes.destroy(); }
     this.prompt.destroy();
