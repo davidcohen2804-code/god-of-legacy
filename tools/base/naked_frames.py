@@ -236,14 +236,17 @@ def frame(path, idx, sc, opts=()):
 
 
 def layer_to_cell(rgba, g_):
-  """A layer drawn in the GPT image's space (RGBA, straight alpha) → the cell, exactly as frame() placed that figure."""
-  sub = rgba[g_['Y0']:g_['y1'] + g_['pad'], g_['X0']:g_['x1'] + g_['pad']].astype(np.float32)
-  al = sub[..., 3:4] / 255; pm = np.concatenate([sub[..., :3] * al, al * 255], -1).clip(0, 255).astype(np.uint8)
-  im = Image.fromarray(pm, 'RGBA').resize(g_['size'], Image.LANCZOS)
-  cv = Image.new('RGBA', (S, S), (0, 0, 0, 0)); cv.paste(im, g_['at'])
-  w = np.asarray(cv).astype(np.float32); a_ = w[..., 3:4] / 255
-  out = np.concatenate([np.where(a_ > 1e-3, w[..., :3] / np.maximum(a_, 1e-3), 0), a_], -1)
-  return np.roll(np.roll(out, g_['dy'], 0), g_['dx'], 1)               # colour 0..255, alpha 0..1
+  """A layer drawn in the GPT image's space (RGBA, straight alpha) → the cell, exactly as frame() placed that figure —
+  all of the layer, not only the figure's own box (long hair flows past the bald figure's back and above its head)."""
+  ww, wh = g_['x1'] + g_['pad'] - g_['X0'], g_['y1'] + g_['pad'] - g_['Y0']            # the figure's box → size, at at + (dx, dy)
+  kx, ky = g_['size'][0] / ww, g_['size'][1] / wh
+  ox, oy = g_['at'][0] + g_['dx'], g_['at'][1] + g_['dy']
+  M = 2 * S                                                                         # room around the layer (all of the cell maps inside)
+  src = np.zeros((rgba.shape[0] + 2 * M, rgba.shape[1] + 2 * M, 4), np.float32); src[M:-M, M:-M] = rgba
+  al = src[..., 3:4] / 255; pm = np.concatenate([src[..., :3] * al, al * 255], -1).clip(0, 255).astype(np.uint8)
+  box = (g_['X0'] + M - ox / kx, g_['Y0'] + M - oy / ky, g_['X0'] + M + (S - ox) / kx, g_['Y0'] + M + (S - oy) / ky)   # the cell, in layer px
+  w = np.asarray(Image.fromarray(pm, 'RGBA').resize((S, S), Image.LANCZOS, box=box)).astype(np.float32); a_ = w[..., 3:4] / 255
+  return np.concatenate([np.where(a_ > 1e-3, w[..., :3] / np.maximum(a_, 1e-3), 0), a_], -1)   # colour 0..255, alpha 0..1
 
 
 def over(top, bot):

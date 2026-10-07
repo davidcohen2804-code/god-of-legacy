@@ -37,13 +37,14 @@ const ROLE_LABEL: Partial<Record<Role, string>> = {
   pull: 'Pull', projectile: 'Projectile', precision: 'Precision', trap: 'Trap', mobility: 'Mobility', chase: 'Chase', counter: 'Counter',
   escape: 'Escape', finisher: 'Finisher', signature: 'Signature', ultimate: 'Ultimate',
 };
+/** Where a skill reaches (short: one line in the facts row). */
 const TARGETING: Record<Targeting, string> = {
-  aimAssist: 'In the facing direction', mouseDir: 'Dash in the facing direction', mouseProjectile: 'Projectile in the facing direction',
-  mouseLine: 'Line in the facing direction', mouseCone: 'Cone in the facing direction', mouseGround: 'Ground point ahead of you',
-  mouseTarget: 'Locks the first target ahead', self: 'Around the caster', selfAim: 'Around the caster, biased forward',
+  aimAssist: 'Straight ahead', mouseDir: 'Dash ahead', mouseProjectile: 'Projectile ahead', mouseLine: 'Line ahead', mouseCone: 'Cone ahead',
+  mouseGround: 'Ground ahead', mouseTarget: 'First foe ahead', self: 'Around you', selfAim: 'Around you, forward',
 };
 
 const STYLE_ID = 'gol-skillbook-style';
+const READ = HUD.bodyFont;
 const px = (r: { x: number; y: number; w: number; h: number }) => `left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px`;
 const CSS = `
 .gol-sb{z-index:40;display:none}
@@ -53,7 +54,7 @@ const CSS = `
 @keyframes golSbIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
 .gol-sb .hdr{position:absolute;left:482px;top:44px;width:632px;height:62px;text-align:center;pointer-events:none}
 .gol-sb .ttl{display:block;margin-top:4px;font:700 25px/30px ${FONT_FAMILY};letter-spacing:4px;color:#f3dcaa;text-shadow:0 2px 6px #000}
-.gol-sb .sub{display:block;font-size:13px;line-height:18px;letter-spacing:1.5px;color:#aebdcc;text-transform:uppercase;white-space:nowrap}
+.gol-sb .sub{display:block;font:600 12.5px/18px ${READ};letter-spacing:1.6px;color:#b4c2d0;text-transform:uppercase;white-space:nowrap}
 .gol-sb .x{position:absolute;left:1522px;top:90px;width:56px;height:56px;border:0;border-radius:50%;background:transparent;cursor:pointer;pointer-events:auto;transition:box-shadow 120ms}
 .gol-sb .x:hover{box-shadow:0 0 16px 6px rgba(255,214,130,.45)}
 .gol-sb .tab{position:absolute;top:${TAB_Y}px;width:${TAB_W}px;height:${TAB_H}px;cursor:pointer;text-align:left;padding:7px 0 0 62px;border-radius:6px;transition:background 120ms,box-shadow 120ms}
@@ -64,7 +65,7 @@ const CSS = `
 .gol-sb .tab .em{position:absolute;left:8px;top:3px;width:46px;height:46px;background:0 0/100% 100% no-repeat;filter:drop-shadow(0 2px 3px #000)}
 .gol-sb .tab .lv{position:absolute;right:8px;top:5px;width:36px;height:42px;background:url("${K('hex_badge')}") center/100% 100% no-repeat;font:700 14px/42px ${FONT_FAMILY};color:#ffe2a0;text-align:center;text-shadow:0 1px 2px #000}
 .gol-sb .tab b{display:block;font:700 15px/19px ${FONT_FAMILY};letter-spacing:1px;color:#f3e2bf;white-space:nowrap;text-shadow:0 1px 2px #000}
-.gol-sb .tab span{display:block;font-size:12.5px;line-height:17px;letter-spacing:.5px;color:#a9b8c6;margin-top:1px;white-space:nowrap}
+.gol-sb .tab span{display:block;font:500 12.5px/17px ${READ};letter-spacing:.3px;color:#aab8c6;margin-top:1px;white-space:nowrap}
 .gol-sb .tab.lk b{color:#8c939b}
 .gol-sb .tab.lk .em{filter:grayscale(.7) brightness(.6)}
 .gol-sb .tab.lk .lv{color:#9aa3ab}
@@ -86,7 +87,7 @@ const CSS = `
 .gol-sb .card.none{cursor:default;background:url("${K('slot_empty')}") center 8px/84px 84px no-repeat;opacity:.38}
 .gol-sb .card.none:hover{background-color:transparent}
 .gol-sb .all{position:absolute;left:58px;top:98px;height:36px;padding:0 16px 0 12px;display:flex;align-items:center;gap:10px;border-radius:8px;cursor:pointer;pointer-events:auto;
-  background:#0b121bd9;border:1px solid #6a5630;font:700 13px ${FONT_FAMILY};letter-spacing:1.5px;color:#c9b48a;transition:box-shadow 120ms,border-color 120ms}
+  background:#0b121bd9;border:1px solid #6a5630;font:700 12.5px ${READ};letter-spacing:1.4px;color:#cdb98a;transition:box-shadow 120ms,border-color 120ms}
 .gol-sb .all:hover{border-color:#c99a45;box-shadow:0 0 12px rgba(232,178,90,.35)}
 .gol-sb .all i{width:20px;height:20px;flex:none;background:url("${K('checkbox')}") center/100% 100% no-repeat}
 .gol-sb .all.on{color:#ffe7a8;border-color:#e8b25a;box-shadow:0 0 12px rgba(232,178,90,.4)}
@@ -100,30 +101,35 @@ const CSS = `
 .gol-sb .pg.l{top:${FRAME_Y + 10}px}.gol-sb .pg.r{top:${FRAME_Y + 72}px}
 .gol-sb .pg.off{opacity:.35;pointer-events:none}
 .gol-sb .head{position:absolute;display:flex;align-items:center;font:700 15px ${FONT_FAMILY};letter-spacing:3px;color:#f0d9a6;text-shadow:0 1px 3px #000,0 0 8px #000;white-space:nowrap;overflow:hidden;pointer-events:none}
-.gol-sb .head.l{${px(LEFT.head)};padding:0 20px}
-.gol-sb .head.r{${px(RIGHT.head)};padding:0 24px;color:#cdb98a;font-size:14px;letter-spacing:4px}
+.gol-sb .head.l{${px(LEFT.head)};padding:0 24px}
+.gol-sb .head.r{${px(RIGHT.head)};padding:0 22px 0 26px;color:#cdb98a;font-size:14px;letter-spacing:4px;justify-content:space-between}
+.gol-sb .head.r .st{display:flex;align-items:center;gap:7px;font:700 12.5px ${READ};letter-spacing:1.4px;color:#9fe08a;text-shadow:0 1px 2px #000}
+.gol-sb .head.r .st:before{content:'';width:8px;height:8px;border-radius:50%;background:#7fdc6a;box-shadow:0 0 6px #7fdc6a}
+.gol-sb .head.r .st.lock{color:#ffad8a}
+.gol-sb .head.r .st.lock:before{width:13px;height:17px;border-radius:0;box-shadow:none;background:url("${K('lock')}") center/contain no-repeat}
 .gol-sb .hero{position:absolute;${px(LEFT.body)};pointer-events:none}
-.gol-sb .hero > img{position:absolute;left:28px;top:30px;width:150px;height:150px;border-radius:14px;filter:drop-shadow(0 0 22px rgba(255,200,90,.3)) drop-shadow(0 6px 10px rgba(0,0,0,.6))}
-.gol-sb .hero .tx{position:absolute;left:212px;right:24px;top:12px;bottom:10px;display:flex;flex-direction:column}
-.gol-sb .hero .nm{font:700 27px/34px ${FONT_FAMILY};letter-spacing:1px;color:#f6e6c2;text-shadow:0 2px 4px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.gol-sb .roles{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
-.gol-sb .roles i{font-style:normal;font-size:14px;line-height:22px;padding:1px 12px;border-radius:12px;background:#1b2a3a;border:1px solid #3d5a78;color:#c4dcf2}
-.gol-sb .facts{display:grid;grid-template-columns:190px 1fr;gap:8px 24px;margin-top:auto}
-.gol-sb .facts div{min-width:0}
-.gol-sb .facts small{display:block;font:700 12px/16px ${FONT_FAMILY};letter-spacing:2px;color:#b59f74}
-.gol-sb .facts b{display:block;padding-top:3px;font:700 17px/22px ${FONT_FAMILY};color:#f3e2bf}
-.gol-sb .facts .kc{display:inline-block;min-width:34px;height:32px;padding:0 9px;box-sizing:border-box;background:url("${K('keycap')}") center/100% 100% no-repeat;font-size:16px;line-height:32px;text-align:center;color:#ffe2a0}
-.gol-sb .facts .kc.wide{background-image:url("${K('keycap_wide')}");font-size:13px;letter-spacing:1px;min-width:78px}
-.gol-sb .effects{margin-top:auto}
-.gol-sb .effects small{display:block;font:700 12px/16px ${FONT_FAMILY};letter-spacing:2px;color:#b59f74;margin-bottom:3px}
-.gol-sb .effects div{font:700 17px/24px ${FONT_FAMILY};color:#f3e2bf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.gol-sb .effects div:before{content:'\\25C6  ';color:#e8b25a;font-size:12px;vertical-align:2px}
-.gol-sb .det{position:absolute;${px(RIGHT.body)};box-sizing:border-box;padding:16px 26px 14px;display:flex;flex-direction:column;gap:12px;color:#e4e9ef;font-family:Georgia,serif;overflow:hidden}
-.gol-sb .det .ds{font-size:16px;line-height:1.45}
-.gol-sb .det .rel{font-size:15px;line-height:21px;color:#f0d9a6;display:flex;flex-direction:column;gap:2px}
-.gol-sb .det .rel div:before{content:'\\2192  ';color:#c99a45}
-.gol-sb .det .st{margin-top:auto;padding-top:9px;border-top:1px solid rgba(201,154,69,.22);font:700 14px/20px ${FONT_FAMILY};letter-spacing:.5px;color:#9fd98a}
-.gol-sb .det .st.lock{color:#ff9a7a}
+.gol-sb .hero > img{position:absolute;left:34px;top:${(LEFT.body.h - 122) / 2}px;width:122px;height:122px;border-radius:12px;filter:drop-shadow(0 0 20px rgba(255,200,90,.28)) drop-shadow(0 6px 10px rgba(0,0,0,.6))}
+.gol-sb .hero .tx{position:absolute;left:190px;right:30px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center}
+.gol-sb .hero .nm{font:700 26px/32px ${FONT_FAMILY};letter-spacing:1px;color:#f6e6c2;text-shadow:0 2px 4px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gol-sb .roles{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.gol-sb .roles i{font:600 13px/22px ${READ};font-style:normal;padding:0 12px;border-radius:12px;background:#1b2a3a;border:1px solid #3d5a78;color:#c8def2;letter-spacing:.2px}
+.gol-sb .rule{height:1px;margin:16px 0 13px;background:linear-gradient(90deg,rgba(201,154,69,.55),rgba(201,154,69,.12))}
+.gol-sb .facts{display:flex}
+.gol-sb .facts > div{padding:0 16px;border-left:1px solid rgba(201,154,69,.28);min-width:0}
+.gol-sb .facts > div:first-child{padding-left:0;border-left:0}
+.gol-sb .cap{display:block;font:600 11px/15px ${READ};letter-spacing:1.6px;color:#b9a27a;text-transform:uppercase;white-space:nowrap}
+.gol-sb .facts b{display:flex;align-items:center;height:30px;margin-top:3px;font:600 15.5px/20px ${READ};color:#f3e6c8;white-space:nowrap}
+.gol-sb .facts .kc{display:inline-block;min-width:32px;height:30px;padding:0 9px;box-sizing:border-box;background:url("${K('keycap')}") center/100% 100% no-repeat;font:700 15px/30px ${FONT_FAMILY};text-align:center;color:#ffe2a0}
+.gol-sb .facts .kc.wide{background-image:url("${K('keycap_wide')}");font-size:12px;letter-spacing:1px;min-width:76px}
+.gol-sb .effects ul{margin:5px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:4px 24px}
+.gol-sb .effects li{font:600 15px/22px ${READ};color:#f3e6c8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gol-sb .effects li:before{content:'\\25C6';color:#e8b25a;font-size:10px;margin-right:9px;vertical-align:2px}
+.gol-sb .det{position:absolute;${px(RIGHT.body)};box-sizing:border-box;padding:20px 28px 18px;display:flex;flex-direction:column;gap:14px;color:#e6ebf0;font-family:${READ};overflow:hidden}
+.gol-sb .det .ds{font-size:15.5px;line-height:1.55}
+.gol-sb .det .ds.long{font-size:14.5px;line-height:1.5}
+.gol-sb .det .rel{display:flex;flex-direction:column;gap:5px;font:500 14.5px/20px ${READ};color:#f0d9a6}
+.gol-sb .det .rel div{display:flex;gap:9px}
+.gol-sb .det .rel div:before{content:'\\2192';color:#c99a45}
 `;
 
 function ensureStyles(): void {
@@ -193,7 +199,7 @@ export class SkillBook {
     this.row = this.div('row', this.bg);
     this.headL = this.div('head l', this.bg);
     this.hero = this.div('hero', this.bg);
-    this.headR = this.div('head r', this.bg); this.headR.textContent = 'DESCRIPTION';
+    this.headR = this.div('head r', this.bg);
     this.det = this.div('det', this.bg);
     for (const side of ['l', 'r'] as const) {
       const b = this.div(`pg ${side}`, this.bg); b.innerHTML = `<span>${side === 'l' ? 'SKILLS' : 'PASSIVE'}</span><b></b>`;
@@ -259,34 +265,33 @@ export class SkillBook {
     this.tabs.forEach((t, k) => { const on = k === this.job; t.classList.toggle('lk', !this.jobOpen(k)); t.classList.toggle('on', on); (t.firstChild as HTMLElement).style.backgroundImage = `url("${K(`job${k}_icon`)}")`; (t.firstChild as HTMLElement).style.filter = on ? 'drop-shadow(0 0 6px rgba(255,200,90,.8))' : ''; });
     for (const c of this.cards) { c.el.classList.toggle('sel', c.e === this.selected); c.el.classList.toggle('lk', !this.unlocked(c.e)); }
     if (isPassive(show)) { this.refreshPassive(show); return; }
-    const s = show, jk = this.jobIndexOf(s), job = this.jobs[jk], open = this.unlocked(s);
+    const s = show, jk = this.jobIndexOf(s), job = this.jobs[jk];
     this.headL.textContent = `${rank(job, jk)} · ${kindOf(s)}`;
     const key = HOTKEY[s.slot] ?? '';
-    const use = s.ground && s.air ? 'Ground and air' : s.air ? 'Air only' : 'Ground only';
-    const cd = s.cooldown > 0 ? `${(s.cooldown / 1000).toFixed(s.cooldown % 1000 ? 1 : 0)} s` : 'None (chain)';
-    const facts = this.heroFor(iconUrl(s), s.name, s.roles.map((r) => ROLE_LABEL[r] ?? r));
-    const grid = this.div('facts', facts);
-    const fact = (label: string) => { const d = this.div('', grid); const sm = document.createElement('small'); sm.textContent = label; d.appendChild(sm); const b = document.createElement('b'); d.appendChild(b); return b; };
-    const k = fact('KEY'); if (key) { const kc = document.createElement('span'); kc.className = key.length > 2 ? 'kc wide' : 'kc'; kc.textContent = key; k.appendChild(kc); } else k.textContent = 'Not on a key';
-    fact('COOLDOWN').textContent = cd;
-    fact('USE').textContent = use;
-    fact('TARGETING').textContent = TARGETING[s.targeting];
-    this.details(keyed(s.description, s.slot), s.relations.slice(0, 2).map((r) => keyed(r, s.slot)),
-      open ? 'Unlocked' : `Unlocks with ${ADV_LABEL[jk]} (${job.name}) · Lv ${job.level}`, !open);
+    const tx = this.heroFor(iconUrl(s), s.name, s.roles.map((r) => ROLE_LABEL[r] ?? r));
+    const facts = this.div('facts', tx);
+    const fact = (label: string): HTMLElement => { const d = this.div('', facts); const c = document.createElement('span'); c.className = 'cap'; c.textContent = label; d.appendChild(c); const b = document.createElement('b'); d.appendChild(b); return b; };
+    const k = fact('Key');
+    if (key) { const kc = document.createElement('span'); kc.className = key.length > 2 ? 'kc wide' : 'kc'; kc.textContent = key; k.appendChild(kc); } else k.textContent = 'None';
+    fact('Cooldown').textContent = s.cooldown > 0 ? `${(s.cooldown / 1000).toFixed(s.cooldown % 1000 ? 1 : 0)} s` : 'None (chain)';
+    fact('Use').textContent = s.ground && s.air ? 'Ground and air' : s.air ? 'Air only' : 'Ground only';
+    fact('Reach').textContent = TARGETING[s.targeting];
+    this.details(keyed(s.description, s.slot), s.relations.slice(0, 2).map((r) => keyed(r, s.slot)), jk);
   }
 
-  /** Passive / movement card: what it gives (always on) and how it unlocks. */
+  /** Passive / movement card: what it gives (always on). */
   private refreshPassive(p: PassiveSkill): void {
-    const job = this.jobs[p.job], open = this.unlocked(p), move = p.kind === 'movement';
-    this.headL.textContent = `${rank(job, p.job)} · ${move ? 'MOVEMENT SKILL' : 'PASSIVE SKILL'}`;
-    const box = this.heroFor(passiveIconUrl(p), p.name, [move ? 'Movement' : 'Passive', move ? 'Jump again in mid-air' : 'Always on']);
-    const ef = this.div('effects', box);
-    const sm = document.createElement('small'); sm.textContent = 'EFFECTS'; ef.appendChild(sm);
-    for (const e of p.effects) this.div('', ef).textContent = e;
-    this.details(p.description, [], open ? (move ? 'Unlocked · press Jump again in mid-air' : 'Unlocked · always active') : `Unlocks with ${ADV_LABEL[p.job]} (${job.name}) · Lv ${job.level}`, !open);
+    const move = p.kind === 'movement';
+    this.headL.textContent = `${rank(this.jobs[p.job], p.job)} · ${move ? 'MOVEMENT SKILL' : 'PASSIVE SKILL'}`;
+    const tx = this.heroFor(passiveIconUrl(p), p.name, [move ? 'Movement' : 'Passive', move ? 'Jump again in mid-air' : 'Always on']);
+    const ef = this.div('effects', tx);
+    const c = document.createElement('span'); c.className = 'cap'; c.textContent = 'Effects'; ef.appendChild(c);
+    const ul = document.createElement('ul'); ef.appendChild(ul);
+    for (const e of p.effects) { const li = document.createElement('li'); li.textContent = e; ul.appendChild(li); }
+    this.details(p.description, [], p.job);
   }
 
-  /** The left panel: big icon, name, role chips; returns the text column for the facts under them. */
+  /** The left panel: big icon, name, role chips, a thin rule; returns the text column for what goes under it. */
   private heroFor(icon: string, name: string, roles: string[]): HTMLDivElement {
     this.hero.innerHTML = '';
     const im = document.createElement('img'); im.src = icon; im.alt = ''; im.draggable = false; this.hero.appendChild(im);
@@ -294,15 +299,20 @@ export class SkillBook {
     this.div('nm', tx).textContent = name;
     const rl = this.div('roles', tx);
     for (const r of roles) { const i = document.createElement('i'); i.textContent = r; rl.appendChild(i); }
+    this.div('rule', tx);
     return tx;
   }
 
-  /** The right panel: what it does, a couple of tips, whether it is unlocked. */
-  private details(text: string, tips: string[], status: string, locked: boolean): void {
+  /** The right panel: what it does and a couple of tips; whether it is open shows in its header. */
+  private details(text: string, tips: string[], jk: number): void {
+    const open = this.jobOpen(jk), job = this.jobs[jk];
+    this.headR.innerHTML = '<span>DESCRIPTION</span><span class="st"></span>';
+    const st = this.headR.lastChild as HTMLElement;
+    st.classList.toggle('lock', !open); st.textContent = open ? 'UNLOCKED' : `UNLOCKS AT LV ${job.level}`;
+    st.title = open ? '' : `Unlocks with ${ADV_LABEL[jk]} (${job.name}) · Lv ${job.level}`;
     this.det.innerHTML = '';
-    this.div('ds', this.det).textContent = text;
+    const ds = this.div(text.length > 190 ? 'ds long' : 'ds', this.det); ds.textContent = text;
     if (tips.length) { const rel = this.div('rel', this.det); for (const t of tips) this.div('', rel).textContent = t; }
-    this.div(locked ? 'st lock' : 'st', this.det).textContent = status;
   }
 
   toggle(): void { if (this.open) this.close(); else this.show(); }
@@ -311,6 +321,7 @@ export class SkillBook {
     this.open = true;
     const book = keyLabel(loadBindings().book);
     this.closeBtn.title = `Close (${book ? `${book} / ` : ''}Esc)`;
+    this.buildRow(); // the keys on the cards as they are now (Key Settings)
     this.root.classList.add('open');
     this.hover = null; this.refresh();
     this.layout();

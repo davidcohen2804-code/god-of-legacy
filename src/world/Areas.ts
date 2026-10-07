@@ -91,8 +91,9 @@ export const areaAt = (x: number): AreaDef => ROW.find((a) => x < a.span[1]) ?? 
 /** Every prop of the world — the maps' and the joins' (and blocks standing in the middle of a floor) — in world px, as
  *  tools/world/strip.py laid them out; id = "<area>-<prop>" / "<a>_<b>-<prop>" (= its occluder cut-out). */
 export function worldObjects(): WorldObject[] {
-  return (STRIP.props as { id: string; foot: Pt[]; h: number; top?: number; stand?: [number, number] }[]).map((p) => ({
+  return (STRIP.props as { id: string; foot: Pt[]; base?: Pt[]; h: number; top?: number; stand?: [number, number] }[]).map((p) => ({
     id: p.id, footprint: p.foot, height: p.h, ...(p.top !== undefined ? { topZ: p.top } : {}), ...(p.stand ? { stand: p.stand } : {}),
+    ...(p.base ? { base: p.base } : {}),
     cover: 'hard' as const, occluder: [], frontY: Math.max(...p.foot.map((q) => q[1])) + 1,
   }));
 }

@@ -14,7 +14,9 @@ export const PHYS = {
   jumpVz: 445, gravity: 1100, landMs: 90, takeoffMs: 70, footR: 10, mantle: 16,
 };
 
-export interface Kin { x: number; y: number; z: number; vx: number; vy: number; vz: number; supportZ: number; supportId: string | null; grounded: boolean }
+export interface Kin { x: number; y: number; z: number; vx: number; vy: number; vz: number; supportZ: number; supportId: string | null; grounded: boolean;
+  /** The block whose top face (as drawn) the feet were last on (settleOnBlocks: walking back off it steps down behind). */
+  onTop?: string | null }
 
 export function newKin(x: number, y: number): Kin { return { x, y, z: 0, vx: 0, vy: 0, vz: 0, supportZ: 0, supportId: null, grounded: true }; }
 
@@ -81,6 +83,36 @@ export function stepKin(k: Kin, ms: number, gravityScale = 1, blocked?: (x: numb
     if (k.z <= s.z && k.vz <= 0) { r.landed = true; r.impactVz = -k.vz; k.z = s.z; k.vz = 0; k.grounded = true; }
   }
   return r;
+}
+
+/** Blocks (WorldObject.stand): the feet rest on the top face as drawn. Behind it lies the floor the block hides (part of
+ *  its footprint, so nobody stands there sunk in the block): on top, walking back off the top face steps down onto the
+ *  floor behind at the same spot on screen (back by the block's height, height gone); otherwise the feet settle onto the
+ *  top face — in the air too, coming down over that hidden floor (unless heading back). moveY < 0 = heading back. */
+export function settleOnBlocks(k: Kin, ms: number, moveY: number): void {
+  const step = ms * 0.45;   // 450 px/s: a short, smooth settle
+  if (k.grounded) {
+    const o = k.supportId ? WORLD_OBJECTS.find((w) => w.id === k.supportId) : undefined;
+    if (!o?.stand || o.topZ === undefined) { k.onTop = null; return; }
+    const [y0, y1] = o.stand;
+    if (k.y >= y0 - 2) k.onTop = o.id;                       // on the top face as drawn
+    else if (moveY < 0 && k.onTop === o.id) {                // walked back off it: down onto the floor behind
+      const ny = k.y - o.topZ;
+      if (footAllowed(k.x, ny, 0, PHYS.footR)) { k.y = ny; k.z = 0; k.supportZ = 0; k.supportId = null; k.onTop = null; return; }
+    }
+    if (moveY !== 0 && k.y >= y0 - 2) return;              // walking on the top face: its front and sides are edges
+    const want = Math.min(Math.max(k.y, y0), y1);          // landed over the hidden floor (even heading back): onto the face
+    if (want !== k.y) k.y += Math.min(Math.max(want - k.y, -step), step);
+    return;
+  }
+  k.onTop = null;
+  if (k.vz > 0) return;
+  for (const o of WORLD_OBJECTS) {   // coming down over a block: it lands you on it
+    if (!o.stand || o.topZ === undefined || k.z < o.topZ - 8 || !pointInPoly(k.x, k.y, o.footprint)) continue;
+    if (!(moveY !== 0 && Math.sign(moveY) === Math.sign(k.vy))) k.vy *= Math.exp(-ms / 70);   // not heading on: it stops over it
+    if (moveY >= 0 && k.y < o.stand[0]) k.y = Math.min(o.stand[0], k.y + step);              // over the floor it hides: onto the face
+    return;
+  }
 }
 
 /** Start a jump from the current support (no invulnerability; horizontal momentum kept at 92%). */

@@ -1,6 +1,10 @@
 import Phaser from 'phaser';
 import '@fontsource/cinzel/400.css';
 import '@fontsource/cinzel/700.css';
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
 import { DESIGN } from './config/layout';
 import { BootScene } from './scenes/BootScene';
 import { MainMenuScene } from './scenes/MainMenuScene';
@@ -48,11 +52,12 @@ function watchForUpdates(): void {
 }
 if (!location.hostname.includes('localhost')) watchForUpdates();
 
-// Phaser draws text once, so Cinzel must be loaded before any scene creates text (Georgia stays as fallback).
+// Phaser draws text once, so the fonts must be loaded before any scene creates text: Cinzel (titles, names, buttons) and
+// Inter (everything you read: descriptions, values, labels, chat) — Georgia / Segoe UI stay as fallbacks.
 async function loadFonts(): Promise<void> {
   try {
     await Promise.race([
-      Promise.all([document.fonts.load('400 24px Cinzel'), document.fonts.load('700 24px Cinzel')]),
+      Promise.all([document.fonts.load('400 24px Cinzel'), document.fonts.load('700 24px Cinzel'), ...[400, 500, 600, 700].map((w) => document.fonts.load(`${w} 16px Inter`))]),
       new Promise((r) => setTimeout(r, 4000)),
     ]);
   } catch { /* fall back to Georgia */ }

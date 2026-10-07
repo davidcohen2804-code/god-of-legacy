@@ -248,7 +248,7 @@ export class ActorView {
   private trailT = 0; private lastFeet: { x: number; y: number } | null = null;
   setName(name: string): void {
     this.nameText?.destroy();
-    this.nameText = this.scene.add.text(0, 0, name, { fontFamily: 'Arial, sans-serif', fontSize: '12px', fontStyle: 'bold', color: '#ffffff', stroke: '#000000', strokeThickness: 3, resolution: 2 }).setOrigin(0.5);
+    this.nameText = this.scene.add.text(0, 0, name, { fontFamily: 'Inter, Arial, sans-serif', fontSize: '12.5px', fontStyle: '600', color: '#ffffff', stroke: '#000000', strokeThickness: 3, resolution: 2 }).setOrigin(0.5);
     this.refreshNameFrame();
   }
   private refreshNameFrame(): void {

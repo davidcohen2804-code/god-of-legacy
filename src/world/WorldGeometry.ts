@@ -20,8 +20,11 @@ export interface WorldObject {
   /** Depth of the occluder layer = footprint front edge y. */
   frontY: number;
   /** Open world blocks: the ground band (y from..to) under the top face as the picture draws it — someone standing on
-   *  the block settles into it (the footprint itself is deeper, so a jump from the front or the back still lands). */
+   *  the block settles into it. The footprint is deeper: behind the top face it holds the floor the block's picture
+   *  hides, so nobody stands there half sunk in the block (from behind you stop at its top edge, in full view). */
   stand?: [number, number];
+  /** Under the block only (its footprint without the hidden floor behind it): what projectiles and sight lines meet. */
+  base?: Pt[];
 }
 
 /** The PvP arena (Legacy Courtyard map) props. */
@@ -125,7 +128,7 @@ export function coverHit(ax: number, ay: number, bx: number, by: number, h: numb
   let best: number | null = null;
   for (const o of WORLD_OBJECTS) {
     if (h >= o.height || (mode === 'hard' && o.cover !== 'hard')) continue;
-    const t = segPolyEntry(ax, ay, bx, by, o.footprint);
+    const t = segPolyEntry(ax, ay, bx, by, o.base ?? o.footprint);
     if (t !== null && (best === null || t < best)) best = t;
   }
   // Walls (arena boundary) always block.

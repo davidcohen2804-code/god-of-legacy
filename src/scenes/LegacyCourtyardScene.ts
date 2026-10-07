@@ -49,7 +49,7 @@ import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
 import { baseLoop, ClassKey, dirOf, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame } from '../game/Body';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
-import { CombatBody, GAUGE, HitOutcome, Kin, PHYS, jump, newKin, steer, stepKin } from '../combat/Combat';
+import { CombatBody, GAUGE, HitOutcome, Kin, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import { finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
 import { CastRun, SkillRuntime } from '../skills/SkillRuntime';
@@ -571,7 +571,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.jb = null; this.jbWant = 0;
     }
     const r = stepKin(k, ms, b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z), b.state === 'free' && !b.push && !this.rt!.ownRun);
-    this.settleOnBlock(ms);
+    if (this.world) settleOnBlocks(k, ms, this.ci?.moveY ?? 0);
     const ev = b.update(now, ms, r.landed, r.impactVz);
     if (r.landed) {
       if (r.impactVz > 180) this.fx!.dust(k.x, k.y - k.z, 48 + Math.min(70, r.impactVz / 8), 0.75);
@@ -698,14 +698,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Standing on an open-world block: the feet settle onto its top face as the picture draws it (its landing footprint is
    *  deeper, so a jump from the front or the back lands) — unless you are walking up / down over it. */
-  private settleOnBlock(ms: number): void {
-    const k = this.kin;
-    if (!this.world || !k.grounded || !k.supportId || this.ci?.moveY) return;
-    const o = WORLD_OBJECTS.find((w) => w.id === k.supportId); if (!o?.stand) return;
-    const [y0, y1] = o.stand, want = Phaser.Math.Clamp(k.y, y0, y1);
-    if (want !== k.y) k.y += Phaser.Math.Clamp(want - k.y, -ms * 0.25, ms * 0.25); // 250 px/s: a short, smooth settle
-  }
-
   /** War Leap: a second, farther jump in mid-air (once per airtime) with a burst of wind. */
   private warLeap(now: number): void {
     const k = this.kin, inp = this.ci!;
@@ -2152,7 +2144,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.enemy?.alive) markers.push({ id: 'enemy', kind: 'enemy', x: this.enemy.x, y: this.enemy.y });
     const busy = this.busy();
     const slots: HudSlot[] = HUD.skills.hotkeys.map((hk, i) => {
-      const s = this.kit[i], hotkey = this.hud?.labels[i] || hk; // Key Settings label
+      const s = this.kit[i], hotkey = this.hud ? this.hud.labels[i] ?? '' : hk; // Key Settings label ('' = on no key)
       if (!s || !this.skillOpen(s)) return { id: `slot-${hotkey}`, hotkey, label: s ? 'Locked' : 'Unassigned', assigned: false, enabled: false, pressed: false, cooldown: null }; // opens with its job
       const rem = this.rt?.cooldownRemaining(s.id) ?? 0;
       const airBlocked = !k.grounded && !s.air;

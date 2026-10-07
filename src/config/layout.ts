@@ -261,7 +261,8 @@ export const HUD = {
   targetRadius: 260,
   pressMs: 80, barEaseMs: 120, feedbackFadeMs: 180,
   palette: { surface: '#0d131b', gold: '#b49a59', text: '#efddb0', secondary: '#bbc3cc' },
-  bodyFont: '"Segoe UI", Arial, sans-serif',
+  /** Everything you read (descriptions, values, labels, chat): clean and the same on every computer (bundled). */
+  bodyFont: 'Inter, "Segoe UI", Arial, sans-serif',
 } as const;
 
 // ======================= Build / QA =======================

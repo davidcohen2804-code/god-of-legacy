@@ -1,7 +1,10 @@
 # blocks.py : the stone blocks standing on each map's floor — found by matching a measured block (TPL: one each side of
 # the middle) near the rough spots listed in BLOCKS; each becomes a prop of its area in world-areas.json:
-#   foot : its ground footprint (front edge = the plinth's bottom, DEPTH deep)   h / top : its height (the top face's
-#          front edge above the plinth's bottom)   stand : the ground band under the top face as drawn (feet rest there)
+#   foot : the ground it takes: under it (front edge = the plinth's bottom) and the ground it hides behind it — the floor
+#          its picture covers (height deep behind the top face): nobody stands there half sunk in the block; from behind
+#          you stop at its top edge as drawn, in full view   base : under it only (what a projectile hits)
+#   h / top : its height (the top face's front edge above the plinth's bottom)   stand : the ground band under the top face
+#          as drawn (feet rest there)
 #   occ  : its silhouette (top face, front face, the side face it shows — right of it left of the middle, left of it right
 #          of the middle), a little inside the outline, so it never cuts a bite out of someone standing behind it
 #   python3 tools/world/blocks.py   (then tools/world/strip.py)
@@ -24,8 +27,9 @@ TPL = {
   'R': {'box': (1150, 369, 1236, 448), 'occ': [(0.02, 0.05), (0.77, 0.02), (0.94, 0.19), (0.96, 0.77), (0.98, 0.94), (0.94, 0.99), (0.10, 0.99), (0.05, 0.90), (0.02, 0.80)],
         'lip': 0.19, 'fx': (0.08, 0.97)},
 }
-DEPTH, STAND = 38, 20   # landing footprint depth / the top face as drawn (px at scale 1): a jump from the front or the back
-                        # lands, then the feet settle onto the drawn top face (the scene does that, see WorldObject.stand)
+STAND = 20   # the top face as drawn (px at scale 1): a jump onto the block lands anywhere on its footprint, then the feet
+             # settle onto the drawn top face (Combat.settleOnBlocks; walking back off it steps down onto the floor behind)
+FOOT_R, EDGE = 10, 2   # the game's foot circle radius; the feet stop this much behind the top edge as drawn
 src = cv2.imread(G + 'src/courtyard.png')
 for t in TPL.values():
   x0, y0, x1, y1 = t['box']; t['img'] = src[y0:y1, x0:x1]
@@ -55,9 +59,12 @@ for a, rough in BLOCKS.items():
     side = 0.08 if t is TPL['R'] and (x0 + x1) / 2 > 1350 else 0
     fx = lambda u: round(bx0 + (u - side * max(0, 1 - u / 0.12)) * w, 1)
     fy = lambda v: round(by0 + v * h, 1)
-    front = by0 + h; height = round((1 - t["lip"]) * h); back = round(front - max(DEPTH * sc, 40), 1)
-    foot = [[fx(t['fx'][0]), back], [fx(t['fx'][1]), back], [fx(t['fx'][1]), round(front, 1)], [fx(t['fx'][0]), round(front, 1)]]
-    props.append({'id': f'block-{i}', 'foot': foot, 'h': height, 'top': height, 'stand': [round(front - STAND * sc, 1), round(front - 3, 1)],
+    front = by0 + h; height = round((1 - t["lip"]) * h); s0 = round(front - STAND * sc, 1)
+    back = round(s0 - height + FOOT_R - EDGE, 1)   # the floor its picture hides behind the top face (feet stop just behind its edge)
+    X0_, X1_ = fx(t['fx'][0]), fx(t['fx'][1])
+    foot = [[X0_, back], [X1_, back], [X1_, round(front, 1)], [X0_, round(front, 1)]]
+    base = [[X0_, s0], [X1_, s0], [X1_, round(front, 1)], [X0_, round(front, 1)]]
+    props.append({'id': f'block-{i}', 'foot': foot, 'base': base, 'h': height, 'top': height, 'stand': [s0, round(front - 3, 1)],
                   'occ': [[fx(u), fy(v)] for u, v in t['occ']]})
     print(a, i, 'box', [bx0, by0, bx0 + w, by0 + h], 'scale', round(float(sc), 2), 'match', round(float(mx), 3), 'height', height)
   D['areas'][a]['props'] = props

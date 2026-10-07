@@ -1,6 +1,7 @@
 // Speech bubbles over the speakers' heads (MapleStory style): parchment balloon (kit nine-slice) + tail, the line wrapped
 // inside, a few seconds then a fade. One bubble per speaker; a new line replaces the old one.
 import Phaser from 'phaser';
+import { HUD } from '../config/layout';
 
 const S = 0.28; // kit art px -> world px (rim ~11 px)
 const SLICE = { l: 40, r: 40, t: 34, b: 34 }; // bubble_light.png (344x143) borders
@@ -21,7 +22,7 @@ export class SpeechBubbles {
     const sc = this.scene;
     if (!sc.textures.exists('kit.bubble_light')) return;
     const t = sc.add.text(0, 0, text, {
-      fontFamily: '"Segoe UI", Arial, sans-serif', fontSize: '15px', color: '#2b1d0a', align: 'center',
+      fontFamily: HUD.bodyFont, fontSize: '15px', color: '#2b1d0a', align: 'center',
       wordWrap: { width: 220, useAdvancedWrap: true }, maxLines: 4, resolution: 2,
     }).setOrigin(0.5, 1);
     const w = Math.max(64, t.width + PAD.x * 2), h = t.height + PAD.y * 2;

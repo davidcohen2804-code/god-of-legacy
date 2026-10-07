@@ -5,7 +5,7 @@
 import Phaser from 'phaser';
 import { STAGE6 } from '../config/layout';
 import { actorDepth, clearLine, footAllowed } from './WorldGeometry';
-import { CombatBody, Kin, newKin, stepKin } from '../combat/Combat';
+import { CombatBody, Kin, newKin, settleOnBlocks, stepKin } from '../combat/Combat';
 import { HitTarget } from '../skills/HitGeometry';
 import { NAME_DEPTH } from '../game/ActorView';
 import { MobKind } from './Areas';
@@ -132,6 +132,7 @@ export class Monster {
     } else if (b.canAct(now) && !this.frozen) this.think(ms, w, dx, dy, dist);
     else if (b.state === 'free') { this.kin.vx = 0; this.kin.vy = 0; }
     const r = stepKin(this.kin, ms, b.gravityScale(now), (x, y) => w.blocked(this, x, y), this.moving && b.state === 'free' && !b.push);
+    settleOnBlocks(this.kin, ms, 0);   // knocked onto a block: onto its top face, never over the floor it hides
     if (this.moving && (r.blockedX || r.blockedY) && (this.ai === 'wander' || this.ai === 'home')) this.wanderTo = null; // bumped into something: pick another spot
     const ev = b.update(now, ms, r.landed, r.impactVz);
     if (ev === 'kdImpact') this.kdMs = 0;

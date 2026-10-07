@@ -102,7 +102,7 @@ const CSS = `
 .gol-hud .mm .view img.bg{position:absolute}
 .gol-hud .mm .mk{position:absolute;width:${H.minimap.marker}px;height:${H.minimap.marker}px;margin:-${H.minimap.marker / 2}px 0 0 -${H.minimap.marker / 2}px}
 .gol-hud .mm .na{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:${P.secondary};opacity:.7}
-.gol-hud .region{position:absolute;background:url("${K('region_plaque')}") center/100% 100% no-repeat;text-align:center;font:400 18px/${G.region.h}px Georgia,serif;color:#f3dcaa;letter-spacing:.5px;text-shadow:0 1px 2px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 40px}
+.gol-hud .region{position:absolute;background:url("${K('region_plaque')}") center/100% 100% no-repeat;text-align:center;font:700 15px/${G.region.h}px ${FONT_FAMILY};color:#f3dcaa;letter-spacing:.8px;text-shadow:0 1px 2px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 40px}
 .gol-hud .room{background:url("${K('toast')}") 0 0/100% 100% no-repeat}
 .gol-hud .target{background:url("${K('toast')}") 0 0/100% 100% no-repeat;filter:drop-shadow(0 3px 6px rgba(0,0,0,.5))}
 .gol-hud .target .tpf{position:absolute;left:22px;top:28px;width:60px;height:60px;border-radius:50%;overflow:hidden;background:#0a1018;box-shadow:0 0 0 2px #c99a45}
@@ -445,8 +445,8 @@ export class WorldHUD {
       el.btn.classList.toggle('empty', !s.iconUrl); // no skill art: the kit's empty socket, the small pictogram in it
       el.icon.src = icon;
       el.btn.setAttribute('aria-disabled', String(disabled || busy));
-      el.btn.setAttribute('aria-label', `${label} (${s.hotkey})${busy ? ' — Busy' : ''}`);
-      el.btn.title = busy ? `${label} — Busy` : `${label} — ${s.hotkey}`;
+      el.btn.setAttribute('aria-label', `${label}${s.hotkey ? ` (${s.hotkey})` : ''}${busy ? ' — Busy' : ''}`);
+      el.btn.title = busy ? `${label} — Busy` : s.hotkey ? `${label} — ${s.hotkey}` : label;
     }
     if (rem > 0) {
       const pct = (rem / cd!.durationMs) * 100;

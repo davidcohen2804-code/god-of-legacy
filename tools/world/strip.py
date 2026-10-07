@@ -271,6 +271,7 @@ for pid, p, ox in props:
   wp = {'id': pid, 'foot': [[q[0] + ox, q[1]] for q in p['foot']], 'h': p['h']}
   if 'top' in p: wp['top'] = p['top']
   if 'stand' in p: wp['stand'] = p['stand']
+  if 'base' in p: wp['base'] = [[q[0] + ox, q[1]] for q in p['base']]
   world_props.append(wp)
   if not p.get('occ'): continue
   qx = [q[0] + ox for q in p['occ']]; qy = [q[1] for q in p['occ']]
