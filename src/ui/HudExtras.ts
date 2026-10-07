@@ -12,6 +12,8 @@ const QL = { w: 1100, s: 1100 / 1578, x: (1920 - 1100) / 2, y: 190 };
 const QS = (v: number) => Math.round(v * QL.s);
 
 export interface TrackedQuest { title: string; objectives: { text: string; done: boolean }[] }
+/** A quest in the log: its page (summary + goals) under In Progress or Completed. */
+export interface LoggedQuest extends TrackedQuest { id: string; summary: string; done: boolean }
 
 const px = (v: number) => `${Math.round(v)}px`;
 const CSS = `
@@ -149,6 +151,8 @@ export class QuestLog {
   private head: HTMLDivElement;
   private body: HTMLDivElement;
   private tab = 0;
+  private quests: LoggedQuest[] = [];
+  private sel: string | null = null;
 
   constructor(parent: HTMLElement, private onClose: () => void) {
     ensureStyle();
@@ -166,6 +170,7 @@ export class QuestLog {
     });
     for (const cy of [300, 392, 485, 577, 670, 762, 855]) {
       const r = document.createElement('div'); r.className = 'row'; r.style.top = `${QS(cy - 30)}px`;
+      r.addEventListener('click', () => { const id = r.dataset.id; if (id) { this.sel = id; this.render(); } });
       this.root.appendChild(r); this.rows.push(r);
     }
     this.head = document.createElement('div'); this.head.className = 'pg h';
@@ -181,10 +186,34 @@ export class QuestLog {
   toggle(): void { if (this.isOpen) this.close(); else this.open(); }
   destroy(): void { this.root.remove(); }
 
-  /** No quest system yet: both tabs show their empty page. */
+  /** Quests taken (In Progress) and finished (Completed). */
+  setQuests(list: LoggedQuest[]): void {
+    const key = JSON.stringify(list);
+    if (key === JSON.stringify(this.quests)) return;
+    this.quests = list.map((q) => ({ ...q, objectives: q.objectives.map((o) => ({ ...o })) }));
+    if (this.isOpen) this.render();
+  }
+
   private render(): void {
-    for (const r of this.rows) r.textContent = '';
-    this.head.textContent = this.tab === 0 ? 'No quests in progress' : 'No completed quests';
-    this.body.textContent = this.tab === 0 ? 'Quests you accept from characters in the world appear here, with their goals and rewards.' : 'Finished quests are kept here.';
+    const list = this.quests.filter((q) => q.done === (this.tab === 1));
+    if (!list.some((q) => q.id === this.sel)) this.sel = list[0]?.id ?? null;
+    this.rows.forEach((r, i) => {
+      const q = list[i];
+      r.textContent = q ? q.title : ''; r.dataset.id = q?.id ?? '';
+      r.style.cursor = q ? 'pointer' : 'default'; r.style.color = q && q.id === this.sel ? '#ffe9a8' : '';
+    });
+    const q = list.find((x) => x.id === this.sel);
+    if (!q) {
+      this.head.textContent = this.tab === 0 ? 'No quests in progress' : 'No completed quests';
+      this.body.textContent = this.tab === 0 ? 'Quests you accept from characters in the world appear here, with their goals and rewards.' : 'Finished quests are kept here.';
+      return;
+    }
+    this.head.textContent = q.title;
+    this.body.textContent = '';
+    const sum = document.createElement('div'); sum.textContent = q.summary; sum.style.marginBottom = '14px'; this.body.appendChild(sum);
+    for (const o of q.objectives) {
+      const d = document.createElement('div'); d.textContent = `${o.done ? '✔' : '•'} ${o.text}`;
+      Object.assign(d.style, { fontWeight: '700', color: o.done ? '#3c6b22' : '#3a2a12', marginTop: '4px' }); this.body.appendChild(d);
+    }
   }
 }

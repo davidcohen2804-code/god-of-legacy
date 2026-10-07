@@ -1,5 +1,6 @@
-// Courtyard world model with elevation: walkable polygon + typed props (footprint / height / top surface / cover / occluder).
-// Coordinates: ground plane (gx, gy) in map pixels; an actor at height z renders at screen y = gy - z.
+// World model with elevation: walkable polygon + typed props (footprint / height / top surface / cover / occluder) of
+// the area you are in (the PvP arena: the Legacy Courtyard; the open world: the current area, set by setWorldGeometry).
+// Coordinates: ground plane (gx, gy) in world pixels; an actor at height z renders at screen y = gy - z.
 // Calibrated against the baked map: the pedestal's lid (screen y 407..455) sits 78px above its ground footprint
 // (front edge y 535), the planter's rim 60px (+ flowers) above its footprint (front edge y 721).
 import WORLD from '../data/legacy-courtyard.json';
@@ -20,7 +21,8 @@ export interface WorldObject {
   frontY: number;
 }
 
-export const WORLD_OBJECTS: WorldObject[] = [
+/** The PvP arena (Legacy Courtyard map) props. */
+const COURTYARD_OBJECTS: WorldObject[] = [
   {
     id: 'stone-pedestal',
     footprint: [[419, 487], [545, 487], [547, 535], [419, 535]],
@@ -34,8 +36,20 @@ export const WORLD_OBJECTS: WorldObject[] = [
     occluder: [[1300, 602], [1334, 582], [1376, 584], [1418, 609], [1435, 643], [1438, 690], [1435, 723], [1313, 723], [1297, 694], [1291, 655], [1293, 615]],
   },
 ];
+/** Props of the area you are in. Replaced in place (setWorldGeometry) — importers keep this same array. */
+export const WORLD_OBJECTS: WorldObject[] = [...COURTYARD_OBJECTS];
 
-const POLY = WORLD.walkablePolygon as Pt[];
+/** Walkable floor of the area you are in (world px). Replaced in place on an area change. */
+const POLY: Pt[] = (WORLD.walkablePolygon as Pt[]).map((p) => [p[0], p[1]] as Pt);
+
+/** The open world: the floor and props of the area the player is in (world coordinates). */
+export function setWorldGeometry(walk: readonly Pt[], objects: readonly WorldObject[]): void {
+  POLY.length = 0; for (const p of walk) POLY.push([p[0], p[1]]);
+  WORLD_OBJECTS.length = 0; WORLD_OBJECTS.push(...objects);
+}
+export const walkPolygon = (): readonly Pt[] => POLY;
+/** The PvP arena: the closed Legacy Courtyard floor and its two props. */
+export const useArenaGeometry = (): void => setWorldGeometry(WORLD.walkablePolygon as Pt[], COURTYARD_OBJECTS);
 
 export function pointInPoly(x: number, y: number, poly: readonly Pt[]): boolean {
   let c = false;

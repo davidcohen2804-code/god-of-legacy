@@ -17,7 +17,11 @@ export interface Character {
   look?: { hair: number; top: number; pants: number; shoes: number; hairColor?: number; skin?: number; face?: number };
   /** Cosmetic ownership + equipped slots (visual only). */
   cosmetics?: { owned: string[]; equipped: Record<string, string> };
+  /** Quests by id: taken (progress per objective) or finished. */
+  quests?: Record<string, QuestState>;
 }
+
+export interface QuestState { state: 'active' | 'done'; progress: number[] }
 
 export interface CharacterSlot {
   slotId: SlotId;

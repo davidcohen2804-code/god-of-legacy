@@ -23,7 +23,7 @@ export interface HudSlot {
   tier?: 'signature' | 'ultimate';
 }
 
-export interface HudMarker { id: string; kind: 'player' | 'remote' | 'enemy' | 'npc' | 'quest'; x: number; y: number }
+export interface HudMarker { id: string; kind: 'player' | 'remote' | 'enemy' | 'npc' | 'quest' | 'portal'; x: number; y: number }
 
 export interface HudState {
   mode: 'pve' | 'pvp';

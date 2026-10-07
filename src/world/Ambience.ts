@@ -63,6 +63,8 @@ export class CourtyardAmbience {
   private rays: Phaser.GameObjects.Image[] = [];
   private maskShape: Phaser.GameObjects.Graphics;
   private t = 0;
+  private fade = 1;
+  private base: { x: number; y: number }[] = [];
 
   constructor(scene: Phaser.Scene, worldW: number, worldH: number) {
     makeTextures(scene);
@@ -86,7 +88,17 @@ export class CourtyardAmbience {
         .setBlendMode(Phaser.BlendModes.ADD).setAngle(A.rays.angle).setAlpha(r.alpha)
         .setScale(r.width / 128, A.rays.length / 1024));
     }
+    this.base = [this.clouds, this.sun, ...this.rays].map((o) => ({ x: o.x, y: o.y }));
   }
+
+  /** Open world: the same light over the area whose picture starts at (ox, oy). */
+  moveTo(ox: number, oy: number): void {
+    [this.clouds, this.sun, ...this.rays].forEach((o, i) => o.setPosition(this.base[i].x + ox, this.base[i].y + oy));
+    this.maskShape.setPosition(ox, oy);
+  }
+
+  /** Faded out while the camera glides between areas. */
+  setAlpha(a: number): void { this.fade = Math.max(0, Math.min(1, a)); this.clouds.setAlpha(A.clouds.alpha * this.fade); }
 
   update(ms: number): void {
     this.t += ms;
@@ -95,8 +107,8 @@ export class CourtyardAmbience {
     this.clouds.tilePositionY += A.clouds.driftY * s / (A.clouds.tileScale * A.clouds.squash);
     // Very slow light "breathing" so the sun never feels static, never flickers.
     const k = Math.sin((this.t / A.sun.breatheMs) * Math.PI * 2);
-    this.sun.setAlpha(A.sun.alpha * (1 + 0.12 * k));
-    this.rays.forEach((r, i) => r.setAlpha(A.rays.list[i].alpha * (1 + 0.25 * Math.sin((this.t / A.rays.breatheMs + i * 0.33) * Math.PI * 2))));
+    this.sun.setAlpha(A.sun.alpha * (1 + 0.12 * k) * this.fade);
+    this.rays.forEach((r, i) => r.setAlpha(A.rays.list[i].alpha * (1 + 0.25 * Math.sin((this.t / A.rays.breatheMs + i * 0.33) * Math.PI * 2)) * this.fade));
   }
 
   destroy(): void {

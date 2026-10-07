@@ -3,12 +3,13 @@
 // Key names are Phaser KeyCodes names (keydown-<NAME> events).
 
 export const SLOT_COUNT = 14;
-export type BindAction = string; // 'slot0'..'slot13' | 'jump' | 'up' | 'left' | 'down' | 'right' | 'book' | 'bag' | 'shop' | 'quests'
+export type BindAction = string; // 'slot0'..'slot13' | 'jump' | 'up' | 'left' | 'down' | 'right' | 'book' | 'bag' | 'shop' | 'quests' | 'talk'
 
 export const DEFAULT_BINDINGS: Record<BindAction, string> = {
   slot0: 'SPACE', slot1: 'ONE', slot2: 'TWO', slot3: 'THREE', slot4: 'FOUR', slot5: 'FIVE', slot6: 'SIX', slot7: 'SEVEN',
   slot8: 'Q', slot9: 'R', slot10: 'F', slot11: 'G', slot12: 'C', slot13: 'V',
   jump: 'E', up: 'W', left: 'A', down: 'S', right: 'D', book: 'K', bag: 'I', shop: 'O', quests: 'J',
+  talk: 'Y', // talk to an NPC / step into a portal
 };
 export const ACTIONS: BindAction[] = Object.keys(DEFAULT_BINDINGS);
 

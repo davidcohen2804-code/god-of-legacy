@@ -1,6 +1,6 @@
 // Load / validate / save / delete / selected slot. Independent from Phaser.
 import schema from '../data/CharacterSelect_DataSchema.json';
-import { Character, CharacterSelectData, CharacterSlot, SlotId } from './CharacterTypes';
+import { Character, CharacterSelectData, CharacterSlot, QuestState, SlotId } from './CharacterTypes';
 
 const KEY = 'godoflegacy.characters';
 const MAX_SLOTS = 4;
@@ -60,6 +60,11 @@ function sanitize(raw: unknown): CharacterSelectData {
           equipped: Object.fromEntries(Object.entries(cos.equipped as Record<string, unknown>).filter(([, v]) => isStr(v))) as Record<string, string>,
         };
       }
+      const qs = (c as unknown as { quests?: Record<string, { state?: unknown; progress?: unknown }> }).quests;
+      if (qs && typeof qs === 'object') {
+        const ok = Object.entries(qs).filter(([, q]) => q && (q.state === 'active' || q.state === 'done') && Array.isArray(q.progress) && (q.progress as unknown[]).every((v) => Number.isInteger(v) && (v as number) >= 0));
+        if (ok.length) target.character.quests = Object.fromEntries(ok.map(([id, q]) => [id, { state: q.state as QuestState['state'], progress: [...(q.progress as number[])] }]));
+      }
     }
   }
   d.selectedSlotId = isSlotId(o.selectedSlotId) ? o.selectedSlotId : null;
@@ -111,6 +116,19 @@ class Store {
     const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
     if (!c) return;
     c.cosmetics = { owned: [...new Set(v.owned)], equipped: { ...v.equipped } };
+    this.save();
+  }
+
+  /** Quest states of a stored character (none for a new one). */
+  getQuests(charId: string): Record<string, QuestState> {
+    const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
+    return Object.fromEntries(Object.entries(c?.quests ?? {}).map(([id, q]) => [id, { state: q.state, progress: [...q.progress] }]));
+  }
+
+  setQuests(charId: string, q: Record<string, QuestState>): void {
+    const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
+    if (!c) return;
+    c.quests = Object.fromEntries(Object.entries(q).map(([id, v]) => [id, { state: v.state, progress: [...v.progress] }]));
     this.save();
   }
 

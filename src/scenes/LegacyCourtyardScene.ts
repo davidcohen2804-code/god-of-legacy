@@ -21,10 +21,15 @@ import { CHAT_MAX_LEN, ChatBox, ChatKind, EMOTES } from '../ui/ChatBox';
 import { SpeechBubbles } from '../ui/SpeechBubbles';
 import { QuestLog, QuestTracker } from '../ui/HudExtras';
 import { KeySettings } from '../ui/KeySettings';
-import { BindAction, loadBindings, slotKeyLabels } from '../game/KeyBindings';
+import { BindAction, keyLabel, loadBindings, slotKeyLabels } from '../game/KeyBindings';
 import { CourtyardAmbience } from '../world/Ambience';
 import { NO_PASSIVES, ORBS, PassiveStats, REGEN, WAR_LEAP, ownedPassives, passiveStats } from '../skills/Passives';
-import { WORLD_OBJECTS, actorDepth, footAllowed, insideArena, placementOk } from '../world/WorldGeometry';
+import { WORLD_OBJECTS, actorDepth, footAllowed, insideArena, placementOk, useArenaGeometry } from '../world/WorldGeometry';
+import { OpenWorld, preloadOpenWorld } from '../world/OpenWorld';
+import { AreaNpc, IDLE_LINES, MOB_KINDS, QUESTS, QuestDef, START, toWorld } from '../world/Areas';
+import type { Monster } from '../world/Monster';
+import { AreaTitle, DialogChoice, NpcDialog } from '../ui/WorldUI';
+import { QuestState } from '../characters/CharacterTypes';
 import { isQAMode } from '../qa/QAPanel';
 import { PvpController } from '../pvp/PvpController';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
@@ -173,9 +178,22 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   cosPanel?: CosmeticPanel;
   chat?: ChatBox;
   private bubbles?: SpeechBubbles;
-  private quests?: QuestTracker;
+  private questsUi?: QuestTracker;
   questLog?: QuestLog;
   keySettings?: KeySettings;
+  // ---- open world (PvE): areas, monsters, NPCs, potions, gold
+  world?: OpenWorld;
+  private npcDialog?: NpcDialog;
+  private areaTitle?: AreaTitle;
+  /** Quests taken / finished (saved with the character). */
+  quests: Record<string, QuestState> = {};
+  /** After a glide into a new area he walks on to its entry until you steer (or he arrives). */
+  private autoWalk: { x: number; y: number; left: number } | null = null;
+  private glideAlpha = 1;
+  /** Iron Grip: the monster held in the fist between the seize and the slam. */
+  private gripFoe: Monster | null = null;
+  private motes?: Phaser.GameObjects.Container;
+  private bindings: Record<BindAction, string> = loadBindings();
 
   constructor() { super('LegacyCourtyardScene'); }
 
@@ -192,7 +210,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const classes = pvp || !cls ? undefined : [cls];
     // Weapon masks only when your own look already needs them (others load on first need).
     const masks = me && cls && wantsWeaponMasks(cls, CharacterStore.getCosmetics(me.id).equipped as Equipped) ? [cls] : [];
-    if (!this.textures.exists(T.map.key)) this.load.image(T.map.key, T.map.file);
+    if (pvp) { if (!this.textures.exists(T.map.key)) this.load.image(T.map.key, T.map.file); } // the arena map
+    else preloadOpenWorld(this); // the open world: the start area and its neighbours (the rest streams in)
     if (!this.textures.exists(CT.dummy.key)) this.load.image(CT.dummy.key, CT.dummy.file);
     preloadBodies(this, classes, masks);
     if (me) loadBaseLook(this, genderOf(me), headLookOf(me)); // your hair, face and skin: layers on every base frame
@@ -203,7 +222,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     preloadPanelArt(this);
     preloadLife(this);
     for (let n = 0; n < EMOTES; n++) if (!this.textures.exists(`kit.emote_${n}`)) this.load.image(`kit.emote_${n}`, `assets/final/ui/kit/emote_${n}.png`);
-    showLoading(this, pvp ? 'PVP ARENA' : 'LEGACY COURTYARD');
+    showLoading(this, pvp ? 'PVP ARENA' : 'GOD OF LEGACY');
   }
 
   create(data?: { pvpRoom?: string }): void {
@@ -228,23 +247,33 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.playerHP = pvpRoom ? PVP.maxHp : S6.player.maxHp;
     this.dir = 'right'; this.aim = { x: 1, y: 0 };
 
-    // Map + fixed camera (contain), crisp pixels.
+    // Map + camera (contain: one area fills the screen), crisp pixels.
     const T = ATLAS.textures;
-    this.add.image(0, 0, T.map.key).setOrigin(0, 0).setDepth(-1);
     const cam = this.cameras.main;
     cam.setZoom(Math.min(cam.width / WORLD.camera.worldWidth, cam.height / WORLD.camera.worldHeight));
-    cam.centerOn(WORLD.coordinateSpace.width / 2, WORLD.coordinateSpace.height / 2);
     cam.setRoundPixels(true);
-    this.ambience = new CourtyardAmbience(this, WORLD.coordinateSpace.width, WORLD.coordinateSpace.height);
     // Very low density warm dust drifting in the sun (never over telegraphs: faint, small, sparse).
-    addMotes(this, { x: 60, y: 220, w: WORLD.coordinateSpace.width - 120, h: WORLD.coordinateSpace.height - 260 }, 7,
+    this.motes = addMotes(this, { x: 60, y: 220, w: WORLD.coordinateSpace.width - 120, h: WORLD.coordinateSpace.height - 260 }, 7,
       { depth: 1500, tint: 0xffd9a0, size: [5, 9], speed: [3, 8], drift: 10, alpha: 0.32 });
-    // Baked-map occlusion: each prop silhouette is redrawn from the map at its footprint depth (no floor crop).
-    this.occluders = WORLD_OBJECTS.map((o) => {
-      const g = this.make.graphics({}, false);
-      g.fillStyle(0xffffff).fillPoints(o.occluder.map(([x, y]) => new Phaser.Geom.Point(x, y)), true);
-      return this.add.image(0, 0, T.map.key).setOrigin(0, 0).setDepth(o.frontY).setMask(g.createGeometryMask());
-    });
+    this.quests = CharacterStore.getQuests(character.id);
+    if (pvpRoom) {
+      useArenaGeometry();
+      this.add.image(0, 0, T.map.key).setOrigin(0, 0).setDepth(-1);
+      cam.centerOn(WORLD.coordinateSpace.width / 2, WORLD.coordinateSpace.height / 2);
+      this.ambience = new CourtyardAmbience(this, WORLD.coordinateSpace.width, WORLD.coordinateSpace.height);
+      // Baked-map occlusion: each prop silhouette is redrawn from the map at its footprint depth (no floor crop).
+      this.occluders = WORLD_OBJECTS.map((o) => {
+        const g = this.make.graphics({}, false);
+        g.fillStyle(0xffffff).fillPoints(o.occluder.map(([x, y]) => new Phaser.Geom.Point(x, y)), true);
+        return this.add.image(0, 0, T.map.key).setOrigin(0, 0).setDepth(o.frontY).setMask(g.createGeometryMask());
+      });
+    } else {
+      // The open world: areas joined by walking; the camera glides from one to the next.
+      this.world = new OpenWorld(this, {
+        onArea: (a) => { const o = toWorld(a.id, [0, 0]); this.motes?.setPosition(o.x, o.y); this.areaTitle?.show(a.name); },
+      });
+      this.world.onNpcClick = (n) => this.talkTo(n);
+    }
 
     if (!pvpRoom) {
       const CT = COMBAT_ASSETS.textures;
@@ -257,7 +286,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       // No hostile NPC in the world (ENTER WORLD): fighting happens in the PvP arena (sparring knight).
     }
 
-    const { x, y } = WORLD.spawn;
+    const { x, y } = this.world ? toWorld(START.area, [START.x, START.y]) : WORLD.spawn;
     this.kin = newKin(x, y);
     this.body = new CombatBody(this.kin, !!pvpRoom);
     const lvl = character.level, allOpen = isQAMode() || !!pvpRoom;
@@ -287,7 +316,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (pvpRoom) this.view.setVisible(false);
     if (isQAMode()) (window as unknown as { __combatQA: unknown }).__combatQA = { finalSkill, kitFor, WORLD_OBJECTS, footAllowed, placementOk };
 
-    this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k));
+    this.bindings = loadBindings();
+    this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), this.bindings, () => this.onTalk());
     const stop = () => { this.ci?.reset(); };
     this.game.events.on(Phaser.Core.Events.BLUR, stop);
     this.game.events.on(Phaser.Core.Events.HIDDEN, stop);
@@ -309,18 +339,30 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const ov = this.hud.overlay;
     this.chat = new ChatBox(ov, (text, kind) => this.sendChat(text, kind), (on) => this.chatTyping(on), (n) => { this.bubbles?.emote(this.localId, n, this.simMs); this.pvp?.sendChat('', undefined, n); });
     this.bubbles = new SpeechBubbles(this);
-    this.quests = new QuestTracker(ov);
+    this.questsUi = new QuestTracker(ov);
     this.questLog = new QuestLog(ov, () => this.ci?.reset());
     this.keySettings = new KeySettings(ov, Array.from({ length: 14 }, (_, i) => ({ name: this.kit[i]?.name ?? '', icon: this.kit[i] ? iconUrl(this.kit[i]) : '' })),
       (b) => this.applyKeys(b), (open) => this.chatTyping(open));
     this.chat.add({ kind: 'system', text: pvpRoom ? 'Welcome to the PvP Arena! Press Enter to chat.' : 'Welcome to God Of Legacy! Press Enter to chat.' });
+    if (this.world) {
+      this.areaTitle = new AreaTitle(ov);
+      this.areaTitle.show(this.world.area.name);
+      this.npcDialog = new NpcDialog(ov, () => this.ci?.reset());
+      this.npcDialog.talkKey = keyLabel(this.bindings.talk);
+      this.world.setTalkKey(keyLabel(this.bindings.talk));
+      this.refreshQuests();
+      this.chat.add({ kind: 'system', text: `Follow the paths off the edge of an area to travel on. Talk to people with ${keyLabel(this.bindings.talk) || 'the talk key'}.` });
+    }
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, (_t: number, d: number) => {
       if (!this.hud) return;
       this.hud.layout(); this.skillBook?.layout(); this.cosPanel?.layout();
       if (this.view) this.hud.update(this.hudState(), this.simMs, d);
     });
     const kb = this.input.keyboard!;
-    const esc = () => { if (this.skillBook?.open || this.cosPanel?.open || this.questLog?.isOpen) { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); } else if (pvpRoom) exitArena(); };
+    const esc = () => {
+      if (this.npcDialog?.isOpen) { this.npcDialog.close(); return; }
+      if (this.skillBook?.open || this.cosPanel?.open || this.questLog?.isOpen) { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); } else if (pvpRoom) exitArena();
+    };
     kb.on('keydown-ESC', esc);
     if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name, gender: genderOf(character), ...(headLookOf(character) ? { look: headLookOf(character)! } : {}) });
 
@@ -347,9 +389,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.cosPanel?.destroy(); this.cosPanel = undefined;
       this.chat?.destroy(); this.chat = undefined;
       this.bubbles?.destroy(); this.bubbles = undefined;
-      this.quests?.destroy(); this.quests = undefined;
+      this.questsUi?.destroy(); this.questsUi = undefined;
       this.questLog?.destroy(); this.questLog = undefined;
       this.keySettings?.destroy(); this.keySettings = undefined;
+      this.world?.destroy(); this.world = undefined;
+      this.npcDialog?.destroy(); this.npcDialog = undefined;
+      this.areaTitle?.destroy(); this.areaTitle = undefined;
+      this.gripFoe = null; this.autoWalk = null;
       this.view?.destroy(); this.view = undefined;
       this.character = undefined;
       this.dummy = undefined; this.dummyBar = undefined; this.dummyState = undefined;
@@ -372,13 +418,20 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.fx.update(ms, []);
       const j = () => (Math.random() - 0.5) * 7; // impact shake of the victims (DFO hit feel)
       if (this.enemy?.alive && this.simMs - this.enemy.body.lastHitAt < 200) this.enemy.shake(j(), j() * 0.4);
+      for (const m of this.world?.mobs ?? []) if (m.alive && this.simMs - m.body.lastHitAt < 200) m.shake(j(), j() * 0.4);
       if (this.dummy && this.dummyState && this.simMs - this.dummyState.body.lastHitAt < 200) this.dummy.setPosition(D.x + j(), D.y - this.dummyState.kin.z);
       return;
     }
     this.simMs += ms;
     const now = this.simMs;
     this.ci.update(now);
+    if (this.world?.transit) { this.stepGlide(ms); return; } // gliding over to the next area
     this.stepPlayer(ms, now);
+    if (this.world) {
+      this.stepMonsters(ms, now);
+      // walking out through a path at the picture's edge (free, on the ground, not in a menu) → glide to the next area
+      if (this.dead < 0 && this.body.state === 'free' && !this.rt.ownRun && this.kin.grounded && this.kin.z < 1 && !this.inputLocked()) this.world.checkExit(this.kin);
+    }
     this.rt.update(ms);
     this.stepLingers(now);
     this.stepPassives(ms, now);
@@ -394,6 +447,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.updateBot(ms, now);
     this.reactionFx(ms);
     this.renderPlayer(this.fx.hitStopLeft > 0 ? 0 : ms);
+    this.updateWorldUi(ms);
     this.bubbles?.update(now, (id) => {
       if (id === this.localId) return this.dead < 0 && this.view ? { x: this.kin.x, y: this.kin.y, z: this.kin.z, head: this.view.headHeight } : null;
       const r = this.pvp?.remotes.get(id); return r && r.alive ? { x: r.x, y: r.y, z: r.z, head: r.headHeight } : null;
@@ -465,17 +519,26 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private stepLocomotion(ms: number, now: number): void {
     const k = this.kin, inp = this.ci!, b = this.body;
     const rooted = b.hard.active(now) && b.hard.kind === 'root';
-    const speed = (inp.running ? PHYS.run : PHYS.walk) * b.moveScale(now) * this.passives.moveMul;
-    steer(k, rooted ? 0 : inp.moveX * speed, rooted ? 0 : inp.moveY * speed, ms, now < this.leapUntil ? 0.12 : 1); // War Leap keeps its burst
-    if (inp.hasMove && !rooted) this.dir = dirOf(inp.moveX, inp.moveY, this.dir); // side view only: up/down keeps the facing
-    if (k.grounded) { this.leapUsed = false; if (!rooted && inp.takeJump()) { jump(k, PHYS.jumpVz * this.passives.jumpMul); this.setMode('takeoff'); } }
-    else if (this.passives.airLeap && !this.leapUsed && !rooted && this.modeT > PHYS.takeoffMs && inp.takeJump()) this.warLeap(now);
+    const locked = this.inputLocked(); // talking to an NPC: he stands still
+    let mx = locked ? 0 : inp.moveX, my = locked ? 0 : inp.moveY;
+    const aw = this.autoWalk; // just arrived in an area: walks on in until you steer
+    if (aw) {
+      aw.left -= ms;
+      const dx = aw.x - k.x, dy = aw.y - k.y, d = Math.hypot(dx, dy);
+      if ((mx || my) || d < 8 || aw.left <= 0) this.autoWalk = null; else { mx = dx / d; my = dy / d; }
+    }
+    const speed = (inp.running && !locked ? PHYS.run : PHYS.walk) * b.moveScale(now) * this.passives.moveMul;
+    steer(k, rooted ? 0 : mx * speed, rooted ? 0 : my * speed, ms, now < this.leapUntil ? 0.12 : 1); // War Leap keeps its burst
+    if ((mx || my) && !rooted) this.dir = dirOf(mx, my, this.dir); // side view only: up/down keeps the facing
+    const jumpKey = inp.takeJump() && !locked; // a jump pressed while talking is dropped
+    if (k.grounded) { this.leapUsed = false; if (!rooted && jumpKey) { jump(k, PHYS.jumpVz * this.passives.jumpMul); this.setMode('takeoff'); } }
+    else if (this.passives.airLeap && !this.leapUsed && !rooted && this.modeT > PHYS.takeoffMs && jumpKey) this.warLeap(now);
     const sp = Math.hypot(k.vx, k.vy);
     if (!k.grounded) { if (this.mode !== 'takeoff' || this.modeT > PHYS.takeoffMs) this.setMode('air'); return; }
     if (this.mode === 'land' && this.modeT < LAND_MS && !inp.hasMove) return;
     if (this.mode === 'recover' && this.modeT < RECOVER_MS && !inp.hasMove) return;
     if (sp > 12) {
-      const m: Mode = inp.running && sp > PHYS.walk + 20 ? 'run' : 'walk';
+      const m: Mode = inp.running && !locked && sp > PHYS.walk + 20 ? 'run' : 'walk';
       if (m !== this.mode) { if (this.mode !== 'walk' && this.mode !== 'run') this.loopT = 0; this.setMode(m); } // every walk starts on its first step (walk↔run keep the stride)
       this.footDust(sp);
     } else if (this.mode !== 'idle') this.setMode('idle');
@@ -501,8 +564,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const phase = run.phase === 'startup' ? 'startup' : run.phase === 'active' ? 'active' : 'recovery';
     const scale = s.move[phase];
     if (s.dash && run.phase === 'active') { this.dashMotion(run); if (s.carry) this.carryTarget(run); return; }
-    if (s.id === 'iron_grip' && this.gripHeld && this.enemy?.alive) { // the seized foe rides the fist up overhead until the slam
-      const en = this.enemy, h1 = s.hits[1]?.at ?? 400, p = Math.max(0, Math.min(1, (run.elapsed - T.startup) / Math.max(1, h1)));
+    const held = this.gripFoe?.alive ? this.gripFoe : this.enemy?.alive ? this.enemy : null;
+    if (s.id === 'iron_grip' && this.gripHeld && held) { // the seized foe rides the fist up overhead until the slam
+      const en = held, h1 = s.hits[1]?.at ?? 400, p = Math.max(0, Math.min(1, (run.elapsed - T.startup) / Math.max(1, h1)));
       const lift = 1 - Math.pow(1 - Math.min(1, p / 0.8), 3);
       const reach = 30 - 18 * lift;
       en.kin.x = k.x + run.aim.x * reach; en.kin.y = k.y + run.aim.y * reach + 1; en.kin.z = k.z + 40 + 120 * lift;
@@ -593,6 +657,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (target === 'enemy') { if (!this.enemy?.alive) return; this.enemy.damage(extra); }
       else if (target === 'dummy') { if (!this.dummyState?.alive) return; this.damageDummy(extra); }
       else if (target === BOT_ID) { const b = this.bot; if (!b) return; b.hp = Math.max(1, b.hp - extra); b.view.setHp(b.hp); }
+      else if (target.startsWith('mob:')) {
+        const m = this.mobById(target); if (!m?.alive) return;
+        if (m.damage(extra, this.simMs)) { this.questKill(m); if (this.gripFoe === m) { this.gripFoe = null; this.gripHeld = false; } }
+      }
       else return;
       this.fx!.finalSlash(at, side);
       this.fx!.damageNumber(at, extra, false, 0, true);
@@ -652,7 +720,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Impaling Rush: the confirmed target (enemy or sparring knight) rides on the blade in front of the dashing warrior; a wall stops it hard. */
   private carryTarget(run: CastRun): void {
-    const k = this.kin, e = this.enemy?.alive ? this.enemy : this.bot && this.simMs - this.bot.body.lastHitAt < 400 ? this.bot : null;
+    const mob = (this.world?.mobs ?? []).filter((m) => m.alive && this.simMs - m.body.lastHitAt < 400).sort((a, b) => b.body.lastHitAt - a.body.lastHitAt)[0];
+    const k = this.kin, e = mob ?? (this.enemy?.alive ? this.enemy : this.bot && this.simMs - this.bot.body.lastHitAt < 400 ? this.bot : null);
     if (!e || run.confirmedAt < 0) return;
     if (Math.hypot(e.kin.x - k.x, e.kin.y - k.y) > 110) return;
     const nx = k.x + run.aim.x * 46, ny = k.y + run.aim.y * 46;
@@ -675,11 +744,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Physical reaction feedback on the enemy: knockback skid dust, heavy landing slam, bounce puff. */
   private skidT = 0;
   private reactionFx(ms: number): void {
-    const e = this.enemy; if (!e?.alive) return;
-    const k = e.kin, sp = Math.hypot(k.vx, k.vy);
     this.skidT -= ms;
-    if (k.grounded && e.body.push && sp > 140 && this.skidT <= 0) { this.fx!.dust(k.x - (k.vx / sp) * 14, k.y, 46, 0.7); this.skidT = 55; }
-    if (e.lastEv === 'kdImpact') { this.fx!.dust(k.x, k.y, 130, 0.95); this.fx!.shockwave(k.x, k.y, 70, 0xd8c8a8); this.cameras.main.shake(90, 0.004); }
+    for (const e of [this.enemy, ...(this.world?.mobs ?? [])]) {
+      if (!e?.alive) continue;
+      const k = e.kin, sp = Math.hypot(k.vx, k.vy);
+      if (k.grounded && e.body.push && sp > 140 && this.skidT <= 0) { this.fx!.dust(k.x - (k.vx / sp) * 14, k.y, 46, 0.7); this.skidT = 55; }
+      if (e.lastEv === 'kdImpact') { this.fx!.dust(k.x, k.y, 130, 0.95); this.fx!.shockwave(k.x, k.y, 70, 0xd8c8a8); this.cameras.main.shake(90, 0.004); }
+    }
   }
 
   /** Nearest live enemy within `range` whose direction is within the facing half-plane (dot > minDot). */
@@ -728,6 +799,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const e = this.enemy;
     if (e && e.alive && Math.abs(e.z - z) < 50 && Math.hypot(x - e.x, y - e.y) < STAGE6.enemy.collisionRadius + R) return true;
     if (this.dummyState?.alive && z < 40 && Math.hypot(x - D.x, y - D.y) < D.collisionRadius + R) return true;
+    for (const m of this.world?.mobs ?? []) if (m.alive && Math.abs(m.z - z) < 50 && Math.hypot(x - m.x, y - m.y) < STAGE6.enemy.collisionRadius * m.kind.scale + R) return true;
     return false;
   }
 
@@ -754,6 +826,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       tint = (255 << 16) | (c(0xe0, 255) << 8) | c(0xa0, 255);
     }
     if (this.dead >= 0) { alpha = 1 - (1 - P6.deathAlpha) * Math.min(1, this.dead / P6.deathFadeMs); tint = null; fill = false; } // the body just fades; the ghost rises (DeathFx)
+    alpha *= this.glideAlpha; // stepping out of / into an area
     v.render(ms, pose, k.x, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
     this.renderRadiant(pose, dir);
     this.renderEyes(pose, dir);
@@ -929,7 +1002,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Space / 1–7 and HUD clicks share this handler: start now, cancel on a confirmed hit, or buffer. */
   useSlot(i: number): void {
     if (!this.view || !this.pvpReady || this.dead >= 0) return;
-    if (this.skillBook?.open || this.cosPanel?.open) return;
+    if (this.skillBook?.open || this.cosPanel?.open || this.inputLocked()) return;
     const own = this.rt?.ownRun;
     if (own && own.skill.id === 'judgment_blade' && this.kit[i]?.id === 'judgment_blade') { // V again during the sequence: one more blade, at once
       this.jbWant = Math.min(3, this.jbWant + 1);
@@ -938,7 +1011,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!this.tryStartSlot(i)) this.ci?.bufferAction(i);
   }
 
-  private onJumpKey(): void { if (this.pvpReady && this.dead < 0) this.ci?.queueJump(); }
+  private onJumpKey(): void { if (this.pvpReady && this.dead < 0 && !this.inputLocked()) this.ci?.queueJump(); }
 
   /** Own damage buffs right now: War Cry +20%, Radiant Blade +15% (same as against monsters). */
   private ownDamageMul(): number { return (this.simMs < this.warCryUntil ? 1.2 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * this.passiveDmgMul(); }
@@ -1084,8 +1157,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Key Settings saved: the input layer is rebuilt on the new keys; tray and skill book show them. */
   private applyKeys(b: Record<BindAction, string>): void {
     this.ci?.destroy();
-    this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), b);
+    this.bindings = b;
+    this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), b, () => this.onTalk());
     this.hud?.setKeyLabels(slotKeyLabels(b));
+    this.world?.setTalkKey(keyLabel(b.talk)); if (this.npcDialog) this.npcDialog.talkKey = keyLabel(b.talk);
   }
 
   // ======================================================================= chat
@@ -1146,6 +1221,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const out: HitTarget[] = [];
     if (run.own) {
       if (this.enemy) out.push(this.enemy.target());
+      for (const m of this.world?.mobs ?? []) out.push(m.target());
       if (this.dummy && this.dummyState) out.push({ id: 'dummy', kind: 'enemy', x: D.x, y: D.y, z: this.dummyState.kin.z, radius: D.collisionRadius, height: 80, alive: this.dummyState.alive, invulnerable: this.simMs < this.dummyState.body.invulnUntil });
       if (this.bot) out.push(this.bot.target(this.simMs));
     } else if (this.view && this.pvpReady) {
@@ -1212,10 +1288,42 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (back) this.fx!.callout(at, 'BACK ATTACK!!', '#ffb04a', row++);
       if (crit) this.fx!.callout(at, 'CRITICAL!!', '#ff5a6a', row++);
     }
+    else if (t.id.startsWith('mob:')) {
+      const m = this.mobById(t.id); if (!m?.alive) return;
+      const from = this.casterPos(run.attackerId) ?? run.origin;
+      const counter = m.ai === 'attack' && m.body.state === 'free';
+      const back = m.body.state === 'free' && (from.x - m.kin.x) * (m.facing === 'left' ? -1 : 1) < -12;
+      const own = run.attackerId === this.localId, ch = own ? this.chanceMul(m.body) : 1;
+      out = m.body.receive(run.attackerId, s, hit, from, now);
+      if (out.damage > 0) { m.hitFromX = from.x; m.faceToward(from.x); }
+      if (run.attackerId === this.localId && (out.pushX || out.pushY) && s.id !== 'shield_slam') this.momentum = { x: out.pushX * 0.7, y: out.pushY * 0.7, left: 120 };
+      if (s.id === 'iron_grip' && hit === s.hits[0]) { m.kin.grounded = false; m.kin.z = Math.max(m.kin.z, 40); m.kin.vz = 0; m.body.state = 'launched'; m.body.push = null; this.gripHeld = true; this.gripFoe = m; this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 70); this.fx!.callout(at, 'GRAB!!', '#ffd27a', 0); }
+      if (s.id === 'iron_grip' && hit === s.hits[1]) {
+        this.gripHeld = false; this.gripFoe = null;
+        const nx = from.x + run.aim.x * 62, ny = from.y + run.aim.y * 62;
+        if (footAllowed(nx, ny, 0, 10)) { m.kin.x = nx; m.kin.y = ny; }
+        m.kin.z = Math.min(m.kin.z, 30);
+        this.fx!.crack(m.kin.x, m.kin.y, 120); this.fx!.shockwave(m.kin.x, m.kin.y, 200, 0xffc070); this.fx!.callout(at, 'SLAM!!', '#ff9a4a', 1); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 120); this.cameras.main.shake(220, 0.011);
+      }
+      const crit = hit.damage > 0 && Math.random() < 0.12 + (own ? this.passives.critAdd : 0);
+      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.passives.critDmgAdd : 0) : 1) * (own ? this.ownDamageMul() * ch : 1);
+      out.damage = Math.round(out.damage * mult);
+      const killed = m.damage(out.damage, now);
+      let row = 0;
+      if (counter) this.fx!.callout(at, 'COUNTER!!', '#7ff0ff', row++);
+      if (back) this.fx!.callout(at, 'BACK ATTACK!!', '#ffb04a', row++);
+      if (crit) this.fx!.callout(at, 'CRITICAL!!', '#ff5a6a', row++);
+      if (killed) { // defeated: counts for the quests that ask for it
+        this.questKill(m);
+        if (this.gripFoe === m) { this.gripFoe = null; this.gripHeld = false; }
+      }
+    }
     if (!out) return;
     this.confirm(run, hit, t.id, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!s.endsCombo, t.z);
     if (out.reaction !== 'armor') this.finalAttack(run, t.id, at, out.damage);
   }
+
+  private mobById(id: string): Monster | undefined { return this.world?.mobs.find((m) => m.id === id); }
 
   /** Attacker-side confirmed hit (PvE immediate; PvP from the victim's confirmation). */
   private confirm(run: CastRun | null, hit: HitEvent, target: string, at: V3, damage: number, idx: number, comboId: number, reaction: string, ends: boolean, tz: number): void {
@@ -1228,8 +1336,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     this.fx!.confirmed(s, hit, at, damage, reaction, true, idx);
     const same = this.combo.comboId === comboId && this.combo.target === target;
-    const max = target === 'enemy' ? (this.enemy?.maxHp ?? 1) : target === 'dummy' ? D.maxHp : 100;
-    const tb = target === 'enemy' ? this.enemy?.body : target === 'dummy' ? this.dummyState?.body : target === BOT_ID ? this.bot?.body : undefined;
+    const mob = target.startsWith('mob:') ? this.mobById(target) : undefined;
+    const max = mob ? mob.maxHp : target === 'enemy' ? (this.enemy?.maxHp ?? 1) : target === 'dummy' ? D.maxHp : 100;
+    const tb = mob ? mob.body : target === 'enemy' ? this.enemy?.body : target === 'dummy' ? this.dummyState?.body : target === BOT_ID ? this.bot?.body : undefined;
     const state = ends ? 'FINISHER' : tb?.state === 'knockdown' && tb.kdPhase !== 'fall' ? 'DOWN' : tz > 8 || reaction === 'launch' || reaction === 'float' || tb?.state === 'launched' ? 'AERIAL' : 'STAND';
     this.combo = { count: idx, at: this.simMs, comboId, target, label: state, dmg: (same ? this.combo.dmg : 0) + damage, max };
     this.confirmedLog.push({ skill: s.id, target, damage, idx, reaction, at: this.simMs, z: Math.round(tz) });
@@ -1307,6 +1416,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private updateDeath(): void {
     if (this.pvp) { if (this.dead >= PVP.respawnMs) this.respawnPvp(); return; }
     if (this.dead >= P6.deathFadeMs + P6.deathPauseMs) {
+      if (this.world) { // the open world: you wake up in town
+        if (this.dead < 1e8) { this.dead = 1e9; this.world.jumpTo(START.area, START.x, START.y, this.kin, () => { const p = this.kin; this.respawnAt(p.x, p.y, this.maxHpNow()); }); }
+        return;
+      }
       this.respawnAt(WORLD.spawn.x, WORLD.spawn.y, this.maxHpNow());
       if (this.enemy?.alive) this.enemy.reset();
     }
@@ -1462,6 +1575,149 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   get equippedItems(): Equipped { return this.equipped; }
 
+  // ======================================================================= open world
+
+  /** Talking to an NPC or shopping: the hero stands and listens (no moving, attacking or jumping). */
+  private inputLocked(): boolean { return this.warping || !!this.npcDialog?.isOpen; }
+  /** Carried by the Temple portal's light (a moment of fade): no input. */
+  private warping = false;
+
+  /** One frame of the camera glide between two areas: he steps out, the camera slides through the mist, he steps in. */
+  private stepGlide(ms: number): void {
+    const w = this.world!, k = this.kin;
+    const d = w.transitDir;
+    if (Math.abs(d.x) > 0.25) this.dir = d.x < 0 ? 'left' : 'right';
+    const end = w.stepTransit(ms, k, (a) => { this.glideAlpha = a; });
+    k.vx = d.x * PHYS.walk; k.vy = d.y * PHYS.walk; // for the walk cycle (he is moved by the glide)
+    if (this.mode !== 'walk') { this.setMode('walk'); this.loopT = 0; }
+    this.modeT += ms; this.loopT += ms;
+    if (end) { k.vx = 0; k.vy = 0; this.autoWalk = { x: end.x, y: end.y, left: 1600 }; }
+    this.rt!.update(ms);
+    this.fx!.update(ms, this.rt!.projectiles.map((e) => e.p));
+    this.renderPlayer(ms);
+    this.updateWorldUi(ms);
+  }
+
+  /** The monsters of the area you are in. */
+  private stepMonsters(ms: number, now: number): void {
+    const mobs = this.world!.mobs, k = this.kin;
+    for (const m of mobs) m.update(ms, {
+      player: { x: k.x, y: k.y, z: k.z - k.supportZ, alive: this.dead < 0 },
+      now,
+      blocked: (self, x, y) => (this.dead < 0 && this.kin.z < 40 && Math.hypot(x - k.x, y - k.y) < STAGE6.enemy.collisionRadius * self.kind.scale + R)
+        || mobs.some((o) => o !== self && o.alive && Math.hypot(x - o.x, y - o.y) < 26 * Math.max(o.kind.scale, self.kind.scale)),
+      onStrikePlayer: (m, dmg) => this.enemyStrike(dmg, { x: m.x, y: m.y }),
+    });
+  }
+
+  /** World props, NPC prompts, gold on the ground, potion bar (every frame). */
+  private updateWorldUi(ms: number): void {
+    if (!this.world) return;
+    this.world.update(ms, { x: this.kin.x, y: this.kin.y, z: this.kin.z, alive: this.dead < 0 });
+  }
+
+  /** Talk key: next line in a conversation, else talk to the NPC in reach, else step into the portal in reach. */
+  private onTalk(): void {
+    if (!this.world || !this.pvpReady) return;
+    if (this.npcDialog?.isOpen) { this.npcDialog.advance(); return; }
+    if (this.dead >= 0 || this.world.transit || this.warping || this.rt?.ownRun || this.body.state !== 'free') return;
+    const n = this.world.near;
+    if (n?.kind === 'npc') this.talkTo(n.npc);
+    else if (n?.kind === 'portal') this.usePortal();
+  }
+
+  /** An NPC's conversation: a quest to offer, the one running, the one to hand in — or just his lines. */
+  private talkTo(n: AreaNpc): void {
+    if (!this.npcDialog || !this.world || this.dead >= 0 || this.world.transit) return;
+    const np = toWorld(this.world.area.id, [n.x, n.y]);
+    if (Math.hypot(this.kin.x - np.x, this.kin.y - np.y) > 260) return; // walk up to them first
+    this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close();
+    this.ci?.reset(); this.autoWalk = null;
+    if (Math.abs(np.x - this.kin.x) > 4) this.dir = np.x < this.kin.x ? 'left' : 'right'; // turns to face them
+    const say = (lines: string[], choices?: DialogChoice[]) => this.npcDialog!.open({ name: n.name, title: n.title, portrait: `assets/world/npc/${n.art}_face.png`, lines, choices });
+    const mine = QUESTS.filter((q) => q.giver === n.id);
+    const ready = mine.find((q) => this.quests[q.id]?.state === 'active' && this.questReady(q));
+    if (ready) { say(ready.done, [{ label: ready.complete, main: true, run: () => this.finishQuest(ready) }]); return; }
+    const running = mine.find((q) => this.quests[q.id]?.state === 'active');
+    if (running) { say(running.progress); return; }
+    const offer = mine.find((q) => !this.quests[q.id]);
+    if (offer) { say(offer.offer, [{ label: offer.accept, main: true, run: () => this.takeQuest(offer) }, { label: offer.decline, run: () => undefined }]); return; }
+    say(n.lines?.length ? n.lines : IDLE_LINES);
+  }
+
+  // ---- quests (the NPC's first missions)
+  private questReady(q: QuestDef): boolean {
+    const st = this.quests[q.id]; if (!st) return false;
+    return q.objectives.every((o, i) => o.kind === 'talk' || (st.progress[i] ?? 0) >= (o.count ?? 1));
+  }
+
+  private takeQuest(q: QuestDef): void {
+    this.quests[q.id] = { state: 'active', progress: q.objectives.map(() => 0) };
+    this.saveQuests();
+    this.chat?.add({ kind: 'system', text: `New quest: ${q.title}. Press ${keyLabel(this.bindings.quests) || 'J'} for the quest log.` });
+    this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'NEW QUEST', '#ffe08a', 0);
+  }
+
+  private finishQuest(q: QuestDef): void {
+    const st = this.quests[q.id]; if (!st) return;
+    st.state = 'done'; st.progress = q.objectives.map((o) => o.count ?? 1);
+    this.saveQuests();
+    this.chat?.add({ kind: 'system', text: `Quest complete: ${q.title}` });
+    this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'QUEST COMPLETE', '#9dff9a', 0);
+    this.fx?.shockwave(this.kin.x, this.kin.y, 110, 0xffe2a0);
+  }
+
+  /** A monster fell: kill goals of running quests that ask for its kind move on. */
+  private questKill(m: Monster): void {
+    const kind = Object.entries(MOB_KINDS).find(([, k]) => k === m.kind)?.[0];
+    for (const q of QUESTS) {
+      const st = this.quests[q.id]; if (st?.state !== 'active') continue;
+      q.objectives.forEach((o, i) => {
+        if (o.kind !== 'kill' || o.mob !== kind) return;
+        const need = o.count ?? 1, before = st.progress[i] ?? 0; if (before >= need) return;
+        st.progress[i] = before + 1;
+        this.chat?.add({ kind: 'system', text: `${m.name}: ${st.progress[i]} / ${need}` });
+        if (st.progress[i] >= need) this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'GOAL DONE', '#ffe08a', 0);
+      });
+      this.saveQuests();
+    }
+  }
+
+  private saveQuests(): void { if (this.character) CharacterStore.setQuests(this.character.id, this.quests); this.refreshQuests(); }
+
+  /** Tracker (left side), quest log (J) and the markers over the quest givers. */
+  private refreshQuests(): void {
+    const rows = QUESTS.filter((q) => this.quests[q.id]).map((q) => {
+      const st = this.quests[q.id], done = st.state === 'done', ready = !done && this.questReady(q);
+      return {
+        id: q.id, title: q.title, summary: q.summary, done,
+        objectives: q.objectives.map((o, i) => ({
+          text: o.kind === 'kill' ? `${o.text}  ${Math.min(st.progress[i] ?? 0, o.count ?? 1)}/${o.count ?? 1}` : o.text,
+          done: done || (o.kind === 'kill' ? (st.progress[i] ?? 0) >= (o.count ?? 1) : false),
+        })).filter((o, i) => q.objectives[i].kind !== 'talk' || ready || done),
+      };
+    });
+    this.questsUi?.set(rows.filter((r) => !r.done));
+    this.questLog?.setQuests(rows);
+    for (const a of Object.values(QUESTS.reduce((m, q) => ({ ...m, [q.giver]: q.giver }), {} as Record<string, string>))) {
+      const mine = QUESTS.filter((q) => q.giver === a);
+      const ready = mine.some((q) => this.quests[q.id]?.state === 'active' && this.questReady(q));
+      const running = mine.some((q) => this.quests[q.id]?.state === 'active');
+      const open = mine.some((q) => !this.quests[q.id]);
+      this.world?.setNpcMark(a, ready ? 'ready' : running ? 'progress' : open ? 'available' : null);
+    }
+  }
+
+  /** The Temple gate's portal: a flash of light, then the Legacy Courtyard. */
+  private usePortal(): void {
+    const w = this.world; if (!w) return;
+    const a = w.area; if (!a.portal) return;
+    this.ci?.reset(); this.autoWalk = null;
+    this.fx?.shockwave(this.kin.x, this.kin.y, 120, 0xffe2a0);
+    this.warping = true; // no input while the light carries you
+    w.jumpTo(START.area, START.x, START.y, this.kin, () => { this.warping = false; this.setMode('idle'); });
+  }
+
   // ======================================================================= HUD
 
   private hudState(): HudState {
@@ -1492,7 +1748,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       },
       target: alive && this.pvpReady ? this.hudTarget() : null,
       slots,
-      minimap: { label: WORLD.name, imageUrl: ATLAS.textures.map.file, markers, bounds: { minX: 0, minY: 0, width: WORLD.coordinateSpace.width, height: WORLD.coordinateSpace.height } },
+      minimap: this.world ? this.world.minimap({ x: k.x, y: k.y }) : { label: WORLD.name, imageUrl: ATLAS.textures.map.file, markers, bounds: { minX: 0, minY: 0, width: WORLD.coordinateSpace.width, height: WORLD.coordinateSpace.height } },
       room: pvp ? { label: `ROOM ${pvp.room}`, playerCount: pvp.connected ? pvp.remotes.size + 1 : 0, maxPlayers: PVP.maxPlayers } : null,
       combatFeedback: showCombo ? { count: this.combo.count, chain: `${this.combo.label}  ·  TOTAL ${Math.min(999, Math.round((this.combo.dmg / this.combo.max) * 100))}%`, expiresAtMs: this.combo.at + COMBO_SHOW_MS } : null,
     };
@@ -1517,6 +1773,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       gauges: { stand: b.gauge.stand / GAUGE.stand, air: b.gauge.air / GAUGE.air, down: b.gauge.down / GAUGE.down },
     });
     if (e?.alive) consider(Math.hypot(e.x - k.x, e.y - k.y), { id: 'enemy', name: 'Cursed Swordsman', type: 'Enemy', hp: e.hp, maxHp: S6.enemy.maxHp, effects: this.statusEffects(e.body, now), ...combat(e.body, e.kin.z) });
+    for (const m of this.world?.mobs ?? []) if (m.alive) consider(Math.hypot(m.x - k.x, m.y - k.y), { id: m.id, name: m.name, type: 'Monster', hp: Math.round(m.hp), maxHp: m.maxHp, effects: this.statusEffects(m.body, now), ...combat(m.body, m.kin.z) });
     if (this.dummy && this.dummyState?.alive) consider(Math.hypot(D.x - k.x, D.y - k.y), { id: 'dummy', name: 'Training Dummy', type: 'Training Target', hp: this.dummyState.hp, maxHp: D.maxHp, effects: [], ...combat(this.dummyState.body, this.dummyState.kin.z) });
     const bt = this.bot;
     if (bt) consider(Math.hypot(bt.x - k.x, bt.y - k.y), {
