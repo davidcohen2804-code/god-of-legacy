@@ -14,6 +14,8 @@ export const WORLD_H = STRIP.h;
 
 export interface AreaNpc {
   id: string; name: string; title: string; x: number; y: number; art: string;
+  /** Faces left (the art faces right). */
+  flip?: boolean;
   /** quest: gives the quests whose `giver` is this NPC; talk: just its lines. */
   role: 'quest' | 'talk'; lines?: string[];
 }

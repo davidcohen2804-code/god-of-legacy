@@ -4830,6 +4830,62 @@
      1090,
      452
     ]
+   ],
+   "npcs": [
+    {
+     "id": "gareth",
+     "name": "Master Gareth",
+     "title": "Warrior Master",
+     "x": 360,
+     "y": 560,
+     "art": "warrior_master",
+     "role": "talk",
+     "lines": [
+      "A blade is only as strong as the will that holds it.",
+      "Grow stronger, young one. When you are ready, the path of the Warrior will be waiting."
+     ]
+    },
+    {
+     "id": "seraphine",
+     "name": "Master Seraphine",
+     "title": "Book Mage Master",
+     "x": 520,
+     "y": 615,
+     "art": "mage_master",
+     "role": "talk",
+     "lines": [
+      "Every page of this book holds a storm. Few can read it.",
+      "Come back when your mind is ready, and I will teach you the path of the Book Mage."
+     ]
+    },
+    {
+     "id": "rowan",
+     "name": "Master Rowan",
+     "title": "Archer Master",
+     "x": 1180,
+     "y": 615,
+     "art": "archer_master",
+     "role": "talk",
+     "lines": [
+      "Patience. The arrow flies true only for those who wait.",
+      "When you are ready, the path of the Archer will be open to you."
+     ],
+     "flip": true
+    },
+    {
+     "id": "hayato",
+     "name": "Master Hayato",
+     "title": "Samurai Master",
+     "x": 1340,
+     "y": 560,
+     "art": "samurai_master",
+     "role": "talk",
+     "lines": [
+      "One cut. One breath. Nothing more.",
+      "Return when your spirit is calm, and I will show you the path of the Samurai."
+     ],
+     "flip": true
+    }
    ]
   }
  },
