@@ -7,7 +7,10 @@
   "swing1": 3,
   "swing2": 3,
   "swing3": 3,
-  "run": 4
+  "run": 4,
+  "high": 3,
+  "low": 3,
+  "air": 3
  },
  "female": {
   "idle": 1,
@@ -17,6 +20,9 @@
   "swing1": 3,
   "swing2": 3,
   "swing3": 3,
-  "run": 4
+  "run": 4,
+  "high": 3,
+  "low": 3,
+  "air": 3
  }
 }

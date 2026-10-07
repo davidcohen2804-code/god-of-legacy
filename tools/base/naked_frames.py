@@ -18,8 +18,11 @@
 #   "follow" the head goes with the neck (the frame is not moved under the standing head's x)
 #   "swayK"  (walk) the head keeps K of GPT's own forward / back shift of that frame (MapleStory: the same head moves
 #            a little with each step); "bobN": the head sits N px lower on the neck (the low point of the step)
-#   "asd:<move>"  the same size as that move, measured by the heads' inscribed circles (works with swords / raised arms)
+#   "asd:<move>"  the same size as that move, measured by the heads' inscribed circles (works with swords / raised arms);
+#            "asd:<move>@0,1": by the heads of cells 0 and 1 of this move only
 #   "clean:N"  cell N of the move has GPT's head clear: what other frames draw over their head (arm, sword) stays in front
+#   "track"  (with clean:N) GPT's head found by matching cell N's head drawing, not by the figure's outline (a sword or a
+#            fist raised above the head)
 #   "sword"  the sword is found (blade + hilt) and goes to the mask's G channel (not the body labels)
 #   "swapg"  the two legs' tones exchanged (found at GPT's size): GPT drew the same leg forward again
 #   "airK"   the move's frames keep K of GPT's height off the ground (heads level as drawn, the lowest feet grounded;
@@ -39,6 +42,8 @@ TONE = np.array([1.0, 0.91, 0.83], np.float32)                       # far leg =
 spec = json.load(open(sys.argv[1])); gender = spec['gender']
 sys.path.insert(0, H); import sword as SWORD                         # the sword in hand: one picture in every frame's fist
 PIC = SWORD.picture(); REACH = SWORD.reach(PIC)
+SW_PAD = 48; SWORD_W = S + 2 * SW_PAD                                  # the sword strips' cells: wider, the same middle (a thrust
+                                                                       #   reaches past the body's cell)
 OUT = G + 'public/assets/final/body/naked/' + gender + '/'
 bm = np.array(Image.open(G + 'public/assets/final/body/warrior/base/idle_m.png'))[:, :S, 0]
 HIPX = float(np.median(np.nonzero(bm == 200)[1]))                     # where the beginner always stood
@@ -146,7 +151,9 @@ def gpt_sword(f):
     ys, xs = np.nonzero(L == k)
     if len(ys) < 300: continue
     c = np.cov(np.vstack([xs, ys])); ev, vec = np.linalg.eigh(c)
-    if ev[1] < 8 * max(ev[0], 1e-3) or np.sqrt(ev[1]) < 25: continue
+    cm_ = L == k; short_ok = np.sqrt(ev[1]) >= 20 and mx[cm_].mean() >= 210 and (B - R)[cm_].mean() >= 16   # a sword planted in the
+    if ev[1] < 8 * max(ev[0], 1e-3) or (np.sqrt(ev[1]) < 25 and not short_ok): continue   # ground shows its lower half only (bright cool
+                                                                                            # steel, not the underwear's grey band)
     blade |= L == k
     u = vec[:, 1]; t = (xs - xs.mean()) * u[0] + (ys - ys.mean()) * u[1]
     p0, p1 = (xs[t.argmin()], ys[t.argmin()]), (xs[t.argmax()], ys[t.argmax()])
@@ -298,6 +305,23 @@ def _find_head(fig, hd, r):
   return tx + (hd['cx'] - x0) * r, ty + (hd['row'] - y0) * r, m, score
 
 
+def track_head(e, fig, ref):
+  """GPT's head in this frame found by its own drawing: the move's clean head (ref: its colours and mask, GPT draws the
+  same head in every figure) laid where it matches best — an arm or a sword in front of part of it costs a fixed amount,
+  no more (a raised arm or sword makes the figure's top useless for finding the head) → neck point (x, y), head mask."""
+  gm = ref['gm']; ys, xs = np.nonzero(gm); te = ref['e'][ys, xs]
+  def err(dx, dy):
+    Y, X = ys + dy, xs + dx
+    ok = (Y >= 0) & (Y < S) & (X >= 0) & (X < S)
+    if ok.mean() < 0.9: return 1e9
+    Y, X = Y[ok], X[ok]
+    return float((np.minimum(np.abs(e[Y, X] - te[ok]).sum(-1), 150) + 150 * ~fig[Y, X]).mean())
+  best = min((err(dx, dy), dx, dy) for dy in range(-75, 76, 3) for dx in range(-75, 76, 3))
+  best = min((err(dx, dy), dx, dy) for dy in range(best[2] - 3, best[2] + 4) for dx in range(best[1] - 3, best[1] + 4))
+  _, dx, dy = best
+  return ref['ax'] + dx, ref['ay'] + dy, np.roll(np.roll(gm, dy, 0), dx, 1), -best[0]
+
+
 def occluders(e, fig, lab, gm, zone, ay, ref, ax, reach):
   """What GPT drew in front of its own head — the sword and the arm holding it — kept in front of the standing head.
   The arm = what is within an arm's length of the sword's hilt, going through the inside of the arm (not across
@@ -333,13 +357,13 @@ def occluders(e, fig, lab, gm, zone, ay, ref, ax, reach):
   return occ, whole
 
 
-def put_head(e, a, fig, lab, hd, r, follow=False, ref=None, search=False, sway=0.0, bob=0, hold=None):
+def put_head(e, a, fig, lab, hd, r, follow=False, ref=None, search=False, sway=0.0, bob=0, hold=None, track=False):
   """GPT's head off, the standing head on (the same drawing), on GPT's neck point; its neck goes behind the body (the
   frame keeps its own neck). follow=False: the head stays near the standing x and the frame moves under it (walk):
   sway = how much of GPT's own head shift is kept (MapleStory: the same head, a little forward / back each step);
   bob = the head sits this much lower on the neck (the step's low point). follow=True: the frame stays (planted feet),
-  the head goes with it."""
-  ax, ay, gm, _ = find_head(fig, hd, r, search)
+  the head goes with it. track: GPT's head found by its drawing (the move's clean head, ref), not by its outline."""
+  ax, ay, gm, _ = track_head(e, fig, ref) if track and ref is not None and 'gm' in ref else find_head(fig, hd, r, search)
   dy = int(round(ay - hd['row'])) + bob; hx = int(round(ax - hd['cx']))
   dx = 0
   if not follow: keep_ = int(round(sway * hx)); dx, hx = keep_ - hx, keep_
@@ -558,7 +582,13 @@ def _clothes(Fe, Fa, sword, fn):
                                                                #   hand / an outline; a pointed foot reaches further out of a boot)
       cov = (ab > 0.05) & ~m_ & near_ & ~allp & (parts | (nd.binary_dilation(parts, iterations=2) & (lum_b < 100)))   # (our soft edge too)
       under = {'top': 80, 'pants': 200}.get(name)
-      if under: cov |= bare & (lab_b == under) & ~m_ & nd.binary_dilation(m_, iterations=12)
+      if under: cov |= bare & (lab_b == under) & ~m_ & nd.binary_dilation(m_, iterations=30)   # (all of it: GPT may draw the hem higher)
+      if name == 'shoes' and (lab_b == 200).any():             # a leg GPT drew a little elsewhere: our leg's bare end (skin of a
+        sk_ = bare & (lab_b == 60) & (lum_b >= 100)            #   leg: joined to the shorts, no outline between) gets the boot
+        LL_, nl_ = nd.label(sk_); th_ = np.unique(LL_[sk_ & nd.binary_dilation(lab_b == 200, iterations=3)]); th_ = th_[th_ > 0]
+        left_ = np.isin(LL_, th_) & ~taken & ~m_
+        left_ &= np.arange(shape[0])[:, None] > np.nonzero((lab_b == 200).any(1))[0].max() - 4   # below the shorts
+        if left_.any(): cov |= left_ | (nd.binary_dilation(left_, iterations=2) & bare & (lum_b < 100) & ~taken)
       cov &= ~taken
     if cov.any():                                              # its colour there: our body's outer outline → the piece's outline,
       inner = m_ & ~ink & (Fa > 0.5)                           #   the rest the piece's cloth around (smoothed: no streaks, none of
@@ -712,8 +742,9 @@ for anim, cells in spec['anims'].items():
       sc = (HEADW / rf['headw']) * (rf['box'][3] - rf['box'][1]) / (tf['box'][3] - tf['box'][1])
     samed = [o for o in opts if str(o).startswith('asd:')]
     if samed:                                                  # the same size as that move by the heads' inscribed circles
-      ref_ = samed[0][4:]; cl = [o for o in opts if str(o).startswith('clean:')]
-      hd_ = figures(cells[int(cl[0][6:])][0])[cells[int(cl[0][6:])][1]]['headd'] if cl else np.mean([figures(cc[0])[cc[1]]['headd'] for cc in cells if cc[0] == path])
+      ref_ = samed[0][4:]; cl = [o for o in opts if str(o).startswith('clean:')]; only_ = None
+      if '@' in ref_: ref_, only_ = ref_.split('@'); only_ = [int(v) for v in only_.split(',')]   # (the heads of these cells only)
+      hd_ = figures(cells[int(cl[0][6:])][0])[cells[int(cl[0][6:])][1]]['headd'] if cl else np.mean([figures(cc[0])[cc[1]]['headd'] for k_, cc in enumerate(cells) if cc[0] == path and (only_ is None or k_ in only_)])
       sc = move_sc[ref_] * move_hd[ref_] / hd_
     same = [o for o in opts if str(o).startswith('as:')]
     if same:                                                   # drawn at the size of that move's GPT image: its scale
@@ -736,8 +767,8 @@ for anim, cells in spec['anims'].items():
         k = int(round(feet0 - feet_x(fig))); e, a, fig, lab = [np.roll(v, k, 1) for v in (e, a, fig, lab)]; shift[1] += k
     if cl and c == order[0] and anim not in refs:              # the clean GPT head every frame of the move is compared to
       rr = sc * figures(path)[idx]['headd'] / HEADD
-      rax, ray, _, _ = find_head(fig, HEAD, rr, True)
-      refs[anim] = dict(e=e.copy(), fig=fig.copy(), ax=rax, ay=ray)
+      rax, ray, rgm, _ = find_head(fig, HEAD, rr, True)
+      refs[anim] = dict(e=e.copy(), fig=fig.copy(), ax=rax, ay=ray, gm=rgm)
     hxy = [0, 0]; hfront = None; headm = HEAD['head'] if anim == 'idle' else np.zeros((S, S), bool)
     if anim != 'idle' and 'ownhead' not in opts:
       if samed: r = sc * figures(path)[idx]['headd'] / HEADD       # GPT's head size / the standing head's
@@ -752,7 +783,7 @@ for anim, cells in spec['anims'].items():
         holds[anim] = float(np.mean(xs_))
       e, a, fig, lab, info = put_head(e, a, fig, lab, HEAD, r, follow='feet' in opts or 'follow' in opts,
                                       ref=refs.get(anim), search=bool(samed), sway=sway[0] if sway else 0.0, bob=bob[0] if bob else 0,
-                                      hold=(holds[anim], hold[0]) if hold else None)
+                                      hold=(holds[anim], hold[0]) if hold else None, track='track' in opts and c != order[0])
       hfront = info.pop('front'); headm = info.pop('head'); shift[1] += info['dx']
       print(' ', anim, c, 'scale', round(sc, 4), 'head', info, 'sword arm over hair', int(hfront.sum())); hxy = [int(info['hx']), int(info['dy'])]
     heads[anim].append((c, hxy))
@@ -761,12 +792,14 @@ for anim, cells in spec['anims'].items():
     if sw.any():
       mx_, mn_ = e.max(-1), e.min(-1); sat_ = (mx_ - mn_) / np.maximum(mx_, 1)   # guard / pommel bits beside the hand: grey steel
       sw = sw | (nd.binary_dilation(sw, iterations=6) & fig & (lab == 60) & (sat_ < 0.28) & (mx_ < 215) & ~((e[..., 0] - e[..., 2]) > 30))
+      gold_ = (e[..., 2] < 0.4 * e[..., 0]) & (sat_ > 0.55) & (e[..., 0] > 110)   # a brass guard / pommel beside the hand
+      sw = sw | (nd.binary_dilation(sw, iterations=8) & fig & gold_)
       rest = fig & ~sw; Lr, nr = nd.label(rest)                # the blade's own outline bits left in the air (small, thin): the sword's too
       if nr > 1:
         szr = nd.sum(rest, Lr, range(1, nr + 1)); dt_ = nd.distance_transform_edt(rest)
         sw = sw | np.isin(Lr, [i + 1 for i in range(nr) if szr[i] < 0.03 * szr.max() and dt_[Lr == i + 1].max() <= 2.5])
-      grip = swing_grip(sw, fig, lab, e); sw0_ = sw.copy()      # where GPT's sword is: our sword goes there,
-      front_ = nd.binary_dilation(sw, iterations=3)             #   in front of the body only where GPT's was
+      grip = swing_grip(sw, fig, lab, e)[:2] + (REACH,); sw0_ = sw.copy()   # where GPT's sword is: our sword goes there
+      front_ = nd.binary_dilation(sw, iterations=3)             #   (always its own size), in front only where GPT's was
       body = fig & ~sw; inner = nd.binary_fill_holes(body) & sw
       _, (iy_, ix_) = nd.distance_transform_edt(~body, return_indices=True)
       e = np.where(inner[..., None], e[iy_, ix_], e); a = np.where(inner, 1.0, np.where(sw, 0, a))
@@ -775,7 +808,14 @@ for anim, cells in spec['anims'].items():
     else:                                                      # the other moves: the sword in the near fist, at the move's angle,
       at_ = SWORD.fist_at(fig, lab, e, spec['hands'][anim][c]); grip = (at_, spec['sword_angle'][anim], REACH); front_ = None   # in front
     beh_ = None if front_ is None else (fig & ~front_).astype(np.float32)   # behind the head / an arm, as GPT drew it
-    gcells[anim]['sword'][c] = SWORD.place(PIC, grip[0], grip[1], grip[2], (S, S), hide=SWORD.fist_mask(fig, grip[0]), behind=beh_)
+    padx = lambda m_: np.pad(m_, ((0, 0), (SW_PAD, SW_PAD)))     # the sword's cells are wider (a blade thrust far forward)
+    L_ = SWORD.place(PIC, (grip[0][0] + SW_PAD, grip[0][1]), grip[1], grip[2], (S, SWORD_W), hide=padx(SWORD.fist_mask(fig, grip[0])),
+                     behind=None if beh_ is None else padx(beh_))
+    if front_ is not None:                                     # GPT's sword planted in the ground (its point at the feet):
+      body_ = fig & ~sw0_                                      #   ours ends where GPT's went into the ground
+      swb_, bb_ = np.nonzero(sw0_.any(1))[0].max(), np.nonzero(body_.any(1))[0].max()
+      if swb_ >= bb_ - 8: L_[swb_ + 1:, :, 3] = 0
+    gcells[anim]['sword'][c] = L_
     if anim == 'idle': IDLE_GRIP = grip
     D = dressed(path, idx)
     if D and front_ is not None:                               # GPT's sword's last bits by the fist (a pommel, a guard tip):
@@ -828,9 +868,10 @@ for anim, cells in spec['anims'].items():
   for piece, cl_ in gcells[anim].items():                      # the worn gear strips: the frames of the move side by side
     if any(L_ is None for L_ in cl_): continue                  # (every frame has it, or the move has none)
     cl_ = [L_.astype(np.float32) for L_ in cl_]
+    W_ = SWORD_W if piece == 'sword' else S
     for ci, cols in enumerate([cl_] if piece == 'sword' else gear_colours(cl_, piece)):
-      st_ = np.zeros((S, n * S, 4), np.uint8)
-      for c, L_ in enumerate(cols): st_[:, c * S:(c + 1) * S] = np.dstack([L_[..., :3], L_[..., 3] * 255]).clip(0, 255).astype(np.uint8)
+      st_ = np.zeros((S, n * W_, 4), np.uint8)
+      for c, L_ in enumerate(cols): st_[:, c * W_:(c + 1) * W_] = np.dstack([L_[..., :3], L_[..., 3] * 255]).clip(0, 255).astype(np.uint8)
       if st_[..., 3].any(): Image.fromarray(st_).save(OUT + f'gear/{anim}_{piece}' + ('' if piece == 'sword' else f'_c{ci}') + '.png', optimize=True)
       if piece == 'top':                                       # the sleeve on the arm drawn over the hair: the shirt there again
         so_ = st_.copy(); so_[..., 3] = (st_[..., 3] * omasks[anim]).round().astype(np.uint8)
@@ -859,7 +900,7 @@ for a_ in OVER: Image.fromarray(ostrips[a_]).save(OUT + a_ + '_o.png', optimize=
 print(gender, NSTY, 'hairstyles x', NCOL, 'colours,', NFACE, 'faces; sword arm over the head in', OVER)
 np_ = G + 'src/data/naked-look.json'                            # per gender: hairstyles (with a forehead layer?), hair colours, faces,
 nh = json.load(open(np_)) if os.path.exists(np_) else {}        #   moves with a sword-arm strip
-nh[gender] = dict(styles=NSTY, colors=NCOL, gaps=GAPS, faces=NFACE, over=OVER, gear={k: v for k, v in GEARHAVE.items() if v}); json.dump(nh, open(np_, 'w'), indent=1)
+nh[gender] = dict(styles=NSTY, colors=NCOL, gaps=GAPS, faces=NFACE, over=OVER, gear={k: v for k, v in GEARHAVE.items() if v}, swordCell=SWORD_W); json.dump(nh, open(np_, 'w'), indent=1)
 # what each gender has (the game draws standing for the rest)
 lp = G + 'src/data/naked-anims.json'
 have = json.load(open(lp)) if os.path.exists(lp) else {}

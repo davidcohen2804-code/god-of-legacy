@@ -35,10 +35,25 @@
    ["naked_both_swing3.png", 2, "asd:walk", "farR", "feet", "clean:0", "sword"]
   ],
   "run": [
-   ["naked_both_run.png", 0, "asd:walk", "follow", "air1.0", "hold0.3", "lift4"],
-   ["naked_both_run.png", 1, "asd:walk", "follow", "air1.0", "hold0.3"],
-   ["naked_both_run34.png", 0, "asd:walk", "sc:0", "follow", "air1.0", "hold0.3", "lift4"],
-   ["naked_both_run34.png", 1, "asd:walk", "sc:0", "follow", "air1.0", "hold0.3", "swapg"]
+   ["naked_both_run_sword.png", 0, "asd:walk@0, 1", "follow", "air1.0", "hold0.3", "lift4", "sword"],
+   ["naked_both_run_sword.png", 1, "asd:walk@0, 1", "follow", "air1.0", "hold0.3", "sword"],
+   ["naked_both_run_sword.png", 2, "asd:walk", "sc:0", "follow", "air1.0", "hold0.3", "lift4", "sword"],
+   ["naked_both_run_sword.png", 3, "asd:walk", "sc:0", "follow", "air1.0", "hold0.3", "sword"]
+  ],
+  "high": [
+   ["naked_both_high.png", 0, "asd:walk", "farR", "feet", "clean:2", "track", "sword"],
+   ["naked_both_high.png", 1, "asd:walk", "farR", "feet", "clean:2", "track", "sword"],
+   ["naked_both_high.png", 2, "asd:walk", "farR", "feet", "clean:2", "track", "sword"]
+  ],
+  "low": [
+   ["naked_both_low.png", 0, "asd:walk", "farR", "feet", "sword"],
+   ["naked_both_low.png", 1, "asd:walk", "farR", "feet", "sword"],
+   ["naked_both_low.png", 2, "asd:walk", "farR", "feet", "sword"]
+  ],
+  "air": [
+   ["naked_both_air.png", 0, "asd:walk", "farR", "follow", "clean:2", "track", "sword", "air0", "lift24"],
+   ["naked_both_air.png", 1, "asd:walk", "farR", "follow", "clean:2", "track", "sword", "air0", "lift24"],
+   ["naked_both_air.png", 2, "asd:walk", "farR", "follow", "clean:2", "track", "sword"]
   ]
  },
  "preview": ["naked_male_set1.png", 0],

@@ -12,7 +12,9 @@
   "over": [
    "swing1",
    "swing2",
-   "swing3"
+   "swing3",
+   "high",
+   "air"
   ],
   "gear": {
    "pants": [
@@ -23,7 +25,10 @@
     "swing1",
     "swing2",
     "swing3",
-    "run"
+    "run",
+    "high",
+    "low",
+    "air"
    ],
    "shoes": [
     "idle",
@@ -33,7 +38,10 @@
     "swing1",
     "swing2",
     "swing3",
-    "run"
+    "run",
+    "high",
+    "low",
+    "air"
    ],
    "top": [
     "idle",
@@ -43,12 +51,16 @@
     "swing1",
     "swing2",
     "swing3",
-    "run"
+    "run",
+    "high",
+    "low",
+    "air"
    ],
    "topo": [
     "swing1",
     "swing2",
-    "swing3"
+    "swing3",
+    "air"
    ],
    "sword": [
     "idle",
@@ -58,9 +70,13 @@
     "swing1",
     "swing2",
     "swing3",
-    "run"
+    "run",
+    "high",
+    "low",
+    "air"
    ]
-  }
+  },
+  "swordCell": 448
  },
  "female": {
   "styles": 4,
@@ -75,7 +91,9 @@
   "over": [
    "swing1",
    "swing2",
-   "swing3"
+   "swing3",
+   "high",
+   "air"
   ],
   "gear": {
    "pants": [
@@ -86,7 +104,10 @@
     "swing1",
     "swing2",
     "swing3",
-    "run"
+    "run",
+    "high",
+    "low",
+    "air"
    ],
    "shoes": [
     "idle",
@@ -96,7 +117,10 @@
     "swing1",
     "swing2",
     "swing3",
-    "run"
+    "run",
+    "high",
+    "low",
+    "air"
    ],
    "top": [
     "idle",
@@ -106,12 +130,17 @@
     "swing1",
     "swing2",
     "swing3",
-    "run"
+    "run",
+    "high",
+    "low",
+    "air"
    ],
    "topo": [
     "swing1",
     "swing2",
-    "swing3"
+    "swing3",
+    "high",
+    "air"
    ],
    "sword": [
     "idle",
@@ -121,8 +150,12 @@
     "swing1",
     "swing2",
     "swing3",
-    "run"
+    "run",
+    "high",
+    "low",
+    "air"
    ]
-  }
+  },
+  "swordCell": 448
  }
 }

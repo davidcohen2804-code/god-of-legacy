@@ -181,7 +181,7 @@ const nakedKey = (g: string, anim = 'idle') => `naked-${g}-${anim}`;
 export interface BaseLook { hair: number; hairColor: number; skin: number; face: number }
 /** Per gender: hairstyles (and which have a forehead layer), hair colours, faces (0 = the head's own), moves with a
  *  sword-arm strip (tools/base/naked_frames.py). */
-export const NAKED_LOOK = NAKED_LOOK_LIST as Record<string, { styles: number; colors: number; gaps: boolean[]; faces: number; over: string[]; gear?: Partial<Record<GearPiece, string[]>> }>;
+export const NAKED_LOOK = NAKED_LOOK_LIST as Record<string, { styles: number; colors: number; gaps: boolean[]; faces: number; over: string[]; gear?: Partial<Record<GearPiece, string[]>>; swordCell?: number }>;
 /** Worn gear drawn on the base character, per move (tools/base/naked_frames.py: naked/<g>/gear/<move>_<piece>[_c<colour>].png,
  *  same frames as the body strip): the clothes in their colour, the sword in hand; 'topo' = the shirt again over the sword
  *  arm where that arm is drawn over the hair (<move>_o.png). naked-look.json lists the moves each has. */
@@ -204,7 +204,8 @@ export function loadGear(scene: Phaser.Scene, g: string, w: GearLook | null, sta
     for (const anim of anims) {
       const k = gearKey(g, anim, p, c);
       if (scene.textures.exists(k) || pending(scene, k)) continue;
-      scene.load.spritesheet(k, gearPath(g, anim, p, c), { frameWidth: CELL, frameHeight: CELL }); queued = true;
+      // the sword's cells are wider than the body's (a thrust reaches past it), the same middle: drawn centred the same
+      scene.load.spritesheet(k, gearPath(g, anim, p, c), { frameWidth: p === 'sword' ? NAKED_LOOK[g]?.swordCell ?? CELL : CELL, frameHeight: CELL }); queued = true;
     }
   }
   if (queued && start && !scene.load.isLoading()) scene.load.start();
@@ -267,7 +268,7 @@ const NB: Record<string, { st: string[]; ac: string[]; rc: string[] }> = {
 };
 /** Until a pose set is drawn, the nearest drawn pose stands in. */
 const NB_STAND_IN: Record<string, string> = { 'high:0': 'swing1:0', 'high:1': 'swing1:1', 'high:2': 'alert:1', 'low:0': 'swing1:2', 'low:1': 'swing2:1',
-  'low:2': 'swing2:1', 'air:0': 'swing3:2', 'air:1': 'jump:0', 'air:2': 'swing1:1' };
+  'low:2': 'swing2:1', 'air:0': 'swing3:2', 'air:1': 'swing1:0', 'air:2': 'swing1:2' };
 /** Whirlwind: drawn back, then spinning (the horizontal strike, facing one way then the other), then the follow-through. */
 const SPIN_MS = 70;
 function nakedSkillBeat(q: Extract<PoseQuery, { k: 'skill' }>): string | null {
@@ -288,7 +289,8 @@ function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): P
     const c = baseLoop(q.state, q.speed); frame = Math.floor((q.t * c.fps) / 1000) % has[anim];
   } else if (q.k === 'loop' && q.state === 'alert' && has.alert) { anim = 'alert'; frame = Math.floor(q.t / 500) % has.alert; } // 0.5 s a frame (Maple)
   else if (q.k === 'jump' && q.phase !== 'land' && has.jump) anim = 'jump'; // Maple: one frame the whole time off the ground
-  else if ((q.k === 'recovery' || q.k === 'hurt') && has.alert) anim = 'alert'; // Maple: after a swing / when hit, the combat stance
+  else if ((q.k === 'recovery' || q.k === 'hurt' || q.k === 'down' || q.k === 'getup') && has.alert) anim = 'alert'; // Maple: after a swing / when hit, the combat stance
+  else if (q.k === 'launched' && has.jump) anim = 'jump'; // thrown up into the air: the jump's one frame
   else if (q.k === 'skill' && q.id === 'warrior_basic' && has.swing1) { // a sword swing (Maple: one of the drawn ones at random)
     const sw = ['swing1', 'swing2', 'swing3'].filter((a) => has[a]);
     anim = sw[(q.seed ?? 0) % sw.length]; frame = q.elapsed < q.startup ? 0 : q.elapsed < q.startup + q.active * 0.5 ? 1 : 2; // wind-up, strike, follow-through
