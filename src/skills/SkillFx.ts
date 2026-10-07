@@ -1240,8 +1240,8 @@ export class SkillFx {
       const tx = cx + (Math.random() * 2 - 1) * rx, ty = cy + (Math.random() * 2 - 1) * ry, delay = Math.random() * spreadMs, slant = 0.32;
       this.scene.time.delayedCall(delay, () => {
         const h = 420, sx = tx - h * slant, sy = ty - h;
-        const a = this.scene.add.image(sx, sy, 'arch-arrow').setOrigin(0.97, 0.5).setAngle(Math.atan2(h, h * slant) * (180 / Math.PI)).setDisplaySize(110, 20).setTint(0xffffff, 0xffffff, tint, tint).setBlendMode(Phaser.BlendModes.ADD).setDepth(ty + 1);
-        const st = this.scene.add.image(sx, sy, 'arch-streak').setOrigin(1, 0.5).setAngle(a.angle).setDisplaySize(160, 14).setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setDepth(ty + 1).setAlpha(0.8);
+        const a = this.scene.add.image(sx, sy, 'arch-arrow').setOrigin(0.97, 0.5).setAngle(Math.atan2(h, h * slant) * (180 / Math.PI)).setDisplaySize(130, 26).setTint(0xffffff, tint, tint, tint).setBlendMode(Phaser.BlendModes.ADD).setDepth(ty + 1);
+        const st = this.scene.add.image(sx, sy, 'arch-streak').setOrigin(1, 0.5).setAngle(a.angle).setDisplaySize(160, 18).setTint(0x5fc83a).setBlendMode(Phaser.BlendModes.ADD).setDepth(ty + 1).setAlpha(0.55);
         this.scene.tweens.add({ targets: [a, st], x: tx, y: ty, duration: 170, ease: 'Quad.easeIn', onComplete: () => {
           a.destroy(); st.destroy();
           const f = this.scene.add.image(tx, ty - 6, 'arch-glow').setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setDepth(ty + 1).setDisplaySize(46, 22);
@@ -1307,7 +1307,7 @@ export class SkillFx {
       case 'bow_haste': case 'hunters_spirit': { // around the caster, standing on the floor
         const sz = s.id === 'hunters_spirit' ? 400 : 320, p = me() ?? o;
         this.scene.time.delayedCall(T.startup, () => { const q = me() ?? o; this.shockwave(q.x, q.y, 150, s.id === 'hunters_spirit' ? 0xffe27a : 0xb8ff7a); });
-        this.play(key, p.x, p.y - p.z, sz, sz, spread(8, T.startup + T.active + T.recovery + 200), { oy: ARCHER_GROUND[s.id], depth: p.y + 1, follow: () => { const q = me(); return q ? { x: q.x, y: q.y + 1, z: q.z } : null; } });
+        this.play(key, p.x, p.y - p.z, sz, sz, spread(8, T.startup + T.active + T.recovery + 200), { oy: ARCHER_GROUND[s.id], depth: p.y + 1, alpha: 0.8, follow: () => { const q = me(); return q ? { x: q.x, y: q.y + 1, z: q.z } : null; } });
         break;
       }
       case 'hunters_roar': { // the wolf spirit roars over the archer; the wave reaches both sides
@@ -1324,7 +1324,7 @@ export class SkillFx {
         const p = me() ?? o;
         this.spark(IMPACT.archer.key, p.x, p.y - p.z - 90, IMPACT.archer.frames, 120, 0.9);
         const old = this.hawks.get(r.attackerId); old?.img.destroy();
-        const img = this.scene.add.image(p.x, p.y - p.z - 110, key, 0).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(200, 200).setAlpha(0);
+        const img = this.scene.add.image(p.x, p.y - p.z - 110, key, 0).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(150, 150).setAlpha(0);
         for (let i = 0; i < 14; i++) { // a burst of light feathers as the hawk appears
           const f = this.scene.add.image(p.x, p.y - p.z - 110, 'arch-glow').setTint(i % 2 ? 0xffe27a : 0xb8ff7a).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(16, 7).setDepth(TOP).setAngle(Math.random() * 360);
           const a = Math.random() * Math.PI * 2, d = 60 + Math.random() * 90;
@@ -1342,8 +1342,8 @@ export class SkillFx {
         const R0 = 260, ring = this.scene.add.image(tx, ty, 'magic-circle').setBlendMode(Phaser.BlendModes.ADD).setTint(0x9be35a).setAlpha(0).setDepth(GROUND + 1).setDisplaySize(2 * R0, 2 * R0);
         const fill = this.scene.add.image(tx, ty, 'arch-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0x7ad84a).setAlpha(0).setDepth(GROUND + 0.9).setDisplaySize(2 * R0, 2 * R0);
         const rim = this.scene.add.circle(tx, ty, R0).setStrokeStyle(3, 0xc8ff9a, 0.9).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setDepth(GROUND + 1.1);
-        this.scene.tweens.add({ targets: [ring, rim], alpha: 0.85, delay: T.startup, duration: 300 });
-        this.scene.tweens.add({ targets: fill, alpha: 0.35, delay: T.startup, duration: 300 });
+        this.scene.tweens.add({ targets: [ring, rim], alpha: 0.55, delay: T.startup, duration: 300 });
+        this.scene.tweens.add({ targets: fill, alpha: 0.1, delay: T.startup, duration: 300 });
         this.scene.tweens.add({ targets: rim, alpha: { from: 0.85, to: 0.45 }, delay: T.startup + 300, duration: 900, yoyo: true, repeat: Math.floor(life / 1800) });
         this.scene.tweens.add({ targets: ring, angle: 90, delay: T.startup, duration: life });
         this.scene.tweens.add({ targets: [ring, fill, rim], alpha: 0, delay: T.startup + life - 500, duration: 500, onComplete: () => { ring.destroy(); fill.destroy(); rim.destroy(); } });
@@ -1385,7 +1385,7 @@ export class SkillFx {
       this.arrowShower(g.centerX, g.y + g.height * 0.62, g.width * 0.5, g.height * 0.2, 70, 1300, 0xc8ff7a, 0.5);
       cam.shake(1400, 0.004);
       this.scene.time.delayedCall(1400, () => {
-        const f = this.scene.add.rectangle(0, 0, cam.width, cam.height, 0xd8ffc0, 1).setOrigin(0, 0).setScrollFactor(0).setDepth(TOP + 45).setBlendMode(Phaser.BlendModes.ADD);
+        const f = this.scene.add.rectangle(0, 0, cam.width, cam.height, 0xd8ffc0, 0.5).setOrigin(0, 0).setScrollFactor(0).setDepth(TOP + 45).setBlendMode(Phaser.BlendModes.ADD); // a punch of light, not a white-out
         this.scene.tweens.add({ targets: f, alpha: 0, duration: 420, ease: 'Quad.easeOut', onComplete: () => f.destroy() });
         cam.shake(420, 0.012);
       });
@@ -1419,7 +1419,7 @@ export class SkillFx {
       h.t += ms;
       if (Math.abs(c.x - h.lastX) > 0.5) h.face = c.x > h.lastX ? 1 : -1;
       h.lastX = c.x;
-      const homeX = c.x - h.face * 46, homeY = c.y - c.z - 112 + Math.sin(h.t / 260) * 6;
+      const homeX = c.x - h.face * 62, homeY = c.y - c.z - 178 + Math.sin(h.t / 260) * 7; // above and behind the head, never over the body
       let x = homeX, y = homeY, face = h.face;
       if (h.dive) { // 180 ms out, 220 ms back
         h.dive.t += ms;
@@ -1430,7 +1430,7 @@ export class SkillFx {
         if (h.dive.t >= 180 && h.dive.t - ms < 180) this.spark(IMPACT.archer.key, tx, ty, IMPACT.archer.frames, 100, 0.95);
         if (back >= 1) h.dive = null;
       }
-      h.img.setPosition(x, y).setFlipX(face < 0).setDepth(c.y + 3).setFrame(Math.floor(h.t / 80) % 8);
+      h.img.setPosition(x, y).setFlipX(face < 0).setDepth(h.dive ? c.y + 3 : c.y - 3).setFrame(Math.floor(h.t / 80) % 8);
       if (h.dive && h.dive.t < 400 && Math.floor(h.dive.t / 40) !== Math.floor((h.dive.t - ms) / 40)) { // afterimages on the dive
         const g = this.scene.add.image(x, y, h.img.texture.key, h.img.frame.name).setFlipX(face < 0).setDisplaySize(h.img.displayWidth, h.img.displayHeight).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.45).setDepth(c.y + 2);
         this.scene.tweens.add({ targets: g, alpha: 0, duration: 220, onComplete: () => g.destroy() });

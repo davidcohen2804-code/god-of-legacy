@@ -1247,7 +1247,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const max = this.maxHpNow(), before = this.playerHP;
     this.playerHP = Math.min(max, this.playerHP + Math.max(1, Math.round(max * 0.04)));
     if (this.playerHP > before) this.fx!.healNumber({ x: this.kin.x, y: this.kin.y, z: this.kin.z }, this.playerHP - before);
-    this.fx!.passiveFx('heal_sparkle', { x: this.kin.x, y: this.kin.y, z: this.kin.z }, 200, { originY: 0.8, normal: true, depth: 100000 - 1, ms: [70, 80, 100, 120, 130, 140, 150, 160], follow: () => (this.dead < 0 ? { x: this.kin.x, y: this.kin.y, z: this.kin.z } : null), tint: 0xb8ff9a });
+    this.fx!.passiveFx('heal_sparkle', { x: this.kin.x, y: this.kin.y, z: this.kin.z }, 130, { originY: 0.8, depth: 100000 - 1, ms: [70, 80, 100, 120, 130, 140, 150, 160], follow: () => (this.dead < 0 ? { x: this.kin.x, y: this.kin.y, z: this.kin.z } : null), tint: 0x9be35a }); // a light pulse every second, never a wash over the floor
   }
 
   /** Party buffs: the caster always gets them; in a party every member within 420px of the caster gets them too. */
