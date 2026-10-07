@@ -18,9 +18,13 @@ const PATH: Record<string, Job[]> = {
     { name: 'Codex Sovereign', level: 80, to: 150, slots: [6, 7] },
   ],
   archer: [
-    { name: 'Beginner', level: 1, to: 19, slots: [0] }, { name: 'Ranger', level: 19, to: 29, slots: [1, 2, 3, 9] },
-    { name: 'Windrunner', level: 29, to: 40, slots: [8, 4, 11] }, { name: 'Sky Hunter', level: 40, to: 80, slots: [12, 10, 5, 13] },
-    { name: 'Verdant Sovereign', level: 80, to: 150, slots: [6, 7] },
+    { name: 'Beginner', level: 1, to: 19, slots: [0] },
+    // Ordered like the MapleStory Bowman line: 1st = launcher + speed buff, 2nd = the core shots + trap + kick,
+    // 3rd = area, line, roar, high launcher, hawk, air volley; 4th = tree, party crits, storm, eagle, the ultimate.
+    { name: 'Archer', level: 19, to: 29, slots: [1, 2] },                       // Rising Arrow, Bow Haste
+    { name: 'Hunter', level: 29, to: 40, slots: [3, 4, 5, 8] },                  // Triple Arrow, Explosive Arrow, Retreat Kick, Vine Trap
+    { name: 'Ranger', level: 40, to: 80, slots: [9, 10, 11, 12, 13, 6] },        // Rain, Piercing, Roar, Leaping Arrow, Spirit Hawk, Air Volley
+    { name: 'Bowmaster', level: 80, to: 150, slots: [14, 15, 16, 17, 7] },       // Tree of Life, Hunter's Spirit, Arrow Storm, Eagle Arrow, Sky Rain
   ],
   samurai: [
     { name: 'Beginner', level: 1, to: 19, slots: [0] }, { name: 'Blade Initiate', level: 19, to: 29, slots: [1, 2, 3, 9] },

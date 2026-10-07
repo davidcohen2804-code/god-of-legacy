@@ -254,7 +254,7 @@ export const HUD = {
   target: { x: 780, y: 28, w: 360, h: 108, icon: 40, effectsY: 120, effectIcon: 24 },
   minimap: { x: 1700, y: 28, w: 192, h: 224, inset: [14, 14, 14, 46] as const, marker: 20, updateMs: 100 },
   pvp: { x: 1700, y: 264, w: 192, h: 52 },
-  skills: { x: 401, y: 950, w: 1118, h: 108, slot: 64, gap: 12, inner: [25, 14] as const, hotkeys: ['Space', '1', '2', '3', '4', '5', '6', '7', 'Q', 'R', 'F', 'G', 'C', 'V', 'T', 'H'] },
+  skills: { x: 401, y: 950, w: 1118, h: 108, slot: 64, gap: 12, inner: [25, 14] as const, hotkeys: ['Space', '1', '2', '3', '4', '5', '6', '7', 'Q', 'R', 'F', 'G', 'C', 'V', 'T', 'H', 'Z', 'X'] },
   combat: { x: 1652, y: 976, w: 240, h: 72 },
   back: { x: 28, y: 1000, w: 300, h: 52, size: 20 },
   /** Target = nearest living hostile within this many world px of the player (display only). */

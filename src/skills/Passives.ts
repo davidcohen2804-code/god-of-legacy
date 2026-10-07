@@ -27,6 +27,19 @@ export const PASSIVES: PassiveSkill[] = [
   { id: 'power_stance', cls: 'warrior', job: 4, name: 'Power Stance', kind: 'passive', description: 'An unshakable stance: most blows can no longer push you back.', effects: ['Knockback resist 70%'] },
   { id: 'combat_mastery', cls: 'warrior', job: 4, name: 'Combat Mastery', kind: 'passive', description: 'A veteran\'s precision: more critical hits, and critical hits cut deeper.', effects: ['Critical rate +10%', 'Critical hits 150% → 170%'] },
   { id: 'advanced_final_attack', cls: 'warrior', job: 4, name: 'Advanced Final Attack', kind: 'passive', description: 'Final Attack evolves: it triggers far more often and strikes harder.', effects: ['Final Attack chance 45%', 'Extra slash: 55% of the hit', 'Not against players'] },
+  // ---- Archer (Bowman line)
+  { id: 'wind_leap', cls: 'archer', job: 1, name: 'Wind Leap', kind: 'movement', description: 'Press Jump again in mid-air to spring higher and farther on a burst of wind and leaves.', effects: ['Second jump in the air', 'Forward burst of speed', 'Once per jump'] },
+  { id: 'bow_mastery', cls: 'archer', job: 1, name: 'Bow Mastery', kind: 'passive', description: 'Mastery of the bow: every arrow lands harder and finds weak spots more often.', effects: ['Damage +10%', 'Critical rate +5%'] },
+  { id: 'light_body', cls: 'archer', job: 1, name: 'Light Body', kind: 'passive', description: 'Light on the feet: faster on foot and harder to hit.', effects: ['Movement speed +10%', 'Evasion +5%'] },
+  { id: 'extra_shot', cls: 'archer', job: 2, name: 'Extra Shot', kind: 'passive', description: 'After a skill connects, a chance to loose a second arrow of wind at once (against monsters and the sparring knight).', effects: ['25% chance per hit', 'Extra arrow: 35% of the hit', 'Not against players'] },
+  { id: 'keen_eye', cls: 'archer', job: 2, name: 'Keen Eye', kind: 'passive', description: 'A hunter\'s eye: critical hits come far more often.', effects: ['Critical rate +10%'] },
+  { id: 'physical_training', cls: 'archer', job: 2, name: 'Physical Training', kind: 'passive', description: 'Long hunts harden the body: more HP.', effects: ['Max HP +20%'] },
+  { id: 'evasion', cls: 'archer', job: 3, name: 'Evasion', kind: 'passive', description: 'A chance to slip aside from a blow in a rush of wind — the attack misses completely.', effects: ['Evasion +15%', 'Dodged hits deal no damage'] },
+  { id: 'focus', cls: 'archer', job: 3, name: 'Focus', kind: 'passive', description: 'Perfect focus: critical hits cut much deeper.', effects: ['Critical hits 150% → 170%'] },
+  { id: 'ranger_mastery', cls: 'archer', job: 3, name: 'Ranger Mastery', kind: 'passive', description: 'A ranger\'s rhythm: more damage and quicker draws.', effects: ['Damage +10%', 'Attack speed +10%'] },
+  { id: 'steadfast', cls: 'archer', job: 4, name: 'Steadfast', kind: 'passive', description: 'Rooted like an old tree: most blows can no longer push you back.', effects: ['Knockback resist 60%'] },
+  { id: 'supreme_mastery', cls: 'archer', job: 4, name: 'Supreme Mastery', kind: 'passive', description: 'The legendary bow answers its master: more damage, deadlier crits.', effects: ['Damage +15%', 'Critical hits +10% more'] },
+  { id: 'eagle_eyes', cls: 'archer', job: 4, name: 'Eagle Eyes', kind: 'passive', description: 'Sees like an eagle: every arrow flies farther.', effects: ['Arrow range +20%'] },
 ];
 
 export const passiveIconUrl = (p: PassiveSkill) => `assets/final/skills/${p.cls}/${p.id}/icon.png`;
@@ -35,9 +48,11 @@ export const passivesFor = (cls: string, job?: number) => PASSIVES.filter((p) =>
 export interface PassiveStats {
   dmg: number; critAdd: number; critDmgAdd: number; takenMul: number; hpMul: number; moveMul: number; jumpMul: number;
   kbResist: number; ccResist: number; regen: boolean; fa: { chance: number; mul: number } | null; orbs: boolean; chanceAttack: number; airLeap: boolean;
+  /** Archer: chance to dodge a hit entirely, projectile range multiplier, attack-speed multiplier (startup / recovery divided by it). */
+  evade: number; rangeMul: number; atkSpeed: number;
 }
 
-export const NO_PASSIVES: PassiveStats = { dmg: 1, critAdd: 0, critDmgAdd: 0, takenMul: 1, hpMul: 1, moveMul: 1, jumpMul: 1, kbResist: 0, ccResist: 0, regen: false, fa: null, orbs: false, chanceAttack: 1, airLeap: false };
+export const NO_PASSIVES: PassiveStats = { dmg: 1, critAdd: 0, critDmgAdd: 0, takenMul: 1, hpMul: 1, moveMul: 1, jumpMul: 1, kbResist: 0, ccResist: 0, regen: false, fa: null, orbs: false, chanceAttack: 1, airLeap: false, evade: 0, rangeMul: 1, atkSpeed: 1 };
 
 /** Passives owned at this level (all = arena / QA: every job open). */
 export function ownedPassives(cls: string, level: number, all: boolean): Set<string> {
@@ -60,6 +75,19 @@ export function passiveStats(owned: Set<string>): PassiveStats {
   if (has('power_stance')) s.kbResist = 0.7;
   if (has('combat_mastery')) { s.critAdd += 0.1; s.critDmgAdd += 0.2; }
   if (has('advanced_final_attack')) s.fa = { chance: 0.45, mul: 0.55 };
+  // Archer
+  if (has('wind_leap')) s.airLeap = true;
+  if (has('bow_mastery')) { s.dmg *= 1.1; s.critAdd += 0.05; }
+  if (has('light_body')) { s.moveMul *= 1.1; s.evade += 0.05; }
+  if (has('extra_shot')) s.fa = { chance: 0.25, mul: 0.35 };
+  if (has('keen_eye')) s.critAdd += 0.1;
+  if (has('physical_training')) s.hpMul += 0.2;
+  if (has('evasion')) s.evade += 0.15;
+  if (has('focus')) s.critDmgAdd += 0.2;
+  if (has('ranger_mastery')) { s.dmg *= 1.1; s.atkSpeed *= 1.1; }
+  if (has('steadfast')) s.kbResist = 0.6;
+  if (has('supreme_mastery')) { s.dmg *= 1.15; s.critDmgAdd += 0.1; }
+  if (has('eagle_eyes')) s.rangeMul = 1.2;
   return s;
 }
 

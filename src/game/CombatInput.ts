@@ -45,6 +45,8 @@ export class CombatInput {
     for (const d of Object.keys(this.dirKeys) as DirKey[]) this.dirKeys[d] = this.dirKeys[d].filter(Boolean);
     const names = new Set(['SHIFT', ...Object.values(this.dirKeys).flat(), b.slot0].filter(Boolean));
     this.keys = kb.addKeys([...names].join(',')) as Record<string, Phaser.Input.Keyboard.Key>;
+    const more = Array.from({ length: SLOT_COUNT }, (_, i) => b[`slot${i}`]).filter((n) => n && !names.has(n)); // held state only (no key capture)
+    if (more.length) Object.assign(this.keys, kb.addKeys(more.join(','), false) as Record<string, Phaser.Input.Keyboard.Key>);
     const on = (name: string | undefined, fn: () => void) => {
       if (!name) return;
       const h = (e: KeyboardEvent) => { if (!e.repeat) fn(); };
@@ -113,6 +115,9 @@ export class CombatInput {
 
   /** Space held: the basic chain auto-continues (DFO-style hold attack). */
   get attackHeld(): boolean { return !!this.keys[this.bind.slot0]?.isDown; }
+
+  /** A skill key held down right now (channelled skills end when it is released). */
+  slotHeld(i: number): boolean { return !!this.keys[this.bind[`slot${i}`]]?.isDown; }
 
   get hasMove(): boolean { return this.moveX !== 0 || this.moveY !== 0; }
 

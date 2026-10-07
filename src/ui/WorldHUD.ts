@@ -30,11 +30,11 @@ const G = {
   menu: { x: 1656, y: 352, w: 250, h: 54, gap: 10 },
 } as const;
 
-/** Skill dock (bottom centre): the 16 slots in two rows of 8 — Space/Z and 1-7 above, Q R F G C V T H below — each slot
+/** Skill dock (bottom centre): the 18 slots in two rows of 9 — Space, 1-7, Q above, R F G C V T H Z X below — each slot
  *  the skill's own framed icon with its key on a cap hanging from its bottom edge; the passives (always on) in a small
  *  grid on its right under their caption. The EXP bar runs under the dock. */
 const DK = {
-  slot: 72, gapX: 10, rowGap: 10, cols: 8,
+  slot: 72, gapX: 10, rowGap: 10, cols: 9, // 18 slots: Space 1-7 Q above, R F G C V T H Z X below
   cap: 28, wide: { w: 70, h: 26 },
   pad: { t: 14, r: 22, b: 12, l: 22 },
   pas: { icon: 46, gap: 8, cols: 4, rows: 3, sep: 20, head: 26 },

@@ -8,7 +8,7 @@ export interface PeerMeta { playerId: string; characterId: string; classId: stri
 export type NetMsg =
   | { t: 'state'; from: string; x: number; y: number; z: number; sz: number; dir: string; anim: string; mode: string; sp: number; vz: number; ax: number; ay: number; hp: number; alive: boolean; cos?: string; mhp?: number }
   | { t: 'hp'; from: string; hp: number; by: string; castId?: string; skillId?: string; hit?: number; dmg?: number; idx?: number; cid?: number; rx?: string; ends?: boolean; vz?: number; z?: number }
-  | { t: 'cast'; from: string; castId: string; skillId: string; stage: number; x: number; y: number; z: number; ax: number; ay: number; px?: number; py?: number; lock?: string | null; dm?: number; rm?: number }
+  | { t: 'cast'; from: string; castId: string; skillId: string; stage: number; x: number; y: number; z: number; ax: number; ay: number; px?: number; py?: number; lock?: string | null; dm?: number; rm?: number; rg?: number; sp?: number }
   | { t: 'ctr'; from: string; castId: string; x: number; y: number; z: number; ax: number; ay: number }
   /** Held skill released (Judgment Blade thrown) `at` ms into the cast, with its final aim (x1000). */
   | { t: 'rel'; from: string; castId: string; at: number; ax: number; ay: number }

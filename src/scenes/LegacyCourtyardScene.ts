@@ -93,6 +93,8 @@ const ENEMY_SKILL: FinalSkill = {
 
 /** How long he keeps the combat stance after an attack / a hit while standing still (MapleStory: a few seconds). */
 const ALERT_MS = 4000;
+/** Tree of Life heal aura radius (px around the tree). */
+const TREE_RADIUS = 260;
 
 export class LegacyCourtyardScene extends Phaser.Scene {
   // ---- local actor (read by QA)
@@ -160,6 +162,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private arena = false;
   /** Radiant Blade: the sword is a long blade of light until this time. */
   radiantUntil = -1;
+  /** Archer buffs: Bow Haste (+20% attack speed), Hunter's Spirit (+15% critical rate, also shared by a party member). */
+  hasteUntil = -1;
+  spiritUntil = -1;
+  /** Archer Tree of Life: where it stands, until when, next heal pulse (sim ms). */
+  private tree: { x: number; y: number; until: number; next: number } | null = null;
+  /** Arrow Storm: the slot it was started from and whether its key was held (release ends the storm). */
+  private storm: { slot: number; byKey: boolean } | null = null;
   /** Sanctuary dome (fixed in the world): full damage immunity while the player stands inside. */
   private domeAt = -1;
   private dome: { x: number; y: number; rx: number; ry: number; until: number; t0: number; img: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image; wx: number; side: number; vis?: number } | null = null;
@@ -269,6 +278,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
     this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
+    this.hasteUntil = -1; this.spiritUntil = -1; this.tree = null; this.storm = null;
     this.hpMaxSeen = 0; this.seenStance = -Infinity; this.seenEndure = -Infinity; this.markAt.clear(); this.partyTick = 0; this.shares = [];
     this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
     this.combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1 };
@@ -335,6 +345,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       casterPos: (id) => this.casterPos(id),
       onPhase: (r, ph) => this.onRunPhase(r, ph),
       reachMul: (req) => (req.own ? (req.skill.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.85 : 1) : (req.reach ?? 1)),
+      rangeMul: (req) => (req.own ? this.ownRangeMul(req.skill) : (req.range ?? 1)),
+      speedMul: (req) => (req.own ? this.ownSpeedMul(req.skill) : (req.speed ?? 1)),
     });
     this.fx = new SkillFx(this, this.rt, (id) => this.casterPos(id));
     this.deathFx = new DeathFx(this);
@@ -472,6 +484,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.world) this.stepMonsters(ms, now);
     this.rt.update(ms);
     this.stepLingers(now);
+    this.stepStorm();
+    this.stepTree(now);
     this.stepPassives(ms, now);
     this.refreshParty(ms);
     this.fx.update(ms, this.rt.projectiles.map((e) => e.p));
@@ -677,7 +691,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.leapUsed = true; this.leapUntil = now + 320;
     this.setMode('takeoff');
     this.fx!.dust(k.x - d.x * 18, k.y - k.z, 70, 0.7);
-    this.fx!.leapBurst(k.x, k.y - k.z - 4, d.x < 0 || (d.x === 0 && this.dir === 'left') ? -1 : 1);
+    const side = d.x < 0 || (d.x === 0 && this.dir === 'left') ? -1 : 1;
+    if (this.cls === 'archer') this.fx!.windLeap(k.x, k.y - k.z, side); else this.fx!.leapBurst(k.x, k.y - k.z - 4, side);
   }
 
   /** Every skill open: QA build, PvP arena, or the Skill Book's "all skills" test switch. */
@@ -686,7 +701,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Passives owned now (level / all-open) → stats + body resistances; keeps the HP fraction when max HP changes. */
   private applyPassives(): void {
     const lvl = this.character?.level ?? 1, all = this.allOpen(), before = this.body.maxHp || 1, frac = this.playerHP / before;
-    this.passives = this.cls === 'warrior' && (all || lvl >= BEGINNER_TO) ? passiveStats(ownedPassives('warrior', lvl, all)) : NO_PASSIVES;
+    this.passives = passivesFor(this.cls).length && (all || lvl >= BEGINNER_TO) ? passiveStats(ownedPassives(this.cls, lvl, all)) : NO_PASSIVES;
     this.body.ccResist = this.passives.ccResist; this.body.kbResist = this.passives.kbResist;
     this.body.maxHp = this.maxHpNow();
     this.hpMaxSeen = this.body.maxHp; // already rescaled here (stepPassives must not scale again)
@@ -696,10 +711,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Passive icons above the skill tray (owned bright, locked dimmed). */
   private refreshPassiveStrip(): void {
-    if (!this.hud || this.cls !== 'warrior') { this.hud?.setPassives([]); return; }
-    const all = this.allOpen(), lvl = this.character?.level ?? 1, own = ownedPassives('warrior', lvl, all);
+    if (!this.hud || !passivesFor(this.cls).length) { this.hud?.setPassives([]); return; }
+    const all = this.allOpen(), lvl = this.character?.level ?? 1, own = ownedPassives(this.cls, lvl, all);
     const open = all || lvl >= BEGINNER_TO;
-    this.hud.setPassives(passivesFor('warrior').map((p) => ({ id: p.id, name: p.name, iconUrl: passiveIconUrl(p), owned: open && own.has(p.id), info: p.effects.join(' · ') })));
+    this.hud.setPassives(passivesFor(this.cls).map((p) => ({ id: p.id, name: p.name, iconUrl: passiveIconUrl(p), owned: open && own.has(p.id), info: p.effects.join(' · ') })));
   }
 
   /** EXP from a defeated monster: floating +EXP, level ups (full heal, LEVEL UP effect), saved on the character. */
@@ -760,6 +775,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       }
       else return;
       const big = fa.mul >= 0.5; // Advanced Final Attack: a bigger triple cut
+      if (run.skill.cls === 'archer') { this.fx!.extraArrow({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 }, at); this.fx!.damageNumber(at, extra, false, 0, true); return; } // Extra Shot: a second arrow of wind
       this.fx!.finalSlash(at, side, big);
       if (big) for (const [d, dx, dz] of [[60, 18, 14], [120, -16, -12]] as const) this.time.delayedCall(d, () => this.fx!.finalSlash({ x: at.x + dx, y: at.y, z: at.z + dz }, side, true));
       this.fx!.damageNumber(at, extra, false, 0, true);
@@ -881,12 +897,32 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     return best;
   }
 
+  /** Spirit Hawk tick: the hawk dives at the nearest foe within its range (one target per dive). */
+  private hawkDive(l: { run: CastRun; x: number; y: number }, L: NonNullable<FinalSkill['linger']>): void {
+    let best: HitTarget | null = null, bd = Infinity;
+    for (const t of this.targetsFor(l.run)) {
+      if (!t.alive || t.invulnerable || t.id === l.run.attackerId || t.z > L.maxZ || (l.run.own && this.party?.has(t.id))) continue;
+      const d = Math.hypot(t.x - l.x, t.y - l.y);
+      if (d <= L.radius + t.radius && d < bd) { bd = d; best = t; }
+    }
+    if (!best) return;
+    const at = { x: best.x, y: best.y, z: best.z + 40 }, zr = { ...l.run, origin: { x: best.x - (best.x >= l.x ? 30 : -30), y: best.y, z: 0 } } as CastRun;
+    this.fx!.hawkDive(l.run.attackerId, at);
+    const t = best;
+    this.time.delayedCall(180, () => { // the hit lands when the hawk reaches the foe
+      if (!t.alive) return;
+      if (l.run.own) { if (t.kind === 'enemy') this.applyToPve(zr, L.hit, t, at); else if (t.id === BOT_ID) this.applyToBot(zr, L.hit, t, at); }
+      else if (t.id === this.localId) this.applyRemoteHitToSelf(zr, L.hit, 0, at);
+    });
+  }
+
   private stepLingers(now: number): void {
     for (const l of this.lingers) {
       const L = l.run.skill.linger!;
       while (l.left > 0 && now >= l.next) {
         l.left--; l.next += L.everyMs;
         if (L.at === 'caster') { const c = this.casterPos(l.run.attackerId); if (c) { l.x = c.x; l.y = c.y; } } // the quake travels with you
+        if (l.run.skill.id === 'spirit_hawk') { this.hawkDive(l, L); continue; }
         if (l.run.skill.id === 'blade_storm') { // swords erupt all around the caster + lightning crackles
           for (let n = 0; n < 2; n++) { const a = (l.left * 2.4 + n * Math.PI) + (Math.random() - 0.5) * 0.9, rr = 70 + Math.random() * (L.radius - 40); this.fx!.risingBlade(l.x + Math.cos(a) * rr, l.y + Math.sin(a) * rr * 0.6, n * 90); }
         }
@@ -1130,6 +1166,43 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Own damage buffs right now: War Cry +20%, Radiant Blade +15% (same as against monsters). */
   private ownDamageMul(): number { return (this.simMs < this.warCryUntil ? 1.2 : this.simMs < this.allyCryUntil ? 1.1 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * (this.simMs < this.bannerUntil ? 1.1 : 1) * this.passiveDmgMul(); }
 
+  /** Archer: Eagle Eyes arrow range. */
+  private ownRangeMul(s: FinalSkill): number { return s.cls === 'archer' ? this.passives.rangeMul : 1; }
+  /** Archer: Bow Haste (+20%) × Ranger Mastery attack speed (startup / recovery shortened). */
+  private ownSpeedMul(s: FinalSkill): number { return s.cls === 'archer' ? this.passives.atkSpeed * (this.simMs < this.hasteUntil ? 1.2 : 1) : 1; }
+  /** Own critical rate bonus: passives + Hunter's Spirit (+15%). */
+  private critAddNow(): number { return this.passives.critAdd + (this.simMs < this.spiritUntil ? 0.15 : 0); }
+
+  /** Evasion (archer): a chance to dodge a hit entirely — MISS, a rush of wind, a short sidestep. */
+  private tryEvade(from: { x: number; y: number }): boolean {
+    if (this.passives.evade <= 0 || this.simMs < this.body.invulnUntil || Math.random() >= this.passives.evade) return false;
+    const k = this.kin, away = unit(k.x - from.x, k.y - from.y), side = away.x < 0 ? -1 : 1;
+    for (let d = 40; d > 0; d -= 4) { const nx = k.x + away.x * d, ny = k.y + away.y * d; if (footAllowed(nx, ny, k.z, R)) { k.x = nx; k.y = ny; break; } }
+    this.fx!.evadeDash(k.x, k.y - k.z, side);
+    this.fx!.callout({ x: k.x, y: k.y, z: k.z + 30 }, 'MISS', '#c8ffb0', 0);
+    return true;
+  }
+
+  /** Tree of Life: heals the caster near the tree and shares a pulse with party members near it, every second. */
+  private stepTree(now: number): void {
+    const t = this.tree;
+    if (!t) return;
+    if (now >= t.until || this.dead >= 0) { this.tree = null; return; }
+    if (now < t.next) return;
+    t.next += 1000;
+    const k = this.kin;
+    if (Math.hypot(k.x - t.x, k.y - t.y) <= TREE_RADIUS) this.treeHeal();
+    const p = this.party, pvp = this.pvp;
+    if (p?.inParty && pvp) p.shareBuff('tree_of_life', 1000, p.members.filter((id) => { const r = pvp.remotes.get(id); return !!r && r.alive && Math.hypot(r.x - t.x, r.y - t.y) <= TREE_RADIUS; }));
+  }
+  private treeHeal(): void {
+    if (this.dead >= 0) return;
+    const max = this.maxHpNow(), before = this.playerHP;
+    this.playerHP = Math.min(max, this.playerHP + Math.max(1, Math.round(max * 0.04)));
+    if (this.playerHP > before) this.fx!.healNumber({ x: this.kin.x, y: this.kin.y, z: this.kin.z }, this.playerHP - before);
+    this.fx!.passiveFx('heal_sparkle', { x: this.kin.x, y: this.kin.y, z: this.kin.z }, 200, { originY: 0.8, normal: true, depth: 100000 - 1, ms: [70, 80, 100, 120, 130, 140, 150, 160], follow: () => (this.dead < 0 ? { x: this.kin.x, y: this.kin.y, z: this.kin.z } : null), tint: 0xb8ff9a });
+  }
+
   /** Party buffs: the caster always gets them; in a party every member within 420px of the caster gets them too. */
   private partyMembersNear(): string[] {
     const p = this.party, k = this.kin;
@@ -1145,8 +1218,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (id === 'war_cry') this.allyCryUntil = Math.max(this.allyCryUntil, now + ms);
     else if (id === 'iron_oath') this.oathUntil = Math.max(this.oathUntil, now + ms);
     else if (id === 'legacy_banner') this.bannerUntil = Math.max(this.bannerUntil, now + ms);
+    else if (id === 'hunters_spirit') this.spiritUntil = Math.max(this.spiritUntil, now + ms);
+    else if (id === 'tree_of_life') { this.treeHeal(); return; } // one heal pulse from a party member's tree (sent every second while you stand near it)
     else return;
-    const label = id === 'war_cry' ? 'WAR CRY' : id === 'iron_oath' ? 'IRON OATH' : 'LEGACY BANNER';
+    const label = id === 'war_cry' ? 'WAR CRY' : id === 'iron_oath' ? 'IRON OATH' : id === 'hunters_spirit' ? "HUNTER'S SPIRIT" : 'LEGACY BANNER';
     this.fx?.callout({ x: k.x, y: k.y, z: k.z + 50 }, `+${label}`, '#ffd27a', 0);
     this.fx?.shockwave(k.x, k.y, 90, 0xffd27a);
     this.chat?.add({ kind: 'system', text: `${name} gave you ${label.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}.` });
@@ -1262,6 +1337,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.id === 'war_cry') { this.warCryUntil = this.simMs + s.startup + 8000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 8000 }); /* shared at the release (sim clock), like the caster's own */ }
     if (s.id === 'iron_oath') { this.oathUntil = this.simMs + s.startup + 60000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 60000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(s.startup, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'IRON OATH', '#ffd27a', 0)); }
     if (s.id === 'legacy_banner') { this.bannerUntil = this.simMs + s.startup + 90000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 90000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(Math.round(s.startup * 0.7), () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'LEGACY BANNER', '#ffe7a0', 0)); }
+    if (s.cls === 'archer') this.archerCast(s, stage);
     if (s.id === 'blade_storm') this.radiantUntil = Math.max(this.radiantUntil, this.simMs + s.startup + s.active + 5000); // the storm leaves the blade of light in your hand
     if (s.id === 'sanctuary') this.domeAt = this.simMs + Math.round(s.startup * 0.95); // sim clock (hit-stop/fast-step safe)
     if (s.id === 'radiant_blade') { this.boltDone = false; this.radiantFrom = this.simMs + Math.round(s.startup * 0.4); } // light appears when the sword is raised
@@ -1274,7 +1350,28 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.chain) this.chain = { stage, lastEnd: Infinity, skill: s.id };
     this.setMode('skill');
     const dm = this.ownDamageMul(), rm = s.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.85 : 1; // buffs travel with the cast (victim-side damage / reach)
-    this.pvp?.sendCast({ castId, skillId: s.id, stage, x: Math.round(k.x), y: Math.round(k.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000), ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}), lock, ...(dm !== 1 ? { dm: Math.round(dm * 100) } : {}), ...(rm !== 1 ? { rm: Math.round(rm * 100) } : {}) });
+    this.pvp?.sendCast({ castId, skillId: s.id, stage, x: Math.round(k.x), y: Math.round(k.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000), ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}), lock, ...(dm !== 1 ? { dm: Math.round(dm * 100) } : {}), ...(rm !== 1 ? { rm: Math.round(rm * 100) } : {}), ...(this.ownRangeMul(s) !== 1 ? { rg: Math.round(this.ownRangeMul(s) * 100) } : {}), ...(this.ownSpeedMul(s) !== 1 ? { sp: Math.round(this.ownSpeedMul(s) * 100) } : {}) });
+  }
+
+  /** Archer casts: buffs, the tree, the channelled storm (timers on the sim clock, from the run's real startup). */
+  private archerCast(s: FinalSkill, stage: number): void {
+    const T = s.chain?.timings?.[stage] ?? s, up = Math.round(T.startup / this.ownSpeedMul(s)), k = this.kin, now = this.simMs;
+    if (s.id === 'bow_haste') { this.hasteUntil = now + up + 120000; this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'BOW HASTE', '#c8ffb0', 0)); }
+    if (s.id === 'hunters_spirit') { this.spiritUntil = now + up + 120000; this.shares.push({ at: now + up, id: s.id, ms: 120000 }); this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, "HUNTER'S SPIRIT", '#ffe27a', 0)); }
+    if (s.id === 'tree_of_life') { const side = this.aim.x < 0 ? -1 : 1; this.tree = { x: k.x - side * 70, y: k.y - 18, until: now + up + 12000, next: now + up + 1000 }; this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'TREE OF LIFE', '#b8ff9a', 0)); }
+    if (s.id === 'arrow_storm') { const slot = this.kit.indexOf(s); this.storm = { slot, byKey: !!this.ci?.slotHeld(slot) }; }
+  }
+
+  /** Arrow Storm: releasing its key ends the storm (the other players are told when it stopped). */
+  private stepStorm(): void {
+    const st = this.storm, run = this.rt?.ownRun;
+    if (!st) return;
+    if (!run || run.skill.id !== 'arrow_storm') { this.storm = null; return; }
+    if (!st.byKey || run.phase !== 'active' || this.ci?.slotHeld(st.slot)) return;
+    const at = Math.max(120, Math.round(run.elapsed - run.timings.startup));
+    run.timings.active = Math.min(run.timings.active, at);
+    this.pvp?.sendRelease({ castId: run.castId, at, ax: Math.round(run.aim.x * 1000), ay: Math.round(run.aim.y * 1000) });
+    this.storm = null;
   }
 
   /** A run ended (finished or cancelled into a follow-up): chain bookkeeping + recovery → breathing transition. */
@@ -1445,7 +1542,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         }
       }
       const own = run.attackerId === this.localId;
-      const crit = hit.damage > 0 && Math.random() < 0.12 + (own ? this.passives.critAdd : 0);
+      const crit = hit.damage > 0 && Math.random() < 0.12 + (own ? this.critAddNow() : 0);
       const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.passives.critDmgAdd : 0) : 1) * (own ? this.ownDamageMul() * ch : 1);
       out.damage = Math.round(out.damage * mult);
       en.damage(out.damage);
@@ -1453,7 +1550,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (counter) this.fx!.callout(at, 'COUNTER!!', '#7ff0ff', row++);
       if (back) this.fx!.callout(at, 'BACK ATTACK!!', '#ffb04a', row++);
       if (crit) this.fx!.callout(at, 'CRITICAL!!', '#ff5a6a', row++);
-      if (crit && own && this.passives.critDmgAdd > 0) { this.fx!.shockwave(at.x, at.y, 110, 0xff8a5a); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 40); } // Combat Mastery: heavier crits
+      if (crit && own && this.passives.critDmgAdd > 0) { this.fx!.shockwave(at.x, at.y, 110, this.cls === 'archer' ? 0x9be35a : 0xff8a5a); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 40); } // Combat Mastery: heavier crits
       if (ch > 1 && out.damage > 0) this.chanceMark(t.id, at);
     }
     else if (t.id.startsWith('mob:')) {
@@ -1473,7 +1570,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         m.kin.z = Math.min(m.kin.z, 30);
         this.fx!.crack(m.kin.x, m.kin.y, 120); this.fx!.shockwave(m.kin.x, m.kin.y, 200, 0xffc070); this.fx!.callout(at, 'SLAM!!', '#ff9a4a', 1); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 120); this.cameras.main.shake(220, 0.011);
       }
-      const crit = hit.damage > 0 && Math.random() < 0.12 + (own ? this.passives.critAdd : 0);
+      const crit = hit.damage > 0 && Math.random() < 0.12 + (own ? this.critAddNow() : 0);
       const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.passives.critDmgAdd : 0) : 1) * (own ? this.ownDamageMul() * ch : 1);
       out.damage = Math.round(out.damage * mult);
       const killed = m.damage(out.damage, now);
@@ -1481,7 +1578,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (counter) this.fx!.callout(at, 'COUNTER!!', '#7ff0ff', row++);
       if (back) this.fx!.callout(at, 'BACK ATTACK!!', '#ffb04a', row++);
       if (crit) this.fx!.callout(at, 'CRITICAL!!', '#ff5a6a', row++);
-      if (crit && own && this.passives.critDmgAdd > 0) { this.fx!.shockwave(at.x, at.y, 110, 0xff8a5a); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 40); } // Combat Mastery: heavier crits
+      if (crit && own && this.passives.critDmgAdd > 0) { this.fx!.shockwave(at.x, at.y, 110, this.cls === 'archer' ? 0x9be35a : 0xff8a5a); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 40); } // Combat Mastery: heavier crits
       if (ch > 1 && out.damage > 0) this.chanceMark(t.id, at);
       if (killed) { // defeated: counts for the quests that ask for it
         this.questKill(m);
@@ -1521,6 +1618,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.dead >= 0) return;
     if (this.inDome()) { this.domeBlock(from); return; }
     if (this.tryCounter(from)) return;
+    if (this.tryEvade(from)) return;
     const hit: HitEvent = { at: 0, damage: dmg, shape: { kind: 'sector', range: 58, angle: 120 }, reaction: { stun: 220, push: 14 } };
     const out = this.body.receive('enemy', ENEMY_SKILL, hit, from, this.simMs);
     if (out.reaction === 'armor' && this.simMs < this.body.invulnUntil) { this.fx!.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 }, 'BLOCK!!', '#9ed8ff', 0); this.fx!.shockwave(this.kin.x, this.kin.y, 70, 0x9ed8ff); }
@@ -1551,6 +1649,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'countered' });
       return;
     }
+    if (hit.damage > 0 && this.tryEvade(this.casterPos(run.attackerId) ?? run.origin)) { this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'armor' }); return; }
     const h = run.dmgMul && run.dmgMul !== 1 ? { ...hit, damage: hit.damage * run.dmgMul } : hit; // caster's War Cry / Radiant Blade
     const out = this.body.receive(run.attackerId, s, h, this.casterPos(run.attackerId) ?? run.origin, this.simMs);
     out.damage = this.takeDamage(out.damage);
@@ -1581,7 +1680,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   private killPlayer(): void {
-    this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; // party buffs end on death
+    this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.spiritUntil = -1; this.hasteUntil = -1; this.tree = null; this.storm = null; // buffs end on death
     this.rt?.cancelOwn('death');
     if (this.jb) { const jbs = this.kit.find((x) => x.id === 'judgment_blade'); if (jbs) this.rt?.closeCharges(jbs); this.jb = null; this.jbWant = 0; }
     this.ci?.reset();
@@ -1678,6 +1777,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       },
       onRelease: (from, m) => { // Judgment Blade thrown: final aim + the moment it left the hand
         const r = this.rt?.runs.find((x) => x.castId === m.castId && x.attackerId === from);
+        if (r && r.skill.id === 'arrow_storm') { r.timings.active = Math.min(r.timings.active, Math.max(m.at, r.elapsed - r.timings.startup)); return; } // Arrow Storm: the caster let go of the key
         if (r && r.phase === 'startup') { r.aim = unit(m.ax, m.ay); r.timings.startup = Math.max(r.elapsed, m.at); }
         this.pvp?.remotes.get(from)?.setSkillStartup(r?.skill.id ?? '', r ? r.timings.startup : m.at);
       },
@@ -1731,7 +1831,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.seenCasts.add(m.castId);
     this.remoteCasts.set(key, [...recent, this.simMs]);
     const run = this.rt?.start({ castId: m.castId, skill: s, stage: Math.max(0, Math.min(2, m.stage ?? 0)), attackerId: from, own: false, origin: { x: m.x, y: m.y, z: m.z ?? 0 }, aim: unit(m.ax, m.ay), place, lock: m.lock ?? null,
-      dmgMul: Math.max(0.3, Math.min(1.4, (m.dm ?? 100) / 100)), reach: Math.max(1, Math.min(1.85, (m.rm ?? 100) / 100)) });
+      dmgMul: Math.max(0.3, Math.min(1.4, (m.dm ?? 100) / 100)), reach: Math.max(1, Math.min(1.85, (m.rm ?? 100) / 100)),
+      range: Math.max(1, Math.min(1.2, (m.rg ?? 100) / 100)), speed: Math.max(1, Math.min(1.35, (m.sp ?? 100) / 100)) });
     if (run && s.id === 'judgment_blade') { // the blade leaves the caster's hand when its release message arrives (fallback: a little after the full charge)
       run.timings.startup = s.startup + 600; r.setSkillStartup(s.id, run.timings.startup);
     }
@@ -1938,8 +2039,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Own active buffs with their timers (HUD buff row). */
   private buffEffects(): HudEffect[] {
-    const out: HudEffect[] = [], now = this.simMs, ic = (id: string) => `assets/final/skills/warrior/${id}/icon.png`;
-    for (const [id, label, until] of [['war_cry', 'War Cry', Math.max(this.warCryUntil, this.allyCryUntil)], ['radiant_blade', 'Radiant Blade', this.radiantUntil], ['iron_oath', 'Iron Oath', this.oathUntil], ['legacy_banner', 'Legacy Banner', this.bannerUntil]] as const)
+    const out: HudEffect[] = [], now = this.simMs, ic = (id: string) => `assets/final/skills/${id === 'bow_haste' || id === 'hunters_spirit' || id === 'tree_of_life' ? 'archer' : 'warrior'}/${id}/icon.png`;
+    for (const [id, label, until] of [['war_cry', 'War Cry', Math.max(this.warCryUntil, this.allyCryUntil)], ['radiant_blade', 'Radiant Blade', this.radiantUntil], ['iron_oath', 'Iron Oath', this.oathUntil], ['legacy_banner', 'Legacy Banner', this.bannerUntil],
+      ['bow_haste', 'Bow Haste', this.hasteUntil], ['hunters_spirit', "Hunter's Spirit", this.spiritUntil], ['tree_of_life', 'Tree of Life', this.tree?.until ?? -1]] as const)
       if (now < until) out.push({ id, label, iconUrl: ic(id), harmful: false, expiresAtMs: until });
     return out;
   }
