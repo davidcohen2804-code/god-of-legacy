@@ -910,25 +910,6 @@ for anim, cells in spec['anims'].items():
         big_ = 1 + int(np.argmax(nd.sum(lw_, L_, range(1, nL_ + 1)))); st_ = lw_ & (L_ != big_) & (px[:, cc_, 3] > 0)
         px[:, cc_][st_] = 0; mk[:, cc_][st_, :3] = 0
       print('  steady upper body:', anim, c, 'from', src_, 'moved', dx_, dy_)
-    # …and it does not bob either: every frame moved so its hips sit at one place (the upper body and head still, only
-    # the legs run); the height that keeps every foot on or above the ground, the lowest foot of the move on it
-    hems_, bots_ = [hem_(c) for c in range(n)], []
-    for c in range(n):
-      al_ = px[:, c * S:(c + 1) * S, 3] > 76
-      if gcells[anim]['shoes'][c] is not None: al_ = al_ | (gcells[anim]['shoes'][c][..., 3] > 0.3)
-      bots_.append(int(np.nonzero(al_.any(1))[0].max()))
-    H_ = max(bots_) - max(b_ - h_[0] for b_, h_ in zip(bots_, hems_)); X_ = hems_[src_][1]
-    for c in range(n):
-      sx_, sy_ = int(round(X_ - hems_[c][1])), H_ - hems_[c][0]
-      if not sx_ and not sy_: continue
-      sh_ = lambda a_: np.roll(np.roll(a_, sy_, 0), sx_, 1)
-      cc_ = slice(c * S, (c + 1) * S)
-      for arr_ in (px, mk, ostrips[anim], omasks[anim]): arr_[:, cc_] = sh_(arr_[:, cc_].copy())
-      for p_ in gcells[anim]:
-        if gcells[anim][p_][c] is not None: gcells[anim][p_][c] = sh_(gcells[anim][p_][c])
-      if blades[anim][c]: blades[anim][c] = [round(v + (sx_ if i % 2 == 0 else sy_), 1) for i, v in enumerate(blades[anim][c])]
-      heads[anim][c] = [heads[anim][c][0] + sx_, heads[anim][c][1] + sy_]
-      print('  still upper body:', anim, c, 'shifted', sx_, sy_, 'feet at', bots_[c] + sy_)
   strips[anim] = px; masks[anim] = mk
   for piece, cl_ in gcells[anim].items():                      # the worn gear strips: the frames of the move side by side
     if any(L_ is None for L_ in cl_): continue                  # (every frame has it, or the move has none)
