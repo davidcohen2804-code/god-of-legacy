@@ -176,6 +176,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private hitBlinkUntil = -1;
   /** Radiant Blade: the sword is a long blade of light until this time. */
   radiantUntil = -1;
+  /** The light blade's hilt and tip on the last frame (its motion afterimage). */
+  private beamPrev: { hx: number; hy: number; tx: number; ty: number } | null = null;
   /** Archer buffs: Bow Haste (+20% attack speed), Hunter's Spirit (+15% critical rate, also shared by a party member). */
   hasteUntil = -1;
   /** Samurai buffs: Quick Draw (speed + crit), Rising Sun (party: damage + critical damage), God of Blades (damage + the halo). */
@@ -1157,7 +1159,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (!this.beam || !this.beamGlow) return;
     this.beam.setVisible(on); this.beamGlow.setVisible(false); // no extra glow layer: the blade art only
-    if (!on) return;
+    if (!on) { this.beamPrev = null; return; }
     const skinC = skinColor(this.equipped.weapon), bkey = skinC !== null ? grayKey(this, 'radiant-blade', 1.7) ?? 'radiant-blade' : 'radiant-blade'; // light blade takes the sword skin's colour
     if (this.beam.texture.key !== bkey) this.beam.setTexture(bkey, 0);
     if (skinC !== null) this.beam.setTint(skinC); else this.beam.clearTint();
@@ -1171,6 +1173,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const sx = len / 238, sy = sx * 1.1; // broad translucent blade of light (pre-downscaled smooth art, additive)
     const d = actorDepth(k.x, k.y, k.z) + (dir === 'up' ? -0.05 : 0.05);
     this.beam.setFrame(f).setPosition(hx, hy).setAngle(ang).setScale(sx, sy).setDepth(d + 0.01).setAlpha(fade);
+    // the light blade's motion: where it swept since the last frame, a golden afterimage (fades fast)
+    const tx = hx + Math.cos(ang * Math.PI / 180) * len, ty = hy + Math.sin(ang * Math.PI / 180) * len, pv = this.beamPrev;
+    if (pv && Math.hypot(tx - pv.tx, ty - pv.ty) > 14 && Math.hypot(hx - pv.hx, hy - pv.hy) < 160) {
+      const g = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(d + 0.005);
+      g.fillStyle(0xffd27a, 0.55 * fade).fillPoints([new Phaser.Geom.Point(pv.hx, pv.hy), new Phaser.Geom.Point(pv.tx, pv.ty), new Phaser.Geom.Point(tx, ty), new Phaser.Geom.Point(hx, hy)], true);
+      g.lineStyle(3, 0xfff4cf, 0.9 * fade).lineBetween(pv.tx, pv.ty, tx, ty);
+      this.tweens.add({ targets: g, alpha: 0, duration: 200, onComplete: () => g.destroy() });
+    }
+    this.beamPrev = { hx, hy, tx, ty };
     this.beamGlow.setFrame(f).setPosition(hx, hy).setAngle(ang).setScale(sx * 1.02, sy * 1.25).setDepth(d + 0.02).setAlpha(0.12 * fade * (0.85 + 0.15 * Math.sin(this.simMs / 90)));
   }
 
@@ -1282,7 +1293,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Archer: Eagle Eyes arrow range. */
   private ownRangeMul(s: FinalSkill): number { return s.cls === 'archer' ? this.passives.rangeMul : 1; }
   /** Archer: Bow Haste (+20%) × Ranger Mastery attack speed (startup / recovery shortened). */
-  private ownSpeedMul(s: FinalSkill): number { return s.cls === 'archer' ? this.passives.atkSpeed * (this.simMs < this.hasteUntil ? 1.2 : 1) : s.cls === 'samurai' ? this.passives.atkSpeed * (this.simMs < this.drawUntil ? 1.2 : 1) : 1; }
+  private ownSpeedMul(s: FinalSkill): number { return s.cls === 'warrior' && this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && s.id !== 'radiant_blade' ? 2 : s.cls === 'archer' ? this.passives.atkSpeed * (this.simMs < this.hasteUntil ? 1.2 : 1) : s.cls === 'samurai' ? this.passives.atkSpeed * (this.simMs < this.drawUntil ? 1.2 : 1) : 1; }
   /** Own critical rate bonus: passives + Hunter's Spirit (+15%). */
   private critAddNow(): number { return this.passives.critAdd + (this.simMs < this.spiritUntil ? 0.15 : 0) + (this.simMs < this.drawUntil ? 0.1 : 0); }
   /** Own extra critical damage: passives + Rising Sun (+20%). */
