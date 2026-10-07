@@ -59,7 +59,7 @@ import { Afterimages, applyMotion, archerMotion, leapMotion } from '../skills/Ar
 import { SAMURAI_AFTER, TORNADO, samuraiMotion, shinsokuMotion, tornadoPath } from '../skills/SamuraiMotion';
 import { HitTarget, V2, V3, clampAim, clampPlace, unit } from '../skills/HitGeometry';
 import { SkillFx, preloadSkillFx } from '../skills/SkillFx';
-import { BEGINNER_TO, JOBS_OPEN, hasJob, jobOfSlot, playedClass, skillLevel } from '../skills/Jobs';
+import { BEGINNER_TO, JOBS_OPEN, TEST_MIN_LEVEL, hasJob, jobOfSlot, playedClass, skillLevel } from '../skills/Jobs';
 import { DeathFx, preloadDeathFx } from '../game/DeathFx';
 import { SkillBook } from '../ui/SkillBook';
 import { CosmeticPanel } from '../ui/CosmeticPanel';
@@ -308,6 +308,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const playerId = newPlayerId();
     this.localId = pvpRoom ? playerId : 'local';
     // Beginner (below the 1st job advancement): every class plays the same sword-only beginner with the basic attack.
+    if (character.level < TEST_MIN_LEVEL) { character.level = TEST_MIN_LEVEL; character.exp = 0; CharacterStore.setProgress(character.id, TEST_MIN_LEVEL, 0); } // TESTING: start at the job advancement
     this.cls = playedClass(character) as ClassKey;
     this.kit = kitFor(this.cls);
     this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.hitBlinkUntil = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;

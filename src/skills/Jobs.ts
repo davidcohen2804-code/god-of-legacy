@@ -42,6 +42,8 @@ export const jobOfSlot = (cls: string, slot: number): Job => jobsFor(cls).find((
 export const ADV_LABEL = ['Beginner', '1st Job', '2nd Job', '3rd Job', '4th Job'];
 /** Level of the 1st job advancement: below it every character is the shared sword-only Beginner. */
 export const BEGINNER_TO = 10;
+/** TESTING (the Masters' job advancement): every character plays from at least this level. Set to 1 to turn it off. */
+export const TEST_MIN_LEVEL = 10;
 /** The old 1st-job level: characters made before the Masters, past it, keep the class they were made with. */
 const LEGACY_JOB_LEVEL = 19;
 /** Classes played in their own art from level 1 (their Beginner uses their own basic attack). Others start as the sword Beginner. */
