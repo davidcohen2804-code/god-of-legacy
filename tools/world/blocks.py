@@ -32,10 +32,14 @@ for t in TPL.values():
   m = np.zeros((y1 - y0, x1 - x0), np.uint8); m[:int((y1 - y0) * 0.78), :] = 255; t['mask'] = m   # top + front face (leaves ring the plinth)
 
 D = json.load(open(R + 'src/data/world-areas.json'))
+# blocks GPT added to a map (only in its cut-out picture, tools/world/layers/gpt/<area>.png): matched there
+ADDED = {'training': [(780, 325, 890, 425)], 'temple': [(780, 350, 895, 455)]}
 for a, rough in BLOCKS.items():
   im = cv2.imread(G + f'src/{a}.png')
   props = [p for p in D['areas'][a].get('props', []) if not p['id'].startswith('block-')]
-  for i, (x0, y0, x1, y1) in enumerate(rough):
+  gpt = cv2.imread(G + f'layers/gpt/{a}.png') if ADDED.get(a) else None
+  for i, (x0, y0, x1, y1) in enumerate(rough + ADDED.get(a, [])):
+    if i >= len(rough): im = gpt
     X0, Y0, X1, Y1 = x0 - 40, y0 - 40, x1 + 40, y1 + 40
     t = TPL['R' if (x0 + x1) / 2 > 836 else 'L']
     reg = im[Y0:Y1, X0:X1]; best = None

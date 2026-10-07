@@ -69,11 +69,14 @@ export class CourtyardAmbience {
 
   /** viewW × viewH: the stretch of world it covers (the PvP courtyard: the whole map; the open world: one screen,
    *  carried along with the camera by setView so the light never jumps). */
-  constructor(scene: Phaser.Scene, viewW: number, viewH: number) {
+  /** band: the cloud shadows' rows [top, bottom] (default: from the courtyard's ground line down) — the open world keeps
+   *  them on its floor, off the far landscape behind it. */
+  constructor(scene: Phaser.Scene, viewW: number, viewH: number, band?: [number, number]) {
     makeTextures(scene);
 
     // Cloud shadows: ground area only (the sky / distant castle stay untouched), above the map, below every actor.
-    const top = A.clouds.groundTop;
+    const top = band ? band[0] : A.clouds.groundTop;
+    if (band) viewH = band[1];
     this.clouds = scene.add.tileSprite(0, top, viewW, viewH - top, CLOUD_KEY).setOrigin(0, 0)
       .setAlpha(A.clouds.alpha).setDepth(-0.6).setBlendMode(Phaser.BlendModes.MULTIPLY);
     this.clouds.setTileScale(A.clouds.tileScale, A.clouds.tileScale * A.clouds.squash);

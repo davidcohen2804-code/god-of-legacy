@@ -10,7 +10,9 @@ D = json.load(open(R + 'src/data/world-areas.json'))
 S = json.load(open(R + 'src/data/world-strip.json'))
 W, H = S['w'], S['h']
 pic = np.zeros((H, W, 3), np.uint8)
-for i, (x, w) in enumerate(S['tiles']): pic[:, x:x + w] = cv2.imread(R + f'public/assets/world/strip/{i}.jpg')
+from PIL import Image
+for i, (x, w) in enumerate(S['tiles']):
+  pic[:, x:x + w] = cv2.cvtColor(np.asarray(Image.open(R + f"public/assets/world/strip/{i}.{S.get('ext', 'jpg')}").convert('RGB')), cv2.COLOR_RGB2BGR)
 hsv = cv2.cvtColor(pic, cv2.COLOR_BGR2HSV).astype(np.int32)
 Hh, Ss, Vv = hsv[..., 0], hsv[..., 1], hsv[..., 2]
 leaf = (((Hh <= 7) | (Hh >= 165) | ((Hh >= 18) & (Hh <= 50))) & (Ss > 120)) | (Vv < 85)   # red / yellow-green leaves, shade

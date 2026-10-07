@@ -1,6 +1,7 @@
 // Open world (PvE): one long world, left to right — the area pictures of src/data/world-areas.json ("row") joined edge to
-// edge into one strip by tools/world/strip.py (src/data/world-strip.json: the picture tiles, each area's x and span, the one
-// walkable floor). Area data stays in area-picture px: world = local + the area's x.
+// edge into one strip by tools/world/strip.py (src/data/world-strip.json: the terrace's picture tiles, the far landscape
+// behind it when there is one, each area's x and span, the one walkable floor, every prop). Area data stays in area-picture
+// px: world = local + the area's x.
 import DATA from '../data/world-areas.json';
 import STRIP from '../data/world-strip.json';
 import { Pt, WorldObject } from './WorldGeometry';
@@ -30,7 +31,8 @@ export interface AreaDef {
   walk: Pt[]; props: AreaProp[];
   npcs?: AreaNpc[];
   mobs?: { kind: string; spawns: Pt[] };
-  portal?: { x: number; y: number; to: string };
+  /** z: the height of what it stands on (the Temple's stairs, up on the stage's level). */
+  portal?: { x: number; y: number; z?: number; to: string };
 }
 export interface MobKind {
   name: string; frames: string; tint?: number; scale: number; hp: number; damage: number; speed: number;
@@ -56,7 +58,12 @@ export const WORLD_FLOOR = STRIP.walk as Pt[];
 /** The strip's picture tiles: [x, width] each (they overlap by 2 px). */
 export const TILES = STRIP.tiles as [number, number][];
 export const tileKey = (i: number) => `world-tile-${i}`;
-export const tileUrl = (i: number) => `assets/world/strip/${i}.jpg`;
+const TILE_EXT = (STRIP as { ext?: string }).ext ?? 'jpg';
+export const tileUrl = (i: number) => `assets/world/strip/${i}.${TILE_EXT}`;
+/** The far landscape behind the terrace (it scrolls slower: depth) — null while the maps are whole (their own sky). */
+export const BACKDROP = ((STRIP as unknown as { bg?: { w: number; tiles: [number, number][] } }).bg) ?? null;
+export const bgKey = (i: number) => `world-bg-${i}`;
+export const bgUrl = (i: number) => `assets/world/bg/${i}.jpg`;
 /** The whole strip, small, for the minimap. */
 export const MINIMAP_URL = 'assets/world/minimap/world.jpg';
 

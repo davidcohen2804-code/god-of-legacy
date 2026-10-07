@@ -1,12 +1,14 @@
-// Open world (PvE): one long world, left to right — the area pictures joined edge to edge into one strip (picture tiles),
-// one walkable floor, every prop (blocks you jump on, pillars you walk behind), the NPC, the monsters of every area and the
-// Temple portal. The camera follows the player; walking from one area into the next is just walking on (its name shows as
-// you cross into it). Combat with the monsters and the quests stay in the scene.
+// Open world (PvE): one long world, left to right — the area pictures joined edge to edge into one strip (picture tiles;
+// with the far landscape behind it, scrolling slower, when there is one: Backdrop), one walkable floor, every prop (blocks
+// and platforms you jump on, pillars you walk behind), the NPC, the monsters of every area and the Temple portal. The camera
+// follows the player; walking from one area into the next is just walking on (its name shows as you cross into it).
+// Combat with the monsters and the quests stay in the scene.
 import Phaser from 'phaser';
 import PROPS from '../data/world-props.json';
 import NPC_ART from '../data/npc-sprites.json';
-import { AREA_H, AREA_W, AreaDef, AreaNpc, MINIMAP_URL, MOB_KINDS, ROW, START, TILES, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
-import { WorldObject, setWorldGeometry } from './WorldGeometry';
+import { AREA_H, AREA_W, AreaDef, AreaNpc, BACKDROP, MINIMAP_URL, MOB_KINDS, ROW, START, TILES, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
+import { WorldObject, actorDepth, setWorldGeometry } from './WorldGeometry';
+import { Backdrop, preloadBackdrop } from './Backdrop';
 import { Monster, preloadMonsterFrames } from './Monster';
 import { CourtyardAmbience } from './Ambience';
 import { NAME_DEPTH } from '../game/ActorView';
@@ -49,6 +51,7 @@ export function preloadOpenWorld(scene: Phaser.Scene): void {
   L('kit.drop_beam', KIT('drop_beam')); L('kit.marker_portal', KIT('marker_portal'));
   for (const t of Object.values(MARK_TEX)) L(t, KIT(t.slice(4)));
   for (const set of new Set(Object.values(MOB_KINDS).map((k) => k.frames))) preloadMonsterFrames(scene, set);
+  preloadBackdrop(scene);
 }
 
 export class OpenWorld {
@@ -60,8 +63,10 @@ export class OpenWorld {
   private npcs: NpcView[] = [];
   private prompt: Phaser.GameObjects.Container;
   private promptKey: Phaser.GameObjects.Text;
-  private portal: { x: number; y: number; beam: Phaser.GameObjects.Image; ring: Phaser.GameObjects.Ellipse; glow: Phaser.GameObjects.Image; motes: Phaser.GameObjects.Particles.ParticleEmitter } | null = null;
+  /** x, y: where you stand to use it (ground); z: the height of what it stands on. */
+  private portal: { x: number; y: number; z: number; beam: Phaser.GameObjects.Image; ring: Phaser.GameObjects.Ellipse; glow: Phaser.GameObjects.Image; motes: Phaser.GameObjects.Particles.ParticleEmitter } | null = null;
   private ambience: CourtyardAmbience;
+  private backdrop: Backdrop | null = null;
   private camX = 0;
   private t = 0;
   /** The talk / portal prompt target (null = none in reach). */
@@ -76,8 +81,9 @@ export class OpenWorld {
     scene.load.on(Phaser.Loader.Events.FILE_COMPLETE, this.onFile, this);
     if (!scene.load.isLoading()) scene.load.start();
     this.buildOccluders(); this.buildNpcs(); this.buildPortal(); this.spawnMobs();
+    if (BACKDROP) this.backdrop = new Backdrop(scene);
     const cam = scene.cameras.main;
-    this.ambience = new CourtyardAmbience(scene, Math.ceil(cam.width / cam.zoom) + 4, AREA_H);
+    this.ambience = new CourtyardAmbience(scene, Math.ceil(cam.width / cam.zoom) + 4, AREA_H, BACKDROP ? [330, 668] : undefined);
     const k = scene.add.image(0, 0, 'kit.keycap').setDisplaySize(34, 33);
     this.promptKey = scene.add.text(0, -1, 'Y', { fontFamily: 'Cinzel, Georgia, serif', fontSize: '16px', fontStyle: '700', color: '#ffe9a8', stroke: '#1a1206', strokeThickness: 3, resolution: 2 }).setOrigin(0.5);
     this.prompt = scene.add.container(0, 0, [k, this.promptKey]).setDepth(UI_DEPTH).setVisible(false);
@@ -127,10 +133,12 @@ export class OpenWorld {
 
   private buildPortal(): void {
     const a = ROW.find((x) => x.portal); if (!a?.portal) return;
-    const p = toWorld(a.id, [a.portal.x, a.portal.y]);
-    const ring = this.scene.add.ellipse(p.x, p.y, 92, 30).setStrokeStyle(3, 0xffe2a0, 0.9).setFillStyle(0xffd27a, 0.18).setDepth(p.y - 0.4).setBlendMode(Phaser.BlendModes.ADD);
-    const beam = this.scene.add.image(p.x, p.y + 6, 'kit.drop_beam').setOrigin(0.5, 0.92).setDisplaySize(96, 210).setBlendMode(Phaser.BlendModes.ADD).setDepth(p.y + 0.3).setAlpha(0.85);
-    const glow = this.scene.add.image(p.x, p.y - 2, 'kit.marker_portal').setDisplaySize(70, 24).setBlendMode(Phaser.BlendModes.ADD).setDepth(p.y - 0.3).setAlpha(0.9);
+    const g = toWorld(a.id, [a.portal.x, a.portal.y]), z = a.portal.z ?? 0;
+    const p = { x: g.x, y: g.y - z };          // drawn where it stands (up on the stage: higher on screen)
+    const d0 = actorDepth(g.x, g.y, z) - p.y;  // its layer: under the feet of someone standing there
+    const ring = this.scene.add.ellipse(p.x, p.y, 92, 30).setStrokeStyle(3, 0xffe2a0, 0.9).setFillStyle(0xffd27a, 0.18).setDepth(p.y + d0 - 0.4).setBlendMode(Phaser.BlendModes.ADD);
+    const beam = this.scene.add.image(p.x, p.y + 6, 'kit.drop_beam').setOrigin(0.5, 0.92).setDisplaySize(96, 210).setBlendMode(Phaser.BlendModes.ADD).setDepth(p.y + d0 + 0.3).setAlpha(0.85);
+    const glow = this.scene.add.image(p.x, p.y - 2, 'kit.marker_portal').setDisplaySize(70, 24).setBlendMode(Phaser.BlendModes.ADD).setDepth(p.y + d0 - 0.3).setAlpha(0.9);
     if (!this.scene.textures.exists('portal-mote')) {
       const g = this.scene.make.graphics({}, false);
       for (let i = 8; i > 0; i--) g.fillStyle(0xffffff, 0.12 + (8 - i) * 0.1).fillCircle(8, 8, i);
@@ -140,8 +148,8 @@ export class OpenWorld {
       speedY: { min: -90, max: -40 }, speedX: { min: -10, max: 10 }, lifespan: { min: 900, max: 1500 }, scale: { start: 0.7, end: 0 },
       alpha: { start: 0.9, end: 0 }, tint: [0xffffff, 0xffe7a8, 0xffd27a], blendMode: 'ADD', frequency: 70,
       emitZone: { type: 'random', source: new Phaser.Geom.Ellipse(0, 0, 70, 20), quantity: 1 } as Phaser.Types.GameObjects.Particles.EmitZoneData,
-    }).setDepth(p.y + 0.35);
-    this.portal = { x: p.x, y: p.y, beam, ring, glow, motes };
+    }).setDepth(p.y + d0 + 0.35);
+    this.portal = { x: g.x, y: g.y, z, beam, ring, glow, motes };
   }
 
   /** Every area's monsters live all the time (each one keeps to its own home spot). */
@@ -164,6 +172,7 @@ export class OpenWorld {
     if (Math.abs(target - this.camX) < 0.05) this.camX = target;
     cam.centerOn(this.camX, WORLD_H / 2);
     this.ambience.setView(this.viewLeft);
+    this.backdrop?.setView(this.viewLeft, cam.width / cam.zoom);
   }
 
   /** Instant move (portal, waking up after a defeat): a short fade, then there. */
@@ -182,10 +191,12 @@ export class OpenWorld {
   private setArea(a: AreaDef): void { if (a === this.area) return; this.area = a; this.hooks.onArea(a); }
 
   // ------------------------------------------------------------------ per frame
-  update(ms: number, player: { x: number; y: number; z: number; alive: boolean }): void {
+  /** player: z = height above what he stands on, supportZ = the height of that (0 = the floor). */
+  update(ms: number, player: { x: number; y: number; z: number; supportZ?: number; alive: boolean }): void {
     this.t += ms;
     this.follow(player.x, ms);
     this.ambience.update(ms);
+    this.backdrop?.update(ms);
     // the area you are in (by where you stand on the strip; a little past the line, so it never flickers)
     const a = areaAt(player.x);
     if (a !== this.area && player.x > a.span[0] + (a.span[0] > 0 ? AREA_HYST : 0) - 1 && player.x < a.span[1] - (a.span[1] < WORLD_W ? AREA_HYST : 0) + 1) this.setArea(a);
@@ -208,10 +219,11 @@ export class OpenWorld {
         const d = Math.hypot(player.x - n.x, (player.y - n.y) * 1.4);
         if (d < best) { best = d; this.near = { kind: 'npc', npc: n.def }; }
       }
-      if (!this.near && this.portal && Math.hypot(player.x - this.portal.x, (player.y - this.portal.y) * 1.4) < PORTAL_R) this.near = { kind: 'portal' };
+      const P = this.portal;
+      if (!this.near && P && Math.abs((player.supportZ ?? 0) - P.z) < 8 && Math.hypot(player.x - P.x, (player.y - P.y) * 1.4) < PORTAL_R) this.near = { kind: 'portal' };
     }
     const nv = this.near?.kind === 'npc' ? this.npcs.find((n) => n.def === (this.near as { npc: AreaNpc }).npc) : null;
-    const at = nv ? { x: nv.x + 34, y: nv.top - 4 } : this.near?.kind === 'portal' && this.portal ? { x: this.portal.x, y: this.portal.y - 120 } : null;
+    const at = nv ? { x: nv.x + 34, y: nv.top - 4 } : this.near?.kind === 'portal' && this.portal ? { x: this.portal.x, y: this.portal.y - this.portal.z - 120 } : null;
     this.prompt.setVisible(!!at);
     if (at) this.prompt.setPosition(at.x, at.y + Math.sin(this.t / 260) * 3);
   }
@@ -232,7 +244,7 @@ export class OpenWorld {
     const side = WORLD_H, minX = Phaser.Math.Clamp(player.x - side / 2, 0, Math.max(0, WORLD_W - side));
     const markers: { id: string; kind: 'player' | 'npc' | 'portal'; x: number; y: number }[] = [{ id: 'local', kind: 'player', x: player.x, y: player.y }];
     for (const n of this.npcs) markers.push({ id: `npc:${n.def.id}`, kind: 'npc', x: n.x, y: n.y });
-    if (this.portal) markers.push({ id: 'portal', kind: 'portal', x: this.portal.x, y: this.portal.y });
+    if (this.portal) markers.push({ id: 'portal', kind: 'portal', x: this.portal.x, y: this.portal.y - this.portal.z });
     return { label: this.area.name, imageUrl: MINIMAP_URL, image: { x: 0, y: 0, w: WORLD_W, h: WORLD_H }, bounds: { minX, minY: 0, width: side, height: side }, markers };
   }
 
@@ -247,5 +259,6 @@ export class OpenWorld {
     if (this.portal) { this.portal.beam.destroy(); this.portal.ring.destroy(); this.portal.glow.destroy(); this.portal.motes.destroy(); }
     this.prompt.destroy();
     this.ambience.destroy();
+    this.backdrop?.destroy(); this.backdrop = null;
   }
 }
