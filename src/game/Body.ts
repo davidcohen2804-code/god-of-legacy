@@ -417,7 +417,7 @@ export type PoseQuery =
  *  (dust puffs): the run lands on the passing frames. */
 export const baseLoop = (state: 'walk' | 'run', speed: number): { n: number; fps: number; contact: number[] } => state === 'walk'
   ? { n: 4, fps: 7 * Math.max(0.7, Math.min(1.2, speed / 188)), contact: [0, 2] }
-  : { n: 4, fps: 9 * Math.max(0.75, Math.min(1.15, speed / 270)), contact: [1, 3] }; // calmer strides (~110 ms a frame at full run): a step's length on the ground
+  : { n: 4, fps: 6 * Math.max(0.75, Math.min(1.15, speed / 270)), contact: [1, 3] }; // calm strides (~150 ms a frame at full run)
 
 const pick = <T,>(list: T[], p: number): T => list[Math.max(0, Math.min(list.length - 1, Math.floor(p * list.length)))];
 
