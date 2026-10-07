@@ -13,7 +13,7 @@ export const CHAT_MAX_LEN = 120;
 export const EMOTES = 8;
 const MAX_LINES = 120;
 /** Layout (design px): tabs row, log frame, typing row. */
-const L = { x: 16, y: 792, w: 364, tabW: 84, tabH: 30, logY: 826, logH: 176, inY: 1008, inH: 36, send: 40 };
+const L = { x: 14, y: 786, w: 410, tabW: 98, tabH: 34, logY: 826, logH: 190, inY: 1024, inH: 42, send: 46 };
 /** chat_frame_log.png (1390x407) nine-slice: art insets and the same scale as the width (gems keep their shape). */
 const F = { k: L.w / 1390, t: 115, r: 112, b: 112, l: 112 };
 const COLOR: Record<ChatKind, string> = { all: '#ffffff', party: '#ffb35c', whisper: '#ff9be0', system: '#ffd76e' };
@@ -23,7 +23,7 @@ const CSS = `
 .gol-chat{position:absolute;left:${L.x}px;top:${L.y}px;width:${L.w}px;height:${L.inY + L.inH - L.y}px;pointer-events:none;font-family:${HUD.bodyFont}}
 .gol-chat .tabs{position:absolute;left:0;top:0;display:flex;gap:4px}
 .gol-chat .tab{width:${L.tabW}px;height:${L.tabH}px;padding:0;border:0;background:url("${K('chat_tab')}") center/100% 100% no-repeat;
-  color:#d9c8a0;font:700 10px ${FONT_FAMILY};letter-spacing:.5px;padding:0 12px;pointer-events:auto;cursor:pointer;text-shadow:0 1px 2px #000}
+  color:#e2d2aa;font:700 12px ${FONT_FAMILY};letter-spacing:.5px;padding:0 12px;pointer-events:auto;cursor:pointer;text-shadow:0 1px 2px #000}
 .gol-chat .tab.on{background-image:url("${K('chat_tab_sel')}");color:#ffe9a8}
 .gol-chat .tab .n{display:none;margin-left:3px;color:#ff9be0}
 .gol-chat .tab.new .n{display:inline}
@@ -31,20 +31,20 @@ const CSS = `
   border-style:solid;border-width:${Math.round(F.t * F.k)}px ${Math.round(F.r * F.k)}px ${Math.round(F.b * F.k)}px ${Math.round(F.l * F.k)}px;
   border-image:url("${K('chat_frame_log')}") ${F.t} ${F.r} ${F.b} ${F.l} fill / ${Math.round(F.t * F.k)}px ${Math.round(F.r * F.k)}px ${Math.round(F.b * F.k)}px ${Math.round(F.l * F.k)}px stretch}
 .gol-chat .fill{position:absolute;left:10px;top:${L.logY - L.y + 17}px;width:${L.w - 20}px;height:${L.logH - 28}px;background:rgba(5,9,18,.58);border-radius:3px}
-.gol-chat .lines{position:absolute;left:24px;top:${L.logY - L.y + 26}px;width:${L.w - 44}px;height:${L.logH - 48}px;padding-right:4px;overflow-y:auto;pointer-events:auto;
-  font-size:13px;line-height:17px;color:#fff;text-shadow:0 1px 1px #000,0 0 2px #000;overflow-wrap:anywhere;scrollbar-width:thin;scrollbar-color:#b48a3c transparent}
+.gol-chat .lines{position:absolute;left:26px;top:${L.logY - L.y + 26}px;width:${L.w - 48}px;height:${L.logH - 48}px;padding-right:6px;overflow-y:auto;pointer-events:auto;
+  font-size:15px;line-height:20px;color:#fff;text-shadow:0 1px 1px #000,0 0 2px #000;overflow-wrap:anywhere;scrollbar-width:thin;scrollbar-color:#b48a3c transparent}
 .gol-chat .lines::-webkit-scrollbar{width:5px}.gol-chat .lines::-webkit-scrollbar-thumb{background:#b48a3c;border-radius:3px}
 .gol-chat .ln b{font-weight:700}
 .gol-chat .row{position:absolute;left:0;top:${L.inY - L.y}px;width:${L.w - 2 * L.send - 8}px;height:${L.inH}px;box-sizing:border-box;
   border-style:solid;border-width:0 22px;border-image:url("${K('chat_input')}") 0 80 fill / 0 22px stretch;pointer-events:auto}
 .gol-chat input{position:absolute;inset:0 2px;width:calc(100% - 4px);height:100%;box-sizing:border-box;border:0;outline:0;background:transparent;
-  color:#fff;font:14px ${HUD.bodyFont};caret-color:#ffd76e;padding:0 8px}
+  color:#fff;font:16px ${HUD.bodyFont};caret-color:#ffd76e;padding:0 8px}
 .gol-chat input::placeholder{color:#a99f86;font-style:italic}
 .gol-chat .send{position:absolute;left:${L.w - L.send}px;top:${L.inY - L.y - 2}px;width:${L.send}px;height:${L.send}px;padding:0;border:0;
   background:url("${K('send_btn')}") center/100% 100% no-repeat;pointer-events:auto;cursor:pointer}
 .gol-chat .send:hover,.gol-chat .emo:hover{filter:brightness(1.18)}
 .gol-chat .emo{position:absolute;left:${L.w - 2 * L.send - 4}px;top:${L.inY - L.y - 2}px;width:${L.send}px;height:${L.send}px;padding:0;border:0;
-  background:url("${K('ico_emote')}") center/30px 30px no-repeat;pointer-events:auto;cursor:pointer}
+  background:url("${K('ico_emote')}") center/34px 34px no-repeat;pointer-events:auto;cursor:pointer}
 .gol-chat .emos{position:absolute;left:${L.w - 2 * L.send - 150}px;bottom:${L.inH + 12}px;width:228px;padding:16px 18px;box-sizing:border-box;display:none;
   grid-template-columns:repeat(4,1fr);gap:8px;pointer-events:auto;background:url("${K('tooltip_panel')}") center/100% 100% no-repeat}
 .gol-chat .emos.open{display:grid}

@@ -61,6 +61,8 @@ import { SkillBook } from '../ui/SkillBook';
 import { CosmeticPanel } from '../ui/CosmeticPanel';
 import { preloadPanelArt } from '../ui/PreviewStage';
 import { addMotes, preloadLife } from '../ui/PresentationLife';
+/** The panels' keys (Key Settings) for the HUD's menu pills and gear menu. */
+const menuKeys = (b: Record<BindAction, string>) => ({ K: keyLabel(b.book), I: keyLabel(b.bag), O: keyLabel(b.shop), P: keyLabel(b.party) });
 
 const D = TRAINING.dummy;
 const R = PHYS.footR;
@@ -203,6 +205,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   chat?: ChatBox;
   private bubbles?: SpeechBubbles;
   private questsUi?: QuestTracker;
+  /** Dims the world behind the big windows. */
+  private veil?: Phaser.GameObjects.Rectangle;
   questLog?: QuestLog;
   keySettings?: KeySettings;
   // ---- open world (PvE): areas, monsters, NPCs, potions, gold
@@ -356,11 +360,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onKeys: () => { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.keySettings?.open(loadBindings()); },
     });
     this.hud.setKeyLabels(slotKeyLabels());
+    this.hud.setMenuKeys(menuKeys(this.bindings));
     this.refreshPassiveStrip();
     const host = this.game.canvas.parentElement!;
     this.skillBook = new SkillBook(this, host, this.game.canvas, this.cls, character.level, this.allOpen(), pvpRoom || isQAMode() ? undefined : (on) => this.setAllOpen(on)); // arena / QA: all skills open
     this.cosPanel = new CosmeticPanel(this, host, this.game.canvas, character, () => this.equipped, (e) => this.setEquipped(e), (g) => this.onGearChange(g));
     this.skillBook.setEquipped(this.equipped);
+    // Behind the big windows (skill book, inventory, shop) the world fades back (the HUD steps aside; the previews stay clear).
+    this.veil = this.add.rectangle(-480, -480, 1920 + 960, 1080 + 960, 0x04070e, 0.5).setOrigin(0, 0).setScrollFactor(0).setDepth(1e7).setVisible(false);
+    this.cosPanel.keepOutOfPreviews(this.veil);
     // Chat (Enter), speech bubbles, quest tracker and quest log (J).
     const ov = this.hud.overlay;
     this.chat = new ChatBox(ov, (text, kind) => this.sendChat(text, kind), (on) => this.chatTyping(on), (n) => { this.bubbles?.emote(this.localId, n, this.simMs); this.pvp?.sendChat('', undefined, n); });
@@ -386,6 +394,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, (_t: number, d: number) => {
       if (!this.hud) return;
       this.hud.layout(); this.skillBook?.layout(); this.cosPanel?.layout();
+      const big = !!(this.skillBook?.open || this.cosPanel?.open);
+      const small = !!(this.questLog?.isOpen || this.partyUi?.isOpen || this.keySettings?.isOpen || this.npcDialog?.isOpen);
+      this.hud.setModal(big ? 'bare' : small ? 'dim' : 'none');
+      if (this.veil && this.veil.visible !== big) this.veil.setVisible(big);
       if (this.view) this.hud.update(this.hudState(), this.simMs, d);
     });
     const kb = this.input.keyboard!;
@@ -1305,6 +1317,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.bindings = b;
     this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), b, () => this.onTalk());
     this.hud?.setKeyLabels(slotKeyLabels(b));
+    this.hud?.setMenuKeys(menuKeys(b));
     this.world?.setTalkKey(keyLabel(b.talk)); if (this.npcDialog) this.npcDialog.talkKey = keyLabel(b.talk);
   }
 

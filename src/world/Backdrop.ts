@@ -18,11 +18,12 @@ const FAR_CLOUDS = 0.6;
 const NEAR_MIST = 0.3;
 /** Clouds high in the sky (shown this wide, px), a few at a time; mist low in the valley (seen through the arches) and far
  *  behind the balustrade: the same clouds, wide, pale and faint. */
-const CLOUDS = { n: 6, y: [24, 110], width: [160, 380], alpha: [0.85, 0.97], speed: [5, 11] };
-const MIST = { valley: { n: 6, y: [780, 930] }, far: { n: 4, y: [250, 300] }, width: [520, 900], alpha: [0.14, 0.26], speed: [2, 5], tint: 0xffe9ee };
+const CLOUDS = { n: 6, y: [24, 110], width: [160, 380], alpha: [0.85, 0.97], speed: [1.8, 3.6] };
+const MIST = { valley: { n: 6, y: [780, 930] }, far: { n: 4, y: [250, 300] }, width: [520, 900], alpha: [0.14, 0.26], speed: [1, 2.4], tint: 0xffe9ee };
 const FLOCK = { every: [16000, 36000], size: [3, 5], y: [55, 205], speed: [62, 96], fps: 11, width: [24, 32] };
-/** The falling water laid over each painted fall: sunset-tinted, half see-through (the painting shows through it). */
-const FALL = { fps: 14, alpha: 0.5, tint: 0xffe6d6 };
+/** The falling water laid over each painted fall: soft (far away, see sky.py), slow, sunset-tinted and faint — the
+ *  painting's falls shimmer under it. */
+const FALL = { fps: 9, alpha: 0.36, tint: 0xf2dacd };
 
 export function preloadBackdrop(scene: Phaser.Scene): void {
   if (!BACKDROP) return;
@@ -35,8 +36,10 @@ export function preloadBackdrop(scene: Phaser.Scene): void {
 
 const rnd = (r: number[]) => r[0] + Math.random() * (r[1] - r[0]);
 
-interface Drifter { img: Phaser.GameObjects.Image; v: number }
-interface Bird { img: Phaser.GameObjects.Sprite; v: number; ph: number; y: number }
+/** Each drifter sits in its own little container, moved by the container: the camera rounds a picture's own position to
+ *  whole pixels (crisp sprites), which would make a slow cloud hop a pixel at a time; a container's position glides. */
+interface Drifter { box: Phaser.GameObjects.Container; img: Phaser.GameObjects.Image; v: number }
+interface Bird { box: Phaser.GameObjects.Container; img: Phaser.GameObjects.Sprite; v: number; ph: number; y: number }
 
 export class Backdrop {
   /** The landscape, its waterfalls and the birds: they move together. */
@@ -107,16 +110,16 @@ export class Backdrop {
     S.clouds.forEach((c, i) => { if (!tex.has(`c${i}`)) tex.add(`c${i}`, 0, c.x, c.y, c.w, c.h); });
     const frame = () => `c${Math.floor(Math.random() * S.clouds.length)}`;
     for (let i = 0; i < CLOUDS.n; i++) {
-      const img = this.scene.add.image(0, rnd(CLOUDS.y), 'sky-clouds', frame()).setOrigin(0, 0.5).setAlpha(rnd(CLOUDS.alpha));
+      const img = this.scene.add.image(0, 0, 'sky-clouds', frame()).setOrigin(0, 0.5).setAlpha(rnd(CLOUDS.alpha));
       img.setScale(rnd(CLOUDS.width) / img.width);
-      img.setData('slot', (i + Math.random() * 0.6) / CLOUDS.n);
-      this.clouds.push({ img, v: rnd(CLOUDS.speed) }); this.sky.add(img);
+      const box = this.scene.add.container(0, rnd(CLOUDS.y), [img]).setData('slot', (i + Math.random() * 0.6) / CLOUDS.n);
+      this.clouds.push({ box, img, v: rnd(CLOUDS.speed) }); this.sky.add(box);
     }
     for (const band of [MIST.valley, MIST.far]) for (let i = 0; i < band.n; i++) {
-      const img = this.scene.add.image(0, rnd(band.y), 'sky-clouds', frame()).setOrigin(0, 0.5).setAlpha(rnd(MIST.alpha)).setTint(MIST.tint);
+      const img = this.scene.add.image(0, 0, 'sky-clouds', frame()).setOrigin(0, 0.5).setAlpha(rnd(MIST.alpha)).setTint(MIST.tint);
       img.setScale(rnd(MIST.width) / img.width, (rnd(MIST.width) / img.width) * 0.45);   // flattened: a layer of haze
-      img.setData('slot', (i + Math.random() * 0.7) / band.n);
-      this.mist.push({ img, v: rnd(MIST.speed) }); this.haze.add(img);
+      const box = this.scene.add.container(0, rnd(band.y), [img]).setData('slot', (i + Math.random() * 0.7) / band.n);
+      this.mist.push({ box, img, v: rnd(MIST.speed) }); this.haze.add(box);
     }
     this.placed = false;
   }
@@ -135,7 +138,7 @@ export class Backdrop {
       this.placed = true;
       for (const [list, layer] of [[this.clouds, 'clouds'], [this.mist, 'mist']] as const) {
         const [lo, hi] = this.range(layer);
-        for (const d of list) d.img.x = lo + (hi - lo) * (d.img.getData('slot') as number);
+        for (const d of list) d.box.x = lo + (hi - lo) * (d.box.getData('slot') as number);
       }
     }
   }
@@ -155,9 +158,9 @@ export class Backdrop {
     for (const [list, layer] of [[this.clouds, 'clouds'], [this.mist, 'mist']] as const) {
       const [lo, hi] = this.range(layer), w = hi - lo;
       for (const d of list) {
-        const im = d.img; im.x += d.v * s;
-        const iw = im.displayWidth;
-        if (im.x > hi) im.x -= w + iw; else if (im.x + iw < lo) im.x += w + iw;
+        const b = d.box; b.x += d.v * s;
+        const iw = d.img.displayWidth;
+        if (b.x > hi) b.x -= w + iw; else if (b.x + iw < lo) b.x += w + iw;
       }
     }
     for (const f of this.falls) {   // setFrame resets the size to the frame's: keep each fall's own
@@ -178,16 +181,17 @@ export class Backdrop {
       for (let i = 0; i < n; i++) {
         const lead = i === 0 ? 0 : Math.ceil(i / 2), side = i % 2 ? 1 : -1;
         const x = (dir > 0 ? u0 - 60 : u1 + 60) - dir * lead * 26, y = y0 + side * lead * 11;
-        const img = this.scene.add.sprite(x, y, 'sky-birds', 0).setScale(rnd(FLOCK.width) / S.birds.w).setFlipX(dir < 0).setAlpha(0.92); // small: far away
-        this.birds.push({ img, v: v * (0.97 + Math.random() * 0.06), ph: Math.random() * 1000, y }); this.land.add(img);
+        const img = this.scene.add.sprite(0, 0, 'sky-birds', 0).setScale(rnd(FLOCK.width) / S.birds.w).setFlipX(dir < 0).setAlpha(0.92); // small: far away
+        const box = this.scene.add.container(x, y, [img]);
+        this.birds.push({ box, img, v: v * (0.97 + Math.random() * 0.06), ph: Math.random() * 1000, y }); this.land.add(box);
       }
     }
     for (let i = this.birds.length - 1; i >= 0; i--) {
       const b = this.birds[i];
-      b.img.x += b.v * s; b.ph += ms;
-      b.img.y = b.y + Math.sin(b.ph / 700) * 4;
+      b.box.x += b.v * s; b.ph += ms;
+      b.box.y = b.y + Math.sin(b.ph / 700) * 4;
       const sc = b.img.scaleX; b.img.setFrame(Math.floor(b.ph / (1000 / FLOCK.fps)) % (S.birds!.n)).setScale(sc);
-      if ((b.v > 0 && b.img.x > u1 + 160) || (b.v < 0 && b.img.x < u0 - 160)) { b.img.destroy(); this.birds.splice(i, 1); }
+      if ((b.v > 0 && b.box.x > u1 + 160) || (b.v < 0 && b.box.x < u0 - 160)) { b.box.destroy(true); this.birds.splice(i, 1); }
     }
   }
 

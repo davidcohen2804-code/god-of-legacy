@@ -15,6 +15,7 @@ import { AnimSnap, LAND_MS, Mode, poseQuery } from '../game/PoseState';
 import { Dir } from '../world/collision';
 import { kitFor } from '../skills/FinalKit';
 import { isQAMode } from '../qa/QAPanel';
+import { keyLabel, loadBindings } from '../game/KeyBindings';
 import { GEAR, GearItem, GearSlot, GearState, SLOT_NAMES, WornLook, bagItems, gearStats, itemName, starterGear, takeOff, wear, wornItem, wornLook } from '../items/Gear';
 
 type Tab = 'inventory' | 'shop';
@@ -86,13 +87,13 @@ const CSS = `
 .gol-cp .cell .nm{position:absolute;left:0;right:0;top:100px;font-size:13px;line-height:15px;color:#e8dcc2;text-shadow:0 1px 2px #000}
 .gol-cp .cell .eqt{position:absolute;left:50%;top:76px;transform:translateX(-50%);padding:1px 6px;border-radius:4px;background:#0b121bd9;border:1px solid #3f7a52;font-size:9px;letter-spacing:1px;color:#8ff0a8;font-weight:700;white-space:nowrap}
 .gol-cp .row{position:absolute;left:0;width:100%;height:84px;background:url("${INV}/set_bundle_frame.png") 0 0/100% 100%;display:flex;align-items:center;gap:12px;padding:0 70px 0 72px}
-.gol-cp .row .rn{width:190px;font-size:16px;font-weight:700;color:#f3e2bf;line-height:19px}
-.gol-cp .row .rn small{display:block;font-size:12px;font-weight:400;color:#9fb0c0;font-family:Georgia,serif}
+.gol-cp .row .rn{width:190px;font-size:17px;font-weight:700;color:#f3e2bf;line-height:21px}
+.gol-cp .row .rn small{display:block;font-size:14px;font-weight:400;color:#a9b8c6;font-family:Georgia,serif}
 .gol-cp .row img{width:52px;height:52px;object-fit:contain;border-radius:6px;background:rgba(0,0,0,.25)}
 .gol-cp .row .pt{display:flex;gap:6px;flex:1}
-.gol-cp .act{height:34px;padding:0 14px;border-radius:6px;border:1px solid #c99a45;background:#2a1a08;color:#ffe2a0;font-size:13px;font-weight:700;letter-spacing:1px}
+.gol-cp .act{height:38px;padding:0 16px;border-radius:7px;border:1px solid #c99a45;background:#2a1a08;color:#ffe2a0;font-size:14px;font-weight:700;letter-spacing:1px}
 .gol-cp .act.alt{background:#0d1a26;border-color:#5a86b0;color:#cfe6ff}
-.gol-cp .empty{position:absolute;left:0;right:0;top:120px;text-align:center;font-size:17px;color:#9fb0c0;font-family:Georgia,serif;line-height:1.5}
+.gol-cp .empty{position:absolute;left:0;right:0;top:120px;text-align:center;font-size:18px;color:#a9b8c6;font-family:Georgia,serif;line-height:1.5}
 .gol-cp .card{position:absolute;width:176px;height:224px;background:url("${SHOP}/item_card.png") 0 0/100% 100%;cursor:pointer;transition:transform 120ms,filter 120ms}
 .gol-cp .card.sel{background-image:url("${SHOP}/item_card_selected.png");filter:drop-shadow(0 0 10px rgba(240,190,90,.5))}
 .gol-cp .card:hover{transform:translateY(-2px);filter:brightness(1.12)}
@@ -104,9 +105,11 @@ const CSS = `
 .gol-cp .card .pr .own{font-size:11px;letter-spacing:1px;color:#8ff0a8}
 .gol-cp .card .bt{position:absolute;left:10px;right:10px;bottom:10px;display:flex;gap:6px}
 .gol-cp .card .bt button{flex:1;height:26px;padding:0;font-size:11px;letter-spacing:.5px;border-radius:5px}
-.gol-cp .st{position:absolute;display:flex;gap:5px;flex-wrap:nowrap}
-.gol-cp .st button{height:30px;padding:0 8px;border-radius:5px;border:1px solid #4a5f74;background:#0d1520;color:#c9d6e2;font-size:12px;font-weight:700;letter-spacing:.5px}
-.gol-cp .st button.on{border-color:#c99a45;color:#ffe2a0;background:#251a0a}
+.gol-cp .st{position:absolute;height:48px;display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:nowrap}
+.gol-cp .st .sn{min-width:80px;text-align:center;font:700 15px ${FONT_FAMILY};letter-spacing:1.5px;color:#ffe2a0;text-shadow:0 1px 2px #000}
+.gol-cp .st .sep{width:1px;height:28px;margin:0 3px;background:rgba(201,154,69,.45)}
+.gol-cp .st .pb{height:34px;padding:0 9px;border-radius:7px;border:1px solid #6a5630;background:#0d1520;color:#c9d6e2;font-size:13px;font-weight:700;letter-spacing:.6px;white-space:nowrap}
+.gol-cp .st .pb.on{border-color:#c99a45;color:#ffe2a0;background:#251a0a;box-shadow:0 0 10px rgba(232,178,90,.3)}
 .gol-cp .bundle{position:absolute;height:118px;background:url("${INV}/set_bundle_frame.png") 0 0/100% 100%;padding:12px 64px;display:none}
 .gol-cp .bundle.on{display:block}
 .gol-cp .bundle .bh{font-size:14px;font-weight:700;color:#f3e2bf;letter-spacing:1px}
@@ -123,11 +126,11 @@ const CSS = `
 .gol-cp .ct{position:absolute;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#c99a45 #0b121b}
 .gol-cp .ks{position:absolute;width:84px;height:84px;background:url("${KIT}/slot_empty.png") 0 0/100% 100%}
 .gol-cp .ks img{position:absolute;left:20px;top:20px;width:44px;height:44px;object-fit:contain;opacity:.55}
-.gol-cp .ks small{position:absolute;left:-20px;right:-20px;top:88px;text-align:center;font-size:11px;letter-spacing:1px;color:#9fb0c0}
+.gol-cp .ks small{position:absolute;left:-20px;right:-20px;top:88px;text-align:center;font-size:12px;letter-spacing:1px;color:#a9b8c6}
 .gol-cp .sec{position:absolute;font-size:13px;letter-spacing:2px;color:#c99a45;font-weight:700}
-.gol-cp .hint{position:absolute;font-size:14px;color:#8fa1b3;font-family:Georgia,serif}
-.gol-cp .ctabs{position:absolute;display:flex;gap:6px;flex-wrap:nowrap}
-.gol-cp .ctabs button{width:142px;height:44px;padding:0 18px;border:0;background:url("${KIT}/pill_normal.png") center/100% 100% no-repeat;color:#c9d6e2;font-size:12px;font-weight:700;letter-spacing:1px;white-space:nowrap}
+.gol-cp .hint{position:absolute;font-size:15px;line-height:20px;color:#a9b8c6;font-family:Georgia,serif}
+.gol-cp .ctabs{position:absolute;display:flex;gap:4px;flex-wrap:nowrap;justify-content:center}
+.gol-cp .ctabs button{flex:none;min-width:92px;height:46px;padding:0 22px;border:0;background:url("${KIT}/pill_normal.png") center/100% 100% no-repeat;color:#d3dce5;font-size:13px;font-weight:700;letter-spacing:.5px;white-space:nowrap;text-shadow:0 1px 2px #000}
 .gol-cp .ctabs button:hover{background-image:url("${KIT}/pill_hover.png")}
 .gol-cp .ctabs button.on{background-image:url("${KIT}/pill_selected.png");color:#ffe2a0}
 .gol-cp .tb{position:absolute;display:flex;gap:8px}
@@ -135,7 +138,7 @@ const CSS = `
 .gol-cp .tb button.sort{background-image:url("${KIT}/btn_sort.png")} .gol-cp .tb button.sort:hover{background-image:url("${KIT}/btn_sort_hover.png")}
 .gol-cp .tb button.filter{background-image:url("${KIT}/btn_filter.png")} .gol-cp .tb button.filter:hover{background-image:url("${KIT}/btn_filter_hover.png")}
 .gol-cp .tb button.search{background-image:url("${KIT}/btn_search.png")} .gol-cp .tb button.search:hover{background-image:url("${KIT}/btn_search_hover.png")}
-.gol-cp .st button.arw{width:38px;height:40px;padding:0;border:0;color:transparent;background:url("${KIT}/btn_left.png") center/contain no-repeat}
+.gol-cp .st button.arw{width:34px;height:36px;padding:0;border:0;color:transparent;flex:none;background:url("${KIT}/btn_left.png") center/contain no-repeat}
 .gol-cp .st button.arw:hover{background-image:url("${KIT}/btn_left_hover.png")}
 .gol-cp .st button.arw.r{background-image:url("${KIT}/btn_right.png")} .gol-cp .st button.arw.r:hover{background-image:url("${KIT}/btn_right_hover.png")}
 .gol-cp .kitbar{scrollbar-width:auto;scrollbar-color:auto}
@@ -145,14 +148,14 @@ const CSS = `
 .gol-cp .tip{position:absolute;width:224px;height:406px;background:url("${KIT}/tip_common.png") 0 0/100% 100% no-repeat;pointer-events:none;display:none;z-index:5;color:#dfe6ee;font-family:Georgia,serif}
 .gol-cp .tip.on{display:block}
 .gol-cp .tip .tn{position:absolute;left:100px;right:14px;top:28px;font:700 14px ${FONT_FAMILY};line-height:17px;color:#f3e2bf;text-shadow:0 1px 2px #000;max-height:34px;overflow:hidden}
-.gol-cp .tip .tt{position:absolute;left:100px;right:14px;top:66px;font-size:10px;letter-spacing:1.5px;color:#e8b25a;font-family:${FONT_FAMILY};text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gol-cp .tip .tt{position:absolute;left:100px;right:14px;top:64px;font-size:12px;letter-spacing:1.5px;color:#e8b25a;font-family:${FONT_FAMILY};text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gol-cp .tip img{position:absolute;left:62px;top:142px;width:100px;height:100px;object-fit:contain;filter:drop-shadow(0 4px 6px #000)}
-.gol-cp .tip .td{position:absolute;left:26px;right:26px;top:254px;font-size:13px;line-height:1.4;color:#d7dee6}
-.gol-cp .tip .te{position:absolute;left:24px;right:24px;bottom:26px;font:700 11px ${FONT_FAMILY};letter-spacing:1.5px;color:#8ff0a8;text-align:center}
+.gol-cp .tip .td{position:absolute;left:24px;right:24px;top:254px;font-size:14px;line-height:1.4;color:#dde3ea}
+.gol-cp .tip .te{position:absolute;left:20px;right:20px;bottom:24px;font:700 12px ${FONT_FAMILY};letter-spacing:1.5px;color:#8ff0a8;text-align:center}
 .gol-cp .pnl{position:absolute;background:0 0/100% 100% no-repeat}
 .gol-cp .sock{position:absolute;width:78px;height:78px;margin:-39px 0 0 -39px;border-radius:50%;cursor:pointer}
 .gol-cp .sock:hover{box-shadow:0 0 14px 4px rgba(255,214,130,.45)}
-.gol-cp .sock span{display:none;position:absolute;left:50%;top:84px;transform:translateX(-50%);white-space:nowrap;font-size:11px;letter-spacing:1.5px;color:#ffe2a0;background:#0b121bdd;padding:2px 8px;border-radius:4px}
+.gol-cp .sock span{display:none;position:absolute;left:50%;top:62px;transform:translateX(-50%);white-space:nowrap;font-size:13px;letter-spacing:1.2px;color:#ffe2a0;background:#0b121bee;padding:3px 10px;border-radius:5px;box-shadow:inset 0 0 0 1px rgba(201,154,69,.5);z-index:3}
 .gol-cp .sock:hover span{display:block}
 .gol-cp .sock.gear img{position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;object-fit:contain;pointer-events:none;filter:drop-shadow(0 2px 3px #000)}
 .gol-cp .sock.gear.worn{background:radial-gradient(circle,#162438 0,#0c1420 70%);box-shadow:inset 0 0 0 1px rgba(232,178,90,.35)}
@@ -161,16 +164,16 @@ const CSS = `
 .gol-cp .ks.it{cursor:pointer;background-image:url("${KIT}/slot_empty.png");transition:transform 120ms,filter 120ms}
 .gol-cp .ks.it:hover{transform:scale(1.05);filter:brightness(1.2)}
 .gol-cp .ks.it img{left:10px;top:10px;width:60px;height:60px;opacity:1;filter:drop-shadow(0 2px 3px #000)}
-.gol-cp .gstat{position:absolute;display:flex;gap:26px;font:700 15px ${FONT_FAMILY};letter-spacing:1.5px;color:#c9d3dc;white-space:nowrap}
-.gol-cp .gstat b{color:#ffe2a0;margin-left:8px;font-size:17px}
-.gol-cp .tip .ts{position:absolute;left:26px;right:26px;top:250px;font:700 13px ${FONT_FAMILY};letter-spacing:1px;line-height:19px;color:#8ff0a8}
+.gol-cp .gstat{position:absolute;display:flex;gap:30px;font:700 16px ${FONT_FAMILY};letter-spacing:1.5px;color:#c9d3dc;white-space:nowrap}
+.gol-cp .gstat b{color:#ffe2a0;margin-left:9px;font-size:19px}
+.gol-cp .tip .ts{position:absolute;left:24px;right:24px;top:250px;font:700 14px ${FONT_FAMILY};letter-spacing:1px;line-height:19px;color:#8ff0a8}
 .gol-cp .tip .ts + .td{top:296px}
 .gol-cp .cur{position:absolute;width:342px;height:74px;background:url("${KIT}/currency_bar.png") 0 0/100% 100%}
 .gol-cp .cur b{position:absolute;top:26px;width:80px;text-align:center;font-size:16px;color:#ffe2a0;font-family:Georgia,serif}
-.gol-cp .hdr{position:absolute;left:450px;top:18px;width:700px;height:82px;background:url("${KIT}/header.png") 0 0/100% 100% no-repeat;text-align:center;pointer-events:none}
-.gol-cp .hdr .ttl{position:static;display:block;margin-top:27px;font-size:21px;line-height:24px;letter-spacing:4px}
-.gol-cp .hdr .sub{position:static;display:block;font-size:11px;line-height:14px;letter-spacing:2px;color:#9fb0c0;text-transform:uppercase}
-.gol-cp .sw.kit{height:58px;width:250px;padding:0 24px;border:0;background:url("${KIT}/pill_normal.png") center/100% 100% no-repeat;font-size:12px;letter-spacing:1px;color:#ffe2a0}
+.gol-cp .hdr{position:absolute;left:390px;top:10px;width:820px;height:96px;background:url("${KIT}/header.png") 0 0/100% 100% no-repeat;text-align:center;pointer-events:none}
+.gol-cp .hdr .ttl{position:static;display:block;margin-top:31px;font-size:23px;line-height:26px;letter-spacing:4px}
+.gol-cp .hdr .sub{position:static;display:block;font-size:12.5px;line-height:16px;letter-spacing:1.5px;color:#aebdcc;text-transform:uppercase;white-space:nowrap}
+.gol-cp .sw.kit{height:58px;width:260px;padding:0 34px;border:0;background:url("${KIT}/pill_normal.png") center/100% 100% no-repeat;font-size:14px;letter-spacing:1px;color:#ffe2a0;white-space:nowrap;text-shadow:0 1px 2px #000}
 .gol-cp .sw.kit:hover{background-image:url("${KIT}/pill_hover.png")}
 .gol-cp .row.kit{height:76px;background:linear-gradient(90deg,#15233a,#0b1422 60%,#0b1422);border:1px solid #6a5630;border-radius:8px;box-shadow:inset 0 0 0 1px #0a1018,0 2px 6px rgba(0,0,0,.5);padding:0 22px 0 18px}
 .gol-cp .row.kit:before{content:'';width:6px;height:46px;border-radius:3px;background:linear-gradient(#f3d27a,#8a6420);margin-right:6px}
@@ -186,27 +189,27 @@ const CSS = `
 .gol-cp .kcard.eq .seal{filter:drop-shadow(0 0 6px rgba(140,255,170,.8))}
 .gol-cp .abar{position:absolute;display:flex;align-items:center;gap:14px;padding:0 10px}
 .gol-cp .abar .ai{width:60px;height:60px;object-fit:contain;filter:drop-shadow(0 3px 4px rgba(0,0,0,.6))}
-.gol-cp .abar .at{flex:1;min-width:0;color:#dfe6ee;font-family:Georgia,serif;font-size:13px;line-height:1.3}
-.gol-cp .abar .at b{display:block;font:700 17px ${FONT_FAMILY};color:#f3e2bf;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gol-cp .abar .at{flex:1;min-width:0;color:#dfe6ee;font-family:Georgia,serif;font-size:15px;line-height:1.35}
+.gol-cp .abar .at b{display:block;font:700 18px ${FONT_FAMILY};color:#f3e2bf;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gol-cp .abar .at span{color:#9fb0c0}
 .gol-cp .abar .at .parts{display:flex;gap:4px;margin-top:3px}
 .gol-cp .abar .at .parts img{width:26px;height:26px;object-fit:contain;border-radius:4px;background:rgba(0,0,0,.3)}
-.gol-cp .plate{width:160px;height:62px;padding:0 14px;border:0;background:url("${KIT}/plate_normal.png") center/100% 100% no-repeat;font-size:13px;font-weight:700;letter-spacing:1px;color:#ffe2a0;text-shadow:0 1px 2px #000;flex:none}
+.gol-cp .plate{width:170px;height:62px;padding:0 16px;border:0;background:url("${KIT}/plate_normal.png") center/100% 100% no-repeat;font-size:14px;font-weight:700;letter-spacing:1px;color:#ffe2a0;text-shadow:0 1px 2px #000;flex:none}
 .gol-cp .plate:hover:not(:disabled){background-image:url("${KIT}/plate_hover.png");filter:none;transform:scale(1.02)}
 .gol-cp .plate:disabled{background-image:url("${KIT}/plate_disabled.png");color:#9aa3ab;opacity:1}
-.gol-cp .wtab{position:absolute;top:${INV_TAB_Y}px;width:${INV_TAB_W}px;height:${INV_TAB_H}px;border:0;background:transparent;border-radius:6px;display:flex;align-items:center;justify-content:center;gap:7px;
-  color:#c9d3dc;font-size:14px;font-weight:700;letter-spacing:1.2px;transition:background 120ms,box-shadow 120ms}
+.gol-cp .wtab{position:absolute;top:${INV_TAB_Y}px;width:${INV_TAB_W}px;height:${INV_TAB_H}px;border:0;background:transparent;border-radius:6px;display:flex;align-items:center;justify-content:center;gap:8px;
+  color:#d3dce5;font-size:15px;font-weight:700;letter-spacing:1.2px;text-shadow:0 1px 2px #000;transition:background 120ms,box-shadow 120ms}
 .gol-cp .wtab:hover{background:rgba(255,214,130,.08);filter:none;transform:none}
 .gol-cp .wtab.on{background:linear-gradient(90deg,rgba(255,200,90,.06),rgba(255,200,90,.22),rgba(255,200,90,.06));box-shadow:inset 0 -3px 0 #e8b25a;color:#ffe2a0}
 .gol-cp .wtab img{width:30px;height:30px;object-fit:contain}
-.gol-cp .st.sm button{height:26px;padding:0 7px;font-size:10.5px}
-.gol-cp .st.sm button.arw{width:30px;height:28px}
 .gol-cp .cico{position:absolute;background:center/contain no-repeat;pointer-events:none;filter:drop-shadow(0 2px 3px #000)}
-.gol-cp .cval{position:absolute;font:700 17px ${FONT_FAMILY};color:#ffe2a0;text-shadow:0 1px 2px #000;letter-spacing:1px}
+.gol-cp .cval{position:absolute;min-width:34px;height:26px;padding:0 9px;box-sizing:border-box;border-radius:13px;background:#0b121bf0;box-shadow:inset 0 0 0 1px #c99a45,0 2px 4px rgba(0,0,0,.6);
+  font:700 15px/26px ${FONT_FAMILY};color:#ffe2a0;text-align:center;text-shadow:0 1px 2px #000}
 .gol-cp .x.win{position:absolute;left:1515px;top:87px;width:56px;height:56px;border:0;border-radius:50%;background:transparent;color:transparent;transition:box-shadow 120ms}
 .gol-cp .x.win:hover{box-shadow:0 0 16px 6px rgba(255,214,130,.45);filter:none;transform:none}
-.gol-cp .hdr.win{left:503px;top:36px;width:597px;height:60px;background:none}
-.gol-cp .hdr.win .ttl{margin-top:8px}
+.gol-cp .hdr.win{left:503px;top:34px;width:597px;height:64px;background:none}
+.gol-cp .hdr.win .ttl{margin-top:9px;font-size:25px;line-height:28px}
+.gol-cp .hdr.win .sub{font-size:13px;line-height:18px}
 .gol-cp .x.kit{border:0;background:url("${KIT}/close.png") 0 0/100% 100%;color:transparent;width:52px;height:52px}
 `;
 
@@ -290,7 +293,9 @@ export class CosmeticPanel {
   private shopGrid!: HTMLDivElement;
   private invTabs = new Map<InvCat, HTMLButtonElement>();
   private shopTabs = new Map<ShopCat, HTMLButtonElement>();
-  private stateBtns: { el: HTMLButtonElement; s: PState }[] = [];
+  /** The preview's animation name (one per window) and the window-switch buttons (labels follow Key Settings). */
+  private stateLabels: HTMLDivElement[] = [];
+  private swBtns: { el: HTMLButtonElement; label: string; action: 'bag' | 'shop' }[] = [];
   private bundle!: HTMLDivElement;
   private invCat: InvCat = 'equipped';
   private mainTab: InvTab = 'gear';
@@ -376,24 +381,25 @@ export class CosmeticPanel {
     this.el('div', 'sub', bg, sub);
     const x = this.el('button', 'x', bg, '✕'); x.title = 'Close (Esc)'; x.addEventListener('click', () => this.close());
     const b = this.el('button', 'sw', bg, swLabel); b.addEventListener('click', () => this.show(sw));
+    this.swBtns.push({ el: b, label: swLabel, action: sw === 'shop' ? 'shop' : 'bag' });
   }
 
-  private stateBar(bg: HTMLDivElement, x: number, y: number, w: number, prev: () => CosPreview, small = false): void {
-    const bar = this.el('div', small ? 'st sm' : 'st', bg); this.place(bar, x, y, w);
-    for (const [s, label] of STATES) {
-      const b = this.el('button', '', bar, label);
-      b.addEventListener('click', () => { prev().setState(s); this.syncStates(); });
-      this.stateBtns.push({ el: b, s });
-    }
-    const bar2 = this.el('div', small ? 'st sm' : 'st', bg); this.place(bar2, x, y + (small ? 30 : 38), w);
-    const l = this.el('button', 'arw', bar2, 'Turn left'); l.title = 'Turn left'; l.addEventListener('click', () => { prev().turn(-1); this.syncStates(); });
-    const r = this.el('button', 'arw r', bar2, 'Turn right'); r.title = 'Turn right'; r.addEventListener('click', () => { prev().turn(1); this.syncStates(); });
-    const a = this.el('button', 'auto', bar2, 'Auto-rotate'); a.addEventListener('click', () => { const p = prev(); p.autoTurn = !p.autoTurn; this.syncStates(); });
+  /** The preview's controls in one row: ◀ ANIMATION ▶ (idle, walk, run, jump, attack, hit, death), TURN, AUTO-ROTATE. */
+  private stateBar(bg: HTMLDivElement, x: number, y: number, w: number, prev: () => CosPreview): void {
+    const bar = this.el('div', 'st', bg); this.place(bar, x, y, w);
+    const step = (d: number) => { const p = prev(), i = STATES.findIndex(([s]) => s === p.state); p.setState(STATES[(i + d + STATES.length) % STATES.length][0]); this.syncStates(); };
+    const l = this.el('button', 'arw', bar, 'Previous'); l.title = 'Previous animation'; l.addEventListener('click', () => step(-1));
+    this.stateLabels.push(this.el('div', 'sn', bar));
+    const r = this.el('button', 'arw r', bar, 'Next'); r.title = 'Next animation'; r.addEventListener('click', () => step(1));
+    this.el('i', 'sep', bar);
+    const t = this.el('button', 'pb', bar, 'TURN'); t.title = 'Face the other way'; t.addEventListener('click', () => { prev().turn(1); this.syncStates(); });
+    const a = this.el('button', 'pb auto', bar, 'AUTO-ROTATE'); a.title = 'Turn around by itself'; a.addEventListener('click', () => { const p = prev(); p.autoTurn = !p.autoTurn; this.syncStates(); });
   }
 
   private syncStates(): void {
     const p = this.tab === 'inventory' ? this.invPrev : this.shopPrev;
-    for (const b of this.stateBtns) b.el.classList.toggle('on', b.s === p.state);
+    const name = (STATES.find(([s]) => s === p.state)?.[1] ?? '').toUpperCase();
+    for (const l of this.stateLabels) l.textContent = name;
     this.root.querySelectorAll('.auto').forEach((e) => e.classList.toggle('on', p.autoTurn));
   }
 
@@ -401,11 +407,11 @@ export class CosmeticPanel {
     const bg = this.el('div', 'bg', this.root); this.place(bg, INV_BG.x, INV_BG.y, INV_BG.w, INV_BG.h);
     bg.style.backgroundImage = `url("${KIT}/inventory_window.png")`;
     holeMask(bg, INV_PREVIEW);
-    this.header(bg, 'INVENTORY', `${this.character.name} · ${CLASS_NAMES[this.cls] ?? this.cls}`, 'COSMETIC SHOP  (O)', 'shop');
+    this.header(bg, 'INVENTORY', `${this.character.name} · ${CLASS_NAMES[this.cls] ?? this.cls}`, 'COSMETIC SHOP', 'shop');
     (bg.querySelector('.x') as HTMLElement).classList.add('win');
     const sw = bg.querySelector('.sw') as HTMLElement; sw.classList.add('kit'); sw.style.right = 'auto'; sw.style.left = '1270px'; sw.style.top = '40px';
     const hdr = this.el('div', 'hdr win', bg); hdr.appendChild(bg.querySelector('.ttl')!); hdr.appendChild(bg.querySelector('.sub')!);
-    this.stateBar(bg, 46, 686, 380, () => this.invPrev, true);
+    this.stateBar(bg, 52, 690, 372, () => this.invPrev); // in the strip painted under the alcove
     for (const [i, [t, label, ic]] of MAIN_TABS.entries()) {
       const b = this.el('button', 'wtab', bg); b.style.left = `${INV_TAB_X[i]}px`;
       const im = this.el('img', '', b); im.src = `${KIT}/${ic}.png`; im.alt = ''; this.el('span', '', b, label);
@@ -416,8 +422,9 @@ export class CosmeticPanel {
     // currency bar painted at the bottom of the window: coin + gem in its two ring sockets, amounts beside them
     const coin = this.el('div', 'cico', bg); this.place(coin, 522 - 34, 715 - 34, 68, 68); coin.style.backgroundImage = `url("${KIT}/coin_gold.png")`;
     const gem = this.el('div', 'cico', bg); this.place(gem, 618 - 38, 715 - 38, 76, 76); gem.style.backgroundImage = `url("${KIT}/gem_premium.png")`;
-    this.place(this.el('div', 'cval', bg, '0'), 700, 704); this.place(this.el('div', 'cval', bg, '0'), 820, 704);
-    this.invHint = this.el('div', 'hint', bg); this.place(this.invHint, 960, 707);
+    // each amount on its own ring (a count badge at the ring's foot), so it is clear which is which
+    for (const cx of [522, 618]) { const v = this.el('div', 'cval', bg, '0'); this.place(v, cx - 22, 735, 44); }
+    this.invHint = this.el('div', 'hint', bg); this.place(this.invHint, 690, 704, 840); this.invHint.style.textAlign = 'center';
     this.tip = this.el('div', 'tip', bg);
     return bg;
   }
@@ -432,7 +439,7 @@ export class CosmeticPanel {
     const W = INV_PANEL.w;
     if (this.mainTab === 'cosmetics') {
       this.invHint.textContent = '';
-      const ct = this.el('div', 'ctabs', c); this.place(ct, 10, 4, W);
+      const ct = this.el('div', 'ctabs', c); this.place(ct, 0, 4, W);
       INV_TABS.forEach(([cat, label]) => { const b = this.el('button', '', ct, label); b.classList.toggle('on', cat === this.invCat); b.addEventListener('click', () => { this.invCat = cat; this.refresh(); }); });
       this.invGrid = this.el('div', 'grid kitbar', c); this.place(this.invGrid, 14, 58, W - 28, INV_PANEL.h - 64);
       this.renderInventory();
@@ -514,12 +521,12 @@ export class CosmeticPanel {
     bg.style.backgroundImage = `url("${KIT}/window.png")`;
     holeMask(bg, SHOP_PREVIEW);
     const sub = this.qa ? 'QA build · every item costs 0 · no payment' : 'Not open in this build';
-    this.header(bg, 'COSMETIC SHOP', `${CLASS_NAMES[this.cls] ?? this.cls} · ${sub}`, 'INVENTORY  (I)', 'inventory');
+    this.header(bg, 'COSMETIC SHOP', `${CLASS_NAMES[this.cls] ?? this.cls} · ${sub}`, 'INVENTORY', 'inventory');
     const x = bg.querySelector('.x') as HTMLElement; x.classList.add('kit'); x.style.right = '34px'; x.style.top = '26px';
     const sw = bg.querySelector('.sw') as HTMLElement; sw.classList.add('kit'); sw.style.right = '92px'; sw.style.top = '22px';
     const hdr = this.el('div', 'hdr', bg); hdr.appendChild(bg.querySelector('.ttl')!); hdr.appendChild(bg.querySelector('.sub')!);
-    this.stateBar(bg, SHOP_PREVIEW.x, SHOP_PREVIEW.y + SHOP_PREVIEW.h + 12, SHOP_PREVIEW.w, () => this.shopPrev);
-    const ct = this.el('div', 'ctabs', bg); this.place(ct, 508, 112, 1050);
+    this.stateBar(bg, SHOP_PREVIEW.x, SHOP_PREVIEW.y + SHOP_PREVIEW.h + 18, SHOP_PREVIEW.w, () => this.shopPrev);
+    const ct = this.el('div', 'ctabs', bg); this.place(ct, 508, 108, 1050);
     SHOP_TABS.forEach(([c, label]) => {
       const b = this.el('button', '', ct, label);
       b.addEventListener('click', () => { this.shopCat = c; this.refresh(); });
@@ -650,6 +657,8 @@ export class CosmeticPanel {
 
   show(tab: Tab): void {
     this.tab = tab; this.open = true;
+    const keys = loadBindings();
+    for (const b of this.swBtns) { const k = keyLabel(keys[b.action]); b.el.textContent = k ? `${b.label}  (${k})` : b.label; }
     if (tab === 'inventory') { this.tryOn = {}; this.selected = null; }
     this.root.classList.add('open');
     this.inv.classList.toggle('on', tab === 'inventory');
@@ -669,6 +678,9 @@ export class CosmeticPanel {
   }
 
   layout(): void { if (this.open) this.lastRect = syncOverlay(this.root, this.host, this.canvas, this.lastRect); }
+
+  /** A screen-space object of the scene (the veil behind open windows) that the previews must not draw over the character. */
+  keepOutOfPreviews(o: Phaser.GameObjects.GameObject): void { this.invStage.cam.ignore(o); this.shopStage.cam.ignore(o); }
 
   update(ms: number): void {
     if (!this.open) return;

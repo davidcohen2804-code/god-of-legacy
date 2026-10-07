@@ -1,8 +1,8 @@
 // Skill Book (K): the class's skills by job advancement (tabs) — SKILLS / PASSIVE pages, a still showcase and the
 // detail card. No video or replay of a skill: the player discovers what it does by using it.
-import { slotKeyLabels } from '../game/KeyBindings';
+import { keyLabel, loadBindings, slotKeyLabels } from '../game/KeyBindings';
 import type Phaser from 'phaser';
-import { CLASS_NAMES, FONT_FAMILY } from '../config/layout';
+import { CLASS_NAMES, FONT_FAMILY, HUD } from '../config/layout';
 import { syncOverlay } from './CharacterSelectUI';
 import type { Rect } from './PreviewStage';
 import type { ClassKey } from '../game/Body';
@@ -18,13 +18,18 @@ const entryIcon = (e: Entry) => (isPassive(e) ? passiveIconUrl(e) : iconUrl(e));
 
 const K = (f: string) => `assets/final/ui/kit/${f}.png`;
 const BG = { x: 160, y: 140, w: 1600, h: 800 };
-// zones measured on kit/skillbook_window.png (the window art paints banner, tab strip, 4 card frames, two book pages)
-const PREVIEW: Rect = { x: 78, y: 447, w: 815, h: 279 };
-const DETAIL: Rect = { x: 1000, y: 449, w: 518, h: 276 };
+// zones measured on kit/skillbook_window.png (the window art paints banner, tab strip, 4 card frames, two framed panels,
+// each with a header strip over its body)
+const LEFT = { head: { x: 95, y: 452, w: 780, h: 40 }, body: { x: 90, y: 509, w: 790, h: 210 } };
+const RIGHT = { head: { x: 1004, y: 444, w: 512, h: 43 }, body: { x: 1000, y: 493, w: 520, h: 231 } };
 const TAB_X = [50, 355, 659, 962, 1263], TAB_W = 287, TAB_Y = 149, TAB_H = 52;
-const FRAME_CX = [362, 661, 940, 1235], FRAME_Y = 245, FRAME_IN = 150; // painted card frames: inner box FRAME_IN x 135
+const FRAME_CX = [362, 661, 940, 1235], FRAME_Y = 245, FRAME_IN = 150; // painted card frames: inner box FRAME_IN x 136
 const HOTKEY = new Proxy([] as string[], { get: (_t, p) => (typeof p === 'string' && /^\d+$/.test(p) ? slotKeyLabels()[+p] : undefined) }); // live: Key Settings
-const CARD = 112;
+/** The key a skill's own text names (its default key) → the key it is bound to now (Key Settings). */
+const keyed = (text: string, slot: number): string => {
+  const def = HUD.skills.hotkeys[slot], now = HOTKEY[slot];
+  return def && now && def.toUpperCase() !== now ? text.replace(new RegExp(`\\b(hold|press of|press)\\s+${def}\\b`, 'gi'), (_m, w: string) => `${w} ${now}`) : text;
+};
 
 const ROLE_LABEL: Partial<Record<Role, string>> = {
   basic: 'Basic', opener: 'Opener', gapClose: 'Gap Close', launcher: 'Launcher', extender: 'Extender', airExtender: 'Air Extender',
@@ -39,79 +44,86 @@ const TARGETING: Record<Targeting, string> = {
 };
 
 const STYLE_ID = 'gol-skillbook-style';
+const px = (r: { x: number; y: number; w: number; h: number }) => `left:${r.x}px;top:${r.y}px;width:${r.w}px;height:${r.h}px`;
 const CSS = `
 .gol-sb{z-index:40;display:none}
 .gol-sb.open{display:block}
 .gol-sb .bg{position:absolute;left:${BG.x}px;top:${BG.y}px;width:${BG.w}px;height:${BG.h}px;background:url("${K('skillbook_window')}") 0 0/100% 100%;
-  pointer-events:auto;animation:golSbIn 220ms ease-out}
+  pointer-events:auto;animation:golSbIn 220ms ease-out;filter:drop-shadow(0 12px 30px rgba(0,0,0,.55))}
 @keyframes golSbIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
 .gol-sb .hdr{position:absolute;left:482px;top:44px;width:632px;height:62px;text-align:center;pointer-events:none}
-.gol-sb .ttl{display:block;margin-top:6px;font:700 22px/26px ${FONT_FAMILY};letter-spacing:4px;color:#f0d9a6;text-shadow:0 2px 6px #000}
-.gol-sb .sub{display:block;font-size:11px;line-height:14px;letter-spacing:2px;color:#9fb0c0;text-transform:uppercase;white-space:nowrap}
+.gol-sb .ttl{display:block;margin-top:4px;font:700 25px/30px ${FONT_FAMILY};letter-spacing:4px;color:#f3dcaa;text-shadow:0 2px 6px #000}
+.gol-sb .sub{display:block;font-size:13px;line-height:18px;letter-spacing:1.5px;color:#aebdcc;text-transform:uppercase;white-space:nowrap}
 .gol-sb .x{position:absolute;left:1522px;top:90px;width:56px;height:56px;border:0;border-radius:50%;background:transparent;cursor:pointer;pointer-events:auto;transition:box-shadow 120ms}
 .gol-sb .x:hover{box-shadow:0 0 16px 6px rgba(255,214,130,.45)}
-.gol-sb .tab{position:absolute;top:${TAB_Y}px;width:${TAB_W}px;height:${TAB_H}px;cursor:pointer;text-align:left;padding:7px 0 0 60px;border-radius:6px;transition:background 120ms,box-shadow 120ms}
+.gol-sb .tab{position:absolute;top:${TAB_Y}px;width:${TAB_W}px;height:${TAB_H}px;cursor:pointer;text-align:left;padding:7px 0 0 62px;border-radius:6px;transition:background 120ms,box-shadow 120ms}
 .gol-sb .tab:hover{background:rgba(255,214,130,.08)}
 .gol-sb .tab.on{background:rgba(6,12,24,.55);box-shadow:inset 0 -3px 0 #e8b25a,inset 0 0 0 1px rgba(232,178,90,.55)}
 .gol-sb .tab.on b{color:#ffe7a8;text-shadow:0 0 8px rgba(255,200,90,.55),0 1px 2px #000}
-.gol-sb .tab.on span{color:#d9c49a}
-.gol-sb .tab .em{position:absolute;left:6px;top:1px;width:50px;height:50px;background:0 0/100% 100% no-repeat;filter:drop-shadow(0 2px 3px #000)}
-.gol-sb .tab .lv{position:absolute;right:8px;top:6px;width:34px;height:40px;background:url("${K('hex_badge')}") center/100% 100% no-repeat;font:700 12px/40px ${FONT_FAMILY};color:#ffe2a0;text-align:center;text-shadow:0 1px 2px #000}
-.gol-sb .tab b{display:block;font:700 13px ${FONT_FAMILY};letter-spacing:1px;color:#f3e2bf;white-space:nowrap}
-.gol-sb .tab span{display:block;font-size:11px;letter-spacing:1px;color:#9fb0c0;margin-top:2px;white-space:nowrap}
+.gol-sb .tab.on span{color:#dccaa0}
+.gol-sb .tab .em{position:absolute;left:8px;top:3px;width:46px;height:46px;background:0 0/100% 100% no-repeat;filter:drop-shadow(0 2px 3px #000)}
+.gol-sb .tab .lv{position:absolute;right:8px;top:5px;width:36px;height:42px;background:url("${K('hex_badge')}") center/100% 100% no-repeat;font:700 14px/42px ${FONT_FAMILY};color:#ffe2a0;text-align:center;text-shadow:0 1px 2px #000}
+.gol-sb .tab b{display:block;font:700 15px/19px ${FONT_FAMILY};letter-spacing:1px;color:#f3e2bf;white-space:nowrap;text-shadow:0 1px 2px #000}
+.gol-sb .tab span{display:block;font-size:12.5px;line-height:17px;letter-spacing:.5px;color:#a9b8c6;margin-top:1px;white-space:nowrap}
 .gol-sb .tab.lk b{color:#8c939b}
 .gol-sb .tab.lk .em{filter:grayscale(.7) brightness(.6)}
 .gol-sb .tab.lk .lv{color:#9aa3ab}
-.gol-sb .tab.lk:after{content:'';position:absolute;right:48px;top:10px;width:22px;height:30px;background:url("${K('lock')}") center/contain no-repeat;filter:drop-shadow(0 1px 2px #000)}
+.gol-sb .tab.lk:after{content:'';position:absolute;left:34px;top:24px;width:20px;height:27px;background:url("${K('lock')}") center/contain no-repeat;filter:drop-shadow(0 1px 2px #000)}
 .gol-sb .row{position:absolute;left:0;top:0;width:${BG.w}px;height:0}
 .gol-sb .card{position:absolute;top:${FRAME_Y}px;width:${FRAME_IN}px;height:136px;margin-left:${-FRAME_IN / 2}px;cursor:pointer;border-radius:6px;transition:background 120ms,box-shadow 120ms}
 .gol-sb .card:hover{background:rgba(255,214,130,.07)}
 .gol-sb .card.sel{background:radial-gradient(ellipse at 50% 40%,rgba(255,200,90,.22),rgba(255,200,90,0) 70%);box-shadow:inset 0 0 0 2px rgba(232,178,90,.85),0 0 16px rgba(232,178,90,.45)}
-.gol-sb .card img{position:absolute;left:${(FRAME_IN - 84) / 2}px;top:10px;width:84px;height:84px;border-radius:8px;box-shadow:0 0 0 1px #6a5630,0 4px 10px rgba(0,0,0,.6);pointer-events:none;transition:transform 120ms}
+.gol-sb .card img{position:absolute;left:${(FRAME_IN - 86) / 2}px;top:7px;width:86px;height:86px;border-radius:8px;filter:drop-shadow(0 4px 6px rgba(0,0,0,.6));pointer-events:none;transition:transform 120ms}
 .gol-sb .card:hover img,.gol-sb .card.sel img{transform:scale(1.05)}
 .gol-sb .card.lk img{filter:grayscale(1) brightness(.4)}
-.gol-sb .card.lk:after{content:'';position:absolute;left:${FRAME_IN / 2 - 13}px;top:34px;width:26px;height:36px;background:url("${K('lock')}") center/contain no-repeat;filter:drop-shadow(0 1px 3px #000)}
-.gol-sb .card .hk{position:absolute;right:4px;top:4px;min-width:24px;height:22px;padding:0 5px;border-radius:5px;background:#0b121bee;border:1px solid #c99a45;
-  font:700 12px/20px ${FONT_FAMILY};color:#f0d9a6;text-align:center}
-.gol-sb .card .nm{position:absolute;left:4px;right:4px;top:102px;text-align:center;font:700 13px/16px ${FONT_FAMILY};color:#f3e2bf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px #000}
+.gol-sb .card.lk:after{content:'';position:absolute;left:${FRAME_IN / 2 - 13}px;top:33px;width:26px;height:36px;background:url("${K('lock')}") center/contain no-repeat;filter:drop-shadow(0 1px 3px #000)}
+.gol-sb .card .hk,.gol-sb .card .pt{position:absolute;right:3px;top:3px;min-width:28px;height:26px;padding:0 6px;box-sizing:border-box;border-radius:6px;background:#0b121bee;border:1px solid #c99a45;
+  font:700 14px/24px ${FONT_FAMILY};color:#f3dcaa;text-align:center}
+.gol-sb .card .pt{border-color:#6f8fb0;color:#bcd6ef}
+.gol-sb .card .nm{position:absolute;left:3px;right:3px;top:97px;height:36px;display:flex;align-items:center;justify-content:center;text-align:center;
+  font:700 14px/16px ${FONT_FAMILY};color:#f3e2bf;text-shadow:0 1px 3px #000;overflow:hidden}
 .gol-sb .card.lk .nm{color:#8c939b}
-.gol-sb .pcap{position:absolute;left:${BG.x + PREVIEW.x + 18}px;top:${BG.y + PREVIEW.y + 13}px;width:${PREVIEW.w - 36}px;font:700 12px ${FONT_FAMILY};letter-spacing:2.5px;color:#f0d9a6;text-shadow:0 1px 3px #000,0 0 8px #000;pointer-events:none;z-index:2}
-.gol-sb .det{position:absolute;left:${DETAIL.x}px;top:${DETAIL.y}px;width:${DETAIL.w}px;height:${DETAIL.h}px;color:#dfe6ee;font-family:Georgia,serif;overflow:hidden}
-.gol-sb .det .hd{display:flex;gap:12px;align-items:center;height:40px;padding:0 26px}
-.gol-sb .det .hd img{width:34px;height:34px;border-radius:6px;box-shadow:0 0 0 1px #c99a45}
-.gol-sb .det .nm{font:700 17px/19px ${FONT_FAMILY};color:#f3e2bf;white-space:nowrap}
-.gol-sb .det .tier{font:700 9.5px/12px ${FONT_FAMILY};letter-spacing:2px;color:#e8b25a;white-space:nowrap}
-.gol-sb .det .body{position:absolute;left:30px;right:30px;top:54px;bottom:16px;display:flex;flex-direction:column;gap:7px}
-.gol-sb .det .roles{display:flex;gap:6px;flex-wrap:wrap}
-.gol-sb .det .roles i{font-style:normal;font-size:11.5px;padding:2px 9px;border-radius:10px;background:#1b2a3a;border:1px solid #3d5a78;color:#bcd6ef}
-.gol-sb .det .ds{font-size:13.5px;line-height:1.42;color:#e4e9ef}
-.gol-sb .det table{border-collapse:collapse;width:100%;font-size:13px}
-.gol-sb .det td{padding:2px 0;vertical-align:top;border-bottom:1px solid rgba(201,154,69,.14)}
-.gol-sb .det td:first-child{width:110px;color:#9fb0c0}
-.gol-sb .det .rel{font-size:13px;color:#f0d9a6;display:flex;flex-direction:column;gap:2px}
-.gol-sb .det .rel div:before{content:'\\2192  ';color:#c99a45}
-.gol-sb .det .lock{color:#ff9a7a}
-.gol-sb .all{position:absolute;left:58px;top:100px;height:34px;padding:0 16px 0 12px;display:flex;align-items:center;gap:10px;border-radius:7px;cursor:pointer;pointer-events:auto;
-  background:#0b121bd9;border:1px solid #6a5630;font:700 12px ${FONT_FAMILY};letter-spacing:1.5px;color:#c9b48a;transition:box-shadow 120ms,border-color 120ms}
+.gol-sb .card.none{cursor:default;background:url("${K('slot_empty')}") center 8px/84px 84px no-repeat;opacity:.38}
+.gol-sb .card.none:hover{background-color:transparent}
+.gol-sb .all{position:absolute;left:58px;top:98px;height:36px;padding:0 16px 0 12px;display:flex;align-items:center;gap:10px;border-radius:8px;cursor:pointer;pointer-events:auto;
+  background:#0b121bd9;border:1px solid #6a5630;font:700 13px ${FONT_FAMILY};letter-spacing:1.5px;color:#c9b48a;transition:box-shadow 120ms,border-color 120ms}
 .gol-sb .all:hover{border-color:#c99a45;box-shadow:0 0 12px rgba(232,178,90,.35)}
-.gol-sb .all i{width:18px;height:18px;flex:none;background:url("${K('checkbox')}") center/100% 100% no-repeat}
+.gol-sb .all i{width:20px;height:20px;flex:none;background:url("${K('checkbox')}") center/100% 100% no-repeat}
 .gol-sb .all.on{color:#ffe7a8;border-color:#e8b25a;box-shadow:0 0 12px rgba(232,178,90,.4)}
 .gol-sb .all.on i{background-image:url("${K('checkbox_checked')}")}
-.gol-sb .card .pt{position:absolute;right:4px;top:4px;min-width:24px;height:22px;padding:0 5px;box-sizing:border-box;border-radius:5px;background:#0b121bee;border:1px solid #6f8fb0;font:700 12px/20px ${FONT_FAMILY};color:#bcd6ef;text-align:center}
-.gol-sb .card .nm.sm{font-size:11px}
-.gol-sb .pg{position:absolute;left:62px;width:196px;height:48px;box-sizing:border-box;padding:0 16px;display:flex;align-items:center;justify-content:space-between;border-radius:8px;cursor:pointer;pointer-events:auto;
-  background:#0b121bd9;border:1px solid #6a5630;font:700 13px ${FONT_FAMILY};letter-spacing:2px;color:#c9b48a;transition:box-shadow 120ms,border-color 120ms}
+.gol-sb .pg{position:absolute;left:62px;width:196px;height:50px;box-sizing:border-box;padding:0 16px 0 18px;display:flex;align-items:center;justify-content:space-between;border-radius:8px;cursor:pointer;pointer-events:auto;
+  background:#0b121bd9;border:1px solid #6a5630;font:700 15px ${FONT_FAMILY};letter-spacing:2px;color:#c9b48a;transition:box-shadow 120ms,border-color 120ms}
 .gol-sb .pg:hover{border-color:#c99a45;box-shadow:0 0 12px rgba(232,178,90,.3)}
 .gol-sb .pg.on{color:#ffe7a8;border-color:#e8b25a;background:rgba(6,12,24,.75);box-shadow:inset 3px 0 0 #e8b25a,0 0 14px rgba(232,178,90,.35)}
-.gol-sb .pg b{min-width:26px;height:24px;padding:0 6px;box-sizing:border-box;border-radius:12px;background:#1b2a3a;border:1px solid #3d5a78;color:#bcd6ef;font-size:12px;line-height:22px;text-align:center;letter-spacing:0}
+.gol-sb .pg b{min-width:28px;height:26px;padding:0 7px;box-sizing:border-box;border-radius:13px;background:#1b2a3a;border:1px solid #3d5a78;color:#bcd6ef;font-size:14px;line-height:24px;text-align:center;letter-spacing:0}
 .gol-sb .pg.on b{background:#3a2a10;border-color:#c99a45;color:#ffe2a0}
-.gol-sb .pg.l{top:${FRAME_Y + 12}px}.gol-sb .pg.r{top:${FRAME_Y + 72}px}
+.gol-sb .pg.l{top:${FRAME_Y + 10}px}.gol-sb .pg.r{top:${FRAME_Y + 72}px}
 .gol-sb .pg.off{opacity:.35;pointer-events:none}
-.gol-sb .pps{position:absolute;left:${PREVIEW.x}px;top:${PREVIEW.y}px;width:${PREVIEW.w}px;height:${PREVIEW.h}px;display:none;align-items:center;justify-content:center;gap:40px;
-  background:radial-gradient(ellipse at 30% 50%,rgba(232,178,90,.16),rgba(10,16,24,0) 60%),#0a1018;border-radius:4px;padding:40px 56px;box-sizing:border-box}
-.gol-sb .pps img{width:150px;height:150px;border-radius:14px;box-shadow:0 0 0 2px #c99a45,0 0 34px rgba(255,200,90,.35);flex:none}
-.gol-sb .pps ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px;font:700 17px/22px ${FONT_FAMILY};color:#f3e2bf;text-shadow:0 1px 3px #000}
-.gol-sb .pps li:before{content:'\\25C6  ';color:#e8b25a}
+.gol-sb .head{position:absolute;display:flex;align-items:center;font:700 15px ${FONT_FAMILY};letter-spacing:3px;color:#f0d9a6;text-shadow:0 1px 3px #000,0 0 8px #000;white-space:nowrap;overflow:hidden;pointer-events:none}
+.gol-sb .head.l{${px(LEFT.head)};padding:0 20px}
+.gol-sb .head.r{${px(RIGHT.head)};padding:0 24px;color:#cdb98a;font-size:14px;letter-spacing:4px}
+.gol-sb .hero{position:absolute;${px(LEFT.body)};pointer-events:none}
+.gol-sb .hero > img{position:absolute;left:28px;top:30px;width:150px;height:150px;border-radius:14px;filter:drop-shadow(0 0 22px rgba(255,200,90,.3)) drop-shadow(0 6px 10px rgba(0,0,0,.6))}
+.gol-sb .hero .tx{position:absolute;left:212px;right:24px;top:12px;bottom:10px;display:flex;flex-direction:column}
+.gol-sb .hero .nm{font:700 27px/34px ${FONT_FAMILY};letter-spacing:1px;color:#f6e6c2;text-shadow:0 2px 4px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gol-sb .roles{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.gol-sb .roles i{font-style:normal;font-size:14px;line-height:22px;padding:1px 12px;border-radius:12px;background:#1b2a3a;border:1px solid #3d5a78;color:#c4dcf2}
+.gol-sb .facts{display:grid;grid-template-columns:190px 1fr;gap:8px 24px;margin-top:auto}
+.gol-sb .facts div{min-width:0}
+.gol-sb .facts small{display:block;font:700 12px/16px ${FONT_FAMILY};letter-spacing:2px;color:#b59f74}
+.gol-sb .facts b{display:block;padding-top:3px;font:700 17px/22px ${FONT_FAMILY};color:#f3e2bf}
+.gol-sb .facts .kc{display:inline-block;min-width:34px;height:32px;padding:0 9px;box-sizing:border-box;background:url("${K('keycap')}") center/100% 100% no-repeat;font-size:16px;line-height:32px;text-align:center;color:#ffe2a0}
+.gol-sb .facts .kc.wide{background-image:url("${K('keycap_wide')}");font-size:13px;letter-spacing:1px;min-width:78px}
+.gol-sb .effects{margin-top:auto}
+.gol-sb .effects small{display:block;font:700 12px/16px ${FONT_FAMILY};letter-spacing:2px;color:#b59f74;margin-bottom:3px}
+.gol-sb .effects div{font:700 17px/24px ${FONT_FAMILY};color:#f3e2bf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gol-sb .effects div:before{content:'\\25C6  ';color:#e8b25a;font-size:12px;vertical-align:2px}
+.gol-sb .det{position:absolute;${px(RIGHT.body)};box-sizing:border-box;padding:16px 26px 14px;display:flex;flex-direction:column;gap:12px;color:#e4e9ef;font-family:Georgia,serif;overflow:hidden}
+.gol-sb .det .ds{font-size:16px;line-height:1.45}
+.gol-sb .det .rel{font-size:15px;line-height:21px;color:#f0d9a6;display:flex;flex-direction:column;gap:2px}
+.gol-sb .det .rel div:before{content:'\\2192  ';color:#c99a45}
+.gol-sb .det .st{margin-top:auto;padding-top:9px;border-top:1px solid rgba(201,154,69,.22);font:700 14px/20px ${FONT_FAMILY};letter-spacing:.5px;color:#9fd98a}
+.gol-sb .det .st.lock{color:#ff9a7a}
 `;
 
 function ensureStyles(): void {
@@ -119,7 +131,9 @@ function ensureStyles(): void {
   const s = document.createElement('style'); s.id = STYLE_ID; s.textContent = CSS; document.head.appendChild(s);
 }
 
-const tierName = (s: FinalSkill, job?: Job, adv?: number) => `${job ? `${ADV_LABEL[adv ?? 0].toUpperCase()} · ${job.name.toUpperCase()}` : ''}${s.slot === 7 ? ' · ULTIMATE' : s.slot === 6 ? ' · SIGNATURE' : s.slot === 0 ? ' · BASIC ATTACK' : ''}`;
+/** "2ND JOB · KNIGHT" — the Beginner job is its own advancement: just "BEGINNER". */
+const rank = (job: Job, adv: number) => (ADV_LABEL[adv] === job.name ? job.name : `${ADV_LABEL[adv]} · ${job.name}`).toUpperCase();
+const kindOf = (s: FinalSkill) => (s.slot === 7 ? 'ULTIMATE' : s.slot === 6 ? 'SIGNATURE' : s.slot === 0 ? 'BASIC ATTACK' : 'SKILL');
 
 // ----------------------------------------------------------------------------------------------- book
 
@@ -132,9 +146,10 @@ export class SkillBook {
   private cards: { el: HTMLDivElement; e: Entry }[] = [];
   private page = 0;
   private pager: HTMLDivElement[] = [];
-  private pps!: HTMLDivElement;
+  private hero: HTMLDivElement;
   private det: HTMLDivElement;
-  private cap: HTMLDivElement;
+  private headL: HTMLDivElement;
+  private headR: HTMLDivElement;
   private lastRect = '';
   private kit: FinalSkill[];
   private jobs: Job[];
@@ -143,6 +158,7 @@ export class SkillBook {
   private hover: Entry | null = null;
 
   private sub!: HTMLDivElement;
+  private closeBtn!: HTMLButtonElement;
   private allBtn?: HTMLButtonElement;
 
   constructor(_scene: Phaser.Scene, private host: HTMLElement, private canvas: HTMLCanvasElement, private cls: ClassKey, private level: number, private qaUnlockAll: boolean, private onAllOpen?: (on: boolean) => void) {
@@ -163,20 +179,21 @@ export class SkillBook {
       this.bg.appendChild(b); this.allBtn = b;
     }
     this.setSubtitle();
-    const x = document.createElement('button'); x.className = 'x'; x.title = 'Close (K / Esc)';
+    const x = document.createElement('button'); x.className = 'x'; this.closeBtn = x;
     x.addEventListener('click', () => this.close()); this.bg.appendChild(x);
     this.jobs.forEach((j, k) => {
       const t = this.div('tab', this.bg); t.style.left = `${TAB_X[k]}px`;
       t.innerHTML = '<div class="em"></div><b></b><span></span><div class="lv"></div>';
       (t.children[1] as HTMLElement).textContent = j.name.toUpperCase();
-      (t.children[2] as HTMLElement).textContent = `${ADV_LABEL[k]} · Lv ${j.level}–${j.to}`;
+      (t.children[2] as HTMLElement).textContent = ADV_LABEL[k] === j.name ? `Lv ${j.level}–${j.to}` : `${ADV_LABEL[k]} · Lv ${j.level}–${j.to}`;
       (t.children[3] as HTMLElement).textContent = String(j.level);
       t.addEventListener('click', () => { this.job = k; this.page = 0; this.selected = this.entries()[0]; this.buildRow(); this.refresh(); });
       this.tabs.push(t);
     });
     this.row = this.div('row', this.bg);
-    this.cap = this.div('pcap', this.root);
-    this.pps = this.div('pps', this.bg);
+    this.headL = this.div('head l', this.bg);
+    this.hero = this.div('hero', this.bg);
+    this.headR = this.div('head r', this.bg); this.headR.textContent = 'DESCRIPTION';
     this.det = this.div('det', this.bg);
     for (const side of ['l', 'r'] as const) {
       const b = this.div(`pg ${side}`, this.bg); b.innerHTML = `<span>${side === 'l' ? 'SKILLS' : 'PASSIVE'}</span><b></b>`;
@@ -224,12 +241,13 @@ export class SkillBook {
       const img = document.createElement('img'); img.src = entryIcon(e); img.alt = ''; img.draggable = false; c.appendChild(img);
       if (isPassive(e)) { const t = this.div('pt', c); t.textContent = e.kind === 'movement' ? '\u2934' : 'P'; t.title = e.kind === 'movement' ? 'Movement skill' : 'Passive skill'; }
       else this.div('hk', c).textContent = HOTKEY[e.slot];
-      const nm = this.div('nm', c); nm.textContent = e.name; if (e.name.length > 17) nm.classList.add('sm');
+      this.div('nm', c).textContent = e.name;
       c.addEventListener('mouseenter', () => { this.hover = e; this.refresh(); });
       c.addEventListener('mouseleave', () => { if (this.hover === e) { this.hover = null; this.refresh(); } });
       c.addEventListener('click', () => { this.selected = e; this.refresh(); });
       this.cards.push({ el: c, e });
     });
+    for (let n = list.length; n < FRAME_CX.length; n++) { const c = this.div('card none', this.row); c.style.left = `${FRAME_CX[n]}px`; } // an empty frame: an empty socket
     this.pager.forEach((b, k) => { b.classList.toggle('on', this.page === k); b.classList.toggle('off', !pages[k].length); (b.lastChild as HTMLElement).textContent = String(pages[k].length); });
   }
 
@@ -241,59 +259,58 @@ export class SkillBook {
     this.tabs.forEach((t, k) => { const on = k === this.job; t.classList.toggle('lk', !this.jobOpen(k)); t.classList.toggle('on', on); (t.firstChild as HTMLElement).style.backgroundImage = `url("${K(`job${k}_icon`)}")`; (t.firstChild as HTMLElement).style.filter = on ? 'drop-shadow(0 0 6px rgba(255,200,90,.8))' : ''; });
     for (const c of this.cards) { c.el.classList.toggle('sel', c.e === this.selected); c.el.classList.toggle('lk', !this.unlocked(c.e)); }
     if (isPassive(show)) { this.refreshPassive(show); return; }
-    const s = show, jk = this.jobIndexOf(s), job = this.jobs[jk];
-    this.cap.textContent = `${s.slot === 0 ? 'BASIC ATTACK' : 'SKILL'} — ${s.name.toUpperCase()}`;
-    const roles = s.roles.map((r) => ROLE_LABEL[r] ?? r);
+    const s = show, jk = this.jobIndexOf(s), job = this.jobs[jk], open = this.unlocked(s);
+    this.headL.textContent = `${rank(job, jk)} · ${kindOf(s)}`;
+    const key = HOTKEY[s.slot] ?? '';
     const use = s.ground && s.air ? 'Ground and air' : s.air ? 'Air only' : 'Ground only';
     const cd = s.cooldown > 0 ? `${(s.cooldown / 1000).toFixed(s.cooldown % 1000 ? 1 : 0)} s` : 'None (chain)';
-    const lock = this.unlocked(s) ? `Unlocked · key ${HOTKEY[s.slot]}` : `<span class="lock">Unlocks with ${ADV_LABEL[jk]} (${job.name}) · Lv ${job.level}</span>`;
-    this.det.innerHTML = `<div class="hd"><img alt=""><div><div class="tier"></div><div class="nm"></div></div></div>
-      <div class="body"><div class="roles"></div><div class="ds"></div>
-      <table><tr><td>Targeting</td><td class="tg"></td></tr><tr><td>Cooldown</td><td class="cd"></td></tr>
-      <tr><td>Use</td><td class="us"></td></tr><tr><td>Unlock</td><td class="ul"></td></tr></table><div class="rel"></div></div>`;
-    const q = (c: string) => this.det.querySelector(c) as HTMLElement;
-    (q('img') as HTMLImageElement).src = iconUrl(s);
-    q('.tier').textContent = tierName(s, job, jk); q('.nm').textContent = s.name;
-    q('.roles').innerHTML = roles.map(() => '<i></i>').join('');
-    q('.roles').querySelectorAll('i').forEach((el, i) => { el.textContent = roles[i]; });
-    q('.ds').textContent = s.description;
-    q('.tg').textContent = TARGETING[s.targeting]; q('.cd').textContent = cd; q('.us').textContent = use; q('.ul').innerHTML = lock;
-    const rel = q('.rel');
-    for (const r of s.relations.slice(0, 2)) { const d = document.createElement('div'); d.textContent = r; rel.appendChild(d); }
-    this.showcase(iconUrl(s), [roles.join(' · '), use, this.unlocked(s) ? `Key ${HOTKEY[s.slot]}` : `${ADV_LABEL[jk]} · Lv ${job.level}`]);
+    const facts = this.heroFor(iconUrl(s), s.name, s.roles.map((r) => ROLE_LABEL[r] ?? r));
+    const grid = this.div('facts', facts);
+    const fact = (label: string) => { const d = this.div('', grid); const sm = document.createElement('small'); sm.textContent = label; d.appendChild(sm); const b = document.createElement('b'); d.appendChild(b); return b; };
+    const k = fact('KEY'); if (key) { const kc = document.createElement('span'); kc.className = key.length > 2 ? 'kc wide' : 'kc'; kc.textContent = key; k.appendChild(kc); } else k.textContent = 'Not on a key';
+    fact('COOLDOWN').textContent = cd;
+    fact('USE').textContent = use;
+    fact('TARGETING').textContent = TARGETING[s.targeting];
+    this.details(keyed(s.description, s.slot), s.relations.slice(0, 2).map((r) => keyed(r, s.slot)),
+      open ? 'Unlocked' : `Unlocks with ${ADV_LABEL[jk]} (${job.name}) · Lv ${job.level}`, !open);
   }
 
-  /** Passive / movement card: effects table + a still showcase in the preview area (no animation to play). */
+  /** Passive / movement card: what it gives (always on) and how it unlocks. */
   private refreshPassive(p: PassiveSkill): void {
-    const job = this.jobs[p.job];
-    this.cap.textContent = `${p.kind === 'movement' ? 'MOVEMENT SKILL' : 'PASSIVE SKILL'} — ${p.name.toUpperCase()}`;
-    const lock = this.unlocked(p) ? (p.kind === 'movement' ? 'Unlocked · press Jump in mid-air' : 'Unlocked · always active') : `<span class="lock">Unlocks with ${ADV_LABEL[p.job]} (${job.name}) · Lv ${job.level}</span>`;
-    this.det.innerHTML = `<div class="hd"><img alt=""><div><div class="tier"></div><div class="nm"></div></div></div>
-      <div class="body"><div class="roles"><i></i></div><div class="ds"></div>
-      <table><tr><td>Activation</td><td class="ac"></td></tr><tr><td>Cooldown</td><td>None</td></tr><tr><td>Unlock</td><td class="ul"></td></tr></table></div>`;
-    const q = (c: string) => this.det.querySelector(c) as HTMLElement;
-    (q('img') as HTMLImageElement).src = passiveIconUrl(p);
-    q('.tier').textContent = `${ADV_LABEL[p.job].toUpperCase()} · ${job.name.toUpperCase()} · ${p.kind === 'movement' ? 'MOVEMENT' : 'PASSIVE'}`;
-    q('.nm').textContent = p.name; q('.roles i').textContent = p.kind === 'movement' ? 'Movement' : 'Passive';
-    q('.ds').textContent = p.description;
-    q('.ac').textContent = p.kind === 'movement' ? 'Jump again in mid-air' : 'Always on (no key)';
-    q('.ul').innerHTML = lock;
-    this.showcase(passiveIconUrl(p), p.effects);
+    const job = this.jobs[p.job], open = this.unlocked(p), move = p.kind === 'movement';
+    this.headL.textContent = `${rank(job, p.job)} · ${move ? 'MOVEMENT SKILL' : 'PASSIVE SKILL'}`;
+    const box = this.heroFor(passiveIconUrl(p), p.name, [move ? 'Movement' : 'Passive', move ? 'Jump again in mid-air' : 'Always on']);
+    const ef = this.div('effects', box);
+    const sm = document.createElement('small'); sm.textContent = 'EFFECTS'; ef.appendChild(sm);
+    for (const e of p.effects) this.div('', ef).textContent = e;
+    this.details(p.description, [], open ? (move ? 'Unlocked · press Jump again in mid-air' : 'Unlocked · always active') : `Unlocks with ${ADV_LABEL[p.job]} (${job.name}) · Lv ${job.level}`, !open);
   }
 
-  /** Still showcase in the window's left pane: big icon + key facts (no video: the player finds out by using it). */
-  private showcase(icon: string, lines: string[]): void {
-    this.pps.innerHTML = '<img alt=""><ul></ul>';
-    (this.pps.firstChild as HTMLImageElement).src = icon;
-    const ul = this.pps.querySelector('ul')!;
-    for (const e of lines) { const li = document.createElement('li'); li.textContent = e; ul.appendChild(li); }
-    this.pps.style.display = 'flex';
+  /** The left panel: big icon, name, role chips; returns the text column for the facts under them. */
+  private heroFor(icon: string, name: string, roles: string[]): HTMLDivElement {
+    this.hero.innerHTML = '';
+    const im = document.createElement('img'); im.src = icon; im.alt = ''; im.draggable = false; this.hero.appendChild(im);
+    const tx = this.div('tx', this.hero);
+    this.div('nm', tx).textContent = name;
+    const rl = this.div('roles', tx);
+    for (const r of roles) { const i = document.createElement('i'); i.textContent = r; rl.appendChild(i); }
+    return tx;
+  }
+
+  /** The right panel: what it does, a couple of tips, whether it is unlocked. */
+  private details(text: string, tips: string[], status: string, locked: boolean): void {
+    this.det.innerHTML = '';
+    this.div('ds', this.det).textContent = text;
+    if (tips.length) { const rel = this.div('rel', this.det); for (const t of tips) this.div('', rel).textContent = t; }
+    this.div(locked ? 'st lock' : 'st', this.det).textContent = status;
   }
 
   toggle(): void { if (this.open) this.close(); else this.show(); }
 
   private show(): void {
     this.open = true;
+    const book = keyLabel(loadBindings().book);
+    this.closeBtn.title = `Close (${book ? `${book} / ` : ''}Esc)`;
     this.root.classList.add('open');
     this.hover = null; this.refresh();
     this.layout();

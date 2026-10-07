@@ -5,10 +5,10 @@ import { FONT_FAMILY, HUD } from '../config/layout';
 const K = (f: string) => `assets/final/ui/kit/${f}.png`;
 const STYLE_ID = 'gol-hudx-style';
 /** quest_frame.png (671x933): header strip on top (art y 38-193), hollow body; nine-slice at the width's scale. */
-const Q = { x: 22, y: 212, w: 240, k: 240 / 671, t: 205, r: 64, b: 70, l: 64 }; // top-left, under the portrait (and the buff row)
-const M = { x: 1828, y: 984, d: 76, itemW: 230, itemH: 46 };
+const Q = { x: 14, y: 204, w: 300, k: 300 / 671, t: 205, r: 64, b: 70, l: 64 }; // top-left, under the portrait (and the buff row)
+const M = { x: 1826, y: 982, d: 80, itemW: 250, itemH: 48 };
 /** questlog_window.png (1578x976) shown at 1100 px wide, centred; zones measured on the art. */
-const QL = { w: 1100, s: 1100 / 1578, x: (1920 - 1100) / 2, y: 190 };
+const QL = { w: 1240, s: 1240 / 1578, x: (1920 - 1240) / 2, y: 150 };
 const QS = (v: number) => Math.round(v * QL.s);
 
 export interface TrackedQuest { title: string; objectives: { text: string; done: boolean }[] }
@@ -23,13 +23,13 @@ const CSS = `
   border-image:url("${K('quest_frame')}") ${Q.t} ${Q.r} ${Q.b} ${Q.l} fill / ${px(Q.t * Q.k)} ${px(Q.r * Q.k)} ${px(Q.b * Q.k)} ${px(Q.l * Q.k)} stretch}
 .gol-qt .fill{position:absolute;left:9px;right:9px;top:${px(195 * Q.k)};bottom:${px(26 * Q.k + 6)};background:rgba(5,9,18,.55)}
 .gol-qt .hd{position:absolute;left:${px(175 * Q.k)};right:${px(70 * Q.k)};top:${px(60 * Q.k)};height:${px(120 * Q.k)};display:flex;align-items:center;
-  font:700 15px ${FONT_FAMILY};letter-spacing:2px;color:#f3d58a;text-shadow:0 2px 3px #000}
-.gol-qt .hd i{font-style:normal;margin-left:auto;color:#cdb98a;font-size:13px;letter-spacing:0}
-.gol-qt .bd{position:relative;padding:${px(205 * Q.k + 8)} 30px ${px(70 * Q.k + 10)} 30px;font-size:13px;line-height:17px;color:#e8e2d2;text-shadow:0 1px 2px #000}
-.gol-qt .q{margin-bottom:8px}
-.gol-qt .q .t{font:700 13px ${FONT_FAMILY};color:#ffd76e;margin-bottom:3px}
-.gol-qt .o{display:flex;align-items:flex-start;gap:6px}
-.gol-qt .o::before{content:'';flex:0 0 12px;height:12px;margin-top:2px;background:url("${K('bullet_todo')}") center/100% 100% no-repeat}
+  font:700 18px ${FONT_FAMILY};letter-spacing:2px;color:#f3d58a;text-shadow:0 2px 3px #000}
+.gol-qt .hd i{font-style:normal;margin-left:auto;color:#d8c493;font-size:16px;letter-spacing:0}
+.gol-qt .bd{position:relative;padding:${px(205 * Q.k + 8)} 34px ${px(70 * Q.k + 12)} 34px;font-size:15px;line-height:20px;color:#ece6d6;text-shadow:0 1px 2px #000}
+.gol-qt .q{margin-bottom:10px}
+.gol-qt .q .t{font:700 15px ${FONT_FAMILY};color:#ffd76e;margin-bottom:4px}
+.gol-qt .o{display:flex;align-items:flex-start;gap:8px}
+.gol-qt .o::before{content:'';flex:0 0 14px;height:14px;margin-top:3px;background:url("${K('bullet_todo')}") center/100% 100% no-repeat}
 .gol-qt .o.done{color:#9fd98a}
 .gol-qt .o.done::before{background-image:url("${K('bullet_done')}")}
 .gol-qt .none{color:#a99f86;font-style:italic;text-align:center;padding:2px 0}
@@ -37,25 +37,28 @@ const CSS = `
 .gol-menu .gear{position:absolute;inset:0;padding:0;border:0;background:url("${K('menu_gear')}") center/100% 100% no-repeat;cursor:pointer;pointer-events:auto}
 .gol-menu .gear:hover,.gol-menu.open .gear{background-image:url("${K('menu_gear_hover')}")}
 .gol-menu .gear:active{transform:scale(.96)}
-.gol-menu .pop{position:absolute;right:4px;bottom:${M.d + 8}px;display:none;flex-direction:column;gap:6px;pointer-events:auto}
+.gol-menu .pop{position:absolute;right:0;bottom:${M.d + 10}px;display:none;flex-direction:column;gap:6px;pointer-events:auto;padding:14px 16px 16px;
+  background:linear-gradient(rgba(8,13,24,.97),rgba(8,13,24,.92));border-radius:14px;
+  box-shadow:0 10px 26px rgba(0,0,0,.6),inset 0 0 0 1px rgba(201,154,69,.6),inset 0 0 0 4px rgba(8,13,24,.9),inset 0 0 0 5px rgba(201,154,69,.22)}
+.gol-menu .pop .mh{text-align:center;font:700 15px ${FONT_FAMILY};letter-spacing:4px;color:#f3d58a;text-shadow:0 2px 3px #000;margin:0 0 4px}
 .gol-menu.open .pop{display:flex}
 .gol-menu .pop button{width:${M.itemW}px;height:${M.itemH}px;border:0;background:url("${K('pill_normal')}") center/100% 100% no-repeat;color:#efddb0;
-  font:700 12px ${FONT_FAMILY};letter-spacing:1px;cursor:pointer;text-shadow:0 1px 2px #000}
+  font:700 14px ${FONT_FAMILY};letter-spacing:1px;cursor:pointer;text-shadow:0 1px 2px #000;padding:0 36px;white-space:nowrap}
 .gol-menu .pop button:hover{background-image:url("${K('pill_hover')}");transform:scale(1.03)}
-.gol-menu .pop button b{color:#e8b45f;margin-right:7px}
+.gol-menu .pop button b{color:#f0bd62;margin-right:10px;font-size:15px}
 .gol-ql{position:absolute;left:${QL.x}px;top:${QL.y}px;width:${QL.w}px;height:${Math.round(976 * QL.s)}px;display:none;pointer-events:auto;
   background:url("${K('questlog_window')}") center/100% 100% no-repeat;font-family:${HUD.bodyFont};filter:drop-shadow(0 10px 24px rgba(0,0,0,.6))}
 .gol-ql.open{display:block}
-.gol-ql .ttl{position:absolute;left:0;right:0;top:${QS(52)}px;text-align:center;font:700 22px ${FONT_FAMILY};letter-spacing:3px;color:#f3d58a;text-shadow:0 2px 4px #000}
+.gol-ql .ttl{position:absolute;left:0;right:0;top:${QS(50)}px;text-align:center;font:700 27px ${FONT_FAMILY};letter-spacing:3px;color:#f3d58a;text-shadow:0 2px 4px #000}
 .gol-ql .x{position:absolute;left:${QS(1500)}px;top:${QS(84)}px;width:${QS(64)}px;height:${QS(64)}px;border:0;padding:0;background:transparent;cursor:pointer;border-radius:50%}
 .gol-ql .x:hover{box-shadow:0 0 10px 3px rgba(255,215,120,.6)}
-.gol-ql .tb{position:absolute;top:${QS(150)}px;height:${QS(60)}px;display:flex;align-items:center;justify-content:center;font:700 13px ${FONT_FAMILY};letter-spacing:1px;color:#cdb98a;cursor:pointer;text-shadow:0 1px 2px #000}
+.gol-ql .tb{position:absolute;top:${QS(150)}px;height:${QS(60)}px;display:flex;align-items:center;justify-content:center;font:700 16px ${FONT_FAMILY};letter-spacing:1.5px;color:#cdb98a;cursor:pointer;text-shadow:0 1px 2px #000}
 .gol-ql .tb.on{color:#ffe9a8}
-.gol-ql .row{position:absolute;left:${QS(130)}px;width:${QS(500)}px;height:${QS(60)}px;display:flex;align-items:center;font:700 14px ${FONT_FAMILY};color:#efddb0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.gol-ql .row{position:absolute;left:${QS(130)}px;width:${QS(500)}px;height:${QS(60)}px;display:flex;align-items:center;font:700 17px ${FONT_FAMILY};color:#efddb0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .gol-ql .pg{position:absolute;left:${QS(770)}px;width:${QS(730)}px;color:#3a2a12;box-sizing:border-box;padding:0 ${QS(48)}px}
-.gol-ql .pg.h{top:${QS(250)}px;height:${QS(52)}px;display:flex;align-items:flex-end;justify-content:center;font:700 19px ${FONT_FAMILY};letter-spacing:1px}
-.gol-ql .pg.b{top:${QS(335)}px;height:${QS(360)}px;font-size:15px;line-height:22px;text-align:center;padding-top:${QS(40)}px;box-sizing:border-box}
-.gol-ql .rw{position:absolute;top:${QS(716)}px;left:${QS(770)}px;font:700 12px ${FONT_FAMILY};letter-spacing:2px;color:#cdb98a;display:none}
+.gol-ql .pg.h{top:${QS(250)}px;height:${QS(52)}px;display:flex;align-items:flex-end;justify-content:center;font:700 23px ${FONT_FAMILY};letter-spacing:1px}
+.gol-ql .pg.b{top:${QS(335)}px;height:${QS(360)}px;font-size:17px;line-height:25px;text-align:center;padding-top:${QS(40)}px;box-sizing:border-box}
+.gol-ql .rw{position:absolute;top:${QS(716)}px;left:${QS(770)}px;font:700 14px ${FONT_FAMILY};letter-spacing:2px;color:#cdb98a;display:none}
 `;
 
 function ensureStyle(): void {
@@ -106,6 +109,7 @@ export interface MenuItem { label: string; key?: string; run: () => void }
 /** Round gear button (bottom-right) opening a list: the panels and the way back. Esc or a click outside closes it. */
 export class GameMenu {
   private root: HTMLDivElement;
+  private keyEls = new Map<string, HTMLElement>();
   private onDoc = (e: MouseEvent) => { if (!this.root.contains(e.target as Node)) this.close(); };
   private onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && this.isOpen) { e.preventDefault(); e.stopPropagation(); this.close(); } };
 
@@ -113,9 +117,10 @@ export class GameMenu {
     ensureStyle();
     this.root = document.createElement('div'); this.root.className = 'gol-menu';
     const pop = document.createElement('div'); pop.className = 'pop';
+    const mh = document.createElement('div'); mh.className = 'mh'; mh.textContent = 'MENU'; pop.appendChild(mh);
     for (const it of items) {
       const b = document.createElement('button'); b.type = 'button';
-      if (it.key) { const k = document.createElement('b'); k.textContent = it.key; b.appendChild(k); }
+      if (it.key) { const k = document.createElement('b'); k.textContent = it.key; b.appendChild(k); this.keyEls.set(it.key, k); }
       b.appendChild(document.createTextNode(it.label));
       b.addEventListener('mousedown', (e) => e.preventDefault());
       b.addEventListener('click', () => { this.close(); it.run(); });
@@ -135,6 +140,8 @@ export class GameMenu {
   get isOpen(): boolean { return this.root.classList.contains('open'); }
   open(): void { this.root.classList.add('open'); }
   close(): void { this.root.classList.remove('open'); }
+  /** The keys bound to the panels (Key Settings), by the item's own key letter; unbound = no letter. */
+  setKeys(keys: Record<string, string>): void { for (const [k, el] of this.keyEls) { const t = keys[k] ?? ''; el.textContent = t; el.style.display = t ? '' : 'none'; } }
 
   destroy(): void {
     document.removeEventListener('mousedown', this.onDoc);

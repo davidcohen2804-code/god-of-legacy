@@ -98,6 +98,7 @@ if os.path.exists(SRC + 'birds.png'):
 
 # ---- falling water: 4 x 2 cells on black → one strip of the falling column only (no splash: the landscape's falls vanish
 #      into mist), grey with the brightness as alpha — the game tints it to the sunset and lays it over each painted fall
+FAR_BLUR = (9, 8)   # texture px, across / down the fall
 if os.path.exists(SRC + 'falls.png'):
   im = cv2.imread(SRC + 'falls.png').astype(np.float32)
   floor = np.percentile(im.max(2), 35) + 6
@@ -118,6 +119,10 @@ if os.path.exists(SRC + 'falls.png'):
     f = c[top:bottom, x0:x1]
     g = f.mean(2); a = np.clip(f.max(2) / 255 * 1.4, 0, 1)
     a[-int(f.shape[0] * 0.18):] *= np.linspace(1, 0, int(f.shape[0] * 0.18))[:, None]   # the foot fades out
+    # far away: soft (the falls are shrunk ~3-10x on screen, so this is a pixel or two there) and low in contrast — the
+    # landscape's own falls shimmer under it instead of sharp streaks jumping forward
+    g = cv2.GaussianBlur(g, (0, 0), sigmaX=FAR_BLUR[0], sigmaY=FAR_BLUR[1]); a = cv2.GaussianBlur(a, (0, 0), sigmaX=FAR_BLUR[0], sigmaY=FAR_BLUR[1])
+    g = g * 0.55 + g.mean() * 0.45
     frames.append(np.dstack([g, g, g, a * 255]))
   scale = min(1, 300 / frames[0].shape[0])
   frames = [cv2.resize(f, (max(8, round(f.shape[1] * scale)), round(f.shape[0] * scale)), interpolation=cv2.INTER_AREA) for f in frames]

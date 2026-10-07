@@ -20,14 +20,14 @@ const CSS = `
 .gol-dlg .pt img{position:absolute;left:6%;top:4%;width:88%;height:88%;object-fit:contain}
 .gol-dlg .nm{position:absolute;left:${d(48)}px;top:${d(24)}px;width:${d(282)}px;height:${d(60)}px;display:flex;align-items:center;justify-content:center;
   font:700 17px ${FONT_FAMILY};letter-spacing:1px;color:#2d1d06;text-shadow:0 1px 0 rgba(255,240,200,.6);white-space:nowrap;overflow:hidden}
-.gol-dlg .tt{position:absolute;left:${d(392)}px;top:${d(110)}px;font:700 14px ${FONT_FAMILY};letter-spacing:2px;color:#e8b45f;text-shadow:0 1px 2px #000;text-transform:uppercase}
+.gol-dlg .tt{position:absolute;left:${d(392)}px;top:${d(106)}px;font:700 15px ${FONT_FAMILY};letter-spacing:2px;color:#e8b45f;text-shadow:0 1px 2px #000;text-transform:uppercase}
 .gol-dlg .tx{position:absolute;left:${d(392)}px;top:${d(140)}px;width:${d(930)}px;height:${d(96)}px;font-size:19px;line-height:27px;color:#f1e8d3;text-shadow:0 1px 2px #000}
 .gol-dlg .bt{position:absolute;right:${d(78)}px;bottom:${d(84)}px;display:flex;gap:12px}
-.gol-dlg .bt button{height:42px;padding:0 26px;border:0;background:url("${K('pill_normal')}") center/100% 100% no-repeat;color:#efddb0;
-  font:700 13px ${FONT_FAMILY};letter-spacing:1.5px;cursor:pointer;text-shadow:0 1px 2px #000;white-space:nowrap}
+.gol-dlg .bt button{height:48px;padding:0 32px;border:0;background:url("${K('pill_normal')}") center/100% 100% no-repeat;color:#efddb0;
+  font:700 15px ${FONT_FAMILY};letter-spacing:1.5px;cursor:pointer;text-shadow:0 1px 2px #000;white-space:nowrap}
 .gol-dlg .bt button:hover{background-image:url("${K('pill_hover')}");color:#fff3cf}
 .gol-dlg .bt button.main{color:#ffe08a}
-.gol-dlg .bt button i{font-style:normal;color:#e8b45f;margin-left:8px;font-size:11px}
+.gol-dlg .bt button i{font-style:normal;color:#e8b45f;margin-left:9px;font-size:13px}
 .gol-area{position:absolute;left:0;right:0;top:118px;text-align:center;pointer-events:none;opacity:0;transition:opacity .6s}
 .gol-area.on{opacity:1}
 .gol-area b{display:block;font:700 40px ${FONT_FAMILY};letter-spacing:7px;color:#f8e3a6;text-shadow:0 3px 8px #000,0 0 18px rgba(0,0,0,.6)}

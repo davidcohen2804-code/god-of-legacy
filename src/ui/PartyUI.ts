@@ -4,45 +4,45 @@ import { FONT_FAMILY, HUD } from '../config/layout';
 
 const K = (f: string) => `assets/final/ui/kit/${f}.png`;
 const STYLE_ID = 'gol-party-style';
-const F = { x: 1668, y: 600, w: 232 };
-const W = { w: 560, x: (1920 - 560) / 2, y: 230 };
+const F = { x: 1656, y: 612, w: 250 };
+const W = { w: 640, x: (1920 - 640) / 2, y: 210 };
 
 const CSS = `
 .gol-pf{position:absolute;left:${F.x}px;top:${F.y}px;width:${F.w}px;display:none;flex-direction:column;gap:6px;padding:12px 14px 14px;box-sizing:border-box;pointer-events:auto;
   background:linear-gradient(rgba(6,10,18,.8),rgba(6,10,18,.62));border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.45),inset 0 0 0 1px rgba(201,154,69,.45);font-family:${HUD.bodyFont}}
 .gol-pf.on{display:flex}
-.gol-pf .hd{font:700 12px ${FONT_FAMILY};letter-spacing:2px;color:#f3d58a;text-shadow:0 1px 2px #000;margin-bottom:2px;cursor:pointer}
+.gol-pf .hd{font:700 14px ${FONT_FAMILY};letter-spacing:2px;color:#f3d58a;text-shadow:0 1px 2px #000;margin-bottom:2px;cursor:pointer}
 .gol-pf .m{display:flex;flex-direction:column;gap:3px}
-.gol-pf .n{display:flex;align-items:center;gap:6px;font:700 13px ${FONT_FAMILY};color:#efddb0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px #000}
-.gol-pf .n .cr{color:#ffd34a;font-size:12px}
-.gol-pf .n .me{color:#9fb0c0;font-size:11px;font-weight:400}
-.gol-pf .hb{height:8px;border-radius:4px;background:#1a0f12;box-shadow:inset 0 0 0 1px rgba(0,0,0,.6);overflow:hidden}
+.gol-pf .n{display:flex;align-items:center;gap:6px;font:700 15px ${FONT_FAMILY};color:#efddb0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px #000}
+.gol-pf .n .cr{color:#ffd34a;font-size:14px}
+.gol-pf .n .me{color:#9fb0c0;font-size:13px;font-weight:400}
+.gol-pf .hb{height:10px;border-radius:5px;background:#1a0f12;box-shadow:inset 0 0 0 1px rgba(0,0,0,.6);overflow:hidden}
 .gol-pf .hb i{display:block;height:100%;background:linear-gradient(#ff6a5a,#c8231e);transition:width 150ms}
 .gol-pf .m.dead .n{color:#8c939b}
-.gol-pw{position:absolute;left:${W.x}px;top:${W.y}px;width:${W.w}px;display:none;flex-direction:column;gap:14px;padding:22px 28px 26px;box-sizing:border-box;pointer-events:auto;
+.gol-pw{position:absolute;left:${W.x}px;top:${W.y}px;width:${W.w}px;display:none;flex-direction:column;gap:16px;padding:26px 34px 30px;box-sizing:border-box;pointer-events:auto;
   background:linear-gradient(rgba(8,13,24,.99),rgba(8,13,24,.98));border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.6),inset 0 0 0 1px rgba(201,154,69,.6),inset 0 0 0 4px rgba(8,13,24,.9),inset 0 0 0 5px rgba(201,154,69,.25);
   font-family:${HUD.bodyFont};color:#e8e2d2}
 .gol-pw.open{display:flex}
-.gol-pw .ttl{text-align:center;font:700 20px ${FONT_FAMILY};letter-spacing:4px;color:#f3d58a;text-shadow:0 2px 4px #000}
-.gol-pw .x{position:absolute;right:14px;top:12px;width:30px;height:30px;border:0;padding:0;background:url("${K('btn_close_sm')}") center/100% 100% no-repeat;cursor:pointer}
+.gol-pw .ttl{text-align:center;font:700 25px ${FONT_FAMILY};letter-spacing:5px;color:#f3d58a;text-shadow:0 2px 4px #000}
+.gol-pw .x{position:absolute;right:16px;top:14px;width:36px;height:36px;border:0;padding:0;background:url("${K('btn_close_sm')}") center/100% 100% no-repeat;cursor:pointer}
 .gol-pw .x:hover{background-image:url("${K('btn_close_sm_hover')}")}
-.gol-pw .sec{font:700 11px ${FONT_FAMILY};letter-spacing:2px;color:#c9b48a;border-bottom:1px solid rgba(201,154,69,.3);padding-bottom:6px}
+.gol-pw .sec{font:700 14px ${FONT_FAMILY};letter-spacing:2.5px;color:#d3bd8f;border-bottom:1px solid rgba(201,154,69,.35);padding-bottom:8px}
 .gol-pw .list{display:flex;flex-direction:column;gap:6px}
-.gol-pw .row{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 14px;border-radius:8px;background:rgba(255,255,255,.035);box-shadow:inset 0 0 0 1px rgba(201,154,69,.18)}
-.gol-pw .row .nm{flex:1;font:700 14px ${FONT_FAMILY};color:#efddb0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.gol-pw .row .cl{font-size:12px;color:#9fb0c0;text-transform:capitalize}
+.gol-pw .row{display:flex;align-items:center;gap:12px;padding:10px 12px 10px 16px;border-radius:8px;background:rgba(255,255,255,.035);box-shadow:inset 0 0 0 1px rgba(201,154,69,.18)}
+.gol-pw .row .nm{flex:1;font:700 17px ${FONT_FAMILY};color:#efddb0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gol-pw .row .cl{font-size:14px;color:#a9b8c6;text-transform:capitalize}
 .gol-pw .row .cr{color:#ffd34a;margin-right:4px}
-.gol-pw .none{font-size:13px;color:#a99f86;font-style:italic;text-align:center;padding:6px 0}
-.gol-pw button.b,.gol-pi button{min-width:96px;height:32px;padding:0 14px;border-radius:7px;border:1px solid #c99a45;background:linear-gradient(#3a2a10,#22180a);
-  font:700 12px ${FONT_FAMILY};letter-spacing:1.5px;color:#ffe7a8;cursor:pointer;text-shadow:0 1px 2px #000}
+.gol-pw .none{font-size:16px;color:#b3a98f;font-style:italic;text-align:center;padding:8px 0}
+.gol-pw button.b,.gol-pi button{min-width:104px;height:38px;padding:0 16px;border-radius:8px;border:1px solid #c99a45;background:linear-gradient(#3a2a10,#22180a);
+  font:700 14px ${FONT_FAMILY};letter-spacing:1.5px;color:#ffe7a8;cursor:pointer;text-shadow:0 1px 2px #000}
 .gol-pw button.b:hover,.gol-pi button:hover{box-shadow:0 0 10px rgba(232,178,90,.45)}
 .gol-pw button.b.alt,.gol-pi button.alt{border-color:#6a5630;background:#0b121b;color:#c9b48a}
 .gol-pw button.b:disabled{opacity:.4;cursor:default;box-shadow:none}
-.gol-pw .hint{font-size:12px;color:#9fb0c0;text-align:center}
-.gol-pi{position:absolute;left:${(1920 - 520) / 2}px;top:150px;width:520px;display:none;align-items:center;gap:14px;padding:16px 20px 16px 24px;box-sizing:border-box;pointer-events:auto;
-  background:linear-gradient(rgba(8,13,24,.96),rgba(8,13,24,.9));border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.55),inset 0 0 0 1px rgba(232,178,90,.7);font:700 15px ${FONT_FAMILY};color:#efddb0}
+.gol-pw .hint{font-size:14px;line-height:19px;color:#a9b8c6;text-align:center}
+.gol-pi{position:absolute;left:${(1920 - 580) / 2}px;top:150px;width:580px;display:none;align-items:center;gap:14px;padding:16px 20px 16px 24px;box-sizing:border-box;pointer-events:auto;
+  background:linear-gradient(rgba(8,13,24,.96),rgba(8,13,24,.9));border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.55),inset 0 0 0 1px rgba(232,178,90,.7);font:700 17px ${FONT_FAMILY};color:#efddb0}
 .gol-pi.on{display:flex}
-.gol-pi span{flex:1;line-height:20px}
+.gol-pi span{flex:1;line-height:23px}
 .gol-pi span b{color:#ffd76e}
 `;
 

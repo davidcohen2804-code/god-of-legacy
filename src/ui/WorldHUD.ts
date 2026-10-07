@@ -13,22 +13,38 @@ const STYLE_ID = 'gol-hud-style';
 const K = (f: string) => `assets/final/ui/kit/${f}.png`;
 /** Kit geometry (1920x1080 design px). Bar channels / frame insets measured on the GPT HUD sheet. */
 const G = {
-  portrait: { x: 20, y: 14, w: 136, h: 133, img: { x: 30, y: 30, d: 74 } },
-  name: { x: 168, y: 22, w: 300 }, level: { x: 512, y: 14, w: 46, h: 52 },
-  hp: { x: 148, y: 58, w: 430, h: 69, ch: { x: 37, y: 21, w: 356, h: 29 } },
-  mp: { x: 148, y: 104, w: 430, h: 69, ch: { x: 37, y: 21, w: 356, h: 29 } },
-  buffs: { x: 158, y: 164, size: 38, gap: 6 },
-  exp: { x: 420, y: 1032, w: 1080, h: 55, ch: { x: 44, y: 21, w: 992, h: 14 } },
-  tray: { x: 379, y: 931, w: 1162, h: 100, slot: 64, gap: 6, x0: 24, y0: 8 }, // 16 slots
+  portrait: { x: 14, y: 10, w: 150, h: 147, img: { x: 33, y: 33, d: 82 } },
+  /** The level badge right before the name (both over the HP bar). */
+  level: { x: 170, y: 9, w: 48, h: 56 }, name: { x: 226, y: 18, w: 380 },
+  hp: { x: 156, y: 62, w: 470, h: 76, ch: { x: 40, y: 23, w: 390, h: 32 } },
+  mp: { x: 156, y: 112, w: 470, h: 76, ch: { x: 40, y: 23, w: 390, h: 32 } },
+  buffs: { x: 178, y: 146, size: 46, gap: 8 },
+  exp: { x: 460, y: 1024, w: 1000, h: 56, ch: { x: 41, y: 21, w: 918, h: 14 } },
   /** Square: minimap_square.png (382 art px, its opening 33..349) over the map window. */
-  minimap: { x: 1668, y: 12, w: 232, h: 232, view: { x: 20, y: 21, w: 192, h: 192 } },
-  region: { x: 1666, y: 254, w: 236, h: 67 },
-  room: { x: 1350, y: 14, w: 300, h: 74 },
-  target: { x: 760, y: 18, w: 400, h: 110, in: { x: 88, y: 22, w: 268 } },
-  combo: { x: 1560, y: 480, w: 300, h: 97 },
-  menu: { x: 1716, y: 330, w: 180, h: 50, gap: 6 },
-  back: { x: 20, y: 990, w: 320, h: 74 },
+  minimap: { x: 1656, y: 10, w: 250, h: 250, view: { x: 22, y: 23, w: 206, h: 206 } },
+  region: { x: 1650, y: 268, w: 262, h: 72 },
+  room: { x: 1340, y: 14, w: 300, h: 74 },
+  /** toast.png at its own proportions (573x142): the name line has room for long monster names. */
+  target: { x: 730, y: 16, w: 460, h: 116, in: { x: 96, y: 25, w: 310 } },
+  combo: { x: 1320, y: 470, w: 300, h: 97 },
+  menu: { x: 1656, y: 352, w: 250, h: 54, gap: 10 },
 } as const;
+
+/** Skill dock (bottom centre): the 16 slots in two rows of 8 — Space/Z and 1-7 above, Q R F G C V T H below — each slot
+ *  the skill's own framed icon with its key on a cap hanging from its bottom edge; the passives (always on) in a small
+ *  grid on its right under their caption. The EXP bar runs under the dock. */
+const DK = {
+  slot: 72, gapX: 10, rowGap: 10, cols: 8,
+  cap: 28, wide: { w: 70, h: 26 },
+  pad: { t: 14, r: 22, b: 12, l: 22 },
+  pas: { icon: 46, gap: 8, cols: 4, rows: 3, sep: 20, head: 26 },
+  bottom: 1020,
+} as const;
+/** Row pitch (each row's caps hang half under it), the slots' block and the dock's height. */
+const ROW = DK.slot + DK.cap / 2 + DK.rowGap;
+const GRID = { w: DK.cols * DK.slot + (DK.cols - 1) * DK.gapX, h: DK.slot + ROW + DK.cap / 2 };
+const DOCK_H = DK.pad.t + GRID.h + DK.pad.b;
+const slotAt = (i: number) => ({ x: DK.pad.l + (i % DK.cols) * (DK.slot + DK.gapX), y: DK.pad.t + Math.floor(i / DK.cols) * ROW });
 
 const CSS = `
 .gol-hud{color:${P.text};font-family:${H.bodyFont}}
@@ -39,60 +55,67 @@ const CSS = `
 .gol-hud .kimg{position:absolute;background:0 0/100% 100% no-repeat;pointer-events:none}
 .gol-hud .pf{position:absolute;background:url("${K('portrait_frame')}") 0 0/100% 100% no-repeat;filter:drop-shadow(0 3px 6px rgba(0,0,0,.6))}
 .gol-hud .pf .img{position:absolute;border-radius:50%;background-repeat:no-repeat;background-color:#0a1018}
-.gol-hud .lvl{position:absolute;background:url("${K('hex_badge')}") center/100% 100% no-repeat;text-align:center;font:700 16px/52px ${FONT_FAMILY};color:#ffe2a0;text-shadow:0 1px 2px #000}
+.gol-hud .lvl{position:absolute;background:url("${K('hex_badge')}") center/100% 100% no-repeat;text-align:center;font:700 21px/${G.level.h}px ${FONT_FAMILY};color:#ffe2a0;text-shadow:0 1px 2px #000,0 0 4px #000}
 .gol-hud .bar{position:absolute;background:0 0/100% 100% no-repeat}
 .gol-hud .bar .ch{position:absolute;overflow:hidden;border-radius:6px}
 .gol-hud .bar .fill{position:absolute;left:0;top:0;bottom:0;overflow:hidden;transition:width ${H.barEaseMs}ms ease-out}
 .gol-hud .bar .fill img{position:absolute;left:0;top:0;height:100%}
 .gol-hud .bar .val{position:absolute;display:flex;align-items:center;justify-content:center;
-  font-size:15px;font-weight:700;text-shadow:0 1px 2px #000,0 0 3px #000;letter-spacing:.5px}
-.gol-hud .pas{position:absolute;display:flex;align-items:center;gap:6px;padding:4px 10px 4px 6px;box-sizing:border-box;width:auto!important;
-  background:linear-gradient(rgba(6,10,18,.72),rgba(6,10,18,.55));border-radius:10px;box-shadow:0 3px 12px rgba(0,0,0,.4),inset 0 0 0 1px rgba(201,154,69,.35)}
-.gol-hud .pas .lab{padding:0 8px 0 6px;font:700 11px ${FONT_FAMILY};letter-spacing:2px;color:#c9b48a;white-space:nowrap}
-.gol-hud .pas .pi{position:relative;width:38px;height:38px;flex:none;pointer-events:auto;cursor:help;transition:transform 100ms}
-.gol-hud .pas .pi:hover{transform:scale(1.12)}
-.gol-hud .pas .pi img{width:100%;height:100%;display:block}
-.gol-hud .pas .pi.lk img{filter:grayscale(1) brightness(.45)}
-.gol-hud .pas .pi.lk:after{content:'';position:absolute;left:11px;top:7px;width:16px;height:22px;background:url("${K('lock')}") center/contain no-repeat;filter:drop-shadow(0 1px 2px #000)}
-.gol-hud .bar.xp .val{justify-content:flex-start;padding-left:18px;box-sizing:border-box;font-size:12px;letter-spacing:1px;color:#fff3cf;text-shadow:0 1px 2px #000,0 0 4px #000,0 0 6px #000}
-.gol-hud .tray{background:linear-gradient(rgba(6,10,18,.72),rgba(6,10,18,.55));border-radius:14px;box-shadow:0 4px 18px rgba(0,0,0,.45),inset 0 0 0 1px rgba(201,154,69,.35)}
-.gol-hud .aslot{position:absolute;padding:0;border:0;background:url("${K('hud_slot')}") center/128% 128% no-repeat;pointer-events:auto;cursor:pointer;
-  font:inherit;color:inherit;outline:none;transition:transform 100ms}
-.gol-hud .aslot:hover{transform:scale(1.06)}
-.gol-hud .aslot.pressed{transform:scale(.94)}
-.gol-hud .aslot.sig{background-image:url("${K('hud_slot_hover')}")}
+  font-size:18px;font-weight:700;text-shadow:0 1px 2px #000,0 0 3px #000;letter-spacing:.5px}
+.gol-hud .bar.xp .val{justify-content:center;font-size:14px;letter-spacing:1px;color:#fff3cf;text-shadow:0 1px 2px #000,0 0 4px #000,0 0 6px #000}
+.gol-hud .dock{background:linear-gradient(rgba(6,10,18,.76),rgba(6,10,18,.6));border-radius:16px;
+  box-shadow:0 6px 22px rgba(0,0,0,.5),inset 0 0 0 1px rgba(201,154,69,.42),inset 0 0 0 5px rgba(6,10,18,.3),inset 0 0 0 6px rgba(201,154,69,.12)}
+.gol-hud .aslot{position:absolute;padding:0;border:0;border-radius:10px;background:transparent;pointer-events:auto;cursor:pointer;
+  font:inherit;color:inherit;outline:none;transition:transform 100ms,filter 100ms}
+.gol-hud .aslot:hover{transform:translateY(-2px);filter:brightness(1.14)}
+.gol-hud .aslot.pressed{transform:scale(.93)}
 .gol-hud .aslot:focus-visible{box-shadow:0 0 0 2px ${P.text}}
 .gol-hud .aslot[aria-disabled=true]{cursor:default}
-.gol-hud .aslot .ic{position:absolute;left:9px;top:9px;width:46px;height:46px;border-radius:5px}
+.gol-hud .aslot .ic{position:absolute;left:0;top:0;width:100%;height:100%;filter:drop-shadow(0 2px 4px rgba(0,0,0,.65))}
+.gol-hud .aslot.empty{background:url("${K('slot_empty')}") center/100% 100% no-repeat}
+.gol-hud .aslot.empty .ic{left:26%;top:26%;width:48%;height:48%;opacity:.5;filter:none}
+.gol-hud .aslot.sig .ic{filter:drop-shadow(0 0 6px rgba(255,206,110,.8)) drop-shadow(0 2px 4px rgba(0,0,0,.65))}
 .gol-hud .aslot.off .ic{opacity:.4;filter:grayscale(1)}
-.gol-hud .aslot .cd{position:absolute;inset:7px;border-radius:6px;display:none;align-items:center;justify-content:center;
-  font-size:20px;font-weight:700;text-shadow:0 1px 2px #000}
-.gol-hud .aslot .ult{position:absolute;inset:-6px;background:url("${K('hud_slot_ult')}") center/100% 100% no-repeat;display:none;pointer-events:none;animation:golUlt 1.3s ease-in-out infinite}
+.gol-hud .aslot .cd{position:absolute;inset:5px;border-radius:8px;display:none;align-items:center;justify-content:center;
+  font-size:26px;font-weight:700;text-shadow:0 1px 3px #000,0 0 6px #000}
+.gol-hud .aslot .ult{position:absolute;inset:-11px;background:url("${K('hud_slot_ult')}") center/100% 100% no-repeat;display:none;pointer-events:none;animation:golUlt 1.3s ease-in-out infinite}
 .gol-hud .aslot.ult-ready .ult{display:block}
 @keyframes golUlt{0%,100%{opacity:.7;filter:brightness(1)}50%{opacity:1;filter:brightness(1.35)}}
-.gol-hud .key{position:absolute;text-align:center;font:700 12px ${FONT_FAMILY};color:#ffe2a0;text-shadow:0 1px 2px #000;background:url("${K('keycap')}") center/100% 100% no-repeat;line-height:24px}
-.gol-hud .key.wide{background-image:url("${K('keycap_wide')}");font-size:10px;letter-spacing:1px}
+.gol-hud .key{position:absolute;text-align:center;font:700 16px/${DK.cap}px ${FONT_FAMILY};color:#ffe2a0;text-shadow:0 1px 2px #000;background:url("${K('keycap')}") center/100% 100% no-repeat;pointer-events:none}
+.gol-hud .key.wide{background-image:url("${K('keycap_wide')}");font-size:12px;line-height:${DK.wide.h}px;letter-spacing:1px}
+.gol-hud .dock .sep{position:absolute;width:2px;background:linear-gradient(rgba(201,154,69,0),rgba(201,154,69,.6),rgba(201,154,69,0))}
+.gol-hud .dock .pas{position:absolute}
+.gol-hud .dock .pas .lab{position:absolute;left:-10px;right:-10px;top:0;height:18px;text-align:center;font:700 13px/18px ${FONT_FAMILY};letter-spacing:3px;color:#dcc28c;text-shadow:0 1px 2px #000;white-space:nowrap}
+.gol-hud .dock .pas .pi{position:absolute;width:${DK.pas.icon}px;height:${DK.pas.icon}px;pointer-events:auto;cursor:help;transition:transform 100ms}
+.gol-hud .dock .pas .pi:hover{transform:scale(1.1)}
+.gol-hud .dock .pas .pi img{width:100%;height:100%;display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))}
+.gol-hud .dock .pas .pi.lk img{filter:grayscale(1) brightness(.45)}
+.gol-hud .dock .pas .pi.lk:after{content:'';position:absolute;left:13px;top:9px;width:20px;height:28px;background:url("${K('lock')}") center/contain no-repeat;filter:drop-shadow(0 1px 2px #000)}
 .gol-hud .fx{position:absolute;display:flex;gap:${G.buffs.gap}px}
-.gol-hud .fx .e{position:relative;background:url("${K('buff_frame')}") center/100% 100% no-repeat}
-.gol-hud .fx .e img{position:absolute;left:22%;top:24%;width:56%;height:52%;border-radius:4px}
-.gol-hud .fx .e.bad{background-image:url("${K('buff_frame_expiring')}")}
-.gol-hud .fx .more{font-size:18px;align-self:center}
+.gol-hud .fx .e{position:relative}
+.gol-hud .fx .e img{position:absolute;left:0;top:0;width:100%;height:100%;filter:drop-shadow(0 2px 3px rgba(0,0,0,.65))}
+.gol-hud .fx .e.bad img{filter:drop-shadow(0 0 5px rgba(255,72,52,.95))}
+.gol-hud .fx .more{font-size:20px;font-weight:700;align-self:center;text-shadow:0 1px 2px #000}
 .gol-hud .mm{filter:drop-shadow(0 3px 6px rgba(0,0,0,.5))}
 .gol-hud .mm .view{position:absolute;overflow:hidden;background:#06101c;border-radius:6px}
 .gol-hud .mm .frame{position:absolute;inset:0;background:url("${K('minimap_square')}") 0 0/100% 100% no-repeat;pointer-events:none;z-index:5}
 .gol-hud .mm .view img.bg{position:absolute}
 .gol-hud .mm .mk{position:absolute;width:${H.minimap.marker}px;height:${H.minimap.marker}px;margin:-${H.minimap.marker / 2}px 0 0 -${H.minimap.marker / 2}px}
 .gol-hud .mm .na{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:${P.secondary};opacity:.7}
-.gol-hud .region{position:absolute;background:url("${K('region_plaque')}") center/100% 100% no-repeat;text-align:center;font:400 14px/${G.region.h}px Georgia,serif;color:#f0d9a6;letter-spacing:.5px;text-shadow:0 1px 2px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 28px}
+.gol-hud .region{position:absolute;background:url("${K('region_plaque')}") center/100% 100% no-repeat;text-align:center;font:400 18px/${G.region.h}px Georgia,serif;color:#f3dcaa;letter-spacing:.5px;text-shadow:0 1px 2px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 40px}
 .gol-hud .room{background:url("${K('toast')}") 0 0/100% 100% no-repeat}
 .gol-hud .target{background:url("${K('toast')}") 0 0/100% 100% no-repeat;filter:drop-shadow(0 3px 6px rgba(0,0,0,.5))}
-.gol-hud .target .tpf{position:absolute;left:20px;top:25px;width:56px;height:56px;border-radius:50%;overflow:hidden;background:#0a1018;box-shadow:0 0 0 2px #c99a45}
+.gol-hud .target .tpf{position:absolute;left:22px;top:28px;width:60px;height:60px;border-radius:50%;overflow:hidden;background:#0a1018;box-shadow:0 0 0 2px #c99a45}
 .gol-hud .target .tpf .img{position:absolute;inset:0;background-repeat:no-repeat}
 .gol-hud .thp{position:absolute;height:12px;border-radius:6px;background:#0a1018;box-shadow:inset 0 0 0 1px #6a5630;overflow:hidden}
 .gol-hud .thp .fill{position:absolute;left:0;top:0;bottom:0;overflow:hidden;transition:width ${H.barEaseMs}ms ease-out}
 .gol-hud .thp .fill img{position:absolute;left:0;top:0;height:100%}
 .gol-hud.compact .room .n2{display:none!important}
 @media (prefers-reduced-motion:reduce){.gol-hud .bar .fill,.gol-hud .thp .fill{transition:none}}
+.gol-hud .dim{position:absolute;left:0;top:0;width:1920px;height:1080px;z-index:20;background:rgba(4,7,14,.5);opacity:0;visibility:hidden;transition:opacity .18s,visibility .18s;pointer-events:none}
+.gol-hud.modal .dim{opacity:1;visibility:visible}
+.gol-hud .gol-ql,.gol-hud .gol-pw,.gol-hud .gol-pi,.gol-hud .gol-keys,.gol-hud .gol-dlg{z-index:30}
+.gol-hud.bare > :not(.gol-ql):not(.gol-pw):not(.gol-pi):not(.gol-keys):not(.gol-dlg){visibility:hidden}
 .gol-hud .combo{position:absolute;left:${G.combo.x}px;top:${G.combo.y}px;width:${G.combo.w}px;height:${G.combo.h}px;background:url("${K('combo_plaque')}") 0 0/100% 100% no-repeat;
   pointer-events:none;transition:opacity .18s}
 .gol-hud .combo .n{position:absolute;left:74px;width:152px;top:34px;height:32px;text-align:center;font-family:${FONT_FAMILY};font-weight:700;font-style:italic;font-size:30px;line-height:32px;color:#ffe2a0;
@@ -108,15 +131,11 @@ const CSS = `
   background:radial-gradient(ellipse at center,rgba(40,6,4,.75) 0%,rgba(40,6,4,0) 70%)}
 .gol-hud .banner small{display:block;font-size:22px;letter-spacing:4px;color:#e9d9b8;margin-top:4px}
 .gol-hud .menu{position:absolute;left:${G.menu.x}px;top:${G.menu.y}px;width:${G.menu.w}px;display:flex;flex-direction:column;gap:${G.menu.gap}px;pointer-events:auto}
-.gol-hud .menu button{height:${G.menu.h}px;border:0;background:url("${K('pill_normal')}") center/100% 100% no-repeat;color:#efddb0;font:700 12px ${FONT_FAMILY};
-  letter-spacing:1px;cursor:pointer;transition:transform .12s;padding:0 22px;white-space:nowrap}
+.gol-hud .menu button{height:${G.menu.h}px;border:0;background:url("${K('pill_normal')}") center/100% 100% no-repeat;color:#efddb0;font:700 14px ${FONT_FAMILY};
+  letter-spacing:1px;cursor:pointer;transition:transform .12s;padding:0 36px;white-space:nowrap;text-shadow:0 1px 2px #000}
 .gol-hud .menu button:hover{transform:scale(1.03);background-image:url("${K('pill_hover')}")}
 .gol-hud .menu button:active{transform:scale(.985)}
-.gol-hud .menu button b{color:#e8b45f;margin-right:7px}
-.gol-hud .kback{position:absolute;left:${G.back.x}px;top:${G.back.y}px;width:${G.back.w}px;height:${G.back.h}px;border:0;background:url("${K('toast')}") center/100% 100% no-repeat;
-  color:#efddb0;font:700 14px ${FONT_FAMILY};letter-spacing:1.2px;cursor:pointer;pointer-events:auto;padding:0 24px 0 74px;text-align:left;white-space:nowrap;transition:transform .12s}
-.gol-hud .kback:hover{transform:scale(1.03);background-image:url("${K('toast_glow')}")}
-.gol-hud .kback:active{transform:scale(.985)}
+.gol-hud .menu button b{color:#f0bd62;margin-right:10px;font-size:15px}
 `;
 
 interface Bar { root: HTMLDivElement; fill: HTMLDivElement; img: HTMLImageElement; val?: HTMLSpanElement; w: number; last: string }
@@ -149,6 +168,8 @@ export class WorldHUD {
   labels: string[] = [];
   private tGauge: HTMLElement[] = [];
   private markers = new Map<string, HTMLImageElement>();
+  /** The key letter on each menu pill (follows Key Settings). */
+  private menuKeys = new Map<string, HTMLElement>();
   private mmPic?: HTMLImageElement;
   private mmImage = '';
   private sinceMarkers = Infinity;
@@ -163,6 +184,7 @@ export class WorldHUD {
     }
     this.root = this.div('gol-cs gol-hud');
     host.appendChild(this.root);
+    this.div('dim', this.root); // the world and the HUD fade back under an open window
     this.buildPlayer();
     this.buildTarget();
     this.buildMinimap();
@@ -190,7 +212,7 @@ export class WorldHUD {
     const p = this.panel('player', { x: 0, y: 0, w: 620, h: 220 });
     const pf = this.div('pf', p); this.at(pf, G.portrait.x, G.portrait.y, G.portrait.w, G.portrait.h);
     this.els.portrait = this.div('img', pf); this.at(this.els.portrait, G.portrait.img.x, G.portrait.img.y, G.portrait.img.d, G.portrait.img.d);
-    const name = this.div('h', p); this.at(name, G.name.x, G.name.y, G.name.w, 32); name.style.fontSize = '24px';
+    const name = this.div('h', p); this.at(name, G.name.x, G.name.y, G.name.w, 38); Object.assign(name.style, { fontSize: '27px', lineHeight: '38px', letterSpacing: '1.5px' });
     this.els.pName = name;
     const lv = this.div('lvl', p); this.at(lv, G.level.x, G.level.y, G.level.w, G.level.h);
     this.els.pLevel = lv;
@@ -211,13 +233,13 @@ export class WorldHUD {
     this.els.tIconWrap = pf;
     this.els.tIcon = this.div('img', pf);
     const I = G.target.in;
-    this.els.tName = this.div('h', t); this.at(this.els.tName, I.x, I.y, I.w - 70, 24); this.els.tName.style.fontSize = '18px';
-    this.els.tType = this.div('t', t); this.at(this.els.tType, I.x, I.y + 22, I.w - 70, 18); Object.assign(this.els.tType.style, { fontSize: '12px', color: P.secondary });
+    this.els.tName = this.div('h', t); this.at(this.els.tName, I.x, I.y - 2, I.w - 70, 26); this.els.tName.style.fontSize = '19px';
+    this.els.tType = this.div('t', t); this.at(this.els.tType, I.x, I.y + 22, I.w - 70, 18); Object.assign(this.els.tType.style, { fontSize: '14px', lineHeight: '18px', color: P.secondary });
     const thp = this.div('thp', t); this.at(thp, I.x, I.y + 44, I.w, 12);
     const fill = this.div('fill', thp); const img = document.createElement('img'); img.alt = ''; img.src = K('hp_fill'); img.style.width = `${I.w}px`; fill.appendChild(img);
     this.thp = { root: thp, fill, img, w: I.w, last: '' };
     // Combat state chip + three combo-protection gauges (standing / air / down) under the HP bar.
-    const chip = this.div('chip', t); Object.assign(chip.style, { position: 'absolute', right: '40px', top: `${I.y}px`, fontSize: '13px', fontWeight: '700', fontStyle: 'italic', letterSpacing: '1px', textShadow: '0 2px 0 #000' });
+    const chip = this.div('chip', t); Object.assign(chip.style, { position: 'absolute', right: '40px', top: `${I.y}px`, fontSize: '14px', fontWeight: '700', fontStyle: 'italic', letterSpacing: '1px', textShadow: '0 2px 0 #000' });
     this.els.tChip = chip;
     const gw = (I.w - 8) / 3;
     this.tGauge = (['#ff5a4a', '#5ab8ff', '#ffd25a'] as const).map((c, i) => {
@@ -225,7 +247,7 @@ export class WorldHUD {
       const f = this.div('gf', bg); Object.assign(f.style, { position: 'absolute', left: '0', top: '0', bottom: '0', width: '0%', background: c, boxShadow: `0 0 6px ${c}` });
       return f;
     });
-    this.els.tFx = this.div('fx', this.root); this.at(this.els.tFx, G.target.x + 20, G.target.y + G.target.h + 6, G.target.w, 30);
+    this.els.tFx = this.div('fx', this.root); this.at(this.els.tFx, G.target.x + 20, G.target.y + G.target.h + 6, G.target.w, 32);
   }
 
   private buildMinimap(): void {
@@ -247,14 +269,13 @@ export class WorldHUD {
   }
 
   private buildSkills(): void {
-    const T = G.tray;
-    const tray = this.panel('tray', T);
+    const dock = this.panel('dock', { x: 0, y: DK.bottom - DOCK_H, w: 0, h: DOCK_H });
     H.skills.hotkeys.forEach((key, i) => {
-      const x = T.x0 + i * (T.slot + T.gap), y = T.y0;
+      const { x, y } = slotAt(i);
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'aslot';
-      this.at(btn, x, y, T.slot, T.slot);
+      this.at(btn, x, y, DK.slot, DK.slot);
       const icon = document.createElement('img'); icon.className = 'ic'; icon.alt = ''; icon.draggable = false;
       const cd = this.div('cd', btn);
       btn.insertBefore(icon, cd);
@@ -263,29 +284,49 @@ export class WorldHUD {
       btn.addEventListener('keyup', (e) => { if (e.key === ' ') e.preventDefault(); }); // Phaser owns Space: block the button's own Space click (no 2nd attack)
       const el: SlotEl = { btn, icon, cd, last: '' };
       btn.addEventListener('click', () => { if (el.slot?.assigned && el.slot.enabled && !el.slot.busy) this.opts.onSlot(i); });
-      tray.appendChild(btn);
-      const k = this.div('key', tray);
-      this.keyEls.push({ el: k, x, y: y + T.slot + 2 });
+      dock.appendChild(btn);
+      const k = this.div('key', dock);
+      this.keyEls.push({ el: k, x: x + DK.slot / 2, y: y + DK.slot }); // the cap's centre: the slot's bottom edge
       this.slots.push(el);
     });
   }
 
-  /** Passive skills strip above the skill tray (always-on skills; locked ones dimmed). */
+  /** The passives' corner of the dock (always-on skills; locked ones dimmed), right of the slots past a thin divider. */
   private buildPassives(): void {
-    this.els.passives = this.div('pas', this.root); this.at(this.els.passives, G.tray.x + 14, G.tray.y - 54, 900, 46);
+    this.els.sep = this.div('sep', this.els.dock);
+    this.els.passives = this.div('pas', this.els.dock);
+    this.placeDock(0);
   }
 
   setPassives(list: { id: string; name: string; iconUrl: string; owned: boolean; info: string }[]): void {
-    const box = this.els.passives;
+    const box = this.els.passives, A = DK.pas;
     box.innerHTML = '';
-    box.style.display = list.length ? 'flex' : 'none';
-    if (!list.length) return;
-    this.div('lab', box).textContent = 'PASSIVE';
-    for (const p of list) {
+    const cols = Math.max(A.cols, Math.ceil(list.length / A.rows));
+    list.forEach((p, i) => {
       const e = this.div(`pi${p.owned ? '' : ' lk'}`, box);
+      e.style.left = `${(i % cols) * (A.icon + A.gap)}px`; e.style.top = `${A.head + Math.floor(i / cols) * (A.icon + A.gap)}px`;
       const img = document.createElement('img'); img.src = p.iconUrl; img.alt = ''; img.draggable = false; e.appendChild(img);
       e.title = `${p.name}${p.owned ? '' : ' (locked)'}\n${p.info}`;
+    });
+    if (list.length) this.div('lab', box).textContent = 'PASSIVE';
+    this.placeDock(list.length);
+  }
+
+  /** The dock's width follows its passives (none: the slots alone); it stays centred over the EXP bar. */
+  private placeDock(passives: number): void {
+    const A = DK.pas, dock = this.els.dock, sep = this.els.sep, box = this.els.passives;
+    let w = DK.pad.l + GRID.w + DK.pad.r;
+    const on = passives > 0;
+    sep.style.display = box.style.display = on ? '' : 'none';
+    if (on) {
+      const cols = Math.max(A.cols, Math.ceil(passives / A.rows)), rows = Math.ceil(passives / cols);
+      const bw = cols * A.icon + (cols - 1) * A.gap, bh = A.head + rows * A.icon + (rows - 1) * A.gap;
+      const sx = DK.pad.l + GRID.w + A.sep;
+      this.at(sep, sx, DK.pad.t + 6, 2, GRID.h - 12);
+      this.at(box, sx + 2 + A.sep, DK.pad.t + Math.round((GRID.h - bh) / 2), bw, bh);
+      w = sx + 2 + A.sep + bw + DK.pad.r;
     }
+    this.box(dock, { x: Math.round(960 - w / 2), y: DK.bottom - DOCK_H, w, h: DOCK_H });
   }
 
   private buildCombat(): void {
@@ -301,7 +342,7 @@ export class WorldHUD {
       const m = this.div('menu', this.root);
       for (const [k, label] of [['K', 'SKILL BOOK'], ['I', 'INVENTORY'], ['O', 'COSMETIC SHOP'], ['P', 'PARTY']] as const) {
         const b = document.createElement('button'); b.type = 'button';
-        b.innerHTML = `<b>${k}</b>${label}`;
+        b.innerHTML = `<b>${k}</b>${label}`; this.menuKeys.set(k, b.firstChild as HTMLElement);
         b.addEventListener('mousedown', (e) => e.preventDefault());
         b.addEventListener('click', () => this.opts.onMenu?.(k));
         m.appendChild(b);
@@ -331,7 +372,7 @@ export class WorldHUD {
     if (t) {
       const hasIcon = !!t.portrait;
       this.show(this.els.tIconWrap, hasIcon);
-      if (hasIcon) this.portrait(this.els.tIcon, t.portrait, 'tPortrait', 56);
+      if (hasIcon) this.portrait(this.els.tIcon, t.portrait, 'tPortrait', 60);
       this.text(this.els.tName, t.name, 'tName');
       this.text(this.els.tType, t.type, 'tType');
       this.setBar(this.thp, t.hp, t.maxHp);
@@ -339,8 +380,8 @@ export class WorldHUD {
       if (this.changed('tChip', st)) { this.els.tChip.textContent = st; this.els.tChip.style.color = st === 'AERIAL' ? '#7fd0ff' : st === 'DOWN' ? '#ffd25a' : '#ff8a6a'; }
       const g = t.gauges;
       this.tGauge.forEach((f, i) => { const v = g ? [g.stand, g.air, g.down][i] : 0; f.style.width = `${Math.min(100, v * 100)}%`; f.style.opacity = v >= 1 ? '1' : '0.75'; });
-      this.effects(this.els.tFx, t.effects, 28, now, 'tFx');
-    } else this.effects(this.els.tFx, [], 28, now, 'tFx');
+      this.effects(this.els.tFx, t.effects, 32, now, 'tFx');
+    } else this.effects(this.els.tFx, [], 32, now, 'tFx');
 
     // Slots
     s.slots.slice(0, this.slots.length).forEach((sl, i) => this.renderSlot(this.slots[i], sl, now));
@@ -401,6 +442,7 @@ export class WorldHUD {
       el.btn.classList.toggle('pressed', state === 'pressed');
       el.last = key;
       el.btn.classList.toggle('off', disabled);
+      el.btn.classList.toggle('empty', !s.iconUrl); // no skill art: the kit's empty socket, the small pictogram in it
       el.icon.src = icon;
       el.btn.setAttribute('aria-disabled', String(disabled || busy));
       el.btn.setAttribute('aria-label', `${label} (${s.hotkey})${busy ? ' — Busy' : ''}`);
@@ -547,14 +589,30 @@ export class WorldHUD {
 
   /** Hotkey caps under the tray slots (Key Settings): long names (SPACE, SHIFT…) on the wide cap. */
   setKeyLabels(labels: string[]): void {
-    const T = G.tray;
     this.keyEls.forEach((k, i) => {
       const t = labels[i] ?? '', wide = t.length > 2;
+      const w = wide ? DK.wide.w : DK.cap, h = wide ? DK.wide.h : DK.cap;
       k.el.className = wide ? 'key wide' : 'key';
-      this.at(k.el, wide ? k.x - 2 : k.x + 20, k.y, wide ? T.slot + 4 : 24, 24);
+      this.at(k.el, k.x - w / 2, k.y - h / 2, w, h);
       k.el.textContent = t; k.el.style.visibility = t ? '' : 'hidden';
     });
     this.labels = labels;
+  }
+
+  /** A window is open: 'dim' — the HUD and the world fade back under it (windows inside the HUD); 'bare' — the HUD steps
+   *  aside for a big window (skill book, inventory, shop: the scene dims the world itself, their previews stay clear). */
+  setModal(m: 'none' | 'dim' | 'bare'): void {
+    if (this.modal === m) return;
+    this.modal = m;
+    this.root.classList.toggle('modal', m === 'dim');
+    this.root.classList.toggle('bare', m === 'bare');
+  }
+  private modal: 'none' | 'dim' | 'bare' = 'none';
+
+  /** The keys bound to the panels (Key Settings): shown on the menu pills and in the gear menu; unbound = no letter. */
+  setMenuKeys(keys: Record<'K' | 'I' | 'O' | 'P', string>): void {
+    for (const [k, el] of this.menuKeys) { const t = keys[k as 'K'] ?? ''; el.textContent = t; el.style.display = t ? '' : 'none'; }
+    this.menu.setKeys(keys);
   }
 
   /** The 1920x1080 overlay element (chat, quest tracker and other HUD parts live inside it). */
