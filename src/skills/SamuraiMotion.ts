@@ -30,8 +30,13 @@ export function samuraiMotion(id: string, e: number, T: Timeline, face: number, 
   if (e < 0 || e > end) return null;
   const L = lunge(e, T), c = crouch(e, T);
   switch (id) {
-    case 'quick_slash': { // a step into each cut; the third one lunges deep
-      const big = stage === 2 ? 1 : 0.45;
+    case 'quick_slash': { // a step into each cut; the cross cut leans in, the rising cut springs up with the blade
+      if (stage === 3) {
+        if (r < 0) return M({ sy: 1 - 0.1 * c, sx: 1 + 0.05 * c, dx: -face * 3 * c });
+        const up = Math.sin(Math.PI * clamp01(r / (T.active + 160)));
+        return M({ dy: -14 * up, ang: -face * 8 * up, sy: 1 + 0.05 * kick(r, 200), after: r < 140 });
+      }
+      const big = stage === 2 ? 0.8 : 0.45;
       return M({ dx: face * 14 * big * L - face * 3 * c, ang: face * 7 * big * L * (r >= 0 ? kick(r, 260) + 0.3 : 0) - face * 3 * c, sy: 1 - 0.04 * c, after: stage === 2 && r >= 0 && r < 150 });
     }
     case 'shadow_step': // low before the step, leaning into it, a trail of afterimages
@@ -42,8 +47,8 @@ export function samuraiMotion(id: string, e: number, T: Timeline, face: number, 
       if (r < 0) return M({ sy: 1 - 0.07 * c, sx: 1 + 0.04 * c });
       if (e < A) return M({ flip: Math.floor(r / 55) % 2 === 1, dy: -4, after: true });
       return M({ sy: 1 - 0.05 * kick(e - A, 220) });
-    case 'iai_strike': { // deep drawing stance, then the snap of the draw (the body flashes forward)
-      if (r < 0) return M({ sy: 1 - 0.12 * c, sx: 1 + 0.06 * c, ang: -face * 6 * c, dx: -face * 4 * c });
+    case 'iai_strike': { // deep drawing stance (sinks deeper while held, a tremble at full charge), then the snap of the draw
+      if (r < 0) { const d = Math.min(1, e / 600), full = e > 680 ? Math.sin(e * 1.4) * 0.8 : 0; return M({ sy: 1 - 0.13 * d, sx: 1 + 0.07 * d, ang: -face * 7 * d, dx: -face * 5 * d + full }); }
       const k = kick(r, 260);
       return M({ dx: face * 22 * k, ang: face * 10 * k, sx: 1 + 0.12 * k, sy: 1 - 0.06 * k, after: r < 160 });
     }
@@ -87,6 +92,14 @@ export function samuraiMotion(id: string, e: number, T: Timeline, face: number, 
     case 'rising_sun': case 'god_of_blades': // gathers, then rises tall as the power answers
       if (r < 0) return M({ sy: 1 - 0.06 * c, dy: 0 });
       return M({ sy: 1 + 0.08 * kick(r, 420), dy: -8 * Math.sin(Math.PI * clamp01(r / (T.active + 260))) });
+    case 'sakura_bind': // the hand thrust at the ground where the ring opens
+      if (r < 0) return M({ ang: -face * 5 * c, sy: 1 - 0.05 * c });
+      return M({ dx: face * 6 * kick(r, 260), ang: face * 6 * kick(r, 260) });
+    case 'dragon_ascension': { // low, then up with the dragon, hanging at the top, down
+      if (r < 0) return M({ sy: 1 - 0.14 * c, sx: 1 + 0.08 * c });
+      if (e < A) { const up = easeOut(clamp01(r / 260)); return M({ dy: -26 * up, sy: 1 + 0.06 * up, ang: -face * 5 * up, after: r < 300 }); }
+      return M({ dy: -26 * (1 - easeInOut(clamp01((e - A) / T.recovery))), sy: 1 - 0.08 * kick(e - A - T.recovery * 0.7, 160) });
+    }
     case 'phantom_blades': // deep stance, then he is everywhere at once (barely visible, afterimages), then back
       if (r < 0) return M({ sy: 1 - 0.12 * c, sx: 1 + 0.06 * c, ang: -face * 6 * c });
       if (e < A) return M({ alpha: 0.3 + 0.2 * Math.abs(Math.sin(r / 50)), dx: face * 10 * Math.sin(r / 37), after: true });

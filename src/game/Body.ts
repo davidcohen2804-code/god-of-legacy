@@ -567,9 +567,12 @@ const SEQ: Record<string, Seq> = {
   rising_sun: { st: [['idle', 0], ['attack', 0]], ac: at(0), rc: [['attack', 0], ['idle', 0]] },
   phantom_blades: { st: at(1, 1), ac: at(2, 3, 2, 1, 2, 3, 2, 0), rc: [['attack', 3], ['attack', 3], ['idle', 0]] },
   god_of_blades: { st: [['idle', 0], ['attack', 0]], ac: at(0), rc: [['attack', 0], ['idle', 0]] },
+  sakura_bind: { st: at(1), ac: at(0), rc: [['attack', 0], ['idle', 0]] },
+  dragon_ascension: { st: at(1, 3), ac: at(0, 0, 0), rc: [['attack', 0], ['attack', 0], ['idle', 0]] },
 };
 const CHAIN_SEQ: Record<string, Seq[]> = {
-  quick_slash: [{ st: at(0), ac: at(1, 2), rc: at(3) }, { st: at(3), ac: at(2, 1), rc: at(0) }, { st: [['attack', 0], ['jump', 2]], ac: at(2, 3), rc: [['attack', 3], ['idle', 0]] }],
+  quick_slash: [{ st: at(0), ac: at(1, 2), rc: at(3) }, { st: at(3), ac: at(2, 1), rc: at(0) }, { st: at(0), ac: at(2, 1, 2), rc: at(3) },
+    { st: at(3), ac: at(0, 0), rc: [['attack', 0], ['idle', 0]] }], // slash, backhand, the cross, the rising cut
 };
 const MIN_ACTIVE = 110;
 

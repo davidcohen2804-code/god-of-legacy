@@ -670,6 +670,17 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       en.kin.x = k.x + run.aim.x * reach; en.kin.y = k.y + run.aim.y * reach + 1; en.kin.z = k.z + 40 + 120 * lift;
       en.kin.vz = 0; en.kin.vx = 0; en.kin.vy = 0; en.kin.grounded = false;
     }
+    if (s.charge && run.phase === 'startup' && !run.chargeDone) { // hold-to-charge (Iai Strike): let go = draw now (never before minMs)
+      const slot = this.kit.indexOf(s), minS = s.charge.minMs * (run.chargeScale ?? 1);
+      if (!this.ci?.slotHeld(slot) && run.elapsed >= minS) {
+        run.chargeDone = true; run.timings.startup = Math.max(run.elapsed, minS);
+        this.pvp?.sendRelease({ castId: run.castId, at: Math.round(run.timings.startup), ax: Math.round(run.aim.x * 1000), ay: Math.round(run.aim.y * 1000) });
+      }
+    }
+    if (s.id === 'sword_wave' && run.phase === 'recovery' && !run.slid && this.ci?.slotHeld(this.kit.indexOf(s)) && this.rt!.cooldownRemaining(s.id) <= 0) { // held: the next wave as soon as it is ready (up to its charges)
+      run.slid = true;
+      this.rt!.cancelForFollowUp(run); this.endRun(run, false); this.tryStartSlot(this.kit.indexOf(s)); return;
+    }
     if (s.id === 'dash_slash' && run.phase === 'recovery' && !run.slid) { run.slid = true; this.momentum = { x: run.aim.x * 46, y: run.aim.y * 46, left: Math.max(120, T.recovery * 0.7) }; } // skid to a stop instead of freezing
     if (s.id === 'judgment_blade') { // leap high, hang at the apex while the light-blade charges, throw, then drop
       if (!run.jbInit) { run.jbInit = true; run.jbApex = this.jb ? 0 : run.origin.z > 5 ? 80 : 185; if (this.jb) { run.timings.startup = run.jbQuick ? JB.followMin : JB.follow; run.origin = { ...run.origin, z: this.jb.z }; } } // follow-up throw: no new leap, no charge

@@ -49,6 +49,11 @@ export interface CastRun extends CastRequest {
   timings: { startup: number; active: number; recovery: number };
   hits: HitEvent[];
   chainFirst?: string | null;
+  /** Hold-to-charge skills: the startup's scale (attack speed) and the level picked when the startup ended (0..). */
+  chargeScale?: number;
+  chargeLevel?: number;
+  /** Own hold-to-charge run: the release was sent / taken. */
+  chargeDone?: boolean;
 }
 
 export interface Trap { run: CastRun; hit: HitEvent; x: number; y: number; until: number; radius: number; fuseAt?: number }
@@ -105,6 +110,7 @@ export class SkillRuntime {
     const run: CastRun = {
       ...req, elapsed: startElapsed, phase: 'startup', fired: new Set(), hitKeys: new Set(), confirmedAt: -1,
       pathStart: { x: req.origin.x, y: req.origin.y }, counterTriggered: false, extraRecovery: 0, timings, hits,
+      ...(s.charge ? { chargeScale: timings.startup / Math.max(1, s.startup) } : {}),
     };
     if (req.own && s.cooldown > 0) {
       // Charged skills: N quick uses in a row (window 7s between uses), then the full cooldown.
@@ -188,6 +194,11 @@ export class SkillRuntime {
     r.elapsed += ms;
     const T = r.timings, activeStart = T.startup, activeEnd = T.startup + T.active;
     if (r.phase === 'startup' && r.elapsed >= activeStart) {
+      if (r.skill.charge) { // hold-to-charge: the level the startup reached picks the hits
+        const held = T.startup / (r.chargeScale ?? 1), L = r.skill.charge.levels;
+        let lv = 0; L.forEach((l, i) => { if (held >= l.at - 1) lv = i; });
+        r.chargeLevel = lv; r.hits = L[lv].hits;
+      }
       r.phase = 'active';
       this.events.emit(RT_EVENTS.active, r);
       this.world.onPhase?.(r, 'active');

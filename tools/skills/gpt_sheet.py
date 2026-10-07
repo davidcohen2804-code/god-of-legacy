@@ -2,13 +2,15 @@
 #   icons <sheet.png> <cls> <id> [<id> ...]
 #       a grid of framed icons (left to right, top row first; '-' skips one) →
 #       public/assets/final/skills/<cls>/<id>/icon.png, 128 px, the frame's rounded corners clear
-#   fx <sheet.png> <cls> <id> [cols rows cell]
+#   fx <sheet.png> <cls> <id> [cols rows width [out]]
 #       an effect sheet of cols x rows frames in equal cells (default 4 x 2), each frame where GPT drew it in its cell →
-#       public/assets/final/skills/<cls>/<id>/vfx.png, one row of frames of cell x cell px (default 384)
+#       public/assets/final/skills/<cls>/<id>/<out or vfx>.png, one row of frames `width` px wide (default 384; the height
+#       follows the frames' own shape: square for 4 x 2 sheets, wide for 2 x 4 ones). Prints the frame size (the game's
+#       spritesheet cell). The background is found from the sheet's border: flat magenta (#FF00FF) or flat green (#00FF00).
 # Icons: opaque inside, only the outline is blended off the magenta (its colour taken from just inside).
-# Effects are glows drawn over magenta: each pixel is split into the least-opaque light that gives that colour over
-# magenta (alpha = max(1 - r, g, 1 - b)), so the glow keeps its own colour and fades out instead of a pink fringe;
-# the game draws them additively.
+# Effects are glows drawn over a flat key colour: each pixel is split into the least-opaque light that gives that colour
+# over it (magenta: alpha = max(1 - r, g, 1 - b); green: alpha = max(r, 1 - g, b)), so the glow keeps its own colour and
+# fades out instead of a coloured fringe; the game draws them additively / screened.
 import os, sys
 import numpy as np
 from PIL import Image
@@ -74,12 +76,20 @@ def icons(sheet, cls, ids):
         print('icon', cls, iid, f'{x1 - x0}x{y1 - y0}')
 
 
-def fx(sheet, cls, iid, cols=4, rows=2, cell=384):
+def key_of(rgb):
+    """The sheet's flat background: the median colour of its border → magenta or green (key colour 0..1)."""
+    b = np.concatenate([rgb[:4].reshape(-1, 3), rgb[-4:].reshape(-1, 3), rgb[:, :4].reshape(-1, 3), rgb[:, -4:].reshape(-1, 3)])
+    m = np.median(b, 0)
+    return np.array([0, 1, 0], np.float32) if m[1] > m[0] and m[1] > m[2] else np.array([1, 0, 1], np.float32)
+
+
+def fx(sheet, cls, iid, cols=4, rows=2, cell=384, out_name='vfx'):
     rgb = np.asarray(Image.open(sheet).convert('RGB')).astype(np.float32) / 255
     H, W = rgb.shape[:2]
-    alpha = np.max(np.stack([1 - rgb[..., 0], rgb[..., 1], 1 - rgb[..., 2]]), 0)    # the least-opaque light over magenta
+    K = key_of(rgb)
+    alpha = np.max(np.abs(rgb - K), 2)                    # the least-opaque light over the key: max over channels of |c - key|
     alpha = np.where(alpha < 0.045, 0, alpha)
-    col = np.clip((rgb - (1 - alpha[..., None]) * (M / 255)) / np.maximum(alpha[..., None], 1e-3), 0, 1)
+    col = np.clip((rgb - (1 - alpha[..., None]) * K) / np.maximum(alpha[..., None], 1e-3), 0, 1)
     # specks: tiny islands of faint light far from the effect
     lab, n = ndimage.label(alpha > 0.08)
     if n:
@@ -117,33 +127,37 @@ def fx(sheet, cls, iid, cols=4, rows=2, cell=384):
             owner[y0:y1, a:b] = k
             cx, cy = (c_ + 0.5) * cw, (r_ + 0.5) * ch
             ys = np.nonzero((alpha[y0:y1, a:b] > 0.03).any(1))[0]
-            reach.append(max(cx - a, b - cx, cy - (y0 + (ys.min() if len(ys) else 0)), (y0 + (ys.max() if len(ys) else 0)) - cy))
-    half = int(max(reach) + 6)
-    padded = np.zeros((H + 2 * half, W + 2 * half, 4), np.float32); padded[half:-half, half:-half] = pm
-    own = np.full((H + 2 * half, W + 2 * half), -1, np.int32); own[half:-half, half:-half] = owner
-    strip = np.zeros((cell, cell * cols * rows, 4), np.float32)
+            reach.append((max(cx - a, b - cx), max(cy - (y0 + (ys.min() if len(ys) else 0)), (y0 + (ys.max() if len(ys) else 0)) - cy)))
+    hx = int(max(r[0] for r in reach) + 6); hy = int(max(r[1] for r in reach) + 6)
+    if cw <= ch * 1.5: hx = hy = max(hx, hy)                  # square-ish cells: square frames (they may rotate in the game)
+    ow, oh = cell, max(2, round(cell * hy / hx))
+    P_ = max(hx, hy)
+    padded = np.zeros((H + 2 * P_, W + 2 * P_, 4), np.float32); padded[P_:-P_, P_:-P_] = pm
+    own = np.full((H + 2 * P_, W + 2 * P_), -1, np.int32); own[P_:-P_, P_:-P_] = owner
+    strip = np.zeros((oh, ow * cols * rows, 4), np.float32)
     worst = 0.0
     for k in range(cols * rows):
         r_, c_ = divmod(k, cols)
-        cx, cy = round((c_ + 0.5) * cw) + half, round((r_ + 0.5) * ch) + half
-        part = padded[cy - half:cy + half, cx - half:cx + half] * (own[cy - half:cy + half, cx - half:cx + half] == k)[..., None]
+        cx, cy = round((c_ + 0.5) * cw) + P_, round((r_ + 0.5) * ch) + P_
+        part = padded[cy - hy:cy + hy, cx - hx:cx + hx] * (own[cy - hy:cy + hy, cx - hx:cx + hx] == k)[..., None]
         edge = max(part[:2, :, 3].max(), part[-2:, :, 3].max(), part[:, :2, 3].max(), part[:, -2:, 3].max())
         worst = max(worst, edge)
-        im = Image.fromarray((part * 255).round().clip(0, 255).astype(np.uint8), 'RGBA').resize((cell, cell), Image.LANCZOS)
-        strip[:, k * cell:(k + 1) * cell] = np.asarray(im).astype(np.float32) / 255
+        im = Image.fromarray((part * 255).round().clip(0, 255).astype(np.uint8), 'RGBA').resize((ow, oh), Image.LANCZOS)
+        strip[:, k * ow:(k + 1) * ow] = np.asarray(im).astype(np.float32) / 255
+    half = hx
     a = strip[..., 3:4]
     out = np.concatenate([np.where(a > 0, strip[..., :3] / np.maximum(a, 1e-4), 0), a], 2)
     out = (out * 255).round().clip(0, 255).astype(np.uint8)
     out[out[..., 3] == 0] = 0
     d = G + f'public/assets/final/skills/{cls}/{iid}/'
     os.makedirs(d, exist_ok=True)
-    Image.fromarray(out, 'RGBA').save(d + 'vfx.png', optimize=True)
-    print('fx', cls, iid, f'{cols * rows} frames of {cell}px', f'| window {2 * half}px on GPT cells of {cw:.0f}x{ch:.0f}',
+    Image.fromarray(out, 'RGBA').save(d + f'{out_name}.png', optimize=True)
+    print('fx', cls, iid, out_name, f'{cols * rows} frames of {ow}x{oh}', f'| key {"green" if K[1] else "magenta"}', f'| window {2 * hx}x{2 * hy} on GPT cells of {cw:.0f}x{ch:.0f}',
           '| strongest light on a window edge', round(float(worst), 2))
 
 
 if __name__ == '__main__':
     cmd, args = sys.argv[1], sys.argv[2:]
     if cmd == 'icons': icons(args[0], args[1], args[2:])
-    elif cmd == 'fx': fx(args[0], args[1], args[2], *[int(v) for v in args[3:6]])
+    elif cmd == 'fx': fx(args[0], args[1], args[2], *[int(v) for v in args[3:6]], *(args[6:7]))
     else: raise SystemExit(__doc__)

@@ -94,6 +94,9 @@ export interface FinalSkill {
   charges?: number;
   /** Minimum gap between two charges (ms, from cast to cast); default 350. */
   chargeGap?: number;
+  /** Hold-to-charge: the key held keeps the startup going (up to `startup`, at least minMs); at the release the level whose
+   *  `at` the startup reached picks the hits (both sides pick it from the startup: the release is sent to the others). */
+  charge?: { minMs: number; levels: { at: number; hits: HitEvent[] }[] };
   /** Dash carries the first confirmed target along on the blade. */
   carry?: boolean;
   /** fuseMs: stepping on it arms it (hits[0] at once), then it explodes after fuseMs (hits[1] on everyone in it). */

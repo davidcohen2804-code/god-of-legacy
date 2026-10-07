@@ -42,7 +42,8 @@ const ARCHER_OWN = new Set(['rain_of_arrows', 'rising_arrow', 'leaping_arrow', '
 /** Ultimate cut-in art per skill. */
 const CUTIN: Record<string, string> = { titans_verdict: 'titan-cutin', sky_rain: 'archer-cutin', dragon_eclipse: 'samurai-cutin' };
 /** Samurai skills whose effect is played by its own timeline (samuraiCast), not the generic cast sprite. */
-const SAMURAI_OWN = new Set(['swallow_cut', 'hundred_cuts', 'quick_draw', 'tornado_blade', 'falcon_dive', 'rising_sun', 'phantom_blades', 'god_of_blades']);
+const SAMURAI_OWN = new Set(['swallow_cut', 'hundred_cuts', 'quick_draw', 'tornado_blade', 'falcon_dive', 'rising_sun', 'phantom_blades', 'god_of_blades',
+  'iai_strike', 'sakura_bind', 'dragon_ascension']);
 /** Samurai effect sheets made so far (GPT, tools/skills/gpt_sheet.py: 8 frames of 384 px); the others draw their effect in
  *  code until their sheet comes. */
 const SAMURAI_SHEETS = new Set(['swallow_cut', 'hundred_cuts']);
@@ -158,6 +159,46 @@ export function ensureSamuraiArt(scene: Phaser.Scene): void {
   if (!tx.exists('sam-swirl')) { // the front arc of a ring seen at an angle (stacked, they make a whirlwind)
     const W = 128, H = 40, c = tx.createCanvas('sam-swirl', W, H)!, g = c.getContext();
     for (const [w, a] of [[10, 0.22], [5, 0.55], [2, 1]] as const) { g.strokeStyle = `rgba(255,255,255,${a})`; g.lineWidth = w; g.beginPath(); g.ellipse(W / 2, 4, W / 2 - 8, H - 12, 0, 0.12, Math.PI - 0.12); g.stroke(); }
+    c.refresh();
+  }
+  if (!tx.exists('sam-branch')) { // a blossoming cherry branch growing up from its foot (the bottom centre), in its own colours
+    const W = 72, H = 132, c = tx.createCanvas('sam-branch', W, H)!, g = c.getContext();
+    type P = { x: number; y: number };
+    const bez = (a: P, b: P, d: P, t: number): P => ({ x: (1 - t) ** 2 * a.x + 2 * (1 - t) * t * b.x + t * t * d.x, y: (1 - t) ** 2 * a.y + 2 * (1 - t) * t * b.y + t * t * d.y });
+    const limb = (a: P, b: P, d: P, w0: number, w1: number) => {
+      for (let i = 0; i <= 48; i++) { const t = i / 48, p = bez(a, b, d, t), w = w0 + (w1 - w0) * t; g.fillStyle = '#3c180f'; g.beginPath(); g.arc(p.x, p.y, w / 2, 0, Math.PI * 2); g.fill(); }
+      for (let i = 0; i <= 48; i++) { const t = i / 48, p = bez(a, b, d, t), w = w0 + (w1 - w0) * t; g.fillStyle = '#6a3424'; g.beginPath(); g.arc(p.x - w * 0.18, p.y, w * 0.2, 0, Math.PI * 2); g.fill(); } // the lit side of the bark
+    };
+    limb({ x: 36, y: H - 2 }, { x: 24, y: 72 }, { x: 44, y: 14 }, 8, 2.2);
+    limb({ x: 31.6, y: 81 }, { x: 20, y: 70 }, { x: 10, y: 52 }, 4, 1.4);
+    limb({ x: 33.4, y: 58 }, { x: 48, y: 52 }, { x: 60, y: 36 }, 3.6, 1.3);
+    const flower = (x: number, y: number, s: number) => {
+      for (let k = 0; k < 5; k++) {
+        const a = k * 1.2566 - 1.5708, px = x + Math.cos(a) * 4.4 * s, py = y + Math.sin(a) * 4.4 * s;
+        const gr = g.createRadialGradient(px, py, 0, px, py, 4.8 * s); gr.addColorStop(0, '#ffe6ef'); gr.addColorStop(0.55, '#ff9cc0'); gr.addColorStop(1, '#e0507f');
+        g.fillStyle = gr; g.beginPath(); g.arc(px, py, 4.6 * s, 0, Math.PI * 2); g.fill();
+      }
+      g.fillStyle = '#ffd77a'; g.beginPath(); g.arc(x, y, 2 * s, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#d24a78'; g.beginPath(); g.arc(x, y, 0.9 * s, 0, Math.PI * 2); g.fill();
+    };
+    for (const [x, y, s] of [[44, 14, 1.15], [10, 52, 1], [60, 36, 1], [27, 37, 0.85], [47, 63, 0.9], [20, 93, 0.75], [38, 28, 0.7], [54, 80, 0.7]] as const) flower(x, y, s);
+    for (const [x, y] of [[16, 70], [50, 46], [30, 108], [40, 90]] as const) { g.fillStyle = '#e0628e'; g.beginPath(); g.ellipse(x, y, 2.2, 3, 0.4, 0, Math.PI * 2); g.fill(); } // buds
+    c.refresh();
+  }
+  if (!tx.exists('sam-dragon')) { // a spirit dragon's head facing right (open jaw, swept horns, whiskers) — pale, a tint gives its colour
+    const W = 100, H = 60, c = tx.createCanvas('sam-dragon', W, H)!, g = c.getContext();
+    g.lineCap = 'round';
+    g.strokeStyle = 'rgba(255,255,255,0.85)';
+    for (const [x0, y0, cx, cy, x1, y1, w] of [[34, 18, 18, 4, 1, 3, 4], [28, 22, 14, 14, 2, 16, 3], [44, 16, 34, 2, 20, 1, 2.5]] as const) { g.lineWidth = w; g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(cx, cy, x1, y1); g.stroke(); } // horns
+    for (let i = 0; i < 5; i++) { g.fillStyle = `rgba(255,255,255,${0.55 + 0.08 * i})`; g.beginPath(); g.moveTo(18 + i * 3, 16 + i * 5); g.lineTo(2 + i * 2, 20 + i * 7); g.lineTo(20 + i * 3, 24 + i * 5); g.closePath(); g.fill(); } // the mane
+    const skull = g.createLinearGradient(0, 10, 0, 50); skull.addColorStop(0, '#ffffff'); skull.addColorStop(1, '#c8c8c8');
+    g.fillStyle = skull; g.beginPath(); g.moveTo(16, 20); g.quadraticCurveTo(40, 8, 66, 16); g.quadraticCurveTo(86, 20, 95, 28); g.quadraticCurveTo(84, 33, 62, 31); g.lineTo(40, 34); g.quadraticCurveTo(26, 40, 16, 34); g.closePath(); g.fill(); // upper jaw
+    g.fillStyle = '#dcdcdc'; g.beginPath(); g.moveTo(40, 36); g.quadraticCurveTo(62, 37, 80, 43); g.quadraticCurveTo(66, 50, 44, 47); g.quadraticCurveTo(28, 46, 18, 38); g.closePath(); g.fill(); // lower jaw, open
+    g.fillStyle = '#ffffff'; for (let x = 46; x < 82; x += 7) { g.beginPath(); g.moveTo(x, 31); g.lineTo(x + 2.5, 36); g.lineTo(x + 5, 31); g.closePath(); g.fill(); } // fangs
+    g.fillStyle = '#2a0408'; g.beginPath(); g.ellipse(52, 21, 5, 2.4, -0.2, 0, Math.PI * 2); g.fill(); // the eye
+    g.fillStyle = '#ffffff'; g.beginPath(); g.arc(53.5, 20.5, 1.3, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = 1.6;
+    for (const [x0, y0, cx, cy, x1, y1] of [[90, 30, 70, 58, 30, 56], [88, 26, 76, 8, 46, 2]] as const) { g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(cx, cy, x1, y1); g.stroke(); } // whiskers
     c.refresh();
   }
 }
@@ -319,7 +360,23 @@ export class SkillFx {
     else if (s.id === 'ground_breaker') this.quakeBurst(r);
     else if (s.id !== 'leap_crash' && s.id !== 'blade_storm' && !(s.id === 'titans_verdict' && this.scene.textures.exists('titan-dragon'))) this.castVfx(r);
     else this.aura(r);
+    if (s.id === 'quick_slash' && (r.stage ?? 0) >= 2) this.quickSlashLines(r);
     if (s.slot === 7) this.ultimateStage(r);
+  }
+
+  /** Quick Slash: the cross cut flashes an X of light (one line per hit), the rising cut a steep line up with the foe. */
+  private quickSlashLines(r: CastRun): void {
+    const side = r.aim.x < -0.01 ? -1 : 1, T = r.timings, st = r.stage ?? 0;
+    const at = (dx: number, dz: number) => { const q = this.casterPos(r.attackerId) ?? r.origin; return { x: q.x + side * dx, y: q.y - q.z - dz }; };
+    if (st === 2) r.hits.forEach((h, i) => this.scene.time.delayedCall(T.startup + h.at, () => {
+      if (r.phase === 'done' && !r.fired.has(i)) return;
+      const p = at(46, 52); this.slashLine(p.x, p.y, 150, side, i === 1, TOP + 3, CRIMSON, (i === 0 ? 34 : -34) * side);
+    }));
+    else this.scene.time.delayedCall(T.startup, () => {
+      if (r.phase === 'done' && !r.fired.size) return;
+      const p = at(34, 70); this.slashLine(p.x, p.y, 190, side, true, TOP + 3, CRIMSON, -64 * side);
+      this.petals(p.x, p.y - 20, 5, 50);
+    });
   }
 
   private onActive(r: CastRun): void {
@@ -762,8 +819,9 @@ export class SkillFx {
     const img = this.scene.add.image(pos.x, pos.y - pos.z, key, 0).setOrigin(0.5, GROUND_ANCHORED.get(s.id) ?? (upright && shape.kind !== 'sector' ? 0.62 : 0.5));
     img.setDisplaySize(size, size);
     if (!upright) {
-      // Basic chain: each strike cuts a different line (forehand, backhand, rising diagonal, heavy overhead).
-      const tilt = basic ? [0, 0, -28, 22][st] * (aim.x < -0.01 ? -1 : 1) : 0;
+      // Basic chain: each strike cuts a different line (forehand, backhand, rising diagonal, heavy overhead; the samurai's
+      // third is the cross cut, its fourth the rising cut that lifts the foe).
+      const tilt = basic ? (s.cls === 'samurai' ? [0, 0, 18, -46] : [0, 0, -28, 22])[st] * (aim.x < -0.01 ? -1 : 1) : 0;
       const ang = Math.atan2(aim.y, aim.x) * (180 / Math.PI) + tilt; img.setAngle(ang); img.setFlipY((aim.x < -0.01) !== (basic && st % 2 === 1));
     }
     else img.setFlipX(aim.x < -0.01);
@@ -1674,9 +1732,9 @@ export class SkillFx {
   // ------------------------------------------------------------------ samurai
 
   /** One thin slash of light (white core, crimson edge) flashing across (x, y): Hundred Cuts, Phantom Blades. */
-  slashLine(x: number, y: number, len: number, dir: number, big = false, depth = TOP + 3, tint = CRIMSON): void {
+  slashLine(x: number, y: number, len: number, dir: number, big = false, depth = TOP + 3, tint = CRIMSON, angle?: number): void {
     if (!this.scene.textures.exists('sam-slash')) return;
-    const ang = (Math.random() - 0.5) * 150 + (dir < 0 ? 180 : 0), w = big ? 26 : 15;
+    const ang = angle ?? (Math.random() - 0.5) * 150 + (dir < 0 ? 180 : 0), w = big ? 26 : 15;
     const glow = this.scene.add.image(x, y, 'sam-slash').setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setDepth(depth).setAngle(ang).setDisplaySize(len * 0.25, w).setAlpha(0.95);
     const core = this.scene.add.image(x, y, 'sam-slash').setBlendMode(Phaser.BlendModes.ADD).setDepth(depth + 0.01).setAngle(ang).setDisplaySize(len * 0.25, w * 0.32);
     this.scene.tweens.add({ targets: [glow, core], displayWidth: len, duration: big ? 80 : 50, ease: 'Cubic.easeOut' });
@@ -1852,7 +1910,243 @@ export class SkillFx {
         break;
       }
       case 'god_of_blades': this.haloOf(r); break;
+      case 'iai_strike': this.iai(r, side); break;
+      case 'sakura_bind': this.sakuraBind(r); break;
+      case 'dragon_ascension': this.dragonRise(r, side); break;
     }
+  }
+
+  /** A four-pointed star of light (a blade's glint). */
+  glint(x: number, y: number, size: number, depth = TOP + 4, tint = 0xffe6ec): void {
+    if (!this.scene.textures.exists('sam-slash')) return;
+    const parts = [0, 90, 45, 135].map((a, i) => this.scene.add.image(x, y, 'sam-slash').setBlendMode(Phaser.BlendModes.ADD).setTint(tint).setDepth(depth).setAngle(a)
+      .setDisplaySize(i < 2 ? size : size * 0.45, i < 2 ? 5 : 3));
+    const dot = this.scene.add.image(x, y, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffffff).setDepth(depth).setDisplaySize(size * 0.45, size * 0.45);
+    const all = [...parts, dot];
+    for (const p of all) p.setScale(p.scaleX * 0.2, p.scaleY);
+    this.scene.tweens.add({ targets: all, scaleX: (t: Phaser.GameObjects.Image) => t.scaleX * 5, duration: 70, ease: 'Cubic.easeOut' });
+    this.scene.tweens.add({ targets: all, alpha: 0, delay: 90, duration: 200, onComplete: () => { for (const p of all) p.destroy(); } });
+  }
+
+  /** Iai Strike: the hand on the sheath and a glint at the hilt that grows in three steps while the key is held (a flash at
+   *  each step; the reach of the coming cut drawn faint on the floor), then the draw: one line of light along the aim, as
+   *  long and as heavy as the level reached — and the blade clicks back into its sheath. */
+  private iai(r: CastRun, side: number): void {
+    const L = r.skill.charge?.levels; if (!L) return;
+    const sc = r.chargeScale ?? 1, at = L.map((l) => l.at * sc), a = r.aim, cam = this.cam ?? this.scene.cameras.main;
+    const lineOf = (lv: number) => L[lv].hits[0].shape as { length: number; width: number };
+    const hip = () => { const q = this.casterPos(r.attackerId); return q ? { x: q.x + side * 14, y: q.y + 1, z: q.z + 44 } : null; };
+    const p0 = hip() ?? { x: r.origin.x + side * 14, y: r.origin.y + 1, z: 44 };
+    const ADD = Phaser.BlendModes.ADD;
+    const glow = this.scene.add.image(p0.x, p0.y - p0.z, 'dmg-glow').setBlendMode(ADD).setTint(CRIMSON).setDepth(TOP).setDisplaySize(30, 30).setAlpha(0.85);
+    const core = this.scene.add.image(p0.x, p0.y - p0.z, 'dmg-glow').setBlendMode(ADD).setTint(0xffffff).setDepth(TOP + 0.01).setDisplaySize(10, 10);
+    const star = [0, 90].map((ang) => this.scene.add.image(p0.x, p0.y - p0.z, 'sam-slash').setBlendMode(ADD).setTint(0xffe0e8).setDepth(TOP + 0.02).setAngle(ang).setDisplaySize(16, 4));
+    const ang = Phaser.Math.RadToDeg(Math.atan2(a.y, a.x)), o = r.origin;
+    const reach = this.scene.add.image(o.x, o.y, 'tg-line').setOrigin(8 / 512, 0.5).setAngle(ang).setTint(CRIMSON).setDepth(GROUND).setAlpha(0)
+      .setScale(lineOf(0).length / 497, lineOf(0).width / 45);
+    this.scene.tweens.add({ targets: reach, alpha: 0.5, duration: 160 });
+    let aura: Phaser.GameObjects.Image | null = null, lv = 0, t = 0;
+    const SIZE = [[12, 24], [32, 40], [46, 52]]; // the glint's size through each level (from, to)
+    const clean = () => { for (const im of [glow, core, ...star]) im.destroy(); aura?.destroy(); this.scene.tweens.add({ targets: reach, alpha: 0, duration: 120, onComplete: () => reach.destroy() }); };
+    const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
+      t += 16;
+      if (r.phase === 'done' && !r.fired.size) { ev.remove(); clean(); return; } // broken off while drawing (hit / cancelled)
+      if (r.phase !== 'startup') { ev.remove(); clean(); this.iaiCut(r, side); return; } // the release: the cut
+      const e = r.elapsed, nl = e >= at[2] ? 2 : e >= at[1] ? 1 : 0, q = hip() ?? p0, x = q.x, y = q.y - q.z;
+      if (nl > lv) { // a step up: the glint flares, a ring of light snaps out from the hilt, the reach grows
+        lv = nl;
+        const ring = this.scene.add.ellipse(x, y, 22, 22).setStrokeStyle(2 + lv * 2, lv === 2 ? 0xffffff : CRIMSON_HOT, 0.95).setBlendMode(ADD).setDepth(TOP + 1);
+        this.scene.tweens.add({ targets: ring, scale: 3 + lv * 2.5, alpha: 0, duration: 240, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() });
+        this.glint(x, y, 50 + lv * 30);
+        this.scene.tweens.add({ targets: reach, scaleX: lineOf(lv).length / 497, scaleY: lineOf(lv).width / 45, alpha: 0.5 + 0.15 * lv, duration: 140, ease: 'Back.easeOut' });
+        if (lv === 2) { // fully drawn: a crimson aura flickers around the samurai until he lets go
+          aura = this.scene.add.image(q.x, q.y - q.z - 60, 'dmg-glow').setBlendMode(ADD).setTint(CRIMSON).setDepth(q.y - 1).setDisplaySize(150, 210).setAlpha(0);
+          this.petals(x, y, 8, 70);
+        }
+        if (r.own) cam.shake(50 + lv * 30, 0.0012 * lv);
+      }
+      const [s0, s1] = SIZE[lv], span = lv === 2 ? 1 : Math.max(1, at[lv + 1] - at[lv]), k = Math.min(1, (e - at[lv]) / span);
+      const sz = (s0 + (s1 - s0) * k) * (1 + 0.08 * Math.sin(t / (lv === 2 ? 30 : 60)));
+      glow.setPosition(x, y).setDisplaySize(sz * 1.5, sz * 1.5).setDepth(q.y + 2);
+      core.setPosition(x, y).setDisplaySize(sz * 0.45, sz * 0.45).setDepth(q.y + 2.01);
+      star.forEach((im, i) => im.setPosition(x, y).setAngle(i * 90 + t * 0.05).setDisplaySize(sz * 2, 3 + lv).setAlpha(0.7 + 0.3 * Math.sin(t / 45 + i)).setDepth(q.y + 2.02));
+      aura?.setPosition(q.x, q.y - q.z - 60).setDepth(q.y - 1).setAlpha(0.28 + 0.12 * Math.sin(t / 35));
+      if (t % (lv === 2 ? 16 : lv === 1 ? 32 : 48) < 16) { // sparks drawn into the blade
+        const th = Math.random() * Math.PI * 2, d = 50 + 30 * lv + Math.random() * 40;
+        const sp = this.scene.add.image(x + Math.cos(th) * d, y + Math.sin(th) * d * 0.7, 'dmg-glow').setBlendMode(ADD).setTint(lv === 2 ? 0xffd0d6 : 0xff8090).setDepth(TOP + 1).setDisplaySize(12, 12);
+        this.scene.tweens.add({ targets: sp, x, y, displayWidth: 3, displayHeight: 3, duration: 200, ease: 'Quad.easeIn', onComplete: () => sp.destroy() });
+      }
+    } });
+  }
+
+  /** The draw of Iai Strike: a line of light shoots along the aim as far as the cut reaches; a beat later it splits open
+   *  along its length. Fully charged, the floor is cut too and dust rises where the foes go down. */
+  private iaiCut(r: CastRun, side: number): void {
+    const lv = r.chargeLevel ?? 0, sh = r.hits[0].shape as { length: number }, a = r.aim, len = sh.length;
+    const q = this.casterPos(r.attackerId) ?? r.origin, cam = this.cam ?? this.scene.cameras.main, ADD = Phaser.BlendModes.ADD;
+    const x0 = q.x + a.x * 8, y0 = q.y + a.y * 8 - q.z - 46, ang = Phaser.Math.RadToDeg(Math.atan2(a.y, a.x)), thick = [12, 16, 24][lv];
+    const glow = this.scene.add.image(x0, y0, 'sam-slash').setOrigin(0, 0.5).setTint(CRIMSON).setBlendMode(ADD).setDepth(TOP + 3).setAngle(ang).setDisplaySize(len * 0.12, thick * 2.2).setAlpha(0.95);
+    const core = this.scene.add.image(x0, y0, 'sam-slash').setOrigin(0, 0.5).setBlendMode(ADD).setDepth(TOP + 3.01).setAngle(ang).setDisplaySize(len * 0.12, thick * 0.55);
+    this.scene.tweens.add({ targets: [glow, core], displayWidth: len * 1.1, duration: 45, ease: 'Cubic.easeOut' });
+    this.scene.tweens.add({ targets: [glow, core], alpha: 0, delay: 120 + lv * 50, duration: 260 + lv * 90, ease: 'Quad.easeIn', onComplete: () => { glow.destroy(); core.destroy(); } });
+    const f = this.scene.add.image(x0, y0, 'dmg-glow').setBlendMode(ADD).setTint(0xffffff).setDepth(TOP + 4).setDisplaySize(60, 60);
+    this.scene.tweens.add({ targets: f, displayWidth: 170 + 60 * lv, displayHeight: 170 + 60 * lv, alpha: 0, duration: 200, ease: 'Cubic.easeOut', onComplete: () => f.destroy() });
+    this.scene.time.delayedCall(90, () => { // the cut opens along its length
+      const n = 3 + lv * 2;
+      for (let i = 0; i < n; i++) { const d = len * (0.18 + (0.82 * (i + 0.5)) / n); this.slashLine(x0 + a.x * d, y0 + a.y * d + (Math.random() - 0.5) * 12, 60 + 26 * lv, side, lv === 2, TOP + 3, CRIMSON_HOT, ang - 58 * side + (Math.random() - 0.5) * 14); }
+      if (lv >= 1) this.petals(x0 + a.x * len * 0.6, y0 + a.y * len * 0.6, 6 + lv * 5, 50 + lv * 30);
+    });
+    if (lv === 2) { // fully charged: the floor is cut along the line, a shockwave runs down it, dust where the foes fall
+      const fl = this.scene.add.image(q.x + a.x * 8, q.y + a.y * 8, 'sam-slash').setOrigin(0, 0.5).setTint(0xff6070).setBlendMode(ADD).setDepth(GROUND + 1.2).setAngle(ang).setDisplaySize(len, 10).setAlpha(0);
+      this.scene.tweens.add({ targets: fl, alpha: 0.9, duration: 60 });
+      this.scene.tweens.add({ targets: fl, alpha: 0, delay: 500, duration: 1000, onComplete: () => fl.destroy() });
+      this.shockwave(q.x + a.x * len * 0.6, q.y + a.y * len * 0.6, 120, CRIMSON);
+      for (let i = 0; i < 4; i++) this.scene.time.delayedCall(120 + i * 40, () => this.dust(q.x + a.x * len * (0.25 + 0.22 * i), q.y + a.y * len * (0.25 + 0.22 * i), 70, 0.55));
+      if (r.own) { cam.shake(200, 0.007); this.punch(0.035, 220); }
+    } else if (r.own) cam.shake(90 + lv * 40, 0.002 + lv * 0.0015);
+    this.scene.time.delayedCall(Math.round(r.timings.active + r.timings.recovery * 0.6), () => { // the blade clicks back into its sheath
+      const c = this.casterPos(r.attackerId); if (c) this.glint(c.x + side * 12, c.y - c.z - 44, 26 + lv * 8);
+    });
+  }
+
+  /** Sakura Bind: a ring of blossoms opens where it was aimed; at the release every petal rushes to its centre (the pull),
+   *  cherry branches grow up around it and hold for the bind, petals circling the bound foes, then they wither away. */
+  private sakuraBind(r: CastRun): void {
+    const T = r.timings, h0 = r.skill.hits[0], R = (h0.shape as { radius: number }).radius, c = r.place ?? r.origin;
+    const hold = h0.reaction.hardCC?.ms ?? 2000, PINK = 0xff8fb8, ADD = Phaser.BlendModes.ADD, cam = this.cam ?? this.scene.cameras.main;
+    const life = T.startup + hold + 200;
+    // the rune on the floor (turning, in floor perspective) and its glow, fading in through the wind-up
+    const ring = this.scene.add.image(0, 0, 'magic-circle').setBlendMode(ADD).setTint(PINK).setDisplaySize(R * 2.3, R * 2.3);
+    const plane = this.scene.add.container(c.x, c.y, [ring]).setScale(1, 0.45).setDepth(GROUND + 2).setAlpha(0);
+    const floor = this.scene.add.image(c.x, c.y, 'dmg-glow').setBlendMode(ADD).setTint(PINK).setDepth(GROUND + 1.5).setDisplaySize(R * 2.6, R * 1).setAlpha(0);
+    this.scene.tweens.add({ targets: plane, alpha: { from: 0, to: 0.9 }, duration: Math.max(80, T.startup) });
+    this.scene.tweens.add({ targets: floor, alpha: { from: 0, to: 0.55 }, duration: Math.max(80, T.startup) });
+    this.scene.tweens.add({ targets: ring, angle: 220, duration: life });
+    this.scene.tweens.add({ targets: [plane, floor], alpha: 0, delay: life - 360, duration: 360, onComplete: () => { plane.destroy(); floor.destroy(); } });
+    const petal = (x: number, y: number, tx: number, ty: number, ms: number, depth: number) => {
+      if (!this.scene.textures.exists('sam-petal')) return;
+      const p = this.scene.add.image(x, y, 'sam-petal').setDepth(depth).setAngle(Math.random() * 360).setScale(0.8 + Math.random() * 0.6);
+      this.scene.tweens.add({ targets: p, x: tx, y: ty, angle: p.angle + 360, duration: ms, ease: 'Quad.easeIn', onComplete: () => { this.scene.tweens.add({ targets: p, alpha: 0, duration: 120, onComplete: () => p.destroy() }); } });
+    };
+    for (let i = 0; i < 8; i++) this.scene.time.delayedCall((T.startup * i) / 8, () => { const th = Math.random() * Math.PI * 2; petal(c.x + Math.cos(th) * R, c.y + Math.sin(th) * R * 0.5 - 30, c.x, c.y - 40, 300, c.y + 3); });
+    this.scene.time.delayedCall(T.startup, () => {
+      // the pull: a ring closing in on the centre, every petal of the rim rushing to it
+      for (const [w, al, d] of [[8, 0.9, 220], [22, 0.35, 260]] as const) {
+        const g = this.scene.add.ellipse(c.x, c.y, R * 2.2, R * 1.1).setStrokeStyle(w, PINK, al).setDepth(GROUND + 2.2).setBlendMode(ADD);
+        this.scene.tweens.add({ targets: g, scale: 0.15, alpha: 0.2, duration: d, ease: 'Cubic.easeIn', onComplete: () => g.destroy() });
+      }
+      for (let i = 0; i < 18; i++) { const th = (i / 18) * Math.PI * 2; petal(c.x + Math.cos(th) * R * 1.05, c.y + Math.sin(th) * R * 0.55 - 30, c.x + Math.cos(th) * 14, c.y + Math.sin(th) * 6 - 50, 200, c.y + (Math.sin(th) > 0 ? 3 : -3)); }
+      const f = this.scene.add.image(c.x, c.y - 50, 'dmg-glow').setBlendMode(ADD).setTint(0xffd6e4).setDepth(TOP).setDisplaySize(80, 80);
+      this.scene.tweens.add({ targets: f, displayWidth: 260, displayHeight: 200, alpha: 0, duration: 260, onComplete: () => f.destroy() });
+      if (r.own) cam.shake(110, 0.003);
+      // the bind: branches grow up around the centre and hold, petals circle the bound foes
+      if (!this.scene.textures.exists('sam-branch')) return;
+      const N = 7, branches: { im: Phaser.GameObjects.Image; base: number; ph: number }[] = [];
+      for (let i = 0; i < N; i++) {
+        const th = (i / N) * Math.PI * 2 + 0.35, bx = c.x + Math.cos(th) * R * 0.55, by = c.y + Math.sin(th) * R * 0.3, s = 0.85 + 0.3 * Math.random();
+        const base = -Math.cos(th) * 24 + (Math.random() - 0.5) * 8; // leaning in over the bound foes
+        const im = this.scene.add.image(bx, by, 'sam-branch').setOrigin(0.5, 1).setDepth(by + (Math.sin(th) > 0 ? 2 : -2)).setAngle(base).setFlipX(Math.cos(th) > 0).setScale(s * 0.5, 0);
+        this.scene.tweens.add({ targets: im, scaleY: s, scaleX: s, delay: i * 25, duration: 240, ease: 'Back.easeOut' });
+        branches.push({ im, base, ph: Math.random() * 6 });
+      }
+      const glowP = this.scene.add.image(c.x, c.y - 60, 'dmg-glow').setBlendMode(ADD).setTint(PINK).setDepth(c.y - 3).setDisplaySize(170, 190).setAlpha(0);
+      this.scene.tweens.add({ targets: glowP, alpha: 0.26, duration: 200 });
+      const orbit = this.scene.textures.exists('sam-petal') ? Array.from({ length: 12 }, (_, i) => ({ im: this.scene.add.image(c.x, c.y, 'sam-petal').setScale(0.8 + Math.random() * 0.5), th: (i / 12) * Math.PI * 2, h: 20 + Math.random() * 90 })) : [];
+      // (the branches wither as the bind ends: gone by the moment the foes can move again)
+      let t = 0, withered = false;
+      const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
+        t += 16;
+        const out = Math.max(0, Math.min(1, (t - (hold - 160)) / 300)), fin = Math.min(1, t / 200) * (1 - out);
+        if (!withered) for (const b of branches) b.im.setAngle(b.base + 3 * Math.sin(t / 220 + b.ph));
+        for (const p of orbit) {
+          const th = p.th + t / 380, s = Math.sin(th);
+          p.im.setPosition(c.x + Math.cos(th) * 70, c.y + s * 24 - p.h - 6 * Math.sin(t / 150 + p.th)).setDepth(c.y + (s > 0 ? 3 : -3)).setAngle(t * 0.4 + p.th * 50).setAlpha(fin);
+        }
+        glowP.setAlpha(0.26 * fin * (0.85 + 0.15 * Math.sin(t / 90)));
+        if (!withered && t >= hold - 160) {
+          withered = true;
+          for (const b of branches) this.petals(b.im.x, b.im.y - 60, 3, 40, b.im.depth + 1);
+          this.scene.tweens.add({ targets: branches.map((b) => b.im), scaleY: 0, alpha: 0, duration: 240, ease: 'Quad.easeIn', onComplete: () => { for (const b of branches) b.im.destroy(); } });
+        }
+        if (t >= hold + 160) { ev.remove(); for (const p of orbit) p.im.destroy(); glowP.destroy(); }
+      } });
+    });
+  }
+
+  /** Dragon Ascension: crimson power gathers at the feet; then a dragon of crimson light spirals up around the samurai as
+   *  high as it carries the foes, cutting as it rises (the float hits), and flies off into the sky. */
+  private dragonRise(r: CastRun, side: number): void {
+    const T = r.timings, p0 = this.casterPos(r.attackerId) ?? r.origin, cx = p0.x, cy = p0.y, ADD = Phaser.BlendModes.ADD, cam = this.cam ?? this.scene.cameras.main;
+    const RAD = 78, HIGH = 430, rise = T.active + 140, turns = 2.3, ph0 = side > 0 ? Math.PI : 0;
+    // the gathering: a crimson rune at the feet, turning, sparks drawn down into it
+    const ring = this.scene.add.image(0, 0, 'magic-circle').setBlendMode(ADD).setTint(CRIMSON).setDisplaySize(300, 300);
+    const plane = this.scene.add.container(cx, cy, [ring]).setScale(1, 0.42).setDepth(GROUND + 2).setAlpha(0);
+    this.scene.tweens.add({ targets: plane, alpha: 0.9, duration: Math.max(80, T.startup) });
+    this.scene.tweens.add({ targets: ring, angle: -side * 260, duration: T.startup + rise + 600 });
+    this.scene.tweens.add({ targets: plane, alpha: 0, delay: T.startup + rise, duration: 500, onComplete: () => plane.destroy() });
+    const feet = this.scene.add.image(cx, cy - 10, 'dmg-glow').setBlendMode(ADD).setTint(CRIMSON).setDepth(cy - 2).setDisplaySize(120, 60).setAlpha(0);
+    this.scene.tweens.add({ targets: feet, alpha: 0.8, displayWidth: 240, displayHeight: 90, duration: Math.max(80, T.startup) });
+    this.scene.tweens.add({ targets: feet, alpha: 0, delay: T.startup + 300, duration: 400, onComplete: () => feet.destroy() });
+    // the dragon: its head runs up a helix round the samurai, its body is the trail of where the head was
+    // (the front half of each turn drawn in front of him, the back half behind)
+    const front = this.scene.add.graphics().setBlendMode(ADD).setDepth(cy + 4), back = this.scene.add.graphics().setBlendMode(ADD).setDepth(cy - 4);
+    const head = this.scene.textures.exists('sam-dragon') ? this.scene.add.image(cx, cy, 'sam-dragon').setBlendMode(ADD).setTint(0xffc8d0).setDisplaySize(118, 70).setAlpha(0) : null;
+    const halo = this.scene.add.image(cx, cy, 'dmg-glow').setBlendMode(ADD).setTint(CRIMSON).setDisplaySize(150, 150).setAlpha(0);
+    const trail: { x: number; y: number; f: boolean }[] = [];
+    const pos = (u: number) => { // u: 0..1 up the helix (beyond 1: flying off upward)
+      const th = ph0 + side * u * turns * Math.PI * 2, h = u <= 1 ? HIGH * (1 - Math.pow(1 - u, 1.7)) : HIGH + (u - 1) * 900, rad = RAD * (1 - 0.3 * Math.min(1, u));
+      return { x: cx + Math.cos(th) * rad, y: cy + Math.sin(th) * rad * 0.36 - 30 - h, f: Math.sin(th) > 0 };
+    };
+    let t = 0, lastU = 0;
+    const end = T.startup + rise + 520;
+    const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
+      t += 16;
+      if (r.phase === 'done' && t < T.startup) { ev.remove(); front.destroy(); back.destroy(); head?.destroy(); halo.destroy(); return; } // broken off in the wind-up
+      const e = t - T.startup;
+      if (e < 0) {
+        if (t % 32 < 16) { const th = Math.random() * Math.PI * 2, d = 120 + Math.random() * 60, sp = this.scene.add.image(cx + Math.cos(th) * d, cy + Math.sin(th) * d * 0.4 - 10, 'dmg-glow').setBlendMode(ADD).setTint(0xff7080).setDepth(cy + 1).setDisplaySize(12, 12);
+          this.scene.tweens.add({ targets: sp, x: cx, y: cy - 20, displayWidth: 4, displayHeight: 4, duration: 220, ease: 'Quad.easeIn', onComplete: () => sp.destroy() }); }
+        return;
+      }
+      const u = e / rise;
+      if (u < 1.35) for (let k = 1; k <= 3; k++) { const uu = lastU + ((u - lastU) * k) / 3; trail.push(pos(uu)); } // three points a frame: a smooth body
+      lastU = u;
+      while (trail.length > 54) trail.shift();
+      const fade = t > end - 300 ? Math.max(0, (end - t) / 300) : 1;
+      front.clear(); back.clear();
+      const n = trail.length;
+      for (let i = 0; i < n; i++) {
+        const p = trail[i], k = (i + 1) / n, g = p.f ? front : back, w = 6 + 26 * Math.sqrt(k);
+        g.fillStyle(CRIMSON, 0.3 * fade * k).fillCircle(p.x, p.y, w);
+        g.fillStyle(0xff7080, 0.35 * fade * k).fillCircle(p.x, p.y, w * 0.6);
+        g.fillStyle(0xffe0e4, 0.6 * fade * k).fillCircle(p.x, p.y, w * 0.24);
+      }
+      const hd = trail[n - 1], pv = trail[Math.max(0, n - 4)];
+      if (hd && u < 1.35) {
+        const dir = Math.atan2(hd.y - pv.y, hd.x - pv.x), left = Math.cos(dir) < 0;
+        head?.setPosition(hd.x, hd.y).setRotation(left ? dir + Math.PI : dir).setFlipX(left).setDepth(hd.f ? cy + 5 : cy - 3).setAlpha(Math.min(1, e / 80) * fade);
+        halo.setPosition(hd.x, hd.y).setDepth(hd.f ? cy + 4.5 : cy - 3.5).setAlpha(0.75 * Math.min(1, e / 80) * fade);
+        if (t % 48 < 16 && this.scene.textures.exists('sam-petal')) this.petals(hd.x, hd.y, 1, 20, hd.f ? cy + 5 : cy - 3);
+      } else { head?.setAlpha(0); halo.setAlpha(0); }
+      if (t >= end) { ev.remove(); front.destroy(); back.destroy(); head?.destroy(); halo.destroy(); }
+    } });
+    this.scene.time.delayedCall(T.startup, () => { // the dragon breaks out of the floor
+      if (r.phase === 'done' && !r.fired.size) return;
+      this.shockwave(cx, cy, 220, CRIMSON); this.scene.time.delayedCall(70, () => this.shockwave(cx, cy, 300, 0xff8090));
+      for (let i = 0; i < 6; i++) { const th = (i / 6) * Math.PI * 2; this.dust(cx + Math.cos(th) * 90, cy + Math.sin(th) * 36, 80, 0.6); }
+      const col = this.scene.add.image(cx, cy - 210, 'dmg-glow').setBlendMode(ADD).setTint(CRIMSON).setDepth(cy - 5).setDisplaySize(130, 500).setAlpha(0);
+      this.scene.tweens.add({ targets: col, alpha: 0.55, duration: 100, yoyo: true, hold: 260, onComplete: () => col.destroy() });
+      if (this.scene.textures.exists('sam-petal')) for (let i = 0; i < 16; i++) {
+        const p = this.scene.add.image(cx + (Math.random() - 0.5) * 140, cy - 10 - Math.random() * 40, 'sam-petal').setDepth(cy + (Math.random() < 0.5 ? 3 : -3)).setAngle(Math.random() * 360).setScale(0.8 + Math.random() * 0.6);
+        this.scene.tweens.add({ targets: p, y: p.y - 260 - Math.random() * 160, x: p.x + (Math.random() - 0.5) * 120, angle: p.angle + 400, alpha: 0, duration: 700 + Math.random() * 400, ease: 'Quad.easeOut', onComplete: () => p.destroy() });
+      }
+      if (r.own) { cam.shake(220, 0.007); this.punch(0.035, 240); }
+    });
+    for (const h of r.skill.hits.slice(1)) this.scene.time.delayedCall(T.startup + h.at, () => { // cuts as it rises, as high as the foes are
+      if (r.phase === 'done' && r.elapsed < T.startup + h.at) return;
+      const hy = cy - 40 - HIGH * (1 - Math.pow(1 - Math.min(1, h.at / rise), 1.7)) * 0.75;
+      for (let n = 0; n < 2; n++) this.slashLine(cx + (Math.random() - 0.5) * 120, hy + (Math.random() - 0.5) * 50, 150, side, n === 0, TOP + 3, CRIMSON_HOT);
+    });
   }
 
   /** Tornado Blade: a whirlwind of crimson rings and blade glints rolling along tornadoPath (the same path its hits take). */

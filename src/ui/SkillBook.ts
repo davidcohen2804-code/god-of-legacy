@@ -100,7 +100,7 @@ const CSS = `
 .gol-sb .pg.on{color:#ffe7a8;border-color:#e8b25a;background:rgba(6,12,24,.75);box-shadow:inset 3px 0 0 #e8b25a,0 0 14px rgba(232,178,90,.35)}
 .gol-sb .pg b{min-width:28px;height:26px;padding:0 7px;box-sizing:border-box;border-radius:13px;background:#1b2a3a;border:1px solid #3d5a78;color:#bcd6ef;font-size:14px;line-height:24px;text-align:center;letter-spacing:0}
 .gol-sb .pg.on b{background:#3a2a10;border-color:#c99a45;color:#ffe2a0}
-.gol-sb .pg.l{top:${FRAME_Y + 10}px}.gol-sb .pg.r{top:${FRAME_Y + 72}px}
+.gol-sb .pg.l{top:${FRAME_Y + 10}px}.gol-sb .pg.r{top:${FRAME_Y + 72}px}.gol-sb .pg.m{top:${FRAME_Y + 134}px}
 .gol-sb .pg.off{opacity:.35;pointer-events:none}
 .gol-sb .head{position:absolute;display:flex;align-items:center;font:700 15px ${FONT_FAMILY};letter-spacing:3px;color:#f0d9a6;text-shadow:0 1px 3px #000,0 0 8px #000;white-space:nowrap;overflow:hidden;pointer-events:none}
 .gol-sb .head.l{${px(LEFT.head)};padding:0 24px}
@@ -203,9 +203,9 @@ export class SkillBook {
     this.hero = this.div('hero', this.bg);
     this.headR = this.div('head r', this.bg);
     this.det = this.div('det', this.bg);
-    for (const side of ['l', 'r'] as const) {
-      const b = this.div(`pg ${side}`, this.bg); b.innerHTML = `<span>${side === 'l' ? 'SKILLS' : 'PASSIVE'}</span><b></b>`;
-      b.addEventListener('click', () => { this.page = side === 'l' ? 0 : 1; this.buildRow(); this.selected = this.cards[0]?.e ?? this.selected; this.refresh(); });
+    for (const side of ['l', 'r', 'm'] as const) {
+      const b = this.div(`pg ${side}`, this.bg); b.innerHTML = `<span>${side === 'l' ? 'SKILLS' : side === 'r' ? 'PASSIVE' : 'MORE'}</span><b></b>`;
+      b.addEventListener('click', () => { this.page = side === 'l' ? 0 : side === 'r' ? 1 : 2; this.buildRow(); this.selected = this.cards[0]?.e ?? this.selected; this.refresh(); });
       this.pager.push(b);
     }
     this.job = Math.max(0, this.jobs.indexOf(cur));
@@ -235,7 +235,7 @@ export class SkillBook {
   private pages(): Entry[][] {
     const act = this.jobs[this.job].slots.map((slot) => this.kit.find((s) => s.slot === slot)).filter((s): s is FinalSkill => !!s);
     const pas = passivesFor(this.cls, this.job);
-    return [act.slice(0, FRAME_CX.length), pas.slice(0, FRAME_CX.length)]; // page 0 = skills, page 1 = passive / movement
+    return [act.slice(0, FRAME_CX.length), pas.slice(0, FRAME_CX.length), act.slice(FRAME_CX.length, FRAME_CX.length * 2)]; // 0 = skills, 1 = passive / movement, 2 = more skills
   }
   private entries(): Entry[] { return this.pages().flat(); }
 
@@ -256,7 +256,7 @@ export class SkillBook {
       this.cards.push({ el: c, e });
     });
     for (let n = list.length; n < FRAME_CX.length; n++) { const c = this.div('card none', this.row); c.style.left = `${FRAME_CX[n]}px`; } // an empty frame: an empty socket
-    this.pager.forEach((b, k) => { b.classList.toggle('on', this.page === k); b.classList.toggle('off', !pages[k].length); (b.lastChild as HTMLElement).textContent = String(pages[k].length); });
+    this.pager.forEach((b, k) => { b.classList.toggle('on', this.page === k); b.classList.toggle('off', !pages[k].length); b.style.display = k === 2 && !pages[k].length ? 'none' : ''; (b.lastChild as HTMLElement).textContent = String(pages[k].length); });
   }
 
   /** Kept for callers: the book has no character preview (players discover a skill by using it). */
