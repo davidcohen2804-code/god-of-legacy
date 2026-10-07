@@ -30,7 +30,7 @@ import { PartyUI, PartyView } from '../ui/PartyUI';
 import { addExp, expToNext } from '../game/Progression';
 import { passiveIconUrl, passivesFor } from '../skills/Passives';
 import { NO_PASSIVES, ORBS, PassiveStats, REGEN, WAR_LEAP, ownedPassives, passiveStats } from '../skills/Passives';
-import { WORLD_OBJECTS, actorDepth, footAllowed, insideArena, placementOk, useArenaGeometry } from '../world/WorldGeometry';
+import { SKILL_BLOCKERS, WORLD_OBJECTS, actorDepth, footAllowed, insideArena, placementOk, pushOutOfBlockers, useArenaGeometry } from '../world/WorldGeometry';
 import { OpenWorld, preloadOpenWorld } from '../world/OpenWorld';
 import { AreaNpc, IDLE_LINES, MOB_KINDS, QUESTS, QuestDef, START, toWorld } from '../world/Areas';
 import type { Monster } from '../world/Monster';
@@ -55,7 +55,7 @@ import { finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
 import { CastRun, SkillRuntime } from '../skills/SkillRuntime';
 import { HitTarget, V2, V3, clampPlace, unit } from '../skills/HitGeometry';
 import { SkillFx, preloadSkillFx } from '../skills/SkillFx';
-import { BEGINNER_TO, jobOfSlot } from '../skills/Jobs';
+import { BEGINNER_TO, jobOfSlot, playedClass } from '../skills/Jobs';
 import { DeathFx, preloadDeathFx } from '../game/DeathFx';
 import { SkillBook } from '../ui/SkillBook';
 import { CosmeticPanel } from '../ui/CosmeticPanel';
@@ -248,7 +248,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // The world holds only your own class; the PvP arena can hold any class (other players, the sparring knight).
     const pvp = !!(this.sys.settings.data as { pvpRoom?: string } | undefined)?.pvpRoom;
     const me = CharacterStore.getSelectedCharacter();
-    const cls = me ? (me.level < BEGINNER_TO ? 'warrior' : me.classId) : undefined; // the class actually played (Beginner = warrior base)
+    const cls = me ? playedClass(me) : undefined; // the class actually played (Beginner = warrior base)
     const classes = pvp || !cls ? undefined : [cls];
     // Weapon masks only when your own look already needs them (others load on first need).
     const masks = me && cls && wantsWeaponMasks(cls, CharacterStore.getCosmetics(me.id).equipped as Equipped) ? [cls] : [];
@@ -280,7 +280,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const playerId = newPlayerId();
     this.localId = pvpRoom ? playerId : 'local';
     // Beginner (below the 1st job advancement): every class plays the same sword-only beginner with the basic attack.
-    this.cls = character.level < BEGINNER_TO ? 'warrior' : (character.classId as ClassKey);
+    this.cls = playedClass(character) as ClassKey;
     this.kit = kitFor(this.cls);
     this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
@@ -495,6 +495,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.stepLingers(now);
     this.stepStorm();
     this.stepTree(now);
+    if (SKILL_BLOCKERS.size) { pushOutOfBlockers(this.kin, R); for (const m of this.world?.mobs ?? []) if (m.alive) pushOutOfBlockers(m.kin, 14); }
     this.stepPassives(ms, now);
     this.refreshParty(ms);
     this.fx.update(ms, this.rt.projectiles.map((e) => e.p));
@@ -744,7 +745,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.applyPassives();
     this.playerHP = this.maxHpNow();
     this.skillBook?.setLevel(r.level);
-    if (was < BEGINNER_TO && r.level >= BEGINNER_TO && ch.classId !== 'warrior') this.time.delayedCall(1700, () => this.scene.restart()); // 1st job: becomes his own class
+    if (was < BEGINNER_TO && r.level >= BEGINNER_TO && playedClass({ classId: ch.classId, level: was }) !== ch.classId) this.time.delayedCall(1700, () => this.scene.restart()); // 1st job: becomes his own class
   }
 
   /** Skill Book switch: open / close every skill for testing at any level. */

@@ -84,10 +84,26 @@ export function insideArena(x: number, y: number, r: number): boolean {
 }
 
 /** Foot circle at height z is legal: inside the arena and not inside any prop it cannot clear. */
+/** Temporary solid obstacles from skills (Tree of Life trunk): an ellipse on the floor, blocking at every height
+ *  (nobody can stand or land on it) — walk around it or stand behind it. */
+export const SKILL_BLOCKERS = new Map<string, { x: number; y: number; rx: number; ry: number }>();
+const inBlocker = (b: { x: number; y: number; rx: number; ry: number }, x: number, y: number, r: number) =>
+  ((x - b.x) / (b.rx + r)) ** 2 + ((y - b.y) / (b.ry + r * 0.6)) ** 2 < 1;
+
 export function footAllowed(x: number, y: number, z: number, r: number): boolean {
   if (!insideArena(x, y, r)) return false;
   for (const o of WORLD_OBJECTS) if (z < o.height - 1 && polyDist(x, y, o.footprint) < r) return false;
+  for (const b of SKILL_BLOCKERS.values()) if (inBlocker(b, x, y, r)) return false;
   return true;
+}
+
+/** An actor caught where a blocker just appeared steps out to its nearest free edge. */
+export function pushOutOfBlockers(p: { x: number; y: number }, r: number): void {
+  for (const b of SKILL_BLOCKERS.values()) {
+    if (!inBlocker(b, p.x, p.y, r)) continue;
+    const a = Math.atan2((p.y - b.y) / (b.ry + r * 0.6), (p.x - b.x) / (b.rx + r)) || 0;
+    p.x = b.x + Math.cos(a) * (b.rx + r + 1); p.y = b.y + Math.sin(a) * (b.ry + r * 0.6 + 1);
+  }
 }
 
 /** Highest standable surface under (x, y) that an actor at height z can stand on (0 = ground). */

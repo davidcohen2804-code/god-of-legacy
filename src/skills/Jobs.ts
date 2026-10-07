@@ -37,3 +37,7 @@ export const jobOfSlot = (cls: string, slot: number): Job => jobsFor(cls).find((
 export const ADV_LABEL = ['Beginner', '1st Job', '2nd Job', '3rd Job', '4th Job'];
 /** Level of the 1st job advancement: below it every character is the shared sword-only Beginner. */
 export const BEGINNER_TO = 19;
+/** Classes played in their own art from level 1 (their Beginner uses their own basic attack). Others start as the sword Beginner. */
+export const OWN_BEGINNER = new Set(['archer']);
+/** The class actually played: the shared sword Beginner below the 1st job, except classes in OWN_BEGINNER. */
+export const playedClass = (c: { classId: string; level: number }): string => (OWN_BEGINNER.has(c.classId) || c.level >= BEGINNER_TO ? c.classId : 'warrior');

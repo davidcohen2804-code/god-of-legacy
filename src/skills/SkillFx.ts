@@ -6,7 +6,7 @@ import { FinalSkill, HitEvent, HitShape } from './SkillTypes';
 import { CastRun, RT_EVENTS, SkillRuntime, Trap } from './SkillRuntime';
 import { Projectile, V2, V3, circleCentre } from './HitGeometry';
 import { FINAL_SKILLS } from './FinalKit';
-import { WORLD_OBJECTS } from '../world/WorldGeometry';
+import { SKILL_BLOCKERS, WORLD_OBJECTS } from '../world/WorldGeometry';
 
 const F = 'assets/final';
 /** Skills that borrow another skill's VFX sheet (no art of their own). */
@@ -1065,6 +1065,9 @@ export class SkillFx {
         this.scene.tweens.add({ targets: ring, angle: 90, delay: T.startup, duration: life });
         this.scene.tweens.add({ targets: ring, alpha: 0, delay: T.startup + life - 500, duration: 500, onComplete: () => ring.destroy() });
         this.scene.time.delayedCall(T.startup, () => { this.shockwave(tx, ty, 200, 0xb8ff9a); this.dust(tx, ty, 110, 0.6); });
+        // the trunk is solid from the moment it grows (every client): walk around it or stand behind it, never on it
+        this.scene.time.delayedCall(Math.round(T.startup * 0.6), () => SKILL_BLOCKERS.set(r.castId, { x: tx, y: ty, rx: 34, ry: 15 }));
+        this.scene.time.delayedCall(T.startup + life, () => SKILL_BLOCKERS.delete(r.castId));
         break;
       }
       case 'arrow_storm': { // the stream pours from the bow for as long as the storm runs
@@ -1141,6 +1144,7 @@ export class SkillFx {
   }
 
   destroy(): void {
+    SKILL_BLOCKERS.clear();
     for (const h of this.hawks.values()) h.img.destroy();
     this.hawks.clear();
     for (const a of this.anims) { a.img.destroy(); a.glow?.destroy(); a.mix?.destroy(); }
