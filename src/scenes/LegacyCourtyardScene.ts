@@ -820,7 +820,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (b.stanceAt > this.seenStance) { // Power Stance / Warrior Mastery held the ground
       this.seenStance = b.stanceAt;
       this.fx!.passiveFx('stance_ring', { x: kn.x, y: kn.y, z: kn.z }, 230, { originY: 0.66, depth: kn.y - 1, normal: true });
-      this.fx!.callout({ x: kn.x, y: kn.y, z: kn.z + 20 }, 'STANCE!', '#ffd27a', 1);
     }
     if (b.endureAt > this.seenEndure) { // Endure shortened the stun / slow
       this.seenEndure = b.endureAt;
@@ -1563,9 +1562,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.passives.critDmgAdd : 0) : 1) * (own ? this.ownDamageMul() * ch : 1);
       out.damage = Math.round(out.damage * mult);
       en.damage(out.damage);
-      let row = 0;
-      if (counter) this.fx!.callout(at, 'COUNTER!!', '#7ff0ff', row++);
-      if (back) this.fx!.callout(at, 'BACK ATTACK!!', '#ffb04a', row++);
+      // (MapleStory: only the damage shows — no COUNTER / BACK ATTACK labels; their bonus damage stays)
       if (crit && own && this.passives.critDmgAdd > 0) { this.fx!.shockwave(at.x, at.y, 110, this.cls === 'archer' ? 0x9be35a : 0xff8a5a); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 40); } // Combat Mastery: heavier crits
       if (ch > 1 && out.damage > 0) this.chanceMark(t.id, at);
     }
@@ -1590,9 +1587,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.passives.critDmgAdd : 0) : 1) * (own ? this.ownDamageMul() * ch : 1);
       out.damage = Math.round(out.damage * mult);
       const killed = m.damage(out.damage, now);
-      let row = 0;
-      if (counter) this.fx!.callout(at, 'COUNTER!!', '#7ff0ff', row++);
-      if (back) this.fx!.callout(at, 'BACK ATTACK!!', '#ffb04a', row++);
+      // (MapleStory: only the damage shows — no COUNTER / BACK ATTACK labels; their bonus damage stays)
       if (crit && own && this.passives.critDmgAdd > 0) { this.fx!.shockwave(at.x, at.y, 110, this.cls === 'archer' ? 0x9be35a : 0xff8a5a); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 40); } // Combat Mastery: heavier crits
       if (ch > 1 && out.damage > 0) this.chanceMark(t.id, at);
       if (killed) { // defeated: counts for the quests that ask for it
