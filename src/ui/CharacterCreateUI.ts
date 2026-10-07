@@ -1,6 +1,7 @@
 // DOM overlay for Character Creation: name and body, style (face, hair and its colour, skin), the class fan, outfit
 // colours, BACK / CREATE.
 import { CHARACTER_CREATE as L, CLASS_OPTIONS } from '../config/layout';
+import { BEGINNER_TO, playedClass } from '../skills/Jobs';
 import { CharacterStore } from '../characters/CharacterStore';
 import { KIT_LAYOUT, ensureCharacterUIStyles, ensureSelectKitStyles, syncOverlay } from './CharacterSelectUI';
 import OUTFIT_COLORS from '../data/outfit-colors.json';
@@ -29,6 +30,10 @@ const SEX_SIGN = {
 const FAN_DIR = 'assets/final/character_create/';
 /** New characters start as the Beginner (the sword Beginner; the class itself comes later in the game). */
 const STARTER = CLASS_OPTIONS[0];
+/** TESTING ONLY (to be closed later — in the game the class is chosen later): click a card in the fan to create that class.
+ *  Fan cards in order: warrior, book mage, archer, samurai, (coming soon). */
+const TEST_PICK = true;
+const FAN_CLASS = ['warrior', 'book_mage', 'archer', 'samurai'];
 /** Kit layout (design px). kit/modal_window.png: header strip at 15..22% of its height, body 25..85%. */
 const C = {
   char: { x: 92, y: 196, w: 470, h: 350 },
@@ -57,7 +62,9 @@ const CSS = `
 .gol-cc .fan .art{filter:drop-shadow(0 8px 16px rgba(0,0,0,.6))}
 .gol-cc .fan .glow{opacity:0;transition:opacity 320ms ease-out}
 .gol-cc .fan .glow.on{opacity:1;transition-duration:200ms}
-.gol-cc .fan .hit{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:auto}
+.gol-cc .fan .hit{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:auto;cursor:pointer}
+.gol-cc .fan .glow.pick{opacity:1}
+.gol-cc .fan .tag{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);padding:8px 22px;border-radius:8px;background:rgba(8,12,20,.82);box-shadow:inset 0 0 0 1px rgba(201,154,69,.6);color:#ffe2a0;font:700 16px Cinzel,Georgia,serif;letter-spacing:2px;white-space:nowrap;pointer-events:none}
 .gol-cc .cc-input{background:url("${KIT('choice_btn')}") 0 0/100% 100% no-repeat!important;border:0!important;box-shadow:none!important;border-radius:0!important;
   padding:0 34px!important;font-size:20px!important;height:62px!important}
 .gol-cc .cc-input:focus{background-image:url("${KIT('choice_btn_hover')}")!important}
@@ -93,6 +100,8 @@ const CSS = `
 `;
 
 export class CharacterCreateUI {
+  /** Testing: the class picked in the fan (null = the Beginner). */
+  private testClass: string | null = null;
   private root: HTMLDivElement;
   private input: HTMLInputElement;
   private btnCreate: HTMLButtonElement;
@@ -185,7 +194,13 @@ export class CharacterCreateUI {
       hit.addEventListener('mouseenter', () => glows[i].classList.add('on'));
       hit.addEventListener('mouseleave', () => glows[i].classList.remove('on'));
       hit.addEventListener('mousedown', (e) => e.preventDefault()); // keep focus in the name field
+      if (TEST_PICK && FAN_CLASS[i]) hit.addEventListener('click', () => { // testing: pick this class (click again = back to the Beginner)
+        this.testClass = this.testClass === FAN_CLASS[i] ? null : FAN_CLASS[i];
+        glows.forEach((g, k) => g.classList.toggle('pick', FAN_CLASS[k] === this.testClass));
+        tag.textContent = this.testClass ? `TEST · ${this.testClass === 'book_mage' ? 'BOOK MAGE' : this.testClass.toUpperCase()}` : 'TEST · CLICK A CLASS';
+      });
     });
+    const tag = this.el('div', 'tag', fan); tag.textContent = 'TEST · CLICK A CLASS'; tag.style.display = TEST_PICK ? '' : 'none';
 
     // Buttons.
     this.button('BACK', { ...KIT_LAYOUT.back, size: 22 }, () => this.h.onBack());
@@ -217,7 +232,10 @@ export class CharacterCreateUI {
     const id = CharacterStore.getSelectedId();
     if (!id || !this.canCreate()) return;
     const { hair, hairColor, skin, face, top, pants, shoes } = this.look;
-    if (CharacterStore.createCharacter(id, this.input.value, STARTER.classId, STARTER.appearanceId, this.gender, { hair, hairColor, skin, face, top, pants, shoes })) this.h.onCreated();
+    const pick = this.testClass ? CLASS_OPTIONS.find((c) => c.classId === this.testClass) ?? STARTER : STARTER;
+    // a test pick plays as that class at once (other classes are the sword Beginner below the 1st job)
+    const lvl = pick.classId === STARTER.classId || playedClass({ classId: pick.classId, level: 1 }) === pick.classId ? 1 : BEGINNER_TO;
+    if (CharacterStore.createCharacter(id, this.input.value, pick.classId, pick.appearanceId, this.gender, { hair, hairColor, skin, face, top, pants, shoes }, lvl)) this.h.onCreated();
   }
 
   private selectGender(g: 'male' | 'female'): void {

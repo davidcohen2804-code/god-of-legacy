@@ -96,13 +96,13 @@ class Store {
   deleteCharacter(id: SlotId): void { this.getSlot(id).character = null; this.save(); }
 
   /** Creates a character in an EMPTY slot only; returns false (and changes nothing) otherwise. */
-  createCharacter(slotId: SlotId, name: string, classId: string, appearanceId: string, gender: 'male' | 'female' = 'male', look?: Character['look']): boolean {
+  createCharacter(slotId: SlotId, name: string, classId: string, appearanceId: string, gender: 'male' | 'female' = 'male', look?: Character['look'], level = 1): boolean {
     const slot = this.getSlot(slotId);
     const clean = name.trim();
     if (slot.character || !clean || !classId) return false;
     slot.character = {
       id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `c${Date.now()}`,
-      name: clean, classId, level: 1,
+      name: clean, classId, level: Math.max(1, Math.floor(level)),
       createdAt: new Date().toISOString(), lastPlayedAt: null, appearanceId, gender, ...(look ? { look: { ...look } } : {}),
       gear: starterGear(look), // the starter set, worn, in the chosen colours
     };
