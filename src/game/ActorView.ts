@@ -211,8 +211,14 @@ const DIR_COL: Record<Dir, number> = { down: 0, right: 1, left: 2, up: 3 };
 /** Head-item fit per view (down/right/left/up): width = hair width × w; lower edge = hair bottom + b × hair width; dx = forward shift. */
 const HEAD_FIT = [{ w: 1.3, b: 0.12, dx: 0 }, { w: 1.32, b: 0.12, dx: 0.04 }, { w: 1.32, b: 0.12, dx: 0.04 }, { w: 1.4, b: 0.18, dx: 0 }];
 
+/** Body frame cross-fade length (ms). */
+const FADE_MS = 90;
+
 export class ActorView {
   readonly sprite: Phaser.GameObjects.Sprite;
+  /** Cross-fade: the previous body frame, fading out under the new one (smooth frame changes in skills and stances). */
+  private ghost!: Phaser.GameObjects.Sprite;
+  private ghostLeft = 0;
   readonly weapon: Phaser.GameObjects.Sprite;
   readonly weaponGlow: Phaser.GameObjects.Sprite;
   readonly shadow: Phaser.GameObjects.Image;
@@ -271,6 +277,7 @@ export class ActorView {
   constructor(private scene: Phaser.Scene, readonly cls: ClassKey, x: number, y: number) {
     this.shadow = scene.add.image(x, y, 'contact-shadow').setOrigin(0.5, 0.5);
     this.ring = scene.add.ellipse(x, y, 70, 26).setStrokeStyle(3, 0x4aa8ff, 0.85).setFillStyle(0x4aa8ff, 0.1);
+    this.ghost = scene.add.sprite(x, y, '__DEFAULT').setVisible(false);
     this.sprite = scene.add.sprite(x, y, '__DEFAULT');
     this.weapon = scene.add.sprite(x, y, '__DEFAULT').setVisible(false);
     this.weaponGlow = scene.add.sprite(x, y, '__DEFAULT').setVisible(false).setBlendMode(Phaser.BlendModes.ADD);
@@ -311,6 +318,7 @@ export class ActorView {
   render(ms: number, pose: PoseFrame, x: number, y: number, z: number, supportZ: number, dir: Dir, alpha = 1, tint: number | null = null, tintFill = false): void {
     this.t += ms;
     const p = this.sprite;
+    const prevKey = p.texture.key, prevFrame = p.frame.name, prevFlip = p.flipX, prevOx = p.originX, prevOy = p.originY, prevSx = p.scaleX, prevSy = p.scaleY;
     if (pose.naked && this.look && this.look.skin !== DEFAULT_SKIN) { const tk = toneTexture(this.scene, pose.key, this.look.skin); if (tk) pose = { ...pose, key: tk }; } // the body in its skin tone
     const top = pose.anchor ? -pose.anchor[1] : 100;
     this.headHeight = this.headHeight ? this.headHeight + (top - this.headHeight) * Math.min(1, ms / 90) : top;
@@ -349,6 +357,20 @@ export class ActorView {
         }
       } else { this.blade.setVisible(false); this.bladeTop?.setVisible(false); }
     }
+    // Cross-fade between body frames (not inside the walk / run cycles, which read better crisp).
+    const changed = prevKey !== '__DEFAULT' && (p.texture.key !== prevKey || p.frame.name !== prevFrame) && prevFlip === p.flipX;
+    const loop = /(?:^|[-_])(walk|run)(?:$|[-_])/.test(p.texture.key) || /(?:^|[-_])(walk|run)(?:$|[-_])/.test(prevKey);
+    if (changed && !loop && this.visible) {
+      this.ghost.setTexture(prevKey, prevFrame).setFlipX(prevFlip).setOrigin(prevOx, prevOy).setScale(prevSx, prevSy);
+      this.ghostLeft = FADE_MS;
+    } else if (changed) this.ghostLeft = 0;
+    if (this.ghostLeft > 0 && this.visible) {
+      this.ghostLeft = Math.max(0, this.ghostLeft - ms);
+      const k = this.ghostLeft / FADE_MS;
+      this.ghost.setPosition(p.x, p.y).setDepth(depth - 0.005).setAlpha(alpha * 0.85 * k).setVisible(k > 0);
+      p.setAlpha(alpha * (1 - 0.35 * k)); // the new frame comes in as the old one goes
+      if (tint === null) this.ghost.clearTint(); else if (tintFill) this.ghost.setTintFill(tint); else this.ghost.setTint(tint);
+    } else this.ghost.setVisible(false);
     this.renderLook(pose, depth, alpha, tint, tintFill);
     // Weapon skin: tinted copy of the real weapon pixels of this exact frame.
     const ws = this.equipped.weapon ? WEAPON_TINT[this.equipped.weapon] : undefined;
@@ -487,12 +509,12 @@ export class ActorView {
   setVisible(v: boolean): void {
     if (!v && this.lookParts) for (const im of Object.values(this.lookParts)) im.setVisible(false);
     this.visible = v;
-    this.sprite.setVisible(v); this.shadow.setVisible(v); this.ring.setVisible(v); this.weapon.setVisible(v && this.weapon.visible); this.weaponGlow.setVisible(v && this.weaponGlow.visible); this.blade?.setVisible(v && this.blade.visible); this.bladeTop?.setVisible(v && this.bladeTop.visible);
+    this.sprite.setVisible(v); if (!v) { this.ghost.setVisible(false); this.ghostLeft = 0; } this.shadow.setVisible(v); this.ring.setVisible(v); this.weapon.setVisible(v && this.weapon.visible); this.weaponGlow.setVisible(v && this.weaponGlow.visible); this.blade?.setVisible(v && this.blade.visible); this.bladeTop?.setVisible(v && this.bladeTop.visible);
     for (const l of Object.values(this.layers)) l?.setVisible(v);
   }
 
   destroy(): void {
-    this.sprite.destroy(); this.weapon.destroy(); this.weaponGlow.destroy(); this.shadow.destroy(); this.ring.destroy();
+    this.sprite.destroy(); this.ghost.destroy(); this.weapon.destroy(); this.weaponGlow.destroy(); this.shadow.destroy(); this.ring.destroy();
     for (const l of Object.values(this.layers)) l?.destroy();
     this.nameText?.destroy(); this.nameFrame?.destroy();
     this.layers = {}; this.blade?.destroy(); this.blade = null; this.bladeTop?.destroy(); this.bladeTop = null;
