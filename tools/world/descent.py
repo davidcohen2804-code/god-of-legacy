@@ -20,14 +20,14 @@ EDGE_Y = 652                               # the terrace floor's front edge (the
 # GPT picture (native px): the staircase between its cheek walls, and the line under the stairs where the plaza starts
 STAIR = (620, 48, 1050, 236)               # x0, y0, x1, y1
 CROP_Y = 236
-SCALE = 2                                  # plaza: native x2 (its tiles = the courtyard's tiles)
+SCALE = 1.6                                # plaza: native x1.6 (made from the x2 upscale)
 # where the staircase goes in the temple's front arcade: between its two pillars (temple-urn-13 / -14), on the
 # temple's gold centre line (world px); the strip tile that holds it
 GAP = (6923, 7433)
 TILE_I, TILE_X = 3, 6144
 # the plaza starts at the world's left end (x 0): the terrace runs above all of it, so looking up from anywhere on the
 # plaza shows the courtyard's arcade (the stairs come down onto its left part, the seal is further right)
-OX = STRIP['w'] - 3344          # the plaza ends where the world ends (x 8000): the terrace runs above all of it
+OX = STRIP['w'] - round(1672 * SCALE)         # the plaza ends where the world ends (x 8000): the terrace runs above all of it
 OY = TERRACE_H
 # the walkable stairs (inside the cheek walls)
 WALK_STAIRS = (6955, 7401)
@@ -41,8 +41,9 @@ def main():
   nat = Image.open(G + 'arena/arena_gpt.png').convert('RGB')
   esr = Image.open(G + 'arena/arena_x2.jpg').convert('RGB')
   lan = nat.resize(esr.size, Image.LANCZOS)
-  big = Image.blend(lan, esr, 0.65)        # the upscale's clean lines, with the picture's own grain kept
-  plaza = big.crop((0, CROP_Y * SCALE, big.width, big.height))
+  big = Image.blend(lan, esr, 0.65)
+  big = big.resize((round(nat.width * SCALE), round(nat.height * SCALE)), Image.LANCZOS)        # the upscale's clean lines, with the picture's own grain kept
+  plaza = big.crop((0, round(CROP_Y * SCALE), big.width, big.height))
   # the arcade's shadow on the plaza's top edge
   a = np.asarray(plaza).astype(np.float32)
   sh = np.clip(1 - np.arange(a.shape[0]) / 70, 0, 1) ** 1.6 * 0.42
@@ -84,7 +85,7 @@ def main():
   coords = [[round(x, 1), round(y, 1)] for x, y in list(allw.exterior.coords)[:-1]]
 
   mm = R + 'public/assets/world/minimap/'
-  plaza.resize((pw // 4, ph // 4), Image.LANCZOS).save(mm + 'arena.jpg', quality=82)
+  plaza.resize((pw // 3, ph // 3), Image.LANCZOS).save(mm + 'arena.jpg', quality=82)
   data = {'name': 'Sun Seal Plaza', 'x': OX, 'y': OY, 'w': pw, 'h': ph, 'ext': 'webp', 'tiles': tiles,
           'edgeY': EDGE_Y, 'stairs': list(WALK_STAIRS), 'walk': coords}
   json.dump(data, open(R + 'src/data/world-arena.json', 'w'), separators=(',', ':'))
