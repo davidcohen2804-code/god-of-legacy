@@ -302,8 +302,8 @@ const archer: FinalSkill[] = [
   }),
   S({
     id: 'retreat_kick', cls: 'archer', slot: 5, name: 'Retreat Kick', roles: ['launcher', 'escape'], targeting: 'mouseCone',
-    startup: 110, active: 260, recovery: 200, cooldown: 4000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    dash: { distance: -150, lift: 60 },
+    startup: 110, active: 420, recovery: 200, cooldown: 4000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: -170, lift: 70 },
     hits: [H(0, 16, { kind: 'sector', range: 90, angle: 110 }, { stun: 460, launch: 140, juggleCost: 28 }, { reachUp: 100 })],
     cancelOnHit: ['quick_shot', 'multi_shot', 'piercing_arrow', 'skyhunters_step', 'eagle_arrow', 'leaping_arrow'],
     description: 'A rising kick of wind launches the foe into the air while you flip backward out of reach — then shoot him down.',

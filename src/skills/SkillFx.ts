@@ -23,7 +23,7 @@ const VFX_CELL: Record<string, [number, number]> = {
 /** Archer sheets drawn for a figure facing right: ground line as a fraction of the cell height. */
 const ARCHER_GROUND: Record<string, number> = { rising_arrow: 0.94, leaping_arrow: 0.89, bow_haste: 0.89, wind_leap: 0.91, hunters_spirit: 0.84, tree_of_life: 0.955 };
 /** Archer skills whose effect is played by its own timeline (not the generic cast sprite). */
-const ARCHER_OWN = new Set(['rising_arrow', 'leaping_arrow', 'retreat_kick', 'bow_haste', 'hunters_roar', 'spirit_hawk', 'tree_of_life', 'hunters_spirit', 'arrow_storm', 'sky_rain', 'eagle_arrow']);
+const ARCHER_OWN = new Set(['rain_of_arrows', 'rising_arrow', 'leaping_arrow', 'retreat_kick', 'bow_haste', 'hunters_roar', 'spirit_hawk', 'tree_of_life', 'hunters_spirit', 'arrow_storm', 'sky_rain', 'eagle_arrow']);
 /** Ultimate cut-in art per skill. */
 const CUTIN: Record<string, string> = { titans_verdict: 'titan-cutin', sky_rain: 'archer-cutin' };
 
@@ -207,7 +207,7 @@ export class SkillFx {
     const s = r.skill;
     if (s.id === 'warrior_basic' && this.unarmed?.(r.attackerId)) return;
     if (s.cls === 'archer' && CHARGE[s.id]) this.archerCharge(r);
-    if (s.id === 'rain_of_arrows') { const c = r.place ?? r.origin; for (const h of s.hits) this.scene.time.delayedCall(r.timings.startup + h.at - 120, () => this.arrowShower(c.x, c.y, 112, 46, 16, 260, 0xb8ff7a, 0.35)); }
+    if (s.id === 'rain_of_arrows') { const c = r.place ?? r.origin; for (const h of s.hits) this.scene.time.delayedCall(r.timings.startup + h.at - 120, () => this.arrowShower(c.x, c.y, 118, 48, 24, 300, 0xb8ff7a, 0.35)); }
     if (ARCHER_OWN.has(s.id)) { // archer skills with their own art timeline
       if (s.telegraph && s.slot !== 7) this.telegraph(r);
       this.archerCast(r);
@@ -574,6 +574,7 @@ export class SkillFx {
 
   /** Ground Breaker aftershock: glowing crack pulse + dust on the floor. */
   crack(x: number, y: number, radius: number): void {
+    if (!this.scene.textures.exists(vfxKey('ground_breaker'))) { this.groundScar(x, y, radius); return; }
     const img = this.scene.add.image(x, y, vfxKey('ground_breaker'), 6).setOrigin(0.5, 0.8).setDepth(GROUND + 2).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(radius * 2.4, radius * 2.4).setAlpha(0.7);
     this.anims.push({ img, t: 0, total: 300, frames: [5, 6, 7], frameMs: [100, 100, 100], fadeLast: 120 });
     this.dust(x + (Math.random() - 0.5) * radius, y + (Math.random() - 0.5) * radius * 0.4, 60, 0.5);
@@ -914,10 +915,11 @@ export class SkillFx {
   confirmed(s: FinalSkill, hit: HitEvent, at: V3, damage: number, reaction: string, local: boolean, combo: number): void {
     const tier = tierOf(s, hit);
     const k = IMPACT[s.cls] ?? IMPACT.warrior;
-    const im = s.cls === 'warrior' ? 1.9 : s.cls === 'archer' ? 1.6 : 1;
+    const im = s.cls === 'warrior' ? 1.9 : s.cls === 'archer' ? 1.3 : 1;
     this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.6 : hit.heavy ? 1.25 : 1), 1);
     if (s.cls === 'warrior' || s.cls === 'archer') { // white core flash on every confirmed hit
-      const f = this.scene.add.image(at.x, at.y - at.z - 38, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 3).setDisplaySize(hit.heavy ? 150 : 96, hit.heavy ? 150 : 96).setAlpha(0.8);
+      const arc = s.cls === 'archer', fs = (hit.heavy ? 150 : 96) * (arc ? 0.6 : 1);
+      const f = this.scene.add.image(at.x, at.y - at.z - 38, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 3).setDisplaySize(fs, fs).setAlpha(arc ? 0.5 : 0.8);
       this.scene.tweens.add({ targets: f, alpha: 0, scale: f.scale * 1.4, duration: 140, onComplete: () => f.destroy() });
     }
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).
@@ -1126,6 +1128,15 @@ export class SkillFx {
     (this.cam ?? this.scene.cameras.main).shake(160, 0.004);
   }
 
+  /** A scorched, glowing scar on the floor that cools down over a few seconds (archer launchers). */
+  groundScar(x: number, y: number, radius: number, tint = 0x9be35a): void {
+    const dark = this.scene.add.ellipse(x, y, radius * 1.6, radius * 0.55, 0x2a1a08, 0.45).setDepth(GROUND + 1);
+    const glow = this.scene.add.image(x, y, 'arch-glow').setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setDepth(GROUND + 1.1).setDisplaySize(radius * 1.8, radius * 0.6).setAlpha(0.8);
+    this.scene.tweens.add({ targets: glow, alpha: 0, delay: 300, duration: 1600 });
+    this.scene.tweens.add({ targets: dark, alpha: 0, delay: 2200, duration: 900, onComplete: () => { dark.destroy(); glow.destroy(); } });
+    this.dust(x, y, 70, 0.5);
+  }
+
   /** An arrow stuck in the floor where it landed (fades after a while). */
   stuckArrow(x: number, y: number, side: number, tint = 0xb8ff7a, lifeMs = 2600): void {
     if (!this.scene.textures.exists('arch-stuck')) return;
@@ -1212,10 +1223,10 @@ export class SkillFx {
       }
       case 'hunters_roar': { // the wolf spirit roars over the archer; the wave reaches both sides
         const p = me() ?? o;
-        this.play(key, p.x, p.y - p.z - 96, 560, 372, [T.startup * 0.4, T.startup * 0.6, 90, 130, 140, 150, 170, 200], { flip: left, depth: p.y - 2, alpha: 0.92, follow: () => { const q = me(); return q ? { x: q.x, y: q.y, z: q.z + 96 } : null; } }); // the wolf spirit stands behind the archer
+        this.play(key, p.x, p.y - p.z - 96, 560, 372, [T.startup * 0.4, T.startup * 0.6, 110, 150, 170, 190, 220, 260], { flip: left, depth: p.y - 2, alpha: 0.78, follow: () => { const q = me(); return q ? { x: q.x, y: q.y, z: q.z + 96 } : null; } }); // the wolf spirit stands behind the archer
         this.scene.time.delayedCall(T.startup, () => {
-          const q = me() ?? o; this.shockwave(q.x, q.y, 320, 0x9be35a); this.scene.time.delayedCall(90, () => this.shockwave(q.x, q.y, 460, 0xffe27a)); this.scene.time.delayedCall(180, () => this.shockwave(q.x, q.y, 560, 0x9be35a));
-          for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; this.dust(q.x + Math.cos(a) * 150, q.y + Math.sin(a) * 60, 110, 0.7); }
+          const q = me() ?? o; this.shockwave(q.x, q.y, 300, 0x9be35a); this.scene.time.delayedCall(140, () => this.shockwave(q.x, q.y, 480, 0xc8ff9a));
+          for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; this.dust(q.x + Math.cos(a) * 170, q.y + Math.sin(a) * 60, 100, 0.55); }
           if (r.own) { (this.cam ?? this.scene.cameras.main).shake(320, 0.009); this.punch(0.07, 320); }
         });
         break;
@@ -1258,6 +1269,14 @@ export class SkillFx {
             if (r.phase === 'recovery' || r.phase === 'done') { ev.remove(); this.anims = this.anims.filter((x) => { if (x.img !== img) return true; x.mix?.destroy(); return false; }); this.scene.tweens.add({ targets: img, alpha: 0, duration: 140, onComplete: () => img.destroy() }); }
           } });
         }
+        break;
+      }
+      case 'rain_of_arrows': { // a marked circle on the floor; the arrows themselves are the effect (arrowShower)
+        const c = r.place ?? o, ring = this.scene.add.image(c.x, c.y, 'magic-circle').setTint(0x9be35a).setBlendMode(Phaser.BlendModes.ADD).setDepth(GROUND + 1).setAlpha(0);
+        ring.setDisplaySize(260, 260 * 0.42);
+        this.scene.tweens.add({ targets: ring, alpha: 0.75, duration: Math.min(220, T.startup) });
+        this.scene.tweens.add({ targets: ring, angle: 120, duration: T.startup + T.active + 400 });
+        this.scene.tweens.add({ targets: ring, alpha: 0, delay: T.startup + T.active, duration: 400, onComplete: () => ring.destroy() });
         break;
       }
       case 'eagle_arrow': this.scene.time.delayedCall(T.startup, () => { if (r.own) { (this.cam ?? this.scene.cameras.main).shake(200, 0.006); this.punch(0.04, 220); } }); break;
