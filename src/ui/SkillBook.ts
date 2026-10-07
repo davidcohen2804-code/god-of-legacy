@@ -360,6 +360,8 @@ export class SkillBook {
 
   /** The "all skills open" switch changed: relock / unlock tabs, cards and details. */
   setUnlockAll(on: boolean): void { this.qaUnlockAll = on; this.setSubtitle(); this.refresh(); }
+  /** Level up: jobs / skills / passives that open now. */
+  setLevel(level: number): void { this.level = level; this.setSubtitle(); this.refresh(); }
 
   private div(cls: string, parent: HTMLElement): HTMLDivElement { const d = document.createElement('div'); d.className = cls; parent.appendChild(d); return d; }
 

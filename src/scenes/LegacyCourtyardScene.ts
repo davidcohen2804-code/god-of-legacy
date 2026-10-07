@@ -24,6 +24,8 @@ import { KeySettings } from '../ui/KeySettings';
 import { BindAction, keyLabel, loadBindings, slotKeyLabels } from '../game/KeyBindings';
 import { CourtyardAmbience } from '../world/Ambience';
 import { allSkillsOpen, setAllSkillsOpen } from '../skills/Unlock';
+import { addExp, expToNext } from '../game/Progression';
+import { passiveIconUrl, passivesFor } from '../skills/Passives';
 import { NO_PASSIVES, ORBS, PassiveStats, REGEN, WAR_LEAP, ownedPassives, passiveStats } from '../skills/Passives';
 import { WORLD_OBJECTS, actorDepth, footAllowed, insideArena, placementOk, useArenaGeometry } from '../world/WorldGeometry';
 import { OpenWorld, preloadOpenWorld } from '../world/OpenWorld';
@@ -326,6 +328,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onKeys: () => { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.keySettings?.open(loadBindings()); },
     });
     this.hud.setKeyLabels(slotKeyLabels());
+    this.refreshPassiveStrip();
     const host = this.game.canvas.parentElement!;
     this.skillBook = new SkillBook(this, host, this.game.canvas, this.cls, character.level, this.allOpen(), pvpRoom || isQAMode() ? undefined : (on) => this.setAllOpen(on)); // arena / QA: all skills open
     this.cosPanel = new CosmeticPanel(this, host, this.game.canvas, character, () => this.equipped, (e) => this.setEquipped(e));
@@ -629,7 +632,37 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.passives = this.cls === 'warrior' && (all || lvl >= BEGINNER_TO) ? passiveStats(ownedPassives('warrior', lvl, all)) : NO_PASSIVES;
     this.body.ccResist = this.passives.ccResist; this.body.kbResist = this.passives.kbResist;
     this.body.maxHp = this.maxHpNow();
+    this.refreshPassiveStrip();
     if (this.dead < 0 && Number.isFinite(frac)) this.playerHP = Math.max(1, Math.round(frac * this.body.maxHp));
+  }
+
+  /** Passive icons above the skill tray (owned bright, locked dimmed). */
+  private refreshPassiveStrip(): void {
+    if (!this.hud || this.cls !== 'warrior') { this.hud?.setPassives([]); return; }
+    const all = this.allOpen(), lvl = this.character?.level ?? 1, own = ownedPassives('warrior', lvl, all);
+    const open = all || lvl >= BEGINNER_TO;
+    this.hud.setPassives(passivesFor('warrior').map((p) => ({ id: p.id, name: p.name, iconUrl: passiveIconUrl(p), owned: open && own.has(p.id), info: p.effects.join(' · ') })));
+  }
+
+  /** EXP from a defeated monster: floating +EXP, level ups (full heal, LEVEL UP effect), saved on the character. */
+  private gainExp(n: number, at: V3): void {
+    const ch = this.character;
+    if (!ch || this.arena || n <= 0) return;
+    const r = addExp(ch.level, ch.exp ?? 0, n);
+    this.fx!.callout({ x: at.x, y: at.y, z: at.z + 30 }, `+${n} EXP`, '#ffe27a', 2);
+    const was = ch.level;
+    ch.level = r.level; ch.exp = r.exp;
+    CharacterStore.setProgress(ch.id, r.level, r.exp);
+    if (!r.ups) return;
+    const k = this.kin;
+    this.fx!.callout({ x: k.x, y: k.y, z: k.z + 60 }, 'LEVEL UP!', '#ffd34a', 0);
+    this.fx!.shockwave(k.x, k.y, 160, 0xffd27a);
+    this.time.delayedCall(90, () => this.fx!.shockwave(k.x, k.y, 240, 0xfff1c2));
+    this.hud?.banner(`LEVEL ${r.level}`, 1600, false);
+    this.applyPassives();
+    this.playerHP = this.maxHpNow();
+    this.skillBook?.setLevel(r.level);
+    if (was < BEGINNER_TO && r.level >= BEGINNER_TO && ch.classId !== 'warrior') this.time.delayedCall(1700, () => this.scene.restart()); // 1st job: becomes his own class
   }
 
   /** Skill Book switch: open / close every skill for testing at any level. */
@@ -1312,6 +1345,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (crit) this.fx!.callout(at, 'CRITICAL!!', '#ff5a6a', row++);
       if (killed) { // defeated: counts for the quests that ask for it
         this.questKill(m);
+        this.gainExp(m.kind.exp ?? Math.round(m.kind.hp / 5), { x: m.kin.x, y: m.kin.y, z: m.kin.z });
         if (this.gripFoe === m) { this.gripFoe = null; this.gripHeld = false; }
       }
     }
@@ -1733,6 +1767,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       player: {
         id: pvp?.meta.playerId ?? ch.id, name: ch.name, level: ch.level, portrait: portraitOf(previewKeyOf(ch)),
         hp: this.playerHP, maxHp: this.maxHpNow(), resource: null, effects: this.statusEffects(this.body, now),
+        exp: Number.isFinite(expToNext(ch.level)) ? { value: ch.exp ?? 0, max: expToNext(ch.level) } : undefined,
       },
       target: alive && this.pvpReady ? this.hudTarget() : null,
       slots,

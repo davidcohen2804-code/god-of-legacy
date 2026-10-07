@@ -119,6 +119,14 @@ class Store {
     this.save();
   }
 
+  /** Level + EXP of a stored character. */
+  setProgress(charId: string, level: number, exp: number): void {
+    const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
+    if (!c) return;
+    c.level = level; c.exp = exp;
+    this.save();
+  }
+
   /** Quest states of a stored character (none for a new one). */
   getQuests(charId: string): Record<string, QuestState> {
     const c = this.data.slots.find((s) => s.character?.id === charId)?.character;

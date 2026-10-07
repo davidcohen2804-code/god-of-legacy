@@ -7,6 +7,8 @@ export interface Character {
   name: string;
   classId: string;
   level: number; // integer >= 1
+  /** EXP toward the next level. */
+  exp?: number;
   createdAt: string; // ISO-8601
   lastPlayedAt: string | null; // ISO-8601 | null
   appearanceId: string | null;

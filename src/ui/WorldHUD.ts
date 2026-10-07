@@ -46,6 +46,15 @@ const CSS = `
 .gol-hud .bar .fill img{position:absolute;left:0;top:0;height:100%}
 .gol-hud .bar .val{position:absolute;display:flex;align-items:center;justify-content:center;
   font-size:15px;font-weight:700;text-shadow:0 1px 2px #000,0 0 3px #000;letter-spacing:.5px}
+.gol-hud .pas{position:absolute;display:flex;align-items:center;gap:6px;padding:4px 10px 4px 6px;box-sizing:border-box;width:auto!important;
+  background:linear-gradient(rgba(6,10,18,.72),rgba(6,10,18,.55));border-radius:10px;box-shadow:0 3px 12px rgba(0,0,0,.4),inset 0 0 0 1px rgba(201,154,69,.35)}
+.gol-hud .pas .lab{padding:0 8px 0 6px;font:700 11px ${FONT_FAMILY};letter-spacing:2px;color:#c9b48a;white-space:nowrap}
+.gol-hud .pas .pi{position:relative;width:38px;height:38px;flex:none;pointer-events:auto;cursor:help;transition:transform 100ms}
+.gol-hud .pas .pi:hover{transform:scale(1.12)}
+.gol-hud .pas .pi img{width:100%;height:100%;display:block}
+.gol-hud .pas .pi.lk img{filter:grayscale(1) brightness(.45)}
+.gol-hud .pas .pi.lk:after{content:'';position:absolute;left:11px;top:7px;width:16px;height:22px;background:url("${K('lock')}") center/contain no-repeat;filter:drop-shadow(0 1px 2px #000)}
+.gol-hud .bar.xp .val{justify-content:flex-start;padding-left:18px;box-sizing:border-box;font-size:12px;letter-spacing:1px;color:#fff3cf;text-shadow:0 1px 2px #000,0 0 4px #000,0 0 6px #000}
 .gol-hud .tray{background:linear-gradient(rgba(6,10,18,.72),rgba(6,10,18,.55));border-radius:14px;box-shadow:0 4px 18px rgba(0,0,0,.45),inset 0 0 0 1px rgba(201,154,69,.35)}
 .gol-hud .aslot{position:absolute;padding:0;border:0;background:url("${K('hud_slot')}") center/128% 128% no-repeat;pointer-events:auto;cursor:pointer;
   font:inherit;color:inherit;outline:none;transition:transform 100ms}
@@ -159,6 +168,7 @@ export class WorldHUD {
     this.buildMinimap();
     this.buildRoom();
     this.buildSkills();
+    this.buildPassives();
     this.setKeyLabels(H.skills.hotkeys.map((k) => (k === 'Space' ? 'SPACE' : k)));
     this.buildCombat();
 
@@ -189,7 +199,8 @@ export class WorldHUD {
     this.els.pFx = this.div('fx', this.root); this.at(this.els.pFx, G.buffs.x, G.buffs.y, 400, G.buffs.size);
     // EXP bar along the bottom edge (fills when the progression system supplies player.exp)
     const ex = this.div('pn', this.root); this.box(ex, { x: 0, y: 0, w: 1920, h: 1080 });
-    this.exp = this.bar(ex, G.exp, 'exp_frame', 'exp_fill', false);
+    this.exp = this.bar(ex, G.exp, 'exp_frame', 'exp_fill', true);
+    this.exp.root.classList.add('xp');
   }
 
   private buildTarget(): void {
@@ -256,6 +267,24 @@ export class WorldHUD {
       this.keyEls.push({ el: k, x, y: y + T.slot + 2 });
       this.slots.push(el);
     });
+  }
+
+  /** Passive skills strip above the skill tray (always-on skills; locked ones dimmed). */
+  private buildPassives(): void {
+    this.els.passives = this.div('pas', this.root); this.at(this.els.passives, G.tray.x + 14, G.tray.y - 54, 900, 46);
+  }
+
+  setPassives(list: { id: string; name: string; iconUrl: string; owned: boolean; info: string }[]): void {
+    const box = this.els.passives;
+    box.innerHTML = '';
+    box.style.display = list.length ? 'flex' : 'none';
+    if (!list.length) return;
+    this.div('lab', box).textContent = 'PASSIVE';
+    for (const p of list) {
+      const e = this.div(`pi${p.owned ? '' : ' lk'}`, box);
+      const img = document.createElement('img'); img.src = p.iconUrl; img.alt = ''; img.draggable = false; e.appendChild(img);
+      e.title = `${p.name}${p.owned ? '' : ' (locked)'}\n${p.info}`;
+    }
   }
 
   private buildCombat(): void {
@@ -343,11 +372,13 @@ export class WorldHUD {
 
   private bannerLeft = 0;
   private bannerTotal = 0;
-  private bannerSub(): string { return this.bannerTotal > 900 ? `RESPAWN IN ${Math.ceil(this.bannerLeft / 1000)}` : ''; }
+  private bannerCountdown = true;
+  private bannerSub(): string { return this.bannerCountdown && this.bannerTotal > 900 ? `RESPAWN IN ${Math.ceil(this.bannerLeft / 1000)}` : ''; }
 
   /** Short centre banner (defeat / KO); `ms` = how long it stays (respawn countdown shown when long enough). */
-  banner(text: string, ms: number): void {
-    this.bannerLeft = ms; this.bannerTotal = ms;
+  /** Big centred banner; `countdown` adds the RESPAWN IN n line (death). */
+  banner(text: string, ms: number, countdown = true): void {
+    this.bannerLeft = ms; this.bannerTotal = ms; this.bannerCountdown = countdown;
     this.els.banner.innerHTML = `<div style="text-align:center">${text}<small></small></div>`;
     this.els.banner.style.display = 'flex';
   }
@@ -472,7 +503,7 @@ export class WorldHUD {
     if (key === b.last) return;
     b.last = key;
     b.fill.style.width = `${b.w * ratio}px`;
-    if (b.val) b.val.textContent = ok ? `${Math.max(0, Math.round(value))} / ${Math.round(max)}` : '';
+    if (b.val) b.val.textContent = !ok ? '' : what === 'EXP' ? `EXP  ${Math.round(value).toLocaleString('en-US')} / ${Math.round(max).toLocaleString('en-US')}  (${(ratio * 100).toFixed(2)}%)` : `${Math.max(0, Math.round(value))} / ${Math.round(max)}`;
     b.root.setAttribute('aria-label', ok ? `${what} ${Math.round(value)} of ${Math.round(max)}` : 'unknown');
   }
 

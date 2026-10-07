@@ -35,6 +35,8 @@ export interface AreaDef {
 export interface MobKind {
   name: string; frames: string; tint?: number; scale: number; hp: number; damage: number; speed: number;
   aggro: number; range: number; cooldown: number; respawnMs: number;
+  /** EXP for defeating it. */
+  exp?: number;
 }
 
 type RawArea = Omit<AreaDef, 'id' | 'x' | 'span'>;
