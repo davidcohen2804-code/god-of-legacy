@@ -76,6 +76,8 @@ const TOP_DEPTH = 100000;
 const TRIAL_HP = PVP.maxHp * 2;
 /** Hit in the world (a monster, a Master's trial): untouchable this long (ms), blinking all the while (MapleStory-style). */
 const HIT_IFRAMES = 2000, HIT_BLINK = 90;
+/** Radiant Blade: the warrior's attacks this many times faster while the blade of light is on. */
+const RADIANT_SPEED = 3;
 const FACE: Record<Dir, V2> = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
 /** PvP victim-side sanity checks for a remote cast intent (network jitter tolerances). */
 const CAST_COOLDOWN_TOLERANCE_MS = 250;
@@ -1186,6 +1188,17 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.beamGlow.setFrame(f).setPosition(hx, hy).setAngle(ang).setScale(sx * 1.02, sy * 1.25).setDepth(d + 0.02).setAlpha(0.12 * fade * (0.85 + 0.15 * Math.sin(this.simMs / 90)));
   }
 
+  /** Radiant Blade: a drawn arc of light where the sword swings (6 frames, additive), on the facing side; each strike of a
+   *  chain mirrored up / down so the slashes alternate. */
+  private slashTrail(stage: number): void {
+    if (this.dead >= 0 || !this.view || !this.textures.exists('radiant-slash')) return;
+    if (!this.anims.exists('radiant-slash')) this.anims.create({ key: 'radiant-slash', frames: this.anims.generateFrameNumbers('radiant-slash', { start: 0, end: 5 }), frameRate: 26, repeat: 0 });
+    const k = this.kin, side = this.dir === 'left' ? -1 : 1;
+    const sp = this.add.sprite(k.x + side * 78, k.y - k.z - 50, 'radiant-slash', 0).setBlendMode(Phaser.BlendModes.ADD)
+      .setScale(1.05).setFlipX(side < 0).setFlipY(stage % 2 === 1).setDepth(actorDepth(k.x, k.y, k.z) + 0.06);
+    sp.play('radiant-slash'); sp.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => sp.destroy());
+  }
+
   private inDome(): boolean {
     const d = this.dome; if (!d || this.simMs >= d.until) return false;
     // behind the wall across its whole depth: up to 280px back, ±180 along the floor depth (the wall's full span)
@@ -1294,7 +1307,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Archer: Eagle Eyes arrow range. */
   private ownRangeMul(s: FinalSkill): number { return s.cls === 'archer' ? this.passives.rangeMul : 1; }
   /** Archer: Bow Haste (+20%) × Ranger Mastery attack speed (startup / recovery shortened). */
-  private ownSpeedMul(s: FinalSkill): number { return s.cls === 'warrior' && this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && s.id !== 'radiant_blade' ? 2 : s.cls === 'archer' ? this.passives.atkSpeed * (this.simMs < this.hasteUntil ? 1.2 : 1) : s.cls === 'samurai' ? this.passives.atkSpeed * (this.simMs < this.drawUntil ? 1.2 : 1) : 1; }
+  private ownSpeedMul(s: FinalSkill): number { return s.cls === 'warrior' && this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && s.id !== 'radiant_blade' ? RADIANT_SPEED : s.cls === 'archer' ? this.passives.atkSpeed * (this.simMs < this.hasteUntil ? 1.2 : 1) : s.cls === 'samurai' ? this.passives.atkSpeed * (this.simMs < this.drawUntil ? 1.2 : 1) : 1; }
   /** Own critical rate bonus: passives + Hunter's Spirit (+15%). */
   private critAddNow(): number { return this.passives.critAdd + (this.simMs < this.spiritUntil ? 0.15 : 0) + (this.simMs < this.drawUntil ? 0.1 : 0); }
   /** Own extra critical damage: passives + Rising Sun (+20%). */
@@ -1472,6 +1485,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const castId = `${this.localId}:${++this.castSeq}`;
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
     this.body.armorUntil = -1;
+    if (s.cls === 'warrior' && s.id !== 'radiant_blade' && this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil) { // every strike: the light's slash trail
+      const st = s.chain?.timings?.[stage]?.startup ?? s.startup; this.time.delayedCall(Math.max(0, st * 0.6 / RADIANT_SPEED), () => this.slashTrail(stage));
+    }
     if (s.id === 'war_cry') { this.warCryUntil = this.simMs + s.startup + 8000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 8000 }); /* shared at the release (sim clock), like the caster's own */ }
     if (s.id === 'iron_oath') { this.oathUntil = this.simMs + s.startup + 60000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 60000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(s.startup, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'IRON OATH', '#ffd27a', 0)); }
     if (s.id === 'legacy_banner') { this.bannerUntil = this.simMs + s.startup + 90000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 90000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(Math.round(s.startup * 0.7), () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'LEGACY BANNER', '#ffe7a0', 0)); }

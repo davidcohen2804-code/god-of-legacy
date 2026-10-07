@@ -263,6 +263,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   if (!scene.textures.exists('titan-cutin')) scene.load.image('titan-cutin', `${F}/skills/warrior/titans_verdict/cutin.png`);
   if (!scene.textures.exists('holy-aura')) scene.load.spritesheet('holy-aura', `${F}/skills/warrior/radiant_blade/aura.png`, { frameWidth: 250, frameHeight: 667 });
   if (!scene.textures.exists('holy-bolt')) scene.load.spritesheet('holy-bolt', `${F}/skills/warrior/radiant_blade/bolt.png`, { frameWidth: 250, frameHeight: 500 });
+  if (!scene.textures.exists('radiant-slash')) scene.load.spritesheet('radiant-slash', `${F}/skills/warrior/radiant_blade/slash_trail.jpg`, { frameWidth: 288, frameHeight: 288 }); // the blade of light's slash trail (GPT, on black: additive)
   if (!scene.textures.exists('radiant-blade')) scene.load.spritesheet('radiant-blade', `${F}/skills/warrior/radiant_blade/blade_small.png`, { frameWidth: 256, frameHeight: 81 });
   for (const k of ['war_leap_burst', 'final_slash', 'combo_orb', 'heal_sparkle', 'stance_ring', 'chains_break', 'target_mark', 'iron_oath_cast', 'banner_plant', 'banner_wave']) if (!scene.textures.exists(`pas-${k}`)) scene.load.spritesheet(`pas-${k}`, `${F}/skills/warrior/passives/${k}.png`, { frameWidth: 256, frameHeight: 256 }); // passive skills
   if (!scene.textures.exists('phantom-blade')) scene.load.spritesheet('phantom-blade', `${F}/skills/warrior/blade_storm/phantom.png`, { frameWidth: 256, frameHeight: 256 });
