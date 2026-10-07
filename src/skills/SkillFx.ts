@@ -6,6 +6,7 @@ import { FinalSkill, HitEvent, HitShape } from './SkillTypes';
 import { CastRun, RT_EVENTS, SkillRuntime, Trap } from './SkillRuntime';
 import { Projectile, V2, V3, circleCentre } from './HitGeometry';
 import { FINAL_SKILLS } from './FinalKit';
+import DIGITS from '../data/damage-digits.json';
 import { SKILL_BLOCKERS, WORLD_OBJECTS } from '../world/WorldGeometry';
 
 const F = 'assets/final';
@@ -80,6 +81,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   I('tg-circle', `${F}/world/telegraph_circle.png`); I('tg-cone', `${F}/world/telegraph_cone.png`);
   I('tg-line', `${F}/world/telegraph_line.png`); I('tg-traj', `${F}/world/telegraph_trajectory.png`);
   I('magic-circle', `${F}/impact/magic_circle.png`); I('dmg-glow', `${F}/ui/hud/damage_glow.png`);
+  L('dmg-n', `${F}/ui/hud/dmg_normal.png`, DIGITS.cell[0], DIGITS.cell[1]); L('dmg-c', `${F}/ui/hud/dmg_crit.png`, DIGITS.cell[0], DIGITS.cell[1]); // MapleStory damage digits (tools/ui/damage_digits.py)
   // passive-skill sheets shared by the warrior and the archer (heal sparkle, stance ring, chains, target mark)
   if (want('warrior') || want('archer')) for (const k of ['heal_sparkle', 'stance_ring', 'chains_break', 'target_mark']) if (!scene.textures.exists(`pas-${k}`)) scene.load.spritesheet(`pas-${k}`, `${F}/skills/warrior/passives/${k}.png`, { frameWidth: 256, frameHeight: 256 });
   if (want('archer')) {
@@ -127,7 +129,7 @@ export class SkillFx {
   private dark?: Phaser.GameObjects.Rectangle;
   private darkLeft = 0;
   private dmgSeq = 0;
-  private dmgStacks: { x: number; y: number; line: number; last: number }[] = [];
+  private dmgStacks: { x: number; y: number; line: number; last: number; top: number }[] = [];
   /** Local presentation freeze (ms) requested by confirmed hits (scene applies it to the local actor + VFX only). */
   hitStopLeft = 0;
   /** Where the caster's raised hand is right now (set by the scene from the body pose). */
@@ -876,15 +878,18 @@ export class SkillFx {
     }
   }
 
-  /** MapleStory damage: each hit of a burst stacks one line higher above the target; bold gradient digits — orange for a
+  /** MapleStory damage: each hit of a burst stacks one line higher above the target; chubby, puffy digits — orange for a
    *  normal hit; a critical one bigger, pink-red, with the critical star at its left (no "CRITICAL" text). */
   damageNumber(at: V3, dmg: number, heavy: boolean, combo: number, local = false, crit = false): void {
-    // One column per target: a new hit within 700ms near the last column stacks on top of it (same x, next line up).
-    const now = this.scene.time.now;
-    let st = this.dmgStacks.find((d) => now - d.last < 700 && Math.abs(d.x - at.x) < 160 && Math.abs(d.y - at.y) < 120);
-    if (st) { st.line = (st.line + 1) % 10; st.last = now; } else { st = { x: at.x, y: at.y - at.z, line: 0, last: now }; this.dmgStacks.push(st); }
+    // One column per target: a new hit within 700ms near the last column stacks on top of it (same x, the next line up,
+    // just touching the one below: a critical is taller).
+    const now = this.scene.time.now, h = DIGITS.cell[1] * (crit ? 0.58 : 0.43) * 0.8;   // the number's height on screen
+    let st = this.dmgStacks.find((d) => now - d.last < 700 && Math.abs(d.x - at.x) < 160 && Math.abs(d.y - at.y) < 120), y: number;
+    if (st && st.line < 9) { st.line += 1; st.last = now; y = st.top - h / 2 - 4; }
+    else { if (st) this.dmgStacks.splice(this.dmgStacks.indexOf(st), 1); st = { x: at.x, y: at.y - at.z, line: 0, last: now, top: 0 }; this.dmgStacks.push(st); y = st.y - 96; }
+    st.top = y - h / 2;
     this.dmgStacks = this.dmgStacks.filter((d) => now - d.last < 1500);
-    const line = st.line, x = st.x, y = st.y - 96 - line * 30;
+    const line = st.line, x = st.x;
     const c = this.scene.add.container(x, y).setDepth(TOP + 20 + line * 0.01);
     const sk = local ? this.damageSkin : null;
     void heavy;
@@ -899,17 +904,27 @@ export class SkillFx {
       this.texts.push({ t: c, age: 0, x, y });
       return;
     }
-    const txt = this.scene.add.text(0, 0, String(dmg), {
-      fontFamily: 'Impact, "Arial Black", sans-serif', fontSize: crit ? '42px' : '32px',
-      color: '#ffffff', stroke: crit ? '#4a0626' : '#3a1a00', strokeThickness: crit ? 7 : 6, resolution: 2,
-    }).setOrigin(0.5);
-    const g = txt.context.createLinearGradient(0, 0, 0, txt.height);
-    if (crit) { g.addColorStop(0, '#ffe8f3'); g.addColorStop(0.42, '#ff78b6'); g.addColorStop(1, '#e2145f'); } // critical: pink-red
-    else { g.addColorStop(0, '#ffe9b0'); g.addColorStop(0.5, '#ffab3a'); g.addColorStop(1, '#ff7a1a'); }          // normal: orange
-    txt.setFill(g);
-    txt.setShadow(0, 3, '#000000', 4, true, true);
-    if (crit) c.add(this.scene.add.image(-txt.width / 2 - 2, -4, this.critMark()).setDisplaySize(62, 62).setBlendMode(Phaser.BlendModes.ADD)); // the star, behind the first digit
-    c.add(txt);
+    const dk = crit ? 'dmg-c' : 'dmg-n';
+    if (this.scene.textures.exists(dk)) { // chubby, puffy digits: every outline first, then the fills (one piece, like Maple)
+      const sc = crit ? 0.58 : 0.43, ds = String(dmg).split('').map(Number), xs: number[] = [];
+      let xx = 0; for (const d of ds) { xs.push(xx); xx += DIGITS.widths[d] * (1 - DIGITS.overlap) * sc; }
+      const total = xs[xs.length - 1] + DIGITS.widths[ds[ds.length - 1]] * sc, cx = (i: number) => xs[i] + (DIGITS.widths[ds[i]] * sc) / 2 - total / 2;
+      if (crit) c.add(this.scene.add.image(-total / 2 - 2, -3, this.critMark()).setDisplaySize(68, 68).setBlendMode(Phaser.BlendModes.ADD)); // the critical star at its left
+      ds.forEach((d, i) => c.add(this.scene.add.image(cx(i), 0, dk, 10 + d).setScale(sc)));
+      ds.forEach((d, i) => c.add(this.scene.add.image(cx(i), 0, dk, d).setScale(sc)));
+    } else {
+      const txt = this.scene.add.text(0, 0, String(dmg), {
+        fontFamily: 'Impact, "Arial Black", sans-serif', fontSize: crit ? '42px' : '32px',
+        color: '#ffffff', stroke: crit ? '#4a0626' : '#3a1a00', strokeThickness: crit ? 7 : 6, resolution: 2,
+      }).setOrigin(0.5);
+      const g = txt.context.createLinearGradient(0, 0, 0, txt.height);
+      if (crit) { g.addColorStop(0, '#ffe8f3'); g.addColorStop(0.42, '#ff78b6'); g.addColorStop(1, '#e2145f'); } // critical: pink-red
+      else { g.addColorStop(0, '#ffe9b0'); g.addColorStop(0.5, '#ffab3a'); g.addColorStop(1, '#ff7a1a'); }          // normal: orange
+      txt.setFill(g);
+      txt.setShadow(0, 3, '#000000', 4, true, true);
+      if (crit) c.add(this.scene.add.image(-txt.width / 2 - 2, -4, this.critMark()).setDisplaySize(62, 62).setBlendMode(Phaser.BlendModes.ADD));
+      c.add(txt);
+    }
     c.setScale(1.6).setAlpha(0);
     this.scene.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 90, ease: 'Back.easeOut' });
     this.texts.push({ t: c, age: 0, x, y });
