@@ -1,10 +1,8 @@
-# nosun.py : paints the sun out of every map's sky (one world has one sun: the game draws it over the sky, fixed on screen)
-#   → tools/world/work/<area>_nosun.png ; strip.py also uses find_sun / unsun on GPT's join paintings.
+# nosun.py : finds a sun painted in a map's sky and paints it out (one world has one sun: the game draws its own light,
+#   fixed on screen) — used by strip.py on every map and on GPT's join paintings.
 # Only pixels brighter than the surrounding sky are pulled down, so a pillar or castle in front of the sun stays untouched.
 import cv2, numpy as np, os
 G = os.path.dirname(os.path.abspath(__file__)) + '/'
-SUN = {'falls': (1465, 25, 31), 'courtyard': (1508, 14, 51), 'plaza': (1481, 48, 33), 'terraces': (1617, 36, 45),
-       'training': (1392, 45, 32), 'ruins': (1613, 50, 35), 'temple': (1595, 77, 34)}  # centre x, y, disk radius
 
 
 def find_sun(im, x0=0, x1=None):
@@ -32,11 +30,3 @@ def unsun(im, cx, cy, R):
   est = cv2.GaussianBlur(im * sky[..., None], (0, 0), s) / np.maximum(cv2.GaussianBlur(sky, (0, 0), s), 1e-4)[..., None]
   wgt = np.clip(1 - (d - R * 1.1) / (R * 1.1), 0, 1)[..., None]      # full on the disk, fading out over the halo
   return im - wgt * np.maximum(0, im - est) * 0.92
-
-
-if __name__ == '__main__':
-  os.makedirs(G + 'work', exist_ok=True)
-  for k, (cx, cy, R) in SUN.items():
-    out = unsun(cv2.imread(G + f'src/{k}.png'), cx, cy, R)
-    cv2.imwrite(G + f'work/{k}_nosun.png', np.clip(out, 0, 255).astype(np.uint8))
-    print('nosun', k)

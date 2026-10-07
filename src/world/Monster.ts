@@ -7,6 +7,7 @@ import { STAGE6 } from '../config/layout';
 import { clearLine, footAllowed } from './WorldGeometry';
 import { CombatBody, Kin, newKin, stepKin } from '../combat/Combat';
 import { HitTarget } from '../skills/HitGeometry';
+import { NAME_DEPTH } from '../game/ActorView';
 import { MobKind } from './Areas';
 
 const C = STAGE6.enemy;
@@ -258,7 +259,7 @@ export class Monster {
     this.bar.setVisible(show);
     if (show) {
       const w = 54, y = k.y - k.z - 104 * S, x = k.x - w / 2, f = Math.max(0, this.hp / this.maxHp);
-      this.bar.clear().setDepth(k.y + 0.4);
+      this.bar.clear().setDepth(NAME_DEPTH + k.y * 0.001); // over blocks and urns in front
       this.bar.fillStyle(0x000000, 0.7).fillRoundedRect(x - 2, y - 2, w + 4, 9, 3);
       this.bar.fillStyle(0x3a0d0d, 1).fillRect(x, y, w, 5);
       this.bar.fillStyle(f > 0.35 ? 0xe8433a : 0xff7a2a, 1).fillRect(x, y, w * f, 5);

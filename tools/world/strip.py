@@ -1,5 +1,5 @@
-# strip.py : the open world as ONE long picture — the maps of world-areas.json "row" (sun painted out: work/<area>_nosun.png
-# from nosun.py) side by side, every pair of neighbours joined so the player walks straight on:
+# strip.py : the open world as ONE long picture — the maps of world-areas.json "row" (tools/world/src/<area>.png; a sun
+# painted in the sky is taken out, nosun.py) side by side, every pair of neighbours joined so the player walks straight on:
 #   blend : the two maps overlap N px and meet along the line where they look most alike (min-cost cut), feathered
 #   gap   : GPT's painting of the gap between them (bridges/gpt_<a>_<b>.png, painted on bridge_req.py's canvas), registered
 #           onto that canvas and blended into both maps; a mirrored stand-in until it exists
@@ -32,7 +32,12 @@ for a, b in zip(ROW, ROW[1:]):
   j = J[f'{a}|{b}']
   xs[b] = xs[a] + AW - j['blend'] if 'blend' in j else xs[a] + AW + j['gap']
 W = xs[ROW[-1]] + AW
-maps = {k: cv2.imread(G + f'work/{k}_nosun.png').astype(np.float32) for k in ROW}
+def load(k):
+  im = cv2.imread(G + f'src/{k}.png')
+  sun = find_sun(im)
+  if sun: print('sun painted out:', k, [round(v) for v in sun]); return unsun(im, *sun).astype(np.float32)
+  return im.astype(np.float32)
+maps = {k: load(k) for k in ROW}
 strip = np.zeros((AH, W, 3), np.float32)
 for k in ROW: strip[:, xs[k]:xs[k] + AW] = maps[k]
 
@@ -159,6 +164,7 @@ SS = 4; meta = {}; world_props = []
 for pid, p, ox in props:
   wp = {'id': pid, 'foot': [[q[0] + ox, q[1]] for q in p['foot']], 'h': p['h']}
   if 'top' in p: wp['top'] = p['top']
+  if 'stand' in p: wp['stand'] = p['stand']
   world_props.append(wp)
   if not p.get('occ'): continue
   qx = [q[0] + ox for q in p['occ']]; qy = [q[1] for q in p['occ']]

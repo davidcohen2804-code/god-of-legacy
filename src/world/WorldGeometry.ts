@@ -19,6 +19,9 @@ export interface WorldObject {
   occluder: Pt[];
   /** Depth of the occluder layer = footprint front edge y. */
   frontY: number;
+  /** Open world blocks: the ground band (y from..to) under the top face as the picture draws it — someone standing on
+   *  the block settles into it (the footprint itself is deeper, so a jump from the front or the back still lands). */
+  stand?: [number, number];
 }
 
 /** The PvP arena (Legacy Courtyard map) props. */

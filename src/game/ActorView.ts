@@ -6,6 +6,8 @@ import COS from '../data/cosmetics.json';
 import { Dir } from '../world/collision';
 import { actorDepth } from '../world/WorldGeometry';
 import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM, baseComplete, ensureWeaponMasks, BaseLook, baseLookLayers, hasOver, overKey, NAKED_LOOK } from './Body';
+/** Name plates sit above the world (props in front included), like MapleStory's. */
+export const NAME_DEPTH = 90000;
 import { DEFAULT_SKIN, toneTexture } from '../characters/Skin';
 
 export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet' | 'hair' | 'armor' | 'hairstyle' | 'top' | 'gloves' | 'shoes' | 'pants' | 'hat' | 'faceacc' | 'earring' | 'nametag' | 'trail';
@@ -366,7 +368,7 @@ export class ActorView {
     }
     // Name plate + running trail.
     if (this.nameText) {
-      const ny = y - supportZ + 22, d0 = actorDepth(x, y, supportZ) + 0.5;
+      const ny = y - supportZ + 22, d0 = NAME_DEPTH + y * 0.001; // names stay readable over blocks and urns in front
       this.nameText.setPosition(x, ny).setDepth(d0 + 0.01).setAlpha(alpha).setVisible(this.visible);
       if (this.nameFrame) {
         if (this.plainPlate) this.nameFrame.setDisplaySize(this.nameText.width + 48, 22); // name clear of the end gems

@@ -495,6 +495,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.jb = null; this.jbWant = 0;
     }
     const r = stepKin(k, ms, b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z), b.state === 'free' && !b.push && !this.rt!.ownRun);
+    this.settleOnBlock(ms);
     const ev = b.update(now, ms, r.landed, r.impactVz);
     if (r.landed) {
       if (r.impactVz > 180) this.fx!.dust(k.x, k.y - k.z, 48 + Math.min(70, r.impactVz / 8), 0.75);
@@ -617,6 +618,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.endRun(run, true);
       jump(k, PHYS.jumpVz * this.passives.jumpMul); this.setMode('takeoff');
     }
+  }
+
+  /** Standing on an open-world block: the feet settle onto its top face as the picture draws it (its landing footprint is
+   *  deeper, so a jump from the front or the back lands) — unless you are walking up / down over it. */
+  private settleOnBlock(ms: number): void {
+    const k = this.kin;
+    if (!this.world || !k.grounded || !k.supportId || this.ci?.moveY) return;
+    const o = WORLD_OBJECTS.find((w) => w.id === k.supportId); if (!o?.stand) return;
+    const [y0, y1] = o.stand, want = Phaser.Math.Clamp(k.y, y0, y1);
+    if (want !== k.y) k.y += Phaser.Math.Clamp(want - k.y, -ms * 0.25, ms * 0.25); // 250 px/s: a short, smooth settle
   }
 
   /** War Leap: a second, farther jump in mid-air (once per airtime) with a burst of wind. */
