@@ -422,11 +422,26 @@ def across(p, blade):
   return blade & s1 & s2
 
 
+_bcache = {}
+
+
+def _body(fn):
+  """The bare GPT figure without the sword it holds (an attack image): the body's own mask and box."""
+  if id(fn) in _bcache: return _bcache[id(fn)]
+  sw_ = gpt_sword(fn); out = fn
+  if sw_.any():
+    m_ = fn['m'] & ~nd.binary_dilation(sw_, iterations=2); L_, n_ = nd.label(m_)
+    m_ = L_ == 1 + int(np.argmax(nd.sum(m_, L_, range(1, n_ + 1)))); ys_, xs_ = np.nonzero(m_)
+    out = dict(fn, m=m_, box=(xs_.min(), ys_.min(), xs_.max(), ys_.max()))
+  _bcache[id(fn)] = out
+  return out
+
+
 def _laid(dp, fn, body=False):
   """GPT's dressed copy (image dp) of the bare GPT figure fn, laid on it by the bald head, which GPT left as it was (scale,
   then shift by 1 px, then half a pixel; body: then the whole figure's outline on ours) → colour, alpha in the bare image's
-  space; the scale / the boxes' ratio, the head's error."""
-  en, an = keyed(fn['gi']); shape = fn['m'].shape
+  space; the scale / the boxes' ratio, the head's error. (The bare figure's own sword, in an attack, is not body.)"""
+  fn = _body(fn); en, an = keyed(fn['gi']); shape = fn['m'].shape
   cxy = lambda f: ((f['box'][0] + f['box'][2]) / 2, (f['box'][1] + f['box'][3]) / 2)
   fd = min(figures(dp), key=lambda f: (cxy(f)[0] - cxy(fn)[0]) ** 2 + (cxy(f)[1] - cxy(fn)[1]) ** 2)   # the same figure, dressed
   x0, y0, x1, y1 = fn['box']; yy = np.arange(shape[0])[:, None]
@@ -515,7 +530,7 @@ def _clothes(Fe, Fa, sword, fn):
   # our bare figure under the clothes: GPT drew its dressed body a little narrower here and there, so our body (a calf, the
   # bra's edge) would peek out from under a piece — the piece is drawn over it too (cover). Our underwear is always covered;
   # skin only where that part of our body (a leg, the midriff: one patch of skin inside its outline) is under the piece
-  eb, ab = keyed(fn['gi']); ab = ab * fn['m']; bare = ab > 0.5; _, lab_b = label(eb, ab); lum_b = eb @ np.array([0.3, 0.59, 0.11])
+  fn = _body(fn); eb, ab = keyed(fn['gi']); ab = ab * fn['m']; bare = ab > 0.5; _, lab_b = label(eb, ab); lum_b = eb @ np.array([0.3, 0.59, 0.11])
   dfig = Fa > 0.5; dd, (ny, nx) = nd.distance_transform_edt(~dfig, return_indices=True)
   outside = bare & ~dfig & (dd <= 12)                          # our body where GPT's dressed figure is narrower
   SL, sn = nd.label(bare & (lab_b == 60) & (lum_b >= 100))     # our skin, patch by patch (parted by the outline): the ones the

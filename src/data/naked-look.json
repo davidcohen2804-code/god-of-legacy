@@ -18,16 +18,25 @@
    "pants": [
     "idle",
     "walk",
+    "alert",
+    "jump",
+    "swing1",
     "run"
    ],
    "shoes": [
     "idle",
     "walk",
+    "alert",
+    "jump",
+    "swing1",
     "run"
    ],
    "top": [
     "idle",
     "walk",
+    "alert",
+    "jump",
+    "swing1",
     "run"
    ],
    "sword": [
