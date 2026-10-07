@@ -20,9 +20,10 @@ const G = {
   buffs: { x: 158, y: 164, size: 38, gap: 6 },
   exp: { x: 420, y: 1032, w: 1080, h: 55, ch: { x: 44, y: 21, w: 992, h: 14 } },
   tray: { x: 396, y: 936, w: 1128, h: 100, slot: 64, gap: 12, x0: 32, y0: 8 },
-  minimap: { x: 1560, y: 14, w: 340, h: 129, view: { x: 23, y: 28, w: 294, h: 71 } },
-  region: { x: 1612, y: 146, w: 236, h: 67 },
-  room: { x: 1580, y: 220, w: 300, h: 74 },
+  /** Square: minimap_square.png (382 art px, its opening 33..349) over the map window. */
+  minimap: { x: 1668, y: 12, w: 232, h: 232, view: { x: 20, y: 21, w: 192, h: 192 } },
+  region: { x: 1666, y: 254, w: 236, h: 67 },
+  room: { x: 1350, y: 14, w: 300, h: 74 },
   target: { x: 760, y: 18, w: 400, h: 110, in: { x: 88, y: 22, w: 268 } },
   combo: { x: 1560, y: 480, w: 300, h: 97 },
   menu: { x: 1716, y: 330, w: 180, h: 50, gap: 6 },
@@ -67,8 +68,9 @@ const CSS = `
 .gol-hud .fx .e img{position:absolute;left:22%;top:24%;width:56%;height:52%;border-radius:4px}
 .gol-hud .fx .e.bad{background-image:url("${K('buff_frame_expiring')}")}
 .gol-hud .fx .more{font-size:18px;align-self:center}
-.gol-hud .mm{background:url("${K('minimap_frame')}") 0 0/100% 100% no-repeat;filter:drop-shadow(0 3px 6px rgba(0,0,0,.5))}
-.gol-hud .mm .view{position:absolute;overflow:hidden;background:#06101c;border-radius:4px}
+.gol-hud .mm{filter:drop-shadow(0 3px 6px rgba(0,0,0,.5))}
+.gol-hud .mm .view{position:absolute;overflow:hidden;background:#06101c;border-radius:6px}
+.gol-hud .mm .frame{position:absolute;inset:0;background:url("${K('minimap_square')}") 0 0/100% 100% no-repeat;pointer-events:none;z-index:5}
 .gol-hud .mm .view img.bg{position:absolute}
 .gol-hud .mm .mk{position:absolute;width:${H.minimap.marker}px;height:${H.minimap.marker}px;margin:-${H.minimap.marker / 2}px 0 0 -${H.minimap.marker / 2}px}
 .gol-hud .mm .na{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:${P.secondary};opacity:.7}
@@ -138,7 +140,7 @@ export class WorldHUD {
   labels: string[] = [];
   private tGauge: HTMLElement[] = [];
   private markers = new Map<string, HTMLImageElement>();
-  private mmRect?: { x: number; y: number; w: number; h: number };
+  private mmPic?: HTMLImageElement;
   private mmImage = '';
   private sinceMarkers = Infinity;
   private lastNow = 0;
@@ -218,6 +220,7 @@ export class WorldHUD {
     const m = this.panel('mm', G.minimap);
     const V = G.minimap.view;
     const view = this.div('view', m); this.at(view, V.x, V.y, V.w, V.h);
+    this.div('frame', m); // the gold frame lies over the map's edges
     this.els.mmView = view;
     const label = this.div('region', this.root); this.box(label, G.region);
     this.els.mmLabel = label;
@@ -384,31 +387,31 @@ export class WorldHUD {
     this.text(this.els.mmLabel, m?.label ?? '', 'mmLabel');
     const vw = G.minimap.view.w, vh = G.minimap.view.h;
     if (!m || !(m.bounds.width > 0 && m.bounds.height > 0)) { this.mapUnavailable(); return; }
+    // The window (bounds) fills the view; the picture (image, world px) slides under it as you walk.
+    const B = m.bounds, I = m.image ?? { x: B.minX, y: B.minY, w: B.width, h: B.height };
+    const k = Math.min(vw / B.width, vh / B.height), ox = (vw - B.width * k) / 2, oy = (vh - B.height * k) / 2;
     if (m.imageUrl !== this.mmImage) {
       this.mmImage = m.imageUrl ?? '';
-      view.replaceChildren(); this.markers.clear();
-      // Same contain transform for background and markers.
-      const k = Math.min(vw / m.bounds.width, vh / m.bounds.height);
-      const w = m.bounds.width * k, h = m.bounds.height * k;
-      this.mmRect = { x: (vw - w) / 2, y: (vh - h) / 2, w, h };
+      view.replaceChildren(); this.markers.clear(); this.mmPic = undefined;
       if (m.imageUrl) {
         const img = document.createElement('img');
         img.className = 'bg'; img.alt = ''; img.draggable = false;
         img.onerror = () => this.mapUnavailable();
         img.src = m.imageUrl;
-        this.at(img, this.mmRect.x, this.mmRect.y, w, h);
         view.appendChild(img);
+        this.mmPic = img;
       }
     }
-    if (!markersDue || !this.mmRect) return;
-    const R = this.mmRect, seen = new Set<string>();
+    if (this.mmPic) this.at(this.mmPic, ox + (I.x - B.minX) * k, oy + (I.y - B.minY) * k, I.w * k, I.h * k);
+    const seen = new Set<string>();
     for (const mk of m.markers) {
       if (!Number.isFinite(mk.x) || !Number.isFinite(mk.y)) continue;
-      const u = (mk.x - m.bounds.minX) / m.bounds.width, v = (mk.y - m.bounds.minY) / m.bounds.height;
-      if (u < 0 || u > 1 || v < 0 || v > 1) continue; // out of bounds: hidden
+      const u = ox + (mk.x - B.minX) * k, v = oy + (mk.y - B.minY) * k;
+      if (u < 0 || u > vw || v < 0 || v > vh) continue; // outside the window: hidden
       seen.add(mk.id);
       let el = this.markers.get(mk.id);
       if (!el) {
+        if (!markersDue) continue;
         el = document.createElement('img');
         el.className = 'mk'; el.alt = ''; el.draggable = false;
         el.src = K(mk.kind === 'player' ? 'marker_player' : mk.kind === 'npc' ? 'marker_npc' : mk.kind === 'quest' ? 'marker_quest_star' : mk.kind === 'enemy' ? 'marker_boss' : 'marker_portal');
@@ -416,8 +419,8 @@ export class WorldHUD {
         view.appendChild(el);
         this.markers.set(mk.id, el);
       }
-      el.style.left = `${(R.x + u * R.w).toFixed(1)}px`;
-      el.style.top = `${(R.y + v * R.h).toFixed(1)}px`;
+      el.style.left = `${u.toFixed(1)}px`;
+      el.style.top = `${v.toFixed(1)}px`;
     }
     for (const [id, el] of this.markers) if (!seen.has(id)) { el.remove(); this.markers.delete(id); }
   }
@@ -425,7 +428,7 @@ export class WorldHUD {
   private mapUnavailable(): void {
     const view = this.els.mmView;
     if (view.querySelector('.na')) return;
-    view.replaceChildren(); this.markers.clear(); this.mmRect = undefined;
+    view.replaceChildren(); this.markers.clear(); this.mmPic = undefined;
     this.div('na', view).textContent = 'Map unavailable';
   }
 

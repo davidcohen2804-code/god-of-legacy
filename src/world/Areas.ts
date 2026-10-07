@@ -55,7 +55,8 @@ export const WORLD_FLOOR = STRIP.walk as Pt[];
 export const TILES = STRIP.tiles as [number, number][];
 export const tileKey = (i: number) => `world-tile-${i}`;
 export const tileUrl = (i: number) => `assets/world/strip/${i}.jpg`;
-export const minimapUrl = (id: string) => `assets/world/minimap/${id}.jpg`;
+/** The whole strip, small, for the minimap. */
+export const MINIMAP_URL = 'assets/world/minimap/world.jpg';
 
 export const areaOrigin = (id: string): { x: number; y: number } => ({ x: AREAS[id].x, y: 0 });
 export const toWorld = (id: string, p: Pt | { x: number; y: number }): { x: number; y: number } => {

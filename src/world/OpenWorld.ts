@@ -5,7 +5,7 @@
 import Phaser from 'phaser';
 import PROPS from '../data/world-props.json';
 import NPC_ART from '../data/npc-sprites.json';
-import { AREA_H, AREA_W, AreaDef, AreaNpc, MOB_KINDS, ROW, START, TILES, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, minimapUrl, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
+import { AREA_H, AREA_W, AreaDef, AreaNpc, MINIMAP_URL, MOB_KINDS, ROW, START, TILES, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
 import { WorldObject, setWorldGeometry } from './WorldGeometry';
 import { Monster, preloadMonsterFrames } from './Monster';
 import { CourtyardAmbience } from './Ambience';
@@ -18,6 +18,8 @@ const ART = NPC_ART as unknown as Record<string, NpcArt>;
 const CUTS = PROPS as unknown as Record<string, [number, number, number, number]>;
 const UI_DEPTH = 99000;
 const TALK_R = 90, PORTAL_R = 64;
+/** NPC name plate (npc_plate.png is 449x128): shown 30 px tall; its gold ends are 64 art px wide; room around the name. */
+const PLATE = { h: 30, cap: 64, pad: 16 };
 /** Camera: catch-up time (ms) — it trails the player softly, never jumps. */
 const CAM_EASE = 130;
 /** The area name changes this far past the line between two areas (no flicker when you stand on it). */
@@ -26,7 +28,7 @@ const AREA_HYST = 40;
 export type NpcMark = 'available' | 'progress' | 'ready' | null;
 const MARK_TEX: Record<Exclude<NpcMark, null>, string> = { available: 'kit.marker_excl', progress: 'kit.marker_quest_off', ready: 'kit.marker_quest' };
 
-interface NpcView { def: AreaNpc; area: string; x: number; y: number; top: number; sprite: Phaser.GameObjects.Sprite; shadow: Phaser.GameObjects.Ellipse; plate: Phaser.GameObjects.Image; name: Phaser.GameObjects.Text; title: Phaser.GameObjects.Text; mark: Phaser.GameObjects.Image; markKind: NpcMark; t: number }
+interface NpcView { def: AreaNpc; area: string; x: number; y: number; top: number; sprite: Phaser.GameObjects.Sprite; shadow: Phaser.GameObjects.Ellipse; plate: Phaser.GameObjects.NineSlice; name: Phaser.GameObjects.Text; title: Phaser.GameObjects.Text; mark: Phaser.GameObjects.Image; markKind: NpcMark; t: number }
 
 export interface WorldHooks {
   /** The player walked into another area (its title). */
@@ -106,9 +108,11 @@ export class OpenWorld {
       const p = toWorld(a.id, [n.x, n.y]);
       const sprite = this.scene.add.sprite(p.x, p.y, `npc-${n.art}`, 0).setOrigin(art.ox, art.oy).setScale(1 / art.q).setDepth(p.y).setFlipX(false);
       const shadow = this.scene.add.ellipse(p.x, p.y - 1, 40, 13, 0x000000, 0.32).setDepth(p.y - 0.5);
-      const name = this.scene.add.text(p.x, p.y + 20, n.name, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '15px', fontStyle: '700', color: '#ffe28a', stroke: '#140c02', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(p.y + 0.52);
-      const plate = this.scene.add.image(p.x, p.y + 20, 'kit.npc_plate').setDisplaySize(name.width + 44, 26).setDepth(p.y + 0.51);
-      const title = this.scene.add.text(p.x, p.y + 40, n.title, { fontFamily: '"Segoe UI", Arial, sans-serif', fontSize: '12px', color: '#efe3c4', stroke: '#140c02', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(p.y + 0.52);
+      const name = this.scene.add.text(p.x, p.y + 22, n.name, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '15px', fontStyle: '700', color: '#ffe28a', stroke: '#140c02', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(p.y + 0.52);
+      // the plate stretches only in its blue middle: the gold diamond ends keep their shape, the name sits well inside
+      const ps = PLATE.h / 128, pw = (name.width + PLATE.pad * 2) / ps + PLATE.cap * 2;
+      const plate = this.scene.add.nineslice(p.x, p.y + 22, 'kit.npc_plate', undefined, pw, 128, PLATE.cap, PLATE.cap, 0, 0).setScale(ps).setDepth(p.y + 0.51);
+      const title = this.scene.add.text(p.x, p.y + 45, n.title, { fontFamily: '"Segoe UI", Arial, sans-serif', fontSize: '12px', color: '#efe3c4', stroke: '#140c02', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(p.y + 0.52);
       const top = p.y - art.h * art.oy / art.q; // head top (world px)
       const mark = this.scene.add.image(p.x, top - 26, MARK_TEX.available).setDisplaySize(15, 42).setDepth(p.y + 0.6).setVisible(false);
       sprite.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.onNpcClick?.(n));
@@ -221,13 +225,13 @@ export class OpenWorld {
     }
   }
 
-  /** The minimap: the picture of the area you are in, with you, its people and the portal. */
-  minimap(player: { x: number; y: number }): { label: string; imageUrl: string; bounds: { minX: number; minY: number; width: number; height: number }; markers: { id: string; kind: 'player' | 'npc' | 'portal'; x: number; y: number }[] } {
-    const a = this.area, inside = (x: number) => x >= a.x && x < a.x + AREA_W;
-    const markers: { id: string; kind: 'player' | 'npc' | 'portal'; x: number; y: number }[] = [{ id: 'local', kind: 'player', x: Phaser.Math.Clamp(player.x, a.x, a.x + AREA_W), y: player.y }];
-    for (const n of this.npcs) if (inside(n.x)) markers.push({ id: `npc:${n.def.id}`, kind: 'npc', x: n.x, y: n.y });
-    if (this.portal && inside(this.portal.x)) markers.push({ id: 'portal', kind: 'portal', x: this.portal.x, y: this.portal.y });
-    return { label: a.name, imageUrl: minimapUrl(a.id), bounds: { minX: a.x, minY: 0, width: AREA_W, height: AREA_H }, markers };
+  /** The minimap: a square of the world around you (its full height), sliding along as you walk; its people, the portal. */
+  minimap(player: { x: number; y: number }): { label: string; imageUrl: string; image: { x: number; y: number; w: number; h: number }; bounds: { minX: number; minY: number; width: number; height: number }; markers: { id: string; kind: 'player' | 'npc' | 'portal'; x: number; y: number }[] } {
+    const side = WORLD_H, minX = Phaser.Math.Clamp(player.x - side / 2, 0, Math.max(0, WORLD_W - side));
+    const markers: { id: string; kind: 'player' | 'npc' | 'portal'; x: number; y: number }[] = [{ id: 'local', kind: 'player', x: player.x, y: player.y }];
+    for (const n of this.npcs) markers.push({ id: `npc:${n.def.id}`, kind: 'npc', x: n.x, y: n.y });
+    if (this.portal) markers.push({ id: 'portal', kind: 'portal', x: this.portal.x, y: this.portal.y });
+    return { label: this.area.name, imageUrl: MINIMAP_URL, image: { x: 0, y: 0, w: WORLD_W, h: WORLD_H }, bounds: { minX, minY: 0, width: side, height: side }, markers };
   }
 
   destroy(): void {

@@ -41,7 +41,9 @@ export interface HudState {
     /** Combat state chip (AERIAL / DOWN / STAND) and combo-protection gauges (0..1 of each threshold). */
     state?: string; gauges?: { stand: number; air: number; down: number } };
   slots: HudSlot[];
-  minimap: null | { label: string; bounds: { minX: number; minY: number; width: number; height: number }; imageUrl?: string; markers: HudMarker[] };
+  /** bounds: the stretch of the world the minimap shows (square, around the player); image: where its picture lies in
+   *  world px (default: exactly bounds). */
+  minimap: null | { label: string; bounds: { minX: number; minY: number; width: number; height: number }; imageUrl?: string; image?: { x: number; y: number; w: number; h: number }; markers: HudMarker[] };
   /** PvP only. score/kills/deaths reserved, not displayed. */
   room: null | { label: string; playerCount: number; maxPlayers?: number; score?: number; kills?: number; deaths?: number };
   /** Transient combo / chain / stun / next-hit presentation (no combo system yet => null). */

@@ -5,7 +5,7 @@
 #           onto that canvas and blended into both maps; a mirrored stand-in until it exists
 # The floors: every map's walk polygon (minus the edges a bridge repaints; only floor of both maps where two overlap) and
 # each bridge's own polygon ("walk" of its join, canvas px) merged into one polygon.
-#   → public/assets/world/strip/<i>.jpg (2048-px tiles), public/assets/world/minimap/<area>.jpg,
+#   → public/assets/world/strip/<i>.jpg (2048-px tiles), public/assets/world/minimap/world.jpg (the strip, small),
 #     public/assets/world/props/<id>.png + src/data/world-props.json (occluder cut-outs, world px),
 #     src/data/world-strip.json (size, tiles, each area's x and span, the walkable floor, every prop in world px)
 # Re-run after any change to world-areas.json floors / props / joins (the game reads world px from world-strip.json).
@@ -140,7 +140,8 @@ for n, (i, w) in enumerate(tiles): shown[:, i:i + w] = cv2.imread(OUT + f'{n}.jp
 pic = Image.fromarray(cv2.cvtColor(shown, cv2.COLOR_BGR2RGB))
 
 MM = R + 'public/assets/world/minimap/'; os.makedirs(MM, exist_ok=True)
-for k in ROW: pic.crop((xs[k], 0, xs[k] + AW, AH)).resize((AW // 4, AH // 4), Image.LANCZOS).save(MM + f'{k}.jpg', quality=82)
+for f in os.listdir(MM): os.remove(MM + f)
+pic.resize((W // 4, AH // 4), Image.LANCZOS).save(MM + 'world.jpg', quality=82)  # the whole strip, small
 
 # ------------------------------------------------------------------ props (world px) + occluder cut-outs
 # Every prop of the maps (area px) and of the joins (canvas px), in world px; id = "<area>-<prop>" / "<a>_<b>-<prop>".

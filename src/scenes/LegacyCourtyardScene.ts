@@ -1701,6 +1701,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   // ======================================================================= HUD
 
+  /** The arena's minimap: a square of the courtyard around you (its full height). */
+  private arenaMinimap(markers: HudMarker[]): HudState['minimap'] {
+    const W = WORLD.coordinateSpace.width, H = WORLD.coordinateSpace.height, side = H;
+    const minX = Phaser.Math.Clamp(this.kin.x - side / 2, 0, Math.max(0, W - side));
+    return { label: WORLD.name, imageUrl: ATLAS.textures.map.file, image: { x: 0, y: 0, w: W, h: H }, markers, bounds: { minX, minY: 0, width: side, height: side } };
+  }
+
   private hudState(): HudState {
     const ch = this.character!, now = this.simMs, k = this.kin;
     const alive = this.dead < 0, pvp = this.pvp;
@@ -1729,7 +1736,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       },
       target: alive && this.pvpReady ? this.hudTarget() : null,
       slots,
-      minimap: this.world ? this.world.minimap({ x: k.x, y: k.y }) : { label: WORLD.name, imageUrl: ATLAS.textures.map.file, markers, bounds: { minX: 0, minY: 0, width: WORLD.coordinateSpace.width, height: WORLD.coordinateSpace.height } },
+      minimap: this.world ? this.world.minimap({ x: k.x, y: k.y }) : this.arenaMinimap(markers),
       room: pvp ? { label: `ROOM ${pvp.room}`, playerCount: pvp.connected ? pvp.remotes.size + 1 : 0, maxPlayers: PVP.maxPlayers } : null,
       combatFeedback: showCombo ? { count: this.combo.count, chain: `${this.combo.label}  ·  TOTAL ${Math.min(999, Math.round((this.combo.dmg / this.combo.max) * 100))}%`, expiresAtMs: this.combo.at + COMBO_SHOW_MS } : null,
     };
