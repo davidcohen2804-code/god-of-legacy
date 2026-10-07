@@ -15,6 +15,23 @@ iid, drawing = sys.argv[1], sys.argv[2]
 OLD = SWORD.picture(); REACH = SWORD.reach(OLD); GUARD = SWORD.guard(OLD)
 tmp = tempfile.mkdtemp(); os.makedirs(tmp + '/gpt'); shutil.copy(drawing, tmp + '/gpt/sword.png'); shutil.copy(H + '/bake_pose.py', tmp)
 SWORD.H = tmp; NEW = SWORD._from_icon(); SWORD.H = H
+def regrip(pic):
+  """The grip by the drawing's shape (not by colour: gold trim reads as brown): left of the guard (the tallest columns
+  past the hilt), the narrow run between the pommel and the guard; the grip point = its middle, the grip mask = it."""
+  col, al, _, _, tip, K = pic
+  hcol = (al > 0.5).sum(0).astype(np.float32); xs = np.nonzero(hcol)[0]; x0, x1 = xs.min(), xs.max()
+  span = x1 - x0; guard = x0 + int(np.argmax(hcol[x0:x0 + int(0.45 * span)]))          # the cross-guard: the tallest column
+  blade_h = np.median(hcol[guard + int(0.15 * span):x1 - int(0.1 * span)])
+  narrow = [x for x in range(x0, guard) if 0 < hcol[x] <= blade_h * 0.75]
+  runs, cur = [], []
+  for x in narrow:
+    if cur and x != cur[-1] + 1: runs.append(cur); cur = []
+    cur.append(x)
+  if cur: runs.append(cur)
+  g = max(runs, key=len) if runs else list(range(x0, guard))
+  gmask = np.zeros(al.shape, bool); gmask[:, g[0]:g[-1] + 1] = al[:, g[0]:g[-1] + 1] > 0.5
+  return col, al, gmask, ((g[0] + g[-1]) / 2, pic[3][1]), tip, K
+NEW = regrip(NEW)
 LOOK = json.load(open(G + 'src/data/naked-look.json')); BL = json.load(open(G + 'src/data/naked-blades.json'))
 for g in ('male', 'female'):
   SW = LOOK[g]['swordCell']; PAD = (SW - S) // 2; D = G + f'public/assets/final/body/naked/{g}/'
