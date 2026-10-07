@@ -400,7 +400,7 @@ export class ActorView {
       const ny = y - supportZ + 22, d0 = NAME_DEPTH + y * 0.001; // names stay readable over blocks and urns in front
       this.nameText.setPosition(x, ny).setDepth(d0 + 0.01).setAlpha(alpha).setVisible(this.visible);
       if (this.nameFrame) {
-        if (this.plainPlate) this.nameFrame.setDisplaySize(this.nameText.width + 48, 22); // name clear of the end gems
+        if (this.plainPlate) this.nameFrame.setDisplaySize(this.nameText.width + 60, 27); // name clear of the end gems
         else { const w = Math.max(96, this.nameText.width + 54); this.nameFrame.setDisplaySize(w, w * (this.nameFrame.height / this.nameFrame.width) * 1.0); }
         this.nameFrame.setPosition(x, ny).setDepth(d0).setAlpha(alpha).setVisible(this.visible);
       }

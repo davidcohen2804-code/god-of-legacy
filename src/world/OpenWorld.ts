@@ -23,7 +23,7 @@ const CUTS = PROPS as unknown as Record<string, [number, number, number, number]
 const UI_DEPTH = 99000;
 const TALK_R = 90, PORTAL_R = 64;
 /** NPC name plate (npc_plate.png is 449x128): shown 30 px tall; its gold ends are 64 art px wide; room around the name. */
-const PLATE = { h: 30, cap: 64, pad: 16 };
+const PLATE = { h: 36, cap: 64, pad: 26 };
 /** Camera: catch-up time (ms) — it trails the player softly, never jumps. */
 const CAM_EASE = 130;
 /** The area name changes this far past the line between two areas (no flicker when you stand on it). */
@@ -149,7 +149,7 @@ export class OpenWorld {
       // the plate stretches only in its blue middle: the gold diamond ends keep their shape, the name sits well inside
       const ps = PLATE.h / 128, pw = (name.width + PLATE.pad * 2) / ps + PLATE.cap * 2;
       const plate = this.scene.add.nineslice(p.x, ly + 22, 'kit.npc_plate', undefined, pw, 128, PLATE.cap, PLATE.cap, 0, 0).setScale(ps).setDepth(nd + 0.0001);
-      const title = this.scene.add.text(p.x, ly + 45, n.title, { fontFamily: HUD.bodyFont, fontSize: '13px', fontStyle: '600', color: '#efe3c4', stroke: '#140c02', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(nd + 0.0002);
+      const title = this.scene.add.text(p.x, ly + 50, n.title, { fontFamily: HUD.bodyFont, fontSize: '13px', fontStyle: '600', color: '#efe3c4', stroke: '#140c02', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(nd + 0.0002);
       const top = p.y - art.h * art.oy / art.q; // head top (world px)
       const mark = this.scene.add.image(p.x, top - 26, MARK_TEX.available).setDisplaySize(15, 42).setDepth(nd + 0.0003).setVisible(false);
       // a click on the game itself only (not one on a window drawn over the NPC: the inventory, the skill book)
