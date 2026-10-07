@@ -93,19 +93,22 @@ def register(gpt, req, M):
 
 
 def merge(req, fill, M, poisson):
-  """The painted gap into the canvas: Poisson (GPT's detail, the maps' own colours along the edges), then feathered."""
-  grow = cv2.dilate(M, np.ones((1, 2 * 44 + 1), np.uint8))
-  dst = req * (1 - M[..., None]) + fill * M[..., None]
-  out = dst
-  if poisson:
-    P = 24
-    pad = lambda im: cv2.copyMakeBorder(np.clip(im, 0, 255).astype(np.uint8), P, P, P, P, cv2.BORDER_REFLECT)
-    mk = cv2.copyMakeBorder((grow * 255).astype(np.uint8), P, P, P, P, cv2.BORDER_CONSTANT, value=0)
-    x, y, w, h = cv2.boundingRect(mk)
-    out = cv2.seamlessClone(pad(fill), pad(dst), mk, (x + w // 2, y + h // 2), cv2.NORMAL_CLONE)[P:-P, P:-P].astype(np.float32)
+  """The painted gap into the canvas. GPT paints the whole picture again (the kept parts slightly re-coloured), so its
+  colours are first pulled onto the maps' own (a smooth offset measured on the kept parts, carried across the gap),
+  then it fades into the maps over a wide band (no seam line, no colour step); the stand-in uses a short feather."""
+  if not poisson:
+    d = cv2.distanceTransform((M < 0.5).astype(np.uint8), cv2.DIST_L2, 5)
+    t = np.clip(1 - d / 44, 0, 1); a = (t * t * (3 - 2 * t))[..., None]
+    return req * (1 - a) + fill * a
+  K = (1 - M).astype(np.float32)
+  K = cv2.erode(K, np.ones((1, 9), np.uint8))                      # away from the magenta edge
+  diff = (req - fill) * K[..., None]
+  sig = 110
+  off = cv2.GaussianBlur(diff, (0, 0), sig) / np.maximum(cv2.GaussianBlur(K, (0, 0), sig), 1e-3)[..., None]
+  fixed = fill + off
   d = cv2.distanceTransform((M < 0.5).astype(np.uint8), cv2.DIST_L2, 5)   # px from the painted area
-  t = np.clip(1 - d / 44, 0, 1); a = (t * t * (3 - 2 * t))[..., None]       # 1 inside it, easing to 0 over 44 px
-  return req * (1 - a) + out * a
+  t = np.clip(1 - d / 110, 0, 1); a = (t * t * (3 - 2 * t))[..., None]      # 1 inside it, easing to 0 over 110 px
+  return req * (1 - a) + fixed * a
 
 
 for a, b in zip(ROW, ROW[1:]):
