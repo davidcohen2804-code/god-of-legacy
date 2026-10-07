@@ -74,6 +74,8 @@ const P6 = STAGE6.player;
 const TOP_DEPTH = 100000;
 /** A Master's HP in his trial (the Sun Seal Plaza). */
 const TRIAL_HP = PVP.maxHp * 2;
+/** Hit in the world (a monster, a Master's trial): untouchable this long (ms), blinking all the while (MapleStory-style). */
+const HIT_IFRAMES = 2000, HIT_BLINK = 90;
 const FACE: Record<Dir, V2> = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
 /** PvP victim-side sanity checks for a remote cast intent (network jitter tolerances). */
 const CAST_COOLDOWN_TOLERANCE_MS = 250;
@@ -170,6 +172,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private shares: { at: number; id: string; ms: number }[] = [];
   /** PvP arena scene (fixed HP for everyone). */
   private arena = false;
+  /** Hit in the world: untouchable and blinking until this time (sim ms). */
+  private hitBlinkUntil = -1;
   /** Radiant Blade: the sword is a long blade of light until this time. */
   radiantUntil = -1;
   /** Archer buffs: Bow Haste (+20% attack speed), Hunter's Spirit (+15% critical rate, also shared by a party member). */
@@ -300,7 +304,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // Beginner (below the 1st job advancement): every class plays the same sword-only beginner with the basic attack.
     this.cls = playedClass(character) as ClassKey;
     this.kit = kitFor(this.cls);
-    this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;
+    this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.hitBlinkUntil = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
     this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
     this.hasteUntil = -1; this.spiritUntil = -1; this.tree = null; this.storm = null; this.resolveUntil = -1; this.hasteFx = undefined; this.spiritFx = undefined; this.afterimg = undefined;
@@ -1036,6 +1040,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const c = (lo: number, hi: number) => Math.round(255 - (255 - lo) * w * (hi / 255));
       tint = (255 << 16) | (c(0xe0, 255) << 8) | c(0xa0, 255);
     }
+    if (this.simMs < this.hitBlinkUntil && this.dead < 0) alpha = Math.floor((this.hitBlinkUntil - this.simMs) / HIT_BLINK) % 2 ? 0.3 : 1; // hit: blinking while untouchable
     if (this.dead >= 0) { alpha = 1 - (1 - P6.deathAlpha) * Math.min(1, this.dead / P6.deathFadeMs); tint = null; fill = false; } // the body just fades; the ghost rises (DeathFx)
     v.swordOff = !!this.jb; // Judgment Blade: no sword from the leap until he lands (the cast's own poses are bare too)
     v.render(ms, pose, k.x, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
@@ -1738,7 +1743,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Enemy (PvE) strike on the local player: Mirage counter first, then the usual reaction rules. */
   private enemyStrike(dmg: number, from: { x: number; y: number }): void {
-    if (this.dead >= 0) return;
+    if (this.dead >= 0 || this.simMs < this.hitBlinkUntil) return; // just hit: untouchable (blinking)
     if (this.inDome()) { this.domeBlock(from); return; }
     if (this.tryCounter(from)) return;
     if (this.tryEvade(from)) return;
@@ -1746,6 +1751,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const out = this.body.receive('enemy', ENEMY_SKILL, hit, from, this.simMs);
     if (out.reaction === 'armor' && this.simMs < this.body.invulnUntil) { this.fx!.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 }, 'BLOCK!!', '#9ed8ff', 0); this.fx!.shockwave(this.kin.x, this.kin.y, 70, 0x9ed8ff); }
     out.damage = this.takeDamage(out.damage);
+    if (out.damage > 0) this.hitBlinkUntil = this.simMs + HIT_IFRAMES;
     this.fx!.confirmed(ENEMY_SKILL, hit, { x: this.kin.x, y: this.kin.y, z: this.kin.z + 30 }, out.damage, out.reaction, false, out.hitIndex);
   }
 
@@ -1766,6 +1772,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** PvP victim authority: this client resolved a remote cast against its own body. */
   private applyRemoteHitToSelf(run: CastRun, hit: HitEvent, hi: number, at: V3): void {
     if (this.dead >= 0 || this.party?.has(run.attackerId)) return; // party members never hit each other
+    const trial = run.attackerId === BOT_ID && !!this.bot?.trial;   // a Master's trial is the world: hits leave you blinking, untouchable
+    if (trial && this.simMs < this.hitBlinkUntil) return;
     if (this.inDome()) { this.domeBlock(this.casterPos(run.attackerId) ?? run.origin); this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: run.skill.id, hit: hi, dmg: 0, rx: 'armor' }); return; }
     const s = run.skill;
     if (hit.shape.kind !== 'placed' && hit.damage > 0 && this.tryCounter(this.casterPos(run.attackerId) ?? run.origin)) {
@@ -1776,6 +1784,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const h = run.dmgMul && run.dmgMul !== 1 ? { ...hit, damage: hit.damage * run.dmgMul } : hit; // caster's War Cry / Radiant Blade
     const out = this.body.receive(run.attackerId, s, h, this.casterPos(run.attackerId) ?? run.origin, this.simMs);
     out.damage = this.takeDamage(out.damage);
+    if (trial && out.damage > 0) this.hitBlinkUntil = this.simMs + HIT_IFRAMES;
     if (run.attackerId === BOT_ID) this.logHit(false, s, out, this.body, this.kin.z);
     this.fx!.confirmed(s, hit, at, out.damage, out.reaction, false, out.hitIndex);
     if (s.carry && out.reaction !== 'armor' && out.damage > 0) this.carriedBy = run; // Impaling Rush: ride the blade
@@ -1833,7 +1842,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const k = this.kin;
     k.x = x; k.y = y; k.z = 0; k.vx = 0; k.vy = 0; k.vz = 0; k.grounded = true; k.supportZ = 0;
     this.body.reset();
-    this.playerHP = hp; this.dead = -1; this.flash = -1; this.setMode('idle'); this.deathFx?.stop();
+    this.playerHP = hp; this.dead = -1; this.flash = -1; this.hitBlinkUntil = -1; this.setMode('idle'); this.deathFx?.stop();
     this.ci?.reset();
   }
 
