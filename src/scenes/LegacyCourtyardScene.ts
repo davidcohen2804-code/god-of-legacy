@@ -296,7 +296,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     showLoading(this, pvp ? 'PVP ARENA' : 'GOD OF LEGACY');
   }
 
-  create(data?: { pvpRoom?: string }): void {
+  create(data?: { pvpRoom?: string; at?: { x: number; y: number } }): void {
+    const at = !data?.pvpRoom && data?.at ? data.at : null; // a restart in place (a new job): you stay where you were
     const character = CharacterStore.getSelectedCharacter();
     if (!character) { this.scene.start('CharacterSelectScene'); return; }
     const pvpRoom = data?.pvpRoom ?? null;
@@ -354,7 +355,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       });
     } else {
       // The open world: one long world left to right, the camera following you along it.
-      this.world = new OpenWorld(this, { onArea: (a) => this.areaTitle?.show(a.name) }, toWorld(START.area, [START.x, START.y]));
+      this.world = new OpenWorld(this, { onArea: (a) => this.areaTitle?.show(a.name) }, at ?? toWorld(START.area, [START.x, START.y]));
       this.world.onNpcClick = (n) => this.talkTo(n);
     }
 
@@ -369,7 +370,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       // No hostile NPC in the world (ENTER WORLD): fighting happens in the PvP arena (sparring knight).
     }
 
-    const { x, y } = this.world ? toWorld(START.area, [START.x, START.y]) : WORLD.spawn;
+    const { x, y } = this.world ? at ?? toWorld(START.area, [START.x, START.y]) : WORLD.spawn;
     this.kin = newKin(x, y);
     this.body = new CombatBody(this.kin, !!pvpRoom);
     this.gearSt = gearStats(CharacterStore.getGear(character.id)); this.gearCode = wornCode(wornLook(character.gear));
@@ -795,7 +796,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.applyPassives();
     this.playerHP = this.maxHpNow();
     this.skillBook?.setLevel(skillLevel(ch));
-    if (playedClass({ ...ch, level: was }) !== playedClass(ch)) this.time.delayedCall(1700, () => this.scene.restart()); // an older character past the old 1st-job level: becomes his own class
+    if (playedClass({ ...ch, level: was }) !== playedClass(ch)) this.time.delayedCall(1700, () => this.scene.restart({ pvpRoom: null, at: { x: this.kin.x, y: this.kin.y } })); // an older character past the old 1st-job level: becomes his own class
     if (was < BEGINNER_TO && r.level >= BEGINNER_TO && !hasJob(ch)) this.chat?.add({ kind: 'system', text: 'Level 10! The Masters of the four paths await you on the Temple Road.' });
   }
 
@@ -1982,7 +1983,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.fx?.callout({ x: k.x, y: k.y, z: k.z + 60 }, `1ST JOB: ${jobName.toUpperCase()}`, '#ffd34a', 0);
     this.fx?.shockwave(k.x, k.y, 200, 0xffd27a);
     this.chat?.add({ kind: 'system', text: `You are now a ${jobName}. Your 1st job skills are open.` });
-    this.time.delayedCall(1600, () => this.scene.restart()); // plays as his new class
+    this.time.delayedCall(1600, () => this.scene.restart({ pvpRoom: null, at: { x: this.kin.x, y: this.kin.y } })); // plays as his new class, right where he stands
   }
 
   /** Sparring partner of the chosen class (keeps STOP when it is swapped). */
