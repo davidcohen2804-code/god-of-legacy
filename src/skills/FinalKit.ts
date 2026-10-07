@@ -289,7 +289,7 @@ const archer: FinalSkill[] = [
   S({
     id: 'multi_shot', cls: 'archer', slot: 3, name: 'Triple Arrow', roles: ['confirm', 'projectile'], targeting: 'mouseCone',
     startup: 260, active: 150, recovery: 220, cooldown: 2800, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    hits: [H(0, 22, { kind: 'projectile', speed: 560, range: 400, radius: 12, count: 3, spread: 22 }, { stun: 240, push: 10, float: true, juggleCost: 12 })],
+    hits: [H(0, 22, { kind: 'projectile', speed: 560, range: 400, radius: 12, count: 3, spread: 34 }, { stun: 240, push: 10, float: true, juggleCost: 12 })],
     cancelOnHit: ['explosive_arrow', 'piercing_arrow', 'quick_shot', 'skyhunters_step', 'retreat_kick'], telegraph: 'cone',
     description: 'A steady draw, then three arrows fan out in three directions; one damage event per target.',
     relations: ['Confirm', 'Cancel → Explosive Arrow'],

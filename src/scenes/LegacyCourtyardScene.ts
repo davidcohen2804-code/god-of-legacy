@@ -1296,7 +1296,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.hasteFx ??= this.add.particles(0, 0, 'arch-glow', {
       emitZone: { type: 'random', source: new Phaser.Geom.Ellipse(0, 0, 70, 20), quantity: 1 } as never,
       speedY: { min: -150, max: -80 }, speedX: { min: -10, max: 10 }, lifespan: { min: 380, max: 620 },
-      scaleX: { start: 0.06, end: 0.02 }, scaleY: { start: 0.4, end: 0.1 }, alpha: { start: 0.7, end: 0 }, tint: [0xb8ff7a, 0xffffff], blendMode: 'ADD', frequency: 70, emitting: false,
+      scaleX: { start: 0.07, end: 0.02 }, scaleY: { start: 0.45, end: 0.1 }, alpha: { start: 0.85, end: 0 }, tint: [0x4cc23a, 0x7ee35a, 0xb8f59a], blendMode: 'NORMAL', frequency: 55, emitting: false, // green wisps (normal blend: green, never washed to white)
     });
     this.spiritFx ??= this.add.particles(0, 0, 'arch-glow', {
       emitZone: { type: 'random', source: new Phaser.Geom.Ellipse(0, 0, 60, 90), quantity: 1 } as never,
