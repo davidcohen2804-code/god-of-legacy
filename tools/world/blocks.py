@@ -1,8 +1,8 @@
 # blocks.py : the stone blocks standing on each map's floor — found by matching a measured block (TPL: one each side of
 # the middle) near the rough spots listed in BLOCKS; each becomes a prop of its area in world-areas.json:
-#   foot : the ground it takes: under it (front edge = the plinth's bottom) and the ground it hides behind it — the floor
-#          its picture covers (height deep behind the top face): nobody stands there half sunk in the block; from behind
-#          you stop at its top edge as drawn, in full view   base : under it only (what a projectile hits)
+#   foot : under it (front edge = the plinth's bottom) and the floor its picture hides behind it (height deep behind the
+#          top face)   base : under it only — the ground the game's block takes (what stops you and a projectile); the
+#          floor behind it stays open: someone there is hidden by the block up to its top edge
 #   h / top : its height (the top face's front edge above the plinth's bottom)   stand : the ground band under the top face
 #          as drawn (feet rest there)
 #   occ  : its silhouette (top face, front face, the side face it shows — right of it left of the middle, left of it right
@@ -27,8 +27,8 @@ TPL = {
   'R': {'box': (1150, 369, 1236, 448), 'occ': [(0.02, 0.05), (0.77, 0.02), (0.94, 0.19), (0.96, 0.77), (0.98, 0.94), (0.94, 0.99), (0.10, 0.99), (0.05, 0.90), (0.02, 0.80)],
         'lip': 0.19, 'fx': (0.08, 0.97)},
 }
-STAND = 20   # the top face as drawn (px at scale 1): a jump onto the block lands anywhere on its footprint, then the feet
-             # settle onto the drawn top face (Combat.settleOnBlocks; walking back off it steps down onto the floor behind)
+STAND = 20   # the top face as drawn (px at scale 1): the feet rest there (Combat.settleOnBlocks: a jump onto the block is
+             # caught over it and lands on it; off any edge you drop — off its back, down behind it)
 FOOT_R, EDGE = 10, 2   # the game's foot circle radius; the feet stop this much behind the top edge as drawn
 src = cv2.imread(G + 'src/courtyard.png')
 for t in TPL.values():

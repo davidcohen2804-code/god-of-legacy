@@ -1196,8 +1196,8 @@ export class SkillFx {
   }
 
   /** One-shot animated sprite (impacts, bursts). */
-  spark(key: string, x: number, y: number, frames: number, size: number, alpha: number, start = 0): void {
-    const img = this.scene.add.image(x, y, key, start).setDepth(TOP + 2).setBlendMode(Phaser.BlendModes.ADD).setAlpha(alpha);
+  spark(key: string, x: number, y: number, frames: number, size: number, alpha: number, start = 0, depth = TOP + 2): void {
+    const img = this.scene.add.image(x, y, key, start).setDepth(depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(alpha);
     img.setDisplaySize(size, size);
     const fr: number[] = [], fms: number[] = [];
     for (let i = start; i < frames; i++) { fr.push(i); fms.push(42); }
@@ -1205,8 +1205,9 @@ export class SkillFx {
     this.anims.push({ img, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: fr, frameMs: fms, fadeLast: 60 });
   }
 
-  /** Landing / footstep dust at the support plane. */
-  dust(x: number, y: number, size: number, alpha = 0.85): void { this.spark(IMPACT.dust.key, x, y - size * 0.25, 6, size, alpha); }
+  /** Landing / footstep dust at the support plane. `depth`: an actor's own dust sorts with him (behind a block that hides
+   *  his feet, it is hidden too); by default it is drawn over everything. */
+  dust(x: number, y: number, size: number, alpha = 0.85, depth?: number): void { this.spark(IMPACT.dust.key, x, y - size * 0.25, 6, size, alpha, 0, depth); }
 
   update(ms: number, projectiles: Projectile[]): void {
     const step = this.hitStopLeft > 0 ? 0 : ms;

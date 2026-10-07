@@ -158,6 +158,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** What is worn, as sent to other players (Gear wornCode). */
   private gearCode = '';
   private leapUsed = false;
+  /** Landed on a stone block holding a way (left / right, forward / back): that way is ignored until it is let go, so
+   *  you stay on the block (it is small: holding on would walk you straight off its far edge). */
+  private blockHold = { x: 0, y: 0 };
   private leapUntil = -1;
   private leapAt = -Infinity;
   private afterimg?: Afterimages;
@@ -596,7 +599,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (run && b.state !== 'free') this.rt!.cancelOwn('hit');
       this.rideBlade();
       if (b.state === 'hitstun' && k.grounded && !b.push) { k.vx *= 0.8; k.vy *= 0.8; }
-      if (b.state === 'launched' && inp.takeJump() && b.tryAirTech(now, inp.moveX || -this.aim.x, inp.moveY || -this.aim.y)) this.fx!.dust(k.x, k.y - k.z, 60, 0.6);
+      if (b.state === 'launched' && inp.takeJump() && b.tryAirTech(now, inp.moveX || -this.aim.x, inp.moveY || -this.aim.y)) this.fx!.dust(k.x, k.y - k.z, 60, 0.6, this.dustDepth(k));
       if (ccLocked && b.state === 'free') { k.vx = 0; k.vy = 0; if (run) this.rt!.cancelOwn('hit'); }
     } else if (run) {
       this.stepCast(run, ms, now);
@@ -613,13 +616,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.jb = null; this.jbWant = 0;
     }
     const r = stepKin(k, ms, b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z), b.state === 'free' && !b.push && !this.rt!.ownRun);
-    if (this.world) settleOnBlocks(k, ms, this.ci?.moveY ?? 0);
+    if (this.world) settleOnBlocks(k, ms, this.blockHold.y ? 0 : this.ci?.moveY ?? 0, b.state === 'free');
     const ev = b.update(now, ms, r.landed, r.impactVz);
     if (r.landed) {
-      if (r.impactVz > 180) this.fx!.dust(k.x, k.y - k.z, 48 + Math.min(70, r.impactVz / 8), 0.75);
+      if (k.supportId && k.supportZ > 0 && WORLD_OBJECTS.some((o) => o.id === k.supportId && o.stand)) { // onto a block: you stay on it
+        this.blockHold = { x: Math.sign(this.ci?.moveX ?? 0), y: Math.sign(this.ci?.moveY ?? 0) }; k.vx = 0; k.vy = 0;
+      }
+      if (r.impactVz > 180) this.fx!.dust(k.x, k.y - k.z, 48 + Math.min(70, r.impactVz / 8), 0.75, this.dustDepth(k));
       if (b.state === 'free' && !this.rt!.ownRun) this.setMode('land');
     }
-    if (ev === 'kdImpact') this.fx!.dust(k.x, k.y - k.z, 120, 0.9);
+    if (ev === 'kdImpact') this.fx!.dust(k.x, k.y - k.z, 120, 0.9, this.dustDepth(k));
     if (b.state === 'hitstun') this.setMode('hurt');
     else if (b.state === 'launched') this.setMode('launched');
     else if (b.state === 'knockdown') this.setMode(k.grounded ? 'down' : 'launched');
@@ -643,7 +649,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const k = this.kin, inp = this.ci!, b = this.body;
     const rooted = b.hard.active(now) && b.hard.kind === 'root';
     const locked = this.inputLocked(); // talking to an NPC: he stands still
-    const mx = locked ? 0 : inp.moveX, my = locked ? 0 : inp.moveY;
+    const hold = this.blockHold; // let go (or off the block): that way is free again
+    if (hold.x && (Math.sign(inp.moveX) !== hold.x || !k.grounded)) hold.x = 0;
+    if (hold.y && (Math.sign(inp.moveY) !== hold.y || !k.grounded)) hold.y = 0;
+    const mx = locked || hold.x ? 0 : inp.moveX, my = locked || hold.y ? 0 : inp.moveY;
     const speed = (inp.running && !locked ? PHYS.run : PHYS.walk) * b.moveScale(now) * this.passives.moveMul;
     steer(k, rooted ? 0 : mx * speed, rooted ? 0 : my * speed, ms, now < this.leapUntil ? 0.12 : 1); // War Leap keeps its burst
     if ((mx || my) && !rooted) this.dir = dirOf(mx, my, this.dir); // side view only: up/down keeps the facing
@@ -652,8 +661,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     else if (this.passives.airLeap && !this.leapUsed && !rooted && !(this.mode === 'takeoff' && this.modeT <= PHYS.takeoffMs) && jumpKey) this.warLeap(now);
     const sp = Math.hypot(k.vx, k.vy);
     if (!k.grounded) { if (this.mode !== 'takeoff' || this.modeT > PHYS.takeoffMs) this.setMode('air'); return; }
-    if (this.mode === 'land' && this.modeT < LAND_MS && !inp.hasMove) return;
-    if (this.mode === 'recover' && this.modeT < RECOVER_MS && !inp.hasMove) return;
+    if (this.mode === 'land' && this.modeT < LAND_MS && !mx && !my) return;
+    if (this.mode === 'recover' && this.modeT < RECOVER_MS && !mx && !my) return;
     if (sp > 12) {
       const m: Mode = inp.running && !locked && sp > PHYS.walk + 20 ? 'run' : 'walk';
       if (m !== this.mode) { if (this.mode !== 'walk' && this.mode !== 'run') this.loopT = 0; this.setMode(m); } // every walk starts on its first step (walk↔run keep the stride)
@@ -669,7 +678,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const fps = base ? base.fps : (sheet ? 13 : 10) * Math.max(0.75, Math.min(1.15, sp / 270)), n = base ? base.n : sheet ? 8 : 5;
     const f = Math.floor((this.loopT * fps) / 1000) % n;
     const contact = base ? base.contact : sheet ? [0, 4] : [0, 3];
-    if (f !== this.lastFootFrame && contact.includes(f)) this.fx!.dust(this.kin.x - (this.kin.vx / sp) * 10, this.kin.y - this.kin.z, 34, 0.55);
+    if (f !== this.lastFootFrame && contact.includes(f)) this.fx!.dust(this.kin.x - (this.kin.vx / sp) * 10, this.kin.y - this.kin.z, 34, 0.55, this.dustDepth(this.kin));
     this.lastFootFrame = f;
   }
 
@@ -753,8 +762,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
   }
 
-  /** Standing on an open-world block: the feet settle onto its top face as the picture draws it (its landing footprint is
-   *  deeper, so a jump from the front or the back lands) — unless you are walking up / down over it. */
   /** War Leap: a second, farther jump in mid-air (once per airtime) with a burst of wind. */
   private warLeap(now: number): void {
     const k = this.kin, inp = this.ci!;
@@ -762,7 +769,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     k.vz = Math.max(k.vz, L.vz); k.vx = d.x * L.forward; k.vy = d.y * L.forward * 0.6;
     this.leapUsed = true; this.leapUntil = now + 320; this.leapAt = now;
     this.setMode('takeoff');
-    this.fx!.dust(k.x - d.x * 18, k.y - k.z, 70, 0.7);
+    this.fx!.dust(k.x - d.x * 18, k.y - k.z, 70, 0.7, this.dustDepth(k));
     const side = d.x < 0 || (d.x === 0 && this.dir === 'left') ? -1 : 1;
     if (this.cls === 'archer') this.fx!.windLeap(k.x, k.y - k.z, side); else if (this.cls === 'samurai') this.fx!.shinsoku(k.x, k.y - k.z - 4, side); else this.fx!.leapBurst(k.x, k.y - k.z - 4, side);
   }
@@ -952,13 +959,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Physical reaction feedback on the enemy: knockback skid dust, heavy landing slam, bounce puff. */
   private skidT = 0;
+  /** Depth of an actor's own dust: just over him, so whatever hides his feet (a block in front) hides it too. */
+  private dustDepth(k: Kin): number { return actorDepth(k.x, k.y, k.z) + 0.3; }
   private reactionFx(ms: number): void {
     this.skidT -= ms;
     for (const e of [this.enemy, ...(this.world?.mobs ?? [])]) {
       if (!e?.alive) continue;
       const k = e.kin, sp = Math.hypot(k.vx, k.vy);
-      if (k.grounded && e.body.push && sp > 140 && this.skidT <= 0) { this.fx!.dust(k.x - (k.vx / sp) * 14, k.y, 46, 0.7); this.skidT = 55; }
-      if (e.lastEv === 'kdImpact') { this.fx!.dust(k.x, k.y, 130, 0.95); this.fx!.shockwave(k.x, k.y, 70, 0xd8c8a8); this.cameras.main.shake(90, 0.004); }
+      if (k.grounded && e.body.push && sp > 140 && this.skidT <= 0) { this.fx!.dust(k.x - (k.vx / sp) * 14, k.y - k.z, 46, 0.7, this.dustDepth(k)); this.skidT = 55; }
+      if (e.lastEv === 'kdImpact') { this.fx!.dust(k.x, k.y - k.z, 130, 0.95, this.dustDepth(k)); this.fx!.shockwave(k.x, k.y - k.z, 70, 0xd8c8a8); this.cameras.main.shake(90, 0.004); }
     }
   }
 

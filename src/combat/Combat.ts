@@ -15,8 +15,10 @@ export const PHYS = {
 };
 
 export interface Kin { x: number; y: number; z: number; vx: number; vy: number; vz: number; supportZ: number; supportId: string | null; grounded: boolean;
-  /** The block whose top face (as drawn) the feet were last on (settleOnBlocks: walking back off it steps down behind). */
-  onTop?: string | null }
+  /** What it left by a jump or by walking off its edge: no stepping (or being caught) back onto that until it lands. */
+  from?: string | null;
+  /** Left it by walking off its edge (not by a jump). */
+  stepped?: boolean }
 
 export function newKin(x: number, y: number): Kin { return { x, y, z: 0, vx: 0, vy: 0, vz: 0, supportZ: 0, supportId: null, grounded: true }; }
 
@@ -42,13 +44,20 @@ export const GAUGE = { stand: 0.3, air: 0.4, airRamp: 0.15, down: 0.15, resetMs:
  *  free walking; knock-backs still stop at walls (wall crash). */
 export function stepKin(k: Kin, ms: number, gravityScale = 1, blocked?: (x: number, y: number, z: number) => boolean, slide = false): StepResult {
   const dt = Math.min(0.05, ms / 1000), r: StepResult = { landed: false, impactVz: 0, blockedX: false, blockedY: false, leftSupport: false };
+  // Ledge mantle: airborne against a standable top's lip, within reach of it → the rise is made to carry the feet just
+  // past the lip (a smooth lift, no snap) while the step waits there, speed kept — then it goes on over the top. Never
+  // through hard cover, never back onto the one it just left.
+  let lip = false;
   const ok = (x: number, y: number) => {
-    if (footAllowed(x, y, k.z, PHYS.footR) && !(blocked && blocked(x, y, k.z))) return true;
-    // Ledge mantle: airborne within reach of a standable top's lip → step up onto it (never through hard cover).
+    lip = false;
+    if (footAllowed(x, y, k.z, PHYS.footR, k) && !(blocked && blocked(x, y, k.z))) return true;
     if (k.grounded) return false;
     for (const o of WORLD_OBJECTS) {
-      if (o.topZ === undefined || k.z < o.topZ - PHYS.mantle || k.z >= o.topZ) continue;
-      if (footAllowed(x, y, o.topZ, PHYS.footR) && !(blocked && blocked(x, y, o.topZ)) && pointInPolyNear(x, y, o.footprint)) { k.z = o.topZ; if (k.vz < 0) k.vz = 0; return true; }
+      if (o.topZ === undefined || o.id === k.from || k.z < o.topZ - PHYS.mantle || k.z >= o.topZ) continue;
+      if (footAllowed(x, y, o.topZ, PHYS.footR) && !(blocked && blocked(x, y, o.topZ)) && pointInPolyNear(x, y, o.footprint)) {
+        k.vz = Math.max(k.vz, Math.sqrt(2 * PHYS.gravity * gravityScale * (o.topZ + 0.5 - k.z)));
+        lip = true; return false;
+      }
     }
     return false;
   };
@@ -67,12 +76,12 @@ export function stepKin(k: Kin, ms: number, gravityScale = 1, blocked?: (x: numb
   };
   const dx = k.vx * dt, dy = k.vy * dt, n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 3));
   for (let i = 0; i < n; i++) {
-    if (dx !== 0 && !r.blockedX) { const nx = k.x + dx / n; if (ok(nx, k.y)) k.x = nx; else if (!(slide && Math.abs(dy) < Math.abs(dx) * 0.5 && along(dx / n, 0))) { r.blockedX = true; k.vx = 0; } }
-    if (dy !== 0 && !r.blockedY) { const ny = k.y + dy / n; if (ok(k.x, ny)) k.y = ny; else if (!(slide && Math.abs(dx) < Math.abs(dy) * 0.5 && along(0, dy / n))) { r.blockedY = true; k.vy = 0; } }
+    if (dx !== 0 && !r.blockedX) { const nx = k.x + dx / n; if (ok(nx, k.y)) k.x = nx; else if (!lip && !(slide && Math.abs(dy) < Math.abs(dx) * 0.5 && along(dx / n, 0))) { r.blockedX = true; k.vx = 0; } }
+    if (dy !== 0 && !r.blockedY) { const ny = k.y + dy / n; if (ok(k.x, ny)) k.y = ny; else if (!lip && !(slide && Math.abs(dx) < Math.abs(dy) * 0.5 && along(0, dy / n))) { r.blockedY = true; k.vy = 0; } }
   }
   if (k.grounded) {
     const s = supportAt(k.x, k.y, k.z);
-    if (s.z < k.z - 0.5) { k.grounded = false; k.vz = 0; r.leftSupport = true; } // walked off the edge
+    if (s.z < k.z - 0.5) { k.grounded = false; k.vz = 0; r.leftSupport = true; k.from = k.supportId; k.stepped = true; } // walked off the edge
     else { k.z = s.z; k.supportZ = s.z; k.supportId = s.id; }
   }
   if (!k.grounded) {
@@ -80,44 +89,57 @@ export function stepKin(k: Kin, ms: number, gravityScale = 1, blocked?: (x: numb
     k.z += k.vz * dt;
     const s = supportAt(k.x, k.y, Math.max(k.z, k.z - k.vz * dt));
     k.supportZ = s.z; k.supportId = s.id;
-    if (k.z <= s.z && k.vz <= 0) { r.landed = true; r.impactVz = -k.vz; k.z = s.z; k.vz = 0; k.grounded = true; }
+    if (k.z <= s.z && k.vz <= 0) { r.landed = true; r.impactVz = -k.vz; k.z = s.z; k.vz = 0; k.grounded = true; k.from = null; k.stepped = false; }
   }
   return r;
 }
 
-/** Blocks (WorldObject.stand): the feet rest on the top face as drawn. Behind it lies the floor the block hides (part of
- *  its footprint, so nobody stands there sunk in the block): on top, walking back off the top face steps down onto the
- *  floor behind at the same spot on screen (back by the block's height, height gone); otherwise the feet settle onto the
- *  top face — in the air too, coming down over that hidden floor (unless heading back). moveY < 0 = heading back. */
-export function settleOnBlocks(k: Kin, ms: number, moveY: number): void {
-  const step = ms * 0.45;   // 450 px/s: a short, smooth settle
+/** Stone blocks (WorldObject.stand; the footprint is the block's base, the floor behind it is open and the block hides
+ *  whoever stands there). Standing on one, the feet settle onto its top face as drawn (unless walking: moveY ≠ 0).
+ *  `own`: moving on its own (not knocked about) — over a block in the air, at or above its top, the block catches you:
+ *  the drift is held so that you come down on its top face (it is shallow: a jump toward it would carry you past it);
+ *  never one you just left. And a step off its back edge drops you down behind it. Below a block's top (stepped off its
+ *  edge, or come down beside it), the feet are eased clear of it before they reach the floor, never left half inside it. */
+export function settleOnBlocks(k: Kin, ms: number, moveY: number, own = false): void {
   if (k.grounded) {
     const o = k.supportId ? WORLD_OBJECTS.find((w) => w.id === k.supportId) : undefined;
-    if (!o?.stand || o.topZ === undefined) { k.onTop = null; return; }
-    const [y0, y1] = o.stand;
-    if (k.y >= y0 - 2) k.onTop = o.id;                       // on the top face as drawn
-    else if (moveY < 0 && k.onTop === o.id) {                // walked back off it: down onto the floor behind
-      const ny = k.y - o.topZ;
-      if (footAllowed(k.x, ny, 0, PHYS.footR)) { k.y = ny; k.z = 0; k.supportZ = 0; k.supportId = null; k.onTop = null; return; }
-    }
-    if (moveY !== 0 && k.y >= y0 - 2) return;              // walking on the top face: its front and sides are edges
-    const want = Math.min(Math.max(k.y, y0), y1);          // landed over the hidden floor (even heading back): onto the face
+    if (!o?.stand || moveY !== 0) return;
+    const step = ms * 0.45, want = Math.min(Math.max(k.y, o.stand[0]), o.stand[1]);   // 450 px/s: a short, smooth settle
     if (want !== k.y) k.y += Math.min(Math.max(want - k.y, -step), step);
     return;
   }
-  k.onTop = null;
-  if (k.vz > 0) return;
-  for (const o of WORLD_OBJECTS) {   // coming down over a block: it lands you on it
-    if (!o.stand || o.topZ === undefined || k.z < o.topZ - 8 || !pointInPoly(k.x, k.y, o.footprint)) continue;
-    if (!(moveY !== 0 && Math.sign(moveY) === Math.sign(k.vy))) k.vy *= Math.exp(-ms / 70);   // not heading on: it stops over it
-    if (moveY >= 0 && k.y < o.stand[0]) k.y = Math.min(o.stand[0], k.y + step);              // over the floor it hides: onto the face
+  for (const o of WORLD_OBJECTS) {
+    if (!o.stand || o.topZ === undefined) continue;
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const p of o.footprint) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+    // Stepped off its back edge: you drop down behind it. The step back stops at once (walking on back at full speed
+    // would hold you at the same height on screen all the way down, floating, and land you far behind it), and the feet
+    // clear its back edge late in the drop, where the fall hides that little step back.
+    const behind = own && !!k.stepped && o.id === k.from && k.y < y0;
+    if (behind && k.vy < 0) k.vy *= Math.exp(-ms / 20);
+    if (k.z < (behind ? o.topZ * 0.6 : o.topZ - (o.id === k.from ? 0.5 : PHYS.mantle))) {   // below its top: out of it (300 px/s)
+      const cx = Math.min(Math.max(k.x, x0), x1), cy = Math.min(Math.max(k.y, y0), y1), d = Math.hypot(k.x - cx, k.y - cy);
+      if (d > 0 && d < PHYS.footR) {
+        const f = Math.min(ms * 0.3, PHYS.footR - d + 0.5) / d, nx = k.x + (k.x - cx) * f, ny = k.y + (k.y - cy) * f;
+        if (footAllowed(nx, ny, k.z, PHYS.footR, k)) { k.x = nx; k.y = ny; }
+      }
+      continue;
+    }
+    if (!own || o.id === k.from || !pointInPoly(k.x, k.y, o.footprint)) continue;
+    // Over it: t = the time until the feet are back down at its top. A drift that would carry them past its top face (a
+    // little in from its edges) eases off evenly to come to rest there as they land: never faster than 2·room / t.
+    const g = PHYS.gravity, t = Math.max(ms / 1000, (k.vz + Math.sqrt(Math.max(0, k.vz * k.vz + 2 * g * (k.z - o.topZ)))) / g);
+    const hold = (p: number, v: number, lo: number, hi: number) =>
+      v > 0 ? Math.min(v, Math.max(0, (2 * (hi - p)) / t)) : v < 0 ? Math.max(v, Math.min(0, (2 * (lo - p)) / t)) : v;
+    const m = Math.min(18, (x1 - x0) / 4);
+    k.vx = hold(k.x, k.vx, x0 + m, x1 - m); k.vy = hold(k.y, k.vy, y0 + 5, y1 - 5);
     return;
   }
 }
 
 /** Start a jump from the current support (no invulnerability; horizontal momentum kept at 92%). */
 export function jump(k: Kin, vz = PHYS.jumpVz): void {
-  k.grounded = false; k.vz = vz; k.vx *= PHYS.takeoffKeep; k.vy *= PHYS.takeoffKeep;
+  k.grounded = false; k.vz = vz; k.vx *= PHYS.takeoffKeep; k.vy *= PHYS.takeoffKeep; k.from = k.supportId; k.stepped = false;
 }
 
 /** Ground / air locomotion toward a target velocity (acceleration-limited, sharper when turning). */

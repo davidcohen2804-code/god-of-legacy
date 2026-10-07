@@ -138,7 +138,7 @@ export class Monster {
     } else if (b.canAct(now) && !this.frozen) this.think(ms, w, dx, dy, dist);
     else if (b.state === 'free') { this.kin.vx = 0; this.kin.vy = 0; }
     const r = stepKin(this.kin, ms, b.gravityScale(now), (x, y) => x > MOB_WALL_X || w.blocked(this, x, y), this.moving && b.state === 'free' && !b.push);
-    settleOnBlocks(this.kin, ms, 0);   // knocked onto a block: onto its top face, never over the floor it hides
+    settleOnBlocks(this.kin, ms, 0);   // knocked onto a block: onto its top face; beside one: never left half inside it
     if (this.ai === 'chase' && this.moving && r.blockedX && this.detourLeft <= 0) {
       // the block ahead: go round it by its nearer end (up or down the floor)
       const ax = this.kin.x + Math.sign(this.kin.vx || 1) * 24, ay = this.kin.y;
