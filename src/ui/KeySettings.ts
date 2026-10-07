@@ -44,6 +44,8 @@ const CSS = `
 .gol-keys .board{position:absolute;left:${Z.board.x}px;top:${Z.board.y}px;width:${Z.board.w}px;height:${Z.board.h}px;display:flex;align-items:center;justify-content:center}
 .gol-keys .kb{position:relative}
 .gol-keys .key{position:absolute;height:${KEY}px;box-sizing:border-box;background:url("${K('keycap')}") center/100% 100% no-repeat;cursor:pointer;transition:filter 100ms}
+/* the HUD's own .key labels (pointer-events:none) must not reach these keys: they take clicks and drops */
+.gol-keys .kb .key{pointer-events:auto}
 .gol-keys .key.wide{background-image:url("${K('keycap_wide')}")}
 .gol-keys .key:hover{filter:brightness(1.18)}
 .gol-keys .key .lb{position:absolute;left:0;right:0;top:0;bottom:2px;display:flex;align-items:center;justify-content:center;font:700 19px ${FONT_FAMILY};color:#8f8160;pointer-events:none}

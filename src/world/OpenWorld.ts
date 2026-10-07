@@ -190,7 +190,8 @@ export class OpenWorld {
     const lead = (ARENA.edgeY - terraceCy) * (1 - Phaser.Math.SmoothStep(y, ARENA.edgeY, ARENA.y));
     const ty = down ? Phaser.Math.Clamp(y - lead, terraceCy, ARENA.y + ARENA.h - halfH) : terraceCy;
     const hi = down ? Math.min(WORLD_W, ARENA.x + ARENA.w) - half : WORLD_W - half;
-    const tx = Phaser.Math.Clamp(x, half, Math.max(half, hi));
+    const lo = down ? Math.max(0, ARENA.x) + half : half;
+    const tx = Phaser.Math.Clamp(x, lo, Math.max(lo, hi));
     const k = snap ? 1 : 1 - Math.exp(-ms / CAM_EASE);
     this.camX += (tx - this.camX) * k;
     if (Math.abs(tx - this.camX) < 0.05) this.camX = tx;

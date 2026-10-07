@@ -1,5 +1,5 @@
-# descent.py : the Sun Seal Plaza — the boss ground below the Legacy Courtyard, reached by walking down a staircase
-# cut into the courtyard's front arcade (no portal: the camera just follows you down).
+# descent.py : the Sun Seal Plaza — the boss ground below Temple Road (the temple area), reached by walking down a
+# staircase cut into the temple's front arcade (no portal: the camera just follows you down).
 #   in : tools/world/arena/arena_gpt.png (GPT's picture: the stairs + the plaza, at the strip's scale x 0.5)
 #        tools/world/arena/arena_x2.jpg  (the same, upscaled x2 by Real-ESRGAN x4plus then halved: see arena/README)
 #   out: public/assets/world/arena/<i>.webp (the plaza's picture tiles), the staircase patched into
@@ -15,20 +15,22 @@ G = os.path.dirname(os.path.abspath(__file__)) + '/'
 R = G + '../../'
 STRIP = json.load(open(R + 'src/data/world-strip.json'))
 TERRACE_H = STRIP['h']                     # 941: the terrace picture's height = where the plaza starts
-EDGE_Y = 652                               # the courtyard floor's front edge (the balustrade)
+EDGE_Y = 652                               # the terrace floor's front edge (the balustrade)
 
 # GPT picture (native px): the staircase between its cheek walls, and the line under the stairs where the plaza starts
 STAIR = (620, 48, 1050, 236)               # x0, y0, x1, y1
 CROP_Y = 236
 SCALE = 2                                  # plaza: native x2 (its tiles = the courtyard's tiles)
-# where the staircase goes in the courtyard's front arcade: between its two pillars (world px)
-GAP = (625, 1055)
+# where the staircase goes in the temple's front arcade: between its two pillars (temple-urn-13 / -14), on the
+# temple's gold centre line (world px); the strip tile that holds it
+GAP = (6923, 7433)
+TILE_I, TILE_X = 3, 6144
 # the plaza starts at the world's left end (x 0): the terrace runs above all of it, so looking up from anywhere on the
 # plaza shows the courtyard's arcade (the stairs come down onto its left part, the seal is further right)
-OX = 0
+OX = STRIP['w'] - 3344          # the plaza ends where the world ends (x 8000): the terrace runs above all of it
 OY = TERRACE_H
-# the walkable stairs (inside the cheek walls; clear of the pillar's footprint, courtyard-urn-2 at x 1016)
-WALK_STAIRS = (650, 1012)
+# the walkable stairs (inside the cheek walls)
+WALK_STAIRS = (6955, 7401)
 # the plaza floor (native px): inside the ruined walls and the columns
 FLOOR = [(130, 240), (1540, 240), (1508, 330), (1508, 540), (1585, 600), (1580, 760), (1470, 830), (200, 830),
          (92, 760), (88, 600), (166, 540), (166, 330)]
@@ -56,7 +58,7 @@ def main():
     tiles.append([OX + x, w])
 
   # the staircase into the courtyard's front arcade (strip tile 0): GPT's stairs stretched to the arcade's height
-  t0p = R + 'public/assets/world/strip/0.webp'
+  t0p = R + f'public/assets/world/strip/{TILE_I}.webp'
   t0 = Image.open(t0p).convert('RGBA')
   top = EDGE_Y - 6
   st = nat.crop(STAIR).resize((GAP[1] - GAP[0], TERRACE_H - top), Image.LANCZOS).convert('RGBA')
@@ -64,12 +66,13 @@ def main():
   ramp = 14                                # the top fades into the courtyard floor
   m[:ramp] = (np.arange(ramp) / ramp * 255).astype(np.uint8)[:, None]
   st.putalpha(Image.fromarray(m))
-  under = t0.crop((GAP[0], top, GAP[1], TERRACE_H))
+  gx0, gx1 = GAP[0] - TILE_X, GAP[1] - TILE_X
+  under = t0.crop((gx0, top, gx1, TERRACE_H))
   # under the faded top: the courtyard floor carried down (the rail is gone there)
-  floor = t0.crop((GAP[0], top - ramp, GAP[1], top)).resize((GAP[1] - GAP[0], ramp))
+  floor = t0.crop((gx0, top - ramp, gx1, top)).resize((gx1 - gx0, ramp))
   base = Image.new('RGBA', st.size); base.paste(under, (0, 0)); base.paste(floor, (0, 0))
   base.alpha_composite(st)
-  t0.paste(base, (GAP[0], top))
+  t0.paste(base, (gx0, top))
   t0.save(t0p, 'WEBP', quality=88, alpha_quality=100, method=6)
 
   # the one floor: the strip's + the stairs + the plaza
@@ -92,6 +95,6 @@ def main():
     pv = plaza.copy(); d = ImageDraw.Draw(pv)
     d.polygon([(x - OX, y - OY) for x, y in floorW.exterior.coords], outline=(0, 255, 0), width=5)
     pv.resize((pw // 2, ph // 2)).save(G + 'qc/arena.jpg', quality=85)
-    t0.crop((300, 400, 1400, TERRACE_H)).save(G + 'qc/stairs.png')
+    t0.crop((gx0 - 500, 400, min(t0.width, gx1 + 500), TERRACE_H)).save(G + 'qc/stairs.png')
 
 if __name__ == '__main__': main()
