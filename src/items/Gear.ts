@@ -9,7 +9,9 @@ export type GearSlot = 'weapon' | 'top' | 'bottom' | 'shoes';
 export const GEAR_SLOTS: GearSlot[] = ['weapon', 'top', 'bottom', 'shoes'];
 export const SLOT_NAMES: Record<GearSlot, string> = { weapon: 'Weapon', top: 'Top', bottom: 'Bottom', shoes: 'Shoes' };
 type Piece = 'top' | 'pants' | 'shoes';
-export interface GearDef { id: string; slot: GearSlot; name: string; desc: string; att?: number; def?: number; colors?: Piece }
+export interface GearDef { id: string; slot: GearSlot; name: string; desc: string; att?: number; def?: number; colors?: Piece;
+  /** A weapon drawn with its own sword strips (naked/<g>/gear/<move>_sword_<sword>.png, tools/base/weapon_item.py); none = the starter sword. */
+  sword?: string }
 /** One owned piece: which item, in which colour. */
 export interface GearItem { uid: string; id: string; color: number }
 /** Everything a character owns, and what it wears (slot → item uid). */
@@ -61,6 +63,15 @@ export const wornItem = (g: GearState | null | undefined, s: GearSlot): GearItem
 /** The pieces in the bag (owned, not worn). */
 export const bagItems = (g: GearState | null | undefined): GearItem[] => (g ? g.items.filter((x) => !Object.values(g.worn).includes(x.uid)) : []);
 
+/** A new piece into the bag (or worn at once). */
+export function giveItem(g: GearState, id: string, wearIt = false): GearState {
+  const it = { uid: newUid() + 'j', id, color: 0 };
+  const next = { items: [...g.items, it], worn: { ...g.worn } };
+  return wearIt ? wear(next, it.uid) : next;
+}
+/** Each job's set from its Master (pieces as they are drawn). */
+export const JOB_SET: Record<string, string[]> = { warrior: ['warrior_job_sword'] };
+
 /** Put a piece on (whatever its slot held goes back to the bag). */
 export function wear(g: GearState, uid: string): GearState {
   const it = g.items.find((x) => x.uid === uid); if (!it) return g;
@@ -84,16 +95,20 @@ export const attackMul = (st: GearStats): number => Math.max(G.unarmed, st.att /
 export const takenMul = (st: GearStats): number => 1 - Math.min(G.defCap, st.def * G.defPct) / 100;
 
 /** What the worn pieces look like (colour index, −1 = not worn), for drawing the character. */
-export interface WornLook { weapon: boolean; top: number; pants: number; shoes: number }
+export interface WornLook { weapon: boolean; top: number; pants: number; shoes: number; sword?: string }
+/** The swords drawn in hand, by network code (w1 = the starter sword, w2… = these). */
+const SWORD_CODES = ['warrior_job'];
 export function wornLook(g: GearState | null | undefined): WornLook {
   const col = (s: GearSlot) => wornItem(g, s)?.color ?? -1;
-  return { weapon: !!wornItem(g, 'weapon'), top: col('top'), pants: col('bottom'), shoes: col('shoes') };
+  const wp = wornItem(g, 'weapon'), sw = wp ? GEAR[wp.id]?.sword : undefined;
+  return { weapon: !!wp, top: col('top'), pants: col('bottom'), shoes: col('shoes'), ...(sw ? { sword: sw } : {}) };
 }
 /** Short text form for the network ("w1t0p2s-", '-' = not worn). */
-export const wornCode = (w: WornLook): string => `w${w.weapon ? 1 : 0}t${w.top < 0 ? '-' : w.top}p${w.pants < 0 ? '-' : w.pants}s${w.shoes < 0 ? '-' : w.shoes}`;
+export const wornCode = (w: WornLook): string => `w${w.weapon ? (w.sword && SWORD_CODES.includes(w.sword) ? 2 + SWORD_CODES.indexOf(w.sword) : 1) : 0}t${w.top < 0 ? '-' : w.top}p${w.pants < 0 ? '-' : w.pants}s${w.shoes < 0 ? '-' : w.shoes}`;
 export function parseWornCode(s: unknown): WornLook | null {
   if (typeof s !== 'string') return null;
-  const m = /^w([01])t([0-9-])p([0-9-])s([0-9-])$/.exec(s); if (!m) return null;
+  const m = /^w([0-9])t([0-9-])p([0-9-])s([0-9-])$/.exec(s); if (!m) return null;
   const n = (v: string) => (v === '-' ? -1 : Math.min(9, Number(v)));
-  return { weapon: m[1] === '1', top: n(m[2]), pants: n(m[3]), shoes: n(m[4]) };
+  const wc = Number(m[1]), sw = wc >= 2 ? SWORD_CODES[wc - 2] : undefined;
+  return { weapon: wc >= 1, top: n(m[2]), pants: n(m[3]), shoes: n(m[4]), ...(sw ? { sword: sw } : {}) };
 }

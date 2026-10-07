@@ -11,7 +11,7 @@ import S6 from '../data/stage6-combat.json';
 import TRAINING from '../data/training-combat.json';
 import { CHARACTER_PREVIEWS, CLASS_NAMES, FONT_FAMILY, HUD, PVP, STAGE6 } from '../config/layout';
 import { CharacterStore } from '../characters/CharacterStore';
-import { GearState, GearStats, attackMul, gearStats, takenMul, wornCode, wornLook } from '../items/Gear';
+import { GearState, GearStats, JOB_SET, attackMul, gearStats, giveItem, starterGear, takenMul, wornCode, wornLook } from '../items/Gear';
 import { WorldHUD } from '../ui/WorldHUD';
 import { HudEffect, HudMarker, HudSlot, HudState, PortraitRef } from '../ui/hud/HudState';
 import { Character } from '../characters/CharacterTypes';
@@ -1850,6 +1850,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const jobName = jobsFor(n.job)[1]?.name ?? n.job;
     CharacterStore.setJob(ch.id, n.job, n.job);
     ch.job = n.job; ch.classId = n.job; ch.trial = n.job;
+    const set = JOB_SET[n.job] ?? [];   // his job's set, worn at once
+    if (set.length) { let g = CharacterStore.getGear(ch.id) ?? starterGear(ch.look); for (const id of set) g = giveItem(g, id, true); CharacterStore.setGear(ch.id, g); ch.gear = CharacterStore.getGear(ch.id) ?? g; }
     const k = this.kin;
     this.fx?.callout({ x: k.x, y: k.y, z: k.z + 60 }, `1ST JOB: ${jobName.toUpperCase()}`, '#ffd34a', 0);
     this.fx?.shockwave(k.x, k.y, 200, 0xffd27a);
