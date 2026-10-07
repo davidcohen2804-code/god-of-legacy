@@ -8,7 +8,7 @@ import { actorDepth, clearLine, footAllowed } from './WorldGeometry';
 import { CombatBody, Kin, newKin, settleOnBlocks, stepKin } from '../combat/Combat';
 import { HitTarget } from '../skills/HitGeometry';
 import { NAME_DEPTH } from '../game/ActorView';
-import { MobKind } from './Areas';
+import { MobKind, MOB_WALL_X } from './Areas';
 
 const C = STAGE6.enemy;
 type Action = keyof typeof C.actions;
@@ -130,7 +130,7 @@ export class Monster {
       if (this.respawnLeft <= 0 && Math.hypot(w.player.x - this.home.x, w.player.y - this.home.y) > 90) this.reset();
     } else if (b.canAct(now) && !this.frozen) this.think(ms, w, dx, dy, dist);
     else if (b.state === 'free') { this.kin.vx = 0; this.kin.vy = 0; }
-    const r = stepKin(this.kin, ms, b.gravityScale(now), (x, y) => w.blocked(this, x, y), this.moving && b.state === 'free' && !b.push);
+    const r = stepKin(this.kin, ms, b.gravityScale(now), (x, y) => x > MOB_WALL_X || w.blocked(this, x, y), this.moving && b.state === 'free' && !b.push);
     settleOnBlocks(this.kin, ms, 0);   // knocked onto a block: onto its top face, never over the floor it hides
     if (this.moving && (r.blockedX || r.blockedY) && (this.ai === 'wander' || this.ai === 'home')) this.wanderTo = null; // bumped into something: pick another spot
     const ev = b.update(now, ms, r.landed, r.impactVz);
@@ -145,7 +145,7 @@ export class Monster {
   private think(ms: number, w: MonsterWorld, dx: number, dy: number, dist: number): void {
     const K = this.kind, k = this.kin, sp = K.speed * this.body.moveScale(w.now);
     const fromHome = Math.hypot(k.x - this.home.x, k.y - this.home.y);
-    const sees = w.player.alive && dist <= K.aggro && clearLine(k.x, k.y, w.player.x, w.player.y, 30);
+    const sees = w.player.alive && w.player.x < MOB_WALL_X + 40 && dist <= K.aggro && clearLine(k.x, k.y, w.player.x, w.player.y, 30);
     switch (this.ai) {
       case 'idle': case 'wander': {
         if (sees) { this.enter('chase'); break; }
@@ -167,7 +167,7 @@ export class Monster {
         break;
       }
       case 'chase': {
-        if (!w.player.alive || dist > K.aggro * 1.8 || fromHome > 520) { this.enter('home'); break; }
+        if (!w.player.alive || dist > K.aggro * 1.8 || fromHome > 520 || w.player.x > MOB_WALL_X + 60) { this.enter('home'); break; }  // past the Temple Gate: out of reach
         this.faceToward(w.player.x);
         if (dist <= K.range && Math.abs(dy) < 34) { k.vx = 0; k.vy = 0; if (this.sinceAttack >= K.cooldown && w.player.z < 40) this.startAttack(); break; }
         // stand beside the player (side view): the side it is on, at its reach, same depth

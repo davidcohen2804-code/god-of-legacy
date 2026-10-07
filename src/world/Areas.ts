@@ -71,6 +71,8 @@ export const belowTerrace = (y: number): boolean => y > ARENA.edgeY;
 
 /** The Temple Gate between the Crimson Ruins and Temple Road (tools/world/gate.py): two picture layers (the back tower
  *  behind everyone, the arch and the front tower in front) and its two towers' footprints. */
+/** Monsters never pass the Temple Gate: nothing of theirs crosses this world x (the line in front of the gate). */
+export const MOB_WALL_X = 6330;
 export const GATE = GATE_DATA as { q: number; back: { x: number; y: number; depth: number }; front: { x: number; y: number; depth: number }; props: { id: string; foot: Pt[]; h: number }[] };
 
 /** The walkable floor of the whole world (world px, one polygon): the strip's, the stairs and the plaza. */

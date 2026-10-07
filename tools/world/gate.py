@@ -10,9 +10,10 @@ from PIL import Image
 G = os.path.dirname(os.path.abspath(__file__)) + '/'
 R = G + '../../'
 Q = 1.5                                   # texture px per world px
-S = 0.73                                  # world px per GPT px (floor depth: back tower foot → front tower foot)
-# GPT px → world px: the back tower's foot (600, 559) stands at (6270, 375), just in front of the back balustrade
-AX, AY, WX, WY = 600, 559, 6270, 375
+# GPT px → world px: the back tower's base (sheet y 493) stands ON the floor just inside its back edge (y 346 here)
+# at world (6270, 360); the front tower's base (sheet y 989) on the front balustrade (world y 689)
+AX, AY, WX, WY = 600, 493, 6270, 360
+S = (689 - 360) / (989 - 493)             # world px per GPT px
 SPLIT_X = 705                             # GPT px: left of it the back tower and its door (behind anyone on the floor)
 
 im = np.array(Image.open(G + 'gate/gate_gpt.png').convert('RGB')).astype(np.float32)
@@ -38,7 +39,7 @@ data = {
   'front': {**parts['front'], 'depth': 705},
   # footprints (world px): the towers' bases, solid (nobody walks or jumps through them)
   'props': [
-    {'id': 'gate-back', 'foot': [W2(500, 470), W2(705, 470), W2(705, 562), W2(500, 562)], 'h': 999},
+    {'id': 'gate-back', 'foot': [W2(500, 400), W2(705, 400), W2(705, 495), W2(500, 495)], 'h': 999},
     {'id': 'gate-front', 'foot': [W2(820, 880), W2(1040, 880), W2(1040, 990), W2(820, 990)], 'h': 999},
   ],
 }
