@@ -4,7 +4,7 @@
 #   guard → tip) gives the grip and the angle; the body strip gives the fist that hides the grip; and where the starter
 #   sword is drawn BEHIND the body (a swing over the head), the new one is too. Same reach as the starter sword (effects
 #   ride the same line). New moves: re-run after naked_frames.py.
-#   python3 tools/base/weapon_item.py warrior_job tools/base/gpt/weapons/warrior_job_sword.png
+#   python3 tools/base/weapon_item.py warrior_job tools/base/gpt/weapons/warrior_job_sword.png 1.22
 import json, os, sys, shutil, tempfile, numpy as np
 from PIL import Image
 from scipy import ndimage as nd
@@ -12,6 +12,7 @@ H = os.path.dirname(os.path.abspath(__file__)); G = H + '/../../'
 sys.path.insert(0, H); import sword as SWORD
 S = 352; GROUND = 310
 iid, drawing = sys.argv[1], sys.argv[2]
+LONGER = float(sys.argv[3]) if len(sys.argv) > 3 else 1.0   # its blade longer than the starter sword's (grip → tip ×)
 OLD = SWORD.picture(); REACH = SWORD.reach(OLD); GUARD = SWORD.guard(OLD)
 tmp = tempfile.mkdtemp(); os.makedirs(tmp + '/gpt'); shutil.copy(drawing, tmp + '/gpt/sword.png'); shutil.copy(H + '/bake_pose.py', tmp)
 SWORD.H = tmp; NEW = SWORD._from_icon(); SWORD.H = H
@@ -50,7 +51,14 @@ for g in ('male', 'female'):
       have = old[:, c * SW:(c + 1) * SW, 3] / 255
       behind = np.clip(full[..., 3] - have, 0, 1) > 0.35                       # the starter sword is hidden there: behind the body
       behind = nd.binary_dilation(behind, iterations=3) & (figp | behind)
-      new = SWORD.place(NEW, (grip[0] + PAD, grip[1]), ang, L, (S, SW), hide=hide, behind=behind.astype(np.float32))
+      # longer, but the tip stays inside the strip's cell (a thrust far forward reaches its edge)
+      gxp, ca_, sa_ = grip[0] + PAD, np.cos(np.radians(ang)), np.sin(np.radians(ang)); room = []
+      if ca_ > 1e-3: room.append((SW - 6 - gxp) / ca_)
+      if ca_ < -1e-3: room.append((6 - gxp) / ca_)
+      if sa_ < -1e-3: room.append((6 - grip[1]) / sa_)
+      if sa_ > 1e-3: room.append((S - 6 - grip[1]) / sa_)
+      Ln = max(L, min([L * LONGER] + [r for r in room if r > 0]))
+      new = SWORD.place(NEW, (grip[0] + PAD, grip[1]), ang, Ln, (S, SW), hide=hide, behind=behind.astype(np.float32))
       out[:, c * SW:(c + 1) * SW] = np.concatenate([new[..., :3], new[..., 3:] * 255], -1)
     Image.fromarray(out.clip(0, 255).astype(np.uint8)).save(D + f'gear/{anim}_sword_{iid}.png', optimize=True)
   print(g, 'done')

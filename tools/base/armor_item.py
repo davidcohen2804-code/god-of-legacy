@@ -105,8 +105,15 @@ for g in ('male', 'female'):
       W = warp(A[y0:y1, x0:x1], s, tx, ty, (S, S))                           # armour in the frame
       e, al = W[..., :3], np.clip(W[..., 3], 0, 1)
       near = nd.binary_dilation(np.any(fm, 0), iterations=max(6, int(14 * s)))
-      cloth = (al > 0.05) & near & ~skin(e, al)
+      # the bracers on a raised forearm are far from the starter shirt: armour colours (steel, gold) anywhere below the collar
+      R_, G_, B_ = e[..., 0], e[..., 1], e[..., 2]; mx_ = np.maximum(np.maximum(R_, G_), B_); mn_ = np.minimum(np.minimum(R_, G_), B_)
+      metal = (al > 0.5) & ((((mx_ - mn_) / np.maximum(mx_, 1) < 0.18) & (mx_ > 120)) | ((R_ > 170) & (R_ > G_ + 10) & (G_ > B_ + 40)))
+      ty_ = np.nonzero(fm[0].any(1))[0]; collar = ty_.min() - 4 if len(ty_) else 0
+      metal = nd.binary_dilation(metal, iterations=2) & (al > 0.05) & (np.arange(S)[:, None] > collar)
+      cloth = (al > 0.05) & (near | metal) & ~skin(e, al)
       cloth = nd.binary_opening(cloth, iterations=1)
+      Lc, nc = nd.label(cloth)                                                 # no stray bits (a piece of armour off the body)
+      if nc: szc = nd.sum(cloth, Lc, range(1, nc + 1)); cloth = np.isin(Lc, 1 + np.nonzero(szc >= max(40, 0.02 * szc.max()))[0])
       # split by the nearest starter piece
       dist = np.stack([nd.distance_transform_edt(~m) if m.any() else np.full((S, S), 1e9) for m in fm])
       who = np.argmin(dist, 0)
