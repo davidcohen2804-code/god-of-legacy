@@ -1595,7 +1595,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         }
       }
       const own = run.attackerId === this.localId;
-      crit = hit.damage > 0 && Math.random() < 0.12 + (own ? this.critAddNow() : 0);
+      crit = hit.damage > 0 && s.slot !== 0 && Math.random() < 0.12 + (own ? this.critAddNow() : 0); // attack skills only: a regular attack never crits
       const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.passives.critDmgAdd : 0) : 1) * (own ? this.ownDamageMul() * ch : 1);
       out.damage = Math.round(out.damage * mult);
       en.damage(out.damage);
@@ -1620,7 +1620,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         m.kin.z = Math.min(m.kin.z, 30);
         this.fx!.crack(m.kin.x, m.kin.y, 120); this.fx!.shockwave(m.kin.x, m.kin.y, 200, 0xffc070); this.fx!.callout(at, 'SLAM!!', '#ff9a4a', 1); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 120); this.cameras.main.shake(220, 0.011);
       }
-      crit = hit.damage > 0 && Math.random() < 0.12 + (own ? this.critAddNow() : 0);
+      crit = hit.damage > 0 && s.slot !== 0 && Math.random() < 0.12 + (own ? this.critAddNow() : 0); // attack skills only: a regular attack never crits
       const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.passives.critDmgAdd : 0) : 1) * (own ? this.ownDamageMul() * ch : 1);
       out.damage = Math.round(out.damage * mult);
       const killed = m.damage(out.damage, now);

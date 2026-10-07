@@ -723,7 +723,7 @@ for anim, cells in spec['anims'].items():
   n = len(cells); px = np.zeros((S, n * S, 4), np.uint8); mk = np.zeros((S, n * S, 4), np.uint8); heads[anim] = []; blades[anim] = [None] * n
   ostrips[anim] = np.zeros((S, n * S, 4), np.uint8); omasks[anim] = np.zeros((S, n * S), np.float32)
   gcells[anim] = {p_: [None] * n for p_ in GEAR_PIECES + ('sword',)}
-  order = list(range(n)); cl = [o for c_ in cells for o in c_[2:] if str(o).startswith('clean:')]; cell_sc = {}
+  order = list(range(n)); cl = [o for c_ in cells for o in c_[2:] if str(o).startswith('clean:')]; cell_sc = {}; headms_ = {}
   if cl: k0 = int(cl[0][6:]); order = [k0] + [k for k in order if k != k0]
   for c in order:
     cell = cells[c]
@@ -787,7 +787,7 @@ for anim, cells in spec['anims'].items():
                                       hold=(holds[anim], hold[0]) if hold else None, track='track' in opts and c != order[0])
       hfront = info.pop('front'); headm = info.pop('head'); shift[1] += info['dx']
       print(' ', anim, c, 'scale', round(sc, 4), 'head', info, 'sword arm over hair', int(hfront.sum())); hxy = [int(info['hx']), int(info['dy'])]
-    heads[anim].append((c, hxy))
+    heads[anim].append((c, hxy)); headms_[c] = headm
     # the sword is worn gear: off the bare frame (where it crossed the body, the body around it fills in), its own layer
     sw = fig & (lab == 255)
     if sw.any():
@@ -851,6 +851,20 @@ for anim, cells in spec['anims'].items():
         szf_ = nd.sum(fig, Lf_, range(1, nf_ + 1)); speck_ = fig & np.isin(Lf_, [i + 1 for i in range(nf_) if szf_[i] < 0.02 * szf_.max()])
         a = np.where(speck_, 0, a); fig = fig & ~speck_; lab = np.where(speck_, 0, lab)
         if hfront is not None: hfront = hfront & ~speck_
+    if front_ is not None:                                     # where GPT's sword was: GPT's grip bits left in the fist off (the
+      zi_ = nd.binary_dilation(sw0_, iterations=4) & fig        #   hand's skin there)
+      mx_, mn_ = e.max(-1), e.min(-1); sat_ = (mx_ - mn_) / np.maximum(mx_, 1)
+      skin_ = SWORD.skin_of(fig, lab, e)
+      grey_ = zi_ & nd.binary_erosion(fig, iterations=1) & (sat_ < 0.22) & (mx_ > 80) & (mx_ < 215) & ~skin_ & (lab != 80) & (lab != 200)
+      if grey_.any() and skin_.any():
+        _, (iy_, ix_) = nd.distance_transform_edt(~skin_, return_indices=True)
+        e = np.where(grey_[..., None], e[iy_, ix_], e)
+    rim_ = fig & ~nd.binary_erosion(fig, iterations=1)          # the figure's outline where a cut left it light (a sword taken off,
+    if front_ is not None:                                     #   a hand restored): inked again in its outline's own colour (by
+      rim_ = rim_ | (fig & ~nd.binary_erosion(fig, structure=np.ones((3, 3))) & nd.binary_dilation(sw0_, iterations=6))   #   the hand
+    ink_ = rim_ & (e.max(-1) <= 120)                            #   that held GPT's sword, its diagonal steps too)
+    lite_ = rim_ & (e.max(-1) > 150)
+    if lite_.any() and ink_.sum() > 20: e = np.where(lite_[..., None], np.median(e[ink_], 0), e)
     for piece in GEAR_PIECES if D else ():
       if piece not in D: continue
       L_ = layer_to_cell(D[piece], geom); L_ = np.roll(np.roll(L_, shift[0], 0), shift[1], 1)
@@ -868,6 +882,34 @@ for anim, cells in spec['anims'].items():
     mk[:, c * S:(c + 1) * S, 0] = np.where(fig & (lab != 255), lab, 0); mk[:, c * S:(c + 1) * S, 1] = np.where(fig & (lab == 255), 255, 0)
     mk[:, c * S:(c + 1) * S, 3] = 255
   heads[anim] = [h for _, h in sorted(heads[anim], key=lambda t: t[0])]
+  if anim in spec.get('steady_arm', {}):                       # the sword arm held still (it must not jump): every frame wears
+    src_ = spec['steady_arm'][anim]; yy_, xx_ = np.mgrid[0:S, 0:S]   #   one frame's upper body (torso, arms, head, sword) on
+    def hem_(c):                                               #   its own hips — the shirt's hem on its hem (the upper body
+      ta_ = gcells[anim]['top'][c][..., 3] > 0.3                #   bobs with the stride, keeps its shape)
+      yb_ = int(np.nonzero(ta_.any(1))[0].max())
+      return yb_, float(np.nonzero(ta_[yb_ - 2])[0].mean())
+    ys_, xm_ = hem_(src_)
+    for c in range(n):
+      if c == src_: continue
+      yc_, xc_ = hem_(c); dx_, dy_ = int(round(xc_ - xm_)), yc_ - ys_
+      mv_ = lambda a_: np.roll(np.roll(a_, dy_, 0), dx_, 1)
+      up_ = yy_ < yc_ - 4                                      # above the hem (the seam stays under the shirt)
+      cs_, cc_ = slice(src_ * S, (src_ + 1) * S), slice(c * S, (c + 1) * S)
+      for arr_ in (px, mk):
+        d_ = arr_[:, cc_]; v_ = mv_(arr_[:, cs_].copy()); d_[up_] = v_[up_]
+      gcells[anim]['top'][c] = mv_(gcells[anim]['top'][src_].copy())   # the whole shirt (its hem over the hips)
+      if gcells[anim]['sword'][src_] is not None:              # the same sword in the same hand
+        gcells[anim]['sword'][c] = np.roll(np.roll(gcells[anim]['sword'][src_].copy(), dy_, 0), dx_, 1)
+      if blades[anim][src_]: blades[anim][c] = [round(v + (dx_ if i % 2 == 0 else dy_), 1) for i, v in enumerate(blades[anim][src_])]
+      heads[anim][c] = [heads[anim][src_][0] + dx_, heads[anim][src_][1] + dy_]   # (the look layers follow the head)
+      lw_ = (px[:, cc_, 3] > 0) & ~up_                         # below: only the hips and legs (this frame's own arm, cut off
+      for p_ in ('pants', 'shoes'):                            #   from it, would hang in the air)
+        if gcells[anim][p_][c] is not None: lw_ = lw_ | ((gcells[anim][p_][c][..., 3] > 0.3) & ~up_)
+      L_, nL_ = nd.label(lw_)
+      if nL_ > 1:
+        big_ = 1 + int(np.argmax(nd.sum(lw_, L_, range(1, nL_ + 1)))); st_ = lw_ & (L_ != big_) & (px[:, cc_, 3] > 0)
+        px[:, cc_][st_] = 0; mk[:, cc_][st_, :3] = 0
+      print('  steady upper body:', anim, c, 'from', src_, 'moved', dx_, dy_)
   strips[anim] = px; masks[anim] = mk
   for piece, cl_ in gcells[anim].items():                      # the worn gear strips: the frames of the move side by side
     if any(L_ is None for L_ in cl_): continue                  # (every frame has it, or the move has none)

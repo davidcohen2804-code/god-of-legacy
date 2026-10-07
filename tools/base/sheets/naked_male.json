@@ -1,7 +1,8 @@
 {
  "gender": "male",
  "_note": "figures are counted per GPT image row by row, left to right; farL / farR = that leg (as drawn) is the far one (drawn darker); body1.0 = the move's tallest neck-to-sole = the standing one; every frame wears the standing head; as:walk = the same scale as the walk (same GPT size); feet = planted feet, the head goes with the neck; follow = the head goes with the neck; asd:walk = the walk's size by the heads' inscribed circles; clean:N = cell N has GPT's head clear (what other frames draw over the head stays in front); sword = the sword goes to the mask's G channel; airK = keep K of GPT's height off the ground; swapg = the legs' tones exchanged; sc:N / sc:<move> = the scale of cell N / of that move (GPT drew the body at that size, its head bigger); swayK / bobN = the walk head moves a little with each step (forward, and lower on the step)",
- "anims": {
+ "steady_arm": {"run": 0},
+  "anims": {
   "idle": [
    ["naked_male_set1.png", 0]
   ],
