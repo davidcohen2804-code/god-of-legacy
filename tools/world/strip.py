@@ -331,3 +331,6 @@ if '--preview' in sys.argv:
   ov.alpha_composite(lay); os.makedirs(G + 'qc', exist_ok=True)
   ov.convert('RGB').resize((W // 4, AH // 4), Image.LANCZOS).save(G + 'qc/strip.jpg', quality=85)
   ov.convert('RGB').save(G + 'qc/strip_full.jpg', quality=85)
+
+import subprocess, sys as _s
+subprocess.run([_s.executable, G + 'descent.py'], check=True)   # the Sun Seal Plaza below the courtyard (stairs patched into tile 0)

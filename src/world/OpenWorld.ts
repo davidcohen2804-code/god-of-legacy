@@ -6,7 +6,7 @@
 import Phaser from 'phaser';
 import PROPS from '../data/world-props.json';
 import NPC_ART from '../data/npc-sprites.json';
-import { AREA_H, AREA_W, AreaDef, AreaNpc, BACKDROP, MINIMAP_URL, MOB_KINDS, ROW, START, TILES, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
+import { ARENA, ARENA_AREA, ARENA_MINIMAP_URL, AREA_H, AREA_W, AreaDef, arenaTileKey, arenaTileUrl, belowTerrace, AreaNpc, BACKDROP, MINIMAP_URL, MOB_KINDS, ROW, START, TILES, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
 import { WorldObject, actorDepth, setWorldGeometry } from './WorldGeometry';
 import { Backdrop, preloadBackdrop } from './Backdrop';
 import { Monster, preloadMonsterFrames } from './Monster';
@@ -45,6 +45,7 @@ export function preloadOpenWorld(scene: Phaser.Scene): void {
   const L = (k: string, url: string) => { if (!scene.textures.exists(k)) scene.load.image(k, url); };
   // the world around the start comes with the scene; the rest streams in right after
   for (const i of tilesNear(toWorld(START.area, [START.x, START.y]).x, AREA_W * 1.5)) L(tileKey(i), tileUrl(i));
+  ARENA.tiles.forEach((_, i) => L(arenaTileKey(i), arenaTileUrl(i)));
   for (const id of Object.keys(CUTS)) L(`prop-${id}`, `assets/world/props/${id}.png`);
   for (const [name, a] of Object.entries(ART)) if (!scene.textures.exists(`npc-${name}`)) scene.load.spritesheet(`npc-${name}`, `assets/world/npc/${name}.png`, { frameWidth: a.w, frameHeight: a.h });
   L('kit.keycap', KIT('keycap')); L('kit.npc_plate', KIT('npc_plate'));
@@ -59,6 +60,7 @@ export class OpenWorld {
   area: AreaDef;
   mobs: Monster[] = [];
   private tiles: (Phaser.GameObjects.Image | null)[] = TILES.map(() => null);
+  private arenaTiles: (Phaser.GameObjects.Image | null)[] = ARENA.tiles.map(() => null);
   private occluders: Phaser.GameObjects.Image[] = [];
   private npcs: NpcView[] = [];
   private prompt: Phaser.GameObjects.Container;
@@ -68,6 +70,7 @@ export class OpenWorld {
   private ambience: CourtyardAmbience;
   private backdrop: Backdrop | null = null;
   private camX = 0;
+  private camY = 0;
   private t = 0;
   /** The talk / portal prompt target (null = none in reach). */
   near: { kind: 'npc'; npc: AreaNpc } | { kind: 'portal' } | null = null;
@@ -75,9 +78,10 @@ export class OpenWorld {
   onNpcClick?: (n: AreaNpc) => void;
 
   constructor(private scene: Phaser.Scene, private hooks: WorldHooks, start: { x: number; y: number }) {
-    this.area = areaAt(start.x);
+    this.area = this.areaOf(start.x, start.y);
     setWorldGeometry(WORLD_FLOOR, worldObjects());
     TILES.forEach((_, i) => this.ensureTile(i));
+    ARENA.tiles.forEach((_, i) => this.ensureArenaTile(i));
     scene.load.on(Phaser.Loader.Events.FILE_COMPLETE, this.onFile, this);
     if (!scene.load.isLoading()) scene.load.start();
     this.buildOccluders(); this.buildNpcs(); this.buildPortal(); this.spawnMobs();
@@ -87,11 +91,22 @@ export class OpenWorld {
     const k = scene.add.image(0, 0, 'kit.keycap').setDisplaySize(34, 33);
     this.promptKey = scene.add.text(0, -1, 'Y', { fontFamily: 'Cinzel, Georgia, serif', fontSize: '16px', fontStyle: '700', color: '#ffe9a8', stroke: '#1a1206', strokeThickness: 3, resolution: 2 }).setOrigin(0.5);
     this.prompt = scene.add.container(0, 0, [k, this.promptKey]).setDepth(UI_DEPTH).setVisible(false);
-    this.follow(start.x, 0, true);
+    this.follow(start.x, start.y, 0, true);
   }
 
   // ------------------------------------------------------------------ building
-  private onFile(key: string): void { if (key.startsWith('world-tile-')) this.ensureTile(Number(key.slice(11))); }
+  private onFile(key: string): void {
+    if (key.startsWith('world-tile-')) this.ensureTile(Number(key.slice(11)));
+    else if (key.startsWith('world-arena-')) this.ensureArenaTile(Number(key.slice(12)));
+  }
+
+  /** A tile of the Sun Seal Plaza's picture, under the terrace (its arcade stands on the plaza's top edge). */
+  private ensureArenaTile(i: number): void {
+    if (this.arenaTiles[i]) return;
+    const key = arenaTileKey(i);
+    if (!this.scene.textures.exists(key)) { this.scene.load.image(key, arenaTileUrl(i)); return; }
+    this.arenaTiles[i] = this.scene.add.image(ARENA.tiles[i][0], ARENA.y, key).setOrigin(0, 0).setDepth(-1.5);
+  }
 
   /** A picture tile in place (once its texture is there; queued for loading otherwise). */
   private ensureTile(i: number): void {
@@ -165,13 +180,23 @@ export class OpenWorld {
   /** World x of the screen's left edge. */
   get viewLeft(): number { const cam = this.scene.cameras.main; return this.camX - cam.width / cam.zoom / 2; }
 
-  /** The camera trails the player along the world (snap: straight there). Height: the whole picture, always. */
-  private follow(x: number, ms: number, snap = false): void {
-    const cam = this.scene.cameras.main, half = cam.width / cam.zoom / 2;
-    const target = Phaser.Math.Clamp(x, half, Math.max(half, WORLD_W - half));
-    this.camX = snap ? target : this.camX + (target - this.camX) * (1 - Math.exp(-ms / CAM_EASE));
-    if (Math.abs(target - this.camX) < 0.05) this.camX = target;
-    cam.centerOn(this.camX, WORLD_H / 2);
+  /** The camera trails the player along the world (snap: straight there). On the terrace: its whole height, always. Down
+   *  the stairs it goes down with you (no cut, no fade) and over the plaza it follows you both ways (the terrace runs
+   *  above the whole plaza, so looking up always shows its arcade). */
+  private follow(x: number, y: number, ms: number, snap = false): void {
+    const cam = this.scene.cameras.main, half = cam.width / cam.zoom / 2, halfH = cam.height / cam.zoom / 2;
+    const down = belowTerrace(y), terraceCy = WORLD_H / 2;
+    // height: on the terrace its centre; down the stairs it eases from there onto the player (centred by the stairs' foot)
+    const lead = (ARENA.edgeY - terraceCy) * (1 - Phaser.Math.SmoothStep(y, ARENA.edgeY, ARENA.y));
+    const ty = down ? Phaser.Math.Clamp(y - lead, terraceCy, ARENA.y + ARENA.h - halfH) : terraceCy;
+    const hi = down ? Math.min(WORLD_W, ARENA.x + ARENA.w) - half : WORLD_W - half;
+    const tx = Phaser.Math.Clamp(x, half, Math.max(half, hi));
+    const k = snap ? 1 : 1 - Math.exp(-ms / CAM_EASE);
+    this.camX += (tx - this.camX) * k;
+    if (Math.abs(tx - this.camX) < 0.05) this.camX = tx;
+    this.camY += (ty - this.camY) * k;
+    if (Math.abs(ty - this.camY) < 0.05) this.camY = ty;
+    cam.centerOn(this.camX, this.camY);
     this.ambience.setView(this.viewLeft);
     this.backdrop?.setView(this.viewLeft, cam.width / cam.zoom);
   }
@@ -182,12 +207,15 @@ export class OpenWorld {
     cam.fadeOut(260, 255, 244, 220);
     cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       const p = toWorld(id, [x, y]); k.x = p.x; k.y = p.y; k.z = 0; k.vx = 0; k.vy = 0; k.vz = 0; k.grounded = true; k.supportZ = 0;
-      this.follow(p.x, 0, true);
-      this.setArea(areaAt(p.x));
+      this.follow(p.x, p.y, 0, true);
+      this.setArea(this.areaOf(p.x, p.y));
       done?.();
       cam.fadeIn(420, 255, 244, 220);
     });
   }
+
+  /** The area at a spot: the plaza below the terrace's picture, else by x along the strip. */
+  private areaOf(x: number, y: number): AreaDef { return y >= ARENA.y ? ARENA_AREA : areaAt(x); }
 
   private setArea(a: AreaDef): void { if (a === this.area) return; this.area = a; this.hooks.onArea(a); }
 
@@ -195,12 +223,13 @@ export class OpenWorld {
   /** player: z = height above what he stands on, supportZ = the height of that (0 = the floor). */
   update(ms: number, player: { x: number; y: number; z: number; supportZ?: number; alive: boolean }): void {
     this.t += ms;
-    this.follow(player.x, ms);
+    this.follow(player.x, player.y, ms);
     this.ambience.update(ms);
     this.backdrop?.update(ms);
     // the area you are in (by where you stand on the strip; a little past the line, so it never flickers)
-    const a = areaAt(player.x);
-    if (a !== this.area && player.x > a.span[0] + (a.span[0] > 0 ? AREA_HYST : 0) - 1 && player.x < a.span[1] - (a.span[1] < WORLD_W ? AREA_HYST : 0) + 1) this.setArea(a);
+    const a = this.areaOf(player.x, player.y);
+    if (a === ARENA_AREA || this.area === ARENA_AREA) { if (a !== this.area && Math.abs(player.y - ARENA.y) > AREA_HYST) this.setArea(a); }
+    else if (a !== this.area && player.x > a.span[0] + (a.span[0] > 0 ? AREA_HYST : 0) - 1 && player.x < a.span[1] - (a.span[1] < WORLD_W ? AREA_HYST : 0) + 1) this.setArea(a);
     // NPCs: idle loop, quest marker bob
     for (const n of this.npcs) {
       n.t += ms;
@@ -242,6 +271,10 @@ export class OpenWorld {
 
   /** The minimap: a square of the world around you (its full height), sliding along as you walk; its people, the portal. */
   minimap(player: { x: number; y: number }): { label: string; imageUrl: string; image: { x: number; y: number; w: number; h: number }; bounds: { minX: number; minY: number; width: number; height: number }; markers: { id: string; kind: 'player' | 'npc' | 'portal'; x: number; y: number }[] } {
+    if (this.area === ARENA_AREA) {
+      const side = ARENA.h, minX = Phaser.Math.Clamp(player.x - side / 2, ARENA.x, ARENA.x + ARENA.w - side);
+      return { label: ARENA.name, imageUrl: ARENA_MINIMAP_URL, image: { x: ARENA.x, y: ARENA.y, w: ARENA.w, h: ARENA.h }, bounds: { minX, minY: ARENA.y, width: side, height: side }, markers: [{ id: 'local', kind: 'player', x: player.x, y: player.y }] };
+    }
     const side = WORLD_H, minX = Phaser.Math.Clamp(player.x - side / 2, 0, Math.max(0, WORLD_W - side));
     const markers: { id: string; kind: 'player' | 'npc' | 'portal'; x: number; y: number }[] = [{ id: 'local', kind: 'player', x: player.x, y: player.y }];
     for (const n of this.npcs) markers.push({ id: `npc:${n.def.id}`, kind: 'npc', x: n.x, y: n.y });
@@ -255,6 +288,8 @@ export class OpenWorld {
     this.mobs = [];
     for (const im of this.tiles) im?.destroy();
     this.tiles = TILES.map(() => null);
+    for (const im of this.arenaTiles) im?.destroy();
+    this.arenaTiles = ARENA.tiles.map(() => null);
     for (const o of this.occluders) o.destroy();
     for (const n of this.npcs) { n.sprite.destroy(); n.shadow.destroy(); n.plate.destroy(); n.name.destroy(); n.title.destroy(); n.mark.destroy(); }
     if (this.portal) { this.portal.beam.destroy(); this.portal.ring.destroy(); this.portal.glow.destroy(); this.portal.motes.destroy(); }

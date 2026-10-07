@@ -4,6 +4,7 @@
 // px: world = local + the area's x.
 import DATA from '../data/world-areas.json';
 import STRIP from '../data/world-strip.json';
+import ARENA_DATA from '../data/world-arena.json';
 import { Pt, WorldObject } from './WorldGeometry';
 
 export const AREA_W = DATA.size[0];
@@ -53,8 +54,18 @@ export const QUESTS = DATA.quests as unknown as QuestDef[];
 /** What a quest giver says once all his quests are done. */
 export const IDLE_LINES = DATA.idle as string[];
 
-/** The walkable floor of the whole world (world px, one polygon). */
-export const WORLD_FLOOR = STRIP.walk as Pt[];
+/** The Sun Seal Plaza: the boss ground below the Legacy Courtyard (tools/world/descent.py) — you walk down to it by the
+ *  staircase in the courtyard's front arcade (x stairs[0]..stairs[1], from the floor's front edge edgeY), no portal. */
+export const ARENA = ARENA_DATA as { name: string; x: number; y: number; w: number; h: number; ext: string; tiles: [number, number][]; edgeY: number; stairs: [number, number]; walk: Pt[] };
+export const arenaTileKey = (i: number) => `world-arena-${i}`;
+export const arenaTileUrl = (i: number) => `assets/world/arena/${i}.${ARENA.ext}`;
+export const ARENA_MINIMAP_URL = 'assets/world/minimap/arena.jpg';
+export const ARENA_AREA: AreaDef = { id: 'sealplaza', name: ARENA.name, x: ARENA.x, span: [ARENA.x, ARENA.x + ARENA.w], walk: [], props: [] };
+/** Below the courtyard's front edge: on the stairs or in the plaza. */
+export const belowTerrace = (y: number): boolean => y > ARENA.edgeY;
+
+/** The walkable floor of the whole world (world px, one polygon): the strip's, the stairs and the plaza. */
+export const WORLD_FLOOR = ARENA.walk;
 /** The strip's picture tiles: [x, width] each (they overlap by 2 px). */
 export const TILES = STRIP.tiles as [number, number][];
 export const tileKey = (i: number) => `world-tile-${i}`;
