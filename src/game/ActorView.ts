@@ -270,6 +270,8 @@ export class ActorView {
   /** Worn gear (equipment): the clothes and the sword drawn on every frame of the base character. */
   private gearW: GearLook | null = null;
   private gearParts: Partial<Record<GearPiece, Phaser.GameObjects.Sprite>> = {};
+  /** The sword is not drawn (set by the owner: Judgment Blade's leap, between its throws and on the way down). */
+  swordOff = false;
   /** Cross-fade: the worn pieces of the previous body frame, fading out with it. */
   private ghostGear: Partial<Record<GearPiece, Phaser.GameObjects.Sprite>> = {};
   private ghostGearOn = new Set<GearPiece>();
@@ -536,6 +538,7 @@ export class ActorView {
     // worn gear on this very frame: pants, boots, shirt over the body (under the face and hair); the shirt's sleeve again over
     // the sword arm drawn over the hair; the sword in hand on top
     const want = new Map(gearLayers(nk.g, nk.anim, this.gearW));
+    if (nk.bare || this.swordOff) want.delete('sword'); // a skill played with the hand free (Judgment Blade, through its whole leap)
     for (const piece of ['pants', 'shoes', 'top', 'topo', 'sword'] as GearPiece[]) {
       const k = want.get(piece), have = !!k && this.scene.textures.exists(k) && (piece !== 'topo' || ok);
       let sp = this.gearParts[piece];

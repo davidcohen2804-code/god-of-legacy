@@ -139,8 +139,9 @@ export interface PoseFrame {
   bladeBehind?: boolean;
   /** Head fit for hairstyles: [crownX, crownY (rel. feet, world px), tilt deg] (warrior). */
   head?: number[] | null;
-  /** The clean base character's frame: its move, and where the head sits (cell px from the standing head) for the look layers. */
-  naked?: { g: string; anim: string; frame: number; hx: number; hy: number };
+  /** The clean base character's frame: its move, and where the head sits (cell px from the standing head) for the look layers;
+   *  bare = no sword in hand (a skill played with the hand free). */
+  naked?: { g: string; anim: string; frame: number; hx: number; hy: number; bare?: boolean };
 }
 
 type AnchorTable = Record<string, (number[] | null)[][] | Record<string, (number[] | null)[]>>;
@@ -268,8 +269,11 @@ const NB: Record<string, { st: string[]; ac: string[]; rc: string[] }> = {
   radiant_blade: { st: ['alert:0', 'high:1', 'high:0', 'high:0', 'high:0', 'high:0', 'high:0'], ac: ['swing1:1'], rc: ['swing1:2', 'alert:0'] },
   lance_thrust: { st: ['swing2:0'], ac: ['low:1', 'low:1', 'low:1', 'low:1', 'swing3:2'], rc: ['swing3:2', 'alert:0'] }, // skewered on the lunge, ripped up
   war_cry: { st: ['alert:0', 'low:0', 'low:0'], ac: ['high:2'], rc: ['high:2', 'alert:0'] }, // sword into the ground, the roar with a raised fist
-  judgment_blade: { st: ['alert:0', 'high:2'], ac: ['low:2'], rc: ['low:2', 'alert:0'] }, // fist raised while the blades gather, then hurled
+  judgment_blade: { st: ['jump:0', 'high:2'], ac: ['low:2'], rc: ['low:2', 'jump:0'] }, // the leap up, the fist raised while the blade gathers, hurled, in the air
 };
+/** Skills played with the hand free: the sword is not drawn while they play (Judgment Blade: no sword at all). */
+const NB_BARE = new Set(['judgment_blade']);
+const JB_RISE_MS = 380; // Judgment Blade's leap up (LegacyCourtyardScene): the jump pose while rising
 /** Until a pose set is drawn, the nearest drawn pose stands in. */
 const NB_STAND_IN: Record<string, string> = { 'high:0': 'swing1:0', 'high:1': 'swing1:1', 'high:2': 'alert:1', 'low:0': 'swing1:2', 'low:1': 'swing2:1',
   'low:2': 'swing2:1', 'air:0': 'swing3:2', 'air:1': 'swing1:0', 'air:2': 'swing1:2' };
@@ -279,6 +283,7 @@ function nakedSkillBeat(q: Extract<PoseQuery, { k: 'skill' }>): string | null {
   const { elapsed: e, startup: s, active: a, recovery: r } = q;
   if (q.id === 'whirlwind') return e < s ? 'swing2:0' : e < s + a ? (Math.floor((e - s) / SPIN_MS) % 2 ? 'swing2:1!' : 'swing2:1') : e < s + a + r * 0.5 ? 'swing2:2' : 'alert:0';
   const plan = NB[q.id]; if (!plan) return null;
+  if (q.id === 'judgment_blade' && e < s) return s > 120 && e < JB_RISE_MS ? plan.st[0] : plan.st[1]; // (a follow-up throw: no leap)
   const act = Math.max(a, 120);
   if (e < s) return pick(plan.st, e / Math.max(1, s));
   if (e < s + act) return pick(plan.ac, (e - s) / act);
@@ -311,8 +316,9 @@ function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): P
     }
   }
   const key = nakedKey(g, anim), [hx, hy] = NAKED_HEADS[g]?.[anim]?.[frame] ?? [0, 0], fx = f.flip ? -1 : 1;
-  const bl = NAKED_BLADES[g]?.[anim]?.[frame], blade = bl ? bl.map((v, i) => v * SHEET_SCALE * (i % 2 === 0 ? fx : 1)) : null; // (mirrored with the frame)
-  return { ...f, key, frame, wkey: `${key}-w`, blade, bladeBehind: false, hair: null, head: null, naked: { g, anim, frame, hx, hy },
+  const bare = q.k === 'skill' && NB_BARE.has(q.id); // no sword in hand
+  const bl = bare ? null : NAKED_BLADES[g]?.[anim]?.[frame], blade = bl ? bl.map((v, i) => v * SHEET_SCALE * (i % 2 === 0 ? fx : 1)) : null; // (mirrored with the frame)
+  return { ...f, key, frame, wkey: `${key}-w`, blade, bladeBehind: false, hair: null, head: null, naked: { g, anim, frame, hx, hy, bare },
     anchor: f.anchor ? f.anchor.map((v, i) => (i % 2 === 0 ? v + hx * fx * SHEET_SCALE : v + (hy + (i === 1 ? NAKED_HEAD_DROP : 0)) * SHEET_SCALE)) : null };
 }
 /** Base body available for this animation (sheet baked)? */

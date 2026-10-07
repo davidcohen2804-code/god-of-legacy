@@ -29,6 +29,7 @@ export class RemotePlayer {
   sz = 0;
   aim = { x: 0, y: 1 };
   private skill: { id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number; seed?: number } | null = null;
+  private jbAir = false;
   private flashMs = -1;
   private deadMs = -1;
   private deathFx: DeathFx;
@@ -147,6 +148,8 @@ export class RemotePlayer {
     if (this.deadMs >= 0) { this.deadMs += ms; alpha = 1 - Math.min(1, this.deadMs / 450); this.deathFx.update(ms); }
     const snap: AnimSnap = { mode: this.skill ? 'skill' : this.mode, t: this.modeT, speed: this.speed, vz: this.vz, skill: this.skill ?? undefined, stunMs: 200 };
     const pose = resolvePose(this.meta.classId as ClassKey, this.dir, poseQuery(snap), this.view.wantsBase, this.meta.gender === 'female' ? 'female' : 'male');
+    this.jbAir = this.skill?.id === 'judgment_blade' || (this.jbAir && this.alive && z - this.sz > 2); // Judgment Blade: no sword until the landing
+    this.view.swordOff = this.jbAir;
     this.view.render(ms, pose, x, y, z, this.sz, this.dir, alpha, tint, fill);
     const top = y - z - 116 - PVP.remoteLabel.gap;
     this.label.setPosition(Math.round(x), Math.round(top - PVP.hpBar.h - 3));
