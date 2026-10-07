@@ -128,7 +128,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private leapUsed = false;
   private leapUntil = -1;
   orbs = { n: 0, lastAt: -Infinity, cast: '' };
-  private orbGfx?: Phaser.GameObjects.Graphics;
+  private orbImgs: Phaser.GameObjects.Image[] = [];
   private regenAt = 0;
   /** PvP arena scene (fixed HP for everyone). */
   private arena = false;
@@ -292,7 +292,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const lvl = character.level, allOpen = isQAMode() || !!pvpRoom;
     this.passives = this.cls === 'warrior' && (allOpen || lvl >= BEGINNER_TO) ? passiveStats(ownedPassives('warrior', lvl, allOpen)) : NO_PASSIVES;
     this.body.ccResist = this.passives.ccResist; this.body.kbResist = this.passives.kbResist;
-    this.orbs = { n: 0, lastAt: -Infinity, cast: '' }; this.leapUsed = false; this.regenAt = 0; this.orbGfx = undefined;
+    this.orbs = { n: 0, lastAt: -Infinity, cast: '' }; this.leapUsed = false; this.regenAt = 0; this.orbImgs = [];
     this.playerHP = this.maxHpNow();
     this.body.maxHp = this.maxHpNow();
     this.view = new ActorView(this, this.cls, x, y);
@@ -532,7 +532,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if ((mx || my) && !rooted) this.dir = dirOf(mx, my, this.dir); // side view only: up/down keeps the facing
     const jumpKey = inp.takeJump() && !locked; // a jump pressed while talking is dropped
     if (k.grounded) { this.leapUsed = false; if (!rooted && jumpKey) { jump(k, PHYS.jumpVz * this.passives.jumpMul); this.setMode('takeoff'); } }
-    else if (this.passives.airLeap && !this.leapUsed && !rooted && this.modeT > PHYS.takeoffMs && jumpKey) this.warLeap(now);
+    else if (this.passives.airLeap && !this.leapUsed && !rooted && !(this.mode === 'takeoff' && this.modeT <= PHYS.takeoffMs) && jumpKey) this.warLeap(now);
     const sp = Math.hypot(k.vx, k.vy);
     if (!k.grounded) { if (this.mode !== 'takeoff' || this.modeT > PHYS.takeoffMs) this.setMode('air'); return; }
     if (this.mode === 'land' && this.modeT < LAND_MS && !inp.hasMove) return;
@@ -633,7 +633,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.leapUsed = true; this.leapUntil = now + 320;
     this.setMode('takeoff');
     this.fx!.dust(k.x - d.x * 18, k.y - k.z, 70, 0.7);
-    this.fx!.shockwave(k.x, k.y - k.z + 6, 46, 0xdff4ff);
+    this.fx!.leapBurst(k.x, k.y - k.z - 4, d.x < 0 || (d.x === 0 && this.dir === 'left') ? -1 : 1);
   }
 
   /** Max HP: fixed in the PvP arena (fair fights), raised by passives in the world. */
@@ -681,16 +681,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (this.orbs.n > 0 && (now - this.orbs.lastAt > ORBS.fadeMs || this.dead >= 0)) this.orbs.n = 0;
     if (!P.orbs) return;
-    const g = this.orbGfx ?? (this.orbGfx = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD));
-    g.clear();
-    if (this.orbs.n <= 0 || this.dead >= 0 || !this.view?.visible) return;
+    const show = this.orbs.n > 0 && this.dead < 0 && !!this.view?.visible && this.textures.exists('pas-combo_orb');
+    while (this.orbImgs.length < ORBS.max) this.orbImgs.push(this.add.image(0, 0, 'pas-combo_orb', 0).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(34, 34).setVisible(false));
     const k = this.kin, cy = k.y - k.z - 62, t = now / 1000;
-    for (let i = 0; i < this.orbs.n; i++) {
-      const a = t * 2.4 + (i * Math.PI * 2) / this.orbs.n, x = k.x + Math.cos(a) * 34, y = cy + Math.sin(a) * 12;
-      g.fillStyle(0xffc34a, 0.28).fillCircle(x, y, 9);
-      g.fillStyle(0xfff1c2, 0.95).fillCircle(x, y, 4);
-    }
-    g.setDepth(k.y + 2);
+    this.orbImgs.forEach((img, i) => {
+      if (!show || i >= this.orbs.n) { img.setVisible(false); return; }
+      const a = t * 2.4 + (i * Math.PI * 2) / this.orbs.n, front = Math.sin(a) > 0; // orbit in front of / behind the body
+      img.setVisible(true).setPosition(k.x + Math.cos(a) * 36, cy + Math.sin(a) * 12).setFrame((Math.floor(now / 70) + i * 3) % 8)
+        .setDepth(k.y + (front ? 2 : -2)).setAlpha(Math.min(1, (ORBS.fadeMs - (now - this.orbs.lastAt)) / 600));
+    });
   }
 
   /** Dash / leap: swept along the aim (or toward the locked target), stopped by cover and bodies; never through walls. */

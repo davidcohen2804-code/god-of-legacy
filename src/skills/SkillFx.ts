@@ -82,6 +82,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   if (!scene.textures.exists('holy-aura')) scene.load.spritesheet('holy-aura', `${F}/skills/warrior/radiant_blade/aura.png`, { frameWidth: 250, frameHeight: 667 });
   if (!scene.textures.exists('holy-bolt')) scene.load.spritesheet('holy-bolt', `${F}/skills/warrior/radiant_blade/bolt.png`, { frameWidth: 250, frameHeight: 500 });
   if (!scene.textures.exists('radiant-blade')) scene.load.spritesheet('radiant-blade', `${F}/skills/warrior/radiant_blade/blade_small.png`, { frameWidth: 256, frameHeight: 81 });
+  for (const k of ['war_leap_burst', 'final_slash', 'combo_orb']) if (!scene.textures.exists(`pas-${k}`)) scene.load.spritesheet(`pas-${k}`, `${F}/skills/warrior/passives/${k}.png`, { frameWidth: 256, frameHeight: 256 }); // passive skills
   if (!scene.textures.exists('phantom-blade')) scene.load.spritesheet('phantom-blade', `${F}/skills/warrior/blade_storm/phantom.png`, { frameWidth: 256, frameHeight: 256 });
 }
 
@@ -499,16 +500,23 @@ export class SkillFx {
     this.dust(x + (Math.random() - 0.5) * radius, y + (Math.random() - 0.5) * radius * 0.4, 60, 0.5);
   }
 
-  /** Final Attack: a quick diagonal streak of light across the target + the warrior impact spark. */
+  /** Final Attack: an extra crescent slash of light across the target (sheet slashes top-left → bottom-right). */
   finalSlash(at: V3, dir: number): void {
     const x = at.x, y = at.y - at.z - 40;
-    const g = this.scene.add.graphics().setDepth(TOP + 5).setBlendMode(Phaser.BlendModes.ADD);
-    g.lineStyle(10, 0xffd98a, 0.45).lineBetween(-60 * dir, -46, 60 * dir, 40);
-    g.lineStyle(4, 0xfff6dc, 1).lineBetween(-60 * dir, -46, 60 * dir, 40);
-    g.setPosition(x, y).setScale(0.3, 1);
-    this.scene.tweens.add({ targets: g, scaleX: 1, duration: 70, ease: 'Cubic.easeOut' });
-    this.scene.tweens.add({ targets: g, alpha: 0, delay: 90, duration: 170, onComplete: () => g.destroy() });
+    if (this.scene.textures.exists('pas-final_slash')) {
+      const img = this.scene.add.image(x, y, 'pas-final_slash', 0).setDepth(TOP + 5).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(150, 150).setFlipX(dir < 0);
+      const fms = [30, 30, 40, 50, 50, 50, 60, 70];
+      this.anims.push({ img, t: 0, total: fms.reduce((p, q) => p + q, 0), frames: [0, 1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 70 });
+    }
     this.spark(IMPACT.warrior.key, x, y + 10, IMPACT.warrior.frames, 80, 0.85);
+  }
+
+  /** War Leap: burst of wind under the feet (sheet faces right; streaks blow behind). */
+  leapBurst(x: number, y: number, dir: number): void {
+    if (!this.scene.textures.exists('pas-war_leap_burst')) { this.shockwave(x, y, 46, 0xdff4ff); return; }
+    const img = this.scene.add.image(x - dir * 10, y, 'pas-war_leap_burst', 0).setOrigin(0.5, 0.55).setDepth(y + 1).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(200, 200).setFlipX(dir < 0);
+    const fms = [35, 35, 45, 50, 55, 60, 70, 80];
+    this.anims.push({ img, t: 0, total: fms.reduce((p, q) => p + q, 0), frames: [0, 1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 80 });
   }
 
   /** DFO-style callout above a target (COUNTER!! / BACK ATTACK!! / CRITICAL!!). */
