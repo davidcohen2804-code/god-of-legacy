@@ -1,9 +1,11 @@
-// DOM overlay for Character Creation: name and body, style (face, hair and its colour, skin), class, outfit colours, BACK / CREATE.
-import { CHARACTER_CREATE as L, CHARACTER_PREVIEWS, CLASS_NAMES, CLASS_OPTIONS } from '../config/layout';
+// DOM overlay for Character Creation: name and body, style (face, hair and its colour, skin), the class fan, outfit
+// colours, BACK / CREATE.
+import { CHARACTER_CREATE as L, CHARACTER_PREVIEWS, CLASS_OPTIONS } from '../config/layout';
 import { CharacterStore } from '../characters/CharacterStore';
 import { KIT_LAYOUT, ensureCharacterUIStyles, ensureSelectKitStyles, syncOverlay } from './CharacterSelectUI';
 import OUTFIT_COLORS from '../data/outfit-colors.json';
 import HAIR_COLORS from '../data/hair-colors.json';
+import FAN from '../data/class-fan.json';
 import { LookData, lookCounts } from '../characters/LookArt';
 import { DEFAULT_SKIN, SKIN_TONES } from '../characters/Skin';
 
@@ -18,12 +20,17 @@ type SwatchRow = 'hairColor' | 'skin' | Piece;
 const SWATCHES: Record<SwatchRow, { name: string; swatch: string }[]> = { hairColor: HAIR_COLORS as { name: string; swatch: string }[], skin: SKIN_TONES, ...COLORS_OF };
 
 const KIT = (f: string) => `assets/final/ui/kit/${f}.png`;
+/** The class fan (tools/ui/class_fan.py): the fan, and each card's background lit up (shown while the pointer is on it). */
+const FAN_DIR = 'assets/final/character_create/';
+/** New characters start as the Beginner (the sword Beginner; the class itself comes later in the game). */
+const STARTER = CLASS_OPTIONS[0];
 /** Kit layout (design px). kit/modal_window.png: header strip at 15..22% of its height, body 25..85%. */
 const C = {
   char: { x: 92, y: 196, w: 470, h: 350 },
-  cls: { x: 1388, y: 196, w: 430, h: 470, optTop: 126, optGap: 68, optW: 370, optH: 62 },
+  // the class fan: centred over OUTFIT and CREATE (x 1603), in the right column above OUTFIT
+  fan: { x: 1308, y: 239, w: 590 },
   create: { x: 1438, y: 922, w: 330, h: 126 },
-  // STYLE (left, under CHARACTER): face and hairstyle buttons, hair colour and skin swatches; OUTFIT (right, under CLASS)
+  // STYLE (left, under CHARACTER): face and hairstyle buttons, hair colour and skin swatches; OUTFIT (right, under the class fan)
   look: { x: 92, y: 560, w: 470, h: 360, col: 150, icon: 52, iconGap: 16, sw: 34, swGap: 20, rows: [102, 166, 232, 278] },
   outfit: { x: 1388, y: 680, w: 430, h: 236, col: 150, sw: 34, swGap: 20, rows: [72, 122, 172] },
 } as const;
@@ -31,8 +38,6 @@ const C = {
 export interface CharacterCreateHandlers {
   onBack: () => void;
   onCreated: () => void;
-  /** Selected class changed (scene swaps the centre preview). */
-  onClassChange: (classId: string, appearanceId: string) => void;
   /** Male / female base character chosen (scene shows him / her). */
   onGenderChange?: (gender: 'male' | 'female') => void;
   /** Body, face, hair, skin or a piece's colour changed (scene dresses the preview, then redraws the buttons: setIcons). */
@@ -42,7 +47,12 @@ export interface CharacterCreateHandlers {
 const STYLE_ID = 'gol-charcreate-style';
 const CSS = `
 .gol-cc .info.p-char h2{top:${Math.round(C.char.h * 0.186) - 10}px!important}
-.gol-cc .info.p-cls h2{top:${Math.round(C.cls.h * 0.186) - 10}px!important}
+.gol-cc .fan{position:absolute;pointer-events:none}
+.gol-cc .fan img{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;-webkit-user-drag:none}
+.gol-cc .fan .art{filter:drop-shadow(0 8px 16px rgba(0,0,0,.6))}
+.gol-cc .fan .glow{opacity:0;transition:opacity 320ms ease-out}
+.gol-cc .fan .glow.on{opacity:1;transition-duration:200ms}
+.gol-cc .fan .hit{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:auto}
 .gol-cc .cc-input{background:url("${KIT('choice_btn')}") 0 0/100% 100% no-repeat!important;border:0!important;box-shadow:none!important;border-radius:0!important;
   padding:0 34px!important;font-size:20px!important;height:62px!important}
 .gol-cc .cc-input:focus{background-image:url("${KIT('choice_btn_hover')}")!important}
@@ -77,13 +87,11 @@ export class CharacterCreateUI {
   private root: HTMLDivElement;
   private input: HTMLInputElement;
   private btnCreate: HTMLButtonElement;
-  private classBtns: HTMLButtonElement[] = [];
   private genderBtns: HTMLButtonElement[] = [];
   private gender: 'male' | 'female' = 'male';
   private icons: Record<'face' | 'hair', HTMLButtonElement[]> = { face: [], hair: [] };
   private swatches: Record<SwatchRow, HTMLButtonElement[]> = { hairColor: [], skin: [], top: [], pants: [], shoes: [] };
   private look: CreateLook = { ...FIRST_LOOK };
-  private classIdx = 0;
   private lastRect = '';
   private readonly onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape') { e.preventDefault(); this.h.onBack(); }
@@ -157,23 +165,19 @@ export class CharacterCreateUI {
     const h5 = this.el('h2', '', op); h5.textContent = 'OUTFIT';
     PIECES.forEach((p, r) => this.swatchRow(op, p.id, p.label, O.col, O.rows[r], O.sw, O.swGap));
 
-    // Class panel: the single fixed class.
-    const K = C.cls;
-    const kp = this.el('div', 'abs panel info p-cls', this.root);
-    this.box(kp, K.x, K.y, K.w, K.h);
-    const h3 = this.el('h2', '', kp); h3.textContent = 'CLASS';
-    // Class choice: one kit plate per class with a round portrait; the selected one glows.
-    CLASS_OPTIONS.forEach((opt, i) => {
-      const b = this.el('button', 'kopt', kp) as HTMLButtonElement;
-      const pf = this.el('div', 'pf', b);
-      const pv = CHARACTER_PREVIEWS[`${opt.classId}/${opt.appearanceId}`];
-      if (pv?.portrait) Object.assign(pf.style, { backgroundImage: `url("${pv.portrait}")`, backgroundSize: 'cover', backgroundPosition: 'center top' });
-      else if (pv) { const k = 48 / (pv.crop.w * 0.62); Object.assign(pf.style, { backgroundImage: `url("${pv.file}")`, backgroundSize: `${pv.width * k}px ${pv.height * k}px`, backgroundPosition: `${-(pv.crop.x + pv.crop.w * 0.19) * k}px ${-pv.crop.y * k}px` }); }
-      b.appendChild(document.createTextNode((CLASS_NAMES[opt.classId] ?? opt.classId).toUpperCase()));
-      this.box(b, (K.w - K.optW) / 2, K.optTop + i * K.optGap, K.optW, K.optH);
-      b.addEventListener('mousedown', (e) => e.preventDefault());
-      b.addEventListener('click', () => this.selectClass(i));
-      this.classBtns.push(b);
+    // The class fan: every class in the game side by side (nothing to pick: a new character starts as the Beginner).
+    // The pointer on a card lights up that card's background; its hero and the frame stay as they are.
+    const Fn = C.fan;
+    const fan = this.el('div', 'fan', this.root);
+    this.box(fan, Fn.x, Fn.y, Fn.w, Math.round((Fn.w * FAN.h) / FAN.w));
+    this.img(fan, 'art', `${FAN_DIR}class_fan.webp`);
+    const glows = FAN.cards.map((_, i) => this.img(fan, 'glow', `${FAN_DIR}class_fan_glow_${i}.webp`));
+    FAN.cards.forEach((outline, i) => {
+      const hit = this.el('div', 'hit', fan);
+      hit.style.clipPath = `polygon(${outline.map(([x, y]) => `${((x / FAN.w) * 100).toFixed(2)}% ${((y / FAN.h) * 100).toFixed(2)}%`).join(',')})`;
+      hit.addEventListener('mouseenter', () => glows[i].classList.add('on'));
+      hit.addEventListener('mouseleave', () => glows[i].classList.remove('on'));
+      hit.addEventListener('mousedown', (e) => e.preventDefault()); // keep focus in the name field
     });
 
     // Buttons.
@@ -181,7 +185,6 @@ export class CharacterCreateUI {
     this.btnCreate = this.button('CREATE CHARACTER', { ...C.create, size: 20 }, () => this.create(), true);
 
     window.addEventListener('keydown', this.onKey);
-    this.selectClass(0);
     this.selectGender('male');
     this.render();
     this.layout();
@@ -206,9 +209,8 @@ export class CharacterCreateUI {
   private create(): void {
     const id = CharacterStore.getSelectedId();
     if (!id || !this.canCreate()) return;
-    const opt = CLASS_OPTIONS[this.classIdx];
     const { hair, hairColor, skin, face, top, pants, shoes } = this.look;
-    if (CharacterStore.createCharacter(id, this.input.value, opt.classId, opt.appearanceId, this.gender, { hair, hairColor, skin, face, top, pants, shoes })) this.h.onCreated();
+    if (CharacterStore.createCharacter(id, this.input.value, STARTER.classId, STARTER.appearanceId, this.gender, { hair, hairColor, skin, face, top, pants, shoes })) this.h.onCreated();
   }
 
   private selectGender(g: 'male' | 'female'): void {
@@ -250,13 +252,6 @@ export class CharacterCreateUI {
     });
   }
 
-  private selectClass(i: number): void {
-    this.classIdx = i;
-    this.classBtns.forEach((b, k) => b.classList.toggle('on', k === i));
-    const opt = CLASS_OPTIONS[i];
-    this.h.onClassChange(opt.classId, opt.appearanceId);
-  }
-
   private render(): void {
     this.btnCreate.disabled = !this.canCreate();
   }
@@ -269,6 +264,12 @@ export class CharacterCreateUI {
     el.addEventListener('mousedown', (e) => e.preventDefault()); // keep focus in the name field
     el.addEventListener('click', fn);
     return el;
+  }
+
+  private img(parent: HTMLElement, cls: string, src: string): HTMLImageElement {
+    const im = this.el('img', cls, parent) as HTMLImageElement;
+    Object.assign(im, { src, alt: '', draggable: false });
+    return im;
   }
 
   private el<T extends HTMLElement = HTMLDivElement>(tag: string, cls: string, parent?: HTMLElement): T {

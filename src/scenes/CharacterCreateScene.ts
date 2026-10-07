@@ -55,7 +55,6 @@ export class CharacterCreateScene extends Phaser.Scene {
     this.ui = new CharacterCreateUI(this.game.canvas.parentElement!, this.game.canvas, {
       onBack: () => this.scene.start('CharacterSelectScene'),
       onCreated: () => this.scene.start('CharacterSelectScene'),
-      onClassChange: () => { /* the class is chosen; the character shown stays the base body */ },
       onLookChange: dress,
     });
     apply(ver); // the buttons' pictures (the first look was dressed before the panel existed)
