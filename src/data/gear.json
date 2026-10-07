@@ -8,6 +8,7 @@
     { "id": "starter_shirt", "slot": "top", "name": "T-Shirt", "desc": "A simple short-sleeved shirt.", "def": 3, "colors": "top" },
     { "id": "starter_pants", "slot": "bottom", "name": "Pants", "desc": "Sturdy everyday pants.", "def": 2, "colors": "pants" },
     { "id": "starter_boots", "slot": "shoes", "name": "Boots", "desc": "Worn leather boots, good for the road.", "def": 2, "colors": "shoes" },
-    { "id": "warrior_job_sword", "slot": "weapon", "name": "Swordsman's Blade", "desc": "Given by Master Gareth to those who take the Warrior's path.", "att": 26, "sword": "warrior_job" }
+    { "id": "warrior_job_sword", "slot": "weapon", "name": "Swordsman's Blade", "desc": "Given by Master Gareth to those who take the Warrior's path.", "att": 26, "sword": "warrior_job" },
+    { "id": "warrior_job_helmet", "slot": "head", "name": "Swordsman's Helm", "desc": "A plumed steel helm from Master Gareth, for those who take the Warrior's path.", "def": 4, "helm": "warrior_job" }
   ]
 }

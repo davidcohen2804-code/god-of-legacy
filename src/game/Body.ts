@@ -194,7 +194,10 @@ export const NAKED_LOOK = NAKED_LOOK_LIST as Record<string, { styles: number; co
  *  same frames as the body strip): the clothes in their colour, the sword in hand; 'topo' = the shirt again over the sword
  *  arm where that arm is drawn over the hair (<move>_o.png). naked-look.json lists the moves each has. */
 export type GearPiece = 'top' | 'topo' | 'pants' | 'shoes' | 'sword';
-export interface GearLook { weapon: boolean; top: number; pants: number; shoes: number; /** a weapon with its own strips */ sword?: string }
+export interface GearLook { weapon: boolean; top: number; pants: number; shoes: number; /** a weapon with its own strips */ sword?: string; /** a head piece */ helm?: string }
+/** A head piece's layer: one picture on the standing head, placed like the hair (tools/world: naked/<g>/helm/<id>.png). */
+export const helmKey = (g: string, id: string) => `nhelm-${g}-${id}`;
+export const helmPath = (g: string, id: string) => `assets/final/body/naked/${g}/helm/${id}.png`;
 const gearColor = (w: GearLook, p: GearPiece) => (p === 'sword' ? (w.weapon ? 0 : -1) : p === 'topo' ? w.top : w[p]);
 export const gearKey = (g: string, anim: string, p: GearPiece, c: number, sw?: string) => `ng-${g}-${anim}-${p}${p === 'sword' ? (sw ? `-${sw}` : '') : `-c${c}`}`;
 const gearPath = (g: string, anim: string, p: GearPiece, c: number, sw?: string) => `assets/final/body/naked/${g}/gear/${anim}_${p}${p === 'sword' ? (sw ? `_${sw}` : '') : `_c${c}`}.png`;
@@ -207,6 +210,7 @@ export function gearLayers(g: string, anim: string, w: GearLook | null): [GearPi
 export function loadGear(scene: Phaser.Scene, g: string, w: GearLook | null, start = false): void {
   const have = NAKED_LOOK[g]?.gear; if (!w || !have) return;
   let queued = false;
+  if (w.helm && !scene.textures.exists(helmKey(g, w.helm)) && !pending(scene, helmKey(g, w.helm))) { scene.load.image(helmKey(g, w.helm), helmPath(g, w.helm)); queued = true; }
   for (const [p, anims] of Object.entries(have) as [GearPiece, string[]][]) {
     const c = gearColor(w, p); if (c < 0) continue;
     for (const anim of anims) {

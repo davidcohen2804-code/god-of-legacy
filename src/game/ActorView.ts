@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import COS from '../data/cosmetics.json';
 import { Dir } from '../world/collision';
 import { actorDepth } from '../world/WorldGeometry';
-import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM, baseComplete, ensureWeaponMasks, BaseLook, baseLookLayers, hasOver, overKey, NAKED_LOOK, GearLook, GearPiece, gearLayers, loadGear, swingTrail } from './Body';
+import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM, baseComplete, ensureWeaponMasks, BaseLook, baseLookLayers, hasOver, overKey, NAKED_LOOK, GearLook, GearPiece, gearLayers, helmKey, loadGear, swingTrail } from './Body';
 /** Name plates sit above the world (props in front included), like MapleStory's. */
 export const NAME_DEPTH = 90000;
 import { DEFAULT_SKIN, toneTexture } from '../characters/Skin';
@@ -261,7 +261,7 @@ export class ActorView {
    *  back hair behind the body, then on the head (moving with it) the face, the forehead between the bangs and the front
    *  hair, and the sword arm again where it passes in front of the head. */
   private look: BaseLook | null = null;
-  private lookParts: { b: Phaser.GameObjects.Image; face: Phaser.GameObjects.Image; eyes: Phaser.GameObjects.Image; gap: Phaser.GameObjects.Image; f: Phaser.GameObjects.Image; over: Phaser.GameObjects.Sprite } | null = null;
+  private lookParts: { b: Phaser.GameObjects.Image; face: Phaser.GameObjects.Image; eyes: Phaser.GameObjects.Image; gap: Phaser.GameObjects.Image; f: Phaser.GameObjects.Image; helm: Phaser.GameObjects.Image; over: Phaser.GameObjects.Sprite } | null = null;
   /** Worn gear (equipment): the clothes and the sword drawn on every frame of the base character. */
   private gearW: GearLook | null = null;
   private gearParts: Partial<Record<GearPiece, Phaser.GameObjects.Sprite>> = {};
@@ -278,7 +278,7 @@ export class ActorView {
   private ensureLookParts(): void {
     if (this.lookParts) return;
     const im = () => this.scene.add.image(0, 0, '__DEFAULT').setVisible(false);
-    this.lookParts = { b: im(), face: im(), eyes: im(), gap: im(), f: im(), over: this.scene.add.sprite(0, 0, '__DEFAULT').setVisible(false) };
+    this.lookParts = { b: im(), face: im(), eyes: im(), gap: im(), f: im(), helm: im(), over: this.scene.add.sprite(0, 0, '__DEFAULT').setVisible(false) };
   }
   setBaseLook(l: BaseLook | null, gender: 'male' | 'female' = 'male'): void {
     this.look = l ? { ...l } : null;
@@ -512,6 +512,8 @@ export class ActorView {
     put(P.eyes, has(L.eyes), hx, hy, 0.0035); // the eye colour: the irises over the face (not skin: not re-shaded)
     put(P.gap, tone(has(L.gap)), hx, hy, 0.004);
     put(P.f, has(L.f), hx, hy, 0.006);
+    const hk = this.gearW?.helm ? helmKey(nk.g, this.gearW.helm) : null; // a head piece over the hair (it moves with the head)
+    put(P.helm, hk && this.scene.textures.exists(hk) ? hk : null, hx, hy, 0.0065);
     const ok = hasOver(nk.g, nk.anim) && this.scene.textures.exists(overKey(nk.g, nk.anim));
     put(P.over, ok ? tone(overKey(nk.g, nk.anim)) : null, p.x, p.y, 0.008, nk.frame);
     // worn gear on this very frame: pants, boots, shirt over the body (under the face and hair); the shirt's sleeve again over

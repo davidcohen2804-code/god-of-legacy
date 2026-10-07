@@ -36,7 +36,7 @@ type InvTab = 'gear' | 'items' | 'materials' | 'key' | 'cosmetics';
 const MAIN_TABS: [InvTab, string, string][] = [['gear', 'GEAR', 'icon_gear'], ['items', 'ITEMS', 'icon_items'], ['materials', 'MATERIALS', 'icon_materials'], ['key', 'KEY ITEMS', 'icon_key'], ['cosmetics', 'COSMETICS', 'icon_cosmetics']];
 // sockets painted into kit/doll_panel_gear.png (374x578, tools/base/gear_doll.py): [label, centre x, centre y, gear slot]
 // — the left column holds the gear, head to toe: weapon, top, bottom, shoes; the others are for gear still to come
-const DOLL: [string, number, number, GearSlot?][] = [['Head', 187, 114], ['Weapon', 81, 168, 'weapon'], ['Necklace', 293, 168], ['Top', 73, 272, 'top'], ['Earring', 299, 272], ['Bottom', 79, 372, 'bottom'], ['Shield', 296, 372], ['Shoes', 85, 464, 'shoes'], ['Belt', 190, 462], ['Ring', 282, 464]];
+const DOLL: [string, number, number, GearSlot?][] = [['Head', 187, 114, 'head'], ['Weapon', 81, 168, 'weapon'], ['Necklace', 293, 168], ['Top', 73, 272, 'top'], ['Earring', 299, 272], ['Bottom', 79, 372, 'bottom'], ['Shield', 296, 372], ['Shoes', 85, 464, 'shoes'], ['Belt', 190, 462], ['Ring', 282, 464]];
 /** A piece's icon (bag, doll, tooltip). */
 const gearIcon = (it: GearItem) => `assets/items/${it.id}${GEAR[it.id]?.colors ? `_c${it.color}` : ''}.png`;
 const DOLL_SCALE = 400 / 578;
