@@ -4,7 +4,7 @@
 // handled by the scene) and comes back at its home spot after a while. Damage and reactions are applied by the scene.
 import Phaser from 'phaser';
 import { STAGE6 } from '../config/layout';
-import { actorDepth, clearLine, footAllowed } from './WorldGeometry';
+import { WORLD_OBJECTS, actorDepth, clearLine, footAllowed } from './WorldGeometry';
 import { CombatBody, Kin, newKin, settleOnBlocks, stepKin } from '../combat/Combat';
 import { HitTarget } from '../skills/HitGeometry';
 import { NAME_DEPTH } from '../game/ActorView';
@@ -12,6 +12,8 @@ import { MobKind, MOB_WALL_X } from './Areas';
 
 const C = STAGE6.enemy;
 type Action = keyof typeof C.actions;
+/** A hit makes the monster follow the player this long (ms). */
+const PROVOKED_MS = 15000;
 type AIState = 'idle' | 'wander' | 'chase' | 'attack' | 'home' | 'dead';
 type Side = 'left' | 'right';
 const WIND = 180, ACTIVE = 120, RECOVER = 260; // strike phases (ms), the frame art's timing
@@ -52,6 +54,10 @@ export class Monster {
   private struck = false;
   private flashLeft = 0;
   private respawnLeft = 0;
+  /** Hit by the player: it keeps after him this long (ms) however far he runs (never past the Temple Gate). */
+  private provokedLeft = 0;
+  /** Chasing and a block is in the way: it steps around it (up or down the floor) for this long (ms). */
+  private detourLeft = 0; private detourDir = 1;
   private moving = false;
   private kdMs = 0;
   private lastNow = 0;
@@ -100,6 +106,7 @@ export class Monster {
     this.flashLeft = C.hitFlashMs; this.barShowUntil = now + 5000;
     this.struck = true; // a hit interrupts the pending strike
     if (this.hp <= 0) { this.enter('dead'); this.respawnLeft = this.kind.respawnMs; this.body.push = null; this.deathFade = 1; return true; }
+    this.provokedLeft = PROVOKED_MS;
     if (this.ai === 'attack' || this.ai === 'idle' || this.ai === 'wander' || this.ai === 'home') this.enter('chase'); // provoked
     return false;
   }
@@ -108,7 +115,7 @@ export class Monster {
     const k = this.kin;
     k.x = this.home.x; k.y = this.home.y; k.z = 0; k.vx = 0; k.vy = 0; k.vz = 0; k.grounded = true;
     this.body.reset(); this.body.maxHp = this.kind.hp;
-    this.hp = this.kind.hp; this.sinceAttack = Infinity; this.flashLeft = 0; this.barShowUntil = -1;
+    this.hp = this.kind.hp; this.sinceAttack = Infinity; this.provokedLeft = 0; this.flashLeft = 0; this.barShowUntil = -1;
     this.restoreTint(); this.sprite.setVisible(true).setAlpha(0);
     this.scene.tweens.add({ targets: this.sprite, alpha: 1, duration: 420 }); // fades back in
     this.enter('idle');
@@ -117,7 +124,7 @@ export class Monster {
   private restoreTint(): void { if (this.kind.tint !== undefined) this.sprite.setTint(this.kind.tint); else this.sprite.clearTint(); }
 
   update(ms: number, w: MonsterWorld): void {
-    this.stateMs += ms; this.animMs += ms; this.sinceAttack += ms;
+    this.stateMs += ms; this.animMs += ms; this.sinceAttack += ms; this.provokedLeft = Math.max(0, this.provokedLeft - ms);
     if (this.flashLeft > 0) { this.flashLeft -= ms; if (this.flashLeft <= 0) this.restoreTint(); }
     const now = w.now, b = this.body;
     this.lastNow = now;
@@ -132,6 +139,15 @@ export class Monster {
     else if (b.state === 'free') { this.kin.vx = 0; this.kin.vy = 0; }
     const r = stepKin(this.kin, ms, b.gravityScale(now), (x, y) => x > MOB_WALL_X || w.blocked(this, x, y), this.moving && b.state === 'free' && !b.push);
     settleOnBlocks(this.kin, ms, 0);   // knocked onto a block: onto its top face, never over the floor it hides
+    if (this.ai === 'chase' && this.moving && r.blockedX && this.detourLeft <= 0) {
+      // the block ahead: go round it by its nearer end (up or down the floor)
+      const ax = this.kin.x + Math.sign(this.kin.vx || 1) * 24, ay = this.kin.y;
+      const o = WORLD_OBJECTS.find((q) => { const xs = q.footprint.map((p) => p[0]), ys = q.footprint.map((p) => p[1]); return ax >= Math.min(...xs) - 20 && ax <= Math.max(...xs) + 20 && ay >= Math.min(...ys) - 20 && ay <= Math.max(...ys) + 20; });
+      const ys = o ? o.footprint.map((p) => p[1]) : null;
+      this.detourDir = ys ? (ay - Math.min(...ys) < Math.max(...ys) - ay ? -1 : 1) : (this.kin.y < 520 ? 1 : -1);
+      this.detourLeft = 800;
+    }
+    else if (this.detourLeft > 0 && r.blockedY) this.detourDir = -this.detourDir; // that way is blocked too: the other way round
     if (this.moving && (r.blockedX || r.blockedY) && (this.ai === 'wander' || this.ai === 'home')) this.wanderTo = null; // bumped into something: pick another spot
     const ev = b.update(now, ms, r.landed, r.impactVz);
     if (ev === 'kdImpact') this.kdMs = 0;
@@ -167,11 +183,13 @@ export class Monster {
         break;
       }
       case 'chase': {
-        if (!w.player.alive || dist > K.aggro * 1.8 || fromHome > 520 || w.player.x > MOB_WALL_X + 60) { this.enter('home'); break; }  // past the Temple Gate: out of reach
+        const provoked = this.provokedLeft > 0; // hit by him: it follows him wherever he goes, for a while
+        if (!w.player.alive || (!provoked && (dist > K.aggro * 1.8 || fromHome > 520)) || w.player.x > MOB_WALL_X + 60) { this.provokedLeft = 0; this.enter('home'); break; }  // past the Temple Gate: out of reach
         this.faceToward(w.player.x);
         if (dist <= K.range && Math.abs(dy) < 34) { k.vx = 0; k.vy = 0; if (this.sinceAttack >= K.cooldown && w.player.z < 40) this.startAttack(); break; }
         // stand beside the player (side view): the side it is on, at its reach, same depth
         const side = dx > 0 ? -1 : 1, tx = w.player.x + side * K.range * 0.8, ty = w.player.y;
+        if (this.detourLeft > 0) { this.detourLeft -= ms; this.walkToward(k.x + Math.sign(dx) * 12, k.y + this.detourDir * 60, sp); break; } // around the block
         this.walkToward(tx, ty, sp);
         break;
       }
@@ -185,7 +203,7 @@ export class Monster {
       case 'attack': {
         k.vx = 0; k.vy = 0;
         if (!this.struck && this.stateMs >= WIND && this.stateMs < WIND + ACTIVE && this.canHit(w)) { this.struck = true; w.onStrikePlayer(this, K.damage); }
-        if (this.stateMs >= WIND + ACTIVE + RECOVER) this.enter(w.player.alive && dist <= K.aggro * 1.8 ? 'chase' : 'home');
+        if (this.stateMs >= WIND + ACTIVE + RECOVER) this.enter(w.player.alive && (dist <= K.aggro * 1.8 || this.provokedLeft > 0) ? 'chase' : 'home');
         break;
       }
       default: break;
