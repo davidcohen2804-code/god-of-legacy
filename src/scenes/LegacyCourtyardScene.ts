@@ -75,6 +75,8 @@ const CAST_COOLDOWN_TOLERANCE_MS = 250;
 const JB = { firstMin: 250, follow: 90, followMin: 40 } as const;
 const CAST_ORIGIN_TOLERANCE_PX = 140;
 const COMBO_SHOW_MS = 1400;
+/** Screen px at the bottom covered by the skill tray / EXP bar (arena camera keeps the floor above it). */
+const ARENA_HUD_PX = 280;
 
 function portraitOf(previewKey: string): PortraitRef | undefined {
   const pv = CHARACTER_PREVIEWS[previewKey];
@@ -206,6 +208,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** PvP sparring NPC: present while you are alone in the arena room (local only, endless HP). */
   private bot?: SparringBot;
   private botAwayMs = 0;
+  /** Arena camera follow point (vertical only). */
+  private camTarget = new Phaser.Math.Vector2();
   private botCls = 'warrior';
   private botPaused = false;
   /** Arena analysis: simulation speed (1, 0.5, 0.25) and the hit log. */
@@ -306,7 +310,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (pvpRoom) {
       useArenaGeometry();
       this.add.image(0, 0, T.map.key).setOrigin(0, 0).setDepth(-1);
-      cam.centerOn(WORLD.coordinateSpace.width / 2, WORLD.coordinateSpace.height / 2);
+      // The skill tray covers the bottom of the screen: the camera follows you up / down so the whole floor stays
+      // playable above it; below the map the floor is mirrored and darkened (only ever seen under the HUD).
+      const W = WORLD.coordinateSpace.width, H = WORLD.coordinateSpace.height, extra = Math.ceil(ARENA_HUD_PX / cam.zoom);
+      this.add.image(0, H, T.map.key).setOrigin(0, 0).setFlipY(true).setDepth(-1.1);
+      this.add.rectangle(0, H, W, extra, 0x05080e, 0.45).setOrigin(0, 0).setDepth(-1.05);
+      cam.setBounds(0, 0, W, H + extra);
+      this.camTarget.set(W / 2, this.kin ? this.kin.y : H / 2);
+      cam.startFollow(this.camTarget, true, 0, 0.09);
+      cam.centerOn(W / 2, H / 2);
       this.ambience = new CourtyardAmbience(this, WORLD.coordinateSpace.width, WORLD.coordinateSpace.height);
       // Baked-map occlusion: each prop silhouette is redrawn from the map at its footprint depth (no floor crop).
       this.occluders = WORLD_OBJECTS.map((o) => {
@@ -509,6 +521,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     });
     this.updateBot(ms, now);
     this.reactionFx(ms);
+    if (this.pvp || this.arena) this.camTarget.set(WORLD.coordinateSpace.width / 2, this.kin.y + 70); // keep yourself above the tray
     this.renderPlayer(this.fx.hitStopLeft > 0 ? 0 : ms);
     this.updateWorldUi(ms);
     this.bubbles?.update(now, (id) => {
