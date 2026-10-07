@@ -38,6 +38,43 @@ def load(k):
   if sun: print('sun painted out:', k, [round(v) for v in sun]); return unsun(im, *sun).astype(np.float32)
   return im.astype(np.float32)
 maps = {k: load(k) for k in ROW}
+
+
+def level_light(maps):
+  """Every map is lit from its right (bright right edge, dark left edge), so where two meet bright meets dark. Per row,
+  the left-to-right trend of the brightness (a straight line fitted to the blurred brightness) is taken out and the row
+  brought to the level all maps share there; local light (shafts, glows, shade) stays as painted."""
+  xs = np.arange(AW, dtype=np.float32) - AW / 2
+  fits = {}
+  for k, im in maps.items():
+    L = cv2.GaussianBlur(im.mean(2), (0, 0), sigmaX=40, sigmaY=20)
+    b = (L * xs).sum(1) / (xs * xs).sum()                  # slope per row
+    a = L.mean(1)                                          # level per row
+    fits[k] = (cv2.GaussianBlur(a[:, None], (0, 0), 15)[:, 0], cv2.GaussianBlur(b[:, None], (0, 0), 15)[:, 0])
+  level = np.mean([f[0] for f in fits.values()], axis=0)
+  for k, (a, b) in fits.items():
+    trend = a[:, None] + b[:, None] * xs[None, :]
+    gain = np.clip(level[:, None] / np.maximum(trend, 1), 0.6, 1.6)
+    maps[k] = np.clip(maps[k] * gain[..., None], 0, 255)
+    print('light levelled:', k, 'edge gain left/right (floor row 500):', round(float(gain[500, 0]), 2), round(float(gain[500, -1]), 2))
+
+
+def match_seam(a, b, ov, ramp=460):
+  """What is left of a light / colour step where two maps meet: per row, the difference of their average colour near the
+  join is split between them, fading out over `ramp` px on each side."""
+  A, B = maps[a], maps[b]
+  n = ov + 80
+  d = A[:, AW - n:].mean(1) - B[:, :n].mean(1)                     # per row, B->A colour step (H x 3)
+  d = np.clip(cv2.GaussianBlur(d[:, None, :], (0, 0), sigmaX=1, sigmaY=30)[:, 0, :], -40, 40)
+  t = np.clip(np.arange(ramp, dtype=np.float32) / ramp, 0, 1); w = 1 - t * t * (3 - 2 * t)   # 1 at the join → 0
+  A[:, AW - ramp:] -= (w[::-1][None, :, None] * d[:, None, :] / 2)
+  B[:, :ramp] += (w[None, :, None] * d[:, None, :] / 2)
+  maps[a] = np.clip(A, 0, 255); maps[b] = np.clip(B, 0, 255)
+
+
+if all('blend' in J[f'{a}|{b}'] for a, b in zip(ROW, ROW[1:])):
+  level_light(maps)
+  for a, b in zip(ROW, ROW[1:]): match_seam(a, b, J[f'{a}|{b}']['blend'])
 strip = np.zeros((AH, W, 3), np.float32)
 for k in ROW: strip[:, xs[k]:xs[k] + AW] = maps[k]
 
