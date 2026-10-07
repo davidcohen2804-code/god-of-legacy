@@ -27,7 +27,7 @@ const MOVE_COLS: Record<MoveState, number> = { idle: 12, walk: 8, run: 8, jump: 
 const SHEET_CLASSES = ['warrior', 'book_mage'] as const;
 const sheetKey = (cls: string, st: string) => `body-${cls}-${st}`;
 /** Extended-kit skills reuse an existing body animation (pose family) until they get their own sheet. */
-const BODY_ALIAS: Record<string, string> = { guard_counter: 'iron_grip', iron_oath: 'war_cry', legacy_banner: 'radiant_blade' };
+const BODY_ALIAS: Record<string, string> = { guard_counter: 'iron_grip', iron_oath: 'sanctuary', legacy_banner: 'radiant_blade' };
 /** Skills that play the regular attack's movement (one strike of the basic chain sheet) instead of their own body. */
 const POSE_AS_BASIC: Record<string, number> = { wave_slash: 0 };
 export const bodyIdOf = (id: string) => BODY_ALIAS[id] ?? id;
@@ -379,7 +379,9 @@ const SKILL_PLAN: Record<string, { st: number[]; ac: number[]; rc: number[] }> =
   radiant_blade: { st: [0, 1, 2, 3, 3, 4, 4, 4, 4, 5], ac: [6], rc: [6, 7, 7] }, // raise, hold for the lightning, brace, sweep down, ready
   sanctuary: { st: [0, 1, 2, 3, 4, 5], ac: [6, 6], rc: [6, 7] },
   lance_thrust: { st: [0, 1], ac: [2, 3, 2, 3, 4, 5], rc: [6, 7] },
-  war_cry: { st: [0, 1, 2, 3], ac: [3, 4, 4, 4, 4, 4, 4, 4, 4], rc: [5, 6, 7] } };
+  war_cry: { st: [0, 1, 2, 3], ac: [3, 4, 4, 4, 4, 4, 4, 4, 4], rc: [5, 6, 7] },
+  iron_oath: { st: [0, 1, 2, 3, 4, 5], ac: [6, 6], rc: [6, 7] }, // traces the oath circle (Sanctuary's moves)
+  legacy_banner: { st: [0, 1, 2, 3, 4, 4, 5], ac: [6], rc: [6, 7, 7] } }; // sword to the sky, then down (Radiant Blade's moves)
 
 function skillColumn(cols: number, q: Extract<PoseQuery, { k: 'skill' }>, offset: number): number {
   const { elapsed: e, startup: s, active: a, recovery: r } = q;

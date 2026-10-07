@@ -1233,8 +1233,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
     this.body.armorUntil = -1;
     if (s.id === 'war_cry') { this.warCryUntil = this.simMs + s.startup + 8000; this.shareWithParty(s.id, 8000); }
-    if (s.id === 'iron_oath') { this.oathUntil = this.simMs + s.startup + 60000; this.shareWithParty(s.id, 60000); this.time.delayedCall(s.startup, () => { this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'IRON OATH', '#ffd27a', 0); this.fx?.shockwave(this.kin.x, this.kin.y, 170, 0xffd27a); }); }
-    if (s.id === 'legacy_banner') { this.bannerUntil = this.simMs + s.startup + 90000; this.shareWithParty(s.id, 90000); this.time.delayedCall(s.startup, () => { this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'LEGACY BANNER', '#ffe7a0', 0); this.fx?.shockwave(this.kin.x, this.kin.y, 220, 0xfff1c2); this.fx?.passiveFx('stance_ring', { x: this.kin.x, y: this.kin.y, z: 0 }, 260, { originY: 0.66, depth: this.kin.y - 1, normal: true }); }); }
+    if (s.id === 'iron_oath') { this.oathUntil = this.simMs + s.startup + 60000; this.shareWithParty(s.id, 60000); this.time.delayedCall(s.startup, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'IRON OATH', '#ffd27a', 0)); }
+    if (s.id === 'legacy_banner') { this.bannerUntil = this.simMs + s.startup + 90000; this.shareWithParty(s.id, 90000); this.time.delayedCall(Math.round(s.startup * 0.7), () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'LEGACY BANNER', '#ffe7a0', 0)); }
     if (s.id === 'blade_storm') this.radiantUntil = Math.max(this.radiantUntil, this.simMs + s.startup + s.active + 5000); // the storm leaves the blade of light in your hand
     if (s.id === 'sanctuary') this.domeAt = this.simMs + Math.round(s.startup * 0.95); // sim clock (hit-stop/fast-step safe)
     if (s.id === 'radiant_blade') { this.boltDone = false; this.radiantFrom = this.simMs + Math.round(s.startup * 0.4); } // light appears when the sword is raised

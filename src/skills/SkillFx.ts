@@ -82,7 +82,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   if (!scene.textures.exists('holy-aura')) scene.load.spritesheet('holy-aura', `${F}/skills/warrior/radiant_blade/aura.png`, { frameWidth: 250, frameHeight: 667 });
   if (!scene.textures.exists('holy-bolt')) scene.load.spritesheet('holy-bolt', `${F}/skills/warrior/radiant_blade/bolt.png`, { frameWidth: 250, frameHeight: 500 });
   if (!scene.textures.exists('radiant-blade')) scene.load.spritesheet('radiant-blade', `${F}/skills/warrior/radiant_blade/blade_small.png`, { frameWidth: 256, frameHeight: 81 });
-  for (const k of ['war_leap_burst', 'final_slash', 'combo_orb', 'heal_sparkle', 'stance_ring', 'chains_break', 'target_mark']) if (!scene.textures.exists(`pas-${k}`)) scene.load.spritesheet(`pas-${k}`, `${F}/skills/warrior/passives/${k}.png`, { frameWidth: 256, frameHeight: 256 }); // passive skills
+  for (const k of ['war_leap_burst', 'final_slash', 'combo_orb', 'heal_sparkle', 'stance_ring', 'chains_break', 'target_mark', 'iron_oath_cast', 'banner_plant', 'banner_wave']) if (!scene.textures.exists(`pas-${k}`)) scene.load.spritesheet(`pas-${k}`, `${F}/skills/warrior/passives/${k}.png`, { frameWidth: 256, frameHeight: 256 }); // passive skills
   if (!scene.textures.exists('phantom-blade')) scene.load.spritesheet('phantom-blade', `${F}/skills/warrior/blade_storm/phantom.png`, { frameWidth: 256, frameHeight: 256 });
 }
 
@@ -148,6 +148,11 @@ export class SkillFx {
     if (s.id === 'judgment_blade') this.judgment(r);
     else if (s.id === 'guard_counter') this.aegis(r);
     else if (s.id === 'war_cry') this.roar(r);
+    else if (s.id === 'iron_oath') this.oathSigil(r);
+    else if (s.id === 'legacy_banner') { // planted in front of the caster where the sword comes down (every client sees it)
+      const side = r.aim.x < 0 ? -1 : 1, bx = r.origin.x + side * 70, by = r.origin.y;
+      this.scene.time.delayedCall(Math.round(r.timings.startup * 0.7), () => this.bannerPlant(bx, by, 8000));
+    }
     else if (s.id === 'radiant_blade') { /* lightning fired by the scene at the real sword tip */ }
     else if (s.id === 'sanctuary') { /* the wall itself is the effect: no ring on the floor */ }
     else if (s.id === 'blade_storm' && this.scene.textures.exists('bs-storm')) this.lightningStorm(r);
@@ -498,6 +503,36 @@ export class SkillFx {
     const img = this.scene.add.image(x, y, vfxKey('ground_breaker'), 6).setOrigin(0.5, 0.8).setDepth(GROUND + 2).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(radius * 2.4, radius * 2.4).setAlpha(0.7);
     this.anims.push({ img, t: 0, total: 300, frames: [5, 6, 7], frameMs: [100, 100, 100], fadeLast: 120 });
     this.dust(x + (Math.random() - 0.5) * radius, y + (Math.random() - 0.5) * radius * 0.4, 60, 0.5);
+  }
+
+  /** Iron Oath: the heart-and-sword sigil rises around the caster and pulses out (follows the caster). */
+  private oathSigil(r: CastRun): void {
+    if (!this.scene.textures.exists('pas-iron_oath_cast')) return;
+    const c = () => this.casterPos(r.attackerId);
+    const p = c(); if (!p) return;
+    const img = this.scene.add.image(p.x, p.y - p.z, 'pas-iron_oath_cast', 0).setOrigin(0.5, 0.96).setDisplaySize(250, 250).setDepth(p.y - 1);
+    const total = r.timings.startup + r.timings.active + r.timings.recovery, fms = [0.1, 0.1, 0.12, 0.14, 0.14, 0.14, 0.13, 0.13].map((f) => Math.round(f * total));
+    this.anims.push({ img, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: [0, 1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 160,
+      follow: () => { const q = c(); if (q) img.setDepth(q.y - 1); return q ? { x: q.x, y: q.y + 4, z: q.z } : null; } });
+  }
+
+  /** Legacy Banner: a banner of light falls and plants beside the caster, then waves in place for `holdMs`. */
+  bannerPlant(x: number, y: number, holdMs: number): void {
+    if (!this.scene.textures.exists('pas-banner_plant')) return;
+    const img = this.scene.add.image(x, y + 4, 'pas-banner_plant', 0).setOrigin(0.5, 1).setDisplaySize(230, 230).setDepth(y);
+    const plant = [50, 50, 60, 80, 90, 100, 110, 120];
+    let i = 0, t = 0, phase: 'plant' | 'wave' | 'fade' = 'plant', waveT = 0;
+    this.spark(IMPACT.warrior.key, x, y - 20, IMPACT.warrior.frames, 170, 0.9, 0);
+    const ev = this.scene.time.addEvent({ delay: 30, loop: true, callback: () => {
+      t += 30;
+      if (phase === 'plant') {
+        while (i < 7 && t >= plant[i]) { t -= plant[i]; i++; img.setFrame(i); if (i === 2) { this.shockwave(x, y, 150, 0xffd27a); this.dust(x, y, 90, 0.8); } }
+        if (i >= 7 && t >= plant[7]) { phase = 'wave'; t = 0; img.setTexture('pas-banner_wave', 0).setDisplaySize(230, 230); }
+      } else if (phase === 'wave') {
+        waveT += 30; img.setFrame(Math.floor(waveT / 110) % 8);
+        if (waveT >= holdMs) { phase = 'fade'; this.scene.tweens.add({ targets: img, alpha: 0, duration: 500, onComplete: () => { ev.remove(); img.destroy(); } }); }
+      }
+    } });
   }
 
   /** One passive-skill sheet (8 frames, 256 cells) played once; `follow` keeps it on a moving body. */
