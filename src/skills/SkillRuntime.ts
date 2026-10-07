@@ -3,7 +3,7 @@
 // caster and per-cast/per-hit/per-target de-duplication. Damage/reactions are applied by the scene (authority rules).
 import Phaser from 'phaser';
 import { FinalSkill, HitEvent } from './SkillTypes';
-import { HitTarget, Projectile, V2, V3, burstTargets, chainTargets, fanDirs, shapeContains, spawnProjectile, stepProjectile } from './HitGeometry';
+import { HitTarget, Projectile, V2, V3, burstTargets, clampAim, chainTargets, fanDirs, shapeContains, spawnProjectile, stepProjectile } from './HitGeometry';
 
 export type Phase = 'startup' | 'active' | 'recovery' | 'done';
 
@@ -91,6 +91,7 @@ export class SkillRuntime {
   get runCount(): number { return this.runs.length; }
 
   start(req: CastRequest, startElapsed = 0): CastRun {
+    req = { ...req, aim: clampAim(req.aim) }; // no straight up / down attacks, for every caster
     const s = req.skill;
     const timings = { ...(s.chain?.timings?.[req.stage] ?? { startup: s.startup, active: s.active, recovery: s.recovery }) };
     const sp = this.world.speedMul?.(req) ?? 1;
@@ -159,7 +160,7 @@ export class SkillRuntime {
   /** Counter triggered: the reappearing slash fires now, aimed at the attacker. */
   triggerCounter(run: CastRun, aim: V2, newOrigin: V3): void {
     run.counterTriggered = true;
-    run.aim = aim; run.origin = newOrigin; run.pathStart = { x: newOrigin.x, y: newOrigin.y };
+    run.aim = clampAim(aim, aim.x < 0 ? -1 : 1); run.origin = newOrigin; run.pathStart = { x: newOrigin.x, y: newOrigin.y };
     run.elapsed = run.timings.startup; // re-enter active from the trigger moment
     run.phase = 'active';
     this.events.emit(RT_EVENTS.counter, run);

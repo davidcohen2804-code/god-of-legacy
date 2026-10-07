@@ -54,7 +54,7 @@ import { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import { finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
 import { CastRun, SkillRuntime } from '../skills/SkillRuntime';
 import { Afterimages, applyMotion, archerMotion, leapMotion } from '../skills/ArcherMotion';
-import { HitTarget, V2, V3, clampPlace, unit } from '../skills/HitGeometry';
+import { HitTarget, V2, V3, clampAim, clampPlace, unit } from '../skills/HitGeometry';
 import { SkillFx, preloadSkillFx } from '../skills/SkillFx';
 import { BEGINNER_TO, jobOfSlot, playedClass } from '../skills/Jobs';
 import { DeathFx, preloadDeathFx } from '../game/DeathFx';
@@ -541,12 +541,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private alertUntil = -1;
   private setMode(m: Mode): void { if (m !== this.mode) { this.mode = m; this.modeT = 0; } }
 
+  /** The side the player last faced (left / right): decides the side of an up / down input. */
+  private faceSide = 1;
   private stepPlayer(ms: number, now: number): void {
     const k = this.kin, b = this.body, inp = this.ci!;
     this.modeT += ms; this.loopT += ms;
     if (this.flash >= 0) { this.flash += ms; if (this.flash >= P6.hitFlashRedMs) this.flash = -1; }
     // Aim: keyboard only — the held movement direction (8-way), else the last one.
     if (inp.hasMove) this.aim = unit(inp.moveX, inp.moveY, this.aim.x, this.aim.y);
+    if (inp.moveX !== 0) this.faceSide = inp.moveX < 0 ? -1 : 1;
 
     if (this.dead >= 0) { this.dead += ms; this.setMode('dead'); k.vx = 0; k.vy = 0; stepKin(k, ms); this.deathFx?.update(ms); this.updateDeath(); return; }
 
@@ -650,7 +653,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.id === 'judgment_blade') { // leap high, hang at the apex while the light-blade charges, throw, then drop
       if (!run.jbInit) { run.jbInit = true; run.jbApex = this.jb ? 0 : run.origin.z > 5 ? 80 : 185; if (this.jb) { run.timings.startup = run.jbQuick ? JB.followMin : JB.follow; run.origin = { ...run.origin, z: this.jb.z }; } } // follow-up throw: no new leap, no charge
       const e = run.elapsed, rise = Math.min(1, e / 380), apex = run.jbApex ?? 0; // from a jump: a shorter extra rise
-      if (run.phase === 'startup' && inp.hasMove) { run.aim = unit(inp.moveX, inp.moveY); this.aim = run.aim; } // aim the throw while hovering
+      if (run.phase === 'startup' && inp.hasMove) { run.aim = clampAim(unit(inp.moveX, inp.moveY), this.faceSide); this.aim = run.aim; } // aim the throw while hovering
       // Every extra press of V is one more blade, at once: the blade in hand flies as soon as it has formed…
       if (run.phase === 'startup' && this.jbWant > 0 && e < T.startup && e >= (apex ? JB.firstMin : JB.followMin)) { run.timings.startup = e; this.jbWant--; }
       k.grounded = false; k.z = run.origin.z + apex * (1 - (1 - rise) * (1 - rise)); k.vz = 0; k.vx = 0; k.vy = 0;
@@ -1372,7 +1375,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       }
       if (best) { lock = best.id; aim = unit(best.x - k.x, best.y - k.y, aim.x, aim.y); }
     }
-    return { aim, place, lock };
+    return { aim: clampAim(aim, this.faceSide), place, lock }; // level or diagonal only, never straight up / down
   }
 
   private startCast(s: FinalSkill, stage: number, aim: V2, place: V2 | null, lock: string | null): void {
@@ -1947,7 +1950,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onRelease: (from, m) => { // Judgment Blade thrown: final aim + the moment it left the hand
         const r = this.rt?.runs.find((x) => x.castId === m.castId && x.attackerId === from);
         if (r && r.skill.id === 'arrow_storm') { r.timings.active = Math.min(r.timings.active, Math.max(m.at, r.elapsed - r.timings.startup)); return; } // Arrow Storm: the caster let go of the key
-        if (r && r.phase === 'startup') { r.aim = unit(m.ax, m.ay); r.timings.startup = Math.max(r.elapsed, m.at); }
+        if (r && r.phase === 'startup') { r.aim = clampAim(unit(m.ax, m.ay)); r.timings.startup = Math.max(r.elapsed, m.at); }
         this.pvp?.remotes.get(from)?.setSkillStartup(r?.skill.id ?? '', r ? r.timings.startup : m.at);
       },
       onConfirmed: (victim, m) => {
