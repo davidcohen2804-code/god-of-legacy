@@ -134,6 +134,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private orbImgs: Phaser.GameObjects.Image[] = [];
   private regenAt = 0;
   private seenStance = -Infinity;
+  /** Party buffs (Iron Oath: Max HP +30%; Legacy Banner: +10% damage, -10% damage taken). */
+  oathUntil = -1;
+  bannerUntil = -1;
+  private hpMaxSeen = 0;
   private seenEndure = -Infinity;
   private markAt = new Map<string, number>();
   /** PvP arena scene (fixed HP for everyone). */
@@ -672,7 +676,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private setAllOpen(on: boolean): void { setAllSkillsOpen(on); this.applyPassives(); this.skillBook?.setUnlockAll(this.allOpen()); }
 
   /** Max HP: fixed in the PvP arena (fair fights), raised by passives in the world. */
-  maxHpNow(): number { return this.arena ? PVP.maxHp : Math.round(S6.player.maxHp * this.passives.hpMul); }
+  maxHpNow(): number { return this.arena ? PVP.maxHp : Math.round(S6.player.maxHp * this.passives.hpMul * (this.simMs < this.oathUntil ? 1.3 : 1)); }
 
   /** Passive damage multiplier: Sword Mastery × Combo Force orbs. */
   private passiveDmgMul(): number { return this.passives.dmg * (1 + ORBS.perOrb * this.orbs.n); }
@@ -726,6 +730,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         }
       }
     }
+    const mx = this.maxHpNow();
+    if (this.hpMaxSeen && mx !== this.hpMaxSeen && this.dead < 0) this.playerHP = Math.max(1, Math.min(mx, Math.round(this.playerHP * mx / this.hpMaxSeen)));
+    this.hpMaxSeen = mx; this.body.maxHp = mx;
     const b = this.body, kn = this.kin;
     if (b.stanceAt > this.seenStance) { // Power Stance / Warrior Mastery held the ground
       this.seenStance = b.stanceAt;
@@ -1069,7 +1076,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private onJumpKey(): void { if (this.pvpReady && this.dead < 0 && !this.inputLocked()) this.ci?.queueJump(); }
 
   /** Own damage buffs right now: War Cry +20%, Radiant Blade +15% (same as against monsters). */
-  private ownDamageMul(): number { return (this.simMs < this.warCryUntil ? 1.2 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * this.passiveDmgMul(); }
+  private ownDamageMul(): number { return (this.simMs < this.warCryUntil ? 1.2 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * (this.simMs < this.bannerUntil ? 1.1 : 1) * this.passiveDmgMul(); }
+
+  /** Party buffs: the caster always gets them; in a party every member near the caster gets them too.
+   *  There is no party system yet, so for now this reaches nobody else (hook for the party feature). */
+  private partyMembersNear(): string[] { return []; }
+  private shareWithParty(_skillId: string, _ms: number): void { for (const _id of this.partyMembersNear()) { /* send the buff to that member (party feature) */ } }
 
   /** Skills open with the job advancements; in the PvP arena every skill is open (testing the combat). */
   private skillOpen(s: FinalSkill): boolean {
@@ -1161,7 +1173,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const castId = `${this.localId}:${++this.castSeq}`;
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
     this.body.armorUntil = -1;
-    if (s.id === 'war_cry') this.warCryUntil = this.simMs + s.startup + 8000;
+    if (s.id === 'war_cry') { this.warCryUntil = this.simMs + s.startup + 8000; this.shareWithParty(s.id, 8000); }
+    if (s.id === 'iron_oath') { this.oathUntil = this.simMs + s.startup + 60000; this.shareWithParty(s.id, 60000); this.time.delayedCall(s.startup, () => { this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'IRON OATH', '#ffd27a', 0); this.fx?.shockwave(this.kin.x, this.kin.y, 170, 0xffd27a); }); }
+    if (s.id === 'legacy_banner') { this.bannerUntil = this.simMs + s.startup + 90000; this.shareWithParty(s.id, 90000); this.time.delayedCall(s.startup, () => { this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'LEGACY BANNER', '#ffe7a0', 0); this.fx?.shockwave(this.kin.x, this.kin.y, 220, 0xfff1c2); this.fx?.passiveFx('stance_ring', { x: this.kin.x, y: this.kin.y, z: 0 }, 260, { originY: 0.66, depth: this.kin.y - 1, normal: true }); }); }
     if (s.id === 'blade_storm') this.radiantUntil = Math.max(this.radiantUntil, this.simMs + s.startup + s.active + 5000); // the storm leaves the blade of light in your hand
     if (s.id === 'sanctuary') this.domeAt = this.simMs + Math.round(s.startup * 0.95); // sim clock (hit-stop/fast-step safe)
     if (s.id === 'radiant_blade') { this.boltDone = false; this.radiantFrom = this.simMs + Math.round(s.startup * 0.4); } // light appears when the sword is raised
@@ -1455,7 +1469,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Returns the damage actually taken (Iron Body cuts it). */
   private takeDamage(raw: number): number {
     if (this.dead >= 0 || raw <= 0) return 0;
-    const dmg = Math.max(1, Math.round(raw * this.passives.takenMul));
+    const dmg = Math.max(1, Math.round(raw * this.passives.takenMul * (this.simMs < this.bannerUntil ? 0.9 : 1)));
     this.playerHP = Math.max(0, this.playerHP - dmg);
     this.flash = 0;
     if (this.playerHP === 0) this.killPlayer();
@@ -1463,6 +1477,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   private killPlayer(): void {
+    this.oathUntil = -1; this.bannerUntil = -1; // party buffs end on death
     this.rt?.cancelOwn('death');
     if (this.jb) { const jbs = this.kit.find((x) => x.id === 'judgment_blade'); if (jbs) this.rt?.closeCharges(jbs); this.jb = null; this.jbWant = 0; }
     this.ci?.reset();
@@ -1798,7 +1813,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       mode: pvp ? 'pvp' : 'pve',
       player: {
         id: pvp?.meta.playerId ?? ch.id, name: ch.name, level: ch.level, portrait: portraitOf(previewKeyOf(ch)),
-        hp: this.playerHP, maxHp: this.maxHpNow(), resource: null, effects: this.statusEffects(this.body, now),
+        hp: this.playerHP, maxHp: this.maxHpNow(), resource: null, effects: [...this.buffEffects(), ...this.statusEffects(this.body, now)],
         exp: Number.isFinite(expToNext(ch.level)) ? { value: ch.exp ?? 0, max: expToNext(ch.level) } : undefined,
       },
       target: alive && this.pvpReady ? this.hudTarget() : null,
@@ -1807,6 +1822,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       room: pvp ? { label: `ROOM ${pvp.room}`, playerCount: pvp.connected ? pvp.remotes.size + 1 : 0, maxPlayers: PVP.maxPlayers } : null,
       combatFeedback: showCombo ? { count: this.combo.count, chain: `${this.combo.label}  ·  TOTAL ${Math.min(999, Math.round((this.combo.dmg / this.combo.max) * 100))}%`, expiresAtMs: this.combo.at + COMBO_SHOW_MS } : null,
     };
+  }
+
+  /** Own active buffs with their timers (HUD buff row). */
+  private buffEffects(): HudEffect[] {
+    const out: HudEffect[] = [], now = this.simMs, ic = (id: string) => `assets/final/skills/warrior/${id}/icon.png`;
+    for (const [id, label, until] of [['war_cry', 'War Cry', this.warCryUntil], ['radiant_blade', 'Radiant Blade', this.radiantUntil], ['iron_oath', 'Iron Oath', this.oathUntil], ['legacy_banner', 'Legacy Banner', this.bannerUntil]] as const)
+      if (now < until) out.push({ id, label, iconUrl: ic(id), harmful: false, expiresAtMs: until });
+    return out;
   }
 
   /** Small status icons, only when meaningful: hard CC, launched, knockdown. */

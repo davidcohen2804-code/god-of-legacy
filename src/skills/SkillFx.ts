@@ -10,7 +10,7 @@ import { WORLD_OBJECTS } from '../world/WorldGeometry';
 
 const F = 'assets/final';
 /** Skills that borrow another skill's VFX sheet (no art of their own). */
-const VFX_ALIAS: Record<string, string> = { wave_slash: 'warrior_basic', radiant_blade: 'war_cry', sanctuary: 'war_cry' };
+const VFX_ALIAS: Record<string, string> = { wave_slash: 'warrior_basic', radiant_blade: 'war_cry', sanctuary: 'war_cry', iron_oath: 'war_cry', legacy_banner: 'war_cry' };
 const vfxKey = (id: string) => `vfx-${VFX_ALIAS[id] ?? id}`;
 const isBig = (s: FinalSkill) => s.slot === 6 || s.slot === 7;
 const TOP = 100000;

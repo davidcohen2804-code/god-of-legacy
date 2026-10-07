@@ -131,6 +131,22 @@ const warrior: FinalSkill[] = [
     relations: ['Buff 15s', 'Range +85%'],
   }),
   S({
+    id: 'iron_oath', cls: 'warrior', slot: 14, name: 'Iron Oath', roles: ['setup'], targeting: 'self',
+    startup: 420, active: 200, recovery: 260, cooldown: 30000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 880],
+    hits: [H(0, 4, { kind: 'circle', radius: 120 }, { stun: 240, push: 20 }, { reachUp: 140 })],
+    cancelOnHit: ['dash_slash', 'rising_slash', 'leap_crash'], tags: ['buff', 'party'],
+    description: 'Swear the iron oath: Max HP +30% for 60s. In a party it also strengthens every party member near you.',
+    relations: ['Buff 60s', 'Party buff'],
+  }),
+  S({
+    id: 'legacy_banner', cls: 'warrior', slot: 15, name: 'Legacy Banner', roles: ['setup'], targeting: 'self',
+    startup: 900, active: 200, recovery: 300, cooldown: 60000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1400],
+    hits: [H(0, 10, { kind: 'circle', radius: 160 }, { stun: 360, push: 30 }, { reachUp: 140 })],
+    cancelOnHit: ['warrior_basic', 'dash_slash', 'blade_storm', 'titans_verdict'], tags: ['buff', 'party'],
+    description: 'Plant a banner of light: +10% damage and 10% less damage taken for 90s. In a party every party member near you shares it.',
+    relations: ['Buff 90s', 'Party buff'],
+  }),
+  S({
     id: 'lance_thrust', cls: 'warrior', slot: 11, name: 'Impaling Rush', roles: ['extender', 'peel'], targeting: 'mouseDir',
     startup: 160, active: 420, recovery: 300, cooldown: 4500, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 260 }, carry: true,
@@ -144,7 +160,7 @@ const warrior: FinalSkill[] = [
     startup: 360, active: 900, recovery: 240, cooldown: 15000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1500],
     hits: [H(0, 6, { kind: 'circle', radius: 170 }, { stun: 420, pull: 34 }, { reachUp: 140 })],
     cancelOnHit: ['dash_slash', 'leap_crash', 'lance_thrust', 'blade_storm'], tags: ['buff'],
-    description: 'Battle roar — also breaks free from stun, hits and knockdowns: pulls nearby foes in and grants a golden aura for 8s — +20% damage and super armor while attacking.',
+    description: 'Battle roar — also breaks free from stun, hits and knockdowns: pulls nearby foes in and grants a golden aura for 8s — +20% damage and super armor while attacking. In a party, members near you gain +10% damage.',
     relations: ['Buff 8s', 'Super armor'],
   }),
   S({

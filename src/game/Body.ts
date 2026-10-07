@@ -27,7 +27,7 @@ const MOVE_COLS: Record<MoveState, number> = { idle: 12, walk: 8, run: 8, jump: 
 const SHEET_CLASSES = ['warrior', 'book_mage'] as const;
 const sheetKey = (cls: string, st: string) => `body-${cls}-${st}`;
 /** Extended-kit skills reuse an existing body animation (pose family) until they get their own sheet. */
-const BODY_ALIAS: Record<string, string> = { guard_counter: 'iron_grip' };
+const BODY_ALIAS: Record<string, string> = { guard_counter: 'iron_grip', iron_oath: 'war_cry', legacy_banner: 'radiant_blade' };
 /** Skills that play the regular attack's movement (one strike of the basic chain sheet) instead of their own body. */
 const POSE_AS_BASIC: Record<string, number> = { wave_slash: 0 };
 export const bodyIdOf = (id: string) => BODY_ALIAS[id] ?? id;

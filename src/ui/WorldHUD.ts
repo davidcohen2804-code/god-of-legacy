@@ -19,7 +19,7 @@ const G = {
   mp: { x: 148, y: 104, w: 430, h: 69, ch: { x: 37, y: 21, w: 356, h: 29 } },
   buffs: { x: 158, y: 164, size: 38, gap: 6 },
   exp: { x: 420, y: 1032, w: 1080, h: 55, ch: { x: 44, y: 21, w: 992, h: 14 } },
-  tray: { x: 396, y: 936, w: 1128, h: 100, slot: 64, gap: 12, x0: 32, y0: 8 },
+  tray: { x: 379, y: 936, w: 1162, h: 100, slot: 64, gap: 6, x0: 24, y0: 8 }, // 16 slots
   /** Square: minimap_square.png (382 art px, its opening 33..349) over the map window. */
   minimap: { x: 1668, y: 12, w: 232, h: 232, view: { x: 20, y: 21, w: 192, h: 192 } },
   region: { x: 1666, y: 254, w: 236, h: 67 },
