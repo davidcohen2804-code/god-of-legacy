@@ -3,6 +3,7 @@
 // (aura, motes, weapon shimmer, halo, hover/selection response) on the select preview. Uses the supplied
 // assets/final/menu and assets/final/character_select sheets.
 import Phaser from 'phaser';
+import MENU_SKY from '../data/menu-sky.json';
 
 const F = 'assets/final';
 const smooth = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -380,6 +381,26 @@ export function addSunLight(scene: Phaser.Scene, at: { x: number; y: number }, d
     rays2.setAngle(9 - (t / 1000) * 1.0).setAlpha(0.1 + 0.05 * Math.sin(t / 3100 + 1));
   });
   return [bloom, rays2, rays, core];
+}
+
+/** The main menu painting's own clouds (tools/menu/sky.py): the sky band, its tree / castle / sun filled with sky. */
+export function preloadMenuSky(scene: Phaser.Scene): void {
+  if (!scene.textures.exists('life-sky-layer')) scene.load.image('life-sky-layer', `${F}/menu/sky_layer.webp`);
+  if (!scene.textures.exists('life-sky-mask')) scene.load.image('life-sky-mask', `${F}/menu/sky_mask.png`);
+}
+
+/** The painting's clouds drift: its sky slides slowly to and fro (a 36 s sway, MENU_SKY.sway px either way) under a
+ *  mask that stays put — the clouds pass behind the tree, the mountains and the castle; the sun stays where it is. */
+export function addSkyDrift(scene: Phaser.Scene, bg: Phaser.GameObjects.Image, period = 36000): Phaser.GameObjects.Image | null {
+  if (!scene.textures.exists('life-sky-layer') || !scene.textures.exists('life-sky-mask')) return null;
+  const k = bg.scaleX, ox = bg.x - bg.displayWidth / 2, oy = bg.y - bg.displayHeight / 2, x0 = ox - MENU_SKY.pad * k;
+  const layer = scene.add.image(x0, oy, 'life-sky-layer').setOrigin(0, 0).setScale(k).setDepth(bg.depth + 0.2);
+  const mask = scene.make.image({ x: ox, y: oy, key: 'life-sky-mask' }, false).setOrigin(0, 0).setScale(k);
+  layer.setMask(mask.createBitmapMask());
+  let t = 0;
+  onUpdate(scene, (dt) => { t += dt; layer.x = x0 + MENU_SKY.sway * k * Math.sin((t / period) * Math.PI * 2); });
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { layer.clearMask(true); mask.destroy(); });
+  return layer;
 }
 
 /** Drifting cloud wisps (sky band) and valley mist (two depths), soft and slow. */

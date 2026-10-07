@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { ASSETS, DESIGN, LOGO } from '../config/layout';
 import { MainMenuUI } from '../ui/MainMenuUI';
 import { clearPvpFromUrl } from '../pvp/Room';
-import { addCapeWind, addGemLife, addGemPulse, addMotes, addPaintedWater, addSkyAndMist, addSunLight, addWaterGlints, preloadLife } from '../ui/PresentationLife';
+import { addCapeWind, addGemLife, addGemPulse, addMotes, addPaintedWater, addSkyAndMist, addSkyDrift, addSunLight, addWaterGlints, preloadLife, preloadMenuSky } from '../ui/PresentationLife';
 
 /** Centre of the logo's red gem in logo image pixels (measured on the art). */
 const LOGO_GEM = { x: 595.7, y: 325.2, radius: 78 };
@@ -18,7 +18,7 @@ export class MainMenuScene extends Phaser.Scene {
 
   constructor() { super('MainMenuScene'); }
 
-  preload(): void { preloadLife(this); }
+  preload(): void { preloadLife(this); preloadMenuSky(this); }
 
   create(): void {
     clearPvpFromUrl(); // the menu is never a PvP link
@@ -28,11 +28,12 @@ export class MainMenuScene extends Phaser.Scene {
     const bg = this.add.image(DESIGN.width / 2, DESIGN.height / 2, ASSETS.background.key);
     bg.setScale(Math.max(DESIGN.width / bg.width, DESIGN.height / bg.height) * 1.008);
     const k0 = bg.scaleX, ox = bg.x - bg.displayWidth / 2, oy = bg.y - bg.displayHeight / 2; // painting px -> screen
+    addSkyDrift(this, bg); // the painting's clouds drift slowly (behind the tree, the mountains and the castle)
     addPaintedWater(this, ASSETS.background.key, bg, 300); // falls flow and mist banks heave
     addSkyAndMist(this, 1); // drifting cloud wisps + valley mist
     addSunLight(this, { x: ox + SUN.x * k0, y: oy + SUN.y * k0 }, 1);
     addWaterGlints(this, { x: ox + 1470 * k0, y: oy + 300 * k0, w: 240 * k0, h: 95 * k0 }, 14, 2);
-    addCapeWind(this, ASSETS.background.key, bg, CAPE, isCape);
+    addCapeWind(this, ASSETS.background.key, bg, CAPE, isCape, 7); // the cape flutters in the wind
     addMotes(this, { x: 520, y: 420, w: 880, h: 640 }, 16, { depth: 0, size: [10, 22], speed: [7, 15], alpha: 0.75 });
 
     // Logo: centered, top-anchored, fixed display width.
