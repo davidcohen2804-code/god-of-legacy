@@ -1,6 +1,6 @@
 // DOM overlay for Character Creation: name and body, style (face, hair and its colour, skin), the class fan, outfit
 // colours, BACK / CREATE.
-import { CHARACTER_CREATE as L, CHARACTER_PREVIEWS, CLASS_OPTIONS } from '../config/layout';
+import { CHARACTER_CREATE as L, CLASS_OPTIONS } from '../config/layout';
 import { CharacterStore } from '../characters/CharacterStore';
 import { KIT_LAYOUT, ensureCharacterUIStyles, ensureSelectKitStyles, syncOverlay } from './CharacterSelectUI';
 import OUTFIT_COLORS from '../data/outfit-colors.json';
@@ -20,6 +20,11 @@ type SwatchRow = 'hairColor' | 'skin' | Piece;
 const SWATCHES: Record<SwatchRow, { name: string; swatch: string }[]> = { hairColor: HAIR_COLORS as { name: string; swatch: string }[], skin: SKIN_TONES, ...COLORS_OF };
 
 const KIT = (f: string) => `assets/final/ui/kit/${f}.png`;
+/** The male / female signs on the BODY buttons, drawn (♂: circle and arrow; ♀: circle and cross). */
+const SEX_SIGN = {
+  male: '<svg viewBox="0 0 32 32"><circle cx="13" cy="19" r="7.5"/><path d="M18.5 13.5L25.5 6.5M19 6.5h6.5V13"/></svg>',
+  female: '<svg viewBox="0 0 32 32"><circle cx="16" cy="11.5" r="7.5"/><path d="M16 19v10M11.5 24.5h9"/></svg>',
+};
 /** The class fan (tools/ui/class_fan.py): the fan, and each card's background lit up (shown while the pointer is on it). */
 const FAN_DIR = 'assets/final/character_create/';
 /** New characters start as the Beginner (the sword Beginner; the class itself comes later in the game). */
@@ -65,6 +70,10 @@ const CSS = `
 .gol-cc .kopt.on .pf{box-shadow:0 0 0 2px #ffe2a0,0 0 10px rgba(255,200,90,.7)}
 .gol-cc .kopt.gd{padding:0 0 0 76px;font-size:17px}
 .gol-cc .kopt.gd .pf{left:16px}
+.gol-cc .kopt .pf.sym{display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#16202e,#080d14)}
+.gol-cc .kopt .pf.sym svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 3px currentColor)}
+.gol-cc .kopt .pf.sym.male{color:#79c2ff}
+.gol-cc .kopt .pf.sym.female{color:#ff94c6}
 .gol-cs .cc-label{position:absolute;left:34px;font-size:${L.character.labelSize}px;letter-spacing:1.5px;opacity:.8}
 .gol-cs .cc-input{position:absolute;left:34px;right:34px;pointer-events:auto;box-sizing:border-box;
   height:${L.character.input.h}px;padding:0 18px;font-family:inherit;font-size:${L.character.input.size}px;letter-spacing:1px;
@@ -123,14 +132,12 @@ export class CharacterCreateUI {
     Object.assign(this.input, { type: 'text', placeholder: 'Your name', maxLength: L.character.input.maxLength, autocomplete: 'off', spellcheck: false });
     Object.assign(this.input.style, { top: '120px', left: '30px', right: '30px' });
     this.input.addEventListener('input', () => this.render());
-    // Body: the clean base character, male or female.
+    // Body: the clean base character, male or female — each button marked with its sign (♂ / ♀).
     const lb2 = this.el('div', 'cc-label', cp); lb2.textContent = 'BODY'; lb2.style.top = '204px';
     const GW = Math.floor((C.char.w - 60 - 14) / 2);
     (['male', 'female'] as const).forEach((g, i) => {
       const b = this.el('button', 'kopt gd', cp) as HTMLButtonElement;
-      const pf = this.el('div', 'pf', b);
-      const pv = CHARACTER_PREVIEWS[`base/${g}`];
-      if (pv) { const k = 48 / (pv.crop.w * 0.8); Object.assign(pf.style, { backgroundImage: `url("${pv.file}")`, backgroundSize: `${pv.width * k}px ${pv.height * k}px`, backgroundPosition: `${-(pv.crop.x + pv.crop.w * 0.1) * k}px ${-(pv.crop.y + 10) * k}px` }); }
+      this.el('div', `pf sym ${g}`, b).innerHTML = SEX_SIGN[g];
       b.appendChild(document.createTextNode(g === 'male' ? 'MALE' : 'FEMALE'));
       this.box(b, 30 + i * (GW + 14), 228, GW, 62);
       b.addEventListener('mousedown', (e) => e.preventDefault());
