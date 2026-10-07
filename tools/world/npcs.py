@@ -14,7 +14,8 @@ SHEET_SCALE = 108 / 172       # 352-cell body sheets → world px (Body.ts)
 NPCS = {'aldric': {'cols': 4, 'height': 112}, 'mage_master': {'cols': 4, 'height': 112}, 'archer_master': {'cols': 4, 'height': 112},
         'warrior_master': {'cols': 4, 'height': 112}, 'samurai_master': {'cols': 4, 'height': 112}, 'gate_guard': {'cols': 4, 'height': 112},
         # the masters at rest (Temple Road's far end)
-        'mage_master_pose': {'cols': 4, 'height': 124, 'baseline': 855}, 'warrior_master_pose': {'cols': 4, 'height': 100}}
+        'mage_master_pose': {'cols': 4, 'height': 124, 'baseline': 855}, 'warrior_master_pose': {'cols': 4, 'height': 100},
+        'samurai_master_pose': {'cols': 4, 'height': 90}}
 
 def strip(frames, name):
   """frames: [(RGBA image, foot x, foot y, world scale)] → one strip, all feet at the same point."""
