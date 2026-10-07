@@ -66,11 +66,13 @@ def canvas(a, b, gap, ea, eb):
 
 
 def standin(req, M):
-  """No painting yet: each side mirrored into the gap, crossfaded in the middle."""
+  """No painting yet: each side reflected into the gap (folding back and forth, never stretched), crossfaded in the middle."""
   cw = req.shape[1]; cols = np.where(M[0] > 0)[0]; l, r = int(cols[0]), int(cols[-1]) + 1
   out = req.copy(); mid = (l + r) / 2
+  def fold(i, n):  # 0..n-1 back and forth
+    i %= 2 * n; return i if i < n else 2 * n - 1 - i
   for x in range(l, r):
-    xa = max(0, 2 * l - x - 1); xb = min(cw - 1, 2 * r - x - 1)
+    xa = l - 1 - fold(x - l, l); xb = r + fold(r - 1 - x, cw - r)
     t = np.clip((x - (mid - 100)) / 200, 0, 1)
     out[:, x] = req[:, xa] * (1 - t) + req[:, xb] * t
   return out
