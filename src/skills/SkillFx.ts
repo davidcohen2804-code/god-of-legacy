@@ -86,7 +86,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   if (!scene.textures.exists('phantom-blade')) scene.load.spritesheet('phantom-blade', `${F}/skills/warrior/blade_storm/phantom.png`, { frameWidth: 256, frameHeight: 256 });
 }
 
-interface Anim { glow?: Phaser.GameObjects.Image; img: Phaser.GameObjects.Image; t: number; total: number; frames: number[]; frameMs: number[]; follow?: () => V3 | null; z?: number; fadeLast?: number; onDone?: () => void; loop?: [number, number]; until?: number }
+interface Anim { glow?: Phaser.GameObjects.Image; img: Phaser.GameObjects.Image; /** next frame dissolving in over the current one */ mix?: Phaser.GameObjects.Image; t: number; total: number; frames: number[]; frameMs: number[]; follow?: () => V3 | null; z?: number; fadeLast?: number; onDone?: () => void; loop?: [number, number]; until?: number }
 interface Tele { g: Phaser.GameObjects.Image; run: CastRun; follow?: boolean }
 
 export type HitTier = 'basic' | 'core' | 'signature' | 'ultimate';
@@ -523,18 +523,22 @@ export class SkillFx {
   /** Legacy Banner: a banner of light falls and plants beside the caster, then waves in place for `holdMs`. */
   bannerPlant(x: number, y: number, holdMs: number): void {
     if (!this.scene.textures.exists('pas-banner_plant')) return;
+    const SINK = 16;
     const img = this.scene.add.image(x, y + 4, 'pas-banner_plant', 0).setOrigin(0.5, 1).setDisplaySize(230, 230).setDepth(y);
+    const mix = this.scene.add.image(x, y + 4, 'pas-banner_plant', 1).setOrigin(0.5, 1).setDisplaySize(230, 230).setDepth(y + 0.001).setAlpha(0);
+    const dissolve = (key: string, next: number, f: number) => { const k = f * f * (3 - 2 * f); if (mix.texture.key !== key) mix.setTexture(key).setDisplaySize(230, 230); mix.setFrame(next).setAlpha(img.alpha * k); };
     const plant = [50, 50, 60, 80, 90, 100, 110, 120];
-    let i = 0, t = 0, phase: 'plant' | 'wave' | 'fade' = 'plant', waveT = 0;
+    let i = 0, t = 0, phase: 'plant' | 'wave' | 'fade' = 'plant', waveT = 0; // eslint-disable-line prefer-const
     this.spark(IMPACT.warrior.key, x, y - 20, IMPACT.warrior.frames, 170, 0.9, 0);
-    const ev = this.scene.time.addEvent({ delay: 30, loop: true, callback: () => {
-      t += 30;
+    const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
+      t += 16;
       if (phase === 'plant') {
         while (i < 7 && t >= plant[i]) { t -= plant[i]; i++; img.setFrame(i); if (i === 2) { this.shockwave(x, y, 150, 0xffd27a); this.dust(x, y, 90, 0.8); } }
-        if (i >= 7 && t >= plant[7]) { phase = 'wave'; t = 0; img.setTexture('pas-banner_wave', 0).setDisplaySize(230, 230); }
+        if (i >= 7 && t >= plant[7]) { phase = 'wave'; t = 0; img.setTexture('pas-banner_wave', 0).setDisplaySize(230, 230).setY(y + 4 + SINK); mix.setY(y + 4 + SINK); } // the waving art ends at the spear tip: sink it into the floor
+        else if (i < 7) dissolve('pas-banner_plant', i + 1, Math.min(1, t / plant[i])); else { mix.setY(y + 4 + SINK); dissolve('pas-banner_wave', 0, Math.min(1, t / plant[7])); }
       } else if (phase === 'wave') {
-        waveT += 30; img.setFrame(Math.floor(waveT / 110) % 8);
-        if (waveT >= holdMs) { phase = 'fade'; this.scene.tweens.add({ targets: img, alpha: 0, duration: 500, onComplete: () => { ev.remove(); img.destroy(); } }); }
+        waveT += 16; const q = waveT / 160, wi = Math.floor(q) % 8; img.setFrame(wi); dissolve('pas-banner_wave', (wi + 1) % 8, q - Math.floor(q));
+        if (waveT >= holdMs) { phase = 'fade'; this.scene.tweens.add({ targets: [img, mix], alpha: 0, duration: 500, onComplete: () => { ev.remove(); img.destroy(); mix.destroy(); } }); }
       }
     } });
   }
@@ -912,15 +916,16 @@ export class SkillFx {
       let tt = a.t, idx = a.frames.length - 1;
       if (a.loop && a.until !== undefined && a.t < a.until) {
         const pre = a.frameMs.slice(0, a.frames.indexOf(a.loop[0])).reduce((x, y) => x + y, 0);
-        if (a.t >= pre) { const span = a.loop[1] - a.loop[0] + 1; a.img.setFrame(a.loop[0] + (Math.floor((a.t - pre) / 70) % span)); this.place(a); return true; }
+        if (a.t >= pre) { const span = a.loop[1] - a.loop[0] + 1, q = (a.t - pre) / 70, i = Math.floor(q) % span; a.img.setFrame(a.loop[0] + i); this.place(a); this.blend(a, a.loop[0] + ((i + 1) % span), q - Math.floor(q)); return true; }
       } else if (a.loop && a.until !== undefined) tt = a.total - a.frameMs[a.frameMs.length - 1] + (a.t - a.until);
-      if (tt >= a.total) { a.img.destroy(); a.glow?.destroy(); a.onDone?.(); return false; }
-      let acc = 0;
-      for (let i = 0; i < a.frames.length; i++) { acc += a.frameMs[i]; if (tt < acc) { idx = i; break; } }
+      if (tt >= a.total) { a.img.destroy(); a.glow?.destroy(); a.mix?.destroy(); a.onDone?.(); return false; }
+      let acc = 0, start = 0;
+      for (let i = 0; i < a.frames.length; i++) { acc += a.frameMs[i]; if (tt < acc) { idx = i; start = acc - a.frameMs[i]; break; } }
       a.img.setFrame(a.frames[idx]); if (idx > 0 && !a.img.visible) a.img.setVisible(true);
       if (a.fadeLast && tt > a.total - a.fadeLast) a.img.setAlpha(Math.max(0, (a.total - tt) / a.fadeLast) * (a.img.getData('a0') ?? 1));
       this.place(a);
       if (a.glow) a.glow.setFrame(a.frames[idx]).setPosition(a.img.x, a.img.y).setScale(a.img.scaleX * 1.12, a.img.scaleY * 1.12).setAlpha(a.img.alpha * 0.45);
+      this.blend(a, idx + 1 < a.frames.length ? a.frames[idx + 1] : null, (tt - start) / Math.max(1, a.frameMs[idx]));
       return true;
     });
     for (const t of this.teles) if (t.follow) { const c = this.casterPos(t.run.attackerId); if (c) t.g.setPosition(c.x, c.y); }
@@ -945,6 +950,18 @@ export class SkillFx {
     }
   }
 
+  /** Smooth frame changes: the next frame dissolves in over the current one (no hard frame-to-frame cuts). */
+  private blend(a: Anim, next: number | string | null, f: number): void {
+    const im = a.img;
+    if (next === null || !im.visible || f <= 0.02 || String(next) === String(im.frame.name)) { a.mix?.setVisible(false); return; }
+    if (!a.mix) a.mix = this.scene.add.image(im.x, im.y, im.texture.key, next).setBlendMode(im.blendMode);
+    const m = a.mix, k = Math.min(1, f) * Math.min(1, f) * (3 - 2 * Math.min(1, f)); // smoothstep
+    if (m.texture.key !== im.texture.key) m.setTexture(im.texture.key);
+    m.setFrame(next).setOrigin(im.originX, im.originY).setScale(im.scaleX, im.scaleY).setFlip(im.flipX, im.flipY).setRotation(im.rotation)
+      .setPosition(im.x, im.y).setDepth(im.depth + 0.001).setAlpha(im.alpha * k).setVisible(true);
+    if (im.isTinted) m.setTint(im.tintTopLeft); else m.clearTint();
+  }
+
   private place(a: Anim): void {
     if (!a.follow) return;
     const p = a.follow();
@@ -952,7 +969,7 @@ export class SkillFx {
   }
 
   destroy(): void {
-    for (const a of this.anims) { a.img.destroy(); a.glow?.destroy(); }
+    for (const a of this.anims) { a.img.destroy(); a.glow?.destroy(); a.mix?.destroy(); }
     for (const t of this.teles) t.g.destroy();
     for (const i of this.projs.values()) i.destroy();
     for (const l of this.traps.values()) for (const i of l) i.destroy();
