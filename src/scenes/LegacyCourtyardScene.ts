@@ -188,8 +188,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Quests taken / finished (saved with the character). */
   quests: Record<string, QuestState> = {};
   /** After a glide into a new area he walks on to its entry until you steer (or he arrives). */
-  private autoWalk: { x: number; y: number; left: number } | null = null;
-  private glideAlpha = 1;
   /** Iron Grip: the monster held in the fist between the seize and the slam. */
   private gripFoe: Monster | null = null;
   private motes?: Phaser.GameObjects.Container;
@@ -268,10 +266,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         return this.add.image(0, 0, T.map.key).setOrigin(0, 0).setDepth(o.frontY).setMask(g.createGeometryMask());
       });
     } else {
-      // The open world: areas joined by walking; the camera glides from one to the next.
-      this.world = new OpenWorld(this, {
-        onArea: (a) => { const o = toWorld(a.id, [0, 0]); this.motes?.setPosition(o.x, o.y); this.areaTitle?.show(a.name); },
-      });
+      // The open world: one long world left to right, the camera following you along it.
+      this.world = new OpenWorld(this, { onArea: (a) => this.areaTitle?.show(a.name) }, toWorld(START.area, [START.x, START.y]));
       this.world.onNpcClick = (n) => this.talkTo(n);
     }
 
@@ -351,7 +347,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.npcDialog.talkKey = keyLabel(this.bindings.talk);
       this.world.setTalkKey(keyLabel(this.bindings.talk));
       this.refreshQuests();
-      this.chat.add({ kind: 'system', text: `Follow the paths off the edge of an area to travel on. Talk to people with ${keyLabel(this.bindings.talk) || 'the talk key'}.` });
+      this.chat.add({ kind: 'system', text: `Walk on to explore the world. Talk to people with ${keyLabel(this.bindings.talk) || 'the talk key'}.` });
     }
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, (_t: number, d: number) => {
       if (!this.hud) return;
@@ -395,7 +391,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.world?.destroy(); this.world = undefined;
       this.npcDialog?.destroy(); this.npcDialog = undefined;
       this.areaTitle?.destroy(); this.areaTitle = undefined;
-      this.gripFoe = null; this.autoWalk = null;
+      this.gripFoe = null;
       this.view?.destroy(); this.view = undefined;
       this.character = undefined;
       this.dummy = undefined; this.dummyBar = undefined; this.dummyState = undefined;
@@ -425,13 +421,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.simMs += ms;
     const now = this.simMs;
     this.ci.update(now);
-    if (this.world?.transit) { this.stepGlide(ms); return; } // gliding over to the next area
     this.stepPlayer(ms, now);
-    if (this.world) {
-      this.stepMonsters(ms, now);
-      // walking out through a path at the picture's edge (free, on the ground, not in a menu) → glide to the next area
-      if (this.dead < 0 && this.body.state === 'free' && !this.rt.ownRun && this.kin.grounded && this.kin.z < 1 && !this.inputLocked()) this.world.checkExit(this.kin);
-    }
+    if (this.world) this.stepMonsters(ms, now);
     this.rt.update(ms);
     this.stepLingers(now);
     this.stepPassives(ms, now);
@@ -494,7 +485,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const jbs = this.kit.find((x) => x.id === 'judgment_blade'); if (jbs) this.rt!.closeCharges(jbs);
       this.jb = null; this.jbWant = 0;
     }
-    const r = stepKin(k, ms, b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z));
+    const r = stepKin(k, ms, b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z), b.state === 'free' && !b.push && !this.rt!.ownRun);
     const ev = b.update(now, ms, r.landed, r.impactVz);
     if (r.landed) {
       if (r.impactVz > 180) this.fx!.dust(k.x, k.y - k.z, 48 + Math.min(70, r.impactVz / 8), 0.75);
@@ -520,13 +511,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const k = this.kin, inp = this.ci!, b = this.body;
     const rooted = b.hard.active(now) && b.hard.kind === 'root';
     const locked = this.inputLocked(); // talking to an NPC: he stands still
-    let mx = locked ? 0 : inp.moveX, my = locked ? 0 : inp.moveY;
-    const aw = this.autoWalk; // just arrived in an area: walks on in until you steer
-    if (aw) {
-      aw.left -= ms;
-      const dx = aw.x - k.x, dy = aw.y - k.y, d = Math.hypot(dx, dy);
-      if ((mx || my) || d < 8 || aw.left <= 0) this.autoWalk = null; else { mx = dx / d; my = dy / d; }
-    }
+    const mx = locked ? 0 : inp.moveX, my = locked ? 0 : inp.moveY;
     const speed = (inp.running && !locked ? PHYS.run : PHYS.walk) * b.moveScale(now) * this.passives.moveMul;
     steer(k, rooted ? 0 : mx * speed, rooted ? 0 : my * speed, ms, now < this.leapUntil ? 0.12 : 1); // War Leap keeps its burst
     if ((mx || my) && !rooted) this.dir = dirOf(mx, my, this.dir); // side view only: up/down keeps the facing
@@ -825,7 +810,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       tint = (255 << 16) | (c(0xe0, 255) << 8) | c(0xa0, 255);
     }
     if (this.dead >= 0) { alpha = 1 - (1 - P6.deathAlpha) * Math.min(1, this.dead / P6.deathFadeMs); tint = null; fill = false; } // the body just fades; the ghost rises (DeathFx)
-    alpha *= this.glideAlpha; // stepping out of / into an area
     v.render(ms, pose, k.x, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
     this.renderRadiant(pose, dir);
     this.renderEyes(pose, dir);
@@ -1576,28 +1560,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   // ======================================================================= open world
 
-  /** Talking to an NPC or shopping: the hero stands and listens (no moving, attacking or jumping). */
+  /** Talking to an NPC: the hero stands and listens (no moving, attacking or jumping). */
   private inputLocked(): boolean { return this.warping || !!this.npcDialog?.isOpen; }
   /** Carried by the Temple portal's light (a moment of fade): no input. */
   private warping = false;
 
-  /** One frame of the camera glide between two areas: he steps out, the camera slides through the mist, he steps in. */
-  private stepGlide(ms: number): void {
-    const w = this.world!, k = this.kin;
-    const d = w.transitDir;
-    if (Math.abs(d.x) > 0.25) this.dir = d.x < 0 ? 'left' : 'right';
-    const end = w.stepTransit(ms, k, (a) => { this.glideAlpha = a; });
-    k.vx = d.x * PHYS.walk; k.vy = d.y * PHYS.walk; // for the walk cycle (he is moved by the glide)
-    if (this.mode !== 'walk') { this.setMode('walk'); this.loopT = 0; }
-    this.modeT += ms; this.loopT += ms;
-    if (end) { k.vx = 0; k.vy = 0; this.autoWalk = { x: end.x, y: end.y, left: 1600 }; }
-    this.rt!.update(ms);
-    this.fx!.update(ms, this.rt!.projectiles.map((e) => e.p));
-    this.renderPlayer(ms);
-    this.updateWorldUi(ms);
-  }
-
-  /** The monsters of the area you are in. */
+  /** The monsters of the whole world (each keeps to its own home spot). */
   private stepMonsters(ms: number, now: number): void {
     const mobs = this.world!.mobs, k = this.kin;
     for (const m of mobs) m.update(ms, {
@@ -1609,17 +1577,18 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     });
   }
 
-  /** World props, NPC prompts, gold on the ground, potion bar (every frame). */
+  /** The camera along the world, NPC prompts, the portal (every frame). */
   private updateWorldUi(ms: number): void {
     if (!this.world) return;
     this.world.update(ms, { x: this.kin.x, y: this.kin.y, z: this.kin.z, alive: this.dead < 0 });
+    this.motes?.setPosition(this.world.viewLeft, 0); // the dust hangs in the air in front of you
   }
 
   /** Talk key: next line in a conversation, else talk to the NPC in reach, else step into the portal in reach. */
   private onTalk(): void {
     if (!this.world || !this.pvpReady) return;
     if (this.npcDialog?.isOpen) { this.npcDialog.advance(); return; }
-    if (this.dead >= 0 || this.world.transit || this.warping || this.rt?.ownRun || this.body.state !== 'free') return;
+    if (this.dead >= 0 || this.warping || this.rt?.ownRun || this.body.state !== 'free') return;
     const n = this.world.near;
     if (n?.kind === 'npc') this.talkTo(n.npc);
     else if (n?.kind === 'portal') this.usePortal();
@@ -1627,11 +1596,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** An NPC's conversation: a quest to offer, the one running, the one to hand in — or just his lines. */
   private talkTo(n: AreaNpc): void {
-    if (!this.npcDialog || !this.world || this.dead >= 0 || this.world.transit) return;
-    const np = toWorld(this.world.area.id, [n.x, n.y]);
+    if (!this.npcDialog || !this.world || this.dead >= 0) return;
+    const np = this.world.npcPos(n);
     if (Math.hypot(this.kin.x - np.x, this.kin.y - np.y) > 260) return; // walk up to them first
     this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close();
-    this.ci?.reset(); this.autoWalk = null;
+    this.ci?.reset();
     if (Math.abs(np.x - this.kin.x) > 4) this.dir = np.x < this.kin.x ? 'left' : 'right'; // turns to face them
     const say = (lines: string[], choices?: DialogChoice[]) => this.npcDialog!.open({ name: n.name, title: n.title, portrait: `assets/world/npc/${n.art}_face.png`, lines, choices });
     const mine = QUESTS.filter((q) => q.giver === n.id);
@@ -1710,8 +1679,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** The Temple gate's portal: a flash of light, then the Legacy Courtyard. */
   private usePortal(): void {
     const w = this.world; if (!w) return;
-    const a = w.area; if (!a.portal) return;
-    this.ci?.reset(); this.autoWalk = null;
+    this.ci?.reset();
     this.fx?.shockwave(this.kin.x, this.kin.y, 120, 0xffe2a0);
     this.warping = true; // no input while the light carries you
     w.jumpTo(START.area, START.x, START.y, this.kin, () => { this.warping = false; this.setMode('idle'); });

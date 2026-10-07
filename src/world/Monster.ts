@@ -130,7 +130,7 @@ export class Monster {
       if (this.respawnLeft <= 0 && Math.hypot(w.player.x - this.home.x, w.player.y - this.home.y) > 90) this.reset();
     } else if (b.canAct(now) && !this.frozen) this.think(ms, w, dx, dy, dist);
     else if (b.state === 'free') { this.kin.vx = 0; this.kin.vy = 0; }
-    const r = stepKin(this.kin, ms, b.gravityScale(now), (x, y) => w.blocked(this, x, y));
+    const r = stepKin(this.kin, ms, b.gravityScale(now), (x, y) => w.blocked(this, x, y), this.moving && b.state === 'free' && !b.push);
     if (this.moving && (r.blockedX || r.blockedY) && (this.ai === 'wander' || this.ai === 'home')) this.wanderTo = null; // bumped into something: pick another spot
     const ev = b.update(now, ms, r.landed, r.impactVz);
     if (ev === 'kdImpact') this.kdMs = 0;

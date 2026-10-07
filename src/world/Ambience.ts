@@ -63,20 +63,23 @@ export class CourtyardAmbience {
   private rays: Phaser.GameObjects.Image[] = [];
   private maskShape: Phaser.GameObjects.Graphics;
   private t = 0;
-  private fade = 1;
+  private drift = { x: 0, y: 0 };
+  private left = 0;
   private base: { x: number; y: number }[] = [];
 
-  constructor(scene: Phaser.Scene, worldW: number, worldH: number) {
+  /** viewW × viewH: the stretch of world it covers (the PvP courtyard: the whole map; the open world: one screen,
+   *  carried along with the camera by setView so the light never jumps). */
+  constructor(scene: Phaser.Scene, viewW: number, viewH: number) {
     makeTextures(scene);
 
     // Cloud shadows: ground area only (the sky / distant castle stay untouched), above the map, below every actor.
     const top = A.clouds.groundTop;
-    this.clouds = scene.add.tileSprite(0, top, worldW, worldH - top, CLOUD_KEY).setOrigin(0, 0)
+    this.clouds = scene.add.tileSprite(0, top, viewW, viewH - top, CLOUD_KEY).setOrigin(0, 0)
       .setAlpha(A.clouds.alpha).setDepth(-0.6).setBlendMode(Phaser.BlendModes.MULTIPLY);
     this.clouds.setTileScale(A.clouds.tileScale, A.clouds.tileScale * A.clouds.squash);
     // Ground only: the mask edge sits on the balustrade base, so it reads as the floor's own edge.
     this.maskShape = scene.make.graphics({}, false);
-    this.maskShape.fillStyle(0xffffff).fillRect(0, top, worldW, worldH - top);
+    this.maskShape.fillStyle(0xffffff).fillRect(0, top, viewW, viewH - top);
     this.clouds.setMask(this.maskShape.createGeometryMask());
 
     // Warm sun glow + a few faint shafts from the upper right, matching the existing light direction.
@@ -91,24 +94,28 @@ export class CourtyardAmbience {
     this.base = [this.clouds, this.sun, ...this.rays].map((o) => ({ x: o.x, y: o.y }));
   }
 
-  /** Open world: the same light over the area whose picture starts at (ox, oy). */
-  moveTo(ox: number, oy: number): void {
-    [this.clouds, this.sun, ...this.rays].forEach((o, i) => o.setPosition(this.base[i].x + ox, this.base[i].y + oy));
-    this.maskShape.setPosition(ox, oy);
+  /** Open world: the light hangs over the screen (world x of its left edge); the cloud shadows stay put on the ground. */
+  setView(left: number): void {
+    this.left = left;
+    [this.clouds, this.sun, ...this.rays].forEach((o, i) => o.setPosition(this.base[i].x + left, this.base[i].y));
+    this.maskShape.setPosition(left, 0);
+    this.placeClouds();
   }
 
-  /** Faded out while the camera glides between areas. */
-  setAlpha(a: number): void { this.fade = Math.max(0, Math.min(1, a)); this.clouds.setAlpha(A.clouds.alpha * this.fade); }
+  private placeClouds(): void {
+    this.clouds.tilePositionX = (this.drift.x + this.left) / A.clouds.tileScale;
+    this.clouds.tilePositionY = this.drift.y / (A.clouds.tileScale * A.clouds.squash);
+  }
 
   update(ms: number): void {
     this.t += ms;
     const s = ms / 1000;
-    this.clouds.tilePositionX += A.clouds.driftX * s / A.clouds.tileScale;
-    this.clouds.tilePositionY += A.clouds.driftY * s / (A.clouds.tileScale * A.clouds.squash);
+    this.drift.x += A.clouds.driftX * s; this.drift.y += A.clouds.driftY * s;
+    this.placeClouds();
     // Very slow light "breathing" so the sun never feels static, never flickers.
     const k = Math.sin((this.t / A.sun.breatheMs) * Math.PI * 2);
-    this.sun.setAlpha(A.sun.alpha * (1 + 0.12 * k) * this.fade);
-    this.rays.forEach((r, i) => r.setAlpha(A.rays.list[i].alpha * (1 + 0.25 * Math.sin((this.t / A.rays.breatheMs + i * 0.33) * Math.PI * 2)) * this.fade));
+    this.sun.setAlpha(A.sun.alpha * (1 + 0.12 * k));
+    this.rays.forEach((r, i) => r.setAlpha(A.rays.list[i].alpha * (1 + 0.25 * Math.sin((this.t / A.rays.breatheMs + i * 0.33) * Math.PI * 2))));
   }
 
   destroy(): void {

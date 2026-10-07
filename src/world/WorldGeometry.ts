@@ -72,6 +72,9 @@ function polyDist(x: number, y: number, poly: readonly Pt[]): number {
   return pointInPoly(x, y, poly) ? -d : d;
 }
 
+/** How far (x, y) is from the floor's edge: positive inside, negative outside. */
+export const edgeClearance = (x: number, y: number): number => -polyDist(x, y, POLY);
+
 /** Inside the courtyard walls (foot circle radius r). Walls are full height: nothing passes them. */
 export function insideArena(x: number, y: number, r: number): boolean {
   return pointInPoly(x, y, POLY) && polyDist(x, y, POLY) <= -r;

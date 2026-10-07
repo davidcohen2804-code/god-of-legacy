@@ -1,24 +1,15 @@
-// Open world (PvE): areas laid side by side on a grid of map-sized cells. The player walks from one to the next through
-// the paths that leave each picture (exits); the camera glides over to the next area. Data: src/data/world-areas.json
-// (area-local picture px; world = local + the area's cell × map size).
+// Open world (PvE): one long world, left to right — the area pictures of src/data/world-areas.json ("row") joined edge to
+// edge into one strip by tools/world/strip.py (src/data/world-strip.json: the picture tiles, each area's x and span, the one
+// walkable floor). Area data stays in area-picture px: world = local + the area's x.
 import DATA from '../data/world-areas.json';
-import { Pt, WorldObject, pointInPoly } from './WorldGeometry';
+import STRIP from '../data/world-strip.json';
+import { Pt, WorldObject } from './WorldGeometry';
 
 export const AREA_W = DATA.size[0];
 export const AREA_H = DATA.size[1];
+export const WORLD_W = STRIP.w;
+export const WORLD_H = STRIP.h;
 
-export type ExitDir = 'left' | 'right' | 'up' | 'down';
-export interface AreaExit {
-  to: string; dir: ExitDir;
-  /** Walking into this zone (moving outward) leaves the area. */
-  zone: Pt[];
-  /** Where the path leaves the picture (edge) or the doorway it enters (inner). */
-  door: Pt;
-  /** Where you stand after coming in through this exit. */
-  entry: Pt;
-  /** A doorway inside the picture (not at its edge): you fade out / in there. */
-  inner?: boolean;
-}
 export interface AreaNpc {
   id: string; name: string; title: string; x: number; y: number; art: string;
   /** quest: gives the quests whose `giver` is this NPC; talk: just its lines. */
@@ -33,59 +24,52 @@ export interface QuestDef {
 }
 export interface AreaProp { id: string; foot: Pt[]; h: number; top?: number; occ?: Pt[] }
 export interface AreaDef {
-  id: string; name: string; cell: [number, number];
-  walk: Pt[]; props: AreaProp[]; exits: AreaExit[];
+  id: string; name: string;
+  /** Where the area's picture starts on the strip, and the stretch of the strip counted as this area (world px). */
+  x: number; span: [number, number];
+  walk: Pt[]; props: AreaProp[];
   npcs?: AreaNpc[];
   mobs?: { kind: string; spawns: Pt[] };
   portal?: { x: number; y: number; to: string };
-  /** Drifting cloud shadows on the floor below this line (omit = none). */
-  groundTop?: number;
 }
 export interface MobKind {
   name: string; frames: string; tint?: number; scale: number; hp: number; damage: number; speed: number;
   aggro: number; range: number; cooldown: number; respawnMs: number;
 }
 
-const RAW = DATA.areas as unknown as Record<string, Omit<AreaDef, 'id'>>;
-export const AREAS: Record<string, AreaDef> = Object.fromEntries(Object.entries(RAW).map(([id, a]) => [id, { id, ...a }]));
+type RawArea = Omit<AreaDef, 'id' | 'x' | 'span'>;
+const RAW = DATA.areas as unknown as Record<string, RawArea>;
+const LAY = STRIP.areas as unknown as Record<string, { x: number; span: [number, number] }>;
+/** The areas, left to right. */
+export const ROW: AreaDef[] = (DATA.row as string[]).map((id) => ({ id, ...RAW[id], ...LAY[id] }));
+export const AREAS: Record<string, AreaDef> = Object.fromEntries(ROW.map((a) => [a.id, a]));
 export const START = DATA.start as { area: string; x: number; y: number };
 export const MOB_KINDS = DATA.mobKinds as unknown as Record<string, MobKind>;
 export const QUESTS = DATA.quests as unknown as QuestDef[];
 /** What a quest giver says once all his quests are done. */
 export const IDLE_LINES = DATA.idle as string[];
 
-export const areaOrigin = (id: string): { x: number; y: number } => { const c = AREAS[id].cell; return { x: c[0] * AREA_W, y: c[1] * AREA_H }; };
-export const areaTexKey = (id: string) => `area-${id}`;
-export const areaTexUrl = (id: string) => `assets/world/areas/${id}.jpg`;
-/** Areas one exit away (loaded ahead so walking on never waits). */
-export const neighbours = (id: string): string[] => [...new Set([...AREAS[id].exits.map((e) => e.to), ...(AREAS[id].portal ? [AREAS[id].portal!.to] : [])])];
+/** The walkable floor of the whole world (world px, one polygon). */
+export const WORLD_FLOOR = STRIP.walk as Pt[];
+/** The strip's picture tiles: [x, width] each (they overlap by 2 px). */
+export const TILES = STRIP.tiles as [number, number][];
+export const tileKey = (i: number) => `world-tile-${i}`;
+export const tileUrl = (i: number) => `assets/world/strip/${i}.jpg`;
+export const minimapUrl = (id: string) => `assets/world/minimap/${id}.jpg`;
 
-const shift = (pts: readonly Pt[], o: { x: number; y: number }): Pt[] => pts.map((p) => [p[0] + o.x, p[1] + o.y] as Pt);
+export const areaOrigin = (id: string): { x: number; y: number } => ({ x: AREAS[id].x, y: 0 });
 export const toWorld = (id: string, p: Pt | { x: number; y: number }): { x: number; y: number } => {
   const o = areaOrigin(id), x = Array.isArray(p) ? p[0] : p.x, y = Array.isArray(p) ? p[1] : p.y;
   return { x: x + o.x, y: y + o.y };
 };
+/** The area whose stretch of the strip holds world x. */
+export const areaAt = (x: number): AreaDef => ROW.find((a) => x < a.span[1]) ?? ROW[ROW.length - 1];
 
-/** The floor and props of an area in world coordinates (for WorldGeometry). */
-export function areaGeometry(id: string): { walk: Pt[]; objects: WorldObject[] } {
-  const a = AREAS[id], o = areaOrigin(id);
-  const objects: WorldObject[] = a.props.map((p) => {
-    const foot = shift(p.foot, o), occ = p.occ ? shift(p.occ, o) : [];
-    return { id: `${id}:${p.id}`, footprint: foot, height: p.h, ...(p.top !== undefined ? { topZ: p.top } : {}), cover: 'hard', occluder: occ, frontY: Math.max(...foot.map((q) => q[1])) + 1 };
-  });
-  return { walk: shift(a.walk, o), objects };
+const shift = (pts: readonly Pt[], ox: number): Pt[] => pts.map((p) => [p[0] + ox, p[1]] as Pt);
+/** Every prop of the world in world coordinates (for WorldGeometry). */
+export function worldObjects(): WorldObject[] {
+  return ROW.flatMap((a) => a.props.map((p) => {
+    const foot = shift(p.foot, a.x), occ = p.occ ? shift(p.occ, a.x) : [];
+    return { id: `${a.id}:${p.id}`, footprint: foot, height: p.h, ...(p.top !== undefined ? { topZ: p.top } : {}), cover: 'hard' as const, occluder: occ, frontY: Math.max(...foot.map((q) => q[1])) + 1 };
+  }));
 }
-
-const OUT: Record<ExitDir, [number, number]> = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] };
-/** The exit the player at world (x, y), moving (vx, vy), is walking out through — or null. */
-export function exitAt(id: string, x: number, y: number, vx: number, vy: number): AreaExit | null {
-  const o = areaOrigin(id), lx = x - o.x, ly = y - o.y;
-  for (const e of AREAS[id].exits) {
-    const d = OUT[e.dir];
-    if (vx * d[0] + vy * d[1] < 25) continue; // only while walking outward
-    if (pointInPoly(lx, ly, e.zone)) return e;
-  }
-  return null;
-}
-/** The exit of `to` that leads back to `from` (where you come in). */
-export const backExit = (from: string, to: string): AreaExit | undefined => AREAS[to].exits.find((e) => e.to === from);

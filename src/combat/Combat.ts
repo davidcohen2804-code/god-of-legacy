@@ -3,7 +3,7 @@
 // (free / hitstun / launched / knockdown / getup / hardCC / dead), victim-side combo context (combo scaling,
 // juggle budget, one re-launch), and the hard-CC diminishing-returns policy kept separate from ordinary hit-stun.
 import COMBO from '../data/combo-policy.json';
-import { WORLD_OBJECTS, footAllowed, pointInPoly, supportAt } from '../world/WorldGeometry';
+import { WORLD_OBJECTS, edgeClearance, footAllowed, pointInPoly, supportAt } from '../world/WorldGeometry';
 import { FinalSkill, HitEvent, Reaction } from '../skills/SkillTypes';
 
 // ------------------------------------------------------------------ kinematics
@@ -36,7 +36,9 @@ const LAUNCH_G = 0.55; // floaty launches: long hang time so the attacker can fo
 /** Combo-protection thresholds (fractions of max HP) and their effects. */
 export const GAUGE = { stand: 0.3, air: 0.4, airRamp: 0.15, down: 0.15, resetMs: 3000, holdVz: 300, holdCeil: 120, gravityRamp: 1.6, wakeInvulnMs: 600 };
 
-export function stepKin(k: Kin, ms: number, gravityScale = 1, blocked?: (x: number, y: number, z: number) => boolean): StepResult {
+/** `slide`: walking into a slanted edge (or round a body) turns the step along it instead of stopping dead — only for
+ *  free walking; knock-backs still stop at walls (wall crash). */
+export function stepKin(k: Kin, ms: number, gravityScale = 1, blocked?: (x: number, y: number, z: number) => boolean, slide = false): StepResult {
   const dt = Math.min(0.05, ms / 1000), r: StepResult = { landed: false, impactVz: 0, blockedX: false, blockedY: false, leftSupport: false };
   const ok = (x: number, y: number) => {
     if (footAllowed(x, y, k.z, PHYS.footR) && !(blocked && blocked(x, y, k.z))) return true;
@@ -48,10 +50,23 @@ export function stepKin(k: Kin, ms: number, gravityScale = 1, blocked?: (x: numb
     }
     return false;
   };
+  // A blocked step turned 32° / 55° / 70° to the side with more room, shortened to its share along that way (cos).
+  const along = (ax: number, ay: number): boolean => {
+    const len = Math.hypot(ax, ay), ux = ax / len, uy = ay / len;
+    for (const c of [0.85, 0.57, 0.34]) {
+      const s = Math.sqrt(1 - c * c), l = len * c;
+      const a: [number, number] = [k.x + (ux * c - uy * s) * l, k.y + (uy * c + ux * s) * l];
+      const b: [number, number] = [k.x + (ux * c + uy * s) * l, k.y + (uy * c - ux * s) * l];
+      const [p, q] = edgeClearance(a[0], a[1]) >= edgeClearance(b[0], b[1]) ? [a, b] : [b, a];
+      if (ok(p[0], p[1])) { k.x = p[0]; k.y = p[1]; return true; }
+      if (ok(q[0], q[1])) { k.x = q[0]; k.y = q[1]; return true; }
+    }
+    return false;
+  };
   const dx = k.vx * dt, dy = k.vy * dt, n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 3));
   for (let i = 0; i < n; i++) {
-    if (dx !== 0 && !r.blockedX) { const nx = k.x + dx / n; if (ok(nx, k.y)) k.x = nx; else { r.blockedX = true; k.vx = 0; } }
-    if (dy !== 0 && !r.blockedY) { const ny = k.y + dy / n; if (ok(k.x, ny)) k.y = ny; else { r.blockedY = true; k.vy = 0; } }
+    if (dx !== 0 && !r.blockedX) { const nx = k.x + dx / n; if (ok(nx, k.y)) k.x = nx; else if (!(slide && Math.abs(dy) < Math.abs(dx) * 0.5 && along(dx / n, 0))) { r.blockedX = true; k.vx = 0; } }
+    if (dy !== 0 && !r.blockedY) { const ny = k.y + dy / n; if (ok(k.x, ny)) k.y = ny; else if (!(slide && Math.abs(dx) < Math.abs(dy) * 0.5 && along(0, dy / n))) { r.blockedY = true; k.vy = 0; } }
   }
   if (k.grounded) {
     const s = supportAt(k.x, k.y, k.z);

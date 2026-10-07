@@ -1,6 +1,6 @@
 # qc.py [area ...] [--grid] : draws an area's walkable floor (green), prop footprints (red), occluders (blue outline +
-# front line), exits (yellow zone, cyan = door at the edge, magenta = where the player stops), monster spawns (orange),
-# NPCs (white), portal (violet), start (star) over its image → tools/world/qc/<area>.png
+# front line), monster spawns (orange), NPCs (white), portal (violet), start (star) over its picture → tools/world/qc/<area>.png
+# (the whole world joined up: strip.py --preview → tools/world/qc/strip.jpg)
 import json, os, sys
 from PIL import Image, ImageDraw
 G = os.path.dirname(os.path.abspath(__file__)) + '/../../'
@@ -23,11 +23,6 @@ for aid in args or list(D['areas']):
       d.line(P(p['occ']) + [tuple(p['occ'][0])], fill=(70, 140, 255, 255), width=2)
       fy = max(q[1] for q in p['foot']); xs = [q[0] for q in p['occ']]
       d.line([(min(xs), fy), (max(xs), fy)], fill=(70, 140, 255, 160), width=1)
-  for e in A.get('exits', []):
-    d.polygon(P(e['zone']), fill=(255, 230, 40, 90), outline=(255, 230, 40, 255))
-    for k, c in (('door', (0, 255, 255, 255)), ('entry', (255, 60, 255, 255))):
-      x, y = e[k]; d.ellipse([x - 7, y - 7, x + 7, y + 7], fill=c)
-    x, y = e['entry']; d.text((x + 9, y - 6), f"→ {e['to']} ({e['dir']})", fill=(255, 255, 255, 255))
   for s in A.get('mobs', {}).get('spawns', []):
     x, y = s; d.ellipse([x - 6, y - 6, x + 6, y + 6], fill=(255, 150, 30, 255))
   for n in A.get('npcs', []):
