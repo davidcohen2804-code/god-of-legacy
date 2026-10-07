@@ -128,7 +128,7 @@ export interface WorldHUDOptions {
   /** Click on a slot: the same action handler as its hotkey (scene validates; never a second Space attack). */
   onSlot: (index: number) => void;
   /** Skill Book (K) / Inventory (I) / Cosmetic Shop (O) toggles. */
-  onMenu?: (key: 'K' | 'I' | 'O') => void;
+  onMenu?: (key: 'K' | 'I' | 'O' | 'P') => void;
   /** Gear menu: open the Key Settings window. */
   onKeys?: () => void;
 }
@@ -177,6 +177,7 @@ export class WorldHUD {
       { key: 'K', label: 'SKILL BOOK', run: () => opts.onMenu?.('K') },
       { key: 'I', label: 'INVENTORY', run: () => opts.onMenu?.('I') },
       { key: 'O', label: 'COSMETIC SHOP', run: () => opts.onMenu?.('O') },
+      { key: 'P', label: 'PARTY', run: () => opts.onMenu?.('P') },
       { label: 'KEY SETTINGS', run: () => opts.onKeys?.() },
       { label: opts.returnLabel, run: () => opts.onReturn() },
     ]);
@@ -298,7 +299,7 @@ export class WorldHUD {
     const ban = this.div('banner', this.root); this.els.banner = ban;
     if (this.opts.onMenu) {
       const m = this.div('menu', this.root);
-      for (const [k, label] of [['K', 'SKILL BOOK'], ['I', 'INVENTORY'], ['O', 'COSMETIC SHOP']] as const) {
+      for (const [k, label] of [['K', 'SKILL BOOK'], ['I', 'INVENTORY'], ['O', 'COSMETIC SHOP'], ['P', 'PARTY']] as const) {
         const b = document.createElement('button'); b.type = 'button';
         b.innerHTML = `<b>${k}</b>${label}`;
         b.addEventListener('mousedown', (e) => e.preventDefault());

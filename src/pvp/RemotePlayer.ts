@@ -33,6 +33,8 @@ export class RemotePlayer {
   private deathFx: DeathFx;
   private cosKey = '';
   hp: number = PVP.maxHp;
+  /** Max HP the owner reports (party buffs can raise it). */
+  maxHp: number = PVP.maxHp;
   alive = true;
   lastSeen = performance.now();
   /** How far in the past the body is shown (network jitter buffer); 0 = latest snapshot (locally simulated NPC). */
@@ -59,6 +61,7 @@ export class RemotePlayer {
   get sprite(): Phaser.GameObjects.Sprite { return this.view.sprite; }
 
   applyState(m: Extract<NetMsg, { t: 'state' }>): void {
+    if (m.mhp) this.maxHp = m.mhp;
     this.lastSeen = performance.now();
     this.snaps.push({ t: this.lastSeen, x: m.x, y: m.y, z: m.z ?? 0 });
     if (this.snaps.length > 30) this.snaps.shift();
@@ -150,7 +153,7 @@ export class RemotePlayer {
     if (!this.alive) return;
     const col = (s: string) => Phaser.Display.Color.HexStringToColor(s).color;
     g.fillStyle(col(H.background), 1).fillRect(-H.w / 2, 0, H.w, H.h);
-    g.fillStyle(col(H.fill), 1).fillRect(-H.w / 2, 0, (H.w * Math.max(0, this.hp)) / PVP.maxHp, H.h);
+    g.fillStyle(col(H.fill), 1).fillRect(-H.w / 2, 0, H.w * Math.min(1, Math.max(0, this.hp) / this.maxHp), H.h);
     g.lineStyle(1, col(H.border), 1).strokeRect(-H.w / 2, 0, H.w, H.h);
   }
 

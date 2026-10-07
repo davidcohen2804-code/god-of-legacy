@@ -6,7 +6,7 @@ export interface PeerMeta { playerId: string; characterId: string; classId: stri
 
 /** Network messages. Movement state carries ground x/y, height z, support z, aim, animation mode and cosmetics. */
 export type NetMsg =
-  | { t: 'state'; from: string; x: number; y: number; z: number; sz: number; dir: string; anim: string; mode: string; sp: number; vz: number; ax: number; ay: number; hp: number; alive: boolean; cos?: string }
+  | { t: 'state'; from: string; x: number; y: number; z: number; sz: number; dir: string; anim: string; mode: string; sp: number; vz: number; ax: number; ay: number; hp: number; alive: boolean; cos?: string; mhp?: number }
   | { t: 'hp'; from: string; hp: number; by: string; castId?: string; skillId?: string; hit?: number; dmg?: number; idx?: number; cid?: number; rx?: string; ends?: boolean; vz?: number; z?: number }
   | { t: 'cast'; from: string; castId: string; skillId: string; stage: number; x: number; y: number; z: number; ax: number; ay: number; px?: number; py?: number; lock?: string | null; dm?: number; rm?: number }
   | { t: 'ctr'; from: string; castId: string; x: number; y: number; z: number; ax: number; ay: number }
@@ -16,7 +16,13 @@ export type NetMsg =
   /** Chat line: to everyone in the room, or a whisper (`to` = player id). */
   | { t: 'chat'; from: string; text: string; to?: string; emo?: number }
   | { t: 'respawn'; from: string; x: number; y: number; hp: number }
-  | { t: 'leave'; from: string };
+  | { t: 'leave'; from: string }
+  /** Party: invite / answer (to one player), the leader's member list (leader first), leaving, a shared party buff. */
+  | { t: 'pinv'; from: string; to: string }
+  | { t: 'pans'; from: string; to: string; ok: boolean }
+  | { t: 'party'; from: string; members: string[] }
+  | { t: 'pleave'; from: string }
+  | { t: 'pbuff'; from: string; skillId: string; ms: number; to: string[] };
 
 export type JoinResult = 'ok' | 'full' | 'error';
 export type TransportKind = 'Supabase' | 'Local';

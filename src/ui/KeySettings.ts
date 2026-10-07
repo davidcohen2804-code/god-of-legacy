@@ -26,7 +26,7 @@ const OTHER: Record<string, { short: string; name: string }> = {
   jump: { short: 'JUMP', name: 'Jump' }, up: { short: '▲', name: 'Move up' }, left: { short: '◀', name: 'Move left' },
   down: { short: '▼', name: 'Move down' }, right: { short: '▶', name: 'Move right' }, book: { short: 'BOOK', name: 'Skill Book' },
   bag: { short: 'BAG', name: 'Inventory' }, shop: { short: 'SHOP', name: 'Cosmetic Shop' }, quests: { short: 'QUEST', name: 'Quest Log' },
-  talk: { short: 'TALK', name: 'Talk to NPC / Enter portal' },
+  talk: { short: 'TALK', name: 'Talk to NPC / Enter portal' }, party: { short: 'PARTY', name: 'Party' },
 };
 /** Actions drawn with a kit icon instead of a word (a word would crowd the key). */
 const ICON: Record<string, string> = { bag: 'icon_items', shop: 'icon_cosmetics', quests: 'ico_quest' };

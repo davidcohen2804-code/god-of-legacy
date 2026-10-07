@@ -24,6 +24,8 @@ import { KeySettings } from '../ui/KeySettings';
 import { BindAction, keyLabel, loadBindings, slotKeyLabels } from '../game/KeyBindings';
 import { CourtyardAmbience } from '../world/Ambience';
 import { allSkillsOpen, setAllSkillsOpen } from '../skills/Unlock';
+import { Party } from '../pvp/Party';
+import { PartyUI, PartyView } from '../ui/PartyUI';
 import { addExp, expToNext } from '../game/Progression';
 import { passiveIconUrl, passivesFor } from '../skills/Passives';
 import { NO_PASSIVES, ORBS, PassiveStats, REGEN, WAR_LEAP, ownedPassives, passiveStats } from '../skills/Passives';
@@ -136,6 +138,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private seenStance = -Infinity;
   /** Party buffs (Iron Oath: Max HP +30%; Legacy Banner: +10% damage, -10% damage taken). */
   oathUntil = -1;
+  /** War Cry shared by a party member: +10% damage. */
+  allyCryUntil = -1;
+  party?: Party;
+  partyUi?: PartyUI;
+  private partyTick = 0;
   bannerUntil = -1;
   private hpMaxSeen = 0;
   private seenEndure = -Infinity;
@@ -346,6 +353,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.bubbles = new SpeechBubbles(this);
     this.questsUi = new QuestTracker(ov);
     this.questLog = new QuestLog(ov, () => this.ci?.reset());
+    this.partyUi = new PartyUI(ov, {
+      invite: (id) => this.party?.invite(id), kick: (id) => this.party?.kick(id), leave: () => this.party?.leave(),
+      answer: (ok) => this.party?.answer(ok), onOpen: () => this.ci?.reset(),
+    });
     this.keySettings = new KeySettings(ov, Array.from({ length: 14 }, (_, i) => ({ name: this.kit[i]?.name ?? '', icon: this.kit[i] ? iconUrl(this.kit[i]) : '' })),
       (b) => this.applyKeys(b), (open) => this.chatTyping(open));
     this.chat.add({ kind: 'system', text: pvpRoom ? 'Welcome to the PvP Arena! Press Enter to chat.' : 'Welcome to God Of Legacy! Press Enter to chat.' });
@@ -366,7 +377,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const kb = this.input.keyboard!;
     const esc = () => {
       if (this.npcDialog?.isOpen) { this.npcDialog.close(); return; }
-      if (this.skillBook?.open || this.cosPanel?.open || this.questLog?.isOpen) { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); } else if (pvpRoom) exitArena();
+      if (this.skillBook?.open || this.cosPanel?.open || this.questLog?.isOpen || this.partyUi?.isOpen) { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.partyUi?.close(); } else if (pvpRoom) exitArena();
     };
     kb.on('keydown-ESC', esc);
     if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name, gender: genderOf(character), ...(headLookOf(character) ? { look: headLookOf(character)! } : {}) });
@@ -396,6 +407,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.bubbles?.destroy(); this.bubbles = undefined;
       this.questsUi?.destroy(); this.questsUi = undefined;
       this.questLog?.destroy(); this.questLog = undefined;
+      this.partyUi?.destroy(); this.partyUi = undefined; this.party = undefined;
       this.keySettings?.destroy(); this.keySettings = undefined;
       this.world?.destroy(); this.world = undefined;
       this.npcDialog?.destroy(); this.npcDialog = undefined;
@@ -435,6 +447,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.rt.update(ms);
     this.stepLingers(now);
     this.stepPassives(ms, now);
+    this.refreshParty(ms);
     this.fx.update(ms, this.rt.projectiles.map((e) => e.p));
     this.updateDummy(ms);
     this.enemy?.update(ms, {
@@ -687,7 +700,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private setAllOpen(on: boolean): void { setAllSkillsOpen(on); this.applyPassives(); this.skillBook?.setUnlockAll(this.allOpen()); }
 
   /** Max HP: fixed in the PvP arena (fair fights), raised by passives in the world. */
-  maxHpNow(): number { return this.arena ? PVP.maxHp : Math.round(S6.player.maxHp * this.passives.hpMul * (this.simMs < this.oathUntil ? 1.3 : 1)); }
+  maxHpNow(): number { return Math.round((this.arena ? PVP.maxHp : S6.player.maxHp * this.passives.hpMul) * (this.simMs < this.oathUntil ? 1.3 : 1)); }
 
   /** Passive damage multiplier: Sword Mastery × Combo Force orbs. */
   private passiveDmgMul(): number { return this.passives.dmg * (1 + ORBS.perOrb * this.orbs.n); }
@@ -1087,12 +1100,47 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private onJumpKey(): void { if (this.pvpReady && this.dead < 0 && !this.inputLocked()) this.ci?.queueJump(); }
 
   /** Own damage buffs right now: War Cry +20%, Radiant Blade +15% (same as against monsters). */
-  private ownDamageMul(): number { return (this.simMs < this.warCryUntil ? 1.2 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * (this.simMs < this.bannerUntil ? 1.1 : 1) * this.passiveDmgMul(); }
+  private ownDamageMul(): number { return (this.simMs < this.warCryUntil ? 1.2 : this.simMs < this.allyCryUntil ? 1.1 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * (this.simMs < this.bannerUntil ? 1.1 : 1) * this.passiveDmgMul(); }
 
   /** Party buffs: the caster always gets them; in a party every member near the caster gets them too.
    *  There is no party system yet, so for now this reaches nobody else (hook for the party feature). */
-  private partyMembersNear(): string[] { return []; }
-  private shareWithParty(_skillId: string, _ms: number): void { for (const _id of this.partyMembersNear()) { /* send the buff to that member (party feature) */ } }
+  private partyMembersNear(): string[] {
+    const p = this.party, k = this.kin;
+    if (!p?.inParty || !this.pvp) return [];
+    return p.members.filter((id) => { const r = this.pvp!.remotes.get(id); return !!r && r.alive && Math.hypot(r.x - k.x, r.y - k.y) <= 420; });
+  }
+  private shareWithParty(skillId: string, ms: number): void { this.party?.shareBuff(skillId, ms, this.partyMembersNear()); }
+
+  /** A party member near me cast a party buff. */
+  private receivePartyBuff(from: string, id: string, ms: number): void {
+    if (this.dead >= 0) return;
+    const now = this.simMs, k = this.kin, name = this.pvp?.nameOf(from) ?? 'Party';
+    if (id === 'war_cry') this.allyCryUntil = Math.max(this.allyCryUntil, now + ms);
+    else if (id === 'iron_oath') this.oathUntil = Math.max(this.oathUntil, now + ms);
+    else if (id === 'legacy_banner') this.bannerUntil = Math.max(this.bannerUntil, now + ms);
+    else return;
+    const label = id === 'war_cry' ? 'WAR CRY' : id === 'iron_oath' ? 'IRON OATH' : 'LEGACY BANNER';
+    this.fx?.callout({ x: k.x, y: k.y, z: k.z + 50 }, `+${label}`, '#ffd27a', 0);
+    this.fx?.shockwave(k.x, k.y, 90, 0xffd27a);
+    this.chat?.add({ kind: 'system', text: `${name} gave you ${label.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}.` });
+  }
+
+  /** Party frame / window / invite pop-up (refreshed a few times a second). */
+  private refreshParty(ms: number): void {
+    if (!this.partyUi) return;
+    this.partyTick += ms; if (this.partyTick < 200) return; this.partyTick = 0;
+    const p = this.party, pvp = this.pvp, me = this.localId;
+    const members = (p?.members ?? []).map((id) => {
+      const r = pvp?.remotes.get(id), self = id === me;
+      return { id, name: self ? (this.character?.name ?? 'You') : pvp?.nameOf(id) ?? 'Player', leader: p!.leader === id, me: self,
+        hp: self ? this.playerHP : r?.hp ?? 0, maxHp: self ? this.maxHpNow() : r?.maxHp ?? PVP.maxHp, alive: self ? this.dead < 0 : !!r?.alive };
+    });
+    const view: PartyView = {
+      members, isLeader: !!p?.isLeader, inParty: !!p?.inParty, inviteFrom: p?.pendingFrom ? pvp?.nameOf(p.pendingFrom) ?? 'Player' : null,
+      room: (pvp?.roomPlayers() ?? []).map((r) => ({ ...r, canInvite: !!p?.canInvite(r.id), inMine: !!p?.has(r.id) })),
+    };
+    this.partyUi.render(view);
+  }
 
   /** Skills open with the job advancements; in the PvP arena every skill is open (testing the combat). */
   private skillOpen(s: FinalSkill): boolean {
@@ -1227,7 +1275,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (phase === 'startup') (run.attackerId === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(run.attackerId))?.startSkill(run.skill.id, run.stage, dirOf(run.aim.x, run.aim.y, 'right'), run.aim, castSeed(run.castId));
   }
 
-  private togglePanel(k: 'K' | 'I' | 'O' | 'J'): void {
+  private togglePanel(k: 'K' | 'I' | 'O' | 'J' | 'P'): void {
+    if (k === 'P') { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.partyUi?.toggle(); this.ci?.reset(); return; }
+    this.partyUi?.close();
     if (k === 'J') { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.toggle(); }
     else if (k === 'K') { this.cosPanel?.close(); this.questLog?.close(); this.skillBook?.toggle(); }
     else { this.skillBook?.close(); this.questLog?.close(); this.cosPanel?.toggle(k === 'I' ? 'inventory' : 'shop'); }
@@ -1488,7 +1538,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   private killPlayer(): void {
-    this.oathUntil = -1; this.bannerUntil = -1; // party buffs end on death
+    this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; // party buffs end on death
     this.rt?.cancelOwn('death');
     if (this.jb) { const jbs = this.kit.find((x) => x.id === 'judgment_blade'); if (jbs) this.rt?.closeCharges(jbs); this.jb = null; this.jbWant = 0; }
     this.ci?.reset();
@@ -1598,18 +1648,26 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const at = r ? { x: r.x, y: r.y, z: (m.z ?? r.z) + 40 } : { x: 0, y: 0, z: 0 };
         this.confirm(run, hits[m.hit ?? 0] ?? hits[0], victim, at, m.dmg, m.idx ?? 1, m.cid ?? 0, m.rx ?? 'hit', !!m.ends, m.z ?? 0);
       },
-      onRemoteLeft: (id) => { this.rt?.cancelAttacker(id); this.bubbles?.clear(id); this.chat?.add({ kind: 'system', text: `${this.nameOf(id)} left the arena.` }); },
+      onRemoteLeft: (id) => { this.party?.dropped(id); this.rt?.cancelAttacker(id); this.bubbles?.clear(id); this.chat?.add({ kind: 'system', text: `${this.nameOf(id)} left the arena.` }); },
       onRemoteJoined: (id) => this.chat?.add({ kind: 'system', text: `${this.nameOf(id)} entered the arena.` }),
       onRemoteDeath: (id, by) => this.chat?.add({ kind: 'system', text: `${this.nameOf(id)} was defeated by ${this.nameOf(by)}.` }),
       onChat: (from, m) => this.receiveChat(from, m),
+      onParty: (m) => this.party?.receive(m),
       getLocal: () => {
         if (!this.view || !this.pvpReady) return null;
         const k = this.kin, dead = this.dead >= 0;
         const cos = Object.entries(this.equipped).filter(([, v]) => v).map(([s, v]) => `${s}:${v}`).join(',');
-        return { x: k.x, y: k.y, z: k.z, sz: k.supportZ, dir: this.dir, anim: dead ? 'dead' : this.mode, mode: this.mode, sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: this.aim.x, ay: this.aim.y, hp: this.playerHP, alive: !dead, cos };
+        return { x: k.x, y: k.y, z: k.z, sz: k.supportZ, dir: this.dir, anim: dead ? 'dead' : this.mode, mode: this.mode, sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: this.aim.x, ay: this.aim.y, hp: this.playerHP, alive: !dead, cos, mhp: this.maxHpNow() };
       },
     });
     this.pvp = pvp;
+    this.party = new Party(meta.playerId, {
+      send: (m) => pvp.sendParty(m), nameOf: (id) => pvp.nameOf(id),
+      notice: (text) => this.chat?.add({ kind: 'system', text }),
+      invited: (from) => this.chat?.add({ kind: 'system', text: `${pvp.nameOf(from)} invites you to a party.` }),
+      buff: (from, id, ms) => this.receivePartyBuff(from, id, ms),
+      changed: () => { this.partyTick = 1e9; },
+    });
     void pvp.join();
   }
 
@@ -1838,7 +1896,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Own active buffs with their timers (HUD buff row). */
   private buffEffects(): HudEffect[] {
     const out: HudEffect[] = [], now = this.simMs, ic = (id: string) => `assets/final/skills/warrior/${id}/icon.png`;
-    for (const [id, label, until] of [['war_cry', 'War Cry', this.warCryUntil], ['radiant_blade', 'Radiant Blade', this.radiantUntil], ['iron_oath', 'Iron Oath', this.oathUntil], ['legacy_banner', 'Legacy Banner', this.bannerUntil]] as const)
+    for (const [id, label, until] of [['war_cry', 'War Cry', Math.max(this.warCryUntil, this.allyCryUntil)], ['radiant_blade', 'Radiant Blade', this.radiantUntil], ['iron_oath', 'Iron Oath', this.oathUntil], ['legacy_banner', 'Legacy Banner', this.bannerUntil]] as const)
       if (now < until) out.push({ id, label, iconUrl: ic(id), harmful: false, expiresAtMs: until });
     return out;
   }
@@ -1876,7 +1934,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (r.mode === 'down' || r.mode === 'getup') eff.push({ id: 'kd', label: 'Knocked down', iconUrl: 'assets/final/ui/hud/status_knockdown.png', harmful: true });
       consider(Math.hypot(r.x - k.x, r.y - k.y), {
         id: r.meta.playerId, name: r.meta.name, type: `Player · ${CLASS_NAMES[r.meta.classId] ?? r.meta.classId}`,
-        portrait: portraitOf(r.meta.classId === 'warrior' ? `base/${r.meta.gender ?? 'male'}` : `${r.meta.classId}/${r.meta.classId}_default`), hp: r.hp, maxHp: PVP.maxHp, effects: eff,
+        portrait: portraitOf(r.meta.classId === 'warrior' ? `base/${r.meta.gender ?? 'male'}` : `${r.meta.classId}/${r.meta.classId}_default`), hp: r.hp, maxHp: r.maxHp, effects: eff,
       });
     }
     return best;

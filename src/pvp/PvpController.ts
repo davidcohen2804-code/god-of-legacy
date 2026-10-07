@@ -6,7 +6,7 @@ import { PVP } from '../config/layout';
 import { RemotePlayer } from './RemotePlayer';
 import { createTransport, NetMsg, PeerMeta, Transport } from './Transport';
 
-export interface LocalSnapshot { x: number; y: number; z: number; sz: number; dir: string; anim: string; mode: string; sp: number; vz: number; ax: number; ay: number; hp: number; alive: boolean; cos: string }
+export interface LocalSnapshot { x: number; y: number; z: number; sz: number; dir: string; anim: string; mode: string; sp: number; vz: number; ax: number; ay: number; hp: number; alive: boolean; cos: string; mhp?: number }
 
 export interface PvpHandlers {
   onJoined(): void;
@@ -22,6 +22,8 @@ export interface PvpHandlers {
   onRemoteDeath?(id: string, by: string): void;
   onRemoteJoined?(id: string): void;
   onChat?(from: string, m: Extract<NetMsg, { t: 'chat' }>): void;
+  /** Party messages (invite / answer / member list / leave / shared buff). */
+  onParty?(m: Extract<NetMsg, { t: 'pinv' | 'pans' | 'party' | 'pleave' | 'pbuff' }>): void;
 }
 
 export class PvpController {
@@ -66,9 +68,9 @@ export class PvpController {
     if (!s || !this.connected) return;
     const msg = {
       t: 'state' as const, from: this.meta.playerId, x: Math.round(s.x), y: Math.round(s.y), z: Math.round(s.z), sz: Math.round(s.sz), dir: s.dir,
-      anim: s.anim, mode: s.mode, sp: Math.round(s.sp), vz: Math.round(s.vz), ax: Math.round(s.ax * 100), ay: Math.round(s.ay * 100), hp: s.hp, alive: s.alive, cos: s.cos,
+      anim: s.anim, mode: s.mode, sp: Math.round(s.sp), vz: Math.round(s.vz), ax: Math.round(s.ax * 100), ay: Math.round(s.ay * 100), hp: s.hp, alive: s.alive, cos: s.cos, ...(s.mhp ? { mhp: s.mhp } : {}),
     };
-    const key = `${msg.x},${msg.y},${msg.z},${msg.dir},${msg.mode},${msg.ax},${msg.ay},${msg.hp},${msg.alive},${msg.cos}`;
+    const key = `${msg.x},${msg.y},${msg.z},${msg.dir},${msg.mode},${msg.ax},${msg.ay},${msg.hp},${msg.alive},${msg.cos},${s.mhp ?? ''}`;
     if (!force && !keepAlive && key === this.lastSent) return;
     this.sinceSend = 0;
     this.lastSent = key;
@@ -88,6 +90,14 @@ export class PvpController {
   sendCounter(m: Omit<Extract<NetMsg, { t: 'ctr' }>, 't' | 'from'>): void { this.transport.send({ t: 'ctr', from: this.meta.playerId, ...m }); }
   sendRelease(m: Omit<Extract<NetMsg, { t: 'rel' }>, 't' | 'from'>): void { this.transport.send({ t: 'rel', from: this.meta.playerId, ...m }); }
   sendChat(text: string, to?: string, emo?: number): void { this.transport.send({ t: 'chat', from: this.meta.playerId, text, ...(to ? { to } : {}), ...(emo !== undefined ? { emo } : {}) }); }
+  /** Party message (the transport broadcasts; receivers filter by `to` / membership). */
+  sendParty(m: Omit<Extract<NetMsg, { t: 'pinv' }>, 'from'> | Omit<Extract<NetMsg, { t: 'pans' }>, 'from'> | Omit<Extract<NetMsg, { t: 'party' }>, 'from'> | Omit<Extract<NetMsg, { t: 'pleave' }>, 'from'> | Omit<Extract<NetMsg, { t: 'pbuff' }>, 'from'>): void {
+    this.transport.send({ ...m, from: this.meta.playerId } as NetMsg);
+  }
+  /** Name of a player in the room (party UI). */
+  nameOf(id: string): string { return this.peers.get(id)?.name ?? this.remotes.get(id)?.meta.name ?? 'Player'; }
+  /** Everyone else in the room (party invite list). */
+  roomPlayers(): { id: string; name: string; classId: string }[] { return [...this.peers.values()].map((p) => ({ id: p.playerId, name: p.name, classId: p.classId })); }
   sendDeath(by: string): void { this.transport.send({ t: 'death', from: this.meta.playerId, by }); }
   sendRespawn(x: number, y: number, hp: number): void {
     this.transport.send({ t: 'respawn', from: this.meta.playerId, x: Math.round(x), y: Math.round(y), hp });
@@ -98,6 +108,7 @@ export class PvpController {
     if (this.destroyed || m.from === this.meta.playerId) return;
     this.lastNet = performance.now();
     if (m.t === 'leave') { this.removeRemote(m.from); this.peers.delete(m.from); return; }
+    if (m.t === 'pinv' || m.t === 'pans' || m.t === 'party' || m.t === 'pleave' || m.t === 'pbuff') { this.h.onParty?.(m); return; }
     if (m.t === 'state') {
       const r = this.remotes.get(m.from);
       if (r) r.applyState(m);
