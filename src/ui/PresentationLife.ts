@@ -382,13 +382,18 @@ export function addSunLight(scene: Phaser.Scene, at: { x: number; y: number }, d
   return [bloom, rays2, rays, core];
 }
 
-/** Faint cloud wisps drifting slowly high in the sky band; the valley's soft haze (two depths) lies still over the
- *  landscape — the picture below the sky never moves. */
+/** Drifting cloud wisps (sky band) and valley mist (two depths), soft and slow. */
 export function addSkyAndMist(scene: Phaser.Scene, depth = 1): Phaser.GameObjects.TileSprite[] {
-  const clouds = scene.add.tileSprite(960, 150, 1920, 300, fogTex(scene, 'life-cloud', 1024, 300, 14, 7, true)).setTint(0xffc9a8).setAlpha(0.14).setBlendMode(Phaser.BlendModes.SCREEN).setDepth(depth);
-  const mistFar = scene.add.tileSprite(960, 640, 1920, 240, fogTex(scene, 'life-mist-a', 1024, 240, 16, 23, true)).setTint(0xe8eef8).setAlpha(0.13).setBlendMode(Phaser.BlendModes.SCREEN).setDepth(depth);
-  const mistNear = scene.add.tileSprite(960, 900, 1920, 300, fogTex(scene, 'life-mist-b', 1024, 300, 12, 91, true)).setTint(0xf2f4fa).setAlpha(0.11).setBlendMode(Phaser.BlendModes.SCREEN).setDepth(depth);
-  onUpdate(scene, (dt) => { clouds.tilePositionX -= dt * 0.004; });
+  const clouds = scene.add.tileSprite(960, 150, 1920, 300, fogTex(scene, 'life-cloud', 1024, 300, 14, 7, true)).setTint(0xffc9a8).setAlpha(0.16).setBlendMode(Phaser.BlendModes.SCREEN).setDepth(depth);
+  const mistFar = scene.add.tileSprite(960, 640, 1920, 240, fogTex(scene, 'life-mist-a', 1024, 240, 16, 23, true)).setTint(0xe8eef8).setAlpha(0.16).setBlendMode(Phaser.BlendModes.SCREEN).setDepth(depth);
+  const mistNear = scene.add.tileSprite(960, 900, 1920, 300, fogTex(scene, 'life-mist-b', 1024, 300, 12, 91, true)).setTint(0xf2f4fa).setAlpha(0.14).setBlendMode(Phaser.BlendModes.SCREEN).setDepth(depth);
+  let t = 0;
+  onUpdate(scene, (dt) => {
+    t += dt;
+    clouds.tilePositionX -= dt * 0.006;
+    mistFar.tilePositionX -= dt * 0.011; mistFar.setAlpha(0.13 + 0.04 * Math.sin(t / 4100));
+    mistNear.tilePositionX += dt * 0.017; mistNear.setAlpha(0.11 + 0.04 * Math.sin(t / 3300 + 2));
+  });
   return [clouds, mistFar, mistNear];
 }
 

@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { ASSETS, DESIGN, LOGO } from '../config/layout';
 import { MainMenuUI } from '../ui/MainMenuUI';
 import { clearPvpFromUrl } from '../pvp/Room';
-import { addCapeWind, addGemLife, addGemPulse, addMotes, addSkyAndMist, addSunLight, addWaterGlints, preloadLife } from '../ui/PresentationLife';
+import { addCapeWind, addGemLife, addGemPulse, addMotes, addPaintedWater, addSkyAndMist, addSunLight, addWaterGlints, preloadLife } from '../ui/PresentationLife';
 
 /** Centre of the logo's red gem in logo image pixels (measured on the art). */
 const LOGO_GEM = { x: 595.7, y: 325.2, radius: 78 };
@@ -23,12 +23,13 @@ export class MainMenuScene extends Phaser.Scene {
   create(): void {
     clearPvpFromUrl(); // the menu is never a PvP link
     this.leaving = false;
-    // Background: cover-style, aspect preserved. The picture itself stays still (no pointer parallax, no ripple over it):
-    // only small touches live on it — the sun, the lake's glitter, a few motes, the hero's cape, the logo's gem.
+    // Background: cover-style, aspect preserved. It stays put: the screen never slides with the pointer (no parallax);
+    // the life is in the effects on it.
     const bg = this.add.image(DESIGN.width / 2, DESIGN.height / 2, ASSETS.background.key);
-    bg.setScale(Math.max(DESIGN.width / bg.width, DESIGN.height / bg.height));
+    bg.setScale(Math.max(DESIGN.width / bg.width, DESIGN.height / bg.height) * 1.008);
     const k0 = bg.scaleX, ox = bg.x - bg.displayWidth / 2, oy = bg.y - bg.displayHeight / 2; // painting px -> screen
-    addSkyAndMist(this, 1); // faint cloud wisps drifting high in the sky
+    addPaintedWater(this, ASSETS.background.key, bg, 300); // falls flow and mist banks heave
+    addSkyAndMist(this, 1); // drifting cloud wisps + valley mist
     addSunLight(this, { x: ox + SUN.x * k0, y: oy + SUN.y * k0 }, 1);
     addWaterGlints(this, { x: ox + 1470 * k0, y: oy + 300 * k0, w: 240 * k0, h: 95 * k0 }, 14, 2);
     addCapeWind(this, ASSETS.background.key, bg, CAPE, isCape);
