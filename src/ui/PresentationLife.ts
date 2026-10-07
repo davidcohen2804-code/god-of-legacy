@@ -308,3 +308,177 @@ export class ClassPresence {
     }
   }
 }
+
+// ======================================================================================== Main Menu: living painting
+
+/** Code-made textures: sun rays, soft fog / cloud tile, a 4-point glint. */
+function raysTex(scene: Phaser.Scene): string {
+  const key = 'life-rays';
+  if (scene.textures.exists(key)) return key;
+  const S = 512, c = scene.textures.createCanvas(key, S, S)!, ctx = c.getContext();
+  ctx.translate(S / 2, S / 2);
+  for (let i = 0; i < 22; i++) {
+    const a = (i / 22) * Math.PI * 2 + (i % 3) * 0.05, w = 0.025 + (i % 4) * 0.012, len = S * (0.32 + ((i * 37) % 17) / 17 * 0.18);
+    const g = ctx.createLinearGradient(0, 0, Math.cos(a) * len, Math.sin(a) * len);
+    g.addColorStop(0, 'rgba(255,240,200,0.9)'); g.addColorStop(0.35, 'rgba(255,220,160,0.35)'); g.addColorStop(1, 'rgba(255,200,140,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(a - w) * len, Math.sin(a - w) * len); ctx.lineTo(Math.cos(a + w) * len, Math.sin(a + w) * len); ctx.closePath(); ctx.fill();
+  }
+  c.refresh();
+  return key;
+}
+
+function fogTex(scene: Phaser.Scene, key: string, w: number, h: number, blobs: number, seed: number, vfade: boolean): string {
+  if (scene.textures.exists(key)) return key;
+  const c = scene.textures.createCanvas(key, w, h)!, ctx = c.getContext();
+  let s = seed; const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+  for (let i = 0; i < blobs; i++) {
+    const x = rnd() * w, y = h * (0.25 + rnd() * 0.5), r = h * (0.18 + rnd() * 0.35), sx = 1.6 + rnd() * 1.8;
+    for (const dx of [-w, 0, w]) { // wraps horizontally (seamless tile)
+      ctx.save(); ctx.translate(x + dx, y); ctx.scale(sx, 1);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+      g.addColorStop(0, 'rgba(255,255,255,0.55)'); g.addColorStop(0.5, 'rgba(255,255,255,0.2)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    }
+  }
+  if (vfade) { // soft top / bottom edges
+    ctx.globalCompositeOperation = 'destination-in';
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.3, 'rgba(0,0,0,1)'); g.addColorStop(0.7, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  }
+  c.refresh();
+  return key;
+}
+
+function glintTex(scene: Phaser.Scene): string {
+  const key = 'life-glint';
+  if (scene.textures.exists(key)) return key;
+  const S = 64, c = scene.textures.createCanvas(key, S, S)!, ctx = c.getContext();
+  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 10); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ctx.beginPath(); ctx.moveTo(32, 2); ctx.lineTo(34, 32); ctx.lineTo(32, 62); ctx.lineTo(30, 32); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(2, 32); ctx.lineTo(32, 30); ctx.lineTo(62, 32); ctx.lineTo(32, 34); ctx.closePath(); ctx.fill();
+  c.refresh();
+  return key;
+}
+
+/** Sun: warm bloom + slowly turning god rays + a soft shaft over the lake. Returns objects for parallax. */
+export function addSunLight(scene: Phaser.Scene, at: { x: number; y: number }, depth = 1): Phaser.GameObjects.Image[] {
+  const bloom = scene.add.image(at.x, at.y, glowTex(scene)).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc078).setDepth(depth);
+  const core = scene.add.image(at.x, at.y, glowTex(scene)).setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff1d0).setDepth(depth);
+  const rays = scene.add.image(at.x, at.y, raysTex(scene)).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd9a0).setDepth(depth).setScale(1.9);
+  const rays2 = scene.add.image(at.x, at.y, raysTex(scene)).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffb070).setDepth(depth).setScale(2.6).setAngle(9);
+  let t = 0;
+  onUpdate(scene, (dt) => {
+    t += dt;
+    const breathe = 0.5 + 0.5 * Math.sin((t / 5200) * Math.PI * 2);
+    bloom.setDisplaySize(620 + 60 * breathe, 620 + 60 * breathe).setAlpha(0.32 + 0.1 * breathe);
+    core.setDisplaySize(150 + 16 * breathe, 150 + 16 * breathe).setAlpha(0.55 + 0.15 * breathe);
+    rays.setAngle((t / 1000) * 1.6).setAlpha(0.16 + 0.07 * Math.sin(t / 2300));
+    rays2.setAngle(9 - (t / 1000) * 1.0).setAlpha(0.1 + 0.05 * Math.sin(t / 3100 + 1));
+  });
+  return [bloom, rays2, rays, core];
+}
+
+/** Drifting cloud wisps (sky band) and valley mist (two depths), soft and slow. */
+export function addSkyAndMist(scene: Phaser.Scene, depth = 1): Phaser.GameObjects.TileSprite[] {
+  const clouds = scene.add.tileSprite(960, 150, 1920, 300, fogTex(scene, 'life-cloud', 1024, 300, 14, 7, true)).setTint(0xffc9a8).setAlpha(0.16).setBlendMode(Phaser.BlendModes.SCREEN).setDepth(depth);
+  const mistFar = scene.add.tileSprite(960, 640, 1920, 240, fogTex(scene, 'life-mist-a', 1024, 240, 16, 23, true)).setTint(0xe8eef8).setAlpha(0.16).setBlendMode(Phaser.BlendModes.SCREEN).setDepth(depth);
+  const mistNear = scene.add.tileSprite(960, 900, 1920, 300, fogTex(scene, 'life-mist-b', 1024, 300, 12, 91, true)).setTint(0xf2f4fa).setAlpha(0.14).setBlendMode(Phaser.BlendModes.SCREEN).setDepth(depth);
+  let t = 0;
+  onUpdate(scene, (dt) => {
+    t += dt;
+    clouds.tilePositionX -= dt * 0.006;
+    mistFar.tilePositionX -= dt * 0.011; mistFar.setAlpha(0.13 + 0.04 * Math.sin(t / 4100));
+    mistNear.tilePositionX += dt * 0.017; mistNear.setAlpha(0.11 + 0.04 * Math.sin(t / 3300 + 2));
+  });
+  return [clouds, mistFar, mistNear];
+}
+
+/**
+ * Water and mist of the painting itself come alive: the bright, unsaturated pixels below the horizon (waterfalls, mist
+ * banks, foam) are copied into a feathered overlay that ripples with the wind maps (falls flow, mist breathes).
+ */
+export function addPaintedWater(scene: Phaser.Scene, bgKey: string, bg: Phaser.GameObjects.Image, top = 300): Phaser.GameObjects.Image | null {
+  const key = `${bgKey}-water`;
+  if (!scene.textures.exists(key)) {
+    const src = scene.textures.get(bgKey).getSourceImage() as HTMLImageElement;
+    const W = 960, H = 540, cv = document.createElement('canvas'); cv.width = W; cv.height = H; // half res: soft and cheap
+    const ctx = cv.getContext('2d', { willReadFrequently: true })!;
+    ctx.drawImage(src, 0, 0, W, H);
+    const d = ctx.getImageData(0, 0, W, H), m = new Float32Array(W * H), y0 = Math.round((top / bg.height) * H);
+    for (let y = y0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4, r = d.data[i], g = d.data[i + 1], b = d.data[i + 2], mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+      m[y * W + x] = smooth(150, 200, mx) * (1 - smooth(40, 70, mx - mn));
+    }
+    const o = new Float32Array(W * H); // one blur pass
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) { let s = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) s += m[(y + dy) * W + x + dx]; o[y * W + x] = s / 9; }
+    for (let i = 0; i < W * H; i++) d.data[i * 4 + 3] = Math.round(255 * Math.min(1, o[i] * 1.3));
+    ctx.putImageData(d, 0, 0);
+    scene.textures.addCanvas(key, cv);
+  }
+  const img = scene.add.image(bg.x, bg.y, key).setDisplaySize(bg.displayWidth, bg.displayHeight).setDepth(bg.depth + 0.4);
+  if (!img.preFX) return img;
+  img.preFX.padding = 6;
+  const a = img.preFX.addDisplacement('life-wind-sin-final', 0, 0), b = img.preFX.addDisplacement('life-wind-cos-final', 0, 0);
+  let t = 0;
+  onUpdate(scene, (dt) => {
+    t += dt;
+    const amp = 3 / Math.max(1, img.displayWidth), w = (t / 2600) * Math.PI * 2;
+    a.x = amp * 0.6 * Math.cos(w); a.y = amp * 2.2 * Math.sin(w * 1.3); // mostly vertical: falls flow, mist heaves
+    b.x = amp * 0.5 * Math.sin(w * 0.7); b.y = amp * 1.6 * Math.cos(w * 0.9);
+    img.setAlpha(0.85 + 0.15 * Math.sin(t / 1700));
+  });
+  return img;
+}
+
+/** Sun glitter on the lake: tiny glints that flicker along the reflection. */
+export function addWaterGlints(scene: Phaser.Scene, area: { x: number; y: number; w: number; h: number }, n: number, depth = 2): Phaser.GameObjects.Container {
+  const c = scene.add.container(0, 0).setDepth(depth);
+  const gl = Array.from({ length: n }, () => {
+    const img = scene.add.image(0, 0, glintTex(scene)).setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff0c8).setAlpha(0);
+    c.add(img);
+    return { img, t: Math.random() * 1600, life: 900 + Math.random() * 900 };
+  });
+  const place = (g: { img: Phaser.GameObjects.Image }) => {
+    const u = Math.random(), v = Math.random();
+    g.img.setPosition(area.x + area.w * (0.5 + (u - 0.5) * (0.35 + v * 0.65)), area.y + area.h * v); // denser in the sun's column
+  };
+  for (const g of gl) place(g);
+  onUpdate(scene, (dt) => {
+    for (const g of gl) {
+      g.t += dt;
+      if (g.t >= g.life) { g.t = 0; g.life = 900 + Math.random() * 900; place(g); }
+      const k = Math.sin((g.t / g.life) * Math.PI), s = 10 + 16 * k;
+      g.img.setAlpha(0.85 * k).setDisplaySize(s, s);
+    }
+  });
+  return c;
+}
+
+/** Living gem: heartbeat core, slowly turning flare, embers rising from it. */
+export function addGemLife(scene: Phaser.Scene, at: { x: number; y: number }, radius: number, depth = 11): Phaser.GameObjects.Container {
+  const c = scene.add.container(at.x, at.y).setDepth(depth);
+  const flare = scene.add.image(0, 0, raysTex(scene)).setBlendMode(Phaser.BlendModes.ADD).setTint(0xff6a3a);
+  const core = scene.add.image(0, 0, glowTex(scene)).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffe2b0);
+  const halo = scene.add.image(0, 0, glowTex(scene)).setBlendMode(Phaser.BlendModes.ADD).setTint(0xff3a20);
+  c.add([halo, flare, core]);
+  const embers = Array.from({ length: 10 }, () => { const e = scene.add.image(0, 0, glowTex(scene)).setBlendMode(Phaser.BlendModes.ADD).setTint(0xff8a40).setAlpha(0); c.add(e); return { e, t: Math.random() * 2000, life: 1400 + Math.random() * 1200, vx: 0, x: 0 }; });
+  let t = 0;
+  onUpdate(scene, (dt) => {
+    t += dt;
+    const ph = (t % 1800) / 1800, beat = Math.exp(-((ph - 0.08) ** 2) / 0.002) + 0.6 * Math.exp(-((ph - 0.24) ** 2) / 0.003); // lub-dub
+    halo.setDisplaySize(radius * (3.2 + 0.6 * beat), radius * (3.2 + 0.6 * beat)).setAlpha(0.35 + 0.3 * beat);
+    core.setDisplaySize(radius * (1.1 + 0.35 * beat), radius * (1.1 + 0.35 * beat)).setAlpha(0.55 + 0.4 * beat);
+    flare.setDisplaySize(radius * 3.6, radius * 3.6).setAngle(t / 60).setAlpha(0.22 + 0.25 * beat);
+    for (const m of embers) {
+      m.t += dt;
+      if (m.t >= m.life) { m.t = 0; m.life = 1400 + Math.random() * 1200; m.x = (Math.random() - 0.5) * radius * 0.8; m.vx = (Math.random() - 0.5) * 18; }
+      const k = m.t / m.life, s = radius * (0.22 + 0.18 * Math.sin(k * Math.PI));
+      m.e.setPosition(m.x + m.vx * k * 2, -radius * 0.2 - k * radius * 2.6).setDisplaySize(s, s).setAlpha(0.8 * Math.sin(k * Math.PI));
+    }
+  });
+  return c;
+}
