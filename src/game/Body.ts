@@ -228,6 +228,13 @@ function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): P
     const sw = ['swing1', 'swing2', 'swing3'].filter((a) => has[a]);
     anim = sw[(q.seed ?? 0) % sw.length]; frame = q.elapsed < q.startup ? 0 : q.elapsed < q.startup + q.active * 0.5 ? 1 : 2; // wind-up, strike, follow-through
   }
+  else if (q.k === 'skill' && q.id === 'iron_oath' && has.swing1) { // the oath: sword brought up and held upright before him, then back to guard
+    const e = q.elapsed;
+    if (e < q.startup * 0.3) { anim = 'swing1'; frame = 0; } else if (e < q.startup + q.active + 120) { anim = 'swing1'; frame = 1; } else if (has.alert) { anim = 'alert'; frame = 0; }
+  } else if (q.k === 'skill' && q.id === 'legacy_banner' && has.swing1) { // sword raised to the sky, then brought down where the banner is planted
+    const e = q.elapsed;
+    if (e < q.startup * 0.3) { anim = 'swing1'; frame = 0; } else if (e < q.startup * 0.7) { anim = 'swing1'; frame = 1; } else if (e < q.startup + q.active + 200) { anim = 'swing1'; frame = 2; } else if (has.alert) { anim = 'alert'; frame = 0; }
+  }
   const key = nakedKey(g, anim), [hx, hy] = NAKED_HEADS[g]?.[anim]?.[frame] ?? [0, 0], fx = f.flip ? -1 : 1;
   return { ...f, key, frame, wkey: `${key}-w`, blade: null, bladeBehind: false, hair: null, head: null, naked: { g, anim, frame, hx, hy },
     anchor: f.anchor ? f.anchor.map((v, i) => (i % 2 === 0 ? v + hx * fx * SHEET_SCALE : v + (hy + (i === 1 ? NAKED_HEAD_DROP : 0)) * SHEET_SCALE)) : null };
