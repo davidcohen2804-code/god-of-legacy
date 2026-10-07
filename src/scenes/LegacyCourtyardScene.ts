@@ -1900,9 +1900,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.fx?.callout({ x: bot.x, y: bot.y, z: 90 }, 'TRIAL COMPLETE', '#ffd34a', 0);
     this.fx?.shockwave(bot.x, bot.y, 220, 0xffd27a);
     this.rt?.cancelAttacker(BOT_ID); bot.destroy(); this.bot = undefined;
+    const set = JOB_SET[ch.trial ?? ''] ?? [];   // the Master's reward: his job's set, worn at once
+    if (set.length) { let g = CharacterStore.getGear(ch.id) ?? starterGear(ch.look); for (const id of set) g = giveItem(g, id, true); CharacterStore.setGear(ch.id, g); ch.gear = CharacterStore.getGear(ch.id) ?? g; this.onGearChange(ch.gear); }
     CharacterStore.clearTrial(ch.id); delete ch.trial;
     this.hud?.banner(job.toUpperCase(), 2200, false);
-    this.chat?.add({ kind: 'system', text: `${name}: "Well fought. You are a true ${job} now."` });
+    this.chat?.add({ kind: 'system', text: `${name}: "Well fought. You are a true ${job} now. Take my gear — it is yours."` });
   }
 
   /** A Master: from level 10 he gives a Beginner his job (and his trial below in the plaza). */
@@ -1918,7 +1920,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (!JOBS_OPEN.has(job)) { say([...(n.lines ?? []).slice(0, 1), 'My path is not open to new students yet.']); return; }
     if (ch.level < BEGINNER_TO) { say([...(n.lines ?? []).slice(0, 1), `You are not ready yet. Reach level ${BEGINNER_TO}, then come back to me.`]); return; }
-    say([...(n.lines ?? []).slice(0, 1), `You have grown strong. I can teach you the path of the ${jobName}.`, 'But first you must face me in the plaza below. Will you take my path?'],
+    say([...(n.lines ?? []).slice(0, 1), `You have grown strong. I can teach you the path of the ${jobName}.`, 'Take my path, and face me in the Sun Seal Plaza below. Defeat me, and my gear is yours. Will you?'],
       [{ label: `BECOME A ${jobName.toUpperCase()}`, main: true, run: () => this.takeJob(n) }, { label: 'NOT YET', run: () => undefined }]);
   }
 
@@ -1927,8 +1929,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const jobName = jobsFor(n.job)[1]?.name ?? n.job;
     CharacterStore.setJob(ch.id, n.job, n.job);
     ch.job = n.job; ch.classId = n.job; ch.trial = n.job;
-    const set = JOB_SET[n.job] ?? [];   // his job's set, worn at once
-    if (set.length) { let g = CharacterStore.getGear(ch.id) ?? starterGear(ch.look); for (const id of set) g = giveItem(g, id, true); CharacterStore.setGear(ch.id, g); ch.gear = CharacterStore.getGear(ch.id) ?? g; }
     const k = this.kin;
     this.fx?.callout({ x: k.x, y: k.y, z: k.z + 60 }, `1ST JOB: ${jobName.toUpperCase()}`, '#ffd34a', 0);
     this.fx?.shockwave(k.x, k.y, 200, 0xffd27a);
