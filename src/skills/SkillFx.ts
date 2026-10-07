@@ -594,7 +594,7 @@ export class SkillFx {
     this.anims.push({ img, t: 0, total: fms.reduce((p, q) => p + q, 0), frames: [0, 1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 80 });
   }
 
-  /** DFO-style callout above a target (COUNTER!! / BACK ATTACK!! / CRITICAL!!). */
+  /** DFO-style callout above a target (COUNTER!! / BACK ATTACK!!). */
   callout(at: V3, text: string, color: string, row = 0): void {
     const t = this.scene.add.text(at.x, at.y - at.z - 120 - row * 30, text, {
       fontFamily: 'Cinzel, Georgia, serif', fontStyle: 'bold italic', fontSize: '30px', color, stroke: '#1a0602', strokeThickness: 6, resolution: 2,
@@ -859,19 +859,15 @@ export class SkillFx {
   // ------------------------------------------------------------------ confirmed hits
 
   /** Confirmed hit feedback at the target: class impact, damage number, hit-stop + shake by tier. */
-  confirmed(s: FinalSkill, hit: HitEvent, at: V3, damage: number, reaction: string, local: boolean, combo: number): void {
+  confirmed(s: FinalSkill, hit: HitEvent, at: V3, damage: number, reaction: string, local: boolean, combo: number, crit = false): void {
     const tier = tierOf(s, hit);
     const k = IMPACT[s.cls] ?? IMPACT.warrior;
-    const im = s.cls === 'warrior' ? 1.9 : 1;
-    this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.6 : hit.heavy ? 1.25 : 1), 1);
-    if (s.cls === 'warrior') { // white core flash on every confirmed hit
-      const f = this.scene.add.image(at.x, at.y - at.z - 38, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 3).setDisplaySize(hit.heavy ? 150 : 96, hit.heavy ? 150 : 96).setAlpha(0.8);
-      this.scene.tweens.add({ targets: f, alpha: 0, scale: f.scale * 1.4, duration: 140, onComplete: () => f.destroy() });
-    }
+    const im = s.cls === 'warrior' ? 0.8 : 1; // MapleStory: a small, quick hit spark on the target (no flash over the body)
+    this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.4 : hit.heavy ? 1.15 : 1), 0.8);
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).
     if (tier !== 'ultimate' && reaction === 'launch') this.spark(IMPACT.dust.key, at.x, at.y + 4, 6, 90, 0.5);
     if (tier !== 'ultimate' && (reaction === 'knockdown' || reaction === 'slam')) this.spark(IMPACT.dust.key, at.x, at.y + 6, 6, 110, 0.55);
-    if (damage > 0) this.damageNumber(at, damage, hit.heavy || tier === 'ultimate' || tier === 'signature', combo, local);
+    if (damage > 0) this.damageNumber(at, damage, hit.heavy || tier === 'ultimate' || tier === 'signature', combo, local, crit);
     if (local) {
       const multi = (s.chain ? 1 : s.hits.length) > 3 && !hit.heavy; // rapid multi-hits: lighter per-hit freeze
       this.hitStopLeft = Math.max(this.hitStopLeft, HITSTOP[tier] * (multi ? 0.45 : 1) + (hit.heavy && tier === 'core' ? 20 : 0));
@@ -880,8 +876,9 @@ export class SkillFx {
     }
   }
 
-  /** MapleStory-style damage: each hit of a burst stacks one line higher above the target; big bold gradient digits. */
-  damageNumber(at: V3, dmg: number, heavy: boolean, combo: number, local = false): void {
+  /** MapleStory damage: each hit of a burst stacks one line higher above the target; bold gradient digits — orange for a
+   *  normal hit; a critical one bigger, pink-red, with the critical star at its left (no "CRITICAL" text). */
+  damageNumber(at: V3, dmg: number, heavy: boolean, combo: number, local = false, crit = false): void {
     // One column per target: a new hit within 700ms near the last column stacks on top of it (same x, next line up).
     const now = this.scene.time.now;
     let st = this.dmgStacks.find((d) => now - d.last < 700 && Math.abs(d.x - at.x) < 160 && Math.abs(d.y - at.y) < 120);
@@ -889,12 +886,12 @@ export class SkillFx {
     this.dmgStacks = this.dmgStacks.filter((d) => now - d.last < 1500);
     const line = st.line, x = st.x, y = st.y - 96 - line * 30;
     const c = this.scene.add.container(x, y).setDepth(TOP + 20 + line * 0.01);
-    if (heavy) c.add(this.scene.add.image(0, 0, 'dmg-glow').setDisplaySize(130, 70).setAlpha(0.55).setBlendMode(Phaser.BlendModes.ADD));
     const sk = local ? this.damageSkin : null;
-    if (sk && this.scene.textures.exists(sk.key)) { // cash-shop damage skin: painted digits
-      const H = heavy ? 74 : 60, sc = H / sk.cell[1], digits = String(dmg).split('').map(Number);
+    void heavy;
+    if (sk && this.scene.textures.exists(sk.key)) { // cash-shop damage skin: painted digits (its own critical mark)
+      const H = crit ? 74 : 60, sc = H / sk.cell[1], digits = String(dmg).split('').map(Number);
       const adv = digits.map((d) => sk.widths[d] * sc * 0.86), total = adv.reduce((a, b) => a + b, 0);
-      if (heavy) c.add(this.scene.add.image(-total / 2 - H * 0.35, -4, sk.key, 10).setScale(sc * 1.05));
+      if (crit) c.add(this.scene.add.image(-total / 2 - H * 0.35, -4, sk.key, 10).setScale(sc * 1.05));
       let xx = -total / 2;
       digits.forEach((d, i) => { c.add(this.scene.add.image(xx + adv[i] / 2, (i % 2 ? 2 : -2), sk.key, d).setScale(sc)); xx += adv[i]; });
       c.setScale(1.6).setAlpha(0);
@@ -903,19 +900,43 @@ export class SkillFx {
       return;
     }
     const txt = this.scene.add.text(0, 0, String(dmg), {
-      fontFamily: 'Impact, "Arial Black", sans-serif', fontSize: heavy ? '40px' : '32px',
-      color: '#ffffff', stroke: heavy ? '#4a1200' : '#3a1a00', strokeThickness: heavy ? 7 : 6, resolution: 2,
+      fontFamily: 'Impact, "Arial Black", sans-serif', fontSize: crit ? '42px' : '32px',
+      color: '#ffffff', stroke: crit ? '#4a0626' : '#3a1a00', strokeThickness: crit ? 7 : 6, resolution: 2,
     }).setOrigin(0.5);
-    const g = txt.context.createLinearGradient(0, 0, 0, txt.height); // orange→gold like the Maple crit skin
-    if (heavy) { g.addColorStop(0, '#fff6c8'); g.addColorStop(0.45, '#ffc93a'); g.addColorStop(1, '#ff6a12'); }
-    else { g.addColorStop(0, '#ffe9b0'); g.addColorStop(0.5, '#ffab3a'); g.addColorStop(1, '#ff7a1a'); }
+    const g = txt.context.createLinearGradient(0, 0, 0, txt.height);
+    if (crit) { g.addColorStop(0, '#ffe8f3'); g.addColorStop(0.42, '#ff78b6'); g.addColorStop(1, '#e2145f'); } // critical: pink-red
+    else { g.addColorStop(0, '#ffe9b0'); g.addColorStop(0.5, '#ffab3a'); g.addColorStop(1, '#ff7a1a'); }          // normal: orange
     txt.setFill(g);
     txt.setShadow(0, 3, '#000000', 4, true, true);
+    if (crit) c.add(this.scene.add.image(-txt.width / 2 - 2, -4, this.critMark()).setDisplaySize(62, 62).setBlendMode(Phaser.BlendModes.ADD)); // the star, behind the first digit
     c.add(txt);
     c.setScale(1.6).setAlpha(0);
     this.scene.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 90, ease: 'Back.easeOut' });
     this.texts.push({ t: c, age: 0, x, y });
     void combo;
+  }
+
+  /** The critical star (MapleStory): a white-gold four-point burst with short rays between, in a soft glow. */
+  private critMark(): string {
+    const key = 'dmg-crit-star';
+    if (this.scene.textures.exists(key)) return key;
+    const S = 128, h = S / 2, t = this.scene.textures.createCanvas(key, S, S);
+    if (!t) return '__DEFAULT';
+    const ctx = t.getContext();
+    const glow = ctx.createRadialGradient(h, h, 0, h, h, h);
+    glow.addColorStop(0, 'rgba(255,250,215,0.9)'); glow.addColorStop(0.3, 'rgba(255,214,110,0.45)'); glow.addColorStop(1, 'rgba(255,160,40,0)');
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, S, S);
+    const fill = ctx.createRadialGradient(h, h, 0, h, h, h * 0.95);
+    fill.addColorStop(0, '#ffffff'); fill.addColorStop(0.35, '#fff6c2'); fill.addColorStop(1, '#ffb52a');
+    const star = (r0: number, r1: number, rot: number) => {
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) { const r = i % 2 ? r1 : r0, a = rot + (i * Math.PI) / 4; ctx.lineTo(h + Math.cos(a) * r, h + Math.sin(a) * r); }
+      ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+    };
+    star(h * 0.62, h * 0.12, Math.PI / 4 - Math.PI / 2); // the short rays (diagonals)
+    star(h * 0.98, h * 0.14, -Math.PI / 2);             // the long rays (up, down, left, right)
+    t.refresh();
+    return key;
   }
 
   /** Green heal number rising from the player. */

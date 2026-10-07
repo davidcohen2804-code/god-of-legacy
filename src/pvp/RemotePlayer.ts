@@ -144,7 +144,7 @@ export class RemotePlayer {
       if (this.skill.elapsed >= this.skill.startup + this.skill.active + this.skill.recovery || !this.alive) { this.skill = null; if (this.mode === 'skill') { this.mode = 'recover'; this.modeT = 0; } }
     }
     let tint: number | null = null, fill = false, alpha = 1;
-    if (this.flashMs >= 0) { this.flashMs += ms; if (this.flashMs < 60) { tint = 0xffffff; fill = true; } else if (this.flashMs < 140) tint = 0xff6a6a; else this.flashMs = -1; }
+    if (this.flashMs >= 0) { this.flashMs += ms; if (this.flashMs < 140) tint = 0xff9a9a; else this.flashMs = -1; } // struck: a soft tint (no white flash)
     if (this.deadMs >= 0) { this.deadMs += ms; alpha = 1 - Math.min(1, this.deadMs / 450); this.deathFx.update(ms); }
     const snap: AnimSnap = { mode: this.skill ? 'skill' : this.mode, t: this.modeT, speed: this.speed, vz: this.vz, skill: this.skill ?? undefined, stunMs: 200 };
     const pose = resolvePose(this.meta.classId as ClassKey, this.dir, poseQuery(snap), this.view.wantsBase, this.meta.gender === 'female' ? 'female' : 'male');

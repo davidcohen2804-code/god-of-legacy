@@ -20,18 +20,20 @@ function S(s: Omit<FinalSkill, 'pvpMultiplier' | 'pveMultiplier' | 'unlockLevel'
 const warrior: FinalSkill[] = [
   S({
     id: 'warrior_basic', cls: 'warrior', slot: 0, name: 'Iron Chain', roles: ['basic', 'confirm'], targeting: 'aimAssist',
-    startup: 90, active: 80, recovery: 120, cooldown: 0, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    startup: 200, active: 250, recovery: 200, cooldown: 0, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(0, 12, { kind: 'sector', range: 78, angle: 110 }, { stun: 160, push: 4 }, { reachUp: 70 })],
+    // MapleStory pace: each swing shows its wind-up, strike and follow-through before the next (~0.43 s a swing when held);
+    // the stuns still last until the next swing lands, so the chain keeps the foe held
     chain: {
       resetMs: 700,
       stages: [
-        [H(0, 7, { kind: 'sector', range: 84, angle: 120 }, { stun: 380, push: 3 }, { reachUp: 110 })],
-        [H(0, 7, { kind: 'sector', range: 86, angle: 120 }, { stun: 320, push: 3 }, { reachUp: 110 })],
-        [H(0, 5, { kind: 'sector', range: 88, angle: 130 }, { stun: 320, push: 2 }, { reachUp: 110 }),
-          H(120, 6, { kind: 'sector', range: 88, angle: 130 }, { stun: 380, push: 3 }, { reachUp: 110 })],
-        [H(0, 10, { kind: 'sector', range: 92, angle: 130 }, { stun: 440, push: 10 }, { reachUp: 110, heavy: true })],
+        [H(0, 7, { kind: 'sector', range: 84, angle: 120 }, { stun: 480, push: 3 }, { reachUp: 110 })],
+        [H(0, 7, { kind: 'sector', range: 86, angle: 120 }, { stun: 470, push: 3 }, { reachUp: 110 })],
+        [H(0, 5, { kind: 'sector', range: 88, angle: 130 }, { stun: 470, push: 2 }, { reachUp: 110 }),
+          H(170, 6, { kind: 'sector', range: 88, angle: 130 }, { stun: 480, push: 3 }, { reachUp: 110 })],
+        [H(0, 10, { kind: 'sector', range: 92, angle: 130 }, { stun: 560, push: 10 }, { reachUp: 110, heavy: true })],
       ],
-      timings: [{ startup: 100, active: 85, recovery: 195 }, { startup: 100, active: 85, recovery: 195 }, { startup: 110, active: 170, recovery: 215 }, { startup: 140, active: 115, recovery: 320 }],
+      timings: [{ startup: 200, active: 250, recovery: 200 }, { startup: 200, active: 250, recovery: 200 }, { startup: 210, active: 380, recovery: 220 }, { startup: 260, active: 260, recovery: 380 }],
     },
     cancelOnHit: ['dash_slash', 'rising_slash', 'ground_breaker', 'whirlwind', 'sanctuary'],
     description: 'Four-strike chain: tap or hold Space. Slash, slash, double cut, then a heavy finishing slash with a long stun — the opening for your skills.',

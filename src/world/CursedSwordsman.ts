@@ -91,7 +91,6 @@ export class CursedSwordsman {
     this.hp = Math.max(1, this.hp - dmg); // training opponent: endless HP (never dies)
     if (this.hp <= 1) this.hp = this.maxHp;
     this.flashLeft = C.hitFlashMs;
-    this.sprite.setTintFill(0xffffff);
     this.attackHit = true; // a hit interrupts the pending strike
     if (this.ai === 'attack') this.enter('chase');
     if (this.hp === 0) { this.enter('dead'); this.respawnLeft = E.deathRespawnMs; this.body.push = null; }

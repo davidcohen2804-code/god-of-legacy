@@ -982,7 +982,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const dir = this.dir; // Whirlwind spins inside its own 360° body loop
     const pose = resolvePose(this.cls, dir, poseQuery(snap), v.wantsBase || this.character!.level < BEGINNER_TO, genderOf(this.character));
     let tint: number | null = null, fill = false, alpha = 1;
-    if (this.flash >= 0) { const iron = this.passives.takenMul < 1; if (this.flash < P6.hitFlashWhiteMs) { tint = iron ? 0xbcd6ef : 0xffffff; fill = true; } else tint = iron ? 0xc8d4e6 : 0xff6a6a; } // Iron Body: steel sheen
+    if (this.flash >= 0) { const iron = this.passives.takenMul < 1; tint = iron ? 0xc8d4e6 : 0xff9a9a; } // struck: a soft tint (MapleStory: no white flash over the body); Iron Body: steel sheen
     else if (this.body.hard.active(this.simMs)) tint = this.body.hard.kind === 'freeze' ? 0x9fd8ff : 0xb6ffb0;
     else if (run && run.skill.armor && run.skill.id !== 'blade_storm' && run.elapsed >= run.skill.armor[0] && run.elapsed < run.skill.armor[1] + 220) { // the storm itself lights him: no tint
       // armor glow fades in/out smoothly (a hard on/off read as a flicker at the end of the move)
@@ -1519,7 +1519,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** PvE authority: combat body reaction on the enemy/dummy, damage, confirmed-hit feedback. */
   private applyToPve(run: CastRun, hit: HitEvent, t: HitTarget, at: V3): void {
     const now = this.simMs, s = run.skill;
-    let out: HitOutcome | null = null;
+    let out: HitOutcome | null = null, crit = false; // (a critical: its own number, MapleStory — no CRITICAL text)
     if (t.id === 'dummy' && this.dummyState?.alive) {
       const ds = this.dummyState;
       const ch = run.attackerId === this.localId ? this.chanceMul(ds.body) : 1;
@@ -1558,14 +1558,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         }
       }
       const own = run.attackerId === this.localId;
-      const crit = hit.damage > 0 && Math.random() < 0.12 + (own ? this.critAddNow() : 0);
+      crit = hit.damage > 0 && Math.random() < 0.12 + (own ? this.critAddNow() : 0);
       const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.passives.critDmgAdd : 0) : 1) * (own ? this.ownDamageMul() * ch : 1);
       out.damage = Math.round(out.damage * mult);
       en.damage(out.damage);
       let row = 0;
       if (counter) this.fx!.callout(at, 'COUNTER!!', '#7ff0ff', row++);
       if (back) this.fx!.callout(at, 'BACK ATTACK!!', '#ffb04a', row++);
-      if (crit) this.fx!.callout(at, 'CRITICAL!!', '#ff5a6a', row++);
       if (crit && own && this.passives.critDmgAdd > 0) { this.fx!.shockwave(at.x, at.y, 110, this.cls === 'archer' ? 0x9be35a : 0xff8a5a); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 40); } // Combat Mastery: heavier crits
       if (ch > 1 && out.damage > 0) this.chanceMark(t.id, at);
     }
@@ -1586,14 +1585,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         m.kin.z = Math.min(m.kin.z, 30);
         this.fx!.crack(m.kin.x, m.kin.y, 120); this.fx!.shockwave(m.kin.x, m.kin.y, 200, 0xffc070); this.fx!.callout(at, 'SLAM!!', '#ff9a4a', 1); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 120); this.cameras.main.shake(220, 0.011);
       }
-      const crit = hit.damage > 0 && Math.random() < 0.12 + (own ? this.critAddNow() : 0);
+      crit = hit.damage > 0 && Math.random() < 0.12 + (own ? this.critAddNow() : 0);
       const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.passives.critDmgAdd : 0) : 1) * (own ? this.ownDamageMul() * ch : 1);
       out.damage = Math.round(out.damage * mult);
       const killed = m.damage(out.damage, now);
       let row = 0;
       if (counter) this.fx!.callout(at, 'COUNTER!!', '#7ff0ff', row++);
       if (back) this.fx!.callout(at, 'BACK ATTACK!!', '#ffb04a', row++);
-      if (crit) this.fx!.callout(at, 'CRITICAL!!', '#ff5a6a', row++);
       if (crit && own && this.passives.critDmgAdd > 0) { this.fx!.shockwave(at.x, at.y, 110, this.cls === 'archer' ? 0x9be35a : 0xff8a5a); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 40); } // Combat Mastery: heavier crits
       if (ch > 1 && out.damage > 0) this.chanceMark(t.id, at);
       if (killed) { // defeated: counts for the quests that ask for it
@@ -1603,14 +1601,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       }
     }
     if (!out) return;
-    this.confirm(run, hit, t.id, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!s.endsCombo, t.z);
+    this.confirm(run, hit, t.id, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!s.endsCombo, t.z, crit);
     if (out.reaction !== 'armor') this.finalAttack(run, t.id, at, out.damage);
   }
 
   private mobById(id: string): Monster | undefined { return this.world?.mobs.find((m) => m.id === id); }
 
   /** Attacker-side confirmed hit (PvE immediate; PvP from the victim's confirmation). */
-  private confirm(run: CastRun | null, hit: HitEvent, target: string, at: V3, damage: number, idx: number, comboId: number, reaction: string, ends: boolean, tz: number): void {
+  private confirm(run: CastRun | null, hit: HitEvent, target: string, at: V3, damage: number, idx: number, comboId: number, reaction: string, ends: boolean, tz: number, crit = false): void {
     const s = run?.skill;
     if (!s) return;
     if (run && run.confirmedAt < 0) run.confirmedAt = run.elapsed;
@@ -1618,7 +1616,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (this.orbs.cast !== run.castId) { this.orbs.cast = run.castId; this.orbs.n = Math.min(ORBS.max, this.orbs.n + 1); }
       this.orbs.lastAt = this.simMs;
     }
-    this.fx!.confirmed(s, hit, at, damage, reaction, true, idx);
+    this.fx!.confirmed(s, hit, at, damage, reaction, true, idx, crit);
     const same = this.combo.comboId === comboId && this.combo.target === target;
     const mob = target.startsWith('mob:') ? this.mobById(target) : undefined;
     const max = mob ? mob.maxHp : target === 'enemy' ? (this.enemy?.maxHp ?? 1) : target === 'dummy' ? D.maxHp : 100;
@@ -2223,8 +2221,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private damageDummy(dmg: number): void {
     const ds = this.dummyState!;
     ds.hp = Math.max(0, ds.hp - dmg);
-    ds.flash = D.hitFlashMs;
-    this.dummy!.setTintFill(0xffffff);
+    ds.flash = D.hitFlashMs; // (MapleStory: no white flash over the body)
     if (ds.hp === 0) { ds.alive = false; this.dummy!.setVisible(false); ds.respawn = 0; }
     this.drawDummyBar();
   }

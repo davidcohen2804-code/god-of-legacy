@@ -98,7 +98,6 @@ export class Monster {
     if (!this.alive) return false;
     this.hp = Math.max(0, this.hp - dmg);
     this.flashLeft = C.hitFlashMs; this.barShowUntil = now + 5000;
-    this.sprite.setTintFill(0xffffff);
     this.struck = true; // a hit interrupts the pending strike
     if (this.hp <= 0) { this.enter('dead'); this.respawnLeft = this.kind.respawnMs; this.body.push = null; this.deathFade = 1; return true; }
     if (this.ai === 'attack' || this.ai === 'idle' || this.ai === 'wander' || this.ai === 'home') this.enter('chase'); // provoked
