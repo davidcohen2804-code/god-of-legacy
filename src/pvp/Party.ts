@@ -35,7 +35,7 @@ export class Party {
   get isLeader(): boolean { return this.leader === this.me; }
   has(id: string): boolean { return this.members.includes(id); }
   /** Can I invite this player now? */
-  canInvite(id: string): boolean { return id !== this.me && !this.has(id) && !this.asked.has(id) && (!this.inParty || this.isLeader) && this.members.length < PARTY_MAX; }
+  canInvite(id: string): boolean { return id !== this.me && !this.has(id) && !this.asked.has(id) && (!this.inParty || this.isLeader) && Math.max(1, this.members.length) + this.asked.size < PARTY_MAX; }
 
   invite(id: string): void {
     if (!this.canInvite(id)) return;
@@ -48,6 +48,7 @@ export class Party {
   answer(ok: boolean): void {
     const from = this.pendingFrom; if (!from) return;
     this.pendingFrom = null;
+    if (ok) this.asked.clear(); // joining someone else: my own open invites are void (no two leaders)
     this.h.send({ t: 'pans', to: from, ok });
     this.h.changed();
   }
@@ -80,12 +81,13 @@ export class Party {
       case 'pinv':
         if (m.to !== this.me) return;
         if (this.inParty || this.pendingFrom) { this.h.send({ t: 'pans', to: m.from, ok: false }); return; } // busy: auto-decline
+        if (this.asked.has(m.from) && this.me < m.from) return; // we invited each other: the lower id leads, the other's invite is ignored
         this.pendingFrom = m.from; this.h.invited(m.from); this.h.changed();
         return;
       case 'pans':
         if (m.to !== this.me || !this.asked.delete(m.from)) return;
         if (!m.ok) { this.h.notice(`${this.h.nameOf(m.from)} declined the party invite.`); this.h.changed(); return; }
-        if ((this.inParty && !this.isLeader) || this.members.length >= PARTY_MAX) { this.h.changed(); return; }
+        if ((this.inParty && !this.isLeader) || this.members.length >= PARTY_MAX) { this.h.send({ t: 'party', members: this.members.length ? this.members : [this.me] }); this.h.notice(`${this.h.nameOf(m.from)} could not join: the party is full.`); this.h.changed(); return; }
         this.setMembers([...(this.members.length ? this.members : [this.me]), m.from]);
         this.h.notice(`${this.h.nameOf(m.from)} joined the party.`);
         return;

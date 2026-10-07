@@ -3,7 +3,7 @@
 // Key names are Phaser KeyCodes names (keydown-<NAME> events).
 
 export const SLOT_COUNT = 16;
-export type BindAction = string; // 'slot0'..'slot13' | 'jump' | 'up' | 'left' | 'down' | 'right' | 'book' | 'bag' | 'shop' | 'quests' | 'talk'
+export type BindAction = string; // 'slot0'..'slot15' | 'jump' | 'up' | 'left' | 'down' | 'right' | 'book' | 'bag' | 'shop' | 'quests' | 'talk' | 'party'
 
 export const DEFAULT_BINDINGS: Record<BindAction, string> = {
   slot0: 'SPACE', slot1: 'ONE', slot2: 'TWO', slot3: 'THREE', slot4: 'FOUR', slot5: 'FIVE', slot6: 'SIX', slot7: 'SEVEN',

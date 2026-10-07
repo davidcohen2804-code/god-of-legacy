@@ -45,7 +45,7 @@ const warrior: FinalSkill[] = [
     cancelOnHit: CORE(['rising_slash', 'whirlwind', 'sanctuary', 'warrior_basic', 'blade_storm', 'titans_verdict']),
     telegraph: 'line',
     description: 'Charge up to 180px in the facing direction; stops on cover. A confirmed hit can cancel into Rising Slash, Leap Crash or any other skill.',
-    relations: ['Opener', 'Cancel → Rising Slash'],
+    relations: ['Opener', 'Cancel → any skill on hit'],
   }),
   S({
     id: 'rising_slash', cls: 'warrior', slot: 2, name: 'Rising Slash', roles: ['launcher', 'antiAir'], targeting: 'mouseCone',
@@ -127,7 +127,7 @@ const warrior: FinalSkill[] = [
     startup: 1800, active: 160, recovery: 260, cooldown: 20000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 2100],
     hits: [H(0, 8, { kind: 'circle', radius: 130 }, { stun: 360, push: 30 }, { reachUp: 140 })],
     cancelOnHit: ['warrior_basic', 'dash_slash', 'rising_slash', 'whirlwind', 'blade_storm'], tags: ['buff'],
-    description: 'Your sword becomes a long blade of pure light for 15s: every sword strike reaches 70% farther and deals +15% damage. The transformation releases a light burst around you.',
+    description: 'Your sword becomes a long blade of pure light for 15s: every sword strike reaches 85% farther and deals +15% damage. The transformation releases a light burst around you.',
     relations: ['Buff 15s', 'Range +85%'],
   }),
   S({
@@ -135,7 +135,7 @@ const warrior: FinalSkill[] = [
     startup: 420, active: 200, recovery: 260, cooldown: 30000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 880],
     hits: [H(0, 4, { kind: 'circle', radius: 120 }, { stun: 240, push: 20 }, { reachUp: 140 })],
     cancelOnHit: ['dash_slash', 'rising_slash', 'leap_crash'], tags: ['buff', 'party'],
-    description: 'Swear the iron oath: Max HP +30% for 60s. In a party it also strengthens every party member near you.',
+    description: 'Swear the iron oath: Max HP +30% for 60s; its flash of light staggers foes around you. In a party it also strengthens every party member near you.',
     relations: ['Buff 60s', 'Party buff'],
   }),
   S({
@@ -143,7 +143,7 @@ const warrior: FinalSkill[] = [
     startup: 900, active: 200, recovery: 300, cooldown: 60000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1400],
     hits: [H(0, 10, { kind: 'circle', radius: 160 }, { stun: 360, push: 30 }, { reachUp: 140 })],
     cancelOnHit: ['warrior_basic', 'dash_slash', 'blade_storm', 'titans_verdict'], tags: ['buff', 'party'],
-    description: 'Plant a banner of light: +10% damage and 10% less damage taken for 90s. In a party every party member near you shares it.',
+    description: 'Plant a banner of light: +10% damage and 10% less damage taken for 90s; the impact staggers foes around you. In a party every party member near you shares it.',
     relations: ['Buff 90s', 'Party buff'],
   }),
   S({

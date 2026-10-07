@@ -14,7 +14,7 @@ export type NetMsg =
   | { t: 'rel'; from: string; castId: string; at: number; ax: number; ay: number }
   | { t: 'death'; from: string; by: string }
   /** Chat line: to everyone in the room, or a whisper (`to` = player id). */
-  | { t: 'chat'; from: string; text: string; to?: string; emo?: number }
+  | { t: 'chat'; from: string; text: string; to?: string; emo?: number; p?: boolean }
   | { t: 'respawn'; from: string; x: number; y: number; hp: number }
   | { t: 'leave'; from: string }
   /** Party: invite / answer (to one player), the leader's member list (leader first), leaving, a shared party buff. */

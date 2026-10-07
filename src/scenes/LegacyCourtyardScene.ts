@@ -21,7 +21,7 @@ import { CHAT_MAX_LEN, ChatBox, ChatKind, EMOTES } from '../ui/ChatBox';
 import { SpeechBubbles } from '../ui/SpeechBubbles';
 import { QuestLog, QuestTracker } from '../ui/HudExtras';
 import { KeySettings } from '../ui/KeySettings';
-import { BindAction, keyLabel, loadBindings, slotKeyLabels } from '../game/KeyBindings';
+import { BindAction, SLOT_COUNT, keyLabel, loadBindings, slotKeyLabels } from '../game/KeyBindings';
 import { CourtyardAmbience } from '../world/Ambience';
 import { allSkillsOpen, setAllSkillsOpen } from '../skills/Unlock';
 import { Party } from '../pvp/Party';
@@ -147,6 +147,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private hpMaxSeen = 0;
   private seenEndure = -Infinity;
   private markAt = new Map<string, number>();
+  /** Party buffs waiting for the cast's release. */
+  private shares: { at: number; id: string; ms: number }[] = [];
   /** PvP arena scene (fixed HP for everyone). */
   private arena = false;
   /** Radiant Blade: the sword is a long blade of light until this time. */
@@ -255,6 +257,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.cls = character.level < BEGINNER_TO ? 'warrior' : (character.classId as ClassKey);
     this.kit = kitFor(this.cls);
     this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;
+    // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
+    this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
+    this.hpMaxSeen = 0; this.seenStance = -Infinity; this.seenEndure = -Infinity; this.markAt.clear(); this.partyTick = 0; this.shares = [];
     this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
     this.combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1 };
     this.confirmedLog = [];
@@ -357,7 +362,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       invite: (id) => this.party?.invite(id), kick: (id) => this.party?.kick(id), leave: () => this.party?.leave(),
       answer: (ok) => this.party?.answer(ok), onOpen: () => this.ci?.reset(),
     });
-    this.keySettings = new KeySettings(ov, Array.from({ length: 14 }, (_, i) => ({ name: this.kit[i]?.name ?? '', icon: this.kit[i] ? iconUrl(this.kit[i]) : '' })),
+    this.keySettings = new KeySettings(ov, Array.from({ length: SLOT_COUNT }, (_, i) => ({ name: this.kit[i]?.name ?? '', icon: this.kit[i] ? iconUrl(this.kit[i]) : '' })),
       (b) => this.applyKeys(b), (open) => this.chatTyping(open));
     this.chat.add({ kind: 'system', text: pvpRoom ? 'Welcome to the PvP Arena! Press Enter to chat.' : 'Welcome to God Of Legacy! Press Enter to chat.' });
     if (this.world) {
@@ -663,6 +668,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.passives = this.cls === 'warrior' && (all || lvl >= BEGINNER_TO) ? passiveStats(ownedPassives('warrior', lvl, all)) : NO_PASSIVES;
     this.body.ccResist = this.passives.ccResist; this.body.kbResist = this.passives.kbResist;
     this.body.maxHp = this.maxHpNow();
+    this.hpMaxSeen = this.body.maxHp; // already rescaled here (stepPassives must not scale again)
     this.refreshPassiveStrip();
     if (this.dead < 0 && Number.isFinite(frac)) this.playerHP = Math.max(1, Math.round(frac * this.body.maxHp));
   }
@@ -729,7 +735,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       else if (target === BOT_ID) { const b = this.bot; if (!b) return; b.hp = Math.max(1, b.hp - extra); b.view.setHp(b.hp); }
       else if (target.startsWith('mob:')) {
         const m = this.mobById(target); if (!m?.alive) return;
-        if (m.damage(extra, this.simMs)) { this.questKill(m); if (this.gripFoe === m) { this.gripFoe = null; this.gripHeld = false; } }
+        if (m.damage(extra, this.simMs)) { this.questKill(m); this.gainExp(m.kind.exp ?? Math.round(m.kind.hp / 5), { x: m.kin.x, y: m.kin.y, z: m.kin.z }); if (this.gripFoe === m) { this.gripFoe = null; this.gripHeld = false; } }
       }
       else return;
       const big = fa.mul >= 0.5; // Advanced Final Attack: a bigger triple cut
@@ -741,6 +747,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Self Recovery tick, Combo Force orb decay + orbit render. */
   private stepPassives(ms: number, now: number): void {
+    if (this.shares.length) { const due = this.shares.filter((x) => now >= x.at); this.shares = this.shares.filter((x) => now < x.at); if (this.dead < 0) for (const x of due) this.shareWithParty(x.id, x.ms); }
     const P = this.passives;
     if (P.regen && this.dead < 0) {
       this.regenAt += ms;
@@ -1102,8 +1109,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Own damage buffs right now: War Cry +20%, Radiant Blade +15% (same as against monsters). */
   private ownDamageMul(): number { return (this.simMs < this.warCryUntil ? 1.2 : this.simMs < this.allyCryUntil ? 1.1 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * (this.simMs < this.bannerUntil ? 1.1 : 1) * this.passiveDmgMul(); }
 
-  /** Party buffs: the caster always gets them; in a party every member near the caster gets them too.
-   *  There is no party system yet, so for now this reaches nobody else (hook for the party feature). */
+  /** Party buffs: the caster always gets them; in a party every member within 420px of the caster gets them too. */
   private partyMembersNear(): string[] {
     const p = this.party, k = this.kin;
     if (!p?.inParty || !this.pvp) return [];
@@ -1232,9 +1238,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const castId = `${this.localId}:${++this.castSeq}`;
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
     this.body.armorUntil = -1;
-    if (s.id === 'war_cry') { this.warCryUntil = this.simMs + s.startup + 8000; this.shareWithParty(s.id, 8000); }
-    if (s.id === 'iron_oath') { this.oathUntil = this.simMs + s.startup + 60000; this.shareWithParty(s.id, 60000); this.time.delayedCall(s.startup, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'IRON OATH', '#ffd27a', 0)); }
-    if (s.id === 'legacy_banner') { this.bannerUntil = this.simMs + s.startup + 90000; this.shareWithParty(s.id, 90000); this.time.delayedCall(Math.round(s.startup * 0.7), () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'LEGACY BANNER', '#ffe7a0', 0)); }
+    if (s.id === 'war_cry') { this.warCryUntil = this.simMs + s.startup + 8000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 8000 }); /* shared at the release (sim clock), like the caster's own */ }
+    if (s.id === 'iron_oath') { this.oathUntil = this.simMs + s.startup + 60000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 60000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(s.startup, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'IRON OATH', '#ffd27a', 0)); }
+    if (s.id === 'legacy_banner') { this.bannerUntil = this.simMs + s.startup + 90000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 90000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(Math.round(s.startup * 0.7), () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'LEGACY BANNER', '#ffe7a0', 0)); }
     if (s.id === 'blade_storm') this.radiantUntil = Math.max(this.radiantUntil, this.simMs + s.startup + s.active + 5000); // the storm leaves the blade of light in your hand
     if (s.id === 'sanctuary') this.domeAt = this.simMs + Math.round(s.startup * 0.95); // sim clock (hit-stop/fast-step safe)
     if (s.id === 'radiant_blade') { this.boltDone = false; this.radiantFrom = this.simMs + Math.round(s.startup * 0.4); } // light appears when the sword is raised
@@ -1320,7 +1326,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.chat?.add({ kind: 'whisper', name: me, me: true, to: to.meta.name, text: w[2] });
       return;
     }
-    if (kind === 'party') { this.chat?.add({ kind: 'system', text: 'You are not in a party.' }); return; }
+    if (kind === 'party') {
+      if (!this.party?.inParty) { this.chat?.add({ kind: 'system', text: 'You are not in a party.' }); return; }
+      this.pvp?.sendChat(raw, undefined, undefined, true);
+      this.chat?.add({ kind: 'party', name: me, me: true, text: raw });
+      return;
+    }
     this.chat?.add({ kind: 'all', name: me, me: true, text: raw });
     this.bubbles?.say(this.localId, raw, this.simMs);
     this.pvp?.sendChat(raw);
@@ -1333,6 +1344,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const text = m.text.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, CHAT_MAX_LEN);
     if (!text) return;
     if (m.to) { if (m.to === this.localId) this.chat?.add({ kind: 'whisper', name: r.meta.name, text }); return; }
+    if (m.p) { if (this.party?.has(from)) this.chat?.add({ kind: 'party', name: r.meta.name, text }); return; } // party chat: members only
     this.chat?.add({ kind: 'all', name: r.meta.name, text });
     this.bubbles?.say(from, text, this.simMs);
   }
@@ -1357,7 +1369,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     } else if (this.view && this.pvpReady) {
       out.push({ id: this.localId, kind: 'player', x: this.kin.x, y: this.kin.y, z: this.kin.z, radius: R + 4, height: 74, alive: this.dead < 0, invulnerable: this.simMs < this.body.invulnUntil });
     }
-    for (const r of this.pvp?.remotes.values() ?? []) if (r.meta.playerId !== run.attackerId) out.push({ id: r.meta.playerId, kind: 'player', x: r.x, y: r.y, z: r.z, radius: R + 4, height: 74, alive: r.alive });
+    for (const r of this.pvp?.remotes.values() ?? []) if (r.meta.playerId !== run.attackerId && !(run.own && this.party?.has(r.meta.playerId))) out.push( // party members never hit each other
+      { id: r.meta.playerId, kind: 'player', x: r.x, y: r.y, z: r.z, radius: R + 4, height: 74, alive: r.alive });
     return out;
   }
 
@@ -1376,7 +1389,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const ds = this.dummyState;
       const ch = run.attackerId === this.localId ? this.chanceMul(ds.body) : 1;
       out = ds.body.receive(run.attackerId, s, hit, run.origin, now);
-      if (run.attackerId === this.localId) out.damage = Math.round(out.damage * (now < this.warCryUntil ? 1.2 : 1) * this.passiveDmgMul() * ch);
+      if (run.attackerId === this.localId) out.damage = Math.round(out.damage * this.ownDamageMul() * ch); // same buffs as against monsters
       ds.body.push = null; ds.kin.vx = 0; ds.kin.vy = 0; // anchored post: launches / knockdowns are vertical only (juggle practice)
       this.damageDummy(out.damage);
       if (ch > 1 && out.damage > 0) this.chanceMark(t.id, at);
@@ -1411,7 +1424,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       }
       const own = run.attackerId === this.localId;
       const crit = hit.damage > 0 && Math.random() < 0.12 + (own ? this.passives.critAdd : 0);
-      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.passives.critDmgAdd : 0) : 1) * (own && now < this.warCryUntil ? 1.2 : 1) * (own && now < this.radiantUntil ? 1.15 : 1) * (own ? this.passiveDmgMul() * ch : 1);
+      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.passives.critDmgAdd : 0) : 1) * (own ? this.ownDamageMul() * ch : 1);
       out.damage = Math.round(out.damage * mult);
       en.damage(out.damage);
       let row = 0;
@@ -1509,7 +1522,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** PvP victim authority: this client resolved a remote cast against its own body. */
   private applyRemoteHitToSelf(run: CastRun, hit: HitEvent, hi: number, at: V3): void {
-    if (this.dead >= 0) return;
+    if (this.dead >= 0 || this.party?.has(run.attackerId)) return; // party members never hit each other
     if (this.inDome()) { this.domeBlock(this.casterPos(run.attackerId) ?? run.origin); this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: run.skill.id, hit: hi, dmg: 0, rx: 'armor' }); return; }
     const s = run.skill;
     if (hit.shape.kind !== 'placed' && hit.damage > 0 && this.tryCounter(this.casterPos(run.attackerId) ?? run.origin)) {

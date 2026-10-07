@@ -89,7 +89,7 @@ export class PvpController {
   }
   sendCounter(m: Omit<Extract<NetMsg, { t: 'ctr' }>, 't' | 'from'>): void { this.transport.send({ t: 'ctr', from: this.meta.playerId, ...m }); }
   sendRelease(m: Omit<Extract<NetMsg, { t: 'rel' }>, 't' | 'from'>): void { this.transport.send({ t: 'rel', from: this.meta.playerId, ...m }); }
-  sendChat(text: string, to?: string, emo?: number): void { this.transport.send({ t: 'chat', from: this.meta.playerId, text, ...(to ? { to } : {}), ...(emo !== undefined ? { emo } : {}) }); }
+  sendChat(text: string, to?: string, emo?: number, party = false): void { this.transport.send({ t: 'chat', from: this.meta.playerId, text, ...(to ? { to } : {}), ...(emo !== undefined ? { emo } : {}), ...(party ? { p: true } : {}) }); }
   /** Party message (the transport broadcasts; receivers filter by `to` / membership). */
   sendParty(m: Omit<Extract<NetMsg, { t: 'pinv' }>, 'from'> | Omit<Extract<NetMsg, { t: 'pans' }>, 'from'> | Omit<Extract<NetMsg, { t: 'party' }>, 'from'> | Omit<Extract<NetMsg, { t: 'pleave' }>, 'from'> | Omit<Extract<NetMsg, { t: 'pbuff' }>, 'from'>): void {
     this.transport.send({ ...m, from: this.meta.playerId } as NetMsg);
