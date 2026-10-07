@@ -4,7 +4,7 @@
 // handled by the scene) and comes back at its home spot after a while. Damage and reactions are applied by the scene.
 import Phaser from 'phaser';
 import { STAGE6 } from '../config/layout';
-import { clearLine, footAllowed } from './WorldGeometry';
+import { actorDepth, clearLine, footAllowed } from './WorldGeometry';
 import { CombatBody, Kin, newKin, stepKin } from '../combat/Combat';
 import { HitTarget } from '../skills/HitGeometry';
 import { NAME_DEPTH } from '../game/ActorView';
@@ -249,11 +249,11 @@ export class Monster {
     }
     const H = 46 * S; // rotate around the body centre, not the feet
     const cx = k.x, cy = k.y - k.z - H;
-    this.sprite.setRotation(ang).setScale(S * sx, S * sy).setPosition(cx - Math.sin(ang) * H, cy + Math.cos(ang) * H).setDepth(k.y);
+    this.sprite.setRotation(ang).setScale(S * sx, S * sy).setPosition(cx - Math.sin(ang) * H, cy + Math.cos(ang) * H).setDepth(actorDepth(k.x, k.y, k.z));
     if (this.ai === 'dead') this.sprite.setAlpha(this.deathFade).setVisible(this.deathFade > 0);
     this.pos = { x: this.sprite.x, y: this.sprite.y };
     const h = Math.max(0, k.z - k.supportZ), s = Math.max(0.4, 1 - h / 140);
-    this.shadow.setPosition(k.x, k.y - k.supportZ - 2).setDepth(k.y - 0.5).setVisible(this.alive).setScale(s);
+    this.shadow.setPosition(k.x, k.y - k.supportZ - 2).setDepth(actorDepth(k.x, k.y, k.supportZ) - 0.5).setVisible(this.alive).setScale(s);
     // HP bar over the head for a few seconds after a hit (MapleStory style)
     const show = this.alive && this.lastNow < this.barShowUntil;
     this.bar.setVisible(show);

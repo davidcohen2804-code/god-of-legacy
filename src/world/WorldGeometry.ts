@@ -146,13 +146,19 @@ export function clearLine(ax: number, ay: number, bx: number, by: number, h = 30
   return coverHit(ax, ay, bx, by, h) === null;
 }
 
-/** Sorting depth for an actor: feet y, but above a prop occluder once it is standing on / above that prop. */
+/** Sorting depth for an actor: feet y, but above a prop occluder once it is standing on / above that prop, or standing
+ *  beside it (level with its footprint, clear of it to the left or right — the side face it shows is behind him then;
+ *  only someone behind its back edge is hidden by it). */
 export function actorDepth(x: number, y: number, z: number): number {
   let d = y;
   for (const o of WORLD_OBJECTS) {
     // Drawn over a prop only when actually on / above its top (feet over the footprint); an airborne actor
     // behind the prop stays behind it.
-    if (z >= o.height - 4 && y <= o.frontY + 2 && polyDist(x, y, o.footprint) < 14) d = Math.max(d, o.frontY + 1 + y * 0.001);
+    if (z >= o.height - 4 && y <= o.frontY + 2 && polyDist(x, y, o.footprint) < 14) { d = Math.max(d, o.frontY + 1 + y * 0.001); continue; }
+    if (y >= o.frontY) continue;
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity;
+    for (const p of o.footprint) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; }
+    if (y >= y0 - 2 && (x < x0 || x > x1) && Math.min(Math.abs(x - x0), Math.abs(x - x1)) < 70) d = Math.max(d, o.frontY + 0.5 + y * 0.001);
   }
   return d;
 }
