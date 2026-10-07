@@ -51,7 +51,7 @@ export interface CastRun extends CastRequest {
   chainFirst?: string | null;
 }
 
-export interface Trap { run: CastRun; hit: HitEvent; x: number; y: number; until: number; radius: number }
+export interface Trap { run: CastRun; hit: HitEvent; x: number; y: number; until: number; radius: number; fuseAt?: number }
 
 export interface RuntimeWorld {
   now(): number;
@@ -69,7 +69,7 @@ export interface RuntimeWorld {
 
 export const RT_EVENTS = {
   cast: 'cast', active: 'active', hit: 'hitFired', projectile: 'projectile', projectileEnd: 'projectileEnd',
-  trap: 'trap', trapTrigger: 'trapTrigger', end: 'end', cancelled: 'cancelled', counter: 'counter', chain: 'chain',
+  trap: 'trap', trapTrigger: 'trapTrigger', trapArm: 'trapArm', end: 'end', cancelled: 'cancelled', counter: 'counter', chain: 'chain',
 } as const;
 
 export class SkillRuntime {
@@ -296,9 +296,18 @@ export class SkillRuntime {
   private stepTraps(): void {
     const now = this.world.now();
     this.traps = this.traps.filter((t) => {
+      const fuse = t.run.skill.trap?.fuseMs;
+      if (fuse && t.fuseAt !== undefined) { // armed: explode on everyone inside when the fuse runs out
+        if (now < t.fuseAt) return true;
+        const boom = t.run.hits[1] ?? t.hit, R = (boom.shape as { radius?: number }).radius ?? t.radius;
+        this.events.emit(RT_EVENTS.trapTrigger, t, true);
+        for (const v of this.world.targets(t.run).filter((v) => v.alive && v.id !== t.run.attackerId && Math.hypot(v.x - t.x, v.y - t.y) <= R + v.radius)) this.deliver(t.run, boom, 1, v, { x: v.x, y: v.y, z: v.z + 10 });
+        return false;
+      }
       if (now >= t.until) { this.events.emit(RT_EVENTS.trapTrigger, t, false); return false; }
       const victims = this.world.targets(t.run).filter((v) => v.alive && v.id !== t.run.attackerId && v.z < 20 && Math.hypot(v.x - t.x, v.y - t.y) <= t.radius + v.radius);
       if (!victims.length) return true;
+      if (fuse) { t.fuseAt = now + fuse; this.events.emit(RT_EVENTS.trapArm, t); for (const v of victims) this.deliver(t.run, t.hit, 0, v, { x: v.x, y: v.y, z: v.z + 10 }); return true; }
       this.events.emit(RT_EVENTS.trapTrigger, t, true);
       for (const v of victims) this.deliver(t.run, t.hit, 0, v, { x: v.x, y: v.y, z: v.z + 10 });
       return false;

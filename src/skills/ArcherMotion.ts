@@ -42,10 +42,28 @@ export function archerMotion(id: string, e: number, T: Timeline, face: number): 
   switch (id) {
     case 'quick_shot': return shot(e, T, face, 0.35);
     case 'multi_shot': return shot(e, T, face, 0.6);
-    case 'explosive_arrow': case 'piercing_arrow': return shot(e, T, face, 0.85);
-    case 'eagle_arrow': return shot(e, T, face, 1.3);
-    case 'rising_arrow': case 'leaping_arrow': { // crouch, spring up as the column erupts
-      const big = id === 'leaping_arrow' ? 1.4 : 1, p = clamp01(e / T.startup), r = e - T.startup;
+    case 'explosive_arrow': return shot(e, T, face, 0.95);
+    case 'eagle_arrow': case 'leaping_arrow': { // long charge: sink low and tremble harder and harder, then the huge release
+      const big = id === 'eagle_arrow' ? 1.4 : 1, r = e - T.startup, p = clamp01(e / T.startup);
+      if (r < 0) { const j = Math.sin(e * 1.1) * (0.6 + 2.6 * p) * big; return M({ sy: 1 - 0.12 * easeOut(clamp01(p * 3)), sx: 1 + 0.07 * easeOut(clamp01(p * 3)), dx: j - face * 6 * p, ang: -face * 6 * p }); }
+      const k = kick(r, 380);
+      return M({ dx: -face * 26 * big * k, ang: -face * 9 * big * k, sx: 1 + 0.06 * k, sy: 1 - 0.06 * k, after: r < 220 });
+    }
+    case 'piercing_arrow': { // the emblem lights up behind her: rise and stand tall
+      const r = e - T.startup;
+      if (r < 0) return M({ sy: 1 - 0.07 * clamp01(e / T.startup) });
+      return M({ dy: -12 * Math.sin(Math.PI * clamp01(r / (T.active + 240))), sy: 1.05, sx: 0.98 });
+    }
+    case 'rain_of_arrows': { // leap up, shoot the lightning arrow down from the apex, drop back
+      const p = clamp01(e / T.startup), r = e - T.startup;
+      if (p < 0.2) return M({ sy: 1 - 0.14 * easeOut(p / 0.2), sx: 1.06 });
+      if (r < 0) { const up = easeOut(clamp01((p - 0.2) / 0.55)); return M({ dy: -110 * up, ang: face * 22 * up, after: p < 0.6 }); }
+      const d = clamp01(r / 320);
+      if (d < 1) return M({ dy: -110 * (1 - d * d), ang: face * (22 - 30 * kick(r, 120)) * (1 - d), after: true });
+      return null;
+    }
+    case 'rising_arrow': { // crouch, spring up as the column erupts
+      const big = 1, p = clamp01(e / T.startup), r = e - T.startup;
       if (r < 0) return M({ sy: 1 - 0.1 * big * easeOut(p), sx: 1 + 0.06 * big * easeOut(p), dx: -face * 3 * p });
       const up = Math.sin(Math.PI * clamp01(r / (T.active + 120)));
       return M({ dy: -18 * big * up, sy: 1 + 0.07 * big * kick(r, 200), sx: 1 - 0.04 * big * kick(r, 200), ang: -face * 6 * big * up, dx: -face * 10 * kick(r, 300), after: r < 160 });
@@ -83,8 +101,8 @@ export function archerMotion(id: string, e: number, T: Timeline, face: number): 
     }
     case 'arrow_storm': { // planted wide, trembling under the rapid fire
       const r = e - T.startup;
-      if (r < 0) return shot(e, T, face, 0.5);
-      if (e < A) { const k = kick(r % 120, 100); return M({ dx: -face * (3 + 5 * k) + Math.sin(e * 1.3) * 1.2, ang: -face * (2 + 2 * k), sx: 1.02, sy: 0.98 }); }
+      if (r < 0) return M({ sy: 1 - 0.1 * easeOut(clamp01(e / T.startup)), sx: 1.06 });
+      if (e < A) { const k = kick(r % 150, 120); return M({ dx: -face * (3 + 5 * k) + Math.sin(e * 1.3) * 1.2, ang: -face * (2 + 2 * k), sx: 1.02, sy: 0.98 }); }
       return null;
     }
     case 'sky_rain': { // crouch → leap high → hang drawing at the sky → the release → drop back

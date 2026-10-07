@@ -96,7 +96,8 @@ export interface FinalSkill {
   chargeGap?: number;
   /** Dash carries the first confirmed target along on the blade. */
   carry?: boolean;
-  trap?: { radius: number; lifeMs: number };
+  /** fuseMs: stepping on it arms it (hits[0] at once), then it explodes after fuseMs (hits[1] on everyone in it). */
+  trap?: { radius: number; lifeMs: number; fuseMs?: number };
   armor?: [number, number]; // elapsed window (ms from cast) with armor
   counter?: { window: number; sidestep: number };
   /** Tags of skills this one may cancel into on a confirmed hit. */
