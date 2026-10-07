@@ -1,20 +1,13 @@
-// Skill Book (K): the class's 8 final skills as a tree on the supplied book art — root (Space) at the bottom, branches
-// upward, Signature / Ultimate at the branch tips. Hover/select shows the detail card and a live Phaser preview that
-// replays the real runtime cast (body sheet pose + SkillRuntime/SkillFx VFX) on a neutral dummy in a 2–3 s loop.
+// Skill Book (K): the class's skills by job advancement (tabs) — SKILLS / PASSIVE pages, a still showcase and the
+// detail card. No video or replay of a skill: the player discovers what it does by using it.
 import { slotKeyLabels } from '../game/KeyBindings';
-import Phaser from 'phaser';
-import COMBAT_ASSETS from '../data/stage5-assets.json';
+import type Phaser from 'phaser';
 import { CLASS_NAMES, FONT_FAMILY } from '../config/layout';
 import { syncOverlay } from './CharacterSelectUI';
-import { PreviewStage, Rect, holeMask } from './PreviewStage';
-import { ActorView } from '../game/ActorView';
-import { ClassKey, resolvePose } from '../game/Body';
-import { AnimSnap, Mode, RECOVER_MS, poseQuery } from '../game/PoseState';
-import { FinalSkill, HitShape, Role, Targeting } from '../skills/SkillTypes';
+import type { Rect } from './PreviewStage';
+import type { ClassKey } from '../game/Body';
+import { FinalSkill, Role, Targeting } from '../skills/SkillTypes';
 import { iconUrl, kitFor } from '../skills/FinalKit';
-import { CastRun, SkillRuntime } from '../skills/SkillRuntime';
-import { HitTarget, V3 } from '../skills/HitGeometry';
-import { SkillFx } from '../skills/SkillFx';
 import { ADV_LABEL, Job, jobsFor } from '../skills/Jobs';
 import { PassiveSkill, passiveIconUrl, passivesFor } from '../skills/Passives';
 
@@ -23,7 +16,6 @@ type Entry = FinalSkill | PassiveSkill;
 const isPassive = (e: Entry): e is PassiveSkill => 'kind' in e;
 const entryIcon = (e: Entry) => (isPassive(e) ? passiveIconUrl(e) : iconUrl(e));
 
-const A = (f: string) => `assets/final/ui/skill_book/${f}.png`;
 const K = (f: string) => `assets/final/ui/kit/${f}.png`;
 const BG = { x: 160, y: 140, w: 1600, h: 800 };
 // zones measured on kit/skillbook_window.png (the window art paints banner, tab strip, 4 card frames, two book pages)
@@ -31,9 +23,6 @@ const PREVIEW: Rect = { x: 78, y: 447, w: 815, h: 279 };
 const DETAIL: Rect = { x: 1000, y: 449, w: 518, h: 276 };
 const TAB_X = [50, 355, 659, 962, 1263], TAB_W = 287, TAB_Y = 149, TAB_H = 52;
 const FRAME_CX = [362, 661, 940, 1235], FRAME_Y = 245, FRAME_IN = 150; // painted card frames: inner box FRAME_IN x 135
-/** Pre-recorded in-game clips of each skill (exact final visuals); falls back to the live preview when missing. */
-const CLIPS = new Set(['warrior_basic', 'dash_slash', 'rising_slash', 'ground_breaker', 'whirlwind', 'sanctuary', 'blade_storm', 'titans_verdict', 'leap_crash', 'wave_slash', 'radiant_blade', 'lance_thrust', 'war_cry', 'judgment_blade']);
-const clipUrl = (id: string) => `assets/final/skills/clips/${id}.mp4?v=${__BUILD_COMMIT__}`;
 const HOTKEY = new Proxy([] as string[], { get: (_t, p) => (typeof p === 'string' && /^\d+$/.test(p) ? slotKeyLabels()[+p] : undefined) }); // live: Key Settings
 const CARD = 112;
 
@@ -86,8 +75,6 @@ const CSS = `
   font:700 12px/20px ${FONT_FAMILY};color:#f0d9a6;text-align:center}
 .gol-sb .card .nm{position:absolute;left:4px;right:4px;top:102px;text-align:center;font:700 13px/16px ${FONT_FAMILY};color:#f3e2bf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px #000}
 .gol-sb .card.lk .nm{color:#8c939b}
-.gol-sb .pv{position:absolute;left:${PREVIEW.x}px;top:${PREVIEW.y}px;width:${PREVIEW.w}px;height:${PREVIEW.h}px;overflow:hidden;background:#0a1018;border-radius:4px}
-.gol-sb .pv video{width:100%;height:100%;object-fit:cover;object-position:50% 62%;display:block}
 .gol-sb .pcap{position:absolute;left:${BG.x + PREVIEW.x + 18}px;top:${BG.y + PREVIEW.y + 13}px;width:${PREVIEW.w - 36}px;font:700 12px ${FONT_FAMILY};letter-spacing:2.5px;color:#f0d9a6;text-shadow:0 1px 3px #000,0 0 8px #000;pointer-events:none;z-index:2}
 .gol-sb .det{position:absolute;left:${DETAIL.x}px;top:${DETAIL.y}px;width:${DETAIL.w}px;height:${DETAIL.h}px;color:#dfe6ee;font-family:Georgia,serif;overflow:hidden}
 .gol-sb .det .hd{display:flex;gap:12px;align-items:center;height:40px;padding:0 26px}
@@ -134,143 +121,6 @@ function ensureStyles(): void {
 
 const tierName = (s: FinalSkill, job?: Job, adv?: number) => `${job ? `${ADV_LABEL[adv ?? 0].toUpperCase()} · ${job.name.toUpperCase()}` : ''}${s.slot === 7 ? ' · ULTIMATE' : s.slot === 6 ? ' · SIGNATURE' : s.slot === 0 ? ' · BASIC ATTACK' : ''}`;
 
-// ----------------------------------------------------------------------------------------------- live preview
-
-/** Distance caster → dummy that shows the skill's real reach. */
-function previewDistance(s: FinalSkill): number {
-  if (s.dash) return Math.min(250, s.dash.distance * 0.8 + 30);
-  const sh: HitShape = (s.chain ? s.chain.stages[0] : s.hits).find((h) => h.damage > 0)?.shape ?? s.hits[0].shape;
-  switch (sh.kind) {
-    case 'sector': return Math.max(56, sh.range * 0.72);
-    case 'circle': return sh.at === 'place' ? 200 : sh.at === 'aimBias' ? Math.max(60, sh.bias ?? 60) : Math.max(56, sh.radius * 0.6);
-    case 'line': return Math.min(240, sh.length * 0.65);
-    case 'capsule': return 90;
-    case 'projectile': return 240;
-    case 'chain': return 220;
-    case 'placed': return 210;
-  }
-}
-
-class SkillPreview {
-  private rt: SkillRuntime;
-  private fx: SkillFx;
-  private view: ActorView;
-  private dummy: Phaser.GameObjects.Image;
-  private now = 0;
-  private t = 0;
-  private skill: FinalSkill | null = null;
-  private stage = 0;
-  private run: CastRun | null = null;
-  private runAt = 0;
-  private mode: Mode = 'idle';
-  private modeT = 0;
-  private caster: V3 = { x: 0, y: 0, z: 0 };
-  private dashFrom = 0;
-  private home = { cx: 0, dx: 0 };
-  private dum = { x: 0, z: 0, vz: 0, flash: -1, shake: 0 };
-  private seq = 0;
-
-  constructor(scene: Phaser.Scene, private stageArea: PreviewStage, readonly cls: ClassKey) {
-    const ox = stageArea.ox, oy = stageArea.oy;
-    this.view = new ActorView(scene, cls, ox, oy);
-    const D = COMBAT_ASSETS.textures.dummy;
-    this.dummy = scene.add.image(ox, oy, D.key).setOrigin(D.origin.x, D.origin.y).setScale(D.displayHeight / D.height).setTint(0x9aa3ad);
-    this.rt = new SkillRuntime({
-      now: () => this.now,
-      targets: () => [this.target()],
-      onHit: (r, h, _i, _t, at) => {
-        const dmg = Math.round(h.damage * r.skill.pvpMultiplier);
-        this.fx.confirmed(r.skill, h, { x: this.dum.x, y: oy + 40, z: this.dum.z }, dmg, h.reaction.launch ? 'launch' : h.reaction.knockdown ? 'knockdown' : 'hit', false, 1);
-        void at;
-        this.dum.flash = 0; this.dum.shake = 120;
-        if (h.reaction.launch) this.dum.vz = Math.sqrt(2 * 1100 * Math.min(110, h.reaction.launch));
-        if (h.reaction.push) this.dum.x += Math.sign(this.dum.x - this.caster.x || 1) * Math.min(24, h.reaction.push * 0.4);
-      },
-      casterPos: () => this.caster,
-    });
-    this.fx = new SkillFx(scene, this.rt, () => this.caster, stageArea.cam);
-  }
-
-  private target(): HitTarget {
-    return { id: 'pv-dummy', kind: 'enemy', x: this.dum.x, y: this.stageArea.oy + 40, z: this.dum.z, radius: 22, height: 96, alive: true };
-  }
-
-  setEquipped(e: Parameters<ActorView['setEquipped']>[0]): void { this.view.setEquipped(e); }
-
-  show(s: FinalSkill): void {
-    if (this.skill?.id === s.id) return;
-    this.skill = s;
-    this.restart();
-  }
-
-  private restart(): void {
-    this.rt.cancelAttacker('pv');
-    const s = this.skill!, d = previewDistance(s), oy = this.stageArea.oy + 40;
-    this.home = { cx: this.stageArea.ox - d / 2 - 10, dx: this.stageArea.ox + d / 2 + 10 };
-    this.caster = { x: this.home.cx, y: oy, z: 0 };
-    this.dum = { x: this.home.dx, z: 0, vz: 0, flash: -1, shake: 0 };
-    this.t = 0; this.stage = 0; this.run = null; this.mode = 'idle'; this.modeT = 0;
-  }
-
-  private cast(): void {
-    const s = this.skill!;
-    this.run = this.rt.start({
-      castId: `pv-${this.seq++}`, skill: s, stage: this.stage, attackerId: 'pv', own: false,
-      origin: { ...this.caster }, aim: { x: 1, y: 0 }, place: { x: this.dum.x, y: this.stageArea.oy + 40 }, lock: 'pv-dummy',
-    });
-    this.runAt = this.t; this.dashFrom = this.caster.x;
-    this.mode = 'skill'; this.modeT = 0;
-  }
-
-  update(ms: number): void {
-    if (!this.skill) return;
-    const s = this.skill, step = this.fx.hitStopLeft > 0 ? 0 : ms;
-    this.now += step; this.t += step; this.modeT += step;
-    // Loop script: idle → cast (chain stages back to back) → recovery → idle; total 2.6–3 s.
-    if (!this.run && this.mode !== 'skill' && this.t >= 420 && this.t < 450 + 30) this.cast();
-    const r = this.run;
-    if (r) {
-      const T = r.timings, el = this.t - this.runAt;
-      if (s.counter && !r.counterTriggered && el >= T.startup + 90) this.rt.triggerCounter(r, { x: 1, y: 0 }, { ...this.caster });
-      if (s.dash && el >= T.startup && el <= T.startup + T.active) {
-        const k = Math.min(1, (el - T.startup) / Math.max(1, T.active));
-        const stop = this.dum.x - 46;
-        this.caster.x = Math.min(stop, this.dashFrom + s.dash.distance * k);
-        this.caster.z = (s.dash.lift ?? 0) * Math.sin(Math.PI * k);
-      }
-      if (el >= T.startup + T.active + T.recovery) {
-        this.caster.z = 0;
-        if (s.chain && this.stage < s.chain.stages.length - 1) { this.stage++; this.cast(); }
-        else { this.run = null; this.mode = 'recover'; this.modeT = 0; }
-      }
-    } else if (this.mode === 'recover' && this.modeT >= RECOVER_MS) { this.mode = 'idle'; this.modeT = 0; }
-    const loopMs = Math.max(2600, this.runAt + 1300);
-    if (!this.run && this.t > loopMs) this.restart();
-    this.rt.update(step);
-    this.fx.update(ms, this.rt.projectiles.map((e) => e.p));
-    // Dummy reaction (preview only).
-    const D = this.dum;
-    if (D.z > 0 || D.vz > 0) { D.vz -= 1100 * step / 1000; D.z = Math.max(0, D.z + D.vz * step / 1000); if (D.z === 0) D.vz = 0; }
-    if (D.flash >= 0) { D.flash += ms; if (D.flash > 140) D.flash = -1; }
-    D.shake = Math.max(0, D.shake - ms);
-    const jig = D.shake > 0 ? Math.sin(D.shake / 12) * 3 : 0;
-    const oy = this.stageArea.oy + 40;
-    this.dummy.setPosition(D.x + jig, oy - D.z).setDepth(oy + 0.5);
-    if (D.flash >= 0 && D.flash < 60) this.dummy.setTintFill(0xffffff); else if (D.flash >= 0) this.dummy.setTint(0xff8a7a); else this.dummy.setTint(0x9aa3ad);
-    const el = r ? this.t - this.runAt : 0;
-    const snap: AnimSnap = {
-      mode: this.mode, t: this.modeT, speed: 0, vz: 0,
-      skill: r ? { id: s.id, stage: r.stage, elapsed: el, startup: r.timings.startup, active: r.timings.active, recovery: r.timings.recovery } : undefined,
-    };
-    const pose = resolvePose(this.cls, 'right', poseQuery(snap), this.view.wantsBase);
-    this.view.render(ms, pose, this.caster.x, this.caster.y, this.caster.z, 0, 'right');
-  }
-
-  setVisible(v: boolean): void { this.view.setVisible(v); this.dummy.setVisible(v); if (!v) this.rt.cancelAttacker('pv'); else if (this.skill) this.restart(); }
-
-  destroy(): void { this.rt.destroy(); this.fx.destroy(); this.view.destroy(); this.dummy.destroy(); }
-}
-
 // ----------------------------------------------------------------------------------------------- book
 
 export class SkillBook {
@@ -285,23 +135,17 @@ export class SkillBook {
   private pps!: HTMLDivElement;
   private det: HTMLDivElement;
   private cap: HTMLDivElement;
-  private pv: HTMLDivElement;
-  private video: HTMLVideoElement;
   private lastRect = '';
   private kit: FinalSkill[];
   private jobs: Job[];
   private job = 0;
   private selected!: Entry;
   private hover: Entry | null = null;
-  private stage: PreviewStage;
-  private preview: SkillPreview;
-  private shownClip = '';
-  private badClips = new Set<string>();
 
   private sub!: HTMLDivElement;
   private allBtn?: HTMLButtonElement;
 
-  constructor(scene: Phaser.Scene, private host: HTMLElement, private canvas: HTMLCanvasElement, private cls: ClassKey, private level: number, private qaUnlockAll: boolean, private onAllOpen?: (on: boolean) => void) {
+  constructor(_scene: Phaser.Scene, private host: HTMLElement, private canvas: HTMLCanvasElement, private cls: ClassKey, private level: number, private qaUnlockAll: boolean, private onAllOpen?: (on: boolean) => void) {
     ensureStyles();
     this.kit = kitFor(cls);
     this.jobs = jobsFor(cls);
@@ -331,11 +175,7 @@ export class SkillBook {
       this.tabs.push(t);
     });
     this.row = this.div('row', this.bg);
-    this.cap = this.div('pcap', this.root); // outside .bg: the window has a hole over the live preview
-    this.pv = this.div('pv', this.bg);
-    this.video = document.createElement('video');
-    this.video.muted = true; this.video.loop = true; this.video.playsInline = true; this.video.autoplay = true;
-    this.pv.appendChild(this.video);
+    this.cap = this.div('pcap', this.root);
     this.pps = this.div('pps', this.bg);
     this.det = this.div('det', this.bg);
     for (const side of ['l', 'r'] as const) {
@@ -343,9 +183,6 @@ export class SkillBook {
       b.addEventListener('click', () => { this.page = side === 'l' ? 0 : 1; this.buildRow(); this.selected = this.cards[0]?.e ?? this.selected; this.refresh(); });
       this.pager.push(b);
     }
-    this.stage = new PreviewStage(scene, { x: BG.x + PREVIEW.x, y: BG.y + PREVIEW.y, w: PREVIEW.w, h: PREVIEW.h }, -30000, 30000, 0.88, 'ui-sb-preview');
-    this.preview = new SkillPreview(scene, this.stage, cls);
-    this.preview.setVisible(false);
     this.job = Math.max(0, this.jobs.indexOf(cur));
     this.selected = this.entries()[0];
     this.buildRow();
@@ -396,17 +233,16 @@ export class SkillBook {
     this.pager.forEach((b, k) => { b.classList.toggle('on', this.page === k); b.classList.toggle('off', !pages[k].length); (b.lastChild as HTMLElement).textContent = String(pages[k].length); });
   }
 
-  /** Equip the preview body with the character's cosmetics (book preview = this character). */
-  setEquipped(e: Parameters<ActorView['setEquipped']>[0]): void { this.preview.setEquipped(e); }
+  /** Kept for callers: the book has no character preview (players discover a skill by using it). */
+  setEquipped(_e: unknown): void { /* no preview */ }
 
   private refresh(): void {
     const show = this.hover ?? this.selected;
     this.tabs.forEach((t, k) => { const on = k === this.job; t.classList.toggle('lk', !this.jobOpen(k)); t.classList.toggle('on', on); (t.firstChild as HTMLElement).style.backgroundImage = `url("${K(`job${k}_icon`)}")`; (t.firstChild as HTMLElement).style.filter = on ? 'drop-shadow(0 0 6px rgba(255,200,90,.8))' : ''; });
     for (const c of this.cards) { c.el.classList.toggle('sel', c.e === this.selected); c.el.classList.toggle('lk', !this.unlocked(c.e)); }
     if (isPassive(show)) { this.refreshPassive(show); return; }
-    this.pps.style.display = 'none';
     const s = show, jk = this.jobIndexOf(s), job = this.jobs[jk];
-    this.cap.textContent = `SKILL PREVIEW — ${s.name.toUpperCase()}`;
+    this.cap.textContent = `${s.slot === 0 ? 'BASIC ATTACK' : 'SKILL'} — ${s.name.toUpperCase()}`;
     const roles = s.roles.map((r) => ROLE_LABEL[r] ?? r);
     const use = s.ground && s.air ? 'Ground and air' : s.air ? 'Air only' : 'Ground only';
     const cd = s.cooldown > 0 ? `${(s.cooldown / 1000).toFixed(s.cooldown % 1000 ? 1 : 0)} s` : 'None (chain)';
@@ -424,7 +260,7 @@ export class SkillBook {
     q('.tg').textContent = TARGETING[s.targeting]; q('.cd').textContent = cd; q('.us').textContent = use; q('.ul').innerHTML = lock;
     const rel = q('.rel');
     for (const r of s.relations.slice(0, 2)) { const d = document.createElement('div'); d.textContent = r; rel.appendChild(d); }
-    if (this.open) this.showPreview(s);
+    this.showcase(iconUrl(s), [roles.join(' · '), use, this.unlocked(s) ? `Key ${HOTKEY[s.slot]}` : `${ADV_LABEL[jk]} · Lv ${job.level}`]);
   }
 
   /** Passive / movement card: effects table + a still showcase in the preview area (no animation to play). */
@@ -442,31 +278,16 @@ export class SkillBook {
     q('.ds').textContent = p.description;
     q('.ac').textContent = p.kind === 'movement' ? 'Jump again in mid-air' : 'Always on (no key)';
     q('.ul').innerHTML = lock;
-    this.pps.innerHTML = '<img alt=""><ul></ul>';
-    (this.pps.firstChild as HTMLImageElement).src = passiveIconUrl(p);
-    const ul = this.pps.querySelector('ul')!;
-    for (const e of p.effects) { const li = document.createElement('li'); li.textContent = e; ul.appendChild(li); }
-    if (!this.open) return;
-    this.pps.style.display = 'flex';
-    this.pv.style.display = 'none'; this.video.pause(); this.shownClip = ''; this.video.removeAttribute('src');
-    this.stage.setVisible(false); this.preview.setVisible(false);
-    for (const pre of ['', '-webkit-']) this.bg.style.removeProperty(`${pre}mask-image`);
+    this.showcase(passiveIconUrl(p), p.effects);
   }
 
-  private showPreview(s: FinalSkill): void {
-    const clip = this.cls === 'warrior' && CLIPS.has(s.id) && !this.badClips.has(s.id);
-    this.pv.style.display = clip ? 'block' : 'none';
-    this.stage.setVisible(!clip); this.preview.setVisible(!clip);
-    // the live Phaser preview renders under the DOM window, so the window art gets a hole for it; the <video> lives
-    // inside the window and would be masked by that hole, so the hole only exists while the live preview is shown
-    if (clip) { for (const pre of ['', '-webkit-']) this.bg.style.removeProperty(`${pre}mask-image`); } else holeMask(this.bg, PREVIEW);
-    if (clip) {
-      if (this.shownClip !== s.id) {
-        this.shownClip = s.id; this.video.src = clipUrl(s.id); void this.video.play().catch(() => undefined);
-        // a missing / broken clip falls back to the live preview instead of a black box
-        this.video.onerror = () => { if (this.shownClip === s.id) { this.badClips.add(s.id); this.showPreview(s); } };
-      }
-    } else { this.shownClip = ''; this.video.onerror = null; this.video.removeAttribute('src'); this.preview.show(s); }
+  /** Still showcase in the window's left pane: big icon + key facts (no video: the player finds out by using it). */
+  private showcase(icon: string, lines: string[]): void {
+    this.pps.innerHTML = '<img alt=""><ul></ul>';
+    (this.pps.firstChild as HTMLImageElement).src = icon;
+    const ul = this.pps.querySelector('ul')!;
+    for (const e of lines) { const li = document.createElement('li'); li.textContent = e; ul.appendChild(li); }
+    this.pps.style.display = 'flex';
   }
 
   toggle(): void { if (this.open) this.close(); else this.show(); }
@@ -482,12 +303,11 @@ export class SkillBook {
     if (!this.open) return;
     this.open = false;
     this.root.classList.remove('open');
-    this.stage.setVisible(false); this.preview.setVisible(false); this.video.pause(); this.shownClip = '';
   }
 
   layout(): void { if (this.open) this.lastRect = syncOverlay(this.root, this.host, this.canvas, this.lastRect); }
 
-  update(ms: number): void { if (this.open && !this.shownClip) this.preview.update(ms); }
+  update(_ms: number): void { /* static book */ }
 
   /** QA: which skill the preview / detail currently shows. */
   get shownSkill(): string { return (this.hover ?? this.selected).id; }
@@ -495,5 +315,5 @@ export class SkillBook {
   /** QA: open a passive / movement card by id. */
   selectPassive(id: string): void { const p = passivesFor(this.cls).find((x) => x.id === id); if (p) { this.job = p.job; this.page = this.pages().findIndex((pg) => pg.includes(p)); this.selected = p; this.buildRow(); this.refresh(); } }
 
-  destroy(): void { this.preview.destroy(); this.stage.destroy(); this.root.remove(); }
+  destroy(): void { this.root.remove(); }
 }
