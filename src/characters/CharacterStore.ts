@@ -1,6 +1,7 @@
 // Load / validate / save / delete / selected slot. Independent from Phaser.
 import schema from '../data/CharacterSelect_DataSchema.json';
 import { Character, CharacterSelectData, CharacterSlot, QuestState, SlotId } from './CharacterTypes';
+import { GearState, cleanGear, starterGear } from '../items/Gear';
 
 const KEY = 'godoflegacy.characters';
 const MAX_SLOTS = 4;
@@ -53,6 +54,8 @@ function sanitize(raw: unknown): CharacterSelectData {
         target.character.look = { hair: lk.hair as number, top: lk.top as number, pants: lk.pants as number, shoes: lk.shoes as number };
         for (const k of ['hairColor', 'skin', 'face'] as const) { const v = ix(lk[k]); if (v !== null) target.character.look[k] = v; } // added later: older characters lack them
       }
+      // equipment: as stored, or the starter set (in the creation colours) for characters stored before it existed
+      target.character.gear = cleanGear((c as unknown as { gear?: unknown }).gear) ?? starterGear(target.character.look);
       const cos = (c as unknown as { cosmetics?: { owned?: unknown; equipped?: unknown } }).cosmetics;
       if (cos && Array.isArray(cos.owned) && cos.equipped && typeof cos.equipped === 'object') {
         target.character.cosmetics = {
@@ -101,6 +104,7 @@ class Store {
       id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `c${Date.now()}`,
       name: clean, classId, level: 1,
       createdAt: new Date().toISOString(), lastPlayedAt: null, appearanceId, gender, ...(look ? { look: { ...look } } : {}),
+      gear: starterGear(look), // the starter set, worn, in the chosen colours
     };
     this.save();
     return true;
@@ -137,6 +141,19 @@ class Store {
     const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
     if (!c) return;
     c.quests = Object.fromEntries(Object.entries(q).map(([id, v]) => [id, { state: v.state, progress: [...v.progress] }]));
+    this.save();
+  }
+
+  /** Equipment of a stored character. */
+  getGear(charId: string): GearState | null {
+    const g = this.data.slots.find((s) => s.character?.id === charId)?.character?.gear;
+    return g ? { items: g.items.map((i) => ({ ...i })), worn: { ...g.worn } } : null;
+  }
+
+  setGear(charId: string, g: GearState): void {
+    const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
+    if (!c) return;
+    c.gear = cleanGear(g) ?? c.gear;
     this.save();
   }
 

@@ -9,7 +9,7 @@ import { DEFAULT_SKIN, SKIN_TONES } from '../characters/Skin';
 
 /** What the new character looks like: body, face, hairstyle and its colour, skin tone, the colour of each starter piece. */
 export type CreateLook = LookData;
-export const FIRST_LOOK: CreateLook = { gender: 'male', face: 0, hair: 0, hairColor: 0, skin: DEFAULT_SKIN, top: 0, pants: 0, shoes: 0 };
+export const FIRST_LOOK: CreateLook = { gender: 'male', face: 0, hair: 0, hairColor: 0, skin: DEFAULT_SKIN, top: 0, pants: 0, shoes: 0, weapon: true };
 type Piece = 'top' | 'pants' | 'shoes';
 const PIECES: { id: Piece; label: string }[] = [{ id: 'top', label: 'SHIRT' }, { id: 'pants', label: 'PANTS' }, { id: 'shoes', label: 'BOOTS' }];
 const COLORS_OF = OUTFIT_COLORS as Record<Piece, { name: string; swatch: string }[]>;

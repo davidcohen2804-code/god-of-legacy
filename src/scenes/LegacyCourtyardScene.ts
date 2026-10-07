@@ -11,6 +11,7 @@ import S6 from '../data/stage6-combat.json';
 import TRAINING from '../data/training-combat.json';
 import { CHARACTER_PREVIEWS, CLASS_NAMES, HUD, PVP, STAGE6 } from '../config/layout';
 import { CharacterStore } from '../characters/CharacterStore';
+import { GearState, GearStats, attackMul, gearStats, takenMul, wornCode, wornLook } from '../items/Gear';
 import { WorldHUD } from '../ui/WorldHUD';
 import { HudEffect, HudMarker, HudSlot, HudState, PortraitRef } from '../ui/hud/HudState';
 import { Character } from '../characters/CharacterTypes';
@@ -46,7 +47,7 @@ import { CombatInput } from '../game/CombatInput';
 import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey, damageSkin, wantsWeaponMasks } from '../game/ActorView';
 import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
-import { baseLoop, ClassKey, dirOf, loadBaseLook, preloadBodies, registerBodies, resolvePose, PoseFrame } from '../game/Body';
+import { baseLoop, ClassKey, dirOf, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame } from '../game/Body';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
 import { CombatBody, GAUGE, HitOutcome, Kin, PHYS, jump, newKin, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
@@ -130,6 +131,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   warCryUntil = -1;
   /** Passive skills (job advancements): stat bonuses, War Leap, Final Attack, Combo Force orbs, Self Recovery. */
   passives: PassiveStats = NO_PASSIVES;
+  /** What the worn equipment gives (attack scales the damage dealt, defence cuts the damage taken). */
+  gearSt: GearStats = { att: 0, def: 0, armed: false };
+  /** What is worn, as sent to other players (Gear wornCode). */
+  private gearCode = '';
   private leapUsed = false;
   private leapUntil = -1;
   orbs = { n: 0, lastAt: -Infinity, cast: '' };
@@ -232,6 +237,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!this.textures.exists(CT.dummy.key)) this.load.image(CT.dummy.key, CT.dummy.file);
     preloadBodies(this, classes, masks);
     if (me) loadBaseLook(this, genderOf(me), headLookOf(me)); // your hair, face and skin: layers on every base frame
+    if (me) loadGear(this, genderOf(me), wornLook(me.gear)); // what you wear: the clothes and the sword on every base frame
     if (me) preloadLooks(this, [me]); // your full style for the portrait
     preloadSkillFx(this, classes);
     preloadDeathFx(this);
@@ -307,12 +313,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const { x, y } = this.world ? toWorld(START.area, [START.x, START.y]) : WORLD.spawn;
     this.kin = newKin(x, y);
     this.body = new CombatBody(this.kin, !!pvpRoom);
+    this.gearSt = gearStats(CharacterStore.getGear(character.id)); this.gearCode = wornCode(wornLook(character.gear));
     this.applyPassives();
     this.orbs = { n: 0, lastAt: -Infinity, cast: '' }; this.leapUsed = false; this.regenAt = 0; this.orbImgs = [];
     this.playerHP = this.maxHpNow();
     this.body.maxHp = this.maxHpNow();
     this.view = new ActorView(this, this.cls, x, y);
     this.view.setBaseLook(headLookOf(character), genderOf(character));
+    this.view.setGear(wornLook(character.gear), genderOf(character));
     this.view.setName(character.name);
     this.loadCosmetics();
 
@@ -328,6 +336,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.deathFx = new DeathFx(this);
     this.fx.damageSkin = damageSkin(this.equipped.damage);
     this.fx.handPos = (id) => (id === this.localId ? this.lastHand : null);
+    this.fx.unarmed = (id) => (id === this.localId ? !this.gearSt.armed : this.pvp?.remotes.get(id)?.armed === false);
     this.renderPlayer(0);
     if (pvpRoom) this.view.setVisible(false);
     if (isQAMode()) (window as unknown as { __combatQA: unknown }).__combatQA = { finalSkill, kitFor, WORLD_OBJECTS, footAllowed, placementOk };
@@ -350,7 +359,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.refreshPassiveStrip();
     const host = this.game.canvas.parentElement!;
     this.skillBook = new SkillBook(this, host, this.game.canvas, this.cls, character.level, this.allOpen(), pvpRoom || isQAMode() ? undefined : (on) => this.setAllOpen(on)); // arena / QA: all skills open
-    this.cosPanel = new CosmeticPanel(this, host, this.game.canvas, character, () => this.equipped, (e) => this.setEquipped(e));
+    this.cosPanel = new CosmeticPanel(this, host, this.game.canvas, character, () => this.equipped, (e) => this.setEquipped(e), (g) => this.onGearChange(g));
     this.skillBook.setEquipped(this.equipped);
     // Chat (Enter), speech bubbles, quest tracker and quest log (J).
     const ov = this.hud.overlay;
@@ -708,8 +717,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Max HP: fixed in the PvP arena (fair fights), raised by passives in the world. */
   maxHpNow(): number { return Math.round((this.arena ? PVP.maxHp : S6.player.maxHp * this.passives.hpMul) * (this.simMs < this.oathUntil ? 1.3 : 1)); }
 
-  /** Passive damage multiplier: Sword Mastery × Combo Force orbs. */
-  private passiveDmgMul(): number { return this.passives.dmg * (1 + ORBS.perOrb * this.orbs.n); }
+  /** Own damage multiplier from stats: the worn weapon's attack (bare hands hit weakly) × Sword Mastery × Combo Force orbs. */
+  private passiveDmgMul(): number { return attackMul(this.gearSt) * this.passives.dmg * (1 + ORBS.perOrb * this.orbs.n); }
 
   /** Chance Attack: helpless target (hit-stun / down / hard CC). */
   private chanceMul(b: CombatBody | undefined): number {
@@ -1540,10 +1549,18 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.playerHP === 0) this.pvp?.sendDeath(run.attackerId);
   }
 
-  /** Returns the damage actually taken (Iron Body cuts it). */
+  /** Equipment changed (inventory): its stats, the pieces drawn on the character, what other players see. */
+  private onGearChange(g: GearState): void {
+    this.gearSt = gearStats(g); this.gearCode = wornCode(wornLook(g));
+    this.view?.setGear(wornLook(g), genderOf(this.character));
+    buildLook(this, this.character); // the portrait in what is worn now
+    this.pvp?.forceState();
+  }
+
+  /** Returns the damage actually taken (the worn equipment's defence and Iron Body cut it). */
   private takeDamage(raw: number): number {
     if (this.dead >= 0 || raw <= 0) return 0;
-    const dmg = Math.max(1, Math.round(raw * this.passives.takenMul * (this.simMs < this.bannerUntil ? 0.9 : 1)));
+    const dmg = Math.max(1, Math.round(raw * this.passives.takenMul * takenMul(this.gearSt) * (this.simMs < this.bannerUntil ? 0.9 : 1)));
     this.playerHP = Math.max(0, this.playerHP - dmg);
     this.flash = 0;
     if (this.playerHP === 0) this.killPlayer();
@@ -1669,7 +1686,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       getLocal: () => {
         if (!this.view || !this.pvpReady) return null;
         const k = this.kin, dead = this.dead >= 0;
-        const cos = Object.entries(this.equipped).filter(([, v]) => v).map(([s, v]) => `${s}:${v}`).join(',');
+        const cos = [...Object.entries(this.equipped).filter(([, v]) => v).map(([s, v]) => `${s}:${v}`), `gear:${this.gearCode}`].join(','); // + what is worn
         return { x: k.x, y: k.y, z: k.z, sz: k.supportZ, dir: this.dir, anim: dead ? 'dead' : this.mode, mode: this.mode, sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: this.aim.x, ay: this.aim.y, hp: this.playerHP, alive: !dead, cos, mhp: this.maxHpNow() };
       },
     });
@@ -1701,7 +1718,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.seenCasts.add(m.castId);
     this.remoteCasts.set(key, [...recent, this.simMs]);
     const run = this.rt?.start({ castId: m.castId, skill: s, stage: Math.max(0, Math.min(2, m.stage ?? 0)), attackerId: from, own: false, origin: { x: m.x, y: m.y, z: m.z ?? 0 }, aim: unit(m.ax, m.ay), place, lock: m.lock ?? null,
-      dmgMul: Math.max(1, Math.min(1.4, (m.dm ?? 100) / 100)), reach: Math.max(1, Math.min(1.85, (m.rm ?? 100) / 100)) });
+      dmgMul: Math.max(0.3, Math.min(1.4, (m.dm ?? 100) / 100)), reach: Math.max(1, Math.min(1.85, (m.rm ?? 100) / 100)) });
     if (run && s.id === 'judgment_blade') { // the blade leaves the caster's hand when its release message arrives (fallback: a little after the full charge)
       run.timings.startup = s.startup + 600; r.setSkillStartup(s.id, run.timings.startup);
     }

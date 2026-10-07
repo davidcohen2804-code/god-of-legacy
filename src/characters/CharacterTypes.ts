@@ -1,4 +1,5 @@
 // Mirrors CharacterSelect_DataSchema.json.
+import type { GearState } from '../items/Gear';
 
 export type SlotId = 1 | 2 | 3 | 4;
 
@@ -21,6 +22,9 @@ export interface Character {
   cosmetics?: { owned: string[]; equipped: Record<string, string> };
   /** Quests by id: taken (progress per objective) or finished. */
   quests?: Record<string, QuestState>;
+  /** Equipment: owned pieces (item, colour) and what is worn (gives stats, drawn on the character). Every character has
+   *  it (the starter set when stored without it). */
+  gear?: GearState;
 }
 
 export interface QuestState { state: 'active' | 'done'; progress: number[] }

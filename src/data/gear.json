@@ -1,0 +1,12 @@
+{
+  "baseAtt": 17,
+  "unarmed": 0.35,
+  "defPct": 1,
+  "defCap": 50,
+  "items": [
+    { "id": "starter_sword", "slot": "weapon", "name": "Training Sword", "desc": "A plain steel sword, the first blade of every adventurer.", "att": 17 },
+    { "id": "starter_shirt", "slot": "top", "name": "T-Shirt", "desc": "A simple short-sleeved shirt.", "def": 3, "colors": "top" },
+    { "id": "starter_pants", "slot": "bottom", "name": "Pants", "desc": "Sturdy everyday pants.", "def": 2, "colors": "pants" },
+    { "id": "starter_boots", "slot": "shoes", "name": "Boots", "desc": "Worn leather boots, good for the road.", "def": 2, "colors": "shoes" }
+  ]
+}

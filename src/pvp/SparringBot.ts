@@ -35,7 +35,7 @@ const CD_MUL = 2;
 /** First use of the big moves only after a while (a sparring partner, not an ambush). */
 const OPENING_CD: Record<string, number> = { titans_verdict: 30000, blade_storm: 18000, whirlwind: 6000, ground_breaker: 5000, leap_crash: 2500 };
 /** Its own look (cape + aura) so it never reads as the player. */
-const BOT_LOOK = 'back:war_cape_shadow_smoke,aura:war_aura_shadow_flame';
+const BOT_LOOK = 'back:war_cape_shadow_smoke,aura:war_aura_shadow_flame,gear:w1t2p2s1'; // + the starter gear (red shirt, black pants and boots)
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 /** Open middle of the courtyard (fallback direction when wedged against a prop). */
 const ARENA_CENTRE = { x: 835, y: 640 };

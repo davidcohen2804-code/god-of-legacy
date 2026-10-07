@@ -123,7 +123,8 @@ export class OpenWorld {
       const title = this.scene.add.text(p.x, p.y + 45, n.title, { fontFamily: '"Segoe UI", Arial, sans-serif', fontSize: '12px', color: '#efe3c4', stroke: '#140c02', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(nd + 0.0002);
       const top = p.y - art.h * art.oy / art.q; // head top (world px)
       const mark = this.scene.add.image(p.x, top - 26, MARK_TEX.available).setDisplaySize(15, 42).setDepth(nd + 0.0003).setVisible(false);
-      sprite.setInteractive({ useHandCursor: true }).on('pointerdown', () => this.onNpcClick?.(n));
+      // a click on the game itself only (not one on a window drawn over the NPC: the inventory, the skill book)
+      sprite.setInteractive({ useHandCursor: true }).on('pointerdown', (p: Phaser.Input.Pointer) => { if (p.event?.target === this.scene.game.canvas) this.onNpcClick?.(n); });
       this.npcs.push({ def: n, area: a.id, x: p.x, y: p.y, top, sprite, shadow, plate, name, title, mark, markKind: null, t: Math.random() * 3000 });
     }
   }

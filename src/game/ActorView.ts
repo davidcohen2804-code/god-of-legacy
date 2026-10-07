@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import COS from '../data/cosmetics.json';
 import { Dir } from '../world/collision';
 import { actorDepth } from '../world/WorldGeometry';
-import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM, baseComplete, ensureWeaponMasks, BaseLook, baseLookLayers, hasOver, overKey, NAKED_LOOK } from './Body';
+import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM, baseComplete, ensureWeaponMasks, BaseLook, baseLookLayers, hasOver, overKey, NAKED_LOOK, GearLook, GearPiece, gearLayers, loadGear } from './Body';
 /** Name plates sit above the world (props in front included), like MapleStory's. */
 export const NAME_DEPTH = 90000;
 import { DEFAULT_SKIN, toneTexture } from '../characters/Skin';
@@ -213,6 +213,9 @@ const HEAD_FIT = [{ w: 1.3, b: 0.12, dx: 0 }, { w: 1.32, b: 0.12, dx: 0.04 }, { 
 
 /** Body frame cross-fade length (ms). */
 const FADE_MS = 90;
+/** The worn pieces over the body frame: pants, boots, shirt under the face and hair; the shirt again over the sword arm
+ *  drawn over the hair; the sword in hand on top. */
+const GEAR_DEPTH: Record<GearPiece, number> = { pants: 0.001, shoes: 0.0013, top: 0.0016, topo: 0.0085, sword: 0.009 };
 
 export class ActorView {
   readonly sprite: Phaser.GameObjects.Sprite;
@@ -264,12 +267,25 @@ export class ActorView {
    *  hair, and the sword arm again where it passes in front of the head. */
   private look: BaseLook | null = null;
   private lookParts: { b: Phaser.GameObjects.Image; face: Phaser.GameObjects.Image; gap: Phaser.GameObjects.Image; f: Phaser.GameObjects.Image; over: Phaser.GameObjects.Sprite } | null = null;
+  /** Worn gear (equipment): the clothes and the sword drawn on every frame of the base character. */
+  private gearW: GearLook | null = null;
+  private gearParts: Partial<Record<GearPiece, Phaser.GameObjects.Sprite>> = {};
+  /** Cross-fade: the worn pieces of the previous body frame, fading out with it. */
+  private ghostGear: Partial<Record<GearPiece, Phaser.GameObjects.Sprite>> = {};
+  private ghostGearOn = new Set<GearPiece>();
+  setGear(w: GearLook | null, gender: 'male' | 'female' = 'male'): void {
+    this.gearW = w ? { ...w } : null;
+    if (w) this.ensureLookParts();
+    loadGear(this.scene, gender, this.gearW, true); // the worn pieces' strips (drawn once they arrive)
+  }
+  private ensureLookParts(): void {
+    if (this.lookParts) return;
+    const im = () => this.scene.add.image(0, 0, '__DEFAULT').setVisible(false);
+    this.lookParts = { b: im(), face: im(), gap: im(), f: im(), over: this.scene.add.sprite(0, 0, '__DEFAULT').setVisible(false) };
+  }
   setBaseLook(l: BaseLook | null, gender: 'male' | 'female' = 'male'): void {
     this.look = l ? { ...l } : null;
-    if (l && !this.lookParts) {
-      const im = () => this.scene.add.image(0, 0, '__DEFAULT').setVisible(false);
-      this.lookParts = { b: im(), face: im(), gap: im(), f: im(), over: this.scene.add.sprite(0, 0, '__DEFAULT').setVisible(false) };
-    }
+    if (l) this.ensureLookParts();
     if (l && l.skin !== DEFAULT_SKIN && NAKED_LOOK[gender]) for (const k of this.scene.textures.getTextureKeys()) // re-shade the moves now, not on their first frame
       if (k.startsWith(`naked-${gender}-`) && !k.includes('~')) toneTexture(this.scene, k, l.skin);
   }
@@ -363,6 +379,13 @@ export class ActorView {
     if (changed && !loop && this.visible) {
       this.ghost.setTexture(prevKey, prevFrame).setFlipX(prevFlip).setOrigin(prevOx, prevOy).setScale(prevSx, prevSy);
       this.ghostLeft = FADE_MS;
+      this.ghostGearOn.clear(); // what the previous frame wore goes with it (the pieces still show that frame here)
+      for (const [piece, sp] of Object.entries(this.gearParts) as [GearPiece, Phaser.GameObjects.Sprite][]) {
+        if (!sp.visible) continue;
+        const gs = this.ghostGear[piece] ?? (this.ghostGear[piece] = this.scene.add.sprite(0, 0, '__DEFAULT'));
+        gs.setTexture(sp.texture.key, sp.frame.name).setFlipX(sp.flipX).setOrigin(sp.originX, sp.originY).setScale(sp.scaleX, sp.scaleY);
+        this.ghostGearOn.add(piece);
+      }
     } else if (changed) this.ghostLeft = 0;
     if (this.ghostLeft > 0 && this.visible) {
       this.ghostLeft = Math.max(0, this.ghostLeft - ms);
@@ -370,7 +393,13 @@ export class ActorView {
       this.ghost.setPosition(p.x, p.y).setDepth(depth - 0.005).setAlpha(alpha * 0.85 * k).setVisible(k > 0);
       p.setAlpha(alpha * (1 - 0.35 * k)); // the new frame comes in as the old one goes
       if (tint === null) this.ghost.clearTint(); else if (tintFill) this.ghost.setTintFill(tint); else this.ghost.setTint(tint);
-    } else this.ghost.setVisible(false);
+      for (const [piece, gs] of Object.entries(this.ghostGear) as [GearPiece, Phaser.GameObjects.Sprite][]) {
+        const on = this.ghostGearOn.has(piece) && k > 0;
+        gs.setVisible(on); if (!on) continue;
+        gs.setPosition(p.x, p.y).setDepth(depth - 0.005 + GEAR_DEPTH[piece] * 0.5).setAlpha(alpha * 0.85 * k); // under the new frame
+        if (tint === null) gs.clearTint(); else if (tintFill) gs.setTintFill(tint); else gs.setTint(tint);
+      }
+    } else { this.ghost.setVisible(false); for (const gs of Object.values(this.ghostGear)) gs?.setVisible(false); }
     this.renderLook(pose, depth, alpha, tint, tintFill);
     // Weapon skin: tinted copy of the real weapon pixels of this exact frame.
     const ws = this.equipped.weapon ? WEAPON_TINT[this.equipped.weapon] : undefined;
@@ -487,8 +516,8 @@ export class ActorView {
   private renderLook(pose: PoseFrame, depth: number, alpha: number, tint: number | null, tintFill: boolean): void {
     const P = this.lookParts; if (!P) return;
     const nk = pose.naked, l = this.look, p = this.sprite;
-    if (!nk || !l || !this.visible) { for (const im of Object.values(P)) im.setVisible(false); return; }
-    const L = baseLookLayers(nk.g, l), fx = pose.flip ? -1 : 1;
+    if (!nk || (!l && !this.gearW) || !this.visible) { for (const im of [...Object.values(P), ...Object.values(this.gearParts)]) im?.setVisible(false); return; }
+    const L = l ? baseLookLayers(nk.g, l) : {}, fx = pose.flip ? -1 : 1, skin = l?.skin ?? DEFAULT_SKIN;
     const hx = p.x + nk.hx * p.scaleX * fx, hy = p.y + nk.hy * p.scaleY;
     const put = (im: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite, key: string | null, x: number, y: number, d: number, frame?: number) => {
       if (!key) { im.setVisible(false); return; }
@@ -497,19 +526,29 @@ export class ActorView {
       if (tint === null) im.clearTint(); else if (tintFill) im.setTintFill(tint); else im.setTint(tint);
     };
     const has = (kf?: [string, string]) => (kf && this.scene.textures.exists(kf[0]) ? kf[0] : null);
-    const tone = (k: string | null) => (k ? toneTexture(this.scene, k, l.skin) : null);
+    const tone = (k: string | null) => (k ? toneTexture(this.scene, k, skin) : null);
     put(P.b, has(L.b), hx, hy, -0.005);
     put(P.face, tone(has(L.face)), hx, hy, 0.003);
     put(P.gap, tone(has(L.gap)), hx, hy, 0.004);
     put(P.f, has(L.f), hx, hy, 0.006);
     const ok = hasOver(nk.g, nk.anim) && this.scene.textures.exists(overKey(nk.g, nk.anim));
     put(P.over, ok ? tone(overKey(nk.g, nk.anim)) : null, p.x, p.y, 0.008, nk.frame);
+    // worn gear on this very frame: pants, boots, shirt over the body (under the face and hair); the shirt's sleeve again over
+    // the sword arm drawn over the hair; the sword in hand on top
+    const want = new Map(gearLayers(nk.g, nk.anim, this.gearW));
+    for (const piece of ['pants', 'shoes', 'top', 'topo', 'sword'] as GearPiece[]) {
+      const k = want.get(piece), have = !!k && this.scene.textures.exists(k) && (piece !== 'topo' || ok);
+      let sp = this.gearParts[piece];
+      if (!have) { sp?.setVisible(false); continue; }
+      if (!sp) sp = this.gearParts[piece] = this.scene.add.sprite(0, 0, '__DEFAULT');
+      put(sp, k!, p.x, p.y, GEAR_DEPTH[piece], nk.frame);
+    }
   }
 
   setVisible(v: boolean): void {
-    if (!v && this.lookParts) for (const im of Object.values(this.lookParts)) im.setVisible(false);
+    if (!v && this.lookParts) for (const im of [...Object.values(this.lookParts), ...Object.values(this.gearParts)]) im?.setVisible(false);
     this.visible = v;
-    this.sprite.setVisible(v); if (!v) { this.ghost.setVisible(false); this.ghostLeft = 0; } this.shadow.setVisible(v); this.ring.setVisible(v); this.weapon.setVisible(v && this.weapon.visible); this.weaponGlow.setVisible(v && this.weaponGlow.visible); this.blade?.setVisible(v && this.blade.visible); this.bladeTop?.setVisible(v && this.bladeTop.visible);
+    this.sprite.setVisible(v); if (!v) { this.ghost.setVisible(false); this.ghostLeft = 0; for (const gs of Object.values(this.ghostGear)) gs?.setVisible(false); } this.shadow.setVisible(v); this.ring.setVisible(v); this.weapon.setVisible(v && this.weapon.visible); this.weaponGlow.setVisible(v && this.weaponGlow.visible); this.blade?.setVisible(v && this.blade.visible); this.bladeTop?.setVisible(v && this.bladeTop.visible);
     for (const l of Object.values(this.layers)) l?.setVisible(v);
   }
 
@@ -519,6 +558,7 @@ export class ActorView {
     this.nameText?.destroy(); this.nameFrame?.destroy();
     this.layers = {}; this.blade?.destroy(); this.blade = null; this.bladeTop?.destroy(); this.bladeTop = null;
     if (this.lookParts) for (const im of Object.values(this.lookParts)) im.destroy();
-    this.lookParts = null;
+    for (const im of [...Object.values(this.gearParts), ...Object.values(this.ghostGear)]) im?.destroy();
+    this.lookParts = null; this.gearParts = {}; this.ghostGear = {}; this.ghostGearOn.clear();
   }
 }

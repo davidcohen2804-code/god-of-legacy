@@ -13,7 +13,54 @@
    "swing1",
    "swing2",
    "swing3"
-  ]
+  ],
+  "gear": {
+   "pants": [
+    "idle",
+    "walk",
+    "alert",
+    "jump",
+    "swing1",
+    "swing2",
+    "swing3",
+    "run"
+   ],
+   "shoes": [
+    "idle",
+    "walk",
+    "alert",
+    "jump",
+    "swing1",
+    "swing2",
+    "swing3",
+    "run"
+   ],
+   "top": [
+    "idle",
+    "walk",
+    "alert",
+    "jump",
+    "swing1",
+    "swing2",
+    "swing3",
+    "run"
+   ],
+   "topo": [
+    "swing1",
+    "swing2",
+    "swing3"
+   ],
+   "sword": [
+    "idle",
+    "walk",
+    "alert",
+    "jump",
+    "swing1",
+    "swing2",
+    "swing3",
+    "run"
+   ]
+  }
  },
  "female": {
   "styles": 4,
@@ -29,6 +76,53 @@
    "swing1",
    "swing2",
    "swing3"
-  ]
+  ],
+  "gear": {
+   "pants": [
+    "idle",
+    "walk",
+    "alert",
+    "jump",
+    "swing1",
+    "swing2",
+    "swing3",
+    "run"
+   ],
+   "shoes": [
+    "idle",
+    "walk",
+    "alert",
+    "jump",
+    "swing1",
+    "swing2",
+    "swing3",
+    "run"
+   ],
+   "top": [
+    "idle",
+    "walk",
+    "alert",
+    "jump",
+    "swing1",
+    "swing2",
+    "swing3",
+    "run"
+   ],
+   "topo": [
+    "swing1",
+    "swing2",
+    "swing3"
+   ],
+   "sword": [
+    "idle",
+    "walk",
+    "alert",
+    "jump",
+    "swing1",
+    "swing2",
+    "swing3",
+    "run"
+   ]
+  }
  }
 }

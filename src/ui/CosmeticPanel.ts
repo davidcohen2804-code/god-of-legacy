@@ -1,6 +1,7 @@
-// Inventory (I) and Cosmetic Shop (O): cosmetics only (no stats, no payment). Both views share one live Phaser
-// preview of the real class body with the runtime cosmetic layers, cycling through every animation state and all four
-// directions. Ownership / equipped ids persist in the local character store (abstract enough for a later backend).
+// Inventory (I) and Cosmetic Shop (O). The inventory's GEAR tab holds the character's equipment (MapleStory-style: worn
+// pieces on the doll, the rest in the bag; take off / wear, stats on every piece); cosmetics have no stats and no payment.
+// Both views share one live Phaser preview of the real body with its layers, cycling through every animation state and
+// both directions. Ownership / equipped / worn ids persist in the local character store (abstract enough for a backend).
 import Phaser from 'phaser';
 import { CLASS_NAMES, FONT_FAMILY } from '../config/layout';
 import { Character } from '../characters/CharacterTypes';
@@ -14,6 +15,7 @@ import { AnimSnap, LAND_MS, Mode, poseQuery } from '../game/PoseState';
 import { Dir } from '../world/collision';
 import { kitFor } from '../skills/FinalKit';
 import { isQAMode } from '../qa/QAPanel';
+import { GEAR, GearItem, GearSlot, GearState, SLOT_NAMES, WornLook, bagItems, gearStats, itemName, starterGear, takeOff, wear, wornItem, wornLook } from '../items/Gear';
 
 type Tab = 'inventory' | 'shop';
 type InvCat = 'equipped' | 'owned' | 'sets' | 'fashion' | 'weapon' | 'headface' | 'back' | 'aura';
@@ -31,8 +33,11 @@ const INV_TAB_X = [467, 678, 892, 1107, 1322], INV_TAB_W = 205, INV_TAB_Y = 136,
 const INV_PANEL: Rect = { x: 476, y: 232, w: 1062, h: 414 };
 type InvTab = 'gear' | 'items' | 'materials' | 'key' | 'cosmetics';
 const MAIN_TABS: [InvTab, string, string][] = [['gear', 'GEAR', 'icon_gear'], ['items', 'ITEMS', 'icon_items'], ['materials', 'MATERIALS', 'icon_materials'], ['key', 'KEY ITEMS', 'icon_key'], ['cosmetics', 'COSMETICS', 'icon_cosmetics']];
-// sockets painted into kit/doll_panel.png (374x578): [label, centre x, centre y]
-const DOLL: [string, number, number][] = [['Head', 187, 114], ['Weapon', 81, 168], ['Necklace', 293, 168], ['Armor', 73, 272], ['Earring', 299, 272], ['Gloves', 79, 372], ['Shield', 296, 372], ['Ring', 85, 464], ['Belt', 190, 462], ['Ring', 282, 464]];
+// sockets painted into kit/doll_panel_gear.png (374x578, tools/base/gear_doll.py): [label, centre x, centre y, gear slot]
+// — the left column holds the gear, head to toe: weapon, top, bottom, shoes; the others are for gear still to come
+const DOLL: [string, number, number, GearSlot?][] = [['Head', 187, 114], ['Weapon', 81, 168, 'weapon'], ['Necklace', 293, 168], ['Top', 73, 272, 'top'], ['Earring', 299, 272], ['Bottom', 79, 372, 'bottom'], ['Shield', 296, 372], ['Shoes', 85, 464, 'shoes'], ['Belt', 190, 462], ['Ring', 282, 464]];
+/** A piece's icon (bag, doll, tooltip). */
+const gearIcon = (it: GearItem) => `assets/items/${it.id}${GEAR[it.id]?.colors ? `_c${it.color}` : ''}.png`;
 const DOLL_SCALE = 400 / 578;
 const SHOP_PREVIEW: Rect = { x: 48, y: 104, w: 430, h: 556 };
 const SHOP_TABS_Y = 112;
@@ -149,6 +154,17 @@ const CSS = `
 .gol-cp .sock:hover{box-shadow:0 0 14px 4px rgba(255,214,130,.45)}
 .gol-cp .sock span{display:none;position:absolute;left:50%;top:84px;transform:translateX(-50%);white-space:nowrap;font-size:11px;letter-spacing:1.5px;color:#ffe2a0;background:#0b121bdd;padding:2px 8px;border-radius:4px}
 .gol-cp .sock:hover span{display:block}
+.gol-cp .sock.gear img{position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;object-fit:contain;pointer-events:none;filter:drop-shadow(0 2px 3px #000)}
+.gol-cp .sock.gear.worn{background:radial-gradient(circle,#162438 0,#0c1420 70%);box-shadow:inset 0 0 0 1px rgba(232,178,90,.35)}
+.gol-cp .sock.gear.worn:hover{box-shadow:0 0 14px 4px rgba(255,214,130,.45),inset 0 0 0 1px rgba(232,178,90,.5)}
+.gol-cp .sock span.top{top:auto;bottom:62px}
+.gol-cp .ks.it{cursor:pointer;background-image:url("${KIT}/slot_empty.png");transition:transform 120ms,filter 120ms}
+.gol-cp .ks.it:hover{transform:scale(1.05);filter:brightness(1.2)}
+.gol-cp .ks.it img{left:10px;top:10px;width:60px;height:60px;opacity:1;filter:drop-shadow(0 2px 3px #000)}
+.gol-cp .gstat{position:absolute;display:flex;gap:26px;font:700 15px ${FONT_FAMILY};letter-spacing:1.5px;color:#c9d3dc;white-space:nowrap}
+.gol-cp .gstat b{color:#ffe2a0;margin-left:8px;font-size:17px}
+.gol-cp .tip .ts{position:absolute;left:26px;right:26px;top:250px;font:700 13px ${FONT_FAMILY};letter-spacing:1px;line-height:19px;color:#8ff0a8}
+.gol-cp .tip .ts + .td{top:296px}
 .gol-cp .cur{position:absolute;width:342px;height:74px;background:url("${KIT}/currency_bar.png") 0 0/100% 100%}
 .gol-cp .cur b{position:absolute;top:26px;width:80px;text-align:center;font-size:16px;color:#ffe2a0;font-family:Georgia,serif}
 .gol-cp .hdr{position:absolute;left:450px;top:18px;width:700px;height:82px;background:url("${KIT}/header.png") 0 0/100% 100% no-repeat;text-align:center;pointer-events:none}
@@ -219,6 +235,7 @@ class CosPreview {
   }
 
   setEquipped(e: Equipped): void { this.view.setEquipped(e); }
+  setGear(w: WornLook): void { this.view.setGear(w, this.gender); }
   setState(s: PState): void { this.state = s; this.t = 0; this.z = 0; this.vz = 0; }
   turn(step: number): void { this.dir = DIRS[(DIRS.indexOf(this.dir) + step + 2) % 2]; this.autoTurn = false; this.turnT = 0; }
 
@@ -294,7 +311,7 @@ export class CosmeticPanel {
   private shopPrev: CosPreview;
 
   constructor(scene: Phaser.Scene, private host: HTMLElement, private canvas: HTMLCanvasElement, private character: Character,
-    private getEquipped: () => Equipped, private onEquip: (e: Equipped) => void) {
+    private getEquipped: () => Equipped, private onEquip: (e: Equipped) => void, private onGear?: (g: GearState) => void) {
     ensureStyles();
     this.cls = character.classId as ClassKey;
     this.items = (COSMETICS[this.cls] ?? []) as Item[];
@@ -334,6 +351,15 @@ export class CosmeticPanel {
     this.onEquip(e); this.refresh();
   }
   private toggleEquip(it: Item): void { if (this.isEquipped(it)) this.unequip(it); else this.equip(it); }
+
+  // ------------------------------------------------------------------ equipment (gear: stats, drawn on the character)
+
+  private get gear(): GearState { return CharacterStore.getGear(this.character.id) ?? starterGear(this.character.look); }
+  private setGear(g: GearState): void {
+    CharacterStore.setGear(this.character.id, g);
+    this.tip.classList.remove('on');
+    this.onGear?.(this.gear); this.refresh();
+  }
 
   // ------------------------------------------------------------------ DOM
 
@@ -412,12 +438,28 @@ export class CosmeticPanel {
       this.renderInventory();
       return;
     }
-    if (this.mainTab === 'gear') {
-      const dw = Math.round(374 * DOLL_SCALE), dh = 400;
-      const doll = this.el('div', 'pnl', c); this.place(doll, 8, 7, dw, dh); doll.style.backgroundImage = `url("${KIT}/doll_panel.png")`;
-      for (const [label, x, y] of DOLL) { const s = this.el('div', 'sock', doll); this.place(s, Math.round(x * DOLL_SCALE), Math.round(y * DOLL_SCALE)); s.style.width = s.style.height = '56px'; s.style.margin = '-28px 0 0 -28px'; this.el('span', '', s, label.toUpperCase()); }
-      this.toolbar(c, W); this.slotGrid(c, dw + 40, 56, 8, 4);
-      this.invHint.textContent = 'Gear drops and upgrades arrive with the adventure update.';
+    if (this.mainTab === 'gear') { // the worn pieces on the doll (click: take off), the rest in the bag (click: wear)
+      const g = this.gear, dw = Math.round(374 * DOLL_SCALE), dh = 400;
+      const doll = this.el('div', 'pnl', c); this.place(doll, 8, 7, dw, dh); doll.style.backgroundImage = `url("${KIT}/doll_panel_gear.png")`;
+      for (const [label, x, y, slot] of DOLL) {
+        const s = this.el('div', slot ? 'sock gear' : 'sock', doll); this.place(s, Math.round(x * DOLL_SCALE), Math.round(y * DOLL_SCALE)); s.style.width = s.style.height = '56px'; s.style.margin = '-28px 0 0 -28px';
+        const it = slot ? wornItem(g, slot) : null;
+        if (slot && it) {
+          s.classList.add('worn'); const im = this.el('img', '', s); im.src = gearIcon(it); im.alt = '';
+          this.gearTip(s, it, true); s.addEventListener('click', () => this.setGear(takeOff(this.gear, slot)));
+        } else this.el('span', '', s, slot ? `${label.toUpperCase()} · EMPTY` : label.toUpperCase());
+      }
+      const st = gearStats(g), gs = this.el('div', 'gstat', c); this.place(gs, dw + 44, 18);
+      for (const [k, v] of [['ATTACK', st.att], ['DEFENCE', st.def]] as const) { const sp = this.el('span', '', gs, k); this.el('b', '', sp, String(v)); }
+      this.toolbar(c, W);
+      const bag = bagItems(g);
+      for (let i = 0; i < 32; i++) {
+        const cell = this.el('div', 'ks', c); this.place(cell, dw + 40 + (i % 8) * 88, 56 + Math.floor(i / 8) * 88, 80, 80);
+        const it = bag[i]; if (!it) continue;
+        cell.classList.add('it'); const im = this.el('img', '', cell); im.src = gearIcon(it); im.alt = '';
+        this.gearTip(cell, it, false); cell.addEventListener('click', () => this.setGear(wear(this.gear, it.uid)));
+      }
+      this.invHint.textContent = 'Click a worn piece to take it off · click a piece in the bag to wear it.';
       return;
     }
     this.toolbar(c, W); this.slotGrid(c, 47, 56, 11, 4);
@@ -440,6 +482,25 @@ export class CosmeticPanel {
       this.el('div', 'td', t, it.desc.charAt(0).toUpperCase() + it.desc.slice(1)); this.el('div', 'te', t, this.isEquipped(it) ? 'EQUIPPED · CLICK TO UNEQUIP' : 'CLICK TO EQUIP');
       t.classList.add('on');
     });
+    this.tipFollow(cell);
+  }
+
+  /** Hover card of a gear piece: name, slot, icon, its stats, what a click does. */
+  private gearTip(cell: HTMLElement, it: GearItem, worn: boolean): void {
+    cell.addEventListener('mouseenter', () => {
+      const d = GEAR[it.id], t = this.tip; t.innerHTML = ''; t.style.backgroundImage = `url("${KIT}/tip_common.png")`;
+      this.el('div', 'tn', t, itemName(it)); this.el('div', 'tt', t, SLOT_NAMES[d.slot]);
+      const im = this.el('img', '', t); im.src = gearIcon(it); im.alt = '';
+      const ts = this.el('div', 'ts', t);
+      if (d.att) this.el('div', '', ts, `ATTACK +${d.att}`);
+      if (d.def) this.el('div', '', ts, `DEFENCE +${d.def}`);
+      this.el('div', 'td', t, d.desc); this.el('div', 'te', t, worn ? 'CLICK TO TAKE OFF' : 'CLICK TO WEAR');
+      t.classList.add('on');
+    });
+    this.tipFollow(cell);
+  }
+
+  private tipFollow(cell: HTMLElement): void {
     cell.addEventListener('mousemove', (ev) => {
       const r = this.inv.getBoundingClientRect(), k = r.width / INV_BG.w;
       const x = Math.min(INV_BG.w - 232, (ev.clientX - r.left) / k + 18), y = Math.min(INV_BG.h - 414, Math.max(8, (ev.clientY - r.top) / k - 40));
@@ -473,9 +534,9 @@ export class CosmeticPanel {
   // ------------------------------------------------------------------ content
 
   private refresh(): void {
-    const e = this.getEquipped();
-    this.invPrev.setEquipped(e);
-    this.shopPrev.setEquipped({ ...e, ...this.tryOn });
+    const e = this.getEquipped(), w = wornLook(this.gear);
+    this.invPrev.setEquipped(e); this.invPrev.setGear(w);
+    this.shopPrev.setEquipped({ ...e, ...this.tryOn }); this.shopPrev.setGear(w);
     for (const [c, b] of this.shopTabs) b.classList.toggle('on', c === this.shopCat);
     if (this.tab === 'inventory') this.renderMain(); else this.renderShop();
     this.syncStates();

@@ -41,5 +41,38 @@
    ["naked_both_run34.png", 3, "asd:walk", "sc:0", "follow", "air1.0", "hold0.3", "swapg"]
   ]
  },
- "preview": ["naked_female_idle.png", 0]
+ "preview": ["naked_female_idle.png", 0],
+ "_sword": "the sword in hand (tools/base/sword.py): 'hands' = the near fist of each frame of a move (cell px, roughly: the fist's middle is found from there), 'sword_angle' = the blade's angle in that move (degrees, 0 = forward, + = down); the attack moves hold the sword GPT drew (its fist and angle are measured)",
+ "hands": {
+  "idle": [
+   [141.5, 244.75]
+  ],
+  "walk": [
+   [127.75, 232],
+   [144.25, 237.6],
+   [182.75, 225.5],
+   [144.25, 238]
+  ],
+  "run": [
+   [141.5, 216],
+   [154, 229],
+   [215.75, 195.4],
+   [141.5, 223.4]
+  ],
+  "jump": [
+   [149.75, 247.6]
+  ],
+  "alert": [
+   [180, 230.6],
+   [177.25, 238.9],
+   [174.5, 226]
+  ]
+ },
+ "sword_angle": {
+  "idle": 31,
+  "walk": 31,
+  "run": 31,
+  "jump": 31,
+  "alert": -30
+ }
 }
