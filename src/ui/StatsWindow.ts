@@ -2,7 +2,7 @@
 // range, HP, attack, defence, critical, attack speed, evasion, speed %, jump %); and the four stats with the AP to place
 // (+ on each, AUTO for the job, RESET while still free). Drawn on the kit's window frame (window.png, 9-sliced).
 import { FONT_FAMILY, HUD } from '../config/layout';
-import { STAT_INFO, STAT_KEYS, STAT_NAMES, StatKey, Stats } from '../game/Stats';
+import { BASE_STAT, STAT_INFO, STAT_KEYS, STAT_NAMES, StatKey, Stats } from '../game/Stats';
 
 const K = (f: string) => `assets/final/ui/kit/${f}.png`;
 const STYLE_ID = 'gol-stats-style';
@@ -31,7 +31,7 @@ const CSS = `
 .gol-stats .ap{display:flex;justify-content:space-between;align-items:center;margin:0 0 10px;padding:8px 12px;border-radius:8px;background:rgba(201,154,69,.12);box-shadow:inset 0 0 0 1px rgba(201,154,69,.4)}
 .gol-stats .ap span{font:700 13px ${FONT_FAMILY};letter-spacing:2.5px;color:#e7cf91}
 .gol-stats .ap b{font:700 22px ${FONT_FAMILY};color:#ffe28a;text-shadow:0 1px 3px #000}
-.gol-stats .st{display:grid;grid-template-columns:62px 1fr 38px;align-items:center;gap:10px;height:44px;padding:0 4px;border-bottom:1px solid rgba(255,255,255,.05)}
+.gol-stats .st{display:grid;grid-template-columns:62px 1fr 34px 34px;align-items:center;gap:10px;height:44px;padding:0 4px;border-bottom:1px solid rgba(255,255,255,.05)}
 .gol-stats .st .n{font:700 16px ${FONT_FAMILY};letter-spacing:2px;color:#e8d7aa}
 .gol-stats .st.main .n{color:#ffd36a}
 .gol-stats .st.main .n::after{content:' ★';font-size:11px;color:#ffd36a}
@@ -50,11 +50,11 @@ export interface StatsView {
   name: string; job: string; level: number; stats: Stats; ap: number; main: StatKey; canReset: boolean;
   combat: [string, string, boolean?][];   // label, value, raised by a buff now
 }
-export interface StatsHandlers { add: (k: StatKey) => void; auto: () => void; reset: () => void; onOpen: (open: boolean) => void }
+export interface StatsHandlers { add: (k: StatKey) => void; sub: (k: StatKey) => void; auto: () => void; reset: () => void; onOpen: (open: boolean) => void }
 
 export class StatsWindow {
   private root: HTMLDivElement;
-  private hdW!: HTMLDivElement; private combat!: HTMLDivElement; private apV!: HTMLElement; private rows = new Map<StatKey, { el: HTMLDivElement; v: HTMLElement; b: HTMLButtonElement }>();
+  private hdW!: HTMLDivElement; private combat!: HTMLDivElement; private apV!: HTMLElement; private rows = new Map<StatKey, { el: HTMLDivElement; v: HTMLElement; b: HTMLButtonElement; m: HTMLButtonElement }>();
   private autoB!: HTMLButtonElement; private resetB!: HTMLButtonElement; private tip!: HTMLDivElement;
   private onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape' && this.isOpen) { e.preventDefault(); e.stopPropagation(); this.close(); } };
 
@@ -70,17 +70,18 @@ export class StatsWindow {
     const ap = this.el('div', 'ap', right); this.el('span', '', ap).textContent = 'AP AVAILABLE'; this.apV = this.el('b', '', ap);
     for (const k of STAT_KEYS) {
       const r = this.el('div', 'st', right) as HTMLDivElement; this.el('div', 'n', r).textContent = STAT_NAMES[k];
-      const v = this.el('div', 'v', r); const b = this.el('button', '', r) as HTMLButtonElement; b.type = 'button'; b.textContent = '+';
-      b.addEventListener('click', () => this.h.add(k));
+      const v = this.el('div', 'v', r);
+      const m = this.el('button', '', r) as HTMLButtonElement; m.type = 'button'; m.textContent = '−'; m.setAttribute('aria-label', `Take a point from ${STAT_NAMES[k]}`); m.addEventListener('click', () => this.h.sub(k));
+      const b = this.el('button', '', r) as HTMLButtonElement; b.type = 'button'; b.textContent = '+'; b.setAttribute('aria-label', `Add a point to ${STAT_NAMES[k]}`); b.addEventListener('click', () => this.h.add(k));
       r.addEventListener('mouseenter', () => { this.tip.textContent = STAT_INFO[k]; }); r.addEventListener('mouseleave', () => { this.tip.textContent = ''; });
-      this.rows.set(k, { el: r, v, b });
+      this.rows.set(k, { el: r, v, b, m });
     }
     this.tip = this.el('div', 'tip', right) as HTMLDivElement;
     const act = this.el('div', 'act', right);
     this.autoB = this.el('button', '', act) as HTMLButtonElement; this.autoB.type = 'button'; this.autoB.textContent = 'AUTO'; this.autoB.addEventListener('click', () => this.h.auto());
     this.autoB.addEventListener('mouseenter', () => { this.tip.textContent = 'Place every free AP into your job\'s stats.'; });
     this.resetB = this.el('button', '', act) as HTMLButtonElement; this.resetB.type = 'button'; this.resetB.textContent = 'RESET'; this.resetB.addEventListener('click', () => this.h.reset());
-    this.resetB.addEventListener('mouseenter', () => { this.tip.textContent = this.resetB.disabled ? 'Free resets end with your 1st job.' : 'Take every point back (free until your 1st job).'; });
+    this.resetB.addEventListener('mouseenter', () => { this.tip.textContent = 'Take every point back to place them again.'; });
     for (const b of [this.autoB, this.resetB]) b.addEventListener('mouseleave', () => { this.tip.textContent = ''; });
     parent.appendChild(this.root);
   }
@@ -100,7 +101,7 @@ export class StatsWindow {
       const r = this.el('div', 'row', this.combat); this.el('span', '', r).textContent = label; const b = this.el('b', up ? 'up' : '', r); b.textContent = value;
     }
     this.apV.textContent = String(v.ap);
-    for (const [k, r] of this.rows) { r.v.textContent = String(v.stats[k]); r.b.disabled = v.ap <= 0; r.el.classList.toggle('main', k === v.main); }
+    for (const [k, r] of this.rows) { r.v.textContent = String(v.stats[k]); r.b.disabled = v.ap <= 0; r.m.disabled = v.stats[k] <= BASE_STAT; r.el.classList.toggle('main', k === v.main); }
     this.autoB.disabled = v.ap <= 0; this.resetB.disabled = !v.canReset;
   }
 }

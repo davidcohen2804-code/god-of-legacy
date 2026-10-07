@@ -2,7 +2,7 @@
 // AUTO places them for the job). Each job has a main stat (the big one for damage) and a secondary one; the stat value
 // 4 × main + secondary drives the damage (STR / DEX / INT / LUK all count where the job uses them). Also from the stats:
 // a little more HP (STR, the level), critical rate (LUK, DEX) and evasion (DEX, LUK). Speed % and Jump % are 100 % and
-// come from passives, buffs (and later gear). Free reset before the 1st job, later a cost (not built yet).
+// come from passives, buffs (and later gear). Points move freely: − takes one back, RESET takes them all.
 // The PvP arena ignores all of this: everyone fights on the same numbers there.
 
 export type StatKey = 'str' | 'dex' | 'int' | 'luk';

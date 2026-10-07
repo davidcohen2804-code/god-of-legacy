@@ -43,7 +43,7 @@ import { NetMsg, PeerMeta } from '../pvp/Transport';
 import { genderOf, headLookOf, previewKeyOf } from '../characters/Look';
 import { buildLook, preloadLooks } from '../characters/LookArt';
 import { BOT_ID, BOT_NAME, BOT_NAMES, SparringBot } from '../pvp/SparringBot';
-import { AP_PER_LEVEL, Derived, StatKey, Stats, autoAssign, baseStats, cleanStats, derive, freeAp, mainStats } from '../game/Stats';
+import { AP_PER_LEVEL, BASE_STAT, STAT_KEYS, Derived, StatKey, Stats, autoAssign, baseStats, cleanStats, derive, freeAp, mainStats } from '../game/Stats';
 import { StatsWindow } from '../ui/StatsWindow';
 import { ARENA as PLAZA, AREAS as WORLD_AREAS } from '../world/Areas';
 import { jobsFor } from '../skills/Jobs';
@@ -449,7 +449,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       invite: (id) => this.party?.invite(id), kick: (id) => this.party?.kick(id), leave: () => this.party?.leave(),
       answer: (ok) => this.party?.answer(ok), onOpen: () => this.ci?.reset(),
     });
-    this.statsWin = new StatsWindow(ov, { add: (k) => this.addStat(k), auto: () => this.autoStats(), reset: () => this.resetStats(), onOpen: (o) => { this.chatTyping(o); if (!o) this.ci?.reset(); } });
+    this.statsWin = new StatsWindow(ov, { add: (k) => this.addStat(k), sub: (k) => this.subStat(k), auto: () => this.autoStats(), reset: () => this.resetStats(), onOpen: (o) => { this.chatTyping(o); if (!o) this.ci?.reset(); } });
     this.keySettings = new KeySettings(ov, Array.from({ length: SLOT_COUNT }, (_, i) => ({ name: this.kit[i]?.name ?? '', icon: this.kit[i] ? iconUrl(this.kit[i]) : '' })),
       (b) => this.applyKeys(b), (open) => this.chatTyping(open));
     this.chat.add({ kind: 'system', text: pvpRoom ? 'Welcome to the PvP Arena! Press Enter to chat.' : 'Welcome to God Of Legacy! Press Enter to chat.' });
@@ -1869,7 +1869,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
   private addStat(k: StatKey): void { const ch = this.character; if (!ch || freeAp(this.stats, ch.level) <= 0) return; this.stats[k]++; this.saveStats(); }
   private autoStats(): void { const ch = this.character; if (!ch) return; this.stats = autoAssign(this.stats, this.cls, ch.level); this.saveStats(); }
-  private resetStats(): void { const ch = this.character; if (!ch || hasJob(ch)) return; this.stats = baseStats(); this.saveStats(); }
+  private subStat(k: StatKey): void { if (this.stats[k] <= BASE_STAT) return; this.stats[k]--; this.saveStats(); } // free: points move at will
+  private resetStats(): void { if (!this.character) return; this.stats = baseStats(); this.saveStats(); }
 
   /** The stat window's numbers, from what the character is right now. */
   private refreshStats(): void {
@@ -1881,7 +1882,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const job = hasJob(ch) ? (jobsFor(this.cls).filter((j) => skillLevel(ch) >= j.level).pop()?.name ?? 'Beginner') : 'Beginner';
     const spd = this.passives.moveMul * (this.simMs < this.hasteUntil ? 1.2 : 1), jmp = this.passives.jumpMul;
     this.statsWin.render({
-      name: ch.name, job, level: ch.level, stats: this.stats, ap: freeAp(this.stats, ch.level), main: mainStats(this.cls)[0], canReset: !hasJob(ch),
+      name: ch.name, job, level: ch.level, stats: this.stats, ap: freeAp(this.stats, ch.level), main: mainStats(this.cls)[0], canReset: STAT_KEYS.some((s) => this.stats[s] > BASE_STAT),
       combat: [
         ['Attack Range', `${Math.max(1, Math.round(base * STAT_MASTERY))} ~ ${Math.max(1, Math.round(base))}`],
         ['Max HP', `${Math.round(Math.min(this.playerHP, hp))} / ${hp}`],
