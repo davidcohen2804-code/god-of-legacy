@@ -1,8 +1,8 @@
 # sword.py : the weapon in hand, MapleStory style — ONE sword picture, put in the near fist of every frame (the grip point
 #   on the fist, the blade along the frame's angle), the grip hidden behind the fingers. The same sword in every move, and a
 #   new weapon is a new picture (tools/base/naked_frames.py bakes the strips with it).
-#   The picture: the sword icon (tools/base/gear_icons.py's source, gpt/gear_icons.png, first icon) laid level, or, until
-#   GPT drew it, a plain steel sword drawn here.
+#   The picture: a plain steel sword drawn here (or a drawn one, gpt/sword.png, laid level). The bag icon is this same
+#   sword (tools/base/gear_icons.py).
 import os, numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 from scipy import ndimage as nd
@@ -46,9 +46,9 @@ def _keyed(rgb):
 
 
 def _from_icon(K=None):
-  """GPT's sword icon (the first icon of gpt/gear_icons.png), laid level, pointing right, LEN cell px long: colour, alpha,
-  grip mask (its brown wrapped grip), grip point (the grip's middle), tip point, px per cell px."""
-  rgb = np.asarray(Image.open(H + '/gpt/gear_icons.png').convert('RGB')).astype(np.float32)
+  """A drawn sword (gpt/sword.png: on magenta, the leftmost picture), laid level, pointing right, LEN cell px long: colour,
+  alpha, grip mask (its brown wrapped grip), grip point (the grip's middle), tip point, px per cell px."""
+  rgb = np.asarray(Image.open(H + '/gpt/sword.png').convert('RGB')).astype(np.float32)
   e, a = _keyed(rgb); m = a > 0.5
   L, n = nd.label(nd.binary_dilation(m, iterations=6)); sz = nd.sum(m, L, range(1, n + 1))
   big = [i + 1 for i in range(n) if sz[i] > 0.2 * sz.max()]
@@ -74,8 +74,8 @@ def _from_icon(K=None):
 
 def picture():
   """The sword picture: colour, alpha 0..1, grip mask (hidden behind the fist), grip point, tip point, px per cell px —
-  GPT's sword icon when it is there, else the drawn one."""
-  return _from_icon() if os.path.exists(H + '/gpt/gear_icons.png') else _drawn()
+  a drawn sword (gpt/sword.png) when there is one, else the plain steel sword drawn here."""
+  return _from_icon() if os.path.exists(H + '/gpt/sword.png') else _drawn()
 
 
 def reach(pic):
