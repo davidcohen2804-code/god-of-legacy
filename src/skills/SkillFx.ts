@@ -132,7 +132,8 @@ const CHARGE: Record<string, [number, number, number]> = {
 export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[]): void {
   const want = (cls: string) => !classes || classes.includes(cls);
   const L = (k: string, p: string, w: number, h = w) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: w, frameHeight: h }); };
-  for (const s of FINAL_SKILLS) { if (VFX_ALIAS[s.id] || !want(s.cls)) continue; const big = isBig(s) ? 384 : 256, c = VFX_CELL[s.id]; L(vfxKey(s.id), `${F}/skills/${s.cls}/${s.id}/vfx.png`, c?.[0] ?? big, c?.[1] ?? big); }
+  // (templates — wip skills — have no art loaded yet)
+  for (const s of FINAL_SKILLS) { if (VFX_ALIAS[s.id] || s.wip || !want(s.cls)) continue; const big = isBig(s) ? 384 : 256, c = VFX_CELL[s.id]; L(vfxKey(s.id), `${F}/skills/${s.cls}/${s.id}/vfx.png`, c?.[0] ?? big, c?.[1] ?? big); }
   for (const [id, p] of Object.entries(PROJECTILE_SHEETS)) { const cls = FINAL_SKILLS.find((s) => s.id === id)!.cls; if (want(cls)) L(`proj-${id}`, `${F}/projectiles/${cls}/${id}.png`, p.cell); }
   for (const v of Object.values(IMPACT)) L(v.key, v.path, v.cell);
   const I = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.image(k, p); };

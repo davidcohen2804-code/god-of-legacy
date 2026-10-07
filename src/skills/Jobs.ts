@@ -27,9 +27,13 @@ const PATH: Record<string, Job[]> = {
     { name: 'Bowmaster', level: 80, to: 150, slots: [14, 15, 16, 17, 7] },       // Tree of Life, Hunter's Spirit, Arrow Storm, Eagle Arrow, Sky Rain
   ],
   samurai: [
-    { name: 'Beginner', level: 1, to: 10, slots: [0] }, { name: 'Blade Initiate', level: 10, to: 29, slots: [1, 2, 3, 9] },
-    { name: 'Kensei', level: 29, to: 40, slots: [8, 4, 11] }, { name: 'Shogun', level: 40, to: 80, slots: [12, 10, 5, 13] },
-    { name: 'Dragon Sword Saint', level: 80, to: 150, slots: [6, 7] },
+    { name: 'Beginner', level: 1, to: 10, slots: [0] },
+    // Ordered like the MapleStory Hayato line: 1st = the step, the launcher and the draw cut; 2nd = the spin, the wave, the
+    // flurry and the quick-draw stance; 3rd = the counter, the tornado, the dive and the party banner; 4th = the big finishers.
+    { name: 'Blade Initiate', level: 10, to: 29, slots: [1, 8, 3] },              // Shadow Step, Swallow Cut, Iai Strike
+    { name: 'Kensei', level: 29, to: 40, slots: [2, 4, 9, 10] },                   // Spin Cut, Sword Wave, Hundred Cuts, Quick Draw
+    { name: 'Shogun', level: 40, to: 80, slots: [5, 11, 12, 13] },                 // Mirage Counter, Tornado Blade, Falcon Dive, Rising Sun (party)
+    { name: 'Dragon Sword Saint', level: 80, to: 150, slots: [14, 6, 7, 15] },     // Phantom Blades, Blossom Storm, Dragon Eclipse, God of Blades
   ],
 };
 export const jobsFor = (cls: string): Job[] => PATH[cls] ?? PATH.warrior;

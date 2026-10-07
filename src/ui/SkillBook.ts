@@ -84,6 +84,8 @@ const CSS = `
 .gol-sb .card .nm{position:absolute;left:3px;right:3px;top:97px;height:36px;display:flex;align-items:center;justify-content:center;text-align:center;
   font:700 14px/16px ${FONT_FAMILY};color:#f3e2bf;text-shadow:0 1px 3px #000;overflow:hidden}
 .gol-sb .card.lk .nm{color:#8c939b}
+.gol-sb .card.wip img{filter:grayscale(.35) brightness(.75)}
+.gol-sb .card.wip .nm{color:#b9a98a}
 .gol-sb .card.none{cursor:default;background:url("${K('slot_empty')}") center 8px/84px 84px no-repeat;opacity:.38}
 .gol-sb .card.none:hover{background-color:transparent}
 .gol-sb .all{position:absolute;left:58px;top:98px;height:36px;padding:0 16px 0 12px;display:flex;align-items:center;gap:10px;border-radius:8px;cursor:pointer;pointer-events:auto;
@@ -263,7 +265,7 @@ export class SkillBook {
   private refresh(): void {
     const show = this.hover ?? this.selected;
     this.tabs.forEach((t, k) => { const on = k === this.job; t.classList.toggle('lk', !this.jobOpen(k)); t.classList.toggle('on', on); (t.firstChild as HTMLElement).style.backgroundImage = `url("${K(`job${k}_icon`)}")`; (t.firstChild as HTMLElement).style.filter = on ? 'drop-shadow(0 0 6px rgba(255,200,90,.8))' : ''; });
-    for (const c of this.cards) { c.el.classList.toggle('sel', c.e === this.selected); c.el.classList.toggle('lk', !this.unlocked(c.e)); }
+    for (const c of this.cards) { c.el.classList.toggle('sel', c.e === this.selected); c.el.classList.toggle('lk', !this.unlocked(c.e)); c.el.classList.toggle('wip', !!c.e.wip && this.unlocked(c.e)); } // a template: its icon, dimmed (no lock)
     if (isPassive(show)) { this.refreshPassive(show); return; }
     const s = show, jk = this.jobIndexOf(s), job = this.jobs[jk];
     this.headL.textContent = `${rank(job, jk)} · ${kindOf(s)}`;
@@ -276,7 +278,7 @@ export class SkillBook {
     fact('Cooldown').textContent = s.cooldown > 0 ? `${(s.cooldown / 1000).toFixed(s.cooldown % 1000 ? 1 : 0)} s` : 'None (chain)';
     fact('Use').textContent = s.ground && s.air ? 'Ground and air' : s.air ? 'Air only' : 'Ground only';
     fact('Reach').textContent = TARGETING[s.targeting];
-    this.details(keyed(s.description, s.slot), s.relations.slice(0, 2).map((r) => keyed(r, s.slot)), jk);
+    this.details(keyed(s.description, s.slot), s.relations.slice(0, 2).map((r) => keyed(r, s.slot)), jk, !!s.wip);
   }
 
   /** Passive / movement card: what it gives (always on). */
@@ -288,7 +290,7 @@ export class SkillBook {
     const c = document.createElement('span'); c.className = 'cap'; c.textContent = 'Effects'; ef.appendChild(c);
     const ul = document.createElement('ul'); ef.appendChild(ul);
     for (const e of p.effects) { const li = document.createElement('li'); li.textContent = e; ul.appendChild(li); }
-    this.details(p.description, [], p.job);
+    this.details(p.description, [], p.job, !!p.wip);
   }
 
   /** The left panel: big icon, name, role chips, a thin rule; returns the text column for what goes under it. */
@@ -304,12 +306,12 @@ export class SkillBook {
   }
 
   /** The right panel: what it does and a couple of tips; whether it is open shows in its header. */
-  private details(text: string, tips: string[], jk: number): void {
-    const open = this.jobOpen(jk), job = this.jobs[jk];
+  private details(text: string, tips: string[], jk: number, wip = false): void {
+    const open = this.jobOpen(jk) && !wip, job = this.jobs[jk];
     this.headR.innerHTML = '<span>DESCRIPTION</span><span class="st"></span>';
     const st = this.headR.lastChild as HTMLElement;
-    st.classList.toggle('lock', !open); st.textContent = open ? 'UNLOCKED' : `UNLOCKS AT LV ${job.level}`;
-    st.title = open ? '' : `Unlocks with ${ADV_LABEL[jk]} (${job.name}) · Lv ${job.level}`;
+    st.classList.toggle('lock', !open); st.textContent = wip ? 'COMING SOON' : open ? 'UNLOCKED' : `UNLOCKS AT LV ${job.level}`; // a template: not built yet
+    st.title = wip ? 'This skill is still being made' : open ? '' : `Unlocks with ${ADV_LABEL[jk]} (${job.name}) · Lv ${job.level}`;
     this.det.innerHTML = '';
     const ds = this.div(text.length > 190 ? 'ds long' : 'ds', this.det); ds.textContent = text;
     if (tips.length) { const rel = this.div('rel', this.det); for (const t of tips) this.div('', rel).textContent = t; }

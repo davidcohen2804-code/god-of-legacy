@@ -1306,6 +1306,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const s = this.kit[i];
     if (!s || !this.rt || this.dead >= 0) return false;
     if (!this.skillOpen(s)) return false; // skills open with the job advancements (all open in the arena)
+    if (s.wip) return false; // a template: not built yet
     const now = this.simMs, k = this.kin, b = this.body;
     // War Cry breaks free: usable while stunned / hit / launched / knocked down (cooldown permitting) — clears all CC.
     if (s.id === 'war_cry' && (b.state !== 'free' || b.hard.active(now)) && this.rt.cooldownRemaining(s.id) <= 0) {
@@ -2247,6 +2248,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const slots: HudSlot[] = HUD.skills.hotkeys.map((hk, i) => {
       const s = this.kit[i], hotkey = this.hud ? this.hud.labels[i] ?? '' : hk; // Key Settings label ('' = on no key)
       if (!s || !this.skillOpen(s)) return { id: `slot-${hotkey}`, hotkey, label: s ? 'Locked' : 'Unassigned', assigned: false, enabled: false, pressed: false, cooldown: null }; // opens with its job
+      if (s.wip) return { id: s.id, hotkey, label: `${s.name} (coming soon)`, iconUrl: iconUrl(s), assigned: true, enabled: false, pressed: false, cooldown: null }; // a template: shown, greyed
       const rem = this.rt?.cooldownRemaining(s.id) ?? 0;
       const airBlocked = !k.grounded && !s.air;
       return {

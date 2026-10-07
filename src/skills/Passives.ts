@@ -12,6 +12,8 @@ export interface PassiveSkill {
   description: string;
   /** Short effect lines for the skill book. */
   effects: string[];
+  /** A template only (not built yet): shown in the skill book as "coming soon", gives nothing. */
+  wip?: boolean;
 }
 
 export const PASSIVES: PassiveSkill[] = [
@@ -40,6 +42,19 @@ export const PASSIVES: PassiveSkill[] = [
   { id: 'steadfast', cls: 'archer', job: 4, name: 'Steadfast', kind: 'passive', description: 'Rooted like an old tree: most blows can no longer push you back.', effects: ['Knockback resist 60%'] },
   { id: 'supreme_mastery', cls: 'archer', job: 4, name: 'Supreme Mastery', kind: 'passive', description: 'The legendary bow answers its master: more damage, deadlier crits.', effects: ['Damage +15%', 'Critical hits +10% more'] },
   { id: 'eagle_eyes', cls: 'archer', job: 4, name: 'Eagle Eyes', kind: 'passive', description: 'Sees like an eagle: every arrow flies farther.', effects: ['Arrow range +20%'] },
+  // ---- Samurai (Hayato line) — templates: names, icons and the plan; each is built later, one by one
+  { id: 'shinsoku', cls: 'samurai', job: 1, name: 'Shinsoku', kind: 'movement', wip: true, description: 'Press Jump again in mid-air to dash forward like lightning, leaving crimson afterimages behind.', effects: ['Second jump in the air', 'Fast dash forward'] },
+  { id: 'katana_mastery', cls: 'samurai', job: 1, name: 'Katana Mastery', kind: 'passive', wip: true, description: 'Mastery of the katana: every cut lands harder and finds weak spots more often.', effects: ['More damage', 'More critical hits'] },
+  { id: 'bushido_body', cls: 'samurai', job: 1, name: 'Bushido Body', kind: 'passive', wip: true, description: 'A body trained in the way of the warrior: more HP and lighter feet.', effects: ['More max HP', 'Faster on foot'] },
+  { id: 'willow_dodge', cls: 'samurai', job: 2, name: 'Willow Dodge', kind: 'passive', wip: true, description: 'Bend like the willow: a chance to slip aside from a blow as a mirage, so the attack misses.', effects: ['A chance to dodge', 'Dodged hits deal no damage'] },
+  { id: 'final_cut', cls: 'samurai', job: 2, name: 'Final Cut', kind: 'passive', wip: true, description: 'After a skill connects, a chance for a ghost blade to follow with one more cut.', effects: ['A chance per hit', 'One extra ghost cut'] },
+  { id: 'steel_spirit', cls: 'samurai', job: 2, name: 'Steel Spirit', kind: 'passive', wip: true, description: 'A spirit of steel under the helmet: less damage taken from every hit.', effects: ['Less damage taken'] },
+  { id: 'shogun_mastery', cls: 'samurai', job: 3, name: 'Shogun Mastery', kind: 'passive', wip: true, description: 'The shogun\'s command of the blade: more damage and quicker draws.', effects: ['More damage', 'Faster attacks'] },
+  { id: 'unshaken', cls: 'samurai', job: 3, name: 'Unshaken', kind: 'passive', wip: true, description: 'Stand like a mountain in the storm: most blows can no longer push you back.', effects: ['Knockback resistance'] },
+  { id: 'iron_will', cls: 'samurai', job: 3, name: 'Iron Will', kind: 'passive', wip: true, description: 'An iron will breaks every chain: stuns, roots and slows wear off sooner.', effects: ['Shorter stuns and roots', 'Shorter slows'] },
+  { id: 'way_of_the_sword', cls: 'samurai', job: 4, name: 'Way of the Sword', kind: 'passive', wip: true, description: 'The blade and the mind are one: more critical hits, and critical hits cut deeper.', effects: ['More critical hits', 'Stronger critical hits'] },
+  { id: 'sword_saint', cls: 'samurai', job: 4, name: 'Sword Saint', kind: 'passive', wip: true, description: 'The legendary sword saint: every cut strikes with sacred force.', effects: ['Much more damage'] },
+  { id: 'advanced_final_cut', cls: 'samurai', job: 4, name: 'Advanced Final Cut', kind: 'passive', wip: true, description: 'Final Cut evolves: two ghost blades follow far more often and cut deeper.', effects: ['Final Cut more often', 'Two ghost cuts'] },
 ];
 
 export const passiveIconUrl = (p: PassiveSkill) => `assets/final/skills/${p.cls}/${p.id}/icon.png`;
@@ -57,7 +72,7 @@ export const NO_PASSIVES: PassiveStats = { dmg: 1, critAdd: 0, critDmgAdd: 0, ta
 /** Passives owned at this level (all = arena / QA: every job open). */
 export function ownedPassives(cls: string, level: number, all: boolean): Set<string> {
   const jobs = jobsFor(cls);
-  return new Set(passivesFor(cls).filter((p) => all || level >= (jobs[p.job]?.level ?? Infinity)).map((p) => p.id));
+  return new Set(passivesFor(cls).filter((p) => !p.wip && (all || level >= (jobs[p.job]?.level ?? Infinity))).map((p) => p.id));
 }
 
 export function passiveStats(owned: Set<string>): PassiveStats {

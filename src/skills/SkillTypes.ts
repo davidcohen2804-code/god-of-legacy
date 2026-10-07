@@ -110,6 +110,8 @@ export interface FinalSkill {
   description: string;
   unlockLevel: number;
   relations: string[];
+  /** A template only (not built yet): listed in the skill book and on the skill bar as "coming soon", cannot be used. */
+  wip?: boolean;
 }
 
 export const PVP_MULT = 0.7;

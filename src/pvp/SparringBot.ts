@@ -226,7 +226,7 @@ export class SparringBot {
       if (Math.random() < 0.7) return this.start(basic.id, this.chainStage + 1, w);
     }
     this.chainStage = -1;
-    const options = this.kit.filter((s) => s.slot > 0 && s.slot !== 7 && ready(s) && s.hits.some((h) => h.damage > 0) && reachOf(s) >= dist && (ady < 50 || s.targeting === 'mouseGround'));
+    const options = this.kit.filter((s) => !s.wip && s.slot > 0 && s.slot !== 7 && ready(s) && s.hits.some((h) => h.damage > 0) && reachOf(s) >= dist && (ady < 50 || s.targeting === 'mouseGround'));
     if (options.length && Math.random() < 0.45) return this.start(options[Math.floor(Math.random() * options.length)].id, 0, w);
     if (basic && dist <= reachOf(basic) && ady < 46) return this.start(basic.id, 0, w);
     return false;

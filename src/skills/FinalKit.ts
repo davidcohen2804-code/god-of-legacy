@@ -499,6 +499,63 @@ const samurai: FinalSkill[] = [
     description: 'Brief disappearance, eye/blade glint, then one huge readable slash tied to the real hit. Heavy knockdown; ends the combo.',
     relations: ['Ultimate', 'Ends combo'],
   }),
+  // ---- extended kit — templates (wip): slot, job, name, icon and the plan; each is built later, one by one
+  S({
+    id: 'swallow_cut', cls: 'samurai', slot: 8, name: 'Swallow Cut', roles: ['launcher', 'antiAir'], targeting: 'mouseCone', wip: true,
+    startup: 120, active: 200, recovery: 240, cooldown: 3000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 15, { kind: 'sector', range: 104, angle: 110 }, { stun: 420, launch: 150, juggleCost: 30 }, { reachUp: 110 })],
+    description: 'The blade rises in a crescent that throws the foe into the air, then turns back like a swallow for a second cut while it hangs there.',
+    relations: ['Launcher', 'Air chase'],
+  }),
+  S({
+    id: 'hundred_cuts', cls: 'samurai', slot: 9, name: 'Hundred Cuts', roles: ['extender', 'airExtender'], targeting: 'mouseCone', wip: true,
+    startup: 130, active: 1040, recovery: 220, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 3, { kind: 'sector', range: 110, angle: 130 }, { stun: 300, float: true, juggleCost: 2 }, { reachUp: 200 })],
+    description: 'A storm of rapid cuts in front of you holds the foe where it is, in the air too; the last cut blasts it away.',
+    relations: ['Air hold', 'Rapid cuts'],
+  }),
+  S({
+    id: 'quick_draw', cls: 'samurai', slot: 10, name: 'Quick Draw', roles: ['setup'], targeting: 'self', wip: true,
+    startup: 300, active: 120, recovery: 180, cooldown: 2000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 4, { kind: 'circle', radius: 120 }, { stun: 220, push: 18 }, { reachUp: 130 })], tags: ['buff'],
+    description: 'Sheathe the blade and draw like lightning: for a while every skill comes out faster and finds weak spots more often.',
+    relations: ['Buff', 'Speed and critical hits'],
+  }),
+  S({
+    id: 'tornado_blade', cls: 'samurai', slot: 11, name: 'Tornado Blade', roles: ['zone', 'pull'], targeting: 'mouseDir', wip: true,
+    startup: 260, active: 160, recovery: 260, cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 12, { kind: 'circle', radius: 100, at: 'aimBias', bias: 90 }, { stun: 360, launch: 90, juggleCost: 12 }, { reachUp: 160 })],
+    description: 'Cut a crimson whirlwind of blades loose: it rolls forward, dragging foes in and keeping them in the air while you keep fighting.',
+    relations: ['Moving zone', 'Air hold'],
+  }),
+  S({
+    id: 'falcon_dive', cls: 'samurai', slot: 12, name: 'Falcon Dive', roles: ['gapClose', 'knockdown'], targeting: 'mouseTarget', wip: true,
+    startup: 180, active: 340, recovery: 360, cooldown: 5000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(300, 24, { kind: 'circle', radius: 135 }, { stun: 380, launch: 100, juggleCost: 25 }, { reachUp: 70, heavy: true })],
+    description: 'Leap high and dive like a falcon onto the target: the impact slams airborne foes into the floor and blasts grounded ones up.',
+    relations: ['Gap close', 'Slam'],
+  }),
+  S({
+    id: 'rising_sun', cls: 'samurai', slot: 13, name: 'Rising Sun', roles: ['setup'], targeting: 'self', wip: true,
+    startup: 700, active: 200, recovery: 280, cooldown: 60000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 8, { kind: 'circle', radius: 160 }, { stun: 340, push: 30 }, { reachUp: 150 })], tags: ['buff', 'party'],
+    description: 'Raise the banner of the Rising Sun: more damage and deeper critical hits for a while. In a party, every party member near you shares it.',
+    relations: ['Buff', 'Party buff'],
+  }),
+  S({
+    id: 'phantom_blades', cls: 'samurai', slot: 14, name: 'Phantom Blades', roles: ['finisher', 'zone'], targeting: 'mouseCone', wip: true,
+    startup: 420, active: 640, recovery: 340, cooldown: 18000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 7, { kind: 'circle', radius: 220, at: 'aimBias', bias: 150 }, { stun: 400, float: true, juggleCost: 3 }, { reachUp: 280 })],
+    description: 'Draw once, and a thousand phantom blades cut the whole field in front of you; the last cut throws every foe into the air.',
+    relations: ['Wide area', 'Finisher'],
+  }),
+  S({
+    id: 'god_of_blades', cls: 'samurai', slot: 15, name: 'God of Blades', roles: ['setup', 'zone'], targeting: 'self', wip: true,
+    startup: 600, active: 200, recovery: 260, cooldown: 60000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 10, { kind: 'circle', radius: 170 }, { stun: 360, push: 40 }, { reachUp: 160 })], tags: ['buff'],
+    description: 'Eight spectral katanas rise behind you for a while: you hit harder, and the blades strike the nearest foes on their own.',
+    relations: ['Buff', 'Blades strike on their own'],
+  }),
 ];
 
 // Warrior skills: longer, weightier presence (free cancel keeps the flow): stretch timings and hit spacing.
