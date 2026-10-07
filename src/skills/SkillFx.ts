@@ -15,9 +15,12 @@ const VFX_ALIAS: Record<string, string> = { wave_slash: 'warrior_basic', radiant
 const vfxKey = (id: string) => `vfx-${VFX_ALIAS[id] ?? id}`;
 const isBig = (s: FinalSkill) => s.slot === 6 || s.slot === 7;
 const TOP = 100000;
-/** Damage numbers (MapleStory): every line of a column rises at one speed (px/s), so the lines keep their spacing; a column's
- *  lines sit DMG_LINE apart — a normal line's height and a gap, so normal lines never touch; a critical is bigger and may. */
-const DMG_RISE = 40, DMG_LINE = 41, DMG_LIFE = 1000;
+/** Damage numbers, as the MapleStory client draws them: a number appears at once (no pop), rises at one steady speed
+ *  (0.25 px every 8 ms step there), stays solid for 250 ms, then fades out over 500 ms. The lines of a column sit one row
+ *  apart (30 px after a normal line, 36 after a critical one there): normal lines never touch, a bigger critical may. The
+ *  first digit is drawn bigger than the rest and the rest step 2 px down / up in turn (its two digit sets). Sizes here: the
+ *  same proportions to our digits (a normal digit DMG_SCALE of the sheet, ~34 px tall). */
+const DMG_SCALE = 0.45, DMG_RISE = 39, DMG_SOLID = 250, DMG_LIFE = 750, DMG_ROW = 38, DMG_ROW_CRIT = 46, DMG_ZIG = 2.5;
 const GROUND = 2;
 
 /** Archer sheets whose frame size differs from the slot default (w, h). */
@@ -132,7 +135,7 @@ export class SkillFx {
   private dark?: Phaser.GameObjects.Rectangle;
   private darkLeft = 0;
   private dmgSeq = 0;
-  private dmgStacks: { x: number; y: number; line: number; last: number; prev: { y: number; age: number } | null }[] = [];
+  private dmgStacks: { x: number; y: number; line: number; last: number; prev: { y: number; age: number } | null; crit: boolean }[] = [];
   /** Local presentation freeze (ms) requested by confirmed hits (scene applies it to the local actor + VFX only). */
   hitStopLeft = 0;
   /** Where the caster's raised hand is right now (set by the scene from the body pose). */
@@ -888,8 +891,9 @@ export class SkillFx {
     // the last line is now — they all rise together).
     const now = this.scene.time.now;
     let st = this.dmgStacks.find((d) => now - d.last < 700 && Math.abs(d.x - at.x) < 160 && Math.abs(d.y - at.y) < 120), y: number;
-    if (st?.prev && st.line < 9) { st.line += 1; st.last = now; y = st.prev.y - (DMG_RISE * st.prev.age) / 1000 - DMG_LINE; }
-    else { if (st) this.dmgStacks.splice(this.dmgStacks.indexOf(st), 1); st = { x: at.x, y: at.y - at.z, line: 0, last: now, prev: null }; this.dmgStacks.push(st); y = st.y - 96; }
+    if (st?.prev && st.line < 9) { st.line += 1; st.last = now; y = st.prev.y - (DMG_RISE * st.prev.age) / 1000 - (st.crit ? DMG_ROW_CRIT : DMG_ROW); }
+    else { if (st) this.dmgStacks.splice(this.dmgStacks.indexOf(st), 1); st = { x: at.x, y: at.y - at.z, line: 0, last: now, prev: null, crit: false }; this.dmgStacks.push(st); y = st.y - 96; }
+    st.crit = crit;
     this.dmgStacks = this.dmgStacks.filter((d) => now - d.last < 1500);
     const line = st.line, x = st.x, column = st;
     const c = this.scene.add.container(x, y).setDepth(TOP + 20 + line * 0.01);
@@ -901,19 +905,20 @@ export class SkillFx {
       if (crit) c.add(this.scene.add.image(-total / 2 - H * 0.35, -4, sk.key, 10).setScale(sc * 1.05));
       let xx = -total / 2;
       digits.forEach((d, i) => { c.add(this.scene.add.image(xx + adv[i] / 2, (i % 2 ? 2 : -2), sk.key, d).setScale(sc)); xx += adv[i]; });
-      c.setScale(1.6).setAlpha(0);
-      this.scene.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 90, ease: 'Back.easeOut' });
-      const rec = { t: c, age: 0, x, y }; this.texts.push(rec); column.prev = rec;
+      const rec = { t: c, age: 0, x, y }; this.texts.push(rec); column.prev = rec;   // (appears at once, like the digits below)
       return;
     }
     const dk = crit ? 'dmg-c' : 'dmg-n';
     if (this.scene.textures.exists(dk)) { // chubby, puffy digits: every outline first, then the fills (one piece, like Maple)
-      const sc = crit ? 0.58 : 0.43, ds = String(dmg).split('').map(Number), xs: number[] = [];
-      let xx = 0; for (const d of ds) { xs.push(xx); xx += DIGITS.widths[d] * (1 - DIGITS.overlap) * sc; }
-      const total = xs[xs.length - 1] + DIGITS.widths[ds[ds.length - 1]] * sc, cx = (i: number) => xs[i] + (DIGITS.widths[ds[i]] * sc) / 2 - total / 2;
-      if (crit) c.add(this.scene.add.image(-total / 2 - 2, -3, this.critMark()).setDisplaySize(68, 68).setBlendMode(Phaser.BlendModes.ADD)); // the critical star at its left
-      ds.forEach((d, i) => c.add(this.scene.add.image(cx(i), 0, dk, 10 + d).setScale(sc)));
-      ds.forEach((d, i) => c.add(this.scene.add.image(cx(i), 0, dk, d).setScale(sc)));
+      // MapleStory's proportions: a critical's digits x1.18 a normal one, the first digit bigger (x1.1, a critical's x1.36)
+      const ds = String(dmg).split('').map(Number), sc0 = DMG_SCALE * (crit ? 1.18 : 1);
+      const scs = ds.map((_, i) => (i === 0 ? sc0 * (crit ? 1.36 / 1.18 : 1.1) : sc0)), xs: number[] = [];
+      let xx = 0; ds.forEach((d, i) => { xs.push(xx); xx += DIGITS.widths[d] * (1 - DIGITS.overlap) * scs[i]; });
+      const total = xs[xs.length - 1] + DIGITS.widths[ds[ds.length - 1]] * scs[ds.length - 1];
+      const cx = (i: number) => xs[i] + (DIGITS.widths[ds[i]] * scs[i]) / 2 - total / 2, cy = (i: number) => (i === 0 ? 0 : i % 2 ? DMG_ZIG : -DMG_ZIG);
+      if (crit) c.add(this.scene.add.image(-total / 2 + 2, -4, this.critMark()).setDisplaySize(76, 76).setBlendMode(Phaser.BlendModes.ADD)); // the critical star, behind the first digit
+      ds.forEach((d, i) => c.add(this.scene.add.image(cx(i), cy(i), dk, 10 + d).setScale(scs[i])));
+      ds.forEach((d, i) => c.add(this.scene.add.image(cx(i), cy(i), dk, d).setScale(scs[i])));
     } else {
       const txt = this.scene.add.text(0, 0, String(dmg), {
         fontFamily: 'Impact, "Arial Black", sans-serif', fontSize: crit ? '42px' : '32px',
@@ -927,9 +932,7 @@ export class SkillFx {
       if (crit) c.add(this.scene.add.image(-txt.width / 2 - 2, -4, this.critMark()).setDisplaySize(62, 62).setBlendMode(Phaser.BlendModes.ADD));
       c.add(txt);
     }
-    c.setScale(1.6).setAlpha(0);
-    this.scene.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 90, ease: 'Back.easeOut' });
-    const rec = { t: c, age: 0, x, y }; this.texts.push(rec); column.prev = rec;
+    const rec = { t: c, age: 0, x, y }; this.texts.push(rec); column.prev = rec;   // appears at once (no pop)
     void combo;
   }
 
@@ -1006,10 +1009,10 @@ export class SkillFx {
       const id = PROJ_ALIAS[p.skill.id] ?? p.skill.id;
       img.setFrame(Math.floor((p.ageMs * 24) / 1000) % (PROJECTILE_SHEETS[id]?.frames ?? 8));
     }
-    this.texts = this.texts.filter((d) => { // damage numbers float up at one speed and fade at the end of their life
+    this.texts = this.texts.filter((d) => { // damage numbers rise at one speed: solid, then fading out
       d.age += ms;
       d.t.setPosition(d.x, d.y - (DMG_RISE * d.age) / 1000);
-      if (d.age > 90) d.t.setAlpha(d.age > DMG_LIFE - 300 ? Math.max(0, (DMG_LIFE - d.age) / 300) : 1);
+      d.t.setAlpha(d.age < DMG_SOLID ? 1 : Math.max(0, 1 - (d.age - DMG_SOLID) / (DMG_LIFE - DMG_SOLID)));
       if (d.age >= DMG_LIFE) { d.t.destroy(); return false; }
       return true;
     });
