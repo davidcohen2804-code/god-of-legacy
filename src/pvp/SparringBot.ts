@@ -7,7 +7,7 @@ import Phaser from 'phaser';
 import { PVP } from '../config/layout';
 import { CombatBody, HitOutcome, Kin, PHYS, newKin, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
-import { finalSkill } from '../skills/FinalKit';
+import { finalSkill, kitFor } from '../skills/FinalKit';
 import { HitTarget, V2, V3, unit } from '../skills/HitGeometry';
 import { Mode } from '../game/PoseState';
 import { Dir } from '../world/collision';
@@ -16,10 +16,35 @@ import { RemotePlayer } from './RemotePlayer';
 
 export const BOT_ID = 'npc-sparring';
 export const BOT_NAME = 'Sparring Knight';
+/** Sparring partner name per class. */
+export const BOT_NAMES: Record<string, string> = { warrior: 'Sparring Knight', book_mage: 'Sparring Mage', archer: 'Sparring Archer', samurai: 'Sparring Samurai' };
+/** Scripted demo combos (COMBO button): the bot performs them on the player, chaining each move on its active end. */
+const COMBOS: Record<string, string[]> = {
+  warrior: ['dash_slash', 'warrior_basic:0', 'warrior_basic:1', 'rising_slash', 'whirlwind', 'leap_crash', 'ground_breaker'],
+  samurai: ['shadow_step', 'quick_slash:0', 'quick_slash:1', 'spin_cut', 'quick_slash:2', 'iai_strike'],
+  book_mage: ['binding_rune', 'astral_burst', 'lightning_chain', 'arcane_wave', 'arcane_bolt'],
+  archer: ['vine_trap', 'multi_shot', 'explosive_arrow', 'piercing_arrow', 'quick_shot'],
+};
+const RANGED = new Set(['book_mage', 'archer']);
+/** How far a skill reaches from the caster (px), from its first damaging hit shape. */
+function reachOf(s: FinalSkill): number {
+  const h = (s.chain ? s.chain.stages[0] : s.hits).find((x) => x.damage > 0) ?? s.hits[0];
+  const sh = h?.shape; if (!sh) return 80;
+  const extra = s.dash?.distance ?? 0;
+  switch (sh.kind) {
+    case 'sector': return sh.range + extra;
+    case 'line': return sh.length + extra;
+    case 'projectile': return sh.range;
+    case 'chain': return 300;
+    case 'capsule': return extra + sh.radius;
+    case 'circle': return sh.at === 'place' ? (s.placeRange ?? 260) : (sh.radius + (sh.bias ?? 0) + extra);
+    case 'placed': return s.placeRange ?? 260;
+  }
+}
 
 export interface BotApi {
   /** Start a real cast of `skill` for the bot (non-own run on the shared runtime). */
-  cast(skill: FinalSkill, stage: number, origin: V3, aim: V2): void;
+  cast(skill: FinalSkill, stage: number, origin: V3, aim: V2, place: V2 | null, lock: string | null): void;
   /** Cancel the bot's pending runs (it was interrupted by a hit). */
   cancel(): void;
 }
@@ -64,11 +89,18 @@ export class SparringBot {
   private avoidT = 0;
   private lastNow = 0;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, private api: BotApi, now: number) {
+  /** STOP: it stands still and never attacks (it still reacts to hits). */
+  paused = false;
+  /** COMBO: the scripted chain in progress (ids with ':stage'). */
+  private combo: string[] = [];
+  private readonly kit: FinalSkill[];
+
+  constructor(scene: Phaser.Scene, x: number, y: number, private api: BotApi, now: number, readonly cls = 'warrior') {
     this.kin = newKin(x, y);
     this.body = new CombatBody(this.kin, true);
     this.body.maxHp = PVP.maxHp;
-    this.view = new RemotePlayer(scene, { playerId: BOT_ID, characterId: BOT_ID, classId: 'warrior', name: `${BOT_NAME} · NPC` }, x, y);
+    this.kit = kitFor(cls);
+    this.view = new RemotePlayer(scene, { playerId: BOT_ID, characterId: BOT_ID, classId: cls, name: `${BOT_NAMES[cls] ?? BOT_NAME} · NPC` }, x, y);
     this.view.interpDelay = 0; // simulated locally: show the body exactly where it is
     this.nextAct = now + 1400; // a breath before the first attack
     for (const [id, ms] of Object.entries(OPENING_CD)) this.cdEnd.set(id, now + ms);
@@ -110,8 +142,10 @@ export class SparringBot {
     if (free && !this.wasFree) this.nextAct = Math.min(this.nextAct, now + rnd(120, 420)); // recovered: answer quickly
     this.wasFree = free;
 
-    if (this.cast) this.stepCast(ms, w);
-    else if (free) this.thinkAndMove(ms, w);
+    if (this.cast) { this.stepCast(ms, w); if (this.combo.length && this.cast && this.cast.t >= this.cast.T.startup + this.cast.T.active + 30 && w.player.alive) this.nextCombo(w, true); }
+    else if (free && this.combo.length) this.approachCombo(ms, w);
+    else if (free && !this.paused) this.thinkAndMove(ms, w);
+    else if (free) { k.vx *= 0.8; k.vy *= 0.8; const dx = w.player.x - k.x; if (Math.abs(dx) > 4) this.dir = dx > 0 ? 'right' : 'left'; }
     else if (b.state === 'hitstun' && k.grounded && !b.push) { k.vx *= 0.8; k.vy *= 0.8; }
 
     const r = stepKin(k, ms, b.gravityScale(now));
@@ -140,6 +174,7 @@ export class SparringBot {
 
   /** Pick a move; true when a cast started. */
   private decide(w: BotWorld, dx: number, dy: number, dist: number, ady: number): boolean {
+    if (this.cls !== 'warrior') return this.decideGeneric(w, dist, ady);
     const now = w.now, p = w.player;
     const ready = (id: string) => (this.cdEnd.get(id) ?? 0) <= now;
     // keep the basic chain going while it lands in range
@@ -172,6 +207,21 @@ export class SparringBot {
     return false;
   }
 
+  /** Any class: keep its basic chain going, otherwise pick a ready skill whose reach covers the player. */
+  private decideGeneric(w: BotWorld, dist: number, ady: number): boolean {
+    const now = w.now, basic = this.kit[0];
+    const ready = (s: FinalSkill) => (this.cdEnd.get(s.id) ?? 0) <= now;
+    const n = basic?.chain?.stages.length ?? 1;
+    if (basic?.chain && this.chainStage >= 0 && this.chainStage < n - 1 && now - this.chainEnd < 520 && dist < reachOf(basic) && ady < 46) {
+      if (Math.random() < 0.7) return this.start(basic.id, this.chainStage + 1, w);
+    }
+    this.chainStage = -1;
+    const options = this.kit.filter((s) => s.slot > 0 && s.slot !== 7 && ready(s) && s.hits.some((h) => h.damage > 0) && reachOf(s) >= dist && (ady < 50 || s.targeting === 'mouseGround'));
+    if (options.length && Math.random() < 0.45) return this.start(options[Math.floor(Math.random() * options.length)].id, 0, w);
+    if (basic && dist <= reachOf(basic) && ady < 46) return this.start(basic.id, 0, w);
+    return false;
+  }
+
   /** Close in to sword range on the player's lane, with a little lateral drift; steers around props (whiskers). */
   private move(ms: number, w: BotWorld, dx: number, dy: number, dist: number): void {
     const k = this.kin, p = w.player;
@@ -184,7 +234,7 @@ export class SparringBot {
     }
     let tx = 0, ty = 0;
     if (p.alive) {
-      const want = 78, side = dx >= 0 ? -1 : 1; // stand on our side of the player
+      const want = RANGED.has(this.cls) ? 230 : 78, side = dx >= 0 ? -1 : 1; // stand on our side of the player (casters keep their distance)
       const gx = p.x + side * want - k.x, gy = p.y + this.strafe * 26 - k.y;
       const gd = Math.hypot(gx, gy);
       if (gd > 10) {
@@ -221,7 +271,8 @@ export class SparringBot {
     if (s.cooldown > 0) this.cdEnd.set(s.id, w.now + s.cooldown * CD_MUL);
     if (s.chain) this.chainStage = stage;
     k.vx *= 0.3; k.vy *= 0.3;
-    this.api.cast(s, stage, this.cast.origin, aim);
+    const place = s.targeting === 'mouseGround' ? { x: p.x, y: p.y } : null, lock = s.targeting === 'mouseTarget' ? 'self' : null;
+    this.api.cast(s, stage, this.cast.origin, aim, place, lock);
     return true;
   }
 
@@ -255,7 +306,38 @@ export class SparringBot {
     }
   }
 
+  /** COMBO button: run its class's scripted combo on the player (cooldowns ignored). */
+  startCombo(): boolean {
+    const list = COMBOS[this.cls]; if (!list) return false;
+    this.combo = [...list];
+    return true;
+  }
+  get comboRunning(): boolean { return this.combo.length > 0; }
+
+  /** Walk into the first move's reach, then open the combo. */
+  private approachCombo(ms: number, w: BotWorld): void {
+    const k = this.kin, p = w.player, dx = p.x - k.x, dy = p.y - k.y, dist = Math.hypot(dx, dy);
+    if (Math.abs(dx) > 4) this.dir = dx > 0 ? 'right' : 'left';
+    const [id] = this.combo[0].split(':'), s = finalSkill(id);
+    if (!s || !p.alive) { this.combo = []; return; }
+    const reach = Math.min(reachOf(s) * 0.85, s.dash ? 220 : RANGED.has(this.cls) ? 260 : 90);
+    if (dist <= reach && Math.abs(dy) < 40) { this.nextCombo(w, false); return; }
+    const want = unit(dx, dy), sp = PHYS.run;
+    steer(k, want.x * sp, want.y * sp, ms);
+  }
+
+  private nextCombo(w: BotWorld, chained: boolean): void {
+    const step = this.combo.shift(); if (!step) return;
+    const [id, st] = step.split(':'), s = finalSkill(id);
+    if (!s) return;
+    if (chained && this.cast) { this.api.cancel(); this.cast = null; } // cancel the recovery into the next move (like a player)
+    this.cdEnd.delete(id);
+    if (!this.start(id, Number(st ?? 0), w)) this.combo = [];
+    if (!this.combo.length) this.nextAct = w.now + 1500; // breathe after the demo
+  }
+
   private interrupt(): void {
+    this.combo = [];
     if (!this.cast) return;
     this.cast = null;
     this.chainStage = -1;
@@ -281,7 +363,7 @@ export class SparringBot {
     const k = this.kin, m = this.mode();
     this.view.applyState({
       t: 'state', from: BOT_ID, x: k.x, y: k.y, z: k.z, sz: k.supportZ, dir: this.dir, anim: m, mode: m,
-      sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: Math.round(this.aim.x * 100), ay: Math.round(this.aim.y * 100), hp: this.hp, alive: true, cos: BOT_LOOK,
+      sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: Math.round(this.aim.x * 100), ay: Math.round(this.aim.y * 100), hp: this.hp, alive: true, cos: this.cls === 'warrior' ? BOT_LOOK : '',
     });
   }
 }

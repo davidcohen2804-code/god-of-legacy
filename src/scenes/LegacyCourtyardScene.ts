@@ -9,7 +9,7 @@ import ATLAS from '../data/asset-manifest.json';
 import COMBAT_ASSETS from '../data/stage5-assets.json';
 import S6 from '../data/stage6-combat.json';
 import TRAINING from '../data/training-combat.json';
-import { CHARACTER_PREVIEWS, CLASS_NAMES, HUD, PVP, STAGE6 } from '../config/layout';
+import { CHARACTER_PREVIEWS, CLASS_NAMES, FONT_FAMILY, HUD, PVP, STAGE6 } from '../config/layout';
 import { CharacterStore } from '../characters/CharacterStore';
 import { GearState, GearStats, attackMul, gearStats, takenMul, wornCode, wornLook } from '../items/Gear';
 import { WorldHUD } from '../ui/WorldHUD';
@@ -42,7 +42,7 @@ import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
 import { NetMsg, PeerMeta } from '../pvp/Transport';
 import { genderOf, headLookOf, previewKeyOf } from '../characters/Look';
 import { buildLook, preloadLooks } from '../characters/LookArt';
-import { BOT_ID, BOT_NAME, SparringBot } from '../pvp/SparringBot';
+import { BOT_ID, BOT_NAME, BOT_NAMES, SparringBot } from '../pvp/SparringBot';
 import { CombatInput } from '../game/CombatInput';
 import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey, damageSkin, wantsWeaponMasks } from '../game/ActorView';
 import { ensureLightBeam } from '../skills/SkillFx';
@@ -206,6 +206,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** PvP sparring NPC: present while you are alone in the arena room (local only, endless HP). */
   private bot?: SparringBot;
   private botAwayMs = 0;
+  private botCls = 'warrior';
+  private botPaused = false;
+  private sparUi?: { root: HTMLDivElement; clsBtns: { id: string; b: HTMLButtonElement }[]; stop: HTMLButtonElement; combo: HTMLButtonElement };
   private botSeq = 0;
   private hud?: WorldHUD;
   private character?: Character;
@@ -418,6 +421,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (this.skillBook?.open || this.cosPanel?.open || this.questLog?.isOpen || this.partyUi?.isOpen) { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.partyUi?.close(); } else if (pvpRoom) exitArena();
     };
     kb.on('keydown-ESC', esc);
+    if (pvpRoom) this.buildSparUi();
     if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name, gender: genderOf(character), ...(headLookOf(character) ? { look: headLookOf(character)! } : {}) });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -434,7 +438,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       kb.removeAllKeys(true);
       this.pvp?.destroy(); this.pvp = undefined; this.pvpReady = false;
       this.enemy?.destroy(); this.enemy = undefined;
-      this.bot?.destroy(); this.bot = undefined;
+      this.bot?.destroy(); this.bot = undefined; this.sparUi?.root.remove(); this.sparUi = undefined;
       this.ambience?.destroy(); this.ambience = undefined;
       for (const o of this.occluders) { o.clearMask(true); o.destroy(); }
       this.occluders = [];
@@ -1429,7 +1433,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private nameOf(id: string): string {
     if (id === this.localId) return this.character?.name ?? 'You';
-    if (id === BOT_ID) return BOT_NAME;
+    if (id === BOT_ID) return this.botName();
     return this.pvp?.remotes.get(id)?.meta.name ?? 'Someone';
   }
 
@@ -1724,7 +1728,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private updateBot(ms: number, now: number): void {
     if (!this.pvp || !this.pvpReady) return;
     if (this.pvp.remotes.size > 0) {
-      if (this.bot) { this.rt?.cancelAttacker(BOT_ID); this.bot.destroy(); this.bot = undefined; this.chat?.add({ kind: 'system', text: `${BOT_NAME} left the arena.` }); }
+      if (this.bot) { this.rt?.cancelAttacker(BOT_ID); this.bot.destroy(); this.bot = undefined; this.refreshSparUi(); this.chat?.add({ kind: 'system', text: `${this.botName()} left the arena.` }); }
       this.botAwayMs = 0;
       return;
     }
@@ -1733,14 +1737,78 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (this.botAwayMs < 1200) return;
       const k = this.kin, pts = PVP.spawnPoints.filter((p) => footAllowed(p.x, p.y, 0, R));
       const sp = pts.reduce((best, p) => (Math.hypot(p.x - k.x, p.y - k.y) > Math.hypot(best.x - k.x, best.y - k.y) && Math.hypot(p.x - k.x, p.y - k.y) < 700 ? p : best), pts[0]);
-      this.bot = new SparringBot(this, sp.x, sp.y, {
-        cast: (skill, stage, origin, aim) => { this.rt?.start({ castId: `${BOT_ID}-${++this.botSeq}`, skill, stage, attackerId: BOT_ID, own: false, origin, aim, place: null, lock: null }); },
-        cancel: () => { for (const r of this.rt?.runs ?? []) if (r.attackerId === BOT_ID && (r.phase === 'startup' || r.phase === 'active')) r.phase = 'done'; },
-      }, now);
-      this.fx?.callout({ x: sp.x, y: sp.y, z: 60 }, `${BOT_NAME.toUpperCase()} ENTERS`, '#ffd27a', 0);
-      this.chat?.add({ kind: 'system', text: `${BOT_NAME} entered the arena (sparring partner while you are alone).` });
+      this.spawnBot(sp.x, sp.y, now);
+      this.chat?.add({ kind: 'system', text: `${this.botName()} entered the arena (sparring partner while you are alone).` });
     }
-    this.bot.update(ms, { now, player: { x: this.kin.x, y: this.kin.y, z: this.kin.z - this.kin.supportZ, alive: this.dead < 0 } });
+    const bot = this.bot!;
+    if (this.sparUi) this.sparUi.combo.disabled = bot.comboRunning || this.dead >= 0;
+    bot.update(ms, { now, player: { x: this.kin.x, y: this.kin.y, z: this.kin.z - this.kin.supportZ, alive: this.dead < 0 } });
+  }
+
+  private botName(): string { return BOT_NAMES[this.botCls] ?? BOT_NAME; }
+
+  /** Sparring partner of the chosen class (keeps STOP when it is swapped). */
+  private spawnBot(x: number, y: number, now: number): void {
+    const paused = this.bot?.paused ?? this.botPaused;
+    if (this.bot) { this.rt?.cancelAttacker(BOT_ID); this.bot.destroy(); }
+    this.bot = new SparringBot(this, x, y, {
+      cast: (skill, stage, origin, aim, place, lock) => { this.rt?.start({ castId: `${BOT_ID}-${++this.botSeq}`, skill, stage, attackerId: BOT_ID, own: false, origin, aim, place, lock: lock ? this.localId : null }); },
+      cancel: () => { for (const r of this.rt?.runs ?? []) if (r.attackerId === BOT_ID && (r.phase === 'startup' || r.phase === 'active')) r.phase = 'done'; },
+    }, now, this.botCls);
+    this.bot.paused = paused;
+    this.fx?.callout({ x, y, z: 60 }, `${this.botName().toUpperCase()} ENTERS`, '#ffd27a', 0);
+    this.refreshSparUi();
+  }
+
+  /** Arena sparring controls: opponent class, STOP / RESUME, COMBO (it performs its combo on you). */
+  private buildSparUi(): void {
+    const host = this.hud?.overlay; if (!host || this.sparUi) return;
+    if (!document.getElementById('gol-spar-style')) {
+      const st = document.createElement('style'); st.id = 'gol-spar-style';
+      st.textContent = `
+.gol-spar{position:absolute;left:1350px;top:100px;width:300px;display:none;flex-direction:column;gap:10px;padding:14px 16px 16px;box-sizing:border-box;pointer-events:auto;
+  background:linear-gradient(rgba(6,10,18,.84),rgba(6,10,18,.7));border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.45),inset 0 0 0 1px rgba(201,154,69,.5);font-family:${FONT_FAMILY}}
+.gol-spar.on{display:flex}
+.gol-spar .hd{font:700 12px ${FONT_FAMILY};letter-spacing:2.5px;color:#f3d58a;text-shadow:0 1px 2px #000}
+.gol-spar .cl{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.gol-spar button{height:32px;border-radius:7px;border:1px solid #6a5630;background:#0b121b;color:#c9b48a;font:700 12px ${FONT_FAMILY};letter-spacing:1.2px;cursor:pointer;text-shadow:0 1px 2px #000}
+.gol-spar button:hover{border-color:#c99a45;box-shadow:0 0 10px rgba(232,178,90,.35)}
+.gol-spar button.on{border-color:#e8b25a;background:linear-gradient(#3a2a10,#22180a);color:#ffe7a8}
+.gol-spar .act{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gol-spar .act button{height:40px;font-size:14px;letter-spacing:2px}
+.gol-spar .act .stop.on{border-color:#d9583f;background:linear-gradient(#4a1410,#2a0a08);color:#ffd2c4}
+.gol-spar .act .cmb{border-color:#c99a45;background:linear-gradient(#3a2a10,#22180a);color:#ffe7a8}
+.gol-spar .act .cmb:disabled{opacity:.45;cursor:default;box-shadow:none}`;
+      document.head.appendChild(st);
+    }
+    const root = document.createElement('div'); root.className = 'gol-spar'; host.appendChild(root);
+    root.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); });
+    const hd = document.createElement('div'); hd.className = 'hd'; hd.textContent = 'SPARRING OPPONENT'; root.appendChild(hd);
+    const cl = document.createElement('div'); cl.className = 'cl'; root.appendChild(cl);
+    const classes: [string, string][] = [['warrior', 'WARRIOR'], ['samurai', 'SAMURAI'], ['book_mage', 'MAGE'], ['archer', 'ARCHER']];
+    const clsBtns = classes.map(([id, label]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
+      b.addEventListener('click', () => { if (this.botCls === id) return; this.botCls = id; const bt = this.bot; if (bt) this.spawnBot(bt.x, bt.y, this.simMs); this.refreshSparUi(); });
+      cl.appendChild(b); return { id, b };
+    });
+    const act = document.createElement('div'); act.className = 'act'; root.appendChild(act);
+    const stop = document.createElement('button'); stop.type = 'button'; stop.className = 'stop';
+    stop.addEventListener('click', () => { this.botPaused = !this.botPaused; if (this.bot) { this.bot.paused = this.botPaused; if (this.botPaused) this.rt?.cancelAttacker(BOT_ID); } this.refreshSparUi(); });
+    const combo = document.createElement('button'); combo.type = 'button'; combo.className = 'cmb'; combo.textContent = 'COMBO'; // not '.combo': the HUD uses that class
+    combo.title = 'The opponent performs its full combo on you';
+    combo.addEventListener('click', () => { if (this.bot?.startCombo()) this.fx?.callout({ x: this.bot.x, y: this.bot.y, z: 70 }, 'COMBO!', '#ffd27a', 0); this.refreshSparUi(); });
+    act.append(stop, combo);
+    this.sparUi = { root, clsBtns, stop, combo };
+    this.refreshSparUi();
+  }
+
+  private refreshSparUi(): void {
+    const u = this.sparUi; if (!u) return;
+    u.root.classList.toggle('on', !!this.bot);
+    for (const c of u.clsBtns) c.b.classList.toggle('on', c.id === this.botCls);
+    u.stop.textContent = this.botPaused ? 'RESUME' : 'STOP';
+    u.stop.classList.toggle('on', this.botPaused);
+    u.stop.title = this.botPaused ? 'The opponent fights again' : 'The opponent stands still (it still takes hits)';
   }
 
   /** The local player's confirmed hit on the sparring NPC (this client is its authority; PvP reaction rules). */
@@ -2069,7 +2137,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.dummy && this.dummyState?.alive) consider(Math.hypot(D.x - k.x, D.y - k.y), { id: 'dummy', name: 'Training Dummy', type: 'Training Target', hp: this.dummyState.hp, maxHp: D.maxHp, effects: [], ...combat(this.dummyState.body, this.dummyState.kin.z) });
     const bt = this.bot;
     if (bt) consider(Math.hypot(bt.x - k.x, bt.y - k.y), {
-      id: BOT_ID, name: BOT_NAME, type: 'NPC · PvP sparring', portrait: portraitOf('base/male'), hp: bt.hp, maxHp: PVP.maxHp,
+      id: BOT_ID, name: this.botName(), type: 'NPC · PvP sparring', portrait: portraitOf(this.botCls === 'warrior' ? 'base/male' : `${this.botCls}/${this.botCls}_default`), hp: bt.hp, maxHp: PVP.maxHp,
       effects: this.statusEffects(bt.body, now), ...combat(bt.body, bt.kin.z),
     });
     for (const r of this.pvp?.remotes.values() ?? []) {
