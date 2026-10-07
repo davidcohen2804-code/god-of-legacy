@@ -102,6 +102,7 @@ export class SkillRuntime {
     const sp = this.world.speedMul?.(req) ?? 1;
     if (sp !== 1) { timings.startup = Math.round(timings.startup / sp); timings.recovery = Math.round(timings.recovery / sp); }
     let hits = s.chain ? s.chain.stages[req.stage] : s.hits;
+    if (sp >= 2) { timings.active = Math.max(40, Math.round(timings.active / sp)); hits = hits.map((h) => ({ ...h, at: Math.round(h.at / sp) })); } // a big haste (Radiant Blade): the strike itself is faster too
     const rm = this.world.reachMul?.(req) ?? 1;
     if (rm !== 1) hits = hits.map((h) => h.shape.kind === 'sector' ? { ...h, shape: { ...h.shape, range: h.shape.range * rm } }
       : h.shape.kind === 'line' ? { ...h, shape: { ...h.shape, length: h.shape.length * rm } } : h);
