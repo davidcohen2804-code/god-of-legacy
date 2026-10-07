@@ -112,11 +112,14 @@ const CSS = `
 .gol-sb .all.on i{background-image:url("${K('checkbox_checked')}")}
 .gol-sb .card .pt{position:absolute;right:4px;top:4px;min-width:24px;height:22px;padding:0 5px;box-sizing:border-box;border-radius:5px;background:#0b121bee;border:1px solid #6f8fb0;font:700 12px/20px ${FONT_FAMILY};color:#bcd6ef;text-align:center}
 .gol-sb .card .nm.sm{font-size:11px}
-.gol-sb .pg{position:absolute;top:${FRAME_Y + 40}px;width:56px;height:56px;background:0 0/100% 100% no-repeat;cursor:pointer;pointer-events:auto;filter:drop-shadow(0 2px 4px #000)}
-.gol-sb .pg.l{left:150px;background-image:url("${K('btn_left')}")}.gol-sb .pg.l:hover{background-image:url("${K('btn_left_hover')}")}
-.gol-sb .pg.r{left:1394px;background-image:url("${K('btn_right')}")}.gol-sb .pg.r:hover{background-image:url("${K('btn_right_hover')}")}
-.gol-sb .pg.off{opacity:.25;pointer-events:none}
-.gol-sb .pgn{position:absolute;top:${FRAME_Y + 104}px;width:90px;text-align:center;font:700 11px ${FONT_FAMILY};letter-spacing:2px;color:#9fb0c0;text-transform:uppercase;pointer-events:none}
+.gol-sb .pg{position:absolute;left:62px;width:196px;height:48px;box-sizing:border-box;padding:0 16px;display:flex;align-items:center;justify-content:space-between;border-radius:8px;cursor:pointer;pointer-events:auto;
+  background:#0b121bd9;border:1px solid #6a5630;font:700 13px ${FONT_FAMILY};letter-spacing:2px;color:#c9b48a;transition:box-shadow 120ms,border-color 120ms}
+.gol-sb .pg:hover{border-color:#c99a45;box-shadow:0 0 12px rgba(232,178,90,.3)}
+.gol-sb .pg.on{color:#ffe7a8;border-color:#e8b25a;background:rgba(6,12,24,.75);box-shadow:inset 3px 0 0 #e8b25a,0 0 14px rgba(232,178,90,.35)}
+.gol-sb .pg b{min-width:26px;height:24px;padding:0 6px;box-sizing:border-box;border-radius:12px;background:#1b2a3a;border:1px solid #3d5a78;color:#bcd6ef;font-size:12px;line-height:22px;text-align:center;letter-spacing:0}
+.gol-sb .pg.on b{background:#3a2a10;border-color:#c99a45;color:#ffe2a0}
+.gol-sb .pg.l{top:${FRAME_Y + 12}px}.gol-sb .pg.r{top:${FRAME_Y + 72}px}
+.gol-sb .pg.off{opacity:.35;pointer-events:none}
 .gol-sb .pps{position:absolute;left:${PREVIEW.x}px;top:${PREVIEW.y}px;width:${PREVIEW.w}px;height:${PREVIEW.h}px;display:none;align-items:center;justify-content:center;gap:40px;
   background:radial-gradient(ellipse at 30% 50%,rgba(232,178,90,.16),rgba(10,16,24,0) 60%),#0a1018;border-radius:4px;padding:40px 56px;box-sizing:border-box}
 .gol-sb .pps img{width:150px;height:150px;border-radius:14px;box-shadow:0 0 0 2px #c99a45,0 0 34px rgba(255,200,90,.35);flex:none}
@@ -336,8 +339,8 @@ export class SkillBook {
     this.pps = this.div('pps', this.bg);
     this.det = this.div('det', this.bg);
     for (const side of ['l', 'r'] as const) {
-      const b = this.div(`pg ${side}`, this.bg); b.title = side === 'l' ? 'Active skills' : 'Passive skills';
-      b.addEventListener('click', () => { this.page += side === 'l' ? -1 : 1; this.buildRow(); this.selected = this.cards[0]?.e ?? this.selected; this.refresh(); });
+      const b = this.div(`pg ${side}`, this.bg); b.innerHTML = `<span>${side === 'l' ? 'SKILLS' : 'PASSIVE'}</span><b></b>`;
+      b.addEventListener('click', () => { this.page = side === 'l' ? 0 : 1; this.buildRow(); this.selected = this.cards[0]?.e ?? this.selected; this.refresh(); });
       this.pager.push(b);
     }
     this.stage = new PreviewStage(scene, { x: BG.x + PREVIEW.x, y: BG.y + PREVIEW.y, w: PREVIEW.w, h: PREVIEW.h }, -30000, 30000, 0.88, 'ui-sb-preview');
@@ -367,10 +370,8 @@ export class SkillBook {
   /** Pages of the current job tab: its active skills (4 frames), then its passive / movement skills. */
   private pages(): Entry[][] {
     const act = this.jobs[this.job].slots.map((slot) => this.kit.find((s) => s.slot === slot)).filter((s): s is FinalSkill => !!s);
-    const pas = passivesFor(this.cls, this.job), out: Entry[][] = [];
-    for (let i = 0; i < act.length; i += FRAME_CX.length) out.push(act.slice(i, i + FRAME_CX.length));
-    for (let i = 0; i < pas.length; i += FRAME_CX.length) out.push(pas.slice(i, i + FRAME_CX.length));
-    return out.length ? out : [[]];
+    const pas = passivesFor(this.cls, this.job);
+    return [act.slice(0, FRAME_CX.length), pas.slice(0, FRAME_CX.length)]; // page 0 = skills, page 1 = passive / movement
   }
   private entries(): Entry[] { return this.pages().flat(); }
 
@@ -390,8 +391,7 @@ export class SkillBook {
       c.addEventListener('click', () => { this.selected = e; this.refresh(); });
       this.cards.push({ el: c, e });
     });
-    const many = pages.length > 1;
-    this.pager.forEach((b, k) => { b.style.display = many ? 'block' : 'none'; b.classList.toggle('off', k === 0 ? this.page === 0 : this.page === pages.length - 1); });
+    this.pager.forEach((b, k) => { b.classList.toggle('on', this.page === k); b.classList.toggle('off', !pages[k].length); (b.lastChild as HTMLElement).textContent = String(pages[k].length); });
   }
 
   /** Equip the preview body with the character's cosmetics (book preview = this character). */
