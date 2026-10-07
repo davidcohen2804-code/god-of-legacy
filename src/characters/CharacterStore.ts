@@ -46,6 +46,11 @@ function sanitize(raw: unknown): CharacterSelectData {
         id: c.id, name: c.name, classId: c.classId, level: c.level,
         createdAt: c.createdAt, lastPlayedAt: c.lastPlayedAt, appearanceId: c.appearanceId,
       };
+      const ex = (c as unknown as { exp?: unknown }).exp;
+      if (typeof ex === 'number' && Number.isFinite(ex) && ex >= 0) target.character.exp = ex;
+      const jb = (c as unknown as { job?: unknown; trial?: unknown });
+      if (isNonEmpty(jb.job)) target.character.job = jb.job;
+      if (isNonEmpty(jb.trial)) target.character.trial = jb.trial;
       const gd = (c as unknown as { gender?: unknown }).gender;
       if (gd === 'male' || gd === 'female') target.character.gender = gd;
       const lk = (c as unknown as { look?: Record<string, unknown> }).look;
@@ -124,6 +129,23 @@ class Store {
   }
 
   /** Level + EXP of a stored character. */
+  /** Job advancement (a Master): the job, the class played, and the Master's pending trial (null = none). */
+  setJob(charId: string, job: string, trial: string | null): void {
+    const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
+    if (!c) return;
+    c.job = job; c.classId = job;
+    if (trial) c.trial = trial; else delete c.trial;
+    this.save();
+  }
+
+  /** The Master's trial is over (won). */
+  clearTrial(charId: string): void {
+    const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
+    if (!c) return;
+    delete c.trial;
+    this.save();
+  }
+
   setProgress(charId: string, level: number, exp: number): void {
     const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
     if (!c) return;

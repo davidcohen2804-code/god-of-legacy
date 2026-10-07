@@ -43,6 +43,8 @@ import { NetMsg, PeerMeta } from '../pvp/Transport';
 import { genderOf, headLookOf, previewKeyOf } from '../characters/Look';
 import { buildLook, preloadLooks } from '../characters/LookArt';
 import { BOT_ID, BOT_NAME, BOT_NAMES, SparringBot } from '../pvp/SparringBot';
+import { ARENA as PLAZA, AREAS as WORLD_AREAS } from '../world/Areas';
+import { jobsFor } from '../skills/Jobs';
 import { CombatInput } from '../game/CombatInput';
 import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey, damageSkin, wantsWeaponMasks } from '../game/ActorView';
 import { ensureLightBeam } from '../skills/SkillFx';
@@ -56,7 +58,7 @@ import { CastRun, SkillRuntime } from '../skills/SkillRuntime';
 import { Afterimages, applyMotion, archerMotion, leapMotion } from '../skills/ArcherMotion';
 import { HitTarget, V2, V3, clampAim, clampPlace, unit } from '../skills/HitGeometry';
 import { SkillFx, preloadSkillFx } from '../skills/SkillFx';
-import { BEGINNER_TO, jobOfSlot, playedClass } from '../skills/Jobs';
+import { BEGINNER_TO, JOBS_OPEN, hasJob, jobOfSlot, playedClass, skillLevel } from '../skills/Jobs';
 import { DeathFx, preloadDeathFx } from '../game/DeathFx';
 import { SkillBook } from '../ui/SkillBook';
 import { CosmeticPanel } from '../ui/CosmeticPanel';
@@ -69,6 +71,8 @@ const D = TRAINING.dummy;
 const R = PHYS.footR;
 const P6 = STAGE6.player;
 const TOP_DEPTH = 100000;
+/** A Master's HP in his trial (the Sun Seal Plaza). */
+const TRIAL_HP = PVP.maxHp * 2;
 const FACE: Record<Dir, V2> = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
 /** PvP victim-side sanity checks for a remote cast intent (network jitter tolerances). */
 const CAST_COOLDOWN_TOLERANCE_MS = 250;
@@ -397,7 +401,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.hud.setMenuKeys(menuKeys(this.bindings));
     this.refreshPassiveStrip();
     const host = this.game.canvas.parentElement!;
-    this.skillBook = new SkillBook(this, host, this.game.canvas, this.cls, character.level, this.allOpen(), pvpRoom || isQAMode() ? undefined : (on) => this.setAllOpen(on)); // arena / QA: all skills open
+    this.skillBook = new SkillBook(this, host, this.game.canvas, this.cls, skillLevel(character), this.allOpen(), pvpRoom || isQAMode() ? undefined : (on) => this.setAllOpen(on)); // arena / QA: all skills open
     this.cosPanel = new CosmeticPanel(this, host, this.game.canvas, character, () => this.equipped, (e) => this.setEquipped(e), (g) => this.onGearChange(g));
     this.skillBook.setEquipped(this.equipped);
     // Behind the big windows (skill book, inventory, shop) the world fades back (the HUD steps aside; the previews stay clear).
@@ -625,7 +629,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private footDust(sp: number): void {
     if (this.mode !== 'run') { this.lastFootFrame = -1; return; }
     const sheet = this.cls === 'warrior' || this.cls === 'book_mage';
-    const base = this.cls === 'warrior' && (this.view!.wantsBase || this.character!.level < BEGINNER_TO) ? baseLoop('run', sp) : null;
+    const base = this.cls === 'warrior' && (this.view!.wantsBase || !hasJob(this.character!)) ? baseLoop('run', sp) : null;
     const fps = base ? base.fps : (sheet ? 13 : 10) * Math.max(0.75, Math.min(1.15, sp / 270)), n = base ? base.n : sheet ? 8 : 5;
     const f = Math.floor((this.loopT * fps) / 1000) % n;
     const contact = base ? base.contact : sheet ? [0, 4] : [0, 3];
@@ -721,7 +725,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Passives owned now (level / all-open) → stats + body resistances; keeps the HP fraction when max HP changes. */
   private applyPassives(): void {
-    const lvl = this.character?.level ?? 1, all = this.allOpen(), before = this.body.maxHp || 1, frac = this.playerHP / before;
+    const lvl = this.character ? skillLevel(this.character) : 1, all = this.allOpen(), before = this.body.maxHp || 1, frac = this.playerHP / before;
     this.passives = passivesFor(this.cls).length && (all || lvl >= BEGINNER_TO) ? passiveStats(ownedPassives(this.cls, lvl, all)) : NO_PASSIVES;
     this.body.ccResist = this.passives.ccResist; this.body.kbResist = this.passives.kbResist;
     this.body.maxHp = this.maxHpNow();
@@ -733,7 +737,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Passive icons above the skill tray (owned bright, locked dimmed). */
   private refreshPassiveStrip(): void {
     if (!this.hud || !passivesFor(this.cls).length) { this.hud?.setPassives([]); return; }
-    const all = this.allOpen(), lvl = this.character?.level ?? 1, own = ownedPassives(this.cls, lvl, all);
+    const all = this.allOpen(), lvl = this.character ? skillLevel(this.character) : 1, own = ownedPassives(this.cls, lvl, all);
     const open = all || lvl >= BEGINNER_TO;
     this.hud.setPassives(passivesFor(this.cls).map((p) => ({ id: p.id, name: p.name, iconUrl: passiveIconUrl(p), owned: open && own.has(p.id), info: p.effects.join(' · ') })));
   }
@@ -755,8 +759,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.hud?.banner(`LEVEL ${r.level}`, 1600, false);
     this.applyPassives();
     this.playerHP = this.maxHpNow();
-    this.skillBook?.setLevel(r.level);
-    if (was < BEGINNER_TO && r.level >= BEGINNER_TO && playedClass({ classId: ch.classId, level: was }) !== ch.classId) this.time.delayedCall(1700, () => this.scene.restart()); // 1st job: becomes his own class
+    this.skillBook?.setLevel(skillLevel(ch));
+    if (playedClass({ ...ch, level: was }) !== playedClass(ch)) this.time.delayedCall(1700, () => this.scene.restart()); // an older character past the old 1st-job level: becomes his own class
+    if (was < BEGINNER_TO && r.level >= BEGINNER_TO && !hasJob(ch)) this.chat?.add({ kind: 'system', text: 'Level 10! The Masters of the four paths await you on the Temple Road.' });
   }
 
   /** Skill Book switch: open / close every skill for testing at any level. */
@@ -985,7 +990,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       skill: run ? { id: run.skill.id, stage: run.stage, elapsed: run.elapsed, ...run.timings, seed: castSeed(run.castId) } : undefined,
     };
     const dir = this.dir; // Whirlwind spins inside its own 360° body loop
-    const pose = resolvePose(this.cls, dir, poseQuery(snap), v.wantsBase || this.character!.level < BEGINNER_TO, genderOf(this.character));
+    const pose = resolvePose(this.cls, dir, poseQuery(snap), v.wantsBase || !hasJob(this.character!), genderOf(this.character));
     let tint: number | null = null, fill = false, alpha = 1;
     if (this.flash >= 0) { const iron = this.passives.takenMul < 1; tint = iron ? 0xc8d4e6 : 0xff9a9a; } // struck: a soft tint (MapleStory: no white flash over the body); Iron Body: steel sheen
     else if (this.body.hard.active(this.simMs)) tint = this.body.hard.kind === 'freeze' ? 0x9fd8ff : 0xb6ffb0;
@@ -1293,7 +1298,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Skills open with the job advancements; in the PvP arena every skill is open (testing the combat). */
   private skillOpen(s: FinalSkill): boolean {
-    return this.allOpen() || this.localId !== 'local' || jobOfSlot(this.cls, s.slot).level <= (this.character?.level ?? 1);
+    return this.allOpen() || this.localId !== 'local' || jobOfSlot(this.cls, s.slot).level <= (this.character ? skillLevel(this.character) : 1);
   }
 
   /** Start a slot now if legal (incl. hit-confirm cancel / chain continuation from the current action). */
@@ -1533,7 +1538,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       for (const m of this.world?.mobs ?? []) out.push(m.target());
       if (this.dummy && this.dummyState) out.push({ id: 'dummy', kind: 'enemy', x: D.x, y: D.y, z: this.dummyState.kin.z, radius: D.collisionRadius, height: 80, alive: this.dummyState.alive, invulnerable: this.simMs < this.dummyState.body.invulnUntil });
       if (this.bot) out.push(this.bot.target(this.simMs));
-    } else if (this.view && this.pvpReady) {
+    } else if (this.view && (this.pvpReady || (run.attackerId === BOT_ID && !!this.bot?.trial))) { // the arena, or a Master's trial
       out.push({ id: this.localId, kind: 'player', x: this.kin.x, y: this.kin.y, z: this.kin.z, radius: R + 4, height: 74, alive: this.dead < 0, invulnerable: this.simMs < this.body.invulnUntil });
     }
     for (const r of this.pvp?.remotes.values() ?? []) if (r.meta.playerId !== run.attackerId && !(run.own && this.party?.has(r.meta.playerId))) out.push( // party members never hit each other
@@ -1765,7 +1770,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** The sparring knight joins when you are alone in the room and leaves as soon as a real player is there. */
   private updateBot(ms: number, now: number): void {
-    if (!this.pvp || !this.pvpReady) return;
+    if (!this.pvp || !this.pvpReady) { this.updateTrial(ms, now); return; }
     if (this.pvp.remotes.size > 0) {
       if (this.bot) { this.rt?.cancelAttacker(BOT_ID); this.bot.destroy(); this.bot = undefined; this.refreshSparUi(); this.chat?.add({ kind: 'system', text: `${this.botName()} left the arena.` }); }
       this.botAwayMs = 0;
@@ -1784,7 +1789,73 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     bot.update(ms, { now, player: { x: this.kin.x, y: this.kin.y, z: this.kin.z - this.kin.supportZ, alive: this.dead < 0 } });
   }
 
-  private botName(): string { return BOT_NAMES[this.botCls] ?? BOT_NAME; }
+  private botName(): string { return this.bot?.trial?.name ?? BOT_NAMES[this.botCls] ?? BOT_NAME; }
+
+  // ======================================================================= the Masters' trial (1st job)
+
+  /** A Master's trial is pending: he waits in the Sun Seal Plaza and fights you there (only while you are down in it);
+   *  you fall: he is whole again for your next try; you beat him: the trial is passed. */
+  private updateTrial(ms: number, now: number): void {
+    const ch = this.character;
+    if (!this.world || !ch?.trial || this.arena) return;
+    if (!this.bot) {
+      if (!this.rt) return;
+      const m = Object.values(WORLD_AREAS).flatMap((a) => a.npcs ?? []).find((n) => n.job === ch.trial);
+      const c = { x: PLAZA.x + PLAZA.w * 0.5, y: PLAZA.y + PLAZA.h * 0.42 };
+      this.bot = new SparringBot(this, c.x, c.y, {
+        cast: (skill, stage, origin, aim, place, lock) => { this.rt?.start({ castId: `${BOT_ID}-${++this.botSeq}`, skill, stage, attackerId: BOT_ID, own: false, origin, aim, place, lock: lock ? this.localId : null }); },
+        cancel: () => { for (const r of this.rt?.runs ?? []) if (r.attackerId === BOT_ID && (r.phase === 'startup' || r.phase === 'active')) r.phase = 'done'; },
+      }, now, ch.trial, { name: m?.name ?? 'Master', hp: TRIAL_HP, centre: c });
+      this.chat?.add({ kind: 'system', text: `${this.botName()} awaits you in the Sun Seal Plaza, down the great stairs. Defeat him to complete your trial.` });
+    }
+    const bot = this.bot;
+    const inPlaza = this.kin.y >= PLAZA.y - 40 && this.dead < 0;
+    if (this.dead >= 0 && bot.hp < TRIAL_HP) { bot.hp = TRIAL_HP; bot.view.setHp(TRIAL_HP); } // you fell: he is whole again
+    bot.paused = !inPlaza;
+    if (!inPlaza) this.rt?.cancelAttacker(BOT_ID);
+    bot.update(ms, { now, player: { x: this.kin.x, y: this.kin.y, z: this.kin.z - this.kin.supportZ, alive: this.dead < 0 } });
+    if (bot.defeated) this.winTrial();
+  }
+
+  private winTrial(): void {
+    const ch = this.character, bot = this.bot; if (!ch || !bot) return;
+    const name = this.botName(), job = jobsFor(ch.trial ?? ch.classId)[1]?.name ?? 'Adventurer';
+    this.fx?.callout({ x: bot.x, y: bot.y, z: 90 }, 'TRIAL COMPLETE', '#ffd34a', 0);
+    this.fx?.shockwave(bot.x, bot.y, 220, 0xffd27a);
+    this.rt?.cancelAttacker(BOT_ID); bot.destroy(); this.bot = undefined;
+    CharacterStore.clearTrial(ch.id); delete ch.trial;
+    this.hud?.banner(job.toUpperCase(), 2200, false);
+    this.chat?.add({ kind: 'system', text: `${name}: "Well fought. You are a true ${job} now."` });
+  }
+
+  /** A Master: from level 10 he gives a Beginner his job (and his trial below in the plaza). */
+  private masterTalk(n: AreaNpc, say: (lines: string[], choices?: DialogChoice[]) => void): void {
+    const ch = this.character, job = n.job!;
+    const jobName = jobsFor(job)[1]?.name ?? job;
+    if (!ch) { say(n.lines ?? IDLE_LINES); return; }
+    if (hasJob(ch)) {
+      if (ch.trial === job) say(['Your trial awaits in the Sun Seal Plaza, down the great stairs.', 'Come — show me what you have learned.']);
+      else if (playedClass(ch) === job) say(['You walk my path well.', 'Keep growing stronger.']);
+      else say(n.lines?.length ? n.lines : IDLE_LINES);
+      return;
+    }
+    if (!JOBS_OPEN.has(job)) { say([...(n.lines ?? []).slice(0, 1), 'My path is not open to new students yet.']); return; }
+    if (ch.level < BEGINNER_TO) { say([...(n.lines ?? []).slice(0, 1), `You are not ready yet. Reach level ${BEGINNER_TO}, then come back to me.`]); return; }
+    say([...(n.lines ?? []).slice(0, 1), `You have grown strong. I can teach you the path of the ${jobName}.`, 'But first you must face me in the plaza below. Will you take my path?'],
+      [{ label: `BECOME A ${jobName.toUpperCase()}`, main: true, run: () => this.takeJob(n) }, { label: 'NOT YET', run: () => undefined }]);
+  }
+
+  private takeJob(n: AreaNpc): void {
+    const ch = this.character; if (!ch || !n.job) return;
+    const jobName = jobsFor(n.job)[1]?.name ?? n.job;
+    CharacterStore.setJob(ch.id, n.job, n.job);
+    ch.job = n.job; ch.classId = n.job; ch.trial = n.job;
+    const k = this.kin;
+    this.fx?.callout({ x: k.x, y: k.y, z: k.z + 60 }, `1ST JOB: ${jobName.toUpperCase()}`, '#ffd34a', 0);
+    this.fx?.shockwave(k.x, k.y, 200, 0xffd27a);
+    this.chat?.add({ kind: 'system', text: `You are now a ${jobName}. Your 1st job skills are open.` });
+    this.time.delayedCall(1600, () => this.scene.restart()); // plays as his new class
+  }
 
   /** Sparring partner of the chosen class (keeps STOP when it is swapped). */
   private spawnBot(x: number, y: number, now: number): void {
@@ -2070,6 +2141,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.ci?.reset();
     if (Math.abs(np.x - this.kin.x) > 4) this.dir = np.x < this.kin.x ? 'left' : 'right'; // turns to face them
     const say = (lines: string[], choices?: DialogChoice[]) => this.npcDialog!.open({ name: n.name, title: n.title, portrait: `assets/world/npc/${n.art}_face.png`, lines, choices });
+    if (n.job) { this.masterTalk(n, say); return; }
     const mine = QUESTS.filter((q) => q.giver === n.id);
     const ready = mine.find((q) => this.quests[q.id]?.state === 'active' && this.questReady(q));
     if (ready) { say(ready.done, [{ label: ready.complete, main: true, run: () => this.finishQuest(ready) }]); return; }
@@ -2228,7 +2300,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.dummy && this.dummyState?.alive) consider(Math.hypot(D.x - k.x, D.y - k.y), { id: 'dummy', name: 'Training Dummy', type: 'Training Target', hp: this.dummyState.hp, maxHp: D.maxHp, effects: [], ...combat(this.dummyState.body, this.dummyState.kin.z) });
     const bt = this.bot;
     if (bt) consider(Math.hypot(bt.x - k.x, bt.y - k.y), {
-      id: BOT_ID, name: this.botName(), type: 'NPC · PvP sparring', portrait: portraitOf(this.botCls === 'warrior' ? 'base/male' : `${this.botCls}/${this.botCls}_default`), hp: bt.hp, maxHp: PVP.maxHp,
+      id: BOT_ID, name: this.botName(), type: bt.trial ? 'Master · Job Trial' : 'NPC · PvP sparring', portrait: portraitOf((bt.trial ? bt.cls : this.botCls) === 'warrior' ? 'base/male' : `${bt.trial ? bt.cls : this.botCls}/${bt.trial ? bt.cls : this.botCls}_default`), hp: bt.hp, maxHp: bt.trial ? TRIAL_HP : PVP.maxHp,
       effects: this.statusEffects(bt.body, now), ...combat(bt.body, bt.kin.z),
     });
     for (const r of this.pvp?.remotes.values() ?? []) {

@@ -239,7 +239,7 @@ export class CharacterCreateUI {
     const { hair, hairColor, skin, face, eyeColor, top, pants, shoes } = this.look;
     const pick = this.testClass ? CLASS_OPTIONS.find((c) => c.classId === this.testClass) ?? STARTER : STARTER;
     // a test pick plays as that class at once (other classes are the sword Beginner below the 1st job)
-    const lvl = pick.classId === STARTER.classId || playedClass({ classId: pick.classId, level: 1 }) === pick.classId ? 1 : BEGINNER_TO;
+    const lvl = pick.classId === STARTER.classId || playedClass({ classId: pick.classId, level: 1 }) === pick.classId ? 1 : 19; // a test pick of another class: past the old 1st-job level, so it plays that class with its skills
     if (CharacterStore.createCharacter(id, this.input.value, pick.classId, pick.appearanceId, this.gender, { hair, hairColor, skin, face, eyeColor, top, pants, shoes }, lvl)) this.h.onCreated();
   }
 

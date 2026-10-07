@@ -26,6 +26,11 @@ export interface Character {
   /** Equipment: owned pieces (item, colour) and what is worn (gives stats, drawn on the character). Every character has
    *  it (the starter set when stored without it). */
   gear?: GearState;
+  /** The job a Master gave him (Temple Road, from level 10). Absent: still a Beginner (older characters past the old
+   *  1st-job level keep the class they were made with). */
+  job?: string;
+  /** The Master's trial is pending: that Master waits in the Sun Seal Plaza to fight him. */
+  trial?: string;
 }
 
 export interface QuestState { state: 'active' | 'done'; progress: number[] }

@@ -65,6 +65,8 @@ const BOT_LOOK = 'back:war_cape_shadow_smoke,aura:war_aura_shadow_flame,gear:w1t
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 /** Open middle of the courtyard (fallback direction when wedged against a prop). */
 const ARENA_CENTRE = { x: 835, y: 640 };
+/** A Master's trial (the open world): his own name, a boss's HP, he can be beaten, and the floor's middle to fall back to. */
+export interface BotTrial { name: string; hp: number; centre: { x: number; y: number } }
 
 interface BotCast { s: FinalSkill; stage: number; t: number; T: { startup: number; active: number; recovery: number }; origin: V3; aim: V2; dist: number }
 
@@ -96,12 +98,16 @@ export class SparringBot {
   private combo: string[] = [];
   private readonly kit: FinalSkill[];
 
-  constructor(scene: Phaser.Scene, x: number, y: number, private api: BotApi, now: number, readonly cls = 'warrior') {
+  /** A trial Master's HP reached zero (beaten). */
+  defeated = false;
+
+  constructor(scene: Phaser.Scene, x: number, y: number, private api: BotApi, now: number, readonly cls = 'warrior', readonly trial: BotTrial | null = null) {
     this.kin = newKin(x, y);
     this.body = new CombatBody(this.kin, true);
-    this.body.maxHp = PVP.maxHp;
+    this.body.maxHp = trial?.hp ?? PVP.maxHp; this.hp = this.body.maxHp;
     this.kit = kitFor(cls);
-    this.view = new RemotePlayer(scene, { playerId: BOT_ID, characterId: BOT_ID, classId: cls, name: `${BOT_NAMES[cls] ?? BOT_NAME} · NPC` }, x, y);
+    this.view = new RemotePlayer(scene, { playerId: BOT_ID, characterId: BOT_ID, classId: cls, name: trial ? trial.name : `${BOT_NAMES[cls] ?? BOT_NAME} · NPC` }, x, y);
+    if (trial) { this.view.maxHp = trial.hp; this.view.setHp(trial.hp); }
     this.view.interpDelay = 0; // simulated locally: show the body exactly where it is
     this.nextAct = now + 1400; // a breath before the first attack
     for (const [id, ms] of Object.entries(OPENING_CD)) this.cdEnd.set(id, now + ms);
@@ -124,7 +130,8 @@ export class SparringBot {
     const msg = { t: 'hp' as const, from: BOT_ID, hp: 0, by: attacker, rx: out.reaction };
     if (out.damage > 0) {
       this.hp -= out.damage;
-      if (this.hp <= 0) { // never dies: the bar refills (the hit itself still lands and flashes)
+      if (this.hp <= 0 && this.trial) { this.hp = 0; this.defeated = true; } // a Master's trial: beaten
+      else if (this.hp <= 0) { // never dies: the bar refills (the hit itself still lands and flashes)
         this.view.setHp(1, { ...msg, hp: 1 });
         this.refilled = PVP.maxHp;
         this.hp = PVP.maxHp;
@@ -230,7 +237,7 @@ export class SparringBot {
     if (this.strafeT <= 0) { this.strafeT = rnd(700, 1600); this.strafe = Math.random() < 0.35 ? (Math.random() < 0.5 ? -1 : 1) : 0; }
     this.avoidT -= ms;
     if (k.grounded && !footAllowed(k.x, k.y, k.z, R)) { // knocked into a prop's edge: ease back out toward the open courtyard
-      const c = unit(ARENA_CENTRE.x - k.x, ARENA_CENTRE.y - k.y);
+      const cc = this.trial?.centre ?? ARENA_CENTRE, c = unit(cc.x - k.x, cc.y - k.y);
       k.x += c.x * 2; k.y += c.y * 2;
     }
     let tx = 0, ty = 0;

@@ -4843,7 +4843,8 @@
      "lines": [
       "A blade is only as strong as the will that holds it.",
       "Grow stronger, young one. When you are ready, the path of the Warrior will be waiting."
-     ]
+     ],
+     "job": "warrior"
     },
     {
      "id": "seraphine",
@@ -4858,7 +4859,8 @@
       "Come back when your mind is ready, and I will teach you the path of the Book Mage."
      ],
      "flip": true,
-     "z": 79
+     "z": 79,
+     "job": "book_mage"
     },
     {
      "id": "rowan",
@@ -4871,7 +4873,8 @@
      "lines": [
       "Patience. The arrow flies true only for those who wait.",
       "When you are ready, the path of the Archer will be open to you."
-     ]
+     ],
+     "job": "archer"
     },
     {
      "id": "hayato",
@@ -4885,7 +4888,8 @@
       "One cut. One breath. Nothing more.",
       "Return when your spirit is calm, and I will show you the path of the Samurai."
      ],
-     "flip": true
+     "flip": true,
+     "job": "samurai"
     },
     {
      "id": "guard_a",

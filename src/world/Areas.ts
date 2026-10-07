@@ -17,6 +17,8 @@ export interface AreaNpc {
   id: string; name: string; title: string; x: number; y: number; art: string;
   /** Faces left (the art faces right). */
   flip?: boolean;
+  /** A class Master: gives this job (and his trial) from level 10. */
+  job?: string;
   /** Stands on a block of this height (drawn that much higher, in front of the block). */
   z?: number;
   /** quest: gives the quests whose `giver` is this NPC; talk: just its lines. */
