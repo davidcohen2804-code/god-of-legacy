@@ -83,6 +83,16 @@ def reach(pic):
   return (pic[4][0] - pic[3][0]) / pic[5]
 
 
+def guard(pic):
+  """Where the guard is: grip point → the guard's middle (the widest part between the grip and the middle of the blade),
+  as a part of grip point → tip. The sword's line (the light blade of Radiant Blade grows from it) runs guard → tip."""
+  col, al, grip, (gx, gy), (tx, ty), K = pic
+  w = (al > 0.5).sum(0); xs = np.arange(len(w))
+  seg = (xs > gx) & (xs < gx + 0.5 * (tx - gx))
+  m = seg & (w >= w[seg].max() - K * 0.5)
+  return float((xs[m].mean() - gx) / (tx - gx))
+
+
 def skin_of(fig, lab, e):
   """Our skin (warm and light: not the steel, not the outline)."""
   R, G, B = e[..., 0], e[..., 1], e[..., 2]

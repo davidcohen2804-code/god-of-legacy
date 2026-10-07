@@ -172,8 +172,12 @@ let BASE_MODE = false;
 import NAKED_LIST from '../data/naked-anims.json';
 import NAKED_HEADS_LIST from '../data/naked-heads.json';
 import NAKED_LOOK_LIST from '../data/naked-look.json';
+import NAKED_BLADES_LIST from '../data/naked-blades.json';
 const NAKED = NAKED_LIST as Record<string, Record<string, number>>;
 const NAKED_HEADS = NAKED_HEADS_LIST as Record<string, Record<string, number[][]>>;
+/** The sword in hand per frame: its line [guardX, guardY, tipX, tipY], cell px from the feet (Radiant Blade's lightning
+ *  lands on its tip and the blade of light grows along it). */
+const NAKED_BLADES = NAKED_BLADES_LIST as Record<string, Record<string, (number[] | null)[]>>;
 const nakedKey = (g: string, anim = 'idle') => `naked-${g}-${anim}`;
 /** The base character's look, drawn as layers on the frame (MapleStory): back hair behind the body, the face, the forehead
  *  between the bangs and the front hair on the head (they move with it: naked-heads.json), the sword arm again where it
@@ -307,7 +311,8 @@ function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): P
     }
   }
   const key = nakedKey(g, anim), [hx, hy] = NAKED_HEADS[g]?.[anim]?.[frame] ?? [0, 0], fx = f.flip ? -1 : 1;
-  return { ...f, key, frame, wkey: `${key}-w`, blade: null, bladeBehind: false, hair: null, head: null, naked: { g, anim, frame, hx, hy },
+  const bl = NAKED_BLADES[g]?.[anim]?.[frame], blade = bl ? bl.map((v, i) => v * SHEET_SCALE * (i % 2 === 0 ? fx : 1)) : null; // (mirrored with the frame)
+  return { ...f, key, frame, wkey: `${key}-w`, blade, bladeBehind: false, hair: null, head: null, naked: { g, anim, frame, hx, hy },
     anchor: f.anchor ? f.anchor.map((v, i) => (i % 2 === 0 ? v + hx * fx * SHEET_SCALE : v + (hy + (i === 1 ? NAKED_HEAD_DROP : 0)) * SHEET_SCALE)) : null };
 }
 /** Base body available for this animation (sheet baked)? */

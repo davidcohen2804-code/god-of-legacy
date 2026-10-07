@@ -41,7 +41,7 @@ FIG_H = 185
 TONE = np.array([1.0, 0.91, 0.83], np.float32)                       # far leg = near leg tone x this (GPT's own shading)
 spec = json.load(open(sys.argv[1])); gender = spec['gender']
 sys.path.insert(0, H); import sword as SWORD                         # the sword in hand: one picture in every frame's fist
-PIC = SWORD.picture(); REACH = SWORD.reach(PIC)
+PIC = SWORD.picture(); REACH = SWORD.reach(PIC); GUARD = SWORD.guard(PIC)   # (the guard: this part of grip → tip)
 SW_PAD = 48; SWORD_W = S + 2 * SW_PAD                                  # the sword strips' cells: wider, the same middle (a thrust
                                                                        #   reaches past the body's cell)
 OUT = G + 'public/assets/final/body/naked/' + gender + '/'
@@ -716,10 +716,11 @@ omasks = {}                                                    #   over the swor
 os.makedirs(OUT + 'gear', exist_ok=True)
 for old in [OUT + 'gear/' + f_ for f_ in os.listdir(OUT + 'gear')]: os.remove(old)
 strips, masks, heads, refs, holds = {}, {}, {}, {}, {}         # heads: where the standing head sits per frame (cell px)
+blades = {}                                                    # per frame: the sword's line, guard → tip (cell px from the feet)
 move_sc, move_hw, move_hd = {}, {}, {}                         # per move: its scale, its GPT head width / inscribed size
 for anim, cells in spec['anims'].items():
   if isinstance(cells, dict): continue                         # derived moves (run) below
-  n = len(cells); px = np.zeros((S, n * S, 4), np.uint8); mk = np.zeros((S, n * S, 4), np.uint8); heads[anim] = []
+  n = len(cells); px = np.zeros((S, n * S, 4), np.uint8); mk = np.zeros((S, n * S, 4), np.uint8); heads[anim] = []; blades[anim] = [None] * n
   ostrips[anim] = np.zeros((S, n * S, 4), np.uint8); omasks[anim] = np.zeros((S, n * S), np.float32)
   gcells[anim] = {p_: [None] * n for p_ in GEAR_PIECES + ('sword',)}
   order = list(range(n)); cl = [o for c_ in cells for o in c_[2:] if str(o).startswith('clean:')]; cell_sc = {}
@@ -817,6 +818,9 @@ for anim, cells in spec['anims'].items():
       if swb_ >= bb_ - 8: L_[swb_ + 1:, :, 3] = 0
     gcells[anim]['sword'][c] = L_
     if anim == 'idle': IDLE_GRIP = grip
+    ca_, sa_ = np.cos(np.radians(grip[1])), np.sin(np.radians(grip[1]))   # its line, guard → tip, from the feet (S / 2, GROUND):
+    blades[anim][c] = [round(float(v), 1) for v in (grip[0][0] + ca_ * GUARD * grip[2] - S / 2, grip[0][1] + sa_ * GUARD * grip[2] - GROUND,
+                                                    grip[0][0] + ca_ * grip[2] - S / 2, grip[0][1] + sa_ * grip[2] - GROUND)]   # effects ride it
     D = dressed(path, idx)
     if D and front_ is not None:                               # GPT's sword's last bits by the fist (a pommel, a guard tip):
       dl_ = np.roll(np.roll(layer_to_cell(D['all'], geom), shift[0], 0), shift[1], 1); da_ = dl_[..., 3]   # gone where GPT's
@@ -910,6 +914,10 @@ hp = G + 'src/data/naked-heads.json'                           # per frame: the 
 hh = json.load(open(hp)) if os.path.exists(hp) else {}
 hh[gender] = heads
 open(hp, 'w').write(json.dumps(hh, separators=(',', ':')) + '\n')
+bp = G + 'src/data/naked-blades.json'                          # per frame: the sword's line [guardX, guardY, tipX, tipY] (cell px from
+bb = json.load(open(bp)) if os.path.exists(bp) else {}         #   the feet; Radiant Blade's lightning and blade of light ride it)
+bb[gender] = {a: blades.get(a, [None] * (strips[a].shape[1] // S)) for a in strips}
+open(bp, 'w').write(json.dumps(bb, separators=(',', ':')) + '\n')
 # menu image (full size standing figure) for character select / create / portraits
 pp, pi = spec.get('preview', spec['anims']['idle'][0][:2])
 f = figures(pp)[pi]; x0, y0, x1, y1 = f['box']
