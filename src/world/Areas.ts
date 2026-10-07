@@ -68,11 +68,10 @@ export const toWorld = (id: string, p: Pt | { x: number; y: number }): { x: numb
 /** The area whose stretch of the strip holds world x. */
 export const areaAt = (x: number): AreaDef => ROW.find((a) => x < a.span[1]) ?? ROW[ROW.length - 1];
 
-const shift = (pts: readonly Pt[], ox: number): Pt[] => pts.map((p) => [p[0] + ox, p[1]] as Pt);
-/** Every prop of the world in world coordinates (for WorldGeometry). */
+/** Every prop of the world — the maps' and the joins' (and blocks standing in the middle of a floor) — in world px, as
+ *  tools/world/strip.py laid them out; id = "<area>-<prop>" / "<a>_<b>-<prop>" (= its occluder cut-out). */
 export function worldObjects(): WorldObject[] {
-  return ROW.flatMap((a) => a.props.map((p) => {
-    const foot = shift(p.foot, a.x), occ = p.occ ? shift(p.occ, a.x) : [];
-    return { id: `${a.id}:${p.id}`, footprint: foot, height: p.h, ...(p.top !== undefined ? { topZ: p.top } : {}), cover: 'hard' as const, occluder: occ, frontY: Math.max(...foot.map((q) => q[1])) + 1 };
+  return (STRIP.props as { id: string; foot: Pt[]; h: number; top?: number }[]).map((p) => ({
+    id: p.id, footprint: p.foot, height: p.h, ...(p.top !== undefined ? { topZ: p.top } : {}), cover: 'hard' as const, occluder: [], frontY: Math.max(...p.foot.map((q) => q[1])) + 1,
   }));
 }
