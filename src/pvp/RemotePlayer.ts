@@ -11,6 +11,7 @@ import { ClassKey, cleanLook, loadBaseLook, resolvePose } from '../game/Body';
 import { DEFAULT_SKIN, SKIN_TONES } from '../characters/Skin';
 import { WornLook, parseWornCode } from '../items/Gear';
 import { AnimSnap, Mode, poseQuery } from '../game/PoseState';
+import { Afterimages, applyMotion, archerMotion } from '../skills/ArcherMotion';
 import { finalSkill } from '../skills/FinalKit';
 
 const asDir = (d: string): Dir => (d === 'left' ? 'left' : 'right'); // side view only
@@ -28,6 +29,7 @@ export class RemotePlayer {
   private vz = 0;
   sz = 0;
   aim = { x: 0, y: 1 };
+  private afterimg?: Afterimages;
   private skill: { id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number; seed?: number } | null = null;
   private flashMs = -1;
   private deadMs = -1;
@@ -148,6 +150,11 @@ export class RemotePlayer {
     const snap: AnimSnap = { mode: this.skill ? 'skill' : this.mode, t: this.modeT, speed: this.speed, vz: this.vz, skill: this.skill ?? undefined, stunMs: 200 };
     const pose = resolvePose(this.meta.classId as ClassKey, this.dir, poseQuery(snap), this.view.wantsBase, this.meta.gender === 'female' ? 'female' : 'male');
     this.view.render(ms, pose, x, y, z, this.sz, this.dir, alpha, tint, fill);
+    if (this.meta.classId === 'archer') { // the same body motion the caster sees
+      const m = this.skill && this.alive ? archerMotion(this.skill.id, this.skill.elapsed, this.skill, this.dir === 'left' ? -1 : 1) : null;
+      applyMotion(this.view.motionSprites, m);
+      (this.afterimg ??= new Afterimages(this.scene)).step(this.scene.time.now, this.view.sprite, !!m?.after);
+    }
     const top = y - z - 116 - PVP.remoteLabel.gap;
     this.label.setPosition(Math.round(x), Math.round(top - PVP.hpBar.h - 3));
     this.bar.setPosition(Math.round(x), Math.round(top));
