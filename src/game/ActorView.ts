@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import COS from '../data/cosmetics.json';
 import { Dir } from '../world/collision';
 import { actorDepth } from '../world/WorldGeometry';
-import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM, baseComplete, ensureWeaponMasks, BaseLook, baseLookLayers, hasOver, overKey, NAKED_LOOK, GearLook, GearPiece, gearLayers, loadGear } from './Body';
+import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM, baseComplete, ensureWeaponMasks, BaseLook, baseLookLayers, hasOver, overKey, NAKED_LOOK, GearLook, GearPiece, gearLayers, loadGear, swingTrail } from './Body';
 /** Name plates sit above the world (props in front included), like MapleStory's. */
 export const NAME_DEPTH = 90000;
 import { DEFAULT_SKIN, toneTexture } from '../characters/Skin';
@@ -211,17 +211,12 @@ const DIR_COL: Record<Dir, number> = { down: 0, right: 1, left: 2, up: 3 };
 /** Head-item fit per view (down/right/left/up): width = hair width × w; lower edge = hair bottom + b × hair width; dx = forward shift. */
 const HEAD_FIT = [{ w: 1.3, b: 0.12, dx: 0 }, { w: 1.32, b: 0.12, dx: 0.04 }, { w: 1.32, b: 0.12, dx: 0.04 }, { w: 1.4, b: 0.18, dx: 0 }];
 
-/** Body frame cross-fade length (ms). */
-const FADE_MS = 90;
 /** The worn pieces over the body frame: pants, boots, shirt under the face and hair; the shirt again over the sword arm
  *  drawn over the hair; the sword in hand on top. */
 const GEAR_DEPTH: Record<GearPiece, number> = { pants: 0.001, shoes: 0.0013, top: 0.0016, topo: 0.0085, sword: 0.009 };
 
 export class ActorView {
   readonly sprite: Phaser.GameObjects.Sprite;
-  /** Cross-fade: the previous body frame, fading out under the new one (smooth frame changes in skills and stances). */
-  private ghost!: Phaser.GameObjects.Sprite;
-  private ghostLeft = 0;
   readonly weapon: Phaser.GameObjects.Sprite;
   readonly weaponGlow: Phaser.GameObjects.Sprite;
   readonly shadow: Phaser.GameObjects.Image;
@@ -272,9 +267,9 @@ export class ActorView {
   private gearParts: Partial<Record<GearPiece, Phaser.GameObjects.Sprite>> = {};
   /** The sword is not drawn (set by the owner: Judgment Blade's leap, between its throws and on the way down). */
   swordOff = false;
-  /** Cross-fade: the worn pieces of the previous body frame, fading out with it. */
-  private ghostGear: Partial<Record<GearPiece, Phaser.GameObjects.Sprite>> = {};
-  private ghostGearOn = new Set<GearPiece>();
+  /** A regular attack's swing: the sword's afterimage (MapleStory), drawn with the character, fading fast. */
+  private trails: { g: Phaser.GameObjects.Graphics; age: number; life: number; a0: number }[] = [];
+  private lastSwing: { anim: string; frame: number } | null = null;
   setGear(w: GearLook | null, gender: 'male' | 'female' = 'male'): void {
     this.gearW = w ? { ...w } : null;
     if (w) this.ensureLookParts();
@@ -295,7 +290,6 @@ export class ActorView {
   constructor(private scene: Phaser.Scene, readonly cls: ClassKey, x: number, y: number) {
     this.shadow = scene.add.image(x, y, 'contact-shadow').setOrigin(0.5, 0.5);
     this.ring = scene.add.ellipse(x, y, 70, 26).setStrokeStyle(3, 0x4aa8ff, 0.85).setFillStyle(0x4aa8ff, 0.1);
-    this.ghost = scene.add.sprite(x, y, '__DEFAULT').setVisible(false);
     this.sprite = scene.add.sprite(x, y, '__DEFAULT');
     this.weapon = scene.add.sprite(x, y, '__DEFAULT').setVisible(false);
     this.weaponGlow = scene.add.sprite(x, y, '__DEFAULT').setVisible(false).setBlendMode(Phaser.BlendModes.ADD);
@@ -336,7 +330,6 @@ export class ActorView {
   render(ms: number, pose: PoseFrame, x: number, y: number, z: number, supportZ: number, dir: Dir, alpha = 1, tint: number | null = null, tintFill = false): void {
     this.t += ms;
     const p = this.sprite;
-    const prevKey = p.texture.key, prevFrame = p.frame.name, prevFlip = p.flipX, prevOx = p.originX, prevOy = p.originY, prevSx = p.scaleX, prevSy = p.scaleY;
     if (pose.naked && this.look && this.look.skin !== DEFAULT_SKIN) { const tk = toneTexture(this.scene, pose.key, this.look.skin); if (tk) pose = { ...pose, key: tk }; } // the body in its skin tone
     const top = pose.anchor ? -pose.anchor[1] : 100;
     this.headHeight = this.headHeight ? this.headHeight + (top - this.headHeight) * Math.min(1, ms / 90) : top;
@@ -375,34 +368,17 @@ export class ActorView {
         }
       } else { this.blade.setVisible(false); this.bladeTop?.setVisible(false); }
     }
-    // Cross-fade between body frames (not inside the walk / run cycles, which read better crisp).
-    const changed = prevKey !== '__DEFAULT' && (p.texture.key !== prevKey || p.frame.name !== prevFrame) && prevFlip === p.flipX;
-    const loop = /(?:^|[-_])(walk|run)(?:$|[-_])/.test(p.texture.key) || /(?:^|[-_])(walk|run)(?:$|[-_])/.test(prevKey);
-    if (changed && !loop && this.visible) {
-      this.ghost.setTexture(prevKey, prevFrame).setFlipX(prevFlip).setOrigin(prevOx, prevOy).setScale(prevSx, prevSy);
-      this.ghostLeft = FADE_MS;
-      this.ghostGearOn.clear(); // what the previous frame wore goes with it (the pieces still show that frame here)
-      for (const [piece, sp] of Object.entries(this.gearParts) as [GearPiece, Phaser.GameObjects.Sprite][]) {
-        if (!sp.visible) continue;
-        const gs = this.ghostGear[piece] ?? (this.ghostGear[piece] = this.scene.add.sprite(0, 0, '__DEFAULT'));
-        gs.setTexture(sp.texture.key, sp.frame.name).setFlipX(sp.flipX).setOrigin(sp.originX, sp.originY).setScale(sp.scaleX, sp.scaleY);
-        this.ghostGearOn.add(piece);
-      }
-    } else if (changed) this.ghostLeft = 0;
-    if (this.ghostLeft > 0 && this.visible) {
-      this.ghostLeft = Math.max(0, this.ghostLeft - ms);
-      const k = this.ghostLeft / FADE_MS;
-      this.ghost.setPosition(p.x, p.y).setDepth(depth - 0.005).setAlpha(alpha * 0.85 * k).setVisible(k > 0);
-      p.setAlpha(alpha * (1 - 0.35 * k)); // the new frame comes in as the old one goes
-      if (tint === null) this.ghost.clearTint(); else if (tintFill) this.ghost.setTintFill(tint); else this.ghost.setTint(tint);
-      for (const [piece, gs] of Object.entries(this.ghostGear) as [GearPiece, Phaser.GameObjects.Sprite][]) {
-        const on = this.ghostGearOn.has(piece) && k > 0;
-        gs.setVisible(on); if (!on) continue;
-        gs.setPosition(p.x, p.y).setDepth(depth - 0.005 + GEAR_DEPTH[piece] * 0.5).setAlpha(alpha * 0.85 * k); // under the new frame
-        if (tint === null) gs.clearTint(); else if (tintFill) gs.setTintFill(tint); else gs.setTint(tint);
-      }
-    } else { this.ghost.setVisible(false); for (const gs of Object.values(this.ghostGear)) gs?.setVisible(false); }
+    // MapleStory: frame by frame, no blending between the body's frames
     this.renderLook(pose, depth, alpha, tint, tintFill);
+    const nk = pose.naked; // the swing reached its strike / follow-through: the blade's afterimage from the frame before
+    if (nk?.swing && this.visible && this.gearW?.weapon && !this.swordOff && this.lastSwing?.anim === nk.anim && nk.frame === this.lastSwing.frame + 1) this.addTrail(nk.g, nk.anim, this.lastSwing.frame, nk.frame, pose); // (a sword in hand)
+    this.lastSwing = nk?.swing ? { anim: nk.anim, frame: nk.frame } : null;
+    this.trails = this.trails.filter((t) => {
+      t.age += ms;
+      if (t.age >= t.life || !this.visible) { t.g.destroy(); return false; }
+      t.g.setPosition(p.x, p.y).setDepth(depth + 0.0095).setAlpha(alpha * t.a0 * (1 - t.age / t.life));
+      return true;
+    });
     // Weapon skin: tinted copy of the real weapon pixels of this exact frame.
     const ws = this.equipped.weapon ? WEAPON_TINT[this.equipped.weapon] : undefined;
     const showW = !!ws && this.visible && this.scene.textures.exists(pose.wkey);
@@ -551,17 +527,35 @@ export class ActorView {
   setVisible(v: boolean): void {
     if (!v && this.lookParts) for (const im of [...Object.values(this.lookParts), ...Object.values(this.gearParts)]) im?.setVisible(false);
     this.visible = v;
-    this.sprite.setVisible(v); if (!v) { this.ghost.setVisible(false); this.ghostLeft = 0; for (const gs of Object.values(this.ghostGear)) gs?.setVisible(false); } this.shadow.setVisible(v); this.ring.setVisible(v); this.weapon.setVisible(v && this.weapon.visible); this.weaponGlow.setVisible(v && this.weaponGlow.visible); this.blade?.setVisible(v && this.blade.visible); this.bladeTop?.setVisible(v && this.bladeTop.visible);
+    this.sprite.setVisible(v); this.shadow.setVisible(v); this.ring.setVisible(v); this.weapon.setVisible(v && this.weapon.visible); this.weaponGlow.setVisible(v && this.weaponGlow.visible); this.blade?.setVisible(v && this.blade.visible); this.bladeTop?.setVisible(v && this.bladeTop.visible);
     for (const l of Object.values(this.layers)) l?.setVisible(v);
   }
 
+  /** The sword's afterimage between two frames of a swing (MapleStory): a thin band of white light along the blade's sweep,
+   *  brightest at the blade's end of it, in front of the character. */
+  private addTrail(g: string, anim: string, a: number, b: number, pose: PoseFrame): void {
+    const tr = swingTrail(g, anim, a, b);
+    if (!tr) return;
+    const k = pose.scale, fx = pose.flip ? -k : k, P = (q: number[]) => ({ x: q[0] * fx, y: q[1] * k });
+    const gr = this.scene.add.graphics(), N = tr.outer.length - 1;
+    for (let i = 0; i < N; i++) { // older part faint, the newest bright
+      const w = (i + 1) / N;
+      gr.fillStyle(0xffffff, 0.08 + 0.5 * w * w).fillPoints([P(tr.outer[i]), P(tr.outer[i + 1]), P(tr.inner[i + 1]), P(tr.inner[i])], true);
+    }
+    gr.lineStyle(1.6, 0xffffff, 0.85); gr.beginPath(); // a fine bright edge on the outside (the blade's tip)
+    for (let i = Math.floor(N * 0.35); i <= N; i++) { const q = P(tr.outer[i]); if (i === Math.floor(N * 0.35)) gr.moveTo(q.x, q.y); else gr.lineTo(q.x, q.y); }
+    gr.strokePath();
+    this.trails.push({ g: gr, age: 0, life: a === 0 ? 170 : 140, a0: a === 0 ? 1 : 0.7 });
+  }
+
   destroy(): void {
-    this.sprite.destroy(); this.ghost.destroy(); this.weapon.destroy(); this.weaponGlow.destroy(); this.shadow.destroy(); this.ring.destroy();
+    for (const t of this.trails) t.g.destroy(); this.trails = [];
+    this.sprite.destroy(); this.weapon.destroy(); this.weaponGlow.destroy(); this.shadow.destroy(); this.ring.destroy();
     for (const l of Object.values(this.layers)) l?.destroy();
     this.nameText?.destroy(); this.nameFrame?.destroy();
     this.layers = {}; this.blade?.destroy(); this.blade = null; this.bladeTop?.destroy(); this.bladeTop = null;
     if (this.lookParts) for (const im of Object.values(this.lookParts)) im.destroy();
-    for (const im of [...Object.values(this.gearParts), ...Object.values(this.ghostGear)]) im?.destroy();
-    this.lookParts = null; this.gearParts = {}; this.ghostGear = {}; this.ghostGearOn.clear();
+    for (const im of Object.values(this.gearParts)) im?.destroy();
+    this.lookParts = null; this.gearParts = {};
   }
 }

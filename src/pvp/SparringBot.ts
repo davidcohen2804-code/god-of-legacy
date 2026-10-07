@@ -10,6 +10,7 @@ import { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import { finalSkill, kitFor } from '../skills/FinalKit';
 import { HitTarget, V2, V3, unit } from '../skills/HitGeometry';
 import { Mode } from '../game/PoseState';
+import { sideAim } from '../game/Body';
 import { Dir } from '../world/collision';
 import { footAllowed } from '../world/WorldGeometry';
 import { RemotePlayer } from './RemotePlayer';
@@ -262,7 +263,7 @@ export class SparringBot {
     const s = finalSkill(id);
     if (!s || !this.kin.grounded && !s.air) return false;
     const k = this.kin, p = w.player;
-    const aim = unit(p.x - k.x, p.y - k.y, this.dir === 'right' ? 1 : -1, 0);
+    const u = unit(p.x - k.x, p.y - k.y, this.dir === 'right' ? 1 : -1, 0), aim = sideAim(u.x, u.y, this.dir === 'left' ? -1 : 1); // (side / corner)
     this.aim = aim; this.dir = aim.x >= 0 ? 'right' : 'left';
     const T = s.chain?.timings?.[stage] ?? { startup: s.startup, active: s.active, recovery: s.recovery };
     let dist = s.dash?.distance ?? 0;

@@ -140,8 +140,8 @@ export interface PoseFrame {
   /** Head fit for hairstyles: [crownX, crownY (rel. feet, world px), tilt deg] (warrior). */
   head?: number[] | null;
   /** The clean base character's frame: its move, and where the head sits (cell px from the standing head) for the look layers;
-   *  bare = no sword in hand (a skill played with the hand free). */
-  naked?: { g: string; anim: string; frame: number; hx: number; hy: number; bare?: boolean };
+   *  bare = no sword in hand (a skill played with the hand free); swing = a regular attack's swing (the sword leaves its afterimage). */
+  naked?: { g: string; anim: string; frame: number; hx: number; hy: number; bare?: boolean; swing?: boolean };
 }
 
 type AnchorTable = Record<string, (number[] | null)[][] | Record<string, (number[] | null)[]>>;
@@ -318,8 +318,35 @@ function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): P
   const key = nakedKey(g, anim), [hx, hy] = NAKED_HEADS[g]?.[anim]?.[frame] ?? [0, 0], fx = f.flip ? -1 : 1;
   const bare = q.k === 'skill' && NB_BARE.has(q.id); // no sword in hand
   const bl = bare ? null : NAKED_BLADES[g]?.[anim]?.[frame], blade = bl ? bl.map((v, i) => v * SHEET_SCALE * (i % 2 === 0 ? fx : 1)) : null; // (mirrored with the frame)
-  return { ...f, key, frame, wkey: `${key}-w`, blade, bladeBehind: false, hair: null, head: null, naked: { g, anim, frame, hx, hy, bare },
+  const swing = q.k === 'skill' && q.id === 'warrior_basic';
+  return { ...f, key, frame, wkey: `${key}-w`, blade, bladeBehind: false, hair: null, head: null, naked: { g, anim, frame, hx, hy, bare, swing },
     anchor: f.anchor ? f.anchor.map((v, i) => (i % 2 === 0 ? v + hx * fx * SHEET_SCALE : v + (hy + (i === 1 ? NAKED_HEAD_DROP : 0)) * SHEET_SCALE)) : null };
+}
+/** The sword's afterimage between two frames of a regular attack's swing (MapleStory: a thin trail of light behind the
+ *  blade, nothing else): the outer part of the band the blade sweeps, as its outer edge (the tip's path) and inner edge,
+ *  cell px from the feet, facing right. Overhead (swing1): over and down; rising (swing3): under and up; the level cut
+ *  (swing2) passes in front of the body: a flat, slightly sagging streak; a follow-through turns the short way. */
+export function swingTrail(g: string, anim: string, a: number, b: number): { outer: number[][]; inner: number[][] } | null {
+  const A = NAKED_BLADES[g]?.[anim]?.[a], B = NAKED_BLADES[g]?.[anim]?.[b];
+  if (!A || !B) return null;
+  const N = 16, IN = 0.42, outer: number[][] = [], inner: number[][] = [];
+  const ang = (l: number[]) => Math.atan2(l[3] - l[1], l[2] - l[0]), len = (l: number[]) => Math.hypot(l[2] - l[0], l[3] - l[1]);
+  const flat = anim === 'swing2' && a === 0, turn = anim === 'swing1' ? 1 : anim === 'swing3' ? -1 : 0;
+  const a0 = ang(A); let a1 = ang(B);
+  if (turn > 0) while (a1 <= a0) a1 += 2 * Math.PI;
+  else if (turn < 0) while (a1 >= a0) a1 -= 2 * Math.PI;
+  else { while (a1 - a0 > Math.PI) a1 -= 2 * Math.PI; while (a1 - a0 < -Math.PI) a1 += 2 * Math.PI; }
+  for (let i = 0; i <= N; i++) {
+    const t = i / N, gx = A[0] + (B[0] - A[0]) * t, gy = A[1] + (B[1] - A[1]) * t;
+    if (flat) {
+      const tx = A[2] + (B[2] - A[2]) * t, ty = A[3] + (B[3] - A[3]) * t, s = Math.sin(Math.PI * t);
+      outer.push([tx, ty + 16 * s]); inner.push([tx, ty + 3 * s]);
+    } else {
+      const an = a0 + (a1 - a0) * t, L = len(A) + (len(B) - len(A)) * t;
+      outer.push([gx + Math.cos(an) * L, gy + Math.sin(an) * L]); inner.push([gx + Math.cos(an) * L * IN, gy + Math.sin(an) * L * IN]);
+    }
+  }
+  return { outer, inner };
 }
 /** Base body available for this animation (sheet baked)? */
 export const hasBase = (cls: string, anim: string): boolean => cls === 'warrior' && BASE_ANIMS.has(anim);
@@ -571,6 +598,13 @@ export function dirOf(x: number, y: number, fallback: Dir): Dir {
   const fb: Dir = fallback === 'left' ? 'left' : 'right';
   if (Math.abs(x) < 1e-6) return fb;
   return x > 0 ? 'right' : 'left';
+}
+/** An attack's direction in side view: to the side or to a corner, never straight up or down — within 22.5° of level it
+ *  goes straight to the side, else along the 45° diagonal on that side (straight up / down: the facing side). */
+export function sideAim(x: number, y: number, facing: number): { x: number; y: number } {
+  const sx = Math.abs(x) < 1e-6 ? (facing < 0 ? -1 : 1) : Math.sign(x);
+  if (Math.abs(y) <= Math.abs(x) * Math.tan(Math.PI / 8)) return { x: sx, y: 0 };
+  return { x: sx * Math.SQRT1_2, y: Math.sign(y) * Math.SQRT1_2 };
 }
 /** Side-view facing for any stored/remote direction value. */
 export const sideDir = (d: Dir | string): Dir => (d === 'left' ? 'left' : 'right');

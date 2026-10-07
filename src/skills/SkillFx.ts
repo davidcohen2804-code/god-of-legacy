@@ -21,6 +21,12 @@ const TOP = 100000;
  *  first digit is drawn bigger than the rest and the rest step 2 px down / up in turn (its two digit sets). Sizes here: the
  *  same proportions to our digits (a normal digit DMG_SCALE of the sheet, ~34 px tall). */
 const DMG_SCALE = 0.45, DMG_RISE = 39, DMG_SOLID = 250, DMG_LIFE = 750, DMG_ROW = 38, DMG_ROW_CRIT = 46, DMG_ZIG = 2.5;
+/** A new number takes the lowest row whose number is gone or already fading (that one then fades out within DMG_GIVE_UP ms),
+ *  so a column holds one attack's lines and never climbs away; at most DMG_ROWS rows. */
+const DMG_GIVE_UP = 120, DMG_ROWS = 8;
+/** One damage line on screen: rises from y; `quick` = it gave its row up (fading out from that age, from that alpha). */
+interface DmgLine { t: Phaser.GameObjects.Container; age: number; x: number; y: number; crit: boolean; done?: boolean; quick?: { at: number; a: number } }
+const dmgAlpha = (d: DmgLine): number => d.age < DMG_SOLID ? 1 : Math.max(0, 1 - (d.age - DMG_SOLID) / (DMG_LIFE - DMG_SOLID));
 const GROUND = 2;
 
 /** Archer sheets whose frame size differs from the slot default (w, h). */
@@ -131,11 +137,12 @@ export class SkillFx {
   private teles: Tele[] = [];
   private projs = new Map<Projectile, Phaser.GameObjects.Image>();
   private traps = new Map<Trap, Phaser.GameObjects.Image[]>();
-  private texts: { t: Phaser.GameObjects.Container; age: number; x: number; y: number }[] = [];
+  private texts: DmgLine[] = [];
   private dark?: Phaser.GameObjects.Rectangle;
   private darkLeft = 0;
   private dmgSeq = 0;
-  private dmgStacks: { x: number; y: number; line: number; last: number; prev: { y: number; age: number } | null; crit: boolean }[] = [];
+  /** Per target, the rows above its head: the number in each (MapleStory: a new attack's number starts above the head). */
+  private dmgCols: { x: number; y: number; last: number; rows: (DmgLine | null)[] }[] = [];
   /** Local presentation freeze (ms) requested by confirmed hits (scene applies it to the local actor + VFX only). */
   hitStopLeft = 0;
   /** Where the caster's raised hand is right now (set by the scene from the body pose). */
@@ -168,7 +175,7 @@ export class SkillFx {
 
   private onCast(r: CastRun): void {
     const s = r.skill;
-    if (s.id === 'warrior_basic' && this.unarmed?.(r.attackerId)) return;
+    if (s.id === 'warrior_basic') return; // MapleStory: a regular attack has no effect of its own — the sword leaves its afterimage (ActorView)
     if (ARCHER_OWN.has(s.id)) { // archer skills with their own art timeline
       if (s.telegraph && s.slot !== 7) this.telegraph(r);
       this.archerCast(r);
@@ -587,11 +594,10 @@ export class SkillFx {
   finalSlash(at: V3, dir: number, big = false): void {
     const x = at.x, y = at.y - at.z - 40;
     if (this.scene.textures.exists('pas-final_slash')) {
-      const img = this.scene.add.image(x, y, 'pas-final_slash', 0).setDepth(TOP + 5).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(big ? 200 : 150, big ? 200 : 150).setFlipX(dir < 0);
+      const img = this.scene.add.image(x, y, 'pas-final_slash', 0).setDepth(TOP + 5).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(big ? 120 : 96, big ? 120 : 96).setFlipX(dir < 0).setAlpha(0.7).setData('a0', 0.7); // (delicate, as a regular attack's)
       const fms = [30, 30, 40, 50, 50, 50, 60, 70];
       this.anims.push({ img, t: 0, total: fms.reduce((p, q) => p + q, 0), frames: [0, 1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 70 });
     }
-    this.spark(IMPACT.warrior.key, x, y + 10, IMPACT.warrior.frames, 80, 0.85);
   }
 
   /** War Leap: burst of wind under the feet (sheet faces right; streaks blow behind). */
@@ -871,7 +877,7 @@ export class SkillFx {
     const tier = tierOf(s, hit);
     const k = IMPACT[s.cls] ?? IMPACT.warrior;
     const im = s.cls === 'warrior' ? 0.8 : 1; // MapleStory: a small, quick hit spark on the target (no flash over the body)
-    this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.4 : hit.heavy ? 1.15 : 1), 0.8);
+    if (s.id !== 'warrior_basic') this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.4 : hit.heavy ? 1.15 : 1), 0.8); // (a regular attack: none, as in MapleStory)
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).
     if (tier !== 'ultimate' && reaction === 'launch') this.spark(IMPACT.dust.key, at.x, at.y + 4, 6, 90, 0.5);
     if (tier !== 'ultimate' && (reaction === 'knockdown' || reaction === 'slam')) this.spark(IMPACT.dust.key, at.x, at.y + 6, 6, 110, 0.55);
@@ -887,15 +893,22 @@ export class SkillFx {
   /** MapleStory damage: each hit of a burst stacks one line higher above the target; chubby, puffy digits — orange for a
    *  normal hit; a critical one bigger, pink-red, with the critical star at its left (no "CRITICAL" text). */
   damageNumber(at: V3, dmg: number, heavy: boolean, combo: number, local = false, crit = false): void {
-    // One column per target: a new hit within 700ms near the last column stacks on top of it (same x, one line above where
-    // the last line is now — they all rise together).
-    const now = this.scene.time.now;
-    let st = this.dmgStacks.find((d) => now - d.last < 700 && Math.abs(d.x - at.x) < 160 && Math.abs(d.y - at.y) < 120), y: number;
-    if (st?.prev && st.line < 9) { st.line += 1; st.last = now; y = st.prev.y - (DMG_RISE * st.prev.age) / 1000 - (st.crit ? DMG_ROW_CRIT : DMG_ROW); }
-    else { if (st) this.dmgStacks.splice(this.dmgStacks.indexOf(st), 1); st = { x: at.x, y: at.y - at.z, line: 0, last: now, prev: null, crit: false }; this.dmgStacks.push(st); y = st.y - 96; }
-    st.crit = crit;
-    this.dmgStacks = this.dmgStacks.filter((d) => now - d.last < 1500);
-    const line = st.line, x = st.x, column = st;
+    // The target's column: the lowest row free (its number gone, or already fading: that one gives the row up) — a burst's
+    // lines stack up one row each, a new attack starts again just above the head; a row sits one line above the row
+    // below, where that line is now (they all rise at one speed: the spacing stays).
+    const now = this.scene.time.now, hy = at.y - at.z;
+    this.dmgCols = this.dmgCols.filter((d) => now - d.last < 1500);
+    let col = this.dmgCols.find((d) => Math.abs(d.x - at.x) < 160 && Math.abs(d.y - hy) < 120);
+    if (!col) { col = { x: at.x, y: hy, last: now, rows: [] }; this.dmgCols.push(col); }
+    col.last = now;
+    const live = (d: DmgLine | null | undefined): d is DmgLine => !!d && !d.done && !d.quick;
+    let line = 0;
+    while (line < DMG_ROWS - 1 && live(col.rows[line]) && col.rows[line]!.age < DMG_SOLID) line++;
+    const old = col.rows[line];
+    if (live(old)) old.quick = { at: old.age, a: dmgAlpha(old) };
+    const below = line > 0 ? col.rows[line - 1] : null;
+    const x = col.x, y = live(below) ? below.y - (DMG_RISE * below.age) / 1000 - (below.crit ? DMG_ROW_CRIT : DMG_ROW) : hy - 96;
+    const column = { put: (d: DmgLine) => { col!.rows[line] = d; } };
     const c = this.scene.add.container(x, y).setDepth(TOP + 20 + line * 0.01);
     const sk = local ? this.damageSkin : null;
     void heavy;
@@ -905,7 +918,7 @@ export class SkillFx {
       if (crit) c.add(this.scene.add.image(-total / 2 - H * 0.35, -4, sk.key, 10).setScale(sc * 1.05));
       let xx = -total / 2;
       digits.forEach((d, i) => { c.add(this.scene.add.image(xx + adv[i] / 2, (i % 2 ? 2 : -2), sk.key, d).setScale(sc)); xx += adv[i]; });
-      const rec = { t: c, age: 0, x, y }; this.texts.push(rec); column.prev = rec;   // (appears at once, like the digits below)
+      const rec: DmgLine = { t: c, age: 0, x, y, crit }; this.texts.push(rec); column.put(rec);   // (appears at once, like the digits below)
       return;
     }
     const dk = crit ? 'dmg-c' : 'dmg-n';
@@ -932,7 +945,7 @@ export class SkillFx {
       if (crit) c.add(this.scene.add.image(-txt.width / 2 - 2, -4, this.critMark()).setDisplaySize(62, 62).setBlendMode(Phaser.BlendModes.ADD));
       c.add(txt);
     }
-    const rec = { t: c, age: 0, x, y }; this.texts.push(rec); column.prev = rec;   // appears at once (no pop)
+    const rec: DmgLine = { t: c, age: 0, x, y, crit }; this.texts.push(rec); column.put(rec);   // appears at once (no pop)
     void combo;
   }
 
@@ -1012,8 +1025,9 @@ export class SkillFx {
     this.texts = this.texts.filter((d) => { // damage numbers rise at one speed: solid, then fading out
       d.age += ms;
       d.t.setPosition(d.x, d.y - (DMG_RISE * d.age) / 1000);
-      d.t.setAlpha(d.age < DMG_SOLID ? 1 : Math.max(0, 1 - (d.age - DMG_SOLID) / (DMG_LIFE - DMG_SOLID)));
-      if (d.age >= DMG_LIFE) { d.t.destroy(); return false; }
+      const a = d.quick ? d.quick.a * Math.max(0, 1 - (d.age - d.quick.at) / DMG_GIVE_UP) : dmgAlpha(d);
+      d.t.setAlpha(a);
+      if (d.age >= DMG_LIFE || (d.quick && d.age - d.quick.at >= DMG_GIVE_UP)) { d.t.destroy(); d.done = true; return false; }
       return true;
     });
     if (this.dark && this.darkLeft > 0) {
@@ -1193,7 +1207,7 @@ export class SkillFx {
     for (const l of this.traps.values()) for (const i of l) i.destroy();
     for (const d of this.texts) d.t.destroy();
     this.dark?.destroy();
-    this.anims = []; this.teles = []; this.projs.clear(); this.traps.clear(); this.texts = [];
+    this.anims = []; this.teles = []; this.projs.clear(); this.traps.clear(); this.texts = []; this.dmgCols = [];
   }
 }
 

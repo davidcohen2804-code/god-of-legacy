@@ -47,7 +47,7 @@ import { CombatInput } from '../game/CombatInput';
 import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey, damageSkin, wantsWeaponMasks } from '../game/ActorView';
 import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
-import { baseLoop, ClassKey, dirOf, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame } from '../game/Body';
+import { baseLoop, ClassKey, dirOf, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame, sideAim } from '../game/Body';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
 import { CombatBody, GAUGE, HitOutcome, Kin, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
@@ -647,7 +647,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.id === 'judgment_blade') { // leap high, hang at the apex while the light-blade charges, throw, then drop
       if (!run.jbInit) { run.jbInit = true; run.jbApex = this.jb ? 0 : run.origin.z > 5 ? 80 : 185; if (this.jb) { run.timings.startup = run.jbQuick ? JB.followMin : JB.follow; run.origin = { ...run.origin, z: this.jb.z }; } } // follow-up throw: no new leap, no charge
       const e = run.elapsed, rise = Math.min(1, e / 380), apex = run.jbApex ?? 0; // from a jump: a shorter extra rise
-      if (run.phase === 'startup' && inp.hasMove) { run.aim = unit(inp.moveX, inp.moveY); this.aim = run.aim; } // aim the throw while hovering
+      if (run.phase === 'startup' && inp.hasMove) { const u = unit(inp.moveX, inp.moveY); run.aim = sideAim(u.x, u.y, this.dir === 'left' ? -1 : 1); this.aim = run.aim; } // aim the throw while hovering (side / corner)
       // Every extra press of V is one more blade, at once: the blade in hand flies as soon as it has formed…
       if (run.phase === 'startup' && this.jbWant > 0 && e < T.startup && e >= (apex ? JB.firstMin : JB.followMin)) { run.timings.startup = e; this.jbWant--; }
       k.grounded = false; k.z = run.origin.z + apex * (1 - (1 - rise) * (1 - rise)); k.vz = 0; k.vx = 0; k.vy = 0;
@@ -1336,6 +1336,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       }
       if (best) { lock = best.id; aim = unit(best.x - k.x, best.y - k.y, aim.x, aim.y); }
     }
+    aim = sideAim(aim.x, aim.y, this.dir === 'left' ? -1 : 1); // to the side or a corner, never straight up / down
     return { aim, place, lock };
   }
 
@@ -1647,7 +1648,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const k = this.kin, c = run.skill.counter!;
     const away = unit(k.x - from.x, k.y - from.y), side = { x: -away.y, y: away.x };
     for (let d = c.sidestep; d > 0; d -= 4) { const nx = k.x + side.x * d, ny = k.y + side.y * d; if (footAllowed(nx, ny, k.z, R)) { k.x = nx; k.y = ny; break; } }
-    const aim = unit(from.x - k.x, from.y - k.y);
+    const u = unit(from.x - k.x, from.y - k.y), aim = sideAim(u.x, u.y, this.dir === 'left' ? -1 : 1); // (side / corner)
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
     this.rt!.triggerCounter(run, aim, { x: k.x, y: k.y, z: k.z });
     this.pvp?.sendCounter({ castId: run.castId, x: Math.round(k.x), y: Math.round(k.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000) });
