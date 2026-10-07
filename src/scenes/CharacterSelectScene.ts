@@ -86,7 +86,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.ui = new CharacterSelectUI(this.game.canvas.parentElement!, this.game.canvas, {
       onBack: () => this.scene.start('MainMenuScene'),
       onCreate: () => this.scene.start('CharacterCreateScene'),
-      onEnterWorld: () => { clearPvpFromUrl(); this.scene.start('LegacyCourtyardScene'); }, // always the world, never the arena (PvP has its own button)
+      onEnterWorld: () => { clearPvpFromUrl(); this.scene.start('LegacyCourtyardScene', { pvpRoom: null }); }, // always the world, never the arena (PvP has its own button)
       onPvp: () => enterPvp(this),
       onPreview: (key) => {
         const cls = key ? classOfKey(key) : null, onThrone = !!throne && cls === 'warrior';
