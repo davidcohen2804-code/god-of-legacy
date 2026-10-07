@@ -9,6 +9,8 @@
     { "id": "starter_pants", "slot": "bottom", "name": "Pants", "desc": "Sturdy everyday pants.", "def": 2, "colors": "pants" },
     { "id": "starter_boots", "slot": "shoes", "name": "Boots", "desc": "Worn leather boots, good for the road.", "def": 2, "colors": "shoes" },
     { "id": "warrior_job_sword", "slot": "weapon", "name": "Swordsman's Blade", "desc": "Given by Master Gareth to those who take the Warrior's path.", "att": 26, "sword": "warrior_job" },
-    { "id": "warrior_job_helmet", "slot": "head", "name": "Swordsman's Helm", "desc": "A plumed steel helm from Master Gareth, for those who take the Warrior's path.", "def": 4, "helm": "warrior_job" }
+    { "id": "warrior_job_helmet", "slot": "head", "name": "Swordsman's Helm", "desc": "A plumed steel helm from Master Gareth, for those who take the Warrior's path.", "def": 4, "helm": "warrior_job" },
+    { "id": "warrior_job_armor", "slot": "top", "name": "Swordsman's Plate", "desc": "Master Gareth's steel plate for the Warrior's path: chest, arms and legs in one suit.", "def": 9, "armor": "warrior_job", "overall": true },
+    { "id": "warrior_job_boots", "slot": "shoes", "name": "Swordsman's Greaves", "desc": "Steel boots with gold trim, from Master Gareth.", "def": 3, "armor": "warrior_job" }
   ]
 }

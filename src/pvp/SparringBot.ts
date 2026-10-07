@@ -63,7 +63,7 @@ const OPENING_CD: Record<string, number> = { titans_verdict: 30000, blade_storm:
 /** Its own look (cape + aura) so it never reads as the player. */
 const BOT_LOOK = 'back:war_cape_shadow_smoke,aura:war_aura_shadow_flame,gear:w1t2p2s1'; // + the starter gear (red shirt, black pants and boots)
 /** A Master in his trial: his job's sword (the rest of his job set comes as it is drawn). */
-const TRIAL_LOOK = 'gear:w2t2p2s1h1';
+const TRIAL_LOOK = 'gear:w2t0p0s0h1a1b1';
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 /** Open middle of the courtyard (fallback direction when wedged against a prop). */
 const ARENA_CENTRE = { x: 835, y: 640 };

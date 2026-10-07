@@ -194,17 +194,19 @@ export const NAKED_LOOK = NAKED_LOOK_LIST as Record<string, { styles: number; co
  *  same frames as the body strip): the clothes in their colour, the sword in hand; 'topo' = the shirt again over the sword
  *  arm where that arm is drawn over the hair (<move>_o.png). naked-look.json lists the moves each has. */
 export type GearPiece = 'top' | 'topo' | 'pants' | 'shoes' | 'sword';
-export interface GearLook { weapon: boolean; top: number; pants: number; shoes: number; /** a weapon with its own strips */ sword?: string; /** a head piece */ helm?: string }
+export interface GearLook { weapon: boolean; top: number; pants: number; shoes: number; /** a weapon with its own strips */ sword?: string; /** a head piece */ helm?: string; /** an overall's armour (top, topo, pants) / armoured boots */ suit?: string; boots?: string }
 /** A head piece's layer: one picture on the standing head, placed like the hair (tools/world: naked/<g>/helm/<id>.png). */
 export const helmKey = (g: string, id: string) => `nhelm-${g}-${id}`;
 export const helmPath = (g: string, id: string) => `assets/final/body/naked/${g}/helm/${id}.png`;
 const gearColor = (w: GearLook, p: GearPiece) => (p === 'sword' ? (w.weapon ? 0 : -1) : p === 'topo' ? w.top : w[p]);
-export const gearKey = (g: string, anim: string, p: GearPiece, c: number, sw?: string) => `ng-${g}-${anim}-${p}${p === 'sword' ? (sw ? `-${sw}` : '') : `-c${c}`}`;
-const gearPath = (g: string, anim: string, p: GearPiece, c: number, sw?: string) => `assets/final/body/naked/${g}/gear/${anim}_${p}${p === 'sword' ? (sw ? `_${sw}` : '') : `_c${c}`}.png`;
+/** The strip's variant: the sword's / the armour's own, or the colour. */
+const gearVar = (w: GearLook, p: GearPiece) => (p === 'sword' ? w.sword : p === 'shoes' ? w.boots : w.suit);
+export const gearKey = (g: string, anim: string, p: GearPiece, c: number, v?: string) => `ng-${g}-${anim}-${p}${p === 'sword' ? (v ? `-${v}` : '') : v ? `-${v}` : `-c${c}`}`;
+const gearPath = (g: string, anim: string, p: GearPiece, c: number, v?: string) => `assets/final/body/naked/${g}/gear/${anim}_${p}${p === 'sword' ? (v ? `_${v}` : '') : v ? `_${v}` : `_c${c}`}.png`;
 /** The worn pieces' strips for this move: [piece, texture key] (drawn when loaded). */
 export function gearLayers(g: string, anim: string, w: GearLook | null): [GearPiece, string][] {
   const have = NAKED_LOOK[g]?.gear; if (!w || !have) return [];
-  return (['pants', 'shoes', 'top', 'topo', 'sword'] as GearPiece[]).filter((p) => gearColor(w, p) >= 0 && have[p]?.includes(anim)).map((p) => [p, gearKey(g, anim, p, gearColor(w, p), w.sword)]);
+  return (['pants', 'shoes', 'top', 'topo', 'sword'] as GearPiece[]).filter((p) => gearColor(w, p) >= 0 && have[p]?.includes(anim)).map((p) => [p, gearKey(g, anim, p, gearColor(w, p), gearVar(w, p))]);
 }
 /** Queue the worn pieces' strips for every move (in a preload, or now with start = true). */
 export function loadGear(scene: Phaser.Scene, g: string, w: GearLook | null, start = false): void {
@@ -214,10 +216,10 @@ export function loadGear(scene: Phaser.Scene, g: string, w: GearLook | null, sta
   for (const [p, anims] of Object.entries(have) as [GearPiece, string[]][]) {
     const c = gearColor(w, p); if (c < 0) continue;
     for (const anim of anims) {
-      const k = gearKey(g, anim, p, c, w.sword);
+      const k = gearKey(g, anim, p, c, gearVar(w, p));
       if (scene.textures.exists(k) || pending(scene, k)) continue;
       // the sword's cells are wider than the body's (a thrust reaches past it), the same middle: drawn centred the same
-      scene.load.spritesheet(k, gearPath(g, anim, p, c, w.sword), { frameWidth: p === 'sword' ? NAKED_LOOK[g]?.swordCell ?? CELL : CELL, frameHeight: CELL }); queued = true;
+      scene.load.spritesheet(k, gearPath(g, anim, p, c, gearVar(w, p)), { frameWidth: p === 'sword' ? NAKED_LOOK[g]?.swordCell ?? CELL : CELL, frameHeight: CELL }); queued = true;
     }
   }
   if (queued && start && !scene.load.isLoading()) scene.load.start();
