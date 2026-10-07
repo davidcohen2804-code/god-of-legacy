@@ -4849,8 +4849,8 @@
      "id": "seraphine",
      "name": "Master Seraphine",
      "title": "Book Mage Master",
-     "x": 1256,
-     "y": 445,
+     "x": 1440,
+     "y": 560,
      "art": "mage_master_pose",
      "role": "talk",
      "lines": [
@@ -4858,7 +4858,7 @@
       "Come back when your mind is ready, and I will teach you the path of the Book Mage."
      ],
      "flip": true,
-     "z": 66
+     "z": 79
     },
     {
      "id": "rowan",
