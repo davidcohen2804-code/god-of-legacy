@@ -25,10 +25,14 @@ D = json.load(open(R + 'src/data/world-areas.json'))
 AW, AH = D['size']
 ROW, J = D['row'], D['joins']
 TILE = 2048
-BG = next((a[5:] for a in sys.argv if a.startswith('--bg=')), G + 'layers/bg.png')   # --bg=<file>: try another backdrop
-TEST = '--test' in sys.argv   # development: layered even with cut-outs missing (those maps stay whole)
-LAYERED = os.path.exists(BG) and (TEST or all(os.path.exists(G + f'layers/gpt/{k}.png') for k in ROW))
-if not LAYERED: print('one layer (the maps whole):', 'no backdrop yet' if not os.path.exists(BG) else 'cut-outs missing: ' + ', '.join(k for k in ROW if not os.path.exists(G + f'layers/gpt/{k}.png')))
+import bg as backdrop_parts
+BG_FILE = next((a[5:] for a in sys.argv if a.startswith('--bg=')), None)   # --bg=<file>: try another backdrop
+TEST = '--test' in sys.argv   # development: layered even with cut-outs / backdrop parts missing (those maps stay whole)
+NEED = D.get('backdrop', {}).get('parts', 1)
+HAVE = len(backdrop_parts.PARTS)
+CUTS_OK = all(os.path.exists(G + f'layers/gpt/{k}.png') for k in ROW)
+LAYERED = bool(BG_FILE) or (HAVE >= 1 and TEST) or (HAVE >= NEED and CUTS_OK)
+if not LAYERED: print('one layer (the maps whole):', f'backdrop parts {HAVE}/{NEED}' if HAVE < NEED else 'cut-outs missing: ' + ', '.join(k for k in ROW if not os.path.exists(G + f'layers/gpt/{k}.png')))
 
 # ------------------------------------------------------------------ layout
 xs = {ROW[0]: 0}
@@ -74,7 +78,7 @@ def cutout(k, im):
   # the edge pixels' colour without the old sky behind them (matting: I = aF + (1 - a)B)
   sky = (a == 0).astype(np.float32)
   B = cv2.GaussianBlur(im * sky[..., None], (0, 0), 5) / np.maximum(cv2.GaussianBlur(sky, (0, 0), 5), 1e-3)[..., None]
-  e = (a > 0) & (a < 1)
+  e = (a > 0) & (a < 1) & (painted.get(k, np.zeros_like(a)) < 0.5)
   aa = np.maximum(a, 0.3)[..., None]
   im[e] = np.clip((im - (1 - aa) * B) / aa, 0, 255)[e]
   return a
@@ -84,22 +88,29 @@ def paint(k, im):
   """Boxes of a map ("paint" in world-areas.json) whose pixels come from its cut-out picture — something GPT added there
   (a stage, a block) — with GPT's colours pulled onto the map's own (a smooth offset measured around the box), feathered in."""
   boxes = D['areas'][k].get('paint', [])
+  painted[k] = np.zeros((AH, AW), np.float32)
   if not boxes or not os.path.exists(G + f'layers/gpt/{k}.png'): return im
   g = cv2.imread(G + f'layers/gpt/{k}.png').astype(np.float32)
-  mag = np.sqrt((g[..., 2] - 255) ** 2 + g[..., 1] ** 2 + (g[..., 0] - 255) ** 2) > 120     # GPT's terrace
+  dist = np.sqrt((g[..., 2] - 255) ** 2 + g[..., 1] ** 2 + (g[..., 0] - 255) ** 2)
+  ga = np.clip((dist - 70) / 80, 0, 1)                                                        # GPT's alpha (as cutout)
+  mag = dist > 120                                                                            # GPT's terrace
+  M = np.array([255, 0, 255], np.float32)
+  gaa = np.maximum(ga, 0.3)[..., None]
+  g = np.where((ga > 0)[..., None], np.clip((g - (1 - gaa) * M) / gaa, 0, 255), g)            # without the magenta
   for (x0, y0, x1, y1) in boxes:
     inside = np.zeros((AH, AW), np.float32); inside[y0:y1, x0:x1] = 1
     ring = (cv2.dilate(inside, np.ones((241, 241), np.uint8)) - inside) * mag                # around the box, terrace only
     s = 70
     off = cv2.GaussianBlur((im - g) * ring[..., None], (0, 0), s) / np.maximum(cv2.GaussianBlur(ring, (0, 0), s), 1e-3)[..., None]
     m = cv2.GaussianBlur(cv2.erode(inside, np.ones((25, 25), np.uint8)), (0, 0), 6)               # feathered inside the box
-    m = (m * cv2.GaussianBlur(mag.astype(np.float32), (0, 0), 1.0))[..., None]                     # only GPT's terrace, never its magenta
-    im = im * (1 - m) + np.clip(g + off, 0, 255) * m
+    m = m * (ga > 0)                                                                              # only GPT's terrace and its edges
+    im = im * (1 - m[..., None]) + np.clip(g + off, 0, 255) * m[..., None]
+    painted[k] = np.maximum(painted[k], m)
     print('painted in from the cut-out:', k, [x0, y0, x1, y1])
   return im
 
 
-maps, alpha = {}, {}
+maps, alpha, painted = {}, {}, {}
 for k in ROW:
   maps[k] = paint(k, load(k))
   alpha[k] = cutout(k, maps[k])
@@ -176,6 +187,32 @@ for a, b in zip(ROW, ROW[1:]): blend_join(a, b, J[f'{a}|{b}']['blend']); print('
 strip = np.clip(strip, 0, 255).astype(np.uint8)
 
 
+SKY_DOWN = 4   # the sky is stored this many times smaller (a smooth gradient)
+
+
+def split_sky(bg):
+  """The landscape without its sky (alpha 0 above the skyline: the first edge from the top of every column — ridges,
+  spires, castle roofs) and the sky alone (continued below the skyline), so clouds can drift BEHIND the mountains."""
+  lab = cv2.GaussianBlur(cv2.cvtColor(bg, cv2.COLOR_BGR2LAB).astype(np.float32), (0, 0), 1.0)
+  g = np.zeros(bg.shape[:2], np.float32)
+  for c in range(3):
+    g = np.maximum(g, np.abs(cv2.Sobel(lab[..., c], cv2.CV_32F, 1, 0, ksize=3)) + np.abs(cv2.Sobel(lab[..., c], cv2.CV_32F, 0, 1, ksize=3)))
+  e = g > 20; e = e & np.roll(e, 1, axis=0); e[:2] = False          # two rows in a row: an edge, not a speck
+  hz = np.where(e.any(0), e.argmax(0), AH // 3).astype(np.float32)  # the skyline, per column
+  y = np.arange(AH, dtype=np.float32)[:, None]
+  a = np.clip(y - (hz[None, :] - 1), 0, 1)
+  a = cv2.GaussianBlur(a, (0, 0), sigmaX=0.6, sigmaY=0.01)
+  land = np.dstack([bg, (a * 255).astype(np.uint8)])
+  sky = bg.astype(np.float32).copy()
+  for x in range(bg.shape[1]):                                       # below the skyline: the sky's colour just above it
+    h = int(hz[x]); src = sky[max(0, h - 6):max(1, h - 2), x].mean(0) if h > 3 else sky[0, x]
+    sky[h:, x] = src
+  sky = cv2.GaussianBlur(sky, (0, 0), sigmaX=6, sigmaY=2)
+  sky = cv2.resize(sky, (bg.shape[1] // SKY_DOWN, AH // SKY_DOWN), interpolation=cv2.INTER_AREA)
+  print('skyline: y', int(hz.min()), '..', int(hz.max()), '(median', int(np.median(hz)), ')')
+  return land, np.clip(sky, 0, 255).astype(np.uint8)
+
+
 def tiles_of(img, folder, ext, save):
   """Cut a picture into TILE-wide tiles (2 px overlap: no hairline between them) → [[x, w], ...]."""
   out = R + f'public/assets/world/{folder}/'; os.makedirs(out, exist_ok=True)
@@ -199,10 +236,12 @@ if LAYERED:
   tiles = tiles_of(strip, 'strip', 'webp', save_webp)
   terrace = np.zeros_like(strip)
   for n, (i, w) in enumerate(tiles): terrace[:, i:i + w] = cv2.cvtColor(np.asarray(Image.open(R + f'public/assets/world/strip/{n}.webp').convert('RGBA')), cv2.COLOR_RGBA2BGRA)
-  bg = cv2.imread(BG)
+  bg = cv2.imread(BG_FILE) if BG_FILE else np.clip(backdrop_parts.build(write=False), 0, 255).astype(np.uint8)
   if bg.shape[0] != AH: bg = cv2.resize(bg, (round(bg.shape[1] * AH / bg.shape[0]), AH), interpolation=cv2.INTER_AREA)
-  bg_tiles = tiles_of(bg, 'bg', 'jpg', save_jpg)
-  print('backdrop', bg.shape[1], 'x', AH, '|', len(bg_tiles), 'tiles')
+  land, sky_img = split_sky(bg)
+  bg_tiles = tiles_of(land, 'bg', 'webp', save_webp)
+  cv2.imwrite(R + 'public/assets/world/bg/sky.jpg', sky_img, [cv2.IMWRITE_JPEG_QUALITY, 90])
+  print('backdrop', bg.shape[1], 'x', AH, '|', len(bg_tiles), 'tiles + its sky (clouds drift between them)')
 else:
   tiles = tiles_of(strip[..., :3], 'strip', 'jpg', save_jpg)
   terrace = np.zeros_like(strip)
@@ -280,7 +319,7 @@ for i, k in enumerate(ROW):
 
 out = {'w': W, 'h': AH, 'tiles': tiles, 'ext': 'webp' if LAYERED else 'jpg', 'areas': {k: {'x': xs[k], 'span': span[k]} for k in ROW},
        'walk': walk, 'props': world_props}
-if LAYERED: out['bg'] = {'w': int(bg.shape[1]), 'tiles': bg_tiles, **D.get('backdrop', {})}
+if LAYERED: out['bg'] = {'w': int(bg.shape[1]), 'tiles': bg_tiles, 'ext': 'webp', 'sky': SKY_DOWN}
 json.dump(out, open(R + 'src/data/world-strip.json', 'w'), separators=(',', ':'))
 print('strip', W, 'x', AH, '|', len(tiles), 'tiles', out['ext'], '|', 'floor', len(walk), 'points |', len(world_props), 'props |', {k: xs[k] for k in ROW})
 

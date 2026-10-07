@@ -4,24 +4,30 @@
 // src/data/world-sky.json + public/assets/world/sky/*; each part simply stays out while its art is missing. Visual only.
 import Phaser from 'phaser';
 import SKY from '../data/world-sky.json';
-import { BACKDROP, WORLD_W, bgKey, bgUrl } from './Areas';
+import { BACKDROP, BG_SKY_URL, WORLD_W, bgKey, bgUrl } from './Areas';
 
 type Rect = { x: number; y: number; w: number; h: number };
 type Strip = { w: number; h: number; n: number };
 const S = SKY as unknown as { clouds: Rect[]; birds: Strip | null; falls: Strip | null; spots: Rect[] };
-/** All behind the terrace (its tiles are at depth -1). */
-const DEPTH = { bg: -30, clouds: -28, mist: -27 };
+/** All behind the terrace (its tiles are at depth -1): the sky, the clouds (behind the mountains), the landscape, the mist. */
+const DEPTH = { sky: -34, clouds: -32, bg: -30, mist: -27 };
 const SKY_URL = (f: string) => `assets/world/sky/${f}.png`;
-/** How much nearer than the landscape the clouds / the mist are (share of the way to the terrace's speed). */
-const NEAR = { clouds: 0.12, mist: 0.3 };
-const CLOUDS = { n: 8, y: [18, 205], scale: [0.42, 0.85], alpha: [0.78, 0.95], speed: [5, 12] };
-const MIST = { valley: { n: 6, y: [770, 925] }, far: { n: 4, y: [262, 318] }, scale: [1.0, 1.7], alpha: [0.16, 0.3], speed: [2, 5], tint: 0xffe9ee };
-const FLOCK = { every: [16000, 36000], size: [3, 5], y: [55, 210], speed: [62, 96], fps: 11, width: 26 };
-const FALL_FPS = 14;
+/** The clouds are further than the landscape (they move this share of its speed); the mist is nearer (this share of the way
+ *  from the landscape's speed to the terrace's). */
+const FAR_CLOUDS = 0.6;
+const NEAR_MIST = 0.3;
+/** Clouds high in the sky (shown this wide, px), a few at a time; mist low in the valley (seen through the arches) and far
+ *  behind the balustrade: the same clouds, wide, pale and faint. */
+const CLOUDS = { n: 6, y: [24, 110], width: [160, 380], alpha: [0.85, 0.97], speed: [5, 11] };
+const MIST = { valley: { n: 6, y: [780, 930] }, far: { n: 4, y: [250, 300] }, width: [520, 900], alpha: [0.14, 0.26], speed: [2, 5], tint: 0xffe9ee };
+const FLOCK = { every: [16000, 36000], size: [3, 5], y: [55, 205], speed: [62, 96], fps: 11, width: [24, 32] };
+/** The falling water laid over each painted fall: sunset-tinted, half see-through (the painting shows through it). */
+const FALL = { fps: 14, alpha: 0.5, tint: 0xffe6d6 };
 
 export function preloadBackdrop(scene: Phaser.Scene): void {
   if (!BACKDROP) return;
   BACKDROP.tiles.forEach((_, i) => { if (!scene.textures.exists(bgKey(i))) scene.load.image(bgKey(i), bgUrl(i)); });
+  if (BACKDROP.sky && !scene.textures.exists('world-bg-sky')) scene.load.image('world-bg-sky', BG_SKY_URL);
   if (S.clouds.length && !scene.textures.exists('sky-clouds')) scene.load.image('sky-clouds', SKY_URL('clouds'));
   if (S.birds && !scene.textures.exists('sky-birds')) scene.load.spritesheet('sky-birds', SKY_URL('birds'), { frameWidth: S.birds.w, frameHeight: S.birds.h });
   if (S.falls && !scene.textures.exists('sky-falls')) scene.load.spritesheet('sky-falls', SKY_URL('falls'), { frameWidth: S.falls.w, frameHeight: S.falls.h });
@@ -35,6 +41,8 @@ interface Bird { img: Phaser.GameObjects.Sprite; v: number; ph: number; y: numbe
 export class Backdrop {
   /** The landscape, its waterfalls and the birds: they move together. */
   private land: Phaser.GameObjects.Container;
+  /** The landscape's own sky, behind the clouds (moves with the landscape). */
+  private skyBack: Phaser.GameObjects.Container;
   private sky: Phaser.GameObjects.Container;
   private haze: Phaser.GameObjects.Container;
   private tiles: (Phaser.GameObjects.Image | null)[];
@@ -52,7 +60,9 @@ export class Backdrop {
 
   constructor(private scene: Phaser.Scene) {
     this.land = scene.add.container(0, 0).setDepth(DEPTH.bg);
+    this.skyBack = scene.add.container(0, 0).setDepth(DEPTH.sky);
     this.sky = scene.add.container(0, 0).setDepth(DEPTH.clouds);
+    this.ensureSky();
     this.haze = scene.add.container(0, 0).setDepth(DEPTH.mist);
     this.tiles = (BACKDROP?.tiles ?? []).map(() => null);
     this.tiles.forEach((_, i) => this.ensureTile(i));
@@ -60,8 +70,14 @@ export class Backdrop {
     this.buildFalls(); this.buildDrifters();
   }
 
+  private ensureSky(): void {
+    if (!BACKDROP?.sky || this.skyBack.length || !this.scene.textures.exists('world-bg-sky')) return;
+    this.skyBack.add(this.scene.add.image(0, 0, 'world-bg-sky').setOrigin(0, 0).setScale(BACKDROP.sky));
+  }
+
   private onFile(key: string): void {
-    if (key.startsWith('world-bg-')) this.ensureTile(Number(key.slice(9)));
+    if (key === 'world-bg-sky') this.ensureSky();
+    else if (key.startsWith('world-bg-')) this.ensureTile(Number(key.slice(9)));
     else if (key === 'sky-falls') this.buildFalls();
     else if (key === 'sky-clouds') this.buildDrifters();
   }
@@ -78,7 +94,7 @@ export class Backdrop {
   private buildFalls(): void {
     if (this.falls.length || !S.falls || !S.spots.length || !this.scene.textures.exists('sky-falls')) return;
     for (const s of S.spots) {
-      const f = this.scene.add.sprite(s.x, s.y, 'sky-falls', 0).setOrigin(0, 0).setDisplaySize(s.w, s.h).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.55);
+      const f = this.scene.add.sprite(s.x, s.y, 'sky-falls', 0).setOrigin(0, 0).setDisplaySize(s.w, s.h).setTint(FALL.tint).setAlpha(FALL.alpha);
       f.setData('ph', Math.random() * 1000);
       this.falls.push(f); this.land.add(f);
     }
@@ -91,12 +107,14 @@ export class Backdrop {
     S.clouds.forEach((c, i) => { if (!tex.has(`c${i}`)) tex.add(`c${i}`, 0, c.x, c.y, c.w, c.h); });
     const frame = () => `c${Math.floor(Math.random() * S.clouds.length)}`;
     for (let i = 0; i < CLOUDS.n; i++) {
-      const img = this.scene.add.image(0, rnd(CLOUDS.y), 'sky-clouds', frame()).setOrigin(0, 0.5).setScale(rnd(CLOUDS.scale)).setAlpha(rnd(CLOUDS.alpha));
+      const img = this.scene.add.image(0, rnd(CLOUDS.y), 'sky-clouds', frame()).setOrigin(0, 0.5).setAlpha(rnd(CLOUDS.alpha));
+      img.setScale(rnd(CLOUDS.width) / img.width);
       img.setData('slot', (i + Math.random() * 0.6) / CLOUDS.n);
       this.clouds.push({ img, v: rnd(CLOUDS.speed) }); this.sky.add(img);
     }
     for (const band of [MIST.valley, MIST.far]) for (let i = 0; i < band.n; i++) {
-      const img = this.scene.add.image(0, rnd(band.y), 'sky-clouds', frame()).setOrigin(0, 0.5).setScale(rnd(MIST.scale)).setAlpha(rnd(MIST.alpha)).setTint(MIST.tint);
+      const img = this.scene.add.image(0, rnd(band.y), 'sky-clouds', frame()).setOrigin(0, 0.5).setAlpha(rnd(MIST.alpha)).setTint(MIST.tint);
+      img.setScale(rnd(MIST.width) / img.width, (rnd(MIST.width) / img.width) * 0.45);   // flattened: a layer of haze
       img.setData('slot', (i + Math.random() * 0.7) / band.n);
       this.mist.push({ img, v: rnd(MIST.speed) }); this.haze.add(img);
     }
@@ -110,36 +128,42 @@ export class Backdrop {
   setView(left: number, span: number): void {
     this.left = left; this.span = span;
     const k = this.k;
-    this.land.x = left * (1 - k);
-    this.sky.x = left * (1 - (k + (1 - k) * NEAR.clouds));
-    this.haze.x = left * (1 - (k + (1 - k) * NEAR.mist));
+    this.land.x = left * (1 - k); this.skyBack.x = this.land.x;
+    this.sky.x = left * (1 - this.f('clouds'));
+    this.haze.x = left * (1 - this.f('mist'));
     if (!this.placed && this.clouds.length) { // first view: spread the clouds and the mist over it
       this.placed = true;
-      for (const [list, near] of [[this.clouds, NEAR.clouds], [this.mist, NEAR.mist]] as const) {
-        const [lo, hi] = this.range(near);
+      for (const [list, layer] of [[this.clouds, 'clouds'], [this.mist, 'mist']] as const) {
+        const [lo, hi] = this.range(layer);
         for (const d of list) d.img.x = lo + (hi - lo) * (d.img.getData('slot') as number);
       }
     }
   }
 
+  /** Share of the terrace's speed a layer moves at. */
+  private f(layer: 'clouds' | 'mist'): number { const k = this.k; return layer === 'clouds' ? k * FAR_CLOUDS : k + (1 - k) * NEAR_MIST; }
+
   /** Where drifters of a layer are kept (that layer's own px): the view plus a margin each side, so they wrap unseen. */
-  private range(near: number): [number, number] {
-    const k = this.k, f = k + (1 - k) * near, m = 420;
+  private range(layer: 'clouds' | 'mist'): [number, number] {
+    const f = this.f(layer), m = 460;
     return [this.left * f - m, this.left * f + this.span + m];
   }
 
   update(ms: number): void {
     this.t += ms;
     const s = ms / 1000;
-    for (const [list, near] of [[this.clouds, NEAR.clouds], [this.mist, NEAR.mist]] as const) {
-      const [lo, hi] = this.range(near), w = hi - lo;
+    for (const [list, layer] of [[this.clouds, 'clouds'], [this.mist, 'mist']] as const) {
+      const [lo, hi] = this.range(layer), w = hi - lo;
       for (const d of list) {
         const im = d.img; im.x += d.v * s;
         const iw = im.displayWidth;
         if (im.x > hi) im.x -= w + iw; else if (im.x + iw < lo) im.x += w + iw;
       }
     }
-    for (const f of this.falls) f.setFrame(Math.floor((this.t + (f.getData('ph') as number)) / (1000 / FALL_FPS)) % (S.falls?.n ?? 1));
+    for (const f of this.falls) {   // setFrame resets the size to the frame's: keep each fall's own
+      const w = f.displayWidth, h = f.displayHeight;
+      f.setFrame(Math.floor((this.t + (f.getData('ph') as number)) / (1000 / FALL.fps)) % (S.falls?.n ?? 1)).setDisplaySize(w, h);
+    }
     this.stepBirds(ms);
   }
 
@@ -154,7 +178,7 @@ export class Backdrop {
       for (let i = 0; i < n; i++) {
         const lead = i === 0 ? 0 : Math.ceil(i / 2), side = i % 2 ? 1 : -1;
         const x = (dir > 0 ? u0 - 60 : u1 + 60) - dir * lead * 26, y = y0 + side * lead * 11;
-        const img = this.scene.add.sprite(x, y, 'sky-birds', 0).setScale(FLOCK.width / S.birds.w).setFlipX(dir < 0).setAlpha(0.9); // small: far away
+        const img = this.scene.add.sprite(x, y, 'sky-birds', 0).setScale(rnd(FLOCK.width) / S.birds.w).setFlipX(dir < 0).setAlpha(0.92); // small: far away
         this.birds.push({ img, v: v * (0.97 + Math.random() * 0.06), ph: Math.random() * 1000, y }); this.land.add(img);
       }
     }
@@ -162,14 +186,14 @@ export class Backdrop {
       const b = this.birds[i];
       b.img.x += b.v * s; b.ph += ms;
       b.img.y = b.y + Math.sin(b.ph / 700) * 4;
-      b.img.setFrame(Math.floor(b.ph / (1000 / FLOCK.fps)) % (S.birds!.n));
+      const sc = b.img.scaleX; b.img.setFrame(Math.floor(b.ph / (1000 / FLOCK.fps)) % (S.birds!.n)).setScale(sc);
       if ((b.v > 0 && b.img.x > u1 + 160) || (b.v < 0 && b.img.x < u0 - 160)) { b.img.destroy(); this.birds.splice(i, 1); }
     }
   }
 
   destroy(): void {
     this.scene.load.off(Phaser.Loader.Events.FILE_COMPLETE, this.onFile, this);
-    this.land.destroy(true); this.sky.destroy(true); this.haze.destroy(true);
+    this.land.destroy(true); this.skyBack.destroy(true); this.sky.destroy(true); this.haze.destroy(true);
     this.clouds = []; this.mist = []; this.falls = []; this.birds = [];
   }
 }

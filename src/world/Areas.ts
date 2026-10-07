@@ -61,9 +61,11 @@ export const tileKey = (i: number) => `world-tile-${i}`;
 const TILE_EXT = (STRIP as { ext?: string }).ext ?? 'jpg';
 export const tileUrl = (i: number) => `assets/world/strip/${i}.${TILE_EXT}`;
 /** The far landscape behind the terrace (it scrolls slower: depth) — null while the maps are whole (their own sky). */
-export const BACKDROP = ((STRIP as unknown as { bg?: { w: number; tiles: [number, number][] } }).bg) ?? null;
+export const BACKDROP = ((STRIP as unknown as { bg?: { w: number; tiles: [number, number][]; ext?: string; sky?: number } }).bg) ?? null;
 export const bgKey = (i: number) => `world-bg-${i}`;
-export const bgUrl = (i: number) => `assets/world/bg/${i}.jpg`;
+export const bgUrl = (i: number) => `assets/world/bg/${i}.${BACKDROP?.ext ?? 'jpg'}`;
+/** The landscape's sky alone (stored BACKDROP.sky times smaller): the clouds drift between it and the landscape. */
+export const BG_SKY_URL = 'assets/world/bg/sky.jpg';
 /** The whole strip, small, for the minimap. */
 export const MINIMAP_URL = 'assets/world/minimap/world.jpg';
 

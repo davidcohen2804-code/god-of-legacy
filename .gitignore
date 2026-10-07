@@ -8,3 +8,4 @@ __pycache__/
 *.pyc
 tools/world/qc/
 tools/world/next/
+tools/world/work/

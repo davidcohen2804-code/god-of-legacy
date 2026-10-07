@@ -2,9 +2,10 @@
 # every part after the first is GPT's continuation of the canvas `next` made from the parts before it).
 #   python3 tools/world/bg.py next   → tools/world/next/bg_part<n>.png : the last KEEP px of the landscape so far, the rest
 #                                      magenta, for GPT to continue (send it with the continuation request)
-#   python3 tools/world/bg.py build  → tools/world/layers/bg.png : the parts joined (each continuation laid exactly over its
-#                                      canvas, its colours pulled onto the part before, blended in over the kept stretch)
-# then tools/world/strip.py (the game scrolls this picture slower than the terrace; its ends meet the world's ends).
+#   python3 tools/world/bg.py build  → tools/world/work/bg.png : the parts joined, to look at (each continuation laid exactly
+#                                      over its canvas, its colours pulled onto the part before, blended in over the kept stretch)
+# tools/world/strip.py joins the parts itself (once world-areas.json backdrop.parts of them are in, the world is layered;
+# the game scrolls the landscape slower than the terrace, its ends meeting the world's ends).
 import os, sys, glob
 import numpy as np, cv2
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -39,7 +40,7 @@ def register(img, ref, keep):
   return cv2.warpAffine(img, T, (AW, AH), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE).astype(np.float32)
 
 
-def build():
+def build(write=True):
   if not PARTS: sys.exit('no parts yet: tools/world/layers/bg/part1.png')
   pano = load(PARTS[0])
   for p in PARTS[1:]:
@@ -56,14 +57,16 @@ def build():
     t = np.clip((np.arange(KEEP, dtype=np.float32) - 60) / (KEEP - 120), 0, 1); w = (t * t * (3 - 2 * t))[None, :, None]
     joined = pano[:, -KEEP:] * (1 - w) + img[:, :KEEP] * w
     pano = np.concatenate([pano[:, :-KEEP], joined, img[:, KEEP:]], axis=1)
-  cv2.imwrite(G + 'layers/bg.png', np.clip(pano, 0, 255).astype(np.uint8))
-  print('backdrop', pano.shape[1], 'x', AH, 'from', len(PARTS), 'parts → tools/world/layers/bg.png')
+  if write:
+    os.makedirs(G + 'work', exist_ok=True)
+    cv2.imwrite(G + 'work/bg.png', np.clip(pano, 0, 255).astype(np.uint8))
+    print('backdrop', pano.shape[1], 'x', AH, 'from', len(PARTS), 'parts → tools/world/work/bg.png (a look; strip.py joins the parts itself)')
+  return pano
 
 
 def nxt():
   if not PARTS: sys.exit('no parts yet: tools/world/layers/bg/part1.png')
-  build()
-  pano = cv2.imread(G + 'layers/bg.png')
+  pano = np.clip(build(write=False), 0, 255).astype(np.uint8)
   c = np.full((AH, AW, 3), (255, 0, 255), np.uint8); c[:, :KEEP] = pano[:, -KEEP:]
   os.makedirs(G + 'next', exist_ok=True)
   out = G + f'next/bg_part{len(PARTS) + 1}.png'; cv2.imwrite(out, c); print('continuation canvas →', out)
