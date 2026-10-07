@@ -176,8 +176,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private hitBlinkUntil = -1;
   /** Radiant Blade: the sword is a long blade of light until this time. */
   radiantUntil = -1;
-  /** The light blade's hilt and tip on the last frame (its motion afterimage). */
-  private beamPrev: { hx: number; hy: number; tx: number; ty: number } | null = null;
   /** Archer buffs: Bow Haste (+20% attack speed), Hunter's Spirit (+15% critical rate, also shared by a party member). */
   hasteUntil = -1;
   /** Samurai buffs: Quick Draw (speed + crit), Rising Sun (party: damage + critical damage), God of Blades (damage + the halo). */
@@ -1159,7 +1157,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (!this.beam || !this.beamGlow) return;
     this.beam.setVisible(on); this.beamGlow.setVisible(false); // no extra glow layer: the blade art only
-    if (!on) { this.beamPrev = null; return; }
+    if (!on) return;
     const skinC = skinColor(this.equipped.weapon), bkey = skinC !== null ? grayKey(this, 'radiant-blade', 1.7) ?? 'radiant-blade' : 'radiant-blade'; // light blade takes the sword skin's colour
     if (this.beam.texture.key !== bkey) this.beam.setTexture(bkey, 0);
     if (skinC !== null) this.beam.setTint(skinC); else this.beam.clearTint();
@@ -1173,16 +1171,28 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const sx = len / 238, sy = sx * 1.1; // broad translucent blade of light (pre-downscaled smooth art, additive)
     const d = actorDepth(k.x, k.y, k.z) + (dir === 'up' ? -0.05 : 0.05);
     this.beam.setFrame(f).setPosition(hx, hy).setAngle(ang).setScale(sx, sy).setDepth(d + 0.01).setAlpha(fade);
-    // the light blade's motion: where it swept since the last frame, a golden afterimage (fades fast)
-    const tx = hx + Math.cos(ang * Math.PI / 180) * len, ty = hy + Math.sin(ang * Math.PI / 180) * len, pv = this.beamPrev;
-    if (pv && Math.hypot(tx - pv.tx, ty - pv.ty) > 14 && Math.hypot(hx - pv.hx, hy - pv.hy) < 160) {
-      const g = this.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(d + 0.005);
-      g.fillStyle(0xffd27a, 0.55 * fade).fillPoints([new Phaser.Geom.Point(pv.hx, pv.hy), new Phaser.Geom.Point(pv.tx, pv.ty), new Phaser.Geom.Point(tx, ty), new Phaser.Geom.Point(hx, hy)], true);
-      g.lineStyle(3, 0xfff4cf, 0.9 * fade).lineBetween(pv.tx, pv.ty, tx, ty);
-      this.tweens.add({ targets: g, alpha: 0, duration: 200, onComplete: () => g.destroy() });
-    }
-    this.beamPrev = { hx, hy, tx, ty };
+
     this.beamGlow.setFrame(f).setPosition(hx, hy).setAngle(ang).setScale(sx * 1.02, sy * 1.25).setDepth(d + 0.02).setAlpha(0.12 * fade * (0.85 + 0.15 * Math.sin(this.simMs / 90)));
+  }
+
+  /** Radiant Blade: each strike sends a soft crescent of light out in front of the warrior, widening and fading. */
+  private lightWave(): void {
+    if (this.dead >= 0 || !this.view) return;
+    if (!this.textures.exists('light-wave')) {
+      const W = 256, H = 256, c = this.textures.createCanvas('light-wave', W, H)!, x = c.getContext();
+      for (let i = 0; i < 26; i++) {                 // a crescent: soft edge outside, fading inward
+        const t = i / 25, r = 118 - t * 46;
+        x.beginPath(); x.arc(W / 2 - 40, H / 2, r, -1.15, 1.15);
+        x.strokeStyle = `rgba(255,${Math.round(240 - t * 40)},${Math.round(200 - t * 90)},${(0.12 + 0.8 * Math.sin(Math.PI * t)) * (1 - t * 0.35)})`;
+        x.lineWidth = 4; x.stroke();
+      }
+      x.beginPath(); x.arc(W / 2 - 40, H / 2, 112, -1.05, 1.05); x.strokeStyle = 'rgba(255,255,250,1)'; x.lineWidth = 3.5; x.stroke();
+      c.refresh();
+    }
+    const k = this.kin, side = this.dir === 'left' ? -1 : 1;
+    const img = this.add.image(k.x + side * 26, k.y - k.z - 44, 'light-wave').setBlendMode(Phaser.BlendModes.ADD).setFlipX(side < 0)
+      .setScale(0.6).setAlpha(1).setDepth(actorDepth(k.x, k.y, k.z) + 0.06);
+    this.tweens.add({ targets: img, x: img.x + side * 90, scaleX: 1.25, scaleY: 1.05, alpha: 0, duration: 340, ease: 'Cubic.easeOut', onComplete: () => img.destroy() });
   }
 
   private inDome(): boolean {
@@ -1471,6 +1481,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const castId = `${this.localId}:${++this.castSeq}`;
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
     this.body.armorUntil = -1;
+    if (s.cls === 'warrior' && s.id !== 'radiant_blade' && this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil) this.time.delayedCall(Math.max(0, (s.chain?.timings?.[stage]?.startup ?? s.startup) * 0.5), () => this.lightWave()); // every strike: a wave of light
     if (s.id === 'war_cry') { this.warCryUntil = this.simMs + s.startup + 8000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 8000 }); /* shared at the release (sim clock), like the caster's own */ }
     if (s.id === 'iron_oath') { this.oathUntil = this.simMs + s.startup + 60000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 60000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(s.startup, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'IRON OATH', '#ffd27a', 0)); }
     if (s.id === 'legacy_banner') { this.bannerUntil = this.simMs + s.startup + 90000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 90000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(Math.round(s.startup * 0.7), () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'LEGACY BANNER', '#ffe7a0', 0)); }
