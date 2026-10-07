@@ -208,7 +208,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private botAwayMs = 0;
   private botCls = 'warrior';
   private botPaused = false;
-  private sparUi?: { root: HTMLDivElement; clsBtns: { id: string; b: HTMLButtonElement }[]; stop: HTMLButtonElement; combo: HTMLButtonElement };
+  /** Arena analysis: simulation speed (1, 0.5, 0.25) and the hit log. */
+  private slowMo = 1;
+  private logEl?: HTMLDivElement;
+  private logSum = { out: { hits: 0, dmg: 0, combo: -1 }, in: { hits: 0, dmg: 0, combo: -1 } };
+  private sparUi?: { root: HTMLDivElement; clsBtns: { id: string; b: HTMLButtonElement }[]; stop: HTMLButtonElement; combo: HTMLButtonElement; speedBtns: { v: number; b: HTMLButtonElement }[]; log: HTMLButtonElement };
   private botSeq = 0;
   private hud?: WorldHUD;
   private character?: Character;
@@ -282,7 +286,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
     this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
     this.hasteUntil = -1; this.spiritUntil = -1; this.tree = null; this.storm = null;
-    this.hpMaxSeen = 0; this.seenStance = -Infinity; this.seenEndure = -Infinity; this.markAt.clear(); this.partyTick = 0; this.shares = [];
+    this.hpMaxSeen = 0; this.seenStance = -Infinity; this.seenEndure = -Infinity; this.markAt.clear(); this.partyTick = 0; this.shares = []; this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1;
     this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
     this.combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1 };
     this.confirmedLog = [];
@@ -438,7 +442,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       kb.removeAllKeys(true);
       this.pvp?.destroy(); this.pvp = undefined; this.pvpReady = false;
       this.enemy?.destroy(); this.enemy = undefined;
-      this.bot?.destroy(); this.bot = undefined; this.sparUi?.root.remove(); this.sparUi = undefined;
+      this.bot?.destroy(); this.bot = undefined; this.sparUi?.root.remove(); this.sparUi = undefined; this.logEl?.remove(); this.logEl = undefined;
+      this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1;
       this.ambience?.destroy(); this.ambience = undefined;
       for (const o of this.occluders) { o.clearMask(true); o.destroy(); }
       this.occluders = [];
@@ -465,7 +470,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     if (!this.view || !this.rt || !this.fx || !this.ci) return;
-    const ms = Math.min(delta, 50);
+    const ms = Math.min(delta, 50) * this.slowMo; // arena analysis: slow motion
     this.ambience?.update(ms);
     this.pvp?.update(ms);
     this.skillBook?.update(ms);
@@ -1657,6 +1662,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const h = run.dmgMul && run.dmgMul !== 1 ? { ...hit, damage: hit.damage * run.dmgMul } : hit; // caster's War Cry / Radiant Blade
     const out = this.body.receive(run.attackerId, s, h, this.casterPos(run.attackerId) ?? run.origin, this.simMs);
     out.damage = this.takeDamage(out.damage);
+    if (run.attackerId === BOT_ID) this.logHit(false, s, out, this.body, this.kin.z);
     this.fx!.confirmed(s, hit, at, out.damage, out.reaction, false, out.hitIndex);
     if (s.carry && out.reaction !== 'armor' && out.damage > 0) this.carriedBy = run; // Impaling Rush: ride the blade
     this.pvp?.sendHp(this.playerHP, run.attackerId, {
@@ -1778,7 +1784,23 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 .gol-spar .act button{height:40px;font-size:14px;letter-spacing:2px}
 .gol-spar .act .stop.on{border-color:#d9583f;background:linear-gradient(#4a1410,#2a0a08);color:#ffd2c4}
 .gol-spar .act .cmb{border-color:#c99a45;background:linear-gradient(#3a2a10,#22180a);color:#ffe7a8}
-.gol-spar .act .cmb:disabled{opacity:.45;cursor:default;box-shadow:none}`;
+.gol-spar .act .cmb:disabled{opacity:.45;cursor:default;box-shadow:none}
+.gol-spar .spd{display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:6px;align-items:center}
+.gol-spar .spd span{font:700 11px ${FONT_FAMILY};letter-spacing:2px;color:#bfb08e;padding-right:4px}
+.gol-spar .spd button{height:28px}
+.gol-spar .tog{height:30px}
+.gol-hitlog{position:absolute;left:1350px;top:400px;width:300px;max-height:420px;overflow:hidden;display:none;flex-direction:column;gap:4px;padding:10px 10px 12px;box-sizing:border-box;pointer-events:none;
+  background:linear-gradient(rgba(6,10,18,.82),rgba(6,10,18,.62));border-radius:12px;box-shadow:inset 0 0 0 1px rgba(201,154,69,.35);font-family:${FONT_FAMILY}}
+.gol-hitlog.on{display:flex}
+.gol-hitlog .ln{display:grid;grid-template-columns:auto 1fr auto;column-gap:8px;row-gap:1px;padding:5px 8px;border-radius:6px;background:rgba(255,255,255,.04);font-size:12px;line-height:15px}
+.gol-hitlog .ln.o{box-shadow:inset 3px 0 0 #e8b25a}
+.gol-hitlog .ln.i{box-shadow:inset 3px 0 0 #e0503c}
+.gol-hitlog .ln b{font-weight:700;color:#f3d58a;white-space:nowrap}
+.gol-hitlog .ln.i b{color:#ff9a86}
+.gol-hitlog .ln .sk{color:#efddb0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gol-hitlog .ln .dm{font-weight:700;color:#fff;text-align:right}
+.gol-hitlog .ln .rx{grid-column:1/4;font-weight:700;letter-spacing:1px;color:#9ed8ff;font-size:11px}
+.gol-hitlog .ln .sub{grid-column:1/4;color:#a9b4bf;font-size:10.5px;line-height:13px}`;
       document.head.appendChild(st);
     }
     const root = document.createElement('div'); root.className = 'gol-spar'; host.appendChild(root);
@@ -1798,8 +1820,40 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     combo.title = 'The opponent performs its full combo on you';
     combo.addEventListener('click', () => { if (this.bot?.startCombo()) this.fx?.callout({ x: this.bot.x, y: this.bot.y, z: 70 }, 'COMBO!', '#ffd27a', 0); this.refreshSparUi(); });
     act.append(stop, combo);
-    this.sparUi = { root, clsBtns, stop, combo };
+    const spd = document.createElement('div'); spd.className = 'spd'; root.appendChild(spd);
+    const sl = document.createElement('span'); sl.textContent = 'SPEED'; spd.appendChild(sl);
+    const speedBtns = ([[1, '×1'], [0.5, '×½'], [0.25, '×¼']] as const).map(([v, label]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.title = 'Slow motion to study the hits and reactions';
+      b.addEventListener('click', () => { this.slowMo = v; this.time.timeScale = v; this.tweens.timeScale = v; this.refreshSparUi(); });
+      spd.appendChild(b); return { v, b };
+    });
+    const log = document.createElement('button'); log.type = 'button'; log.className = 'tog'; log.textContent = 'HIT LOG';
+    log.title = 'Every hit: skill, damage, reaction, stun, launch, combo and combo-protection gauges';
+    log.addEventListener('click', () => { this.logEl?.classList.toggle('on'); this.refreshSparUi(); });
+    root.appendChild(log);
+    this.logEl = document.createElement('div'); this.logEl.className = 'gol-hitlog'; host.appendChild(this.logEl);
+    this.sparUi = { root, clsBtns, stop, combo, speedBtns, log };
     this.refreshSparUi();
+  }
+
+  /** Hit log line: who hit whom with what, and exactly how the victim's body reacted. */
+  private logHit(mine: boolean, s: FinalSkill, out: HitOutcome, vb: CombatBody, z: number): void {
+    const el = this.logEl; if (!el) return;
+    const sum = mine ? this.logSum.out : this.logSum.in;
+    if (sum.combo !== out.comboId) { sum.combo = out.comboId; sum.hits = 0; sum.dmg = 0; }
+    sum.hits++; sum.dmg += out.damage;
+    const g = vb.gauge, pct = (v: number) => `${Math.round(v * 100)}%`;
+    const rx: Record<string, string> = { hit: 'HIT-STUN', launch: 'LAUNCH', knockdown: 'KNOCKDOWN', cc: 'HARD CC', armor: 'BLOCKED', slam: 'SLAM', float: 'AIR HOLD' };
+    const row = document.createElement('div'); row.className = `ln ${mine ? 'o' : 'i'}`;
+    const extra = [out.stunMs ? `stun ${out.stunMs}ms` : '', out.ccMs ? `cc ${out.ccMs}ms` : '', out.launchVz > 0 ? `up ${Math.round(out.launchVz)}` : '', z > 8 ? `air ${Math.round(z)}px` : '', out.endsCombo ? 'ENDS' : ''].filter(Boolean).join(' · ');
+    row.innerHTML = '<b></b><span class="sk"></span><span class="dm"></span><span class="rx"></span><div class="sub"></div>';
+    (row.children[0] as HTMLElement).textContent = `${mine ? 'YOU ▶' : '◀ ' + this.botName().split(' ')[1]?.toUpperCase()} #${out.hitIndex}`;
+    (row.children[1] as HTMLElement).textContent = s.name;
+    (row.children[2] as HTMLElement).textContent = `${out.damage}`;
+    (row.children[3] as HTMLElement).textContent = rx[out.reaction] ?? out.reaction;
+    (row.children[4] as HTMLElement).textContent = `${extra ? extra + '  |  ' : ''}combo ${sum.hits} hits · ${sum.dmg} dmg  |  gauge S ${pct(g.stand)} A ${pct(g.air)} D ${pct(g.down)}`;
+    el.prepend(row);
+    while (el.childElementCount > 40) el.lastElementChild?.remove();
   }
 
   private refreshSparUi(): void {
@@ -1807,6 +1861,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     u.root.classList.toggle('on', !!this.bot);
     for (const c of u.clsBtns) c.b.classList.toggle('on', c.id === this.botCls);
     u.stop.textContent = this.botPaused ? 'RESUME' : 'STOP';
+    for (const sb of u.speedBtns) sb.b.classList.toggle('on', sb.v === this.slowMo);
+    u.log.classList.toggle('on', !!this.logEl?.classList.contains('on'));
+    if (!this.bot) this.logEl?.classList.remove('on');
     u.stop.classList.toggle('on', this.botPaused);
     u.stop.title = this.botPaused ? 'The opponent fights again' : 'The opponent stands still (it still takes hits)';
   }
@@ -1818,6 +1875,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const chB = run.attackerId === this.localId ? this.chanceMul(b.body) : 1;
     const m = run.attackerId === this.localId ? this.ownDamageMul() * chB : 1, h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
     const out = b.receive(run.attackerId, run.skill, h, this.casterPos(run.attackerId) ?? run.origin, this.simMs);
+    this.logHit(true, run.skill, out, b.body, b.kin.z);
     if (chB > 1 && out.damage > 0) this.chanceMark(BOT_ID, at);
     if (b.refilled) this.fx!.healNumber({ x: b.x, y: b.y, z: b.z }, b.refilled);
     this.confirm(run, hit, BOT_ID, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!run.skill.endsCombo, t.z);
