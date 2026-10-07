@@ -4836,9 +4836,9 @@
      "id": "gareth",
      "name": "Master Gareth",
      "title": "Warrior Master",
-     "x": 462,
-     "y": 520,
-     "art": "warrior_master",
+     "x": 1142,
+     "y": 470,
+     "art": "warrior_master_pose",
      "role": "talk",
      "lines": [
       "A blade is only as strong as the will that holds it.",
@@ -4849,36 +4849,36 @@
      "id": "seraphine",
      "name": "Master Seraphine",
      "title": "Book Mage Master",
-     "x": 542,
-     "y": 622,
-     "art": "mage_master",
+     "x": 1372,
+     "y": 560,
+     "art": "mage_master_pose",
      "role": "talk",
      "lines": [
       "Every page of this book holds a storm. Few can read it.",
       "Come back when your mind is ready, and I will teach you the path of the Book Mage."
-     ]
+     ],
+     "flip": true
     },
     {
      "id": "rowan",
      "name": "Master Rowan",
      "title": "Archer Master",
-     "x": 1180,
-     "y": 615,
-     "art": "archer_master",
+     "x": 1362,
+     "y": 382,
+     "art": "archer_master_pose",
      "role": "talk",
      "lines": [
       "Patience. The arrow flies true only for those who wait.",
       "When you are ready, the path of the Archer will be open to you."
-     ],
-     "flip": true
+     ]
     },
     {
      "id": "hayato",
      "name": "Master Hayato",
      "title": "Samurai Master",
-     "x": 1340,
-     "y": 560,
-     "art": "samurai_master",
+     "x": 1192,
+     "y": 617,
+     "art": "samurai_master_pose",
      "role": "talk",
      "lines": [
       "One cut. One breath. Nothing more.",
