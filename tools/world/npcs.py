@@ -12,7 +12,9 @@ OUT = G + 'public/assets/world/npc/'; os.makedirs(OUT, exist_ok=True)
 Q = 1.5                       # texture px per world px
 SHEET_SCALE = 108 / 172       # 352-cell body sheets → world px (Body.ts)
 NPCS = {'aldric': {'cols': 4, 'height': 112}, 'mage_master': {'cols': 4, 'height': 112}, 'archer_master': {'cols': 4, 'height': 112},
-        'warrior_master': {'cols': 4, 'height': 112}, 'samurai_master': {'cols': 4, 'height': 112}, 'gate_guard': {'cols': 4, 'height': 112}}
+        'warrior_master': {'cols': 4, 'height': 112}, 'samurai_master': {'cols': 4, 'height': 112}, 'gate_guard': {'cols': 4, 'height': 112},
+        # the masters at rest (Temple Road's far end)
+        'mage_master_pose': {'cols': 4, 'height': 124, 'baseline': 855}}
 
 def strip(frames, name):
   """frames: [(RGBA image, foot x, foot y, world scale)] → one strip, all feet at the same point."""
@@ -42,7 +44,8 @@ def keyed(rgb):
   sp = np.clip(np.minimum(R, B) - Gc - 12, 0, None) * (a < 0.98); rgb = rgb.copy(); rgb[..., 0] -= sp * 0.75; rgb[..., 2] -= sp * 0.75
   return rgb.clip(0, 255), a
 
-def from_gpt(path, cols, height):
+def from_gpt(path, cols, height, baseline=None):
+  """baseline: a fixed foot line (sheet px) for every frame — a floating figure keeps its bob above the ground."""
   im = np.array(Image.open(path).convert('RGB')).astype(np.float32)
   Ws = im.shape[1]; cw = Ws / cols; frames = []; tall = []
   for c in range(cols):
@@ -51,7 +54,8 @@ def from_gpt(path, cols, height):
     m = a > 0.5; lab, n = nd.label(m)
     if n: sz = nd.sum(m, lab, range(1, n + 1)); m = np.isin(lab, 1 + np.nonzero(sz >= sz.max() * 0.05)[0])   # the figure (and its staff), no specks
     a = np.where(nd.binary_dilation(m, iterations=2), a, 0)
-    ys, xs = np.nonzero(a > 0.5); foot_y = ys.max(); low = ys > foot_y - 0.06 * (foot_y - ys.min())
+    ys, xs = np.nonzero(a > 0.5); low_y = ys.max(); low = ys > low_y - 0.06 * (low_y - ys.min())
+    foot_y = baseline if baseline is not None else low_y
     fx = xs[low].mean(); tall.append(foot_y - ys.min())
     frames.append((Image.fromarray(np.dstack([rgb, a * 255]).astype(np.uint8)), fx, foot_y))
   k = height / np.median(tall)   # world px per sheet px: the figure stands `height` world px tall
@@ -60,7 +64,8 @@ def from_gpt(path, cols, height):
 meta = {}
 for name, spec in NPCS.items():
   src = G + f'tools/world/src/npc_{name}.png'
-  if os.path.exists(src): frames = from_gpt(src, spec['cols'], spec['height'])
+  src = G + f"tools/world/src/npc_{spec.get('src', name)}.png"
+  if os.path.exists(src): frames = from_gpt(src, spec['cols'], spec['height'], spec.get('baseline'))
   else:   # stand-in until the NPC's own sheet is drawn
     sh = Image.open(G + 'public/assets/final/body/warrior/movement/idle.png').convert('RGBA')
     frames = [(sh.crop((c * 352, 0, c * 352 + 352, 352)), 176, 310, SHEET_SCALE) for c in range(sh.size[0] // 352)]
