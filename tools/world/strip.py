@@ -189,7 +189,9 @@ for a, b in zip(ROW, ROW[1:]):
     s = p.intersection(box(x - 1, 0, x + 1, AH)).bounds; return s[1], s[3]
   xa = part[a].bounds[2] - 40; xb = part[b].bounds[0] + 40
   (y0, y1), (y2, y3) = band(part[a], xa), band(part[b], xb)
-  extra.append(Polygon([(xa, y0 + 6), (xb, y2 + 6), (xb, y3 - 6), (xa, y1 - 6)]))
+  extra.append(Polygon([(xa, y0), (xb, y2), (xb, y3), (xa, y1)]))
+# a block you can jump on is floor too (its top: you stand there; at ground level the block itself stops you)
+extra += [Polygon(p['foot']) for p in world_props if 'top' in p]
 floor = unary_union(list(part.values()) + extra)
 if floor.geom_type != 'Polygon':
   sys.exit(f'floor is not one piece: {floor.geom_type} {[round(g.area) for g in floor.geoms]}')
