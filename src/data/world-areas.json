@@ -4836,8 +4836,8 @@
      "id": "gareth",
      "name": "Master Gareth",
      "title": "Warrior Master",
-     "x": 360,
-     "y": 560,
+     "x": 462,
+     "y": 520,
      "art": "warrior_master",
      "role": "talk",
      "lines": [
@@ -4849,8 +4849,8 @@
      "id": "seraphine",
      "name": "Master Seraphine",
      "title": "Book Mage Master",
-     "x": 520,
-     "y": 615,
+     "x": 542,
+     "y": 622,
      "art": "mage_master",
      "role": "talk",
      "lines": [
@@ -4885,6 +4885,34 @@
       "Return when your spirit is calm, and I will show you the path of the Samurai."
      ],
      "flip": true
+    },
+    {
+     "id": "guard_a",
+     "name": "Guard Cassian",
+     "title": "Temple Guard",
+     "x": 322,
+     "y": 415,
+     "art": "gate_guard",
+     "role": "talk",
+     "flip": true,
+     "lines": [
+      "Halt. Beyond this gate stand the Masters of the four paths.",
+      "Only those strong enough to cross the Crimson Ruins may seek them."
+     ]
+    },
+    {
+     "id": "guard_b",
+     "name": "Guard Darius",
+     "title": "Temple Guard",
+     "x": 337,
+     "y": 600,
+     "art": "gate_guard",
+     "role": "talk",
+     "flip": true,
+     "lines": [
+      "The cursed swordsmen never pass this gate. Not while I stand here.",
+      "Go on. The Masters are waiting by the great stairs."
+     ]
     }
    ]
   }

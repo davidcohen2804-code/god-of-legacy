@@ -12,7 +12,7 @@ OUT = G + 'public/assets/world/npc/'; os.makedirs(OUT, exist_ok=True)
 Q = 1.5                       # texture px per world px
 SHEET_SCALE = 108 / 172       # 352-cell body sheets → world px (Body.ts)
 NPCS = {'aldric': {'cols': 4, 'height': 112}, 'mage_master': {'cols': 4, 'height': 112}, 'archer_master': {'cols': 4, 'height': 112},
-        'warrior_master': {'cols': 4, 'height': 112}, 'samurai_master': {'cols': 4, 'height': 112}}
+        'warrior_master': {'cols': 4, 'height': 112}, 'samurai_master': {'cols': 4, 'height': 112}, 'gate_guard': {'cols': 4, 'height': 112}}
 
 def strip(frames, name):
   """frames: [(RGBA image, foot x, foot y, world scale)] → one strip, all feet at the same point."""

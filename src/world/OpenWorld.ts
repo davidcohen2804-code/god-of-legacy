@@ -242,6 +242,11 @@ export class OpenWorld {
     const a = this.areaOf(player.x, player.y);
     if (a === ARENA_AREA || this.area === ARENA_AREA) { if (a !== this.area && Math.abs(player.y - ARENA.y) > AREA_HYST) this.setArea(a); }
     else if (a !== this.area && player.x > a.span[0] + (a.span[0] > 0 ? AREA_HYST : 0) - 1 && player.x < a.span[1] - (a.span[1] < WORLD_W ? AREA_HYST : 0) + 1) this.setArea(a);
+    // the Temple Gate's front layer turns see-through while you are behind its front tower (it would hide you)
+    if (this.gate[1]) {
+      const f = this.gate[1], ft = GATE.props[1].foot, behind = player.x > f.x && player.x < f.x + f.displayWidth && player.y < ft[0][1] && player.y > f.y + f.displayHeight * 0.25 - 200;
+      const want = behind ? 0.5 : 1; f.setAlpha(f.alpha + (want - f.alpha) * (1 - Math.exp(-ms / 120)));
+    }
     // NPCs: idle loop, quest marker bob
     for (const n of this.npcs) {
       n.t += ms;
