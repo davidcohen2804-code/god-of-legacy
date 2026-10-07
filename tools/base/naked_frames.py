@@ -355,7 +355,7 @@ def put_head(e, a, fig, lab, hd, r, follow=False, ref=None, search=False, sway=0
   # in front of the hair: the sword arm as it shows — none of it when it passes behind the head
   front = arm & fig & ~(pasted & ~occ)
   if (arm & pasted).sum() > 30 and occ.sum() < 0.25 * (arm & pasted).sum(): front[:] = False
-  return e, a, fig, lab, dict(dx=dx, hx=hx, dy=dy, occ=int(occ.sum()), front=front)
+  return e, a, fig, lab, dict(dx=dx, hx=hx, dy=dy, occ=int(occ.sum()), front=front, head=sh(hd['head']) & ~occ)
 
 
 def feet_x(fig):
@@ -389,6 +389,168 @@ def lean(px, mk, kb, kt, lift):
   res = np.dstack([rgb, a]).round().clip(0, 255).astype(np.uint8)
   mo[..., 3] = 255; mo[..., 0] = np.where(res[..., 3] > 0, mo[..., 0], 0)
   return res, mo, kb * (GROUND - row) + kt * max(0, waist - row)
+
+
+# ---- worn gear (equipment): GPT dressed our figures in place (tools/base/gpt/dressed/<image>: the same figures in a green
+# T-shirt, blue pants, brown boots, the starter sword in hand). Each piece is lifted off the dressed figure, laid on the bare
+# one (scale + shift by the bald head, which GPT left as it was) and goes through the very same cell placement as the bare
+# frame, so the game draws it on that frame; the clothes are re-coloured into the offered colours (outfit-colors.json).
+GEAR_PIECES = ('pants', 'shoes', 'top')
+GEAR_COLORS = {k: [tuple(int(c['swatch'][i:i + 2], 16) for i in (1, 3, 5)) for c in v] for k, v in json.load(open(G + 'src/data/outfit-colors.json')).items()}
+_dcache = {}
+
+
+def warp_fig(f, s, ox, oy, shape):
+  """A GPT figure (colour without the magenta, alpha) laid into another image: there = s * here + (ox, oy)."""
+  e, a = keyed(f['gi']); a = np.where(nd.binary_dilation(f['m'], iterations=3), a, 0)
+  pm = np.dstack([e * a[..., None], a * 255]).clip(0, 255).astype(np.uint8)
+  im = Image.fromarray(pm, 'RGBA').transform((shape[1], shape[0]), Image.AFFINE, (1 / s, 0, -ox / s, 0, 1 / s, -oy / s), Image.BICUBIC)
+  w = np.asarray(im).astype(np.float32); al = w[..., 3] / 255
+  return np.where(al[..., None] > 1e-3, w[..., :3] / np.maximum(al[..., None], 1e-3), 0).clip(0, 255), al
+
+
+def across(p, blade):
+  """The blade's pixels with the piece p on both sides of it (across the blade's width): p goes on behind the blade there."""
+  if not blade.any() or not p.any(): return np.zeros_like(blade)
+  ys, xs = np.nonzero(blade); ev, vec = np.linalg.eigh(np.cov(np.vstack([xs, ys]))); u = vec[:, 1]; nx_, ny_ = -u[1], u[0]
+  w = int(2 * nd.distance_transform_edt(blade).max() + 6); s1 = np.zeros_like(blade); s2 = np.zeros_like(blade)
+  for k in range(1, w + 1):
+    dx_, dy_ = int(round(nx_ * k)), int(round(ny_ * k))
+    s1 |= np.roll(np.roll(p, -dy_, 0), -dx_, 1); s2 |= np.roll(np.roll(p, dy_, 0), dx_, 1)
+  return blade & s1 & s2
+
+
+def _laid(dp, fn):
+  """GPT's dressed copy (image dp) of the bare GPT figure fn, laid on it by the bald head, which GPT left as it was (scale,
+  then shift by 1 px, then half a pixel) → colour, alpha in the bare image's space; the scale / the boxes' ratio, the
+  head's error."""
+  en, an = keyed(fn['gi']); shape = fn['m'].shape
+  cxy = lambda f: ((f['box'][0] + f['box'][2]) / 2, (f['box'][1] + f['box'][3]) / 2)
+  fd = min(figures(dp), key=lambda f: (cxy(f)[0] - cxy(fn)[0]) ** 2 + (cxy(f)[1] - cxy(fn)[1]) ** 2)   # the same figure, dressed
+  x0, y0, x1, y1 = fn['box']; yy = np.arange(shape[0])[:, None]
+  R = nd.binary_dilation(fn['m'], iterations=2) & (yy < y0 + 0.30 * (y1 - y0))      # the bald head: GPT left it as it was
+  ry, rx = np.nonzero(R); ry0, rx0 = ry.min(), rx.min()
+  A = en[ry0:ry.max() + 1, rx0:rx.max() + 1]; Aa = (an * fn['m'])[ry0:ry.max() + 1, rx0:rx.max() + 1] * 255; M = R[ry0:ry.max() + 1, rx0:rx.max() + 1]
+  ed, ad = keyed(fd['gi']); ad = np.where(nd.binary_dilation(fd['m'], iterations=3), ad, 0)
+  X0, Y0, X1, Y1 = fd['box']; X0 -= 16; Y0 -= 16; X1 += 16; Y1 += 16
+  crop = np.dstack([ed[Y0:Y1 + 1, X0:X1 + 1], ad[Y0:Y1 + 1, X0:X1 + 1] * 255])
+  s0 = (y1 - y0) / (fd['box'][3] - fd['box'][1]); best = None
+  for s_ in np.arange(s0 * 0.96, s0 * 1.04, 0.004):                 # scale, then shift (1 px), then half a pixel
+    big = np.array(Image.fromarray(crop.clip(0, 255).astype(np.uint8), 'RGBA').resize((round(crop.shape[1] * s_), round(crop.shape[0] * s_)), Image.BICUBIC)).astype(np.float32)
+    ox0, oy0 = x0 - s_ * fd['box'][0], y0 - s_ * fd['box'][1]
+    for ty in range(-12, 13):
+      for tx in range(-12, 13):
+        oy_, ox_ = int(round(ry0 - (s_ * Y0 + oy0 + ty))), int(round(rx0 - (s_ * X0 + ox0 + tx)))
+        if oy_ < 0 or ox_ < 0 or oy_ + A.shape[0] > big.shape[0] or ox_ + A.shape[1] > big.shape[1]: continue
+        sub = big[oy_:oy_ + A.shape[0], ox_:ox_ + A.shape[1]]
+        err = float((np.abs(A - sub[..., :3]).sum(-1) + 2 * np.abs(Aa - sub[..., 3]))[M].mean())
+        if best is None or err < best[0]: best = (err, s_, ox0 + tx, oy0 + ty)
+  err, s_, ox, oy = best; fine = (1e9, 0, 0)
+  for dy_ in (-0.5, 0, 0.5):
+    for dx_ in (-0.5, 0, 0.5):
+      Fe, Fa = warp_fig(fd, s_, ox + dx_, oy + dy_, shape)
+      e2 = float((np.abs(en - Fe).sum(-1) + 2 * np.abs(an * fn['m'] - Fa) * 255)[R].mean())
+      if e2 < fine[0]: fine = (e2, dx_, dy_)
+  Fe, Fa = warp_fig(fd, s_, ox + fine[1], oy + fine[2], shape)
+  return Fe, Fa, s_ / s0, fine[0]
+
+
+def _sword_of(Fe, Fa):
+  """The sword the dressed figure holds (steel blade, guard, grip): one solid piece — nicks and holes filled, its own dark
+  outline, no bits of the cloth / skin around it."""
+  Rc, Gc, Bc = Fe[..., 0], Fe[..., 1], Fe[..., 2]; lum = 0.3 * Rc + 0.59 * Gc + 0.11 * Bc; fig = Fa > 0.05
+  gi = np.where((Fa > 0.5)[..., None], Fe, np.array([255, 0, 255], np.float32))
+  sword = gpt_sword(dict(gi=gi, m=Fa > 0.5))
+  if sword.any():
+    sword = nd.binary_fill_holes(nd.binary_closing(sword, iterations=2)) & fig
+    cloth = ((Bc > Rc + 25) & (Bc > Gc + 8)) | ((Gc > Rc + 25) & (Gc > Bc + 15))
+    sword &= ~(cloth | (((Rc - Bc) > 45) & (lum > 140)))
+    sword |= nd.binary_dilation(sword, iterations=3) & fig & (lum < 110) & ~cloth & ~(((Rc - Bc) > 45) & (lum > 140))
+    Ls, ns = nd.label(sword); szs = nd.sum(sword, Ls, range(1, ns + 1))
+    sword = np.isin(Ls, [i + 1 for i in range(ns) if szs[i] >= max(20, 0.01 * szs.max())])
+  return sword
+
+
+def _clothes(Fe, Fa, sword, fn):
+  """The clothes on the dressed figure (laid on the bare one, fn) by GPT's colours, each with its own dark outline; where a
+  sword (mask) is in front of a piece, the piece goes on behind it in its own colour, over the bare body."""
+  shape = fn['m'].shape; yy = np.arange(shape[0])[:, None]
+  Rc, Gc, Bc = Fe[..., 0], Fe[..., 1], Fe[..., 2]; mx = np.maximum(np.maximum(Rc, Gc), Bc); mn = np.minimum(np.minimum(Rc, Gc), Bc)
+  lum = 0.3 * Rc + 0.59 * Gc + 0.11 * Bc; sat = (mx - mn) / np.maximum(mx, 1); fig = Fa > 0.05
+  top = nd.binary_opening(fig & (Gc > Rc + 25) & (Gc > Bc + 15) & ~sword, iterations=1)
+  pants = nd.binary_opening(fig & (Bc > Rc + 25) & (Bc > Gc + 8) & ~sword, iterations=1)
+  pr = np.nonzero(pants)[0]; pbot = int(np.percentile(pr, 97)) if len(pr) else shape[0]
+  shoes = fig & (yy > pbot - 40) & (Rc > Gc + 12) & (Gc > Bc + 4) & (mx < 215) & (sat > 0.25) & ~nd.binary_dilation(pants, iterations=1) & ~sword
+  L_, n_ = nd.label(shoes); sz = nd.sum(shoes, L_, range(1, n_ + 1)); shoes = np.isin(L_, [1 + i for i in range(n_) if sz[i] > 0.05 * sz.max()])
+  ink = fig & (lum < 75) & ~sword & ~((sat < 0.12) & (lum > 40)); out = {}; taken = sword.copy()   # cloth outlines, not grey steel
+  blade = sword & (lum > 120) & (sat < 0.3)                    # the steel (not the guard / grip at the fist)
+  hand = nd.binary_dilation(fig & ((Rc - Bc) > 40) & (lum > 140) & nd.binary_dilation(sword, iterations=40), iterations=10)   # the fist on it
+  def in_rows(p):                                              # the piece's own rows and columns
+    if not p.any(): return np.zeros_like(p)
+    ys_, xs_ = np.nonzero(p); yy_, xx_ = np.mgrid[0:shape[0], 0:shape[1]]
+    return (yy_ >= ys_.min()) & (yy_ <= ys_.max()) & (xx_ >= xs_.min() - 10) & (xx_ <= xs_.max() + 10)
+  for name, p in (('top', top), ('pants', pants), ('shoes', shoes)):
+    p = nd.binary_fill_holes(nd.binary_closing(p, iterations=2)) & fig; col = Fe
+    hid = (across(p, sword) | (nd.binary_dilation(sword, iterations=1) & fn['m'] & in_rows(p))) & ~p & ~hand   # the piece behind the sword (over the bare body)
+    if hid.any():                                                      # its cloth's colour there, smoothed (no streaks)
+      inner_ = p & ~sword & ~ink; w_ = nd.gaussian_filter(inner_.astype(np.float32), 8)
+      sm = np.stack([nd.gaussian_filter(np.where(inner_, Fe[..., k], 0), 8) for k in range(3)], -1) / np.maximum(w_, 1e-3)[..., None]
+      _, (iy, ix) = nd.distance_transform_edt(~inner_, return_indices=True)
+      col = np.where(hid[..., None], np.where((w_ > 0.02)[..., None], sm, Fe[iy, ix]), Fe); p = p | hid
+    rim = nd.binary_dilation(p, iterations=3) & ink & ~taken
+    m_ = (p | rim) & ~(taken & ~hid); taken |= m_
+    a_ = np.where(m_, np.where(hid, 1.0, Fa), 0)
+    a_ = np.maximum(a_, nd.gaussian_filter(a_, 0.6) * (Fa > 0.5)) * ((Fa > 0.02) | hid)
+    out[name] = np.dstack([col, a_ * 255]).clip(0, 255)
+  return out
+
+
+def dressed(path, idx):
+  """The worn gear on GPT figure idx of path, as layers in the bare image's space: {piece: RGBA (colour 0..255, alpha
+  0..255)} for pants / shoes / top (/ sword), or None when GPT has not dressed this image. GPT dressed every image twice:
+  with the sword in hand (tools/base/gpt/dressed/<image>: the sword comes from it) and the same without any sword
+  (tools/base/gpt/dressed_nosword/<image>: the clothes, whole — nothing in front of them). Without that second image the
+  clothes come from the first one, filled in behind the sword."""
+  if (path, idx) in _dcache: return _dcache[(path, idx)]
+  ws, ns = 'dressed/' + path, 'dressed_nosword/' + path
+  hw, hn = [os.path.exists(H + '/gpt/' + p_) for p_ in (ws, ns)]
+  if not (hw or hn): _dcache[(path, idx)] = None; return None
+  fn = figures(path)[idx]; out = {}; log = {}
+  if hw:
+    Fe, Fa, k_, err = _laid(ws, fn); sword = _sword_of(Fe, Fa); log['sword'] = (round(k_, 4), round(err, 1))
+    if sword.any(): out['sword'] = np.dstack([Fe, np.where(sword, Fa, 0) * 255]).clip(0, 255)
+  if hn: Ce, Ca, k_, err = _laid(ns, fn); csw = np.zeros(fn['m'].shape, bool); log['clothes'] = (round(k_, 4), round(err, 1))
+  else: Ce, Ca, csw = Fe, Fa, sword
+  out.update(_clothes(Ce, Ca, csw, fn))
+  print('  dressed', path, idx, 'scale, head err', log, {k: int((v[..., 3] > 127).sum()) for k, v in out.items()})
+  _dcache[(path, idx)] = out
+  return out
+
+
+def gear_ramp(lum, lo, md, hi, c):
+  """A piece's light / dark through the new colour's ramp: its middle tone = the colour, shadows down to 45 %, highlights
+  a little lighter (the menus' rule, tools/base/outfit/outfit_layers.py)."""
+  t = np.where(lum < md, 0.5 * np.clip((lum - lo) / max(md - lo, 1), 0, 1), 0.5 + 0.5 * np.clip((lum - md) / max(hi - md, 1), 0, 1))[..., None]
+  c = np.array(c, np.float32); dark, light = c * 0.45, c + (255 - c) * 0.3
+  return np.where(t < 0.5, dark + (c - dark) * (t / 0.5), c + (light - c) * ((t - 0.5) / 0.5))
+
+
+def gear_colours(layers, piece):
+  """The piece's layers (straight RGBA, alpha 0..1) in each offered colour: one ramp for all of them (their pooled light /
+  dark), the dark outline kept dark."""
+  pool = np.concatenate([L[..., :3][L[..., 3] > 0.5] for L in layers if (L[..., 3] > 0.5).any()]) if any((L[..., 3] > 0.5).any() for L in layers) else None
+  if pool is None: return [[L.copy() for L in layers] for _ in GEAR_COLORS[piece]]
+  lp = pool @ np.array([0.3, 0.59, 0.11]); lpi = lp[lp >= 75]
+  lo, md, hi = np.percentile(lpi, 2), np.percentile(lpi, 50), np.percentile(lpi, 99.5)
+  res = []
+  for c in GEAR_COLORS[piece]:
+    out = []
+    for L in layers:
+      lum = L[..., :3] @ np.array([0.3, 0.59, 0.11]); col = gear_ramp(lum, lo, md, hi, c)
+      col = np.where((lum < 75)[..., None], np.minimum(col, lum[..., None] * 0.55 + np.array(c) * 0.1), col)
+      out.append(np.concatenate([col, L[..., 3:4]], -1))
+    res.append(out)
+  return res
 
 
 idle_path, idle_idx = spec['anims']['idle'][0][:2]
@@ -431,12 +593,17 @@ for old in [OUT + 'face/' + f_ for f_ in os.listdir(OUT + 'face')]: os.remove(ol
 for k_ in range(1, NFACE):
   save_cell(layer_to_cell(np.asarray(Image.open(H + f'/face/{gender}_{k_}.png').convert('RGBA')), IDLE_GEOM), OUT + f'face/f{k_}.png')
 ostrips = {}                                                   # per move: the sword arm where it is in front of the head
+gcells = {}                                                    # per move, per piece: the worn gear on each frame (cell, straight RGBA)
+GEARHAVE = {p_: [] for p_ in GEAR_PIECES + ('sword',)}         # per piece: the moves it is drawn in
+os.makedirs(OUT + 'gear', exist_ok=True)
+for old in [OUT + 'gear/' + f_ for f_ in os.listdir(OUT + 'gear')]: os.remove(old)
 strips, masks, heads, refs, holds = {}, {}, {}, {}, {}         # heads: where the standing head sits per frame (cell px)
 move_sc, move_hw, move_hd = {}, {}, {}                         # per move: its scale, its GPT head width / inscribed size
 for anim, cells in spec['anims'].items():
   if isinstance(cells, dict): continue                         # derived moves (run) below
   n = len(cells); px = np.zeros((S, n * S, 4), np.uint8); mk = np.zeros((S, n * S, 4), np.uint8); heads[anim] = []
   ostrips[anim] = np.zeros((S, n * S, 4), np.uint8)
+  gcells[anim] = {p_: [None] * n for p_ in GEAR_PIECES + ('sword',)}
   order = list(range(n)); cl = [o for c_ in cells for o in c_[2:] if str(o).startswith('clean:')]; cell_sc = {}
   if cl: k0 = int(cl[0][6:]); order = [k0] + [k for k in order if k != k0]
   for c in order:
@@ -469,20 +636,21 @@ for anim, cells in spec['anims'].items():
       sc = cell_sc[int(scn[0][3:])] if scn[0][3:].isdigit() else move_sc[scn[0][3:]]
     cell_sc[c] = sc
     e, a, fig, lab = frame(path, idx, sc, opts)
+    geom = dict(LAST_GEOM); shift = [0, 0]                      # the GPT → cell placement, and the shifts after it
     air = [float(o[3:]) for o in opts if str(o).startswith('air')]
     if air:                                                    # off the ground as GPT drew it (same head height, feet up)
       hs = {k: figures(cc[0])[cc[1]]['box'][3] - figures(cc[0])[cc[1]]['box'][1] for k, cc in enumerate(cells) if cc[0] == path}
       up = int(round((max(hs.values()) - hs[c]) * sc * air[0])) + sum(int(o[4:]) for o in opts if str(o).startswith('lift'))
-      if up: e, a, fig, lab = [np.roll(v, -up, 0) for v in (e, a, fig, lab)]
+      if up: e, a, fig, lab = [np.roll(v, -up, 0) for v in (e, a, fig, lab)]; shift[0] -= up
     if 'feet' in opts:                                         # planted: the feet of the move's first frame done
       if c == order[0]: feet0 = feet_x(fig)
       else:
-        k = int(round(feet0 - feet_x(fig))); e, a, fig, lab = [np.roll(v, k, 1) for v in (e, a, fig, lab)]
+        k = int(round(feet0 - feet_x(fig))); e, a, fig, lab = [np.roll(v, k, 1) for v in (e, a, fig, lab)]; shift[1] += k
     if cl and c == order[0] and anim not in refs:              # the clean GPT head every frame of the move is compared to
       rr = sc * figures(path)[idx]['headd'] / HEADD
       rax, ray, _, _ = find_head(fig, HEAD, rr, True)
       refs[anim] = dict(e=e.copy(), fig=fig.copy(), ax=rax, ay=ray)
-    hxy = [0, 0]; hfront = None
+    hxy = [0, 0]; hfront = None; headm = HEAD['head'] if anim == 'idle' else np.zeros((S, S), bool)
     if anim != 'idle' and 'ownhead' not in opts:
       if samed: r = sc * figures(path)[idx]['headd'] / HEADD       # GPT's head size / the standing head's
       else: r = sc * figures(path)[idx]['headw'] / HEADW
@@ -497,9 +665,30 @@ for anim, cells in spec['anims'].items():
       e, a, fig, lab, info = put_head(e, a, fig, lab, HEAD, r, follow='feet' in opts or 'follow' in opts,
                                       ref=refs.get(anim), search=bool(samed), sway=sway[0] if sway else 0.0, bob=bob[0] if bob else 0,
                                       hold=(holds[anim], hold[0]) if hold else None)
-      hfront = info.pop('front')
+      hfront = info.pop('front'); headm = info.pop('head'); shift[1] += info['dx']
       print(' ', anim, c, 'scale', round(sc, 4), 'head', info, 'sword arm over hair', int(hfront.sum())); hxy = [int(info['hx']), int(info['dy'])]
     heads[anim].append((c, hxy))
+    # the sword is worn gear: off the bare frame (where it crossed the body, the body around it fills in), its own layer
+    sw = fig & (lab == 255)
+    if sw.any():
+      mx_, mn_ = e.max(-1), e.min(-1); sat_ = (mx_ - mn_) / np.maximum(mx_, 1)   # guard / pommel bits beside the hand: grey steel
+      sw = sw | (nd.binary_dilation(sw, iterations=6) & fig & (lab == 60) & (sat_ < 0.28) & (mx_ < 215) & ~((e[..., 0] - e[..., 2]) > 30))
+      rest = fig & ~sw; Lr, nr = nd.label(rest)                # the blade's own outline bits left in the air (small, thin): the sword's too
+      if nr > 1:
+        szr = nd.sum(rest, Lr, range(1, nr + 1)); dt_ = nd.distance_transform_edt(rest)
+        sw = sw | np.isin(Lr, [i + 1 for i in range(nr) if szr[i] < 0.03 * szr.max() and dt_[Lr == i + 1].max() <= 2.5])
+      gcells[anim]['sword'][c] = np.dstack([e, np.where(sw, a, 0)])
+      body = fig & ~sw; inner = nd.binary_fill_holes(body) & sw
+      _, (iy_, ix_) = nd.distance_transform_edt(~body, return_indices=True)
+      e = np.where(inner[..., None], e[iy_, ix_], e); a = np.where(inner, 1.0, np.where(sw, 0, a))
+      lab = np.where(inner, 60, np.where(sw, 0, lab)); fig = body | inner
+      if hfront is not None: hfront = hfront & ~sw
+    D = dressed(path, idx)
+    for piece in (GEAR_PIECES + ('sword',)) if D else ():
+      if piece not in D or (piece == 'sword' and gcells[anim]['sword'][c] is not None): continue   # (the frame's own sword: drawn with the move)
+      L_ = layer_to_cell(D[piece], geom); L_ = np.roll(np.roll(L_, shift[0], 0), shift[1], 1)
+      if piece != 'sword': L_[..., 3] *= ~headm                          # our head in front of the collar
+      gcells[anim][piece][c] = L_
     px[:, c * S:(c + 1) * S, :3] = e.clip(0, 255).astype(np.uint8); px[:, c * S:(c + 1) * S, 3] = np.where(fig, (a * 255).clip(0, 255), 0).astype(np.uint8)
     if hfront is not None and hfront.any():                     # the sword arm, drawn again over the hair / face
       ostrips[anim][:, c * S:(c + 1) * S, :3] = np.where(hfront[..., None], e, 0).clip(0, 255).astype(np.uint8)
@@ -508,6 +697,14 @@ for anim, cells in spec['anims'].items():
     mk[:, c * S:(c + 1) * S, 3] = 255
   heads[anim] = [h for _, h in sorted(heads[anim], key=lambda t: t[0])]
   strips[anim] = px; masks[anim] = mk
+  for piece, cl_ in gcells[anim].items():                      # the worn gear strips: the frames of the move side by side
+    if any(L_ is None for L_ in cl_): continue                  # (every frame has it, or the move has none)
+    cl_ = [L_.astype(np.float32) for L_ in cl_]
+    for ci, cols in enumerate([cl_] if piece == 'sword' else gear_colours(cl_, piece)):
+      st_ = np.zeros((S, n * S, 4), np.uint8)
+      for c, L_ in enumerate(cols): st_[:, c * S:(c + 1) * S] = np.dstack([L_[..., :3], L_[..., 3] * 255]).clip(0, 255).astype(np.uint8)
+      if st_[..., 3].any(): Image.fromarray(st_).save(OUT + f'gear/{anim}_{piece}' + ('' if piece == 'sword' else f'_c{ci}') + '.png', optimize=True)
+    if anim not in GEARHAVE[piece]: GEARHAVE[piece].append(anim)
   move_sc[anim] = sc; move_hw[anim] = float(np.mean([figures(cc[0])[cc[1]]['headw'] for cc in cells]))
   move_hd[anim] = float(np.mean([figures(cc[0])[cc[1]]['headd'] for cc in cells]))
 for anim, d in spec['anims'].items():                          # derived: the run = the walk leaning forward
@@ -529,7 +726,7 @@ for a_ in OVER: Image.fromarray(ostrips[a_]).save(OUT + a_ + '_o.png', optimize=
 print(gender, NSTY, 'hairstyles x', NCOL, 'colours,', NFACE, 'faces; sword arm over the head in', OVER)
 np_ = G + 'src/data/naked-look.json'                            # per gender: hairstyles (with a forehead layer?), hair colours, faces,
 nh = json.load(open(np_)) if os.path.exists(np_) else {}        #   moves with a sword-arm strip
-nh[gender] = dict(styles=NSTY, colors=NCOL, gaps=GAPS, faces=NFACE, over=OVER); json.dump(nh, open(np_, 'w'), indent=1)
+nh[gender] = dict(styles=NSTY, colors=NCOL, gaps=GAPS, faces=NFACE, over=OVER, gear={k: v for k, v in GEARHAVE.items() if v}); json.dump(nh, open(np_, 'w'), indent=1)
 # what each gender has (the game draws standing for the rest)
 lp = G + 'src/data/naked-anims.json'
 have = json.load(open(lp)) if os.path.exists(lp) else {}
@@ -560,6 +757,7 @@ def menu_win(L_):                                               # standing-image
   return Image.fromarray(cv)
 json.dump(dict(win=[int(WX0), int(WY0), int(WX1), int(WY1)], ox=int(EX), oy=int(EY), fit=int(Y1 - Y0)), open(H + f'/hair/{gender}_menu.json', 'w'))
 bare = menu_win(np.pad(np.asarray(Image.open(G + f'public/assets/characters/base/Base_{gender.capitalize()}.png').convert('RGBA')), ((Y0, 0), (X0, 0), (0, 0))))   # the bare figure, in the wide canvas
+bare.save(G + f'public/assets/characters/base/Base_{gender.capitalize()}_wide.png', optimize=True)   # the menus' body: every look layer shares this canvas
 ba_ = np.asarray(bare)[..., 3]; mh = np.nonzero(ba_ > 128); mtop = mh[0].min()
 hrow = mtop + int(0.36 * (mh[0].max() - mtop)); hx_ = np.nonzero(ba_[mtop:hrow].max(0) > 128)[0]
 hcx, hcy, side = (hx_.min() + hx_.max()) / 2, mtop + 0.42 * (hrow - mtop), 1.55 * (hx_.max() - hx_.min())
@@ -580,13 +778,25 @@ for _ in range(3):
   sx0_, sx1_ = min(xs_.min() - 12, hcx - side / 2), max(xs_.max() + 12, hcx + side / 2)
   hcx, side = (sx0_ + sx1_) / 2, sx1_ - sx0_
 if hu_.any(): hcy = min(hcy, np.nonzero(hu_.any(1))[0].min() + 0.38 * side)   # the hair's top well inside the round button
+# the worn gear on the menu figure: the dressed standing figure's pieces, in each colour, on the wide canvas
+os.makedirs(GB + 'gear', exist_ok=True)
+for old in [GB + 'gear/' + f_ for f_ in os.listdir(GB + 'gear') if f_.startswith(G2 + '_')]: os.remove(old)
+MENU_GEAR = []
+D_ = dressed(idle_path, idle_idx)
+if D_:
+  for piece in GEAR_PIECES:
+    L_ = D_[piece].astype(np.float32); L_[..., 3] /= 255
+    for ci, (Lc,) in enumerate(gear_colours([L_], piece)):
+      menu_win(np.dstack([Lc[..., :3], Lc[..., 3] * 255]).clip(0, 255).astype(np.uint8)).save(GB + f'gear/{G2}_{piece}_c{ci}.png', optimize=True)
+    MENU_GEAR.append(piece)
+  if 'sword' in D_: menu_win(D_['sword'].clip(0, 255).astype(np.uint8)).save(GB + f'gear/{G2}_sword.png', optimize=True); MENU_GEAR.append('sword')
 fb_ = []                                                       # where the faces are (the face buttons show that part)
 for k in range(1, NFACE):
   L_ = menu_win(np.asarray(Image.open(H + f'/face/{gender}_{k}.png').convert('RGBA'))); L_.save(GB + f'face/{G2}_{k}.png', optimize=True)
   fb_.append(np.nonzero(np.asarray(L_)[..., 3] > 128))
 ml = G + 'src/data/menu-look.json'                              # the game: canvas size, where the bare figure sits in it, its height,
 mlj = json.load(open(ml)) if os.path.exists(ml) else {}        #   the head (hairstyle buttons) and the face (face buttons): [cx, cy, side]
-mlj[gender] = dict(w=int(WX1 - WX0), h=int(WY1 - WY0), ox=int(EX), oy=int(EY), fit=int(Y1 - Y0), head=[round(float(hcx), 1), round(float(hcy), 1), round(float(side), 1)])
+mlj[gender] = dict(w=int(WX1 - WX0), h=int(WY1 - WY0), ox=int(EX), oy=int(EY), fit=int(Y1 - Y0), head=[round(float(hcx), 1), round(float(hcy), 1), round(float(side), 1)], gear=MENU_GEAR)
 if fb_:
   fy0_, fy1_ = min(v[0].min() for v in fb_), max(v[0].max() for v in fb_); fx0_, fx1_ = min(v[1].min() for v in fb_), max(v[1].max() for v in fb_)
   mlj[gender]['face'] = [round((fx0_ + fx1_) / 2, 1), round((fy0_ + fy1_) / 2, 1), round(1.5 * max(fx1_ - fx0_, fy1_ - fy0_), 1)]   # the whole face inside the round button

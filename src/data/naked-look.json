@@ -13,7 +13,24 @@
    "swing1",
    "swing2",
    "swing3"
-  ]
+  ],
+  "gear": {
+   "pants": [
+    "idle"
+   ],
+   "shoes": [
+    "idle"
+   ],
+   "top": [
+    "idle"
+   ],
+   "sword": [
+    "idle",
+    "swing1",
+    "swing2",
+    "swing3"
+   ]
+  }
  },
  "female": {
   "styles": 4,
@@ -29,6 +46,13 @@
    "swing1",
    "swing2",
    "swing3"
-  ]
+  ],
+  "gear": {
+   "sword": [
+    "swing1",
+    "swing2",
+    "swing3"
+   ]
+  }
  }
 }

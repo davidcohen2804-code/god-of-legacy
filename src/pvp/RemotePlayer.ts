@@ -9,6 +9,7 @@ import { DeathFx } from '../game/DeathFx';
 import { ActorView, CosSlot, Equipped } from '../game/ActorView';
 import { ClassKey, cleanLook, loadBaseLook, resolvePose } from '../game/Body';
 import { DEFAULT_SKIN, SKIN_TONES } from '../characters/Skin';
+import { WornLook, parseWornCode } from '../items/Gear';
 import { AnimSnap, Mode, poseQuery } from '../game/PoseState';
 import { finalSkill } from '../skills/FinalKit';
 
@@ -32,6 +33,8 @@ export class RemotePlayer {
   private deadMs = -1;
   private deathFx: DeathFx;
   private cosKey = '';
+  /** Holds a weapon (what it wears; older builds send nothing: armed). */
+  armed = true;
   hp: number = PVP.maxHp;
   alive = true;
   lastSeen = performance.now();
@@ -71,8 +74,11 @@ export class RemotePlayer {
     if (m.cos !== undefined && m.cos !== this.cosKey) {
       this.cosKey = m.cos;
       const e: Equipped = {};
-      for (const part of m.cos.split(',').filter(Boolean)) { const [s, id] = part.split(':'); e[s as CosSlot] = id; }
+      let worn: WornLook | null = null;
+      for (const part of m.cos.split(',').filter(Boolean)) { const [s, id] = part.split(':'); if (s === 'gear') worn = parseWornCode(id); else e[s as CosSlot] = id; }
       this.view.setEquipped(e);
+      this.view.setGear(worn, this.meta.gender === 'female' ? 'female' : 'male'); // what this player wears
+      this.armed = worn ? worn.weapon : true;
     }
     if (m.alive && !this.alive) this.revive(m.x, m.y, m.hp);
     else if (!m.alive && this.alive) this.die();

@@ -181,7 +181,33 @@ const nakedKey = (g: string, anim = 'idle') => `naked-${g}-${anim}`;
 export interface BaseLook { hair: number; hairColor: number; skin: number; face: number }
 /** Per gender: hairstyles (and which have a forehead layer), hair colours, faces (0 = the head's own), moves with a
  *  sword-arm strip (tools/base/naked_frames.py). */
-export const NAKED_LOOK = NAKED_LOOK_LIST as Record<string, { styles: number; colors: number; gaps: boolean[]; faces: number; over: string[] }>;
+export const NAKED_LOOK = NAKED_LOOK_LIST as Record<string, { styles: number; colors: number; gaps: boolean[]; faces: number; over: string[]; gear?: Partial<Record<GearPiece, string[]>> }>;
+/** Worn gear drawn on the base character, per move (tools/base/naked_frames.py: naked/<g>/gear/<move>_<piece>[_c<colour>].png,
+ *  same frames as the body strip): the clothes in their colour, the sword in hand. naked-look.json lists the moves each has. */
+export type GearPiece = 'top' | 'pants' | 'shoes' | 'sword';
+export interface GearLook { weapon: boolean; top: number; pants: number; shoes: number }
+const gearColor = (w: GearLook, p: GearPiece) => (p === 'sword' ? (w.weapon ? 0 : -1) : w[p]);
+export const gearKey = (g: string, anim: string, p: GearPiece, c: number) => `ng-${g}-${anim}-${p}${p === 'sword' ? '' : `-c${c}`}`;
+const gearPath = (g: string, anim: string, p: GearPiece, c: number) => `assets/final/body/naked/${g}/gear/${anim}_${p}${p === 'sword' ? '' : `_c${c}`}.png`;
+/** The worn pieces' strips for this move: [piece, texture key] (drawn when loaded). */
+export function gearLayers(g: string, anim: string, w: GearLook | null): [GearPiece, string][] {
+  const have = NAKED_LOOK[g]?.gear; if (!w || !have) return [];
+  return (['pants', 'shoes', 'top', 'sword'] as GearPiece[]).filter((p) => gearColor(w, p) >= 0 && have[p]?.includes(anim)).map((p) => [p, gearKey(g, anim, p, gearColor(w, p))]);
+}
+/** Queue the worn pieces' strips for every move (in a preload, or now with start = true). */
+export function loadGear(scene: Phaser.Scene, g: string, w: GearLook | null, start = false): void {
+  const have = NAKED_LOOK[g]?.gear; if (!w || !have) return;
+  let queued = false;
+  for (const [p, anims] of Object.entries(have) as [GearPiece, string[]][]) {
+    const c = gearColor(w, p); if (c < 0) continue;
+    for (const anim of anims) {
+      const k = gearKey(g, anim, p, c);
+      if (scene.textures.exists(k) || pending(scene, k)) continue;
+      scene.load.spritesheet(k, gearPath(g, anim, p, c), { frameWidth: CELL, frameHeight: CELL }); queued = true;
+    }
+  }
+  if (queued && start && !scene.load.isLoading()) scene.load.start();
+}
 export const hairLayerKey = (g: string, l: BaseLook, part: 'f' | 'b') => `nh-${g}-h${l.hair}c${l.hairColor}-${part}`;
 export const gapLayerKey = (g: string, l: BaseLook) => `nh-${g}-h${l.hair}-gap`;
 export const faceLayerKey = (g: string, l: BaseLook) => `nf-${g}-f${l.face}`;

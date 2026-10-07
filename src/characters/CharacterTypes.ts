@@ -1,4 +1,5 @@
 // Mirrors CharacterSelect_DataSchema.json.
+import type { GearState } from '../items/Gear';
 
 export type SlotId = 1 | 2 | 3 | 4;
 
@@ -17,6 +18,9 @@ export interface Character {
   look?: { hair: number; top: number; pants: number; shoes: number; hairColor?: number; skin?: number; face?: number };
   /** Cosmetic ownership + equipped slots (visual only). */
   cosmetics?: { owned: string[]; equipped: Record<string, string> };
+  /** Equipment: owned pieces (item, colour) and what is worn (gives stats, drawn on the character). Every character has
+   *  it (the starter set when stored without it). */
+  gear?: GearState;
 }
 
 export interface CharacterSlot {

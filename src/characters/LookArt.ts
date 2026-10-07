@@ -1,21 +1,23 @@
 // The character's full style as one picture (menus, portraits): every layer of its look drawn in order into one image —
-// back hair, the dressed body (starter outfit, sword) in its skin tone, the face, each piece in its colour, the forehead
-// between the bangs, the hair over the head. Built from the character's own look data, so whatever it wears now is what
-// the menus show (tools/base/outfit/outfit_layers.py, tools/base/naked_frames.py). The pictures share one canvas per
-// gender, wide and tall enough for every hairstyle (menu-look.json), the figure where the bare base picture has it.
+// back hair, the bare body in its skin tone, the face, the worn gear (pants, boots, shirt in their colours, the sword in
+// hand), the forehead between the bangs, the hair over the head. Built from the character's own look and what it wears
+// now, so the menus show exactly that (tools/base/naked_frames.py). The pictures share one canvas per gender, wide and
+// tall enough for every hairstyle (menu-look.json), the figure where the bare base picture has it.
 import Phaser from 'phaser';
 import { CHARACTER_PREVIEWS } from '../config/layout';
 import MENU_LOOK_LIST from '../data/menu-look.json';
 import NAKED_LOOK_LIST from '../data/naked-look.json';
 import { DEFAULT_SKIN, SKIN_TONES, toneTexture } from './Skin';
+import { GearState, wornLook } from '../items/Gear';
 
-export interface LookData { gender: 'male' | 'female'; hair: number; hairColor: number; skin: number; face: number; top: number; pants: number; shoes: number }
+/** top / pants / shoes: the worn piece's colour (−1: not worn); weapon: the sword in hand. */
+export interface LookData { gender: 'male' | 'female'; hair: number; hairColor: number; skin: number; face: number; top: number; pants: number; shoes: number; weapon: boolean }
 /** What a character stores (hair colour, skin and face came later: older characters lack them). */
 export interface StoredLook { hair: number; top: number; pants: number; shoes: number; hairColor?: number; skin?: number; face?: number }
-type LookOwner = { gender?: string; look?: StoredLook };
+type LookOwner = { gender?: string; look?: StoredLook; gear?: GearState };
 /** The menu canvas per gender: size, where the bare figure sits in it (ox, oy), its height (fit), the head (hairstyle
  *  buttons) and the face (face buttons) as [cx, cy, side]. */
-const MENU_LOOK = MENU_LOOK_LIST as Record<string, { w: number; h: number; ox: number; oy: number; fit: number; head: number[]; face?: number[] }>;
+const MENU_LOOK = MENU_LOOK_LIST as Record<string, { w: number; h: number; ox: number; oy: number; fit: number; head: number[]; face?: number[]; gear?: string[] }>;
 const NAKED_LOOK = NAKED_LOOK_LIST as Record<string, { styles: number; colors: number; gaps: boolean[]; faces: number }>;
 
 const G_ = (g: LookData['gender']) => (g === 'male' ? 'Male' : 'Female');
@@ -25,12 +27,12 @@ export type LookLayer = [string, string, boolean];
 export function lookFiles(l: LookData, noHair = false): LookLayer[] {
   const G = G_(l.gender), B = 'assets/characters/base', n = NAKED_LOOK[l.gender];
   const hair = !noHair && l.hair >= 0 && l.hair < (n?.styles ?? 0), out: LookLayer[] = [];
+  const gear = MENU_LOOK[l.gender]?.gear ?? [];
   if (hair) out.push([`cc.${G}.h${l.hair}c${l.hairColor}b`, `${B}/hair/${G}_${l.hair}_c${l.hairColor}_back.png`, false]);
-  out.push([`cc.${G}.body${l.skin}`, `${B}/outfit/${G}_body_s${l.skin}.png`, false]);
+  out.push([`cc.${G}.bare`, `${B}/Base_${G}_wide.png`, true]);
   if (l.face > 0 && l.face < (n?.faces ?? 1)) out.push([`cc.${G}.face${l.face}`, `${B}/face/${G}_${l.face}.png`, true]);
-  out.push([`cc.${G}.pants${l.pants}`, `${B}/outfit/${G}_pants_${l.pants}.png`, false]);
-  out.push([`cc.${G}.shoes${l.shoes}`, `${B}/outfit/${G}_shoes_${l.shoes}.png`, false]);
-  out.push([`cc.${G}.top${l.top}`, `${B}/outfit/${G}_top_${l.top}.png`, false]);
+  for (const p of ['pants', 'shoes', 'top'] as const) if (l[p] >= 0 && gear.includes(p)) out.push([`cc.${G}.${p}${l[p]}`, `${B}/gear/${G}_${p}_c${l[p]}.png`, false]);
+  if (l.weapon && gear.includes('sword')) out.push([`cc.${G}.sword`, `${B}/gear/${G}_sword.png`, false]);
   if (hair && n?.gaps[l.hair]) out.push([`cc.${G}.gap${l.hair}`, `${B}/hair/${G}_${l.hair}_gap.png`, true]);
   if (hair) out.push([`cc.${G}.h${l.hair}c${l.hairColor}f`, `${B}/hair/${G}_${l.hair}_c${l.hairColor}_front.png`, false]);
   return out;
@@ -43,10 +45,11 @@ const idx = (v: unknown, n: number, d: number) => (typeof v === 'number' && Numb
 export function lookOf(c: LookOwner | null | undefined): LookData | null {
   if (!c?.look) return null;
   const gender = c.gender === 'female' ? 'female' : 'male', n = lookCounts(gender), l = c.look;
-  return { gender, hair: l.hair, top: l.top, pants: l.pants, shoes: l.shoes, hairColor: idx(l.hairColor, Math.max(1, n.colors), 0),
+  const w = c.gear ? wornLook(c.gear) : { weapon: true, top: l.top, pants: l.pants, shoes: l.shoes }; // what it wears now
+  return { gender, hair: l.hair, top: w.top, pants: w.pants, shoes: w.shoes, weapon: w.weapon, hairColor: idx(l.hairColor, Math.max(1, n.colors), 0),
     skin: idx(l.skin, SKIN_TONES.length, DEFAULT_SKIN), face: idx(l.face, n.faces, 0) };
 }
-const sigOf = (l: LookData) => `${l.gender}.h${l.hair}c${l.hairColor}.s${l.skin}.f${l.face}.t${l.top}.p${l.pants}.b${l.shoes}`;
+const sigOf = (l: LookData) => `${l.gender}.h${l.hair}c${l.hairColor}.s${l.skin}.f${l.face}.t${l.top}.p${l.pants}.b${l.shoes}.w${l.weapon ? 1 : 0}`;
 /** CHARACTER_PREVIEWS key of this look's full-style picture (registered once it is built). */
 export const lookPreviewKey = (l: LookData) => `base/${l.gender}/look.${sigOf(l)}`;
 

@@ -137,8 +137,12 @@ export class SkillFx {
 
   private firstShape(s: FinalSkill): HitShape { return (s.chain ? s.chain.stages[0] : s.hits).find((h) => h.damage > 0)?.shape ?? s.hits[0].shape; }
 
+  /** The caster fights bare-handed (no weapon worn): the basic attack is a punch, no blade trail. */
+  unarmed: ((casterId: string) => boolean) | null = null;
+
   private onCast(r: CastRun): void {
     const s = r.skill;
+    if (s.id === 'warrior_basic' && this.unarmed?.(r.attackerId)) return;
     if ((s.telegraph || isBig(s)) && s.cls !== 'warrior') this.telegraph(r); // warrior skills read through their own art: no red ground markers
     // Anticipation frames 0..k during startup at the cast point, release frame exactly at the active start.
     const shape = this.firstShape(s);

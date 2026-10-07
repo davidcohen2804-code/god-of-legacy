@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import COS from '../data/cosmetics.json';
 import { Dir } from '../world/collision';
 import { actorDepth } from '../world/WorldGeometry';
-import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM, baseComplete, ensureWeaponMasks, BaseLook, baseLookLayers, hasOver, overKey, NAKED_LOOK } from './Body';
+import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM, baseComplete, ensureWeaponMasks, BaseLook, baseLookLayers, hasOver, overKey, NAKED_LOOK, GearLook, GearPiece, gearLayers, loadGear } from './Body';
 import { DEFAULT_SKIN, toneTexture } from '../characters/Skin';
 
 export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet' | 'hair' | 'armor' | 'hairstyle' | 'top' | 'gloves' | 'shoes' | 'pants' | 'hat' | 'faceacc' | 'earring' | 'nametag' | 'trail';
@@ -256,12 +256,22 @@ export class ActorView {
    *  hair, and the sword arm again where it passes in front of the head. */
   private look: BaseLook | null = null;
   private lookParts: { b: Phaser.GameObjects.Image; face: Phaser.GameObjects.Image; gap: Phaser.GameObjects.Image; f: Phaser.GameObjects.Image; over: Phaser.GameObjects.Sprite } | null = null;
+  /** Worn gear (equipment): the clothes and the sword drawn on every frame of the base character. */
+  private gearW: GearLook | null = null;
+  private gearParts: Partial<Record<GearPiece, Phaser.GameObjects.Sprite>> = {};
+  setGear(w: GearLook | null, gender: 'male' | 'female' = 'male'): void {
+    this.gearW = w ? { ...w } : null;
+    if (w) this.ensureLookParts();
+    loadGear(this.scene, gender, this.gearW, true); // the worn pieces' strips (drawn once they arrive)
+  }
+  private ensureLookParts(): void {
+    if (this.lookParts) return;
+    const im = () => this.scene.add.image(0, 0, '__DEFAULT').setVisible(false);
+    this.lookParts = { b: im(), face: im(), gap: im(), f: im(), over: this.scene.add.sprite(0, 0, '__DEFAULT').setVisible(false) };
+  }
   setBaseLook(l: BaseLook | null, gender: 'male' | 'female' = 'male'): void {
     this.look = l ? { ...l } : null;
-    if (l && !this.lookParts) {
-      const im = () => this.scene.add.image(0, 0, '__DEFAULT').setVisible(false);
-      this.lookParts = { b: im(), face: im(), gap: im(), f: im(), over: this.scene.add.sprite(0, 0, '__DEFAULT').setVisible(false) };
-    }
+    if (l) this.ensureLookParts();
     if (l && l.skin !== DEFAULT_SKIN && NAKED_LOOK[gender]) for (const k of this.scene.textures.getTextureKeys()) // re-shade the moves now, not on their first frame
       if (k.startsWith(`naked-${gender}-`) && !k.includes('~')) toneTexture(this.scene, k, l.skin);
   }
@@ -463,8 +473,8 @@ export class ActorView {
   private renderLook(pose: PoseFrame, depth: number, alpha: number, tint: number | null, tintFill: boolean): void {
     const P = this.lookParts; if (!P) return;
     const nk = pose.naked, l = this.look, p = this.sprite;
-    if (!nk || !l || !this.visible) { for (const im of Object.values(P)) im.setVisible(false); return; }
-    const L = baseLookLayers(nk.g, l), fx = pose.flip ? -1 : 1;
+    if (!nk || (!l && !this.gearW) || !this.visible) { for (const im of [...Object.values(P), ...Object.values(this.gearParts)]) im?.setVisible(false); return; }
+    const L = l ? baseLookLayers(nk.g, l) : {}, fx = pose.flip ? -1 : 1, skin = l?.skin ?? DEFAULT_SKIN;
     const hx = p.x + nk.hx * p.scaleX * fx, hy = p.y + nk.hy * p.scaleY;
     const put = (im: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite, key: string | null, x: number, y: number, d: number, frame?: number) => {
       if (!key) { im.setVisible(false); return; }
@@ -473,17 +483,26 @@ export class ActorView {
       if (tint === null) im.clearTint(); else if (tintFill) im.setTintFill(tint); else im.setTint(tint);
     };
     const has = (kf?: [string, string]) => (kf && this.scene.textures.exists(kf[0]) ? kf[0] : null);
-    const tone = (k: string | null) => (k ? toneTexture(this.scene, k, l.skin) : null);
+    const tone = (k: string | null) => (k ? toneTexture(this.scene, k, skin) : null);
     put(P.b, has(L.b), hx, hy, -0.005);
     put(P.face, tone(has(L.face)), hx, hy, 0.003);
     put(P.gap, tone(has(L.gap)), hx, hy, 0.004);
     put(P.f, has(L.f), hx, hy, 0.006);
     const ok = hasOver(nk.g, nk.anim) && this.scene.textures.exists(overKey(nk.g, nk.anim));
     put(P.over, ok ? tone(overKey(nk.g, nk.anim)) : null, p.x, p.y, 0.008, nk.frame);
+    // worn gear on this very frame: pants, boots, shirt over the body (under the face and hair); the sword in hand on top
+    const want = new Map(gearLayers(nk.g, nk.anim, this.gearW));
+    for (const piece of ['pants', 'shoes', 'top', 'sword'] as GearPiece[]) {
+      const k = want.get(piece), have = !!k && this.scene.textures.exists(k);
+      let sp = this.gearParts[piece];
+      if (!have) { sp?.setVisible(false); continue; }
+      if (!sp) sp = this.gearParts[piece] = this.scene.add.sprite(0, 0, '__DEFAULT');
+      put(sp, k!, p.x, p.y, piece === 'sword' ? 0.009 : piece === 'top' ? 0.0016 : piece === 'shoes' ? 0.0013 : 0.001, nk.frame);
+    }
   }
 
   setVisible(v: boolean): void {
-    if (!v && this.lookParts) for (const im of Object.values(this.lookParts)) im.setVisible(false);
+    if (!v && this.lookParts) for (const im of [...Object.values(this.lookParts), ...Object.values(this.gearParts)]) im?.setVisible(false);
     this.visible = v;
     this.sprite.setVisible(v); this.shadow.setVisible(v); this.ring.setVisible(v); this.weapon.setVisible(v && this.weapon.visible); this.weaponGlow.setVisible(v && this.weaponGlow.visible); this.blade?.setVisible(v && this.blade.visible); this.bladeTop?.setVisible(v && this.bladeTop.visible);
     for (const l of Object.values(this.layers)) l?.setVisible(v);
@@ -495,6 +514,7 @@ export class ActorView {
     this.nameText?.destroy(); this.nameFrame?.destroy();
     this.layers = {}; this.blade?.destroy(); this.blade = null; this.bladeTop?.destroy(); this.bladeTop = null;
     if (this.lookParts) for (const im of Object.values(this.lookParts)) im.destroy();
-    this.lookParts = null;
+    for (const im of Object.values(this.gearParts)) im?.destroy();
+    this.lookParts = null; this.gearParts = {};
   }
 }
