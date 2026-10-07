@@ -13,7 +13,7 @@ export const baseLookOf = (c: { classId: string; level: number; gender?: string 
 /** What the game draws on the base character (hairstyle, hair colour, skin tone, face), or null (bald, as drawn). */
 export const headLookOf = (c: { gender?: string; look?: StoredLook } | null | undefined): BaseLook | null => {
   const l = lookOf(c);
-  return l ? { hair: l.hair, hairColor: l.hairColor, skin: l.skin, face: l.face } : null;
+  return l ? { hair: l.hair, hairColor: l.hairColor, skin: l.skin, face: l.face, eyeColor: l.eyeColor } : null;
 };
 /** CHARACTER_PREVIEWS key for menus / portraits. */
 export const previewKeyOf = (c: { classId: string; level: number; gender?: string; appearanceId: string | null; look?: StoredLook }): string => {

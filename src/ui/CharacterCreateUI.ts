@@ -7,18 +7,19 @@ import { KIT_LAYOUT, ensureCharacterUIStyles, ensureSelectKitStyles, syncOverlay
 import OUTFIT_COLORS from '../data/outfit-colors.json';
 import HAIR_COLORS from '../data/hair-colors.json';
 import FAN from '../data/class-fan.json';
-import { LookData, lookCounts } from '../characters/LookArt';
+import { EYE_COLORS, LookData, lookCounts } from '../characters/LookArt';
 import { DEFAULT_SKIN, SKIN_TONES } from '../characters/Skin';
 
-/** What the new character looks like: body, face, hairstyle and its colour, skin tone, the colour of each starter piece. */
+/** What the new character looks like: body, face, hairstyle and its colour, skin tone, eye colour, the colour of each
+ *  starter piece. */
 export type CreateLook = LookData;
-export const FIRST_LOOK: CreateLook = { gender: 'male', face: 0, hair: 0, hairColor: 0, skin: DEFAULT_SKIN, top: 0, pants: 0, shoes: 0, weapon: true };
+export const FIRST_LOOK: CreateLook = { gender: 'male', face: 0, hair: 0, hairColor: 0, skin: DEFAULT_SKIN, eyeColor: 0, top: 0, pants: 0, shoes: 0, weapon: true };
 type Piece = 'top' | 'pants' | 'shoes';
 const PIECES: { id: Piece; label: string }[] = [{ id: 'top', label: 'SHIRT' }, { id: 'pants', label: 'PANTS' }, { id: 'shoes', label: 'BOOTS' }];
 const COLORS_OF = OUTFIT_COLORS as Record<Piece, { name: string; swatch: string }[]>;
-/** Swatch rows: hair colour and skin tone (STYLE panel), each starter piece (OUTFIT panel). */
-type SwatchRow = 'hairColor' | 'skin' | Piece;
-const SWATCHES: Record<SwatchRow, { name: string; swatch: string }[]> = { hairColor: HAIR_COLORS as { name: string; swatch: string }[], skin: SKIN_TONES, ...COLORS_OF };
+/** Swatch rows: hair colour, skin tone and eye colour (STYLE panel), each starter piece (OUTFIT panel). */
+type SwatchRow = 'hairColor' | 'skin' | 'eyeColor' | Piece;
+const SWATCHES: Record<SwatchRow, { name: string; swatch: string }[]> = { hairColor: HAIR_COLORS as { name: string; swatch: string }[], skin: SKIN_TONES, eyeColor: EYE_COLORS, ...COLORS_OF };
 
 const KIT = (f: string) => `assets/final/ui/kit/${f}.png`;
 /** The male / female signs on the BODY buttons, drawn (♂: circle and arrow; ♀: circle and cross). */
@@ -36,12 +37,14 @@ const TEST_PICK = true;
 const FAN_CLASS = ['warrior', 'book_mage', 'archer', 'samurai'];
 /** Kit layout (design px). kit/modal_window.png: header strip at 15..22% of its height, body 25..85%. */
 const C = {
-  char: { x: 92, y: 196, w: 470, h: 350 },
+  // CHARACTER (left, top): name and body; its rows (design px from the panel top): NAME label, input, BODY label, buttons
+  char: { x: 92, y: 150, w: 470, h: 330, rows: [90, 112, 192, 214] },
   // the class fan: centred over OUTFIT and CREATE (x 1603), in the right column above OUTFIT
   fan: { x: 1308, y: 239, w: 590 },
   create: { x: 1438, y: 922, w: 330, h: 126 },
-  // STYLE (left, under CHARACTER): face and hairstyle buttons, hair colour and skin swatches; OUTFIT (right, under the class fan)
-  look: { x: 92, y: 560, w: 470, h: 360, col: 150, icon: 52, iconGap: 16, sw: 34, swGap: 20, rows: [102, 166, 232, 278] },
+  // STYLE (left, under CHARACTER): face and hairstyle buttons, hair colour, skin and eye colour swatches (its bottom level with
+  // OUTFIT's); OUTFIT (right, under the class fan)
+  look: { x: 92, y: 494, w: 470, h: 422, col: 150, icon: 52, iconGap: 16, sw: 34, swGap: 20, rows: [112, 174, 240, 286, 332] },
   outfit: { x: 1388, y: 680, w: 430, h: 236, col: 150, sw: 34, swGap: 20, rows: [72, 122, 172] },
 } as const;
 
@@ -108,7 +111,7 @@ export class CharacterCreateUI {
   private genderBtns: HTMLButtonElement[] = [];
   private gender: 'male' | 'female' = 'male';
   private icons: Record<'face' | 'hair', HTMLButtonElement[]> = { face: [], hair: [] };
-  private swatches: Record<SwatchRow, HTMLButtonElement[]> = { hairColor: [], skin: [], top: [], pants: [], shoes: [] };
+  private swatches: Record<SwatchRow, HTMLButtonElement[]> = { hairColor: [], skin: [], eyeColor: [], top: [], pants: [], shoes: [] };
   private look: CreateLook = { ...FIRST_LOOK };
   private lastRect = '';
   private readonly onKey = (e: KeyboardEvent) => {
@@ -136,25 +139,26 @@ export class CharacterCreateUI {
     const cp = this.el('div', 'abs panel info p-char', this.root);
     this.box(cp, C.char.x, C.char.y, C.char.w, C.char.h);
     const h2 = this.el('h2', '', cp); h2.textContent = 'CHARACTER';
-    const lab = this.el('div', 'cc-label', cp); lab.textContent = 'NAME'; lab.style.top = '96px';
+    const R = C.char.rows;
+    const lab = this.el('div', 'cc-label', cp); lab.textContent = 'NAME'; lab.style.top = `${R[0]}px`;
     this.input = this.el('input', 'cc-input', cp) as HTMLInputElement;
     Object.assign(this.input, { type: 'text', placeholder: 'Your name', maxLength: L.character.input.maxLength, autocomplete: 'off', spellcheck: false });
-    Object.assign(this.input.style, { top: '120px', left: '30px', right: '30px' });
+    Object.assign(this.input.style, { top: `${R[1]}px`, left: '30px', right: '30px' });
     this.input.addEventListener('input', () => this.render());
     // Body: the clean base character, male or female — each button marked with its sign (♂ / ♀).
-    const lb2 = this.el('div', 'cc-label', cp); lb2.textContent = 'BODY'; lb2.style.top = '204px';
+    const lb2 = this.el('div', 'cc-label', cp); lb2.textContent = 'BODY'; lb2.style.top = `${R[2]}px`;
     const GW = Math.floor((C.char.w - 60 - 14) / 2);
     (['male', 'female'] as const).forEach((g, i) => {
       const b = this.el('button', 'kopt gd', cp) as HTMLButtonElement;
       this.el('div', `pf sym ${g}`, b).innerHTML = SEX_SIGN[g];
       b.appendChild(document.createTextNode(g === 'male' ? 'MALE' : 'FEMALE'));
-      this.box(b, 30 + i * (GW + 14), 228, GW, 62);
+      this.box(b, 30 + i * (GW + 14), R[3], GW, 62);
       b.addEventListener('mousedown', (e) => e.preventDefault());
       b.addEventListener('click', () => this.selectGender(g));
       this.genderBtns.push(b);
     });
 
-    // Style panel: face and hairstyle (pictures of this look's head), hair colour and skin tone (swatches).
+    // Style panel: face and hairstyle (pictures of this look's head), hair colour, skin tone and eye colour (swatches).
     const Lk = C.look;
     const lp = this.el('div', 'abs panel info p-look', this.root);
     this.box(lp, Lk.x, Lk.y, Lk.w, Lk.h);
@@ -173,6 +177,7 @@ export class CharacterCreateUI {
     });
     this.swatchRow(lp, 'hairColor', 'COLOR', Lk.col, Lk.rows[2], Lk.sw, Lk.swGap);
     this.swatchRow(lp, 'skin', 'SKIN', Lk.col, Lk.rows[3], Lk.sw, Lk.swGap);
+    this.swatchRow(lp, 'eyeColor', 'EYES', Lk.col, Lk.rows[4], Lk.sw, Lk.swGap);
 
     // Outfit panel: the colour of each starter piece.
     const O = C.outfit;
@@ -231,11 +236,11 @@ export class CharacterCreateUI {
   private create(): void {
     const id = CharacterStore.getSelectedId();
     if (!id || !this.canCreate()) return;
-    const { hair, hairColor, skin, face, top, pants, shoes } = this.look;
+    const { hair, hairColor, skin, face, eyeColor, top, pants, shoes } = this.look;
     const pick = this.testClass ? CLASS_OPTIONS.find((c) => c.classId === this.testClass) ?? STARTER : STARTER;
     // a test pick plays as that class at once (other classes are the sword Beginner below the 1st job)
     const lvl = pick.classId === STARTER.classId || playedClass({ classId: pick.classId, level: 1 }) === pick.classId ? 1 : BEGINNER_TO;
-    if (CharacterStore.createCharacter(id, this.input.value, pick.classId, pick.appearanceId, this.gender, { hair, hairColor, skin, face, top, pants, shoes }, lvl)) this.h.onCreated();
+    if (CharacterStore.createCharacter(id, this.input.value, pick.classId, pick.appearanceId, this.gender, { hair, hairColor, skin, face, eyeColor, top, pants, shoes }, lvl)) this.h.onCreated();
   }
 
   private selectGender(g: 'male' | 'female'): void {

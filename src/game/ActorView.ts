@@ -261,7 +261,7 @@ export class ActorView {
    *  back hair behind the body, then on the head (moving with it) the face, the forehead between the bangs and the front
    *  hair, and the sword arm again where it passes in front of the head. */
   private look: BaseLook | null = null;
-  private lookParts: { b: Phaser.GameObjects.Image; face: Phaser.GameObjects.Image; gap: Phaser.GameObjects.Image; f: Phaser.GameObjects.Image; over: Phaser.GameObjects.Sprite } | null = null;
+  private lookParts: { b: Phaser.GameObjects.Image; face: Phaser.GameObjects.Image; eyes: Phaser.GameObjects.Image; gap: Phaser.GameObjects.Image; f: Phaser.GameObjects.Image; over: Phaser.GameObjects.Sprite } | null = null;
   /** Worn gear (equipment): the clothes and the sword drawn on every frame of the base character. */
   private gearW: GearLook | null = null;
   private gearParts: Partial<Record<GearPiece, Phaser.GameObjects.Sprite>> = {};
@@ -278,7 +278,7 @@ export class ActorView {
   private ensureLookParts(): void {
     if (this.lookParts) return;
     const im = () => this.scene.add.image(0, 0, '__DEFAULT').setVisible(false);
-    this.lookParts = { b: im(), face: im(), gap: im(), f: im(), over: this.scene.add.sprite(0, 0, '__DEFAULT').setVisible(false) };
+    this.lookParts = { b: im(), face: im(), eyes: im(), gap: im(), f: im(), over: this.scene.add.sprite(0, 0, '__DEFAULT').setVisible(false) };
   }
   setBaseLook(l: BaseLook | null, gender: 'male' | 'female' = 'male'): void {
     this.look = l ? { ...l } : null;
@@ -509,6 +509,7 @@ export class ActorView {
     const tone = (k: string | null) => (k ? toneTexture(this.scene, k, skin) : null);
     put(P.b, has(L.b), hx, hy, -0.005);
     put(P.face, tone(has(L.face)), hx, hy, 0.003);
+    put(P.eyes, has(L.eyes), hx, hy, 0.0035); // the eye colour: the irises over the face (not skin: not re-shaded)
     put(P.gap, tone(has(L.gap)), hx, hy, 0.004);
     put(P.f, has(L.f), hx, hy, 0.006);
     const ok = hasOver(nk.g, nk.anim) && this.scene.textures.exists(overKey(nk.g, nk.anim));

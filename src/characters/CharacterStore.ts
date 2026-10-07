@@ -52,7 +52,7 @@ function sanitize(raw: unknown): CharacterSelectData {
       const ix = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 10 ? v : null);
       if (lk && typeof lk === 'object' && ['hair', 'top', 'pants', 'shoes'].every((k) => ix(lk[k]) !== null)) {
         target.character.look = { hair: lk.hair as number, top: lk.top as number, pants: lk.pants as number, shoes: lk.shoes as number };
-        for (const k of ['hairColor', 'skin', 'face'] as const) { const v = ix(lk[k]); if (v !== null) target.character.look[k] = v; } // added later: older characters lack them
+        for (const k of ['hairColor', 'skin', 'face', 'eyeColor'] as const) { const v = ix(lk[k]); if (v !== null) target.character.look[k] = v; } // added later: older characters lack them
       }
       // equipment: as stored, or the starter set (in the creation colours) for characters stored before it existed
       target.character.gear = cleanGear((c as unknown as { gear?: unknown }).gear) ?? starterGear(target.character.look);

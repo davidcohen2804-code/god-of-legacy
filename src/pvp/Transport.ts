@@ -2,7 +2,7 @@
 // (local QA fallback only — works between tabs of one browser, never between computers).
 // Presence = who is in the room (join/leave). Broadcast = all gameplay messages.
 
-export interface PeerMeta { playerId: string; characterId: string; classId: string; name: string; gender?: 'male' | 'female'; look?: { hair: number; hairColor: number; skin: number; face: number }; hair?: number }
+export interface PeerMeta { playerId: string; characterId: string; classId: string; name: string; gender?: 'male' | 'female'; look?: { hair: number; hairColor: number; skin: number; face: number; eyeColor?: number }; hair?: number }
 
 /** Network messages. Movement state carries ground x/y, height z, support z, aim, animation mode and cosmetics. */
 export type NetMsg =

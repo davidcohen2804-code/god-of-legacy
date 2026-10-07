@@ -15,9 +15,10 @@ export interface Character {
   appearanceId: string | null;
   /** The clean base character he / she is built on (default male). */
   gender?: 'male' | 'female';
-  /** Chosen at creation: hairstyle, hair colour, skin tone, face and the colour of each starter piece (indices; absent =
-   *  bald, no outfit; hair colour / skin / face absent = brown, the drawn tone, the head's own face). */
-  look?: { hair: number; top: number; pants: number; shoes: number; hairColor?: number; skin?: number; face?: number };
+  /** Chosen at creation: hairstyle, hair colour, skin tone, face, eye colour and the colour of each starter piece (indices;
+   *  absent = bald, no outfit; hair colour / skin / face / eyes absent = brown, the drawn tone, the head's own face, the
+   *  drawn eyes). */
+  look?: { hair: number; top: number; pants: number; shoes: number; hairColor?: number; skin?: number; face?: number; eyeColor?: number };
   /** Cosmetic ownership + equipped slots (visual only). */
   cosmetics?: { owned: string[]; equipped: Record<string, string> };
   /** Quests by id: taken (progress per objective) or finished. */

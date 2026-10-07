@@ -174,6 +174,7 @@ import NAKED_LIST from '../data/naked-anims.json';
 import NAKED_HEADS_LIST from '../data/naked-heads.json';
 import NAKED_LOOK_LIST from '../data/naked-look.json';
 import NAKED_BLADES_LIST from '../data/naked-blades.json';
+import EYE_COLORS_LIST from '../data/eye-colors.json';
 const NAKED = NAKED_LIST as Record<string, Record<string, number>>;
 const NAKED_HEADS = NAKED_HEADS_LIST as Record<string, Record<string, number[][]>>;
 /** The sword in hand per frame: its line [guardX, guardY, tipX, tipY], cell px from the feet (Radiant Blade's lightning
@@ -183,7 +184,9 @@ const nakedKey = (g: string, anim = 'idle') => `naked-${g}-${anim}`;
 /** The base character's look, drawn as layers on the frame (MapleStory): back hair behind the body, the face, the forehead
  *  between the bangs and the front hair on the head (they move with it: naked-heads.json), the sword arm again where it
  *  passes in front of the head (<move>_o.png); the skin tone re-shades the skin of every layer (characters/Skin.ts). */
-export interface BaseLook { hair: number; hairColor: number; skin: number; face: number }
+export interface BaseLook { hair: number; hairColor: number; skin: number; face: number; eyeColor: number }
+/** Eye colours (tools/base/eye_colors.py: naked/<g>/eyes/f<face>c<n>.png, the iris over the face; 0 = as drawn). */
+const EYE_N = EYE_COLORS_LIST.length;
 /** Per gender: hairstyles (and which have a forehead layer), hair colours, faces (0 = the head's own), moves with a
  *  sword-arm strip (tools/base/naked_frames.py). */
 export const NAKED_LOOK = NAKED_LOOK_LIST as Record<string, { styles: number; colors: number; gaps: boolean[]; faces: number; over: string[]; gear?: Partial<Record<GearPiece, string[]>>; swordCell?: number }>;
@@ -218,6 +221,7 @@ export function loadGear(scene: Phaser.Scene, g: string, w: GearLook | null, sta
 export const hairLayerKey = (g: string, l: BaseLook, part: 'f' | 'b') => `nh-${g}-h${l.hair}c${l.hairColor}-${part}`;
 export const gapLayerKey = (g: string, l: BaseLook) => `nh-${g}-h${l.hair}-gap`;
 export const faceLayerKey = (g: string, l: BaseLook) => `nf-${g}-f${l.face}`;
+export const eyeLayerKey = (g: string, l: BaseLook) => `ne-${g}-f${l.face}c${l.eyeColor}`;
 export const overKey = (g: string, anim: string) => `naked-${g}-${anim}-o`;
 export const hasOver = (g: string, anim: string) => !!NAKED_LOOK[g]?.over.includes(anim);
 const hasHair = (g: string, l: BaseLook) => l.hair >= 0 && l.hair < (NAKED_LOOK[g]?.styles ?? 0);
@@ -226,10 +230,11 @@ export function cleanLook(g: string, raw: unknown, defaultSkin: number, skins: n
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>, n = NAKED_LOOK[g];
   const ix = (v: unknown, max: number, d: number) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < max ? v : d);
-  return { hair: ix(o.hair, n?.styles ?? 0, -1), hairColor: ix(o.hairColor, n?.colors ?? 1, 0), skin: ix(o.skin, skins, defaultSkin), face: ix(o.face, n?.faces ?? 1, 0) };
+  return { hair: ix(o.hair, n?.styles ?? 0, -1), hairColor: ix(o.hairColor, n?.colors ?? 1, 0), skin: ix(o.skin, skins, defaultSkin), face: ix(o.face, n?.faces ?? 1, 0),
+    eyeColor: ix(o.eyeColor, EYE_N, 0) };
 }
 /** The look's layers that exist for this gender: [texture key, file, re-shaded with the skin]. */
-export function baseLookLayers(g: string, l: BaseLook): { b?: [string, string]; face?: [string, string]; gap?: [string, string]; f?: [string, string] } {
+export function baseLookLayers(g: string, l: BaseLook): { b?: [string, string]; face?: [string, string]; eyes?: [string, string]; gap?: [string, string]; f?: [string, string] } {
   const D = `assets/final/body/naked/${g}`, out: ReturnType<typeof baseLookLayers> = {};
   if (hasHair(g, l)) {
     out.b = [hairLayerKey(g, l, 'b'), `${D}/hair/h${l.hair}c${l.hairColor}_back.png`];
@@ -237,6 +242,7 @@ export function baseLookLayers(g: string, l: BaseLook): { b?: [string, string]; 
     if (NAKED_LOOK[g]?.gaps[l.hair]) out.gap = [gapLayerKey(g, l), `${D}/hair/h${l.hair}_gap.png`];
   }
   if (l.face > 0 && l.face < (NAKED_LOOK[g]?.faces ?? 1)) out.face = [faceLayerKey(g, l), `${D}/face/f${l.face}.png`];
+  if (l.eyeColor > 0 && l.eyeColor < EYE_N && l.face >= 0 && l.face < (NAKED_LOOK[g]?.faces ?? 1)) out.eyes = [eyeLayerKey(g, l), `${D}/eyes/f${l.face}c${l.eyeColor}.png`];
   return out;
 }
 /** Queue a look's layers (in a preload, or now with start = true); until they arrive the base shows without them. */
