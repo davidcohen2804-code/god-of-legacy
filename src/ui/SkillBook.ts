@@ -104,6 +104,12 @@ const CSS = `
 .gol-sb .det .rel{font-size:13px;color:#f0d9a6;display:flex;flex-direction:column;gap:2px}
 .gol-sb .det .rel div:before{content:'\\2192  ';color:#c99a45}
 .gol-sb .det .lock{color:#ff9a7a}
+.gol-sb .all{position:absolute;left:58px;top:100px;height:34px;padding:0 16px 0 12px;display:flex;align-items:center;gap:10px;border-radius:7px;cursor:pointer;pointer-events:auto;
+  background:#0b121bd9;border:1px solid #6a5630;font:700 12px ${FONT_FAMILY};letter-spacing:1.5px;color:#c9b48a;transition:box-shadow 120ms,border-color 120ms}
+.gol-sb .all:hover{border-color:#c99a45;box-shadow:0 0 12px rgba(232,178,90,.35)}
+.gol-sb .all i{width:18px;height:18px;flex:none;background:url("${K('checkbox')}") center/100% 100% no-repeat}
+.gol-sb .all.on{color:#ffe7a8;border-color:#e8b25a;box-shadow:0 0 12px rgba(232,178,90,.4)}
+.gol-sb .all.on i{background-image:url("${K('checkbox_checked')}")}
 .gol-sb .card .pt{position:absolute;right:4px;top:4px;min-width:24px;height:22px;padding:0 5px;box-sizing:border-box;border-radius:5px;background:#0b121bee;border:1px solid #6f8fb0;font:700 12px/20px ${FONT_FAMILY};color:#bcd6ef;text-align:center}
 .gol-sb .card .nm.sm{font-size:11px}
 .gol-sb .pg{position:absolute;top:${FRAME_Y + 40}px;width:56px;height:56px;background:0 0/100% 100% no-repeat;cursor:pointer;pointer-events:auto;filter:drop-shadow(0 2px 4px #000)}
@@ -289,7 +295,10 @@ export class SkillBook {
   private shownClip = '';
   private badClips = new Set<string>();
 
-  constructor(scene: Phaser.Scene, private host: HTMLElement, private canvas: HTMLCanvasElement, private cls: ClassKey, private level: number, private qaUnlockAll: boolean) {
+  private sub!: HTMLDivElement;
+  private allBtn?: HTMLButtonElement;
+
+  constructor(scene: Phaser.Scene, private host: HTMLElement, private canvas: HTMLCanvasElement, private cls: ClassKey, private level: number, private qaUnlockAll: boolean, private onAllOpen?: (on: boolean) => void) {
     ensureStyles();
     this.kit = kitFor(cls);
     this.jobs = jobsFor(cls);
@@ -299,8 +308,14 @@ export class SkillBook {
     this.bg = this.div('bg', this.root);
     const hdr = this.div('hdr', this.bg);
     this.div('ttl', hdr).textContent = `SKILL BOOK — ${(CLASS_NAMES[cls] ?? cls).toUpperCase()}`;
-    const cur = this.jobs.filter((j) => qaUnlockAll || level >= j.level).pop() ?? this.jobs[0];
-    this.div('sub', hdr).textContent = qaUnlockAll ? `QA build · all job advancements unlocked · level ${level}` : `Level ${level} · ${cur.name} — skills unlock with each job advancement`;
+    const cur = this.jobs.filter((j) => level >= j.level).pop() ?? this.jobs[0];
+    this.sub = this.div('sub', hdr);
+    if (onAllOpen) { // test switch: every skill usable at any level
+      const b = document.createElement('button'); b.className = 'all';
+      b.addEventListener('click', () => onAllOpen(!this.qaUnlockAll));
+      this.bg.appendChild(b); this.allBtn = b;
+    }
+    this.setSubtitle();
     const x = document.createElement('button'); x.className = 'x'; x.title = 'Close (K / Esc)';
     x.addEventListener('click', () => this.close()); this.bg.appendChild(x);
     this.jobs.forEach((j, k) => {
@@ -309,7 +324,6 @@ export class SkillBook {
       (t.children[1] as HTMLElement).textContent = j.name.toUpperCase();
       (t.children[2] as HTMLElement).textContent = `${ADV_LABEL[k]} · Lv ${j.level}–${j.to}`;
       (t.children[3] as HTMLElement).textContent = String(j.level);
-      if (!this.jobOpen(k)) t.classList.add('lk');
       t.addEventListener('click', () => { this.job = k; this.page = 0; this.selected = this.entries()[0]; this.buildRow(); this.refresh(); });
       this.tabs.push(t);
     });
@@ -334,6 +348,15 @@ export class SkillBook {
     this.buildRow();
     this.refresh();
   }
+
+  private setSubtitle(): void {
+    const cur = this.jobs.filter((j) => this.level >= j.level).pop() ?? this.jobs[0];
+    this.sub.textContent = this.qaUnlockAll ? `Level ${this.level} · ${cur.name} — all skills open (test)` : `Level ${this.level} · ${cur.name} — skills unlock with each job advancement`;
+    if (this.allBtn) { this.allBtn.classList.toggle('on', this.qaUnlockAll); this.allBtn.innerHTML = `<i></i>ALL SKILLS OPEN`; this.allBtn.title = this.qaUnlockAll ? 'Back to level-based unlocks' : 'Open every skill for testing'; }
+  }
+
+  /** The "all skills open" switch changed: relock / unlock tabs, cards and details. */
+  setUnlockAll(on: boolean): void { this.qaUnlockAll = on; this.setSubtitle(); this.refresh(); }
 
   private div(cls: string, parent: HTMLElement): HTMLDivElement { const d = document.createElement('div'); d.className = cls; parent.appendChild(d); return d; }
 
@@ -376,7 +399,7 @@ export class SkillBook {
 
   private refresh(): void {
     const show = this.hover ?? this.selected;
-    this.tabs.forEach((t, k) => { const on = k === this.job; t.classList.toggle('on', on); (t.firstChild as HTMLElement).style.backgroundImage = `url("${K(`job${k}_icon`)}")`; (t.firstChild as HTMLElement).style.filter = on ? 'drop-shadow(0 0 6px rgba(255,200,90,.8))' : ''; });
+    this.tabs.forEach((t, k) => { const on = k === this.job; t.classList.toggle('lk', !this.jobOpen(k)); t.classList.toggle('on', on); (t.firstChild as HTMLElement).style.backgroundImage = `url("${K(`job${k}_icon`)}")`; (t.firstChild as HTMLElement).style.filter = on ? 'drop-shadow(0 0 6px rgba(255,200,90,.8))' : ''; });
     for (const c of this.cards) { c.el.classList.toggle('sel', c.e === this.selected); c.el.classList.toggle('lk', !this.unlocked(c.e)); }
     if (isPassive(show)) { this.refreshPassive(show); return; }
     this.pps.style.display = 'none';

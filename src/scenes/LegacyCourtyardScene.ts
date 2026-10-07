@@ -23,6 +23,7 @@ import { QuestLog, QuestTracker } from '../ui/HudExtras';
 import { KeySettings } from '../ui/KeySettings';
 import { BindAction, keyLabel, loadBindings, slotKeyLabels } from '../game/KeyBindings';
 import { CourtyardAmbience } from '../world/Ambience';
+import { allSkillsOpen, setAllSkillsOpen } from '../skills/Unlock';
 import { NO_PASSIVES, ORBS, PassiveStats, REGEN, WAR_LEAP, ownedPassives, passiveStats } from '../skills/Passives';
 import { WORLD_OBJECTS, actorDepth, footAllowed, insideArena, placementOk, useArenaGeometry } from '../world/WorldGeometry';
 import { OpenWorld, preloadOpenWorld } from '../world/OpenWorld';
@@ -285,9 +286,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const { x, y } = this.world ? toWorld(START.area, [START.x, START.y]) : WORLD.spawn;
     this.kin = newKin(x, y);
     this.body = new CombatBody(this.kin, !!pvpRoom);
-    const lvl = character.level, allOpen = isQAMode() || !!pvpRoom;
-    this.passives = this.cls === 'warrior' && (allOpen || lvl >= BEGINNER_TO) ? passiveStats(ownedPassives('warrior', lvl, allOpen)) : NO_PASSIVES;
-    this.body.ccResist = this.passives.ccResist; this.body.kbResist = this.passives.kbResist;
+    this.applyPassives();
     this.orbs = { n: 0, lastAt: -Infinity, cast: '' }; this.leapUsed = false; this.regenAt = 0; this.orbImgs = [];
     this.playerHP = this.maxHpNow();
     this.body.maxHp = this.maxHpNow();
@@ -328,7 +327,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     });
     this.hud.setKeyLabels(slotKeyLabels());
     const host = this.game.canvas.parentElement!;
-    this.skillBook = new SkillBook(this, host, this.game.canvas, this.cls, character.level, isQAMode() || !!pvpRoom); // arena: all skills open
+    this.skillBook = new SkillBook(this, host, this.game.canvas, this.cls, character.level, this.allOpen(), pvpRoom || isQAMode() ? undefined : (on) => this.setAllOpen(on)); // arena / QA: all skills open
     this.cosPanel = new CosmeticPanel(this, host, this.game.canvas, character, () => this.equipped, (e) => this.setEquipped(e));
     this.skillBook.setEquipped(this.equipped);
     // Chat (Enter), speech bubbles, quest tracker and quest log (J).
@@ -620,6 +619,21 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.fx!.dust(k.x - d.x * 18, k.y - k.z, 70, 0.7);
     this.fx!.leapBurst(k.x, k.y - k.z - 4, d.x < 0 || (d.x === 0 && this.dir === 'left') ? -1 : 1);
   }
+
+  /** Every skill open: QA build, PvP arena, or the Skill Book's "all skills" test switch. */
+  private allOpen(): boolean { return isQAMode() || this.arena || allSkillsOpen(); }
+
+  /** Passives owned now (level / all-open) → stats + body resistances; keeps the HP fraction when max HP changes. */
+  private applyPassives(): void {
+    const lvl = this.character?.level ?? 1, all = this.allOpen(), before = this.body.maxHp || 1, frac = this.playerHP / before;
+    this.passives = this.cls === 'warrior' && (all || lvl >= BEGINNER_TO) ? passiveStats(ownedPassives('warrior', lvl, all)) : NO_PASSIVES;
+    this.body.ccResist = this.passives.ccResist; this.body.kbResist = this.passives.kbResist;
+    this.body.maxHp = this.maxHpNow();
+    if (this.dead < 0 && Number.isFinite(frac)) this.playerHP = Math.max(1, Math.round(frac * this.body.maxHp));
+  }
+
+  /** Skill Book switch: open / close every skill for testing at any level. */
+  private setAllOpen(on: boolean): void { setAllSkillsOpen(on); this.applyPassives(); this.skillBook?.setUnlockAll(this.allOpen()); }
 
   /** Max HP: fixed in the PvP arena (fair fights), raised by passives in the world. */
   maxHpNow(): number { return this.arena ? PVP.maxHp : Math.round(S6.player.maxHp * this.passives.hpMul); }
@@ -1001,7 +1015,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Skills open with the job advancements; in the PvP arena every skill is open (testing the combat). */
   private skillOpen(s: FinalSkill): boolean {
-    return isQAMode() || this.localId !== 'local' || jobOfSlot(this.cls, s.slot).level <= (this.character?.level ?? 1);
+    return this.allOpen() || this.localId !== 'local' || jobOfSlot(this.cls, s.slot).level <= (this.character?.level ?? 1);
   }
 
   /** Start a slot now if legal (incl. hit-confirm cancel / chain continuation from the current action). */

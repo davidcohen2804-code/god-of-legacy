@@ -44,7 +44,7 @@ const warrior: FinalSkill[] = [
     hits: [0, 50, 100].map((t, i) => H(t, i === 2 ? 10 : 7, { kind: 'capsule', radius: 32 }, { stun: 240, push: i === 2 ? 10 : 2, float: true, juggleCost: 4 }, { reachUp: 90 })),
     cancelOnHit: CORE(['rising_slash', 'whirlwind', 'sanctuary', 'warrior_basic', 'blade_storm', 'titans_verdict']),
     telegraph: 'line',
-    description: 'Charge up to 180px in the facing direction; stops on cover. A confirmed hit can cancel into Rising Slash, Whirlwind or Shield Slam.',
+    description: 'Charge up to 180px in the facing direction; stops on cover. A confirmed hit can cancel into Rising Slash, Leap Crash or any other skill.',
     relations: ['Opener', 'Cancel → Rising Slash'],
   }),
   S({

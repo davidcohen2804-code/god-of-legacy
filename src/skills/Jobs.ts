@@ -5,10 +5,12 @@ export interface Job { name: string; level: number; to: number; slots: number[] 
 const PATH: Record<string, Job[]> = {
   warrior: [
     { name: 'Beginner', level: 1, to: 19, slots: [0] },                 // basic attack only
-    { name: 'Swordsman', level: 19, to: 29, slots: [1, 2, 3, 9] },      // Dash Slash, Rising Slash, Ground Breaker, Wave Slash
-    { name: 'Knight', level: 29, to: 40, slots: [8, 4, 11] },           // Leap Crash, Whirlwind, Impaling Rush
-    { name: 'Holy Knight', level: 40, to: 80, slots: [12, 10, 5, 13] }, // War Cry, Radiant Blade, Sanctuary, Judgment Blade
-    { name: 'Legacy Paragon', level: 80, to: 150, slots: [6, 7] },      // Blade Storm, Titan's Verdict
+    // Ordered like the MapleStory Hero: 1st job = the core moves (charge, launcher, dive), 2nd = area + first buff,
+    // 3rd = holy power (rush, light blade, dome), 4th = the big finishers.
+    { name: 'Swordsman', level: 19, to: 29, slots: [1, 2, 8] },          // Dash Slash, Rising Slash, Leap Crash
+    { name: 'Knight', level: 29, to: 40, slots: [3, 4, 9, 12] },         // Ground Breaker, Whirlwind, Wave Slash, War Cry
+    { name: 'Holy Knight', level: 40, to: 80, slots: [11, 10, 5] },      // Impaling Rush, Radiant Blade, Sanctuary
+    { name: 'Legacy Paragon', level: 80, to: 150, slots: [13, 6, 7] },   // Judgment Blade, Blade Storm, Titan's Verdict
   ],
   book_mage: [
     { name: 'Beginner', level: 1, to: 19, slots: [0] }, { name: 'Arcanist', level: 19, to: 29, slots: [1, 2, 3, 9] },
