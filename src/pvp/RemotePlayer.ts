@@ -12,6 +12,7 @@ import { DEFAULT_SKIN, SKIN_TONES } from '../characters/Skin';
 import { WornLook, parseWornCode } from '../items/Gear';
 import { AnimSnap, Mode, poseQuery } from '../game/PoseState';
 import { Afterimages, applyMotion, archerMotion } from '../skills/ArcherMotion';
+import { SAMURAI_AFTER, samuraiMotion } from '../skills/SamuraiMotion';
 import { finalSkill } from '../skills/FinalKit';
 
 const asDir = (d: string): Dir => (d === 'left' ? 'left' : 'right'); // side view only
@@ -157,6 +158,10 @@ export class RemotePlayer {
       const m = this.skill && this.alive ? archerMotion(this.skill.id, this.skill.elapsed, this.skill, this.dir === 'left' ? -1 : 1) : null;
       applyMotion(this.view.motionSprites, m);
       (this.afterimg ??= new Afterimages(this.scene)).step(this.scene.time.now, this.view.sprite, !!m?.after);
+    } else if (this.meta.classId === 'samurai') {
+      const m = this.skill && this.alive ? samuraiMotion(this.skill.id, this.skill.elapsed, this.skill, this.dir === 'left' ? -1 : 1, this.skill.stage) : null;
+      applyMotion(this.view.motionSprites, m);
+      (this.afterimg ??= new Afterimages(this.scene, SAMURAI_AFTER)).step(this.scene.time.now, this.view.sprite, !!m?.after);
     }
     const top = y - z - 116 - PVP.remoteLabel.gap;
     this.label.setPosition(Math.round(x), Math.round(top - PVP.hpBar.h - 3));

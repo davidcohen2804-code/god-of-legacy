@@ -12,6 +12,10 @@ export interface Motion {
   sx: number; sy: number;
   /** Leave afterimages this frame. */
   after: boolean;
+  /** Face the other way this frame (a spin seen from the side). */
+  flip?: boolean;
+  /** Body opacity this frame (a vanishing step), 0..1. */
+  alpha?: number;
 }
 
 export interface Timeline { startup: number; active: number; recovery: number }
@@ -108,6 +112,8 @@ export function applyMotion(sprites: Phaser.GameObjects.Sprite[], m: Motion | nu
     const th = (m.ang * Math.PI) / 180, hp = m.pivot * Math.abs(s.scaleY);
     s.setScale(s.scaleX * m.sx, s.scaleY * m.sy).setAngle(m.ang)
       .setPosition(s.x + m.dx - hp * Math.sin(th), s.y + m.dy - hp + hp * Math.cos(th));
+    if (m.flip) s.setFlipX(!s.flipX);
+    if (m.alpha !== undefined) s.setAlpha(s.alpha * m.alpha);
   }
 }
 

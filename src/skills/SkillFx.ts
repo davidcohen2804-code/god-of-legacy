@@ -7,6 +7,7 @@ import { CastRun, RT_EVENTS, SkillRuntime, Trap } from './SkillRuntime';
 import { Projectile, V2, V3, circleCentre } from './HitGeometry';
 import { FINAL_SKILLS } from './FinalKit';
 import DIGITS from '../data/damage-digits.json';
+import { TORNADO, tornadoPath } from './SamuraiMotion';
 import { SKILL_BLOCKERS, WORLD_OBJECTS } from '../world/WorldGeometry';
 
 const F = 'assets/final';
@@ -31,6 +32,7 @@ const GROUND = 2;
 
 /** Archer sheets whose frame size differs from the slot default (w, h). */
 const VFX_CELL: Record<string, [number, number]> = {
+  swallow_cut: [384, 384], hundred_cuts: [384, 384], quick_draw: [384, 384], tornado_blade: [384, 384], falcon_dive: [384, 384], rising_sun: [384, 384], phantom_blades: [384, 384], god_of_blades: [384, 384],
   hunters_roar: [512, 340], tree_of_life: [420, 560], hunters_spirit: [300, 300], arrow_storm: [512, 256], eagle_arrow: [512, 352], sky_rain: [768, 256],
 };
 /** Archer sheets drawn for a figure facing right: ground line as a fraction of the cell height. */
@@ -38,7 +40,14 @@ const ARCHER_GROUND: Record<string, number> = { rising_arrow: 0.94, leaping_arro
 /** Archer skills whose effect is played by its own timeline (not the generic cast sprite). */
 const ARCHER_OWN = new Set(['rain_of_arrows', 'rising_arrow', 'leaping_arrow', 'retreat_kick', 'bow_haste', 'hunters_roar', 'spirit_hawk', 'tree_of_life', 'hunters_spirit', 'arrow_storm', 'sky_rain', 'eagle_arrow']);
 /** Ultimate cut-in art per skill. */
-const CUTIN: Record<string, string> = { titans_verdict: 'titan-cutin', sky_rain: 'archer-cutin' };
+const CUTIN: Record<string, string> = { titans_verdict: 'titan-cutin', sky_rain: 'archer-cutin', dragon_eclipse: 'samurai-cutin' };
+/** Samurai skills whose effect is played by its own timeline (samuraiCast), not the generic cast sprite. */
+const SAMURAI_OWN = new Set(['swallow_cut', 'hundred_cuts', 'quick_draw', 'tornado_blade', 'falcon_dive', 'rising_sun', 'phantom_blades', 'god_of_blades']);
+/** Samurai effect sheets made so far (GPT, tools/skills/gpt_sheet.py: 8 frames of 384 px); the others draw their effect in
+ *  code until their sheet comes. */
+const SAMURAI_SHEETS = new Set(['swallow_cut', 'hundred_cuts']);
+/** Samurai crimson, its white-hot core, its gold. */
+const CRIMSON = 0xff3a4c, CRIMSON_HOT = 0xffd0d6, SUN_GOLD = 0xffcf5a;
 
 /** Orientation of each final VFX sheet: 'dir' sheets are drawn pointing right and rotate with the aim. */
 /** Upright sheets whose bottom edge is the ground line (drawn standing on the impact point). */
@@ -115,6 +124,44 @@ export function ensureArcherArt(scene: Phaser.Scene): void {
   }
 }
 
+/** Samurai art drawn in code (beside / until the GPT sheets): a thin slash of light, a spectral katana, a cherry-blossom
+ *  petal, the front arc of a whirling ring. White / pale, so a tint gives the colour. */
+export function ensureSamuraiArt(scene: Phaser.Scene): void {
+  const tx = scene.textures;
+  if (!tx.exists('sam-slash')) { // a thin stroke, thickest in the middle, tapering to points
+    const W = 256, H = 28, c = tx.createCanvas('sam-slash', W, H)!, g = c.getContext(), cy = H / 2;
+    for (let x = 0; x < W; x++) {
+      const t = x / (W - 1), th = Math.pow(Math.sin(Math.PI * t), 0.8), half = 1 + th * (H / 2 - 2);
+      const gr = g.createLinearGradient(0, cy - half, 0, cy + half);
+      gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.32, `rgba(255,255,255,${0.3 * th})`); gr.addColorStop(0.5, `rgba(255,255,255,${Math.min(1, 0.35 + th)})`);
+      gr.addColorStop(0.68, `rgba(255,255,255,${0.3 * th})`); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr; g.fillRect(x, cy - half, 1, half * 2);
+    }
+    c.refresh();
+  }
+  if (!tx.exists('sam-katana')) { // a katana pointing right: wrapped hilt, gold guard, a slightly curved glowing blade
+    const W = 160, H = 30, c = tx.createCanvas('sam-katana', W, H)!, g = c.getContext(), cy = H / 2;
+    const glow = g.createLinearGradient(0, 0, W, 0); glow.addColorStop(0, 'rgba(255,255,255,0)'); glow.addColorStop(0.35, 'rgba(255,255,255,0.18)'); glow.addColorStop(1, 'rgba(255,255,255,0.32)');
+    g.fillStyle = glow; g.beginPath(); g.ellipse(W * 0.62, cy, W * 0.4, 10, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#6a1420'; g.fillRect(4, cy - 3, 34, 6);
+    g.fillStyle = '#2a0608'; for (let x = 7; x < 38; x += 6) g.fillRect(x, cy - 3, 2, 6);
+    g.fillStyle = '#f0c870'; g.beginPath(); g.ellipse(40, cy, 3.2, 8, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#ffffff'; g.beginPath(); g.moveTo(44, cy - 2.6); g.quadraticCurveTo(100, cy - 6.5, W - 3, cy - 5); g.lineTo(W - 18, cy + 1.2); g.quadraticCurveTo(100, cy + 0.8, 44, cy + 2.6); g.closePath(); g.fill();
+    c.refresh();
+  }
+  if (!tx.exists('sam-petal')) {
+    const W = 20, H = 14, c = tx.createCanvas('sam-petal', W, H)!, g = c.getContext();
+    g.fillStyle = '#ffe0ea'; g.beginPath(); g.moveTo(1, H / 2); g.quadraticCurveTo(W * 0.45, -2, W - 1, H * 0.34); g.lineTo(W - 4, H / 2); g.lineTo(W - 1, H * 0.66); g.quadraticCurveTo(W * 0.45, H + 2, 1, H / 2); g.fill();
+    g.fillStyle = 'rgba(255,140,185,0.85)'; g.beginPath(); g.ellipse(4, H / 2, 3, 1.6, 0, 0, Math.PI * 2); g.fill();
+    c.refresh();
+  }
+  if (!tx.exists('sam-swirl')) { // the front arc of a ring seen at an angle (stacked, they make a whirlwind)
+    const W = 128, H = 40, c = tx.createCanvas('sam-swirl', W, H)!, g = c.getContext();
+    for (const [w, a] of [[10, 0.22], [5, 0.55], [2, 1]] as const) { g.strokeStyle = `rgba(255,255,255,${a})`; g.lineWidth = w; g.beginPath(); g.ellipse(W / 2, 4, W / 2 - 8, H - 12, 0, 0.12, Math.PI - 0.12); g.stroke(); }
+    c.refresh();
+  }
+}
+
 /** Floor perspective for top-down sheets laid on the ground (screen height per world unit of depth). */
 const FLOOR_SQUASH = 0.72;
 /** Per-skill arrow colour (outer glow tint). */
@@ -133,7 +180,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   const want = (cls: string) => !classes || classes.includes(cls);
   const L = (k: string, p: string, w: number, h = w) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: w, frameHeight: h }); };
   // (templates — wip skills — have no art loaded yet)
-  for (const s of FINAL_SKILLS) { if (VFX_ALIAS[s.id] || s.wip || !want(s.cls)) continue; const big = isBig(s) ? 384 : 256, c = VFX_CELL[s.id]; L(vfxKey(s.id), `${F}/skills/${s.cls}/${s.id}/vfx.png`, c?.[0] ?? big, c?.[1] ?? big); }
+  for (const s of FINAL_SKILLS) { if (VFX_ALIAS[s.id] || s.wip || (SAMURAI_OWN.has(s.id) && !SAMURAI_SHEETS.has(s.id)) || !want(s.cls)) continue; const big = isBig(s) ? 384 : 256, c = VFX_CELL[s.id]; L(vfxKey(s.id), `${F}/skills/${s.cls}/${s.id}/vfx.png`, c?.[0] ?? big, c?.[1] ?? big); }
   for (const [id, p] of Object.entries(PROJECTILE_SHEETS)) { const cls = FINAL_SKILLS.find((s) => s.id === id)!.cls; if (want(cls)) L(`proj-${id}`, `${F}/projectiles/${cls}/${id}.png`, p.cell); }
   for (const v of Object.values(IMPACT)) L(v.key, v.path, v.cell);
   const I = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.image(k, p); };
@@ -142,7 +189,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   I('magic-circle', `${F}/impact/magic_circle.png`); I('dmg-glow', `${F}/ui/hud/damage_glow.png`);
   L('dmg-n', `${F}/ui/hud/dmg_normal.png`, DIGITS.cell[0], DIGITS.cell[1]); L('dmg-c', `${F}/ui/hud/dmg_crit.png`, DIGITS.cell[0], DIGITS.cell[1]); // MapleStory damage digits (tools/ui/damage_digits.py)
   // passive-skill sheets shared by the warrior and the archer (heal sparkle, stance ring, chains, target mark)
-  if (want('warrior') || want('archer')) for (const k of ['heal_sparkle', 'stance_ring', 'chains_break', 'target_mark']) if (!scene.textures.exists(`pas-${k}`)) scene.load.spritesheet(`pas-${k}`, `${F}/skills/warrior/passives/${k}.png`, { frameWidth: 256, frameHeight: 256 });
+  if (want('warrior') || want('archer') || want('samurai')) for (const k of ['heal_sparkle', 'stance_ring', 'chains_break', 'target_mark']) if (!scene.textures.exists(`pas-${k}`)) scene.load.spritesheet(`pas-${k}`, `${F}/skills/warrior/passives/${k}.png`, { frameWidth: 256, frameHeight: 256 });
   if (want('archer')) {
     ensureArcherArt(scene);
     L('vfx-wind_leap', `${F}/skills/archer/wind_leap/vfx.png`, 256);
@@ -151,6 +198,11 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
     L('afx-blast', `${AF}/wild_blast.png`, 320); L('afx-sigil', `${AF}/ground_sigil.png`, 320);
     L('afx-fan', `${AF}/release_fan.png`, 512, 256); L('afx-triple', `${AF}/triple_trail.png`, 512, 256); L('afx-storm', `${AF}/storm_top.png`, 512, 256); L('afx-eagle', `${AF}/eagle_top.png`, 512, 256); L('vfx-evasion', `${F}/skills/archer/evasion/vfx.png`, 256);
     I('archer-cutin', `${F}/skills/archer/sky_rain/cutin.png`);
+  }
+  if (want('samurai')) {
+    ensureSamuraiArt(scene);
+    I('samurai-cutin', `${F}/skills/samurai/dragon_eclipse/cutin.png`);
+    for (const k of ['final_slash', 'war_leap_burst']) if (!scene.textures.exists(`pas-${k}`)) scene.load.spritesheet(`pas-${k}`, `${F}/skills/warrior/passives/${k}.png`, { frameWidth: 256, frameHeight: 256 }); // Final Cut, Shinsoku
   }
   if (!want('warrior')) return;
   if (!scene.textures.exists('jb-bolt')) scene.load.spritesheet('jb-bolt', `${F}/skills/warrior/judgment_blade/bolt.png`, { frameWidth: 256, frameHeight: 512 });
@@ -176,7 +228,7 @@ export type HitTier = 'basic' | 'core' | 'signature' | 'ultimate';
 export const tierOf = (s: FinalSkill, hit?: HitEvent): HitTier => (s.slot === 7 ? 'ultimate' : s.slot === 6 ? (hit?.heavy ? 'signature' : 'core') : s.slot === 0 ? 'basic' : 'core');
 const HITSTOP: Record<HitTier, number> = { basic: 45, core: 70, signature: 95, ultimate: 140 };
 /** Presentation scale of the main skill VFX per class (DFO-style: effects dwarf the character). */
-const VFX_MULT: Record<string, number> = { warrior: 1.5 };
+const VFX_MULT: Record<string, number> = { warrior: 1.5, samurai: 1.25 };
 /** Warrior skills that get a ground shockwave ring at their impact. */
 const SHOCK: Record<string, { r: number; c: number }> = {
   ground_breaker: { r: 170, c: 0xffc070 }, shield_slam: { r: 110, c: 0xfff0c0 }, titans_verdict: { r: 260, c: 0xffd27a },
@@ -230,6 +282,11 @@ export class SkillFx {
     if (s.id === 'warrior_basic') return; // MapleStory: a regular attack has no effect of its own — the sword leaves its afterimage (ActorView)
     if (s.cls === 'archer' && CHARGE[s.id]) this.archerCharge(r);
     if (s.id === 'rain_of_arrows') { const c = r.place ?? r.origin; for (const h of s.hits) this.scene.time.delayedCall(r.timings.startup + h.at - 120, () => this.arrowShower(c.x, c.y, 118, 48, 24, 300, 0xb8ff7a, 0.35)); }
+    if (SAMURAI_OWN.has(s.id)) { // samurai skills with their own timeline (sheets where made, drawn effects until then)
+      if (s.telegraph) this.telegraph(r);
+      this.samuraiCast(r);
+      return;
+    }
     if (ARCHER_OWN.has(s.id)) { // archer skills with their own art timeline
       if (s.telegraph && s.slot !== 7) this.telegraph(r);
       this.archerCast(r);
@@ -656,9 +713,10 @@ export class SkillFx {
   }
 
   /** War Leap: burst of wind under the feet (sheet faces right; streaks blow behind). */
-  leapBurst(x: number, y: number, dir: number): void {
-    if (!this.scene.textures.exists('pas-war_leap_burst')) { this.shockwave(x, y, 46, 0xdff4ff); return; }
+  leapBurst(x: number, y: number, dir: number, tint?: number): void {
+    if (!this.scene.textures.exists('pas-war_leap_burst')) { this.shockwave(x, y, 46, tint ?? 0xdff4ff); return; }
     const img = this.scene.add.image(x - dir * 10, y, 'pas-war_leap_burst', 0).setOrigin(0.5, 0.55).setDepth(y + 1).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(200, 200).setFlipX(dir < 0);
+    if (tint !== undefined) img.setTint(tint);
     const fms = [35, 35, 45, 50, 55, 60, 70, 80];
     this.anims.push({ img, t: 0, total: fms.reduce((p, q) => p + q, 0), frames: [0, 1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 80 });
   }
@@ -1059,6 +1117,7 @@ export class SkillFx {
   update(ms: number, projectiles: Projectile[]): void {
     const step = this.hitStopLeft > 0 ? 0 : ms;
     this.stepHawks(ms);
+    this.stepHalos(ms);
     if (this.hitStopLeft > 0) this.hitStopLeft = Math.max(0, this.hitStopLeft - ms);
     this.anims = this.anims.filter((a) => {
       a.t += step;
@@ -1439,12 +1498,309 @@ export class SkillFx {
     }
   }
 
+  // ------------------------------------------------------------------ samurai
+
+  /** One thin slash of light (white core, crimson edge) flashing across (x, y): Hundred Cuts, Phantom Blades. */
+  slashLine(x: number, y: number, len: number, dir: number, big = false, depth = TOP + 3, tint = CRIMSON): void {
+    if (!this.scene.textures.exists('sam-slash')) return;
+    const ang = (Math.random() - 0.5) * 150 + (dir < 0 ? 180 : 0), w = big ? 26 : 15;
+    const glow = this.scene.add.image(x, y, 'sam-slash').setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setDepth(depth).setAngle(ang).setDisplaySize(len * 0.25, w).setAlpha(0.95);
+    const core = this.scene.add.image(x, y, 'sam-slash').setBlendMode(Phaser.BlendModes.ADD).setDepth(depth + 0.01).setAngle(ang).setDisplaySize(len * 0.25, w * 0.32);
+    this.scene.tweens.add({ targets: [glow, core], displayWidth: len, duration: big ? 80 : 50, ease: 'Cubic.easeOut' });
+    this.scene.tweens.add({ targets: [glow, core], alpha: 0, delay: big ? 90 : 55, duration: big ? 260 : 150, ease: 'Quad.easeIn', onComplete: () => { glow.destroy(); core.destroy(); } });
+  }
+
+  /** A crimson cut in the floor that cools down (Falcon Dive's landing). */
+  bladeScar(x: number, y: number, radius: number): void {
+    const dark = this.scene.add.ellipse(x, y, radius * 1.5, radius * 0.5, 0x200408, 0.5).setDepth(GROUND + 1);
+    const glow = this.scene.add.image(x, y, 'dmg-glow').setTint(CRIMSON).setBlendMode(Phaser.BlendModes.ADD).setDepth(GROUND + 1.1).setDisplaySize(radius * 1.8, radius * 0.55).setAlpha(0.85);
+    for (let i = 0; i < 3; i++) { // three cut lines in the floor
+      const l = this.scene.add.image(x + (i - 1) * radius * 0.3, y + (i - 1) * 4, 'sam-slash').setTint(0xff7080).setBlendMode(Phaser.BlendModes.ADD).setDepth(GROUND + 1.2).setDisplaySize(radius * 1.2, 7).setAngle(-12 + i * 12);
+      this.scene.tweens.add({ targets: l, alpha: 0, delay: 500, duration: 1200, onComplete: () => l.destroy() });
+    }
+    this.scene.tweens.add({ targets: glow, alpha: 0, delay: 300, duration: 1400 });
+    this.scene.tweens.add({ targets: dark, alpha: 0, delay: 1800, duration: 900, onComplete: () => { dark.destroy(); glow.destroy(); } });
+  }
+
+  /** Cherry-blossom petals scattered from (x, y), drifting down as they fade. */
+  petals(x: number, y: number, n: number, spread: number, depth = TOP + 2): void {
+    if (!this.scene.textures.exists('sam-petal')) return;
+    for (let i = 0; i < n; i++) {
+      const p = this.scene.add.image(x, y, 'sam-petal').setDepth(depth).setAngle(Math.random() * 360).setScale(0.7 + Math.random() * 0.7);
+      const a = Math.random() * Math.PI * 2, d = spread * (0.35 + Math.random() * 0.65);
+      this.scene.tweens.add({ targets: p, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d * 0.55 + 26, angle: p.angle + (Math.random() < 0.5 ? -1 : 1) * 300, alpha: 0,
+        duration: 700 + Math.random() * 500, ease: 'Quad.easeOut', onComplete: () => p.destroy() });
+    }
+  }
+
+  /** Final Cut: a ghost blade follows the hit — the light slash in crimson and a spectral katana sweeping across. */
+  ghostCut(at: V3, dir: number, big = false): void {
+    const x = at.x, y = at.y - at.z - 40;
+    if (this.scene.textures.exists('pas-final_slash')) {
+      const img = this.scene.add.image(x, y, 'pas-final_slash', 0).setDepth(TOP + 5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xff6a7a).setDisplaySize(big ? 120 : 96, big ? 120 : 96).setFlipX(dir < 0).setAlpha(0.75).setData('a0', 0.75);
+      const fms = [30, 30, 40, 50, 50, 50, 60, 70];
+      this.anims.push({ img, t: 0, total: fms.reduce((p, q) => p + q, 0), frames: [0, 1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 70 });
+    }
+    if (!this.scene.textures.exists('sam-katana')) return;
+    const k = this.scene.add.image(x - dir * 58, y - 34, 'sam-katana').setTint(0xffc8d4).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.8).setDepth(TOP + 5).setDisplaySize(big ? 128 : 104, big ? 24 : 20).setAngle(dir > 0 ? 28 : 152);
+    this.scene.tweens.add({ targets: k, x: x + dir * 58, y: y + 30, alpha: 0, duration: 170, ease: 'Quad.easeIn', onComplete: () => k.destroy() });
+  }
+
+  /** Willow Dodge: petals and a crimson streak where the samurai slipped aside (his afterimages come from the scene). */
+  mirageDodge(x: number, y: number, dir: number): void {
+    this.petals(x, y - 50, 10, 70, TOP);
+    this.slashLine(x - dir * 20, y - 50, 120, dir, false, TOP, 0xff8aa0);
+  }
+
+  /** Shinsoku: a crimson burst under the feet and a gust of petals behind. */
+  shinsoku(x: number, y: number, dir: number): void {
+    this.leapBurst(x, y, dir, 0xff6070);
+    this.petals(x - dir * 20, y - 20, 7, 60, y + 2);
+  }
+
+  /** God of Blades halos by caster: eight spectral katanas in a fan behind the samurai. */
+  private halos = new Map<string, { imgs: Phaser.GameObjects.Image[]; aura: Phaser.GameObjects.Image; until: number; t: number; lastX: number; face: number; next: number; away: Set<number>; sheet?: boolean }>();
+
+  private samuraiCast(r: CastRun): void {
+    const s = r.skill, o = r.origin, a = r.aim, T = r.timings, left = a.x < -0.01, side = left ? -1 : 1, key = vfxKey(s.id);
+    const cam = this.cam ?? this.scene.cameras.main, sheet = this.scene.textures.exists(key);
+    const me = () => this.casterPos(r.attackerId);
+    switch (s.id) {
+      case 'swallow_cut': { // the crescent rises in front of the samurai, then turns back for the second cut
+        const at = (dx: number, dz: number) => () => { const q = me(); return q ? { x: q.x + side * dx, y: q.y + 1, z: q.z + dz } : null; };
+        const p = me() ?? o;
+        if (sheet) this.play(key, p.x + side * 58, p.y - p.z - 66, 330, 330, [T.startup * 0.5, T.startup * 0.5, 50, 55, 60, 70, 90, 120], { flip: left, depth: TOP, follow: at(58, 66) });
+        this.scene.time.delayedCall(T.startup + 130, () => { // the return cut, upside down, higher (the foe hangs there)
+          const q = me() ?? p;
+          const img = sheet ? this.play(key, q.x + side * 64, q.y - q.z - 128, 270, 270, [30, 40, 50, 60, 80, 110], { flip: left, depth: TOP, frames: [2, 3, 4, 5, 6, 7], follow: at(64, 128) }) : null;
+          img?.setFlipY(true);
+          this.slashLine(q.x + side * 60, q.y - q.z - 120, 170, side, true);
+          this.petals(q.x + side * 60, q.y - q.z - 110, 6, 70);
+        });
+        this.scene.time.delayedCall(T.startup, () => { const q = me() ?? p; this.shockwave(q.x + side * 50, q.y, 110, CRIMSON); this.petals(q.x + side * 50, q.y - q.z - 40, 8, 80); if (r.own) cam.shake(110, 0.003); });
+        break;
+      }
+      case 'hundred_cuts': { // a flurry in front of the samurai: the sheet loops while every cut flashes a line across it
+        const at = () => { const q = me(); return q ? { x: q.x + side * 86, y: q.y + 1, z: q.z + 58 } : null; };
+        const p0 = at() ?? { x: o.x + side * 86, y: o.y, z: 58 };
+        if (sheet) this.play(key, p0.x, p0.y - p0.z, 300, 300, [T.startup * 0.5, T.startup * 0.5, 60, 60, 60, 60, 140, 180], { follow: at, flip: left, depth: TOP, loop: [2, 5], until: T.startup + T.active - 120, loopMs: 60 });
+        for (let i = 0; i < 12; i++) this.scene.time.delayedCall(T.startup + i * 80, () => { const q = at(); if (!q) return; for (let n = 0; n < 2; n++) this.slashLine(q.x + (Math.random() - 0.5) * 70, q.y - q.z + (Math.random() - 0.5) * 60, 130 + Math.random() * 60, side); });
+        this.scene.time.delayedCall(T.startup + 1000, () => {
+          const q = at(); if (!q) return;
+          this.slashLine(q.x, q.y - q.z, 260, side, true); this.slashLine(q.x, q.y - q.z, 220, side, true);
+          this.shockwave(q.x, q.y, 160, CRIMSON); this.petals(q.x, q.y - q.z, 12, 110);
+          if (r.own) { cam.shake(160, 0.005); this.punch(0.03, 200); }
+        });
+        break;
+      }
+      case 'quick_draw': { // a crimson glint gathers at the hilt, then the draw flashes out
+        const hip = () => { const q = me(); return q ? { x: q.x + side * 16, y: q.y + 1, z: q.z + 46 } : null; };
+        const p0 = hip() ?? { x: o.x, y: o.y, z: 46 };
+        const glint = this.scene.add.image(p0.x, p0.y - p0.z, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(CRIMSON).setDepth(TOP).setDisplaySize(10, 10);
+        this.scene.tweens.add({ targets: glint, displayWidth: 90, displayHeight: 90, duration: T.startup, ease: 'Quad.easeIn' });
+        const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { const q = hip(); if (q) glint.setPosition(q.x, q.y - q.z); } });
+        this.scene.time.delayedCall(T.startup, () => {
+          ev.remove(); glint.destroy();
+          const q = me() ?? o;
+          if (sheet) this.play(key, q.x, q.y + 6, 300, 300, [50, 60, 70, 80, 90, 110, 140, 180], { oy: 0.82, depth: q.y + 1, alpha: 0.85, follow: () => { const c = me(); return c ? { x: c.x, y: c.y + 6, z: c.z } : null; } });
+          this.slashLine(q.x + side * 40, q.y - q.z - 46, 230, side, true, TOP, CRIMSON_HOT);
+          this.shockwave(q.x, q.y, 130, CRIMSON); this.petals(q.x, q.y - q.z - 40, 8, 90);
+          const f = this.scene.add.image(q.x + side * 20, q.y - q.z - 46, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffffff).setDepth(TOP + 1).setDisplaySize(70, 70);
+          this.scene.tweens.add({ targets: f, displayWidth: 200, displayHeight: 200, alpha: 0, duration: 200, onComplete: () => f.destroy() });
+        });
+        break;
+      }
+      case 'tornado_blade': this.tornado(r, side); break;
+      case 'falcon_dive': { // a crimson trail follows the leap; the dive ends in a burst, rings, dust and a crack
+        const trail = this.scene.time.addEvent({ delay: 30, loop: true, callback: () => {
+          const q = me(); if (!q || r.elapsed > T.startup + T.active) { trail.remove(); return; }
+          if (r.elapsed < T.startup) return;
+          const g = this.scene.add.image(q.x, q.y - q.z - 50, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(r.elapsed > T.startup + T.active * 0.45 ? 0xff5060 : 0xffb070).setDepth(q.y - 1).setDisplaySize(70, 70).setAlpha(0.6);
+          this.scene.tweens.add({ targets: g, alpha: 0, displayWidth: 30, displayHeight: 30, duration: 260, onComplete: () => g.destroy() });
+        } });
+        const hitAt = T.startup + (s.hits[1]?.at ?? 300);
+        if (sheet) { // frames 0-3: the falcon diving with the samurai, up to the hit; 4-7: the impact on the ground there
+          const up = [hitAt * 0.4, hitAt * 0.2, hitAt * 0.2, hitAt * 0.2];
+          this.play(key, o.x, o.y - o.z - 60, 340, 340, up, { flip: left, depth: TOP, frames: [0, 1, 2, 3], follow: () => { const q = me(); return q ? { x: q.x, y: q.y + 1, z: q.z + 60 } : null; } });
+        }
+        this.scene.time.delayedCall(hitAt, () => {
+          const q = me() ?? o;
+          if (sheet) this.play(key, q.x, q.y + 4, 380, 380, [70, 80, 110, 160], { oy: 0.82, flip: left, depth: q.y + 2, frames: [4, 5, 6, 7], fadeLast: 160 });
+          else this.spark(IMPACT.star.key, q.x, q.y - 30, IMPACT.star.frames, 230, 1);
+          this.shockwave(q.x, q.y, 200, CRIMSON); this.scene.time.delayedCall(80, () => this.shockwave(q.x, q.y, 280, 0xffb070));
+          for (let i = 0; i < 6; i++) { const t = (i / 6) * Math.PI * 2; this.dust(q.x + Math.cos(t) * 80, q.y + Math.sin(t) * 32, 80, 0.6); }
+          this.bladeScar(q.x, q.y, 120); this.petals(q.x, q.y - 30, 12, 140);
+          if (r.own) { cam.shake(220, 0.008); this.punch(0.04, 240); }
+        });
+        break;
+      }
+      case 'rising_sun': { // behind the samurai the sun rises (the banner sheet where made), gold rays turning, a gold ring on the floor
+        const sun = () => { const q = me(); return q ? { x: q.x - side * 10, y: q.y - 2, z: q.z } : null; };
+        const p0 = sun() ?? o;
+        if (sheet) this.play(key, p0.x, p0.y + 4, 360, 360, [T.startup * 0.25, T.startup * 0.25, T.startup * 0.25, T.startup * 0.25, 160, 220, 300, 400], { oy: 0.9, depth: p0.y - 2, follow: () => { const q = sun(); return q ? { x: q.x, y: q.y + 4, z: q.z } : null; } });
+        const disc = this.scene.add.image(p0.x, p0.y - 60, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(SUN_GOLD).setDepth(p0.y - 3).setDisplaySize(40, 40).setAlpha(0);
+        const rays: Phaser.GameObjects.Image[] = [];
+        for (let i = 0; i < 12; i++) rays.push(this.scene.add.image(p0.x, p0.y - 60, 'sam-slash').setBlendMode(Phaser.BlendModes.ADD).setTint(SUN_GOLD).setDepth(p0.y - 3).setAlpha(0).setDisplaySize(10, 10));
+        let t = 0;
+        const life = T.startup + T.active + 1400;
+        const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
+          t += 16; const q = sun(); if (!q) return;
+          const rise = Math.min(1, t / T.startup), fade = t > life - 500 ? Math.max(0, (life - t) / 500) : 1, cy = q.y - q.z - 60 - 90 * rise;
+          disc.setPosition(q.x, cy).setDepth(q.y - 3).setDisplaySize(60 + 110 * rise, 60 + 110 * rise).setAlpha(0.9 * Math.min(1, t / 200) * fade);
+          rays.forEach((ry, i) => { const ang = i * 30 + t * 0.03, rad = Phaser.Math.DegToRad(ang), d = 40 + 50 * rise; ry.setPosition(q.x + Math.cos(rad) * d, cy + Math.sin(rad) * d).setAngle(ang).setDisplaySize(30 + 70 * rise, 10).setAlpha(0.7 * rise * fade).setDepth(q.y - 3); });
+          if (t >= life) { ev.remove(); disc.destroy(); for (const ry of rays) ry.destroy(); }
+        } });
+        this.scene.time.delayedCall(T.startup, () => {
+          const q = me() ?? o;
+          const ring = this.scene.add.image(q.x, q.y, 'magic-circle').setBlendMode(Phaser.BlendModes.ADD).setTint(SUN_GOLD).setDepth(GROUND + 1).setDisplaySize(260, 260 * FLOOR_SQUASH).setAlpha(0);
+          this.scene.tweens.add({ targets: ring, alpha: 0.8, duration: 160 });
+          this.scene.tweens.add({ targets: ring, angle: 90, duration: 1600 });
+          this.scene.tweens.add({ targets: ring, alpha: 0, delay: 900, duration: 700, onComplete: () => ring.destroy() });
+          this.shockwave(q.x, q.y, 180, SUN_GOLD); this.petals(q.x, q.y - 80, 14, 140);
+          if (r.own) cam.shake(160, 0.004);
+        });
+        break;
+      }
+      case 'phantom_blades': { // the field in front is cut to pieces: slashes everywhere in it, a flash on the last cut
+        const sh = s.hits[0].shape as { radius: number; bias?: number }, cx = o.x + a.x * (sh.bias ?? 150), cy = o.y + a.y * (sh.bias ?? 150), R = sh.radius;
+        if (!this.dark) this.dark = this.scene.add.rectangle(0, 0, 4000, 3000, 0x05030a, 0).setOrigin(0, 0).setDepth(TOP - 10);
+        this.dark.setPosition(cam.worldView.x - 200, cam.worldView.y - 200); this.darkLeft = T.startup + T.active + 120;
+        this.scene.tweens.add({ targets: this.dark, fillAlpha: 0.38, duration: Math.min(220, T.startup) });
+        if (sheet) this.play(key, cx, cy - 70, R * 2.4, R * 2.4, [T.startup * 0.5, T.startup * 0.5, 80, 80, 80, 80, 140, 200], { depth: TOP, loop: [2, 5], until: T.startup + T.active - 120, loopMs: 70 });
+        for (let t = 0; t < T.active - 40; t += 40) this.scene.time.delayedCall(T.startup + t, () => {
+          for (let n = 0; n < 3; n++) { const ang = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * R; this.slashLine(cx + Math.cos(ang) * d, cy + Math.sin(ang) * d * 0.5 - 60, 120 + Math.random() * 120, side, Math.random() < 0.25); }
+        });
+        this.scene.time.delayedCall(T.startup + 600, () => {
+          const f = this.scene.add.image(cx, cy - 60, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffffff).setDepth(TOP + 4).setDisplaySize(R * 1.2, R * 0.8);
+          this.scene.tweens.add({ targets: f, displayWidth: R * 3, displayHeight: R * 1.8, alpha: 0, duration: 320, ease: 'Cubic.easeOut', onComplete: () => f.destroy() });
+          this.shockwave(cx, cy, R * 1.4, CRIMSON); this.petals(cx, cy - 60, 22, R);
+          if (r.own) { cam.shake(260, 0.009); this.punch(0.05, 260); }
+        });
+        break;
+      }
+      case 'god_of_blades': this.haloOf(r); break;
+    }
+  }
+
+  /** Tornado Blade: a whirlwind of crimson rings and blade glints rolling along tornadoPath (the same path its hits take). */
+  private tornado(r: CastRun, side: number): void {
+    const T = r.timings, path = tornadoPath(r.origin, r.aim), t0 = T.startup + TORNADO.startMs, life = TORNADO.everyMs * (TORNADO.count - 1) + 220;
+    const sheetKey = vfxKey('tornado_blade'), sheet = this.scene.textures.exists(sheetKey);
+    const box = this.scene.add.container(path[0].x, path[0].y).setAlpha(0);
+    const glow = this.scene.add.image(0, -80, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(CRIMSON).setDisplaySize(170, 230).setAlpha(0.5);
+    box.add(glow);
+    const rings: { img: Phaser.GameObjects.Image; glint: Phaser.GameObjects.Image; h: number; rad: number; ph: number }[] = [];
+    let img: Phaser.GameObjects.Image | null = null;
+    if (sheet) { img = this.scene.add.image(0, 8, sheetKey, 0).setOrigin(0.5, 0.92).setBlendMode(Phaser.BlendModes.SCREEN).setDisplaySize(280, 280); box.add(img); }
+    else for (let i = 0; i < 7; i++) {
+      const h = 8 + i * 22, rad = 26 + i * 10;
+      const ring = this.scene.add.image(0, -h, 'sam-swirl').setBlendMode(Phaser.BlendModes.ADD).setTint(i % 2 ? CRIMSON : 0xff8a9a).setDisplaySize(rad * 2, rad * 0.55).setAlpha(0.85);
+      const glint = this.scene.add.image(0, -h, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffffff).setDisplaySize(18, 18);
+      box.add([ring, glint]); rings.push({ img: ring, glint, h, rad, ph: i * 0.9 });
+    }
+    const em = this.scene.textures.exists('sam-petal') ? this.scene.add.particles(0, 0, 'sam-petal', {
+      emitZone: { type: 'random', source: new Phaser.Geom.Ellipse(0, -70, 120, 150), quantity: 1 } as never, speedX: { min: -90, max: 90 }, speedY: { min: -60, max: 20 },
+      rotate: { min: 0, max: 360 }, scale: { start: 0.9, end: 0.4 }, alpha: { start: 1, end: 0 }, lifespan: 600, frequency: 45, emitting: false,
+    }) : null;
+    let t = 0;
+    const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
+      t += 16;
+      if (r.phase === 'startup' && r.elapsed < T.startup - 40) return;
+      const u = Math.max(0, t - t0) / TORNADO.everyMs, i = Math.min(path.length - 2, Math.floor(u)), f = Math.min(1, u - i);
+      const x = path[i].x + (path[i + 1].x - path[i].x) * f, y = path[i].y + (path[i + 1].y - path[i].y) * f;
+      const end = t0 + life, fadeIn = Math.min(1, (t - T.startup) / 160), fadeOut = t > end - 260 ? Math.max(0, (end - t) / 260) : 1;
+      box.setPosition(x, y).setDepth(y + 1).setAlpha(fadeIn * fadeOut);
+      em?.setPosition(x, y).setDepth(y + 2); if (em) em.emitting = fadeOut > 0.3;
+      if (img) img.setFrame(Math.floor(t / 60) % 8);
+      for (const g of rings) { const th = t / 90 + g.ph; g.img.setScale(g.img.scaleX, g.img.scaleY).setX(Math.sin(th * 0.7) * 4); g.glint.setPosition(Math.cos(th) * g.rad, -g.h + Math.sin(th) * g.rad * 0.25).setAlpha(Math.sin(th) > 0 ? 1 : 0.25); }
+      if (t % 64 < 16) this.slashLine(x + (Math.random() - 0.5) * 80, y - 30 - Math.random() * 120, 70 + Math.random() * 50, side, false, y + 3);
+      if (t >= end) { ev.remove(); box.destroy(); if (em) { em.stop(); this.scene.time.delayedCall(700, () => em.destroy()); } }
+    } });
+  }
+
+  /** God of Blades: eight spectral katanas rise one by one into a fan behind the samurai and stay for the buff. */
+  private haloOf(r: CastRun): void {
+    const L = r.skill.linger!, until = this.scene.time.now + r.timings.startup + L.startMs + L.everyMs * L.count;
+    this.clearHalo(r.attackerId, true);
+    const c = this.casterPos(r.attackerId) ?? r.origin, side = r.aim.x < -0.01 ? -1 : 1;
+    const aura = this.scene.add.image(c.x, c.y - c.z - 70, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(CRIMSON).setDisplaySize(190, 190).setAlpha(0);
+    const imgs: Phaser.GameObjects.Image[] = [];
+    const sheet = vfxKey('god_of_blades');
+    if (this.scene.textures.exists(sheet)) { // the painted halo: one looping picture behind him (strikes fly drawn katanas out of it)
+      const im = this.scene.add.image(c.x, c.y - c.z - 74, sheet, 0).setBlendMode(Phaser.BlendModes.SCREEN).setDisplaySize(260, 260).setAlpha(0);
+      this.scene.tweens.add({ targets: im, alpha: 0.9, duration: r.timings.startup });
+      this.scene.time.delayedCall(r.timings.startup, () => { const q = this.casterPos(r.attackerId) ?? c; this.shockwave(q.x, q.y, 170, CRIMSON); this.petals(q.x, q.y - q.z - 80, 12, 120); });
+      this.halos.set(r.attackerId, { imgs: [im], aura, until, t: 0, lastX: c.x, face: side, next: 0, away: new Set(), sheet: true });
+      return;
+    }
+    for (let k = 0; k < 8; k++) {
+      const im = this.scene.add.image(c.x, c.y - c.z - 70, 'sam-katana').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc8d4).setDisplaySize(92, 18).setAlpha(0);
+      this.scene.tweens.add({ targets: im, alpha: 0.85, delay: (r.timings.startup * k) / 8, duration: 160 });
+      imgs.push(im);
+    }
+    this.scene.tweens.add({ targets: aura, alpha: 0.35, duration: r.timings.startup });
+    this.scene.time.delayedCall(r.timings.startup, () => { const q = this.casterPos(r.attackerId) ?? c; this.shockwave(q.x, q.y, 170, CRIMSON); this.petals(q.x, q.y - q.z - 80, 12, 120); });
+    this.halos.set(r.attackerId, { imgs, aura, until, t: 0, lastX: c.x, face: side, next: 0, away: new Set() });
+  }
+
+  /** A halo is gone (the buff ended, its samurai fell or left). */
+  clearHalo(attackerId: string, now = false): void {
+    const h = this.halos.get(attackerId); if (!h) return;
+    this.halos.delete(attackerId);
+    const all = [...h.imgs, h.aura];
+    if (now) { for (const o of all) o.destroy(); return; }
+    this.scene.tweens.add({ targets: all, alpha: 0, duration: 300, onComplete: () => { for (const o of all) o.destroy(); } });
+  }
+
+  private haloSlot(h: { t: number; face: number }, k: number, c: V3): { x: number; y: number; ang: number } {
+    const th = Phaser.Math.DegToRad(-160 + (k / 7) * 140 + 4 * Math.sin(h.t / 600 + k)) * 1, px = c.x - h.face * 10, py = c.y - c.z - 74;
+    const fx = h.face < 0 ? -1 : 1, dx = Math.cos(th) * 66 * -fx, dy = Math.sin(th) * 56;
+    return { x: px + dx, y: py + dy, ang: Phaser.Math.RadToDeg(Math.atan2(dy, dx)) };
+  }
+
+  private stepHalos(ms: number): void {
+    const now = this.scene.time.now;
+    for (const [id, h] of this.halos) {
+      const c = this.casterPos(id);
+      if (!c || now >= h.until) { this.clearHalo(id); continue; }
+      h.t += ms;
+      if (Math.abs(c.x - h.lastX) > 0.5) h.face = c.x > h.lastX ? 1 : -1;
+      h.lastX = c.x;
+      h.aura.setPosition(c.x - h.face * 10, c.y - c.z - 74).setDepth(c.y - 2).setAlpha(0.28 + 0.08 * Math.sin(h.t / 300));
+      if (h.sheet) { h.imgs[0].setPosition(c.x - h.face * 10, c.y - c.z - 74).setDepth(c.y - 1.5).setFlipX(h.face < 0).setFrame(Math.floor(h.t / 90) % 8); continue; }
+      h.imgs.forEach((im, k) => { if (h.away.has(k)) return; const p = this.haloSlot(h, k, c); im.setPosition(p.x, p.y).setAngle(p.ang).setDepth(c.y - 1.5); });
+    }
+  }
+
+  /** God of Blades strike: a blade of the halo flies at the foe and back (the hit lands as it arrives, LegacyCourtyardScene). */
+  bladeStrike(attackerId: string, to: V3): void {
+    const h = this.halos.get(attackerId), c = this.casterPos(attackerId); if (!h || !c) return;
+    if (h.sheet) { // a drawn katana leaves the painted halo
+      const sx = c.x - h.face * 10, sy = c.y - c.z - 74 - 30, tx = to.x, ty = to.y - to.z - 40;
+      const im = this.scene.add.image(sx, sy, 'sam-katana').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc8d4).setDisplaySize(92, 18).setDepth(TOP + 2).setAngle(Phaser.Math.RadToDeg(Math.atan2(ty - sy, tx - sx)));
+      this.scene.tweens.add({ targets: im, x: tx, y: ty, duration: 150, ease: 'Quad.easeIn', onComplete: () => { im.destroy(); this.spark(IMPACT.samurai.key, tx, ty, IMPACT.samurai.frames, 120, 0.95); this.slashLine(tx, ty, 150, tx >= c.x ? 1 : -1, false, TOP + 3, CRIMSON_HOT); } });
+      return;
+    }
+    const k = h.next % 8; h.next++;
+    const im = h.imgs[k]; if (!im || h.away.has(k)) return;
+    h.away.add(k);
+    const tx = to.x, ty = to.y - to.z - 40;
+    im.setAngle(Phaser.Math.RadToDeg(Math.atan2(ty - im.y, tx - im.x))).setDepth(TOP + 2);
+    this.scene.tweens.add({ targets: im, x: tx, y: ty, duration: 150, ease: 'Quad.easeIn', onComplete: () => {
+      this.spark(IMPACT.samurai.key, tx, ty, IMPACT.samurai.frames, 120, 0.95);
+      this.slashLine(tx, ty, 150, tx >= c.x ? 1 : -1, false, TOP + 3, CRIMSON_HOT);
+      im.setAlpha(0);
+      this.scene.time.delayedCall(260, () => { h.away.delete(k); this.scene.tweens.add({ targets: im, alpha: 0.85, duration: 200 }); });
+    } });
+  }
+
   destroy(): void {
     SKILL_BLOCKERS.clear();
     for (const f of this.arrowFx.values()) { for (const o of f.parts) o.destroy(); f.em.destroy(); }
     this.arrowFx.clear();
     for (const h of this.hawks.values()) h.img.destroy();
     this.hawks.clear();
+    for (const id of [...this.halos.keys()]) this.clearHalo(id, true);
     for (const a of this.anims) { a.img.destroy(); a.glow?.destroy(); a.mix?.destroy(); }
     for (const t of this.teles) t.g.destroy();
     for (const i of this.projs.values()) i.destroy();

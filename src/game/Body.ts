@@ -556,6 +556,15 @@ const SEQ: Record<string, Seq> = {
   mirage: { st: [['idle', 0], ['attack', 0]], ac: [['attack', 0]], rc: [['attack', 3], ['idle', 0]] },
   blossom_storm: { st: [['attack', 0], ['run', 1]], ac: [['attack', 2], ['run', 3], ['attack', 1], ['attack', 2], ['run', 3], ['attack', 2], ['attack', 3]], rc: [['attack', 3], ['idle', 0]] },
   dragon_eclipse: { st: [['attack', 0], ['jump', 2], ['run', 1]], ac: [['attack', 2], ['attack', 3]], rc: [['attack', 3], ['attack', 3], ['idle', 0]] },
+  // samurai extended kit (attack 0 blade high, 1 drawing stance / lunge, 2 the wide cut, 3 low follow-through)
+  swallow_cut: { st: at(3), ac: at(2, 0, 0, 2), rc: [['attack', 3], ['idle', 0]] },
+  hundred_cuts: { st: at(1), ac: at(2, 3, 2, 1, 2, 3, 2, 1, 2, 3, 2, 1, 2, 3, 2, 0), rc: [['attack', 2], ['attack', 3], ['idle', 0]] },
+  quick_draw: { st: [['idle', 0], ['attack', 1]], ac: at(1), rc: [['attack', 1], ['idle', 0]] },
+  tornado_blade: { st: at(1, 2, 3, 2), ac: at(2, 3), rc: [['attack', 3], ['idle', 0]] },
+  falcon_dive: { st: [['attack', 3]], ac: [['jump', 0], ['attack', 0], ['attack', 2], ['attack', 2]], rc: [['attack', 3], ['attack', 3], ['idle', 0]] },
+  rising_sun: { st: [['idle', 0], ['attack', 0]], ac: at(0), rc: [['attack', 0], ['idle', 0]] },
+  phantom_blades: { st: at(1, 1), ac: at(2, 3, 2, 1, 2, 3, 2, 0), rc: [['attack', 3], ['attack', 3], ['idle', 0]] },
+  god_of_blades: { st: [['idle', 0], ['attack', 0]], ac: at(0), rc: [['attack', 0], ['idle', 0]] },
 };
 const CHAIN_SEQ: Record<string, Seq[]> = {
   quick_slash: [{ st: at(0), ac: at(1, 2), rc: at(3) }, { st: at(3), ac: at(2, 1), rc: at(0) }, { st: [['attack', 0], ['jump', 2]], ac: at(2, 3), rc: [['attack', 3], ['idle', 0]] }],

@@ -42,19 +42,19 @@ export const PASSIVES: PassiveSkill[] = [
   { id: 'steadfast', cls: 'archer', job: 4, name: 'Steadfast', kind: 'passive', description: 'Rooted like an old tree: most blows can no longer push you back.', effects: ['Knockback resist 60%'] },
   { id: 'supreme_mastery', cls: 'archer', job: 4, name: 'Supreme Mastery', kind: 'passive', description: 'The legendary bow answers its master: more damage, deadlier crits.', effects: ['Damage +15%', 'Critical hits +10% more'] },
   { id: 'eagle_eyes', cls: 'archer', job: 4, name: 'Eagle Eyes', kind: 'passive', description: 'Sees like an eagle: every arrow flies farther.', effects: ['Arrow range +20%'] },
-  // ---- Samurai (Hayato line) — templates: names, icons and the plan; each is built later, one by one
-  { id: 'shinsoku', cls: 'samurai', job: 1, name: 'Shinsoku', kind: 'movement', wip: true, description: 'Press Jump again in mid-air to dash forward like lightning, leaving crimson afterimages behind.', effects: ['Second jump in the air', 'Fast dash forward'] },
-  { id: 'katana_mastery', cls: 'samurai', job: 1, name: 'Katana Mastery', kind: 'passive', wip: true, description: 'Mastery of the katana: every cut lands harder and finds weak spots more often.', effects: ['More damage', 'More critical hits'] },
-  { id: 'bushido_body', cls: 'samurai', job: 1, name: 'Bushido Body', kind: 'passive', wip: true, description: 'A body trained in the way of the warrior: more HP and lighter feet.', effects: ['More max HP', 'Faster on foot'] },
-  { id: 'willow_dodge', cls: 'samurai', job: 2, name: 'Willow Dodge', kind: 'passive', wip: true, description: 'Bend like the willow: a chance to slip aside from a blow as a mirage, so the attack misses.', effects: ['A chance to dodge', 'Dodged hits deal no damage'] },
-  { id: 'final_cut', cls: 'samurai', job: 2, name: 'Final Cut', kind: 'passive', wip: true, description: 'After a skill connects, a chance for a ghost blade to follow with one more cut.', effects: ['A chance per hit', 'One extra ghost cut'] },
-  { id: 'steel_spirit', cls: 'samurai', job: 2, name: 'Steel Spirit', kind: 'passive', wip: true, description: 'A spirit of steel under the helmet: less damage taken from every hit.', effects: ['Less damage taken'] },
-  { id: 'shogun_mastery', cls: 'samurai', job: 3, name: 'Shogun Mastery', kind: 'passive', wip: true, description: 'The shogun\'s command of the blade: more damage and quicker draws.', effects: ['More damage', 'Faster attacks'] },
-  { id: 'unshaken', cls: 'samurai', job: 3, name: 'Unshaken', kind: 'passive', wip: true, description: 'Stand like a mountain in the storm: most blows can no longer push you back.', effects: ['Knockback resistance'] },
-  { id: 'iron_will', cls: 'samurai', job: 3, name: 'Iron Will', kind: 'passive', wip: true, description: 'An iron will breaks every chain: stuns, roots and slows wear off sooner.', effects: ['Shorter stuns and roots', 'Shorter slows'] },
-  { id: 'way_of_the_sword', cls: 'samurai', job: 4, name: 'Way of the Sword', kind: 'passive', wip: true, description: 'The blade and the mind are one: more critical hits, and critical hits cut deeper.', effects: ['More critical hits', 'Stronger critical hits'] },
-  { id: 'sword_saint', cls: 'samurai', job: 4, name: 'Sword Saint', kind: 'passive', wip: true, description: 'The legendary sword saint: every cut strikes with sacred force.', effects: ['Much more damage'] },
-  { id: 'advanced_final_cut', cls: 'samurai', job: 4, name: 'Advanced Final Cut', kind: 'passive', wip: true, description: 'Final Cut evolves: two ghost blades follow far more often and cut deeper.', effects: ['Final Cut more often', 'Two ghost cuts'] },
+  // ---- Samurai (Hayato line)
+  { id: 'shinsoku', cls: 'samurai', job: 1, name: 'Shinsoku', kind: 'movement', description: 'Press Jump again in mid-air to dash forward like lightning, leaving crimson afterimages behind.', effects: ['Second jump in the air', 'A fast dash forward', 'Once per jump'] },
+  { id: 'katana_mastery', cls: 'samurai', job: 1, name: 'Katana Mastery', kind: 'passive', description: 'Mastery of the katana: every cut lands harder and finds weak spots more often.', effects: ['Damage +10%', 'Critical rate +5%'] },
+  { id: 'bushido_body', cls: 'samurai', job: 1, name: 'Bushido Body', kind: 'passive', description: 'A body trained in the way of the warrior: more HP and lighter feet.', effects: ['Max HP +20%', 'Movement speed +10%'] },
+  { id: 'willow_dodge', cls: 'samurai', job: 2, name: 'Willow Dodge', kind: 'passive', description: 'Bend like the willow: a chance to slip aside from a blow as a mirage, so the attack misses completely.', effects: ['Evasion +10%', 'Dodged hits deal no damage'] },
+  { id: 'final_cut', cls: 'samurai', job: 2, name: 'Final Cut', kind: 'passive', description: 'After a skill connects, a chance for a ghost blade to follow with one more cut (against monsters and the sparring knight).', effects: ['25% chance per hit', 'Ghost cut: 35% of the hit', 'Not against players'] },
+  { id: 'steel_spirit', cls: 'samurai', job: 2, name: 'Steel Spirit', kind: 'passive', description: 'A spirit of steel under the helmet: less damage taken from every hit.', effects: ['Damage taken −10%', 'Max HP +10%'] },
+  { id: 'shogun_mastery', cls: 'samurai', job: 3, name: 'Shogun Mastery', kind: 'passive', description: 'The shogun\'s command of the blade: more damage and quicker draws.', effects: ['Damage +10%', 'Attack speed +10%'] },
+  { id: 'unshaken', cls: 'samurai', job: 3, name: 'Unshaken', kind: 'passive', description: 'Stand like a mountain in the storm: most blows can no longer push you back.', effects: ['Knockback resist 60%'] },
+  { id: 'iron_will', cls: 'samurai', job: 3, name: 'Iron Will', kind: 'passive', description: 'An iron will breaks every chain: stuns, roots, freezes and slows wear off sooner.', effects: ['Stun / root / freeze −30%', 'Slow duration −30%'] },
+  { id: 'way_of_the_sword', cls: 'samurai', job: 4, name: 'Way of the Sword', kind: 'passive', description: 'The blade and the mind are one: more critical hits, and critical hits cut deeper.', effects: ['Critical rate +10%', 'Critical hits 150% → 170%'] },
+  { id: 'sword_saint', cls: 'samurai', job: 4, name: 'Sword Saint', kind: 'passive', description: 'The legendary sword saint: every cut strikes with sacred force.', effects: ['Damage +15%', 'Critical hits +10% more'] },
+  { id: 'advanced_final_cut', cls: 'samurai', job: 4, name: 'Advanced Final Cut', kind: 'passive', description: 'Final Cut evolves: ghost blades follow far more often and cut deeper — two of them.', effects: ['Final Cut chance 45%', 'Ghost cuts: 55% of the hit', 'Not against players'] },
 ];
 
 export const passiveIconUrl = (p: PassiveSkill) => `assets/final/skills/${p.cls}/${p.id}/icon.png`;
@@ -103,11 +103,26 @@ export function passiveStats(owned: Set<string>): PassiveStats {
   if (has('steadfast')) s.kbResist = 0.6;
   if (has('supreme_mastery')) { s.dmg *= 1.15; s.critDmgAdd += 0.1; }
   if (has('eagle_eyes')) s.rangeMul = 1.2;
+  // Samurai
+  if (has('shinsoku')) s.airLeap = true;
+  if (has('katana_mastery')) { s.dmg *= 1.1; s.critAdd += 0.05; }
+  if (has('bushido_body')) { s.hpMul += 0.2; s.moveMul *= 1.1; }
+  if (has('willow_dodge')) s.evade += 0.1;
+  if (has('final_cut')) s.fa = { chance: 0.25, mul: 0.35 };
+  if (has('steel_spirit')) { s.takenMul *= 0.9; s.hpMul += 0.1; }
+  if (has('shogun_mastery')) { s.dmg *= 1.1; s.atkSpeed *= 1.1; }
+  if (has('unshaken')) s.kbResist = Math.max(s.kbResist, 0.6);
+  if (has('iron_will')) s.ccResist = Math.max(s.ccResist, 0.3);
+  if (has('way_of_the_sword')) { s.critAdd += 0.1; s.critDmgAdd += 0.2; }
+  if (has('sword_saint')) { s.dmg *= 1.15; s.critDmgAdd += 0.1; }
+  if (has('advanced_final_cut')) s.fa = { chance: 0.45, mul: 0.55 };
   return s;
 }
 
 /** War Leap tuning (px/s). */
 export const WAR_LEAP = { vz: 380, forward: 430 };
+/** Shinsoku (samurai): a flatter, faster dash than the War Leap (px/s). */
+export const SHINSOKU = { vz: 280, forward: 620 };
 /** Combo Force orbs. */
 export const ORBS = { max: 5, perOrb: 0.03, fadeMs: 4000 };
 /** Self Recovery: fraction of max HP every period. */

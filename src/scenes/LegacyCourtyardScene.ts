@@ -29,7 +29,7 @@ import { Party } from '../pvp/Party';
 import { PartyUI, PartyView } from '../ui/PartyUI';
 import { addExp, expToNext } from '../game/Progression';
 import { passiveIconUrl, passivesFor } from '../skills/Passives';
-import { NO_PASSIVES, ORBS, PassiveStats, REGEN, WAR_LEAP, ownedPassives, passiveStats } from '../skills/Passives';
+import { NO_PASSIVES, ORBS, PassiveStats, REGEN, SHINSOKU, WAR_LEAP, ownedPassives, passiveStats } from '../skills/Passives';
 import { SKILL_BLOCKERS, WORLD_OBJECTS, actorDepth, footAllowed, insideArena, placementOk, pushOutOfBlockers, useArenaGeometry } from '../world/WorldGeometry';
 import { OpenWorld, preloadOpenWorld } from '../world/OpenWorld';
 import { AreaNpc, IDLE_LINES, MOB_KINDS, QUESTS, QuestDef, START, toWorld } from '../world/Areas';
@@ -56,6 +56,7 @@ import { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import { finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
 import { CastRun, SkillRuntime } from '../skills/SkillRuntime';
 import { Afterimages, applyMotion, archerMotion, leapMotion } from '../skills/ArcherMotion';
+import { SAMURAI_AFTER, TORNADO, samuraiMotion, shinsokuMotion, tornadoPath } from '../skills/SamuraiMotion';
 import { HitTarget, V2, V3, clampAim, clampPlace, unit } from '../skills/HitGeometry';
 import { SkillFx, preloadSkillFx } from '../skills/SkillFx';
 import { BEGINNER_TO, JOBS_OPEN, hasJob, jobOfSlot, playedClass, skillLevel } from '../skills/Jobs';
@@ -173,6 +174,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   radiantUntil = -1;
   /** Archer buffs: Bow Haste (+20% attack speed), Hunter's Spirit (+15% critical rate, also shared by a party member). */
   hasteUntil = -1;
+  /** Samurai buffs: Quick Draw (speed + crit), Rising Sun (party: damage + critical damage), God of Blades (damage + the halo). */
+  drawUntil = -1;
+  sunUntil = -1;
+  godUntil = -1;
   spiritUntil = -1;
   /** Archer Tree of Life: where it stands, until when, next heal pulse (sim ms). */
   private tree: { x: number; y: number; until: number; next: number } | null = null;
@@ -297,6 +302,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
     this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
     this.hasteUntil = -1; this.spiritUntil = -1; this.tree = null; this.storm = null; this.hasteFx = undefined; this.spiritFx = undefined; this.afterimg = undefined;
+    this.drawUntil = -1; this.sunUntil = -1; this.godUntil = -1; this.drawFx = undefined;
     this.hpMaxSeen = 0; this.seenStance = -Infinity; this.seenEndure = -Infinity; this.markAt.clear(); this.partyTick = 0; this.shares = []; this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1;
     this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
     this.combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1 };
@@ -711,13 +717,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** War Leap: a second, farther jump in mid-air (once per airtime) with a burst of wind. */
   private warLeap(now: number): void {
     const k = this.kin, inp = this.ci!;
-    const d = inp.hasMove ? unit(inp.moveX, inp.moveY) : FACE[this.dir];
-    k.vz = Math.max(k.vz, WAR_LEAP.vz); k.vx = d.x * WAR_LEAP.forward; k.vy = d.y * WAR_LEAP.forward * 0.6;
+    const d = inp.hasMove ? unit(inp.moveX, inp.moveY) : FACE[this.dir], L = this.cls === 'samurai' ? SHINSOKU : WAR_LEAP; // Shinsoku: flatter, faster
+    k.vz = Math.max(k.vz, L.vz); k.vx = d.x * L.forward; k.vy = d.y * L.forward * 0.6;
     this.leapUsed = true; this.leapUntil = now + 320; this.leapAt = now;
     this.setMode('takeoff');
     this.fx!.dust(k.x - d.x * 18, k.y - k.z, 70, 0.7);
     const side = d.x < 0 || (d.x === 0 && this.dir === 'left') ? -1 : 1;
-    if (this.cls === 'archer') this.fx!.windLeap(k.x, k.y - k.z, side); else this.fx!.leapBurst(k.x, k.y - k.z - 4, side);
+    if (this.cls === 'archer') this.fx!.windLeap(k.x, k.y - k.z, side); else if (this.cls === 'samurai') this.fx!.shinsoku(k.x, k.y - k.z - 4, side); else this.fx!.leapBurst(k.x, k.y - k.z - 4, side);
   }
 
   /** Every skill open: QA build, PvP arena, or the Skill Book's "all skills" test switch. */
@@ -802,6 +808,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       else return;
       const big = fa.mul >= 0.5; // Advanced Final Attack: a bigger triple cut
       if (run.skill.cls === 'archer') { this.fx!.extraArrow({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 }, at); this.fx!.damageNumber(at, extra, false, 0, true); return; } // Extra Shot: a second arrow of wind
+      if (run.skill.cls === 'samurai') { // Final Cut: a ghost blade (Advanced: two)
+        this.fx!.ghostCut(at, side, big); if (big) this.time.delayedCall(70, () => this.fx!.ghostCut({ x: at.x, y: at.y, z: at.z + 18 }, -side, true));
+        this.fx!.damageNumber(at, extra, false, 0, true); return;
+      }
       this.fx!.finalSlash(at, side, big);
       if (big) for (const [d, dx, dz] of [[60, 18, 14], [120, -16, -12]] as const) this.time.delayedCall(d, () => this.fx!.finalSlash({ x: at.x + dx, y: at.y, z: at.z + dz }, side, true));
       this.fx!.damageNumber(at, extra, false, 0, true);
@@ -941,6 +951,22 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     });
   }
 
+  /** God of Blades tick: two blades of the halo fly at the two nearest foes in reach (the hits land as they arrive). */
+  private bladeStrikes(l: { run: CastRun; x: number; y: number }, L: NonNullable<FinalSkill['linger']>): void {
+    const near = this.targetsFor(l.run).filter((t) => t.alive && !t.invulnerable && t.id !== l.run.attackerId && t.z <= L.maxZ && !(l.run.own && this.party?.has(t.id)) && Math.hypot(t.x - l.x, t.y - l.y) <= L.radius + t.radius)
+      .sort((p, q) => Math.hypot(p.x - l.x, p.y - l.y) - Math.hypot(q.x - l.x, q.y - l.y)).slice(0, 2);
+    near.forEach((t, n) => this.time.delayedCall(n * 90, () => {
+      if (!t.alive) return;
+      const at = { x: t.x, y: t.y, z: t.z + 40 }, zr = { ...l.run, origin: { x: t.x - (t.x >= l.x ? 30 : -30), y: t.y, z: 0 } } as CastRun;
+      this.fx!.bladeStrike(l.run.attackerId, at);
+      this.time.delayedCall(150, () => { // the blade reaches the foe
+        if (!t.alive) return;
+        if (l.run.own) { if (t.kind === 'enemy') this.applyToPve(zr, L.hit, t, at); else if (t.id === BOT_ID) this.applyToBot(zr, L.hit, t, at); }
+        else if (t.id === this.localId) this.applyRemoteHitToSelf(zr, L.hit, 0, at);
+      });
+    }));
+  }
+
   private stepLingers(now: number): void {
     for (const l of this.lingers) {
       const L = l.run.skill.linger!;
@@ -948,10 +974,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         l.left--; l.next += L.everyMs;
         if (L.at === 'caster') { const c = this.casterPos(l.run.attackerId); if (c) { l.x = c.x; l.y = c.y; } } // the quake travels with you
         if (l.run.skill.id === 'spirit_hawk') { this.hawkDive(l, L); continue; }
+        if (l.run.skill.id === 'god_of_blades') { if (l.run.own && this.dead >= 0) { l.left = 0; break; } this.bladeStrikes(l, L); continue; }
+        if (l.run.skill.id === 'tornado_blade') { const path = (l as { path?: { x: number; y: number }[] }).path ??= tornadoPath(l.run.origin, l.run.aim), q = path[Math.min(path.length - 1, TORNADO.count - 1 - l.left)]; l.x = q.x; l.y = q.y; } // rolls forward one step per strike (the picture takes the same path)
         if (l.run.skill.id === 'blade_storm') { // swords erupt all around the caster + lightning crackles
           for (let n = 0; n < 2; n++) { const a = (l.left * 2.4 + n * Math.PI) + (Math.random() - 0.5) * 0.9, rr = 70 + Math.random() * (L.radius - 40); this.fx!.risingBlade(l.x + Math.cos(a) * rr, l.y + Math.sin(a) * rr * 0.6, n * 90); }
         }
-        else if (l.run.skill.id !== 'ground_breaker') this.fx!.crack(l.x, l.y, L.radius); // the quake has one steady rotating ring instead of per-tick sparks
+        else if (l.run.skill.id !== 'ground_breaker' && l.run.skill.id !== 'tornado_blade') this.fx!.crack(l.x, l.y, L.radius); // the quake has one steady rotating ring instead of per-tick sparks; the tornado is its own picture
         if (l.run.skill.id === 'ground_breaker' && l.run.own && this.dead < 0) { // the quake mends the warrior: +2 HP per pulse
           const max = this.maxHpNow(), before = this.playerHP;
           this.playerHP = Math.min(max, this.playerHP + 2);
@@ -1010,6 +1038,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       applyMotion(v.motionSprites, m);
       (this.afterimg ??= new Afterimages(this)).step(this.simMs, v.sprite, !!m?.after);
       this.renderArcherBuffs();
+    } else if (this.cls === 'samurai') { // samurai body motion: the step into a cut, the spring, the spin, the dive + crimson afterimages
+      const face = this.aim.x < -0.01 ? -1 : 1;
+      const m = (run && this.dead < 0 ? samuraiMotion(run.skill.id, run.elapsed, run.timings, face, run.stage) : null) ?? (this.dead < 0 ? shinsokuMotion(this.simMs - this.leapAt, this.dir === 'left' ? -1 : 1) : null);
+      applyMotion(v.motionSprites, m);
+      (this.afterimg ??= new Afterimages(this, SAMURAI_AFTER)).step(this.simMs, v.sprite, !!m?.after);
+      this.renderSamuraiBuffs();
     }
     this.renderRadiant(pose, dir);
     this.renderEyes(pose, dir);
@@ -1197,7 +1231,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private onJumpKey(): void { if (this.pvpReady && this.dead < 0 && !this.inputLocked()) this.ci?.queueJump(); }
 
   /** Own damage buffs right now: War Cry +20%, Radiant Blade +15% (same as against monsters). */
-  private ownDamageMul(): number { return (this.simMs < this.warCryUntil ? 1.2 : this.simMs < this.allyCryUntil ? 1.1 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * (this.simMs < this.bannerUntil ? 1.1 : 1) * this.passiveDmgMul(); }
+  private ownDamageMul(): number { return (this.simMs < this.warCryUntil ? 1.2 : this.simMs < this.allyCryUntil ? 1.1 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * (this.simMs < this.bannerUntil ? 1.1 : 1) * (this.simMs < this.sunUntil ? 1.1 : 1) * (this.simMs < this.godUntil ? 1.15 : 1) * this.passiveDmgMul(); }
 
   private hasteFx?: Phaser.GameObjects.Particles.ParticleEmitter;
   private spiritFx?: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -1218,18 +1252,42 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.spiritFx.setPosition(k.x, k.y - k.z - 60).setDepth(d + 0.06); this.spiritFx.emitting = vis && this.simMs < this.spiritUntil;
   }
 
+  private drawFx?: Phaser.GameObjects.Particles.ParticleEmitter;
+  /** Samurai buffs stay visible while they last: Quick Draw = crimson sparks rising around the feet (the God of Blades halo
+   *  and the Rising Sun are drawn by SkillFx, for every player). */
+  private renderSamuraiBuffs(): void {
+    if (!this.textures.exists('dmg-glow')) return;
+    const k = this.kin, d = actorDepth(k.x, k.y, k.z), vis = !!this.view?.visible && this.dead < 0;
+    this.drawFx ??= this.add.particles(0, 0, 'dmg-glow', {
+      emitZone: { type: 'random', source: new Phaser.Geom.Ellipse(0, 0, 64, 18), quantity: 1 } as never,
+      speedY: { min: -120, max: -60 }, speedX: { min: -12, max: 12 }, lifespan: { min: 300, max: 520 },
+      scaleX: { start: 0.05, end: 0.015 }, scaleY: { start: 0.22, end: 0.06 }, alpha: { start: 0.8, end: 0 }, tint: [0xff3a4c, 0xffd0d6], blendMode: 'ADD', frequency: 90, emitting: false,
+    });
+    this.drawFx.setPosition(k.x, k.y - k.z - 4).setDepth(d + 0.05); this.drawFx.emitting = vis && this.simMs < this.drawUntil;
+  }
+
   /** Archer: Eagle Eyes arrow range. */
   private ownRangeMul(s: FinalSkill): number { return s.cls === 'archer' ? this.passives.rangeMul : 1; }
   /** Archer: Bow Haste (+20%) × Ranger Mastery attack speed (startup / recovery shortened). */
-  private ownSpeedMul(s: FinalSkill): number { return s.cls === 'archer' ? this.passives.atkSpeed * (this.simMs < this.hasteUntil ? 1.2 : 1) : 1; }
+  private ownSpeedMul(s: FinalSkill): number { return s.cls === 'archer' ? this.passives.atkSpeed * (this.simMs < this.hasteUntil ? 1.2 : 1) : s.cls === 'samurai' ? this.passives.atkSpeed * (this.simMs < this.drawUntil ? 1.2 : 1) : 1; }
   /** Own critical rate bonus: passives + Hunter's Spirit (+15%). */
-  private critAddNow(): number { return this.passives.critAdd + (this.simMs < this.spiritUntil ? 0.15 : 0); }
+  private critAddNow(): number { return this.passives.critAdd + (this.simMs < this.spiritUntil ? 0.15 : 0) + (this.simMs < this.drawUntil ? 0.1 : 0); }
+  /** Own extra critical damage: passives + Rising Sun (+20%). */
+  private critDmgNow(): number { return this.passives.critDmgAdd + (this.simMs < this.sunUntil ? 0.2 : 0); }
 
   /** Evasion (archer): a chance to dodge a hit entirely — MISS, a rush of wind, a short sidestep. */
   private tryEvade(from: { x: number; y: number }): boolean {
     if (this.passives.evade <= 0 || this.simMs < this.body.invulnUntil || Math.random() >= this.passives.evade) return false;
     const k = this.kin, away = unit(k.x - from.x, k.y - from.y), side = away.x < 0 ? -1 : 1;
     for (let d = 40; d > 0; d -= 4) { const nx = k.x + away.x * d, ny = k.y + away.y * d; if (footAllowed(nx, ny, k.z, R)) { k.x = nx; k.y = ny; break; } }
+    if (this.cls === 'samurai') { // Willow Dodge: a mirage left where he stood, petals, a crimson streak
+      const v = this.view!, ghost = new Afterimages(this, SAMURAI_AFTER); // (its own: the body motion's afterimages keep their pace)
+      ghost.step(0, v.sprite, true, 0); // the body is still drawn where he stood: the mirage stays there
+      for (let i = 1; i < 3; i++) this.time.delayedCall(i * 40, () => ghost.step(i * 1000, v.sprite, true, 0));
+      this.fx!.mirageDodge(k.x, k.y - k.z, side);
+      this.fx!.callout({ x: k.x, y: k.y, z: k.z + 30 }, 'MISS', '#ffc8d4', 0);
+      return true;
+    }
     this.fx!.evadeDash(k.x, k.y - k.z, side);
     this.fx!.callout({ x: k.x, y: k.y, z: k.z + 30 }, 'MISS', '#c8ffb0', 0);
     return true;
@@ -1271,9 +1329,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     else if (id === 'iron_oath') this.oathUntil = Math.max(this.oathUntil, now + ms);
     else if (id === 'legacy_banner') this.bannerUntil = Math.max(this.bannerUntil, now + ms);
     else if (id === 'hunters_spirit') this.spiritUntil = Math.max(this.spiritUntil, now + ms);
+    else if (id === 'rising_sun') this.sunUntil = Math.max(this.sunUntil, now + ms);
     else if (id === 'tree_of_life') { this.treeHeal(); return; } // one heal pulse from a party member's tree (sent every second while you stand near it)
     else return;
-    const label = id === 'war_cry' ? 'WAR CRY' : id === 'iron_oath' ? 'IRON OATH' : id === 'hunters_spirit' ? "HUNTER'S SPIRIT" : 'LEGACY BANNER';
+    const label = id === 'war_cry' ? 'WAR CRY' : id === 'iron_oath' ? 'IRON OATH' : id === 'hunters_spirit' ? "HUNTER'S SPIRIT" : id === 'rising_sun' ? 'RISING SUN' : 'LEGACY BANNER';
     this.fx?.callout({ x: k.x, y: k.y, z: k.z + 50 }, `+${label}`, '#ffd27a', 0);
     this.fx?.shockwave(k.x, k.y, 90, 0xffd27a);
     this.chat?.add({ kind: 'system', text: `${name} gave you ${label.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}.` });
@@ -1392,6 +1451,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.id === 'iron_oath') { this.oathUntil = this.simMs + s.startup + 60000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 60000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(s.startup, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'IRON OATH', '#ffd27a', 0)); }
     if (s.id === 'legacy_banner') { this.bannerUntil = this.simMs + s.startup + 90000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 90000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(Math.round(s.startup * 0.7), () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'LEGACY BANNER', '#ffe7a0', 0)); }
     if (s.cls === 'archer') this.archerCast(s, stage);
+    if (s.cls === 'samurai') this.samuraiCast(s, stage);
     if (s.id === 'blade_storm') this.radiantUntil = Math.max(this.radiantUntil, this.simMs + s.startup + s.active + 15000); // the storm leaves the blade of light in your hand (15s, as Radiant Blade)
     if (s.id === 'sanctuary') this.domeAt = this.simMs + Math.round(s.startup * 0.95); // sim clock (hit-stop/fast-step safe)
     if (s.id === 'radiant_blade') { this.boltDone = false; this.radiantFrom = this.simMs + Math.round(s.startup * 0.4); } // light appears when the sword is raised
@@ -1414,6 +1474,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.id === 'hunters_spirit') { this.spiritUntil = now + up + 120000; this.shares.push({ at: now + up, id: s.id, ms: 120000 }); this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, "HUNTER'S SPIRIT", '#ffe27a', 0)); }
     if (s.id === 'tree_of_life') { const side = this.aim.x < 0 ? -1 : 1; this.tree = { x: k.x - side * 70, y: k.y - 18, until: now + up + 12000, next: now + up + 1000 }; this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'TREE OF LIFE', '#b8ff9a', 0)); }
     if (s.id === 'arrow_storm') { const slot = this.kit.indexOf(s); this.storm = { slot, byKey: !!this.ci?.slotHeld(slot) }; }
+  }
+
+  /** Samurai casts: the buffs (timers on the sim clock, from the run's real startup) and their callouts. */
+  private samuraiCast(s: FinalSkill, stage: number): void {
+    const T = s.chain?.timings?.[stage] ?? s, up = Math.round(T.startup / this.ownSpeedMul(s)), now = this.simMs;
+    const say = (text: string, color: string) => this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, text, color, 0));
+    if (s.id === 'quick_draw') { this.drawUntil = now + up + 120000; say('QUICK DRAW', '#ffb0b8'); }
+    if (s.id === 'rising_sun') { this.sunUntil = now + up + 90000; this.shares.push({ at: now + up, id: s.id, ms: 90000 }); say('RISING SUN', '#ffd27a'); }
+    if (s.id === 'god_of_blades') { this.godUntil = now + up + 30000; say('GOD OF BLADES', '#ffc8d4'); }
   }
 
   /** Arrow Storm: releasing its key ends the storm (the other players are told when it stopped). */
@@ -1597,11 +1666,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       }
       const own = run.attackerId === this.localId;
       crit = hit.damage > 0 && s.slot !== 0 && Math.random() < 0.12 + (own ? this.critAddNow() : 0); // attack skills only: a regular attack never crits
-      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.passives.critDmgAdd : 0) : 1) * (own ? this.ownDamageMul() * ch : 1);
+      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.critDmgNow() : 0) : 1) * (own ? this.ownDamageMul() * ch : 1);
       out.damage = Math.round(out.damage * mult);
       en.damage(out.damage);
       // (MapleStory: only the damage shows — no COUNTER / BACK ATTACK labels; their bonus damage stays)
-      if (crit && own && this.passives.critDmgAdd > 0) { this.fx!.shockwave(at.x, at.y, 110, this.cls === 'archer' ? 0x9be35a : 0xff8a5a); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 40); } // Combat Mastery: heavier crits
+      if (crit && own && this.critDmgNow() > 0) { this.fx!.shockwave(at.x, at.y, 110, this.cls === 'archer' ? 0x9be35a : this.cls === 'samurai' ? 0xff4a5a : 0xff8a5a); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 40); } // Combat Mastery: heavier crits
       if (ch > 1 && out.damage > 0) this.chanceMark(t.id, at);
     }
     else if (t.id.startsWith('mob:')) {
@@ -1622,11 +1691,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         this.fx!.crack(m.kin.x, m.kin.y, 120); this.fx!.shockwave(m.kin.x, m.kin.y, 200, 0xffc070); this.fx!.callout(at, 'SLAM!!', '#ff9a4a', 1); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 120); this.cameras.main.shake(220, 0.011);
       }
       crit = hit.damage > 0 && s.slot !== 0 && Math.random() < 0.12 + (own ? this.critAddNow() : 0); // attack skills only: a regular attack never crits
-      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.passives.critDmgAdd : 0) : 1) * (own ? this.ownDamageMul() * ch : 1);
+      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.critDmgNow() : 0) : 1) * (own ? this.ownDamageMul() * ch : 1);
       out.damage = Math.round(out.damage * mult);
       const killed = m.damage(out.damage, now);
       // (MapleStory: only the damage shows — no COUNTER / BACK ATTACK labels; their bonus damage stays)
-      if (crit && own && this.passives.critDmgAdd > 0) { this.fx!.shockwave(at.x, at.y, 110, this.cls === 'archer' ? 0x9be35a : 0xff8a5a); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 40); } // Combat Mastery: heavier crits
+      if (crit && own && this.critDmgNow() > 0) { this.fx!.shockwave(at.x, at.y, 110, this.cls === 'archer' ? 0x9be35a : this.cls === 'samurai' ? 0xff4a5a : 0xff8a5a); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 40); } // Combat Mastery: heavier crits
       if (ch > 1 && out.damage > 0) this.chanceMark(t.id, at);
       if (killed) { // defeated: counts for the quests that ask for it
         this.questKill(m);
@@ -1730,6 +1799,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private killPlayer(): void {
     this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.spiritUntil = -1; this.hasteUntil = -1; this.tree = null; this.storm = null; // buffs end on death
+    this.drawUntil = -1; this.sunUntil = -1; this.godUntil = -1; this.fx?.clearHalo(this.localId);
     this.rt?.cancelOwn('death');
     if (this.jb) { const jbs = this.kit.find((x) => x.id === 'judgment_blade'); if (jbs) this.rt?.closeCharges(jbs); this.jb = null; this.jbWant = 0; }
     this.ci?.reset();
@@ -2274,9 +2344,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Own active buffs with their timers (HUD buff row). */
   private buffEffects(): HudEffect[] {
-    const out: HudEffect[] = [], now = this.simMs, ic = (id: string) => `assets/final/skills/${id === 'bow_haste' || id === 'hunters_spirit' || id === 'tree_of_life' ? 'archer' : 'warrior'}/${id}/icon.png`;
+    const out: HudEffect[] = [], now = this.simMs, ic = (id: string) => { const f = finalSkill(id); return f ? iconUrl(f) : `assets/final/skills/warrior/${id}/icon.png`; };
     for (const [id, label, until] of [['war_cry', 'War Cry', Math.max(this.warCryUntil, this.allyCryUntil)], ['radiant_blade', 'Radiant Blade', this.radiantUntil], ['iron_oath', 'Iron Oath', this.oathUntil], ['legacy_banner', 'Legacy Banner', this.bannerUntil],
-      ['bow_haste', 'Bow Haste', this.hasteUntil], ['hunters_spirit', "Hunter's Spirit", this.spiritUntil], ['tree_of_life', 'Tree of Life', this.tree?.until ?? -1]] as const)
+      ['bow_haste', 'Bow Haste', this.hasteUntil], ['hunters_spirit', "Hunter's Spirit", this.spiritUntil], ['tree_of_life', 'Tree of Life', this.tree?.until ?? -1],
+      ['quick_draw', 'Quick Draw', this.drawUntil], ['rising_sun', 'Rising Sun', this.sunUntil], ['god_of_blades', 'God of Blades', this.godUntil]] as const)
       if (now < until) out.push({ id, label, iconUrl: ic(id), harmful: false, expiresAtMs: until });
     return out;
   }
