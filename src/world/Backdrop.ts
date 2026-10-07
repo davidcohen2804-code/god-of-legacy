@@ -16,7 +16,7 @@ const SKY_URL = (f: string) => `assets/world/sky/${f}.png`;
 const NEAR = { clouds: 0.12, mist: 0.3 };
 const CLOUDS = { n: 8, y: [18, 205], scale: [0.42, 0.85], alpha: [0.78, 0.95], speed: [5, 12] };
 const MIST = { valley: { n: 6, y: [770, 925] }, far: { n: 4, y: [262, 318] }, scale: [1.0, 1.7], alpha: [0.16, 0.3], speed: [2, 5], tint: 0xffe9ee };
-const FLOCK = { every: [16000, 36000], size: [3, 5], y: [55, 210], speed: [62, 96], fps: 11 };
+const FLOCK = { every: [16000, 36000], size: [3, 5], y: [55, 210], speed: [62, 96], fps: 11, width: 26 };
 const FALL_FPS = 14;
 
 export function preloadBackdrop(scene: Phaser.Scene): void {
@@ -154,7 +154,7 @@ export class Backdrop {
       for (let i = 0; i < n; i++) {
         const lead = i === 0 ? 0 : Math.ceil(i / 2), side = i % 2 ? 1 : -1;
         const x = (dir > 0 ? u0 - 60 : u1 + 60) - dir * lead * 26, y = y0 + side * lead * 11;
-        const img = this.scene.add.sprite(x, y, 'sky-birds', 0).setScale(0.32).setFlipX(dir < 0).setAlpha(0.9);
+        const img = this.scene.add.sprite(x, y, 'sky-birds', 0).setScale(FLOCK.width / S.birds.w).setFlipX(dir < 0).setAlpha(0.9); // small: far away
         this.birds.push({ img, v: v * (0.97 + Math.random() * 0.06), ph: Math.random() * 1000, y }); this.land.add(img);
       }
     }
