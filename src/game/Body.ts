@@ -241,8 +241,46 @@ export function loadBaseLook(scene: Phaser.Scene, g: string, l: BaseLook | null,
   if (queued && start && !scene.load.isLoading()) scene.load.start();
 }
 const NAKED_HEAD_DROP = 10; // his bald head top sits this much (cell px) lower than the beginner's hair top
+/** The base character's skills (MapleStory: a small set of drawn body poses, every skill plays a few of them while its
+ *  effect carries the move): per skill the poses of its start-up, active and recovery parts, each part spread evenly
+ *  over its time, as 'move:frame' ('!' = mirrored, facing the other way). The drawn sets: swing1 (overhead swing:
+ *  wind-up, strike, follow-through), swing2 (horizontal: drawn back, strike, follow-through), swing3 (rising: low,
+ *  mid, high), alert (combat stance), run (the sword trailing behind), high (0 sword to the sky, 1 sword upright in
+ *  both hands, 2 fist raised), low (0 sword planted in the ground, 1 deep lunge thrust, 2 open hand thrust forward),
+ *  air (0 rising leap with the sword up, 1 leap with the sword overhead, 2 slash down in the air). A pose whose set is
+ *  not drawn yet plays its stand-in (NB_STAND_IN). */
+const NB: Record<string, { st: string[]; ac: string[]; rc: string[] }> = {
+  wave_slash: { st: ['swing2:0'], ac: ['swing2:1'], rc: ['swing2:2', 'alert:0'] }, // the blade drawn back while it charges, then the release
+  dash_slash: { st: ['alert:0', 'run:2'], ac: ['run:3', 'low:1', 'low:1'], rc: ['low:1', 'swing2:2', 'alert:0'] }, // charge with the sword trailing, thrust
+  rising_slash: { st: ['swing3:0'], ac: ['air:0', 'air:0', 'swing3:2'], rc: ['swing3:2', 'alert:0'] },
+  ground_breaker: { st: ['alert:0', 'swing1:0', 'swing1:0'], ac: ['swing1:1', 'low:0', 'low:0', 'low:0'], rc: ['low:0', 'alert:0'] }, // overhead, smash, sword in the earth
+  sanctuary: { st: ['swing3:0', 'swing3:1', 'swing3:0', 'high:1'], ac: ['high:1'], rc: ['high:1', 'alert:0'] }, // traces the ground, then the sword upright
+  iron_oath: { st: ['alert:0', 'high:1', 'high:1'], ac: ['high:1'], rc: ['high:1', 'alert:0'] }, // the oath: sword held upright before him
+  legacy_banner: { st: ['alert:0', 'high:0', 'high:0', 'high:0'], ac: ['low:0'], rc: ['low:0', 'low:0', 'alert:0'] }, // to the sky, then planted
+  blade_storm: { st: ['alert:1', 'high:0'], ac: ['high:0'], rc: ['high:0', 'alert:0'] }, // sword to the sky, held through the storm
+  titans_verdict: { st: ['alert:1', 'high:0', 'high:0', 'high:0', 'high:0', 'air:1', 'air:1'], ac: ['air:2', 'low:0', 'low:0'], rc: ['low:0', 'low:0', 'alert:0'] },
+  leap_crash: { st: ['alert:1'], ac: ['air:1', 'air:1', 'air:2', 'air:2'], rc: ['low:0', 'low:0', 'alert:0'] }, // leap overhead, crash, sword in the earth
+  radiant_blade: { st: ['alert:0', 'high:1', 'high:0', 'high:0', 'high:0', 'high:0', 'high:0'], ac: ['swing1:1'], rc: ['swing1:2', 'alert:0'] },
+  lance_thrust: { st: ['swing2:0'], ac: ['low:1', 'low:1', 'low:1', 'low:1', 'swing3:2'], rc: ['swing3:2', 'alert:0'] }, // skewered on the lunge, ripped up
+  war_cry: { st: ['alert:0', 'low:0', 'low:0'], ac: ['high:2'], rc: ['high:2', 'alert:0'] }, // sword into the ground, the roar with a raised fist
+  judgment_blade: { st: ['alert:0', 'high:2'], ac: ['low:2'], rc: ['low:2', 'alert:0'] }, // fist raised while the blades gather, then hurled
+};
+/** Until a pose set is drawn, the nearest drawn pose stands in. */
+const NB_STAND_IN: Record<string, string> = { 'high:0': 'swing1:0', 'high:1': 'swing1:1', 'high:2': 'alert:1', 'low:0': 'swing1:2', 'low:1': 'swing2:1',
+  'low:2': 'swing2:1', 'air:0': 'swing3:2', 'air:1': 'jump:0', 'air:2': 'swing1:1' };
+/** Whirlwind: drawn back, then spinning (the horizontal strike, facing one way then the other), then the follow-through. */
+const SPIN_MS = 70;
+function nakedSkillBeat(q: Extract<PoseQuery, { k: 'skill' }>): string | null {
+  const { elapsed: e, startup: s, active: a, recovery: r } = q;
+  if (q.id === 'whirlwind') return e < s ? 'swing2:0' : e < s + a ? (Math.floor((e - s) / SPIN_MS) % 2 ? 'swing2:1!' : 'swing2:1') : e < s + a + r * 0.5 ? 'swing2:2' : 'alert:0';
+  const plan = NB[q.id]; if (!plan) return null;
+  const act = Math.max(a, 120);
+  if (e < s) return pick(plan.st, e / Math.max(1, s));
+  if (e < s + act) return pick(plan.ac, (e - s) / act);
+  return pick(plan.rc, (e - s - act) / Math.max(1, r - (act - a)));
+}
 function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): PoseFrame {
-  const f = sheetPose(cls, dir, { k: 'loop', state: 'idle', t: 0, speed: 0 }); // the standing beginner's anchors (head, chest)
+  let f = sheetPose(cls, dir, { k: 'loop', state: 'idle', t: 0, speed: 0 }); // the standing beginner's anchors (head, chest)
   const has = NAKED[g] ?? {};
   let anim = 'idle', frame = 0;
   if (q.k === 'loop' && (q.state === 'walk' || q.state === 'run') && has.walk) {
@@ -254,13 +292,17 @@ function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): P
   else if (q.k === 'skill' && q.id === 'warrior_basic' && has.swing1) { // a sword swing (Maple: one of the drawn ones at random)
     const sw = ['swing1', 'swing2', 'swing3'].filter((a) => has[a]);
     anim = sw[(q.seed ?? 0) % sw.length]; frame = q.elapsed < q.startup ? 0 : q.elapsed < q.startup + q.active * 0.5 ? 1 : 2; // wind-up, strike, follow-through
-  }
-  else if (q.k === 'skill' && q.id === 'iron_oath' && has.swing1) { // the oath: sword brought up and held upright before him, then back to guard
-    const e = q.elapsed;
-    if (e < q.startup * 0.3) { anim = 'swing1'; frame = 0; } else if (e < q.startup + q.active + 120) { anim = 'swing1'; frame = 1; } else if (has.alert) { anim = 'alert'; frame = 0; }
-  } else if (q.k === 'skill' && q.id === 'legacy_banner' && has.swing1) { // sword raised to the sky, then brought down where the banner is planted
-    const e = q.elapsed;
-    if (e < q.startup * 0.3) { anim = 'swing1'; frame = 0; } else if (e < q.startup * 0.7) { anim = 'swing1'; frame = 1; } else if (e < q.startup + q.active + 200) { anim = 'swing1'; frame = 2; } else if (has.alert) { anim = 'alert'; frame = 0; }
+  } else if (q.k === 'skill') { // the skill's poses (drawn, or their stand-ins)
+    let beat = nakedSkillBeat(q);
+    if (beat) {
+      const mirrored = beat.endsWith('!'); beat = beat.replace('!', '');
+      const ok = (b: string) => { const [a_, f_] = b.split(':'); return (has[a_] ?? 0) > +f_; };
+      if (!ok(beat) && NB_STAND_IN[beat]) beat = NB_STAND_IN[beat];
+      if (ok(beat)) {
+        const [a_, f_] = beat.split(':'); anim = a_; frame = +f_;
+        if (mirrored) f = { ...f, flip: !f.flip, anchor: f.anchor ? f.anchor.map((v, i) => (i % 2 === 0 ? -v : v)) : null };
+      }
+    }
   }
   const key = nakedKey(g, anim), [hx, hy] = NAKED_HEADS[g]?.[anim]?.[frame] ?? [0, 0], fx = f.flip ? -1 : 1;
   return { ...f, key, frame, wkey: `${key}-w`, blade: null, bladeBehind: false, hair: null, head: null, naked: { g, anim, frame, hx, hy },
