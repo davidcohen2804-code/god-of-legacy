@@ -31,6 +31,8 @@ export interface Character {
   job?: string;
   /** The Master's trial is pending: that Master waits in the Sun Seal Plaza to fight him. */
   trial?: string;
+  /** STR / DEX / INT / LUK as placed (src/game/Stats.ts); absent = the base values. */
+  stats?: { str: number; dex: number; int: number; luk: number };
 }
 
 export interface QuestState { state: 'active' | 'done'; progress: number[] }

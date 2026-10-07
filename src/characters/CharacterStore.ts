@@ -2,6 +2,7 @@
 import schema from '../data/CharacterSelect_DataSchema.json';
 import { Character, CharacterSelectData, CharacterSlot, QuestState, SlotId } from './CharacterTypes';
 import { GearState, cleanGear, starterGear } from '../items/Gear';
+import { cleanStats } from '../game/Stats';
 
 const KEY = 'godoflegacy.characters';
 const MAX_SLOTS = 4;
@@ -51,6 +52,8 @@ function sanitize(raw: unknown): CharacterSelectData {
       const jb = (c as unknown as { job?: unknown; trial?: unknown });
       if (isNonEmpty(jb.job)) target.character.job = jb.job;
       if (isNonEmpty(jb.trial)) target.character.trial = jb.trial;
+      const sts = (c as unknown as { stats?: unknown }).stats;
+      if (sts && typeof sts === 'object') target.character.stats = cleanStats(sts, c.level);
       const gd = (c as unknown as { gender?: unknown }).gender;
       if (gd === 'male' || gd === 'female') target.character.gender = gd;
       const lk = (c as unknown as { look?: Record<string, unknown> }).look;
@@ -135,6 +138,14 @@ class Store {
     if (!c) return;
     c.job = job; c.classId = job;
     if (trial) c.trial = trial; else delete c.trial;
+    this.save();
+  }
+
+  /** The stats as placed (AP). */
+  setStats(charId: string, s: { str: number; dex: number; int: number; luk: number }): void {
+    const c = this.data.slots.find((x) => x.character?.id === charId)?.character;
+    if (!c) return;
+    c.stats = cleanStats(s, c.level);
     this.save();
   }
 

@@ -43,6 +43,8 @@ import { NetMsg, PeerMeta } from '../pvp/Transport';
 import { genderOf, headLookOf, previewKeyOf } from '../characters/Look';
 import { buildLook, preloadLooks } from '../characters/LookArt';
 import { BOT_ID, BOT_NAME, BOT_NAMES, SparringBot } from '../pvp/SparringBot';
+import { AP_PER_LEVEL, Derived, StatKey, Stats, autoAssign, baseStats, cleanStats, derive, freeAp, mainStats } from '../game/Stats';
+import { StatsWindow } from '../ui/StatsWindow';
 import { ARENA as PLAZA, AREAS as WORLD_AREAS } from '../world/Areas';
 import { jobsFor } from '../skills/Jobs';
 import { CombatInput } from '../game/CombatInput';
@@ -66,7 +68,7 @@ import { CosmeticPanel } from '../ui/CosmeticPanel';
 import { preloadPanelArt } from '../ui/PreviewStage';
 import { addMotes, preloadLife } from '../ui/PresentationLife';
 /** The panels' keys (Key Settings) for the HUD's menu pills and gear menu. */
-const menuKeys = (b: Record<BindAction, string>) => ({ K: keyLabel(b.book), I: keyLabel(b.bag), O: keyLabel(b.shop), P: keyLabel(b.party) });
+const menuKeys = (b: Record<BindAction, string>) => ({ K: keyLabel(b.book), I: keyLabel(b.bag), O: keyLabel(b.shop), P: keyLabel(b.party), U: keyLabel(b.stats) });
 
 const D = TRAINING.dummy;
 const R = PHYS.footR;
@@ -78,6 +80,8 @@ const TRIAL_HP = PVP.maxHp * 2;
 const HIT_IFRAMES = 2000, HIT_BLINK = 90;
 /** Radiant Blade: the warrior's attacks this many times faster while the blade of light is on. */
 const RADIANT_SPEED = 3;
+/** World damage roll: from this fraction of the maximum up to it (MapleStory's mastery). */
+const STAT_MASTERY = 0.8;
 /** The slash-trail art (radiant_blade/slash_trail.jpg, 288 cells): its arc's circle (centre as a fraction of the cell, radius px) and the angle of its bright head (deg, y down). */
 const SLASH = { cx: 189 / 288, cy: 81 / 288, r: 122, head: 190 };
 const FACE: Record<Dir, V2> = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
@@ -178,6 +182,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private arena = false;
   /** Hit in the world: untouchable and blinking until this time (sim ms). */
   private hitBlinkUntil = -1;
+  /** STR / DEX / INT / LUK (world only; the arena ignores them) and what they give. */
+  private stats: Stats = baseStats();
+  private statD: Derived = derive(baseStats(), 'warrior', 1);
+  private statsWin?: StatsWindow;
   /** Radiant Blade: the sword is a long blade of light until this time. */
   radiantUntil = -1;
   /** The light blade's swing: its angle last frame, where this swing began, its turning sign, a trail drawn for it. */
@@ -311,6 +319,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // Beginner (below the 1st job advancement): every class plays the same sword-only beginner with the basic attack.
     if (character.level < TEST_MIN_LEVEL) { character.level = TEST_MIN_LEVEL; character.exp = 0; CharacterStore.setProgress(character.id, TEST_MIN_LEVEL, 0); } // TESTING: start at the job advancement
     this.cls = playedClass(character) as ClassKey;
+    this.stats = cleanStats(character.stats, character.level); this.statD = derive(this.stats, this.cls, character.level);
     this.kit = kitFor(this.cls);
     this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.hitBlinkUntil = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
@@ -437,6 +446,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       invite: (id) => this.party?.invite(id), kick: (id) => this.party?.kick(id), leave: () => this.party?.leave(),
       answer: (ok) => this.party?.answer(ok), onOpen: () => this.ci?.reset(),
     });
+    this.statsWin = new StatsWindow(ov, { add: (k) => this.addStat(k), auto: () => this.autoStats(), reset: () => this.resetStats(), onOpen: (o) => { this.chatTyping(o); if (!o) this.ci?.reset(); } });
     this.keySettings = new KeySettings(ov, Array.from({ length: SLOT_COUNT }, (_, i) => ({ name: this.kit[i]?.name ?? '', icon: this.kit[i] ? iconUrl(this.kit[i]) : '' })),
       (b) => this.applyKeys(b), (open) => this.chatTyping(open));
     this.chat.add({ kind: 'system', text: pvpRoom ? 'Welcome to the PvP Arena! Press Enter to chat.' : 'Welcome to God Of Legacy! Press Enter to chat.' });
@@ -495,6 +505,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.questLog?.destroy(); this.questLog = undefined;
       this.partyUi?.destroy(); this.partyUi = undefined; this.party = undefined;
       this.keySettings?.destroy(); this.keySettings = undefined;
+      this.statsWin?.destroy(); this.statsWin = undefined;
       this.world?.destroy(); this.world = undefined;
       this.npcDialog?.destroy(); this.npcDialog = undefined;
       this.areaTitle?.destroy(); this.areaTitle = undefined;
@@ -796,6 +807,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.applyPassives();
     this.playerHP = this.maxHpNow();
     this.skillBook?.setLevel(skillLevel(ch));
+    this.statD = derive(this.stats, this.cls, ch.level); this.applyPassives(); this.playerHP = this.maxHpNow();
+    this.chat?.add({ kind: 'system', text: `+${r.ups * AP_PER_LEVEL} AP — press ${keyLabel(this.bindings.stats) || 'U'} to place them.` }); this.refreshStats();
     if (playedClass({ ...ch, level: was }) !== playedClass(ch)) this.time.delayedCall(1700, () => this.scene.restart({ pvpRoom: null, at: { x: this.kin.x, y: this.kin.y } })); // an older character past the old 1st-job level: becomes his own class
     if (was < BEGINNER_TO && r.level >= BEGINNER_TO && !hasJob(ch)) this.chat?.add({ kind: 'system', text: 'Level 10! The Masters of the four paths await you on the Temple Road.' });
   }
@@ -804,10 +817,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private setAllOpen(on: boolean): void { setAllSkillsOpen(on); this.applyPassives(); this.skillBook?.setUnlockAll(this.allOpen()); }
 
   /** Max HP: fixed in the PvP arena (fair fights), raised by passives in the world. */
-  maxHpNow(): number { return Math.round((this.arena ? PVP.maxHp : S6.player.maxHp * this.passives.hpMul) * (this.simMs < this.oathUntil ? 1.3 : 1)); }
+  maxHpNow(): number { return Math.round((this.arena ? PVP.maxHp : S6.player.maxHp * this.passives.hpMul * this.statD.hpMul) * (this.simMs < this.oathUntil ? 1.3 : 1)); }
 
   /** Own damage multiplier from stats: the worn weapon's attack (bare hands hit weakly) × Sword Mastery × Combo Force orbs. */
-  private passiveDmgMul(): number { return attackMul(this.gearSt) * this.passives.dmg * (1 + ORBS.perOrb * this.orbs.n); }
+  private passiveDmgMul(): number { return attackMul(this.gearSt) * this.passives.dmg * (1 + ORBS.perOrb * this.orbs.n) * (this.arena ? 1 : this.statD.dmgMul); }
 
   /** Chance Attack: helpless target (hit-stun / down / hard CC). */
   private chanceMul(b: CombatBody | undefined): number {
@@ -1325,13 +1338,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Archer: Bow Haste (+20%) × Ranger Mastery attack speed (startup / recovery shortened). */
   private ownSpeedMul(s: FinalSkill): number { return s.cls === 'warrior' && this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && s.id !== 'radiant_blade' ? RADIANT_SPEED : s.cls === 'archer' ? this.passives.atkSpeed * (this.simMs < this.hasteUntil ? 1.2 : 1) : s.cls === 'samurai' ? this.passives.atkSpeed * (this.simMs < this.drawUntil ? 1.2 : 1) : 1; }
   /** Own critical rate bonus: passives + Hunter's Spirit (+15%). */
-  private critAddNow(): number { return this.passives.critAdd + (this.simMs < this.spiritUntil ? 0.15 : 0) + (this.simMs < this.drawUntil ? 0.1 : 0); }
+  private critAddNow(): number { return this.passives.critAdd + (this.arena ? 0 : this.statD.critAdd) + (this.simMs < this.spiritUntil ? 0.15 : 0) + (this.simMs < this.drawUntil ? 0.1 : 0); }
   /** Own extra critical damage: passives + Rising Sun (+20%). */
   private critDmgNow(): number { return this.passives.critDmgAdd + (this.simMs < this.sunUntil ? 0.2 : 0); }
 
   /** Evasion (archer): a chance to dodge a hit entirely — MISS, a rush of wind, a short sidestep. */
   private tryEvade(from: { x: number; y: number }): boolean {
-    if (this.passives.evade <= 0 || this.simMs < this.body.invulnUntil || Math.random() >= this.passives.evade) return false;
+    const ev = this.passives.evade + (this.arena ? 0 : this.statD.evadeAdd);
+    if (ev <= 0 || this.simMs < this.body.invulnUntil || Math.random() >= ev) return false;
     const k = this.kin, away = unit(k.x - from.x, k.y - from.y), side = away.x < 0 ? -1 : 1;
     for (let d = 40; d > 0; d -= 4) { const nx = k.x + away.x * d, ny = k.y + away.y * d; if (footAllowed(nx, ny, k.z, R)) { k.x = nx; k.y = ny; break; } }
     if (this.cls === 'samurai') { // Willow Dodge: a mirage left where he stood, petals, a crimson streak
@@ -1574,7 +1588,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (phase === 'startup') (run.attackerId === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(run.attackerId))?.startSkill(run.skill.id, run.stage, dirOf(run.aim.x, run.aim.y, 'right'), run.aim, castSeed(run.castId));
   }
 
-  private togglePanel(k: 'K' | 'I' | 'O' | 'J' | 'P'): void {
+  private togglePanel(k: 'K' | 'I' | 'O' | 'J' | 'P' | 'U'): void {
+    if (k === 'U') { if (this.arena) return; this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.partyUi?.close(); this.refreshStats(); this.statsWin?.toggle(); this.ci?.reset(); return; }
     if (k === 'P') { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.partyUi?.toggle(); this.ci?.reset(); return; }
     this.partyUi?.close();
     if (k === 'J') { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.toggle(); }
@@ -1718,7 +1733,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       }
       const own = run.attackerId === this.localId;
       crit = hit.damage > 0 && s.slot !== 0 && Math.random() < 0.12 + (own ? this.critAddNow() : 0); // attack skills only: a regular attack never crits
-      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.critDmgNow() : 0) : 1) * (own ? this.ownDamageMul() * ch : 1);
+      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.critDmgNow() : 0) : 1) * (own ? this.ownDamageMul() * ch * this.dmgRoll() : 1);
       out.damage = Math.round(out.damage * mult);
       en.damage(out.damage);
       // (MapleStory: only the damage shows — no COUNTER / BACK ATTACK labels; their bonus damage stays)
@@ -1743,7 +1758,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         this.fx!.crack(m.kin.x, m.kin.y, 120); this.fx!.shockwave(m.kin.x, m.kin.y, 200, 0xffc070); this.fx!.callout(at, 'SLAM!!', '#ff9a4a', 1); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 120); this.cameras.main.shake(220, 0.011);
       }
       crit = hit.damage > 0 && s.slot !== 0 && Math.random() < 0.12 + (own ? this.critAddNow() : 0); // attack skills only: a regular attack never crits
-      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.critDmgNow() : 0) : 1) * (own ? this.ownDamageMul() * ch : 1);
+      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.critDmgNow() : 0) : 1) * (own ? this.ownDamageMul() * ch * this.dmgRoll() : 1);
       out.damage = Math.round(out.damage * mult);
       const killed = m.damage(out.damage, now);
       // (MapleStory: only the damage shows — no COUNTER / BACK ATTACK labels; their bonus damage stays)
@@ -1835,10 +1850,50 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.playerHP === 0) this.pvp?.sendDeath(run.attackerId);
   }
 
+  /** World damage varies like MapleStory's: between the stats' minimum (mastery) and maximum. */
+  private dmgRoll(): number { return this.arena ? 1 : STAT_MASTERY + (1 - STAT_MASTERY) * Math.random(); }
+
+  private saveStats(): void {
+    const ch = this.character; if (!ch) return;
+    ch.stats = { ...this.stats }; CharacterStore.setStats(ch.id, this.stats);
+    this.statD = derive(this.stats, this.cls, ch.level); this.applyPassives(); this.refreshStats();
+  }
+  private addStat(k: StatKey): void { const ch = this.character; if (!ch || freeAp(this.stats, ch.level) <= 0) return; this.stats[k]++; this.saveStats(); }
+  private autoStats(): void { const ch = this.character; if (!ch) return; this.stats = autoAssign(this.stats, this.cls, ch.level); this.saveStats(); }
+  private resetStats(): void { const ch = this.character; if (!ch || hasJob(ch)) return; this.stats = baseStats(); this.saveStats(); }
+
+  /** The stat window's numbers, from what the character is right now. */
+  private refreshStats(): void {
+    const ch = this.character; if (!ch || !this.statsWin) return;
+    const basic = this.kit[0], hits = basic ? (basic.chain ? basic.chain.stages[0] : basic.hits) : [];
+    const base = hits.reduce((n, h) => n + h.damage, 0) * this.ownDamageMul();
+    const hp = this.maxHpNow(), pct = (v: number) => `${Math.round(v * 100)}%`;
+    const crit = 0.12 + this.critAddNow(), ev = this.passives.evade + this.statD.evadeAdd;
+    const job = hasJob(ch) ? (jobsFor(this.cls).filter((j) => skillLevel(ch) >= j.level).pop()?.name ?? 'Beginner') : 'Beginner';
+    const spd = this.passives.moveMul * (this.simMs < this.hasteUntil ? 1.2 : 1), jmp = this.passives.jumpMul;
+    this.statsWin.render({
+      name: ch.name, job, level: ch.level, stats: this.stats, ap: freeAp(this.stats, ch.level), main: mainStats(this.cls)[0], canReset: !hasJob(ch),
+      combat: [
+        ['Attack Range', `${Math.max(1, Math.round(base * STAT_MASTERY))} ~ ${Math.max(1, Math.round(base))}`],
+        ['Max HP', `${Math.round(Math.min(this.playerHP, hp))} / ${hp}`],
+        ['Weapon Attack', String(this.gearSt.att)],
+        ['Defense', `${this.gearSt.def}  (−${Math.round((1 - takenMul(this.gearSt)) * 100)}% damage)`],
+        ['Stat Power', `${this.statD.statValue}  (×${this.statD.dmgMul.toFixed(2)})`],
+        ['Critical Rate', `${pct(crit)}  (skills)`],
+        ['Critical Damage', `${Math.round((1.5 + this.critDmgNow()) * 100)}%`],
+        ['Attack Speed', `${Math.round(this.ownSpeedMul(basic) * 100)}%`, this.ownSpeedMul(basic) > 1],
+        ['Evasion', pct(ev)],
+        ['Speed', `${Math.round(spd * 100)}%`, spd > 1],
+        ['Jump', `${Math.round(jmp * 100)}%`, jmp > 1],
+      ],
+    });
+  }
+
   /** Equipment changed (inventory): its stats, the pieces drawn on the character, what other players see. */
   private onGearChange(g: GearState): void {
     this.gearSt = gearStats(g); this.gearCode = wornCode(wornLook(g));
     this.view?.setGear(wornLook(g), genderOf(this.character));
+    this.refreshStats();
     buildLook(this, this.character); // the portrait in what is worn now
     this.pvp?.forceState();
   }

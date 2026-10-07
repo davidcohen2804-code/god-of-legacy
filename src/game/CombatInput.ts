@@ -37,7 +37,7 @@ export class CombatInput {
   private bind: Record<BindAction, string>;
   private dirKeys: Record<DirKey, string[]>;
 
-  constructor(readonly scene: Phaser.Scene, onSlot: (slot: number) => void, onJump: () => void, onToggle: (key: 'K' | 'I' | 'O' | 'J' | 'P') => void, bindings = loadBindings(),
+  constructor(readonly scene: Phaser.Scene, onSlot: (slot: number) => void, onJump: () => void, onToggle: (key: 'K' | 'I' | 'O' | 'J' | 'P' | 'U') => void, bindings = loadBindings(),
     onTalk?: () => void) {
     const kb = scene.input.keyboard!;
     const b = this.bind = bindings;
@@ -56,7 +56,7 @@ export class CombatInput {
     for (const d of Object.keys(this.dirKeys) as DirKey[]) for (const name of this.dirKeys[d]) on(name, () => this.tap(d));
     for (let i = 0; i < SLOT_COUNT; i++) on(b[`slot${i}`], () => onSlot(i));
     on(b.jump, onJump);
-    on(b.book, () => onToggle('K')); on(b.bag, () => onToggle('I')); on(b.shop, () => onToggle('O')); on(b.quests, () => onToggle('J')); on(b.party, () => onToggle('P'));
+    on(b.book, () => onToggle('K')); on(b.bag, () => onToggle('I')); on(b.shop, () => onToggle('O')); on(b.quests, () => onToggle('J')); on(b.party, () => onToggle('P')); on(b.stats, () => onToggle('U'));
     if (onTalk) on(b.talk, onTalk);
     // Keyboard-only control: the mouse never aims or steers (pointerActive stays false).
   }

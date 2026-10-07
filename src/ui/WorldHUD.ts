@@ -147,7 +147,7 @@ export interface WorldHUDOptions {
   /** Click on a slot: the same action handler as its hotkey (scene validates; never a second Space attack). */
   onSlot: (index: number) => void;
   /** Skill Book (K) / Inventory (I) / Cosmetic Shop (O) toggles. */
-  onMenu?: (key: 'K' | 'I' | 'O' | 'P') => void;
+  onMenu?: (key: 'K' | 'I' | 'O' | 'P' | 'U') => void;
   /** Gear menu: open the Key Settings window. */
   onKeys?: () => void;
 }
@@ -200,6 +200,7 @@ export class WorldHUD {
       { key: 'I', label: 'INVENTORY', run: () => opts.onMenu?.('I') },
       { key: 'O', label: 'COSMETIC SHOP', run: () => opts.onMenu?.('O') },
       { key: 'P', label: 'PARTY', run: () => opts.onMenu?.('P') },
+      { key: 'U', label: 'STATS', run: () => opts.onMenu?.('U') },
       { label: 'KEY SETTINGS', run: () => opts.onKeys?.() },
       { label: opts.returnLabel, run: () => opts.onReturn() },
     ]);
@@ -340,7 +341,7 @@ export class WorldHUD {
     const ban = this.div('banner', this.root); this.els.banner = ban;
     if (this.opts.onMenu) {
       const m = this.div('menu', this.root);
-      for (const [k, label] of [['K', 'SKILL BOOK'], ['I', 'INVENTORY'], ['O', 'COSMETIC SHOP'], ['P', 'PARTY']] as const) {
+      for (const [k, label] of [['K', 'SKILL BOOK'], ['I', 'INVENTORY'], ['O', 'COSMETIC SHOP'], ['P', 'PARTY'], ['U', 'STATS']] as const) {
         const b = document.createElement('button'); b.type = 'button';
         b.innerHTML = `<b>${k}</b>${label}`; this.menuKeys.set(k, b.firstChild as HTMLElement);
         b.addEventListener('mousedown', (e) => e.preventDefault());
@@ -610,7 +611,7 @@ export class WorldHUD {
   private modal: 'none' | 'dim' | 'bare' = 'none';
 
   /** The keys bound to the panels (Key Settings): shown on the menu pills and in the gear menu; unbound = no letter. */
-  setMenuKeys(keys: Record<'K' | 'I' | 'O' | 'P', string>): void {
+  setMenuKeys(keys: Record<'K' | 'I' | 'O' | 'P' | 'U', string>): void {
     for (const [k, el] of this.menuKeys) { const t = keys[k as 'K'] ?? ''; el.textContent = t; el.style.display = t ? '' : 'none'; }
     this.menu.setKeys(keys);
   }
