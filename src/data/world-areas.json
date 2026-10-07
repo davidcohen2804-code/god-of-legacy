@@ -4836,7 +4836,7 @@
      "id": "gareth",
      "name": "Master Gareth",
      "title": "Warrior Master",
-     "x": 1142,
+     "x": 1080,
      "y": 470,
      "art": "warrior_master_pose",
      "role": "talk",
@@ -4849,19 +4849,20 @@
      "id": "seraphine",
      "name": "Master Seraphine",
      "title": "Book Mage Master",
-     "x": 1372,
-     "y": 560,
+     "x": 1256,
+     "y": 445,
      "art": "mage_master_pose",
      "role": "talk",
      "lines": [
       "Every page of this book holds a storm. Few can read it.",
       "Come back when your mind is ready, and I will teach you the path of the Book Mage."
      ],
-     "flip": true
+     "flip": true,
+     "z": 66
     },
     {
      "id": "rowan",
-     "name": "Master Rowan",
+     "name": "Master Lyra",
      "title": "Archer Master",
      "x": 1362,
      "y": 382,

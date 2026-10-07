@@ -17,6 +17,8 @@ export interface AreaNpc {
   id: string; name: string; title: string; x: number; y: number; art: string;
   /** Faces left (the art faces right). */
   flip?: boolean;
+  /** Stands on a block of this height (drawn that much higher, in front of the block). */
+  z?: number;
   /** quest: gives the quests whose `giver` is this NPC; talk: just its lines. */
   role: 'quest' | 'talk'; lines?: string[];
 }

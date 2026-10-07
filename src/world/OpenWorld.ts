@@ -138,20 +138,23 @@ export class OpenWorld {
   private buildNpcs(): void {
     for (const a of ROW) for (const n of a.npcs ?? []) {
       const art = ART[n.art]; if (!art) continue;
-      const p = toWorld(a.id, [n.x, n.y]);
-      const sprite = this.scene.add.sprite(p.x, p.y, `npc-${n.art}`, 0).setOrigin(n.flip ? 1 - art.ox : art.ox, art.oy).setScale(1 / art.q).setDepth(p.y).setFlipX(!!n.flip);
-      const shadow = this.scene.add.ellipse(p.x, p.y - 1, 40, 13, 0x000000, 0.32).setDepth(p.y - 0.5);
+      const g = toWorld(a.id, [n.x, n.y]), z = n.z ?? 0;
+      const p = { x: g.x, y: g.y - z };          // on a block: drawn up on its top face
+      const d = g.y + (z ? 40 : 0);               // on a block: in front of the block's picture
+      const sprite = this.scene.add.sprite(p.x, p.y, `npc-${n.art}`, 0).setOrigin(n.flip ? 1 - art.ox : art.ox, art.oy).setScale(1 / art.q).setDepth(d).setFlipX(!!n.flip);
+      const shadow = this.scene.add.ellipse(p.x, p.y - 1, 40, 13, 0x000000, 0.32).setDepth(d - 0.5);
       const nd = NAME_DEPTH + p.y * 0.001; // name, title and quest marker stay readable over anything in front
-      const name = this.scene.add.text(p.x, p.y + 22, n.name, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '15px', fontStyle: '700', color: '#ffe28a', stroke: '#140c02', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(nd + 0.0002);
+      const ly = g.y; // name plate under the feet on the floor (on a block: in front of its base)
+      const name = this.scene.add.text(p.x, ly + 22, n.name, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '15px', fontStyle: '700', color: '#ffe28a', stroke: '#140c02', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(nd + 0.0002);
       // the plate stretches only in its blue middle: the gold diamond ends keep their shape, the name sits well inside
       const ps = PLATE.h / 128, pw = (name.width + PLATE.pad * 2) / ps + PLATE.cap * 2;
-      const plate = this.scene.add.nineslice(p.x, p.y + 22, 'kit.npc_plate', undefined, pw, 128, PLATE.cap, PLATE.cap, 0, 0).setScale(ps).setDepth(nd + 0.0001);
-      const title = this.scene.add.text(p.x, p.y + 45, n.title, { fontFamily: HUD.bodyFont, fontSize: '13px', fontStyle: '600', color: '#efe3c4', stroke: '#140c02', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(nd + 0.0002);
+      const plate = this.scene.add.nineslice(p.x, ly + 22, 'kit.npc_plate', undefined, pw, 128, PLATE.cap, PLATE.cap, 0, 0).setScale(ps).setDepth(nd + 0.0001);
+      const title = this.scene.add.text(p.x, ly + 45, n.title, { fontFamily: HUD.bodyFont, fontSize: '13px', fontStyle: '600', color: '#efe3c4', stroke: '#140c02', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(nd + 0.0002);
       const top = p.y - art.h * art.oy / art.q; // head top (world px)
       const mark = this.scene.add.image(p.x, top - 26, MARK_TEX.available).setDisplaySize(15, 42).setDepth(nd + 0.0003).setVisible(false);
       // a click on the game itself only (not one on a window drawn over the NPC: the inventory, the skill book)
       sprite.setInteractive({ useHandCursor: true }).on('pointerdown', (p: Phaser.Input.Pointer) => { if (p.event?.target === this.scene.game.canvas) this.onNpcClick?.(n); });
-      this.npcs.push({ def: n, area: a.id, x: p.x, y: p.y, top, sprite, shadow, plate, name, title, mark, markKind: null, t: Math.random() * 3000 });
+      this.npcs.push({ def: n, area: a.id, x: p.x, y: g.y, top, sprite, shadow, plate, name, title, mark, markKind: null, t: Math.random() * 3000 });
     }
   }
 
