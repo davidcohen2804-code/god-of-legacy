@@ -536,17 +536,22 @@ def _clothes(Fe, Fa, sword, fn):
     m_ = (p | rim) & ~(taken & ~hid); taken |= m_
     cov = np.zeros_like(m_)
     if m_.any() and sn:                                        # our clothed parts left bare next to this piece (sticking out of
-      near_ = nd.distance_transform_edt(~m_) <= 8              #   GPT's narrower drawing, or where GPT drew a hand / an outline)
+      near_ = nd.distance_transform_edt(~m_) <= (16 if name == 'shoes' else 8)   #   GPT's narrower drawing, or where GPT drew a
+                                                               #   hand / an outline; a pointed foot reaches further out of a boot)
       cov = (ab > 0.05) & ~m_ & near_ & ~allp & (parts | (nd.binary_dilation(parts, iterations=2) & (lum_b < 100)))   # (our soft edge too)
       under = {'top': 80, 'pants': 200}.get(name)
       if under: cov |= bare & (lab_b == under) & ~m_ & nd.binary_dilation(m_, iterations=12)
       cov &= ~taken
-    if cov.any():                                              # its colour there: our body's outline → the piece's outline,
-      inner = m_ & ~ink & (Fa > 0.5)                           #   the rest the piece's nearest cloth; its old outline, now
-      _, (iy, ix) = nd.distance_transform_edt(~inner, return_indices=True)   #   inside it, cloth too
+    if cov.any():                                              # its colour there: our body's outer outline → the piece's outline,
+      inner = m_ & ~ink & (Fa > 0.5)                           #   the rest the piece's cloth around (smoothed: no streaks, none of
+      _, (iy, ix) = nd.distance_transform_edt(~inner, return_indices=True)   #   our toes' / knuckles' lines); its old outline,
+      w_ = nd.gaussian_filter(inner.astype(np.float32), 4)     #   now inside it, cloth too
+      sm_ = np.stack([nd.gaussian_filter(np.where(inner, Fe[..., k], 0), 4) for k in range(3)], -1) / np.maximum(w_, 1e-3)[..., None]
+      fill_ = np.where((w_ > 0.05)[..., None], sm_, Fe[iy, ix])
+      edge_ = nd.distance_transform_edt(ab > 0.05) <= 2.0       # our silhouette's own edge
       inkc = np.median(Fe[m_ & ink], 0) if (m_ & ink).any() else Fe[inner].mean(0) * 0.35
-      col = np.where(cov[..., None], np.where((lum_b < 100)[..., None], inkc, Fe[iy, ix]), col)
-      col = np.where((m_ & ink & nd.binary_dilation(cov, iterations=2) & bare & (lum_b >= 100))[..., None], Fe[iy, ix], col)
+      col = np.where(cov[..., None], np.where(edge_[..., None], inkc, fill_), col)
+      col = np.where((m_ & ink & nd.binary_dilation(cov, iterations=2) & bare & ~edge_)[..., None], fill_, col)
       m_ = m_ | cov; taken |= cov
     a_ = np.where(m_, np.where(hid, 1.0, np.where(cov, np.maximum(Fa, ab), Fa)), 0)
     a_ = np.maximum(a_, nd.gaussian_filter(a_, 0.6) * (Fa > 0.5)) * ((Fa > 0.02) | hid | cov)

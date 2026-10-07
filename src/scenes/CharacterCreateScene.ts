@@ -5,9 +5,9 @@ import { lookFiles, lookIconLayers, lookIcons, queueLayers } from '../characters
 import { toneTexture } from '../characters/Skin';
 import MENU_LOOK from '../data/menu-look.json';
 
-/** The new character on the pedestal, dressed as chosen: back hair, the dressed body (starter outfit, sword) in its skin
- *  tone, the face, each piece in its colour, the forehead between the bangs, the hair over the head — one image each,
- *  all on the menu canvas (tools/base/outfit/outfit_layers.py, tools/base/naked_frames.py). The face and hairstyle
+/** The new character on the pedestal, dressed as chosen: back hair, the bare body in its skin tone, the face, the starter
+ *  gear it will wear (pants, boots, shirt in their colours, the sword in hand), the forehead between the bangs, the hair
+ *  over the head — one image each, all on the menu canvas (tools/base/naked_frames.py). The face and hairstyle
  *  buttons are pictures of this same look, redrawn with every choice. */
 const FIT = MENU_LOOK as Record<string, { fit: number }>;
 
