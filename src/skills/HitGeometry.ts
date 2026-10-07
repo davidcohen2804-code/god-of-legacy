@@ -199,3 +199,12 @@ export function fanDirs(aim: V2, count = 1, spreadDeg = 0): V2[] {
 }
 
 export function coverOf(skill: FinalSkill): CoverMode { return skill.cover; }
+
+/** Game rule: no attack goes straight up or down — every aim is level or diagonal (at most 45 degrees off the
+ *  horizontal), on the side the attacker faces (`side` -1 / 1 decides a purely vertical input). */
+export function clampAim(a: V2, side = 1): V2 {
+  const sx = Math.abs(a.x) > 1e-3 ? Math.sign(a.x) : side < 0 ? -1 : 1, lim = Math.SQRT1_2;
+  const y = Math.max(-lim, Math.min(lim, a.y)), x = sx * Math.max(Math.abs(a.x), Math.sqrt(Math.max(0, 1 - y * y)));
+  const L = Math.hypot(x, y) || 1;
+  return { x: x / L, y: y / L };
+}

@@ -324,6 +324,8 @@ export class ActorView {
 
   /** Fashion (top / pants / shoes) is drawn on the beginner base body, not on the class armour. */
   /** Warrior = sword only, no shield: the base body is his default look once every animation is baked; until then fashion turns it on. */
+  /** Body sprite + its cross-fade ghost (presentation motion layers move both). */
+  get motionSprites(): Phaser.GameObjects.Sprite[] { return [this.sprite]; } // presentation motion layers move the body
   get wantsBase(): boolean { return baseComplete(this.cls) || !!(this.equipped.top || this.equipped.pants || this.equipped.shoes); }
 
   /** Render one frame. pose = resolved body frame; x/y = ground feet; z = height; supportZ = surface under the feet. */

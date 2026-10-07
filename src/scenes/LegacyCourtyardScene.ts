@@ -53,7 +53,8 @@ import { CombatBody, GAUGE, HitOutcome, Kin, PHYS, jump, newKin, settleOnBlocks,
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import { finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
 import { CastRun, SkillRuntime } from '../skills/SkillRuntime';
-import { HitTarget, V2, V3, clampPlace, unit } from '../skills/HitGeometry';
+import { Afterimages, applyMotion, archerMotion, leapMotion } from '../skills/ArcherMotion';
+import { HitTarget, V2, V3, clampAim, clampPlace, unit } from '../skills/HitGeometry';
 import { SkillFx, preloadSkillFx } from '../skills/SkillFx';
 import { BEGINNER_TO, jobOfSlot, playedClass } from '../skills/Jobs';
 import { DeathFx, preloadDeathFx } from '../game/DeathFx';
@@ -96,7 +97,7 @@ const ENEMY_SKILL: FinalSkill = {
 /** How long he keeps the combat stance after an attack / a hit while standing still (MapleStory: a few seconds). */
 const ALERT_MS = 4000;
 /** Tree of Life heal aura radius (px around the tree). */
-const TREE_RADIUS = 260;
+const TREE_RADIUS = 260; // = the drawn circle around the tree
 
 export class LegacyCourtyardScene extends Phaser.Scene {
   // ---- local actor (read by QA)
@@ -143,6 +144,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private gearCode = '';
   private leapUsed = false;
   private leapUntil = -1;
+  private leapAt = -Infinity;
+  private afterimg?: Afterimages;
   orbs = { n: 0, lastAt: -Infinity, cast: '' };
   private orbImgs: Phaser.GameObjects.Image[] = [];
   private regenAt = 0;
@@ -289,7 +292,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
     this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
-    this.hasteUntil = -1; this.spiritUntil = -1; this.tree = null; this.storm = null;
+    this.hasteUntil = -1; this.spiritUntil = -1; this.tree = null; this.storm = null; this.hasteFx = undefined; this.spiritFx = undefined; this.afterimg = undefined;
     this.hpMaxSeen = 0; this.seenStance = -Infinity; this.seenEndure = -Infinity; this.markAt.clear(); this.partyTick = 0; this.shares = []; this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1;
     this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
     this.combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1 };
@@ -538,12 +541,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private alertUntil = -1;
   private setMode(m: Mode): void { if (m !== this.mode) { this.mode = m; this.modeT = 0; } }
 
+  /** The side the player last faced (left / right): decides the side of an up / down input. */
+  private faceSide = 1;
   private stepPlayer(ms: number, now: number): void {
     const k = this.kin, b = this.body, inp = this.ci!;
     this.modeT += ms; this.loopT += ms;
     if (this.flash >= 0) { this.flash += ms; if (this.flash >= P6.hitFlashRedMs) this.flash = -1; }
     // Aim: keyboard only — the held movement direction (8-way), else the last one.
     if (inp.hasMove) this.aim = unit(inp.moveX, inp.moveY, this.aim.x, this.aim.y);
+    if (inp.moveX !== 0) this.faceSide = inp.moveX < 0 ? -1 : 1;
 
     if (this.dead >= 0) { this.dead += ms; this.setMode('dead'); k.vx = 0; k.vy = 0; stepKin(k, ms); this.deathFx?.update(ms); this.updateDeath(); return; }
 
@@ -703,7 +709,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const k = this.kin, inp = this.ci!;
     const d = inp.hasMove ? unit(inp.moveX, inp.moveY) : FACE[this.dir];
     k.vz = Math.max(k.vz, WAR_LEAP.vz); k.vx = d.x * WAR_LEAP.forward; k.vy = d.y * WAR_LEAP.forward * 0.6;
-    this.leapUsed = true; this.leapUntil = now + 320;
+    this.leapUsed = true; this.leapUntil = now + 320; this.leapAt = now;
     this.setMode('takeoff');
     this.fx!.dust(k.x - d.x * 18, k.y - k.z, 70, 0.7);
     const side = d.x < 0 || (d.x === 0 && this.dir === 'left') ? -1 : 1;
@@ -993,6 +999,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.dead >= 0) { alpha = 1 - (1 - P6.deathAlpha) * Math.min(1, this.dead / P6.deathFadeMs); tint = null; fill = false; } // the body just fades; the ghost rises (DeathFx)
     v.swordOff = !!this.jb; // Judgment Blade: no sword from the leap until he lands (the cast's own poses are bare too)
     v.render(ms, pose, k.x, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
+    if (this.cls === 'archer') { // archer body motion: lean, recoil, flips, leaps + afterimages
+      const face = this.aim.x < -0.01 ? -1 : 1;
+      const m = (run && this.dead < 0 ? archerMotion(run.skill.id, run.elapsed, run.timings, face) : null) ?? (this.dead < 0 ? leapMotion(this.simMs - this.leapAt, this.dir === 'left' ? -1 : 1) : null);
+      applyMotion(v.motionSprites, m);
+      (this.afterimg ??= new Afterimages(this)).step(this.simMs, v.sprite, !!m?.after);
+      this.renderArcherBuffs();
+    }
     this.renderRadiant(pose, dir);
     this.renderEyes(pose, dir);
     this.renderHolyAura();
@@ -1180,6 +1193,25 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Own damage buffs right now: War Cry +20%, Radiant Blade +15% (same as against monsters). */
   private ownDamageMul(): number { return (this.simMs < this.warCryUntil ? 1.2 : this.simMs < this.allyCryUntil ? 1.1 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * (this.simMs < this.bannerUntil ? 1.1 : 1) * this.passiveDmgMul(); }
+
+  private hasteFx?: Phaser.GameObjects.Particles.ParticleEmitter;
+  private spiritFx?: Phaser.GameObjects.Particles.ParticleEmitter;
+  /** Archer buffs stay visible while they last: Bow Haste = green wind streaks rising, Hunter's Spirit = gold motes. */
+  private renderArcherBuffs(): void {
+    if (!this.textures.exists('arch-glow')) return;
+    const k = this.kin, d = actorDepth(k.x, k.y, k.z), vis = !!this.view?.visible && this.dead < 0;
+    this.hasteFx ??= this.add.particles(0, 0, 'arch-glow', {
+      emitZone: { type: 'random', source: new Phaser.Geom.Ellipse(0, 0, 70, 20), quantity: 1 } as never,
+      speedY: { min: -150, max: -80 }, speedX: { min: -10, max: 10 }, lifespan: { min: 380, max: 620 },
+      scaleX: { start: 0.06, end: 0.02 }, scaleY: { start: 0.4, end: 0.1 }, alpha: { start: 0.7, end: 0 }, tint: [0xb8ff7a, 0xffffff], blendMode: 'ADD', frequency: 70, emitting: false,
+    });
+    this.spiritFx ??= this.add.particles(0, 0, 'arch-glow', {
+      emitZone: { type: 'random', source: new Phaser.Geom.Ellipse(0, 0, 60, 90), quantity: 1 } as never,
+      speedY: { min: -40, max: -15 }, lifespan: { min: 600, max: 1000 }, scale: { start: 0.12, end: 0 }, alpha: { start: 0.9, end: 0 }, tint: [0xffe27a, 0xffffff], blendMode: 'ADD', frequency: 110, emitting: false,
+    });
+    this.hasteFx.setPosition(k.x, k.y - k.z - 6).setDepth(d + 0.05); this.hasteFx.emitting = vis && this.simMs < this.hasteUntil;
+    this.spiritFx.setPosition(k.x, k.y - k.z - 60).setDepth(d + 0.06); this.spiritFx.emitting = vis && this.simMs < this.spiritUntil;
+  }
 
   /** Archer: Eagle Eyes arrow range. */
   private ownRangeMul(s: FinalSkill): number { return s.cls === 'archer' ? this.passives.rangeMul : 1; }
@@ -1905,7 +1937,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onRelease: (from, m) => { // Judgment Blade thrown: final aim + the moment it left the hand
         const r = this.rt?.runs.find((x) => x.castId === m.castId && x.attackerId === from);
         if (r && r.skill.id === 'arrow_storm') { r.timings.active = Math.min(r.timings.active, Math.max(m.at, r.elapsed - r.timings.startup)); return; } // Arrow Storm: the caster let go of the key
-        if (r && r.phase === 'startup') { r.aim = unit(m.ax, m.ay); r.timings.startup = Math.max(r.elapsed, m.at); }
+        if (r && r.phase === 'startup') { r.aim = clampAim(unit(m.ax, m.ay)); r.timings.startup = Math.max(r.elapsed, m.at); }
         this.pvp?.remotes.get(from)?.setSkillStartup(r?.skill.id ?? '', r ? r.timings.startup : m.at);
       },
       onConfirmed: (victim, m) => {
