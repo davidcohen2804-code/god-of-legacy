@@ -434,10 +434,14 @@ def _laid(dp, fn):
   ed, ad = keyed(fd['gi']); ad = np.where(nd.binary_dilation(fd['m'], iterations=3), ad, 0)
   X0, Y0, X1, Y1 = fd['box']; X0 -= 16; Y0 -= 16; X1 += 16; Y1 += 16
   crop = np.dstack([ed[Y0:Y1 + 1, X0:X1 + 1], ad[Y0:Y1 + 1, X0:X1 + 1] * 255])
+  def head_cx(f):                                                  # the head's middle (a raised sword widens the box, not this)
+    m_ = f['m']; t_ = f['box'][1]; rows_ = m_[t_:t_ + int(0.18 * (f['box'][3] - t_))]; xs_ = np.nonzero(rows_.any(0))[0]
+    return (xs_.min() + xs_.max()) / 2
+  hn_, hd_ = head_cx(fn), head_cx(fd)
   s0 = (y1 - y0) / (fd['box'][3] - fd['box'][1]); best = None
   for s_ in np.arange(s0 * 0.96, s0 * 1.04, 0.004):                 # scale, then shift (1 px), then half a pixel
     big = np.array(Image.fromarray(crop.clip(0, 255).astype(np.uint8), 'RGBA').resize((round(crop.shape[1] * s_), round(crop.shape[0] * s_)), Image.BICUBIC)).astype(np.float32)
-    ox0, oy0 = x0 - s_ * fd['box'][0], y0 - s_ * fd['box'][1]
+    ox0, oy0 = hn_ - s_ * hd_, y0 - s_ * fd['box'][1]
     for ty in range(-12, 13):
       for tx in range(-12, 13):
         oy_, ox_ = int(round(ry0 - (s_ * Y0 + oy0 + ty))), int(round(rx0 - (s_ * X0 + ox0 + tx)))
@@ -479,9 +483,13 @@ def _clothes(Fe, Fa, sword, fn):
   lum = 0.3 * Rc + 0.59 * Gc + 0.11 * Bc; sat = (mx - mn) / np.maximum(mx, 1); fig = Fa > 0.05
   top = nd.binary_opening(fig & (Gc > Rc + 25) & (Gc > Bc + 15) & ~sword, iterations=1)
   pants = nd.binary_opening(fig & (Bc > Rc + 25) & (Bc > Gc + 8) & ~sword, iterations=1)
-  pr = np.nonzero(pants)[0]; pbot = int(np.percentile(pr, 97)) if len(pr) else shape[0]
-  shoes = fig & (yy > pbot - 40) & (Rc > Gc + 12) & (Gc > Bc + 4) & (mx < 215) & (sat > 0.25) & ~nd.binary_dilation(pants, iterations=1) & ~sword
-  L_, n_ = nd.label(shoes); sz = nd.sum(shoes, L_, range(1, n_ + 1)); shoes = np.isin(L_, [1 + i for i in range(n_) if sz[i] > 0.05 * sz.max()])
+  # the boots: brown (darker and redder than skin: green / red < 0.66, blue / red < 0.34), solid blobs at the pants' leg ends
+  # — wherever the foot is (a foot kicked up behind too), never a thin outline stroke
+  shoes = fig & (Gc < 0.66 * Rc) & (Bc < 0.34 * Rc) & (lum > 30) & (lum < 160) & (sat > 0.3) & ~nd.binary_dilation(pants, iterations=1) & ~sword
+  shoes = nd.binary_opening(shoes, iterations=2); L_, n_ = nd.label(shoes)
+  if n_:
+    sz = nd.sum(shoes, L_, range(1, n_ + 1)); touch = nd.maximum(nd.binary_dilation(pants, iterations=8), L_, range(1, n_ + 1))
+    shoes = np.isin(L_, [1 + i for i in range(n_) if touch[i] and sz[i] > 0.05 * sz.max()])
   ink = fig & (lum < 75) & ~sword & ~((sat < 0.12) & (lum > 40)); out = {}; taken = sword.copy()   # cloth outlines, not grey steel
   blade = sword & (lum > 120) & (sat < 0.3)                    # the steel (not the guard / grip at the fist)
   hand = nd.binary_dilation(fig & ((Rc - Bc) > 40) & (lum > 140) & nd.binary_dilation(sword, iterations=40), iterations=10)   # the fist on it
