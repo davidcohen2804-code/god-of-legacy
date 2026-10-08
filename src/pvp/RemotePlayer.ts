@@ -132,8 +132,8 @@ export class RemotePlayer {
   /** A hit you landed on it: it shudders for the hit-stop (fighting-game feel; its owner's client moves the body). */
   shake(ms: number): void { this.shakeMs = Math.max(this.shakeMs, ms); }
 
-  /** Top of the head above the feet (world px), for speech bubbles. */
-  get headHeight(): number { return this.view.headHeight || 100; }
+  /** Where its speech bubble sits above the feet (world px): over its name and bar, which sit over its head. */
+  get headHeight(): number { return Math.max(this.view.headHeight || 100, this.headTop() + PVP.remoteLabel.gap + PVP.hpBar.h + 3 + PVP.remoteLabel.size + 6); }
 
   /** A held skill's startup became known (Judgment Blade: the blade left the hand): the body throws then. */
   setSkillStartup(id: string, startup: number): void { if (this.skill && this.skill.id === id) this.skill.startup = Math.max(this.skill.elapsed, startup); }

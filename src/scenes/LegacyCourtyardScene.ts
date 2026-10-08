@@ -2490,7 +2490,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!document.getElementById('gol-spar-style')) {
       const st = document.createElement('style'); st.id = 'gol-spar-style';
       st.textContent = `
-.gol-spar{position:absolute;left:1350px;top:156px;width:300px;display:none;flex-direction:column;gap:10px;padding:14px 16px 16px;box-sizing:border-box;pointer-events:auto;
+.gol-spar{position:absolute;left:1602px;top:184px;width:300px;display:none;flex-direction:column;gap:10px;padding:14px 16px 16px;box-sizing:border-box;pointer-events:auto;
   background:linear-gradient(rgba(6,10,18,.84),rgba(6,10,18,.7));border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.45),inset 0 0 0 1px rgba(201,154,69,.5);font-family:${FONT_FAMILY}}
 .gol-spar.on{display:flex}
 .gol-spar .hd{font:700 12px ${FONT_FAMILY};letter-spacing:2.5px;color:#f3d58a;text-shadow:0 1px 2px #000}
@@ -2507,7 +2507,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 .gol-spar .spd span{font:700 11px ${FONT_FAMILY};letter-spacing:2px;color:#bfb08e;padding-right:4px}
 .gol-spar .spd button{height:28px}
 .gol-spar .tog{height:30px}
-.gol-hitlog{position:absolute;left:1350px;top:456px;width:300px;max-height:420px;overflow:hidden;display:none;flex-direction:column;gap:4px;padding:10px 10px 12px;box-sizing:border-box;pointer-events:none;
+.gol-hitlog{position:absolute;left:1602px;top:484px;width:300px;max-height:420px;overflow:hidden;display:none;flex-direction:column;gap:4px;padding:10px 10px 12px;box-sizing:border-box;pointer-events:none;
   background:linear-gradient(rgba(6,10,18,.82),rgba(6,10,18,.62));border-radius:12px;box-shadow:inset 0 0 0 1px rgba(201,154,69,.35);font-family:${FONT_FAMILY}}
 .gol-hitlog.on{display:flex}
 .gol-hitlog .ln{display:grid;grid-template-columns:auto 1fr auto;column-gap:8px;row-gap:1px;padding:5px 8px;border-radius:6px;background:rgba(255,255,255,.04);font-size:12px;line-height:15px}

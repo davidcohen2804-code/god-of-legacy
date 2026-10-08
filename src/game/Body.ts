@@ -138,6 +138,8 @@ export interface PoseFrame {
   flip?: boolean;
   /** [headTopX, headTopY, headCx, headCy, backX, backY] relative to the feet, world px (already scaled). */
   anchor: number[] | null;
+  /** No anchor: the top of the head above the feet, world px (a ready hero: its standing height, the same on every frame). */
+  top?: number;
   /** Head (hair) box for helmets: [centerX, width (direction median, stable), bottomY], world px rel. feet. */
   hair?: number[] | null;
   /** Sword line [hiltX, hiltY, tipX, tipY] rel. feet, world px (warrior). */
@@ -590,7 +592,7 @@ function heroFrame(cls: string, dir: Dir, act: string, i: number): PoseFrame {
   const k = HERO_HEIGHT / h.h, flip = dir === 'left', b = f[6];
   // the sword line (Radiant Blade grows its light blade along it), mirrored when facing left
   const blade = b ? [b[0] * k * (flip ? -1 : 1), b[1] * k, b[2] * k * (flip ? -1 : 1), b[3] * k] : null;
-  return { key: heroKey(cls), frame: `${name}-${idx}`, wkey: `${heroKey(cls)}-w`, ox: f[4] / f[2], oy: f[5] / f[3], scale: k, flip, anchor: null, blade };
+  return { key: heroKey(cls), frame: `${name}-${idx}`, wkey: `${heroKey(cls)}-w`, ox: f[4] / f[2], oy: f[5] / f[3], scale: k, flip, anchor: null, top: HERO_HEIGHT, blade };
 }
 
 function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {

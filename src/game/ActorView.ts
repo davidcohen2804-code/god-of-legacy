@@ -334,7 +334,7 @@ export class ActorView {
     this.t += ms;
     const p = this.sprite;
     if (pose.naked && this.look && this.look.skin !== DEFAULT_SKIN) { const tk = toneTexture(this.scene, pose.key, this.look.skin); if (tk) pose = { ...pose, key: tk }; } // the body in its skin tone
-    const top = pose.anchor ? -pose.anchor[1] : 100;
+    const top = pose.anchor ? -pose.anchor[1] : pose.top ?? 100;
     this.headHeight = this.headHeight ? this.headHeight + (top - this.headHeight) * Math.min(1, ms / 90) : top;
     // Weapon masks load on first need: a tint skin draws them, a sword skin cuts with them (classes without a packed mask).
     if ((WEAPON_TINT[this.equipped.weapon ?? ''] || (this.blade && !SHEET_PATH[pose.key])) && !this.scene.textures.exists(pose.wkey)) ensureWeaponMasks(this.scene, this.cls);
