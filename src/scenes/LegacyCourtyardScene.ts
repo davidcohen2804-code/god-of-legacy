@@ -777,7 +777,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     else if (!buf && this.ci!.attackHeld && this.kit[0]?.chain) { // hold Space: chain continues on its own
       const run = this.rt!.ownRun;
-      if (!run || (run.skill.id === this.kit[0].id && run.elapsed >= run.timings.startup + run.timings.active)) this.tryStartSlot(0);
+      if (!run || (run.skill.id === this.mageVariant(this.kit[0])!.id && run.elapsed >= run.timings.startup + run.timings.active)) this.tryStartSlot(0);
     }
   }
 
@@ -1710,6 +1710,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (M.grand && s.slot !== 0 && s.slot !== 8 && s.slot !== 7) { M.grand = false; run.timings.startup = Math.min(run.timings.startup, 30); this.fx?.grandWeave(this.localId); }
     const up = run.timings.startup, say = (text: string, color: string) => this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, text, color, 0));
     switch (s.id) {
+      case 'arcane_bolt': case 'arcane_bolt_frost': case 'arcane_bolt_storm': case 'arcane_bolt_arcane':
+        if (run.stage === 2) this.time.delayedCall(up, () => { this.momentum = { x: -run.aim.x * 46, y: -run.aim.y * 20, left: 180 }; }); // the lance's recoil: a slide back
+        break;
       case 'blink': this.body.invulnUntil = Math.max(this.body.invulnUntil, now + up + s.active); if (this.passives.mage.blinkRune) this.frostRune(k.x, k.y); break;
       case 'chrono_haste': M.hasteUntil = now + up + 120000; this.shares.push({ at: now + up, id: s.id, ms: 120000 }); say('CHRONO HASTE', '#c9b6ff'); break;
       case 'arcane_ward': M.wardHp = Math.round(this.maxHpNow() * 0.2); M.wardUntil = now + up + 8000; this.shares.push({ at: now + up, id: s.id, ms: 8000 }); say('ARCANE WARD', '#9fdcff'); break;

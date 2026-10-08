@@ -23,7 +23,27 @@ export interface MageCtx {
   darken(ms: number, alpha: number): void;
   ultimateStage(r: CastRun): void;
   targetPos?(id: string): V3 | null;
+  /** Camera shake (ms, intensity), a beat of hit-stop (ms), a soft full-screen flash of light. */
+  shake?(ms: number, i: number): void;
+  hitStop?(ms: number): void;
+  flash?(color: number, alpha: number, ms: number): void;
 }
+
+/** Procedural light textures (made once): a soft dot, a streak, a thin ring, a four-pointed flare. */
+function ensureLight(s: Phaser.Scene): void {
+  const mk = (key: string, w: number, h: number, draw: (c: CanvasRenderingContext2D) => void) => {
+    if (s.textures.exists(key)) return;
+    const t = s.textures.createCanvas(key, w, h); if (!t) return;
+    draw(t.getContext()); t.refresh();
+  };
+  mk('mg-dot', 64, 64, (c) => { const g = c.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,0.75)'); g.addColorStop(0.6, 'rgba(255,255,255,0.18)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, 64, 64); });
+  mk('mg-streak', 128, 16, (c) => { const g = c.createLinearGradient(0, 0, 128, 0); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.75, 'rgba(255,255,255,0.8)'); g.addColorStop(1, 'rgba(255,255,255,1)'); c.fillStyle = g; c.beginPath(); c.moveTo(0, 8); c.lineTo(120, 2); c.quadraticCurveTo(128, 8, 120, 14); c.closePath(); c.fill(); });
+  mk('mg-ring', 256, 256, (c) => { for (const [w, a] of [[14, 0.12], [8, 0.3], [3, 1]] as const) { c.strokeStyle = `rgba(255,255,255,${a})`; c.lineWidth = w; c.beginPath(); c.arc(128, 128, 116, 0, Math.PI * 2); c.stroke(); } });
+  mk('mg-flare', 128, 128, (c) => { const g = c.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g;
+    for (const [w, h] of [[128, 10], [10, 128], [70, 6], [6, 70]] as const) { c.save(); c.translate(64, 64); if (w === 70 || w === 6) c.rotate(Math.PI / 4); c.beginPath(); c.ellipse(0, 0, w / 2, h / 2, 0, 0, Math.PI * 2); c.fill(); c.restore(); }
+    const d = c.createRadialGradient(64, 64, 0, 64, 64, 18); d.addColorStop(0, 'rgba(255,255,255,1)'); d.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = d; c.fillRect(0, 0, 128, 128); });
+}
+type Burst = { n: number; speed: [number, number]; life: [number, number]; scale: [number, number]; tint: number[]; gravity?: number; angle?: [number, number]; key?: string; frame?: string | string[]; depth?: number; spin?: boolean; drag?: number; add?: boolean };
 
 type Ease = (u: number) => number;
 const lin: Ease = (u) => u, out: Ease = (u) => 1 - (1 - u) * (1 - u), out3: Ease = (u) => 1 - Math.pow(1 - u, 3), inQ: Ease = (u) => u * u;
@@ -169,21 +189,93 @@ export class MageFx {
     }
   }
 
+  // ------------------------------------------------------------------ light and particles (the juice)
+
+  /** A one-shot spray of particles (light dots by default, or kit pieces), fading as they slow. */
+  private burst(x: number, y: number, o: Burst): void {
+    const s = this.ctx.scene; ensureLight(s);
+    const key = o.key ?? (o.frame ? MAGE_KIT : 'mg-dot');
+    if (key === MAGE_KIT && !this.ready) return;
+    const em = s.add.particles(x, y, key, {
+      ...(o.frame ? { frame: o.frame } : {}), emitting: false, speed: { min: o.speed[0], max: o.speed[1] }, lifespan: { min: o.life[0], max: o.life[1] },
+      scale: { start: o.scale[1], end: o.scale[0] }, alpha: { start: 1, end: 0 }, tint: o.tint, gravityY: o.gravity ?? 0, angle: { min: o.angle?.[0] ?? 0, max: o.angle?.[1] ?? 360 },
+      rotate: o.spin ? { min: 0, max: 360 } : 0, blendMode: o.add === false ? 'NORMAL' : 'ADD', ...(o.drag ? { accelerationX: 0, maxVelocityX: 2000 } : {}),
+    });
+    em.setDepth(o.depth ?? TOP + 5);
+    em.explode(o.n, x, y);
+    s.time.delayedCall(o.life[1] + 60, () => em.destroy());
+  }
+  /** A burst of light: a soft white core and a coloured bloom. */
+  private glow(x: number, y: number, size: number, tint: number, life = 220, o: { depth?: number; delay?: number; follow?: () => Pt | null; alpha?: number; squash?: number } = {}): void {
+    ensureLight(this.ctx.scene);
+    const al = o.alpha ?? 1;
+    for (const [k, t, a] of [[1, tint, 0.7 * al], [0.4, 0xffffff, 0.55 * al]] as const)
+      this.img('mg-dot', { x, y, w: size * k, h: size * k * (o.squash ?? 1), tint: t, life, delay: o.delay, depth: (o.depth ?? TOP + 4) + (t === 0xffffff ? 0.01 : 0), follow: o.follow,
+        sx: kf([0, 0.5], [0.25, 1.05, out3], [1, 1.25]), sy: kf([0, 0.5], [0.25, 1.05, out3], [1, 1.25]), a: kf([0, a], [0.35, a * 0.9], [1, 0, inQ]) });
+  }
+  /** A thin ring of light expanding (on the floor when squash < 1). */
+  private ringOut(x: number, y: number, w: number, tint: number, life = 360, o: { squash?: number; depth?: number; delay?: number; thick?: number } = {}): void {
+    ensureLight(this.ctx.scene);
+    this.img('mg-ring', { x, y, w, h: w * (o.squash ?? 1), tint, life, delay: o.delay, depth: o.depth ?? TOP + 3,
+      sx: kf([0, 0.15], [1, 1, out3]), sy: kf([0, 0.15], [1, 1, out3]), a: kf([0, 1], [0.5, 0.75], [1, 0, inQ]) });
+  }
+  private flare(x: number, y: number, size: number, tint: number, life = 260, o: { depth?: number; delay?: number; follow?: () => Pt | null; rot?: number } = {}): void {
+    ensureLight(this.ctx.scene);
+    this.img('mg-flare', { x, y, w: size, tint, life, delay: o.delay, depth: o.depth ?? TOP + 5, follow: o.follow,
+      sx: kf([0, 0.2], [0.2, 1.15, out3], [1, 0.4]), sy: kf([0, 0.2], [0.2, 1.15, out3], [1, 0.4]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]), rot: (u) => (o.rot ?? 60) * u });
+  }
+  /** A procedural texture image with the piece system's motion (additive). */
+  private img(key: string, o: Omit<Spr, 'name'> & { tint?: number }): void {
+    const s = this.ctx.scene;
+    const im = s.add.image(o.x ?? 0, o.y ?? 0, key).setBlendMode(Phaser.BlendModes.ADD).setVisible(false).setOrigin(o.ox ?? 0.5, o.oy ?? 0.5);
+    if (o.tint !== undefined) im.setTint(o.tint);
+    const bx = o.w / im.width, by = (o.h ?? o.w * (im.height / im.width)) / im.height;
+    this.add({ t: 0, step: (_dt, t) => {
+      const e = t - (o.delay ?? 0); if (e < 0) return true;
+      const u = Math.min(1, e / o.life);
+      let x = o.x ?? 0, y = o.y ?? 0, d = o.depth ?? TOP;
+      if (o.follow) { const p = o.follow(); if (!p) { im.destroy(); return false; } x = p.x; y = p.y; d = p.d + (o.dz ?? 3); }
+      im.setVisible(true).setPosition(x + (o.mx?.(u) ?? 0), y + (o.my?.(u) ?? 0)).setScale((o.sx?.(u) ?? 1) * bx, (o.sy?.(u) ?? 1) * by).setAngle((o.angle ?? 0) + (o.rot?.(u) ?? 0))
+        .setAlpha(Math.max(0, Math.min(1, o.a?.(u) ?? 1))).setDepth(d);
+      if (u >= 1) { im.destroy(); return false; }
+      return true;
+    } });
+  }
+  /** Lightning drawn as a jagged line between two points: re-forked every 40 ms while it lasts (it flickers like real lightning). */
+  private zap(a: { x: number; y: number }, b: { x: number; y: number }, o: { life?: number; width?: number; tint?: number; depth?: number; delay?: number; forks?: number } = {}): void {
+    const s = this.ctx.scene, g = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth ?? TOP + 4).setVisible(false);
+    const life = o.life ?? 240, w = o.width ?? 4, tint = o.tint ?? 0x7fd8ff;
+    let next = -1;
+    const draw = (al: number) => {
+      g.clear();
+      const L = Math.hypot(b.x - a.x, b.y - a.y), n = Math.max(4, Math.round(L / 22)), nx = -(b.y - a.y) / (L || 1), ny = (b.x - a.x) / (L || 1);
+      const pts = [a]; for (let i = 1; i < n; i++) { const t = i / n, off = rnd(-1, 1) * Math.min(26, L * 0.12) * Math.sin(t * Math.PI); pts.push({ x: a.x + (b.x - a.x) * t + nx * off, y: a.y + (b.y - a.y) * t + ny * off }); } pts.push(b);
+      const line = (pp: { x: number; y: number }[], width: number, col: number, alpha: number) => { g.lineStyle(width, col, alpha); g.beginPath(); g.moveTo(pp[0].x, pp[0].y); for (const p of pp.slice(1)) g.lineTo(p.x, p.y); g.strokePath(); };
+      line(pts, w * 5, tint, 0.18 * al); line(pts, w * 2.2, tint, 0.55 * al); line(pts, w, 0xffffff, al);
+      for (let f = 0; f < (o.forks ?? 2); f++) { const i = 1 + Math.floor(Math.random() * (pts.length - 2)), p = pts[i], ang = Math.atan2(b.y - a.y, b.x - a.x) + rnd(-1.1, 1.1), len = rnd(18, 44);
+        line([p, { x: p.x + Math.cos(ang) * len * 0.5 + rnd(-6, 6), y: p.y + Math.sin(ang) * len * 0.5 + rnd(-6, 6) }, { x: p.x + Math.cos(ang) * len, y: p.y + Math.sin(ang) * len }], w * 0.7, 0xdff6ff, 0.7 * al); }
+    };
+    this.add({ t: 0, step: (_dt, t) => {
+      const e = t - (o.delay ?? 0); if (e < 0) return true;
+      g.setVisible(true);
+      if (e >= life) { g.destroy(); return false; }
+      if (e >= next) { next = e + 40; draw(1 - Math.max(0, (e / life - 0.5) * 2)); }
+      return true;
+    } });
+  }
+  private shake(ms: number, i: number): void { this.ctx.shake?.(ms, i); }
+
   // ------------------------------------------------------------------ cast timeline
 
   cast(r: CastRun): void {
     if (!this.ready) return;
     const s = r.skill, T = r.timings, me = this.me(r), side = sideOf(r), hand = this.at(r.attackerId, side, 22, 70);
     switch (s.id) {
-      case 'arcane_bolt': case 'arcane_bolt_arcane': case 'arcane_bolt_frost': case 'arcane_bolt_storm': {
-        const k = s.id === 'arcane_bolt_frost' ? 'snowflake' : s.id === 'arcane_bolt_storm' ? 'storm_orb' : 'spark_arc';
-        this.spr({ name: k, w: 34, life: T.startup + 120, follow: hand, add: true, glow: 0.6, run: r, sx: kf([0, 0.2], [0.7, 1.1, out3], [1, 0.6]), sy: kf([0, 0.2], [0.7, 1.1, out3], [1, 0.6]), a: kf([0, 1], [0.8, 1], [1, 0]), rot: (u) => 120 * u });
-        break;
-      }
+      case 'arcane_bolt': case 'arcane_bolt_arcane': case 'arcane_bolt_frost': case 'arcane_bolt_storm': this.boltCharge(r); break;
       case 'arcane_wave': this.spr({ name: 'spark_arc', w: 50, life: T.startup + 80, follow: hand, add: true, glow: 0.5, run: r, sx: kf([0, 0.3], [1, 1.2, out3]), a: kf([0, 1], [1, 0]) }); break;
       case 'astral_burst': this.starHand(r); break;
-      case 'frost_nova': this.drift(['snowflake', 'ice_shards'], me.x, me.y - me.z - 20, 6, 30, { life: T.startup + 200, up: 60, size: [10, 20], add: true }); break;
-      case 'lightning_chain': this.spr({ name: 'storm_orb', w: 64, life: T.startup + T.active, follow: hand, add: true, glow: 0.7, run: r, sx: kf([0, 0.3], [0.3, 1, out3], [1, 0.8]), a: kf([0, 1], [0.8, 1], [1, 0]), rot: (u) => 300 * u }); break;
+      case 'frost_nova': this.novaCharge(r); break;
+      case 'lightning_chain': this.stormCharge(r); break;
       case 'storm_field': this.floor('storm_disc', r.place?.x ?? me.x, r.place?.y ?? me.y, 280, T.startup + T.active + 300, { add: true, glow: 0.6, spin: 20, run: r, a: kf([0, 0], [0.15, 0.5], [0.85, 0.9], [1, 0]), s: kf([0, 0.6], [0.2, 1, out3]) }); break;
       case 'time_collapse': this.timeCollapse(r); break;
       case 'blink': this.blinkOut(me, side); break;
@@ -210,7 +302,7 @@ export class MageFx {
     const s = r.skill, me = this.me(r), side = sideOf(r), T = r.timings;
     switch (s.id) {
       case 'arcane_wave': this.wave(r); break;
-      case 'frost_nova': this.nova(me); break;
+      case 'frost_nova': this.nova(r); break;
       case 'blink': this.later(T.active, () => this.blinkIn(this.me(r), side), r); break;
       case 'glacial_spikes': this.spikes(r); break;
       case 'chrono_haste': this.ripple(me.x, me.y - me.z - 40, 200, VIOLET); this.aura(r.attackerId, 'haste', 120000); break;
@@ -230,7 +322,7 @@ export class MageFx {
       for (let k = 0; k < 3; k++) this.later(k * 60, () => { const x = p.x + rnd(-90, 90), y = p.y + rnd(-30, 30); this.bolt('bolt_diag', { x: x - 60, y: y - 260 }, { x, y: y - 10 }, { thick: 70, life: 200 }); this.pop('bolt_impact', x, y - 20, 90, { depth: y + 3, life: 200 }); }, r);
       if (i === 3) { this.ripple(p.x, p.y - 4, 300, ARCANE); this.ctx.punch(0.005, 160); }
     }
-    if (s.id === 'astral_burst') { const c = r.place ?? { x: o.x + r.aim.x * 60, y: o.y + r.aim.y * 60 }; this.spr({ name: 'launch_arc', x: c.x, y: c.y, oy: 0.95, depth: c.y + 3, w: 90, h: 180, life: 320, add: true, glow: 0.5, sy: kf([0, 0.2], [0.3, 1, out3], [1, 1.2]), a: kf([0, 1], [0.4, 1], [1, 0, inQ]) }); }
+    if (s.id === 'astral_burst') { const c = r.place ?? { x: o.x + r.aim.x * 80, y: o.y + r.aim.y * 80 }; this.spr({ name: 'launch_arc', x: c.x, y: c.y, oy: 0.95, depth: c.y + 3, w: 90, h: 180, life: 320, add: true, glow: 0.5, sy: kf([0, 0.2], [0.3, 1, out3], [1, 1.2]), a: kf([0, 1], [0.4, 1], [1, 0, inQ]) }); }
     if (s.id === 'time_collapse' && i === 1 && r.place) { this.ripple(r.place.x, r.place.y - 60, 420, VIOLET); this.ctx.darken(1100, 0.5); }
     if (s.id === 'time_collapse' && i === 2 && r.place) this.timeBlast(r.place);
     void h;
@@ -242,19 +334,77 @@ export class MageFx {
     if (!this.ready) return;
     const from = this.chainLast.get(r.castId) ?? null; // each arc leaps on from the foe the last one struck
     if (target) { this.chainLast.set(r.castId, { ...target }); if (this.chainLast.size > 40) this.chainLast.delete(this.chainLast.keys().next().value!); }
-    const a = from ? { x: from.x, y: from.y - from.z - 44 } : { x: o.x + r.aim.x * 24, y: o.y + r.aim.y * 24 - o.z - 66 };
-    const b = target ? { x: target.x, y: target.y - target.z - 44 } : { x: o.x + r.aim.x * 300, y: o.y + r.aim.y * 300 - o.z - 50 };
-    this.bolt(Math.random() < 0.5 ? 'bolt_long' : 'bolt_branch', a, b, { thick: 80, life: 240 });
-    this.bolt('bolt_long', a, b, { thick: 40, life: 160, delay: 40 });
-    if (target) this.pop('bolt_impact', b.x, b.y, 90, { life: 220 });
+    const hand = this.ctx.hand(r.attackerId);
+    const a = from ? { x: from.x, y: from.y - from.z - 50 } : hand ?? { x: o.x + r.aim.x * 30, y: o.y + r.aim.y * 30 - o.z - 70 };
+    const b = target ? { x: target.x, y: target.y - target.z - 50 } : { x: o.x + r.aim.x * 300, y: o.y + r.aim.y * 300 - o.z - 50 };
+    const last = r.hits.length - 1, fired = r.fired.size - 1, big = fired <= 0 || fired === last;
+    this.zap(a, b, { life: big ? 300 : 230, width: big ? 5 : 4, forks: 3 });
+    this.zap(a, b, { life: 160, width: 2.5, delay: 50, forks: 1 });
+    this.bolt('bolt_long', a, b, { thick: big ? 90 : 60, life: 200 });
+    this.glow(a.x, a.y, 90, 0x6fc8ff, 200);
+    if (!target) return;
+    this.glow(b.x, b.y, big ? 130 : 90, 0x3f9cff, 220, { alpha: 0.45 });
+    this.flare(b.x, b.y, big ? 120 : 80, 0xbfeaff, 200, { rot: 90 });
+    for (let k = 0; k < (big ? 7 : 4); k++) { const ang = rnd(0, Math.PI * 2), l = rnd(40, big ? 95 : 65); this.zap(b, { x: b.x + Math.cos(ang) * l, y: b.y + Math.sin(ang) * l * 0.8 }, { life: rnd(90, 170), width: 2.2, forks: 1, delay: k * 12 }); }
+    this.burst(b.x, b.y, { n: big ? 22 : 12, speed: [160, 480], life: [180, 420], scale: [0.04, 0.22], tint: [0xffffff, 0x9fe4ff, 0x4fa8ff], gravity: 260 });
+    this.ctx.flash?.(0xbfe8ff, big ? 0.16 : 0.08, 90);
+    this.shake(big ? 120 : 70, big ? 0.006 : 0.003);
+    if (fired === last) { // the finish: a bolt out of the sky onto the foe
+      this.zap({ x: b.x + rnd(-40, 40), y: b.y - 360 }, b, { life: 300, width: 6, forks: 4 });
+      this.ringOut(target.x, target.y, 220, 0x7fd0ff, 380, { squash: 0.4, depth: target.y + 1 });
+      this.ctx.punch(0.025, 200);
+    }
   }
 
   // ------------------------------------------------------------------ skills
 
+  /** Arcane Bolt: light gathers in the hand and fires with a flash; the third beat (the lance) charges a rune circle first. */
+  private boltCharge(r: CastRun): void {
+    const T = r.timings, side = sideOf(r), lance = r.stage === 2, el = r.skill.id === 'arcane_bolt_frost' ? 'frost' : r.skill.id === 'arcane_bolt_storm' ? 'storm' : 'arcane';
+    const tint = el === 'frost' ? 0xcff6ff : el === 'storm' ? 0x8fe3ff : 0x6fb8ff;
+    const hand = (): Pt | null => { const h = this.ctx.hand(r.attackerId), c = this.ctx.casterPos(r.attackerId); if (!c) return null; return h ? { x: h.x + side * 8, y: h.y, d: c.y } : { x: c.x + side * 34, y: c.y - c.z - 70, d: c.y }; };
+    this.glow(0, 0, lance ? 110 : 60, tint, T.startup + 60, { follow: hand, alpha: 0.8 });
+    if (lance) { // a rune circle stands in front of the hand and turns faster and faster
+      this.spr({ name: 'sig_disk', w: 46, h: 110, life: T.startup + 160, follow: () => { const p = hand(); return p ? { ...p, x: p.x + side * 26 } : null; }, add: true, glow: 0.6, run: r,
+        sx: kf([0, 0.2], [0.5, 1, out3], [0.9, 1.1], [1, 1.6]), sy: kf([0, 0.2], [0.5, 1, out3], [0.9, 1.1], [1, 1.4]), a: kf([0, 0], [0.2, 1], [0.85, 1], [1, 0]), rot: (u) => 360 * u * u });
+      for (let k = 0; k < 8; k++) { const a = rnd(0, Math.PI * 2), d = rnd(50, 90); // motes drawn into the hand
+        this.img('mg-dot', { w: 14, tint, life: T.startup, follow: hand, mx: (u) => Math.cos(a) * d * (1 - out(u)), my: (u) => Math.sin(a) * d * 0.7 * (1 - out(u)), a: kf([0, 0], [0.2, 1], [1, 0.6]) }); }
+    }
+    this.later(T.startup, () => { // the release: a flash at the hand, a spray of light forward
+      const p = hand(); if (!p) return;
+      this.glow(p.x, p.y, lance ? 190 : 100, tint, lance ? 260 : 160);
+      this.flare(p.x, p.y, lance ? 170 : 90, 0xffffff, lance ? 280 : 180);
+      this.burst(p.x, p.y, { n: lance ? 18 : 7, speed: [140, lance ? 520 : 340], life: [120, 300], scale: [0.03, 0.16], tint: [0xffffff, tint], angle: side > 0 ? [-30, 30] : [150, 210] });
+      if (lance) { this.ringOut(p.x + side * 20, p.y, 130, tint, 300); this.shake(90, 0.004); }
+    }, r);
+  }
+
+  /** Frost Nova: cold gathers round him (mist drawn in, frost spreading under him), then he rises on the burst. */
+  private novaCharge(r: CastRun): void {
+    const T = r.timings, me = this.me(r);
+    this.floor('floor_frost', me.x, me.y, 240, T.startup + 300, { add: true, run: r, a: kf([0, 0], [0.6, 0.9], [1, 0.5]), s: kf([0, 0.3], [1, 1, out3]) });
+    this.glow(0, 0, 150, 0x8fdcff, T.startup + 80, { follow: () => { const c = this.ctx.casterPos(r.attackerId); return c ? { x: c.x, y: c.y - c.z - 50, d: c.y } : null; }, alpha: 0.6 });
+    for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2, d = rnd(110, 160);
+      this.spr({ name: k % 3 ? 'snowflake' : 'frost_mist', x: me.x, y: me.y - me.z - 40, depth: TOP + 3, w: k % 3 ? rnd(14, 22) : 60, life: T.startup, add: true, run: r,
+        mx: (u) => Math.cos(a) * d * (1 - out3(u)), my: (u) => Math.sin(a) * d * 0.45 * (1 - out3(u)), rot: (u) => 300 * u, a: kf([0, 0], [0.25, 0.9], [1, 0.4]) }); }
+  }
+
+  /** Lightning Chain: a storm orb swells in the hand with sparks crackling round it, the world dims a little. */
+  private stormCharge(r: CastRun): void {
+    const T = r.timings, side = sideOf(r);
+    const hand = (): Pt | null => { const h = this.ctx.hand(r.attackerId), c = this.ctx.casterPos(r.attackerId); if (!c) return null; return h ? { x: h.x + side * 10, y: h.y, d: c.y } : { x: c.x + side * 34, y: c.y - c.z - 72, d: c.y }; };
+    this.ctx.darken(T.startup + T.active, 0.22);
+    this.spr({ name: 'storm_orb', w: 90, life: T.startup + T.active, follow: hand, add: true, glow: 0.7, run: r, sx: kf([0, 0.25], [0.4, 1, out3], [0.95, 1.15], [1, 0.4]), sy: kf([0, 0.25], [0.4, 1, out3], [0.95, 1.15], [1, 0.4]), a: kf([0, 1], [0.9, 1], [1, 0]), rot: (u) => 700 * u });
+    this.glow(0, 0, 140, 0x5cc8ff, T.startup + T.active, { follow: hand, alpha: 0.7 });
+    for (let k = 0; k < 4; k++) this.later(k * (T.startup / 4), () => { const p = hand(); if (!p) return; const a = rnd(0, Math.PI * 2); this.zap({ x: p.x, y: p.y }, { x: p.x + Math.cos(a) * 46, y: p.y + Math.sin(a) * 46 }, { life: 90, width: 2, forks: 1 }); }, r);
+    const me = this.me(r);
+    this.floor('storm_disc', me.x, me.y, 170, T.startup + T.active + 200, { add: true, glow: 0.4, spin: 120, run: r, a: kf([0, 0], [0.2, 0.8], [0.85, 0.8], [1, 0]) });
+  }
+
   /** Astral Lift: an open hand of starlight rises over the target spot, closes into a fist and lifts. */
   private starHand(r: CastRun): void {
     const T = r.timings, side = sideOf(r), c0 = this.me(r);
-    const cx = c0.x + r.aim.x * 60, cy = c0.y + r.aim.y * 60;
+    const cx = c0.x + r.aim.x * 80, cy = c0.y + r.aim.y * 80;
     this.spr({ name: 'hand_open', x: cx, y: cy - 90, depth: cy + 4, w: 110, life: T.startup + 40, flipX: side < 0, add: true, glow: 0.4, run: r,
       sx: kf([0, 0.5], [0.6, 1, out3]), sy: kf([0, 0.5], [0.6, 1, out3]), a: kf([0, 0], [0.3, 0.9], [1, 1]), my: (u) => 20 * (1 - out(u)) });
     this.spr({ name: 'hand_fist', x: cx, y: cy - 90, depth: cy + 4, w: 100, delay: T.startup, life: T.active + 220, flipX: side < 0, add: true, glow: 0.5, run: r,
@@ -270,12 +420,27 @@ export class MageFx {
     this.floor('ring_arc', o.x + r.aim.x * 110, o.y + r.aim.y * 50, 240, 320, { add: true, a: kf([0, 0.8], [1, 0]), s: kf([0, 0.4], [1, 1.2, out3]) });
   }
 
-  /** Frost Nova: a ring of ice crystals bursts out over the floor, frost spreading behind it. */
-  private nova(me: V3): void {
-    this.floor('ice_ring', me.x, me.y, 300, 520, { a: kf([0, 0.95], [0.6, 0.85], [1, 0]), s: kf([0, 0.25], [0.35, 1, out3], [1, 1.05]) });
-    this.floor('floor_frost', me.x, me.y, 280, 1400, { add: true, a: kf([0, 0], [0.1, 0.85], [0.7, 0.6], [1, 0]), s: kf([0, 0.3], [0.3, 1, out3]) });
-    this.pop('ring_arc', me.x, me.y - me.z - 30, 200, { life: 320, tint: ICE });
-    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; this.spr({ name: 'frost_mist', x: me.x + Math.cos(a) * 90, y: me.y + Math.sin(a) * 36 - 20, depth: me.y + Math.sin(a) * 36 + 2, w: 70, life: 700, delay: 60, a: kf([0, 0], [0.2, 0.7], [1, 0]), sx: kf([0, 0.5], [1, 1.4, out3]), sy: kf([0, 0.5], [1, 1.3, out3]) }); }
+  /** Frost Nova: a blast of cold out of the floor — a flash, a ring of ice racing out, a crown of spikes bursting up round him
+   *  and shattering, a storm of snow; frost stays on the floor. */
+  private nova(r: CastRun): void {
+    const me = this.me(r), x = me.x, y = me.y;
+    this.glow(x, y - 10, 360, 0x9fdcff, 320, { squash: 0.5, depth: y + 2, alpha: 0.7 });
+    this.glow(x, y - me.z - 50, 200, 0xcff6ff, 220, { alpha: 0.45 });
+    this.floor('ice_ring', x, y, 480, 620, { a: kf([0, 1], [0.6, 0.9], [1, 0]), s: kf([0, 0.2], [0.35, 1, out3], [1, 1.06]) });
+    this.ringOut(x, y, 520, 0xcff6ff, 420, { squash: 0.42, depth: y + 1 });
+    this.floor('floor_frost', x, y, 440, 2000, { add: true, a: kf([0, 0], [0.06, 0.9], [0.7, 0.65], [1, 0]), s: kf([0, 0.4], [0.2, 1, out3]) });
+    for (let k = 0; k < 12; k++) { // the crown of spikes
+      const a = (k / 12) * Math.PI * 2, sx = x + Math.cos(a) * 140, sy = y + Math.sin(a) * 58, big = k % 2 === 0, delay = 20 + (k % 4) * 18, w = big ? 76 : 58;
+      this.spr({ name: big ? 'ice_cluster' : 'ice_spike', x: sx, y: sy + 4, oy: 0.95, depth: sy + 1, w, delay, life: 760, flipX: Math.cos(a) < 0,
+        sy: kf([0, 0.05], [0.08, 1.2, out3], [0.16, 1], [0.8, 1], [1, 0.5, inQ]), sx: kf([0, 0.7], [0.08, 1]), a: kf([0, 1], [0.82, 1], [1, 0]) });
+      this.later(delay + 620, () => { this.pop('ice_shards', sx, sy - 30, 44, { life: 240, add: false }); this.burst(sx, sy - 30, { frame: ['snowflake', 'ice_shards'], n: 3, speed: [60, 200], life: [300, 600], scale: [0.06, 0.16], tint: [0xffffff], gravity: 500, add: false, depth: sy + 2 }); });
+    }
+    this.burst(x, y - 40, { frame: 'snowflake', n: 26, speed: [160, 460], life: [380, 820], scale: [0.05, 0.18], tint: [0xffffff, 0xcff6ff], gravity: 180, spin: true });
+    this.burst(x, y - 30, { n: 30, speed: [200, 600], life: [200, 460], scale: [0.04, 0.2], tint: [0xffffff, 0xbfefff, 0x6fc8ff] });
+    for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2; this.spr({ name: 'frost_mist', x: x + Math.cos(a) * 60, y: y + Math.sin(a) * 26 - 16, depth: y + Math.sin(a) * 26 + 2, w: 90, life: 900, delay: 40,
+      mx: (u) => Math.cos(a) * 110 * out(u), my: (u) => Math.sin(a) * 40 * out(u), a: kf([0, 0], [0.15, 0.75], [1, 0]), sx: kf([0, 0.5], [1, 1.5, out3]), sy: kf([0, 0.5], [1, 1.3, out3]) }); }
+    this.ctx.flash?.(0xcff6ff, 0.16, 140);
+    this.shake(180, 0.008); this.ctx.punch(0.03, 220);
   }
 
   /** Glacial Spikes: three rows of spikes erupt one after another along a fan, stand as a wall, then shatter. */
@@ -490,8 +655,9 @@ export class MageFx {
 
   // ------------------------------------------------------------------ projectiles
 
-  projectile(p: Projectile): void {
+  projectile(p: Projectile, r?: CastRun): void {
     if (!this.ready) return;
+    if (r && r.skill.id.startsWith('arcane_bolt')) { this.boltShot(p, r); return; }
     const id = p.skill.id, s = this.ctx.scene;
     const kind: Bolt['kind'] = id === 'origami_flock' ? 'crane' : id === 'arcane_bolt_frost' ? 'frost' : id === 'arcane_bolt_storm' ? 'storm' : id === 'glacial_spikes' ? 'spike' : 'arcane';
     const name = kind === 'crane' ? 'crane_up' : kind === 'frost' ? 'bolt_frost' : kind === 'storm' ? 'bolt_storm' : 'bolt_arcane';
@@ -499,6 +665,8 @@ export class MageFx {
     this.bolts.set(p, { im: mk(kind === 'arcane' || kind === 'storm'), gl: mk(true).setAlpha(kind === 'crane' ? 0 : 0.35), t: 0, trail: 0, kind });
   }
   projectileEnd(p: Projectile): void {
+    const sh = this.shots.get(p);
+    if (sh) { this.shots.delete(p); this.boltEnd(p, sh.lance, sh.tint, sh.el); return; }
     const b = this.bolts.get(p); if (!b) return;
     this.bolts.delete(p); b.im.destroy(); b.gl.destroy();
     if (!this.ready) return;
@@ -530,15 +698,63 @@ export class MageFx {
     }
   }
 
+  private shots = new Map<Projectile, { lance: boolean; tint: number; el: string }>();
+  /** An Arcane Bolt in flight: a bright head, a glow round it and a stream of light behind (the lance: bigger, with streaks). */
+  private boltShot(p: Projectile, r: CastRun): void {
+    const s = this.ctx.scene, lance = r.stage === 2, el = r.skill.id === 'arcane_bolt_frost' ? 'frost' : r.skill.id === 'arcane_bolt_storm' ? 'storm' : 'arcane';
+    const tint = el === 'frost' ? 0xcff6ff : el === 'storm' ? 0x8fe3ff : 0x6fb8ff, name = el === 'frost' ? 'bolt_frost' : el === 'storm' ? 'bolt_storm' : 'bolt_arcane';
+    ensureLight(s);
+    const head = s.add.image(p.x, p.y - p.z, MAGE_KIT, name).setOrigin(0.8, 0.5).setBlendMode(Phaser.BlendModes.ADD);
+    const halo = s.add.image(p.x, p.y - p.z, 'mg-dot').setBlendMode(Phaser.BlendModes.ADD).setTint(tint);
+    const core = s.add.image(p.x, p.y - p.z, 'mg-dot').setBlendMode(Phaser.BlendModes.ADD);
+    const trail = s.add.particles(0, 0, 'mg-dot', { speed: { min: 0, max: 30 }, lifespan: { min: 160, max: lance ? 380 : 260 }, scale: { start: lance ? 0.42 : 0.26, end: 0 }, alpha: { start: 0.8, end: 0 },
+      tint: [0xffffff, tint, tint], blendMode: 'ADD', frequency: 14, quantity: lance ? 2 : 1 });
+    const fl = p.dx < -0.01, ang = screenAng(p.dx, p.dy), len = lance ? 170 : 100, k = len / head.width;
+    let t = 0, last = 0;
+    this.shots.set(p, { lance, tint, el });
+    this.add({ t: 0, step: (dt) => {
+      if (!this.shots.has(p)) { head.destroy(); halo.destroy(); core.destroy(); trail.stop(); s.time.delayedCall(420, () => trail.destroy()); return false; }
+      t += dt; const x = p.x, y = p.y - p.z, pulse = 1 + 0.08 * Math.sin(t / 28);
+      head.setPosition(x, y).setAngle(fl ? ang - 180 : ang).setFlipX(fl).setScale(k, k * pulse).setDepth(p.y + 3);
+      halo.setPosition(x, y).setDisplaySize((lance ? 130 : 80) * pulse, (lance ? 90 : 56) * pulse).setDepth(p.y + 2).setAlpha(0.7);
+      core.setPosition(x, y).setDisplaySize(lance ? 46 : 28, lance ? 46 : 28).setDepth(p.y + 3.1);
+      trail.setPosition(x - p.dx * 10, y).setDepth(p.y + 1);
+      if (t - last > (lance ? 30 : 60)) { last = t;
+        if (lance) this.img('mg-streak', { x: x - p.dx * 30, y: y + rnd(-8, 8), w: 90, h: 10, angle: fl ? ang - 180 : ang, tint, life: 160, depth: p.y + 1, a: kf([0, 0.8], [1, 0]), sx: kf([0, 1], [1, 0.4]) });
+        if (el === 'frost') this.spr({ name: 'snowflake', x: x - p.dx * 16, y: y + rnd(-6, 6), depth: p.y + 1, w: rnd(10, 16), life: 420, add: true, angle: rnd(0, 360), my: (u) => 18 * u, rot: (u) => 200 * u, a: kf([0, 0.9], [1, 0]) });
+        if (el === 'storm' && Math.random() < 0.6) this.zap({ x: x - p.dx * 8, y: y - 10 }, { x: x - p.dx * 40 + rnd(-8, 8), y: y + rnd(-14, 14) }, { life: 80, width: 1.6, forks: 0 });
+      }
+      return true;
+    } });
+  }
+  /** The bolt's end: a burst of light and sparks (a fizzle where it ran out). */
+  private boltEnd(p: Projectile, lance: boolean, tint: number, el: string): void {
+    const e = p.end ?? { x: p.x, y: p.y, reason: 'range' as const }, x = e.x, y = e.y - p.z;
+    if (e.reason === 'range') { this.glow(x, y, lance ? 90 : 50, tint, 180); this.burst(x, y, { n: 5, speed: [40, 120], life: [120, 240], scale: [0.03, 0.1], tint: [tint] }); return; }
+    const onFoe = e.reason === 'target'; // (the hit itself draws its spark on the foe: here the bolt's own burst, lighter)
+    this.glow(x, y, lance ? 220 : 120, tint, lance ? 300 : 220, { alpha: onFoe ? 0.45 : 0.8 });
+    this.pop(el === 'frost' ? 'ice_shatter' : el === 'storm' ? 'bolt_impact' : 'bolt_burst', x, y, lance ? 230 : 140, { life: lance ? 320 : 240, add: el !== 'frost' });
+    this.ringOut(x, y, lance ? 230 : 130, tint, lance ? 340 : 260);
+    this.burst(x, y, { n: lance ? 26 : 12, speed: [140, lance ? 560 : 380], life: [160, 420], scale: [0.03, lance ? 0.22 : 0.14], tint: [0xffffff, tint], gravity: 300 });
+    if (el === 'frost') this.burst(x, y, { frame: 'snowflake', n: lance ? 10 : 5, speed: [80, 260], life: [300, 600], scale: [0.05, 0.13], tint: [0xffffff], gravity: 260, spin: true });
+    if (lance) { this.shake(110, 0.005); this.flare(x, y, 200, 0xffffff, 260); }
+  }
+
   // ------------------------------------------------------------------ hits and reactions
 
   /** The hit spark of a mage hit on a foe (by element and weight). */
   confirmed(s: FinalSkill, hit: HitEvent, at: V3, heavy: boolean, crit: boolean): void {
-    if (!this.ready || s.slot === 99 && !hit.damage) return;
-    const x = at.x, y = at.y - at.z - 38, el = hit.el;
-    if (crit) this.pop('hit_crit', x, y, 150, { life: 300 });
-    else if (heavy) this.pop(el === 'storm' ? 'bolt_impact' : 'hit_heavy', x, y, 120, { life: 260 });
-    else this.pop(el === 'storm' ? 'bolt_impact' : el === 'frost' ? 'snowflake' : 'spark_arc', x, y, el === 'frost' ? 56 : 76, { life: 200 });
+    if (!this.ready || (s.slot === 99 && !hit.damage)) return;
+    const x = at.x, y = at.y - at.z - 40, el = hit.el, tint = el === 'frost' ? 0xcff6ff : el === 'storm' ? 0x8fe3ff : 0x6fb8ff;
+    const big = crit || heavy;
+    this.glow(x, y, crit ? 200 : big ? 150 : 100, tint, big ? 220 : 170, { alpha: el === 'storm' ? 0.35 : big ? 0.7 : 0.5 });
+    if (crit) this.pop('hit_crit', x, y, 190, { life: 320 });
+    else if (big) this.pop(el === 'storm' ? 'spark_arc' : 'hit_heavy', x, y, el === 'storm' ? 110 : 150, { life: 260 });
+    else this.pop('spark_arc', x, y, 90, { life: 200 });
+    this.burst(x, y, { n: big ? 16 : 8, speed: [120, big ? 460 : 320], life: [140, 380], scale: [0.03, big ? 0.18 : 0.12], tint: [0xffffff, tint], gravity: 240 });
+    if (el === 'frost') this.burst(x, y, { frame: 'snowflake', n: big ? 6 : 3, speed: [60, 200], life: [300, 520], scale: [0.05, 0.12], tint: [0xffffff], gravity: 220, spin: true });
+    if (el === 'storm') for (let k = 0; k < (big ? 3 : 2); k++) { const a = rnd(0, Math.PI * 2); this.zap({ x, y }, { x: x + Math.cos(a) * 50, y: y + Math.sin(a) * 50 }, { life: 110, width: 2, forks: 1 }); }
+    if (big) this.flare(x, y, crit ? 200 : 140, 0xffffff, 220);
   }
 
   /** What a magic reaction looks like on the foe; `id` / `ms`: the frozen / cursed foe and for how long. */
@@ -550,22 +766,33 @@ export class MageFx {
         this.spr({ name: 'frost_mist', x, y: at.y - at.z + 4, depth: at.y + 3, w: 70, life: 900, follow: fp, dz: 3, sx: kf([0, 0.5], [0.4, 1.2, out3]), a: kf([0, 0], [0.15, 0.75], [1, 0]) });
         this.pop('snowflake', x, y - 30, 40, { life: 300 });
         break;
-      case 'freeze': {
+      case 'freeze': { // ice grows up round the foe out of the floor, glowing, snow bursting off it
         const life = Math.max(300, ms);
-        this.spr({ name: 'ice_block', x, y: at.y - at.z + 8, oy: 0.96, depth: at.y + 4, w: 74, life, follow: fp, dz: 4, sy: kf([0, 0.2], [0.04, 1.05, out3], [0.08, 1]), a: kf([0, 0.4], [0.04, 0.85], [0.92, 0.85], [1, 0]) });
-        this.pop('ice_shards', x, y, 70, { life: 240, add: false });
-        this.pop('snowflake', x, y - 50, 50, { life: 300 });
+        this.spr({ name: 'ice_block', x, y: at.y - at.z + 10, oy: 0.96, depth: at.y + 4, w: 112, life, follow: fp, dz: 4, sy: kf([0, 0.1], [0.05, 1.12, out3], [0.1, 1]), sx: kf([0, 0.85], [0.05, 1]), a: kf([0, 0.6], [0.04, 0.9], [0.9, 0.9], [1, 0]) });
+        this.img('mg-dot', { x, y: y - 10, w: 170, tint: 0x9fdcff, life, follow: fp ? () => { const p = fp(); return p ? { ...p, y: p.y - 70 } : null; } : undefined, dz: 5, a: kf([0, 0], [0.05, 0.55], [0.9, 0.4], [1, 0]), sx: (u) => 1 + 0.05 * Math.sin(u * 40) });
+        this.glow(x, y, 200, 0xcff6ff, 240);
+        this.ringOut(at.x, at.y, 200, 0xcff6ff, 360, { squash: 0.42, depth: at.y + 1 });
+        this.burst(x, y - 20, { frame: ['snowflake', 'ice_shards'], n: 12, speed: [100, 320], life: [300, 640], scale: [0.05, 0.16], tint: [0xffffff], gravity: 400, spin: true, add: false });
+        this.shake(100, 0.004);
         break;
       }
-      case 'shatter':
-        this.pop('ice_shatter', x, y - 10, 170, { life: 420, add: false });
-        this.pop('ice_shards', x, y - 20, 120, { life: 380, add: false, delay: 30 });
-        this.pop('hit_crit', x, y - 10, 130, { life: 280 });
-        this.ctx.punch(0.008, 180);
+      case 'shatter': // the ice bursts apart: a flash, a storm of shards, the world stops for a beat
+        this.ctx.hitStop?.(90);
+        this.ctx.flash?.(0xe6fbff, 0.24, 160);
+        this.glow(x, y - 10, 320, 0xcff6ff, 320);
+        this.pop('ice_shatter', x, y - 10, 280, { life: 460, add: false });
+        this.pop('hit_crit', x, y - 10, 200, { life: 300 });
+        this.ringOut(x, y - 10, 300, 0xcff6ff, 420);
+        this.ringOut(at.x, at.y, 320, 0x9fdcff, 460, { squash: 0.42, depth: at.y + 1 });
+        this.burst(x, y - 20, { frame: ['ice_shards', 'snowflake'], n: 28, speed: [220, 640], life: [380, 820], scale: [0.06, 0.22], tint: [0xffffff], gravity: 700, spin: true, add: false });
+        this.burst(x, y - 20, { n: 30, speed: [200, 700], life: [200, 500], scale: [0.04, 0.24], tint: [0xffffff, 0xcff6ff, 0x6fc8ff] });
+        this.shake(240, 0.013); this.ctx.punch(0.045, 260);
         break;
       case 'conduct':
-        this.pop('stun_ring', x, at.y - at.z - 96, 70, { life: 600 });
-        this.pop('bolt_impact', x, y, 110, { life: 240 });
+        this.pop('stun_ring', x, at.y - at.z - 100, 90, { life: 700 });
+        this.glow(x, y, 200, 0x8fe3ff, 260);
+        for (let k = 0; k < 5; k++) this.later(k * 50, () => { const a = rnd(0, Math.PI * 2); this.zap({ x, y }, { x: x + Math.cos(a) * 70, y: y + Math.sin(a) * 60 }, { life: 120, width: 2.4, forks: 2 }); });
+        this.shake(90, 0.004);
         break;
       case 'curse': {
         this.pop('page_cocoon', x, y - 10, 90, { life: 360, add: false });

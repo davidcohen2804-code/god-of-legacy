@@ -181,14 +181,25 @@ const warrior: FinalSkill[] = [
 // The controller (mage spec, 8.10.2026): frost chills / freezes, heavy hits shatter, storm conducts through the chilled
 // (Combat.ts), a rune net on the floor, gravity turned over, gates, the paper crane curse, time. Ordered by Jobs.ts.
 const FROST = 'frost' as const, STORM = 'storm' as const;
+/** Arcane Bolt's three beats (el: the element Attunement gives them). */
+function boltStages(el?: 'frost' | 'storm'): HitEvent[][] {
+  const e = el ? { el } : {}, sp = el === 'storm' ? 860 : 760;
+  return [
+    [H(0, 9, { kind: 'projectile', speed: sp, range: 480, radius: 12 }, { stun: 220, push: 4 }, { ...e })],
+    [H(0, 9, { kind: 'projectile', speed: sp, range: 480, radius: 12 }, { stun: 240, push: 5 }, { ...e })],
+    [H(0, 18, { kind: 'projectile', speed: sp + 140, range: 520, radius: 20, pierce: true }, { stun: 380, push: 30 }, { heavy: true, ...e })],
+  ];
+}
 const mage: FinalSkill[] = [
   S({
     id: 'arcane_bolt', cls: 'book_mage', slot: 0, name: 'Arcane Bolt', roles: ['basic', 'projectile'], targeting: 'mouseProjectile',
-    startup: 90, active: 0, recovery: 130, cooldown: 450, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: { startup: 0.8, active: 0.8, recovery: 0.8 },
-    hits: [H(0, 11, { kind: 'projectile', speed: 720, range: 480, radius: 10 }, { stun: 140, push: 4 })],
-    cancelOnHit: ['arcane_wave', 'astral_burst', 'blink'],
-    description: 'A fast bolt of arcane light — you keep walking while you cast it (80% speed). From the 2nd job it takes the element of your last spell (Attunement): a frost bolt chills, a storm bolt conducts, an arcane bolt pierces.',
-    relations: ['Cast while moving', 'Element of the last spell'],
+    startup: 80, active: 0, recovery: 120, cooldown: 0, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: { startup: 0.8, active: 0.8, recovery: 0.8 },
+    hits: boltStages()[0],
+    // a three-beat rhythm: two quick bolts, then a heavy arcane lance that pierces, throws the foe back (and shatters the frozen)
+    chain: { resetMs: 650, stages: boltStages(), timings: [{ startup: 80, active: 0, recovery: 120 }, { startup: 70, active: 0, recovery: 130 }, { startup: 170, active: 0, recovery: 230 }] },
+    cancelOnHit: ['arcane_wave', 'astral_burst', 'blink', 'frost_nova', 'lightning_chain', 'glacial_spikes'],
+    description: 'Tap or hold Space: two quick bolts, then a heavy arcane lance that flies through foes and throws them back. You keep walking while you cast (80% speed). From the 2nd job they take the element of your last spell (Attunement): frost bolts chill, storm bolts conduct.',
+    relations: ['3-beat chain', 'Lance shatters the frozen'],
   }),
   S({
     id: 'arcane_wave', cls: 'book_mage', slot: 1, name: 'Arcane Wave', roles: ['confirm', 'peel'], targeting: 'mouseLine',
@@ -210,25 +221,28 @@ const mage: FinalSkill[] = [
   S({
     id: 'astral_burst', cls: 'book_mage', slot: 3, name: 'Astral Lift', roles: ['launcher', 'pull'], targeting: 'selfAim',
     startup: 180, active: 140, recovery: 220, cooldown: 6000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 28, { kind: 'circle', radius: 104, at: 'aimBias', bias: 60 }, { stun: 420, pull: 26, launch: 130, juggleCost: 30 }, { reachUp: 130, heavy: true })],
+    hits: [H(0, 28, { kind: 'circle', radius: 120, at: 'aimBias', bias: 80 }, { stun: 420, pull: 44, launch: 130, juggleCost: 30 }, { reachUp: 130, heavy: true })],
     cancelOnHit: ['lightning_chain', 'arcane_wave', 'blink', 'arcane_bolt'], telegraph: 'circle',
     description: 'A hand of starlight seizes the foe, draws it to you and throws it into the air. A heavy blow: on a frozen foe it SHATTERS the ice.',
     relations: ['Launcher', 'Shatters the frozen'],
   }),
   S({
     id: 'frost_nova', cls: 'book_mage', slot: 4, name: 'Frost Nova', roles: ['zone', 'peel'], targeting: 'self',
-    startup: 160, active: 160, recovery: 200, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 20, { kind: 'circle', radius: 140 }, { stun: 200, push: 16 }, { reachUp: 110, el: FROST })],
+    startup: 220, active: 260, recovery: 240, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: 0, lift: 46 }, // he rises a little on the burst of cold, then drops
+    hits: [H(0, 20, { kind: 'circle', radius: 150 }, { stun: 340, push: 6 }, { reachUp: 120, el: FROST }),
+      H(160, 8, { kind: 'circle', radius: 175 }, { stun: 300, push: 4 }, { reachUp: 140 })],
     cancelOnHit: ['glacial_spikes', 'astral_burst', 'blink', 'arcane_bolt'], telegraph: 'circle',
     description: 'A ring of ice bursts out across the floor around you. It CHILLS every foe it touches; a foe already chilled FREEZES solid.',
     relations: ['Chill', 'Freezes the chilled'],
   }),
   S({
     id: 'lightning_chain', cls: 'book_mage', slot: 5, name: 'Lightning Chain', roles: ['airExtender', 'precision'], targeting: 'mouseTarget',
-    startup: 130, active: 300, recovery: 190, cooldown: 5000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    startup: 170, active: 420, recovery: 200, cooldown: 5000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     hits: [
-      H(0, 14, { kind: 'chain', corridor: 360, width: 60, jump: 0 }, { stun: 220, float: true, juggleCost: 14 }, { reachUp: 160, el: STORM }),
-      ...[90, 180, 270].map((t) => H(t, 9, { kind: 'chain', corridor: 360, width: 60, jump: 180 }, { stun: 200, float: true, juggleCost: 6 }, { reachUp: 160, el: STORM })),
+      H(0, 14, { kind: 'chain', corridor: 380, width: 70, jump: 0 }, { stun: 300, float: true, juggleCost: 14 }, { reachUp: 170, el: STORM, heavy: true }),
+      ...[100, 200, 300].map((t) => H(t, 9, { kind: 'chain', corridor: 380, width: 70, jump: 200 }, { stun: 280, float: true, juggleCost: 6 }, { reachUp: 170, el: STORM })),
+      H(400, 8, { kind: 'chain', corridor: 380, width: 70, jump: 0 }, { stun: 320, push: 18, float: true, juggleCost: 6 }, { reachUp: 170, el: STORM }),
     ],
     cancelOnHit: ['arcane_wave', 'blink', 'storm_field', 'levity_field', 'time_collapse'], telegraph: 'line',
     description: 'Lightning seizes the first foe in front of you and leaps on to 3 more, holding them in the air. Through CHILLED foes it CONDUCTS: a longer shock.',
@@ -341,9 +355,8 @@ const mage: FinalSkill[] = [
 ];
 /** Arcane Bolt as Attunement turns it (the element of the last spell): cast in its place, never on the skill bar. */
 const mageBolts: FinalSkill[] = (['frost', 'storm', 'arcane'] as const).map((e) => {
-  const b = mage[0];
-  return { ...b, id: `arcane_bolt_${e}`, name: e === 'frost' ? 'Frost Bolt' : e === 'storm' ? 'Storm Bolt' : 'Arcane Bolt',
-    hits: [H(0, 11, { kind: 'projectile', speed: e === 'storm' ? 820 : 720, range: 480, radius: e === 'frost' ? 12 : 10, ...(e === 'arcane' ? { pierce: true } : {}) }, { stun: 140, push: 4 }, e === 'arcane' ? {} : { el: e })] };
+  const b = mage[0], st = boltStages(e === 'arcane' ? undefined : e);
+  return { ...b, id: `arcane_bolt_${e}`, name: e === 'frost' ? 'Frost Bolt' : e === 'storm' ? 'Storm Bolt' : 'Arcane Bolt', hits: st[0], chain: { ...b.chain!, stages: st } };
 });
 
 // ------------------------------------------------------------------ ARCHER

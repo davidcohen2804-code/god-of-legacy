@@ -388,7 +388,7 @@ export class CombatBody {
       if (shatter) { this.hard.end = now; this.hard.kind = null; out.rx = 'shatter'; R = { ...R, knockdown: undefined, launch: Math.max(R.launch ?? 0, 60), juggleCost: R.juggleCost ?? 10 }; }
       if (storm && (chilled || (hit.conductor && frozen))) { out.rx = out.rx ?? 'conduct'; R = { ...R, stun: (R.stun ?? 150) + (hit.conductor ? 500 : 250) }; }
       if (frost && !shatter) {
-        if (chilled && !frozen) { const d = this.hard.apply('freeze', MAGE.freezeMs, now, this.pvp, !this.pvp); if (d > 0) { out.rx = 'freeze'; out.ccMs = d; out.rxMs = d; this.chillUntil = -1; } }
+        if (chilled && !frozen) { const d = this.hard.apply('freeze', MAGE.freezeMs, now, this.pvp, true); /* (a freeze holds its whole length: time to shatter it) */ if (d > 0) { out.rx = 'freeze'; out.ccMs = d; out.rxMs = d; this.chillUntil = -1; } }
         else if (!frozen) { this.chillUntil = now + MAGE.chillMs; this.slowPct = Math.max(now < this.slowUntil ? this.slowPct : 0, MAGE.chillSlow); this.slowUntil = Math.max(this.slowUntil, now + MAGE.chillMs); out.rx = out.rx ?? 'chill'; }
       }
     }

@@ -263,6 +263,7 @@ export class SkillFx {
     this.mage = new MageFx({
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, hand: (id) => this.handPos?.(id) ?? null,
       punch: (a, ms) => this.punch(a, ms), darken: (ms, a) => this.darken(ms, a), ultimateStage: (r) => this.ultimateStage(r), targetPos: (id) => this.targetPos?.(id) ?? null,
+      shake: (ms, i) => (this.cam ?? this.scene.cameras.main).shake(ms, i), hitStop: (ms) => { this.hitStopLeft = Math.max(this.hitStopLeft, ms); }, flash: (c, a, ms) => this.screenFlash(c, a, ms),
     });
     rt.events.on(RT_EVENTS.cast, (r: CastRun) => this.onCast(r));
     rt.events.on(RT_EVENTS.active, (r: CastRun) => this.onActive(r));
@@ -963,7 +964,7 @@ export class SkillFx {
 
   private onProjectile(p: Projectile, r: CastRun): void {
     if (p.skill.cls === 'samurai') { this.sam.projectile(p); return; }
-    if (p.skill.cls === 'book_mage') { this.mage.projectile(p); return; }
+    if (p.skill.cls === 'book_mage') { this.mage.projectile(p, r); return; }
     if (p.skill.id === 'eagle_arrow' && this.scene.textures.exists('afx-eagle')) { // the spirit eagle (drawn from above) flies toward the aim
       const img = this.scene.add.image(p.x, p.y - p.z, 'afx-eagle', 0).setDepth(p.y).setBlendMode(Phaser.BlendModes.NORMAL).setOrigin(488 / 512, 0.5)
         .setDisplaySize(420, 210).setAngle(Math.atan2(p.dy, p.dx) * (180 / Math.PI));
@@ -1972,6 +1973,12 @@ export class SkillFx {
   samSkid(x: number, y: number): void { this.sam.skid(x, y); }
 
   /** The world darkens round the fight for `ms` (big skills). */
+  /** A soft additive flash of light over the whole view. */
+  screenFlash(color: number, alpha: number, ms: number): void {
+    const cam = this.cam ?? this.scene.cameras.main, v = cam.worldView;
+    const f = this.scene.add.rectangle(v.x - 100, v.y - 100, v.width + 200, v.height + 200, color, alpha).setOrigin(0, 0).setDepth(TOP + 40).setBlendMode(Phaser.BlendModes.ADD);
+    this.scene.tweens.add({ targets: f, alpha: 0, duration: ms, ease: 'Quad.easeOut', onComplete: () => f.destroy() });
+  }
   darken(ms: number, alpha: number): void {
     const cam = this.cam ?? this.scene.cameras.main;
     if (!this.dark) this.dark = this.scene.add.rectangle(0, 0, 4000, 3000, 0x05030a, 0).setOrigin(0, 0).setDepth(TOP - 10);
