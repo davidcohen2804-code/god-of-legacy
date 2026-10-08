@@ -1930,7 +1930,7 @@ export class SkillFx {
         if (!this.dark) this.dark = this.scene.add.rectangle(0, 0, 4000, 3000, 0x05030a, 0).setOrigin(0, 0).setDepth(TOP - 10);
         this.dark.setPosition(cam.worldView.x - 200, cam.worldView.y - 200); this.darkLeft = T.startup + T.active + 120;
         this.scene.tweens.add({ targets: this.dark, fillAlpha: 0.38, duration: Math.min(220, T.startup) });
-        if (sheet) this.play(key, cx, cy - 70, R * 2.2, R * 2.2, [T.startup * 0.5, T.startup * 0.5, 80, 80, 80, 80, 150, 220], { depth: TOP, alpha: 0.88, loop: [2, 5], until: T.startup + T.active - 120, loopMs: 70, fadeLast: 220 });
+        if (sheet) this.play(key, cx, cy - 70, R * 2.2, R * 2.2, [T.startup * 0.5, T.startup * 0.5, 80, 80, 80, 80, 150, 220], { depth: TOP, alpha: 0.8, loop: [2, 5], until: T.startup + T.active - 120, loopMs: 70, fadeLast: 220 });
         for (let t = 0; t < T.active - 40; t += 40) this.scene.time.delayedCall(T.startup + t, () => {
           for (let n = 0; n < (sheet ? 1 : 3); n++) { const ang = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * R; this.slashLine(cx + Math.cos(ang) * d, cy + Math.sin(ang) * d * 0.5 - 60, 120 + Math.random() * 120, side, Math.random() < 0.25); }
         });
