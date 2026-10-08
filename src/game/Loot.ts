@@ -1,38 +1,81 @@
-// Early-game loot: gold and potions. Monsters drop them on the floor when defeated; walking over them picks them up.
-// Potions sit on two hotkeys (HP / MP) next to the skill dock; each one restores a share of the max.
+// Early-game items: food and potions (HP / MP), buff potions, the Return Scroll, the Elixir and monster materials, plus
+// gold. Monsters drop them on the floor (their own drop table), walking over them picks them up, Mira's shop sells them.
+// Recovery is a fixed amount (bigger items for bigger HP pools later); HP costs ~1.2 gold a point, MP ~2.7.
 
-export type PotionId = 'red_potion' | 'blue_potion';
-export interface PotionDef { id: PotionId; name: string; stat: 'hp' | 'mp'; share: number; icon: string; color: string }
-export const POTIONS: Record<PotionId, PotionDef> = {
-  red_potion: { id: 'red_potion', name: 'Red Potion', stat: 'hp', share: 0.4, icon: 'assets/final/items/red_potion.png', color: '#ff7a6b' },
-  blue_potion: { id: 'blue_potion', name: 'Blue Potion', stat: 'mp', share: 0.4, icon: 'assets/final/items/blue_potion.png', color: '#7fb6ff' },
+export type ItemKind = 'hp' | 'mp' | 'both' | 'pct' | 'buff' | 'scroll' | 'mat';
+export interface ItemDef {
+  id: string; name: string; kind: ItemKind; icon: string;
+  hp?: number; mp?: number; /** pct: share of max HP and MP */ pct?: number;
+  buff?: { stat: 'dmg' | 'speed'; mul: number; ms: number };
+  /** Shop price (absent: not sold) and what the shop pays for one. */
+  price?: number; sell: number;
+  desc: string;
+}
+const I = (id: string) => `assets/final/items/${id}.png`;
+const MIN = 60_000;
+export const ITEMS: Record<string, ItemDef> = {
+  apple: { id: 'apple', name: 'Apple', kind: 'hp', icon: I('apple'), hp: 15, price: 20, sell: 10, desc: 'Restores 15 HP.' },
+  red_potion: { id: 'red_potion', name: 'Red Potion', kind: 'hp', icon: I('red_potion'), hp: 40, price: 50, sell: 25, desc: 'Restores 40 HP.' },
+  meat: { id: 'meat', name: 'Meat', kind: 'hp', icon: I('meat'), hp: 60, price: 80, sell: 40, desc: 'Restores 60 HP.' },
+  orange: { id: 'orange', name: 'Orange', kind: 'mp', icon: I('orange'), mp: 20, price: 50, sell: 25, desc: 'Restores 20 MP.' },
+  blue_potion: { id: 'blue_potion', name: 'Blue Potion', kind: 'mp', icon: I('blue_potion'), mp: 80, price: 220, sell: 110, desc: 'Restores 80 MP.' },
+  cake: { id: 'cake', name: 'Cake', kind: 'both', icon: I('cake'), hp: 40, mp: 40, price: 150, sell: 75, desc: 'Restores 40 HP and 40 MP.' },
+  warrior_potion: { id: 'warrior_potion', name: 'Warrior Potion', kind: 'buff', icon: I('warrior_potion'), buff: { stat: 'dmg', mul: 1.1, ms: 10 * MIN }, price: 400, sell: 200, desc: 'Damage +10% for 10 minutes.' },
+  swift_potion: { id: 'swift_potion', name: 'Swift Potion', kind: 'buff', icon: I('swift_potion'), buff: { stat: 'speed', mul: 1.1, ms: 10 * MIN }, price: 300, sell: 150, desc: 'Movement speed +10% for 10 minutes.' },
+  return_scroll: { id: 'return_scroll', name: 'Return Scroll', kind: 'scroll', icon: I('return_scroll'), price: 400, sell: 200, desc: 'Returns you to the Legacy Courtyard.' },
+  elixir: { id: 'elixir', name: 'Elixir', kind: 'pct', icon: I('elixir'), pct: 0.5, sell: 500, desc: 'Restores 50% of max HP and MP.' },
+  rust_shard: { id: 'rust_shard', name: 'Rust Shard', kind: 'mat', icon: I('rust_shard'), sell: 5, desc: 'A broken piece of a rusted blade. Merchants buy it.' },
+  cursed_cloth: { id: 'cursed_cloth', name: 'Cursed Cloth', kind: 'mat', icon: I('cursed_cloth'), sell: 12, desc: 'A scrap of cloth that still hums with a curse. Merchants buy it.' },
 };
-export const POTION_IDS: PotionId[] = ['red_potion', 'blue_potion'];
-export const GOLD_ICON = { small: 'assets/final/items/gold_small.png', big: 'assets/final/items/gold_big.png' };
+export const ITEM_IDS = Object.keys(ITEMS);
+/** One short line for lists: "+40 HP", "+10% damage · 10 min". */
+export function shortDesc(d: ItemDef): string {
+  if (d.kind === 'buff' && d.buff) return `+${Math.round((d.buff.mul - 1) * 100)}% ${d.buff.stat === 'dmg' ? 'damage' : 'speed'} · ${Math.round(d.buff.ms / 60000)} min`;
+  if (d.kind === 'pct') return `${Math.round((d.pct ?? 0) * 100)}% HP and MP`;
+  if (d.kind === 'scroll') return 'Back to the Courtyard';
+  if (d.kind === 'mat') return 'Material';
+  return [d.hp ? `+${d.hp} HP` : '', d.mp ? `+${d.mp} MP` : ''].filter(Boolean).join('  ');
+}
+/** Usable from the bag / a hotkey. */
+export const usable = (id: string): boolean => !!ITEMS[id] && ITEMS[id].kind !== 'mat';
+/** Mira's shelf, in order. */
+export const SHOP = ['apple', 'red_potion', 'meat', 'orange', 'blue_potion', 'cake', 'warrior_potion', 'swift_potion', 'return_scroll'];
+
+export const GOLD_ICON = { small: I('gold_small'), big: I('gold_big') };
 /** Gold at or above this drops as the big pile. */
-export const GOLD_BIG = 40;
-/** Between two potions of the same kind (ms). */
+export const GOLD_BIG = 12;
+/** Between two uses of the same hotkey (ms). */
 export const POTION_DELAY = 400;
 export const BAG_MAX = 999;
 export const GOLD_MAX = 999_999_999;
 /** What a new character starts with. */
-export const STARTER_BAG: Record<PotionId, number> = { red_potion: 10, blue_potion: 5 };
+export const STARTER_BAG: Record<string, number> = { red_potion: 10, blue_potion: 5 };
+/** The two item hotkeys (8 / 9) by default. */
+export const DEFAULT_QUICK: [string, string] = ['red_potion', 'blue_potion'];
 
-export interface Drop { kind: 'gold' | 'item'; id?: PotionId; amount: number }
-/** A defeated monster's drops: always some gold (by its EXP), sometimes a potion. */
-export function rollDrops(exp: number, rnd: () => number = Math.random): Drop[] {
-  const out: Drop[] = [{ kind: 'gold', amount: Math.max(1, Math.round(exp * (0.8 + rnd() * 0.6) + 2)) }];
-  const r = rnd();
-  if (r < 0.16) out.push({ kind: 'item', id: 'red_potion', amount: 1 });
-  else if (r < 0.26) out.push({ kind: 'item', id: 'blue_potion', amount: 1 });
+/** Each monster kind's drops: gold [min, max] always; items each on its own chance. */
+const DROPS: Record<string, { gold: [number, number]; items: [string, number][] }> = {
+  rusted: { gold: [3, 6], items: [['rust_shard', 0.4], ['apple', 0.08], ['orange', 0.06], ['red_potion', 0.04]] },
+  cursed: { gold: [8, 14], items: [['cursed_cloth', 0.35], ['meat', 0.06], ['red_potion', 0.06], ['blue_potion', 0.04], ['elixir', 0.003]] },
+};
+
+export interface Drop { kind: 'gold' | 'item'; id?: string; amount: number }
+export function rollDrops(kind: string | undefined, exp: number, rnd: () => number = Math.random): Drop[] {
+  const t = (kind && DROPS[kind]) || { gold: [Math.max(1, Math.round(exp * 0.25)), Math.max(2, Math.round(exp * 0.45))] as [number, number], items: [] };
+  const out: Drop[] = [{ kind: 'gold', amount: t.gold[0] + Math.floor(rnd() * (t.gold[1] - t.gold[0] + 1)) }];
+  for (const [id, p] of t.items) if (rnd() < p) out.push({ kind: 'item', id, amount: 1 });
   return out;
 }
 
-/** Stored bag made safe: known potions only, whole counts 0..BAG_MAX. */
-export function cleanBag(raw: unknown): Record<PotionId, number> {
-  const b = { red_potion: 0, blue_potion: 0 };
-  if (raw && typeof raw === 'object') for (const id of POTION_IDS) { const v = (raw as Record<string, unknown>)[id]; if (typeof v === 'number' && Number.isInteger(v) && v >= 0) b[id] = Math.min(BAG_MAX, v); }
+/** Stored bag made safe: known items only, whole counts 1..BAG_MAX. */
+export function cleanBag(raw: unknown): Record<string, number> {
+  const b: Record<string, number> = {};
+  if (raw && typeof raw === 'object') for (const id of ITEM_IDS) { const v = (raw as Record<string, unknown>)[id]; if (typeof v === 'number' && Number.isInteger(v) && v > 0) b[id] = Math.min(BAG_MAX, v); }
   return b;
 }
+export const cleanQuick = (raw: unknown): [string, string] => {
+  const q = Array.isArray(raw) ? raw : [];
+  return [0, 1].map((i) => (typeof q[i] === 'string' && usable(q[i]) ? q[i] : DEFAULT_QUICK[i])) as [string, string];
+};
 export const cleanGold = (v: unknown): number => (typeof v === 'number' && Number.isInteger(v) && v >= 0 ? Math.min(GOLD_MAX, v) : 0);
 export const fmtGold = (n: number): string => n.toLocaleString('en-US');

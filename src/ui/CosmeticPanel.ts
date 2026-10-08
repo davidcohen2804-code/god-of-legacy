@@ -20,7 +20,7 @@ import { keyLabel, loadBindings } from '../game/KeyBindings';
 import { GEAR, GearItem, GearSlot, GearState, SLOT_NAMES, WornLook, bagItems, gearStats, itemName, starterGear, takeOff, wear, wornItem, wornLook } from '../items/Gear';
 import { ICONS, IconName, ensureTheme } from './theme';
 import { hasJob } from '../skills/Jobs';
-import { POTIONS, POTION_IDS, PotionId } from '../game/Loot';
+import { ITEMS, ITEM_IDS, usable } from '../game/Loot';
 
 type Tab = 'inventory' | 'shop';
 type InvCat = 'equipped' | 'owned' | 'sets' | 'fashion' | 'weapon' | 'headface' | 'back' | 'aura';
@@ -118,6 +118,17 @@ const CSS = `
 .gol-cp .bag{display:grid;grid-template-columns:repeat(8,${SLOT}px);gap:${GAP}px}
 .gol-cp .bag.wide{grid-template-columns:repeat(12,${SLOT}px);justify-content:center}
 .gol-cp .sl.it{cursor:pointer;position:relative}
+.gol-cp .sl.it.sel{border-color:var(--gl-gold);box-shadow:0 0 0 2px rgba(231,196,124,.35)}
+.gol-cp .sl .qk{position:absolute;left:4px;top:3px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:5px;background:rgba(9,14,24,.88);border:1px solid rgba(231,196,124,.5);
+  font:700 10.5px/14px var(--gl-body);font-style:normal;color:var(--gl-gold2);text-align:center}
+.gol-cp .ibar{position:absolute;left:0;right:0;bottom:0;height:64px;display:flex;align-items:center;gap:14px;padding:0 16px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid var(--gl-line)}
+.gol-cp .ibar img{width:44px;height:44px;flex:none}
+.gol-cp .ibar .ix{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.gol-cp .ibar .ix b{font:700 15px var(--gl-body);color:var(--gl-text)}
+.gol-cp .ibar .ix span{font:500 13px var(--gl-body);color:var(--gl-text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gol-cp .ibar .gl-btn{flex:none;min-width:96px;height:38px;padding:0 16px}
+.gol-cp .ibar .ihint,.gol-cp .ibar .isell{font:500 13.5px var(--gl-body);color:var(--gl-text3)}
+.gol-cp .ibar .isell{color:var(--gl-gold2);font-weight:700}
 .gol-cp .sl .cnt{position:absolute;right:6px;bottom:3px;font:700 13px/16px var(--gl-body);font-style:normal;color:#fff;text-shadow:0 1px 2px #000,0 0 4px #000;font-variant-numeric:tabular-nums}
 .gol-cp .sl.it:hover{border-color:rgba(231,196,124,.55);transform:translateY(-2px)}
 .gol-cp .soonhint{margin-top:22px;text-align:center;font:500 14.5px var(--gl-body);color:var(--gl-text2)}
@@ -265,6 +276,11 @@ export class CosmeticPanel {
   private tip!: HTMLDivElement;
   private invHint!: HTMLDivElement;
   private goldEl?: HTMLElement;
+  private selItem: string | null = null;
+  /** Bag actions from the game (use an item, set it on an item key). */
+  itemActions?: { use: (id: string) => void; setQuick: (i: 0 | 1, id: string) => void; quick: () => [string, string]; keys: () => [string, string] };
+  /** The bag changed (pickup, use, shop): redraw if it is on screen. */
+  refreshBag(): void { if (this.goldEl) this.goldEl.textContent = (this.character.gold ?? 0).toLocaleString('en-US'); if (this.mainTab === 'items' || this.mainTab === 'materials') this.renderMain(); }
   private shopCat: ShopCat = 'all';
   private selected: string | null = null;
   private tryOn: Equipped = {};
@@ -450,15 +466,31 @@ export class CosmeticPanel {
     }
     const wrap = this.el('div', 'bagwrap', c); wrap.style.left = '24px';
     const top = this.el('div', 'bagtop', wrap); this.el('span', 'gl-cap', top, MAIN_TABS.find(([t]) => t === this.mainTab)?.[1] ?? ''); this.toolbar(top);
-    if (this.mainTab === 'items') {
-      const grid = this.el('div', 'bag wide', wrap), bag = this.character.bag ?? {};
-      const have: PotionId[] = POTION_IDS.filter((id) => (bag[id] ?? 0) > 0);
+    if (this.mainTab === 'items' || this.mainTab === 'materials') {
+      const mats = this.mainTab === 'materials', grid = this.el('div', 'bag wide', wrap), bag = this.character.bag ?? {};
+      const have = ITEM_IDS.filter((id) => (bag[id] ?? 0) > 0 && (ITEMS[id].kind === 'mat') === mats);
+      if (this.selItem && !have.includes(this.selItem)) this.selItem = null;
+      const quick = this.itemActions?.quick() ?? ['', ''];
       for (let i = 0; i < 48; i++) {
         const cell = this.el('div', 'sl gl-slot', grid), id = have[i]; if (!id) continue;
-        const p = POTIONS[id]; cell.classList.add('it'); const im = this.el('img', '', cell); im.src = p.icon; im.alt = '';
-        this.el('em', 'cnt', cell, String(bag[id])); cell.title = `${p.name} ×${bag[id]} — restores ${Math.round(p.share * 100)}% ${p.stat.toUpperCase()}`;
+        const d = ITEMS[id]; cell.classList.add('it'); cell.classList.toggle('sel', id === this.selItem);
+        const im = this.el('img', '', cell); im.src = d.icon; im.alt = '';
+        this.el('em', 'cnt', cell, String(bag[id]));
+        const q = quick.indexOf(id); if (q >= 0) this.el('em', 'qk', cell, this.itemActions?.keys()[q] ?? '');
+        this.itemTip(cell, id);
+        cell.addEventListener('click', () => { this.selItem = this.selItem === id ? null : id; this.renderMain(); });
       }
-      this.invHint.textContent = 'Potions are used from their hotkeys next to the skill bar';
+      const bar = this.el('div', 'ibar', wrap), sel = this.selItem ? ITEMS[this.selItem] : null;
+      if (sel && this.itemActions) {
+        const im = this.el('img', '', bar); im.src = sel.icon; im.alt = '';
+        const tx = this.el('div', 'ix', bar); this.el('b', '', tx, sel.name); this.el('span', '', tx, sel.desc);
+        if (usable(sel.id)) {
+          const keys = this.itemActions.keys();
+          const u = this.el('button', 'gl-btn pri', bar, 'Use') as HTMLButtonElement; u.type = 'button'; u.addEventListener('click', () => { this.itemActions!.use(sel.id); });
+          for (const i of [0, 1] as const) { const k = this.el('button', 'gl-btn', bar, `Set on ${keys[i] || (i ? 'MP key' : 'HP key')}`) as HTMLButtonElement; k.type = 'button'; k.disabled = quick[i] === sel.id; k.addEventListener('click', () => { this.itemActions!.setQuick(i, sel.id); this.renderMain(); }); }
+        } else this.el('span', 'isell', bar, `Sells for ${sel.sell} gold`);
+      } else this.el('span', 'ihint', bar, mats ? 'Monster materials — sell them to Mira in Sunstone Plaza.' : 'Select an item to use it or put it on an item key.');
+      this.invHint.textContent = '';
       return;
     }
     this.slotGrid(wrap, 48);
@@ -488,6 +520,18 @@ export class CosmeticPanel {
   }
 
   /** Hover card of a gear piece: name, slot, icon, its stats, what a click does. */
+  private itemTip(cell: HTMLElement, id: string): void {
+    cell.addEventListener('mouseenter', () => {
+      const d = ITEMS[id], t = this.tip; t.innerHTML = '';
+      const th = this.el('div', 'th', t); const im = this.el('img', '', th); im.src = d.icon; im.alt = '';
+      const nm = this.el('div', '', th); this.el('div', 'tn', nm, d.name); const tt = this.el('div', 'tt', nm, d.kind === 'mat' ? 'Material' : d.kind === 'buff' ? 'Buff' : d.kind === 'scroll' ? 'Scroll' : 'Recovery'); tt.style.color = 'var(--gl-gold2)';
+      const tb = this.el('div', 'tb', t); this.el('div', 'td', tb, d.desc);
+      this.el('div', 'te', t, `Sells for ${d.sell} gold`);
+      t.classList.add('on');
+    });
+    this.tipFollow(cell);
+  }
+
   private gearTip(cell: HTMLElement, it: GearItem, worn: boolean): void {
     cell.addEventListener('mouseenter', () => {
       const d = GEAR[it.id], t = this.tip; t.innerHTML = '';

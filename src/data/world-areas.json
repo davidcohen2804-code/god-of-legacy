@@ -2747,6 +2747,32 @@
       ]
      ]
     }
+   ],
+   "npcs": [
+    {
+     "id": "mira",
+     "name": "Mira",
+     "title": "Merchant",
+     "x": 640,
+     "y": 470,
+     "art": "mira",
+     "role": "shop",
+     "lines": [
+      "Potions, food, scrolls — and I buy whatever the monsters leave behind!"
+     ]
+    },
+    {
+     "id": "bren",
+     "name": "Bren",
+     "title": "Craftsman",
+     "x": 1060,
+     "y": 470,
+     "art": "bren",
+     "role": "quest",
+     "lines": [
+      "Good cloth, good steel. That's all a man needs."
+     ]
+    }
    ]
   },
   "ruins": {
@@ -4983,7 +5009,136 @@
      "text": "Return to Master Aldric"
     }
    ],
-   "summary": "Master Aldric asked you to prove your sword arm against the Rusted Swordsmen in the Training Grounds."
+   "summary": "Master Aldric asked you to prove your sword arm against the Rusted Swordsmen in the Training Grounds.",
+   "reward": {
+    "gold": 100,
+    "items": {
+     "red_potion": 10
+    }
+   }
+  },
+  {
+   "id": "mira_rust",
+   "giver": "mira",
+   "title": "Rust for Coin",
+   "after": "first_steps",
+   "offer": [
+    "Oh, a new face! I'm Mira — I sell a little of everything to whoever passes through the plaza.",
+    "Those Rusted Swordsmen in the Training Grounds drop shards of their old blades. Smiths pay me good coin for them.",
+    "Bring me ten Rust Shards and I'll make it worth your while — and open my shelves to you."
+   ],
+   "accept": "I'll bring them",
+   "decline": "Maybe later",
+   "progress": [
+    "Ten Rust Shards from the Rusted Swordsmen, east in the Training Grounds. Walk over them to pick them up!"
+   ],
+   "done": [
+    "Ten shards — perfect! Here, take these for the road.",
+    "From now on you can trade with me any time. Anything a monster drops, I'll buy."
+   ],
+   "complete": "Thanks, Mira",
+   "objectives": [
+    {
+     "kind": "collect",
+     "item": "rust_shard",
+     "count": 10,
+     "text": "Collect Rust Shards"
+    },
+    {
+     "kind": "talk",
+     "npc": "mira",
+     "text": "Bring them to Mira (Sunstone Plaza)"
+    }
+   ],
+   "summary": "Mira the merchant wants ten Rust Shards from the Rusted Swordsmen.",
+   "reward": {
+    "gold": 150,
+    "items": {
+     "apple": 15
+    }
+   }
+  },
+  {
+   "id": "bren_cloth",
+   "giver": "bren",
+   "title": "Cloth of the Cursed",
+   "after": "mira_rust",
+   "offer": [
+    "Hm. You're the one who's been clearing out the training grounds, eh? Name's Bren. I mend banners for the Temple.",
+    "The Cursed Swordsmen in the Crimson Ruins wear cloth that still hums with their curse. I can wash it clean and weave it again.",
+    "Fifteen scraps of Cursed Cloth. Do that, and I'll fill your belly and sharpen your arm."
+   ],
+   "accept": "Leave it to me",
+   "decline": "Not now",
+   "progress": [
+    "Fifteen scraps of Cursed Cloth from the Cursed Swordsmen in the Crimson Ruins. Mind their blades."
+   ],
+   "done": [
+    "Fifteen! The curse is weaker than I feared. Here — my wife's cakes, and a Warrior Potion.",
+    "Drink the potion before a hard fight. Your blade will bite deeper for a while."
+   ],
+   "complete": "Thank you, Bren",
+   "objectives": [
+    {
+     "kind": "collect",
+     "item": "cursed_cloth",
+     "count": 15,
+     "text": "Collect Cursed Cloth"
+    },
+    {
+     "kind": "talk",
+     "npc": "bren",
+     "text": "Bring it to Bren (Sunstone Plaza)"
+    }
+   ],
+   "summary": "Bren the craftsman needs fifteen scraps of Cursed Cloth from the Cursed Swordsmen.",
+   "reward": {
+    "gold": 200,
+    "items": {
+     "cake": 10,
+     "warrior_potion": 1
+    }
+   }
+  },
+  {
+   "id": "before_road",
+   "giver": "aldric",
+   "title": "Before the Road",
+   "after": "first_steps",
+   "offer": [
+    "You've grown, but the Temple Road is no place for a beginner.",
+    "Reach level 10, then come back to me. I'll see you're ready for the Masters."
+   ],
+   "accept": "I will",
+   "decline": "Not yet",
+   "progress": [
+    "Level 10 — then come back. The Rusted and the Cursed Swordsmen will teach you well."
+   ],
+   "done": [
+    "Level 10. Good. The four Masters wait at the far end of the Temple Road — one of them will take you as a student.",
+    "Take these. Blue Potions for your skills, and a Return Scroll: read it and it carries you back here."
+   ],
+   "complete": "I'm ready",
+   "objectives": [
+    {
+     "kind": "level",
+     "level": 10,
+     "text": "Reach level 10"
+    },
+    {
+     "kind": "talk",
+     "npc": "aldric",
+     "text": "Return to Master Aldric"
+    }
+   ],
+   "summary": "Master Aldric wants you to reach level 10 before you walk the Temple Road.",
+   "reward": {
+    "gold": 500,
+    "items": {
+     "blue_potion": 20,
+     "return_scroll": 1
+    }
+   }
   }
  ],
  "idle": [

@@ -12,6 +12,7 @@ OUT = G + 'public/assets/world/npc/'; os.makedirs(OUT, exist_ok=True)
 Q = 1.5                       # texture px per world px
 SHEET_SCALE = 108 / 172       # 352-cell body sheets → world px (Body.ts)
 NPCS = {'aldric': {'cols': 4, 'height': 112}, 'gate_guard': {'cols': 4, 'height': 112},
+        'mira': {'cols': 4, 'height': 104}, 'bren': {'cols': 4, 'height': 106},
         # the masters at rest (Temple Road's far end)
         'mage_master_pose': {'cols': 4, 'height': 124, 'baseline': 855}, 'warrior_master_pose': {'cols': 4, 'height': 150},
         'samurai_master_pose': {'cols': 4, 'height': 125},

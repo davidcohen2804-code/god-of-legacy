@@ -37,6 +37,8 @@ export interface Character {
   gold?: number;
   /** Potions carried, by id (absent: the starter potions). */
   bag?: Record<string, number>;
+  /** The items on the two item hotkeys (8 / 9). */
+  quick?: [string, string];
 }
 
 export interface QuestState { state: 'active' | 'done'; progress: number[] }

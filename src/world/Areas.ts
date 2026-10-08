@@ -22,14 +22,17 @@ export interface AreaNpc {
   /** Stands on a block of this height (drawn that much higher, in front of the block). */
   z?: number;
   /** quest: gives the quests whose `giver` is this NPC; talk: just its lines. */
-  role: 'quest' | 'talk'; lines?: string[];
+  role: 'quest' | 'talk' | 'shop'; lines?: string[];
 }
-export interface QuestObjective { kind: 'kill' | 'talk'; mob?: string; npc?: string; count?: number; text: string }
+export interface QuestObjective { kind: 'kill' | 'talk' | 'collect' | 'level'; mob?: string; npc?: string; item?: string; level?: number; count?: number; text: string }
 export interface QuestDef {
   id: string; giver: string; title: string; summary: string;
   /** What the giver says when offering it (last line: accept / decline), while it runs, and when you finish it. */
   offer: string[]; accept: string; decline: string; progress: string[]; done: string[]; complete: string;
   objectives: QuestObjective[];
+  /** Offered only once this quest is done. */
+  after?: string;
+  reward?: { gold?: number; items?: Record<string, number> };
 }
 export interface AreaProp { id: string; foot: Pt[]; h: number; top?: number; occ?: Pt[] }
 export interface AreaDef {

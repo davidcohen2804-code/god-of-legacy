@@ -148,8 +148,8 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){.gol-hud .bar .fill{transition:none}}
 .gol-hud .dim{position:absolute;left:0;top:0;width:1920px;height:1080px;z-index:20;background:rgba(4,7,14,.55);opacity:0;visibility:hidden;transition:opacity .18s,visibility .18s;pointer-events:none}
 .gol-hud.modal .dim{opacity:1;visibility:visible}
-.gol-hud .gol-ql,.gol-hud .gol-pw,.gol-hud .gol-pi,.gol-hud .gol-keys,.gol-hud .gol-dlg{z-index:30}
-.gol-hud.bare > :not(.gol-ql):not(.gol-pw):not(.gol-pi):not(.gol-keys):not(.gol-dlg){visibility:hidden}
+.gol-hud .gol-ql,.gol-hud .gol-pw,.gol-hud .gol-pi,.gol-hud .gol-keys,.gol-hud .gol-dlg,.gol-hud .gol-shop,.gol-hud .gol-stats{z-index:30}
+.gol-hud.bare > :not(.gol-ql):not(.gol-pw):not(.gol-pi):not(.gol-keys):not(.gol-dlg):not(.gol-shop):not(.gol-stats){visibility:hidden}
 .gol-hud .combo{position:absolute;left:${G.combo.x}px;top:${G.combo.y}px;width:${G.combo.w}px;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;transition:opacity .18s}
 .gol-hud .combo .n{display:flex;align-items:baseline;gap:8px;padding:6px 22px 8px;border-radius:999px;background:rgba(13,20,33,.86);border:1px solid rgba(231,196,124,.35);
   box-shadow:0 8px 20px rgba(0,0,0,.35);font:700 34px/1 var(--gl-title);color:var(--gl-gold2);font-variant-numeric:tabular-nums}

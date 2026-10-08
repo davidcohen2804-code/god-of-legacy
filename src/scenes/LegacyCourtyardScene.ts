@@ -45,8 +45,9 @@ import { NetMsg, PeerMeta } from '../pvp/Transport';
 import { genderOf, headLookOf, previewKeyOf } from '../characters/Look';
 import { buildLook, preloadLooks } from '../characters/LookArt';
 import { BOT_ID, BOT_NAME, BOT_NAMES, SparringBot } from '../pvp/SparringBot';
-import { GOLD_BIG, GOLD_ICON, GOLD_MAX, BAG_MAX, POTIONS, POTION_DELAY, POTION_IDS, PotionId, STARTER_BAG, cleanBag, fmtGold, rollDrops } from '../game/Loot';
+import { BAG_MAX, DEFAULT_QUICK, GOLD_BIG, GOLD_ICON, GOLD_MAX, ITEMS, ITEM_IDS, POTION_DELAY, STARTER_BAG, cleanBag, cleanQuick, fmtGold, rollDrops, usable } from '../game/Loot';
 import { AP_PER_LEVEL, BASE_STAT, STAT_KEYS, Derived, StatKey, Stats, autoAssign, baseStats, cleanStats, derive, freeAp, mainStats } from '../game/Stats';
+import { ShopWindow } from '../ui/ShopWindow';
 import { StatsWindow } from '../ui/StatsWindow';
 import { ARENA as PLAZA, AREAS as WORLD_AREAS } from '../world/Areas';
 import { jobsFor } from '../skills/Jobs';
@@ -91,7 +92,7 @@ const MP_FREE = true;
 const MP_REGEN = 0.03, MP_ARENA = 220;
 const MP_CLASS: Record<string, number> = { warrior: 0.8, samurai: 0.9, archer: 1, book_mage: 1.6 };
 /** A skill's MP: none for the regular attack and passives / buffs' own cost by cooldown (the big ones cost more). */
-interface LootDrop { kind: 'gold' | 'item'; id?: PotionId; amount: number; img: Phaser.GameObjects.Image; sh: Phaser.GameObjects.Ellipse;
+interface LootDrop { kind: 'gold' | 'item'; id?: string; amount: number; img: Phaser.GameObjects.Image; sh: Phaser.GameObjects.Ellipse; glow: Phaser.GameObjects.Image; sz: number; bounced: boolean; seed: number; nextGlint: number;
   x: number; y: number; z: number; vx: number; vz: number; landed: boolean; born: number; taken: number; done?: boolean }
 const mpCost = (s: FinalSkill): number => (s.slot === 0 ? 0 : Math.min(60, Math.round(6 + (s.cooldown / 1000) * 2.2)));
 /** The slash-trail art (radiant_blade/slash_trail.jpg, 288 cells): its arc's circle (centre as a fraction of the cell, radius px) and the angle of its bright head (deg, y down). */
@@ -303,9 +304,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private motes?: Phaser.GameObjects.Container;
   /** Gold and potions carried; drops lying on the floor. */
   gold = 0;
-  bag: Record<PotionId, number> = { ...STARTER_BAG };
+  bag: Record<string, number> = { ...STARTER_BAG };
+  /** The items on the two item hotkeys. */
+  quick: [string, string] = [...DEFAULT_QUICK];
   private potionAt = [-Infinity, -Infinity];
+  /** Buff potions running (sim clock). */
+  private itemDmgUntil = -1;
+  private itemSpeedUntil = -1;
+  private useAt: Record<string, number> = {};
   private drops: LootDrop[] = [];
+  shop?: ShopWindow;
   private bindings: Record<BindAction, string> = loadBindings();
 
   constructor() { super('LegacyCourtyardScene'); }
@@ -335,7 +343,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     preloadCosmetics(this, classes && me ? [...new Set([...classes, me.classId])] : classes); // a Beginner still owns its class's items
     preloadPanelArt(this);
     preloadLife(this);
-    for (const [k, f] of [['loot.red_potion', POTIONS.red_potion.icon], ['loot.blue_potion', POTIONS.blue_potion.icon], ['loot.gold_small', GOLD_ICON.small], ['loot.gold_big', GOLD_ICON.big]]) if (!this.textures.exists(k)) this.load.image(k, f);
+    for (const [k, f] of [...ITEM_IDS.map((id) => [`loot.${id}`, ITEMS[id].icon]), ['loot.gold_small', GOLD_ICON.small], ['loot.gold_big', GOLD_ICON.big]]) if (!this.textures.exists(k)) this.load.image(k, f);
+    if (!this.textures.exists('loot.coin')) this.load.spritesheet('loot.coin', 'assets/final/items/coin_spin.png', { frameWidth: 128, frameHeight: 128 });
     for (let n = 0; n < EMOTES; n++) if (!this.textures.exists(`kit.emote_${n}`)) this.load.image(`kit.emote_${n}`, `assets/final/ui/kit/emote_${n}.png`);
     showLoading(this, pvp ? 'PVP ARENA' : 'GOD OF LEGACY');
   }
@@ -357,7 +366,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.cls = playedClass(character) as ClassKey;
     this.stats = cleanStats(character.stats, character.level); this.statD = derive(this.stats, this.cls, character.level);
     this.kit = kitFor(this.cls);
-    this.gold = character.gold ?? 0; this.bag = cleanBag(character.bag ?? STARTER_BAG); this.potionAt = [-Infinity, -Infinity]; this.drops = [];
+    this.gold = character.gold ?? 0; this.bag = cleanBag(character.bag ?? STARTER_BAG); this.quick = cleanQuick(character.quick); this.potionAt = [-Infinity, -Infinity]; this.drops = []; this.itemDmgUntil = -1; this.itemSpeedUntil = -1; this.useAt = {};
     this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.hitBlinkUntil = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
     this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
@@ -473,6 +482,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.skillBook = new SkillBook(this, host, this.game.canvas, this.cls, skillLevel(character), this.allOpen(), pvpRoom || isQAMode() ? undefined : (on) => this.setAllOpen(on)); // arena / QA: all skills open
     this.cosPanel = new CosmeticPanel(this, host, this.game.canvas, character, () => this.equipped, (e) => this.setEquipped(e), (g) => this.onGearChange(g));
     this.skillBook.setEquipped(this.equipped);
+    this.cosPanel.itemActions = { use: (id) => this.useItem(id), setQuick: (i, id) => this.setQuick(i, id), quick: () => this.quick, keys: () => [keyLabel(this.bindings.hpPot), keyLabel(this.bindings.mpPot)] };
     // Behind the big windows (skill book, inventory, shop) the world fades back (the HUD steps aside; the previews stay clear).
     this.veil = this.add.rectangle(-480, -480, 1920 + 960, 1080 + 960, 0x04070e, 0.5).setOrigin(0, 0).setScrollFactor(0).setDepth(1e7).setVisible(false);
     this.cosPanel.keepOutOfPreviews(this.veil);
@@ -487,6 +497,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       answer: (ok) => this.party?.answer(ok), onOpen: () => this.ci?.reset(),
     });
     this.statsWin = new StatsWindow(ov, { add: (k) => this.addStat(k), sub: (k) => this.subStat(k), auto: () => this.autoStats(), reset: () => this.resetStats(), onOpen: (o) => { if (o) this.refreshStats(); this.chatTyping(o); if (!o) this.ci?.reset(); } });
+    this.shop = new ShopWindow(ov, { buy: (id, n) => this.buy(id, n), sell: (id, n) => this.sell(id, n), state: () => ({ gold: this.gold, bag: this.bag }), onOpen: (o) => { this.chatTyping(o); if (!o) this.ci?.reset(); } });
     this.keySettings = new KeySettings(ov, Array.from({ length: SLOT_COUNT }, (_, i) => ({ name: this.kit[i]?.name ?? '', icon: this.kit[i] ? iconUrl(this.kit[i]) : '' })),
       (b) => this.applyKeys(b), (open) => this.chatTyping(open));
     this.chat.add({ kind: 'system', text: pvpRoom ? 'Welcome to the PvP Arena! Press Enter to chat.' : 'Welcome to God Of Legacy! Press Enter to chat.' });
@@ -503,7 +514,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (!this.hud) return;
       this.hud.layout(); this.skillBook?.layout(); this.cosPanel?.layout();
       const big = !!(this.skillBook?.open || this.cosPanel?.open);
-      const small = !!(this.questLog?.isOpen || this.partyUi?.isOpen || this.keySettings?.isOpen || this.npcDialog?.isOpen);
+      const small = !!(this.questLog?.isOpen || this.partyUi?.isOpen || this.keySettings?.isOpen || this.npcDialog?.isOpen || this.shop?.isOpen);
       this.hud.setModal(big ? 'bare' : small ? 'dim' : 'none');
       if (this.veil && this.veil.visible !== big) this.veil.setVisible(big);
       if (this.view) this.hud.update(this.hudState(), this.simMs, d);
@@ -555,6 +566,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.partyUi?.destroy(); this.partyUi = undefined; this.party = undefined;
       this.keySettings?.destroy(); this.keySettings = undefined;
       this.statsWin?.destroy(); this.statsWin = undefined;
+      this.shop?.destroy(); this.shop = undefined;
       this.world?.destroy(); this.world = undefined;
       this.npcDialog?.destroy(); this.npcDialog = undefined;
       this.areaTitle?.destroy(); this.areaTitle = undefined;
@@ -664,7 +676,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const jbs = this.kit.find((x) => x.id === 'judgment_blade'); if (jbs) this.rt!.closeCharges(jbs);
       this.jb = null; this.jbWant = 0;
     }
-    const r = stepKin(k, ms, b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z), b.state === 'free' && !b.push && !this.rt!.ownRun);
+    const r = stepKin(k, ms, b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z, !!this.rt!.ownRun), b.state === 'free' && !b.push && !this.rt!.ownRun);
     if (this.world) settleOnBlocks(k, ms, this.blockHold.y ? 0 : this.ci?.moveY ?? 0, b.state === 'free');
     const ev = b.update(now, ms, r.landed, r.impactVz);
     if (r.landed) {
@@ -702,7 +714,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (hold.x && (Math.sign(inp.moveX) !== hold.x || !k.grounded)) hold.x = 0;
     if (hold.y && (Math.sign(inp.moveY) !== hold.y || !k.grounded)) hold.y = 0;
     const mx = locked || hold.x ? 0 : inp.moveX, my = locked || hold.y ? 0 : inp.moveY;
-    const speed = (inp.running && !locked ? PHYS.run : PHYS.walk) * b.moveScale(now) * this.passives.moveMul;
+    const speed = (inp.running && !locked ? PHYS.run : PHYS.walk) * b.moveScale(now) * this.passives.moveMul * (now < this.itemSpeedUntil ? 1.1 : 1);
     steer(k, rooted ? 0 : mx * speed, rooted ? 0 : my * speed, ms, now < this.leapUntil ? 0.12 : 1); // War Leap keeps its burst
     if ((mx || my) && !rooted) this.dir = dirOf(mx, my, this.dir); // side view only: up/down keeps the facing
     const jumpKey = inp.takeJump() && !locked; // a jump pressed while talking is dropped
@@ -847,66 +859,141 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   // ======================================================================= loot (gold, potions)
 
-  /** A defeated monster's drops pop out of it and land around where it fell. */
+  /** Soft light under a drop and the little star that glints on it (made once). */
+  private lootTextures(): void {
+    if (!this.textures.exists('loot.glow')) {
+      const g = this.make.graphics({ x: 0, y: 0 }, false);
+      for (let r = 32; r > 0; r -= 2) { g.fillStyle(0xfff2c0, 0.05 + (1 - r / 32) * 0.1); g.fillEllipse(32, 16, r * 2, r); }
+      g.generateTexture('loot.glow', 64, 32); g.destroy();
+    }
+    if (!this.textures.exists('loot.glint')) {
+      const g = this.make.graphics({ x: 0, y: 0 }, false); g.fillStyle(0xffffff, 1);
+      g.fillPoints([{ x: 12, y: 0 }, { x: 14, y: 10 }, { x: 24, y: 12 }, { x: 14, y: 14 }, { x: 12, y: 24 }, { x: 10, y: 14 }, { x: 0, y: 12 }, { x: 10, y: 10 }], true);
+      g.generateTexture('loot.glint', 24, 24); g.destroy();
+    }
+    if (!this.anims.exists('loot.coin.spin') && this.textures.exists('loot.coin')) this.anims.create({ key: 'loot.coin.spin', frames: this.anims.generateFrameNumbers('loot.coin', {}), frameRate: 12, repeat: -1 });
+  }
+
+  /** A defeated monster's drops pop out of it in an arc, bounce once and settle around where it fell. */
   private dropLoot(m: Monster): void {
     if (this.arena || !this.character) return;
-    const list = rollDrops(m.kind.exp ?? Math.round(m.kind.hp / 5));
+    this.lootTextures();
+    const list = rollDrops(Object.entries(MOB_KINDS).find(([, k]) => k === m.kind)?.[0], m.kind.exp ?? Math.round(m.kind.hp / 5));
     list.forEach((d, i) => {
-      const key = d.kind === 'gold' ? (d.amount >= GOLD_BIG ? 'loot.gold_big' : 'loot.gold_small') : `loot.${d.id}`;
-      const spread = (i - (list.length - 1) / 2) * 34 + (Math.random() - 0.5) * 14;
-      const x = m.kin.x, y = m.kin.y + (Math.random() - 0.5) * 10;
-      const sz = d.kind === 'gold' ? (d.amount >= GOLD_BIG ? 50 : 36) : 38, img = this.add.image(x, y, key).setOrigin(0.5, 0.9).setDisplaySize(sz, sz);
-      const sh = this.add.ellipse(x, y, 24, 7, 0x000000, 0.3);
-      this.drops.push({ ...d, img, sh, x, y, z: Math.max(10, m.kin.z + 30), vx: spread * 2.2 + (Math.random() - 0.5) * 140, vz: 330, landed: false, born: this.simMs, taken: -1 });
+      const gold = d.kind === 'gold', big = gold && d.amount >= GOLD_BIG;
+      const sz = gold ? (big ? 34 : 28) : 36;
+      const x = m.kin.x, y = m.kin.y + (Math.random() - 0.5) * 12;
+      const img = gold ? this.add.sprite(x, y, 'loot.coin', 0).play({ key: 'loot.coin.spin', startFrame: Math.floor(Math.random() * 8) }) : this.add.image(x, y, `loot.${d.id}`);
+      img.setOrigin(0.5, 0.9).setDisplaySize(sz, sz);
+      if (big) img.setTint(0xfff0c0);
+      const glow = this.add.image(x, y, 'loot.glow').setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
+      if (d.id === 'elixir') glow.setTint(0xff9ad8);
+      const sh = this.add.ellipse(x, y, sz * 0.7, sz * 0.2, 0x000000, 0.3);
+      const spread = (i - (list.length - 1) / 2) * 30;
+      this.drops.push({ ...d, img, sh, glow, sz, x, y, z: Math.max(14, m.kin.z + 34), vx: spread * 2.4 + (Math.random() - 0.5) * 120, vz: 360 + Math.random() * 60,
+        landed: false, bounced: false, born: this.simMs, taken: -1, seed: Math.random() * 6.28, nextGlint: this.simMs + 600 + Math.random() * 1400 });
     });
   }
 
-  /** Drops fall, bob on the floor, get picked up when walked over (a short flight into you), fade after a minute. */
+  /** Drops fly, bounce, bob gently with a soft light under them and a glint now and then; walked over: they swoop into
+   *  you; after a minute they fade. */
   private stepLoot(ms: number, now: number): void {
     const k = this.kin, dt = ms / 1000, alive = this.dead < 0;
     for (const d of this.drops) {
+      let sq = 1;
       if (d.taken >= 0) {
-        const t = Math.min(1, (now - d.taken) / 160);
-        d.x += (k.x - d.x) * t; d.y += (k.y - d.y) * t; d.z += (k.z + 40 - d.z) * t;
-        d.img.setAlpha(1 - t); d.sh.setAlpha(0);
+        const t = Math.min(1, (now - d.taken) / 220), e = t * t;
+        d.x += (k.x - d.x) * e; d.y += (k.y - d.y) * e; d.z = d.z + (k.z + 56 - d.z) * e + Math.sin(t * Math.PI) * 6;
+        d.img.setAlpha(1 - Math.max(0, t - 0.6) / 0.4); d.sh.setAlpha(0); d.glow.setAlpha(0); sq = 1 - t * 0.5;
         if (t >= 1) d.done = true;
       } else if (!d.landed) {
-        d.vz -= 1200 * dt; d.z += d.vz * dt; d.x += d.vx * dt;
+        d.vz -= 1400 * dt; d.z += d.vz * dt; d.x += d.vx * dt;
         if (!footAllowed(d.x, d.y, 0, 8)) { d.x -= d.vx * dt; d.vx = 0; }
-        if (d.z <= 0 && d.vz < 0) { d.z = 0; d.landed = true; }
+        if (d.z <= 0 && d.vz < 0) {
+          d.z = 0;
+          if (!d.bounced) { d.bounced = true; d.vz = -d.vz * 0.32; d.vx *= 0.4; }
+          else { d.landed = true; d.born = now; }
+        }
+        sq = d.z < 4 && d.bounced ? 0.85 : 1;
       } else {
         const age = now - d.born;
-        d.z = 3 + Math.sin(age / 260) * 3;
-        if (age > 60_000) { d.img.setAlpha(Math.max(0, 1 - (age - 60_000) / 3000)); if (age > 63_000) d.done = true; }
-        if (alive && age > 450 && Math.abs(d.x - k.x) < 38 && Math.abs(d.y - k.y) < 22 && k.z - k.supportZ < 50) this.takeDrop(d, now);
+        d.z = 4 + Math.sin(age / 320 + d.seed) * 3.5;
+        d.glow.setAlpha(Math.min(1, age / 300) * (0.55 + Math.sin(age / 420 + d.seed) * 0.2));
+        if (now >= d.nextGlint) { d.nextGlint = now + 1400 + Math.random() * 1800; this.lootGlint(d); }
+        if (age > 60_000) { const f = Math.max(0, 1 - (age - 60_000) / 3000); d.img.setAlpha(f); d.glow.setAlpha(d.glow.alpha * f); if (age > 63_000) d.done = true; }
+        if (alive && age > 250 && Math.abs(d.x - k.x) < 40 && Math.abs(d.y - k.y) < 24 && k.z - k.supportZ < 50) this.takeDrop(d, now);
       }
-      d.img.setPosition(d.x, d.y - d.z).setDepth(actorDepth(d.x, d.y, d.z) - 0.2);
+      d.img.setPosition(d.x, d.y - d.z).setDepth(actorDepth(d.x, d.y, d.z) - 0.2).setDisplaySize(d.sz * (2 - sq), d.sz * sq);
+      d.glow.setPosition(d.x, d.y - 2).setDepth(actorDepth(d.x, d.y, 0) - 0.7).setDisplaySize(d.sz * 1.9, d.sz * 0.75);
       d.sh.setPosition(d.x, d.y - 1).setDepth(actorDepth(d.x, d.y, 0) - 0.6).setScale(Math.max(0.5, 1 - d.z / 120));
     }
-    if (this.drops.some((d) => d.done)) this.drops = this.drops.filter((d) => { if (d.done) { d.img.destroy(); d.sh.destroy(); } return !d.done; });
+    if (this.drops.some((d) => d.done)) this.drops = this.drops.filter((d) => { if (d.done) { d.img.destroy(); d.sh.destroy(); d.glow.destroy(); } return !d.done; });
+  }
+
+  private lootGlint(d: LootDrop): void {
+    const g = this.add.image(d.x + (Math.random() - 0.5) * d.sz * 0.5, d.y - d.z - d.sz * (0.3 + Math.random() * 0.4), 'loot.glint')
+      .setBlendMode(Phaser.BlendModes.ADD).setDepth(actorDepth(d.x, d.y, d.z) + 0.1).setScale(0).setAngle(Math.random() * 45);
+    this.tweens.add({ targets: g, scale: 0.55, angle: g.angle + 60, duration: 220, yoyo: true, ease: 'Sine.easeOut', onComplete: () => g.destroy() });
   }
 
   private takeDrop(d: LootDrop, now: number): void {
-    if (d.kind === 'item' && d.id && this.bag[d.id] >= BAG_MAX) return; // full: it stays on the floor
+    if (d.kind === 'item' && d.id && (this.bag[d.id] ?? 0) >= BAG_MAX) return; // full: it stays on the floor
     d.taken = now;
+    for (let i = 0; i < 2; i++) this.time.delayedCall(i * 90, () => this.lootGlint(d));
     if (d.kind === 'gold') { this.gold = Math.min(GOLD_MAX, this.gold + d.amount); this.hud?.lootFeed(GOLD_ICON.small, `+${fmtGold(d.amount)} Gold`, '#f3d58c'); }
-    else if (d.id) { this.bag[d.id] = Math.min(BAG_MAX, this.bag[d.id] + d.amount); this.hud?.lootFeed(POTIONS[d.id].icon, `${POTIONS[d.id].name} ×${d.amount}`, '#ece5d3'); }
+    else if (d.id) { this.giveItem(d.id, d.amount, false); this.hud?.lootFeed(ITEMS[d.id].icon, `${ITEMS[d.id].name} ×${d.amount}`, '#ece5d3'); }
     this.saveLoot();
   }
 
-  private saveLoot(): void { if (this.character) { this.character.gold = this.gold; this.character.bag = { ...this.bag }; CharacterStore.setLoot(this.character.id, this.gold, this.bag); } }
+  private saveLoot(): void { if (this.character) { this.character.gold = this.gold; this.character.bag = { ...this.bag }; CharacterStore.setLoot(this.character.id, this.gold, this.bag, this.quick); } this.cosPanel?.refreshBag(); this.shop?.refresh(); if (this.world) this.refreshQuests(); }
 
-  /** A potion hotkey: restores its share of max HP / MP (not when already full, dead or out of them). */
-  usePotion(i: 0 | 1): void {
-    const id = POTION_IDS[i], p = POTIONS[id], now = this.simMs, k = this.kin;
-    if (this.arena || this.dead >= 0 || !this.character || now - this.potionAt[i] < POTION_DELAY) return; // the arena: fixed HP, no potions (fair fights, a battle round can't be healed through)
-    if (this.bag[id] <= 0) { this.potionAt[i] = now; this.fx?.callout({ x: k.x, y: k.y, z: k.z + 70 }, `NO ${p.name.toUpperCase()}S`, '#c9ced8', 0); return; }
-    const max = p.stat === 'hp' ? this.maxHpNow() : this.maxMpNow(), cur = p.stat === 'hp' ? this.playerHP : this.mp;
-    if (cur >= max) return;
-    const add = Math.min(max - cur, Math.max(1, Math.round(max * p.share)));
-    if (p.stat === 'hp') this.playerHP = cur + add; else this.mp = cur + add;
-    this.bag[id]--; this.potionAt[i] = now; this.saveLoot();
-    this.fx?.callout({ x: k.x, y: k.y, z: k.z + 46 }, `+${add}`, p.stat === 'hp' ? '#8ff09a' : '#8fc4ff', 1);
+  /** Items into the bag (quest rewards, purchases, pickups). */
+  giveItem(id: string, n: number, save = true): void { if (!ITEMS[id] || n <= 0) return; this.bag[id] = Math.min(BAG_MAX, (this.bag[id] ?? 0) + n); if (save) this.saveLoot(); }
+  /** Items out of the bag (false: not enough). */
+  takeItem(id: string, n: number): boolean { if ((this.bag[id] ?? 0) < n) return false; this.bag[id] -= n; if (this.bag[id] <= 0) delete this.bag[id]; this.saveLoot(); return true; }
+
+  /** An item hotkey (0: key 8, 1: key 9): uses the item set on it. */
+  usePotion(i: 0 | 1): void { if (this.simMs - this.potionAt[i] < POTION_DELAY) return; this.potionAt[i] = this.simMs; this.useItem(this.quick[i], true); }
+  /** Sets an item on an item hotkey. */
+  setQuick(i: 0 | 1, id: string): void { if (!usable(id)) return; this.quick[i] = id; this.saveLoot(); }
+
+  /** Uses one item from the bag: recovery (not when already full), a buff potion, the Return Scroll. */
+  useItem(id: string, fromKey = false): void {
+    const it = ITEMS[id], now = this.simMs, k = this.kin;
+    if (!it || !usable(id) || this.dead >= 0 || !this.character || this.arena) return; // the arena: fixed HP, no items (a battle round can't be healed through)
+    if (now - (this.useAt[id] ?? -Infinity) < POTION_DELAY && !fromKey) return;
+    if ((this.bag[id] ?? 0) <= 0) { this.fx?.callout({ x: k.x, y: k.y, z: k.z + 70 }, `NO ${it.name.toUpperCase()}`, '#c9ced8', 0); return; }
+    if (it.kind === 'scroll') {
+      if (this.warping || this.rt?.ownRun || !this.world) return;
+      this.useAt[id] = now; this.takeItem(id, 1); this.usePortal(); return;
+    }
+    if (it.kind === 'buff' && it.buff) {
+      if (it.buff.stat === 'dmg') this.itemDmgUntil = now + it.buff.ms; else { this.itemSpeedUntil = now + it.buff.ms; }
+      this.useAt[id] = now; this.takeItem(id, 1);
+      this.fx?.callout({ x: k.x, y: k.y, z: k.z + 60 }, it.buff.stat === 'dmg' ? 'DAMAGE UP' : 'SPEED UP', '#ffd27a', 0);
+      this.fx?.shockwave(k.x, k.y, 90, it.buff.stat === 'dmg' ? 0xff9a5a : 0x8aff9a);
+      return;
+    }
+    const mh = this.maxHpNow(), mm = this.maxMpNow();
+    const hp = it.kind === 'pct' ? Math.round(mh * (it.pct ?? 0)) : it.hp ?? 0, mp = it.kind === 'pct' ? Math.round(mm * (it.pct ?? 0)) : it.mp ?? 0;
+    const addH = Math.min(hp, mh - this.playerHP), addM = Math.min(mp, mm - this.mp);
+    if (addH <= 0 && addM <= 0) return; // already full
+    this.playerHP += Math.max(0, addH); this.mp += Math.max(0, addM);
+    this.useAt[id] = now; this.takeItem(id, 1);
+    if (addH > 0) this.fx?.callout({ x: k.x, y: k.y, z: k.z + 46 }, `+${Math.round(addH)}`, '#8ff09a', 1);
+    if (addM > 0) this.fx?.callout({ x: k.x + 18, y: k.y, z: k.z + 30 }, `+${Math.round(addM)}`, '#8fc4ff', 1);
+  }
+
+  /** Mira's shop: null = done, else why not. */
+  private buy(id: string, n: number): string | null {
+    const d = ITEMS[id]; if (!d?.price || n <= 0) return 'Not for sale.';
+    const cost = d.price * n; if (cost > this.gold) return 'Not enough gold.';
+    if ((this.bag[id] ?? 0) + n > BAG_MAX) return 'Your bag cannot hold that many.';
+    this.gold -= cost; this.giveItem(id, n); return null;
+  }
+  private sell(id: string, n: number): string | null {
+    const d = ITEMS[id]; if (!d || n <= 0 || !this.takeItem(id, n)) return 'You do not have that many.';
+    this.gold = Math.min(GOLD_MAX, this.gold + d.sell * n); this.saveLoot(); return null;
   }
 
   /** EXP from a defeated monster: floating +EXP, level ups (full heal, LEVEL UP effect), saved on the character. */
@@ -1189,11 +1276,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.lingers = this.lingers.filter((l) => l.left > 0);
   }
 
-  private blockedByActors(x: number, y: number, z: number): boolean {
+  /** mobs: the open world's monsters count too (skill glides stop at them; walking passes through them, MapleStory-style). */
+  private blockedByActors(x: number, y: number, z: number, mobs = true): boolean {
     const e = this.enemy;
     if (e && e.alive && Math.abs(e.z - z) < 50 && Math.hypot(x - e.x, y - e.y) < STAGE6.enemy.collisionRadius + R) return true;
     if (this.dummyState?.alive && z < 40 && Math.hypot(x - D.x, y - D.y) < D.collisionRadius + R) return true;
-    for (const m of this.world?.mobs ?? []) if (m.alive && Math.abs(m.z - z) < 50 && Math.hypot(x - m.x, y - m.y) < STAGE6.enemy.collisionRadius * m.kind.scale + R) return true;
+    if (mobs) for (const m of this.world?.mobs ?? []) if (m.alive && Math.abs(m.z - z) < 50 && Math.hypot(x - m.x, y - m.y) < STAGE6.enemy.collisionRadius * m.kind.scale + R) return true;
     return false;
   }
 
@@ -1445,7 +1533,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private onJumpKey(): void { if (this.pvpReady && this.dead < 0 && !this.inputLocked()) this.ci?.queueJump(); }
 
   /** Own damage buffs right now: War Cry +20%, Radiant Blade +15% (same as against monsters). */
-  private ownDamageMul(): number { return (this.simMs < this.warCryUntil ? 1.2 : this.simMs < this.allyCryUntil ? 1.1 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * (this.simMs < this.bannerUntil ? 1.1 : 1) * (this.simMs < this.sunUntil ? 1.1 : 1) * (this.simMs < this.godUntil ? 1.15 : 1) * this.passiveDmgMul(); }
+  private ownDamageMul(): number { return (this.simMs < this.warCryUntil ? 1.2 : this.simMs < this.allyCryUntil ? 1.1 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * (this.simMs < this.bannerUntil ? 1.1 : 1) * (this.simMs < this.sunUntil ? 1.1 : 1) * (this.simMs < this.godUntil ? 1.15 : 1) * (this.simMs < this.itemDmgUntil ? 1.1 : 1) * this.passiveDmgMul(); }
 
   private hasteFx?: Phaser.GameObjects.Particles.ParticleEmitter;
   private spiritFx?: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -1958,12 +2046,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   /** Enemy (PvE) strike on the local player: Mirage counter first, then the usual reaction rules. */
-  private enemyStrike(dmg: number, from: { x: number; y: number }): void {
+  private enemyStrike(dmg: number, from: { x: number; y: number }, push = 14): void {
     if (this.dead >= 0 || this.simMs < this.hitBlinkUntil) return; // just hit: untouchable (blinking)
     if (this.inDome()) { this.domeBlock(from); return; }
     if (this.tryCounter(from)) return;
     if (this.tryEvade(from)) return;
-    const hit: HitEvent = { at: 0, damage: dmg, shape: { kind: 'sector', range: 58, angle: 120 }, reaction: { stun: 220, push: 14 } };
+    const hit: HitEvent = { at: 0, damage: dmg, shape: { kind: 'sector', range: 58, angle: 120 }, reaction: { stun: 220, push } };
     const out = this.body.receive('enemy', ENEMY_SKILL, hit, from, this.simMs);
     if (out.reaction === 'armor' && this.simMs < this.body.invulnUntil) { this.fx!.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 }, 'BLOCK!!', '#9ed8ff', 0); this.fx!.shockwave(this.kin.x, this.kin.y, 70, 0x9ed8ff); }
     out.damage = this.takeDamage(out.damage);
@@ -2035,7 +2123,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const hp = this.maxHpNow(), pct = (v: number) => `${Math.round(v * 100)}%`;
     const crit = 0.12 + this.critAddNow(), ev = this.passives.evade + this.statD.evadeAdd;
     const job = this.jobTitle();
-    const spd = this.passives.moveMul * (this.simMs < this.hasteUntil ? 1.2 : 1), jmp = this.passives.jumpMul;
+    const spd = this.passives.moveMul * (this.simMs < this.hasteUntil ? 1.2 : 1) * (this.simMs < this.itemSpeedUntil ? 1.1 : 1), jmp = this.passives.jumpMul;
     this.statsWin.render({
       name: ch.name, job, level: ch.level, expPct: Number.isFinite(expToNext(ch.level)) ? Math.min(100, ((ch.exp ?? 0) / expToNext(ch.level)) * 100) : undefined, stats: this.stats, ap: freeAp(this.stats, ch.level), main: mainStats(this.cls)[0], canReset: STAT_KEYS.some((s) => this.stats[s] > BASE_STAT),
       combat: [
@@ -2178,6 +2266,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.fx?.shockwave(bot.x, bot.y, 220, 0xffd27a);
     this.rt?.cancelAttacker(BOT_ID); bot.destroy(); this.bot = undefined;
     const set = JOB_SET[ch.trial ?? ''] ?? [];   // the Master's reward: his job's set, worn at once
+    this.giveItem('red_potion', 30); this.giveItem('blue_potion', 15); this.chat?.add({ kind: 'system', text: 'Received: Red Potion ×30, Blue Potion ×15' });
     if (set.length) { let g = CharacterStore.getGear(ch.id) ?? starterGear(ch.look); for (const id of set) g = giveItem(g, id, true); CharacterStore.setGear(ch.id, g); ch.gear = CharacterStore.getGear(ch.id) ?? g; this.onGearChange(ch.gear); }
     CharacterStore.clearTrial(ch.id); delete ch.trial;
     this.hud?.banner(job.toUpperCase(), 2200, false);
@@ -2619,10 +2708,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     for (const m of mobs) m.update(ms, {
       player: { x: k.x, y: k.y, z: k.z - k.supportZ, alive: this.dead < 0 },
       now,
-      blocked: (self, x, y) => (this.dead < 0 && this.kin.z < 40 && Math.hypot(x - k.x, y - k.y) < STAGE6.enemy.collisionRadius * self.kind.scale + R)
-        || mobs.some((o) => o !== self && o.alive && Math.hypot(x - o.x, y - o.y) < 26 * Math.max(o.kind.scale, self.kind.scale)),
+      blocked: (self, x, y) => mobs.some((o) => o !== self && o.alive && Math.hypot(x - o.x, y - o.y) < 26 * Math.max(o.kind.scale, self.kind.scale)),
       onStrikePlayer: (m, dmg) => this.enemyStrike(dmg, { x: m.x, y: m.y }),
     });
+    // MapleStory: touching a monster hurts a little and knocks you back, then you blink and can walk through it
+    if (this.dead < 0 && now >= this.hitBlinkUntil && !this.rt?.ownRun) for (const m of mobs) {
+      if (!m.alive || Math.abs(m.z - (k.z - k.supportZ)) > 40 || Math.hypot(m.x - k.x, (m.y - k.y) * 1.6) > STAGE6.enemy.collisionRadius * m.kind.scale + R * 0.6) continue;
+      this.enemyStrike(Math.max(1, Math.round(m.kind.damage * 0.5)), { x: m.x, y: m.y }, 34); break;
+    }
   }
 
   /** The camera along the world, NPC prompts, the portal (every frame). */
@@ -2657,15 +2750,31 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (ready) { say(ready.done, [{ label: ready.complete, main: true, run: () => this.finishQuest(ready) }]); return; }
     const running = mine.find((q) => this.quests[q.id]?.state === 'active');
     if (running) { say(running.progress); return; }
-    const offer = mine.find((q) => !this.quests[q.id]);
+    const offer = mine.find((q) => this.questOpen(q));
     if (offer) { say(offer.offer, [{ label: offer.accept, main: true, run: () => this.takeQuest(offer) }, { label: offer.decline, run: () => undefined }]); return; }
+    if (n.role === 'shop') {
+      const unlocked = !mine.length || mine.every((q) => this.quests[q.id]?.state === 'done');
+      if (unlocked) { say(n.lines?.length ? n.lines : IDLE_LINES, [{ label: "Let's trade", main: true, run: () => this.openShop() }, { label: 'Goodbye', run: () => undefined }]); return; }
+    }
     say(n.lines?.length ? n.lines : IDLE_LINES);
   }
 
+  private openShop(): void { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.statsWin?.close(); this.shop?.open(); }
+
   // ---- quests (the NPC's first missions)
+  /** Can be offered now: not taken yet, the quest before it done. */
+  private questOpen(q: QuestDef): boolean { return !this.quests[q.id] && (!q.after || this.quests[q.after]?.state === 'done'); }
+  /** Progress of one goal: kills counted, items in the bag, the level reached. */
+  private goalHave(q: QuestDef, i: number): number {
+    const o = q.objectives[i], st = this.quests[q.id];
+    if (o.kind === 'collect') return Math.min(o.count ?? 1, this.bag[o.item ?? ''] ?? 0);
+    if (o.kind === 'level') return Math.min(o.level ?? 1, this.character?.level ?? 1);
+    return st?.progress[i] ?? 0;
+  }
+  private goalNeed(o: QuestDef['objectives'][number]): number { return o.kind === 'level' ? o.level ?? 1 : o.count ?? 1; }
   private questReady(q: QuestDef): boolean {
     const st = this.quests[q.id]; if (!st) return false;
-    return q.objectives.every((o, i) => o.kind === 'talk' || (st.progress[i] ?? 0) >= (o.count ?? 1));
+    return q.objectives.every((o, i) => o.kind === 'talk' || this.goalHave(q, i) >= this.goalNeed(o));
   }
 
   private takeQuest(q: QuestDef): void {
@@ -2676,9 +2785,18 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   private finishQuest(q: QuestDef): void {
-    const st = this.quests[q.id]; if (!st) return;
-    st.state = 'done'; st.progress = q.objectives.map((o) => o.count ?? 1);
+    const st = this.quests[q.id]; if (!st || st.state === 'done' || !this.questReady(q)) return; // once
+    for (const o of q.objectives) if (o.kind === 'collect' && o.item) this.takeItem(o.item, o.count ?? 1); // handed over
+    st.state = 'done'; st.progress = q.objectives.map((o) => this.goalNeed(o));
     this.saveQuests();
+    const r = q.reward;
+    if (r) {
+      const got: string[] = [];
+      if (r.gold) { this.gold = Math.min(GOLD_MAX, this.gold + r.gold); got.push(`${fmtGold(r.gold)} Gold`); this.hud?.lootFeed(GOLD_ICON.small, `+${fmtGold(r.gold)} Gold`, '#f3d58c'); }
+      for (const [id, n] of Object.entries(r.items ?? {})) if (ITEMS[id]) { this.giveItem(id, n, false); got.push(`${ITEMS[id].name} ×${n}`); this.hud?.lootFeed(ITEMS[id].icon, `${ITEMS[id].name} ×${n}`, '#ece5d3'); }
+      this.saveLoot();
+      if (got.length) this.chat?.add({ kind: 'system', text: `Received: ${got.join(', ')}` });
+    }
     this.chat?.add({ kind: 'system', text: `Quest complete: ${q.title}` });
     this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'QUEST COMPLETE', '#9dff9a', 0);
     this.fx?.shockwave(this.kin.x, this.kin.y, 110, 0xffe2a0);
@@ -2709,8 +2827,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       return {
         id: q.id, title: q.title, summary: q.summary, done,
         objectives: q.objectives.map((o, i) => ({
-          text: o.kind === 'kill' ? `${o.text}  ${Math.min(st.progress[i] ?? 0, o.count ?? 1)}/${o.count ?? 1}` : o.text,
-          done: done || (o.kind === 'kill' ? (st.progress[i] ?? 0) >= (o.count ?? 1) : false),
+          text: o.kind === 'talk' ? o.text : `${o.text}  ${done ? this.goalNeed(o) : this.goalHave(q, i)}/${this.goalNeed(o)}`,
+          done: done || (o.kind !== 'talk' && this.goalHave(q, i) >= this.goalNeed(o)),
         })).filter((o, i) => q.objectives[i].kind !== 'talk' || ready || done),
       };
     });
@@ -2720,7 +2838,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const mine = QUESTS.filter((q) => q.giver === a);
       const ready = mine.some((q) => this.quests[q.id]?.state === 'active' && this.questReady(q));
       const running = mine.some((q) => this.quests[q.id]?.state === 'active');
-      const open = mine.some((q) => !this.quests[q.id]);
+      const open = mine.some((q) => this.questOpen(q));
       this.world?.setNpcMark(a, ready ? 'ready' : running ? 'progress' : open ? 'available' : null);
     }
   }
@@ -2771,7 +2889,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         hp: this.playerHP, maxHp: this.maxHpNow(), resource: { kind: 'mp', value: Math.round(this.mp), max: this.maxMpNow() }, effects: [...this.buffEffects(), ...this.statusEffects(this.body, now)],
         exp: Number.isFinite(expToNext(ch.level)) ? { value: ch.exp ?? 0, max: expToNext(ch.level) } : undefined,
         job: pvp ? undefined : this.jobTitle(), gold: pvp ? undefined : this.gold,
-        potions: pvp ? undefined : POTION_IDS.map((id, i) => ({ id, name: POTIONS[id].name, iconUrl: POTIONS[id].icon, count: this.bag[id], hotkey: keyLabel(this.bindings[i ? 'mpPot' : 'hpPot']) })),
+        potions: pvp ? undefined : this.quick.map((id, i) => ({ id, name: ITEMS[id].name, iconUrl: ITEMS[id].icon, count: this.bag[id] ?? 0, hotkey: keyLabel(this.bindings[i ? 'mpPot' : 'hpPot']) })),
       },
       target: alive && this.pvpReady ? this.hudTarget() : null,
       slots,
@@ -2788,6 +2906,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       ['bow_haste', 'Bow Haste', this.hasteUntil], ['hunters_spirit', "Hunter's Spirit", this.spiritUntil], ['tree_of_life', 'Tree of Life', this.tree?.until ?? -1],
       ['quick_draw', 'Quick Draw', this.drawUntil], ['rising_sun', 'Rising Sun', this.sunUntil], ['god_of_blades', 'God of Blades', this.godUntil]] as const)
       if (now < until) out.push({ id, label, iconUrl: ic(id), harmful: false, expiresAtMs: until });
+    if (now < this.itemDmgUntil) out.push({ id: 'warrior_potion', label: 'Warrior Potion', iconUrl: ITEMS.warrior_potion.icon, harmful: false, expiresAtMs: this.itemDmgUntil });
+    if (now < this.itemSpeedUntil) out.push({ id: 'swift_potion', label: 'Swift Potion', iconUrl: ITEMS.swift_potion.icon, harmful: false, expiresAtMs: this.itemSpeedUntil });
     return out;
   }
 
