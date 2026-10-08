@@ -18,6 +18,7 @@ from scipy import ndimage
 OWN_FEET = {'jump', 'leap_crash', 'judgment_blade', 'finisher', 'spin_cut', 'falcon_dive', 'retreat_kick', 'skyhunters_step', 'rain_of_arrows', 'air_shot'}
 # frames left out of a cut row (drawn upright inside a leaning run: the body would jump)
 DROP = {}
+HEADY = {}  # cls -> run frames (index, figure height, in the air)
 STRIDES = {}  # (cls, act) -> feet spread per frame (atlas px)
 SCALE = 0.6  # frame size kept in the atlas (source px x SCALE)
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -25,21 +26,21 @@ SRC = os.path.join(ROOT, 'tools', 'heroes', 'src')
 
 # sheet -> its rows in order: (action, frames)
 SPEC = {
-    'warrior': [('A', [('idle', 6), ('walk_old', 6), ('run_old', 6)]), ('W', [('walk', 8), ('run', 8)]), ('B', [('jump', 3), ('stance', 4), ('attack', 6)]),
+    'warrior': [('A', [('idle', 6), ('walk_old', 6), ('run_old', 6)]), ('W', [('walk', 4), ('run', 4)]), ('B', [('jump', 3), ('stance', 4), ('attack', 6)]),
                 ('S1', [('dash_slash', 6), ('rising_slash', 6), ('lance_thrust', 6)]),
                 ('S2', [('ground_breaker', 6), ('leap_crash', 6), ('titans_verdict', 6)]),
                 ('S3', [('whirlwind', 6), ('blade_storm', 6), ('wave_slash', 6)]),
                 ('S4', [('oath', 6), ('radiant_blade', 6), ('banner', 6)]),
                 ('S5', [('war_cry', 6), ('judgment_blade', 6), ('finisher', 6)])],
-    'book_mage': [('A', [('idle', 6), ('walk_old', 6), ('attack', 6)]), ('W', [('walk', 8), ('run', 8)]), ('B', [('run_old', 6), ('jump', 3), ('stance', 4)])],
-    'samurai': [('A', [('idle', 6), ('walk_old', 6), ('attack', 6)]), ('W', [('walk', 8), ('run', 8)]), ('B', [('run_old', 6), ('jump', 3), ('stance', 4)]),
+    'book_mage': [('A', [('idle', 6), ('walk_old', 6), ('attack', 6)]), ('W', [('walk', 4), ('run', 4)]), ('B', [('run_old', 6), ('jump', 3), ('stance', 4)])],
+    'samurai': [('A', [('idle', 6), ('walk_old', 6), ('attack', 6)]), ('W', [('walk', 4), ('run', 4)]), ('B', [('run_old', 6), ('jump', 3), ('stance', 4)]),
                 ('S1', [('shadow_step', 6), ('swallow_cut', 6), ('spin_cut', 6)]),
                 ('S2', [('iai_strike', 6), ('sword_wave', 6), ('mirage', 6)]),
                 ('S3', [('blossom_storm', 6), ('hundred_cuts', 6), ('tornado_blade', 6)]),
                 ('S4', [('falcon_dive', 6), ('dragon_ascension', 6), ('dragon_eclipse', 6)]),
                 ('S5', [('kagemusha', 6), ('sakura_bind', 6), ('rising_sun', 6)]),
                 ('S6', [('phantom_blades', 6), ('god_of_blades', 6), ('finisher', 6)])],
-    'archer': [('A', [('idle', 6), ('walk_old', 6), ('attack', 6)]), ('W', [('walk', 8), ('run', 8)]), ('B', [('run_old', 6), ('jump', 3), ('stance', 4)]),
+    'archer': [('A', [('idle', 6), ('walk_old', 6), ('attack', 6)]), ('W', [('walk', 4), ('run', 4)]), ('B', [('run_old', 6), ('jump', 3), ('stance', 4)]),
                ('S1', [('rising_arrow', 6), ('multi_shot', 6), ('explosive_arrow', 6)]),
                ('S2', [('retreat_kick', 6), ('vine_trap', 6), ('skyhunters_step', 6)]),
                ('S3', [('rain_of_arrows', 6), ('piercing_arrow', 6), ('hunters_roar', 6)]),
@@ -161,7 +162,12 @@ def frames_in_row(rgba, y0, y1, n, cls, act, scale=None):
         # feet anchor: x = torso centre (pixels 25-55 % down the figure), y = the lowest pixel
         bm = m[yy0:yy1, x0:x1] & (crop[..., 3] > 128)
         hh = bm.shape[0]
-        ay = float(hh if act in OWN_FEET else ground - yy0)  # jumps: own feet (the game lifts them); the rest: the row's floor (drawn airborne frames stay up)
+        ay = float(hh if act in OWN_FEET else ground - yy0)
+        if act == 'walk':  # a walking foot is always on the floor: each frame on its own lowest pixel (GPT's feet sit at uneven heights)
+            ay = float(hh)
+        elif act == 'run':  # placed by the head (a run reads by its head): one steady height, lifted evenly in the flight frames
+            HEADY.setdefault(cls, []).append((len(HEADY.get(cls, [])), float(hh), ground - yy1 > 0.04 * hh))
+            ay = float(hh)  # jumps: own feet (the game lifts them); the rest: the row's floor (drawn airborne frames stay up)
         band = bm[int(hh * 0.25):int(hh * 0.55)]
         ax = float(np.where(band)[1].mean()) if band.any() else bm.shape[1] / 2
         stride = None
@@ -173,7 +179,10 @@ def frames_in_row(rgba, y0, y1, n, cls, act, scale=None):
                 stride = float(cols.max() - cols.min())
             hb = bm[:int(hh * 0.16)]
             if hb.any():
-                head_x = float(np.where(hb)[1].mean()); ax = ((cols.min() + cols.max()) / 2.0) if len(cols) else ax
+                head_x = float(np.where(hb)[1].mean())
+                tb = bm[int(hh * 0.2):int(hh * 0.45)]
+                if act == 'run' and tb.any(): head_x = 0.5 * head_x + 0.5 * float(np.where(tb)[1].mean())  # a run: head and chest together (the lean swings the chest)
+                ax = ((cols.min() + cols.max()) / 2.0) if len(cols) else ax
         if SCALE_ != 1:  # the game shows a hero ~150 px tall: keep a little more than that
             im = Image.fromarray(crop).resize((max(1, round(crop.shape[1] * SCALE_)), max(1, round(crop.shape[0] * SCALE_))), Image.LANCZOS)
             crop, ax, ay = np.array(im), ax * SCALE_, ay * SCALE_
@@ -182,6 +191,8 @@ def frames_in_row(rgba, y0, y1, n, cls, act, scale=None):
         out.append((crop, ax, ay, head_x * (SCALE_ if SCALE_ != 1 else 1) if head_x is not None else None))
     if all(o[3] is not None for o in out):  # one steady head line: every frame's anchor = its head + the row's typical head-to-hips offset
         off = float(np.median([o[1] - o[3] for o in out]))
+        if act == 'run':  # leaning forward, the feet trail behind: stand him on the point under his hips (just behind the chest line)
+            off = -0.05 * float(np.median([o[0].shape[0] for o in out]))
         out = [(c, h + off, ay, h) for c, _, ay, h in out]
     return [(c, ax, ay) for c, ax, ay, _ in out]
 
@@ -293,6 +304,16 @@ def main():
                     acts.append((act, ax, ay)); ims.append(crop); tags.append(tag)
         if not ims:
             continue
+        # Run: every frame's head at one height above the floor (the median of the frames on the floor), the flight frames
+        # 5% higher — a run reads by its head; GPT's frames hop up and down at random
+        runs = [i for i, (ac, _, _) in enumerate(acts) if ac == 'run']
+        if runs:
+            fl = [f for (_, _, f) in HEADY.get(cls, [])][-len(runs):]
+            hs = [float(ims[i].shape[0]) for i in runs]  # the head is the top of the figure: its height above the feet = crop height
+            ht = float(np.median([h for h, f in zip(hs, fl) if not f] or hs))
+            for i, f in zip(runs, fl):
+                ac, ax, _ = acts[i]
+                acts[i] = (ac, ax, ht * (1.05 if f else 1.0))
         # One size on every sheet: GPT draws each sheet at its own scale. The walk is made as tall as the idle (an upright
         # step stands ~2% lower); every other sheet is matched to the walk by the size of the face (all side views).
         face_of = {}
