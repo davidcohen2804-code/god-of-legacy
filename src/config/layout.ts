@@ -230,6 +230,8 @@ export const PVP = {
   maxPlayers: 8,
   /** Arena HP (big MapleStory-style numbers; the duel rules work in shares of it). */
   maxHp: 1000,
+  /** Testing, for now: in the arena every hit lands (reaction, number, combo budget) but nobody's HP goes down. */
+  hpLocked: true,
   respawnMs: 1600,
   sendHz: 20, // movement snapshots per second while something changes
   idleResendMs: 500, // keep-alive snapshot when nothing changes (late joiners get state)

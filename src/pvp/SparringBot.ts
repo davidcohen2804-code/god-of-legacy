@@ -137,7 +137,7 @@ export class SparringBot {
     const out = this.body.receive(attacker, skill, hit, from, now);
     this.refilled = 0;
     const msg = { t: 'hp' as const, from: BOT_ID, hp: 0, by: attacker, rx: out.reaction };
-    if (out.damage > 0) {
+    if (out.damage > 0 && !(this.body.arena && PVP.hpLocked)) { // (testing: the arena's HP stays)
       this.hp -= out.damage;
       if (this.hp <= 0 && (this.trial || this.duel)) { this.hp = 0; this.defeated = true; } // a Master's trial: beaten / a battle round: K.O.
       else if (this.hp <= 0) { // never dies: the bar refills (the hit itself still lands and flashes)
@@ -192,7 +192,7 @@ export class SparringBot {
   /** Extra damage outside a hit (the player's Final Attack): a battle round / a trial can end on it; the training knight
    *  never falls to it. */
   extra(n: number): void {
-    if (this.defeated || n <= 0) return;
+    if (this.defeated || n <= 0 || (this.body.arena && PVP.hpLocked)) return;
     this.hp -= n;
     if (this.hp <= 0 && (this.trial || this.duel)) { this.hp = 0; this.defeated = true; }
     else this.hp = Math.max(1, this.hp);

@@ -2268,7 +2268,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private takeDamage(raw: number): number {
     if (this.dead >= 0 || raw <= 0) return 0;
     const dmg = Math.max(1, Math.round(raw * this.passives.takenMul * takenMul(this.gearSt) * (this.simMs < this.bannerUntil ? 0.9 : 1)));
-    this.playerHP = Math.max(0, this.playerHP - dmg);
+    if (!(this.arena && PVP.hpLocked)) this.playerHP = Math.max(0, this.playerHP - dmg); // (testing: the arena's HP stays)
     this.flash = 0;
     this.kage?.end('fade'); // struck: the doubles vanish at once
     if (this.playerHP === 0) this.killPlayer();
