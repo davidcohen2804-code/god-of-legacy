@@ -2901,7 +2901,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** The camera along the world, NPC prompts, the portal (every frame). */
   private updateWorldUi(ms: number): void {
     if (!this.world) return;
-    this.world.update(ms, { x: this.kin.x, y: this.kin.y, z: this.kin.z - this.kin.supportZ, supportZ: this.kin.supportZ, alive: this.dead < 0 });
+    this.world.update(ms, { x: this.kin.x, y: this.kin.y, z: this.kin.z - this.kin.supportZ, supportZ: this.kin.supportZ, absZ: this.kin.z, grounded: this.kin.grounded, alive: this.dead < 0 });
     this.motes?.setPosition(this.world.viewLeft, 0); // the dust hangs in the air in front of you
   }
 

@@ -57,8 +57,9 @@ export function preloadOpenWorld(scene: Phaser.Scene): void {
   preloadBackdrop(scene);
 }
 
-/** Standing this high (world px) the camera starts to rise with you. */
-const LIFT_FROM = 60;
+/** Camera up high: the height where it is drawn back all the way, how far back (share of the zoom), how fast it
+ *  rises / comes down with the ground (ms), how fast it moves up and down (ms). */
+const UP_FULL = 340, UP_ZOOM = 0.2, CAM_RISE = 420, CAM_FALL = 220, CAM_EASE_Y = 160;
 
 /** The painted stone cube the towers are stacked of: its width, one cube's height (front face with plinth), its top face. */
 const CUBE = { w: 183, h: 86, top: 32 };
@@ -97,7 +98,8 @@ export class OpenWorld {
     this.buildOccluders(); this.buildTowers(); this.buildHeights(); this.buildGate(); this.buildNpcs(); this.buildPortal(); this.spawnMobs();
     if (BACKDROP) this.backdrop = new Backdrop(scene);
     const cam = scene.cameras.main;
-    this.ambience = new CourtyardAmbience(scene, Math.ceil(cam.width / cam.zoom) + 4, AREA_H, BACKDROP ? [330, 668] : undefined);
+    this.baseZoom = cam.zoom;
+    this.ambience = new CourtyardAmbience(scene, Math.ceil(cam.width / (cam.zoom * (1 - UP_ZOOM))) + 4, AREA_H, BACKDROP ? [330, 668] : undefined);
     const k = keyCap(scene, 0, 0, 32);
     this.promptKey = scene.add.text(0, -2, 'Y', { fontFamily: HUD.bodyFont, fontSize: '15px', fontStyle: '700', color: '#f3ede0', resolution: 2 }).setOrigin(0.5);
     this.prompt = scene.add.container(0, 0, [k, this.promptKey]).setDepth(UI_DEPTH).setVisible(false);
@@ -235,30 +237,45 @@ export class OpenWorld {
   /** World x of the screen's left edge. */
   get viewLeft(): number { const cam = this.scene.cameras.main; return this.camX - cam.width / cam.zoom / 2; }
 
-  /** The camera trails the player along the world (snap: straight there). On the terrace: its whole height, always. Down
-   *  the stairs it goes down with you (no cut, no fade) and over the plaza it follows you both ways (the terrace runs
-   *  above the whole plaza, so looking up always shows its arcade). */
-  private follow(x: number, y: number, ms: number, snap = false, z = 0): void {
-    const cam = this.scene.cameras.main, half = cam.width / cam.zoom / 2, halfH = cam.height / cam.zoom / 2;
-    const down = belowTerrace(y), terraceCy = WORLD_H / 2;
-    // height: on the terrace its centre; down the stairs it eases from there onto the player (centred by the stairs' foot)
+  /** The camera trails the player along the world (snap: straight there). On the terrace: its whole height. Down the
+   *  stairs it goes down with you (no cut, no fade) and over the plaza it follows you both ways. Up on the blocks and the
+   *  maps above it rises with the ground you stand on and draws back (zooms out) as you climb, so the floor below and the
+   *  one above are both in view; a jump never moves it, a drop takes it down with you, all of it eased (no jumps). */
+  private follow(x: number, y: number, ms: number, snap = false, ground = 0, z = 0, grounded = true): void {
+    const cam = this.scene.cameras.main, terraceCy = WORLD_H / 2;
+    // the height the camera follows: the ground you stand on; in the air the last one, or lower while you fall
+    if (grounded) this.camGround = ground; else this.camGround = Math.min(this.camGround, Math.max(ground, z));
+    const kh = snap ? 1 : 1 - Math.exp(-ms / (this.camGround < this.camH ? CAM_FALL : CAM_RISE));
+    this.camH += (this.camGround - this.camH) * kh;
+    // zoom: drawn back as you climb (all the way back from the height of a map above)
+    const up = Phaser.Math.SmoothStep(this.camH, 30, UP_FULL);
+    const zoom = this.baseZoom * (1 - UP_ZOOM * up);
+    if (Math.abs(cam.zoom - zoom) > 1e-4) cam.setZoom(zoom);
+    const half = cam.width / zoom / 2, halfH = cam.height / zoom / 2;
+    const down = belowTerrace(y);
     const lead = (ARENA.edgeY - terraceCy) * (1 - Phaser.Math.SmoothStep(y, ARENA.edgeY, ARENA.y));
-    // up on the climbing towers the camera rises with you (the sky above the landscape opens up)
-    const lift = down ? 0 : Math.max(0, z - LIFT_FROM);
-    const ty = down ? Phaser.Math.Clamp(y - lead, terraceCy, ARENA.y + ARENA.h - halfH) : terraceCy - lift;
+    // up high: the view rises so that you stand a little below its middle (the floor above and the one below both show)
+    const lift = down ? 0 : Math.max(0, this.camH * 0.92 - 20) * up + Math.max(0, this.camH - 20) * 0.25 * (1 - up);
+    let ty = down ? Phaser.Math.Clamp(y - lead, terraceCy, ARENA.y + ARENA.h - halfH) : terraceCy - lift;
+    // never lose you: whatever happens, your body stays well inside the view
+    const sy = y - z;
+    ty = Phaser.Math.Clamp(ty, sy - halfH + 260, Math.max(sy - halfH + 260, sy + halfH - 250));
     const hi = down ? Math.min(WORLD_W, ARENA.x + ARENA.w) - half : WORLD_W - half;
     const lo = down ? Math.max(0, ARENA.x) + half : half;
     const tx = Phaser.Math.Clamp(x, lo, Math.max(lo, hi));
-    const k = snap ? 1 : 1 - Math.exp(-ms / CAM_EASE);
+    const k = snap ? 1 : 1 - Math.exp(-ms / CAM_EASE), ky = snap ? 1 : 1 - Math.exp(-ms / CAM_EASE_Y);
     this.camX += (tx - this.camX) * k;
     if (Math.abs(tx - this.camX) < 0.05) this.camX = tx;
-    this.camY += (ty - this.camY) * k;
+    this.camY += (ty - this.camY) * ky;
     if (Math.abs(ty - this.camY) < 0.05) this.camY = ty;
     cam.centerOn(this.camX, this.camY);
     this.ambience.setView(this.viewLeft);
-    this.backdrop?.setView(this.viewLeft, cam.width / cam.zoom);
+    this.backdrop?.setView(this.viewLeft, cam.width / zoom);
     this.backdrop?.setLift(Math.max(0, terraceCy - this.camY));
   }
+  private camGround = 0;
+  private camH = 0;
+  private baseZoom = 1;
 
   /** Instant move (portal, waking up after a defeat): a short fade, then there. */
   jumpTo(id: string, x: number, y: number, k: Kin, done?: () => void): void {
@@ -280,9 +297,9 @@ export class OpenWorld {
 
   // ------------------------------------------------------------------ per frame
   /** player: z = height above what he stands on, supportZ = the height of that (0 = the floor). */
-  update(ms: number, player: { x: number; y: number; z: number; supportZ?: number; alive: boolean }): void {
+  update(ms: number, player: { x: number; y: number; z: number; supportZ?: number; absZ?: number; grounded?: boolean; alive: boolean }): void {
     this.t += ms;
-    this.follow(player.x, player.y, ms, false, player.supportZ ?? 0);
+    this.follow(player.x, player.y, ms, false, player.supportZ ?? 0, player.absZ ?? 0, player.grounded ?? true);
     this.ambience.update(ms);
     this.backdrop?.update(ms);
     // the area you are in (by where you stand on the strip; a little past the line, so it never flickers)

@@ -125,7 +125,9 @@ export class Backdrop {
   }
 
   /** Share of the terrace's scrolling speed the landscape moves at: its picture's ends meet the world's ends. */
-  private get k(): number { return BACKDROP ? Phaser.Math.Clamp((BACKDROP.w - this.span) / Math.max(1, WORLD_W - this.span), 0, 1) : 1; }
+  /** The landscape grows when the view is wider than it (the camera drawn back up high): never a bare edge. */
+  private grow = 1;
+  private get k(): number { return BACKDROP ? Phaser.Math.Clamp((BACKDROP.w * this.grow - this.span) / Math.max(1, WORLD_W - this.span), 0, 1) : 1; }
 
   /** The view moved (world px of its left edge, its width). */
   /** The camera risen this far above the terrace (climbing towers): the landscape and the sky sink less than the
@@ -143,8 +145,10 @@ export class Backdrop {
 
   setView(left: number, span: number): void {
     this.left = left; this.span = span;
+    this.grow = BACKDROP ? Math.max(1, (span + 8) / BACKDROP.w) : 1;
+    this.land.setScale(this.grow); this.skyBack.setScale(this.grow);
     const k = this.k;
-    this.land.x = left * (1 - k); this.skyBack.x = this.land.x;
+    this.land.x = left * (1 - k) - (this.grow - 1) * 4; this.skyBack.x = this.land.x;
     this.sky.x = left * (1 - this.f('clouds'));
     this.haze.x = left * (1 - this.f('mist'));
     if (!this.placed && this.clouds.length) { // first view: spread the clouds and the mist over it

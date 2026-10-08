@@ -400,7 +400,7 @@ export class ActorView {
     }
     // Name plate + running trail.
     if (this.nameText) {
-      const ny = y - supportZ + 22, d0 = NAME_DEPTH + y * 0.001; // names stay readable over blocks and urns in front
+      const ny = y - Math.max(supportZ, z - 12) + 22, d0 = NAME_DEPTH + y * 0.001; // names stay readable over blocks and urns in front; a long drop or climb: it goes with the body
       this.nameText.setPosition(x, ny).setDepth(d0 + 0.01).setAlpha(alpha).setVisible(this.visible);
       if (this.nameFrame) {
         if (!this.plainPlate) { const w = Math.max(96, this.nameText.width + 54); this.nameFrame.setDisplaySize(w, w * (this.nameFrame.height / this.nameFrame.width) * 1.0); }

@@ -16,13 +16,14 @@ MAPS = {
   'ivy_heights': {'name': 'Ivy Heights', 'over': 'terraces_2', 'H': 350, 'front': 350, 'floor': (352, 580), 'sky': (120, 350),
                   'blocks': [{'id': 'block-l', 'x': (266, 449), 'front': 503, 'h': 85, 'depth': 26},
                              {'id': 'block-r', 'x': (1321, 1434), 'front': 510, 'h': 70, 'depth': 23}],
-                  'mobs': {'kind': 'sprout', 'spawns': [[160, 525], [620, 470], [820, 545], [1010, 445], [1180, 530], [1560, 480]]}},
+                  'mobs': {'kind': 'sprout', 'spawns': [[300, 545], [620, 470], [820, 545], [1010, 445], [1180, 530], [1400, 480]]}},
   'orchard_heights': {'name': 'Orchard Heights', 'over': 'orchard_1', 'H': 350, 'front': 350, 'floor': (352, 580), 'sky': (120, 350),
                   'blocks': [{'id': 'block-l', 'x': (266, 449), 'front': 503, 'h': 85, 'depth': 26},
                              {'id': 'block-r', 'x': (1321, 1434), 'front': 510, 'h': 70, 'depth': 23}],
-                  'mobs': {'kind': 'thorn', 'spawns': [[160, 525], [620, 470], [820, 545], [1010, 445], [1180, 530], [1560, 480]]}},
+                  'mobs': {'kind': 'thorn', 'spawns': [[300, 545], [620, 470], [820, 545], [1010, 445], [1180, 530], [1400, 480]]}},
 }
-FADE = 70   # px: the picture's left / right ends fade out (the floor ends in the air there; you cannot walk off it)
+FADE = 220  # px
+WALK_IN = 150   # the walkable floor stops this far in from each end (the faded part is out of reach): the picture's left / right ends fade out (the floor ends in the air there; you cannot walk off it)
 out_dir = R + 'public/assets/world/heights/'; os.makedirs(out_dir, exist_ok=True)
 data = []
 for id_, m in MAPS.items():
@@ -46,7 +47,7 @@ for id_, m in MAPS.items():
     cv2.imwrite(out_dir + f"{id_}-{b['id']}.webp", cv2.cvtColor(rgba[y0:y1, x0:x1], cv2.COLOR_RGBA2BGRA), [cv2.IMWRITE_WEBP_QUALITY, 92])
     occ.append({'img': f"assets/world/heights/{id_}-{b['id']}.webp", 'x': X0 + x0, 'py': y0})
   gy = lambda p: F - (f1 - p)          # picture row on the floor → the terrace's ground y
-  data.append({'id': id_, 'name': m['name'], 'x': X0, 'w': w, 'H': H, 'front': F, 'back': gy(f0),
+  data.append({'id': id_, 'name': m['name'], 'x': X0, 'w': w, 'walk': [X0 + WALK_IN, X0 + w - WALK_IN], 'H': H, 'front': F, 'back': gy(f0),
                'img': f'assets/world/heights/{id_}.webp', 'imgY': F - H - f1, 'imgH': h,
                'blocks': [{'id': b['id'], 'x0': X0 + b['x'][0], 'x1': X0 + b['x'][1], 'front': gy(b['front']), 'h': b['h'], 'depth': b['depth'], 'occ': o} for b, o in zip(m['blocks'], occ)],
                'mobs': {'kind': m['mobs']['kind'], 'spawns': [[X0 + x, gy(p)] for x, p in m['mobs']['spawns']]}})
