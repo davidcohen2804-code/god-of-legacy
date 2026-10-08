@@ -105,6 +105,7 @@ export class OpenWorld {
     const cam = scene.cameras.main;
     this.baseZoom = cam.zoom;
     this.ambience = new CourtyardAmbience(scene, Math.ceil(cam.width / (cam.zoom * (1 - UP_ZOOM - TOP_ZOOM) * USER_ZOOM[0])) + 4, AREA_H, BACKDROP ? [330, 668] : undefined);
+    this.ambience.noRays();
     const k = keyCap(scene, 0, 0, 32);
     this.promptKey = scene.add.text(0, -2, 'Y', { fontFamily: HUD.bodyFont, fontSize: '15px', fontStyle: '700', color: '#f3ede0', resolution: 2 }).setOrigin(0.5);
     this.prompt = scene.add.container(0, 0, [k, this.promptKey]).setDepth(UI_DEPTH).setVisible(false);
@@ -139,13 +140,18 @@ export class OpenWorld {
       g.addColorStop(0, 'rgba(226,152,138,0)'); g.addColorStop(0.12, 'rgba(226,152,138,0.35)'); g.addColorStop(0.25, 'rgba(222,148,134,1)'); g.addColorStop(1, 'rgba(206,134,122,1)');
       x.fillStyle = g; x.fillRect(0, 0, 4, 256); c.refresh();
     }
-    const fog = this.scene.add.image(TILES[i][0] - 2, WORLD_H - 150, 'below-fog2').setOrigin(0, 0).setDisplaySize(TILES[i][1] + 4, 600).setDepth(-1.6);   // behind the terrace and the plaza below the temple (never over its stairs)   // opaque by the picture's edge
+    if (!this.scene.textures.exists('below-fog3')) {   // the veil over the bottom edge: slow at first, opaque by the edge
+      const c = this.scene.textures.createCanvas('below-fog3', 4, 256)!, x = c.getContext(), g = x.createLinearGradient(0, 0, 0, 256);
+      g.addColorStop(0, 'rgba(226,152,138,0)'); g.addColorStop(0.18, 'rgba(226,152,138,0.25)'); g.addColorStop(0.3, 'rgba(224,150,136,0.7)'); g.addColorStop(0.38, 'rgba(222,148,134,1)'); g.addColorStop(1, 'rgba(214,140,128,1)');
+      x.fillStyle = g; x.fillRect(0, 0, 4, 256); c.refresh();
+    }
+    const fog = this.scene.add.image(TILES[i][0] - 2, WORLD_H - 150, 'below-fog2').setOrigin(0, 0).setDisplaySize(TILES[i][1] + 4, 3000).setDepth(-1.6);   // behind the terrace and the plaza below the temple (never over its stairs)   // opaque by the picture's edge
     // and a soft veil over the picture's own bottom edge (the pillars' cut feet melt into the mist) — not over the plaza
     // below the temple, where the terrace runs on into its stairs
     const t0 = TILES[i][0], t1 = t0 + TILES[i][1], ax0 = ARENA.x, ax1 = ARENA.x + ARENA.w;
     for (const [x0, x1] of [[t0, Math.min(t1, ax0)], [Math.max(t0, ax1), t1]]) {
       if (x1 - x0 < 2) continue;
-      this.below.push(this.scene.add.image(x0, WORLD_H - 96, 'below-fog2').setOrigin(0, 0).setDisplaySize(x1 - x0, 400).setDepth(-0.97));
+      this.below.push(this.scene.add.image(x0, WORLD_H - 150, 'below-fog3').setOrigin(0, 0).setDisplaySize(x1 - x0, 400).setDepth(-0.97));
     }
     this.below.push(fog);
   }

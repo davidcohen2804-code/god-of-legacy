@@ -70,6 +70,8 @@ export class CourtyardAmbience {
    *  the terrace below, not to them). */
   private fade = 1;
   setFade(f: number): void { this.fade = Phaser.Math.Clamp(f, 0, 1); }
+  /** No light shafts at all (the open world: they fell over the walls of the maps above). */
+  noRays(): void { this.rays.forEach((r) => r.destroy()); this.rays = []; this.base = this.base.slice(0, 2); }
 
   /** viewW × viewH: the stretch of world it covers (the PvP courtyard: the whole map; the open world: one screen,
    *  carried along with the camera by setView so the light never jumps). */
