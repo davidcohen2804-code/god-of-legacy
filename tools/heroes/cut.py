@@ -340,7 +340,12 @@ def main():
         A.pop('walk_old', None); A.pop('run_old', None)
         idle_h = float(np.median([f[3] for f in A['idle']]))
         # the distance one leg cycle carries the body: two steps of the widest stride (the game matches the legs to the speed)
-        cyc = {a: round(2 * max(STRIDES.get((cls, a), [0])), 1) for a in ('walk', 'run')}
+        # a cycle of n frames: 8 = two steps, 4 = one step (half cycle, repeated). A run carries the body farther than the
+        # feet's spread (the flight), about half as far again.
+        cyc = {}
+        for a in ('walk', 'run'):
+            n = len(A.get(a, [])); spread = max(STRIDES.get((cls, a), [0]))
+            cyc[a] = round((2 if n >= 8 else 1) * spread * (1.5 if a == 'run' else 1.0), 1)
         table[cls] = {'h': idle_h, 'actions': A, 'cycle': cyc}
         print(cls, {k: len(v) for k, v in A.items()}, 'idle h', idle_h, 'sheet', sheet.shape[:2])
     json.dump(table, open(table_path, 'w'), separators=(',', ':'))

@@ -790,7 +790,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (hold.x && (Math.sign(inp.moveX) !== hold.x || !k.grounded)) hold.x = 0;
     if (hold.y && (Math.sign(inp.moveY) !== hold.y || !k.grounded)) hold.y = 0;
     const mx = locked || hold.x ? 0 : inp.moveX, my = locked || hold.y ? 0 : inp.moveY;
-    const speed = (inp.running && !locked ? PHYS.run : PHYS.walk) * b.moveScale(now) * this.passives.moveMul * (now < this.itemSpeedUntil ? 1.1 : 1) * (now < this.mage.hasteUntil ? 1.1 : 1);
+    const speed = (inp.running && !locked ? PHYS.run : PHYS.stroll) * b.moveScale(now) * this.passives.moveMul * (now < this.itemSpeedUntil ? 1.1 : 1) * (now < this.mage.hasteUntil ? 1.1 : 1);
     steer(k, rooted ? 0 : mx * speed, rooted ? 0 : my * speed, ms, now < this.leapUntil ? 0.12 : 1); // War Leap keeps its burst
     if ((mx || my) && !rooted) this.dir = dirOf(mx, my, this.dir); // side view only: up/down keeps the facing
     const jumpKey = inp.takeJump() && !locked; // a jump pressed while talking is dropped

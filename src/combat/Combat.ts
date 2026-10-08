@@ -10,7 +10,7 @@ import { FinalSkill, HitEvent, Reaction } from '../skills/SkillTypes';
 
 /** Movement / jump tuning (06 spec; jump strength calibrated so the 78px pedestal top is reachable). */
 export const PHYS = {
-  walk: 188, run: 270, accel: 1500, decel: 1900, turnMult: 1.15, airAccel: 0.55, takeoffKeep: 0.92,
+  walk: 188, run: 270, /** on foot (a real walk: the legs keep pace with the floor; double-tap = run) */ stroll: 122, accel: 1500, decel: 1900, turnMult: 1.15, airAccel: 0.55, takeoffKeep: 0.92,
   jumpVz: 445, gravity: 1100, landMs: 90, takeoffMs: 70, footR: 10, mantle: 16,
 };
 

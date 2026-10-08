@@ -310,7 +310,7 @@ export class SparringBot {
             }
           }
         }
-        const sp = dist > 320 ? PHYS.run : PHYS.walk * (dist < 140 ? 0.75 : 1);
+        const sp = dist > 320 ? PHYS.run : PHYS.stroll * (dist < 140 ? 0.75 : 1);
         tx = d.x * sp; ty = d.y * sp;
       }
     }
@@ -358,7 +358,7 @@ export class SparringBot {
       }
     } else if (s.id === 'whirlwind' && c.t >= activeStart && c.t < activeEnd) {
       const p = w.player, d = unit(p.x - k.x, p.y - k.y);
-      steer(k, d.x * PHYS.walk * 0.7, d.y * PHYS.walk * 0.7, ms);
+      steer(k, d.x * PHYS.stroll * 0.8, d.y * PHYS.stroll * 0.8, ms);
     } else if (k.grounded) { k.vx *= 0.7; k.vy *= 0.7; }
     if (c.t >= activeEnd + T.recovery) {
       this.cast = null;
