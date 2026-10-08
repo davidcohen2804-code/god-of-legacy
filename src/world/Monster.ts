@@ -4,7 +4,7 @@
 // handled by the scene) and comes back at its home spot after a while. Damage and reactions are applied by the scene.
 import Phaser from 'phaser';
 import { STAGE6 } from '../config/layout';
-import { WORLD_OBJECTS, actorDepth, clearLine, footAllowed } from './WorldGeometry';
+import { WORLD_OBJECTS, actorDepth, clearLine, footAllowed, supportAt } from './WorldGeometry';
 import { CombatBody, Kin, newKin, settleOnBlocks, stepKin } from '../combat/Combat';
 import { HitTarget } from '../skills/HitGeometry';
 import { NAME_DEPTH } from '../game/ActorView';
@@ -32,7 +32,7 @@ export function preloadMonsterFrames(scene: Phaser.Scene, set: string): void {
 }
 
 export interface MonsterWorld {
-  player: { x: number; y: number; z: number; alive: boolean };
+  player: { x: number; y: number; z: number; alive: boolean; /** the floor he stands on (0: the lower floor) */ level?: number };
   now: number;
   /** Feet circle at (x, y) blocked by another actor (the player, another monster). */
   blocked: (self: Monster, x: number, y: number) => boolean;
@@ -40,6 +40,9 @@ export interface MonsterWorld {
 }
 
 export class Monster {
+  /** The floor it lives on (0: the lower floor; an upper floor's height): it never walks off it, and sees / fights you only
+   *  on the same floor (MapleStory: a monster keeps to its platform). */
+  readonly homeZ: number;
   readonly sprite: Phaser.GameObjects.Image;
   private shadow: Phaser.GameObjects.Ellipse;
   private bar: Phaser.GameObjects.Graphics;
@@ -74,6 +77,7 @@ export class Monster {
 
   constructor(private scene: Phaser.Scene, readonly id: string, readonly kind: MobKind, readonly home: { x: number; y: number }, seed: number) {
     this.kin = newKin(home.x, home.y);
+    this.homeZ = supportAt(home.x, home.y, 1e4).z; this.kin.z = this.kin.supportZ = this.homeZ; // an upper floor: it lives up there
     this.body = new CombatBody(this.kin, false);
     this.body.maxHp = kind.hp; this.hp = kind.hp;
     this.dir = seed % 2 ? 'left' : 'right';
@@ -113,7 +117,7 @@ export class Monster {
 
   private reset(): void {
     const k = this.kin;
-    k.x = this.home.x; k.y = this.home.y; k.z = 0; k.vx = 0; k.vy = 0; k.vz = 0; k.grounded = true;
+    k.x = this.home.x; k.y = this.home.y; k.z = this.homeZ; k.supportZ = this.homeZ; k.vx = 0; k.vy = 0; k.vz = 0; k.grounded = true;
     this.body.reset(); this.body.maxHp = this.kind.hp;
     this.hp = this.kind.hp; this.sinceAttack = Infinity; this.provokedLeft = 0; this.flashLeft = 0; this.barShowUntil = -1;
     this.restoreTint(); this.sprite.setVisible(true).setAlpha(0);
@@ -137,7 +141,7 @@ export class Monster {
       if (this.respawnLeft <= 0 && Math.hypot(w.player.x - this.home.x, w.player.y - this.home.y) > 90) this.reset();
     } else if (b.canAct(now) && !this.frozen) this.think(ms, w, dx, dy, dist);
     else if (b.state === 'free') { this.kin.vx = 0; this.kin.vy = 0; }
-    const r = stepKin(this.kin, ms, b.gravityScale(now), (x, y) => x > MOB_WALL_X || w.blocked(this, x, y), this.moving && b.state === 'free' && !b.push);
+    const r = stepKin(this.kin, ms, b.gravityScale(now), (x, y) => x > MOB_WALL_X || w.blocked(this, x, y) || (b.state === 'free' && supportAt(x, y, this.kin.z + 1).z < this.homeZ - 1), this.moving && b.state === 'free' && !b.push);
     settleOnBlocks(this.kin, ms, 0);   // knocked onto a block: onto its top face; beside one: never left half inside it
     if (this.ai === 'chase' && this.moving && r.blockedX && this.detourLeft <= 0) {
       // the block ahead: go round it by its nearer end (up or down the floor)
@@ -161,7 +165,8 @@ export class Monster {
   private think(ms: number, w: MonsterWorld, dx: number, dy: number, dist: number): void {
     const K = this.kind, k = this.kin, sp = K.speed * this.body.moveScale(w.now);
     const fromHome = Math.hypot(k.x - this.home.x, k.y - this.home.y);
-    const sees = w.player.alive && w.player.x < MOB_WALL_X + 40 && dist <= K.aggro && clearLine(k.x, k.y, w.player.x, w.player.y, 30);
+    const level = Math.abs((w.player.level ?? 0) - this.homeZ) < 40;   // on its floor
+    const sees = w.player.alive && level && w.player.x < MOB_WALL_X + 40 && dist <= K.aggro && clearLine(k.x, k.y, w.player.x, w.player.y, 30);
     switch (this.ai) {
       case 'idle': case 'wander': {
         if (sees) { this.enter('chase'); break; }
@@ -171,7 +176,7 @@ export class Monster {
             for (let i = 0; i < 6; i++) {
               const a = Math.random() * Math.PI * 2, r = 30 + Math.random() * 110;
               const x = this.home.x + Math.cos(a) * r, y = this.home.y + Math.sin(a) * r * 0.6;
-              if (footAllowed(x, y, 0, 14)) { this.wanderTo = { x, y }; break; }
+              if (footAllowed(x, y, this.homeZ, 14) && supportAt(x, y, this.homeZ + 1).z === this.homeZ) { this.wanderTo = { x, y }; break; }
             }
             this.enter(this.wanderTo ? 'wander' : 'idle');
           }
@@ -184,9 +189,9 @@ export class Monster {
       }
       case 'chase': {
         const provoked = this.provokedLeft > 0; // hit by him: it follows him wherever he goes, for a while
-        if (!w.player.alive || (!provoked && (dist > K.aggro * 1.8 || fromHome > 520)) || w.player.x > MOB_WALL_X + 60) { this.provokedLeft = 0; this.enter('home'); break; }  // past the Temple Gate: out of reach
+        if (!w.player.alive || (!provoked && (dist > K.aggro * 1.8 || fromHome > 520)) || w.player.x > MOB_WALL_X + 60 || (!level && !provoked)) { this.provokedLeft = 0; this.enter('home'); break; }  // past the Temple Gate: out of reach
         this.faceToward(w.player.x);
-        if (dist <= K.range && Math.abs(dy) < 34) { k.vx = 0; k.vy = 0; if (this.sinceAttack >= K.cooldown && w.player.z < 40) this.startAttack(); break; }
+        if (dist <= K.range && Math.abs(dy) < 34) { k.vx = 0; k.vy = 0; if (this.sinceAttack >= K.cooldown && w.player.z < 40 && level) this.startAttack(); break; }
         // stand beside the player (side view): the side it is on, at its reach, same depth
         const side = dx > 0 ? -1 : 1, tx = w.player.x + side * K.range * 0.8, ty = w.player.y;
         if (this.detourLeft > 0) { this.detourLeft -= ms; this.walkToward(k.x + Math.sign(dx) * 12, k.y + this.detourDir * 60, sp); break; } // around the block

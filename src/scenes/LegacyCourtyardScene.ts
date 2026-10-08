@@ -2791,14 +2791,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private stepMonsters(ms: number, now: number): void {
     const mobs = this.world!.mobs, k = this.kin;
     for (const m of mobs) m.update(ms, {
-      player: { x: k.x, y: k.y, z: k.z - k.supportZ, alive: this.dead < 0 },
+      player: { x: k.x, y: k.y, z: k.z - k.supportZ, alive: this.dead < 0, level: k.supportZ },
       now,
       blocked: (self, x, y) => mobs.some((o) => o !== self && o.alive && Math.hypot(x - o.x, y - o.y) < 26 * Math.max(o.kind.scale, self.kind.scale)),
       onStrikePlayer: (m, dmg) => this.enemyStrike(dmg, { x: m.x, y: m.y }),
     });
     // MapleStory: touching a monster hurts a little and knocks you back, then you blink and can walk through it
     if (this.dead < 0 && now >= this.hitBlinkUntil && !this.rt?.ownRun) for (const m of mobs) {
-      if (!m.alive || Math.abs(m.z - (k.z - k.supportZ)) > 40 || Math.hypot(m.x - k.x, (m.y - k.y) * 1.6) > STAGE6.enemy.collisionRadius * m.kind.scale + R * 0.6) continue;
+      if (!m.alive || Math.abs(m.z - k.z) > 40 || Math.hypot(m.x - k.x, (m.y - k.y) * 1.6) > STAGE6.enemy.collisionRadius * m.kind.scale + R * 0.6) continue;
       this.enemyStrike(Math.max(1, Math.round(m.kind.damage * 0.5)), { x: m.x, y: m.y }, 34); break;
     }
   }
