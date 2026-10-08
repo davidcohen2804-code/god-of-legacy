@@ -57,6 +57,7 @@ for id_, m in MAPS.items():
   a = np.where((seed == cv2.GC_FGD) | (seed == cv2.GC_PR_FGD), 255, 0).astype(np.uint8)
   a = cv2.morphologyEx(a, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
   a = cv2.GaussianBlur(a, (3, 3), 0).astype(np.float32)
+  a[m['floor'][0] - 12:] = 255   # the floor and its wall: solid (GrabCut may leave thin spots in them)
   rgba = np.dstack([cv2.cvtColor(im, cv2.COLOR_BGR2RGB), a.astype(np.uint8)])
   # its two ends, anchored: a corner pier (one of its wall's pilasters, from the ground up to the floor's front lip) and a
   # balustrade post with its urn at the back corner; the floor's cut edge a little shaded

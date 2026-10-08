@@ -161,7 +161,7 @@ export class OpenWorld {
       const baseZ = under ? under.H : 0;
       this.towers.push(this.scene.add.image(h.x + h.w / 2, h.front - baseZ, 'heights-shade').setOrigin(0.5, 0).setDisplaySize(h.w + 20, 70)
         .setDepth(under ? (under.depth ?? -1.2) + 0.05 : -0.9));
-      for (const b of h.blocks) put(`heights-${h.id}-${b.id}`, b.occ.img, () => this.towers.push(this.scene.add.image(b.occ.x, h.imgY + b.occ.py, `heights-${h.id}-${b.id}`).setOrigin(0, 0).setDepth(h.front + 1 + b.front * 0.001)));
+      for (const b of h.blocks) put(`heights-${h.id}-${b.id}`, b.occ.img, () => this.towers.push(this.scene.add.image(b.occ.x, h.imgY + b.occ.py, `heights-${h.id}-${b.id}`).setOrigin(0, 0).setDepth(b.front + 0.5)));
     }
   }
 

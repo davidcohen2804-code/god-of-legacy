@@ -13,7 +13,7 @@ PLATFORMS = {
   'terraces_1': [
     {'id': 'block-low', 'x': (262, 372), 'front': 528, 'h': 73, 'depth': 22},
     {'id': 'block-tall', 'x': (376, 492), 'front': 520, 'h': 100, 'depth': 31},
-    {'id': 'ledge', 'x': (697, 1026), 'front': 398, 'h': 98, 'depth': 30},
+    {'id': 'ledge', 'x': (697, 1030), 'front': 397, 'h': 97, 'depth': 31, 'solid_to': 346},
     {'id': 'block-right', 'x': (1342, 1451), 'front': 528, 'h': 70, 'depth': 25},
   ],
 }
@@ -25,7 +25,8 @@ for a, blocks in PLATFORMS.items():
     s0 = f - b['depth']; back = s0 - h + FOOT_R - EDGE
     top = f - h - b['depth']
     occ = b.get('occ') or [[x0 + 2, top + 3], [x1 - 2, top + 3], [x1 - 1, f - 2], [x0 + 1, f - 2]]
-    props.append({'id': b['id'], 'foot': [[x0, back], [x1, back], [x1, f], [x0, f]], 'base': [[x0, s0], [x1, s0], [x1, f], [x0, f]],
+    b0 = b.get('solid_to', s0)   # solid_to: nothing walkable behind it (it stands against the floor's back edge)
+    props.append({'id': b['id'], 'foot': [[x0, back], [x1, back], [x1, f], [x0, f]], 'base': [[x0, b0], [x1, b0], [x1, f], [x0, f]],
                   'h': h, 'top': h, 'stand': [s0, f - 3], 'occ': occ})
   D['areas'][a]['props'] = props
   print(a, [p['id'] for p in props])

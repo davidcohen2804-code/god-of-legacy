@@ -6,9 +6,10 @@
     600,
     783
    ],
-   "front": 446,
+   "front": 372,
    "h": 86,
-   "depth": 26
+   "depth": 26,
+   "solid_to": 346
   },
   {
    "id": "climb-2",
@@ -16,9 +17,10 @@
     783,
     966
    ],
-   "front": 446,
+   "front": 372,
    "h": 172,
-   "depth": 26
+   "depth": 26,
+   "solid_to": 346
   },
   {
    "id": "climb-3",
@@ -26,9 +28,10 @@
     966,
     1149
    ],
-   "front": 446,
+   "front": 372,
    "h": 258,
-   "depth": 26
+   "depth": 26,
+   "solid_to": 346
   },
   {
    "id": "summit-1",
@@ -39,7 +42,8 @@
    "front": 152,
    "h": 86,
    "depth": 26,
-   "base": 350
+   "base": 350,
+   "solid_to": 122
   },
   {
    "id": "summit-2",
@@ -50,7 +54,8 @@
    "front": 152,
    "h": 172,
    "depth": 26,
-   "base": 350
+   "base": 350,
+   "solid_to": 122
   },
   {
    "id": "summit-3",
@@ -61,7 +66,8 @@
    "front": 152,
    "h": 258,
    "depth": 26,
-   "base": 350
+   "base": 350,
+   "solid_to": 122
   }
  ],
  "orchard_1": [
@@ -71,9 +77,10 @@
     560,
     743
    ],
-   "front": 446,
+   "front": 372,
    "h": 86,
-   "depth": 26
+   "depth": 26,
+   "solid_to": 346
   },
   {
    "id": "climb-2",
@@ -81,9 +88,10 @@
     743,
     926
    ],
-   "front": 446,
+   "front": 372,
    "h": 172,
-   "depth": 26
+   "depth": 26,
+   "solid_to": 346
   },
   {
    "id": "climb-3",
@@ -91,9 +99,10 @@
     926,
     1109
    ],
-   "front": 446,
+   "front": 372,
    "h": 258,
-   "depth": 26
+   "depth": 26,
+   "solid_to": 346
   }
  ],
  "ruins": [
@@ -103,9 +112,10 @@
     600,
     783
    ],
-   "front": 446,
+   "front": 372,
    "h": 86,
-   "depth": 26
+   "depth": 26,
+   "solid_to": 346
   },
   {
    "id": "climb-2",
@@ -113,9 +123,10 @@
     783,
     966
    ],
-   "front": 446,
+   "front": 372,
    "h": 172,
-   "depth": 26
+   "depth": 26,
+   "solid_to": 346
   },
   {
    "id": "climb-3",
@@ -123,9 +134,10 @@
     966,
     1149
    ],
-   "front": 446,
+   "front": 372,
    "h": 258,
-   "depth": 26
+   "depth": 26,
+   "solid_to": 346
   }
  ]
 }
