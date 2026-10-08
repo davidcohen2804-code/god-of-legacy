@@ -57,7 +57,7 @@ export function archerMotion(id: string, e: number, T: Timeline, face: number): 
     case 'rain_of_arrows': { // crouch, spring into the air (the real height is the leap), tilt down at the floor and recoil on each lightning arrow
       const r = e - T.startup;
       if (r < 0) return M({ sy: 1 - 0.12 * easeOut(clamp01(e / T.startup)), sx: 1.06 });
-      if (e < A) { const k = Math.max(kick(r - 40, 160), kick(r - 310, 160), kick(r - 580, 200)); return M({ ang: face * (16 - 10 * k), dx: -face * 10 * k, after: k > 0.3 }); }
+      if (e < A) { const k = Math.max(kick(r - 310, 160), kick(r - 590, 160), kick(r - 870, 200)); return M({ ang: face * (16 * clamp01(r / 300) - 10 * k), dx: -face * 10 * k, after: k > 0.3 || r < 300 }); }
       return null;
     }
     case 'rising_arrow': { // crouch, spring up as the column erupts

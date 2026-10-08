@@ -219,7 +219,7 @@ const ARROW_LEN: Record<string, number> = { quick_shot: 120, multi_shot: 128, sk
 const CHARGE: Record<string, [number, number, number]> = {
   multi_shot: [80, 0xa8f04a, 0], explosive_arrow: [100, 0xffa040, 0.003], piercing_arrow: [110, 0x7ee35a, 0], rising_arrow: [80, 0x7ee35a, 0],
   leaping_arrow: [150, 0x7ee35a, 0.004], eagle_arrow: [220, 0xffe27a, 0.008], arrow_storm: [90, 0xa8f04a, 0], skyhunters_step: [70, 0x9cffc8, 0],
-  hunters_spirit: [110, 0xffe27a, 0], spirit_hawk: [100, 0xffe27a, 0], hunters_roar: [130, 0x7ee35a, 0], rain_of_arrows: [90, 0x5cd6ff, 0],
+  hunters_spirit: [110, 0xffe27a, 0], spirit_hawk: [100, 0xffe27a, 0], hunters_roar: [130, 0x7ee35a, 0], rain_of_arrows: [160, 0x5cd6ff, 0.004],
 };
 
 /** Skill effects of the given classes (all classes when omitted: the PvP arena can hold any class); shared sheets always. */
@@ -1089,7 +1089,23 @@ export class SkillFx {
     const rim = this.scene.add.ellipse(t.x, t.y, 2 * R0, 2 * R0 * FLOOR_SQUASH, 0x3fae34, 0.16).setStrokeStyle(4, 0x6fe04a, 0.95).setDepth(GROUND + 0.7); // a clear green circle on the floor
     this.scene.tweens.add({ targets: [vines, rim], alpha: { from: 0.65, to: 1 }, duration: 700, yoyo: true, repeat: -1 });
     if (pitArt) rim.setVisible(false); // the painted pit is part of the soil: no outline floating over it
-    if (mine) { let f = 0; const ev = this.scene.time.addEvent({ delay: 110, loop: true, callback: () => { if (!ring.active) { ev.remove(); return; } ring.setFrame(++f % 8); } }); vines.setVisible(false); } // the living mine breathes
+    if (pitArt) { // the mine lies still in the soil; only its cracks glow softly, and leaves and motes of light drift up from it (it is alive)
+      const seq = [0, 1, 2, 3, 2, 1], tw = { f: 0 }; ring.setFrame(0); vines.setVisible(false);
+      const ev = this.scene.time.addEvent({ delay: 260, loop: true, callback: () => { if (!ring.active) { ev.remove(); return; } ring.setFrame(seq[++tw.f % seq.length]); } });
+      const glow = this.scene.add.image(t.x, t.y - 4, 'arch-glow').setTint(0x6fe04a).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(1.5 * R0, 0.7 * R0).setAlpha(0.25).setDepth(GROUND + 0.7);
+      this.scene.tweens.add({ targets: glow, alpha: { from: 0.15, to: 0.35 }, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      const motes = this.scene.add.particles(t.x, t.y, 'arch-glow', {
+        emitZone: { type: 'random', source: new Phaser.Geom.Ellipse(0, 0, 1.9 * R0, 0.8 * R0), quantity: 1 } as never,
+        speedY: { min: -38, max: -16 }, speedX: { min: -8, max: 8 }, lifespan: { min: 900, max: 1500 }, scale: { start: 0.09, end: 0 }, alpha: { start: 0.9, end: 0 },
+        tint: [0x9cf27a, 0xd8ff8a, 0xffe27a], blendMode: 'ADD', frequency: 90, quantity: 1,
+      }).setDepth(t.y + 1);
+      const leaves = this.scene.add.particles(t.x, t.y, 'arch-glow', {
+        emitZone: { type: 'random', source: new Phaser.Geom.Ellipse(0, 0, 1.6 * R0, 0.6 * R0), quantity: 1 } as never,
+        speedY: { min: -30, max: -12 }, speedX: { min: -14, max: 14 }, rotate: { min: 0, max: 360 }, lifespan: { min: 1200, max: 1800 }, scaleX: { start: 0.18, end: 0.05 }, scaleY: { start: 0.07, end: 0.02 }, alpha: { start: 0.95, end: 0 },
+        tint: [0x4cc23a, 0x7ee35a], blendMode: 'NORMAL', frequency: 260, quantity: 1,
+      }).setDepth(t.y + 1);
+      const kill = this.scene.time.addEvent({ delay: 100, loop: true, callback: () => { if (!this.traps.has(t)) { kill.remove(); this.scene.tweens.killTweensOf(glow); glow.destroy(); motes.stop(); leaves.stop(); this.scene.time.delayedCall(1800, () => { motes.destroy(); leaves.destroy(); }); } } });
+    } else if (mine) { let f = 0; const ev = this.scene.time.addEvent({ delay: 110, loop: true, callback: () => { if (!ring.active) { ev.remove(); return; } ring.setFrame(++f % 8); } }); vines.setVisible(false); }
     else this.scene.tweens.add({ targets: ring, angle: 360, duration: 8000, repeat: -1 });
     this.traps.set(t, [ring, vines, rim as unknown as Phaser.GameObjects.Image]);
   }
@@ -1098,7 +1114,9 @@ export class SkillFx {
   private onTrapArm(t: Trap): void {
     const list = this.traps.get(t) ?? [];
     for (const i of list) { this.scene.tweens.killTweensOf(i); if (i instanceof Phaser.GameObjects.Image && i.texture.key !== 'afx-mine' && i.texture.key !== 'afx-pit') i.setTint(0xffb050); }
-    const m = list[0]; if (m?.texture.key === 'afx-mine' || m?.texture.key === 'afx-pit') this.scene.tweens.add({ targets: m, scaleX: m.scaleX * 1.12, scaleY: m.scaleY * 1.12, duration: 140, yoyo: true, repeat: 6 }); // the mine swells, about to burst (keeps its green)
+    const m = list[0];
+    if (m?.texture.key === 'afx-pit') { let f = 0; const ev = this.scene.time.addEvent({ delay: 90, loop: true, callback: () => { if (!m.active) { ev.remove(); return; } m.setFrame([3, 4, 5, 4][++f % 4]); } }); } // armed: the cracks blaze, light spits out of the soil (it never moves)
+    else if (m?.texture.key === 'afx-mine') this.scene.tweens.add({ targets: m, scaleX: m.scaleX * 1.12, scaleY: m.scaleY * 1.12, duration: 140, yoyo: true, repeat: 6 });
     const rim = list[2] as unknown as Phaser.GameObjects.Ellipse | undefined;
     rim?.setStrokeStyle(4, 0xffb050, 1);
     if (rim) this.scene.tweens.add({ targets: rim, alpha: { from: 1, to: 0.3 }, duration: 160, yoyo: true, repeat: 5 });

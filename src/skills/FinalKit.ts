@@ -313,7 +313,8 @@ const archer: FinalSkill[] = [
   }),
   S({
     id: 'vine_trap', cls: 'archer', slot: 8, name: 'Vine Mine', roles: ['trap', 'setup', 'launcher'], targeting: 'mouseGround',
-    startup: 220, active: 60, recovery: 190, cooldown: 7000, ground: true, air: false, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
+    startup: 220, active: 280, recovery: 160, cooldown: 7000, ground: true, air: false, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
+    dash: { distance: -130, lift: 38 }, // plants the mine and hops back away from it
     placeRange: 260, trap: { radius: 90, lifeMs: 4000, fuseMs: 2000 },
     hits: [H(0, 0, { kind: 'placed', radius: 90 }, { hardCC: { kind: 'root', ms: 2000 }, stun: 120 }),
       H(0, 32, { kind: 'placed', radius: 110 }, { stun: 600, launch: 300, juggleCost: 30 }, { reachUp: 200, heavy: true })],
@@ -333,9 +334,9 @@ const archer: FinalSkill[] = [
   }),
   S({
     id: 'rain_of_arrows', cls: 'archer', slot: 9, name: 'Thunder Rain', roles: ['zone', 'extender'], targeting: 'mouseDir',
-    startup: 320, active: 1000, recovery: 300, cooldown: 9000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    dash: { distance: 0, lift: 130 },
-    hits: [150, 420, 690].map((t, i) => H(t, i === 2 ? 16 : 12, { kind: 'circle', radius: 100, at: 'aimBias', bias: [150, 300, 450][i], floor: true }, { stun: 320, float: true, juggleCost: 10, slow: { pct: 30, ms: 800 } }, { reachUp: 200, heavy: i === 2 })),
+    startup: 750, active: 1400, recovery: 300, cooldown: 9000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: 0, lift: 150, hang: true },
+    hits: [420, 700, 980].map((t, i) => H(t, i === 2 ? 16 : 12, { kind: 'circle', radius: 100, at: 'aimBias', bias: [150, 300, 450][i], floor: true }, { stun: 320, float: true, juggleCost: 10, slow: { pct: 30, ms: 800 } }, { reachUp: 200, heavy: i === 2 })),
     cancelOnHit: ['quick_shot', 'skyhunters_step'], telegraph: 'line',
     description: 'Leap and hang in the air, firing three lightning arrows that strike the floor one after another, near, middle and far in front of you.',
     relations: ['Zone 2s', 'Keeps foes up'],

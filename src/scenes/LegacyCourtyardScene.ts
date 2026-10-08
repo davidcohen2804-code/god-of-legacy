@@ -943,7 +943,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     k.vx = 0; k.vy = 0;
     if (d.lift) { // acrobatic leap: real height (shots fire from it), lands by gravity afterwards
       k.grounded = false;
-      k.z = d.crash ? run.origin.z + d.lift * Math.sin(Math.PI * Math.min(1, p * 1.06)) : Math.max(k.z, run.origin.z + d.lift * Math.sin(Math.PI * p));
+      const hang = d.hang ? (p < 0.22 ? Math.sin((Math.PI / 2) * (p / 0.22)) : p > 0.86 ? Math.cos((Math.PI / 2) * ((p - 0.86) / 0.14)) : 1) : 0;
+      k.z = d.hang ? run.origin.z + d.lift * hang : d.crash ? run.origin.z + d.lift * Math.sin(Math.PI * Math.min(1, p * 1.06)) : Math.max(k.z, run.origin.z + d.lift * Math.sin(Math.PI * p));
       k.vz = p < 0.5 ? 40 : -40;
     }
   }
