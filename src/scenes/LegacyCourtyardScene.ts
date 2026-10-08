@@ -20,8 +20,6 @@ import type { CursedSwordsman } from '../world/CursedSwordsman';
 import { showLoading } from '../ui/LoadingScreen';
 import { CHAT_MAX_LEN, ChatBox, ChatKind, EMOTES } from '../ui/ChatBox';
 import { SpeechBubbles } from '../ui/SpeechBubbles';
-import { CameraPanel } from '../ui/CameraPanel';
-import { CAM, camPrefs, resetCam, saveCam, setCam } from '../game/CameraPrefs';
 import { QuestLog, QuestTracker } from '../ui/HudExtras';
 import { KeySettings } from '../ui/KeySettings';
 import { BindAction, SLOT_COUNT, keyLabel, loadBindings, slotKeyLabels } from '../game/KeyBindings';
@@ -59,7 +57,7 @@ import { CombatInput } from '../game/CombatInput';
 import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey, damageSkin, wantsWeaponMasks } from '../game/ActorView';
 import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
-import { baseLoop, ClassKey, dirOf, HERO_HEIGHT, HERO_LIFT, heroPortrait, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame, sideAim } from '../game/Body';
+import { baseLoop, ClassKey, dirOf, HERO_LIFT, heroPortrait, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame, sideAim } from '../game/Body';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
 import { ARENA, CombatBody, GAUGE, HitOutcome, Kin, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
@@ -296,9 +294,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Hit by the other fighter: your body shudders until this time (fighting-game hit feel). */
   private selfShakeUntil = -1;
   private baseZoom = 1;
-  /** The arena: the zoom that fits the whole arena (the player's camera zoom is a share of it). */
-  private fitZoom = 1;
-  private camPanel?: CameraPanel;
   private hud?: WorldHUD;
   private character?: Character;
   skillBook?: SkillBook;
@@ -422,24 +417,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.add.image(0, 0, T.map.key).setOrigin(0, 0).setDepth(-1);
       // The skill tray covers the bottom of the screen: the camera follows you up / down so the whole floor stays
       // playable above it; below the map the floor is mirrored and darkened (only ever seen under the HUD).
-      // The player's camera (gear menu > CAMERA, the mouse wheel) may draw back past the arena's sides: there the arena
-      // goes on mirrored, darkening away from it.
-      this.fitZoom = cam.zoom;
-      const W = WORLD.coordinateSpace.width, H = WORLD.coordinateSpace.height, extra = Math.ceil(ARENA_HUD_PX / (cam.zoom * CAM.zoom.min)), SIDE = 320;
+      const W = WORLD.coordinateSpace.width, H = WORLD.coordinateSpace.height, extra = Math.ceil(ARENA_HUD_PX / cam.zoom);
       this.add.image(0, H, T.map.key).setOrigin(0, 0).setFlipY(true).setDepth(-1.1);
-      for (const x of [-W, W]) {
-        this.add.image(x, 0, T.map.key).setOrigin(0, 0).setFlipX(true).setDepth(-1.1);
-        this.add.image(x, H, T.map.key).setOrigin(0, 0).setFlipX(true).setFlipY(true).setDepth(-1.1);
-      }
-      this.add.rectangle(-SIDE, H, W + 2 * SIDE, extra, 0x05080e, 0.45).setOrigin(0, 0).setDepth(-1.05);
-      const fade = edgeFadeTex(this);
-      this.add.image(W, -4, fade).setOrigin(0, 0).setDisplaySize(SIDE, H + extra + 8).setDepth(-1.04);
-      this.add.image(0, -4, fade).setOrigin(1, 0).setDisplaySize(SIDE, H + extra + 8).setFlipX(true).setDepth(-1.04);
-      cam.setBounds(-SIDE, 0, W + 2 * SIDE, H + extra);
+      this.add.rectangle(0, H, W, extra, 0x05080e, 0.45).setOrigin(0, 0).setDepth(-1.05);
+      cam.setBounds(0, 0, W, H + extra);
       this.camTarget.set(W / 2, this.kin ? this.kin.y : H / 2);
-      cam.startFollow(this.camTarget, true, 0.09, 0.09);
+      cam.startFollow(this.camTarget, true, 0, 0.09);
       cam.centerOn(W / 2, H / 2);
-      this.applyCam();
       this.ambience = new CourtyardAmbience(this, WORLD.coordinateSpace.width, WORLD.coordinateSpace.height);
       // Baked-map occlusion: each prop silhouette is redrawn from the map at its footprint depth (no floor crop).
       this.occluders = WORLD_OBJECTS.map((o) => {
@@ -525,7 +509,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onPotion: (i) => this.usePotion(i),
       onMenu: (k) => this.togglePanel(k),
       onKeys: () => { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.keySettings?.open(loadBindings()); },
-      onCamera: pvpRoom ? () => this.camPanel?.toggle(camPrefs()) : undefined,
     });
     this.hud.setKeyLabels(slotKeyLabels());
     this.hud.setMenuKeys(menuKeys(this.bindings));
@@ -542,25 +525,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const ov = this.hud.overlay;
     this.chat = new ChatBox(ov, (text, kind) => this.sendChat(text, kind), (on) => this.chatTyping(on), (n) => { this.bubbles?.emote(this.localId, n, this.simMs); this.pvp?.sendChat('', undefined, n); });
     this.bubbles = new SpeechBubbles(this);
-    if (pvpRoom) { // the CAMERA window (gear menu) and the mouse wheel over the arena
-      this.camPanel = new CameraPanel(ov, {
-        change: (p) => { setCam(p); this.applyCam(false); },
-        reset: () => { const p = resetCam(); this.applyCam(false); return p; },
-        save: () => saveCam(),
-      });
-      // the same keys as the camera of the open world: the wheel zooms, Shift + wheel / PageUp / PageDown move the view up
-      // and down (the angle), Home resets (SAVE in the window keeps it)
-      this.input.on(Phaser.Input.Events.POINTER_WHEEL, (p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => {
-        if (!dy) return;
-        if ((p.event as WheelEvent | undefined)?.shiftKey) setCam({ angle: camPrefs().angle + (dy < 0 ? -0.1 : 0.1) });
-        else setCam({ zoom: camPrefs().zoom * (dy < 0 ? CAM.zoom.notch : 1 / CAM.zoom.notch) });
-        this.applyCam();
-      });
-      const kb = this.input.keyboard;
-      kb?.on('keydown-PAGE_UP', () => { setCam({ angle: camPrefs().angle - 0.2 }); this.applyCam(); });
-      kb?.on('keydown-PAGE_DOWN', () => { setCam({ angle: camPrefs().angle + 0.2 }); this.applyCam(); });
-      kb?.on('keydown-HOME', () => { resetCam(); this.applyCam(); });
-    }
     this.questsUi = new QuestTracker(ov);
     this.questLog = new QuestLog(ov, () => this.ci?.reset());
     this.partyUi = new PartyUI(ov, {
@@ -572,7 +536,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.keySettings = new KeySettings(ov, Array.from({ length: SLOT_COUNT }, (_, i) => ({ name: this.kit[i]?.name ?? '', icon: this.kit[i] ? iconUrl(this.kit[i]) : '' })),
       (b) => this.applyKeys(b), (open) => this.chatTyping(open));
     this.chat.add({ kind: 'system', text: pvpRoom ? 'Welcome to the PvP Arena! Press Enter to chat.' : 'Welcome to God Of Legacy! Press Enter to chat.' });
-    if (pvpRoom) this.chat.add({ kind: 'system', text: 'Camera: mouse wheel to zoom · PageUp / PageDown (or Shift + wheel) for the angle · Home to reset · Menu > Camera to save.' });
     if (this.world) {
       this.areaTitle = new AreaTitle(ov);
       this.areaTitle.show(this.world.area.name); this.areaName = this.world.area.name;
@@ -637,7 +600,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.cosPanel?.destroy(); this.cosPanel = undefined;
       this.chat?.destroy(); this.chat = undefined;
       this.bubbles?.destroy(); this.bubbles = undefined;
-      this.camPanel?.destroy(); this.camPanel = undefined;
       this.questsUi?.destroy(); this.questsUi = undefined;
       this.questLog?.destroy(); this.questLog = undefined;
       this.partyUi?.destroy(); this.partyUi = undefined; this.party = undefined;
@@ -707,7 +669,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.updateBot(ms, now);
     this.updateMatch(real, ms);
     this.reactionFx(ms);
-    if (this.pvp || this.arena) this.aimArenaCamera(); // keep yourself above the tray (and the fight in view)
+    if (this.pvp || this.arena) this.camTarget.set(WORLD.coordinateSpace.width / 2, this.kin.y + 70); // keep yourself above the tray
     this.renderPlayer(this.fx.hitStopLeft > 0 ? 0 : ms);
     this.updateWorldUi(ms);
     this.bubbles?.update(now, (id) => {
@@ -2907,32 +2869,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.refreshRematch();
   }
 
-  /** The player's camera now (CameraPrefs): its zoom (a share of the fitting one; the K.O. punch zooms from it). */
-  private applyCam(panel = true): void {
-    if (!this.arena) return;
-    this.baseZoom = this.fitZoom * camPrefs().zoom;
-    if (this.koT < 0) this.cameras.main.setZoom(this.baseZoom);
-    if (panel) this.camPanel?.set(camPrefs());
-  }
-
-  /** Where the arena camera looks: you a little above the tray; the player's angle moves the view down (from above: you
-   *  higher on the screen, more floor) or up (from below: you lower, more of the back), as far as you stay in full view —
-   *  your head under the bars on top, your feet over the skill tray. Drawn back past the whole arena it stays centred on
-   *  it; closer, it follows the fight (you and your opponent) without leaving the arena. */
-  private aimArenaCamera(): void {
-    const W = WORLD.coordinateSpace.width, cam = this.cameras.main, viewW = cam.width / cam.zoom, z = cam.zoom, y = this.kin.y;
-    let x = W / 2;
-    if (viewW < W - 1) {
-      const id = this.match?.opponent, o = id === BOT_ID ? this.bot?.kin : id ? this.pvp?.remotes.get(id) : undefined;
-      const fx = o && Math.abs(o.x - this.kin.x) < viewW * 0.8 ? (o.x + this.kin.x) / 2 : this.kin.x;
-      x = Phaser.Math.Clamp(fx, viewW / 2, W - viewW / 2);
-    }
-    // screen px (1080 high): the feet between 160 + a head's height and 790
-    const mid = cam.height / 2, hi = y + (mid - 160 - (HERO_HEIGHT + 6) * z) / z, lo = y - (790 - mid) / z, base = Phaser.Math.Clamp(y + 70, lo, hi);
-    const a = camPrefs().angle;
-    this.camTarget.set(x, a >= 0 ? base + a * Math.max(0, hi - base) : base + a * Math.max(0, base - lo));
-  }
-
   /** K.O.: the world slows to a quarter for a beat while the camera punches in, then eases back. */
   private koMoment(): void {
     this.koT = 0; this.koZoomBack = false;
@@ -3288,14 +3224,4 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** QA helpers. */
   qaLegal(x: number, y: number): boolean { return insideArena(x, y, R); }
   qaDepth(x: number, y: number, z: number): number { return actorDepth(x, y, z); }
-}
-
-/** The arena's mirrored surroundings darken away from it: a strip clear at its left end, near black at its right. */
-function edgeFadeTex(scene: Phaser.Scene): string {
-  const key = 'arena-edge-fade';
-  if (scene.textures.exists(key)) return key;
-  const c = scene.textures.createCanvas(key, 256, 4)!, ctx = c.getContext(), g = ctx.createLinearGradient(0, 0, 256, 0);
-  g.addColorStop(0, 'rgba(5,8,14,0.1)'); g.addColorStop(0.35, 'rgba(5,8,14,0.62)'); g.addColorStop(1, 'rgba(5,8,14,0.94)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 4); c.refresh();
-  return key;
 }

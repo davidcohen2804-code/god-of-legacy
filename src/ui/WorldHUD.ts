@@ -196,8 +196,6 @@ export interface WorldHUDOptions {
   onMenu?: (key: 'K' | 'I' | 'O' | 'P' | 'U') => void;
   /** Gear menu: open the Key Settings window. */
   onKeys?: () => void;
-  /** Gear menu: the CAMERA window (the arena). */
-  onCamera?: () => void;
   /** Click on a potion (0 HP, 1 MP). */
   onPotion?: (i: 0 | 1) => void;
 }
@@ -256,7 +254,6 @@ export class WorldHUD {
       { key: 'P', label: 'PARTY', run: () => opts.onMenu?.('P') },
       { key: 'U', label: 'STATS', run: () => opts.onMenu?.('U') },
       { label: 'KEY SETTINGS', run: () => opts.onKeys?.() },
-      ...(opts.onCamera ? [{ label: 'CAMERA', run: () => opts.onCamera?.() }] : []),
       { label: opts.returnLabel, run: () => opts.onReturn() },
     ]);
     this.layout();
