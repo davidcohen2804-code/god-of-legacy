@@ -132,17 +132,15 @@ export class OpenWorld {
     const key = tileKey(i);
     if (!this.scene.textures.exists(key)) { this.scene.load.image(key, tileUrl(i)); return; }
     this.tiles[i] = this.scene.add.image(TILES[i][0], 0, key).setOrigin(0, 0).setDepth(-1);
-    // below the picture (seen when the camera draws back): its bottom band (the arches' legs) carried on down, sinking
-    // into the valley mist — the bridge never ends in a cut edge
-    const B0 = WORLD_H - 70, S = 4.5, fogH = 70 * S;
-    const ext = this.scene.add.image(TILES[i][0], WORLD_H - B0 * S, key).setOrigin(0, 0).setScale(1, S).setCrop(0, B0, TILES[i][1], 70).setDepth(-1.6);
-    if (!this.scene.textures.exists('below-fog')) {
-      const c = this.scene.textures.createCanvas('below-fog', 4, 256)!, x = c.getContext(), g = x.createLinearGradient(0, 0, 0, 256);
-      g.addColorStop(0, 'rgba(226,150,136,0)'); g.addColorStop(0.35, 'rgba(226,150,136,0.75)'); g.addColorStop(1, 'rgba(214,138,126,1)');
+    // below the picture (seen when the camera draws back): the bridge sinks into the valley's mist — a soft veil from a
+    // little above its cut edge, thick below it (no stretched copy of the picture)
+    if (!this.scene.textures.exists('below-fog2')) {
+      const c = this.scene.textures.createCanvas('below-fog2', 4, 256)!, x = c.getContext(), g = x.createLinearGradient(0, 0, 0, 256);
+      g.addColorStop(0, 'rgba(226,152,138,0)'); g.addColorStop(0.12, 'rgba(226,152,138,0.35)'); g.addColorStop(0.25, 'rgba(222,148,134,1)'); g.addColorStop(1, 'rgba(206,134,122,1)');
       x.fillStyle = g; x.fillRect(0, 0, 4, 256); c.refresh();
     }
-    const fog = this.scene.add.image(TILES[i][0], WORLD_H - 2, 'below-fog').setOrigin(0, 0).setDisplaySize(TILES[i][1], fogH + 400).setDepth(-1.55);
-    this.below.push(ext, fog);
+    const fog = this.scene.add.image(TILES[i][0] - 2, WORLD_H - 150, 'below-fog2').setOrigin(0, 0).setDisplaySize(TILES[i][1] + 4, 600).setDepth(-0.95);   // opaque by the picture's edge
+    this.below.push(fog);
   }
 
   private buildOccluders(): void {
