@@ -1,4 +1,4 @@
-# God Of Legacy — automatic screenshots of build 36dd9ba (2026-10-08 16:24 UTC)
+# God Of Legacy — automatic screenshots of build c20fa16 (2026-10-08 16:51 UTC)
 
 ### 1920_01_main_menu.jpg
 ![1920_01_main_menu.jpg](1920_01_main_menu.jpg)
@@ -14,6 +14,9 @@
 
 ### 1920_05_exit_web_message.jpg
 ![1920_05_exit_web_message.jpg](1920_05_exit_web_message.jpg)
+
+### 1920_05b_pvp_select.jpg
+![1920_05b_pvp_select.jpg](1920_05b_pvp_select.jpg)
 
 ### 1920_06_character_select.jpg
 ![1920_06_character_select.jpg](1920_06_character_select.jpg)
@@ -44,6 +47,9 @@
 
 ### 1280_05_exit_web_message.jpg
 ![1280_05_exit_web_message.jpg](1280_05_exit_web_message.jpg)
+
+### 1280_05b_pvp_select.jpg
+![1280_05b_pvp_select.jpg](1280_05b_pvp_select.jpg)
 
 ### 1280_06_character_select.jpg
 ![1280_06_character_select.jpg](1280_06_character_select.jpg)

@@ -1,12 +1,13 @@
 {
-  "commit": "36dd9ba",
-  "capturedAt": "2026-10-08 16:24 UTC",
+  "commit": "c20fa16",
+  "capturedAt": "2026-10-08 16:51 UTC",
   "files": [
     "1920_01_main_menu.jpg",
     "1920_02_start_hover.jpg",
     "1920_03_settings.jpg",
     "1920_04_exit_confirm.jpg",
     "1920_05_exit_web_message.jpg",
+    "1920_05b_pvp_select.jpg",
     "1920_06_character_select.jpg",
     "1920_07_slot_selected.jpg",
     "1920_08_character_filled_QA_data.jpg",
@@ -17,6 +18,7 @@
     "1280_03_settings.jpg",
     "1280_04_exit_confirm.jpg",
     "1280_05_exit_web_message.jpg",
+    "1280_05b_pvp_select.jpg",
     "1280_06_character_select.jpg",
     "1280_07_slot_selected.jpg",
     "1280_08_character_filled_QA_data.jpg",
