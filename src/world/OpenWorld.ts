@@ -60,6 +60,8 @@ export function preloadOpenWorld(scene: Phaser.Scene): void {
 /** Camera up high: the height where it is drawn back all the way, how far back (share of the zoom), how fast it
  *  rises / comes down with the ground (ms), how fast it moves up and down (ms). */
 const UP_FULL = 340, UP_ZOOM = 0.2, CAM_RISE = 420, CAM_FALL = 220, CAM_EASE_Y = 160;
+/** Near a stair (world px from it: full look .. none) the camera looks up as if this high, easing over CAM_LOOK ms. */
+const LOOK_NEAR = 160, LOOK_FAR = 820, LOOK_H = 280, CAM_LOOK = 650;
 
 /** The painted stone cube the towers are stacked of: its width, one cube's height (front face with plinth), its top face. */
 const CUBE = { w: 183, h: 86, top: 32 };
@@ -150,6 +152,46 @@ export class OpenWorld {
     }
   }
 
+  /** Climbable, shown: a soft warm light breathing on every stair cube's top face with little motes rising off it, and a
+   *  line of light along the edge of the map above where the stair leads (MapleStory: you see at once where you can
+   *  go up). */
+  private climbHints(): void {
+    const sc = this.scene;
+    if (!sc.textures.exists('climb-glow')) {
+      const g = sc.make.graphics({ x: 0, y: 0 }, false);
+      for (let i = 24; i > 0; i--) { g.fillStyle(0xffe2a0, 0.06 + (1 - i / 24) * 0.09); g.fillEllipse(64, 16, 128 * (i / 24), 32 * (i / 24)); }
+      g.generateTexture('climb-glow', 128, 32); g.destroy();
+    }
+    if (!sc.textures.exists('climb-mote')) {
+      const g = sc.make.graphics({ x: 0, y: 0 }, false);
+      for (let r = 6; r > 0; r--) { g.fillStyle(0xfff2c8, 0.18 + (1 - r / 6) * 0.5); g.fillCircle(6, 6, r); }
+      g.generateTexture('climb-mote', 12, 12); g.destroy();
+    }
+    const pulse = (o: Phaser.GameObjects.GameObject, lo: number, hi: number, ms: number, delay: number) =>
+      sc.tweens.add({ targets: o, alpha: { from: lo, to: hi }, duration: ms, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay });
+    const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => { this.towers.push(o as unknown as Phaser.GameObjects.Image); return o; };
+    TOWERS.forEach((t, i) => {
+      const cx = (t.x0 + t.x1) / 2, w = t.x1 - t.x0, top = t.front - Math.round(t.h / CUBE.h) * CUBE.h - CUBE.top / 2;
+      const glow = add(sc.add.image(cx, top, 'climb-glow').setDisplaySize(w * 0.95, CUBE.top * 1.6).setBlendMode(Phaser.BlendModes.ADD).setDepth(t.front + 1.2));
+      pulse(glow, 0.55, 1, 1300, i * 260);
+      add(sc.add.particles(0, 0, 'climb-mote', {
+        x: { min: t.x0 + 14, max: t.x1 - 14 }, y: { min: top - 8, max: top + 8 }, lifespan: 1400, speedY: { min: -38, max: -18 }, speedX: { min: -6, max: 6 },
+        scale: { start: 0.9, end: 0.2 }, alpha: { start: 0.85, end: 0 }, frequency: 420, quantity: 1, blendMode: 'ADD',
+      }).setDepth(t.front + 1.3));
+    });
+    // the edge of the map above, over each stair: where the last jump lands
+    for (const h of HEIGHTS) {
+      const st = TOWERS.filter((t) => t.x1 > h.x && t.x0 < h.x + h.w); if (!st.length) continue;
+      const x0 = Math.min(...st.map((t) => t.x0)), x1 = Math.max(...st.map((t) => t.x1)), cx = (x0 + x1) / 2, ey = h.front - h.H;
+      const line = add(sc.add.image(cx + (x1 - cx) * 0.35, ey - 4, 'climb-glow').setDisplaySize((x1 - x0) * 0.75, 40).setBlendMode(Phaser.BlendModes.ADD).setDepth(h.front + 0.9));
+      pulse(line, 0.45, 0.95, 1500, 400);
+      add(sc.add.particles(0, 0, 'climb-mote', {
+        x: { min: x0 + (x1 - x0) * 0.15, max: x1 }, y: { min: ey - 10, max: ey + 4 }, lifespan: 1600, speedY: { min: -30, max: -12 },
+        scale: { start: 0.8, end: 0.2 }, alpha: { start: 0.7, end: 0 }, frequency: 300, quantity: 1, blendMode: 'ADD',
+      }).setDepth(h.front + 0.95));
+    }
+  }
+
   /** The climbing towers (Areas.TOWERS): stacks of the painted stone cube (public/assets/world/blocks: its front face, one
    *  per cube from the floor up, and its top face on the last), side by side as wide as the tower. */
   private buildTowers(): void {
@@ -161,6 +203,7 @@ export class OpenWorld {
       if (!this.scene.load.isLoading()) this.scene.load.start();
       return;
     }
+    this.climbHints();
     for (const t of TOWERS) {
       const cols = Math.max(1, Math.round((t.x1 - t.x0) / CUBE.w)), n = Math.max(1, Math.round(t.h / CUBE.h)), cw = (t.x1 - t.x0) / cols, d = t.front + 1;
       for (let c = 0; c < cols; c++) {
@@ -247,15 +290,21 @@ export class OpenWorld {
     if (grounded) this.camGround = ground; else this.camGround = Math.min(this.camGround, Math.max(ground, z));
     const kh = snap ? 1 : 1 - Math.exp(-ms / (this.camGround < this.camH ? CAM_FALL : CAM_RISE));
     this.camH += (this.camGround - this.camH) * kh;
+    // close to a stair up to a map above: the camera draws back a little already, so the floor above comes into view
+    let look = 0;
+    if (!belowTerrace(y)) for (const t of TOWERS) { const d = x < t.x0 ? t.x0 - x : x > t.x1 ? x - t.x1 : 0; look = Math.max(look, 1 - Phaser.Math.Clamp((d - LOOK_NEAR) / (LOOK_FAR - LOOK_NEAR), 0, 1) ** 2 * (3 - 2 * Phaser.Math.Clamp((d - LOOK_NEAR) / (LOOK_FAR - LOOK_NEAR), 0, 1))); }
+    const kl = snap ? 1 : 1 - Math.exp(-ms / CAM_LOOK);
+    this.camLook += (look * LOOK_H - this.camLook) * kl;
+    const hView = Math.max(this.camH, this.camLook);
     // zoom: drawn back as you climb (all the way back from the height of a map above)
-    const up = Phaser.Math.SmoothStep(this.camH, 30, UP_FULL);
+    const up = Phaser.Math.SmoothStep(hView, 30, UP_FULL);
     const zoom = this.baseZoom * (1 - UP_ZOOM * up);
     if (Math.abs(cam.zoom - zoom) > 1e-4) cam.setZoom(zoom);
     const half = cam.width / zoom / 2, halfH = cam.height / zoom / 2;
     const down = belowTerrace(y);
     const lead = (ARENA.edgeY - terraceCy) * (1 - Phaser.Math.SmoothStep(y, ARENA.edgeY, ARENA.y));
     // up high: the view rises so that you stand a little below its middle (the floor above and the one below both show)
-    const lift = down ? 0 : Math.max(0, this.camH * 0.92 - 20) * up + Math.max(0, this.camH - 20) * 0.25 * (1 - up);
+    const lift = down ? 0 : Math.max(0, hView * 0.92 - 20) * up + Math.max(0, hView - 20) * 0.25 * (1 - up);
     let ty = down ? Phaser.Math.Clamp(y - lead, terraceCy, ARENA.y + ARENA.h - halfH) : terraceCy - lift;
     // never lose you: whatever happens, your body stays well inside the view
     const sy = y - z;
@@ -275,6 +324,7 @@ export class OpenWorld {
   }
   private camGround = 0;
   private camH = 0;
+  private camLook = 0;
   private baseZoom = 1;
 
   /** Instant move (portal, waking up after a defeat): a short fade, then there. */
