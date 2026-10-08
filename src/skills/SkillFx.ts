@@ -1475,7 +1475,15 @@ export class SkillFx {
         const kx = o.x + a.x * 70, ky = o.y + a.y * 30;
         this.scene.time.delayedCall(Math.max(0, T.startup - 40), () => {
           this.groundScar(kx, ky, 54);
-          const bootImg = this.scene.textures.exists('afx-boot') ? this.play('afx-boot', kx, ky - o.z + 10, 330, 330, spread(8, T.active + 420), { oy: 0.97, flip: left, depth: ky + 1 }) : null; if (bootImg) { bootImg.setAngle(-side * 20); this.scene.tweens.add({ targets: bootImg, angle: -side * 160, duration: T.active + 420, ease: 'Cubic.easeOut' }); } // kicks up and keeps spinning back over // a green boot of wind bursts out of the earth and kicks
+          const bootImg = this.scene.textures.exists('afx-boot') ? this.play('afx-boot', kx, ky - o.z - 150, 300, 300, spread(8, T.active + 420), { oy: 0.5, flip: left, depth: ky + 1 }) : null;
+          if (bootImg) { // stays on the spot and whirls round in a full circle: a spinning kick, its ghosts drawing the circle behind it
+            const spin = { a: 0 };
+            this.scene.tweens.add({ targets: spin, a: -side * 360, duration: T.active + 380, ease: 'Cubic.easeOut', onUpdate: () => {
+              if (!bootImg.active) return; bootImg.setAngle(spin.a);
+              const g = this.scene.add.image(bootImg.x, bootImg.y, 'afx-boot', bootImg.frame.name).setOrigin(0.5, 0.5).setFlipX(bootImg.flipX).setAngle(spin.a).setDisplaySize(bootImg.displayWidth, bootImg.displayHeight).setDepth(bootImg.depth - 0.1).setAlpha(0.25);
+              this.scene.tweens.add({ targets: g, alpha: 0, duration: 180, onComplete: () => g.destroy() });
+            } });
+          }
           else if (this.scene.textures.exists('afx-kick')) this.play('afx-kick', kx, ky - o.z + 8, 300, 300, spread(8, T.active + 320), { oy: 0.95, flip: left, depth: ky + 1 }); // the green wind kicks up out of the ground
           else this.play(key, kx, ky - o.z - 70, 260, 260, spread(8, T.active + 200), { flip: left, depth: TOP, alpha: 0.8 });
           this.shockwave(kx, ky, 110, 0x7ee35a, true); this.dust(kx, ky, 90, 0.7);
