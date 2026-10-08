@@ -177,6 +177,17 @@ export class OpenWorld {
       p.setData('x0', x).setData('ph', k * 6.28);
       this.below.push(p); this.puffs.push(p);
     }
+    // and denser, smaller banks right along the line where the pillars' feet meet the mist, and soft swells below it:
+    // the bridge melts into a cloud, no straight edge anywhere
+    for (const [y0, dy, step, w, h, a, sw] of [[WORLD_H - 175, 60, 120, 260, 120, 0.62, 40], [WORLD_H + 20, 160, 210, 520, 200, 0.34, 80]] as const) {
+      for (let x = t0 - 160; x < t1; x += step + ((x * 11) % 60)) {
+        if (x + w + 200 > ax0 - 60 && x < ax1 + 60) continue;
+        const k = ((x * 17 + y0) % 100) / 100, p = this.scene.add.image(x, y0 + k * dy, 'mist-puff').setOrigin(0, 0.5)
+          .setDisplaySize(w + k * w * 0.6, h + k * h * 0.5).setAlpha(a + k * 0.25).setDepth(-0.955 + k * 0.004);
+        p.setData('x0', x).setData('ph', k * 6.28 + y0).setData('sw', sw);
+        this.below.push(p); this.puffs.push(p);
+      }
+    }
   }
 
   private buildOccluders(): void {
@@ -210,7 +221,7 @@ export class OpenWorld {
       const baseZ = under ? under.H : 0;
       this.towers.push(this.scene.add.image(h.x + h.w / 2, h.front - baseZ, 'heights-shade').setOrigin(0.5, 0).setDisplaySize(h.w + 20, 70)
         .setDepth(under ? (under.depth ?? -1.2) + 0.05 : -0.9));
-      for (const b of h.blocks) put(`heights-${h.id}-${b.id}`, b.occ.img, () => this.towers.push(this.scene.add.image(b.occ.x, h.imgY + b.occ.py, `heights-${h.id}-${b.id}`).setOrigin(0, 0).setDepth(b.front + 0.5)));
+      // its blocks: drawn as real cubes by buildTowers (the painted ones are low and flat for their height)
     }
   }
 
@@ -275,6 +286,13 @@ export class OpenWorld {
         for (let i = 0; i < n; i++) this.towers.push(this.scene.add.image(x, t.front - t.base - CUBE.h * (i + 1), 'tower-cube-face').setOrigin(0, 0).setDisplaySize(cw, CUBE.h).setDepth(d));
         this.towers.push(this.scene.add.image(x, t.front - t.base - CUBE.h * n - CUBE.top, 'tower-cube-top').setOrigin(0, 0).setDisplaySize(cw, CUBE.top).setDepth(d));
       }
+    }
+    // the blocks on the maps above: one cube each, as tall as the block (covers the flat block painted in its picture),
+    // its top face giving it depth; whoever walks behind it is hidden by it, whoever stands on it is drawn on its top
+    for (const h of HEIGHTS) for (const b of h.blocks) {
+      const d = h.front + 2 + (b.front + 1.5) * 0.001, foot = b.front - h.H, w = b.x1 - b.x0, tint = h.id.startsWith('crimson') ? 0xe6b0a4 : 0xffffff;
+      this.towers.push(this.scene.add.image(b.x0, foot - b.h, 'tower-cube-face').setOrigin(0, 0).setDisplaySize(w, b.h).setDepth(d).setTint(tint));
+      this.towers.push(this.scene.add.image(b.x0, foot - b.h - CUBE.top, 'tower-cube-top').setOrigin(0, 0).setDisplaySize(w, CUBE.top).setDepth(d).setTint(tint));
     }
   }
 
@@ -446,7 +464,7 @@ export class OpenWorld {
   /** player: z = height above what he stands on, supportZ = the height of that (0 = the floor). */
   update(ms: number, player: { x: number; y: number; z: number; supportZ?: number; absZ?: number; grounded?: boolean; alive: boolean }): void {
     this.t += ms;
-    for (const p of this.puffs) { const ph = p.getData('ph') as number; p.x = (p.getData('x0') as number) + Math.sin(this.t / 7000 + ph) * 60; }
+    for (const p of this.puffs) { const ph = p.getData('ph') as number; p.x = (p.getData('x0') as number) + Math.sin(this.t / 7000 + ph) * ((p.getData('sw') as number | undefined) ?? 60); }
     this.follow(player.x, player.y, ms, false, player.supportZ ?? 0, player.absZ ?? 0, player.grounded ?? true);
     this.ambience.update(ms);
     this.banners?.update(this.t, this.scene.cameras.main.worldView, this.gate[1]?.alpha ?? 1);

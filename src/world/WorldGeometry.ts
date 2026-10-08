@@ -177,10 +177,17 @@ export function clearLine(ax: number, ay: number, bx: number, by: number, h = 30
  *  only someone behind its back edge is hidden by it). */
 export function actorDepth(x: number, y: number, z: number): number {
   let d = y;
+  // Drawn over a prop only when actually on / above its top (feet over the footprint); an airborne actor behind the
+  // prop stays behind it. Up on a whole floor (a map above) with blocks of its own: that floor's band (its front edge),
+  // ordered by y inside it — behind its block hidden by the block, on the block drawn on its top.
+  const on = WORLD_OBJECTS.filter((o) => z >= o.height - 4 && y <= o.frontY + 2 && polyDist(x, y, o.footprint) < 14);
+  if (on.length) {
+    const base = on.reduce((a, o) => (o.frontY > a.frontY ? o : a));
+    d = Math.max(d, base.frontY + 1 + y * 0.001);
+    for (const o of on) if (o !== base) d = Math.max(d, base.frontY + 1 + (o.frontY + 1) * 0.001 + 0.0002);
+  }
   for (const o of WORLD_OBJECTS) {
-    // Drawn over a prop only when actually on / above its top (feet over the footprint); an airborne actor
-    // behind the prop stays behind it.
-    if (z >= o.height - 4 && y <= o.frontY + 2 && polyDist(x, y, o.footprint) < 14) { d = Math.max(d, o.frontY + 1 + y * 0.001); continue; }
+    if (on.includes(o)) continue;
     if (y >= o.frontY) continue;
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity;
     for (const p of o.footprint) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; }
