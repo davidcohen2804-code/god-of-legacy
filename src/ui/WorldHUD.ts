@@ -17,8 +17,8 @@ const G = {
   card: { x: 18, y: 16, w: 436, h: 104 },
   portrait: { x: 14, y: 14, d: 76 },
   name: { x: 106, y: 13, w: 314, h: 30 },
-  hp: { x: 106, y: 50, w: 314, h: 22 },
-  mp: { x: 106, y: 78, w: 314, h: 12 },
+  hp: { x: 106, y: 48, w: 314, h: 19 },
+  mp: { x: 106, y: 73, w: 314, h: 19 },
   buffs: { x: 22, y: 130, size: 38, gap: 8 },
   exp: { x: 460, y: 1046, w: 1000, h: 18 },
   /** Map window (rounded panel, the map inset in it) and the area's name under it. */
@@ -70,10 +70,9 @@ const CSS = `
 .gol-hud .bar.mp .fill{background:linear-gradient(180deg,#6fb4ff,#2f6fc7)}
 .gol-hud .bar.xp .fill{background:linear-gradient(180deg,#f3d58c,#c99a45)}
 .gol-hud .bar.thp .fill{background:linear-gradient(180deg,#f0685b,#c13a30)}
-.gol-hud .bar .val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 13px var(--gl-body);letter-spacing:.4px;color:#fff;
+.gol-hud .bar .val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 12.5px var(--gl-body);letter-spacing:.4px;color:#fff;
   text-shadow:0 1px 2px rgba(0,0,0,.85);font-variant-numeric:tabular-nums}
-.gol-hud .bar.mp .val{font-size:10px}
-.gol-hud .bar.xp .val{font-size:11.5px;letter-spacing:.6px;color:#fff8e6}
+.gol-hud .bar.xp .val{letter-spacing:.6px;color:#fff8e6}
 /* skill dock */
 .gol-hud .dock{border-radius:16px}
 .gol-hud .aslot{position:absolute;padding:0;border:0;border-radius:12px;background:#0b1220;pointer-events:auto;cursor:pointer;overflow:hidden;

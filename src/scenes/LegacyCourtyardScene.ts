@@ -83,6 +83,8 @@ const RADIANT_SPEED = 3;
 /** World damage roll: from this fraction of the maximum up to it (MapleStory's mastery). */
 const STAT_MASTERY = 0.8;
 /** MP (MapleStory-style): every skill but the regular attack spends it; it refills over time (a share of the max a second). */
+/** Testing: skills cost no MP for now (turn back to false to spend MP again). */
+const MP_FREE = true;
 const MP_REGEN = 0.03, MP_ARENA = 220;
 const MP_CLASS: Record<string, number> = { warrior: 0.8, samurai: 0.9, archer: 1, book_mage: 1.6 };
 /** A skill's MP: none for the regular attack and passives / buffs' own cost by cooldown (the big ones cost more). */
@@ -457,7 +459,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       invite: (id) => this.party?.invite(id), kick: (id) => this.party?.kick(id), leave: () => this.party?.leave(),
       answer: (ok) => this.party?.answer(ok), onOpen: () => this.ci?.reset(),
     });
-    this.statsWin = new StatsWindow(ov, { add: (k) => this.addStat(k), sub: (k) => this.subStat(k), auto: () => this.autoStats(), reset: () => this.resetStats(), onOpen: (o) => { this.chatTyping(o); if (!o) this.ci?.reset(); } });
+    this.statsWin = new StatsWindow(ov, { add: (k) => this.addStat(k), sub: (k) => this.subStat(k), auto: () => this.autoStats(), reset: () => this.resetStats(), onOpen: (o) => { if (o) this.refreshStats(); this.chatTyping(o); if (!o) this.ci?.reset(); } });
     this.keySettings = new KeySettings(ov, Array.from({ length: SLOT_COUNT }, (_, i) => ({ name: this.kit[i]?.name ?? '', icon: this.kit[i] ? iconUrl(this.kit[i]) : '' })),
       (b) => this.applyKeys(b), (open) => this.chatTyping(open));
     this.chat.add({ kind: 'system', text: pvpRoom ? 'Welcome to the PvP Arena! Press Enter to chat.' : 'Welcome to God Of Legacy! Press Enter to chat.' });
@@ -1470,7 +1472,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const run = this.rt.ownRun;
     if (run && !this.cancelAllowed(run, s)) return false;
     if (this.rt.cooldownRemaining(s.id) > 0) return false;
-    if (this.localId === 'local' || this.arena) { const c = mpCost(s), chainNext = run && run.skill.id === s.id; // MP: a chain's later strikes are paid with its first
+    if (!MP_FREE && (this.localId === 'local' || this.arena)) { const c = mpCost(s), chainNext = run && run.skill.id === s.id; // MP: a chain's later strikes are paid with its first
       if (c > 0 && !chainNext && this.mp < c) { if (this.simMs - this.noMpAt > 900) { this.noMpAt = this.simMs; this.fx?.callout({ x: k.x, y: k.y, z: k.z + 70 }, 'NOT ENOUGH MP', '#7fb6ff', 0); } return false; } }
     let stage = 0;
     if (s.chain) {
@@ -1529,7 +1531,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private startCast(s: FinalSkill, stage: number, aim: V2, place: V2 | null, lock: string | null): void {
     const k = this.kin;
-    if (stage === 0) this.mp = Math.max(0, this.mp - mpCost(s));
+    if (stage === 0 && !MP_FREE) this.mp = Math.max(0, this.mp - mpCost(s));
     // Lunge-in: melee skills step toward a soft-locked target that is just out of reach.
     this.lunge = null;
     const shape = (s.chain ? s.chain.stages[stage] : s.hits)[0]?.shape;
