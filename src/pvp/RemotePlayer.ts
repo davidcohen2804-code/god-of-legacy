@@ -11,7 +11,7 @@ import { ClassKey, HERO_LIFT, cleanLook, loadBaseLook, resolvePose } from '../ga
 import { DEFAULT_SKIN, SKIN_TONES } from '../characters/Skin';
 import { WornLook, parseWornCode } from '../items/Gear';
 import { AnimSnap, Mode, poseQuery } from '../game/PoseState';
-import { Afterimages, applyMotion, archerMotion } from '../skills/ArcherMotion';
+import { Afterimages, applyMotion, archerMotion, heroMotion } from '../skills/ArcherMotion';
 import { SAMURAI_AFTER, samuraiMotion, samuraiSeen } from '../skills/SamuraiMotion';
 import { finalSkill } from '../skills/FinalKit';
 import { KAGE, KageMode, KageSeen, decodeKage, kageFeintMotion, kageSnap, kageTargets } from '../skills/Kagemusha';
@@ -194,11 +194,11 @@ export class RemotePlayer {
     this.view.swordOff = this.jbAir;
     this.view.render(ms, pose, x + jx, y, z + jz, this.sz, this.dir, alpha, tint, fill);
     if (this.meta.classId === 'archer') { // the same body motion the caster sees
-      const m = this.skill && this.alive ? archerMotion(this.skill.id, this.skill.elapsed, this.skill, this.dir === 'left' ? -1 : 1) : null;
+      const m = heroMotion(this.skill && this.alive ? archerMotion(this.skill.id, this.skill.elapsed, this.skill, this.dir === 'left' ? -1 : 1) : null, !!this.meta.hero);
       applyMotion(this.view.motionSprites, m);
       (this.afterimg ??= new Afterimages(this.scene)).step(this.scene.time.now, this.view.sprite, !!m?.after);
     } else if (this.meta.classId === 'samurai') {
-      const m = this.skill && this.alive ? samuraiMotion(this.skill.id, this.skill.elapsed, this.skill, this.dir === 'left' ? -1 : 1, this.skill.stage) : null;
+      const m = heroMotion(this.skill && this.alive ? samuraiMotion(this.skill.id, this.skill.elapsed, this.skill, this.dir === 'left' ? -1 : 1, this.skill.stage) : null, !!this.meta.hero);
       applyMotion(this.view.motionSprites, m);
       (this.afterimg ??= new Afterimages(this.scene, SAMURAI_AFTER)).step(this.scene.time.now, this.view.sprite, !!m?.after);
       const g = this.meta.gender === 'female' ? 'female' : 'male';

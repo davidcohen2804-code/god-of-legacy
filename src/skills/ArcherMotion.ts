@@ -122,6 +122,12 @@ export function leapMotion(t: number, face: number, ms = 420): Motion | null {
 }
 
 /** Apply a motion to a body sprite (and its cross-fade ghost); null resets it. Pivot rotation keeps the body centred. */
+/** START HERO bodies draw their own moves (flips, leans, spins): keep only where the body is moved, its afterimages and
+ *  its fading — never turn, flip or squash the drawn frame on top. */
+export function heroMotion(m: Motion | null, hero: boolean): Motion | null {
+  return m && hero ? { ...m, ang: 0, sx: 1, sy: 1, flip: false } : m;
+}
+
 export function applyMotion(sprites: Phaser.GameObjects.Sprite[], m: Motion | null): void {
   for (const s of sprites) {
     if (!m) { s.setAngle(0); continue; }

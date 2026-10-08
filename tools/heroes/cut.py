@@ -15,7 +15,7 @@ from PIL import Image
 from scipy import ndimage
 
 # rows the game lifts itself (jumps, leaps): anchored on their own feet
-OWN_FEET = {'jump', 'leap_crash', 'judgment_blade', 'finisher', 'spin_cut', 'falcon_dive'}
+OWN_FEET = {'jump', 'leap_crash', 'judgment_blade', 'finisher', 'spin_cut', 'falcon_dive', 'retreat_kick', 'skyhunters_step', 'rain_of_arrows', 'air_shot'}
 SCALE = 0.6  # frame size kept in the atlas (source px x SCALE)
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC = os.path.join(ROOT, 'tools', 'heroes', 'src')
@@ -36,7 +36,13 @@ SPEC = {
                 ('S4', [('falcon_dive', 6), ('dragon_ascension', 6), ('dragon_eclipse', 6)]),
                 ('S5', [('kagemusha', 6), ('sakura_bind', 6), ('rising_sun', 6)]),
                 ('S6', [('phantom_blades', 6), ('god_of_blades', 6), ('finisher', 6)])],
-    'archer': [('A', [('idle', 6), ('walk', 6), ('attack', 6)]), ('B', [('run', 6), ('jump', 3), ('stance', 4)])],
+    'archer': [('A', [('idle', 6), ('walk', 6), ('attack', 6)]), ('B', [('run', 6), ('jump', 3), ('stance', 4)]),
+               ('S1', [('rising_arrow', 6), ('multi_shot', 6), ('explosive_arrow', 6)]),
+               ('S2', [('retreat_kick', 6), ('vine_trap', 6), ('skyhunters_step', 6)]),
+               ('S3', [('rain_of_arrows', 6), ('piercing_arrow', 6), ('hunters_roar', 6)]),
+               ('S4', [('leaping_arrow', 6), ('spirit_hawk', 6), ('sky_rain', 6)]),
+               ('S5', [('tree_of_life', 6), ('hunters_spirit', 6), ('arrow_storm', 6)]),
+               ('S6', [('eagle_arrow', 6), ('double_shot', 6), ('air_shot', 6)])],
 }
 
 
@@ -136,6 +142,34 @@ def frames_in_row(rgba, y0, y1, n, cls, act, scale=None):
     return out
 
 
+def blade_line(crop, ax, ay):
+    """The sword's line in a frame: the longest thin streak of bright, colourless steel → [hiltX, hiltY, tipX, tipY]
+    relative to the feet (frame px); the hilt is the end nearer the body's centre. None when no blade shows."""
+    rgb = crop[..., :3].astype(np.float32); a = crop[..., 3] > 160
+    mx, mn = rgb.max(2), rgb.min(2)
+    steel = a & (mn > 120) & (mx - mn < 38)
+    lab, k = ndimage.label(ndimage.binary_closing(steel, iterations=2), structure=np.ones((3, 3)))
+    best, bl = None, 0.0
+    for i in range(1, k + 1):
+        ys, xs = np.where(lab == i)
+        if len(xs) < 25:
+            continue
+        pts = np.stack([xs, ys], 1).astype(np.float32); c = pts.mean(0)
+        u, sv, vt = np.linalg.svd(pts - c, full_matrices=False)
+        d = vt[0]; t = (pts - c) @ d; L = t.max() - t.min()
+        thick = sv[1] / np.sqrt(len(pts)) if len(sv) > 1 else 0
+        if L < 34 or thick > 0.06 * L + 3:
+            continue
+        if L > bl:
+            bl, best = L, (c + d * t.min(), c + d * t.max())
+    if best is None:
+        return None
+    body = np.array([ax, crop.shape[0] * 0.45])
+    p0, p1 = best
+    hilt, tip = (p0, p1) if np.linalg.norm(p0 - body) < np.linalg.norm(p1 - body) else (p1, p0)
+    return [round(float(hilt[0] - ax), 1), round(float(hilt[1] - ay), 1), round(float(tip[0] - ax), 1), round(float(tip[1] - ay), 1)]
+
+
 def pack(frames, width=4096, pad=2):
     x = y = rowh = 0
     pos = []
@@ -201,7 +235,17 @@ def main():
         Image.fromarray(sheet).save(os.path.join(out_dir, 'body.png'), optimize=True)
         A = {}
         for (act, ax, ay), (px, py), im in zip(acts, pos, ims):
-            A.setdefault(act, []).append([px, py, im.shape[1], im.shape[0], round(ax, 1), round(ay, 1)])
+            fr = [px, py, im.shape[1], im.shape[0], round(ax, 1), round(ay, 1)]
+            if cls == 'warrior':  # the sword's line (Radiant Blade's light blade grows along it)
+                bl = blade_line(im, ax, ay)
+                if bl: fr.append(bl)
+            A.setdefault(act, []).append(fr)
+        if cls == 'warrior':  # a frame whose blade could not be traced borrows the nearest traced frame's of its row
+            for act, fs in A.items():
+                for i, fr in enumerate(fs):
+                    if len(fr) == 6:
+                        near = sorted((abs(j - i), j) for j, g in enumerate(fs) if len(g) > 6)
+                        if near: fr.append(list(fs[near[0][1]][6]))
         idle_h = float(np.median([f[3] for f in A['idle']]))
         table[cls] = {'h': idle_h, 'actions': A}
         print(cls, {k: len(v) for k, v in A.items()}, 'idle h', idle_h, 'sheet', sheet.shape[:2])

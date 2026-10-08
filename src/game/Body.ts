@@ -504,7 +504,7 @@ function sheetPose(cls: string, dir: Dir, q: BodyQuery): PoseFrame {
 // ------------------------------------------------------------------ START HERO bodies
 // The four ready heroes (GPT sheets cut by tools/heroes/cut.py): side view only, drawn facing right (left = mirrored),
 // one packed atlas per class with named frames `<action>-<i>` and a feet anchor per frame.
-type HeroFrame = [number, number, number, number, number, number]; // x, y, w, h, feet x, feet y (frame px)
+type HeroFrame = [number, number, number, number, number, number, number[]?]; // x, y, w, h, feet x, feet y (frame px), warrior: the sword line [hilt x, y, tip x, y] rel. feet
 interface HeroData { h: number; actions: Record<string, HeroFrame[]>; card?: [number, number, number, number, number] }
 const HEROES = HERO_ATLAS as unknown as Record<string, HeroData>;
 const heroKey = (cls: string) => `hero-${cls}`;
@@ -560,6 +560,26 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     phantom_blades: { act: 'phantom_blades', st: [0], ac: [1, 2, 3, 2, 3], rc: [4, 5] },
     god_of_blades: { act: 'god_of_blades', st: [0, 1, 2, 3], ac: [3], rc: [4, 5] },
   },
+  archer: {
+    quick_shot: { act: 'double_shot', st: [0, 1], ac: [2, 3, 4, 5], rc: [5] },
+    rising_arrow: { act: 'rising_arrow', st: [0, 1, 2], ac: [3], rc: [4, 5] },
+    bow_haste: { act: 'hunters_spirit', st: [0, 1], ac: [2], rc: [3, 4, 5] },
+    multi_shot: { act: 'multi_shot', st: [0, 1, 2, 3], ac: [4], rc: [4, 5] },
+    explosive_arrow: { act: 'explosive_arrow', st: [0, 1, 2, 3], ac: [4], rc: [4, 5] },
+    retreat_kick: { act: 'retreat_kick', st: [0], ac: [1, 2, 3, 4], rc: [5] },
+    vine_trap: { act: 'vine_trap', st: [0, 1], ac: [2, 3], rc: [4, 5] },
+    skyhunters_step: { act: 'skyhunters_step', st: [0], ac: [1, 2, 3, 4], rc: [5] },
+    rain_of_arrows: { act: 'rain_of_arrows', st: [0, 1], ac: [2, 3, 4, 3, 4, 3, 4, 5], rc: [5] },
+    piercing_arrow: { act: 'piercing_arrow', st: [0], ac: [1], rc: [5], loop: [1, 2, 3, 4], fps: 4 },
+    hunters_roar: { act: 'hunters_roar', st: [0], ac: [1, 2, 3], rc: [4, 5] },
+    leaping_arrow: { act: 'leaping_arrow', st: [0, 1, 2], ac: [3, 4], rc: [5] },
+    spirit_hawk: { act: 'spirit_hawk', st: [0, 1, 2], ac: [3], rc: [4, 5] },
+    sky_rain: { act: 'sky_rain', st: [0, 1, 2, 3], ac: [4, 4], rc: [4, 3] }, // (her last frame lets the bow fly: never shown)
+    tree_of_life: { act: 'tree_of_life', st: [0, 1, 2, 3], ac: [4], rc: [4, 5] },
+    hunters_spirit: { act: 'hunters_spirit', st: [0, 1, 2], ac: [3], rc: [4, 5] },
+    arrow_storm: { act: 'arrow_storm', st: [0, 1], ac: [2], rc: [5], loop: [1, 2, 3, 4], fps: 5 },
+    eagle_arrow: { act: 'eagle_arrow', st: [0, 1, 2, 3, 4, 4, 4, 4], ac: [5], rc: [5] },
+  },
 };
 
 function heroFrame(cls: string, dir: Dir, act: string, i: number): PoseFrame {
@@ -567,7 +587,10 @@ function heroFrame(cls: string, dir: Dir, act: string, i: number): PoseFrame {
   const list = h.actions[act] ?? h.actions.stance ?? h.actions.idle;
   const name = h.actions[act] ? act : h.actions.stance ? 'stance' : 'idle';
   const idx = ((Math.floor(i) % list.length) + list.length) % list.length, f = list[idx];
-  return { key: heroKey(cls), frame: `${name}-${idx}`, wkey: `${heroKey(cls)}-w`, ox: f[4] / f[2], oy: f[5] / f[3], scale: HERO_HEIGHT / h.h, flip: dir === 'left', anchor: null };
+  const k = HERO_HEIGHT / h.h, flip = dir === 'left', b = f[6];
+  // the sword line (Radiant Blade grows its light blade along it), mirrored when facing left
+  const blade = b ? [b[0] * k * (flip ? -1 : 1), b[1] * k, b[2] * k * (flip ? -1 : 1), b[3] * k] : null;
+  return { key: heroKey(cls), frame: `${name}-${idx}`, wkey: `${heroKey(cls)}-w`, ox: f[4] / f[2], oy: f[5] / f[3], scale: k, flip, anchor: null, blade };
 }
 
 function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
@@ -581,6 +604,7 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
     case 'jump': return H('jump', { takeoff: 0, rise: 1, apex: 1, fall: 2, land: 0 }[q.phase]);
     case 'airAttack': {
       if (HEROES[cls].actions.finisher) return H('finisher', 3 + Math.min(2, Math.floor(q.p * 3))); // the air strike
+      if (HEROES[cls].actions.air_shot) return H('air_shot', Math.min(5, Math.floor(q.p * 6))); // the shot in the air
       return STRIKES.has(cls) ? H('attack', q.p < 0.4 ? 0 : 1) : H('attack', q.p < 0.4 ? 1 : 3);
     }
     case 'launched': return H('jump', 1);

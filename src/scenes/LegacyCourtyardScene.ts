@@ -63,7 +63,7 @@ import { ARENA, CombatBody, GAUGE, HitOutcome, Kin, PHYS, jump, newKin, settleOn
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import { finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
 import { CastRun, RT_EVENTS, SkillRuntime } from '../skills/SkillRuntime';
-import { Afterimages, applyMotion, archerMotion, leapMotion } from '../skills/ArcherMotion';
+import { Afterimages, applyMotion, archerMotion, heroMotion, leapMotion } from '../skills/ArcherMotion';
 import { SAMURAI_AFTER, TORNADO, samuraiMotion, samuraiSeen, shinsokuMotion, tornadoPath } from '../skills/SamuraiMotion';
 import { KAGE, KageLocal, kageTarget } from '../skills/Kagemusha';
 import { HitTarget, V2, V3, clampAim, clampPlace, shapeContains, unit } from '../skills/HitGeometry';
@@ -1378,13 +1378,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.kage?.hidden && this.dead < 0) v.ring.setAlpha(0.9); // hidden among the doubles: your ring still shows you where you are (your screen only)
     if (this.cls === 'archer') { // archer body motion: lean, recoil, flips, leaps + afterimages
       const face = this.aim.x < -0.01 ? -1 : 1;
-      const m = (run && this.dead < 0 ? archerMotion(run.skill.id, run.elapsed, run.timings, face) : null) ?? (this.dead < 0 ? leapMotion(this.simMs - this.leapAt, this.dir === 'left' ? -1 : 1) : null);
+      const m = heroMotion((run && this.dead < 0 ? archerMotion(run.skill.id, run.elapsed, run.timings, face) : null) ?? (this.dead < 0 ? leapMotion(this.simMs - this.leapAt, this.dir === 'left' ? -1 : 1) : null), !!this.character?.hero);
       applyMotion(v.motionSprites, m);
       (this.afterimg ??= new Afterimages(this)).step(this.simMs, v.sprite, !!m?.after);
       this.renderArcherBuffs();
     } else if (this.cls === 'samurai') { // samurai body motion: the step into a cut, the spring, the spin, the dive + crimson afterimages
       const face = this.aim.x < -0.01 ? -1 : 1;
-      const m = (run && this.dead < 0 ? samuraiMotion(run.skill.id, run.elapsed, run.timings, face, run.stage) : null) ?? (this.dead < 0 ? shinsokuMotion(this.simMs - this.leapAt, this.dir === 'left' ? -1 : 1) : null);
+      const m = heroMotion((run && this.dead < 0 ? samuraiMotion(run.skill.id, run.elapsed, run.timings, face, run.stage) : null) ?? (this.dead < 0 ? shinsokuMotion(this.simMs - this.leapAt, this.dir === 'left' ? -1 : 1) : null), !!this.character?.hero);
       applyMotion(v.motionSprites, m);
       (this.afterimg ??= new Afterimages(this, SAMURAI_AFTER)).step(this.simMs, v.sprite, !!m?.after);
       this.kage?.render(ms, { pose, dir, motion: m }, 1, this.simMs); // the doubles: each its own way (his pose and motion while he swings)
