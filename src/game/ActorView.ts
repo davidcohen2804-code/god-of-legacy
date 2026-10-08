@@ -9,6 +9,7 @@ import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM, baseComplete, en
 /** Name plates sit above the world (props in front included), like MapleStory's. */
 export const NAME_DEPTH = 90000;
 import { DEFAULT_SKIN, toneTexture } from '../characters/Skin';
+import { namePlate } from './Plates';
 
 export type CosSlot = 'head' | 'face' | 'back' | 'weapon' | 'aura' | 'damage' | 'pet' | 'hair' | 'armor' | 'hairstyle' | 'top' | 'gloves' | 'shoes' | 'pants' | 'hat' | 'faceacc' | 'earring' | 'nametag' | 'trail';
 export type Equipped = Partial<Record<CosSlot, string>>;
@@ -237,13 +238,13 @@ export class ActorView {
   private petPos: { x: number; y: number } | null = null;
   /** Name plate under the feet (MapleStory style); framed when a name-tag item is equipped. */
   private nameText: Phaser.GameObjects.Text | null = null;
-  private nameFrame: Phaser.GameObjects.Image | null = null;
+  private nameFrame: Phaser.GameObjects.Image | Phaser.GameObjects.NineSlice | null = null;
   /** The default kit name plate (no name-tag item): sized to the name, not to the item art. */
   private plainPlate = false;
   private trailT = 0; private lastFeet: { x: number; y: number } | null = null;
   setName(name: string): void {
     this.nameText?.destroy();
-    this.nameText = this.scene.add.text(0, 0, name, { fontFamily: 'Inter, Arial, sans-serif', fontSize: '12.5px', fontStyle: '600', color: '#ffffff', stroke: '#000000', strokeThickness: 3, resolution: 2 }).setOrigin(0.5);
+    this.nameText = this.scene.add.text(0, 0, name, { fontFamily: 'Inter, Arial, sans-serif', fontSize: '12.5px', fontStyle: '600', color: '#ffffff', resolution: 2 }).setOrigin(0.5);
     this.refreshNameFrame();
   }
   private refreshNameFrame(): void {
@@ -251,7 +252,7 @@ export class ActorView {
     if (!this.nameText) return;
     const id = this.equipped.nametag;
     if (id && this.scene.textures.exists(`cos-${id}`)) this.nameFrame = this.scene.add.image(0, 0, `cos-${id}`);
-    else if (this.scene.textures.exists('kit.player_plate')) { this.nameFrame = this.scene.add.image(0, 0, 'kit.player_plate'); this.plainPlate = true; return; } // default name plate
+    else { this.nameFrame = namePlate(this.scene, 0, 0, this.nameText.width + 28, 24); this.plainPlate = true; return; } // default name plate
     this.plainPlate = false;
   }
   visible = true;
@@ -402,8 +403,7 @@ export class ActorView {
       const ny = y - supportZ + 22, d0 = NAME_DEPTH + y * 0.001; // names stay readable over blocks and urns in front
       this.nameText.setPosition(x, ny).setDepth(d0 + 0.01).setAlpha(alpha).setVisible(this.visible);
       if (this.nameFrame) {
-        if (this.plainPlate) this.nameFrame.setDisplaySize(this.nameText.width + 60, 27); // name clear of the end gems
-        else { const w = Math.max(96, this.nameText.width + 54); this.nameFrame.setDisplaySize(w, w * (this.nameFrame.height / this.nameFrame.width) * 1.0); }
+        if (!this.plainPlate) { const w = Math.max(96, this.nameText.width + 54); this.nameFrame.setDisplaySize(w, w * (this.nameFrame.height / this.nameFrame.width) * 1.0); }
         this.nameFrame.setPosition(x, ny).setDepth(d0).setAlpha(alpha).setVisible(this.visible);
       }
     }

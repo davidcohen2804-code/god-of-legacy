@@ -12,6 +12,7 @@ import { Backdrop, preloadBackdrop } from './Backdrop';
 import { Monster, preloadMonsterFrames } from './Monster';
 import { CourtyardAmbience } from './Ambience';
 import { NAME_DEPTH } from '../game/ActorView';
+import { keyCap, namePlate } from '../game/Plates';
 import { Kin } from '../combat/Combat';
 import { HUD } from '../config/layout';
 
@@ -22,8 +23,8 @@ const ART = NPC_ART as unknown as Record<string, NpcArt>;
 const CUTS = PROPS as unknown as Record<string, [number, number, number, number]>;
 const UI_DEPTH = 99000;
 const TALK_R = 90, PORTAL_R = 64;
-/** NPC name plate (npc_plate.png is 449x128): shown 30 px tall; its gold ends are 64 art px wide; room around the name. */
-const PLATE = { h: 36, cap: 64, pad: 26 };
+/** NPC name plate: a rounded pill this tall, this much room each side of the name. */
+const PLATE = { h: 28, pad: 18 };
 /** Camera: catch-up time (ms) — it trails the player softly, never jumps. */
 const CAM_EASE = 130;
 /** The area name changes this far past the line between two areas (no flicker when you stand on it). */
@@ -50,7 +51,6 @@ export function preloadOpenWorld(scene: Phaser.Scene): void {
   L('world-gate-back', 'assets/world/gate/back.png'); L('world-gate-front', 'assets/world/gate/front.png');
   for (const id of Object.keys(CUTS)) L(`prop-${id}`, `assets/world/props/${id}.png`);
   for (const [name, a] of Object.entries(ART)) if (!scene.textures.exists(`npc-${name}`)) scene.load.spritesheet(`npc-${name}`, `assets/world/npc/${name}.png`, { frameWidth: a.w, frameHeight: a.h });
-  L('kit.keycap', KIT('keycap')); L('kit.npc_plate', KIT('npc_plate'));
   L('kit.drop_beam', KIT('drop_beam')); L('kit.marker_portal', KIT('marker_portal'));
   for (const t of Object.values(MARK_TEX)) L(t, KIT(t.slice(4)));
   for (const set of new Set(Object.values(MOB_KINDS).map((k) => k.frames))) preloadMonsterFrames(scene, set);
@@ -91,8 +91,8 @@ export class OpenWorld {
     if (BACKDROP) this.backdrop = new Backdrop(scene);
     const cam = scene.cameras.main;
     this.ambience = new CourtyardAmbience(scene, Math.ceil(cam.width / cam.zoom) + 4, AREA_H, BACKDROP ? [330, 668] : undefined);
-    const k = scene.add.image(0, 0, 'kit.keycap').setDisplaySize(34, 33);
-    this.promptKey = scene.add.text(0, -1, 'Y', { fontFamily: 'Cinzel, Georgia, serif', fontSize: '16px', fontStyle: '700', color: '#ffe9a8', stroke: '#1a1206', strokeThickness: 3, resolution: 2 }).setOrigin(0.5);
+    const k = keyCap(scene, 0, 0, 32);
+    this.promptKey = scene.add.text(0, -2, 'Y', { fontFamily: HUD.bodyFont, fontSize: '15px', fontStyle: '700', color: '#f3ede0', resolution: 2 }).setOrigin(0.5);
     this.prompt = scene.add.container(0, 0, [k, this.promptKey]).setDepth(UI_DEPTH).setVisible(false);
     this.follow(start.x, start.y, 0, true);
   }
@@ -145,11 +145,9 @@ export class OpenWorld {
       const shadow = this.scene.add.ellipse(p.x, p.y - 1, 40, 13, 0x000000, 0.32).setDepth(d - 0.5);
       const nd = NAME_DEPTH + p.y * 0.001; // name, title and quest marker stay readable over anything in front
       const ly = g.y; // name plate under the feet on the floor (on a block: in front of its base)
-      const name = this.scene.add.text(p.x, ly + 22, n.name, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '15px', fontStyle: '700', color: '#ffe28a', stroke: '#140c02', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(nd + 0.0002);
-      // the plate stretches only in its blue middle: the gold diamond ends keep their shape, the name sits well inside
-      const ps = PLATE.h / 128, pw = (name.width + PLATE.pad * 2) / ps + PLATE.cap * 2;
-      const plate = this.scene.add.nineslice(p.x, ly + 22, 'kit.npc_plate', undefined, pw, 128, PLATE.cap, PLATE.cap, 0, 0).setScale(ps).setDepth(nd + 0.0001);
-      const title = this.scene.add.text(p.x, ly + 50, n.title, { fontFamily: HUD.bodyFont, fontSize: '13px', fontStyle: '600', color: '#efe3c4', stroke: '#140c02', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(nd + 0.0002);
+      const name = this.scene.add.text(p.x, ly + 22, n.name, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '14px', fontStyle: '700', color: '#f3e3bd', resolution: 2 }).setOrigin(0.5).setDepth(nd + 0.0002);
+      const plate = namePlate(this.scene, p.x, ly + 22, name.width + PLATE.pad * 2, PLATE.h).setDepth(nd + 0.0001);
+      const title = this.scene.add.text(p.x, ly + 48, n.title, { fontFamily: HUD.bodyFont, fontSize: '12.5px', fontStyle: '600', color: '#e4e8ee', stroke: '#0b1220', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(nd + 0.0002);
       const top = p.y - art.h * art.oy / art.q; // head top (world px)
       const mark = this.scene.add.image(p.x, top - 26, MARK_TEX.available).setDisplaySize(15, 42).setDepth(nd + 0.0003).setVisible(false);
       // a click on the game itself only (not one on a window drawn over the NPC: the inventory, the skill book)

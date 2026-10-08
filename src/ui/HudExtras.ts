@@ -1,72 +1,81 @@
-// HUD additions (DOM, 1920x1080 design px inside the HUD overlay): the quest tracker on the right side and the
-// round gear MENU button (bottom-right) with its pop-up list (panels + back to characters / exit arena).
-import { FONT_FAMILY, HUD } from '../config/layout';
+// HUD additions (DOM, 1920x1080 design px inside the HUD overlay): the quest tracker (top-left, under the player card),
+// the round gear MENU button (bottom-right) with its pop-up list (panels + back to characters / exit arena), and the
+// Quest Log window (J).
+import { ICONS, ensureTheme, titleCase } from './theme';
 
-const K = (f: string) => `assets/final/ui/kit/${f}.png`;
 const STYLE_ID = 'gol-hudx-style';
-/** quest_frame.png (671x933): header strip on top (art y 38-193), hollow body; nine-slice at the width's scale. */
-const Q = { x: 14, y: 204, w: 300, k: 300 / 671, t: 205, r: 64, b: 70, l: 64 }; // top-left, under the portrait (and the buff row)
-const M = { x: 1826, y: 982, d: 80, itemW: 250, itemH: 48 };
-/** questlog_window.png (1578x976) shown at 1100 px wide, centred; zones measured on the art. */
-const QL = { w: 1240, s: 1240 / 1578, x: (1920 - 1240) / 2, y: 150 };
-const QS = (v: number) => Math.round(v * QL.s);
+/** Quest tracker: under the player card and its buff row. */
+const Q = { x: 18, y: 180, w: 320 };
+const M = { x: 1846, y: 1006, d: 58, w: 270 };
+/** Quest Log window (centred). */
+const QL = { w: 1040, h: 640, x: (1920 - 1040) / 2, y: 190 };
 
 export interface TrackedQuest { title: string; objectives: { text: string; done: boolean }[] }
 /** A quest in the log: its page (summary + goals) under In Progress or Completed. */
 export interface LoggedQuest extends TrackedQuest { id: string; summary: string; done: boolean }
 
-const px = (v: number) => `${Math.round(v)}px`;
 const CSS = `
-.gol-qt{position:absolute;left:${Q.x}px;top:${Q.y}px;width:${Q.w}px;pointer-events:none;font-family:${HUD.bodyFont}}
-.gol-qt .fr{position:absolute;inset:0;box-sizing:border-box;border-style:solid;
-  border-width:${px(Q.t * Q.k)} ${px(Q.r * Q.k)} ${px(Q.b * Q.k)} ${px(Q.l * Q.k)};
-  border-image:url("${K('quest_frame')}") ${Q.t} ${Q.r} ${Q.b} ${Q.l} fill / ${px(Q.t * Q.k)} ${px(Q.r * Q.k)} ${px(Q.b * Q.k)} ${px(Q.l * Q.k)} stretch}
-.gol-qt .fill{position:absolute;left:9px;right:9px;top:${px(195 * Q.k)};bottom:${px(26 * Q.k + 6)};background:rgba(5,9,18,.55)}
-.gol-qt .hd{position:absolute;left:${px(175 * Q.k)};right:${px(70 * Q.k)};top:${px(60 * Q.k)};height:${px(120 * Q.k)};display:flex;align-items:center;
-  font:700 18px ${FONT_FAMILY};letter-spacing:2px;color:#f3d58a;text-shadow:0 2px 3px #000}
-.gol-qt .hd i{font-style:normal;margin-left:auto;color:#d8c493;font-size:16px;letter-spacing:0}
-.gol-qt .bd{position:relative;padding:${px(205 * Q.k + 8)} 34px ${px(70 * Q.k + 12)} 34px;font-size:15px;line-height:20px;color:#ece6d6;text-shadow:0 1px 2px #000}
-.gol-qt .q{margin-bottom:10px}
-.gol-qt .q .t{font:700 15px ${FONT_FAMILY};color:#ffd76e;margin-bottom:4px}
-.gol-qt .o{display:flex;align-items:flex-start;gap:8px}
-.gol-qt .o::before{content:'';flex:0 0 14px;height:14px;margin-top:3px;background:url("${K('bullet_todo')}") center/100% 100% no-repeat}
-.gol-qt .o.done{color:#9fd98a}
-.gol-qt .o.done::before{background-image:url("${K('bullet_done')}")}
-.gol-qt .none{color:#a99f86;font-style:italic;text-align:center;padding:2px 0}
+.gol-qt{position:absolute;left:${Q.x}px;top:${Q.y}px;width:${Q.w}px;pointer-events:none;font-family:var(--gl-body)}
+.gol-qt .hd{display:flex;align-items:center;gap:10px;height:48px;padding:0 14px 0 12px;border-bottom:1px solid var(--gl-line)}
+.gol-qt .hd .ic{flex:none;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:var(--gl-goldsoft);color:var(--gl-gold2);
+  box-shadow:inset 0 0 0 1px rgba(231,196,124,.3)}
+.gol-qt .hd .ic::before{content:'';width:16px;height:16px;background:currentColor;-webkit-mask:${ICONS.scroll} center/contain no-repeat;mask:${ICONS.scroll} center/contain no-repeat}
+.gol-qt .hd b{flex:1;font:700 15px var(--gl-title);letter-spacing:2px;color:#f1dfb5}
+.gol-qt .bd{padding:12px 16px 14px;display:flex;flex-direction:column;gap:12px}
+.gol-qt .q .t{font:700 14px/1.35 var(--gl-body);color:#f0d9a2;margin-bottom:6px}
+.gol-qt .o{display:flex;align-items:flex-start;gap:9px;font:500 13.5px/1.45 var(--gl-body);color:#ddd7ca}
+.gol-qt .o + .o{margin-top:4px}
+.gol-qt .o::before{content:'';flex:none;width:8px;height:8px;margin-top:6px;border-radius:50%;box-shadow:inset 0 0 0 1.5px rgba(231,196,124,.85)}
+.gol-qt .o.done{color:var(--gl-green)}
+.gol-qt .o.done::before{background:var(--gl-green);box-shadow:none}
+.gol-qt .none{font:500 13.5px/1.5 var(--gl-body);color:var(--gl-text2);text-align:center;padding:4px 0}
 .gol-menu{position:absolute;left:${M.x}px;top:${M.y}px;width:${M.d}px;height:${M.d}px;pointer-events:none}
-.gol-menu .gear{position:absolute;inset:0;padding:0;border:0;background:url("${K('menu_gear')}") center/100% 100% no-repeat;cursor:pointer;pointer-events:auto}
-.gol-menu .gear:hover,.gol-menu.open .gear{background-image:url("${K('menu_gear_hover')}")}
+.gol-menu .gear{position:absolute;inset:0;padding:0;border-radius:50%;cursor:pointer;pointer-events:auto;display:grid;place-items:center;color:var(--gl-gold2);
+  transition:background 120ms,transform 120ms}
+.gol-menu .gear::before{content:'';width:28px;height:28px;background:currentColor;-webkit-mask:${ICONS.gear} center/contain no-repeat;mask:${ICONS.gear} center/contain no-repeat;transition:transform 300ms}
+.gol-menu .gear:hover,.gol-menu.open .gear{background:rgba(24,34,52,.97)}
+.gol-menu .gear:hover::before,.gol-menu.open .gear::before{transform:rotate(45deg)}
 .gol-menu .gear:active{transform:scale(.96)}
-.gol-menu .pop{position:absolute;right:0;bottom:${M.d + 10}px;display:none;flex-direction:column;gap:6px;pointer-events:auto;padding:14px 16px 16px;
-  background:linear-gradient(rgba(8,13,24,.97),rgba(8,13,24,.92));border-radius:14px;
-  box-shadow:0 10px 26px rgba(0,0,0,.6),inset 0 0 0 1px rgba(201,154,69,.6),inset 0 0 0 4px rgba(8,13,24,.9),inset 0 0 0 5px rgba(201,154,69,.22)}
-.gol-menu .pop .mh{text-align:center;font:700 15px ${FONT_FAMILY};letter-spacing:4px;color:#f3d58a;text-shadow:0 2px 3px #000;margin:0 0 4px}
+.gol-menu .pop{position:absolute;right:0;bottom:${M.d + 12}px;width:${M.w}px;display:none;flex-direction:column;gap:2px;pointer-events:auto;padding:10px}
+.gol-menu .pop .mh{padding:6px 10px 10px;font:700 11.5px var(--gl-body);letter-spacing:1.6px;color:#c9ae78;text-transform:uppercase}
 .gol-menu.open .pop{display:flex}
-.gol-menu .pop button{width:${M.itemW}px;height:${M.itemH}px;border:0;background:url("${K('pill_normal')}") center/100% 100% no-repeat;color:#efddb0;
-  font:700 14px ${FONT_FAMILY};letter-spacing:1px;cursor:pointer;text-shadow:0 1px 2px #000;padding:0 36px;white-space:nowrap}
-.gol-menu .pop button:hover{background-image:url("${K('pill_hover')}");transform:scale(1.03)}
-.gol-menu .pop button b{color:#f0bd62;margin-right:10px;font-size:15px}
-.gol-ql{position:absolute;left:${QL.x}px;top:${QL.y}px;width:${QL.w}px;height:${Math.round(976 * QL.s)}px;display:none;pointer-events:auto;
-  background:url("${K('questlog_window')}") center/100% 100% no-repeat;font-family:${HUD.bodyFont};filter:drop-shadow(0 10px 24px rgba(0,0,0,.6))}
-.gol-ql.open{display:block}
-.gol-ql .ttl{position:absolute;left:0;right:0;top:${QS(50)}px;text-align:center;font:700 27px ${FONT_FAMILY};letter-spacing:3px;color:#f3d58a;text-shadow:0 2px 4px #000}
-.gol-ql .x{position:absolute;left:${QS(1500)}px;top:${QS(84)}px;width:${QS(64)}px;height:${QS(64)}px;border:0;padding:0;background:transparent;cursor:pointer;border-radius:50%}
-.gol-ql .x:hover{box-shadow:0 0 10px 3px rgba(255,215,120,.6)}
-.gol-ql .tb{position:absolute;top:${QS(150)}px;height:${QS(60)}px;display:flex;align-items:center;justify-content:center;font:700 16px ${FONT_FAMILY};letter-spacing:1.5px;color:#cdb98a;cursor:pointer;text-shadow:0 1px 2px #000}
-.gol-ql .tb.on{color:#ffe9a8}
-.gol-ql .row{position:absolute;left:${QS(130)}px;width:${QS(500)}px;height:${QS(60)}px;display:flex;align-items:center;font:700 17px ${FONT_FAMILY};color:#efddb0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.gol-ql .pg{position:absolute;left:${QS(770)}px;width:${QS(730)}px;color:#3a2a12;box-sizing:border-box;padding:0 ${QS(48)}px}
-.gol-ql .pg.h{top:${QS(250)}px;height:${QS(52)}px;display:flex;align-items:flex-end;justify-content:center;font:700 23px ${FONT_FAMILY};letter-spacing:1px}
-.gol-ql .pg.b{top:${QS(335)}px;height:${QS(360)}px;font-size:17px;line-height:25px;text-align:center;padding-top:${QS(40)}px;box-sizing:border-box}
-.gol-ql .rw{position:absolute;top:${QS(716)}px;left:${QS(770)}px;font:700 14px ${FONT_FAMILY};letter-spacing:2px;color:#cdb98a;display:none}
+.gol-menu .pop button{height:40px;justify-content:flex-start;gap:12px;padding:0 10px;font-weight:600;color:var(--gl-text)}
+.gol-menu .pop button .gl-key{min-width:26px}
+.gol-menu .pop button .nk{display:inline-block;width:26px}
+.gol-menu .pop .sep{height:1px;margin:6px 4px;background:var(--gl-line)}
+.gol-ql{left:${QL.x}px;top:${QL.y}px;width:${QL.w}px;height:${QL.h}px;display:none;flex-direction:column}
+.gol-ql.open{display:flex}
+.gol-ql .tabsrow{padding:16px 28px 0}
+.gol-ql .main{flex:1;min-height:0;display:grid;grid-template-columns:340px 1fr;gap:20px;padding:18px 28px 28px}
+.gol-ql .list{padding:8px;display:flex;flex-direction:column;gap:4px}
+.gol-ql .row{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 14px;border-radius:10px;cursor:pointer;font:600 14.5px var(--gl-body);color:var(--gl-text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background 120ms}
+.gol-ql .row::before{content:'';flex:none;width:7px;height:7px;border-radius:50%;background:rgba(231,196,124,.6)}
+.gol-ql .row:hover{background:rgba(255,255,255,.04)}
+.gol-ql .row.on{background:#1f2c44;color:var(--gl-gold2);box-shadow:inset 0 0 0 1px rgba(231,196,124,.3)}
+.gol-ql .list .gl-empty{flex:1;font-size:14px;padding:20px}
+.gol-ql .page{padding:26px 30px;display:flex;flex-direction:column;gap:14px;min-height:0}
+.gol-ql .page h3{margin:0;font:700 21px var(--gl-title);letter-spacing:1.5px;color:#f3e3bd}
+.gol-ql .page .sm{font:400 15px/1.6 var(--gl-body);color:#d9d4c8}
+.gol-ql .page .gl-cap{margin-top:6px}
+.gol-ql .page .ob{display:flex;align-items:flex-start;gap:10px;font:500 14.5px/1.5 var(--gl-body);color:var(--gl-text)}
+.gol-ql .page .ob::before{content:'';flex:none;width:9px;height:9px;margin-top:6px;border-radius:50%;box-shadow:inset 0 0 0 1.5px rgba(231,196,124,.85)}
+.gol-ql .page .ob.done{color:var(--gl-green)}
+.gol-ql .page .ob.done::before{background:var(--gl-green);box-shadow:none}
+.gol-ql .page .gl-empty{flex:1}
 `;
 
 function ensureStyle(): void {
+  ensureTheme();
   if (document.getElementById(STYLE_ID)) return;
   const st = document.createElement('style'); st.id = STYLE_ID; st.textContent = CSS; document.head.appendChild(st);
 }
 
-/** Active quests on the right side: title + objectives (done ones ticked). Empty state until quests exist. */
+const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent?: HTMLElement, text?: string): HTMLElementTagNameMap[K] => {
+  const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; parent?.appendChild(e); return e;
+};
+
+/** Active quests (top-left): title + objectives (done ones ticked). Empty state until quests exist. */
 export class QuestTracker {
   private root: HTMLDivElement;
   private count: HTMLElement;
@@ -75,13 +84,10 @@ export class QuestTracker {
 
   constructor(parent: HTMLElement) {
     ensureStyle();
-    this.root = document.createElement('div'); this.root.className = 'gol-qt';
-    const fill = document.createElement('div'); fill.className = 'fill';
-    const fr = document.createElement('div'); fr.className = 'fr';
-    const hd = document.createElement('div'); hd.className = 'hd'; hd.textContent = 'QUESTS';
-    this.count = document.createElement('i'); hd.appendChild(this.count);
-    this.body = document.createElement('div'); this.body.className = 'bd';
-    this.root.append(fill, fr, hd, this.body);
+    this.root = el('div', 'gol-qt gl-panel');
+    const hd = el('div', 'hd', this.root); el('i', 'ic', hd); el('b', '', hd, 'QUESTS');
+    this.count = el('span', 'gl-badge', hd);
+    this.body = el('div', 'bd', this.root);
     parent.appendChild(this.root);
     this.set([]);
   }
@@ -90,14 +96,13 @@ export class QuestTracker {
     const key = JSON.stringify(quests);
     if (key === this.last) return;
     this.last = key;
-    this.count.textContent = `${quests.length}/3`;
+    this.count.textContent = `${quests.length} / 3`;
     this.body.textContent = '';
-    if (!quests.length) { const n = document.createElement('div'); n.className = 'none'; n.textContent = 'No active quests'; this.body.appendChild(n); return; }
+    if (!quests.length) { el('div', 'none', this.body, 'No active quests'); return; }
     for (const q of quests.slice(0, 3)) {
-      const d = document.createElement('div'); d.className = 'q';
-      const t = document.createElement('div'); t.className = 't'; t.textContent = q.title; d.appendChild(t);
-      for (const o of q.objectives) { const e = document.createElement('div'); e.className = `o${o.done ? ' done' : ''}`; e.textContent = o.text; d.appendChild(e); }
-      this.body.appendChild(d);
+      const d = el('div', 'q', this.body);
+      el('div', 't', d, q.title);
+      for (const o of q.objectives) el('div', `o${o.done ? ' done' : ''}`, d, o.text);
     }
   }
 
@@ -115,18 +120,18 @@ export class GameMenu {
 
   constructor(parent: HTMLElement, items: MenuItem[]) {
     ensureStyle();
-    this.root = document.createElement('div'); this.root.className = 'gol-menu';
-    const pop = document.createElement('div'); pop.className = 'pop';
-    const mh = document.createElement('div'); mh.className = 'mh'; mh.textContent = 'MENU'; pop.appendChild(mh);
-    for (const it of items) {
-      const b = document.createElement('button'); b.type = 'button';
-      if (it.key) { const k = document.createElement('b'); k.textContent = it.key; b.appendChild(k); this.keyEls.set(it.key, k); }
-      b.appendChild(document.createTextNode(it.label));
+    this.root = el('div', 'gol-menu');
+    const pop = el('div', 'pop gl-panel');
+    el('div', 'mh', pop, 'Menu');
+    items.forEach((it, i) => {
+      if (i === items.length - 1) el('div', 'sep', pop); // the way back, set apart
+      const b = el('button', 'gl-btn ghost', pop); b.type = 'button';
+      if (it.key) { const k = el('span', 'gl-key', b, it.key); this.keyEls.set(it.key, k); } else el('span', 'nk', b);
+      b.appendChild(document.createTextNode(titleCase(it.label)));
       b.addEventListener('mousedown', (e) => e.preventDefault());
       b.addEventListener('click', () => { this.close(); it.run(); });
-      pop.appendChild(b);
-    }
-    const gear = document.createElement('button'); gear.type = 'button'; gear.className = 'gear';
+    });
+    const gear = el('button', 'gear gl-panel'); gear.type = 'button';
     gear.setAttribute('aria-label', 'Menu'); gear.title = 'Menu';
     gear.addEventListener('mousedown', (e) => e.preventDefault());
     gear.addEventListener('keyup', (e) => { if (e.key === ' ') e.preventDefault(); });
@@ -140,8 +145,8 @@ export class GameMenu {
   get isOpen(): boolean { return this.root.classList.contains('open'); }
   open(): void { this.root.classList.add('open'); }
   close(): void { this.root.classList.remove('open'); }
-  /** The keys bound to the panels (Key Settings), by the item's own key letter; unbound = no letter. */
-  setKeys(keys: Record<string, string>): void { for (const [k, el] of this.keyEls) { const t = keys[k] ?? ''; el.textContent = t; el.style.display = t ? '' : 'none'; } }
+  /** The keys bound to the panels (Key Settings), by the item's own key letter; unbound = an empty cap's room. */
+  setKeys(keys: Record<string, string>): void { for (const [k, e] of this.keyEls) { const t = keys[k] ?? ''; e.textContent = t; e.style.visibility = t ? '' : 'hidden'; } }
 
   destroy(): void {
     document.removeEventListener('mousedown', this.onDoc);
@@ -150,39 +155,34 @@ export class GameMenu {
   }
 }
 
-/** Quest log (J): In Progress / Completed tabs, quest list on the left, the selected quest's page on the right. */
+/** Quest log (J): In Progress / Completed, the quests on the left, the selected quest's page on the right. */
 export class QuestLog {
   private root: HTMLDivElement;
-  private tabs: HTMLDivElement[] = [];
-  private rows: HTMLDivElement[] = [];
-  private head: HTMLDivElement;
-  private body: HTMLDivElement;
+  private tabs: HTMLButtonElement[] = [];
+  private list: HTMLDivElement;
+  private page: HTMLDivElement;
   private tab = 0;
   private quests: LoggedQuest[] = [];
   private sel: string | null = null;
 
   constructor(parent: HTMLElement, private onClose: () => void) {
     ensureStyle();
-    this.root = document.createElement('div'); this.root.className = 'gol-ql';
-    const ttl = document.createElement('div'); ttl.className = 'ttl'; ttl.textContent = 'QUEST LOG';
-    const x = document.createElement('button'); x.type = 'button'; x.className = 'x'; x.setAttribute('aria-label', 'Close');
+    this.root = el('div', 'gol-ql gl-win pop');
+    const hd = el('div', 'gl-head', this.root);
+    el('div', 'gl-title', hd, 'QUEST LOG'); el('div', 'gl-sp', hd);
+    const x = el('button', 'gl-x', hd); x.type = 'button'; x.setAttribute('aria-label', 'Close'); x.title = 'Close (Esc)';
     x.addEventListener('mousedown', (e) => e.preventDefault());
     x.addEventListener('click', () => { this.close(); this.onClose(); });
-    this.root.append(ttl, x);
-    [['IN PROGRESS', 46, 295], ['COMPLETED', 358, 273]].forEach(([label, ax, aw], i) => {
-      const t = document.createElement('div'); t.className = `tb${i === this.tab ? ' on' : ''}`; t.textContent = label as string;
-      Object.assign(t.style, { left: `${QS(ax as number)}px`, width: `${QS(aw as number)}px` });
+    const seg = el('div', 'gl-seg', el('div', 'tabsrow', this.root));
+    ['In Progress', 'Completed'].forEach((label, i) => {
+      const t = el('button', i === this.tab ? 'on' : '', seg, label); t.type = 'button';
+      t.addEventListener('mousedown', (e) => e.preventDefault());
       t.addEventListener('click', () => { this.tab = i; this.tabs.forEach((e, j) => e.classList.toggle('on', j === i)); this.render(); });
-      this.root.appendChild(t); this.tabs.push(t);
+      this.tabs.push(t);
     });
-    for (const cy of [300, 392, 485, 577, 670, 762, 855]) {
-      const r = document.createElement('div'); r.className = 'row'; r.style.top = `${QS(cy - 30)}px`;
-      r.addEventListener('click', () => { const id = r.dataset.id; if (id) { this.sel = id; this.render(); } });
-      this.root.appendChild(r); this.rows.push(r);
-    }
-    this.head = document.createElement('div'); this.head.className = 'pg h';
-    this.body = document.createElement('div'); this.body.className = 'pg b';
-    this.root.append(this.head, this.body);
+    const main = el('div', 'main', this.root);
+    this.list = el('div', 'list gl-sec gl-scroll', main);
+    this.page = el('div', 'page gl-sec gl-scroll', main);
     parent.appendChild(this.root);
     this.render();
   }
@@ -204,23 +204,23 @@ export class QuestLog {
   private render(): void {
     const list = this.quests.filter((q) => q.done === (this.tab === 1));
     if (!list.some((q) => q.id === this.sel)) this.sel = list[0]?.id ?? null;
-    this.rows.forEach((r, i) => {
-      const q = list[i];
-      r.textContent = q ? q.title : ''; r.dataset.id = q?.id ?? '';
-      r.style.cursor = q ? 'pointer' : 'default'; r.style.color = q && q.id === this.sel ? '#ffe9a8' : '';
-    });
+    this.list.textContent = '';
+    for (const q of list) {
+      const r = el('div', `row${q.id === this.sel ? ' on' : ''}`, this.list, q.title); r.title = q.title;
+      r.addEventListener('click', () => { this.sel = q.id; this.render(); });
+    }
+    if (!list.length) el('div', 'gl-empty', this.list, this.tab === 0 ? 'No quests yet' : 'Nothing finished yet');
+    this.page.textContent = '';
     const q = list.find((x) => x.id === this.sel);
     if (!q) {
-      this.head.textContent = this.tab === 0 ? 'No quests in progress' : 'No completed quests';
-      this.body.textContent = this.tab === 0 ? 'Quests you accept from characters in the world appear here, with their goals and rewards.' : 'Finished quests are kept here.';
+      const e = el('div', 'gl-empty', this.page);
+      el('b', '', e, this.tab === 0 ? 'NO QUESTS IN PROGRESS' : 'NO COMPLETED QUESTS');
+      el('span', '', e, this.tab === 0 ? 'Quests you accept from people in the world appear here, with their goals.' : 'Finished quests are kept here.');
       return;
     }
-    this.head.textContent = q.title;
-    this.body.textContent = '';
-    const sum = document.createElement('div'); sum.textContent = q.summary; sum.style.marginBottom = '14px'; this.body.appendChild(sum);
-    for (const o of q.objectives) {
-      const d = document.createElement('div'); d.textContent = `${o.done ? '✔' : '•'} ${o.text}`;
-      Object.assign(d.style, { fontWeight: '700', color: o.done ? '#3c6b22' : '#3a2a12', marginTop: '4px' }); this.body.appendChild(d);
-    }
+    el('h3', '', this.page, q.title);
+    el('div', 'sm', this.page, q.summary);
+    el('div', 'gl-cap', this.page, 'Goals');
+    for (const o of q.objectives) el('div', `ob${o.done ? ' done' : ''}`, this.page, o.text);
   }
 }

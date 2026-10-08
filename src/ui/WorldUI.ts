@@ -2,38 +2,32 @@
 //   NpcDialog  — MapleStory-style NPC chat: portrait in the round frame, name on the gold plaque, the line typed out,
 //                NEXT, then the page's choices (a quest: ACCEPT / NOT YET …); talk key: next / first choice, Esc: close
 //   AreaTitle  — the area's name fading in at the top when you walk into it
-import { FONT_FAMILY, HUD } from '../config/layout';
+import { ensureTheme, titleCase } from './theme';
 
-const K = (f: string) => `assets/final/ui/kit/${f}.png`;
 const STYLE_ID = 'gol-world-style';
-/** dialog_box.png (1407x373) shown 1100 wide: round portrait frame, gold name plaque, text panel (art px → design). */
-const DS = 1100 / 1407, d = (v: number) => Math.round(v * DS);
-const DLG = { x: 410, y: 610, w: 1100, h: d(373) };
+/** The NPC conversation window (bottom centre). */
+const DLG = { x: 400, y: 664, w: 1120, h: 248 };
 
 const CSS = `
-.gol-dlg{position:absolute;left:${DLG.x}px;top:${DLG.y}px;width:${DLG.w}px;height:${DLG.h}px;display:none;pointer-events:auto;
-  background:url("${K('dialog_box')}") 0 0/100% 100% no-repeat;filter:drop-shadow(0 10px 22px rgba(0,0,0,.6));font-family:${HUD.bodyFont}}
+.gol-dlg{left:${DLG.x}px;top:${DLG.y}px;width:${DLG.w}px;height:${DLG.h}px;display:none}
 .gol-dlg.open{display:block;animation:golDlgIn .18s ease-out}
 @keyframes golDlgIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-.gol-dlg .pt{position:absolute;left:${d(58)}px;top:${d(84)}px;width:${d(256)}px;height:${d(256)}px;border-radius:50%;overflow:hidden;
-  background:radial-gradient(circle at 50% 35%,#2a3f6e,#0b1428 70%)}
-.gol-dlg .pt img{position:absolute;left:6%;top:4%;width:88%;height:88%;object-fit:contain}
-.gol-dlg .nm{position:absolute;left:${d(48)}px;top:${d(24)}px;width:${d(282)}px;height:${d(60)}px;display:flex;align-items:center;justify-content:center;
-  font:700 17px ${FONT_FAMILY};letter-spacing:1px;color:#2d1d06;text-shadow:0 1px 0 rgba(255,240,200,.6);white-space:nowrap;overflow:hidden}
-.gol-dlg .tt{position:absolute;left:${d(392)}px;top:${d(106)}px;font:700 15px ${FONT_FAMILY};letter-spacing:2px;color:#e8b45f;text-shadow:0 1px 2px #000;text-transform:uppercase}
-.gol-dlg .tx{position:absolute;left:${d(392)}px;top:${d(140)}px;width:${d(930)}px;height:${d(96)}px;font-size:19px;line-height:27px;color:#f1e8d3;text-shadow:0 1px 2px #000}
-.gol-dlg .bt{position:absolute;right:${d(78)}px;bottom:${d(84)}px;display:flex;gap:12px}
-.gol-dlg .bt button{height:48px;padding:0 32px;border:0;background:url("${K('pill_normal')}") center/100% 100% no-repeat;color:#efddb0;
-  font:700 15px ${FONT_FAMILY};letter-spacing:1.5px;cursor:pointer;text-shadow:0 1px 2px #000;white-space:nowrap}
-.gol-dlg .bt button:hover{background-image:url("${K('pill_hover')}");color:#fff3cf}
-.gol-dlg .bt button.main{color:#ffe08a}
-.gol-dlg .bt button i{font-style:normal;color:#e8b45f;margin-left:9px;font-size:13px}
-.gol-area{position:absolute;left:0;right:0;top:118px;text-align:center;pointer-events:none;opacity:0;transition:opacity .6s}
+.gol-dlg .pt{position:absolute;left:30px;top:30px;width:188px;height:188px;border-radius:50%;overflow:hidden;
+  background:radial-gradient(circle at 50% 38%,#24375e,#0b1428 72%);box-shadow:0 0 0 2px rgba(231,196,124,.7),0 0 0 7px rgba(13,20,33,.9),0 8px 20px rgba(0,0,0,.45)}
+.gol-dlg .pt img{position:absolute;left:6%;top:5%;width:88%;height:88%;object-fit:contain}
+.gol-dlg .nm{position:absolute;left:256px;top:30px;right:40px;font:700 22px/1.2 var(--gl-title);letter-spacing:1.5px;color:#f3e3bd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gol-dlg .tt{position:absolute;left:256px;top:64px;font:700 11.5px var(--gl-body);letter-spacing:1.8px;color:#c9ae78;text-transform:uppercase}
+.gol-dlg .tx{position:absolute;left:256px;top:96px;right:44px;height:84px;font:400 18px/1.6 var(--gl-body);color:#efe9dc}
+.gol-dlg .bt{position:absolute;right:28px;bottom:24px;display:flex;gap:10px}
+.gol-dlg .bt .gl-btn{height:44px;padding:0 22px;font-size:14.5px}
+.gol-dlg .bt .gl-key{margin-left:2px}
+.gol-dlg .bt .gl-btn.pri .gl-key{background:rgba(36,24,10,.12);border-color:rgba(36,24,10,.35);color:#24180a}
+.gol-area{position:absolute;left:0;right:0;top:124px;text-align:center;pointer-events:none;opacity:0;transition:opacity .6s}
 .gol-area.on{opacity:1}
-.gol-area b{display:block;font:700 40px ${FONT_FAMILY};letter-spacing:7px;color:#f8e3a6;text-shadow:0 3px 8px #000,0 0 18px rgba(0,0,0,.6)}
-.gol-area i{display:block;width:360px;height:2px;margin:10px auto 0;background:linear-gradient(90deg,transparent,#e8b45f,transparent)}
+.gol-area b{display:block;font:700 36px var(--gl-title);letter-spacing:6px;color:#f6e3b0;text-shadow:0 2px 10px rgba(0,0,0,.75)}
+.gol-area i{display:block;width:320px;height:1px;margin:12px auto 0;background:linear-gradient(90deg,transparent,rgba(244,216,150,.9),transparent)}
 `;
-function style(): void { if (!document.getElementById(STYLE_ID)) { const st = document.createElement('style'); st.id = STYLE_ID; st.textContent = CSS; document.head.appendChild(st); } }
+function style(): void { ensureTheme(); if (!document.getElementById(STYLE_ID)) { const st = document.createElement('style'); st.id = STYLE_ID; st.textContent = CSS; document.head.appendChild(st); } }
 const el = <T extends keyof HTMLElementTagNameMap>(tag: T, cls: string, parent?: HTMLElement, text?: string): HTMLElementTagNameMap[T] => {
   const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; parent?.appendChild(e); return e;
 };
@@ -56,7 +50,7 @@ export class NpcDialog {
   talkKey = 'Y';
   constructor(parent: HTMLElement, private onClose: () => void) {
     style();
-    this.root = el('div', 'gol-dlg', parent);
+    this.root = el('div', 'gol-dlg gl-win', parent);
     const pt = el('div', 'pt', this.root); this.img = el('img', '', pt); this.img.alt = '';
     this.nm = el('div', 'nm', this.root); this.tt = el('div', 'tt', this.root); this.tx = el('div', 'tx', this.root);
     this.bt = el('div', 'bt', this.root);
@@ -85,10 +79,11 @@ export class NpcDialog {
     const t0 = performance.now(); // typed out at ~90 characters a second (real time: a busy frame never slows it)
     this.timer = window.setInterval(() => { this.shown = Math.min(line.length, Math.max(this.shown, Math.floor((performance.now() - t0) * 0.09))); this.tx.textContent = line.slice(0, this.shown); if (this.shown >= line.length) window.clearInterval(this.timer); }, 22);
     this.bt.replaceChildren();
-    const b = (label: string, fn: () => void, main = false, key = '') => { const x = el('button', main ? 'main' : '', this.bt, label); x.type = 'button'; if (key) el('i', '', x, key); x.addEventListener('click', fn); };
-    if (this.page < sc.lines.length - 1) { b('NEXT', () => this.advance(), true, this.talkKey); b('CLOSE', () => this.close(), false, 'ESC'); return; }
-    if (!sc.choices?.length) { b('CLOSE', () => this.close(), true, this.talkKey); return; }
-    sc.choices.forEach((c, i) => b(c.label.toUpperCase(), () => { this.close(); c.run(); }, !!c.main || (i === 0 && !sc.choices!.some((x) => x.main)), c.main || (i === 0 && !sc.choices!.some((x) => x.main)) ? this.talkKey : ''));
+    const b = (label: string, fn: () => void, main = false, key = '') => { const x = el('button', main ? 'gl-btn pri' : 'gl-btn', this.bt, label); x.type = 'button'; if (key) el('i', 'gl-key', x, key); x.addEventListener('click', fn); };
+    if (this.page < sc.lines.length - 1) { b('Close', () => this.close(), false, 'Esc'); b('Next', () => this.advance(), true, this.talkKey); return; }
+    if (!sc.choices?.length) { b('Close', () => this.close(), true, this.talkKey); return; }
+    const mainAt = Math.max(0, sc.choices.findIndex((c) => c.main));
+    sc.choices.forEach((c, i) => b(titleCase(c.label), () => { this.close(); c.run(); }, i === mainAt, i === mainAt ? this.talkKey : ''));
   }
   destroy(): void { window.clearInterval(this.timer); this.root.remove(); }
 }
