@@ -44,7 +44,7 @@ export const PASSIVES: PassiveSkill[] = [
   { id: 'eagle_eyes', cls: 'archer', job: 4, name: 'Eagle Eyes', kind: 'passive', description: 'Sees like an eagle: every arrow flies farther.', effects: ['Arrow range +20%'] },
   // ---- Samurai (Hayato line)
   { id: 'shinsoku', cls: 'samurai', job: 1, name: 'Shinsoku', kind: 'movement', description: 'Press Jump again in mid-air to dash forward like lightning, leaving crimson afterimages behind.', effects: ['Second jump in the air', 'A fast dash forward', 'Once per jump'] },
-  { id: 'katana_mastery', cls: 'samurai', job: 1, name: 'Katana Mastery', kind: 'passive', description: 'Mastery of the katana: every cut lands harder and finds weak spots more often.', effects: ['Damage +10%', 'Critical rate +5%'] },
+  { id: 'katana_mastery', cls: 'samurai', job: 1, name: 'Katana Mastery', kind: 'passive', description: 'Mastery of the katana: every cut lands harder, finds weak spots more often, and the blade is drawn and struck faster.', effects: ['Damage +10%', 'Critical rate +5%', 'Attack speed +10%'] },
   { id: 'bushido_body', cls: 'samurai', job: 1, name: 'Bushido Body', kind: 'passive', description: 'A body trained in the way of the warrior: more HP and lighter feet.', effects: ['Max HP +20%', 'Movement speed +10%'] },
   { id: 'willow_dodge', cls: 'samurai', job: 2, name: 'Willow Dodge', kind: 'passive', description: 'Bend like the willow: a chance to slip aside from a blow as a mirage, so the attack misses completely.', effects: ['Evasion +10%', 'Dodged hits deal no damage'] },
   { id: 'final_cut', cls: 'samurai', job: 2, name: 'Final Cut', kind: 'passive', description: 'After a skill connects, a chance for a ghost blade to follow with one more cut (against monsters and the sparring knight).', effects: ['25% chance per hit', 'Ghost cut: 35% of the hit', 'Not against players'] },
@@ -105,7 +105,7 @@ export function passiveStats(owned: Set<string>): PassiveStats {
   if (has('eagle_eyes')) s.rangeMul = 1.2;
   // Samurai
   if (has('shinsoku')) s.airLeap = true;
-  if (has('katana_mastery')) { s.dmg *= 1.1; s.critAdd += 0.05; }
+  if (has('katana_mastery')) { s.dmg *= 1.1; s.critAdd += 0.05; s.atkSpeed *= 1.1; } // (Quick Draw's speed, now always on)
   if (has('bushido_body')) { s.hpMul += 0.2; s.moveMul *= 1.1; }
   if (has('willow_dodge')) s.evade += 0.1;
   if (has('final_cut')) s.fa = { chance: 0.25, mul: 0.35 };

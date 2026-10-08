@@ -486,10 +486,10 @@ const samurai: FinalSkill[] = [
   S({
     id: 'mirage', cls: 'samurai', slot: 5, name: 'Mirage Counter', roles: ['counter', 'escape'], targeting: 'mouseDir',
     startup: 120, active: 420, recovery: 260, cooldown: 7000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    counter: { window: 420, sidestep: 46 },
+    counter: { window: 420, sidestep: 46, behind: 62 },
     hits: [H(0, 24, { kind: 'sector', range: 96, angle: 140 }, { stun: 320, push: 20, launch: 55, juggleCost: 20 }, { reachUp: 90, heavy: true })],
     cancelOnHit: ['quick_slash', 'shadow_step', 'blossom_storm', 'dragon_eclipse'],
-    description: 'Take the counter stance for a moment: a blow that reaches you hits only a mirage, and you reappear beside the attacker with a cut that throws him up. If no blow comes, you are open.',
+    description: 'Take the counter stance for a moment: a blow that reaches you hits only a mirage — it shatters into ink and petals — and you reappear behind the attacker with a cut that throws him up. If no blow comes, you are open.',
     relations: ['Counter', 'Launch on counter'],
   }),
   S({
@@ -504,11 +504,13 @@ const samurai: FinalSkill[] = [
   }),
   S({
     id: 'dragon_eclipse', cls: 'samurai', slot: 7, name: 'Dragon Eclipse', roles: ['ultimate', 'finisher'], targeting: 'mouseTarget',
-    startup: 1350, active: 260, recovery: 520, cooldown: 45000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    startup: 1350, active: 420, recovery: 520, cooldown: 45000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     dash: { distance: 120 },
-    hits: [H(120, 62, { kind: 'line', length: 190, width: 64 }, { stun: 420, knockdown: 'heavy', push: 26 }, { reachUp: 160, heavy: true })],
+    // eight cuts out of the dark from eight directions hold the foe where it is, then the dragon's colossal cut (62 in all, as before)
+    hits: [...Array.from({ length: 8 }, (_, i) => H(i * 34, 4, { kind: 'line', length: 260, width: 90 }, { stun: 300, float: true, juggleCost: 2 }, { reachUp: 160 })),
+      H(330, 30, { kind: 'line', length: 190, width: 64 }, { stun: 420, knockdown: 'heavy', push: 26 }, { reachUp: 160, heavy: true })],
     endsCombo: true, tags: ['ultimate'], telegraph: 'line',
-    description: 'Vanish into the dark, a glint of the blade — then one colossal cut of the crimson dragon. Heavy knockdown; ends the combo.',
+    description: 'The world goes dark and a black sun rises. You vanish: eight cuts out of the dark from eight directions — then one colossal cut of the crimson dragon. Heavy knockdown; ends the combo.',
     relations: ['Ultimate', 'Ends combo'],
   }),
   // ---- extended kit (Q R F G C V T H Z X)
@@ -531,11 +533,11 @@ const samurai: FinalSkill[] = [
     relations: ['Air hold', 'Finish → Falcon Dive'],
   }),
   S({
-    id: 'quick_draw', cls: 'samurai', slot: 10, name: 'Quick Draw', roles: ['setup'], targeting: 'self',
-    startup: 300, active: 120, recovery: 180, cooldown: 2000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 4, { kind: 'circle', radius: 120 }, { stun: 220, push: 18 }, { reachUp: 130 })], tags: ['buff'],
-    description: 'Sheathe the blade and draw like lightning: every skill draws and recovers 20% faster and critical rate +10% for 120s; the drawing flash staggers foes around you.',
-    relations: ['Buff 120s', 'Speed + critical rate'],
+    id: 'kagemusha', cls: 'samurai', slot: 10, name: 'Kagemusha', roles: ['setup'], targeting: 'self',
+    startup: 220, active: 80, recovery: 160, cooldown: 18000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 3, { kind: 'circle', radius: 110 }, { stun: 240, push: 16 }, { reachUp: 120 })], tags: ['buff'],
+    description: 'Vanish in a burst of ink and petals and come back as three identical samurai — you and two shadow doubles — for 6s. The doubles copy every step and every attack (no damage; 30% against monsters), and monsters go after them; a double that is struck bursts into petals. Your first real hit is an AMBUSH: a sure critical and a short stun, and the doubles vanish. If you are struck, they vanish at once.',
+    relations: ['Doubles 6s', 'Ambush: sure critical + stun'],
   }),
   S({
     id: 'tornado_blade', cls: 'samurai', slot: 11, name: 'Tornado Blade', roles: ['zone', 'pull'], targeting: 'mouseDir',

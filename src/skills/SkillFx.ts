@@ -220,6 +220,10 @@ export class SkillFx {
   hitStopLeft = 0;
   /** Where the caster's raised hand is right now (set by the scene from the body pose). */
   handPos?: (id: string) => { x: number; y: number } | null;
+  /** Where a samurai's Kagemusha doubles stand (they swing with him), set by the scene. */
+  ghosts?: (id: string) => { k: number; x: number; y: number; z: number }[];
+  /** A caster's body as drawn this moment (Phantom Blades' phantoms of him), set by the scene. */
+  bodyOf?: (id: string) => { key: string; frame: string | number; flipX: boolean; ox: number; oy: number; sx: number; sy: number } | null;
   /** Local player's damage-number skin (cash shop). */
   damageSkin: { key: string; widths: number[]; cell: number[] } | null = null;
 
@@ -230,6 +234,7 @@ export class SkillFx {
     this.sam = new SamuraiFx({
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, hand: (id) => this.handPos?.(id) ?? null,
       callout: (at, text, color, row) => this.callout(at, text, color, row), punch: (a, ms) => this.punch(a, ms), darken: (ms, a) => this.darken(ms, a), ultimateStage: (r) => this.ultimateStage(r),
+      ghosts: (id) => this.ghosts?.(id) ?? [], body: (id) => this.bodyOf?.(id) ?? null,
     });
     rt.events.on(RT_EVENTS.cast, (r: CastRun) => this.onCast(r));
     rt.events.on(RT_EVENTS.active, (r: CastRun) => this.onActive(r));
@@ -850,10 +855,11 @@ export class SkillFx {
       img.setDisplaySize(w, w / 3);
       const band = this.scene.add.rectangle(v.centerX, cy, v.width, w / 3 + 16, 0x000000, 0.55).setDepth(TOP + 49).setScale(1, 0);
       this.scene.tweens.add({ targets: band, scaleY: 1, duration: 120, ease: 'Cubic.easeOut' });
+      const out = r.skill.cls === 'samurai' ? Math.max(600, r.timings.startup - 300) : 1100; // (samurai: gone before the eight cuts out of the dark)
       this.scene.tweens.add({ targets: img, x: v.centerX - w * 0.04, duration: 300, ease: 'Cubic.easeOut' });
-      this.scene.tweens.add({ targets: img, x: v.centerX + w * 0.03, delay: 300, duration: 800 }); // slow drift while holding (a real beat)
-      this.scene.tweens.add({ targets: img, x: v.right + w / 2, alpha: 0, delay: 1100, duration: 200, ease: 'Cubic.easeIn', onComplete: () => img.destroy() });
-      this.scene.tweens.add({ targets: band, scaleY: 0, delay: 1120, duration: 160, onComplete: () => band.destroy() });
+      this.scene.tweens.add({ targets: img, x: v.centerX + w * 0.03, delay: 300, duration: out - 300 }); // slow drift while holding (a real beat)
+      this.scene.tweens.add({ targets: img, x: v.right + w / 2, alpha: 0, delay: out, duration: 200, ease: 'Cubic.easeIn', onComplete: () => img.destroy() });
+      this.scene.tweens.add({ targets: band, scaleY: 0, delay: out + 20, duration: 160, onComplete: () => band.destroy() });
       if (r.skill.id === 'sky_rain' && this.scene.textures.exists('afx-eagle2')) { // a great spirit eagle sweeps across the cut-in
         const ew = v.width * 0.55, eg = this.scene.add.image(v.x - ew, cy - w / 3 * 0.35, 'afx-eagle2', 0).setDepth(TOP + 51).setDisplaySize(ew, ew / 2);
         let et = 0; const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { et += 16; const k = et / 1150; if (k >= 1 || !eg.active) { ev.remove(); eg.destroy(); return; } eg.setFrame(Math.floor(et / 60) % 8).setPosition(v.x - ew + (v.width + ew * 2) * k, cy - w / 3 * 0.35 + Math.sin(k * Math.PI) * 40).setAlpha(k > 0.85 ? (1 - k) / 0.15 : 1); } });
@@ -884,10 +890,9 @@ export class SkillFx {
       cam.shake(200, 0.006);
     });
     this.scene.time.delayedCall(r.timings.startup, () => {
-      if (!arch) { // (archer: no white-out — the arrows themselves are the payoff; samurai: a blink, gone before the great cut lands)
-        const sam = r.skill.cls === 'samurai';
-        const f = this.scene.add.rectangle(0, 0, W, H, 0xfff4d8, sam ? 0.85 : 1).setOrigin(0, 0).setScrollFactor(0).setDepth(TOP + 45).setBlendMode(Phaser.BlendModes.ADD);
-        this.scene.tweens.add({ targets: f, alpha: 0, duration: sam ? 120 : 380, ease: 'Quad.easeOut', onComplete: () => f.destroy() });
+      if (!arch && r.skill.cls !== 'samurai') { // (archer: no white-out — the arrows themselves are the payoff; samurai: the white comes with the great cut, after the eight in the dark)
+        const f = this.scene.add.rectangle(0, 0, W, H, 0xfff4d8, 1).setOrigin(0, 0).setScrollFactor(0).setDepth(TOP + 45).setBlendMode(Phaser.BlendModes.ADD);
+        this.scene.tweens.add({ targets: f, alpha: 0, duration: 380, ease: 'Quad.easeOut', onComplete: () => f.destroy() });
       }
       cam.shake(420, 0.014);
     });
@@ -1845,6 +1850,11 @@ export class SkillFx {
   bladeStrike(attackerId: string, to: V3): void { this.sam.bladeStrike(attackerId, to); }
   /** God of Blades: its halo is gone (the buff ended, its samurai fell or left). */
   clearHalo(attackerId: string, now = false): void { this.sam.clearHalo(attackerId, now); }
+  /** Kagemusha: he vanishes; one of the three steps out of the ink; a double bursts into petals / melts into ink. */
+  kageVanish(at: V3): void { this.sam.kageVanish(at); }
+  kageAppear(at: V3): void { this.sam.kageAppear(at); }
+  kageBurst(at: V3): void { this.sam.kageBurst(at); }
+  kageFade(at: V3): void { this.sam.kageFade(at); }
 
   /** The world darkens round the fight for `ms` (big skills). */
   darken(ms: number, alpha: number): void {

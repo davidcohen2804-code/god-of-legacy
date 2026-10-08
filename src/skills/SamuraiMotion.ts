@@ -63,9 +63,12 @@ export function samuraiMotion(id: string, e: number, T: Timeline, face: number, 
       if (r < 0) return M({ sy: 1 - 0.08 * c, sx: 1 + 0.05 * c });
       if (e < A) return M({ ang: face * (6 + 6 * Math.sin(r / 45)), dy: -6 * Math.abs(Math.sin(r / 70)), after: true });
       return M({ sy: 1 - 0.06 * kick(e - A, 240) });
-    case 'dragon_eclipse': // vanishes in the dark, reappears in the colossal cut
+    case 'dragon_eclipse': { // vanishes in the dark (the eight cuts come out of it), reappears in the colossal cut
       if (r < 0) return M({ alpha: 1 - 0.9 * clamp01(e / (T.startup * 0.6)), sy: 1 - 0.06 * c });
-      return M({ dx: face * 24 * kick(r, 420), ang: face * 12 * kick(r, 420), sx: 1 + 0.1 * kick(r, 300), after: r < 260 });
+      const f = r - T.active * 0.76;
+      if (f < 0) return M({ after: true });
+      return M({ dx: face * 24 * kick(f, 420), ang: face * 12 * kick(f, 420), sx: 1 + 0.1 * kick(f, 300), after: f < 260 });
+    }
     case 'swallow_cut': { // crouch, spring up as the blade rises, lean into the return cut, land
       if (r < 0) return M({ sy: 1 - 0.12 * c, sx: 1 + 0.06 * c, dx: -face * 3 * c });
       if (e < A) {
@@ -78,9 +81,9 @@ export function samuraiMotion(id: string, e: number, T: Timeline, face: number, 
       if (r < 0) return M({ ang: face * 4 * c, sy: 1 - 0.05 * c });
       if (e < A) return M({ dx: face * (4 + 3 * Math.sin(e * 0.9)), ang: face * (5 + 4 * Math.sin(e * 0.7)), sx: 1.03, sy: 0.97, after: true });
       return M({ dx: face * 14 * kick(e - A, 260), ang: face * 8 * kick(e - A, 260) });
-    case 'quick_draw': // into the drawing stance, then up
-      if (r < 0) return M({ sy: 1 - 0.1 * c, ang: -face * 4 * c });
-      return M({ sy: 1 + 0.05 * kick(r, 300), dy: -4 * kick(r, 300) });
+    case 'kagemusha': // the hand seal: low and still, then gone in the burst
+      if (r < 0) return M({ sy: 1 - 0.08 * c, ang: -face * 3 * c, after: e > T.startup * 0.6 });
+      return M({ sy: 1 + 0.05 * kick(r, 200) });
     case 'tornado_blade': // the wind-up spin, then the throw of the whirlwind
       if (r < 0) return M({ flip: Math.floor(e / 70) % 2 === 1, sy: 1 - 0.06 * c, after: true });
       return M({ dx: face * 10 * kick(r, 300), ang: face * 12 * kick(r, 300) });
@@ -106,6 +109,20 @@ export function samuraiMotion(id: string, e: number, T: Timeline, face: number, 
       return M({ sy: 1 - 0.1 * kick(e - A, 260) });
   }
   return null;
+}
+
+/** How much of the samurai is there to see (body, name, bar, shadow — 0 = gone, 1 = all of him): he vanishes through
+ *  Shadow Step's dash, from the Kagemusha burst until the three of him appear, and in Dragon Eclipse's dark until the great
+ *  cut. Every client reads it from the cast timeline, so he is gone on every screen at once. */
+export function samuraiSeen(id: string, e: number, T: Timeline): number {
+  const r = e - T.startup, A = T.startup + T.active;
+  if (e < 0 || e > A + T.recovery) return 1;
+  switch (id) {
+    case 'shadow_step': return r < 0 ? 1 : e < A ? 1 - clamp01(r / 30) : clamp01((e - A) / 70);
+    case 'kagemusha': return r < 0 ? 1 : 1 - clamp01(r / 40);
+    case 'dragon_eclipse': return r < 0 ? 1 - clamp01(e / Math.max(1, T.startup * 0.55)) : clamp01((r - T.active * 0.74) / 40); // back for the great cut
+  }
+  return 1;
 }
 
 /** Shinsoku: the mid-air dash — leaning into it, stretched, afterimages, for `ms` after the second jump. */
