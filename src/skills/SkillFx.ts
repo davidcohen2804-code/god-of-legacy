@@ -157,7 +157,9 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
       ['afx-burst', 'vine_burst', 360, 540], ['afx-hawk', 'hawk_fly', 320, 320], ['afx-dive', 'hawk_dive', 384, 384], ['afx-eagle2', 'eagle_side', 600, 300], ['afx-kick', 'kick_wind', 384, 384], ['afx-muzzle', 'muzzle', 320, 320],
       ['afx-gold', 'gold_aura', 300, 450], ['afx-haste', 'haste_rune', 512, 256], ['afx-volley', 'air_volley', 512, 256],
       ['afx-boot', 'boot_kick', 384, 384], ['afx-garrow', 'ground_arrow', 360, 540], ['afx-pit', 'mine_pit', 512, 256], ['afx-resolve', 'resolve_aura', 320, 480], ['afx-vines', 'vine_grow', 640, 160],
-      ['afx-sbow', 'spirit_bow', 384, 384], ['afx-target', 'target_mark', 512, 256], ['afx-rainfall', 'arrow_rainfall', 320, 480], ['afx-band', 'aim_band', 512, 128]] as const) if (!scene.textures.exists(k)) scene.load.spritesheet(k, `${AF}/${f}.png`, { frameWidth: w, frameHeight: h }); // the painted round-3 set
+      ['afx-sbow', 'spirit_bow', 384, 384], ['afx-target', 'target_mark', 512, 256], ['afx-rainfall', 'arrow_rainfall', 320, 480], ['afx-band', 'aim_band', 512, 128],
+      ['afx-fire', 'fire_burst', 320, 320], ['afx-rootband', 'roots_band', 640, 160], ['afx-tree2', 'tree_light', 360, 540], ['afx-heavy', 'heavy_arrow', 320, 480], ['afx-raura', 'rain_aura', 300, 450],
+      ['afx-strike', 'floor_strike', 512, 256], ['afx-roar', 'roar_ring', 512, 256], ['afx-bcharge', 'bolt_charge', 320, 320], ['afx-rise', 'rise_thin', 240, 480]] as const) if (!scene.textures.exists(k)) scene.load.spritesheet(k, `${AF}/${f}.png`, { frameWidth: w, frameHeight: h }); // the painted round-3 set
     if (!scene.textures.exists('jb-bolt')) scene.load.spritesheet('jb-bolt', `${F}/skills/warrior/judgment_blade/bolt.png`, { frameWidth: 256, frameHeight: 512 }); // Thunder Rain: the warrior's blue lightning
     I('afx-apple', `${AF}/apple.png`); for (let i = 1; i < 4; i++) I(`afx-apple-${i}`, `${AF}/apple_${i}.png`); I('afx-roots', `${AF}/roots.png`);
     L('afx-fan', `${AF}/release_fan.png`, 512, 256); L('afx-triple', `${AF}/triple_trail.png`, 512, 256); L('afx-storm', `${AF}/storm_top.png`, 512, 256); L('afx-eagle', `${AF}/eagle_top.png`, 512, 256); L('vfx-evasion', `${F}/skills/archer/evasion/vfx.png`, 256);
@@ -960,7 +962,8 @@ export class SkillFx {
     if (p.skill.cls === 'archer' && p.explodeRadius > 0) { this.archerBlast(end.x, end.y, p.z, p.explodeRadius); return; }
     if (p.skill.id === 'skyhunters_step') { // the arrow strikes the floor: a short streak of green light carries the blow on along the ground
       const d = { x: p.dx, y: p.dy }, L = Math.hypot(d.x, d.y) || 1;
-      if (this.scene.textures.exists('afx-band')) this.floorFx('afx-band', end.x, end.y, { x: d.x / L, y: d.y / L }, 170, [30, 40, 50, 60, 70, 80, 90, 110], { ox: 0.02, aspect: 3.2, depth: GROUND + 2, alpha: 0.9 });
+      if (this.scene.textures.exists('afx-strike')) { const lv = level(d.x / L, d.y / L); this.play('afx-strike', end.x, end.y, 220, 110, [40, 50, 60, 70, 80, 90, 110, 140], { ox: lv.flip ? 0.9 : 0.1, oy: 0.85, flip: lv.flip, depth: end.y + 1 }); }
+      else if (this.scene.textures.exists('afx-band')) this.floorFx('afx-band', end.x, end.y, { x: d.x / L, y: d.y / L }, 170, [30, 40, 50, 60, 70, 80, 90, 110], { ox: 0.02, aspect: 3.2, depth: GROUND + 2, alpha: 0.9 });
       const f = this.scene.add.image(end.x, end.y - 4, 'arch-glow').setTint(0x7ee35a).setBlendMode(Phaser.BlendModes.ADD).setDepth(end.y + 1).setDisplaySize(60, 24);
       this.scene.tweens.add({ targets: f, alpha: 0, scaleX: f.scaleX * 2, duration: 260, onComplete: () => f.destroy() });
     }
@@ -1352,7 +1355,8 @@ export class SkillFx {
 
   /** Explosive Arrow: fireball, shock ring, debris, smoke, shake. */
   private archerBlast(x: number, y: number, z: number, radius: number): void {
-    if (this.scene.textures.exists('afx-blast')) this.play('afx-blast', x, y - z + 4, radius * 3.2, radius * 3.2, [40, 50, 60, 80, 100, 120, 150, 180], { oy: 0.88, depth: y + 2, blend: Phaser.BlendModes.NORMAL, fadeLast: 220 });
+    if (this.scene.textures.exists('afx-fire')) this.play('afx-fire', x, y - z - 30, radius * 3, radius * 3, [40, 50, 60, 80, 100, 120, 150, 180], { depth: y + 2, fadeLast: 200 });
+    else if (this.scene.textures.exists('afx-blast')) this.play('afx-blast', x, y - z + 4, radius * 3.2, radius * 3.2, [40, 50, 60, 80, 100, 120, 150, 180], { oy: 0.88, depth: y + 2, blend: Phaser.BlendModes.NORMAL, fadeLast: 220 });
     else this.spark(IMPACT.explosion.key, x, y - z + 6, 5, radius * 3.6, 1);
     const fl = this.scene.add.image(x, y - z - 20, 'arch-glow').setTint(0xffb050).setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 2).setDisplaySize(radius * 1.6, radius * 1.6).setAlpha(0.7);
     this.scene.tweens.add({ targets: fl, alpha: 0, scale: fl.scale * 1.5, duration: 320, onComplete: () => fl.destroy() });
@@ -1436,7 +1440,8 @@ export class SkillFx {
     switch (s.id) {
       case 'rising_arrow': { // the ground cracks, then the arrow bursts UP out of the earth and throws the foe
         const sh = s.hits[0].shape as { bias?: number; radius: number }, bx = o.x + a.x * (sh.bias ?? 90), by = o.y + a.y * (sh.bias ?? 90);
-        if (this.scene.textures.exists('afx-garrow')) this.play('afx-garrow', bx, by - o.z + 6, 150, 225, [T.startup * 0.5, T.startup * 0.5, ...spread(6, T.active + 620, [1, 1, 1.1, 1.3, 1.6, 2.1])], { oy: 0.97, depth: by + 1 }); // the earth cracks and a great arrow of light bursts up out of it
+        if (this.scene.textures.exists('afx-rise')) this.play('afx-rise', bx, by - o.z + 4, 130, 260, [T.startup * 0.5, T.startup * 0.5, ...spread(6, T.active + 520, [1, 1, 1.1, 1.3, 1.6, 2.1])], { oy: 0.94, depth: by + 1 });
+        else if (this.scene.textures.exists('afx-garrow')) this.play('afx-garrow', bx, by - o.z + 6, 150, 225, [T.startup * 0.5, T.startup * 0.5, ...spread(6, T.active + 620, [1, 1, 1.1, 1.3, 1.6, 2.1])], { oy: 0.97, depth: by + 1 }); // the earth cracks and a great arrow of light bursts up out of it
         else this.play(key, bx, by - o.z, 360, 360, [T.startup * 0.5, T.startup * 0.5, ...spread(6, T.active + 520, [1, 1, 1.1, 1.3, 1.6, 2.1])], { oy: ARCHER_GROUND[s.id], flip: left, depth: by + 1 });
         this.scene.time.delayedCall(T.startup, () => {
           this.shockwave(bx, by, 80, 0x52cf3e, true); this.dust(bx, by, 80, 0.5); // a clean pop, not a blast
@@ -1447,7 +1452,9 @@ export class SkillFx {
       case 'leaping_arrow': { // Binding Leaves: after the long charge a wide band of leaves and vines races across the floor
         const sx = o.x + a.x * 26, sy = o.y + a.y * 26, len = 600;
         this.scene.time.delayedCall(T.startup, () => {
-          if (this.scene.textures.exists('afx-vines')) { // vines sprout out of the soil one patch after another, racing along the band, hold, then wither
+          if (this.scene.textures.exists('afx-rootband')) { // roots creep out of the soil all along the band, hold the caught, then sink back
+            this.floorFx('afx-rootband', sx, sy, a, len, [90, 110, 130, 150, 900, 900, 1200, 400], { ox: 0.02, aspect: 3.4, depth: GROUND + 2 });
+          } else if (this.scene.textures.exists('afx-vines')) { // vines sprout out of the soil one patch after another, racing along the band, hold, then wither
             const lv = level(a.x, a.y), px = -a.y, py = a.x;
             // a net of leaves creeps over the floor from the archer outwards: many small tufts, staggered and scattered (never one block)
             for (let i = 0; i < 12; i++) for (let j = 0; j < 3; j++) {
@@ -1507,7 +1514,8 @@ export class SkillFx {
           const q = me() ?? o; this.shockwave(q.x, q.y, 300, 0x52cf3e, true); this.scene.time.delayedCall(140, () => this.shockwave(q.x, q.y, 480, 0x9cf27a, true));
           for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; this.dust(q.x + Math.cos(a) * 170, q.y + Math.sin(a) * 60, 100, 0.55); }
           for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2 + Math.random() * 0.2; this.scene.time.delayedCall(i * 18, () => this.zigBolt(q.x + Math.cos(a) * 40, q.y + Math.sin(a) * 18, q.x + Math.cos(a) * 250, q.y + Math.sin(a) * 250 * FLOOR_SQUASH, i % 2 ? 0x7fe0ff : 0x9cf27a, 3)); } // lightning bursts out all round (360°)
-          this.scene.time.delayedCall(70, () => this.shockwave(q.x, q.y, 380, 0x7fe0ff, true));
+          if (this.scene.textures.exists('afx-roar')) this.play('afx-roar', q.x, q.y, 620, 310, [50, 60, 70, 80, 90, 100, 120, 150], { depth: GROUND + 2 });
+          else this.scene.time.delayedCall(70, () => this.shockwave(q.x, q.y, 380, 0x7fe0ff, true));
           if (r.own) { (this.cam ?? this.scene.cameras.main).shake(320, 0.009); this.punch(0.07, 320); }
         });
         break;
@@ -1529,8 +1537,9 @@ export class SkillFx {
       }
       case 'tree_of_life': { // grows beside the archer, sways while it heals, then fades
         const tx = o.x, ty = o.y - 46, life = 20000, grow = [T.startup * 0.2, T.startup * 0.2, T.startup * 0.3, T.startup * 0.3, 160];
-        const tree = this.play(key, tx, ty, 340, 455, [...grow.slice(0, 4), life + grow[4]], { oy: ARCHER_GROUND.tree_of_life, depth: ty - 1, fadeLast: 1200, blend: Phaser.BlendModes.NORMAL, alpha: 0.95 }); // still once grown; fades out softly
-        this.scene.time.delayedCall(T.startup + life - 1200, () => { // as it fades, its leaves drift away
+        const t2 = this.scene.textures.exists('afx-tree2'), tree = t2 ? this.play('afx-tree2', tx, ty, 300, 450, [...grow.slice(0, 4), life - 900, 300, 300, 300], { oy: 0.94, depth: ty - 1, fadeLast: 300 }) // a slim tree of light: grows, stands still, then breaks into drifting leaves
+          : this.play(key, tx, ty, 340, 455, [...grow.slice(0, 4), life + grow[4]], { oy: ARCHER_GROUND.tree_of_life, depth: ty - 1, fadeLast: 1200, blend: Phaser.BlendModes.NORMAL, alpha: 0.95 });
+        if (!t2) this.scene.time.delayedCall(T.startup + life - 1200, () => { // as it fades, its leaves drift away
           for (let i = 0; i < 26; i++) { const lf = this.scene.add.image(tx + (Math.random() - 0.5) * 220, ty - 120 - Math.random() * 280, 'arch-glow').setTint(i % 3 ? 0x7ee35a : 0xffe27a).setDisplaySize(14, 6).setDepth(ty).setAngle(Math.random() * 360);
             this.scene.tweens.add({ targets: lf, y: lf.y + 80 + Math.random() * 120, x: lf.x + (Math.random() - 0.3) * 120, angle: lf.angle + 240, alpha: 0, duration: 1200 + Math.random() * 800, delay: Math.random() * 500, onComplete: () => lf.destroy() }); }
         });
@@ -1558,10 +1567,10 @@ export class SkillFx {
       case 'arrow_storm': { // Hunter's Rain: dozens of arrows loosed into the sky, then they pour down on the mark (which the archer steers)
         this.scene.time.delayedCall(Math.round(T.startup * 0.55), () => { const q = me() ?? o; for (let k = 0; k < 3; k++) this.scene.time.delayedCall(k * 70, () => this.risingArrows(q.x + side * 14, q.y - q.z - 50, 6, 0x52cf3e, 1.5)); this.shockwave(q.x, q.y, 90, 0xa8f04a, true); });
         { // on the archer while the rain lasts: a ring of runes under the feet and light streaming up from the bow
-          const q0 = me() ?? o, rr = this.scene.textures.exists('afx-haste') ? this.play('afx-haste', q0.x, q0.y + 4, 170, 52, [T.startup * 0.5, 90, 90, 90, 90, 90, 90, 90], { depth: q0.y - 1, loop: [1, 7], until: T.startup + T.active, loopMs: 80, fadeLast: 300, follow: () => { const c = me(); return c ? { x: c.x, y: c.y - 1, z: -4 } : null; } }) : null;
+          const q0 = me() ?? o, rr = this.scene.textures.exists('afx-raura') ? this.play('afx-raura', q0.x, q0.y + 6, 170, 255, [T.startup * 0.5, 90, 90, 90, 90, 90, 90, 90], { oy: 0.93, depth: q0.y + 0.5, loop: [2, 6], until: T.startup + T.active, loopMs: 90, fadeLast: 300, follow: () => { const c = me(); return c ? { x: c.x, y: c.y + 0.5, z: c.z - 6 } : null; } }) : this.scene.textures.exists('afx-haste') ? this.play('afx-haste', q0.x, q0.y + 4, 170, 52, [T.startup * 0.5, 90, 90, 90, 90, 90, 90, 90], { depth: q0.y - 1, loop: [1, 7], until: T.startup + T.active, loopMs: 80, fadeLast: 300, follow: () => { const c = me(); return c ? { x: c.x, y: c.y - 1, z: -4 } : null; } }) : null;
           void rr;
           const up = this.scene.add.particles(0, 0, 'arch-glow', { speedY: { min: -520, max: -380 }, speedX: { min: -30, max: 30 }, lifespan: 420, scaleX: { start: 0.05, end: 0.02 }, scaleY: { start: 0.5, end: 0.2 }, alpha: { start: 0.95, end: 0 }, tint: [0x7ee35a, 0xd8ff8a], blendMode: 'ADD', frequency: 45, quantity: 1, emitting: false });
-          const ev2 = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { const c = me(); if (!c || r.phase === 'done' || r.phase === 'recovery') { ev2.remove(); up.stop(); this.scene.time.delayedCall(500, () => up.destroy()); return; } up.emitting = r.elapsed > T.startup * 0.6; up.setPosition(c.x + side * 16, c.y - c.z - 70).setDepth(c.y + 2); } });
+          const ev2 = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { const c = me(); if (!c || r.phase === 'done' || r.phase === 'recovery') { ev2.remove(); up.stop(); this.scene.time.delayedCall(500, () => up.destroy()); return; } up.emitting = !rr && r.elapsed > T.startup * 0.6; up.setPosition(c.x + side * 16, c.y - c.z - 70).setDepth(c.y + 2); } });
         }
         const mark = this.scene.add.image(0, 0, this.scene.textures.exists('afx-target') ? 'afx-target' : this.scene.textures.exists('afx-haste') ? 'afx-haste' : 'magic-circle', 0).setDisplaySize(270, 135).setAlpha(0).setDepth(GROUND + 1);
         this.scene.tweens.add({ targets: mark, alpha: 0.95, delay: T.startup * 0.5, duration: 200 });
@@ -1573,6 +1582,7 @@ export class SkillFx {
         } });
         for (const h of r.hits) this.scene.time.delayedCall(T.startup + h.at - 150, () => { // each wave falls where the mark is now
           const c = r.place; if (!c || r.phase === 'done') return;
+          if (this.scene.textures.exists('afx-heavy') && h.at % 600 === 0) { const hx = c.x + (Math.random() - 0.5) * 80, hy = c.y + (Math.random() - 0.5) * 30; this.play('afx-heavy', hx, hy + 8, 200, 300, [60, 50, 60, 70, 90, 110, 140, 200], { oy: 0.9, depth: hy + 2, fadeLast: 180 }); this.scene.time.delayedCall(60, () => { if (r.own) (this.cam ?? this.scene.cameras.main).shake(120, 0.004); }); } // every 3rd wave a great arrow slams down
           if (this.scene.textures.exists('afx-rainfall')) for (let k = 0; k < 3; k++) { const fx = c.x + (Math.random() - 0.5) * 170, fy = c.y + (Math.random() - 0.5) * 60; this.scene.time.delayedCall(k * 60, () => { this.play('afx-rainfall', fx, fy + 10, 220, 330, [40, 40, 50, 65, 80, 90, 110, 140], { oy: 0.88, depth: fy + 1, fadeLast: 140 }); this.scene.time.delayedCall(90, () => this.shockwave(fx, fy, 90, 0x52cf3e, true)); }); }
           if (r.own) (this.cam ?? this.scene.cameras.main).shake(80, 0.002);
           else this.arrowShower(c.x, c.y, 95, 42, 7, 150, Math.random() < 0.5 ? 0x7ee35a : 0xa8f04a, 0.12, 1.1);
@@ -1583,16 +1593,18 @@ export class SkillFx {
         { // the leap, then 3s of lightning gathering at the bow: a growing orb, crackling bolts, sparks sucked in
           const first = T.startup + r.hits[0].at, orb = this.scene.add.image(0, 0, 'arch-glow').setTint(0x7fe0ff).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setDepth(TOP + 2);
           const core = this.scene.add.image(0, 0, 'arch-glow').setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setDepth(TOP + 2.1);
-          const bolt0 = this.scene.textures.exists('jb-bolt') ? this.scene.add.image(0, 0, 'jb-bolt', 6).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setDepth(TOP + 2.2) : null; // the very lightning arrow it will loose, gathering at the bow
+          const bc = this.scene.textures.exists('afx-bcharge') ? this.scene.add.image(0, 0, 'afx-bcharge', 0).setDepth(TOP + 2.3) : null;
+          const bolt0 = !bc && this.scene.textures.exists('jb-bolt') ? this.scene.add.image(0, 0, 'jb-bolt', 6).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setDepth(TOP + 2.2) : null; // the very lightning arrow it will loose, gathering at the bow
           const em = this.scene.add.particles(0, 0, 'arch-glow', { emitZone: { type: 'random', source: new Phaser.Geom.Circle(0, 0, 110), quantity: 1 } as never, moveToX: 0, moveToY: 0, lifespan: 380, scale: { start: 0.12, end: 0.03 }, alpha: { start: 0, end: 1 }, tint: [0x7fe0ff, 0xffffff], blendMode: 'ADD', frequency: 22, quantity: 2, emitting: false }).setDepth(TOP + 2);
           let lastBolt = 0;
           const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
             const q = me(), e = r.elapsed;
-            if (!q || r.phase === 'done' || e >= first) { ev.remove(); em.stop(); this.scene.time.delayedCall(400, () => em.destroy()); this.scene.tweens.add({ targets: [orb, core], alpha: 0, scale: 0.01, duration: 120, onComplete: () => { orb.destroy(); core.destroy(); } }); bolt0?.destroy(); return; }
+            if (!q || r.phase === 'done' || e >= first) { ev.remove(); em.stop(); this.scene.time.delayedCall(400, () => em.destroy()); this.scene.tweens.add({ targets: [orb, core], alpha: 0, scale: 0.01, duration: 120, onComplete: () => { orb.destroy(); core.destroy(); } }); bolt0?.destroy(); bc?.destroy(); return; }
             const k = Math.max(0, Math.min(1, (e - T.startup) / (first - T.startup))), bx = q.x + side * 34, by = q.y - q.z - 58, pul = 1 + 0.15 * Math.sin(e / 35);
             if (e < T.startup + 150) return;
             em.emitting = true; em.setPosition(bx, by);
-            orb.setPosition(bx, by).setAlpha(0.7).setDisplaySize((30 + 90 * k) * pul, (30 + 90 * k) * pul);
+            orb.setPosition(bx, by).setAlpha(bc ? 0.3 : 0.7).setDisplaySize((30 + 90 * k) * pul, (30 + 90 * k) * pul);
+            if (bc) { const tx = o.x + a.x * 150, ty = o.y + a.y * 150, sz = (60 + 110 * k) * pul; bc.setPosition(bx, by).setRotation(Math.atan2(ty - by, tx - bx)).setFrame(k < 0.9 ? Math.floor(k / 0.9 * 4) : 4 + (Math.floor(e / 70) % 4)).setDisplaySize(sz, sz); }
             if (bolt0) { const tx = o.x + a.x * 150, ty = o.y + a.y * 150, rot = Math.atan2(ty - by, tx - bx) + Math.PI / 2; bolt0.setPosition(bx, by).setRotation(rot).setAlpha(0.6 + 0.4 * Math.random()).setDisplaySize((30 + 60 * k) * pul, (80 + 170 * k) * pul); } core.setPosition(bx, by).setAlpha(1).setDisplaySize((14 + 40 * k) * pul, (14 + 40 * k) * pul);
             if (e - lastBolt > 140 - 80 * k) { lastBolt = e; const an = Math.random() * Math.PI * 2, rr = 30 + 60 * k; this.zigBolt(bx, by, bx + Math.cos(an) * rr, by + Math.sin(an) * rr, 0x7fe0ff, 2); }
             if (r.own && k > 0.7 && Math.random() < 0.08) (this.cam ?? this.scene.cameras.main).shake(60, 0.0015 * k);
