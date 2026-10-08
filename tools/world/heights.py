@@ -81,7 +81,7 @@ for id_, m in MAPS.items():
     x0 = EXT + w - bl if side else 0
     reg = wide[:, x0:x0 + c.shape[1]].astype(np.float32)
     ca = c[..., 3:4] / 255 * rr
-    reg[..., :3] = c[..., :3] * ca + reg[..., :3] * (1 - ca); reg[..., 3:4] = np.maximum(reg[..., 3:4] * (1 - rr), c[..., 3:4] * rr) if True else reg[..., 3:4]
+    reg[..., :3] = c[..., :3] * ca + reg[..., :3] * (1 - ca); reg[..., 3:4] = reg[..., 3:4] * (1 - rr) + c[..., 3:4] * rr   # (a max of the two left the seam half see-through)
     wide[:, x0:x0 + c.shape[1]] = reg.clip(0, 255).astype(np.uint8)
   rgba = wide
   cv2.imwrite(out_dir + f'{id_}.webp', cv2.cvtColor(rgba, cv2.COLOR_RGBA2BGRA), [cv2.IMWRITE_WEBP_QUALITY, 90])

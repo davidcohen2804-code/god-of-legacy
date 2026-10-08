@@ -116,8 +116,9 @@ export function stepKin(k: Kin, ms: number, gravityScale = 1, blocked?: (x: numb
     }
   }
   if (!k.grounded) {
-    k.vz -= PHYS.gravity * gravityScale * dt;
-    k.z += k.vz * dt;
+    const g = PHYS.gravity * gravityScale;   // exact under constant gravity: the same jump at any frame rate
+    k.z += (k.vz - 0.5 * g * dt) * dt;
+    k.vz -= g * dt;
     const s = supportAt(k.x, k.y, Math.max(k.z, k.z - k.vz * dt));
     k.supportZ = s.z; k.supportId = s.id;
     if (k.z <= s.z && k.vz <= 0) { r.landed = true; r.impactVz = -k.vz; k.z = s.z; k.vz = 0; k.grounded = true; k.from = null; k.stepped = false; }
