@@ -316,7 +316,10 @@ export class SkillRuntime {
         for (const v of this.world.targets(t.run).filter((v) => v.alive && v.id !== t.run.attackerId && Math.hypot(v.x - t.x, v.y - t.y) <= R + v.radius)) this.deliver(t.run, boom, 1, v, { x: v.x, y: v.y, z: v.z + 10 });
         return false;
       }
-      if (now >= t.until) { this.events.emit(RT_EVENTS.trapTrigger, t, false); return false; }
+      if (now >= t.until) {
+        if (fuse) { t.fuseAt = now + 600; this.events.emit(RT_EVENTS.trapArm, t); return true; } // a mine goes off on its own in the end (a short warning first)
+        this.events.emit(RT_EVENTS.trapTrigger, t, false); return false;
+      }
       const victims = this.world.targets(t.run).filter((v) => v.alive && v.id !== t.run.attackerId && v.z < 20 && Math.hypot(v.x - t.x, v.y - t.y) <= t.radius + v.radius);
       if (!victims.length) return true;
       if (fuse) { t.fuseAt = now + fuse; this.events.emit(RT_EVENTS.trapArm, t); for (const v of victims) this.deliver(t.run, t.hit, 0, v, { x: v.x, y: v.y, z: v.z + 10 }); return true; }

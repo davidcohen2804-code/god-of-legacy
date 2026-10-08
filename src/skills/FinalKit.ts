@@ -288,7 +288,7 @@ const archer: FinalSkill[] = [
   // ---- 2nd job (Hunter)
   S({
     id: 'multi_shot', cls: 'archer', slot: 3, name: 'Triple Arrow', roles: ['confirm', 'projectile'], targeting: 'mouseCone',
-    startup: 260, active: 150, recovery: 220, cooldown: 2800, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    startup: 480, active: 150, recovery: 220, cooldown: 2800, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     hits: [H(0, 22, { kind: 'projectile', speed: 560, range: 400, radius: 12, count: 3, spread: 34 }, { stun: 240, push: 10, float: true, juggleCost: 12 })],
     cancelOnHit: ['explosive_arrow', 'piercing_arrow', 'quick_shot', 'skyhunters_step', 'retreat_kick'], telegraph: 'cone',
     description: 'A steady draw, then three arrows fan out in three directions; one damage event per target.',
@@ -296,7 +296,7 @@ const archer: FinalSkill[] = [
   }),
   S({
     id: 'explosive_arrow', cls: 'archer', slot: 4, name: 'Fireball Arrow', roles: ['projectile', 'launcher'], targeting: 'mouseProjectile',
-    startup: 240, active: 0, recovery: 220, cooldown: 6000, ground: true, air: true, cover: 'EXPLODES_ON_COVER', move: LOCK,
+    startup: 480, active: 0, recovery: 220, cooldown: 6000, ground: true, air: true, cover: 'EXPLODES_ON_COVER', move: LOCK,
     hits: [H(0, 30, { kind: 'projectile', speed: 620, range: 460, radius: 16, explodeRadius: 80 }, { stun: 320, launch: 70, push: 20, juggleCost: 25 })],
     cancelOnHit: ['quick_shot', 'rain_of_arrows', 'skyhunters_step'],
     description: 'A burning arrow wrapped in a fireball; it bursts into a blast of fire at the target, a wall or its full range.',
@@ -314,30 +314,30 @@ const archer: FinalSkill[] = [
   S({
     id: 'vine_trap', cls: 'archer', slot: 8, name: 'Vine Mine', roles: ['trap', 'setup', 'launcher'], targeting: 'mouseGround',
     startup: 220, active: 60, recovery: 190, cooldown: 7000, ground: true, air: false, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
-    placeRange: 260, trap: { radius: 90, lifeMs: 8000, fuseMs: 2000 },
+    placeRange: 260, trap: { radius: 90, lifeMs: 4000, fuseMs: 2000 },
     hits: [H(0, 0, { kind: 'placed', radius: 90 }, { hardCC: { kind: 'root', ms: 2000 }, stun: 120 }),
       H(0, 32, { kind: 'placed', radius: 110 }, { stun: 600, launch: 300, juggleCost: 30 }, { reachUp: 200, heavy: true })],
     cancelOnHit: [], telegraph: 'ground',
-    description: 'A large vine mine on the floor (8s). Whoever steps on it — a player or a whole pack of monsters — is held, and 2s later it explodes and throws them all very high.',
+    description: 'A vine mine buried in the floor. Whoever steps on it — a player or a whole pack of monsters — is held, and 2s later it explodes and throws them all very high; untouched, it goes off by itself after 4s.',
     relations: ['Setup', 'High launcher'],
   }),
   // ---- 3rd job (Ranger)
   S({
     id: 'skyhunters_step', cls: 'archer', slot: 6, name: 'Air Volley', roles: ['signature', 'mobility', 'chase'], targeting: 'mouseDir',
     startup: 200, active: 720, recovery: 280, cooldown: 16000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    dash: { distance: 220, lift: 46 },
+    dash: { distance: 320, lift: 150 },
     hits: [80, 230, 380, 530, 680].map((t, i) => H(t, [8, 8, 9, 9, 10][i], { kind: 'projectile', speed: 980, range: 420, radius: 9 }, { stun: 200, float: true, juggleCost: 12 })),
     cancelOnHit: ['sky_rain'], tags: ['signature'], telegraph: 'trajectory',
     description: 'Acrobatic leap in the facing direction while firing five shots from the air — keeps a launched foe up.',
     relations: ['Signature', 'Air combo'],
   }),
   S({
-    id: 'rain_of_arrows', cls: 'archer', slot: 9, name: 'Thunder Rain', roles: ['zone', 'extender'], targeting: 'mouseGround',
-    startup: 520, active: 2200, recovery: 240, cooldown: 9000, ground: true, air: true, cover: 'IGNORES_COVER', move: { startup: 0, active: 0.6, recovery: 0 },
-    placeRange: 300,
-    hits: Array.from({ length: 8 }, (_, i) => H(i * 300, 7, { kind: 'placed', radius: 120 }, { stun: 220, float: true, juggleCost: 6, slow: { pct: 30, ms: 600 } }, { reachUp: 160 })),
-    zoneMs: 2200, cancelOnHit: ['quick_shot', 'skyhunters_step'], telegraph: 'ground',
-    description: 'Leap up and fire a lightning arrow into the floor: lightning arrows pour around it and the ground keeps crackling for 2s, hurting everyone inside.',
+    id: 'rain_of_arrows', cls: 'archer', slot: 9, name: 'Thunder Rain', roles: ['zone', 'extender'], targeting: 'mouseDir',
+    startup: 320, active: 1000, recovery: 300, cooldown: 9000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: 0, lift: 130 },
+    hits: [150, 420, 690].map((t, i) => H(t, i === 2 ? 16 : 12, { kind: 'circle', radius: 100, at: 'aimBias', bias: [150, 300, 450][i], floor: true }, { stun: 320, float: true, juggleCost: 10, slow: { pct: 30, ms: 800 } }, { reachUp: 200, heavy: i === 2 })),
+    cancelOnHit: ['quick_shot', 'skyhunters_step'], telegraph: 'line',
+    description: 'Leap and hang in the air, firing three lightning arrows that strike the floor one after another, near, middle and far in front of you.',
     relations: ['Zone 2s', 'Keeps foes up'],
   }),
   S({

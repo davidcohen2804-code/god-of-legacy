@@ -62,7 +62,8 @@ export function shapeContains(hit: HitEvent, origin: V3, aim: V2, place: V2 | nu
     }
     case 'circle': {
       const c = circleCentre(s, origin, aim, place);
-      return Math.hypot(t.x - c.x, t.y - c.y) <= s.radius + t.radius && band(origin.z - 24, origin.z + reach) && clearLine(c.x, c.y, t.x, t.y, Math.max(origin.z, t.z) + 30);
+      const z0 = s.floor ? 0 : origin.z;
+      return Math.hypot(t.x - c.x, t.y - c.y) <= s.radius + t.radius && band(z0 - 24, z0 + reach) && clearLine(c.x, c.y, t.x, t.y, Math.max(origin.z, t.z) + 30);
     }
     case 'line': {
       const along = vx * aim.x + vy * aim.y, lateral = Math.abs(-vx * aim.y + vy * aim.x);

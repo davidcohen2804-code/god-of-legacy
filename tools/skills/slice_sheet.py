@@ -3,13 +3,14 @@
 import sys, numpy as np
 from PIL import Image
 src, dst, CW, CH, align = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5]
+SOLID = len(sys.argv) > 6 and sys.argv[6] == 'solid'  # painted soil / bodies stay opaque (only the black background goes)
 im = Image.open(src).convert('RGB'); W, H = im.size; cw, ch = W / 4, H / 2
 def alpha_rgba(c):
     a = np.asarray(c).astype(np.float32) / 255
-    v = a.max(-1); al = np.clip((v - 0.06) / 0.5, 0, 1) ** 1.1          # black -> clear, bright -> solid
+    v = a.max(-1); al = np.clip((v - 0.05) / (0.12 if SOLID else 0.5), 0, 1) ** 1.1          # black -> clear, bright -> solid
     norm = a / (v[..., None] + 1e-4)
     shade = 0.5 + 0.5 * np.clip(v / 0.8, 0, 1)[..., None]                # keep the art's own light and dark
-    rgb = np.clip(norm * shade, 0, 1)
+    rgb = a if SOLID else np.clip(norm * shade, 0, 1)
     return np.concatenate([rgb, al[..., None]], -1)
 cells = [im.crop((int(i % 4 * cw), int(i // 4 * ch), int((i % 4 + 1) * cw), int((i // 4 + 1) * ch))) for i in range(8)]
 rg = [alpha_rgba(c) for c in cells]

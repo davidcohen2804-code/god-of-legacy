@@ -1549,7 +1549,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const T = s.chain?.timings?.[stage] ?? s, up = Math.round(T.startup / this.ownSpeedMul(s)), k = this.kin, now = this.simMs;
     if (s.id === 'bow_haste') { this.hasteUntil = now + up + 120000; this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'BOW HASTE', '#c8ffb0', 0)); }
     if (s.id === 'hunters_spirit') { this.spiritUntil = now + up + 120000; this.shares.push({ at: now + up, id: s.id, ms: 120000 }); this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, "HUNTER'S SPIRIT", '#ffe27a', 0)); }
-    if (s.id === 'tree_of_life') { const side = this.aim.x < 0 ? -1 : 1; this.tree = { x: k.x - side * 70, y: k.y - 18, until: now + up + 12000, next: now + up + 1000 }; this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'TREE OF LIFE', '#b8ff9a', 0)); }
+    if (s.id === 'tree_of_life') { const side = this.aim.x < 0 ? -1 : 1; void side; this.tree = { x: k.x, y: k.y - 46, until: now + up + 12000, next: now + up + 1000 }; this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'TREE OF LIFE', '#b8ff9a', 0)); }
     if (s.id === 'piercing_arrow') { this.resolveUntil = now + up + 15000; this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, "HUNTER'S RESOLVE", '#c8ffb0', 0)); }
   }
 
