@@ -134,11 +134,18 @@ export class Backdrop {
    *  terrace (they are far away), and the sky above the landscape's top is filled with its own colour. */
   setLift(lift: number): void {
     this.land.y = this.skyBack.y = -lift * 0.75; this.sky.y = -lift * 0.85; this.haze.y = -lift * 0.6;
-    if (lift > 0 && !this.skyTop) {
+    if (!this.skyTop) {
       let c = 0xf2b48a;
-      try { const p = this.scene.textures.getPixel(4, 4, 'world-bg-sky') ?? this.scene.textures.getPixel(4, 4, bgKey(0)); if (p) c = Phaser.Display.Color.GetColor(p.red, p.green, p.blue); } catch { /* the default */ }
+      try { // the average of the sky picture's top row: the fill continues it without a seam
+        const key = this.scene.textures.exists('world-bg-sky') ? 'world-bg-sky' : bgKey(0), src = this.scene.textures.get(key).getSourceImage() as HTMLImageElement;
+        const cv = document.createElement('canvas'); cv.width = 64; cv.height = 1; const x = cv.getContext('2d')!; x.drawImage(src, 0, 0, src.width, 2, 0, 0, 64, 1);
+        const d = x.getImageData(0, 0, 64, 1).data; let r = 0, g = 0, b = 0; for (let i = 0; i < 64; i++) { r += d[i * 4]; g += d[i * 4 + 1]; b += d[i * 4 + 2]; }
+        c = Phaser.Display.Color.GetColor(r / 64, g / 64, b / 64);
+      } catch { /* the default */ }
       this.skyTop = this.scene.add.rectangle(-4000, -3000, 60000, 3002, c).setOrigin(0, 0);
       this.skyBack.addAt(this.skyTop, 0);
+      const blend = this.scene.add.graphics(); blend.fillGradientStyle(c, c, c, c, 1, 1, 0, 0); blend.fillRect(-4000, -2, 60000, 90);
+      this.skyBack.add(blend);   // over the sky picture's top edge: no seam
     }
   }
   private skyTop?: Phaser.GameObjects.Rectangle;

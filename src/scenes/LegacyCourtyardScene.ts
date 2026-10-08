@@ -544,6 +544,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.world.setTalkKey(keyLabel(this.bindings.talk));
       this.refreshQuests();
       this.chat.add({ kind: 'system', text: `Walk on to explore the world. Talk to people with ${keyLabel(this.bindings.talk) || 'the talk key'}.` });
+      this.chat.add({ kind: 'system', text: 'Camera: mouse wheel to zoom · PageUp / PageDown (or Shift + wheel) for height · Home to reset.' });
     }
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, (_t: number, d: number) => {
       if (!this.hud) return;

@@ -59,6 +59,8 @@ export function preloadOpenWorld(scene: Phaser.Scene): void {
 
 /** Camera up high: the height where it is drawn back all the way, how far back (share of the zoom), how fast it
  *  rises / comes down with the ground (ms), how fast it moves up and down (ms). */
+/** The player's camera: zoom range (× the automatic one), height range (world px, + = higher), kept under this key. */
+const USER_ZOOM: [number, number] = [0.72, 1.35], USER_LIFT: [number, number] = [-160, 220], CAM_STORE = 'godoflegacy.camera';
 const UP_FULL = 340, UP_ZOOM = 0.2, TOP_ZOOM = 0.1, TOP_LIFT = 90, CAM_RISE = 420, CAM_FALL = 220, CAM_EASE_Y = 160;
 /** Near a stair (world px from it: full look .. none) the camera looks up as if this high, easing over CAM_LOOK ms. */
 const LOOK_NEAR = 160, LOOK_FAR = 820, LOOK_H = 280, CAM_LOOK = 650;
@@ -101,10 +103,11 @@ export class OpenWorld {
     if (BACKDROP) this.backdrop = new Backdrop(scene);
     const cam = scene.cameras.main;
     this.baseZoom = cam.zoom;
-    this.ambience = new CourtyardAmbience(scene, Math.ceil(cam.width / (cam.zoom * (1 - UP_ZOOM - TOP_ZOOM))) + 4, AREA_H, BACKDROP ? [330, 668] : undefined);
+    this.ambience = new CourtyardAmbience(scene, Math.ceil(cam.width / (cam.zoom * (1 - UP_ZOOM - TOP_ZOOM) * USER_ZOOM[0])) + 4, AREA_H, BACKDROP ? [330, 668] : undefined);
     const k = keyCap(scene, 0, 0, 32);
     this.promptKey = scene.add.text(0, -2, 'Y', { fontFamily: HUD.bodyFont, fontSize: '15px', fontStyle: '700', color: '#f3ede0', resolution: 2 }).setOrigin(0.5);
     this.prompt = scene.add.container(0, 0, [k, this.promptKey]).setDepth(UI_DEPTH).setVisible(false);
+    this.camKeys();
     this.follow(start.x, start.y, 0, true);
   }
 
@@ -314,7 +317,7 @@ export class OpenWorld {
     // zoom: drawn back as you climb (all the way back from the height of a map above)
     const up = Phaser.Math.SmoothStep(hView, 30, UP_FULL);
     const top = Phaser.Math.SmoothStep(hView, 420, 680);   // the highest floors: drawn back further, looking higher
-    const zoom = this.baseZoom * (1 - UP_ZOOM * up - TOP_ZOOM * top);
+    const zoom = this.baseZoom * (1 - UP_ZOOM * up - TOP_ZOOM * top) * this.userZoom;
     if (Math.abs(cam.zoom - zoom) > 1e-4) cam.setZoom(zoom);
     const half = cam.width / zoom / 2, halfH = cam.height / zoom / 2;
     const down = belowTerrace(y);
@@ -325,6 +328,7 @@ export class OpenWorld {
     // above you on the highest ones so the sky opens over you
     const onFloor = y - this.camH + 30 - TOP_LIFT * top;
     let ty = down ? Phaser.Math.Clamp(y - lead, terraceCy, ARENA.y + ARENA.h - halfH) : (terraceCy - lift) * (1 - up) + Math.min(terraceCy, onFloor) * up;
+    ty -= this.userLift;   // the player's own camera height (PageUp / PageDown, Shift + wheel)
     // never lose you: whatever happens, your body stays well inside the view
     const sy = y - z;
     ty = Phaser.Math.Clamp(ty, sy - halfH + 260, Math.max(sy - halfH + 260, sy + halfH - 250));
@@ -340,6 +344,23 @@ export class OpenWorld {
     this.ambience.setView(this.viewLeft);
     this.backdrop?.setView(this.viewLeft, cam.width / zoom);
     this.backdrop?.setLift(Math.max(0, terraceCy - this.camY));
+  }
+  /** The player's own camera: zoom (mouse wheel) and height (PageUp / PageDown or Shift + wheel), Home resets; kept on
+   *  this device. */
+  private userZoom = 1;
+  private userLift = 0;
+  private camKeys(): void {
+    try { const v = JSON.parse(localStorage.getItem(CAM_STORE) ?? 'null'); if (v) { this.userZoom = Phaser.Math.Clamp(+v.z || 1, USER_ZOOM[0], USER_ZOOM[1]); this.userLift = Phaser.Math.Clamp(+v.l || 0, USER_LIFT[0], USER_LIFT[1]); } } catch { /* defaults */ }
+    const save = () => { try { localStorage.setItem(CAM_STORE, JSON.stringify({ z: this.userZoom, l: this.userLift })); } catch { /* not kept */ } };
+    const lift = (d: number) => { this.userLift = Phaser.Math.Clamp(this.userLift + d, USER_LIFT[0], USER_LIFT[1]); save(); };
+    const sc = this.scene, kb = sc.input.keyboard;
+    sc.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, dy: number, _dz: number, ev?: WheelEvent) => {
+      const e = ev ?? (_p as { event?: WheelEvent }).event;
+      if (e?.shiftKey) { lift(dy > 0 ? -25 : 25); return; }
+      this.userZoom = Phaser.Math.Clamp(this.userZoom * (dy > 0 ? 0.94 : 1 / 0.94), USER_ZOOM[0], USER_ZOOM[1]); save();
+    });
+    kb?.on('keydown-PAGE_UP', () => lift(30)); kb?.on('keydown-PAGE_DOWN', () => lift(-30));
+    kb?.on('keydown-HOME', () => { this.userZoom = 1; this.userLift = 0; save(); });
   }
   private camGround = 0;
   private camH = 0;
