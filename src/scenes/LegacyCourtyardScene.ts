@@ -282,11 +282,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** VS PLAYER: still waiting for the other player (the sparring partner only comes if they never do). */
   private waitFoe = false;
   private botPaused = false;
+  /** Sparring test switch: your skills have no cooldown (only while the sparring partner is there). */
+  private noCd = false;
   /** Arena analysis: simulation speed (1, 0.5, 0.25) and the hit log. */
   private slowMo = 1;
   private logEl?: HTMLDivElement;
   private logSum = { out: { hits: 0, dmg: 0, combo: -1 }, in: { hits: 0, dmg: 0, combo: -1 } };
-  private sparUi?: { root: HTMLDivElement; clsBtns: { id: string; b: HTMLButtonElement }[]; stop: HTMLButtonElement; combo: HTMLButtonElement; speedBtns: { v: number; b: HTMLButtonElement }[]; log: HTMLButtonElement };
+  private sparUi?: { root: HTMLDivElement; clsBtns: { id: string; b: HTMLButtonElement }[]; stop: HTMLButtonElement; combo: HTMLButtonElement; speedBtns: { v: number; b: HTMLButtonElement }[]; log: HTMLButtonElement; nocd: HTMLButtonElement };
   private botSeq = 0;
   /** Battle mode (the arena's 1v1): the match in rounds and its HUD; the K.O. slow motion (real ms since the K.O., -1 =
    *  none) and the camera's own zoom (the K.O. punches in from it). */
@@ -2814,7 +2816,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 .gol-spar .spd{display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:6px;align-items:center}
 .gol-spar .spd span{font:700 11px ${FONT_FAMILY};letter-spacing:2px;color:#bfb08e;padding-right:4px}
 .gol-spar .spd button{height:28px}
-.gol-spar .tog{height:30px}
+.gol-spar .tg{display:grid;grid-template-columns:2fr 3fr;gap:8px}
+.gol-spar .tog{height:30px;padding:0 10px;letter-spacing:1px;white-space:nowrap}
 .gol-hitlog{position:absolute;left:1602px;top:484px;width:300px;max-height:420px;overflow:hidden;display:none;flex-direction:column;gap:4px;padding:10px 10px 12px;box-sizing:border-box;pointer-events:none;
   background:linear-gradient(rgba(6,10,18,.82),rgba(6,10,18,.62));border-radius:12px;box-shadow:inset 0 0 0 1px rgba(201,154,69,.35);font-family:${FONT_FAMILY}}
 .gol-hitlog.on{display:flex}
@@ -2853,12 +2856,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       b.addEventListener('click', () => { this.slowMo = v; this.time.timeScale = v; this.tweens.timeScale = v; this.refreshSparUi(); });
       spd.appendChild(b); return { v, b };
     });
+    const tg = document.createElement('div'); tg.className = 'tg'; root.appendChild(tg);
     const log = document.createElement('button'); log.type = 'button'; log.className = 'tog'; log.textContent = 'HIT LOG';
     log.title = 'Every hit: skill, damage, reaction, stun, launch, combo and combo-protection gauges';
     log.addEventListener('click', () => { this.logEl?.classList.toggle('on'); this.refreshSparUi(); });
-    root.appendChild(log);
+    const nocd = document.createElement('button'); nocd.type = 'button'; nocd.className = 'tog'; nocd.textContent = 'NO COOLDOWN';
+    nocd.title = 'Your skills have no cooldown (sparring only)';
+    nocd.addEventListener('click', () => { this.noCd = !this.noCd; if (this.noCd) this.rt?.resetCooldowns(); this.refreshSparUi(); });
+    tg.append(log, nocd);
     this.logEl = document.createElement('div'); this.logEl.className = 'gol-hitlog'; host.appendChild(this.logEl);
-    this.sparUi = { root, clsBtns, stop, combo, speedBtns, log };
+    this.sparUi = { root, clsBtns, stop, combo, speedBtns, log, nocd };
     this.refreshSparUi();
   }
 
@@ -2889,6 +2896,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     u.stop.textContent = this.botPaused ? 'RESUME' : 'STOP';
     for (const sb of u.speedBtns) sb.b.classList.toggle('on', sb.v === this.slowMo);
     u.log.classList.toggle('on', !!this.logEl?.classList.contains('on'));
+    u.nocd.classList.toggle('on', this.noCd);
     if (!this.bot) this.logEl?.classList.remove('on');
     u.stop.classList.toggle('on', this.botPaused);
     u.stop.title = this.botPaused ? 'The opponent fights again' : 'The opponent stands still (it still takes hits)';
@@ -3018,7 +3026,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private guideKeys(): { slots: string[]; jump: string } { return { slots: slotKeyLabels(this.bindings), jump: keyLabel(this.bindings.jump) }; }
 
   /** Skill cooldown multiplier: longer in the arena (more spacing, fewer strings of skills); the basic attack never waits. */
-  private cdMul(s: FinalSkill): number { return (this.arena && s.slot !== 0 ? ARENA.cdMul : 1) * (s.cls === 'book_mage' ? this.passives.cdMul : 1) * (this.simMs < this.mage.hasteUntil ? 0.9 : 1); }
+  private cdMul(s: FinalSkill): number { if (this.noCd && this.pvp && this.bot) return 0; // sparring test switch (never against a player)
+    return (this.arena && s.slot !== 0 ? ARENA.cdMul : 1) * (s.cls === 'book_mage' ? this.passives.cdMul : 1) * (this.simMs < this.mage.hasteUntil ? 0.9 : 1); }
 
   /** BREAK (the arena): out of the combo — a hop back from the attacker, a burst of light, untouchable a moment. */
   private breakFree(now: number): void {
