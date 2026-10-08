@@ -1735,7 +1735,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private mageZone(run: CastRun): void {
     const now = this.simMs;
     if (run.skill.id === 'arcane_gate' && run.place) {
-      let a = { x: run.origin.x + run.aim.x * 56, y: run.origin.y + run.aim.y * 30 };
+      let a = { x: run.origin.x - Math.sign(run.aim.x || 1) * 64, y: run.origin.y }; // the near gate stands just behind him (not in his way)
       if (!footAllowed(a.x, a.y, 0, 10)) a = { x: run.origin.x, y: run.origin.y };
       this.gates.set(run.attackerId, { a, b: { ...run.place }, until: now + 12000 });
       this.fx?.gates(run.attackerId, a, run.place, 12000);
