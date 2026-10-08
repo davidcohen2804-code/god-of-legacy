@@ -61,16 +61,42 @@ def alpha_from_white(rgb):
         mean_d = ndimage.mean(d, hl, range(1, hn + 1))
         holes = [i + 1 for i in range(hn) if sz[i] >= 25 and mean_d[i] < 7]
         bg |= ndimage.binary_dilation(np.isin(hl, holes), iterations=1) & near
-    a = np.where(bg, 0, 255).astype(np.float32)
-    # soft fringe: background-adjacent pixels get alpha from their distance to white
-    edge = ndimage.binary_dilation(bg, iterations=2) & ~bg
-    soft = np.clip(d.astype(np.float32) / 90.0, 0, 1) * 255
-    a[edge] = np.minimum(255, soft[edge] * 1.15)
     rgbf = rgb.astype(np.float32)
-    al = np.maximum(a[..., None] / 255.0, 1e-3)
-    un = np.clip((rgbf - 255 * (1 - al)) / al, 0, 255)  # remove the white mixed into the fringe
-    rgb_out = np.where(edge[..., None], un, rgbf)
-    return np.dstack([rgb_out, a]).astype(np.uint8)
+    lum = rgbf.mean(axis=2)
+    # small white / light grey specks left between dark strands near the outline (hair): white ground (mixed into the
+    # strands), filled with the paint around them. Only shut in by dark paint (a glint on steel, an arrowhead in the air
+    # or a white feather stays): white ones up to 400 px, grey ones (never pure white) up to 60 px.
+    gap = ndimage.distance_transform_edt(~bg)
+    grey = (lum > 150) & (rgbf.max(axis=2) - rgbf.min(axis=2) < 45)
+    spk = (near & (gap <= 14) | grey & (gap <= 24)) & ~bg
+    sl, sn = ndimage.label(spk)
+    if sn:
+        idx = range(1, sn + 1)
+        sz = ndimage.sum(np.ones_like(d), sl, idx)
+        ring = ndimage.binary_dilation(spk, iterations=2) & ~spk
+        rl = ndimage.grey_dilation(sl, size=5) * ring
+        ring_lum = ndimage.mean(lum, rl * ~bg, idx)
+        ring_bg = ndimage.mean(bg.astype(np.float32), rl, idx)
+        white = ndimage.maximum(near.astype(np.float32), sl, idx)
+        top = ndimage.maximum(lum, sl, idx)
+        specks = np.isin(sl, [i + 1 for i in range(sn) if ring_bg[i] < 0.25 and (
+            (white[i] > 0 and sz[i] <= 400 and ring_lum[i] < 95) or (sz[i] <= 60 and ring_lum[i] < 75 and top[i] < 230))])
+        if specks.any():
+            _, (iy, ix) = ndimage.distance_transform_edt(specks | bg, return_indices=True)
+            rgbf = np.where(specks[..., None], rgbf[iy, ix], rgbf)
+            d = np.where(specks, 255 - rgbf.min(axis=2), d)
+    a = np.where(bg, 0, 255).astype(np.float32)
+    # the fringe (next to the ground): its paint is the strongest colour around it (the hair, the steel — never the white
+    # it was mixed with), its alpha how much of that paint it holds; a dark edge no longer stays half white and opaque
+    edge = ndimage.binary_dilation(bg, iterations=2) & ~bg
+    dfg = np.where(bg, -1.0, d.astype(np.float32))
+    dmax = ndimage.grey_dilation(dfg, size=5)
+    hit = (dfg == dmax) & ~bg
+    _, (iy, ix) = ndimage.distance_transform_edt(~hit, return_indices=True)
+    paint, dp = rgbf[iy, ix], np.maximum(dmax, 1.0)
+    a[edge] = np.clip(d[edge] / dp[edge], 0, 1) * 255
+    rgbf = np.where(edge[..., None], paint, rgbf)
+    return np.dstack([np.clip(rgbf, 0, 255), a]).astype(np.uint8)
 
 
 def bands(mask, gap=8):

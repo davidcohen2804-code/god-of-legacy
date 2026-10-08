@@ -1,8 +1,9 @@
 // The PvP select screen's two fighters brought to life (render only): the hero's card breathes and its cloth moves in
 // the wind (displacement maps made from the card itself: the cloth by its colour, never the weapon), a soft light of its
-// class colour burns behind it with flames and embers rising off it, light runs along the blade (the mage's book glows and
-// his crystal twinkles; the archer's bow and arrow catch the light). It slides in when the fighter changes, flashes white
-// when it is locked in (and burns brighter after), and stands as a dark silhouette while the opponent is still unknown.
+// class colour behind it and at its feet with embers rising, light runs along the blade (the mage's book glows and his
+// crystal twinkles; the archer's bow and arrow catch the light) — the painting itself stays clean, no glow around its
+// outline. It slides in when the fighter changes, flashes white when it is locked in (its light brighter after), and stands
+// as a dark silhouette while the opponent is still unknown.
 import Phaser from 'phaser';
 
 /** live: still choosing; locked: picked; shade: not chosen yet (VS CPU, before you pick yours). */
@@ -11,7 +12,7 @@ type UV = readonly [number, number];
 /** A line on the card (u across, v down, fractions of the card): a → b, bent through c; r = half its width (of the card width). */
 interface Stroke { a: UV; b: UV; c?: UV; r: number }
 interface Look {
-  /** The aura, the flames and the embers. */
+  /** Its light and its embers. */
   color: number;
   /** How much a pixel is cloth that the wind moves (h 0–360, s / l 0–1, u / v its place on the card). */
   cloth(h: number, s: number, l: number, u: number, v: number): number;
@@ -85,7 +86,6 @@ export class FighterArt {
   private readonly img: Phaser.GameObjects.Image;
   private readonly sil: Phaser.GameObjects.Image;
   private readonly back: Phaser.GameObjects.Image;
-  private readonly halo: Phaser.GameObjects.Image;
   private readonly floor: Phaser.GameObjects.Image;
   private readonly flare: Phaser.GameObjects.Image;
   private readonly book: Phaser.GameObjects.Image;
@@ -93,7 +93,6 @@ export class FighterArt {
   private readonly core: Phaser.GameObjects.Image;
   private readonly tip: Phaser.GameObjects.Image;
   private readonly stars: Phaser.GameObjects.Image[] = [];
-  private readonly flames: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly embers: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly pages: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly sparks: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -114,7 +113,7 @@ export class FighterArt {
   private gleamT = -1;
   private nextGleam = 1600;
   private starT: number[] = [];
-  /** How strongly the aura burns (locked in: brighter), eased. */
+  /** How strongly its light burns (locked in: brighter), eased. */
   private power = 0.72;
   /** The entrance × the power (0: nothing shows), read by the particles every frame. */
   private fade = 0;
@@ -128,17 +127,7 @@ export class FighterArt {
     this.back = img('fa-soft', DEPTH - 0.4);
     this.flare = img('fa-soft', DEPTH - 0.35).setTint(0xffffff);
     const fade = (a: number) => ({ onEmit: () => 0, onUpdate: (_p: Phaser.GameObjects.Particles.Particle, _k: string, t: number) => Math.sin(Math.PI * t) * a * this.fade });
-    type P = Phaser.GameObjects.Particles.Particle & { s0?: number; s1?: number };
-    // The aura: soft flames rising behind the body (only their edges show around it).
-    this.flames = scene.add.particles(0, 0, 'fa-flame', {
-      lifespan: { min: 1100, max: 1900 }, speedY: { min: -125, max: -60 }, speedX: { min: -14, max: 14 },
-      scaleX: { onEmit: (p?: P) => { const s = rnd(0.8, 1.5); if (p) p.s0 = s; return s; }, onUpdate: (p: P, _k: string, t: number) => (p.s0 ?? 1) * (1 - 0.45 * t) },
-      scaleY: { onEmit: (p?: P) => { const s = rnd(1.0, 1.9); if (p) p.s1 = s; return s; }, onUpdate: (p: P, _k: string, t: number) => (p.s1 ?? 1) * (1 + 0.35 * t) },
-      alpha: fade(0.5), blendMode: ADD, frequency: 32, emitting: false,
-    }).setDepth(DEPTH - 0.3);
-    this.flames.addEmitZone({ type: 'random', source: { getRandomPoint: (p: Phaser.Types.Math.Vector2Like) => this.pick(p, 0.14, 0.86, 0.3, 0.98) } });
     this.floor = img('fa-soft', DEPTH - 0.2);
-    this.halo = img('__DEFAULT', DEPTH - 0.1);
     this.img = scene.add.image(this.x0, BOX.bottom, '__DEFAULT').setOrigin(0.5, 1).setDepth(DEPTH).setFlipX(this.flip).setVisible(false);
     this.sil = scene.add.image(this.x0, BOX.bottom, '__DEFAULT').setDepth(DEPTH).setFlipX(this.flip).setVisible(false);
     this.book = img('fa-soft', DEPTH + 0.2).setTint(0x5ab4ff);
@@ -182,9 +171,9 @@ export class FighterArt {
     const on = !!this.cls && state !== 'shade';
     this.img.setVisible(on);
     this.sil.setVisible(!!this.cls && state === 'shade');
-    for (const e of [this.flames, this.embers]) e.emitting = on;
+    this.embers.emitting = on;
     this.pages.emitting = on && !!this.look?.book;
-    if (!on) { this.flames.killAll(); this.embers.killAll(); this.pages.killAll(); }
+    if (!on) { this.embers.killAll(); this.pages.killAll(); }
   }
 
   /** Locked in: a white flash through the hero, a flare behind, sparks of its colour. */
@@ -206,13 +195,11 @@ export class FighterArt {
     }
     const sh = shadeTex(this.scene, cls, this.bw, this.bh);
     this.sil.setTexture(sh.key).setOrigin(0.5, sh.oy);
-    const ha = haloTex(this.scene, cls, this.bw, this.bh);
-    this.halo.setTexture(ha.key).setOrigin(0.5, ha.oy).setFlipX(this.flip);
     const c = look?.color ?? 0xffd890;
-    this.back.setTint(c); this.floor.setTint(c); this.halo.setTint(c);
-    this.flames.particleTint = c; this.embers.particleTint = c;
+    this.back.setTint(c); this.floor.setTint(c);
+    this.embers.particleTint = c;
     this.sparks.particleTint = c;
-    for (const e of [this.flames, this.embers, this.pages, this.sparks]) e.killAll();
+    for (const e of [this.embers, this.pages, this.sparks]) e.killAll();
     for (const s of this.stars) s.destroy();
     this.stars.length = 0;
     this.starT = (look?.stars ?? []).map(() => rnd(500, 2400));
@@ -262,7 +249,6 @@ export class FighterArt {
     const chest = this.at(0.5, 0.42), feet = this.at(0.5, 0.985);
     this.back.setVisible(on).setPosition(chest.x, chest.y).setDisplaySize(this.bw * 1.6, this.bh * 1.12).setAlpha((0.24 + 0.1 * wave(4200)) * this.fade);
     this.floor.setVisible(on).setPosition(feet.x, feet.y).setDisplaySize(this.bw * 1.3, 130).setAlpha((0.6 + 0.2 * wave(3100, 1)) * this.fade);
-    this.halo.setVisible(on).setPosition(this.img.x, BOX.bottom).setAlpha((0.62 + 0.28 * wave(2600, 2)) * this.fade); // the glow around its outline
 
     // Locked in: brightness 2.6 → 1 over half a second, a white flare behind.
     if (this.flashT >= 0) {
@@ -325,16 +311,6 @@ function textures(scene: Phaser.Scene): void {
     g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.3, 'rgba(255,255,255,0.45)'); g.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, 128, 128);
   });
-  canvas('fa-flame', 64, 128, (ctx) => { // a tall soft tongue, thinner at the top
-    ctx.save(); ctx.translate(32, 78); ctx.scale(1, 1.9);
-    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 30);
-    g.addColorStop(0, 'rgba(255,255,255,0.9)'); g.addColorStop(0.45, 'rgba(255,255,255,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = g; ctx.fillRect(-32, -42, 64, 84); ctx.restore();
-    ctx.globalCompositeOperation = 'destination-in';
-    const v = ctx.createLinearGradient(0, 0, 0, 128);
-    v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(0.45, 'rgba(0,0,0,1)'); v.addColorStop(1, 'rgba(0,0,0,1)');
-    ctx.fillStyle = v; ctx.fillRect(0, 0, 64, 128);
-  });
   canvas('fa-streak', 128, 32, (ctx) => { // a line of light, bright in the middle, soft at both ends
     const d = ctx.createImageData(128, 32);
     for (let y = 0; y < 32; y++) for (let x = 0; x < 128; x++) {
@@ -369,28 +345,6 @@ function shadeTex(scene: Phaser.Scene, cls: string, bw: number, bh: number): { k
     for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; ctx.drawImage(rim, Math.cos(a) * 3, Math.sin(a) * 3); }
     ctx.globalAlpha = 1; ctx.drawImage(dark, 0, 0);
     ct.refresh();
-  }
-  return { key, oy: (bh + m) / H };
-}
-
-/** The glow around a hero's outline: its shape, blurred (shrunk and grown back, twice), white (tinted by its colour). */
-function haloTex(scene: Phaser.Scene, cls: string, bw: number, bh: number): { key: string; oy: number } {
-  const m = 44, W = Math.ceil(bw) + 2 * m, H = Math.ceil(bh) + 2 * m, key = `fa-halo-${cls}`;
-  if (!scene.textures.exists(key)) {
-    const src = scene.textures.get(`hero-card-${cls}`).getSourceImage() as CanvasImageSource;
-    const make = (w: number, h: number) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
-    const sil = make(W, H), sx = sil.getContext('2d')!;
-    sx.drawImage(src, m, m, bw, bh); sx.globalCompositeOperation = 'source-in'; sx.fillStyle = '#fff'; sx.fillRect(0, 0, W, H);
-    let cur: HTMLCanvasElement = sil;
-    for (const f of [14, 5]) { // shrink, then grow back smoothly: a soft blur that reaches ~30 px past the outline
-      const small = make(Math.ceil(W / f), Math.ceil(H / f)), s2 = small.getContext('2d')!;
-      s2.imageSmoothingEnabled = true; s2.drawImage(cur, 0, 0, small.width, small.height);
-      const big = make(W, H), b2 = big.getContext('2d')!;
-      b2.imageSmoothingEnabled = true; b2.drawImage(small, 0, 0, W, H);
-      cur = big;
-    }
-    const ct = scene.textures.createCanvas(key, W, H)!;
-    ct.getContext().drawImage(cur, 0, 0); ct.refresh();
   }
   return { key, oy: (bh + m) / H };
 }
