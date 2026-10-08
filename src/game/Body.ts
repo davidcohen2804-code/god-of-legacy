@@ -507,7 +507,7 @@ function sheetPose(cls: string, dir: Dir, q: BodyQuery): PoseFrame {
 // The four ready heroes (GPT sheets cut by tools/heroes/cut.py): side view only, drawn facing right (left = mirrored),
 // one packed atlas per class with named frames `<action>-<i>` and a feet anchor per frame.
 type HeroFrame = [number, number, number, number, number, number, number[]?]; // x, y, w, h, feet x, feet y (frame px), warrior: the sword line [hilt x, y, tip x, y] rel. feet
-interface HeroData { h: number; actions: Record<string, HeroFrame[]>; card?: [number, number, number, number, number] }
+interface HeroData { h: number; actions: Record<string, HeroFrame[]>; card?: [number, number, number, number, number]; cycle?: { walk: number; run: number } }
 const HEROES = HERO_ATLAS as unknown as Record<string, HeroData>;
 const heroKey = (cls: string) => `hero-${cls}`;
 /** Standing height of every hero in world px (the idle frame). */
@@ -601,8 +601,11 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
     case 'loop':
       if (q.state === 'idle') return H('idle', (q.t * 6) / 1000);
       if (q.state === 'alert') return H('stance', (q.t * 5) / 1000);
-      if (q.state === 'walk') return H('walk', (q.t * 9 * Math.max(0.7, Math.min(1.2, q.speed / 188))) / 1000);
-      return H('run', (q.t * 12 * Math.max(0.75, Math.min(1.15, q.speed / 270))) / 1000);
+      { // the legs keep pace with the ground: one leg cycle per the distance its two strides carry the body (no sliding feet)
+        const st = q.state === 'walk' ? 'walk' : 'run', h = HEROES[cls], n = h.actions[st].length;
+        const dist = (h.cycle?.[st] ?? h.h) * (HERO_HEIGHT / h.h), sp = Math.max(st === 'walk' ? 120 : 180, q.speed);
+        return H(st, (q.t * n * sp) / dist / 1000);
+      }
     case 'jump': return H('jump', { takeoff: 0, rise: 1, apex: 1, fall: 2, land: 0 }[q.phase]);
     case 'airAttack': {
       if (HEROES[cls].actions.finisher) return H('finisher', 3 + Math.min(2, Math.floor(q.p * 3))); // the air strike

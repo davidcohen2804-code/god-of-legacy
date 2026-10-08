@@ -16,13 +16,14 @@ from scipy import ndimage
 
 # rows the game lifts itself (jumps, leaps): anchored on their own feet
 OWN_FEET = {'jump', 'leap_crash', 'judgment_blade', 'finisher', 'spin_cut', 'falcon_dive', 'retreat_kick', 'skyhunters_step', 'rain_of_arrows', 'air_shot'}
+STRIDES = {}  # (cls, act) -> feet spread per frame (atlas px)
 SCALE = 0.6  # frame size kept in the atlas (source px x SCALE)
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC = os.path.join(ROOT, 'tools', 'heroes', 'src')
 
 # sheet -> its rows in order: (action, frames)
 SPEC = {
-    'warrior': [('A', [('idle', 6), ('walk', 6), ('run', 6)]), ('B', [('jump', 3), ('stance', 4), ('attack', 6)]),
+    'warrior': [('A', [('idle', 6), ('walk_old', 6), ('run_old', 6)]), ('W', [('walk', 8), ('run', 8)]), ('B', [('jump', 3), ('stance', 4), ('attack', 6)]),
                 ('S1', [('dash_slash', 6), ('rising_slash', 6), ('lance_thrust', 6)]),
                 ('S2', [('ground_breaker', 6), ('leap_crash', 6), ('titans_verdict', 6)]),
                 ('S3', [('whirlwind', 6), ('blade_storm', 6), ('wave_slash', 6)]),
@@ -161,11 +162,26 @@ def frames_in_row(rgba, y0, y1, n, cls, act, scale=None):
         ay = float(hh if act in OWN_FEET else ground - yy0)  # jumps: own feet (the game lifts them); the rest: the row's floor (drawn airborne frames stay up)
         band = bm[int(hh * 0.25):int(hh * 0.55)]
         ax = float(np.where(band)[1].mean()) if band.any() else bm.shape[1] / 2
+        stride = None
+        head_x = None
+        if act in ('walk', 'run'):  # cycles: the stride from the boots (the lowest 11% of the figure); the anchor from the head (steady through a cycle)
+            fb = bm[int(hh * 0.89):]
+            cols = np.where(fb.any(0))[0]
+            if len(cols):
+                stride = float(cols.max() - cols.min())
+            hb = bm[:int(hh * 0.16)]
+            if hb.any():
+                head_x = float(np.where(hb)[1].mean()); ax = ((cols.min() + cols.max()) / 2.0) if len(cols) else ax
         if SCALE_ != 1:  # the game shows a hero ~150 px tall: keep a little more than that
             im = Image.fromarray(crop).resize((max(1, round(crop.shape[1] * SCALE_)), max(1, round(crop.shape[0] * SCALE_))), Image.LANCZOS)
             crop, ax, ay = np.array(im), ax * SCALE_, ay * SCALE_
-        out.append((crop, ax, ay))
-    return out
+            stride = stride * SCALE_ if stride else None
+        STRIDES.setdefault((cls, act), []).append(stride or 0)
+        out.append((crop, ax, ay, head_x * (SCALE_ if SCALE_ != 1 else 1) if head_x is not None else None))
+    if all(o[3] is not None for o in out):  # one steady head line: every frame's anchor = its head + the row's typical head-to-hips offset
+        off = float(np.median([o[1] - o[3] for o in out]))
+        out = [(c, h + off, ay, h) for c, _, ay, h in out]
+    return [(c, ax, ay) for c, ax, ay, _ in out]
 
 
 def blade_line(crop, ax, ay):
@@ -272,8 +288,11 @@ def main():
                     if len(fr) == 6:
                         near = sorted((abs(j - i), j) for j, g in enumerate(fs) if len(g) > 6)
                         if near: fr.append(list(fs[near[0][1]][6]))
+        A.pop('walk_old', None); A.pop('run_old', None)
         idle_h = float(np.median([f[3] for f in A['idle']]))
-        table[cls] = {'h': idle_h, 'actions': A}
+        # the distance one leg cycle carries the body: two steps of the widest stride (the game matches the legs to the speed)
+        cyc = {a: round(2 * max(STRIDES.get((cls, a), [0])) * 0.8, 1) for a in ('walk', 'run')}
+        table[cls] = {'h': idle_h, 'actions': A, 'cycle': cyc}
         print(cls, {k: len(v) for k, v in A.items()}, 'idle h', idle_h, 'sheet', sheet.shape[:2])
     json.dump(table, open(table_path, 'w'), separators=(',', ':'))
     # START HERO cards: the front view of each approved model sheet
