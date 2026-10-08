@@ -342,6 +342,9 @@ export class OpenWorld {
     if (Math.abs(ty - this.camY) < 0.05) this.camY = ty;
     cam.centerOn(this.camX, this.camY);
     this.ambience.setView(this.viewLeft);
+    const vl = this.camX - half, vr = this.camX + half;
+    const over = HEIGHTS.reduce((m, h) => Math.max(m, 1 - Phaser.Math.Clamp(Math.max(h.x - vr, vl - (h.x + h.w)) / 500, 0, 1)), 0);
+    this.ambience.setFade(Math.min(1 - Phaser.Math.SmoothStep(hView, 20, 160), 1 - over));   // no sun shafts over the walls of the maps above
     this.backdrop?.setView(this.viewLeft, cam.width / zoom);
     this.backdrop?.setLift(Math.max(0, terraceCy - this.camY));
   }

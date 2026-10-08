@@ -66,6 +66,10 @@ export class CourtyardAmbience {
   private drift = { x: 0, y: 0 };
   private left = 0;
   private base: { x: number; y: number }[] = [];
+  /** The light's strength (1 on the terrace; it fades out as the camera rises over the maps above: the shafts belong to
+   *  the terrace below, not to them). */
+  private fade = 1;
+  setFade(f: number): void { this.fade = Phaser.Math.Clamp(f, 0, 1); }
 
   /** viewW × viewH: the stretch of world it covers (the PvP courtyard: the whole map; the open world: one screen,
    *  carried along with the camera by setView so the light never jumps). */
@@ -117,8 +121,8 @@ export class CourtyardAmbience {
     this.placeClouds();
     // Very slow light "breathing" so the sun never feels static, never flickers.
     const k = Math.sin((this.t / A.sun.breatheMs) * Math.PI * 2);
-    this.sun.setAlpha(A.sun.alpha * (1 + 0.12 * k));
-    this.rays.forEach((r, i) => r.setAlpha(A.rays.list[i].alpha * (1 + 0.25 * Math.sin((this.t / A.rays.breatheMs + i * 0.33) * Math.PI * 2))));
+    this.sun.setAlpha(A.sun.alpha * (1 + 0.12 * k) * this.fade);
+    this.rays.forEach((r, i) => r.setAlpha(A.rays.list[i].alpha * (1 + 0.25 * Math.sin((this.t / A.rays.breatheMs + i * 0.33) * Math.PI * 2)) * this.fade));
   }
 
   destroy(): void {

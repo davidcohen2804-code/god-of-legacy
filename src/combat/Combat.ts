@@ -107,7 +107,13 @@ export function stepKin(k: Kin, ms: number, gravityScale = 1, blocked?: (x: numb
   if (k.grounded) {
     const s = supportAt(k.x, k.y, k.z);
     if (s.z < k.z - 0.5) { k.grounded = false; k.vz = 0; r.leftSupport = true; k.from = k.supportId; k.stepped = true; } // walked off the edge
-    else { k.z = s.z; k.supportZ = s.z; k.supportId = s.id; }
+    else {
+      k.z = s.z; k.supportZ = s.z; k.supportId = s.id;
+      // on a ledge solid back to the wall (its ground reaches further back than its top face as drawn): the feet keep to
+      // the top face (never past its back edge, floating over the wall behind it)
+      const o = s.id ? WORLD_OBJECTS.find((w) => w.id === s.id) : undefined;
+      if (o?.stand && o.base && Math.min(...o.base.map((p) => p[1])) < o.stand[0] - 2 && k.y < o.stand[0]) { k.y = o.stand[0]; if (k.vy < 0) k.vy = 0; }
+    }
   }
   if (!k.grounded) {
     k.vz -= PHYS.gravity * gravityScale * dt;

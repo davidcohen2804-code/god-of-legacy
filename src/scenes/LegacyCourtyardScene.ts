@@ -96,7 +96,7 @@ const MP_REGEN = 0.03, MP_ARENA = 220;
 const MP_CLASS: Record<string, number> = { warrior: 0.8, samurai: 0.9, archer: 1, book_mage: 1.6 };
 /** A skill's MP: none for the regular attack and passives / buffs' own cost by cooldown (the big ones cost more). */
 interface LootDrop { kind: 'gold' | 'item'; id?: string; amount: number; img: Phaser.GameObjects.Image; sh: Phaser.GameObjects.Ellipse; glow: Phaser.GameObjects.Image; beam?: Phaser.GameObjects.Image; sz: number; bounced: boolean; seed: number; nextGlint: number;
-  x: number; y: number; z: number; vx: number; vz: number; landed: boolean; born: number; taken: number; done?: boolean }
+  x: number; y: number; z: number; vx: number; vz: number; landed: boolean; base: number; born: number; taken: number; done?: boolean }
 const mpCost = (s: FinalSkill): number => (s.slot === 0 ? 0 : Math.min(60, Math.round(6 + (s.cooldown / 1000) * 2.2)));
 /** The slash-trail art (radiant_blade/slash_trail.jpg, 288 cells): its arc's circle (centre as a fraction of the cell, radius px) and the angle of its bright head (deg, y down). */
 const SLASH = { cx: 189 / 288, cy: 81 / 288, r: 122, head: 190 };
@@ -940,7 +940,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const sh = this.add.ellipse(x, y, sz * 0.7, sz * 0.2, 0x000000, 0.3);
       const spread = (i - (list.length - 1) / 2) * 30;
       this.drops.push({ ...d, img, sh, glow, sz, x, y, z: Math.max(14, m.kin.z + 34), vx: spread * 2.4 + (Math.random() - 0.5) * 120, vz: 360 + Math.random() * 60,
-        beam, landed: false, bounced: false, born: this.simMs, taken: -1, seed: Math.random() * 6.28, nextGlint: this.simMs + 600 + Math.random() * 1400 });
+        beam, base: m.homeZ ?? 0, landed: false, bounced: false, born: this.simMs, taken: -1, seed: Math.random() * 6.28, nextGlint: this.simMs + 600 + Math.random() * 1400 });
     });
   }
 
@@ -958,25 +958,25 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       } else if (!d.landed) {
         d.vz -= 1400 * dt; d.z += d.vz * dt; d.x += d.vx * dt;
         if (!footAllowed(d.x, d.y, 0, 8)) { d.x -= d.vx * dt; d.vx = 0; }
-        if (d.z <= 0 && d.vz < 0) {
-          d.z = 0;
+        if (d.z <= d.base && d.vz < 0) {
+          d.z = d.base;
           if (!d.bounced) { d.bounced = true; d.vz = -d.vz * 0.32; d.vx *= 0.4; }
           else { d.landed = true; d.born = now; }
         }
-        sq = d.z < 4 && d.bounced ? 0.85 : 1;
+        sq = d.z < d.base + 4 && d.bounced ? 0.85 : 1;
       } else {
         const age = now - d.born;
-        d.z = 4 + Math.sin(age / 320 + d.seed) * 3.5;
+        d.z = d.base + 4 + Math.sin(age / 320 + d.seed) * 3.5;
         d.glow.setAlpha(Math.min(1, age / 300) * (0.55 + Math.sin(age / 420 + d.seed) * 0.2));
         d.beam?.setAlpha(Math.min(1, age / 400) * (0.75 + Math.sin(age / 300) * 0.2));
         if (now >= d.nextGlint) { d.nextGlint = now + 1400 + Math.random() * 1800; this.lootGlint(d); }
         if (age > 60_000) { const f = Math.max(0, 1 - (age - 60_000) / 3000); d.img.setAlpha(f); d.glow.setAlpha(d.glow.alpha * f); if (age > 63_000) d.done = true; }
-        if (alive && age > 250 && Math.abs(d.x - k.x) < 40 && Math.abs(d.y - k.y) < 24 && k.z - k.supportZ < 50) this.takeDrop(d, now);
+        if (alive && age > 250 && Math.abs(d.x - k.x) < 40 && Math.abs(d.y - k.y) < 24 && Math.abs(k.z - d.base) < 50) this.takeDrop(d, now);
       }
       d.img.setPosition(d.x, d.y - d.z).setDepth(actorDepth(d.x, d.y, d.z) - 0.2).setDisplaySize(d.sz * (2 - sq), d.sz * sq);
-      d.glow.setPosition(d.x, d.y - 2).setDepth(actorDepth(d.x, d.y, 0) - 0.7).setDisplaySize(d.sz * 1.9, d.sz * 0.75);
-      if (d.beam) { d.beam.setPosition(d.x, d.y).setDepth(actorDepth(d.x, d.y, 0) - 0.5); if (d.taken >= 0) d.beam.setAlpha(0); }
-      d.sh.setPosition(d.x, d.y - 1).setDepth(actorDepth(d.x, d.y, 0) - 0.6).setScale(Math.max(0.5, 1 - d.z / 120));
+      d.glow.setPosition(d.x, d.y - d.base - 2).setDepth(actorDepth(d.x, d.y, d.base) - 0.7).setDisplaySize(d.sz * 1.9, d.sz * 0.75);
+      if (d.beam) { d.beam.setPosition(d.x, d.y - d.base).setDepth(actorDepth(d.x, d.y, d.base) - 0.5); if (d.taken >= 0) d.beam.setAlpha(0); }
+      d.sh.setPosition(d.x, d.y - d.base - 1).setDepth(actorDepth(d.x, d.y, d.base) - 0.6).setScale(Math.max(0.5, 1 - (d.z - d.base) / 120));
     }
     if (this.drops.some((d) => d.done)) this.drops = this.drops.filter((d) => { if (d.done) { d.img.destroy(); d.sh.destroy(); d.glow.destroy(); d.beam?.destroy(); } return !d.done; });
   }
