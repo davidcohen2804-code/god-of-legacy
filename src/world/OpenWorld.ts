@@ -204,17 +204,7 @@ export class OpenWorld {
         scale: { start: 0.9, end: 0.2 }, alpha: { start: 0.85, end: 0 }, frequency: 420, quantity: 1, blendMode: 'ADD',
       }).setDepth(t.front + 1.3));
     });
-    // the edge of the map above, over each stair: where the last jump lands
-    for (const h of HEIGHTS) {
-      const st = TOWERS.filter((t) => t.x1 > h.x && t.x0 < h.x + h.w && Math.abs(t.base + t.h - h.H) < 140 && t.base < h.H); if (!st.length) continue;
-      const x0 = Math.min(...st.map((t) => t.x0)), x1 = Math.max(...st.map((t) => t.x1)), cx = (x0 + x1) / 2, ey = h.front - h.H;
-      const line = add(sc.add.image(cx + (x1 - cx) * 0.35, ey - 4, 'climb-glow').setDisplaySize((x1 - x0) * 0.75, 40).setBlendMode(Phaser.BlendModes.ADD).setDepth(h.front + 0.9));
-      pulse(line, 0.45, 0.95, 1500, 400);
-      add(sc.add.particles(0, 0, 'climb-mote', {
-        x: { min: x0 + (x1 - x0) * 0.15, max: x1 }, y: { min: ey - 10, max: ey + 4 }, lifespan: 1600, speedY: { min: -30, max: -12 },
-        scale: { start: 0.8, end: 0.2 }, alpha: { start: 0.7, end: 0 }, frequency: 300, quantity: 1, blendMode: 'ADD',
-      }).setDepth(h.front + 0.95));
-    }
+    // (no light on the floors above: only the cubes glow)
   }
 
   /** The climbing towers (Areas.TOWERS): stacks of the painted stone cube (public/assets/world/blocks: its front face, one
