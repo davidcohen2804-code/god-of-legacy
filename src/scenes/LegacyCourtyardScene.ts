@@ -316,6 +316,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private useAt: Record<string, number> = {};
   private drops: LootDrop[] = [];
   shop?: ShopWindow;
+  /** The area's name last shown (one title for an area of several maps). */
+  private areaName = '';
   private bindings: Record<BindAction, string> = loadBindings();
 
   constructor() { super('LegacyCourtyardScene'); }
@@ -414,7 +416,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       });
     } else {
       // The open world: one long world left to right, the camera following you along it.
-      this.world = new OpenWorld(this, { onArea: (a) => this.areaTitle?.show(a.name) }, at ?? toWorld(START.area, [START.x, START.y]));
+      this.world = new OpenWorld(this, { onArea: (a) => { if (a.name !== this.areaName) { this.areaName = a.name; this.areaTitle?.show(a.name); } } }, at ?? toWorld(START.area, [START.x, START.y]));
       this.world.onNpcClick = (n) => this.talkTo(n);
     }
 
@@ -506,7 +508,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.chat.add({ kind: 'system', text: pvpRoom ? 'Welcome to the PvP Arena! Press Enter to chat.' : 'Welcome to God Of Legacy! Press Enter to chat.' });
     if (this.world) {
       this.areaTitle = new AreaTitle(ov);
-      this.areaTitle.show(this.world.area.name);
+      this.areaTitle.show(this.world.area.name); this.areaName = this.world.area.name;
       this.npcDialog = new NpcDialog(ov, () => this.ci?.reset());
       this.npcDialog.talkKey = keyLabel(this.bindings.talk);
       this.world.setTalkKey(keyLabel(this.bindings.talk));
@@ -2764,9 +2766,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const say = (lines: string[], choices?: DialogChoice[]) => this.npcDialog!.open({ name: n.name, title: n.title, portrait: `assets/world/npc/${n.art}_face.png`, lines, choices });
     if (n.job) { this.masterTalk(n, say); return; }
     const mine = QUESTS.filter((q) => q.giver === n.id);
-    const ready = mine.find((q) => this.quests[q.id]?.state === 'active' && this.questReady(q));
+    const ready = QUESTS.find((q) => this.turnIn(q) === n.id && this.quests[q.id]?.state === 'active' && this.questReady(q)); // handed in where its last goal says
     if (ready) { say(ready.done, [{ label: ready.complete, main: true, run: () => this.finishQuest(ready) }]); return; }
-    const running = mine.find((q) => this.quests[q.id]?.state === 'active');
+    const running = mine.find((q) => this.quests[q.id]?.state === 'active' && !(this.questReady(q) && this.turnIn(q) !== n.id)) ?? mine.find((q) => this.quests[q.id]?.state === 'active');
     if (running) { say(running.progress); return; }
     const offer = mine.find((q) => this.questOpen(q));
     if (offer) { say(offer.offer, [{ label: offer.accept, main: true, run: () => this.takeQuest(offer) }, { label: offer.decline, run: () => undefined }]); return; }
@@ -2781,6 +2783,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   // ---- quests (the NPC's first missions)
   /** Can be offered now: not taken yet, the quest before it done. */
+  /** Who it is handed in to: the NPC of its last talk goal (else its giver). */
+  private turnIn(q: QuestDef): string { return [...q.objectives].reverse().find((o) => o.kind === 'talk')?.npc ?? q.giver; }
   private questOpen(q: QuestDef): boolean { return !this.quests[q.id] && (!q.after || this.quests[q.after]?.state === 'done'); }
   /** Progress of one goal: kills counted, items in the bag, the level reached. */
   private goalHave(q: QuestDef, i: number): number {
@@ -2810,6 +2814,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const r = q.reward;
     if (r) {
       const got: string[] = [];
+      if (r.exp) { this.gainExp(r.exp, { x: this.kin.x, y: this.kin.y, z: this.kin.z }); got.push(`${r.exp} EXP`); }
       if (r.gold) { this.gold = Math.min(GOLD_MAX, this.gold + r.gold); got.push(`${fmtGold(r.gold)} Gold`); this.hud?.lootFeed(GOLD_ICON.small, `+${fmtGold(r.gold)} Gold`, '#f3d58c'); }
       for (const [id, n] of Object.entries(r.items ?? {})) if (ITEMS[id]) { this.giveItem(id, n, false); got.push(`${ITEMS[id].name} ×${n}`); this.hud?.lootFeed(ITEMS[id].icon, `${ITEMS[id].name} ×${n}`, '#ece5d3'); }
       this.saveLoot();
@@ -2852,10 +2857,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     });
     this.questsUi?.set(rows.filter((r) => !r.done));
     this.questLog?.setQuests(rows);
-    for (const a of Object.values(QUESTS.reduce((m, q) => ({ ...m, [q.giver]: q.giver }), {} as Record<string, string>))) {
+    for (const a of new Set(QUESTS.flatMap((q) => [q.giver, this.turnIn(q)]))) {
       const mine = QUESTS.filter((q) => q.giver === a);
-      const ready = mine.some((q) => this.quests[q.id]?.state === 'active' && this.questReady(q));
-      const running = mine.some((q) => this.quests[q.id]?.state === 'active');
+      const ready = QUESTS.some((q) => this.turnIn(q) === a && this.quests[q.id]?.state === 'active' && this.questReady(q));
+      const running = mine.some((q) => this.quests[q.id]?.state === 'active' && this.turnIn(q) === a);
       const open = mine.some((q) => this.questOpen(q));
       this.world?.setNpcMark(a, ready ? 'ready' : running ? 'progress' : open ? 'available' : null);
     }
@@ -2948,7 +2953,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       gauges: { stand: b.gauge.stand / GAUGE.stand, air: b.gauge.air / GAUGE.air, down: b.gauge.down / GAUGE.down },
     });
     if (e?.alive) consider(Math.hypot(e.x - k.x, e.y - k.y), { id: 'enemy', name: 'Cursed Swordsman', type: 'Enemy', hp: e.hp, maxHp: S6.enemy.maxHp, effects: this.statusEffects(e.body, now), ...combat(e.body, e.kin.z) });
-    for (const m of this.world?.mobs ?? []) if (m.alive) consider(Math.hypot(m.x - k.x, m.y - k.y), { id: m.id, name: m.name, type: 'Monster', hp: Math.round(m.hp), maxHp: m.maxHp, effects: this.statusEffects(m.body, now), ...combat(m.body, m.kin.z) });
+    for (const m of this.world?.mobs ?? []) if (m.alive) consider(Math.hypot(m.x - k.x, m.y - k.y), { id: m.id, name: m.name, type: m.kind.level ? `Lv ${m.kind.level} Monster` : 'Monster', hp: Math.round(m.hp), maxHp: m.maxHp, effects: this.statusEffects(m.body, now), ...combat(m.body, m.kin.z) });
     if (this.dummy && this.dummyState?.alive) consider(Math.hypot(D.x - k.x, D.y - k.y), { id: 'dummy', name: 'Training Dummy', type: 'Training Target', hp: this.dummyState.hp, maxHp: D.maxHp, effects: [], ...combat(this.dummyState.body, this.dummyState.kin.z) });
     const bt = this.bot;
     if (bt) consider(Math.hypot(bt.x - k.x, bt.y - k.y), {

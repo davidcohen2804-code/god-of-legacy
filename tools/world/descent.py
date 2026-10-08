@@ -23,14 +23,14 @@ CROP_Y = 236
 SCALE = 1.6                                # plaza: native x1.6 (made from the x2 upscale)
 # where the staircase goes in the temple's front arcade: between its two pillars (temple-urn-13 / -14), on the
 # temple's gold centre line (world px); the strip tile that holds it
-GAP = (6923, 7433)
-TILE_I, TILE_X = 3, 6144
+DX = STRIP['areas']['temple']['x'] - 6373          # the temple moved along the world: its stairs go with it
+GAP = (6923 + DX, 7433 + DX)
 # the plaza starts at the world's left end (x 0): the terrace runs above all of it, so looking up from anywhere on the
 # plaza shows the courtyard's arcade (the stairs come down onto its left part, the seal is further right)
 OX = STRIP['w'] - round(1672 * SCALE)         # the plaza ends where the world ends (x 8000): the terrace runs above all of it
 OY = TERRACE_H
 # the walkable stairs (inside the cheek walls)
-WALK_STAIRS = (6955, 7401)
+WALK_STAIRS = (6955 + DX, 7401 + DX)
 # the plaza floor (native px): inside the ruined walls and the columns
 FLOOR = [(130, 240), (1540, 240), (1508, 330), (1508, 540), (1585, 600), (1580, 760), (1470, 830), (200, 830),
          (92, 760), (88, 600), (166, 540), (166, 330)]
@@ -58,23 +58,26 @@ def main():
     plaza.crop((x, 0, x + w, ph)).save(out + f'{i}.webp', 'WEBP', quality=88, method=6)
     tiles.append([OX + x, w])
 
-  # the staircase into the courtyard's front arcade (strip tile 0): GPT's stairs stretched to the arcade's height
-  t0p = R + f'public/assets/world/strip/{TILE_I}.webp'
-  t0 = Image.open(t0p).convert('RGBA')
+  # the staircase into the temple's front arcade: GPT's stairs stretched to the arcade's height, patched into every
+  # strip tile it crosses
   top = EDGE_Y - 6
   st = nat.crop(STAIR).resize((GAP[1] - GAP[0], TERRACE_H - top), Image.LANCZOS).convert('RGBA')
   m = np.full((st.height, st.width), 255, np.uint8)
-  ramp = 14                                # the top fades into the courtyard floor
+  ramp = 14                                # the top fades into the floor
   m[:ramp] = (np.arange(ramp) / ramp * 255).astype(np.uint8)[:, None]
   st.putalpha(Image.fromarray(m))
-  gx0, gx1 = GAP[0] - TILE_X, GAP[1] - TILE_X
-  under = t0.crop((gx0, top, gx1, TERRACE_H))
-  # under the faded top: the courtyard floor carried down (the rail is gone there)
-  floor = t0.crop((gx0, top - ramp, gx1, top)).resize((gx1 - gx0, ramp))
-  base = Image.new('RGBA', st.size); base.paste(under, (0, 0)); base.paste(floor, (0, 0))
-  base.alpha_composite(st)
-  t0.paste(base, (gx0, top))
-  t0.save(t0p, 'WEBP', quality=88, alpha_quality=100, method=6)
+  for ti, (tx, tw) in enumerate(STRIP['tiles']):
+    if tx + tw <= GAP[0] or tx >= GAP[1]: continue
+    tp = R + f"public/assets/world/strip/{ti}.{STRIP.get('ext', 'jpg')}"
+    t0 = Image.open(tp).convert('RGBA')
+    gx0, gx1 = GAP[0] - tx, GAP[1] - tx
+    under = t0.crop((gx0, top, gx1, TERRACE_H))   # (outside the tile: transparent; only the inside is pasted back)
+    floor = t0.crop((gx0, top - ramp, gx1, top)).resize((gx1 - gx0, ramp))
+    base = Image.new('RGBA', st.size); base.paste(under, (0, 0)); base.paste(floor, (0, 0))
+    base.alpha_composite(st)
+    t0.paste(base, (gx0, top))
+    t0.save(tp, 'WEBP', quality=88, alpha_quality=100, method=6)
+    print('stairs into tile', ti)
 
   # the one floor: the strip's + the stairs + the plaza
   walk = Polygon(STRIP['walk']).buffer(0)
@@ -96,6 +99,5 @@ def main():
     pv = plaza.copy(); d = ImageDraw.Draw(pv)
     d.polygon([(x - OX, y - OY) for x, y in floorW.exterior.coords], outline=(0, 255, 0), width=5)
     pv.resize((pw // 2, ph // 2)).save(G + 'qc/arena.jpg', quality=85)
-    t0.crop((gx0 - 500, 400, min(t0.width, gx1 + 500), TERRACE_H)).save(G + 'qc/stairs.png')
 
 if __name__ == '__main__': main()

@@ -182,9 +182,9 @@ export class OpenWorld {
 
   /** Every area's monsters live all the time (each one keeps to its own home spot). */
   private spawnMobs(): void {
-    for (const a of ROW) {
-      const def = a.mobs, kind = def ? MOB_KINDS[def.kind] : undefined; if (!def || !kind) continue;
-      def.spawns.forEach((s, i) => this.mobs.push(new Monster(this.scene, `mob:${a.id}:${i}`, kind, toWorld(a.id, s), i)));
+    for (const a of ROW) for (const [j, def] of [a.mobs, a.mobs2].entries()) {
+      const kind = def ? MOB_KINDS[def.kind] : undefined; if (!def || !kind) continue;
+      def.spawns.forEach((s, i) => this.mobs.push(new Monster(this.scene, `mob:${a.id}:${j ? `b${i}` : i}`, kind, toWorld(a.id, s), i)));
     }
   }
 

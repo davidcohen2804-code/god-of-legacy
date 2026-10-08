@@ -12,7 +12,9 @@ R = G + '../../'
 Q = 1.5                                   # texture px per world px
 # GPT px → world px: the back tower's base (sheet y 493) stands ON the floor just inside its back edge (y 346 here)
 # at world (6270, 360); the front tower's base (sheet y 989) on the front balustrade (world y 689)
-AX, AY, WX, WY = 600, 493, 6270, 360
+STRIP = json.load(open(R + 'src/data/world-strip.json'))
+DX = STRIP['areas']['temple']['x'] - 6373          # the temple moved along the world: the gate goes with it
+AX, AY, WX, WY = 600, 493, 6270 + DX, 360
 S = (689 - 360) / (989 - 493)             # world px per GPT px
 SPLIT_X = 705                             # GPT px: left of it the back tower and its door (behind anyone on the floor)
 
@@ -34,6 +36,7 @@ for name, sl in (('back', np.s_[:, :SPLIT_X]), ('front', np.s_[:, SPLIT_X:])):
 W2 = lambda ix, iy: [round(WX + (ix - AX) * S, 1), round(WY + (iy - AY) * S, 1)]
 data = {
   'q': Q,
+  'wall': WX + 60,                        # monsters never cross this world x (the line in front of the gate)
   # layers: the back tower behind anyone on the floor; the arch, the banner and the front tower in front of everyone
   'back': {**parts['back'], 'depth': WY + 1},
   'front': {**parts['front'], 'depth': 705},

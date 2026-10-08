@@ -32,7 +32,7 @@ export interface QuestDef {
   objectives: QuestObjective[];
   /** Offered only once this quest is done. */
   after?: string;
-  reward?: { gold?: number; items?: Record<string, number> };
+  reward?: { gold?: number; exp?: number; items?: Record<string, number> };
 }
 export interface AreaProp { id: string; foot: Pt[]; h: number; top?: number; occ?: Pt[] }
 export interface AreaDef {
@@ -42,6 +42,10 @@ export interface AreaDef {
   walk: Pt[]; props: AreaProp[];
   npcs?: AreaNpc[];
   mobs?: { kind: string; spawns: Pt[] };
+  /** A second kind in the same area (the Ruined Gate: its warden and the swordsmen round him). */
+  mobs2?: { kind: string; spawns: Pt[] };
+  /** Until its own map is painted: the painted map it is a copy of. */
+  standin?: string;
   /** z: the height of what it stands on (the Temple's stairs, up on the stage's level). */
   portal?: { x: number; y: number; z?: number; to: string };
 }
@@ -50,6 +54,8 @@ export interface MobKind {
   aggro: number; range: number; cooldown: number; respawnMs: number;
   /** EXP for defeating it. */
   exp?: number;
+  /** Its level (shown with its name). */
+  level?: number;
 }
 
 type RawArea = Omit<AreaDef, 'id' | 'x' | 'span'>;
@@ -77,8 +83,8 @@ export const belowTerrace = (y: number): boolean => y > ARENA.edgeY;
 /** The Temple Gate between the Crimson Ruins and Temple Road (tools/world/gate.py): two picture layers (the back tower
  *  behind everyone, the arch and the front tower in front) and its two towers' footprints. */
 /** Monsters never pass the Temple Gate: nothing of theirs crosses this world x (the line in front of the gate). */
-export const MOB_WALL_X = 6330;
-export const GATE = GATE_DATA as { q: number; back: { x: number; y: number; depth: number }; front: { x: number; y: number; depth: number }; props: { id: string; foot: Pt[]; h: number }[] };
+export const MOB_WALL_X = (GATE_DATA as { wall?: number }).wall ?? 6330;
+export const GATE = GATE_DATA as unknown as { q: number; back: { x: number; y: number; depth: number }; front: { x: number; y: number; depth: number }; props: { id: string; foot: Pt[]; h: number }[] };
 
 /** The walkable floor of the whole world (world px, one polygon): the strip's, the stairs and the plaza. */
 export const WORLD_FLOOR = ARENA.walk;
