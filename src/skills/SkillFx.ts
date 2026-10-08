@@ -1497,7 +1497,7 @@ export class SkillFx {
         const q = me() ?? o;
         if (this.scene.textures.exists('afx-haste')) { // a soft green ring of wind and leaves round the feet while the buff lasts
           this.hasteRing.get(r.attackerId)?.destroy();
-          const ring = this.play('afx-haste', q.x, q.y + 4, 150, 46, [T.startup, 90, 90, 90, 90, 90, 90, 90], { depth: q.y - 1, alpha: 0.8, loop: [1, 7], until: T.startup + 120000, loopMs: 95, fadeLast: 400, follow: () => { const c = me(); return c ? { x: c.x, y: c.y - 1, z: -4 } : null; } }); // lies on the floor under the feet (stays on the ground when she jumps)
+          const ring = this.play('afx-haste', q.x, q.y + 4, 170, 56, [T.startup, 90, 90, 90, 90, 90, 90, 90], { depth: q.y - 1, alpha: 1, loop: [1, 7], until: T.startup + 120000, loopMs: 95, fadeLast: 400, follow: () => { const c = me(); return c ? { x: c.x, y: c.y - 1, z: -4 } : null; } }); // lies on the floor under the feet (stays on the ground when she jumps)
           if (ring) { this.hasteRing.set(r.attackerId, ring); ring.once('destroy', () => { if (this.hasteRing.get(r.attackerId) === ring) this.hasteRing.delete(r.attackerId); }); }
         }
         this.scene.time.delayedCall(T.startup, () => this.shockwave(q.x, q.y, 70, 0x7ee35a, true));
@@ -1547,7 +1547,7 @@ export class SkillFx {
       }
       case 'tree_of_life': { // grows beside the archer, sways while it heals, then fades
         const tx = o.x, ty = o.y - 46, life = 20000, grow = [T.startup * 0.2, T.startup * 0.2, T.startup * 0.3, T.startup * 0.3, 160];
-        const t2 = this.scene.textures.exists('afx-tree2'), tree = t2 ? this.play('afx-tree2', tx, ty, 300, 450, [...grow.slice(0, 4), life - 900, 300, 300, 300], { oy: 0.94, depth: ty - 1, fadeLast: 300 }) // a slim tree of light: grows, stands still, then breaks into drifting leaves
+        const t2 = this.scene.textures.exists('afx-tree2'), tree = t2 ? this.play('afx-tree2', tx, ty, 260, 390, [...grow.slice(0, 4), life - 900, 300, 300, 300], { oy: 0.94, depth: ty - 1, fadeLast: 300, alpha: 0.88 }) // a slim tree of light: grows, stands still, then breaks into drifting leaves
           : this.play(key, tx, ty, 340, 455, [...grow.slice(0, 4), life + grow[4]], { oy: ARCHER_GROUND.tree_of_life, depth: ty - 1, fadeLast: 1200, blend: Phaser.BlendModes.NORMAL, alpha: 0.95 });
         if (!t2) this.scene.time.delayedCall(T.startup + life - 1200, () => { // as it fades, its leaves drift away
           for (let i = 0; i < 26; i++) { const lf = this.scene.add.image(tx + (Math.random() - 0.5) * 220, ty - 120 - Math.random() * 280, 'arch-glow').setTint(i % 3 ? 0x7ee35a : 0xffe27a).setDisplaySize(14, 6).setDepth(ty).setAngle(Math.random() * 360);
@@ -1577,7 +1577,7 @@ export class SkillFx {
       case 'arrow_storm': { // Hunter's Rain: dozens of arrows loosed into the sky, then they pour down on the mark (which the archer steers)
         this.scene.time.delayedCall(Math.round(T.startup * 0.55), () => { const q = me() ?? o; for (let k = 0; k < 3; k++) this.scene.time.delayedCall(k * 70, () => this.risingArrows(q.x + side * 14, q.y - q.z - 50, 6, 0x52cf3e, 1.5)); this.shockwave(q.x, q.y, 90, 0xa8f04a, true); });
         { // on the archer while the rain lasts: a ring of runes under the feet and light streaming up from the bow
-          const q0 = me() ?? o, rr = this.scene.textures.exists('afx-raura') ? this.play('afx-raura', q0.x, q0.y + 6, 170, 255, [T.startup * 0.5, 90, 90, 90, 90, 90, 90, 90], { oy: 0.93, depth: q0.y + 0.5, loop: [2, 6], until: T.startup + T.active, loopMs: 90, fadeLast: 300, follow: () => { const c = me(); return c ? { x: c.x, y: c.y + 0.5, z: c.z - 6 } : null; } }) : this.scene.textures.exists('afx-haste') ? this.play('afx-haste', q0.x, q0.y + 4, 170, 52, [T.startup * 0.5, 90, 90, 90, 90, 90, 90, 90], { depth: q0.y - 1, loop: [1, 7], until: T.startup + T.active, loopMs: 80, fadeLast: 300, follow: () => { const c = me(); return c ? { x: c.x, y: c.y - 1, z: -4 } : null; } }) : null;
+          const q0 = me() ?? o, rr = this.scene.textures.exists('afx-raura') ? this.play('afx-raura', q0.x, q0.y + 6, 130, 195, [T.startup * 0.5, 90, 90, 90, 90, 90, 90, 90], { oy: 0.93, depth: q0.y - 0.5, alpha: 0.6, loop: [2, 6], until: T.startup + T.active, loopMs: 90, fadeLast: 300, follow: () => { const c = me(); return c ? { x: c.x, y: c.y + 0.5, z: c.z - 6 } : null; } }) : this.scene.textures.exists('afx-haste') ? this.play('afx-haste', q0.x, q0.y + 4, 170, 52, [T.startup * 0.5, 90, 90, 90, 90, 90, 90, 90], { depth: q0.y - 1, loop: [1, 7], until: T.startup + T.active, loopMs: 80, fadeLast: 300, follow: () => { const c = me(); return c ? { x: c.x, y: c.y - 1, z: -4 } : null; } }) : null;
           void rr;
           const up = this.scene.add.particles(0, 0, 'arch-glow', { speedY: { min: -520, max: -380 }, speedX: { min: -30, max: 30 }, lifespan: 420, scaleX: { start: 0.05, end: 0.02 }, scaleY: { start: 0.5, end: 0.2 }, alpha: { start: 0.95, end: 0 }, tint: [0x7ee35a, 0xd8ff8a], blendMode: 'ADD', frequency: 45, quantity: 1, emitting: false });
           const ev2 = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { const c = me(); if (!c || r.phase === 'done' || r.phase === 'recovery') { ev2.remove(); up.stop(); this.scene.time.delayedCall(500, () => up.destroy()); return; } up.emitting = !rr && r.elapsed > T.startup * 0.6; up.setPosition(c.x + side * 16, c.y - c.z - 70).setDepth(c.y + 2); } });
@@ -1610,7 +1610,7 @@ export class SkillFx {
           const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
             const q = me(), e = r.elapsed;
             if (!q || r.phase === 'done' || e >= first) { ev.remove(); em.stop(); this.scene.time.delayedCall(400, () => em.destroy()); this.scene.tweens.add({ targets: [orb, core], alpha: 0, scale: 0.01, duration: 120, onComplete: () => { orb.destroy(); core.destroy(); } }); bolt0?.destroy(); bc?.destroy(); return; }
-            const k = Math.max(0, Math.min(1, (e - T.startup) / (first - T.startup))), bx = q.x + side * 34, by = q.y - q.z - 58, pul = 1 + 0.15 * Math.sin(e / 35);
+            const k = Math.max(0, Math.min(1, (e - T.startup) / (first - T.startup))), bx = q.x + side * 70, by = q.y - q.z - 58, pul = 1 + 0.15 * Math.sin(e / 35);
             if (e < T.startup + 150) return;
             em.emitting = true; em.setPosition(bx, by);
             orb.setPosition(bx, by).setAlpha(bc ? 0.3 : 0.7).setDisplaySize((30 + 90 * k) * pul, (30 + 90 * k) * pul);
