@@ -186,7 +186,7 @@ export class RemotePlayer {
     const seen = hid ? 0 : this.meta.classId === 'samurai' && this.skill && this.alive ? samuraiSeen(this.skill.id, this.skill.elapsed, this.skill) : 1; // he vanishes (Shadow Step, Kagemusha, Dragon Eclipse)
     alpha *= seen;
     const snap: AnimSnap = { mode: this.skill ? 'skill' : this.mode, t: this.modeT, speed: this.speed, vz: this.vz, skill: this.skill ?? undefined, stunMs: 200 };
-    const pose = resolvePose(this.meta.classId as ClassKey, this.dir, poseQuery(snap), this.view.wantsBase, this.meta.gender === 'female' ? 'female' : 'male');
+    const pose = resolvePose(this.meta.classId as ClassKey, this.dir, poseQuery(snap), this.view.wantsBase, this.meta.gender === 'female' ? 'female' : 'male', !!this.meta.hero);
     this.jbAir = this.skill?.id === 'judgment_blade' || (this.jbAir && this.alive && z - this.sz > 2); // Judgment Blade: no sword until the landing
     this.view.swordOff = this.jbAir;
     this.view.render(ms, pose, x + jx, y, z + jz, this.sz, this.dir, alpha, tint, fill);
@@ -204,7 +204,7 @@ export class RemotePlayer {
         const p = interp(d.snaps, rt, this.interpDelay); d.x = p.x; d.y = p.y; d.z = p.z;
         d.mt += ms;
         const mirror = d.mode === 'm' && !!this.skill, dir: Dir = mirror ? this.dir : d.face < 0 ? 'left' : 'right';
-        const dp = mirror ? pose : resolvePose(this.meta.classId as ClassKey, dir, poseQuery(kageSnap(d.mode, d.mt, d.feint, d.seed)), d.view.wantsBase, g);
+        const dp = mirror ? pose : resolvePose(this.meta.classId as ClassKey, dir, poseQuery(kageSnap(d.mode, d.mt, d.feint, d.seed)), d.view.wantsBase, g, !!this.meta.hero);
         d.view.render(ms, dp, p.x, p.y, p.z, p.z, dir, 1, null, false);
         const dm = mirror ? m : d.mode === 'f' ? kageFeintMotion(d.mt, d.feint, d.face) : null;
         applyMotion(d.view.motionSprites, dm);

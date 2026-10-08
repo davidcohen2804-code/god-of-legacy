@@ -12,6 +12,7 @@ import BLADES from '../data/blade-lines.json';
 import BEHIND from '../data/blade-behind.json';
 import BASE_BLADES from '../data/base-blade-lines.json';
 import HEADS from '../data/head-frames.json';
+import HERO_ATLAS from '../data/hero-atlas.json';
 import { Dir } from '../world/collision';
 import { FINAL_SKILLS } from '../skills/FinalKit';
 
@@ -98,6 +99,7 @@ export function preloadBodies(scene: Phaser.Scene, classes?: readonly string[], 
       LS(skillKey(cls, s.id), skillPath(cls, s.id)); M(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id), cls, cs?.w ?? CELL, cs?.h ?? CELL); if (cls === 'warrior') SHEET_PATH[skillKey(cls, s.id)] = skillPath(cls, s.id); }
   }
   for (const [cls, a] of Object.entries(ATLAS)) { if (!want(cls)) continue; L(atlasKey(cls), a.sheet, false); M(`${atlasKey(cls)}-w`, a.sheet, cls, 0, 0, true); }
+  for (const cls of Object.keys(HEROES)) if (want(cls)) L(heroKey(cls), `assets/final/heroes/${cls}/body.png`, false); // START HERO bodies
   if (want('warrior')) for (const [g, anims] of Object.entries(NAKED)) for (const anim of Object.keys(anims)) {
     L(nakedKey(g, anim), `assets/final/body/naked/${g}/${anim}.png`, true);
     if (hasOver(g, anim)) L(overKey(g, anim), `assets/final/body/naked/${g}/${anim}_o.png`, true); // the sword arm in front of the head
@@ -111,6 +113,11 @@ export function preloadBodies(scene: Phaser.Scene, classes?: readonly string[], 
 
 /** Explicit atlas rectangles registered once as named frames (body + weapon-mask textures share frame names). */
 export function registerBodies(scene: Phaser.Scene): void {
+  for (const [cls, h] of Object.entries(HEROES)) {
+    if (!scene.textures.exists(heroKey(cls))) continue;
+    const tex = scene.textures.get(heroKey(cls));
+    for (const [act, fs] of Object.entries(h.actions)) fs.forEach((f, i) => { const n = `${act}-${i}`; if (!tex.has(n)) tex.add(n, 0, f[0], f[1], f[2], f[3]); });
+  }
   for (const [cls, a] of Object.entries(ATLAS)) {
     for (const key of [atlasKey(cls), `${atlasKey(cls)}-w`]) {
       if (!scene.textures.exists(key)) continue;
@@ -426,7 +433,8 @@ const pick = <T,>(list: T[], p: number): T => list[Math.max(0, Math.min(list.len
 /** base = draw the beginner-clothes base body (fashion cosmetics) instead of the class armour, where baked. */
 /** Pose query once the combat stance is folded into standing (bodies without stance frames). */
 type BodyQuery = Exclude<PoseQuery, { k: 'loop' }> | { k: 'loop'; state: 'idle' | 'walk' | 'run'; t: number; speed: number };
-export function resolvePose(cls: ClassKey, dir: Dir, q: PoseQuery, base = false, gender?: 'male' | 'female'): PoseFrame {
+export function resolvePose(cls: ClassKey, dir: Dir, q: PoseQuery, base = false, gender?: 'male' | 'female', hero = false): PoseFrame {
+  if (hero && HEROES[cls]) return heroPose(cls, dir, q);
   BASE_MODE = base && cls === 'warrior';
   try {
     if (BASE_MODE && gender) return nakedPose(cls, dir, gender, q); // the clean base character (its look: ActorView layers)
@@ -490,6 +498,60 @@ function sheetPose(cls: string, dir: Dir, q: BodyQuery): PoseFrame {
       const col = skillColumn(cols, q, sk?.chain && (q.stage === 1 || q.stage === 3) ? 1 : 0);
       return sheetFrame(skillKey(cls, q.id), skillPath(cls, q.id), dir, col, cols, CELLS[bid]?.h);
     }
+  }
+}
+
+// ------------------------------------------------------------------ START HERO bodies
+// The four ready heroes (GPT sheets cut by tools/heroes/cut.py): side view only, drawn facing right (left = mirrored),
+// one packed atlas per class with named frames `<action>-<i>` and a feet anchor per frame.
+type HeroFrame = [number, number, number, number, number, number]; // x, y, w, h, feet x, feet y (frame px)
+interface HeroData { h: number; actions: Record<string, HeroFrame[]>; card?: [number, number, number, number, number] }
+const HEROES = HERO_ATLAS as unknown as Record<string, HeroData>;
+const heroKey = (cls: string) => `hero-${cls}`;
+/** Standing height of every hero in world px (the idle frame). */
+export const HERO_HEIGHT = 124;
+export const isHeroClass = (cls: string): boolean => !!HEROES[cls];
+/** Portrait of a ready hero: the face cut from its card (image w / h, square at x, y of size). */
+export function heroPortrait(cls: string): { url: string; crop: { x: number; y: number; w: number; imgW: number; imgH: number } } | undefined {
+  const c = HEROES[cls]?.card;
+  return c ? { url: `assets/final/heroes/${cls}/card.png`, crop: { x: c[2], y: c[3], w: c[4], imgW: c[0], imgH: c[1] } } : undefined;
+}
+/** Basic-attack rows: three strikes of 2 frames (wind-up, strike) for blades; one shot / cast of 6 frames for bow and book. */
+const STRIKES = new Set(['warrior', 'samurai']);
+
+function heroFrame(cls: string, dir: Dir, act: string, i: number): PoseFrame {
+  const h = HEROES[cls];
+  const list = h.actions[act] ?? h.actions.stance ?? h.actions.idle;
+  const name = h.actions[act] ? act : h.actions.stance ? 'stance' : 'idle';
+  const idx = ((Math.floor(i) % list.length) + list.length) % list.length, f = list[idx];
+  return { key: heroKey(cls), frame: `${name}-${idx}`, wkey: `${heroKey(cls)}-w`, ox: f[4] / f[2], oy: f[5] / f[3], scale: HERO_HEIGHT / h.h, flip: dir === 'left', anchor: null };
+}
+
+function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
+  const H = (act: string, i: number) => heroFrame(cls, dir, act, i);
+  switch (q.k) {
+    case 'loop':
+      if (q.state === 'idle') return H('idle', (q.t * 6) / 1000);
+      if (q.state === 'alert') return H('stance', (q.t * 5) / 1000);
+      if (q.state === 'walk') return H('walk', (q.t * 9 * Math.max(0.7, Math.min(1.2, q.speed / 188))) / 1000);
+      return H('run', (q.t * 12 * Math.max(0.75, Math.min(1.15, q.speed / 270))) / 1000);
+    case 'jump': return H('jump', { takeoff: 0, rise: 1, apex: 1, fall: 2, land: 0 }[q.phase]);
+    case 'airAttack': return STRIKES.has(cls) ? H('attack', q.p < 0.4 ? 0 : 1) : H('attack', q.p < 0.4 ? 1 : 3);
+    case 'launched': return H('jump', 1);
+    case 'skill': {
+      const sk = FINAL_SKILLS.find((s) => s.id === q.id);
+      const winding = q.elapsed < q.startup, after = q.elapsed >= q.startup + q.active;
+      if (STRIKES.has(cls)) { // the strike pair: the chain's stage for the regular attack, a fixed one per skill until skill sheets come
+        let st = 0; for (const c of q.id) st = (st * 31 + c.charCodeAt(0)) >>> 0;
+        const pair = sk?.chain ? Math.max(0, q.stage) % 3 : st % 3;
+        return H('attack', 2 * pair + (winding ? 0 : 1));
+      }
+      // bow / book: 0 ready, 1 raise / nock, 2–3 release, 4–5 recover
+      if (winding) return H('attack', q.elapsed < q.startup * 0.5 ? 1 : 2);
+      if (!after) return H('attack', 3);
+      return H('attack', q.elapsed - q.startup - q.active < q.recovery * 0.5 ? 4 : 5);
+    }
+    default: return H('stance', 0); // hit / pushed back / getting up / death (the ghost): the combat stance
   }
 }
 

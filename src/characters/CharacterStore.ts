@@ -101,7 +101,19 @@ class Store {
   getSlots(): readonly CharacterSlot[] { return this.data.slots; }
   getSlot(id: SlotId): CharacterSlot { return this.data.slots.find((s) => s.slotId === id)!; }
   getSelectedId(): SlotId | null { return this.data.selectedSlotId; }
+  /** START HERO: the ready hero being played (not stored; every setter by id leaves it alone). */
+  private hero: Character | null = null;
+  startHero(classId: string, name: string, level: number): void {
+    this.hero = {
+      id: `hero-${classId}`, name, classId, job: classId, level, exp: 0, hero: true,
+      createdAt: new Date().toISOString(), lastPlayedAt: null, appearanceId: null, gender: 'male',
+      gear: starterGear(undefined), gold: 0, bag: { ...STARTER_BAG }, quick: [...DEFAULT_QUICK], seen: Object.keys(STARTER_BAG),
+    };
+  }
+  endHero(): void { this.hero = null; }
+
   getSelectedCharacter(): Character | null {
+    if (this.hero) return this.hero;
     const id = this.data.selectedSlotId;
     return id ? this.getSlot(id).character : null;
   }

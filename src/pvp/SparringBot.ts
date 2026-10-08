@@ -115,7 +115,7 @@ export class SparringBot {
     this.body = new CombatBody(this.kin, true);
     this.body.maxHp = trial?.hp ?? PVP.maxHp; this.hp = this.body.maxHp;
     this.kit = kitFor(cls);
-    this.view = new RemotePlayer(scene, { playerId: BOT_ID, characterId: BOT_ID, classId: cls, name: trial ? trial.name : `${BOT_NAMES[cls] ?? BOT_NAME} · NPC` }, x, y);
+    this.view = new RemotePlayer(scene, { playerId: BOT_ID, characterId: BOT_ID, classId: cls, name: trial ? trial.name : `${BOT_NAMES[cls] ?? BOT_NAME} · NPC`, hero: !trial && !!(scene as unknown as { character?: { hero?: boolean } }).character?.hero }, x, y);
     if (trial) { this.view.maxHp = trial.hp; this.view.setHp(trial.hp); }
     this.view.interpDelay = 0; // simulated locally: show the body exactly where it is
     this.nextAct = now + 1400; // a breath before the first attack

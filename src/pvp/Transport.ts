@@ -3,7 +3,7 @@
 // Presence = who is in the room (join/leave). Broadcast = all gameplay messages.
 import type { MatchMsg } from './Match';
 
-export interface PeerMeta { playerId: string; characterId: string; classId: string; name: string; gender?: 'male' | 'female'; look?: { hair: number; hairColor: number; skin: number; face: number; eyeColor?: number }; hair?: number }
+export interface PeerMeta { playerId: string; characterId: string; classId: string; name: string; gender?: 'male' | 'female'; hero?: boolean; look?: { hair: number; hairColor: number; skin: number; face: number; eyeColor?: number }; hair?: number }
 
 /** Network messages. Movement state carries ground x/y, height z, support z, aim, animation mode and cosmetics (and a
  *  samurai's Kagemusha doubles: `kg`, their offsets from him). A cast made while the doubles stand is an ambush (`amb`). */

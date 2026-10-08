@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { addClothWind } from '../ui/VisualLife';
-import { CHARACTER_PREVIEWS, CHARACTER_SELECT as L, CHARACTER_SELECT_PREVIEW as PV, COLORS, DESIGN, SELECT_HALO } from '../config/layout';
+import { CHARACTER_PREVIEWS, CLASS_NAMES, CHARACTER_SELECT as L, CHARACTER_SELECT_PREVIEW as PV, COLORS, DESIGN, SELECT_HALO } from '../config/layout';
 import { CharacterSelectUI } from '../ui/CharacterSelectUI';
 import { CharacterStore } from '../characters/CharacterStore';
 import { previewKeyOf } from '../characters/Look';
@@ -9,6 +9,9 @@ import { clearPvpFromUrl } from '../pvp/Room';
 import { enterPvp } from '../pvp/enterPvp';
 import { ClassPresence, preloadLife } from '../ui/PresentationLife';
 import { ThroneHero, preloadThrone } from '../ui/ThronePresence';
+
+/** START HERO: the ready heroes play at this level (every job and skill open). */
+const HERO_LEVEL = 100;
 
 const classOfKey = (key: string): string | null => {
   const e = Object.entries(CHARACTER_PREVIEWS).find(([, v]) => v.key === key);
@@ -34,6 +37,7 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
 
   create(): void {
+    CharacterStore.endHero(); // back from a START HERO session: the stored characters again
     for (const s of CharacterStore.getSlots()) buildLook(this, s.character); // one picture per look: stage + slot portraits
     this.cameras.main.fadeIn(240, 0, 0, 0);
     const bg = this.add.image(DESIGN.width / 2, DESIGN.height / 2, 'characterSelect.background');
@@ -82,6 +86,10 @@ export class CharacterSelectScene extends Phaser.Scene {
       onCreate: () => this.scene.start('CharacterCreateScene'),
       onEnterWorld: () => { clearPvpFromUrl(); this.scene.start('LegacyCourtyardScene', { pvpRoom: null }); }, // always the world, never the arena (PvP has its own button)
       onPvp: () => enterPvp(this),
+      onHero: (cls, pvp) => {
+        CharacterStore.startHero(cls, CLASS_NAMES[cls] ?? cls, HERO_LEVEL);
+        if (pvp) enterPvp(this); else { clearPvpFromUrl(); this.scene.start('LegacyCourtyardScene', { pvpRoom: null }); }
+      },
       onPreview: (key) => {
         const cls = key ? classOfKey(key) : null, onThrone = !!throne && cls === 'warrior';
         if (key && !onThrone) { const base = key.startsWith('base.'); hero.setTexture(key).setData('calm', base); hero.setScale((PV.height * (base ? 0.84 : 1)) / (fitOfKey(key) ?? hero.height)); } // the base body: no cloth to sway, fills its image

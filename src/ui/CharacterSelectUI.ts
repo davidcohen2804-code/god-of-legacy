@@ -17,7 +17,12 @@ export interface CharacterSelectHandlers {
   onPreview?: (assetKey: string | null) => void;
   /** Pointer over a slot: its character's class (null when leaving / empty slot). */
   onHover?: (classId: string | null) => void;
+  /** START HERO: play one of the four ready heroes (world or PvP arena), apart from the stored characters. */
+  onHero?: (classId: string, pvp: boolean) => void;
 }
+
+const HERO_CLASSES = ['warrior', 'book_mage', 'archer', 'samurai'] as const;
+const HERO_M = { w: 1320, h: 700, card: { w: 288, h: 548, gap: 22, top: 108 } } as const;
 
 const DASH = '—';
 /** Layout (design px): the roster (2x2 cards) on the left, the info panel and the buttons on the right, the name under the
@@ -30,6 +35,7 @@ const K = {
   stageName: { cx: 985, y: 868, w: 460 },
   enter: { x: 1420, y: 504, w: 380, h: 64 },
   pvp: { x: 1420, y: 584, w: 380, h: 52 },
+  hero: { x: 1420, y: 652, w: 380, h: 52 },
   create: { x: 1420, y: 504, w: 380, h: 64 },
   back: { x: 94, y: 856, w: 200, h: 52 },
   del: { x: 306, y: 856, w: 52, h: 52 },
@@ -96,6 +102,15 @@ const SEL_CSS = `
 .gol-sel .modal .q{top:58px!important;font:700 22px var(--gl-title)!important;letter-spacing:1.5px;color:#f3e3bd}
 .gol-sel .modal .qs{position:absolute;left:30px;right:30px;top:100px;text-align:center;font:500 14.5px var(--gl-body);color:var(--gl-text2)}
 .gol-sel .modal .kbtn{font-size:15px!important}
+.gol-sel .heroes .ttl{position:absolute;left:0;right:0;top:34px;text-align:center;font:700 26px var(--gl-title);letter-spacing:5px;color:#f3e3bd}
+.gol-sel .heroes .sub{position:absolute;left:0;right:0;top:74px;text-align:center;font:500 14.5px var(--gl-body);color:var(--gl-text2)}
+.gol-sel .heroes .hc{position:absolute;box-sizing:border-box;border-radius:16px;background:radial-gradient(120% 70% at 50% 38%,#22324f,#111a2b 70%);border:1px solid rgba(231,196,124,.22);overflow:hidden}
+.gol-sel .heroes .hc:hover{border-color:rgba(231,196,124,.55)}
+.gol-sel .heroes .hc img{position:absolute;left:50%;bottom:150px;height:360px;transform:translateX(-50%);pointer-events:none;filter:drop-shadow(0 10px 14px rgba(0,0,0,.55))}
+.gol-sel .heroes .hc .nm{position:absolute;left:16px;right:16px;bottom:112px;text-align:center;font:700 20px var(--gl-title);letter-spacing:2px;color:#f4e6c2}
+.gol-sel .heroes .hc .kbtn{left:22px;right:22px;width:auto!important;height:42px}
+.gol-sel .heroes .hc .kbtn.primary{font-size:16px!important}
+.gol-sel .heroes .x{position:absolute;right:20px;top:20px;width:40px;height:40px;font:400 26px/38px var(--gl-body)!important;padding:0}
 .gol-sel .modal .kbtn.primary.danger{background:linear-gradient(180deg,#f08a7b,#c8524a);border-color:#f6a59a;color:#2a0b08;font:700 15px var(--gl-body)!important;letter-spacing:.8px;box-shadow:0 10px 24px rgba(200,82,74,.3)}
 `;
 const SEL_STYLE_ID = 'gol-charselect-kit';
@@ -259,6 +274,7 @@ export class CharacterSelectUI {
     this.btnEnter = this.button('ENTER WORLD', { ...K.enter, size: 19 }, () => this.enterWorld(), true);
     if (this.h.onPvp) this.btnPvp = this.button('PvP Arena', { ...K.pvp, size: 15 }, () => { if (CharacterStore.getSelectedCharacter()) this.h.onPvp?.(); });
     this.btnCreate = this.button('CREATE CHARACTER', { ...K.create, size: 19 }, () => this.h.onCreate(), true);
+    if (this.h.onHero) this.button('START HERO', { ...K.hero, size: 15 }, () => this.openHeroes());
 
     window.addEventListener('keydown', this.onKey);
     this.render();
@@ -324,6 +340,35 @@ export class CharacterSelectUI {
     };
     mkBtn('Cancel', M.w / 2 - 110, () => this.closeModal());
     mkBtn('Delete', M.w / 2 + 110, () => { CharacterStore.deleteCharacter(id); this.closeModal(); this.render(); }, 'primary danger');
+    this.modal = m;
+  }
+
+  /** START HERO: the four ready heroes side by side — each enters the world or the PvP arena at once. */
+  private openHeroes(): void {
+    if (this.modal) return;
+    const M = HERO_M, C = M.card;
+    const m = this.el('div', 'abs overlay', this.root); m.style.zIndex = '60'; // above the roster's slot icons
+    const p = this.el('div', 'abs panel modal kit heroes', m);
+    this.box(p, (DESIGN.width - M.w) / 2, (DESIGN.height - M.h) / 2, M.w, M.h);
+    this.el('div', 'ttl', p).textContent = 'START HERO';
+    this.el('div', 'sub', p).textContent = 'A ready hero with every skill of the class — play the world or the PvP arena.';
+    const x = this.el('button', 'kbtn x', p) as HTMLButtonElement; x.textContent = '×'; x.title = 'Close (Esc)';
+    x.addEventListener('click', () => this.closeModal());
+    const x0 = (M.w - (C.w * 4 + C.gap * 3)) / 2;
+    HERO_CLASSES.forEach((cls, i) => {
+      const c = this.el('div', 'hc', p);
+      this.box(c, x0 + i * (C.w + C.gap), C.top, C.w, C.h);
+      const img = this.el<HTMLImageElement>('img', '', c); img.src = `assets/final/heroes/${cls}/card.png`; img.alt = className(cls);
+      this.el('div', 'nm', c).textContent = className(cls).toUpperCase();
+      const mk = (label: string, y: number, pvp: boolean, primary: boolean) => {
+        const b = this.el('button', `kbtn abs${primary ? ' primary' : ''}`, c) as HTMLButtonElement;
+        b.textContent = label; b.style.top = `${y}px`;
+        b.addEventListener('mousedown', (e) => e.preventDefault());
+        b.addEventListener('click', () => { this.closeModal(); this.h.onHero?.(cls, pvp); });
+      };
+      mk('PLAY', C.h - 102, false, true);
+      mk('PvP ARENA', C.h - 52, true, false);
+    });
     this.modal = m;
   }
 

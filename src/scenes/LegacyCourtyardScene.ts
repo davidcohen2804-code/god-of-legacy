@@ -56,7 +56,7 @@ import { CombatInput } from '../game/CombatInput';
 import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey, damageSkin, wantsWeaponMasks } from '../game/ActorView';
 import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
-import { baseLoop, ClassKey, dirOf, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame, sideAim } from '../game/Body';
+import { baseLoop, ClassKey, dirOf, heroPortrait, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame, sideAim } from '../game/Body';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
 import { ARENA, CombatBody, GAUGE, HitOutcome, Kin, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
@@ -557,7 +557,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         hpFrac: (id) => this.hpFracOf(id),
       });
     }
-    if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name, gender: genderOf(character), ...(headLookOf(character) ? { look: headLookOf(character)! } : {}) });
+    if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name, gender: genderOf(character), ...(character.hero ? { hero: true } : {}), ...(headLookOf(character) ? { look: headLookOf(character)! } : {}) });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off(Phaser.Scenes.Events.POST_UPDATE);
@@ -1344,7 +1344,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       skill: run ? { id: run.skill.id, stage: run.stage, elapsed: run.elapsed, ...run.timings, seed: castSeed(run.castId) } : undefined,
     };
     const dir = this.dir; // Whirlwind spins inside its own 360° body loop
-    const pose = resolvePose(this.cls, dir, poseQuery(snap), v.wantsBase || !hasJob(this.character!), genderOf(this.character));
+    const pose = resolvePose(this.cls, dir, poseQuery(snap), v.wantsBase || !hasJob(this.character!), genderOf(this.character), !!this.character!.hero);
     let tint: number | null = null, fill = false, alpha = 1;
     if (this.flash >= 0) { const iron = this.passives.takenMul < 1; tint = iron ? 0xc8d4e6 : 0xff9a9a; } // struck: a soft tint (MapleStory: no white flash over the body); Iron Body: steel sheen
     else if (this.body.hard.active(this.simMs)) tint = this.body.hard.kind === 'freeze' ? 0x9fd8ff : 0xb6ffb0;
@@ -1620,7 +1620,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         v.setBaseLook(headLookOf(ch), g); v.setGear(wornLook(CharacterStore.getGear(ch.id) ?? ch.gear), g); v.setName(ch.name); v.setEquipped(this.equipped);
         return v;
       },
-      pose: (snap, dir) => resolvePose(this.cls, dir, poseQuery(snap), this.view!.wantsBase || !hasJob(this.character!), genderOf(this.character)),
+      pose: (snap, dir) => resolvePose(this.cls, dir, poseQuery(snap), this.view!.wantsBase || !hasJob(this.character!), genderOf(this.character), !!this.character!.hero),
       appear: (at) => this.fx?.kageAppear(at), burst: (at) => this.fx?.kageBurst(at), fade: (at) => this.fx?.kageFade(at),
       feint: (at, face, stage) => this.fx?.kageFeint(at, face, stage),
     });
@@ -2822,12 +2822,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     return r && r.alive ? r.hp / Math.max(1, r.maxHp) : 0;
   }
 
+  /** START HERO: the sparring partner is a ready hero too (its body and face). */
+  private botHero(): boolean { return !!this.character?.hero; }
   /** Name, class and portrait of a fighter for the battle HUD. */
   private fighterOf(id: string): Fighter {
-    if (id === this.localId) { const ch = this.character!; return { name: ch.name, cls: CLASS_NAMES[this.cls] ?? this.cls, portrait: portraitOf(previewKeyOf(ch)), you: true }; }
-    if (id === BOT_ID) { const c = this.botCls; return { name: this.botName(), cls: CLASS_NAMES[c] ?? c, portrait: portraitOf(c === 'warrior' ? 'base/male' : `${c}/${c}_default`), you: false }; }
+    if (id === this.localId) { const ch = this.character!; return { name: ch.name, cls: CLASS_NAMES[this.cls] ?? this.cls, portrait: ch.hero ? heroPortrait(this.cls) : portraitOf(previewKeyOf(ch)), you: true }; }
+    if (id === BOT_ID) { const c = this.botCls; return { name: this.botName(), cls: CLASS_NAMES[c] ?? c, portrait: this.botHero() ? heroPortrait(c) : portraitOf(c === 'warrior' ? 'base/male' : `${c}/${c}_default`), you: false }; }
     const r = this.pvp?.remotes.get(id), c = r?.meta.classId ?? 'warrior';
-    return { name: r?.meta.name ?? this.nameOf(id), cls: CLASS_NAMES[c] ?? c, portrait: portraitOf(c === 'warrior' ? `base/${r?.meta.gender ?? 'male'}` : `${c}/${c}_default`), you: false };
+    return { name: r?.meta.name ?? this.nameOf(id), cls: CLASS_NAMES[c] ?? c, portrait: r?.meta.hero ? heroPortrait(c) : portraitOf(c === 'warrior' ? `base/${r?.meta.gender ?? 'male'}` : `${c}/${c}_default`), you: false };
   }
 
   private showResult(m: Match): void {
@@ -3092,7 +3094,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     return {
       mode: pvp ? 'pvp' : 'pve',
       player: {
-        id: pvp?.meta.playerId ?? ch.id, name: ch.name, level: ch.level, portrait: portraitOf(previewKeyOf(ch)),
+        id: pvp?.meta.playerId ?? ch.id, name: ch.name, level: ch.level, portrait: ch.hero ? heroPortrait(this.cls) : portraitOf(previewKeyOf(ch)),
         hp: this.playerHP, maxHp: this.maxHpNow(), resource: { kind: 'mp', value: Math.round(this.mp), max: this.maxMpNow() }, effects: [...this.buffEffects(), ...this.statusEffects(this.body, now)],
         exp: Number.isFinite(expToNext(ch.level)) ? { value: ch.exp ?? 0, max: expToNext(ch.level) } : undefined,
         job: pvp ? undefined : this.jobTitle(), gold: pvp ? undefined : this.gold,
@@ -3141,7 +3143,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.dummy && this.dummyState?.alive) consider(Math.hypot(D.x - k.x, D.y - k.y), { id: 'dummy', name: 'Training Dummy', type: 'Training Target', hp: this.dummyState.hp, maxHp: D.maxHp, effects: [], ...combat(this.dummyState.body, this.dummyState.kin.z) });
     const bt = this.bot;
     if (bt) consider(Math.hypot(bt.x - k.x, bt.y - k.y), {
-      id: BOT_ID, name: this.botName(), type: bt.trial ? 'Master · Job Trial' : 'NPC · PvP sparring', portrait: portraitOf((bt.trial ? bt.cls : this.botCls) === 'warrior' ? 'base/male' : `${bt.trial ? bt.cls : this.botCls}/${bt.trial ? bt.cls : this.botCls}_default`), hp: bt.hp, maxHp: bt.trial ? TRIAL_HP : PVP.maxHp,
+      id: BOT_ID, name: this.botName(), type: bt.trial ? 'Master · Job Trial' : 'NPC · PvP sparring', portrait: !bt.trial && this.botHero() ? heroPortrait(this.botCls) : portraitOf((bt.trial ? bt.cls : this.botCls) === 'warrior' ? 'base/male' : `${bt.trial ? bt.cls : this.botCls}/${bt.trial ? bt.cls : this.botCls}_default`), hp: bt.hp, maxHp: bt.trial ? TRIAL_HP : PVP.maxHp,
       effects: this.statusEffects(bt.body, now), ...combat(bt.body, bt.kin.z),
     });
     for (const r of this.pvp?.remotes.values() ?? []) {
@@ -3151,7 +3153,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (r.mode === 'down' || r.mode === 'getup') eff.push({ id: 'kd', label: 'Knocked down', iconUrl: 'assets/final/ui/hud/status_knockdown.png', harmful: true });
       consider(Math.hypot(r.x - k.x, r.y - k.y), {
         id: r.meta.playerId, name: r.meta.name, type: `Player · ${CLASS_NAMES[r.meta.classId] ?? r.meta.classId}`,
-        portrait: portraitOf(r.meta.classId === 'warrior' ? `base/${r.meta.gender ?? 'male'}` : `${r.meta.classId}/${r.meta.classId}_default`), hp: r.hp, maxHp: r.maxHp, effects: eff,
+        portrait: r.meta.hero ? heroPortrait(r.meta.classId) : portraitOf(r.meta.classId === 'warrior' ? `base/${r.meta.gender ?? 'male'}` : `${r.meta.classId}/${r.meta.classId}_default`), hp: r.hp, maxHp: r.maxHp, effects: eff,
       });
     }
     return best;

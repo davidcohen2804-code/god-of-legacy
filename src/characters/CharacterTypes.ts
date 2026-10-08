@@ -41,6 +41,8 @@ export interface Character {
   quick?: [string, string];
   /** Items found at least once (the first find shows its story). */
   seen?: string[];
+  /** START HERO: one of the four ready heroes (full job, every skill), played for the session — never stored in a slot. */
+  hero?: boolean;
 }
 
 export interface QuestState { state: 'active' | 'done'; progress: number[] }
