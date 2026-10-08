@@ -31,7 +31,7 @@ SPEC = {
                 ('S3', [('whirlwind', 6), ('blade_storm', 6), ('wave_slash', 6)]),
                 ('S4', [('oath', 6), ('radiant_blade', 6), ('banner', 6)]),
                 ('S5', [('war_cry', 6), ('judgment_blade', 6), ('finisher', 6)])],
-    'book_mage': [('A', [('idle', 6), ('walk', 6), ('attack', 6)]), ('B', [('run', 6), ('jump', 3), ('stance', 4)])],
+    'book_mage': [('A', [('idle', 6), ('walk_old', 6), ('attack', 6)]), ('W', [('walk', 8), ('run', 8)]), ('B', [('run_old', 6), ('jump', 3), ('stance', 4)])],
     'samurai': [('A', [('idle', 6), ('walk_old', 6), ('attack', 6)]), ('W', [('walk', 8), ('run', 8)]), ('B', [('run_old', 6), ('jump', 3), ('stance', 4)]),
                 ('S1', [('shadow_step', 6), ('swallow_cut', 6), ('spin_cut', 6)]),
                 ('S2', [('iai_strike', 6), ('sword_wave', 6), ('mirage', 6)]),
