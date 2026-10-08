@@ -1053,7 +1053,7 @@ export class SkillFx {
     if (fx) { this.arrowFx.delete(p); for (const o of fx.parts) this.scene.tweens.add({ targets: o, alpha: 0, duration: 120, onComplete: () => o.destroy() }); fx.em.stop(); this.scene.time.delayedCall(600, () => fx.em.destroy()); }
     const end = p.end ?? { x: p.x, y: p.y, reason: 'range' };
     if (p.skill.cls === 'archer' && p.explodeRadius > 0) { this.archerBlast(end.x, end.y, p.z, p.explodeRadius); return; }
-    if (p.skill.cls === 'archer' && end.reason !== 'target') this.stuckArrow(end.x, end.y, p.dx < 0 ? -1 : 1, ARROW_TINT[p.skill.id] ?? 0xb8ff7a);
+    if (p.skill.cls === 'archer' && end.reason === 'cover') this.stuckArrow(end.x, end.y, p.dx < 0 ? -1 : 1, ARROW_TINT[p.skill.id] ?? 0xb8ff7a);
     if (p.explodeRadius > 0) this.spark(IMPACT.explosion.key, end.x, end.y - p.z + 10, 5, p.explodeRadius * 2.6, 1);
     else if (end.reason === 'cover') this.spark(IMPACT.dust.key, end.x, end.y - p.z + 20, 6, 70, 0.9);
   }
@@ -1116,7 +1116,7 @@ export class SkillFx {
     const im = s.cls === 'warrior' ? 0.8 : 1; // MapleStory: a small, quick hit spark on the target (no flash over the body)
     if (s.cls === 'archer' && (this.scene.textures.exists('afx-hit') || this.scene.textures.exists('afx-impact'))) { // painted arrow impact (two variants, alternating)
       const rapid = s.hits.length > 3 && !hit.heavy; // storms / volleys: small sparks, never a white-out
-      const sz = (rapid ? 90 : 150) * (tier === 'ultimate' ? 1.4 : hit.heavy ? 1.35 : 1), key = this.scene.textures.exists('afx-hit') ? 'afx-hit' : (this.impactFlip = !this.impactFlip) ? 'afx-impact' : 'afx-impact-b';
+      const sz = (rapid ? 130 : 210) * (tier === 'ultimate' ? 1.4 : hit.heavy ? 1.35 : 1), key = this.scene.textures.exists('afx-hit') ? 'afx-hit' : (this.impactFlip = !this.impactFlip) ? 'afx-impact' : 'afx-impact-b';
       this.play(key, at.x, at.y - at.z - 38, sz, sz, [25, 30, 35, 40, 45, 50, 60, 70], { depth: TOP + 2, fadeLast: 70 });
     } else if (s.id !== 'warrior_basic') this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.4 : hit.heavy ? 1.15 : 1) * (s.cls === 'samurai' && s.hits.length > 3 && !hit.heavy ? 0.7 : 1), 0.8); // (a regular attack: none, as in MapleStory)
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).
@@ -1339,7 +1339,7 @@ export class SkillFx {
     const x = p.x, y = p.y - p.z, big = id === 'piercing_arrow' ? 1.35 : id === 'explosive_arrow' ? 1.2 : 1;
     const leaf = this.scene.textures.exists('afx-arrow') && id !== 'piercing_arrow' && id !== 'explosive_arrow', lv = level(p.dx, p.dy);
     const arrow = leaf // the painted leaf arrow (level on screen, mirrored to the left)
-      ? this.scene.add.image(x, y, 'afx-arrow', 0).setOrigin(lv.flip ? 0.02 : 0.98, 0.5).setFlipX(lv.flip).setAngle(lv.ang).setDisplaySize(len * 1.5, len * 1.5 / 4)
+      ? this.scene.add.image(x, y, 'afx-arrow', 0).setOrigin(lv.flip ? 0.02 : 0.98, 0.5).setFlipX(lv.flip).setAngle(lv.ang).setDisplaySize(len * 2.1, len * 2.1 / 4)
       : this.scene.add.image(x, y, 'arch-arrow').setOrigin(0.97, 0.5).setAngle(ang).setDisplaySize(len, 24 * big).setTint(0xffffff, 0xffffff, tint, tint).setBlendMode(Phaser.BlendModes.NORMAL);
     const streak = this.scene.add.image(x, y, 'arch-streak').setOrigin(1, 0.5).setAngle(ang).setDisplaySize(40, 16 * big).setTint(tint).setBlendMode(Phaser.BlendModes.NORMAL).setAlpha(0.9);
     const glow = this.scene.add.image(x, y, 'arch-glow').setDisplaySize(56 * big, 56 * big).setTint(tint).setBlendMode(Phaser.BlendModes.NORMAL).setAlpha(0.8);
@@ -1571,7 +1571,7 @@ export class SkillFx {
         const fill = this.scene.add.image(tx, ty, 'arch-glow').setBlendMode(Phaser.BlendModes.NORMAL).setTint(0x4cc23a).setAlpha(0).setDepth(GROUND + 0.9).setDisplaySize(2 * R0, 2 * R0); // softly lit ground, no hard band
         const rim = this.scene.add.circle(tx, ty, R0).setStrokeStyle(3, 0x9cf27a, 0.9).setBlendMode(Phaser.BlendModes.NORMAL).setAlpha(0).setDepth(GROUND + 1.1);
         this.scene.tweens.add({ targets: [ring, rim], alpha: 0.55, delay: T.startup, duration: 300 });
-        this.scene.tweens.add({ targets: fill, alpha: 0.1, delay: T.startup, duration: 300 });
+        fill.setVisible(false); // (a flat green disc read as a murky stain on the floor: the ring and rim mark the range)
         this.scene.tweens.add({ targets: rim, alpha: { from: 0.85, to: 0.45 }, delay: T.startup + 300, duration: 900, yoyo: true, repeat: Math.floor(life / 1800) });
         this.scene.tweens.add({ targets: ring, angle: 90, delay: T.startup, duration: life });
         this.scene.tweens.add({ targets: [ring, fill, rim], alpha: 0, delay: T.startup + life - 500, duration: 500, onComplete: () => { ring.destroy(); fill.destroy(); rim.destroy(); } });
@@ -1632,7 +1632,7 @@ export class SkillFx {
       void v; void w; void h; void view; // (the painted full-screen sheet looked blurry when stretched: crisp drawn arrows only)
       const g = cam.worldView; // a real storm: dense waves of sharp arrows land all over the visible floor and stay stuck
       const fin = this.scene.textures.exists('afx-finale');
-      for (let i = 0; i < (fin ? 3 : 6); i++) this.scene.time.delayedCall(i * 220, () => this.arrowShower(g.centerX, g.y + g.height * 0.62, g.width * 0.52, g.height * 0.22, fin ? 20 : 32, 220, i % 2 ? 0xa8f04a : 0x7ee35a, 0.3, 1.35));
+      for (let i = 0; i < (fin ? 3 : 6); i++) this.scene.time.delayedCall(i * 220, () => this.arrowShower(g.centerX, g.y + g.height * 0.62, g.width * 0.52, g.height * 0.22, fin ? 20 : 32, 220, i % 2 ? 0xa8f04a : 0x7ee35a, 0.06, 1.35));
       if (fin) for (let k = -1; k <= 1; k++) for (const row of [0.56, 0.8]) { // the storm lands: whole fields of arrows bite into the floor across the screen
         const fx = g.centerX + k * g.width * 0.34 + (row > 0.6 ? g.width * 0.12 : 0), fy = g.y + g.height * row;
         this.scene.time.delayedCall(260 + (k + 1) * 90 + (row > 0.6 ? 160 : 0), () => this.play('afx-finale', fx, fy, 640, 320, [90, 110, 130, 150, 180, 220, 300, 420], { oy: 0.72, depth: fy + 1, fadeLast: 400 }));
@@ -1777,7 +1777,7 @@ export class SkillFx {
       h.t += ms;
       h.lastX = c.x;
       // roams the sky round the archer: a wide, lazy figure-eight, banking as it turns (never parked on the body)
-      const homeX = c.x + Math.sin(h.t / 1300) * 190, homeY = c.y - c.z - 165 + Math.sin(h.t / 650) * 42;
+      const homeX = c.x + Math.sin(h.t / 1300) * 150, homeY = c.y - c.z - 120 + Math.sin(h.t / 650) * 30;
       h.face = Math.cos(h.t / 1300) >= 0 ? 1 : -1;
       let x = homeX, y = homeY, face = h.face;
       if (h.dive) { // 180 ms out, 220 ms back
@@ -1791,7 +1791,7 @@ export class SkillFx {
       }
       const diving = !!h.dive && h.dive.t < 180 && this.scene.textures.exists('afx-dive'), fly = this.scene.textures.exists('afx-hawk') ? 'afx-hawk' : h.img.texture.key;
       if (diving) h.img.setTexture('afx-dive', Math.min(4, Math.floor((h.dive!.t / 180) * 5))).setDisplaySize(210, 210); // swoops down onto the foe
-      else h.img.setTexture(fly, Math.floor(h.t / 80) % 8).setDisplaySize(170, 170);
+      else h.img.setTexture(fly, Math.floor(h.t / 80) % 8).setDisplaySize(200, 200);
       h.img.setPosition(x, y).setFlipX(face < 0).setDepth(h.dive ? c.y + 3 : y + 140 < c.y - c.z ? c.y - 3 : c.y + 3);
       if (h.dive && h.dive.t < 400 && Math.floor(h.dive.t / 40) !== Math.floor((h.dive.t - ms) / 40)) { // afterimages on the dive
         const g = this.scene.add.image(x, y, h.img.texture.key, h.img.frame.name).setFlipX(face < 0).setDisplaySize(h.img.displayWidth, h.img.displayHeight).setBlendMode(Phaser.BlendModes.NORMAL).setAlpha(0.45).setDepth(c.y + 2);
