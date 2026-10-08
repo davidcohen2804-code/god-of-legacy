@@ -100,8 +100,12 @@ export class SparringBot {
   private combo: string[] = [];
   private readonly kit: FinalSkill[];
 
-  /** A trial Master's HP reached zero (beaten). */
+  /** A trial Master's HP reached zero (beaten) / knocked out in a battle round. */
   defeated = false;
+  /** Battle mode: its HP runs out (a K.O.) instead of refilling. */
+  duel = false;
+  /** Battle mode, between the fights (VS, ROUND n, K.O., the result): it stands and waits. */
+  hold = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, private api: BotApi, now: number, readonly cls = 'warrior', readonly trial: BotTrial | null = null) {
     this.kin = newKin(x, y);
@@ -122,7 +126,7 @@ export class SparringBot {
   get z(): number { return this.kin.z; }
 
   target(now: number): HitTarget {
-    return { id: BOT_ID, kind: 'player', x: this.kin.x, y: this.kin.y, z: this.kin.z, radius: R + 4, height: 74, alive: true, invulnerable: now < this.body.invulnUntil };
+    return { id: BOT_ID, kind: 'player', x: this.kin.x, y: this.kin.y, z: this.kin.z, radius: R + 4, height: 74, alive: !this.defeated, invulnerable: now < this.body.invulnUntil };
   }
 
   /** A confirmed hit from the local player (this client is the authority for the bot). HP never reaches zero. */
@@ -132,7 +136,7 @@ export class SparringBot {
     const msg = { t: 'hp' as const, from: BOT_ID, hp: 0, by: attacker, rx: out.reaction };
     if (out.damage > 0) {
       this.hp -= out.damage;
-      if (this.hp <= 0 && this.trial) { this.hp = 0; this.defeated = true; } // a Master's trial: beaten
+      if (this.hp <= 0 && (this.trial || this.duel)) { this.hp = 0; this.defeated = true; } // a Master's trial: beaten / a battle round: K.O.
       else if (this.hp <= 0) { // never dies: the bar refills (the hit itself still lands and flashes)
         this.view.setHp(1, { ...msg, hp: 1 });
         this.refilled = PVP.maxHp;
@@ -153,9 +157,9 @@ export class SparringBot {
     this.wasFree = free;
 
     if (this.cast) { this.stepCast(ms, w); if (this.combo.length && this.cast && this.cast.t >= this.cast.T.startup + this.cast.T.active + 30 && w.player.alive) this.nextCombo(w, true); }
-    else if (free && this.combo.length) this.approachCombo(ms, w);
-    else if (free && !this.paused) this.thinkAndMove(ms, w);
-    else if (free) { k.vx *= 0.8; k.vy *= 0.8; const dx = w.player.x - k.x; if (Math.abs(dx) > 4) this.dir = dx > 0 ? 'right' : 'left'; }
+    else if (free && this.combo.length && !this.hold) this.approachCombo(ms, w);
+    else if (free && !this.paused && !this.hold) this.thinkAndMove(ms, w);
+    else if (free) { k.vx *= 0.8; k.vy *= 0.8; const dx = w.player.x - k.x; if (Math.abs(dx) > 4 && !this.defeated) this.dir = dx > 0 ? 'right' : 'left'; }
     else if (b.state === 'hitstun' && k.grounded && !b.push) { k.vx *= 0.8; k.vy *= 0.8; }
 
     const r = stepKin(k, ms, b.gravityScale(now));
@@ -165,6 +169,38 @@ export class SparringBot {
   }
 
   destroy(): void { this.view.destroy(); }
+
+  /** Battle mode, a new round: whole again at (x, y) facing `dir`, nothing in hand, its big moves held back again. */
+  resetAt(x: number, y: number, now: number, dir: Dir): void {
+    const k = this.kin;
+    k.x = x; k.y = y; k.z = 0; k.vx = 0; k.vy = 0; k.vz = 0; k.grounded = true; k.supportZ = 0;
+    this.body.reset();
+    this.hp = this.body.maxHp; this.defeated = false; this.refilled = 0;
+    this.cast = null; this.combo = []; this.chainStage = -1; this.chainEnd = -Infinity; this.wasFree = true;
+    this.cdEnd.clear();
+    for (const [id, ms] of Object.entries(OPENING_CD)) this.cdEnd.set(id, now + ms);
+    this.nextAct = now + 700; this.thinkT = 0;
+    this.dir = dir; this.aim = { x: dir === 'right' ? 1 : -1, y: 0 };
+    this.view.revive(x, y, this.hp);
+    this.pushState();
+  }
+
+  /** Extra damage outside a hit (the player's Final Attack): a battle round / a trial can end on it; the training knight
+   *  never falls to it. */
+  extra(n: number): void {
+    if (this.defeated || n <= 0) return;
+    this.hp -= n;
+    if (this.hp <= 0 && (this.trial || this.duel)) { this.hp = 0; this.defeated = true; }
+    else this.hp = Math.max(1, this.hp);
+    this.view.setHp(this.hp);
+  }
+
+  /** Knocked out: down for the count (its view plays the fall), nothing more until the next round. */
+  knockOut(): void {
+    this.interrupt();
+    this.hold = true;
+    this.view.die();
+  }
 
   // ------------------------------------------------------------------ brain
 
@@ -358,6 +394,7 @@ export class SparringBot {
 
   private mode(): Mode {
     const b = this.body, k = this.kin;
+    if (this.defeated) return 'dead';
     if (b.state === 'hitstun') return 'hurt';
     if (b.state === 'launched') return 'launched';
     if (b.state === 'knockdown') return k.grounded ? 'down' : 'launched';
@@ -373,7 +410,7 @@ export class SparringBot {
     const k = this.kin, m = this.mode();
     this.view.applyState({
       t: 'state', from: BOT_ID, x: k.x, y: k.y, z: k.z, sz: k.supportZ, dir: this.dir, anim: m, mode: m,
-      sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: Math.round(this.aim.x * 100), ay: Math.round(this.aim.y * 100), hp: this.hp, alive: true, cos: this.cls === 'warrior' ? (this.trial ? TRIAL_LOOK : BOT_LOOK) : '',
+      sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: Math.round(this.aim.x * 100), ay: Math.round(this.aim.y * 100), hp: this.hp, alive: !this.defeated, cos: this.cls === 'warrior' ? (this.trial ? TRIAL_LOOK : BOT_LOOK) : '',
     });
   }
 }

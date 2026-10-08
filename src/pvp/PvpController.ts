@@ -5,6 +5,7 @@ import Phaser from 'phaser';
 import { PVP } from '../config/layout';
 import { RemotePlayer } from './RemotePlayer';
 import { createTransport, NetMsg, PeerMeta, Transport } from './Transport';
+import type { MatchMsg } from './Match';
 
 export interface LocalSnapshot { x: number; y: number; z: number; sz: number; dir: string; anim: string; mode: string; sp: number; vz: number; ax: number; ay: number; hp: number; alive: boolean; cos: string; mhp?: number }
 
@@ -24,6 +25,9 @@ export interface PvpHandlers {
   onChat?(from: string, m: Extract<NetMsg, { t: 'chat' }>): void;
   /** Party messages (invite / answer / member list / leave / shared buff). */
   onParty?(m: Extract<NetMsg, { t: 'pinv' | 'pans' | 'party' | 'pleave' | 'pbuff' }>): void;
+  /** Battle mode: the match state from the side running it, and rematch requests. */
+  onMatch?(from: string, m: Extract<NetMsg, { t: 'match' }>): void;
+  onRematch?(from: string, m: Extract<NetMsg, { t: 'rematch' }>): void;
 }
 
 export class PvpController {
@@ -99,6 +103,9 @@ export class PvpController {
   /** Everyone else in the room (party invite list). */
   roomPlayers(): { id: string; name: string; classId: string }[] { return [...this.peers.values()].map((p) => ({ id: p.playerId, name: p.name, classId: p.classId })); }
   sendDeath(by: string): void { this.transport.send({ t: 'death', from: this.meta.playerId, by }); }
+  /** Battle mode: the match state (sent by the side running the match). */
+  sendMatch(m: MatchMsg): void { this.transport.send({ t: 'match', from: this.meta.playerId, ...m }); }
+  sendRematch(mid: string): void { this.transport.send({ t: 'rematch', from: this.meta.playerId, mid }); }
   sendRespawn(x: number, y: number, hp: number): void {
     this.transport.send({ t: 'respawn', from: this.meta.playerId, x: Math.round(x), y: Math.round(y), hp });
     this.sendState(true);
@@ -124,6 +131,8 @@ export class PvpController {
     else if (m.t === 'hp') { r.setHp(m.hp, m); if (m.castId) this.h.onConfirmed(m.from, m); }
     else if (m.t === 'death') { r.die(); this.h.onRemoteDeath?.(m.from, m.by); }
     else if (m.t === 'respawn') r.revive(m.x, m.y, m.hp);
+    else if (m.t === 'match') this.h.onMatch?.(m.from, m);
+    else if (m.t === 'rematch') this.h.onRematch?.(m.from, m);
   }
 
   private syncPeers(list: PeerMeta[]): void {

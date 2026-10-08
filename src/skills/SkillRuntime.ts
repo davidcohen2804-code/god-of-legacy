@@ -63,6 +63,9 @@ export interface RuntimeWorld {
   targets(run: CastRun): HitTarget[];
   onHit(run: CastRun, hit: HitEvent, hitIndex: number, target: HitTarget, at: V3): void;
   casterPos(attackerId: string): V3 | null;
+  /** Another player's dash: where the dash itself has carried them by now (their drawn body trails the real one by the
+   *  network delay and the interpolation): the hit tests run along this. */
+  dashPos?(run: CastRun): V3 | null;
   onPhase?(run: CastRun, phase: Phase): void;
   /** Reach multiplier for the caster's melee sword shapes (Radiant Blade). */
   reachMul?(req: CastRequest): number;
@@ -92,6 +95,8 @@ export class SkillRuntime {
   get ownRun(): CastRun | undefined { return this.runs.find((r) => r.own && r.phase !== 'done'); }
   locked(): boolean { return !!this.ownRun; }
   cooldownRemaining(id: string): number { return Math.max(0, (this.cooldownEnd.get(id) ?? 0) - this.world.now()); }
+  /** Every skill ready again (a new battle round). */
+  resetCooldowns(): void { this.cooldownEnd.clear(); this.charges.clear(); }
   get projectileCount(): number { return this.projectiles.length; }
   get runCount(): number { return this.runs.length; }
 
@@ -261,16 +266,19 @@ export class SkillRuntime {
       if (hit) this.deliver(r, h, i, hit, { x: hit.x, y: hit.y, z: hit.z + 40 });
       return;
     }
-    const path: [V2, V2] = [r.pathStart, { x: cur.x, y: cur.y }];
+    const from = this.dashFrom(r) ?? origin, path: [V2, V2] = [r.pathStart, { x: from.x, y: from.y }];
     for (const t of targets) {
       if (!t.alive || t.id === r.attackerId) continue;
-      if (shapeContains(h, origin, r.aim, r.place, path, t)) this.deliver(r, h, i, t, { x: t.x, y: t.y, z: t.z + 40 });
+      if (shapeContains(h, from, r.aim, r.place, path, t)) this.deliver(r, h, i, t, { x: t.x, y: t.y, z: t.z + 40 });
     }
   }
 
+  /** Hit tests of another player's dash follow the dash itself, not the body drawn behind it (null: not such a run). */
+  private dashFrom(r: CastRun): V3 | null { return !r.own && r.skill.dash ? this.world.dashPos?.(r) ?? null : null; }
+
   /** Capsule (dash) hits keep testing the path travelled so far for the rest of the active window. */
   private sweepCapsule(r: CastRun, i: number): void {
-    const h = r.hits[i], cur = this.world.casterPos(r.attackerId) ?? r.origin;
+    const h = r.hits[i], cur = this.dashFrom(r) ?? this.world.casterPos(r.attackerId) ?? r.origin;
     const path: [V2, V2] = [r.pathStart, { x: cur.x, y: cur.y }];
     for (const t of this.world.targets(r)) {
       if (!t.alive || t.id === r.attackerId) continue;

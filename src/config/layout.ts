@@ -243,6 +243,15 @@ export const PVP = {
   labelDepth: 100000,
   impactUp: 64,
   hud: { exitText: 'EXIT ARENA', status: { centerX: 960, centerY: 540, w: 420, h: 70, size: 28 } },
+  /** Battle mode (1v1, Tekken-style): rounds of `roundMs`, first to `winsNeeded` round wins; phase lengths (ms); where
+   *  the two fighters stand at every round start (the side that runs the match on the left, facing each other). */
+  battle: {
+    roundMs: 60000, winsNeeded: 2, maxRounds: 5,
+    vsMs: 2300, introMs: 1500, koMs: 3600,
+    /** After the first fighter falls, a second fall this soon is a DOUBLE K.O. (network delay). */
+    koWindowMs: 250,
+    start: { y: 640, left: 690, right: 1010 },
+  },
 } as const;
 
 // ======================= In-game HUD (God-Of-Legacy-HUD package, hud-manifest.json) =======================

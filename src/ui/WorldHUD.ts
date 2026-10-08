@@ -168,6 +168,9 @@ const CSS = `
 .gol-hud .menu button:hover:not(:disabled){background:rgba(24,34,52,.95)}
 .gol-hud .menu button b{font-weight:700}
 .gol-hud .menu button .gl-key{min-width:26px}
+/* battle mode (arena 1v1): the fight's own HUD across the top takes over — no card, target, map, panels pills or EXP */
+.gol-hud.battle .card,.gol-hud.battle .target,.gol-hud.battle .tfx,.gol-hud.battle .mm,.gol-hud.battle .region,.gol-hud.battle .menu,
+.gol-hud.battle .room,.gol-hud.battle .gol-qt,.gol-hud.battle .xpw{display:none!important}
 `;
 
 interface Bar { root: HTMLDivElement; fill: HTMLDivElement; val?: HTMLSpanElement; w: number; last: string }
@@ -260,7 +263,7 @@ export class WorldHUD {
     this.res.root.style.display = 'none';
     this.els.pFx = this.div('fx', this.root); this.at(this.els.pFx, G.buffs.x, G.buffs.y, 400, G.buffs.size);
     // EXP bar under the skill dock (fills when the progression system supplies player.exp)
-    const ex = this.div('pn', this.root); this.box(ex, { x: 0, y: 0, w: 1920, h: 1080 });
+    const ex = this.div('pn xpw', this.root); this.box(ex, { x: 0, y: 0, w: 1920, h: 1080 });
     this.exp = this.bar(ex, G.exp, 'xp', true);
   }
 
@@ -283,7 +286,7 @@ export class WorldHUD {
       const f = this.div('gf', bg); Object.assign(f.style, { position: 'absolute', left: '0', top: '0', bottom: '0', width: '0%', background: c, borderRadius: '3px' });
       return f;
     });
-    this.els.tFx = this.div('fx', this.root); this.at(this.els.tFx, G.target.x + 16, G.target.y + G.target.h + 8, G.target.w, 32);
+    this.els.tFx = this.div('fx tfx', this.root); this.at(this.els.tFx, G.target.x + 16, G.target.y + G.target.h + 8, G.target.w, 32);
   }
 
   private buildMinimap(): void {
@@ -690,6 +693,15 @@ export class WorldHUD {
   setMenuKeys(keys: Record<'K' | 'I' | 'O' | 'P' | 'U', string>): void {
     for (const [k, el] of this.menuKeys) { const t = keys[k as 'K'] ?? ''; el.textContent = t; el.style.display = t ? '' : 'none'; }
     this.menu.setKeys(keys);
+  }
+
+  /** Battle mode: the fight's HUD takes the top of the screen; your buffs sit under your own bar (left or right side). */
+  setBattle(on: boolean, side: 'l' | 'r' = 'l'): void {
+    this.root.classList.toggle('battle', on);
+    const fx = this.els.pFx;
+    if (!on) { this.at(fx, G.buffs.x, G.buffs.y, 400, G.buffs.size); fx.style.flexDirection = ''; return; }
+    this.at(fx, side === 'l' ? 142 : 1920 - 142 - 400, 130, 400, G.buffs.size);
+    fx.style.flexDirection = side === 'l' ? 'row' : 'row-reverse';
   }
 
   /** The 1920x1080 overlay element (chat, quest tracker and other HUD parts live inside it). */

@@ -1,6 +1,7 @@
 // PvP network transport: Supabase Realtime when credentials exist, otherwise a same-origin BroadcastChannel
 // (local QA fallback only — works between tabs of one browser, never between computers).
 // Presence = who is in the room (join/leave). Broadcast = all gameplay messages.
+import type { MatchMsg } from './Match';
 
 export interface PeerMeta { playerId: string; characterId: string; classId: string; name: string; gender?: 'male' | 'female'; look?: { hair: number; hairColor: number; skin: number; face: number; eyeColor?: number }; hair?: number }
 
@@ -22,7 +23,12 @@ export type NetMsg =
   | { t: 'pans'; from: string; to: string; ok: boolean }
   | { t: 'party'; from: string; members: string[] }
   | { t: 'pleave'; from: string }
-  | { t: 'pbuff'; from: string; skillId: string; ms: number; to: string[] };
+  | { t: 'pbuff'; from: string; skillId: string; ms: number; to: string[] }
+  /** Battle mode: the match as the side running it sees it (phase and the ms spent in it, round, round wins, the clock,
+   *  the round's result, the match winner). */
+  | ({ t: 'match'; from: string } & MatchMsg)
+  /** Battle mode: this fighter wants a rematch of match `mid`. */
+  | { t: 'rematch'; from: string; mid: string };
 
 export type JoinResult = 'ok' | 'full' | 'error';
 export type TransportKind = 'Supabase' | 'Local';

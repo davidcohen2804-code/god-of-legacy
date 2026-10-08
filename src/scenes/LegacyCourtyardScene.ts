@@ -38,6 +38,8 @@ import { AreaTitle, DialogChoice, NpcDialog } from '../ui/WorldUI';
 import { QuestState } from '../characters/CharacterTypes';
 import { isQAMode } from '../qa/QAPanel';
 import { PvpController } from '../pvp/PvpController';
+import { Match, MatchPhase } from '../pvp/Match';
+import { BattleHUD, Fighter } from '../ui/BattleHUD';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
 import { NetMsg, PeerMeta } from '../pvp/Transport';
 import { genderOf, headLookOf, previewKeyOf } from '../characters/Look';
@@ -269,6 +271,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private logSum = { out: { hits: 0, dmg: 0, combo: -1 }, in: { hits: 0, dmg: 0, combo: -1 } };
   private sparUi?: { root: HTMLDivElement; clsBtns: { id: string; b: HTMLButtonElement }[]; stop: HTMLButtonElement; combo: HTMLButtonElement; speedBtns: { v: number; b: HTMLButtonElement }[]; log: HTMLButtonElement };
   private botSeq = 0;
+  /** Battle mode (the arena's 1v1): the match in rounds and its HUD; the K.O. slow motion (real ms since the K.O., -1 =
+   *  none) and the camera's own zoom (the K.O. punches in from it). */
+  private match?: Match;
+  private battleHud?: BattleHUD;
+  private koT = -1;
+  private koZoomBack = false;
+  /** When the side running the match was last heard from (real ms). */
+  private matchHeard = 0;
+  private baseZoom = 1;
   private hud?: WorldHUD;
   private character?: Character;
   skillBook?: SkillBook;
@@ -365,6 +376,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const cam = this.cameras.main;
     cam.setZoom(Math.min(cam.width / WORLD.camera.worldWidth, cam.height / WORLD.camera.worldHeight));
     cam.setRoundPixels(true);
+    this.baseZoom = cam.zoom; this.koT = -1;
     // Very low density warm dust drifting in the sun (never over telegraphs: faint, small, sparse).
     this.motes = addMotes(this, { x: 60, y: 220, w: WORLD.coordinateSpace.width - 120, h: WORLD.coordinateSpace.height - 260 }, 7,
       { depth: 1500, tint: 0xffd9a0, size: [5, 9], speed: [3, 8], drift: 10, alpha: 0.32 });
@@ -424,6 +436,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       targets: (r) => this.targetsFor(r),
       onHit: (r, h, i, t, at) => this.onSkillHit(r, h, i, t, at),
       casterPos: (id) => this.casterPos(id),
+      dashPos: (r) => (r.attackerId === BOT_ID ? null : this.remoteDashPos(r)), // (the knight is simulated here: its body is where it is)
       onPhase: (r, ph) => this.onRunPhase(r, ph),
       reachMul: (req) => (req.own ? (req.skill.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.85 : 1) : (req.reach ?? 1)),
       rangeMul: (req) => (req.own ? this.ownRangeMul(req.skill) : (req.range ?? 1)),
@@ -502,6 +515,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     };
     kb.on('keydown-ESC', esc);
     if (pvpRoom) this.buildSparUi();
+    if (pvpRoom) {
+      this.battleHud = new BattleHUD(ov, { rematch: () => this.askRematch(), exit: exitArena });
+      this.match = new Match(this.localId, {
+        onPhase: (m, prev) => this.onMatchPhase(m, prev),
+        send: (msg) => { if (this.match?.opponent !== BOT_ID) this.pvp?.sendMatch(msg); },
+        hpFrac: (id) => this.hpFracOf(id),
+      });
+    }
     if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name, gender: genderOf(character), ...(headLookOf(character) ? { look: headLookOf(character)! } : {}) });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -519,6 +540,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.pvp?.destroy(); this.pvp = undefined; this.pvpReady = false;
       this.enemy?.destroy(); this.enemy = undefined;
       this.bot?.destroy(); this.bot = undefined; this.sparUi?.root.remove(); this.sparUi = undefined; this.logEl?.remove(); this.logEl = undefined;
+      this.battleHud?.destroy(); this.battleHud = undefined; this.match = undefined; this.koT = -1;
       this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1;
       this.ambience?.destroy(); this.ambience = undefined;
       for (const o of this.occluders) { o.clearMask(true); o.destroy(); }
@@ -547,7 +569,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     if (!this.view || !this.rt || !this.fx || !this.ci) return;
-    const ms = Math.min(delta, 50) * this.slowMo; // arena analysis: slow motion
+    const real = Math.min(delta, 50);
+    const ms = real * this.slowMo * this.koFactor(real); // arena analysis: slow motion; a K.O.: a beat of slow motion
     this.ambience?.update(ms);
     this.pvp?.update(ms);
     this.skillBook?.update(ms);
@@ -587,6 +610,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onStrikePlayer: (dmg, from) => this.enemyStrike(dmg, from),
     });
     this.updateBot(ms, now);
+    this.updateMatch(real, ms);
     this.reactionFx(ms);
     if (this.pvp || this.arena) this.camTarget.set(WORLD.coordinateSpace.width / 2, this.kin.y + 70); // keep yourself above the tray
     this.renderPlayer(this.fx.hitStopLeft > 0 ? 0 : ms);
@@ -942,7 +966,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.time.delayedCall(90, () => {
       if (target === 'enemy') { if (!this.enemy?.alive) return; this.enemy.damage(extra); }
       else if (target === 'dummy') { if (!this.dummyState?.alive) return; this.damageDummy(extra); }
-      else if (target === BOT_ID) { const b = this.bot; if (!b) return; b.hp = Math.max(1, b.hp - extra); b.view.setHp(b.hp); }
+      else if (target === BOT_ID) {
+        const b = this.bot; if (!b || b.defeated || (this.match?.active && !this.match.live)) return;
+        b.extra(extra);
+        if (b.defeated && this.match) { this.rt?.cancelAttacker(BOT_ID); b.knockOut(); this.match.death(BOT_ID); } // a battle round: the extra slash ends it
+      }
       else if (target.startsWith('mob:')) {
         const m = this.mobById(target); if (!m?.alive) return;
         if (m.damage(extra, this.simMs)) { this.questKill(m); this.gainExp(m.kind.exp ?? Math.round(m.kind.hp / 5), { x: m.kin.x, y: m.kin.y, z: m.kin.z }); this.dropLoot(m); if (this.gripFoe === m) { this.gripFoe = null; this.gripHeld = false; } }
@@ -1025,6 +1053,23 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       k.z = d.hang ? run.origin.z + d.lift * hang : d.crash ? run.origin.z + d.lift * Math.sin(Math.PI * Math.min(1, p * 1.06)) : Math.max(k.z, run.origin.z + d.lift * Math.sin(Math.PI * p));
       k.vz = p < 0.5 ? 40 : -40;
     }
+  }
+
+  /** Where another player's dash has carried them by now, worked out from the cast itself the way their own client moves
+   *  them (dashMotion): along the aim, eased, up to the locked target, stopped by walls and props. Their drawn body runs
+   *  ~100 ms (and the network delay) behind — hit tests along it came too late and too short. */
+  private remoteDashPos(run: CastRun): V3 | null {
+    const d = run.skill.dash;
+    if (!d) return null;
+    const T = run.timings, o = run.origin;
+    const p = Math.max(0, Math.min(1, (run.elapsed - T.startup) / Math.max(1, T.active))), ease = 1 - (1 - p) * (1 - p);
+    let dist = d.distance;
+    if (run.lock && run.lock === this.localId) dist = Math.min(d.distance, Math.max(0, Math.hypot(this.kin.x - o.x, this.kin.y - o.y) - 34));
+    const wx = o.x + run.aim.x * dist * ease, wy = o.y + run.aim.y * dist * ease, n = Math.ceil(Math.hypot(wx - o.x, wy - o.y) / 3);
+    let x = o.x, y = o.y;
+    for (let i = 1; i <= n; i++) { const nx = o.x + ((wx - o.x) * i) / n, ny = o.y + ((wy - o.y) * i) / n; if (!footAllowed(nx, ny, o.z, R)) break; x = nx; y = ny; }
+    const z = d.lift ? o.z + d.lift * Math.sin(Math.PI * (d.crash ? Math.min(1, p * 1.06) : p)) : o.z;
+    return { x, y, z };
   }
 
   /** Impaling Rush: the confirmed target (enemy or sparring knight) rides on the blade in front of the dashing warrior; a wall stops it hard. */
@@ -1534,6 +1579,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   tryStartSlot(i: number): boolean {
     const s = this.kit[i];
     if (!s || !this.rt || this.dead >= 0) return false;
+    if (this.inputLocked()) return false; // talking / a battle's VS, ROUND n, K.O.: no attacks (buffered ones too)
     if (!this.skillOpen(s)) return false; // skills open with the job advancements (all open in the arena)
     if (s.wip) return false; // a template: not built yet
     const now = this.simMs, k = this.kin, b = this.body;
@@ -1942,6 +1988,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** PvP victim authority: this client resolved a remote cast against its own body. */
   private applyRemoteHitToSelf(run: CastRun, hit: HitEvent, hi: number, at: V3): void {
     if (this.dead >= 0 || this.party?.has(run.attackerId)) return; // party members never hit each other
+    if (this.match?.active && !this.match.live) return; // a battle: only the fight counts (not VS / ROUND n / after the K.O.)
     const trial = run.attackerId === BOT_ID && !!this.bot?.trial;   // a Master's trial is the world: hits leave you blinking, untouchable
     if (trial && this.simMs < this.hitBlinkUntil) return;
     if (this.inDome()) { this.domeBlock(this.casterPos(run.attackerId) ?? run.origin); this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: run.skill.id, hit: hi, dmg: 0, rx: 'armor' }); return; }
@@ -2027,9 +2074,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     return dmg;
   }
 
-  private killPlayer(): void {
-    this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.spiritUntil = -1; this.hasteUntil = -1; this.tree = null; this.storm = null; this.resolveUntil = -1; // buffs end on death
+  /** Buffs end (death, a new battle round). */
+  private endBuffs(): void {
+    this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.spiritUntil = -1; this.hasteUntil = -1; this.tree = null; this.storm = null; this.resolveUntil = -1;
     this.drawUntil = -1; this.sunUntil = -1; this.godUntil = -1; this.fx?.clearHalo(this.localId);
+  }
+
+  private killPlayer(): void {
+    this.endBuffs(); // buffs end on death
     this.rt?.cancelOwn('death');
     if (this.jb) { const jbs = this.kit.find((x) => x.id === 'judgment_blade'); if (jbs) this.rt?.closeCharges(jbs); this.jb = null; this.jbWant = 0; }
     this.ci?.reset();
@@ -2038,11 +2090,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.body.state = 'dead';
     this.setMode('dead');
     this.deathFx?.start(this.kin.x, this.kin.y, this.kin.z - this.kin.supportZ, this.dir === 'left');
+    if (this.match?.active) { this.match.death(this.localId); return; } // a battle round: K.O. (no respawn: the next round stands you up)
     this.hud?.banner('DEFEATED', this.pvp ? PVP.respawnMs : P6.deathFadeMs + P6.deathPauseMs);
   }
 
   private updateDeath(): void {
-    if (this.pvp) { if (this.dead >= PVP.respawnMs) this.respawnPvp(); return; }
+    if (this.pvp) { if (this.match?.active) return; if (this.dead >= PVP.respawnMs) this.respawnPvp(); return; } // battle: down until the next round
     if (this.dead >= P6.deathFadeMs + P6.deathPauseMs) {
       if (this.world) { // the open world: you wake up in town
         if (this.dead < 1e8) { this.dead = 1e9; this.world.jumpTo(START.area, START.x, START.y, this.kin, () => { const p = this.kin; this.respawnAt(p.x, p.y, this.maxHpNow()); }); }
@@ -2163,13 +2216,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Sparring partner of the chosen class (keeps STOP when it is swapped). */
   private spawnBot(x: number, y: number, now: number): void {
     const paused = this.bot?.paused ?? this.botPaused;
+    if (this.match?.opponent === BOT_ID) this.match.abort(); // a new opponent: a new match
     if (this.bot) { this.rt?.cancelAttacker(BOT_ID); this.bot.destroy(); }
     this.bot = new SparringBot(this, x, y, {
       cast: (skill, stage, origin, aim, place, lock) => { this.rt?.start({ castId: `${BOT_ID}-${++this.botSeq}`, skill, stage, attackerId: BOT_ID, own: false, origin, aim, place, lock: lock ? this.localId : null }); },
       cancel: () => { for (const r of this.rt?.runs ?? []) if (r.attackerId === BOT_ID && (r.phase === 'startup' || r.phase === 'active')) r.phase = 'done'; },
     }, now, this.botCls);
     this.bot.paused = paused;
-    this.fx?.callout({ x, y, z: 60 }, `${this.botName().toUpperCase()} ENTERS`, '#ffd27a', 0);
+    this.bot.duel = true; // battle mode: the knight can be knocked out (its entrance is the battle's VS)
     this.refreshSparUi();
   }
 
@@ -2179,7 +2233,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!document.getElementById('gol-spar-style')) {
       const st = document.createElement('style'); st.id = 'gol-spar-style';
       st.textContent = `
-.gol-spar{position:absolute;left:1350px;top:100px;width:300px;display:none;flex-direction:column;gap:10px;padding:14px 16px 16px;box-sizing:border-box;pointer-events:auto;
+.gol-spar{position:absolute;left:1350px;top:156px;width:300px;display:none;flex-direction:column;gap:10px;padding:14px 16px 16px;box-sizing:border-box;pointer-events:auto;
   background:linear-gradient(rgba(6,10,18,.84),rgba(6,10,18,.7));border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.45),inset 0 0 0 1px rgba(201,154,69,.5);font-family:${FONT_FAMILY}}
 .gol-spar.on{display:flex}
 .gol-spar .hd{font:700 12px ${FONT_FAMILY};letter-spacing:2.5px;color:#f3d58a;text-shadow:0 1px 2px #000}
@@ -2196,7 +2250,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 .gol-spar .spd span{font:700 11px ${FONT_FAMILY};letter-spacing:2px;color:#bfb08e;padding-right:4px}
 .gol-spar .spd button{height:28px}
 .gol-spar .tog{height:30px}
-.gol-hitlog{position:absolute;left:1350px;top:400px;width:300px;max-height:420px;overflow:hidden;display:none;flex-direction:column;gap:4px;padding:10px 10px 12px;box-sizing:border-box;pointer-events:none;
+.gol-hitlog{position:absolute;left:1350px;top:456px;width:300px;max-height:420px;overflow:hidden;display:none;flex-direction:column;gap:4px;padding:10px 10px 12px;box-sizing:border-box;pointer-events:none;
   background:linear-gradient(rgba(6,10,18,.82),rgba(6,10,18,.62));border-radius:12px;box-shadow:inset 0 0 0 1px rgba(201,154,69,.35);font-family:${FONT_FAMILY}}
 .gol-hitlog.on{display:flex}
 .gol-hitlog .ln{display:grid;grid-template-columns:auto 1fr auto;column-gap:8px;row-gap:1px;padding:5px 8px;border-radius:6px;background:rgba(255,255,255,.04);font-size:12px;line-height:15px}
@@ -2278,7 +2332,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** The local player's confirmed hit on the sparring NPC (this client is its authority; PvP reaction rules). */
   private applyToBot(run: CastRun, hit: HitEvent, t: HitTarget, at: V3): void {
     const b = this.bot;
-    if (!b) return;
+    if (!b || b.defeated || (this.match?.active && !this.match.live)) return;
     const chB = run.attackerId === this.localId ? this.chanceMul(b.body) : 1;
     const m = run.attackerId === this.localId ? this.ownDamageMul() * chB : 1, h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
     const out = b.receive(run.attackerId, run.skill, h, this.casterPos(run.attackerId) ?? run.origin, this.simMs);
@@ -2287,6 +2341,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (b.refilled) this.fx!.healNumber({ x: b.x, y: b.y, z: b.z }, b.refilled);
     this.confirm(run, hit, BOT_ID, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!run.skill.endsCombo, t.z);
     if (out.reaction !== 'armor') this.finalAttack(run, BOT_ID, at, out.damage);
+    if (b.defeated) { this.rt?.cancelAttacker(BOT_ID); b.knockOut(); this.match?.death(BOT_ID); } // a battle round: the knight is down
   }
 
   // ======================================================================= PvP
@@ -2327,7 +2382,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       },
       onRemoteLeft: (id) => { this.party?.dropped(id); this.rt?.cancelAttacker(id); this.bubbles?.clear(id); this.chat?.add({ kind: 'system', text: `${this.nameOf(id)} left the arena.` }); },
       onRemoteJoined: (id) => this.chat?.add({ kind: 'system', text: `${this.nameOf(id)} entered the arena.` }),
-      onRemoteDeath: (id, by) => this.chat?.add({ kind: 'system', text: `${this.nameOf(id)} was defeated by ${this.nameOf(by)}.` }),
+      onRemoteDeath: (id, by) => { this.match?.death(id); this.chat?.add({ kind: 'system', text: `${this.nameOf(id)} was defeated by ${this.nameOf(by)}.` }); },
+      onMatch: (from, m) => { if (this.duelOpponent() === from) { this.matchHeard = performance.now(); this.match?.apply(from, m); } },
+      onRematch: (from, m) => { this.match?.rematch(from, m.mid); this.refreshRematch(); },
       onChat: (from, m) => this.receiveChat(from, m),
       onParty: (m) => this.party?.receive(m),
       getLocal: () => {
@@ -2355,7 +2412,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // Cooldown check: at most `charges` casts (1 for most skills) inside one cooldown window.
     const key = `${from}:${s.id}`, recent = (this.remoteCasts.get(key) ?? []).filter((t) => this.simMs - t < s.cooldown - CAST_COOLDOWN_TOLERANCE_MS);
     if (s.cooldown > 0 && recent.length >= (s.charges ?? 1)) return;
-    if (Math.hypot(m.x - r.x, m.y - r.y) > CAST_ORIGIN_TOLERANCE_PX) return;
+    const last = r.latest; // (the drawn body is ~100 ms behind: right after a dash it can trail the caster by more than the tolerance)
+    if (Math.min(Math.hypot(m.x - r.x, m.y - r.y), Math.hypot(m.x - last.x, m.y - last.y)) > CAST_ORIGIN_TOLERANCE_PX) return;
     let place: V2 | null = null;
     if (s.targeting === 'mouseGround') {
       if (m.px === undefined || m.py === undefined) return;
@@ -2382,6 +2440,154 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     return pts.reduce((best, s) => (clearance(s) > clearance(best) ? s : best), pts[0]);
   }
 
+  // ======================================================================= battle mode (arena 1v1)
+
+  /** Your opponent in the arena: the one other player in the room, or the sparring knight when you are alone; none with
+   *  three or more (a free fight). */
+  private duelOpponent(): string | null {
+    if (!this.arena || !this.pvp) return null;
+    const n = this.pvp.remotes.size;
+    if (n === 1) return this.pvp.remotes.keys().next().value ?? null;
+    return n === 0 && this.bot && !this.bot.trial ? BOT_ID : null;
+  }
+
+  /** Starts / ends the match as opponents come and go, runs it, and feeds the fight's HUD. */
+  private updateMatch(real: number, ms: number): void {
+    const m = this.match, B = this.battleHud;
+    if (!m || !B || !this.pvpReady) return;
+    const opp = this.duelOpponent();
+    if (m.active && m.opponent !== opp) m.abort(); // the opponent left / a third player came in
+    else if (m.active && !m.isHost && performance.now() - this.matchHeard > 5000) m.abort(); // the side running it went silent (its window hidden / gone): a free fight until it is back
+    if (!m.active && opp) { // the lower id runs a match between two players; against the knight it is always you
+      if (opp === BOT_ID) { m.koWindow = 0; m.start(BOT_ID); }
+      else if (this.localId < opp) { m.koWindow = PVP.battle.koWindowMs; m.start(opp); }
+    }
+    m.update(real, ms);
+    if (!m.active) return;
+    B.setHp('l', this.hpFracOf(m.host)); B.setHp('r', this.hpFracOf(m.guest));
+    B.setClock(m.phase === 'vs' || m.phase === 'intro' ? PVP.battle.roundMs : m.left, m.round);
+    B.setWins(m.wins[0], m.wins[1], PVP.battle.winsNeeded);
+  }
+
+  private onMatchPhase(m: Match, prev: MatchPhase): void {
+    const B = this.battleHud, T = PVP.battle;
+    if (!B) return;
+    if (m.phase === 'idle') { // no match any more: back to the free arena
+      B.clearCalls(); B.hideResult(); B.setOn(false); this.hud?.setBattle(false);
+      if (this.bot) this.bot.hold = false;
+      this.endKoMoment();
+      if (this.dead >= 0) this.dead = Math.max(this.dead, PVP.respawnMs - 500); // down in the last round: up again in a moment
+      return;
+    }
+    if (prev === 'idle') { this.hud?.setBattle(true, m.sideOf(this.localId)); B.setOn(true); }
+    if (prev === 'idle' || m.phase === 'vs') B.setFighters(this.fighterOf(m.host), this.fighterOf(m.guest));
+    switch (m.phase) {
+      case 'vs': B.hideResult(); this.placeForRound(m); B.vs(this.fighterOf(m.host), this.fighterOf(m.guest), T.vsMs); break;
+      case 'intro': B.hideResult(); this.placeForRound(m); B.round(m.round, m.finalRound, T.introMs); break;
+      case 'fight': B.hideResult(); this.ci?.clearBuffer(); B.fight(); if (this.bot) this.bot.hold = false; break;
+      case 'ko':
+        if (this.bot) this.bot.hold = true;
+        B.ko(m.why, m.perfect, T.koMs - 500);
+        if (m.why === 'ko' || m.why === 'double') this.koMoment();
+        break;
+      case 'over': if (this.bot) this.bot.hold = true; this.showResult(m); break;
+    }
+  }
+
+  /** Every round (and the VS before the first): both fighters on their marks, facing each other, whole again. */
+  private placeForRound(m: Match): void {
+    const S = PVP.battle.start, left = m.sideOf(this.localId) === 'l';
+    this.roundReset(left ? S.left : S.right, S.y, left ? 1 : -1);
+    this.rt?.cancelAttacker(m.opponent);
+    this.remoteCasts.clear(); // a new round: the opponent's skills are all ready again too (its earlier casts no longer count against it)
+    const b = this.bot;
+    if (m.opponent === BOT_ID && b) { b.duel = true; b.resetAt(left ? S.right : S.left, S.y, this.simMs, left ? 'left' : 'right'); b.hold = true; }
+    this.endKoMoment();
+  }
+
+  /** A new round for you: on your mark, full HP, every buff gone, every skill ready, nothing still flying. */
+  private roundReset(x: number, y: number, face: 1 | -1): void {
+    this.rt?.cancelOwn('death');
+    this.lingers = []; this.shares = [];
+    this.endBuffs();
+    this.warCryUntil = -1; this.radiantUntil = -1; this.radiantFrom = -1; this.domeAt = -1;
+    if (this.dome) this.dome.until = this.simMs;
+    this.jb = null; this.jbWant = 0; this.carriedBy = null; this.lunge = null; this.momentum = null; this.gripHeld = false; this.leapUsed = false; this.leapUntil = -1;
+    this.rt?.resetCooldowns();
+    this.respawnAt(x, y, PVP.maxHp);
+    this.body.maxHp = this.maxHpNow();
+    this.dir = face > 0 ? 'right' : 'left'; this.aim = { x: face, y: 0 }; this.faceSide = face;
+    this.blockHold = { x: 0, y: 0 };
+    this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
+    this.combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1 };
+    this.orbs = { n: 0, lastAt: -Infinity, cast: '' };
+    this.pvp?.sendRespawn(x, y, this.playerHP); // the other side sees you on your mark at once (no slide across the floor)
+  }
+
+  /** A fighter's HP as a fraction of its maximum (0 when down). */
+  private hpFracOf(id: string): number {
+    if (id === this.localId) return this.dead >= 0 ? 0 : this.playerHP / Math.max(1, this.maxHpNow());
+    if (id === BOT_ID) { const b = this.bot; return b && !b.defeated ? b.hp / Math.max(1, b.body.maxHp) : 0; }
+    const r = this.pvp?.remotes.get(id);
+    return r && r.alive ? r.hp / Math.max(1, r.maxHp) : 0;
+  }
+
+  /** Name, class and portrait of a fighter for the battle HUD. */
+  private fighterOf(id: string): Fighter {
+    if (id === this.localId) { const ch = this.character!; return { name: ch.name, cls: CLASS_NAMES[this.cls] ?? this.cls, portrait: portraitOf(previewKeyOf(ch)), you: true }; }
+    if (id === BOT_ID) { const c = this.botCls; return { name: this.botName(), cls: CLASS_NAMES[c] ?? c, portrait: portraitOf(c === 'warrior' ? 'base/male' : `${c}/${c}_default`), you: false }; }
+    const r = this.pvp?.remotes.get(id), c = r?.meta.classId ?? 'warrior';
+    return { name: r?.meta.name ?? this.nameOf(id), cls: CLASS_NAMES[c] ?? c, portrait: portraitOf(c === 'warrior' ? `base/${r?.meta.gender ?? 'male'}` : `${c}/${c}_default`), you: false };
+  }
+
+  private showResult(m: Match): void {
+    const me = this.localId, left = m.sideOf(me) === 'l';
+    this.battleHud?.result({ title: m.champ === null ? 'DRAW' : m.champ === me ? 'VICTORY' : 'DEFEAT', me: this.fighterOf(me), them: this.fighterOf(m.opponent), mine: m.wins[left ? 0 : 1], theirs: m.wins[left ? 1 : 0] });
+    this.refreshRematch();
+  }
+
+  private refreshRematch(): void {
+    const m = this.match;
+    if (m?.phase === 'over') this.battleHud?.rematchState(m.wants(this.localId), m.wants(m.opponent), this.fighterOf(m.opponent).name);
+  }
+
+  /** REMATCH: against the knight at once; against a player once both ask. */
+  private askRematch(): void {
+    const m = this.match;
+    if (!m || m.phase !== 'over') return;
+    const mid = m.mid, opp = m.opponent;
+    m.rematch(this.localId);
+    if (opp === BOT_ID) m.rematch(BOT_ID);
+    else this.pvp?.sendRematch(mid);
+    this.refreshRematch();
+  }
+
+  /** K.O.: the world slows to a quarter for a beat while the camera punches in, then eases back. */
+  private koMoment(): void {
+    this.koT = 0; this.koZoomBack = false;
+    const cam = this.cameras.main;
+    cam.shake(340, 0.011);
+    cam.zoomTo(this.baseZoom * 1.08, 220, 'Quad.easeOut', true);
+  }
+
+  private endKoMoment(): void {
+    if (this.koT < 0 && !this.koZoomBack) return;
+    this.koT = -1; this.koZoomBack = false;
+    this.time.timeScale = this.slowMo; this.tweens.timeScale = this.slowMo;
+    this.cameras.main.zoomTo(this.baseZoom, 1, 'Linear', true);
+  }
+
+  /** The K.O. slow motion this frame (real ms since the K.O.): a quarter speed, then back to full by 1.4 s. */
+  private koFactor(real: number): number {
+    if (this.koT < 0) return 1;
+    this.koT += real;
+    const t = this.koT, f = t < 700 ? 0.25 : t < 1400 ? 0.25 + 0.75 * ((t - 700) / 700) : 1;
+    if (t >= 950 && !this.koZoomBack) { this.koZoomBack = true; this.cameras.main.zoomTo(this.baseZoom, 650, 'Sine.easeInOut', true); }
+    if (t >= 1400) { this.koT = -1; this.koZoomBack = false; }
+    this.time.timeScale = this.slowMo * f; this.tweens.timeScale = this.slowMo * f;
+    return f;
+  }
+
   // ======================================================================= cosmetics
 
   private loadCosmetics(): void { this.setEquipped(CharacterStore.getCosmetics(this.character!.id).equipped as Equipped, false); }
@@ -2403,7 +2609,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   // ======================================================================= open world
 
   /** Talking to an NPC: the hero stands and listens (no moving, attacking or jumping). */
-  private inputLocked(): boolean { return this.warping || !!this.npcDialog?.isOpen; }
+  private inputLocked(): boolean { return this.warping || !!this.npcDialog?.isOpen || !!this.match?.locked; }
   /** Carried by the Temple portal's light (a moment of fade): no input. */
   private warping = false;
 

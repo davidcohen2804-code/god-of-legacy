@@ -100,6 +100,9 @@ export class RemotePlayer {
     this.dir = dir; this.aim = aim; this.mode = 'skill'; this.modeT = 0;
   }
 
+  /** Where its owner said it is in the latest snapshot (the drawn body runs a little behind, interpolated). */
+  get latest(): { x: number; y: number } { const s = this.snaps[this.snaps.length - 1]; return { x: s.x, y: s.y }; }
+
   /** Top of the head above the feet (world px), for speech bubbles. */
   get headHeight(): number { return this.view.headHeight || 100; }
 
@@ -164,7 +167,7 @@ export class RemotePlayer {
       (this.afterimg ??= new Afterimages(this.scene, SAMURAI_AFTER)).step(this.scene.time.now, this.view.sprite, !!m?.after);
     }
     const top = y - z - 116 - PVP.remoteLabel.gap;
-    this.label.setPosition(Math.round(x), Math.round(top - PVP.hpBar.h - 3));
+    this.label.setPosition(Math.round(x), Math.round(top - PVP.hpBar.h - 3)).setAlpha(this.deadMs >= 0 ? alpha : 1); // down: the name fades with the body
     this.bar.setPosition(Math.round(x), Math.round(top));
   }
 
