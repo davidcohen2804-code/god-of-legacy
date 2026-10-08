@@ -82,6 +82,11 @@ const HIT_IFRAMES = 2000, HIT_BLINK = 90;
 const RADIANT_SPEED = 3;
 /** World damage roll: from this fraction of the maximum up to it (MapleStory's mastery). */
 const STAT_MASTERY = 0.8;
+/** MP (MapleStory-style): every skill but the regular attack spends it; it refills over time (a share of the max a second). */
+const MP_REGEN = 0.03, MP_ARENA = 220;
+const MP_CLASS: Record<string, number> = { warrior: 0.8, samurai: 0.9, archer: 1, book_mage: 1.6 };
+/** A skill's MP: none for the regular attack and passives / buffs' own cost by cooldown (the big ones cost more). */
+const mpCost = (s: FinalSkill): number => (s.slot === 0 ? 0 : Math.min(60, Math.round(6 + (s.cooldown / 1000) * 2.2)));
 /** The slash-trail art (radiant_blade/slash_trail.jpg, 288 cells): its arc's circle (centre as a fraction of the cell, radius px) and the angle of its bright head (deg, y down). */
 const SLASH = { cx: 189 / 288, cy: 81 / 288, r: 122, head: 190 };
 const FACE: Record<Dir, V2> = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
@@ -189,6 +194,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private stats: Stats = baseStats();
   private statD: Derived = derive(baseStats(), 'warrior', 1);
   private statsWin?: StatsWindow;
+  /** MP now (max: maxMpNow). */
+  private mp = 0;
+  private noMpAt = -Infinity;
   /** Radiant Blade: the sword is a long blade of light until this time. */
   radiantUntil = -1;
   /** The light blade's swing: its angle last frame, where this swing began, its turning sign, a trail drawn for it. */
@@ -388,7 +396,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.gearSt = gearStats(CharacterStore.getGear(character.id)); this.gearCode = wornCode(wornLook(character.gear));
     this.applyPassives();
     this.orbs = { n: 0, lastAt: -Infinity, cast: '' }; this.leapUsed = false; this.regenAt = 0; this.orbImgs = [];
-    this.playerHP = this.maxHpNow();
+    this.playerHP = this.maxHpNow(); this.mp = this.maxMpNow();
     this.body.maxHp = this.maxHpNow();
     this.view = new ActorView(this, this.cls, x, y);
     this.view.setBaseLook(headLookOf(character), genderOf(character));
@@ -540,6 +548,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       return;
     }
     this.simMs += ms;
+    if (this.dead < 0) this.mp = Math.min(this.maxMpNow(), this.mp + this.maxMpNow() * MP_REGEN * ms / 1000);
     const now = this.simMs;
     this.ci.update(now);
     this.stepPlayer(ms, now);
@@ -814,7 +823,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.applyPassives();
     this.playerHP = this.maxHpNow();
     this.skillBook?.setLevel(skillLevel(ch));
-    this.statD = derive(this.stats, this.cls, ch.level); this.applyPassives(); this.playerHP = this.maxHpNow();
+    this.statD = derive(this.stats, this.cls, ch.level); this.applyPassives(); this.playerHP = this.maxHpNow(); this.mp = this.maxMpNow();
     this.chat?.add({ kind: 'system', text: `+${r.ups * AP_PER_LEVEL} AP — press ${keyLabel(this.bindings.stats) || 'U'} to place them.` }); this.refreshStats();
     if (playedClass({ ...ch, level: was }) !== playedClass(ch)) this.time.delayedCall(1700, () => this.scene.restart({ pvpRoom: null, at: { x: this.kin.x, y: this.kin.y } })); // an older character past the old 1st-job level: becomes his own class
     if (was < BEGINNER_TO && r.level >= BEGINNER_TO && !hasJob(ch)) this.chat?.add({ kind: 'system', text: 'Level 10! The Masters of the four paths await you on the Temple Road.' });
@@ -824,6 +833,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private setAllOpen(on: boolean): void { setAllSkillsOpen(on); this.applyPassives(); this.skillBook?.setUnlockAll(this.allOpen()); }
 
   /** Max HP: fixed in the PvP arena (fair fights), raised by passives in the world. */
+  /** Max MP: the job, the level and INT (the arena: the same for everyone). */
+  maxMpNow(): number { const lv = this.character?.level ?? 1; return this.arena ? MP_ARENA : Math.round((60 + 6 * lv + 1.5 * (this.stats.int - BASE_STAT)) * (MP_CLASS[this.cls] ?? 1)); }
+
   maxHpNow(): number { return Math.round((this.arena ? PVP.maxHp : S6.player.maxHp * this.passives.hpMul * this.statD.hpMul) * (this.simMs < this.oathUntil ? 1.3 : 1)); }
 
   /** Own damage multiplier from stats: the worn weapon's attack (bare hands hit weakly) × Sword Mastery × Combo Force orbs. */
@@ -1458,6 +1470,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const run = this.rt.ownRun;
     if (run && !this.cancelAllowed(run, s)) return false;
     if (this.rt.cooldownRemaining(s.id) > 0) return false;
+    if (this.localId === 'local' || this.arena) { const c = mpCost(s), chainNext = run && run.skill.id === s.id; // MP: a chain's later strikes are paid with its first
+      if (c > 0 && !chainNext && this.mp < c) { if (this.simMs - this.noMpAt > 900) { this.noMpAt = this.simMs; this.fx?.callout({ x: k.x, y: k.y, z: k.z + 70 }, 'NOT ENOUGH MP', '#7fb6ff', 0); } return false; } }
     let stage = 0;
     if (s.chain) {
       const mid = run && run.skill.id === s.id;
@@ -1515,6 +1529,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private startCast(s: FinalSkill, stage: number, aim: V2, place: V2 | null, lock: string | null): void {
     const k = this.kin;
+    if (stage === 0) this.mp = Math.max(0, this.mp - mpCost(s));
     // Lunge-in: melee skills step toward a soft-locked target that is just out of reach.
     this.lunge = null;
     const shape = (s.chain ? s.chain.stages[stage] : s.hits)[0]?.shape;
@@ -1886,6 +1901,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       combat: [
         ['Attack Range', `${Math.max(1, Math.round(base * STAT_MASTERY))} ~ ${Math.max(1, Math.round(base))}`],
         ['Max HP', `${Math.round(Math.min(this.playerHP, hp))} / ${hp}`],
+        ['Max MP', `${Math.round(this.mp)} / ${this.maxMpNow()}`],
         ['Weapon Attack', String(this.gearSt.att)],
         ['Defense', `${this.gearSt.def}  (−${Math.round((1 - takenMul(this.gearSt)) * 100)}% damage)`],
         ['Stat Power', `${this.statD.statValue}  (×${this.statD.dmgMul.toFixed(2)})`],
@@ -1947,7 +1963,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private respawnAt(x: number, y: number, hp: number): void {
     const k = this.kin;
     k.x = x; k.y = y; k.z = 0; k.vx = 0; k.vy = 0; k.vz = 0; k.grounded = true; k.supportZ = 0;
-    this.body.reset();
+    this.body.reset(); this.mp = this.maxMpNow();
     this.playerHP = hp; this.dead = -1; this.flash = -1; this.hitBlinkUntil = -1; this.setMode('idle'); this.deathFx?.stop();
     this.ci?.reset();
   }
@@ -2452,7 +2468,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       mode: pvp ? 'pvp' : 'pve',
       player: {
         id: pvp?.meta.playerId ?? ch.id, name: ch.name, level: ch.level, portrait: portraitOf(previewKeyOf(ch)),
-        hp: this.playerHP, maxHp: this.maxHpNow(), resource: null, effects: [...this.buffEffects(), ...this.statusEffects(this.body, now)],
+        hp: this.playerHP, maxHp: this.maxHpNow(), resource: { kind: 'mp', value: Math.round(this.mp), max: this.maxMpNow() }, effects: [...this.buffEffects(), ...this.statusEffects(this.body, now)],
         exp: Number.isFinite(expToNext(ch.level)) ? { value: ch.exp ?? 0, max: expToNext(ch.level) } : undefined,
       },
       target: alive && this.pvpReady ? this.hudTarget() : null,
