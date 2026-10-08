@@ -15,7 +15,7 @@ from PIL import Image
 from scipy import ndimage
 
 # rows the game lifts itself (jumps, leaps): anchored on their own feet
-OWN_FEET = {'jump', 'leap_crash', 'judgment_blade', 'finisher'}
+OWN_FEET = {'jump', 'leap_crash', 'judgment_blade', 'finisher', 'spin_cut', 'falcon_dive'}
 SCALE = 0.6  # frame size kept in the atlas (source px x SCALE)
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC = os.path.join(ROOT, 'tools', 'heroes', 'src')
@@ -29,7 +29,13 @@ SPEC = {
                 ('S4', [('oath', 6), ('radiant_blade', 6), ('banner', 6)]),
                 ('S5', [('war_cry', 6), ('judgment_blade', 6), ('finisher', 6)])],
     'book_mage': [('A', [('idle', 6), ('walk', 6), ('attack', 6)]), ('B', [('run', 6), ('jump', 3), ('stance', 4)])],
-    'samurai': [('A', [('idle', 6), ('walk', 6), ('attack', 6)]), ('B', [('run', 6), ('jump', 3), ('stance', 4)])],
+    'samurai': [('A', [('idle', 6), ('walk', 6), ('attack', 6)]), ('B', [('run', 6), ('jump', 3), ('stance', 4)]),
+                ('S1', [('shadow_step', 6), ('swallow_cut', 6), ('spin_cut', 6)]),
+                ('S2', [('iai_strike', 6), ('sword_wave', 6), ('mirage', 6)]),
+                ('S3', [('blossom_storm', 6), ('hundred_cuts', 6), ('tornado_blade', 6)]),
+                ('S4', [('falcon_dive', 6), ('dragon_ascension', 6), ('dragon_eclipse', 6)]),
+                ('S5', [('kagemusha', 6), ('sakura_bind', 6), ('rising_sun', 6)]),
+                ('S6', [('phantom_blades', 6), ('god_of_blades', 6), ('finisher', 6)])],
     'archer': [('A', [('idle', 6), ('walk', 6), ('attack', 6)]), ('B', [('run', 6), ('jump', 3), ('stance', 4)])],
 }
 
@@ -155,17 +161,37 @@ def main():
                 continue
             rgba = alpha_from_white(np.array(Image.open(f).convert('RGB')))
             bs = bands(rgba[..., 3] > 40, gap=6)
-            if len(bs) != len(rows):  # rows touch (a raised bow / sword): cut at the emptiest line near each third
-                dens = (rgba[..., 3] > 40).sum(1).astype(float)
-                H, n = len(dens), len(rows)
-                cuts = [0]
+            masks = None
+            if len(bs) != len(rows):  # rows touch (a raised sword, a cape): cut along the emptiest winding seam near each third
+                fg = (rgba[..., 3] > 40).astype(np.float64)
+                H, W, n = fg.shape[0], fg.shape[1], len(rows)
+                seams = []
                 for k in range(1, n):
-                    lo, hi = int(H * k / n - H / 7), int(H * k / n + H / 7)
-                    cuts.append(lo + int(np.argmin(dens[lo:hi])))
-                cuts.append(H)
-                bs = [(cuts[k], cuts[k + 1]) for k in range(n)]
-            for (y0, y1), (act, n) in zip(bs, rows):
-                for crop, ax, ay in frames_in_row(rgba, y0, y1, n, cls, act):
+                    lo, hi = int(H * k / n - H / 6), int(H * k / n + H / 6)
+                    cost = fg[lo:hi] * 1000 + 1
+                    acc = cost[:, 0].copy(); back = np.zeros((hi - lo, W), np.int8)
+                    for x in range(1, W):
+                        up = np.r_[np.inf, acc[:-1]]; dn = np.r_[acc[1:], np.inf]
+                        best = np.minimum(np.minimum(up, acc), dn)
+                        back[:, x] = np.where(best == up, -1, np.where(best == dn, 1, 0))
+                        acc = best + cost[:, x]
+                    y = int(np.argmin(acc)); path = np.zeros(W, np.int64)
+                    for x in range(W - 1, -1, -1):
+                        path[x] = lo + y; y += int(back[y, x]) if x else 0
+                    seams.append(path)
+                yy = np.arange(H)[:, None]
+                masks = []
+                for k in range(n):
+                    top = seams[k - 1][None, :] if k else np.zeros((1, W), int)
+                    bot = seams[k][None, :] if k < n - 1 else np.full((1, W), H)
+                    masks.append((yy >= top) & (yy < bot))
+                bs = [(0, H)] * n
+            for r, ((y0, y1), (act, n)) in enumerate(zip(bs, rows)):
+                src = rgba
+                if masks is not None:
+                    src = rgba.copy(); src[..., 3] = np.where(masks[r], src[..., 3], 0)
+                    ys = np.where((src[..., 3] > 40).any(1))[0]; y0, y1 = int(ys[0]), int(ys[-1]) + 1
+                for crop, ax, ay in frames_in_row(src, y0, y1, n, cls, act):
                     acts.append((act, ax, ay)); ims.append(crop)
         if not ims:
             continue

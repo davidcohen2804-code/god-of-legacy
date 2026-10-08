@@ -541,6 +541,25 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     war_cry: { act: 'war_cry', st: [0], ac: [1, 2, 3, 2, 3], rc: [4, 5] },
     judgment_blade: { act: 'judgment_blade', st: [0, 1, 2, 2, 2, 2, 2, 2, 2, 2], ac: [3], rc: [4, 4, 5] },
   },
+  samurai: {
+    shadow_step: { act: 'shadow_step', st: [0], ac: [1, 2], rc: [3, 4, 5] },
+    swallow_cut: { act: 'swallow_cut', st: [0], ac: [1, 2, 3, 4], rc: [4, 5] },
+    spin_cut: { act: 'spin_cut', st: [0], ac: [0], rc: [0], loop: [0, 1, 2, 3, 4], fps: 16 },
+    iai_strike: { act: 'iai_strike', st: [0, 1], ac: [2], rc: [3, 4, 5] },
+    sword_wave: { act: 'sword_wave', st: [0], ac: [1], rc: [1, 2] },
+    mirage: { act: 'mirage', st: [0], ac: [0, 1, 0, 1], rc: [2, 3, 4, 5] },
+    blossom_storm: { act: 'blossom_storm', st: [0], ac: [1, 2, 3, 4], rc: [5, 5] },
+    hundred_cuts: { act: 'hundred_cuts', st: [0], ac: [1], rc: [5], loop: [1, 2, 3, 4], fps: 14 },
+    tornado_blade: { act: 'tornado_blade', st: [0, 1], ac: [2, 3], rc: [4, 5] },
+    falcon_dive: { act: 'falcon_dive', st: [0], ac: [1, 2, 3], rc: [4, 5] },
+    dragon_ascension: { act: 'dragon_ascension', st: [0, 1], ac: [2, 3, 4, 3, 4], rc: [5] },
+    dragon_eclipse: { act: 'dragon_eclipse', st: [0, 1], ac: [2, 3], rc: [3, 4, 5] },
+    kagemusha: { act: 'kagemusha', st: [0, 1, 2], ac: [3, 4], rc: [5] },
+    sakura_bind: { act: 'sakura_bind', st: [0, 1], ac: [2], rc: [3, 4, 5] },
+    rising_sun: { act: 'rising_sun', st: [0, 1, 2, 3], ac: [3], rc: [4, 5] },
+    phantom_blades: { act: 'phantom_blades', st: [0], ac: [1, 2, 3, 2, 3], rc: [4, 5] },
+    god_of_blades: { act: 'god_of_blades', st: [0, 1, 2, 3], ac: [3], rc: [4, 5] },
+  },
 };
 
 function heroFrame(cls: string, dir: Dir, act: string, i: number): PoseFrame {
