@@ -497,11 +497,18 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.fx.lift = character.hero ? HERO_LIFT : 0; // a ready hero stands taller: its numbers and calls go up with its head
     this.fx.handPos = (id) => (id === this.localId ? this.lastHand : null);
     this.fx.ghosts = (id) => this.ghostsOf(id);
-    this.fx.targetPos = (id) => { const c = this.casterPos(id); if (c) return c; const t = this.targetsFor({ own: true, attackerId: this.localId } as CastRun).find((x) => x.id === id); return t ? { x: t.x, y: t.y, z: t.z } : null; };
+    this.fx.targetPos = (id) => {
+      const c = this.casterPos(id);
+      if (c) { const v = id === this.localId ? this.view : id === BOT_ID ? this.bot?.view.view : this.pvp?.remotes.get(id)?.view; return { ...c, h: v?.headHeight || undefined }; }
+      const t = this.targetsFor({ own: true, attackerId: this.localId } as CastRun).find((x) => x.id === id);
+      return t ? { x: t.x, y: t.y, z: t.z, h: t.height } : null;
+    };
     this.fx.bodyOf = (id) => {
       const sp = id === this.localId ? this.view?.sprite : id === BOT_ID ? this.bot?.view.sprite : this.pvp?.remotes.get(id)?.sprite;
-      return sp ? { key: sp.texture.key, frame: sp.frame.name, flipX: sp.flipX, ox: sp.originX, oy: sp.originY, sx: Math.abs(sp.scaleX), sy: Math.abs(sp.scaleY) } : null;
+      const dir = id === this.localId ? this.dir : id === BOT_ID ? this.bot?.view.dir : this.pvp?.remotes.get(id)?.dir;
+      return sp ? { key: sp.texture.key, frame: sp.frame.name, flipX: sp.flipX, ox: sp.originX, oy: sp.originY, sx: Math.abs(sp.scaleX), sy: Math.abs(sp.scaleY), a: sp.visible ? sp.alpha : 0, face: dir === 'left' ? -1 : 1 } : null;
     };
+    this.fx.aliveOf = (id) => (id === this.localId ? this.dead < 0 : id === BOT_ID ? !!this.bot && !this.bot.defeated : this.pvp?.remotes.get(id)?.alive !== false);
     this.rt.events.on(RT_EVENTS.hit, (r: CastRun, i: number, o: V3) => this.kageSwing(r, i, o));
     this.fx.unarmed = (id) => (id === this.localId ? !this.gearSt.armed : this.pvp?.remotes.get(id)?.armed === false);
     this.renderPlayer(0);
@@ -1317,7 +1324,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     near.forEach((t, n) => this.time.delayedCall(n * 90, () => {
       if (!t.alive) return;
       const at = { x: t.x, y: t.y, z: t.z + 40 }, zr = { ...l.run, origin: { x: t.x - (t.x >= l.x ? 30 : -30), y: t.y, z: 0 } } as CastRun;
-      this.fx!.bladeStrike(l.run.attackerId, at);
+      this.fx!.bladeStrike(l.run.attackerId, at, t.id);
       this.time.delayedCall(150, () => { // the blade reaches the foe
         if (!t.alive) return;
         if (l.run.own) { if (t.kind === 'enemy') this.applyToPve(zr, L.hit, t, at); else if (t.id === BOT_ID) this.applyToBot(zr, L.hit, t, at); }
@@ -1961,9 +1968,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       for (const t of this.targetsFor(r)) if (t.kind === 'enemy' && t.alive && !t.invulnerable && shapeContains(gh, from, r.aim, place, path, t)) this.applyToPve(gr, gh, t, { x: t.x, y: t.y, z: t.z + 40 });
     }
   }
-  /** The AMBUSH landed: the doubles burst into petals. */
-  private kageAmbush(at: V3): void {
+  /** The AMBUSH landed: the doubles burst into petals; the foe is stunned (a crown of petals over its head). */
+  private kageAmbush(at: V3, target: string): void {
     this.fx?.callout(at, 'AMBUSH!!', '#ff5a6a', 0);
+    this.fx?.samStun(target, KAGE.ambushStun);
     if (this.fx) this.fx.hitStopLeft = Math.max(this.fx.hitStopLeft, 90);
     this.cameras.main.shake(160, 0.006);
     this.kage?.end('burst');
@@ -2473,7 +2481,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const sh = Math.max(90, Math.min(220, this.fx!.hitStopLeft + 60));
       if (target === BOT_ID) this.bot?.view.shake(sh); else this.pvp?.remotes.get(target)?.shake(sh);
     }
-    if (run?.own && damage > 0 && this.kage?.isAmbush(run.castId)) this.kageAmbush(at);
+    if (run?.own && damage > 0 && this.kage?.isAmbush(run.castId)) this.kageAmbush(at, target);
     const same = this.combo.comboId === comboId && this.combo.target === target;
     const mob = target.startsWith('mob:') ? this.mobById(target) : undefined;
     const max = mob ? mob.maxHp : target === 'enemy' ? (this.enemy?.maxHp ?? 1) : target === 'dummy' ? D.maxHp : target === BOT_ID ? (this.bot?.body.maxHp ?? PVP.maxHp) : (this.pvp?.remotes.get(target)?.maxHp ?? PVP.maxHp);
@@ -2537,6 +2545,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (hit.damage > 0 && this.ambushIn.delete(run.castId)) { // a samurai's AMBUSH (Kagemusha): a sure critical and a stun; his doubles burst
       h = { ...h, damage: h.damage * KAGE.ambushMul, reaction: { ...h.reaction, stun: Math.max(h.reaction.stun ?? 0, KAGE.ambushStun) } };
       this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'AMBUSH!!', '#ff5a6a', 0);
+      this.fx?.samStun(this.localId, KAGE.ambushStun);
       this.pvp?.remotes.get(run.attackerId)?.burstDoubles();
     }
     const out = this.body.receive(run.attackerId, s, h, this.hitFrom(run, hit), this.simMs);
@@ -2627,7 +2636,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Buffs end (death, a new battle round). */
   private endBuffs(): void {
     this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.spiritUntil = -1; this.hasteUntil = -1; this.tree = null; this.storm = null; this.resolveUntil = -1;
-    this.sunUntil = -1; this.godUntil = -1; this.fx?.clearHalo(this.localId); this.kage?.clear(); this.mageReset(); this.fx?.clearMage(this.localId);
+    this.sunUntil = -1; this.godUntil = -1; this.fx?.clearHalo(this.localId); this.fx?.clearSun(this.localId); this.kage?.clear(); this.mageReset(); this.fx?.clearMage(this.localId);
   }
 
   private killPlayer(): void {

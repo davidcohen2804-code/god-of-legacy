@@ -238,9 +238,11 @@ export class SkillFx {
   /** Where a samurai's Kagemusha doubles stand (they swing with him), set by the scene. */
   ghosts?: (id: string) => { k: number; x: number; y: number; z: number }[];
   /** Where a fighter or monster is now (a cast's locked-on target), set by the scene. */
-  targetPos?: (id: string) => V3 | null;
+  targetPos?: (id: string) => (V3 & { h?: number }) | null;
   /** A caster's body as drawn this moment (Phantom Blades' phantoms of him), set by the scene. */
-  bodyOf?: (id: string) => { key: string; frame: string | number; flipX: boolean; ox: number; oy: number; sx: number; sy: number } | null;
+  bodyOf?: (id: string) => { key: string; frame: string | number; flipX: boolean; ox: number; oy: number; sx: number; sy: number; a?: number; face?: number } | null;
+  /** Whether a fighter is alive (a buff's picture goes when he falls), set by the scene. */
+  aliveOf?: (id: string) => boolean;
   /** Damage numbers and calls this much higher (the fighters are ready heroes, drawn taller), set by the scene. */
   lift = 0;
   /** Local player's damage-number skin (cash shop). */
@@ -256,6 +258,7 @@ export class SkillFx {
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, hand: (id) => this.handPos?.(id) ?? null,
       callout: (at, text, color, row) => this.callout(at, text, color, row), punch: (a, ms) => this.punch(a, ms), darken: (ms, a) => this.darken(ms, a), ultimateStage: (r) => this.ultimateStage(r),
       ghosts: (id) => this.ghosts?.(id) ?? [], body: (id) => this.bodyOf?.(id) ?? null, targetPos: (id) => this.targetPos?.(id) ?? null,
+      freeze: (ms) => { this.hitStopLeft = Math.max(this.hitStopLeft, ms); }, alive: (id) => this.aliveOf?.(id) ?? true,
     });
     this.mage = new MageFx({
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, hand: (id) => this.handPos?.(id) ?? null,
@@ -1095,7 +1098,7 @@ export class SkillFx {
       const sz = rapid ? 64 : tier === 'ultimate' || hit.heavy ? 140 : 86, key = this.scene.textures.exists('afx-hit') ? 'afx-hit' : (this.impactFlip = !this.impactFlip) ? 'afx-impact' : 'afx-impact-b';
       this.play(key, at.x, at.y - at.z - 38, sz, sz, [20, 22, 24, 26, 28, 30, 34, 40], { depth: TOP + 2, fadeLast: 60 }); // the samurai's hit sizes
     } else if (s.cls === 'book_mage') this.mage.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit);
-    else if (s.cls === 'samurai') this.sam.confirmed(s, hit, at, reaction, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, from); // (the cut of the blade on the foe and the marks of what happened to it)
+    else if (s.cls === 'samurai') this.sam.confirmed(s, hit, at, reaction, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, from, local); // (the cut of the blade on the foe and the marks of what happened to it)
     else if (s.id !== 'warrior_basic') this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.4 : hit.heavy ? 1.15 : 1), 0.8); // (a regular attack: none, as in MapleStory)
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).
     if (s.cls !== 'samurai' && tier !== 'ultimate' && reaction === 'launch') this.spark(IMPACT.dust.key, at.x, at.y + 4, 6, 90, 0.5);
@@ -1934,9 +1937,13 @@ export class SkillFx {
   /** Final Cut: the ghost blade that follows a hit. */
   ghostCut(at: V3, dir: number, big = false): void { this.sam.finalCut(at, dir, big); }
   /** God of Blades: a blade of the halo flies at a foe. */
-  bladeStrike(attackerId: string, to: V3): void { this.sam.bladeStrike(attackerId, to); }
+  bladeStrike(attackerId: string, to: V3, targetId?: string): void { this.sam.bladeStrike(attackerId, to, targetId); }
   /** God of Blades: its halo is gone (the buff ended, its samurai fell or left). */
   clearHalo(attackerId: string, now = false): void { this.sam.clearHalo(attackerId, now); }
+  /** Rising Sun's light on him ends (he fell, his buffs end). */
+  clearSun(attackerId: string): void { this.sam.clearSun(attackerId); }
+  /** Stunned by a samurai's AMBUSH: a crown of petals over the head for the stun. */
+  samStun(id: string, ms: number): void { this.sam.stunCrown(id, ms); }
   // ---- the book mage's lasting effects and reactions (MageFx)
   weave(id: string, n: number, lost: boolean): void { this.mage.weave(id, n, lost); }
   grandWeave(id: string): void { this.mage.grandWeave(id); }

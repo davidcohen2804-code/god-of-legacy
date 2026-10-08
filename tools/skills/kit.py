@@ -44,7 +44,12 @@ SHEETS = {
     's11_hits.png': [  # slash hits (upper-left → lower-right), the sword wave, the ground slash, the blade trail
         ('slash_hit', (0, 80, 370, 500), 300), ('slash_hit_heavy', (370, 80, 770, 500), 320), ('slash_hit_double', (770, 80, 1136, 500), 300), ('spark_spray', (1136, 80, 1536, 500), 300),
         ('wave_crescent', (0, 540, 404, 1024), 320), ('wave_break', (404, 540, 745, 1024), 300), ('ground_slash', (745, 540, 1150, 1024), 400), ('blade_trail', (1150, 540, 1536, 1024), 400)],
+    's12_storm.png': [  # the blossom storm, spirit auras, status markers (the funnel and the crimson aura touch: SEAMS)
+        ('petal_storm', (0, 0, 420, 503), 420), ('petal_ring', (340, 150, 800, 503), 400), ('blossom_burst', (800, 60, 1210, 540), 340), ('launch_streaks', (1210, 0, 1536, 540), 380),
+        ('aura_crimson', (0, 503, 380, 1024), 420), ('aura_gold', (380, 503, 745, 1024), 420), ('stun_crown', (745, 600, 1110, 900), 220), ('timer_ring', (1110, 600, 1536, 900), 300)],
 }
+# rows where touching pieces are parted before the pieces are told apart (each side keeps its own light)
+SEAMS = {'s12_storm.png': [503]}
 
 def grid(cols, rows, names, sizes, w=1536, h=1024, x0=0, y0=0, mode=''):
     """Pieces in equal cells (left to right, top row first); a name None skips its cell."""
@@ -91,7 +96,7 @@ def solid_key(sheet):
     return np.dstack([col * a[..., None], a])
 
 
-def cut(pm, box, mode=''):
+def cut(pm, box, mode='', seams=()):
     a = pm[..., 3]
     if mode == 'box':
         x0, y0, x1, y1 = box
@@ -103,7 +108,9 @@ def cut(pm, box, mode=''):
         ys, xs = np.nonzero(sub[..., 3] > 0.03)
         if not len(ys): return None
         return sub[max(0, ys.min() - 4):ys.max() + 5, max(0, xs.min() - 4):xs.max() + 5]
-    lab, n = ndimage.label(a > 0.02, structure=np.ones((3, 3)))
+    on = a > 0.02
+    for y in seams: on[y, :] = False
+    lab, n = ndimage.label(on, structure=np.ones((3, 3)))
     if not n: return None
     idx = np.arange(1, n + 1)
     mass = ndimage.sum(a, lab, idx)
@@ -162,7 +169,7 @@ def main():
         for name, box, size, *mode in specs:
             mode = mode[0] if mode else ''
             if mode == 'solid' and solid is None: solid = solid_key(SRC + sheet)
-            p = cut(solid if mode == 'solid' else pm, box, mode)
+            p = cut(solid if mode == 'solid' else pm, box, mode, SEAMS.get(sheet, ()))
             if p is None: raise SystemExit(f'{sheet}: nothing in {name} {box}')
             names.append(name); pieces.append(scaled(p, size))
     pos, n = pack(pieces)
