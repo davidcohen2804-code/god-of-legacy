@@ -40,6 +40,7 @@ import { isQAMode } from '../qa/QAPanel';
 import { PvpController } from '../pvp/PvpController';
 import { Match, MatchPhase } from '../pvp/Match';
 import { BattleHUD, Fighter } from '../ui/BattleHUD';
+import { ComboGuide } from '../ui/ComboGuide';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
 import { NetMsg, PeerMeta } from '../pvp/Transport';
 import { genderOf, headLookOf, previewKeyOf } from '../characters/Look';
@@ -276,6 +277,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
    *  none) and the camera's own zoom (the K.O. punches in from it). */
   private match?: Match;
   private battleHud?: BattleHUD;
+  /** The arena: the class's combo routes on the left. */
+  private comboGuide?: ComboGuide;
   private koT = -1;
   private koZoomBack = false;
   /** When the side running the match was last heard from (real ms). */
@@ -546,6 +549,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (pvpRoom) this.buildSparUi();
     if (pvpRoom) {
       this.battleHud = new BattleHUD(ov, { rematch: () => this.askRematch(), exit: exitArena });
+      if (ComboGuide.has(this.cls)) this.comboGuide = new ComboGuide(ov, this.cls, this.kit, this.guideKeys());
       this.match = new Match(this.localId, {
         onPhase: (m, prev) => this.onMatchPhase(m, prev),
         send: (msg) => { if (this.match?.opponent !== BOT_ID) this.pvp?.sendMatch(msg); },
@@ -571,6 +575,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.enemy?.destroy(); this.enemy = undefined;
       this.bot?.destroy(); this.bot = undefined; this.sparUi?.root.remove(); this.sparUi = undefined; this.logEl?.remove(); this.logEl = undefined;
       this.battleHud?.destroy(); this.battleHud = undefined; this.match = undefined; this.koT = -1;
+      this.comboGuide?.destroy(); this.comboGuide = undefined;
       this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1;
       this.ambience?.destroy(); this.ambience = undefined;
       for (const o of this.occluders) { o.clearMask(true); o.destroy(); }
@@ -1852,6 +1857,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const want = shape && (shape.kind === 'sector' ? shape.range * 0.75 : shape.kind === 'line' ? shape.length * 0.6 : shape.kind === 'circle' && !shape.at ? shape.radius * 0.7 : 0);
     const t = want && !s.dash ? this.softTarget(want + 70, 0.3) : null;
     if (t) { const d = Math.hypot(t.x - k.x, t.y - k.y) - want; if (d > 4) this.lunge = { x: aim.x * Math.min(70, d), y: aim.y * Math.min(70, d), left: Math.max(60, s.chain?.timings?.[stage]?.startup ?? s.startup) }; }
+    // The cut is measured from where the lunge takes you (the step in is done by the time it strikes) — here and for the others.
+    const from = { x: k.x + (this.lunge?.x ?? 0), y: k.y + (this.lunge?.y ?? 0), z: k.z };
     const castId = `${this.localId}:${++this.castSeq}`;
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
     this.body.armorUntil = -1;
@@ -1869,11 +1876,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.slot === 7) this.body.invulnUntil = this.simMs + s.startup + s.active; // ultimate: untouchable while it plays
     else if (this.simMs < this.warCryUntil) this.body.armorUntil = this.simMs + s.startup + s.active; // War Cry: super armor while attacking
     this.kage?.arm(castId, s.id, { x: k.x, y: k.y, z: k.z }); // he strikes: out of hiding; a cast while the doubles stand: its first hit that lands is the AMBUSH
-    this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: { x: k.x, y: k.y, z: k.z }, aim, place, lock });
+    this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: from, aim, place, lock });
     if (s.chain) this.chain = { stage, lastEnd: Infinity, skill: s.id };
     this.setMode('skill');
     const dm = this.ownDamageMul(), rm = s.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.85 : 1; // buffs travel with the cast (victim-side damage / reach)
-    this.pvp?.sendCast({ castId, skillId: s.id, stage, x: Math.round(k.x), y: Math.round(k.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000), ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}), lock, ...(dm !== 1 ? { dm: Math.round(dm * 100) } : {}), ...(rm !== 1 ? { rm: Math.round(rm * 100) } : {}), ...(this.ownRangeMul(s) !== 1 ? { rg: Math.round(this.ownRangeMul(s) * 100) } : {}), ...(this.ownSpeedMul(s) !== 1 ? { sp: Math.round(this.ownSpeedMul(s) * 100) } : {}), ...(this.kage?.isAmbush(castId) ? { amb: 1 } : {}) });
+    this.pvp?.sendCast({ castId, skillId: s.id, stage, x: Math.round(from.x), y: Math.round(from.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000), ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}), lock, ...(dm !== 1 ? { dm: Math.round(dm * 100) } : {}), ...(rm !== 1 ? { rm: Math.round(rm * 100) } : {}), ...(this.ownRangeMul(s) !== 1 ? { rg: Math.round(this.ownRangeMul(s) * 100) } : {}), ...(this.ownSpeedMul(s) !== 1 ? { sp: Math.round(this.ownSpeedMul(s) * 100) } : {}), ...(this.kage?.isAmbush(castId) ? { amb: 1 } : {}) });
   }
 
   /** Archer casts: buffs, the tree, the channelled storm (timers on the sim clock, from the run's real startup). */
@@ -1956,6 +1963,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), b, () => this.onTalk(), (i) => this.usePotion(i));
     this.hud?.setKeyLabels(slotKeyLabels(b));
     this.hud?.setMenuKeys(menuKeys(b));
+    this.comboGuide?.setKeys(this.guideKeys());
     this.world?.setTalkKey(keyLabel(b.talk)); if (this.npcDialog) this.npcDialog.talkKey = keyLabel(b.talk);
   }
 
@@ -2670,6 +2678,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   // ======================================================================= battle mode (arena 1v1)
 
+  /** The combo guide's keys: every slot's and the jump's (Key Settings). */
+  private guideKeys(): { slots: string[]; jump: string } { return { slots: slotKeyLabels(this.bindings), jump: keyLabel(this.bindings.jump) }; }
+
   /** Skill cooldown multiplier: longer in the arena (more spacing, fewer strings of skills); the basic attack never waits. */
   private cdMul(s: FinalSkill): number { return this.arena && s.slot !== 0 ? ARENA.cdMul : 1; }
 
@@ -2724,6 +2735,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       else if (this.localId < opp) { m.koWindow = PVP.battle.koWindowMs; m.start(opp); }
     }
     m.update(real, ms);
+    this.comboGuide?.show(!m.active || (m.phase !== 'vs' && m.phase !== 'over')); // (not over the VS splash or the result)
     if (!m.active) return;
     B.setHp('l', this.hpFracOf(m.host)); B.setHp('r', this.hpFracOf(m.guest));
     B.setClock(m.phase === 'vs' || m.phase === 'intro' ? PVP.battle.roundMs : m.left, m.round);
