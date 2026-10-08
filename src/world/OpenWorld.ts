@@ -139,7 +139,7 @@ export class OpenWorld {
       g.addColorStop(0, 'rgba(226,152,138,0)'); g.addColorStop(0.12, 'rgba(226,152,138,0.35)'); g.addColorStop(0.25, 'rgba(222,148,134,1)'); g.addColorStop(1, 'rgba(206,134,122,1)');
       x.fillStyle = g; x.fillRect(0, 0, 4, 256); c.refresh();
     }
-    const fog = this.scene.add.image(TILES[i][0] - 2, WORLD_H - 150, 'below-fog2').setOrigin(0, 0).setDisplaySize(TILES[i][1] + 4, 600).setDepth(-0.95);   // opaque by the picture's edge
+    const fog = this.scene.add.image(TILES[i][0] - 2, WORLD_H - 150, 'below-fog2').setOrigin(0, 0).setDisplaySize(TILES[i][1] + 4, 600).setDepth(-1.6);   // behind the terrace and the plaza below the temple (never over its stairs)   // opaque by the picture's edge
     this.below.push(fog);
   }
 
@@ -353,7 +353,7 @@ export class OpenWorld {
     cam.centerOn(this.camX, this.camY);
     this.ambience.setView(this.viewLeft);
     const vl = this.camX - half, vr = this.camX + half;
-    const over = HEIGHTS.reduce((m, h) => Math.max(m, 1 - Phaser.Math.Clamp(Math.max(h.x - vr, vl - (h.x + h.w)) / 500, 0, 1)), 0);
+    const over = HEIGHTS.reduce((m, h) => Math.max(m, 1 - Phaser.Math.Clamp(Math.max(h.x - 300 - vr, vl - (h.x + h.w + 300)) / 600, 0, 1)), 0);
     this.ambience.setFade(Math.min(1 - Phaser.Math.SmoothStep(hView, 20, 160), 1 - over));   // no sun shafts over the walls of the maps above
     this.backdrop?.setView(this.viewLeft, cam.width / zoom);
     this.backdrop?.setLift(Math.max(0, terraceCy - this.camY));

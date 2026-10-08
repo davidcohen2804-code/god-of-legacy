@@ -15,7 +15,8 @@ G = os.path.dirname(os.path.abspath(__file__)) + '/'
 R = G + '../../'
 STRIP = json.load(open(R + 'src/data/world-strip.json'))
 TERRACE_H = STRIP['h']                     # 941: the terrace picture's height = where the plaza starts
-EDGE_Y = 652                               # the terrace floor's front edge (the balustrade)
+EDGE_Y = 652
+HAZE_Y = 330                               # above this row (the back balustrade's top) the terrace is sky                               # the terrace floor's front edge (the balustrade)
 
 # GPT picture (native px): the staircase between its cheek walls, and the line under the stairs where the plaza starts
 STAIR = (620, 48, 1050, 236)               # x0, y0, x1, y1
@@ -78,6 +79,20 @@ def main():
     t0.paste(base, (gx0, top))
     t0.save(tp, 'WEBP', quality=88, alpha_quality=100, method=6)
     print('stairs into tile', ti)
+
+  # over the maps above the terrace (heights.py): the terrace's sky must be clear — light shafts and haze GPT painted
+  # into its sky (half see-through in the cut-out) would lie over their walls; only solid terrace stays there
+  hp0 = R + 'src/data/world-heights.json'
+  for hh in (json.load(open(hp0)) if os.path.exists(hp0) else []):
+    x0h, x1h = hh.get('imgX', hh['x']), hh.get('imgX', hh['x']) + hh['w'] + 2 * (hh['x'] - hh.get('imgX', hh['x']))
+    for ti, (tx, tw) in enumerate(STRIP['tiles']):
+      if tx + tw <= x0h or tx >= x1h: continue
+      tp = R + f"public/assets/world/strip/{ti}.{STRIP.get('ext', 'jpg')}"
+      im = np.array(Image.open(tp).convert('RGBA'))
+      a0, a1 = max(0, x0h - tx), min(tw, x1h - tx)
+      band = im[:HAZE_Y, a0:a1, 3]; band[band < 235] = 0
+      Image.fromarray(im).save(tp, 'WEBP', quality=88, alpha_quality=100, method=6)
+      print('sky cleared over', hh['id'], 'in tile', ti)
 
   # the one floor: the strip's + the stairs + the plaza
   walk = Polygon(STRIP['walk']).buffer(0)
