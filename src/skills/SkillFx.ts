@@ -119,6 +119,14 @@ const screenAng = (dx: number, dy: number) => Math.atan2(dy * 0.5, dx) * (180 / 
 /** Per-skill arrow colour (outer glow tint). */
 /** Side-view art (facing right) aimed along (dx, dy), level on screen; facing left = mirrored, never upside down. */
 const level = (dx: number, dy: number): { ang: number; flip: boolean } => dx < -0.01 ? { flip: true, ang: Math.atan2(-dy * 0.5, -dx) * (180 / Math.PI) } : { flip: false, ang: Math.atan2(dy * 0.5, dx) * (180 / Math.PI) };
+/** Archer effect sizes against the samurai's standard (a normal hit ~86px, a heavy one ~140, effects about the body's
+ *  size): every archer piece drawn through play() is scaled by this. Gameplay-sized marks (mine, target, aim band,
+ *  roots band, roar ring, the ultimate's field) keep their true size. */
+const ARCHER_SIZE: Record<string, number> = {
+  'afx-muzzle': 0.72, 'afx-fire': 0.72, 'afx-boot': 0.68, 'afx-kick': 0.7, 'afx-dive': 0.8, 'afx-heavy': 0.72, 'afx-rainfall': 0.72,
+  'afx-rise': 0.9, 'afx-strike': 0.78, 'afx-tree2': 0.9, 'afx-volley': 0.68, 'afx-burst': 0.68, 'afx-gold': 0.9, 'afx-garrow': 0.8,
+  'jb-bolt': 0.72, 'afx-bolt': 0.75,
+};
 const ARROW_TINT: Record<string, number> = { arrow_storm: 0xa8f04a, quick_shot: 0x7ee35a, multi_shot: 0xa8f04a, skyhunters_step: 0x9cffc8, piercing_arrow: 0x7ee35a, explosive_arrow: 0xffa040, extra: 0x9cf27a };
 /** Per-skill arrow display length (px). */
 const ARROW_LEN: Record<string, number> = { quick_shot: 120, multi_shot: 128, skyhunters_step: 120, piercing_arrow: 190, explosive_arrow: 150 };
@@ -1060,8 +1068,8 @@ export class SkillFx {
     const im = s.cls === 'warrior' ? 0.8 : 1; // MapleStory: a small, quick hit spark on the target (no flash over the body)
     if (s.cls === 'archer' && (this.scene.textures.exists('afx-hit') || this.scene.textures.exists('afx-impact'))) { // painted arrow impact (two variants, alternating)
       const rapid = s.hits.length > 3 && !hit.heavy; // storms / volleys: small sparks, never a white-out
-      const sz = (rapid ? 100 : 150) * (tier === 'ultimate' ? 1.3 : hit.heavy ? 1.15 : 1), key = this.scene.textures.exists('afx-hit') ? 'afx-hit' : (this.impactFlip = !this.impactFlip) ? 'afx-impact' : 'afx-impact-b';
-      this.play(key, at.x, at.y - at.z - 38, sz, sz, [25, 30, 35, 40, 45, 50, 60, 70], { depth: TOP + 2, fadeLast: 70 });
+      const sz = rapid ? 64 : tier === 'ultimate' || hit.heavy ? 140 : 86, key = this.scene.textures.exists('afx-hit') ? 'afx-hit' : (this.impactFlip = !this.impactFlip) ? 'afx-impact' : 'afx-impact-b';
+      this.play(key, at.x, at.y - at.z - 38, sz, sz, [20, 22, 24, 26, 28, 30, 34, 40], { depth: TOP + 2, fadeLast: 60 }); // the samurai's hit sizes
     } else if (s.cls === 'samurai') this.sam.confirmed(s, hit, at, reaction, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, from); // (the cut of the blade on the foe and the marks of what happened to it)
     else if (s.id !== 'warrior_basic') this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.4 : hit.heavy ? 1.15 : 1), 0.8); // (a regular attack: none, as in MapleStory)
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).
@@ -1304,7 +1312,7 @@ export class SkillFx {
     const x = p.x, y = p.y - p.z, big = id === 'explosive_arrow' ? 1.2 : 1;
     const leaf = this.scene.textures.exists('afx-arrow') && id !== 'explosive_arrow', lv = level(p.dx, p.dy);
     const arrow = leaf // the painted leaf arrow (level on screen, mirrored to the left)
-      ? this.scene.add.image(x, y, 'afx-arrow', 0).setOrigin(lv.flip ? 0.02 : 0.98, 0.5).setFlipX(lv.flip).setAngle(lv.ang).setDisplaySize(len * 2.1, len * 2.1 / 4)
+      ? this.scene.add.image(x, y, 'afx-arrow', 0).setOrigin(lv.flip ? 0.02 : 0.98, 0.5).setFlipX(lv.flip).setAngle(lv.ang).setDisplaySize(len * 1.45, len * 1.45 / 4)
       : this.scene.add.image(x, y, 'arch-arrow').setOrigin(0.97, 0.5).setAngle(ang).setDisplaySize(len, 24 * big).setTint(0xffffff, 0xffffff, tint, tint).setBlendMode(Phaser.BlendModes.NORMAL);
     const streak = this.scene.add.image(x, y, 'arch-streak').setOrigin(1, 0.5).setAngle(ang).setDisplaySize(40, 16 * big).setTint(tint).setBlendMode(Phaser.BlendModes.NORMAL).setAlpha(0.9);
     const glow = this.scene.add.image(x, y, 'arch-glow').setDisplaySize(56 * big, 56 * big).setTint(tint).setBlendMode(Phaser.BlendModes.NORMAL).setAlpha(0.8);
@@ -1416,6 +1424,7 @@ export class SkillFx {
   /** One archer sheet timeline (any cell size). */
   private play(key: string, x: number, y: number, w: number, h: number, fms: number[], o: PlayOpts = {}): Phaser.GameObjects.Image | null {
     if (!this.scene.textures.exists(key)) return null;
+    const sk = ARCHER_SIZE[key] ?? 1; w *= sk; h *= sk; // archer pieces at the samurai's scale
     const frames = o.frames ?? fms.map((_, i) => i);
     const img = this.scene.add.image(x, y, key, frames[0]).setOrigin(o.ox ?? 0.5, o.oy ?? 0.5).setDisplaySize(w, h).setFlipX(!!o.flip).setFlipY(!!o.flipY).setAngle(o.angle ?? 0).setDepth(o.depth ?? y)
       .setBlendMode(o.blend ?? Phaser.BlendModes.NORMAL).setAlpha(o.alpha ?? 1); // the archer sheets are re-toned (tools/skills/tone.py): normal blend keeps their colour on the sunny floor (the samurai's pass their blend)
@@ -1521,7 +1530,7 @@ export class SkillFx {
       }
       case 'hunters_roar': { // the wolf spirit roars over the archer; the wave reaches both sides
         const p = me() ?? o;
-        this.play(key, p.x, p.y - p.z - 80, 400, 266, [T.startup * 0.4, T.startup * 0.6, 110, 150, 170, 190, 220, 260], { flip: left, depth: p.y - 2, alpha: 0.95, follow: () => { const q = me(); return q ? { x: q.x, y: q.y, z: q.z + 96 } : null; } }); // the wolf spirit stands behind the archer
+        this.play(key, p.x, p.y - p.z - 70, 320, 213, [T.startup * 0.4, T.startup * 0.6, 110, 150, 170, 190, 220, 260], { flip: left, depth: p.y - 2, alpha: 0.95, follow: () => { const q = me(); return q ? { x: q.x, y: q.y, z: q.z + 96 } : null; } }); // the wolf spirit stands behind the archer
         this.scene.time.delayedCall(T.startup, () => {
           const q = me() ?? o; this.shockwave(q.x, q.y, 300, 0x52cf3e, true); this.scene.time.delayedCall(140, () => this.shockwave(q.x, q.y, 480, 0x9cf27a, true));
           for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; this.dust(q.x + Math.cos(a) * 170, q.y + Math.sin(a) * 60, 100, 0.55); }
@@ -1616,7 +1625,7 @@ export class SkillFx {
             if (e < T.startup + 150) return;
             em.emitting = true; em.setPosition(bx, by);
             orb.setPosition(bx, by).setAlpha(bc ? 0.3 : 0.7).setDisplaySize((30 + 90 * k) * pul, (30 + 90 * k) * pul);
-            if (bc) { const tx = o.x + a.x * 150, ty = o.y + a.y * 150, sz = (60 + 110 * k) * pul; bc.setPosition(bx, by).setRotation(Math.atan2(ty - by, tx - bx)).setFrame(k < 0.9 ? Math.floor(k / 0.9 * 4) : 4 + (Math.floor(e / 70) % 4)).setDisplaySize(sz, sz); }
+            if (bc) { const tx = o.x + a.x * 150, ty = o.y + a.y * 150, sz = (50 + 80 * k) * pul; bc.setPosition(bx, by).setRotation(Math.atan2(ty - by, tx - bx)).setFrame(k < 0.9 ? Math.floor(k / 0.9 * 4) : 4 + (Math.floor(e / 70) % 4)).setDisplaySize(sz, sz); }
             if (bolt0) { const tx = o.x + a.x * 150, ty = o.y + a.y * 150, rot = Math.atan2(ty - by, tx - bx) + Math.PI / 2; bolt0.setPosition(bx, by).setRotation(rot).setAlpha(0.6 + 0.4 * Math.random()).setDisplaySize((30 + 60 * k) * pul, (80 + 170 * k) * pul); } core.setPosition(bx, by).setAlpha(1).setDisplaySize((14 + 40 * k) * pul, (14 + 40 * k) * pul);
             if (e - lastBolt > 140 - 80 * k) { lastBolt = e; const an = Math.random() * Math.PI * 2, rr = 30 + 60 * k; this.zigBolt(bx, by, bx + Math.cos(an) * rr, by + Math.sin(an) * rr, 0x7fe0ff, 2); }
             if (r.own && k > 0.7 && Math.random() < 0.08) (this.cam ?? this.scene.cameras.main).shake(60, 0.0015 * k);
@@ -1661,7 +1670,7 @@ export class SkillFx {
           this.floorFx('afx-fan', sx, sy, a, 620, [30, 40, 50, 60, 80, 100, 120, 160], { ox: 40 / 512, aspect: 1.3 });
           if (this.scene.textures.exists('afx-muzzle')) { const lv = level(a.x, a.y); this.play('afx-muzzle', sx, sy - 56, 380, 380, [30, 40, 50, 60, 70, 80, 90, 110], { ox: lv.flip ? 0.86 : 0.14, flip: lv.flip, depth: TOP + 3 })?.setAngle(lv.ang); }
           const px = -a.y, py = a.x; // three eagles burst out of the release and spread across the floor's depth as they fly
-          for (const [k, d] of [[0, 0], [-1, 70], [1, 140]] as const) this.scene.time.delayedCall(d, () => this.eagleSweep(sx, sy - 56, a, len, T.active + 200 - d, k * 130 * px, k * 130 * py * FLOOR_SQUASH, k === 0 ? 1 : 0.75));
+          for (const [k, d] of [[0, 0], [-1, 70], [1, 140]] as const) this.scene.time.delayedCall(d, () => this.eagleSweep(sx, sy - 56, a, len, T.active + 200 - d, k * 130 * px, k * 130 * py * FLOOR_SQUASH, k === 0 ? 0.8 : 0.58));
           if (r.own) { (this.cam ?? this.scene.cameras.main).shake(500, 0.012); this.punch(0.07, 360); }
         });
         break;
@@ -1774,9 +1783,9 @@ export class SkillFx {
   /** Spirit Bow: a great green bow of light floats beside the archer, turned to the aim, drawing and loosing on its own while it lasts. */
   private spiritBow(r: CastRun): void {
     const painted = this.scene.textures.exists('afx-sbow'), key = painted ? 'afx-sbow' : this.scene.textures.exists('afx-emblem') ? 'afx-emblem' : 'afx-charge';
-    const img = this.scene.add.image(0, 0, key, 0).setDisplaySize(230, 230).setAlpha(0).setScale(0.01);
+    const img = this.scene.add.image(0, 0, key, 0).setDisplaySize(180, 180).setAlpha(0).setScale(0.01);
     const halo = this.scene.add.image(0, 0, 'arch-glow').setTint(0x52cf3e).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(200, 200).setAlpha(0);
-    this.scene.tweens.add({ targets: img, alpha: 1, scaleX: 230 / img.width, scaleY: 230 / img.height, duration: 260, ease: 'Back.easeOut' });
+    this.scene.tweens.add({ targets: img, alpha: 1, scaleX: 180 / img.width, scaleY: 180 / img.height, duration: 260, ease: 'Back.easeOut' });
     this.scene.tweens.add({ targets: halo, alpha: 0.35, duration: 260 });
     const motes = this.scene.add.particles(0, 0, 'arch-glow', { speed: { min: 10, max: 40 }, lifespan: { min: 400, max: 700 }, scale: { start: 0.1, end: 0 }, alpha: { start: 0.9, end: 0 }, tint: [0x9cf27a, 0xffe27a], blendMode: 'ADD', frequency: 40, emitZone: { type: 'random', source: new Phaser.Geom.Circle(0, 0, 70), quantity: 1 } as never });
     let t = 0;
@@ -1786,7 +1795,7 @@ export class SkillFx {
       const a = r.aim, up = a.y < -0.3, lv = level(a.x, a.y), side = a.x < -0.01 ? -1 : 1;
       const x = c.x + side * 60, y = c.y - c.z - 70 + Math.sin(t / 260) * 5; // floats at the shoulder on the aim side
       void lv; const vert = up && Math.abs(a.x) < 0.1, aimDeg = vert ? -90 : up ? (side > 0 ? -45 : -135) : side > 0 ? 0 : 180, ang = painted ? (vert ? -90 : up ? -45 * side : 0) : aimDeg + 90, draw = 1 - 0.08 * Math.max(0, Math.sin((t % 250) / 250 * Math.PI)); // the painted bow points up: turned so its arrow points along the aim (level, or up at an angle)
-      img.setPosition(x, y).setAngle(ang).setFlipX(painted && side < 0).setDepth(c.y + 3).setFrame(painted ? (Math.floor(((t % 250) / 250) * 8) + 3) % 8 : Math.floor(t / 90) % 8) // the bow draws and looses in time with every shot.setScale(230 / img.width, (230 / img.height) * draw);
+      img.setPosition(x, y).setAngle(ang).setFlipX(painted && side < 0).setDepth(c.y + 3).setFrame(painted ? (Math.floor(((t % 250) / 250) * 8) + 3) % 8 : Math.floor(t / 90) % 8) // the bow draws and looses in time with every shot.setScale(180 / img.width, (180 / img.height) * draw);
       halo.setPosition(x, y).setDepth(c.y + 2.9); motes.setPosition(x, y).setDepth(c.y + 3.1);
     } });
   }

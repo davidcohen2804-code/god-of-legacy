@@ -203,7 +203,14 @@ export class HardCC {
 
   active(now: number): boolean { return now < this.end; }
   /** Returns the applied duration (0 = rejected by immunity / DR). */
-  apply(kind: 'root' | 'freeze' | 'stun', ms: number, now: number, pvp: boolean): number {
+  apply(kind: 'root' | 'freeze' | 'stun', ms: number, now: number, pvp: boolean, long = false): number {
+    if (long) { // binding skills (vines, mines): the whole hold, once; DR / immunity still guard against chains in PvP
+      if (pvp && (now < this.end || now < this.immuneUntil)) return 0;
+      const d = pvp ? Math.floor(ms * HCC.multipliers[Math.min(this.tier, HCC.multipliers.length - 1)]) : ms;
+      if (d <= 0) return 0;
+      if (pvp) { this.tier++; this.lastAccepted = now; this.immuneUntil = now + d + HCC.postImmunityMs; }
+      this.end = Math.max(this.end, now + d); this.kind = kind; return d;
+    }
     if (!pvp) { const d = Math.min(ms, 600); this.end = Math.max(this.end, now + d); this.kind = kind; return d; }
     if (now < this.end || now < this.immuneUntil) return 0;
     if (now - this.lastAccepted > HCC.drWindowMs) this.tier = 0;
@@ -370,7 +377,7 @@ export class CombatBody {
     const cr = 1 - this.ccResist;
     if (R.slow) { this.slowPct = R.slow.pct; this.slowUntil = Math.max(this.slowUntil, now + R.slow.ms * cr); }
     if (this.ccResist > 0 && (R.hardCC || R.slow)) this.endureAt = now;
-    if (R.hardCC) { out.ccMs = this.hard.apply(R.hardCC.kind, Math.round(R.hardCC.ms * cr), now, this.pvp); if (out.ccMs > 0) out.reaction = 'cc'; }
+    if (R.hardCC) { out.ccMs = this.hard.apply(R.hardCC.kind, Math.round(R.hardCC.ms * cr), now, this.pvp, !!R.hardCC.long); if (out.ccMs > 0) out.reaction = 'cc'; }
     if (armored) { out.reaction = 'armor'; return out; }
     const juggleCost = R.juggleCost ?? 0;
     const air = !k.grounded || this.state === 'launched';

@@ -316,7 +316,7 @@ const archer: FinalSkill[] = [
     startup: 220, active: 280, recovery: 160, cooldown: 7000, ground: true, air: false, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
     dash: { distance: -130, lift: 38 }, // plants the mine and hops back away from it
     placeRange: 260, trap: { radius: 90, lifeMs: 4000, fuseMs: 2000 },
-    hits: [H(0, 0, { kind: 'placed', radius: 90 }, { hardCC: { kind: 'root', ms: 2000 }, stun: 120 }),
+    hits: [H(0, 0, { kind: 'placed', radius: 90 }, { hardCC: { kind: 'root', ms: 2000, long: true }, stun: 120 }),
       H(0, 32, { kind: 'placed', radius: 110 }, { stun: 600, launch: 300, juggleCost: 30 }, { reachUp: 200, heavy: true })],
     cancelOnHit: [], telegraph: 'ground',
     description: 'A vine mine buried in the floor. Whoever steps on it — a player or a whole pack of monsters — is held, and 2s later it explodes and throws them all very high; untouched, it goes off by itself after 4s.',
@@ -359,7 +359,7 @@ const archer: FinalSkill[] = [
   S({
     id: 'leaping_arrow', cls: 'archer', slot: 12, name: 'Binding Leaves', roles: ['hardCC', 'setup'], targeting: 'mouseLine',
     startup: 2000, active: 300, recovery: 260, cooldown: 14000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, armor: [0, 2300],
-    hits: [H(120, 12, { kind: 'line', length: 560, width: 170 }, { hardCC: { kind: 'root', ms: 4000 }, stun: 200 }, { reachUp: 60 })],
+    hits: [H(120, 12, { kind: 'line', length: 560, width: 170 }, { hardCC: { kind: 'root', ms: 4000, long: true }, stun: 200 }, { reachUp: 60 })],
     cancelOnHit: ['quick_shot', 'multi_shot', 'rain_of_arrows'], telegraph: 'line',
     description: 'Charge for 2s, then send a wide band of leaves and vines across the floor: every player and monster on it is bound in place for 4s.',
     relations: ['Charge 2s', 'Bind 4s'],

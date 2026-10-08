@@ -41,7 +41,7 @@ export interface Reaction {
   float?: boolean;
   knockdown?: 'light' | 'heavy';
   /** Hard crowd control (shared DR policy). */
-  hardCC?: { kind: 'root' | 'freeze' | 'stun'; ms: number };
+  hardCC?: { kind: 'root' | 'freeze' | 'stun'; ms: number; /** a binding skill: its full duration holds (not capped like a hit's root) */ long?: boolean };
   slow?: { pct: number; ms: number };
   juggleCost?: number;
   /** Pin the victim in place (no gravity, no drift) for this long (ms). */
