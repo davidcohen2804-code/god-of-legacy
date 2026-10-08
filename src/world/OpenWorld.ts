@@ -76,6 +76,7 @@ export class OpenWorld {
   private arenaTiles: (Phaser.GameObjects.Image | null)[] = ARENA.tiles.map(() => null);
   private occluders: Phaser.GameObjects.Image[] = [];
   private towers: Phaser.GameObjects.Image[] = [];
+  private below: Phaser.GameObjects.Image[] = [];
   private gate: Phaser.GameObjects.Image[] = [];
   private npcs: NpcView[] = [];
   private prompt: Phaser.GameObjects.Container;
@@ -131,6 +132,17 @@ export class OpenWorld {
     const key = tileKey(i);
     if (!this.scene.textures.exists(key)) { this.scene.load.image(key, tileUrl(i)); return; }
     this.tiles[i] = this.scene.add.image(TILES[i][0], 0, key).setOrigin(0, 0).setDepth(-1);
+    // below the picture (seen when the camera draws back): its bottom band (the arches' legs) carried on down, sinking
+    // into the valley mist — the bridge never ends in a cut edge
+    const B0 = WORLD_H - 70, S = 4.5, fogH = 70 * S;
+    const ext = this.scene.add.image(TILES[i][0], WORLD_H - B0 * S, key).setOrigin(0, 0).setScale(1, S).setCrop(0, B0, TILES[i][1], 70).setDepth(-1.6);
+    if (!this.scene.textures.exists('below-fog')) {
+      const c = this.scene.textures.createCanvas('below-fog', 4, 256)!, x = c.getContext(), g = x.createLinearGradient(0, 0, 0, 256);
+      g.addColorStop(0, 'rgba(226,150,136,0)'); g.addColorStop(0.35, 'rgba(226,150,136,0.75)'); g.addColorStop(1, 'rgba(214,138,126,1)');
+      x.fillStyle = g; x.fillRect(0, 0, 4, 256); c.refresh();
+    }
+    const fog = this.scene.add.image(TILES[i][0], WORLD_H - 2, 'below-fog').setOrigin(0, 0).setDisplaySize(TILES[i][1], fogH + 400).setDepth(-1.55);
+    this.below.push(ext, fog);
   }
 
   private buildOccluders(): void {
@@ -352,6 +364,8 @@ export class OpenWorld {
    *  this device. */
   private userZoom = 1;
   private userLift = 0;
+  /** One step of the player's camera (the HUD's camera buttons): zoom in / out, view up / down, reset. */
+  camStep: (what: 'in' | 'out' | 'up' | 'down' | 'reset') => void = () => undefined;
   private camKeys(): void {
     try { const v = JSON.parse(localStorage.getItem(CAM_STORE) ?? 'null'); if (v) { this.userZoom = Phaser.Math.Clamp(+v.z || 1, USER_ZOOM[0], USER_ZOOM[1]); this.userLift = Phaser.Math.Clamp(+v.l || 0, USER_LIFT[0], USER_LIFT[1]); } } catch { /* defaults */ }
     const save = () => { try { localStorage.setItem(CAM_STORE, JSON.stringify({ z: this.userZoom, l: this.userLift })); } catch { /* not kept */ } };
@@ -362,6 +376,12 @@ export class OpenWorld {
       if (e?.shiftKey) { lift(dy > 0 ? -25 : 25); return; }
       this.userZoom = Phaser.Math.Clamp(this.userZoom * (dy > 0 ? 0.94 : 1 / 0.94), USER_ZOOM[0], USER_ZOOM[1]); save();
     });
+    this.camStep = (what) => {
+      if (what === 'in' || what === 'out') this.userZoom = Phaser.Math.Clamp(this.userZoom * (what === 'out' ? 0.92 : 1 / 0.92), USER_ZOOM[0], USER_ZOOM[1]);
+      else if (what === 'up' || what === 'down') { lift(what === 'up' ? 30 : -30); return; }
+      else { this.userZoom = 1; this.userLift = 0; }
+      save();
+    };
     kb?.on('keydown-PAGE_UP', () => lift(30)); kb?.on('keydown-PAGE_DOWN', () => lift(-30));
     kb?.on('keydown-HOME', () => { this.userZoom = 1; this.userLift = 0; save(); });
   }
@@ -468,6 +488,7 @@ export class OpenWorld {
     this.arenaTiles = ARENA.tiles.map(() => null);
     for (const o of this.occluders) o.destroy();
     for (const o of this.towers) o.destroy(); this.towers = [];
+    for (const o of this.below) o.destroy(); this.below = [];
     for (const g of this.gate) g.destroy(); this.gate = [];
     for (const n of this.npcs) { n.sprite.destroy(); n.shadow.destroy(); n.plate.destroy(); n.name.destroy(); n.title.destroy(); n.mark.destroy(); }
     if (this.portal) { this.portal.beam.destroy(); this.portal.ring.destroy(); this.portal.glow.destroy(); this.portal.motes.destroy(); }

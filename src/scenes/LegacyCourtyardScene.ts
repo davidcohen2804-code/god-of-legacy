@@ -507,6 +507,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onReturn: pvpRoom ? exitArena : () => this.scene.start('CharacterSelectScene'),
       onSlot: (i) => this.useSlot(i),
       onPotion: (i) => this.usePotion(i),
+      onCam: (w) => this.world?.camStep(w),
       onMenu: (k) => this.togglePanel(k),
       onKeys: () => { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.keySettings?.open(loadBindings()); },
     });

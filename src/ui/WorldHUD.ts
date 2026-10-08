@@ -102,6 +102,14 @@ const CSS = `
 .gol-hud .gold{position:absolute;display:flex;align-items:center;gap:9px;height:40px;padding:0 16px 0 10px;border-radius:999px;
   font:700 15px/1 var(--gl-body);color:var(--gl-gold2);font-variant-numeric:tabular-nums;letter-spacing:.3px;white-space:nowrap}
 .gol-hud .gold img{width:26px;height:26px}
+.gol-hud .camc{position:absolute;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 6px;border-radius:14px;pointer-events:auto}
+.gol-hud .camc .cl{font:700 9.5px/12px var(--gl-body);letter-spacing:1.4px;color:#c9ae78;margin-bottom:2px}
+.gol-hud .camc .sep{width:22px;height:1px;background:var(--gl-line2);margin:3px 0}
+.gol-hud .camc button{width:34px;height:34px;padding:0;border-radius:10px;border:1px solid var(--gl-line2);background:rgba(255,255,255,.04);color:var(--gl-text2);
+  cursor:pointer;display:grid;place-items:center;transition:background 120ms,border-color 120ms,color 120ms,transform 100ms}
+.gol-hud .camc button:hover{background:var(--gl-goldsoft);border-color:var(--gl-goldline);color:var(--gl-gold2)}
+.gol-hud .camc button:active{transform:scale(.92)}
+.gol-hud .camc button::before{content:'';width:15px;height:15px;background:currentColor;-webkit-mask:var(--i) center/contain no-repeat;mask:var(--i) center/contain no-repeat}
 .gol-hud .feed{position:absolute;display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:none}
 .gol-hud .feed .it{display:flex;align-items:center;gap:8px;height:32px;padding:0 14px 0 8px;border-radius:999px;background:rgba(9,14,24,.78);
   border:1px solid rgba(255,255,255,.1);font:700 13.5px/1 var(--gl-body);letter-spacing:.3px;white-space:nowrap;text-shadow:0 1px 2px #000;
@@ -196,6 +204,8 @@ export interface WorldHUDOptions {
   onMenu?: (key: 'K' | 'I' | 'O' | 'P' | 'U') => void;
   /** Gear menu: open the Key Settings window. */
   onKeys?: () => void;
+  /** The camera buttons beside the minimap. */
+  onCam?: (what: 'in' | 'out' | 'up' | 'down' | 'reset') => void;
   /** Click on a potion (0 HP, 1 MP). */
   onPotion?: (i: 0 | 1) => void;
 }
@@ -360,6 +370,22 @@ export class WorldHUD {
     this.els.goldV = document.createElement('span'); gold.appendChild(this.els.goldV); gold.title = 'Gold';
     this.els.gold = gold;
     const feed = this.div('feed', this.root); feed.style.right = `${1920 - G.feed.right}px`; feed.style.bottom = `${1080 - G.feed.bottom}px`; this.els.feed = feed;
+    // the camera's buttons: zoom in / out, view up / down, reset — a slim column left of the minimap (held: repeats)
+    const cc = this.div('camc gl-panel', this.root); cc.style.left = `${G.minimap.x - 56}px`; cc.style.top = `${G.minimap.y}px`; cc.setAttribute('aria-label', 'Camera');
+    this.div('cl', cc).textContent = 'CAM';
+    const btn = (what: 'in' | 'out' | 'up' | 'down' | 'reset', icon: string, title: string) => {
+      const b = document.createElement('button'); b.type = 'button'; b.title = title; b.setAttribute('aria-label', title); b.style.setProperty('--i', icon);
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      let rep = 0; const go = () => this.opts.onCam?.(what);
+      b.addEventListener('pointerdown', () => { go(); if (what !== 'reset') rep = window.setInterval(go, 140); });
+      for (const ev of ['pointerup', 'pointerleave']) b.addEventListener(ev, () => window.clearInterval(rep));
+      cc.appendChild(b);
+    };
+    btn('in', ICONS.plus, 'Zoom in (mouse wheel)'); btn('out', ICONS.minus, 'Zoom out (mouse wheel)');
+    this.div('sep', cc);
+    btn('up', ICONS.up, 'View up (PageUp)'); btn('down', ICONS.down, 'View down (PageDown)');
+    this.div('sep', cc);
+    btn('reset', ICONS.rotate, 'Reset camera (Home)');
     this.placeDock(0);
   }
 
