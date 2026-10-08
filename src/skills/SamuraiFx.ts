@@ -14,6 +14,10 @@ export const KIT_URL = 'assets/final/skills/samurai/kit/';
 const TOP = 100000, GROUND = 2, SQUASH = 0.42, CRIMSON = 0xff3a4c, DUST = 0xd2a57a;
 /** The crack piece runs diagonally on its sheet; this turns it level. */
 const CRACK_TILT = -57;
+/** The slash-hit pieces run this many degrees down to the right on their sheet (s11). */
+const SLASH_TILT = 43;
+/** A trail of the blade (blade_trail) / a flipped piece: angle that points it along `ang` (deg on screen). */
+const along = (ang: number, left: boolean) => (left ? ang - 180 : ang);
 /** Hits whose cut "arrives late": a thin line stays on the foe and splits open a beat after. */
 const DELAYED = new Set(['shadow_step', 'iai_strike', 'dragon_eclipse', 'mirage']);
 
@@ -322,7 +326,10 @@ export class SamuraiFx {
       case 'iai_strike': this.iaiCut(r); break;
       case 'spin_cut': if (i === 1) this.spinRing(r, 1); break;
       case 'hundred_cuts': this.flurry(r, i); break;
-      case 'mirage': this.cut('cut_heavy', 190, side * 8, { x: q.x + side * 50, y: y0 - 56, depth: TOP + 3, flipX: side < 0, grow: 60, hold: 50, fade: 200 }); break;
+      case 'mirage':
+        this.cut('cut_heavy', 190, side * 8, { x: q.x + side * 50, y: y0 - 56, depth: TOP + 3, flipX: side < 0, grow: 60, hold: 50, fade: 200 });
+        this.spr({ name: 'blade_trail', x: q.x + side * 36, y: y0 - 50, w: 180, life: 240, flipX: side < 0, angle: side * 6, glow: 0.35, sx: kf([0, 0.6], [0.2, 1, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+        break;
       case 'kagemusha': this.kageVanish(r.origin); break; // he vanishes where he stood (every screen, from the cast)
       case 'falcon_dive': if (i === 1) this.falconImpact(r); else this.cut('cut_thin', 120, side * 30, { x: q.x + side * 30, y: y0 - 40, depth: q.y + 4, flipX: side < 0 }); break;
       case 'rising_sun': this.sunBurst(r); break;
@@ -337,17 +344,59 @@ export class SamuraiFx {
     void cam;
   }
 
-  /** A confirmed hit on a foe: the spark (bigger for heavy and critical hits) and the shared marks of what happened to it. */
-  confirmed(s: FinalSkill, hit: HitEvent, at: V3, reaction: string, heavy: boolean, crit: boolean): void {
+  /** The line a hit's cut leaves on the foe (deg on screen, for a swing to the right; null: not a cut — a burst instead). */
+  private slashLine(s: FinalSkill, hit: HitEvent): { ang: number; double?: boolean } | null {
+    const i = s.hits.indexOf(hit), R = () => rnd(-60, 60);
+    switch (s.id) {
+      case 'quick_slash': {
+        const st = s.chain?.stages.findIndex((x) => x.includes(hit)) ?? 0;
+        if (st === 1) return { ang: -32 };
+        if (st === 2) return { ang: s.chain!.stages[2].indexOf(hit) === 0 ? 30 : -30, double: true };
+        return st === 3 ? { ang: -72 } : { ang: 38 };
+      }
+      case 'shadow_step': return { ang: 4 };
+      case 'swallow_cut': return { ang: i === 1 ? 55 : -70 };
+      case 'iai_strike': return { ang: 2 };
+      case 'spin_cut': return { ang: i === 1 ? -14 : 12 };
+      case 'sword_wave': return { ang: 76 };
+      case 'hundred_cuts': return hit.heavy ? { ang: 18 } : { ang: R(), double: Math.random() < 0.4 };
+      case 'mirage': return { ang: 24 };
+      case 'blossom_storm': return { ang: hit.heavy ? -70 : rnd(-50, 50) };
+      case 'dragon_eclipse': return { ang: hit.heavy ? 0 : rnd(-80, 80) };
+      case 'falcon_dive': return { ang: i === 0 ? 78 : -80 };
+      case 'dragon_ascension': return { ang: i === 0 ? -80 : R() };
+      case 'god_of_blades': return i === 0 ? null : { ang: R() }; // (its strikes: the halo's katanas)
+      case 'tornado_blade': case 'phantom_blades': return { ang: R() };
+    }
+    return null; // (Rising Sun, Sakura Bind, Kagemusha: light, blossoms, ink — no blade)
+  }
+
+  /** A confirmed hit on a foe: a real cut of the blade across it along the swing (heavier and brighter for heavy and
+   *  critical hits), sparks sprayed the way it is thrown, and the shared marks of what happened to it. `from`: where the
+   *  blow came from (the cut and the sparks face away from there). */
+  confirmed(s: FinalSkill, hit: HitEvent, at: V3, reaction: string, heavy: boolean, crit: boolean, from?: { x: number; y: number }): void {
     if (!this.ready) return;
-    const x = at.x, y = at.y - at.z - 38, rapid = s.hits.length > 3 && !hit.heavy;
-    if (crit) { this.pop('burst_crit', x, y, rapid ? 120 : 165, { life: 300 }); this.petals(x, y, 4, 50, { depth: TOP + 3 }); }
+    const x = at.x, y = at.y - at.z - 38, rapid = s.hits.length > 3 && !hit.heavy, side = from && at.x < from.x - 2 ? -1 : 1;
+    const line = this.slashLine(s, hit), ang = line ? side * line.ang : 0;
+    if (line) {
+      const name = crit || (heavy && !rapid) ? 'slash_hit_heavy' : line.double ? 'slash_hit_double' : 'slash_hit';
+      const w = crit ? (rapid ? 170 : 230) : heavy && !rapid ? 196 : rapid ? 112 : line.double ? 160 : 150, life = crit ? 320 : heavy ? 280 : rapid ? 170 : 220;
+      this.spr({ name, x, y, depth: TOP + 4, w, life, angle: ang - SLASH_TILT, glow: crit ? 0.45 : heavy ? 0.35 : 0.2,
+        sx: kf([0, 0.5], [0.16, 1.06, out3], [1, 1.14]), sy: kf([0, 0.5], [0.16, 1.06, out3], [1, 1.14]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
+      if (crit) this.pop('burst_crit', x, y, rapid ? 100 : 130, { life: 260, depth: TOP + 3.6, glow: 0.3 });
+    } else if (crit) this.pop('burst_crit', x, y, rapid ? 120 : 165, { life: 300 });
     else if (heavy && !rapid) this.pop('burst', x, y, 140, { life: 280 });
     else this.pop('spark_s', x, y, rapid ? 64 : 86, { life: 190 });
+    if (crit) this.petals(x, y, 5, 56, { depth: TOP + 3 });
+    const up = reaction === 'launch' || reaction === 'float', thrown = up || reaction === 'knockdown' || heavy || (hit.reaction.push ?? 0) >= 14;
+    if (thrown && (!rapid || hit.heavy) && reaction !== 'cc') // sparks sprayed the way the foe is thrown (up when it is lifted)
+      this.spr({ name: 'spark_spray', x: x - side * 8, y, ox: side > 0 ? 0.05 : 0.95, oy: 0.45, flipX: side < 0, depth: TOP + 3.8, w: heavy ? 168 : 126, life: 260,
+        angle: up ? -side * 50 : side * rnd(-6, 10), sx: kf([0, 0.4], [0.25, 1, out3], [1, 1.12]), sy: kf([0, 0.6], [0.25, 1, out3]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
     if (reaction === 'launch') this.launchBeam(at.x, at.y);
     if (reaction === 'knockdown' || reaction === 'slam') { this.crack(at.x, at.y + 2, 120); this.dust(at.x, at.y, 120); }
     if (s.id === 'sakura_bind' && reaction === 'cc') this.cage(at.x, at.y, hit.reaction.hardCC?.ms ?? 2000);
-    if (DELAYED.has(s.id) && (s.id !== 'dragon_eclipse' || hit.heavy)) this.later(170, () => this.cut('cut_split', 150, rnd(-28, 28), { x, y: y - 4, depth: TOP + 5, grow: 40, hold: 70, fade: 220, glow: 0.7 }));
+    if (DELAYED.has(s.id) && (s.id !== 'dragon_eclipse' || hit.heavy)) // the cut arrives late: the line on the foe splits open a beat after
+      this.later(170, () => this.cut('cut_split', 150, line ? ang : rnd(-28, 28), { x, y: y - 4, depth: TOP + 5, grow: 40, hold: 70, fade: 220, glow: 0.7 }));
   }
 
   /** The Mirage Counter fired: the mirage the blow struck shatters where he stood (the counter cut comes as its hit). */
@@ -456,7 +505,11 @@ export class SamuraiFx {
     this.spr({ name: 'cut_split', x: mx, y: my, angle: ang, flipY: fl, w: len * 0.95, delay: 110, life: 360, glow: 0.65, depth: TOP + 3.5,
       sx: kf([0, 0.7], [0.2, 1, out3]), sy: kf([0, 0.3], [0.2, 1.1, out3], [1, 0.5]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
     this.pop('burst', x0 + side * 18, y0, 90 + 30 * lv, { life: 200 });
+    this.spr({ name: 'blade_trail', x: x0 + a.x * 36, y: y0 + a.y * 18, w: 170 + 30 * lv, life: 230, flipX: fl, angle: along(ang, fl), glow: 0.4, // the trail of the draw
+      sx: kf([0, 0.6], [0.2, 1, out3], [1, 1.08]), sy: kf([0, 0.8], [0.2, 1], [1, 0.6, inQ]), a: kf([0, 0.95], [0.4, 0.8], [1, 0, inQ]) });
     if (lv === 2) { // fully drawn: the floor is cut too, a shockwave runs down it, dust where the foes go down
+      this.spr({ name: 'ground_slash', x: q.x + a.x * len * 0.52, y: q.y + a.y * len * 0.52 + 2, angle: ang, flipY: fl, w: len * 0.95, depth: GROUND + 2.2, life: 1500, delay: 60, glow: 0.5,
+        sx: kf([0, 0.1], [0.1, 1, out3]), sy: kf([0, 1.4], [0.1, 1]), a: kf([0, 1], [0.55, 1], [1, 0, inQ]) });
       this.crack(q.x + a.x * len * 0.5, q.y + a.y * len * 0.5, len * 0.95, Math.atan2(a.y, a.x) * (180 / Math.PI));
       this.shock(q.x + a.x * len * 0.6, q.y + a.y * len * 0.6, 180);
       for (let i = 0; i < 4; i++) this.dust(q.x + a.x * len * (0.25 + 0.22 * i), q.y + a.y * len * (0.25 + 0.22 * i), 90, 110 + i * 40);
@@ -627,6 +680,8 @@ export class SamuraiFx {
     this.cut('cut_line', 640, ang, { x: at.x - a.x * 40, y, depth: TOP + 5, h: 80, grow: 50, hold: 120, fade: 320, glow: 0.9, sweep: 0, flipY: a.x < -0.01 });
     this.later(110, () => this.cut('cut_split', 520, ang, { x: at.x, y, depth: TOP + 5.5, grow: 50, hold: 120, fade: 300, glow: 0.8, sweep: 0 }));
     this.pop('burst_crit', at.x, y, 240, { life: 380, depth: TOP + 6 });
+    this.spr({ name: 'ground_slash', x: at.x, y: at.y + 2, angle: ang, flipY: a.x < -0.01, w: 460, depth: GROUND + 2.2, life: 1600, glow: 0.55,
+      sx: kf([0, 0.1], [0.1, 1, out3]), sy: kf([0, 1.5], [0.1, 1]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
     // the dragon flies along the cut, through the foe and away
     const dr = this.dragon(60), dx = Math.cos(ang * Math.PI / 180), dy = Math.sin(ang * Math.PI / 180), x0 = at.x - dx * 420, y0 = y - dy * 420, L = 1100, gap = 38, n = 16;
     this.add({ t: 0, step: (_dt, t) => {
@@ -936,31 +991,39 @@ export class SamuraiFx {
 
   // ------------------------------------------------------------------ Sword Wave: the flying crescent
 
+  /** Sword Wave: a crescent of crimson sword energy flying along its path (its own tail of light behind it), the trail of
+   *  the fling at his blade; on impact (a foe, a wall, its end) it shatters into shards and petals. */
   projectile(p: Projectile): void {
     if (!this.ready) return;
-    const s = this.ctx.scene;
-    const im = s.add.image(p.x, p.y - p.z, KIT, 'cut_heavy').setDepth(p.y + 2);
-    const gl = s.add.image(p.x, p.y - p.z, KIT, 'cut_heavy').setBlendMode(Phaser.BlendModes.ADD).setDepth(p.y + 2.01).setAlpha(0.55);
-    const me = this.ctx.casterPos(p.attackerId), ghosts = me ? (this.ctx.ghosts?.(p.attackerId) ?? []).map((g) => ({ im: s.add.image(p.x, p.y - p.z, KIT, 'cut_heavy'), dx: g.x - me.x, dy: g.y - me.y })) : [];
+    const s = this.ctx.scene, mk = (add: boolean) => s.add.image(p.x, p.y - p.z, KIT, 'wave_crescent').setOrigin(0.76, 0.5).setBlendMode(add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL).setDepth(p.y + 2);
+    const im = mk(false), gl = mk(true).setAlpha(0.45);
+    const me = this.ctx.casterPos(p.attackerId), ghosts = me ? (this.ctx.ghosts?.(p.attackerId) ?? []).map((g) => ({ im: mk(false), dx: g.x - me.x, dy: g.y - me.y })) : [];
     this.waves.set(p, { im, gl, t: 0, trail: 0, ghosts }); // (the doubles throw theirs too: the same crescent beside his)
+    if (me) { // the fling: the trail of the swing at his blade
+      const fl = p.dx < -0.01, ang = screenAng(p.dx, p.dy);
+      this.spr({ name: 'blade_trail', x: me.x + p.dx * 30, y: me.y - me.z - 52, w: 150, life: 200, flipX: fl, angle: along(ang, fl), glow: 0.3,
+        sx: kf([0, 0.6], [0.25, 1, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+    }
   }
   projectileEnd(p: Projectile): void {
     const w = this.waves.get(p); if (!w) return;
     this.waves.delete(p);
-    const end = p.end ?? { x: p.x, y: p.y };
-    this.pop('spark_s', end.x, end.y - p.z, 70, { life: 180 });
+    const end = p.end ?? { x: p.x, y: p.y }, fl = p.dx < -0.01, ang = screenAng(p.dx, p.dy);
+    const shatter = (x: number, y: number, size: number) => this.spr({ name: 'wave_break', x, y, w: size, life: 320, flipX: fl, angle: along(ang, fl) * 0.3, glow: 0.35, depth: TOP + 4,
+      sx: kf([0, 0.6], [0.2, 1.05, out3], [1, 1.2]), sy: kf([0, 0.6], [0.2, 1.05, out3], [1, 1.2]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
+    shatter(end.x, end.y - p.z, 128);
     w.im.destroy(); w.gl.destroy();
-    for (const g of w.ghosts) { this.pop('spark_s', end.x + g.dx, end.y + g.dy - p.z, 60, { life: 160 }); g.im.destroy(); }
+    for (const g of w.ghosts) { shatter(end.x + g.dx, end.y + g.dy - p.z, 108); g.im.destroy(); }
   }
   private stepWaves(dt: number): void {
     for (const [p, w] of this.waves) {
       w.t += dt;
-      const ang = screenAng(p.dx, p.dy) + 4 * Math.sin(w.t / 45), k = 96 / w.im.width, fl = p.dx < -0.01, x = p.x, y = p.y - p.z;
-      for (const im of [w.im, w.gl]) im.setPosition(x, y).setAngle(ang).setScale(k, k * (1 + 0.06 * Math.sin(w.t / 35))).setFlipY(fl).setDepth(p.y + (im === w.gl ? 2.01 : 2));
-      for (const g of w.ghosts) g.im.setPosition(x + g.dx, y + g.dy).setAngle(ang).setScale(k, k * (1 + 0.06 * Math.sin(w.t / 35))).setFlipY(fl).setDepth(p.y + g.dy + 2);
-      if (w.t - w.trail > 32) { // afterimages and a petal trail
+      const ang = screenAng(p.dx, p.dy) + 3 * Math.sin(w.t / 45), k = 150 / w.im.width, fl = p.dx < -0.01, x = p.x, y = p.y - p.z, pulse = 1 + 0.05 * Math.sin(w.t / 35);
+      for (const im of [w.im, w.gl]) im.setPosition(x, y).setAngle(ang).setScale(k * (im === w.gl ? 1.04 : 1), k * pulse).setFlipY(fl).setDepth(p.y + (im === w.gl ? 2.01 : 2));
+      for (const g of w.ghosts) g.im.setPosition(x + g.dx, y + g.dy).setAngle(ang).setScale(k, k * pulse).setFlipY(fl).setDepth(p.y + g.dy + 2);
+      if (w.t - w.trail > 40) { // afterimages and a petal trail
         w.trail = w.t;
-        this.spr({ name: 'cut_heavy', x, y, depth: p.y + 1, w: 96, angle: ang, flipY: fl, add: true, life: 170, a: kf([0, 0.4], [1, 0, inQ]) });
+        this.spr({ name: 'wave_crescent', x, y, ox: 0.76, depth: p.y + 1, w: 150, angle: ang, flipY: fl, add: true, life: 150, a: kf([0, 0.24], [1, 0, inQ]) });
         if (Math.random() < 0.5) this.petals(x, y, 1, 22, { depth: p.y + 1, life: 600 });
       }
     }

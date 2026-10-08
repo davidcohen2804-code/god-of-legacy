@@ -1052,7 +1052,7 @@ export class SkillFx {
   // ------------------------------------------------------------------ confirmed hits
 
   /** Confirmed hit feedback at the target: class impact, damage number, hit-stop + shake by tier. */
-  confirmed(s: FinalSkill, hit: HitEvent, at: V3, damage: number, reaction: string, local: boolean, combo: number, crit = false): void {
+  confirmed(s: FinalSkill, hit: HitEvent, at: V3, damage: number, reaction: string, local: boolean, combo: number, crit = false, from?: { x: number; y: number }): void {
     const tier = tierOf(s, hit);
     const k = IMPACT[s.cls] ?? IMPACT.warrior;
     const im = s.cls === 'warrior' ? 0.8 : 1; // MapleStory: a small, quick hit spark on the target (no flash over the body)
@@ -1060,7 +1060,7 @@ export class SkillFx {
       const rapid = s.hits.length > 3 && !hit.heavy; // storms / volleys: small sparks, never a white-out
       const sz = (rapid ? 100 : 150) * (tier === 'ultimate' ? 1.3 : hit.heavy ? 1.15 : 1), key = this.scene.textures.exists('afx-hit') ? 'afx-hit' : (this.impactFlip = !this.impactFlip) ? 'afx-impact' : 'afx-impact-b';
       this.play(key, at.x, at.y - at.z - 38, sz, sz, [25, 30, 35, 40, 45, 50, 60, 70], { depth: TOP + 2, fadeLast: 70 });
-    } else if (s.cls === 'samurai') this.sam.confirmed(s, hit, at, reaction, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit); // (its sparks and the marks of what happened to the foe)
+    } else if (s.cls === 'samurai') this.sam.confirmed(s, hit, at, reaction, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, from); // (the cut of the blade on the foe and the marks of what happened to it)
     else if (s.id !== 'warrior_basic') this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.4 : hit.heavy ? 1.15 : 1), 0.8); // (a regular attack: none, as in MapleStory)
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).
     if (s.cls !== 'samurai' && tier !== 'ultimate' && reaction === 'launch') this.spark(IMPACT.dust.key, at.x, at.y + 4, 6, 90, 0.5);

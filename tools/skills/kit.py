@@ -40,6 +40,9 @@ SHEETS = {
     's8_banner.png': [('banner_cloth', (0, 0, 460, 1024), 440), ('banner_pole', (460, 0, 760, 1024), 512), ('katana', (760, 0, 1170, 1024), 400), ('katana_ghost', (1170, 0, 1536, 1024), 400)],
     's9_wind.png': [('tornado', (0, 0, 475, 1024), 520), ('petal_column', (475, 0, 794, 1024), 480), ('wind_ring', (794, 0, 1536, 523), 400), ('wind_lines', (794, 523, 1536, 1024), 400)],
     's10_birds.png': [('falcon_dive', (0, 0, 659, 724), 400), ('falcon_spread', (659, 0, 1477, 724), 440), ('swallow', (1477, 0, 2172, 724), 320)],
+    's11_hits.png': [  # slash hits (upper-left → lower-right), the sword wave, the ground slash, the blade trail
+        ('slash_hit', (0, 80, 370, 500), 300), ('slash_hit_heavy', (370, 80, 770, 500), 320), ('slash_hit_double', (770, 80, 1136, 500), 300), ('spark_spray', (1136, 80, 1536, 500), 300),
+        ('wave_crescent', (0, 540, 404, 1024), 320), ('wave_break', (404, 540, 745, 1024), 300), ('ground_slash', (745, 540, 1150, 1024), 400), ('blade_trail', (1150, 540, 1536, 1024), 400)],
 }
 MARGIN = 40           # how far past its box a piece may reach (its own glow)
 BODY_SLICES = 8       # the dragon body is also cut into this many frames along its length (the game chains them)

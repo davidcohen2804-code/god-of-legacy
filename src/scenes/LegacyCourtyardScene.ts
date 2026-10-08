@@ -2175,7 +2175,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (this.orbs.cast !== run.castId) { this.orbs.cast = run.castId; this.orbs.n = Math.min(ORBS.max, this.orbs.n + 1); }
       this.orbs.lastAt = this.simMs;
     }
-    this.fx!.confirmed(s, hit, at, damage, reaction, true, idx, crit);
+    this.fx!.confirmed(s, hit, at, damage, reaction, true, idx, crit, run ? this.hitFrom(run, hit) : undefined);
     if (damage > 0) { // your hit on another fighter: it shudders through the hit-stop (fighting-game feel)
       const sh = Math.max(90, Math.min(220, this.fx!.hitStopLeft + 60));
       if (target === BOT_ID) this.bot?.view.shake(sh); else this.pvp?.remotes.get(target)?.shake(sh);
@@ -2247,7 +2247,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     out.damage = this.takeDamage(out.damage);
     if (trial && out.damage > 0) this.hitBlinkUntil = this.simMs + HIT_IFRAMES;
     if (run.attackerId === BOT_ID) this.logHit(false, s, out, this.body, this.kin.z);
-    this.fx!.confirmed(s, hit, at, out.damage, out.reaction, false, out.hitIndex);
+    this.fx!.confirmed(s, hit, at, out.damage, out.reaction, false, out.hitIndex, false, this.hitFrom(run, hit));
     if (this.arena && out.damage > 0) { // the arena: a hit lands on you — a beat of hit-stop, your body shudders, heavy ones shake the screen
       const heavy = !!hit.heavy || out.reaction === 'launch' || out.reaction === 'knockdown' || s.slot === 7;
       this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, heavy ? 110 : 60);
