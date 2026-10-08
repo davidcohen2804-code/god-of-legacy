@@ -49,10 +49,9 @@ export function archerMotion(id: string, e: number, T: Timeline, face: number): 
       const k = kick(r, 380);
       return M({ dx: -face * 26 * big * k, ang: -face * 9 * big * k, sx: 1 + 0.06 * k, sy: 1 - 0.06 * k, after: r < 220 });
     }
-    case 'piercing_arrow': { // the emblem lights up behind her: rise and stand tall
-      const r = e - T.startup;
-      if (r < 0) return M({ sy: 1 - 0.07 * clamp01(e / T.startup) });
-      return M({ dy: -12 * Math.sin(Math.PI * clamp01(r / (T.active + 240))), sy: 1.05, sx: 0.98 });
+    case 'piercing_arrow': { // Spirit Bow: a quick gather as the bow appears (then she moves freely while it fires)
+      if (e < T.startup) return M({ sy: 1 - 0.07 * clamp01(e / T.startup) });
+      return null;
     }
     case 'rain_of_arrows': { // crouch, spring into the air (the real height is the leap), tilt down at the floor and recoil on each lightning arrow
       const r = e - T.startup;

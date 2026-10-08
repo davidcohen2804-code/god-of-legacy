@@ -212,7 +212,7 @@ const screenAng = (dx: number, dy: number) => Math.atan2(dy * 0.5, dx) * (180 / 
 /** Per-skill arrow colour (outer glow tint). */
 /** Side-view art (facing right) aimed along (dx, dy), level on screen; facing left = mirrored, never upside down. */
 const level = (dx: number, dy: number): { ang: number; flip: boolean } => dx < -0.01 ? { flip: true, ang: Math.atan2(-dy * 0.5, -dx) * (180 / Math.PI) } : { flip: false, ang: Math.atan2(dy * 0.5, dx) * (180 / Math.PI) };
-const ARROW_TINT: Record<string, number> = { arrow_storm: 0xa8f04a, quick_shot: 0x7ee35a, multi_shot: 0xa8f04a, skyhunters_step: 0x9cffc8, piercing_arrow: 0x5cd6ff, explosive_arrow: 0xffa040, extra: 0x9cf27a };
+const ARROW_TINT: Record<string, number> = { arrow_storm: 0xa8f04a, quick_shot: 0x7ee35a, multi_shot: 0xa8f04a, skyhunters_step: 0x9cffc8, piercing_arrow: 0x7ee35a, explosive_arrow: 0xffa040, extra: 0x9cf27a };
 /** Per-skill arrow display length (px). */
 const ARROW_LEN: Record<string, number> = { quick_shot: 120, multi_shot: 128, skyhunters_step: 120, piercing_arrow: 190, explosive_arrow: 150 };
 /** Charge-up at the bow before release: [glow size, colour, camera shake on release]. */
@@ -905,6 +905,7 @@ export class SkillFx {
     }
     if (!g) return;
     g.setDepth(GROUND).setTint(col).setAlpha(s.slot === 7 ? 0.95 : 0.7);
+    if (s.id === 'eagle_arrow') g.setTint(0x52cf3e).setAlpha(1).setBlendMode(Phaser.BlendModes.ADD); // a bright green band shows where the tide will go
     this.scene.tweens.add({ targets: g, alpha: { from: g.alpha * 0.45, to: g.alpha }, duration: 160, yoyo: true, repeat: -1 });
     this.teles.push({ g, run: r, follow });
   }
@@ -1040,7 +1041,7 @@ export class SkillFx {
       this.projs.set(p, img);
       return;
     }
-    if (p.skill.id === 'arrow_storm' && this.scene.textures.exists('afx-muzzle')) { const lv = level(p.dx, p.dy); this.play('afx-muzzle', p.x, p.y - p.z, 120, 120, [30, 30, 35, 40, 45, 50, 55, 60], { ox: lv.flip ? 0.86 : 0.14, flip: lv.flip, depth: p.y + 1 })?.setAngle(lv.ang); }
+    if ((p.skill.id === 'arrow_storm' || p.skill.id === 'piercing_arrow') && this.scene.textures.exists('afx-muzzle')) { const lv = level(p.dx, p.dy); this.play('afx-muzzle', p.x, p.y - p.z, 120, 120, [30, 30, 35, 40, 45, 50, 55, 60], { ox: lv.flip ? 0.86 : 0.14, flip: lv.flip, depth: p.y + 1 })?.setAngle(lv.ang); }
     if (p.skill.cls === 'archer' && this.scene.textures.exists('arch-arrow')) { this.archerArrow(p); return; }
     const id = PROJ_ALIAS[p.skill.id] ?? p.skill.id, sheet = PROJECTILE_SHEETS[id];
     if (!sheet) return;
@@ -1153,6 +1154,10 @@ export class SkillFx {
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).
     if (tier !== 'ultimate' && reaction === 'launch') this.spark(IMPACT.dust.key, at.x, at.y + 4, 6, 90, 0.5);
     if (tier !== 'ultimate' && (reaction === 'knockdown' || reaction === 'slam')) this.spark(IMPACT.dust.key, at.x, at.y + 6, 6, 110, 0.55);
+    if (s.id === 'leaping_arrow' && this.scene.textures.exists('afx-vines')) { // Binding Leaves: vines climb round the caught foe's legs for the hold
+      const hold = hit.reaction.hardCC?.ms ?? 3000;
+      for (const dx of [-14, 14]) this.play('afx-vines', at.x + dx, at.y + 2, 90, 46, [60, 70, 90, 120, 600, 600, 900, 300], { oy: 0.85, flip: dx < 0, depth: at.y + 1, loop: [4, 6], until: hold - 300, loopMs: 260, fadeLast: 300 });
+    }
     if (damage > 0) this.damageNumber(at, damage, hit.heavy || tier === 'ultimate' || tier === 'signature', combo, local, crit);
     if (local) {
       const multi = (s.chain ? 1 : s.hits.length) > 3 && !hit.heavy; // rapid multi-hits: lighter per-hit freeze
@@ -1287,11 +1292,19 @@ export class SkillFx {
       this.blend(a, idx + 1 < a.frames.length ? a.frames[idx + 1] : null, (tt - start) / Math.max(1, a.frameMs[idx]));
       return true;
     });
-    for (const t of this.teles) if (t.follow) { const c = this.casterPos(t.run.attackerId); if (c) t.g.setPosition(c.x, c.y); }
+    for (const t of this.teles) {
+      if (t.follow) { const c = this.casterPos(t.run.attackerId); if (c) t.g.setPosition(c.x, c.y); }
+      if (t.run.skill.id === 'eagle_arrow') t.g.setAngle(Math.atan2(t.run.aim.y, t.run.aim.x) * (180 / Math.PI)); // Eagle Tide: the green band turns with the aim while charging
+    }
     for (const p of projectiles) {
       const fx = this.arrowFx.get(p);
       if (fx) { // drawn archer arrow: head on the arrow, the streak stretches with the distance flown
-        const x = p.x, y = p.y - p.z, d = projDepth(p), len = Math.min(fx.trail, 30 + p.ageMs * 0.9);
+        let x = p.x, y = p.y - p.z; const d = projDepth(p), len = Math.min(fx.trail, 30 + p.ageMs * 0.9);
+        if (p.skill.id === 'piercing_arrow' && p.dy < -0.3) { // Spirit Bow aimed up: the arrow arcs high and falls back down onto the floor ahead
+          const life = 620, k = Math.min(1, p.ageMs / life), H = 170, lift = 4 * H * k * (1 - k), slope = 4 * H * (1 - 2 * k) / life * 1000;
+          y -= lift; const sp = 900, lv = p.dx < -0.01, ang = Math.atan2(p.dy * sp * 0.5 - slope, Math.abs(p.dx) * sp + 1) * (180 / Math.PI);
+          fx.parts[0].setAngle(lv ? -ang : ang); fx.parts[1].setAngle(lv ? 180 - ang : ang);
+        }
         fx.parts[0].setPosition(x, y).setDepth(d + 0.02); if (fx.parts[0].texture.key === 'afx-arrow') fx.parts[0].setFrame(Math.floor(p.ageMs / 70) % 8);
         fx.parts[1].setPosition(x, y).setDepth(d + 0.01).setDisplaySize(len, fx.parts[1].displayHeight);
         fx.parts[2].setPosition(x, y).setDepth(d).setDisplaySize(fx.glow * (0.9 + 0.2 * Math.random()), fx.glow * (0.9 + 0.2 * Math.random()));
@@ -1367,8 +1380,8 @@ export class SkillFx {
   /** A glowing arrow with a light streak and a trail of motes (every archer projectile). */
   private archerArrow(p: Projectile): void {
     const id = p.skill.id, tint = ARROW_TINT[id] ?? 0x7ee35a, len = ARROW_LEN[id] ?? 120, ang = screenAng(p.dx, p.dy);
-    const x = p.x, y = p.y - p.z, big = id === 'piercing_arrow' ? 1.35 : id === 'explosive_arrow' ? 1.2 : 1;
-    const leaf = this.scene.textures.exists('afx-arrow') && id !== 'piercing_arrow' && id !== 'explosive_arrow', lv = level(p.dx, p.dy);
+    const x = p.x, y = p.y - p.z, big = id === 'explosive_arrow' ? 1.2 : 1;
+    const leaf = this.scene.textures.exists('afx-arrow') && id !== 'explosive_arrow', lv = level(p.dx, p.dy);
     const arrow = leaf // the painted leaf arrow (level on screen, mirrored to the left)
       ? this.scene.add.image(x, y, 'afx-arrow', 0).setOrigin(lv.flip ? 0.02 : 0.98, 0.5).setFlipX(lv.flip).setAngle(lv.ang).setDisplaySize(len * 2.1, len * 2.1 / 4)
       : this.scene.add.image(x, y, 'arch-arrow').setOrigin(0.97, 0.5).setAngle(ang).setDisplaySize(len, 24 * big).setTint(0xffffff, 0xffffff, tint, tint).setBlendMode(Phaser.BlendModes.NORMAL);
@@ -1526,11 +1539,13 @@ export class SkillFx {
         this.scene.time.delayedCall(T.startup, () => {
           if (this.scene.textures.exists('afx-vines')) { // vines sprout out of the soil one patch after another, racing along the band, hold, then wither
             const lv = level(a.x, a.y), px = -a.y, py = a.x;
-            for (let i = 0; i < 4; i++) for (const w of [-45, 45]) {
-              const d = 70 + i * 150 + (w > 0 ? 40 : 0), vx = sx + a.x * d + px * w, vy = sy + (a.y * d + py * w) * FLOOR_SQUASH;
-              this.scene.time.delayedCall(i * 70 + (w > 0 ? 35 : 0), () => this.play('afx-vines', vx, vy, 250, 62, [70, 80, 90, 110, 900, 900, 1700, 400], { oy: 0.8, flip: lv.flip, depth: vy, loop: [4, 6], until: 4000, loopMs: 260, fadeLast: 400 })?.setAngle(lv.ang * 0.6));
+            // a net of leaves creeps over the floor from the archer outwards: many small tufts, staggered and scattered (never one block)
+            for (let i = 0; i < 12; i++) for (let j = 0; j < 3; j++) {
+              const d = 40 + i * 46 + (Math.random() - 0.5) * 30, w = (j - 1) * 52 + (Math.random() - 0.5) * 34, sc = 0.55 + Math.random() * 0.35;
+              const vx = sx + a.x * d + px * w, vy = sy + (a.y * d + py * w) * FLOOR_SQUASH;
+              this.scene.time.delayedCall(i * 75 + Math.random() * 60, () => this.play('afx-vines', vx, vy, 170 * sc, 42 * sc, [60, 70, 80, 100, 900, 900, 1700, 450], { oy: 0.8, flip: Math.random() < 0.5 ? lv.flip : !lv.flip, depth: vy, loop: [4, 6], until: 3600 - i * 75, loopMs: 300, fadeLast: 450 })?.setAngle(lv.ang * 0.6 + (Math.random() - 0.5) * 16));
             }
-            this.leafBand(sx, sy, a, len, 120, 14);
+            this.leafBand(sx, sy, a, len, 120, 10);
           } else {
             if (this.scene.textures.exists('afx-leaves')) this.floorFx('afx-leaves', sx, sy, a, len, [60, 70, 80, 110, 220, 220, 220, 220], { ox: 0.04, loop: [4, 7], until: () => r.phase === 'done' || r.elapsed > T.startup + 4000 });
             this.leafBand(sx, sy, a, len, 170);
@@ -1564,13 +1579,16 @@ export class SkillFx {
       }
       case 'hunters_spirit': {
         const sz = 400, p = me() ?? o;
-        this.scene.time.delayedCall(T.startup, () => { const q = me() ?? o; this.shockwave(q.x, q.y, 150, 0xffe27a); });
-        if (this.scene.textures.exists('afx-gold')) this.play('afx-gold', p.x, p.y - p.z, 220, 330, spread(8, T.startup + T.active + T.recovery + 500), { oy: 0.93, depth: p.y + 1, follow: () => { const q = me(); return q ? { x: q.x, y: q.y + 1, z: q.z } : null; } });
+        this.scene.time.delayedCall(T.startup, () => { const q = me() ?? o; this.shockwave(q.x, q.y, 110, 0xffe27a, true); });
+        if (this.scene.textures.exists('afx-gold')) { // the golden arch rises round the body (its ring sits under the feet), glows a moment, then fades: sized to the archer
+          const fr = [0, 1, 2, 3, 4, 5, 4, 5, 4, 5, 6, 7], ms = [90, 90, 100, 110, 140, 160, 160, 160, 160, 160, 200, 260];
+          this.play('afx-gold', p.x, p.y - p.z, 150, 225, ms, { frames: fr, oy: 378 / 450, depth: p.y + 0.5, fadeLast: 300, follow: () => { const q = me(); return q ? { x: q.x, y: q.y + 0.5, z: q.z } : null; } });
+        }
         else this.play(key, p.x, p.y - p.z, sz, sz, spread(8, T.startup + T.active + T.recovery + 200), { oy: ARCHER_GROUND[s.id], depth: p.y + 1, alpha: 0.8, follow: () => { const q = me(); return q ? { x: q.x, y: q.y + 1, z: q.z } : null; } });
         break;
       }
       case 'piercing_arrow': { // Hunter's Resolve: the emblem of a bow and arrow lights up behind the archer (the scene keeps it for 15s)
-        this.scene.time.delayedCall(T.startup, () => { const q = me() ?? o; this.shockwave(q.x, q.y, 140, 0x7ee35a, true); this.bowEmblem(r.attackerId, 15000); });
+        this.scene.time.delayedCall(T.startup, () => { const q = me() ?? o; this.shockwave(q.x, q.y, 140, 0x7ee35a, true); this.spiritBow(r); });
         break;
       }
       case 'hunters_roar': { // the wolf spirit roars over the archer; the wave reaches both sides
@@ -1599,7 +1617,7 @@ export class SkillFx {
         break;
       }
       case 'tree_of_life': { // grows beside the archer, sways while it heals, then fades
-        const tx = o.x, ty = o.y - 46, life = 12000, grow = [T.startup * 0.2, T.startup * 0.2, T.startup * 0.3, T.startup * 0.3, 160];
+        const tx = o.x, ty = o.y - 46, life = 20000, grow = [T.startup * 0.2, T.startup * 0.2, T.startup * 0.3, T.startup * 0.3, 160];
         const tree = this.play(key, tx, ty, 450, 600, [...grow, 420, 420, 700], { oy: ARCHER_GROUND.tree_of_life, depth: ty - 1, loop: [4, 4], loopMs: 900, until: T.startup + life, fadeLast: 650, blend: Phaser.BlendModes.NORMAL });
         if (tree) { this.trees.add(tree); tree.once('destroy', () => this.trees.delete(tree)); }
         if (this.scene.textures.exists('afx-roots')) { // roots break through the floor round the trunk
@@ -1649,9 +1667,9 @@ export class SkillFx {
         }
         break;
       }
-      case 'eagle_arrow': { // Eagle Tide: after a 3s charge a gigantic spirit eagle sweeps half the map in front of the archer
-        const sx = o.x + a.x * 30, sy = o.y + a.y * 30, len = 980;
+      case 'eagle_arrow': { // Eagle Tide: after a 3s charge a gigantic spirit eagle sweeps half the map in front of the archer (aim turned while charging)
         this.scene.time.delayedCall(T.startup, () => {
+          const a = r.aim, sx = o.x + a.x * 30, sy = o.y + a.y * 30, len = 980;
           if (this.scene.textures.exists('afx-tide')) this.floorFx('afx-tide', sx, sy, a, len, [70, 80, 90, 100, 110, 130, 150, 190], { ox: 0.01, depth: TOP - 6, aspect: 1.05, alpha: 0.8 }); // a wide tide over the floor (the hit is 320 wide)
           this.floorFx('afx-fan', sx, sy, a, 620, [30, 40, 50, 60, 80, 100, 120, 160], { ox: 40 / 512, aspect: 1.3 });
           if (this.scene.textures.exists('afx-muzzle')) { const lv = level(a.x, a.y); this.play('afx-muzzle', sx, sy - 56, 380, 380, [30, 40, 50, 60, 70, 80, 90, 110], { ox: lv.flip ? 0.86 : 0.14, flip: lv.flip, depth: TOP + 3 })?.setAngle(lv.ang); }
@@ -1765,6 +1783,26 @@ export class SkillFx {
     } });
   }
 
+  /** Spirit Bow: a great green bow of light floats beside the archer, turned to the aim, drawing and loosing on its own while it lasts. */
+  private spiritBow(r: CastRun): void {
+    const key = this.scene.textures.exists('afx-emblem') ? 'afx-emblem' : 'afx-charge';
+    const img = this.scene.add.image(0, 0, key, 0).setDisplaySize(230, 230).setAlpha(0).setScale(0.01);
+    const halo = this.scene.add.image(0, 0, 'arch-glow').setTint(0x52cf3e).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(200, 200).setAlpha(0);
+    this.scene.tweens.add({ targets: img, alpha: 1, scaleX: 230 / img.width, scaleY: 230 / img.height, duration: 260, ease: 'Back.easeOut' });
+    this.scene.tweens.add({ targets: halo, alpha: 0.35, duration: 260 });
+    const motes = this.scene.add.particles(0, 0, 'arch-glow', { speed: { min: 10, max: 40 }, lifespan: { min: 400, max: 700 }, scale: { start: 0.1, end: 0 }, alpha: { start: 0.9, end: 0 }, tint: [0x9cf27a, 0xffe27a], blendMode: 'ADD', frequency: 40, emitZone: { type: 'random', source: new Phaser.Geom.Circle(0, 0, 70), quantity: 1 } as never });
+    let t = 0;
+    const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
+      t += 16; const c = this.casterPos(r.attackerId);
+      if (!c || r.phase === 'done' || r.phase === 'recovery') { ev.remove(); motes.stop(); this.scene.tweens.add({ targets: [img, halo], alpha: 0, duration: 300, onComplete: () => { img.destroy(); halo.destroy(); motes.destroy(); } }); return; }
+      const a = r.aim, up = a.y < -0.3, lv = level(a.x, a.y), side = a.x < -0.01 ? -1 : 1;
+      const x = c.x + side * 60, y = c.y - c.z - 70 + Math.sin(t / 260) * 5; // floats at the shoulder on the aim side
+      void lv; const aimDeg = up ? (side > 0 ? -45 : -135) : side > 0 ? 0 : 180, ang = aimDeg + 90, draw = 1 - 0.08 * Math.max(0, Math.sin((t % 250) / 250 * Math.PI)); // the painted bow points up: turned so its arrow points along the aim (level, or up at an angle)
+      img.setPosition(x, y).setAngle(ang).setFlipX(false).setDepth(c.y + 3).setFrame(Math.floor(t / 90) % 8).setScale(230 / img.width, (230 / img.height) * draw);
+      halo.setPosition(x, y).setDepth(c.y + 2.9); motes.setPosition(x, y).setDepth(c.y + 3.1);
+    } });
+  }
+
   /** Hunter's Resolve: the bow-and-arrow emblem stands behind the archer while it lasts. */
   bowEmblem(attackerId: string, ms: number): void {
     if (this.scene.textures.exists('afx-resolve')) { // a spirit armour of leaves: wings, a bow of light over the head, a shield of light
@@ -1831,8 +1869,17 @@ export class SkillFx {
       h.t += ms;
       h.lastX = c.x;
       // roams the sky round the archer: a wide, lazy figure-eight, banking as it turns (never parked on the body)
-      const homeX = c.x + Math.sin(h.t / 1300) * 150, homeY = c.y - c.z - 120 + Math.sin(h.t / 650) * 30;
-      h.face = Math.cos(h.t / 1300) >= 0 ? 1 : -1;
+      // flies like a bird: picks a new spot round the archer every so often and steers to it (eases, overshoots, banks), with a gentle bob
+      const W = h as unknown as { wx?: number; wy?: number; vx?: number; vy?: number; px?: number; py?: number; next?: number };
+      if (W.px === undefined) { W.px = c.x; W.py = c.y - c.z - 110; W.vx = 0; W.vy = 0; W.next = 0; }
+      if ((W.next ?? 0) <= h.t || Math.hypot((W.wx ?? 0) - c.x, (W.wy ?? 0) - (c.y - c.z)) > 260) {
+        const an = Math.random() * Math.PI * 2, rr = 70 + Math.random() * 120; W.wx = c.x + Math.cos(an) * rr; W.wy = c.y - c.z - 95 - Math.abs(Math.sin(an)) * 70 - Math.random() * 30; W.next = h.t + 900 + Math.random() * 1400;
+      }
+      const dt = ms / 1000, ax = ((W.wx ?? c.x) - W.px!) * 6 - W.vx! * 3.2, ay = ((W.wy ?? c.y) - W.py!) * 6 - W.vy! * 3.2;
+      W.vx! += ax * dt; W.vy! += ay * dt; W.px! += W.vx! * dt; W.py! += W.vy! * dt;
+      const homeX = W.px!, homeY = W.py! + Math.sin(h.t / 140) * 3;
+      if (Math.abs(W.vx!) > 12) h.face = W.vx! > 0 ? 1 : -1;
+      h.img.setAngle(Math.max(-18, Math.min(18, W.vy! * 0.12)) * h.face); // banks with its climb / dive
       let x = homeX, y = homeY, face = h.face;
       if (h.dive) { // 180 ms out, 220 ms back
         h.dive.t += ms;
@@ -1840,12 +1887,13 @@ export class SkillFx {
         face = tx >= homeX ? 1 : -1;
         if (back <= 0) { x = homeX + (tx - homeX) * out; y = homeY + (ty - homeY) * out; }
         else { x = tx + (homeX - tx) * back; y = ty + (homeY - ty) * back; face = -face; }
-        if (h.dive.t >= 180 && h.dive.t - ms < 180) { if (this.scene.textures.exists('afx-dive')) this.play('afx-dive', tx, ty - 30, 240, 240, [70, 90, 120], { frames: [5, 6, 7], flip: face < 0, depth: h.dive.to.y + 3 }); else this.spark(IMPACT.archer.key, tx, ty, IMPACT.archer.frames, 100, 0.95); } // the dive bursts into feathers on the foe
+        if (h.dive.t >= 180 && h.dive.t - ms < 180) { if (this.scene.textures.exists('afx-dive')) this.play('afx-dive', tx, ty - 30, 150, 150, [70, 90, 120], { frames: [5, 6, 7], flip: face < 0, depth: h.dive.to.y + 3 }); else this.spark(IMPACT.archer.key, tx, ty, IMPACT.archer.frames, 100, 0.95); } // the dive bursts into feathers on the foe
         if (back >= 1) h.dive = null;
       }
       const diving = !!h.dive && h.dive.t < 180 && this.scene.textures.exists('afx-dive'), fly = this.scene.textures.exists('afx-hawk') ? 'afx-hawk' : h.img.texture.key;
-      if (diving) h.img.setTexture('afx-dive', Math.min(4, Math.floor((h.dive!.t / 180) * 5))).setDisplaySize(210, 210); // swoops down onto the foe
-      else h.img.setTexture(fly, Math.floor(h.t / 80) % 8).setDisplaySize(200, 200);
+      if (diving) h.img.setTexture('afx-dive', Math.min(4, Math.floor((h.dive!.t / 180) * 5))).setDisplaySize(120, 120); // swoops down onto the foe
+      else h.img.setTexture(fly, Math.floor(h.t / 80) % 8).setDisplaySize(105, 105);
+      if (h.dive) h.img.setAngle(0);
       h.img.setPosition(x, y).setFlipX(face < 0).setDepth(h.dive ? c.y + 3 : y + 140 < c.y - c.z ? c.y - 3 : c.y + 3);
       if (h.dive && h.dive.t < 400 && Math.floor(h.dive.t / 40) !== Math.floor((h.dive.t - ms) / 40)) { // afterimages on the dive
         const g = this.scene.add.image(x, y, h.img.texture.key, h.img.frame.name).setFlipX(face < 0).setDisplaySize(h.img.displayWidth, h.img.displayHeight).setBlendMode(Phaser.BlendModes.NORMAL).setAlpha(0.45).setDepth(c.y + 2);

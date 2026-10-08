@@ -342,12 +342,11 @@ const archer: FinalSkill[] = [
     relations: ['Zone 2s', 'Keeps foes up'],
   }),
   S({
-    id: 'piercing_arrow', cls: 'archer', slot: 10, name: "Hunter's Resolve", roles: ['setup'], targeting: 'self',
-    startup: 300, active: 160, recovery: 200, cooldown: 30000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 3, { kind: 'circle', radius: 110 }, { stun: 200, push: 14 }, { reachUp: 120 })],
-    tags: ['buff'],
-    description: 'A great emblem of a bow and arrow lights up behind you for 15s: blows can no longer stun you or knock you about while it lasts.',
-    relations: ['Buff 15s', 'Unstoppable'],
+    id: 'piercing_arrow', cls: 'archer', slot: 10, name: 'Spirit Bow', roles: ['projectile', 'zone'], targeting: 'mouseDir',
+    startup: 350, active: 5000, recovery: 200, cooldown: 22000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: { startup: 0, active: 1, recovery: 1 },
+    hits: Array.from({ length: 20 }, (_, i) => H(i * 250, 7, { kind: 'projectile', speed: 900, range: 560, radius: 12 }, { stun: 220, push: 8, float: true, juggleCost: 4 })),
+    description: 'A great green spirit bow appears beside you and fires on its own for 5s while you move; the direction you hold aims it (level, or up at an angle: those arrows arc up and fall back down).',
+    relations: ['Auto-fire 5s', 'Aim while moving'],
   }),
   S({
     id: 'hunters_roar', cls: 'archer', slot: 11, name: "Hunter's Roar", roles: ['peel', 'knockdown'], targeting: 'self',
@@ -391,8 +390,8 @@ const archer: FinalSkill[] = [
     startup: 500, active: 200, recovery: 300, cooldown: 40000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1000],
     hits: [H(0, 4, { kind: 'circle', radius: 140 }, { stun: 260, push: 24 }, { reachUp: 140 })],
     tags: ['buff', 'party'],
-    description: 'Plants a great tree of light for 12s. Its aura heals you and every party member standing near it by 4% max HP every second.',
-    relations: ['Heal zone 12s', 'Party heal'],
+    description: 'Plants a great tree of light for 20s. Its aura heals you and every party member standing near it by 4% max HP every second.',
+    relations: ['Heal zone 20s', 'Party heal'],
   }),
   S({
     id: 'hunters_spirit', cls: 'archer', slot: 15, name: "Hunter's Spirit", roles: ['setup'], targeting: 'self',
@@ -412,7 +411,7 @@ const archer: FinalSkill[] = [
   }),
   S({
     id: 'eagle_arrow', cls: 'archer', slot: 16, name: 'Eagle Tide', roles: ['finisher', 'peel'], targeting: 'mouseLine',
-    startup: 3000, active: 700, recovery: 400, cooldown: 25000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 3700],
+    startup: 3000, active: 700, recovery: 400, cooldown: 25000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 3700], // the held direction turns it while charging
     hits: [0, 230, 460].map((t, i) => H(t, i === 2 ? 30 : 16, { kind: 'line', length: 960, width: 320 }, i === 2 ? { stun: 460, launch: 160, push: 90, juggleCost: 30 } : { stun: 300, push: 40, float: true, juggleCost: 8 }, { reachUp: 260, heavy: i === 2 })),
     cancelOnHit: ['sky_rain'], telegraph: 'line',
     description: 'Charge for 3s, then release a gigantic spirit-eagle tide that sweeps half the map in front of you, tearing through everything in its path.',

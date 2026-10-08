@@ -121,6 +121,9 @@ const ALERT_MS = 4000;
 /** Tree of Life heal aura radius (px around the tree). */
 const TREE_RADIUS = 260; // = the drawn circle around the tree
 
+/** Skills whose aim the held direction keeps turning while they run (sent to the other players). */
+const AIM_STEER = new Set(['arrow_storm', 'piercing_arrow', 'eagle_arrow']);
+
 export class LegacyCourtyardScene extends Phaser.Scene {
   // ---- local actor (read by QA)
   kin!: Kin;
@@ -1567,8 +1570,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const T = s.chain?.timings?.[stage] ?? s, up = Math.round(T.startup / this.ownSpeedMul(s)), k = this.kin, now = this.simMs;
     if (s.id === 'bow_haste') { this.hasteUntil = now + up + 120000; this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'BOW HASTE', '#c8ffb0', 0)); }
     if (s.id === 'hunters_spirit') { this.spiritUntil = now + up + 120000; this.shares.push({ at: now + up, id: s.id, ms: 120000 }); this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, "HUNTER'S SPIRIT", '#ffe27a', 0)); }
-    if (s.id === 'tree_of_life') { const side = this.aim.x < 0 ? -1 : 1; void side; this.tree = { x: k.x, y: k.y - 46, until: now + up + 12000, next: now + up + 1000 }; this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'TREE OF LIFE', '#b8ff9a', 0)); }
-    if (s.id === 'piercing_arrow') { this.resolveUntil = now + up + 15000; this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, "HUNTER'S RESOLVE", '#c8ffb0', 0)); }
+    if (s.id === 'tree_of_life') { const side = this.aim.x < 0 ? -1 : 1; void side; this.tree = { x: k.x, y: k.y - 46, until: now + up + 20000, next: now + up + 1000 }; this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'TREE OF LIFE', '#b8ff9a', 0)); }
+    if (s.id === 'piercing_arrow') this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'SPIRIT BOW', '#c8ffb0', 0));
   }
 
   /** Samurai casts: the buffs (timers on the sim clock, from the run's real startup) and their callouts. */
@@ -1583,7 +1586,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Volley Stance: the archer stands rooted, but the held direction aims the stream (side or corner); other players follow. */
   private stepStorm(): void {
     const run = this.rt?.ownRun, inp = this.ci;
-    if (!run || run.skill.id !== 'arrow_storm' || run.phase === 'done' || !inp?.hasMove) return;
+    if (!run || !AIM_STEER.has(run.skill.id) || run.phase === 'done' || !inp?.hasMove) return;
+    if (run.skill.id === 'eagle_arrow' && run.phase !== 'startup') return; // Eagle Tide: turned while charging, fixed once released
     const u = unit(inp.moveX, inp.moveY), a = sideAim(u.x, u.y, this.dir === 'left' ? -1 : 1);
     if (Math.abs(a.x - run.aim.x) < 1e-3 && Math.abs(a.y - run.aim.y) < 1e-3) return;
     run.aim = a; this.aim = a; this.dir = dirOf(a.x, a.y, this.dir);
@@ -2220,7 +2224,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       },
       onRelease: (from, m) => { // Judgment Blade thrown: final aim + the moment it left the hand
         const r = this.rt?.runs.find((x) => x.castId === m.castId && x.attackerId === from);
-        if (r && r.skill.id === 'arrow_storm') { r.aim = sideAim(m.ax / 1000, m.ay / 1000, m.ax < 0 ? -1 : 1); return; } // Volley Stance: the caster turned the stream
+        if (r && AIM_STEER.has(r.skill.id) && m.at === -1) { r.aim = sideAim(m.ax / 1000, m.ay / 1000, m.ax < 0 ? -1 : 1); return; } // Volley Stance / Spirit Bow / Eagle Tide: the caster turned the aim
         if (r && r.phase === 'startup') { r.aim = clampAim(unit(m.ax, m.ay)); r.timings.startup = Math.max(r.elapsed, m.at); }
         this.pvp?.remotes.get(from)?.setSkillStartup(r?.skill.id ?? '', r ? r.timings.startup : m.at);
       },
@@ -2486,7 +2490,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private buffEffects(): HudEffect[] {
     const out: HudEffect[] = [], now = this.simMs, ic = (id: string) => { const f = finalSkill(id); return f ? iconUrl(f) : `assets/final/skills/warrior/${id}/icon.png`; };
     for (const [id, label, until] of [['war_cry', 'War Cry', Math.max(this.warCryUntil, this.allyCryUntil)], ['radiant_blade', 'Radiant Blade', this.radiantUntil], ['iron_oath', 'Iron Oath', this.oathUntil], ['legacy_banner', 'Legacy Banner', this.bannerUntil],
-      ['bow_haste', 'Bow Haste', this.hasteUntil], ['hunters_spirit', "Hunter's Spirit", this.spiritUntil], ['piercing_arrow', "Hunter's Resolve", this.resolveUntil], ['tree_of_life', 'Tree of Life', this.tree?.until ?? -1],
+      ['bow_haste', 'Bow Haste', this.hasteUntil], ['hunters_spirit', "Hunter's Spirit", this.spiritUntil], ['tree_of_life', 'Tree of Life', this.tree?.until ?? -1],
       ['quick_draw', 'Quick Draw', this.drawUntil], ['rising_sun', 'Rising Sun', this.sunUntil], ['god_of_blades', 'God of Blades', this.godUntil]] as const)
       if (now < until) out.push({ id, label, iconUrl: ic(id), harmful: false, expiresAtMs: until });
     return out;
