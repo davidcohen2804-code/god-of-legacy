@@ -60,6 +60,9 @@ export function preloadOpenWorld(scene: Phaser.Scene): void {
 /** Standing this high (world px) the camera starts to rise with you. */
 const LIFT_FROM = 60;
 
+/** The painted stone cube the towers are stacked of: its width, one cube's height (front face with plinth), its top face. */
+const CUBE = { w: 183, h: 86, top: 32 };
+
 export class OpenWorld {
   /** The area the player is in. */
   area: AreaDef;
@@ -131,8 +134,6 @@ export class OpenWorld {
     }
   }
 
-  /** The climbing towers (Areas.TOWERS): stone pillars drawn here, each its own texture (until their GPT art comes):
-   *  a lit top face of worn tiles, a front face of courses of stone darker toward the floor, ivy hanging from the lip. */
   /** The maps above the terrace: each picture behind the terrace (its wall stands behind the back balustrade), its
    *  blocks' cut-outs over whoever walks behind them up there. */
   private buildHeights(): void {
@@ -147,38 +148,24 @@ export class OpenWorld {
     }
   }
 
+  /** The climbing towers (Areas.TOWERS): stacks of the painted stone cube (public/assets/world/blocks: its front face, one
+   *  per cube from the floor up, and its top face on the last), side by side as wide as the tower. */
   private buildTowers(): void {
-    if (!this.scene.textures.exists('tower-shadow')) { const g = this.scene.make.graphics({ x: 0, y: 0 }, false); for (let r = 32; r > 0; r -= 2) { g.fillStyle(0x000000, 0.06); g.fillEllipse(32, 8, r * 2, r / 2); } g.generateTexture('tower-shadow', 64, 16); g.destroy(); }
+    const keys = [['tower-cube-face', 'assets/world/blocks/cube_face.png'], ['tower-cube-top', 'assets/world/blocks/cube_top.png']];
+    const missing = keys.filter(([k]) => !this.scene.textures.exists(k));
+    if (missing.length) {
+      for (const [k, u] of missing) this.scene.load.image(k, u);
+      this.scene.load.once(Phaser.Loader.Events.COMPLETE, () => this.buildTowers());
+      if (!this.scene.load.isLoading()) this.scene.load.start();
+      return;
+    }
     for (const t of TOWERS) {
-      const w = Math.round(t.x1 - t.x0), h = Math.round(t.h), d = Math.round(t.depth), key = `tower-${w}x${h}x${d}`;
-      if (!this.scene.textures.exists(key)) {
-        const g = this.scene.make.graphics({ x: 0, y: 0 }, false), H = h + d;
-        // front face: stone courses (darker low down), staggered joints, a lit left edge and a shaded right edge
-        for (let y = d, row = 0; y < H; y += 18, row++) {
-          const k = (y - d) / Math.max(1, h), c = Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(0xb08a62), Phaser.Display.Color.ValueToColor(0x6a4e38), 100, Math.round(k * 100));
-          g.fillStyle(Phaser.Display.Color.GetColor(c.r, c.g, c.b), 1).fillRect(0, y, w, Math.min(18, H - y));
-          g.fillStyle(0x3d2c20, 0.55).fillRect(0, y, w, 2);
-          for (let x = (row % 2) * 22 - 22; x < w; x += 44) g.fillStyle(0x3d2c20, 0.45).fillRect(x, y, 2, Math.min(18, H - y));
-        }
-        g.fillStyle(0xffe2b0, 0.18).fillRect(0, d, 4, h); g.fillStyle(0x000000, 0.22).fillRect(w - 6, d, 6, h);
-        // top face: worn tiles, lit
-        g.fillStyle(0xd9b487, 1).fillRect(0, 0, w, d);
-        for (let x = 0; x < w; x += 30) g.fillStyle(0x8a6a4c, 0.5).fillRect(x, 0, 2, d);
-        g.fillStyle(0x8a6a4c, 0.5).fillRect(0, Math.round(d / 2), w, 2);
-        g.fillStyle(0xfff0c8, 0.35).fillRect(0, 0, w, 3); g.fillStyle(0x4a3424, 0.9).fillRect(0, d - 2, w, 3);
-        // ivy hanging from the lip
-        let seed = w * 7 + h;
-        const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
-        for (let x = 4; x < w - 4; x += 9 + rnd() * 10) {
-          const len = 10 + rnd() * Math.min(70, h * 0.4);
-          for (let y = 0; y < len; y += 6) { g.fillStyle(rnd() < 0.25 ? 0xc0562a : rnd() < 0.5 ? 0x5f8a2e : 0x426e24, 0.95).fillCircle(x + (rnd() - 0.5) * 6, d + y, 3 + rnd() * 2.5); }
-        }
-        g.lineStyle(2, 0x2a1d14, 0.9).strokeRect(1, 1, w - 2, H - 2);
-        g.generateTexture(key, w, H); g.destroy();
+      const cols = Math.max(1, Math.round((t.x1 - t.x0) / CUBE.w)), n = Math.max(1, Math.round(t.h / CUBE.h)), cw = (t.x1 - t.x0) / cols, d = t.front + 1;
+      for (let c = 0; c < cols; c++) {
+        const x = t.x0 + c * cw;
+        for (let i = 0; i < n; i++) this.towers.push(this.scene.add.image(x, t.front - CUBE.h * (i + 1), 'tower-cube-face').setOrigin(0, 0).setDisplaySize(cw, CUBE.h).setDepth(d));
+        this.towers.push(this.scene.add.image(x, t.front - CUBE.h * n - CUBE.top, 'tower-cube-top').setOrigin(0, 0).setDisplaySize(cw, CUBE.top).setDepth(d));
       }
-      const top = t.front - t.h - t.depth;
-      this.towers.push(this.scene.add.image(t.x0, top, key).setOrigin(0, 0).setDepth(t.front + 1));
-      this.towers.push(this.scene.add.image((t.x0 + t.x1) / 2, t.front + 6, 'tower-shadow').setDepth(-0.5).setDisplaySize(t.x1 - t.x0 + 40, 26).setAlpha(0.35));
     }
   }
 
