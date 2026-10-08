@@ -338,7 +338,7 @@ export class SparringBot {
       k.vx = 0; k.vy = 0;
       if (s.dash.lift) {
         k.grounded = false;
-        k.z = c.origin.z + s.dash.lift * (s.dash.hang ? (p < 0.22 ? Math.sin((Math.PI / 2) * (p / 0.22)) : p > 0.86 ? Math.cos((Math.PI / 2) * ((p - 0.86) / 0.14)) : 1) : Math.sin(Math.PI * Math.min(1, p * 1.06)));
+        k.z = c.origin.z + s.dash.lift * (s.dash.hang ? (p < 0.08 ? Math.sin((Math.PI / 2) * (p / 0.08)) : p > 0.9 ? Math.cos((Math.PI / 2) * ((p - 0.9) / 0.1)) : 1) : Math.sin(Math.PI * Math.min(1, p * 1.06)));
         k.vz = p < 0.5 ? 40 : -40;
       }
     } else if (s.id === 'whirlwind' && c.t >= activeStart && c.t < activeEnd) {

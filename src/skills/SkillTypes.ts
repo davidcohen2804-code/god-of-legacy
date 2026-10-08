@@ -23,7 +23,7 @@ export type HitShape =
   | { kind: 'circle'; radius: number; at?: 'self' | 'place' | 'aimBias'; bias?: number; /** strikes the floor below an airborne caster */ floor?: boolean }
   | { kind: 'line'; length: number; width: number }
   | { kind: 'capsule'; radius: number } // swept along the caster's dash path
-  | { kind: 'projectile'; speed: number; range: number; radius: number; count?: number; spread?: number; pierce?: boolean; explodeRadius?: number; arc?: number }
+  | { kind: 'projectile'; speed: number; range: number; radius: number; count?: number; spread?: number; /** parallel rows across the floor's depth */ rows?: number; rowGap?: number; pierce?: boolean; explodeRadius?: number; arc?: number }
   | { kind: 'chain'; corridor: number; width: number; jump: number }
   | { kind: 'placed'; radius: number }; // ground point (rune / trap / zone)
 

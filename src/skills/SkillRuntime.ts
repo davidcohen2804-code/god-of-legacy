@@ -236,8 +236,10 @@ export class SkillRuntime {
     this.events.emit(RT_EVENTS.hit, r, i, origin);
     if (s.kind === 'projectile') {
       const aim = this.liveAim(r, origin);
-      for (const d of fanDirs(aim, s.count, s.spread)) {
-        const p = spawnProjectile(r.castId, i, r.skill, s, r.attackerId, origin, d);
+      const rows = s.rows ?? 1, gap = s.rowGap ?? 40;
+      for (const d of fanDirs(aim, s.count, s.spread)) for (let k = 0; k < rows; k++) {
+        const off = (k - (rows - 1) / 2) * gap, o2 = rows > 1 ? { x: origin.x - d.y * off, y: origin.y + d.x * off * 0.75, z: origin.z } : origin; // rows side by side across the floor
+        const p = spawnProjectile(r.castId, i, r.skill, s, r.attackerId, o2, d);
         this.projectiles.push({ p, run: r, hit: h });
         this.events.emit(RT_EVENTS.projectile, p, r);
       }

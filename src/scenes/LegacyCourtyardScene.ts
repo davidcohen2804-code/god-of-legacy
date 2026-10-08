@@ -1152,7 +1152,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     k.vx = 0; k.vy = 0;
     if (d.lift) { // acrobatic leap: real height (shots fire from it), lands by gravity afterwards
       k.grounded = false;
-      const hang = d.hang ? (p < 0.22 ? Math.sin((Math.PI / 2) * (p / 0.22)) : p > 0.86 ? Math.cos((Math.PI / 2) * ((p - 0.86) / 0.14)) : 1) : 0;
+      const hang = d.hang ? (p < 0.08 ? Math.sin((Math.PI / 2) * (p / 0.08)) : p > 0.9 ? Math.cos((Math.PI / 2) * ((p - 0.9) / 0.1)) : 1) : 0;
       k.z = d.hang ? run.origin.z + d.lift * hang : d.crash ? run.origin.z + d.lift * Math.sin(Math.PI * Math.min(1, p * 1.06)) : Math.max(k.z, run.origin.z + d.lift * Math.sin(Math.PI * p));
       k.vz = p < 0.5 ? 40 : -40;
     }
@@ -1566,7 +1566,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       emitZone: { type: 'random', source: new Phaser.Geom.Ellipse(0, 0, 60, 90), quantity: 1 } as never,
       speedY: { min: -40, max: -15 }, lifespan: { min: 600, max: 1000 }, scale: { start: 0.12, end: 0 }, alpha: { start: 0.9, end: 0 }, tint: [0xffe27a, 0xffffff], blendMode: 'ADD', frequency: 110, emitting: false,
     });
-    this.hasteFx.setPosition(k.x, k.y - k.z - 6).setDepth(d + 0.05); this.hasteFx.emitting = vis && this.simMs < this.hasteUntil;
+    this.hasteFx.setPosition(k.x, k.y - k.z - 6).setDepth(d + 0.05); this.hasteFx.emitting = false; // (Bow Haste reads from its ring on the floor only)
     this.spiritFx.setPosition(k.x, k.y - k.z - 60).setDepth(d + 0.06); this.spiritFx.emitting = vis && this.simMs < this.spiritUntil;
   }
 
@@ -1820,9 +1820,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (!run || !AIM_STEER.has(run.skill.id) || run.phase === 'done' || !inp?.hasMove) return;
     if (run.skill.id === 'eagle_arrow' && run.phase !== 'startup') return; // Eagle Tide: turned while charging, fixed once released
-    const u = unit(inp.moveX, inp.moveY), a = sideAim(u.x, u.y, this.dir === 'left' ? -1 : 1);
+    const u = unit(inp.moveX, inp.moveY), face = this.dir === 'left' || run.aim.x < -0.01 ? -1 : 1;
+    // Spirit Bow: level to a side, up at 45°, or straight up (never down)
+    const a = run.skill.id === 'piercing_arrow' ? (u.y < -0.3 && Math.abs(u.x) < 0.38 ? { x: 0, y: -1 } : u.y < -0.3 ? unit(Math.sign(u.x), -1) : { x: Math.abs(u.x) > 0.2 ? Math.sign(u.x) : face, y: 0 }) : sideAim(u.x, u.y, face);
     if (Math.abs(a.x - run.aim.x) < 1e-3 && Math.abs(a.y - run.aim.y) < 1e-3) return;
-    run.aim = a; this.aim = a; this.dir = dirOf(a.x, a.y, this.dir);
+    run.aim = a; this.aim = a; if (Math.abs(a.x) > 0.01) this.dir = dirOf(a.x, 0, this.dir);
     this.pvp?.sendRelease({ castId: run.castId, at: -1, ax: Math.round(a.x * 1000), ay: Math.round(a.y * 1000) });
   }
 
@@ -2471,7 +2473,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onRelease: (from, m) => { // Judgment Blade thrown: final aim + the moment it left the hand
         const r = this.rt?.runs.find((x) => x.castId === m.castId && x.attackerId === from);
         if (r && r.skill.id === 'arrow_storm' && m.at === -2) { r.place = { x: m.ax, y: m.ay }; return; } // Hunter's Rain: the caster moved the mark
-        if (r && AIM_STEER.has(r.skill.id) && m.at === -1) { r.aim = sideAim(m.ax / 1000, m.ay / 1000, m.ax < 0 ? -1 : 1); return; } // Volley Stance / Spirit Bow / Eagle Tide: the caster turned the aim
+        if (r && AIM_STEER.has(r.skill.id) && m.at === -1) { r.aim = r.skill.id === 'piercing_arrow' ? unit(m.ax, m.ay) : sideAim(m.ax / 1000, m.ay / 1000, m.ax < 0 ? -1 : 1); return; } // Volley Stance / Spirit Bow / Eagle Tide: the caster turned the aim
         if (r && r.phase === 'startup') { r.aim = clampAim(unit(m.ax, m.ay)); r.timings.startup = Math.max(r.elapsed, m.at); }
         this.pvp?.remotes.get(from)?.setSkillStartup(r?.skill.id ?? '', r ? r.timings.startup : m.at);
       },
