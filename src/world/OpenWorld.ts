@@ -59,7 +59,7 @@ export function preloadOpenWorld(scene: Phaser.Scene): void {
 
 /** Camera up high: the height where it is drawn back all the way, how far back (share of the zoom), how fast it
  *  rises / comes down with the ground (ms), how fast it moves up and down (ms). */
-const UP_FULL = 340, UP_ZOOM = 0.2, CAM_RISE = 420, CAM_FALL = 220, CAM_EASE_Y = 160;
+const UP_FULL = 340, UP_ZOOM = 0.2, TOP_ZOOM = 0.1, TOP_LIFT = 90, CAM_RISE = 420, CAM_FALL = 220, CAM_EASE_Y = 160;
 /** Near a stair (world px from it: full look .. none) the camera looks up as if this high, easing over CAM_LOOK ms. */
 const LOOK_NEAR = 160, LOOK_FAR = 820, LOOK_H = 280, CAM_LOOK = 650;
 
@@ -101,7 +101,7 @@ export class OpenWorld {
     if (BACKDROP) this.backdrop = new Backdrop(scene);
     const cam = scene.cameras.main;
     this.baseZoom = cam.zoom;
-    this.ambience = new CourtyardAmbience(scene, Math.ceil(cam.width / (cam.zoom * (1 - UP_ZOOM))) + 4, AREA_H, BACKDROP ? [330, 668] : undefined);
+    this.ambience = new CourtyardAmbience(scene, Math.ceil(cam.width / (cam.zoom * (1 - UP_ZOOM - TOP_ZOOM))) + 4, AREA_H, BACKDROP ? [330, 668] : undefined);
     const k = keyCap(scene, 0, 0, 32);
     this.promptKey = scene.add.text(0, -2, 'Y', { fontFamily: HUD.bodyFont, fontSize: '15px', fontStyle: '700', color: '#f3ede0', resolution: 2 }).setOrigin(0.5);
     this.prompt = scene.add.container(0, 0, [k, this.promptKey]).setDepth(UI_DEPTH).setVisible(false);
@@ -147,7 +147,7 @@ export class OpenWorld {
         this.scene.load.image(key, url); this.scene.load.once(`filecomplete-image-${key}`, make);
         if (!this.scene.load.isLoading()) this.scene.load.start();
       };
-      put(`heights-${h.id}`, h.img, () => this.towers.push(this.scene.add.image(h.x, h.imgY, `heights-${h.id}`).setOrigin(0, 0).setDepth(h.depth ?? -1.2)));
+      put(`heights-${h.id}`, h.img, () => this.towers.push(this.scene.add.image(h.imgX ?? h.x, h.imgY, `heights-${h.id}`).setOrigin(0, 0).setDepth(h.depth ?? -1.2)));
       // its wall's shadow on the floor in front of its foot (the lower floor, or the map it rises from): anchors it there
       if (!this.scene.textures.exists('heights-shade')) {
         const c = this.scene.textures.createCanvas('heights-shade', 256, 64)!, x = c.getContext();
@@ -313,14 +313,18 @@ export class OpenWorld {
     const hView = Math.max(this.camH, this.camLook);
     // zoom: drawn back as you climb (all the way back from the height of a map above)
     const up = Phaser.Math.SmoothStep(hView, 30, UP_FULL);
-    const zoom = this.baseZoom * (1 - UP_ZOOM * up);
+    const top = Phaser.Math.SmoothStep(hView, 420, 680);   // the highest floors: drawn back further, looking higher
+    const zoom = this.baseZoom * (1 - UP_ZOOM * up - TOP_ZOOM * top);
     if (Math.abs(cam.zoom - zoom) > 1e-4) cam.setZoom(zoom);
     const half = cam.width / zoom / 2, halfH = cam.height / zoom / 2;
     const down = belowTerrace(y);
     const lead = (ARENA.edgeY - terraceCy) * (1 - Phaser.Math.SmoothStep(y, ARENA.edgeY, ARENA.y));
     // up high: the view rises so that you stand a little below its middle (the floor above and the one below both show)
-    const lift = down ? 0 : Math.max(0, hView * 0.92 - 20) * up + Math.max(0, hView - 20) * 0.25 * (1 - up);
-    let ty = down ? Phaser.Math.Clamp(y - lead, terraceCy, ARENA.y + ARENA.h - halfH) : terraceCy - lift;
+    const lift = down ? 0 : Math.max(0, hView * 0.92 - 20) * up + Math.max(0, hView - 20) * 0.25 * (1 - up) ;
+    // up high the view centres on the floor you stand on (where it is on screen: its depth and its height), a little
+    // above you on the highest ones so the sky opens over you
+    const onFloor = y - this.camH + 30 - TOP_LIFT * top;
+    let ty = down ? Phaser.Math.Clamp(y - lead, terraceCy, ARENA.y + ARENA.h - halfH) : (terraceCy - lift) * (1 - up) + Math.min(terraceCy, onFloor) * up;
     // never lose you: whatever happens, your body stays well inside the view
     const sy = y - z;
     ty = Phaser.Math.Clamp(ty, sy - halfH + 260, Math.max(sy - halfH + 260, sy + halfH - 250));
