@@ -44,6 +44,10 @@ export class RemotePlayer {
   maxHp: number = PVP.maxHp;
   alive = true;
   lastSeen = performance.now();
+  /** Guarded (arena wake-up / BREAK): drawn see-through, blinking — hits do nothing now. */
+  ghost = false;
+  /** Shaken by a hit you landed (ms left). */
+  private shakeMs = 0;
   /** How far in the past the body is shown (network jitter buffer); 0 = latest snapshot (locally simulated NPC). */
   interpDelay: number = PVP.interpDelayMs;
   x: number; y: number; z = 0;
@@ -69,6 +73,7 @@ export class RemotePlayer {
 
   applyState(m: Extract<NetMsg, { t: 'state' }>): void {
     if (m.mhp) this.maxHp = m.mhp;
+    this.ghost = !!m.iv;
     this.lastSeen = performance.now();
     this.snaps.push({ t: this.lastSeen, x: m.x, y: m.y, z: m.z ?? 0 });
     if (this.snaps.length > 30) this.snaps.shift();
@@ -102,6 +107,9 @@ export class RemotePlayer {
 
   /** Where its owner said it is in the latest snapshot (the drawn body runs a little behind, interpolated). */
   get latest(): { x: number; y: number } { const s = this.snaps[this.snaps.length - 1]; return { x: s.x, y: s.y }; }
+
+  /** A hit you landed on it: it shudders for the hit-stop (fighting-game feel; its owner's client moves the body). */
+  shake(ms: number): void { this.shakeMs = Math.max(this.shakeMs, ms); }
 
   /** Top of the head above the feet (world px), for speech bubbles. */
   get headHeight(): number { return this.view.headHeight || 100; }
@@ -152,11 +160,14 @@ export class RemotePlayer {
     let tint: number | null = null, fill = false, alpha = 1;
     if (this.flashMs >= 0) { this.flashMs += ms; if (this.flashMs < 140) tint = 0xff9a9a; else this.flashMs = -1; } // struck: a soft tint (no white flash)
     if (this.deadMs >= 0) { this.deadMs += ms; alpha = 1 - Math.min(1, this.deadMs / 450); this.deathFx.update(ms); }
+    else if (this.ghost) alpha = Math.floor(performance.now() / 70) % 2 ? 0.4 : 0.75; // guarded: blinking see-through
+    let jx = 0, jz = 0;
+    if (this.shakeMs > 0) { this.shakeMs -= ms; const f = Math.min(1, this.shakeMs / 60); jx = (Math.random() - 0.5) * 7 * f; jz = Math.random() * 2.5 * f; }
     const snap: AnimSnap = { mode: this.skill ? 'skill' : this.mode, t: this.modeT, speed: this.speed, vz: this.vz, skill: this.skill ?? undefined, stunMs: 200 };
     const pose = resolvePose(this.meta.classId as ClassKey, this.dir, poseQuery(snap), this.view.wantsBase, this.meta.gender === 'female' ? 'female' : 'male');
     this.jbAir = this.skill?.id === 'judgment_blade' || (this.jbAir && this.alive && z - this.sz > 2); // Judgment Blade: no sword until the landing
     this.view.swordOff = this.jbAir;
-    this.view.render(ms, pose, x, y, z, this.sz, this.dir, alpha, tint, fill);
+    this.view.render(ms, pose, x + jx, y, z + jz, this.sz, this.dir, alpha, tint, fill);
     if (this.meta.classId === 'archer') { // the same body motion the caster sees
       const m = this.skill && this.alive ? archerMotion(this.skill.id, this.skill.elapsed, this.skill, this.dir === 'left' ? -1 : 1) : null;
       applyMotion(this.view.motionSprites, m);

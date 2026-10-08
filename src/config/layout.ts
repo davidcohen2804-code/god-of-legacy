@@ -228,7 +228,8 @@ export const AMBIENCE = {
 /** World values are courtyard map pixels. Combat numbers (damage 25, range, facing, timing) come from training-combat.json. */
 export const PVP = {
   maxPlayers: 8,
-  maxHp: 100,
+  /** Arena HP (big MapleStory-style numbers; the duel rules work in shares of it). */
+  maxHp: 1000,
   respawnMs: 1600,
   sendHz: 20, // movement snapshots per second while something changes
   idleResendMs: 500, // keep-alive snapshot when nothing changes (late joiners get state)
@@ -246,7 +247,7 @@ export const PVP = {
   /** Battle mode (1v1, Tekken-style): rounds of `roundMs`, first to `winsNeeded` round wins; phase lengths (ms); where
    *  the two fighters stand at every round start (the side that runs the match on the left, facing each other). */
   battle: {
-    roundMs: 60000, winsNeeded: 2, maxRounds: 5,
+    roundMs: 75000, winsNeeded: 2, maxRounds: 5,
     vsMs: 2300, introMs: 1500, koMs: 3600,
     /** After the first fighter falls, a second fall this soon is a DOUBLE K.O. (network delay). */
     koWindowMs: 250,

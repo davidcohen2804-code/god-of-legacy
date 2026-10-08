@@ -7,7 +7,7 @@ import { RemotePlayer } from './RemotePlayer';
 import { createTransport, NetMsg, PeerMeta, Transport } from './Transport';
 import type { MatchMsg } from './Match';
 
-export interface LocalSnapshot { x: number; y: number; z: number; sz: number; dir: string; anim: string; mode: string; sp: number; vz: number; ax: number; ay: number; hp: number; alive: boolean; cos: string; mhp?: number }
+export interface LocalSnapshot { x: number; y: number; z: number; sz: number; dir: string; anim: string; mode: string; sp: number; vz: number; ax: number; ay: number; hp: number; alive: boolean; cos: string; mhp?: number; iv?: boolean }
 
 export interface PvpHandlers {
   onJoined(): void;
@@ -28,6 +28,8 @@ export interface PvpHandlers {
   /** Battle mode: the match state from the side running it, and rematch requests. */
   onMatch?(from: string, m: Extract<NetMsg, { t: 'match' }>): void;
   onRematch?(from: string, m: Extract<NetMsg, { t: 'rematch' }>): void;
+  /** The arena: the other fighter used BREAK. */
+  onBreak?(from: string, m: Extract<NetMsg, { t: 'brk' }>): void;
 }
 
 export class PvpController {
@@ -72,9 +74,9 @@ export class PvpController {
     if (!s || !this.connected) return;
     const msg = {
       t: 'state' as const, from: this.meta.playerId, x: Math.round(s.x), y: Math.round(s.y), z: Math.round(s.z), sz: Math.round(s.sz), dir: s.dir,
-      anim: s.anim, mode: s.mode, sp: Math.round(s.sp), vz: Math.round(s.vz), ax: Math.round(s.ax * 100), ay: Math.round(s.ay * 100), hp: s.hp, alive: s.alive, cos: s.cos, ...(s.mhp ? { mhp: s.mhp } : {}),
+      anim: s.anim, mode: s.mode, sp: Math.round(s.sp), vz: Math.round(s.vz), ax: Math.round(s.ax * 100), ay: Math.round(s.ay * 100), hp: s.hp, alive: s.alive, cos: s.cos, ...(s.mhp ? { mhp: s.mhp } : {}), ...(s.iv ? { iv: 1 } : {}),
     };
-    const key = `${msg.x},${msg.y},${msg.z},${msg.dir},${msg.mode},${msg.ax},${msg.ay},${msg.hp},${msg.alive},${msg.cos},${s.mhp ?? ''}`;
+    const key = `${msg.x},${msg.y},${msg.z},${msg.dir},${msg.mode},${msg.ax},${msg.ay},${msg.hp},${msg.alive},${msg.cos},${s.mhp ?? ''},${s.iv ? 1 : 0}`;
     if (!force && !keepAlive && key === this.lastSent) return;
     this.sinceSend = 0;
     this.lastSent = key;
@@ -106,6 +108,8 @@ export class PvpController {
   /** Battle mode: the match state (sent by the side running the match). */
   sendMatch(m: MatchMsg): void { this.transport.send({ t: 'match', from: this.meta.playerId, ...m }); }
   sendRematch(mid: string): void { this.transport.send({ t: 'rematch', from: this.meta.playerId, mid }); }
+  /** The arena: BREAK used here. */
+  sendBreak(x: number, y: number, z: number): void { this.transport.send({ t: 'brk', from: this.meta.playerId, x: Math.round(x), y: Math.round(y), z: Math.round(z) }); this.sendState(true); }
   sendRespawn(x: number, y: number, hp: number): void {
     this.transport.send({ t: 'respawn', from: this.meta.playerId, x: Math.round(x), y: Math.round(y), hp });
     this.sendState(true);
@@ -133,6 +137,7 @@ export class PvpController {
     else if (m.t === 'respawn') r.revive(m.x, m.y, m.hp);
     else if (m.t === 'match') this.h.onMatch?.(m.from, m);
     else if (m.t === 'rematch') this.h.onRematch?.(m.from, m);
+    else if (m.t === 'brk') this.h.onBreak?.(m.from, m);
   }
 
   private syncPeers(list: PeerMeta[]): void {

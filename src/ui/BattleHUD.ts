@@ -4,6 +4,7 @@
 // DOM inside the HUD overlay (1920x1080 design px, scaled with it).
 import '@fontsource/cinzel/900.css';
 import { PortraitRef } from './hud/HudState';
+import { ARENA } from '../combat/Combat';
 import { ensureTheme } from './theme';
 
 export type Side = 'l' | 'r';
@@ -11,6 +12,7 @@ export interface Fighter { name: string; cls: string; portrait?: PortraitRef; yo
 export type RoundCall = 'ko' | 'double' | 'time' | 'draw';
 
 const STYLE_ID = 'gol-bt-style';
+const ARENA_BREAK_MS = ARENA.breakCdMs;
 /** VS splash: the widest a fighter's name may be (it shrinks to fit, clear of the VS in the middle). */
 const VS_NAME_W = 440;
 const TITLE = "Cinzel, Georgia, serif";
@@ -70,6 +72,19 @@ const CSS = `
 .gol-bt .b-wn{width:15px;height:15px;transform:rotate(45deg);border:2px solid rgba(231,196,124,.7);background:rgba(12,10,8,.88);box-shadow:0 2px 6px rgba(0,0,0,.6)}
 .gol-bt .b-wn.on{border-color:#fff0bf;background:radial-gradient(circle,#fffbe2 0%,#ffd75c 45%,#c27b10 100%);box-shadow:0 0 14px rgba(255,196,70,.95);animation:golWin .5s cubic-bezier(.2,1.4,.4,1)}
 @keyframes golWin{0%{transform:rotate(45deg) scale(2.6);opacity:0}100%{transform:rotate(45deg) scale(1);opacity:1}}
+/* BREAK: under each portrait — ready (gold), now! (bright, pulsing: you are being comboed and can break out), cooling down */
+.gol-bt .b-brk{position:absolute;top:102px;width:116px;height:30px;box-sizing:border-box;border-radius:999px;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:7px;
+  background:rgba(10,14,24,.92);border:1px solid rgba(240,204,128,.6);font:700 12.5px/1 var(--gl-body);letter-spacing:1.5px;color:#f3dfae;box-shadow:0 4px 10px rgba(0,0,0,.5)}
+.gol-bt .b-sd.l .b-brk{left:-12px}
+.gol-bt .b-sd.r .b-brk{right:-12px}
+.gol-bt .b-brk .b-bk{min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:6px;background:rgba(240,204,128,.2);border:1px solid rgba(240,204,128,.6);font:700 11.5px/18px var(--gl-body);letter-spacing:0;text-align:center;color:#ffe9b0}
+.gol-bt .b-brk .b-bfill{position:absolute;left:0;top:0;bottom:0;background:rgba(240,204,128,.16)}
+.gol-bt .b-brk b,.gol-bt .b-brk .b-bk{position:relative}
+.gol-bt .b-brk.cd{border-color:rgba(255,255,255,.14);color:#8d93a0}
+.gol-bt .b-brk.cd .b-bk{opacity:.45}
+.gol-bt .b-brk.live{border-color:#bfe6ff;color:#fff;background:linear-gradient(180deg,rgba(60,130,200,.85),rgba(20,60,120,.9));box-shadow:0 0 16px rgba(120,200,255,.9);animation:golBrk .5s ease-in-out infinite alternate}
+.gol-bt .b-brk.live .b-bk{background:#fff;color:#123;border-color:#fff}
+@keyframes golBrk{to{box-shadow:0 0 26px rgba(150,220,255,1);transform:scale(1.06)}}
 /* the round clock */
 .gol-bt .b-clk{position:absolute;left:894px;top:10px;width:132px;height:118px;filter:drop-shadow(0 6px 12px rgba(0,0,0,.6))}
 .gol-bt .b-clk .b-sh,.gol-bt .b-clk .b-in{position:absolute;inset:0;clip-path:polygon(0 0,100% 0,100% 64%,50% 100%,0 64%)}
@@ -152,7 +167,8 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){.gol-bt *{animation-duration:1ms!important;transition:none!important}}
 `;
 
-interface SideEls { pf: HTMLDivElement; img: HTMLDivElement; hb: HTMLDivElement; fl: HTMLDivElement; tr: HTMLDivElement; name: HTMLElement; cls: HTMLElement; you: HTMLElement; wins: HTMLDivElement; frac: number }
+interface SideEls { pf: HTMLDivElement; img: HTMLDivElement; hb: HTMLDivElement; fl: HTMLDivElement; tr: HTMLDivElement; name: HTMLElement; cls: HTMLElement; you: HTMLElement; wins: HTMLDivElement; frac: number;
+  brk: HTMLDivElement; brkKey: HTMLElement; brkText: HTMLElement; brkFill: HTMLDivElement }
 
 export class BattleHUD {
   private root: HTMLDivElement;
@@ -190,7 +206,9 @@ export class BattleHUD {
     const nm = this.el('div', 'b-nm', sd), name = this.el('b', '', nm), cls = this.el('i', '', nm), you = this.el('i', 'b-you', nm);
     you.textContent = 'YOU';
     const wins = this.el('div', 'b-wins', sd);
-    return { pf, img, hb, fl, tr, name, cls, you, wins, frac: 1 };
+    const brk = this.el('div', 'b-brk', sd), brkFill = this.el('div', 'b-bfill', brk), brkKey = this.el('span', 'b-bk', brk), brkText = this.el('b', '', brk);
+    brk.title = 'BREAK: being comboed (from its 3rd hit), press jump to break free — then it recharges';
+    return { pf, img, hb, fl, tr, name, cls, you, wins, frac: 1, brk, brkKey, brkText, brkFill };
   }
 
   /** The top HUD (bars, clock) in / out. */
@@ -219,6 +237,17 @@ export class BattleHUD {
     }
     e.hb.classList.toggle('low', f > 0 && f <= 0.25);
     e.frac = f;
+  }
+
+  /** A fighter's BREAK: ready / usable right now (live) / recharging (leftMs); `key` only on your own (the jump key). */
+  setBreak(s: Side, o: { leftMs: number; live: boolean; key?: string }): void {
+    const e = this.sides[s], left = Math.max(0, o.leftMs), cd = left > 0;
+    const state = o.live ? 'live' : cd ? `cd${Math.ceil(left / 1000)}` : 'ready';
+    if (!this.changed(`brk${s}`, `${state}|${o.key ?? ''}`)) { if (cd) e.brkFill.style.width = `${(1 - left / ARENA_BREAK_MS) * 100}%`; return; }
+    e.brk.classList.toggle('live', o.live); e.brk.classList.toggle('cd', cd && !o.live);
+    e.brkKey.textContent = o.key ?? ''; e.brkKey.style.display = o.key ? '' : 'none';
+    e.brkText.textContent = cd && !o.live ? `BREAK ${Math.ceil(left / 1000)}` : 'BREAK';
+    e.brkFill.style.width = cd ? `${(1 - left / ARENA_BREAK_MS) * 100}%` : '0%';
   }
 
   /** The round clock (ms left) and the round number under it. */

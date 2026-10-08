@@ -69,6 +69,8 @@ export interface RuntimeWorld {
   onPhase?(run: CastRun, phase: Phase): void;
   /** Reach multiplier for the caster's melee sword shapes (Radiant Blade). */
   reachMul?(req: CastRequest): number;
+  /** Own casts: cooldown multiplier (the arena: longer). */
+  cooldownMul?(req: CastRequest): number;
   /** Projectile range multiplier (archer Eagle Eyes). */
   rangeMul?(req: CastRequest): number;
   /** Attack speed: startup and recovery are divided by it (archer Bow Haste / Ranger Mastery). */
@@ -120,10 +122,10 @@ export class SkillRuntime {
     };
     if (req.own && s.cooldown > 0) {
       // Charged skills: N quick uses in a row (window 7s between uses), then the full cooldown.
-      const now = this.world.now(), ch = this.charges.get(s.id);
+      const now = this.world.now(), ch = this.charges.get(s.id), cd = s.cooldown * (this.world.cooldownMul?.(req) ?? 1);
       const used = s.charges && ch && now - ch.last < 7000 ? ch.used + 1 : 1;
       this.charges.set(s.id, { used, last: now });
-      if (!s.charges || used >= s.charges) { this.cooldownEnd.set(s.id, now + s.cooldown); this.charges.delete(s.id); }
+      if (!s.charges || used >= s.charges) { this.cooldownEnd.set(s.id, now + cd); this.charges.delete(s.id); }
       else this.cooldownEnd.set(s.id, now + (s.chargeGap ?? 350)); // tiny gap between charges
     }
     this.runs.push(run);

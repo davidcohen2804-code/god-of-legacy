@@ -52,7 +52,8 @@ export interface BotApi {
 
 export interface BotWorld {
   now: number;
-  player: { x: number; y: number; z: number; alive: boolean };
+  /** guard: the player is guarded right now (the arena's wake-up / BREAK): the knight waits it out instead of swinging. */
+  player: { x: number; y: number; z: number; alive: boolean; guard?: boolean };
 }
 
 const R = PHYS.footR;
@@ -106,6 +107,8 @@ export class SparringBot {
   duel = false;
   /** Battle mode, between the fights (VS, ROUND n, K.O., the result): it stands and waits. */
   hold = false;
+  /** Battle mode: after a string of its own it steps back to give you room (until this time). */
+  private backOffUntil = -Infinity;
 
   constructor(scene: Phaser.Scene, x: number, y: number, private api: BotApi, now: number, readonly cls = 'warrior', readonly trial: BotTrial | null = null) {
     this.kin = newKin(x, y);
@@ -126,7 +129,7 @@ export class SparringBot {
   get z(): number { return this.kin.z; }
 
   target(now: number): HitTarget {
-    return { id: BOT_ID, kind: 'player', x: this.kin.x, y: this.kin.y, z: this.kin.z, radius: R + 4, height: 74, alive: !this.defeated, invulnerable: now < this.body.invulnUntil };
+    return { id: BOT_ID, kind: 'player', x: this.kin.x, y: this.kin.y, z: this.kin.z, radius: R + 4, height: 74, alive: !this.defeated, invulnerable: now < this.body.invulnUntil || this.body.ghost(now) };
   }
 
   /** A confirmed hit from the local player (this client is the authority for the bot). HP never reaches zero. */
@@ -162,6 +165,7 @@ export class SparringBot {
     else if (free) { k.vx *= 0.8; k.vy *= 0.8; const dx = w.player.x - k.x; if (Math.abs(dx) > 4 && !this.defeated) this.dir = dx > 0 ? 'right' : 'left'; }
     else if (b.state === 'hitstun' && k.grounded && !b.push) { k.vx *= 0.8; k.vy *= 0.8; }
 
+    if (this.duel && b.state === 'knockdown' && b.kdPhase === 'down' && now - b.downAt > 260) b.quickGetup(now); // a duel: it gets up quickly, like a player would
     const r = stepKin(k, ms, b.gravityScale(now));
     b.update(now, ms, r.landed, r.impactVz);
     this.pushState();
@@ -195,6 +199,16 @@ export class SparringBot {
     this.view.setHp(this.hp);
   }
 
+  /** BREAK (the arena): out of your combo — hops back away from you, untouchable a moment. */
+  breakOut(now: number, from: { x: number; y: number }): void {
+    this.body.doBreak(now);
+    this.interrupt();
+    const k = this.kin, d = unit(k.x - from.x, k.y - from.y, this.dir === 'left' ? 1 : -1, 0);
+    this.body.push = { vx: (d.x * 110) / 180, vy: (d.y * 44) / 180, left: 180 };
+    if (!k.grounded) k.vz = Math.min(k.vz, -140);
+    this.nextAct = now + rnd(350, 650);
+  }
+
   /** Knocked out: down for the count (its view plays the fall), nothing more until the next round. */
   knockOut(): void {
     this.interrupt();
@@ -211,11 +225,12 @@ export class SparringBot {
     this.aim = unit(dx, dy, this.dir === 'right' ? 1 : -1, 0);
 
     this.thinkT -= ms;
-    if (p.alive && now >= this.nextAct && this.thinkT <= 0) {
-      this.thinkT = rnd(110, 210); // reaction time
+    const room = this.duel && (now < this.backOffUntil || !!p.guard); // a duel: it gives you room after its string, and never swings into your guarded wake-up
+    if (p.alive && !room && now >= this.nextAct && this.thinkT <= 0) {
+      this.thinkT = this.duel ? rnd(240, 420) : rnd(110, 210); // reaction time (a duel: a human's)
       if (this.decide(w, dx, dy, dist, ady)) return;
     }
-    this.move(ms, w, dx, dy, dist);
+    this.move(ms, w, dx, dy, dist, room);
   }
 
   /** Pick a move; true when a cast started. */
@@ -225,7 +240,7 @@ export class SparringBot {
     const ready = (id: string) => (this.cdEnd.get(id) ?? 0) <= now;
     // keep the basic chain going while it lands in range
     if (this.chainStage >= 0 && this.chainStage < 3 && now - this.chainEnd < 520 && dist < 115 && ady < 46) {
-      if (Math.random() < 0.72) return this.start('warrior_basic', this.chainStage + 1, w);
+      if (Math.random() < (this.duel ? 0.55 : 0.72)) return this.start('warrior_basic', this.chainStage + 1, w);
       this.chainStage = -1;
       this.nextAct = now + rnd(500, 900);
       return false;
@@ -259,7 +274,7 @@ export class SparringBot {
     const ready = (s: FinalSkill) => (this.cdEnd.get(s.id) ?? 0) <= now;
     const n = basic?.chain?.stages.length ?? 1;
     if (basic?.chain && this.chainStage >= 0 && this.chainStage < n - 1 && now - this.chainEnd < 520 && dist < reachOf(basic) && ady < 46) {
-      if (Math.random() < 0.7) return this.start(basic.id, this.chainStage + 1, w);
+      if (Math.random() < (this.duel ? 0.55 : 0.7)) return this.start(basic.id, this.chainStage + 1, w);
     }
     this.chainStage = -1;
     const options = this.kit.filter((s) => !s.wip && s.slot > 0 && s.slot !== 7 && ready(s) && s.hits.some((h) => h.damage > 0) && reachOf(s) >= dist && (ady < 50 || s.targeting === 'mouseGround'));
@@ -269,7 +284,7 @@ export class SparringBot {
   }
 
   /** Close in to sword range on the player's lane, with a little lateral drift; steers around props (whiskers). */
-  private move(ms: number, w: BotWorld, dx: number, dy: number, dist: number): void {
+  private move(ms: number, w: BotWorld, dx: number, dy: number, dist: number, room = false): void {
     const k = this.kin, p = w.player;
     this.strafeT -= ms;
     if (this.strafeT <= 0) { this.strafeT = rnd(700, 1600); this.strafe = Math.random() < 0.35 ? (Math.random() < 0.5 ? -1 : 1) : 0; }
@@ -280,7 +295,7 @@ export class SparringBot {
     }
     let tx = 0, ty = 0;
     if (p.alive) {
-      const want = RANGED.has(this.cls) ? 230 : 78, side = dx >= 0 ? -1 : 1; // stand on our side of the player (casters keep their distance)
+      const want = room ? 210 : RANGED.has(this.cls) ? 230 : 78, side = dx >= 0 ? -1 : 1; // stand on our side of the player (casters keep their distance; giving room: further off)
       const gx = p.x + side * want - k.x, gy = p.y + this.strafe * 26 - k.y;
       const gd = Math.hypot(gx, gy);
       if (gd > 10) {
@@ -349,6 +364,7 @@ export class SparringBot {
       this.cast = null;
       if (s.chain) { this.chainEnd = w.now; this.nextAct = w.now + (c.stage >= 3 ? rnd(700, 1200) : rnd(40, 120)); }
       else this.nextAct = w.now + rnd(700, 1400);
+      if (this.duel && (!s.chain || c.stage >= 3) && Math.random() < 0.6) this.backOffUntil = w.now + rnd(600, 1200); // a duel: room for you after its string
     }
   }
 
@@ -410,7 +426,7 @@ export class SparringBot {
     const k = this.kin, m = this.mode();
     this.view.applyState({
       t: 'state', from: BOT_ID, x: k.x, y: k.y, z: k.z, sz: k.supportZ, dir: this.dir, anim: m, mode: m,
-      sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: Math.round(this.aim.x * 100), ay: Math.round(this.aim.y * 100), hp: this.hp, alive: !this.defeated, cos: this.cls === 'warrior' ? (this.trial ? TRIAL_LOOK : BOT_LOOK) : '',
+      sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: Math.round(this.aim.x * 100), ay: Math.round(this.aim.y * 100), hp: this.hp, alive: !this.defeated, ...(this.body.ghost(this.lastNow) ? { iv: 1 } : {}), cos: this.cls === 'warrior' ? (this.trial ? TRIAL_LOOK : BOT_LOOK) : '',
     });
   }
 }

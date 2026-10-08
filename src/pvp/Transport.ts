@@ -7,7 +7,7 @@ export interface PeerMeta { playerId: string; characterId: string; classId: stri
 
 /** Network messages. Movement state carries ground x/y, height z, support z, aim, animation mode and cosmetics. */
 export type NetMsg =
-  | { t: 'state'; from: string; x: number; y: number; z: number; sz: number; dir: string; anim: string; mode: string; sp: number; vz: number; ax: number; ay: number; hp: number; alive: boolean; cos?: string; mhp?: number }
+  | { t: 'state'; from: string; x: number; y: number; z: number; sz: number; dir: string; anim: string; mode: string; sp: number; vz: number; ax: number; ay: number; hp: number; alive: boolean; cos?: string; mhp?: number; /** guarded (arena wake-up / BREAK) */ iv?: number }
   | { t: 'hp'; from: string; hp: number; by: string; castId?: string; skillId?: string; hit?: number; dmg?: number; idx?: number; cid?: number; rx?: string; ends?: boolean; vz?: number; z?: number }
   | { t: 'cast'; from: string; castId: string; skillId: string; stage: number; x: number; y: number; z: number; ax: number; ay: number; px?: number; py?: number; lock?: string | null; dm?: number; rm?: number; rg?: number; sp?: number }
   | { t: 'ctr'; from: string; castId: string; x: number; y: number; z: number; ax: number; ay: number }
@@ -27,6 +27,8 @@ export type NetMsg =
   /** Battle mode: the match as the side running it sees it (phase and the ms spent in it, round, round wins, the clock,
    *  the round's result, the match winner). */
   | ({ t: 'match'; from: string } & MatchMsg)
+  /** The arena: this fighter broke out of a combo (BREAK) here. */
+  | { t: 'brk'; from: string; x: number; y: number; z: number }
   /** Battle mode: this fighter wants a rematch of match `mid`. */
   | { t: 'rematch'; from: string; mid: string };
 

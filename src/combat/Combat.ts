@@ -40,6 +40,31 @@ const LAUNCH_G = 0.55; // floaty launches: long hang time so the attacker can fo
 /** Combo-protection thresholds (fractions of max HP) and their effects. */
 export const GAUGE = { stand: 0.3, air: 0.4, airRamp: 0.15, down: 0.15, resetMs: 3000, holdVz: 300, holdCeil: 120, gravityRamp: 1.6, wakeInvulnMs: 600 };
 
+/** The PvP arena's duel rules (DFO / Tekken / Lost Ark-style pacing): a round of 4–6 exchanges, combos that end on
+ *  their own, and a way out for the one being hit.
+ *  - dmgMul: damage of a hit in the arena (× the skill's hit damage; arena HP is 1000); ladder: each later hit of a combo hits softer
+ *    (index = the hit's number in the combo), never under ladderFloor (an ultimate: never under ultFloor).
+ *  - budget: one combo takes at most this share of max HP — or lasts maxHits hits / maxComboMs — then the target drops
+ *    out of it: a short fall, untouchable until it is up again; floorMs: how long a fallen fighter lies there.
+ *  - stunDecay: hit-stun of the combo's later hits shrinks ([up to hit n, × scale]).
+ *  - wakeInvulnMs: every getup is guarded this long; techMinMs: down at least this long before a key stands you up.
+ *  - BREAK: from the combo's breakMinHits-th hit, the jump key frees you (hop back breakHop px, untouchable
+ *    breakInvulnMs), then breakCdMs to wait.
+ *  - cdMul: skill cooldowns in the arena (more spacing and fewer skill strings). */
+export const ARENA = {
+  dmgMul: 4, ladder: [1, 1, 0.9, 0.8, 0.72, 0.65, 0.58, 0.52, 0.47, 0.43, 0.4], ladderFloor: 0.35, ultFloor: 0.6,
+  budget: 0.3, maxHits: 15, maxComboMs: 2600, floorMs: 300,
+  stunDecay: [[5, 1], [8, 0.85], [11, 0.7], [Infinity, 0.55]] as [number, number][],
+  wakeInvulnMs: 700, techMinMs: 120,
+  breakMinHits: 3, breakCdMs: 15000, breakInvulnMs: 600, breakHop: 110,
+  cdMul: 1.5,
+} as const;
+const arenaScale = (hit: number, ult: boolean): number => {
+  const s = hit <= ARENA.ladder.length ? ARENA.ladder[hit - 1] : ARENA.ladderFloor;
+  return ult ? Math.max(ARENA.ultFloor, s) : s;
+};
+const arenaStun = (hit: number): number => (ARENA.stunDecay.find(([n]) => hit <= n) ?? [0, 0.55])[1];
+
 /** `slide`: walking into a slanted edge (or round a body) turns the step along it instead of stopping dead — only for
  *  free walking; knock-backs still stop at walls (wall crash). */
 export function stepKin(k: Kin, ms: number, gravityScale = 1, blocked?: (x: number, y: number, z: number) => boolean, slide = false): StepResult {
@@ -183,7 +208,7 @@ export class HardCC {
 
 // ------------------------------------------------------------------ combo context (victim side, per attacker)
 
-export interface ComboCtx { id: number; attacker: string; startedAt: number; lastAt: number; hits: number; juggle: number; relaunches: number; ended: boolean }
+export interface ComboCtx { id: number; attacker: string; startedAt: number; lastAt: number; hits: number; juggle: number; relaunches: number; ended: boolean; /** damage taken in it */ dmg: number }
 
 export class ComboBook {
   private ctx = new Map<string, ComboCtx>();
@@ -191,7 +216,7 @@ export class ComboBook {
   get(attacker: string, now: number): ComboCtx {
     let c = this.ctx.get(attacker);
     if (!c || c.ended || now - c.lastAt > COMBO.comboTimeoutMs) {
-      c = { id: ++this.seq, attacker, startedAt: now, lastAt: now, hits: 0, juggle: 0, relaunches: 0, ended: false };
+      c = { id: ++this.seq, attacker, startedAt: now, lastAt: now, hits: 0, juggle: 0, relaunches: 0, ended: false, dmg: 0 };
       this.ctx.set(attacker, c);
     }
     return c;
@@ -203,6 +228,8 @@ export class ComboBook {
     return best;
   }
   endAll(): void { for (const c of this.ctx.values()) c.ended = true; }
+  /** Keep every live combo going (the arena: no combo runs out while its victim is still helpless). */
+  hold(now: number): void { for (const c of this.ctx.values()) if (!c.ended && now - c.lastAt <= COMBO.comboTimeoutMs) c.lastAt = now; }
   end(attacker: string): void { const c = this.ctx.get(attacker); if (c) c.ended = true; }
   clear(): void { this.ctx.clear(); }
 }
@@ -267,6 +294,15 @@ export class CombatBody {
   /** Last time a passive visibly worked (stance held / CC shortened): the scene plays its effect. */
   stanceAt = -Infinity;
   endureAt = -Infinity;
+  /** The PvP arena's duel rules (ARENA) apply to this body. */
+  arena = false;
+  /** Arena: this combo has had its share — dropping out of it, untouchable until up again. */
+  released = false;
+  /** Arena: guarded (wake-up / BREAK): no damage, no reaction; drawn see-through, blinking. */
+  ghostUntil = -1;
+  /** Arena: when BREAK is ready again; when the body came to rest on the floor. */
+  breakReadyAt = 0;
+  downAt = -Infinity;
   airOver(): number { return Math.max(0, (this.gauge.air - GAUGE.air) / GAUGE.airRamp); }
 
   constructor(readonly kin: Kin, readonly pvp: boolean) {}
@@ -274,7 +310,10 @@ export class CombatBody {
   canAct(now: number): boolean { return this.state === 'free' && !this.hard.active(now); }
   canMove(now: number): boolean { return this.canAct(now); }
   moveScale(now: number): number { return now < this.slowUntil ? 1 - this.slowPct : 1; }
-  reset(): void { this.pinUntil = -1; this.gauge = { stand: 0, air: 0, down: 0 }; this.invulnUntil = -1; this.bounce = false; this.state = 'free'; this.stateEnd = 0; this.hard.reset(); this.combos.clear(); this.push = null; this.slowUntil = 0; this.armorUntil = -1; }
+  reset(): void { this.pinUntil = -1; this.gauge = { stand: 0, air: 0, down: 0 }; this.invulnUntil = -1; this.bounce = false; this.state = 'free'; this.stateEnd = 0; this.hard.reset(); this.combos.clear(); this.push = null; this.slowUntil = 0; this.armorUntil = -1;
+    this.released = false; this.ghostUntil = -1; this.breakReadyAt = 0; this.downAt = -Infinity; }
+  /** Guarded right now (the arena: rising from the floor, the wake-up after it, BREAK). */
+  ghost(now: number): boolean { return now < this.ghostUntil || (this.arena && this.state === 'getup'); }
 
   /**
    * Apply a confirmed, legal hit from `attacker` (this body's owner is the authority).
@@ -282,15 +321,26 @@ export class CombatBody {
    * via DR) → push / pull. Hard-CC immunity never cancels ordinary combo hit reactions.
    */
   receive(attacker: string, skill: FinalSkill, hit: HitEvent, from: { x: number; y: number }, now: number): HitOutcome {
+    if (this.arena && (now < this.invulnUntil || this.ghost(now) || this.released)) // guarded: the hit does nothing (and is no part of a combo)
+      return { damage: 0, hitIndex: 0, comboId: 0, reaction: 'armor', stunMs: 0, ccMs: 0, juggle: 0, endsCombo: false, pushX: 0, pushY: 0, launchVz: 0 };
     const c = this.combos.get(attacker, now);
     c.hits++; c.lastAt = now;
     const ult = skill.slot === 7;
-    const base = Math.floor(hit.damage * (this.pvp ? skill.pvpMultiplier : skill.pveMultiplier));
-    const damage = hit.damage > 0 ? Math.max(1, Math.round(base * damageScale(c.hits, ult))) : 0;
+    let damage: number, release = false;
+    if (this.arena) { // the arena: softer hits, each later one softer still, at most one combo's budget
+      damage = hit.damage > 0 ? Math.max(1, Math.round(hit.damage * ARENA.dmgMul * arenaScale(c.hits, ult))) : 0;
+      const cap = ARENA.budget * this.maxHp;
+      damage = Math.max(0, Math.min(damage, Math.ceil(cap - c.dmg)));
+      c.dmg += damage;
+      release = c.dmg >= cap - 0.5 || c.hits >= ARENA.maxHits || now - c.startedAt >= ARENA.maxComboMs;
+    } else {
+      const base = Math.floor(hit.damage * (this.pvp ? skill.pvpMultiplier : skill.pveMultiplier));
+      damage = hit.damage > 0 ? Math.max(1, Math.round(base * damageScale(c.hits, ult))) : 0;
+    }
     const R: Reaction = hit.reaction;
     const k = this.kin;
     const out: HitOutcome = { damage, hitIndex: c.hits, comboId: c.id, reaction: 'hit', stunMs: 0, ccMs: 0, juggle: c.juggle, endsCombo: !!skill.endsCombo, pushX: 0, pushY: 0, launchVz: 0 };
-    if (now < this.invulnUntil) { out.damage = 0; out.reaction = 'armor'; return out; }
+    if (now < this.invulnUntil || now < this.ghostUntil || this.released) { out.damage = 0; out.reaction = 'armor'; return out; }
     this.lastHitAt = now;
     const R0: Reaction = hit.reaction;
     const downNow = this.state === 'knockdown' && this.kdPhase !== 'fall' && this.kin.grounded;
@@ -352,12 +402,48 @@ export class CombatBody {
     if (downNow && this.gauge.down >= GAUGE.down) { // ground limit → quick invulnerable getup
       this.state = 'getup'; this.kdPhase = 'up'; this.stateEnd = now + 160; this.invulnUntil = now + 160 + GAUGE.wakeInvulnMs;
     }
+    if (release && this.state !== 'getup') { this.release(now); out.reaction = 'knockdown'; out.endsCombo = true; out.launchVz = k.vz; }
     out.juggle = c.juggle;
     return out;
   }
 
+  /** Arena: the combo has had its share (damage / hits / time) — out of it: a short fall, untouchable until up again
+   *  (and guarded a moment after that). */
+  private release(now: number): void {
+    this.released = true;
+    this.combos.endAll(); this.hard.reset(); this.pinUntil = -1; this.bounce = false;
+    const k = this.kin;
+    if (k.grounded) this.enterKnockdown(now, 'light', 200);
+    else { this.state = 'knockdown'; this.kdPhase = 'fall'; k.vz = Math.min(k.vz, -260); this.stateEnd = now + 380; }
+  }
+
+  /** Arena BREAK possible now: being comboed (from its breakMinHits-th hit), off cooldown, not already out of it. On the
+   *  floor the quick getup is the way up instead. */
+  canBreak(now: number): boolean {
+    if (!this.arena || now < this.breakReadyAt || this.released || this.state === 'dead' || this.state === 'getup') return false;
+    if (this.state === 'knockdown' && this.kdPhase !== 'fall') return false;
+    if (this.state === 'free' && !this.hard.active(now)) return false;
+    const c = this.combos.live(now);
+    return !!c && c.hits >= ARENA.breakMinHits;
+  }
+
+  /** Arena BREAK: free at once, untouchable a moment, the combo over (the scene moves the body and plays the burst). */
+  doBreak(now: number): void {
+    this.breakReadyAt = now + ARENA.breakCdMs;
+    this.combos.endAll(); this.hard.reset(); this.hard.grantImmunity(now, ARENA.breakInvulnMs + 300);
+    this.state = 'free'; this.stateEnd = 0; this.kdPhase = 'fall'; this.pinUntil = -1; this.push = null; this.bounce = false; this.released = false;
+    this.ghostUntil = now + ARENA.breakInvulnMs; this.gauge = { stand: 0, air: 0, down: 0 };
+  }
+
+  /** Arena: down on the floor a moment, a key pressed — up at once (a short, guarded rise). */
+  quickGetup(now: number): boolean {
+    if (!this.arena || this.state !== 'knockdown' || this.kdPhase !== 'down' || !this.kin.grounded || now - this.downAt < ARENA.techMinMs) return false;
+    this.state = 'getup'; this.kdPhase = 'up'; this.stateEnd = now + 160;
+    return true;
+  }
+
   private hitstun(now: number, ms: number, idx: number, out: HitOutcome): void {
-    const s = Math.max(COMBO.hitStunFloorMs, Math.round(ms * stunScale(idx)));
+    const s = Math.max(COMBO.hitStunFloorMs, Math.round(ms * (this.arena ? arenaStun(idx) : stunScale(idx))));
     out.stunMs = s;
     if (this.state === 'launched' || this.state === 'knockdown') return;
     this.state = 'hitstun'; this.stateEnd = Math.max(this.stateEnd, now + s);
@@ -394,23 +480,27 @@ export class CombatBody {
     }
     let ev: 'land' | 'kdImpact' | 'getupDone' | null = null;
     if (now - this.lastHitAt > GAUGE.resetMs && this.state === 'free') this.gauge = { stand: 0, air: 0, down: 0 };
+    if (this.arena && this.state !== 'free') this.combos.hold(now); // a long fall is still the same combo (its budget too)
     switch (this.state) {
       case 'hitstun': if (now >= this.stateEnd) this.state = 'free'; break;
       case 'launched':
         if (landed) { // landing from a juggle: short knockdown + getup
-          this.state = 'knockdown'; this.kdPhase = 'impact'; this.stateEnd = now + 180 + 250; ev = 'kdImpact';
+          this.state = 'knockdown'; this.kdPhase = 'impact'; this.stateEnd = now + (this.arena ? ARENA.floorMs : 180 + 250); ev = 'kdImpact';
         }
         break;
       case 'knockdown':
         if (this.kdPhase === 'fall' && landed && this.bounce) { // ground bounce: back into the air, still juggleable
           this.bounce = false; k.grounded = false; k.vz = 330; this.state = 'launched'; ev = 'kdImpact'; break;
         }
-        if (this.kdPhase === 'fall' && landed) { this.kdPhase = 'impact'; ev = 'kdImpact'; this.stateEnd = Math.max(this.stateEnd, now + 430); }
-        else if (this.kdPhase === 'impact' && k.grounded) { this.kdPhase = 'down'; }
+        if (this.kdPhase === 'fall' && landed) { this.kdPhase = 'impact'; ev = 'kdImpact'; this.stateEnd = Math.max(this.stateEnd, now + (this.arena ? ARENA.floorMs : 430)); }
+        else if (this.kdPhase === 'impact' && k.grounded) { this.kdPhase = 'down'; this.downAt = now; }
         if (k.grounded && now >= this.stateEnd) { this.state = 'getup'; this.kdPhase = 'up'; this.stateEnd = now + 260; }
         break;
       case 'getup':
-        if (now >= this.stateEnd) { this.state = 'free'; this.hard.grantImmunity(now, 220); this.combos.endAll(); this.gauge = { stand: 0, air: 0, down: 0 }; ev = 'getupDone'; }
+        if (now >= this.stateEnd) {
+          this.state = 'free'; this.hard.grantImmunity(now, 220); this.combos.endAll(); this.gauge = { stand: 0, air: 0, down: 0 }; ev = 'getupDone';
+          if (this.arena) { this.released = false; this.ghostUntil = Math.max(this.ghostUntil, now + ARENA.wakeInvulnMs); } // the arena: every wake-up is guarded
+        }
         break;
       default: break;
     }
