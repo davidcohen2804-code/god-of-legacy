@@ -899,7 +899,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** A potion hotkey: restores its share of max HP / MP (not when already full, dead or out of them). */
   usePotion(i: 0 | 1): void {
     const id = POTION_IDS[i], p = POTIONS[id], now = this.simMs, k = this.kin;
-    if (this.dead >= 0 || !this.character || now - this.potionAt[i] < POTION_DELAY) return;
+    if (this.arena || this.dead >= 0 || !this.character || now - this.potionAt[i] < POTION_DELAY) return; // the arena: fixed HP, no potions (fair fights, a battle round can't be healed through)
     if (this.bag[id] <= 0) { this.potionAt[i] = now; this.fx?.callout({ x: k.x, y: k.y, z: k.z + 70 }, `NO ${p.name.toUpperCase()}S`, '#c9ced8', 0); return; }
     const max = p.stat === 'hp' ? this.maxHpNow() : this.maxMpNow(), cur = p.stat === 'hp' ? this.playerHP : this.mp;
     if (cur >= max) return;
