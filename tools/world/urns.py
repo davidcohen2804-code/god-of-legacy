@@ -17,7 +17,12 @@ hsv = cv2.cvtColor(pic, cv2.COLOR_BGR2HSV).astype(np.int32)
 Hh, Ss, Vv = hsv[..., 0], hsv[..., 1], hsv[..., 2]
 leaf = (((Hh <= 7) | (Hh >= 165) | ((Hh >= 18) & (Hh <= 50))) & (Ss > 120)) | (Vv < 85)   # red / yellow-green leaves, shade
 X = {a: S['areas'][a]['x'] for a in D['row']}
-URNS_LOCAL = {'courtyard': [60, 586, 1097], 'training': [547, 1162], 'plaza': [547, 1162], 'ruins': [547, 1159], 'temple': [547, 1162, 1626]}
+URNS_LOCAL = {'courtyard': [60, 586, 1097], 'training': [547, 1162], 'plaza': [547, 1162], 'ruins': [547, 1159], 'temple': [547, 1162, 1626],
+              'terraces_1': [580, 1095]}
+AW = D['size'][0]
+for a in D['row']:   # stand-in maps (tools/world/expand.py): their picture's urns, mirrored with it
+  A = D['areas'][a]
+  if A.get('standin') in URNS_LOCAL: URNS_LOCAL[a] = [round(AW - u) if A.get('mirrored') else u for u in URNS_LOCAL[A['standin']]]
 centres = sorted({round(X[a] + u) for a, us in URNS_LOCAL.items() for u in us} | {X[b] + 60 for b in D['row'][1:]})  # + one urn on every seam
 TOP, CUT = 560, 668                                  # search band; the part that can overlap a player ends at the railing
 for a in D['row']: D['areas'][a]['props'] = [p for p in D['areas'][a]['props'] if not p['id'].startswith('urn-')]

@@ -6,6 +6,7 @@ import DATA from '../data/world-areas.json';
 import STRIP from '../data/world-strip.json';
 import ARENA_DATA from '../data/world-arena.json';
 import GATE_DATA from '../data/world-gate.json';
+import TOWER_DATA from '../data/world-towers.json';
 import { Pt, WorldObject } from './WorldGeometry';
 
 export const AREA_W = DATA.size[0];
@@ -114,8 +115,19 @@ export const areaAt = (x: number): AreaDef => ROW.find((a) => x < a.span[1]) ?? 
  *  tools/world/strip.py laid them out; id = "<area>-<prop>" / "<a>_<b>-<prop>" (= its occluder cut-out). A stone block
  *  takes only the ground under it (its base): the floor behind it is floor — someone there is hidden by the block up to
  *  its top edge (depth), and walks or jumps onto it from any side. */
+/** Stone towers you climb by jumping from one to the next (src/data/world-towers.json, map px of their area): drawn by
+ *  the game (not part of the strip's picture), solid from the floor to their flat top. */
+export interface Tower { id: string; x0: number; x1: number; front: number; h: number; depth: number }
+const FOOT_R = 10, EDGE = 2;
+export const TOWERS: Tower[] = Object.entries(TOWER_DATA as unknown as Record<string, { id: string; x: [number, number]; front: number; h: number; depth: number }[]>)
+  .filter(([a]) => AREAS[a]).flatMap(([a, list]) => list.map((t) => ({ id: `${a}-${t.id}`, x0: AREAS[a].x + t.x[0], x1: AREAS[a].x + t.x[1], front: t.front, h: t.h, depth: t.depth })));
+const towerProps = () => TOWERS.map((t) => {
+  const s0 = t.front - t.depth, back = s0 - t.h + FOOT_R - EDGE;
+  return { id: t.id, foot: [[t.x0, back], [t.x1, back], [t.x1, t.front], [t.x0, t.front]] as Pt[], base: [[t.x0, s0], [t.x1, s0], [t.x1, t.front], [t.x0, t.front]] as Pt[],
+    h: t.h, top: t.h, stand: [s0, t.front - 3] as [number, number] };
+});
 export function worldObjects(): WorldObject[] {
-  return ([...STRIP.props, ...GATE.props] as { id: string; foot: Pt[]; base?: Pt[]; h: number; top?: number; stand?: [number, number] }[]).map((p) => ({
+  return ([...STRIP.props, ...GATE.props, ...towerProps()] as { id: string; foot: Pt[]; base?: Pt[]; h: number; top?: number; stand?: [number, number] }[]).map((p) => ({
     id: p.id, footprint: p.stand && p.base ? p.base : p.foot, height: p.h, ...(p.top !== undefined ? { topZ: p.top } : {}), ...(p.stand ? { stand: p.stand } : {}),
     ...(p.base ? { base: p.base } : {}),
     cover: 'hard' as const, occluder: [], frontY: Math.max(...p.foot.map((q) => q[1])) + 1,

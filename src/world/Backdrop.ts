@@ -128,6 +128,19 @@ export class Backdrop {
   private get k(): number { return BACKDROP ? Phaser.Math.Clamp((BACKDROP.w - this.span) / Math.max(1, WORLD_W - this.span), 0, 1) : 1; }
 
   /** The view moved (world px of its left edge, its width). */
+  /** The camera risen this far above the terrace (climbing towers): the landscape and the sky sink less than the
+   *  terrace (they are far away), and the sky above the landscape's top is filled with its own colour. */
+  setLift(lift: number): void {
+    this.land.y = this.skyBack.y = -lift * 0.75; this.sky.y = -lift * 0.85; this.haze.y = -lift * 0.6;
+    if (lift > 0 && !this.skyTop) {
+      let c = 0xf2b48a;
+      try { const p = this.scene.textures.getPixel(4, 4, 'world-bg-sky') ?? this.scene.textures.getPixel(4, 4, bgKey(0)); if (p) c = Phaser.Display.Color.GetColor(p.red, p.green, p.blue); } catch { /* the default */ }
+      this.skyTop = this.scene.add.rectangle(-4000, -3000, 60000, 3002, c).setOrigin(0, 0);
+      this.skyBack.addAt(this.skyTop, 0);
+    }
+  }
+  private skyTop?: Phaser.GameObjects.Rectangle;
+
   setView(left: number, span: number): void {
     this.left = left; this.span = span;
     const k = this.k;
