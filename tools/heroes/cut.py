@@ -214,6 +214,24 @@ def blade_line(crop, ax, ay):
     return [round(float(hilt[0] - ax), 1), round(float(hilt[1] - ay), 1), round(float(tip[0] - ax), 1), round(float(tip[1] - ay), 1)]
 
 
+def face_size(f):
+    """Size of the face (sqrt of its skin area, in the top third of the figure): one measure of how big a sheet drew him."""
+    import cv2
+    a = f[..., 3] > 150
+    if not a.any():
+        return None
+    hsv = cv2.cvtColor(np.ascontiguousarray(f[..., :3]), cv2.COLOR_RGB2HSV).astype(int)
+    h, s, v = hsv[..., 0], hsv[..., 1], hsv[..., 2]
+    skin = a & (h >= 3) & (h <= 22) & (s > 45) & (s < 170) & (v > 140)
+    ys = np.where(a.any(1))[0]; top = ys[0]; H = a.shape[0]
+    skin[int(top + 0.35 * (H - top)):] = False
+    lab, k = ndimage.label(ndimage.binary_opening(skin, iterations=1))
+    if k == 0:
+        return None
+    sz = ndimage.sum(skin, lab, range(1, k + 1)); i = int(np.argmax(sz)) + 1
+    return float(np.sqrt(sz[i - 1])) if sz[i - 1] >= 30 else None
+
+
 def pack(frames, width=4096, pad=2):
     x = y = rowh = 0
     pos = []
@@ -232,7 +250,7 @@ def main():
     table_path = os.path.join(ROOT, 'src', 'data', 'hero-atlas.json')
     table = json.load(open(table_path)) if os.path.exists(table_path) else {}
     for cls, sheets in SPEC.items():
-        acts, ims = [], []
+        acts, ims, tags = [], [], []
         for tag, rows in sheets:
             f = os.path.join(SRC, f'{cls}_{tag}.png')
             if not os.path.exists(f):
@@ -272,9 +290,36 @@ def main():
                 for fi, (crop, ax, ay) in enumerate(frames_in_row(src, y0, y1, n, cls, act)):
                     if fi in DROP.get((cls, act), ()):
                         continue
-                    acts.append((act, ax, ay)); ims.append(crop)
+                    acts.append((act, ax, ay)); ims.append(crop); tags.append(tag)
         if not ims:
             continue
+        # One size on every sheet: GPT draws each sheet at its own scale. The walk is made as tall as the idle (an upright
+        # step stands ~2% lower); every other sheet is matched to the walk by the size of the face (all side views).
+        face_of = {}
+        for t, im in zip(tags, ims):
+            v = face_size(im)
+            if v: face_of.setdefault(t, []).append(v)
+        hgt = lambda a: float(np.median([im.shape[0] - (im.shape[0] - ay) for (ac, ax, ay), im in zip(acts, ims) if ac == a]))
+        idle_h0, walk_h0 = hgt('idle'), hgt('walk')
+        idle_tag = next(t for (ac, _, _), t in zip(acts, tags) if ac == 'idle')
+        walk_tag = next(t for (ac, _, _), t in zip(acts, tags) if ac == 'walk')
+        sk = {idle_tag: 1.0, walk_tag: 0.98 * idle_h0 / walk_h0}
+        F = float(np.median(face_of[walk_tag])) * sk[walk_tag]
+        for t, L in face_of.items():
+            if t not in sk:
+                sk[t] = F / float(np.median(L))
+        print(cls, 'sheet scales', {t: round(v, 3) for t, v in sk.items()})
+        for i, t in enumerate(tags):
+            k = sk.get(t, 1.0)
+            if abs(k - 1) < 0.01:
+                continue
+            im = ims[i]; (ac, ax, ay) = acts[i]
+            r = Image.fromarray(im).resize((max(1, round(im.shape[1] * k)), max(1, round(im.shape[0] * k))), Image.LANCZOS)
+            ims[i] = np.array(r); acts[i] = (ac, ax * k, ay * k)
+        for a in ('walk', 'run'):
+            t = next((t for (ac, _, _), t in zip(acts, tags) if ac == a), None)
+            if t and (cls, a) in STRIDES:
+                STRIDES[(cls, a)] = [v * sk.get(t, 1.0) for v in STRIDES[(cls, a)]]
         sheet, pos = pack(ims)
         out_dir = os.path.join(ROOT, 'public', 'assets', 'final', 'heroes', cls)
         os.makedirs(out_dir, exist_ok=True)
@@ -295,7 +340,7 @@ def main():
         A.pop('walk_old', None); A.pop('run_old', None)
         idle_h = float(np.median([f[3] for f in A['idle']]))
         # the distance one leg cycle carries the body: two steps of the widest stride (the game matches the legs to the speed)
-        cyc = {a: round(2 * max(STRIDES.get((cls, a), [0])) * 0.8, 1) for a in ('walk', 'run')}
+        cyc = {a: round(2 * max(STRIDES.get((cls, a), [0])), 1) for a in ('walk', 'run')}
         table[cls] = {'h': idle_h, 'actions': A, 'cycle': cyc}
         print(cls, {k: len(v) for k, v in A.items()}, 'idle h', idle_h, 'sheet', sheet.shape[:2])
     json.dump(table, open(table_path, 'w'), separators=(',', ':'))
