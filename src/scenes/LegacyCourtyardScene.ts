@@ -122,7 +122,7 @@ const ALERT_MS = 4000;
 const TREE_RADIUS = 260; // = the drawn circle around the tree
 
 /** Skills whose aim the held direction keeps turning while they run (sent to the other players). */
-const AIM_STEER = new Set(['arrow_storm', 'piercing_arrow', 'eagle_arrow']);
+const AIM_STEER = new Set(['piercing_arrow', 'eagle_arrow']);
 
 export class LegacyCourtyardScene extends Phaser.Scene {
   // ---- local actor (read by QA)
@@ -1586,6 +1586,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Volley Stance: the archer stands rooted, but the held direction aims the stream (side or corner); other players follow. */
   private stepStorm(): void {
     const run = this.rt?.ownRun, inp = this.ci;
+    if (run && run.skill.id === 'arrow_storm' && run.phase !== 'done' && run.place && inp?.hasMove) { // Hunter's Rain: the held direction steers the mark of the rain over the floor
+      const u = unit(inp.moveX, inp.moveY), sp = 360 * (this.game.loop.delta / 1000), k = this.kin;
+      let nx = run.place.x + u.x * sp, ny = run.place.y + u.y * sp * 0.75;
+      const d = Math.hypot(nx - k.x, ny - k.y), R = 520; if (d > R) { nx = k.x + ((nx - k.x) / d) * R; ny = k.y + ((ny - k.y) / d) * R; }
+      if (placementOk(nx, ny)) { run.place = { x: nx, y: ny }; this.pvp?.sendRelease({ castId: run.castId, at: -2, ax: Math.round(nx), ay: Math.round(ny) }); }
+      return;
+    }
     if (!run || !AIM_STEER.has(run.skill.id) || run.phase === 'done' || !inp?.hasMove) return;
     if (run.skill.id === 'eagle_arrow' && run.phase !== 'startup') return; // Eagle Tide: turned while charging, fixed once released
     const u = unit(inp.moveX, inp.moveY), a = sideAim(u.x, u.y, this.dir === 'left' ? -1 : 1);
@@ -2224,6 +2231,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       },
       onRelease: (from, m) => { // Judgment Blade thrown: final aim + the moment it left the hand
         const r = this.rt?.runs.find((x) => x.castId === m.castId && x.attackerId === from);
+        if (r && r.skill.id === 'arrow_storm' && m.at === -2) { r.place = { x: m.ax, y: m.ay }; return; } // Hunter's Rain: the caster moved the mark
         if (r && AIM_STEER.has(r.skill.id) && m.at === -1) { r.aim = sideAim(m.ax / 1000, m.ay / 1000, m.ax < 0 ? -1 : 1); return; } // Volley Stance / Spirit Bow / Eagle Tide: the caster turned the aim
         if (r && r.phase === 'startup') { r.aim = clampAim(unit(m.ax, m.ay)); r.timings.startup = Math.max(r.elapsed, m.at); }
         this.pvp?.remotes.get(from)?.setSkillStartup(r?.skill.id ?? '', r ? r.timings.startup : m.at);

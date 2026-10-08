@@ -96,10 +96,10 @@ export function archerMotion(id: string, e: number, T: Timeline, face: number): 
       if (r < 0) return M({ sy: 1 - 0.14 * easeOut(clamp01(e / T.startup)), sx: 1.06 });
       return M({ sy: 1 - 0.14 * (1 - clamp01(r / 260)) });
     }
-    case 'arrow_storm': { // planted wide, trembling under the rapid fire
-      const r = e - T.startup;
-      if (r < 0) return M({ sy: 1 - 0.1 * easeOut(clamp01(e / T.startup)), sx: 1.06 });
-      if (e < A) { const k = kick(r % 150, 120); return M({ dx: -face * (3 + 5 * k) + Math.sin(e * 1.3) * 1.2, ang: -face * (2 + 2 * k), sx: 1.02, sy: 0.98 }); }
+    case 'arrow_storm': { // Hunter's Rain: crouch, lean back and loose the volley at the sky, then stand watching the rain
+      const r = e - T.startup, p = clamp01(e / T.startup);
+      if (r < 0) return p < 0.5 ? M({ sy: 1 - 0.1 * easeOut(p / 0.5), sx: 1.06 }) : M({ ang: -face * 14 * easeOut((p - 0.5) / 0.5), dx: -face * 4, after: p > 0.8 });
+      if (e < A) return M({ ang: -face * 14 * (1 - clamp01(r / 300)), sy: 1 + 0.01 * Math.sin(e / 300) });
       return null;
     }
     case 'sky_rain': { // crouch → leap high → hang drawing at the sky → the release → drop back

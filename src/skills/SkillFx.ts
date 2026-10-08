@@ -1041,7 +1041,7 @@ export class SkillFx {
       this.projs.set(p, img);
       return;
     }
-    if ((p.skill.id === 'arrow_storm' || p.skill.id === 'piercing_arrow') && this.scene.textures.exists('afx-muzzle')) { const lv = level(p.dx, p.dy); this.play('afx-muzzle', p.x, p.y - p.z, 120, 120, [30, 30, 35, 40, 45, 50, 55, 60], { ox: lv.flip ? 0.86 : 0.14, flip: lv.flip, depth: p.y + 1 })?.setAngle(lv.ang); }
+    if (p.skill.id === 'piercing_arrow' && this.scene.textures.exists('afx-muzzle')) { const lv = level(p.dx, p.dy); this.play('afx-muzzle', p.x, p.y - p.z, 120, 120, [30, 30, 35, 40, 45, 50, 55, 60], { ox: lv.flip ? 0.86 : 0.14, flip: lv.flip, depth: p.y + 1 })?.setAngle(lv.ang); }
     if (p.skill.cls === 'archer' && this.scene.textures.exists('arch-arrow')) { this.archerArrow(p); return; }
     const id = PROJ_ALIAS[p.skill.id] ?? p.skill.id, sheet = PROJECTILE_SHEETS[id];
     if (!sheet) return;
@@ -1640,9 +1640,20 @@ export class SkillFx {
         this.scene.time.delayedCall(T.startup + life, () => SKILL_BLOCKERS.delete(r.castId));
         break;
       }
-      case 'arrow_storm': { // Volley Stance: planted, a quick gust under the feet; every arrow of the stream is drawn on its own
-        const q = me() ?? o;
-        this.scene.time.delayedCall(T.startup, () => { this.shockwave(q.x, q.y, 90, 0xa8f04a, true); this.dust(q.x, q.y, 80, 0.6); });
+      case 'arrow_storm': { // Hunter's Rain: dozens of arrows loosed into the sky, then they pour down on the mark (which the archer steers)
+        this.scene.time.delayedCall(Math.round(T.startup * 0.55), () => { const q = me() ?? o; for (let k = 0; k < 3; k++) this.scene.time.delayedCall(k * 70, () => this.risingArrows(q.x + side * 14, q.y - q.z - 50, 7, 0x7ee35a, 1.1)); this.shockwave(q.x, q.y, 90, 0xa8f04a, true); });
+        const mark = this.scene.add.image(0, 0, this.scene.textures.exists('afx-haste') ? 'afx-haste' : 'magic-circle', 0).setDisplaySize(260, 130).setAlpha(0).setDepth(GROUND + 1);
+        this.scene.tweens.add({ targets: mark, alpha: 0.95, delay: T.startup * 0.5, duration: 200 });
+        let mt = 0;
+        const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
+          mt += 16; const c = r.place;
+          if (!c || r.phase === 'done' || r.phase === 'recovery') { ev.remove(); this.scene.tweens.add({ targets: mark, alpha: 0, duration: 250, onComplete: () => mark.destroy() }); return; }
+          mark.setPosition(c.x, c.y).setFrame(Math.floor(mt / 90) % 8);
+        } });
+        for (const h of r.hits) this.scene.time.delayedCall(T.startup + h.at - 150, () => { // each wave falls where the mark is now
+          const c = r.place; if (!c || r.phase === 'done') return;
+          this.arrowShower(c.x, c.y, 95, 42, 7, 150, Math.random() < 0.5 ? 0x7ee35a : 0xa8f04a, 0.12, 1.1);
+        });
         break;
       }
       case 'rain_of_arrows': { // Thunder Rain: hanging in the air, the archer fires three lightning arrows down onto the floor (warrior-style blue lightning)
