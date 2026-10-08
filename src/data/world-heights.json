@@ -1,0 +1,71 @@
+[
+ {
+  "id": "ivy_heights",
+  "name": "Ivy Heights",
+  "x": 3164,
+  "w": 1672,
+  "H": 420,
+  "front": 420,
+  "back": 192,
+  "img": "assets/world/heights/ivy_heights.webp",
+  "imgY": -580,
+  "imgH": 941,
+  "blocks": [
+   {
+    "id": "block-l",
+    "x0": 3430,
+    "x1": 3613,
+    "front": 343,
+    "h": 85,
+    "depth": 26,
+    "occ": {
+     "img": "assets/world/heights/ivy_heights-block-l.webp",
+     "x": 3427,
+     "py": 388
+    }
+   },
+   {
+    "id": "block-r",
+    "x0": 4485,
+    "x1": 4598,
+    "front": 350,
+    "h": 70,
+    "depth": 23,
+    "occ": {
+     "img": "assets/world/heights/ivy_heights-block-r.webp",
+     "x": 4482,
+     "py": 413
+    }
+   }
+  ],
+  "mobs": {
+   "kind": "sprout",
+   "spawns": [
+    [
+     3324,
+     365
+    ],
+    [
+     3784,
+     310
+    ],
+    [
+     3984,
+     385
+    ],
+    [
+     4174,
+     285
+    ],
+    [
+     4344,
+     370
+    ],
+    [
+     4724,
+     320
+    ]
+   ]
+  }
+ }
+]

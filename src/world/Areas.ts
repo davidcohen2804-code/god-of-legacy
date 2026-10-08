@@ -7,6 +7,7 @@ import STRIP from '../data/world-strip.json';
 import ARENA_DATA from '../data/world-arena.json';
 import GATE_DATA from '../data/world-gate.json';
 import TOWER_DATA from '../data/world-towers.json';
+import HEIGHT_DATA from '../data/world-heights.json';
 import { Pt, WorldObject } from './WorldGeometry';
 
 export const AREA_W = DATA.size[0];
@@ -126,8 +127,27 @@ const towerProps = () => TOWERS.map((t) => {
   return { id: t.id, foot: [[t.x0, back], [t.x1, back], [t.x1, t.front], [t.x0, t.front]] as Pt[], base: [[t.x0, s0], [t.x1, s0], [t.x1, t.front], [t.x0, t.front]] as Pt[],
     h: t.h, top: t.h, stand: [s0, t.front - 3] as [number, number] };
 });
+/** Maps above the terrace (tools/world/heights.py): a whole floor H px up behind it, its picture standing behind the
+ *  terrace's back balustrade (imgY: its top, world px), its blocks and monsters up there. */
+export interface Heights {
+  id: string; name: string; x: number; w: number; H: number; front: number; back: number; img: string; imgY: number; imgH: number;
+  blocks: { id: string; x0: number; x1: number; front: number; h: number; depth: number; occ: { img: string; x: number; py: number } }[];
+  mobs: { kind: string; spawns: Pt[] };
+}
+export const HEIGHTS = HEIGHT_DATA as unknown as Heights[];
+/** The area shown while you are up on a map above (its name, its stretch). */
+export const heightArea = (h: Heights): AreaDef => ({ id: h.id, name: h.name, x: h.x, span: [h.x, h.x + h.w], walk: [], props: [] });
+const heightProps = () => HEIGHTS.flatMap((h) => [
+  { id: h.id, foot: [[h.x, h.back], [h.x + h.w, h.back], [h.x + h.w, h.front], [h.x, h.front]] as Pt[], base: [[h.x, h.back], [h.x + h.w, h.back], [h.x + h.w, h.front], [h.x, h.front]] as Pt[],
+    h: h.H, top: h.H, stand: [h.back + 4, h.front - 3] as [number, number] },
+  ...h.blocks.map((b) => {
+    const s0 = b.front - b.depth, back = s0 - b.h + FOOT_R - EDGE;
+    return { id: `${h.id}-${b.id}`, foot: [[b.x0, back], [b.x1, back], [b.x1, b.front], [b.x0, b.front]] as Pt[], base: [[b.x0, s0], [b.x1, s0], [b.x1, b.front], [b.x0, b.front]] as Pt[],
+      h: h.H + b.h, top: h.H + b.h, stand: [s0, b.front - 3] as [number, number] };
+  }),
+]);
 export function worldObjects(): WorldObject[] {
-  return ([...STRIP.props, ...GATE.props, ...towerProps()] as { id: string; foot: Pt[]; base?: Pt[]; h: number; top?: number; stand?: [number, number] }[]).map((p) => ({
+  return ([...STRIP.props, ...GATE.props, ...towerProps(), ...heightProps()] as { id: string; foot: Pt[]; base?: Pt[]; h: number; top?: number; stand?: [number, number] }[]).map((p) => ({
     id: p.id, footprint: p.stand && p.base ? p.base : p.foot, height: p.h, ...(p.top !== undefined ? { topZ: p.top } : {}), ...(p.stand ? { stand: p.stand } : {}),
     ...(p.base ? { base: p.base } : {}),
     cover: 'hard' as const, occluder: [], frontY: Math.max(...p.foot.map((q) => q[1])) + 1,

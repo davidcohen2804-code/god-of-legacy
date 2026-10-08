@@ -6,7 +6,7 @@
 import Phaser from 'phaser';
 import PROPS from '../data/world-props.json';
 import NPC_ART from '../data/npc-sprites.json';
-import { ARENA, ARENA_AREA, GATE, ARENA_MINIMAP_URL, AREA_H, AREA_W, AreaDef, arenaTileKey, arenaTileUrl, belowTerrace, AreaNpc, BACKDROP, MINIMAP_URL, MOB_KINDS, ROW, START, TILES, TOWERS, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
+import { ARENA, ARENA_AREA, GATE, ARENA_MINIMAP_URL, AREA_H, AREA_W, AreaDef, arenaTileKey, arenaTileUrl, belowTerrace, AreaNpc, BACKDROP, MINIMAP_URL, MOB_KINDS, ROW, START, TILES, TOWERS, HEIGHTS, heightArea, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
 import { WorldObject, actorDepth, setWorldGeometry } from './WorldGeometry';
 import { Backdrop, preloadBackdrop } from './Backdrop';
 import { Monster, preloadMonsterFrames } from './Monster';
@@ -58,7 +58,7 @@ export function preloadOpenWorld(scene: Phaser.Scene): void {
 }
 
 /** Standing this high (world px) the camera starts to rise with you. */
-const LIFT_FROM = 120;
+const LIFT_FROM = 60;
 
 export class OpenWorld {
   /** The area the player is in. */
@@ -91,7 +91,7 @@ export class OpenWorld {
     ARENA.tiles.forEach((_, i) => this.ensureArenaTile(i));
     scene.load.on(Phaser.Loader.Events.FILE_COMPLETE, this.onFile, this);
     if (!scene.load.isLoading()) scene.load.start();
-    this.buildOccluders(); this.buildTowers(); this.buildGate(); this.buildNpcs(); this.buildPortal(); this.spawnMobs();
+    this.buildOccluders(); this.buildTowers(); this.buildHeights(); this.buildGate(); this.buildNpcs(); this.buildPortal(); this.spawnMobs();
     if (BACKDROP) this.backdrop = new Backdrop(scene);
     const cam = scene.cameras.main;
     this.ambience = new CourtyardAmbience(scene, Math.ceil(cam.width / cam.zoom) + 4, AREA_H, BACKDROP ? [330, 668] : undefined);
@@ -133,6 +133,20 @@ export class OpenWorld {
 
   /** The climbing towers (Areas.TOWERS): stone pillars drawn here, each its own texture (until their GPT art comes):
    *  a lit top face of worn tiles, a front face of courses of stone darker toward the floor, ivy hanging from the lip. */
+  /** The maps above the terrace: each picture behind the terrace (its wall stands behind the back balustrade), its
+   *  blocks' cut-outs over whoever walks behind them up there. */
+  private buildHeights(): void {
+    for (const h of HEIGHTS) {
+      const put = (key: string, url: string, make: () => void) => {
+        if (this.scene.textures.exists(key)) { make(); return; }
+        this.scene.load.image(key, url); this.scene.load.once(`filecomplete-image-${key}`, make);
+        if (!this.scene.load.isLoading()) this.scene.load.start();
+      };
+      put(`heights-${h.id}`, h.img, () => this.towers.push(this.scene.add.image(h.x, h.imgY, `heights-${h.id}`).setOrigin(0, 0).setDepth(-1.2)));
+      for (const b of h.blocks) put(`heights-${h.id}-${b.id}`, b.occ.img, () => this.towers.push(this.scene.add.image(b.occ.x, h.imgY + b.occ.py, `heights-${h.id}-${b.id}`).setOrigin(0, 0).setDepth(h.front + 1 + b.front * 0.001)));
+    }
+  }
+
   private buildTowers(): void {
     if (!this.scene.textures.exists('tower-shadow')) { const g = this.scene.make.graphics({ x: 0, y: 0 }, false); for (let r = 32; r > 0; r -= 2) { g.fillStyle(0x000000, 0.06); g.fillEllipse(32, 8, r * 2, r / 2); } g.generateTexture('tower-shadow', 64, 16); g.destroy(); }
     for (const t of TOWERS) {
@@ -223,6 +237,7 @@ export class OpenWorld {
 
   /** Every area's monsters live all the time (each one keeps to its own home spot). */
   private spawnMobs(): void {
+    for (const h of HEIGHTS) { const kind = MOB_KINDS[h.mobs.kind]; if (kind) h.mobs.spawns.forEach((s, i) => this.mobs.push(new Monster(this.scene, `mob:${h.id}:${i}`, kind, { x: s[0], y: s[1] }, i))); }
     for (const a of ROW) for (const [j, def] of [a.mobs, a.mobs2].entries()) {
       const kind = def ? MOB_KINDS[def.kind] : undefined; if (!def || !kind) continue;
       def.spawns.forEach((s, i) => this.mobs.push(new Monster(this.scene, `mob:${a.id}:${j ? `b${i}` : i}`, kind, toWorld(a.id, s), i)));
@@ -284,7 +299,9 @@ export class OpenWorld {
     this.ambience.update(ms);
     this.backdrop?.update(ms);
     // the area you are in (by where you stand on the strip; a little past the line, so it never flickers)
-    const a = this.areaOf(player.x, player.y);
+    const up = HEIGHTS.find((h) => (player.supportZ ?? 0) >= h.H - 1 && player.x >= h.x && player.x <= h.x + h.w && player.y <= h.front + 2);
+    if (up) { if (this.area.id !== up.id) this.setArea(heightArea(up)); }
+    const a = up ? this.area : this.areaOf(player.x, player.y);
     if (a === ARENA_AREA || this.area === ARENA_AREA) { if (a !== this.area && Math.abs(player.y - ARENA.y) > AREA_HYST) this.setArea(a); }
     else if (a !== this.area && player.x > a.span[0] + (a.span[0] > 0 ? AREA_HYST : 0) - 1 && player.x < a.span[1] - (a.span[1] < WORLD_W ? AREA_HYST : 0) + 1) this.setArea(a);
     // the Temple Gate's front layer turns see-through while you are behind its front tower (it would hide you)
