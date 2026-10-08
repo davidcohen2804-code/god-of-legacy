@@ -140,6 +140,13 @@ export class OpenWorld {
       x.fillStyle = g; x.fillRect(0, 0, 4, 256); c.refresh();
     }
     const fog = this.scene.add.image(TILES[i][0] - 2, WORLD_H - 150, 'below-fog2').setOrigin(0, 0).setDisplaySize(TILES[i][1] + 4, 600).setDepth(-1.6);   // behind the terrace and the plaza below the temple (never over its stairs)   // opaque by the picture's edge
+    // and a soft veil over the picture's own bottom edge (the pillars' cut feet melt into the mist) — not over the plaza
+    // below the temple, where the terrace runs on into its stairs
+    const t0 = TILES[i][0], t1 = t0 + TILES[i][1], ax0 = ARENA.x, ax1 = ARENA.x + ARENA.w;
+    for (const [x0, x1] of [[t0, Math.min(t1, ax0)], [Math.max(t0, ax1), t1]]) {
+      if (x1 - x0 < 2) continue;
+      this.below.push(this.scene.add.image(x0, WORLD_H - 96, 'below-fog2').setOrigin(0, 0).setDisplaySize(x1 - x0, 400).setDepth(-0.97));
+    }
     this.below.push(fog);
   }
 
