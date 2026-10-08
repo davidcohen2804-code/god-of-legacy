@@ -14,12 +14,20 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 
+# rows the game lifts itself (jumps, leaps): anchored on their own feet
+OWN_FEET = {'jump', 'leap_crash', 'judgment_blade', 'finisher'}
+SCALE = 0.6  # frame size kept in the atlas (source px x SCALE)
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC = os.path.join(ROOT, 'tools', 'heroes', 'src')
 
 # sheet -> its rows in order: (action, frames)
 SPEC = {
-    'warrior': [('A', [('idle', 6), ('walk', 6), ('run', 6)]), ('B', [('jump', 3), ('stance', 4), ('attack', 6)])],
+    'warrior': [('A', [('idle', 6), ('walk', 6), ('run', 6)]), ('B', [('jump', 3), ('stance', 4), ('attack', 6)]),
+                ('S1', [('dash_slash', 6), ('rising_slash', 6), ('lance_thrust', 6)]),
+                ('S2', [('ground_breaker', 6), ('leap_crash', 6), ('titans_verdict', 6)]),
+                ('S3', [('whirlwind', 6), ('blade_storm', 6), ('wave_slash', 6)]),
+                ('S4', [('oath', 6), ('radiant_blade', 6), ('banner', 6)]),
+                ('S5', [('war_cry', 6), ('judgment_blade', 6), ('finisher', 6)])],
     'book_mage': [('A', [('idle', 6), ('walk', 6), ('attack', 6)]), ('B', [('run', 6), ('jump', 3), ('stance', 4)])],
     'samurai': [('A', [('idle', 6), ('walk', 6), ('attack', 6)]), ('B', [('run', 6), ('jump', 3), ('stance', 4)])],
     'archer': [('A', [('idle', 6), ('walk', 6), ('attack', 6)]), ('B', [('run', 6), ('jump', 3), ('stance', 4)])],
@@ -64,9 +72,20 @@ def bands(mask, gap=8):
     return out
 
 
-def frames_in_row(rgba, y0, y1, n, cls, act):
+def frames_in_row(rgba, y0, y1, n, cls, act, scale=None):
+    SCALE_ = SCALE if scale is None else scale
     a = rgba[y0:y1, :, 3] > 40
     lab, k = ndimage.label(a, structure=np.ones((3, 3)))
+    for it in range(1, 6):  # figures touching (a sword tip on the next one): erode until they part, then give every pixel back to the nearest part
+        sizes0 = ndimage.sum(a, lab, range(1, k + 1))
+        big = sorted(sizes0, reverse=True)
+        if len(big) >= n and big[n - 1] >= 0.25 * big[0]:
+            break
+        er = ndimage.binary_erosion(a, iterations=it)
+        el, ek = ndimage.label(er, structure=np.ones((3, 3)))
+        _, (iy, ix) = ndimage.distance_transform_edt(el == 0, return_indices=True)
+        lab = np.where(a, el[iy, ix], 0)
+        k = int(lab.max())
     objs = ndimage.find_objects(lab)
     sizes = ndimage.sum(a, lab, range(1, k + 1))
     comps = [(i + 1, objs[i], sizes[i]) for i in range(k)]
@@ -83,8 +102,14 @@ def frames_in_row(rgba, y0, y1, n, cls, act):
             continue  # a loose flying arrow: the game draws its own
         cx = (sl[1].start + sl[1].stop) / 2
         best = min(range(n), key=lambda i: 0 if bodies[i][1][1].start <= cx <= bodies[i][1][1].stop else min(abs(cx - bodies[i][1][1].start), abs(cx - bodies[i][1][1].stop)))
+        bs = bodies[best][1]
+        gx = max(0, bs[1].start - sl[1].stop, sl[1].start - bs[1].stop)
+        gy = max(0, bs[0].start - sl[0].stop, sl[0].start - bs[0].stop)
+        if (gx * gx + gy * gy) ** 0.5 > 10 and sz < 0.03 * bodies[best][2]:
+            continue  # a loose sliver (a neighbour's sword tip cut off where they touched)
         owner[lid] = best
     out = []
+    ground = max(int(np.where(np.isin(lab, [l for l, o in owner.items() if o == i]))[0].max()) + 1 for i in range(n))  # the row's floor line
     for i in range(n):
         ids = [l for l, o in owner.items() if o == i]
         m = np.isin(lab, ids)
@@ -95,13 +120,17 @@ def frames_in_row(rgba, y0, y1, n, cls, act):
         # feet anchor: x = torso centre (pixels 25-55 % down the figure), y = the lowest pixel
         bm = m[yy0:yy1, x0:x1] & (crop[..., 3] > 128)
         hh = bm.shape[0]
+        ay = float(hh if act in OWN_FEET else ground - yy0)  # jumps: own feet (the game lifts them); the rest: the row's floor (drawn airborne frames stay up)
         band = bm[int(hh * 0.25):int(hh * 0.55)]
         ax = float(np.where(band)[1].mean()) if band.any() else bm.shape[1] / 2
-        out.append((crop, ax, float(hh)))
+        if SCALE_ != 1:  # the game shows a hero ~150 px tall: keep a little more than that
+            im = Image.fromarray(crop).resize((max(1, round(crop.shape[1] * SCALE_)), max(1, round(crop.shape[0] * SCALE_))), Image.LANCZOS)
+            crop, ax, ay = np.array(im), ax * SCALE_, ay * SCALE_
+        out.append((crop, ax, ay))
     return out
 
 
-def pack(frames, width=2048, pad=2):
+def pack(frames, width=4096, pad=2):
     x = y = rowh = 0
     pos = []
     for im in frames:
@@ -136,8 +165,8 @@ def main():
                 cuts.append(H)
                 bs = [(cuts[k], cuts[k + 1]) for k in range(n)]
             for (y0, y1), (act, n) in zip(bs, rows):
-                for crop, ax, h in frames_in_row(rgba, y0, y1, n, cls, act):
-                    acts.append((act, ax, h)); ims.append(crop)
+                for crop, ax, ay in frames_in_row(rgba, y0, y1, n, cls, act):
+                    acts.append((act, ax, ay)); ims.append(crop)
         if not ims:
             continue
         sheet, pos = pack(ims)
@@ -145,8 +174,8 @@ def main():
         os.makedirs(out_dir, exist_ok=True)
         Image.fromarray(sheet).save(os.path.join(out_dir, 'body.png'), optimize=True)
         A = {}
-        for (act, ax, h), (px, py), im in zip(acts, pos, ims):
-            A.setdefault(act, []).append([px, py, im.shape[1], im.shape[0], round(ax, 1), im.shape[0]])
+        for (act, ax, ay), (px, py), im in zip(acts, pos, ims):
+            A.setdefault(act, []).append([px, py, im.shape[1], im.shape[0], round(ax, 1), round(ay, 1)])
         idle_h = float(np.median([f[3] for f in A['idle']]))
         table[cls] = {'h': idle_h, 'actions': A}
         print(cls, {k: len(v) for k, v in A.items()}, 'idle h', idle_h, 'sheet', sheet.shape[:2])
@@ -158,7 +187,7 @@ def main():
             continue
         rgba = alpha_from_white(np.array(Image.open(f).convert('RGB')))
         (y0, y1), = [max(bands(rgba[..., 3] > 40, gap=40), key=lambda b: b[1] - b[0])]
-        crop = frames_in_row(rgba, y0, y1, 3, cls, 'model')[0][0]
+        crop = frames_in_row(rgba, y0, y1, 3, cls, 'model', scale=1)[0][0]
         Image.fromarray(crop).save(os.path.join(ROOT, 'public', 'assets', 'final', 'heroes', cls, 'card.png'), optimize=True)
         # the face for portraits: a square round the head (top of the figure, central columns)
         h, w = crop.shape[:2]

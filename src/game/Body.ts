@@ -518,6 +518,28 @@ export function heroPortrait(cls: string): { url: string; crop: { x: number; y: 
 }
 /** Basic-attack rows: three strikes of 2 frames (wind-up, strike) for blades; one shot / cast of 6 frames for bow and book. */
 const STRIKES = new Set(['warrior', 'samurai']);
+/** Each skill's frames of its hero sheet row per phase (startup / active / recovery, spread evenly over the phase);
+ *  loop = frames cycled through the whole active phase at fps. */
+interface HeroPlan { act: string; st: number[]; ac: number[]; rc: number[]; loop?: number[]; fps?: number }
+const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
+  warrior: {
+    dash_slash: { act: 'dash_slash', st: [0], ac: [1, 2, 3], rc: [4, 5] },
+    rising_slash: { act: 'rising_slash', st: [0], ac: [1, 2, 3], rc: [4, 5] },
+    lance_thrust: { act: 'lance_thrust', st: [0], ac: [0, 1, 2, 1, 2, 3, 4], rc: [4, 5] },
+    ground_breaker: { act: 'ground_breaker', st: [0, 1], ac: [2, 3], rc: [3, 4, 5] },
+    leap_crash: { act: 'leap_crash', st: [0], ac: [1, 2, 3, 4], rc: [4, 5] },
+    titans_verdict: { act: 'titans_verdict', st: [0, 1, 2, 2, 2, 2], ac: [3, 4], rc: [4, 4, 5] },
+    whirlwind: { act: 'whirlwind', st: [0], ac: [0], rc: [0], loop: [0, 1, 2, 3, 4], fps: 14 }, // (frame 5 was drawn with two swords: never shown)
+    blade_storm: { act: 'blade_storm', st: [0, 1], ac: [2], rc: [5], loop: [2, 3, 4, 3], fps: 5 },
+    wave_slash: { act: 'wave_slash', st: [0, 1, 2, 1, 2], ac: [3], rc: [3, 3, 4, 5] },
+    sanctuary: { act: 'oath', st: [0, 1, 2, 3], ac: [4], rc: [4, 5] },
+    iron_oath: { act: 'oath', st: [0, 1, 2, 3], ac: [4], rc: [4, 5] },
+    radiant_blade: { act: 'radiant_blade', st: [0, 1, 2, 3, 2, 3, 2, 3], ac: [4], rc: [4, 5] },
+    legacy_banner: { act: 'banner', st: [0, 1, 2], ac: [2], rc: [3, 3, 4, 5] },
+    war_cry: { act: 'war_cry', st: [0], ac: [1, 2, 3, 2, 3], rc: [4, 5] },
+    judgment_blade: { act: 'judgment_blade', st: [0, 1, 2, 2, 2, 2, 2, 2, 2, 2], ac: [3], rc: [4, 4, 5] },
+  },
+};
 
 function heroFrame(cls: string, dir: Dir, act: string, i: number): PoseFrame {
   const h = HEROES[cls];
@@ -536,11 +558,22 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
       if (q.state === 'walk') return H('walk', (q.t * 9 * Math.max(0.7, Math.min(1.2, q.speed / 188))) / 1000);
       return H('run', (q.t * 12 * Math.max(0.75, Math.min(1.15, q.speed / 270))) / 1000);
     case 'jump': return H('jump', { takeoff: 0, rise: 1, apex: 1, fall: 2, land: 0 }[q.phase]);
-    case 'airAttack': return STRIKES.has(cls) ? H('attack', q.p < 0.4 ? 0 : 1) : H('attack', q.p < 0.4 ? 1 : 3);
+    case 'airAttack': {
+      if (HEROES[cls].actions.finisher) return H('finisher', 3 + Math.min(2, Math.floor(q.p * 3))); // the air strike
+      return STRIKES.has(cls) ? H('attack', q.p < 0.4 ? 0 : 1) : H('attack', q.p < 0.4 ? 1 : 3);
+    }
     case 'launched': return H('jump', 1);
     case 'skill': {
       const sk = FINAL_SKILLS.find((s) => s.id === q.id);
       const winding = q.elapsed < q.startup, after = q.elapsed >= q.startup + q.active;
+      const plan = HERO_PLANS[cls]?.[q.id];
+      if (plan && HEROES[cls].actions[plan.act]) { // the skill's own drawn moves, spread over its startup / active / recovery
+        if (plan.loop && !winding && !after) return H(plan.act, plan.loop[Math.floor(((q.elapsed - q.startup) * (plan.fps ?? 10)) / 1000) % plan.loop.length]);
+        const list = winding ? plan.st : !after ? plan.ac : plan.rc;
+        const p = winding ? q.elapsed / Math.max(1, q.startup) : !after ? (q.elapsed - q.startup) / Math.max(1, q.active) : (q.elapsed - q.startup - q.active) / Math.max(1, q.recovery);
+        return H(plan.act, pick(list, p));
+      }
+      if (sk?.chain && HEROES[cls].actions.finisher && q.stage >= 3) return H('finisher', winding ? 0 : after ? 2 : 1); // the chain's heavy last strike
       if (STRIKES.has(cls)) { // the strike pair: the chain's stage for the regular attack, a fixed one per skill until skill sheets come
         let st = 0; for (const c of q.id) st = (st * 31 + c.charCodeAt(0)) >>> 0;
         const pair = sk?.chain ? Math.max(0, q.stage) % 3 : st % 3;
