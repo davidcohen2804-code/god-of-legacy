@@ -267,6 +267,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private botAwayMs = 0;
   /** Arena camera follow point (vertical only). */
   private camTarget = new Phaser.Math.Vector2();
+  /** The arena's camera, by the player: zoom (wheel / the camera buttons) and height (PageUp / PageDown), Home resets. */
+  private arenaZoom = 1;
+  private arenaLift = 0;
+  private arenaCam(what: 'in' | 'out' | 'up' | 'down' | 'reset'): void {
+    if (what === 'in' || what === 'out') this.arenaZoom = Phaser.Math.Clamp(this.arenaZoom * (what === 'out' ? 0.93 : 1 / 0.93), Math.max(0.8, this.cameras.main.width / (WORLD.coordinateSpace.width * this.baseZoom)), 1.5)   // never wider than the arena's picture;
+    else if (what === 'up' || what === 'down') this.arenaLift = Phaser.Math.Clamp(this.arenaLift + (what === 'up' ? 30 : -30), -180, 180);
+    else { this.arenaZoom = 1; this.arenaLift = 0; }
+    if (this.koT < 0) this.cameras.main.zoomTo(this.baseZoom * this.arenaZoom, 160, 'Sine.easeOut', true);
+  }
   private botCls = 'warrior';
   /** Came from the PvP fighter select: against the CPU / another player. */
   private vs: 'cpu' | 'player' | null = null;
@@ -426,6 +435,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.camTarget.set(W / 2, this.kin ? this.kin.y : H / 2);
       cam.startFollow(this.camTarget, true, 0, 0.09);
       cam.centerOn(W / 2, H / 2);
+      this.arenaZoom = 1; this.arenaLift = 0;
+      this.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, dy: number) => this.arenaCam(dy > 0 ? 'out' : 'in'));
+      this.input.keyboard?.on('keydown-PAGE_UP', () => this.arenaCam('up')); this.input.keyboard?.on('keydown-PAGE_DOWN', () => this.arenaCam('down'));
+      this.input.keyboard?.on('keydown-HOME', () => this.arenaCam('reset'));
       this.ambience = new CourtyardAmbience(this, WORLD.coordinateSpace.width, WORLD.coordinateSpace.height);
       // Baked-map occlusion: each prop silhouette is redrawn from the map at its footprint depth (no floor crop).
       this.occluders = WORLD_OBJECTS.map((o) => {
@@ -510,7 +523,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onReturn: pvpRoom ? exitArena : () => this.scene.start('CharacterSelectScene'),
       onSlot: (i) => this.useSlot(i),
       onPotion: (i) => this.usePotion(i),
-      onCam: (w) => this.world?.camStep(w),
+      onCam: (w) => (this.world ? this.world.camStep(w) : this.arenaCam(w)),
       onMenu: (k) => this.togglePanel(k),
       onKeys: () => { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.keySettings?.open(loadBindings()); },
     });
@@ -674,7 +687,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.updateBot(ms, now);
     this.updateMatch(real, ms);
     this.reactionFx(ms);
-    if (this.pvp || this.arena) this.camTarget.set(WORLD.coordinateSpace.width / 2, this.kin.y + 70); // keep yourself above the tray
+    if (this.pvp || this.arena) this.camTarget.set(WORLD.coordinateSpace.width / 2, this.kin.y + 70 - this.arenaLift); // keep yourself above the tray
     this.renderPlayer(this.fx.hitStopLeft > 0 ? 0 : ms);
     this.updateWorldUi(ms);
     this.bubbles?.update(now, (id) => {
@@ -3162,14 +3175,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.koT = 0; this.koZoomBack = false;
     const cam = this.cameras.main;
     cam.shake(340, 0.011);
-    cam.zoomTo(this.baseZoom * 1.08, 220, 'Quad.easeOut', true);
+    cam.zoomTo(this.baseZoom * this.arenaZoom * 1.08, 220, 'Quad.easeOut', true);
   }
 
   private endKoMoment(): void {
     if (this.koT < 0 && !this.koZoomBack) return;
     this.koT = -1; this.koZoomBack = false;
     this.time.timeScale = this.slowMo; this.tweens.timeScale = this.slowMo;
-    this.cameras.main.zoomTo(this.baseZoom, 1, 'Linear', true);
+    this.cameras.main.zoomTo(this.baseZoom * this.arenaZoom, 1, 'Linear', true);
   }
 
   /** The K.O. slow motion this frame (real ms since the K.O.): a quarter speed, then back to full by 1.4 s. */
@@ -3177,7 +3190,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.koT < 0) return 1;
     this.koT += real;
     const t = this.koT, f = t < 700 ? 0.25 : t < 1400 ? 0.25 + 0.75 * ((t - 700) / 700) : 1;
-    if (t >= 950 && !this.koZoomBack) { this.koZoomBack = true; this.cameras.main.zoomTo(this.baseZoom, 650, 'Sine.easeInOut', true); }
+    if (t >= 950 && !this.koZoomBack) { this.koZoomBack = true; this.cameras.main.zoomTo(this.baseZoom * this.arenaZoom, 650, 'Sine.easeInOut', true); }
     if (t >= 1400) { this.koT = -1; this.koZoomBack = false; }
     this.time.timeScale = this.slowMo * f; this.tweens.timeScale = this.slowMo * f;
     return f;

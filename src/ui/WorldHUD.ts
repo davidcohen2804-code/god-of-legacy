@@ -103,6 +103,9 @@ const CSS = `
   font:700 15px/1 var(--gl-body);color:var(--gl-gold2);font-variant-numeric:tabular-nums;letter-spacing:.3px;white-space:nowrap}
 .gol-hud .gold img{width:26px;height:26px}
 .gol-hud .camc{position:absolute;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 6px;border-radius:14px;pointer-events:auto}
+.gol-hud .camc.pvp{left:auto!important;top:auto!important;right:${1920 - 1846 + 12}px;bottom:${1080 - 1006 - 58 + 10}px;flex-direction:row;padding:6px 8px}
+.gol-hud .camc.pvp .cl{margin:0 4px 0 2px}
+.gol-hud .camc.pvp .sep{width:1px;height:22px;margin:0 3px}
 .gol-hud .camc .cl{font:700 9.5px/12px var(--gl-body);letter-spacing:1.4px;color:#c9ae78;margin-bottom:2px}
 .gol-hud .camc .sep{width:22px;height:1px;background:var(--gl-line2);margin:3px 0}
 .gol-hud .camc button{width:34px;height:34px;padding:0;border-radius:10px;border:1px solid var(--gl-line2);background:rgba(255,255,255,.04);color:var(--gl-text2);
@@ -371,7 +374,7 @@ export class WorldHUD {
     this.els.gold = gold;
     const feed = this.div('feed', this.root); feed.style.right = `${1920 - G.feed.right}px`; feed.style.bottom = `${1080 - G.feed.bottom}px`; this.els.feed = feed;
     // the camera's buttons: zoom in / out, view up / down, reset — a slim column left of the minimap (held: repeats)
-    const cc = this.div('camc gl-panel', this.root); cc.style.left = `${G.minimap.x - 56}px`; cc.style.top = `${G.minimap.y}px`; cc.setAttribute('aria-label', 'Camera');
+    const cc = this.div('camc gl-panel', this.root); cc.style.left = `${G.minimap.x - 56}px`; cc.style.top = `${G.minimap.y}px`; cc.setAttribute('aria-label', 'Camera'); this.els.camc = cc;
     this.div('cl', cc).textContent = 'CAM';
     const btn = (what: 'in' | 'out' | 'up' | 'down' | 'reset', icon: string, title: string) => {
       const b = document.createElement('button'); b.type = 'button'; b.title = title; b.setAttribute('aria-label', title); b.style.setProperty('--i', icon);
@@ -455,6 +458,7 @@ export class WorldHUD {
   update(s: HudState, now: number, ms: number): void {
     this.lastNow = now;
     // Player
+    this.els.camc?.classList.toggle('pvp', s.mode === 'pvp');
     const pl = s.player;
     this.text(this.els.pName, pl.name, 'pName');
     this.text(this.els.pLevel, String(pl.level), 'pLevel');
