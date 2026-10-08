@@ -125,6 +125,81 @@
   }
  },
  {
+  "id": "crimson_heights",
+  "name": "Crimson Heights",
+  "x": 14238,
+  "w": 1672,
+  "walk": [
+   14250,
+   15898
+  ],
+  "H": 350,
+  "front": 350,
+  "back": 110,
+  "img": "assets/world/heights/crimson_heights.webp",
+  "imgX": 13758,
+  "depth": -1.2,
+  "imgY": -585,
+  "imgH": 941,
+  "blocks": [
+   {
+    "id": "block-l",
+    "x0": 14506,
+    "x1": 14685,
+    "front": 268,
+    "h": 80,
+    "depth": 26,
+    "occ": {
+     "img": "assets/world/heights/crimson_heights-block-l.webp",
+     "x": 14508,
+     "py": 399
+    }
+   },
+   {
+    "id": "block-r",
+    "x0": 15556,
+    "x1": 15675,
+    "front": 273,
+    "h": 70,
+    "depth": 23,
+    "occ": {
+     "img": "assets/world/heights/crimson_heights-block-r.webp",
+     "x": 15558,
+     "py": 417
+    }
+   }
+  ],
+  "mobs": {
+   "kind": "cursed",
+   "spawns": [
+    [
+     14398,
+     310
+    ],
+    [
+     14858,
+     235
+    ],
+    [
+     15098,
+     310
+    ],
+    [
+     15298,
+     215
+    ],
+    [
+     15438,
+     305
+    ],
+    [
+     15798,
+     245
+    ]
+   ]
+  }
+ },
+ {
   "id": "orchard_heights",
   "name": "Orchard Heights",
   "x": 11074,

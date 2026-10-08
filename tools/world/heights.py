@@ -23,6 +23,10 @@ MAPS = {
                  'floor': (352, 580), 'sky': (120, 350), 'depth': -1.3,
                  'blocks': [{'id': 'block-l', 'x': (663, 846), 'front': 503, 'h': 85, 'depth': 26}],
                  'mobs': {'kind': 'thorn', 'spawns': [[300, 470], [520, 540], [960, 460]]}},
+  'crimson_heights': {'name': 'Crimson Heights', 'over': 'ruins', 'H': 350, 'front': 350, 'floor': (345, 585), 'sky': (120, 345), 'recolor': True,
+                  'blocks': [{'id': 'block-l', 'x': (268, 447), 'front': 503, 'h': 80, 'depth': 26},
+                             {'id': 'block-r', 'x': (1318, 1437), 'front': 508, 'h': 70, 'depth': 23}],
+                  'mobs': {'kind': 'cursed', 'spawns': [[160, 545], [620, 470], [860, 545], [1060, 450], [1200, 540], [1560, 480]]}},
   'orchard_heights': {'name': 'Orchard Heights', 'over': 'orchard_1', 'H': 350, 'front': 350, 'floor': (352, 580), 'sky': (120, 350),
                   'blocks': [{'id': 'block-l', 'x': (266, 449), 'front': 503, 'h': 85, 'depth': 26},
                              {'id': 'block-r', 'x': (1321, 1434), 'front': 510, 'h': 70, 'depth': 23}],
@@ -64,6 +68,11 @@ for id_, m in MAPS.items():
   EXT = CAP_X1 - CAP_J1
   wide = np.zeros((h, w + 2 * EXT, 4), np.uint8); wide[:, EXT:EXT + w] = rgba
   cap = CAP[:h]
+  if m.get('recolor'):
+    ref = rgba[m['floor'][1] + 40:, 100:w - 100, :3].reshape(-1, 3).astype(np.float32)
+    src = CAP[400:, 200:950, :3].reshape(-1, 3).astype(np.float32)
+    c = cap.astype(np.float32); c[..., :3] = (c[..., :3] - src.mean(0)) / (src.std(0) + 1e-3) * ref.std(0) + ref.mean(0)
+    cap = c.clip(0, 255).astype(np.uint8)
   r = cap[:, CAP_J0:CAP_X1].astype(np.float32); bl = CAP_J1 - CAP_J0
   ramp = np.clip(np.arange(r.shape[1]) / bl, 0, 1)[None, :, None]
   for side in (1, 0):
