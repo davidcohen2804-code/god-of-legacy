@@ -27,10 +27,11 @@ const G = {
   room: { x: 1340, y: 16, w: 300, h: 64 },
   target: { x: 740, y: 16, w: 440, h: 92, in: { x: 92, y: 16, w: 320 } },
   combo: { x: 1320, y: 470, w: 300, h: 97 },
-  menu: { x: 1664, y: 316, w: 240, h: 42, gap: 8 },
+  /** The panels' pills: a column at the bottom right, over the gear menu. */
+  menu: { right: 1904, bottom: 994, w: 220, h: 40, gap: 6 },
   /** Gold (left of the gear menu) and the pickup feed above it. */
   gold: { right: 1834, y: 1015 },
-  feed: { right: 1904, bottom: 994 },
+  feed: { right: 1668, bottom: 994 },
 } as const;
 
 /** Skill dock (bottom centre): the 18 slots in two rows of 9 — Space, 1-7, Q above, R F G C V T H Z X below — each slot
@@ -184,9 +185,10 @@ const CSS = `
   background:radial-gradient(ellipse at center,rgba(40,6,4,.75) 0%,rgba(40,6,4,0) 70%)}
 .gol-hud .banner small{display:block;font-size:22px;letter-spacing:4px;color:#e9d9b8;margin-top:4px}
 /* the panels' buttons (right side, under the map) */
-.gol-hud .menu{position:absolute;left:${G.menu.x}px;top:${G.menu.y}px;width:${G.menu.w}px;display:flex;flex-direction:column;gap:${G.menu.gap}px;pointer-events:auto}
+.gol-hud .menu{position:absolute;right:${1920 - G.menu.right}px;bottom:${1080 - G.menu.bottom}px;width:${G.menu.w}px;display:flex;flex-direction:column;gap:${G.menu.gap}px;pointer-events:auto}
 .gol-hud .menu button{height:${G.menu.h}px;justify-content:flex-start;padding:0 14px;gap:12px;border-radius:12px;background:rgba(13,20,33,.9);border-color:rgba(231,196,124,.22);
   box-shadow:0 6px 16px rgba(0,0,0,.3);font-size:13.5px}
+.gol-hud:has(.gol-menu.open) .menu{visibility:hidden}
 .gol-hud .menu button:hover:not(:disabled){background:rgba(24,34,52,.95)}
 .gol-hud .menu button b{font-weight:700}
 .gol-hud .menu button .gl-key{min-width:26px}
@@ -204,7 +206,7 @@ export interface WorldHUDOptions {
   /** Click on a slot: the same action handler as its hotkey (scene validates; never a second Space attack). */
   onSlot: (index: number) => void;
   /** Skill Book (K) / Inventory (I) / Cosmetic Shop (O) toggles. */
-  onMenu?: (key: 'K' | 'I' | 'O' | 'P' | 'U') => void;
+  onMenu?: (key: 'K' | 'I' | 'O' | 'J' | 'P' | 'U') => void;
   /** Gear menu: open the Key Settings window. */
   onKeys?: () => void;
   /** The camera buttons beside the minimap. */
@@ -261,11 +263,12 @@ export class WorldHUD {
 
     // Gear MENU (bottom-right): the panels and the way back (Back to Characters / Exit Arena).
     this.menu = new GameMenu(this.root, [
-      { key: 'K', label: 'SKILL BOOK', run: () => opts.onMenu?.('K') },
       { key: 'I', label: 'INVENTORY', run: () => opts.onMenu?.('I') },
-      { key: 'O', label: 'COSMETIC SHOP', run: () => opts.onMenu?.('O') },
-      { key: 'P', label: 'PARTY', run: () => opts.onMenu?.('P') },
+      { key: 'K', label: 'SKILL BOOK', run: () => opts.onMenu?.('K') },
       { key: 'U', label: 'STATS', run: () => opts.onMenu?.('U') },
+      { key: 'J', label: 'QUESTS', run: () => opts.onMenu?.('J') },
+      { key: 'P', label: 'PARTY', run: () => opts.onMenu?.('P') },
+      { key: 'O', label: 'COSMETIC SHOP', run: () => opts.onMenu?.('O') },
       { label: 'KEY SETTINGS', run: () => opts.onKeys?.() },
       { label: opts.returnLabel, run: () => opts.onReturn() },
     ]);
@@ -442,7 +445,7 @@ export class WorldHUD {
     const ban = this.div('banner', this.root); this.els.banner = ban;
     if (this.opts.onMenu) {
       const m = this.div('menu', this.root);
-      for (const [k, label] of [['K', 'Skill Book'], ['I', 'Inventory'], ['O', 'Cosmetic Shop'], ['P', 'Party'], ['U', 'Stats']] as const) {
+      for (const [k, label] of [['I', 'Inventory'], ['K', 'Skill Book'], ['U', 'Stats'], ['J', 'Quests'], ['P', 'Party'], ['O', 'Cosmetic Shop']] as const) {
         const b = document.createElement('button'); b.type = 'button'; b.className = 'gl-btn';
         b.innerHTML = `<span class="gl-key">${k}</span><b>${label}</b>`; this.menuKeys.set(k, b.firstChild as HTMLElement);
         b.addEventListener('mousedown', (e) => e.preventDefault());
@@ -748,7 +751,7 @@ export class WorldHUD {
   private modal: 'none' | 'dim' | 'bare' = 'none';
 
   /** The keys bound to the panels (Key Settings): shown on the menu pills and in the gear menu; unbound = no letter. */
-  setMenuKeys(keys: Record<'K' | 'I' | 'O' | 'P' | 'U', string>): void {
+  setMenuKeys(keys: Record<'K' | 'I' | 'O' | 'J' | 'P' | 'U', string>): void {
     for (const [k, el] of this.menuKeys) { const t = keys[k as 'K'] ?? ''; el.textContent = t; el.style.display = t ? '' : 'none'; }
     this.menu.setKeys(keys);
   }

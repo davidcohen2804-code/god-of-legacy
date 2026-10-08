@@ -76,7 +76,7 @@ import { CosmeticPanel } from '../ui/CosmeticPanel';
 import { preloadPanelArt } from '../ui/PreviewStage';
 import { addMotes, preloadLife } from '../ui/PresentationLife';
 /** The panels' keys (Key Settings) for the HUD's menu pills and gear menu. */
-const menuKeys = (b: Record<BindAction, string>) => ({ K: keyLabel(b.book), I: keyLabel(b.bag), O: keyLabel(b.shop), P: keyLabel(b.party), U: keyLabel(b.stats) });
+const menuKeys = (b: Record<BindAction, string>) => ({ K: keyLabel(b.book), I: keyLabel(b.bag), O: keyLabel(b.shop), J: keyLabel(b.quests), P: keyLabel(b.party), U: keyLabel(b.stats) });
 
 const D = TRAINING.dummy;
 const R = PHYS.footR;
