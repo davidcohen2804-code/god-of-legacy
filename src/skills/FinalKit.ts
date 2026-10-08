@@ -536,8 +536,8 @@ const samurai: FinalSkill[] = [
     id: 'kagemusha', cls: 'samurai', slot: 10, name: 'Kagemusha', roles: ['setup'], targeting: 'self',
     startup: 220, active: 80, recovery: 160, cooldown: 18000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(0, 3, { kind: 'circle', radius: 110 }, { stun: 240, push: 16 }, { reachUp: 120 })], tags: ['buff'],
-    description: 'Vanish in a burst of ink and petals and come back as three identical samurai — you and two shadow doubles — for 6s. The doubles copy every step and every attack (no damage; 30% against monsters), and monsters go after them; a double that is struck bursts into petals. Your first real hit is an AMBUSH: a sure critical and a short stun, and the doubles vanish. If you are struck, they vanish at once.',
-    relations: ['Doubles 6s', 'Ambush: sure critical + stun'],
+    description: 'Vanish in a burst of ink and petals: a ring of five shadow doubles stands round the spot, then they scatter and move on their own — running, stopping, closing in on the foe and feinting at it — while you stay hidden among them for 6s. Strike and you step out of hiding, the doubles swinging with you (no damage; 30% against monsters). Monsters go after the doubles; a double that is struck bursts into petals. Your first real hit is an AMBUSH: a sure critical and a short stun, and the doubles vanish. If you are struck, they vanish at once.',
+    relations: ['5 doubles · hidden 6s', 'Ambush: sure critical + stun'],
   }),
   S({
     id: 'tornado_blade', cls: 'samurai', slot: 11, name: 'Tornado Blade', roles: ['zone', 'pull'], targeting: 'mouseDir',

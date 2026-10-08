@@ -1883,6 +1883,7 @@ export class SkillFx {
   kageAppear(at: V3): void { this.sam.kageAppear(at); }
   kageBurst(at: V3): void { this.sam.kageBurst(at); }
   kageFade(at: V3): void { this.sam.kageFade(at); }
+  kageFeint(at: V3, face: number, stage: number): void { this.sam.kageFeint(at, face, stage); }
 
   /** The world darkens round the fight for `ms` (big skills). */
   darken(ms: number, alpha: number): void {

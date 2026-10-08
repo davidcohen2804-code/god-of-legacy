@@ -14,7 +14,7 @@ import { AnimSnap, Mode, poseQuery } from '../game/PoseState';
 import { Afterimages, applyMotion, archerMotion } from '../skills/ArcherMotion';
 import { SAMURAI_AFTER, samuraiMotion, samuraiSeen } from '../skills/SamuraiMotion';
 import { finalSkill } from '../skills/FinalKit';
-import { KageOffset, decodeKage, kageTargets } from '../skills/Kagemusha';
+import { KAGE, KageMode, KageSeen, decodeKage, kageFeintMotion, kageSnap, kageTargets } from '../skills/Kagemusha';
 import type { HitTarget, V3 } from '../skills/HitGeometry';
 import type { BaseLook } from '../game/Body';
 
@@ -54,12 +54,16 @@ export class RemotePlayer {
   /** How far in the past the body is shown (network jitter buffer); 0 = latest snapshot (locally simulated NPC). */
   interpDelay: number = PVP.interpDelayMs;
   x: number; y: number; z = 0;
-  /** Kagemusha: this samurai's shadow doubles (from his movement state) — his body, his name and his bar beside him. */
-  private kage: ({ view: ActorView; label: Phaser.GameObjects.Text; bar: Phaser.GameObjects.Graphics; after: Afterimages; off: KageOffset } | null)[] = [null, null];
+  /** Kagemusha: this samurai's shadow doubles (from his movement state) — his body, his name and his bar — each where it
+   *  is (interpolated like him) and doing what it does (running, standing, a feint, or swinging with him). */
+  private kage: (KageView | null)[] = [];
   /** Doubles burst on this screen (a blow from here) while his state still lists them. */
   private kageGone = new Set<number>();
-  /** A double comes / goes (the scene draws it: ink and petals). */
-  onKage?: (at: V3, how: 'appear' | 'burst' | 'fade') => void;
+  /** He is hidden among them (his state says so; and right after his cast, until that state comes). */
+  kageHidden = false;
+  private kageHold = 0;
+  /** A double comes / goes / feints (the scene draws it: ink, petals, a cut in the air). */
+  onKage?: (at: V3, how: 'appear' | 'burst' | 'fade' | 'feint', face?: number, stage?: number) => void;
   private dress: { look: BaseLook | null; worn: WornLook | null; eq: Equipped } = { look: null, worn: null, eq: {} };
 
   constructor(private scene: Phaser.Scene, readonly meta: PeerMeta, x: number, y: number) {
@@ -116,6 +120,7 @@ export class RemotePlayer {
     const t = s.chain?.timings?.[stage] ?? s;
     this.skill = { id: s.id, stage, elapsed: 0, startup: t.startup, active: t.active, recovery: t.recovery, seed };
     this.dir = dir; this.aim = aim; this.mode = 'skill'; this.modeT = 0;
+    if (s.id === 'kagemusha') this.kageHold = performance.now() + t.startup + t.active + t.recovery + 700; // gone until his state says where the doubles are
   }
 
   /** Where its owner said it is in the latest snapshot (the drawn body runs a little behind, interpolated). */
@@ -140,7 +145,7 @@ export class RemotePlayer {
   die(): void {
     if (!this.alive) return;
     this.alive = false; this.hp = 0; this.skill = null; this.deadMs = 0; this.mode = 'dead'; this.modeT = 0;
-    this.kage.forEach((d, k) => { if (d) this.dropDouble(k, 'fade'); });
+    this.kage.forEach((d, k) => { if (d) this.dropDouble(k, 'fade'); }); this.kageHidden = false; this.kageHold = 0;
     this.deathFx.start(this.x, this.y, this.z - this.sz, this.dir === 'left');
     this.drawBar();
   }
@@ -177,7 +182,8 @@ export class RemotePlayer {
     else if (this.ghost) alpha = Math.floor(performance.now() / 70) % 2 ? 0.4 : 0.75; // guarded: blinking see-through
     let jx = 0, jz = 0;
     if (this.shakeMs > 0) { this.shakeMs -= ms; const f = Math.min(1, this.shakeMs / 60); jx = (Math.random() - 0.5) * 7 * f; jz = Math.random() * 2.5 * f; }
-    const seen = this.meta.classId === 'samurai' && this.skill && this.alive ? samuraiSeen(this.skill.id, this.skill.elapsed, this.skill) : 1; // he vanishes (Shadow Step, Kagemusha, Dragon Eclipse)
+    const hid = this.alive && (this.kageHidden || (!this.skill && performance.now() < this.kageHold)); // Kagemusha: hidden among his doubles
+    const seen = hid ? 0 : this.meta.classId === 'samurai' && this.skill && this.alive ? samuraiSeen(this.skill.id, this.skill.elapsed, this.skill) : 1; // he vanishes (Shadow Step, Kagemusha, Dragon Eclipse)
     alpha *= seen;
     const snap: AnimSnap = { mode: this.skill ? 'skill' : this.mode, t: this.modeT, speed: this.speed, vz: this.vz, skill: this.skill ?? undefined, stunMs: 200 };
     const pose = resolvePose(this.meta.classId as ClassKey, this.dir, poseQuery(snap), this.view.wantsBase, this.meta.gender === 'female' ? 'female' : 'male');
@@ -192,64 +198,74 @@ export class RemotePlayer {
       const m = this.skill && this.alive ? samuraiMotion(this.skill.id, this.skill.elapsed, this.skill, this.dir === 'left' ? -1 : 1, this.skill.stage) : null;
       applyMotion(this.view.motionSprites, m);
       (this.afterimg ??= new Afterimages(this.scene, SAMURAI_AFTER)).step(this.scene.time.now, this.view.sprite, !!m?.after);
-      for (const d of this.kage) { // his doubles: the very same pose, body motion, name and bar
+      const g = this.meta.gender === 'female' ? 'female' : 'male';
+      for (const d of this.kage) { // his doubles: each its own body (or his very pose and motion while he swings), name and bar
         if (!d) continue;
-        const { dx, dy, dz } = d.off;
-        d.view.render(ms, pose, x + dx, y + dy, z + dz, this.sz + dz, this.dir, alpha, tint, fill);
-        applyMotion(d.view.motionSprites, m);
-        d.after.step(this.scene.time.now, d.view.sprite, !!m?.after);
-        const t2 = y + dy - z - dz - 116 - PVP.remoteLabel.gap;
-        d.label.setPosition(Math.round(x + dx), Math.round(t2 - PVP.hpBar.h - 3)).setAlpha(seen);
-        d.bar.setPosition(Math.round(x + dx), Math.round(t2)).setAlpha(seen);
+        const p = interp(d.snaps, rt, this.interpDelay); d.x = p.x; d.y = p.y; d.z = p.z;
+        d.mt += ms;
+        const mirror = d.mode === 'm' && !!this.skill, dir: Dir = mirror ? this.dir : d.face < 0 ? 'left' : 'right';
+        const dp = mirror ? pose : resolvePose(this.meta.classId as ClassKey, dir, poseQuery(kageSnap(d.mode, d.mt, d.feint, d.seed)), d.view.wantsBase, g);
+        d.view.render(ms, dp, p.x, p.y, p.z, p.z, dir, 1, null, false);
+        const dm = mirror ? m : d.mode === 'f' ? kageFeintMotion(d.mt, d.feint, d.face) : null;
+        applyMotion(d.view.motionSprites, dm);
+        d.after.step(this.scene.time.now, d.view.sprite, !!dm?.after);
+        const t2 = p.y - p.z - 116 - PVP.remoteLabel.gap;
+        d.label.setPosition(Math.round(p.x), Math.round(t2 - PVP.hpBar.h - 3));
+        d.bar.setPosition(Math.round(p.x), Math.round(t2));
       }
     }
     const top = y - z - 116 - PVP.remoteLabel.gap;
-    this.label.setPosition(Math.round(x), Math.round(top - PVP.hpBar.h - 3)).setAlpha((this.deadMs >= 0 ? alpha : 1) * (this.deadMs >= 0 ? 1 : seen)); // down: the name fades with the body
+    this.label.setPosition(Math.round(x), Math.round(top - PVP.hpBar.h - 3)).setAlpha((this.deadMs >= 0 ? alpha : 1) * (this.deadMs >= 0 ? 1 : seen)); // down: the name fades with the body (hidden: none)
     this.bar.setPosition(Math.round(x), Math.round(top)).setAlpha(seen);
   }
 
-  /** His doubles from his movement state (null: none). A double gone from the list burst (struck); the list gone: they
+  /** His doubles from his movement state (null: none): a double missing from the list burst (struck); the list gone, they
    *  melted away (time, or he was struck). */
-  private setKage(offs: (KageOffset | null)[] | null): void {
-    if (!offs) {
-      this.kageGone.clear();
+  private setKage(dk: { hidden: boolean; ds: (KageSeen | null)[] } | null): void {
+    if (!dk) {
+      this.kageGone.clear(); this.kageHidden = false;
       this.kage.forEach((d, k) => { if (d) this.dropDouble(k, 'fade'); });
       return;
     }
-    const fresh = this.kage.every((d) => !d) && !this.kageGone.size;
-    for (let k = 0; k < 2; k++) {
-      const o = offs[k] ?? null, d = this.kage[k];
+    const me = this.snaps[this.snaps.length - 1], t = this.lastSeen;
+    if (this.kageHidden && !dk.hidden) this.onKage?.({ x: me.x, y: me.y, z: me.z }, 'appear'); // he steps out of hiding
+    this.kageHidden = dk.hidden; this.kageHold = 0;
+    for (let k = 0; k < KAGE.count; k++) {
+      const o = dk.ds[k] ?? null, d = this.kage[k];
       if (!o) { if (d) this.dropDouble(k, 'burst'); continue; }
-      if (d) { d.off = o; continue; }
+      const at = { t, x: me.x + o.dx, y: me.y + o.dy, z: me.z + o.dz };
+      if (d) {
+        d.snaps.push(at); if (d.snaps.length > 30) d.snaps.shift();
+        if (o.mode !== d.mode) { d.mode = o.mode; d.mt = 0; if (o.mode === 'f') this.onKage?.({ x: at.x, y: at.y, z: at.z }, 'feint', o.face, o.feint % 3); }
+        d.face = o.face; d.feint = o.feint;
+        continue;
+      }
       if (this.kageGone.has(k) || !this.alive) continue;
       const g = this.meta.gender === 'female' ? 'female' : 'male', L = PVP.remoteLabel;
-      const view = new ActorView(this.scene, this.meta.classId as ClassKey, this.x + o.dx, this.y + o.dy);
+      const view = new ActorView(this.scene, this.meta.classId as ClassKey, at.x, at.y);
       view.setBaseLook(this.dress.look, g); view.setGear(this.dress.worn, g); view.setEquipped(this.dress.eq);
-      const label = this.scene.add.text(this.x + o.dx, this.y + o.dy, this.meta.name, {
+      const label = this.scene.add.text(at.x, at.y, this.meta.name, {
         fontFamily: FONT_FAMILY, fontSize: `${L.size}px`, fontStyle: 'bold', color: L.color, stroke: '#000000', strokeThickness: 3, resolution: 2,
       }).setOrigin(0.5, 1).setDepth(PVP.labelDepth);
       const bar = this.scene.add.graphics().setDepth(PVP.labelDepth);
-      this.kage[k] = { view, label, bar, after: new Afterimages(this.scene, SAMURAI_AFTER), off: o };
+      this.kage[k] = { view, label, bar, after: new Afterimages(this.scene, SAMURAI_AFTER), snaps: [at], x: at.x, y: at.y, z: at.z, face: o.face, mode: o.mode, mt: 0, feint: o.feint, seed: k * 97 };
       this.paintBar(bar);
-      this.onKage?.({ x: this.x + o.dx, y: this.y + o.dy, z: this.z + o.dz }, 'appear');
+      this.onKage?.({ x: at.x, y: at.y, z: at.z }, 'appear');
     }
-    if (fresh && this.kage.some((d) => d)) this.onKage?.({ x: this.x, y: this.y, z: this.z }, 'appear'); // he steps out of the ink with them
   }
   private dropDouble(k: number, how: 'burst' | 'fade'): void {
     const d = this.kage[k]; if (!d) return;
-    this.onKage?.({ x: this.x + d.off.dx, y: this.y + d.off.dy, z: this.z + d.off.dz }, how);
+    this.onKage?.({ x: d.x, y: d.y, z: d.z }, how);
     d.view.destroy(); d.label.destroy(); d.bar.destroy();
     this.kage[k] = null;
   }
   /** A blow from this screen burst one of his doubles (his own screen judges it too). */
   popDouble(k: number): void { if (this.kage[k]) { this.kageGone.add(k); this.dropDouble(k, 'burst'); } }
-  /** The AMBUSH landed on this screen's player: his doubles burst. */
-  burstDoubles(): void { for (let k = 0; k < 2; k++) this.popDouble(k); }
-  /** Where his doubles stand (their swings are drawn there too). */
-  kageGhosts(): { k: number; x: number; y: number; z: number }[] {
-    return this.kage.flatMap((d, k) => (d ? [{ k, x: this.x + d.off.dx, y: this.y + d.off.dy, z: this.z + d.off.dz }] : []));
-  }
-  kagePos(k: number): V3 | null { const d = this.kage[k]; return d ? { x: this.x + d.off.dx, y: this.y + d.off.dy, z: this.z + d.off.dz } : null; }
+  /** The AMBUSH landed on this screen's player: his doubles burst, and he is out of hiding. */
+  burstDoubles(): void { for (let k = 0; k < this.kage.length; k++) this.popDouble(k); this.kageHidden = false; }
+  /** Where his doubles are (his swings are drawn there too). */
+  kageGhosts(): { k: number; x: number; y: number; z: number }[] { return this.kage.flatMap((d, k) => (d ? [{ k, x: d.x, y: d.y, z: d.z }] : [])); }
+  kagePos(k: number): V3 | null { const d = this.kage[k]; return d ? { x: d.x, y: d.y, z: d.z } : null; }
   kageTargets(radius: number): HitTarget[] { return kageTargets(this.meta.playerId, this.kageGhosts(), radius); }
 
   /** Mirage Counter: he reappears somewhere else at once (no sliding through the gap). */
@@ -271,7 +287,25 @@ export class RemotePlayer {
 
   destroy(): void {
     for (const d of this.kage) if (d) { d.view.destroy(); d.label.destroy(); d.bar.destroy(); }
-    this.kage = [null, null];
+    this.kage = [];
     this.view.destroy(); this.label.destroy(); this.bar.destroy(); this.deathFx.destroy();
   }
+}
+
+interface KageView {
+  view: ActorView; label: Phaser.GameObjects.Text; bar: Phaser.GameObjects.Graphics; after: Afterimages;
+  snaps: Snap[]; x: number; y: number; z: number; face: 1 | -1; mode: KageMode; mt: number; feint: number; seed: number;
+}
+/** Where a body is shown now: `delay` ms in the past, between the snapshots around it (the latest one with no delay). */
+function interp(s: Snap[], rt: number, delay: number): { x: number; y: number; z: number } {
+  const last = s[s.length - 1];
+  if (delay <= 0 || s.length < 2) return { x: last.x, y: last.y, z: last.z };
+  for (let i = s.length - 1; i > 0; i--) {
+    if (s[i - 1].t <= rt) {
+      const a = s[i - 1], b = s[i], k = Phaser.Math.Clamp((rt - a.t) / Math.max(1, b.t - a.t), 0, 1);
+      return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, z: a.z + (b.z - a.z) * k };
+    }
+  }
+  while (s.length > 2 && s[1].t <= rt) s.shift();
+  return { x: s[0].x, y: s[0].y, z: s[0].z };
 }

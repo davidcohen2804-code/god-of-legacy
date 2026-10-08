@@ -630,8 +630,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (now < this.resolveUntil && this.dead < 0) this.body.armorUntil = Math.max(this.body.armorUntil, now + 120); // Hunter's Resolve: unstoppable
     if (SKILL_BLOCKERS.size) { pushOutOfBlockers(this.kin, R); for (const m of this.world?.mobs ?? []) if (m.alive) pushOutOfBlockers(m.kin, 14); }
     this.stepPassives(ms, now);
-    if (this.kage?.any) { if (this.dead >= 0) this.kage.clear(); else this.kage.step(now, this.kin); }
-    for (const r of this.pvp?.remotes.values() ?? []) r.onKage ??= (at, how) => (how === 'appear' ? this.fx?.kageAppear(at) : how === 'burst' ? this.fx?.kageBurst(at) : this.fx?.kageFade(at));
+    if (this.kage?.any) { // Kagemusha: the doubles roam round the nearest foe; while he swings they swing with him
+      const run = this.rt.ownRun, sw = run && run.skill.cls === 'samurai' && run.skill.id !== 'kagemusha' ? { side: run.aim.x < 0 ? -1 : 1 } : null;
+      if (this.dead >= 0) this.kage.clear(); else this.kage.step(ms, now, this.kin, this.kageFoe(), sw);
+    }
+    for (const r of this.pvp?.remotes.values() ?? []) r.onKage ??= (at, how, face, stage) => (how === 'appear' ? this.fx?.kageAppear(at) : how === 'burst' ? this.fx?.kageBurst(at) : how === 'feint' ? this.fx?.kageFeint(at, face ?? 1, stage ?? 0) : this.fx?.kageFade(at));
     this.refreshParty(ms);
     this.fx.update(ms, this.rt.projectiles.map((e) => e.p));
     this.updateDummy(ms);
@@ -1239,7 +1242,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const k = this.kin, f = FACE[this.dir];
     let best: HitTarget | null = null, bd = range;
     for (const t of this.targetsFor({ own: true, attackerId: this.localId } as CastRun)) {
-      if (!t.alive || t.id === this.localId) continue;
+      if (!t.alive || t.id === this.localId || this.pvp?.remotes.get(t.id)?.kageHidden) continue; // (a hidden samurai: no aim snaps to him)
       const dx = t.x - k.x, dy = t.y - k.y, d = Math.hypot(dx, dy);
       const dot = d > 1 ? (dx * (this.ci?.hasMove ? this.aim.x : f.x) + dy * (this.ci?.hasMove ? this.aim.y : f.y)) / d : 1;
       if (d < bd && dot > minDot) { bd = d; best = t; }
@@ -1351,7 +1354,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.dead >= 0) { alpha = 1 - (1 - P6.deathAlpha) * Math.min(1, this.dead / P6.deathFadeMs); tint = null; fill = false; } // the body just fades; the ghost rises (DeathFx)
     v.swordOff = !!this.jb; // Judgment Blade: no sword from the leap until he lands (the cast's own poses are bare too)
     if (this.cls === 'samurai' && run && this.dead < 0) alpha *= Math.max(0.25, samuraiSeen(run.skill.id, run.elapsed, run.timings)); // vanished (others see nothing; you, a shade)
+    if (this.kage?.hidden && this.dead < 0 && !(run && run.skill.id === 'kagemusha')) alpha *= KAGE.shade; // Kagemusha: hidden among the doubles (you, a shade)
     v.render(ms, pose, k.x + jx, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
+    if (this.kage?.hidden && this.dead < 0) v.ring.setAlpha(0.9); // hidden among the doubles: your ring still shows you where you are (your screen only)
     if (this.cls === 'archer') { // archer body motion: lean, recoil, flips, leaps + afterimages
       const face = this.aim.x < -0.01 ? -1 : 1;
       const m = (run && this.dead < 0 ? archerMotion(run.skill.id, run.elapsed, run.timings, face) : null) ?? (this.dead < 0 ? leapMotion(this.simMs - this.leapAt, this.dir === 'left' ? -1 : 1) : null);
@@ -1363,7 +1368,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const m = (run && this.dead < 0 ? samuraiMotion(run.skill.id, run.elapsed, run.timings, face, run.stage) : null) ?? (this.dead < 0 ? shinsokuMotion(this.simMs - this.leapAt, this.dir === 'left' ? -1 : 1) : null);
       applyMotion(v.motionSprites, m);
       (this.afterimg ??= new Afterimages(this, SAMURAI_AFTER)).step(this.simMs, v.sprite, !!m?.after);
-      this.kage?.render(ms, pose, dir, alpha, tint, fill, m, this.simMs); // the doubles: his pose, his motion
+      this.kage?.render(ms, { pose, dir, motion: m }, 1, this.simMs); // the doubles: each its own way (his pose and motion while he swings)
     }
     this.fx?.treeFade(k.x, k.y); // a tree in front of the player turns see-through
     this.renderRadiant(pose, dir);
@@ -1608,21 +1613,34 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         v.setBaseLook(headLookOf(ch), g); v.setGear(wornLook(CharacterStore.getGear(ch.id) ?? ch.gear), g); v.setName(ch.name); v.setEquipped(this.equipped);
         return v;
       },
+      pose: (snap, dir) => resolvePose(this.cls, dir, poseQuery(snap), this.view!.wantsBase || !hasJob(this.character!), genderOf(this.character)),
       appear: (at) => this.fx?.kageAppear(at), burst: (at) => this.fx?.kageBurst(at), fade: (at) => this.fx?.kageFade(at),
+      feint: (at, face, stage) => this.fx?.kageFeint(at, face, stage),
     });
   }
-  /** Kagemusha's burst (its active start): he vanishes and takes his place in the formation; the doubles show at its end. */
+  /** The foe the doubles close in on: the nearest other fighter or monster (none near: they roam round the ring). */
+  private kageFoe(): V2 | null {
+    const k = this.kin;
+    let best: V2 | null = null, bd = 560;
+    const see = (x: number, y: number) => { const d = Math.hypot(x - k.x, y - k.y); if (d < bd) { bd = d; best = { x, y }; } };
+    for (const r of this.pvp?.remotes.values() ?? []) if (r.alive && !this.party?.has(r.meta.playerId)) see(r.x, r.y);
+    if (this.bot) see(this.bot.x, this.bot.y);
+    if (this.enemy?.alive) see(this.enemy.x, this.enemy.y);
+    for (const m of this.world?.mobs ?? []) if (m.alive) see(m.x, m.y);
+    return best;
+  }
+  /** Kagemusha's burst (its active start): he vanishes (hidden from now on); the ring of doubles stands at its end. */
   private kageStart(run: CastRun): void {
     if (this.dead >= 0) return;
     const k = this.kin, at = { x: k.x, y: k.y, z: k.z };
     this.fx?.callout({ x: at.x, y: at.y, z: at.z + 50 }, 'KAGEMUSHA', '#ffb0b8', 0);
-    const me = this.kageOf().start(run.castId, at, this.simMs, run.timings.active + run.timings.recovery);
-    k.x = me.x; k.y = me.y;
+    this.kageOf().start(run.castId, at, this.simMs, run.timings.active + run.timings.recovery);
   }
-  /** A blow landed on a double (`kage:<his id>:<k>`): it bursts into petals — yours here, or another samurai's. */
+  /** A blow landed on a double (`kage:<his id>:<k>`): yours bursts into petals; another samurai's screen judges his own
+   *  (they move: his screen knows where they really are), and his state tells everyone when one bursts. */
   private kageStruck(id: string): void {
     const t = kageTarget(id); if (!t) return;
-    if (t.owner === this.localId) this.kage?.pop(t.k); else this.pvp?.remotes.get(t.owner)?.popDouble(t.k);
+    if (t.owner === this.localId) this.kage?.pop(t.k);
   }
   /** Where a caster's doubles stand (`<id>#<k>`: one of them). */
   private ghostsOf(id: string): { k: number; x: number; y: number; z: number }[] { return id === this.localId ? (this.kage?.ghosts() ?? []) : (this.pvp?.remotes.get(id)?.kageGhosts() ?? []); }
@@ -1814,7 +1832,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.targeting === 'mouseTarget') {
       let best: HitTarget | null = null, bd = Infinity;
       for (const t of this.targetsFor({ own: true, attackerId: this.localId } as CastRun)) {
-        if (!t.alive || t.id === this.localId) continue;
+        if (!t.alive || t.id === this.localId || this.pvp?.remotes.get(t.id)?.kageHidden) continue;
         const vx = t.x - k.x, vy = t.y - k.y, along = vx * aim.x + vy * aim.y, lat = Math.abs(-vx * aim.y + vy * aim.x);
         if (along < -10 || along > 320 || lat > 110) continue;
         if (along < bd) { bd = along; best = t; }
@@ -1850,7 +1868,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.armor) this.body.armorUntil = Math.max(this.body.armorUntil, this.simMs + s.armor[1]); // super armor from the first frame (never interrupted mid-windup)
     if (s.slot === 7) this.body.invulnUntil = this.simMs + s.startup + s.active; // ultimate: untouchable while it plays
     else if (this.simMs < this.warCryUntil) this.body.armorUntil = this.simMs + s.startup + s.active; // War Cry: super armor while attacking
-    this.kage?.arm(castId, s.id); // a cast while the doubles stand: its first hit that lands is the AMBUSH
+    this.kage?.arm(castId, s.id, { x: k.x, y: k.y, z: k.z }); // he strikes: out of hiding; a cast while the doubles stand: its first hit that lands is the AMBUSH
     this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: { x: k.x, y: k.y, z: k.z }, aim, place, lock });
     if (s.chain) this.chain = { stage, lastEnd: Infinity, skill: s.id };
     this.setMode('skill');
@@ -3031,7 +3049,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const alive = this.dead < 0, pvp = this.pvp;
     const markers: HudMarker[] = [];
     if (this.pvpReady) markers.push({ id: 'local', kind: 'player', x: k.x, y: k.y });
-    for (const r of pvp?.remotes.values() ?? []) if (r.alive) markers.push({ id: r.meta.playerId, kind: 'remote', x: r.x, y: r.y });
+    for (const r of pvp?.remotes.values() ?? []) if (r.alive && !r.kageHidden) markers.push({ id: r.meta.playerId, kind: 'remote', x: r.x, y: r.y });
     if (this.bot) markers.push({ id: BOT_ID, kind: 'enemy', x: this.bot.x, y: this.bot.y });
     if (this.enemy?.alive) markers.push({ id: 'enemy', kind: 'enemy', x: this.enemy.x, y: this.enemy.y });
     const busy = this.busy();
@@ -3103,7 +3121,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       effects: this.statusEffects(bt.body, now), ...combat(bt.body, bt.kin.z),
     });
     for (const r of this.pvp?.remotes.values() ?? []) {
-      if (!r.alive) continue;
+      if (!r.alive || r.kageHidden) continue; // (a hidden samurai is not shown)
       const eff: HudEffect[] = [];
       if (r.mode === 'launched') eff.push({ id: 'air', label: 'Launched', iconUrl: 'assets/final/ui/hud/status_launch.png', harmful: true });
       if (r.mode === 'down' || r.mode === 'getup') eff.push({ id: 'kd', label: 'Knocked down', iconUrl: 'assets/final/ui/hud/status_knockdown.png', harmful: true });

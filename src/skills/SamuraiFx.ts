@@ -507,6 +507,13 @@ export class SamuraiFx {
     this.pop('ink_spatter', x, y - 46, 120, { depth: at.y + 5, life: 360, glow: 0 });
     this.petals(x, y - 52, 28, 120, { depth: at.y + 6, life: 1150 });
   }
+  /** A double's feint: a quick cut in the air in front of it, as it swings (stage: which of the four cuts). */
+  kageFeint(at: V3, face: number, stage: number): void {
+    if (!this.ready) return;
+    const fl = face < 0, x = at.x + face * 46, y = at.y - at.z - 54;
+    if (stage === 2) this.cut('cut_rise', 104, 0, { x, y: y - 20, depth: at.y + 4, flipX: fl, delay: 75, grow: 60, hold: 35, fade: 150 });
+    else this.cut('cut_thin', 124, face * (stage === 1 ? -12 : 14), { x, y, depth: at.y + 4, flipX: fl, flipY: stage === 1, delay: 75, glow: 0.5 });
+  }
   /** A double melts back into ink (time is up, or he was struck). */
   kageFade(at: V3): void {
     if (!this.ready) return;
