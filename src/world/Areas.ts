@@ -118,19 +118,19 @@ export const areaAt = (x: number): AreaDef => ROW.find((a) => x < a.span[1]) ?? 
  *  its top edge (depth), and walks or jumps onto it from any side. */
 /** Stone towers you climb by jumping from one to the next (src/data/world-towers.json, map px of their area): drawn by
  *  the game (not part of the strip's picture), solid from the floor to their flat top. */
-export interface Tower { id: string; x0: number; x1: number; front: number; h: number; depth: number }
+export interface Tower { id: string; x0: number; x1: number; front: number; h: number; depth: number; /** the ground it stands on (a map above: its height) */ base: number }
 const FOOT_R = 10, EDGE = 2;
-export const TOWERS: Tower[] = Object.entries(TOWER_DATA as unknown as Record<string, { id: string; x: [number, number]; front: number; h: number; depth: number }[]>)
-  .filter(([a]) => AREAS[a]).flatMap(([a, list]) => list.map((t) => ({ id: `${a}-${t.id}`, x0: AREAS[a].x + t.x[0], x1: AREAS[a].x + t.x[1], front: t.front, h: t.h, depth: t.depth })));
+export const TOWERS: Tower[] = Object.entries(TOWER_DATA as unknown as Record<string, { id: string; x: [number, number]; front: number; h: number; depth: number; base?: number }[]>)
+  .filter(([a]) => AREAS[a]).flatMap(([a, list]) => list.map((t) => ({ id: `${a}-${t.id}`, x0: AREAS[a].x + t.x[0], x1: AREAS[a].x + t.x[1], front: t.front, h: t.h, depth: t.depth, base: t.base ?? 0 })));
 const towerProps = () => TOWERS.map((t) => {
   const s0 = t.front - t.depth, back = s0 - t.h + FOOT_R - EDGE;
   return { id: t.id, foot: [[t.x0, back], [t.x1, back], [t.x1, t.front], [t.x0, t.front]] as Pt[], base: [[t.x0, s0], [t.x1, s0], [t.x1, t.front], [t.x0, t.front]] as Pt[],
-    h: t.h, top: t.h, stand: [s0, t.front - 3] as [number, number] };
+    h: t.base + t.h, top: t.base + t.h, stand: [s0, t.front - 3] as [number, number] };
 });
 /** Maps above the terrace (tools/world/heights.py): a whole floor H px up behind it, its picture standing behind the
  *  terrace's back balustrade (imgY: its top, world px), its blocks and monsters up there. */
 export interface Heights {
-  id: string; name: string; x: number; w: number; H: number; front: number; back: number; img: string; imgY: number; imgH: number;
+  id: string; name: string; x: number; w: number; H: number; front: number; back: number; img: string; imgY: number; imgH: number; depth: number;
   blocks: { id: string; x0: number; x1: number; front: number; h: number; depth: number; occ: { img: string; x: number; py: number } }[];
   mobs: { kind: string; spawns: Pt[] };
 }

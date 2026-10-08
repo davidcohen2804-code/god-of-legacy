@@ -147,7 +147,7 @@ export class OpenWorld {
         this.scene.load.image(key, url); this.scene.load.once(`filecomplete-image-${key}`, make);
         if (!this.scene.load.isLoading()) this.scene.load.start();
       };
-      put(`heights-${h.id}`, h.img, () => this.towers.push(this.scene.add.image(h.x, h.imgY, `heights-${h.id}`).setOrigin(0, 0).setDepth(-1.2)));
+      put(`heights-${h.id}`, h.img, () => this.towers.push(this.scene.add.image(h.x, h.imgY, `heights-${h.id}`).setOrigin(0, 0).setDepth(h.depth ?? -1.2)));
       for (const b of h.blocks) put(`heights-${h.id}-${b.id}`, b.occ.img, () => this.towers.push(this.scene.add.image(b.occ.x, h.imgY + b.occ.py, `heights-${h.id}-${b.id}`).setOrigin(0, 0).setDepth(h.front + 1 + b.front * 0.001)));
     }
   }
@@ -181,7 +181,7 @@ export class OpenWorld {
     });
     // the edge of the map above, over each stair: where the last jump lands
     for (const h of HEIGHTS) {
-      const st = TOWERS.filter((t) => t.x1 > h.x && t.x0 < h.x + h.w); if (!st.length) continue;
+      const st = TOWERS.filter((t) => t.x1 > h.x && t.x0 < h.x + h.w && Math.abs(t.base + t.h - h.H) < 140 && t.base < h.H); if (!st.length) continue;
       const x0 = Math.min(...st.map((t) => t.x0)), x1 = Math.max(...st.map((t) => t.x1)), cx = (x0 + x1) / 2, ey = h.front - h.H;
       const line = add(sc.add.image(cx + (x1 - cx) * 0.35, ey - 4, 'climb-glow').setDisplaySize((x1 - x0) * 0.75, 40).setBlendMode(Phaser.BlendModes.ADD).setDepth(h.front + 0.9));
       pulse(line, 0.45, 0.95, 1500, 400);
@@ -208,8 +208,8 @@ export class OpenWorld {
       const cols = Math.max(1, Math.round((t.x1 - t.x0) / CUBE.w)), n = Math.max(1, Math.round(t.h / CUBE.h)), cw = (t.x1 - t.x0) / cols, d = t.front + 1;
       for (let c = 0; c < cols; c++) {
         const x = t.x0 + c * cw;
-        for (let i = 0; i < n; i++) this.towers.push(this.scene.add.image(x, t.front - CUBE.h * (i + 1), 'tower-cube-face').setOrigin(0, 0).setDisplaySize(cw, CUBE.h).setDepth(d));
-        this.towers.push(this.scene.add.image(x, t.front - CUBE.h * n - CUBE.top, 'tower-cube-top').setOrigin(0, 0).setDisplaySize(cw, CUBE.top).setDepth(d));
+        for (let i = 0; i < n; i++) this.towers.push(this.scene.add.image(x, t.front - t.base - CUBE.h * (i + 1), 'tower-cube-face').setOrigin(0, 0).setDisplaySize(cw, CUBE.h).setDepth(d));
+        this.towers.push(this.scene.add.image(x, t.front - t.base - CUBE.h * n - CUBE.top, 'tower-cube-top').setOrigin(0, 0).setDisplaySize(cw, CUBE.top).setDepth(d));
       }
     }
   }
@@ -353,7 +353,7 @@ export class OpenWorld {
     this.ambience.update(ms);
     this.backdrop?.update(ms);
     // the area you are in (by where you stand on the strip; a little past the line, so it never flickers)
-    const up = HEIGHTS.find((h) => (player.supportZ ?? 0) >= h.H - 1 && player.x >= h.x && player.x <= h.x + h.w && player.y <= h.front + 2);
+    const up = [...HEIGHTS].sort((a, b) => b.H - a.H).find((h) => (player.supportZ ?? 0) >= h.H - 1 && player.x >= h.x && player.x <= h.x + h.w && player.y <= h.front + 2);
     if (up) { if (this.area.id !== up.id) this.setArea(heightArea(up)); }
     const a = up ? this.area : this.areaOf(player.x, player.y);
     if (a === ARENA_AREA || this.area === ARENA_AREA) { if (a !== this.area && Math.abs(player.y - ARENA.y) > AREA_HYST) this.setArea(a); }

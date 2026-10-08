@@ -86,7 +86,7 @@ def main():
   # the maps above the terrace (heights.py): their floors, high up behind it (one floor with the terrace's, held apart by
   # their height: the game stands you there only up on top)
   hp = R + 'src/data/world-heights.json'
-  ups = [box(h['walk'][0], h['back'] + 4, h['walk'][1], h['front'] - 2) for h in (json.load(open(hp)) if os.path.exists(hp) else [])]
+  ups = [box(h['walk'][0], h['back'] + 4, h['walk'][1], h['front'] + 8) for h in (json.load(open(hp)) if os.path.exists(hp) else [])]
   allw = unary_union([walk, stairs, floorW, *ups])
   assert allw.geom_type == 'Polygon', allw.geom_type
   coords = [[round(x, 1), round(y, 1)] for x, y in list(allw.exterior.coords)[:-1]]

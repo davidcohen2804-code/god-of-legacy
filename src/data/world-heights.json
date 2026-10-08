@@ -12,6 +12,7 @@
   "front": 350,
   "back": 122,
   "img": "assets/world/heights/ivy_heights.webp",
+  "depth": -1.2,
   "imgY": -580,
   "imgH": 941,
   "blocks": [
@@ -73,6 +74,55 @@
   }
  },
  {
+  "id": "ivy_summit",
+  "name": "Ivy Summit",
+  "x": 3204,
+  "w": 1112,
+  "walk": [
+   3274,
+   4246
+  ],
+  "H": 680,
+  "front": 122,
+  "back": -106,
+  "img": "assets/world/heights/ivy_summit.webp",
+  "depth": -1.3,
+  "imgY": -1138,
+  "imgH": 941,
+  "blocks": [
+   {
+    "id": "block-l",
+    "x0": 3867,
+    "x1": 4050,
+    "front": 45,
+    "h": 85,
+    "depth": 26,
+    "occ": {
+     "img": "assets/world/heights/ivy_summit-block-l.webp",
+     "x": 3869,
+     "py": 394
+    }
+   }
+  ],
+  "mobs": {
+   "kind": "thorn",
+   "spawns": [
+    [
+     3504,
+     12
+    ],
+    [
+     3724,
+     82
+    ],
+    [
+     4164,
+     2
+    ]
+   ]
+  }
+ },
+ {
   "id": "orchard_heights",
   "name": "Orchard Heights",
   "x": 11074,
@@ -85,6 +135,7 @@
   "front": 350,
   "back": 122,
   "img": "assets/world/heights/orchard_heights.webp",
+  "depth": -1.2,
   "imgY": -580,
   "imgH": 941,
   "blocks": [

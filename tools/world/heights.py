@@ -17,6 +17,12 @@ MAPS = {
                   'blocks': [{'id': 'block-l', 'x': (266, 449), 'front': 503, 'h': 85, 'depth': 26},
                              {'id': 'block-r', 'x': (1321, 1434), 'front': 510, 'h': 70, 'depth': 23}],
                   'mobs': {'kind': 'sprout', 'spawns': [[300, 545], [620, 470], [820, 545], [1010, 445], [1180, 530], [1400, 480]]}},
+  # the summit: higher still, behind Ivy Heights' left part (its wall rises from Ivy Heights' back balustrade); its
+  # stair of cubes stands on Ivy Heights
+  'ivy_summit': {'name': 'Ivy Summit', 'src': 'ivy_heights', 'flip': True, 'crop': (560, 1672), 'over': 'terraces_2', 'dx': 40, 'H': 680, 'front': 122,
+                 'floor': (352, 580), 'sky': (120, 350), 'depth': -1.3,
+                 'blocks': [{'id': 'block-l', 'x': (663, 846), 'front': 503, 'h': 85, 'depth': 26}],
+                 'mobs': {'kind': 'thorn', 'spawns': [[300, 470], [520, 540], [960, 460]]}},
   'orchard_heights': {'name': 'Orchard Heights', 'over': 'orchard_1', 'H': 350, 'front': 350, 'floor': (352, 580), 'sky': (120, 350),
                   'blocks': [{'id': 'block-l', 'x': (266, 449), 'front': 503, 'h': 85, 'depth': 26},
                              {'id': 'block-r', 'x': (1321, 1434), 'front': 510, 'h': 70, 'depth': 23}],
@@ -29,6 +35,8 @@ data = []
 for id_, m in MAPS.items():
   im = cv2.imread(G + f"heights/{m.get('src', id_)}.png"); h, w = im.shape[:2]
   if m.get('flip'): im = cv2.flip(im, 1)
+  if m.get('crop'): im = im[:, m['crop'][0]:m['crop'][1]].copy()
+  h, w = im.shape[:2]
   seed = np.full((h, w), cv2.GC_PR_BGD, np.uint8); seed[:m['sky'][0]] = cv2.GC_BGD; seed[m['sky'][1]:] = cv2.GC_FGD
   seed[m['sky'][0] + 80:m['sky'][1]] = cv2.GC_PR_FGD
   bg, fg = np.zeros((1, 65)), np.zeros((1, 65))
@@ -58,7 +66,7 @@ for id_, m in MAPS.items():
     k = 1 - 0.35 * (edge / EDGE_SHADE)
     rgba[:, cols, :3] = (rgba[:, cols, :3] * k[None, :, None]).astype(np.uint8)
   cv2.imwrite(out_dir + f'{id_}.webp', cv2.cvtColor(rgba, cv2.COLOR_RGBA2BGRA), [cv2.IMWRITE_WEBP_QUALITY, 90])
-  X0 = STRIP['areas'][m['over']]['x']; f0, f1 = m['floor']; F = m['front']; H = m['H']
+  X0 = STRIP['areas'][m['over']]['x'] + m.get('dx', 0); f0, f1 = m['floor']; F = m['front']; H = m['H']
   occ = []   # each block's own cut-out: drawn over whoever walks behind it up there
   for b in m['blocks']:
     # the block only (a little inside its outline, feathered): no floor around it, so nothing shows that differs from the
@@ -71,7 +79,7 @@ for id_, m in MAPS.items():
     occ.append({'img': f"assets/world/heights/{id_}-{b['id']}.webp", 'x': X0 + x0, 'py': y0})
   gy = lambda p: F - (f1 - p)          # picture row on the floor → the terrace's ground y
   data.append({'id': id_, 'name': m['name'], 'x': X0, 'w': w, 'walk': [X0 + WALK_IN, X0 + w - WALK_IN], 'H': H, 'front': F, 'back': gy(f0),
-               'img': f'assets/world/heights/{id_}.webp', 'imgY': F - H - f1, 'imgH': h,
+               'img': f'assets/world/heights/{id_}.webp', 'depth': m.get('depth', -1.2), 'imgY': F - H - f1, 'imgH': h,
                'blocks': [{'id': b['id'], 'x0': X0 + b['x'][0], 'x1': X0 + b['x'][1], 'front': gy(b['front']), 'h': b['h'], 'depth': b['depth'], 'occ': o} for b, o in zip(m['blocks'], occ)],
                'mobs': {'kind': m['mobs']['kind'], 'spawns': [[X0 + x, gy(p)] for x, p in m['mobs']['spawns']]}})
   print(id_, 'x', X0, 'H', H, 'floor y', gy(f0), '..', F)
