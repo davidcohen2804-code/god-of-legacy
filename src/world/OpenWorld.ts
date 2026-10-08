@@ -77,6 +77,7 @@ export class OpenWorld {
   private occluders: Phaser.GameObjects.Image[] = [];
   private towers: Phaser.GameObjects.Image[] = [];
   private below: Phaser.GameObjects.Image[] = [];
+  private puffs: Phaser.GameObjects.Image[] = [];
   private gate: Phaser.GameObjects.Image[] = [];
   private npcs: NpcView[] = [];
   private prompt: Phaser.GameObjects.Container;
@@ -154,6 +155,24 @@ export class OpenWorld {
       this.below.push(this.scene.add.image(x0, WORLD_H - 150, 'below-fog3').setOrigin(0, 0).setDisplaySize(x1 - x0, 400).setDepth(-0.97));
     }
     this.below.push(fog);
+    // soft cloud banks drifting in the mist along the bridge's feet (rich, never a flat band)
+    if (!this.scene.textures.exists('mist-puff')) {
+      const c = this.scene.textures.createCanvas('mist-puff', 256, 128)!, x = c.getContext();
+      let sd = 17; const rnd = () => ((sd = (sd * 9301 + 49297) % 233280) / 233280);
+      for (let n = 0; n < 26; n++) {
+        const cx = 40 + rnd() * 176, cy = 52 + rnd() * 44, r = 20 + rnd() * 34, g = x.createRadialGradient(cx, cy, 0, cx, cy, r);
+        g.addColorStop(0, 'rgba(246,196,180,0.55)'); g.addColorStop(0.6, 'rgba(236,172,156,0.25)'); g.addColorStop(1, 'rgba(230,160,146,0)');
+        x.fillStyle = g; x.fillRect(0, 0, 256, 128);
+      }
+      c.refresh();
+    }
+    for (let x = TILES[i][0] - 120; x < TILES[i][0] + TILES[i][1]; x += 230 + ((x * 7) % 90)) {
+      if (x + 700 > ax0 - 60 && x < ax1 + 60) continue;   // never over the temple stairs
+      const k = ((x * 13) % 100) / 100, p =this.scene.add.image(x, WORLD_H - 120 + k * 70, 'mist-puff').setOrigin(0, 0.5)
+        .setDisplaySize(420 + k * 260, 150 + k * 80).setAlpha(0.55 + k * 0.35).setDepth(-0.96 + k * 0.004);
+      p.setData('x0', x).setData('ph', k * 6.28);
+      this.below.push(p); this.puffs.push(p);
+    }
   }
 
   private buildOccluders(): void {
@@ -423,6 +442,7 @@ export class OpenWorld {
   /** player: z = height above what he stands on, supportZ = the height of that (0 = the floor). */
   update(ms: number, player: { x: number; y: number; z: number; supportZ?: number; absZ?: number; grounded?: boolean; alive: boolean }): void {
     this.t += ms;
+    for (const p of this.puffs) { const ph = p.getData('ph') as number; p.x = (p.getData('x0') as number) + Math.sin(this.t / 7000 + ph) * 60; }
     this.follow(player.x, player.y, ms, false, player.supportZ ?? 0, player.absZ ?? 0, player.grounded ?? true);
     this.ambience.update(ms);
     this.backdrop?.update(ms);
@@ -499,7 +519,7 @@ export class OpenWorld {
     this.arenaTiles = ARENA.tiles.map(() => null);
     for (const o of this.occluders) o.destroy();
     for (const o of this.towers) o.destroy(); this.towers = [];
-    for (const o of this.below) o.destroy(); this.below = [];
+    for (const o of this.below) o.destroy(); this.below = []; this.puffs = [];
     for (const g of this.gate) g.destroy(); this.gate = [];
     for (const n of this.npcs) { n.sprite.destroy(); n.shadow.destroy(); n.plate.destroy(); n.name.destroy(); n.title.destroy(); n.mark.destroy(); }
     if (this.portal) { this.portal.beam.destroy(); this.portal.ring.destroy(); this.portal.glow.destroy(); this.portal.motes.destroy(); }
