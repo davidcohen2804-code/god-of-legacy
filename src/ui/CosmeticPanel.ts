@@ -20,7 +20,7 @@ import { keyLabel, loadBindings } from '../game/KeyBindings';
 import { GEAR, GearItem, GearSlot, GearState, SLOT_NAMES, WornLook, bagItems, gearStats, itemName, starterGear, takeOff, wear, wornItem, wornLook } from '../items/Gear';
 import { ICONS, IconName, ensureTheme } from './theme';
 import { hasJob } from '../skills/Jobs';
-import { ITEMS, ITEM_IDS, usable } from '../game/Loot';
+import { ITEMS, ITEM_IDS, RARITY, usable } from '../game/Loot';
 
 type Tab = 'inventory' | 'shop';
 type InvCat = 'equipped' | 'owned' | 'sets' | 'fashion' | 'weapon' | 'headface' | 'back' | 'aura';
@@ -483,7 +483,7 @@ export class CosmeticPanel {
       const bar = this.el('div', 'ibar', wrap), sel = this.selItem ? ITEMS[this.selItem] : null;
       if (sel && this.itemActions) {
         const im = this.el('img', '', bar); im.src = sel.icon; im.alt = '';
-        const tx = this.el('div', 'ix', bar); this.el('b', '', tx, sel.name); this.el('span', '', tx, sel.desc);
+        const tx = this.el('div', 'ix', bar); const sb = this.el('b', '', tx, sel.name); sb.style.color = RARITY[sel.rarity].color; this.el('span', '', tx, `${sel.desc}  ·  ${sel.lore}`);
         if (usable(sel.id)) {
           const keys = this.itemActions.keys();
           const u = this.el('button', 'gl-btn pri', bar, 'Use') as HTMLButtonElement; u.type = 'button'; u.addEventListener('click', () => { this.itemActions!.use(sel.id); });
@@ -524,8 +524,10 @@ export class CosmeticPanel {
     cell.addEventListener('mouseenter', () => {
       const d = ITEMS[id], t = this.tip; t.innerHTML = '';
       const th = this.el('div', 'th', t); const im = this.el('img', '', th); im.src = d.icon; im.alt = '';
-      const nm = this.el('div', '', th); this.el('div', 'tn', nm, d.name); const tt = this.el('div', 'tt', nm, d.kind === 'mat' ? 'Material' : d.kind === 'buff' ? 'Buff' : d.kind === 'scroll' ? 'Scroll' : 'Recovery'); tt.style.color = 'var(--gl-gold2)';
-      const tb = this.el('div', 'tb', t); this.el('div', 'td', tb, d.desc);
+      const nm = this.el('div', '', th); const tn = this.el('div', 'tn', nm, d.name); tn.style.color = RARITY[d.rarity].color;
+      const tt = this.el('div', 'tt', nm, `${RARITY[d.rarity].label} · ${d.kind === 'mat' ? 'Material' : d.kind === 'buff' ? 'Buff' : d.kind === 'scroll' ? 'Scroll' : 'Recovery'}`); tt.style.color = 'var(--gl-gold2)';
+      const tb = this.el('div', 'tb', t), ts = this.el('div', 'ts', tb); this.el('div', '', ts, d.desc);
+      const lo = this.el('div', 'td', tb, d.lore); lo.style.fontStyle = 'italic';
       this.el('div', 'te', t, `Sells for ${d.sell} gold`);
       t.classList.add('on');
     });

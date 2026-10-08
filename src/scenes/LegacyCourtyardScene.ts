@@ -45,7 +45,7 @@ import { NetMsg, PeerMeta } from '../pvp/Transport';
 import { genderOf, headLookOf, previewKeyOf } from '../characters/Look';
 import { buildLook, preloadLooks } from '../characters/LookArt';
 import { BOT_ID, BOT_NAME, BOT_NAMES, SparringBot } from '../pvp/SparringBot';
-import { BAG_MAX, DEFAULT_QUICK, GOLD_BIG, GOLD_ICON, GOLD_MAX, ITEMS, ITEM_IDS, POTION_DELAY, STARTER_BAG, cleanBag, cleanQuick, fmtGold, rollDrops, usable } from '../game/Loot';
+import { RARITY, BAG_MAX, DEFAULT_QUICK, GOLD_BIG, GOLD_ICON, GOLD_MAX, ITEMS, ITEM_IDS, POTION_DELAY, STARTER_BAG, cleanBag, cleanQuick, fmtGold, rollDrops, usable } from '../game/Loot';
 import { AP_PER_LEVEL, BASE_STAT, STAT_KEYS, Derived, StatKey, Stats, autoAssign, baseStats, cleanStats, derive, freeAp, mainStats } from '../game/Stats';
 import { ShopWindow } from '../ui/ShopWindow';
 import { StatsWindow } from '../ui/StatsWindow';
@@ -92,7 +92,7 @@ const MP_FREE = true;
 const MP_REGEN = 0.03, MP_ARENA = 220;
 const MP_CLASS: Record<string, number> = { warrior: 0.8, samurai: 0.9, archer: 1, book_mage: 1.6 };
 /** A skill's MP: none for the regular attack and passives / buffs' own cost by cooldown (the big ones cost more). */
-interface LootDrop { kind: 'gold' | 'item'; id?: string; amount: number; img: Phaser.GameObjects.Image; sh: Phaser.GameObjects.Ellipse; glow: Phaser.GameObjects.Image; sz: number; bounced: boolean; seed: number; nextGlint: number;
+interface LootDrop { kind: 'gold' | 'item'; id?: string; amount: number; img: Phaser.GameObjects.Image; sh: Phaser.GameObjects.Ellipse; glow: Phaser.GameObjects.Image; beam?: Phaser.GameObjects.Image; sz: number; bounced: boolean; seed: number; nextGlint: number;
   x: number; y: number; z: number; vx: number; vz: number; landed: boolean; born: number; taken: number; done?: boolean }
 const mpCost = (s: FinalSkill): number => (s.slot === 0 ? 0 : Math.min(60, Math.round(6 + (s.cooldown / 1000) * 2.2)));
 /** The slash-trail art (radiant_blade/slash_trail.jpg, 288 cells): its arc's circle (centre as a fraction of the cell, radius px) and the angle of its bright head (deg, y down). */
@@ -307,6 +307,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   bag: Record<string, number> = { ...STARTER_BAG };
   /** The items on the two item hotkeys. */
   quick: [string, string] = [...DEFAULT_QUICK];
+  /** Items found at least once. */
+  private seen = new Set<string>();
   private potionAt = [-Infinity, -Infinity];
   /** Buff potions running (sim clock). */
   private itemDmgUntil = -1;
@@ -344,6 +346,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     preloadPanelArt(this);
     preloadLife(this);
     for (const [k, f] of [...ITEM_IDS.map((id) => [`loot.${id}`, ITEMS[id].icon]), ['loot.gold_small', GOLD_ICON.small], ['loot.gold_big', GOLD_ICON.big]]) if (!this.textures.exists(k)) this.load.image(k, f);
+    if (!this.textures.exists('loot.beam')) this.load.image('loot.beam', 'assets/final/ui/kit/drop_beam.png');
     if (!this.textures.exists('loot.coin')) this.load.spritesheet('loot.coin', 'assets/final/items/coin_spin.png', { frameWidth: 128, frameHeight: 128 });
     for (let n = 0; n < EMOTES; n++) if (!this.textures.exists(`kit.emote_${n}`)) this.load.image(`kit.emote_${n}`, `assets/final/ui/kit/emote_${n}.png`);
     showLoading(this, pvp ? 'PVP ARENA' : 'GOD OF LEGACY');
@@ -366,7 +369,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.cls = playedClass(character) as ClassKey;
     this.stats = cleanStats(character.stats, character.level); this.statD = derive(this.stats, this.cls, character.level);
     this.kit = kitFor(this.cls);
-    this.gold = character.gold ?? 0; this.bag = cleanBag(character.bag ?? STARTER_BAG); this.quick = cleanQuick(character.quick); this.potionAt = [-Infinity, -Infinity]; this.drops = []; this.itemDmgUntil = -1; this.itemSpeedUntil = -1; this.useAt = {};
+    this.gold = character.gold ?? 0; this.bag = cleanBag(character.bag ?? STARTER_BAG); this.quick = cleanQuick(character.quick); this.seen = new Set(character.seen ?? Object.keys(this.bag)); this.potionAt = [-Infinity, -Infinity]; this.drops = []; this.itemDmgUntil = -1; this.itemSpeedUntil = -1; this.useAt = {};
     this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.hitBlinkUntil = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
     this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
@@ -887,11 +890,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       img.setOrigin(0.5, 0.9).setDisplaySize(sz, sz);
       if (big) img.setTint(0xfff0c0);
       const glow = this.add.image(x, y, 'loot.glow').setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
-      if (d.id === 'elixir') glow.setTint(0xff9ad8);
+      const rar = d.id ? ITEMS[d.id].rarity : 'common';
+      glow.setTint(RARITY[rar].glow);
+      const beam = rar === 'rare' ? this.add.image(x, y, 'loot.beam').setOrigin(0.5, 0.92).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setDisplaySize(46, 150) : undefined;
       const sh = this.add.ellipse(x, y, sz * 0.7, sz * 0.2, 0x000000, 0.3);
       const spread = (i - (list.length - 1) / 2) * 30;
       this.drops.push({ ...d, img, sh, glow, sz, x, y, z: Math.max(14, m.kin.z + 34), vx: spread * 2.4 + (Math.random() - 0.5) * 120, vz: 360 + Math.random() * 60,
-        landed: false, bounced: false, born: this.simMs, taken: -1, seed: Math.random() * 6.28, nextGlint: this.simMs + 600 + Math.random() * 1400 });
+        beam, landed: false, bounced: false, born: this.simMs, taken: -1, seed: Math.random() * 6.28, nextGlint: this.simMs + 600 + Math.random() * 1400 });
     });
   }
 
@@ -919,15 +924,17 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const age = now - d.born;
         d.z = 4 + Math.sin(age / 320 + d.seed) * 3.5;
         d.glow.setAlpha(Math.min(1, age / 300) * (0.55 + Math.sin(age / 420 + d.seed) * 0.2));
+        d.beam?.setAlpha(Math.min(1, age / 400) * (0.75 + Math.sin(age / 300) * 0.2));
         if (now >= d.nextGlint) { d.nextGlint = now + 1400 + Math.random() * 1800; this.lootGlint(d); }
         if (age > 60_000) { const f = Math.max(0, 1 - (age - 60_000) / 3000); d.img.setAlpha(f); d.glow.setAlpha(d.glow.alpha * f); if (age > 63_000) d.done = true; }
         if (alive && age > 250 && Math.abs(d.x - k.x) < 40 && Math.abs(d.y - k.y) < 24 && k.z - k.supportZ < 50) this.takeDrop(d, now);
       }
       d.img.setPosition(d.x, d.y - d.z).setDepth(actorDepth(d.x, d.y, d.z) - 0.2).setDisplaySize(d.sz * (2 - sq), d.sz * sq);
       d.glow.setPosition(d.x, d.y - 2).setDepth(actorDepth(d.x, d.y, 0) - 0.7).setDisplaySize(d.sz * 1.9, d.sz * 0.75);
+      if (d.beam) { d.beam.setPosition(d.x, d.y).setDepth(actorDepth(d.x, d.y, 0) - 0.5); if (d.taken >= 0) d.beam.setAlpha(0); }
       d.sh.setPosition(d.x, d.y - 1).setDepth(actorDepth(d.x, d.y, 0) - 0.6).setScale(Math.max(0.5, 1 - d.z / 120));
     }
-    if (this.drops.some((d) => d.done)) this.drops = this.drops.filter((d) => { if (d.done) { d.img.destroy(); d.sh.destroy(); d.glow.destroy(); } return !d.done; });
+    if (this.drops.some((d) => d.done)) this.drops = this.drops.filter((d) => { if (d.done) { d.img.destroy(); d.sh.destroy(); d.glow.destroy(); d.beam?.destroy(); } return !d.done; });
   }
 
   private lootGlint(d: LootDrop): void {
@@ -941,14 +948,23 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     d.taken = now;
     for (let i = 0; i < 2; i++) this.time.delayedCall(i * 90, () => this.lootGlint(d));
     if (d.kind === 'gold') { this.gold = Math.min(GOLD_MAX, this.gold + d.amount); this.hud?.lootFeed(GOLD_ICON.small, `+${fmtGold(d.amount)} Gold`, '#f3d58c'); }
-    else if (d.id) { this.giveItem(d.id, d.amount, false); this.hud?.lootFeed(ITEMS[d.id].icon, `${ITEMS[d.id].name} ×${d.amount}`, '#ece5d3'); }
+    else if (d.id) { this.giveItem(d.id, d.amount, false); this.hud?.lootFeed(ITEMS[d.id].icon, `${ITEMS[d.id].name} ×${d.amount}`, RARITY[ITEMS[d.id].rarity].color); }
     this.saveLoot();
   }
 
-  private saveLoot(): void { if (this.character) { this.character.gold = this.gold; this.character.bag = { ...this.bag }; CharacterStore.setLoot(this.character.id, this.gold, this.bag, this.quick); } this.cosPanel?.refreshBag(); this.shop?.refresh(); if (this.world) this.refreshQuests(); }
+  private saveLoot(): void { if (this.character) { this.character.gold = this.gold; this.character.bag = { ...this.bag }; this.character.seen = [...this.seen]; CharacterStore.setLoot(this.character.id, this.gold, this.bag, this.quick, this.character.seen); } this.cosPanel?.refreshBag(); this.shop?.refresh(); if (this.world) this.refreshQuests(); }
 
   /** Items into the bag (quest rewards, purchases, pickups). */
-  giveItem(id: string, n: number, save = true): void { if (!ITEMS[id] || n <= 0) return; this.bag[id] = Math.min(BAG_MAX, (this.bag[id] ?? 0) + n); if (save) this.saveLoot(); }
+  giveItem(id: string, n: number, save = true): void {
+    const d = ITEMS[id]; if (!d || n <= 0) return;
+    this.bag[id] = Math.min(BAG_MAX, (this.bag[id] ?? 0) + n);
+    if (!this.seen.has(id)) { // first find: its story
+      this.seen.add(id); save = true;
+      this.hud?.newItem(d.icon, d.name, RARITY[d.rarity].color, RARITY[d.rarity].label, d.lore);
+      this.chat?.add({ kind: 'system', text: `New item — ${d.name}: ${d.lore}` });
+    }
+    if (save) this.saveLoot();
+  }
   /** Items out of the bag (false: not enough). */
   takeItem(id: string, n: number): boolean { if ((this.bag[id] ?? 0) < n) return false; this.bag[id] -= n; if (this.bag[id] <= 0) delete this.bag[id]; this.saveLoot(); return true; }
 

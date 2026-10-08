@@ -3,7 +3,7 @@ import schema from '../data/CharacterSelect_DataSchema.json';
 import { Character, CharacterSelectData, CharacterSlot, QuestState, SlotId } from './CharacterTypes';
 import { GearState, cleanGear, starterGear } from '../items/Gear';
 import { cleanStats } from '../game/Stats';
-import { DEFAULT_QUICK, STARTER_BAG, cleanBag, cleanGold, cleanQuick } from '../game/Loot';
+import { DEFAULT_QUICK, ITEMS, STARTER_BAG, cleanBag, cleanGold, cleanQuick } from '../game/Loot';
 
 const KEY = 'godoflegacy.characters';
 const MAX_SLOTS = 4;
@@ -59,6 +59,8 @@ function sanitize(raw: unknown): CharacterSelectData {
       target.character.gold = cleanGold(lt.gold);
       target.character.bag = lt.bag && typeof lt.bag === 'object' ? cleanBag(lt.bag) : { ...STARTER_BAG };
       target.character.quick = cleanQuick(lt.quick);
+      const sn = (c as unknown as { seen?: unknown }).seen;
+      target.character.seen = Array.isArray(sn) ? sn.filter((x): x is string => typeof x === 'string' && x in ITEMS) : Object.keys(target.character.bag);
       const gd = (c as unknown as { gender?: unknown }).gender;
       if (gd === 'male' || gd === 'female') target.character.gender = gd;
       const lk = (c as unknown as { look?: Record<string, unknown> }).look;
@@ -118,7 +120,7 @@ class Store {
       name: clean, classId, level: Math.max(1, Math.floor(level)),
       createdAt: new Date().toISOString(), lastPlayedAt: null, appearanceId, gender, ...(look ? { look: { ...look } } : {}),
       gear: starterGear(look), // the starter set, worn, in the chosen colours
-      gold: 0, bag: { ...STARTER_BAG }, quick: [...DEFAULT_QUICK],
+      gold: 0, bag: { ...STARTER_BAG }, quick: [...DEFAULT_QUICK], seen: Object.keys(STARTER_BAG),
     };
     this.save();
     return true;
@@ -164,10 +166,10 @@ class Store {
   }
 
   /** Gold and potions carried. */
-  setLoot(charId: string, gold: number, bag: Record<string, number>, quick?: [string, string]): void {
+  setLoot(charId: string, gold: number, bag: Record<string, number>, quick?: [string, string], seen?: string[]): void {
     const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
     if (!c) return;
-    c.gold = cleanGold(gold); c.bag = cleanBag(bag); if (quick) c.quick = cleanQuick(quick);
+    c.gold = cleanGold(gold); c.bag = cleanBag(bag); if (quick) c.quick = cleanQuick(quick); if (seen) c.seen = seen.filter((x) => x in ITEMS);
     this.save();
   }
 

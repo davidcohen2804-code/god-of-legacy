@@ -10,22 +10,32 @@ export interface ItemDef {
   /** Shop price (absent: not sold) and what the shop pays for one. */
   price?: number; sell: number;
   desc: string;
+  /** How rare: the colour of its name, the light under it on the floor (a rare one: a beam of light). */
+  rarity: Rarity;
+  /** Its place in the world: one or two lines shown in its tooltip and when it is found for the first time. */
+  lore: string;
 }
+export type Rarity = 'common' | 'uncommon' | 'rare';
+export const RARITY: Record<Rarity, { label: string; color: string; glow: number }> = {
+  common: { label: 'Common', color: '#ece5d3', glow: 0xfff2c0 },
+  uncommon: { label: 'Uncommon', color: '#8fe39a', glow: 0xa8ffb0 },
+  rare: { label: 'Rare', color: '#ffb3e6', glow: 0xff9ad8 },
+};
 const I = (id: string) => `assets/final/items/${id}.png`;
 const MIN = 60_000;
 export const ITEMS: Record<string, ItemDef> = {
-  apple: { id: 'apple', name: 'Apple', kind: 'hp', icon: I('apple'), hp: 15, price: 20, sell: 10, desc: 'Restores 15 HP.' },
-  red_potion: { id: 'red_potion', name: 'Red Potion', kind: 'hp', icon: I('red_potion'), hp: 40, price: 50, sell: 25, desc: 'Restores 40 HP.' },
-  meat: { id: 'meat', name: 'Meat', kind: 'hp', icon: I('meat'), hp: 60, price: 80, sell: 40, desc: 'Restores 60 HP.' },
-  orange: { id: 'orange', name: 'Orange', kind: 'mp', icon: I('orange'), mp: 20, price: 50, sell: 25, desc: 'Restores 20 MP.' },
-  blue_potion: { id: 'blue_potion', name: 'Blue Potion', kind: 'mp', icon: I('blue_potion'), mp: 80, price: 220, sell: 110, desc: 'Restores 80 MP.' },
-  cake: { id: 'cake', name: 'Cake', kind: 'both', icon: I('cake'), hp: 40, mp: 40, price: 150, sell: 75, desc: 'Restores 40 HP and 40 MP.' },
-  warrior_potion: { id: 'warrior_potion', name: 'Warrior Potion', kind: 'buff', icon: I('warrior_potion'), buff: { stat: 'dmg', mul: 1.1, ms: 10 * MIN }, price: 400, sell: 200, desc: 'Damage +10% for 10 minutes.' },
-  swift_potion: { id: 'swift_potion', name: 'Swift Potion', kind: 'buff', icon: I('swift_potion'), buff: { stat: 'speed', mul: 1.1, ms: 10 * MIN }, price: 300, sell: 150, desc: 'Movement speed +10% for 10 minutes.' },
-  return_scroll: { id: 'return_scroll', name: 'Return Scroll', kind: 'scroll', icon: I('return_scroll'), price: 400, sell: 200, desc: 'Returns you to the Legacy Courtyard.' },
-  elixir: { id: 'elixir', name: 'Elixir', kind: 'pct', icon: I('elixir'), pct: 0.5, sell: 500, desc: 'Restores 50% of max HP and MP.' },
-  rust_shard: { id: 'rust_shard', name: 'Rust Shard', kind: 'mat', icon: I('rust_shard'), sell: 5, desc: 'A broken piece of a rusted blade. Merchants buy it.' },
-  cursed_cloth: { id: 'cursed_cloth', name: 'Cursed Cloth', kind: 'mat', icon: I('cursed_cloth'), sell: 12, desc: 'A scrap of cloth that still hums with a curse. Merchants buy it.' },
+  apple: { id: 'apple', name: 'Apple', kind: 'hp', icon: I('apple'), hp: 15, price: 20, sell: 10, desc: 'Restores 15 HP.', rarity: 'common', lore: "Picked in the orchards below the Legacy Courtyard. Aldric's students eat them between drills." },
+  red_potion: { id: 'red_potion', name: 'Red Potion', kind: 'hp', icon: I('red_potion'), hp: 40, price: 50, sell: 25, desc: 'Restores 40 HP.', rarity: 'common', lore: "Brewed from sunstone salt and crimson root. No one walks the road without a few." },
+  meat: { id: 'meat', name: 'Meat', kind: 'hp', icon: I('meat'), hp: 60, price: 80, sell: 40, desc: 'Restores 60 HP.', rarity: 'common', lore: "Roasted over the fire pits of Sunstone Plaza. Heavy, filling and worth the grease." },
+  orange: { id: 'orange', name: 'Orange', kind: 'mp', icon: I('orange'), mp: 20, price: 50, sell: 25, desc: 'Restores 20 MP.', rarity: 'common', lore: "Sun-ripened on the Ivy Terraces. Its sharp juice clears the head and steadies the mind." },
+  blue_potion: { id: 'blue_potion', name: 'Blue Potion', kind: 'mp', icon: I('blue_potion'), mp: 80, price: 220, sell: 110, desc: 'Restores 80 MP.', rarity: 'uncommon', lore: "Distilled from the Temple's spring water. Mages swear by it; Mira swears by its price." },
+  cake: { id: 'cake', name: 'Cake', kind: 'both', icon: I('cake'), hp: 40, mp: 40, price: 150, sell: 75, desc: 'Restores 40 HP and 40 MP.', rarity: 'common', lore: "Bren's wife bakes these for the Temple guards. Somehow Mira always has a few to sell." },
+  warrior_potion: { id: 'warrior_potion', name: 'Warrior Potion', kind: 'buff', icon: I('warrior_potion'), buff: { stat: 'dmg', mul: 1.1, ms: 10 * MIN }, price: 400, sell: 200, desc: 'Damage +10% for 10 minutes.', rarity: 'uncommon', lore: "A fiery draught first mixed for the Temple's sword trials. It burns all the way down." },
+  swift_potion: { id: 'swift_potion', name: 'Swift Potion', kind: 'buff', icon: I('swift_potion'), buff: { stat: 'speed', mul: 1.1, ms: 10 * MIN }, price: 300, sell: 150, desc: 'Movement speed +10% for 10 minutes.', rarity: 'uncommon', lore: "Brewed with feather-grass from the high ridges. Your boots feel lighter at once." },
+  return_scroll: { id: 'return_scroll', name: 'Return Scroll', kind: 'scroll', icon: I('return_scroll'), price: 400, sell: 200, desc: 'Returns you to the Legacy Courtyard.', rarity: 'uncommon', lore: "Sealed with the Courtyard's sun emblem. Read it aloud and the light carries you home." },
+  elixir: { id: 'elixir', name: 'Elixir', kind: 'pct', icon: I('elixir'), pct: 0.5, sell: 500, desc: 'Restores 50% of max HP and MP.', rarity: 'rare', lore: "A golden brew from the days before the Curse. No one living remembers the recipe." },
+  rust_shard: { id: 'rust_shard', name: 'Rust Shard', kind: 'mat', icon: I('rust_shard'), sell: 5, desc: 'A broken piece of a rusted blade. Merchants buy it.', rarity: 'common', lore: "All that is left of the old Courtyard guard's blades, eaten by rust when the Curse fell." },
+  cursed_cloth: { id: 'cursed_cloth', name: 'Cursed Cloth', kind: 'mat', icon: I('cursed_cloth'), sell: 12, desc: 'A scrap of cloth that still hums with a curse. Merchants buy it.', rarity: 'common', lore: "Torn from the cloaks of the Cursed Swordsmen. The curse still hums in its threads." },
 };
 export const ITEM_IDS = Object.keys(ITEMS);
 /** One short line for lists: "+40 HP", "+10% damage · 10 min". */

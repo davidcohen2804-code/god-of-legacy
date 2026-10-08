@@ -87,6 +87,17 @@ const CSS = `
 .gol-hud .aslot .cnt{position:absolute;right:5px;bottom:3px;font:700 13px/16px var(--gl-body);color:#fff;text-shadow:0 1px 2px #000,0 0 4px #000;font-variant-numeric:tabular-nums}
 .gol-hud .aslot.pot.none .ic{opacity:.35;filter:grayscale(1)}
 .gol-hud .aslot.pot.none .cnt{color:#9aa3b2}
+/* first find of an item (top centre) */
+.gol-hud .nitem{position:absolute;left:${960 - 270}px;top:128px;width:540px;display:flex;align-items:center;gap:16px;padding:14px 22px 14px 14px;box-sizing:border-box;border-radius:16px;
+  opacity:0;transform:translateY(-10px);transition:opacity 260ms ease-out,transform 260ms ease-out;pointer-events:none}
+.gol-hud .nitem.on{opacity:1;transform:none}
+.gol-hud .nitem .ic{flex:none;width:64px;height:64px;border-radius:14px;display:grid;place-items:center;background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.12),rgba(255,255,255,.02) 70%);box-shadow:inset 0 0 0 1px var(--rc)}
+.gol-hud .nitem .ic img{width:52px;height:52px}
+.gol-hud .nitem .tx{min-width:0;display:flex;flex-direction:column;gap:4px}
+.gol-hud .nitem .cap{font:700 11px/1 var(--gl-body);letter-spacing:1.8px;text-transform:uppercase;color:#c9ae78}
+.gol-hud .nitem .cap i{font-style:normal;color:var(--rc);margin-left:8px}
+.gol-hud .nitem .nm2{font:700 19px/1.2 var(--gl-title);letter-spacing:1px;color:var(--rc)}
+.gol-hud .nitem .lo{font:italic 500 13.5px/1.45 var(--gl-body);color:var(--gl-text2)}
 /* gold + pickups (bottom right) */
 .gol-hud .gold{position:absolute;display:flex;align-items:center;gap:9px;height:40px;padding:0 16px 0 10px;border-radius:999px;
   font:700 15px/1 var(--gl-body);color:var(--gl-gold2);font-variant-numeric:tabular-nums;letter-spacing:.3px;white-space:nowrap}
@@ -636,6 +647,23 @@ export class WorldHUD {
   }
 
   // ------------------------------------------------------------------ misc
+
+  private nq: [string, string, string, string, string][] = [];
+  private nBusy = false;
+  /** The first time an item is found: a card with its picture, name (rarity colour) and its story, a few seconds. */
+  newItem(iconUrl: string, name: string, color: string, rarity: string, lore: string): void {
+    this.nq.push([iconUrl, name, color, rarity, lore]); if (!this.nBusy) this.nextNew();
+  }
+  private nextNew(): void {
+    const n = this.nq.shift(); if (!n) { this.nBusy = false; return; }
+    this.nBusy = true;
+    const c = this.div('nitem gl-panel', this.root); c.style.setProperty('--rc', n[2]);
+    const ic = this.div('ic', c), im = document.createElement('img'); im.src = n[0]; im.alt = ''; ic.appendChild(im);
+    const tx = this.div('tx', c), cap = this.div('cap', tx); cap.textContent = 'New item'; const r = document.createElement('i'); r.textContent = n[3]; cap.appendChild(r);
+    this.div('nm2', tx).textContent = n[1]; this.div('lo', tx).textContent = n[4];
+    requestAnimationFrame(() => c.classList.add('on'));
+    window.setTimeout(() => { c.classList.remove('on'); window.setTimeout(() => { c.remove(); this.nextNew(); }, 300); }, 5200);
+  }
 
   /** A pickup line in the bottom-right feed (newest at the bottom, gone after a few seconds). */
   lootFeed(iconUrl: string, text: string, color: string): void {

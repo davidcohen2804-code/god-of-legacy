@@ -39,6 +39,8 @@ export interface Character {
   bag?: Record<string, number>;
   /** The items on the two item hotkeys (8 / 9). */
   quick?: [string, string];
+  /** Items found at least once (the first find shows its story). */
+  seen?: string[];
 }
 
 export interface QuestState { state: 'active' | 'done'; progress: number[] }

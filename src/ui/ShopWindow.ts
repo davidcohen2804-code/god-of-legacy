@@ -1,7 +1,7 @@
 // Mira's shop (Sunstone Plaza): buy food, potions, buff potions and the Return Scroll; sell anything from the bag
 // (materials for gold). In the game's window style (theme.ts), the gold carried at the bottom.
 import { ICONS, ensureTheme } from './theme';
-import { BAG_MAX, ITEMS, ITEM_IDS, SHOP, shortDesc } from '../game/Loot';
+import { BAG_MAX, ITEMS, ITEM_IDS, RARITY, SHOP, shortDesc } from '../game/Loot';
 
 const STYLE_ID = 'gol-shop-style';
 const W = 1040;
@@ -93,7 +93,7 @@ export class ShopWindow {
   private row(list: HTMLElement, id: string, sub: string, price: number, afford: boolean, key: string, n: number, max: number, verb: string, go: () => void): void {
     const d = ITEMS[id], r = this.el('div', 'row', list);
     const im = document.createElement('img'); im.src = d.icon; im.alt = ''; r.appendChild(im);
-    const nm = this.el('div', 'inm', r); this.el('b', '', nm).textContent = d.name; this.el('span', '', nm).textContent = sub;
+    const nm = this.el('div', 'inm', r); const nb = this.el('b', '', nm); nb.textContent = d.name; nb.style.color = RARITY[d.rarity].color; r.title = `${d.name} — ${d.desc}\n${d.lore}`; this.el('span', '', nm).textContent = sub;
     const pr = this.el('div', `pr${afford ? '' : ' no'}`, r); pr.textContent = `${price.toLocaleString('en-US')} G`;
     const act = this.el('div', 'act', r), q = this.el('div', 'qty', act);
     const m = this.el('button', 'm', q) as HTMLButtonElement; m.type = 'button'; m.setAttribute('aria-label', 'Less'); m.disabled = n <= 1;
