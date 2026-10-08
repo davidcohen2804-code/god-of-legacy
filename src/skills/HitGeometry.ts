@@ -118,6 +118,12 @@ export interface Projectile {
   pierce: boolean;
   explodeRadius: number;
   cover: CoverMode;
+  /** Homing shots (Origami Flock): turn rate (rad/s), which foe of the list this one hunts, its own id (each one hits). */
+  homing?: number;
+  pick?: number;
+  pid?: number;
+  /** Book Mage gates: last time it passed through one (no bouncing between them). */
+  portedAt?: number;
   done: boolean;
   /** Height lost per px travelled (shots fired from the air descend toward chest height of grounded targets). */
   dropPerPx: number;
@@ -127,8 +133,10 @@ export interface Projectile {
 
 const AIR_SHOT_DROP_PX = 240;
 
-export function spawnProjectile(castId: string, hitIndex: number, skill: FinalSkill, s: Extract<HitShape, { kind: 'projectile' }>, attackerId: string, origin: V3, dir: V2): Projectile {
+let pidSeq = 0;
+export function spawnProjectile(castId: string, hitIndex: number, skill: FinalSkill, s: Extract<HitShape, { kind: 'projectile' }>, attackerId: string, origin: V3, dir: V2, pick = 0): Projectile {
   return {
+    ...(s.homing ? { homing: (s.homing * Math.PI) / 180, pick, pid: ++pidSeq } : {}),
     castId, hitIndex, skill, attackerId, x: origin.x + dir.x * 16, y: origin.y + dir.y * 16, z: origin.z + 34, dx: dir.x, dy: dir.y,
     speed: s.speed, range: s.range, radius: s.radius, travelled: 0, ageMs: 0, pierce: !!s.pierce, explodeRadius: s.explodeRadius ?? 0,
     cover: skill.cover, done: false,
@@ -145,6 +153,7 @@ export function spawnProjectile(castId: string, hitIndex: number, skill: FinalSk
 export function stepProjectile(p: Projectile, ms: number, targets: HitTarget[], already: Set<string>): HitTarget[] {
   if (p.done) return [];
   p.ageMs += ms;
+  if (p.homing) steerHoming(p, ms, targets.filter((t) => !already.has(t.id) && legal(p.skill, p.attackerId, t)));
   const len = Math.min((p.speed * ms) / 1000, p.range - p.travelled);
   const bx = p.x + p.dx * len, by = p.y + p.dy * len;
   const ct = p.cover === 'IGNORES_COVER' ? null : coverHit(p.x, p.y, bx, by, p.z);
@@ -174,6 +183,19 @@ export function stepProjectile(p: Projectile, ms: number, targets: HitTarget[], 
   if (p.dropPerPx > 0) p.z = Math.max(34, p.z - p.dropPerPx * len);
   if (p.travelled >= p.range - 1e-6) { p.done = true; p.end = { x: p.x, y: p.y, reason: 'range' }; }
   return hits.map((h) => h.t);
+}
+
+/** Homing shot: hunts its foe (the pick-th nearest; fewer foes: they share), turning toward it at its turn rate. */
+function steerHoming(p: Projectile, ms: number, foes: HitTarget[]): void {
+  if (!foes.length || p.ageMs < 90) return; // a short straight flight out of the book first
+  const sorted = foes.map((t) => ({ t, d: Math.hypot(t.x - p.x, t.y - p.y) })).filter((e) => e.d < 620).sort((a, b) => a.d - b.d);
+  if (!sorted.length) return;
+  const t = sorted[(p.pick ?? 0) % sorted.length].t;
+  const want = Math.atan2(t.y - p.y, t.x - p.x), cur = Math.atan2(p.dy, p.dx);
+  let d = want - cur; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+  const turn = Math.max(-1, Math.min(1, d / Math.max(1e-6, (p.homing! * ms) / 1000))) * (p.homing! * ms) / 1000;
+  const a = cur + turn; p.dx = Math.cos(a); p.dy = Math.sin(a);
+  const tz = t.z + t.height * 0.5; p.z += Math.max(-1, Math.min(1, (tz - p.z) / 20)) * (p.speed * ms) / 1000 * 0.3; // and rises / drops toward it
 }
 
 /** Explosion around a point (Explosive Arrow): legal targets in radius with a clear line from the burst. */

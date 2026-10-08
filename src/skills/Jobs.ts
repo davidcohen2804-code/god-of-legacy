@@ -13,9 +13,13 @@ const PATH: Record<string, Job[]> = {
     { name: 'Legacy Paragon', level: 80, to: 150, slots: [13, 6, 7, 15] }, // Judgment Blade, Blade Storm, Titan's Verdict, Legacy Banner (party)
   ],
   book_mage: [
-    { name: 'Beginner', level: 1, to: 10, slots: [0] }, { name: 'Arcanist', level: 10, to: 29, slots: [1, 2, 3, 9] },
-    { name: 'Spellbinder', level: 29, to: 40, slots: [8, 4, 11] }, { name: 'Archmage', level: 40, to: 80, slots: [12, 10, 5, 13] },
-    { name: 'Codex Sovereign', level: 80, to: 150, slots: [6, 7] },
+    { name: 'Beginner', level: 1, to: 10, slots: [0] },
+    // The mage spec: 1st = the blink, the wave and the launcher; 2nd = frost and the rune net (+ the party haste);
+    // 3rd = lightning, levity, paper, time and the ward; 4th = gates, the curse, the storm, the elements and the ultimate.
+    { name: 'Arcanist', level: 10, to: 29, slots: [8, 1, 3] },                       // Blink, Arcane Wave, Astral Lift
+    { name: 'Spellbinder', level: 29, to: 40, slots: [2, 4, 9, 10] },                // Binding Rune, Frost Nova, Glacial Spikes, Chrono Haste (party)
+    { name: 'Archmage', level: 40, to: 80, slots: [5, 11, 12, 13, 14] },             // Lightning Chain, Levity Field, Origami Flock, Chrono Sigil, Arcane Ward (party)
+    { name: 'Codex Sovereign', level: 80, to: 150, slots: [15, 16, 6, 17, 7] },      // Arcane Gate, Paper Curse, Storm Field, Elemental Ascension, Time Collapse
   ],
   archer: [
     { name: 'Beginner', level: 1, to: 10, slots: [0] },
@@ -55,4 +59,4 @@ export const hasJob = (c: { level: number; job?: string }): boolean => !!c.job |
 /** The level his skills and passives open by: a Beginner stays below the 1st job until a Master gives it. */
 export const skillLevel = (c: { level: number; job?: string }): number => (hasJob(c) ? c.level : Math.min(c.level, BEGINNER_TO - 1));
 /** Jobs a Master can give now (their player art exists). */
-export const JOBS_OPEN = new Set(['warrior', 'archer']);
+export const JOBS_OPEN = new Set(['warrior', 'archer', 'book_mage']);

@@ -29,7 +29,7 @@ import { Party } from '../pvp/Party';
 import { PartyUI, PartyView } from '../ui/PartyUI';
 import { addExp, expToNext } from '../game/Progression';
 import { passiveIconUrl, passivesFor } from '../skills/Passives';
-import { NO_PASSIVES, ORBS, PassiveStats, REGEN, SHINSOKU, WAR_LEAP, ownedPassives, passiveStats } from '../skills/Passives';
+import { LEVITATE, NO_PASSIVES, ORBS, PassiveStats, REGEN, SHINSOKU, WAR_LEAP, WEAVE, ownedPassives, passiveStats } from '../skills/Passives';
 import { SKILL_BLOCKERS, WORLD_OBJECTS, actorDepth, footAllowed, insideArena, placementOk, pushOutOfBlockers, useArenaGeometry } from '../world/WorldGeometry';
 import { OpenWorld, preloadOpenWorld } from '../world/OpenWorld';
 import { AreaNpc, IDLE_LINES, MOB_KINDS, QUESTS, QuestDef, START, toWorld } from '../world/Areas';
@@ -59,10 +59,11 @@ import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
 import { baseLoop, ClassKey, dirOf, HERO_LIFT, heroPortrait, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame, sideAim } from '../game/Body';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
-import { ARENA, CombatBody, GAUGE, HitOutcome, Kin, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
+import { ARENA, CombatBody, GAUGE, HitOutcome, Kin, MAGE, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
-import { finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
-import { CastRun, RT_EVENTS, SkillRuntime } from '../skills/SkillRuntime';
+import { MAGE_HIDDEN, finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
+import { CastRun, RT_EVENTS, SkillRuntime, Trap } from '../skills/SkillRuntime';
+import type { Projectile } from '../skills/HitGeometry';
 import { Afterimages, applyMotion, archerMotion, heroMotion, leapMotion } from '../skills/ArcherMotion';
 import { SAMURAI_AFTER, TORNADO, samuraiMotion, samuraiSeen, shinsokuMotion, tornadoPath } from '../skills/SamuraiMotion';
 import { KAGE, KageLocal, kageTarget } from '../skills/Kagemusha';
@@ -394,6 +395,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
     this.hasteUntil = -1; this.spiritUntil = -1; this.tree = null; this.storm = null; this.resolveUntil = -1; this.hasteFx = undefined; this.spiritFx = undefined; this.afterimg = undefined;
     this.sunUntil = -1; this.godUntil = -1; this.kage?.clear(); this.kage = undefined; this.ambushIn.clear();
+    this.mageReset(); this.gates.clear(); this.levityZones = []; this.brokenLinks.clear(); this.linkGfx = undefined;
     this.hpMaxSeen = 0; this.seenStance = -Infinity; this.seenEndure = -Infinity; this.markAt.clear(); this.partyTick = 0; this.shares = []; this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1;
     this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
     this.combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1 };
@@ -474,6 +476,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       reachMul: (req) => (req.own ? (req.skill.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.85 : 1) : (req.reach ?? 1)),
       rangeMul: (req) => (req.own ? this.ownRangeMul(req.skill) : (req.range ?? 1)),
       speedMul: (req) => (req.own ? this.ownSpeedMul(req.skill) : (req.speed ?? 1)),
+      projectileHook: (p, r) => this.mageProjectile(p, r),
     });
     this.fx = new SkillFx(this, this.rt, (id) => this.casterPos(id));
     this.deathFx = new DeathFx(this);
@@ -648,6 +651,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.stepLingers(now);
     this.stepStorm();
     this.stepTree(now);
+    this.stepMage(ms, now);
     if (now < this.resolveUntil && this.dead < 0) this.body.armorUntil = Math.max(this.body.armorUntil, now + 120); // Hunter's Resolve: unstoppable
     if (SKILL_BLOCKERS.size) { pushOutOfBlockers(this.kin, R); for (const m of this.world?.mobs ?? []) if (m.alive) pushOutOfBlockers(m.kin, 14); }
     this.stepPassives(ms, now);
@@ -725,7 +729,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const jbs = this.kit.find((x) => x.id === 'judgment_blade'); if (jbs) this.rt!.closeCharges({ id: jbs.id, cooldown: jbs.cooldown * this.cdMul(jbs) });
       this.jb = null; this.jbWant = 0;
     }
-    const r = stepKin(k, ms, b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z, !!this.rt!.ownRun), b.state === 'free' && !b.push && !this.rt!.ownRun);
+    const floating = now < this.mage.floatUntil && !k.grounded && b.state === 'free'; // Levitate: a slow float
+    if (floating) k.vz = Math.max(k.vz, -40);
+    const r = stepKin(k, ms, floating ? LEVITATE.gravity : b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z, !!this.rt!.ownRun), b.state === 'free' && !b.push && !this.rt!.ownRun);
     if (this.world) settleOnBlocks(k, ms, this.blockHold.y ? 0 : this.ci?.moveY ?? 0, b.state === 'free');
     const ev = b.update(now, ms, r.landed, r.impactVz);
     if (r.landed) {
@@ -756,18 +762,19 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Free locomotion: walk / double-tap run, jump take-off, air control, landing settle, idle breathing. */
   private stepLocomotion(ms: number, now: number): void {
     const k = this.kin, inp = this.ci!, b = this.body;
-    const rooted = b.hard.active(now) && b.hard.kind === 'root';
+    const rooted = (b.hard.active(now) && b.hard.kind === 'root') || now < b.levityUntil; // (a Levity Field: floating, unable to move)
     const locked = this.inputLocked(); // talking to an NPC: he stands still
     const hold = this.blockHold; // let go (or off the block): that way is free again
     if (hold.x && (Math.sign(inp.moveX) !== hold.x || !k.grounded)) hold.x = 0;
     if (hold.y && (Math.sign(inp.moveY) !== hold.y || !k.grounded)) hold.y = 0;
     const mx = locked || hold.x ? 0 : inp.moveX, my = locked || hold.y ? 0 : inp.moveY;
-    const speed = (inp.running && !locked ? PHYS.run : PHYS.walk) * b.moveScale(now) * this.passives.moveMul * (now < this.itemSpeedUntil ? 1.1 : 1);
+    const speed = (inp.running && !locked ? PHYS.run : PHYS.walk) * b.moveScale(now) * this.passives.moveMul * (now < this.itemSpeedUntil ? 1.1 : 1) * (now < this.mage.hasteUntil ? 1.1 : 1);
     steer(k, rooted ? 0 : mx * speed, rooted ? 0 : my * speed, ms, now < this.leapUntil ? 0.12 : 1); // War Leap keeps its burst
     if ((mx || my) && !rooted) this.dir = dirOf(mx, my, this.dir); // side view only: up/down keeps the facing
     const jumpKey = inp.takeJump() && !locked; // a jump pressed while talking is dropped
     if (k.grounded) { this.leapUsed = false; if (!rooted && jumpKey) { jump(k, PHYS.jumpVz * this.passives.jumpMul); this.setMode('takeoff'); } }
     else if (this.passives.airLeap && !this.leapUsed && !rooted && !(this.mode === 'takeoff' && this.modeT <= PHYS.takeoffMs) && jumpKey) this.warLeap(now);
+    else if (this.passives.mage.levitate && !this.leapUsed && !rooted && !(this.mode === 'takeoff' && this.modeT <= PHYS.takeoffMs) && jumpKey) this.levitate(now);
     const sp = Math.hypot(k.vx, k.vy);
     if (!k.grounded) { if (this.mode !== 'takeoff' || this.modeT > PHYS.takeoffMs) this.setMode('air'); return; }
     if (this.mode === 'land' && this.modeT < LAND_MS && !mx && !my) return;
@@ -1375,7 +1382,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.dead >= 0) { alpha = 1 - (1 - P6.deathAlpha) * Math.min(1, this.dead / P6.deathFadeMs); tint = null; fill = false; } // the body just fades; the ghost rises (DeathFx)
     v.swordOff = !!this.jb; // Judgment Blade: no sword from the leap until he lands (the cast's own poses are bare too)
     if (this.cls === 'samurai' && run && this.dead < 0) alpha *= Math.max(0.25, samuraiSeen(run.skill.id, run.elapsed, run.timings)); // vanished (others see nothing; you, a shade)
-    if (this.kage?.hidden && this.dead < 0 && !(run && run.skill.id === 'kagemusha')) alpha *= KAGE.shade; // Kagemusha: hidden among the doubles (you, a shade)
+    if (this.kage?.hidden && this.dead < 0 && !(run && run.skill.id === 'kagemusha')) alpha *= KAGE.shade;
+    if (this.simMs < this.body.curseUntil && this.dead < 0) alpha = 0; // Paper Curse: folded into the crane (drawn by the effect) // Kagemusha: hidden among the doubles (you, a shade)
     v.render(ms, pose, k.x + jx, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
     if (this.kage?.hidden && this.dead < 0) v.ring.setAlpha(0.9); // hidden among the doubles: your ring still shows you where you are (your screen only)
     if (this.cls === 'archer') { // archer body motion: lean, recoil, flips, leaps + afterimages
@@ -1600,7 +1608,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private onJumpKey(): void { if (this.pvpReady && this.dead < 0 && !this.inputLocked()) this.ci?.queueJump(); }
 
   /** Own damage buffs right now: War Cry +20%, Radiant Blade +15% (same as against monsters). */
-  private ownDamageMul(): number { return (this.simMs < this.warCryUntil ? 1.2 : this.simMs < this.allyCryUntil ? 1.1 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * (this.simMs < this.bannerUntil ? 1.1 : 1) * (this.simMs < this.sunUntil ? 1.1 : 1) * (this.simMs < this.godUntil ? 1.15 : 1) * (this.simMs < this.itemDmgUntil ? 1.1 : 1) * this.passiveDmgMul(); }
+  private ownDamageMul(s?: FinalSkill): number { return this.weaveMul() * this.skillMul(s) * (this.simMs < this.warCryUntil ? 1.2 : this.simMs < this.allyCryUntil ? 1.1 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * (this.simMs < this.bannerUntil ? 1.1 : 1) * (this.simMs < this.sunUntil ? 1.1 : 1) * (this.simMs < this.godUntil ? 1.15 : 1) * (this.simMs < this.itemDmgUntil ? 1.1 : 1) * this.passiveDmgMul(); }
 
   private hasteFx?: Phaser.GameObjects.Particles.ParticleEmitter;
   private spiritFx?: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -1619,6 +1627,264 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     });
     this.hasteFx.setPosition(k.x, k.y - k.z - 6).setDepth(d + 0.05); this.hasteFx.emitting = false; // (Bow Haste reads from its ring on the floor only)
     this.spiritFx.setPosition(k.x, k.y - k.z - 60).setDepth(d + 0.06); this.spiritFx.emitting = vis && this.simMs < this.spiritUntil;
+  }
+
+  // ======================================================================= Book Mage (the mage spec)
+
+  private mage = { el: null as 'frost' | 'storm' | 'arcane' | null, weave: 0, weaveLast: '', weaveCast: '', weaveAt: -Infinity, grand: false,
+    hasteUntil: -1, ascUntil: -1, wardHp: 0, wardUntil: -1, barrierAt: -Infinity, recoverAt: -Infinity, floatUntil: -1, gateAt: -Infinity };
+  /** Chrono Sigil: where it lies, the HP when it was laid, until when it can be snapped back to. */
+  private sigil: { x: number; y: number; z: number; hp: number; until: number } | null = null;
+  /** Arcane Gates of every caster (the gate by him, the gate where he aimed). */
+  private gates = new Map<string, { a: V2; b: V2; until: number }>();
+  /** Levity Fields standing now (bolts of their caster fly twice as fast through them). */
+  private levityZones: { owner: string; x: number; y: number; r: number; until: number }[] = [];
+  /** Rune beams already broken (`castA|castB`). */
+  private brokenLinks = new Set<string>();
+  private linkGfx?: Phaser.GameObjects.Graphics;
+
+  private mageReset(): void {
+    const M = this.mage;
+    M.el = null; M.weave = 0; M.weaveLast = ''; M.weaveCast = ''; M.grand = false; M.hasteUntil = -1; M.ascUntil = -1; M.wardHp = 0; M.wardUntil = -1; M.floatUntil = -1;
+    this.sigil = null; this.gates.delete(this.localId);
+  }
+
+  /** Arcane Bolt as Attunement turns it: the element of the last spell. */
+  private mageVariant(s: FinalSkill | undefined): FinalSkill | undefined {
+    if (!s || s.id !== 'arcane_bolt' || !this.passives.mage.attune || !this.mage.el) return s;
+    return finalSkill(`arcane_bolt_${this.mage.el}`) ?? s;
+  }
+  /** The caster's state carried by his casts: 1 Elemental Ascension, 2 Conductor, 4 Shatter Mastery. */
+  private mageFlags(): number { const M = this.passives.mage; return (this.simMs < this.mage.ascUntil ? 1 : 0) | (M.conductor ? 2 : 0) | (M.shatter ? 4 : 0); }
+  /** A mage hit as its caster's state makes it: every damaging hit both elements under Elemental Ascension; his passives. */
+  private mageHit(run: CastRun, hit: HitEvent): HitEvent {
+    if (run.skill.cls !== 'book_mage') return hit;
+    const f = run.own ? this.mageFlags() : (run.mf ?? 0);
+    if (!f) return hit;
+    return { ...hit, ...(f & 1 && hit.damage > 0 ? { el: 'both' as const } : {}), ...(f & 2 ? { conductor: true } : {}), ...(f & 4 ? { shatterMul: 2 } : {}) };
+  }
+  private weaveMul(): number { return this.cls === 'book_mage' && this.passives.mage.weave ? 1 + WEAVE.per * this.mage.weave : 1; }
+  /** Time Collapse reads the woven runes: +10% each. */
+  private skillMul(s?: FinalSkill): number { return s?.id === 'time_collapse' && this.passives.mage.weave ? 1 + 0.1 * this.mage.weave : 1; }
+  private static readonly MAGE_EL: Record<string, 'frost' | 'storm' | 'arcane'> = { frost_nova: 'frost', glacial_spikes: 'frost', lightning_chain: 'storm', storm_field: 'storm' };
+
+  /** Spell Weave: a spell that hits and is not the one before weaves a rune; the same one twice unravels them. */
+  private weaveHit(run: CastRun): void {
+    const M = this.mage, s = run.skill;
+    M.weaveAt = this.simMs;
+    if (!this.passives.mage.weave || s.slot === 0 || s.slot === 99 || M.weaveCast === run.castId) return;
+    M.weaveCast = run.castId;
+    const was = M.weave;
+    M.weave = s.id === M.weaveLast ? 0 : Math.min(WEAVE.max, M.weave + 1);
+    M.weaveLast = s.id;
+    if (M.weave === WEAVE.max && was < WEAVE.max && this.passives.mage.grand) M.grand = true; // Grand Weave: the next spell is instant
+    this.fx?.weave(this.localId, M.weave, M.weave === 0 && was > 0);
+  }
+
+  /** Own mage casts: buffs, the sigil, Blink's escape (timers on the sim clock, from the run's real startup). */
+  private mageCast(s: FinalSkill, run: CastRun): void {
+    const now = this.simMs, k = this.kin, M = this.mage;
+    if (s.slot !== 0 && s.slot !== 8) M.el = LegacyCourtyardScene.MAGE_EL[s.id] ?? 'arcane'; // Attunement: the element of the last spell
+    if (M.grand && s.slot !== 0 && s.slot !== 8 && s.slot !== 7) { M.grand = false; run.timings.startup = Math.min(run.timings.startup, 30); this.fx?.grandWeave(this.localId); }
+    const up = run.timings.startup, say = (text: string, color: string) => this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, text, color, 0));
+    switch (s.id) {
+      case 'blink': this.body.invulnUntil = Math.max(this.body.invulnUntil, now + up + s.active); if (this.passives.mage.blinkRune) this.frostRune(k.x, k.y); break;
+      case 'chrono_haste': M.hasteUntil = now + up + 120000; this.shares.push({ at: now + up, id: s.id, ms: 120000 }); say('CHRONO HASTE', '#c9b6ff'); break;
+      case 'arcane_ward': M.wardHp = Math.round(this.maxHpNow() * 0.2); M.wardUntil = now + up + 8000; this.shares.push({ at: now + up, id: s.id, ms: 8000 }); say('ARCANE WARD', '#9fdcff'); break;
+      case 'elemental_ascension': M.ascUntil = now + up + 20000; say('ELEMENTAL ASCENSION', '#cff6ff'); break;
+      case 'chrono_sigil': this.sigil = { x: k.x, y: k.y, z: k.z, hp: this.playerHP, until: now + up + 5000 }; break;
+    }
+  }
+
+  /** Chrono Sigil pressed again: back to the sigil in time, with half the HP lost since. */
+  private sigilRecall(): void {
+    const sg = this.sigil!, k = this.kin, from = { x: k.x, y: k.y, z: k.z };
+    const own = this.rt?.ownRun; if (own) { this.rt!.cancelForFollowUp(own); this.endRun(own, true); }
+    this.sigil = null;
+    k.x = sg.x; k.y = sg.y; k.z = sg.z; k.vx = 0; k.vy = 0; k.vz = 0; k.grounded = sg.z <= k.supportZ + 1;
+    this.body.push = null; this.body.invulnUntil = Math.max(this.body.invulnUntil, this.simMs + 300);
+    const back = Math.max(0, Math.round((sg.hp - this.playerHP) / 2));
+    if (back > 0) { this.playerHP = Math.min(this.maxHpNow(), this.playerHP + back); this.fx?.healNumber({ x: k.x, y: k.y, z: k.z }, back); }
+    this.fx?.rewind(this.localId, from, { x: sg.x, y: sg.y, z: sg.z });
+    this.pvp?.forceState();
+  }
+
+  /** Levitate: the second jump is a slow float you can cast from. */
+  private levitate(now: number): void {
+    const k = this.kin, inp = this.ci!;
+    const d = inp.hasMove ? unit(inp.moveX, inp.moveY) : FACE[this.dir];
+    this.leapUsed = true; this.mage.floatUntil = now + LEVITATE.ms;
+    k.vz = Math.max(k.vz, 60); k.vx = d.x * LEVITATE.forward; k.vy = d.y * LEVITATE.forward * 0.6;
+    this.fx?.levitate(this.localId, () => (this.simMs < this.mage.floatUntil && !this.kin.grounded ? { x: this.kin.x, y: this.kin.y, z: this.kin.z } : null));
+  }
+
+  /** A gate / Levity Field opened (any caster): kept here for the passing bolts and walkers. */
+  private mageZone(run: CastRun): void {
+    const now = this.simMs;
+    if (run.skill.id === 'arcane_gate' && run.place) {
+      let a = { x: run.origin.x + run.aim.x * 56, y: run.origin.y + run.aim.y * 30 };
+      if (!footAllowed(a.x, a.y, 0, 10)) a = { x: run.origin.x, y: run.origin.y };
+      this.gates.set(run.attackerId, { a, b: { ...run.place }, until: now + 12000 });
+      this.fx?.gates(run.attackerId, a, run.place, 12000);
+    }
+    if (run.skill.id === 'levity_field' && run.place) this.levityZones.push({ owner: run.attackerId, x: run.place.x, y: run.place.y, r: 150, until: now + 2500 });
+  }
+
+  /** Every projectile after its step: gates carry the caster's bolts across, Levity Fields hurry them on. */
+  private mageProjectile(p: Projectile, run: CastRun): void {
+    if (run.skill.cls !== 'book_mage') return;
+    const now = this.simMs, g = this.gates.get(p.attackerId);
+    if (g && now < g.until && now - (p.portedAt ?? -Infinity) > 400) {
+      for (const [from, to] of [[g.a, g.b], [g.b, g.a]] as const) if (Math.hypot(p.x - from.x, p.y - from.y) < 34) {
+        this.fx?.gatePass(from, to, p.z);
+        p.x = to.x + p.dx * 36; p.y = to.y + p.dy * 36; p.portedAt = now; p.range += 220; // flies on out of the other gate
+        break;
+      }
+    }
+    const q = p as Projectile & { boosted?: boolean };
+    if (!q.boosted) for (const z of this.levityZones) if (z.owner === p.attackerId && now < z.until && Math.hypot(p.x - z.x, p.y - z.y) < z.r) { q.boosted = true; p.speed *= 2; p.range += 160; }
+  }
+
+  /** A pretend cast of one of the mage's hidden effects (its hits go through the usual authority paths). */
+  private pseudoRun(skill: FinalSkill, x: number, y: number, z = 0): CastRun {
+    return { castId: `${this.localId}:${skill.id}${++this.castSeq}`, skill, stage: 0, attackerId: this.localId, own: true, origin: { x, y, z }, aim: { x: 1, y: 0 }, place: { x, y },
+      elapsed: 0, phase: 'done', fired: new Set(), hitKeys: new Set(), confirmedAt: -1, pathStart: { x, y }, counterTriggered: false, extraRecovery: 0,
+      timings: { startup: 0, active: 0, recovery: 0 }, hits: skill.hits, zone: true } as CastRun;
+  }
+  /** Own hidden effect on the monsters / the sparring knight around a point. */
+  private mageBurst(skill: FinalSkill, x: number, y: number, r: number, skip?: string): void {
+    const run = this.pseudoRun(skill, x, y), hit = skill.hits[0];
+    for (const t of this.targetsFor(run)) if (t.alive && !t.invulnerable && t.id !== skip && (t.kind === 'enemy' || t.id === BOT_ID) && Math.hypot(t.x - x, t.y - y) <= r + t.radius)
+      this.onSkillHit(run, hit, 0, t, { x: t.x, y: t.y, z: t.z + 40 });
+  }
+  /** Blink Mastery: a rune of frost where he vanished (5s; whoever walks over it is chilled). */
+  private frostRune(x: number, y: number): void {
+    const s = MAGE_HIDDEN.frostRune, run = this.pseudoRun(s, x, y);
+    const t: Trap = { run, hit: s.hits[0], x, y, until: this.simMs + 5000, radius: 40 };
+    this.rt?.traps.push(t); this.rt?.events.emit(RT_EVENTS.trap, t);
+  }
+
+  /** The PvE body near a point (Cold Blood: who struck you up close). */
+  private pveBodyNear(at: { x: number; y: number }): CombatBody | undefined {
+    let best: CombatBody | undefined, bd = 90;
+    const see = (b: CombatBody | undefined, x: number, y: number) => { const d = Math.hypot(x - at.x, y - at.y); if (b && d < bd) { bd = d; best = b; } };
+    for (const m of this.world?.mobs ?? []) if (m.alive) see(m.body, m.kin.x, m.kin.y);
+    if (this.enemy?.alive) see(this.enemy.body, this.enemy.kin.x, this.enemy.kin.y);
+    if (this.bot) see(this.bot.body, this.bot.x, this.bot.y);
+    return best;
+  }
+  /** Cold Blood (chills who strikes you up close) and Mana Barrier (a heavy blow stopped, every 20s). True: blocked. */
+  private mageGuard(hit: HitEvent, from: { x: number; y: number }, attacker?: CombatBody): boolean {
+    const M = this.passives.mage, now = this.simMs, k = this.kin;
+    if (this.cls !== 'book_mage' || this.dead >= 0) return false;
+    if (M.coldBlood && attacker && hit.shape.kind !== 'projectile' && Math.hypot(from.x - k.x, from.y - k.y) < 140) {
+      attacker.chillUntil = now + MAGE.chillMs; attacker.slowPct = Math.max(attacker.slowPct, MAGE.chillSlow); attacker.slowUntil = Math.max(attacker.slowUntil, now + MAGE.chillMs);
+      this.fx?.mageReaction('chill', { x: attacker.kin.x, y: attacker.kin.y, z: attacker.kin.z + 40 });
+    }
+    if (M.barrier && now >= this.mage.barrierAt && (hit.heavy || hit.damage >= this.maxHpNow() * 0.08)) {
+      this.mage.barrierAt = now + 20000;
+      this.fx?.barrier({ x: k.x, y: k.y, z: k.z }, from);
+      return true;
+    }
+    return false;
+  }
+  /** Arcane Ward takes the damage first; broken, it bursts in frost. Returns what is left for the HP. */
+  private wardAbsorb(dmg: number): number {
+    const M = this.mage;
+    if (M.wardHp <= 0) return dmg;
+    if (this.simMs >= M.wardUntil) { M.wardHp = 0; return dmg; }
+    const a = Math.min(M.wardHp, dmg); M.wardHp -= a;
+    const k = this.kin;
+    this.fx?.wardHit(this.localId, M.wardHp <= 0);
+    if (M.wardHp <= 0) { M.wardUntil = -1; this.mageBurst(MAGE_HIDDEN.wardBurst, k.x, k.y, 150); }
+    return dmg - a;
+  }
+
+  /** A magic reaction caused by your hit: Arcane Recovery, Shatter Mastery's shards, Time Lord, the conducted arcs. */
+  private mageReact(run: CastRun, out: HitOutcome, targetId: string, at: V3): void {
+    if (!out.rx) return;
+    this.fx?.mageReaction(out.rx, at, targetId, out.rxMs);
+    if (!run.own || run.attackerId !== this.localId) return;
+    const M = this.passives.mage, now = this.simMs;
+    if (M.recovery && out.rx !== 'chill' && now - this.mage.recoverAt > 250) {
+      this.mage.recoverAt = now;
+      const before = this.playerHP; this.playerHP = Math.min(this.maxHpNow(), this.playerHP + Math.max(1, Math.round(this.maxHpNow() * 0.03)));
+      if (this.playerHP > before) this.fx?.healNumber({ x: this.kin.x, y: this.kin.y, z: this.kin.z }, this.playerHP - before);
+    }
+    if (out.rx === 'shatter') {
+      if (M.timeLord) { const e = this.rt?.cooldownEnd.get('time_collapse'); if (e && e > now) this.rt!.cooldownEnd.set('time_collapse', Math.max(now, e - 1000)); }
+      if (M.shatter && run.skill.id !== 'shatter_shards') this.mageBurst(MAGE_HIDDEN.shards, at.x, at.y, 160, targetId);
+    }
+    if (out.rx === 'conduct' && run.skill.id !== 'conduct_arc') { // the lightning leaps through every chilled foe near
+      const arc = MAGE_HIDDEN.conductArc, pr = this.pseudoRun(arc, at.x, at.y);
+      let n = 0;
+      for (const t of this.targetsFor(pr)) {
+        if (n >= 4 || !t.alive || t.invulnerable || t.id === targetId || !(t.kind === 'enemy' || t.id === BOT_ID)) continue;
+        const b = t.id === BOT_ID ? this.bot?.body : t.id === 'enemy' ? this.enemy?.body : this.mobById(t.id)?.body;
+        if (!b || !(b.chilled(now) || (M.conductor && b.frozen(now))) || Math.hypot(t.x - at.x, t.y - at.y) > 240) continue;
+        n++; this.fx?.conductArc(at, { x: t.x, y: t.y, z: t.z + 40 });
+        this.onSkillHit(pr, arc.hits[0], 0, t, { x: t.x, y: t.y, z: t.z + 40 });
+      }
+    }
+  }
+
+  /** Every frame: the weave fades, buffs run out, the gates carry you across, the rune beams watch the floor. */
+  private stepMage(_ms: number, now: number): void {
+    const M = this.mage;
+    if (M.weave > 0 && now - M.weaveAt > WEAVE.fadeMs) { M.weave = 0; this.fx?.weave(this.localId, 0, true); }
+    if (M.wardHp > 0 && now >= M.wardUntil) { M.wardHp = 0; this.fx?.wardHit(this.localId, false, true); }
+    if (this.sigil && now >= this.sigil.until) this.sigil = null;
+    for (const [id, g] of this.gates) if (now >= g.until) this.gates.delete(id);
+    this.levityZones = this.levityZones.filter((z) => now < z.until);
+    const g = this.gates.get(this.localId), k = this.kin;
+    if (g && this.dead < 0 && now - M.gateAt > 700 && k.z - k.supportZ < 30) {
+      for (const [from, to] of [[g.a, g.b], [g.b, g.a]] as const) if (Math.hypot(k.x - from.x, k.y - from.y) < 26) {
+        const sp = Math.hypot(k.vx, k.vy), d = sp > 10 ? { x: k.vx / sp, y: k.vy / sp } : FACE[this.dir];
+        const nx = to.x + d.x * 40, ny = to.y + d.y * 22;
+        if (!footAllowed(nx, ny, k.z, R)) continue;
+        this.fx?.gatePass(from, to, k.z + 40);
+        k.x = nx; k.y = ny; M.gateAt = now; this.pvp?.forceState();
+        break;
+      }
+    }
+    this.stepRuneLinks(now);
+    for (const m of this.world?.mobs ?? []) { // Paper Curse: the folded monster is the crane (its own sprite hidden)
+      const paper = m.alive && now < m.body.curseUntil;
+      if (paper) { m.sprite.setAlpha(0); this.paperMobs.add(m); } else if (this.paperMobs.delete(m) && m.alive) m.sprite.setAlpha(1);
+    }
+    if (this.bot && now < this.bot.body.curseUntil) this.bot.view.paper(this.bot.body.curseUntil - now);
+  }
+  private paperMobs = new Set<Monster>();
+
+  /** Binding Rune: two runes of one caster close together are joined by a beam; who crosses it is bound and shocked
+   *  (each client judges its own: you judge the monsters and the knight for your runes, and yourself for the others'). */
+  private stepRuneLinks(now: number): void {
+    const by = new Map<string, Trap[]>();
+    for (const t of this.rt?.traps ?? []) if (t.run.skill.id === 'binding_rune') { const l = by.get(t.run.attackerId) ?? []; l.push(t); by.set(t.run.attackerId, l); }
+    const gfx = this.linkGfx ??= this.add.graphics().setDepth(1);
+    gfx.clear();
+    const beams: [Trap, Trap][] = [];
+    for (const [, ts] of by) for (let i = 0; i < ts.length; i++) for (let j = i + 1; j < ts.length; j++) {
+      const A = ts[i], B = ts[j];
+      if (Math.hypot(A.x - B.x, A.y - B.y) > 320 || this.brokenLinks.has(`${A.run.castId}|${B.run.castId}`)) continue;
+      beams.push([A, B]);
+    }
+    for (const [A, B] of beams) {
+      const own = A.run.attackerId === this.localId, key = `${A.run.castId}|${B.run.castId}`;
+      this.fx?.runeBeam(A, B, gfx, now);
+      const victims: HitTarget[] = own ? this.targetsFor(A.run).filter((t) => t.kind === 'enemy' || t.id === BOT_ID)
+        : this.party?.has(A.run.attackerId) || this.dead >= 0 ? [] : [{ id: this.localId, kind: 'player', x: this.kin.x, y: this.kin.y, z: this.kin.z, radius: R + 4, height: 74, alive: true, invulnerable: this.simMs < this.body.invulnUntil }];
+      for (const t of victims) {
+        if (!t.alive || t.invulnerable || t.z > 30) continue;
+        const dx = B.x - A.x, dy = B.y - A.y, L2 = dx * dx + dy * dy || 1, u = Math.max(0, Math.min(1, ((t.x - A.x) * dx + (t.y - A.y) * dy) / L2));
+        if (u <= 0.02 || u >= 0.98 || Math.hypot(t.x - (A.x + dx * u), t.y - (A.y + dy * u)) > t.radius + 6) continue;
+        this.brokenLinks.add(key);
+        const at = { x: t.x, y: t.y, z: t.z + 30 }, hit = MAGE_HIDDEN.runeLink.hits[0];
+        this.fx?.runeBeamBreak(A, B, at);
+        if (own) this.onSkillHit(A.run, hit, 9, t, at); else this.applyRemoteHitToSelf(A.run, hit, 9, at);
+        break;
+      }
+    }
   }
 
   // ======================================================================= Kagemusha (samurai): the shadow doubles
@@ -1693,7 +1959,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Archer: Eagle Eyes arrow range. */
   private ownRangeMul(s: FinalSkill): number { return s.cls === 'archer' ? this.passives.rangeMul : 1; }
   /** Archer: Bow Haste (+20%) × Ranger Mastery attack speed (startup / recovery shortened). */
-  private ownSpeedMul(s: FinalSkill): number { return s.cls === 'warrior' && this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && s.id !== 'radiant_blade' ? RADIANT_SPEED : s.cls === 'archer' ? this.passives.atkSpeed * (this.simMs < this.hasteUntil ? 1.2 : 1) : s.cls === 'samurai' ? this.passives.atkSpeed : 1; }
+  private ownSpeedMul(s: FinalSkill): number { return (this.simMs < this.mage.hasteUntil ? 1.1 : 1) * this.classSpeedMul(s); }
+  private classSpeedMul(s: FinalSkill): number { return s.cls === 'warrior' && this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && s.id !== 'radiant_blade' ? RADIANT_SPEED : s.cls === 'archer' ? this.passives.atkSpeed * (this.simMs < this.hasteUntil ? 1.2 : 1) : s.cls === 'samurai' ? this.passives.atkSpeed : 1; }
   /** Own critical rate bonus: passives + Hunter's Spirit (+15%). */
   private critAddNow(): number { return this.passives.critAdd + (this.arena ? 0 : this.statD.critAdd) + (this.simMs < this.spiritUntil ? 0.15 : 0); }
   /** Own extra critical damage: passives + Rising Sun (+20%). */
@@ -1755,9 +2022,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     else if (id === 'legacy_banner') this.bannerUntil = Math.max(this.bannerUntil, now + ms);
     else if (id === 'hunters_spirit') this.spiritUntil = Math.max(this.spiritUntil, now + ms);
     else if (id === 'rising_sun') this.sunUntil = Math.max(this.sunUntil, now + ms);
+    else if (id === 'chrono_haste') { this.mage.hasteUntil = Math.max(this.mage.hasteUntil, now + ms); this.fx?.mageAura(this.localId, 'haste', ms); }
+    else if (id === 'arcane_ward') { this.mage.wardHp = Math.max(this.mage.wardHp, Math.round(this.maxHpNow() * 0.1)); this.mage.wardUntil = Math.max(this.mage.wardUntil, now + ms); this.fx?.mageWard(this.localId, ms); }
     else if (id === 'tree_of_life') { this.treeHeal(); return; } // one heal pulse from a party member's tree (sent every second while you stand near it)
     else return;
-    const label = id === 'war_cry' ? 'WAR CRY' : id === 'iron_oath' ? 'IRON OATH' : id === 'hunters_spirit' ? "HUNTER'S SPIRIT" : id === 'rising_sun' ? 'RISING SUN' : 'LEGACY BANNER';
+    const label = id === 'chrono_haste' ? 'CHRONO HASTE' : id === 'arcane_ward' ? 'ARCANE WARD' : id === 'war_cry' ? 'WAR CRY' : id === 'iron_oath' ? 'IRON OATH' : id === 'hunters_spirit' ? "HUNTER'S SPIRIT" : id === 'rising_sun' ? 'RISING SUN' : 'LEGACY BANNER';
     this.fx?.callout({ x: k.x, y: k.y, z: k.z + 50 }, `+${label}`, '#ffd27a', 0);
     this.fx?.shockwave(k.x, k.y, 90, 0xffd27a);
     this.chat?.add({ kind: 'system', text: `${name} gave you ${label.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}.` });
@@ -1787,7 +2056,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Start a slot now if legal (incl. hit-confirm cancel / chain continuation from the current action). */
   tryStartSlot(i: number): boolean {
-    const s = this.kit[i];
+    const s = this.mageVariant(this.kit[i]); // (Arcane Bolt: the element Attunement gives it)
     if (!s || !this.rt || this.dead >= 0) return false;
     if (this.inputLocked()) return false; // talking / a battle's VS, ROUND n, K.O.: no attacks (buffered ones too)
     if (!this.skillOpen(s)) return false; // skills open with the job advancements (all open in the arena)
@@ -1801,6 +2070,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (b.state !== 'free') return false;
     if (b.hard.active(now) && b.hard.kind !== 'root') return false;
+    if (now < b.curseUntil) return false; // a paper crane cannot cast
+    if (s.id === 'chrono_sigil' && this.sigil && now < this.sigil.until) { this.sigilRecall(); return true; } // the sigil laid: back to it in time
     if (!(k.grounded ? s.ground : s.air)) return false;
     if (s.dash && b.hard.active(now)) return false; // rooted: no dashes
     if (this.mode === 'takeoff' && this.modeT < PHYS.takeoffMs) return false;
@@ -1828,6 +2099,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const s = run.skill, T = run.timings, e = run.elapsed;
     if (s.id === next.id && s.chain) return e >= T.startup + T.active - 20;
     if (s.slot === 7) return false; // Ultimate cannot be cancelled
+    if (next.id === 'blink' && s.id !== 'blink' && e >= T.startup + T.active) return true; // Blink cancels the end of any spell
     if (next.id === s.id) return !!s.charges && e >= T.startup + T.active; // charged skill: throw again right away
     if (s.id === 'whirlwind' && e >= T.startup + 200) return true; // channelled spin: break out into any skill at will
     // Free cancel (DFO-style): after a confirmed hit any other skill can cancel this one until it ends;
@@ -1842,7 +2114,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // Soft lock (DFO-style tracking): snap the aim to the nearest enemy roughly in front, so attacks never whiff on a near-miss angle.
     const lockT = this.softTarget(260, 0.05);
     if (lockT) this.aim = unit(lockT.x - k.x, lockT.y - k.y, this.aim.x, this.aim.y);
-    const reach = s.targeting === 'mouseGround' ? Math.min(180, s.placeRange ?? 180) : 160;
+    const reach = s.id === 'arcane_gate' ? 360 : s.targeting === 'mouseGround' ? Math.min(180, s.placeRange ?? 180) : 160; // (the far gate: well ahead of him)
     const mouse = { x: k.x + this.aim.x * reach, y: k.y + this.aim.y * reach };
     let aim = unit(mouse.x - k.x, mouse.y - k.y, FACE[this.dir].x, FACE[this.dir].y);
     let place: V2 | null = null, lock: string | null = null;
@@ -1892,11 +2164,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.slot === 7) this.body.invulnUntil = this.simMs + s.startup + s.active; // ultimate: untouchable while it plays
     else if (this.simMs < this.warCryUntil) this.body.armorUntil = this.simMs + s.startup + s.active; // War Cry: super armor while attacking
     this.kage?.arm(castId, s.id, { x: k.x, y: k.y, z: k.z }); // he strikes: out of hiding; a cast while the doubles stand: its first hit that lands is the AMBUSH
-    this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: from, aim, place, lock });
+    const mf = s.cls === 'book_mage' ? this.mageFlags() : 0;
+    const run = this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: from, aim, place, lock, ...(mf ? { mf } : {}) });
+    if (s.cls === 'book_mage') this.mageCast(s, run);
     if (s.chain) this.chain = { stage, lastEnd: Infinity, skill: s.id };
     this.setMode('skill');
-    const dm = this.ownDamageMul(), rm = s.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.85 : 1; // buffs travel with the cast (victim-side damage / reach)
-    this.pvp?.sendCast({ castId, skillId: s.id, stage, x: Math.round(from.x), y: Math.round(from.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000), ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}), lock, ...(dm !== 1 ? { dm: Math.round(dm * 100) } : {}), ...(rm !== 1 ? { rm: Math.round(rm * 100) } : {}), ...(this.ownRangeMul(s) !== 1 ? { rg: Math.round(this.ownRangeMul(s) * 100) } : {}), ...(this.ownSpeedMul(s) !== 1 ? { sp: Math.round(this.ownSpeedMul(s) * 100) } : {}), ...(this.kage?.isAmbush(castId) ? { amb: 1 } : {}) });
+    const dm = this.ownDamageMul(s), rm = s.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.85 : 1; // buffs travel with the cast (victim-side damage / reach)
+    this.pvp?.sendCast({ castId, skillId: s.id, stage, x: Math.round(from.x), y: Math.round(from.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000), ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}), lock, ...(dm !== 1 ? { dm: Math.round(dm * 100) } : {}), ...(rm !== 1 ? { rm: Math.round(rm * 100) } : {}), ...(this.ownRangeMul(s) !== 1 ? { rg: Math.round(this.ownRangeMul(s) * 100) } : {}), ...(this.ownSpeedMul(s) !== 1 ? { sp: Math.round(this.ownSpeedMul(s) * 100) } : {}), ...(this.kage?.isAmbush(castId) ? { amb: 1 } : {}), ...(mf ? { mf } : {}) });
   }
 
   /** Archer casts: buffs, the tree, the channelled storm (timers on the sim clock, from the run's real startup). */
@@ -1948,6 +2222,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   private onRunPhase(run: CastRun, phase: string): void {
+    if (phase === 'active' && run.skill.cls === 'book_mage') this.mageZone(run);
     const L = run.skill.linger;
     if (phase === 'active' && L) { // every caster's lingering zone (yours, other players', the sparring knight's)
       const off = L.at === 'aim' ? (L.offset ?? 0) : 0;
@@ -2081,6 +2356,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** PvE authority: combat body reaction on the enemy/dummy, damage, confirmed-hit feedback. */
   private applyToPve(run: CastRun, hit: HitEvent, t: HitTarget, at: V3): void {
     const now = this.simMs, s = run.skill;
+    hit = this.mageHit(run, hit);
     const amb = run.own && hit.damage > 0 && !!this.kage?.isAmbush(run.castId); // Kagemusha's AMBUSH: a sure critical and a stun
     if (amb) hit = { ...hit, reaction: { ...hit.reaction, stun: Math.max(hit.reaction.stun ?? 0, KAGE.ambushStun) } };
     let out: HitOutcome | null = null, crit = false; // (a critical: its own number, MapleStory — no CRITICAL text)
@@ -2088,7 +2364,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const ds = this.dummyState;
       const ch = run.attackerId === this.localId ? this.chanceMul(ds.body) : 1;
       out = ds.body.receive(run.attackerId, s, hit, run.origin, now);
-      if (run.attackerId === this.localId) out.damage = Math.round(out.damage * this.ownDamageMul() * ch); // same buffs as against monsters
+      if (run.attackerId === this.localId) out.damage = Math.round(out.damage * this.ownDamageMul(s) * ch * (ds.body.curseUntil > now ? 1.3 : 1)); // same buffs as against monsters
       ds.body.push = null; ds.kin.vx = 0; ds.kin.vy = 0; // anchored post: launches / knockdowns are vertical only (juggle practice)
       this.damageDummy(out.damage);
       if (ch > 1 && out.damage > 0) this.chanceMark(t.id, at);
@@ -2123,7 +2399,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       }
       const own = run.attackerId === this.localId;
       crit = amb || (hit.damage > 0 && s.slot !== 0 && Math.random() < 0.12 + (own ? this.critAddNow() : 0)); // attack skills only: a regular attack never crits
-      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.critDmgNow() : 0) : 1) * (own ? this.ownDamageMul() * ch * this.dmgRoll() : 1);
+      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.critDmgNow() : 0) : 1) * (own ? this.ownDamageMul(s) * ch * this.dmgRoll() * (en.body.curseUntil > now ? 1.3 : 1) : 1);
       out.damage = Math.round(out.damage * mult);
       en.damage(out.damage);
       // (MapleStory: only the damage shows — no COUNTER / BACK ATTACK labels; their bonus damage stays)
@@ -2148,7 +2424,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         this.fx!.crack(m.kin.x, m.kin.y, 120); this.fx!.shockwave(m.kin.x, m.kin.y, 200, 0xffc070); this.fx!.callout(at, 'SLAM!!', '#ff9a4a', 1); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 120); this.cameras.main.shake(220, 0.011);
       }
       crit = amb || (hit.damage > 0 && s.slot !== 0 && Math.random() < 0.12 + (own ? this.critAddNow() : 0)); // attack skills only: a regular attack never crits
-      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.critDmgNow() : 0) : 1) * (own ? this.ownDamageMul() * ch * this.dmgRoll() : 1);
+      const mult = (counter ? 1.25 : 1) * (back ? 1.15 : 1) * (crit ? 1.5 + (own ? this.critDmgNow() : 0) : 1) * (own ? this.ownDamageMul(s) * ch * this.dmgRoll() * (m.body.curseUntil > now ? 1.3 : 1) : 1);
       out.damage = Math.round(out.damage * mult);
       const killed = m.damage(out.damage, now);
       // (MapleStory: only the damage shows — no COUNTER / BACK ATTACK labels; their bonus damage stays)
@@ -2162,6 +2438,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       }
     }
     if (!out) return;
+    this.mageReact(run, out, t.id, at);
     this.confirm(run, hit, t.id, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!s.endsCombo, t.z, crit);
     if (out.reaction !== 'armor') this.finalAttack(run, t.id, at, out.damage);
   }
@@ -2177,6 +2454,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (this.orbs.cast !== run.castId) { this.orbs.cast = run.castId; this.orbs.n = Math.min(ORBS.max, this.orbs.n + 1); }
       this.orbs.lastAt = this.simMs;
     }
+    if (run?.own && s.cls === 'book_mage' && damage > 0) this.weaveHit(run);
     this.fx!.confirmed(s, hit, at, damage, reaction, true, idx, crit, run ? this.hitFrom(run, hit) : undefined);
     if (damage > 0) { // your hit on another fighter: it shudders through the hit-stop (fighting-game feel)
       const sh = Math.max(90, Math.min(220, this.fx!.hitStopLeft + 60));
@@ -2200,6 +2478,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.tryCounter(from)) return;
     if (this.tryEvade(from)) return;
     const hit: HitEvent = { at: 0, damage: dmg, shape: { kind: 'sector', range: 58, angle: 120 }, reaction: { stun: 220, push } };
+    if (this.mageGuard(hit, from, this.pveBodyNear(from))) return;
     const out = this.body.receive('enemy', ENEMY_SKILL, hit, from, this.simMs);
     if (out.reaction === 'armor' && this.simMs < this.body.invulnUntil) { this.fx!.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 }, 'BLOCK!!', '#9ed8ff', 0); this.fx!.shockwave(this.kin.x, this.kin.y, 70, 0x9ed8ff); }
     out.damage = this.takeDamage(out.damage);
@@ -2234,6 +2513,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (trial && this.simMs < this.hitBlinkUntil) return;
     if (this.inDome()) { this.domeBlock(this.casterPos(run.attackerId) ?? run.origin); this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: run.skill.id, hit: hi, dmg: 0, rx: 'armor' }); return; }
     const s = run.skill;
+    hit = this.mageHit(run, hit);
+    if (hit.damage > 0 && this.mageGuard(hit, this.casterPos(run.attackerId) ?? run.origin, run.attackerId === BOT_ID ? this.bot?.body : undefined)) { this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'armor' }); return; }
     if (hit.shape.kind !== 'placed' && hit.damage > 0 && this.tryCounter(this.casterPos(run.attackerId) ?? run.origin)) {
       this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'countered' });
       return;
@@ -2249,6 +2530,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     out.damage = this.takeDamage(out.damage);
     if (trial && out.damage > 0) this.hitBlinkUntil = this.simMs + HIT_IFRAMES;
     if (run.attackerId === BOT_ID) this.logHit(false, s, out, this.body, this.kin.z);
+    if (out.rx) this.fx?.mageReaction(out.rx, { x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 }, this.localId, out.rxMs);
     this.fx!.confirmed(s, hit, at, out.damage, out.reaction, false, out.hitIndex, false, this.hitFrom(run, hit));
     if (this.arena && out.damage > 0) { // the arena: a hit lands on you — a beat of hit-stop, your body shudders, heavy ones shake the screen
       const heavy = !!hit.heavy || out.reaction === 'launch' || out.reaction === 'knockdown' || s.slot === 7;
@@ -2259,6 +2541,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.carry && out.reaction !== 'armor' && out.damage > 0) this.carriedBy = run; // Impaling Rush: ride the blade
     this.pvp?.sendHp(this.playerHP, run.attackerId, {
       castId: run.castId, skillId: s.id, hit: hi, dmg: out.damage, idx: out.hitIndex, cid: out.comboId, rx: out.reaction, ends: out.endsCombo, vz: Math.round(this.kin.vz), z: Math.round(this.kin.z),
+      ...(out.rx ? { mx: out.rx, mms: Math.round(out.rxMs ?? 0) } : {}),
     });
     if (this.playerHP === 0) this.pvp?.sendDeath(run.attackerId);
   }
@@ -2319,7 +2602,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Returns the damage actually taken (the worn equipment's defence and Iron Body cut it). */
   private takeDamage(raw: number): number {
     if (this.dead >= 0 || raw <= 0) return 0;
-    const dmg = Math.max(1, Math.round(raw * this.passives.takenMul * takenMul(this.gearSt) * (this.simMs < this.bannerUntil ? 0.9 : 1)));
+    let dmg = Math.max(1, Math.round(raw * this.passives.takenMul * takenMul(this.gearSt) * (this.simMs < this.bannerUntil ? 0.9 : 1)));
+    dmg = this.wardAbsorb(dmg); if (dmg <= 0) return 0;
     if (!(this.arena && PVP.hpLocked)) this.playerHP = Math.max(0, this.playerHP - dmg); // (testing: the arena's HP stays)
     this.flash = 0;
     this.kage?.end('fade'); // struck: the doubles vanish at once
@@ -2330,7 +2614,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Buffs end (death, a new battle round). */
   private endBuffs(): void {
     this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.spiritUntil = -1; this.hasteUntil = -1; this.tree = null; this.storm = null; this.resolveUntil = -1;
-    this.sunUntil = -1; this.godUntil = -1; this.fx?.clearHalo(this.localId); this.kage?.clear();
+    this.sunUntil = -1; this.godUntil = -1; this.fx?.clearHalo(this.localId); this.kage?.clear(); this.mageReset(); this.fx?.clearMage(this.localId);
   }
 
   private killPlayer(): void {
@@ -2592,10 +2876,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private applyToBot(run: CastRun, hit: HitEvent, t: HitTarget, at: V3): void {
     const b = this.bot;
     if (!b || b.defeated || (this.match?.active && !this.match.live)) return;
+    hit = this.mageHit(run, hit);
     const chB = run.attackerId === this.localId ? this.chanceMul(b.body) : 1;
-    const m = run.attackerId === this.localId ? this.ownDamageMul() * chB : 1, h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
+    const m = run.attackerId === this.localId ? this.ownDamageMul(run.skill) * chB : 1, h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
     const out = b.receive(run.attackerId, run.skill, h, this.hitFrom(run, h), this.simMs);
     this.logHit(true, run.skill, out, b.body, b.kin.z);
+    this.mageReact(run, out, BOT_ID, at);
     if (chB > 1 && out.damage > 0) this.chanceMark(BOT_ID, at);
     if (b.refilled) this.fx!.healNumber({ x: b.x, y: b.y, z: b.z }, b.refilled);
     this.confirm(run, hit, BOT_ID, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!run.skill.endsCombo, t.z);
@@ -2640,6 +2926,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const r = this.pvp?.remotes.get(victim);
         const at = r ? { x: r.x, y: r.y, z: (m.z ?? r.z) + 40 } : { x: 0, y: 0, z: 0 };
         this.confirm(run, hits[m.hit ?? 0] ?? hits[0], victim, at, m.dmg, m.idx ?? 1, m.cid ?? 0, m.rx ?? 'hit', !!m.ends, m.z ?? 0);
+        if (m.mx) { this.fx?.mageReaction(m.mx, at, victim, m.mms ?? 0); if (m.mx === 'curse') r?.paper(m.mms ?? 0); }
       },
       onRemoteLeft: (id) => { this.party?.dropped(id); this.rt?.cancelAttacker(id); this.bubbles?.clear(id); this.chat?.add({ kind: 'system', text: `${this.nameOf(id)} left the arena.` }); },
       onRemoteJoined: (id) => this.chat?.add({ kind: 'system', text: `${this.nameOf(id)} entered the arena.` }),
@@ -2687,7 +2974,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (m.amb && s.cls === 'samurai' && r.kageGhosts().length) this.ambushIn.add(m.castId); // made while his doubles stand: an ambush
     const run = this.rt?.start({ castId: m.castId, skill: s, stage: Math.max(0, Math.min(2, m.stage ?? 0)), attackerId: from, own: false, origin: { x: m.x, y: m.y, z: m.z ?? 0 }, aim: unit(m.ax, m.ay), place, lock: m.lock ?? null,
       dmgMul: Math.max(0.3, Math.min(1.4, (m.dm ?? 100) / 100)), reach: Math.max(1, Math.min(1.85, (m.rm ?? 100) / 100)),
-      range: Math.max(1, Math.min(1.2, (m.rg ?? 100) / 100)), speed: Math.max(1, Math.min(1.35, (m.sp ?? 100) / 100)) });
+      range: Math.max(1, Math.min(1.2, (m.rg ?? 100) / 100)), speed: Math.max(1, Math.min(1.35, (m.sp ?? 100) / 100)), ...(m.mf ? { mf: m.mf } : {}) });
     if (run && s.id === 'judgment_blade') { // the blade leaves the caster's hand when its release message arrives (fallback: a little after the full charge)
       run.timings.startup = s.startup + 600; r.setSkillStartup(s.id, run.timings.startup);
     }
@@ -2709,7 +2996,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private guideKeys(): { slots: string[]; jump: string } { return { slots: slotKeyLabels(this.bindings), jump: keyLabel(this.bindings.jump) }; }
 
   /** Skill cooldown multiplier: longer in the arena (more spacing, fewer strings of skills); the basic attack never waits. */
-  private cdMul(s: FinalSkill): number { return this.arena && s.slot !== 0 ? ARENA.cdMul : 1; }
+  private cdMul(s: FinalSkill): number { return (this.arena && s.slot !== 0 ? ARENA.cdMul : 1) * (s.cls === 'book_mage' ? this.passives.cdMul : 1) * (this.simMs < this.mage.hasteUntil ? 0.9 : 1); }
 
   /** BREAK (the arena): out of the combo — a hop back from the attacker, a burst of light, untouchable a moment. */
   private breakFree(now: number): void {
@@ -3129,8 +3416,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const out: HudEffect[] = [], now = this.simMs, ic = (id: string) => { const f = finalSkill(id); return f ? iconUrl(f) : `assets/final/skills/warrior/${id}/icon.png`; };
     for (const [id, label, until] of [['war_cry', 'War Cry', Math.max(this.warCryUntil, this.allyCryUntil)], ['radiant_blade', 'Radiant Blade', this.radiantUntil], ['iron_oath', 'Iron Oath', this.oathUntil], ['legacy_banner', 'Legacy Banner', this.bannerUntil],
       ['bow_haste', 'Bow Haste', this.hasteUntil], ['hunters_spirit', "Hunter's Spirit", this.spiritUntil], ['tree_of_life', 'Tree of Life', this.tree?.until ?? -1],
-      ['kagemusha', 'Kagemusha', this.kage?.up ? this.kage.until : -1], ['rising_sun', 'Rising Sun', this.sunUntil], ['god_of_blades', 'God of Blades', this.godUntil]] as const)
+      ['kagemusha', 'Kagemusha', this.kage?.up ? this.kage.until : -1], ['rising_sun', 'Rising Sun', this.sunUntil], ['god_of_blades', 'God of Blades', this.godUntil],
+      ['chrono_haste', 'Chrono Haste', this.mage.hasteUntil], ['arcane_ward', 'Arcane Ward', this.mage.wardHp > 0 ? this.mage.wardUntil : -1], ['elemental_ascension', 'Elemental Ascension', this.mage.ascUntil], ['chrono_sigil', 'Chrono Sigil', this.sigil?.until ?? -1]] as const)
       if (now < until) out.push({ id, label, iconUrl: ic(id), harmful: false, expiresAtMs: until });
+    if (this.mage.weave > 0) out.push({ id: 'spell_weave', label: `Spell Weave ×${this.mage.weave}`, iconUrl: 'assets/final/skills/book_mage/spell_weave/icon.png', harmful: false, expiresAtMs: this.mage.weaveAt + WEAVE.fadeMs });
     if (now < this.itemDmgUntil) out.push({ id: 'warrior_potion', label: 'Warrior Potion', iconUrl: ITEMS.warrior_potion.icon, harmful: false, expiresAtMs: this.itemDmgUntil });
     if (now < this.itemSpeedUntil) out.push({ id: 'swift_potion', label: 'Swift Potion', iconUrl: ITEMS.swift_potion.icon, harmful: false, expiresAtMs: this.itemSpeedUntil });
     return out;

@@ -131,6 +131,9 @@ export class RemotePlayer {
 
   /** A hit you landed on it: it shudders for the hit-stop (fighting-game feel; its owner's client moves the body). */
   shake(ms: number): void { this.shakeMs = Math.max(this.shakeMs, ms); }
+  /** Paper Curse: hidden for `ms` (the crane is drawn in its place). */
+  private paperUntil = 0;
+  paper(ms: number): void { this.paperUntil = Math.max(this.paperUntil, performance.now() + ms); }
 
   /** Where its speech bubble sits above the feet (world px): over its name and bar, which sit over its head. */
   get headHeight(): number { return Math.max(this.view.headHeight || 100, this.headTop() + PVP.remoteLabel.gap + PVP.hpBar.h + 3 + PVP.remoteLabel.size + 6); }
@@ -183,6 +186,7 @@ export class RemotePlayer {
     if (this.flashMs >= 0) { this.flashMs += ms; if (this.flashMs < 140) tint = 0xff9a9a; else this.flashMs = -1; } // struck: a soft tint (no white flash)
     if (this.deadMs >= 0) { this.deadMs += ms; alpha = 1 - Math.min(1, this.deadMs / 450); this.deathFx.update(ms); }
     else if (this.ghost) alpha = Math.floor(performance.now() / 70) % 2 ? 0.4 : 0.75; // guarded: blinking see-through
+    if (performance.now() < this.paperUntil) alpha = 0; // a book mage's Paper Curse: folded into a crane (the effect draws it)
     let jx = 0, jz = 0;
     if (this.shakeMs > 0) { this.shakeMs -= ms; const f = Math.min(1, this.shakeMs / 60); jx = (Math.random() - 0.5) * 7 * f; jz = Math.random() * 2.5 * f; }
     const hid = this.alive && (this.kageHidden || (!this.skill && performance.now() < this.kageHold)); // Kagemusha: hidden among his doubles

@@ -23,7 +23,7 @@ export const BOT_NAMES: Record<string, string> = { warrior: 'Sparring Knight', b
 const COMBOS: Record<string, string[]> = {
   warrior: ['dash_slash', 'warrior_basic:0', 'warrior_basic:1', 'rising_slash', 'whirlwind', 'leap_crash', 'ground_breaker'],
   samurai: ['shadow_step', 'quick_slash:0', 'quick_slash:1', 'spin_cut', 'quick_slash:2', 'iai_strike'],
-  book_mage: ['binding_rune', 'astral_burst', 'lightning_chain', 'arcane_wave', 'arcane_bolt'],
+  book_mage: ['frost_nova', 'glacial_spikes', 'astral_burst', 'arcane_wave', 'lightning_chain', 'arcane_bolt'],
   archer: ['vine_trap', 'multi_shot', 'explosive_arrow', 'piercing_arrow', 'quick_shot'],
 };
 const RANGED = new Set(['book_mage', 'archer']);

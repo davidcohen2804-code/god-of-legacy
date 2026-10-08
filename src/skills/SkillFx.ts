@@ -8,6 +8,7 @@ import { Projectile, V2, V3, circleCentre } from './HitGeometry';
 import { FINAL_SKILLS } from './FinalKit';
 import DIGITS from '../data/damage-digits.json';
 import { SamuraiFx, KIT, KIT_URL } from './SamuraiFx';
+import { MageFx, MAGE_KIT, MAGE_KIT_URL } from './MageFx';
 import { SKILL_BLOCKERS, WORLD_OBJECTS, clearLine } from '../world/WorldGeometry';
 
 const F = 'assets/final';
@@ -39,7 +40,7 @@ const ARCHER_GROUND: Record<string, number> = { rising_arrow: 0.94, leaping_arro
 /** Archer skills whose effect is played by its own timeline (not the generic cast sprite). */
 const ARCHER_OWN = new Set(['vine_trap', 'rain_of_arrows', 'rising_arrow', 'leaping_arrow', 'retreat_kick', 'bow_haste', 'hunters_roar', 'spirit_hawk', 'tree_of_life', 'hunters_spirit', 'arrow_storm', 'sky_rain', 'eagle_arrow', 'piercing_arrow']);
 /** Ultimate cut-in art per skill. */
-const CUTIN: Record<string, string> = { titans_verdict: 'titan-cutin', sky_rain: 'archer-cutin', dragon_eclipse: 'samurai-cutin' };
+const CUTIN: Record<string, string> = { titans_verdict: 'titan-cutin', sky_rain: 'archer-cutin', dragon_eclipse: 'samurai-cutin', time_collapse: 'mage-cutin' };
 /** Orientation of each final VFX sheet: 'dir' sheets are drawn pointing right and rotate with the aim. */
 /** Upright sheets whose bottom edge is the ground line (drawn standing on the impact point). */
 /** Ground-point origin (fraction of the cell height) for sheets drawn standing on the impact point. */
@@ -142,7 +143,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   const want = (cls: string) => !classes || classes.includes(cls);
   const L = (k: string, p: string, w: number, h = w) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: w, frameHeight: h }); };
   // (templates — wip skills — have no art loaded yet)
-  for (const s of FINAL_SKILLS) { if (VFX_ALIAS[s.id] || s.wip || s.cls === 'samurai' || !want(s.cls)) continue; const big = isBig(s) ? 384 : 256, c = VFX_CELL[s.id]; L(vfxKey(s.id), `${F}/skills/${s.cls}/${s.id}/vfx.png`, c?.[0] ?? big, c?.[1] ?? big); } // (the samurai: pieces, SamuraiFx)
+  for (const s of FINAL_SKILLS) { if (VFX_ALIAS[s.id] || s.wip || s.cls === 'samurai' || s.cls === 'book_mage' || !want(s.cls)) continue; const big = isBig(s) ? 384 : 256, c = VFX_CELL[s.id]; L(vfxKey(s.id), `${F}/skills/${s.cls}/${s.id}/vfx.png`, c?.[0] ?? big, c?.[1] ?? big); } // (the samurai: pieces, SamuraiFx)
   for (const [id, p] of Object.entries(PROJECTILE_SHEETS)) { const cls = FINAL_SKILLS.find((s) => s.id === id)!.cls; if (want(cls)) L(`proj-${id}`, `${F}/projectiles/${cls}/${id}.${p.ext ?? 'png'}`, p.cell); }
   for (const v of Object.values(IMPACT)) L(v.key, v.path, v.cell);
   const I = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.image(k, p); };
@@ -172,6 +173,10 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
     I('afx-apple', `${AF}/apple.png`); for (let i = 1; i < 4; i++) I(`afx-apple-${i}`, `${AF}/apple_${i}.png`); I('afx-roots', `${AF}/roots.png`);
     L('afx-fan', `${AF}/release_fan.png`, 512, 256); L('afx-triple', `${AF}/triple_trail.png`, 512, 256); L('afx-storm', `${AF}/storm_top.png`, 512, 256); L('afx-eagle', `${AF}/eagle_top.png`, 512, 256); L('vfx-evasion', `${F}/skills/archer/evasion/vfx.png`, 256);
     I('archer-cutin', `${F}/skills/archer/sky_rain/cutin.png`);
+  }
+  if (want('book_mage')) { // every book mage effect is built from its pieces (MageFx)
+    I('mage-cutin', `${F}/skills/book_mage/time_collapse/cutin.png`);
+    if (!scene.textures.exists(MAGE_KIT)) scene.load.multiatlas(MAGE_KIT, `${MAGE_KIT_URL}kit.json`, MAGE_KIT_URL);
   }
   if (want('samurai')) {
     I('samurai-cutin', `${F}/skills/samurai/dragon_eclipse/cutin.png`);
@@ -243,12 +248,18 @@ export class SkillFx {
 
   /** The samurai's effects (built from its pieces). */
   private sam: SamuraiFx;
+  /** The book mage's effects (built from its pieces). */
+  private mage: MageFx;
 
   constructor(private scene: Phaser.Scene, rt: SkillRuntime, private casterPos: (id: string) => V3 | null, private cam?: Phaser.Cameras.Scene2D.Camera) {
     this.sam = new SamuraiFx({
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, hand: (id) => this.handPos?.(id) ?? null,
       callout: (at, text, color, row) => this.callout(at, text, color, row), punch: (a, ms) => this.punch(a, ms), darken: (ms, a) => this.darken(ms, a), ultimateStage: (r) => this.ultimateStage(r),
       ghosts: (id) => this.ghosts?.(id) ?? [], body: (id) => this.bodyOf?.(id) ?? null, targetPos: (id) => this.targetPos?.(id) ?? null,
+    });
+    this.mage = new MageFx({
+      scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, hand: (id) => this.handPos?.(id) ?? null,
+      punch: (a, ms) => this.punch(a, ms), darken: (ms, a) => this.darken(ms, a), ultimateStage: (r) => this.ultimateStage(r), targetPos: (id) => this.targetPos?.(id) ?? null,
     });
     rt.events.on(RT_EVENTS.cast, (r: CastRun) => this.onCast(r));
     rt.events.on(RT_EVENTS.active, (r: CastRun) => this.onActive(r));
@@ -268,7 +279,7 @@ export class SkillFx {
 
   // ------------------------------------------------------------------ cast timeline
 
-  private firstShape(s: FinalSkill): HitShape { return (s.chain ? s.chain.stages[0] : s.hits).find((h) => h.damage > 0)?.shape ?? s.hits[0].shape; }
+  private firstShape(s: FinalSkill): HitShape { return (s.chain ? s.chain.stages[0] : s.hits).find((h) => h.damage > 0)?.shape ?? s.hits[0]?.shape ?? { kind: 'placed', radius: 40 }; }
 
   /** The caster fights bare-handed (no weapon worn): the basic attack is a punch, no blade trail. */
   unarmed: ((casterId: string) => boolean) | null = null;
@@ -283,6 +294,11 @@ export class SkillFx {
         const c = this.casterPos(r.attackerId); if (!c) return;
         this.play('afx-volley', c.x + (left ? -20 : 20), c.y - c.z - 60, 460, 230, [35, 40, 45, 50, 60, 70, 80, 100], { ox: left ? 0.86 : 0.14, oy: 0.2, flip: left, depth: TOP + 2 })?.setAngle(left ? 18 : -18); // tilted toward level: the volley sweeps across the floor
       });
+    }
+    if (s.cls === 'book_mage') { // the book mage: every effect built from its pieces (MageFx)
+      if (s.telegraph && s.slot !== 7 && s.hits.length) this.telegraph(r);
+      this.mage.cast(r);
+      return;
     }
     if (s.cls === 'samurai') { // the samurai: every effect built from its pieces (SamuraiFx)
       if (s.telegraph) this.telegraph(r);
@@ -320,6 +336,7 @@ export class SkillFx {
 
   private onActive(r: CastRun): void {
     if (r.skill.cls === 'samurai') this.sam.active(r);
+    if (r.skill.cls === 'book_mage') this.mage.active(r);
     this.dropTele(r, true); // VFX timelines are pre-scheduled from the cast; telegraphs end here
     const sh = SHOCK[r.skill.id];
     if (sh) {
@@ -917,10 +934,11 @@ export class SkillFx {
   private onHitFired(r: CastRun, i: number, o: V3): void {
     const s = r.skill, h = r.hits[i];
     if (s.cls === 'samurai') { this.sam.hit(r, i, o); return; }
+    if (s.cls === 'book_mage') { this.mage.hit(r, i, o); return; }
     // Multi-hit area skills: a short pulse per tick so every discrete hit reads (VFX timeline already running).
     if (i > 0 && s.cls !== 'archer' && (h.shape.kind === 'circle' || h.shape.kind === 'placed')) { // (archer areas carry their own art: no area-sized flash)
       const c = h.shape.kind === 'placed' ? (r.place ?? o) : circleCentre(h.shape, o, r.aim, r.place);
-      const k = IMPACT[s.cls === 'book_mage' ? 'book_mage' : 'warrior'];
+      const k = IMPACT.warrior;
       this.spark(k.key, c.x, c.y - (h.shape.kind === 'placed' ? 30 : o.z + 40), k.frames, (h.shape.kind === 'placed' ? h.shape.radius : (h.shape as { radius: number }).radius) * 1.2, 0.8);
     }
     if (s.id === 'leap_crash') { // crater at the landing point
@@ -942,6 +960,7 @@ export class SkillFx {
 
   private onProjectile(p: Projectile, r: CastRun): void {
     if (p.skill.cls === 'samurai') { this.sam.projectile(p); return; }
+    if (p.skill.cls === 'book_mage') { this.mage.projectile(p); return; }
     if (p.skill.id === 'eagle_arrow' && this.scene.textures.exists('afx-eagle')) { // the spirit eagle (drawn from above) flies toward the aim
       const img = this.scene.add.image(p.x, p.y - p.z, 'afx-eagle', 0).setDepth(p.y).setBlendMode(Phaser.BlendModes.NORMAL).setOrigin(488 / 512, 0.5)
         .setDisplaySize(420, 210).setAngle(Math.atan2(p.dy, p.dx) * (180 / Math.PI));
@@ -966,6 +985,7 @@ export class SkillFx {
 
   private onProjectileEnd(p: Projectile): void {
     if (p.skill.cls === 'samurai') { this.sam.projectileEnd(p); return; }
+    if (p.skill.cls === 'book_mage') { this.mage.projectileEnd(p); return; }
     const img = this.projs.get(p);
     img?.destroy(); this.projs.delete(p);
     const fx = this.arrowFx.get(p);
@@ -985,6 +1005,7 @@ export class SkillFx {
   }
 
   private onChain(r: CastRun, o: V3, target: { x: number; y: number; z: number } | null): void {
+    if (r.skill.cls === 'book_mage') { this.mage.chain(r, o, target, null); return; }
     const a = { x: o.x + r.aim.x * 20, y: o.y + r.aim.y * 20 - o.z - 44 };
     const b = target ? { x: target.x, y: target.y - target.z - 44 } : { x: o.x + r.aim.x * 300, y: o.y + r.aim.y * 300 - o.z - 44 };
     const len = Math.hypot(b.x - a.x, b.y - a.y);
@@ -995,6 +1016,7 @@ export class SkillFx {
   }
 
   private onTrap(t: Trap): void {
+    if (t.run.skill.cls === 'book_mage') { this.mage.trap(t); return; }
     const R0 = t.radius, sig = this.scene.textures.exists('afx-sigil');
     const mine = this.scene.textures.exists('afx-mine'), pitArt = this.scene.textures.exists('afx-pit');
     if (mine && !pitArt) { // the mine sits IN the floor: a dark, scorched pit with a faint glow seeping out of it
@@ -1031,6 +1053,7 @@ export class SkillFx {
 
   /** Mine armed (someone stepped on it): vines grab, the ring burns red-gold and ticks faster for the 2s fuse. */
   private onTrapArm(t: Trap): void {
+    if (t.run.skill.cls === 'book_mage') return;
     const list = this.traps.get(t) ?? [];
     for (const i of list) { this.scene.tweens.killTweensOf(i); if (i instanceof Phaser.GameObjects.Image && i.texture.key !== 'afx-mine' && i.texture.key !== 'afx-pit') i.setTint(0xffb050); }
     const m = list[0];
@@ -1048,6 +1071,7 @@ export class SkillFx {
   }
 
   private onTrapEnd(t: Trap, fired: boolean): void {
+    if (t.run.skill.cls === 'book_mage') { this.mage.trapEnd(t, fired); return; }
     const list = this.traps.get(t); this.traps.delete(t);
     for (const i of list ?? []) { this.scene.tweens.killTweensOf(i); i.destroy(); }
     if (fired && t.run.skill.trap?.fuseMs) { // the mine bursts: a pillar of green fire throws everyone in it high into the air
@@ -1070,7 +1094,8 @@ export class SkillFx {
       const rapid = s.hits.length > 3 && !hit.heavy; // storms / volleys: small sparks, never a white-out
       const sz = rapid ? 64 : tier === 'ultimate' || hit.heavy ? 140 : 86, key = this.scene.textures.exists('afx-hit') ? 'afx-hit' : (this.impactFlip = !this.impactFlip) ? 'afx-impact' : 'afx-impact-b';
       this.play(key, at.x, at.y - at.z - 38, sz, sz, [20, 22, 24, 26, 28, 30, 34, 40], { depth: TOP + 2, fadeLast: 60 }); // the samurai's hit sizes
-    } else if (s.cls === 'samurai') this.sam.confirmed(s, hit, at, reaction, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, from); // (the cut of the blade on the foe and the marks of what happened to it)
+    } else if (s.cls === 'book_mage') this.mage.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit);
+    else if (s.cls === 'samurai') this.sam.confirmed(s, hit, at, reaction, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, from); // (the cut of the blade on the foe and the marks of what happened to it)
     else if (s.id !== 'warrior_basic') this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.4 : hit.heavy ? 1.15 : 1), 0.8); // (a regular attack: none, as in MapleStory)
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).
     if (s.cls !== 'samurai' && tier !== 'ultimate' && reaction === 'launch') this.spark(IMPACT.dust.key, at.x, at.y + 4, 6, 90, 0.5);
@@ -1195,6 +1220,7 @@ export class SkillFx {
     const step = this.hitStopLeft > 0 ? 0 : ms;
     this.stepHawks(ms);
     this.sam.update(step);
+    this.mage.update(step, performance.now());
     if (this.hitStopLeft > 0) this.hitStopLeft = Math.max(0, this.hitStopLeft - ms);
     this.anims = this.anims.filter((a) => {
       a.t += step;
@@ -1911,6 +1937,23 @@ export class SkillFx {
   bladeStrike(attackerId: string, to: V3): void { this.sam.bladeStrike(attackerId, to); }
   /** God of Blades: its halo is gone (the buff ended, its samurai fell or left). */
   clearHalo(attackerId: string, now = false): void { this.sam.clearHalo(attackerId, now); }
+  // ---- the book mage's lasting effects and reactions (MageFx)
+  weave(id: string, n: number, lost: boolean): void { this.mage.weave(id, n, lost); }
+  grandWeave(id: string): void { this.mage.grandWeave(id); }
+  rewind(id: string, from: V3, to: V3): void { this.mage.rewind(id, from, to); }
+  levitate(id: string, at: () => V3 | null): void { this.mage.levitate(id, at); }
+  gates(id: string, a: V2, b: V2, ms: number): void { this.mage.gates(id, a, b, ms); }
+  gatePass(from: V2, to: V2, z: number): void { this.mage.gatePass(from, to, z); }
+  barrier(at: V3, from: { x: number; y: number }): void { this.mage.barrier(at, from); }
+  wardHit(id: string, broken: boolean, expired = false): void { this.mage.wardHit(id, broken, expired); }
+  mageWard(id: string, ms: number): void { this.mage.ward(id, ms); }
+  mageAura(id: string, kind: 'haste' | 'ascension', ms: number): void { this.mage.aura(id, kind, ms); }
+  clearMage(id: string): void { this.mage.clear(id); }
+  conductArc(a: V3, b: V3): void { this.mage.conductArc(a, b); }
+  runeBeam(A: Trap, B: Trap, g: Phaser.GameObjects.Graphics, now: number): void { this.mage.runeBeam(A, B, g, now); }
+  runeBeamBreak(A: Trap, B: Trap, at: V3): void { this.mage.runeBeamBreak(A, B, at); }
+  /** A magic reaction on a foe (chill, freeze, shatter, conduct, curse, levity); the foe's id: it follows him for `ms`. */
+  mageReaction(rx: string, at: V3, id?: string, ms = 0): void { this.mage.reaction(rx, at, id ? () => this.targetPos?.(id) ?? null : undefined, ms); }
   /** Kagemusha: he vanishes; one of the three steps out of the ink; a double bursts into petals / melts into ink. */
   kageVanish(at: V3): void { this.sam.kageVanish(at); }
   kageAppear(at: V3): void { this.sam.kageAppear(at); }
@@ -1937,6 +1980,7 @@ export class SkillFx {
     for (const h of this.hawks.values()) h.img.destroy();
     this.hawks.clear();
     this.sam.destroy();
+    this.mage.destroy();
     for (const a of this.anims) { a.img.destroy(); a.glow?.destroy(); a.mix?.destroy(); }
     for (const t of this.teles) t.g.destroy();
     for (const i of this.projs.values()) i.destroy();

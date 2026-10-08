@@ -55,6 +55,19 @@ export const PASSIVES: PassiveSkill[] = [
   { id: 'way_of_the_sword', cls: 'samurai', job: 4, name: 'Way of the Sword', kind: 'passive', description: 'The blade and the mind are one: more critical hits, and critical hits cut deeper.', effects: ['Critical rate +10%', 'Critical hits 150% → 170%'] },
   { id: 'sword_saint', cls: 'samurai', job: 4, name: 'Sword Saint', kind: 'passive', description: 'The legendary sword saint: every cut strikes with sacred force.', effects: ['Damage +15%', 'Critical hits +10% more'] },
   { id: 'advanced_final_cut', cls: 'samurai', job: 4, name: 'Advanced Final Cut', kind: 'passive', description: 'Final Cut evolves: ghost blades follow far more often and cut deeper — two of them.', effects: ['Final Cut chance 45%', 'Ghost cuts: 55% of the hit', 'Not against players'] },
+  // Book Mage (the mage spec): every passive a rule only the mage has
+  { id: 'levitate', cls: 'book_mage', job: 1, name: 'Levitate', kind: 'movement', description: 'Press Jump again in mid-air to float slowly forward for up to 1.5s; you can cast spells while you float.', effects: ['Second jump: a slow float', 'Cast while floating', 'Once per jump'] },
+  { id: 'spell_weave', cls: 'book_mage', job: 1, name: 'Spell Weave', kind: 'passive', description: 'Every spell that hits and is different from the one before weaves a rune that circles you: +4% damage each, up to 5. Casting the same spell twice in a row unravels them all; they fade 6s after your last hit.', effects: ['+4% damage per rune', 'Up to 5 runes', 'Same spell twice: all lost'] },
+  { id: 'arcane_mind', cls: 'book_mage', job: 1, name: 'Arcane Mind', kind: 'passive', description: 'A mind trained in the arcane: more HP, and slows and binds wear off sooner.', effects: ['Max HP +15%', 'Slow / bind / freeze −20%'] },
+  { id: 'attunement', cls: 'book_mage', job: 2, name: 'Attunement', kind: 'passive', description: 'Arcane Bolt takes the element of your last spell: after frost a frost bolt that chills, after lightning a storm bolt that conducts, otherwise an arcane bolt that flies through foes.', effects: ['Frost bolt: chills', 'Storm bolt: conducts', 'Arcane bolt: pierces'] },
+  { id: 'cold_blood', cls: 'book_mage', job: 2, name: 'Cold Blood', kind: 'passive', description: 'Whoever strikes you up close is CHILLED by the cold in your veins.', effects: ['Melee attackers are chilled'] },
+  { id: 'mana_barrier', cls: 'book_mage', job: 2, name: 'Mana Barrier', kind: 'passive', description: 'Once every 20s, a heavy blow is stopped completely by a rune shield.', effects: ['Blocks a heavy hit', 'Every 20s'] },
+  { id: 'conductor', cls: 'book_mage', job: 3, name: 'Conductor', kind: 'passive', description: 'Lightning conducts through frozen foes too, and the shock lasts longer.', effects: ['Conducts through the frozen', 'Shock +0.25s'] },
+  { id: 'blink_mastery', cls: 'book_mage', job: 3, name: 'Blink Mastery', kind: 'passive', description: 'Blink leaves a rune of frost where you vanished: whoever walks over it is CHILLED.', effects: ['Frost rune 5s', 'Chills'] },
+  { id: 'arcane_recovery', cls: 'book_mage', job: 3, name: 'Arcane Recovery', kind: 'passive', description: 'Every magic reaction you cause (freeze, shatter, conduct) heals you.', effects: ['Heal 3% per reaction'] },
+  { id: 'shatter_mastery', cls: 'book_mage', job: 4, name: 'Shatter Mastery', kind: 'passive', description: 'A shatter deals double damage instead of +50%, and its shards CHILL the foes around it.', effects: ['Shatter ×2 damage', 'Shards chill around'] },
+  { id: 'grand_weave', cls: 'book_mage', job: 4, name: 'Grand Weave', kind: 'passive', description: 'A full Spell Weave (5 runes) makes your next spell instant: it is cast with no wind-up at all.', effects: ['5 runes: next spell instant'] },
+  { id: 'time_lord', cls: 'book_mage', job: 4, name: 'Time Lord', kind: 'passive', description: 'Every skill is ready 15% sooner, and every shatter you cause brings Time Collapse 1s closer.', effects: ['Cooldowns −15%', 'Shatter: Time Collapse −1s'] },
 ];
 
 export const passiveIconUrl = (p: PassiveSkill) => `assets/final/skills/${p.cls}/${p.id}/icon.png`;
@@ -65,9 +78,13 @@ export interface PassiveStats {
   kbResist: number; ccResist: number; regen: boolean; fa: { chance: number; mul: number } | null; orbs: boolean; chanceAttack: number; airLeap: boolean;
   /** Archer: chance to dodge a hit entirely, projectile range multiplier, attack-speed multiplier (startup / recovery divided by it). */
   evade: number; rangeMul: number; atkSpeed: number;
+  /** Book Mage rules (the mage spec). */
+  mage: { levitate: boolean; weave: boolean; attune: boolean; coldBlood: boolean; barrier: boolean; conductor: boolean; blinkRune: boolean; recovery: boolean; shatter: boolean; grand: boolean; timeLord: boolean };
+  cdMul: number;
 }
 
-export const NO_PASSIVES: PassiveStats = { dmg: 1, critAdd: 0, critDmgAdd: 0, takenMul: 1, hpMul: 1, moveMul: 1, jumpMul: 1, kbResist: 0, ccResist: 0, regen: false, fa: null, orbs: false, chanceAttack: 1, airLeap: false, evade: 0, rangeMul: 1, atkSpeed: 1 };
+export const NO_PASSIVES: PassiveStats = { dmg: 1, critAdd: 0, critDmgAdd: 0, takenMul: 1, hpMul: 1, moveMul: 1, jumpMul: 1, kbResist: 0, ccResist: 0, regen: false, fa: null, orbs: false, chanceAttack: 1, airLeap: false, evade: 0, rangeMul: 1, atkSpeed: 1, cdMul: 1,
+  mage: { levitate: false, weave: false, attune: false, coldBlood: false, barrier: false, conductor: false, blinkRune: false, recovery: false, shatter: false, grand: false, timeLord: false } };
 
 /** Passives owned at this level (all = arena / QA: every job open). */
 export function ownedPassives(cls: string, level: number, all: boolean): Set<string> {
@@ -76,7 +93,7 @@ export function ownedPassives(cls: string, level: number, all: boolean): Set<str
 }
 
 export function passiveStats(owned: Set<string>): PassiveStats {
-  const s: PassiveStats = { ...NO_PASSIVES };
+  const s: PassiveStats = { ...NO_PASSIVES, mage: { ...NO_PASSIVES.mage } };
   const has = (id: string) => owned.has(id);
   if (has('war_leap')) s.airLeap = true;
   if (has('warrior_mastery')) { s.moveMul *= 1.1; s.jumpMul *= 1.1; s.hpMul += 0.2; s.kbResist = 0.3; }
@@ -116,6 +133,20 @@ export function passiveStats(owned: Set<string>): PassiveStats {
   if (has('way_of_the_sword')) { s.critAdd += 0.1; s.critDmgAdd += 0.2; }
   if (has('sword_saint')) { s.dmg *= 1.15; s.critDmgAdd += 0.1; }
   if (has('advanced_final_cut')) s.fa = { chance: 0.45, mul: 0.55 };
+  // Book Mage
+  const M = s.mage;
+  if (has('levitate')) M.levitate = true;
+  if (has('spell_weave')) M.weave = true;
+  if (has('arcane_mind')) { s.hpMul += 0.15; s.ccResist = Math.max(s.ccResist, 0.2); }
+  if (has('attunement')) M.attune = true;
+  if (has('cold_blood')) M.coldBlood = true;
+  if (has('mana_barrier')) M.barrier = true;
+  if (has('conductor')) M.conductor = true;
+  if (has('blink_mastery')) M.blinkRune = true;
+  if (has('arcane_recovery')) M.recovery = true;
+  if (has('shatter_mastery')) M.shatter = true;
+  if (has('grand_weave')) M.grand = true;
+  if (has('time_lord')) { M.timeLord = true; s.cdMul *= 0.85; }
   return s;
 }
 
@@ -127,3 +158,8 @@ export const SHINSOKU = { vz: 280, forward: 620 };
 export const ORBS = { max: 5, perOrb: 0.03, fadeMs: 4000 };
 /** Self Recovery: fraction of max HP every period. */
 export const REGEN = { frac: 0.02, everyMs: 5000 };
+
+/** Spell Weave: damage per rune, the most runes, how long they last after the last hit. */
+export const WEAVE = { per: 0.04, max: 5, fadeMs: 6000 };
+/** Levitate: how long the float lasts, its forward speed (px/s) and the gravity it keeps. */
+export const LEVITATE = { ms: 1500, forward: 170, gravity: 0.1 };

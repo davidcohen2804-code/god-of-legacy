@@ -23,7 +23,7 @@ export type HitShape =
   | { kind: 'circle'; radius: number; at?: 'self' | 'place' | 'aimBias'; bias?: number; /** strikes the floor below an airborne caster */ floor?: boolean }
   | { kind: 'line'; length: number; width: number }
   | { kind: 'capsule'; radius: number } // swept along the caster's dash path
-  | { kind: 'projectile'; speed: number; range: number; radius: number; count?: number; spread?: number; /** parallel rows across the floor's depth */ rows?: number; rowGap?: number; pierce?: boolean; explodeRadius?: number; arc?: number }
+  | { kind: 'projectile'; speed: number; range: number; radius: number; count?: number; spread?: number; /** parallel rows across the floor's depth */ rows?: number; rowGap?: number; pierce?: boolean; explodeRadius?: number; arc?: number; /** turns toward a foe (deg/s): each shot of a fan picks its own foe */ homing?: number }
   | { kind: 'chain'; corridor: number; width: number; jump: number }
   | { kind: 'placed'; radius: number }; // ground point (rune / trap / zone)
 
@@ -48,6 +48,10 @@ export interface Reaction {
   pin?: number;
   /** Grab: ignores the combo-protection gauges. */
   grab?: boolean;
+  /** Book Mage Paper Curse: folded into a paper crane (ms): moves slowly, cannot attack; a heavy hit unfolds it. */
+  curse?: number;
+  /** Book Mage Levity Field: gravity turns over (ms): the body floats up and hangs there, unable to move. */
+  levity?: number;
 }
 
 export interface HitEvent {
@@ -59,6 +63,11 @@ export interface HitEvent {
   /** Vertical reach above the attacker's feet (melee), px. */
   reachUp?: number;
   heavy?: boolean;
+  /** Book Mage element: frost chills (a second chill freezes), storm conducts through chilled foes, both = both. */
+  el?: 'frost' | 'storm' | 'both';
+  /** Book Mage caster passives carried by the hit: Shatter Mastery's shatter multiplier, Conductor. */
+  shatterMul?: number;
+  conductor?: boolean;
 }
 
 export interface FinalSkill {

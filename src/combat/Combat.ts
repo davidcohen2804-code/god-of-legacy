@@ -198,6 +198,8 @@ export function steer(k: Kin, tx: number, ty: number, ms: number, scale = 1): vo
 // ------------------------------------------------------------------ hard CC (shared DR policy)
 
 const HCC = COMBO.hardCC;
+/** Book Mage reactions: chill (slow) length, freeze length, Levity Field hover height. */
+export const MAGE = { chillMs: 3000, chillSlow: 0.3, freezeMs: 800, levityZ: 90 };
 
 /** Root / freeze / stun policy: max single, DR multipliers in a window, post-CC immunity. Damage always applies. */
 export class HardCC {
@@ -284,6 +286,10 @@ export interface HitOutcome {
   endsCombo: boolean;
   /** Displacement applied (for remote replication / visuals). */
   pushX: number; pushY: number; launchVz: number;
+  /** Book Mage magic reaction this hit caused (chill / freeze / shatter / conduct). */
+  rx?: 'chill' | 'freeze' | 'shatter' | 'conduct' | 'curse' | 'levity';
+  /** How long that reaction holds (freeze / curse / levity), ms. */
+  rxMs?: number;
 }
 
 /** Combat state + reactions of one actor. The owner is the authority for its own body (victim-side model). */
@@ -293,6 +299,10 @@ export class CombatBody {
   kdPhase: 'fall' | 'impact' | 'down' | 'up' = 'fall';
   slowPct = 0;
   slowUntil = 0;
+  /** Book Mage: chilled (a frost hit freezes it), folded into a paper crane, floating in a Levity Field. */
+  chillUntil = -1;
+  curseUntil = -1;
+  levityUntil = -1;
   readonly hard = new HardCC();
   readonly combos = new ComboBook();
   /** Push motion (px/ms) applied over a short window. */
@@ -332,10 +342,13 @@ export class CombatBody {
 
   constructor(readonly kin: Kin, readonly pvp: boolean) {}
 
-  canAct(now: number): boolean { return this.state === 'free' && !this.hard.active(now); }
-  canMove(now: number): boolean { return this.canAct(now); }
-  moveScale(now: number): number { return now < this.slowUntil ? 1 - this.slowPct : 1; }
-  reset(): void { this.pinUntil = -1; this.gauge = { stand: 0, air: 0, down: 0 }; this.invulnUntil = -1; this.bounce = false; this.state = 'free'; this.stateEnd = 0; this.hard.reset(); this.combos.clear(); this.push = null; this.slowUntil = 0; this.armorUntil = -1;
+  canAct(now: number): boolean { return this.state === 'free' && !this.hard.active(now) && now >= this.curseUntil; }
+  /** A paper crane still walks (slowly); a body floating in a Levity Field cannot move. */
+  canMove(now: number): boolean { return this.state === 'free' && !this.hard.active(now) && now >= this.levityUntil; }
+  moveScale(now: number): number { return (now < this.slowUntil ? 1 - this.slowPct : 1) * (now < this.curseUntil ? 0.5 : 1); }
+  chilled(now: number): boolean { return now < this.chillUntil; }
+  frozen(now: number): boolean { return this.hard.active(now) && this.hard.kind === 'freeze'; }
+  reset(): void { this.pinUntil = -1; this.gauge = { stand: 0, air: 0, down: 0 }; this.invulnUntil = -1; this.bounce = false; this.state = 'free'; this.stateEnd = 0; this.hard.reset(); this.combos.clear(); this.push = null; this.slowUntil = 0; this.armorUntil = -1; this.chillUntil = -1; this.curseUntil = -1; this.levityUntil = -1;
     this.released = false; this.ghostUntil = -1; this.breakReadyAt = 0; this.downAt = -Infinity; }
   /** Guarded right now (the arena: rising from the floor, the wake-up after it, BREAK). */
   ghost(now: number): boolean { return now < this.ghostUntil || (this.arena && this.state === 'getup'); }
@@ -351,6 +364,9 @@ export class CombatBody {
     const c = this.combos.get(attacker, now);
     c.hits++; c.lastAt = now;
     const ult = skill.slot === 7;
+    // Book Mage SHATTER: a heavy hit on a frozen body breaks the ice for extra damage.
+    const frozen = this.frozen(now), shatter = frozen && !!hit.heavy && hit.damage > 0;
+    if (shatter) hit = { ...hit, damage: hit.damage * (hit.shatterMul ?? 1.5) };
     let damage: number, release = false;
     if (this.arena) { // the arena: softer hits, each later one softer still, at most one combo's budget
       damage = hit.damage > 0 ? Math.max(1, Math.round(hit.damage * ARENA.dmgMul * arenaScale(c.hits, ult))) : 0;
@@ -362,10 +378,22 @@ export class CombatBody {
       const base = Math.floor(hit.damage * (this.pvp ? skill.pvpMultiplier : skill.pveMultiplier));
       damage = hit.damage > 0 ? Math.max(1, Math.round(base * damageScale(c.hits, ult))) : 0;
     }
-    const R: Reaction = hit.reaction;
+    let R: Reaction = hit.reaction;
     const k = this.kin;
     const out: HitOutcome = { damage, hitIndex: c.hits, comboId: c.id, reaction: 'hit', stunMs: 0, ccMs: 0, juggle: c.juggle, endsCombo: !!skill.endsCombo, pushX: 0, pushY: 0, launchVz: 0 };
     if (now < this.invulnUntil || now < this.ghostUntil || this.released) { out.damage = 0; out.reaction = 'armor'; return out; }
+    if (hit.el || shatter) { // Book Mage magic reactions: chill → freeze → shatter, storm conducts through the chilled
+      const chilled = this.chilled(now), storm = hit.el === 'storm' || hit.el === 'both', frost = hit.el === 'frost' || hit.el === 'both';
+      if (shatter) { this.hard.end = now; this.hard.kind = null; out.rx = 'shatter'; R = { ...R, knockdown: undefined, launch: Math.max(R.launch ?? 0, 60), juggleCost: R.juggleCost ?? 10 }; }
+      if (storm && (chilled || (hit.conductor && frozen))) { out.rx = out.rx ?? 'conduct'; R = { ...R, stun: (R.stun ?? 150) + (hit.conductor ? 500 : 250) }; }
+      if (frost && !shatter) {
+        if (chilled && !frozen) { const d = this.hard.apply('freeze', MAGE.freezeMs, now, this.pvp, !this.pvp); if (d > 0) { out.rx = 'freeze'; out.ccMs = d; out.rxMs = d; this.chillUntil = -1; } }
+        else if (!frozen) { this.chillUntil = now + MAGE.chillMs; this.slowPct = Math.max(now < this.slowUntil ? this.slowPct : 0, MAGE.chillSlow); this.slowUntil = Math.max(this.slowUntil, now + MAGE.chillMs); out.rx = out.rx ?? 'chill'; }
+      }
+    }
+    if (now < this.curseUntil && hit.heavy && damage > 0) this.curseUntil = now; // a heavy blow unfolds the paper crane
+    if (R.curse) { const ms = R.curse * (1 - this.ccResist); this.curseUntil = Math.max(this.curseUntil, now + ms); out.rx = out.rx ?? 'curse'; out.rxMs = ms; }
+    if (R.levity) { this.levityUntil = Math.max(this.levityUntil, now + R.levity); this.push = null; out.rx = out.rx ?? 'levity'; out.rxMs = R.levity; }
     this.lastHitAt = now;
     const R0: Reaction = hit.reaction;
     const downNow = this.state === 'knockdown' && this.kdPhase !== 'fall' && this.kin.grounded;
@@ -536,6 +564,11 @@ export class CombatBody {
   /** Gravity multiplier while juggled (mildly heavier as the juggle score rises). */
   gravityScale(now: number): number {
     if (now < this.pinUntil) { this.kin.vz = 0; return 0; }
+    if (now < this.levityUntil) { // Levity Field: gravity turned over — up to a hover and held there, unable to move
+      const k = this.kin, top = k.supportZ + MAGE.levityZ;
+      k.grounded = false; k.vx = 0; k.vy = 0; k.vz = Math.max(-80, Math.min(170, (top - k.z) * 4));
+      return 0;
+    }
     if (this.state !== 'launched') return 1;
     const c = this.combos.live(now);
     void c;

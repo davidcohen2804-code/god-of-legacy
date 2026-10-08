@@ -1,0 +1,601 @@
+// Book Mage skill effects, built from separate painted pieces (tools/skills/kit.py mage → one atlas, MAGE_KIT) moved in code,
+// like the samurai's: bolts fly with their own light, ice grows out of the floor and shatters, lightning is stretched between
+// two points, sigils turn on the floor, pages fold into paper cranes. Presentation only — gameplay never reads any of it;
+// timing comes from the cast, so every client draws the same, and the effect clock stops with the hit-stop.
+import Phaser from 'phaser';
+import type { CastRun, Trap } from './SkillRuntime';
+import type { FinalSkill, HitEvent } from './SkillTypes';
+import type { Projectile, V2, V3 } from './HitGeometry';
+
+export const MAGE_KIT = 'mage-kit';
+export const MAGE_KIT_URL = 'assets/final/skills/book_mage/kit/';
+const TOP = 100000, GROUND = 2, SQUASH = 0.42;
+const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
+/** The weave's rune pieces, in the order they are woven. */
+const RUNES = ['rune_cyan', 'rune_ice', 'rune_violet', 'rune_gold', 'rune_blue'];
+
+export interface MageCtx {
+  scene: Phaser.Scene;
+  casterPos(id: string): V3 | null;
+  cam(): Phaser.Cameras.Scene2D.Camera;
+  hand(id: string): { x: number; y: number } | null;
+  punch(amount?: number, ms?: number): void;
+  darken(ms: number, alpha: number): void;
+  ultimateStage(r: CastRun): void;
+  targetPos?(id: string): V3 | null;
+}
+
+type Ease = (u: number) => number;
+const lin: Ease = (u) => u, out: Ease = (u) => 1 - (1 - u) * (1 - u), out3: Ease = (u) => 1 - Math.pow(1 - u, 3), inQ: Ease = (u) => u * u;
+type Key = [number, number, Ease?];
+const kf = (...k: Key[]) => (u: number): number => {
+  if (u <= k[0][0]) return k[0][1];
+  for (let i = 1; i < k.length; i++) if (u <= k[i][0]) { const [u0, v0] = k[i - 1], [u1, v1, e] = k[i]; return v0 + (v1 - v0) * (e ?? lin)((u - u0) / Math.max(1e-6, u1 - u0)); }
+  return k[k.length - 1][1];
+};
+const rnd = (a: number, b: number) => a + Math.random() * (b - a);
+const sideOf = (r: CastRun) => (r.aim.x < -0.01 ? -1 : 1);
+/** On-screen angle (deg) of a direction along the floor (depth is foreshortened). */
+const screenAng = (dx: number, dy: number) => Math.atan2(dy * 0.5, dx) * (180 / Math.PI);
+type Pt = { x: number; y: number; d: number };
+
+interface Spr {
+  name: string; x?: number; y?: number; depth?: number; w: number; h?: number;
+  delay?: number; life: number;
+  ox?: number; oy?: number; angle?: number; flipX?: boolean; flipY?: boolean;
+  add?: boolean; glow?: number; tint?: number;
+  sx?: (u: number) => number; sy?: (u: number) => number; a?: (u: number) => number; rot?: (u: number) => number;
+  mx?: (u: number) => number; my?: (u: number) => number;
+  follow?: () => Pt | null; dz?: number;
+  run?: CastRun;
+  /** ends early when this returns false */
+  alive?: () => boolean;
+}
+interface Live { t: number; step(dt: number, t: number): boolean }
+interface Bolt { im: Phaser.GameObjects.Image; gl: Phaser.GameObjects.Image; t: number; trail: number; kind: 'arcane' | 'frost' | 'storm' | 'crane' | 'spike' }
+
+export class MageFx {
+  private live: Live[] = [];
+  private incoming: Live[] = [];
+  private bolts = new Map<Projectile, Bolt>();
+  /** Runes of the Spell Weave circling each caster. */
+  private weaves = new Map<string, { imgs: Phaser.GameObjects.Image[]; t: number; n: number }>();
+  /** Effects that last as long as a buff of a caster (cleared at death). */
+  private auras = new Map<string, Set<{ stop(): void }>>();
+  private wards = new Map<string, { stop(): void }>();
+  private beams = new Map<string, { im: Phaser.GameObjects.Image; a: Phaser.GameObjects.Image; b: Phaser.GameObjects.Image; seen: number }>();
+  private trapArt = new Map<Trap, { stop(): void }>();
+
+  constructor(private ctx: MageCtx) {}
+
+  get ready(): boolean { return this.ctx.scene.textures.exists(MAGE_KIT); }
+
+  // ------------------------------------------------------------------ the piece system
+
+  private add(l: Live): void { this.incoming.push(l); }
+  private later(ms: number, fn: () => void, run?: CastRun): void {
+    this.add({ t: 0, step: (_dt, t) => { if (t < ms) return true; if (!this.broken(run)) fn(); return false; } });
+  }
+  private broken(r?: CastRun): boolean { return !!r && r.phase === 'done' && !r.fired.size; }
+  private me(r: CastRun): V3 { return this.ctx.casterPos(r.attackerId) ?? r.origin; }
+  /** A point at the caster (dx forward, dz up), following him. */
+  private at(id: string, side: number, dx: number, dz: number): () => Pt | null {
+    return () => { const c = this.ctx.casterPos(id); return c ? { x: c.x + side * dx, y: c.y - c.z - dz, d: c.y } : null; };
+  }
+
+  private spr(o: Spr): Phaser.GameObjects.Image | null {
+    const s = this.ctx.scene;
+    if (!s.textures.exists(MAGE_KIT)) return null;
+    const fr = s.textures.getFrame(MAGE_KIT, o.name); if (!fr) return null;
+    const fw = fr.cutWidth || fr.width, fh = fr.cutHeight || fr.height;
+    const bx = o.w / fw, by = (o.h ?? (o.w * fh) / fw) / fh;
+    const mk = (glow: boolean) => {
+      const im = s.add.image(o.x ?? 0, o.y ?? 0, MAGE_KIT, o.name).setOrigin(o.ox ?? 0.5, o.oy ?? 0.5).setFlip(!!o.flipX, !!o.flipY).setVisible(false)
+        .setBlendMode(glow || o.add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
+      if (o.tint !== undefined) im.setTint(o.tint);
+      return im;
+    };
+    const im = mk(false), gl = o.glow ? mk(true) : null;
+    let shown = false;
+    this.add({ t: 0, step: (_dt, t) => {
+      const e = t - (o.delay ?? 0);
+      if (e < 0) return true;
+      if (!shown) { shown = true; if (this.broken(o.run)) { im.destroy(); gl?.destroy(); return false; } }
+      if (o.alive && !o.alive()) { im.destroy(); gl?.destroy(); return false; }
+      const u = Math.min(1, e / o.life);
+      let x = o.x ?? 0, y = o.y ?? 0, d = o.depth ?? TOP;
+      if (o.follow) { const p = o.follow(); if (!p) { im.destroy(); gl?.destroy(); return false; } x = p.x; y = p.y; d = p.d + (o.dz ?? 3); }
+      x += o.mx?.(u) ?? 0; y += o.my?.(u) ?? 0;
+      const sx = (o.sx?.(u) ?? 1) * bx, sy = (o.sy?.(u) ?? 1) * by, al = Math.max(0, Math.min(1, o.a?.(u) ?? 1)), ang = (o.angle ?? 0) + (o.rot?.(u) ?? 0);
+      im.setVisible(true).setPosition(x, y).setScale(sx, sy).setAngle(ang).setDepth(d).setAlpha(al);
+      gl?.setVisible(true).setPosition(x, y).setScale(sx * 1.04, sy * 1.04).setAngle(ang).setDepth(d + 0.01).setAlpha(al * o.glow!);
+      if (u >= 1) { im.destroy(); gl?.destroy(); return false; }
+      return true;
+    } });
+    return im;
+  }
+
+  /** A piece lying on the floor (drawn from above): flattened into the floor's perspective, turning in its plane. */
+  private floor(name: string, x: number, y: number, w: number, life: number, o: { a?: (u: number) => number; s?: (u: number) => number; spin?: number; angle?: number;
+    depth?: number; delay?: number; add?: boolean; glow?: number; squash?: number; run?: CastRun; tint?: number; follow?: () => { x: number; y: number } | null; alive?: () => boolean } = {}): { stop(): void } {
+    const s = this.ctx.scene, stop = { stop: () => { dead = true; } };
+    let dead = false;
+    if (!s.textures.exists(MAGE_KIT)) return stop;
+    const fr = s.textures.getFrame(MAGE_KIT, name); if (!fr) return stop;
+    const mk = (glow: boolean) => {
+      const im = s.add.image(0, 0, MAGE_KIT, name).setDisplaySize(w, (w * fr.height) / fr.width).setBlendMode(glow || o.add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
+      if (o.tint !== undefined) im.setTint(o.tint);
+      return im;
+    };
+    const im = mk(false), gl = o.glow ? mk(true) : null;
+    const box = s.add.container(x, y, gl ? [im, gl] : [im]).setScale(1, o.squash ?? SQUASH).setDepth(o.depth ?? GROUND + 2).setVisible(false);
+    const k0 = im.scaleX, k1 = im.scaleY;
+    let shown = false, fade = -1;
+    this.add({ t: 0, step: (dt, t) => {
+      const e = t - (o.delay ?? 0);
+      if (e < 0) return true;
+      if (!shown) { shown = true; if (this.broken(o.run)) { box.destroy(); return false; } box.setVisible(true); }
+      if ((dead || (o.alive && !o.alive())) && fade < 0) fade = 0;
+      const u = Math.min(1, e / life), k = o.s?.(u) ?? 1, ang = (o.angle ?? 0) + (o.spin ?? 0) * (e / 1000);
+      if (o.follow) { const p = o.follow(); if (p) box.setPosition(p.x, p.y); }
+      im.setScale(k0 * k, k1 * k).setAngle(ang); gl?.setScale(k0 * k * 1.03, k1 * k * 1.03).setAngle(ang).setAlpha(o.glow ?? 0);
+      let al = Math.max(0, Math.min(1, o.a?.(u) ?? 1));
+      if (fade >= 0) { fade += dt; al *= Math.max(0, 1 - fade / 220); if (fade >= 220) { box.destroy(); return false; } }
+      box.setAlpha(al);
+      if (u >= 1) { box.destroy(); return false; }
+      return true;
+    } });
+    return stop;
+  }
+
+  /** A burst / spark: pops out, spreads a little, fades. */
+  private pop(name: string, x: number, y: number, size: number, o: { depth?: number; life?: number; glow?: number; angle?: number; delay?: number; add?: boolean; run?: CastRun; tint?: number } = {}): void {
+    this.spr({ name, x, y, depth: o.depth ?? TOP + 4, w: size, life: o.life ?? 260, delay: o.delay, add: o.add ?? true, run: o.run, tint: o.tint, angle: o.angle ?? rnd(-20, 20), glow: o.glow ?? 0.5,
+      sx: kf([0, 0.4], [0.2, 1.05, out3], [1, 1.2]), sy: kf([0, 0.4], [0.2, 1.05, out3], [1, 1.2]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
+  }
+  /** Lightning (or a rune beam) stretched from a to b (screen points). */
+  private bolt(name: string, a: { x: number; y: number }, b: { x: number; y: number }, o: { life?: number; thick?: number; delay?: number; depth?: number; tint?: number } = {}): void {
+    const len = Math.hypot(b.x - a.x, b.y - a.y); if (len < 4) return;
+    const ang = Math.atan2(b.y - a.y, b.x - a.x) * (180 / Math.PI), th = o.thick ?? 70, life = o.life ?? 220;
+    this.spr({ name, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, depth: o.depth ?? TOP + 3, w: len * 1.05, h: th, angle: ang, add: true, glow: 0.6, life, delay: o.delay, tint: o.tint,
+      sy: (u) => (0.8 + 0.4 * Math.abs(Math.sin(u * 23))) * (1 - 0.6 * u), a: kf([0, 1], [0.5, 0.9], [1, 0, inQ]) });
+  }
+  /** Small things drifting up from a point (pages, runes, motes). */
+  private drift(names: string[], x: number, y: number, n: number, spread: number, o: { depth?: number; life?: number; up?: number; delay?: number; size?: [number, number]; add?: boolean } = {}): void {
+    for (let i = 0; i < n; i++) {
+      const dx = rnd(-spread, spread), up = (o.up ?? 70) * rnd(0.6, 1.2), life = (o.life ?? 900) * rnd(0.7, 1.3), spin = rnd(-240, 240), [s0, s1] = o.size ?? [14, 26];
+      this.spr({ name: names[i % names.length], x: x + dx, y, depth: o.depth ?? TOP + 2, w: rnd(s0, s1), life, delay: (o.delay ?? 0) + rnd(0, 120), angle: rnd(0, 360), add: o.add,
+        mx: (u) => dx * 0.3 * u + Math.sin(u * 6 + i) * 8, my: (u) => -up * out(u), rot: (u) => spin * u, a: kf([0, 0], [0.12, 1], [0.7, 0.9], [1, 0]) });
+    }
+  }
+
+  // ------------------------------------------------------------------ cast timeline
+
+  cast(r: CastRun): void {
+    if (!this.ready) return;
+    const s = r.skill, T = r.timings, me = this.me(r), side = sideOf(r), hand = this.at(r.attackerId, side, 22, 70);
+    switch (s.id) {
+      case 'arcane_bolt': case 'arcane_bolt_arcane': case 'arcane_bolt_frost': case 'arcane_bolt_storm': {
+        const k = s.id === 'arcane_bolt_frost' ? 'snowflake' : s.id === 'arcane_bolt_storm' ? 'storm_orb' : 'spark_arc';
+        this.spr({ name: k, w: 34, life: T.startup + 120, follow: hand, add: true, glow: 0.6, run: r, sx: kf([0, 0.2], [0.7, 1.1, out3], [1, 0.6]), sy: kf([0, 0.2], [0.7, 1.1, out3], [1, 0.6]), a: kf([0, 1], [0.8, 1], [1, 0]), rot: (u) => 120 * u });
+        break;
+      }
+      case 'arcane_wave': this.spr({ name: 'spark_arc', w: 50, life: T.startup + 80, follow: hand, add: true, glow: 0.5, run: r, sx: kf([0, 0.3], [1, 1.2, out3]), a: kf([0, 1], [1, 0]) }); break;
+      case 'astral_burst': this.starHand(r); break;
+      case 'frost_nova': this.drift(['snowflake', 'ice_shards'], me.x, me.y - me.z - 20, 6, 30, { life: T.startup + 200, up: 60, size: [10, 20], add: true }); break;
+      case 'lightning_chain': this.spr({ name: 'storm_orb', w: 64, life: T.startup + T.active, follow: hand, add: true, glow: 0.7, run: r, sx: kf([0, 0.3], [0.3, 1, out3], [1, 0.8]), a: kf([0, 1], [0.8, 1], [1, 0]), rot: (u) => 300 * u }); break;
+      case 'storm_field': this.floor('storm_disc', r.place?.x ?? me.x, r.place?.y ?? me.y, 280, T.startup + T.active + 300, { add: true, glow: 0.6, spin: 20, run: r, a: kf([0, 0], [0.15, 0.5], [0.85, 0.9], [1, 0]), s: kf([0, 0.6], [0.2, 1, out3]) }); break;
+      case 'time_collapse': this.timeCollapse(r); break;
+      case 'blink': this.blinkOut(me, side); break;
+      case 'glacial_spikes': this.drift(['snowflake'], me.x + side * 20, me.y - me.z - 30, 5, 24, { life: T.startup + 200, up: 40, size: [10, 18], add: true }); break;
+      case 'chrono_haste': this.floor('sig_clock', me.x, me.y, 150, T.startup + 600, { add: true, glow: 0.6, spin: 360, run: r, a: kf([0, 0], [0.2, 1], [0.8, 1], [1, 0]), s: kf([0, 0.4], [0.3, 1, out3]) }); break;
+      case 'levity_field': if (r.place) this.floor('sig_star', r.place.x, r.place.y, 320, T.startup + 2700, { add: true, glow: 0.5, spin: -30, run: r, a: kf([0, 0], [0.08, 0.85], [0.9, 0.85], [1, 0]), s: kf([0, 0.5], [0.1, 1, out3]) }); break;
+      case 'origami_flock': this.spr({ name: 'page_group', w: 90, life: T.startup + 120, follow: this.at(r.attackerId, side, 26, 66), run: r, sx: kf([0, 0.3], [1, 1.2, out3]), sy: kf([0, 0.3], [1, 1.2, out3]), a: kf([0, 1], [0.8, 1], [1, 0]), rot: (u) => side * 60 * u }); break;
+      case 'chrono_sigil': this.floor('sig_clock', me.x, me.y, 130, T.startup + 5000, { add: true, glow: 0.55, spin: -50, run: r, a: kf([0, 0], [0.04, 0.95], [0.94, 0.9], [1, 0]), s: kf([0, 0.3], [0.05, 1, out3]) }); break;
+      case 'arcane_ward': this.drift(['rune_cyan', 'rune_blue'], me.x, me.y - me.z - 10, 8, 40, { life: T.startup + 200, up: 90, size: [16, 24], add: true }); break;
+      case 'arcane_gate': if (r.place) this.floor('sig_disk', r.place.x, r.place.y, 110, T.startup + 240, { add: true, glow: 0.6, spin: 200, run: r, a: kf([0, 0], [0.3, 1], [1, 1]), s: kf([0, 0.3], [1, 1, out3]) }); break;
+      case 'paper_curse': this.spr({ name: 'page_cocoon', w: 60, life: T.startup + 100, follow: this.at(r.attackerId, side, 28, 64), run: r, a: kf([0, 0], [0.3, 1], [1, 0]), rot: (u) => 180 * u }); break;
+      case 'elemental_ascension': {
+        this.spr({ name: 'frost_mist', w: 150, life: T.startup + 400, follow: this.at(r.attackerId, side, 0, 20), dz: -2, add: true, run: r, sx: kf([0, 0.4], [0.6, 1.2, out3]), a: kf([0, 0], [0.3, 0.8], [1, 0]) });
+        for (let i = 0; i < 4; i++) this.later(i * T.startup / 4, () => { const c = this.me(r); this.bolt('bolt_diag', { x: c.x + rnd(-60, 60), y: c.y - c.z - 180 }, { x: c.x + rnd(-20, 20), y: c.y - c.z - 40 }, { thick: 60, life: 180 }); }, r);
+        break;
+      }
+    }
+    if (s.slot === 7) this.ctx.ultimateStage(r);
+  }
+
+  /** The release (active start). */
+  active(r: CastRun): void {
+    if (!this.ready) return;
+    const s = r.skill, me = this.me(r), side = sideOf(r), T = r.timings;
+    switch (s.id) {
+      case 'arcane_wave': this.wave(r); break;
+      case 'frost_nova': this.nova(me); break;
+      case 'blink': this.later(T.active, () => this.blinkIn(this.me(r), side), r); break;
+      case 'glacial_spikes': this.spikes(r); break;
+      case 'chrono_haste': this.ripple(me.x, me.y - me.z - 40, 200, VIOLET); this.aura(r.attackerId, 'haste', 120000); break;
+      case 'levity_field': if (r.place) this.levity(r.place, 2500); break;
+      case 'arcane_ward': this.ward(r.attackerId, 8000); break;
+      case 'elemental_ascension': this.aura(r.attackerId, 'ascension', 20000); this.ctx.punch(0.006, 200); break;
+      case 'storm_field': if (r.place) this.spr({ name: 'storm_orb', x: r.place.x, y: r.place.y - 60, depth: r.place.y + 2, w: 90, life: T.active, add: true, glow: 0.7, run: r, sx: (u) => 0.9 + 0.15 * Math.sin(u * 30), sy: (u) => 0.9 + 0.15 * Math.cos(u * 27), a: kf([0, 0], [0.05, 1], [0.92, 1], [1, 0]), rot: (u) => 900 * u }); break;
+    }
+  }
+
+  /** One hit of a cast as it fires. */
+  hit(r: CastRun, i: number, o: V3): void {
+    if (!this.ready) return;
+    const s = r.skill, h = r.hits[i];
+    if (s.id === 'storm_field' && r.place) { // a bolt out of the sky on every pulse
+      const p = r.place;
+      for (let k = 0; k < 3; k++) this.later(k * 60, () => { const x = p.x + rnd(-90, 90), y = p.y + rnd(-30, 30); this.bolt('bolt_diag', { x: x - 60, y: y - 260 }, { x, y: y - 10 }, { thick: 70, life: 200 }); this.pop('bolt_impact', x, y - 20, 90, { depth: y + 3, life: 200 }); }, r);
+      if (i === 3) { this.ripple(p.x, p.y - 4, 300, ARCANE); this.ctx.punch(0.005, 160); }
+    }
+    if (s.id === 'astral_burst') { const c = r.place ?? { x: o.x + r.aim.x * 60, y: o.y + r.aim.y * 60 }; this.spr({ name: 'launch_arc', x: c.x, y: c.y, oy: 0.95, depth: c.y + 3, w: 90, h: 180, life: 320, add: true, glow: 0.5, sy: kf([0, 0.2], [0.3, 1, out3], [1, 1.2]), a: kf([0, 1], [0.4, 1], [1, 0, inQ]) }); }
+    if (s.id === 'time_collapse' && i === 1 && r.place) { this.ripple(r.place.x, r.place.y - 60, 420, VIOLET); this.ctx.darken(1100, 0.5); }
+    if (s.id === 'time_collapse' && i === 2 && r.place) this.timeBlast(r.place);
+    void h;
+  }
+
+  /** Chain lightning from o to the foe it struck (each arc). */
+  private chainLast = new Map<string, { x: number; y: number; z: number }>();
+  chain(r: CastRun, o: V3, target: { x: number; y: number; z: number } | null, _from: { x: number; y: number; z: number } | null): void {
+    if (!this.ready) return;
+    const from = this.chainLast.get(r.castId) ?? null; // each arc leaps on from the foe the last one struck
+    if (target) { this.chainLast.set(r.castId, { ...target }); if (this.chainLast.size > 40) this.chainLast.delete(this.chainLast.keys().next().value!); }
+    const a = from ? { x: from.x, y: from.y - from.z - 44 } : { x: o.x + r.aim.x * 24, y: o.y + r.aim.y * 24 - o.z - 66 };
+    const b = target ? { x: target.x, y: target.y - target.z - 44 } : { x: o.x + r.aim.x * 300, y: o.y + r.aim.y * 300 - o.z - 50 };
+    this.bolt(Math.random() < 0.5 ? 'bolt_long' : 'bolt_branch', a, b, { thick: 80, life: 240 });
+    this.bolt('bolt_long', a, b, { thick: 40, life: 160, delay: 40 });
+    if (target) this.pop('bolt_impact', b.x, b.y, 90, { life: 220 });
+  }
+
+  // ------------------------------------------------------------------ skills
+
+  /** Astral Lift: an open hand of starlight rises over the target spot, closes into a fist and lifts. */
+  private starHand(r: CastRun): void {
+    const T = r.timings, side = sideOf(r), c0 = this.me(r);
+    const cx = c0.x + r.aim.x * 60, cy = c0.y + r.aim.y * 60;
+    this.spr({ name: 'hand_open', x: cx, y: cy - 90, depth: cy + 4, w: 110, life: T.startup + 40, flipX: side < 0, add: true, glow: 0.4, run: r,
+      sx: kf([0, 0.5], [0.6, 1, out3]), sy: kf([0, 0.5], [0.6, 1, out3]), a: kf([0, 0], [0.3, 0.9], [1, 1]), my: (u) => 20 * (1 - out(u)) });
+    this.spr({ name: 'hand_fist', x: cx, y: cy - 90, depth: cy + 4, w: 100, delay: T.startup, life: T.active + 220, flipX: side < 0, add: true, glow: 0.5, run: r,
+      my: kf([0, 0], [0.3, 10, out], [1, -120, out3]), sx: kf([0, 1.1], [0.2, 1]), sy: kf([0, 1.1], [0.2, 1]), a: kf([0, 1], [0.7, 1], [1, 0, inQ]) });
+  }
+
+  /** Arcane Wave: a wide crescent sweeps out along the floor. */
+  private wave(r: CastRun): void {
+    const o = this.me(r), side = sideOf(r), ang = screenAng(r.aim.x, r.aim.y), y = o.y - o.z - 46;
+    for (const [dy, k, d] of [[0, 1, 0], [-18, 0.75, 40], [18, 0.75, 40]] as const)
+      this.spr({ name: 'wave_arc', x: o.x + r.aim.x * 30, y: y + dy, depth: TOP + 3, w: 120 * k, h: 170 * k, angle: side < 0 ? ang - 180 : ang, flipX: side < 0, add: true, glow: 0.4, life: 300, delay: d,
+        mx: (u) => r.aim.x * 210 * out(u), my: (u) => r.aim.y * 110 * out(u), sx: kf([0, 0.5], [1, 1.2]), sy: kf([0, 0.7], [1, 1.3]), a: kf([0, 0.95], [0.6, 0.8], [1, 0, inQ]) });
+    this.floor('ring_arc', o.x + r.aim.x * 110, o.y + r.aim.y * 50, 240, 320, { add: true, a: kf([0, 0.8], [1, 0]), s: kf([0, 0.4], [1, 1.2, out3]) });
+  }
+
+  /** Frost Nova: a ring of ice crystals bursts out over the floor, frost spreading behind it. */
+  private nova(me: V3): void {
+    this.floor('ice_ring', me.x, me.y, 300, 520, { a: kf([0, 0.95], [0.6, 0.85], [1, 0]), s: kf([0, 0.25], [0.35, 1, out3], [1, 1.05]) });
+    this.floor('floor_frost', me.x, me.y, 280, 1400, { add: true, a: kf([0, 0], [0.1, 0.85], [0.7, 0.6], [1, 0]), s: kf([0, 0.3], [0.3, 1, out3]) });
+    this.pop('ring_arc', me.x, me.y - me.z - 30, 200, { life: 320, tint: ICE });
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; this.spr({ name: 'frost_mist', x: me.x + Math.cos(a) * 90, y: me.y + Math.sin(a) * 36 - 20, depth: me.y + Math.sin(a) * 36 + 2, w: 70, life: 700, delay: 60, a: kf([0, 0], [0.2, 0.7], [1, 0]), sx: kf([0, 0.5], [1, 1.4, out3]), sy: kf([0, 0.5], [1, 1.3, out3]) }); }
+  }
+
+  /** Glacial Spikes: three rows of spikes erupt one after another along a fan, stand as a wall, then shatter. */
+  private spikes(r: CastRun): void {
+    const o = this.me(r), base = Math.atan2(r.aim.y, r.aim.x), side = sideOf(r);
+    for (const da of [-15, 0, 15]) {
+      const a = base + (da * Math.PI) / 180, dx = Math.cos(a), dy = Math.sin(a);
+      for (let k = 0; k < 6; k++) {
+        const d = 50 + k * 42, x = o.x + dx * d, y = o.y + dy * d * 0.75, delay = k * 38 + (da === 0 ? 0 : 20), big = k >= 3, stand = 3000 - delay;
+        this.spr({ name: big ? 'ice_cluster' : 'ice_spike', x, y: y + 4, oy: 0.95, depth: y + 1, w: big ? 70 : 54, delay, life: stand, flipX: side < 0,
+          sy: kf([0, 0.1], [0.06, 1.12, out3], [0.1, 1], [0.9, 1], [1, 0.6, inQ]), sx: kf([0, 0.8], [0.06, 1]), a: kf([0, 1], [0.9, 1], [1, 0, inQ]) });
+        this.later(delay + stand - 80, () => this.pop('ice_shards', x, y - 30, 60, { life: 260, add: false }), r);
+        if (k === 0 || k === 3) this.pop('snowflake', x, y - 20, 40, { delay, life: 220 });
+      }
+    }
+    this.floor('floor_frost', o.x + r.aim.x * 150, o.y + r.aim.y * 110, 330, 3100, { add: true, a: kf([0, 0], [0.04, 0.7], [0.9, 0.5], [1, 0]), angle: screenAng(r.aim.x, r.aim.y) });
+  }
+
+  /** Levity Field: a column of light where gravity turned over; stones and runes drift up. */
+  private levity(p: V2, ms: number): void {
+    this.spr({ name: 'implosion', x: p.x, y: p.y + 10, oy: 0.95, depth: p.y + 2, w: 230, life: 600, add: true, glow: 0.4, sy: kf([0, 0.3], [0.4, 1.1, out3], [1, 1.2]), a: kf([0, 0], [0.15, 0.9], [1, 0]) });
+    for (let t = 0; t < ms; t += 220) this.later(t, () => this.drift(['ice_shards', 'rune_violet', 'rune_cyan', 'paper_scraps'], p.x, p.y - 10, 3, 120, { up: 160, life: 1100, size: [10, 22], add: true }));
+    this.floor('time_ripple', p.x, p.y, 300, ms, { add: true, a: kf([0, 0], [0.05, 0.6], [0.9, 0.5], [1, 0]), s: (u) => 0.95 + 0.05 * Math.sin(u * 40) });
+  }
+
+  /** Time Collapse: a giant clock over the area through the wind-up; the hands stop; it cracks and collapses. */
+  private timeCollapse(r: CastRun): void {
+    const p = r.place ?? r.origin, T = r.timings, total = T.startup + T.active;
+    this.floor('sig_clock', p.x, p.y, 380, total + 200, { add: true, glow: 0.6, spin: 40, run: r, a: kf([0, 0], [0.15, 0.9], [0.92, 1], [1, 0]), s: kf([0, 0.4], [0.2, 1, out3]) });
+    this.spr({ name: 'clock_face', x: p.x, y: p.y - 210, depth: p.y + 6, w: 300, life: total + 120, delay: Math.round(T.startup * 0.3), add: true, glow: 0.35, run: r,
+      sx: kf([0, 0.4], [0.15, 1, out3]), sy: kf([0, 0.4], [0.15, 1, out3]), a: kf([0, 0], [0.12, 0.95], [0.9, 0.95], [1, 0]), rot: (u) => (u < 0.55 ? -40 * u : -22) });
+    this.spr({ name: 'vortex_pull', x: p.x, y: p.y - 40, depth: p.y + 2, w: 300, h: 140, life: T.startup + 400, add: true, run: r, a: kf([0, 0], [0.3, 0.7], [1, 0]), rot: (u) => -500 * u });
+  }
+  private timeBlast(p: V2): void {
+    this.pop('time_blast', p.x, p.y - 80, 420, { life: 520, glow: 0.7 });
+    this.pop('time_shards', p.x, p.y - 160, 320, { life: 600, delay: 40, add: false });
+    this.pop('hit_crit', p.x, p.y - 60, 300, { life: 360 });
+    this.ripple(p.x, p.y - 4, 480, VIOLET);
+    this.ctx.punch(0.014, 380);
+  }
+
+  private blinkOut(me: V3, side: number): void {
+    this.spr({ name: 'blink_out', x: me.x, y: me.y - me.z - 50, depth: me.y + 2, w: 90, h: 130, life: 260, add: true, glow: 0.5, flipX: side < 0, a: kf([0, 1], [1, 0]), sx: kf([0, 1], [1, 0.3, inQ]) });
+    this.pop('ghost_haze', me.x, me.y - me.z - 50, 100, { life: 300, tint: ARCANE });
+  }
+  private blinkIn(me: V3, side: number): void {
+    this.spr({ name: 'blink_in', x: me.x, y: me.y - me.z - 50, depth: me.y + 2, w: 100, h: 130, life: 300, add: true, glow: 0.5, flipX: side < 0, sx: kf([0, 0.2], [0.3, 1, out3]), a: kf([0, 1], [0.6, 1], [1, 0]) });
+    this.floor('sig_disk', me.x, me.y, 90, 380, { add: true, a: kf([0, 1], [1, 0]), s: kf([0, 0.5], [1, 1.2, out3]) });
+  }
+  private ripple(x: number, y: number, w: number, tint: number): void {
+    this.spr({ name: 'time_ripple', x, y, depth: TOP + 1, w, h: w * 0.45, life: 520, add: true, tint, sx: kf([0, 0.2], [1, 1.2, out3]), sy: kf([0, 0.2], [1, 1.2, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+  }
+
+  // ------------------------------------------------------------------ lasting effects of a caster
+
+  /** A buff's look on its caster while it lasts: Chrono Haste = a clock ring turning under the feet; Elemental Ascension = frost at
+   *  the feet and lightning crackling round the body. */
+  aura(id: string, kind: 'haste' | 'ascension', ms: number): void {
+    if (!this.ready) return;
+    const set = this.auras.get(id) ?? new Set(); this.auras.set(id, set);
+    let on = true; const h = { stop: () => { on = false; } }; set.add(h);
+    const feet = () => { const c = this.ctx.casterPos(id); return c ? { x: c.x, y: c.y } : null; };
+    if (kind === 'haste') this.floor('sig_clock', 0, 0, 84, ms, { add: true, glow: 0.4, spin: 160, follow: feet, alive: () => on, a: kf([0, 0], [0.002, 0.75], [0.995, 0.75], [1, 0]) });
+    else {
+      this.floor('floor_frost', 0, 0, 130, ms, { add: true, follow: feet, alive: () => on, a: kf([0, 0], [0.01, 0.6], [0.99, 0.6], [1, 0]) });
+      for (let t = 300; t < ms; t += 700) this.later(t, () => { if (!on) return; const c = this.ctx.casterPos(id); if (!c) return; const x = c.x + rnd(-26, 26), y = c.y - c.z - rnd(30, 90); this.bolt('bolt_arc', { x: x - 20, y: y - 20 }, { x: x + 20, y: y + 20 }, { thick: 40, life: 160 }); });
+      for (let t = 0; t < ms; t += 500) this.later(t, () => { if (!on) return; const c = this.ctx.casterPos(id); if (c) this.drift(['snowflake'], c.x, c.y - c.z - 20, 1, 24, { up: 60, life: 700, size: [8, 14], add: true }); });
+    }
+  }
+  /** Arcane Ward: the shell of rune hexagons round the caster while it holds. */
+  ward(id: string, ms: number): void {
+    if (!this.ready) return;
+    this.wards.get(id)?.stop();
+    let on = true; const h = { stop: () => { on = false; } }; this.wards.set(id, h);
+    const at = () => { const c = this.ctx.casterPos(id); return c ? { x: c.x, y: c.y - c.z + 6, d: c.y } : null; };
+    this.spr({ name: 'ward_dome', w: 120, oy: 0.96, life: ms, follow: at, dz: 4, add: true, glow: 0.25, alive: () => on, sx: kf([0, 0.4], [0.01, 1, out3]), sy: (u) => (u < 0.01 ? 0.4 + 60 * u : 1) * (1 + 0.02 * Math.sin(u * ms / 160)), a: kf([0, 0], [0.01, 0.55], [0.98, 0.5], [1, 0]) });
+  }
+  /** The ward took a blow (broken: it bursts; expired: it fades). */
+  wardHit(id: string, broken: boolean, expired = false): void {
+    if (!this.ready) return;
+    const c = this.ctx.casterPos(id); if (!c) return;
+    if (expired || broken) { this.wards.get(id)?.stop(); this.wards.delete(id); }
+    if (expired) return;
+    this.pop(broken ? 'ward_break' : 'spark_arc', c.x, c.y - c.z - 50, broken ? 170 : 80, { life: broken ? 380 : 200 });
+    if (broken) { this.floor('ice_ring', c.x, c.y, 300, 480, { a: kf([0, 0.9], [1, 0]), s: kf([0, 0.3], [0.4, 1, out3]) }); this.ctx.punch(0.006, 160); }
+  }
+  clear(id: string): void {
+    for (const h of this.auras.get(id) ?? []) h.stop();
+    this.auras.delete(id);
+    this.wards.get(id)?.stop(); this.wards.delete(id);
+    this.weave(id, 0, false);
+  }
+
+  /** Spell Weave: n runes circling the caster (lost: they scatter). */
+  weave(id: string, n: number, lost: boolean): void {
+    const s = this.ctx.scene;
+    let w = this.weaves.get(id);
+    if (!w) { w = { imgs: [], t: 0, n: 0 }; this.weaves.set(id, w); }
+    if (lost) { const c = this.ctx.casterPos(id); if (c && this.ready) for (const im of w.imgs) this.pop(im.frame.name, im.x, im.y, 30, { life: 300 }); if (c && this.ready) this.pop('time_shards', c.x, c.y - c.z - 50, 90, { life: 260 }); }
+    while (w.imgs.length > n) w.imgs.pop()!.destroy();
+    while (w.imgs.length < n && this.ready) {
+      const im = s.add.image(0, 0, MAGE_KIT, RUNES[w.imgs.length % RUNES.length]).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(22, 22);
+      w.imgs.push(im);
+      const c = this.ctx.casterPos(id); if (c) this.pop(RUNES[(w.imgs.length - 1) % RUNES.length], c.x, c.y - c.z - 50, 40, { life: 220 });
+    }
+    w.n = n;
+    if (!n) this.weaves.delete(id);
+  }
+  private stepWeaves(dt: number): void {
+    for (const [id, w] of this.weaves) {
+      w.t += dt;
+      const c = this.ctx.casterPos(id);
+      w.imgs.forEach((im, i) => {
+        if (!c) { im.setVisible(false); return; }
+        const a = w.t / 600 + (i / Math.max(1, w.imgs.length)) * Math.PI * 2, x = c.x + Math.cos(a) * 44, y = c.y - c.z - 52 + Math.sin(a) * 14;
+        im.setVisible(true).setPosition(x, y).setDepth(c.y + (Math.sin(a) > 0 ? 3 : -3)).setAlpha(0.75 + 0.25 * Math.sin(w.t / 120 + i)).setScale(im.scaleX, im.scaleY);
+      });
+    }
+  }
+  /** Grand Weave: the five runes merge into one star, and the next spell flows out at once. */
+  grandWeave(id: string): void {
+    if (!this.ready) return;
+    const c = this.ctx.casterPos(id); if (!c) return;
+    this.pop('buff_star', c.x, c.y - c.z - 70, 110, { life: 420 });
+    this.ripple(c.x, c.y - c.z - 50, 160, 0xffe27a);
+  }
+
+  /** Levitate: a rune disc under the feet and pages drifting down while the float lasts. */
+  levitate(_id: string, at: () => V3 | null): void {
+    if (!this.ready) return;
+    const p0 = at(); if (!p0) return;
+    this.spr({ name: 'sig_disk', w: 70, h: 28, life: 1500, add: true, glow: 0.4, alive: () => !!at(), follow: () => { const p = at(); return p ? { x: p.x, y: p.y - p.z + 4, d: p.y } : null; }, a: kf([0, 0], [0.05, 0.85], [0.9, 0.8], [1, 0]), rot: (u) => 0 * u });
+    for (let t = 0; t < 1400; t += 260) this.later(t, () => { const p = at(); if (p) this.spr({ name: `page_${1 + Math.floor(Math.random() * 3)}`, x: p.x + rnd(-20, 20), y: p.y - p.z, depth: p.y + 1, w: 16, life: 700, angle: rnd(0, 360), my: (u) => 50 * u, rot: (u) => 200 * u, a: kf([0, 1], [1, 0]) }); });
+  }
+
+  /** Chrono Sigil's recall: the body streaks back along time to the sigil. */
+  rewind(_id: string, from: V3, to: V3): void {
+    if (!this.ready) return;
+    this.pop('ghost_haze', from.x, from.y - from.z - 50, 110, { life: 400, tint: VIOLET });
+    this.bolt('glow_streak', { x: from.x, y: from.y - from.z - 50 }, { x: to.x, y: to.y - to.z - 50 }, { thick: 70, life: 300 });
+    this.pop('time_ripple', to.x, to.y - to.z - 40, 160, { life: 420 });
+    this.blinkIn(to, to.x < from.x ? -1 : 1);
+  }
+
+  /** Arcane Gates: two portals standing for `ms`. */
+  gates(_id: string, a: V2, b: V2, ms: number): void {
+    if (!this.ready) return;
+    for (const p of [a, b]) {
+      this.pop('blink_in', p.x, p.y - 60, 120, { life: 360 });
+      this.spr({ name: 'sig_star', x: p.x, y: p.y - 58, depth: p.y + 1, w: 74, h: 116, life: ms, add: true, glow: 0.4, sx: kf([0, 0.1], [0.04, 1, out3]), a: kf([0, 0], [0.03, 0.9], [0.97, 0.9], [1, 0]), rot: (u) => (ms / 1000) * 30 * u });
+      this.spr({ name: 'singularity', x: p.x, y: p.y - 58, depth: p.y + 0.5, w: 56, h: 92, life: ms, add: true, sx: kf([0, 0.1], [0.04, 1, out3]), a: kf([0, 0], [0.03, 0.8], [0.97, 0.8], [1, 0]), rot: (u) => -(ms / 1000) * 90 * u });
+      this.floor('sig_disk', p.x, p.y, 90, ms, { add: true, spin: 40, a: kf([0, 0], [0.03, 0.7], [0.97, 0.7], [1, 0]) });
+    }
+  }
+  gatePass(from: V2, to: V2, z: number): void {
+    if (!this.ready) return;
+    this.pop('blink_out', from.x, from.y - z, 90, { life: 240 });
+    this.pop('blink_in', to.x, to.y - z, 100, { life: 280 });
+  }
+
+  /** A broken heavy blow on the Mana Barrier: a rune hexagon flashes where it struck. */
+  barrier(at: V3, from: { x: number; y: number }): void {
+    if (!this.ready) return;
+    const dx = Math.sign(from.x - at.x) || 1;
+    this.pop('ward_break', at.x + dx * 30, at.y - at.z - 50, 120, { life: 360 });
+    this.pop('hit_heavy', at.x + dx * 30, at.y - at.z - 50, 100, { life: 220 });
+  }
+
+  /** The conducted arc between two foes. */
+  conductArc(a: V3, b: V3): void {
+    if (!this.ready) return;
+    this.bolt('bolt_long', { x: a.x, y: a.y - a.z - 10 }, { x: b.x, y: b.y - b.z - 10 }, { thick: 60, life: 240 });
+  }
+
+  /** Rune beams between two runes (drawn every frame they stand). */
+  runeBeam(A: Trap, B: Trap, _g: Phaser.GameObjects.Graphics, now: number): void {
+    if (!this.ready) return;
+    const key = `${A.run.castId}|${B.run.castId}`, s = this.ctx.scene;
+    let b = this.beams.get(key);
+    if (!b) {
+      const im = s.add.image(0, 0, MAGE_KIT, 'bolt_long').setBlendMode(Phaser.BlendModes.ADD);
+      const ra = s.add.image(0, 0, MAGE_KIT, 'rune_cyan').setBlendMode(Phaser.BlendModes.ADD), rb = s.add.image(0, 0, MAGE_KIT, 'rune_cyan').setBlendMode(Phaser.BlendModes.ADD);
+      b = { im, a: ra, b: rb, seen: now }; this.beams.set(key, b);
+    }
+    b.seen = performance.now();
+    const ax = A.x, ay = A.y - 14, bx = B.x, by = B.y - 14, len = Math.hypot(bx - ax, by - ay);
+    b.im.setPosition((ax + bx) / 2, (ay + by) / 2).setAngle(Math.atan2(by - ay, bx - ax) * (180 / Math.PI)).setDisplaySize(len, 26 + 6 * Math.sin(now / 60)).setDepth(Math.max(A.y, B.y) - 1).setAlpha(0.35 + 0.15 * Math.sin(now / 90));
+    for (const [im, x, y] of [[b.a, ax, ay], [b.b, bx, by]] as const) im.setPosition(x, y).setDisplaySize(24, 24).setDepth(y + 2).setAlpha(0.8);
+  }
+  runeBeamBreak(A: Trap, B: Trap, at: V3): void {
+    if (!this.ready) return;
+    const key = `${A.run.castId}|${B.run.castId}`, b = this.beams.get(key);
+    if (b) { b.im.destroy(); b.a.destroy(); b.b.destroy(); this.beams.delete(key); }
+    this.bolt('bolt_long', { x: A.x, y: A.y - 14 }, { x: B.x, y: B.y - 14 }, { thick: 70, life: 260 });
+    this.pop('bolt_impact', at.x, at.y - at.z, 100, { life: 240 });
+  }
+  private sweepBeams(now: number): void { for (const [k, b] of this.beams) if (now - b.seen > 120) { b.im.destroy(); b.a.destroy(); b.b.destroy(); this.beams.delete(k); } }
+
+  /** Binding Rune / Frost Rune lying on the floor. */
+  trap(t: Trap): void {
+    if (!this.ready) return;
+    const frost = t.run.skill.id === 'frost_rune', w = t.radius * (frost ? 2.6 : 2.4);
+    this.pop(frost ? 'snowflake' : 'rune_cyan', t.x, t.y - 20, 50, { life: 260 });
+    let on = true;
+    this.floor(frost ? 'ice_ring' : 'sig_bind', t.x, t.y, w, t.until, { add: !frost, glow: frost ? 0 : 0.4, spin: frost ? 0 : 25, alive: () => on, a: kf([0, 0], [0.0001, 0.75], [1, 0.75]), s: kf([0, 0.4], [0.00005, 1, out3]) });
+    this.trapArt.set(t, { stop: () => { on = false; } });
+  }
+  trapEnd(t: Trap, fired: boolean): void {
+    this.trapArt.get(t)?.stop(); this.trapArt.delete(t);
+    if (fired && this.ready) this.pop(t.run.skill.id === 'frost_rune' ? 'ice_shatter' : 'sig_disk', t.x, t.y - 16, 90, { life: 300 });
+  }
+
+  // ------------------------------------------------------------------ projectiles
+
+  projectile(p: Projectile): void {
+    if (!this.ready) return;
+    const id = p.skill.id, s = this.ctx.scene;
+    const kind: Bolt['kind'] = id === 'origami_flock' ? 'crane' : id === 'arcane_bolt_frost' ? 'frost' : id === 'arcane_bolt_storm' ? 'storm' : id === 'glacial_spikes' ? 'spike' : 'arcane';
+    const name = kind === 'crane' ? 'crane_up' : kind === 'frost' ? 'bolt_frost' : kind === 'storm' ? 'bolt_storm' : 'bolt_arcane';
+    const mk = (add: boolean) => s.add.image(p.x, p.y - p.z, MAGE_KIT, name).setOrigin(kind === 'crane' ? 0.5 : 0.82, 0.5).setBlendMode(add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL).setDepth(p.y + 2).setVisible(kind !== 'spike');
+    this.bolts.set(p, { im: mk(kind === 'arcane' || kind === 'storm'), gl: mk(true).setAlpha(kind === 'crane' ? 0 : 0.35), t: 0, trail: 0, kind });
+  }
+  projectileEnd(p: Projectile): void {
+    const b = this.bolts.get(p); if (!b) return;
+    this.bolts.delete(p); b.im.destroy(); b.gl.destroy();
+    if (!this.ready) return;
+    const e = p.end ?? { x: p.x, y: p.y }, y = e.y - p.z;
+    if (b.kind === 'crane') this.pop('paper_burst', e.x, y, 70, { life: 260, add: false });
+    else if (b.kind === 'frost') { this.pop('ice_shatter', e.x, y, 80, { life: 240, add: false }); this.pop('snowflake', e.x, y, 40, { life: 200 }); }
+    else if (b.kind === 'storm') this.pop('bolt_impact', e.x, y, 90, { life: 220 });
+    else if (b.kind === 'arcane') this.pop('bolt_burst', e.x, y, 80, { life: 220 });
+  }
+  private stepBolts(dt: number): void {
+    for (const [p, b] of this.bolts) {
+      b.t += dt;
+      const x = p.x, y = p.y - p.z, fl = p.dx < -0.01, ang = screenAng(p.dx, p.dy);
+      if (b.kind === 'spike') continue; // Glacial Spikes: the spikes in the floor are its picture
+      if (b.kind === 'crane') { // a paper crane: wings beat, it banks toward where it flies
+        const up = Math.floor(b.t / 90) % 2 === 0, k = 46 / 150;
+        b.im.setFrame(up ? 'crane_up' : 'crane_down').setPosition(x, y + (up ? -2 : 2)).setScale(fl ? -k : k, k).setAngle(fl ? ang + 180 - 180 : ang).setDepth(p.y + 2);
+        if (b.t - b.trail > 70) { b.trail = b.t; this.spr({ name: 'page_4', x, y, depth: p.y + 1, w: 8, life: 300, angle: rnd(0, 360), my: (u) => 14 * u, a: kf([0, 0.8], [1, 0]) }); }
+        continue;
+      }
+      const len = b.kind === 'arcane' ? 78 : 86, k = len / b.im.width, pulse = 1 + 0.06 * Math.sin(b.t / 30);
+      for (const im of [b.im, b.gl]) im.setPosition(x, y).setAngle(fl ? ang - 180 : ang).setFlipX(fl).setScale(k * (im === b.gl ? 1.1 : 1), k * pulse * (im === b.gl ? 1.1 : 1)).setDepth(p.y + (im === b.gl ? 2.01 : 2));
+      if (b.t - b.trail > 45) {
+        b.trail = b.t;
+        if (b.kind === 'frost') this.spr({ name: 'snowflake', x: x - p.dx * 20, y, depth: p.y + 1, w: rnd(8, 13), life: 380, add: true, angle: rnd(0, 360), my: (u) => 16 * u, a: kf([0, 0.9], [1, 0]) });
+        else if (b.kind === 'storm' && Math.random() < 0.5) this.bolt('bolt_arc', { x: x - p.dx * 12, y: y - 8 }, { x: x - p.dx * 34, y: y + 8 }, { thick: 22, life: 110 });
+        else this.spr({ name: 'spark_arc', x: x - p.dx * 16, y, depth: p.y + 1, w: 18, life: 220, add: true, a: kf([0, 0.7], [1, 0]), sx: kf([0, 1], [1, 0.4]), sy: kf([0, 1], [1, 0.4]) });
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------ hits and reactions
+
+  /** The hit spark of a mage hit on a foe (by element and weight). */
+  confirmed(s: FinalSkill, hit: HitEvent, at: V3, heavy: boolean, crit: boolean): void {
+    if (!this.ready || s.slot === 99 && !hit.damage) return;
+    const x = at.x, y = at.y - at.z - 38, el = hit.el;
+    if (crit) this.pop('hit_crit', x, y, 150, { life: 300 });
+    else if (heavy) this.pop(el === 'storm' ? 'bolt_impact' : 'hit_heavy', x, y, 120, { life: 260 });
+    else this.pop(el === 'storm' ? 'bolt_impact' : el === 'frost' ? 'snowflake' : 'spark_arc', x, y, el === 'frost' ? 56 : 76, { life: 200 });
+  }
+
+  /** What a magic reaction looks like on the foe; `id` / `ms`: the frozen / cursed foe and for how long. */
+  reaction(rx: string, at: V3, follow?: () => V3 | null, ms = 0): void {
+    if (!this.ready) return;
+    const x = at.x, y = at.y - at.z - 30, fp = follow ? () => { const p = follow(); return p ? { x: p.x, y: p.y - p.z, d: p.y } : null; } : undefined;
+    switch (rx) {
+      case 'chill':
+        this.spr({ name: 'frost_mist', x, y: at.y - at.z + 4, depth: at.y + 3, w: 70, life: 900, follow: fp, dz: 3, sx: kf([0, 0.5], [0.4, 1.2, out3]), a: kf([0, 0], [0.15, 0.75], [1, 0]) });
+        this.pop('snowflake', x, y - 30, 40, { life: 300 });
+        break;
+      case 'freeze': {
+        const life = Math.max(300, ms);
+        this.spr({ name: 'ice_block', x, y: at.y - at.z + 8, oy: 0.96, depth: at.y + 4, w: 74, life, follow: fp, dz: 4, sy: kf([0, 0.2], [0.04, 1.05, out3], [0.08, 1]), a: kf([0, 0.4], [0.04, 0.85], [0.92, 0.85], [1, 0]) });
+        this.pop('ice_shards', x, y, 70, { life: 240, add: false });
+        this.pop('snowflake', x, y - 50, 50, { life: 300 });
+        break;
+      }
+      case 'shatter':
+        this.pop('ice_shatter', x, y - 10, 170, { life: 420, add: false });
+        this.pop('ice_shards', x, y - 20, 120, { life: 380, add: false, delay: 30 });
+        this.pop('hit_crit', x, y - 10, 130, { life: 280 });
+        this.ctx.punch(0.008, 180);
+        break;
+      case 'conduct':
+        this.pop('stun_ring', x, at.y - at.z - 96, 70, { life: 600 });
+        this.pop('bolt_impact', x, y, 110, { life: 240 });
+        break;
+      case 'curse': {
+        this.pop('page_cocoon', x, y - 10, 90, { life: 360, add: false });
+        this.spr({ name: 'crane_big', x, y: at.y - at.z + 6, oy: 0.95, depth: at.y + 4, w: 80, delay: 220, life: Math.max(300, ms - 220), follow: fp, dz: 4,
+          sx: kf([0, 0.2], [0.06, 1, out3]), sy: (u) => 1 + 0.03 * Math.sin(u * 40), a: kf([0, 0], [0.05, 1], [0.95, 1], [1, 0]) });
+        this.later(Math.max(300, ms), () => { const p = follow?.() ?? at; this.pop('paper_burst', p.x, p.y - p.z - 30, 100, { life: 300, add: false }); });
+        break;
+      }
+      case 'levity':
+        this.spr({ name: 'sig_disk', x, y: at.y - at.z + 2, depth: at.y + 2, w: 60, h: 24, life: Math.max(300, ms), follow: fp, dz: -1, add: true, a: kf([0, 0], [0.05, 0.8], [0.95, 0.8], [1, 0]) });
+        break;
+    }
+  }
+
+  // ------------------------------------------------------------------ frame
+
+  update(dt: number, now: number): void {
+    const cur = this.live.concat(this.incoming);
+    this.incoming = [];
+    this.live = cur.filter((l) => { l.t += dt; return l.step(dt, l.t); });
+    this.stepBolts(dt);
+    this.stepWeaves(dt);
+    this.sweepBeams(now);
+  }
+
+  destroy(): void {
+    for (const [p] of this.bolts) this.projectileEnd(p);
+    for (const [id] of this.weaves) this.weave(id, 0, false);
+    for (const [, b] of this.beams) { b.im.destroy(); b.a.destroy(); b.b.destroy(); }
+    this.beams.clear();
+    this.live = []; this.incoming = [];
+  }
+}

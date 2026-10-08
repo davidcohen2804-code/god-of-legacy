@@ -24,6 +24,8 @@ export interface CastRequest {
   /** Remote caster's arrow range (Eagle Eyes) and attack speed (Bow Haste / Ranger Mastery) at cast time. */
   range?: number;
   speed?: number;
+  /** Book Mage caster flags at cast time: 1 Elemental Ascension, 2 Conductor, 4 Shatter Mastery. */
+  mf?: number;
 }
 
 export interface CastRun extends CastRequest {
@@ -49,6 +51,8 @@ export interface CastRun extends CastRequest {
   timings: { startup: number; active: number; recovery: number };
   hits: HitEvent[];
   chainFirst?: string | null;
+  /** Chain hits: the foe the last arc struck (the next one leaps on from it). */
+  chainLast?: string;
   /** Hold-to-charge skills: the startup's scale (attack speed) and the level picked when the startup ended (0..). */
   chargeScale?: number;
   chargeLevel?: number;
@@ -77,6 +81,8 @@ export interface RuntimeWorld {
   rangeMul?(req: CastRequest): number;
   /** Attack speed: startup and recovery are divided by it (archer Bow Haste / Ranger Mastery). */
   speedMul?(req: CastRequest): number;
+  /** Every projectile after its step (Book Mage gates and Levity Field). */
+  projectileHook?(p: Projectile, run: CastRun): void;
 }
 
 export const RT_EVENTS = {
@@ -241,9 +247,10 @@ export class SkillRuntime {
     if (s.kind === 'projectile') {
       const aim = this.liveAim(r, origin);
       const rows = s.rows ?? 1, gap = s.rowGap ?? 40;
+      let pick = 0;
       for (const d of fanDirs(aim, s.count, s.spread)) for (let k = 0; k < rows; k++) {
         const off = (k - (rows - 1) / 2) * gap, o2 = rows > 1 ? { x: origin.x - d.y * off, y: origin.y + d.x * off * 0.75, z: origin.z } : origin; // rows side by side across the floor
-        const p = spawnProjectile(r.castId, i, r.skill, s, r.attackerId, o2, d);
+        const p = spawnProjectile(r.castId, i, r.skill, s, r.attackerId, o2, d, pick++);
         this.projectiles.push({ p, run: r, hit: h });
         this.events.emit(RT_EVENTS.projectile, p, r);
       }
@@ -261,11 +268,16 @@ export class SkillRuntime {
       let hit: HitTarget | null = null;
       if (s.jump <= 0) { hit = chainTargets(s, origin, r.aim, alive, h.reachUp ?? 140)[0] ?? null; r.chainFirst = hit?.id ?? null; }
       else {
-        const first = alive.find((t) => t.id === r.chainFirst);
-        if (first) {
+        const first = alive.find((t) => t.id === (r.chainLast ?? r.chainFirst)) ?? alive.find((t) => t.id === r.chainFirst);
+        if (first) { // leaps on from the last foe it struck, to one it has not struck yet if there is one in reach
+          const struck = (id: string) => [...r.hitKeys].some((k) => k.endsWith(`|${id}`));
           let bd = Infinity;
-          for (const t of alive) { if (t === first) continue; const dd = Math.hypot(t.x - first.x, t.y - first.y); if (dd <= s.jump && dd < bd) { bd = dd; hit = t; } }
+          for (const fresh of [true, false]) {
+            for (const t of alive) { if (t === first || struck(t.id) !== !fresh) continue; const dd = Math.hypot(t.x - first.x, t.y - first.y); if (dd <= s.jump && dd < bd) { bd = dd; hit = t; } }
+            if (hit) break;
+          }
           hit = hit ?? first; // single target: the arc strikes it again
+          r.chainLast = hit.id;
         }
       }
       this.events.emit(RT_EVENTS.chain, r, i, origin, hit);
@@ -295,9 +307,9 @@ export class SkillRuntime {
   /** Aim used when a projectile fires (casters may keep tracking the cursor during startup). */
   private liveAim(r: CastRun, _o: V3): V2 { return r.aim; }
 
-  private deliver(r: CastRun, h: HitEvent, i: number, t: HitTarget, at: V3): void {
-    // Multi-arrow fan: one damage event per target per cast; other skills: once per hit event per target.
-    const key = h.shape.kind === 'projectile' && (h.shape.count ?? 1) > 1 ? `${r.castId}|fan|${t.id}` : `${r.castId}|${i}|${t.id}`;
+  private deliver(r: CastRun, h: HitEvent, i: number, t: HitTarget, at: V3, pid?: number): void {
+    // Multi-arrow fan: one damage event per target per cast; homing shots: each one; other skills: once per hit event per target.
+    const key = pid ? `${r.castId}|p${pid}|${t.id}` : h.shape.kind === 'projectile' && (h.shape.count ?? 1) > 1 ? `${r.castId}|fan|${t.id}` : `${r.castId}|${i}|${t.id}`;
     if (r.hitKeys.has(key)) return;
     r.hitKeys.add(key);
     this.world.onHit(r, h, i, t, at);
@@ -306,9 +318,11 @@ export class SkillRuntime {
   private stepProjectiles(ms: number): void {
     for (const e of this.projectiles) {
       const targets = this.world.targets(e.run);
-      const already = new Set([...e.run.hitKeys].filter((k) => k.includes(`|${e.p.hitIndex}|`) || k.includes('|fan|')).map((k) => k.split('|')[2]));
+      const pid = e.p.pid, tag = pid ? `|p${pid}|` : null;
+      const already = new Set([...e.run.hitKeys].filter((k) => (tag ? k.includes(tag) : k.includes(`|${e.p.hitIndex}|`) || k.includes('|fan|'))).map((k) => k.split('|')[2]));
       const hits = stepProjectile(e.p, ms, targets, already);
-      for (const t of hits) this.deliver(e.run, e.hit, e.p.hitIndex, t, { x: e.p.x, y: e.p.y, z: e.p.z });
+      for (const t of hits) this.deliver(e.run, e.hit, e.p.hitIndex, t, { x: e.p.x, y: e.p.y, z: e.p.z }, pid);
+      if (!e.p.done) this.world.projectileHook?.(e.p, e.run);
       if (e.p.done) {
         if (e.p.explodeRadius > 0) { // burst at target / cover / max range
           for (const t of burstTargets(e.p.skill, e.p.attackerId, e.p, e.p.explodeRadius, targets)) this.deliver(e.run, e.hit, e.p.hitIndex, t, { x: e.p.x, y: e.p.y, z: e.p.z });

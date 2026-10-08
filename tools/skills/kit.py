@@ -4,7 +4,8 @@
 # Each piece: its box on the sheet (the pieces whose middle falls in the box are taken whole — up to a margin past the box —
 # so the glow of a neighbour that only reaches in is left out), the light split off the sheet's key colour
 # (gpt_sheet.keyed), trimmed, scaled so its longer side is `size` px.
-# python3 tools/skills/kit.py
+# python3 tools/skills/kit.py          (the samurai)
+# python3 tools/skills/kit.py mage     (the book mage: tools/skills/gpt/mage/ → public/assets/final/skills/book_mage/kit/)
 import json, os, sys
 import numpy as np
 from PIL import Image
@@ -44,6 +45,34 @@ SHEETS = {
         ('slash_hit', (0, 80, 370, 500), 300), ('slash_hit_heavy', (370, 80, 770, 500), 320), ('slash_hit_double', (770, 80, 1136, 500), 300), ('spark_spray', (1136, 80, 1536, 500), 300),
         ('wave_crescent', (0, 540, 404, 1024), 320), ('wave_break', (404, 540, 745, 1024), 300), ('ground_slash', (745, 540, 1150, 1024), 400), ('blade_trail', (1150, 540, 1536, 1024), 400)],
 }
+
+def grid(cols, rows, names, sizes, w=1536, h=1024, x0=0, y0=0, mode=''):
+    """Pieces in equal cells (left to right, top row first); a name None skips its cell."""
+    cw, ch = w / cols, h / rows
+    out = []
+    for i, (n, z) in enumerate(zip(names, sizes)):
+        if n is None: continue
+        c, r = i % cols, i // cols
+        out.append((n, (round(x0 + c * cw), round(y0 + r * ch), round(x0 + (c + 1) * cw), round(y0 + (r + 1) * ch)), z, *([mode] if mode else [])))
+    return out
+
+
+# The book mage's pieces (MageFx): blue-violet arcane light, ice, lightning, pages and paper cranes, sigils, time.
+MAGE_SHEETS = {
+    'm1_arcane.png': grid(4, 2, ['bolt_arcane', 'bolt_burst', 'wave_arc', 'ring_arc', 'spark_arc', 'hit_heavy', 'hit_crit', 'launch_arc'], [300, 280, 400, 384, 200, 300, 340, 300]),
+    'm2_sigils_v1.png': grid(3, 2, ['sig_bind', 'sig_clock', 'sig_drain', 'sig_star', 'sig_gold', 'sig_disk'], [420, 460, 420, 512, 360, 320], mode='box'),
+    'm3_ice.png': grid(4, 2, ['ice_spike', 'ice_cluster', None, 'ice_shatter', None, 'ice_ring', 'snowflake', 'ice_shards'], [300, 320, 0, 340, 0, 384, 200, 220]),
+    'm4_lightning.png': grid(4, 2, ['bolt_long', 'bolt_diag', 'bolt_branch', 'storm_orb', 'storm_disc', 'stun_ring', 'bolt_impact', 'bolt_arc'], [440, 360, 360, 220, 420, 200, 300, 320]),
+    'm6_pages_v1.png': grid(4, 2, ['page_1', 'page_2', 'page_3', 'page_4', 'page_group', 'book_open', 'book_ghost', 'book_giant'], [110, 110, 110, 100, 260, 300, 300, 420]),
+    'm7_time_v1.png': grid(4, 2, ['singularity', 'vortex_pull', 'implosion', 'clock_face', 'time_shards', 'time_ripple', 'star_fall', 'star_impact'], [340, 340, 380, 512, 340, 384, 340, 384]),
+    'm8_ward_blink.png': grid(4, 2, ['ward_dome', 'ward_break', 'blink_out', 'blink_in', 'aura_gold', 'buff_star', 'heal_motes', 'ghost_haze'], [340, 300, 300, 300, 380, 140, 220, 380], mode='box'),
+    'm9_paper_ice.png': grid(4, 2, ['crane_up', 'crane_down', 'crane_big', 'page_cocoon', 'paper_burst', 'paper_scraps', 'ice_block', 'frost_mist'], [150, 150, 260, 300, 300, 200, 300, 260]),
+    'm11_bolts_hand_runes.png': grid(4, 3, ['bolt_frost', 'bolt_storm', 'hand_open', 'hand_fist', 'shackles', 'time_blast', 'floor_frost', 'glow_streak', 'rune_cyan', 'rune_ice', 'rune_violet'], [300, 300, 300, 280, 300, 440, 384, 340, 110, 110, 110], mode='box')
+        + [('rune_gold', (1152, 683, 1336, 1024), 110, 'box'), ('rune_blue', (1336, 683, 1536, 1024), 110, 'box')],
+}
+PROFILES = {'samurai': (G + 'tools/skills/gpt/kit/', G + 'public/assets/final/skills/samurai/kit/', None),
+            'mage': (G + 'tools/skills/gpt/mage/', G + 'public/assets/final/skills/book_mage/kit/', MAGE_SHEETS)}
+
 MARGIN = 40           # how far past its box a piece may reach (its own glow)
 BODY_SLICES = 8       # the dragon body is also cut into this many frames along its length (the game chains them)
 
@@ -122,6 +151,10 @@ def pack(items):
 
 
 def main():
+    global SRC, OUT, SHEETS
+    prof = PROFILES[sys.argv[1] if len(sys.argv) > 1 else 'samurai']
+    SRC, OUT = prof[0], prof[1]
+    if prof[2]: SHEETS = prof[2]
     names, pieces = [], []
     for sheet, specs in SHEETS.items():
         pm, K = keyed(SRC + sheet)
