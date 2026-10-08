@@ -224,6 +224,8 @@ export class SkillFx {
   handPos?: (id: string) => { x: number; y: number } | null;
   /** Where a samurai's Kagemusha doubles stand (they swing with him), set by the scene. */
   ghosts?: (id: string) => { k: number; x: number; y: number; z: number }[];
+  /** Where a fighter or monster is now (a cast's locked-on target), set by the scene. */
+  targetPos?: (id: string) => V3 | null;
   /** A caster's body as drawn this moment (Phantom Blades' phantoms of him), set by the scene. */
   bodyOf?: (id: string) => { key: string; frame: string | number; flipX: boolean; ox: number; oy: number; sx: number; sy: number } | null;
   /** Local player's damage-number skin (cash shop). */
@@ -236,7 +238,7 @@ export class SkillFx {
     this.sam = new SamuraiFx({
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, hand: (id) => this.handPos?.(id) ?? null,
       callout: (at, text, color, row) => this.callout(at, text, color, row), punch: (a, ms) => this.punch(a, ms), darken: (ms, a) => this.darken(ms, a), ultimateStage: (r) => this.ultimateStage(r),
-      ghosts: (id) => this.ghosts?.(id) ?? [], body: (id) => this.bodyOf?.(id) ?? null,
+      ghosts: (id) => this.ghosts?.(id) ?? [], body: (id) => this.bodyOf?.(id) ?? null, targetPos: (id) => this.targetPos?.(id) ?? null,
     });
     rt.events.on(RT_EVENTS.cast, (r: CastRun) => this.onCast(r));
     rt.events.on(RT_EVENTS.active, (r: CastRun) => this.onActive(r));
@@ -1904,6 +1906,9 @@ export class SkillFx {
   kageBurst(at: V3): void { this.sam.kageBurst(at); }
   kageFade(at: V3): void { this.sam.kageFade(at); }
   kageFeint(at: V3, face: number, stage: number): void { this.sam.kageFeint(at, face, stage); }
+  /** A samurai's foe hits the floor / skids back: dust the colour of the ground. */
+  samLanding(x: number, y: number): void { this.sam.landing(x, y); }
+  samSkid(x: number, y: number): void { this.sam.skid(x, y); }
 
   /** The world darkens round the fight for `ms` (big skills). */
   darken(ms: number, alpha: number): void {

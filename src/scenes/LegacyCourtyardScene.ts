@@ -471,6 +471,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.fx.damageSkin = damageSkin(this.equipped.damage);
     this.fx.handPos = (id) => (id === this.localId ? this.lastHand : null);
     this.fx.ghosts = (id) => this.ghostsOf(id);
+    this.fx.targetPos = (id) => { const c = this.casterPos(id); if (c) return c; const t = this.targetsFor({ own: true, attackerId: this.localId } as CastRun).find((x) => x.id === id); return t ? { x: t.x, y: t.y, z: t.z } : null; };
     this.fx.bodyOf = (id) => {
       const sp = id === this.localId ? this.view?.sprite : id === BOT_ID ? this.bot?.view.sprite : this.pvp?.remotes.get(id)?.sprite;
       return sp ? { key: sp.texture.key, frame: sp.frame.name, flipX: sp.flipX, ox: sp.originX, oy: sp.originY, sx: Math.abs(sp.scaleX), sy: Math.abs(sp.scaleY) } : null;
@@ -1237,8 +1238,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     for (const e of [this.enemy, ...(this.world?.mobs ?? [])]) {
       if (!e?.alive) continue;
       const k = e.kin, sp = Math.hypot(k.vx, k.vy);
-      if (k.grounded && e.body.push && sp > 140 && this.skidT <= 0) { this.fx!.dust(k.x - (k.vx / sp) * 14, k.y - k.z, 46, 0.7, this.dustDepth(k)); this.skidT = 55; }
-      if (e.lastEv === 'kdImpact') { this.fx!.dust(k.x, k.y - k.z, 130, 0.95, this.dustDepth(k)); this.fx!.shockwave(k.x, k.y - k.z, 70, 0xd8c8a8); this.cameras.main.shake(90, 0.004); }
+      const sam = this.cls === 'samurai'; // (a samurai's foes: dust the colour of the ground, never a white flash)
+      if (k.grounded && e.body.push && sp > 140 && this.skidT <= 0) { if (sam) this.fx!.samSkid(k.x - (k.vx / sp) * 14, k.y); else this.fx!.dust(k.x - (k.vx / sp) * 14, k.y - k.z, 46, 0.7, this.dustDepth(k)); this.skidT = 55; }
+      if (e.lastEv === 'kdImpact') { if (sam) this.fx!.samLanding(k.x, k.y); else { this.fx!.dust(k.x, k.y - k.z, 130, 0.95, this.dustDepth(k)); this.fx!.shockwave(k.x, k.y - k.z, 70, 0xd8c8a8); } this.cameras.main.shake(90, 0.004); }
     }
   }
 
@@ -1309,7 +1311,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
           if (this.playerHP > before) this.fx!.healNumber({ x: this.kin.x, y: this.kin.y, z: this.kin.z }, this.playerHP - before);
           for (let n = 0; n < 1; n++) this.fx!.hpGlyph(this.kin.x + (Math.random() - 0.5) * 90, this.kin.y + (Math.random() - 0.5) * 30);
         }
-        const zr = { ...l.run, origin: { x: l.x, y: l.y, z: 0 } } as CastRun; // hits come from the zone, not the caster
+        const zr = { ...l.run, origin: { x: l.x, y: l.y, z: 0 }, zone: true } as CastRun; // hits come from the zone, not the caster
         for (const t of this.targetsFor(l.run)) {
           if (!t.alive || t.invulnerable || t.id === l.run.attackerId) continue;
           if (Math.hypot(t.x - l.x, t.y - l.y) > L.radius + t.radius || t.z > L.maxZ) continue;
@@ -2044,6 +2046,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     return out;
   }
 
+  /** Where a hit comes from (it pushes away from there, pulls toward there): the caster — or, for a samurai's rolling zone
+   *  or ring on the floor (Tornado Blade, Sakura Bind), its centre, so the foes are drawn into it, as it shows. */
+  private hitFrom(run: CastRun, hit: HitEvent): { x: number; y: number } {
+    if (run.skill.cls === 'samurai') {
+      if (run.zone) return run.origin;
+      if (hit.shape.kind === 'placed' && run.place) return run.place;
+    }
+    return this.casterPos(run.attackerId) ?? run.origin;
+  }
+
   private onSkillHit(run: CastRun, hit: HitEvent, hi: number, t: HitTarget, at: V3): void {
     if (t.id.startsWith('kage:')) { this.kageStruck(t.id); return; } // a Kagemusha double: the blow is wasted on it
     if (!run.own) { if (t.id === this.localId) this.applyRemoteHitToSelf(run, hit, hi, at); return; }
@@ -2067,7 +2079,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.damageDummy(out.damage);
       if (ch > 1 && out.damage > 0) this.chanceMark(t.id, at);
     } else if (t.id === 'enemy' && this.enemy?.alive) {
-      const en = this.enemy, from = this.casterPos(run.attackerId) ?? run.origin;
+      const en = this.enemy, from = this.hitFrom(run, hit);
       const counter = en.ai === 'attack' && en.body.state === 'free';
       const f = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[en.facing];
       const back = en.body.state === 'free' && (from.x - en.kin.x) * f[0] + (from.y - en.kin.y) * f[1] < -12;
@@ -2106,7 +2118,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     else if (t.id.startsWith('mob:')) {
       const m = this.mobById(t.id); if (!m?.alive) return;
-      const from = this.casterPos(run.attackerId) ?? run.origin;
+      const from = this.hitFrom(run, hit);
       const counter = m.ai === 'attack' && m.body.state === 'free';
       const back = m.body.state === 'free' && (from.x - m.kin.x) * (m.facing === 'left' ? -1 : 1) < -12;
       const own = run.attackerId === this.localId, ch = own ? this.chanceMul(m.body) : 1;
@@ -2219,7 +2231,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'AMBUSH!!', '#ff5a6a', 0);
       this.pvp?.remotes.get(run.attackerId)?.burstDoubles();
     }
-    const out = this.body.receive(run.attackerId, s, h, this.casterPos(run.attackerId) ?? run.origin, this.simMs);
+    const out = this.body.receive(run.attackerId, s, h, this.hitFrom(run, hit), this.simMs);
     out.damage = this.takeDamage(out.damage);
     if (trial && out.damage > 0) this.hitBlinkUntil = this.simMs + HIT_IFRAMES;
     if (run.attackerId === BOT_ID) this.logHit(false, s, out, this.body, this.kin.z);
@@ -2567,7 +2579,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!b || b.defeated || (this.match?.active && !this.match.live)) return;
     const chB = run.attackerId === this.localId ? this.chanceMul(b.body) : 1;
     const m = run.attackerId === this.localId ? this.ownDamageMul() * chB : 1, h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
-    const out = b.receive(run.attackerId, run.skill, h, this.casterPos(run.attackerId) ?? run.origin, this.simMs);
+    const out = b.receive(run.attackerId, run.skill, h, this.hitFrom(run, h), this.simMs);
     this.logHit(true, run.skill, out, b.body, b.kin.z);
     if (chB > 1 && out.damage > 0) this.chanceMark(BOT_ID, at);
     if (b.refilled) this.fx!.healNumber({ x: b.x, y: b.y, z: b.z }, b.refilled);

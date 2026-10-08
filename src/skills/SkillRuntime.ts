@@ -54,6 +54,8 @@ export interface CastRun extends CastRequest {
   chargeLevel?: number;
   /** Own hold-to-charge run: the release was sent / taken. */
   chargeDone?: boolean;
+  /** A lingering zone's hit (its origin is the zone's centre, not the caster). */
+  zone?: boolean;
 }
 
 export interface Trap { run: CastRun; hit: HitEvent; x: number; y: number; until: number; radius: number; fuseAt?: number }
