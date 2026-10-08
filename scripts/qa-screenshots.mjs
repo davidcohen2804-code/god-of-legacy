@@ -30,7 +30,9 @@ for (const [w, h] of [[1920, 1080], [1280, 720]]) {
   await click(960, 910); await shot(p, '04_exit_confirm', w);
   await click(1066, 595); await W(p, 1200); await shot(p, '05_exit_web_message', w);
   await p.keyboard.press('Escape'); await W(p, 500);
-  await click(960, 690); await p.waitForSelector('.gol-ps'); await W(p, 3500); await shot(p, '05b_pvp_select', w); // PvP ARENA: the fighter select
+  await click(960, 690); await p.waitForSelector('.gol-ps'); await W(p, 1500);
+  await p.waitForFunction(() => { const s = window.__game?.scene.getScene('PvpSelectScene'); return !!s?.arts && s.arts.l.enter >= 1 && !s.cameras.main.fadeEffect.isRunning; }, null, { timeout: 60000 }).catch(() => {}); // (software GL draws the living fighters slowly: wait until yours has come in)
+  await W(p, 800); await shot(p, '05b_pvp_select', w); // PvP ARENA: the fighter select
   await p.keyboard.press('Escape'); await p.waitForFunction(() => window.__game?.scene.isActive('MainMenuScene'), null, { timeout: 30000 }); await W(p, 1200);
   await click(960, 585); await p.waitForSelector('.gol-cs .slot'); await W(p, 700); await shot(p, '06_character_select', w);
   await p.click('.gol-cs .slot >> nth=1'); await p.mouse.move(1000 * k, 500 * k); await W(p, 500); await shot(p, '07_slot_selected', w);

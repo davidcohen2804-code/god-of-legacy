@@ -1,12 +1,14 @@
 // PvP fighter select (Tekken style): the roster of fighters along the bottom, your fighter large on the left, the opponent
 // on the right. VS CPU: pick yours, then pick the one you fight. VS PLAYER: an invite link; the other player picks on their
 // own screen and each sees the other's cursor and choice as it happens. Both locked in: GET READY — then the arena.
-// DOM overlay (1920x1080 design px, scaled to the canvas by syncOverlay).
+// DOM overlay (1920x1080 design px, scaled to the canvas by syncOverlay); the two big fighters are drawn by the scene
+// (FighterArt, under this overlay), told what to show through the handlers.
 import '@fontsource/cinzel/900.css';
 import { CLASS_NAMES } from '../config/layout';
 import { ROSTER, fighterFor, heroCard } from '../pvp/Fighters';
 import { BOT_NAMES } from '../pvp/SparringBot';
 import { syncOverlay } from './CharacterSelectUI';
+import type { ArtState } from './FighterArt';
 import { ensureTheme } from './theme';
 
 export type VsMode = 'cpu' | 'player';
@@ -20,6 +22,10 @@ export interface PvpSelectHandlers {
   /** Both locked in (after GET READY). */
   start(p1: string, p2: string, mode: VsMode): void;
   copyLink(): Promise<boolean>;
+  /** A side's big fighter: which hero (null: none) and how it stands. */
+  art(side: 'l' | 'r', cls: string | null, state: ArtState): void;
+  /** A side's fighter was just locked in (the flash). */
+  lock(side: 'l' | 'r'): void;
 }
 
 const STYLE_ID = 'gol-ps-style';
@@ -31,26 +37,6 @@ const STEEL = 'linear-gradient(180deg,#ffffff 0%,#e8f2ff 24%,#9fc4ef 47%,#2a4c82
 
 const CSS = `
 .gol-ps{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;overflow:hidden;pointer-events:auto;font-family:var(--gl-body);color:#f3e3bd;user-select:none}
-.gol-ps .ps-wash{position:absolute;inset:0;pointer-events:none;
-  background:radial-gradient(ellipse 760px 900px at 380px 640px,rgba(214,92,40,.34),rgba(214,92,40,0) 70%),
-    radial-gradient(ellipse 760px 900px at 1540px 640px,rgba(56,128,232,.32),rgba(56,128,232,0) 70%),
-    linear-gradient(180deg,rgba(3,5,10,.66) 0%,rgba(3,5,10,.28) 30%,rgba(3,5,10,.38) 62%,rgba(3,5,10,.9) 100%)}
-.gol-ps .ps-art{position:absolute;bottom:-10px;width:760px;height:960px;pointer-events:none;display:flex;align-items:flex-end;justify-content:center}
-.gol-ps .ps-art.l{left:20px}
-.gol-ps .ps-art.r{right:20px}
-.gol-ps .ps-art img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 16px 26px rgba(0,0,0,.7));transition:filter .2s}
-.gol-ps .ps-art.r img{transform:scaleX(-1)}
-.gol-ps .ps-art.in img{animation:psIn .26s cubic-bezier(.2,.8,.3,1) both}
-.gol-ps .ps-art.r.in img{animation-name:psInR}
-@keyframes psIn{0%{opacity:0;transform:translateX(-46px)}100%{opacity:1;transform:none}}
-@keyframes psInR{0%{opacity:0;transform:scaleX(-1) translateX(-46px)}100%{opacity:1;transform:scaleX(-1)}}
-.gol-ps .ps-art.dim img{filter:brightness(.55) saturate(.7) drop-shadow(0 16px 26px rgba(0,0,0,.7))}
-.gol-ps .ps-art.shade{opacity:.42}
-.gol-ps .ps-art.shade img{filter:brightness(0) drop-shadow(0 0 3px rgba(120,170,255,.8))}
-.gol-ps .ps-art.lock img{animation:psLock .5s ease-out both}
-.gol-ps .ps-art.r.lock img{animation-name:psLockR}
-@keyframes psLock{0%{filter:brightness(2.6) drop-shadow(0 0 30px #fff)}100%{filter:brightness(1) drop-shadow(0 16px 26px rgba(0,0,0,.7))}}
-@keyframes psLockR{0%{filter:brightness(2.6) drop-shadow(0 0 30px #fff);transform:scaleX(-1)}100%{filter:brightness(1) drop-shadow(0 16px 26px rgba(0,0,0,.7));transform:scaleX(-1)}}
 /* metal lettering (as the arena's calls) */
 .gol-ps .ps-w{position:relative;display:inline-block;isolation:isolate;white-space:nowrap;font-family:${TITLE};font-weight:900;line-height:1.1;letter-spacing:.05em;padding:0 .1em}
 .gol-ps .ps-w .ps-f{color:transparent;background-image:var(--g);-webkit-background-clip:text;background-clip:text}
@@ -131,7 +117,6 @@ export class PvpSelectUI {
   private readonly root: HTMLDivElement;
   private readonly tabs: Record<VsMode, HTMLButtonElement>;
   private readonly score: Record<'w' | 'd' | 'l', HTMLElement>;
-  private readonly art: Record<'l' | 'r', { box: HTMLDivElement; img: HTMLImageElement; cls: string }>;
   private readonly plate: Record<'l' | 'r', { side: HTMLElement; tag: HTMLElement; cls: HTMLElement; nm: HTMLElement; box: HTMLElement }>;
   private readonly tiles: HTMLDivElement[] = [];
   private readonly cur: Record<'p1' | 'p2', HTMLDivElement>;
@@ -159,9 +144,6 @@ export class PvpSelectUI {
     this.p1 = { hover: at(init.p1, 1), pick: null };
     this.p2 = { hover: at(init.p2, 0), pick: null };
     const root = this.root = this.el('div', 'gol-ps', host);
-    this.el('div', 'ps-wash', root);
-    const mkArt = (s: 'l' | 'r') => { const box = this.el('div', `ps-art ${s}`, root); const img = this.el('img', '', box) as HTMLImageElement; img.alt = ''; img.draggable = false; return { box, img, cls: '' }; };
-    this.art = { l: mkArt('l'), r: mkArt('r') };
     const sc = this.el('div', 'ps-score', root);
     const box = (c: string, label: string) => { const d = this.el('div', c, sc); const n = this.el('b', '', d); n.textContent = '0'; this.el('small', '', d).textContent = label; return n; };
     this.score = { w: box('w1', 'WINS'), d: box('dr', 'DRAWS'), l: box('w2', 'WINS') };
@@ -349,21 +331,9 @@ export class PvpSelectUI {
     for (const t of this.tiles) t.classList.toggle('off', this.going);
   }
 
-  private showArt(s: 'l' | 'r', cls: string | null, state: 'live' | 'shade' | ''): void {
-    const a = this.art[s];
-    a.box.style.display = cls ? '' : 'none';
-    if (!cls) { a.cls = ''; return; }
-    if (a.cls !== cls) {
-      a.cls = cls;
-      const hc = heroCard(cls);
-      if (hc) a.img.src = hc.file;
-      a.box.classList.remove('in', 'lock'); void a.box.offsetWidth; a.box.classList.add('in');
-    }
-    a.box.classList.toggle('shade', state === 'shade');
-    a.box.classList.toggle('dim', false);
-  }
+  private showArt(s: 'l' | 'r', cls: string | null, state: 'live' | 'shade' | ''): void { this.h.art(s, cls, state === '' ? 'locked' : state); }
 
-  private flashArt(s: 'l' | 'r'): void { const b = this.art[s].box; b.classList.remove('lock', 'in'); void b.offsetWidth; b.classList.add('lock'); }
+  private flashArt(s: 'l' | 'r'): void { this.h.lock(s); }
 
   private fillPlate(s: 'l' | 'r', side: string, tag: string, cls: string, name: string, locked: boolean): void {
     const p = this.plate[s];
