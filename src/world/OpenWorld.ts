@@ -6,6 +6,7 @@
 import Phaser from 'phaser';
 import PROPS from '../data/world-props.json';
 import NPC_ART from '../data/npc-sprites.json';
+import { BANNERS_KEY, BANNERS_URL, WorldBanners } from './Banners';
 import { ARENA, ARENA_AREA, GATE, ARENA_MINIMAP_URL, AREA_H, AREA_W, AreaDef, arenaTileKey, arenaTileUrl, belowTerrace, AreaNpc, BACKDROP, MINIMAP_URL, MOB_KINDS, ROW, START, TILES, TOWERS, HEIGHTS, heightArea, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
 import { WorldObject, actorDepth, setWorldGeometry } from './WorldGeometry';
 import { Backdrop, preloadBackdrop } from './Backdrop';
@@ -48,6 +49,7 @@ export function preloadOpenWorld(scene: Phaser.Scene): void {
   // the world around the start comes with the scene; the rest streams in right after
   for (const i of tilesNear(toWorld(START.area, [START.x, START.y]).x, AREA_W * 1.5)) L(tileKey(i), tileUrl(i));
   ARENA.tiles.forEach((_, i) => L(arenaTileKey(i), arenaTileUrl(i)));
+  L(BANNERS_KEY, BANNERS_URL);
   L('world-gate-back', 'assets/world/gate/back.png'); L('world-gate-front', 'assets/world/gate/front.png');
   for (const id of Object.keys(CUTS)) L(`prop-${id}`, `assets/world/props/${id}.png`);
   for (const [name, a] of Object.entries(ART)) if (!scene.textures.exists(`npc-${name}`)) scene.load.spritesheet(`npc-${name}`, `assets/world/npc/${name}.png`, { frameWidth: a.w, frameHeight: a.h });
@@ -78,6 +80,7 @@ export class OpenWorld {
   private towers: Phaser.GameObjects.Image[] = [];
   private below: Phaser.GameObjects.Image[] = [];
   private puffs: Phaser.GameObjects.Image[] = [];
+  private banners?: WorldBanners;
   private gate: Phaser.GameObjects.Image[] = [];
   private npcs: NpcView[] = [];
   private prompt: Phaser.GameObjects.Container;
@@ -101,7 +104,8 @@ export class OpenWorld {
     ARENA.tiles.forEach((_, i) => this.ensureArenaTile(i));
     scene.load.on(Phaser.Loader.Events.FILE_COMPLETE, this.onFile, this);
     if (!scene.load.isLoading()) scene.load.start();
-    this.buildOccluders(); this.buildTowers(); this.buildHeights(); this.buildGate(); this.buildNpcs(); this.buildPortal(); this.spawnMobs();
+    this.buildOccluders(); this.buildTowers(); this.buildHeights(); this.buildGate(); this.buildNpcs();
+    this.banners = new WorldBanners(scene, (l) => (l === 'strip' ? -0.999 : l === 'gate' ? GATE.front.depth + 0.001 : (HEIGHTS.find((h) => `heights:${h.id}` === l)?.depth ?? -1.2) + 0.001)); this.buildPortal(); this.spawnMobs();
     if (BACKDROP) this.backdrop = new Backdrop(scene);
     const cam = scene.cameras.main;
     this.baseZoom = cam.zoom;
@@ -445,6 +449,7 @@ export class OpenWorld {
     for (const p of this.puffs) { const ph = p.getData('ph') as number; p.x = (p.getData('x0') as number) + Math.sin(this.t / 7000 + ph) * 60; }
     this.follow(player.x, player.y, ms, false, player.supportZ ?? 0, player.absZ ?? 0, player.grounded ?? true);
     this.ambience.update(ms);
+    this.banners?.update(this.t, this.scene.cameras.main.worldView, this.gate[1]?.alpha ?? 1);
     this.backdrop?.update(ms);
     // the area you are in (by where you stand on the strip; a little past the line, so it never flickers)
     const up = [...HEIGHTS].sort((a, b) => b.H - a.H).find((h) => (player.supportZ ?? 0) >= h.H - 1 && player.x >= h.x && player.x <= h.x + h.w && player.y <= h.front + 2);
@@ -521,6 +526,7 @@ export class OpenWorld {
     for (const o of this.towers) o.destroy(); this.towers = [];
     for (const o of this.below) o.destroy(); this.below = []; this.puffs = [];
     for (const g of this.gate) g.destroy(); this.gate = [];
+    this.banners?.destroy(); this.banners = undefined;
     for (const n of this.npcs) { n.sprite.destroy(); n.shadow.destroy(); n.plate.destroy(); n.name.destroy(); n.title.destroy(); n.mark.destroy(); }
     if (this.portal) { this.portal.beam.destroy(); this.portal.ring.destroy(); this.portal.glow.destroy(); this.portal.motes.destroy(); }
     this.prompt.destroy();
