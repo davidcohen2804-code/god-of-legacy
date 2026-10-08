@@ -39,7 +39,7 @@ const CSS = `
 `;
 
 export interface StatsView {
-  name: string; job: string; level: number; stats: Stats; ap: number; main: StatKey; canReset: boolean;
+  name: string; job: string; level: number; expPct?: number; stats: Stats; ap: number; main: StatKey; canReset: boolean;
   combat: [string, string, boolean?][];   // label, value, raised by a buff now
 }
 export interface StatsHandlers { add: (k: StatKey) => void; sub: (k: StatKey) => void; auto: () => void; reset: () => void; onOpen: (open: boolean) => void }
@@ -47,6 +47,7 @@ export interface StatsHandlers { add: (k: StatKey) => void; sub: (k: StatKey) =>
 export class StatsWindow {
   private root: HTMLDivElement;
   private hdW!: HTMLDivElement; private combat!: HTMLDivElement; private apV!: HTMLElement; private rows = new Map<StatKey, { el: HTMLDivElement; v: HTMLElement; b: HTMLButtonElement; m: HTMLButtonElement }>();
+  private defTip = '';
   private autoB!: HTMLButtonElement; private resetB!: HTMLButtonElement; private tip!: HTMLDivElement;
   private onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape' && this.isOpen) { e.preventDefault(); e.stopPropagation(); this.close(); } };
 
@@ -66,16 +67,16 @@ export class StatsWindow {
       const v = this.el('div', 'v', r);
       const m = this.el('button', 'minus', r) as HTMLButtonElement; m.type = 'button'; m.setAttribute('aria-label', `Take a point from ${STAT_NAMES[k]}`); m.addEventListener('click', () => this.h.sub(k));
       const b = this.el('button', '', r) as HTMLButtonElement; b.type = 'button'; b.setAttribute('aria-label', `Add a point to ${STAT_NAMES[k]}`); b.addEventListener('click', () => this.h.add(k));
-      r.addEventListener('mouseenter', () => { this.tip.textContent = STAT_INFO[k]; }); r.addEventListener('mouseleave', () => { this.tip.textContent = ''; });
+      r.addEventListener('mouseenter', () => { this.tip.dataset.hover = '1'; this.tip.textContent = STAT_INFO[k]; }); r.addEventListener('mouseleave', () => { this.tip.dataset.hover = '0'; this.tip.textContent = this.defTip; });
       this.rows.set(k, { el: r, v, b, m });
     }
     this.tip = this.el('div', 'tip', right) as HTMLDivElement;
     const act = this.el('div', 'act', right);
     this.autoB = this.el('button', 'gl-btn pri', act) as HTMLButtonElement; this.autoB.type = 'button'; this.autoB.textContent = 'Auto'; this.autoB.addEventListener('click', () => this.h.auto());
-    this.autoB.addEventListener('mouseenter', () => { this.tip.textContent = 'Place every free AP into your job\'s stats.'; });
+    this.autoB.addEventListener('mouseenter', () => { this.tip.dataset.hover = '1'; this.tip.textContent = 'Place every free AP into your job\'s stats.'; });
     this.resetB = this.el('button', 'gl-btn', act) as HTMLButtonElement; this.resetB.type = 'button'; this.resetB.textContent = 'Reset'; this.resetB.addEventListener('click', () => this.h.reset());
-    this.resetB.addEventListener('mouseenter', () => { this.tip.textContent = 'Take every point back to place them again.'; });
-    for (const b of [this.autoB, this.resetB]) b.addEventListener('mouseleave', () => { this.tip.textContent = ''; });
+    this.resetB.addEventListener('mouseenter', () => { this.tip.dataset.hover = '1'; this.tip.textContent = 'Take every point back to place them again.'; });
+    for (const b of [this.autoB, this.resetB]) b.addEventListener('mouseleave', () => { this.tip.dataset.hover = '0'; this.tip.textContent = this.defTip; });
     parent.appendChild(this.root);
   }
 
@@ -88,13 +89,16 @@ export class StatsWindow {
   destroy(): void { window.removeEventListener('keydown', this.onEsc, true); this.root.remove(); }
 
   render(v: StatsView): void {
-    this.hdW.innerHTML = ''; const n = document.createElement('b'); n.textContent = v.name; this.hdW.append(n, ` · ${v.job} · Lv ${v.level}`);
+    this.hdW.innerHTML = ''; const n = document.createElement('b'); n.textContent = v.name; this.hdW.append(n, ` · ${v.job} · Lv ${v.level}${v.expPct !== undefined ? ` · EXP ${v.expPct.toFixed(2)}%` : ''}`);
     this.combat.textContent = '';
     for (const [label, value, up] of v.combat) {
       const r = this.el('div', 'row', this.combat); this.el('span', '', r).textContent = label; const b = this.el('b', up ? 'up' : '', r); b.textContent = value;
     }
     this.apV.textContent = String(v.ap);
     for (const [k, r] of this.rows) { r.v.textContent = String(v.stats[k]); r.b.disabled = v.ap <= 0; r.m.disabled = v.stats[k] <= BASE_STAT; r.el.classList.toggle('main', k === v.main); }
+    const hov = this.tip.dataset.hover === '1';
+    this.defTip = v.ap > 0 ? `★ ${v.main.toUpperCase()} is your job's main stat. You have ${v.ap} AP to place.` : `★ ${v.main.toUpperCase()} is your job's main stat. Every level up gives 5 AP.`;
+    if (!hov) this.tip.textContent = this.defTip;
     this.autoB.disabled = v.ap <= 0; this.resetB.disabled = !v.canReset;
   }
 }

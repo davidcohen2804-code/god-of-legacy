@@ -19,6 +19,8 @@ import { isQAMode } from '../qa/QAPanel';
 import { keyLabel, loadBindings } from '../game/KeyBindings';
 import { GEAR, GearItem, GearSlot, GearState, SLOT_NAMES, WornLook, bagItems, gearStats, itemName, starterGear, takeOff, wear, wornItem, wornLook } from '../items/Gear';
 import { ICONS, IconName, ensureTheme } from './theme';
+import { hasJob } from '../skills/Jobs';
+import { POTIONS, POTION_IDS, PotionId } from '../game/Loot';
 
 type Tab = 'inventory' | 'shop';
 type InvCat = 'equipped' | 'owned' | 'sets' | 'fashion' | 'weapon' | 'headface' | 'back' | 'aura';
@@ -115,7 +117,8 @@ const CSS = `
 .gol-cp .tb button:hover{background:rgba(255,255,255,.08);color:var(--gl-text)}
 .gol-cp .bag{display:grid;grid-template-columns:repeat(8,${SLOT}px);gap:${GAP}px}
 .gol-cp .bag.wide{grid-template-columns:repeat(12,${SLOT}px);justify-content:center}
-.gol-cp .sl.it{cursor:pointer}
+.gol-cp .sl.it{cursor:pointer;position:relative}
+.gol-cp .sl .cnt{position:absolute;right:6px;bottom:3px;font:700 13px/16px var(--gl-body);font-style:normal;color:#fff;text-shadow:0 1px 2px #000,0 0 4px #000;font-variant-numeric:tabular-nums}
 .gol-cp .sl.it:hover{border-color:rgba(231,196,124,.55);transform:translateY(-2px)}
 .gol-cp .soonhint{margin-top:22px;text-align:center;font:500 14.5px var(--gl-body);color:var(--gl-text2)}
 /* cosmetics (inventory) */
@@ -261,6 +264,7 @@ export class CosmeticPanel {
   private content!: HTMLDivElement;
   private tip!: HTMLDivElement;
   private invHint!: HTMLDivElement;
+  private goldEl?: HTMLElement;
   private shopCat: ShopCat = 'all';
   private selected: string | null = null;
   private tryOn: Equipped = {};
@@ -377,7 +381,7 @@ export class CosmeticPanel {
 
   private buildInventory(): HTMLDivElement {
     const bg = this.windowFrame();
-    this.header(bg, 'INVENTORY', `${this.character.name} · ${CLASS_NAMES[this.cls] ?? this.cls}`, 'Cosmetic Shop', 'shop');
+    this.header(bg, 'INVENTORY', `${this.character.name} · ${hasJob(this.character) ? CLASS_NAMES[this.cls] ?? this.cls : 'Beginner'}`, 'Cosmetic Shop', 'shop');
     this.stateBar(bg, () => this.invPrev);
     const tabs = this.el('div', 'tabsrow gl-tabs', bg);
     for (const [t, label] of MAIN_TABS) {
@@ -387,7 +391,7 @@ export class CosmeticPanel {
     }
     this.content = this.el('div', 'ct gl-sec', bg);
     const foot = this.el('div', 'foot', bg);
-    for (const [name, cls] of [['Gold', 'gl-coin'], ['Gems', 'gl-gem']]) { const c = this.el('div', 'curr', foot); this.el('i', cls, c); this.el('span', '', c, name); this.el('b', '', c, '0'); }
+    for (const [name, cls] of [['Gold', 'gl-coin'], ['Gems', 'gl-gem']]) { const c = this.el('div', 'curr', foot); this.el('i', cls, c); this.el('span', '', c, name); const v = this.el('b', '', c, '0'); if (name === 'Gold') this.goldEl = v; }
     this.invHint = this.el('div', 'hint', foot);
     this.tip = this.el('div', 'tip gl-tip', bg);
     return bg;
@@ -446,6 +450,17 @@ export class CosmeticPanel {
     }
     const wrap = this.el('div', 'bagwrap', c); wrap.style.left = '24px';
     const top = this.el('div', 'bagtop', wrap); this.el('span', 'gl-cap', top, MAIN_TABS.find(([t]) => t === this.mainTab)?.[1] ?? ''); this.toolbar(top);
+    if (this.mainTab === 'items') {
+      const grid = this.el('div', 'bag wide', wrap), bag = this.character.bag ?? {};
+      const have: PotionId[] = POTION_IDS.filter((id) => (bag[id] ?? 0) > 0);
+      for (let i = 0; i < 48; i++) {
+        const cell = this.el('div', 'sl gl-slot', grid), id = have[i]; if (!id) continue;
+        const p = POTIONS[id]; cell.classList.add('it'); const im = this.el('img', '', cell); im.src = p.icon; im.alt = '';
+        this.el('em', 'cnt', cell, String(bag[id])); cell.title = `${p.name} ×${bag[id]} — restores ${Math.round(p.share * 100)}% ${p.stat.toUpperCase()}`;
+      }
+      this.invHint.textContent = 'Potions are used from their hotkeys next to the skill bar';
+      return;
+    }
     this.slotGrid(wrap, 48);
     const msg = { items: 'Potions, buffs and other items you use will be kept here.', materials: 'Upgrade stones, ores and monster drops will be kept here.', key: 'Quest items, keys and tokens will be kept here.' }[this.mainTab];
     this.el('div', 'soonhint', wrap, msg);
@@ -522,6 +537,7 @@ export class CosmeticPanel {
   // ------------------------------------------------------------------ content
 
   private refresh(): void {
+    if (this.goldEl) this.goldEl.textContent = (this.character.gold ?? 0).toLocaleString('en-US');
     const e = this.getEquipped(), w = wornLook(this.gear);
     this.invPrev.setEquipped(e); this.invPrev.setGear(w);
     this.shopPrev.setEquipped({ ...e, ...this.tryOn }); this.shopPrev.setGear(w);

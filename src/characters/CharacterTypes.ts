@@ -33,6 +33,10 @@ export interface Character {
   trial?: string;
   /** STR / DEX / INT / LUK as placed (src/game/Stats.ts); absent = the base values. */
   stats?: { str: number; dex: number; int: number; luk: number };
+  /** Gold carried (src/game/Loot.ts). */
+  gold?: number;
+  /** Potions carried, by id (absent: the starter potions). */
+  bag?: Record<string, number>;
 }
 
 export interface QuestState { state: 'active' | 'done'; progress: number[] }

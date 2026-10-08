@@ -35,6 +35,12 @@ export interface HudState {
     /** Progress to the next level; omitted => the EXP bar shows empty. */
     exp?: { value: number; max: number };
     effects: HudEffect[];
+    /** Job name under / beside the name. */
+    job?: string;
+    /** Gold carried (PvE). */
+    gold?: number;
+    /** HP / MP potion hotkeys (PvE). */
+    potions?: { id: string; name: string; iconUrl: string; count: number; hotkey: string }[];
   };
   /** null => target panel hidden. */
   target: null | { id: string; name: string; type: string; portrait?: PortraitRef; hp: number; maxHp: number; effects: HudEffect[];

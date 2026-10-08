@@ -43,6 +43,7 @@ import { NetMsg, PeerMeta } from '../pvp/Transport';
 import { genderOf, headLookOf, previewKeyOf } from '../characters/Look';
 import { buildLook, preloadLooks } from '../characters/LookArt';
 import { BOT_ID, BOT_NAME, BOT_NAMES, SparringBot } from '../pvp/SparringBot';
+import { GOLD_BIG, GOLD_ICON, GOLD_MAX, BAG_MAX, POTIONS, POTION_DELAY, POTION_IDS, PotionId, STARTER_BAG, cleanBag, fmtGold, rollDrops } from '../game/Loot';
 import { AP_PER_LEVEL, BASE_STAT, STAT_KEYS, Derived, StatKey, Stats, autoAssign, baseStats, cleanStats, derive, freeAp, mainStats } from '../game/Stats';
 import { StatsWindow } from '../ui/StatsWindow';
 import { ARENA as PLAZA, AREAS as WORLD_AREAS } from '../world/Areas';
@@ -88,6 +89,8 @@ const MP_FREE = true;
 const MP_REGEN = 0.03, MP_ARENA = 220;
 const MP_CLASS: Record<string, number> = { warrior: 0.8, samurai: 0.9, archer: 1, book_mage: 1.6 };
 /** A skill's MP: none for the regular attack and passives / buffs' own cost by cooldown (the big ones cost more). */
+interface LootDrop { kind: 'gold' | 'item'; id?: PotionId; amount: number; img: Phaser.GameObjects.Image; sh: Phaser.GameObjects.Ellipse;
+  x: number; y: number; z: number; vx: number; vz: number; landed: boolean; born: number; taken: number; done?: boolean }
 const mpCost = (s: FinalSkill): number => (s.slot === 0 ? 0 : Math.min(60, Math.round(6 + (s.cooldown / 1000) * 2.2)));
 /** The slash-trail art (radiant_blade/slash_trail.jpg, 288 cells): its arc's circle (centre as a fraction of the cell, radius px) and the angle of its bright head (deg, y down). */
 const SLASH = { cx: 189 / 288, cy: 81 / 288, r: 122, head: 190 };
@@ -287,6 +290,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Iron Grip: the monster held in the fist between the seize and the slam. */
   private gripFoe: Monster | null = null;
   private motes?: Phaser.GameObjects.Container;
+  /** Gold and potions carried; drops lying on the floor. */
+  gold = 0;
+  bag: Record<PotionId, number> = { ...STARTER_BAG };
+  private potionAt = [-Infinity, -Infinity];
+  private drops: LootDrop[] = [];
   private bindings: Record<BindAction, string> = loadBindings();
 
   constructor() { super('LegacyCourtyardScene'); }
@@ -316,6 +324,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     preloadCosmetics(this, classes && me ? [...new Set([...classes, me.classId])] : classes); // a Beginner still owns its class's items
     preloadPanelArt(this);
     preloadLife(this);
+    for (const [k, f] of [['loot.red_potion', POTIONS.red_potion.icon], ['loot.blue_potion', POTIONS.blue_potion.icon], ['loot.gold_small', GOLD_ICON.small], ['loot.gold_big', GOLD_ICON.big]]) if (!this.textures.exists(k)) this.load.image(k, f);
     for (let n = 0; n < EMOTES; n++) if (!this.textures.exists(`kit.emote_${n}`)) this.load.image(`kit.emote_${n}`, `assets/final/ui/kit/emote_${n}.png`);
     showLoading(this, pvp ? 'PVP ARENA' : 'GOD OF LEGACY');
   }
@@ -337,6 +346,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.cls = playedClass(character) as ClassKey;
     this.stats = cleanStats(character.stats, character.level); this.statD = derive(this.stats, this.cls, character.level);
     this.kit = kitFor(this.cls);
+    this.gold = character.gold ?? 0; this.bag = cleanBag(character.bag ?? STARTER_BAG); this.potionAt = [-Infinity, -Infinity]; this.drops = [];
     this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.hitBlinkUntil = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
     this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
@@ -429,7 +439,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (isQAMode()) (window as unknown as { __combatQA: unknown }).__combatQA = { finalSkill, kitFor, WORLD_OBJECTS, footAllowed, placementOk };
 
     this.bindings = loadBindings();
-    this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), this.bindings, () => this.onTalk());
+    this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), this.bindings, () => this.onTalk(), (i) => this.usePotion(i));
     const stop = () => { this.ci?.reset(); };
     this.game.events.on(Phaser.Core.Events.BLUR, stop);
     this.game.events.on(Phaser.Core.Events.HIDDEN, stop);
@@ -439,6 +449,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       returnLabel: pvpRoom ? PVP.hud.exitText : 'BACK TO CHARACTERS',
       onReturn: pvpRoom ? exitArena : () => this.scene.start('CharacterSelectScene'),
       onSlot: (i) => this.useSlot(i),
+      onPotion: (i) => this.usePotion(i),
       onMenu: (k) => this.togglePanel(k),
       onKeys: () => { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.keySettings?.open(loadBindings()); },
     });
@@ -557,7 +568,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const now = this.simMs;
     this.ci.update(now);
     this.stepPlayer(ms, now);
-    if (this.world) this.stepMonsters(ms, now);
+    if (this.world) { this.stepMonsters(ms, now); this.stepLoot(ms, now); }
     this.rt.update(ms);
     this.stepLingers(now);
     this.stepStorm();
@@ -810,6 +821,70 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.hud.setPassives(passivesFor(this.cls).map((p) => ({ id: p.id, name: p.name, iconUrl: passiveIconUrl(p), owned: open && own.has(p.id), info: p.effects.join(' · ') })));
   }
 
+  // ======================================================================= loot (gold, potions)
+
+  /** A defeated monster's drops pop out of it and land around where it fell. */
+  private dropLoot(m: Monster): void {
+    if (this.arena || !this.character) return;
+    const list = rollDrops(m.kind.exp ?? Math.round(m.kind.hp / 5));
+    list.forEach((d, i) => {
+      const key = d.kind === 'gold' ? (d.amount >= GOLD_BIG ? 'loot.gold_big' : 'loot.gold_small') : `loot.${d.id}`;
+      const spread = (i - (list.length - 1) / 2) * 34 + (Math.random() - 0.5) * 14;
+      const x = m.kin.x, y = m.kin.y + (Math.random() - 0.5) * 10;
+      const sz = d.kind === 'gold' ? (d.amount >= GOLD_BIG ? 50 : 36) : 38, img = this.add.image(x, y, key).setOrigin(0.5, 0.9).setDisplaySize(sz, sz);
+      const sh = this.add.ellipse(x, y, 24, 7, 0x000000, 0.3);
+      this.drops.push({ ...d, img, sh, x, y, z: Math.max(10, m.kin.z + 30), vx: spread * 2.2 + (Math.random() - 0.5) * 140, vz: 330, landed: false, born: this.simMs, taken: -1 });
+    });
+  }
+
+  /** Drops fall, bob on the floor, get picked up when walked over (a short flight into you), fade after a minute. */
+  private stepLoot(ms: number, now: number): void {
+    const k = this.kin, dt = ms / 1000, alive = this.dead < 0;
+    for (const d of this.drops) {
+      if (d.taken >= 0) {
+        const t = Math.min(1, (now - d.taken) / 160);
+        d.x += (k.x - d.x) * t; d.y += (k.y - d.y) * t; d.z += (k.z + 40 - d.z) * t;
+        d.img.setAlpha(1 - t); d.sh.setAlpha(0);
+        if (t >= 1) d.done = true;
+      } else if (!d.landed) {
+        d.vz -= 1200 * dt; d.z += d.vz * dt; d.x += d.vx * dt;
+        if (!footAllowed(d.x, d.y, 0, 8)) { d.x -= d.vx * dt; d.vx = 0; }
+        if (d.z <= 0 && d.vz < 0) { d.z = 0; d.landed = true; }
+      } else {
+        const age = now - d.born;
+        d.z = 3 + Math.sin(age / 260) * 3;
+        if (age > 60_000) { d.img.setAlpha(Math.max(0, 1 - (age - 60_000) / 3000)); if (age > 63_000) d.done = true; }
+        if (alive && age > 450 && Math.abs(d.x - k.x) < 38 && Math.abs(d.y - k.y) < 22 && k.z - k.supportZ < 50) this.takeDrop(d, now);
+      }
+      d.img.setPosition(d.x, d.y - d.z).setDepth(actorDepth(d.x, d.y, d.z) - 0.2);
+      d.sh.setPosition(d.x, d.y - 1).setDepth(actorDepth(d.x, d.y, 0) - 0.6).setScale(Math.max(0.5, 1 - d.z / 120));
+    }
+    if (this.drops.some((d) => d.done)) this.drops = this.drops.filter((d) => { if (d.done) { d.img.destroy(); d.sh.destroy(); } return !d.done; });
+  }
+
+  private takeDrop(d: LootDrop, now: number): void {
+    if (d.kind === 'item' && d.id && this.bag[d.id] >= BAG_MAX) return; // full: it stays on the floor
+    d.taken = now;
+    if (d.kind === 'gold') { this.gold = Math.min(GOLD_MAX, this.gold + d.amount); this.hud?.lootFeed(GOLD_ICON.small, `+${fmtGold(d.amount)} Gold`, '#f3d58c'); }
+    else if (d.id) { this.bag[d.id] = Math.min(BAG_MAX, this.bag[d.id] + d.amount); this.hud?.lootFeed(POTIONS[d.id].icon, `${POTIONS[d.id].name} ×${d.amount}`, '#ece5d3'); }
+    this.saveLoot();
+  }
+
+  private saveLoot(): void { if (this.character) { this.character.gold = this.gold; this.character.bag = { ...this.bag }; CharacterStore.setLoot(this.character.id, this.gold, this.bag); } }
+
+  /** A potion hotkey: restores its share of max HP / MP (not when already full, dead or out of them). */
+  usePotion(i: 0 | 1): void {
+    const id = POTION_IDS[i], p = POTIONS[id], now = this.simMs, k = this.kin;
+    if (this.dead >= 0 || !this.character || now - this.potionAt[i] < POTION_DELAY) return;
+    if (this.bag[id] <= 0) { this.potionAt[i] = now; this.fx?.callout({ x: k.x, y: k.y, z: k.z + 70 }, `NO ${p.name.toUpperCase()}S`, '#c9ced8', 0); return; }
+    const max = p.stat === 'hp' ? this.maxHpNow() : this.maxMpNow(), cur = p.stat === 'hp' ? this.playerHP : this.mp;
+    if (cur >= max) return;
+    const add = Math.min(max - cur, Math.max(1, Math.round(max * p.share)));
+    if (p.stat === 'hp') this.playerHP = cur + add; else this.mp = cur + add;
+    this.bag[id]--; this.potionAt[i] = now; this.saveLoot();
+    this.fx?.callout({ x: k.x, y: k.y, z: k.z + 46 }, `+${add}`, p.stat === 'hp' ? '#8ff09a' : '#8fc4ff', 1);
+  }
+
   /** EXP from a defeated monster: floating +EXP, level ups (full heal, LEVEL UP effect), saved on the character. */
   private gainExp(n: number, at: V3): void {
     const ch = this.character;
@@ -870,7 +945,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       else if (target === BOT_ID) { const b = this.bot; if (!b) return; b.hp = Math.max(1, b.hp - extra); b.view.setHp(b.hp); }
       else if (target.startsWith('mob:')) {
         const m = this.mobById(target); if (!m?.alive) return;
-        if (m.damage(extra, this.simMs)) { this.questKill(m); this.gainExp(m.kind.exp ?? Math.round(m.kind.hp / 5), { x: m.kin.x, y: m.kin.y, z: m.kin.z }); if (this.gripFoe === m) { this.gripFoe = null; this.gripHeld = false; } }
+        if (m.damage(extra, this.simMs)) { this.questKill(m); this.gainExp(m.kind.exp ?? Math.round(m.kind.hp / 5), { x: m.kin.x, y: m.kin.y, z: m.kin.z }); this.dropLoot(m); if (this.gripFoe === m) { this.gripFoe = null; this.gripHeld = false; } }
       }
       else return;
       const big = fa.mul >= 0.5; // Advanced Final Attack: a bigger triple cut
@@ -1640,7 +1715,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private applyKeys(b: Record<BindAction, string>): void {
     this.ci?.destroy();
     this.bindings = b;
-    this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), b, () => this.onTalk());
+    this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), b, () => this.onTalk(), (i) => this.usePotion(i));
     this.hud?.setKeyLabels(slotKeyLabels(b));
     this.hud?.setMenuKeys(menuKeys(b));
     this.world?.setTalkKey(keyLabel(b.talk)); if (this.npcDialog) this.npcDialog.talkKey = keyLabel(b.talk);
@@ -1805,6 +1880,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (killed) { // defeated: counts for the quests that ask for it
         this.questKill(m);
         this.gainExp(m.kind.exp ?? Math.round(m.kind.hp / 5), { x: m.kin.x, y: m.kin.y, z: m.kin.z });
+        this.dropLoot(m);
         if (this.gripFoe === m) { this.gripFoe = null; this.gripHeld = false; }
       }
     }
@@ -1902,16 +1978,19 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private resetStats(): void { if (!this.character) return; this.stats = baseStats(); this.saveStats(); }
 
   /** The stat window's numbers, from what the character is right now. */
+  /** His job's name now (Beginner until a Master gives one). */
+  private jobTitle(): string { const ch = this.character; return ch && hasJob(ch) ? (jobsFor(this.cls).filter((j) => skillLevel(ch) >= j.level).pop()?.name ?? 'Beginner') : 'Beginner'; }
+
   private refreshStats(): void {
     const ch = this.character; if (!ch || !this.statsWin) return;
     const basic = this.kit[0], hits = basic ? (basic.chain ? basic.chain.stages[0] : basic.hits) : [];
     const base = hits.reduce((n, h) => n + h.damage, 0) * this.ownDamageMul();
     const hp = this.maxHpNow(), pct = (v: number) => `${Math.round(v * 100)}%`;
     const crit = 0.12 + this.critAddNow(), ev = this.passives.evade + this.statD.evadeAdd;
-    const job = hasJob(ch) ? (jobsFor(this.cls).filter((j) => skillLevel(ch) >= j.level).pop()?.name ?? 'Beginner') : 'Beginner';
+    const job = this.jobTitle();
     const spd = this.passives.moveMul * (this.simMs < this.hasteUntil ? 1.2 : 1), jmp = this.passives.jumpMul;
     this.statsWin.render({
-      name: ch.name, job, level: ch.level, stats: this.stats, ap: freeAp(this.stats, ch.level), main: mainStats(this.cls)[0], canReset: STAT_KEYS.some((s) => this.stats[s] > BASE_STAT),
+      name: ch.name, job, level: ch.level, expPct: Number.isFinite(expToNext(ch.level)) ? Math.min(100, ((ch.exp ?? 0) / expToNext(ch.level)) * 100) : undefined, stats: this.stats, ap: freeAp(this.stats, ch.level), main: mainStats(this.cls)[0], canReset: STAT_KEYS.some((s) => this.stats[s] > BASE_STAT),
       combat: [
         ['Attack Range', `${Math.max(1, Math.round(base * STAT_MASTERY))} ~ ${Math.max(1, Math.round(base))}`],
         ['Max HP', `${Math.round(Math.min(this.playerHP, hp))} / ${hp}`],
@@ -2485,6 +2564,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         id: pvp?.meta.playerId ?? ch.id, name: ch.name, level: ch.level, portrait: portraitOf(previewKeyOf(ch)),
         hp: this.playerHP, maxHp: this.maxHpNow(), resource: { kind: 'mp', value: Math.round(this.mp), max: this.maxMpNow() }, effects: [...this.buffEffects(), ...this.statusEffects(this.body, now)],
         exp: Number.isFinite(expToNext(ch.level)) ? { value: ch.exp ?? 0, max: expToNext(ch.level) } : undefined,
+        job: pvp ? undefined : this.jobTitle(), gold: pvp ? undefined : this.gold,
+        potions: pvp ? undefined : POTION_IDS.map((id, i) => ({ id, name: POTIONS[id].name, iconUrl: POTIONS[id].icon, count: this.bag[id], hotkey: keyLabel(this.bindings[i ? 'mpPot' : 'hpPot']) })),
       },
       target: alive && this.pvpReady ? this.hudTarget() : null,
       slots,

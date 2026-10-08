@@ -28,6 +28,9 @@ const G = {
   target: { x: 740, y: 16, w: 440, h: 92, in: { x: 92, y: 16, w: 320 } },
   combo: { x: 1320, y: 470, w: 300, h: 97 },
   menu: { x: 1664, y: 316, w: 240, h: 42, gap: 8 },
+  /** Gold (left of the gear menu) and the pickup feed above it. */
+  gold: { right: 1834, y: 1015 },
+  feed: { right: 1904, bottom: 994 },
 } as const;
 
 /** Skill dock (bottom centre): the 18 slots in two rows of 9 — Space, 1-7, Q above, R F G C V T H Z X below — each slot
@@ -37,6 +40,8 @@ const DK = {
   slot: 64, gapX: 8, rowGap: 8, cols: 9,
   pad: { t: 14, r: 16, b: 14, l: 16 },
   pas: { icon: 36, gap: 6, cols: 4, rows: 3, sep: 16, head: 18 },
+  /** The potions' column (HP above, MP below) between the skills and the passives. */
+  pot: { sep: 16 },
   bottom: 1036,
 } as const;
 /** Row pitch, the slots' block and the dock's height. */
@@ -72,6 +77,26 @@ const CSS = `
 .gol-hud .bar.thp .fill{background:linear-gradient(180deg,#f0685b,#c13a30)}
 .gol-hud .bar .val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 12.5px var(--gl-body);letter-spacing:.4px;color:#fff;
   text-shadow:0 1px 2px rgba(0,0,0,.85);font-variant-numeric:tabular-nums}
+@keyframes golLow{0%,100%{box-shadow:inset 0 0 0 1px rgba(255,255,255,.1),0 0 0 0 rgba(255,70,60,0)}50%{box-shadow:inset 0 0 0 1px rgba(255,120,110,.7),0 0 10px 1px rgba(255,70,60,.55)}}
+.gol-hud .bar.hp.low{animation:golLow .9s ease-in-out infinite}
+.gol-hud .bar.hp.low .fill{filter:saturate(1.25) brightness(1.1)}
+.gol-hud .pjob{flex:none;font:600 12.5px/28px var(--gl-body);letter-spacing:.4px;color:var(--gl-text2);white-space:nowrap}
+.gol-hud .pjob:empty{display:none}
+/* potions in the dock */
+.gol-hud .aslot.pot .ic{left:8px;top:8px;width:48px;height:48px}
+.gol-hud .aslot .cnt{position:absolute;right:5px;bottom:3px;font:700 13px/16px var(--gl-body);color:#fff;text-shadow:0 1px 2px #000,0 0 4px #000;font-variant-numeric:tabular-nums}
+.gol-hud .aslot.pot.none .ic{opacity:.35;filter:grayscale(1)}
+.gol-hud .aslot.pot.none .cnt{color:#9aa3b2}
+/* gold + pickups (bottom right) */
+.gol-hud .gold{position:absolute;display:flex;align-items:center;gap:9px;height:40px;padding:0 16px 0 10px;border-radius:999px;
+  font:700 15px/1 var(--gl-body);color:var(--gl-gold2);font-variant-numeric:tabular-nums;letter-spacing:.3px;white-space:nowrap}
+.gol-hud .gold img{width:26px;height:26px}
+.gol-hud .feed{position:absolute;display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:none}
+.gol-hud .feed .it{display:flex;align-items:center;gap:8px;height:32px;padding:0 14px 0 8px;border-radius:999px;background:rgba(9,14,24,.78);
+  border:1px solid rgba(255,255,255,.1);font:700 13.5px/1 var(--gl-body);letter-spacing:.3px;white-space:nowrap;text-shadow:0 1px 2px #000;
+  animation:golFeedIn 180ms ease-out;transition:opacity 400ms}
+.gol-hud .feed .it img{width:22px;height:22px}
+@keyframes golFeedIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
 .gol-hud .bar.xp .val{letter-spacing:.6px;color:#fff8e6}
 /* skill dock */
 .gol-hud .dock{border-radius:16px}
@@ -157,6 +182,8 @@ export interface WorldHUDOptions {
   onMenu?: (key: 'K' | 'I' | 'O' | 'P' | 'U') => void;
   /** Gear menu: open the Key Settings window. */
   onKeys?: () => void;
+  /** Click on a potion (0 HP, 1 MP). */
+  onPotion?: (i: 0 | 1) => void;
 }
 
 export class WorldHUD {
@@ -171,6 +198,9 @@ export class WorldHUD {
   private thp!: Bar;
   private slots: SlotEl[] = [];
   private keyEls: { el: HTMLDivElement; x: number; y: number }[] = [];
+  private pots: { btn: HTMLButtonElement; icon: HTMLImageElement; cnt: HTMLElement; key: HTMLElement; last: string }[] = [];
+  private potsOn = false;
+  private passiveCount = 0;
   /** Current hotkey label per slot (aria / tooltips). */
   labels: string[] = [];
   private tGauge: HTMLElement[] = [];
@@ -224,6 +254,7 @@ export class WorldHUD {
     const nm = this.div('nm', p); this.at(nm, G.name.x, G.name.y, G.name.w, G.name.h);
     this.els.pLevel = this.div('lvl', nm);
     this.els.pName = this.div('pname', nm);
+    this.els.pJob = this.div('pjob', nm);
     this.hp = this.bar(p, G.hp, 'hp', true);
     this.res = this.bar(p, G.mp, 'mp', true);
     this.res.root.style.display = 'none';
@@ -299,6 +330,22 @@ export class WorldHUD {
   private buildPassives(): void {
     this.els.sep = this.div('sep', this.els.dock);
     this.els.passives = this.div('pas', this.els.dock);
+    this.els.potSep = this.div('sep', this.els.dock);
+    for (let i = 0; i < 2; i++) {
+      const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'aslot pot';
+      const icon = document.createElement('img'); icon.className = 'ic'; icon.alt = ''; icon.draggable = false; btn.appendChild(icon);
+      const cnt = this.div('cnt', btn);
+      btn.addEventListener('mousedown', (e) => e.preventDefault());
+      btn.addEventListener('click', () => this.opts.onPotion?.(i as 0 | 1));
+      this.els.dock.appendChild(btn);
+      const k = this.div('key', this.els.dock);
+      this.pots.push({ btn, icon, cnt, key: k, last: '' });
+    }
+    const gold = this.div('gold gl-panel', this.root); gold.style.top = `${G.gold.y}px`; gold.style.right = `${1920 - G.gold.right}px`; gold.style.display = 'none';
+    const gi = document.createElement('img'); gi.src = 'assets/final/items/gold_small.png'; gi.alt = ''; gold.appendChild(gi);
+    this.els.goldV = document.createElement('span'); gold.appendChild(this.els.goldV); gold.title = 'Gold';
+    this.els.gold = gold;
+    const feed = this.div('feed', this.root); feed.style.right = `${1920 - G.feed.right}px`; feed.style.bottom = `${1080 - G.feed.bottom}px`; this.els.feed = feed;
     this.placeDock(0);
   }
 
@@ -313,19 +360,28 @@ export class WorldHUD {
       e.title = `${p.name}${p.owned ? '' : ' (locked)'}\n${p.info}`;
     });
     if (list.length) this.div('lab', box).textContent = 'PASSIVE';
-    this.placeDock(list.length);
+    this.passiveCount = list.length; this.placeDock(list.length);
   }
 
   /** The dock's width follows its passives (none: the slots alone); it stays centred over the EXP bar. */
   private placeDock(passives: number): void {
     const A = DK.pas, dock = this.els.dock, sep = this.els.sep, box = this.els.passives;
-    let w = DK.pad.l + GRID.w + DK.pad.r;
+    const potOn = this.potsOn;
+    this.els.potSep.style.display = potOn ? '' : 'none';
+    this.pots.forEach((p, i) => {
+      p.btn.style.display = p.key.style.display = potOn ? '' : 'none';
+      const x = DK.pad.l + GRID.w + DK.pot.sep * 2 + 1, y = slotAt(i * DK.cols).y;
+      this.at(p.btn, x, y, DK.slot, DK.slot); this.at(p.key, x + 4, y + 4, 0, 18); p.key.style.width = '';
+    });
+    if (potOn) this.at(this.els.potSep, DK.pad.l + GRID.w + DK.pot.sep, DK.pad.t + 8, 1, INNER_H - 16);
+    const gw = DK.pad.l + GRID.w + (potOn ? DK.pot.sep * 2 + 1 + DK.slot : 0);
+    let w = gw + DK.pad.r;
     const on = passives > 0;
     sep.style.display = box.style.display = on ? '' : 'none';
     if (on) {
       const cols = Math.max(A.cols, Math.ceil(passives / A.rows)), rows = Math.ceil(passives / cols);
       const bw = cols * A.icon + (cols - 1) * A.gap, bh = A.head + rows * A.icon + (rows - 1) * A.gap;
-      const sx = DK.pad.l + GRID.w + A.sep;
+      const sx = gw + A.sep;
       this.at(sep, sx, DK.pad.t + 8, 1, INNER_H - 16);
       this.at(box, sx + 1 + A.sep, DK.pad.t + Math.round((INNER_H - bh) / 2), bw, bh);
       w = sx + 1 + A.sep + bw + DK.pad.r;
@@ -363,7 +419,20 @@ export class WorldHUD {
     this.text(this.els.pName, pl.name, 'pName');
     this.text(this.els.pLevel, String(pl.level), 'pLevel');
     this.portrait(this.els.portrait, pl.portrait, 'pPortrait', G.portrait.d);
+    this.text(this.els.pJob, pl.job ?? '', 'pJob');
     this.setBar(this.hp, pl.hp, pl.maxHp, 'HP');
+    this.hp.root.classList.toggle('low', pl.maxHp > 0 && pl.hp > 0 && pl.hp / pl.maxHp < 0.25);
+    this.show(this.els.gold, pl.gold !== undefined);
+    if (pl.gold !== undefined) this.text(this.els.goldV, pl.gold.toLocaleString('en-US'), 'gold');
+    const potOn = !!pl.potions?.length;
+    if (potOn !== this.potsOn) { this.potsOn = potOn; this.placeDock(this.passiveCount); }
+    pl.potions?.slice(0, 2).forEach((p, i) => {
+      const e = this.pots[i], key = `${p.iconUrl}|${p.count}|${p.hotkey}`;
+      if (key === e.last) return; e.last = key;
+      e.icon.src = p.iconUrl; e.cnt.textContent = String(p.count); e.key.textContent = p.hotkey; e.key.style.display = p.hotkey ? '' : 'none';
+      e.btn.classList.toggle('none', p.count <= 0);
+      e.btn.title = `${p.name} ×${p.count}${p.hotkey ? ` — ${p.hotkey}` : ''}`; e.btn.setAttribute('aria-label', e.btn.title);
+    });
     if (pl.resource) { this.res.root.style.display = ''; this.setBar(this.res, pl.resource.value, pl.resource.max, pl.resource.kind.toUpperCase()); }
     else this.res.root.style.display = 'none';
     this.setBar(this.exp, pl.exp?.value ?? 0, pl.exp?.max ?? 1, 'EXP');
@@ -564,6 +633,15 @@ export class WorldHUD {
   }
 
   // ------------------------------------------------------------------ misc
+
+  /** A pickup line in the bottom-right feed (newest at the bottom, gone after a few seconds). */
+  lootFeed(iconUrl: string, text: string, color: string): void {
+    const f = this.els.feed; if (!f) return;
+    const it = this.div('it', f); const im = document.createElement('img'); im.src = iconUrl; im.alt = ''; it.appendChild(im);
+    const t = document.createElement('span'); t.textContent = text; t.style.color = color; it.appendChild(t);
+    while (f.children.length > 5) f.firstElementChild!.remove();
+    window.setTimeout(() => { it.style.opacity = '0'; window.setTimeout(() => it.remove(), 420); }, 2600);
+  }
 
   /** PvP: simple centered status line (CONNECTING… / ROOM FULL); null hides it. */
   setStatus(text: string | null): void {

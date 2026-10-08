@@ -16,6 +16,7 @@ const OTHER: Record<string, { short: string; name: string; ico: IconName }> = {
   down: { short: '▼', name: 'Move down', ico: 'down' }, right: { short: '▶', name: 'Move right', ico: 'arrowR' }, book: { short: 'BOOK', name: 'Skill Book', ico: 'book' },
   bag: { short: 'BAG', name: 'Inventory', ico: 'bag' }, shop: { short: 'SHOP', name: 'Cosmetic Shop', ico: 'sparkle' }, quests: { short: 'QUEST', name: 'Quest Log', ico: 'scroll' },
   talk: { short: 'TALK', name: 'Talk to NPC / Enter portal', ico: 'chat' }, party: { short: 'PARTY', name: 'Party', ico: 'users' }, stats: { short: 'STAT', name: 'Stats', ico: 'stats' },
+  hpPot: { short: 'HP', name: 'Red Potion (HP)', ico: 'stats' }, mpPot: { short: 'MP', name: 'Blue Potion (MP)', ico: 'stats' },
 };
 const HINT = 'Drag a skill or an action onto a key — or click it, then click the key. Drag it back down here to clear it. Arrows move, Enter chats and Esc closes (fixed).';
 
@@ -74,6 +75,7 @@ export class KeySettings {
     this.actions = ACTIONS.map((id) => {
       const m = /^slot(\d+)$/.exec(id);
       if (m) { const s = skills[+m[1]]; return { id, short: '', name: s?.name || `Skill slot ${+m[1] + 1} (no skill yet)`, ...(s?.icon ? { icon: s.icon } : { ico: 'lock' as IconName, empty: true }) }; }
+      if (id === 'hpPot' || id === 'mpPot') return { id, ...OTHER[id], icon: id === 'hpPot' ? 'assets/final/items/red_potion.png' : 'assets/final/items/blue_potion.png' };
       return { id, ...OTHER[id] };
     });
     this.root = document.createElement('div'); this.root.className = 'gol-keys gl-win pop';

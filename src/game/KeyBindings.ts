@@ -12,6 +12,7 @@ export const DEFAULT_BINDINGS: Record<BindAction, string> = {
   talk: 'Y', // talk to an NPC / step into a portal
   party: 'P',
   stats: 'U', // the stat window
+  hpPot: 'EIGHT', mpPot: 'NINE', // the potions
 };
 export const ACTIONS: BindAction[] = Object.keys(DEFAULT_BINDINGS);
 
