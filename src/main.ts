@@ -11,6 +11,7 @@ import { MainMenuScene } from './scenes/MainMenuScene';
 import { CharacterSelectScene } from './scenes/CharacterSelectScene';
 import { CharacterCreateScene } from './scenes/CharacterCreateScene';
 import { LegacyCourtyardScene } from './scenes/LegacyCourtyardScene';
+import { PvpSelectScene } from './scenes/PvpSelectScene';
 import { ErrorCapture } from './qa/ErrorCapture';
 import { isQAMode, startQAPanel } from './qa/QAPanel';
 import ASSET_HASH from 'virtual:asset-hashes';
@@ -71,7 +72,7 @@ loadFonts().then(() => {
     height: DESIGN.height,
     backgroundColor: '#000000',
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-    scene: [BootScene, MainMenuScene, CharacterSelectScene, CharacterCreateScene, LegacyCourtyardScene],
+    scene: [BootScene, MainMenuScene, CharacterSelectScene, CharacterCreateScene, PvpSelectScene, LegacyCourtyardScene],
   });
 
   ErrorCapture.attachGame(game);

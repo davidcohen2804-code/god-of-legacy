@@ -47,6 +47,7 @@ export class MainMenuScene extends Phaser.Scene {
     this.cameras.main.fadeIn(220, 0, 0, 0);
     new MainMenuUI(this, {
       onStart: () => this.leave(() => this.scene.start('CharacterSelectScene')),
+      onPvp: () => this.leave(() => this.scene.start('PvpSelectScene', { mode: 'cpu' })), // the fighter select (Tekken style)
     });
   }
 

@@ -6,7 +6,6 @@ import { CharacterStore } from '../characters/CharacterStore';
 import { previewKeyOf } from '../characters/Look';
 import { buildLook, preloadLooks } from '../characters/LookArt';
 import { clearPvpFromUrl } from '../pvp/Room';
-import { enterPvp } from '../pvp/enterPvp';
 import { ClassPresence, preloadLife } from '../ui/PresentationLife';
 import { ThroneHero, preloadThrone } from '../ui/ThronePresence';
 
@@ -85,10 +84,10 @@ export class CharacterSelectScene extends Phaser.Scene {
       onBack: () => this.scene.start('MainMenuScene'),
       onCreate: () => this.scene.start('CharacterCreateScene'),
       onEnterWorld: () => { clearPvpFromUrl(); this.scene.start('LegacyCourtyardScene', { pvpRoom: null }); }, // always the world, never the arena (PvP has its own button)
-      onPvp: () => enterPvp(this),
+      onPvp: () => this.scene.start('PvpSelectScene', { mode: 'cpu', p1: CharacterStore.getSelectedCharacter()?.classId }), // the fighter select
       onHero: (cls, pvp) => {
         CharacterStore.startHero(cls, CLASS_NAMES[cls] ?? cls, HERO_LEVEL);
-        if (pvp) enterPvp(this); else { clearPvpFromUrl(); this.scene.start('LegacyCourtyardScene', { pvpRoom: null }); }
+        if (pvp) this.scene.start('PvpSelectScene', { mode: 'cpu', p1: cls }); else { clearPvpFromUrl(); this.scene.start('LegacyCourtyardScene', { pvpRoom: null }); }
       },
       onPreview: (key) => {
         const cls = key ? classOfKey(key) : null, onThrone = !!throne && cls === 'warrior';

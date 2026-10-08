@@ -3,7 +3,6 @@ import { ASSETS, ASSET_MANIFEST } from '../config/layout';
 import { SettingsStore } from '../core/SettingsStore';
 import { PlatformAdapter } from '../core/PlatformAdapter';
 import { isPvpUrl } from '../pvp/Room';
-import { enterPvp } from '../pvp/enterPvp';
 import { LOADING_KIT } from '../ui/LoadingScreen';
 
 export class BootScene extends Phaser.Scene {
@@ -23,7 +22,7 @@ export class BootScene extends Phaser.Scene {
     // Fullscreen needs a user gesture in browsers, so a saved "On" is applied
     // when the player toggles it; keep the stored value in sync with reality.
     if (s.fullscreen && !this.scale.isFullscreen) SettingsStore.set('fullscreen', false);
-    if (isPvpUrl()) enterPvp(this); // shared ?mode=pvp&room=ID link opens the arena directly
+    if (isPvpUrl()) this.scene.start('PvpSelectScene', { mode: 'player' }); // a shared ?mode=pvp&room=ID link: the fighter select of that room
     else this.scene.start('MainMenuScene');
   }
 }

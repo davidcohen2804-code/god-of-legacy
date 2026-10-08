@@ -6,7 +6,7 @@ import { SettingsModal, createModalBase, createTextButton } from './SettingsModa
 import { SettingsStore } from '../core/SettingsStore';
 import { PlatformAdapter } from '../core/PlatformAdapter';
 
-export interface MainMenuHandlers { onStart: () => void }
+export interface MainMenuHandlers { onStart: () => void; onPvp: () => void }
 
 export class MainMenuUI {
   private settings: SettingsModal;
@@ -17,6 +17,7 @@ export class MainMenuUI {
     this.settings = new SettingsModal(scene);
 
     this.imageButton(ASSETS.start.key, MENU_BUTTONS.start, handlers.onStart);
+    this.imageButton(ASSETS.pvp.key, MENU_BUTTONS.pvp, handlers.onPvp);
     this.imageButton(ASSETS.settings.key, MENU_BUTTONS.settings, () => this.settings.open());
     this.imageButton(ASSETS.exit.key, MENU_BUTTONS.exit, () => this.openExit());
 
@@ -40,7 +41,7 @@ export class MainMenuUI {
   /** One supplied PNG per button; hover/pressed states are produced in code. */
   private imageButton(key: string, L: ButtonLayout, onClick: () => void): void {
     const s = this.scene;
-    const img = s.add.image(L.x, L.y, key);
+    const img = s.add.image(L.x, L.y, key).setDepth(6); // over the drifting mist and clouds (they never veil a button)
     const base = Math.min(L.w / img.width, L.h / img.height);
     img.setScale(base);
     img.setInteractive({ pixelPerfect: true, alphaTolerance: 1, useHandCursor: true });

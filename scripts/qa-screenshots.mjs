@@ -25,11 +25,13 @@ for (const [w, h] of [[1920, 1080], [1280, 720]]) {
   await p.goto(URL); await p.evaluate(() => localStorage.clear()); await boot();
   await shot(p, '01_main_menu', w);
   await p.mouse.move(960 * k, 585 * k); await W(p, 600); await shot(p, '02_start_hover', w);
-  await click(960, 735); await shot(p, '03_settings', w);
+  await click(960, 800); await shot(p, '03_settings', w);
   await p.keyboard.press('Escape'); await W(p, 500);
-  await click(960, 860); await shot(p, '04_exit_confirm', w);
+  await click(960, 910); await shot(p, '04_exit_confirm', w);
   await click(1066, 595); await W(p, 1200); await shot(p, '05_exit_web_message', w);
   await p.keyboard.press('Escape'); await W(p, 500);
+  await click(960, 690); await p.waitForSelector('.gol-ps'); await W(p, 3500); await shot(p, '05b_pvp_select', w); // PvP ARENA: the fighter select
+  await p.keyboard.press('Escape'); await p.waitForFunction(() => window.__game?.scene.isActive('MainMenuScene'), null, { timeout: 30000 }); await W(p, 1200);
   await click(960, 585); await p.waitForSelector('.gol-cs .slot'); await W(p, 700); await shot(p, '06_character_select', w);
   await p.click('.gol-cs .slot >> nth=1'); await p.mouse.move(1000 * k, 500 * k); await W(p, 500); await shot(p, '07_slot_selected', w);
   await p.evaluate((d) => localStorage.setItem('godoflegacy.characters', JSON.stringify(d)), QA_CHAR); await boot();

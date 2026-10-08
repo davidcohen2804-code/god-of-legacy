@@ -18,10 +18,10 @@ export const LOGO = { centerX: 960, top: 28, width: 900 } as const;
 export interface ButtonLayout { x: number; y: number; w: number; h: number }
 
 export const MENU_BUTTONS: Record<'start' | 'pvp' | 'settings' | 'exit', ButtonLayout> = {
-  start: { x: 960, y: 590, w: 600, h: 150 },
-  pvp: { x: 960, y: 690, w: 500, h: 120 }, // PvP moved to Character Select (under ENTER WORLD); not on the main menu
-  settings: { x: 960, y: 730, w: 500, h: 120 },
-  exit: { x: 960, y: 850, w: 500, h: 120 },
+  start: { x: 960, y: 560, w: 600, h: 150 },
+  pvp: { x: 960, y: 690, w: 500, h: 120 }, // → the PvP fighter select
+  settings: { x: 960, y: 800, w: 500, h: 120 },
+  exit: { x: 960, y: 910, w: 500, h: 120 },
 };
 
 export const BUTTON_FX = {
@@ -232,6 +232,8 @@ export const PVP = {
   maxHp: 1000,
   /** Testing, for now: in the arena every hit lands (reaction, number, combo budget) but nobody's HP goes down. */
   hpLocked: true,
+  /** VS PLAYER from the fighter select: how long the arena waits for the other player before the sparring partner comes. */
+  foeWaitMs: 15000,
   respawnMs: 1600,
   sendHz: 20, // movement snapshots per second while something changes
   idleResendMs: 500, // keep-alive snapshot when nothing changes (late joiners get state)

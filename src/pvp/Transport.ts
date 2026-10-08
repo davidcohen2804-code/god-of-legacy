@@ -31,7 +31,9 @@ export type NetMsg =
   /** The arena: this fighter broke out of a combo (BREAK) here. */
   | { t: 'brk'; from: string; x: number; y: number; z: number }
   /** Battle mode: this fighter wants a rematch of match `mid`. */
-  | { t: 'rematch'; from: string; mid: string };
+  | { t: 'rematch'; from: string; mid: string }
+  /** The PvP select screen (its own channel): the fighter this player points at and the one locked in. */
+  | { t: 'sel'; from: string; name: string; hover: string; pick: string | null };
 
 export type JoinResult = 'ok' | 'full' | 'error';
 export type TransportKind = 'Supabase' | 'Local';

@@ -41,6 +41,7 @@ import { PvpController } from '../pvp/PvpController';
 import { Match, MatchPhase } from '../pvp/Match';
 import { BattleHUD, Fighter } from '../ui/BattleHUD';
 import { ComboGuide } from '../ui/ComboGuide';
+import { addResult, scoreKey } from '../pvp/Score';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
 import { NetMsg, PeerMeta } from '../pvp/Transport';
 import { genderOf, headLookOf, previewKeyOf } from '../characters/Look';
@@ -266,6 +267,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Arena camera follow point (vertical only). */
   private camTarget = new Phaser.Math.Vector2();
   private botCls = 'warrior';
+  /** Came from the PvP fighter select: against the CPU / another player. */
+  private vs: 'cpu' | 'player' | null = null;
+  /** VS PLAYER: still waiting for the other player (the sparring partner only comes if they never do). */
+  private waitFoe = false;
   private botPaused = false;
   /** Arena analysis: simulation speed (1, 0.5, 0.25) and the hit log. */
   private slowMo = 1;
@@ -337,8 +342,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   preload(): void {
     const T = ATLAS.textures, CT = COMBAT_ASSETS.textures;
     // The world holds only your own class; the PvP arena can hold any class (other players, the sparring knight).
-    const pvp = !!(this.sys.settings.data as { pvpRoom?: string } | undefined)?.pvpRoom;
-    const me = CharacterStore.getSelectedCharacter();
+    const sd = this.sys.settings.data as { pvpRoom?: string; fighter?: Character } | undefined;
+    const pvp = !!sd?.pvpRoom;
+    const me = sd?.fighter ?? CharacterStore.getSelectedCharacter(); // (the PvP select's fighter)
     const cls = me ? playedClass(me) : undefined; // the class actually played (Beginner = warrior base)
     const classes = pvp || !cls ? undefined : [cls];
     // Weapon masks only when your own look already needs them (others load on first need).
@@ -362,9 +368,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     showLoading(this, pvp ? 'PVP ARENA' : 'GOD OF LEGACY');
   }
 
-  create(data?: { pvpRoom?: string; at?: { x: number; y: number } }): void {
+  create(data?: { pvpRoom?: string; at?: { x: number; y: number }; fighter?: Character; botCls?: string; vs?: 'cpu' | 'player' }): void {
     const at = !data?.pvpRoom && data?.at ? data.at : null; // a restart in place (a new job): you stay where you were
-    const character = CharacterStore.getSelectedCharacter();
+    const character = (data?.pvpRoom && data.fighter) || CharacterStore.getSelectedCharacter(); // the PvP select's fighter (a copy, never saved)
+    this.vs = data?.pvpRoom ? data.vs ?? null : null;
+    if (data?.pvpRoom && data.botCls) this.botCls = data.botCls; // VS CPU: the opponent you picked
+    this.waitFoe = this.vs === 'player'; // VS PLAYER: the other player is on the way (no sparring partner meanwhile)
     if (!character) { this.scene.start('CharacterSelectScene'); return; }
     const pvpRoom = data?.pvpRoom ?? null;
     this.arena = !!pvpRoom;
@@ -488,7 +497,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.game.events.on(Phaser.Core.Events.BLUR, stop);
     this.game.events.on(Phaser.Core.Events.HIDDEN, stop);
 
-    const exitArena = () => { clearPvpFromUrl(); this.scene.start('MainMenuScene'); };
+    const exitArena = () => { // back to the fighter select (it opens the same room again for VS PLAYER), or the menu
+      if (this.vs) this.scene.start('PvpSelectScene', { mode: this.vs, p1: this.cls, p2: this.botCls });
+      else { clearPvpFromUrl(); this.scene.start('MainMenuScene'); }
+    };
     this.hud = new WorldHUD(this.game.canvas.parentElement!, this.game.canvas, {
       returnLabel: pvpRoom ? PVP.hud.exitText : 'BACK TO CHARACTERS',
       onReturn: pvpRoom ? exitArena : () => this.scene.start('CharacterSelectScene'),
@@ -2366,12 +2378,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!this.pvp || !this.pvpReady) { this.updateTrial(ms, now); return; }
     if (this.pvp.remotes.size > 0) {
       if (this.bot) { this.rt?.cancelAttacker(BOT_ID); this.bot.destroy(); this.bot = undefined; this.refreshSparUi(); this.chat?.add({ kind: 'system', text: `${this.botName()} left the arena.` }); }
-      this.botAwayMs = 0;
+      this.botAwayMs = 0; this.waitFoe = false;
       return;
     }
     if (!this.bot) {
       this.botAwayMs += ms;
-      if (this.botAwayMs < 1200) return;
+      if (this.botAwayMs < (this.waitFoe ? PVP.foeWaitMs : 1200)) return;
+      this.waitFoe = false;
       const k = this.kin, pts = PVP.spawnPoints.filter((p) => footAllowed(p.x, p.y, 0, R));
       const sp = pts.reduce((best, p) => (Math.hypot(p.x - k.x, p.y - k.y) > Math.hypot(best.x - k.x, best.y - k.y) && Math.hypot(p.x - k.x, p.y - k.y) < 700 ? p : best), pts[0]);
       this.spawnBot(sp.x, sp.y, now);
@@ -2834,6 +2847,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private showResult(m: Match): void {
     const me = this.localId, left = m.sideOf(me) === 'l';
+    if (this.vs) addResult(scoreKey(this.vs, this.pvp?.room), m.champ === null ? 'd' : m.champ === me ? 'w' : 'l'); // the fighter select's count
     this.battleHud?.result({ title: m.champ === null ? 'DRAW' : m.champ === me ? 'VICTORY' : 'DEFEAT', me: this.fighterOf(me), them: this.fighterOf(m.opponent), mine: m.wins[left ? 0 : 1], theirs: m.wins[left ? 1 : 0] });
     this.refreshRematch();
   }
