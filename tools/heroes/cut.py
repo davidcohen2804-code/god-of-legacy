@@ -16,6 +16,8 @@ from scipy import ndimage
 
 # rows the game lifts itself (jumps, leaps): anchored on their own feet
 OWN_FEET = {'jump', 'leap_crash', 'judgment_blade', 'finisher', 'spin_cut', 'falcon_dive', 'retreat_kick', 'skyhunters_step', 'rain_of_arrows', 'air_shot'}
+# frames left out of a cut row (drawn upright inside a leaning run: the body would jump)
+DROP = {('warrior', 'run'): {0, 4}, ('samurai', 'run'): {0, 7}}
 STRIDES = {}  # (cls, act) -> feet spread per frame (atlas px)
 SCALE = 0.6  # frame size kept in the atlas (source px x SCALE)
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -30,7 +32,7 @@ SPEC = {
                 ('S4', [('oath', 6), ('radiant_blade', 6), ('banner', 6)]),
                 ('S5', [('war_cry', 6), ('judgment_blade', 6), ('finisher', 6)])],
     'book_mage': [('A', [('idle', 6), ('walk', 6), ('attack', 6)]), ('B', [('run', 6), ('jump', 3), ('stance', 4)])],
-    'samurai': [('A', [('idle', 6), ('walk', 6), ('attack', 6)]), ('B', [('run', 6), ('jump', 3), ('stance', 4)]),
+    'samurai': [('A', [('idle', 6), ('walk_old', 6), ('attack', 6)]), ('W', [('walk', 8), ('run', 8)]), ('B', [('run_old', 6), ('jump', 3), ('stance', 4)]),
                 ('S1', [('shadow_step', 6), ('swallow_cut', 6), ('spin_cut', 6)]),
                 ('S2', [('iai_strike', 6), ('sword_wave', 6), ('mirage', 6)]),
                 ('S3', [('blossom_storm', 6), ('hundred_cuts', 6), ('tornado_blade', 6)]),
@@ -267,7 +269,9 @@ def main():
                 if masks is not None:
                     src = rgba.copy(); src[..., 3] = np.where(masks[r], src[..., 3], 0)
                     ys = np.where((src[..., 3] > 40).any(1))[0]; y0, y1 = int(ys[0]), int(ys[-1]) + 1
-                for crop, ax, ay in frames_in_row(src, y0, y1, n, cls, act):
+                for fi, (crop, ax, ay) in enumerate(frames_in_row(src, y0, y1, n, cls, act)):
+                    if fi in DROP.get((cls, act), ()):
+                        continue
                     acts.append((act, ax, ay)); ims.append(crop)
         if not ims:
             continue

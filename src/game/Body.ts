@@ -512,6 +512,8 @@ const HEROES = HERO_ATLAS as unknown as Record<string, HeroData>;
 const heroKey = (cls: string) => `hero-${cls}`;
 /** Standing height of every hero in world px (the idle frame). */
 export const HERO_HEIGHT = 124;
+/** Hero leg cycles (ms per full walk / run cycle at the normal speeds). */
+const HERO_STEP = { walk: 1000, run: 620 };
 /** How much taller a hero stands than the 124 px the heights over the head (name, bar, numbers, calls) were set for. */
 export const HERO_LIFT = HERO_HEIGHT - 124;
 export const isHeroClass = (cls: string): boolean => !!HEROES[cls];
@@ -601,10 +603,10 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
     case 'loop':
       if (q.state === 'idle') return H('idle', (q.t * 6) / 1000);
       if (q.state === 'alert') return H('stance', (q.t * 5) / 1000);
-      { // the legs keep pace with the ground: one leg cycle per the distance its two strides carry the body (no sliding feet)
-        const st = q.state === 'walk' ? 'walk' : 'run', h = HEROES[cls], n = h.actions[st].length;
-        const dist = (h.cycle?.[st] ?? h.h) * (HERO_HEIGHT / h.h), sp = Math.max(st === 'walk' ? 120 : 180, q.speed);
-        return H(st, (q.t * n * sp) / dist / 1000);
+      { // calm steps: one walk cycle a second, one run cycle in 0.62 s at the normal speeds (a little quicker / slower with the speed)
+        const st = q.state === 'walk' ? 'walk' : 'run', n = HEROES[cls].actions[st].length;
+        const cyc = st === 'walk' ? HERO_STEP.walk / Math.max(0.8, Math.min(1.2, q.speed / 188)) : HERO_STEP.run / Math.max(0.85, Math.min(1.15, q.speed / 270));
+        return H(st, (q.t * n) / cyc);
       }
     case 'jump': return H('jump', { takeoff: 0, rise: 1, apex: 1, fall: 2, land: 0 }[q.phase]);
     case 'airAttack': {
