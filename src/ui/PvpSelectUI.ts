@@ -4,7 +4,7 @@
 // DOM overlay (1920x1080 design px, scaled to the canvas by syncOverlay).
 import '@fontsource/cinzel/900.css';
 import { CLASS_NAMES } from '../config/layout';
-import { ROSTER, fighterFor, previewOf } from '../pvp/Fighters';
+import { ROSTER, fighterFor, heroCard } from '../pvp/Fighters';
 import { BOT_NAMES } from '../pvp/SparringBot';
 import { syncOverlay } from './CharacterSelectUI';
 import { ensureTheme } from './theme';
@@ -181,10 +181,10 @@ export class PvpSelectUI {
     ROSTER.forEach((c, i) => {
       const t = this.el('div', 'ps-tile', root) as HTMLDivElement;
       t.style.left = `${TILES_X + i * (TILE.w + TILE.gap)}px`;
-      const pv = previewOf(c);
-      if (pv) { // the head and shoulders of the class picture
-        const w = pv.crop.w * 1.25, k = TILE.w / w, x = pv.crop.x - (w - pv.crop.w) / 2;
-        Object.assign(t.style, { backgroundImage: `url("${pv.file}")`, backgroundSize: `${pv.width * k}px ${pv.height * k}px`, backgroundPosition: `${-x * k}px ${-pv.crop.y * k + 6}px` });
+      const hc = heroCard(c);
+      if (hc) { // the hero's head and shoulders, from its card
+        const w = hc.face.s * 2.1, k = TILE.w / w, x = hc.face.x + hc.face.s / 2 - w / 2;
+        Object.assign(t.style, { backgroundImage: `url("${hc.file}")`, backgroundSize: `${hc.w * k}px ${hc.h * k}px`, backgroundPosition: `${-x * k}px ${-hc.face.y * k + 8}px` });
       }
       this.el('span', '', t).textContent = (CLASS_NAMES[c] ?? c).toUpperCase();
       t.addEventListener('mouseenter', () => this.point(i));
@@ -355,8 +355,8 @@ export class PvpSelectUI {
     if (!cls) { a.cls = ''; return; }
     if (a.cls !== cls) {
       a.cls = cls;
-      const pv = previewOf(cls);
-      if (pv) a.img.src = pv.file;
+      const hc = heroCard(cls);
+      if (hc) a.img.src = hc.file;
       a.box.classList.remove('in', 'lock'); void a.box.offsetWidth; a.box.classList.add('in');
     }
     a.box.classList.toggle('shade', state === 'shade');

@@ -28,7 +28,7 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     { name: 'BURST', range: 'CLOSE', hits: 3, steps: [{ id: 'quick_slash' }, { id: 'shadow_step' }, { id: 'iai_strike' }] },
     { name: 'DASH', range: 'MID', hits: 15, steps: [{ id: 'shadow_step' }, { id: 'hundred_cuts' }, { id: 'spin_cut' }] },
     { name: 'WAVE', range: 'MID', hits: 14, steps: [{ id: 'sword_wave' }, { id: 'hundred_cuts' }] },
-    { name: 'PHANTOM', range: 'MID', hits: 9, steps: [{ id: 'phantom_blades' }, { id: 'falcon_dive' }] },
+    { name: 'PHANTOM', range: 'MID', hits: 10, steps: [{ id: 'phantom_blades' }, { id: 'falcon_dive' }] },
     { name: 'FALCON', range: 'FAR', hits: 15, steps: [{ id: 'falcon_dive' }, { id: 'hundred_cuts' }, { id: 'tornado_blade' }] },
     { name: 'ULTIMATE', range: 'FAR', hits: 11, steps: [{ id: 'blossom_storm' }, { id: 'dragon_eclipse' }] },
   ],

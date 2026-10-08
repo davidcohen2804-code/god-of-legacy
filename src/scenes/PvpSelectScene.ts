@@ -4,7 +4,7 @@ import Phaser from 'phaser';
 import { DESIGN } from '../config/layout';
 import ATLAS from '../data/asset-manifest.json';
 import { CharacterStore } from '../characters/CharacterStore';
-import { ROSTER, fighterFor, previewOf } from '../pvp/Fighters';
+import { ROSTER, fighterFor, heroCard } from '../pvp/Fighters';
 import { PvpLobby } from '../pvp/PvpLobby';
 import { clearPvpFromUrl, ensurePvpRoomInUrl, generateRoomId } from '../pvp/Room';
 import { PvpSelectUI, VsMode } from '../ui/PvpSelectUI';
@@ -23,7 +23,7 @@ export class PvpSelectScene extends Phaser.Scene {
   preload(): void {
     const T = ATLAS.textures;
     if (!this.textures.exists(T.map.key)) this.load.image(T.map.key, T.map.file);
-    for (const c of ROSTER) { const pv = previewOf(c); if (pv && !this.textures.exists(pv.key)) this.load.image(pv.key, pv.file); } // (warms the pictures the screen shows)
+    for (const c of ROSTER) { const hc = heroCard(c); if (hc && !this.textures.exists(`hero-card-${c}`)) this.load.image(`hero-card-${c}`, hc.file); } // (warms the heroes' cards the screen shows)
   }
 
   create(data?: PvpSelectData): void {

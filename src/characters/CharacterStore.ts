@@ -103,8 +103,10 @@ class Store {
   getSelectedId(): SlotId | null { return this.data.selectedSlotId; }
   /** START HERO: the ready hero being played (not stored; every setter by id leaves it alone). */
   private hero: Character | null = null;
-  startHero(classId: string, name: string, level: number): void {
-    this.hero = {
+  startHero(classId: string, name: string, level: number): void { this.hero = this.heroOf(classId, name, level); }
+  /** A ready hero as a character (the session's START HERO, the PvP fighter select's fighters); never stored. */
+  heroOf(classId: string, name: string, level: number): Character {
+    return {
       id: `hero-${classId}`, name, classId, job: classId, level, exp: 0, hero: true,
       createdAt: new Date().toISOString(), lastPlayedAt: null, appearanceId: null, gender: 'male',
       gear: starterGear(undefined), gold: 0, bag: { ...STARTER_BAG }, quick: [...DEFAULT_QUICK], seen: Object.keys(STARTER_BAG),
