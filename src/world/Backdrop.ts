@@ -19,6 +19,8 @@ const NEAR_MIST = 0.3;
 /** Clouds high in the sky (shown this wide, px), a few at a time; mist low in the valley (seen through the arches) and far
  *  behind the balustrade: the same clouds, wide, pale and faint. */
 const CLOUDS = { n: 6, y: [24, 110], width: [160, 380], alpha: [0.85, 0.97], speed: [1.8, 3.6] };
+/** More clouds higher up (seen once the camera rises over the maps above): bigger, softer, slower. */
+const HIGH_CLOUDS = { n: 9, y: [-760, -40], width: [300, 620], alpha: [0.55, 0.85], speed: [1.2, 2.6] };
 const MIST = { valley: { n: 6, y: [780, 930] }, far: { n: 4, y: [250, 300] }, width: [520, 900], alpha: [0.14, 0.26], speed: [1, 2.4], tint: 0xffe9ee };
 const FLOCK = { every: [16000, 36000], size: [3, 5], y: [55, 205], speed: [62, 96], fps: 11, width: [24, 32] };
 /** The falling water laid over each painted fall: soft (far away, see sky.py), slow, sunset-tinted and faint — the
@@ -115,6 +117,13 @@ export class Backdrop {
       const box = this.scene.add.container(0, rnd(CLOUDS.y), [img]).setData('slot', (i + Math.random() * 0.6) / CLOUDS.n);
       this.clouds.push({ box, img, v: rnd(CLOUDS.speed) }); this.sky.add(box);
     }
+    for (let i = 0; i < HIGH_CLOUDS.n; i++) {
+      const img = this.scene.add.image(0, 0, 'sky-clouds', frame()).setOrigin(0, 0.5).setAlpha(rnd(HIGH_CLOUDS.alpha));
+      img.setScale(rnd(HIGH_CLOUDS.width) / img.width);
+      const y = HIGH_CLOUDS.y[0] + ((i + 0.5) / HIGH_CLOUDS.n) * (HIGH_CLOUDS.y[1] - HIGH_CLOUDS.y[0]) + rnd([-40, 40]);
+      const box = this.scene.add.container(0, y, [img]).setData('slot', ((i * 0.37) % 1));
+      this.clouds.push({ box, img, v: rnd(HIGH_CLOUDS.speed) }); this.sky.add(box);
+    }
     for (const band of [MIST.valley, MIST.far]) for (let i = 0; i < band.n; i++) {
       const img = this.scene.add.image(0, 0, 'sky-clouds', frame()).setOrigin(0, 0.5).setAlpha(rnd(MIST.alpha)).setTint(MIST.tint);
       img.setScale(rnd(MIST.width) / img.width, (rnd(MIST.width) / img.width) * 0.45);   // flattened: a layer of haze
@@ -142,13 +151,18 @@ export class Backdrop {
         const d = x.getImageData(0, 0, 64, 1).data; let r = 0, g = 0, b = 0; for (let i = 0; i < 64; i++) { r += d[i * 4]; g += d[i * 4 + 1]; b += d[i * 4 + 2]; }
         c = Phaser.Display.Color.GetColor(r / 64, g / 64, b / 64);
       } catch { /* the default */ }
-      this.skyTop = this.scene.add.rectangle(-4000, -3000, 60000, 3002, c).setOrigin(0, 0);
+      // higher up the sky deepens a little toward a soft rose-violet (never a flat sheet of one colour)
+      const hi = Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(c), Phaser.Display.Color.ValueToColor(0xb98aa6), 100, 55);
+      const top = Phaser.Display.Color.GetColor(hi.r, hi.g, hi.b);
+      this.skyTop = this.scene.add.graphics();
+      this.skyTop.fillStyle(top, 1).fillRect(-4000, -3000, 60000, 1800);
+      this.skyTop.fillGradientStyle(top, top, c, c, 1, 1, 1, 1).fillRect(-4000, -1200, 60000, 1202);
       this.skyBack.addAt(this.skyTop, 0);
       const blend = this.scene.add.graphics(); blend.fillGradientStyle(c, c, c, c, 1, 1, 0, 0); blend.fillRect(-4000, -2, 60000, 90);
       this.skyBack.add(blend);   // over the sky picture's top edge: no seam
     }
   }
-  private skyTop?: Phaser.GameObjects.Rectangle;
+  private skyTop?: Phaser.GameObjects.Graphics;
 
   setView(left: number, span: number): void {
     this.left = left; this.span = span;
