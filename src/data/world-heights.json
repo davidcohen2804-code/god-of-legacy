@@ -4,9 +4,9 @@
   "name": "Ivy Heights",
   "x": 3164,
   "w": 1672,
-  "H": 420,
-  "front": 420,
-  "back": 192,
+  "H": 350,
+  "front": 350,
+  "back": 122,
   "img": "assets/world/heights/ivy_heights.webp",
   "imgY": -580,
   "imgH": 941,
@@ -15,7 +15,7 @@
     "id": "block-l",
     "x0": 3430,
     "x1": 3613,
-    "front": 343,
+    "front": 273,
     "h": 85,
     "depth": 26,
     "occ": {
@@ -28,7 +28,7 @@
     "id": "block-r",
     "x0": 4485,
     "x1": 4598,
-    "front": 350,
+    "front": 280,
     "h": 70,
     "depth": 23,
     "occ": {
@@ -43,27 +43,96 @@
    "spawns": [
     [
      3324,
-     365
+     295
     ],
     [
      3784,
-     310
+     240
     ],
     [
      3984,
-     385
+     315
     ],
     [
      4174,
-     285
+     215
     ],
     [
      4344,
-     370
+     300
     ],
     [
      4724,
-     320
+     250
+    ]
+   ]
+  }
+ },
+ {
+  "id": "orchard_heights",
+  "name": "Orchard Heights",
+  "x": 11074,
+  "w": 1672,
+  "H": 350,
+  "front": 350,
+  "back": 122,
+  "img": "assets/world/heights/orchard_heights.webp",
+  "imgY": -580,
+  "imgH": 941,
+  "blocks": [
+   {
+    "id": "block-l",
+    "x0": 11312,
+    "x1": 11425,
+    "front": 280,
+    "h": 70,
+    "depth": 23,
+    "occ": {
+     "img": "assets/world/heights/orchard_heights-block-l.webp",
+     "x": 11309,
+     "py": 413
+    }
+   },
+   {
+    "id": "block-r",
+    "x0": 12297,
+    "x1": 12480,
+    "front": 273,
+    "h": 85,
+    "depth": 26,
+    "occ": {
+     "img": "assets/world/heights/orchard_heights-block-r.webp",
+     "x": 12294,
+     "py": 388
+    }
+   }
+  ],
+  "mobs": {
+   "kind": "thorn",
+   "spawns": [
+    [
+     11184,
+     295
+    ],
+    [
+     11594,
+     240
+    ],
+    [
+     11774,
+     315
+    ],
+    [
+     11954,
+     215
+    ],
+    [
+     12154,
+     300
+    ],
+    [
+     12574,
+     250
     ]
    ]
   }

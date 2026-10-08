@@ -31,7 +31,9 @@ ROUTE = [
 SPAWNS = [[420, 440], [600, 610], [760, 420], [930, 600], [1090, 430], [1260, 610], [1400, 450]]   # 7 a map
 WARDEN = [[1000, 520]]
 # maps of their own: spawns clear of their blocks and ledges
-OWN_SPAWNS = {'terraces_1': [[600, 460], [820, 600], [1060, 470], [1230, 600], [1180, 430], [560, 615], [1520, 590]]}
+OWN_SPAWNS = {'terraces_2': [[420, 600], [380, 440], [700, 560], [1000, 590], [1250, 430], [1300, 610], [1520, 470]],
+              'orchard_1': [[300, 430], [250, 610], [650, 560], [950, 600], [1300, 430], [1250, 610], [1550, 450]],
+              'terraces_1': [[600, 460], [820, 600], [1060, 470], [1230, 600], [1180, 430], [560, 615], [1520, 590]]}
 
 mx = lambda x: round(AW - x, 1)
 def mirror_poly(p): return [[mx(x), y] for x, y in p]
@@ -39,6 +41,7 @@ def mirror_poly(p): return [[mx(x), y] for x, y in p]
 for id_, spec in ROUTE:
   if spec is None: continue
   name, src, flip, mob = spec
+  if src is not None and id_ in OWN_SPAWNS: pass
   if src is None:   # painted: keep its props (platforms.py, urns.py), set its name / floor / monsters
     a = D['areas'].get(id_, {'props': []}); a.pop('standin', None); a.pop('mirrored', None)
     a.update({'name': name, 'walk': [[0, 346], [AW, 346], [AW, 652], [0, 652]], 'mobs': {'kind': mob, 'spawns': OWN_SPAWNS.get(id_, SPAWNS)}})
@@ -54,7 +57,7 @@ for id_, spec in ROUTE:
       for k in ('foot', 'base', 'occ'):
         if k in p: p[k] = mirror_poly(p[k])
     if 'paint' in a: a['paint'] = [[mx(b[2]), b[1], mx(b[0]), b[3]] for b in a['paint']]
-  a['mobs'] = {'kind': mob, 'spawns': WARDEN if mob == 'warden' else ([[mx(x), y] for x, y in SPAWNS] if flip else SPAWNS)}
+  a['mobs'] = {'kind': mob, 'spawns': WARDEN if mob == 'warden' else OWN_SPAWNS.get(id_) or ([[mx(x), y] for x, y in SPAWNS] if flip else SPAWNS)}
   if mob == 'warden': a['mobs2'] = {'kind': 'cursed', 'spawns': SPAWNS[::2]}
   a['standin'] = src; a['mirrored'] = flip
   D['areas'][id_] = a

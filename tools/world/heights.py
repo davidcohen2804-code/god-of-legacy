@@ -13,16 +13,22 @@ STRIP = json.load(open(R + 'src/data/world-strip.json'))
 # per map: the area it stands over, its height (z of its floor), its floor's front edge on the terrace's ground (y), and
 # in its picture: the floor's back / front edge rows, the sky seeds (rows surely sky / surely not), its blocks, monsters
 MAPS = {
-  'ivy_heights': {'name': 'Ivy Heights', 'over': 'terraces_2', 'H': 420, 'front': 420, 'floor': (352, 580), 'sky': (120, 350),
+  'ivy_heights': {'name': 'Ivy Heights', 'over': 'terraces_2', 'H': 350, 'front': 350, 'floor': (352, 580), 'sky': (120, 350),
                   'blocks': [{'id': 'block-l', 'x': (266, 449), 'front': 503, 'h': 85, 'depth': 26},
                              {'id': 'block-r', 'x': (1321, 1434), 'front': 510, 'h': 70, 'depth': 23}],
                   'mobs': {'kind': 'sprout', 'spawns': [[160, 525], [620, 470], [820, 545], [1010, 445], [1180, 530], [1560, 480]]}},
+  # until its own picture is painted: Ivy Heights mirrored
+  'orchard_heights': {'name': 'Orchard Heights', 'src': 'ivy_heights', 'flip': True, 'over': 'orchard_1', 'H': 350, 'front': 350, 'floor': (352, 580), 'sky': (120, 350),
+                  'blocks': [{'id': 'block-l', 'x': (238, 351), 'front': 510, 'h': 70, 'depth': 23},
+                             {'id': 'block-r', 'x': (1223, 1406), 'front': 503, 'h': 85, 'depth': 26}],
+                  'mobs': {'kind': 'thorn', 'spawns': [[110, 525], [520, 470], [700, 545], [880, 445], [1080, 530], [1500, 480]]}},
 }
 FADE = 70   # px: the picture's left / right ends fade out (the floor ends in the air there; you cannot walk off it)
 out_dir = R + 'public/assets/world/heights/'; os.makedirs(out_dir, exist_ok=True)
 data = []
 for id_, m in MAPS.items():
-  im = cv2.imread(G + f'heights/{id_}.png'); h, w = im.shape[:2]
+  im = cv2.imread(G + f"heights/{m.get('src', id_)}.png"); h, w = im.shape[:2]
+  if m.get('flip'): im = cv2.flip(im, 1)
   seed = np.full((h, w), cv2.GC_PR_BGD, np.uint8); seed[:m['sky'][0]] = cv2.GC_BGD; seed[m['sky'][1]:] = cv2.GC_FGD
   seed[m['sky'][0] + 80:m['sky'][1]] = cv2.GC_PR_FGD
   bg, fg = np.zeros((1, 65)), np.zeros((1, 65))
