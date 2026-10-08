@@ -249,7 +249,8 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
     for (const [k, f, w, h] of [['afx-finale', 'rain_finale', 600, 300], ['afx-arrow', 'leaf_arrow', 512, 128], ['afx-hit', 'leaf_hit', 320, 320], ['afx-bolt', 'sky_bolt', 320, 640], ['afx-mine', 'vine_mine', 384, 384],
       ['afx-burst', 'vine_burst', 360, 540], ['afx-hawk', 'hawk_fly', 320, 320], ['afx-dive', 'hawk_dive', 384, 384], ['afx-eagle2', 'eagle_side', 600, 300], ['afx-kick', 'kick_wind', 384, 384], ['afx-muzzle', 'muzzle', 320, 320],
       ['afx-gold', 'gold_aura', 300, 450], ['afx-haste', 'haste_rune', 512, 256], ['afx-volley', 'air_volley', 512, 256],
-      ['afx-boot', 'boot_kick', 384, 384], ['afx-garrow', 'ground_arrow', 360, 540], ['afx-pit', 'mine_pit', 512, 256], ['afx-resolve', 'resolve_aura', 320, 480], ['afx-vines', 'vine_grow', 640, 160]] as const) if (!scene.textures.exists(k)) scene.load.spritesheet(k, `${AF}/${f}.png`, { frameWidth: w, frameHeight: h }); // the painted round-3 set
+      ['afx-boot', 'boot_kick', 384, 384], ['afx-garrow', 'ground_arrow', 360, 540], ['afx-pit', 'mine_pit', 512, 256], ['afx-resolve', 'resolve_aura', 320, 480], ['afx-vines', 'vine_grow', 640, 160],
+      ['afx-sbow', 'spirit_bow', 384, 384], ['afx-target', 'target_mark', 512, 256], ['afx-rainfall', 'arrow_rainfall', 320, 480], ['afx-band', 'aim_band', 512, 128]] as const) if (!scene.textures.exists(k)) scene.load.spritesheet(k, `${AF}/${f}.png`, { frameWidth: w, frameHeight: h }); // the painted round-3 set
     if (!scene.textures.exists('jb-bolt')) scene.load.spritesheet('jb-bolt', `${F}/skills/warrior/judgment_blade/bolt.png`, { frameWidth: 256, frameHeight: 512 }); // Thunder Rain: the warrior's blue lightning
     I('afx-apple', `${AF}/apple.png`); for (let i = 1; i < 4; i++) I(`afx-apple-${i}`, `${AF}/apple_${i}.png`); I('afx-roots', `${AF}/roots.png`);
     L('afx-fan', `${AF}/release_fan.png`, 512, 256); L('afx-triple', `${AF}/triple_trail.png`, 512, 256); L('afx-storm', `${AF}/storm_top.png`, 512, 256); L('afx-eagle', `${AF}/eagle_top.png`, 512, 256); L('vfx-evasion', `${F}/skills/archer/evasion/vfx.png`, 256);
@@ -905,7 +906,7 @@ export class SkillFx {
     }
     if (!g) return;
     g.setDepth(GROUND).setTint(col).setAlpha(s.slot === 7 ? 0.95 : 0.7);
-    if (s.id === 'eagle_arrow') g.setTint(0x52cf3e).setAlpha(1).setBlendMode(Phaser.BlendModes.ADD); // a bright green band shows where the tide will go
+    if (s.id === 'eagle_arrow') { g.setTint(0x52cf3e).setAlpha(1).setBlendMode(Phaser.BlendModes.ADD); if (this.scene.textures.exists('afx-band')) g.setVisible(false); } // a green band shows where the tide will go (the painted band when present)
     this.scene.tweens.add({ targets: g, alpha: { from: g.alpha * 0.45, to: g.alpha }, duration: 160, yoyo: true, repeat: -1 });
     this.teles.push({ g, run: r, follow });
   }
@@ -1642,7 +1643,7 @@ export class SkillFx {
       }
       case 'arrow_storm': { // Hunter's Rain: dozens of arrows loosed into the sky, then they pour down on the mark (which the archer steers)
         this.scene.time.delayedCall(Math.round(T.startup * 0.55), () => { const q = me() ?? o; for (let k = 0; k < 3; k++) this.scene.time.delayedCall(k * 70, () => this.risingArrows(q.x + side * 14, q.y - q.z - 50, 7, 0x7ee35a, 1.1)); this.shockwave(q.x, q.y, 90, 0xa8f04a, true); });
-        const mark = this.scene.add.image(0, 0, this.scene.textures.exists('afx-haste') ? 'afx-haste' : 'magic-circle', 0).setDisplaySize(260, 130).setAlpha(0).setDepth(GROUND + 1);
+        const mark = this.scene.add.image(0, 0, this.scene.textures.exists('afx-target') ? 'afx-target' : this.scene.textures.exists('afx-haste') ? 'afx-haste' : 'magic-circle', 0).setDisplaySize(270, 135).setAlpha(0).setDepth(GROUND + 1);
         this.scene.tweens.add({ targets: mark, alpha: 0.95, delay: T.startup * 0.5, duration: 200 });
         let mt = 0;
         const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
@@ -1652,7 +1653,8 @@ export class SkillFx {
         } });
         for (const h of r.hits) this.scene.time.delayedCall(T.startup + h.at - 150, () => { // each wave falls where the mark is now
           const c = r.place; if (!c || r.phase === 'done') return;
-          this.arrowShower(c.x, c.y, 95, 42, 7, 150, Math.random() < 0.5 ? 0x7ee35a : 0xa8f04a, 0.12, 1.1);
+          if (this.scene.textures.exists('afx-rainfall')) for (let k = 0; k < 2; k++) { const fx = c.x + (Math.random() - 0.5) * 150, fy = c.y + (Math.random() - 0.5) * 50; this.scene.time.delayedCall(k * 70, () => this.play('afx-rainfall', fx, fy + 10, 170, 255, [45, 45, 55, 70, 80, 90, 110, 140], { oy: 0.88, depth: fy + 1, fadeLast: 140 })); }
+          else this.arrowShower(c.x, c.y, 95, 42, 7, 150, Math.random() < 0.5 ? 0x7ee35a : 0xa8f04a, 0.12, 1.1);
         });
         break;
       }
@@ -1679,6 +1681,17 @@ export class SkillFx {
         break;
       }
       case 'eagle_arrow': { // Eagle Tide: after a 3s charge a gigantic spirit eagle sweeps half the map in front of the archer (aim turned while charging)
+        if (this.scene.textures.exists('afx-band')) { // while charging: a painted band of flowing arrows on the floor shows the way; it turns with the aim and grows stronger
+          const band = this.scene.add.image(0, 0, 'afx-band', 0).setOrigin(0.02, 0.5).setDisplaySize(960, 300).setAlpha(0);
+          const plane = this.scene.add.container(o.x, o.y, [band]).setScale(1, FLOOR_SQUASH).setDepth(GROUND + 2);
+          this.scene.tweens.add({ targets: band, alpha: 0.9, duration: 250 });
+          const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
+            const c = me();
+            if (!c || r.phase !== 'startup') { ev.remove(); this.scene.tweens.add({ targets: plane, alpha: 0, duration: 160, onComplete: () => plane.destroy() }); return; }
+            const k = Math.min(1, r.elapsed / T.startup), f = Math.min(6, Math.floor(k * 6)) + (Math.floor(r.elapsed / 120) % 2 && k > 0.85 ? 1 : 0);
+            plane.setPosition(c.x + r.aim.x * 30, c.y + r.aim.y * 30); band.setAngle(Math.atan2(r.aim.y, r.aim.x) * (180 / Math.PI)).setFrame(Math.min(6, f));
+          } });
+        }
         this.scene.time.delayedCall(T.startup, () => {
           const a = r.aim, sx = o.x + a.x * 30, sy = o.y + a.y * 30, len = 980;
           if (this.scene.textures.exists('afx-tide')) this.floorFx('afx-tide', sx, sy, a, len, [70, 80, 90, 100, 110, 130, 150, 190], { ox: 0.01, depth: TOP - 6, aspect: 1.05, alpha: 0.8 }); // a wide tide over the floor (the hit is 320 wide)
@@ -1796,7 +1809,7 @@ export class SkillFx {
 
   /** Spirit Bow: a great green bow of light floats beside the archer, turned to the aim, drawing and loosing on its own while it lasts. */
   private spiritBow(r: CastRun): void {
-    const key = this.scene.textures.exists('afx-emblem') ? 'afx-emblem' : 'afx-charge';
+    const painted = this.scene.textures.exists('afx-sbow'), key = painted ? 'afx-sbow' : this.scene.textures.exists('afx-emblem') ? 'afx-emblem' : 'afx-charge';
     const img = this.scene.add.image(0, 0, key, 0).setDisplaySize(230, 230).setAlpha(0).setScale(0.01);
     const halo = this.scene.add.image(0, 0, 'arch-glow').setTint(0x52cf3e).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(200, 200).setAlpha(0);
     this.scene.tweens.add({ targets: img, alpha: 1, scaleX: 230 / img.width, scaleY: 230 / img.height, duration: 260, ease: 'Back.easeOut' });
@@ -1808,8 +1821,8 @@ export class SkillFx {
       if (!c || r.phase === 'done' || r.phase === 'recovery') { ev.remove(); motes.stop(); this.scene.tweens.add({ targets: [img, halo], alpha: 0, duration: 300, onComplete: () => { img.destroy(); halo.destroy(); motes.destroy(); } }); return; }
       const a = r.aim, up = a.y < -0.3, lv = level(a.x, a.y), side = a.x < -0.01 ? -1 : 1;
       const x = c.x + side * 60, y = c.y - c.z - 70 + Math.sin(t / 260) * 5; // floats at the shoulder on the aim side
-      void lv; const aimDeg = up ? (side > 0 ? -45 : -135) : side > 0 ? 0 : 180, ang = aimDeg + 90, draw = 1 - 0.08 * Math.max(0, Math.sin((t % 250) / 250 * Math.PI)); // the painted bow points up: turned so its arrow points along the aim (level, or up at an angle)
-      img.setPosition(x, y).setAngle(ang).setFlipX(false).setDepth(c.y + 3).setFrame(Math.floor(t / 90) % 8).setScale(230 / img.width, (230 / img.height) * draw);
+      void lv; const aimDeg = up ? (side > 0 ? -45 : -135) : side > 0 ? 0 : 180, ang = painted ? (up ? -45 * side : 0) : aimDeg + 90, draw = 1 - 0.08 * Math.max(0, Math.sin((t % 250) / 250 * Math.PI)); // the painted bow points up: turned so its arrow points along the aim (level, or up at an angle)
+      img.setPosition(x, y).setAngle(ang).setFlipX(painted && side < 0).setDepth(c.y + 3).setFrame(painted ? (Math.floor(((t % 250) / 250) * 8) + 3) % 8 : Math.floor(t / 90) % 8) // the bow draws and looses in time with every shot.setScale(230 / img.width, (230 / img.height) * draw);
       halo.setPosition(x, y).setDepth(c.y + 2.9); motes.setPosition(x, y).setDepth(c.y + 3.1);
     } });
   }
