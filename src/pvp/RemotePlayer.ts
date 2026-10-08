@@ -7,7 +7,7 @@ import { Dir } from '../world/collision';
 import { PeerMeta, NetMsg } from './Transport';
 import { DeathFx } from '../game/DeathFx';
 import { ActorView, CosSlot, Equipped } from '../game/ActorView';
-import { ClassKey, cleanLook, loadBaseLook, resolvePose } from '../game/Body';
+import { ClassKey, HERO_LIFT, cleanLook, loadBaseLook, resolvePose } from '../game/Body';
 import { DEFAULT_SKIN, SKIN_TONES } from '../characters/Skin';
 import { WornLook, parseWornCode } from '../items/Gear';
 import { AnimSnap, Mode, poseQuery } from '../game/PoseState';
@@ -65,6 +65,9 @@ export class RemotePlayer {
   /** A double comes / goes / feints (the scene draws it: ink, petals, a cut in the air). */
   onKage?: (at: V3, how: 'appear' | 'burst' | 'fade' | 'feint', face?: number, stage?: number) => void;
   private dress: { look: BaseLook | null; worn: WornLook | null; eq: Equipped } = { look: null, worn: null, eq: {} };
+
+  /** Where the name and bar sit: just over the head (a ready hero is drawn taller than the other bodies). */
+  private headTop(): number { return this.meta.hero ? 116 + HERO_LIFT : 116; }
 
   constructor(private scene: Phaser.Scene, readonly meta: PeerMeta, x: number, y: number) {
     const L = PVP.remoteLabel;
@@ -209,12 +212,12 @@ export class RemotePlayer {
         const dm = mirror ? m : d.mode === 'f' ? kageFeintMotion(d.mt, d.feint, d.face) : null;
         applyMotion(d.view.motionSprites, dm);
         d.after.step(this.scene.time.now, d.view.sprite, !!dm?.after);
-        const t2 = p.y - p.z - 116 - PVP.remoteLabel.gap;
+        const t2 = p.y - p.z - this.headTop() - PVP.remoteLabel.gap;
         d.label.setPosition(Math.round(p.x), Math.round(t2 - PVP.hpBar.h - 3));
         d.bar.setPosition(Math.round(p.x), Math.round(t2));
       }
     }
-    const top = y - z - 116 - PVP.remoteLabel.gap;
+    const top = y - z - this.headTop() - PVP.remoteLabel.gap;
     this.label.setPosition(Math.round(x), Math.round(top - PVP.hpBar.h - 3)).setAlpha((this.deadMs >= 0 ? alpha : 1) * (this.deadMs >= 0 ? 1 : seen)); // down: the name fades with the body (hidden: none)
     this.bar.setPosition(Math.round(x), Math.round(top)).setAlpha(seen);
   }

@@ -508,8 +508,10 @@ type HeroFrame = [number, number, number, number, number, number]; // x, y, w, h
 interface HeroData { h: number; actions: Record<string, HeroFrame[]>; card?: [number, number, number, number, number] }
 const HEROES = HERO_ATLAS as unknown as Record<string, HeroData>;
 const heroKey = (cls: string) => `hero-${cls}`;
-/** Standing height of every hero in world px (the idle frame). */
-export const HERO_HEIGHT = 124;
+/** Standing height of every hero in world px (the idle frame): about the heroes' own drawn size on a full-HD screen. */
+export const HERO_HEIGHT = 150;
+/** How much taller a hero stands than the 124 px the heights over the head (name, bar, numbers, calls) were set for. */
+export const HERO_LIFT = HERO_HEIGHT - 124;
 export const isHeroClass = (cls: string): boolean => !!HEROES[cls];
 /** Portrait of a ready hero: the face cut from its card (image w / h, square at x, y of size). */
 export function heroPortrait(cls: string): { url: string; crop: { x: number; y: number; w: number; imgW: number; imgH: number } } | undefined {

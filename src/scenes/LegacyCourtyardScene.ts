@@ -57,7 +57,7 @@ import { CombatInput } from '../game/CombatInput';
 import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey, damageSkin, wantsWeaponMasks } from '../game/ActorView';
 import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
-import { baseLoop, ClassKey, dirOf, heroPortrait, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame, sideAim } from '../game/Body';
+import { baseLoop, ClassKey, dirOf, HERO_LIFT, heroPortrait, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame, sideAim } from '../game/Body';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
 import { ARENA, CombatBody, GAUGE, HitOutcome, Kin, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
@@ -478,6 +478,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.fx = new SkillFx(this, this.rt, (id) => this.casterPos(id));
     this.deathFx = new DeathFx(this);
     this.fx.damageSkin = damageSkin(this.equipped.damage);
+    this.fx.lift = character.hero ? HERO_LIFT : 0; // a ready hero stands taller: its numbers and calls go up with its head
     this.fx.handPos = (id) => (id === this.localId ? this.lastHand : null);
     this.fx.ghosts = (id) => this.ghostsOf(id);
     this.fx.targetPos = (id) => { const c = this.casterPos(id); if (c) return c; const t = this.targetsFor({ own: true, attackerId: this.localId } as CastRun).find((x) => x.id === id); return t ? { x: t.x, y: t.y, z: t.z } : null; };

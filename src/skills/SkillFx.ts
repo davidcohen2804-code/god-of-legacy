@@ -228,6 +228,8 @@ export class SkillFx {
   targetPos?: (id: string) => V3 | null;
   /** A caster's body as drawn this moment (Phantom Blades' phantoms of him), set by the scene. */
   bodyOf?: (id: string) => { key: string; frame: string | number; flipX: boolean; ox: number; oy: number; sx: number; sy: number } | null;
+  /** Damage numbers and calls this much higher (the fighters are ready heroes, drawn taller), set by the scene. */
+  lift = 0;
   /** Local player's damage-number skin (cash shop). */
   damageSkin: { key: string; widths: number[]; cell: number[] } | null = null;
 
@@ -716,7 +718,7 @@ export class SkillFx {
 
   /** DFO-style callout above a target (COUNTER!! / BACK ATTACK!!). */
   callout(at: V3, text: string, color: string, row = 0): void {
-    const t = this.scene.add.text(at.x, at.y - at.z - 120 - row * 30, text, {
+    const t = this.scene.add.text(at.x, at.y - at.z - 120 - this.lift - row * 30, text, {
       fontFamily: 'Cinzel, Georgia, serif', fontStyle: 'bold italic', fontSize: '30px', color, stroke: '#1a0602', strokeThickness: 6, resolution: 2,
     }).setOrigin(0.5).setDepth(TOP + 30).setScale(1.6).setAlpha(0);
     this.scene.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 110, ease: 'Back.easeOut' });
@@ -1095,7 +1097,7 @@ export class SkillFx {
     const old = col.rows[line];
     if (live(old)) old.quick = { at: old.age, a: dmgAlpha(old) };
     const below = line > 0 ? col.rows[line - 1] : null;
-    const x = col.x, y = live(below) ? below.y - (DMG_RISE * below.age) / 1000 - (below.crit ? DMG_ROW_CRIT : DMG_ROW) : hy - 96;
+    const x = col.x, y = live(below) ? below.y - (DMG_RISE * below.age) / 1000 - (below.crit ? DMG_ROW_CRIT : DMG_ROW) : hy - 96 - this.lift;
     const column = { put: (d: DmgLine) => { col!.rows[line] = d; } };
     const c = this.scene.add.container(x, y).setDepth(TOP + 20 + line * 0.01);
     const sk = local ? this.damageSkin : null;
