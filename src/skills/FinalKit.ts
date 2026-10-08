@@ -334,11 +334,11 @@ const archer: FinalSkill[] = [
   }),
   S({
     id: 'rain_of_arrows', cls: 'archer', slot: 9, name: 'Thunder Rain', roles: ['zone', 'extender'], targeting: 'mouseDir',
-    startup: 300, active: 3800, recovery: 300, cooldown: 12000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [300, 3300],
+    startup: 300, active: 2300, recovery: 300, cooldown: 12000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [300, 1800],
     dash: { distance: 0, lift: 150, hang: true },
-    hits: [3000, 3150, 3300].map((t, i) => H(t, i === 2 ? 16 : 12, { kind: 'circle', radius: 100, at: 'aimBias', bias: [150, 300, 450][i], floor: true }, { stun: 320, float: true, juggleCost: 10, slow: { pct: 30, ms: 800 } }, { reachUp: 200, heavy: i === 2 })),
+    hits: [1500, 1650, 1800].map((t, i) => H(t, i === 2 ? 16 : 12, { kind: 'circle', radius: 100, at: 'aimBias', bias: [150, 300, 450][i], floor: true }, { stun: 320, float: true, juggleCost: 10, slow: { pct: 30, ms: 800 } }, { reachUp: 200, heavy: i === 2 })),
     cancelOnHit: ['quick_shot', 'skyhunters_step'], telegraph: 'line',
-    description: 'Leap, hang in the air charging a lightning arrow for 3s, then loose three lightning arrows that strike the floor near, middle and far in front of you.',
+    description: 'Leap, hang in the air charging a lightning arrow for 1.5s, then loose three lightning arrows that strike the floor near, middle and far in front of you.',
     relations: ['Zone 2s', 'Keeps foes up'],
   }),
   S({
