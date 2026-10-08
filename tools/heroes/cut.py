@@ -39,7 +39,7 @@ SPEC = {
                 ('S4', [('falcon_dive', 6), ('dragon_ascension', 6), ('dragon_eclipse', 6)]),
                 ('S5', [('kagemusha', 6), ('sakura_bind', 6), ('rising_sun', 6)]),
                 ('S6', [('phantom_blades', 6), ('god_of_blades', 6), ('finisher', 6)])],
-    'archer': [('A', [('idle', 6), ('walk', 6), ('attack', 6)]), ('B', [('run', 6), ('jump', 3), ('stance', 4)]),
+    'archer': [('A', [('idle', 6), ('walk_old', 6), ('attack', 6)]), ('W', [('walk', 8), ('run', 8)]), ('B', [('run_old', 6), ('jump', 3), ('stance', 4)]),
                ('S1', [('rising_arrow', 6), ('multi_shot', 6), ('explosive_arrow', 6)]),
                ('S2', [('retreat_kick', 6), ('vine_trap', 6), ('skyhunters_step', 6)]),
                ('S3', [('rain_of_arrows', 6), ('piercing_arrow', 6), ('hunters_roar', 6)]),
