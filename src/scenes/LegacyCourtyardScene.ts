@@ -548,11 +548,18 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         reset: () => { const p = resetCam(); this.applyCam(false); return p; },
         save: () => saveCam(),
       });
-      this.input.on(Phaser.Input.Events.POINTER_WHEEL, (_p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => {
+      // the same keys as the camera of the open world: the wheel zooms, Shift + wheel / PageUp / PageDown move the view up
+      // and down (the angle), Home resets (SAVE in the window keeps it)
+      this.input.on(Phaser.Input.Events.POINTER_WHEEL, (p: Phaser.Input.Pointer, _o: unknown, _dx: number, dy: number) => {
         if (!dy) return;
-        setCam({ zoom: camPrefs().zoom * (dy < 0 ? CAM.zoom.notch : 1 / CAM.zoom.notch) });
+        if ((p.event as WheelEvent | undefined)?.shiftKey) setCam({ angle: camPrefs().angle + (dy < 0 ? -0.1 : 0.1) });
+        else setCam({ zoom: camPrefs().zoom * (dy < 0 ? CAM.zoom.notch : 1 / CAM.zoom.notch) });
         this.applyCam();
       });
+      const kb = this.input.keyboard;
+      kb?.on('keydown-PAGE_UP', () => { setCam({ angle: camPrefs().angle - 0.2 }); this.applyCam(); });
+      kb?.on('keydown-PAGE_DOWN', () => { setCam({ angle: camPrefs().angle + 0.2 }); this.applyCam(); });
+      kb?.on('keydown-HOME', () => { resetCam(); this.applyCam(); });
     }
     this.questsUi = new QuestTracker(ov);
     this.questLog = new QuestLog(ov, () => this.ci?.reset());
@@ -565,6 +572,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.keySettings = new KeySettings(ov, Array.from({ length: SLOT_COUNT }, (_, i) => ({ name: this.kit[i]?.name ?? '', icon: this.kit[i] ? iconUrl(this.kit[i]) : '' })),
       (b) => this.applyKeys(b), (open) => this.chatTyping(open));
     this.chat.add({ kind: 'system', text: pvpRoom ? 'Welcome to the PvP Arena! Press Enter to chat.' : 'Welcome to God Of Legacy! Press Enter to chat.' });
+    if (pvpRoom) this.chat.add({ kind: 'system', text: 'Camera: mouse wheel to zoom · PageUp / PageDown (or Shift + wheel) for the angle · Home to reset · Menu > Camera to save.' });
     if (this.world) {
       this.areaTitle = new AreaTitle(ov);
       this.areaTitle.show(this.world.area.name); this.areaName = this.world.area.name;

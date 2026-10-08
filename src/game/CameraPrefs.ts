@@ -1,7 +1,7 @@
-// The arena camera as the player sets it (gear menu > CAMERA, or the mouse wheel over the arena): how close it is (x the
+// The arena camera as the player sets it (gear menu > CAMERA, the mouse wheel, PageUp / PageDown): how close it is (x the
 // view that fits the whole arena) and its angle (the view moved down to look more from above, up to look more from
 // below). Live while you play; SAVE keeps it for the next time (this browser).
-const KEY = 'godoflegacy.camera';
+const KEY = 'godoflegacy.arenaCamera'; // (the open world keeps its own camera)
 
 export const CAM = {
   /** x the fitting view: 0.8 = farther (the arena's surroundings show), 1.35 = closer. One mouse-wheel notch = x1.06. */
