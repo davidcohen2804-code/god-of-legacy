@@ -17,11 +17,10 @@ MAPS = {
                   'blocks': [{'id': 'block-l', 'x': (266, 449), 'front': 503, 'h': 85, 'depth': 26},
                              {'id': 'block-r', 'x': (1321, 1434), 'front': 510, 'h': 70, 'depth': 23}],
                   'mobs': {'kind': 'sprout', 'spawns': [[160, 525], [620, 470], [820, 545], [1010, 445], [1180, 530], [1560, 480]]}},
-  # until its own picture is painted: Ivy Heights mirrored
-  'orchard_heights': {'name': 'Orchard Heights', 'src': 'ivy_heights', 'flip': True, 'over': 'orchard_1', 'H': 350, 'front': 350, 'floor': (352, 580), 'sky': (120, 350),
-                  'blocks': [{'id': 'block-l', 'x': (238, 351), 'front': 510, 'h': 70, 'depth': 23},
-                             {'id': 'block-r', 'x': (1223, 1406), 'front': 503, 'h': 85, 'depth': 26}],
-                  'mobs': {'kind': 'thorn', 'spawns': [[110, 525], [520, 470], [700, 545], [880, 445], [1080, 530], [1500, 480]]}},
+  'orchard_heights': {'name': 'Orchard Heights', 'over': 'orchard_1', 'H': 350, 'front': 350, 'floor': (352, 580), 'sky': (120, 350),
+                  'blocks': [{'id': 'block-l', 'x': (266, 449), 'front': 503, 'h': 85, 'depth': 26},
+                             {'id': 'block-r', 'x': (1321, 1434), 'front': 510, 'h': 70, 'depth': 23}],
+                  'mobs': {'kind': 'thorn', 'spawns': [[160, 525], [620, 470], [820, 545], [1010, 445], [1180, 530], [1560, 480]]}},
 }
 FADE = 70   # px: the picture's left / right ends fade out (the floor ends in the air there; you cannot walk off it)
 out_dir = R + 'public/assets/world/heights/'; os.makedirs(out_dir, exist_ok=True)

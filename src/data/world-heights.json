@@ -82,28 +82,28 @@
   "blocks": [
    {
     "id": "block-l",
-    "x0": 11312,
-    "x1": 11425,
-    "front": 280,
-    "h": 70,
-    "depth": 23,
-    "occ": {
-     "img": "assets/world/heights/orchard_heights-block-l.webp",
-     "x": 11309,
-     "py": 413
-    }
-   },
-   {
-    "id": "block-r",
-    "x0": 12297,
-    "x1": 12480,
+    "x0": 11340,
+    "x1": 11523,
     "front": 273,
     "h": 85,
     "depth": 26,
     "occ": {
-     "img": "assets/world/heights/orchard_heights-block-r.webp",
-     "x": 12294,
+     "img": "assets/world/heights/orchard_heights-block-l.webp",
+     "x": 11337,
      "py": 388
+    }
+   },
+   {
+    "id": "block-r",
+    "x0": 12395,
+    "x1": 12508,
+    "front": 280,
+    "h": 70,
+    "depth": 23,
+    "occ": {
+     "img": "assets/world/heights/orchard_heights-block-r.webp",
+     "x": 12392,
+     "py": 413
     }
    }
   ],
@@ -111,27 +111,27 @@
    "kind": "thorn",
    "spawns": [
     [
-     11184,
+     11234,
      295
     ],
     [
-     11594,
+     11694,
      240
     ],
     [
-     11774,
+     11894,
      315
     ],
     [
-     11954,
+     12084,
      215
     ],
     [
-     12154,
+     12254,
      300
     ],
     [
-     12574,
+     12634,
      250
     ]
    ]
