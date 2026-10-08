@@ -125,6 +125,8 @@ export function stepKin(k: Kin, ms: number, gravityScale = 1, blocked?: (x: numb
  *  the drift is held so that you come down on its top face (it is shallow: a jump toward it would carry you past it);
  *  never one you just left. And a step off its back edge drops you down behind it. Below a block's top (stepped off its
  *  edge, or come down beside it), the feet are eased clear of it before they reach the floor, never left half inside it. */
+/** How far (world px of depth) in front of / behind a block a jump still lands on it. */
+const LAND_FORGIVE = 46;
 export function settleOnBlocks(k: Kin, ms: number, moveY: number, own = false): void {
   if (k.grounded) {
     const o = k.supportId ? WORLD_OBJECTS.find((w) => w.id === k.supportId) : undefined;
@@ -150,7 +152,17 @@ export function settleOnBlocks(k: Kin, ms: number, moveY: number, own = false): 
       }
       continue;
     }
+    // Forgiving landing (a jump a little in front of a block, or a little behind it): at or above its top and over its
+    // width, the feet are drawn onto its top face, so a jump at a block never just misses it by a few px of depth.
+    if (own && o.id !== k.from && k.vz <= 120 && k.x > x0 + 6 && k.x < x1 - 6 && k.z >= o.topZ - 12 && !pointInPoly(k.x, k.y, o.footprint)) {
+      const gap = k.y >= y1 ? k.y - y1 : y0 - k.y;
+      if (gap >= 0 && gap < LAND_FORGIVE && footAllowed(k.x, k.y >= y1 ? y1 - 2 : y0 + 2, Math.max(k.z, o.topZ), PHYS.footR, k)) {
+        const to = k.y >= y1 ? y1 - 2 : y0 + 2, step = Math.max(2, ms * 0.6);
+        k.y += Math.max(-step, Math.min(step, to - k.y)); k.vy *= 0.5;
+      }
+    }
     if (!own || o.id === k.from || !pointInPoly(k.x, k.y, o.footprint)) continue;
+    if (x1 - x0 > 700) continue;   // a whole floor above (a map over the terrace): wide enough, nothing to hold
     // Over it: t = the time until the feet are back down at its top. A drift that would carry them past its top face (a
     // little in from its edges) eases off evenly to come to rest there as they land: never faster than 2·room / t.
     const g = PHYS.gravity, t = Math.max(ms / 1000, (k.vz + Math.sqrt(Math.max(0, k.vz * k.vz + 2 * g * (k.z - o.topZ)))) / g);

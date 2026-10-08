@@ -28,7 +28,7 @@ MAPS = {
                              {'id': 'block-r', 'x': (1321, 1434), 'front': 510, 'h': 70, 'depth': 23}],
                   'mobs': {'kind': 'thorn', 'spawns': [[300, 545], [620, 470], [820, 545], [1010, 445], [1180, 530], [1400, 480]]}},
 }
-EDGE_SHADE = 10   # px: the cut ends of the floor shaded a little
+EDGE_SHADE = 34   # px: the ends shaded toward their edge (they turn away from the light: volume)
 WALK_IN = 70    # the walkable floor stops this far in from each end (the corner posts): the picture's left / right ends fade out (the floor ends in the air there; you cannot walk off it)
 out_dir = R + 'public/assets/world/heights/'; os.makedirs(out_dir, exist_ok=True)
 data = []
@@ -63,8 +63,13 @@ for id_, m in MAPS.items():
     reg[..., :3] = (post[..., :3] * pa + reg[..., :3] * (1 - pa)).astype(np.uint8); reg[..., 3] = np.maximum(reg[..., 3], post[..., 3])
     edge = np.arange(EDGE_SHADE)[::-1] if side == 0 else np.arange(EDGE_SHADE)
     cols = slice(0, EDGE_SHADE) if side == 0 else slice(w - EDGE_SHADE, w)
-    k = 1 - 0.35 * (edge / EDGE_SHADE)
+    k = 1 - 0.42 * (edge / EDGE_SHADE) ** 1.6
     rgba[:, cols, :3] = (rgba[:, cols, :3] * k[None, :, None]).astype(np.uint8)
+    # a thin warm rim of light along the very edge (the sun catching the corner) and a dark outline just inside it
+    ex = 0 if side == 0 else w - 1; ix = 1 if side == 0 else w - 2
+    vis = rgba[:, ex, 3] > 0
+    rgba[vis, ex, :3] = np.clip(rgba[vis, ex, :3] * 0.35, 0, 255).astype(np.uint8)
+    rgba[vis, ix, :3] = np.clip(rgba[vis, ix, :3].astype(np.float32) * 1.25 + 18, 0, 255).astype(np.uint8)
   cv2.imwrite(out_dir + f'{id_}.webp', cv2.cvtColor(rgba, cv2.COLOR_RGBA2BGRA), [cv2.IMWRITE_WEBP_QUALITY, 90])
   X0 = STRIP['areas'][m['over']]['x'] + m.get('dx', 0); f0, f1 = m['floor']; F = m['front']; H = m['H']
   occ = []   # each block's own cut-out: drawn over whoever walks behind it up there

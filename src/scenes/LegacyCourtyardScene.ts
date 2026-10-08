@@ -727,9 +727,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.world) settleOnBlocks(k, ms, this.blockHold.y ? 0 : this.ci?.moveY ?? 0, b.state === 'free');
     const ev = b.update(now, ms, r.landed, r.impactVz);
     if (r.landed) {
-      if (k.supportId && k.supportZ > 0 && WORLD_OBJECTS.some((o) => o.id === k.supportId && o.stand)) { // onto a block: you stay on it
-        this.blockHold = { x: Math.sign(this.ci?.moveX ?? 0), y: Math.sign(this.ci?.moveY ?? 0) }; k.vx = 0; k.vy = 0;
-      }
+      // onto a block: you keep going the way you hold (MapleStory) — no freeze on landing; the drift in the air was already
+      // held so that you come down on its top
       if (r.impactVz > 180) this.fx!.dust(k.x, k.y - k.z, 48 + Math.min(70, r.impactVz / 8), 0.75, this.dustDepth(k));
       if (b.state === 'free' && !this.rt!.ownRun) this.setMode('land');
     }

@@ -148,6 +148,19 @@ export class OpenWorld {
         if (!this.scene.load.isLoading()) this.scene.load.start();
       };
       put(`heights-${h.id}`, h.img, () => this.towers.push(this.scene.add.image(h.x, h.imgY, `heights-${h.id}`).setOrigin(0, 0).setDepth(h.depth ?? -1.2)));
+      // its wall's shadow on the floor in front of its foot (the lower floor, or the map it rises from): anchors it there
+      if (!this.scene.textures.exists('heights-shade')) {
+        const c = this.scene.textures.createCanvas('heights-shade', 256, 64)!, x = c.getContext();
+        const gy = x.createLinearGradient(0, 0, 0, 64); gy.addColorStop(0, 'rgba(20,8,4,0.55)'); gy.addColorStop(0.35, 'rgba(20,8,4,0.28)'); gy.addColorStop(1, 'rgba(20,8,4,0)');
+        x.fillStyle = gy; x.fillRect(0, 0, 256, 64);
+        x.globalCompositeOperation = 'destination-in';
+        const gx = x.createLinearGradient(0, 0, 256, 0); gx.addColorStop(0, 'rgba(0,0,0,0)'); gx.addColorStop(0.08, 'rgba(0,0,0,1)'); gx.addColorStop(0.92, 'rgba(0,0,0,1)'); gx.addColorStop(1, 'rgba(0,0,0,0)');
+        x.fillStyle = gx; x.fillRect(0, 0, 256, 64); c.refresh();
+      }
+      const under = HEIGHTS.find((o) => o !== h && o.H < h.H && h.x + 40 >= o.x && h.x + h.w - 40 <= o.x + o.w);
+      const baseZ = under ? under.H : 0;
+      this.towers.push(this.scene.add.image(h.x + h.w / 2, h.front - baseZ, 'heights-shade').setOrigin(0.5, 0).setDisplaySize(h.w + 20, 70)
+        .setDepth(under ? (under.depth ?? -1.2) + 0.05 : -0.9));
       for (const b of h.blocks) put(`heights-${h.id}-${b.id}`, b.occ.img, () => this.towers.push(this.scene.add.image(b.occ.x, h.imgY + b.occ.py, `heights-${h.id}-${b.id}`).setOrigin(0, 0).setDepth(h.front + 1 + b.front * 0.001)));
     }
   }
@@ -162,6 +175,12 @@ export class OpenWorld {
       for (let i = 24; i > 0; i--) { g.fillStyle(0xffe2a0, 0.06 + (1 - i / 24) * 0.09); g.fillEllipse(64, 16, 128 * (i / 24), 32 * (i / 24)); }
       g.generateTexture('climb-glow', 128, 32); g.destroy();
     }
+    if (!sc.textures.exists('climb-rim')) {
+      const g = sc.make.graphics({ x: 0, y: 0 }, false);
+      for (let i = 0; i < 5; i++) { g.fillStyle(0xfff0c0, [0.12, 0.3, 0.9, 0.3, 0.12][i]); g.fillRect(4, i * 2, 248, 2); }
+      g.fillStyle(0xfff0c0, 0.4); g.fillRect(0, 4, 4, 2); g.fillRect(252, 4, 4, 2);
+      g.generateTexture('climb-rim', 256, 10); g.destroy();
+    }
     if (!sc.textures.exists('climb-mote')) {
       const g = sc.make.graphics({ x: 0, y: 0 }, false);
       for (let r = 6; r > 0; r--) { g.fillStyle(0xfff2c8, 0.18 + (1 - r / 6) * 0.5); g.fillCircle(6, 6, r); }
@@ -174,6 +193,12 @@ export class OpenWorld {
       const cx = (t.x0 + t.x1) / 2, w = t.x1 - t.x0, top = t.front - Math.round(t.h / CUBE.h) * CUBE.h - CUBE.top / 2;
       const glow = add(sc.add.image(cx, top, 'climb-glow').setDisplaySize(w * 0.95, CUBE.top * 1.6).setBlendMode(Phaser.BlendModes.ADD).setDepth(t.front + 1.2));
       pulse(glow, 0.55, 1, 1300, i * 260);
+      // a bright rim along the top face's front edge (where you land) and a soft halo round the cube's top
+      const rimY = t.front - t.base - Math.round(t.h / CUBE.h) * CUBE.h;
+      const rim = add(sc.add.image(cx, rimY, 'climb-rim').setDisplaySize(w * 0.98, 10).setBlendMode(Phaser.BlendModes.ADD).setDepth(t.front + 1.25));
+      pulse(rim, 0.45, 1, 1300, i * 260);
+      const halo = add(sc.add.image(cx, top - 6, 'climb-glow').setDisplaySize(w * 1.35, CUBE.top * 3.2).setBlendMode(Phaser.BlendModes.ADD).setDepth(t.front + 1.15));
+      pulse(halo, 0.15, 0.45, 1300, i * 260);
       add(sc.add.particles(0, 0, 'climb-mote', {
         x: { min: t.x0 + 14, max: t.x1 - 14 }, y: { min: top - 8, max: top + 8 }, lifespan: 1400, speedY: { min: -38, max: -18 }, speedX: { min: -6, max: 6 },
         scale: { start: 0.9, end: 0.2 }, alpha: { start: 0.85, end: 0 }, frequency: 420, quantity: 1, blendMode: 'ADD',
