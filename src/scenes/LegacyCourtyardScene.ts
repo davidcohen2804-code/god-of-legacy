@@ -2202,7 +2202,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Archer casts: buffs, the tree, the channelled storm (timers on the sim clock, from the run's real startup). */
   private archerCast(s: FinalSkill, stage: number): void {
     const T = s.chain?.timings?.[stage] ?? s, up = Math.round(T.startup / this.ownSpeedMul(s)), k = this.kin, now = this.simMs;
-    if (s.id === 'bow_haste') { this.hasteUntil = now + up + 120000; this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'BOW HASTE', '#c8ffb0', 0)); }
     if (s.id === 'hunters_spirit') { this.spiritUntil = now + up + 120000; this.shares.push({ at: now + up, id: s.id, ms: 120000 }); this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, "HUNTER'S SPIRIT", '#ffe27a', 0)); }
     if (s.id === 'tree_of_life') { const side = this.aim.x < 0 ? -1 : 1; void side; this.tree = { x: k.x, y: k.y - 46, until: now + up + 20000, next: now + up + 1000 }; this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'TREE OF LIFE', '#b8ff9a', 0)); }
     if (s.id === 'piercing_arrow') this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'SPIRIT BOW', '#c8ffb0', 0));
@@ -2382,7 +2381,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** PvE authority: combat body reaction on the enemy/dummy, damage, confirmed-hit feedback. */
   private applyToPve(run: CastRun, hit: HitEvent, t: HitTarget, at: V3): void {
     const now = this.simMs, s = run.skill;
-    hit = this.mageHit(run, hit);
+    hit = this.mageHit(run, hit); hit = this.markHit(run, hit, t.id);
     const amb = run.own && hit.damage > 0 && !!this.kage?.isAmbush(run.castId); // Kagemusha's AMBUSH: a sure critical and a stun
     if (amb) hit = { ...hit, reaction: { ...hit.reaction, stun: Math.max(hit.reaction.stun ?? 0, KAGE.ambushStun) } };
     let out: HitOutcome | null = null, crit = false; // (a critical: its own number, MapleStory — no CRITICAL text)
@@ -2532,6 +2531,29 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   /** PvP victim authority: this client resolved a remote cast against its own body. */
+  /** Archer's Hunter's Mark: leaf marks (max 3, 6s) per archer on each foe; some skills spend them for their bonus. Every
+   *  client keeps the marks of the hits it is authority for (its own hits on monsters / the bot, others' hits on itself). */
+  private marks = new Map<string, { n: number; until: number }>();
+  private markHit(run: CastRun, hit: HitEvent, targetId: string): HitEvent {
+    if (run.skill.cls !== 'archer' || (!hit.mark && !hit.useMark)) return hit;
+    const now = this.simMs, key = `${run.attackerId}>${targetId}`, m = this.marks.get(key), n = m && m.until > now ? m.n : 0;
+    let out = hit;
+    if (hit.useMark && n > 0) {
+      this.marks.delete(key);
+      const R = { ...hit.reaction };
+      if (hit.useMark === 'launch') R.launch = Math.round((R.launch ?? 0) * (1 + 0.3 * n));
+      if (hit.useMark === 'stun') R.hardCC = { kind: 'stun', ms: 500 + 300 * n, long: true };
+      const dm = hit.useMark === 'blast' ? 1 + 0.35 * n : hit.useMark === 'roar' ? 1 + 0.4 * n : 1;
+      out = { ...hit, damage: Math.round(hit.damage * dm), reaction: R };
+      this.fx?.archerMarkSpend(targetId, n, hit.useMark);
+    } else if (hit.mark) {
+      const k = Math.min(3, n + hit.mark);
+      this.marks.set(key, { n: k, until: now + 6000 });
+      this.fx?.archerMark(targetId, k, 6000);
+    }
+    return out;
+  }
+
   private applyRemoteHitToSelf(run: CastRun, hit: HitEvent, hi: number, at: V3): void {
     if (this.dead >= 0 || this.party?.has(run.attackerId)) return; // party members never hit each other
     if (this.match?.active && !this.match.live) return; // a battle: only the fight counts (not VS / ROUND n / after the K.O.)
@@ -2539,7 +2561,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (trial && this.simMs < this.hitBlinkUntil) return;
     if (this.inDome()) { this.domeBlock(this.casterPos(run.attackerId) ?? run.origin); this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: run.skill.id, hit: hi, dmg: 0, rx: 'armor' }); return; }
     const s = run.skill;
-    hit = this.mageHit(run, hit);
+    hit = this.mageHit(run, hit); hit = this.markHit(run, hit, this.localId);
     if (hit.damage > 0 && this.mageGuard(hit, this.casterPos(run.attackerId) ?? run.origin, run.attackerId === BOT_ID ? this.bot?.body : undefined)) { this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'armor' }); return; }
     if (hit.shape.kind !== 'placed' && hit.damage > 0 && this.tryCounter(this.casterPos(run.attackerId) ?? run.origin)) {
       this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'countered' });
@@ -2909,7 +2931,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private applyToBot(run: CastRun, hit: HitEvent, t: HitTarget, at: V3): void {
     const b = this.bot;
     if (!b || b.defeated || (this.match?.active && !this.match.live)) return;
-    hit = this.mageHit(run, hit);
+    hit = this.mageHit(run, hit); hit = this.markHit(run, hit, t.id);
     const chB = run.attackerId === this.localId ? this.chanceMul(b.body) : 1;
     const m = run.attackerId === this.localId ? this.ownDamageMul(run.skill) * chB : 1, h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
     const out = b.receive(run.attackerId, run.skill, h, this.hitFrom(run, h), this.simMs);
@@ -3449,7 +3471,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private buffEffects(): HudEffect[] {
     const out: HudEffect[] = [], now = this.simMs, ic = (id: string) => { const f = finalSkill(id); return f ? iconUrl(f) : `assets/final/skills/warrior/${id}/icon.png`; };
     for (const [id, label, until] of [['war_cry', 'War Cry', Math.max(this.warCryUntil, this.allyCryUntil)], ['radiant_blade', 'Radiant Blade', this.radiantUntil], ['iron_oath', 'Iron Oath', this.oathUntil], ['legacy_banner', 'Legacy Banner', this.bannerUntil],
-      ['bow_haste', 'Bow Haste', this.hasteUntil], ['hunters_spirit', "Hunter's Spirit", this.spiritUntil], ['tree_of_life', 'Tree of Life', this.tree?.until ?? -1],
+      ['hunters_spirit', "Hunter's Spirit", this.spiritUntil], ['tree_of_life', 'Tree of Life', this.tree?.until ?? -1],
       ['kagemusha', 'Kagemusha', this.kage?.up ? this.kage.until : -1], ['rising_sun', 'Rising Sun', this.sunUntil], ['god_of_blades', 'God of Blades', this.godUntil],
       ['chrono_haste', 'Chrono Haste', this.mage.hasteUntil], ['arcane_ward', 'Arcane Ward', this.mage.wardHp > 0 ? this.mage.wardUntil : -1], ['elemental_ascension', 'Elemental Ascension', this.mage.ascUntil], ['chrono_sigil', 'Chrono Sigil', this.sigil?.until ?? -1]] as const)
       if (now < until) out.push({ id, label, iconUrl: ic(id), harmful: false, expiresAtMs: until });

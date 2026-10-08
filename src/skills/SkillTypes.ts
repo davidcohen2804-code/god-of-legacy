@@ -68,6 +68,10 @@ export interface HitEvent {
   /** Book Mage caster passives carried by the hit: Shatter Mastery's shatter multiplier, Conductor. */
   shatterMul?: number;
   conductor?: boolean;
+  /** Archer: Hunter's Mark stacks this hit leaves on the foe (max 3, 6s). */
+  mark?: number;
+  /** Archer: this hit spends the foe's marks for its bonus (launch higher / double blast / paralyse / roar damage). */
+  useMark?: 'launch' | 'blast' | 'stun' | 'roar';
 }
 
 export interface FinalSkill {

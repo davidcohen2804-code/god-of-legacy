@@ -87,7 +87,7 @@ export function archerMotion(id: string, e: number, T: Timeline, face: number): 
       if (e < A + 120) { const j = Math.sin(e * 0.9) * 2.2; return M({ sy: 1.1, sx: 0.95, dx: j, ang: -face * 7 }); }
       return M({ sy: 1 + 0.1 * (1 - clamp01((e - A - 120) / 200)) });
     }
-    case 'bow_haste': case 'hunters_spirit': case 'spirit_hawk': { // gather, rise on the toes as the power answers
+    case 'hunters_spirit': case 'spirit_hawk': { // gather, rise on the toes as the power answers
       const r = e - T.startup;
       if (r < 0) return M({ sy: 1 - 0.06 * clamp01(e / T.startup), dy: 0 });
       return M({ dy: -10 * Math.sin(Math.PI * clamp01(r / (T.active + 200))), sy: 1.04, sx: 0.98 });

@@ -75,8 +75,23 @@ MAGE_SHEETS = {
     'm11_bolts_hand_runes.png': grid(4, 3, ['bolt_frost', 'bolt_storm', 'hand_open', 'hand_fist', 'shackles', 'time_blast', 'floor_frost', 'glow_streak', 'rune_cyan', 'rune_ice', 'rune_violet'], [300, 300, 300, 280, 300, 440, 384, 340, 110, 110, 110], mode='box')
         + [('rune_gold', (1152, 683, 1336, 1024), 110, 'box'), ('rune_blue', (1336, 683, 1536, 1024), 110, 'box')],
 }
+# The archer's pieces (ArcherFx): emerald wind and leaves with gold, cyan storm lightning, spirit beasts.
+ARCHER_SHEETS = {
+    'a1.png': [('arrow_wind', (0, 100, 384, 400), 300), ('arrow_heavy', (384, 100, 768, 400), 320), ('arrow_storm', (768, 100, 1152, 400), 320), ('arrow_streak', (1152, 100, 1536, 400), 360),
+               ('arrow_triple', (0, 520, 430, 900), 300), ('arrow_fall', (430, 420, 720, 920), 300), ('arrow_stuck', (720, 520, 1180, 900), 260), ('arrow_glint', (1180, 520, 1536, 900), 100)],
+    'a2.png': grid(4, 2, ['spark_s', 'burst_heavy', 'burst_crit', 'leaf_spray', 'shock_ring', 'launch_beam', 'wind_puff', 'muzzle'], [200, 300, 320, 280, 400, 380, 260, 260]),
+    'a3.png': grid(4, 2, ['mark_1', 'mark_2', 'mark_3', 'mark_burst', 'leaf_1', 'leaf_2', 'leaf_3', 'feather'], [120, 140, 160, 220, 64, 64, 64, 80]),
+    'a4.png': grid(4, 2, ['rune_circle', 'target_circle', 'haste_ring', 'mine_seed', 'floor_cracks', 'scorch_ring', 'floor_swirl', None], [420, 400, 380, 360, 400, 400, 380, 0]) + [('aim_band', (1120, 600, 1536, 830), 440, 'box')],
+    'a5.png': grid(4, 2, ['root_long', 'root_tangle', 'vine_wrap', 'sprout', 'vine_column', 'tree_light', 'apple', 'bloom'], [480, 360, 240, 200, 400, 440, 64, 200]),
+    'a6.png': [('wind_crescent', (768, 30, 1125, 490), 320, 'box')] + grid(4, 2, ['wind_ring', 'tornado', None, 'wind_streaks', 'wind_spiral', 'wind_boot', 'dust', 'leaf_whirl'], [380, 360, 320, 320, 300, 260, 260, 260]),
+    'a7.png': grid(4, 2, ['bolt_v', 'bolt_h', 'storm_orb', 'arc_small', 'elec_floor', 'bolt_seg', 'storm_cloud', 'spark_cyan'], [440, 360, 240, 160, 380, 220, 300, 100]),
+    'a8.png': grid(4, 1, ['hawk_up', 'hawk_down', 'hawk_dive', 'feather_burst'], [260, 260, 260, 240], h=512)
+              + [('eagle_wide', (0, 530, 600, 990), 520, 'box'), ('eagle_head', (590, 530, 912, 960), 380, 'box'), ('wolf_head', (920, 512, 1200, 1024), 280), ('wolf', (1200, 512, 1536, 1024), 300)],
+    'a9.png': [('bow', (0, 40, 390, 480), 300, 'box')] + grid(4, 2, [None, 'bow_drawn', 'aura_gold', 'aura_green', 'emblem', 'pillar', 'sparkles', 'rain_ring'], [300, 300, 300, 300, 240, 380, 200, 300]),
+}
 PROFILES = {'samurai': (G + 'tools/skills/gpt/kit/', G + 'public/assets/final/skills/samurai/kit/', None),
-            'mage': (G + 'tools/skills/gpt/mage/', G + 'public/assets/final/skills/book_mage/kit/', MAGE_SHEETS)}
+            'mage': (G + 'tools/skills/gpt/mage/', G + 'public/assets/final/skills/book_mage/kit/', MAGE_SHEETS),
+            'archer': (G + 'tools/skills/gpt/archer_kit/', G + 'public/assets/final/skills/archer/kit/', ARCHER_SHEETS)}
 
 MARGIN = 40           # how far past its box a piece may reach (its own glow)
 BODY_SLICES = 8       # the dragon body is also cut into this many frames along its length (the game chains them)
