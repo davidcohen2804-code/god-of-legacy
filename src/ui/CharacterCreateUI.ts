@@ -15,13 +15,12 @@ import { DEFAULT_SKIN, SKIN_TONES } from '../characters/Skin';
 export type CreateLook = LookData;
 export const FIRST_LOOK: CreateLook = { gender: 'male', face: 0, hair: 0, hairColor: 0, skin: DEFAULT_SKIN, eyeColor: 0, top: 0, pants: 0, shoes: 0, weapon: true };
 type Piece = 'top' | 'pants' | 'shoes';
-const PIECES: { id: Piece; label: string }[] = [{ id: 'top', label: 'SHIRT' }, { id: 'pants', label: 'PANTS' }, { id: 'shoes', label: 'BOOTS' }];
+const PIECES: { id: Piece; label: string }[] = [{ id: 'top', label: 'Shirt' }, { id: 'pants', label: 'Pants' }, { id: 'shoes', label: 'Boots' }];
 const COLORS_OF = OUTFIT_COLORS as Record<Piece, { name: string; swatch: string }[]>;
 /** Swatch rows: hair colour, skin tone and eye colour (STYLE panel), each starter piece (OUTFIT panel). */
 type SwatchRow = 'hairColor' | 'skin' | 'eyeColor' | Piece;
 const SWATCHES: Record<SwatchRow, { name: string; swatch: string }[]> = { hairColor: HAIR_COLORS as { name: string; swatch: string }[], skin: SKIN_TONES, eyeColor: EYE_COLORS, ...COLORS_OF };
 
-const KIT = (f: string) => `assets/final/ui/kit/${f}.png`;
 /** The male / female signs on the BODY buttons, drawn (♂: circle and arrow; ♀: circle and cross). */
 const SEX_SIGN = {
   male: '<svg viewBox="0 0 32 32"><circle cx="13" cy="19" r="7.5"/><path d="M18.5 13.5L25.5 6.5M19 6.5h6.5V13"/></svg>',
@@ -35,17 +34,17 @@ const STARTER = CLASS_OPTIONS[0];
  *  Fan cards in order: warrior, book mage, archer, samurai, (coming soon). */
 const TEST_PICK = true;
 const FAN_CLASS = ['warrior', 'book_mage', 'archer', 'samurai'];
-/** Kit layout (design px). kit/modal_window.png: header strip at 15..22% of its height, body 25..85%. */
+/** Layout (design px): the panels on the left, the class fan and the outfit on the right. */
 const C = {
   // CHARACTER (left, top): name and body; its rows (design px from the panel top): NAME label, input, BODY label, buttons
-  char: { x: 92, y: 150, w: 470, h: 330, rows: [90, 112, 192, 214] },
+  char: { x: 92, y: 150, w: 470, h: 262, rows: [62, 86, 160, 184] },
   // the class fan: centred over OUTFIT and CREATE (x 1603), in the right column above OUTFIT
   fan: { x: 1308, y: 239, w: 590 },
-  create: { x: 1438, y: 922, w: 330, h: 126 },
+  create: { x: 1418, y: 884, w: 400, h: 60 },
   // STYLE (left, under CHARACTER): face and hairstyle buttons, hair colour, skin and eye colour swatches (its bottom level with
   // OUTFIT's); OUTFIT (right, under the class fan)
-  look: { x: 92, y: 494, w: 470, h: 422, col: 150, icon: 52, iconGap: 16, sw: 34, swGap: 20, rows: [112, 174, 240, 286, 332] },
-  outfit: { x: 1388, y: 680, w: 430, h: 236, col: 150, sw: 34, swGap: 20, rows: [72, 122, 172] },
+  look: { x: 92, y: 432, w: 470, h: 392, col: 150, icon: 52, iconGap: 14, sw: 32, swGap: 16, rows: [66, 132, 214, 266, 318] },
+  outfit: { x: 1388, y: 648, w: 430, h: 214, col: 150, sw: 32, swGap: 16, rows: [60, 110, 160] },
 } as const;
 
 export interface CharacterCreateHandlers {
@@ -59,7 +58,6 @@ export interface CharacterCreateHandlers {
 
 const STYLE_ID = 'gol-charcreate-style';
 const CSS = `
-.gol-cc .info.p-char h2{top:${Math.round(C.char.h * 0.186) - 10}px!important}
 .gol-cc .fan{position:absolute;pointer-events:none}
 .gol-cc .fan img{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;-webkit-user-drag:none}
 .gol-cc .fan .art{filter:drop-shadow(0 8px 16px rgba(0,0,0,.6))}
@@ -67,39 +65,27 @@ const CSS = `
 .gol-cc .fan .glow.on{opacity:1;transition-duration:200ms}
 .gol-cc .fan .hit{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:auto;cursor:pointer}
 .gol-cc .fan .glow.pick{opacity:1}
-.gol-cc .fan .tag{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);padding:8px 22px;border-radius:8px;background:rgba(8,12,20,.82);box-shadow:inset 0 0 0 1px rgba(201,154,69,.6);color:#ffe2a0;font:700 16px Cinzel,Georgia,serif;letter-spacing:2px;white-space:nowrap;pointer-events:none}
-.gol-cc .cc-input{background:url("${KIT('choice_btn')}") 0 0/100% 100% no-repeat!important;border:0!important;box-shadow:none!important;border-radius:0!important;
-  padding:0 34px!important;font-size:20px!important;height:62px!important}
-.gol-cc .cc-input:focus{background-image:url("${KIT('choice_btn_hover')}")!important}
-.gol-cc .cc-label{left:44px!important;font-size:14px!important;letter-spacing:3px!important;color:#e8b25a;opacity:1!important}
-.gol-cc .kopt{position:absolute;pointer-events:auto;cursor:pointer;border:0;padding:0 0 0 86px;background:url("${KIT('choice_btn')}") 0 0/100% 100% no-repeat;
-  text-align:left;font-family:inherit;font-weight:700;font-size:18px;letter-spacing:2px;color:#cfd6de;text-shadow:0 1px 2px #000;transition:transform 120ms,filter 120ms}
-.gol-cc .kopt:hover{filter:brightness(1.15);transform:translateX(3px)}
-.gol-cc .kopt.on{background-image:url("${KIT('choice_btn_hover')}");color:#ffe7a8}
-.gol-cc .kopt .pf{position:absolute;left:24px;top:7px;width:48px;height:48px;border-radius:50%;background-repeat:no-repeat;background-color:#0a1018;box-shadow:0 0 0 2px #c99a45,0 2px 6px rgba(0,0,0,.6)}
-.gol-cc .kopt.on .pf{box-shadow:0 0 0 2px #ffe2a0,0 0 10px rgba(255,200,90,.7)}
-.gol-cc .kopt.gd{padding:0 0 0 76px;font-size:17px}
-.gol-cc .kopt.gd .pf{left:16px}
-.gol-cc .kopt .pf.sym{display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#16202e,#080d14)}
-.gol-cc .kopt .pf.sym svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 3px currentColor)}
-.gol-cc .kopt .pf.sym.male{color:#79c2ff}
-.gol-cc .kopt .pf.sym.female{color:#ff94c6}
-.gol-cs .cc-label{position:absolute;left:34px;font-size:${L.character.labelSize}px;letter-spacing:1.5px;opacity:.8}
-.gol-cs .cc-input{position:absolute;left:34px;right:34px;pointer-events:auto;box-sizing:border-box;
-  height:${L.character.input.h}px;padding:0 18px;font-family:inherit;font-size:${L.character.input.size}px;letter-spacing:1px;
-  color:#F3E7CF;background:rgba(5,9,14,.85);border:1.5px solid rgba(201,154,69,.75);border-radius:4px;outline:none;
-  box-shadow:inset 0 0 0 3px rgba(5,9,14,.9),inset 0 0 0 4px rgba(232,199,126,.25)}
-.gol-cs .cc-input::placeholder{color:rgba(243,231,207,.4)}
-.gol-cs .cc-input:focus{border-color:#E8C77E;box-shadow:inset 0 0 0 3px rgba(5,9,14,.9),inset 0 0 0 4px rgba(232,199,126,.4),0 0 10px rgba(232,199,126,.35)}
-.gol-cc .info.p-look h2{top:${Math.round(C.look.h * 0.186) - 10}px!important}
-.gol-cc .info.p-outfit h2{top:${Math.round(C.outfit.h * 0.186) - 10}px!important}
+.gol-cc .fan .tag{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);padding:8px 18px;border-radius:999px;background:rgba(11,18,31,.9);border:1px solid rgba(231,196,124,.4);
+  color:var(--gl-gold2);font:600 13px var(--gl-body);letter-spacing:.8px;white-space:nowrap;pointer-events:none}
+.gol-cc .cc-label{position:absolute;left:28px!important;font:700 11px var(--gl-body)!important;letter-spacing:1.5px!important;color:#c9ae78!important;opacity:1!important;text-transform:uppercase}
+.gol-cc .cc-input{position:absolute;box-sizing:border-box;height:48px!important;padding:0 16px!important;border-radius:12px!important;border:1px solid rgba(255,255,255,.14)!important;
+  background:#0a101c!important;box-shadow:none!important;font:500 17px var(--gl-body)!important;letter-spacing:.3px!important;color:#fff!important;pointer-events:auto;outline:none;
+  transition:border-color 120ms,box-shadow 120ms}
+.gol-cc .cc-input:focus{border-color:rgba(231,196,124,.6)!important;box-shadow:0 0 0 3px rgba(231,196,124,.14)!important}
+.gol-cc .cc-input::placeholder{color:#6f7a8b!important}
+.gol-cc .kopt{position:absolute;pointer-events:auto;cursor:pointer;box-sizing:border-box;padding:0 0 0 60px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);
+  text-align:left;font:600 15px var(--gl-body);letter-spacing:.4px;color:var(--gl-text2);transition:background 120ms,border-color 120ms,color 120ms}
+.gol-cc .kopt:hover{background:rgba(255,255,255,.06);color:var(--gl-text)}
+.gol-cc .kopt.on{background:#1d2a41;border-color:rgba(231,196,124,.6);color:var(--gl-gold2);box-shadow:0 0 0 3px rgba(231,196,124,.1)}
+.gol-cc .kopt .pf{position:absolute;left:14px;top:50%;width:34px;height:34px;margin-top:-17px;border-radius:50%;background:#0a1018;display:flex;align-items:center;justify-content:center}
+.gol-cc .kopt .pf.sym svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.gol-cc .kopt .pf.sym.male{color:#86bdf0}
+.gol-cc .kopt .pf.sym.female{color:#f3a2cb}
 .gol-cc .hbtn,.gol-cc .swb{position:absolute;pointer-events:auto;cursor:pointer;border:0;padding:0;border-radius:50%;
-  background:#0a1018 center/cover no-repeat;box-shadow:0 0 0 2px #c99a45,0 2px 6px rgba(0,0,0,.6);transition:transform 120ms,box-shadow 120ms}
-.gol-cc .hbtn:hover,.gol-cc .swb:hover{transform:scale(1.08)}
-.gol-cc .hbtn.on,.gol-cc .swb.on{box-shadow:0 0 0 3px #ffe2a0,0 0 12px rgba(255,200,90,.85)}
-.gol-cs .cc-opt{left:40px}
-.gol-cs .cc-opt:not(.primary){opacity:.72}
-.gol-cs .cc-opt:not(.primary):hover{opacity:1}
+  background:#0a1018 center/cover no-repeat;box-shadow:0 0 0 1px rgba(255,255,255,.18);transition:transform 120ms,box-shadow 120ms}
+.gol-cc .hbtn{border-radius:12px}
+.gol-cc .hbtn:hover,.gol-cc .swb:hover{transform:scale(1.07);box-shadow:0 0 0 1px rgba(231,196,124,.6)}
+.gol-cc .hbtn.on,.gol-cc .swb.on{box-shadow:0 0 0 2px var(--gl-gold),0 0 0 5px rgba(231,196,124,.18)}
 `;
 
 export class CharacterCreateUI {
@@ -133,26 +119,25 @@ export class CharacterCreateUI {
     const pq = this.el('div', 'abs plq', this.root); this.box(pq, P.x, P.y, P.w, P.h);
     const t = this.el('div', 'abs title', this.root);
     t.textContent = L.title.text;
-    Object.assign(t.style, { top: `${L.title.top}px`, fontSize: `${L.title.size}px` });
 
     // Character panel: name.
     const cp = this.el('div', 'abs panel info p-char', this.root);
     this.box(cp, C.char.x, C.char.y, C.char.w, C.char.h);
-    const h2 = this.el('h2', '', cp); h2.textContent = 'CHARACTER';
+    const h2 = this.el('h2', '', cp); h2.textContent = 'Character';
     const R = C.char.rows;
-    const lab = this.el('div', 'cc-label', cp); lab.textContent = 'NAME'; lab.style.top = `${R[0]}px`;
+    const lab = this.el('div', 'cc-label', cp); lab.textContent = 'Name'; lab.style.top = `${R[0]}px`;
     this.input = this.el('input', 'cc-input', cp) as HTMLInputElement;
     Object.assign(this.input, { type: 'text', placeholder: 'Your name', maxLength: L.character.input.maxLength, autocomplete: 'off', spellcheck: false });
-    Object.assign(this.input.style, { top: `${R[1]}px`, left: '30px', right: '30px' });
+    Object.assign(this.input.style, { top: `${R[1]}px`, left: '28px', right: '28px' });
     this.input.addEventListener('input', () => this.render());
     // Body: the clean base character, male or female — each button marked with its sign (♂ / ♀).
-    const lb2 = this.el('div', 'cc-label', cp); lb2.textContent = 'BODY'; lb2.style.top = `${R[2]}px`;
-    const GW = Math.floor((C.char.w - 60 - 14) / 2);
+    const lb2 = this.el('div', 'cc-label', cp); lb2.textContent = 'Body'; lb2.style.top = `${R[2]}px`;
+    const GW = Math.floor((C.char.w - 56 - 12) / 2);
     (['male', 'female'] as const).forEach((g, i) => {
       const b = this.el('button', 'kopt gd', cp) as HTMLButtonElement;
       this.el('div', `pf sym ${g}`, b).innerHTML = SEX_SIGN[g];
-      b.appendChild(document.createTextNode(g === 'male' ? 'MALE' : 'FEMALE'));
-      this.box(b, 30 + i * (GW + 14), R[3], GW, 62);
+      b.appendChild(document.createTextNode(g === 'male' ? 'Male' : 'Female'));
+      this.box(b, 28 + i * (GW + 12), R[3], GW, 52);
       b.addEventListener('mousedown', (e) => e.preventDefault());
       b.addEventListener('click', () => this.selectGender(g));
       this.genderBtns.push(b);
@@ -162,11 +147,11 @@ export class CharacterCreateUI {
     const Lk = C.look;
     const lp = this.el('div', 'abs panel info p-look', this.root);
     this.box(lp, Lk.x, Lk.y, Lk.w, Lk.h);
-    const h4 = this.el('h2', '', lp); h4.textContent = 'STYLE';
+    const h4 = this.el('h2', '', lp); h4.textContent = 'Style';
     const most = (k: 'faces' | 'styles') => Math.max(lookCounts('male')[k], lookCounts('female')[k]);
     (['face', 'hair'] as const).forEach((kind, r) => {
       const y = Lk.rows[r];
-      const lb = this.el('div', 'cc-label', lp); lb.textContent = kind === 'face' ? 'FACE' : 'HAIR'; lb.style.top = `${y + Lk.icon / 2 - 9}px`;
+      const lb = this.el('div', 'cc-label', lp); lb.textContent = kind === 'face' ? 'Face' : 'Hair'; lb.style.top = `${y + Lk.icon / 2 - 6}px`;
       for (let k = 0; k < most(kind === 'face' ? 'faces' : 'styles'); k++) {
         const b = this.el('button', 'hbtn', lp) as HTMLButtonElement;
         this.box(b, Lk.col + k * (Lk.icon + Lk.iconGap), y, Lk.icon, Lk.icon);
@@ -175,15 +160,15 @@ export class CharacterCreateUI {
         this.icons[kind].push(b);
       }
     });
-    this.swatchRow(lp, 'hairColor', 'COLOR', Lk.col, Lk.rows[2], Lk.sw, Lk.swGap);
-    this.swatchRow(lp, 'skin', 'SKIN', Lk.col, Lk.rows[3], Lk.sw, Lk.swGap);
-    this.swatchRow(lp, 'eyeColor', 'EYES', Lk.col, Lk.rows[4], Lk.sw, Lk.swGap);
+    this.swatchRow(lp, 'hairColor', 'Hair colour', Lk.col, Lk.rows[2], Lk.sw, Lk.swGap);
+    this.swatchRow(lp, 'skin', 'Skin', Lk.col, Lk.rows[3], Lk.sw, Lk.swGap);
+    this.swatchRow(lp, 'eyeColor', 'Eyes', Lk.col, Lk.rows[4], Lk.sw, Lk.swGap);
 
     // Outfit panel: the colour of each starter piece.
     const O = C.outfit;
     const op = this.el('div', 'abs panel info p-outfit', this.root);
     this.box(op, O.x, O.y, O.w, O.h);
-    const h5 = this.el('h2', '', op); h5.textContent = 'OUTFIT';
+    const h5 = this.el('h2', '', op); h5.textContent = 'Outfit';
     PIECES.forEach((p, r) => this.swatchRow(op, p.id, p.label, O.col, O.rows[r], O.sw, O.swGap));
 
     // The class fan: every class in the game side by side (nothing to pick: a new character starts as the Beginner).
@@ -202,14 +187,14 @@ export class CharacterCreateUI {
       if (TEST_PICK && FAN_CLASS[i]) hit.addEventListener('click', () => { // testing: pick this class (click again = back to the Beginner)
         this.testClass = this.testClass === FAN_CLASS[i] ? null : FAN_CLASS[i];
         glows.forEach((g, k) => g.classList.toggle('pick', FAN_CLASS[k] === this.testClass));
-        tag.textContent = this.testClass ? `TEST · ${this.testClass === 'book_mage' ? 'BOOK MAGE' : this.testClass.toUpperCase()}` : 'TEST · CLICK A CLASS';
+        tag.textContent = this.testClass ? `Test · ${this.testClass === 'book_mage' ? 'Book Mage' : this.testClass[0].toUpperCase() + this.testClass.slice(1)}` : 'Test · click a class';
       });
     });
-    const tag = this.el('div', 'tag', fan); tag.textContent = 'TEST · CLICK A CLASS'; tag.style.display = TEST_PICK ? '' : 'none';
+    const tag = this.el('div', 'tag', fan); tag.textContent = 'Test · click a class'; tag.style.display = TEST_PICK ? '' : 'none';
 
     // Buttons.
-    this.button('BACK', { ...KIT_LAYOUT.back, size: 22 }, () => this.h.onBack());
-    this.btnCreate = this.button('CREATE CHARACTER', { ...C.create, size: 20 }, () => this.create(), true);
+    this.button('Back', { ...KIT_LAYOUT.back, y: 884, h: 60, size: 15 }, () => this.h.onBack());
+    this.btnCreate = this.button('CREATE CHARACTER', { ...C.create, size: 19 }, () => this.create(), true);
 
     window.addEventListener('keydown', this.onKey);
     this.selectGender('male');
@@ -271,7 +256,7 @@ export class CharacterCreateUI {
 
   /** A labelled row of colour swatches (one choice of the look). */
   private swatchRow(parent: HTMLElement, row: SwatchRow, label: string, x: number, y: number, size: number, gap: number): void {
-    const lb = this.el('div', 'cc-label', parent); lb.textContent = label; lb.style.top = `${y + size / 2 - 9}px`;
+    const lb = this.el('div', 'cc-label', parent); lb.textContent = label; lb.style.top = `${y + size / 2 - 6}px`;
     SWATCHES[row].forEach((c, i) => {
       const b = this.el('button', 'swb', parent) as HTMLButtonElement;
       this.box(b, x + i * (size + gap), y, size, size);
@@ -289,7 +274,6 @@ export class CharacterCreateUI {
   private button(label: string, b: { x: number; y: number; w: number; h: number; size: number }, fn: () => void, primary = false) {
     const el = this.el('button', `kbtn abs${primary ? ' primary' : ''}`, this.root) as HTMLButtonElement;
     el.textContent = label;
-    el.style.fontSize = `${b.size}px`;
     this.box(el, b.x, b.y, b.w, b.h);
     el.addEventListener('mousedown', (e) => e.preventDefault()); // keep focus in the name field
     el.addEventListener('click', fn);

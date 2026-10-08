@@ -1,11 +1,9 @@
 import Phaser from 'phaser';
-import { FONT_FAMILY } from '../config/layout';
+import { FONT_FAMILY, HUD } from '../config/layout';
 
-/** Kit pieces the loading screen draws with (loaded once by BootScene, before any big scene preload). */
-export const LOADING_KIT = ['exp_frame', 'exp_fill', 'region_plaque'] as const;
-
-/** EXP-bar art reused as the loading bar: the gold fill sits in the frame's navy channel (frame px of the 1400x71 art). */
-const CH = { x: 57, y: 27, w: 1286, h: 18 };
+/** Kit pieces the loading screen draws with (loaded once by BootScene, before any big scene preload): none now — it is
+ *  drawn in the UI's language (theme.ts). */
+export const LOADING_KIT = [] as const;
 
 /**
  * Loading screen for a scene preload (instead of a black canvas): dimmed key art, logo, destination plaque and a
@@ -34,26 +32,27 @@ export function showLoading(scene: Phaser.Scene, title: string): void {
     const logo = add(scene.add.image(W / 2, H * 0.3, 'logo').setDepth(D + 2));
     logo.setScale((W * 0.36) / logo.width);
   }
+  // The destination's name with a fine gold line under it.
   const py = H * 0.6;
-  if (scene.textures.exists('kit.region_plaque')) add(scene.add.image(W / 2, py, 'kit.region_plaque').setScale(1.4).setDepth(D + 2));
-  add(scene.add.text(W / 2, py, title, { fontFamily: FONT_FAMILY, fontStyle: '700', fontSize: '34px', color: '#f3d58a' })
-    .setOrigin(0.5).setLetterSpacing(3).setShadow(0, 2, '#000000', 6, true, true).setDepth(D + 3));
+  add(scene.add.text(W / 2, py, title, { fontFamily: FONT_FAMILY, fontStyle: '700', fontSize: '32px', color: '#f4e6c2', resolution: 2 })
+    .setOrigin(0.5).setLetterSpacing(5).setShadow(0, 2, '#000000', 10, true, true).setDepth(D + 3));
+  const line = add(scene.add.graphics().setDepth(D + 2));
+  for (let i = 0; i < 40; i++) { const t = i / 39, a = Math.sin(t * Math.PI) * 0.85; line.fillStyle(0xf4d896, a).fillRect(W / 2 - 150 + t * 300, py + 34, 300 / 40 + 0.5, 1); }
 
-  // Progress bar: frame + fill cropped to the loaded share of the files.
-  const fw = Math.min(1080, W * 0.6), k = fw / 1400, fx = W / 2 - fw / 2, fy = H * 0.84;
-  let fill: Phaser.GameObjects.Image | undefined;
-  if (scene.textures.exists('kit.exp_frame') && scene.textures.exists('kit.exp_fill')) {
-    add(scene.add.image(fx, fy, 'kit.exp_frame').setOrigin(0, 0).setScale(k).setDepth(D + 2));
-    fill = add(scene.add.image(fx + CH.x * k, fy + CH.y * k, 'kit.exp_fill').setOrigin(0, 0).setDepth(D + 3)); // over the frame's navy channel (as in the HUD)
-    fill.setDisplaySize(CH.w * k, CH.h * k).setCrop(0, 0, 0, fill.height);
-  }
-  const pct = add(scene.add.text(W / 2, fy + 71 * k + 22, 'LOADING  0%', { fontFamily: FONT_FAMILY, fontStyle: '700', fontSize: '20px', color: '#efddb0' })
-    .setOrigin(0.5, 0).setLetterSpacing(4).setShadow(0, 2, '#000000', 4, true, true).setDepth(D + 3));
+  // Progress bar: a slim rounded track, the gold fill grows with the loaded share of the files.
+  const fw = Math.min(720, W * 0.5), fh = 8, fx = W / 2 - fw / 2, fy = H * 0.84;
+  const track = add(scene.add.graphics().setDepth(D + 2));
+  track.fillStyle(0x0a101c, 0.92).fillRoundedRect(fx, fy, fw, fh, fh / 2);
+  track.lineStyle(1, 0xffffff, 0.12).strokeRoundedRect(fx, fy, fw, fh, fh / 2);
+  const fill = add(scene.add.graphics().setDepth(D + 3));
+  const pct = add(scene.add.text(W / 2, fy + 24, 'Loading  0%', { fontFamily: HUD.bodyFont, fontStyle: '600', fontSize: '15px', color: '#e9e2d0', resolution: 2 })
+    .setOrigin(0.5, 0).setLetterSpacing(1).setShadow(0, 1, '#000000', 4, true, true).setDepth(D + 3));
 
   for (const o of objs) (o as unknown as Phaser.GameObjects.Components.ScrollFactor).setScrollFactor?.(0);
   const onProgress = (p: number) => {
-    if (fill) fill.setCrop(0, 0, Math.round(fill.width * p), fill.height);
-    pct.setText(`LOADING  ${Math.round(p * 100)}%`);
+    fill.clear();
+    if (p > 0) fill.fillStyle(0xe7c47c, 1).fillRoundedRect(fx, fy, Math.max(fh, fw * p), fh, fh / 2);
+    pct.setText(`Loading  ${Math.round(p * 100)}%`);
   };
   load.on(Phaser.Loader.Events.PROGRESS, onProgress);
   load.once(Phaser.Loader.Events.COMPLETE, () => {

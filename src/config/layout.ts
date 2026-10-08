@@ -51,30 +51,30 @@ export const COLORS = {
 } as const;
 
 export const SETTINGS_PANEL = {
-  // kit/modal_window.png stretched to w x h: header strip centre ~116px, body 158..527px from the top
-  w: 760,
-  h: 620,
-  headerSize: 30,
-  labelSize: 22,
-  headerOffsetY: 116, // from panel top
-  firstRowOffsetY: 190, // from panel top
-  rowGap: 56,
-  iconX: 652,
+  // a rounded window (theme.ts language), the title over a fine divider, five rows, BACK at the bottom
+  w: 640,
+  h: 480,
+  headerSize: 24,
+  labelSize: 17,
+  headerOffsetY: 46, // from panel top
+  firstRowOffsetY: 132, // from panel top
+  rowGap: 58,
+  iconX: 0,
   labelX: 684,
-  controlX: 900,
-  controlW: 300,
-  valueRightX: 1290,
-  back: { offsetY: 112, w: 200, h: 50 }, // offsetY measured from panel bottom
+  controlX: 880,
+  controlW: 280,
+  valueRightX: 1240,
+  back: { offsetY: 56, w: 180, h: 48 }, // offsetY measured from panel bottom
 } as const;
 
 export const EXIT_PANEL = {
-  w: 620,
-  h: 280,
-  titleSize: 32,
-  titleOffsetY: 112,
-  buttonsOffsetY: 78, // from panel bottom
-  buttonGap: 130,
-  button: { w: 200, h: 56 },
+  w: 560,
+  h: 230,
+  titleSize: 22,
+  titleOffsetY: 72,
+  buttonsOffsetY: 60, // from panel bottom
+  buttonGap: 106,
+  button: { w: 190, h: 48 },
 } as const;
 
 export const RESOLUTIONS = ['1280x720', '1600x900', '1920x1080'] as const;

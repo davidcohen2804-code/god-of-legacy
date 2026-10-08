@@ -27,9 +27,8 @@ export class CharacterCreateScene extends Phaser.Scene {
 
     const P = L.preview;
     const g = this.add.graphics();
-    g.fillStyle(0x05080d, 0.55).fillEllipse(P.centerX, P.pedestalY, P.rx * 2, P.ry * 2);
-    g.lineStyle(2, COLORS.gold, 0.55).strokeEllipse(P.centerX, P.pedestalY, P.rx * 2, P.ry * 2);
-    g.lineStyle(1, COLORS.gold, 0.35).strokeEllipse(P.centerX, P.pedestalY, P.rx * 1.45, P.ry * 1.1);
+    g.fillStyle(0x05080d, 0.5).fillEllipse(P.centerX, P.pedestalY, P.rx * 2, P.ry * 2);
+    g.lineStyle(1.5, COLORS.gold, 0.45).strokeEllipse(P.centerX, P.pedestalY, P.rx * 2, P.ry * 2);
 
     // The new character: the clean base, dressed in the starter outfit with the chosen face, hair, skin and colours.
     const layers: Phaser.GameObjects.Image[] = [];

@@ -83,14 +83,14 @@ export class MainMenuUI {
     const m = createModalBase(s, E.w, E.h);
     const title = mode === 'confirm' ? 'Exit God Of Legacy?' : 'Close this browser tab to exit.';
     m.add(s.add.text(cx, cy - E.h / 2 + E.titleOffsetY, title, {
-      fontFamily: FONT_FAMILY, fontSize: `${E.titleSize}px`, color: COLORS.text,
-    }).setOrigin(0.5));
+      fontFamily: FONT_FAMILY, fontSize: `${E.titleSize}px`, fontStyle: 'bold', color: '#f3e3bd', resolution: 2,
+    }).setOrigin(0.5).setLetterSpacing(1));
     const by = cy + E.h / 2 - E.buttonsOffsetY;
     if (mode === 'confirm') {
-      m.add(createTextButton(s, cx - E.buttonGap, by, E.button.w, E.button.h, 'EXIT', () => { void this.confirmExit(); }));
-      m.add(createTextButton(s, cx + E.buttonGap, by, E.button.w, E.button.h, 'CANCEL', () => this.closeExit()));
+      m.add(createTextButton(s, cx - E.buttonGap, by, E.button.w, E.button.h, 'Cancel', () => this.closeExit()));
+      m.add(createTextButton(s, cx + E.buttonGap, by, E.button.w, E.button.h, 'Exit', () => { void this.confirmExit(); }, true));
     } else {
-      m.add(createTextButton(s, cx, by, E.button.w, E.button.h, 'OK', () => this.closeExit()));
+      m.add(createTextButton(s, cx, by, E.button.w, E.button.h, 'OK', () => this.closeExit(), true));
     }
     this.exitModal = m;
     s.input.keyboard?.on('keydown-ESC', this.onEscExit);

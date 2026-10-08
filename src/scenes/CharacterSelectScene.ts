@@ -39,17 +39,11 @@ export class CharacterSelectScene extends Phaser.Scene {
     const bg = this.add.image(DESIGN.width / 2, DESIGN.height / 2, 'characterSelect.background');
     bg.setScale(Math.max(DESIGN.width / bg.width, DESIGN.height / bg.height));
 
-    // Subtle pedestal / rune for the character preview.
+    // A quiet stage for the character preview: a soft dark ellipse with one fine gold ring.
     const P = L.preview, cx = (P.x0 + P.x1) / 2, cy = P.pedestalY;
     const g = this.add.graphics();
-    g.fillStyle(0x05080d, 0.55).fillEllipse(cx, cy, P.rx * 2, P.ry * 2);
-    g.lineStyle(2, COLORS.gold, 0.55).strokeEllipse(cx, cy, P.rx * 2, P.ry * 2);
-    g.lineStyle(1, COLORS.gold, 0.35).strokeEllipse(cx, cy, P.rx * 1.45, P.ry * 1.1);
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2;
-      const x = cx + Math.cos(a) * P.rx * 0.86, y = cy + Math.sin(a) * P.ry * 0.86;
-      g.fillStyle(COLORS.gold, 0.4).fillCircle(x, y, 2);
-    }
+    g.fillStyle(0x05080d, 0.5).fillEllipse(cx, cy, P.rx * 2, P.ry * 2);
+    g.lineStyle(1.5, COLORS.gold, 0.45).strokeEllipse(cx, cy, P.rx * 2, P.ry * 2);
 
     // Contact shadow + one soft class-coloured halo under the boots, concentric with the pedestal ellipse, slow pulse.
     const HL = SELECT_HALO;

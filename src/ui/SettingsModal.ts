@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BUTTON_FX, COLORS, DESIGN, FONT_FAMILY, RESOLUTIONS, Resolution, SETTINGS_PANEL as P } from '../config/layout';
+import { BUTTON_FX, COLORS, DESIGN, FONT_FAMILY, HUD, RESOLUTIONS, Resolution, SETTINGS_PANEL as P } from '../config/layout';
 import { SettingsStore } from '../core/SettingsStore';
 import { PlatformAdapter } from '../core/PlatformAdapter';
 
@@ -8,55 +8,56 @@ const CY = DESIGN.height / 2;
 
 // ---------- Shared modal building blocks (also used by the exit confirmation) ----------
 
-/** Kit window art: 'modal' = window with a header strip (settings), 'dialog' = small confirm window. */
+/** The game's window (theme.ts language) drawn in the scene: a rounded deep-blue panel, a fine gold edge and a light top
+ *  line. 'modal' (settings) adds a divider under its title. Everything behind it dims and takes no clicks. */
 export function createModalBase(scene: Phaser.Scene, w: number, h: number, kind: 'modal' | 'dialog' = 'dialog'): Phaser.GameObjects.Container {
   const c = scene.add.container(0, 0).setDepth(1000);
-  const overlay = scene.add.rectangle(CX, CY, DESIGN.width, DESIGN.height, 0x000000, COLORS.overlayAlpha)
+  const overlay = scene.add.rectangle(CX, CY, DESIGN.width, DESIGN.height, 0x04070e, 0.6)
     .setInteractive(); // swallows clicks to the menu underneath
-  const key = `kit.${kind}_window`;
-  let frame: Phaser.GameObjects.GameObject;
-  if (scene.textures.exists(key)) frame = scene.add.image(CX, CY, key).setDisplaySize(w, h);
-  else {
-    const g = scene.add.graphics(), x = CX - w / 2, y = CY - h / 2;
-    g.fillStyle(COLORS.panelBg, COLORS.panelAlpha).fillRoundedRect(x, y, w, h, 10);
-    g.lineStyle(2, COLORS.gold, 1).strokeRoundedRect(x, y, w, h, 10);
-    frame = g;
-  }
+  const g = scene.add.graphics(), x = CX - w / 2, y = CY - h / 2, r = 18;
+  g.fillStyle(0x000000, 0.35).fillRoundedRect(x + 2, y + 14, w - 4, h, r);           // its shadow
+  g.fillStyle(0x121c2f, 1).fillRoundedRect(x, y, w, h, r);
+  g.fillStyle(0x16213a, 1).fillRoundedRect(x, y, w, Math.min(h, 120), { tl: r, tr: r, bl: 0, br: 0 });
+  g.fillStyle(0x121c2f, 1).fillRect(x, y + 60, w, Math.min(h, 120) - 60);           // a soft lighter top fading into the body
+  g.lineStyle(1, 0xe7c47c, 0.3).strokeRoundedRect(x + 0.5, y + 0.5, w - 1, h - 1, r);
+  g.lineStyle(1, 0xf4d896, 0.75).lineBetween(CX - w * 0.3, y + 0.5, CX + w * 0.3, y + 0.5);
+  if (kind === 'modal') g.lineStyle(1, 0xffffff, 0.08).lineBetween(x + 1, y + 84, x + w - 1, y + 84);
   const block = scene.add.zone(CX, CY, w, h).setInteractive(); // panel body blocks overlay
-  c.add([overlay, frame, block]);
+  c.add([overlay, g, block]);
   return c;
 }
 
+/** A button in the game's style: a rounded pill, light edge (gold on hover), the label in Inter. */
 export function createTextButton(
-  scene: Phaser.Scene, x: number, y: number, w: number, h: number, label: string, onClick: () => void,
+  scene: Phaser.Scene, x: number, y: number, w: number, h: number, label: string, onClick: () => void, primary = false,
 ): Phaser.GameObjects.Container {
   const c = scene.add.container(x, y);
-  // kit plate: the art's text area is ~40% of its height, so the image is drawn taller than the hit box
-  const plate = scene.add.image(0, 0, 'kit.menu_btn').setDisplaySize(w * 1.22, h * 1.95);
+  const g = scene.add.graphics();
   const draw = (hover: boolean, pressed: boolean) => {
-    plate.setTexture(pressed ? 'kit.menu_btn_pressed' : hover ? 'kit.menu_btn_hover' : 'kit.menu_btn').setDisplaySize(w * 1.22, h * 1.95);
+    g.clear();
+    const r = 12;
+    if (primary) {
+      g.fillStyle(pressed ? 0xc99a52 : hover ? 0xf4d89c : 0xe8c27c, 1).fillRoundedRect(-w / 2, -h / 2, w, h, r);
+      g.lineStyle(1, 0xf6dc9f, 1).strokeRoundedRect(-w / 2 + 0.5, -h / 2 + 0.5, w - 1, h - 1, r);
+    } else {
+      g.fillStyle(pressed ? 0x0f1726 : hover ? 0x1c283f : 0x172235, 1).fillRoundedRect(-w / 2, -h / 2, w, h, r);
+      g.lineStyle(1, hover ? 0xe7c47c : 0xffffff, hover ? 0.55 : 0.16).strokeRoundedRect(-w / 2 + 0.5, -h / 2 + 0.5, w - 1, h - 1, r);
+    }
   };
   draw(false, false);
-  const t = scene.add.text(0, 0, label, {
-    fontFamily: FONT_FAMILY, fontSize: '22px', fontStyle: 'bold', color: '#f3e2bf',
-    shadow: { offsetX: 0, offsetY: 2, color: '#000000', blur: 3, fill: true },
+  const pretty = label.length > 2 && label === label.toUpperCase() ? label.charAt(0) + label.slice(1).toLowerCase() : label;
+  const t = scene.add.text(0, 0, pretty, {
+    fontFamily: HUD.bodyFont, fontSize: '17px', fontStyle: '600', color: primary ? '#24180a' : '#eee8da', resolution: 2,
   }).setOrigin(0.5);
-  c.add([plate, t]);
+  c.add([g, t]);
   c.setSize(w, h).setInteractive({ useHandCursor: true });
   let hover = false, down = false;
-  const tweenTo = (s: number) => {
-    scene.tweens.killTweensOf(c);
-    scene.tweens.add({ targets: c, scale: s, duration: BUTTON_FX.hoverDuration, ease: 'Sine.easeOut' });
-  };
-  c.on('pointerover', () => { hover = true; draw(true, false); tweenTo(BUTTON_FX.hoverScale); });
-  c.on('pointerout', () => { hover = false; down = false; c.y = y; draw(false, false); tweenTo(1); });
-  c.on('pointerdown', () => {
-    down = true; scene.tweens.killTweensOf(c);
-    c.setScale(BUTTON_FX.pressedScale); c.y = y + BUTTON_FX.pressedOffsetY; draw(true, true);
-  });
+  c.on('pointerover', () => { hover = true; draw(true, false); });
+  c.on('pointerout', () => { hover = false; down = false; c.y = y; draw(false, false); });
+  c.on('pointerdown', () => { down = true; c.y = y + 1; draw(true, true); });
   c.on('pointerup', () => {
     if (!down) return;
-    down = false; c.y = y; c.setScale(hover ? BUTTON_FX.hoverScale : 1); draw(hover, false);
+    down = false; c.y = y; draw(hover, false);
     onClick();
   });
   return c;
@@ -82,9 +83,8 @@ export class SettingsModal {
     const top = CY - P.h / 2;
     this.root = createModalBase(s, P.w, P.h, 'modal');
     this.root.add(s.add.text(CX, top + P.headerOffsetY, 'SETTINGS', {
-      fontFamily: FONT_FAMILY, fontSize: `${P.headerSize}px`, fontStyle: 'bold', color: COLORS.goldCss,
-      shadow: { offsetX: 0, offsetY: 2, color: '#000000', blur: 4, fill: true },
-    }).setOrigin(0.5));
+      fontFamily: FONT_FAMILY, fontSize: `${P.headerSize}px`, fontStyle: 'bold', color: '#f3e3bd', resolution: 2,
+    }).setOrigin(0.5).setLetterSpacing(3));
 
     const rowY = (i: number) => top + P.firstRowOffsetY + i * P.rowGap;
     const st = SettingsStore.get();
@@ -94,7 +94,7 @@ export class SettingsModal {
     this.toggle(rowY(3), 'Fullscreen', 'ico_display');
     this.dropdown(rowY(4), 'Resolution', st.resolution, 'ico_display');
 
-    this.root.add(createTextButton(s, CX, CY + P.h / 2 - P.back.offsetY, P.back.w, P.back.h, 'BACK', () => this.close()));
+    this.root.add(createTextButton(s, CX, CY + P.h / 2 - P.back.offsetY, P.back.w, P.back.h, 'Back', () => this.close()));
     s.input.keyboard?.on('keydown-ESC', this.onEsc);
   }
 
@@ -117,17 +117,15 @@ export class SettingsModal {
     this.inputListeners.push([evt, fn]);
   }
 
-  private label(y: number, text: string, icon?: string): void {
-    if (icon && this.scene.textures.exists(`kit.${icon}`)) this.root!.add(this.scene.add.image(P.iconX, y, `kit.${icon}`).setDisplaySize(40, 40));
+  private label(y: number, text: string, _icon?: string): void {
     this.root!.add(this.scene.add.text(P.labelX, y, text, {
-      fontFamily: FONT_FAMILY, fontSize: `${P.labelSize}px`, color: COLORS.text,
-      shadow: { offsetX: 0, offsetY: 1, color: '#000000', blur: 2, fill: true },
+      fontFamily: HUD.bodyFont, fontSize: `${P.labelSize}px`, fontStyle: '500', color: '#d9d4c8', resolution: 2,
     }).setOrigin(0, 0.5));
   }
 
   private valueText(y: number, text: string): Phaser.GameObjects.Text {
     const t = this.scene.add.text(P.valueRightX, y, text, {
-      fontFamily: FONT_FAMILY, fontSize: `${P.labelSize}px`, color: COLORS.text,
+      fontFamily: HUD.bodyFont, fontSize: `${P.labelSize}px`, fontStyle: '600', color: '#eee8da', resolution: 2,
     }).setOrigin(1, 0.5);
     this.root!.add(t);
     return t;
@@ -137,16 +135,21 @@ export class SettingsModal {
     const s = this.scene;
     this.label(y, label, icon);
     const x0 = P.controlX, w = P.controlW;
-    const track = s.add.image(x0 + w / 2, y, 'kit.slider_track').setDisplaySize(w + 36, 34);
+    const track = s.add.graphics();
+    track.fillStyle(0x0a101c, 1).fillRoundedRect(x0, y - 4, w, 8, 4);
+    track.lineStyle(1, 0xffffff, 0.1).strokeRoundedRect(x0, y - 4, w, 8, 4);
     const g = s.add.graphics();
-    const knob = s.add.image(x0, y, 'kit.slider_knob').setDisplaySize(30, 30);
+    const knob = s.add.graphics();
     const val = this.valueText(y, String(initial));
     let value = initial;
     const draw = () => {
       const kx = x0 + (w * value) / 100;
       g.clear();
-      g.fillStyle(0xe8b25a, 0.9).fillRoundedRect(x0, y - 2, Math.max(4, kx - x0), 4, 2);
-      knob.setX(kx);
+      g.fillStyle(0xe7c47c, 1).fillRoundedRect(x0, y - 4, Math.max(8, kx - x0), 8, 4);
+      knob.clear();
+      knob.fillStyle(0x000000, 0.35).fillCircle(kx, y + 2, 11);
+      knob.fillStyle(0xf6ecd4, 1).fillCircle(kx, y, 10);
+      knob.lineStyle(2, 0xe7c47c, 1).strokeCircle(kx, y, 10);
       val.setText(String(value));
     };
     draw();
@@ -165,14 +168,16 @@ export class SettingsModal {
   private toggle(y: number, label: string, icon?: string): void {
     const s = this.scene;
     this.label(y, label, icon);
-    const x0 = P.controlX, w = 104, h = 38;
-    const sw = s.add.image(x0 + w / 2, y, 'kit.toggle_off').setDisplaySize(w, h);
-    const g = sw;
+    const x0 = P.controlX, w = 56, h = 30;
+    const g = s.add.graphics();
     const val = this.valueText(y, '');
     const draw = () => {
       const on = SettingsStore.get().fullscreen;
-      sw.setTexture(on ? 'kit.toggle_on' : 'kit.toggle_off').setDisplaySize(w, h);
-      val.setText(on ? 'ON' : 'OFF');
+      g.clear();
+      g.fillStyle(on ? 0xe7c47c : 0x0a101c, 1).fillRoundedRect(x0, y - h / 2, w, h, h / 2);
+      g.lineStyle(1, on ? 0xf6dc9f : 0xffffff, on ? 1 : 0.16).strokeRoundedRect(x0, y - h / 2, w, h, h / 2);
+      g.fillStyle(on ? 0x24180a : 0xaeb6c3, 1).fillCircle(on ? x0 + w - h / 2 : x0 + h / 2, y, h / 2 - 5);
+      val.setText(on ? 'On' : 'Off');
     };
     draw();
     this.refreshFullscreen = draw;
@@ -190,10 +195,15 @@ export class SettingsModal {
     const s = this.scene;
     this.label(y, label, icon);
     const x0 = P.controlX, w = P.controlW, h = 40;
-    const box = s.add.image(x0 + w / 2, y, 'kit.dropdown').setDisplaySize(w + 24, h + 20);
-    const drawBox = (hover: boolean) => { box.setTexture(hover ? 'kit.dropdown_open' : 'kit.dropdown').setDisplaySize(w + 24, h + 20); };
+    const box = s.add.graphics();
+    const drawBox = (hover: boolean) => {
+      box.clear();
+      box.fillStyle(0x0a101c, 1).fillRoundedRect(x0, y - h / 2, w, h, 10);
+      box.lineStyle(1, hover ? 0xe7c47c : 0xffffff, hover ? 0.6 : 0.16).strokeRoundedRect(x0 + 0.5, y - h / 2 + 0.5, w - 1, h - 1, 10);
+      box.lineStyle(2, 0xaeb6c3, 1).beginPath(); box.moveTo(x0 + w - 26, y - 3); box.lineTo(x0 + w - 20, y + 3); box.lineTo(x0 + w - 14, y - 3); box.strokePath();
+    };
     drawBox(false);
-    const txt = s.add.text(x0 + 22, y, initial, { fontFamily: FONT_FAMILY, fontSize: '20px', color: COLORS.text }).setOrigin(0, 0.5);
+    const txt = s.add.text(x0 + 16, y, initial, { fontFamily: HUD.bodyFont, fontSize: '16px', fontStyle: '500', color: '#eee8da', resolution: 2 }).setOrigin(0, 0.5);
     const hit = s.add.zone(x0 + w / 2, y, w, h).setInteractive({ useHandCursor: true });
     hit.on('pointerover', () => drawBox(true));
     hit.on('pointerout', () => drawBox(false));
@@ -214,16 +224,17 @@ export class SettingsModal {
     list.add(catcher);
     const current = SettingsStore.get().resolution;
     RESOLUTIONS.forEach((r, i) => {
-      const iy = top + 4 + i * ih;
+      const iy = top + 6 + i * ih;
       const g = s.add.graphics();
       const draw = (hover: boolean) => {
         g.clear();
-        g.fillStyle(hover ? 0x22324a : 0x0b1424, 0.98).fillRect(x0 + 6, iy, w - 12, ih);
-        g.lineStyle(1, 0xc99a45, hover ? 0.95 : 0.55).strokeRect(x0 + 6, iy, w - 12, ih);
+        const first = i === 0, last = i === RESOLUTIONS.length - 1;
+        g.fillStyle(hover ? 0x1f2c44 : 0x111a2b, 1).fillRoundedRect(x0, iy, w, ih, { tl: first ? 10 : 0, tr: first ? 10 : 0, bl: last ? 10 : 0, br: last ? 10 : 0 });
+        if (!last) g.lineStyle(1, 0xffffff, 0.06).lineBetween(x0 + 8, iy + ih, x0 + w - 8, iy + ih);
       };
       draw(false);
       const t = s.add.text(x0 + 16, iy + ih / 2, r, {
-        fontFamily: FONT_FAMILY, fontSize: '22px', color: r === current ? COLORS.goldCss : COLORS.text,
+        fontFamily: HUD.bodyFont, fontSize: '16px', fontStyle: r === current ? '700' : '500', color: r === current ? '#f4d896' : '#eee8da', resolution: 2,
       }).setOrigin(0, 0.5);
       const z = s.add.zone(x0 + w / 2, iy + ih / 2, w, ih).setInteractive({ useHandCursor: true });
       z.on('pointerover', () => draw(true));

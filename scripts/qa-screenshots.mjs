@@ -28,7 +28,7 @@ for (const [w, h] of [[1920, 1080], [1280, 720]]) {
   await click(960, 735); await shot(p, '03_settings', w);
   await p.keyboard.press('Escape'); await W(p, 500);
   await click(960, 860); await shot(p, '04_exit_confirm', w);
-  await click(830, 610); await W(p, 1200); await shot(p, '05_exit_web_message', w);
+  await click(1066, 595); await W(p, 1200); await shot(p, '05_exit_web_message', w);
   await p.keyboard.press('Escape'); await W(p, 500);
   await click(960, 585); await p.waitForSelector('.gol-cs .slot'); await W(p, 700); await shot(p, '06_character_select', w);
   await p.click('.gol-cs .slot >> nth=1'); await p.mouse.move(1000 * k, 500 * k); await W(p, 500); await shot(p, '07_slot_selected', w);

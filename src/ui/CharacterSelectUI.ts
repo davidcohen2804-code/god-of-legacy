@@ -5,6 +5,7 @@ import { Character, SlotId } from '../characters/CharacterTypes';
 import { previewKeyOf } from '../characters/Look';
 import { jobsFor } from '../skills/Jobs';
 import { expToNext } from '../game/Progression';
+import { ICONS, ensureTheme } from './theme';
 
 export interface CharacterSelectHandlers {
   onBack: () => void;
@@ -19,71 +20,88 @@ export interface CharacterSelectHandlers {
 }
 
 const DASH = '—';
-const KIT = (f: string) => `assets/final/ui/kit/${f}.png`;
-/** Kit layout (design px). Card zones measured on kit/char_slot.png (310x474: art 39..295 x 72..369, plaque y 378..420). */
+/** Layout (design px): the roster (2x2 cards) on the left, the info panel and the buttons on the right, the name under the
+ *  hero in the middle. */
 const K = {
   plaque: { x: 580, y: 6, w: 760, h: 161 },
-  card: { x: 92, y: 150, w: 230, h: 352, gx: 30, gy: 36, art: { x: 29, y: 53, w: 190, h: 221 }, plq: { y: 281, h: 31 } },
-  info: { x: 1388, y: 196, w: 430, h: 300 },
-  roster: { x: 66, y: 98, w: 542, h: 818 },
+  card: { x: 94, y: 152, w: 228, h: 312, gx: 26, gy: 22, art: { x: 12, y: 12, w: 204, h: 232 } },
+  info: { x: 1420, y: 196, w: 380, h: 284 },
+  roster: { x: 66, y: 98, w: 538, h: 728 },
   stageName: { cx: 985, y: 868, w: 460 },
-  enter: { x: 1408, y: 510, w: 390, h: 150 },
-  pvp: { x: 1428, y: 648, w: 350, h: 128 },
-  create: { x: 1408, y: 510, w: 390, h: 150 },
-  back: { x: 92, y: 930, w: 280, h: 110 },
-  del: { x: 404, y: 942, w: 82, h: 86 },
+  enter: { x: 1420, y: 504, w: 380, h: 64 },
+  pvp: { x: 1420, y: 584, w: 380, h: 52 },
+  create: { x: 1420, y: 504, w: 380, h: 64 },
+  back: { x: 94, y: 856, w: 200, h: 52 },
+  del: { x: 306, y: 856, w: 52, h: 52 },
 } as const;
 const SEL_CSS = `
-.gol-sel .plq{background:url("${KIT('logo_plaque')}") 0 0/100% 100% no-repeat;pointer-events:none}
-.gol-sel .title{left:${K.plaque.x}px!important;width:${K.plaque.w}px!important;top:${K.plaque.y + 60}px!important;font-size:30px!important;letter-spacing:4px!important;line-height:36px}
-.gol-sel .slot{background:url("${KIT('char_slot')}") 0 0/100% 100% no-repeat!important;filter:drop-shadow(0 6px 12px rgba(0,0,0,.55))}
-.gol-sel .slot.empty{background-image:url("${KIT('char_slot_empty')}")!important}
-.gol-sel .slot.sel{background-image:url("${KIT('char_slot_sel')}")!important;transform:translateY(-4px);filter:brightness(1.05) drop-shadow(0 0 14px rgba(255,190,90,.55))}
-.gol-sel .slot.empty.sel{background-image:url("${KIT('char_slot_empty')}")!important;filter:brightness(1.15) drop-shadow(0 0 16px rgba(255,190,90,.6))}
-.gol-sel .slot:hover{filter:brightness(1.12) drop-shadow(0 6px 12px rgba(0,0,0,.55))}
-.gol-sel .slot .portrait{left:${K.card.art.x}px!important;top:${K.card.art.y}px!important;width:${K.card.art.w}px!important;height:${K.card.art.h}px!important;border-radius:4px!important}
-.gol-sel .slot .name{left:14px!important;right:14px;top:${K.card.plq.y}px!important;height:${K.card.plq.h}px;line-height:${K.card.plq.h}px;text-align:center;font-size:16px!important;
-  color:#2a1806;text-shadow:0 1px 0 rgba(255,236,180,.6)!important;overflow:hidden;text-overflow:ellipsis}
-.gol-sel .slot .sub{left:10px!important;right:10px;width:auto!important;top:${K.card.h + 2}px!important;text-align:center;font-size:13px!important;opacity:.9!important;color:#e8dcc2;text-shadow:0 1px 2px #000}
-.gol-sel .slot.empty .sub{display:none}
-.gol-sel .panel.info{background:url("${KIT('modal_window')}") 0 0/100% 100% no-repeat;border:0;box-shadow:none;border-radius:0;filter:drop-shadow(0 6px 14px rgba(0,0,0,.5))}
-.gol-sel .info h2{top:43px!important;font-size:18px!important;letter-spacing:3px!important;line-height:20px}
-.gol-sel .info .f{left:58px!important;right:52px!important;font-size:17px!important}
-.gol-sel .kbtn{pointer-events:auto;cursor:pointer;padding:0 40px;text-align:center;border:0;background:url("${KIT('menu_btn')}") 0 0/100% 100% no-repeat;font-family:inherit;font-weight:700;
-  letter-spacing:2px;color:#f3e2bf;text-shadow:0 2px 3px #000,0 0 8px rgba(0,0,0,.6);transition:transform 120ms,filter 120ms;white-space:nowrap}
-.gol-sel .kbtn:hover:not(:disabled){background-image:url("${KIT('menu_btn_hover')}");transform:scale(1.03);color:#fff1c8}
-.gol-sel .kbtn:active:not(:disabled){background-image:url("${KIT('menu_btn_pressed')}");transform:translateY(2px) scale(.985)}
-.gol-sel .kbtn.primary{background-image:url("${KIT('menu_btn_hover')}");color:#ffe7a8}
-.gol-sel .kbtn:disabled{cursor:default;filter:grayscale(.6) brightness(.6)}
-.gol-sel .ktrash{pointer-events:auto;cursor:pointer;border:0;padding:0;background:url("${KIT('btn_trash')}") center/contain no-repeat;transition:transform 120ms}
-.gol-sel .ktrash:hover:not(:disabled){background-image:url("${KIT('btn_trash_hover')}");transform:scale(1.06)}
-.gol-sel .ktrash:disabled{cursor:default;filter:grayscale(.8) brightness(.55)}
-.gol-sel .roster{border-radius:18px;background:linear-gradient(180deg,rgba(6,10,20,.62),rgba(6,10,20,.42));box-shadow:inset 0 0 0 1px rgba(201,154,69,.32),0 10px 30px rgba(0,0,0,.35);pointer-events:none}
-.gol-sel .roster .rh{position:absolute;left:28px;right:28px;top:14px;height:26px;display:flex;justify-content:space-between;align-items:center;font:700 14px ${FONT_FAMILY};letter-spacing:3px;color:#e8c77e;text-shadow:0 1px 3px #000}
-.gol-sel .roster .rh i{font-style:normal;color:#bfb08e;letter-spacing:1px;font-size:13px}
-.gol-sel .slot .chip{position:absolute;left:50%;transform:translateX(-50%);top:${K.card.h + 6}px;padding:3px 14px;border-radius:12px;white-space:nowrap;
-  background:rgba(8,12,22,.82);box-shadow:inset 0 0 0 1px rgba(232,199,126,.55);font:700 12px ${FONT_FAMILY};letter-spacing:1px;color:#f0e2bf;pointer-events:none}
+.gol-sel .plq{display:none}
+.gol-sel .title{left:0!important;width:100%!important;top:${K.plaque.y + 40}px!important;font:700 34px/1.2 var(--gl-title)!important;letter-spacing:6px!important;color:#f4e6c2!important;
+  text-shadow:0 2px 12px rgba(0,0,0,.75)!important}
+.gol-sel .title::after{content:'';display:block;width:280px;height:1px;margin:14px auto 0;background:linear-gradient(90deg,rgba(231,196,124,0),rgba(244,216,150,.9),rgba(231,196,124,0))}
+.gol-sel .roster{box-sizing:border-box;border-radius:20px;background:rgba(11,18,31,.82);border:1px solid rgba(231,196,124,.2);box-shadow:0 20px 50px rgba(0,0,0,.45);pointer-events:none}
+.gol-sel .roster .rh{position:absolute;left:28px;right:28px;top:18px;height:24px;display:flex;justify-content:space-between;align-items:center}
+.gol-sel .roster .rh span{font:700 11.5px var(--gl-body);letter-spacing:1.6px;color:#c9ae78;text-transform:uppercase}
+.gol-sel .slot{border-radius:16px!important;background:#121b2d!important;border:1px solid rgba(255,255,255,.08);box-sizing:border-box;filter:none!important;transform:none!important;
+  box-shadow:0 8px 20px rgba(0,0,0,.3);transition:border-color 140ms,box-shadow 140ms,transform 140ms!important}
+.gol-sel .slot:hover{border-color:rgba(231,196,124,.45);transform:translateY(-3px)!important}
+.gol-sel .slot.sel{border-color:var(--gl-gold);box-shadow:0 0 0 3px rgba(231,196,124,.18),0 14px 30px rgba(0,0,0,.45)}
+.gol-sel .slot .portrait{left:${K.card.art.x}px!important;top:${K.card.art.y}px!important;width:${K.card.art.w}px!important;height:${K.card.art.h}px!important;border-radius:12px!important;
+  background-color:#0b1220}
+.gol-sel .slot .name{left:12px!important;right:12px;top:${K.card.art.y + K.card.art.h + 10}px!important;height:24px;line-height:24px;text-align:center;font:700 17px var(--gl-title)!important;
+  letter-spacing:1px!important;color:#f3e3bd!important;text-shadow:none!important;overflow:hidden;text-overflow:ellipsis}
+.gol-sel .slot.sel .name{color:var(--gl-gold2)!important}
+.gol-sel .slot .sub{display:none}
+.gol-sel .slot .chip{position:absolute;left:0;right:0;top:${K.card.art.y + K.card.art.h + 36}px;text-align:center;font:500 13px var(--gl-body);color:var(--gl-text2);pointer-events:none;white-space:nowrap}
+.gol-sel .slot.empty{background:rgba(18,27,45,.6)!important;border-style:dashed;border-color:rgba(255,255,255,.14);box-shadow:none}
+.gol-sel .slot.empty.sel{border-color:var(--gl-gold)}
+.gol-sel .slot.empty .portrait{background:transparent!important}
+.gol-sel .slot.empty .portrait::after{content:'';position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(231,196,124,.1);
+  box-shadow:inset 0 0 0 1px rgba(231,196,124,.35)}
+.gol-sel .slot.empty .portrait::before{content:'';position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;z-index:1;background:var(--gl-gold2);
+  -webkit-mask:${ICONS.plus} center/contain no-repeat;mask:${ICONS.plus} center/contain no-repeat}
+.gol-sel .slot.empty .name{color:var(--gl-text2)!important;font:600 15px var(--gl-body)!important;letter-spacing:.3px!important}
 .gol-sel .slot.empty .chip{display:none}
-.gol-sel .slot.empty .plus-hint{position:absolute;left:0;right:0;top:${K.card.art.y + K.card.art.h - 30}px;text-align:center;font:700 12px ${FONT_FAMILY};letter-spacing:2px;color:#cdb98a;opacity:0;transition:opacity 150ms;pointer-events:none}
+.gol-sel .slot.empty .plus-hint{position:absolute;left:0;right:0;top:${K.card.art.y + K.card.art.h / 2 + 40}px;text-align:center;font:600 12.5px var(--gl-body);letter-spacing:.4px;color:var(--gl-gold2);opacity:0;transition:opacity 150ms;pointer-events:none}
 .gol-sel .slot.empty:hover .plus-hint,.gol-sel .slot.empty.sel .plus-hint{opacity:1}
 .gol-sel .slot:not(.empty) .plus-hint{display:none}
-.gol-sel .info .row{position:absolute;left:62px;right:58px;display:flex;justify-content:space-between;align-items:baseline;gap:16px;font-size:17px;border-bottom:1px solid rgba(201,154,69,.18);padding-bottom:6px}
+.gol-sel .panel.info{box-sizing:border-box;border-radius:18px;background:rgba(11,18,31,.9);border:1px solid rgba(231,196,124,.22);box-shadow:0 20px 50px rgba(0,0,0,.45)}
+.gol-sel .info h2{top:22px!important;left:26px!important;width:auto!important;text-align:left!important;font:700 11.5px var(--gl-body)!important;letter-spacing:1.6px!important;color:#c9ae78!important;text-transform:uppercase}
+.gol-sel .info .row{position:absolute;left:26px;right:26px;height:36px;display:flex;justify-content:space-between;align-items:center;gap:16px;font:500 15px var(--gl-body);border-bottom:1px solid var(--gl-line)}
 .gol-sel .info .row.lv{border-bottom:0}
-.gol-sel .info .row b{font-weight:400;color:#bfb08e;font-size:15px;letter-spacing:.5px}
-.gol-sel .info .row span{color:#f3e2bf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
-.gol-sel .info .xpb{position:absolute;left:62px;right:58px;height:8px;border-radius:4px;background:rgba(0,0,0,.55);box-shadow:inset 0 0 0 1px rgba(201,154,69,.35);overflow:hidden}
-.gol-sel .info .xpb i{display:block;height:100%;background:linear-gradient(90deg,#c88a2c,#ffd76e)}
-.gol-sel .info .none{position:absolute;left:50px;right:50px;top:118px;text-align:center;font-size:16px;line-height:24px;color:#cdb98a}
+.gol-sel .info .row b{font-weight:500;color:var(--gl-text2)}
+.gol-sel .info .row span{color:var(--gl-text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
+.gol-sel .info .xpb{position:absolute;left:26px;right:26px;height:6px;border-radius:999px;background:#0a101c;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);overflow:hidden}
+.gol-sel .info .xpb i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#c99a45,#f3d58c)}
+.gol-sel .info .none{position:absolute;left:30px;right:30px;top:110px;text-align:center;font:500 15px/1.6 var(--gl-body);color:var(--gl-text2)}
+.gol-sel .kbtn{pointer-events:auto;cursor:pointer;box-sizing:border-box;border-radius:14px;border:1px solid rgba(255,255,255,.16);background:rgba(15,23,38,.92);font:600 15px var(--gl-body)!important;
+  letter-spacing:.8px;color:var(--gl-text);white-space:nowrap;box-shadow:0 10px 24px rgba(0,0,0,.35);transition:background 120ms,border-color 120ms,filter 120ms,transform 120ms}
+.gol-sel .kbtn:hover:not(:disabled){background:rgba(26,37,58,.96);border-color:rgba(231,196,124,.5)}
+.gol-sel .kbtn:active:not(:disabled){transform:translateY(1px)}
+.gol-sel .kbtn.primary{background:linear-gradient(180deg,#f2d493,#d2a65a);border-color:#f6dc9f;color:#24180a;font:700 19px var(--gl-title)!important;letter-spacing:2px;
+  box-shadow:0 10px 30px rgba(210,166,90,.3),inset 0 1px 0 rgba(255,255,255,.35)}
+.gol-sel .kbtn.primary:hover:not(:disabled){background:linear-gradient(180deg,#f6dca2,#d8ad62);filter:brightness(1.04)}
+.gol-sel .kbtn:disabled{cursor:default;opacity:.45}
+.gol-sel .ktrash{pointer-events:auto;cursor:pointer;box-sizing:border-box;border-radius:14px;border:1px solid rgba(255,255,255,.16);background:rgba(15,23,38,.92);color:var(--gl-text2);
+  display:grid;place-items:center;box-shadow:0 10px 24px rgba(0,0,0,.35);transition:background 120ms,border-color 120ms,color 120ms}
+.gol-sel .ktrash::before{content:'';width:20px;height:20px;background:currentColor;-webkit-mask:${ICONS.trash} center/contain no-repeat;mask:${ICONS.trash} center/contain no-repeat}
+.gol-sel .ktrash:hover:not(:disabled){color:#ffb1a5;border-color:rgba(239,127,111,.6);background:rgba(60,22,24,.9)}
+.gol-sel .ktrash:disabled{cursor:default;opacity:.4}
 .gol-sel .stagename{position:absolute;text-align:center;pointer-events:none}
-.gol-sel .stagename .n{font:700 28px ${FONT_FAMILY};letter-spacing:3px;color:#f3e2bf;text-shadow:0 2px 6px #000,0 0 14px rgba(0,0,0,.7)}
-.gol-sel .stagename .j{margin-top:2px;font:700 14px ${FONT_FAMILY};letter-spacing:3px;color:#e8c77e;text-shadow:0 1px 3px #000}
-.gol-sel .hint{position:absolute;left:0;right:0;bottom:22px;text-align:center;font-size:14px;letter-spacing:1px;color:rgba(232,220,194,.85);text-shadow:0 1px 3px #000;pointer-events:none}
-.gol-sel .vign{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.45) 0%,rgba(0,0,0,0) 34%,rgba(0,0,0,0) 66%,rgba(0,0,0,.45) 100%)}
-.gol-sel .modal.kit{background:url("${KIT('dialog_window')}") 0 0/100% 100% no-repeat;border:0;box-shadow:none}
+.gol-sel .stagename .n{font:700 30px var(--gl-title);letter-spacing:2px;color:#f6e8c6;text-shadow:0 2px 10px rgba(0,0,0,.85)}
+.gol-sel .stagename .j{margin-top:4px;font:600 14px var(--gl-body);letter-spacing:1.2px;color:#e9dcbb;text-shadow:0 1px 6px rgba(0,0,0,.9)}
+.gol-sel .hint{position:absolute;left:0;right:0;bottom:22px;text-align:center;font:500 13.5px var(--gl-body);letter-spacing:.3px;color:rgba(238,232,218,.78);text-shadow:0 1px 4px rgba(0,0,0,.85);pointer-events:none}
+.gol-sel .vign{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(0,0,0,.5) 0%,rgba(0,0,0,0) 34%,rgba(0,0,0,0) 66%,rgba(0,0,0,.5) 100%)}
+.gol-sel .modal.kit{box-sizing:border-box;border-radius:18px;background:linear-gradient(180deg,#152035,#0f1828);border:1px solid rgba(231,196,124,.28);box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.gol-sel .modal .q{top:58px!important;font:700 22px var(--gl-title)!important;letter-spacing:1.5px;color:#f3e3bd}
+.gol-sel .modal .qs{position:absolute;left:30px;right:30px;top:100px;text-align:center;font:500 14.5px var(--gl-body);color:var(--gl-text2)}
+.gol-sel .modal .kbtn{font-size:15px!important}
+.gol-sel .modal .kbtn.primary.danger{background:linear-gradient(180deg,#f08a7b,#c8524a);border-color:#f6a59a;color:#2a0b08;font:700 15px var(--gl-body)!important;letter-spacing:.8px;box-shadow:0 10px 24px rgba(200,82,74,.3)}
 `;
 const SEL_STYLE_ID = 'gol-charselect-kit';
 /** Kit styles (plaque title, plate buttons, kit windows) shared by Character Select and Character Create. */
 export function ensureSelectKitStyles(): void {
+  ensureTheme();
   if (document.getElementById(SEL_STYLE_ID)) return;
   const st = document.createElement('style'); st.id = SEL_STYLE_ID; st.textContent = SEL_CSS; document.head.appendChild(st);
 }
@@ -191,7 +209,7 @@ export class CharacterSelectUI {
 
     this.el('div', 'vign', this.root);
     const ro = this.el('div', 'abs roster', this.root); this.box(ro, K.roster.x, K.roster.y, K.roster.w, K.roster.h);
-    const rh = this.el('div', 'rh', ro); this.el('span', '', rh).textContent = 'CHARACTERS'; this.rosterCount = this.el('i', '', rh);
+    const rh = this.el('div', 'rh', ro); this.el('span', '', rh).textContent = 'Characters'; this.rosterCount = this.el('i', 'gl-badge', rh);
     const pq = this.el('div', 'abs plq', this.root); this.box(pq, K.plaque.x, K.plaque.y, K.plaque.w, K.plaque.h);
     const t = this.el('div', 'abs title', this.root);
     t.textContent = L.title.text;
@@ -203,7 +221,7 @@ export class CharacterSelectUI {
       const d = this.el('div', 'abs slot', this.root);
       const C = K.card;
       this.box(d, C.x + (i % 2) * (C.w + C.gx), C.y + Math.floor(i / 2) * (C.h + C.gy), C.w, C.h);
-      this.el('div', 'name', d); this.el('div', 'sub', d); this.el('div', 'portrait', d); this.el('div', 'chip', d); this.el('div', 'plus-hint', d).textContent = 'CREATE NEW';
+      this.el('div', 'name', d); this.el('div', 'sub', d); this.el('div', 'portrait', d); this.el('div', 'chip', d); this.el('div', 'plus-hint', d).textContent = 'Create a new hero';
       d.addEventListener('click', () => this.select(slot.slotId));
       d.addEventListener('dblclick', () => { const c = CharacterStore.getSlot(slot.slotId).character; if (c) this.enterWorld(); else this.h.onCreate(); });
       d.addEventListener('mouseenter', () => this.h.onHover?.(CharacterStore.getSlot(slot.slotId).character?.classId ?? null));
@@ -214,16 +232,16 @@ export class CharacterSelectUI {
     // Info panel.
     const info = this.el('div', 'abs panel info', this.root);
     this.box(info, K.info.x, K.info.y, K.info.w, K.info.h);
-    const h2 = this.el('h2', '', info); h2.textContent = 'CHARACTER INFO';
+    const h2 = this.el('h2', '', info); h2.textContent = 'Character';
     const mk = (i: number, label: string) => {
-      const f = this.el('div', 'row', info); f.style.top = `${[84, 120, 156, 206, 242][i]}px`;
+      const f = this.el('div', 'row', info); f.style.top = `${[52, 88, 124, 178, 214][i]}px`;
       this.el('b', '', f).textContent = label;
       return this.el('span', '', f) as HTMLSpanElement;
     };
     this.fields = { name: mk(0, 'Name'), cls: mk(1, 'Class'), level: mk(2, 'Level'), last: mk(4, 'Last played') };
     this.jobField = mk(3, 'Job');
     info.querySelectorAll('.row')[2]?.classList.add('lv');
-    this.xpBar = this.el('div', 'xpb', info); this.xpBar.style.top = '188px'; this.el('i', '', this.xpBar);
+    this.xpBar = this.el('div', 'xpb', info); this.xpBar.style.top = '162px'; this.el('i', '', this.xpBar);
     this.noneMsg = this.el('div', 'none', info);
     this.infoRows = [...info.querySelectorAll<HTMLElement>('.row')];
     // name + job under the character on the stage
@@ -232,15 +250,15 @@ export class CharacterSelectUI {
     this.el('div', 'hint', this.root).textContent = 'Double-click a character to play  ·  Enter: enter the world  ·  Arrow keys: choose';
 
     // Buttons.
-    this.button('BACK', { ...K.back, size: 22 }, () => this.h.onBack());
+    this.button('Back', { ...K.back, size: 15 }, () => this.h.onBack());
     this.btnDelete = this.el('button', 'abs ktrash', this.root) as HTMLButtonElement;
     this.box(this.btnDelete, K.del.x, K.del.y, K.del.w, K.del.h); this.btnDelete.title = 'Delete character';
     this.btnDelete.setAttribute('aria-label', 'Delete character');
     this.btnDelete.addEventListener('mousedown', (e) => e.preventDefault());
     this.btnDelete.addEventListener('click', () => this.openDeleteConfirm());
-    this.btnEnter = this.button('ENTER WORLD', { ...K.enter, size: 26 }, () => this.enterWorld(), true);
-    if (this.h.onPvp) this.btnPvp = this.button('PVP ARENA', { ...K.pvp, size: 18 }, () => { if (CharacterStore.getSelectedCharacter()) this.h.onPvp?.(); });
-    this.btnCreate = this.button('CREATE CHARACTER', { ...K.create, size: 22 }, () => this.h.onCreate(), true);
+    this.btnEnter = this.button('ENTER WORLD', { ...K.enter, size: 19 }, () => this.enterWorld(), true);
+    if (this.h.onPvp) this.btnPvp = this.button('PvP Arena', { ...K.pvp, size: 15 }, () => { if (CharacterStore.getSelectedCharacter()) this.h.onPvp?.(); });
+    this.btnCreate = this.button('CREATE CHARACTER', { ...K.create, size: 19 }, () => this.h.onCreate(), true);
 
     window.addEventListener('keydown', this.onKey);
     this.render();
@@ -295,16 +313,17 @@ export class CharacterSelectUI {
     const p = this.el('div', 'abs panel modal kit', m);
     this.box(p, (DESIGN.width - M.w) / 2, (DESIGN.height - M.h) / 2, M.w, M.h);
     const q = this.el('div', 'q', p); q.textContent = `Delete ${ch.name}?`;
-    const bw = 220, bh = 92, by = M.h - 54 - bh / 2;
-    const mkBtn = (label: string, cx: number, fn: () => void, primary = false) => {
-      const b = this.el('button', `kbtn abs${primary ? ' primary' : ''}`, p) as HTMLButtonElement;
-      b.textContent = label; b.style.fontSize = '20px';
+    this.el('div', 'qs', p).textContent = 'This character and everything it carries will be gone for good.';
+    const bw = 200, bh = 50, by = M.h - 34 - bh;
+    const mkBtn = (label: string, cx: number, fn: () => void, cls = '') => {
+      const b = this.el('button', `kbtn abs ${cls}`, p) as HTMLButtonElement;
+      b.textContent = label;
       this.box(b, cx - bw / 2, by, bw, bh);
       b.addEventListener('mousedown', (e) => e.preventDefault());
       b.addEventListener('click', fn);
     };
-    mkBtn('DELETE', M.w / 2 - 130, () => { CharacterStore.deleteCharacter(id); this.closeModal(); this.render(); }, true);
-    mkBtn('CANCEL', M.w / 2 + 130, () => this.closeModal());
+    mkBtn('Cancel', M.w / 2 - 110, () => this.closeModal());
+    mkBtn('Delete', M.w / 2 + 110, () => { CharacterStore.deleteCharacter(id); this.closeModal(); this.render(); }, 'primary danger');
     this.modal = m;
   }
 
@@ -320,10 +339,10 @@ export class CharacterSelectUI {
     for (const slot of CharacterStore.getSlots()) {
       const d = this.slotEls.get(slot.slotId)!;
       const c = slot.character;
-      (d.children[0] as HTMLElement).textContent = c ? c.name : `CHARACTER SLOT ${slot.slotId}`;
+      (d.children[0] as HTMLElement).textContent = c ? c.name : `Character slot ${slot.slotId}`;
       (d.children[1] as HTMLElement).textContent = '';
       (d.children[3] as HTMLElement).textContent = c ? `${className(c.classId)} · Lv ${c.level}` : '';
-      if (!c) (d.children[0] as HTMLElement).textContent = 'EMPTY SLOT';
+      if (!c) (d.children[0] as HTMLElement).textContent = 'Empty slot';
       d.classList.toggle('sel', slot.slotId === sel);
       d.classList.toggle('empty', !c);
       // Face/upper-body crop of the same full-body preview (display-only; empty slots stay blank).
@@ -360,7 +379,7 @@ export class CharacterSelectUI {
     this.rosterCount.textContent = `${used} / ${CharacterStore.getSlots().length}`;
     const emptySel = !!sel && !CharacterStore.getSlot(sel).character;
     (this.stage.children[0] as HTMLElement).textContent = ch ? ch.name : emptySel ? 'NEW HERO' : '';
-    (this.stage.children[1] as HTMLElement).textContent = ch ? `${className(ch.classId).toUpperCase()}  ·  ${job.toUpperCase()}  ·  LV ${ch.level}` : emptySel ? 'PRESS CREATE CHARACTER' : '';
+    (this.stage.children[1] as HTMLElement).textContent = ch ? `${className(ch.classId)}  ·  ${job}  ·  Lv ${ch.level}` : emptySel ? 'Press Create Character to begin' : '';
     // Context buttons: a character → ENTER WORLD + PVP ARENA; an empty slot → CREATE CHARACTER in the same place.
     const empty = !!sel && !CharacterStore.getSlot(sel).character;
     this.btnEnter.style.display = empty ? 'none' : '';
@@ -375,7 +394,6 @@ export class CharacterSelectUI {
   private button(label: string, b: { x: number; y: number; w: number; h: number; size: number }, fn: () => void, primary = false) {
     const el = this.el('button', `kbtn abs${primary ? ' primary' : ''}`, this.root) as HTMLButtonElement;
     el.textContent = label;
-    el.style.fontSize = `${b.size}px`;
     this.box(el, b.x, b.y, b.w, b.h);
     el.addEventListener('mousedown', (e) => e.preventDefault()); // keep focus off buttons (keyboard handled globally)
     el.addEventListener('click', fn);
