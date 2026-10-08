@@ -31,6 +31,29 @@ export const ICONS = {
   plus: svg('<path d="M12 5v14M5 12h14"/>', 2.2),
   minus: svg('<path d="M5 12h14"/>', 2.2),
   user: svg('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>', 1.9),
+  // equipment slots (empty: the slot's own pictogram)
+  helmet: svg('<path d="M4 18v-4a8 8 0 0 1 16 0v4z"/><path d="M4 18h16M9 13.5h6"/>', 1.8),
+  sword: svg('<path d="M14.5 3.5H20.5V9.5L10.5 19.5L4.5 13.5Z"/><path d="M6.5 17.5L3.5 20.5M4.5 13.5l6 6"/>', 1.8),
+  shirt: svg('<path d="M8.5 4L3.5 7l2 4 2.5-1.2V20h8V9.8l2.5 1.2 2-4-5-3c-.6 1.6-2 2.6-3.5 2.6S9.1 5.6 8.5 4z"/>', 1.8),
+  pants: svg('<path d="M7 3h10l1.2 18h-4.6L12 10l-1.6 11H5.8z"/>', 1.8),
+  boots: svg('<path d="M7 3h6v9l6.5 3.2V20H5v-4c1.2-1.2 2-3.2 2-6.2z"/>', 1.8),
+  ring: svg('<circle cx="12" cy="15" r="5.5"/><path d="M9.6 6.8L12 3.5l2.4 3.3L12 9.8z"/>', 1.8),
+  necklace: svg('<path d="M5 3.5c0 6.5 3 10 7 10s7-3.5 7-10"/><circle cx="12" cy="17" r="3"/>', 1.8),
+  earring: svg('<circle cx="12" cy="5" r="2"/><path d="M12 7v3"/><path d="M12 10l4 5.5-4 5.5-4-5.5z"/>', 1.8),
+  shield: svg('<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>', 1.8),
+  belt: svg('<rect x="3" y="9" width="18" height="6" rx="1.5"/><rect x="9.5" y="7.5" width="5" height="9" rx="1"/>', 1.8),
+  sparkle: svg('<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/>', 1.7),
+  bag: svg('<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>', 1.8),
+  // actions (Key Settings)
+  chat: svg('<path d="M4 5h16v11H9l-5 4z"/>', 1.9),
+  users: svg('<circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.2A5 5 0 0 1 21 19"/>', 1.8),
+  book: svg('<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/>', 1.8),
+  stats: svg('<path d="M5 20V11M12 20V4M19 20v-6"/>', 2.2),
+  jump: svg('<path d="M12 16V4M7 9l5-5 5 5"/><path d="M5 20h14"/>', 2),
+  up: svg('<path d="M12 19V5M6 11l6-6 6 6"/>', 2.2),
+  down: svg('<path d="M12 5v14M6 13l6 6 6-6"/>', 2.2),
+  arrowL: svg('<path d="M19 12H5M11 6l-6 6 6 6"/>', 2.2),
+  arrowR: svg('<path d="M5 12h14M13 6l6 6-6 6"/>', 2.2),
 } as const;
 export type IconName = keyof typeof ICONS;
 
@@ -119,6 +142,9 @@ const CSS = `
 .gl-scroll::-webkit-scrollbar{width:6px}
 .gl-scroll::-webkit-scrollbar-thumb{background:rgba(231,196,124,.35);border-radius:3px}
 .gl-scroll::-webkit-scrollbar-track{background:transparent}
+/* currencies */
+.gl-coin{display:inline-block;flex:none;width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 32%,#fff0b8,#e2ad48 58%,#9a6a1e);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.22),0 1px 3px rgba(0,0,0,.4)}
+.gl-gem{display:inline-block;flex:none;width:14px;height:14px;margin:2px;transform:rotate(45deg);border-radius:3px;background:linear-gradient(135deg,#d8f3ff,#59b6f2 55%,#2462b8);box-shadow:inset 0 0 0 1px rgba(255,255,255,.3),0 1px 3px rgba(0,0,0,.4)}
 /* empty states */
 .gl-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;color:var(--gl-text2);font:500 15px/1.5 var(--gl-body)}
 .gl-empty b{font:700 18px var(--gl-title);letter-spacing:2px;color:#e9d7ae}

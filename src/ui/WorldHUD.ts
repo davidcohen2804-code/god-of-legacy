@@ -126,16 +126,13 @@ const CSS = `
 .gol-hud.modal .dim{opacity:1;visibility:visible}
 .gol-hud .gol-ql,.gol-hud .gol-pw,.gol-hud .gol-pi,.gol-hud .gol-keys,.gol-hud .gol-dlg{z-index:30}
 .gol-hud.bare > :not(.gol-ql):not(.gol-pw):not(.gol-pi):not(.gol-keys):not(.gol-dlg){visibility:hidden}
-.gol-hud .combo{position:absolute;left:${G.combo.x}px;top:${G.combo.y}px;width:${G.combo.w}px;height:${G.combo.h}px;background:url("${K('combo_plaque')}") 0 0/100% 100% no-repeat;
-  pointer-events:none;transition:opacity .18s}
-.gol-hud .combo .n{position:absolute;left:74px;width:152px;top:34px;height:32px;text-align:center;font-family:var(--gl-title);font-weight:700;font-style:italic;font-size:30px;line-height:32px;color:#ffe2a0;
-  text-shadow:0 2px 0 #3a1406,0 0 12px rgba(255,160,60,.6)}
-.gol-hud .combo .n small{font-size:12px;margin-left:6px;color:#f3d9a5;letter-spacing:1px}
-.gol-hud .combo .l{position:absolute;left:-40px;right:-40px;top:${G.combo.h + 2}px;text-align:center;font-size:16px;letter-spacing:2px;color:#9fe8ff;font-weight:700;font-style:italic;text-shadow:0 2px 0 #06141c}
-.gol-hud .combo .pulse{position:absolute;left:-40px;top:-16px;width:380px;height:128px;mix-blend-mode:screen;opacity:0;
-  background:url("assets/final/ui/hud/combo_pulse.png") 0 0/3040px 128px}
-.gol-hud .combo.bump .pulse{animation:golPulse .32s steps(8) 1}
-@keyframes golPulse{0%{opacity:1;background-position:0 0}100%{opacity:0;background-position:-3040px 0}}
+.gol-hud .combo{position:absolute;left:${G.combo.x}px;top:${G.combo.y}px;width:${G.combo.w}px;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;transition:opacity .18s}
+.gol-hud .combo .n{display:flex;align-items:baseline;gap:8px;padding:6px 22px 8px;border-radius:999px;background:rgba(13,20,33,.86);border:1px solid rgba(231,196,124,.35);
+  box-shadow:0 8px 20px rgba(0,0,0,.35);font:700 34px/1 var(--gl-title);color:var(--gl-gold2);font-variant-numeric:tabular-nums}
+.gol-hud .combo .n small{font:700 12px var(--gl-body);letter-spacing:1.6px;color:#d9c79f}
+.gol-hud .combo .l{font:600 13px var(--gl-body);letter-spacing:.6px;color:#cfe3f5;text-shadow:0 1px 3px rgba(0,0,0,.8);white-space:nowrap}
+.gol-hud .combo.bump .n{animation:golBump .22s ease-out 1}
+@keyframes golBump{0%{transform:scale(1.14)}100%{transform:scale(1)}}
 .gol-hud .banner{position:absolute;left:560px;top:300px;width:800px;height:110px;display:none;align-items:center;justify-content:center;
   font-family:var(--gl-title);font-weight:700;font-size:64px;letter-spacing:10px;color:#f0c27a;text-shadow:0 3px 0 #2a0a04,0 0 24px rgba(200,40,20,.7);
   background:radial-gradient(ellipse at center,rgba(40,6,4,.75) 0%,rgba(40,6,4,0) 70%)}
@@ -343,7 +340,6 @@ export class WorldHUD {
     c.remove();
     const combo = this.div('combo', this.root); combo.style.display = 'none';
     const n = this.div('n', combo), l = this.div('l', combo);
-    this.div('pulse', combo);
     this.els.combat = combo; this.els.cN = n; this.els.cL = l;
     const ban = this.div('banner', this.root); this.els.banner = ban;
     if (this.opts.onMenu) {
@@ -411,7 +407,7 @@ export class WorldHUD {
     this.show(this.els.combat, !!f);
     if (f) {
       if (this.changed('cN', String(f.count))) {
-        this.els.cN.innerHTML = `${f.count}<small>HITS</small>`;
+        this.els.cN.innerHTML = `${f.count}<small>HITS</small>`; // the count bumps on every hit
         this.els.combat.classList.remove('bump'); void this.els.combat.offsetWidth; this.els.combat.classList.add('bump');
       }
       this.text(this.els.cL, f.chain ?? '', 'cL');
