@@ -29,7 +29,7 @@ MAPS = {
                   'mobs': {'kind': 'thorn', 'spawns': [[300, 545], [620, 470], [820, 545], [1010, 445], [1180, 530], [1400, 480]]}},
 }
 EDGE_SHADE = 34   # px: the ends shaded toward their edge (they turn away from the light: volume)
-WALK_IN = 70    # the walkable floor stops this far in from each end (the corner posts): the picture's left / right ends fade out (the floor ends in the air there; you cannot walk off it)
+WALK_IN = 100   # the walkable floor stops this far in from each end (the corner towers): the picture's left / right ends fade out (the floor ends in the air there; you cannot walk off it)
 out_dir = R + 'public/assets/world/heights/'; os.makedirs(out_dir, exist_ok=True)
 data = []
 for id_, m in MAPS.items():
@@ -50,26 +50,33 @@ for id_, m in MAPS.items():
   P = m.get('pier', (527, 612, 578)); Q = m.get('post', (80, 155, 190, 352))
   pier = rgba[P[2]:, P[0]:P[1]].copy(); pier[..., 3] = 255
   post = rgba[Q[2]:Q[3], Q[0]:Q[1]].copy()
+  # its two ends: a corner tower of the wall's own stone — the wall's pilaster carried up from the ground past the floor,
+  # capped by a balustrade post with its urn — so the floor ends against solid stone, not in the air. Rounded by light:
+  # its sunlit side bright, its far side in shade.
   f0r, f1r = m['floor']
-  lip = rgba[f1r - 2:f1r + 30, 700:1000].copy(); lip[..., 3] = 255          # the floor's front lip (a stone coping)
-  side_lip = cv2.resize(np.rot90(lip), (lip.shape[0], f1r - f0r + 8), interpolation=cv2.INTER_AREA)   # the same coping along the floor's side edge
+  shaft = rgba[P[2] + 40:P[2] + 200, P[0]:P[1]].copy(); shaft[..., 3] = 255
+  tw = shaft.shape[1]; top_y = Q[2] + 40; cap = cv2.resize(post, (tw + 10, round(post.shape[0] * (tw + 10) / post.shape[1])), interpolation=cv2.INTER_AREA)
+  col = np.zeros((h - top_y, tw, 4), np.uint8)
+  for y in range(0, col.shape[0], shaft.shape[0]): col[y:y + shaft.shape[0]] = shaft[:min(shaft.shape[0], col.shape[0] - y)]
+  col[-(h - P[2]):] = pier[:, :tw] if pier.shape[1] >= tw else col[-(h - P[2]):]
+  # a stone band where the floor meets it, and the cylinder shading
+  band = rgba[f1r - 2:f1r + 26, 700:700 + tw].copy(); band[..., 3] = 255
+  col[f1r - 2 - top_y:f1r + 26 - top_y] = band
+  u = np.linspace(0, 1, tw)
   for side in (0, 1):
-    sw = side_lip.shape[1]; sx = 0 if side == 0 else w - sw
-    rgba[f0r - 6:f0r - 6 + side_lip.shape[0], sx:sx + sw] = side_lip if side == 0 else side_lip[:, ::-1]
-    pw, qw = pier.shape[1], post.shape[1]
-    px = 0 if side == 0 else w - pw; qx = 0 if side == 0 else w - qw
-    rgba[P[2]:, px:px + pw] = pier[:, ::-1] if side else pier
-    reg = rgba[Q[2]:Q[3], qx:qx + qw]; pa = post[..., 3:4].astype(np.float32) / 255
-    reg[..., :3] = (post[..., :3] * pa + reg[..., :3] * (1 - pa)).astype(np.uint8); reg[..., 3] = np.maximum(reg[..., 3], post[..., 3])
-    edge = np.arange(EDGE_SHADE)[::-1] if side == 0 else np.arange(EDGE_SHADE)
-    cols = slice(0, EDGE_SHADE) if side == 0 else slice(w - EDGE_SHADE, w)
-    k = 1 - 0.42 * (edge / EDGE_SHADE) ** 1.6
-    rgba[:, cols, :3] = (rgba[:, cols, :3] * k[None, :, None]).astype(np.uint8)
-    # a thin warm rim of light along the very edge (the sun catching the corner) and a dark outline just inside it
-    ex = 0 if side == 0 else w - 1; ix = 1 if side == 0 else w - 2
-    vis = rgba[:, ex, 3] > 0
-    rgba[vis, ex, :3] = np.clip(rgba[vis, ex, :3] * 0.35, 0, 255).astype(np.uint8)
-    rgba[vis, ix, :3] = np.clip(rgba[vis, ix, :3].astype(np.float32) * 1.25 + 18, 0, 255).astype(np.uint8)
+    shade = 0.62 + 0.5 * np.sin(np.pi * (u if side else 1 - u) ** 0.8) * 0.75   # outer side dark, inner side lit
+    c = col.copy(); c[..., :3] = np.clip(c[..., :3] * shade[None, :, None], 0, 255).astype(np.uint8)
+    if side: c = c[:, ::-1]
+    x = 0 if side == 0 else w - tw
+    rgba[top_y:, x:x + tw] = c
+    # outline: a dark line on the outer edge
+    ox = x if side == 0 else x + tw - 1
+    rgba[top_y:, ox, :3] = (rgba[top_y:, ox, :3] * 0.35).astype(np.uint8)
+    # the cap
+    cx = (x + tw // 2) - cap.shape[1] // 2; cy = top_y - cap.shape[0] + 26
+    cx0 = max(0, cx); cx1 = min(w, cx + cap.shape[1]); cc = cap[:, cx0 - cx:cx1 - cx]
+    reg = rgba[cy:cy + cap.shape[0], cx0:cx1]; pa = cc[..., 3:4].astype(np.float32) / 255
+    reg[..., :3] = (cc[..., :3] * pa + reg[..., :3] * (1 - pa)).astype(np.uint8); reg[..., 3] = np.maximum(reg[..., 3], cc[..., 3])
   cv2.imwrite(out_dir + f'{id_}.webp', cv2.cvtColor(rgba, cv2.COLOR_RGBA2BGRA), [cv2.IMWRITE_WEBP_QUALITY, 90])
   X0 = STRIP['areas'][m['over']]['x'] + m.get('dx', 0); f0, f1 = m['floor']; F = m['front']; H = m['H']
   occ = []   # each block's own cut-out: drawn over whoever walks behind it up there

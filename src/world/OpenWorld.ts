@@ -190,7 +190,7 @@ export class OpenWorld {
       sc.tweens.add({ targets: o, alpha: { from: lo, to: hi }, duration: ms, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay });
     const add = <T extends Phaser.GameObjects.GameObject>(o: T): T => { this.towers.push(o as unknown as Phaser.GameObjects.Image); return o; };
     TOWERS.forEach((t, i) => {
-      const cx = (t.x0 + t.x1) / 2, w = t.x1 - t.x0, top = t.front - Math.round(t.h / CUBE.h) * CUBE.h - CUBE.top / 2;
+      const cx = (t.x0 + t.x1) / 2, w = t.x1 - t.x0, top = t.front - t.base - Math.round(t.h / CUBE.h) * CUBE.h - CUBE.top / 2;
       const glow = add(sc.add.image(cx, top, 'climb-glow').setDisplaySize(w * 0.95, CUBE.top * 1.6).setBlendMode(Phaser.BlendModes.ADD).setDepth(t.front + 1.2));
       pulse(glow, 0.55, 1, 1300, i * 260);
       // a bright rim along the top face's front edge (where you land) and a soft halo round the cube's top
