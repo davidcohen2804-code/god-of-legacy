@@ -17,7 +17,7 @@ from scipy import ndimage
 # rows the game lifts itself (jumps, leaps): anchored on their own feet
 OWN_FEET = {'jump', 'leap_crash', 'judgment_blade', 'finisher', 'spin_cut', 'falcon_dive', 'retreat_kick', 'skyhunters_step', 'rain_of_arrows', 'air_shot'}
 # frames left out of a cut row (drawn upright inside a leaning run: the body would jump)
-DROP = {('samurai', 'run'): {0, 7}}
+DROP = {}
 STRIDES = {}  # (cls, act) -> feet spread per frame (atlas px)
 SCALE = 0.6  # frame size kept in the atlas (source px x SCALE)
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
