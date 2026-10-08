@@ -154,6 +154,8 @@ export interface PoseFrame {
   /** The clean base character's frame: its move, and where the head sits (cell px from the standing head) for the look layers;
    *  bare = no sword in hand (a skill played with the hand free); swing = a regular attack's swing (the sword leaves its afterimage). */
   naked?: { g: string; anim: string; frame: number; hx: number; hy: number; bare?: boolean; swing?: boolean };
+  /** A ready hero standing still: its cape / robe sways in the wind (ActorView), the body stays put. */
+  cloth?: boolean;
 }
 
 type AnchorTable = Record<string, (number[] | null)[][] | Record<string, (number[] | null)[]>>;
@@ -519,6 +521,11 @@ export const HERO_HEIGHT = 124;
 export const HERO_LIFT = HERO_HEIGHT - 124;
 export const isHeroClass = (cls: string): boolean => !!HEROES[cls];
 /** Portrait of a ready hero: the face cut from its card (image w / h, square at x, y of size). */
+/** A hero frame's rectangle and feet anchor in its atlas (for effects fitted to that drawing). */
+export function heroFrameRect(cls: string, name: string): { x: number; y: number; w: number; h: number; ax: number; ay: number } | null {
+  const [act, i] = name.split('-'); const f = HEROES[cls]?.actions[act]?.[Number(i)];
+  return f ? { x: f[0], y: f[1], w: f[2], h: f[3], ax: f[4], ay: f[5] } : null;
+}
 export function heroPortrait(cls: string): { url: string; crop: { x: number; y: number; w: number; imgW: number; imgH: number } } | undefined {
   const c = HEROES[cls]?.card;
   return c ? { url: `assets/final/heroes/${cls}/card.png`, crop: { x: c[2], y: c[3], w: c[4], imgW: c[0], imgH: c[1] } } : undefined;
@@ -602,8 +609,9 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
   const H = (act: string, i: number) => heroFrame(cls, dir, act, i);
   switch (q.k) {
     case 'loop':
-      if (q.state === 'idle') return H('idle', (q.t * 6) / 1000);
-      if (q.state === 'alert') return H('stance', (q.t * 5) / 1000);
+      // standing: one still drawing (separately painted idle frames make the whole body tremble); only the cloth moves
+      if (q.state === 'idle') return { ...H('idle', 0), cloth: true };
+      if (q.state === 'alert') return { ...H('stance', 0), cloth: true };
       { // the legs keep pace with the ground: one cycle per the distance its two widest strides carry the body (no sliding feet)
         const st = q.state === 'walk' ? 'walk' : 'run', h = HEROES[cls], n = h.actions[st].length;
         const dist = (h.cycle?.[st] ?? h.h) * (HERO_HEIGHT / h.h), sp = Math.max(st === 'walk' ? 120 : 180, q.speed);

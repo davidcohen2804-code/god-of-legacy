@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import COS from '../data/cosmetics.json';
 import { Dir } from '../world/collision';
 import { actorDepth } from '../world/WorldGeometry';
-import { ClassKey, PoseFrame, applyPose, SHEET_PATH, BASE_GEOM, baseComplete, ensureWeaponMasks, BaseLook, baseLookLayers, hasOver, overKey, NAKED_LOOK, GearLook, GearPiece, gearLayers, helmKey, loadGear, swingTrail } from './Body';
+import { ClassKey, PoseFrame, applyPose, heroFrameRect, SHEET_PATH, BASE_GEOM, baseComplete, ensureWeaponMasks, BaseLook, baseLookLayers, hasOver, overKey, NAKED_LOOK, GearLook, GearPiece, gearLayers, helmKey, loadGear, swingTrail } from './Body';
 /** Name plates sit above the world (props in front included), like MapleStory's. */
 export const NAME_DEPTH = 90000;
 import { DEFAULT_SKIN, toneTexture } from '../characters/Skin';
@@ -296,6 +296,31 @@ export class ActorView {
     this.weaponGlow = scene.add.sprite(x, y, '__DEFAULT').setVisible(false).setBlendMode(Phaser.BlendModes.ADD);
   }
 
+  // ---- ready heroes standing still: the cape / robe behind the body sways (a displacement map built from the drawing:
+  // zero on the body and the head, growing toward the back edge and the hem), the body itself never moves.
+  private cloth?: { a: Phaser.FX.Displacement; b: Phaser.FX.Displacement; key: string; t: number; amt: number };
+  private clothWind(ms: number, pose: PoseFrame): void {
+    const p = this.sprite;
+    const want = !!pose.cloth && !!p.preFX && typeof pose.frame === 'string';
+    if (!want && !this.cloth) return;
+    if (!this.cloth && p.preFX) {
+      this.cloth = { a: p.preFX.addDisplacement('__WHITE', 0, 0), b: p.preFX.addDisplacement('__WHITE', 0, 0), key: '', t: Math.random() * 9000, amt: 0 };
+    }
+    const c = this.cloth!; c.t += ms;
+    c.amt += ((want ? 1 : 0) - c.amt) * Math.min(1, ms / 160); // eases in / out (no snap when he starts walking)
+    if (want) {
+      const key = `${pose.key}:${pose.frame}:${pose.flip ? 'L' : 'R'}`;
+      if (key !== c.key) {
+        const m = clothMaps(this.scene, pose.key, String(pose.frame), !!pose.flip);
+        if (m) { c.a.setTexture(m[0]); c.b.setTexture(m[1]); c.key = key; }
+      }
+    }
+    const amp = (2.6 / Math.max(1, p.displayWidth)) * c.amt;
+    const gust = 0.7 + 0.3 * Math.sin((c.t / 5300) * Math.PI * 2), w = (c.t / 1500) * Math.PI * 2;
+    c.a.x = amp * gust * Math.cos(w); c.b.x = amp * gust * Math.sin(w);
+    c.a.y = 0.35 * c.a.x; c.b.y = 0.35 * c.b.x;
+  }
+
   setRing(color: number): void { this.ring.setStrokeStyle(3, color, 0.85).setFillStyle(color, 0.1); }
 
   setEquipped(e: Equipped): void {
@@ -339,6 +364,7 @@ export class ActorView {
     // Weapon masks load on first need: a tint skin draws them, a sword skin cuts with them (classes without a packed mask).
     if ((WEAPON_TINT[this.equipped.weapon ?? ''] || (this.blade && !SHEET_PATH[pose.key])) && !this.scene.textures.exists(pose.wkey)) ensureWeaponMasks(this.scene, this.cls);
     applyPose(p, pose, this.weapon);
+    this.clothWind(ms, pose);
     const depth = actorDepth(x, y, z);
     p.setPosition(x, y - z).setDepth(depth).setAlpha(alpha).setVisible(this.visible);
     if (tint === null) p.clearTint(); else if (tintFill) p.setTintFill(tint); else p.setTint(tint);
@@ -563,4 +589,38 @@ export class ActorView {
     for (const im of Object.values(this.gearParts)) im?.destroy();
     this.lookParts = null; this.gearParts = {};
   }
+}
+
+/** The two wind maps (sin / cos phase) of one hero frame: displacement only on the cloth behind the body and its hem. */
+function clothMaps(scene: Phaser.Scene, tex: string, frame: string, flip: boolean): [string, string] | null {
+  const k0 = `cloth-${tex}-${frame}-${flip ? 'L' : 'R'}`;
+  if (scene.textures.exists(`${k0}-s`)) return [`${k0}-s`, `${k0}-c`];
+  const cls = tex.replace(/^hero-/, ''), r = heroFrameRect(cls, frame);
+  const src = scene.textures.get(tex).getSourceImage() as HTMLImageElement;
+  if (!r || !src) return null;
+  const W = Math.max(8, Math.round(r.w / 2)), H = Math.max(8, Math.round(r.h / 2)); // half resolution: smooth anyway
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const cx = cv.getContext('2d')!; cx.drawImage(src, r.x, r.y, r.w, r.h, 0, 0, W, H);
+  const al = cx.getImageData(0, 0, W, H).data;
+  const sm = (a: number, b: number, v: number) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const ax = r.ax / 2;
+  const out: string[] = [];
+  for (const [suf, ph] of [['s', 0], ['c', Math.PI / 2]] as [string, number][]) {
+    const t = scene.textures.createCanvas(`${k0}-${suf}`, W, H)!, ctx = t.getContext(), d = ctx.createImageData(W, H);
+    for (let y = 0; y < H; y++) {
+      const v = y / (H - 1);
+      const wv = sm(0.2, 0.5, v) * (1 - sm(0.8, 0.95, v)); // still at the feet (they stand on the floor)
+      const wave = Math.sin(v * Math.PI * 2 * 1.4 + ph);
+      for (let xx = 0; xx < W; xx++) {
+        const sx = flip ? W - 1 - xx : xx; // the map follows the drawing (facing left = mirrored)
+        const back = (ax - sx) / Math.max(1, ax); // 0 at the hips' line, 1 at the back edge (the art faces right)
+        const wu = sm(0.14, 0.6, back);
+        const on = al[(y * W + sx) * 4 + 3] > 8 ? 1 : 0.6; // just outside the outline too (the edge itself moves)
+        const val = Math.round(255 * (0.5 + 0.5 * wv * wu * wave * on)), i = (y * W + xx) * 4;
+        d.data[i] = val; d.data[i + 1] = val; d.data[i + 2] = val; d.data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(d, 0, 0); t.refresh(); out.push(`${k0}-${suf}`);
+  }
+  return [out[0], out[1]];
 }
