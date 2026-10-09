@@ -230,9 +230,9 @@ export class ArcherFx {
           this.floor('floor_cracks', kx, ky, 190, 900, { run: r, a: kf([0, 1], [0.7, 0.9], [1, 0]) }); // the floor breaks open
           this.spr({ name: 'dust', x: kx, y: ky + 4, oy: 0.85, depth: ky + 1, w: 200, life: 640, sx: kf([0, 0.4], [1, 1.5, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
           this.spr({ name: 'launch_beam', x: kx, y: ky + 6, oy: 0.97, depth: ky + 2, w: 130, h: 360, life: 460, add: true, glow: 0.3, sy: kf([0, 0.2], [0.22, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) });
-          // the big boot rises out of the ground (grows up from the floor line), toe forward, kicking upward
+          // the big boot rises out of the ground (grows up from the floor line) spinning in place, toe toward the kick
           this.spr({ name: 'wind_boot', x: kx, y: ky + 8, oy: 1, depth: ky + 3, w: 210, flipX: side < 0, life: T.active + 360, glow: 0.3,
-            sy: kf([0, 0], [0.18, 1.12, out3], [0.3, 1]), sx: kf([0, 0.7], [0.18, 1, out3]), my: kf([0, 0], [0.18, -20, out3], [1, -70]), rot: (u) => -side * 14 * out(u), a: kf([0, 1], [0.75, 1], [1, 0]) });
+            sy: kf([0, 0], [0.18, 1.12, out3], [0.3, 1]), sx: (u) => kf([0, 0.7], [0.18, 1, out3])(u) * Math.cos(Math.PI * 4 * out(Math.min(1, u / 0.6))), my: kf([0, 0], [0.18, -20, out3], [1, -70]), a: kf([0, 1], [0.75, 1], [1, 0]) }); // spins in place twice and settles with the toe toward the kick
           // the upward kick: a crescent of wind sweeping up, streaks shooting skyward
           this.spr({ name: 'wind_crescent', x: kx + side * 20, y: ky - 90, depth: ky + 4, w: 200, angle: side * -70, flipX: side < 0, add: true, glow: 0.3, life: 360, delay: 60, my: (u) => -50 * out(u), sx: kf([0, 0.6], [0.4, 1.1, out3]), a: kf([0, 0], [0.15, 1], [1, 0, inQ]) });
           for (let k = 0; k < 3; k++) this.spr({ name: 'wind_streaks', x: kx + (k - 1) * 30, y: ky - 40, depth: ky + 4, w: 150, angle: -90, add: true, life: 320, delay: 40 + k * 40, my: (u) => -140 * out(u), a: kf([0, 0], [0.2, 0.9], [1, 0]) });
