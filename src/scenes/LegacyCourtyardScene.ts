@@ -1227,6 +1227,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       k.x = nx; k.y = ny;
     }
     k.vx = 0; k.vy = 0;
+    if (this.blinkChase?.castId === run.castId) { // Blink's air chase: up to the foe's height
+      const t = this.targetsFor(run).find((x) => x.id === this.blinkChase!.id);
+      if (t) { k.grounded = false; k.z = run.origin.z + (Math.max(0, t.z - 10) - run.origin.z) * ease; k.vz = 0; }
+      if (p >= 1) { this.blinkChase = null; this.mage.floatUntil = Math.max(this.mage.floatUntil, this.simMs + 700); } // a short float up there, to go on with the combo
+    }
     if (d.lift) { // acrobatic leap: real height (shots fire from it), lands by gravity afterwards
       k.grounded = false;
       const hang = d.hang ? (p < 0.1 ? Math.sin((Math.PI / 2) * (p / 0.1)) : p > 0.86 ? Math.cos((Math.PI / 2) * ((p - 0.86) / 0.14)) : 1) : 0;
@@ -1660,6 +1665,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   // ======================================================================= Book Mage (the mage spec)
 
+  /** Blink carrying him up to a foe in the air (the cast it belongs to). */
+  private blinkChase: { castId: string; id: string } | null = null;
   private mage = { el: null as 'frost' | 'storm' | 'arcane' | null, weave: 0, weaveLast: '', weaveCast: '', weaveAt: -Infinity, grand: false,
     hasteUntil: -1, ascUntil: -1, wardHp: 0, wardUntil: -1, barrierAt: -Infinity, recoverAt: -Infinity, floatUntil: -1, gateAt: -Infinity };
   /** Chrono Sigil: where it lies, the HP when it was laid, until when it can be snapped back to. */
@@ -1720,7 +1727,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       case 'arcane_bolt': case 'arcane_bolt_frost': case 'arcane_bolt_storm': case 'arcane_bolt_arcane':
         if (run.stage === 2) this.time.delayedCall(up, () => { this.momentum = { x: -run.aim.x * 46, y: -run.aim.y * 20, left: 180 }; }); // the lance's recoil: a slide back
         break;
-      case 'blink': this.body.invulnUntil = Math.max(this.body.invulnUntil, now + up + s.active); if (this.passives.mage.blinkRune) this.frostRune(k.x, k.y); break;
+      case 'blink': {
+        this.body.invulnUntil = Math.max(this.body.invulnUntil, now + up + s.active); if (this.passives.mage.blinkRune) this.frostRune(k.x, k.y);
+        // the air chase: a foe thrown into the air ahead of him (toward the aim) — Blink carries him up to it, to go on with the combo there
+        const air = this.targetsFor(run).filter((t) => t.alive && t.id !== this.localId && t.z > 40 && (t.x - k.x) * run.aim.x + (t.y - k.y) * run.aim.y > 0 && Math.hypot(t.x - k.x, t.y - k.y) < 300)
+          .sort((a, b) => Math.hypot(a.x - k.x, a.y - k.y) - Math.hypot(b.x - k.x, b.y - k.y))[0];
+        if (air) { const dx = air.x - k.x, dy = air.y - k.y, l = Math.hypot(dx, dy) || 1; run.aim = { x: dx / l, y: dy / l }; run.lock = air.id; this.blinkChase = { castId: run.castId, id: air.id }; }
+        break;
+      }
       case 'chrono_haste': M.hasteUntil = now + up + 120000; this.shares.push({ at: now + up, id: s.id, ms: 120000 }); say('CHRONO HASTE', '#c9b6ff'); break;
       case 'arcane_ward': M.wardHp = Math.round(this.maxHpNow() * 0.2); M.wardUntil = now + up + 8000; this.shares.push({ at: now + up, id: s.id, ms: 8000 }); say('ARCANE WARD', '#9fdcff'); break;
       case 'elemental_ascension': M.ascUntil = now + up + 20000; say('ELEMENTAL ASCENSION', '#cff6ff'); break;
