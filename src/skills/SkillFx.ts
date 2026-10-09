@@ -612,7 +612,7 @@ export class SkillFx {
     const fr = [12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]; // 12 = empty frame while the cut-in plays (sim-timed)
     const fms = [dive, pre * 0.14, pre * 0.14, pre * 0.16, pre * 0.16, pre * 0.18, pre * 0.22, 150, 170, 180, 190, 210, 260];
     this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: fr, frameMs: fms, fadeLast: 240 });
-    this.scene.time.delayedCall(T.startup + 160, () => this.titanField(at.x, at.y, (r.skill.linger?.startMs ?? 760) - 160 + (r.skill.linger?.everyMs ?? 350) * (r.skill.linger?.count ?? 9)));
+    // (the electrified floor's painted sheet comes in titanField once it is drawn; no hand-drawn bolts meanwhile)
     this.scene.time.delayedCall(T.startup, () => { // impact flash rings
       this.shockwave(at.x, at.y, 320, 0xfff0b0); this.scene.time.delayedCall(90, () => this.shockwave(at.x, at.y, 420, 0xffc860));
       (this.cam ?? this.scene.cameras.main).shake(420, 0.014);
