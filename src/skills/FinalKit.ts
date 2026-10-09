@@ -701,7 +701,7 @@ const samurai: FinalSkill[] = [
   S({
     id: 'dragon_ascension', cls: 'samurai', slot: 17, name: 'Dragon Ascension', roles: ['launcher', 'extender'], targeting: 'self',
     startup: 260, active: 600, recovery: 300, cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 900],
-    hits: [H(0, 18, { kind: 'circle', radius: 150 }, { stun: 460, launch: 230, juggleCost: 30 }, { reachUp: 140, heavy: true }),
+    hits: [H(0, 18, { kind: 'circle', radius: 150 }, { stun: 460, launch: 145, juggleCost: 30 }, { reachUp: 140, heavy: true }), // (lifts ~190 px: the follow-ups reach it at once)
       ...[160, 320, 480].map((t) => H(t, 7, { kind: 'circle', radius: 160 }, { stun: 380, float: true, juggleCost: 4 }, { reachUp: 380 }))],
     cancelOnHit: ['falcon_dive', 'hundred_cuts', 'phantom_blades', 'blossom_storm', 'dragon_eclipse'], telegraph: 'circle',
     description: 'A crimson dragon spirals up from your blade and carries every foe around you high into the air, cutting them as it rises.',

@@ -1133,7 +1133,7 @@ export class SamuraiFx {
       if ((this.broken(r) && t < T.startup + 20) || this.gone(r)) { kill(); return false; }
       const { x, y } = at(Math.max(0, t - t0) / TORNADO.everyMs);
       cur.x = x; cur.y = y; cur.d = y;
-      const near = 1 + (y - y0) * 0.0024; // (nearer you: larger)
+      const near = 1 + (y - y0) * 0.0036; // (nearer you: larger)
       lean += (Math.max(-9, Math.min(9, ((x - px) / Math.max(1, dt)) * 60)) - lean) * Math.min(1, dt / 120); px = x;
       const fade = Math.min(1, (t - T.startup) / 160) * (t > end - 260 ? Math.max(0, (end - t) / 260) : 1), grow = 0.55 + 0.45 * out(Math.min(1, (t - T.startup + 40) / 260));
       const tilt = Math.tan((lean * Math.PI) / 180), axis = (h: number) => x + tilt * h * near + Math.sin(t / 190 + h / 80) * 6 * (h / H) * near; // (its axis: leaning into its way, swaying)

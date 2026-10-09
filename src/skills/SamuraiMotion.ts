@@ -133,13 +133,14 @@ export function shinsokuMotion(t: number, face: number, ms = 340): Motion | null
 }
 
 /** Tornado Blade: the whirlwind rolls forward one step per strike, weaving across the floor as it goes (toward you, away,
- *  back: through the depth of the courtyard, not along a line), stopping where the ground ends (walls, edges). */
-export const TORNADO = { offset: 90, step: 18, everyMs: 150, count: 14, startMs: 120, weave: 84 };
+ *  back: through the depth of the courtyard), stopping where the ground ends (walls, edges). Its hits take the same path,
+ *  so the weave stays small (≤ 40 px): a foe standing in its way stays in it (the combos into and out of it hold). */
+export const TORNADO = { offset: 90, step: 18, everyMs: 150, count: 14, startMs: 120, weave: 40 };
 export function tornadoPath(o: { x: number; y: number }, aim: { x: number; y: number }): { x: number; y: number }[] {
   const n = TORNADO.count, side = { x: -aim.y, y: aim.x }, pts: { x: number; y: number }[] = [];
   let stop = false;
   for (let i = 0; i < n; i++) {
-    const w = TORNADO.weave * Math.sin((i / (n - 1)) * Math.PI * 2);
+    const w = TORNADO.weave * Math.sin((i / (n - 1)) * Math.PI * 2) * Math.min(1, i / 4); // (straight out of his blade, weaving once it is away: the strikes a combo goes through stay in line)
     const p = { x: o.x + aim.x * (TORNADO.offset + i * TORNADO.step) + side.x * w, y: o.y + aim.y * (TORNADO.offset + i * TORNADO.step * 0.75) + side.y * w };
     if (i > 0 && (stop || !footAllowed(p.x, p.y, 0, 24))) { stop = true; pts.push(pts[i - 1]); } else pts.push(p);
   }
