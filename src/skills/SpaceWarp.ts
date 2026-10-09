@@ -29,7 +29,7 @@ void main() {
       edge += 0.0;
     }
   }
-  vec2 o = off / uRes, ca = o * 0.1 * clamp(edge, 0.0, 1.0);
+  vec2 o = off / uRes, ca = o * 0.03 * clamp(edge, 0.0, 1.0);
   vec4 c = texture2D(uMainSampler, uv + o);
   c.r = texture2D(uMainSampler, uv + o + ca).r;
   c.b = texture2D(uMainSampler, uv + o - ca).b;
