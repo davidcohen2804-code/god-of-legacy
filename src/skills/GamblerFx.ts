@@ -620,18 +620,45 @@ export class GamblerFx {
   /** The scene tells which cards a Showdown plays (the caster's hand at the cast; others see backs turning to random faces). */
   showdownHand(castId: string, cards: Card[], value: HandValue | null, at: V3): void {
     this.sdHand.set(castId, cards);
-    if (value) this.ctx.callout(at, value.label, value.tier >= 5 ? '#ffc94a' : '#ff7ae6', 0);
+    if (value) this.sdVal.set(castId, value.tier);
+    if (value && this.ctx.scene.textures.exists('gbk-w_banner')) this.rankBanner(value, at);
+    else if (value) this.ctx.callout(at, value.label, value.tier >= 5 ? '#ffc94a' : '#ff7ae6', 0);
     if (value && value.tier >= 9) { this.ctx.flash(0xffffff, 0.5, 300); this.cutIn(1100); }
     if (value && value.tier >= 5) { const st = this.kit('j_star', at.x, at.y - at.z - 40, 120, TOP + 8); if (st) { const s0 = st.scale; this.piece(st, 700, (u, o) => o.setScale(s0 * lerp(0.3, 1.2, out3(u))).setAngle(u * 90).setAlpha(1 - u * u)); } }
   }
+  private sdVal = new Map<string, number>();
+  /** The hand's rank on a plaque of light over his head (the text sits well inside the plaque's empty middle). */
+  private rankBanner(v: HandValue, at: V3): void {
+    const s = this.ctx.scene, x = at.x, y = at.y - at.z - 255, big = v.tier >= 5;
+    const txt = s.add.text(x, y, v.label, { fontFamily: 'Cinzel, Georgia, serif', fontStyle: 'bold', fontSize: big ? '26px' : '24px', color: big ? '#ffe7a0' : '#ffe0f6', stroke: '#2a0620', strokeThickness: 5, resolution: 2 }).setOrigin(0.5).setDepth(TOP + 9);
+    const W = Math.max(210, Math.min(320, txt.width / 0.55)); // the plaque grows with its text: the words keep a wide margin inside it
+    const ban = this.kit('w_banner', x, y, W, TOP + 8); if (!ban) { txt.destroy(); return; }
+    const room = W * 0.56; if (txt.width > room) txt.setScale(room / txt.width);
+    const b0 = ban.scale;
+    const t0 = txt.scale;
+    this.piece(ban, 950, (u, o) => o.setScale(b0 * lerp(0.6, 1, out3(clamp01(u * 6))), b0 * lerp(0.2, 1, out3(clamp01(u * 6)))).setPosition(x, y - u * 18).setAlpha(u < 0.78 ? 1 : (1 - u) / 0.22));
+    this.piece(txt, 950, (u, o) => o.setScale(t0 * lerp(1.5, 1, out3(clamp01(u * 5)))).setPosition(x, y + ban.displayHeight * 0.02 - u * 18).setAlpha(u < 0.08 ? u / 0.08 : u < 0.78 ? 1 : (1 - u) / 0.22));
+  }
   private showdownRow(r: CastRun): void {
-    const T = r.timings, cards: Phaser.GameObjects.Container[] = [];
+    const T = r.timings, cards: Phaser.GameObjects.Container[] = [], side = sideOf(r), s = this.ctx.scene;
+    const h = this.ctx.hand(r.attackerId) ?? { x: r.origin.x, y: r.origin.y - 80 };
+    if (s.textures.exists('gbk-w_fan')) { // he holds the hand up — a fan of five cards of light — then deals it out in a stream
+      const fan = this.kit('w_fan', h.x + side * 10, h.y - 50, 150, TOP + 5);
+      if (fan) { fan.setFlipX(side < 0); const f0 = fan.scale; this.piece(fan, T.startup + 40, (u, o) => o.setScale(f0 * lerp(0.4, 1, out3(clamp01(u * 2.5)))).setAngle(side * (1 - out3(clamp01(u * 2.5))) * -40).setAlpha(u > 0.85 ? (1 - u) / 0.15 : 1)); }
+      const st = this.kit('w_stream', h.x, h.y, 300, TOP + 5);
+      if (st) { st.setFlipX(side < 0).setOrigin(side > 0 ? 0.1 : 0.9, 0.5).setAlpha(0); const s0 = st.scale; this.piece(st, 280, (u, o) => o.setAlpha(u < 0.3 ? u / 0.3 : (1 - u) / 0.7).setScale(s0 * lerp(0.5, 1.15, out3(u)), s0 * 0.7).setPosition(h.x + side * 300 * 0.35 * out3(u), h.y), T.startup - 40); }
+    }
+    const spec = s.textures.exists('gbk-w_card'), stand = (x: number, y: number, d: number) => {
+      if (!spec) return this.card(x, y, null, 0.9, d);
+      const im = s.add.image(0, 0, 'gbk-w_card').setBlendMode(Phaser.BlendModes.ADD); im.setScale(96 / im.height);
+      return s.add.container(x, y, [im]).setDepth(d);
+    };
     for (let i = 0; i < 5; i++) {
-      const p = this.ahead(r, 90 + i * 55), box = this.card(p.x, p.y - 80, null, 0.9, p.y + 5).setAlpha(0).setScale(0.3);
-      const h = this.ctx.hand(r.attackerId) ?? { x: r.origin.x, y: r.origin.y - 80 };
+      const p = this.ahead(r, 90 + i * 55), box = stand(p.x, p.y - 80, p.y + 5).setAlpha(0).setScale(0.3);
       box.setPosition(h.x, h.y);
       this.piece(box as unknown as Phaser.GameObjects.Container, T.startup + 60, (u, o) => o.setPosition(lerp(h.x, p.x, out3(u)), lerp(h.y, p.y - 80, out3(u)) - Math.sin(u * Math.PI) * 50).setAlpha(clamp01(u * 3)).setScale(lerp(0.3, 1, out3(u))).setAngle((1 - u) * 360), i * 40);
-      cards.push(this.card(p.x, p.y - 80, null, 0.9, p.y + 5).setVisible(false));
+      const standing = stand(p.x, p.y - 80, p.y + 5).setVisible(false); cards.push(standing);
+      if (spec) this.add((t) => { if (!standing.active) return false; if (t > T.startup + 60) standing.setAlpha(0.8 + 0.2 * Math.sin(t * 0.03 + i)).setY(p.y - 80 - 3 * Math.sin(t * 0.008 + i)); return true; });
     }
     this.sdCards.set(r.castId, cards);
     this.add((t) => { if (t < T.startup + 60) return true; for (const c of cards) c.setVisible(true); return false; });
@@ -643,13 +670,42 @@ export class GamblerFx {
     const face = this.card(box.x, box.y, c, 0.9, box.depth + 1);
     box.destroy();
     this.piece(face, 420, (u, o) => o.setScale(u < 0.25 ? Math.abs(Math.cos(u * 4 * Math.PI / 2)) : 1, 1).setAlpha(u > 0.7 ? (1 - u) / 0.3 : 1));
+    const tier = this.sdVal.get(r.castId) ?? 0;
+    if (i === 4 && tier >= 6 && this.ctx.scene.textures.exists('gbk-w_royal')) { // a big hand: the last card goes off in a crown of light
+      const ry = box.y + 80, roy = this.kit('w_royal', face.x, ry + 10, 300, face.depth + 3);
+      if (roy) { roy.setOrigin(0.5, 0.9); const r0 = roy.scale; this.piece(roy, 760, (u, o) => o.setScale(r0 * lerp(0.4, 1.1, out3(clamp01(u * 2.2)))).setAlpha(u < 0.55 ? 1 : (1 - u) / 0.45), 100); }
+      this.ctx.flash(0xffc94a, 0.25, 180); this.ctx.freeze(90);
+    }
     this.burst(face.x, face.y, i === 4 ? 170 : 110, 120, face.depth + 2);
-    if (i === 4) { this.sdCards.delete(r.castId); this.sdHand.delete(r.castId); this.ctx.cam().shake(220, 0.01); }
+    if (i === 4) { this.sdCards.delete(r.castId); this.sdHand.delete(r.castId); this.sdVal.delete(r.castId); this.ctx.cam().shake(220, 0.01); }
   }
 
   private coin(r: CastRun): void {
-    const T = r.timings, heads = coinOf(r.castId);
+    const T = r.timings, heads = coinOf(r.castId), s = this.ctx.scene, side = sideOf(r);
     const h0 = this.ctx.hand(r.attackerId) ?? { x: r.origin.x, y: r.origin.y - 80 };
+    if (s.textures.exists('gbk-o_spin')) { // flicked up off the thumb: it climbs a gold arc spinning edge-on, flashing its faces, and lands in the air over him
+      const arc = this.kit('o_arc', h0.x + side * 30, h0.y - 80, 100, TOP + 3);
+      if (arc) { arc.setFlipX(side < 0).setAlpha(0); const a0 = arc.scale; this.piece(arc, T.startup + 120, (u, o) => o.setAlpha(u < 0.3 ? u / 0.3 * 0.75 : 0.75 * (1 - (u - 0.3) / 0.7)).setScale(a0 * 0.85, a0 * 0.62)); }
+      const coin = s.add.image(h0.x, h0.y, 'gbk-o_spin').setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 4);
+      const D = 46;
+      this.piece(coin, T.startup, (u, o) => {
+        const c = this.ctx.hand(r.attackerId) ?? h0, fl = Math.cos(u * 34), face = Math.abs(fl) > 0.82;
+        o.setTexture(face ? (fl > 0 ? 'gbk-o_heads' : 'gbk-o_tails') : 'gbk-o_spin').setDisplaySize(face ? D : D * 0.75, D * 1.1);
+        o.setPosition(c.x + side * 60 * u, c.y - Math.sin(u * Math.PI) * 150 - 40 * u).setAngle(face ? 0 : side * 15);
+      });
+      this.add((t) => {
+        if (t < T.startup) return true;
+        const c = this.ctx.casterPos(r.attackerId) ?? r.origin, x = c.x + side * 4, y = c.y - c.z - 150;
+        const res = this.kit(heads ? 'o_heads' : 'o_tails', x, y, 96, TOP + 6);
+        if (res) { const k0 = res.scale; this.piece(res, 900, (u, o) => o.setScale(k0 * (u < 0.12 ? lerp(1.6, 1, u / 0.12) : 1)).setPosition(x, y - u * 26).setAlpha(u < 0.7 ? 1 : (1 - u) / 0.3)); }
+        this.pop(x, y, 160, heads ? GOLD : FUCHSIA, 340); this.ctx.flash(heads ? 0xffc94a : 0xff2bd6, 0.14, 120);
+        const au = this.kit('o_aura', c.x, c.y + 4, 150, c.y + 3);
+        if (au) { au.setOrigin(0.5, 0.95); if (!heads) au.setTint(0xff9ae8); const u0 = au.scale; this.piece(au, 900, (u, o) => o.setScale(u0 * lerp(0.8, 1.05, out3(u)), u0 * lerp(0.4, 1.1, out3(clamp01(u * 2)))).setAlpha(u < 0.6 ? 1 : (1 - u) / 0.4)); }
+        this.ctx.callout(c, heads ? 'HEADS! +CRIT' : 'TAILS! FREE SKILL', heads ? '#ffc94a' : '#ff7ae6', 1);
+        return false;
+      });
+      return;
+    }
     const pics = this.ctx.scene.textures.exists('gbk-c_coin_h'), cs = pics ? 26 / 420 : 0.5;
     const coin = this.ctx.scene.add.image(h0.x, h0.y, pics ? 'gbk-c_coin_h' : 'gb-coin').setScale(cs).setDepth(TOP + 4);
     this.piece(coin, T.startup + 200, (u, o) => {
