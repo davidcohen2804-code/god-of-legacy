@@ -397,7 +397,6 @@ export class SkillFx {
       this.scene.tweens.add({ targets: ring, angle: 140, duration: 3100 });
       this.scene.tweens.add({ targets: plane, alpha: 0, delay: 800, duration: 2300, ease: 'Sine.easeIn', onComplete: () => plane.destroy() }); // stays where it was created
     }
-    if (r.skill.slot === 7 && r.skill.cls === 'warrior') (this.cam ?? this.scene.cameras.main).flash(160, 255, 226, 170, false);
   }
 
   /** Ground shockwave: an expanding additive ellipse on the floor plane + a thin bright rim. */
@@ -598,7 +597,7 @@ export class SkillFx {
   private dragon(r: CastRun): void {
     const T = r.timings, a = r.aim, at = { x: r.origin.x + a.x * 110, y: r.origin.y + a.y * 110 };
     const pre = 480, dive = Math.max(0, T.startup - pre); // the titan of light rises after the cut-in and the tear: frames 0-5 rise and lift the sword, frame 6 = the sword driven into the floor on the active start
-    const img = this.scene.add.image(at.x, at.y + 10, 'titan-dragon', 0).setOrigin(0.5, 0.97).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(470, 740).setDepth(TOP + 2);
+    const img = this.scene.add.image(at.x, at.y + 10, 'titan-dragon', 0).setOrigin(0.5, 0.97).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(380, 597).setDepth(TOP + 2).setAlpha(0.92); // (sized so the titan towers over the fight without washing the whole screen out)
     const fr = [12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]; // 12 = empty frame while the cut-in plays (sim-timed)
     const fms = [dive, pre * 0.14, pre * 0.14, pre * 0.16, pre * 0.16, pre * 0.18, pre * 0.22, 150, 170, 180, 190, 210, 260];
     this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: fr, frameMs: fms, fadeLast: 240 });
@@ -1036,14 +1035,14 @@ export class SkillFx {
         const side = Math.random() < 0.5 ? -1 : 1, d = 60 + Math.random() * 180;
         this.scene.tweens.add({ targets: sp, x: px + side * d * 0.55, y: py - side * d * 0.85 + 60, alpha: 0, scale: sp.scale * 0.3, duration: 380 + Math.random() * 420, ease: 'Quad.easeOut', delay: Math.random() * 120, onComplete: () => sp.destroy() });
       }
-      const tear = this.scene.add.image(v.centerX, v.centerY, 'titan-tear', 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 48).setDisplaySize(v.width * 1.05, v.height * 1.05);
+      const tear = this.scene.add.image(v.centerX, v.centerY, 'titan-tear', 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 48).setDisplaySize(v.width * 1.05, v.height * 1.05).setAlpha(0.4);
       const fms = [70, 110, 230, 200];
       this.anims.push({ img: tear, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: [0, 1, 2, 3], frameMs: fms, fadeLast: 200 });
       cam.shake(200, 0.006);
     });
     this.scene.time.delayedCall(r.timings.startup, () => {
       if (!arch && r.skill.cls !== 'samurai') { // (archer: no white-out — the arrows themselves are the payoff; samurai: the white comes with the great cut, after the eight in the dark)
-        const f = this.scene.add.rectangle(0, 0, W, H, 0xfff4d8, 1).setOrigin(0, 0).setScrollFactor(0).setDepth(TOP + 45).setBlendMode(Phaser.BlendModes.ADD);
+        const f = this.scene.add.rectangle(0, 0, W, H, 0xfff4d8, 0.5).setOrigin(0, 0).setScrollFactor(0).setDepth(TOP + 45).setBlendMode(Phaser.BlendModes.ADD); // (a flash, not a white-out: the fight stays readable)
         this.scene.tweens.add({ targets: f, alpha: 0, duration: 380, ease: 'Quad.easeOut', onComplete: () => f.destroy() });
       }
       cam.shake(420, 0.014);
