@@ -253,12 +253,13 @@ export class GamblerFx {
       case 'roulette_wheel': this.roulette(r); break;
       case 'dice_bomb': this.dice(r); break;
       case 'kinetic_grab': handGlow(T.startup + T.active, 50); break;
-      case 'ace_in_the_hole': handGlow(T.startup + 40, 44); break;
+      case 'ace_in_the_hole': this.aceAim(r); break;
       case 'lady_luck': this.ladyLuckCast(r); break;
       case 'pickup_52': handGlow(T.startup, 60); this.deckSpray(r); break;
       case 'grand_slam': this.slamCharge(r); break;
       case 'kinetic_overload': this.overloadCast(r); break;
       case 'wild_card': this.wildCard(r); break;
+      case 'card_swap': this.cardSwap(r); break;
       case 'jackpot': this.jackpot(r); break;
       case 'staff_vault': this.vault(r); break;
     }
@@ -268,7 +269,10 @@ export class GamblerFx {
   active(r: CastRun): void {
     const o = this.me(r), y0 = o.y - o.z, side = sideOf(r);
     if (r.skill.id === 'grand_slam') {
-      if (!this.stroke('s_homerun', o.x + side * 70, y0 - 64, 260, side, 420, o.y + 2)) this.swing(o.x - side * 10, y0 - 60, 120, side > 0 ? Math.PI * 1.15 : -Math.PI * 0.15, side > 0 ? Math.PI * 2.05 : -Math.PI * 1.05, 360, 46, o.y + 2);
+      this.pop(o.x + side * 110, y0 - 60, 220, 0xffffff, 220); // the crack of the bat
+      const bl = this.kit('k_blast', o.x + side * 120, y0 - 60, 220, o.y + 3); if (bl) { const b0 = bl.scale; this.piece(bl, 360, (u, im) => im.setScale(b0 * lerp(0.4, 1.2, out3(u))).setAlpha(1 - u)); }
+      this.ctx.flash(0xffffff, 0.3, 120);
+      if (!this.stroke('s_homerun', o.x + side * 70, y0 - 64, 300, side, 460, o.y + 2)) this.swing(o.x - side * 10, y0 - 60, 120, side > 0 ? Math.PI * 1.15 : -Math.PI * 0.15, side > 0 ? Math.PI * 2.05 : -Math.PI * 1.05, 360, 46, o.y + 2);
       this.ctx.cam().shake(220, 0.012); this.ctx.freeze(90);
     }
   }
@@ -292,7 +296,12 @@ export class GamblerFx {
       case 'grand_slam': break;
       case 'dice_bomb': this.diceBlast(r, i); break;
       case 'roulette_wheel': if (i === r.hits.length - 1) this.rouletteEnd(r); break;
-      case 'pickup_52': if (i > 0) { const p = this.ahead(r, 90 + (i - 1) * 95); this.burst(p.x, p.y - 30, i === 4 ? 200 : 130, 0, p.y + 2); if (i === 4) this.ctx.cam().shake(200, 0.009); } break;
+      case 'pickup_52': if (i > 0) { // a wave of the stuck cards goes off across the whole width of the cone; the last one throws them up
+        const p = this.ahead(r, 90 + (i - 1) * 95), span = 60 + (i - 1) * 55, perp = { x: -r.aim.y, y: r.aim.x };
+        for (const k of [-1, 0, 1]) { const q = { x: p.x + perp.x * span * k, y: p.y + perp.y * span * k * 0.8 }; this.burst(q.x, q.y - 26, i === 4 ? 190 : 120, Math.abs(k) * 40, q.y + 2); }
+        this.floorRing(p.x, p.y, span + 60, FUCHSIA, 360);
+        if (i === 4) { this.beam(p.x, p.y, 320, 420); this.ctx.cam().shake(240, 0.011); this.ctx.freeze(70); } else this.ctx.cam().shake(90, 0.004);
+      } break;
       case 'jackpot': this.jackpotBlast(r, i); break;
       case 'lady_luck': this.floorRing(o.x, o.y, 150, GOLD, 520); break;
       case 'kinetic_overload': this.floorRing(o.x, o.y, 170, FUCHSIA, 420); this.pop(o.x, y0 - 60, 220, FUCHSIA, 420); break;
@@ -315,9 +324,17 @@ export class GamblerFx {
     for (const [p, v] of this.projs) {
       const x = p.x, y = p.y - p.z;
       v.img.setPosition(x, y).setDepth(p.y + 3);
-      if (v.big) v.img.setAngle(screenAng(p.dx, p.dy) + 90); else v.img.setAngle(v.img.angle + dt * 1.4);
+      if (v.big) {
+        v.img.setAngle(screenAng(p.dx, p.dy) + 90 + Math.sin(p.ageMs * 0.05) * 6).setScale(this.u * 0.62 * (1 + 0.06 * Math.sin(p.ageMs * 0.09)), this.u * 0.62);
+        if ((v as { ghostAt?: number }).ghostAt === undefined || p.ageMs - (v as { ghostAt?: number }).ghostAt! > 34) { // afterimages of the ace
+          (v as { ghostAt?: number }).ghostAt = p.ageMs;
+          const gh = this.ctx.scene.add.image(x, y, this.acePic).setScale(v.img.scaleX, v.img.scaleY).setAngle(v.img.angle).setTint(FUCHSIA).setBlendMode(Phaser.BlendModes.ADD).setDepth(p.y + 1).setAlpha(0.5);
+          this.piece(gh, 160, (u, o) => o.setAlpha(0.5 * (1 - u)));
+        }
+        if (Math.random() < 0.5) this.shards(x - p.dx * 20, y, 1, 30, 240, 0, p.y + 2);
+      } else v.img.setAngle(v.img.angle + dt * 1.4);
       v.glow.setPosition(x, y);
-      if (v.streak) { v.streak.setPosition(x, y).setDepth(p.y + 2); v.g.clear(); continue; }
+      if (v.streak) { v.streak.setPosition(x, y).setDepth(p.y + 2).setScale(v.streak.scaleX, Math.abs(v.streak.scaleX) * (0.85 + 0.25 * Math.sin(p.ageMs * 0.07)) * (v.streak.flipY ? 1 : 1)); v.g.clear(); continue; }
       v.trail.push({ x, y }); if (v.trail.length > (v.big ? 14 : 7)) v.trail.shift();
       v.g.clear();
       for (let i = 1; i < v.trail.length; i++) { const k = i / v.trail.length; v.g.lineStyle((v.big ? 14 : 7) * k, k > 0.8 ? 0xffffff : FUCHSIA, 0.7 * k); v.g.lineBetween(v.trail[i - 1].x, v.trail[i - 1].y, v.trail[i].x, v.trail[i].y); }
@@ -376,7 +393,7 @@ export class GamblerFx {
     const y = at.y - at.z, size = heavy ? 120 : 64;
     this.pop(at.x, y, size * (crit ? 1.4 : 1), crit ? 0xffffff : FUCHSIA, heavy ? 320 : 200);
     if (heavy || crit) this.shards(at.x, y, heavy ? 6 : 3, size * 0.9);
-    if (s.id === 'grand_slam') this.comet(at);
+    if (s.id === 'grand_slam') this.ctx.cam().shake(260, 0.014);
     if (s.id === 'kinetic_grab' && hit.reaction.grab && !hit.reaction.pin) this.thrownBomb(at);
   }
   private comet(at: V3): void {
@@ -384,7 +401,40 @@ export class GamblerFx {
     this.piece(g, 420, (u, o) => { o.clear(); const L = 220 * out3(u), a = 1 - u; o.fillStyle(FUCHSIA, 0.6 * a).fillTriangle(at.x, y - 18, at.x, y + 18, at.x - L, y); o.fillStyle(0xffffff, 0.8 * a).fillTriangle(at.x, y - 7, at.x, y + 7, at.x - L * 0.6, y); });
     this.ctx.flash(0xffffff, 0.25, 120);
   }
-  private thrownBomb(at: V3): void { const g = this.glow(at.x, at.y - at.z, 140); this.piece(g, 600, (u, o) => o.setAlpha(0.6 + 0.4 * Math.sin(u * 30))); }
+  private thrownBomb(_at: V3): void { /* drawn by follow() from the scene (it knows the foe) */ }
+
+  /** Effects that ride on a foe the gambler struck (the scene tells which foe): the grab's charge and throw, the home run's comet. */
+  follow(skill: string, id: string, hit: number): void {
+    const tp0 = this.ctx.targetPos(id); if (!tp0) return;
+    const s = this.ctx.scene, H = tp0.h ?? 90;
+    const at = () => { const t = this.ctx.targetPos(id); return t ? { x: t.x, y: t.y - t.z - H * 0.5, d: t.y } : null; };
+    if (skill === 'kinetic_grab' && hit === 0) { // seized: the body charges up — arcs crawl over it, a card-shaped charge pulses, the glow swells
+      const glow = this.glow(0, 0, H * 1.6, FUCHSIA, 0), ring = this.kit('k_charge', 0, 0, H * 0.9, 0);
+      this.add((t) => {
+        const p = at(); if (!p || t > 520) { glow.destroy(); ring?.destroy(); return false; }
+        const u = t / 520;
+        glow.setPosition(p.x, p.y).setDepth(p.d + 2).setAlpha(0.35 + 0.35 * u + 0.15 * Math.sin(t * 0.06)).setScale((H * (1.2 + u * 0.8)) / 128);
+        if (ring) ring.setPosition(p.x, p.y).setDepth(p.d + 3).setAlpha(0.5 + 0.5 * Math.abs(Math.sin(t * 0.03))).setAngle(t * 0.2).setScale((H * (0.7 + u * 0.5)) / ring.width);
+        if (Math.random() < 0.35) { const a = this.kit('k_arcs', p.x + rnd(-18, 18), p.y + rnd(-H * 0.4, H * 0.4), rnd(50, 80), p.d + 4); if (a) { const a0 = a.scale; a.setAngle(rnd(0, 360)); this.piece(a, 120, (uu, o) => o.setAlpha(1 - uu).setScale(a0 * (1 + uu * 0.3))); } }
+        return true;
+      });
+      this.ctx.callout({ x: tp0.x, y: tp0.y, z: tp0.z + 20 }, 'GRAB!', '#ff7ae6', 1);
+    }
+    if ((skill === 'kinetic_grab' && hit === 1) || skill === 'grand_slam') { // thrown: a comet of fuchsia light streams behind the flying body
+      const big = skill === 'grand_slam', g = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD), glow = this.glow(0, 0, H * (big ? 1.4 : 1.2), FUCHSIA, 0);
+      const pts: { x: number; y: number }[] = []; let lastBurst = 0;
+      this.add((t) => {
+        const p = at(), life = big ? 900 : 760;
+        if (!p || t > life) { this.piece(g, 200, (u, o) => o.setAlpha(1 - u)); glow.destroy(); return false; }
+        pts.push({ x: p.x, y: p.y }); if (pts.length > 16) pts.shift();
+        g.clear().setDepth(p.d + 1);
+        for (let i = 1; i < pts.length; i++) { const k = i / pts.length; g.lineStyle((big ? 34 : 24) * k, k > 0.75 ? 0xffffff : FUCHSIA, 0.75 * k); g.lineBetween(pts[i - 1].x, pts[i - 1].y, pts[i].x, pts[i].y); }
+        glow.setPosition(p.x, p.y).setDepth(p.d + 2).setAlpha(0.6 * (1 - t / life) + 0.2);
+        if (t - lastBurst > 90) { lastBurst = t; this.shards(p.x, p.y, 2, 40, 300, 0, p.d + 3); }
+        return true;
+      });
+    }
+  }
 
   // ------------------------------------------------------------------ the Hand over the gambler's shoulder
 
@@ -465,8 +515,9 @@ export class GamblerFx {
 
   private rotor(r: CastRun): void {
     const T = r.timings, g = this.ctx.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
-    let disc: Phaser.GameObjects.Image | null | undefined;
-    this.add((t) => {
+    let disc: Phaser.GameObjects.Image | null | undefined, flung = 0, dtLast = 0;
+    this.add((t, dt) => {
+      dtLast += dt;
       const c = this.ctx.casterPos(r.attackerId);
       if (t >= T.startup + T.active || !c) { this.piece(g, 160, (u, o) => o.setAlpha(1 - u)); if (disc) this.piece(disc, 160, (u, o) => o.setAlpha(1 - u)); return false; }
       if (t < T.startup) return true;
@@ -476,6 +527,16 @@ export class GamblerFx {
         disc ??= this.kit('s_disc', cx, cy, 2.2 * R, c.y + 4);
         if (disc) { const w = 2.2 * R / disc.width; disc.setPosition(cx, cy).setDepth(c.y + 4).setAngle(90).setScale(w * (0.95 + 0.05 * Math.sin(t * 0.05)), w * 0.55).setFlipY(Math.floor(t / 45) % 2 === 1); }
         if (Math.random() < 0.25) this.pop(cx + rnd(-10, 10), cy + rnd(-R, R), 26, FUCHSIA_2, 160);
+        flung += dtLast; dtLast = 0;
+        while (flung >= 45) { // cards spun out of the circle nonstop, flung ahead in a fan across the floor's depth
+          flung -= 45;
+          const sy = cy + rnd(-R * 0.8, R * 0.8), ang = rnd(-0.35, 0.35), dist = rnd(150, 240), dep = rnd(-28, 28), spin = rnd(-900, 900);
+          const im = this.ctx.scene.add.image(cx, sy, this.BK).setScale(this.u * 0.26).setDepth(c.y + 5);
+          const tr = this.kit('k_streak', cx, sy, 70, c.y + 4); if (tr) tr.setOrigin(0.97, 0.5).setFlipX(side < 0).setAlpha(0.8);
+          const x1 = cx + side * Math.cos(ang) * dist, y1 = sy + Math.sin(ang) * dist * 0.35 + dep;
+          this.piece(im, 260, (u, o) => { o.setPosition(lerp(cx, x1, out3(u)), lerp(sy, y1, out3(u))).setAngle(spin * u).setAlpha(u > 0.75 ? (1 - u) / 0.25 : 1); if (tr) tr.setPosition(o.x, o.y).setAngle(Math.atan2(y1 - sy, x1 - cx) * 57.3 + (side < 0 ? 180 : 0)).setAlpha(0.8 * (1 - u)); });
+          if (tr) this.add((t) => { if (t > 270) { tr.destroy(); return false; } return true; });
+        }
         return true;
       }
       g.fillStyle(FUCHSIA, 0.16).fillEllipse(cx, cy, 34, R * 2.1);
@@ -664,33 +725,66 @@ export class GamblerFx {
     this.lucks.set(id, { until: this.clock + ms, img });
   }
 
+  /** Ace in the Hole: the ace between two fingers, a glint gathering on it, the aim line flickering ahead, a snap. */
+  private aceAim(r: CastRun): void {
+    const T = r.timings, s = this.ctx.scene, side = sideOf(r);
+    const card = s.add.image(0, 0, this.acePic).setScale(this.u * 0.42).setDepth(TOP + 4);
+    const charge = this.kit('k_charge', 0, 0, 70, TOP + 3), line = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+    this.add((t) => {
+      const h = this.ctx.hand(r.attackerId), c = this.ctx.casterPos(r.attackerId);
+      if (t >= T.startup || !h || !c) { card.destroy(); charge?.destroy(); this.piece(line, 120, (u, o) => o.setAlpha(1 - u)); if (h) this.pop(h.x, h.y, 110, 0xffffff, 200); return false; }
+      const u = t / T.startup;
+      card.setPosition(h.x - side * 6, h.y - 18 - u * 6).setAngle(side * (-30 + u * 20) + Math.sin(t * 0.05) * 3);
+      if (charge) charge.setPosition(card.x, card.y).setAngle(card.angle).setAlpha(0.4 + 0.6 * u).setScale((60 + 30 * u) / charge.width);
+      line.clear().setDepth(c.y + 1);
+      const y = c.y - c.z - 60, a = 0.15 + 0.5 * u * (0.6 + 0.4 * Math.sin(t * 0.08));
+      line.lineStyle(2, FUCHSIA_2, a).lineBetween(h.x, y, h.x + side * 700 * out3(u), y);
+      line.lineStyle(8, FUCHSIA, a * 0.35).lineBetween(h.x, y, h.x + side * 700 * out3(u), y);
+      return true;
+    });
+  }
+
   private deckSpray(r: CastRun): void {
     const T = r.timings, s = this.ctx.scene;
     this.add((t) => {
       if (t < T.startup) return true;
       const c = this.me(r), side = sideOf(r);
       for (let k = 0; k < 44; k++) {
-        const ang = Math.atan2(r.aim.y, r.aim.x) + rnd(-0.6, 0.6), dist = rnd(80, 440), x1 = c.x + Math.cos(ang) * dist, y1 = c.y + Math.sin(ang) * dist * 0.8;
-        const im = s.add.image(c.x + side * 20, c.y - c.z - 60, this.BK).setScale(this.u * (0.3)).setDepth(y1 + 2);
-        const fly = rnd(160, 260), delay = rnd(0, 120);
-        this.piece(im, fly + 760, (u, o) => {
-          const tt = u * (fly + 760);
-          if (tt < fly) { const k2 = tt / fly; o.setPosition(lerp(c.x + side * 20, x1, k2), lerp(c.y - c.z - 60, y1 - 4, k2) - Math.sin(k2 * Math.PI) * 30).setAngle(k2 * 540); }
-          else o.setTint(Math.floor(tt / 60) % 2 ? 0xffffff : FUCHSIA).setAngle(70).setScale(this.u * 0.3, this.u * 0.16);
+        // the deck sprayed in a wide fan, in waves: every card streaks out, lands upright in the floor and blinks faster until its wave goes off
+        const ang = Math.atan2(r.aim.y, r.aim.x) + rnd(-0.6, 0.6), dist = 80 + (k / 44) * 360 + rnd(-30, 30), x1 = c.x + Math.cos(ang) * dist, y1 = c.y + Math.sin(ang) * dist * 0.8;
+        const im = s.add.image(c.x + side * 20, c.y - c.z - 60, this.BK).setScale(this.u * 0.34).setDepth(y1 + 2);
+        const tr = this.kit('k_streak', c.x, c.y - c.z - 60, 90, y1 + 1); if (tr) tr.setOrigin(0.97, 0.5).setFlipX(side < 0);
+        const fly = 120 + (k / 44) * 160, delay = (k % 11) * 12, wave = 250 + Math.min(3, Math.floor((dist - 80) / 95)) * 150 - delay;
+        this.piece(im, wave, (u, o) => {
+          const tt = u * wave;
+          if (tt < fly) { const k2 = tt / fly; o.setPosition(lerp(c.x + side * 20, x1, out3(k2)), lerp(c.y - c.z - 60, y1 - 10, out3(k2)) - Math.sin(k2 * Math.PI) * 26).setAngle(k2 * 720); if (tr) tr.setPosition(o.x, o.y).setAngle(Math.atan2(y1 - 10 - (c.y - c.z - 60), x1 - c.x) * 57.3 + (side < 0 ? 180 : 0)).setAlpha(1 - k2); }
+          else { if (tr && tr.active) tr.destroy(); const left = wave - tt, bl = Math.sin(tt / Math.max(25, left * 0.3)) > 0; o.setTint(bl ? 0xffffff : FUCHSIA).setAngle(side * 12).setScale(this.u * 0.34, this.u * 0.3); }
         }, delay);
+        if (tr) this.add((t) => { if (t > fly + delay + 20) { if (tr.active) tr.destroy(); return false; } return true; });
       }
       return false;
     });
   }
 
+  /** Grand Slam's wind-up: energy pours into the staff over his shoulder — motes drawn in, arcs crackling, a swelling glow; dust at his feet. */
   private slamCharge(r: CastRun): void {
-    const T = r.timings, g = this.ctx.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
-    this.piece(g, T.startup, (u, o) => {
-      const c = this.ctx.casterPos(r.attackerId); o.clear(); if (!c) return;
-      o.setDepth(c.y + 3);
-      for (let k = 0; k < 3; k++) { const x = c.x - sideOf(r) * 20 + rnd(-30, 30), y = c.y - c.z - 90 + rnd(-40, 40); o.lineStyle(2, k ? FUCHSIA : 0xffffff, 0.9); o.lineBetween(x, y, x + rnd(-24, 24), y + rnd(-24, 24)); }
-      void u;
+    const T = r.timings, s = this.ctx.scene, side = sideOf(r), o0 = this.me(r);
+    const glow = this.glow(0, 0, 120, FUCHSIA, 0);
+    this.ctx.dust(o0.x, o0.y, 80);
+    this.add((t) => {
+      const c = this.ctx.casterPos(r.attackerId);
+      if (t >= T.startup || !c) { glow.destroy(); return false; }
+      const u = t / T.startup, sx = c.x - side * 26, sy = c.y - c.z - 100; // the staff's head, over his back shoulder
+      glow.setPosition(sx, sy).setDepth(c.y + 3).setAlpha(0.35 + 0.5 * u).setScale((80 + 120 * u) / 128);
+      if (Math.random() < 0.5) { // motes drawn into the staff
+        const a = rnd(0, Math.PI * 2), d = rnd(70, 130), m = this.glow(sx + Math.cos(a) * d, sy + Math.sin(a) * d, 18, FUCHSIA_2, c.y + 3);
+        this.piece(m, 220, (uu, o) => o.setPosition(lerp(sx + Math.cos(a) * d, sx, out3(uu)), lerp(sy + Math.sin(a) * d, sy, out3(uu))).setAlpha(1 - uu * 0.5));
+      }
+      if (Math.random() < 0.3 + u * 0.4) { const a = this.kit('k_arcs', sx + rnd(-20, 20), sy + rnd(-30, 30), rnd(60, 100), c.y + 4); if (a) { const a0 = a.scale; a.setAngle(rnd(0, 360)); this.piece(a, 110, (uu, o) => o.setAlpha(1 - uu).setScale(a0 * (1 + uu * 0.2))); } }
+      return true;
     });
+    this.floorRing(o0.x, o0.y, 90, FUCHSIA, T.startup);
+    void s;
   }
 
   private overloadCast(r: CastRun): void {
@@ -830,6 +924,7 @@ export class GamblerFx {
 
   /** A gambler zone strikes (its lingering hit): the thrown foe's landing bursts; the charged floor is drawn by fuseFloor. */
   zone(id: string, x: number, y: number, r: number): void {
+    if (id === 'card_swap') { this.burst(x, y - 34, 170, 0, y + 3); this.floorRing(x, y, r, FUCHSIA_2, 360); this.beam(x, y, 220, 320); this.ctx.cam().shake(140, 0.006); return; }
     if (id === 'kinetic_grab') { this.burst(x, y - 40, r * 2, 0, y + 3); this.floorRing(x, y, r, FUCHSIA_2, 420); this.scar(x, y, r); this.ctx.cam().shake(220, 0.01); }
   }
   /** A fuchsia scar on the floor (a blow's mark), fading out. */
@@ -842,6 +937,20 @@ export class GamblerFx {
     const arms = Array.from({ length: 7 }, () => ({ a: rnd(0, Math.PI * 2), l: rnd(0.5, 1) * r }));
     this.piece(g, 900, (u, o) => { o.clear(); for (const k of arms) { o.lineStyle(5 * (1 - u) + 1, k.l > r * 0.8 ? 0xffffff : FUCHSIA, (1 - u) * 0.9); o.lineBetween(x, y, x + Math.cos(k.a) * k.l, y + Math.sin(k.a) * k.l * SQUASH); } });
   }
+  /** Card Swap: a card flicked ahead; he flashes to it in a streak of light; the card left where he stood stands in the floor, blinking. */
+  private cardSwap(r: CastRun): void {
+    const s = this.ctx.scene, o = r.origin, side = sideOf(r), T = r.timings;
+    const to = { x: o.x + r.aim.x * 210, y: o.y + r.aim.y * 210 };
+    this.pop(o.x, o.y - o.z - 60, 120, 0xffffff, 200); this.shards(o.x, o.y - o.z - 60, 6, 70, 320);
+    const left = s.add.image(o.x, o.y, this.BK).setOrigin(0.5, 1).setScale(this.u * 0.5).setDepth(o.y + 1);
+    const ch = this.kit('k_charge', o.x, o.y - 30, 80, o.y + 2);
+    this.piece(left, 460, (u, im) => { const bl = Math.sin(u * u * 40) > 0; im.setTint(bl ? 0xffffff : FUCHSIA); if (ch) ch.setAlpha(0.4 + 0.6 * u).setScale((60 + 40 * u) / ch.width); });
+    if (ch) this.add((t) => { if (t > 460) { ch.destroy(); return false; } return true; });
+    const st = this.kit('k_streak', to.x, to.y - o.z - 60, 230, Math.max(o.y, to.y) + 2);
+    if (st) { st.setOrigin(0.97, 0.5).setFlipX(side < 0).setAngle(Math.atan2((to.y - o.y) * 0.5, (to.x - o.x) * side) * 57.3 * side); const s0 = st.scale; this.piece(st, 260, (u, im) => im.setAlpha(1 - u).setScale(s0 * (1 + u * 0.1), s0 * (1 - u * 0.6)), T.startup); }
+    this.add((t) => { if (t < T.startup + T.active) return true; this.pop(to.x, to.y - o.z - 60, 120, FUCHSIA, 260); this.shards(to.x, to.y - o.z - 60, 5, 60, 300); return false; });
+  }
+
   /** Card Step: a card under his feet bursts and throws him on. */
   cardStep(x: number, y: number, dir: number): void {
     const im = this.ctx.scene.add.image(x, y + 8, this.BK).setScale(this.u * (0.34), this.u * (0.16)).setDepth(TOP + 2).setTint(FUCHSIA_2);

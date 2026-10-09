@@ -11,7 +11,7 @@ export const SUIT: Record<string, Suit> = {
   charged_deal: 'D', riffle_shuffle: 'D', ace_in_the_hole: 'D', pickup_52: 'D',
   staff_vault: 'S', rotor_staff: 'S', grand_slam: 'S',
   fuse_slam: 'C', roulette_wheel: 'C', dice_bomb: 'C', jackpot: 'C',
-  coin_flip: 'H', kinetic_grab: 'H', lady_luck: 'H', kinetic_overload: 'H',
+  coin_flip: 'H', kinetic_grab: 'H', lady_luck: 'H', kinetic_overload: 'H', card_swap: 'H',
 };
 export const SUIT_GLYPH: Record<Suit, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
 export const RANK_NAME = (r: number) => (r === 14 ? 'A' : r === 13 ? 'K' : r === 12 ? 'Q' : r === 11 ? 'J' : String(r));

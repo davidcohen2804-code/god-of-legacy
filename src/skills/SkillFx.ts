@@ -2043,6 +2043,7 @@ export class SkillFx {
   gambleClear(id: string): void { this.gamb.clearBuffs(id); }
   cardStep(x: number, y: number, dir: number): void { this.gamb.cardStep(x, y, dir); }
   gambleZone(id: string, x: number, y: number, r: number): void { this.gamb.zone(id, x, y, r); }
+  gambleFollow(skill: string, id: string, hit: number): void { this.gamb.follow(skill, id, hit); }
   cheatDeath(x: number, y: number): void { this.gamb.cheatDeath(x, y); }
   archerMark(id: string, n: number, ms: number): void { this.arch.mark(id, n, ms, () => this.targetPos?.(id) ?? null); }
   archerMarkSpend(id: string, n: number, _kind: string): void { this.arch.markSpend(id, n, () => this.targetPos?.(id) ?? null); }

@@ -78,7 +78,7 @@ export const PASSIVES: PassiveSkill[] = [
   { id: 'steady_hands', cls: 'gambler', job: 3, name: 'Steady Hands', kind: 'passive', description: 'A dealer\'s calm: most blows can no longer push you back.', effects: ['Knockback resist 60%'] },
   { id: 'high_stakes', cls: 'gambler', job: 4, name: 'High Stakes', kind: 'passive', description: 'Play for everything: more critical hits, and critical hits cut deeper.', effects: ['Critical rate +10%', 'Critical hits 150% → 170%'] },
   { id: 'stacked_deck', cls: 'gambler', job: 4, name: 'Stacked Deck', kind: 'passive', description: 'Your Hand stays 15s instead of 8s, and a Showdown with five cards gives one card back.', effects: ['Hand kept 15s', 'Showdown: 1 card back'] },
-  { id: 'ace_of_fate', cls: 'gambler', job: 4, name: 'Ace of Fate', kind: 'passive', description: 'Fate deals in your favour: more damage, and critical hits cut even deeper.', effects: ['Damage +15%', 'Critical hits +10% more'] },
+  { id: 'ace_of_fate', cls: 'gambler', job: 4, name: 'Ace of Fate', kind: 'passive', description: 'Fate deals in your favour: more damage, critical hits cut even deeper, and every 30s in a fight a joker is dealt to your Hand — it becomes whatever card makes the best Hand.', effects: ['Damage +15%', 'Critical hits +10% more', 'A joker every 30s'] },
   { id: 'time_lord', cls: 'book_mage', job: 4, name: 'Time Lord', kind: 'passive', description: 'Every skill is ready 15% sooner, and every shatter you cause brings Time Collapse 1s closer.', effects: ['Cooldowns −15%', 'Shatter: Time Collapse −1s'] },
 ];
 
@@ -93,13 +93,13 @@ export interface PassiveStats {
   /** Book Mage rules (the mage spec). */
   mage: { levitate: boolean; weave: boolean; attune: boolean; coldBlood: boolean; barrier: boolean; conductor: boolean; blinkRune: boolean; recovery: boolean; shatter: boolean; grand: boolean; timeLord: boolean };
   /** Gambler rules (the gambler spec). */
-  gamble: { shortFuse: boolean; streak: boolean; counting: boolean; cheatDeath: boolean; stacked: boolean };
+  gamble: { shortFuse: boolean; streak: boolean; counting: boolean; cheatDeath: boolean; stacked: boolean; joker: boolean };
   cdMul: number;
 }
 
 export const NO_PASSIVES: PassiveStats = { dmg: 1, critAdd: 0, critDmgAdd: 0, takenMul: 1, hpMul: 1, moveMul: 1, jumpMul: 1, kbResist: 0, ccResist: 0, regen: false, fa: null, orbs: false, chanceAttack: 1, airLeap: false, evade: 0, rangeMul: 1, atkSpeed: 1, cdMul: 1,
   mage: { levitate: false, weave: false, attune: false, coldBlood: false, barrier: false, conductor: false, blinkRune: false, recovery: false, shatter: false, grand: false, timeLord: false },
-  gamble: { shortFuse: false, streak: false, counting: false, cheatDeath: false, stacked: false } };
+  gamble: { shortFuse: false, streak: false, counting: false, cheatDeath: false, stacked: false, joker: false } };
 
 /** Passives owned at this level (all = arena / QA: every job open). */
 export function ownedPassives(cls: string, level: number, all: boolean): Set<string> {
@@ -161,7 +161,7 @@ export function passiveStats(owned: Set<string>): PassiveStats {
   if (has('steady_hands')) s.kbResist = Math.max(s.kbResist, 0.6);
   if (has('high_stakes')) { s.critAdd += 0.1; s.critDmgAdd += 0.2; }
   if (has('stacked_deck')) G.stacked = true;
-  if (has('ace_of_fate')) { s.dmg *= 1.15; s.critDmgAdd += 0.1; }
+  if (has('ace_of_fate')) { s.dmg *= 1.15; s.critDmgAdd += 0.1; G.joker = true; }
   // Book Mage
   const M = s.mage;
   if (has('levitate')) M.levitate = true;

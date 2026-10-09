@@ -826,11 +826,13 @@ const gambler: FinalSkill[] = [
   S({
     id: 'rotor_staff', cls: 'gambler', slot: 5, name: 'Rotor Staff', roles: ['extender', 'airExtender'], targeting: 'mouseCone',
     startup: 120, active: 1500, recovery: 220, cooldown: 7500, ground: true, air: true, cover: 'IGNORES_COVER', move: { startup: 0, active: 0.5, recovery: 0 },
-    hits: [...Array.from({ length: 14 }, (_, i) => H(i * 100, 3, { kind: 'sector', range: 108, angle: 110 }, { stun: 300, float: true, juggleCost: 2 }, { reachUp: 190, fuse: true })),
-      H(1440, 14, { kind: 'sector', range: 120, angle: 120 }, { stun: 420, push: 70, juggleCost: 10 }, { reachUp: 190, heavy: true, fuse: true })],
+    // the spinning staff throws charged cards out of its circle nonstop: every second blow sticks one more card in the foe;
+    // the last blow (a staff thrust) sets them all off at once
+    hits: [...Array.from({ length: 14 }, (_, i) => H(i * 100, 3, { kind: 'sector', range: 150, angle: 80 }, { stun: 300, float: true, juggleCost: 2 }, { reachUp: 190, stick: i % 2 ? 1 : undefined })),
+      H(1440, 14, { kind: 'sector', range: 130, angle: 120 }, { stun: 420, push: 70, juggleCost: 10 }, { reachUp: 190, heavy: true, fuse: true })],
     cancelOnHit: ['fuse_slam', 'staff_vault', 'grand_slam', 'showdown', 'pickup_52'],
-    description: 'Spin the staff in front of you like a propeller for 1.5s while you walk on: it holds the foe where it is, even in the air, sets off every stuck card, and the last blow throws it away.',
-    relations: ['Walk while spinning', 'Air hold'],
+    description: 'Spin the staff in front of you like a propeller for 1.5s while you walk on: its circle throws charged cards nonstop, holding the foe where it is (in the air too) and sticking card after card in it — then the last blow sets them all off at once and throws it away.',
+    relations: ['Cards nonstop', 'Last blow: chain burst'],
   }),
   S({
     id: 'showdown', cls: 'gambler', slot: 6, name: 'Showdown', roles: ['signature', 'finisher'], targeting: 'mouseLine',
@@ -924,12 +926,15 @@ const gambler: FinalSkill[] = [
     relations: ['Buff 30s', 'Super armor 4s'],
   }),
   S({
-    id: 'wild_card', cls: 'gambler', slot: 17, name: 'Wild Card', roles: ['setup'], targeting: 'self',
-    startup: 240, active: 80, recovery: 160, cooldown: 30000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [], tags: ['buff'],
+    id: 'card_swap', cls: 'gambler', slot: 17, name: 'Card Swap', roles: ['mobility', 'escape', 'trap'], targeting: 'mouseDir',
+    startup: 60, active: 90, recovery: 120, cooldown: 6000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    dash: { distance: 210 }, charges: 2, chargeGap: 260,
+    hits: [],
+    // the card he leaves where he stood: a charged bomb that goes off 0.45s later
+    linger: { at: 'origin', startMs: 450, everyMs: 1000, count: 1, radius: 110, maxZ: 120, hit: H(0, 16, { kind: 'circle', radius: 110 }, { stun: 400, launch: 80, juggleCost: 14 }, { reachUp: 120, heavy: true }) },
     cancelOnHit: [],
-    description: 'Pull a joker from your sleeve and add it to your Hand: the joker becomes whatever card makes the best Hand.',
-    relations: ['Joker in the Hand', 'Before Showdown'],
+    description: 'Flick a card and swap places with it in a flash — up to 210 px, any direction, in the air too; twice in a row. The card left where you stood is charged: 0.45s later it blows up whoever chased you there.',
+    relations: ['2 swaps in a row', 'Leaves a card bomb'],
   }),
   S({
     id: 'jackpot', cls: 'gambler', slot: 7, name: 'Jackpot', roles: ['ultimate', 'finisher'], targeting: 'self',
