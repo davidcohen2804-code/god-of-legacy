@@ -477,15 +477,51 @@ export class ArcherFx {
   private skyRain(r: CastRun): void {
     const T = r.timings;
     this.ctx.ultimateStage(r);
-    this.later(T.startup, () => {
+    const life = T.startup * 0.7 + T.active + 500;
+    // the sky opens: storm light breaks through the clouds and a great rune of arrows turns high above
+    this.later(T.startup * 0.3, () => {
+      const v = this.ctx.cam().worldView, cx = v.centerX, cy = v.y + v.height * 0.14;
+      for (const dx of [-0.27, 0.27]) this.spr({ name: 'sky_clouds', x: cx + dx * v.width, y: cy, depth: TOP + 1, w: v.width * 0.6, add: true, life, sy: () => 0.6, a: kf([0, 0], [0.12, 0.75], [0.85, 0.75], [1, 0]) });
+      this.spr({ name: 'sky_rune', x: cx, y: cy + 30, depth: TOP + 2, w: v.width * 0.62, add: true, glow: 0.35, life,
+        sx: (u) => kf([0, 0.2], [0.1, 1, out3])(u) * (1 + 0.03 * Math.sin(u * 30)), sy: kf([0, 0.2], [0.1, 1, out3]), a: kf([0, 0], [0.08, 0.85], [0.88, 0.8], [1, 0]) });
+    }, r);
+    // six waves of volleys pour down over the whole screen; the arrows stand in the ground where they land
+    for (let w = 0; w < 6; w++) this.later(T.startup + w * 200 - 180, () => {
       const v = this.ctx.cam().worldView;
-      for (let w = 0; w < 7; w++) for (let k = 0; k < 16; k++) {
-        const fx = v.x + rnd(0.04, 0.96) * v.width, fy = v.y + rnd(0.5, 0.95) * v.height, d = w * 200 + rnd(0, 180), big = Math.random() < 0.15;
-        this.spr({ name: 'arrow_fall', x: fx - 70, y: fy - 380, depth: fy + 2, w: big ? 80 : 50, angle: -12, add: true, glow: 0.35, life: 220, delay: d, mx: (u) => 70 * u, my: (u) => 380 * inQ(u) });
-        this.later(d + 220, () => { this.pop(big ? 'burst_heavy' : 'spark_s', fx, fy - 10, big ? 110 : 56, { life: 240 }); if (big) this.floor('shock_ring', fx, fy, 140, 360, { add: true, s: kf([0, 0.4], [1, 1.2, out3]), a: kf([0, 1], [1, 0]) }); });
+      for (let k = 0; k < 5; k++) {
+        const fx = v.x + (k + rnd(0.15, 0.85)) / 5 * v.width, fy = v.y + rnd(0.55, 0.93) * v.height, dl = rnd(0, 60);
+        this.spr({ name: 'volley', x: fx - 300, y: fy - 420, ox: 0.9, oy: 0.95, depth: fy + 2, w: 230, glow: 0.3, life: 180, delay: dl, mx: (u) => 300 * u, my: (u) => 420 * inQ(u), a: kf([0, 0.6], [0.2, 1], [1, 1]) });
+        this.later(dl + 180, () => {
+          this.spr({ name: 'arrow_field', x: fx, y: fy + 6, oy: 0.95, depth: fy + 1, w: 210, glow: 0.2, life: 1500 - w * 150, a: kf([0, 1], [0.75, 0.9], [1, 0]) });
+          this.pop('spark_s', fx, fy - 10, 90, { life: 220 });
+          this.spr({ name: 'dust_roll', x: fx, y: fy + 10, oy: 0.9, depth: fy, w: 200, life: 500, sx: kf([0, 0.5], [1, 1.3, out3]), a: kf([0, 0.7], [1, 0, inQ]) });
+        });
       }
-      for (let w = 0; w < 7; w++) this.later(w * 200 + 200, () => this.shake(r, 160, 0.004));
-      this.later(1500, () => { this.shake(r, 420, 0.012); if (r.own) this.ctx.punch(0.06, 360); });
+      if (w >= 2) { // a radiant golden arrow drops straight down among them and blows the ground up
+        const gx = v.x + rnd(0.2, 0.8) * v.width, gy = v.y + rnd(0.6, 0.9) * v.height;
+        this.spr({ name: 'gold_arrow', x: gx, y: gy - 700, oy: 0.98, depth: gy + 2, w: 110, glow: 0.4, life: 180, my: (u) => 700 * inQ(u) });
+        this.later(180, () => {
+          this.spr({ name: 'gold_blast', x: gx, y: gy + 8, oy: 0.95, depth: gy + 3, w: 280, glow: 0.3, life: 460, sy: kf([0, 0.3], [0.25, 1.05, out3]), a: kf([0, 1], [0.55, 1], [1, 0, inQ]) });
+          this.floor('gold_ring', gx, gy, 300, 460, { add: true, s: kf([0, 0.3], [1, 1.3, out3]), a: kf([0, 1], [1, 0, inQ]) });
+          this.floor('crater', gx, gy, 220, 1300, { a: kf([0, 0], [0.04, 1], [0.6, 0.8], [1, 0]) });
+          this.shake(r, 140, 0.005);
+        });
+      }
+      this.shake(r, 120, 0.003);
+    }, r);
+    // the last wave: one giant golden arrow falls through a pillar of light onto the middle of the screen
+    this.later(T.startup + 1420 - 260, () => {
+      const v = this.ctx.cam().worldView, gx = v.centerX, gy = v.y + v.height * 0.78;
+      this.spr({ name: 'sky_pillar', x: gx, y: gy + 10, oy: 0.97, depth: gy + 1, w: 260, h: v.height * 1.1, add: true, glow: 0.3, life: 900, sx: kf([0, 0.3], [0.2, 1, out3], [1, 1.3]), a: kf([0, 0], [0.15, 1], [0.6, 0.9], [1, 0, inQ]) });
+      this.spr({ name: 'gold_arrow', x: gx, y: gy - 900, oy: 0.98, depth: gy + 4, w: 200, glow: 0.5, life: 260, my: (u) => 900 * inQ(u) });
+      this.later(260, () => {
+        this.spr({ name: 'gold_blast', x: gx, y: gy + 10, oy: 0.95, depth: gy + 5, w: 560, glow: 0.35, life: 700, sy: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.1]), a: kf([0, 1], [0.55, 1], [1, 0, inQ]) });
+        this.floor('gold_ring', gx, gy, 520, 700, { add: true, s: kf([0, 0.3], [1, 1.6, out3]), a: kf([0, 1], [1, 0, inQ]) });
+        this.floor('crater', gx, gy, 420, 2200, { a: kf([0, 0], [0.03, 1], [0.7, 0.85], [1, 0]) });
+        this.spr({ name: 'debris', x: gx, y: gy + 6, oy: 0.95, depth: gy + 6, w: 420, life: 800, my: (u) => -50 * out(u), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
+        this.spr({ name: 'dust_roll', x: gx, y: gy + 12, oy: 0.9, depth: gy + 2, w: 700, life: 900, sx: kf([0, 0.5], [1, 1.5, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+        this.shake(r, 460, 0.014); if (r.own) this.ctx.punch(0.07, 380);
+      });
     }, r);
   }
 
