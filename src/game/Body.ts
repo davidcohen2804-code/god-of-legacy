@@ -556,9 +556,9 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     legacy_banner: { act: 'banner', st: [0, 1, 2], ac: [2], rc: [3, 3, 4, 5] },
     war_cry: { act: 'war_cry', st: [0], ac: [1, 2, 3, 2, 3], rc: [4, 5] },
     judgment_blade: { act: 'judgment_blade', st: [0, 1, 2, 2, 2, 2, 2, 2, 2, 2], ac: [3], rc: [4, 4, 5] },
-    iron_grip: { act: 'ground_breaker', st: [0], ac: [0, 1, 1, 2, 3], rc: [3, 4, 5] }, // (until his own row: the overhead smash)
-    judgment_hook: { act: 'wave_slash', st: [0, 1], ac: [3], rc: [3, 4, 5] },
-    sky_breaker: { act: 'leap_crash', st: [0], ac: [1, 2, 2, 3, 4], rc: [4, 5] },
+    iron_grip: { act: 'iron_grip', st: [0], ac: [1, 2, 3, 3, 3, 4], rc: [5, 5, 0] }, // the open hand seizes, the fist hoists it overhead, the slam
+    judgment_hook: { act: 'judgment_hook', st: [0, 1], ac: [2, 3, 4], rc: [4, 5] }, // wind back, hurl the chain, yank it in
+    sky_breaker: { act: 'sky_breaker', st: [0], ac: [1, 1, 2, 3, 3, 4], rc: [5, 5] }, // the rising slashes, sword overhead, the dive, landed
     earthsplitter: { act: 'finisher', st: [0], ac: [1, 2], rc: [2, 2, 0] }, // the sword held overhead through the charge, brought down to split the earth
   },
   samurai: {

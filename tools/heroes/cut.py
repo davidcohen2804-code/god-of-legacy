@@ -17,7 +17,7 @@ from PIL import Image
 from scipy import ndimage
 
 # rows the game lifts itself (jumps, leaps): anchored on their own feet
-OWN_FEET = {'jump', 'leap_crash', 'judgment_blade', 'finisher', 'spin_cut', 'falcon_dive', 'retreat_kick', 'skyhunters_step', 'rain_of_arrows', 'air_shot'}
+OWN_FEET = {'jump', 'leap_crash', 'sky_breaker', 'judgment_blade', 'finisher', 'spin_cut', 'falcon_dive', 'retreat_kick', 'skyhunters_step', 'rain_of_arrows', 'air_shot'}
 # frames left out of a cut row (drawn upright inside a leaning run: the body would jump)
 DROP = {}
 # A hero drawn without stand / walk sheets: the frame (action, index) that stands upright, his size reference
@@ -73,7 +73,8 @@ SPEC = {
                 ('S2', [('ground_breaker', 6), ('leap_crash', 6), ('titans_verdict', 6)]),
                 ('S3', [('whirlwind', 6), ('blade_storm', 6), ('wave_slash', 6)]),
                 ('S4', [('oath', 6), ('radiant_blade', 6), ('banner', 6)]),
-                ('S5', [('war_cry', 6), ('judgment_blade', 6), ('finisher', 6)])],
+                ('S5', [('war_cry', 6), ('judgment_blade', 6), ('finisher', 6)]),
+                ('S6', [('iron_grip', 6), ('judgment_hook', 6), ('sky_breaker', 6)])],
     'book_mage': [('A', [('idle', 6), ('walk_old', 6), ('attack', 6)]), ('W', [('walk', 4), ('run', 4)]), ('W2', [('walk2', 4), ('run2', 4)]), ('B', [('run_old', 6), ('jump', 3), ('stance', 4)])],
     'samurai': [('A', [('idle', 6), ('walk_old', 6), ('attack', 6)]), ('W', [('walk', 4), ('run', 4)]), ('W2', [('walk2', 4), ('run2', 4)]), ('B', [('run_old', 6), ('jump', 3), ('stance', 4)]),
                 ('S1', [('shadow_step', 6), ('swallow_cut', 6), ('spin_cut', 6)]),
