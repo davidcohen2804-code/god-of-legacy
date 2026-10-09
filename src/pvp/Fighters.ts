@@ -2,6 +2,46 @@
 import { CharacterStore } from '../characters/CharacterStore';
 import type { Character } from '../characters/CharacterTypes';
 import HERO_ATLAS from '../data/hero-atlas.json';
+import type { PortraitRef } from '../ui/hud/HudState';
+
+/** A hero's VS splash (the approved battle-stance art, facing right): file, size, the face square on it and the class colours;
+ *  `win` = the victory pose (same canvas), when there is one; `card` = no splash yet, this is the hero's card instead. */
+export interface HeroVs { url: string; w: number; h: number; face: { x: number; y: number; s: number }; color: string; glow: string; win?: string; card?: boolean }
+const VS_W = 820, VS_H = 1230;
+/** Each hero's colours (VS screen, battle HUD, select tiles). */
+const COLOR: Record<string, [string, string]> = {
+  warrior: ['#f0b24a', 'rgba(255,168,56,.58)'],
+  samurai: ['#ff3a4e', 'rgba(255,40,64,.58)'],
+  book_mage: ['#52b4ff', 'rgba(64,166,255,.58)'],
+  archer: ['#86d957', 'rgba(112,206,72,.52)'],
+  gambler: ['#e45cff', 'rgba(214,72,255,.55)'],
+};
+/** The heroes that have a battle-stance splash (assets/final/heroes/<cls>/vs.webp): the face square on it. */
+const FACE: Record<string, [number, number, number]> = {
+  warrior: [448, 160, 136],
+  samurai: [376, 192, 152],
+  book_mage: [352, 120, 136],
+  archer: [344, 216, 136],
+  gambler: [433, 104, 142],
+};
+/** The heroes that have a victory pose (assets/final/heroes/<cls>/win.webp). */
+const WIN = new Set(['samurai', 'warrior']);
+const colorOf = (cls: string): [string, string] => COLOR[cls] ?? ['#c9d2e6', 'rgba(170,184,214,.5)'];
+export function heroVs(cls: string): HeroVs | undefined {
+  const f = FACE[cls], [color, glow] = colorOf(cls);
+  return f ? { url: `assets/final/heroes/${cls}/vs.webp`, w: VS_W, h: VS_H, face: { x: f[0], y: f[1], s: f[2] }, color, glow, win: WIN.has(cls) ? `assets/final/heroes/${cls}/win.webp` : undefined } : undefined;
+}
+/** A hero's art for the VS screen, the result and the select tiles: its splash — else (none yet) its card. */
+export function heroArt(cls: string): HeroVs | undefined {
+  const v = heroVs(cls); if (v) return v;
+  const c = heroCard(cls), [color, glow] = colorOf(cls);
+  return c ? { url: c.file, w: c.w, h: c.h, face: c.face, color, glow, card: true } : undefined;
+}
+/** The battle HUD's portrait of a hero: the face on its VS splash. */
+export function heroVsPortrait(cls: string): PortraitRef | undefined {
+  const v = heroVs(cls);
+  return v ? { url: v.url, crop: { x: v.face.x, y: v.face.y, w: v.face.s, imgW: v.w, imgH: v.h } } : undefined;
+}
 
 /** The roster, in its order on the select screen. */
 export const ROSTER = ['warrior', 'samurai', 'book_mage', 'archer', 'gambler'] as const;
