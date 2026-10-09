@@ -7,10 +7,10 @@ const PATH: Record<string, Job[]> = {
     { name: 'Beginner', level: 1, to: 10, slots: [0] },                 // basic attack only
     // Ordered like the MapleStory Hero: 1st job = the core moves (charge, launcher, dive), 2nd = area + first buff,
     // 3rd = holy power (rush, light blade, dome), 4th = the big finishers.
-    { name: 'Swordsman', level: 10, to: 29, slots: [1, 2, 8] },          // Dash Slash, Rising Slash, Leap Crash
-    { name: 'Knight', level: 29, to: 40, slots: [3, 4, 9, 12] },         // Ground Breaker, Whirlwind, Wave Slash, War Cry
-    { name: 'Holy Knight', level: 40, to: 80, slots: [11, 10, 5, 14] },  // Impaling Rush, Radiant Blade, Sanctuary, Iron Oath (party)
-    { name: 'Legacy Paragon', level: 80, to: 150, slots: [13, 6, 7, 15] }, // Judgment Blade, Blade Storm, Titan's Verdict, Legacy Banner (party)
+    { name: 'Swordsman', level: 10, to: 29, slots: [1, 2, 8, 16] },      // Dash Slash, Rising Slash, Leap Crash, Iron Grip
+    { name: 'Knight', level: 29, to: 40, slots: [3, 4, 9, 12, 18] },     // Ground Breaker, Whirlwind, Wave Slash, War Cry, Sky Breaker
+    { name: 'Holy Knight', level: 40, to: 80, slots: [11, 10, 5, 14, 17] },  // Impaling Rush, Radiant Blade, Sanctuary, Iron Oath (party), Judgment Hook
+    { name: 'Legacy Paragon', level: 80, to: 150, slots: [13, 6, 7, 15, 19] }, // Judgment Blade, Blade Storm, Titan's Verdict, Legacy Banner (party), Earthsplitter
   ],
   book_mage: [
     { name: 'Beginner', level: 1, to: 10, slots: [0] },

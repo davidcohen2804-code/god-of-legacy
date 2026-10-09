@@ -30,9 +30,9 @@ import { PartyUI, PartyView } from '../ui/PartyUI';
 import { addExp, expToNext } from '../game/Progression';
 import { passiveIconUrl, passivesFor } from '../skills/Passives';
 import { LEVITATE, NO_PASSIVES, ORBS, PassiveStats, REGEN, SHINSOKU, WAR_LEAP, WEAVE, ownedPassives, passiveStats } from '../skills/Passives';
-import { SKILL_BLOCKERS, WORLD_OBJECTS, actorDepth, footAllowed, insideArena, placementOk, pushOutOfBlockers, useArenaGeometry } from '../world/WorldGeometry';
+import { SKILL_BLOCKERS, WORLD_OBJECTS, actorDepth, supportAt, footAllowed, insideArena, placementOk, pushOutOfBlockers, useArenaGeometry } from '../world/WorldGeometry';
 import { OpenWorld, preloadOpenWorld } from '../world/OpenWorld';
-import { AreaNpc, IDLE_LINES, MOB_KINDS, QUESTS, QuestDef, START, toWorld } from '../world/Areas';
+import { AreaNpc, IDLE_LINES, MOB_KINDS, QUESTS, QuestDef, START, TOWERS, CLOUDS, SKY, SKY_DROP, HEIGHTS, type Tower, toWorld } from '../world/Areas';
 import type { Monster } from '../world/Monster';
 import { AreaTitle, DialogChoice, NpcDialog } from '../ui/WorldUI';
 import { QuestState } from '../characters/CharacterTypes';
@@ -47,7 +47,7 @@ import { NetMsg, PeerMeta } from '../pvp/Transport';
 import { genderOf, headLookOf, previewKeyOf } from '../characters/Look';
 import { buildLook, preloadLooks } from '../characters/LookArt';
 import { BOT_ID, BOT_NAME, BOT_NAMES, SparringBot } from '../pvp/SparringBot';
-import { RARITY, BAG_MAX, DEFAULT_QUICK, GOLD_BIG, GOLD_ICON, GOLD_MAX, ITEMS, ITEM_IDS, POTION_DELAY, STARTER_BAG, cleanBag, cleanQuick, fmtGold, rollDrops, usable } from '../game/Loot';
+import { RARITY, BAG_MAX, DEFAULT_QUICK, GOLD_BIG, GOLD_ICON, GOLD_MAX, ITEMS, ITEM_IDS, POTION_DELAY, STARTER_BAG, cleanBag, cleanQuick, fmtGold, rollDrops, usable, type Drop } from '../game/Loot';
 import { AP_PER_LEVEL, BASE_STAT, STAT_KEYS, Derived, StatKey, Stats, autoAssign, baseStats, cleanStats, derive, freeAp, mainStats } from '../game/Stats';
 import { ShopWindow } from '../ui/ShopWindow';
 import { StatsWindow } from '../ui/StatsWindow';
@@ -99,7 +99,7 @@ const MP_REGEN = 0.03, MP_ARENA = 220;
 const MP_CLASS: Record<string, number> = { warrior: 0.8, samurai: 0.9, archer: 1, book_mage: 1.6 };
 /** A skill's MP: none for the regular attack and passives / buffs' own cost by cooldown (the big ones cost more). */
 interface LootDrop { kind: 'gold' | 'item'; id?: string; amount: number; img: Phaser.GameObjects.Image; sh: Phaser.GameObjects.Ellipse; glow: Phaser.GameObjects.Image; beam?: Phaser.GameObjects.Image; sz: number; bounced: boolean; seed: number; nextGlint: number;
-  x: number; y: number; z: number; vx: number; vz: number; landed: boolean; base: number; born: number; taken: number; done?: boolean }
+  x: number; y: number; z: number; vx: number; vz: number; landed: boolean; base: number; born: number; taken: number; done?: boolean; /** a treasure waiting on a perch: never fades */ keep?: boolean }
 const mpCost = (s: FinalSkill): number => (s.slot === 0 ? 0 : Math.min(60, Math.round(6 + (s.cooldown / 1000) * 2.2)));
 /** The slash-trail art (radiant_blade/slash_trail.jpg, 288 cells): its arc's circle (centre as a fraction of the cell, radius px) and the angle of its bright head (deg, y down). */
 const SLASH = { cx: 189 / 288, cy: 81 / 288, r: 122, head: 190 };
@@ -328,6 +328,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** After a glide into a new area he walks on to its entry until you steer (or he arrives). */
   /** Iron Grip: the monster held in the fist between the seize and the slam. */
   private gripFoe: Monster | null = null;
+  /** Where the seized monster stood (its slam lands it back on its own floor). */
+  private gripFrom: { x: number; y: number } | null = null;
+  /** Touching monsters: not again before this (sim ms). */
+  private touchUntil = -1;
   private motes?: Phaser.GameObjects.Container;
   /** Gold and potions carried; drops lying on the floor. */
   gold = 0;
@@ -342,6 +346,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private itemSpeedUntil = -1;
   private useAt: Record<string, number> = {};
   private drops: LootDrop[] = [];
+  /** The cube perches' treasures (stepTreasures). */
+  private treasures?: { t: Tower; next: number; drop: LootDrop | null }[];
   shop?: ShopWindow;
   /** The area's name last shown (one title for an area of several maps). */
   private areaName = '';
@@ -402,7 +408,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.cls = playedClass(character) as ClassKey;
     this.stats = cleanStats(character.stats, character.level); this.statD = derive(this.stats, this.cls, character.level);
     this.kit = kitFor(this.cls);
-    this.gold = character.gold ?? 0; this.bag = cleanBag(character.bag ?? STARTER_BAG); this.quick = cleanQuick(character.quick); this.seen = new Set(character.seen ?? Object.keys(this.bag)); this.potionAt = [-Infinity, -Infinity]; this.drops = []; this.itemDmgUntil = -1; this.itemSpeedUntil = -1; this.useAt = {};
+    this.gold = character.gold ?? 0; this.bag = cleanBag(character.bag ?? STARTER_BAG); this.quick = cleanQuick(character.quick); this.seen = new Set(character.seen ?? Object.keys(this.bag)); this.potionAt = [-Infinity, -Infinity]; this.drops = []; this.treasures = undefined; this.itemDmgUntil = -1; this.itemSpeedUntil = -1; this.useAt = {};
     this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.hitBlinkUntil = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
     this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
@@ -671,7 +677,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const now = this.simMs;
     this.ci.update(now);
     this.stepPlayer(ms, now);
-    if (this.world) { this.stepMonsters(ms, now); this.stepLoot(ms, now); }
+    if (this.world) { this.stepMonsters(ms, now); this.stepTreasures(); this.stepLoot(ms, now); }
     this.rt.update(ms);
     this.stepLingers(now);
     this.stepStorm();
@@ -757,6 +763,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const floating = now < this.mage.floatUntil && !k.grounded && b.state === 'free'; // Levitate: a slow float
     if (floating) k.vz = Math.max(k.vz, -40);
     const r = stepKin(k, ms, floating ? LEVITATE.gravity : b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z, !!this.rt!.ownRun), b.state === 'free' && !b.push && !this.rt!.ownRun);
+    // the Sky Path: fallen between its clouds, below them — on down to the floor under the lane (Ivy Heights where it runs
+    // under, else the terrace), kept where it is on screen (y and height shifted together)
+    if (!k.grounded && k.vz < 0 && k.z < SKY_DROP && k.z > 200 && k.y < SKY.band[1] + 8 && k.x > SKY.lane[0] - 4 && k.x < SKY.lane[1] + 40) {
+      const ivy = HEIGHTS.find((h) => h.id === 'ivy_heights'), ty = ivy && k.x < ivy.x + ivy.w - 22 ? ivy.front - 40 : 400, d = ty - k.y;
+      k.y += d; k.z += d;
+    }
     if (this.world) settleOnBlocks(k, ms, this.blockHold.y ? 0 : this.ci?.moveY ?? 0, b.state === 'free');
     const ev = b.update(now, ms, r.landed, r.impactVz);
     if (r.landed) {
@@ -959,10 +971,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.arena || !this.character) return;
     this.lootTextures();
     const list = rollDrops(Object.entries(MOB_KINDS).find(([, k]) => k === m.kind)?.[0], m.kind.exp ?? Math.round(m.kind.hp / 5));
+    this.spawnDrops(list, m.kin, supportAt(m.kin.x, m.kin.y, m.kin.z + 1).z);
+  }
+
+  /** Drops thrown up from a spot (x, y, height z), landing on the floor at `base`. */
+  private spawnDrops(list: Drop[], at: { x: number; y: number; z: number }, base: number, toss = 1): LootDrop[] {
+    const made: LootDrop[] = [];
     list.forEach((d, i) => {
       const gold = d.kind === 'gold', big = gold && d.amount >= GOLD_BIG;
       const sz = gold ? (big ? 34 : 28) : 36;
-      const x = m.kin.x, y = m.kin.y + (Math.random() - 0.5) * 12;
+      const x = at.x, y = at.y + (Math.random() - 0.5) * 12;
       const img = gold ? this.add.sprite(x, y, 'loot.coin', 0).play({ key: 'loot.coin.spin', startFrame: Math.floor(Math.random() * 8) }) : this.add.image(x, y, `loot.${d.id}`);
       img.setOrigin(0.5, 0.9).setDisplaySize(sz, sz);
       if (big) img.setTint(0xfff0c0);
@@ -972,9 +990,30 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const beam = rar === 'rare' ? this.add.image(x, y, 'loot.beam').setOrigin(0.5, 0.92).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setDisplaySize(46, 150) : undefined;
       const sh = this.add.ellipse(x, y, sz * 0.7, sz * 0.2, 0x000000, 0.3);
       const spread = (i - (list.length - 1) / 2) * 30;
-      this.drops.push({ ...d, img, sh, glow, sz, x, y, z: Math.max(14, m.kin.z + 34), vx: spread * 2.4 + (Math.random() - 0.5) * 120, vz: 360 + Math.random() * 60,
-        beam, base: m.homeZ ?? 0, landed: false, bounced: false, born: this.simMs, taken: -1, seed: Math.random() * 6.28, nextGlint: this.simMs + 600 + Math.random() * 1400 });
+      const drop: LootDrop = { ...d, img, sh, glow, sz, x, y, z: Math.max(base + 14, at.z + 34), vx: (spread * 2.4 + (Math.random() - 0.5) * 120) * toss, vz: (360 + Math.random() * 60) * (0.5 + 0.5 * toss),
+        beam, base, landed: false, bounced: false, born: this.simMs, taken: -1, seed: Math.random() * 6.28, nextGlint: this.simMs + 600 + Math.random() * 1400 };
+      this.drops.push(drop); made.push(drop);
     });
+    return made;
+  }
+
+  /** The treasures on the tops of the cube perches (Areas.TOWERS reward): one waits up there; taken (or faded), another
+   *  comes back after its time. */
+  private stepTreasures(): void {
+    if (this.arena || !this.character || !this.world) return;
+    if (!this.treasures) {
+      const sky: Tower[] = CLOUDS.filter((c) => c.reward).map((c, i) => ({ id: `sky-${i}`, x0: c.x0, x1: c.x1, front: SKY.band[1], h: c.z, depth: SKY.band[1] - SKY.band[0], base: 0, reward: c.reward }));
+      this.treasures = [...TOWERS, ...sky].filter((t) => t.reward && ITEMS[t.reward.item]).map((t) => ({ t, next: 0, drop: null as LootDrop | null }));
+    }
+    for (const q of this.treasures) {
+      if (q.drop && !q.drop.done && q.drop.taken < 0 && this.drops.includes(q.drop)) continue;
+      if (q.drop) { q.drop = null; q.next = this.simMs + q.t.reward!.every * 1000; }
+      if (this.simMs < q.next) continue;
+      this.lootTextures();
+      const top = q.t.base + q.t.h, x = (q.t.x0 + q.t.x1) / 2, y = q.t.front - q.t.depth / 2;
+      q.drop = this.spawnDrops([{ kind: 'item', id: q.t.reward!.item, amount: 1 }], { x, y, z: top }, top, 0)[0] ?? null;
+      if (q.drop) q.drop.keep = true;
+    }
   }
 
   /** Drops fly, bounce, bob gently with a soft light under them and a glint now and then; walked over: they swoop into
@@ -990,7 +1029,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (t >= 1) d.done = true;
       } else if (!d.landed) {
         d.vz -= 1400 * dt; d.z += d.vz * dt; d.x += d.vx * dt;
-        if (!footAllowed(d.x, d.y, 0, 8)) { d.x -= d.vx * dt; d.vx = 0; }
+        if (!footAllowed(d.x, d.y, d.base, 8) || supportAt(d.x, d.y, d.base + 1).z !== d.base) { d.x -= d.vx * dt; d.vx = 0; }   // stays on the floor it fell on
         if (d.z <= d.base && d.vz < 0) {
           d.z = d.base;
           if (!d.bounced) { d.bounced = true; d.vz = -d.vz * 0.32; d.vx *= 0.4; }
@@ -1003,7 +1042,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         d.glow.setAlpha(Math.min(1, age / 300) * (0.55 + Math.sin(age / 420 + d.seed) * 0.2));
         d.beam?.setAlpha(Math.min(1, age / 400) * (0.75 + Math.sin(age / 300) * 0.2));
         if (now >= d.nextGlint) { d.nextGlint = now + 1400 + Math.random() * 1800; this.lootGlint(d); }
-        if (age > 60_000) { const f = Math.max(0, 1 - (age - 60_000) / 3000); d.img.setAlpha(f); d.glow.setAlpha(d.glow.alpha * f); if (age > 63_000) d.done = true; }
+        if (age > 60_000 && !d.keep) { const f = Math.max(0, 1 - (age - 60_000) / 3000); d.img.setAlpha(f); d.glow.setAlpha(d.glow.alpha * f); if (age > 63_000) d.done = true; }
         if (alive && age > 250 && Math.abs(d.x - k.x) < 40 && Math.abs(d.y - k.y) < 24 && Math.abs(k.z - d.base) < 50) this.takeDrop(d, now);
       }
       d.img.setPosition(d.x, d.y - d.z).setDepth(actorDepth(d.x, d.y, d.z) - 0.2).setDisplaySize(d.sz * (2 - sq), d.sz * sq);
@@ -1359,7 +1398,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (l.run.skill.id === 'blade_storm') { // swords erupt all around the caster + lightning crackles
           for (let n = 0; n < 2; n++) { const a = (l.left * 2.4 + n * Math.PI) + (Math.random() - 0.5) * 0.9, rr = 70 + Math.random() * (L.radius - 40); this.fx!.risingBlade(l.x + Math.cos(a) * rr, l.y + Math.sin(a) * rr * 0.6, n * 90); }
         }
-        else if (l.run.skill.id !== 'ground_breaker' && l.run.skill.id !== 'tornado_blade') this.fx!.crack(l.x, l.y, L.radius); // the quake has one steady rotating ring instead of per-tick sparks; the tornado is its own picture
+        else if (l.run.skill.id !== 'ground_breaker' && l.run.skill.id !== 'tornado_blade' && l.run.skill.id !== 'rain_of_arrows') this.fx!.crack(l.x, l.y, L.radius); // (Thunder Rain: the charged floor is drawn by ArcherFx) // the quake has one steady rotating ring instead of per-tick sparks; the tornado is its own picture
         if (l.run.skill.id === 'ground_breaker' && l.run.own && this.dead < 0) { // the quake mends the warrior: +2 HP per pulse
           const max = this.maxHpNow(), before = this.playerHP;
           this.playerHP = Math.min(max, this.playerHP + 2);
@@ -1395,7 +1434,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const mode = this.mode === 'idle' && this.simMs < this.alertUntil ? 'alert' : this.mode;
     const snap: AnimSnap = {
       mode, t: this.mode === 'walk' || this.mode === 'run' || this.mode === 'idle' ? this.loopT : this.modeT,
-      speed: Math.hypot(k.vx, k.vy), vz: k.vz, stunMs: 220,
+      speed: Math.hypot(k.vx, k.vy), vz: k.vz, stunMs: 220, air2: this.air2(),
       skill: run ? { id: run.skill.id, stage: run.stage, elapsed: run.elapsed, ...run.timings, seed: castSeed(run.castId) } : undefined,
     };
     const dir = this.dir; // Whirlwind spins inside its own 360° body loop
@@ -1422,7 +1461,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.kage?.hidden && this.dead < 0) v.ring.setAlpha(0.9); // hidden among the doubles: your ring still shows you where you are (your screen only)
     if (this.cls === 'archer') { // archer body motion: lean, recoil, flips, leaps + afterimages
       const face = this.aim.x < -0.01 ? -1 : 1;
-      const m = heroMotion((run && this.dead < 0 ? archerMotion(run.skill.id, run.elapsed, run.timings, face) : null) ?? (this.dead < 0 ? leapMotion(this.simMs - this.leapAt, this.dir === 'left' ? -1 : 1) : null), !!this.character?.hero);
+      const hero = !!this.character?.hero, lm = this.dead < 0 ? leapMotion(this.simMs - this.leapAt, this.dir === 'left' ? -1 : 1) : null;
+      // a START HERO keeps the Wind Leap's somersault: her tucked frame turns round its middle
+      const m = (run && this.dead < 0 ? heroMotion(archerMotion(run.skill.id, run.elapsed, run.timings, face), hero) : null) ?? (lm && hero ? { ...lm, pivot: 62 } : lm);
       applyMotion(v.motionSprites, m);
       (this.afterimg ??= new Afterimages(this)).step(this.simMs, v.sprite, !!m?.after);
       this.renderArcherBuffs();
@@ -1755,11 +1796,18 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.pvp?.forceState();
   }
 
+  /** ms since the second jump while it shapes the body (in the air; Levitate: while floating), else undefined. */
+  private air2(): number | undefined {
+    if (this.kin.grounded || !this.leapUsed || this.dead >= 0) return undefined;
+    if (this.cls === 'book_mage' && this.simMs >= this.mage.floatUntil) return undefined;
+    return this.simMs - this.leapAt;
+  }
+
   /** Levitate: the second jump is a slow float you can cast from. */
   private levitate(now: number): void {
     const k = this.kin, inp = this.ci!;
     const d = inp.hasMove ? unit(inp.moveX, inp.moveY) : FACE[this.dir];
-    this.leapUsed = true; this.mage.floatUntil = now + LEVITATE.ms;
+    this.leapUsed = true; this.mage.floatUntil = now + LEVITATE.ms; this.leapAt = now;
     k.vz = Math.max(k.vz, 60); k.vx = d.x * LEVITATE.forward; k.vy = d.y * LEVITATE.forward * 0.6;
     this.fx?.levitate(this.localId, () => (this.simMs < this.mage.floatUntil && !this.kin.grounded ? { x: this.kin.x, y: this.kin.y, z: this.kin.z } : null));
   }
@@ -2251,7 +2299,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (run.skill.id === 'eagle_arrow' && run.phase !== 'startup') return; // Eagle Tide: turned while charging, fixed once released
     const u = unit(inp.moveX, inp.moveY), face = this.dir === 'left' || run.aim.x < -0.01 ? -1 : 1;
     // Spirit Bow: level to a side, up at 45°, or straight up (never down)
-    const a = run.skill.id === 'piercing_arrow' ? (u.y < -0.3 ? { x: 0, y: -1 } : { x: Math.abs(u.x) > 0.2 ? Math.sign(u.x) : face, y: 0 }) : sideAim(u.x, u.y, face); // Spirit Bow: left, right or straight up (never a corner)
+    const a = run.skill.id === 'piercing_arrow' ? (u.y < -0.3 ? (Math.abs(u.x) > 0.38 ? unit(Math.sign(u.x), -1) : unit(face * 0.05, -1)) : { x: Math.abs(u.x) > 0.2 ? Math.sign(u.x) : face, y: 0 }) : sideAim(u.x, u.y, face); // Spirit Bow: to a side, up at 45° or straight up
     if (Math.abs(a.x - run.aim.x) < 1e-3 && Math.abs(a.y - run.aim.y) < 1e-3) return;
     run.aim = a; this.aim = a; if (Math.abs(a.x) > 0.01) this.dir = dirOf(a.x, 0, this.dir);
     this.pvp?.sendRelease({ castId: run.castId, at: -1, ax: Math.round(a.x * 1000), ay: Math.round(a.y * 1000) });
@@ -2394,6 +2442,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private onSkillHit(run: CastRun, hit: HitEvent, hi: number, t: HitTarget, at: V3): void {
     if (t.id.startsWith('kage:')) { this.kageStruck(t.id); return; } // a Kagemusha double: the blow is wasted on it
+    if (run.skill.id === 'judgment_hook') { const f = this.hitFrom(run, hit), d = Math.hypot(at.x - f.x, at.y - f.y); hit = { ...hit, reaction: { ...hit.reaction, pull: Math.max(0, Math.min(340, d - 58)) } }; } // the chain yanks it to just in front of him
     if (!run.own) { if (t.id === this.localId) this.applyRemoteHitToSelf(run, hit, hi, at); return; }
     if (t.kind === 'enemy') { this.applyToPve(run, hit, t, at); return; }
     if (t.id === BOT_ID) { this.applyToBot(run, hit, t, at); return; }
@@ -2462,12 +2511,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       out = m.body.receive(run.attackerId, s, hit, from, now);
       if (out.damage > 0) { m.hitFromX = from.x; m.faceToward(from.x); }
       if (run.attackerId === this.localId && (out.pushX || out.pushY) && s.id !== 'shield_slam') this.momentum = { x: out.pushX * 0.7, y: out.pushY * 0.7, left: 120 };
-      if (s.id === 'iron_grip' && hit === s.hits[0]) { m.kin.grounded = false; m.kin.z = Math.max(m.kin.z, 40); m.kin.vz = 0; m.body.state = 'launched'; m.body.push = null; this.gripHeld = true; this.gripFoe = m; this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 70); this.fx!.callout(at, 'GRAB!!', '#ffd27a', 0); }
+      if (s.id === 'iron_grip' && hit === s.hits[0]) { m.kin.grounded = false; m.kin.z = Math.max(m.kin.z, 40); m.kin.vz = 0; m.body.state = 'launched'; m.body.push = null; this.gripHeld = true; this.gripFoe = m; this.gripFrom = { x: m.kin.x, y: m.kin.y }; this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 70); this.fx!.callout(at, 'GRAB!!', '#ffd27a', 0); }
       if (s.id === 'iron_grip' && hit === s.hits[1]) {
         this.gripHeld = false; this.gripFoe = null;
         const nx = from.x + run.aim.x * 62, ny = from.y + run.aim.y * 62;
-        if (footAllowed(nx, ny, 0, 10)) { m.kin.x = nx; m.kin.y = ny; }
-        m.kin.z = Math.min(m.kin.z, 30);
+        // down on its own floor (a map above: up there), never inside a block or another monster
+        const free = (x: number, y: number) => footAllowed(x, y, m.homeZ, 10) && supportAt(x, y, m.homeZ + 1).z === m.homeZ && !(this.world?.mobs ?? []).some((o) => o !== m && o.alive && Math.hypot(o.x - x, o.y - y) < 30);
+        const to = [{ x: nx, y: ny }, { x: from.x, y: from.y }, this.gripFrom ?? m.home].find((q) => free(q.x, q.y)) ?? m.home;
+        m.kin.x = to.x; m.kin.y = to.y; this.gripFrom = null;
+        m.kin.z = Math.min(m.kin.z, m.homeZ + 30);
         this.fx!.crack(m.kin.x, m.kin.y, 120); this.fx!.shockwave(m.kin.x, m.kin.y, 200, 0xffc070); this.fx!.callout(at, 'SLAM!!', '#ff9a4a', 1); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 120); this.cameras.main.shake(220, 0.011);
       }
       crit = amb || (hit.damage > 0 && s.slot !== 0 && Math.random() < 0.12 + (own ? this.critAddNow() : 0)); // attack skills only: a regular attack never crits
@@ -3018,7 +3070,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (!this.view || !this.pvpReady) return null;
         const k = this.kin, dead = this.dead >= 0;
         const cos = [...Object.entries(this.equipped).filter(([, v]) => v).map(([s, v]) => `${s}:${v}`), `gear:${this.gearCode}`].join(','); // + what is worn
-        return { x: k.x, y: k.y, z: k.z, sz: k.supportZ, dir: this.dir, anim: dead ? 'dead' : this.mode, mode: this.mode, sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: this.aim.x, ay: this.aim.y, hp: this.playerHP, alive: !dead, cos, mhp: this.maxHpNow(), iv: this.body.ghost(this.simMs), kg: this.kage?.code(k) };
+        return { x: k.x, y: k.y, z: k.z, sz: k.supportZ, dir: this.dir, anim: dead ? 'dead' : this.mode, mode: this.mode, sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: this.aim.x, ay: this.aim.y, hp: this.playerHP, alive: !dead, cos, mhp: this.maxHpNow(), iv: this.body.ghost(this.simMs), kg: this.kage?.code(k), a2: this.air2() };
       },
     });
     this.pvp = pvp;
@@ -3301,13 +3353,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       m.update(ms, {
         player: dc ? { x: dc.x, y: dc.y, z: k.z - k.supportZ, alive: true, level: dc.sz } : { x: k.x, y: k.y, z: k.z - k.supportZ, alive: this.dead < 0, level: k.supportZ },
         now,
-        blocked: (self, x, y) => mobs.some((o) => o !== self && o.alive && Math.hypot(x - o.x, y - o.y) < 26 * Math.max(o.kind.scale, self.kind.scale)),
+        blocked: (self, x, y) => mobs.some((o) => { if (o === self || !o.alive) return false; const d = Math.hypot(x - o.x, y - o.y); return d < 26 * Math.max(o.kind.scale, self.kind.scale) && d < Math.hypot(self.x - o.x, self.y - o.y); }),   // moving apart: always
         onStrikePlayer: (m, dmg) => { if (dc) this.kage?.pop(dc.k); else this.enemyStrike(dmg, { x: m.x, y: m.y }); },
       });
     }
     // MapleStory: touching a monster hurts a little and knocks you back, then you blink and can walk through it
-    if (this.dead < 0 && now >= this.hitBlinkUntil && !this.rt?.ownRun) for (const m of mobs) {
-      if (!m.alive || Math.abs(m.z - k.z) > 40 || Math.hypot(m.x - k.x, (m.y - k.y) * 1.6) > STAGE6.enemy.collisionRadius * m.kind.scale + R * 0.6) continue;
+    if (this.dead < 0 && now >= this.hitBlinkUntil && now >= this.touchUntil && !this.rt?.ownRun) for (const m of mobs) {
+      if (!m.alive || m.body.state === 'knockdown' || m.body.state === 'launched' || Math.abs(m.z - k.z) > 40 || Math.hypot(m.x - k.x, (m.y - k.y) * 1.6) > STAGE6.enemy.collisionRadius * m.kind.scale + R * 0.6) continue;
+      this.touchUntil = now + 600;   // a touch blocked (guard, ward, dodge) still counts: never every frame
       this.enemyStrike(Math.max(1, Math.round(m.kind.damage * 0.5)), { x: m.x, y: m.y }, 34); break;
     }
   }
@@ -3490,7 +3543,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       },
       target: alive && this.pvpReady ? this.hudTarget() : null,
       slots,
-      minimap: this.world ? this.world.minimap({ x: k.x, y: k.y }) : this.arenaMinimap(markers),
+      minimap: this.world ? this.world.minimap({ x: k.x, y: k.y, z: k.z, floor: k.supportZ }) : this.arenaMinimap(markers),
       room: pvp ? { label: `ROOM ${pvp.room}`, playerCount: pvp.connected ? pvp.remotes.size + 1 : 0, maxPlayers: PVP.maxPlayers } : null,
       combatFeedback: showCombo ? { count: this.combo.count, chain: `${this.combo.label}  ·  TOTAL ${Math.min(999, Math.round((this.combo.dmg / this.combo.max) * 100))}%`, expiresAtMs: this.combo.at + COMBO_SHOW_MS } : null,
     };

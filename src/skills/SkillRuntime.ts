@@ -258,6 +258,11 @@ export class SkillRuntime {
       for (const d of fanDirs(aim, s.count, s.spread)) for (let k = 0; k < rows; k++) {
         const off = (k - (rows - 1) / 2) * gap, o2 = rows > 1 ? { x: origin.x - d.y * off, y: origin.y + d.x * off * 0.75, z: origin.z } : origin; // rows side by side across the floor
         const p = spawnProjectile(r.castId, i, r.skill, s, r.attackerId, o2, d, pick++);
+        if (r.skill.id === 'piercing_arrow' && d.y < -0.3) { // Spirit Bow aimed up: from where she stands, up into the air and back down onto the floor beside her (never into the depth of the map)
+          const loft = Math.abs(d.x) > 0.2 ? 1 : 2, sd = d.x < 0 ? -1 : 1;
+          p.loft = loft; p.dx = sd; p.dy = 0; p.x = o2.x + sd * 16; p.y = o2.y;
+          p.range = loft === 1 ? 380 : 120; p.speed = loft === 1 ? 560 : 240;
+        }
         this.projectiles.push({ p, run: r, hit: h });
         this.events.emit(RT_EVENTS.projectile, p, r);
       }

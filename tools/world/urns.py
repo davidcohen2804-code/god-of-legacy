@@ -18,8 +18,10 @@ Hh, Ss, Vv = hsv[..., 0], hsv[..., 1], hsv[..., 2]
 leaf = (((Hh <= 7) | (Hh >= 165) | ((Hh >= 18) & (Hh <= 50))) & (Ss > 120)) | (Vv < 85)   # red / yellow-green leaves, shade
 X = {a: S['areas'][a]['x'] for a in D['row']}
 URNS_LOCAL = {'courtyard': [60, 586, 1097], 'training': [547, 1162], 'plaza': [547, 1162], 'ruins': [547, 1159], 'temple': [547, 1162, 1626],
-              'terraces_1': [580, 1095]}
+              'terraces_1': [580, 1095], 'terraces_2': [586, 1097],
+              'training_2': [547, 1162], 'training_3': [547, 1162], 'orchard_1': [547, 1162], 'orchard_2': [547, 1162], 'ruins_2': [547, 1162], 'ruins_3': [547, 1162], 'gate_1': [547, 1162], 'gate_2': [547, 1162]}
 AW = D['size'][0]
+ST = json.load(open(R + 'src/data/world-arena.json'))['stairs']
 for a in D['row']:   # stand-in maps (tools/world/expand.py): their picture's urns, mirrored with it
   A = D['areas'][a]
   if A.get('standin') in URNS_LOCAL: URNS_LOCAL[a] = [round(AW - u) if A.get('mirrored') else u for u in URNS_LOCAL[A['standin']]]
@@ -52,7 +54,10 @@ for c in centres:
   pts = [[int(px) + x0, int(py) + TOP] for px, py in poly]
   a = next(r for r in reversed(D['row']) if X[r] <= c)        # the area it stands in
   bx0, bx1 = min(p[0] for p in pts), max(p[0] for p in pts)
-  D['areas'][a]['props'].append({'id': f'urn-{n}', 'foot': [[bx0 - X[a], 672], [bx1 - X[a], 672], [bx1 - X[a], 698], [bx0 - X[a], 698]], 'h': 999,
+  fx0, fx1 = bx0, bx1   # its foot never reaches over the stairs down to the Sun Seal Plaza
+  if fx0 < ST[0] + 4 and fx1 > ST[0] - 4: fx1 = ST[0] - 4
+  elif fx0 < ST[1] + 4 and fx1 > ST[1] - 4: fx0 = ST[1] + 4
+  D['areas'][a]['props'].append({'id': f'urn-{n}', 'foot': [[fx0 - X[a], 672], [fx1 - X[a], 672], [fx1 - X[a], 698], [fx0 - X[a], 698]], 'h': 999,
                                  'occ': [[px - X[a], py] for px, py in pts]})
   print('urn', n, 'at', c, '→', a, 'x', bx0, bx1, 'top', min(p[1] for p in pts), 'points', len(pts))
   n += 1

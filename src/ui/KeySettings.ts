@@ -68,7 +68,7 @@ export class KeySettings {
   private hint!: HTMLDivElement;
   private onEsc = (e: KeyboardEvent) => { if (e.key === 'Escape' && this.isOpen) { e.preventDefault(); e.stopPropagation(); this.close(); } };
 
-  /** skills: the 18 hotbar skills (slot order) with icon and name; onApply(bindings) after SAVE; onOpen(open) for input focus. */
+  /** skills: the 20 hotbar skills (slot order) with icon and name; onApply(bindings) after SAVE; onOpen(open) for input focus. */
   constructor(parent: HTMLElement, skills: { name: string; icon: string }[], private onApply: (b: Record<BindAction, string>) => void, private onOpen: (open: boolean) => void) {
     ensureTheme();
     if (!document.getElementById(STYLE_ID)) { const st = document.createElement('style'); st.id = STYLE_ID; st.textContent = CSS; document.head.appendChild(st); }

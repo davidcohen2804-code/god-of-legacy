@@ -23,6 +23,8 @@ export interface AnimSnap {
   vz: number;
   skill?: SkillPose;
   stunMs?: number;
+  /** ms since the second jump (War Leap / Wind Leap / Shinsoku / Levitate), while in the air */
+  air2?: number;
 }
 
 export const RECOVER_MS = 200;
@@ -34,8 +36,8 @@ export function poseQuery(s: AnimSnap): PoseQuery {
     case 'alert': return { k: 'loop', state: 'alert', t: s.t, speed: 0 }; // standing still in the combat stance
     case 'walk': return { k: 'loop', state: 'walk', t: s.t, speed: s.speed };
     case 'run': return { k: 'loop', state: 'run', t: s.t, speed: s.speed };
-    case 'takeoff': return { k: 'jump', phase: 'takeoff', t: s.t };
-    case 'air': return { k: 'jump', phase: s.vz > 110 ? 'rise' : s.vz > -110 ? 'apex' : 'fall', t: s.vz > 110 ? 999 : s.vz > -110 ? 0 : (s.vz > -300 ? 0 : 999) };
+    case 'takeoff': return { k: 'jump', phase: 'takeoff', t: s.t, air2: s.air2 };
+    case 'air': return { k: 'jump', phase: s.vz > 110 ? 'rise' : s.vz > -110 ? 'apex' : 'fall', t: s.vz > 110 ? 999 : s.vz > -110 ? 0 : (s.vz > -300 ? 0 : 999), air2: s.air2 };
     case 'land': return { k: 'jump', phase: 'land', t: s.t };
     case 'skill': return s.skill ? { k: 'skill', ...s.skill } : { k: 'loop', state: 'idle', t: s.t, speed: 0 };
     case 'recover': return { k: 'recovery', p: Math.min(1, s.t / RECOVER_MS) };

@@ -28,7 +28,7 @@ const MOVE_COLS: Record<MoveState, number> = { idle: 12, walk: 8, run: 8, jump: 
 const SHEET_CLASSES = ['warrior', 'book_mage'] as const;
 const sheetKey = (cls: string, st: string) => `body-${cls}-${st}`;
 /** Extended-kit skills reuse an existing body animation (pose family) until they get their own sheet. */
-const BODY_ALIAS: Record<string, string> = { guard_counter: 'iron_grip', iron_oath: 'sanctuary', legacy_banner: 'radiant_blade',
+const BODY_ALIAS: Record<string, string> = { guard_counter: 'iron_grip', judgment_hook: 'wave_slash', sky_breaker: 'leap_crash', earthsplitter: 'ground_breaker', iron_oath: 'sanctuary', legacy_banner: 'radiant_blade',
   // the book mage's new spells borrow its drawn casts until their own come (the mage spec)
   arcane_bolt_frost: 'arcane_bolt', arcane_bolt_storm: 'arcane_bolt', arcane_bolt_arcane: 'arcane_bolt', blink: 'arcane_bolt', glacial_spikes: 'frost_nova', chrono_haste: 'astral_burst',
   levity_field: 'storm_field', origami_flock: 'arcane_wave', chrono_sigil: 'binding_rune', arcane_ward: 'frost_nova', arcane_gate: 'binding_rune', paper_curse: 'lightning_chain', elemental_ascension: 'storm_field' };
@@ -295,6 +295,10 @@ const NB: Record<string, { st: string[]; ac: string[]; rc: string[] }> = {
   radiant_blade: { st: ['alert:0', 'high:1', 'high:0', 'high:0', 'high:0', 'high:0', 'high:0'], ac: ['swing1:1'], rc: ['swing1:2', 'alert:0'] },
   lance_thrust: { st: ['swing2:0'], ac: ['low:1', 'low:1', 'low:1', 'low:1', 'swing3:2'], rc: ['swing3:2', 'alert:0'] }, // skewered on the lunge, ripped up
   war_cry: { st: ['alert:0', 'low:0', 'low:0'], ac: ['high:2'], rc: ['high:2', 'alert:0'] }, // sword into the ground, the roar with a raised fist
+  iron_grip: { st: ['alert:0'], ac: ['low:2', 'low:2', 'high:2', 'high:2', 'swing1:1', 'low:0'], rc: ['low:0', 'alert:0'] }, // the open hand seizes, the fist hoists it overhead, the smash
+  judgment_hook: { st: ['swing2:0'], ac: ['low:2', 'low:2'], rc: ['swing2:2', 'alert:0'] }, // the chain hurled from the open hand, yanked back
+  sky_breaker: { st: ['alert:1'], ac: ['air:0', 'air:0', 'air:0', 'air:1', 'air:2'], rc: ['low:0', 'alert:0'] }, // the rising slashes in the air, the strike down
+  earthsplitter: { st: ['alert:0', 'swing1:0'], ac: ['swing1:1', 'low:0'], rc: ['low:0', 'alert:0'] }, // sword overhead while charging, split the earth
   judgment_blade: { st: ['jump:0', 'high:2'], ac: ['low:2'], rc: ['low:2', 'jump:0'] }, // the leap up, the fist raised while the blade gathers, hurled, in the air
 };
 /** Skills played with the hand free: the sword is not drawn while they play (Judgment Blade: no sword at all). */
@@ -418,7 +422,7 @@ const atlasCount = (cls: string, dir: Dir, act: AtlasAction) => ATLAS[cls].direc
 
 export type PoseQuery =
   | { k: 'loop'; state: 'idle' | 'walk' | 'run' | 'alert'; t: number; speed: number } // alert: combat stance after an attack / a hit (MapleStory)
-  | { k: 'jump'; phase: 'takeoff' | 'rise' | 'apex' | 'fall' | 'land'; t: number }
+  | { k: 'jump'; phase: 'takeoff' | 'rise' | 'apex' | 'fall' | 'land'; t: number; air2?: number }
   | { k: 'airAttack'; p: number }
   | { k: 'hurt'; p: number }
   | { k: 'launched'; vz: number }
@@ -552,6 +556,10 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     legacy_banner: { act: 'banner', st: [0, 1, 2], ac: [2], rc: [3, 3, 4, 5] },
     war_cry: { act: 'war_cry', st: [0], ac: [1, 2, 3, 2, 3], rc: [4, 5] },
     judgment_blade: { act: 'judgment_blade', st: [0, 1, 2, 2, 2, 2, 2, 2, 2, 2], ac: [3], rc: [4, 4, 5] },
+    iron_grip: { act: 'ground_breaker', st: [0], ac: [0, 1, 1, 2, 3], rc: [3, 4, 5] }, // (until his own row: the overhead smash)
+    judgment_hook: { act: 'wave_slash', st: [0, 1], ac: [3], rc: [3, 4, 5] },
+    sky_breaker: { act: 'leap_crash', st: [0], ac: [1, 2, 2, 3, 4], rc: [4, 5] },
+    earthsplitter: { act: 'ground_breaker', st: [0, 1, 1, 1, 1, 1], ac: [2, 3], rc: [3, 4, 5] },
   },
   samurai: {
     shadow_step: { act: 'shadow_step', st: [0], ac: [1, 2], rc: [3, 4, 5] },
@@ -617,7 +625,18 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
         const dist = (h.cycle?.[st] ?? h.h) * (HERO_HEIGHT / h.h), sp = Math.max(st === 'walk' ? 120 : 180, q.speed);
         return H(st, (q.t * n * sp) / dist / 1000);
       }
-    case 'jump': return H('jump', { takeoff: 0, rise: 1, apex: 1, fall: 2, land: 0 }[q.phase]);
+    case 'jump': {
+      // the second jump: each hero's own body move (the drawn frames' arms and legs) — War Leap drives the knee and
+      // stretches over the burst, Shinsoku lies into the dash, Wind Leap tucks into the somersault, Levitate floats upright
+      const a2 = q.air2;
+      if (a2 !== undefined && a2 >= 0 && HEROES[cls].actions.djump) {
+        if (cls === 'book_mage') return { ...H('djump', Math.floor(a2 / 450) % 2), cloth: true };
+        if (cls === 'archer' && a2 < 440) return H('djump', a2 < 200 ? 0 : 1);
+        if (cls === 'samurai' && a2 < 380) return H('djump', a2 < 110 ? 0 : 1);
+        if (cls === 'warrior' && a2 < 560 && q.phase !== 'fall') return H('djump', a2 < 160 ? 0 : 1);
+      }
+      return H('jump', { takeoff: 0, rise: 1, apex: 1, fall: 2, land: 0 }[q.phase]);
+    }
     case 'airAttack': {
       if (HEROES[cls].actions.finisher) return H('finisher', 3 + Math.min(2, Math.floor(q.p * 3))); // the air strike
       if (HEROES[cls].actions.air_shot) return H('air_shot', Math.min(5, Math.floor(q.p * 6))); // the shot in the air

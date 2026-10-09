@@ -14,6 +14,10 @@ const C = STAGE6.enemy;
 type Action = keyof typeof C.actions;
 /** A hit makes the monster follow the player this long (ms). */
 const PROVOKED_MS = 15000;
+/** A monster this strong is a boss: hits don't stop its swing. */
+const BOSS_HP = 1000;
+/** The player up on a block this much higher (px) is still within its blade's reach (beside the block). */
+const REACH_UP = 100;
 type AIState = 'idle' | 'wander' | 'chase' | 'attack' | 'home' | 'dead';
 type Side = 'left' | 'right';
 const WIND = 180, ACTIVE = 120, RECOVER = 260; // strike phases (ms), the frame art's timing
@@ -106,12 +110,13 @@ export class Monster {
   /** HP change from a confirmed hit (reactions already applied to `body`); true when this hit killed it. */
   damage(dmg: number, now: number): boolean {
     if (!this.alive) return false;
+    if (dmg <= 0) return false;   // blocked / no damage: it carries on (its attack is not cancelled)
     this.hp = Math.max(0, this.hp - dmg);
     this.flashLeft = C.hitFlashMs; this.barShowUntil = now + 5000;
-    this.struck = true; // a hit interrupts the pending strike
+    if (this.kind.hp < BOSS_HP) this.struck = true; // a hit interrupts the pending strike (a boss swings through it)
     if (this.hp <= 0) { this.enter('dead'); this.respawnLeft = this.kind.respawnMs; this.body.push = null; this.deathFade = 1; return true; }
     this.provokedLeft = PROVOKED_MS;
-    if (this.ai === 'attack' || this.ai === 'idle' || this.ai === 'wander' || this.ai === 'home') this.enter('chase'); // provoked
+    if ((this.ai === 'attack' && this.kind.hp < BOSS_HP) || this.ai === 'idle' || this.ai === 'wander' || this.ai === 'home') this.enter('chase'); // provoked
     return false;
   }
 
@@ -119,6 +124,7 @@ export class Monster {
     const k = this.kin;
     k.x = this.home.x; k.y = this.home.y; k.z = this.homeZ; k.supportZ = this.homeZ; k.vx = 0; k.vy = 0; k.vz = 0; k.grounded = true;
     this.body.reset(); this.body.maxHp = this.kind.hp;
+    this.detourLeft = 0; this.wanderTo = null;
     this.hp = this.kind.hp; this.sinceAttack = Infinity; this.provokedLeft = 0; this.flashLeft = 0; this.barShowUntil = -1;
     this.restoreTint(); this.sprite.setVisible(true).setAlpha(0);
     this.scene.tweens.add({ targets: this.sprite, alpha: 1, duration: 420 }); // fades back in
@@ -138,12 +144,13 @@ export class Monster {
       this.kin.vx = 0; this.kin.vy = 0;
       this.respawnLeft -= ms;
       if (this.stateMs > 900) this.deathFade = Math.max(0, this.deathFade - ms / 500);
-      if (this.respawnLeft <= 0 && Math.hypot(w.player.x - this.home.x, w.player.y - this.home.y) > 90) this.reset();
+      if (this.respawnLeft <= 0 && Math.hypot(w.player.x - this.home.x, w.player.y - this.home.y) > 90 && !w.blocked(this, this.home.x, this.home.y)) this.reset();
     } else if (b.canAct(now) && !this.frozen) this.think(ms, w, dx, dy, dist);
     else if (b.state === 'free') { this.kin.vx = 0; this.kin.vy = 0; }
-    const r = stepKin(this.kin, ms, b.gravityScale(now), (x, y) => x > MOB_WALL_X || w.blocked(this, x, y) || (b.state === 'free' && supportAt(x, y, this.kin.z + 1).z < this.homeZ - 1), this.moving && b.state === 'free' && !b.push);
+    const r = stepKin(this.kin, ms, b.gravityScale(now), (x, y) => x > MOB_WALL_X || w.blocked(this, x, y) || supportAt(x, y, this.kin.z + 1).z < this.homeZ - 1, this.moving && b.state === 'free' && !b.push);
+    this.lastBlocked = r.blockedX || r.blockedY;
     settleOnBlocks(this.kin, ms, 0);   // knocked onto a block: onto its top face; beside one: never left half inside it
-    if (this.ai === 'chase' && this.moving && r.blockedX && this.detourLeft <= 0) {
+    if ((this.ai === 'chase' || this.ai === 'home') && this.moving && r.blockedX && this.detourLeft <= 0) {
       // the block ahead: go round it by its nearer end (up or down the floor)
       const ax = this.kin.x + Math.sign(this.kin.vx || 1) * 24, ay = this.kin.y;
       const o = WORLD_OBJECTS.find((q) => { const xs = q.footprint.map((p) => p[0]), ys = q.footprint.map((p) => p[1]); return ax >= Math.min(...xs) - 20 && ax <= Math.max(...xs) + 20 && ay >= Math.min(...ys) - 20 && ay <= Math.max(...ys) + 20; });
@@ -165,8 +172,9 @@ export class Monster {
   private think(ms: number, w: MonsterWorld, dx: number, dy: number, dist: number): void {
     const K = this.kind, k = this.kin, sp = K.speed * this.body.moveScale(w.now);
     const fromHome = Math.hypot(k.x - this.home.x, k.y - this.home.y);
-    const level = Math.abs((w.player.level ?? 0) - this.homeZ) < 40;   // on its floor
-    const sees = w.player.alive && level && w.player.x < MOB_WALL_X + 40 && dist <= K.aggro && clearLine(k.x, k.y, w.player.x, w.player.y, 30);
+    const up = (w.player.level ?? 0) - this.homeZ;
+    const level = Math.abs(up) < 40 || (up >= 40 && up <= REACH_UP);   // on its floor, or up on a block it can swing at
+    const sees = w.player.alive && level && w.player.x < MOB_WALL_X + 40 && dist <= K.aggro && (up >= 40 || clearLine(k.x, k.y, w.player.x, w.player.y, 30));
     switch (this.ai) {
       case 'idle': case 'wander': {
         if (sees) { this.enter('chase'); break; }
@@ -191,7 +199,9 @@ export class Monster {
         const provoked = this.provokedLeft > 0; // hit by him: it follows him wherever he goes, for a while
         if (!w.player.alive || (!provoked && (dist > K.aggro * 1.8 || fromHome > 520)) || w.player.x > MOB_WALL_X + 60 || (!level && !provoked)) { this.provokedLeft = 0; this.enter('home'); break; }  // past the Temple Gate: out of reach
         this.faceToward(w.player.x);
-        if (dist <= K.range && Math.abs(dy) < 34) { k.vx = 0; k.vy = 0; if (this.sinceAttack >= K.cooldown && w.player.z < 40 && level) this.startAttack(); break; }
+        const reach = K.range + (up >= 40 ? 34 : 0);   // at a block's side: its blade reaches the one standing on top
+        if (dist <= reach && Math.abs(dy) < 34 + (up >= 40 ? 30 : 0)) { k.vx = 0; k.vy = 0; if (this.sinceAttack >= K.cooldown && w.player.z < 40 && level) this.startAttack(); break; }
+        if (up >= 40 && this.stateMs > 300 && Math.hypot(k.vx, k.vy) > 0 && this.lastBlocked) { k.vx = 0; k.vy = 0; if (this.sinceAttack >= K.cooldown && dist <= reach + 24) this.startAttack(); break; } // pressed against the block under him
         // stand beside the player (side view): the side it is on, at its reach, same depth
         const side = dx > 0 ? -1 : 1, tx = w.player.x + side * K.range * 0.8, ty = w.player.y;
         if (this.detourLeft > 0) { this.detourLeft -= ms; this.walkToward(k.x + Math.sign(dx) * 12, k.y + this.detourDir * 60, sp); break; } // around the block
@@ -201,6 +211,9 @@ export class Monster {
       case 'home': {
         if (sees && fromHome < 380) { this.enter('chase'); break; }
         if (fromHome < 10) { this.enter('idle'); k.vx = 0; k.vy = 0; break; }
+        if (this.stateMs === ms || fromHome < this.homeBest - 4) { this.homeBest = fromHome; this.homeBestMs = this.stateMs; }
+        if (this.stateMs - this.homeBestMs > 2500) { k.x = this.home.x; k.y = this.home.y; k.vx = 0; k.vy = 0; this.hp = this.maxHp; this.enter('idle'); break; } // stuck on the way back: home at once
+        if (this.detourLeft > 0) { this.detourLeft -= ms; this.walkToward(k.x + Math.sign(this.home.x - k.x) * 12, k.y + this.detourDir * 60, sp * 0.8); break; } // around the block
         this.walkToward(this.home.x, this.home.y, sp * 0.8);
         if (this.hp < this.maxHp) this.hp = Math.min(this.maxHp, this.hp + ms * 0.02); // catches its breath on the way back
         break;
@@ -228,12 +241,16 @@ export class Monster {
   private enter(s: AIState): void { this.ai = s; this.stateMs = 0; this.animMs = 0; }
   private startAttack(): void { this.enter('attack'); this.struck = false; this.sinceAttack = 0; }
 
+  private homeBest = Infinity; private homeBestMs = 0; private lastBlocked = false;
+
   private canHit(w: MonsterWorld): boolean {
     if (!w.player.alive || w.player.z > 50) return false;
-    const vx = w.player.x - this.x, vy = w.player.y - this.y, d = Math.hypot(vx, vy);
-    if (d > this.kind.range + 6 || Math.abs(vy) > 40) return false;
+    const up = (w.player.level ?? 0) - this.homeZ;
+    if (!(Math.abs(up) < 40 || (up >= 40 && up <= REACH_UP))) return false;   // he went up (or down) out of its reach meanwhile
+    const vx = w.player.x - this.x, vy = w.player.y - this.y, d = Math.hypot(vx, vy), more = up >= 40 ? 34 : 0;
+    if (d > this.kind.range + 6 + more + (up >= 40 ? 24 : 0) || Math.abs(vy) > 40 + (up >= 40 ? 30 : 0)) return false;
     if (d > 8 && (vx < 0) !== (this.dir === 'left')) return false; // in front of it
-    return clearLine(this.x, this.y, w.player.x, w.player.y, 30);
+    return up >= 40 || clearLine(this.x, this.y, w.player.x, w.player.y, 30);   // up on a block: the block is no wall to its blade
   }
 
   private applyFrame(): void {

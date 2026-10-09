@@ -3,8 +3,8 @@
   {
    "id": "climb-1",
    "x": [
-    600,
-    783
+    560,
+    743
    ],
    "front": 372,
    "h": 86,
@@ -14,8 +14,8 @@
   {
    "id": "climb-2",
    "x": [
-    783,
-    966
+    743,
+    926
    ],
    "front": 372,
    "h": 172,
@@ -25,8 +25,8 @@
   {
    "id": "climb-3",
    "x": [
-    966,
-    1149
+    926,
+    1109
    ],
    "front": 372,
    "h": 258,
@@ -138,6 +138,151 @@
    "h": 258,
    "depth": 26,
    "solid_to": 346
+  }
+ ],
+ "training_3": [
+  {
+   "id": "perch-1",
+   "x": [
+    900,
+    1083
+   ],
+   "front": 372,
+   "h": 86,
+   "depth": 26,
+   "solid_to": 346
+  },
+  {
+   "id": "perch-2",
+   "x": [
+    1083,
+    1266
+   ],
+   "front": 372,
+   "h": 172,
+   "depth": 26,
+   "solid_to": 346,
+   "reward": {
+    "item": "swift_potion",
+    "every": 180
+   }
+  }
+ ],
+ "orchard_2": [
+  {
+   "id": "step-1",
+   "x": [
+    600,
+    783
+   ],
+   "front": 372,
+   "h": 86,
+   "depth": 26,
+   "solid_to": 346
+  },
+  {
+   "id": "step-2",
+   "x": [
+    783,
+    966
+   ],
+   "front": 372,
+   "h": 172,
+   "depth": 26,
+   "solid_to": 346,
+   "reward": {
+    "item": "warrior_potion",
+    "every": 180
+   }
+  },
+  {
+   "id": "step-3",
+   "x": [
+    966,
+    1149
+   ],
+   "front": 372,
+   "h": 86,
+   "depth": 26,
+   "solid_to": 346
+  }
+ ],
+ "ruins_3": [
+  {
+   "id": "spire-1",
+   "x": [
+    580,
+    763
+   ],
+   "front": 372,
+   "h": 258,
+   "depth": 26,
+   "solid_to": 346,
+   "reward": {
+    "item": "elixir",
+    "every": 300
+   }
+  },
+  {
+   "id": "spire-2",
+   "x": [
+    763,
+    946
+   ],
+   "front": 372,
+   "h": 172,
+   "depth": 26,
+   "solid_to": 346
+  },
+  {
+   "id": "spire-3",
+   "x": [
+    946,
+    1129
+   ],
+   "front": 372,
+   "h": 86,
+   "depth": 26,
+   "solid_to": 346
+  }
+ ],
+ "gate_1": [
+  {
+   "id": "leap-1",
+   "x": [
+    580,
+    763
+   ],
+   "front": 372,
+   "h": 86,
+   "depth": 26,
+   "solid_to": 346
+  },
+  {
+   "id": "leap-2",
+   "x": [
+    763,
+    946
+   ],
+   "front": 372,
+   "h": 172,
+   "depth": 26,
+   "solid_to": 346
+  },
+  {
+   "id": "leap-3",
+   "x": [
+    1006,
+    1189
+   ],
+   "front": 372,
+   "h": 172,
+   "depth": 26,
+   "solid_to": 346,
+   "reward": {
+    "item": "blue_potion",
+    "every": 180
+   }
   }
  ]
 }

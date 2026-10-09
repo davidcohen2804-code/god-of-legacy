@@ -7,7 +7,10 @@ import Phaser from 'phaser';
 import PROPS from '../data/world-props.json';
 import NPC_ART from '../data/npc-sprites.json';
 import { BANNERS_KEY, BANNERS_URL, WorldBanners } from './Banners';
-import { ARENA, ARENA_AREA, GATE, ARENA_MINIMAP_URL, AREA_H, AREA_W, AreaDef, arenaTileKey, arenaTileUrl, belowTerrace, AreaNpc, BACKDROP, MINIMAP_URL, MOB_KINDS, ROW, START, TILES, TOWERS, HEIGHTS, heightArea, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
+import MINI from '../data/world-minimap.json';
+/** The minimap's picture with the maps above in it (tools/world/minimap.py). */
+const MINIMAP_UP_URL = 'assets/world/minimap/world_up.jpg';
+import { ARENA, ARENA_AREA, GATE, ARENA_MINIMAP_URL, AREA_H, AREA_W, AreaDef, arenaTileKey, arenaTileUrl, belowTerrace, AreaNpc, BACKDROP, MOB_KINDS, ROW, START, TILES, TOWERS, HEIGHTS, CLOUDS, SKY, SKY_AREA, heightArea, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
 import { WorldObject, actorDepth, setWorldGeometry } from './WorldGeometry';
 import { Backdrop, preloadBackdrop } from './Backdrop';
 import { Monster, preloadMonsterFrames } from './Monster';
@@ -50,6 +53,7 @@ export function preloadOpenWorld(scene: Phaser.Scene): void {
   for (const i of tilesNear(toWorld(START.area, [START.x, START.y]).x, AREA_W * 1.5)) L(tileKey(i), tileUrl(i));
   ARENA.tiles.forEach((_, i) => L(arenaTileKey(i), arenaTileUrl(i)));
   L(BANNERS_KEY, BANNERS_URL);
+  SKY.sprites.forEach((sp, i) => L(`sky-cloud-${i}`, sp.img));
   L('world-gate-back', 'assets/world/gate/back.png'); L('world-gate-front', 'assets/world/gate/front.png');
   for (const id of Object.keys(CUTS)) L(`prop-${id}`, `assets/world/props/${id}.png`);
   for (const [name, a] of Object.entries(ART)) if (!scene.textures.exists(`npc-${name}`)) scene.load.spritesheet(`npc-${name}`, `assets/world/npc/${name}.png`, { frameWidth: a.w, frameHeight: a.h });
@@ -81,6 +85,8 @@ export class OpenWorld {
   private below: Phaser.GameObjects.Image[] = [];
   private puffs: Phaser.GameObjects.Image[] = [];
   private banners?: WorldBanners;
+  /** The Sky Path's clouds (drawn; they bob a little). */
+  private skyClouds: { img: Phaser.GameObjects.Image; y: number; ph: number }[] = [];
   private gate: Phaser.GameObjects.Image[] = [];
   private npcs: NpcView[] = [];
   private prompt: Phaser.GameObjects.Container;
@@ -105,7 +111,7 @@ export class OpenWorld {
     scene.load.on(Phaser.Loader.Events.FILE_COMPLETE, this.onFile, this);
     if (!scene.load.isLoading()) scene.load.start();
     this.buildOccluders(); this.buildTowers(); this.buildHeights(); this.buildGate(); this.buildNpcs();
-    this.banners = new WorldBanners(scene, (l) => (l === 'strip' ? -0.999 : l === 'gate' ? GATE.front.depth + 0.001 : (HEIGHTS.find((h) => `heights:${h.id}` === l)?.depth ?? -1.2) + 0.001)); this.buildPortal(); this.spawnMobs();
+    this.banners = new WorldBanners(scene, (l) => (l === 'strip' ? -0.999 : l === 'gate' ? GATE.front.depth + 0.001 : (HEIGHTS.find((h) => `heights:${h.id}` === l)?.depth ?? -1.2) + 0.001)); this.buildPortal(); this.buildSky(); this.spawnMobs();
     if (BACKDROP) this.backdrop = new Backdrop(scene);
     const cam = scene.cameras.main;
     this.baseZoom = cam.zoom;
@@ -296,6 +302,23 @@ export class OpenWorld {
     }
   }
 
+  /** The Sky Path: each cloud drawn so its flat top face lies on the lane at its height (the one standing on it is drawn
+   *  over it: actorDepth puts him in front of its lane's edge). */
+  private buildSky(): void {
+    const [b0, b1] = SKY.band, yc = (b0 + b1) / 2;
+    CLOUDS.forEach((c, i) => {
+      const sp = SKY.sprites[c.s], key = `sky-cloud-${c.s}`;
+      const make = () => {
+        const sc = (c.x1 - c.x0 + 40) / sp.w, top = (sp.top[0] + sp.top[1]) / 2 * sc;
+        const y = yc - c.z - top;
+        const img = this.scene.add.image(c.x0 - 20, y, key).setOrigin(0, 0).setScale(sc).setDepth(b1 + 0.5);
+        this.skyClouds.push({ img, y, ph: i * 1.7 });
+      };
+      if (this.scene.textures.exists(key)) make();
+      else { this.scene.load.image(key, sp.img); this.scene.load.once(`filecomplete-image-${key}`, make); if (!this.scene.load.isLoading()) this.scene.load.start(); }
+    });
+  }
+
   /** The Temple Gate: its back tower behind anyone on the floor, its arch and front tower in front of everyone. */
   private buildGate(): void {
     for (const k of ['back', 'front'] as const) {
@@ -468,11 +491,14 @@ export class OpenWorld {
     this.follow(player.x, player.y, ms, false, player.supportZ ?? 0, player.absZ ?? 0, player.grounded ?? true);
     this.ambience.update(ms);
     this.banners?.update(this.t, this.scene.cameras.main.worldView, this.gate[1]?.alpha ?? 1);
+    for (const c of this.skyClouds) c.img.y = c.y + Math.sin(this.t / 1400 + c.ph) * 2.5;
     this.backdrop?.update(ms);
     // the area you are in (by where you stand on the strip; a little past the line, so it never flickers)
-    const up = [...HEIGHTS].sort((a, b) => b.H - a.H).find((h) => (player.supportZ ?? 0) >= h.H - 1 && player.x >= h.x && player.x <= h.x + h.w && player.y <= h.front + 2);
+    const sky = Math.max(player.supportZ ?? 0, player.absZ ?? 0) >= 600 && player.x >= SKY.lane[0] && player.x <= SKY.lane[1] && player.y <= SKY.band[1] + 4;
+    if (sky) { if (this.area !== SKY_AREA) this.setArea(SKY_AREA); }
+    const up = sky ? undefined : [...HEIGHTS].sort((a, b) => b.H - a.H).find((h) => (player.supportZ ?? 0) >= h.H - 1 && player.x >= h.x && player.x <= h.x + h.w && player.y <= h.front + 2);
     if (up) { if (this.area.id !== up.id) this.setArea(heightArea(up)); }
-    const a = up ? this.area : this.areaOf(player.x, player.y);
+    const a = up || sky ? this.area : this.areaOf(player.x, player.y);
     if (a === ARENA_AREA || this.area === ARENA_AREA) { if (a !== this.area && Math.abs(player.y - ARENA.y) > AREA_HYST) this.setArea(a); }
     else if (a !== this.area && player.x > a.span[0] + (a.span[0] > 0 ? AREA_HYST : 0) - 1 && player.x < a.span[1] - (a.span[1] < WORLD_W ? AREA_HYST : 0) + 1) this.setArea(a);
     // the Temple Gate's front layer turns see-through while you are behind its front tower (it would hide you)
@@ -520,16 +546,18 @@ export class OpenWorld {
   }
 
   /** The minimap: a square of the world around you (its full height), sliding along as you walk; its people, the portal. */
-  minimap(player: { x: number; y: number }): { label: string; imageUrl: string; image: { x: number; y: number; w: number; h: number }; bounds: { minX: number; minY: number; width: number; height: number }; markers: { id: string; kind: 'player' | 'npc' | 'portal'; x: number; y: number }[] } {
+  minimap(player: { x: number; y: number; z?: number; floor?: number }): { label: string; imageUrl: string; image: { x: number; y: number; w: number; h: number }; bounds: { minX: number; minY: number; width: number; height: number }; markers: { id: string; kind: 'player' | 'npc' | 'portal'; x: number; y: number }[] } {
     if (this.area === ARENA_AREA) {
       const side = ARENA.h, minX = Phaser.Math.Clamp(player.x - side / 2, ARENA.x, ARENA.x + ARENA.w - side);
       return { label: ARENA.name, imageUrl: ARENA_MINIMAP_URL, image: { x: ARENA.x, y: ARENA.y, w: ARENA.w, h: ARENA.h }, bounds: { minX, minY: ARENA.y, width: side, height: side }, markers: [{ id: 'local', kind: 'player', x: player.x, y: player.y }] };
     }
+    // as drawn on screen (y - height): up on a map above, the minimap rises with you and shows it
     const side = WORLD_H, minX = Phaser.Math.Clamp(player.x - side / 2, 0, Math.max(0, WORLD_W - side));
-    const markers: { id: string; kind: 'player' | 'npc' | 'portal'; x: number; y: number }[] = [{ id: 'local', kind: 'player', x: player.x, y: player.y }];
-    for (const n of this.npcs) markers.push({ id: `npc:${n.def.id}`, kind: 'npc', x: n.x, y: n.y });
+    const minY = player.floor ? Phaser.Math.Clamp(player.y - player.floor - side * 0.55, MINI.top, 0) : 0;
+    const markers: { id: string; kind: 'player' | 'npc' | 'portal'; x: number; y: number }[] = [{ id: 'local', kind: 'player', x: player.x, y: player.y - (player.z ?? 0) }];
+    for (const n of this.npcs) markers.push({ id: `npc:${n.def.id}`, kind: 'npc', x: n.x, y: n.y - (n.def.z ?? 0) });
     if (this.portal) markers.push({ id: 'portal', kind: 'portal', x: this.portal.x, y: this.portal.y - this.portal.z });
-    return { label: this.area.name, imageUrl: MINIMAP_URL, image: { x: 0, y: 0, w: WORLD_W, h: WORLD_H }, bounds: { minX, minY: 0, width: side, height: side }, markers };
+    return { label: this.area.name, imageUrl: MINIMAP_UP_URL, image: { x: 0, y: MINI.top, w: WORLD_W, h: WORLD_H - MINI.top }, bounds: { minX, minY, width: side, height: side }, markers };
   }
 
   destroy(): void {
@@ -545,6 +573,7 @@ export class OpenWorld {
     for (const o of this.below) o.destroy(); this.below = []; this.puffs = [];
     for (const g of this.gate) g.destroy(); this.gate = [];
     this.banners?.destroy(); this.banners = undefined;
+    for (const c of this.skyClouds) c.img.destroy(); this.skyClouds = [];
     for (const n of this.npcs) { n.sprite.destroy(); n.shadow.destroy(); n.plate.destroy(); n.name.destroy(); n.title.destroy(); n.mark.destroy(); }
     if (this.portal) { this.portal.beam.destroy(); this.portal.ring.destroy(); this.portal.glow.destroy(); this.portal.motes.destroy(); }
     this.prompt.destroy();

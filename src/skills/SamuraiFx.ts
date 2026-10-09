@@ -382,6 +382,19 @@ export class SamuraiFx {
     return key;
   }
 
+  /** One ray of sunlight: golden, bright at its root, tapering and fading out to its tip (drawn from its root, pointing right). */
+  private rayTex(): string {
+    const tm = this.ctx.scene.textures, key = 'sam-ray';
+    if (tm.exists(key)) return key;
+    const W = 64, H = 12, c = tm.createCanvas(key, W, H);
+    if (!c) return key;
+    const g = c.context, lg = g.createLinearGradient(0, 0, W, 0);
+    lg.addColorStop(0, 'rgba(255,246,214,1)'); lg.addColorStop(0.35, 'rgba(255,206,92,0.95)'); lg.addColorStop(1, 'rgba(255,150,40,0)');
+    g.fillStyle = lg; g.beginPath(); g.moveTo(0, 0); g.lineTo(W, H / 2 - 0.5); g.lineTo(W, H / 2 + 0.5); g.lineTo(0, H); g.closePath(); g.fill();
+    c.refresh();
+    return key;
+  }
+
   /** A ribbon of light behind a moving point (where it went in the last `span` ms): widest and brightest at its head,
    *  thinning to nothing at its tail; drawn solid with its light added over it. It stops growing when `at` gives nothing
    *  (or `until` ms pass) and fades out over `fade` ms. */
@@ -593,6 +606,10 @@ export class SamuraiFx {
       this.spr({ name, x, y, depth: TOP + 4, w, life, angle: ang - SLASH_TILT, glow: crit ? 0.45 : heavy ? 0.35 : 0.2,
         sx: kf([0, 0.5], [0.16, 1.06, out3], [1, 1.14]), sy: kf([0, 0.5], [0.16, 1.06, out3], [1, 1.14]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
       if (crit) this.pop('burst_crit', x, y, rapid ? 100 : 130, { life: 260, depth: TOP + 3.6, glow: 0.3 });
+    } else if (s.id === 'sakura_bind') { // the bind: blossoms burst open on the foe (natural, no spark of a blade)
+      this.spr({ name: 'blossom_burst', x, y: y - 4, w: crit ? 140 : 112, life: 440, depth: TOP + 3.5, angle: rnd(0, 360), glow: 0.12,
+        sx: kf([0, 0.3], [0.25, 1, back], [1, 1.12]), sy: kf([0, 0.3], [0.25, 1, back], [1, 1.12]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
+      this.petals(x, y, 10, 64, { depth: TOP + 3 });
     } else if (crit) this.pop('burst_crit', x, y, rapid ? 120 : 165, { life: 300 });
     else if (heavy && !rapid) this.pop('burst', x, y, 140, { life: 280 });
     else this.pop('spark_s', x, y, rapid ? 64 : 86, { life: 190 });
@@ -747,7 +764,7 @@ export class SamuraiFx {
     const L = r.skill.charge?.levels; if (!L) return;
     const s = this.ctx.scene, sc = r.chargeScale ?? 1, at = L.map((l) => l.at * sc), a = r.aim, ADD = Phaser.BlendModes.ADD;
     const lineOf = (lv: number) => L[lv].hits[0].shape as { length: number; width: number };
-    const hip = this.front(r, 14, 44);
+    const hip = this.front(r, 22, 46); // (the hand on the hilt, in front of his hip)
     const p0 = hip() ?? { x: r.origin.x, y: r.origin.y - 44, d: r.origin.y };
     const star = s.add.image(p0.x, p0.y, KIT, 'glint').setBlendMode(ADD).setDepth(TOP).setScale(0.1);
     const core = s.add.image(p0.x, p0.y, 'dmg-glow').setBlendMode(ADD).setTint(CRIMSON).setDepth(TOP).setDisplaySize(30, 30).setAlpha(0.7);
@@ -759,14 +776,14 @@ export class SamuraiFx {
     };
     const aura = [mkA(false), mkA(true), mkA(false, 0.86)]; // behind him, its glow, the ring's near rim over his feet
     let lv = 0, len = lineOf(0).length, wid = lineOf(0).width, ra = 0, aOn = 0;
-    const SIZE = [[0.18, 0.32], [0.42, 0.52], [0.62, 0.7]];
+    const SIZE = [[0.1, 0.15], [0.19, 0.24], [0.32, 0.4]]; // (the star at the hilt: small, big only at the full draw)
     this.add({ t: 0, step: (dt, t) => {
       if (r.phase !== 'startup') { star.destroy(); core.destroy(); for (const im of aura) im.destroy(); s.tweens.add({ targets: reach, alpha: 0, duration: 120, onComplete: () => reach.destroy() }); return false; }
       const e = r.elapsed, nl = e >= at[2] ? 2 : e >= at[1] ? 1 : 0, q = hip() ?? p0, c = this.me(r);
       if (nl > lv) { // a step up: the glint flares, the reach grows
         lv = nl;
-        this.pop('glint', q.x, q.y, 120 + lv * 70, { life: 240, angle: 0, depth: TOP + 1 });
-        this.pop('burst', q.x, q.y, 70 + lv * 30, { life: 200, depth: TOP + 1 });
+        this.pop('glint', q.x, q.y, 70 + lv * 45, { life: 220, angle: 0, depth: TOP + 1 });
+        this.pop('burst', q.x, q.y, 40 + lv * 24, { life: 180, depth: TOP + 1 });
         if (lv === 2) this.petals(q.x, q.y, 8, 70, { depth: q.d + 5 });
         if (r.own) this.ctx.cam().shake(50 + lv * 30, 0.0012 * lv);
       }
@@ -780,7 +797,7 @@ export class SamuraiFx {
       const [s0, s1] = SIZE[lv], span = lv === 2 ? 1 : Math.max(1, at[lv + 1] - at[lv]), k = Math.min(1, (e - at[lv]) / span);
       const sz = (s0 + (s1 - s0) * k) * (1 + 0.08 * Math.sin(t / (lv === 2 ? 30 : 60)));
       star.setPosition(q.x, q.y).setScale(sz).setAngle(t * 0.06).setDepth(q.d + 6).setAlpha(0.85 + 0.15 * Math.sin(t / 45));
-      core.setPosition(q.x, q.y).setDisplaySize(34 + 52 * sz, 34 + 52 * sz).setDepth(q.d + 5.9);
+      core.setPosition(q.x, q.y).setDisplaySize(18 + 44 * sz, 18 + 44 * sz).setDepth(q.d + 5.9);
       return true;
     } });
   }
@@ -1210,28 +1227,30 @@ export class SamuraiFx {
     this.add({ t: 0, step: (_dt, t) => {
       const e = t - T.startup, c = this.ctx.casterPos(r.attackerId);
       if (e < 0) return true;
-      if (this.broken(r) || !c || e > hitAt + 30) { bird.destroy(); glow.destroy(); return false; }
+      if (this.broken(r) || !c || r.fired.has(1) || e > hitAt + 30) { bird.destroy(); glow.destroy(); return false; } // (gone the moment it strikes: the explosion takes its place)
       const p = e / Math.max(1, hitAt), up = p < 0.42, ang = up ? side * -78 : side * 8, al = up ? Math.min(1, p / 0.25) * 0.75 : 1;
       const x = c.x - side * 6, y = c.y - c.z - 56;
       bird.setVisible(true).setPosition(x, y).setScale(k).setAngle(ang).setDepth(c.y + 3).setAlpha(al);
       glow.setVisible(true).setPosition(x, y).setScale(k * 1.04).setAngle(ang).setDepth(c.y + 3.01).setAlpha(al * 0.4);
       if (!up && e - lastGhost > 36) { // afterimages of the bird on the dive
         lastGhost = e;
-        this.spr({ name: 'falcon_dive', x, y, depth: c.y + 2, w: 190, angle: ang, flipX: fl, life: 200, add: true, a: kf([0, 0.45], [1, 0, inQ]) });
+        this.spr({ name: 'falcon_dive', x, y, depth: c.y + 2, w: 190, angle: ang, flipX: fl, life: 140, add: true, a: kf([0, 0.4], [1, 0, inQ]) });
       }
       return true;
     } });
   }
   private falconImpact(r: CastRun): void {
     const q = this.me(r), side = sideOf(r), cam = this.ctx.cam();
-    // an explosion of light where he strikes the floor: a flare, rays, a pillar of light, a burst
-    this.pop('sun_flare', q.x, q.y - 46, 380, { life: 520, depth: TOP + 3, angle: 0, glow: 0.55 });
-    this.spr({ name: 'sun_rays', x: q.x, y: q.y - 40, w: 470, life: 620, add: true, tint: 0xff6a78, depth: TOP + 2.9, rot: (u) => 18 * u,
-      sx: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.2]), sy: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.2]), a: kf([0, 1], [0.4, 0.85], [1, 0, inQ]) });
-    this.spr({ name: 'launch_beam', x: q.x, y: q.y + 6, oy: 0.95, depth: q.y + 3.2, w: 230, h: 300, life: 420, glow: 0.45,
-      sx: kf([0, 0.4], [0.2, 1, out3], [1, 0.6]), sy: kf([0, 0.2], [0.18, 1, out3], [1, 1.1]), a: kf([0, 1], [0.35, 0.9], [1, 0, inQ]) });
-    this.pop('burst_crit', q.x, q.y - 30, 260, { life: 380, depth: TOP + 3.2 });
-    this.spr({ name: 'falcon_spread', x: q.x, y: q.y + 6, oy: 0.92, depth: q.y + 3, w: 270, life: 560, glow: 0.45,
+    // an explosion of light where he strikes the floor: a short white flash in front, and the fire falcon's wings, rays of
+    // light and a pillar of light opening BEHIND the fighters (they stay in sight, standing in it); the wave runs out along
+    // the floor
+    this.pop('glint', q.x, q.y - 44, 210, { life: 180, depth: TOP + 3, angle: 0, glow: 0.7, add: true }); // (the flash: light only — no dark core over the fighters)
+    this.spr({ name: 'sun_rays', x: q.x, y: q.y - 50, w: 320, life: 440, add: true, tint: 0xff6a78, depth: q.y - 3, rot: (u) => 18 * u,
+      sx: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.15]), sy: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.15]), a: kf([0, 0.9], [0.35, 0.65], [1, 0, inQ]) });
+    this.spr({ name: 'launch_beam', x: q.x, y: q.y + 6, oy: 0.95, depth: q.y - 2.8, w: 160, h: 240, life: 320, glow: 0.4,
+      sx: kf([0, 0.4], [0.2, 1, out3], [1, 0.6]), sy: kf([0, 0.2], [0.18, 1, out3], [1, 1.1]), a: kf([0, 1], [0.35, 0.85], [1, 0, inQ]) });
+    this.pop('burst_crit', q.x, q.y - 30, 120, { life: 220, depth: TOP + 3.2 });
+    this.spr({ name: 'falcon_spread', x: q.x, y: q.y + 6, oy: 0.92, depth: q.y - 3.2, w: 250, life: 460, glow: 0.4,
       sx: kf([0, 0.5], [0.25, 1.05, out3], [1, 1.15]), sy: kf([0, 0.4], [0.25, 1.05, out3], [1, 1.2]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]), my: (u) => -24 * u });
     this.shock(q.x, q.y, 300); this.shock(q.x, q.y, 380, { delay: 80 });
     this.crack(q.x, q.y + 2, 170, side * 8); this.dustRing(q.x, q.y, 240); this.dust(q.x - 50, q.y, 110); this.dust(q.x + 50, q.y, 110, 40);
@@ -1250,27 +1269,36 @@ export class SamuraiFx {
     const cloth = s.add.rope(cx, top, KIT, 'banner_cloth', pts, false).setDepth(by - 3.2).setVisible(false);
     const fr = s.textures.getFrame(KIT, 'banner_cloth');
     cloth.setScale(clothW / fr.width, 1);
-    const rays = s.add.image(cx, top + clothH * 0.3, KIT, 'sun_rays').setBlendMode(Phaser.BlendModes.ADD).setDepth(by - 3.3).setVisible(false);
-    const rk = 160 / rays.width;
+    // the sun on the banner shines: golden rays round it, turning slowly (long and short in turn), from just outside its disc
+    const ray = this.rayTex(), NR = 12, SUN = 0.32, R0 = clothW * 0.26, ck = clothW / fr.width;
+    const rays = Array.from({ length: NR * 2 }, (_, i) => { const im = s.add.image(0, 0, ray).setOrigin(0, 0.5).setVisible(false); if (i >= NR) im.setBlendMode(Phaser.BlendModes.ADD); return im; });
+    let fired = -1;
+    const kill = () => { pole.destroy(); cloth.destroy(); for (const im of rays) im.destroy(); };
     this.add({ t: 0, step: (_dt, t) => {
-      if ((this.broken(r) && t < T.startup + 20) || this.gone(r)) { pole.destroy(); cloth.destroy(); rays.destroy(); return false; }
+      if ((this.broken(r) && t < T.startup + 20) || this.gone(r)) { kill(); return false; }
       const rise = Math.min(1, t / Math.max(1, T.startup)), up = back(rise), fade = t > life - 450 ? Math.max(0, (life - t) / 450) : 1;
       pole.setVisible(true).setScale((poleH / pole.height) * 1, (poleH / pole.height) * up).setAlpha(Math.min(1, t / 120) * fade);
       const ty = by - (by - top) * up;
       cloth.setVisible(up > 0.6).setPosition(cx, ty).setAlpha(Math.min(1, (up - 0.6) / 0.3) * fade);
       for (let i = 0; i < N; i++) { const v = i / (N - 1); pts[i].set(-side * Math.sin(t / 230 + v * 3.1) * 9 * v + side * 4 * v * v, v * clothH * (0.92 + 0.08 * Math.sin(t / 310 + v))); }
       cloth.setPoints(pts);
-      rays.setVisible(t > T.startup * 0.5).setPosition(cx, ty + clothH * 0.3).setScale(rk * (1 + 0.08 * Math.sin(t / 120)) * Math.min(1, (t - T.startup * 0.5) / 300)).setAngle(t * 0.03).setAlpha(0.65 * fade);
-      if (t >= life) { pole.destroy(); cloth.destroy(); rays.destroy(); return false; }
+      if (fired < 0 && r.fired.has(0)) { fired = t; } // (its light breaks: the rays flare up, longer and brighter, and settle)
+      const fl = fired < 0 ? 0 : Math.max(0, 1 - (t - fired) / 650), on = Math.max(0, Math.min(1, (t - T.startup * 0.5) / 300)) * fade * Math.min(1, (up - 0.6) / 0.3);
+      const sx = cx + (-side * Math.sin(t / 230 + SUN * 3.1) * 9 * SUN + side * 4 * SUN * SUN) * ck, sy = ty + SUN * clothH * (0.92 + 0.08 * Math.sin(t / 310 + SUN)); // (the sun on the cloth, as it waves)
+      rays.forEach((im, i) => {
+        const k = i % NR, th = (k / NR) * 360 + t * 0.02, rad = (th * Math.PI) / 180, L = (k % 2 ? 15 : 24) * (1 + 0.1 * Math.sin(t / 160 + k)) * (1 + 1.3 * out(fl)), glow = i >= NR;
+        im.setVisible(on > 0.01).setPosition(sx + Math.cos(rad) * R0, sy + Math.sin(rad) * R0).setAngle(th).setDisplaySize(L, glow ? 6 : 4.5)
+          .setDepth(by - 3.15 + (glow ? 0.01 : 0)).setAlpha(on * (glow ? 0.45 + 0.4 * fl : 0.9));
+      });
+      if (t >= life) { kill(); return false; }
       return true;
     } });
   }
-  /** The banner's light breaks over him: a golden aura flares up round him, rays behind the banner, rings of light run out —
+  /** The banner's light breaks over him: a golden aura flares up round him, the sun on the banner flares, rings of light run out —
    *  and a faint golden light stays on him for the buff. */
   private sunBurst(r: CastRun): void {
-    const q = this.me(r), side = sideOf(r);
+    const q = this.me(r);
     this.auraFlare(r, 'aura_gold', 200, 1000);
-    this.pop('sun_rays', q.x - side * 70, q.y - q.z - 150, 340, { life: 520, add: true, glow: 0.4, angle: 0 });
     this.shock(q.x, q.y, 320, { tint: 0xffd27a }); this.shock(q.x, q.y, 420, { tint: 0xffd27a, delay: 90 });
     this.petals(q.x, q.y - 80, 14, 140, { depth: q.y + 4 });
     if (r.own) this.ctx.cam().shake(160, 0.004);
@@ -1379,7 +1407,7 @@ export class SamuraiFx {
    *  of stone dust each (each bound foe gets its branches, `cage`). */
   private bloom(r: CastRun): void {
     const h0 = r.skill.hits[0], R = (h0.shape as { radius: number }).radius, c = r.place ?? r.origin;
-    this.floor('vortex', c.x, c.y, R * 1.9, 420, { spin: -240, depth: GROUND + 2.4, tint: 0xffd2da, a: kf([0, 0.5], [0.5, 0.35], [1, 0, inQ]), s: kf([0, 1.1], [1, 0.35, inQ]) });
+    this.floor('vortex', c.x, c.y, R * 1.9, 420, { spin: -240, depth: GROUND + 2.4, tint: 0xffd2da, a: kf([0, 0.28], [0.5, 0.2], [1, 0, inQ]), s: kf([0, 1.1], [1, 0.35, inQ]) });
     for (let i = 0; i < 8; i++) {
       const th = (i / 8) * Math.PI * 2 + rnd(-0.15, 0.15), bx = c.x + Math.cos(th) * R * 1.0, by = c.y + Math.sin(th) * R * SQUASH, dl = 30 + i * 18;
       this.floor('crack', bx, by + 3, 34, 1400, { angle: rnd(0, 360) + CRACK_TILT, squash: 0.5, delay: dl, depth: GROUND + 1.6, tint: 0x4a2418, a: kf([0, 0], [0.05, 0.7], [0.7, 0.6], [1, 0]) });
@@ -1479,7 +1507,7 @@ export class SamuraiFx {
 
   private haloSlot(h: Halo, k: number, c: V3): { x: number; y: number; ang: number } {
     const th = Phaser.Math.DegToRad(-160 + (k / 7) * 140 + 3 * Math.sin(h.t / 600 + k)), px = c.x - h.face * 12, py = c.y - c.z - 70;
-    const dx = Math.cos(th) * 52 * -h.face, dy = Math.sin(th) * 46;
+    const dx = Math.cos(th) * 52 * h.face, dy = Math.sin(th) * 46; // (the first of them behind his back)
     return { x: px + dx, y: py + dy, ang: Phaser.Math.RadToDeg(Math.atan2(dy, dx)) + 90 };
   }
 
@@ -1565,12 +1593,22 @@ export class SamuraiFx {
   projectileEnd(p: Projectile): void {
     const w = this.waves.get(p); if (!w) return;
     this.waves.delete(p);
-    const end = p.end ?? { x: p.x, y: p.y }, fl = p.dx < -0.01, ang = screenAng(p.dx, p.dy);
-    const shatter = (x: number, y: number, size: number) => this.spr({ name: 'wave_break', x, y, w: size, life: 320, flipX: fl, angle: along(ang, fl) * 0.3, glow: 0.35, depth: TOP + 4,
+    const end = p.end ?? { x: p.x, y: p.y, reason: 'range' as const }, fl = p.dx < -0.01, ang = screenAng(p.dx, p.dy), foe = end.reason === 'target', wall = end.reason === 'cover';
+    const shatter = (x: number, y: number, size: number) => this.spr({ name: 'wave_break', x, y, w: size, life: foe ? 380 : 320, flipX: fl, angle: along(ang, fl) * 0.3, glow: 0.35, depth: TOP + 4,
       sx: kf([0, 0.6], [0.2, 1.05, out3], [1, 1.2]), sy: kf([0, 0.6], [0.2, 1.05, out3], [1, 1.2]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
-    shatter(end.x, end.y - p.z, 128);
+    const impact = (x: number, y: number, k: number) => { // it strikes: the crescent flattens against what it hit and bursts, its force spraying on through
+      this.spr({ name: 'wave_crescent', x, y, ox: 0.76, angle: ang, flipY: fl, w: 150 * k, depth: TOP + 4.2, life: 200, glow: 0.5,
+        sx: kf([0, 1], [1, 1.5, out]), sy: kf([0, 1], [1, 0.25, inQ]), a: kf([0, 1], [1, 0, inQ]) });
+      this.spr({ name: 'spark_spray', x, y, ox: fl ? 0.95 : 0.05, oy: 0.45, flipX: fl, angle: along(ang, fl), depth: TOP + 3.9, w: 170 * k, life: 280,
+        sx: kf([0, 0.4], [0.25, 1, out3], [1, 1.12]), sy: kf([0, 0.6], [0.25, 1, out3]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
+      this.petals(x, y, Math.round(10 * k), 70 * k, { depth: TOP + 3 });
+    };
+    const size = foe ? 190 : wall ? 150 : 112;
+    shatter(end.x, end.y - p.z, size);
+    if (foe || wall) impact(end.x, end.y - p.z, foe ? 1 : 0.75);
+    if (wall) this.dust(end.x, end.y, 90);
     w.im.destroy(); w.gl.destroy();
-    for (const g of w.ghosts) { shatter(end.x + g.dx, end.y + g.dy - p.z, 108); g.im.destroy(); }
+    for (const g of w.ghosts) { shatter(end.x + g.dx, end.y + g.dy - p.z, size * 0.8); g.im.destroy(); }
   }
   private stepWaves(dt: number): void {
     for (const [p, w] of this.waves) {

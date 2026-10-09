@@ -45,12 +45,12 @@ const CUTIN: Record<string, string> = { titans_verdict: 'titan-cutin', sky_rain:
 /** Orientation of each final VFX sheet: 'dir' sheets are drawn pointing right and rotate with the aim. */
 /** Upright sheets whose bottom edge is the ground line (drawn standing on the impact point). */
 /** Ground-point origin (fraction of the cell height) for sheets drawn standing on the impact point. */
-const GROUND_ANCHORED = new Map<string, number>([['titans_verdict', 0.97], ['rising_slash', 0.84], ['ground_breaker', 0.8], ['whirlwind', 0.56], ['leap_crash', 0.88], ['war_cry', 0.88]]);
+const GROUND_ANCHORED = new Map<string, number>([['titans_verdict', 0.97], ['rising_slash', 0.84], ['ground_breaker', 0.8], ['whirlwind', 0.56], ['leap_crash', 0.88], ['war_cry', 0.88], ['sky_breaker', 0.84], ['earthsplitter', 0.8]]);
 /** Frames played during startup (anticipation) — the next frame is the impact at active start. */
 const PRE_FRAMES: Record<string, number> = { titans_verdict: 4 };
 /** Sheets whose frame count differs from the slot default. */
 const VFX_FRAMES: Record<string, number> = { titans_verdict: 12 };
-const UPRIGHT = new Set(['rising_slash', 'iron_grip', 'leap_crash', 'war_cry', 'titans_verdict', 'ground_breaker', 'whirlwind', 'shield_slam', 'blade_storm', 'binding_rune', 'astral_burst', 'frost_nova', 'storm_field',
+const UPRIGHT = new Set(['rising_slash', 'iron_grip', 'sky_breaker', 'earthsplitter', 'leap_crash', 'war_cry', 'titans_verdict', 'ground_breaker', 'whirlwind', 'shield_slam', 'blade_storm', 'binding_rune', 'astral_burst', 'frost_nova', 'storm_field',
   'time_collapse', 'explosive_arrow', 'vine_trap', 'rain_of_arrows', 'spin_cut']);
 const PROJECTILE_SHEETS: Record<string, { cell: number; frames: number; ext?: string }> = {
   arcane_bolt: { cell: 128, frames: 8 }, lightning_chain: { cell: 192, frames: 8 }, quick_shot: { cell: 128, frames: 8 },
@@ -188,6 +188,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   if (!scene.textures.exists('jb-bolt')) scene.load.spritesheet('jb-bolt', `${F}/skills/warrior/judgment_blade/bolt.png`, { frameWidth: 256, frameHeight: 512 });
   if (!scene.textures.exists('storm-ring')) scene.load.spritesheet('storm-ring', `${F}/skills/warrior/judgment_blade/ring.png`, { frameWidth: 256, frameHeight: 256 });
   if (!scene.textures.exists('sanctuary-wall')) scene.load.spritesheet('sanctuary-wall', `${F}/skills/warrior/sanctuary/wall.png`, { frameWidth: 256, frameHeight: 512 });
+  if (!scene.textures.exists('cry-lion')) scene.load.spritesheet('cry-lion', `${F}/skills/warrior/war_cry/lion.png`, { frameWidth: 256, frameHeight: 256 }); // War Cry: the lion spirit roaring up out of the floor
   if (!scene.textures.exists('cry-shield')) scene.load.spritesheet('cry-shield', `${F}/skills/warrior/war_cry/shield.png`, { frameWidth: 300, frameHeight: 300 });
   if (!scene.textures.exists('bs-storm')) scene.load.spritesheet('bs-storm', `${F}/skills/warrior/blade_storm/storm.png`, { frameWidth: 280, frameHeight: 440 });
   if (!scene.textures.exists('bs-erupt')) scene.load.spritesheet('bs-erupt', `${F}/skills/warrior/blade_storm/erupt_a.png`, { frameWidth: 250, frameHeight: 667 });
@@ -335,6 +336,9 @@ export class SkillFx {
     if (s.id === 'judgment_blade') this.judgment(r);
     else if (s.id === 'guard_counter') this.aegis(r);
     else if (s.id === 'war_cry') this.roar(r);
+    else if (s.id === 'judgment_hook') this.hookChain(r);
+    else if (s.id === 'sky_breaker') this.skyBreaker(r);
+    else if (s.id === 'earthsplitter') this.aura(r); // (the charge: his aura while the key is held; the split itself plays on the release, onActive)
     else if (s.id === 'iron_oath') this.oathSigil(r);
     else if (s.id === 'legacy_banner') { // planted in front of the caster where the sword comes down (every client sees it)
       const side = r.aim.x < 0 ? -1 : 1, bx = r.origin.x + side * 70, by = r.origin.y;
@@ -353,6 +357,7 @@ export class SkillFx {
   private onActive(r: CastRun): void {
     if (r.skill.cls === 'samurai') this.sam.active(r);
     if (r.skill.cls === 'book_mage') this.mage.active(r);
+    if (r.skill.id === 'earthsplitter') this.earthsplit(r);
     this.dropTele(r, true); // VFX timelines are pre-scheduled from the cast; telegraphs end here
     const sh = SHOCK[r.skill.id];
     if (sh) {
@@ -447,6 +452,48 @@ export class SkillFx {
     if (!small) (this.cam ?? this.scene.cameras.main).shake(140, 0.006);
   }
 
+  /** Judgment Hook: the chain of light shoots out from his hand along the aim, bites at the hit, snaps back. */
+  private hookChain(r: CastRun): void {
+    const T = r.timings, a = r.aim, ang = Math.atan2(a.y, a.x) * (180 / Math.PI), key = vfxKey('judgment_hook');
+    const len = 392, hitAt = r.skill.hits[0]?.at ?? 90; // (the sheet: the chain drawn from the cell's left edge, 248 of 256 px = 380 px of reach)
+    const out = Math.max(20, hitAt / 3), back = Math.max(50, (T.active - hitAt + T.recovery) / 3);
+    this.scene.time.delayedCall(Math.max(0, T.startup - 50), () => {
+      if (r.phase === 'done' && r.elapsed < T.startup) return; // (cancelled before the throw)
+      const c = this.casterPos(r.attackerId) ?? r.origin;
+      this.play(key, c.x + a.x * 18, c.y + a.y * 18 - c.z - 44, len, len, [50, out, out, out, 110, back, back, back],
+        { ox: 0, oy: 0.5, angle: ang, flipY: a.x < 0, depth: TOP - 5, blend: Phaser.BlendModes.ADD, fadeLast: 90, follow: () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x + a.x * 18, y: p.y + a.y * 18, z: p.z + 44 } : null; } });
+    });
+  }
+
+  /** Sky Breaker: three rising crescents ride up with him in the air, the light-blade strikes down, the ring bursts where he lands. */
+  private skyBreaker(r: CastRun): void {
+    const T = r.timings, key = vfxKey('sky_breaker'), flip = r.aim.x < 0, H = r.skill.hits;
+    const h3 = H[2]?.at ?? 280, slam = H[H.length - 1]?.at ?? 560, size = 300;
+    const air = () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x, y: p.y, z: p.z } : null; };
+    this.scene.time.delayedCall(T.startup, () => {
+      if (r.phase === 'done' && r.elapsed < T.startup) return;
+      const c = this.casterPos(r.attackerId) ?? r.origin;
+      const step = Math.max(50, h3 / 3), down = Math.max(60, slam - h3 - 40);
+      this.play(key, c.x, c.y - c.z, size, size, [50, step, step, step * 1.3, down], { oy: 0.9, flip, depth: TOP - 5, blend: Phaser.BlendModes.ADD, fadeLast: 60, follow: air });
+    });
+    this.scene.time.delayedCall(T.startup + slam - 30, () => { // the landing: the ring on the floor where he comes down
+      const c = this.casterPos(r.attackerId) ?? r.origin;
+      this.play(key, c.x, c.y + 6, size * 1.15, size * 1.15, [120, 150, 200], { frames: [5, 6, 7], oy: 0.9, flip, depth: c.y + 2, blend: Phaser.BlendModes.ADD, fadeLast: 160 });
+      (this.cam ?? this.scene.cameras.main).shake(160, 0.007);
+    });
+  }
+
+  /** Earthsplitter's release: the earth splits in front of him — as far and wide as the level the hold reached. */
+  private earthsplit(r: CastRun): void {
+    const key = vfxKey('earthsplitter'), T = r.timings, lv = r.chargeLevel ?? 0, c = this.casterPos(r.attackerId) ?? r.origin;
+    const range = [200, 280, 360][lv] ?? 200, a = r.aim, w = range * 1.25, h = w * (256 / 384);
+    const x = c.x + a.x * range * 0.55, y = c.y + a.y * range * 0.55;
+    const d = Math.max(60, (T.active + T.recovery) / 8);
+    this.play(key, x, y + 10, w, h, [d * 0.6, d * 0.7, d, d, d * 1.3, d * 1.2, d * 1.2, d * 1.4], { oy: 0.98, flip: a.x < 0, depth: y + 4, blend: Phaser.BlendModes.ADD, fadeLast: 200 });
+    (this.cam ?? this.scene.cameras.main).shake(180 + lv * 120, 0.006 + lv * 0.004);
+    this.shockwave(x, y, range * 0.9, 0xffc060);
+  }
+
   private roar(r: CastRun): void {
     const T = r.timings, c0 = this.casterPos(r.attackerId); if (!c0) return;
     const glow = this.scene.add.image(c0.x, c0.y - c0.z - 46, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd36a).setDepth(c0.y - 1).setDisplaySize(60, 80).setAlpha(0);
@@ -459,6 +506,8 @@ export class SkillFx {
       this.scene.tweens.add({ targets: pillar, alpha: 0, delay: 160, duration: 420, onComplete: () => pillar.destroy() });
       const flash = this.scene.add.image(c.x, c.y - c.z - 50, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffffff).setDepth(TOP).setDisplaySize(120, 120);
       this.scene.tweens.add({ targets: flash, displayWidth: 380, displayHeight: 380, alpha: 0, duration: 260, ease: 'Cubic.easeOut', onComplete: () => flash.destroy() });
+      { const step = Math.max(70, Math.round((T.active + 260) / 8)); // the golden lion roars up out of the floor at his feet, its rings flat on the floor
+        this.play('cry-lion', c.x, c.y + 8, 330, 330, [step * 0.6, step * 0.8, step, step * 1.4, step * 1.2, step, step, step * 1.2], { oy: 0.97, depth: c.y + 2, blend: Phaser.BlendModes.ADD, fadeLast: 160, follow: () => this.casterPos(r.attackerId) }); }
       const waves = Math.max(3, Math.round(T.active / 150)); // the roar keeps ringing out for the whole active window
       for (let i = 0; i < waves; i++) this.scene.time.delayedCall(i * 150, () => { const p = this.casterPos(r.attackerId) ?? c; this.shockwave(p.x, p.y, 200 + (i % 3) * 70, i % 3 === 1 ? 0xffffff : 0xffd36a); });
       const hold = this.scene.add.image(c.x, c.y - c.z - 50, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd36a).setDepth(c.y - 1).setDisplaySize(190, 230).setAlpha(0.75);
@@ -503,10 +552,10 @@ export class SkillFx {
   /** Titan's Verdict: a colossal lightning dragon dives from the sky onto the target zone (after the cut-in and screen split). */
   private dragon(r: CastRun): void {
     const T = r.timings, a = r.aim, at = { x: r.origin.x + a.x * 110, y: r.origin.y + a.y * 110 };
-    const pre = 420, dive = T.startup - pre; // the dragon dives after the cut-in and the tear // frames 0-3 dive in, frame 4 = impact on the active start
+    const pre = 480, dive = Math.max(0, T.startup - pre); // the titan of light rises after the cut-in and the tear: frames 0-5 rise and lift the sword, frame 6 = the sword driven into the floor on the active start
     const img = this.scene.add.image(at.x, at.y + 10, 'titan-dragon', 0).setOrigin(0.5, 0.97).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(470, 740).setDepth(TOP + 2);
-    const fr = [12, 0, 1, 2, 3, 4, 5, 5, 6, 7, 8, 9, 10, 11]; // 12 = empty frame while the cut-in plays (sim-timed)
-    const fms = [dive, pre * 0.25, pre * 0.25, pre * 0.25, pre * 0.25, 130, 160, 140, 170, 170, 170, 180, 200, 240];
+    const fr = [12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]; // 12 = empty frame while the cut-in plays (sim-timed)
+    const fms = [dive, pre * 0.14, pre * 0.14, pre * 0.16, pre * 0.16, pre * 0.18, pre * 0.22, 150, 170, 180, 190, 210, 260];
     this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: fr, frameMs: fms, fadeLast: 240 });
     this.scene.time.delayedCall(T.startup, () => { // impact flash rings
       this.shockwave(at.x, at.y, 320, 0xfff0b0); this.scene.time.delayedCall(90, () => this.shockwave(at.x, at.y, 420, 0xffc860));

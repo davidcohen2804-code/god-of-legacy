@@ -102,6 +102,8 @@ def main():
   # their height: the game stands you there only up on top)
   hp = R + 'src/data/world-heights.json'
   ups = [box(h['walk'][0], h['back'] + 4, h['walk'][1], h['front'] + 8) for h in (json.load(open(hp)) if os.path.exists(hp) else [])]
+  cp = R + 'src/data/world-clouds.json'   # the Sky Path's lane (clouds.py), on from Ivy Summit's floor
+  if os.path.exists(cp): C = json.load(open(cp)); ups.append(box(C['lane'][0] - 2, C['band'][0] - 4, C['lane'][1], C['band'][1] + 4))
   allw = unary_union([walk, stairs, floorW, *ups])
   assert allw.geom_type == 'Polygon', allw.geom_type
   coords = [[round(x, 1), round(y, 1)] for x, y in list(allw.exterior.coords)[:-1]]
