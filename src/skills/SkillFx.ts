@@ -197,6 +197,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   if (!scene.textures.exists('bs-erupt')) scene.load.spritesheet('bs-erupt', `${F}/skills/warrior/blade_storm/erupt_a.png`, { frameWidth: 250, frameHeight: 667 });
   if (!scene.textures.exists('titan-dragon')) scene.load.spritesheet('titan-dragon', `${F}/skills/warrior/titans_verdict/dragon.png`, { frameWidth: 280, frameHeight: 440 });
   if (!scene.textures.exists('titan-tear')) scene.load.spritesheet('titan-tear', `${F}/skills/warrior/titans_verdict/tear.png`, { frameWidth: 640, frameHeight: 360 });
+  if (!scene.textures.exists('titan-field')) scene.load.spritesheet('titan-field', `${F}/skills/warrior/titans_verdict/field.png`, { frameWidth: 512, frameHeight: 256 }); // the electrified floor it leaves
   if (!scene.textures.exists('titan-cutin')) scene.load.image('titan-cutin', `${F}/skills/warrior/titans_verdict/cutin.png`);
   if (!scene.textures.exists('holy-aura')) scene.load.spritesheet('holy-aura', `${F}/skills/warrior/radiant_blade/aura.png`, { frameWidth: 250, frameHeight: 667 });
   if (!scene.textures.exists('holy-bolt')) scene.load.spritesheet('holy-bolt', `${F}/skills/warrior/radiant_blade/bolt.png`, { frameWidth: 250, frameHeight: 500 });
@@ -585,23 +586,14 @@ export class SkillFx {
   /** Titan's Verdict: the struck floor stays electrified — a wide oval across the floor's depth, golden lightning crawling
    *  over it and arcing up, fading at the end (the hits are the skill's linger). */
   private titanField(x: number, y: number, ms: number): void {
-    const W = 250, H = 105, g = this.scene.add.graphics().setDepth(GROUND + 1.6).setBlendMode(Phaser.BlendModes.ADD);
-    const pt = (u: number, v: number) => ({ x: x + Math.cos(u) * W * v, y: y + Math.sin(u) * H * v });
-    let t = 0, last = -1;
-    const zig = (a: { x: number; y: number }, b: { x: number; y: number }, amp: number, k: number) => {
-      const pts = [a]; const nx = -(b.y - a.y), ny = b.x - a.x, l = Math.hypot(nx, ny) || 1;
-      for (let i = 1; i < 6; i++) { const f = i / 6, o = (Math.random() - 0.5) * 2 * amp; pts.push({ x: a.x + (b.x - a.x) * f + (nx / l) * o, y: a.y + (b.y - a.y) * f + (ny / l) * o * 0.5 }); }
-      pts.push(b);
-      for (const [w, col, al] of [[5, 0xff9a20, 0.28], [2.4, 0xffd870, 0.85], [1, 0xffffff, 1]] as const) { g.lineStyle(w, col, al * k).beginPath(); g.moveTo(pts[0].x, pts[0].y); for (const p of pts) g.lineTo(p.x, p.y); g.strokePath(); }
-    };
-    const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
-      t += 16; if (t >= ms) { ev.remove(); g.destroy(); return; }
-      const step = Math.floor(t / 70); if (step === last) return; last = step; // the bolts jump every 70ms
-      const k = Math.min(1, t / 180) * Math.min(1, (ms - t) / 500); g.clear();
-      g.fillStyle(0xffb030, 0.1 * k).fillEllipse(x, y, W * 2, H * 2); g.fillStyle(0xffe08a, 0.08 * k).fillEllipse(x, y, W * 1.2, H * 1.2);
-      g.lineStyle(3, 0xffc050, 0.55 * k).strokeEllipse(x, y, W * 2, H * 2);
-      for (let i = 0; i < 7; i++) { const u = Math.random() * Math.PI * 2; zig(pt(u, 0.15 + Math.random() * 0.3), pt(u + (Math.random() - 0.5) * 1.6, 0.75 + Math.random() * 0.25), 16, k); } // crawling over the floor
-      for (let i = 0; i < 2; i++) { const p = pt(Math.random() * Math.PI * 2, Math.random() * 0.85); zig(p, { x: p.x + (Math.random() - 0.5) * 20, y: p.y - 40 - Math.random() * 50 }, 8, k * 0.9); } // arcing up out of it
+    if (!this.scene.textures.exists('titan-field')) return;
+    const W = 660, img = this.scene.add.image(x, y, 'titan-field', 0).setOrigin(0.5, 0.52).setBlendMode(Phaser.BlendModes.ADD).setDepth(GROUND + 1.6).setDisplaySize(W, W / 2).setAlpha(0);
+    const mix = this.scene.add.image(x, y, 'titan-field', 1).setOrigin(0.5, 0.52).setBlendMode(Phaser.BlendModes.ADD).setDepth(GROUND + 1.61).setDisplaySize(W, W / 2).setAlpha(0);
+    let t = 0;
+    const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { // the painted loop, each frame dissolving into the next
+      t += 16; if (t >= ms) { ev.remove(); img.destroy(); mix.destroy(); return; }
+      const k = Math.min(1, t / 220) * Math.min(1, (ms - t) / 600), q = t / 95, f = Math.floor(q) % 8, u = q - Math.floor(q);
+      img.setFrame(f).setAlpha(k * (1 - u * 0.85)); mix.setFrame((f + 1) % 8).setAlpha(k * u);
     } });
   }
 
@@ -612,7 +604,7 @@ export class SkillFx {
     const fr = [12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]; // 12 = empty frame while the cut-in plays (sim-timed)
     const fms = [dive, pre * 0.14, pre * 0.14, pre * 0.16, pre * 0.16, pre * 0.18, pre * 0.22, 150, 170, 180, 190, 210, 260];
     this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: fr, frameMs: fms, fadeLast: 240 });
-    // (the electrified floor's painted sheet comes in titanField once it is drawn; no hand-drawn bolts meanwhile)
+    this.scene.time.delayedCall(T.startup + 160, () => this.titanField(at.x, at.y, (r.skill.linger?.startMs ?? 760) - 160 + (r.skill.linger?.everyMs ?? 350) * (r.skill.linger?.count ?? 9))); // the struck floor stays electrified
     this.scene.time.delayedCall(T.startup, () => { // impact flash rings
       this.shockwave(at.x, at.y, 320, 0xfff0b0); this.scene.time.delayedCall(90, () => this.shockwave(at.x, at.y, 420, 0xffc860));
       (this.cam ?? this.scene.cameras.main).shake(420, 0.014);
