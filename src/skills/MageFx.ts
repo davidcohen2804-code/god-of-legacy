@@ -16,7 +16,8 @@ export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
   'mfx-pillar': ['astral_pillar.png', 384, 384, 16],
   'mfx-storm': ['arcane_lightning.png', 384, 384, 16],
   'mfx-nova': ['frost_nova.png', 448, 448, 16],
-  'mfx-bolt': ['arcane_bolt.png', 384, 384, 16], // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
+  'mfx-bolt': ['arcane_bolt.png', 384, 384, 16],
+  'mfx-clock': ['time_collapse.png', 448, 448, 16], // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
 };
 const TOP = 100000, GROUND = 2, SQUASH = 0.42;
 const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
@@ -63,6 +64,8 @@ const kf = (...k: Key[]) => (u: number): number => {
   return k[k.length - 1][1];
 };
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
+/** Frame at time t from [frame, ms] keys (linear between keys). */
+const keyFrame = (K: [number, number][], t: number): number => { for (let i = 1; i < K.length; i++) if (t <= K[i][1]) { const [f0, t0] = K[i - 1], [f1, t1] = K[i]; return f0 + ((f1 - f0) * (t - t0)) / Math.max(1, t1 - t0); } return K[K.length - 1][0]; };
 const sideOf = (r: CastRun) => (r.aim.x < -0.01 ? -1 : 1);
 /** On-screen angle (deg) of a direction along the floor (depth is foreshortened). */
 const screenAng = (dx: number, dy: number) => Math.atan2(dy * 0.5, dx) * (180 / Math.PI);
@@ -325,14 +328,14 @@ export class MageFx {
       { uA: el, delay: o.delay, depth: o.depth ?? TOP + 4 });
   }
   /** A painted sheet played once (additive): its frames spread over `life` ms; (ox, oy) = the anchor inside a frame. */
-  private sheet(key: string, x: number, y: number, size: number, life: number, o: { ox?: number; oy?: number; delay?: number; depth?: number; flipX?: boolean; alpha?: number; sx?: number; sy?: number; follow?: () => { x: number; y: number } | null; split?: [number, number]; run?: CastRun; frames?: [number, number]; loop?: number; tint?: number } = {}): void {
+  private sheet(key: string, x: number, y: number, size: number, life: number, o: { ox?: number; oy?: number; delay?: number; depth?: number; flipX?: boolean; alpha?: number; sx?: number; sy?: number; follow?: () => { x: number; y: number } | null; split?: [number, number]; run?: CastRun; frames?: [number, number]; loop?: number; tint?: number; keys?: [number, number][] } = {}): void {
     const sc = this.ctx.scene; if (!sc.textures.exists(key)) return;
     const f0 = o.frames?.[0] ?? 0, n = o.frames?.[1] ?? MAGE_SHEETS[key]?.[3] ?? 16;
     const start = () => {
       const im = sc.add.image(x, y, key, f0).setOrigin(o.ox ?? 0.5, o.oy ?? 0.5).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth ?? TOP + 6).setFlipX(!!o.flipX).setAlpha(o.alpha ?? 1);
       if (o.tint !== undefined) im.setTint(o.tint);
       im.setDisplaySize(size * (o.sx ?? 1), size * (o.sy ?? 1));
-      this.add({ t: 0, step: (_dt, t) => { if (t >= life || !im.active) { im.destroy(); return false; } const f = o.follow?.(); if (f) im.setPosition(f.x, f.y); const sp = o.split, fr = sp ? (t < sp[1] ? (t / sp[1]) * sp[0] : sp[0] + ((t - sp[1]) / (life - sp[1])) * (n - sp[0])) : (t / life) * n;
+      this.add({ t: 0, step: (_dt, t) => { if (t >= life || !im.active) { im.destroy(); return false; } const f = o.follow?.(); if (f) im.setPosition(f.x, f.y); const K = o.keys, sp = o.split, fr = K ? keyFrame(K, t) : sp ? (t < sp[1] ? (t / sp[1]) * sp[0] : sp[0] + ((t - sp[1]) / (life - sp[1])) * (n - sp[0])) : (t / life) * n;
         const k = o.loop ? Math.floor(t / o.loop) % n : Math.min(n - 1, Math.floor(fr));
         if (o.loop) im.setAlpha((o.alpha ?? 1) * Math.min(1, t / 80, (life - t) / 100));
         im.setFrame(f0 + k); return true; } });
@@ -583,12 +586,26 @@ export class MageFx {
   /** Time Collapse: a giant clock over the area through the wind-up; the hands stop; it cracks and collapses. */
   private timeCollapse(r: CastRun): void {
     const p = r.place ?? r.origin, T = r.timings, total = T.startup + T.active;
+    if (this.ctx.scene.textures.exists('mfx-clock')) { // the painted clock, timed to the cast: drawn and sweeping through the pull, stopped at the freeze, cracking until the blast
+      const fz = T.startup + 260, bl = T.startup + 1250;
+      this.circle(p.x, p.y, 460, 0, total + 500, { run: r, draw: 400 });
+      this.sheet('mfx-clock', p.x, p.y - 70, 620, total + 520, { oy: 0.55, depth: TOP + 5, run: r, sy: 0.9,
+        keys: [[0, 0], [3, 420], [6.9, fz - 40], [7, fz], [8.9, fz + 260], [9, fz + 300], [11.9, bl - 20], [12, bl], [13.9, bl + 200], [15.9, total + 520]] });
+      this.warp.well(p.x, p.y - 70, { r: 300, life: fz, s: 30, twist: 30 });
+      return;
+    }
     this.floor('sig_clock', p.x, p.y, 380, total + 200, { add: true, glow: 0.6, spin: 40, run: r, a: kf([0, 0], [0.15, 0.9], [0.92, 1], [1, 0]), s: kf([0, 0.4], [0.2, 1, out3]) });
     this.spr({ name: 'clock_face', x: p.x, y: p.y - 210, depth: p.y + 6, w: 300, life: total + 120, delay: Math.round(T.startup * 0.3), add: true, glow: 0.35, run: r,
       sx: kf([0, 0.4], [0.15, 1, out3]), sy: kf([0, 0.4], [0.15, 1, out3]), a: kf([0, 0], [0.12, 0.95], [0.9, 0.95], [1, 0]), rot: (u) => (u < 0.55 ? -40 * u : -22) });
     this.spr({ name: 'vortex_pull', x: p.x, y: p.y - 40, depth: p.y + 2, w: 300, h: 140, life: T.startup + 400, add: true, run: r, a: kf([0, 0], [0.3, 0.7], [1, 0]), rot: (u) => -500 * u });
   }
   private timeBlast(p: V2): void {
+    if (this.ctx.scene.textures.exists('mfx-clock')) {
+      this.warp.ring(p.x, p.y, { r1: 520, life: 600, s: 46, width: 40, squash: SQUASH }); this.warp.ring(p.x, p.y - 80, { r1: 360, life: 460, s: 30, width: 30 });
+      this.gpu('nova', p.x, p.y, 900, 900 * SQUASH, 640, (u, _ms, q) => { MageFx.U(q, 'uP', out3(u)); MageFx.U(q, 'uE', u > 0.4 ? (u - 0.4) / 0.6 : 0); }, { depth: GROUND + 2 });
+      this.ctx.hitStop?.(120); this.shake(360, 0.016); this.ctx.flash?.(0xe6dcff, 0.28, 200); this.ctx.punch(0.04, 380);
+      return;
+    }
     this.pop('time_blast', p.x, p.y - 80, 420, { life: 520, glow: 0.7 });
     this.pop('time_shards', p.x, p.y - 160, 320, { life: 600, delay: 40, add: false });
     this.pop('hit_crit', p.x, p.y - 60, 300, { life: 360 });
