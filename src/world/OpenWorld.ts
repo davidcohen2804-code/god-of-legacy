@@ -342,7 +342,7 @@ export class OpenWorld {
       const sprite = this.scene.add.sprite(p.x, p.y, `npc-${n.art}`, 0).setOrigin(n.flip ? 1 - art.ox : art.ox, art.oy).setScale(1 / art.q).setDepth(d).setFlipX(!!n.flip);
       const shadow = this.scene.add.ellipse(p.x, p.y - 1, 40, 13, 0x000000, 0.32).setDepth(d - 0.5);
       const nd = NAME_DEPTH + p.y * 0.001; // name, title and quest marker stay readable over anything in front
-      const ly = g.y; // name plate under the feet on the floor (on a block: in front of its base)
+      const ly = z > 200 ? p.y : g.y; // name plate under the feet on the floor (on a block: in front of its base; up on a map above: under him there)
       const name = this.scene.add.text(p.x, ly + 22, n.name, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '14px', fontStyle: '700', color: '#f3e3bd', resolution: 2 }).setOrigin(0.5).setDepth(nd + 0.0002);
       const plate = namePlate(this.scene, p.x, ly + 22, name.width + PLATE.pad * 2, PLATE.h).setDepth(nd + 0.0001);
       const title = this.scene.add.text(p.x, ly + 48, n.title, { fontFamily: HUD.bodyFont, fontSize: '12.5px', fontStyle: '600', color: '#e4e8ee', stroke: '#0b1220', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(nd + 0.0002);
@@ -380,7 +380,7 @@ export class OpenWorld {
 
   /** Every area's monsters live all the time (each one keeps to its own home spot). */
   private spawnMobs(): void {
-    for (const h of HEIGHTS) { const kind = MOB_KINDS[h.mobs.kind]; if (kind) h.mobs.spawns.forEach((s, i) => this.mobs.push(new Monster(this.scene, `mob:${h.id}:${i}`, kind, { x: s[0], y: s[1] }, i))); }
+    for (const h of HEIGHTS) for (const [j, def] of [h.mobs, h.boss].entries()) { const kind = def && MOB_KINDS[def.kind]; if (kind) def.spawns.forEach((s, i) => this.mobs.push(new Monster(this.scene, `mob:${h.id}:${j ? 'boss:' : ''}${i}`, kind, { x: s[0], y: s[1] }, i))); }
     for (const a of ROW) for (const [j, def] of [a.mobs, a.mobs2].entries()) {
       const kind = def ? MOB_KINDS[def.kind] : undefined; if (!def || !kind) continue;
       def.spawns.forEach((s, i) => this.mobs.push(new Monster(this.scene, `mob:${a.id}:${j ? `b${i}` : i}`, kind, toWorld(a.id, s), i)));
@@ -481,6 +481,18 @@ export class OpenWorld {
       this.setArea(this.areaOf(p.x, p.y));
       done?.();
       cam.fadeIn(420, 255, 244, 220);
+    });
+  }
+
+  /** Carried up onto a map above (the Cloud Feather): there at once, standing on its floor (height z). */
+  jumpUp(x: number, y: number, z: number, k: Kin, done?: () => void): void {
+    const cam = this.scene.cameras.main;
+    cam.fadeOut(300, 255, 246, 250);
+    cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      k.x = x; k.y = y; k.z = z; k.vx = 0; k.vy = 0; k.vz = 0; k.grounded = false;
+      this.follow(x, y, 0, true, z, z, true);
+      done?.();
+      cam.fadeIn(500, 255, 246, 250);
     });
   }
 

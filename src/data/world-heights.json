@@ -338,7 +338,7 @@
    }
   ],
   "mobs": {
-   "kind": "thorn",
+   "kind": "puffling",
    "spawns": [
     [
      7862,
@@ -371,6 +371,15 @@
     [
      8922,
      87
+    ]
+   ]
+  },
+  "boss": {
+   "kind": "big_grumble",
+   "spawns": [
+    [
+     8910,
+     27
     ]
    ]
   }

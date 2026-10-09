@@ -59,6 +59,12 @@ export interface MobKind {
   exp?: number;
   /** Its level (shown with its name). */
   level?: number;
+  /** Its frames are drawn this many texture px per world px (its own art; the swordsman frames: 1). */
+  texQ?: number;
+  /** Its attack blows a soft gust forward (cloud creatures). */
+  gust?: boolean;
+  /** A boss: hits don't stop its swing. */
+  boss?: boolean;
 }
 
 type RawArea = Omit<AreaDef, 'id' | 'x' | 'span'>;
@@ -135,6 +141,8 @@ export interface Heights {
   id: string; name: string; x: number; w: number; H: number; front: number; back: number; img: string; imgX?: number; imgY: number; imgH: number; depth: number; /** made of cloud: its own painted cubes, no stone */ cloud?: boolean;
   blocks: { id: string; x0: number; x1: number; front: number; h: number; depth: number; occ: { img: string; x: number; py: number } }[];
   mobs: { kind: string; spawns: Pt[] };
+  /** Its boss (one, away from the rest). */
+  boss?: { kind: string; spawns: Pt[] };
 }
 export const HEIGHTS = HEIGHT_DATA as unknown as Heights[];
 /** The area shown while you are up on a map above (its name, its stretch). */

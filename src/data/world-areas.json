@@ -7647,7 +7647,24 @@
       450
      ]
     ]
-   }
+   },
+   "npcs": [
+    {
+     "id": "nimbus",
+     "name": "Nimbus",
+     "title": "Keeper of Cloud Haven",
+     "x": 1692,
+     "y": 40,
+     "z": 800,
+     "art": "nimbus",
+     "role": "quest",
+     "flip": true,
+     "lines": [
+      "Ho ho! A visitor, all the way up here? Welcome to Cloud Haven, little traveller.",
+      "Mind the Pufflings — they mean no harm. They just love to nibble my cloud."
+     ]
+    }
+   ]
   },
   "training_3": {
    "name": "Archery Range",
@@ -14164,6 +14181,39 @@
    "respawnMs": 90000,
    "exp": 260,
    "level": 10
+  },
+  "puffling": {
+   "name": "Puffling",
+   "frames": "puffling",
+   "texQ": 2,
+   "scale": 1.0,
+   "hp": 110,
+   "damage": 9,
+   "speed": 70,
+   "aggro": 220,
+   "range": 62,
+   "cooldown": 1200,
+   "respawnMs": 9000,
+   "exp": 24,
+   "level": 7,
+   "gust": true
+  },
+  "big_grumble": {
+   "name": "Big Grumble",
+   "frames": "big_grumble",
+   "texQ": 2,
+   "scale": 1.7,
+   "hp": 1600,
+   "damage": 16,
+   "speed": 48,
+   "aggro": 300,
+   "range": 118,
+   "cooldown": 1800,
+   "respawnMs": 120000,
+   "exp": 320,
+   "level": 10,
+   "gust": true,
+   "boss": true
   }
  },
  "quests": [
@@ -14456,6 +14506,91 @@
      "return_scroll": 1
     },
     "exp": 0
+   }
+  },
+  {
+   "id": "lost_puffs",
+   "giver": "nimbus",
+   "title": "Lost Puffs",
+   "summary": "Nimbus asked you to bring back 15 Cloud Puffs the Pufflings nibbled off Cloud Haven.",
+   "offer": [
+    "Ho ho... you see these holes in my cloud? The Pufflings nibble it, bit by bit — little rascals.",
+    "Could you bring me back fifteen Cloud Puffs? Just tap the Pufflings gently, they drop them.",
+    "Do that, and I'll give you a feather of my own — it'll carry you up here whenever you like."
+   ],
+   "accept": "Happy to help",
+   "decline": "Maybe later",
+   "progress": [
+    "Fifteen Cloud Puffs, little traveller. The Pufflings bounce about all over Cloud Haven."
+   ],
+   "done": [
+    "Oh, wonderful! Look how soft they are — my cloud will be good as new.",
+    "Here, take these feathers. Hold one up to the sky and the wind will bring you home to me."
+   ],
+   "complete": "Thank you, Nimbus",
+   "objectives": [
+    {
+     "kind": "collect",
+     "item": "cloud_puff",
+     "count": 15,
+     "text": "Collect Cloud Puffs from Pufflings (Cloud Haven)"
+    },
+    {
+     "kind": "talk",
+     "npc": "nimbus",
+     "text": "Bring them to Nimbus"
+    }
+   ],
+   "reward": {
+    "gold": 400,
+    "exp": 300,
+    "items": {
+     "cloud_feather": 3,
+     "blue_potion": 5
+    }
+   }
+  },
+  {
+   "id": "big_grumble",
+   "giver": "nimbus",
+   "title": "Cheer Up, Big Grumble",
+   "after": "lost_puffs",
+   "summary": "Nimbus asked you to cheer up Big Grumble, the sulky cloud by the cloud wall.",
+   "offer": [
+    "Hmm... can you hear that huffing? That's Big Grumble, by the great cloud wall.",
+    "He's not bad — just a very grumpy cloud. When he's in a mood he blows everyone off their feet.",
+    "Give him a good bout and he'll puff out his bad mood. He always feels better after!"
+   ],
+   "accept": "I'll cheer him up",
+   "decline": "Not now",
+   "progress": [
+    "Big Grumble wanders by the great cloud wall on the right. He comes back every couple of minutes."
+   ],
+   "done": [
+    "Ho ho! He's smiling again — I can see it from here.",
+    "He left you this, I think. A Storm Core... a little storm, fast asleep. Keep it safe."
+   ],
+   "complete": "Glad to help",
+   "objectives": [
+    {
+     "kind": "kill",
+     "mob": "big_grumble",
+     "count": 1,
+     "text": "Cheer up Big Grumble (Cloud Haven)"
+    },
+    {
+     "kind": "talk",
+     "npc": "nimbus",
+     "text": "Return to Nimbus"
+    }
+   ],
+   "reward": {
+    "gold": 800,
+    "exp": 500,
+    "items": {
+     "elixir": 2,
+     "cloud_feather": 2
+    }
    }
   }
  ],

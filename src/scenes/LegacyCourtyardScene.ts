@@ -1118,6 +1118,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (this.warping || this.rt?.ownRun || !this.world) return;
       this.useAt[id] = now; this.takeItem(id, 1); this.usePortal(); return;
     }
+    if (it.kind === 'feather') {   // up to Cloud Haven (Nimbus's side)
+      if (this.warping || this.rt?.ownRun || !this.world) return;
+      const ch = HEIGHTS.find((h) => h.id === 'cloud_haven'); if (!ch) return;
+      this.useAt[id] = now; this.takeItem(id, 1); this.ci?.reset();
+      this.fx?.shockwave(k.x, k.y, 120, 0xfff2f8); this.warping = true;
+      this.world.jumpUp(ch.x + 1500, (ch.back + ch.front) / 2 + 20, ch.H, k, () => { this.warping = false; this.setMode('idle'); });
+      return;
+    }
     if (it.kind === 'buff' && it.buff) {
       if (it.buff.stat === 'dmg') this.itemDmgUntil = now + it.buff.ms; else { this.itemSpeedUntil = now + it.buff.ms; }
       this.useAt[id] = now; this.takeItem(id, 1);
@@ -2655,7 +2663,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (!out) return;
     this.mageReact(run, out, t.id, at);
-    this.confirm(run, hit, t.id, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!s.endsCombo, t.z, crit);
+    this.confirm(run, hit, t.id, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!s.endsCombo, t.z - supportAt(t.x, t.y, t.z + 1).z, crit);
     if (out.reaction !== 'armor') this.finalAttack(run, t.id, at, out.damage);
   }
 
@@ -3706,7 +3714,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       gauges: { stand: b.gauge.stand / GAUGE.stand, air: b.gauge.air / GAUGE.air, down: b.gauge.down / GAUGE.down },
     });
     if (e?.alive) consider(Math.hypot(e.x - k.x, e.y - k.y), { id: 'enemy', name: 'Cursed Swordsman', type: 'Enemy', hp: e.hp, maxHp: S6.enemy.maxHp, effects: this.statusEffects(e.body, now), ...combat(e.body, e.kin.z) });
-    for (const m of this.world?.mobs ?? []) if (m.alive) consider(Math.hypot(m.x - k.x, m.y - k.y), { id: m.id, name: m.name, type: m.kind.level ? `Lv ${m.kind.level} Monster` : 'Monster', hp: Math.round(m.hp), maxHp: m.maxHp, effects: this.statusEffects(m.body, now), ...combat(m.body, m.kin.z) });
+    for (const m of this.world?.mobs ?? []) if (m.alive) consider(Math.hypot(m.x - k.x, m.y - k.y), { id: m.id, name: m.name, type: m.kind.level ? `Lv ${m.kind.level} Monster` : 'Monster', hp: Math.round(m.hp), maxHp: m.maxHp, effects: this.statusEffects(m.body, now), ...combat(m.body, m.kin.z - m.kin.supportZ) });
     if (this.dummy && this.dummyState?.alive) consider(Math.hypot(D.x - k.x, D.y - k.y), { id: 'dummy', name: 'Training Dummy', type: 'Training Target', hp: this.dummyState.hp, maxHp: D.maxHp, effects: [], ...combat(this.dummyState.body, this.dummyState.kin.z) });
     const bt = this.bot;
     if (bt) consider(Math.hypot(bt.x - k.x, bt.y - k.y), {

@@ -525,7 +525,7 @@ export class CosmeticPanel {
       const d = ITEMS[id], t = this.tip; t.innerHTML = '';
       const th = this.el('div', 'th', t); const im = this.el('img', '', th); im.src = d.icon; im.alt = '';
       const nm = this.el('div', '', th); const tn = this.el('div', 'tn', nm, d.name); tn.style.color = RARITY[d.rarity].color;
-      const tt = this.el('div', 'tt', nm, `${RARITY[d.rarity].label} · ${d.kind === 'mat' ? 'Material' : d.kind === 'buff' ? 'Buff' : d.kind === 'scroll' ? 'Scroll' : 'Recovery'}`); tt.style.color = 'var(--gl-gold2)';
+      const tt = this.el('div', 'tt', nm, `${RARITY[d.rarity].label} · ${d.kind === 'mat' ? 'Material' : d.kind === 'buff' ? 'Buff' : d.kind === 'scroll' || d.kind === 'feather' ? 'Travel' : 'Recovery'}`); tt.style.color = 'var(--gl-gold2)';
       const tb = this.el('div', 'tb', t), ts = this.el('div', 'ts', tb); this.el('div', '', ts, d.desc);
       const lo = this.el('div', 'td', tb, d.lore); lo.style.fontStyle = 'italic';
       this.el('div', 'te', t, `Sells for ${d.sell} gold`);

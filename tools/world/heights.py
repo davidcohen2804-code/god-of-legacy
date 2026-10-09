@@ -37,7 +37,8 @@ MAPS = {
                   'cloud': True, 'depth': -1.25, 'end': 'cloud_haven_end', 'wall_x': 1170,
                   'blocks': [{'id': 'block-l', 'x': (262, 452), 'front': 505, 'h': 82, 'depth': 30},
                              {'id': 'block-r', 'x': (1302, 1438), 'front': 512, 'h': 76, 'depth': 26}],
-                  'mobs': {'kind': 'thorn', 'spawns': [[160, 470], [640, 430], [900, 540], [1120, 450], [1560, 500]]}},
+                  'mobs': {'kind': 'puffling', 'spawns': [[160, 470], [640, 430], [900, 540], [1120, 450], [1560, 500]]},
+                  'boss': {'kind': 'big_grumble', 'spawns': [[2560, 480]]}},
 }
 EDGE_SHADE = 34   # px: the ends shaded toward their edge (they turn away from the light: volume)
 WALK_IN = 12    # the walkable floor stops this far in from each end (the corner towers stand just beyond): the picture's left / right ends fade out (the floor ends in the air there; you cannot walk off it)
@@ -133,6 +134,7 @@ for id_, m in MAPS.items():
   data.append({'id': id_, 'name': m['name'], 'x': X0, 'w': w, 'walk': [X0 + WALK_IN, X0 + w - m.get('wall_r', WALK_IN)], 'H': H, 'front': F, 'back': gy(f0),
                'img': f'assets/world/heights/{id_}.webp', 'cloud': bool(m.get('cloud')), 'imgX': X0 - EXT, 'depth': m.get('depth', -1.2), 'imgY': F - H - f1, 'imgH': h,
                'blocks': [{'id': b['id'], 'x0': X0 + b['x'][0], 'x1': X0 + b['x'][1], 'front': gy(b['front']), 'h': b['h'], 'depth': b['depth'], 'occ': o} for b, o in zip(m['blocks'], occ)],
-               'mobs': {'kind': m['mobs']['kind'], 'spawns': [[X0 + x, gy(p)] for x, p in m['mobs']['spawns']]}})
+               'mobs': {'kind': m['mobs']['kind'], 'spawns': [[X0 + x, gy(p)] for x, p in m['mobs']['spawns']]},
+               **({'boss': {'kind': m['boss']['kind'], 'spawns': [[X0 + x, gy(p)] for x, p in m['boss']['spawns']]}} if m.get('boss') else {})})
   print(id_, 'x', X0, 'H', H, 'floor y', gy(f0), '..', F)
 json.dump(data, open(R + 'src/data/world-heights.json', 'w'), indent=1)

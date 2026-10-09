@@ -113,10 +113,10 @@ export class Monster {
     if (dmg <= 0) return false;   // blocked / no damage: it carries on (its attack is not cancelled)
     this.hp = Math.max(0, this.hp - dmg);
     this.flashLeft = C.hitFlashMs; this.barShowUntil = now + 5000;
-    if (this.kind.hp < BOSS_HP) this.struck = true; // a hit interrupts the pending strike (a boss swings through it)
+    if (this.kind.hp < BOSS_HP && !this.kind.boss) this.struck = true; // a hit interrupts the pending strike (a boss swings through it)
     if (this.hp <= 0) { this.enter('dead'); this.respawnLeft = this.kind.respawnMs; this.body.push = null; this.deathFade = 1; return true; }
     this.provokedLeft = PROVOKED_MS;
-    if ((this.ai === 'attack' && this.kind.hp < BOSS_HP) || this.ai === 'idle' || this.ai === 'wander' || this.ai === 'home') this.enter('chase'); // provoked
+    if ((this.ai === 'attack' && this.kind.hp < BOSS_HP && !this.kind.boss) || this.ai === 'idle' || this.ai === 'wander' || this.ai === 'home') this.enter('chase'); // provoked
     return false;
   }
 
@@ -220,6 +220,7 @@ export class Monster {
       }
       case 'attack': {
         k.vx = 0; k.vy = 0;
+        if (K.gust && !this.gusted && this.stateMs >= WIND) { this.gusted = true; this.blowGust(); }
         if (!this.struck && this.stateMs >= WIND && this.stateMs < WIND + ACTIVE && this.canHit(w)) { this.struck = true; w.onStrikePlayer(this, K.damage); }
         if (this.stateMs >= WIND + ACTIVE + RECOVER) this.enter(w.player.alive && (dist <= K.aggro * 1.8 || this.provokedLeft > 0) ? 'chase' : 'home');
         break;
@@ -239,7 +240,18 @@ export class Monster {
   destroy(): void { this.sprite.destroy(); this.shadow.destroy(); this.bar.destroy(); }
 
   private enter(s: AIState): void { this.ai = s; this.stateMs = 0; this.animMs = 0; }
-  private startAttack(): void { this.enter('attack'); this.struck = false; this.sinceAttack = 0; }
+  private startAttack(): void { this.enter('attack'); this.struck = false; this.gusted = false; this.sinceAttack = 0; }
+  private gusted = false;
+  /** A cloud creature's attack: a soft puff of wind blown forward (rolls out, swells and fades). */
+  private blowGust(): void {
+    const sc = this.scene, k = this.kin, d = this.dir === 'left' ? -1 : 1, S = this.kind.scale;
+    if (!sc.textures.exists('mist-puff')) return;
+    for (let i = 0; i < 3; i++) {
+      const g = sc.add.image(k.x + d * 30 * S, k.y - k.z - 34 * S + (i - 1) * 8 * S, 'mist-puff').setDisplaySize(70 * S, 34 * S).setAlpha(0).setTint(0xfff6f0)
+        .setDepth(actorDepth(k.x, k.y, k.z) + 0.2).setFlipX(d < 0);
+      sc.tweens.add({ targets: g, x: g.x + d * (90 + i * 30) * S, alpha: { from: 0.9, to: 0 }, displayWidth: 130 * S, displayHeight: 54 * S, delay: i * 70, duration: 520, ease: 'Sine.easeOut', onComplete: () => g.destroy() });
+    }
+  }
 
   private homeBest = Infinity; private homeBestMs = 0; private lastBlocked = false;
 
@@ -289,7 +301,8 @@ export class Monster {
     }
     const H = 46 * S; // rotate around the body centre, not the feet
     const cx = k.x, cy = k.y - k.z - H;
-    this.sprite.setRotation(ang).setScale(S * sx, S * sy).setPosition(cx - Math.sin(ang) * H, cy + Math.cos(ang) * H).setDepth(actorDepth(k.x, k.y, k.z));
+    const T = this.kind.texQ ? 1 / this.kind.texQ : S;
+    this.sprite.setRotation(ang).setScale(T * sx, T * sy).setPosition(cx - Math.sin(ang) * H, cy + Math.cos(ang) * H).setDepth(actorDepth(k.x, k.y, k.z));
     if (this.ai === 'dead') this.sprite.setAlpha(this.deathFade).setVisible(this.deathFade > 0);
     this.pos = { x: this.sprite.x, y: this.sprite.y };
     const h = Math.max(0, k.z - k.supportZ), s = Math.max(0.4, 1 - h / 140);
