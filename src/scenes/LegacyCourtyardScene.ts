@@ -488,7 +488,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       // playable above it; below the map the floor is mirrored and darkened (only ever seen under the HUD).
       const W = R.w, H = R.h, extra = Math.ceil(ARENA_HUD_PX / cam.zoom);
       this.add.image(R.x, R.y + H, mapKey).setOrigin(0, 0).setScale(R.s).setFlipY(true).setDepth(-1.1);
-      this.add.rectangle(R.x, R.y + H, W, extra, 0x05080e, 0.45).setOrigin(0, 0).setDepth(-1.05);
+      // the floor's front edge fades into the dark under the skill tray (no seam where the mirror begins)
+      if (!this.textures.exists('arena-fade')) {
+        const c = this.textures.createCanvas('arena-fade', 4, 256)!, g = c.getContext(), gr = g.createLinearGradient(0, 0, 0, 256);
+        gr.addColorStop(0, 'rgba(5,8,14,0)'); gr.addColorStop(0.42, 'rgba(5,8,14,0.62)'); gr.addColorStop(0.55, 'rgba(5,8,14,0.78)'); gr.addColorStop(1, 'rgba(5,8,14,0.9)');
+        g.fillStyle = gr; g.fillRect(0, 0, 4, 256); c.refresh();
+      }
+      const fadeTop = R.y + H - 110 * R.s;
+      this.add.image(R.x, fadeTop, 'arena-fade').setOrigin(0, 0).setDisplaySize(W, R.y + H + extra - fadeTop).setDepth(-0.97);
       cam.setBounds(R.x, R.y, W, H + extra);
       this.camTarget.set(R.x + W / 2, this.kin ? this.kin.y : R.y + H / 2);
       cam.startFollow(this.camTarget, true, 0, 0.09);

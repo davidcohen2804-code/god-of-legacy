@@ -57,6 +57,23 @@ export const COURTYARD_LOOK: StageLook = {
   fall: { kind: 'leaf', n: 16, tints: [0xc8281e, 0xe0501e, 0xa81c22, 0xf07a2a] },
 };
 
+/** The courtyard in winter (assets/environment/stages/courtyard_winter.webp): snow falling, a pale low sun. */
+export const WINTER_LOOK: StageLook = {
+  far: COURTYARD_FAR,
+  sky: [0, 120],
+  mist: [150, 262],
+  sun: [1436, 30],
+  floorTop: 262,
+  emblem: { c: [904, 565], outer: [288, 122], inner: [92, 45] },
+  cloudTint: 0xf2f6ff,
+  mistTint: 0xf4f8ff,
+  lightTint: 0xfff0d0,
+  rayTint: 0xfff2d8,
+  rays: 0.85,
+  fliers: 'birds',
+  fall: [{ kind: 'snow', n: 150, tints: [0xffffff, 0xeef4ff] }],
+};
+
 /** The courtyard by moonlight (assets/environment/stages/courtyard_night.webp): bats, fireflies, braziers burning. */
 export const NIGHT_LOOK: StageLook = {
   far: COURTYARD_FAR,
@@ -248,7 +265,7 @@ export class StageFx {
           const s = (front ? 0.9 : 0.55) + r() * 0.4, o = at(F.kind === 'leaf' ? T.leaf : T.petal).setScale(s).setAlpha(front ? 0.95 : 0.8);
           d(o, 40 + r() * 50, 14 + r() * 22, { spin: (r() - 0.5) * 4, sway: 18 + r() * 26, a: 1 }); break;
         }
-        case 'snow': { const s = (front ? 0.32 : 0.16) + r() * 0.16, o = at(T.dot).setScale(s).setAlpha(front ? 0.95 : 0.75); d(o, 8 + r() * 14, 26 + r() * 30, { sway: 14 + r() * 18 }); break; }
+        case 'snow': { const s = (front ? 0.42 : 0.2) + r() * 0.2, o = at(T.dot).setScale(s).setAlpha(front ? 1 : 0.85); d(o, 8 + r() * 14, (front ? 60 : 32) + r() * 30, { sway: 14 + r() * 18 }); break; }
         case 'rain': { const o = at(T.drop).setAlpha(front ? 0.45 : 0.3).setScale(front ? 1.3 : 0.9, front ? 1.5 : 1).setAngle(-14).setBlendMode(Phaser.BlendModes.ADD); d(o, 210, 860 + r() * 220); break; }
         case 'firefly': { const o = at(T.dot).setScale(0.12 + r() * 0.1).setBlendMode(Phaser.BlendModes.ADD); o.y = L.floorTop + r() * (H - L.floorTop); d(o, (r() - 0.5) * 24, (r() - 0.5) * 16, { sway: 20 + r() * 30, a: 0 }); break; }
         case 'ember': { const o = at(T.dot).setScale(0.1 + r() * 0.12).setBlendMode(Phaser.BlendModes.ADD); d(o, (r() - 0.3) * 30, -(30 + r() * 50), { sway: 16 + r() * 20 }); break; }
