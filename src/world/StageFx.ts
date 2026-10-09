@@ -33,6 +33,8 @@ export interface StageLook {
   lightning?: boolean;
   /** The emblem's light. */
   emblemTint?: number;
+  /** Fires burning on the stage (braziers, torches): a flickering glow with sparks rising, at these points. */
+  fires?: Pt[];
 }
 
 /** Legacy Courtyard at sunset (assets/environment/Legacy_Courtyard.png). */
@@ -154,6 +156,7 @@ export class StageFx {
   private sweeps: { box: Phaser.GameObjects.Container; img: Phaser.GameObjects.Image; v: number }[] = [];
   private leaves: Drifter[] = [];
   private flash?: Phaser.GameObjects.Rectangle;
+  private fires: { glow: Phaser.GameObjects.Image; core: Phaser.GameObjects.Image; sparks: Drifter[]; at: Pt; ph: number }[] = [];
   private nextBolt = 6000;
   private bolt = -1;
   private t = 0;
@@ -230,6 +233,17 @@ export class StageFx {
         case 'ember': { const o = at(T.dot).setScale(0.1 + r() * 0.12).setBlendMode(Phaser.BlendModes.ADD); d(o, (r() - 0.3) * 30, -(30 + r() * 50), { sway: 16 + r() * 20 }); break; }
       }
     }
+    for (const at of L.fires ?? []) { // a fire: a warm glow that flickers, a bright core, sparks rising off it
+      const glow = scene.make.image({ x: at[0], y: at[1], key: T.glow }, false).setBlendMode(Phaser.BlendModes.ADD).setTint(0xff9a3c).setScale(0.9).setAlpha(0.5);
+      const core = scene.make.image({ x: at[0], y: at[1] - 4, key: T.glow }, false).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffe2a0).setScale(0.18, 0.26).setAlpha(0.9);
+      this.lay(-0.44).add([glow, core]);
+      const sparks: Drifter[] = [];
+      for (let i = 0; i < 5; i++) {
+        const o = scene.make.image({ x: at[0], y: at[1], key: T.dot }, false).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffb050).setScale(0.07 + r() * 0.05);
+        this.lay(-0.44).add(o); sparks.push({ o, vx: (r() - 0.5) * 16, vy: -(30 + r() * 40), w: 0, ph: r() * 1.5, sway: 6 + r() * 8 });
+      }
+      this.fires.push({ glow, core, sparks, at, ph: r() * 10 });
+    }
     if (L.lightning) { this.flash = new Phaser.GameObjects.Rectangle(scene, -W, -H, W * 3, H * 4, 0xdfe8ff, 1).setOrigin(0, 0).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD); this.lay(88990).add(this.flash); }
   }
 
@@ -283,6 +297,16 @@ export class StageFx {
       if (l.o.x > this.W + 40 || l.o.y > H + 40) {
         if (kind === 'rain') { l.o.x = Math.random() * (this.W + 300) - 300; l.o.y = -60 - Math.random() * 200; }
         else { l.o.x = -30 - Math.random() * 200; l.o.y = Math.random() * H * 0.8; }
+      }
+    }
+    for (const f of this.fires) { // flicker: two sines and a little noise
+      const k = 0.78 + 0.12 * Math.sin(t / 97 + f.ph) + 0.08 * Math.sin(t / 41 + f.ph * 2) + (Math.random() - 0.5) * 0.06;
+      f.glow.setAlpha(0.5 * k).setScale(0.85 + 0.12 * k); f.core.setAlpha(0.9 * k);
+      for (const sp of f.sparks) {
+        sp.ph! += s;
+        sp.o.x += (sp.vx + Math.sin(sp.ph! * 5) * sp.sway!) * s; sp.o.y += sp.vy * s;
+        sp.o.setAlpha(Math.max(0, 1 - sp.ph! / 1.6));
+        if (sp.ph! > 1.6) { sp.ph = 0; sp.o.setPosition(f.at[0] + (Math.random() - 0.5) * 8, f.at[1] - 4); }
       }
     }
     if (this.flash) { // a storm: now and then the sky flashes twice
