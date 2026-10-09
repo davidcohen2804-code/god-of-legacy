@@ -20,6 +20,44 @@ from scipy import ndimage
 OWN_FEET = {'jump', 'leap_crash', 'judgment_blade', 'finisher', 'spin_cut', 'falcon_dive', 'retreat_kick', 'skyhunters_step', 'rain_of_arrows', 'air_shot'}
 # frames left out of a cut row (drawn upright inside a leaning run: the body would jump)
 DROP = {}
+# A hero drawn without stand / walk sheets: the frame (action, index) that stands upright, his size reference
+REF_STAND = {'gambler': ('coin_flip', 0)}
+# Heroes whose faces cannot be measured (a hat shades them): every sheet at one scale; a sheet drawn bigger is matched by
+# the height of a standing frame {sheet: (its action, frame, the reference action, frame)}
+SAME_SCALE = {'gambler': {'S7': ('jackpot', 0, 'coin_flip', 0)}}
+# Model sheets with fewer full figures than three (the third item is a prop close-up)
+MODEL_N = {'gambler': 2}
+# Frames where GPT dropped the gambler's staff: it is put back, slung across his back (behind the body)
+STAFF_BACK = {('gambler', 'staff_vault'): {3}, ('gambler', 'riffle_shuffle'): {1, 2, 3, 4},
+              ('gambler', 'showdown'): {3}, ('gambler', 'roulette_wheel'): {2}}
+# Frames whose loose thrown objects are wiped (the game draws its own): only the body's largest piece is kept
+ONLY_BODY = {('gambler', 'showdown'): {3}, ('gambler', 'charged_deal'): {3}}
+
+
+def _staff_back(crop, ax, ay):
+    """The gambler's staff (tools/heroes/parts/gambler_staff.png) slung diagonally across his back, drawn behind him."""
+    st = Image.open(os.path.join(ROOT, 'tools', 'heroes', 'parts', 'gambler_staff.png'))
+    h, w = crop.shape[:2]
+    L = 0.86 * h
+    st = st.resize((max(1, round(st.width * L / st.height)), round(L)), Image.LANCZOS).rotate(34, expand=True, resample=Image.BICUBIC)
+    cx, cy = 0.36 * w, 0.46 * h  # the middle of the back
+    pad_l = max(0, int(st.width / 2 - cx) + 2); pad_t = max(0, int(st.height / 2 - cy) + 2)
+    pad_r = max(0, int(cx + st.width / 2 - w) + 2); pad_b = max(0, int(cy + st.height / 2 - h) + 2)
+    cv = Image.new('RGBA', (w + pad_l + pad_r, h + pad_t + pad_b))
+    cv.alpha_composite(st, (int(pad_l + cx - st.width / 2), int(pad_t + cy - st.height / 2)))
+    cv.alpha_composite(Image.fromarray(crop), (pad_l, pad_t))
+    return np.array(cv), ax + pad_l, ay + pad_t
+
+
+def _only_body(crop):
+    a = crop[..., 3] > 40
+    lab, k = ndimage.label(a, structure=np.ones((3, 3)))
+    if k > 1:
+        sz = ndimage.sum(a, lab, range(1, k + 1)); keep = int(np.argmax(sz)) + 1
+        near = ndimage.binary_dilation(lab == keep, iterations=3)
+        drop = (lab > 0) & ~np.isin(lab, [l for l in range(1, k + 1) if (near & (lab == l)).any()])
+        crop = crop.copy(); crop[..., 3] = np.where(drop, 0, crop[..., 3])
+    return crop
 HEADY = {}  # cls -> run frames (index, figure height, in the air)
 HERO_H = {}  # cls -> the drawn idle's height (the size every frame is shown by)
 STRIDES = {}  # (cls, act) -> feet spread per frame (atlas px)
@@ -44,6 +82,15 @@ SPEC = {
                 ('S4', [('falcon_dive', 6), ('dragon_ascension', 6), ('dragon_eclipse', 6)]),
                 ('S5', [('kagemusha', 6), ('sakura_bind', 6), ('rising_sun', 6)]),
                 ('S6', [('phantom_blades', 6), ('god_of_blades', 6), ('finisher', 6)])],
+    # The gambler has no drawn stand / walk sheets: idle, stance, walk, run and jump come from his cut-out parts (rig.py);
+    # his size is measured on a standing frame (REF_STAND) and every sheet is matched to it by the face.
+    'gambler': [('S1', [('attack', 6), ('charged_deal', 6), ('staff_vault', 6)]),
+                ('S2', [('fuse_slam', 6), ('riffle_shuffle', 6), ('rotor_staff', 6)]),
+                ('S3', [('coin_flip', 6), ('showdown', 6), ('roulette_wheel', 6)]),
+                ('S4', [('dice_bomb', 6), ('kinetic_grab', 6), ('ace_in_the_hole', 6)]),
+                ('S5', [('lady_luck', 6), ('pickup_52', 6), ('grand_slam', 6)]),
+                ('S6', [('kinetic_overload', 6), ('wild_card', 6), ('jackpot_old', 6)]),
+                ('S7', [('jackpot', 6)])],
     'archer': [('A', [('idle', 6), ('walk_old', 6), ('attack', 6)]), ('W', [('walk', 4), ('run', 4)]), ('W2', [('walk2', 4), ('run2', 4)]), ('B', [('run_old', 6), ('jump', 3), ('stance', 4)]),
                ('S1', [('rising_arrow', 6), ('multi_shot', 6), ('explosive_arrow', 6)]),
                ('S2', [('retreat_kick', 6), ('vine_trap', 6), ('skyhunters_step', 6)]),
@@ -265,7 +312,10 @@ def pack(frames, width=4096, pad=2):
 def main():
     table_path = os.path.join(ROOT, 'src', 'data', 'hero-atlas.json')
     table = json.load(open(table_path)) if os.path.exists(table_path) else {}
+    only = set(sys.argv[1:])  # `cut.py gambler`: only these classes (the others keep their table entries)
     for cls, sheets in SPEC.items():
+        if only and cls not in only:
+            continue
         acts, ims, tags = [], [], []
         for tag, rows in sheets:
             f = os.path.join(SRC, f'{cls}_{tag}.png')
@@ -306,6 +356,10 @@ def main():
                 for fi, (crop, ax, ay) in enumerate(frames_in_row(src, y0, y1, n, cls, act)):
                     if fi in DROP.get((cls, act), ()):
                         continue
+                    if fi in ONLY_BODY.get((cls, act), ()):
+                        crop = _only_body(crop)
+                    if fi in STAFF_BACK.get((cls, act), ()):
+                        crop, ax, ay = _staff_back(crop, ax, ay)
                     acts.append((act, ax, ay)); ims.append(crop); tags.append(tag)
         if not ims:
             continue
@@ -326,14 +380,25 @@ def main():
             v = face_size(im)
             if v: face_of.setdefault(t, []).append(v)
         hgt = lambda a: float(np.median([im.shape[0] - (im.shape[0] - ay) for (ac, ax, ay), im in zip(acts, ims) if ac == a]))
-        idle_h0, walk_h0 = hgt('idle'), hgt('walk')
-        idle_tag = next(t for (ac, _, _), t in zip(acts, tags) if ac == 'idle')
-        walk_tag = next(t for (ac, _, _), t in zip(acts, tags) if ac == 'walk')
-        sk = {idle_tag: 1.0, walk_tag: 0.98 * idle_h0 / walk_h0}
-        F = float(np.median(face_of[walk_tag])) * sk[walk_tag]
-        for t, L in face_of.items():
-            if t not in sk:
-                sk[t] = F / float(np.median(L))
+        if cls in REF_STAND:  # no drawn stand / walk: the standing frame's sheet is the reference
+            ra, ri = REF_STAND[cls]
+            walk_tag = idle_tag = next(t for (ac, _, _), t in zip(acts, tags) if ac == ra)
+            sk = {idle_tag: 1.0}
+        else:
+            idle_h0, walk_h0 = hgt('idle'), hgt('walk')
+            idle_tag = next(t for (ac, _, _), t in zip(acts, tags) if ac == 'idle')
+            walk_tag = next(t for (ac, _, _), t in zip(acts, tags) if ac == 'walk')
+            sk = {idle_tag: 1.0, walk_tag: 0.98 * idle_h0 / walk_h0}
+        if cls in SAME_SCALE:  # one canvas and grid for every sheet: the same size, except a sheet matched by a standing frame
+            sk = {t: 1.0 for t in tags}
+            for t, (a1, i1, a0, i0) in SAME_SCALE[cls].items():
+                h_of = lambda a, i: float([im.shape[0] for (ac, _, _), im in zip(acts, ims) if ac == a][i])
+                sk[t] = h_of(a0, i0) / h_of(a1, i1)
+        else:
+            F = float(np.median(face_of[walk_tag])) * sk[walk_tag]
+            for t, L in face_of.items():
+                if t not in sk:
+                    sk[t] = F / float(np.median(L))
         if 'W2' in sk and 'W' in sk:  # the legs-exchanged step is the same drawing redone: exactly the step's size (by height)
             hw = lambda t: float(np.median([im.shape[0] for (ac, _, _), im, tt in zip(acts, ims, tags) if tt == t and ac.startswith('walk')]))
             sk['W2'] = sk['W'] * hw('W') / hw('W2')
@@ -354,11 +419,16 @@ def main():
         parts_png = os.path.join(ROOT, 'tools', 'heroes', 'parts', f'{cls}.png')
         if os.path.exists(parts_png):
             import rig
-            idle_now = float(np.median([im.shape[0] for (ac, _, _), im in zip(acts, ims) if ac == 'idle']))
+            if cls in REF_STAND:
+                ra, ri = REF_STAND[cls]
+                idle_now = float([im.shape[0] for (ac, _, _), im in zip(acts, ims) if ac == ra][ri])
+            else:
+                idle_now = float(np.median([im.shape[0] for (ac, _, _), im in zip(acts, ims) if ac == 'idle']))
             HERO_H[cls] = idle_now  # the hero's size reference stays the drawn idle's (skills keep their size)
             # The parts are drawn with longer, slimmer proportions than the drawn frames: matched by height alone the hero
             # looks much smaller walking. Sized halfway (geometric mean) between the same height and the same face.
-            face_old = float(np.median([v for v in (face_size(im) for (ac, _, _), im in zip(acts, ims) if ac == 'idle') if v]))
+            ref_act = REF_STAND[cls][0] if cls in REF_STAND else 'idle'
+            face_old = float(np.median([v for v in (face_size(im) for (ac, _, _), im in zip(acts, ims) if ac == ref_act) if v]))
             probe, _ = rig.bake(parts_png, cls, idle_now)
             face_rig = float(np.median([v for v in (face_size(im) for a, im, _, _ in probe if a in ('idle', 'walk')) if v]))
             size = math.sqrt(max(0.8, min(1.8, face_old / face_rig)))
@@ -385,7 +455,7 @@ def main():
                     if len(fr) == 6:
                         near = sorted((abs(j - i), j) for j, g in enumerate(fs) if len(g) > 6)
                         if near: fr.append(list(fs[near[0][1]][6]))
-        A.pop('walk_old', None); A.pop('run_old', None)
+        A.pop('walk_old', None); A.pop('run_old', None); A.pop('jackpot_old', None)
         # the full cycle: the step, then the same step with the legs exchanged (the other leg in front) — the legs alternate
         for a in ('walk', 'run'):
             if a + '2' in A:
@@ -409,12 +479,14 @@ def main():
     json.dump(table, open(table_path, 'w'), separators=(',', ':'))
     # START HERO cards: the front view of each approved model sheet
     for cls in SPEC:
+        if only and cls not in only:
+            continue
         f = os.path.join(ROOT, 'tools', 'heroes', 'models', f'{cls}.png')
         if not os.path.exists(f):
             continue
         rgba = alpha_from_white(np.array(Image.open(f).convert('RGB')))
         (y0, y1), = [max(bands(rgba[..., 3] > 40, gap=40), key=lambda b: b[1] - b[0])]
-        crop = frames_in_row(rgba, y0, y1, 3, cls, 'model', scale=1)[0][0]
+        crop = frames_in_row(rgba, y0, y1, MODEL_N.get(cls, 3), cls, 'model', scale=1)[0][0]
         Image.fromarray(crop).save(os.path.join(ROOT, 'public', 'assets', 'final', 'heroes', cls, 'card.png'), optimize=True)
         # the face for portraits: a square round the head (top of the figure, central columns)
         h, w = crop.shape[:2]

@@ -16,7 +16,7 @@ import HERO_ATLAS from '../data/hero-atlas.json';
 import { Dir } from '../world/collision';
 import { FINAL_SKILLS } from '../skills/FinalKit';
 
-export type ClassKey = 'warrior' | 'book_mage' | 'archer' | 'samurai';
+export type ClassKey = 'warrior' | 'book_mage' | 'archer' | 'samurai' | 'gambler';
 export const DIRS: Dir[] = ['down', 'right', 'left', 'up'];
 const ROW: Record<Dir, number> = { down: 0, right: 1, left: 2, up: 3 };
 const CELL = 352, ORIGIN_Y = 310 / 352, SHEET_SCALE = 108 / 172;
@@ -580,6 +580,25 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     phantom_blades: { act: 'phantom_blades', st: [0], ac: [1, 2, 3, 2, 3], rc: [4, 5] },
     god_of_blades: { act: 'god_of_blades', st: [0, 1, 2, 3], ac: [3], rc: [4, 5] },
   },
+  gambler: {
+    charged_deal: { act: 'charged_deal', st: [0, 1], ac: [2, 3], rc: [4, 5] },
+    staff_vault: { act: 'staff_vault', st: [0, 1], ac: [2, 3, 4], rc: [5] },
+    fuse_slam: { act: 'fuse_slam', st: [0, 1, 2], ac: [3, 4], rc: [5] },
+    riffle_shuffle: { act: 'riffle_shuffle', st: [0, 1], ac: [1, 2, 3, 2, 3, 4], rc: [5] },
+    rotor_staff: { act: 'rotor_staff', st: [0], ac: [0], rc: [5], loop: [1, 2, 3, 2], fps: 12 },
+    showdown: { act: 'showdown', st: [0, 1, 2], ac: [3, 3, 4, 4], rc: [5] },
+    coin_flip: { act: 'coin_flip', st: [0, 1, 2, 3], ac: [4], rc: [5] },
+    roulette_wheel: { act: 'roulette_wheel', st: [0, 1], ac: [2, 3, 3, 3, 3, 4], rc: [5] },
+    dice_bomb: { act: 'dice_bomb', st: [0, 1, 2], ac: [3, 4], rc: [5] },
+    kinetic_grab: { act: 'kinetic_grab', st: [0], ac: [1, 2, 3, 4], rc: [5] },
+    ace_in_the_hole: { act: 'ace_in_the_hole', st: [0, 1, 2], ac: [3], rc: [4, 5] },
+    lady_luck: { act: 'lady_luck', st: [0, 1, 2, 3], ac: [4], rc: [5] },
+    pickup_52: { act: 'pickup_52', st: [0, 1, 2], ac: [3, 4, 4], rc: [5] },
+    grand_slam: { act: 'grand_slam', st: [0, 1, 2], ac: [3], rc: [4, 5] },
+    kinetic_overload: { act: 'kinetic_overload', st: [0, 1, 2], ac: [3], rc: [4, 5] },
+    wild_card: { act: 'wild_card', st: [0, 1, 2], ac: [3], rc: [4, 5] },
+    jackpot: { act: 'jackpot', st: [0, 0, 1, 1, 2, 3], ac: [4, 4], rc: [5] },
+  },
   archer: {
     quick_shot: { act: 'double_shot', st: [0, 1], ac: [2, 3, 4, 5], rc: [5] },
     rising_arrow: { act: 'rising_arrow', st: [0, 1, 2], ac: [3], rc: [4, 5] },
@@ -652,6 +671,10 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
         const list = winding ? plan.st : !after ? plan.ac : plan.rc;
         const p = winding ? q.elapsed / Math.max(1, q.startup) : !after ? (q.elapsed - q.startup) / Math.max(1, q.active) : (q.elapsed - q.startup - q.active) / Math.max(1, q.recovery);
         return H(plan.act, pick(list, p));
+      }
+      if (cls === 'gambler' && sk?.chain) { // Cut the Deck: the jab, the back swing, the card flick, the rising swing
+        const st = Math.max(0, q.stage) % 4, hit = [1, 2, 3, 4][st];
+        return H('attack', winding ? (st === 0 ? 0 : hit - 1) : !after ? hit : st === 3 ? 5 : hit);
       }
       if (sk?.chain && HEROES[cls].actions.finisher && q.stage >= 3) return H('finisher', winding ? 0 : after ? 2 : 1); // the chain's heavy last strike
       if (STRIKES.has(cls)) { // the strike pair: the chain's stage for the regular attack, a fixed one per skill until skill sheets come

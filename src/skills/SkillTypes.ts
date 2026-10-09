@@ -1,6 +1,6 @@
 // Final skill model (PvP V1 roster, 03_FINAL_CLASS_SKILL_ROSTER.md). Gameplay data only — art never drives damage.
 
-export type ClassId = 'warrior' | 'book_mage' | 'archer' | 'samurai';
+export type ClassId = 'warrior' | 'book_mage' | 'archer' | 'samurai' | 'gambler';
 export type Targeting =
   | 'aimAssist' // basic: facing snapped toward the mouse when it is near
   | 'mouseDir' // dash / directional action toward the mouse
@@ -72,6 +72,10 @@ export interface HitEvent {
   mark?: number;
   /** Archer: this hit spends the foe's marks for its bonus (launch higher / double blast / paralyse / roar damage). */
   useMark?: 'launch' | 'blast' | 'stun' | 'roar';
+  /** Gambler: charged cards this hit leaves stuck in the foe (they burst a beat later; max 5). */
+  stick?: number;
+  /** Gambler: a staff blow — it sets off the cards stuck in the foe at once (Short Fuse). */
+  fuse?: boolean;
 }
 
 export interface FinalSkill {

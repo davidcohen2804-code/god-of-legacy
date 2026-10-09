@@ -21,7 +21,7 @@ export const baseStats = (): Stats => ({ str: BASE_STAT, dex: BASE_STAT, int: BA
 
 /** Per class: how much each stat counts toward the stat value (main ×4, secondary ×1; the Samurai: STR and DEX alike). */
 const WEIGHT: Record<string, Partial<Stats>> = {
-  warrior: { str: 4, dex: 1 }, archer: { dex: 4, str: 1 }, book_mage: { int: 4, luk: 1 }, samurai: { str: 2.5, dex: 2.5 },
+  warrior: { str: 4, dex: 1 }, archer: { dex: 4, str: 1 }, book_mage: { int: 4, luk: 1 }, samurai: { str: 2.5, dex: 2.5 }, gambler: { luk: 4, dex: 1 },
 };
 const weight = (cls: string) => WEIGHT[cls] ?? WEIGHT.warrior;
 /** Main / secondary stat of a class (what AUTO raises: 4 of 5 points to the main one, 1 to the secondary). */

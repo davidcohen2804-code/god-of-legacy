@@ -1,6 +1,8 @@
 // Skill presentation (never gameplay authority): telegraphs drawn from the same shape data as the hitbox,
 // anticipation → release → impact VFX timelines from the supplied final sheets, projectile sprites with continuous
 // aim rotation, traps/zones, confirmed-hit impacts, damage numbers, hit-stop / camera-shake hierarchy.
+import { GamblerFx } from './GamblerFx';
+import type { Card, HandValue } from './Gamble';
 import Phaser from 'phaser';
 import { FinalSkill, HitEvent, HitShape } from './SkillTypes';
 import { CastRun, RT_EVENTS, SkillRuntime, Trap } from './SkillRuntime';
@@ -65,7 +67,7 @@ const IMPACT: Record<string, { key: string; path: string; cell: number; frames: 
   dust: { key: 'imp-dust', path: `${F}/impact/dust_pixel.png`, cell: 128, frames: 6, size: 96 },
   explosion: { key: 'imp-explosion', path: `${F}/impact/archer_explosion.png`, cell: 256, frames: 5, size: 190 },
 };
-export const CLASS_COLOR: Record<string, number> = { warrior: 0xffb04a, book_mage: 0x6fc8ff, archer: 0x9be35a, samurai: 0xff4a5a };
+export const CLASS_COLOR: Record<string, number> = { warrior: 0xffb04a, book_mage: 0x6fc8ff, archer: 0x9be35a, samurai: 0xff4a5a, gambler: 0xff2bd6 };
 
 /** Procedural blade-of-light texture (hilt at x=0, tapering tip at the right end). */
 export function ensureLightBeam(scene: Phaser.Scene): void {
@@ -144,7 +146,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   const want = (cls: string) => !classes || classes.includes(cls);
   const L = (k: string, p: string, w: number, h = w) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: w, frameHeight: h }); };
   // (templates — wip skills — have no art loaded yet)
-  for (const s of FINAL_SKILLS) { if (VFX_ALIAS[s.id] || s.wip || s.cls === 'samurai' || s.cls === 'book_mage' || !want(s.cls)) continue; const big = isBig(s) ? 384 : 256, c = VFX_CELL[s.id]; L(vfxKey(s.id), `${F}/skills/${s.cls}/${s.id}/vfx.png`, c?.[0] ?? big, c?.[1] ?? big); } // (the samurai: pieces, SamuraiFx)
+  for (const s of FINAL_SKILLS) { if (VFX_ALIAS[s.id] || s.wip || s.cls === 'samurai' || s.cls === 'book_mage' || s.cls === 'gambler' || !want(s.cls)) continue; const big = isBig(s) ? 384 : 256, c = VFX_CELL[s.id]; L(vfxKey(s.id), `${F}/skills/${s.cls}/${s.id}/vfx.png`, c?.[0] ?? big, c?.[1] ?? big); } // (the samurai: pieces, SamuraiFx)
   for (const [id, p] of Object.entries(PROJECTILE_SHEETS)) { const cls = FINAL_SKILLS.find((s) => s.id === id)!.cls; if (want(cls)) L(`proj-${id}`, `${F}/projectiles/${cls}/${id}.${p.ext ?? 'png'}`, p.cell); }
   for (const v of Object.values(IMPACT)) L(v.key, v.path, v.cell);
   const I = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.image(k, p); };
@@ -256,6 +258,8 @@ export class SkillFx {
   /** The book mage's effects (built from its pieces). */
   private mage: MageFx;
   private arch: ArcherFx;
+  /** The gambler's effects (drawn in code). */
+  private gamb: GamblerFx;
 
   constructor(private scene: Phaser.Scene, rt: SkillRuntime, private casterPos: (id: string) => V3 | null, private cam?: Phaser.Cameras.Scene2D.Camera) {
     this.sam = new SamuraiFx({
@@ -272,6 +276,12 @@ export class SkillFx {
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, hand: (id) => this.handPos?.(id) ?? null,
       punch: (a, ms) => this.punch(a, ms), darken: (ms, a) => this.darken(ms, a), ultimateStage: (r) => this.ultimateStage(r), targetPos: (id) => this.targetPos?.(id) ?? null,
       shake: (ms, i) => (this.cam ?? this.scene.cameras.main).shake(ms, i), hitStop: (ms) => { this.hitStopLeft = Math.max(this.hitStopLeft, ms); }, flash: (c, a, ms) => this.screenFlash(c, a, ms),
+    });
+    this.gamb = new GamblerFx({
+      scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, hand: (id) => this.handPos?.(id) ?? null,
+      targetPos: (id) => this.targetPos?.(id) ?? null, callout: (at, text, color, row) => this.callout(at, text, color, row), punch: (a, ms) => this.punch(a, ms),
+      darken: (ms, a) => this.darken(ms, a), shockwave: (x, y, r, c) => this.shockwave(x, y, r, c), crack: (x, y, r) => this.crack(x, y, r), dust: (x, y, sz, a) => this.dust(x, y, sz, a),
+      freeze: (ms) => { this.hitStopLeft = Math.max(this.hitStopLeft, ms); }, flash: (c, a, ms) => this.screenFlash(c, a, ms),
     });
     rt.events.on(RT_EVENTS.cast, (r: CastRun) => this.onCast(r));
     rt.events.on(RT_EVENTS.active, (r: CastRun) => this.onActive(r));
@@ -322,6 +332,11 @@ export class SkillFx {
       this.sam.cast(r);
       return;
     }
+    if (s.cls === 'gambler') { // the gambler: drawn in code (GamblerFx)
+      if (s.telegraph && s.slot !== 7) this.telegraph(r);
+      this.gamb.cast(r);
+      return;
+    }
     if (ARCHER_OWN.has(s.id)) { // archer skills with their own art timeline
       if (s.telegraph && s.slot !== 7) this.telegraph(r);
       this.archerCast(r);
@@ -358,6 +373,7 @@ export class SkillFx {
     if (r.skill.cls === 'samurai') this.sam.active(r);
     if (r.skill.cls === 'book_mage') this.mage.active(r);
     if (r.skill.id === 'earthsplitter') this.earthsplit(r);
+    if (r.skill.cls === 'gambler') this.gamb.active(r);
     this.dropTele(r, true); // VFX timelines are pre-scheduled from the cast; telegraphs end here
     const sh = SHOCK[r.skill.id];
     if (sh) {
@@ -999,6 +1015,7 @@ export class SkillFx {
   private onHitFired(r: CastRun, i: number, o: V3): void {
     const s = r.skill, h = r.hits[i];
     if (s.cls === 'samurai') { this.sam.hit(r, i, o); return; }
+    if (s.cls === 'gambler') { this.gamb.hit(r, i, o); return; }
     if (s.cls === 'book_mage') { this.mage.hit(r, i, o); return; }
     if (s.cls === 'archer' && this.arch.ready) { this.arch.hit(r, i, o); return; }
     // Multi-hit area skills: a short pulse per tick so every discrete hit reads (VFX timeline already running).
@@ -1026,6 +1043,7 @@ export class SkillFx {
 
   private onProjectile(p: Projectile, r: CastRun): void {
     if (p.skill.cls === 'samurai') { this.sam.projectile(p); return; }
+    if (p.skill.cls === 'gambler') { this.gamb.projectile(p); return; }
     if (p.skill.cls === 'book_mage') { this.mage.projectile(p, r); return; }
     if (p.skill.cls === 'archer' && this.arch.ready) { this.arch.projectile(p); return; }
     if (p.skill.id === 'eagle_arrow' && this.scene.textures.exists('afx-eagle')) { // the spirit eagle (drawn from above) flies toward the aim
@@ -1052,6 +1070,7 @@ export class SkillFx {
 
   private onProjectileEnd(p: Projectile): void {
     if (p.skill.cls === 'samurai') { this.sam.projectileEnd(p); return; }
+    if (p.skill.cls === 'gambler') { this.gamb.projectileEnd(p); return; }
     if (p.skill.cls === 'book_mage') { this.mage.projectileEnd(p); return; }
     if (p.skill.cls === 'archer' && this.arch.ready) { this.arch.projectileEnd(p); return; }
     const img = this.projs.get(p);
@@ -1167,6 +1186,7 @@ export class SkillFx {
       const sz = rapid ? 64 : tier === 'ultimate' || hit.heavy ? 140 : 86, key = this.scene.textures.exists('afx-hit') ? 'afx-hit' : (this.impactFlip = !this.impactFlip) ? 'afx-impact' : 'afx-impact-b';
       this.play(key, at.x, at.y - at.z - 38, sz, sz, [20, 22, 24, 26, 28, 30, 34, 40], { depth: TOP + 2, fadeLast: 60 }); // the samurai's hit sizes
     } else if (s.cls === 'book_mage') this.mage.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit);
+    else if (s.cls === 'gambler') this.gamb.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit);
     else if (s.cls === 'samurai') this.sam.confirmed(s, hit, at, reaction, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, from, local); // (the cut of the blade on the foe and the marks of what happened to it)
     else if (s.id !== 'warrior_basic') this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.4 : hit.heavy ? 1.15 : 1), 0.8); // (a regular attack: none, as in MapleStory)
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).
@@ -1294,6 +1314,7 @@ export class SkillFx {
     this.sam.update(step);
     this.mage.update(step, performance.now());
     this.arch.update(step);
+    this.gamb.update(step);
     if (this.hitStopLeft > 0) this.hitStopLeft = Math.max(0, this.hitStopLeft - ms);
     this.anims = this.anims.filter((a) => {
       a.t += step;
@@ -1478,7 +1499,7 @@ export class SkillFx {
   /** A scorched, glowing scar on the floor that cools down over a few seconds (archer launchers). */
   groundScar(x: number, y: number, radius: number, tint = 0x52cf3e): void {
     const dark = this.scene.add.ellipse(x, y, radius * 1.6, radius * 0.55, 0x2a1a08, 0.45).setDepth(GROUND + 1);
-    const glow = this.scene.add.image(x, y, 'arch-glow').setTint(tint).setBlendMode(Phaser.BlendModes.NORMAL).setDepth(GROUND + 1.1).setDisplaySize(radius * 1.8, radius * 0.6).setAlpha(0.8);
+    const glow = this.scene.add.image(x, y, this.scene.textures.exists('arch-glow') ? 'arch-glow' : 'dmg-glow').setTint(tint).setBlendMode(Phaser.BlendModes.NORMAL).setDepth(GROUND + 1.1).setDisplaySize(radius * 1.8, radius * 0.6).setAlpha(0.8);
     this.scene.tweens.add({ targets: glow, alpha: 0, delay: 300, duration: 1600 });
     this.scene.tweens.add({ targets: dark, alpha: 0, delay: 2200, duration: 900, onComplete: () => { dark.destroy(); glow.destroy(); } });
     this.dust(x, y, 70, 0.5);
@@ -1961,6 +1982,19 @@ export class SkillFx {
   /** Spirit Hawk dive: the hawk swoops onto the foe and back. */
   hawkDive(attackerId: string, to: V3): void { if (this.arch.ready) { this.arch.hawkDive(attackerId, to); return; } const h = this.hawks.get(attackerId); if (h) h.dive = { to, t: 0 }; }
   /** Hunter's Mark: leaves over a foe's head / spent in a burst (ArcherFx). */
+  /** Gambler: charged cards stuck in a target / set off by a staff blow / the Hand over his shoulder / his buffs. */
+  gambleStick(id: string, n: number, double = false): void { this.gamb.stick(id, n, double); }
+  gambleDetonate(id: string, n: number, hot: boolean): void { this.gamb.detonate(id, n, hot); }
+  gambleHand(cards: Card[], value: HandValue | null, counting: boolean): void { this.gamb.showHand(cards, value, counting); }
+  gamblePlaceHand(at: { x: number; y: number } | null, face: number): void { this.gamb.placeHand(at, face); }
+  gambleDealt(from: V3 | null, to: { x: number; y: number } | null, c: Card): void { this.gamb.dealt(from, to, c); }
+  gambleShowdown(castId: string, cards: Card[], value: HandValue | null, at: V3): void { this.gamb.showdownHand(castId, cards, value, at); }
+  gambleOverload(id: string, ms: number): void { this.gamb.overload(id, ms); }
+  gambleLuck(id: string, ms: number): void { this.gamb.luck(id, ms); }
+  gambleClear(id: string): void { this.gamb.clearBuffs(id); }
+  cardStep(x: number, y: number, dir: number): void { this.gamb.cardStep(x, y, dir); }
+  gambleZone(id: string, x: number, y: number, r: number): void { this.gamb.zone(id, x, y, r); }
+  cheatDeath(x: number, y: number): void { this.gamb.cheatDeath(x, y); }
   archerMark(id: string, n: number, ms: number): void { this.arch.mark(id, n, ms, () => this.targetPos?.(id) ?? null); }
   archerMarkSpend(id: string, n: number, _kind: string): void { this.arch.markSpend(id, n, () => this.targetPos?.(id) ?? null); }
 

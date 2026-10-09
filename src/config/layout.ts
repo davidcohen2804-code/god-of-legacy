@@ -120,7 +120,7 @@ export const CHARACTER_SELECT = {
 // ======================= Stage 3: Character Creation =======================
 
 /** Display names for stored classId values. */
-export const CLASS_NAMES: Record<string, string> = { warrior: 'Warrior', book_mage: 'Book Mage', archer: 'Archer', samurai: 'Samurai' };
+export const CLASS_NAMES: Record<string, string> = { warrior: 'Warrior', book_mage: 'Book Mage', archer: 'Archer', samurai: 'Samurai', gambler: 'Gambler' };
 
 /** Selectable classes in Character Creation (classId + its single appearance). */
 export const CLASS_OPTIONS = [

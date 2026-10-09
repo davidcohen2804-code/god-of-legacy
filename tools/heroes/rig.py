@@ -18,6 +18,7 @@ HIPS = {
     'book_mage': (0.47, 0.70, 0.30),
     'warrior': (0.57, 0.66, 0.42),
     'archer': (0.60, 0.66, 0.45),
+    'gambler': (0.67, 0.457, 0.56),
 }
 WALK_N, RUN_N = 16, 12
 # heroes whose arm sheet has joint balls in a colour apart from the limbs (removed; a shaded joint is drawn instead) —

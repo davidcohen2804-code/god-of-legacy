@@ -40,6 +40,15 @@ const PATH: Record<string, Job[]> = {
     { name: 'Shogun', level: 40, to: 80, slots: [5, 11, 12, 16, 13] },             // Mirage Counter, Tornado Blade, Falcon Dive, Sakura Bind, Rising Sun (party)
     { name: 'Dragon Sword Saint', level: 80, to: 150, slots: [17, 14, 15, 6, 7] }, // Dragon Ascension, Phantom Blades, God of Blades, Blossom Storm, Dragon Eclipse
   ],
+  gambler: [
+    { name: 'Beginner', level: 1, to: 10, slots: [0] },
+    // The gambler spec: 1st = the card fan, the vault and the slam; 2nd = the shuffle, the rotor, the coin and the Showdown;
+    // 3rd = the roulette, the dice, the grab, the ace and the party luck; 4th = the deck, the home run, the overload, the joker, the jackpot.
+    { name: 'Cardslinger', level: 10, to: 29, slots: [1, 2, 3] },                 // Charged Deal, Staff Vault, Fuse Slam
+    { name: 'Trickster', level: 29, to: 40, slots: [4, 5, 8, 6] },                // Riffle Shuffle, Rotor Staff, Coin Flip, Showdown
+    { name: 'High Roller', level: 40, to: 80, slots: [9, 10, 11, 12, 13] },       // Roulette Wheel, Dice Bomb, Kinetic Grab, Ace in the Hole, Lady Luck (party)
+    { name: 'Ace of Fate', level: 80, to: 150, slots: [14, 15, 16, 17, 7] },      // 52 Pickup, Grand Slam, Kinetic Overload, Wild Card, Jackpot
+  ],
 };
 export const jobsFor = (cls: string): Job[] => PATH[cls] ?? PATH.warrior;
 export const jobOfSlot = (cls: string, slot: number): Job => jobsFor(cls).find((j) => j.slots.includes(slot)) ?? jobsFor(cls)[0];

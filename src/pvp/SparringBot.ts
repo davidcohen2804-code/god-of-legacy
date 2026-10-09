@@ -18,13 +18,14 @@ import { RemotePlayer } from './RemotePlayer';
 export const BOT_ID = 'npc-sparring';
 export const BOT_NAME = 'Sparring Knight';
 /** Sparring partner name per class. */
-export const BOT_NAMES: Record<string, string> = { warrior: 'Sparring Knight', book_mage: 'Sparring Mage', archer: 'Sparring Archer', samurai: 'Sparring Samurai' };
+export const BOT_NAMES: Record<string, string> = { warrior: 'Sparring Knight', book_mage: 'Sparring Mage', archer: 'Sparring Archer', samurai: 'Sparring Samurai', gambler: 'Sparring Gambler' };
 /** Scripted demo combos (COMBO button): the bot performs them on the player, chaining each move on its active end. */
 const COMBOS: Record<string, string[]> = {
   warrior: ['dash_slash', 'warrior_basic:0', 'warrior_basic:1', 'rising_slash', 'whirlwind', 'leap_crash', 'ground_breaker'],
   samurai: ['shadow_step', 'quick_slash:0', 'quick_slash:1', 'spin_cut', 'quick_slash:2', 'iai_strike'],
   book_mage: ['frost_nova', 'glacial_spikes', 'astral_burst', 'arcane_wave', 'lightning_chain', 'arcane_bolt'],
   archer: ['vine_trap', 'multi_shot', 'explosive_arrow', 'piercing_arrow', 'quick_shot'],
+  gambler: ['charged_deal', 'cut_the_deck:0', 'cut_the_deck:1', 'staff_vault', 'rotor_staff', 'fuse_slam'],
 };
 const RANGED = new Set(['book_mage', 'archer']);
 /** How far a skill reaches from the caster (px), from its first damaging hit shape. */

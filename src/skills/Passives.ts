@@ -67,6 +67,18 @@ export const PASSIVES: PassiveSkill[] = [
   { id: 'arcane_recovery', cls: 'book_mage', job: 3, name: 'Arcane Recovery', kind: 'passive', description: 'Every magic reaction you cause (freeze, shatter, conduct) heals you.', effects: ['Heal 3% per reaction'] },
   { id: 'shatter_mastery', cls: 'book_mage', job: 4, name: 'Shatter Mastery', kind: 'passive', description: 'A shatter deals double damage instead of +50%, and its shards CHILL the foes around it.', effects: ['Shatter ×2 damage', 'Shards chill around'] },
   { id: 'grand_weave', cls: 'book_mage', job: 4, name: 'Grand Weave', kind: 'passive', description: 'A full Spell Weave (5 runes) makes your next spell instant: it is cast with no wind-up at all.', effects: ['5 runes: next spell instant'] },
+  { id: 'card_step', cls: 'gambler', job: 1, name: 'Card Step', kind: 'movement', description: 'Press Jump again in mid-air: flick a card under your feet and spring off it as it bursts.', effects: ['Second jump in the air', 'A burst under your feet', 'Once per jump'] },
+  { id: 'kinetic_mastery', cls: 'gambler', job: 1, name: 'Kinetic Mastery', kind: 'passive', description: 'Mastery of the charge: every card and every staff blow hits harder and finds weak spots more often.', effects: ['Damage +10%', 'Critical rate +5%'] },
+  { id: 'street_smarts', cls: 'gambler', job: 1, name: 'Street Smarts', kind: 'passive', description: 'Raised in the back rooms of the casino: more HP and quicker feet.', effects: ['Max HP +15%', 'Movement speed +10%'] },
+  { id: 'short_fuse', cls: 'gambler', job: 2, name: 'Short Fuse', kind: 'passive', description: 'Your staff sets off the cards stuck in a foe even harder: each card bursts with 30% more force.', effects: ['Staff-set bursts +30%', 'The card flashes white first'] },
+  { id: 'extra_card', cls: 'gambler', job: 2, name: 'Extra Card', kind: 'passive', description: 'After a skill connects, a chance to flick one more charged card at once (against monsters and the sparring knight).', effects: ['25% chance per hit', 'Extra card: 35% of the hit', 'Not against players'] },
+  { id: 'lucky_streak', cls: 'gambler', job: 2, name: 'Lucky Streak', kind: 'passive', description: 'Luck runs hot: every critical hit in a row adds 2% critical rate, up to 10%. A hit that is not critical breaks the streak.', effects: ['+2% crit per crit in a row', 'Up to +10%'] },
+  { id: 'card_counting', cls: 'gambler', job: 3, name: 'Card Counting', kind: 'passive', description: 'You count every card: your Hand never gets a card below 5, and what it is worth shows above it.', effects: ['No cards below 5', 'Hand value shown'] },
+  { id: 'cheat_death', cls: 'gambler', job: 3, name: 'Cheat Death', kind: 'passive', description: 'Once every 90s, a blow that would defeat you leaves you at 1 HP instead — you burst into a cloud of cards and reappear a step back.', effects: ['Survive at 1 HP', 'Every 90s'] },
+  { id: 'steady_hands', cls: 'gambler', job: 3, name: 'Steady Hands', kind: 'passive', description: 'A dealer\'s calm: most blows can no longer push you back.', effects: ['Knockback resist 60%'] },
+  { id: 'high_stakes', cls: 'gambler', job: 4, name: 'High Stakes', kind: 'passive', description: 'Play for everything: more critical hits, and critical hits cut deeper.', effects: ['Critical rate +10%', 'Critical hits 150% → 170%'] },
+  { id: 'stacked_deck', cls: 'gambler', job: 4, name: 'Stacked Deck', kind: 'passive', description: 'Your Hand stays 15s instead of 8s, and a Showdown with five cards gives one card back.', effects: ['Hand kept 15s', 'Showdown: 1 card back'] },
+  { id: 'ace_of_fate', cls: 'gambler', job: 4, name: 'Ace of Fate', kind: 'passive', description: 'Fate deals in your favour: more damage, and critical hits cut even deeper.', effects: ['Damage +15%', 'Critical hits +10% more'] },
   { id: 'time_lord', cls: 'book_mage', job: 4, name: 'Time Lord', kind: 'passive', description: 'Every skill is ready 15% sooner, and every shatter you cause brings Time Collapse 1s closer.', effects: ['Cooldowns −15%', 'Shatter: Time Collapse −1s'] },
 ];
 
@@ -80,11 +92,14 @@ export interface PassiveStats {
   evade: number; rangeMul: number; atkSpeed: number;
   /** Book Mage rules (the mage spec). */
   mage: { levitate: boolean; weave: boolean; attune: boolean; coldBlood: boolean; barrier: boolean; conductor: boolean; blinkRune: boolean; recovery: boolean; shatter: boolean; grand: boolean; timeLord: boolean };
+  /** Gambler rules (the gambler spec). */
+  gamble: { shortFuse: boolean; streak: boolean; counting: boolean; cheatDeath: boolean; stacked: boolean };
   cdMul: number;
 }
 
 export const NO_PASSIVES: PassiveStats = { dmg: 1, critAdd: 0, critDmgAdd: 0, takenMul: 1, hpMul: 1, moveMul: 1, jumpMul: 1, kbResist: 0, ccResist: 0, regen: false, fa: null, orbs: false, chanceAttack: 1, airLeap: false, evade: 0, rangeMul: 1, atkSpeed: 1, cdMul: 1,
-  mage: { levitate: false, weave: false, attune: false, coldBlood: false, barrier: false, conductor: false, blinkRune: false, recovery: false, shatter: false, grand: false, timeLord: false } };
+  mage: { levitate: false, weave: false, attune: false, coldBlood: false, barrier: false, conductor: false, blinkRune: false, recovery: false, shatter: false, grand: false, timeLord: false },
+  gamble: { shortFuse: false, streak: false, counting: false, cheatDeath: false, stacked: false } };
 
 /** Passives owned at this level (all = arena / QA: every job open). */
 export function ownedPassives(cls: string, level: number, all: boolean): Set<string> {
@@ -93,7 +108,7 @@ export function ownedPassives(cls: string, level: number, all: boolean): Set<str
 }
 
 export function passiveStats(owned: Set<string>): PassiveStats {
-  const s: PassiveStats = { ...NO_PASSIVES, mage: { ...NO_PASSIVES.mage } };
+  const s: PassiveStats = { ...NO_PASSIVES, mage: { ...NO_PASSIVES.mage }, gamble: { ...NO_PASSIVES.gamble } };
   const has = (id: string) => owned.has(id);
   if (has('war_leap')) s.airLeap = true;
   if (has('warrior_mastery')) { s.moveMul *= 1.1; s.jumpMul *= 1.1; s.hpMul += 0.2; s.kbResist = 0.3; }
@@ -133,6 +148,20 @@ export function passiveStats(owned: Set<string>): PassiveStats {
   if (has('way_of_the_sword')) { s.critAdd += 0.1; s.critDmgAdd += 0.2; }
   if (has('sword_saint')) { s.dmg *= 1.15; s.critDmgAdd += 0.1; }
   if (has('advanced_final_cut')) s.fa = { chance: 0.45, mul: 0.55 };
+  // Gambler
+  const G = s.gamble;
+  if (has('card_step')) s.airLeap = true;
+  if (has('kinetic_mastery')) { s.dmg *= 1.1; s.critAdd += 0.05; }
+  if (has('street_smarts')) { s.hpMul += 0.15; s.moveMul *= 1.1; }
+  if (has('short_fuse')) G.shortFuse = true;
+  if (has('extra_card')) s.fa = { chance: 0.25, mul: 0.35 };
+  if (has('lucky_streak')) G.streak = true;
+  if (has('card_counting')) G.counting = true;
+  if (has('cheat_death')) G.cheatDeath = true;
+  if (has('steady_hands')) s.kbResist = Math.max(s.kbResist, 0.6);
+  if (has('high_stakes')) { s.critAdd += 0.1; s.critDmgAdd += 0.2; }
+  if (has('stacked_deck')) G.stacked = true;
+  if (has('ace_of_fate')) { s.dmg *= 1.15; s.critDmgAdd += 0.1; }
   // Book Mage
   const M = s.mage;
   if (has('levitate')) M.levitate = true;

@@ -21,8 +21,8 @@ export interface CharacterSelectHandlers {
   onHero?: (classId: string, pvp: boolean) => void;
 }
 
-const HERO_CLASSES = ['warrior', 'book_mage', 'archer', 'samurai'] as const;
-const HERO_M = { w: 1320, h: 700, card: { w: 288, h: 548, gap: 22, top: 108 } } as const;
+const HERO_CLASSES = ['warrior', 'book_mage', 'archer', 'samurai', 'gambler'] as const;
+const HERO_M = { w: 1360, h: 700, card: { w: 244, h: 548, gap: 22, top: 108 } } as const;
 
 const DASH = '—';
 /** Layout (design px): the roster (2x2 cards) on the left, the info panel and the buttons on the right, the name under the
@@ -343,7 +343,7 @@ export class CharacterSelectUI {
     this.modal = m;
   }
 
-  /** START HERO: the four ready heroes side by side — each enters the world or the PvP arena at once. */
+  /** START HERO: the five ready heroes side by side — each enters the world or the PvP arena at once. */
   private openHeroes(): void {
     if (this.modal) return;
     const M = HERO_M, C = M.card;
@@ -354,7 +354,7 @@ export class CharacterSelectUI {
     this.el('div', 'sub', p).textContent = 'A ready hero with every skill of the class — play the world or the PvP arena.';
     const x = this.el('button', 'kbtn x', p) as HTMLButtonElement; x.textContent = '×'; x.title = 'Close (Esc)';
     x.addEventListener('click', () => this.closeModal());
-    const x0 = (M.w - (C.w * 4 + C.gap * 3)) / 2;
+    const x0 = (M.w - (C.w * HERO_CLASSES.length + C.gap * (HERO_CLASSES.length - 1))) / 2;
     HERO_CLASSES.forEach((cls, i) => {
       const c = this.el('div', 'hc', p);
       this.box(c, x0 + i * (C.w + C.gap), C.top, C.w, C.h);

@@ -4,7 +4,7 @@ import type { Character } from '../characters/CharacterTypes';
 import HERO_ATLAS from '../data/hero-atlas.json';
 
 /** The roster, in its order on the select screen. */
-export const ROSTER = ['warrior', 'samurai', 'book_mage', 'archer'] as const;
+export const ROSTER = ['warrior', 'samurai', 'book_mage', 'archer', 'gambler'] as const;
 /** The heroes' level (as START HERO: every job and skill open). */
 const HERO_LEVEL = 100;
 
