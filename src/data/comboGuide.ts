@@ -2,7 +2,7 @@
 // moment to move, attack or get up in between (BREAK is the one way out). Every route was played in the arena by the hero
 // of its class (as the fighter select gives it) against a foe that does nothing: each key pressed right after the last hit
 // of the one before, and also 0.1 and 0.2 s later, from 20 px nearer and 25 px farther, at 30 to 144 frames a second, and
-// between two players over a 100 ms connection; each ends on the combo's share (~30%), its hit limit, its time or its
+// between two players over a 100 ms connection; each ends on the target's combo gauges (DFO-style) or its
 // finisher. The routes came out of a search over every string of 2–6 skills (with and without a jump) of each class.
 // The guide lists them shortest first.
 import type { ClassId } from '../skills/SkillTypes';

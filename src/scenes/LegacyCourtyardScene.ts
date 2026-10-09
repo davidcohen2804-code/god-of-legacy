@@ -64,7 +64,7 @@ import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
 import { baseLoop, ClassKey, dirOf, HERO_HEIGHT, HERO_LIFT, heroPortrait, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame, sideAim } from '../game/Body';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
-import { ARENA, CombatBody, GAUGE, HitOutcome, Kin, MAGE, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
+import { ARENA, CombatBody, HitOutcome, gaugeOf, Kin, MAGE, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import { MAGE_HIDDEN, arenaTimeScale, finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
 import { CastRun, RT_EVENTS, SkillRuntime, Trap } from '../skills/SkillRuntime';
@@ -3840,7 +3840,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const e = this.enemy;
     const combat = (b: CombatBody, z: number) => ({
       state: b.state === 'launched' || z > 8 ? 'AERIAL' : b.state === 'knockdown' || b.state === 'getup' ? 'DOWN' : b.state === 'hitstun' ? 'STAND' : '',
-      gauges: { stand: b.gauge.stand / GAUGE.stand, air: b.gauge.air / GAUGE.air, down: b.gauge.down / GAUGE.down },
+      gauges: (() => { const g = gaugeOf(b.arena); return { stand: b.gauge.stand / g.stand, air: b.gauge.air / g.air, down: b.gauge.down / g.down }; })(),
     });
     if (e?.alive) consider(Math.hypot(e.x - k.x, e.y - k.y), { id: 'enemy', name: 'Cursed Swordsman', type: 'Enemy', hp: e.hp, maxHp: S6.enemy.maxHp, effects: this.statusEffects(e.body, now), ...combat(e.body, e.kin.z) });
     for (const m of this.world?.mobs ?? []) if (m.alive) consider(Math.hypot(m.x - k.x, m.y - k.y), { id: m.id, name: m.name, type: m.kind.level ? `Lv ${m.kind.level} Monster` : 'Monster', hp: Math.round(m.hp), maxHp: m.maxHp, effects: this.statusEffects(m.body, now), ...combat(m.body, m.kin.z - m.kin.supportZ) });
