@@ -101,9 +101,11 @@ const warrior: FinalSkill[] = [
     startup: 770, active: 640, recovery: 600, cooldown: 30000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 2750],
     hits: [H(0, 14, { kind: 'circle', radius: 190, at: 'aimBias', bias: 110 }, { stun: 600, launch: 150, juggleCost: 0 }, { reachUp: 260, heavy: true }),
       ...[90, 160, 230, 300, 370, 440, 510, 580].map((t) => H(t, 6, { kind: 'circle', radius: 200, at: 'aimBias', bias: 110 }, { stun: 420, float: true }, { reachUp: 320 }))],
+    // the struck floor stays electrified for ~3.2s: a wide field across the floor's depth that keeps shocking anyone on it
+    linger: { at: 'aim', offset: 110, startMs: 760, everyMs: 350, count: 9, radius: 230, maxZ: 60, hit: H(0, 3, { kind: 'circle', radius: 230 }, { stun: 260 }, { reachUp: 60 }) },
     endsCombo: true, tags: ['ultimate'], telegraph: 'cone',
-    description: 'Raise your sword with a battle roar: a colossal titan of light rises behind you and drives its giant sword into the floor, and a golden shockwave tears across the arena. Heavy knockdown; ends the combo.',
-    relations: ['Ultimate', 'Ends combo'],
+    description: 'Raise your sword with a battle roar: a colossal titan of light rises behind you and drives its giant sword into the floor, and a golden shockwave tears across the arena. The struck floor stays electrified for 3s, shocking anyone who stands on it. Heavy knockdown; ends the combo.',
+    relations: ['Ultimate', 'Ends combo', 'Electrified floor 3s'],
   }),
   // ---- extended kit (Q R F G C V)
   S({
