@@ -11,6 +11,10 @@ import { SpaceWarp } from './SpaceWarp';
 
 export const MAGE_KIT = 'mage-kit';
 export const MAGE_KIT_URL = 'assets/final/skills/book_mage/kit/';
+/** Painted animated effects (GPT sheets on black, drawn additive): key → [file, frame w, frame h, frames]. */
+export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
+  'mfx-pillar': ['astral_pillar.png', 384, 384, 16],
+};
 const TOP = 100000, GROUND = 2, SQUASH = 0.42;
 const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
 /** The weave's rune pieces, in the order they are woven. */
@@ -304,6 +308,18 @@ export class MageFx {
     this.gpu('smoke', x, y, size, size * (o.squash ?? 1), life, (u, _ms, q) => { MageFx.U(q, 'uP', out3(Math.min(1, u * 1.6))); MageFx.U(q, 'uE', u < 0.35 ? 0 : (u - 0.35) / 0.65); },
       { uA: el, delay: o.delay, depth: o.depth ?? TOP + 4 });
   }
+  /** A painted sheet played once (additive): its frames spread over `life` ms; (ox, oy) = the anchor inside a frame. */
+  private sheet(key: string, x: number, y: number, size: number, life: number, o: { ox?: number; oy?: number; delay?: number; depth?: number; flipX?: boolean; alpha?: number; sx?: number; sy?: number; follow?: () => { x: number; y: number } | null; split?: [number, number]; run?: CastRun } = {}): void {
+    const sc = this.ctx.scene; if (!sc.textures.exists(key)) return;
+    const n = MAGE_SHEETS[key]?.[3] ?? 16;
+    const start = () => {
+      const im = sc.add.image(x, y, key, 0).setOrigin(o.ox ?? 0.5, o.oy ?? 0.5).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth ?? TOP + 6).setFlipX(!!o.flipX).setAlpha(o.alpha ?? 1);
+      im.setDisplaySize(size * (o.sx ?? 1), size * (o.sy ?? 1));
+      this.add({ t: 0, step: (_dt, t) => { if (t >= life || !im.active) { im.destroy(); return false; } const f = o.follow?.(); if (f) im.setPosition(f.x, f.y); const sp = o.split, fr = sp ? (t < sp[1] ? (t / sp[1]) * sp[0] : sp[0] + ((t - sp[1]) / (life - sp[1])) * (n - sp[0])) : (t / life) * n;
+        im.setFrame(Math.min(n - 1, Math.floor(fr))); return true; } });
+    };
+    if (o.delay) this.later(o.delay, start, o.run); else start();
+  }
   /** A starburst of light (additive). */
   private star(x: number, y: number, size: number, life = 260, o: { rays?: number; delay?: number; depth?: number } = {}): void {
     this.gpu('star', x, y, size, size, life, (u, _ms, q) => MageFx.U(q, 'uP', u), { uA: o.rays ?? 8, delay: o.delay, depth: o.depth ?? TOP + 8 });
@@ -462,6 +478,8 @@ export class MageFx {
       q.setScale(ms < T.startup ? 0.55 + 0.45 * out3(ms / T.startup) : 1 - 0.6 * out((ms - T.startup) / 260));
     }, { uA: side, run: r, depth: cy + 4 });
     this.warp.well(cx, hy, { r: 220, life: T.startup + 120, s: 34, twist: 36 * side });
+    // the painted pillar: its ignition (frames 1-5) through the wind-up, the eruption on the throw; anchored at its foot
+    this.sheet('mfx-pillar', cx, cy + 6, 600, T.startup + 700, { oy: 0.85, depth: cy + 5, split: [5, T.startup], run: r });
     const hand = this.ctx.hand(r.attackerId) ?? { x: c0.x + side * 30, y: c0.y - c0.z - 70 };
     this.arc(hand, { x: cx, y: hy }, { life: T.startup, thick: 2, depth: TOP + 6 });
     for (let k = 0; k < 22; k++) { const a = rnd(0, Math.PI * 2), d = rnd(140, 240);
@@ -471,7 +489,7 @@ export class MageFx {
   /** Astral Lift's throw: a pillar of plasma, void smoke bursting at its foot, a ring of bent air along the floor, a beat of stillness. */
   private starLaunch(r: CastRun, o: V3): void {
     const c = r.place ?? { x: o.x + r.aim.x * 80, y: o.y + r.aim.y * 80 };
-    this.gpu('pillar', c.x, c.y + 10, 250, 720, 700, (u, ms, q) => { MageFx.U(q, 'uP', ms < 70 ? 1.25 : Math.max(0, 1.25 - (ms - 70) / 500)); MageFx.U(q, 'uE', u * u); q.setScale(1 + 0.3 * out(Math.min(1, ms / 120)), 1); },
+    if (!this.ctx.scene.textures.exists('mfx-pillar')) this.gpu('pillar', c.x, c.y + 10, 250, 720, 700, (u, ms, q) => { MageFx.U(q, 'uP', ms < 70 ? 1.25 : Math.max(0, 1.25 - (ms - 70) / 500)); MageFx.U(q, 'uE', u * u); q.setScale(1 + 0.3 * out(Math.min(1, ms / 120)), 1); },
       { oy: 1, depth: c.y + 5 });
     this.gpu('nova', c.x, c.y, 700, 700 * SQUASH, 560, (u, _ms, q) => { MageFx.U(q, 'uP', out3(u)); MageFx.U(q, 'uE', u > 0.4 ? (u - 0.4) / 0.6 : 0); }, { depth: GROUND + 2 });
     this.warp.ring(c.x, c.y, { r1: 380, life: 520, s: 38, width: 32, squash: SQUASH });
