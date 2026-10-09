@@ -8,6 +8,8 @@ import { actorDepth } from '../world/WorldGeometry';
 import { ClassKey, PoseFrame, applyPose, heroFrameRect, SHEET_PATH, BASE_GEOM, baseComplete, ensureWeaponMasks, BaseLook, baseLookLayers, hasOver, overKey, NAKED_LOOK, GearLook, GearPiece, gearLayers, helmKey, loadGear, swingTrail } from './Body';
 /** Name plates sit above the world (props in front included), like MapleStory's. */
 export const NAME_DEPTH = 90000;
+/** The ring under a fighter's feet (in a battle: the class colour). */
+export const RING_COLOR = 0x4aa8ff;
 import { DEFAULT_SKIN, toneTexture } from '../characters/Skin';
 import { namePlate } from './Plates';
 
@@ -223,6 +225,11 @@ export class ActorView {
   readonly shadow: Phaser.GameObjects.Image;
   /** Team ring on the floor (DFO-style): readable position even under heavy effects. */
   readonly ring: Phaser.GameObjects.Ellipse;
+  /** START HERO: the last frame of the previous action, fading out over the new one (blends a skill into the stance,
+   *  a walk into a jump — the drawn skill frames and the animated body meet without a snap) */
+  private blendGhost: Phaser.GameObjects.Sprite | null = null;
+  private blendT = 0;
+  private lastAct = '';
   private layers: Partial<Record<CosSlot, Phaser.GameObjects.Image>> = {};
   /** Warrior sword skin: drawn along the real sword line of every frame (never drifts off the hand). */
   private blade: Phaser.GameObjects.Image | null = null;
@@ -242,6 +249,19 @@ export class ActorView {
   /** The default kit name plate (no name-tag item): sized to the name, not to the item art. */
   private plainPlate = false;
   private trailT = 0; private lastFeet: { x: number; y: number } | null = null;
+  /** Battle: the fighter's tag over the head (FighterTag) in place of the name plate. */
+  private tag: Phaser.GameObjects.Image | null = null;
+  /** The tag's own alpha (null: the body's). */
+  tagAlpha: number | null = null;
+  private tagTop = 0;
+  private tagDepth = 0;
+  /** A tag (texture key) over the head, `headTop` above the feet; null: the name plate again. */
+  setTag(key: string | null, headTop = 116, depth = NAME_DEPTH + 5000, scale = 0.5): void {
+    if (!key) { this.tag?.destroy(); this.tag = null; return; }
+    this.tagTop = headTop; this.tagDepth = depth;
+    if (this.tag) this.tag.setTexture(key);
+    else this.tag = this.scene.add.image(0, 0, key).setOrigin(0.5, 1).setScale(scale);
+  }
   setName(name: string): void {
     this.nameText?.destroy();
     this.nameText = this.scene.add.text(0, 0, name, { fontFamily: 'Inter, Arial, sans-serif', fontSize: '12.5px', fontStyle: '600', color: '#ffffff', resolution: 2 }).setOrigin(0.5);
@@ -290,7 +310,7 @@ export class ActorView {
 
   constructor(private scene: Phaser.Scene, readonly cls: ClassKey, x: number, y: number) {
     this.shadow = scene.add.image(x, y, 'contact-shadow').setOrigin(0.5, 0.5);
-    this.ring = scene.add.ellipse(x, y, 70, 26).setStrokeStyle(3, 0x4aa8ff, 0.85).setFillStyle(0x4aa8ff, 0.1);
+    this.ring = scene.add.ellipse(x, y, 70, 26).setStrokeStyle(3, RING_COLOR, 0.85).setFillStyle(RING_COLOR, 0.1);
     this.sprite = scene.add.sprite(x, y, '__DEFAULT');
     this.weapon = scene.add.sprite(x, y, '__DEFAULT').setVisible(false);
     this.weaponGlow = scene.add.sprite(x, y, '__DEFAULT').setVisible(false).setBlendMode(Phaser.BlendModes.ADD);
@@ -363,10 +383,24 @@ export class ActorView {
     this.headHeight = this.headHeight ? this.headHeight + (top - this.headHeight) * Math.min(1, ms / 90) : top;
     // Weapon masks load on first need: a tint skin draws them, a sword skin cuts with them (classes without a packed mask).
     if ((WEAPON_TINT[this.equipped.weapon ?? ''] || (this.blade && !SHEET_PATH[pose.key])) && !this.scene.textures.exists(pose.wkey)) ensureWeaponMasks(this.scene, this.cls);
+    const hero = pose.key.startsWith('hero-'), act = hero ? String(pose.frame).replace(/-\d+$/, '') : '';
+    if (hero && this.lastAct && act !== this.lastAct && p.frame && p.texture.key === pose.key && this.visible) {
+      this.blendGhost ??= this.scene.add.sprite(p.x, p.y, p.texture.key);
+      this.blendGhost.setTexture(p.texture.key, p.frame.name).setOrigin(p.originX, p.originY).setScale(p.scaleX, p.scaleY)
+        .setFlipX(p.flipX).setAngle(p.angle).setPosition(p.x, p.y).setVisible(true);
+      this.blendT = 0;
+    }
+    this.lastAct = act;
     applyPose(p, pose, this.weapon);
     this.clothWind(ms, pose);
     const depth = actorDepth(x, y, z);
     p.setPosition(x, y - z).setDepth(depth).setAlpha(alpha).setVisible(this.visible);
+    if (this.blendGhost?.visible) { // the outgoing pose follows the body and fades within ~0.12 s
+      this.blendT += ms;
+      const f = 1 - this.blendT / 120;
+      if (f <= 0 || !this.visible) this.blendGhost.setVisible(false);
+      else this.blendGhost.setPosition(x, y - z).setDepth(depth + 0.001).setAlpha(alpha * f * f);
+    }
     if (tint === null) p.clearTint(); else if (tintFill) p.setTintFill(tint); else p.setTint(tint);
     // Contact shadow on the support plane, smaller/fainter with height above it.
     const h = Math.max(0, z - supportZ), k = Math.max(0.35, 1 - h / 140);
@@ -427,12 +461,13 @@ export class ActorView {
     // Name plate + running trail.
     if (this.nameText) {
       const ny = y - Math.max(supportZ, z - 12) + 22, d0 = NAME_DEPTH + y * 0.001; // names stay readable over blocks and urns in front; a long drop or climb: it goes with the body
-      this.nameText.setPosition(x, ny).setDepth(d0 + 0.01).setAlpha(alpha).setVisible(this.visible);
+      this.nameText.setPosition(x, ny).setDepth(d0 + 0.01).setAlpha(alpha).setVisible(this.visible && !this.tag);
       if (this.nameFrame) {
         if (!this.plainPlate) { const w = Math.max(96, this.nameText.width + 54); this.nameFrame.setDisplaySize(w, w * (this.nameFrame.height / this.nameFrame.width) * 1.0); }
-        this.nameFrame.setPosition(x, ny).setDepth(d0).setAlpha(alpha).setVisible(this.visible);
+        this.nameFrame.setPosition(x, ny).setDepth(d0).setAlpha(alpha).setVisible(this.visible && !this.tag);
       }
     }
+    this.tag?.setPosition(Math.round(x), Math.round(y - z - this.tagTop)).setDepth(this.tagDepth).setAlpha(this.tagAlpha ?? alpha).setVisible(this.visible);
     const tr = this.equipped.trail;
     if (tr && this.visible && this.scene.textures.exists(`cos-${tr}`)) {
       const lf = this.lastFeet, moved = lf ? Math.hypot(x - lf.x, y - lf.y) : 0; this.lastFeet = { x, y };
@@ -581,9 +616,10 @@ export class ActorView {
 
   destroy(): void {
     for (const t of this.trails) t.g.destroy(); this.trails = [];
+    this.blendGhost?.destroy();
     this.sprite.destroy(); this.weapon.destroy(); this.weaponGlow.destroy(); this.shadow.destroy(); this.ring.destroy();
     for (const l of Object.values(this.layers)) l?.destroy();
-    this.nameText?.destroy(); this.nameFrame?.destroy();
+    this.nameText?.destroy(); this.nameFrame?.destroy(); this.tag?.destroy();
     this.layers = {}; this.blade?.destroy(); this.blade = null; this.bladeTop?.destroy(); this.bladeTop = null;
     if (this.lookParts) for (const im of Object.values(this.lookParts)) im.destroy();
     for (const im of Object.values(this.gearParts)) im?.destroy();

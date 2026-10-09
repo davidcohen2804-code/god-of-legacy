@@ -40,6 +40,11 @@ import { isQAMode } from '../qa/QAPanel';
 import { PvpController } from '../pvp/PvpController';
 import { Match, MatchPhase } from '../pvp/Match';
 import { BattleHUD, Fighter } from '../ui/BattleHUD';
+import { classColor, heroArt, heroVsPortrait } from '../pvp/Fighters';
+import { TAG_SCALE, fighterTag, tagFontsReady } from '../pvp/FighterTag';
+import { LoadSide, showArenaLoading, takeArenaLoading } from '../ui/ArenaLoading';
+/** '#rrggbb' as a number. */
+const colorNum = (c: string): number => parseInt(c.slice(1), 16);
 import { ComboGuide } from '../ui/ComboGuide';
 import { addResult, scoreKey } from '../pvp/Score';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
@@ -54,7 +59,7 @@ import { StatsWindow } from '../ui/StatsWindow';
 import { ARENA as PLAZA, AREAS as WORLD_AREAS } from '../world/Areas';
 import { jobsFor } from '../skills/Jobs';
 import { CombatInput } from '../game/CombatInput';
-import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey, damageSkin, wantsWeaponMasks } from '../game/ActorView';
+import { ActorView, Equipped, RING_COLOR, preloadCosmetics, skinColor, grayKey, damageSkin, wantsWeaponMasks } from '../game/ActorView';
 import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
 import { baseLoop, ClassKey, dirOf, HERO_HEIGHT, HERO_LIFT, heroPortrait, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame, sideAim } from '../game/Body';
@@ -312,6 +317,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
    *  none) and the camera's own zoom (the K.O. punches in from it). */
   private match?: Match;
   private battleHud?: BattleHUD;
+  /** The arena's loading screen, taken over as the first match's VS (it lifts at ROUND 1; when the match is slow to
+   *  begin — the other player not here yet — it lifts by itself and the match gets its own VS). */
+  private curtain?: { out(): void } | null;
+  private curtainAt = 0;
+  private liftCurtain(): void { this.curtain?.out(); this.curtain = null; }
+  /** Battle: the fighters wear their tags over their heads (battleTags; on once the tags' lettering is loaded). */
+  private tagsOn = false;
+  private tagsWanted = false;
   /** The arena: the class's combo routes on the left. */
   private comboGuide?: ComboGuide;
   private koT = -1;
@@ -381,7 +394,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   preload(): void {
     const T = ATLAS.textures, CT = COMBAT_ASSETS.textures;
     // The world holds only your own class; the PvP arena can hold any class (other players, the sparring knight).
-    const sd = this.sys.settings.data as { pvpRoom?: string; fighter?: Character } | undefined;
+    const sd = this.sys.settings.data as { pvpRoom?: string; fighter?: Character; botCls?: string; foe?: LoadSide } | undefined;
     const pvp = !!sd?.pvpRoom;
     const me = sd?.fighter ?? CharacterStore.getSelectedCharacter(); // (the PvP select's fighter)
     const cls = me ? playedClass(me) : undefined; // the class actually played (Beginner = warrior base)
@@ -404,7 +417,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!this.textures.exists('loot.beam')) this.load.image('loot.beam', 'assets/final/ui/kit/drop_beam.png');
     if (!this.textures.exists('loot.coin')) this.load.spritesheet('loot.coin', 'assets/final/items/coin_spin.png', { frameWidth: 128, frameHeight: 128 });
     for (let n = 0; n < EMOTES; n++) if (!this.textures.exists(`kit.emote_${n}`)) this.load.image(`kit.emote_${n}`, `assets/final/ui/kit/emote_${n}.png`);
-    showLoading(this, pvp ? 'PVP ARENA' : 'GOD OF LEGACY');
+    // the arena from the fighter select: the two fighters face to face while it loads (else the plain loading screen)
+    const foe = sd?.foe ?? (sd?.botCls ? { cls: sd.botCls, name: BOT_NAMES[sd.botCls] ?? BOT_NAME } : null);
+    if (!(pvp && me && cls && foe && showArenaLoading(this, { name: me.name, cls, you: true }, foe))) showLoading(this, pvp ? 'PVP ARENA' : 'GOD OF LEGACY');
   }
 
   create(data?: { pvpRoom?: string; at?: { x: number; y: number }; fighter?: Character; botCls?: string; vs?: 'cpu' | 'player' }): void {
@@ -627,6 +642,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         hpFrac: (id) => this.hpFracOf(id),
       });
     }
+    if (pvpRoom) { this.curtain = takeArenaLoading(); this.curtainAt = performance.now(); }
     if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name, gender: genderOf(character), ...(character.hero ? { hero: true } : {}), ...(headLookOf(character) ? { look: headLookOf(character)! } : {}) });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -790,7 +806,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // the Sky Path is one lane: near Ivy Summit's right end and out over the clouds you are drawn into it (as in a side view:
     // run right, jump — and you land on the cloud whatever depth of the summit you came from)
     if (k.x > SKY.lane[0] - 160 && k.x < SKY.lane[1] && Math.max(k.z, k.supportZ) >= SKY_DROP && (k.x > SKY.lane[0] || k.vx > 20)) {
-      const yc = (SKY.band[0] + SKY.band[1]) / 2, d = yc - k.y, step = 320 * ms / 1000;
+      const yc = Math.min(Math.max(k.y, SKY.band[0] + 8), SKY.band[1] - 8), d = yc - k.y, step = 320 * ms / 1000;   // into the lane (its depth kept: you walk back and forth on the clouds)
       if (Math.abs(d) > 1) k.y += Math.sign(d) * Math.min(Math.abs(d), step);
     }
     // the Sky Path: fallen between its clouds, below them — on down to the floor under the lane (Ivy Heights where it runs
@@ -2042,6 +2058,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       makeView: () => {
         const ch = this.character!, g = genderOf(ch), v = new ActorView(this, this.cls, this.kin.x, this.kin.y);
         v.setBaseLook(headLookOf(ch), g); v.setGear(wornLook(CharacterStore.getGear(ch.id) ?? ch.gear), g); v.setName(ch.name); v.setEquipped(this.equipped);
+        if (this.tagsOn) { const [key, top] = this.myTag(false); v.setTag(key, top, PVP.labelDepth, TAG_SCALE); v.setRing(colorNum(classColor(this.cls))); } // battle: your doubles wear your tag (with no YOU) and ring
         return v;
       },
       pose: (snap, dir) => resolvePose(this.cls, dir, poseQuery(snap), this.view!.wantsBase || !hasJob(this.character!), genderOf(this.character), !!this.character!.hero),
@@ -3391,6 +3408,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Starts / ends the match as opponents come and go, runs it, and feeds the fight's HUD. */
   private updateMatch(real: number, ms: number): void {
     const m = this.match, B = this.battleHud;
+    if (this.curtain && !m?.active && performance.now() - this.curtainAt > (this.waitFoe ? 2500 : 9000)) this.liftCurtain(); // (no match coming yet)
     if (!m || !B || !this.pvpReady) return;
     const opp = this.duelOpponent();
     if (m.active && m.opponent !== opp) m.abort(); // the opponent left / a third player came in
@@ -3402,6 +3420,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     m.update(real, ms);
     this.comboGuide?.show(!m.active || (m.phase !== 'vs' && m.phase !== 'over')); // (not over the VS splash or the result)
     if (!m.active) return;
+    if (this.tagsOn) { const r = m.opponent === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(m.opponent); if (r && !r.hasTag) this.wearTags(); } // (the knight swapped meanwhile)
     B.setHp('l', this.hpFracOf(m.host)); B.setHp('r', this.hpFracOf(m.guest));
     B.setClock(m.phase === 'vs' || m.phase === 'intro' ? PVP.battle.roundMs : m.left, m.round);
     B.setWins(m.wins[0], m.wins[1], PVP.battle.winsNeeded);
@@ -3415,17 +3434,22 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const B = this.battleHud, T = PVP.battle;
     if (!B) return;
     if (m.phase === 'idle') { // no match any more: back to the free arena
-      B.clearCalls(); B.hideResult(); B.setOn(false); this.hud?.setBattle(false);
+      B.clearCalls(); B.hideResult(); B.setOn(false); this.hud?.setBattle(false); this.battleTags(false); this.liftCurtain();
       if (this.bot) this.bot.hold = false;
       this.endKoMoment();
       if (this.dead >= 0) this.dead = Math.max(this.dead, PVP.respawnMs - 500); // down in the last round: up again in a moment
       return;
     }
-    if (prev === 'idle') { this.hud?.setBattle(true, m.sideOf(this.localId)); B.setOn(true); }
+    if (prev === 'idle') { this.hud?.setBattle(true, m.sideOf(this.localId)); B.setOn(true); this.battleTags(true); }
+    else if (this.tagsOn) this.wearTags(); // (a body made anew meanwhile wears its tag again)
     if (prev === 'idle' || m.phase === 'vs') B.setFighters(this.fighterOf(m.host), this.fighterOf(m.guest));
     switch (m.phase) {
-      case 'vs': B.hideResult(); this.placeForRound(m); B.vs(this.fighterOf(m.host), this.fighterOf(m.guest), T.vsMs); break;
-      case 'intro': B.hideResult(); this.placeForRound(m); B.round(m.round, m.finalRound, T.introMs); break;
+      case 'vs': // (the arena's loading screen, still up, is this first VS: both fighters face to face already)
+        B.hideResult(); this.placeForRound(m);
+        if (prev !== 'idle') this.liftCurtain();
+        if (!this.curtain) B.vs(this.fighterOf(m.host), this.fighterOf(m.guest), T.vsMs);
+        break;
+      case 'intro': B.hideResult(); this.placeForRound(m); this.liftCurtain(); B.round(m.round, m.finalRound, T.introMs); break;
       case 'fight': B.hideResult(); this.ci?.clearBuffer(); B.fight(); if (this.bot) this.bot.hold = false; break;
       case 'ko':
         if (this.bot) this.bot.hold = true;
@@ -3475,14 +3499,39 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     return r && r.alive ? r.hp / Math.max(1, r.maxHp) : 0;
   }
 
+  /** Battle: both fighters wear a tag over the head — the name in the fight's lettering, the class colour, YOU on yours —
+   *  in place of the free arena's name plate and the bar over the other one (the battle HUD shows both). */
+  private battleTags(on: boolean): void {
+    this.tagsWanted = on;
+    if (this.fx) this.fx.battleLook = on; // (and the callouts in the fight's lettering)
+    if (on) { void tagFontsReady().then(() => { if (this.tagsWanted) { this.tagsOn = true; this.wearTags(); } }); return; }
+    this.tagsOn = false;
+    this.view?.setTag(null); this.view?.setRing(RING_COLOR); this.bot?.view.setTag(null);
+    for (const r of this.pvp?.remotes.values() ?? []) r.setTag(null);
+  }
+  /** Your tag (`you` false: your doubles' — his name, not YOU) and where it sits over the head. */
+  private myTag(you = true): [string, number] {
+    return [fighterTag(this, this.character!.name, classColor(this.cls), you), 116 + (this.character?.hero ? HERO_LIFT : 0) + PVP.remoteLabel.gap - PVP.hpBar.h];
+  }
+  private wearTags(): void {
+    const m = this.match;
+    if (!m?.active || !this.character) return;
+    const [key, top] = this.myTag();
+    this.view?.setTag(key, top, PVP.labelDepth, TAG_SCALE); this.view?.setRing(colorNum(classColor(this.cls))); // (and the ring under your feet in your colour)
+    const opp = m.opponent, r = opp === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(opp), oc = classColor(opp === BOT_ID ? this.botCls : r?.meta.classId ?? '');
+    if (r) r.setTag(fighterTag(this, this.fighterOf(opp).name, oc, false), colorNum(oc));
+  }
+
   /** START HERO: the sparring partner is a ready hero too (its body and face). */
   private botHero(): boolean { return !!this.character?.hero; }
   /** Name, class and portrait of a fighter for the battle HUD. */
   private fighterOf(id: string): Fighter {
-    if (id === this.localId) { const ch = this.character!; return { name: ch.name, cls: CLASS_NAMES[this.cls] ?? this.cls, portrait: ch.hero ? heroPortrait(this.cls) : portraitOf(previewKeyOf(ch)), you: true }; }
-    if (id === BOT_ID) { const c = this.botCls; return { name: this.botName(), cls: CLASS_NAMES[c] ?? c, portrait: this.botHero() ? heroPortrait(c) : portraitOf(c === 'warrior' ? 'base/male' : `${c}/${c}_default`), you: false }; }
+    // a hero: its battle-stance art for the VS and its face from that art on the health bar
+    const hero = (c: string) => ({ portrait: heroVsPortrait(c) ?? heroPortrait(c), vs: heroArt(c) });
+    if (id === this.localId) { const ch = this.character!; return { name: ch.name, cls: CLASS_NAMES[this.cls] ?? this.cls, ...(ch.hero ? hero(this.cls) : { portrait: portraitOf(previewKeyOf(ch)) }), you: true }; }
+    if (id === BOT_ID) { const c = this.botCls; return { name: this.botName(), cls: CLASS_NAMES[c] ?? c, ...(this.botHero() ? hero(c) : { portrait: portraitOf(c === 'warrior' ? 'base/male' : `${c}/${c}_default`) }), you: false }; }
     const r = this.pvp?.remotes.get(id), c = r?.meta.classId ?? 'warrior';
-    return { name: r?.meta.name ?? this.nameOf(id), cls: CLASS_NAMES[c] ?? c, portrait: r?.meta.hero ? heroPortrait(c) : portraitOf(c === 'warrior' ? `base/${r?.meta.gender ?? 'male'}` : `${c}/${c}_default`), you: false };
+    return { name: r?.meta.name ?? this.nameOf(id), cls: CLASS_NAMES[c] ?? c, ...(r?.meta.hero ? hero(c) : { portrait: portraitOf(c === 'warrior' ? `base/${r?.meta.gender ?? 'male'}` : `${c}/${c}_default`) }), you: false };
   }
 
   private showResult(m: Match): void {

@@ -13,6 +13,9 @@ import { score, scoreKey } from '../pvp/Score';
 import { addMotes, preloadLife } from '../ui/PresentationLife';
 import { FighterArt } from '../ui/FighterArt';
 
+/** The select screen's backdrop: the arena's courtyard by night. */
+const SELECT_BG = 'pvp-select-bg';
+
 export interface PvpSelectData { mode?: VsMode; p1?: string; p2?: string }
 
 export class PvpSelectScene extends Phaser.Scene {
@@ -26,6 +29,7 @@ export class PvpSelectScene extends Phaser.Scene {
   preload(): void {
     const T = ATLAS.textures;
     if (!this.textures.exists(T.map.key)) this.load.image(T.map.key, T.map.file);
+    if (!this.textures.exists(SELECT_BG)) this.load.image(SELECT_BG, 'assets/character_select/pvp_select_bg.webp'); // the courtyard by night
     for (const c of ROSTER) { const hc = heroCard(c); if (hc && !this.textures.exists(`hero-card-${c}`)) this.load.image(`hero-card-${c}`, hc.file); } // the heroes' cards
     preloadLife(this); // (the embers)
   }
@@ -33,7 +37,7 @@ export class PvpSelectScene extends Phaser.Scene {
   create(data?: PvpSelectData): void {
     const mode: VsMode = data?.mode ?? 'cpu';
     this.cameras.main.fadeIn(240, 0, 0, 0);
-    const bg = this.add.image(DESIGN.width / 2, DESIGN.height / 2, ATLAS.textures.map.key);
+    const bg = this.add.image(DESIGN.width / 2, DESIGN.height / 2, this.textures.exists(SELECT_BG) ? SELECT_BG : ATLAS.textures.map.key);
     bg.setScale(Math.max(DESIGN.width / bg.width, DESIGN.height / bg.height));
     this.add.image(0, 0, washTex(this)).setOrigin(0).setDisplaySize(DESIGN.width, DESIGN.height).setDepth(1);
     this.arts = { l: new FighterArt(this, 'l'), r: new FighterArt(this, 'r') };
@@ -85,7 +89,7 @@ export class PvpSelectScene extends Phaser.Scene {
   private start(p1: string, p2: string, mode: VsMode): void {
     const fighter = fighterFor(p1);
     if (mode === 'cpu') this.scene.start('LegacyCourtyardScene', { pvpRoom: generateRoomId(6), fighter, botCls: p2, vs: 'cpu' });
-    else this.scene.start('LegacyCourtyardScene', { pvpRoom: this.lobby?.room ?? ensurePvpRoomInUrl(), fighter, vs: 'player' });
+    else this.scene.start('LegacyCourtyardScene', { pvpRoom: this.lobby?.room ?? ensurePvpRoomInUrl(), fighter, vs: 'player', foe: { cls: p2, name: this.lobby?.other?.name || 'Player 2' } }); // (foe: for the loading screen)
   }
 
   private leave(go: () => void): void {

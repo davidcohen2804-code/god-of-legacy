@@ -430,7 +430,7 @@ def main():
             # looks much smaller walking. Sized halfway (geometric mean) between the same height and the same face.
             ref_act = REF_STAND[cls][0] if cls in REF_STAND else 'idle'
             face_old = float(np.median([v for v in (face_size(im) for (ac, _, _), im in zip(acts, ims) if ac == ref_act) if v]))
-            probe, _ = rig.bake(parts_png, cls, idle_now)
+            probe, _ = rig.bake(parts_png, cls, idle_now, kinds=('idle', 'walk'))
             face_rig = float(np.median([v for v in (face_size(im) for a, im, _, _ in probe if a in ('idle', 'walk')) if v]))
             size = math.sqrt(max(0.8, min(1.8, face_old / face_rig)))
             print(cls, 'rig size', round(size, 3))
