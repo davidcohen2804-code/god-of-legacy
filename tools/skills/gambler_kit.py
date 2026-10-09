@@ -27,6 +27,37 @@ SHEETS = {
 }
 
 
+# sheets cut by hand-placed boxes (x0, y0, x1, y1 on the 1536x1024 sheet): wide pieces that reach past their grid cell
+BOXES = {
+    'casino2': (420, {
+        'r_sigil': (0, 215, 408, 465), 'r_spin': (408, 215, 775, 465), 'r_ball': (785, 225, 980, 415),
+        'r_red': (975, 45, 1255, 465), 'r_card': (1258, 85, 1525, 465),
+        'd_die': (20, 595, 305, 905), 'd_tumble': (305, 595, 595, 905), 'd_trail': (570, 705, 910, 875),
+        'd_impact': (912, 585, 1205, 925), 'd_double': (1205, 565, 1530, 925)}),
+    'grab': (400, {
+        'g_hand': (8, 160, 388, 400), 'g_fist': (386, 145, 642, 440), 'g_tether': (640, 245, 978, 335),
+        'g_cocoon': (992, 115, 1222, 450), 'g_shock': (1228, 135, 1532, 435),
+        'g_crater': (0, 635, 372, 885), 'g_erupt': (370, 495, 702, 920), 'g_fuse': (700, 590, 952, 880),
+        'g_crackle': (956, 598, 1202, 865), 'g_orbit': (1200, 625, 1532, 835)}),
+}
+
+
+def cut_boxes(name):
+    keep, boxes = BOXES[name]
+    im = np.array(Image.open(os.path.join(SRC, f'gambler_{name}.png')).convert('RGB'))
+    rgba = key_black(im)
+    a = rgba[..., 3].astype(np.float32)
+    rgba[..., 3] = (np.clip((a - 16) / (255 - 16), 0, 1) ** 1.1 * 255).astype(np.uint8)  # the black's faint haze goes
+    os.makedirs(OUT, exist_ok=True)
+    for n, (x0, y0, x1, y1) in boxes.items():
+        piece = Image.fromarray(rgba[y0:y1, x0:x1])
+        bb = piece.getchannel('A').point(lambda v: 255 if v > 6 else 0).getbbox()
+        if bb: piece = piece.crop((max(0, bb[0] - 4), max(0, bb[1] - 4), min(piece.width, bb[2] + 4), min(piece.height, bb[3] + 4)))
+        piece.thumbnail((keep, keep), Image.LANCZOS)
+        piece.save(os.path.join(OUT, f'{n}.png'))
+        print(name, n, piece.size)
+
+
 def key_green(rgb):
     r, g, b = [rgb[..., i].astype(np.float32) for i in range(3)]
     over = g - np.maximum(r, b)                       # how much greener than the other channels
@@ -121,6 +152,10 @@ def cut(name):
         print(name, nm, p.size)
 
 
+if __name__ == '__main__' and any(a in BOXES for a in sys.argv[1:]):
+    for a in sys.argv[1:]:
+        if a in BOXES: cut_boxes(a)
+    sys.exit(0)
 if __name__ == '__main__':
     for n in (sys.argv[1:] or SHEETS):
         cut(n)

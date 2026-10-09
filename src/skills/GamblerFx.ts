@@ -294,8 +294,12 @@ export class GamblerFx {
       case 'rotor_staff': if (i === r.hits.length - 1) { if (!this.stroke('s_thrust', o.x + side * 24, y0 - 56, 210, side, 300, d, 0, 0.05, 0.5)) this.band(o.x + side * 30, y0 - 56, 150, side > 0 ? 0 : 180, 260, 30, d); this.pop(o.x + side * 150, y0 - 56, 120); } break;
       case 'kinetic_grab': if (i === 0) { // the reach: a hand of kinetic light shoots out from his palm and clenches
         const h = this.ctx.hand(r.attackerId) ?? { x: o.x + side * 26, y: y0 - 64 }, tx = o.x + side * 90, ty = y0 - 50;
-        const g = this.kit('x_grip', h.x, h.y, 150, d + 2);
-        if (g) { const g0 = g.scale; g.setFlipX(side < 0); this.piece(g, 300, (u, im) => { const k = out3(clamp01(u * 2.2)); im.setPosition(lerp(h.x, tx, k), lerp(h.y, ty, k)).setScale(g0 * (u < 0.45 ? lerp(0.5, 1.1, k) : lerp(1.1, 0.55, (u - 0.45) / 0.55))).setAlpha(u < 0.75 ? 1 : (1 - u) / 0.25); }); }
+        const hand = this.kit('g_hand', h.x, h.y, 150, d + 2) ?? this.kit('x_grip', h.x, h.y, 150, d + 2);
+        if (hand) { const g0 = hand.scale, fist = this.ctx.scene.textures.exists('gbk-g_fist'); hand.setFlipX(side < 0).setOrigin(side > 0 ? 0.3 : 0.7, 0.5);
+          this.piece(hand, 320, (u, im) => { const k = out3(clamp01(u * 2.4)); im.setPosition(lerp(h.x, tx, k), lerp(h.y, ty, k));
+            if (fist && u > 0.42 && im.texture.key !== 'gbk-g_fist') { im.setTexture('gbk-g_fist').setOrigin(0.5); }
+            const sc = im.texture.key === 'gbk-g_fist' ? g0 * 0.75 * lerp(1.2, 0.85, (u - 0.42) / 0.58) : g0 * lerp(0.55, 1.1, k);
+            im.setScale(sc).setAlpha(u < 0.78 ? 1 : (1 - u) / 0.22); }); }
         this.band(h.x, h.y, Math.abs(tx - h.x) + 20, side > 0 ? 0 : 180, 200, 16, d + 1);
       }
       if (i === 1) this.stroke('s_heavy', o.x + side * 50, y0 - 64, 180, side, 300, d); break;
@@ -439,30 +443,35 @@ export class GamblerFx {
     const s = this.ctx.scene, H = tp0.h ?? 90;
     const at = () => { const t = this.ctx.targetPos(id); return t ? { x: t.x, y: t.y - t.z - H * 0.5, d: t.y } : null; };
     if (skill === 'kinetic_grab' && hit === 0) { // seized: the body charges up — arcs crawl over it, a card-shaped charge pulses, the glow swells
-      const glow = this.glow(0, 0, H * 1.6, FUCHSIA, 0), ring = this.kit('x_grip', 0, 0, H * 1.1, 0) ?? this.kit('k_charge', 0, 0, H * 0.9, 0);
+      const glow = this.glow(0, 0, H * 1.6, FUCHSIA, 0), ring = this.kit('g_cocoon', 0, 0, H * 1.2, 0) ?? this.kit('k_charge', 0, 0, H * 0.9, 0);
+      const fuse = this.kit('g_fuse', 0, 0, 54, 0), orbit = this.kit('g_orbit', 0, 0, H * 1.3, 0), r0 = ring?.scale ?? 1, o0 = orbit?.scale ?? 1;
       this.add((t) => {
-        const p = at(); if (!p || t > 520) { glow.destroy(); ring?.destroy(); return false; }
-        const u = t / 520;
-        glow.setPosition(p.x, p.y).setDepth(p.d + 2).setAlpha(0.35 + 0.35 * u + 0.15 * Math.sin(t * 0.06)).setScale((H * (1.2 + u * 0.8)) / 128);
-        if (ring) ring.setPosition(p.x, p.y).setDepth(p.d + 3).setAlpha(0.5 + 0.5 * Math.abs(Math.sin(t * 0.03))).setAngle(t * 0.2).setScale((H * (0.7 + u * 0.5)) / ring.width);
-        if (Math.random() < 0.35) { const a = this.kit('k_arcs', p.x + rnd(-18, 18), p.y + rnd(-H * 0.4, H * 0.4), rnd(50, 80), p.d + 4); if (a) { const a0 = a.scale; a.setAngle(rnd(0, 360)); this.piece(a, 120, (uu, o) => o.setAlpha(1 - uu).setScale(a0 * (1 + uu * 0.3))); } }
+        const p = at(); if (!p || t > 540) { glow.destroy(); ring?.destroy(); fuse?.destroy(); orbit?.destroy(); return false; }
+        const u = t / 540, beat = 0.5 + 0.5 * Math.sin(t * (0.03 + u * 0.05)); // the charge builds: it pulses faster and faster
+        glow.setPosition(p.x, p.y).setDepth(p.d + 2).setAlpha(0.3 + 0.35 * u + 0.15 * beat).setScale((H * (1.2 + u * 0.8)) / 128);
+        if (ring) ring.setPosition(p.x, p.y).setDepth(p.d + 3).setAlpha(0.55 + 0.45 * beat).setFlipX(Math.floor(t / 90) % 2 === 1).setScale(r0 * lerp(1.15, 0.95, out3(clamp01(u * 4))) * (1 + 0.06 * beat));
+        if (orbit) orbit.setPosition(p.x, p.y + H * 0.5).setDepth(p.d + 3).setAlpha(0.85).setFlipX(Math.floor(t / 120) % 2 === 1).setScale(o0 * (1 + 0.05 * Math.sin(t * 0.02)), o0 * 0.8);
+        if (fuse) fuse.setPosition(p.x, p.y - H * 0.75 - 16).setDepth(p.d + 5).setAlpha(Math.floor(t / Math.max(50, 160 - u * 120)) % 2 ? 1 : 0.45).setAngle(t * 0.25);
+        if (Math.random() < 0.4) { const a = this.kit('g_crackle', p.x + rnd(-18, 18), p.y + rnd(-H * 0.4, H * 0.4), rnd(45, 75), p.d + 4) ?? this.kit('k_arcs', p.x, p.y, 60, p.d + 4); if (a) { const a0 = a.scale; a.setAngle(rnd(0, 360)); this.piece(a, 110, (uu, o) => o.setAlpha(1 - uu).setScale(a0 * (1 + uu * 0.3))); } }
         return true;
       });
       this.ctx.callout({ x: tp0.x, y: tp0.y, z: tp0.z + 20 }, 'GRAB!', '#ff7ae6', 1);
       // the snap: the grip slams shut on him (big → tight), a white flash, a beat of hit-stop
       this.ctx.freeze(70); this.ctx.cam().shake(110, 0.006);
-      const snap = this.kit('x_grip', tp0.x, tp0.y - tp0.z - H * 0.5, H * 2.6, tp0.y + 5);
+      const snap = this.kit('g_fist', tp0.x, tp0.y - tp0.z - H * 0.5, H * 2.2, tp0.y + 5) ?? this.kit('x_grip', tp0.x, tp0.y - tp0.z - H * 0.5, H * 2.6, tp0.y + 5);
       if (snap) { const s0 = snap.scale; this.piece(snap, 220, (u, o) => o.setScale(s0 * lerp(1, 0.42, out3(u))).setAlpha(u < 0.7 ? 1 : (1 - u) / 0.3)); }
       this.pop(tp0.x, tp0.y - tp0.z - H * 0.5, H * 1.5, 0xffffff, 200);
       // the tether: a crackling bolt from his hand to the foe while he holds him
       if (by) {
-        const bolt = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+        const bolt = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD), teth = this.kit('g_tether', 0, 0, 100, 0);
+        teth?.setOrigin(0.02, 0.5);
         this.add((t) => {
-          const p = at(), h = this.ctx.hand(by); if (!p || !h || t > 500) { bolt.destroy(); return false; }
+          const p = at(), h = this.ctx.hand(by); if (!p || !h || t > 500) { bolt.destroy(); teth?.destroy(); return false; }
           bolt.clear().setDepth(Math.max(p.d, h.y) + 4);
+          if (teth) { const L = Math.hypot(p.x - h.x, p.y - h.y); teth.setPosition(h.x, h.y).setDepth(Math.max(p.d, h.y) + 3).setAngle(Math.atan2(p.y - h.y, p.x - h.x) * 57.3).setDisplaySize(Math.max(30, L * 1.04), 30 + 8 * Math.sin(t * 0.08)).setFlipY(Math.floor(t / 60) % 2 === 1); }
           const n = 9, jit = 10 + 6 * Math.sin(t * 0.05), pts: [number, number][] = [];
           for (let i = 0; i <= n; i++) { const k = i / n, e = i === 0 || i === n ? 0 : jit; pts.push([lerp(h.x, p.x, k) + rnd(-e, e) * 0.4, lerp(h.y, p.y, k) + rnd(-e, e) - Math.sin(k * Math.PI) * 12]); }
-          for (const [w, c, a] of [[12, FUCHSIA, 0.35], [5, FUCHSIA_2, 0.85], [2, 0xffffff, 1]] as const) { bolt.lineStyle(w, c, a); bolt.beginPath(); bolt.moveTo(pts[0][0], pts[0][1]); for (const q of pts.slice(1)) bolt.lineTo(q[0], q[1]); bolt.strokePath(); }
+          for (const [w, c, a] of (teth ? [[2, 0xffffff, 0.9]] : [[12, FUCHSIA, 0.35], [5, FUCHSIA_2, 0.85], [2, 0xffffff, 1]]) as [number, number, number][]) { bolt.lineStyle(w, c, a); bolt.beginPath(); bolt.moveTo(pts[0][0], pts[0][1]); for (const q of pts.slice(1)) bolt.lineTo(q[0], q[1]); bolt.strokePath(); }
           return true;
         });
       }
@@ -473,7 +482,9 @@ export class GamblerFx {
       const comet = this.kit('x_comet', tp0.x, tp0.y - tp0.z - H * 0.5, big ? 300 : 220, tp0.y + 1); comet?.setOrigin(0.92, 0.5);
       if (!big) { // the throw: the charge goes critical — a white burst on him, a shock ring, the tether snaps
         const y = tp0.y - tp0.z - H * 0.5; this.ctx.freeze(90); this.ctx.cam().shake(200, 0.011); this.ctx.flash(0xffffff, 0.18, 110);
-        this.pop(tp0.x, y, H * 2.2, FUCHSIA, 320); this.shards(tp0.x, y, 7, 130, 460);
+        this.pop(tp0.x, y, H * 1.6, FUCHSIA, 260); this.shards(tp0.x, y, 7, 130, 460);
+        const fl = by ? this.ctx.casterPos(by) : null, dir = fl && fl.x > tp0.x ? -1 : 1;
+        const sh = this.kit('g_shock', tp0.x - dir * H * 0.3, y, H * 2.4, tp0.y + 6); if (sh) { sh.setFlipX(dir < 0).setOrigin(dir > 0 ? 0.1 : 0.9, 0.5); const s0 = sh.scale; this.piece(sh, 320, (u, o) => o.setScale(s0 * lerp(0.5, 1.2, out3(u))).setAlpha(u < 0.4 ? 1 : (1 - u) / 0.6)); }
         const ring = this.kit('k_ring', tp0.x, y, H * 2.4, tp0.y + 6); if (ring) { const r0 = ring.scale; this.piece(ring, 280, (u, o) => o.setScale(r0 * lerp(0.3, 1.25, out3(u))).setAlpha(1 - u)); }
       }
       this.add((t) => {
@@ -660,6 +671,7 @@ export class GamblerFx {
     const s = this.ctx.scene, g = s.add.graphics().setDepth(GROUND + 3);
     const ballPic = s.textures.exists('gbk-c_ball'), ball = ballPic ? s.add.image(0, 0, 'gbk-c_ball').setDisplaySize(18, 18).setDepth(GROUND + 5) : s.add.circle(0, 0, 7, 0xfffbe8).setDepth(GROUND + 4);
     const spinMs = 2000, total = T.startup + spinMs + 500;
+    if (s.textures.exists('gbk-r_sigil')) { ball.destroy(); g.destroy(); this.rouletteSigil(r, p, R, res, total, spinMs); return; }
     const wheel = this.kit('c_wheel', p.x, p.y, R * 2.3, GROUND + 3, false);
     if (wheel) { // the painted wheel stands on the floor; light runs round its top while it spins, the ball rolls on it
       const w0 = wheel.scale, top = { y: -0.17, rx: 0.4, ry: 0.13 }; // its top face, in fractions of the drawing (centre y, radii)
@@ -721,24 +733,79 @@ export class GamblerFx {
       return true;
     });
   }
+  /** The roulette as a sigil of light laid flat on the floor: it draws itself in, spins (a blur of light), the ball of light
+   *  runs round its rim skipping pockets, slows — the world holds its breath — and drops; the sigil stays lit till the result. */
+  private rouletteSigil(r: CastRun, p: { x: number; y: number }, R: number, res: { pocket: number; red: boolean }, total: number, spinMs: number): void {
+    const T = r.timings, s = this.ctx.scene, Wd = R * 2.35, Hd = Wd * SQUASH * 1.02;
+    const base = s.add.image(p.x, p.y, 'gbk-r_sigil').setDepth(GROUND + 3).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(Wd, Hd).setAlpha(0);
+    const spin = s.add.image(p.x, p.y, 'gbk-r_spin').setDepth(GROUND + 3.1).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(Wd * 1.04, Hd * 1.06).setAlpha(0);
+    const bx = base.scaleX, by = base.scaleY, sx = spin.scaleX, sy = spin.scaleY;
+    const ball = s.add.image(p.x, p.y, 'gbk-r_ball').setOrigin(0.15, 0.78).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(58, 60).setVisible(false);
+    const streak = s.add.graphics().setDepth(GROUND + 3.2).setBlendMode(Phaser.BlendModes.ADD);
+    const rx = Wd * 0.43, ry = Hd * 0.43, cy = p.y;
+    this.floorRing(p.x, p.y, R * 1.15, FUCHSIA_2, 360, 0, 4); // the circle snaps open first
+    const st = { pk: -1, tense: false, won: false, lx: p.x, ly: p.y };
+    this.add((t) => {
+      if (t >= total + 300) { base.destroy(); spin.destroy(); ball.destroy(); streak.destroy(); return false; }
+      const open = out3(clamp01(t / Math.max(1, T.startup + 80))), u = clamp01((t - T.startup) / spinMs), speed = t < T.startup ? open : 1 - out3(u);
+      const fade = t > T.startup + spinMs + 260 ? clamp01(1 - (t - T.startup - spinMs - 260) / 340) : 1;
+      // it draws itself in: from a thin bright line to the full ellipse (no pop of furniture)
+      base.setScale(bx * lerp(0.92, 1, open), by * lerp(0.15, 1, open)).setAlpha(open * fade * (st.won ? 1 : 0.92));
+      spin.setScale(sx * lerp(0.92, 1, open), sy * lerp(0.15, 1, open)).setAlpha(open * fade * speed * 0.85).setFlipX(Math.floor(t / 70) % 2 === 1);
+      // a few thin arcs of light sweep round the rim — the spin you read at a glance
+      const rot = t * 0.011 * (0.12 + 0.88 * speed);
+      streak.clear().setAlpha(fade);
+      if (!st.won) for (let k = 0; k < 2; k++) {
+        const a0 = rot + k * Math.PI, len = 0.9 * (0.3 + speed);
+        for (let j = 0; j < 10; j++) { const aa = a0 + (j / 10) * len, a1 = a0 + ((j + 1) / 10) * len, w = 1 + 4 * (j / 10);
+          streak.lineStyle(w, j > 7 ? 0xffffff : FUCHSIA_2, (0.15 + 0.7 * (j / 10)) * open);
+          streak.lineBetween(p.x + Math.cos(aa) * rx * 1.04, cy + Math.sin(aa) * ry * 1.04, p.x + Math.cos(a1) * rx * 1.04, cy + Math.sin(a1) * ry * 1.04); }
+      }
+      if (t > T.startup) { // the ball: fast round the rim, skipping over the pockets, slowing, dropping in
+        const target = ((res.pocket + 0.5) / 18) * Math.PI * 2 - Math.PI / 2, ba = u >= 1 ? target : target - (1 - out3(u)) * 24, br = u >= 1 ? 0.74 : lerp(0.98, 0.84, u);
+        const pocketNow = Math.floor(ba / ((Math.PI * 2) / 18));
+        const hop = u < 1 ? Math.abs(Math.sin((ba / ((Math.PI * 2) / 18)) * Math.PI)) * (3 + 9 * u) : 0;
+        const x = p.x + Math.cos(ba) * rx * br, y = cy + Math.sin(ba) * ry * br - 6 - hop;
+        const vx = x - st.lx, vy = y - st.ly; st.lx = x; st.ly = y;
+        ball.setVisible(true).setPosition(x, y).setDepth(y + 2).setAlpha(fade);
+        if (Math.hypot(vx, vy) > 0.6) ball.setAngle(Math.atan2(vy, vx) * 57.3 - 145).setDisplaySize(lerp(40, 70, speed), lerp(40, 70, speed)); // the tail streams behind it, longer the faster
+        if (u < 1 && st.pk >= 0 && pocketNow !== st.pk && u > 0.5) { this.pop(x, y + 4, 16 + 22 * u, u > 0.85 ? 0xffffff : FUCHSIA_2, 120); if (u > 0.75) this.ctx.cam().shake(35, 0.001 + u * 0.002); }
+        st.pk = pocketNow;
+        if (!st.tense && u > 0.7) { st.tense = true; this.ctx.darken(spinMs * 0.3 + 520, 0.32); }
+        if (u >= 1 && !st.won) { // it drops in: a beat of stillness, the pocket flares, a thin column of light marks it
+          st.won = true; ball.setDisplaySize(30, 30).setAngle(0);
+          this.ctx.freeze(160); this.ctx.punch(0.06, 340); this.pop(x, y, 120, res.red ? FUCHSIA : 0xe8e0ff, 420);
+          const beam = this.kit('k_beam', x, y + 6, 120, y + 3); if (beam) { beam.setOrigin(0.5, 0.97).setTint(res.red ? 0xffffff : 0xc8b8ff); const b0 = beam.scale; this.piece(beam, 420, (uu, o) => o.setScale(b0 * 0.5, b0 * lerp(0.2, 1, out3(uu))).setAlpha(1 - uu)); }
+        }
+      }
+      return true;
+    });
+  }
   private rouletteEnd(r: CastRun): void {
     const p = r.place ?? this.ahead(r, 200), res = rouletteOf(r.castId), c = this.me(r);
     this.ctx.callout({ x: p.x, y: p.y, z: 40 }, res.red ? 'RED!' : 'BLACK!', res.red ? '#ff2bd6' : '#e8e0f0', 0);
-    if (res.red) { // RED: the wheel erupts
-      this.ctx.flash(0xff2bd6, 0.32, 200);
-      this.burst(p.x, p.y - 40, 300, 0, p.y + 3);
-      this.beam(p.x, p.y, 380, 480);
-      for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; this.burst(p.x + Math.cos(a) * 130, p.y + Math.sin(a) * 130 * SQUASH - 20, 110, 60 + k * 25, p.y + 3); }
-      this.floorRing(p.x, p.y, 200, FUCHSIA, 500); this.scar(p.x, p.y, 140);
-      this.ctx.cam().shake(380, 0.014); this.ctx.freeze(90);
-    } else { // BLACK: the cage slams shut
-      this.ctx.flash(0xd8d0e8, 0.22, 160); this.ctx.cam().shake(220, 0.01); this.ctx.freeze(70); // black: a cage of standing cards round everyone in the wheel for 2s
-      for (let k = 0; k < 12; k++) {
-        const a = (k / 12) * Math.PI * 2, x = p.x + Math.cos(a) * 140, y = p.y + Math.sin(a) * 140 * SQUASH;
-        const im = this.ctx.scene.add.image(x, y, this.BK).setOrigin(0.5, 1).setScale(this.u * (0.6)).setDepth(y);
-        this.piece(im, 2000, (u, o) => o.setScale(this.u * 0.6, this.u * 0.6 * (u < 0.1 ? u / 0.1 : u > 0.85 ? (1 - u) / 0.15 : 1)));
+    if (res.red && this.ctx.scene.textures.exists('gbk-r_red')) { // RED: a column of fuchsia fire tears up out of the sigil
+      this.ctx.flash(0xff2bd6, 0.26, 180); this.ctx.cam().shake(360, 0.013); this.ctx.freeze(90);
+      const col = this.kit('r_red', p.x, p.y + 8, 300, p.y + 4);
+      if (col) { col.setOrigin(0.5, 0.94); const c0 = col.scale; this.piece(col, 760, (u, o) => o.setScale(c0 * lerp(0.7, 1.05, out3(clamp01(u * 3))), c0 * lerp(0.15, 1.15, out3(clamp01(u * 2.4)))).setAlpha(u < 0.55 ? 1 : (1 - u) / 0.45)); }
+      this.pop(p.x, p.y - 30, 260, 0xffffff, 260);
+      this.shards(p.x, p.y - 60, 14, 220, 620);
+      this.floorRing(p.x, p.y, 190, FUCHSIA, 520); this.scar(p.x, p.y, 130);
+    } else if (res.red) { // RED (fallback art)
+      this.ctx.flash(0xff2bd6, 0.32, 200); this.burst(p.x, p.y - 40, 300, 0, p.y + 3); this.beam(p.x, p.y, 380, 480);
+      this.floorRing(p.x, p.y, 200, FUCHSIA, 500); this.scar(p.x, p.y, 140); this.ctx.cam().shake(380, 0.014); this.ctx.freeze(90);
+    } else { // BLACK: a ring of spectral cards rises out of the floor and stands round everyone in the wheel for 2s
+      this.ctx.flash(0xd8d0e8, 0.2, 160); this.ctx.cam().shake(220, 0.01); this.ctx.freeze(70);
+      const pic = this.ctx.scene.textures.exists('gbk-r_card');
+      for (let k = 0; k < 10; k++) {
+        const a = (k / 10) * Math.PI * 2 + 0.31, x = p.x + Math.cos(a) * 150, y = p.y + Math.sin(a) * 150 * SQUASH;
+        const im = pic ? this.kit('r_card', x, y + 6, 74, y)! : this.ctx.scene.add.image(x, y, this.BK).setDepth(y);
+        im.setOrigin(0.5, 0.95).setFlipX(Math.cos(a) < 0);
+        const k0 = pic ? im.scale : this.u * 0.6, dl = k * 35;
+        this.piece(im, 2050, (u, o) => { const up = out3(clamp01(u / 0.12)), down = u > 0.86 ? (1 - u) / 0.14 : 1; o.setScale(k0 * lerp(0.6, 1, up), k0 * up * down).setAlpha(down * (0.8 + 0.2 * Math.sin(u * 40 + k))); }, dl);
+        this.pop(x, y - 10, 50, 0xc8b8ff, 200, dl);
       }
-      this.floorRing(p.x, p.y, 150, 0xd8d0e8, 600);
+      this.floorRing(p.x, p.y, 160, 0xd8d0e8, 600);
     }
     void c;
   }
@@ -747,6 +814,27 @@ export class GamblerFx {
     const T = r.timings, [a, b] = diceOf(r.castId), s = this.ctx.scene;
     const mk = (n: number, i: number) => {
       const g = s.add.graphics(), size = 26, bias = [140, 195][i];
+      if (s.textures.exists('gbk-d_die')) { // a die of kinetic light: it tumbles (blurred) along a scorched streak, skids, settles, bursts
+        const im = s.add.image(0, 0, 'gbk-d_tumble').setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
+        const trail = s.add.image(0, 0, 'gbk-d_trail').setBlendMode(Phaser.BlendModes.ADD).setOrigin(0.97, 0.62).setVisible(false);
+        const side = r.aim.x < -0.01 ? -1 : 1, ang = screenAng(r.aim.x, r.aim.y) + (side < 0 ? 180 : 0), D = 52;
+        this.add((t) => {
+          if (t < T.startup) return true;
+          const tt = t - T.startup, land = 520 + i * 80;
+          if (tt >= land + 120) { im.destroy(); this.piece(trail, 260, (u, o) => o.setAlpha((1 - u) * 0.9)); return false; }
+          const c = r.origin, k = clamp01(tt / land), e = out3(k), x = c.x + r.aim.x * bias * e, y = c.y + r.aim.y * bias * e;
+          const hop = Math.abs(Math.sin(k * Math.PI * 2.5)) * 46 * (1 - k) * (1 - k);
+          const rolling = k < 0.86;
+          im.setVisible(true).setTexture(rolling ? 'gbk-d_tumble' : 'gbk-d_die').setPosition(x, y - 22 - hop).setDepth(y + 3)
+            .setDisplaySize(D, D).setFlipX(side < 0).setAngle(rolling ? side * tt * 1.1 : side * (1 - (k - 0.86) / 0.14) * 12);
+          if (!rolling && !(im as unknown as { landed?: boolean }).landed) { (im as unknown as { landed?: boolean }).landed = true; this.pop(x, y - 10, 46, FUCHSIA_2, 140); this.ctx.dust(x, y, 40, 0.5); }
+          const L = Math.hypot(x - c.x, y - c.y);
+          trail.setVisible(L > 20).setPosition(x, y + 2).setDepth(GROUND + 3).setAngle(ang).setFlipX(side < 0).setOrigin(side < 0 ? 0.03 : 0.97, 0.62)
+            .setDisplaySize(Math.max(20, L * 1.05), 34).setAlpha(0.85);
+          return true;
+        });
+        return;
+      }
       if (s.textures.exists('gbk-c_die_a')) {
         const im = s.add.image(0, 0, 'gbk-c_die_a').setDisplaySize(40, 40).setVisible(false), k0 = im.scale;
         this.add((t) => {
@@ -778,8 +866,14 @@ export class GamblerFx {
   }
   private diceBlast(r: CastRun, i: number): void {
     const [a, b] = diceOf(r.castId), sum = a + b, p = this.ahead(r, [140, 195][i]), size = 110 + sum * 16;
-    this.burst(p.x, p.y - 26, size, 0, p.y + 3);
-    this.floorRing(p.x, p.y, size * 0.7);
+    if (this.ctx.scene.textures.exists('gbk-d_impact')) { // the die bursts: a cube of light blown apart, pips flying
+      const im = this.kit('d_impact', p.x, p.y + 10, size * 1.15, p.y + 4);
+      if (im) { im.setOrigin(0.5, 0.86); const k0 = im.scale; this.piece(im, 460, (u, o) => o.setScale(k0 * lerp(0.45, 1.12, out3(clamp01(u * 2.2)))).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5)); }
+      this.pop(p.x, p.y - 30, size * 0.8, 0xffffff, 200);
+      this.shards(p.x, p.y - 30, Math.round(size / 40), size * 0.7, 420);
+      if (i === 1 && a === b) { const dd = this.kit('d_double', p.x, p.y + 10, 260, p.y + 5); if (dd) { dd.setOrigin(0.5, 0.85); const d0 = dd.scale; this.piece(dd, 700, (u, o) => o.setScale(d0 * lerp(0.6, 1.1, out3(clamp01(u * 2.5)))).setAlpha(u < 0.6 ? 1 : (1 - u) / 0.4), 90); } this.ctx.flash(0xffc94a, 0.2, 160); }
+    } else this.burst(p.x, p.y - 26, size, 0, p.y + 3);
+    this.floorRing(p.x, p.y, size * 0.6, FUCHSIA_2, 360, 0, 4);
     if (i === 1) { this.ctx.callout({ x: p.x, y: p.y, z: 30 }, a === b ? `DOUBLE ${a}s!` : `${a} + ${b} = ${sum}`, a === b ? '#ffc94a' : '#ff7ae6', 0); this.ctx.cam().shake(140 + sum * 10, 0.004 + sum * 0.0005); }
   }
 
@@ -1067,7 +1161,14 @@ export class GamblerFx {
       return;
     }
     if (id === 'card_swap') { this.burst(x, y - 34, 170, 0, y + 3); this.floorRing(x, y, r, FUCHSIA_2, 360); this.beam(x, y, 220, 320); this.ctx.cam().shake(140, 0.006); return; }
-    if (id === 'kinetic_grab') { this.burst(x, y - 40, r * 2, 0, y + 3); this.floorRing(x, y, r, FUCHSIA_2, 420); this.scar(x, y, r); this.ctx.cam().shake(220, 0.01); }
+    if (id === 'kinetic_grab') { // the body-bomb goes off where it fell: a crater of lit cracks, a tall eruption, card shards
+      const er = this.kit('g_erupt', x, y + 8, r * 2.1, y + 4), cr = this.kit('g_crater', x, y, r * 2.5, GROUND + 3);
+      if (er) { er.setOrigin(0.5, 0.92); const e0 = er.scale; this.piece(er, 620, (u, o) => o.setScale(e0 * lerp(0.6, 1.05, out3(clamp01(u * 3))), e0 * lerp(0.2, 1.15, out3(clamp01(u * 2.2)))).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5)); }
+      if (cr) { const cx = cr.scaleX, cy = (r * 2.5 * SQUASH * 1.3) / cr.height; this.piece(cr, 900, (u, o) => o.setScale(cx * lerp(0.5, 1, out3(clamp01(u * 4))), cy * lerp(0.5, 1, out3(clamp01(u * 4)))).setAlpha(u < 0.4 ? 1 : (1 - u) / 0.6)); }
+      if (!er) this.burst(x, y - 40, r * 2, 0, y + 3);
+      this.pop(x, y - 50, r * 1.6, 0xffffff, 220); this.shards(x, y - 40, 10, r * 1.4, 560);
+      this.floorRing(x, y, r, FUCHSIA_2, 420); this.scar(x, y, r); this.ctx.cam().shake(260, 0.012); this.ctx.freeze(60);
+    }
   }
   /** A fuchsia scar on the floor (a blow's mark), fading out. */
   private scar(x: number, y: number, r: number): void {
