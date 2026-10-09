@@ -89,7 +89,7 @@ export class PvpSelectScene extends Phaser.Scene {
   private start(p1: string, p2: string, mode: VsMode): void {
     const fighter = fighterFor(p1);
     if (mode === 'cpu') this.scene.start('LegacyCourtyardScene', { pvpRoom: generateRoomId(6), fighter, botCls: p2, vs: 'cpu' });
-    else this.scene.start('LegacyCourtyardScene', { pvpRoom: this.lobby?.room ?? ensurePvpRoomInUrl(), fighter, vs: 'player' });
+    else this.scene.start('LegacyCourtyardScene', { pvpRoom: this.lobby?.room ?? ensurePvpRoomInUrl(), fighter, vs: 'player', foe: { cls: p2, name: this.lobby?.other?.name || 'Player 2' } }); // (foe: for the loading screen)
   }
 
   private leave(go: () => void): void {
