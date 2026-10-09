@@ -312,13 +312,14 @@ export class OpenWorld {
   /** The Sky Path: each cloud drawn so its flat top face lies on the lane at its height (the one standing on it is drawn
    *  over it: actorDepth puts him in front of its lane's edge). */
   private buildSky(): void {
-    const [b0, b1] = SKY.band, yc = (b0 + b1) / 2;
+    const [b0, b1] = SKY.band;
     CLOUDS.forEach((c, i) => {
       const sp = SKY.sprites[c.s], key = `sky-cloud-${c.s}`;
       const make = () => {
-        const sc = (c.x1 - c.x0 + 40) / sp.w, top = (sp.top[0] + sp.top[1]) / 2 * sc;
-        const y = yc - c.z - top;
-        const img = this.scene.add.image(c.x0 - 20, y, key).setOrigin(0, 0).setScale(sc).setDepth(b1 + 0.5);
+        // its width over the cloud's; its walkable top face drawn as deep as the lane (back edge on the lane's back)
+        const sc = (c.x1 - c.x0 + 40) / sp.w, sy = Phaser.Math.Clamp((b1 - b0) / Math.max(1, (sp.top[1] - sp.top[0]) * sc), 1, 1.35) * sc;
+        const y = b0 - c.z - sp.top[0] * sy;
+        const img = this.scene.add.image(c.x0 - 20, y, key).setOrigin(0, 0).setScale(sc, sy).setDepth(b1 + 0.5);
         this.skyClouds.push({ img, y, ph: i * 1.7 });
       };
       if (this.scene.textures.exists(key)) make();

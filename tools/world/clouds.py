@@ -27,21 +27,20 @@ for i, (x0, y0, x1, y1) in enumerate(boxes):
   rgba = np.dstack([c, a[..., None] * 255]).clip(0, 255).astype(np.uint8)
   cv2.imwrite(OUT + f'c{i}.png', rgba)
   w = x1 - x0; mid = c[:, int(w * 0.3):int(w * 0.7)]
-  yel = (mid[..., 1] > 165) & (mid[..., 2] > 225) & (mid[..., 0] < 190)
-  rows = np.nonzero(yel.mean(1) > 0.5)[0]
+  yel = (mid[..., 1] > 150) & (mid[..., 2] > 215) & (mid[..., 0] < 200)
+  rows = np.nonzero(yel.mean(1) > 0.4)[0]
   sprites.append({'img': f'assets/world/clouds/c{i}.png', 'w': int(w), 'h': int(y1 - y0), 'top': [int(rows.min()), int(rows.max())]})
   print('cloud', i, (x0, y0, x1, y1), 'top face rows', rows.min(), rows.max())
 # the lane (world y) the clouds' top faces make — inside Ivy Summit's floor, so you step off its right end onto it
-BAND = [44, 82]
+BAND = [30, 100]
 # the path (world x): from Ivy Summit's right end (x 4304, its floor at z 680) to the right, up and down
-PATH = [   # gaps of 60-80 px, a step up of 35-40 at most (a jump from a short run-up rises ~90 px and carries ~110 px)
-  {'x': [4340, 4510], 'z': 690, 's': 0},
-  {'x': [4570, 4740], 'z': 730, 's': 1},
-  {'x': [4810, 5070], 'z': 700, 's': 2},
-  {'x': [5130, 5300], 'z': 740, 's': 0},
-  {'x': [5360, 5620], 'z': 780, 's': 3},
-  {'x': [5700, 5870], 'z': 750, 's': 1},
-  {'x': [5930, 6320], 'z': 785, 's': 4, 'reward': {'item': 'elixir', 'every': 300}},
+PATH = [   # wide, deep clouds; gaps of 70 px, a step up of 40 at most (a jump rises ~90 px and carries ~110 px)
+  {'x': [4330, 4570], 'z': 690, 's': 0},
+  {'x': [4640, 4950], 'z': 730, 's': 2},
+  {'x': [5020, 5450], 'z': 700, 's': 4},
+  {'x': [5520, 5760], 'z': 740, 's': 1},
+  {'x': [5830, 6140], 'z': 775, 's': 3},
+  {'x': [6210, 6380], 'z': 790, 's': 0, 'reward': {'item': 'elixir', 'every': 300}},
 ]
 json.dump({'name': 'Sky Path', 'band': BAND, 'lane': [4304, 6380], 'sprites': sprites, 'path': PATH},
           open(R + 'src/data/world-clouds.json', 'w'), indent=1)
