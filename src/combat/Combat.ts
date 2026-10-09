@@ -111,11 +111,14 @@ export function stepKin(k: Kin, ms: number, gravityScale = 1, blocked?: (x: numb
     }
     return false;
   };
-  const dx = k.vx * dt, dy = k.vy * dt, n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 3));
+  const dx = k.vx * dt, dy = k.vy * dt, n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 3)), px = k.x, py = k.y;
   for (let i = 0; i < n; i++) {
     if (dx !== 0 && !r.blockedX) { const nx = k.x + dx / n; if (ok(nx, k.y)) k.x = nx; else if (!lip && !(slide && Math.abs(dy) < Math.abs(dx) * 0.5 && along(dx / n, 0))) { r.blockedX = true; k.vx = 0; } }
     if (dy !== 0 && !r.blockedY) { const ny = k.y + dy / n; if (ok(k.x, ny)) k.y = ny; else if (!lip && !(slide && Math.abs(dx) < Math.abs(dy) * 0.5 && along(0, dy / n))) { r.blockedY = true; k.vy = 0; } }
   }
+  // a high back edge is a wall (on it or jumping over it): going back off it would drop you far down behind the picture,
+  // out of sight
+  if (k.y < py && supportAt(k.x, k.y, k.z).z < supportAt(k.x, py, k.z).z - 120) { k.y = py; if (k.vy < 0) k.vy = 0; }
   if (k.grounded) {
     const s = supportAt(k.x, k.y, k.z);
     if (s.z < k.z - 6) { k.grounded = false; k.vz = 0; r.leftSupport = true; k.from = k.supportId; k.stepped = true; } // walked off the edge
