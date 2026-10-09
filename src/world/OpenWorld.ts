@@ -296,6 +296,12 @@ export class OpenWorld {
     // the blocks on the maps above: one cube each, as tall as the block (covers the flat block painted in its picture),
     // its top face giving it depth; whoever walks behind it is hidden by it, whoever stands on it is drawn on its top
     for (const h of HEIGHTS) for (const b of h.blocks) {
+      if (h.cloud) {   // a cloud map: its own painted cloud cubes, cut out and drawn over whoever walks behind them
+        const key = `heights-${h.id}-${b.id}`, d = h.front + 2 + (b.front + 1.5) * 0.001;
+        const make = () => this.towers.push(this.scene.add.image(b.occ.x, h.imgY + b.occ.py, key).setOrigin(0, 0).setDepth(d));
+        if (this.scene.textures.exists(key)) make(); else { this.scene.load.image(key, b.occ.img); this.scene.load.once(`filecomplete-image-${key}`, make); if (!this.scene.load.isLoading()) this.scene.load.start(); }
+        continue;
+      }
       const d = h.front + 2 + (b.front + 1.5) * 0.001, foot = b.front - h.H, w = b.x1 - b.x0, tint = h.id.startsWith('crimson') ? 0xe6b0a4 : 0xffffff;
       this.towers.push(this.scene.add.image(b.x0, foot - b.h, 'tower-cube-face').setOrigin(0, 0).setDisplaySize(w, b.h).setDepth(d).setTint(tint));
       this.towers.push(this.scene.add.image(b.x0, foot - b.h - CUBE.top, 'tower-cube-top').setOrigin(0, 0).setDisplaySize(w, CUBE.top).setDepth(d).setTint(tint));

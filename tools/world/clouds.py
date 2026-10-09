@@ -43,6 +43,6 @@ PATH = [   # gaps of 60-80 px, a step up of 35-40 at most (a jump from a short r
   {'x': [5700, 5870], 'z': 750, 's': 1},
   {'x': [5930, 6320], 'z': 785, 's': 4, 'reward': {'item': 'elixir', 'every': 300}},
 ]
-json.dump({'name': 'Sky Path', 'band': BAND, 'lane': [4304, PATH[-1]['x'][1] + 20], 'sprites': sprites, 'path': PATH},
+json.dump({'name': 'Sky Path', 'band': BAND, 'lane': [4304, 6380], 'sprites': sprites, 'path': PATH},
           open(R + 'src/data/world-clouds.json', 'w'), indent=1)
 print('sky path', len(PATH), 'clouds')

@@ -132,7 +132,7 @@ const towerProps = () => TOWERS.map((t) => {
 /** Maps above the terrace (tools/world/heights.py): a whole floor H px up behind it, its picture standing behind the
  *  terrace's back balustrade (imgY: its top, world px), its blocks and monsters up there. */
 export interface Heights {
-  id: string; name: string; x: number; w: number; H: number; front: number; back: number; img: string; imgX?: number; imgY: number; imgH: number; depth: number;
+  id: string; name: string; x: number; w: number; H: number; front: number; back: number; img: string; imgX?: number; imgY: number; imgH: number; depth: number; /** made of cloud: its own painted cubes, no stone */ cloud?: boolean;
   blocks: { id: string; x0: number; x1: number; front: number; h: number; depth: number; occ: { img: string; x: number; py: number } }[];
   mobs: { kind: string; spawns: Pt[] };
 }

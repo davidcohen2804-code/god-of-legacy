@@ -31,6 +31,13 @@ MAPS = {
                   'blocks': [{'id': 'block-l', 'x': (266, 449), 'front': 503, 'h': 85, 'depth': 26},
                              {'id': 'block-r', 'x': (1321, 1434), 'front': 510, 'h': 70, 'depth': 23}],
                   'mobs': {'kind': 'thorn', 'spawns': [[300, 545], [620, 470], [820, 545], [1010, 445], [1180, 530], [1400, 480]]}},
+  # at the Sky Path's end: a whole map made of one huge cloud, floating (no wall below it, no towers at its ends; its
+  # painted cloud cubes are its blocks)
+  'cloud_haven': {'name': 'Cloud Haven', 'over': 'training_2', 'dx': 22, 'H': 800, 'front': 122, 'floor': (345, 575), 'sky': (140, 300),
+                  'cloud': True, 'depth': -1.25,
+                  'blocks': [{'id': 'block-l', 'x': (262, 452), 'front': 505, 'h': 82, 'depth': 30},
+                             {'id': 'block-r', 'x': (1302, 1438), 'front': 512, 'h': 76, 'depth': 26}],
+                  'mobs': {'kind': 'thorn', 'spawns': [[160, 470], [640, 430], [900, 540], [1120, 450], [1560, 500]]}},
 }
 EDGE_SHADE = 34   # px: the ends shaded toward their edge (they turn away from the light: volume)
 WALK_IN = 12    # the walkable floor stops this far in from each end (the corner towers stand just beyond): the picture's left / right ends fade out (the floor ends in the air there; you cannot walk off it)
@@ -50,42 +57,54 @@ for id_, m in MAPS.items():
   if m.get('flip'): im = cv2.flip(im, 1)
   if m.get('crop'): im = im[:, m['crop'][0]:m['crop'][1]].copy()
   h, w = im.shape[:2]
-  seed = np.full((h, w), cv2.GC_PR_BGD, np.uint8); seed[:m['sky'][0]] = cv2.GC_BGD; seed[m['sky'][1]:] = cv2.GC_FGD
-  seed[m['sky'][0] + 80:m['sky'][1]] = cv2.GC_PR_FGD
-  bg, fg = np.zeros((1, 65)), np.zeros((1, 65))
-  cv2.grabCut(im, seed, None, bg, fg, 6, cv2.GC_INIT_WITH_MASK)
-  a = np.where((seed == cv2.GC_FGD) | (seed == cv2.GC_PR_FGD), 255, 0).astype(np.uint8)
-  a = cv2.morphologyEx(a, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
-  a = cv2.GaussianBlur(a, (3, 3), 0).astype(np.float32)
-  a[m['floor'][0] - 12:] = 255   # the floor and its wall: solid (GrabCut may leave thin spots in them)
-  rgba = np.dstack([cv2.cvtColor(im, cv2.COLOR_BGR2RGB), a.astype(np.uint8)])
-  # its two ends, anchored: a corner pier (one of its wall's pilasters, from the ground up to the floor's front lip) and a
-  # balustrade post with its urn at the back corner; the floor's cut edge a little shaded
-  P = m.get('pier', (527, 612, 578)); Q = m.get('post', (80, 155, 190, 352))
-  pier = rgba[P[2]:, P[0]:P[1]].copy(); pier[..., 3] = 255
-  post = rgba[Q[2]:Q[3], Q[0]:Q[1]].copy()
-  # its two ends: GPT's corner tower (heights/end_tower.png: the same terrace ending against a domed stone bastion) —
-  # its last stretch of terrace cross-faded over this map's end, the tower beyond it (mirrored on the left)
-  EXT = CAP_X1 - CAP_J1
-  wide = np.zeros((h, w + 2 * EXT, 4), np.uint8); wide[:, EXT:EXT + w] = rgba
-  cap = CAP[:h]
-  if m.get('recolor'):
-    ref = rgba[m['floor'][1] + 40:, 100:w - 100, :3].reshape(-1, 3).astype(np.float32)
-    src = CAP[400:, 200:950, :3].reshape(-1, 3).astype(np.float32)
-    c = cap.astype(np.float32); c[..., :3] = (c[..., :3] - src.mean(0)) / (src.std(0) + 1e-3) * ref.std(0) + ref.mean(0)
-    cap = c.clip(0, 255).astype(np.uint8)
-  r = cap[:, CAP_J0:CAP_X1].astype(np.float32); bl = CAP_J1 - CAP_J0
-  ramp = np.clip(np.arange(r.shape[1]) / bl, 0, 1)[None, :, None]
-  for side in (1, 0):
-    c = r if side else r[:, ::-1]; rr = ramp if side else ramp[:, ::-1]
-    x0 = EXT + w - bl if side else 0
-    reg = wide[:, x0:x0 + c.shape[1]].astype(np.float32)
-    ca = c[..., 3:4] / 255 * rr
-    reg[..., :3] = c[..., :3] * ca + reg[..., :3] * (1 - ca); reg[..., 3:4] = reg[..., 3:4] * (1 - rr) + c[..., 3:4] * rr   # (a max of the two left the seam half see-through)
-    wide[:, x0:x0 + c.shape[1]] = reg.clip(0, 255).astype(np.uint8)
-  rgba = wide
+  if m.get('cloud'):   # cloud on cloud: no GrabCut — the sky fades out above the rim, the underside fades out below, the
+    # two ends fade out (it floats), the floor solid
+    yy = np.arange(h, dtype=np.float32)[:, None]; xx = np.arange(w, dtype=np.float32)[None, :]
+    a = np.clip((yy - m['sky'][0]) / (m['sky'][1] - m['sky'][0]), 0, 1) * np.clip((h - 20 - yy) / 160, 0, 1)
+    edge = np.minimum(xx, w - 1 - xx)
+    a = a * np.clip(edge / 320, 0, 1) ** 1.5                       # its sky and underside melt away toward both ends
+    band = (yy >= m['floor'][0] - 12) & (yy < m['floor'][1] + 60)
+    wob = 18 * np.sin(yy / 23.0) + 10 * np.sin(yy / 9.0 + 1)      # the floor's own ends: soft, uneven cloud edges
+    a = np.where(band, np.maximum(a, np.clip((edge - 14 - wob) / 40, 0, 1)), a)
+    rgba = np.dstack([cv2.cvtColor(im, cv2.COLOR_BGR2RGB), (a * 255).astype(np.uint8)])
+    EXT = CAP_X1 - CAP_J1; wide = np.zeros((h, w + 2 * EXT, 4), np.uint8); wide[:, EXT:EXT + w] = rgba; rgba = wide
+  else:
+    seed = np.full((h, w), cv2.GC_PR_BGD, np.uint8); seed[:m['sky'][0]] = cv2.GC_BGD; seed[m['sky'][1]:] = cv2.GC_FGD
+    seed[m['sky'][0] + 80:m['sky'][1]] = cv2.GC_PR_FGD
+    bg, fg = np.zeros((1, 65)), np.zeros((1, 65))
+    cv2.grabCut(im, seed, None, bg, fg, 6, cv2.GC_INIT_WITH_MASK)
+    a = np.where((seed == cv2.GC_FGD) | (seed == cv2.GC_PR_FGD), 255, 0).astype(np.uint8)
+    a = cv2.morphologyEx(a, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    a = cv2.GaussianBlur(a, (3, 3), 0).astype(np.float32)
+    a[m['floor'][0] - 12:] = 255   # the floor and its wall: solid (GrabCut may leave thin spots in them)
+    rgba = np.dstack([cv2.cvtColor(im, cv2.COLOR_BGR2RGB), a.astype(np.uint8)])
+    # its two ends, anchored: a corner pier (one of its wall's pilasters, from the ground up to the floor's front lip) and a
+    # balustrade post with its urn at the back corner; the floor's cut edge a little shaded
+    P = m.get('pier', (527, 612, 578)); Q = m.get('post', (80, 155, 190, 352))
+    pier = rgba[P[2]:, P[0]:P[1]].copy(); pier[..., 3] = 255
+    post = rgba[Q[2]:Q[3], Q[0]:Q[1]].copy()
+    # its two ends: GPT's corner tower (heights/end_tower.png: the same terrace ending against a domed stone bastion) —
+    # its last stretch of terrace cross-faded over this map's end, the tower beyond it (mirrored on the left)
+    EXT = CAP_X1 - CAP_J1
+    wide = np.zeros((h, w + 2 * EXT, 4), np.uint8); wide[:, EXT:EXT + w] = rgba
+    cap = CAP[:h]
+    if m.get('recolor'):
+      ref = rgba[m['floor'][1] + 40:, 100:w - 100, :3].reshape(-1, 3).astype(np.float32)
+      src = CAP[400:, 200:950, :3].reshape(-1, 3).astype(np.float32)
+      c = cap.astype(np.float32); c[..., :3] = (c[..., :3] - src.mean(0)) / (src.std(0) + 1e-3) * ref.std(0) + ref.mean(0)
+      cap = c.clip(0, 255).astype(np.uint8)
+    r = cap[:, CAP_J0:CAP_X1].astype(np.float32); bl = CAP_J1 - CAP_J0
+    ramp = np.clip(np.arange(r.shape[1]) / bl, 0, 1)[None, :, None]
+    for side in (1, 0):
+      c = r if side else r[:, ::-1]; rr = ramp if side else ramp[:, ::-1]
+      x0 = EXT + w - bl if side else 0
+      reg = wide[:, x0:x0 + c.shape[1]].astype(np.float32)
+      ca = c[..., 3:4] / 255 * rr
+      reg[..., :3] = c[..., :3] * ca + reg[..., :3] * (1 - ca); reg[..., 3:4] = reg[..., 3:4] * (1 - rr) + c[..., 3:4] * rr   # (a max of the two left the seam half see-through)
+      wide[:, x0:x0 + c.shape[1]] = reg.clip(0, 255).astype(np.uint8)
+    rgba = wide
   cv2.imwrite(out_dir + f'{id_}.webp', cv2.cvtColor(rgba, cv2.COLOR_RGBA2BGRA), [cv2.IMWRITE_WEBP_QUALITY, 90])
-  w = rgba.shape[1] - 2 * EXT
+  EXT = CAP_X1 - CAP_J1; w = rgba.shape[1] - 2 * EXT
   X0 = STRIP['areas'][m['over']]['x'] + m.get('dx', 0); f0, f1 = m['floor']; F = m['front']; H = m['H']
   occ = []   # each block's own cut-out: drawn over whoever walks behind it up there
   for b in m['blocks']:
@@ -99,7 +118,7 @@ for id_, m in MAPS.items():
     occ.append({'img': f"assets/world/heights/{id_}-{b['id']}.webp", 'x': X0 + x0, 'py': y0})
   gy = lambda p: F - (f1 - p)          # picture row on the floor → the terrace's ground y
   data.append({'id': id_, 'name': m['name'], 'x': X0, 'w': w, 'walk': [X0 + WALK_IN, X0 + w - WALK_IN], 'H': H, 'front': F, 'back': gy(f0),
-               'img': f'assets/world/heights/{id_}.webp', 'imgX': X0 - EXT, 'depth': m.get('depth', -1.2), 'imgY': F - H - f1, 'imgH': h,
+               'img': f'assets/world/heights/{id_}.webp', 'cloud': bool(m.get('cloud')), 'imgX': X0 - EXT, 'depth': m.get('depth', -1.2), 'imgY': F - H - f1, 'imgH': h,
                'blocks': [{'id': b['id'], 'x0': X0 + b['x'][0], 'x1': X0 + b['x'][1], 'front': gy(b['front']), 'h': b['h'], 'depth': b['depth'], 'occ': o} for b, o in zip(m['blocks'], occ)],
                'mobs': {'kind': m['mobs']['kind'], 'spawns': [[X0 + x, gy(p)] for x, p in m['mobs']['spawns']]}})
   print(id_, 'x', X0, 'H', H, 'floor y', gy(f0), '..', F)
