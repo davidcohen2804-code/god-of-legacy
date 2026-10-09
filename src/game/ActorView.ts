@@ -225,6 +225,11 @@ export class ActorView {
   readonly shadow: Phaser.GameObjects.Image;
   /** Team ring on the floor (DFO-style): readable position even under heavy effects. */
   readonly ring: Phaser.GameObjects.Ellipse;
+  /** START HERO: the last frame of the previous action, fading out over the new one (blends a skill into the stance,
+   *  a walk into a jump — the drawn skill frames and the animated body meet without a snap) */
+  private blendGhost: Phaser.GameObjects.Sprite | null = null;
+  private blendT = 0;
+  private lastAct = '';
   private layers: Partial<Record<CosSlot, Phaser.GameObjects.Image>> = {};
   /** Warrior sword skin: drawn along the real sword line of every frame (never drifts off the hand). */
   private blade: Phaser.GameObjects.Image | null = null;
@@ -378,10 +383,24 @@ export class ActorView {
     this.headHeight = this.headHeight ? this.headHeight + (top - this.headHeight) * Math.min(1, ms / 90) : top;
     // Weapon masks load on first need: a tint skin draws them, a sword skin cuts with them (classes without a packed mask).
     if ((WEAPON_TINT[this.equipped.weapon ?? ''] || (this.blade && !SHEET_PATH[pose.key])) && !this.scene.textures.exists(pose.wkey)) ensureWeaponMasks(this.scene, this.cls);
+    const hero = pose.key.startsWith('hero-'), act = hero ? String(pose.frame).replace(/-\d+$/, '') : '';
+    if (hero && this.lastAct && act !== this.lastAct && p.frame && p.texture.key === pose.key && this.visible) {
+      this.blendGhost ??= this.scene.add.sprite(p.x, p.y, p.texture.key);
+      this.blendGhost.setTexture(p.texture.key, p.frame.name).setOrigin(p.originX, p.originY).setScale(p.scaleX, p.scaleY)
+        .setFlipX(p.flipX).setAngle(p.angle).setPosition(p.x, p.y).setVisible(true);
+      this.blendT = 0;
+    }
+    this.lastAct = act;
     applyPose(p, pose, this.weapon);
     this.clothWind(ms, pose);
     const depth = actorDepth(x, y, z);
     p.setPosition(x, y - z).setDepth(depth).setAlpha(alpha).setVisible(this.visible);
+    if (this.blendGhost?.visible) { // the outgoing pose follows the body and fades within ~0.12 s
+      this.blendT += ms;
+      const f = 1 - this.blendT / 120;
+      if (f <= 0 || !this.visible) this.blendGhost.setVisible(false);
+      else this.blendGhost.setPosition(x, y - z).setDepth(depth + 0.001).setAlpha(alpha * f * f);
+    }
     if (tint === null) p.clearTint(); else if (tintFill) p.setTintFill(tint); else p.setTint(tint);
     // Contact shadow on the support plane, smaller/fainter with height above it.
     const h = Math.max(0, z - supportZ), k = Math.max(0.35, 1 - h / 140);
@@ -597,6 +616,7 @@ export class ActorView {
 
   destroy(): void {
     for (const t of this.trails) t.g.destroy(); this.trails = [];
+    this.blendGhost?.destroy();
     this.sprite.destroy(); this.weapon.destroy(); this.weaponGlow.destroy(); this.shadow.destroy(); this.ring.destroy();
     for (const l of Object.values(this.layers)) l?.destroy();
     this.nameText?.destroy(); this.nameFrame?.destroy(); this.tag?.destroy();
