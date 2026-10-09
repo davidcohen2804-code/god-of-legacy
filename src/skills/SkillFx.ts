@@ -14,7 +14,7 @@ import { SKILL_BLOCKERS, WORLD_OBJECTS, clearLine } from '../world/WorldGeometry
 
 const F = 'assets/final';
 /** Skills that borrow another skill's VFX sheet (no art of their own). */
-const VFX_ALIAS: Record<string, string> = { judgment_hook: 'lance_thrust', sky_breaker: 'rising_slash', earthsplitter: 'ground_breaker', wave_slash: 'warrior_basic', radiant_blade: 'war_cry', sanctuary: 'war_cry', iron_oath: 'war_cry', legacy_banner: 'war_cry' };
+const VFX_ALIAS: Record<string, string> = { sky_breaker: 'rising_slash', earthsplitter: 'ground_breaker', wave_slash: 'warrior_basic', radiant_blade: 'war_cry', sanctuary: 'war_cry', iron_oath: 'war_cry', legacy_banner: 'war_cry' };
 const vfxKey = (id: string) => `vfx-${VFX_ALIAS[id] ?? id}`;
 const isBig = (s: FinalSkill) => s.slot === 6 || s.slot === 7;
 const TOP = 100000;
@@ -336,6 +336,7 @@ export class SkillFx {
     if (s.id === 'judgment_blade') this.judgment(r);
     else if (s.id === 'guard_counter') this.aegis(r);
     else if (s.id === 'war_cry') this.roar(r);
+    else if (s.id === 'judgment_hook') this.hookChain(r);
     else if (s.id === 'iron_oath') this.oathSigil(r);
     else if (s.id === 'legacy_banner') { // planted in front of the caster where the sword comes down (every client sees it)
       const side = r.aim.x < 0 ? -1 : 1, bx = r.origin.x + side * 70, by = r.origin.y;
@@ -446,6 +447,19 @@ export class SkillFx {
     this.scene.tweens.add({ targets: flash, displayWidth: 220, displayHeight: 220, alpha: 0, duration: 300, onComplete: () => flash.destroy() });
     this.scene.tweens.add({ targets: g, alpha: 0, duration: 280, ease: 'Quad.easeIn', onComplete: () => g.destroy() });
     if (!small) (this.cam ?? this.scene.cameras.main).shake(140, 0.006);
+  }
+
+  /** Judgment Hook: the chain of light shoots out from his hand along the aim, bites at the hit, snaps back. */
+  private hookChain(r: CastRun): void {
+    const T = r.timings, a = r.aim, ang = Math.atan2(a.y, a.x) * (180 / Math.PI), key = vfxKey('judgment_hook');
+    const len = 392, hitAt = r.skill.hits[0]?.at ?? 90; // (the sheet: the chain drawn from the cell's left edge, 248 of 256 px = 380 px of reach)
+    const out = Math.max(20, hitAt / 3), back = Math.max(50, (T.active - hitAt + T.recovery) / 3);
+    this.scene.time.delayedCall(Math.max(0, T.startup - 50), () => {
+      if (r.phase === 'done' && r.elapsed < T.startup) return; // (cancelled before the throw)
+      const c = this.casterPos(r.attackerId) ?? r.origin;
+      this.play(key, c.x + a.x * 18, c.y + a.y * 18 - c.z - 44, len, len, [50, out, out, out, 110, back, back, back],
+        { ox: 0, oy: 0.5, angle: ang, flipY: a.x < 0, depth: TOP - 5, blend: Phaser.BlendModes.ADD, fadeLast: 90, follow: () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x + a.x * 18, y: p.y + a.y * 18, z: p.z + 44 } : null; } });
+    });
   }
 
   private roar(r: CastRun): void {
