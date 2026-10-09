@@ -246,7 +246,8 @@ const CSS = `
 .gol-hud.battle .gol-cg .cg-t{border:0;border-radius:0;clip-path:polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%);background:rgba(255,255,255,.1);color:#fff;font:800 italic 15px/1 ${DISPLAY}}
 .gol-hud.battle .gol-cg .cg-t:hover{background:rgba(255,255,255,.2);box-shadow:none}
 .gol-hud.battle .gol-cg .cg-r{border-radius:0;clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%);background:rgba(255,255,255,.055)}
-.gol-hud.battle .gol-cg .cg-n{font:800 italic 13.5px/1.1 ${DISPLAY};letter-spacing:.6px;color:#f3e3bd}
+.gol-hud.battle .gol-cg .cg-r:not(.long){grid-template-columns:84px 1fr 38px}
+.gol-hud.battle .gol-cg .cg-n{font:800 italic 12.5px/1.1 ${DISPLAY};letter-spacing:.3px;color:#f3e3bd}
 .gol-hud.battle .gol-cg .cg-n small{font:700 italic 8.5px/1 ${LABEL};letter-spacing:1.2px}
 .gol-hud.battle .gol-cg .cg-k{border-radius:3px}
 .gol-hud.battle .gol-cg .cg-h b{font:900 italic 18px/1 ${DISPLAY};color:#ffffff}
