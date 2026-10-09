@@ -368,11 +368,11 @@ export class MageFx {
   private beam(a: { x: number; y: number }, b: { x: number; y: number }, life: number, k = 1): void {
     const sc = this.ctx.scene, L = Math.hypot(b.x - a.x, b.y - a.y), ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
     const h = Math.min(170, Math.max(90, L * 0.42)) * k, f0 = Math.floor(Math.random() * 8);
-    const im = sc.add.image(a.x, a.y, 'mfx-beam', f0).setOrigin(0, 0.5).setAngle(ang).setBlendMode(Phaser.BlendModes.SCREEN).setDepth(TOP + 7).setDisplaySize(L, h);
+    const im = sc.add.image(a.x, a.y, 'mfx-beam', f0).setOrigin(0, 0.5).setAngle(ang).setBlendMode(Phaser.BlendModes.SCREEN).setDepth(TOP + 7).setDisplaySize(L, h).setAlpha(0.9);
     let last = -1;
     this.add({ t: 0, step: (_dt, t) => { if (t >= life || !im.active) { im.destroy(); return false; }
       const n = Math.floor(t / 55); if (n !== last) { last = n; im.setFrame((f0 + n * 3) % 8).setFlipY(n % 2 === 1); }
-      const u = t / life; im.setDisplaySize(L, h * (u < 0.15 ? 0.5 + 3.3 * u : 1 - 0.6 * Math.max(0, (u - 0.6) / 0.4))).setAlpha(u < 0.7 ? 1 : (1 - u) / 0.3); return true; } });
+      const u = t / life; im.setDisplaySize(L, h * (u < 0.15 ? 0.5 + 3.3 * u : 1 - 0.6 * Math.max(0, (u - 0.6) / 0.4))).setAlpha(0.9 * (u < 0.7 ? 1 : (1 - u) / 0.3)); return true; } });
   }
   /** A starburst of light (additive). */
   private star(x: number, y: number, size: number, life = 260, o: { rays?: number; delay?: number; depth?: number } = {}): void {
@@ -470,7 +470,7 @@ export class MageFx {
     if (this.ctx.scene.textures.exists('mfx-beam')) this.beam(a, b, big ? 340 : 280, big ? 1.15 : 0.9);
     else { this.arc(a, b, { life: big ? 320 : 260, thick: big ? 5.5 : 4.2 }); this.arc(a, b, { life: 220, thick: 3, delay: 50 }); this.arc(a, b, { life: 160, thick: 2, delay: 110 }); }
     if (!target) return;
-    if (this.ctx.scene.textures.exists('mfx-storm')) { this.sheet('mfx-storm', b.x, b.y, big ? 240 : 170, 300, { frames: [8, 4], alpha: 0.9 }); if (this.ctx.scene.textures.exists('mfx-beam')) this.sheet('mfx-beam', target.x, target.y - target.z + 4, big ? 230 : 190, 460, { frames: [8, 4], loop: 60, oy: 0.86, depth: target.y + 4 }); else this.sheet('mfx-storm', b.x, b.y, big ? 150 : 110, 420, { frames: [12, 4], loop: 60, alpha: 0.8 }); } else this.star(b.x, b.y, big ? 160 : 100, 200, { rays: 8 });
+    if (this.ctx.scene.textures.exists('mfx-storm')) { if (big && !this.ctx.scene.textures.exists('mfx-beam')) this.sheet('mfx-storm', b.x, b.y, 240, 300, { frames: [8, 4], alpha: 0.9 }); if (this.ctx.scene.textures.exists('mfx-beam')) this.sheet('mfx-beam', target.x, target.y - target.z + 4, big ? 220 : 180, 460, { alpha: 0.75, frames: [8, 4], loop: 60, oy: 0.86, depth: target.y + 4 }); else this.sheet('mfx-storm', b.x, b.y, big ? 150 : 110, 420, { frames: [12, 4], loop: 60, alpha: 0.8 }); } else this.star(b.x, b.y, big ? 160 : 100, 200, { rays: 8 });
     this.warp.ring(b.x, b.y, { r1: big ? 150 : 90, life: big ? 300 : 220, s: big ? 18 : 10, width: 18 });
     for (let k = 0; k < (big ? 2 : 1); k++) { const ang = rnd(0, Math.PI * 2), l = rnd(50, big ? 110 : 75); this.arc(b, { x: b.x + Math.cos(ang) * l, y: b.y + Math.sin(ang) * l * 0.8 }, { life: rnd(90, 160), thick: 1.3, delay: k * 14 }); }
     this.burst(b.x, b.y, { n: big ? 22 : 12, speed: [160, 480], life: [180, 420], scale: [0.04, 0.18], tint: [0xffffff, 0x9fe4ff, 0xb9a2ff], gravity: 260 });
@@ -527,8 +527,8 @@ export class MageFx {
     const T = r.timings, side = sideOf(r);
     const hand = (): { x: number; y: number } | null => { const h = this.ctx.hand(r.attackerId), c = this.ctx.casterPos(r.attackerId); if (!c) return null; return h ? { x: h.x + side * 12, y: h.y } : { x: c.x + side * 34, y: c.y - c.z - 72 }; };
     this.ctx.darken(T.startup + T.active, 0.38);
-    this.circle(0, 0, 124, 2, T.startup + T.active, { upright: true, run: r, draw: T.startup, follow: () => { const p = hand(); return p ? { x: p.x + side * 26, y: p.y } : null; } });
-    if (this.ctx.scene.textures.exists('mfx-beam')) this.sheet('mfx-beam', 0, 0, 230, T.startup + T.active, { frames: [12, 4], loop: 60, depth: TOP + 7, ox: side < 0 ? 0.75 : 0.25, flipX: side < 0, follow: () => { const p = hand(); return p ? { x: p.x + side * 6, y: p.y } : null; } });
+    if (!this.ctx.scene.textures.exists('mfx-beam')) this.circle(0, 0, 124, 2, T.startup + T.active, { upright: true, run: r, draw: T.startup, follow: () => { const p = hand(); return p ? { x: p.x + side * 26, y: p.y } : null; } });
+    if (this.ctx.scene.textures.exists('mfx-beam')) this.sheet('mfx-beam', 0, 0, 180, T.startup + T.active, { alpha: 0.85, frames: [12, 4], loop: 60, depth: TOP + 7, ox: side < 0 ? 0.75 : 0.25, flipX: side < 0, follow: () => { const p = hand(); return p ? { x: p.x + side * 6, y: p.y } : null; } });
     else if (this.ctx.scene.textures.exists('mfx-storm')) this.sheet('mfx-storm', 0, 0, 190, T.startup + T.active, { frames: [12, 4], loop: 60, depth: TOP + 7, follow: () => { const p = hand(); return p ? { x: p.x + side * 26, y: p.y } : null; } });
     else this.gpu('vortex', 0, 0, 130, 130, T.startup + 120, (u, ms, q) => { MageFx.U(q, 'uP', Math.min(1, ms / T.startup)); MageFx.U(q, 'uE', ms < T.startup ? 0 : (ms - T.startup) / 120); },
       { follow: () => { const p = hand(); return p ? { x: p.x + side * 30, y: p.y } : null; }, uA: -side, run: r, depth: TOP + 7 });
