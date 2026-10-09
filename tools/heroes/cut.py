@@ -324,7 +324,13 @@ def motion_frames(mdir, frames, rig_cyc):
             im = Image.fromarray(crop)
             im = im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.LANCZOS)
             out.append((act, np.array(im), (384 - xs[0]) * k, (700 - ys[0]) * k))
-        if act in ('walk', 'run') and spreads:
+        try:  # a cycle set by hand (atlas px) wins over the measured one
+            fixed = json.load(open(os.path.join(mdir, 'motion.json')))['animations'][act].get('cycle_atlas')
+        except Exception:
+            fixed = None
+        if fixed:
+            cyc[act] = float(fixed)
+        elif act in ('walk', 'run') and spreads:
             step = float(np.percentile(spreads, 90)) * 0.78 * k  # sole to sole (the boots' own length taken off)
             cyc[act] = 2 * step * (1.0 if act == 'walk' else 1.3)
     return out, cyc
