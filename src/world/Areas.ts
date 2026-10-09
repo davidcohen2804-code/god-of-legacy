@@ -4,6 +4,7 @@
 // px: world = local + the area's x.
 import DATA from '../data/world-areas.json';
 import STRIP from '../data/world-strip.json';
+import CLOUD_DATA from '../data/world-clouds.json';
 import ARENA_DATA from '../data/world-arena.json';
 import GATE_DATA from '../data/world-gate.json';
 import TOWER_DATA from '../data/world-towers.json';
@@ -147,8 +148,18 @@ const heightProps = () => HEIGHTS.flatMap((h) => [
       h: h.H + b.h, top: h.H + b.h, stand: [s0, b.front - 3] as [number, number] };
   }),
 ]);
+/** The Sky Path (tools/world/clouds.py): cloud platforms on from Ivy Summit, each at its own height along one lane. */
+export interface SkyCloud { x0: number; x1: number; z: number; s: number; reward?: { item: string; every: number } }
+export const SKY = CLOUD_DATA as unknown as { name: string; band: [number, number]; lane: [number, number]; sprites: { img: string; w: number; h: number; top: [number, number] }[]; path: { x: [number, number]; z: number; s: number; reward?: { item: string; every: number } }[] };
+export const CLOUDS: SkyCloud[] = SKY.path.map((c) => ({ x0: c.x[0], x1: c.x[1], z: c.z, s: c.s, reward: c.reward }));
+/** The Sky Path as an area (its name shows while you are up there). */
+export const SKY_AREA: AreaDef = { id: 'sky_path', name: SKY.name, x: SKY.lane[0], span: [SKY.lane[0], SKY.lane[1]], walk: [], props: [] };
+/** Falling between the clouds: below this height you drop through to the floor under the lane. */
+export const SKY_DROP = Math.min(...SKY.path.map((c) => c.z)) - 60;
+const cloudProps = () => CLOUDS.map((c, i) => ({ id: `sky-${i}`, foot: [[c.x0, SKY.band[0]], [c.x1, SKY.band[0]], [c.x1, SKY.band[1]], [c.x0, SKY.band[1]]] as Pt[],
+  base: [[c.x0, SKY.band[0]], [c.x1, SKY.band[0]], [c.x1, SKY.band[1]], [c.x0, SKY.band[1]]] as Pt[], h: c.z, top: c.z, stand: [SKY.band[0], SKY.band[1]] as [number, number] }));
 export function worldObjects(): WorldObject[] {
-  return ([...STRIP.props, ...GATE.props, ...towerProps(), ...heightProps()] as { id: string; foot: Pt[]; base?: Pt[]; h: number; top?: number; stand?: [number, number] }[]).map((p) => ({
+  return ([...STRIP.props, ...GATE.props, ...towerProps(), ...heightProps(), ...cloudProps()] as { id: string; foot: Pt[]; base?: Pt[]; h: number; top?: number; stand?: [number, number] }[]).map((p) => ({
     id: p.id, footprint: p.stand && p.base ? p.base : p.foot, height: p.h, ...(p.top !== undefined ? { topZ: p.top } : {}), ...(p.stand ? { stand: p.stand } : {}),
     ...(p.base ? { base: p.base } : {}),
     cover: 'hard' as const, occluder: [], frontY: Math.max(...p.foot.map((q) => q[1])) + 1,

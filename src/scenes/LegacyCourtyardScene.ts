@@ -32,7 +32,7 @@ import { passiveIconUrl, passivesFor } from '../skills/Passives';
 import { LEVITATE, NO_PASSIVES, ORBS, PassiveStats, REGEN, SHINSOKU, WAR_LEAP, WEAVE, ownedPassives, passiveStats } from '../skills/Passives';
 import { SKILL_BLOCKERS, WORLD_OBJECTS, actorDepth, supportAt, footAllowed, insideArena, placementOk, pushOutOfBlockers, useArenaGeometry } from '../world/WorldGeometry';
 import { OpenWorld, preloadOpenWorld } from '../world/OpenWorld';
-import { AreaNpc, IDLE_LINES, MOB_KINDS, QUESTS, QuestDef, START, TOWERS, type Tower, toWorld } from '../world/Areas';
+import { AreaNpc, IDLE_LINES, MOB_KINDS, QUESTS, QuestDef, START, TOWERS, CLOUDS, SKY, SKY_DROP, HEIGHTS, type Tower, toWorld } from '../world/Areas';
 import type { Monster } from '../world/Monster';
 import { AreaTitle, DialogChoice, NpcDialog } from '../ui/WorldUI';
 import { QuestState } from '../characters/CharacterTypes';
@@ -763,6 +763,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const floating = now < this.mage.floatUntil && !k.grounded && b.state === 'free'; // Levitate: a slow float
     if (floating) k.vz = Math.max(k.vz, -40);
     const r = stepKin(k, ms, floating ? LEVITATE.gravity : b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z, !!this.rt!.ownRun), b.state === 'free' && !b.push && !this.rt!.ownRun);
+    // the Sky Path: fallen between its clouds, below them — on down to the floor under the lane (Ivy Heights where it runs
+    // under, else the terrace), kept where it is on screen (y and height shifted together)
+    if (!k.grounded && k.vz < 0 && k.z < SKY_DROP && k.z > 200 && k.y < SKY.band[1] + 8 && k.x > SKY.lane[0] - 4 && k.x < SKY.lane[1] + 40) {
+      const ivy = HEIGHTS.find((h) => h.id === 'ivy_heights'), ty = ivy && k.x < ivy.x + ivy.w - 22 ? ivy.front - 40 : 400, d = ty - k.y;
+      k.y += d; k.z += d;
+    }
     if (this.world) settleOnBlocks(k, ms, this.blockHold.y ? 0 : this.ci?.moveY ?? 0, b.state === 'free');
     const ev = b.update(now, ms, r.landed, r.impactVz);
     if (r.landed) {
@@ -995,7 +1001,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
    *  comes back after its time. */
   private stepTreasures(): void {
     if (this.arena || !this.character || !this.world) return;
-    if (!this.treasures) this.treasures = TOWERS.filter((t) => t.reward && ITEMS[t.reward.item]).map((t) => ({ t, next: 0, drop: null as LootDrop | null }));
+    if (!this.treasures) {
+      const sky: Tower[] = CLOUDS.filter((c) => c.reward).map((c, i) => ({ id: `sky-${i}`, x0: c.x0, x1: c.x1, front: SKY.band[1], h: c.z, depth: SKY.band[1] - SKY.band[0], base: 0, reward: c.reward }));
+      this.treasures = [...TOWERS, ...sky].filter((t) => t.reward && ITEMS[t.reward.item]).map((t) => ({ t, next: 0, drop: null as LootDrop | null }));
+    }
     for (const q of this.treasures) {
       if (q.drop && !q.drop.done && q.drop.taken < 0 && this.drops.includes(q.drop)) continue;
       if (q.drop) { q.drop = null; q.next = this.simMs + q.t.reward!.every * 1000; }
