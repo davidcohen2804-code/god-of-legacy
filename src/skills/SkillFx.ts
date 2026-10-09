@@ -188,6 +188,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   if (!scene.textures.exists('jb-bolt')) scene.load.spritesheet('jb-bolt', `${F}/skills/warrior/judgment_blade/bolt.png`, { frameWidth: 256, frameHeight: 512 });
   if (!scene.textures.exists('storm-ring')) scene.load.spritesheet('storm-ring', `${F}/skills/warrior/judgment_blade/ring.png`, { frameWidth: 256, frameHeight: 256 });
   if (!scene.textures.exists('sanctuary-wall')) scene.load.spritesheet('sanctuary-wall', `${F}/skills/warrior/sanctuary/wall.png`, { frameWidth: 256, frameHeight: 512 });
+  if (!scene.textures.exists('cry-lion')) scene.load.spritesheet('cry-lion', `${F}/skills/warrior/war_cry/lion.png`, { frameWidth: 256, frameHeight: 256 }); // War Cry: the lion spirit roaring up out of the floor
   if (!scene.textures.exists('cry-shield')) scene.load.spritesheet('cry-shield', `${F}/skills/warrior/war_cry/shield.png`, { frameWidth: 300, frameHeight: 300 });
   if (!scene.textures.exists('bs-storm')) scene.load.spritesheet('bs-storm', `${F}/skills/warrior/blade_storm/storm.png`, { frameWidth: 280, frameHeight: 440 });
   if (!scene.textures.exists('bs-erupt')) scene.load.spritesheet('bs-erupt', `${F}/skills/warrior/blade_storm/erupt_a.png`, { frameWidth: 250, frameHeight: 667 });
@@ -459,6 +460,8 @@ export class SkillFx {
       this.scene.tweens.add({ targets: pillar, alpha: 0, delay: 160, duration: 420, onComplete: () => pillar.destroy() });
       const flash = this.scene.add.image(c.x, c.y - c.z - 50, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffffff).setDepth(TOP).setDisplaySize(120, 120);
       this.scene.tweens.add({ targets: flash, displayWidth: 380, displayHeight: 380, alpha: 0, duration: 260, ease: 'Cubic.easeOut', onComplete: () => flash.destroy() });
+      { const step = Math.max(70, Math.round((T.active + 260) / 8)); // the golden lion roars up out of the floor at his feet, its rings flat on the floor
+        this.play('cry-lion', c.x, c.y + 8, 330, 330, [step * 0.6, step * 0.8, step, step * 1.4, step * 1.2, step, step, step * 1.2], { oy: 0.97, depth: c.y + 2, blend: Phaser.BlendModes.ADD, fadeLast: 160, follow: () => this.casterPos(r.attackerId) }); }
       const waves = Math.max(3, Math.round(T.active / 150)); // the roar keeps ringing out for the whole active window
       for (let i = 0; i < waves; i++) this.scene.time.delayedCall(i * 150, () => { const p = this.casterPos(r.attackerId) ?? c; this.shockwave(p.x, p.y, 200 + (i % 3) * 70, i % 3 === 1 ? 0xffffff : 0xffd36a); });
       const hold = this.scene.add.image(c.x, c.y - c.z - 50, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd36a).setDepth(c.y - 1).setDisplaySize(190, 230).setAlpha(0.75);
