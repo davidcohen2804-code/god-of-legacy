@@ -24,6 +24,8 @@ WALK_N, RUN_N = 16, 12
 # heroes whose arm sheet has joint balls in a colour apart from the limbs (removed; a shaded joint is drawn instead) —
 # the others' balls are armour-coloured and stay as the joint
 DROP_BALLS = {'archer', 'book_mage'}
+# sleeves that hide the joint themselves (the mage's bells): the ball's socket is only cut away, not painted over
+NO_SOCKET_FILL = {'book_mage'}
 # The armless torso (tools/heroes/parts/<cls>_arms.png): hips x, y, the cloth-behind column, the near shoulder x, y (fractions)
 TORSO = {
     'warrior': (0.62, 0.60, 0.45, 0.55, 0.24),
@@ -126,7 +128,7 @@ def _top_ball(im):
     return (col, ar) if 0 < ar < 0.12 * a.sum() else None
 
 
-def _drop_ball(part, c, bw, side):
+def _drop_ball(part, c, bw, side, ring=False, fill=True):
     """GPT's joint ball at an arm's end (skin / grey spheres): its pixels (the ball's colour, within the ball) are
     removed — the game draws a round joint in the limb's own colour under the end instead. Returns (colour, radius)."""
     H, W = part.shape[:2]
@@ -144,8 +146,28 @@ def _drop_ball(part, c, bw, side):
         near = np.sqrt(((rgb - ball) ** 2).sum(2)) < 48
         m = a & near & ((xx - c[0]) ** 2 + (yy - c[1]) ** 2 <= (0.62 * bw) ** 2)
         m = ndimage.binary_dilation(m, iterations=2) & ((xx - c[0]) ** 2 + (yy - c[1]) ** 2 <= (0.66 * bw) ** 2)
+        if ring:  # its outline too: the half of the ball beyond its centre (past the limb's end)
+            m |= ((xx - c[0]) ** 2 + (yy - c[1]) ** 2 <= (1.0 * bw) ** 2) & ((yy - c[1]) * side < 0.1 * bw)
         part[..., 3] = np.where(m, 0, part[..., 3])
-    return col, 0.34 * min(max(rr, 0.8 * bw), 1.2 * bw)
+        if ring and fill:  # the socket the ball sat in (a dark rim, a hollow): the limb painted on across it, ending flat at the joint
+            import cv2
+            ref = int(round(c[1] + side * 0.78 * bw))
+            if 0 <= ref < H and (part[ref, :, 3] > 100).any():
+                lab_, _ = ndimage.label(part[ref, :, 3] > 100)  # the limb's own run on that row (not a weapon beside it)
+                k_ = lab_[int(np.clip(c[0], 0, W - 1))] or max(set(lab_[lab_ > 0]), key=lambda q: -abs(np.where(lab_ == q)[0].mean() - c[0]))
+                xs_ = np.where(lab_ == k_)[0]; x0_, x1_ = xs_[0], xs_[-1]
+                sil = np.zeros((H, W), bool)
+                for y in range(min(ref, int(c[1])), max(ref, int(c[1])) + 1):
+                    if 0 <= y < H:
+                        sil[y, x0_:x1_ + 1] = True
+                hole = sil & (((xx - c[0]) ** 2 + (yy - c[1]) ** 2 <= (0.72 * bw) ** 2) | (part[..., 3] < 100))
+                solid = (part[..., 3] > 100) & ~hole
+                _, (iy, ix) = ndimage.distance_transform_edt(~solid, return_indices=True)
+                bgr = np.ascontiguousarray(part[iy, ix, :3][..., ::-1])  # no stray colours of the empty pixels round it
+                fixed = cv2.inpaint(bgr, hole.astype(np.uint8) * 255, 7, cv2.INPAINT_TELEA)
+                part[..., :3] = np.where(hole[..., None], fixed[..., ::-1], part[..., :3])
+                part[..., 3] = np.where(sil, 255, part[..., 3])
+    return col, 0.0
 
 
 def _disc(canvas, c, col, r):
@@ -173,27 +195,49 @@ def load_parts(path, cls):
     thighs, shins = limbs[:2], limbs[2:]
     thighs.sort(key=lum, reverse=True); shins.sort(key=lum, reverse=True)  # brighter = near
     parts = {}
-    for name, (img, sl) in [('thigh_n', thighs[0]), ('thigh_f', thighs[1]), ('shin_n', shins[0]), ('shin_f', shins[1])]:
+    knee = None  # the knee balls' colour (from the shins' tops) when they are removed
+    for name, (img, sl) in [('shin_n', shins[0]), ('shin_f', shins[1]), ('thigh_n', thighs[0]), ('thigh_f', thighs[1])]:
         img = img.copy(); H = img.shape[0]
         thigh = name.startswith('thigh')
         b = _balls(img, top=True, bottom=thigh)
         t0, tn, top_pivot, tbw = b['top']
-        _recolor_cap(img, t0, tn, range(int(top_pivot + 0.9 * tbw), int(top_pivot + 0.9 * tbw) + 16), top_pivot, tbw)
+        a0 = img[..., 3] > 100
+        cx0 = lambda y: float(np.where(a0[int(y)])[0].mean())
+        top_c = np.array([cx0(top_pivot), top_pivot])
+        if cls in DROP_BALLS and not thigh:  # the ball found by its colour (the top pixels are the ball)
+            tb_ = _top_ball(img)
+            bl = _ball_blobs(img, tb_[0], tb_[1]) if tb_ else []
+            if bl:
+                top_c = np.array(bl[0][:2]); tbw = bl[0][2]; top_pivot = top_c[1]
+                knee = knee or tb_
+            _drop_ball(img, top_c, tbw, +1, ring=True, fill=cls not in NO_SOCKET_FILL)
+        else:
+            _recolor_cap(img, t0, tn, range(int(top_pivot + 0.9 * tbw), int(top_pivot + 0.9 * tbw) + 16), top_pivot, tbw)
         a = img[..., 3] > 100
         if thigh:
             bn, b1, bot_pivot, bbw = b['bottom']
-            _recolor_cap(img, bn, b1, range(int(bot_pivot - 0.9 * bbw) - 16, int(bot_pivot - 0.9 * bbw)), bot_pivot, bbw)
-            cx = lambda y: float(np.where(a[int(y)])[0].mean())
-            p0 = np.array([cx(top_pivot), top_pivot]); p1 = np.array([cx(bot_pivot), bot_pivot])
+            bot_c = np.array([float(np.where(a[int(bot_pivot)])[0].mean()), bot_pivot])
+            if cls in DROP_BALLS:  # the knee ball removed; a shaded knee is drawn under the thigh and the shin instead
+                bl = _ball_blobs(img, knee[0], knee[1]) if knee else []
+                if bl:
+                    bot_c = np.array(bl[-1][:2]); bbw = bl[-1][2]; bot_pivot = bot_c[1]
+                parts[name + '_knee'] = _drop_ball(img, bot_c, bbw, -1, ring=True, fill=cls not in NO_SOCKET_FILL)
+            else:
+                _recolor_cap(img, bn, b1, range(int(bot_pivot - 0.9 * bbw) - 16, int(bot_pivot - 0.9 * bbw)), bot_pivot, bbw)
+            p0 = top_c; p1 = bot_c
         else:
+            a = img[..., 3] > 100
             ys = np.where(a.any(1))[0]; sole = ys[-1]
             ank = sole - 0.13 * (sole - top_pivot)
             leg_row = int(sole - 0.3 * (sole - top_pivot))
             cxs = np.where(a[leg_row])[0]
-            p0 = np.array([float(np.where(a[int(top_pivot)])[0].mean()), top_pivot])
+            p0 = top_c
             p1 = np.array([float(cxs.mean()), ank])
             parts[name + '_sole'] = float(sole)
         parts[name] = (img, p0, p1)
+        if thigh:  # its lower part alone: drawn again over the shin (the cuff over the knee; the shin's top tucks under)
+            low = img.copy(); low[: int(p0[1] + 0.6 * (p1[1] - p0[1])), :, 3] = 0
+            parts[name + '_low'] = low
     img, sl = upper
     hx, hy, back = HIPS[cls]
     arms_png = path.replace('.png', '_arms.png')
@@ -217,6 +261,23 @@ def load_parts(path, cls):
             i, j = two
         uppers = sorted([rest[i], rest[j]], key=lambda im: -float(im[..., :3][im[..., 3] > 100].mean()))
         fore_f = rest[3 - i - j]
+        if cls in WEAPON:  # the weapon apart from the fist: it turns at the wrist
+            wd = WEAPON[cls]
+            from matplotlib.path import Path
+            Hh, Ww = fore_n.shape[:2]; yy_, xx_ = np.mgrid[0:Hh, 0:Ww]
+            inside = Path([(x * kt, y * kt) for x, y in wd['fist']]).contains_points(np.c_[xx_.ravel(), yy_.ravel()]).reshape(Hh, Ww)
+            wimg = fore_n.copy(); wimg[..., 3] = np.where(inside, 0, fore_n[..., 3])
+            fist = fore_n.copy(); fist[..., 3] = np.where(inside, fore_n[..., 3], 0)
+            (h0, h1) = [np.array(q, float) * kt for q in wd['handle']]
+            hv = wimg[..., 3] > 100
+            near_h = hv & ((xx_ - h0[0]) ** 2 + (yy_ - h0[1]) ** 2 < (30 * kt) ** 2)
+            col = np.median(wimg[..., :3][near_h], 0) if near_h.any() else np.array([40, 30, 30])
+            gi = Image.fromarray(wimg); from PIL import ImageDraw as _D
+            _D.Draw(gi).line([tuple(h0), tuple(h1)], fill=tuple(int(v) for v in col) + (255,), width=max(3, int(16 * kt)))
+            wimg = np.array(gi)
+            g = np.array(wd['grip'], float) * kt; tip = np.array(wd['tip'], float) * kt
+            parts['weapon'] = (wimg, g, _axis_deg(g, tip))
+            fore_n = fist
         tb = _top_ball(uppers[0]) if cls in DROP_BALLS else None  # the sheet's ball colour, when the balls stand apart from the limbs (skin / grey)
         for name, im, both in (('uarm_n', uppers[0], True), ('uarm_f', uppers[1], True), ('farm_n', fore_n, False), ('farm_f', fore_f, False)):
             im = im.copy()
@@ -229,9 +290,9 @@ def load_parts(path, cls):
             if blobs and (not both or len(blobs) >= 2):
                 tp_, bt_ = blobs[0], blobs[-1]
                 p0 = np.array([tp_[0], tp_[1]]); tbw = tp_[2]
-                fill = _drop_ball(im, p0, tbw, +1)
+                fill = _drop_ball(im, p0, tbw, +1, ring=True, fill=cls not in NO_SOCKET_FILL)
                 if both:
-                    p1 = np.array([bt_[0], bt_[1]]); _drop_ball(im, p1, bt_[2], -1)
+                    p1 = np.array([bt_[0], bt_[1]]); _drop_ball(im, p1, bt_[2], -1, ring=True, fill=cls not in NO_SOCKET_FILL)
                 else:
                     p1 = p0 + np.array([0.0, 100.0])
             else:
@@ -247,6 +308,9 @@ def load_parts(path, cls):
                 else:
                     p1 = p0 + np.array([0.0, 100.0])  # drawn hanging straight down
             parts[name] = (im, p0, p1)
+            if not both:  # the fist: the forearm's length for reaching a point
+                al2 = im[..., 3] > 100; yb = int(np.where(al2.any(1))[0][-1])
+                parts[name + '_len'] = float(yb - 0.08 * im.shape[0] - p0[1])
             parts[name + '_joint'] = fill  # (colour, radius): the round joint drawn under the limb's end
         img = rs(torso)
         if tb:  # the shoulder stump GPT drew on the torso (a ball of the same colour): painted in the torso's own colour
@@ -307,21 +371,61 @@ def _ik(hip, foot, T, S):
     return k1 if k1[0] > k2[0] else k2
 
 
-def arm_pose(kind, ph, i):
-    """((near shoulder, near elbow), (far shoulder, far elbow)) in degrees: 0 = hanging, + = forward. The arms swing
-    against the legs (the near arm back when the near leg is forward); the weapon arm (near) swings less."""
+# The weapon held apart from the fist (it turns at the wrist): the fist's outline in the weapon forearm's crop (the rest
+# of the crop is the weapon), the grip (where the handle runs through the fist), the handle's two ends to paint the grip
+# hidden under the fingers back in, and its colour. The blade's own direction in the drawing follows from grip → tip.
+WEAPON = {
+    'warrior': {'fist': [(0, 0), (128, 0), (128, 330), (112, 352), (70, 368), (40, 358), (36, 305), (50, 298), (52, 252), (0, 236)],
+                'grip': (72, 318), 'handle': ((28, 284), (112, 352)), 'tip': (425, 750)},
+    'samurai': {'fist': [(55, 0), (212, 0), (212, 232), (190, 262), (152, 300), (140, 330), (120, 336), (96, 300), (92, 240), (60, 215)],
+                'grip': (135, 291), 'handle': ((60, 238), (165, 314)), 'tip': (590, 595)},
+}
+
+
+def arm_pose(cls, kind, ph, i):
+    """The arms for one moment: {'n': (shoulder, elbow) of the near (weapon) arm, 'f': the far arm's or 'grip2' (its fist on
+    the handle beside the near one), 'D': the blade's direction or None (as drawn)}. Angles in degrees against the body
+    (0 = hanging along it, + = forward; the elbow only bends forward); D against the world (0 = down, + = forward).
+    The arms swing against the legs (the near arm back when the near leg is forward); the weapon arm swings less."""
     c = math.cos(2 * math.pi * ph)
+    blade = cls in WEAPON
     if kind == 'walk':
         n = -11 * c; f = 22 * c
-        return (n, 8 + 0.4 * max(0, n)), (f, 10 + 0.5 * max(0, f))
-    if kind == 'run':
-        n = -24 * c; f = 46 * c
-        return (n + 6, 38 + 0.5 * max(0, n)), (f + 4, 78 + 0.3 * max(0, f))
-    if kind == 'jump':
-        return [((-14, 12), (-30, 18)), ((34, 32), (68, 46)), ((14, 18), (30, 24))][i]
+        return {'n': (n, 8 + 0.4 * max(0, n)), 'f': (f, 10 + 0.5 * max(0, f)), 'D': None}
+    if kind == 'run':  # sprinting arms: the free arm pumps (elbow near square, the fist up to the chest), the blade trails
+        f = (4 + 42 * c, 87 - 9 * c)
+        if cls == 'warrior':
+            return {'n': (-15 - 14 * c, 30 + 6 * c), 'f': f, 'D': -70 + 8 * c}
+        if cls == 'samurai':
+            return {'n': (-18 - 12 * c, 28), 'f': f, 'D': -78 + 6 * c}
+        if cls == 'archer':  # the bow carried low in front
+            return {'n': (22 - 10 * c, 22), 'f': f, 'D': None}
+        return {'n': (8 - 10 * c, 85 + 5 * c), 'f': f, 'D': None}  # the book against the chest
+    if kind == 'jump':  # take-off crouch (arms swung back) → rising → falling (arms lift for balance)
+        J = {
+            'warrior': [((-20, 20), (-30, 25), -55), ((-30, 25), (40, 45), -68), ((-22, 20), (30, 40), -62)],
+            'samurai': [((-15, 20), (-25, 30), -55), ((-30, 25), (15, 95), -72), ((-22, 20), (15, 85), -66)],
+            'archer': [((10, 10), (-35, 20), None), ((40, 0), (-50, 35), None), ((32, 5), (-30, 45), None)],
+            'book_mage': [((10, 70), (15, 60), None), ((15, 90), (25, 85), None), ((15, 88), (30, 70), None)],
+        }.get(cls, [((5, 25), (-30, 30), None), ((25, 30), (-40, 40), None), ((15, 25), (-25, 45), None)])[i]
+        return {'n': J[0], 'f': J[1], 'D': J[2]}
+    if kind == 'djump':
+        J = {
+            'warrior': [((-25, 25), (60, 50), -80), ((-30, 20), (50, 30), -92)],
+            'samurai': [((-38, 20), (20, 95), -88), ((-42, 18), (20, 95), -92)],
+            'archer': [((40, 40), (50, 50), None), ((44, 44), (54, 54), None)],
+            'book_mage': [((30, 40), (-30, 30), None), ((34, 44), (-26, 34), None)],
+        }.get(cls, [((30, 40), (-30, 30), None), ((34, 44), (-26, 34), None)])[i]
+        return {'n': J[0], 'f': J[1], 'D': J[2]}
     if kind == 'stance':
-        return (24, 34), (12, 30)
-    return (2, 4), (-3, 6)
+        if cls == 'warrior':
+            return {'n': (30, 50), 'f': (20, 75), 'D': 125}  # the sword raised forward, the free fist guarding
+        if cls == 'samurai':
+            return {'n': (25, 55), 'f': 'grip2', 'D': 135}  # the katana up in both hands
+        if cls == 'book_mage':
+            return {'n': (5, 20), 'f': (45, 30), 'D': None}  # the book at his side, the free hand raised to cast
+        return {'n': (24, 34), 'f': (12, 30), 'D': None}
+    return {'n': (3, 6), 'f': (-3, 8), 'D': None}  # standing
 
 
 # The second jump, one per hero's air move: (near foot, far foot) from the floor under the hips (fractions of the leg),
@@ -425,22 +529,38 @@ def bake(path, cls, idle_h, size=1.0):
             sway = 0.0 if kind in ('idle', 'stance', 'jump', 'djump') else (1.2 if kind == 'walk' else 2.0) * math.sin(4 * math.pi * ph)
             ang_u = lean + sway * 0.3
             # the arms: (shoulder angle, elbow bend) — 0 = hanging, + = forward; near = the weapon arm, swinging less
-            arm_ang = (DJUMP[cls][i][4], DJUMP[cls][i][5]) if kind == 'djump' else arm_pose(kind, ph, i)
+            AP = arm_pose(cls, kind, ph, i)
             if 'shoulder' in P:
                 th_ = math.radians(-ang_u); d_ = P['shoulder'] - hip_u
                 sh_w = hip + np.array([d_[0] * math.cos(th_) - d_[1] * math.sin(th_), d_[0] * math.sin(th_) + d_[1] * math.cos(th_)])
-            def arm(U, F, a_sh, a_el):
-                (ui, u0, u1), (fi, f0, f1) = U, F
+            def solve(U, a_sh, a_el):  # shoulder/elbow angles against the body → world angles and the elbow
+                (ui, u0, u1) = U
                 Lu = float(np.hypot(*(u1 - u0)))
                 tot = a_sh - ang_u  # the arm turns with the body's lean (the hanging axis tips back as the body tips forward)
                 elbow = sh_w + Lu * np.array([math.sin(math.radians(tot)), math.cos(math.radians(tot))])
-                for nm in ('uarm_n', 'uarm_f'):
-                    if P[nm] is U:
-                        uj = P[nm + '_joint']; fj = P['f' + nm[1:] + '_joint']
-                _disc(cv, sh_w, *uj)                                        # the shoulder joint, under the arm's top
+                return tot, elbow, tot + a_el
+            def reach(U, Lf, target):  # the shoulder/elbow that put the fist on `target` (the elbow bending forward)
+                (ui, u0, u1) = U
+                Lu = float(np.hypot(*(u1 - u0)))
+                d = target - sh_w; dist = min(float(np.hypot(*d)), Lu + Lf - 1e-3); dist = max(dist, abs(Lu - Lf) + 1e-3)
+                phi = math.degrees(math.atan2(d[0], d[1]))
+                al = math.degrees(math.acos(max(-1, min(1, (Lu * Lu + dist * dist - Lf * Lf) / (2 * Lu * dist)))))
+                be = math.degrees(math.acos(max(-1, min(1, (Lu * Lu + Lf * Lf - dist * dist) / (2 * Lu * Lf)))))
+                return (phi - al) + ang_u, 180 - be
+            def arm(U, F, a_sh, a_el, nm, D=None):
+                (ui, u0, u1), (fi, f0, f1) = U, F
+                tot, elbow, fa = solve(U, a_sh, a_el)
+                uj = P[nm + '_joint']; fj = P['f' + nm[1:] + '_joint']
+                if nm == 'uarm_n': _disc(cv, sh_w, *uj)                    # the shoulder joint, under the arm's top (the far one is behind the body)
                 _disc(cv, elbow, *fj)                                       # the elbow, under both (fills the bend's notch)
-                _place(cv, ui, u0, _axis_deg(u0, u1), sh_w, tot)
-                _place(cv, fi, f0, 0.0, elbow, tot + a_el)
+                if nm == 'uarm_n' and 'weapon' in P:                        # the weapon behind the fist, turned at the wrist
+                    wi, wg, wnat = P['weapon']
+                    r = math.radians(fa); v = wg - f0
+                    gw = elbow + np.array([v[0] * math.cos(r) + v[1] * math.sin(r), -v[0] * math.sin(r) + v[1] * math.cos(r)])
+                    wdir = D if D is not None else fa + wnat
+                    _place(cv, wi, wg, wnat, gw, wdir)
+                _place(cv, fi, f0, 0.0, elbow, fa)
+                _place(cv, ui, u0, _axis_deg(u0, u1), sh_w, tot)            # the upper arm over the forearm's top (the elbow)
             def upper(layer):
                 _place(cv, layer, hip_u, 0.0, hip, -ang_u)  # the drawing turned clockwise (forward) by the lean
             fn = np.array([hip[0] + feet[0][0], ground + feet[0][1]]); ff = np.array([hip[0] + feet[1][0], ground + feet[1][1]])
@@ -456,14 +576,23 @@ def bake(path, cls, idle_h, size=1.0):
             else:
                 upper(back)                                                 # the cloth hanging behind the legs
             if 'uarm_f' in P:                                               # the far arm behind everything
-                arm(P['uarm_f'], P['farm_f'], *arm_ang[1])
-            _place(cv, tf, tf0, _axis_deg(tf0, tf1), hip, _axis_deg(hip, kf))   # the far leg
-            _place(cv, sf, sf0, _axis_deg(sf0, sf1), kf, _axis_deg(kf, ff))
+                fa_ = AP['f']
+                if fa_ == 'grip2':  # both hands on the handle: the far fist just below the near one, along the handle
+                    t_n, el_n, f_n = solve(P['uarm_n'], *AP['n'])
+                    wi, wg, wnat = P['weapon']; f0n = P['farm_n'][1]
+                    r = math.radians(f_n); v = wg - f0n
+                    gw = el_n + np.array([v[0] * math.cos(r) + v[1] * math.sin(r), -v[0] * math.sin(r) + v[1] * math.cos(r)])
+                    hd_ = math.radians(AP['D'] + 180)
+                    fa_ = reach(P['uarm_f'], P['farm_f_len'], gw + 0.55 * P['farm_f_len'] * 0.45 * np.array([math.sin(hd_), math.cos(hd_)]))
+                arm(P['uarm_f'], P['farm_f'], fa_[0], fa_[1], 'uarm_f')
+            _place(cv, sf, sf0, _axis_deg(sf0, sf1), kf, _axis_deg(kf, ff))   # the far leg: the shin under the thigh
+            _place(cv, tf, tf0, _axis_deg(tf0, tf1), hip, _axis_deg(hip, kf))
             _place(cv, tn, tn0, _axis_deg(tn0, tn1), hip, _axis_deg(hip, kn))   # the near thigh (its top under the tunic)
-            upper(front)                                                    # the body
             _place(cv, sn, sn0, _axis_deg(sn0, sn1), kn, _axis_deg(kn, fn))   # the near shin
+            _place(cv, P['thigh_n_low'], tn0, _axis_deg(tn0, tn1), hip, _axis_deg(hip, kn))  # the knee: the thigh's cuff over the shin
+            upper(front)                                                    # the body (its hem over the legs)
             if 'uarm_n' in P:                                               # the near arm over all (the weapon in front)
-                arm(P['uarm_n'], P['farm_n'], *arm_ang[0])
+                arm(P['uarm_n'], P['farm_n'], AP['n'][0], AP['n'][1], 'uarm_n', AP['D'])
             # the skirt / tunic over the near thigh: the body's front layer once more, only its lower part
             a = np.array(cv)
             ys = np.where(a[..., 3].any(1))[0]; xs = np.where(a[..., 3].any(0))[0]
