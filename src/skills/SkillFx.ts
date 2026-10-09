@@ -36,7 +36,7 @@ const GROUND = 2;
 
 /** Archer sheets whose frame size differs from the slot default (w, h). */
 const VFX_CELL: Record<string, [number, number]> = {
-  hunters_roar: [512, 340], tree_of_life: [420, 560], hunters_spirit: [300, 300], arrow_storm: [512, 256], eagle_arrow: [512, 352], sky_rain: [768, 256],
+  lions_maw: [512, 512], earthsplitter: [384, 256], hunters_roar: [512, 340], tree_of_life: [420, 560], hunters_spirit: [300, 300], arrow_storm: [512, 256], eagle_arrow: [512, 352], sky_rain: [768, 256],
 };
 /** Archer sheets drawn for a figure facing right: ground line as a fraction of the cell height. */
 const ARCHER_GROUND: Record<string, number> = { rising_arrow: 0.94, leaping_arrow: 0.89, bow_haste: 0.89, wind_leap: 0.91, hunters_spirit: 0.84, tree_of_life: 0.955 };
@@ -1050,14 +1050,14 @@ export class SkillFx {
         const side = Math.random() < 0.5 ? -1 : 1, d = 60 + Math.random() * 180;
         this.scene.tweens.add({ targets: sp, x: px + side * d * 0.55, y: py - side * d * 0.85 + 60, alpha: 0, scale: sp.scale * 0.3, duration: 380 + Math.random() * 420, ease: 'Quad.easeOut', delay: Math.random() * 120, onComplete: () => sp.destroy() });
       }
-      const tear = this.scene.add.image(v.centerX, v.centerY, 'titan-tear', 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 48).setDisplaySize(v.width * 1.05, v.height * 1.05).setAlpha(0.4);
+      const tear = this.scene.add.image(v.centerX, v.centerY, 'titan-tear', 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 48).setDisplaySize(v.width * 1.05, v.height * 1.05).setAlpha(0.28);
       const fms = [70, 110, 230, 200];
       this.anims.push({ img: tear, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: [0, 1, 2, 3], frameMs: fms, fadeLast: 200 });
       cam.shake(200, 0.006);
     });
     this.scene.time.delayedCall(r.timings.startup, () => {
       if (!arch && r.skill.cls !== 'samurai') { // (archer: no white-out — the arrows themselves are the payoff; samurai: the white comes with the great cut, after the eight in the dark)
-        const f = this.scene.add.rectangle(0, 0, W, H, 0xfff4d8, 0.5).setOrigin(0, 0).setScrollFactor(0).setDepth(TOP + 45).setBlendMode(Phaser.BlendModes.ADD); // (a flash, not a white-out: the fight stays readable)
+        const f = this.scene.add.rectangle(0, 0, W, H, 0xfff4d8, 0.3).setOrigin(0, 0).setScrollFactor(0).setDepth(TOP + 45).setBlendMode(Phaser.BlendModes.ADD); // (a flash, not a white-out: the fight stays readable)
         this.scene.tweens.add({ targets: f, alpha: 0, duration: 380, ease: 'Quad.easeOut', onComplete: () => f.destroy() });
       }
       cam.shake(420, 0.014);
