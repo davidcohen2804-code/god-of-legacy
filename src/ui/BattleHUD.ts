@@ -24,7 +24,7 @@ const VS_NAME_W = 440;
 const VS_EMBLEM = 'assets/hud/vs_emblem.webp';
 /** The big calls drawn as art in the VS emblem's style (assets/hud/calls/<id>.webp): their height on screen (design px).
  *  A call with no art yet is lettered (word()). */
-const CALL_ART: Record<string, number> = {};
+const CALL_ART: Record<string, number> = { fight: 340, ko: 420, round1: 250 };
 const callUrl = (id: string) => `assets/hud/calls/${id}.webp`;
 /** VS with the heroes' art: the widest a name may be under its hero. */
 const VS2_NAME_W = 640;
@@ -237,6 +237,26 @@ const CSS = `
 .gol-hud.battle .combo .l{font:700 italic 13px/24px ${LABEL};letter-spacing:2px;text-transform:uppercase;color:#0b0d12;background:#ffd34c;padding:0 16px;
   clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);text-shadow:none}
 .gol-hud.battle .combo .l:empty{display:none}
+/* the battle: the combo guide and the sparring panel in the fight's look (slanted dark metal edged in gold, the display face) */
+.gol-hud.battle .gol-cg,.gol-hud.battle .gol-spar,.gol-hud.battle .gol-hitlog{border-radius:0;clip-path:polygon(0 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%);
+  background:linear-gradient(180deg,rgba(18,23,35,.9),rgba(5,7,12,.86));box-shadow:inset 0 2px 0 rgba(240,204,128,.7),inset 0 -2px 0 rgba(240,204,128,.3)}
+.gol-hud.battle .gol-cg .cg-hd span,.gol-hud.battle .gol-spar .hd{font:800 italic 16px/1.2 ${DISPLAY};letter-spacing:1.5px;color:#ffffff;text-transform:uppercase}
+.gol-hud.battle .gol-cg .cg-sub{font:500 italic 11px/15px ${LABEL};color:#aab3c2}
+.gol-hud.battle .gol-cg .cg-t{border:0;border-radius:0;clip-path:polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%);background:rgba(255,255,255,.1);color:#fff;font:800 italic 15px/1 ${DISPLAY}}
+.gol-hud.battle .gol-cg .cg-t:hover{background:rgba(255,255,255,.2);box-shadow:none}
+.gol-hud.battle .gol-cg .cg-r{border-radius:0;clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%);background:rgba(255,255,255,.055)}
+.gol-hud.battle .gol-cg .cg-n{font:800 italic 13.5px/1.1 ${DISPLAY};letter-spacing:.6px;color:#f3e3bd}
+.gol-hud.battle .gol-cg .cg-n small{font:700 italic 8.5px/1 ${LABEL};letter-spacing:1.2px}
+.gol-hud.battle .gol-cg .cg-k{border-radius:3px}
+.gol-hud.battle .gol-cg .cg-h b{font:900 italic 18px/1 ${DISPLAY};color:#ffffff}
+.gol-hud.battle .gol-cg .cg-h small{font:700 italic 8px/1 ${LABEL};letter-spacing:1.4px;margin-top:2px}
+.gol-hud.battle .gol-spar button{border:0;border-radius:0;clip-path:polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%);background:rgba(255,255,255,.07);color:#e6dcc4;
+  font:800 italic 13px ${DISPLAY};letter-spacing:1.4px;text-shadow:none;box-shadow:none}
+.gol-hud.battle .gol-spar button:hover{background:rgba(255,255,255,.15);color:#ffffff;box-shadow:none}
+.gol-hud.battle .gol-spar button.on,.gol-hud.battle .gol-spar .act .cmb{background:linear-gradient(180deg,#f2d493,#d2a65a);color:#24180a}
+.gol-hud.battle .gol-spar .act button{font-size:16px;letter-spacing:2px}
+.gol-hud.battle .gol-spar .act .stop.on{background:linear-gradient(180deg,#ff7a5c,#b8301c);color:#ffffff}
+.gol-hud.battle .gol-spar .spd span{font:700 italic 11px ${LABEL};letter-spacing:1.6px;color:#c9c2b0}
 /* the end of the match */
 .gol-bt .b-res{position:absolute;left:0;top:0;width:1920px;height:1080px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;pointer-events:auto;
   background:radial-gradient(ellipse at 50% 46%,rgba(4,7,14,.2),rgba(4,7,14,.74));animation:golFade .45s ease-out both}
