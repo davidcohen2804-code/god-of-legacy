@@ -32,7 +32,7 @@ for i, (x0, y0, x1, y1) in enumerate(boxes):
   sprites.append({'img': f'assets/world/clouds/c{i}.png', 'w': int(w), 'h': int(y1 - y0), 'top': [int(rows.min()), int(rows.max())]})
   print('cloud', i, (x0, y0, x1, y1), 'top face rows', rows.min(), rows.max())
 # the lane (world y) the clouds' top faces make — inside Ivy Summit's floor, so you step off its right end onto it
-BAND = [50, 76]
+BAND = [44, 82]
 # the path (world x): from Ivy Summit's right end (x 4304, its floor at z 680) to the right, up and down
 PATH = [   # gaps of 60-80 px, a step up of 35-40 at most (a jump from a short run-up rises ~90 px and carries ~110 px)
   {'x': [4340, 4510], 'z': 690, 's': 0},

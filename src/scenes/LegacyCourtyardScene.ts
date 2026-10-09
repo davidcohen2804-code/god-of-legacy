@@ -773,6 +773,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const floating = now < this.mage.floatUntil && !k.grounded && b.state === 'free'; // Levitate: a slow float
     if (floating) k.vz = Math.max(k.vz, -40);
     const r = stepKin(k, ms, floating ? LEVITATE.gravity : b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z, !!this.rt!.ownRun), b.state === 'free' && !b.push && !this.rt!.ownRun);
+    // the Sky Path is one lane: near Ivy Summit's right end and out over the clouds you are drawn into it (as in a side view:
+    // run right, jump — and you land on the cloud whatever depth of the summit you came from)
+    if (k.x > SKY.lane[0] - 160 && k.x < SKY.lane[1] && Math.max(k.z, k.supportZ) >= SKY_DROP && (k.x > SKY.lane[0] || k.vx > 20)) {
+      const yc = (SKY.band[0] + SKY.band[1]) / 2, d = yc - k.y, step = 320 * ms / 1000;
+      if (Math.abs(d) > 1) k.y += Math.sign(d) * Math.min(Math.abs(d), step);
+    }
     // the Sky Path: fallen between its clouds, below them — on down to the floor under the lane (Ivy Heights where it runs
     // under, else the terrace), kept where it is on screen (y and height shifted together)
     if (!k.grounded && k.vz < 0 && k.z < SKY_DROP && k.z > 200 && k.y < SKY.band[1] + 8 && k.x > SKY.lane[0] - 4 && k.x < SKY.lane[1] + 40) {
