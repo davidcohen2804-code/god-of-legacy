@@ -90,7 +90,7 @@ export function stepKin(k: Kin, ms: number, gravityScale = 1, blocked?: (x: numb
     if (footAllowed(x, y, k.z, PHYS.footR, k) && !(blocked && blocked(x, y, k.z))) return true;
     if (k.grounded) return false;
     for (const o of WORLD_OBJECTS) {
-      if (o.topZ === undefined || o.id === k.from || k.z < o.topZ - PHYS.mantle || k.z >= o.topZ) continue;
+      if (gravityScale <= 0 || o.topZ === undefined || o.id === k.from || k.z < o.topZ - PHYS.mantle || k.z >= o.topZ) continue;
       if (footAllowed(x, y, o.topZ, PHYS.footR) && !(blocked && blocked(x, y, o.topZ)) && pointInPolyNear(x, y, o.footprint)) {
         k.vz = Math.max(k.vz, Math.sqrt(2 * PHYS.gravity * gravityScale * (o.topZ + 0.5 - k.z)));
         lip = true; return false;
@@ -118,13 +118,13 @@ export function stepKin(k: Kin, ms: number, gravityScale = 1, blocked?: (x: numb
   }
   if (k.grounded) {
     const s = supportAt(k.x, k.y, k.z);
-    if (s.z < k.z - 0.5) { k.grounded = false; k.vz = 0; r.leftSupport = true; k.from = k.supportId; k.stepped = true; } // walked off the edge
+    if (s.z < k.z - 6) { k.grounded = false; k.vz = 0; r.leftSupport = true; k.from = k.supportId; k.stepped = true; } // walked off the edge
     else {
       k.z = s.z; k.supportZ = s.z; k.supportId = s.id;
       // on a ledge solid back to the wall (its ground reaches further back than its top face as drawn): the feet keep to
       // the top face (never past its back edge, floating over the wall behind it)
       const o = s.id ? WORLD_OBJECTS.find((w) => w.id === s.id) : undefined;
-      if (o?.stand && o.base && Math.min(...o.base.map((p) => p[1])) < o.stand[0] - 2 && k.y < o.stand[0]) { k.y = o.stand[0]; if (k.vy < 0) k.vy = 0; }
+      if (o?.stand && o.base && Math.min(...o.base.map((p) => p[1])) < o.stand[0] - 2 && k.y < o.stand[0]) { k.y = Math.min(o.stand[0], k.y + Math.max(2, ms * 0.45)); if (k.vy < 0) k.vy = 0; }
     }
   }
   if (!k.grounded) {
@@ -165,9 +165,14 @@ export function settleOnBlocks(k: Kin, ms: number, moveY: number, own = false): 
     const behind = own && !!k.stepped && o.id === k.from && k.y < y0;
     if (behind && k.vy < 0) k.vy *= Math.exp(-ms / 20);
     if (k.z < (behind ? o.topZ * 0.6 : o.topZ - (o.id === k.from ? 0.5 : PHYS.mantle))) {   // below its top: out of it (300 px/s)
+      if (!o.soft && pointInPoly(k.x, k.y, o.footprint)) {   // inside it (pulled or knocked in): out by its nearest side
+        const e = [k.x - x0, x1 - k.x, k.y - y0, y1 - k.y], i = e.indexOf(Math.min(...e)), st = ms * 0.3;
+        const nx = k.x + (i === 0 ? -st : i === 1 ? st : 0), ny = k.y + (i === 2 ? -st : i === 3 ? st : 0);
+        k.x = nx; k.y = ny; continue;
+      }
       const cx = Math.min(Math.max(k.x, x0), x1), cy = Math.min(Math.max(k.y, y0), y1), d = Math.hypot(k.x - cx, k.y - cy);
       if (d > 0 && d < PHYS.footR) {
-        const f = Math.min(ms * 0.3, PHYS.footR - d + 0.5) / d, nx = k.x + (k.x - cx) * f, ny = k.y + (k.y - cy) * f;
+        const f = Math.min(ms * (o.id === k.from ? 0.12 : 0.3), PHYS.footR - d + 0.5) / d, nx = k.x + (k.x - cx) * f, ny = k.y + (k.y - cy) * f;
         if (footAllowed(nx, ny, k.z, PHYS.footR, k)) { k.x = nx; k.y = ny; }
       }
       continue;
@@ -175,14 +180,14 @@ export function settleOnBlocks(k: Kin, ms: number, moveY: number, own = false): 
     // Forgiving landing (a jump a little in front of a block, or a little behind it): at or above its top and over its
     // width, the feet are drawn onto its top face, so a jump at a block never just misses it by a few px of depth.
     if (own && o.id !== k.from && k.vz <= 120 && k.x > x0 + 6 && k.x < x1 - 6 && k.z >= o.topZ - 12 && !pointInPoly(k.x, k.y, o.footprint)) {
-      const gap = k.y >= y1 ? k.y - y1 : y0 - k.y;
-      if (gap >= 0 && gap < LAND_FORGIVE && footAllowed(k.x, k.y >= y1 ? y1 - 2 : y0 + 2, Math.max(k.z, o.topZ), PHYS.footR, k)) {
-        const to = k.y >= y1 ? y1 - 2 : y0 + 2, step = Math.max(2, ms * 0.6);
+      const gap = k.y >= y1 ? k.y - y1 : y0 - k.y, toward = k.y >= y1 ? -1 : 1;   // only when moving toward it (or not moving in depth)
+      if (gap >= 0 && gap < LAND_FORGIVE && (moveY === 0 || Math.sign(moveY) === toward) && footAllowed(k.x, k.y >= y1 ? y1 - 2 : y0 + 2, Math.max(k.z, o.topZ), PHYS.footR, k)) {
+        const to = k.y >= y1 ? y1 - 2 : y0 + 2, step = Math.max(2, ms * 1.2);
         k.y += Math.max(-step, Math.min(step, to - k.y)); k.vy *= 0.5;
       }
     }
     if (!own || o.id === k.from || !pointInPoly(k.x, k.y, o.footprint)) continue;
-    if (x1 - x0 > 700) continue;   // a whole floor above (a map over the terrace): wide enough, nothing to hold
+    if (x1 - x0 > 700 || o.soft) continue;   // a whole floor above / a cloud (you may fly over it to the next) (a map over the terrace): wide enough, nothing to hold
     // Over it: t = the time until the feet are back down at its top. A drift that would carry them past its top face (a
     // little in from its edges) eases off evenly to come to rest there as they land: never faster than 2·room / t.
     const g = PHYS.gravity, t = Math.max(ms / 1000, (k.vz + Math.sqrt(Math.max(0, k.vz * k.vz + 2 * g * (k.z - o.topZ)))) / g);

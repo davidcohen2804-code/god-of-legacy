@@ -36,7 +36,7 @@ BAND = [-40, 118]   # as deep as Ivy Summit's floor (its front edge 122): you wa
 # the path (world x): from Ivy Summit's right end (x 4304, its floor at z 680) to the right, up and down
 PATH = [   # a journey: the first cloud lies over the summit's open end (you step onto it), two easy steps right, a jump up,
   # a little drop down, one more, and the last one lies over Cloud Haven's open end (you step off it onto the big cloud)
-  {'x': [4180, 4600], 'z': 682, 's': 5},
+  {'x': [4180, 4600], 'z': 680, 's': 5},
   {'x': [4670, 4910], 'z': 690, 's': 1},
   {'x': [4980, 5290], 'z': 730, 's': 2},
   {'x': [5360, 5640], 'z': 700, 's': 3},

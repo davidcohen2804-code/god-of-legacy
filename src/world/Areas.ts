@@ -4,6 +4,8 @@
 // px: world = local + the area's x.
 import DATA from '../data/world-areas.json';
 import STRIP from '../data/world-strip.json';
+import HEIGHTS_RAW_DATA from '../data/world-heights.json';
+const HEIGHTS_RAW = HEIGHTS_RAW_DATA as unknown as { x: number; w: number; H: number; front: number }[];
 import CLOUD_DATA from '../data/world-clouds.json';
 import ARENA_DATA from '../data/world-arena.json';
 import GATE_DATA from '../data/world-gate.json';
@@ -132,8 +134,10 @@ export const TOWERS: Tower[] = Object.entries(TOWER_DATA as unknown as Record<st
   .filter(([a]) => AREAS[a]).flatMap(([a, list]) => list.map((t) => ({ id: `${a}-${t.id}`, x0: AREAS[a].x + t.x[0], x1: AREAS[a].x + t.x[1], front: t.front, h: t.h, depth: t.depth, base: t.base ?? 0, solid: t.solid_to, reward: t.reward })));
 const towerProps = () => TOWERS.map((t) => {
   const s0 = t.front - t.depth, back = s0 - t.h + FOOT_R - EDGE;
+  // its top face where no map above stands over it (their floor fills the depth in front of their wall): from just in front of it
+  const over = HEIGHTS_RAW.find((h) => h.H > t.base && t.x1 > h.x && t.x0 < h.x + h.w && h.front > s0 && h.front < t.front - 8);
   return { id: t.id, foot: [[t.x0, back], [t.x1, back], [t.x1, t.front], [t.x0, t.front]] as Pt[], base: [[t.x0, t.solid ?? s0], [t.x1, t.solid ?? s0], [t.x1, t.front], [t.x0, t.front]] as Pt[],
-    h: t.base + t.h, top: t.base + t.h, stand: [s0, t.front - 3] as [number, number] };
+    h: t.base + t.h, top: t.base + t.h, stand: [over ? Math.max(s0, over.front + 11) : s0, t.front - 3] as [number, number] };
 });
 /** Maps above the terrace (tools/world/heights.py): a whole floor H px up behind it, its picture standing behind the
  *  terrace's back balustrade (imgY: its top, world px), its blocks and monsters up there. */

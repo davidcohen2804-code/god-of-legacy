@@ -370,6 +370,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Cloud Form (the Cloud Form item): on, crossed the sun, ends at (sim ms); its sprite; the sun's burn timer. */
   private cloudOn = false; private cloudCrossed = false; private cloudEnd = 0;
   private cloudSprite?: Phaser.GameObjects.Image; private sunTick = 0; private sunGlare?: Phaser.GameObjects.Rectangle; private sunWarned = 0;
+  /** The height last stood on (the Sky Path's fall-through: only off a cloud). */
+  private lastGroundZ = 0;
   /** Touching monsters: not again before this (sim ms). */
   private touchUntil = -1;
   private motes?: Phaser.GameObjects.Container;
@@ -819,13 +821,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const r = stepKin(k, ms, hang ? 0 : floating ? LEVITATE.gravity : b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z, !!this.rt!.ownRun), b.state === 'free' && !b.push && !this.rt!.ownRun);
     // the Sky Path is one lane: near Ivy Summit's right end and out over the clouds you are drawn into it (as in a side view:
     // run right, jump — and you land on the cloud whatever depth of the summit you came from)
-    if (k.x > SKY.lane[0] - 160 && k.x < SKY.lane[1] && Math.max(k.z, k.supportZ) >= SKY_DROP && (k.x > SKY.lane[0] || k.vx > 20)) {
+    if (k.x > SKY.lane[0] && k.x < SKY.lane[1] && Math.max(k.z, k.supportZ) >= SKY_DROP && (k.supportId?.startsWith('sky-') || !k.grounded)) {
       const yc = Math.min(Math.max(k.y, SKY.band[0] + 8), SKY.band[1] - 8), d = yc - k.y, step = 320 * ms / 1000;   // into the lane (its depth kept: you walk back and forth on the clouds)
-      if (Math.abs(d) > 1) k.y += Math.sign(d) * Math.min(Math.abs(d), step);
+      const ny = k.y + Math.sign(d) * Math.min(Math.abs(d), step);
+      if (Math.abs(d) > 1 && footAllowed(k.x, ny, k.z, R, k)) k.y = ny;
     }
     // the Sky Path: fallen between its clouds, below them — on down to the floor under the lane (Ivy Heights where it runs
     // under, else the terrace), kept where it is on screen (y and height shifted together)
-    if (!k.grounded && k.vz < 0 && k.z < SKY_DROP && k.z > 200 && k.y < SKY.band[1] + 8 && k.x > SKY.lane[0] - 4 && k.x < SKY.lane[1] + 40) {
+    if (k.grounded) this.lastGroundZ = k.supportZ;
+    if (!k.grounded && k.vz < 0 && k.z < SKY_DROP && k.z > 200 && this.lastGroundZ >= SKY_DROP && !HEIGHTS.some((h) => h.H === this.lastGroundZ) && k.y < SKY.band[1] + 8 && k.x > SKY.lane[0] - 4 && k.x < SKY.lane[1] + 40) {
       const ivy = HEIGHTS.find((h) => h.id === 'ivy_heights'), ty = ivy && k.x < ivy.x + ivy.w - 22 ? ivy.front - 40 : 400, d = ty - k.y;
       k.y += d; k.z += d;
     }
@@ -946,7 +950,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     for (const key of ['lunge', 'momentum'] as const) { // glide toward the target / along the push
       const m = this[key]; if (!m) continue;
       const f = Math.min(1, ms / Math.max(1, m.left)), nx = k.x + m.x * f, ny = k.y + m.y * f;
-      if (footAllowed(nx, ny, k.z, R) && !this.blockedByActors(nx, ny, k.z)) { k.x = nx; k.y = ny; }
+      if (footAllowed(nx, ny, k.z, R, k) && !this.blockedByActors(nx, ny, k.z)) { k.x = nx; k.y = ny; }
       m.x -= m.x * f; m.y -= m.y * f; m.left -= ms; if (m.left <= 0) this[key] = null;
     }
     if (s.through && run.phase === 'recovery' && !run.turned && run.elapsed >= T.startup + T.active + 0.75 * T.recovery) { // crossed the target: after the skid, turn to face it
@@ -1337,7 +1341,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const steps = Math.ceil(Math.hypot(want.x - k.x, want.y - k.y) / 2);
     for (let i = 0; i < steps; i++) {
       const nx = k.x + (want.x - k.x) / (steps - i), ny = k.y + (want.y - k.y) / (steps - i);
-      if (!footAllowed(nx, ny, k.z, R) || (!s.through && !s.carry && this.blockedByActors(nx, ny, k.z))) break;
+      if (!footAllowed(nx, ny, k.z, R, k) || (!s.through && !s.carry && this.blockedByActors(nx, ny, k.z))) break;
       k.x = nx; k.y = ny;
     }
     k.vx = 0; k.vy = 0;
@@ -1497,10 +1501,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** mobs: the open world's monsters count too (skill glides stop at them; walking passes through them, MapleStory-style). */
   private blockedByActors(x: number, y: number, z: number, mobs = true): boolean {
-    const e = this.enemy;
+    const e = this.enemy, k = this.kin, away = (ox: number, oy: number) => Math.hypot(x - ox, y - oy) >= Math.hypot(k.x - ox, k.y - oy);   // moving apart: always
     if (e && e.alive && Math.abs(e.z - z) < 50 && Math.hypot(x - e.x, y - e.y) < STAGE6.enemy.collisionRadius + R) return true;
     if (this.dummyState?.alive && z < 40 && Math.hypot(x - D.x, y - D.y) < D.collisionRadius + R) return true;
-    if (mobs) for (const m of this.world?.mobs ?? []) if (m.alive && Math.abs(m.z - z) < 50 && Math.hypot(x - m.x, y - m.y) < STAGE6.enemy.collisionRadius * m.kind.scale + R) return true;
+    if (mobs) for (const m of this.world?.mobs ?? []) if (m.alive && Math.abs(m.z - z) < 50 && Math.hypot(x - m.x, y - m.y) < STAGE6.enemy.collisionRadius * m.kind.scale + R && !away(m.x, m.y)) return true;
     return false;
   }
 
@@ -2932,7 +2936,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       return;
     }
     if (!inSun) return;
-    const nx = k.x - SUN.push * ms / 1000; if (footAllowed(nx, k.y, k.z, 10)) k.x = nx;   // the blaze drives you back
+    const nx = k.x - SUN.push * ms / 1000; if (footAllowed(nx, k.y, k.z, 10, k)) k.x = nx;   // the blaze drives you back
     this.sunTick -= ms;
     if (this.sunTick <= 0) {
       this.sunTick = SUN.tickMs;
