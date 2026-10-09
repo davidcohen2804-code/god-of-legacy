@@ -253,14 +253,13 @@ export class ActorView {
   private tag: Phaser.GameObjects.Image | null = null;
   /** The tag's own alpha (null: the body's). */
   tagAlpha: number | null = null;
-  private tagTop = 0;
   private tagDepth = 0;
-  /** A tag (texture key) over the head, `headTop` above the feet; null: the name plate again. */
-  setTag(key: string | null, headTop = 116, depth = NAME_DEPTH + 5000, scale = 0.5): void {
+  /** A tag (texture key) under the feet, in the name plate's place; null: the name plate again. */
+  setTag(key: string | null, depth = NAME_DEPTH + 5000, scale = 0.5): void {
     if (!key) { this.tag?.destroy(); this.tag = null; return; }
-    this.tagTop = headTop; this.tagDepth = depth;
+    this.tagDepth = depth;
     if (this.tag) this.tag.setTexture(key);
-    else this.tag = this.scene.add.image(0, 0, key).setOrigin(0.5, 1).setScale(scale);
+    else this.tag = this.scene.add.image(0, 0, key).setOrigin(0.5, 0).setScale(scale);
   }
   setName(name: string): void {
     this.nameText?.destroy();
@@ -467,7 +466,7 @@ export class ActorView {
         this.nameFrame.setPosition(x, ny).setDepth(d0).setAlpha(alpha).setVisible(this.visible && !this.tag);
       }
     }
-    this.tag?.setPosition(Math.round(x), Math.round(y - z - this.tagTop)).setDepth(this.tagDepth).setAlpha(this.tagAlpha ?? alpha).setVisible(this.visible);
+    this.tag?.setPosition(Math.round(x), Math.round(y - Math.max(supportZ, z - 12) + 15)).setDepth(this.tagDepth).setAlpha(this.tagAlpha ?? alpha).setVisible(this.visible); // (its notch just under the ring)
     const tr = this.equipped.trail;
     if (tr && this.visible && this.scene.textures.exists(`cos-${tr}`)) {
       const lf = this.lastFeet, moved = lf ? Math.hypot(x - lf.x, y - lf.y) : 0; this.lastFeet = { x, y };

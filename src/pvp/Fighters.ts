@@ -6,7 +6,7 @@ import type { PortraitRef } from '../ui/hud/HudState';
 
 /** A hero's VS splash (the approved battle-stance art, facing right): file, size, the face square on it and the class colours;
  *  `win` = the victory pose (same canvas), when there is one; `card` = no splash yet, this is the hero's card instead. */
-export interface HeroVs { url: string; w: number; h: number; face: { x: number; y: number; s: number }; color: string; glow: string; win?: string; card?: boolean }
+export interface HeroVs { cls: string; url: string; w: number; h: number; face: { x: number; y: number; s: number }; color: string; glow: string; win?: string; card?: boolean }
 const VS_W = 1024, VS_H = 1536;
 /** Each hero's colours (VS screen, battle HUD, select tiles). */
 const COLOR: Record<string, [string, string]> = {
@@ -21,7 +21,7 @@ const FACE: Record<string, [number, number, number]> = {
   warrior: [559, 200, 170],
   samurai: [470, 240, 190],
   book_mage: [440, 150, 170],
-  archer: [430, 270, 170],
+  archer: [452, 236, 210],
   gambler: [541, 130, 177],
 };
 /** The heroes that have a victory pose (assets/final/heroes/<cls>/win.webp). */
@@ -31,13 +31,13 @@ const colorOf = (cls: string): [string, string] => COLOR[cls] ?? ['#c9d2e6', 'rg
 export const classColor = (cls: string): string => colorOf(cls)[0];
 export function heroVs(cls: string): HeroVs | undefined {
   const f = FACE[cls], [color, glow] = colorOf(cls);
-  return f ? { url: `assets/final/heroes/${cls}/vs.webp`, w: VS_W, h: VS_H, face: { x: f[0], y: f[1], s: f[2] }, color, glow, win: WIN.has(cls) ? `assets/final/heroes/${cls}/win.webp` : undefined } : undefined;
+  return f ? { cls, url: `assets/final/heroes/${cls}/vs.webp`, w: VS_W, h: VS_H, face: { x: f[0], y: f[1], s: f[2] }, color, glow, win: WIN.has(cls) ? `assets/final/heroes/${cls}/win.webp` : undefined } : undefined;
 }
 /** A hero's art for the VS screen, the result and the select tiles: its splash — else (none yet) its card. */
 export function heroArt(cls: string): HeroVs | undefined {
   const v = heroVs(cls); if (v) return v;
   const c = heroCard(cls), [color, glow] = colorOf(cls);
-  return c ? { url: c.file, w: c.w, h: c.h, face: c.face, color, glow, card: true } : undefined;
+  return c ? { cls, url: c.file, w: c.w, h: c.h, face: c.face, color, glow, card: true } : undefined;
 }
 /** The battle HUD's portrait of a hero: the face on its VS splash. */
 export function heroVsPortrait(cls: string): PortraitRef | undefined {

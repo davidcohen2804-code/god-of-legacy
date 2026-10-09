@@ -8,6 +8,7 @@ import '@fontsource/exo-2/900-italic.css';
 import { CLASS_NAMES } from '../config/layout';
 import { heroArt } from '../pvp/Fighters';
 import { syncOverlay } from './CharacterSelectUI';
+import { heroFx } from './HeroFx';
 
 /** One side of the loading screen: a fighter's name and class (`you`: yours). */
 export interface LoadSide { name: string; cls: string; you?: boolean }
@@ -116,16 +117,13 @@ export function showArenaLoading(scene: Phaser.Scene, l: LoadSide, r: LoadSide):
     const h = el('div', `al-h ${s}`, box);
     h.style.setProperty('--c', a.color); h.style.setProperty('--g', a.glow);
     el('div', 'al-rays', h); el('div', 'al-glow', h);
+    const fx = heroFx(f.cls, { W: 1100, H: 1080, ax: 560, ay: 430, k: 1.3, mirror: s === 'r' }); // their own things flying round them
+    if (fx) h.appendChild(fx.back);
     const img = el('img', '', el('div', a.card ? 'al-art card' : 'al-art', h));
     img.src = a.url; img.alt = ''; img.draggable = false;
+    if (fx) h.appendChild(fx.front);
   }
   el('div', 'al-seam', box);
-  for (let i = 0; i < 30; i++) { // embers in both fighters' colours
-    const e = el('i', 'al-em', box), left = i % 2 === 0, sz = 3 + Math.random() * 4;
-    Object.assign(e.style, { left: `${Math.round((left ? 40 : 980) + Math.random() * 900)}px`, width: `${sz}px`, height: `${sz}px`,
-      animationDuration: `${(3 + Math.random() * 3).toFixed(2)}s`, animationDelay: `${(-Math.random() * 5).toFixed(2)}s` });
-    e.style.setProperty('--e', (left ? al : ar).color); e.style.setProperty('--dx', `${Math.round((Math.random() - 0.5) * 220)}px`);
-  }
   for (const [s, f, a] of sides) {
     const n = el('div', `al-nm ${s}`, box), b = el('b', '', n);
     n.style.setProperty('--c', a.color); n.style.setProperty('--g', a.glow);

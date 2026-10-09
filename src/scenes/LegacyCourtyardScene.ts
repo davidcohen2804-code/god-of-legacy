@@ -2058,7 +2058,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       makeView: () => {
         const ch = this.character!, g = genderOf(ch), v = new ActorView(this, this.cls, this.kin.x, this.kin.y);
         v.setBaseLook(headLookOf(ch), g); v.setGear(wornLook(CharacterStore.getGear(ch.id) ?? ch.gear), g); v.setName(ch.name); v.setEquipped(this.equipped);
-        if (this.tagsOn) { const [key, top] = this.myTag(false); v.setTag(key, top, PVP.labelDepth, TAG_SCALE); v.setRing(colorNum(classColor(this.cls))); } // battle: your doubles wear your tag (with no YOU) and ring
+        if (this.tagsOn) { v.setTag(this.myTag(false), PVP.labelDepth, TAG_SCALE); v.setRing(colorNum(classColor(this.cls))); } // battle: your doubles wear your tag (with no YOU) and ring
         return v;
       },
       pose: (snap, dir) => resolvePose(this.cls, dir, poseQuery(snap), this.view!.wantsBase || !hasJob(this.character!), genderOf(this.character), !!this.character!.hero),
@@ -3509,15 +3509,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.view?.setTag(null); this.view?.setRing(RING_COLOR); this.bot?.view.setTag(null);
     for (const r of this.pvp?.remotes.values() ?? []) r.setTag(null);
   }
-  /** Your tag (`you` false: your doubles' — his name, not YOU) and where it sits over the head. */
-  private myTag(you = true): [string, number] {
-    return [fighterTag(this, this.character!.name, classColor(this.cls), you), 116 + (this.character?.hero ? HERO_LIFT : 0) + PVP.remoteLabel.gap - PVP.hpBar.h];
-  }
+  /** Your tag (`you` false: your doubles' — his name, not YOU). */
+  private myTag(you = true): string { return fighterTag(this, this.character!.name, classColor(this.cls), you); }
   private wearTags(): void {
     const m = this.match;
     if (!m?.active || !this.character) return;
-    const [key, top] = this.myTag();
-    this.view?.setTag(key, top, PVP.labelDepth, TAG_SCALE); this.view?.setRing(colorNum(classColor(this.cls))); // (and the ring under your feet in your colour)
+    this.view?.setTag(this.myTag(), PVP.labelDepth, TAG_SCALE); this.view?.setRing(colorNum(classColor(this.cls))); // (and the ring under your feet in your colour)
     const opp = m.opponent, r = opp === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(opp), oc = classColor(opp === BOT_ID ? this.botCls : r?.meta.classId ?? '');
     if (r) r.setTag(fighterTag(this, this.fighterOf(opp).name, oc, false), colorNum(oc));
   }
