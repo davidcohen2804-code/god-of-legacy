@@ -382,6 +382,19 @@ export class SamuraiFx {
     return key;
   }
 
+  /** One ray of sunlight: golden, bright at its root, tapering and fading out to its tip (drawn from its root, pointing right). */
+  private rayTex(): string {
+    const tm = this.ctx.scene.textures, key = 'sam-ray';
+    if (tm.exists(key)) return key;
+    const W = 64, H = 12, c = tm.createCanvas(key, W, H);
+    if (!c) return key;
+    const g = c.context, lg = g.createLinearGradient(0, 0, W, 0);
+    lg.addColorStop(0, 'rgba(255,246,214,1)'); lg.addColorStop(0.35, 'rgba(255,206,92,0.95)'); lg.addColorStop(1, 'rgba(255,150,40,0)');
+    g.fillStyle = lg; g.beginPath(); g.moveTo(0, 0); g.lineTo(W, H / 2 - 0.5); g.lineTo(W, H / 2 + 0.5); g.lineTo(0, H); g.closePath(); g.fill();
+    c.refresh();
+    return key;
+  }
+
   /** A ribbon of light behind a moving point (where it went in the last `span` ms): widest and brightest at its head,
    *  thinning to nothing at its tail; drawn solid with its light added over it. It stops growing when `at` gives nothing
    *  (or `until` ms pass) and fades out over `fade` ms. */
@@ -1256,27 +1269,36 @@ export class SamuraiFx {
     const cloth = s.add.rope(cx, top, KIT, 'banner_cloth', pts, false).setDepth(by - 3.2).setVisible(false);
     const fr = s.textures.getFrame(KIT, 'banner_cloth');
     cloth.setScale(clothW / fr.width, 1);
-    const rays = s.add.image(cx, top + clothH * 0.3, KIT, 'sun_rays').setBlendMode(Phaser.BlendModes.ADD).setDepth(by - 3.3).setVisible(false);
-    const rk = 160 / rays.width;
+    // the sun on the banner shines: golden rays round it, turning slowly (long and short in turn), from just outside its disc
+    const ray = this.rayTex(), NR = 12, SUN = 0.32, R0 = clothW * 0.26, ck = clothW / fr.width;
+    const rays = Array.from({ length: NR * 2 }, (_, i) => { const im = s.add.image(0, 0, ray).setOrigin(0, 0.5).setVisible(false); if (i >= NR) im.setBlendMode(Phaser.BlendModes.ADD); return im; });
+    let fired = -1;
+    const kill = () => { pole.destroy(); cloth.destroy(); for (const im of rays) im.destroy(); };
     this.add({ t: 0, step: (_dt, t) => {
-      if ((this.broken(r) && t < T.startup + 20) || this.gone(r)) { pole.destroy(); cloth.destroy(); rays.destroy(); return false; }
+      if ((this.broken(r) && t < T.startup + 20) || this.gone(r)) { kill(); return false; }
       const rise = Math.min(1, t / Math.max(1, T.startup)), up = back(rise), fade = t > life - 450 ? Math.max(0, (life - t) / 450) : 1;
       pole.setVisible(true).setScale((poleH / pole.height) * 1, (poleH / pole.height) * up).setAlpha(Math.min(1, t / 120) * fade);
       const ty = by - (by - top) * up;
       cloth.setVisible(up > 0.6).setPosition(cx, ty).setAlpha(Math.min(1, (up - 0.6) / 0.3) * fade);
       for (let i = 0; i < N; i++) { const v = i / (N - 1); pts[i].set(-side * Math.sin(t / 230 + v * 3.1) * 9 * v + side * 4 * v * v, v * clothH * (0.92 + 0.08 * Math.sin(t / 310 + v))); }
       cloth.setPoints(pts);
-      rays.setVisible(t > T.startup * 0.5).setPosition(cx, ty + clothH * 0.3).setScale(rk * (1 + 0.08 * Math.sin(t / 120)) * Math.min(1, (t - T.startup * 0.5) / 300)).setAngle(t * 0.03).setAlpha(0.65 * fade);
-      if (t >= life) { pole.destroy(); cloth.destroy(); rays.destroy(); return false; }
+      if (fired < 0 && r.fired.has(0)) { fired = t; } // (its light breaks: the rays flare up, longer and brighter, and settle)
+      const fl = fired < 0 ? 0 : Math.max(0, 1 - (t - fired) / 650), on = Math.max(0, Math.min(1, (t - T.startup * 0.5) / 300)) * fade * Math.min(1, (up - 0.6) / 0.3);
+      const sx = cx + (-side * Math.sin(t / 230 + SUN * 3.1) * 9 * SUN + side * 4 * SUN * SUN) * ck, sy = ty + SUN * clothH * (0.92 + 0.08 * Math.sin(t / 310 + SUN)); // (the sun on the cloth, as it waves)
+      rays.forEach((im, i) => {
+        const k = i % NR, th = (k / NR) * 360 + t * 0.02, rad = (th * Math.PI) / 180, L = (k % 2 ? 15 : 24) * (1 + 0.1 * Math.sin(t / 160 + k)) * (1 + 1.3 * out(fl)), glow = i >= NR;
+        im.setVisible(on > 0.01).setPosition(sx + Math.cos(rad) * R0, sy + Math.sin(rad) * R0).setAngle(th).setDisplaySize(L, glow ? 6 : 4.5)
+          .setDepth(by - 3.15 + (glow ? 0.01 : 0)).setAlpha(on * (glow ? 0.45 + 0.4 * fl : 0.9));
+      });
+      if (t >= life) { kill(); return false; }
       return true;
     } });
   }
-  /** The banner's light breaks over him: a golden aura flares up round him, rays behind the banner, rings of light run out —
+  /** The banner's light breaks over him: a golden aura flares up round him, the sun on the banner flares, rings of light run out —
    *  and a faint golden light stays on him for the buff. */
   private sunBurst(r: CastRun): void {
-    const q = this.me(r), side = sideOf(r);
+    const q = this.me(r);
     this.auraFlare(r, 'aura_gold', 200, 1000);
-    this.pop('sun_rays', q.x - side * 70, q.y - q.z - 150, 340, { life: 520, add: true, glow: 0.4, angle: 0 });
     this.shock(q.x, q.y, 320, { tint: 0xffd27a }); this.shock(q.x, q.y, 420, { tint: 0xffd27a, delay: 90 });
     this.petals(q.x, q.y - 80, 14, 140, { depth: q.y + 4 });
     if (r.own) this.ctx.cam().shake(160, 0.004);
@@ -1571,12 +1593,22 @@ export class SamuraiFx {
   projectileEnd(p: Projectile): void {
     const w = this.waves.get(p); if (!w) return;
     this.waves.delete(p);
-    const end = p.end ?? { x: p.x, y: p.y }, fl = p.dx < -0.01, ang = screenAng(p.dx, p.dy);
-    const shatter = (x: number, y: number, size: number) => this.spr({ name: 'wave_break', x, y, w: size, life: 320, flipX: fl, angle: along(ang, fl) * 0.3, glow: 0.35, depth: TOP + 4,
+    const end = p.end ?? { x: p.x, y: p.y, reason: 'range' as const }, fl = p.dx < -0.01, ang = screenAng(p.dx, p.dy), foe = end.reason === 'target', wall = end.reason === 'cover';
+    const shatter = (x: number, y: number, size: number) => this.spr({ name: 'wave_break', x, y, w: size, life: foe ? 380 : 320, flipX: fl, angle: along(ang, fl) * 0.3, glow: 0.35, depth: TOP + 4,
       sx: kf([0, 0.6], [0.2, 1.05, out3], [1, 1.2]), sy: kf([0, 0.6], [0.2, 1.05, out3], [1, 1.2]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
-    shatter(end.x, end.y - p.z, 128);
+    const impact = (x: number, y: number, k: number) => { // it strikes: the crescent flattens against what it hit and bursts, its force spraying on through
+      this.spr({ name: 'wave_crescent', x, y, ox: 0.76, angle: ang, flipY: fl, w: 150 * k, depth: TOP + 4.2, life: 200, glow: 0.5,
+        sx: kf([0, 1], [1, 1.5, out]), sy: kf([0, 1], [1, 0.25, inQ]), a: kf([0, 1], [1, 0, inQ]) });
+      this.spr({ name: 'spark_spray', x, y, ox: fl ? 0.95 : 0.05, oy: 0.45, flipX: fl, angle: along(ang, fl), depth: TOP + 3.9, w: 170 * k, life: 280,
+        sx: kf([0, 0.4], [0.25, 1, out3], [1, 1.12]), sy: kf([0, 0.6], [0.25, 1, out3]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
+      this.petals(x, y, Math.round(10 * k), 70 * k, { depth: TOP + 3 });
+    };
+    const size = foe ? 190 : wall ? 150 : 112;
+    shatter(end.x, end.y - p.z, size);
+    if (foe || wall) impact(end.x, end.y - p.z, foe ? 1 : 0.75);
+    if (wall) this.dust(end.x, end.y, 90);
     w.im.destroy(); w.gl.destroy();
-    for (const g of w.ghosts) { shatter(end.x + g.dx, end.y + g.dy - p.z, 108); g.im.destroy(); }
+    for (const g of w.ghosts) { shatter(end.x + g.dx, end.y + g.dy - p.z, size * 0.8); g.im.destroy(); }
   }
   private stepWaves(dt: number): void {
     for (const [p, w] of this.waves) {
