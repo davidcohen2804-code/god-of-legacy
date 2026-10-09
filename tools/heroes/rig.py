@@ -20,6 +20,16 @@ HIPS = {
     'archer': (0.60, 0.66, 0.45),
 }
 WALK_N, RUN_N = 16, 12
+# heroes whose arm sheet has joint balls in a colour apart from the limbs (removed; a shaded joint is drawn instead) —
+# the others' balls are armour-coloured and stay as the joint
+DROP_BALLS = {'archer', 'book_mage'}
+# The armless torso (tools/heroes/parts/<cls>_arms.png): hips x, y, the cloth-behind column, the near shoulder x, y (fractions)
+TORSO = {
+    'warrior': (0.62, 0.60, 0.45, 0.55, 0.24),
+    'samurai': (0.56, 0.68, 0.42, 0.50, 0.36),
+    'archer': (0.60, 0.64, 0.45, 0.64, 0.36),
+    'book_mage': (0.60, 0.60, 0.42, 0.49, 0.30),
+}
 
 
 def _components(rgba):
@@ -83,6 +93,74 @@ def _recolor_cap(part, y0, y1, ref_rows, cy=None, bw=None):
     part[..., :3] = np.where(m[..., None], np.clip(col * shade, 0, 255), part[..., :3]).astype(np.uint8)
 
 
+def _ball_blobs(im, col, area_ref):
+    """Round blobs of the joint balls' colour in a part: [(cx, cy, width)] from the top down (GPT's balls share a colour
+    within a sheet; used when it differs from the limb so the blobs stand alone)."""
+    a = im[..., 3] > 100
+    m = a & (np.sqrt(((im[..., :3].astype(float) - col) ** 2).sum(2)) < 42)
+    m = ndimage.binary_opening(m, iterations=2)
+    lab, k = ndimage.label(m)
+    out = []
+    for i, sl in enumerate(ndimage.find_objects(lab)):
+        ar = int((lab[sl] == i + 1).sum()); hh, ww = sl[0].stop - sl[0].start, sl[1].stop - sl[1].start
+        if 0.4 * area_ref < ar < 2.2 * area_ref and 0.6 < hh / ww < 1.7:
+            cy, cx = ndimage.center_of_mass(lab == i + 1)
+            out.append((float(cx), float(cy), float(ww)))
+    return sorted(out, key=lambda b: b[1])
+
+
+def _top_ball(im):
+    """The ball at the top of a plain limb (its top pixels are the ball): (colour, area) or None."""
+    a = im[..., 3] > 100
+    ys = np.where(a.any(1))[0]; y0 = ys[0]
+    rows = slice(y0 + 3, y0 + 10)
+    col = np.median(im[rows][a[rows]][:, :3].astype(float), 0)
+    m = a & (np.sqrt(((im[..., :3].astype(float) - col) ** 2).sum(2)) < 42)
+    lab, _ = ndimage.label(m)
+    xs = np.where(m[y0 + 5])[0]
+    if not len(xs):
+        return None
+    k = lab[y0 + 5, xs[len(xs) // 2]]
+    ar = int((lab == k).sum())
+    return (col, ar) if 0 < ar < 0.12 * a.sum() else None
+
+
+def _drop_ball(part, c, bw, side):
+    """GPT's joint ball at an arm's end (skin / grey spheres): its pixels (the ball's colour, within the ball) are
+    removed — the game draws a round joint in the limb's own colour under the end instead. Returns (colour, radius)."""
+    H, W = part.shape[:2]
+    yy, xx = np.mgrid[0:H, 0:W]
+    a = part[..., 3] > 60
+    rgb = part[..., :3].astype(float)
+    core = a & ((xx - c[0]) ** 2 + (yy - c[1]) ** 2 <= (0.3 * bw) ** 2)
+    ball = np.median(rgb[core], 0) if core.any() else None
+    ref_y = int(c[1] + side * 1.1 * bw)
+    ry = [y for y in range(ref_y, ref_y + side * 20, side) if 0 <= y < H]
+    ref = rgb[ry][a[ry]] if ry else np.zeros((0, 3))
+    col = np.percentile(ref, 25, axis=0) if len(ref) else np.array([60.0, 60, 60])  # the joint sits in shadow
+    rr = float(np.mean([a[y].sum() for y in ry])) / 2 if ry else 0.5 * bw
+    if ball is not None:
+        near = np.sqrt(((rgb - ball) ** 2).sum(2)) < 48
+        m = a & near & ((xx - c[0]) ** 2 + (yy - c[1]) ** 2 <= (0.62 * bw) ** 2)
+        m = ndimage.binary_dilation(m, iterations=2) & ((xx - c[0]) ** 2 + (yy - c[1]) ** 2 <= (0.66 * bw) ** 2)
+        part[..., 3] = np.where(m, 0, part[..., 3])
+    return col, 0.34 * min(max(rr, 0.8 * bw), 1.2 * bw)
+
+
+def _disc(canvas, c, col, r):
+    """A round joint, softly shaded (lit from above-front)."""
+    if r <= 0:
+        return
+    n = int(2 * r + 4)
+    yy, xx = np.mgrid[0:n, 0:n] - n / 2.0
+    d = np.sqrt(xx ** 2 + yy ** 2) / max(1.0, r)
+    sh = np.clip(1.08 - 0.35 * np.sqrt(((xx - 0.3 * r) / r) ** 2 + ((yy + 0.3 * r) / r) ** 2), 0.6, 1.1)
+    out = np.zeros((n, n, 4), np.uint8)
+    out[..., :3] = np.clip(np.array(col)[None, None] * sh[..., None], 0, 255)
+    out[..., 3] = np.clip((1 - d) * r * 1.5, 0, 1) * 255
+    canvas.alpha_composite(Image.fromarray(out), (int(round(c[0] - n / 2)), int(round(c[1] - n / 2))))
+
+
 def load_parts(path, cls):
     from cut import alpha_from_white
     rgba = alpha_from_white(np.array(Image.open(path).convert('RGB')))
@@ -117,6 +195,77 @@ def load_parts(path, cls):
         parts[name] = (img, p0, p1)
     img, sl = upper
     hx, hy, back = HIPS[cls]
+    arms_png = path.replace('.png', '_arms.png')
+    import os
+    if os.path.exists(arms_png) and cls in TORSO:  # the body without its arms + the arms as parts (they swing in code)
+        from cut import face_size
+        a_rgba = alpha_from_white(np.array(Image.open(arms_png).convert('RGB')))
+        ac = _components(a_rgba)
+        torso = ac[0][0]
+        kt = (face_size(img) or 1) / (face_size(torso) or 1)  # to the legs' scale: the same face as the parts' upper body
+        rs = lambda im: np.array(Image.fromarray(im).resize((max(1, round(im.shape[1] * kt)), max(1, round(im.shape[0] * kt))), Image.LANCZOS))
+        limbs = [rs(c[0]) for c in ac[1:5]]
+        area = lambda im: int((im[..., 3] > 100).sum())
+        fore_n = max(limbs, key=area); rest = [x for x in limbs if x is not fore_n]
+        pairs = [(0, 1), (0, 2), (1, 2)]
+        i, j = min(pairs, key=lambda q: abs(rest[q[0]].shape[0] - rest[q[1]].shape[0]) + abs(rest[q[0]].shape[1] - rest[q[1]].shape[1]))
+        tops = [_top_ball(x) for x in rest]
+        nb = [len(_ball_blobs(x, t[0], t[1])) if t else 0 for x, t in zip(rest, tops)]
+        two = [q for q in range(3) if nb[q] >= 2]
+        if len(two) == 2 and cls in DROP_BALLS:  # the upper arms have a ball at both ends, the forearm one
+            i, j = two
+        uppers = sorted([rest[i], rest[j]], key=lambda im: -float(im[..., :3][im[..., 3] > 100].mean()))
+        fore_f = rest[3 - i - j]
+        tb = _top_ball(uppers[0]) if cls in DROP_BALLS else None  # the sheet's ball colour, when the balls stand apart from the limbs (skin / grey)
+        for name, im, both in (('uarm_n', uppers[0], True), ('uarm_f', uppers[1], True), ('farm_n', fore_n, False), ('farm_f', fore_f, False)):
+            im = im.copy()
+            al = im[..., 3] > 100
+            cxr = lambda y: float(np.where(al[int(min(im.shape[0] - 1, max(0, y)))])[0].mean())
+            blobs = _ball_blobs(im, tb[0], tb[1]) if tb else []
+            own = _top_ball(im) if both else None  # the far arm is drawn darker: its balls too
+            if both and len(blobs) < 2 and own and tb:
+                blobs = _ball_blobs(im, own[0], own[1])
+            if blobs and (not both or len(blobs) >= 2):
+                tp_, bt_ = blobs[0], blobs[-1]
+                p0 = np.array([tp_[0], tp_[1]]); tbw = tp_[2]
+                fill = _drop_ball(im, p0, tbw, +1)
+                if both:
+                    p1 = np.array([bt_[0], bt_[1]]); _drop_ball(im, p1, bt_[2], -1)
+                else:
+                    p1 = p0 + np.array([0.0, 100.0])
+            else:
+                b = _balls(im, top=True, bottom=both)
+                t0, tn, tp, tbw = b['top']
+                p0 = np.array([cxr(tp), tp])
+                _recolor_cap(im, t0, tn, range(int(tp + 0.9 * tbw), int(tp + 0.9 * tbw) + 16), tp, tbw)
+                fill = ((0, 0, 0), 0.0)  # the armour ball itself is the joint
+                if both:
+                    bn, b1, bp, bbw = b['bottom']
+                    p1 = np.array([cxr(bp), bp])
+                    _recolor_cap(im, bn, b1, range(int(bp - 0.9 * bbw) - 16, int(bp - 0.9 * bbw)), bp, bbw)
+                else:
+                    p1 = p0 + np.array([0.0, 100.0])  # drawn hanging straight down
+            parts[name] = (im, p0, p1)
+            parts[name + '_joint'] = fill  # (colour, radius): the round joint drawn under the limb's end
+        img = rs(torso)
+        if tb:  # the shoulder stump GPT drew on the torso (a ball of the same colour): painted in the torso's own colour
+            sp = np.array([TORSO[cls][3] * img.shape[1], TORSO[cls][4] * img.shape[0]])
+            ta = img[..., 3] > 100
+            m = ta & (np.sqrt(((img[..., :3].astype(float) - tb[0]) ** 2).sum(2)) < 50)
+            lab, _ = ndimage.label(ndimage.binary_closing(m, iterations=2))
+            yy, xx = np.mgrid[0:img.shape[0], 0:img.shape[1]]
+            near = (xx - sp[0]) ** 2 + (yy - sp[1]) ** 2 <= (0.12 * img.shape[1]) ** 2
+            ks = [k for k in np.unique(lab[near & (lab > 0)]) if (lab == k).sum() < 3 * tb[1]]
+            if ks:
+                st = np.isin(lab, ks) & ta
+                st = ndimage.binary_dilation(st, iterations=3) & ta
+                ring = ndimage.binary_dilation(st, iterations=10) & ~st & ta
+                col = np.percentile(img[..., :3][ring].astype(float), 30, axis=0)
+                lum = img[..., :3].astype(float).mean(2); med = max(1.0, float(np.median(lum[st])))
+                shade = np.clip(lum / med, 0.75, 1.15)[..., None]
+                img[..., :3] = np.where(st[..., None], np.clip(col * shade, 0, 255), img[..., :3]).astype(np.uint8)
+        hx, hy, back = TORSO[cls][:3]
+        parts['shoulder'] = np.array([TORSO[cls][3] * img.shape[1], TORSO[cls][4] * img.shape[0]])
     h, w = img.shape[:2]
     hip = np.array([hx * w, hy * h])
     # cloth below the hips behind the body hangs behind the legs: split it into its own layer
@@ -155,6 +304,23 @@ def _ik(hip, foot, T, S):
     k1 = hip + T * np.array([math.cos(a - c), math.sin(a - c)])
     k2 = hip + T * np.array([math.cos(a + c), math.sin(a + c)])
     return k1 if k1[0] > k2[0] else k2
+
+
+def arm_pose(kind, ph, i):
+    """((near shoulder, near elbow), (far shoulder, far elbow)) in degrees: 0 = hanging, + = forward. The arms swing
+    against the legs (the near arm back when the near leg is forward); the weapon arm (near) swings less."""
+    c = math.cos(2 * math.pi * ph)
+    if kind == 'walk':
+        n = -11 * c; f = 22 * c
+        return (n, 8 + 0.4 * max(0, n)), (f, 10 + 0.5 * max(0, f))
+    if kind == 'run':
+        n = -24 * c; f = 46 * c
+        return (n + 6, 38 + 0.5 * max(0, n)), (f + 4, 78 + 0.3 * max(0, f))
+    if kind == 'jump':
+        return [((-14, 12), (-30, 18)), ((34, 32), (68, 46)), ((14, 18), (30, 24))][i]
+    if kind == 'stance':
+        return (24, 34), (12, 30)
+    return (2, 4), (-3, 6)
 
 
 def _ease(t):
@@ -236,6 +402,23 @@ def bake(path, cls, idle_h, size=1.0):
             # the upper body: hips at `hip`, leaning forward around them, a small sway with the steps
             sway = 0.0 if kind in ('idle', 'stance', 'jump') else (1.2 if kind == 'walk' else 2.0) * math.sin(4 * math.pi * ph)
             ang_u = lean + sway * 0.3
+            # the arms: (shoulder angle, elbow bend) — 0 = hanging, + = forward; near = the weapon arm, swinging less
+            arm_ang = arm_pose(kind, ph, i)
+            if 'shoulder' in P:
+                th_ = math.radians(-ang_u); d_ = P['shoulder'] - hip_u
+                sh_w = hip + np.array([d_[0] * math.cos(th_) - d_[1] * math.sin(th_), d_[0] * math.sin(th_) + d_[1] * math.cos(th_)])
+            def arm(U, F, a_sh, a_el):
+                (ui, u0, u1), (fi, f0, f1) = U, F
+                Lu = float(np.hypot(*(u1 - u0)))
+                tot = a_sh - ang_u  # the arm turns with the body's lean (the hanging axis tips back as the body tips forward)
+                elbow = sh_w + Lu * np.array([math.sin(math.radians(tot)), math.cos(math.radians(tot))])
+                for nm in ('uarm_n', 'uarm_f'):
+                    if P[nm] is U:
+                        uj = P[nm + '_joint']; fj = P['f' + nm[1:] + '_joint']
+                _disc(cv, sh_w, *uj)                                        # the shoulder joint, under the arm's top
+                _disc(cv, elbow, *fj)                                       # the elbow, under both (fills the bend's notch)
+                _place(cv, ui, u0, _axis_deg(u0, u1), sh_w, tot)
+                _place(cv, fi, f0, 0.0, elbow, tot + a_el)
             def upper(layer):
                 _place(cv, layer, hip_u, 0.0, hip, -ang_u)  # the drawing turned clockwise (forward) by the lean
             fn = np.array([hip[0] + feet[0][0], ground + feet[0][1]]); ff = np.array([hip[0] + feet[1][0], ground + feet[1][1]])
@@ -250,11 +433,15 @@ def bake(path, cls, idle_h, size=1.0):
                 _place(cv, back, root, 0.0, root_w, -ang_u - lift_c)
             else:
                 upper(back)                                                 # the cloth hanging behind the legs
+            if 'uarm_f' in P:                                               # the far arm behind everything
+                arm(P['uarm_f'], P['farm_f'], *arm_ang[1])
             _place(cv, tf, tf0, _axis_deg(tf0, tf1), hip, _axis_deg(hip, kf))   # the far leg
             _place(cv, sf, sf0, _axis_deg(sf0, sf1), kf, _axis_deg(kf, ff))
             _place(cv, tn, tn0, _axis_deg(tn0, tn1), hip, _axis_deg(hip, kn))   # the near thigh (its top under the tunic)
             upper(front)                                                    # the body
-            _place(cv, sn, sn0, _axis_deg(sn0, sn1), kn, _axis_deg(kn, fn))   # the near shin in front of all
+            _place(cv, sn, sn0, _axis_deg(sn0, sn1), kn, _axis_deg(kn, fn))   # the near shin
+            if 'uarm_n' in P:                                               # the near arm over all (the weapon in front)
+                arm(P['uarm_n'], P['farm_n'], *arm_ang[0])
             # the skirt / tunic over the near thigh: the body's front layer once more, only its lower part
             a = np.array(cv)
             ys = np.where(a[..., 3].any(1))[0]; xs = np.where(a[..., 3].any(0))[0]
