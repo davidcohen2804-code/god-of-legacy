@@ -28,7 +28,8 @@ export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
   'mfx-wg': ['ward_gate.png', 384, 384, 16],
   'mfx-buff': ['buffs.png', 384, 384, 16],
   'mfx-rx': ['reactions.png', 384, 384, 16],
-  'mfx-hit': ['hit_sparks.png', 320, 320, 16], // 0-3 arcane, 4-7 frost, 8-11 storm, 12-15 heavy / critical // 0-3 freeze forming, 4-7 frozen (loop), 8-11 shatter, 12-15 conduct (feet 88% down) // 0-3 haste clock under the feet (loop, 48% down), 4-7 the sigil (loop, 57%), 8-15 the ascension aura (loop, feet 70%) // 0-3 the ward dome (loop, base 75% down), 4-7 it shatters, 8-11 a gate opening, 12-15 the gate (loop, centre 57% down) // 0-3 crane flying right (loop), 4-7 crane burst, 8-11 pages wrapping a body, 12-15 the cursed crane (loop) // 0-3 the armed rune (loop), 4-11 chains binding, 12-15 release (ground centre ~72% down) // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
+  'mfx-hit': ['hit_sparks.png', 320, 320, 16],
+  'mfx-circle': ['cast_circles.png', 384, 384, 16], // rows: arcane, frost, storm, ultimate — frames 0-1 drawing on, 2-3 drawn (loop); centre 55% down // 0-3 arcane, 4-7 frost, 8-11 storm, 12-15 heavy / critical // 0-3 freeze forming, 4-7 frozen (loop), 8-11 shatter, 12-15 conduct (feet 88% down) // 0-3 haste clock under the feet (loop, 48% down), 4-7 the sigil (loop, 57%), 8-15 the ascension aura (loop, feet 70%) // 0-3 the ward dome (loop, base 75% down), 4-7 it shatters, 8-11 a gate opening, 12-15 the gate (loop, centre 57% down) // 0-3 crane flying right (loop), 4-7 crane burst, 8-11 pages wrapping a body, 12-15 the cursed crane (loop) // 0-3 the armed rune (loop), 4-11 chains binding, 12-15 release (ground centre ~72% down) // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
 };
 const TOP = 100000, GROUND = 2, SQUASH = 0.42;
 const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
@@ -330,7 +331,13 @@ export class MageFx {
       { angle: ang, ox: 0, oy: 0.5, uA: o.thick ?? 2.4, delay: o.delay, depth: o.depth ?? TOP + 7 });
   }
   /** A magic circle drawn round, held, then burnt away: on the floor (squashed) or standing upright. el 0 arcane, 1 frost, 2 storm. */
-  private circle(x: number, y: number, size: number, el: number, life: number, o: { delay?: number; upright?: boolean; run?: CastRun; follow?: () => { x: number; y: number } | null; depth?: number; draw?: number; angle?: number } = {}): void {
+  private circle(x: number, y: number, size: number, el: number, life: number, o: { delay?: number; upright?: boolean; run?: CastRun; follow?: () => { x: number; y: number } | null; depth?: number; draw?: number; angle?: number; ult?: boolean } = {}): void {
+    if (!o.upright && this.ctx.scene.textures.exists('mfx-circle')) { // the painted circle: drawn on, held turning, faded out
+      const row = (o.ult ? 3 : el) * 4, draw = o.draw ?? Math.min(260, life * 0.4);
+      this.sheet('mfx-circle', x, y, size * 1.12, draw, { frames: [row, 2], oy: 0.55, depth: o.depth ?? GROUND + 3, delay: o.delay, run: o.run, follow: o.follow, alpha: 0.9 });
+      this.sheet('mfx-circle', x, y, size * 1.12, life - draw, { frames: [row + 2, 2], loop: 140, oy: 0.55, depth: o.depth ?? GROUND + 3, delay: (o.delay ?? 0) + draw, run: o.run, follow: o.follow, alpha: 0.9 });
+      return;
+    }
     const draw = o.draw ?? Math.min(260, life * 0.4), burn = Math.min(320, life * 0.35);
     this.gpu('circle', x, y, size, size * (o.upright ? 1 : SQUASH), life, (_u, ms, q) => { MageFx.U(q, 'uP', Math.min(1, ms / draw)); MageFx.U(q, 'uE', ms < life - burn ? 0 : (ms - life + burn) / burn); },
       { uA: el + (o.upright ? 10 : 0), delay: o.delay, run: o.run, follow: o.follow, depth: o.depth ?? (o.upright ? TOP + 5 : GROUND + 3), angle: o.angle });
@@ -367,7 +374,7 @@ export class MageFx {
     if (!this.ready) return;
     const s = r.skill, T = r.timings, me = this.me(r), side = sideOf(r), hand = this.at(r.attackerId, side, 22, 70);
     const own = !['astral_burst', 'frost_nova', 'lightning_chain', 'blink', 'chrono_haste', 'chrono_sigil', 'arcane_ward', 'elemental_ascension', 'levity_field', 'arcane_gate', 'binding_rune', 'storm_field'].includes(s.id) && !(s.slot === 0 && r.stage !== 2); // (skills with ground art of their own: no circle under it)
-    if (own) this.circle(me.x, me.y, s.slot === 7 ? 420 : s.slot === 0 ? 200 : 260, MageFx.EL[s.id] ?? 0, T.startup + T.active + 260, { run: r, draw: Math.max(120, T.startup) }); // every spell is written as a circle
+    if (own) this.circle(me.x, me.y, s.slot === 7 ? 420 : s.slot === 0 ? 200 : 260, MageFx.EL[s.id] ?? 0, T.startup + T.active + 260, { run: r, draw: Math.max(120, T.startup), ult: s.slot === 7 }); // every spell is written as a circle
     switch (s.id) {
       case 'arcane_bolt': case 'arcane_bolt_arcane': case 'arcane_bolt_frost': case 'arcane_bolt_storm': this.boltCharge(r); break;
       case 'arcane_wave': this.spr({ name: 'spark_arc', w: 50, life: T.startup + 80, follow: hand, add: true, glow: 0.5, run: r, sx: kf([0, 0.3], [1, 1.2, out3]), a: kf([0, 1], [1, 0]) }); break;
@@ -631,7 +638,7 @@ export class MageFx {
     const p = r.place ?? r.origin, T = r.timings, total = T.startup + T.active;
     if (this.ctx.scene.textures.exists('mfx-clock')) { // the painted clock, timed to the cast: drawn and sweeping through the pull, stopped at the freeze, cracking until the blast
       const fz = T.startup + 260, bl = T.startup + 1250;
-      this.circle(p.x, p.y, 460, 0, total + 500, { run: r, draw: 400 });
+      this.circle(p.x, p.y, 460, 0, total + 500, { run: r, draw: 400, ult: true });
       this.sheet('mfx-clock', p.x, p.y - 60, 500, total + 520, { alpha: 0.88, oy: 0.55, depth: TOP + 5, run: r, sy: 0.9,
         keys: [[0, 0], [3, 420], [6.9, fz - 40], [7, fz], [8.9, fz + 260], [9, fz + 300], [11.9, bl - 20], [12, bl], [13.9, bl + 200], [15.9, total + 520]] });
       this.warp.well(p.x, p.y - 70, { r: 300, life: fz, s: 30, twist: 30 });
