@@ -47,7 +47,7 @@ function reachOf(s: FinalSkill): number {
 
 export interface BotApi {
   /** Start a real cast of `skill` for the bot (non-own run on the shared runtime). */
-  cast(skill: FinalSkill, stage: number, origin: V3, aim: V2, place: V2 | null, lock: string | null): void;
+  cast(skill: FinalSkill, stage: number, origin: V3, aim: V2, place: V2 | null, lock: string | null, followUp?: boolean): void;
   /** Cancel the bot's pending runs (it was interrupted by a hit). */
   cancel(): void;
 }
@@ -354,13 +354,13 @@ export class SparringBot {
 
   // ------------------------------------------------------------------ casting
 
-  private start(id: string, stage: number, w: BotWorld): boolean {
+  private start(id: string, stage: number, w: BotWorld, followUp = false): boolean {
     const s = finalSkill(id);
     if (!s || !this.kin.grounded && !s.air) return false;
     const k = this.kin, p = w.player;
     const u = unit(p.x - k.x, p.y - k.y, this.dir === 'right' ? 1 : -1, 0), aim = sideAim(u.x, u.y, this.dir === 'left' ? -1 : 1); // (side / corner)
     this.aim = aim; this.dir = aim.x >= 0 ? 'right' : 'left';
-    const T0 = s.chain?.timings?.[stage] ?? { startup: s.startup, active: s.active, recovery: s.recovery }, ts = this.body.arena ? arenaTimeScale(s) : null;
+    const T0 = s.chain?.timings?.[stage] ?? { startup: s.startup, active: s.active, recovery: s.recovery }, ts = this.body.arena ? arenaTimeScale(s, followUp) : null;
     const T = ts ? { startup: Math.round(T0.startup * ts.startup), active: Math.round(T0.active * ts.active), recovery: Math.round(T0.recovery * ts.recovery) } : T0; // (the arena's warrior: his base pace, as the runtime plays it)
     let dist = s.dash?.distance ?? 0;
     if (s.dash && s.targeting === 'mouseTarget') dist = Math.min(dist, Math.max(0, Math.hypot(p.x - k.x, p.y - k.y) - 34));
@@ -369,7 +369,7 @@ export class SparringBot {
     if (s.chain) this.chainStage = stage;
     k.vx *= 0.3; k.vy *= 0.3;
     const place = s.targeting === 'mouseGround' ? { x: p.x, y: p.y } : null, lock = s.targeting === 'mouseTarget' ? 'self' : null;
-    this.api.cast(s, stage, this.cast.origin, aim, place, lock);
+    this.api.cast(s, stage, this.cast.origin, aim, place, lock, followUp);
     return true;
   }
 
@@ -429,7 +429,7 @@ export class SparringBot {
     }
     const next = this.pick(opts, w);
     this.api.cancel(); this.cast = null;
-    if (this.start(next.id, 0, w)) this.comboN++;
+    if (this.start(next.id, 0, w, true)) this.comboN++;
   }
 
   /** The best skill for the moment (HARD: by where you are; otherwise at random). */
@@ -476,7 +476,7 @@ export class SparringBot {
     if (!s) return;
     if (chained && this.cast) { this.api.cancel(); this.cast = null; } // cancel the recovery into the next move (like a player)
     this.cdEnd.delete(id);
-    if (!this.start(id, Number(st ?? 0), w)) this.combo = [];
+    if (!this.start(id, Number(st ?? 0), w, chained)) this.combo = [];
     if (!this.combo.length) this.nextAct = w.now + 1500; // breathe after the demo
   }
 

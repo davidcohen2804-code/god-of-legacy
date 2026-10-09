@@ -971,26 +971,60 @@ for (const w of warrior) if (warriorStretched(w)) {
   w.startup = Math.round(w.startup * WARRIOR_STRETCH.startup); w.active = Math.round(w.active * WARRIOR_STRETCH.active); w.recovery = Math.round(w.recovery * WARRIOR_STRETCH.recovery);
   for (const h of w.hits) h.at = Math.round(h.at * WARRIOR_STRETCH.at);
 }
-/** The PvP arena: the warrior's stretched skills at their base pace (fast, explosive duels); null = as they are. */
-export function arenaTimeScale(s: FinalSkill): { startup: number; active: number; recovery: number; at: number } | null {
-  if (warriorStretched(s)) return { startup: 1 / WARRIOR_STRETCH.startup, active: 1 / WARRIOR_STRETCH.active, recovery: 1 / WARRIOR_STRETCH.recovery, at: 1 / WARRIOR_STRETCH.at };
+/** The PvP arena's combat pace and reach, the same rules for every class (the duel is about how many skills you string,
+ *  so every class strings them at the same rhythm):
+ *  - the warrior's stretched skills at their base pace (WARRIOR_STRETCH undone);
+ *  - a combo skill cancelled into from a confirmed hit strikes within ARENA_FLOW.startup ms (an ultimate always within
+ *    ARENA_FLOW.ultStartup; from neutral a skill keeps its own wind-up, so big moves stay readable), multi-hit
+ *    skills squeezed so their hits run in at most ARENA_FLOW.active ms (never below half their length) — the same hits, faster;
+ *  - every hit reaches a foe up to ARENA_FLOW.reach px above the caster's feet (launches stay within the follow-ups'
+ *    reach) and projectiles rise to a foe in the air in front of them (every damaging skill but traps and buffs);
+ *  - per-skill exceptions: ARENA_PACE. Not for the basic chain, charged / counter / trap skills or buffs. */
+export const ARENA_FLOW = { startup: 160, ultStartup: 400, active: 700, minSqueeze: 0.5, reach: 240 };
+const isArenaBuff = (s: FinalSkill): boolean => s.tags.includes('buff') || (s.slot !== 7 && s.cooldown >= 20000 && s.roles.every((r) => ['setup', 'zone', 'mobility', 'escape', 'pull'].includes(r)));
+export function arenaTimeScale(s: FinalSkill, followUp = false): { startup: number; active: number; recovery: number; at: number; reach?: number; antiAir?: boolean } | null {
+  const w = warriorStretched(s) ? { startup: 1 / WARRIOR_STRETCH.startup, active: 1 / WARRIOR_STRETCH.active, recovery: 1 / WARRIOR_STRETCH.recovery, at: 1 / WARRIOR_STRETCH.at } : { startup: 1, active: 1, recovery: 1, at: 1 };
   const p = ARENA_PACE[s.id];
-  return p ? { startup: p.startup ? p.startup / s.startup : 1, active: p.squeeze ?? 1, recovery: 1, at: p.squeeze ?? 1 } : null;
+  const dmg = s.hits.filter((h) => h.damage > 0);
+  const combat = !s.chain && !s.charge && !s.counter && !s.trap && !isArenaBuff(s) && dmg.length > 0;
+  let fs = 1, sq = 1;
+  if (p) { fs = p.startup ? p.startup / s.startup : 1; sq = p.squeeze ?? 1; }
+  else if (combat) {
+    const base = s.startup * w.startup, cap = s.slot === 7 ? ARENA_FLOW.ultStartup : ARENA_FLOW.startup;
+    if (base > cap && (followUp || s.slot === 7)) fs = cap / base; // (a skill opened from neutral keeps its own wind-up: readable; cancelled into from a hit, it comes out at once)
+    const act = s.active * w.active;
+    if (s.slot !== 7 && dmg.length >= 4 && act > ARENA_FLOW.active) sq = Math.max(ARENA_FLOW.minSqueeze, ARENA_FLOW.active / act);
+  }
+  const hitsAny = s.chain ? s.chain.stages.flat() : s.charge ? s.charge.levels.flatMap((l) => l.hits) : s.hits;
+  const reach = !isArenaBuff(s) && !s.trap && hitsAny.some((h) => h.damage > 0) ? { reach: ARENA_FLOW.reach, antiAir: true } : {}; // (charged / counter skills too)
+  if (fs === 1 && sq === 1 && w.startup === 1 && !('reach' in reach)) return null;
+  return { startup: w.startup * fs, active: w.active * sq, recovery: w.recovery, at: w.at * sq, ...reach };
 }
-/** The PvP arena's combo rhythm (samurai): a combo skill's first hit within ~150 ms, multi-hit skills squeezed to 60%
- *  (same hits, faster) so a new skill lands every 0.3–0.5 s; the ultimate strikes 0.4 s after the cast and still closes a combo.
- *  startup: arena startup (ms); squeeze: active and hit spacing factor. */
-const ARENA_PACE: Record<string, { startup?: number; squeeze?: number }> = {
-  hundred_cuts: { squeeze: 0.6 },
-  phantom_blades: { startup: 150, squeeze: 0.6 },
-  blossom_storm: { startup: 150, squeeze: 0.6 },
-  dragon_ascension: { startup: 150, squeeze: 0.6 },
-  tornado_blade: { startup: 150 },
-  sakura_bind: { startup: 150 },
-  dragon_eclipse: { startup: 400 },
-};
+/** Super armor length multiplier of a skill's armor window: in the arena (its arena pace) / outside it (the warrior's stretch). */
+export function armorMul(s: FinalSkill, arena: boolean): number {
+  const k = arenaTimeScale(s), stretch = warriorStretched(s) ? WARRIOR_STRETCH.active : 1;
+  return arena ? (k?.active ?? 1) * stretch : stretch;
+}
+/** Per-skill exceptions to ARENA_FLOW (arena startup in ms; squeeze: active and hit-spacing factor). */
+const ARENA_PACE: Record<string, { startup?: number; squeeze?: number }> = {};
 // Warrior extended kit: every core skill (and the basic chain) can cancel into the new extenders on a confirmed hit.
 for (const w of warrior) if (w.slot <= 5) for (const id of ['leap_crash', 'wave_slash', 'lance_thrust']) if (!w.cancelOnHit.includes(id) && id !== w.id) w.cancelOnHit.push(id);
+// Archer: a dense combo graph (PvP engine audit) — every combo skill leads on to several others, the signature and the
+// ultimate, so her strings run as long as the other classes' (before: most of her skills were dead ends).
+const ARCHER_LINKS: Record<string, string[]> = {
+  quick_shot: ['skyhunters_step', 'leaping_arrow', 'eagle_arrow', 'arrow_storm'],
+  rising_arrow: ['explosive_arrow', 'rain_of_arrows', 'arrow_storm', 'sky_rain'],
+  multi_shot: ['rising_arrow', 'rain_of_arrows', 'leaping_arrow', 'eagle_arrow', 'sky_rain'],
+  explosive_arrow: ['multi_shot', 'rising_arrow', 'retreat_kick', 'eagle_arrow', 'arrow_storm', 'sky_rain'],
+  retreat_kick: ['explosive_arrow', 'rain_of_arrows', 'arrow_storm', 'sky_rain'],
+  skyhunters_step: ['quick_shot', 'eagle_arrow', 'rain_of_arrows'],
+  rain_of_arrows: ['multi_shot', 'explosive_arrow', 'rising_arrow', 'eagle_arrow', 'sky_rain'],
+  leaping_arrow: ['explosive_arrow', 'skyhunters_step', 'eagle_arrow', 'sky_rain'],
+  eagle_arrow: ['skyhunters_step'],
+  arrow_storm: ['multi_shot', 'explosive_arrow', 'skyhunters_step', 'eagle_arrow'],
+  hunters_roar: ['sky_rain'],
+};
+for (const a of archer) for (const id of ARCHER_LINKS[a.id] ?? []) if (!a.cancelOnHit.includes(id)) a.cancelOnHit.push(id);
 // Samurai extended kit: every core skill (and the basic chain) can cancel into the new cuts on a confirmed hit.
 for (const m of samurai) if (m.slot <= 5) for (const id of ['swallow_cut', 'hundred_cuts', 'falcon_dive', 'tornado_blade']) if (!m.cancelOnHit.includes(id)) m.cancelOnHit.push(id);
 /** The mage's effects that are no skill of their own (slot 99: never on the bar, never in the Spell Weave): the frost rune

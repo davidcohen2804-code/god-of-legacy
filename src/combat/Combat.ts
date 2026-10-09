@@ -58,7 +58,7 @@ export const GAUGE = { stand: 0.3, air: 0.4, airRamp: 0.15, down: 0.15, resetMs:
  *  - launchCap: the highest a launch throws a body, px above the floor (in reach of the follow-ups).
  *  - BREAK (off: breakOn — a comboed foe waits for his turn; no air tech, no War Cry break-out in the arena): from the combo's breakMinHits-th hit, the jump key frees you (hop back breakHop px, untouchable
  *    breakInvulnMs), then breakCdMs to wait.
- *  - cdMul: skill cooldowns in the arena. */
+ *  - cdMul: skill cooldowns in the arena; pushMul: knockback in the arena. */
 export const ARENA = {
   dmgMul: 3, ladder: [1, 1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.66, 0.62, 0.58, 0.55, 0.52, 0.5, 0.47, 0.44, 0.42, 0.4], ladderFloor: 0.3, ultFloor: 0.6,
   gauge: { stand: 0.25, air: 0.34, airRamp: 0.14, down: 0.07 },
@@ -68,6 +68,8 @@ export const ARENA = {
   wakeInvulnMs: 700, techMinMs: 380,
   breakOn: false, breakMinHits: 3, breakCdMs: 15000, breakInvulnMs: 600, breakHop: 110,
   cdMul: 1.5,
+  /** knockback in the arena (× a hit's push): enough to read, never out of the next skill's reach */
+  pushMul: 1,
 } as const;
 /** The gauge limits a body uses (the arena's own, or the world's). */
 export const gaugeOf = (arena: boolean) => (arena ? ARENA.gauge : GAUGE);
@@ -442,7 +444,7 @@ export class CombatBody {
     // Push / pull direction.
     let dx = k.x - from.x, dy = k.y - from.y; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
     if (!armored) {
-      const pushPx = (R.push ?? 0) * (this.pvp ? 1.4 : 2) - (R.pull ?? 0);
+      const pushPx = (R.push ?? 0) * (this.arena ? ARENA.pushMul : this.pvp ? 1.4 : 2) - (R.pull ?? 0);
       if (pushPx > 0 && this.kbResist > 0 && Math.random() < this.kbResist) this.stanceAt = now; // stance: not pushed back
       else if (pushPx !== 0) { out.pushX = dx * pushPx; out.pushY = dy * pushPx; this.push = { vx: out.pushX / 110, vy: out.pushY / 110, left: 110 }; }
     }

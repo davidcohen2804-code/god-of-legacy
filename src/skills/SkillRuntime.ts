@@ -16,6 +16,8 @@ export interface CastRequest {
   origin: V3;
   aim: V2;
   place: V2 | null;
+  /** Cancelled into from a confirmed hit (a combo follow-up): the arena's combo pace applies. */
+  followUp?: boolean;
   /** Locked-on target for 'mouseTarget' skills (id), if any. */
   lock?: string | null;
   /** Remote caster's buffs at cast time (War Cry / Radiant Blade): damage and reach multipliers. */
@@ -53,6 +55,8 @@ export interface CastRun extends CastRequest {
   chainFirst?: string | null;
   /** Chain hits: the foe the last arc struck (the next one leaps on from it). */
   chainLast?: string;
+  /** The arena's reach rules for this cast (charged levels are picked later and get them too). */
+  tune?: { reach?: number; antiAir?: boolean };
   /** Hold-to-charge skills: the startup's scale (attack speed) and the level picked when the startup ended (0..). */
   chargeScale?: number;
   chargeLevel?: number;
@@ -82,9 +86,17 @@ export interface RuntimeWorld {
   /** Attack speed: startup and recovery are divided by it (archer Bow Haste / Ranger Mastery). */
   speedMul?(req: CastRequest): number;
   /** Phase scales of a cast's timeline (the PvP arena's warrior at its base pace); null = unchanged. */
-  timeScale?(req: CastRequest): { startup: number; active: number; recovery: number; at: number } | null;
+  timeScale?(req: CastRequest): { startup: number; active: number; recovery: number; at: number; reach?: number; antiAir?: boolean } | null;
   /** Every projectile after its step (Book Mage gates and Levity Field). */
   projectileHook?(p: Projectile, run: CastRun): void;
+}
+
+/** The arena: every hit reaches the launched foe (up to `reach` above the caster's feet; floor waves stay on the floor) and
+ *  a shot rises to a foe in the air in front of it. */
+function arenaReach(hits: HitEvent[], ts: { reach?: number; antiAir?: boolean } | null | undefined): HitEvent[] {
+  if (!ts || (!ts.reach && !ts.antiAir)) return hits;
+  return hits.map((h) => h.shape.kind === 'projectile' ? (ts.antiAir ? { ...h, shape: { ...h.shape, antiAir: true } } : h)
+    : ts.reach && !(h.shape.kind === 'circle' && h.shape.floor) ? { ...h, reachUp: Math.max(h.reachUp ?? 80, ts.reach) } : h);
 }
 
 export const RT_EVENTS = {
@@ -120,7 +132,7 @@ export class SkillRuntime {
     const ts = this.world.timeScale?.(req);
     if (ts) {
       timings.startup = Math.round(timings.startup * ts.startup); timings.active = Math.round(timings.active * ts.active); timings.recovery = Math.round(timings.recovery * ts.recovery);
-      hits = hits.map((h) => ({ ...h, at: Math.round(h.at * ts.at) }));
+      hits = arenaReach(hits.map((h) => ({ ...h, at: Math.round(h.at * ts.at) })), ts);
     }
     const sp = this.world.speedMul?.(req) ?? 1;
     if (sp !== 1) { timings.startup = Math.round(timings.startup / sp); timings.recovery = Math.round(timings.recovery / sp); }
@@ -133,7 +145,7 @@ export class SkillRuntime {
     const run: CastRun = {
       ...req, elapsed: startElapsed, phase: 'startup', fired: new Set(), hitKeys: new Set(), confirmedAt: -1,
       pathStart: { x: req.origin.x, y: req.origin.y }, counterTriggered: false, extraRecovery: 0, timings, hits,
-      ...(s.charge ? { chargeScale: timings.startup / Math.max(1, s.startup) } : {}),
+      ...(s.charge ? { chargeScale: timings.startup / Math.max(1, s.startup) } : {}), ...(ts ? { tune: ts } : {}),
     };
     if (req.own && s.cooldown > 0) {
       // Charged skills: N quick uses in a row (window 7s between uses), then the full cooldown.
@@ -220,7 +232,7 @@ export class SkillRuntime {
       if (r.skill.charge) { // hold-to-charge: the level the startup reached picks the hits
         const held = T.startup / (r.chargeScale ?? 1), L = r.skill.charge.levels;
         let lv = 0; L.forEach((l, i) => { if (held >= l.at - 1) lv = i; });
-        r.chargeLevel = lv; r.hits = L[lv].hits;
+        r.chargeLevel = lv; r.hits = arenaReach(L[lv].hits, r.tune);
       }
       r.phase = 'active';
       this.events.emit(RT_EVENTS.active, r);
