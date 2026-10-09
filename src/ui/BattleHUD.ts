@@ -24,7 +24,7 @@ const VS_NAME_W = 440;
 const VS_EMBLEM = 'assets/hud/vs_emblem.webp';
 /** The big calls drawn as art in the VS emblem's style (assets/hud/calls/<id>.webp): their height on screen (design px).
  *  A call with no art yet is lettered (word()). */
-const CALL_ART: Record<string, number> = { fight: 340, ko: 420, round1: 250 };
+const CALL_ART: Record<string, number> = { fight: 340, ko: 420, round1: 250, round2: 257, round3: 251, round4: 247 };
 const callUrl = (id: string) => `assets/hud/calls/${id}.webp`;
 /** VS with the heroes' art: the widest a name may be under its hero. */
 const VS2_NAME_W = 640;
@@ -257,6 +257,10 @@ const CSS = `
 .gol-hud.battle .gol-spar .act button{font-size:16px;letter-spacing:2px}
 .gol-hud.battle .gol-spar .act .stop.on{background:linear-gradient(180deg,#ff7a5c,#b8301c);color:#ffffff}
 .gol-hud.battle .gol-spar .spd span{font:700 italic 11px ${LABEL};letter-spacing:1.6px;color:#c9c2b0}
+/* the battle: the skill dock as a plate of dark metal with cut corners and a gold edge */
+.gol-hud.battle .dock.gl-panel{border:0;border-radius:0;clip-path:polygon(22px 0,calc(100% - 22px) 0,100% 22px,100% 100%,0 100%,0 22px);
+  background:linear-gradient(180deg,rgba(18,23,35,.93),rgba(5,7,12,.9));box-shadow:inset 0 2px 0 rgba(240,204,128,.7)}
+.gol-hud.battle .dock .pas .lab{font:800 italic 12px/14px ${DISPLAY};letter-spacing:1.8px;color:#f3e3bd}
 /* the end of the match */
 .gol-bt .b-res{position:absolute;left:0;top:0;width:1920px;height:1080px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;pointer-events:auto;
   background:radial-gradient(ellipse at 50% 46%,rgba(4,7,14,.2),rgba(4,7,14,.74));animation:golFade .45s ease-out both}
