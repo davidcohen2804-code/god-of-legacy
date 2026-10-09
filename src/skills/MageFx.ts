@@ -434,6 +434,7 @@ export class MageFx {
   private chainLast = new Map<string, { x: number; y: number; z: number }>();
   chain(r: CastRun, o: V3, target: { x: number; y: number; z: number } | null, _from: { x: number; y: number; z: number } | null): void {
     if (!this.ready) return;
+    if (r.skill.id === 'paper_curse') return; // the curse is drawn by its reaction (pages wrapping the foe), not as lightning
     const from = this.chainLast.get(r.castId) ?? null; // each arc leaps on from the foe the last one struck
     if (target) { this.chainLast.set(r.castId, { ...target }); if (this.chainLast.size > 40) this.chainLast.delete(this.chainLast.keys().next().value!); }
     const hand = this.ctx.hand(r.attackerId);
