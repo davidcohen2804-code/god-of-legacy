@@ -168,6 +168,12 @@ export class ArcherFx {
     this.spr({ name: 'muzzle', w: size, life: 200, delay, follow: this.at(r.attackerId, side, 14, 54), dz: 4, ox: lv.flip ? 0.85 : 0.15, flipX: lv.flip, angle: lv.ang, add: true, glow: 0.4, run: r,
       sx: kf([0, 0.4], [0.25, 1.1, out3], [1, 1.2]), sy: kf([0, 0.6], [0.25, 1, out3], [1, 0.6]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
   }
+  /** A painted burst at the bow along the aim (fan of light, sonic boom). */
+  private bowBurst(r: CastRun, name: string, size: number, delay = 0, life = 260): void {
+    const side = sideOf(r), lv = level(r.aim.x, r.aim.y);
+    this.spr({ name, w: size, life, delay, follow: this.at(r.attackerId, side, 16, 54), dz: 4, ox: lv.flip ? 0.88 : 0.12, flipX: lv.flip, angle: lv.ang, add: true, glow: 0.3, run: r,
+      sx: kf([0, 0.4], [0.3, 1.05, out3], [1, 1.2]), sy: kf([0, 0.6], [0.3, 1, out3]), a: kf([0, 1], [0.5, 0.9], [1, 0, inQ]) });
+  }
   /** Light gathering at the bow during a wind-up. */
   private charge(r: CastRun, name: string, size: number, ms: number, o: { tint?: number; spin?: number; dx?: number } = {}): void {
     const side = sideOf(r);
@@ -203,8 +209,8 @@ export class ArcherFx {
         this.later(T.startup + T.active, () => { const q = this.me(r); this.floor('wind_ring', q.x, q.y, 100, 380, { add: true, s: kf([0, 0.5], [1, 1.2, out3]), a: kf([0, 0.9], [1, 0]) }); this.spr({ name: 'dust', x: q.x, y: q.y + 4, oy: 0.85, depth: q.y + 1, w: 110, life: 420, a: kf([0, 0.7], [1, 0]) }); }, r);
         break;
       }
-      case 'multi_shot': this.charge(r, 'leaf_whirl', 56, T.startup, { spin: 420, dx: 16 }); this.muzzle(r, 130, T.startup); break;
-      case 'explosive_arrow': this.charge(r, 'burst_crit', 60, T.startup, { tint: 0xffa040, spin: 260, dx: 16 }); this.muzzle(r, 120, T.startup); break;
+      case 'multi_shot': this.charge(r, 'leaf_whirl', 56, T.startup, { spin: 420, dx: 16 }); this.bowBurst(r, 'muzzle_fan', 220, T.startup, 240); this.bowBurst(r, 'sonic_boom', 120, T.startup + 20, 300); break;
+      case 'explosive_arrow': this.charge(r, 'burst_crit', 60, T.startup, { tint: 0xffa040, spin: 260, dx: 16 }); this.muzzle(r, 120, T.startup); this.bowBurst(r, 'sonic_boom', 130, T.startup, 320); break;
       case 'rising_arrow': { // the earth cracks and glows under the foe, gathering power; then a great arrow of light bursts up out of it and throws the foe high
         const sh = s.hits[0].shape as { bias?: number }, bx = r.origin.x + a.x * (sh.bias ?? 95), by = r.origin.y + a.y * (sh.bias ?? 95);
         this.floor('rune_circle', bx, by, 150, T.startup + T.active + 300, { add: true, glow: 0.3, run: r, rot: () => 0, s: kf([0, 0.3], [0.5, 1, out3]), a: kf([0, 0], [0.2, 0.9], [0.75, 0.8], [1, 0]) });
@@ -212,7 +218,7 @@ export class ArcherFx {
         for (let k = 0; k < 4; k++) this.later(k * T.startup / 4, () => this.leaves(bx, by, 2, 40, { up: 20, life: 500 }), r); // the ground stirs
         this.later(T.startup, () => {
           this.spr({ name: 'launch_beam', x: bx, y: by + 6, oy: 0.97, depth: by + 3, w: 110, life: 520, add: true, glow: 0.3, sy: kf([0, 0.1], [0.2, 1.15, out3], [1, 1]), sx: kf([0, 1.2], [1, 0.5]), a: kf([0, 1], [0.55, 1], [1, 0, inQ]) });
-          this.spr({ name: 'arrow_heavy', x: bx, y: by - 10, depth: by + 4, w: 150, angle: -90, glow: 0.3, life: 380, my: (u) => -230 * out3(u), a: kf([0, 1], [0.7, 1], [1, 0]) }); // the arrow itself flies up out of the earth
+          this.spr({ name: 'rise_arrow', x: bx, y: by + 8, oy: 0.97, depth: by + 4, w: 150, glow: 0.3, life: 460, my: (u) => -120 * out3(Math.max(0, u - 0.3) / 0.7), sy: kf([0, 0.2], [0.25, 1.1, out3], [1, 1]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) }); // the arrow itself bursts up out of the earth
           this.spr({ name: 'dust', x: bx, y: by + 4, oy: 0.85, depth: by + 1, w: 150, life: 600, sx: kf([0, 0.5], [1, 1.4, out3]), a: kf([0, 0.85], [1, 0, inQ]) });
           this.pop('leaf_spray', bx, by - 40, 120, { angle: -90, life: 380 });
           this.floor('shock_ring', bx, by, 160, 420, { add: true, s: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 1], [1, 0, inQ]) });
@@ -245,7 +251,7 @@ export class ArcherFx {
         }, r);
         break;
       }
-      case 'skyhunters_step': this.floor('wind_ring', me.x, me.y, 140, 520, { add: true, glow: 0.4, run: r, s: kf([0, 0.4], [0.4, 1.2, out3]), a: kf([0, 0.9], [1, 0, inQ]) }); this.leaves(me.x, me.y - 10, 8, 40); break;
+      case 'skyhunters_step': this.spr({ name: 'dive_trail', w: 190, life: 420, delay: T.startup, follow: this.at(r.attackerId, -side, 30, 60), dz: -2, flipX: side < 0, add: true, run: r, a: kf([0, 0], [0.15, 0.85], [1, 0, inQ]) }); this.floor('wind_ring', me.x, me.y, 140, 520, { add: true, glow: 0.4, run: r, s: kf([0, 0.4], [0.4, 1.2, out3]), a: kf([0, 0.9], [1, 0, inQ]) }); this.leaves(me.x, me.y - 10, 8, 40); break;
       case 'vine_trap': break; // the mine itself (trap)
       case 'rain_of_arrows': this.thunderCharge(r); break;
       case 'piercing_arrow': this.spiritBow(r); break;
@@ -274,10 +280,16 @@ export class ArcherFx {
       case 'leaping_arrow': this.bindingRoots(r); break;
       case 'spirit_hawk': this.hawkCall(r); break;
       case 'tree_of_life': this.tree(r); break;
-      case 'hunters_spirit': { // a column of golden light rises round her, feathers and sparks
-        this.spr({ name: 'aura_gold', w: 120, oy: 0.92, follow: this.at(r.attackerId, 0, 0, -6), dz: 1, life: T.startup + T.active + 700, add: true, glow: 0.3, run: r,
-          sy: kf([0, 0.2], [0.35, 1, out3]), a: kf([0, 0], [0.2, 0.95], [0.75, 0.9], [1, 0]) });
-        this.later(T.startup, () => { const q = this.me(r); this.pop('sparkles', q.x, q.y - q.z - 70, 110, { life: 600 }); this.floor('shock_ring', q.x, q.y, 140, 420, { add: true, tint: 0xffe27a, s: kf([0, 0.4], [1, 1.4, out3]), a: kf([0, 1], [1, 0]) }); }, r);
+      case 'hunters_spirit': { // power rises round her in green-gold flames of light; a halo of spirit arrows turns about her; a flash of sparkles
+        this.spr({ name: 'power_aura', w: 170, oy: 0.95, follow: this.at(r.attackerId, 0, 0, -8), dz: 1, life: T.startup + T.active + 900, add: true, glow: 0.3, run: r,
+          sy: (u) => kf([0, 0.2], [0.25, 1.05, out3], [0.4, 1])(u) * (1 + 0.04 * Math.sin(u * 40)), a: kf([0, 0], [0.15, 1], [0.7, 0.9], [1, 0]) });
+        this.later(T.startup, () => {
+          const q = this.me(r);
+          this.floor('arrow_halo', q.x, q.y, 240, 1200, { add: true, run: r, s: kf([0, 0.4], [0.25, 1.05, out3], [1, 1.15]), a: kf([0, 0], [0.1, 1], [0.7, 0.9], [1, 0]) });
+          this.pop('power_flash', q.x, q.y - q.z - 70, 200, { life: 420 });
+          this.floor('shock_ring', q.x, q.y, 160, 420, { add: true, tint: 0xffe27a, s: kf([0, 0.4], [1, 1.4, out3]), a: kf([0, 1], [1, 0]) });
+          this.leaves(q.x, q.y - 40, 12, 60, { up: 120, life: 900 });
+        }, r);
         break;
       }
       case 'eagle_arrow': this.eagleTide(r); break;
@@ -609,8 +621,9 @@ export class ArcherFx {
     const id = p.skill.id;
     let iron = false;
     if (id === 'multi_shot') { const n = (this.fanCount.get(p.castId) ?? 0) + 1; this.fanCount.set(p.castId, n); iron = n % 2 === 0; if (n === 1) this.later(2000, () => this.fanCount.delete(p.castId)); } // between the green arrows: iron ones
-    const kind = id === 'explosive_arrow' || iron ? 'arrow_heavy' : 'arrow_wind';
-    const w = id === 'explosive_arrow' ? 110 : id === 'piercing_arrow' ? 56 : id === 'skyhunters_step' ? 80 : 86;
+    const mid = id === 'multi_shot' && (this.fanCount.get(p.castId) ?? 0) === 3;
+    const kind = mid ? 'spiral_arrow' : id === 'explosive_arrow' || iron ? 'arrow_heavy' : 'arrow_wind';
+    const w = mid ? 130 : id === 'explosive_arrow' ? 110 : id === 'piercing_arrow' ? 56 : id === 'skyhunters_step' ? 80 : 86;
     const s = this.ctx.scene, fr = s.textures.getFrame(ARCHER_KIT, kind);
     const im = s.add.image(p.x, p.y - p.z, ARCHER_KIT, kind).setOrigin(0.92, 0.5).setDisplaySize(w, (w * fr.height) / fr.width).setAlpha(0);
     if (id === 'explosive_arrow') im.setTint(0xffc070, 0xffc070, 0xff8a30, 0xff8a30);

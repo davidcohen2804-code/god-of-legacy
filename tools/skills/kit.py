@@ -93,6 +93,7 @@ ARCHER_SHEETS = {
                 ('wolf_crouch', (0, 512, 390, 1024), 380), ('wolf_leap', (390, 512, 805, 1024), 420), ('wolf_howl', (805, 512, 1150, 1024), 400), ('roar_wave', (1150, 512, 1536, 1024), 420)],
     'a13.png': grid(4, 2, ['sky_rune', 'volley', 'gold_arrow', 'sky_pillar', 'gold_blast', 'arrow_field', 'sky_clouds', 'gold_ring'], [440, 400, 440, 460, 400, 420, 420, 440]),
     'a14.png': grid(4, 2, ['tree_1', 'tree_2', 'tree_3', 'tree_4', 'vine_burst', 'vine_spiral', 'hawk_strike', 'leaf_ring'], [300, 380, 440, 480, 420, 420, 400, 420]),
+    'a15.png': grid(4, 2, ['rise_arrow', 'muzzle_fan', 'sonic_boom', 'spiral_arrow', 'power_aura', 'arrow_halo', 'power_flash', 'dive_trail'], [420, 360, 320, 360, 420, 400, 320, 400]),
     'a9.png': [('bow', (0, 40, 390, 480), 300, 'box')] + grid(4, 2, [None, 'bow_drawn', 'aura_gold', 'aura_green', 'emblem', 'pillar', 'sparkles', 'rain_ring'], [300, 300, 300, 300, 240, 380, 200, 300]),
 }
 PROFILES = {'samurai': (G + 'tools/skills/gpt/kit/', G + 'public/assets/final/skills/samurai/kit/', None),
