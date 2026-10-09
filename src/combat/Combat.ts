@@ -57,8 +57,8 @@ export const GAUGE = { stand: 0.3, air: 0.4, airRamp: 0.15, down: 0.15, resetMs:
  *  - cdMul: skill cooldowns in the arena (more spacing and fewer skill strings). */
 export const ARENA = {
   dmgMul: 4, ladder: [1, 1, 0.9, 0.8, 0.72, 0.65, 0.58, 0.52, 0.47, 0.43, 0.4], ladderFloor: 0.35, ultFloor: 0.6,
-  budget: 0.3, maxHits: 15, tickWeight: 0.25, maxComboMs: 2600, floorMs: 300, launchCap: 200,
-  stunDecay: [[5, 1], [8, 0.85], [11, 0.7], [Infinity, 0.55]] as [number, number][],
+  budget: 0.4, maxHits: 30, tickWeight: 0.25, maxComboMs: 6500, floorMs: 300, launchCap: 200,
+  stunDecay: [[8, 1], [14, 0.9], [20, 0.8], [Infinity, 0.7]] as [number, number][],
   wakeInvulnMs: 700, techMinMs: 120,
   breakMinHits: 3, breakCdMs: 15000, breakInvulnMs: 600, breakHop: 110,
   cdMul: 1.5,
