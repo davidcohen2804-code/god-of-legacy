@@ -56,17 +56,17 @@ export const GAUGE = { stand: 0.3, air: 0.4, airRamp: 0.15, down: 0.15, resetMs:
  *  - floorMs: how long a fallen fighter lies there (room for an OTG hit); techMinMs: down at least this long before
  *    the getup key stands you up (guarded); wakeInvulnMs: every getup is guarded this long.
  *  - launchCap: the highest a launch throws a body, px above the floor (in reach of the follow-ups).
- *  - BREAK: from the combo's breakMinHits-th hit, the jump key frees you (hop back breakHop px, untouchable
+ *  - BREAK (off: breakOn — a comboed foe waits for his turn; no air tech, no War Cry break-out in the arena): from the combo's breakMinHits-th hit, the jump key frees you (hop back breakHop px, untouchable
  *    breakInvulnMs), then breakCdMs to wait.
  *  - cdMul: skill cooldowns in the arena. */
 export const ARENA = {
   dmgMul: 3, ladder: [1, 1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.66, 0.62, 0.58, 0.55, 0.52, 0.5, 0.47, 0.44, 0.42, 0.4], ladderFloor: 0.3, ultFloor: 0.6,
-  gauge: { stand: 0.14, air: 0.34, airRamp: 0.14, down: 0.07 },
+  gauge: { stand: 0.25, air: 0.34, airRamp: 0.14, down: 0.07 },
   recovery: [[2500, 1], [5000, 0.8], [7500, 0.62], [Infinity, 0.5]] as [number, number][],
   relaunches: 2, heavyAfterMs: 4500, heavyRampMs: 2500,
   budget: 0.7, maxHits: 80, tickWeight: 0.25, maxComboMs: 14000, floorMs: 650, launchCap: 220,
   wakeInvulnMs: 700, techMinMs: 380,
-  breakMinHits: 3, breakCdMs: 15000, breakInvulnMs: 600, breakHop: 110,
+  breakOn: false, breakMinHits: 3, breakCdMs: 15000, breakInvulnMs: 600, breakHop: 110,
   cdMul: 1.5,
 } as const;
 /** The gauge limits a body uses (the arena's own, or the world's). */
@@ -516,7 +516,7 @@ export class CombatBody {
   /** Arena BREAK possible now: being comboed (from its breakMinHits-th hit), off cooldown, not already out of it. On the
    *  floor the quick getup is the way up instead. */
   canBreak(now: number): boolean {
-    if (!this.arena || now < this.breakReadyAt || this.released || this.state === 'dead' || this.state === 'getup') return false;
+    if (!this.arena || !ARENA.breakOn || now < this.breakReadyAt || this.released || this.state === 'dead' || this.state === 'getup') return false;
     if (this.state === 'knockdown' && this.kdPhase !== 'fall') return false;
     if (this.state === 'free' && !this.hard.active(now)) return false;
     const c = this.combos.live(now);
@@ -554,7 +554,7 @@ export class CombatBody {
 
   /** Air tech: Jump + direction while juggled late in a combo (moves 45px, starts falling, brief hard-CC immunity). */
   tryAirTech(now: number, dirX: number, dirY: number): boolean {
-    if (this.state !== 'launched' || now < this.airTechCdUntil) return false;
+    if (this.state !== 'launched' || now < this.airTechCdUntil || this.arena) return false; // (the arena: no air tech)
     const c = this.combos.live(now);
     const T = COMBO.airTech;
     if (!c || !(now - c.startedAt > T.comboDurationThresholdMs || c.juggle >= T.juggleThreshold)) return false;

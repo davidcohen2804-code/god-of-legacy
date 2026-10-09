@@ -2256,7 +2256,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.wip) return false; // a template: not built yet
     const now = this.simMs, k = this.kin, b = this.body;
     // War Cry breaks free: usable while stunned / hit / launched / knocked down (cooldown permitting) — clears all CC.
-    if (s.id === 'war_cry' && (b.state !== 'free' || b.hard.active(now)) && this.rt.cooldownRemaining(s.id) <= 0) {
+    if (s.id === 'war_cry' && !this.arena && (b.state !== 'free' || b.hard.active(now)) && this.rt.cooldownRemaining(s.id) <= 0) { // (not in the arena: a comboed foe waits for his turn)
       b.hard.reset(); b.combos.clear(); b.push = null; b.pinUntil = -1; b.state = 'free'; b.stateEnd = 0; b.invulnUntil = now + 600;
       if (!k.grounded) { k.vz = Math.min(k.vz, 0); }
       this.fx!.callout({ x: k.x, y: k.y, z: k.z + 40 }, 'BREAK FREE!!', '#ffe7a0', 0);
@@ -2296,8 +2296,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (next.id === 'blink' && s.id !== 'blink' && e >= T.startup + T.active) return true; // Blink cancels the end of any spell
     if (next.id === s.id) return !!s.charges && e >= T.startup + T.active; // charged skill: throw again right away
     if (s.id === 'whirlwind' && e >= T.startup + 200) return true; // channelled spin: break out into any skill at will
-    // Free cancel (DFO-style): after a confirmed hit any other skill can cancel this one until it ends;
-    // a whiff can only be cancelled late in its recovery.
+    // Cancel rules: a skill cancels only into the skills its own list names (cancelOnHit) — after a confirmed hit, from
+    // that hit on; a whiff only late in its recovery. (A skill whose list is still empty keeps the old free cancel.)
+    if (s.cancelOnHit.length && !s.cancelOnHit.includes(next.id)) return false;
     if (run.confirmedAt >= 0) return e >= run.confirmedAt;
     return e >= T.startup + T.active + 0.5 * T.recovery;
   }
@@ -2356,7 +2357,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.id === 'radiant_blade') { this.boltDone = false; this.radiantFrom = this.simMs + Math.round(s.startup * 0.4); } // light appears when the sword is raised
     if (s.id === 'radiant_blade') this.radiantUntil = this.simMs + s.startup + 15000;
     if (s.id === 'guard_counter') this.body.invulnUntil = this.simMs + s.startup + 600; // Aegis barrier
-    if (s.armor) { const st = this.arena ? null : arenaTimeScale(s); this.body.armorUntil = Math.max(this.body.armorUntil, this.simMs + s.armor[1] / (st?.active ?? 1)); } // super armor from the first frame (never interrupted mid-windup); outside the arena the warrior's stretched skills keep it to their stretched end
+    if (s.armor) { const st = arenaTimeScale(s), mul = s.cls === 'warrior' ? (this.arena ? 1 : 1 / (st?.active ?? 1)) : (this.arena ? st?.active ?? 1 : 1); this.body.armorUntil = Math.max(this.body.armorUntil, this.simMs + s.armor[1] * mul); } // super armor from the first frame (never interrupted mid-windup); outside the arena the warrior's stretched skills keep it to their stretched end
     if (s.slot === 7) this.body.invulnUntil = this.simMs + ct.startup + ct.active; // ultimate: untouchable while it plays
     else if (this.simMs < this.warCryUntil) this.body.armorUntil = this.simMs + ct.startup + ct.active; // War Cry: super armor while attacking
     this.kage?.arm(castId, s.id, { x: k.x, y: k.y, z: k.z }); // he strikes: out of hiding; a cast while the doubles stand: its first hit that lands is the AMBUSH
@@ -3470,8 +3471,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     B.setWins(m.wins[0], m.wins[1], PVP.battle.winsNeeded);
     const now = this.simMs, mine = m.sideOf(this.localId);
     const oppLeft = m.opponent === BOT_ID ? (this.bot ? this.bot.body.breakReadyAt - now : 0) : this.oppBreakAt + ARENA.breakCdMs - now;
-    B.setBreak(mine, { leftMs: this.body.breakReadyAt - now, live: this.body.canBreak(now), key: keyLabel(this.bindings.jump) });
-    B.setBreak(mine === 'l' ? 'r' : 'l', { leftMs: oppLeft, live: false });
+    if (ARENA.breakOn) { B.setBreak(mine, { leftMs: this.body.breakReadyAt - now, live: this.body.canBreak(now), key: keyLabel(this.bindings.jump) });
+      B.setBreak(mine === 'l' ? 'r' : 'l', { leftMs: oppLeft, live: false }); }
   }
 
   private onMatchPhase(m: Match, prev: MatchPhase): void {
