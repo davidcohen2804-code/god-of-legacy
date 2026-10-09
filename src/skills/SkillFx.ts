@@ -14,7 +14,7 @@ import { SKILL_BLOCKERS, WORLD_OBJECTS, clearLine } from '../world/WorldGeometry
 
 const F = 'assets/final';
 /** Skills that borrow another skill's VFX sheet (no art of their own). */
-const VFX_ALIAS: Record<string, string> = { sky_breaker: 'rising_slash', earthsplitter: 'ground_breaker', wave_slash: 'warrior_basic', radiant_blade: 'war_cry', sanctuary: 'war_cry', iron_oath: 'war_cry', legacy_banner: 'war_cry' };
+const VFX_ALIAS: Record<string, string> = { earthsplitter: 'ground_breaker', wave_slash: 'warrior_basic', radiant_blade: 'war_cry', sanctuary: 'war_cry', iron_oath: 'war_cry', legacy_banner: 'war_cry' };
 const vfxKey = (id: string) => `vfx-${VFX_ALIAS[id] ?? id}`;
 const isBig = (s: FinalSkill) => s.slot === 6 || s.slot === 7;
 const TOP = 100000;
@@ -337,6 +337,7 @@ export class SkillFx {
     else if (s.id === 'guard_counter') this.aegis(r);
     else if (s.id === 'war_cry') this.roar(r);
     else if (s.id === 'judgment_hook') this.hookChain(r);
+    else if (s.id === 'sky_breaker') this.skyBreaker(r);
     else if (s.id === 'iron_oath') this.oathSigil(r);
     else if (s.id === 'legacy_banner') { // planted in front of the caster where the sword comes down (every client sees it)
       const side = r.aim.x < 0 ? -1 : 1, bx = r.origin.x + side * 70, by = r.origin.y;
@@ -459,6 +460,24 @@ export class SkillFx {
       const c = this.casterPos(r.attackerId) ?? r.origin;
       this.play(key, c.x + a.x * 18, c.y + a.y * 18 - c.z - 44, len, len, [50, out, out, out, 110, back, back, back],
         { ox: 0, oy: 0.5, angle: ang, flipY: a.x < 0, depth: TOP - 5, blend: Phaser.BlendModes.ADD, fadeLast: 90, follow: () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x + a.x * 18, y: p.y + a.y * 18, z: p.z + 44 } : null; } });
+    });
+  }
+
+  /** Sky Breaker: three rising crescents ride up with him in the air, the light-blade strikes down, the ring bursts where he lands. */
+  private skyBreaker(r: CastRun): void {
+    const T = r.timings, key = vfxKey('sky_breaker'), flip = r.aim.x < 0, H = r.skill.hits;
+    const h3 = H[2]?.at ?? 280, slam = H[H.length - 1]?.at ?? 560, size = 300;
+    const air = () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x, y: p.y, z: p.z } : null; };
+    this.scene.time.delayedCall(T.startup, () => {
+      if (r.phase === 'done' && r.elapsed < T.startup) return;
+      const c = this.casterPos(r.attackerId) ?? r.origin;
+      const step = Math.max(50, h3 / 3), down = Math.max(60, slam - h3 - 40);
+      this.play(key, c.x, c.y - c.z, size, size, [50, step, step, step * 1.3, down], { oy: 0.9, flip, depth: TOP - 5, blend: Phaser.BlendModes.ADD, fadeLast: 60, follow: air });
+    });
+    this.scene.time.delayedCall(T.startup + slam - 30, () => { // the landing: the ring on the floor where he comes down
+      const c = this.casterPos(r.attackerId) ?? r.origin;
+      this.play(key, c.x, c.y + 6, size * 1.15, size * 1.15, [120, 150, 200], { frames: [5, 6, 7], oy: 0.9, flip, depth: c.y + 2, blend: Phaser.BlendModes.ADD, fadeLast: 160 });
+      (this.cam ?? this.scene.cameras.main).shake(160, 0.007);
     });
   }
 
