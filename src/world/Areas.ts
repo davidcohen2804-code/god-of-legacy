@@ -163,9 +163,9 @@ const heightProps = () => HEIGHTS.flatMap((h) => [
   }),
 ]);
 /** The Sky Path (tools/world/clouds.py): cloud platforms on from Ivy Summit, each at its own height along one lane. */
-export interface SkyCloud { x0: number; x1: number; z: number; s: number; reward?: { item: string; every: number } }
-export const SKY = CLOUD_DATA as unknown as { name: string; band: [number, number]; lane: [number, number]; sprites: { img: string; w: number; h: number; top: [number, number] }[]; path: { x: [number, number]; z: number; s: number; reward?: { item: string; every: number } }[] };
-export const CLOUDS: SkyCloud[] = SKY.path.map((c) => ({ x0: c.x[0], x1: c.x[1], z: c.z, s: c.s, reward: c.reward }));
+export interface SkyCloud { x0: number; x1: number; z: number; s: number; flip?: boolean; reward?: { item: string; every: number } }
+export const SKY = CLOUD_DATA as unknown as { name: string; band: [number, number]; lane: [number, number]; sprites: { img: string; w: number; h: number; top: [number, number] }[]; path: { x: [number, number]; z: number; s: number; flip?: number; reward?: { item: string; every: number } }[] };
+export const CLOUDS: SkyCloud[] = SKY.path.map((c) => ({ x0: c.x[0], x1: c.x[1], z: c.z, s: c.s, flip: !!c.flip, reward: c.reward }));
 /** The Sky Path as an area (its name shows while you are up there). */
 export const SKY_AREA: AreaDef = { id: 'sky_path', name: SKY.name, x: SKY.lane[0], span: [SKY.lane[0], SKY.lane[1]], walk: [], props: [] };
 /** Falling between the clouds: below this height you drop through to the floor under the lane. */

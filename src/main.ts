@@ -6,6 +6,7 @@ import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
 import '@fontsource/inter/700.css';
 import { DESIGN } from './config/layout';
+import { WORLD_OBJECTS, supportAt, pointInPoly, footAllowed } from './world/WorldGeometry';
 import { BootScene } from './scenes/BootScene';
 import { MainMenuScene } from './scenes/MainMenuScene';
 import { CharacterSelectScene } from './scenes/CharacterSelectScene';
@@ -79,4 +80,5 @@ loadFonts().then(() => {
   if (isQAMode()) startQAPanel(game);
 
   (window as unknown as { __game: Phaser.Game }).__game = game;
+  (window as unknown as { __geo: unknown }).__geo = { WORLD_OBJECTS, supportAt, pointInPoly, footAllowed };   // the automated movement tests
 });
