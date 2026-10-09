@@ -43,7 +43,8 @@ import { BattleHUD, Fighter } from '../ui/BattleHUD';
 import { classColor, heroArt, heroVsPortrait } from '../pvp/Fighters';
 import { TAG_SCALE, fighterTag, tagFontsReady } from '../pvp/FighterTag';
 import { LoadSide, showArenaLoading, takeArenaLoading } from '../ui/ArenaLoading';
-import { COURTYARD_LOOK, StageFx } from '../world/StageFx';
+import { StageFx } from '../world/StageFx';
+import { Stage, stageOf } from '../world/Stages';
 /** '#rrggbb' as a number. */
 const colorNum = (c: string): number => parseInt(c.slice(1), 16);
 import { ComboGuide } from '../ui/ComboGuide';
@@ -176,8 +177,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private dummyBar?: Phaser.GameObjects.Graphics;
   dummyState?: DummyState;
   private ambience?: CourtyardAmbience;
-  /** The PvP arena's living stage: clouds, mist, birds, god rays, the floor's light, blowing leaves (visual only). */
+  /** The PvP arena's living stage: clouds, mist, birds, god rays, the floor's light, the weather (visual only). */
   private stageFx?: StageFx;
+  /** The PvP arena's stage (its painting and weather; the floor is the same on every stage), from the room's name. */
+  private stage?: Stage;
   private occluders: Phaser.GameObjects.Image[] = [];
   // ---- combat
   rt?: SkillRuntime;
@@ -404,7 +407,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const classes = pvp || !cls ? undefined : [cls];
     // Weapon masks only when your own look already needs them (others load on first need).
     const masks = me && cls && wantsWeaponMasks(cls, CharacterStore.getCosmetics(me.id).equipped as Equipped) ? [cls] : [];
-    if (pvp) { if (!this.textures.exists(T.map.key)) this.load.image(T.map.key, T.map.file); } // the arena map
+    this.stage = pvp ? stageOf(sd?.pvpRoom) : undefined;
+    if (this.stage && !this.textures.exists(this.stage.key)) this.load.image(this.stage.key, this.stage.file); // the arena: its stage's painting
     else preloadOpenWorld(this); // the open world: the start area and its neighbours (the rest streams in)
     if (!this.textures.exists(CT.dummy.key)) this.load.image(CT.dummy.key, CT.dummy.file);
     preloadBodies(this, classes, masks);
@@ -422,7 +426,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     for (let n = 0; n < EMOTES; n++) if (!this.textures.exists(`kit.emote_${n}`)) this.load.image(`kit.emote_${n}`, `assets/final/ui/kit/emote_${n}.png`);
     // the arena from the fighter select: the two fighters face to face while it loads (else the plain loading screen)
     const foe = sd?.foe ?? (sd?.botCls ? { cls: sd.botCls, name: BOT_NAMES[sd.botCls] ?? BOT_NAME } : null);
-    if (!(pvp && me && cls && foe && showArenaLoading(this, { name: me.name, cls, you: true }, foe))) showLoading(this, pvp ? 'PVP ARENA' : 'GOD OF LEGACY');
+    if (!(pvp && me && cls && foe && showArenaLoading(this, { name: me.name, cls, you: true }, foe, this.stage))) showLoading(this, pvp ? 'PVP ARENA' : 'GOD OF LEGACY');
   }
 
   create(data?: { pvpRoom?: string; at?: { x: number; y: number }; fighter?: Character; botCls?: string; vs?: 'cpu' | 'player' }): void {
@@ -473,11 +477,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.quests = CharacterStore.getQuests(character.id);
     if (pvpRoom) {
       useArenaGeometry();
-      this.add.image(0, 0, T.map.key).setOrigin(0, 0).setDepth(-1);
+      const mapKey = this.stage?.key ?? T.map.key;
+      this.add.image(0, 0, mapKey).setOrigin(0, 0).setDepth(-1);
       // The skill tray covers the bottom of the screen: the camera follows you up / down so the whole floor stays
       // playable above it; below the map the floor is mirrored and darkened (only ever seen under the HUD).
       const W = WORLD.coordinateSpace.width, H = WORLD.coordinateSpace.height, extra = Math.ceil(ARENA_HUD_PX / cam.zoom);
-      this.add.image(0, H, T.map.key).setOrigin(0, 0).setFlipY(true).setDepth(-1.1);
+      this.add.image(0, H, mapKey).setOrigin(0, 0).setFlipY(true).setDepth(-1.1);
       this.add.rectangle(0, H, W, extra, 0x05080e, 0.45).setOrigin(0, 0).setDepth(-1.05);
       cam.setBounds(0, 0, W, H + extra);
       this.camTarget.set(W / 2, this.kin ? this.kin.y : H / 2);
@@ -488,12 +493,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.input.keyboard?.on('keydown-PAGE_UP', () => this.arenaCam('up')); this.input.keyboard?.on('keydown-PAGE_DOWN', () => this.arenaCam('down'));
       this.input.keyboard?.on('keydown-HOME', () => this.arenaCam('reset'));
       this.ambience = new CourtyardAmbience(this, WORLD.coordinateSpace.width, WORLD.coordinateSpace.height);
-      this.stageFx = new StageFx(this, COURTYARD_LOOK, WORLD.coordinateSpace.width, WORLD.coordinateSpace.height);
+      if (this.stage) this.stageFx = new StageFx(this, this.stage.look, WORLD.coordinateSpace.width, WORLD.coordinateSpace.height);
       // Baked-map occlusion: each prop silhouette is redrawn from the map at its footprint depth (no floor crop).
       this.occluders = WORLD_OBJECTS.map((o) => {
         const g = this.make.graphics({}, false);
         g.fillStyle(0xffffff).fillPoints(o.occluder.map(([x, y]) => new Phaser.Geom.Point(x, y)), true);
-        return this.add.image(0, 0, T.map.key).setOrigin(0, 0).setDepth(o.frontY).setMask(g.createGeometryMask());
+        return this.add.image(0, 0, mapKey).setOrigin(0, 0).setDepth(o.frontY).setMask(g.createGeometryMask());
       });
     } else {
       // The open world: one long world left to right, the camera following you along it.
@@ -639,6 +644,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (pvpRoom) this.buildSparUi();
     if (pvpRoom) {
       this.battleHud = new BattleHUD(ov, { rematch: () => this.askRematch(), exit: exitArena });
+      if (this.stage) this.battleHud.setStage(this.stage.name);
       if (ComboGuide.has(this.cls)) this.comboGuide = new ComboGuide(ov, this.cls, this.kit, this.guideKeys());
       this.match = new Match(this.localId, {
         onPhase: (m, prev) => this.onMatchPhase(m, prev),

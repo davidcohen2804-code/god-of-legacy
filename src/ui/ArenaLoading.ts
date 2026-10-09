@@ -101,7 +101,7 @@ export function takeArenaLoading(): { out(): void } | null {
 /** Shows the loading screen for the arena's preload; false when there is nothing to load (or no art), so the caller
  *  can fall back to the plain one. Loaded, it reads READY and stays a moment: the match's start takes it over as its VS
  *  (takeArenaLoading), else it goes by itself. */
-export function showArenaLoading(scene: Phaser.Scene, l: LoadSide, r: LoadSide): boolean {
+export function showArenaLoading(scene: Phaser.Scene, l: LoadSide, r: LoadSide, stage?: { name: string; preview: string }): boolean {
   const load = scene.load, canvas = scene.game.canvas, host = canvas.parentElement;
   const al = heroArt(l.cls), ar = heroArt(r.cls);
   if (load.list.size === 0 || !host || !al || !ar) return false;
@@ -110,7 +110,8 @@ export function showArenaLoading(scene: Phaser.Scene, l: LoadSide, r: LoadSide):
     const e = document.createElement(tag); if (cls) e.className = cls; parent.appendChild(e); return e;
   };
   const root = el('div', 'gol-al', host);
-  el('div', 'al-bg', root);
+  const bg = el('div', 'al-bg', root);
+  if (stage) bg.style.backgroundImage = `url("${stage.preview}")`; // (the stage the fight is on, blurred)
   const box = el('div', 'al-in', root); // (everything but the backdrop: shaken by the VS slam)
   const sides: [string, LoadSide, NonNullable<typeof al>][] = [['l', l, al], ['r', r, ar]];
   for (const [s, f, a] of sides) {
@@ -139,7 +140,7 @@ export function showArenaLoading(scene: Phaser.Scene, l: LoadSide, r: LoadSide):
   el('div', 'al-flash', box);
   const vs = el('img', 'al-vs', box); vs.src = VS_EMBLEM; vs.alt = 'VS'; vs.draggable = false;
   const ft = el('div', 'al-ft', box), st = el('div', 'al-st', ft);
-  st.append('STAGE  ·  '); el('b', '', st).textContent = 'LEGACY COURTYARD';
+  st.append('STAGE  ·  '); el('b', '', st).textContent = stage?.name ?? 'LEGACY COURTYARD';
   const fill = el('div', 'al-fl', el('div', 'al-tk', el('div', 'al-bar', ft)));
   const pc = el('div', 'al-pc', ft); pc.append('LOADING'); const pct = el('b', '', pc); pct.textContent = '0%';
 

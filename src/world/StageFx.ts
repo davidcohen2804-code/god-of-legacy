@@ -1,8 +1,8 @@
 // The PvP arena's living stage (visual only — nothing here touches the fight): far clouds and valley mist drifting
-// behind the balustrade, flocks of birds crossing the sky, god rays from the sun sweeping slowly, warm light drifting over
-// the floor, the floor's sun emblem glowing with light running round its rings, leaves blowing across (a few in front of
-// the fighters). All in the map's pixels; the far layers are masked to the far background so they pass behind the
-// balustrade and the arches.
+// behind the balustrade, flocks of birds (or bats) crossing the sky, rays from the sun (or the moon) sweeping slowly,
+// light drifting over the floor, the floor's sun emblem glowing with light running round its rings, and the stage's
+// weather — leaves, petals, snow, rain or fireflies (a few in front of the fighters), lightning in a storm. All in the
+// map's pixels; the far layers are masked to the far background so they pass behind the balustrade and the arches.
 import Phaser from 'phaser';
 
 type Pt = [number, number];
@@ -22,8 +22,17 @@ export interface StageLook {
   cloudTint: number;
   mistTint: number;
   lightTint: number;
-  birds: boolean;
-  leaves: number[];
+  /** The light source's flare and rays: tint and strength (1 = the sunset's). */
+  rayTint?: number;
+  rays?: number;
+  /** Who crosses the sky now and then. */
+  fliers?: 'birds' | 'bats' | null;
+  /** The weather: what falls or floats across the stage, how many, in which colours. */
+  fall: { kind: 'leaf' | 'petal' | 'snow' | 'rain' | 'firefly' | 'ember'; n: number; tints: number[] };
+  /** A storm: lightning flashes now and then. */
+  lightning?: boolean;
+  /** The emblem's light. */
+  emblemTint?: number;
 }
 
 /** Legacy Courtyard at sunset (assets/environment/Legacy_Courtyard.png). */
@@ -38,11 +47,11 @@ export const COURTYARD_LOOK: StageLook = {
   cloudTint: 0xffd6c0,
   mistTint: 0xffe4d0,
   lightTint: 0xffc070,
-  birds: true,
-  leaves: [0xc8281e, 0xe0501e, 0xa81c22, 0xf07a2a],
+  fliers: 'birds',
+  fall: { kind: 'leaf', n: 16, tints: [0xc8281e, 0xe0501e, 0xa81c22, 0xf07a2a] },
 };
 
-const T = { cloud: 'sfx-cloud', mist: 'sfx-mist', ray: 'sfx-ray', glow: 'sfx-glow', light: 'sfx-light', ring: 'sfx-ring', leaf: 'sfx-leaf', bird: 'sfx-bird' };
+const T = { cloud: 'sfx-cloud', mist: 'sfx-mist', ray: 'sfx-ray', glow: 'sfx-glow', light: 'sfx-light', ring: 'sfx-ring', leaf: 'sfx-leaf', petal: 'sfx-petal', drop: 'sfx-drop', dot: 'sfx-dot', bird: 'sfx-bird', bat: 'sfx-bat' };
 const BIRD_FRAMES = 4;
 
 function rng(seed: number): () => number { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
@@ -92,6 +101,24 @@ function makeTextures(scene: Phaser.Scene): void {
     g.fillStyle = gr; g.fill();
     g.strokeStyle = 'rgba(80,80,80,.55)'; g.lineWidth = 1; g.beginPath(); g.moveTo(-13, 0); g.lineTo(13, 0); g.stroke();
   });
+  canvas(T.petal, 22, 18, (g) => { // a rounded petal with a notch
+    g.translate(11, 9); g.beginPath(); g.moveTo(-9, 0); g.bezierCurveTo(-8, -9, 6, -9, 9, -2); g.lineTo(6, 0); g.lineTo(9, 2); g.bezierCurveTo(6, 9, -8, 9, -9, 0); g.closePath();
+    const gr = g.createLinearGradient(-9, 0, 9, 0); gr.addColorStop(0, '#d8d8d8'); gr.addColorStop(1, '#ffffff'); g.fillStyle = gr; g.fill();
+  });
+  canvas(T.drop, 4, 48, (g) => { // a rain streak
+    const gr = g.createLinearGradient(0, 0, 0, 48); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(255,255,255,1)');
+    g.fillStyle = gr; g.fillRect(1, 0, 2, 48);
+  });
+  canvas(T.dot, 32, 32, (g) => blob(g, 16, 16, 16, 16, 1)); // a soft dot: snow, a firefly, an ember
+  for (let f = 0; f < BIRD_FRAMES; f++) canvas(`${T.bat}${f}`, 44, 24, (g) => { // a bat: scalloped wings, four beats
+    const lift = [-8, -2, 6, -2][f];
+    g.translate(22, 12); g.fillStyle = '#ffffff';
+    for (const s of [-1, 1]) {
+      g.beginPath(); g.moveTo(0, -1); g.quadraticCurveTo(s * 10, lift - 4, s * 20, lift);
+      g.quadraticCurveTo(s * 16, lift + 3, s * 14, lift + 6); g.quadraticCurveTo(s * 10, lift + 3, s * 8, lift + 7); g.quadraticCurveTo(s * 5, lift + 3, 0, 4); g.closePath(); g.fill();
+    }
+    g.beginPath(); g.ellipse(0, 1.5, 3, 3.6, 0, 0, Math.PI * 2); g.fill();
+  });
   for (let f = 0; f < BIRD_FRAMES; f++) canvas(`${T.bird}${f}`, 44, 24, (g) => { // a far bird's silhouette, wings at four beats
     const lift = [-9, -3, 5, -3][f], tip = [-11, -1, 8, -1][f];
     g.translate(22, 12); g.fillStyle = '#ffffff';
@@ -102,7 +129,7 @@ function makeTextures(scene: Phaser.Scene): void {
   });
 }
 
-interface Drifter { o: Phaser.GameObjects.Image; vx: number; vy: number; w: number; spin?: number; sway?: number; ph?: number }
+interface Drifter { o: Phaser.GameObjects.Image; vx: number; vy: number; w: number; spin?: number; sway?: number; ph?: number; a?: number }
 interface Bird { o: Phaser.GameObjects.Image; vx: number; vy: number; t: number; fps: number }
 
 export class StageFx {
@@ -118,12 +145,16 @@ export class StageFx {
   private glow?: Phaser.GameObjects.Image;
   private sweeps: { box: Phaser.GameObjects.Container; img: Phaser.GameObjects.Image; v: number }[] = [];
   private leaves: Drifter[] = [];
+  private flash?: Phaser.GameObjects.Rectangle;
+  private nextBolt = 6000;
+  private bolt = -1;
   private t = 0;
   private readonly W: number;
+  private readonly H: number;
 
   constructor(private scene: Phaser.Scene, private look: StageLook, W: number, H: number) {
     makeTextures(scene);
-    this.W = W;
+    this.W = W; this.H = H;
     const L = look, r = rng(3);
     // the far background: clouds, mist and birds, behind the balustrade and the arches
     this.far = scene.add.container(0, 0).setDepth(-0.95);
@@ -140,12 +171,13 @@ export class StageFx {
     }
     // the sun: a soft flare and god rays fanning down to the left, each sweeping a little and breathing
     const [sx, sy] = L.sun;
-    this.flare = scene.add.image(sx, sy, T.glow).setDepth(-0.45).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffe2a8).setScale(2.6, 2.2).setAlpha(0.22);
+    const rk = L.rays ?? 1, rt = L.rayTint ?? 0xffd590;
+    this.flare = scene.add.image(sx, sy, T.glow).setDepth(-0.45).setBlendMode(Phaser.BlendModes.ADD).setTint(L.rayTint ?? 0xffe2a8).setScale(2.6, 2.2).setAlpha(0.22 * rk);
     const RAYS: [number, number, number, number][] = [[24, 150, 0.05, 1250], [33, 230, 0.042, 1350], [42, 120, 0.06, 1300], [51, 200, 0.04, 1400], [61, 140, 0.047, 1250], [70, 260, 0.032, 1150]];
     RAYS.forEach(([a, w, al, len], i) => {
-      const o = scene.add.image(sx, sy, T.ray).setOrigin(0.5, 0).setDepth(-0.45).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd590)
-        .setAngle(a).setScale(w / 128, len / 1024).setAlpha(al);
-      this.rays.push({ o, a, al, p: 11000 + i * 1700, ph: r() * Math.PI * 2 });
+      const o = scene.add.image(sx, sy, T.ray).setOrigin(0.5, 0).setDepth(-0.45).setBlendMode(Phaser.BlendModes.ADD).setTint(rt)
+        .setAngle(a).setScale(w / 128, len / 1024).setAlpha(al * rk);
+      this.rays.push({ o, a, al: al * rk, p: 11000 + i * 1700, ph: r() * Math.PI * 2 });
     });
     // warm light drifting over the floor
     this.light = scene.add.tileSprite(0, L.floorTop, W, H - L.floorTop, T.light).setOrigin(0, 0).setDepth(-0.55)
@@ -155,31 +187,43 @@ export class StageFx {
     const E = L.emblem;
     if (E) {
       const [ex, ey] = E.c;
-      this.glow = scene.add.image(ex, ey, T.glow).setDepth(-0.55).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc860)
+      this.glow = scene.add.image(ex, ey, T.glow).setDepth(-0.55).setBlendMode(Phaser.BlendModes.ADD).setTint(L.emblemTint ?? 0xffc860)
         .setScale((E.outer[0] * 2.3) / 256, (E.outer[1] * 2.3) / 256).setAlpha(0.1);
       for (const [ring, v, al] of [[E.outer, 0.00055, 0.42], [E.inner, -0.0009, 0.55]] as const) {
-        const img = scene.add.image(0, 0, T.ring).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd27a).setAlpha(al).setScale(ring[0] / 240);
+        const img = scene.add.image(0, 0, T.ring).setBlendMode(Phaser.BlendModes.ADD).setTint(L.emblemTint ?? 0xffd27a).setAlpha(al).setScale(ring[0] / 240);
         const box = scene.add.container(ex, ey, [img]).setDepth(-0.54).setScale(1, ring[1] / ring[0]);
         this.sweeps.push({ box, img, v });
       }
     }
-    // leaves blowing across: most behind the fighters, a few in front of them
-    for (let i = 0; i < 16; i++) {
-      const front = i % 4 === 0, s = (front ? 0.9 : 0.55) + r() * 0.4;
-      const o = scene.add.image(r() * W, r() * H, T.leaf).setTint(L.leaves[i % L.leaves.length]).setScale(s).setAlpha(front ? 0.95 : 0.8)
-        .setDepth(front ? 89000 : -0.4);
-      this.leaves.push({ o, vx: 40 + r() * 50, vy: 14 + r() * 22, w: 40, spin: (r() - 0.5) * 4, sway: 18 + r() * 26, ph: r() * Math.PI * 2 });
+    // the weather: most of it behind the fighters, a share in front of them
+    const F = L.fall;
+    for (let i = 0; i < F.n; i++) {
+      const front = i % 4 === 0, tint = F.tints[i % F.tints.length];
+      const d = (o: Phaser.GameObjects.Image, vx: number, vy: number, extra: Partial<Drifter> = {}) => this.leaves.push({ o, vx, vy, w: 40, spin: 0, sway: 0, ph: r() * Math.PI * 2, ...extra });
+      const at = (key: string) => scene.add.image(r() * W, r() * H, key).setTint(tint).setDepth(front ? 89000 : -0.4);
+      switch (F.kind) {
+        case 'leaf': case 'petal': {
+          const s = (front ? 0.9 : 0.55) + r() * 0.4, o = at(F.kind === 'leaf' ? T.leaf : T.petal).setScale(s).setAlpha(front ? 0.95 : 0.8);
+          d(o, 40 + r() * 50, 14 + r() * 22, { spin: (r() - 0.5) * 4, sway: 18 + r() * 26, a: 1 }); break;
+        }
+        case 'snow': { const s = (front ? 0.32 : 0.16) + r() * 0.16, o = at(T.dot).setScale(s).setAlpha(front ? 0.95 : 0.75); d(o, 8 + r() * 14, 26 + r() * 30, { sway: 14 + r() * 18 }); break; }
+        case 'rain': { const o = at(T.drop).setAlpha(front ? 0.45 : 0.3).setScale(front ? 1.3 : 0.9, front ? 1.5 : 1).setAngle(-14).setBlendMode(Phaser.BlendModes.ADD); d(o, 210, 860 + r() * 220); break; }
+        case 'firefly': { const o = at(T.dot).setScale(0.12 + r() * 0.1).setBlendMode(Phaser.BlendModes.ADD); o.y = L.floorTop + r() * (H - L.floorTop); d(o, (r() - 0.5) * 24, (r() - 0.5) * 16, { sway: 20 + r() * 30, a: 0 }); break; }
+        case 'ember': { const o = at(T.dot).setScale(0.1 + r() * 0.12).setBlendMode(Phaser.BlendModes.ADD); d(o, (r() - 0.3) * 30, -(30 + r() * 50), { sway: 16 + r() * 20 }); break; }
+      }
     }
+    if (L.lightning) this.flash = scene.add.rectangle(0, 0, W, H * 2, 0xdfe8ff, 0).setOrigin(0, 0).setDepth(88990).setBlendMode(Phaser.BlendModes.ADD);
   }
 
   private flock(): void {
-    const L = this.look, r = Math.random, fromLeft = r() < 0.5, n = 3 + Math.floor(r() * 5);
+    const L = this.look, r = Math.random, fromLeft = r() < 0.5, n = 3 + Math.floor(r() * 5), key = L.fliers === 'bats' ? T.bat : T.bird;
     const y0 = L.sky[0] + 30 + r() * (L.mist[0] - L.sky[0] - 20), v = (fromLeft ? 1 : -1) * (38 + r() * 30), s = 0.45 + r() * 0.45;
     for (let i = 0; i < n; i++) { // a loose V
       const back = Math.ceil(i / 2) * (i % 2 ? 1 : -1);
-      const o = this.scene.add.image((fromLeft ? 160 : this.W - 160) - Math.sign(v) * Math.abs(back) * 26 * s * 1.6, y0 + back * 9 * s, `${T.bird}0`)
-        .setTint(0x3a2222).setAlpha(0.85).setScale(s * (0.85 + r() * 0.3));
-      this.far.add(o); this.birds.push({ o, vx: v * (0.95 + r() * 0.1), vy: (r() - 0.5) * 4, t: r() * 1000, fps: 7 + r() * 4 });
+      const o = this.scene.add.image((fromLeft ? 160 : this.W - 160) - Math.sign(v) * Math.abs(back) * 26 * s * 1.6, y0 + back * 9 * s, `${key}0`)
+        .setTint(L.fliers === 'bats' ? 0x10121c : 0x3a2222).setAlpha(0.85).setScale(s * (0.85 + r() * 0.3));
+      o.setData('k', key);
+      this.far.add(o); this.birds.push({ o, vx: v * (0.95 + r() * 0.1) * (L.fliers === 'bats' ? 1.4 : 1), vy: (r() - 0.5) * 4, t: r() * 1000, fps: (7 + r() * 4) * (L.fliers === 'bats' ? 1.8 : 1) });
     }
   }
 
@@ -189,10 +233,10 @@ export class StageFx {
     for (const c of this.clouds) { c.o.x += c.vx * s; if (c.o.x - c.w / 2 > this.W) c.o.x = -c.w / 2; }
     for (const m of this.mists) m.o.tilePositionX -= m.v * s;
     this.nextFlock -= ms;
-    if (this.nextFlock <= 0 && this.look.birds) { this.flock(); this.nextFlock = 7000 + Math.random() * 9000; }
+    if (this.nextFlock <= 0 && this.look.fliers) { this.flock(); this.nextFlock = 7000 + Math.random() * 9000; }
     this.birds = this.birds.filter((b) => {
       b.t += ms; b.o.x += b.vx * s; b.o.y += b.vy * s + Math.sin(b.t / 380) * 0.08;
-      b.o.setTexture(`${T.bird}${Math.floor((b.t / 1000) * b.fps) % BIRD_FRAMES}`);
+      b.o.setTexture(`${b.o.getData('k')}${Math.floor((b.t / 1000) * b.fps) % BIRD_FRAMES}`);
       if (b.o.x < -60 || b.o.x > this.W + 60) { b.o.destroy(); return false; }
       return true;
     });
@@ -205,19 +249,38 @@ export class StageFx {
     this.light.setAlpha(0.07 + 0.025 * Math.sin((t / 9000) * Math.PI * 2));
     this.glow?.setAlpha(0.1 + 0.06 * Math.sin((t / 4200) * Math.PI * 2));
     for (const w of this.sweeps) w.img.rotation += w.v * ms;
-    const H = this.light.y + this.light.height;
+    const H = this.H, kind = this.look.fall.kind, top = this.look.floorTop;
     for (const l of this.leaves) {
       l.ph! += s * 2.2;
-      l.o.x += (l.vx + Math.sin(l.ph!) * l.sway!) * s; l.o.y += (l.vy + Math.cos(l.ph! * 0.8) * 10) * s;
-      l.o.rotation += l.spin! * s; l.o.scaleY = l.o.scaleX * (0.35 + 0.65 * Math.abs(Math.sin(l.ph! * 1.3))); // turning over as it flies
-      if (l.o.x > this.W + 40 || l.o.y > H + 40) { l.o.x = -30 - Math.random() * 200; l.o.y = Math.random() * H * 0.8; }
+      l.o.x += (l.vx + Math.sin(l.ph!) * l.sway!) * s; l.o.y += (l.vy + Math.cos(l.ph! * 0.8) * (kind === 'rain' ? 0 : 10)) * s;
+      if (l.a) { l.o.rotation += l.spin! * s; l.o.scaleY = l.o.scaleX * (0.35 + 0.65 * Math.abs(Math.sin(l.ph! * 1.3))); } // a leaf turning over as it flies
+      if (kind === 'firefly') { // wandering over the floor, glowing on and off
+        l.o.setAlpha(Math.max(0, Math.sin(l.ph! * 0.9)) * 0.95);
+        if (l.o.y < top || l.o.y > H) l.vy = -l.vy;
+        if (l.o.x < 0 || l.o.x > this.W) l.vx = -l.vx;
+        continue;
+      }
+      if (kind === 'ember') { if (l.o.y < -20) { l.o.y = H + 10; l.o.x = Math.random() * this.W; } continue; }
+      if (l.o.x > this.W + 40 || l.o.y > H + 40) {
+        if (kind === 'rain') { l.o.x = Math.random() * (this.W + 300) - 300; l.o.y = -60 - Math.random() * 200; }
+        else { l.o.x = -30 - Math.random() * 200; l.o.y = Math.random() * H * 0.8; }
+      }
+    }
+    if (this.flash) { // a storm: now and then the sky flashes twice
+      this.nextBolt -= ms;
+      if (this.nextBolt <= 0) { this.bolt = 0; this.nextBolt = 6000 + Math.random() * 9000; }
+      if (this.bolt >= 0) {
+        this.bolt += ms; const b = this.bolt;
+        const a = b < 90 ? 0.45 * (1 - b / 90) : b < 170 ? 0 : b < 260 ? 0.55 * (1 - (b - 170) / 90) : -1;
+        if (a < 0) { this.bolt = -1; this.flash.setAlpha(0); } else this.flash.setAlpha(a);
+      }
     }
   }
 
   destroy(): void {
     this.far.clearMask(true); this.far.destroy(true); this.farMask.destroy();
     this.flare.destroy(); this.rays.forEach((r) => r.o.destroy()); this.light.destroy(); this.glow?.destroy();
-    this.sweeps.forEach((w) => w.box.destroy(true)); this.leaves.forEach((l) => l.o.destroy());
+    this.sweeps.forEach((w) => w.box.destroy(true)); this.leaves.forEach((l) => l.o.destroy()); this.flash?.destroy();
     this.clouds = []; this.birds = []; this.rays = []; this.sweeps = []; this.leaves = [];
   }
 }

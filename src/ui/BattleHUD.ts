@@ -435,6 +435,10 @@ export class BattleHUD {
 
   // ------------------------------------------------------------------ the big calls
 
+  /** The stage's name (the VS shows it). */
+  private stageName = 'LEGACY COURTYARD';
+  setStage(name: string): void { this.stageName = name; }
+
   /** Match start: both fighters slide in, VS between them (heroes: their battle-stance art in two halves of their colours). */
   vs(l: Fighter, r: Fighter, ms: number): void {
     this.clearCalls();
@@ -482,7 +486,7 @@ export class BattleHUD {
       fit();
       void document.fonts?.load(`italic 900 86px ${DISPLAY}`).then(() => { if (nm.isConnected) fit(); }).catch(() => undefined);
     }
-    const stage = this.el('div', 'b-stage', v); stage.append('STAGE  ·  '); this.el('b', '', stage).textContent = 'LEGACY COURTYARD';
+    const stage = this.el('div', 'b-stage', v); stage.append('STAGE  ·  '); this.el('b', '', stage).textContent = this.stageName;
     const seam = this.el('div', 'b-seam', v), mid = this.el('div', 'b-mid b-call slam', v);
     this.later(() => { // the VS emblem slams in on the seam
       const em = this.el('img', 'b-vsem', mid); em.src = VS_EMBLEM; em.alt = 'VS'; em.draggable = false;

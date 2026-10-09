@@ -10,6 +10,7 @@ import '@fontsource/exo-2/900-italic.css';
 import { CLASS_NAMES } from '../config/layout';
 import { ROSTER, fighterFor, heroArt } from '../pvp/Fighters';
 import { heroFxUrls } from './HeroFx';
+import { STAGES } from '../world/Stages';
 import { BOT_NAMES } from '../pvp/SparringBot';
 import { syncOverlay } from './CharacterSelectUI';
 import type { ArtState } from './FighterArt';
@@ -357,6 +358,7 @@ export class PvpSelectUI {
   private warmed = new Set<string>();
   private warmImgs: HTMLImageElement[] = [];
   private warmFx(cls: string): void {
+    if (!this.warmed.size) for (const st of STAGES) { const i = new Image(); i.src = st.preview; this.warmImgs.push(i); } // (the stages' backdrops for the loading screen)
     if (this.warmed.has(cls)) return;
     this.warmed.add(cls);
     for (const u of heroFxUrls(cls)) { const i = new Image(); i.src = u; this.warmImgs.push(i); }
