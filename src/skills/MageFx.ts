@@ -15,7 +15,8 @@ export const MAGE_KIT_URL = 'assets/final/skills/book_mage/kit/';
 export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
   'mfx-pillar': ['astral_pillar.png', 384, 384, 16],
   'mfx-storm': ['arcane_lightning.png', 384, 384, 16],
-  'mfx-nova': ['frost_nova.png', 448, 448, 16], // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
+  'mfx-nova': ['frost_nova.png', 448, 448, 16],
+  'mfx-bolt': ['arcane_bolt.png', 384, 384, 16], // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
 };
 const TOP = 100000, GROUND = 2, SQUASH = 0.42;
 const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
@@ -324,11 +325,12 @@ export class MageFx {
       { uA: el, delay: o.delay, depth: o.depth ?? TOP + 4 });
   }
   /** A painted sheet played once (additive): its frames spread over `life` ms; (ox, oy) = the anchor inside a frame. */
-  private sheet(key: string, x: number, y: number, size: number, life: number, o: { ox?: number; oy?: number; delay?: number; depth?: number; flipX?: boolean; alpha?: number; sx?: number; sy?: number; follow?: () => { x: number; y: number } | null; split?: [number, number]; run?: CastRun; frames?: [number, number]; loop?: number } = {}): void {
+  private sheet(key: string, x: number, y: number, size: number, life: number, o: { ox?: number; oy?: number; delay?: number; depth?: number; flipX?: boolean; alpha?: number; sx?: number; sy?: number; follow?: () => { x: number; y: number } | null; split?: [number, number]; run?: CastRun; frames?: [number, number]; loop?: number; tint?: number } = {}): void {
     const sc = this.ctx.scene; if (!sc.textures.exists(key)) return;
     const f0 = o.frames?.[0] ?? 0, n = o.frames?.[1] ?? MAGE_SHEETS[key]?.[3] ?? 16;
     const start = () => {
       const im = sc.add.image(x, y, key, f0).setOrigin(o.ox ?? 0.5, o.oy ?? 0.5).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.depth ?? TOP + 6).setFlipX(!!o.flipX).setAlpha(o.alpha ?? 1);
+      if (o.tint !== undefined) im.setTint(o.tint);
       im.setDisplaySize(size * (o.sx ?? 1), size * (o.sy ?? 1));
       this.add({ t: 0, step: (_dt, t) => { if (t >= life || !im.active) { im.destroy(); return false; } const f = o.follow?.(); if (f) im.setPosition(f.x, f.y); const sp = o.split, fr = sp ? (t < sp[1] ? (t / sp[1]) * sp[0] : sp[0] + ((t - sp[1]) / (life - sp[1])) * (n - sp[0])) : (t / life) * n;
         const k = o.loop ? Math.floor(t / o.loop) % n : Math.min(n - 1, Math.floor(fr));
@@ -454,6 +456,7 @@ export class MageFx {
     this.later(T.startup, () => { // the release: a flash at the hand, a spray of light forward
       const p = hand(); if (!p) return;
       this.glow(p.x, p.y, lance ? 190 : 100, tint, lance ? 260 : 160);
+      this.sheet('mfx-bolt', p.x + side * (lance ? 40 : 28), p.y, lance ? 220 : 150, lance ? 300 : 220, { frames: [12, 4], flipX: side < 0, ox: side < 0 ? 0.7 : 0.3, depth: TOP + 6 });
       this.flare(p.x, p.y, lance ? 170 : 90, 0xffffff, lance ? 280 : 180);
       this.burst(p.x, p.y, { n: lance ? 18 : 7, speed: [140, lance ? 520 : 340], life: [120, 300], scale: [0.03, 0.16], tint: [0xffffff, tint], angle: side > 0 ? [-30, 30] : [150, 210] });
       if (lance) { this.ringOut(p.x + side * 20, p.y, 130, tint, 300); this.shake(90, 0.004); }
@@ -817,18 +820,21 @@ export class MageFx {
     const s = this.ctx.scene, lance = r.stage === 2, el = r.skill.id === 'arcane_bolt_frost' ? 'frost' : r.skill.id === 'arcane_bolt_storm' ? 'storm' : 'arcane';
     const tint = el === 'frost' ? 0xcff6ff : el === 'storm' ? 0x8fe3ff : 0x6fb8ff, name = el === 'frost' ? 'bolt_frost' : el === 'storm' ? 'bolt_storm' : 'bolt_arcane';
     ensureLight(s);
-    const head = s.add.image(p.x, p.y - p.z, MAGE_KIT, name).setOrigin(0.8, 0.5).setBlendMode(Phaser.BlendModes.ADD);
+    const painted = s.textures.exists('mfx-bolt'), ptint = el === 'frost' ? 0xbfefff : el === 'storm' ? 0xa8e8ff : 0xffffff;
+    const head = painted ? s.add.image(p.x, p.y - p.z, 'mfx-bolt', lance ? 4 : 0).setOrigin(0.7, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(ptint)
+      : s.add.image(p.x, p.y - p.z, MAGE_KIT, name).setOrigin(0.8, 0.5).setBlendMode(Phaser.BlendModes.ADD);
     const halo = s.add.image(p.x, p.y - p.z, 'mg-dot').setBlendMode(Phaser.BlendModes.ADD).setTint(tint);
     const core = s.add.image(p.x, p.y - p.z, 'mg-dot').setBlendMode(Phaser.BlendModes.ADD);
     const trail = s.add.particles(0, 0, 'mg-dot', { speed: { min: 0, max: 30 }, lifespan: { min: 160, max: lance ? 380 : 260 }, scale: { start: lance ? 0.42 : 0.26, end: 0 }, alpha: { start: 0.8, end: 0 },
       tint: [0xffffff, tint, tint], blendMode: 'ADD', frequency: 14, quantity: lance ? 2 : 1 });
-    const fl = p.dx < -0.01, ang = screenAng(p.dx, p.dy), len = lance ? 170 : 100, k = len / head.width;
+    const fl = p.dx < -0.01, ang = screenAng(p.dx, p.dy), len = painted ? (lance ? 300 : 190) : lance ? 170 : 100, k = len / head.width;
     let t = 0, last = 0;
     this.shots.set(p, { lance, tint, el });
     this.add({ t: 0, step: (dt) => {
       if (!this.shots.has(p)) { head.destroy(); halo.destroy(); core.destroy(); trail.stop(); s.time.delayedCall(420, () => trail.destroy()); return false; }
       t += dt; const x = p.x, y = p.y - p.z, pulse = 1 + 0.08 * Math.sin(t / 28);
-      head.setPosition(x, y).setAngle(fl ? ang - 180 : ang).setFlipX(fl).setScale(k, k * pulse).setDepth(p.y + 3);
+      head.setPosition(x, y).setAngle(fl ? ang - 180 : ang).setFlipX(fl).setScale(k, k * (painted ? 1 : pulse)).setDepth(p.y + 3);
+      if (painted) { head.setOrigin(fl ? 0.3 : 0.7, 0.5).setFrame((lance ? 4 : 0) + (Math.floor(t / 55) % 4)); halo.setVisible(false); core.setVisible(false); }
       halo.setPosition(x, y).setDisplaySize((lance ? 130 : 80) * pulse, (lance ? 90 : 56) * pulse).setDepth(p.y + 2).setAlpha(0.7);
       core.setPosition(x, y).setDisplaySize(lance ? 46 : 28, lance ? 46 : 28).setDepth(p.y + 3.1);
       trail.setPosition(x - p.dx * 10, y).setDepth(p.y + 1);
@@ -846,7 +852,8 @@ export class MageFx {
     if (e.reason === 'range') { this.glow(x, y, lance ? 90 : 50, tint, 180); this.burst(x, y, { n: 5, speed: [40, 120], life: [120, 240], scale: [0.03, 0.1], tint: [tint] }); return; }
     const onFoe = e.reason === 'target'; // (the hit itself draws its spark on the foe: here the bolt's own burst, lighter)
     this.glow(x, y, lance ? 220 : 120, tint, lance ? 300 : 220, { alpha: onFoe ? 0.45 : 0.8 });
-    this.pop(el === 'frost' ? 'ice_shatter' : el === 'storm' ? 'bolt_impact' : 'bolt_burst', x, y, lance ? 230 : 140, { life: lance ? 320 : 240, add: el !== 'frost' });
+    if (this.ctx.scene.textures.exists('mfx-bolt')) this.sheet('mfx-bolt', x, y, lance ? 340 : 220, lance ? 340 : 260, { frames: [8, 4], tint: el === 'frost' ? 0xbfefff : el === 'storm' ? 0xa8e8ff : undefined, depth: TOP + 6 });
+    else this.pop(el === 'frost' ? 'ice_shatter' : el === 'storm' ? 'bolt_impact' : 'bolt_burst', x, y, lance ? 230 : 140, { life: lance ? 320 : 240, add: el !== 'frost' });
     this.ringOut(x, y, lance ? 230 : 130, tint, lance ? 340 : 260);
     this.burst(x, y, { n: lance ? 26 : 12, speed: [140, lance ? 560 : 380], life: [160, 420], scale: [0.03, lance ? 0.22 : 0.14], tint: [0xffffff, tint], gravity: 300 });
     if (el === 'frost') this.burst(x, y, { frame: 'snowflake', n: lance ? 10 : 5, speed: [80, 260], life: [300, 600], scale: [0.05, 0.13], tint: [0xffffff], gravity: 260, spin: true });
