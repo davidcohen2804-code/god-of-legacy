@@ -330,12 +330,13 @@ export class MageFx {
       { uA: el, delay: o.delay, depth: o.depth ?? TOP + 4 });
   }
   /** A painted sheet played once (additive): its frames spread over `life` ms; (ox, oy) = the anchor inside a frame. */
-  private sheet(key: string, x: number, y: number, size: number, life: number, o: { ox?: number; oy?: number; delay?: number; depth?: number; flipX?: boolean; alpha?: number; sx?: number; sy?: number; follow?: () => { x: number; y: number } | null; split?: [number, number]; run?: CastRun; frames?: [number, number]; loop?: number; tint?: number; keys?: [number, number][] } = {}): void {
+  private sheet(key: string, x: number, y: number, size: number, life: number, o: { ox?: number; oy?: number; delay?: number; depth?: number; flipX?: boolean; alpha?: number; sx?: number; sy?: number; follow?: () => { x: number; y: number } | null; split?: [number, number]; run?: CastRun; frames?: [number, number]; loop?: number; tint?: number; keys?: [number, number][]; angle?: number } = {}): void {
     const sc = this.ctx.scene; if (!sc.textures.exists(key)) return;
     const f0 = o.frames?.[0] ?? 0, n = o.frames?.[1] ?? MAGE_SHEETS[key]?.[3] ?? 16;
     const start = () => {
       const im = sc.add.image(x, y, key, f0).setOrigin(o.ox ?? 0.5, o.oy ?? 0.5).setBlendMode(Phaser.BlendModes.SCREEN).setDepth(o.depth ?? TOP + 6).setFlipX(!!o.flipX).setAlpha(o.alpha ?? 1);
       if (o.tint !== undefined) im.setTint(o.tint);
+      if (o.angle) im.setAngle(o.angle);
       im.setDisplaySize(size * (o.sx ?? 1), size * (o.sy ?? 1));
       this.add({ t: 0, step: (_dt, t) => { if (t >= life || !im.active) { im.destroy(); return false; } const f = o.follow?.(); if (f) im.setPosition(f.x, f.y); const K = o.keys, sp = o.split, fr = K ? keyFrame(K, t) : sp ? (t < sp[1] ? (t / sp[1]) * sp[0] : sp[0] + ((t - sp[1]) / (life - sp[1])) * (n - sp[0])) : (t / life) * n;
         const k = o.loop ? Math.floor(t / o.loop) % n : Math.min(n - 1, Math.floor(fr));
@@ -574,8 +575,7 @@ export class MageFx {
         const a = base + (da * Math.PI) / 180, dx = Math.cos(a), dy = Math.sin(a), x = o.x + dx * 40, y = o.y + dy * 40 * 0.75;
         const ang = screenAng(dx, dy), len = 300 * k;
         this.sheet('mfx-spikes', x, y, len / 0.8, 3100, { ox: side < 0 ? 0.9 : 0.1, oy: 0.75, flipX: side < 0, depth: y + 2 + (da === 0 ? 1 : 0), delay: dl, run: r,
-          keys: [[0, 0], [6.9, 380], [7, 400], [11.9, 2650], [15.9, 3100]] });
-        this.later(dl, () => this.list.at(-1)?.setAngle(side < 0 ? ang - 180 : ang), r);
+          keys: [[0, 0], [6.9, 380], [7, 400], [11.9, 2650], [15.9, 3100]], angle: side < 0 ? ang - 180 : ang });
       }
       this.floor('floor_frost', o.x + r.aim.x * 150, o.y + r.aim.y * 110, 330, 3100, { add: true, a: kf([0, 0], [0.04, 0.5], [0.9, 0.35], [1, 0]), angle: screenAng(r.aim.x, r.aim.y) });
       this.warp.ring(o.x + r.aim.x * 140, o.y + r.aim.y * 100, { r1: 220, life: 380, s: 22, width: 24, squash: SQUASH });
