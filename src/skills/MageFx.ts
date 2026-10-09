@@ -25,7 +25,8 @@ export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
   'mfx-levity': ['levity_field.png', 384, 384, 16],
   'mfx-rune': ['binding_rune.png', 384, 384, 16],
   'mfx-paper': ['origami.png', 384, 384, 16],
-  'mfx-wg': ['ward_gate.png', 384, 384, 16], // 0-3 the ward dome (loop, base 75% down), 4-7 it shatters, 8-11 a gate opening, 12-15 the gate (loop, centre 57% down) // 0-3 crane flying right (loop), 4-7 crane burst, 8-11 pages wrapping a body, 12-15 the cursed crane (loop) // 0-3 the armed rune (loop), 4-11 chains binding, 12-15 release (ground centre ~72% down) // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
+  'mfx-wg': ['ward_gate.png', 384, 384, 16],
+  'mfx-buff': ['buffs.png', 384, 384, 16], // 0-3 haste clock under the feet (loop, 48% down), 4-7 the sigil (loop, 57%), 8-15 the ascension aura (loop, feet 70%) // 0-3 the ward dome (loop, base 75% down), 4-7 it shatters, 8-11 a gate opening, 12-15 the gate (loop, centre 57% down) // 0-3 crane flying right (loop), 4-7 crane burst, 8-11 pages wrapping a body, 12-15 the cursed crane (loop) // 0-3 the armed rune (loop), 4-11 chains binding, 12-15 release (ground centre ~72% down) // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
 };
 const TOP = 100000, GROUND = 2, SQUASH = 0.42;
 const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
@@ -376,7 +377,7 @@ export class MageFx {
       case 'chrono_haste': this.floor('sig_clock', me.x, me.y, 150, T.startup + 600, { add: true, glow: 0.6, spin: 360, run: r, a: kf([0, 0], [0.2, 1], [0.8, 1], [1, 0]), s: kf([0, 0.4], [0.3, 1, out3]) }); break;
       case 'levity_field': if (r.place) this.floor('sig_star', r.place.x, r.place.y, 320, T.startup + 2700, { add: true, glow: 0.5, spin: -30, run: r, a: kf([0, 0], [0.08, 0.85], [0.9, 0.85], [1, 0]), s: kf([0, 0.5], [0.1, 1, out3]) }); break;
       case 'origami_flock': this.spr({ name: 'page_group', w: 90, life: T.startup + 120, follow: this.at(r.attackerId, side, 26, 66), run: r, sx: kf([0, 0.3], [1, 1.2, out3]), sy: kf([0, 0.3], [1, 1.2, out3]), a: kf([0, 1], [0.8, 1], [1, 0]), rot: (u) => side * 60 * u }); break;
-      case 'chrono_sigil': this.floor('sig_clock', me.x, me.y, 130, T.startup + 5000, { add: true, glow: 0.55, spin: -50, run: r, a: kf([0, 0], [0.04, 0.95], [0.94, 0.9], [1, 0]), s: kf([0, 0.3], [0.05, 1, out3]) }); break;
+      case 'chrono_sigil': if (this.ctx.scene.textures.exists('mfx-buff')) this.sheet('mfx-buff', me.x, me.y, 210, T.startup + 5000, { frames: [4, 4], loop: 120, oy: 0.57, depth: GROUND + 4, run: r }); else this.floor('sig_clock', me.x, me.y, 130, T.startup + 5000, { add: true, glow: 0.55, spin: -50, run: r, a: kf([0, 0], [0.04, 0.95], [0.94, 0.9], [1, 0]), s: kf([0, 0.3], [0.05, 1, out3]) }); break;
       case 'arcane_ward': this.drift(['rune_cyan', 'rune_blue'], me.x, me.y - me.z - 10, 8, 40, { life: T.startup + 200, up: 90, size: [16, 24], add: true }); break;
       case 'arcane_gate': if (r.place) this.floor('sig_disk', r.place.x, r.place.y, 110, T.startup + 240, { add: true, glow: 0.6, spin: 200, run: r, a: kf([0, 0], [0.3, 1], [1, 1]), s: kf([0, 0.3], [1, 1, out3]) }); break;
       case 'paper_curse': this.spr({ name: 'page_cocoon', w: 60, life: T.startup + 100, follow: this.at(r.attackerId, side, 28, 64), run: r, a: kf([0, 0], [0.3, 1], [1, 0]), rot: (u) => 180 * u }); break;
@@ -675,6 +676,12 @@ export class MageFx {
     const set = this.auras.get(id) ?? new Set(); this.auras.set(id, set);
     let on = true; const h = { stop: () => { on = false; } }; set.add(h);
     const feet = () => { const c = this.ctx.casterPos(id); return c ? { x: c.x, y: c.y } : null; };
+    if (this.ctx.scene.textures.exists('mfx-buff')) { const c0 = this.ctx.casterPos(id) ?? { x: 0, y: 0, z: 0 };
+      const at = () => { const c = this.ctx.casterPos(id); return c ? { x: c.x, y: c.y - c.z + 2 } : null; };
+      if (kind === 'haste') this.sheet('mfx-buff', c0.x, c0.y, 120, ms, { frames: [0, 4], loop: 90, oy: 0.48, sy: 0.8, depth: GROUND + 4, alive: () => on, follow: at, alpha: 0.85 });
+      else this.sheet('mfx-buff', c0.x, c0.y, 240, ms, { frames: [8, 8], loop: 85, oy: 0.7, depth: c0.y + 3, alive: () => on, follow: at, alpha: 0.9 });
+      return;
+    }
     if (kind === 'haste') this.floor('sig_clock', 0, 0, 84, ms, { add: true, glow: 0.4, spin: 160, follow: feet, alive: () => on, a: kf([0, 0], [0.002, 0.75], [0.995, 0.75], [1, 0]) });
     else {
       this.floor('floor_frost', 0, 0, 130, ms, { add: true, follow: feet, alive: () => on, a: kf([0, 0], [0.01, 0.6], [0.99, 0.6], [1, 0]) });
