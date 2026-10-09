@@ -29,7 +29,8 @@ export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
   'mfx-buff': ['buffs.png', 384, 384, 16],
   'mfx-rx': ['reactions.png', 384, 384, 16],
   'mfx-hit': ['hit_sparks.png', 320, 320, 16],
-  'mfx-circle': ['cast_circles.png', 384, 384, 16], // rows: arcane, frost, storm, ultimate — frames 0-1 drawing on, 2-3 drawn (loop); centre 55% down // 0-3 arcane, 4-7 frost, 8-11 storm, 12-15 heavy / critical // 0-3 freeze forming, 4-7 frozen (loop), 8-11 shatter, 12-15 conduct (feet 88% down) // 0-3 haste clock under the feet (loop, 48% down), 4-7 the sigil (loop, 57%), 8-15 the ascension aura (loop, feet 70%) // 0-3 the ward dome (loop, base 75% down), 4-7 it shatters, 8-11 a gate opening, 12-15 the gate (loop, centre 57% down) // 0-3 crane flying right (loop), 4-7 crane burst, 8-11 pages wrapping a body, 12-15 the cursed crane (loop) // 0-3 the armed rune (loop), 4-11 chains binding, 12-15 release (ground centre ~72% down) // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
+  'mfx-circle': ['cast_circles.png', 384, 384, 16],
+  'mfx-beam': ['chain_beam.png', 384, 384, 16], // 0-7 thick beams edge to edge, 8-11 lightning cage on a foe (loop), 12-15 the source at the hand (loop, orb at 25% across) // rows: arcane, frost, storm, ultimate — frames 0-1 drawing on, 2-3 drawn (loop); centre 55% down // 0-3 arcane, 4-7 frost, 8-11 storm, 12-15 heavy / critical // 0-3 freeze forming, 4-7 frozen (loop), 8-11 shatter, 12-15 conduct (feet 88% down) // 0-3 haste clock under the feet (loop, 48% down), 4-7 the sigil (loop, 57%), 8-15 the ascension aura (loop, feet 70%) // 0-3 the ward dome (loop, base 75% down), 4-7 it shatters, 8-11 a gate opening, 12-15 the gate (loop, centre 57% down) // 0-3 crane flying right (loop), 4-7 crane burst, 8-11 pages wrapping a body, 12-15 the cursed crane (loop) // 0-3 the armed rune (loop), 4-11 chains binding, 12-15 release (ground centre ~72% down) // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
 };
 const TOP = 100000, GROUND = 2, SQUASH = 0.42;
 const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
@@ -363,6 +364,16 @@ export class MageFx {
     };
     if (o.delay) this.later(o.delay, start, o.run); else start();
   }
+  /** A thick painted lightning beam between two points: two shapes flicker in turn, it swells in and thins out. */
+  private beam(a: { x: number; y: number }, b: { x: number; y: number }, life: number, k = 1): void {
+    const sc = this.ctx.scene, L = Math.hypot(b.x - a.x, b.y - a.y), ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+    const h = Math.min(170, Math.max(90, L * 0.42)) * k, f0 = Math.floor(Math.random() * 8);
+    const im = sc.add.image(a.x, a.y, 'mfx-beam', f0).setOrigin(0, 0.5).setAngle(ang).setBlendMode(Phaser.BlendModes.SCREEN).setDepth(TOP + 7).setDisplaySize(L, h);
+    let last = -1;
+    this.add({ t: 0, step: (_dt, t) => { if (t >= life || !im.active) { im.destroy(); return false; }
+      const n = Math.floor(t / 55); if (n !== last) { last = n; im.setFrame((f0 + n * 3) % 8).setFlipY(n % 2 === 1); }
+      const u = t / life; im.setDisplaySize(L, h * (u < 0.15 ? 0.5 + 3.3 * u : 1 - 0.6 * Math.max(0, (u - 0.6) / 0.4))).setAlpha(u < 0.7 ? 1 : (1 - u) / 0.3); return true; } });
+  }
   /** A starburst of light (additive). */
   private star(x: number, y: number, size: number, life = 260, o: { rays?: number; delay?: number; depth?: number } = {}): void {
     this.gpu('star', x, y, size, size, life, (u, _ms, q) => MageFx.U(q, 'uP', u), { uA: o.rays ?? 8, delay: o.delay, depth: o.depth ?? TOP + 8 });
@@ -456,11 +467,10 @@ export class MageFx {
     const a = from ? { x: from.x, y: from.y - from.z - 50 } : hand ?? { x: o.x + r.aim.x * 30, y: o.y + r.aim.y * 30 - o.z - 70 };
     const b = target ? { x: target.x, y: target.y - target.z - 50 } : { x: o.x + r.aim.x * 300, y: o.y + r.aim.y * 300 - o.z - 50 };
     const last = r.hits.length - 1, fired = r.fired.size - 1, big = fired <= 0 || fired === last;
-    this.arc(a, b, { life: big ? 320 : 260, thick: big ? 5.5 : 4.2 });
-    this.arc(a, b, { life: 220, thick: 3, delay: 50 });
-    this.arc(a, b, { life: 160, thick: 2, delay: 110 });
+    if (this.ctx.scene.textures.exists('mfx-beam')) this.beam(a, b, big ? 340 : 280, big ? 1.15 : 0.9);
+    else { this.arc(a, b, { life: big ? 320 : 260, thick: big ? 5.5 : 4.2 }); this.arc(a, b, { life: 220, thick: 3, delay: 50 }); this.arc(a, b, { life: 160, thick: 2, delay: 110 }); }
     if (!target) return;
-    if (this.ctx.scene.textures.exists('mfx-storm')) { this.sheet('mfx-storm', b.x, b.y, big ? 240 : 170, 300, { frames: [8, 4], alpha: 0.9 }); this.sheet('mfx-storm', b.x, b.y, big ? 150 : 110, 420, { frames: [12, 4], loop: 60, alpha: 0.8 }); } else this.star(b.x, b.y, big ? 160 : 100, 200, { rays: 8 });
+    if (this.ctx.scene.textures.exists('mfx-storm')) { this.sheet('mfx-storm', b.x, b.y, big ? 240 : 170, 300, { frames: [8, 4], alpha: 0.9 }); if (this.ctx.scene.textures.exists('mfx-beam')) this.sheet('mfx-beam', target.x, target.y - target.z + 4, big ? 230 : 190, 460, { frames: [8, 4], loop: 60, oy: 0.86, depth: target.y + 4 }); else this.sheet('mfx-storm', b.x, b.y, big ? 150 : 110, 420, { frames: [12, 4], loop: 60, alpha: 0.8 }); } else this.star(b.x, b.y, big ? 160 : 100, 200, { rays: 8 });
     this.warp.ring(b.x, b.y, { r1: big ? 150 : 90, life: big ? 300 : 220, s: big ? 18 : 10, width: 18 });
     for (let k = 0; k < (big ? 2 : 1); k++) { const ang = rnd(0, Math.PI * 2), l = rnd(50, big ? 110 : 75); this.arc(b, { x: b.x + Math.cos(ang) * l, y: b.y + Math.sin(ang) * l * 0.8 }, { life: rnd(90, 160), thick: 1.3, delay: k * 14 }); }
     this.burst(b.x, b.y, { n: big ? 22 : 12, speed: [160, 480], life: [180, 420], scale: [0.04, 0.18], tint: [0xffffff, 0x9fe4ff, 0xb9a2ff], gravity: 260 });
@@ -518,7 +528,8 @@ export class MageFx {
     const hand = (): { x: number; y: number } | null => { const h = this.ctx.hand(r.attackerId), c = this.ctx.casterPos(r.attackerId); if (!c) return null; return h ? { x: h.x + side * 12, y: h.y } : { x: c.x + side * 34, y: c.y - c.z - 72 }; };
     this.ctx.darken(T.startup + T.active, 0.38);
     this.circle(0, 0, 124, 2, T.startup + T.active, { upright: true, run: r, draw: T.startup, follow: () => { const p = hand(); return p ? { x: p.x + side * 26, y: p.y } : null; } });
-    if (this.ctx.scene.textures.exists('mfx-storm')) this.sheet('mfx-storm', 0, 0, 190, T.startup + T.active, { frames: [12, 4], loop: 60, depth: TOP + 7, follow: () => { const p = hand(); return p ? { x: p.x + side * 26, y: p.y } : null; } });
+    if (this.ctx.scene.textures.exists('mfx-beam')) this.sheet('mfx-beam', 0, 0, 230, T.startup + T.active, { frames: [12, 4], loop: 60, depth: TOP + 7, ox: side < 0 ? 0.75 : 0.25, flipX: side < 0, follow: () => { const p = hand(); return p ? { x: p.x + side * 6, y: p.y } : null; } });
+    else if (this.ctx.scene.textures.exists('mfx-storm')) this.sheet('mfx-storm', 0, 0, 190, T.startup + T.active, { frames: [12, 4], loop: 60, depth: TOP + 7, follow: () => { const p = hand(); return p ? { x: p.x + side * 26, y: p.y } : null; } });
     else this.gpu('vortex', 0, 0, 130, 130, T.startup + 120, (u, ms, q) => { MageFx.U(q, 'uP', Math.min(1, ms / T.startup)); MageFx.U(q, 'uE', ms < T.startup ? 0 : (ms - T.startup) / 120); },
       { follow: () => { const p = hand(); return p ? { x: p.x + side * 30, y: p.y } : null; }, uA: -side, run: r, depth: TOP + 7 });
     for (let k = 0; k < 5; k++) this.later(k * (T.startup / 5), () => { const p = hand(); if (!p) return; const a = rnd(0, Math.PI * 2), l = rnd(50, 90); this.arc({ x: p.x + side * 30, y: p.y }, { x: p.x + side * 30 + Math.cos(a) * l, y: p.y + Math.sin(a) * l }, { life: 120, thick: 1.6 }); }, r);
