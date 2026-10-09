@@ -313,7 +313,7 @@ def main():
             ht = float(np.median([h for h, f in zip(hs, fl) if not f] or hs))
             for i, f in zip(runs, fl):
                 ac, ax, _ = acts[i]
-                acts[i] = (ac, ax, ht * (1.05 if f else 1.0))
+                acts[i] = (ac, ax, ht * (1.03 if f else 1.0))
         # One size on every sheet: GPT draws each sheet at its own scale. The walk is made as tall as the idle (an upright
         # step stands ~2% lower); every other sheet is matched to the walk by the size of the face (all side views).
         face_of = {}
@@ -365,8 +365,11 @@ def main():
         # feet's spread (the flight), about half as far again.
         cyc = {}
         for a in ('walk', 'run'):
-            n = len(A.get(a, [])); spread = max(STRIDES.get((cls, a), [0]))
-            cyc[a] = round((2 if n >= 8 else 1) * spread * (1.5 if a == 'run' else 1.0), 1)
+            n = len(A.get(a, [])); sp = STRIDES.get((cls, a), [0])
+            if a == 'walk':
+                cyc[a] = round((2 if n >= 8 else 1) * max(sp), 1)
+            else:  # a run: brisk legs (~2.8 steps a second at full speed), measured on the typical stride (not the flight's split)
+                cyc[a] = round((2 if n >= 8 else 1) * float(np.median(sp)) * 1.15, 1)
         table[cls] = {'h': idle_h, 'actions': A, 'cycle': cyc}
         print(cls, {k: len(v) for k, v in A.items()}, 'idle h', idle_h, 'sheet', sheet.shape[:2])
     json.dump(table, open(table_path, 'w'), separators=(',', ':'))

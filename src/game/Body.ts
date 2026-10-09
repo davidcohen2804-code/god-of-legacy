@@ -602,7 +602,7 @@ function heroFrame(cls: string, dir: Dir, act: string, i: number): PoseFrame {
   const k = HERO_HEIGHT / h.h, flip = dir === 'left', b = f[6];
   // the sword line (Radiant Blade grows its light blade along it), mirrored when facing left
   const blade = b ? [b[0] * k * (flip ? -1 : 1), b[1] * k, b[2] * k * (flip ? -1 : 1), b[3] * k] : null;
-  return { key: heroKey(cls), frame: `${name}-${idx}`, wkey: `${heroKey(cls)}-w`, ox: f[4] / f[2], oy: f[5] / f[3], scale: k, flip, anchor: null, top: HERO_HEIGHT, blade };
+  return { key: heroKey(cls), frame: `${name}-${idx}`, wkey: `${heroKey(cls)}-w`, ox: flip ? 1 - f[4] / f[2] : f[4] / f[2], oy: f[5] / f[3], scale: k, flip, anchor: null, top: HERO_HEIGHT, blade }; // Phaser mirrors a flipped frame about its middle, not its origin: the feet point is mirrored with it
 }
 
 function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
