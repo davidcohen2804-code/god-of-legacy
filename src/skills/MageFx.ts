@@ -22,7 +22,8 @@ export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
   'mfx-spikes': ['glacial_spikes.png', 384, 384, 16],
   'mfx-wave': ['arcane_wave.png', 384, 384, 16],
   'mfx-blink': ['blink.png', 384, 384, 16],
-  'mfx-levity': ['levity_field.png', 384, 384, 16], // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
+  'mfx-levity': ['levity_field.png', 384, 384, 16],
+  'mfx-rune': ['binding_rune.png', 384, 384, 16], // 0-3 the armed rune (loop), 4-11 chains binding, 12-15 release (ground centre ~72% down) // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
 };
 const TOP = 100000, GROUND = 2, SQUASH = 0.42;
 const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
@@ -333,7 +334,7 @@ export class MageFx {
       { uA: el, delay: o.delay, depth: o.depth ?? TOP + 4 });
   }
   /** A painted sheet played once (additive): its frames spread over `life` ms; (ox, oy) = the anchor inside a frame. */
-  private sheet(key: string, x: number, y: number, size: number, life: number, o: { ox?: number; oy?: number; delay?: number; depth?: number; flipX?: boolean; alpha?: number; sx?: number; sy?: number; follow?: () => { x: number; y: number } | null; split?: [number, number]; run?: CastRun; frames?: [number, number]; loop?: number; tint?: number; keys?: [number, number][]; angle?: number } = {}): void {
+  private sheet(key: string, x: number, y: number, size: number, life: number, o: { ox?: number; oy?: number; delay?: number; depth?: number; flipX?: boolean; alpha?: number; sx?: number; sy?: number; follow?: () => { x: number; y: number } | null; split?: [number, number]; run?: CastRun; frames?: [number, number]; loop?: number; tint?: number; keys?: [number, number][]; angle?: number; alive?: () => boolean } = {}): void {
     const sc = this.ctx.scene; if (!sc.textures.exists(key)) return;
     const f0 = o.frames?.[0] ?? 0, n = o.frames?.[1] ?? MAGE_SHEETS[key]?.[3] ?? 16;
     const start = () => {
@@ -341,7 +342,7 @@ export class MageFx {
       if (o.tint !== undefined) im.setTint(o.tint);
       if (o.angle) im.setAngle(o.angle);
       im.setDisplaySize(size * (o.sx ?? 1), size * (o.sy ?? 1));
-      this.add({ t: 0, step: (_dt, t) => { if (t >= life || !im.active) { im.destroy(); return false; } const f = o.follow?.(); if (f) im.setPosition(f.x, f.y); const K = o.keys, sp = o.split, fr = K ? keyFrame(K, t) : sp ? (t < sp[1] ? (t / sp[1]) * sp[0] : sp[0] + ((t - sp[1]) / (life - sp[1])) * (n - sp[0])) : (t / life) * n;
+      this.add({ t: 0, step: (_dt, t) => { if (t >= life || !im.active || (o.alive && !o.alive())) { im.destroy(); return false; } const f = o.follow?.(); if (f) im.setPosition(f.x, f.y); const K = o.keys, sp = o.split, fr = K ? keyFrame(K, t) : sp ? (t < sp[1] ? (t / sp[1]) * sp[0] : sp[0] + ((t - sp[1]) / (life - sp[1])) * (n - sp[0])) : (t / life) * n;
         const k = o.loop ? Math.floor(t / o.loop) % n : Math.min(n - 1, Math.floor(fr));
         if (o.loop) im.setAlpha((o.alpha ?? 1) * Math.min(1, t / 80, (life - t) / 100));
         im.setFrame(f0 + k); return true; } });
@@ -812,6 +813,9 @@ export class MageFx {
   trap(t: Trap): void {
     if (!this.ready) return;
     const frost = t.run.skill.id === 'frost_rune', w = t.radius * (frost ? 2.6 : 2.4);
+    if (!frost && this.ctx.scene.textures.exists('mfx-rune')) { let on = true;
+      this.sheet('mfx-rune', t.x, t.y, t.radius * 4.4, 60000, { frames: [0, 4], loop: 120, oy: 0.72, depth: GROUND + 4, alive: () => on });
+      this.trapArt.set(t, { stop: () => { on = false; } }); return; }
     this.pop(frost ? 'snowflake' : 'rune_cyan', t.x, t.y - 20, 50, { life: 260 });
     let on = true;
     this.floor(frost ? 'ice_ring' : 'sig_bind', t.x, t.y, w, t.until, { add: !frost, glow: frost ? 0 : 0.4, spin: frost ? 0 : 25, alive: () => on, a: kf([0, 0], [0.0001, 0.75], [1, 0.75]), s: kf([0, 0.4], [0.00005, 1, out3]) });
@@ -819,6 +823,7 @@ export class MageFx {
   }
   trapEnd(t: Trap, fired: boolean): void {
     this.trapArt.get(t)?.stop(); this.trapArt.delete(t);
+    if (fired && t.run.skill.id !== 'frost_rune' && this.ctx.scene.textures.exists('mfx-rune')) { this.sheet('mfx-rune', t.x, t.y, t.radius * 4.4, 1000, { frames: [4, 12], oy: 0.72, depth: t.y + 3 }); this.shake(100, 0.005); return; }
     if (fired && this.ready) this.pop(t.run.skill.id === 'frost_rune' ? 'ice_shatter' : 'sig_disk', t.x, t.y - 16, 90, { life: 300 });
   }
 
