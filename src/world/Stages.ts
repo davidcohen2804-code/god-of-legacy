@@ -1,7 +1,7 @@
 // The PvP arena's stages (Tekken-style): the same floor, props and walls under different paintings and weather — the
 // fight is the same on every one, only the look changes. A match's stage comes from its room's name, so both players of
 // a room always fight on the same stage (a room of your own against the CPU: a stage at random).
-import { COURTYARD_LOOK, NIGHT_LOOK, StageLook } from './StageFx';
+import { COURTYARD_LOOK, NIGHT_LOOK, StageLook, WINTER_LOOK } from './StageFx';
 
 export interface Stage {
   id: string;
@@ -18,6 +18,7 @@ export interface Stage {
 export const STAGES: Stage[] = [
   { id: 'courtyard', name: 'LEGACY COURTYARD', file: 'assets/environment/Legacy_Courtyard.png', key: 'legacy-courtyard', preview: 'assets/pvp/stages/courtyard.webp', look: COURTYARD_LOOK },
   { id: 'night', name: 'MOONLIT COURTYARD', file: 'assets/environment/stages/courtyard_night.webp', key: 'stage-courtyard-night', preview: 'assets/pvp/stages/night.webp', look: NIGHT_LOOK },
+  { id: 'winter', name: 'FROZEN COURTYARD', file: 'assets/environment/stages/courtyard_winter.webp', key: 'stage-courtyard-winter', preview: 'assets/pvp/stages/winter.webp', look: WINTER_LOOK },
 ];
 
 /** The stage of a room (the same on every screen in it). */
