@@ -204,7 +204,7 @@ export function steer(k: Kin, tx: number, ty: number, ms: number, scale = 1): vo
 
 const HCC = COMBO.hardCC;
 /** Book Mage reactions: chill (slow) length, freeze length, Levity Field hover height. */
-export const MAGE = { chillMs: 3000, chillSlow: 0.3, freezeMs: 800, levityZ: 90 };
+export const MAGE = { chillMs: 3000, chillSlow: 0.3, freezeMs: 800, levityZ: 90, curseStillMs: 600 };
 
 /** Root / freeze / stun policy: max single, DR multipliers in a window, post-CC immunity. Damage always applies. */
 export class HardCC {
@@ -308,6 +308,8 @@ export class CombatBody {
   /** Book Mage: chilled (a frost hit freezes it), folded into a paper crane, floating in a Levity Field. */
   chillUntil = -1;
   curseUntil = -1;
+  /** when the current paper crane began (it stands still for its first MAGE.curseStillMs) */
+  curseFrom = -1;
   levityUntil = -1;
   readonly hard = new HardCC();
   readonly combos = new ComboBook();
@@ -351,10 +353,10 @@ export class CombatBody {
   canAct(now: number): boolean { return this.state === 'free' && !this.hard.active(now) && now >= this.curseUntil; }
   /** A paper crane still walks (slowly); a body floating in a Levity Field cannot move. */
   canMove(now: number): boolean { return this.state === 'free' && !this.hard.active(now) && now >= this.levityUntil; }
-  moveScale(now: number): number { return (now < this.slowUntil ? 1 - this.slowPct : 1) * (now < this.curseUntil ? 0.5 : 1); }
+  moveScale(now: number): number { return (now < this.slowUntil ? 1 - this.slowPct : 1) * (now < this.curseUntil ? (now < this.curseFrom + MAGE.curseStillMs ? 0 : 0.5) : 1); }
   chilled(now: number): boolean { return now < this.chillUntil; }
   frozen(now: number): boolean { return this.hard.active(now) && this.hard.kind === 'freeze'; }
-  reset(): void { this.pinUntil = -1; this.gauge = { stand: 0, air: 0, down: 0 }; this.invulnUntil = -1; this.bounce = false; this.state = 'free'; this.stateEnd = 0; this.hard.reset(); this.combos.clear(); this.push = null; this.slowUntil = 0; this.armorUntil = -1; this.chillUntil = -1; this.curseUntil = -1; this.levityUntil = -1;
+  reset(): void { this.pinUntil = -1; this.gauge = { stand: 0, air: 0, down: 0 }; this.invulnUntil = -1; this.bounce = false; this.state = 'free'; this.stateEnd = 0; this.hard.reset(); this.combos.clear(); this.push = null; this.slowUntil = 0; this.armorUntil = -1; this.chillUntil = -1; this.curseUntil = -1; this.curseFrom = -1; this.levityUntil = -1;
     this.released = false; this.ghostUntil = -1; this.breakReadyAt = 0; this.downAt = -Infinity; }
   /** Guarded right now (the arena: rising from the floor, the wake-up after it, BREAK). */
   ghost(now: number): boolean { return now < this.ghostUntil || (this.arena && this.state === 'getup'); }
@@ -403,7 +405,7 @@ export class CombatBody {
       }
     }
     if (now < this.curseUntil && hit.heavy && damage > 0) this.curseUntil = now; // a heavy blow unfolds the paper crane
-    if (R.curse) { const ms = R.curse * (1 - this.ccResist); this.curseUntil = Math.max(this.curseUntil, now + ms); out.rx = out.rx ?? 'curse'; out.rxMs = ms; }
+    if (R.curse) { const ms = R.curse * (1 - this.ccResist); if (now >= this.curseUntil) this.curseFrom = now; this.curseUntil = Math.max(this.curseUntil, now + ms); out.rx = out.rx ?? 'curse'; out.rxMs = ms; }
     if (R.levity) {
       this.levityUntil = Math.max(this.levityUntil, now + R.levity); this.push = null; out.rx = out.rx ?? 'levity'; out.rxMs = R.levity;
       if (this.arena) { const ms = this.hard.apply('stun', R.levity, now, this.pvp, true); if (ms > 0) out.ccMs = Math.max(out.ccMs, ms); } // the arena: floating, it cannot act either (BREAK still frees it)
