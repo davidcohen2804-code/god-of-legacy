@@ -27,6 +27,8 @@ const FACE: Record<string, [number, number, number]> = {
 /** The heroes that have a victory pose (assets/final/heroes/<cls>/win.webp). */
 const WIN = new Set(['samurai', 'warrior']);
 const colorOf = (cls: string): [string, string] => COLOR[cls] ?? ['#c9d2e6', 'rgba(170,184,214,.5)'];
+/** A hero's colour (the battle tag over its head, the HUD). */
+export const classColor = (cls: string): string => colorOf(cls)[0];
 export function heroVs(cls: string): HeroVs | undefined {
   const f = FACE[cls], [color, glow] = colorOf(cls);
   return f ? { url: `assets/final/heroes/${cls}/vs.webp`, w: VS_W, h: VS_H, face: { x: f[0], y: f[1], s: f[2] }, color, glow, win: WIN.has(cls) ? `assets/final/heroes/${cls}/win.webp` : undefined } : undefined;

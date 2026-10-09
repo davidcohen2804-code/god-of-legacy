@@ -40,7 +40,8 @@ import { isQAMode } from '../qa/QAPanel';
 import { PvpController } from '../pvp/PvpController';
 import { Match, MatchPhase } from '../pvp/Match';
 import { BattleHUD, Fighter } from '../ui/BattleHUD';
-import { heroArt, heroVsPortrait } from '../pvp/Fighters';
+import { classColor, heroArt, heroVsPortrait } from '../pvp/Fighters';
+import { TAG_SCALE, fighterTag, tagFontsReady } from '../pvp/FighterTag';
 import { ComboGuide } from '../ui/ComboGuide';
 import { addResult, scoreKey } from '../pvp/Score';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
@@ -313,6 +314,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
    *  none) and the camera's own zoom (the K.O. punches in from it). */
   private match?: Match;
   private battleHud?: BattleHUD;
+  /** Battle: the fighters wear their tags over their heads (battleTags; on once the tags' lettering is loaded). */
+  private tagsOn = false;
+  private tagsWanted = false;
   /** The arena: the class's combo routes on the left. */
   private comboGuide?: ComboGuide;
   private koT = -1;
@@ -2026,6 +2030,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       makeView: () => {
         const ch = this.character!, g = genderOf(ch), v = new ActorView(this, this.cls, this.kin.x, this.kin.y);
         v.setBaseLook(headLookOf(ch), g); v.setGear(wornLook(CharacterStore.getGear(ch.id) ?? ch.gear), g); v.setName(ch.name); v.setEquipped(this.equipped);
+        if (this.tagsOn) { const [key, top] = this.myTag(false); v.setTag(key, top, PVP.labelDepth, TAG_SCALE); } // battle: your doubles wear your tag (with no YOU)
         return v;
       },
       pose: (snap, dir) => resolvePose(this.cls, dir, poseQuery(snap), this.view!.wantsBase || !hasJob(this.character!), genderOf(this.character), !!this.character!.hero),
@@ -3386,6 +3391,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     m.update(real, ms);
     this.comboGuide?.show(!m.active || (m.phase !== 'vs' && m.phase !== 'over')); // (not over the VS splash or the result)
     if (!m.active) return;
+    if (this.tagsOn) { const r = m.opponent === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(m.opponent); if (r && !r.hasTag) this.wearTags(); } // (the knight swapped meanwhile)
     B.setHp('l', this.hpFracOf(m.host)); B.setHp('r', this.hpFracOf(m.guest));
     B.setClock(m.phase === 'vs' || m.phase === 'intro' ? PVP.battle.roundMs : m.left, m.round);
     B.setWins(m.wins[0], m.wins[1], PVP.battle.winsNeeded);
@@ -3399,13 +3405,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const B = this.battleHud, T = PVP.battle;
     if (!B) return;
     if (m.phase === 'idle') { // no match any more: back to the free arena
-      B.clearCalls(); B.hideResult(); B.setOn(false); this.hud?.setBattle(false);
+      B.clearCalls(); B.hideResult(); B.setOn(false); this.hud?.setBattle(false); this.battleTags(false);
       if (this.bot) this.bot.hold = false;
       this.endKoMoment();
       if (this.dead >= 0) this.dead = Math.max(this.dead, PVP.respawnMs - 500); // down in the last round: up again in a moment
       return;
     }
-    if (prev === 'idle') { this.hud?.setBattle(true, m.sideOf(this.localId)); B.setOn(true); }
+    if (prev === 'idle') { this.hud?.setBattle(true, m.sideOf(this.localId)); B.setOn(true); this.battleTags(true); }
+    else if (this.tagsOn) this.wearTags(); // (a body made anew meanwhile wears its tag again)
     if (prev === 'idle' || m.phase === 'vs') B.setFighters(this.fighterOf(m.host), this.fighterOf(m.guest));
     switch (m.phase) {
       case 'vs': B.hideResult(); this.placeForRound(m); B.vs(this.fighterOf(m.host), this.fighterOf(m.guest), T.vsMs); break;
@@ -3457,6 +3464,29 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (id === BOT_ID) { const b = this.bot; return b && !b.defeated ? b.hp / Math.max(1, b.body.maxHp) : 0; }
     const r = this.pvp?.remotes.get(id);
     return r && r.alive ? r.hp / Math.max(1, r.maxHp) : 0;
+  }
+
+  /** Battle: both fighters wear a tag over the head — the name in the fight's lettering, the class colour, YOU on yours —
+   *  in place of the free arena's name plate and the bar over the other one (the battle HUD shows both). */
+  private battleTags(on: boolean): void {
+    this.tagsWanted = on;
+    if (this.fx) this.fx.battleLook = on; // (and the callouts in the fight's lettering)
+    if (on) { void tagFontsReady().then(() => { if (this.tagsWanted) { this.tagsOn = true; this.wearTags(); } }); return; }
+    this.tagsOn = false;
+    this.view?.setTag(null); this.bot?.view.setTag(null);
+    for (const r of this.pvp?.remotes.values() ?? []) r.setTag(null);
+  }
+  /** Your tag (`you` false: your doubles' — his name, not YOU) and where it sits over the head. */
+  private myTag(you = true): [string, number] {
+    return [fighterTag(this, this.character!.name, classColor(this.cls), you), 116 + (this.character?.hero ? HERO_LIFT : 0) + PVP.remoteLabel.gap - PVP.hpBar.h];
+  }
+  private wearTags(): void {
+    const m = this.match;
+    if (!m?.active || !this.character) return;
+    const [key, top] = this.myTag();
+    this.view?.setTag(key, top, PVP.labelDepth, TAG_SCALE);
+    const opp = m.opponent, r = opp === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(opp);
+    if (r) r.setTag(fighterTag(this, this.fighterOf(opp).name, classColor(opp === BOT_ID ? this.botCls : r.meta.classId), false));
   }
 
   /** START HERO: the sparring partner is a ready hero too (its body and face). */

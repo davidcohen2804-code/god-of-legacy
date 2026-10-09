@@ -242,6 +242,19 @@ export class ActorView {
   /** The default kit name plate (no name-tag item): sized to the name, not to the item art. */
   private plainPlate = false;
   private trailT = 0; private lastFeet: { x: number; y: number } | null = null;
+  /** Battle: the fighter's tag over the head (FighterTag) in place of the name plate. */
+  private tag: Phaser.GameObjects.Image | null = null;
+  /** The tag's own alpha (null: the body's). */
+  tagAlpha: number | null = null;
+  private tagTop = 0;
+  private tagDepth = 0;
+  /** A tag (texture key) over the head, `headTop` above the feet; null: the name plate again. */
+  setTag(key: string | null, headTop = 116, depth = NAME_DEPTH + 5000, scale = 0.5): void {
+    if (!key) { this.tag?.destroy(); this.tag = null; return; }
+    this.tagTop = headTop; this.tagDepth = depth;
+    if (this.tag) this.tag.setTexture(key);
+    else this.tag = this.scene.add.image(0, 0, key).setOrigin(0.5, 1).setScale(scale);
+  }
   setName(name: string): void {
     this.nameText?.destroy();
     this.nameText = this.scene.add.text(0, 0, name, { fontFamily: 'Inter, Arial, sans-serif', fontSize: '12.5px', fontStyle: '600', color: '#ffffff', resolution: 2 }).setOrigin(0.5);
@@ -427,12 +440,13 @@ export class ActorView {
     // Name plate + running trail.
     if (this.nameText) {
       const ny = y - Math.max(supportZ, z - 12) + 22, d0 = NAME_DEPTH + y * 0.001; // names stay readable over blocks and urns in front; a long drop or climb: it goes with the body
-      this.nameText.setPosition(x, ny).setDepth(d0 + 0.01).setAlpha(alpha).setVisible(this.visible);
+      this.nameText.setPosition(x, ny).setDepth(d0 + 0.01).setAlpha(alpha).setVisible(this.visible && !this.tag);
       if (this.nameFrame) {
         if (!this.plainPlate) { const w = Math.max(96, this.nameText.width + 54); this.nameFrame.setDisplaySize(w, w * (this.nameFrame.height / this.nameFrame.width) * 1.0); }
-        this.nameFrame.setPosition(x, ny).setDepth(d0).setAlpha(alpha).setVisible(this.visible);
+        this.nameFrame.setPosition(x, ny).setDepth(d0).setAlpha(alpha).setVisible(this.visible && !this.tag);
       }
     }
+    this.tag?.setPosition(Math.round(x), Math.round(y - z - this.tagTop)).setDepth(this.tagDepth).setAlpha(this.tagAlpha ?? alpha).setVisible(this.visible);
     const tr = this.equipped.trail;
     if (tr && this.visible && this.scene.textures.exists(`cos-${tr}`)) {
       const lf = this.lastFeet, moved = lf ? Math.hypot(x - lf.x, y - lf.y) : 0; this.lastFeet = { x, y };
@@ -583,7 +597,7 @@ export class ActorView {
     for (const t of this.trails) t.g.destroy(); this.trails = [];
     this.sprite.destroy(); this.weapon.destroy(); this.weaponGlow.destroy(); this.shadow.destroy(); this.ring.destroy();
     for (const l of Object.values(this.layers)) l?.destroy();
-    this.nameText?.destroy(); this.nameFrame?.destroy();
+    this.nameText?.destroy(); this.nameFrame?.destroy(); this.tag?.destroy();
     this.layers = {}; this.blade?.destroy(); this.blade = null; this.bladeTop?.destroy(); this.bladeTop = null;
     if (this.lookParts) for (const im of Object.values(this.lookParts)) im.destroy();
     for (const im of Object.values(this.gearParts)) im?.destroy();

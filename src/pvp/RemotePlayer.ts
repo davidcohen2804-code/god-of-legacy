@@ -7,6 +7,7 @@ import { Dir } from '../world/collision';
 import { PeerMeta, NetMsg } from './Transport';
 import { DeathFx } from '../game/DeathFx';
 import { ActorView, CosSlot, Equipped } from '../game/ActorView';
+import { TAG_SCALE } from './FighterTag';
 import { ClassKey, HERO_LIFT, cleanLook, loadBaseLook, resolvePose } from '../game/Body';
 import { DEFAULT_SKIN, SKIN_TONES } from '../characters/Skin';
 import { WornLook, parseWornCode } from '../items/Gear';
@@ -70,6 +71,20 @@ export class RemotePlayer {
 
   /** Where the name and bar sit: just over the head (a ready hero is drawn taller than the other bodies). */
   private headTop(): number { return this.meta.hero ? 116 + HERO_LIFT : 116; }
+
+  /** Battle: his tag over the head (FighterTag) in place of the name and bar — the battle HUD shows both; his doubles
+   *  wear the very same one. null: the name and bar again. */
+  private tagKey: string | null = null;
+  setTag(key: string | null): void {
+    this.tagKey = key;
+    this.wearTag(this.view, this.label, this.bar);
+    for (const d of this.kage) if (d) this.wearTag(d.view, d.label, d.bar);
+  }
+  get hasTag(): boolean { return !!this.tagKey; }
+  private wearTag(v: ActorView, label: Phaser.GameObjects.Text, bar: Phaser.GameObjects.Graphics): void {
+    label.setVisible(!this.tagKey); bar.setVisible(!this.tagKey);
+    v.setTag(this.tagKey, this.headTop() + PVP.remoteLabel.gap - PVP.hpBar.h, PVP.labelDepth, TAG_SCALE); // (its tip where the bar's foot was)
+  }
 
   constructor(private scene: Phaser.Scene, readonly meta: PeerMeta, x: number, y: number) {
     const L = PVP.remoteLabel;
@@ -199,6 +214,7 @@ export class RemotePlayer {
     const pose = resolvePose(this.meta.classId as ClassKey, this.dir, poseQuery(snap), this.view.wantsBase, this.meta.gender === 'female' ? 'female' : 'male', !!this.meta.hero);
     this.jbAir = this.skill?.id === 'judgment_blade' || (this.jbAir && this.alive && z - this.sz > 2); // Judgment Blade: no sword until the landing
     this.view.swordOff = this.jbAir;
+    this.view.tagAlpha = this.deadMs >= 0 ? alpha : seen; // (as his name: it stays while he blinks or is a crane)
     this.view.render(ms, pose, x + jx, y, z + jz, this.sz, this.dir, alpha, tint, fill);
     if (this.meta.classId === 'archer') { // the same body motion the caster sees
       const m = heroMotion(this.skill && this.alive ? archerMotion(this.skill.id, this.skill.elapsed, this.skill, this.dir === 'left' ? -1 : 1) : null, !!this.meta.hero);
@@ -259,6 +275,7 @@ export class RemotePlayer {
       }).setOrigin(0.5, 1).setDepth(PVP.labelDepth);
       const bar = this.scene.add.graphics().setDepth(PVP.labelDepth);
       this.kage[k] = { view, label, bar, after: new Afterimages(this.scene, SAMURAI_AFTER), snaps: [at], x: at.x, y: at.y, z: at.z, face: o.face, mode: o.mode, mt: 0, feint: o.feint, seed: k * 97 };
+      this.wearTag(view, label, bar);
       this.paintBar(bar);
       this.onKage?.({ x: at.x, y: at.y, z: at.z }, 'appear');
     }
