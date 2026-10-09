@@ -902,7 +902,7 @@ export class SkillFx {
       img.setDisplaySize(w, w / 3);
       const band = this.scene.add.rectangle(v.centerX, cy, v.width, w / 3 + 16, 0x000000, 0.55).setDepth(TOP + 49).setScale(1, 0);
       this.scene.tweens.add({ targets: band, scaleY: 1, duration: 120, ease: 'Cubic.easeOut' });
-      const out = r.skill.cls === 'samurai' ? Math.max(600, r.timings.startup - 300) : 1100; // (samurai: gone before the eight cuts out of the dark)
+      const out = r.skill.cls === 'samurai' ? Math.max(600, r.timings.startup - 300) : r.skill.id === 'titans_verdict' ? Math.max(420, Math.round(r.timings.startup * 0.51)) : 1100; // (Titan: paced to its short wind-up) // (samurai: gone before the eight cuts out of the dark)
       this.scene.tweens.add({ targets: img, x: v.centerX - w * 0.04, duration: 300, ease: 'Cubic.easeOut' });
       this.scene.tweens.add({ targets: img, x: v.centerX + w * 0.03, delay: 300, duration: out - 300 }); // slow drift while holding (a real beat)
       this.scene.tweens.add({ targets: img, x: v.right + w / 2, alpha: 0, delay: out, duration: 200, ease: 'Cubic.easeIn', onComplete: () => img.destroy() });
@@ -922,7 +922,7 @@ export class SkillFx {
     };
     void mk;
     // The screen rips open like paper right after the cut-in, light pouring through the tear.
-    if (r.skill.id === 'titans_verdict' && this.scene.textures.exists('titan-tear')) this.scene.time.delayedCall(1240, () => {
+    if (r.skill.id === 'titans_verdict' && this.scene.textures.exists('titan-tear')) this.scene.time.delayedCall(Math.round(r.timings.startup * 0.58), () => { // (cut-in → tear → dragon dive → impact, paced to the wind-up)
       const v = cam.worldView;
       // golden sparks burst out along the rip (top-left → bottom-right diagonal)
       for (let i = 0; i < 46; i++) {

@@ -81,7 +81,7 @@ const warrior: FinalSkill[] = [
   S({
     id: 'sanctuary', cls: 'warrior', slot: 5, name: 'Sanctuary', roles: ['setup', 'zone'], targeting: 'self',
     startup: 520, active: 200, recovery: 260, cooldown: 30000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 980],
-    hits: [H(0, 6, { kind: 'circle', radius: 120 }, { stun: 300, push: 60 }, { reachUp: 120 })],
+    hits: [H(0, 6, { kind: 'circle', radius: 120 }, { stun: 400, pull: 30 }, { reachUp: 120 })],
     cancelOnHit: ['warrior_basic', 'rising_slash', 'dash_slash', 'blade_storm'], tags: ['buff'],
     description: 'Trace a half-circle on the ground with your sword: a translucent dome of light rises where you stand for 15s. While you are inside it you take no damage at all. The dome stays where it was cast.',
     relations: ['Zone 15s', 'Full damage immunity inside'],
@@ -98,7 +98,7 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'titans_verdict', cls: 'warrior', slot: 7, name: "Titan's Verdict", roles: ['ultimate', 'finisher'], targeting: 'mouseCone',
-    startup: 1650, active: 640, recovery: 600, cooldown: 30000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 2750],
+    startup: 770, active: 640, recovery: 600, cooldown: 30000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 2750],
     hits: [H(0, 14, { kind: 'circle', radius: 190, at: 'aimBias', bias: 110 }, { stun: 600, launch: 150, juggleCost: 0 }, { reachUp: 260, heavy: true }),
       ...[90, 160, 230, 300, 370, 440, 510, 580].map((t) => H(t, 6, { kind: 'circle', radius: 200, at: 'aimBias', bias: 110 }, { stun: 420, float: true }, { reachUp: 320 }))],
     endsCombo: true, tags: ['ultimate'], telegraph: 'cone',
@@ -126,7 +126,7 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'radiant_blade', cls: 'warrior', slot: 10, name: 'Radiant Blade', roles: ['setup', 'extender'], targeting: 'self',
-    startup: 1800, active: 160, recovery: 260, cooldown: 20000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 2100],
+    startup: 400, active: 160, recovery: 260, cooldown: 20000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 2100],
     hits: [H(0, 8, { kind: 'circle', radius: 130 }, { stun: 360, push: 30 }, { reachUp: 140 })],
     cancelOnHit: ['warrior_basic', 'dash_slash', 'rising_slash', 'whirlwind', 'blade_storm'], tags: ['buff'],
     description: 'Your sword becomes a long blade of pure light for 15s: every sword strike reaches 85% farther and deals +15% damage. The transformation releases a light burst around you.',
@@ -135,17 +135,17 @@ const warrior: FinalSkill[] = [
   S({
     id: 'iron_oath', cls: 'warrior', slot: 14, name: 'Iron Oath', roles: ['setup'], targeting: 'self',
     startup: 420, active: 200, recovery: 260, cooldown: 30000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 880],
-    hits: [H(0, 4, { kind: 'circle', radius: 120 }, { stun: 240, push: 20 }, { reachUp: 140 })],
+    hits: [H(0, 4, { kind: 'circle', radius: 120 }, { stun: 400, pull: 30 }, { reachUp: 140 })],
     cancelOnHit: ['dash_slash', 'rising_slash', 'leap_crash'], tags: ['buff', 'party'],
-    description: 'Swear the iron oath: Max HP +30% for 60s; its flash of light staggers foes around you. In a party it also strengthens every party member near you.',
+    description: 'Swear the iron oath: Max HP +30% for 60s; its flash of light pulls foes around you in. In a party it also strengthens every party member near you.',
     relations: ['Buff 60s', 'Party buff'],
   }),
   S({
     id: 'legacy_banner', cls: 'warrior', slot: 15, name: 'Legacy Banner', roles: ['setup'], targeting: 'self',
     startup: 900, active: 200, recovery: 300, cooldown: 60000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1400],
-    hits: [H(0, 10, { kind: 'circle', radius: 160 }, { stun: 360, push: 30 }, { reachUp: 140 })],
+    hits: [H(0, 10, { kind: 'circle', radius: 160 }, { stun: 400, pull: 30 }, { reachUp: 140 })],
     cancelOnHit: ['warrior_basic', 'dash_slash', 'blade_storm', 'titans_verdict'], tags: ['buff', 'party'],
-    description: 'Plant a banner of light: +10% damage and 10% less damage taken for 90s; the impact staggers foes around you. In a party every party member near you shares it.',
+    description: 'Plant a banner of light: +10% damage and 10% less damage taken for 90s; the impact pulls foes around you in. In a party every party member near you shares it.',
     relations: ['Buff 90s', 'Party buff'],
   }),
   S({
@@ -167,12 +167,12 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'judgment_blade', cls: 'warrior', slot: 13, name: 'Judgment Blade', roles: ['zone', 'setup'], targeting: 'mouseDir',
-    startup: 2220, active: 320, recovery: 240, cooldown: 9000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    startup: 150, active: 320, recovery: 240, cooldown: 9000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     charges: 3, chargeGap: 120,
-    hits: [H(180, 14, { kind: 'circle', radius: 80, at: 'aimBias', bias: 150 }, { stun: 420, pin: 400 }, { reachUp: 280, heavy: true })],
+    hits: [H(140, 14, { kind: 'circle', radius: 80, at: 'aimBias', bias: 150 }, { stun: 420, pin: 400, slam: true }, { reachUp: 280, heavy: true })],
     linger: { at: 'aim', offset: 150, startMs: 520, everyMs: 500, count: 10, radius: 130, maxZ: 40, hit: H(0, 3, { kind: 'circle', radius: 130 }, { stun: 560, pin: 480 }, { reachUp: 40 }) },
     cancelOnHit: ['warrior_basic', 'rising_slash', 'leap_crash', 'lance_thrust', 'blade_storm'],
-    description: 'Leap once and hurl up to 3 blades in a row from the air: every press of V throws the next blade at once (no wait between throws); if you stop, you float slowly back down. Each blade stays planted for 5s inside a storm ring that shocks and roots anyone standing in it.',
+    description: 'Leap and hurl the first blade at once (it lands in under half a second; an airborne foe is slammed into a bounce), then up to 2 more: every press of V throws the next blade at once (no wait between throws); if you stop, you float slowly back down. Each blade stays planted for 5s inside a storm ring that shocks and roots anyone standing in it.',
     relations: ['Zone 5s', 'Root → free combo'],
   }),
 ];
