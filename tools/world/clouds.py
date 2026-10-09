@@ -34,13 +34,13 @@ for i, (x0, y0, x1, y1) in enumerate(boxes):
 # the lane (world y) the clouds' top faces make — inside Ivy Summit's floor, so you step off its right end onto it
 BAND = [30, 100]
 # the path (world x): from Ivy Summit's right end (x 4304, its floor at z 680) to the right, up and down
-PATH = [   # wide, deep clouds; gaps of 70 px, a step up of 40 at most (a jump rises ~90 px and carries ~110 px)
-  {'x': [4330, 4570], 'z': 690, 's': 0},
-  {'x': [4640, 4950], 'z': 730, 's': 2},
-  {'x': [5020, 5450], 'z': 700, 's': 4},
-  {'x': [5520, 5760], 'z': 740, 's': 1},
-  {'x': [5830, 6140], 'z': 775, 's': 3},
-  {'x': [6210, 6380], 'z': 790, 's': 0, 'reward': {'item': 'elixir', 'every': 300}},
+PATH = [   # a journey: two easy steps right, a jump up, a little drop down, one more, then the big cloud before Cloud Haven
+  {'x': [4330, 4560], 'z': 690, 's': 0},
+  {'x': [4630, 4870], 'z': 690, 's': 1},
+  {'x': [4940, 5250], 'z': 735, 's': 2},
+  {'x': [5320, 5600], 'z': 700, 's': 3},
+  {'x': [5670, 5910], 'z': 740, 's': 0},
+  {'x': [5980, 6300], 'z': 770, 's': 5, 'reward': {'item': 'elixir', 'every': 300}},
 ]
 json.dump({'name': 'Sky Path', 'band': BAND, 'lane': [4304, 6380], 'sprites': sprites, 'path': PATH},
           open(R + 'src/data/world-clouds.json', 'w'), indent=1)
