@@ -1417,8 +1417,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (l.run.skill.id === 'ground_breaker' && l.run.own && this.dead < 0) { // the quake mends the warrior: +2 HP per pulse
           const max = this.maxHpNow(), before = this.playerHP;
           this.playerHP = Math.min(max, this.playerHP + 2);
-          if (this.playerHP > before) this.fx!.healNumber({ x: this.kin.x, y: this.kin.y, z: this.kin.z }, this.playerHP - before);
-          for (let n = 0; n < 1; n++) this.fx!.hpGlyph(this.kin.x + (Math.random() - 0.5) * 90, this.kin.y + (Math.random() - 0.5) * 30);
+          const acc = l as { healAcc?: number }; acc.healAcc = (acc.healAcc ?? 0) + (this.playerHP - before);
+          if (l.left % 3 === 0 && acc.healAcc > 0) { this.fx!.healNumber({ x: this.kin.x, y: this.kin.y, z: this.kin.z }, acc.healAcc); acc.healAcc = 0; } // the mended HP shows every third pulse, summed
+          if (l.left % 3 === 0) this.fx!.hpGlyph(this.kin.x + (Math.random() - 0.5) * 70, this.kin.y + (Math.random() - 0.5) * 24); // a soft HP mark now and then, not on every pulse
         }
         const zr = { ...l.run, origin: { x: l.x, y: l.y, z: 0 }, zone: true } as CastRun; // hits come from the zone, not the caster
         for (const t of this.targetsFor(l.run)) {

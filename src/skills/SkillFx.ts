@@ -221,7 +221,7 @@ const HITSTOP: Record<HitTier, number> = { basic: 45, core: 70, signature: 95, u
 const VFX_MULT: Record<string, number> = { warrior: 1.5, samurai: 1.25 };
 /** Warrior skills that get a ground shockwave ring at their impact. */
 const SHOCK: Record<string, { r: number; c: number }> = {
-  ground_breaker: { r: 170, c: 0xffc070 }, shield_slam: { r: 110, c: 0xfff0c0 }, titans_verdict: { r: 260, c: 0xffd27a },
+  ground_breaker: { r: 200, c: 0xffb050 }, shield_slam: { r: 110, c: 0xfff0c0 }, titans_verdict: { r: 260, c: 0xffd27a },
   blade_storm: { r: 180, c: 0xffb04a }, rising_slash: { r: 90, c: 0xfff0c0 }, whirlwind: { r: 150, c: 0xffe0a0 },
 };
 const SHAKE: Record<HitTier, [number, number]> = { basic: [50, 0.0012], core: [80, 0.002], signature: [110, 0.003], ultimate: [170, 0.0048] };
@@ -385,15 +385,13 @@ export class SkillFx {
     }
     if (r.skill.id === 'shield_slam') (this.cam ?? this.scene.cameras.main).shake(120, 0.004);
     if (r.skill.id === 'ground_breaker') { // the earth answers: heavy quake shake, double ring, dust burst
-      (this.cam ?? this.scene.cameras.main).shake(220, 0.007);
-      this.scene.time.delayedCall(90, () => this.shockwave(r.origin.x, r.origin.y, 240, 0xff9a40));
-      for (let i = 0; i < 6; i++) { const t = (i / 6) * Math.PI * 2; this.dust(r.origin.x + Math.cos(t) * 80, r.origin.y + Math.sin(t) * 34, 70, 0.7); }
-      // one burst of sparks at the impact, fading out gradually
-      this.spark(IMPACT.warrior.key, r.origin.x, r.origin.y - 30, IMPACT.warrior.frames, 220, 0.9);
+      (this.cam ?? this.scene.cameras.main).shake(150, 0.0045);
+      for (let i = 0; i < 6; i++) { const t = (i / 6) * Math.PI * 2; this.dust(r.origin.x + Math.cos(t) * 90, r.origin.y + Math.sin(t) * 38, 70, 0.55); } // the earth heaves: dust ring (the SHOCK ring is the one wave)
+      this.spark(IMPACT.warrior.key, r.origin.x, r.origin.y - 24, IMPACT.warrior.frames, 170, 0.6);
       // the living quake: one golden rune ring that slowly turns on the floor around the warrior and fades away over 3s
       const ring = this.scene.add.image(0, 0, 'magic-circle').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc070).setDisplaySize(360, 360);
       const plane = this.scene.add.container(r.origin.x, r.origin.y, [ring]).setScale(1, 0.42).setDepth(GROUND + 2).setAlpha(0); // floor perspective
-      this.scene.tweens.add({ targets: plane, alpha: 0.85, duration: 220 });
+      this.scene.tweens.add({ targets: plane, alpha: 0.5, duration: 260 });
       this.scene.tweens.add({ targets: ring, angle: 140, duration: 3100 });
       this.scene.tweens.add({ targets: plane, alpha: 0, delay: 800, duration: 2300, ease: 'Sine.easeIn', onComplete: () => plane.destroy() }); // stays where it was created
     }
@@ -539,10 +537,9 @@ export class SkillFx {
   private quakeBurst(r: CastRun): void {
     const T = r.timings, c = r.origin;
     this.scene.time.delayedCall(T.startup, () => {
-      const col = this.scene.add.image(c.x, c.y + 4, 'dmg-glow').setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc870).setDepth(c.y + 2).setDisplaySize(90, 30);
-      this.scene.tweens.add({ targets: col, displayHeight: 300, displayWidth: 120, duration: 160, ease: 'Cubic.easeOut' });
-      this.scene.tweens.add({ targets: col, alpha: 0, delay: 160, duration: 420, onComplete: () => col.destroy() });
-      this.spark(IMPACT.warrior.key, c.x, c.y - 40, IMPACT.warrior.frames, 220, 0.9);
+      const col = this.scene.add.image(c.x, c.y + 4, 'dmg-glow').setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffb040).setDepth(c.y + 2).setDisplaySize(60, 24).setAlpha(0.55);
+      this.scene.tweens.add({ targets: col, displayHeight: 210, displayWidth: 70, duration: 140, ease: 'Cubic.easeOut' });
+      this.scene.tweens.add({ targets: col, alpha: 0, delay: 120, duration: 320, onComplete: () => col.destroy() }); // (one slim column: stacked bright layers burned the hero and the foe to white)
     });
   }
 
