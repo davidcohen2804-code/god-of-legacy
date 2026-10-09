@@ -197,6 +197,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   if (!scene.textures.exists('bs-erupt')) scene.load.spritesheet('bs-erupt', `${F}/skills/warrior/blade_storm/erupt_a.png`, { frameWidth: 250, frameHeight: 667 });
   if (!scene.textures.exists('titan-dragon')) scene.load.spritesheet('titan-dragon', `${F}/skills/warrior/titans_verdict/dragon.png`, { frameWidth: 280, frameHeight: 440 });
   if (!scene.textures.exists('titan-tear')) scene.load.spritesheet('titan-tear', `${F}/skills/warrior/titans_verdict/tear.png`, { frameWidth: 640, frameHeight: 360 });
+  if (!scene.textures.exists('banner-rally')) scene.load.spritesheet('banner-rally', `${F}/skills/warrior/legacy_banner/rally.png`, { frameWidth: 512, frameHeight: 512 }); // Legacy Banner: the lion of light that roars behind it
   if (!scene.textures.exists('titan-field')) scene.load.spritesheet('titan-field', `${F}/skills/warrior/titans_verdict/field.png`, { frameWidth: 512, frameHeight: 256 }); // the electrified floor it leaves
   if (!scene.textures.exists('titan-cutin')) scene.load.image('titan-cutin', `${F}/skills/warrior/titans_verdict/cutin.png`);
   if (!scene.textures.exists('holy-aura')) scene.load.spritesheet('holy-aura', `${F}/skills/warrior/radiant_blade/aura.png`, { frameWidth: 250, frameHeight: 667 });
@@ -550,13 +551,10 @@ export class SkillFx {
     let c = this.bannerMarks.get(id);
     if (!at) { if (c) c.setVisible(false); return; }
     if (!c) {
-      const glow = this.scene.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffb040).setDisplaySize(170, 170).setAlpha(0.45);
-      const ring = this.scene.add.image(0, 0, 'magic-circle').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd070).setDisplaySize(150, 150).setAlpha(0.95);
-      const ring2 = this.scene.add.image(0, 0, 'magic-circle').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff0b0).setDisplaySize(96, 96).setAlpha(0.6);
-      c = this.scene.add.container(0, 0, [glow, ring, ring2]).setScale(1, 0.4); this.bannerMarks.set(id, c);
-      this.scene.tweens.add({ targets: ring, angle: 360, duration: 6000, repeat: -1 });
-      this.scene.tweens.add({ targets: ring2, angle: -360, duration: 4500, repeat: -1 });
-      this.scene.tweens.add({ targets: [ring, glow], alpha: '-=0.3', duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      const glow = this.scene.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffb040).setDisplaySize(150, 150).setAlpha(0.55);
+      const core = this.scene.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff0c0).setDisplaySize(70, 70).setAlpha(0.35);
+      c = this.scene.add.container(0, 0, [glow, core]).setScale(1, 0.38); this.bannerMarks.set(id, c); // a soft golden glow underfoot — no drawn ring
+      this.scene.tweens.add({ targets: [glow, core], alpha: '-=0.25', duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
     c.setVisible(true).setPosition(at.x, at.y - at.z + 2).setDepth(depth);
   }
@@ -823,6 +821,7 @@ export class SkillFx {
       if (phase === 'plant') {
         while (i < 7 && t >= plant[i]) { t -= plant[i]; i++; img.setFrame(i); if (i === 2) { // planted: the rally wave rolls out over the floor
           this.shockwave(x, y, 230, 0xffd27a); this.scene.time.delayedCall(110, () => this.shockwave(x, y, 330, 0xffe9b0)); this.dust(x, y, 110, 0.8);
+          this.play('banner-rally', x, y + 6, 460, 460, [70, 80, 90, 110, 170, 190, 160, 150, 170, 220], { oy: 508 / 512, depth: y - 1, blend: Phaser.BlendModes.ADD, fadeLast: 220 }); // the rally: a lion of light rises behind the banner and roars
           (this.cam ?? this.scene.cameras.main).shake(140, 0.004);
         } }
         if (i >= 7 && t >= plant[7]) { phase = 'wave'; t = 0; img.setTexture('pas-banner_wave', 0).setDisplaySize(SZ, SZ).setY(y + 4 + SINK); mix.setY(y + 4 + SINK); } // the waving art ends at the spear tip: sink it into the floor
