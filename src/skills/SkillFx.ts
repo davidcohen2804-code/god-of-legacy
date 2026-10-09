@@ -356,6 +356,7 @@ export class SkillFx {
     else if (s.id === 'war_cry') this.roar(r);
     else if (s.id === 'judgment_hook') this.hookChain(r);
     else if (s.id === 'sky_breaker') this.skyBreaker(r);
+    else if (s.id === 'lions_maw') this.lionsMaw(r);
     else if (s.id === 'leap_crash') { this.aura(r); this.scene.time.delayedCall(r.timings.startup, () => { const c = this.casterPos(r.attackerId) ?? r.origin; this.leapBurst(c.x, c.y - c.z, r.aim.x < 0 ? -1 : 1); }); } // the take-off: a burst of light at his feet, the crater comes on the landing
     else if (s.id === 'earthsplitter') this.aura(r); // (the charge: his aura while the key is held; the split itself plays on the release, onActive)
     else if (s.id === 'iron_oath') this.oathSigil(r);
@@ -509,6 +510,15 @@ export class SkillFx {
     this.play(key, x, y + 10, w, h, [d * 0.6, d * 0.7, d, d, d * 1.3, d * 1.2, d * 1.2, d * 1.4], { oy: 0.98, flip: a.x < 0, depth: y + 4, blend: Phaser.BlendModes.ADD, fadeLast: 200 });
     (this.cam ?? this.scene.cameras.main).shake(180 + lv * 120, 0.006 + lv * 0.004);
     this.shockwave(x, y, range * 0.9, 0xffc060);
+  }
+
+  /** Lion's Maw: the lion of light gathers at his side and pounces through the foe (the sheet's own leap), frames timed to the bite,
+   *  the claw, the dive and the slam. */
+  private lionsMaw(r: CastRun): void {
+    const T = r.timings, key = vfxKey('lions_maw'), a = r.aim, c = this.casterPos(r.attackerId) ?? r.origin, flip = a.x < 0;
+    const x = c.x + a.x * 70, y = c.y + a.y * 70, s = Math.max(40, T.startup / 2);
+    this.play(key, x, y + 8, 520, 520, [s, s, 50, 70, 120, 90, 120, 160, 160, 230], { oy: 508 / 512, flip, depth: TOP - 6, blend: Phaser.BlendModes.ADD, fadeLast: 230 });
+    this.scene.time.delayedCall(T.startup + 450, () => { this.shockwave(x + a.x * 60, y + a.y * 60, 220, 0xffc860); (this.cam ?? this.scene.cameras.main).shake(150, 0.006); });
   }
 
   private roar(r: CastRun): void {

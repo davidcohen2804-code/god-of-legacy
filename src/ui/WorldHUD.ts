@@ -38,7 +38,7 @@ const G = {
  *  the skill's own icon with its key on a small cap in its corner; the passives (always on) in a small grid on its right
  *  under their caption. The EXP bar runs under the dock. */
 const DK = {
-  slot: 64, gapX: 8, rowGap: 8, cols: 10,
+  slot: 64, gapX: 8, rowGap: 8, cols: 11,
   pad: { t: 14, r: 16, b: 14, l: 16 },
   pas: { icon: 36, gap: 6, cols: 4, rows: 3, sep: 16, head: 18 },
   /** The potions' column (HP above, MP below) between the skills and the passives. */

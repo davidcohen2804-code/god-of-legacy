@@ -28,7 +28,7 @@ const MOVE_COLS: Record<MoveState, number> = { idle: 12, walk: 8, run: 8, jump: 
 const SHEET_CLASSES = ['warrior', 'book_mage'] as const;
 const sheetKey = (cls: string, st: string) => `body-${cls}-${st}`;
 /** Extended-kit skills reuse an existing body animation (pose family) until they get their own sheet. */
-const BODY_ALIAS: Record<string, string> = { guard_counter: 'iron_grip', judgment_hook: 'wave_slash', sky_breaker: 'leap_crash', earthsplitter: 'ground_breaker', iron_oath: 'sanctuary', legacy_banner: 'radiant_blade',
+const BODY_ALIAS: Record<string, string> = { lions_maw: 'war_cry', guard_counter: 'iron_grip', judgment_hook: 'wave_slash', sky_breaker: 'leap_crash', earthsplitter: 'ground_breaker', iron_oath: 'sanctuary', legacy_banner: 'radiant_blade',
   // the book mage's new spells borrow its drawn casts until their own come (the mage spec)
   arcane_bolt_frost: 'arcane_bolt', arcane_bolt_storm: 'arcane_bolt', arcane_bolt_arcane: 'arcane_bolt', blink: 'arcane_bolt', glacial_spikes: 'frost_nova', chrono_haste: 'astral_burst',
   levity_field: 'storm_field', origami_flock: 'arcane_wave', chrono_sigil: 'binding_rune', arcane_ward: 'frost_nova', arcane_gate: 'binding_rune', paper_curse: 'lightning_chain', elemental_ascension: 'storm_field' };
@@ -295,6 +295,7 @@ const NB: Record<string, { st: string[]; ac: string[]; rc: string[] }> = {
   radiant_blade: { st: ['alert:0', 'high:1', 'high:0', 'high:0', 'high:0', 'high:0', 'high:0'], ac: ['swing1:1'], rc: ['swing1:2', 'alert:0'] },
   lance_thrust: { st: ['swing2:0'], ac: ['low:1', 'low:1', 'low:1', 'low:1', 'swing3:2'], rc: ['swing3:2', 'alert:0'] }, // skewered on the lunge, ripped up
   war_cry: { st: ['alert:0', 'low:0', 'low:0'], ac: ['high:2'], rc: ['high:2', 'alert:0'] }, // sword into the ground, the roar with a raised fist
+  lions_maw: { st: ['alert:0'], ac: ['high:2', 'high:2'], rc: ['high:2', 'alert:0'] }, // the roar that sends the lion
   iron_grip: { st: ['alert:0'], ac: ['low:2', 'low:2', 'high:2', 'high:2', 'swing1:1', 'low:0'], rc: ['low:0', 'alert:0'] }, // the open hand seizes, the fist hoists it overhead, the smash
   judgment_hook: { st: ['swing2:0'], ac: ['low:2', 'low:2'], rc: ['swing2:2', 'alert:0'] }, // the chain hurled from the open hand, yanked back
   sky_breaker: { st: ['alert:1'], ac: ['air:0', 'air:0', 'air:0', 'air:1', 'air:2'], rc: ['low:0', 'alert:0'] }, // the rising slashes in the air, the strike down
@@ -556,6 +557,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     legacy_banner: { act: 'banner', st: [0, 1, 2], ac: [2], rc: [3, 3, 4, 5] },
     war_cry: { act: 'war_cry', st: [0], ac: [1, 2, 3, 2, 3], rc: [4, 5] },
     judgment_blade: { act: 'judgment_blade', st: [0, 1, 2, 2, 2, 2, 2, 2, 2, 2], ac: [3], rc: [4, 4, 5] },
+    lions_maw: { act: 'war_cry', st: [0], ac: [1, 2, 3, 2], rc: [4, 5] }, // he roars: his lion pounces
     iron_grip: { act: 'iron_grip', st: [0], ac: [1, 2, 3, 3, 3, 4], rc: [5, 5, 0] }, // the open hand seizes, the fist hoists it overhead, the slam
     judgment_hook: { act: 'judgment_hook', st: [0, 1], ac: [2, 3, 4], rc: [4, 5] }, // wind back, hurl the chain, yank it in
     sky_breaker: { act: 'sky_breaker', st: [0], ac: [1, 1, 2, 3, 3, 4], rc: [5, 5] }, // the rising slashes, sword overhead, the dive, landed

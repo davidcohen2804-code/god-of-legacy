@@ -41,7 +41,7 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'dash_slash', cls: 'warrior', slot: 1, name: 'Dash Slash', roles: ['gapClose', 'opener'], targeting: 'mouseDir',
-    startup: 110, active: 150, recovery: 230, cooldown: 2500, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    startup: 110, active: 150, recovery: 230, cooldown: 1800, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 210 }, through: true,
     hits: [0, 50, 100].map((t, i) => H(t, i === 2 ? 10 : 7, { kind: 'capsule', radius: 32 }, { stun: 240, push: i === 2 ? 10 : 2, float: true, juggleCost: 4 }, { reachUp: 90 })),
     cancelOnHit: CORE(['rising_slash', 'whirlwind', 'sanctuary', 'warrior_basic', 'blade_storm', 'titans_verdict']),
@@ -51,7 +51,7 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'rising_slash', cls: 'warrior', slot: 2, name: 'Rising Slash', roles: ['launcher', 'antiAir'], targeting: 'mouseCone',
-    startup: 140, active: 170, recovery: 270, cooldown: 3000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    startup: 140, active: 170, recovery: 270, cooldown: 2200, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(0, 16, { kind: 'sector', range: 96, angle: 100 }, { stun: 420, launch: 150, juggleCost: 30 }, { reachUp: 90 }),
       H(70, 6, { kind: 'sector', range: 100, angle: 110 }, { stun: 300, float: true, juggleCost: 3 }, { reachUp: 190 }),
       H(140, 6, { kind: 'sector', range: 100, angle: 110 }, { stun: 300, float: true, juggleCost: 3 }, { reachUp: 220 })],
@@ -61,7 +61,7 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'ground_breaker', cls: 'warrior', slot: 3, name: 'Ground Breaker', roles: ['knockdown', 'antiAir'], targeting: 'self',
-    startup: 300, active: 260, recovery: 300, cooldown: 4000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    startup: 300, active: 260, recovery: 300, cooldown: 3000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(0, 26, { kind: 'circle', radius: 118 }, { stun: 320, push: 4 }, { reachUp: 130, heavy: true }),
       H(200, 14, { kind: 'circle', radius: 150 }, { stun: 300, launch: 110, juggleCost: 10 }, { reachUp: 120 })],
     linger: { at: 'caster', startMs: 300, everyMs: 300, count: 10, radius: 150, maxZ: 130, hit: H(0, 3, { kind: 'circle', radius: 150 }, { stun: 380, pull: 40, float: true }, { reachUp: 130 }) },
@@ -73,7 +73,8 @@ const warrior: FinalSkill[] = [
     id: 'whirlwind', cls: 'warrior', slot: 4, name: 'Whirlwind', roles: ['extender', 'airExtender'], targeting: 'self',
     startup: 130, active: 1570, recovery: 190, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: { startup: 0, active: 0.85, recovery: 0 },
     zoneMs: 2200,
-    hits: Array.from({ length: 12 }, (_, i) => i * 130).map((t) => H(t, 3, { kind: 'circle', radius: 108 }, { stun: 200, pull: 6, float: true, juggleCost: 6 }, { reachUp: 140 })),
+    hits: Array.from({ length: 12 }, (_, i) => i * 130).map((t, i) => i < 11 ? H(t, 3, { kind: 'circle', radius: 118 }, { stun: 260, pull: 14, float: true, juggleCost: 6 }, { reachUp: 150 })
+      : H(t, 5, { kind: 'circle', radius: 125 }, { stun: 520, launch: 70, juggleCost: 6 }, { reachUp: 160 })), // the last turn flings the foe up: room for the next skill
     cancelOnHit: ['ground_breaker', 'warrior_basic', 'blade_storm', 'titans_verdict'],
     description: 'A 2-second steerable blade cyclone: walk while you spin, sucking foes in and keeping them afloat with a hit every 0.18s.',
     relations: ['Air extender', 'Finish with Ground Breaker'],
@@ -81,9 +82,9 @@ const warrior: FinalSkill[] = [
   S({
     id: 'sanctuary', cls: 'warrior', slot: 5, name: 'Sanctuary', roles: ['setup', 'zone'], targeting: 'self',
     startup: 350, active: 200, recovery: 260, cooldown: 30000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 810],
-    hits: [H(0, 6, { kind: 'circle', radius: 120 }, { stun: 400, pull: 30 }, { reachUp: 120 })],
-    cancelOnHit: ['warrior_basic', 'rising_slash', 'dash_slash', 'blade_storm'], tags: ['buff'],
-    description: 'Trace a half-circle on the ground with your sword: a translucent dome of light rises where you stand for 15s. While you are inside it you take no damage at all. The dome stays where it was cast.',
+    hits: [H(0, 6, { kind: 'circle', radius: 120 }, { stun: 500, pull: 40, pin: 650 }, { reachUp: 120 })],
+    cancelOnHit: ['warrior_basic', 'rising_slash', 'dash_slash', 'blade_storm', 'iron_grip', 'sky_breaker', 'ground_breaker'], tags: ['buff'],
+    description: 'Trace a half-circle on the ground with your sword: a translucent dome of light rises where you stand for 15s. While you are inside it you take no damage at all. The dome stays where it was cast, and its rising wall cages foes at its edge in place for a moment.',
     relations: ['Zone 15s', 'Full damage immunity inside'],
   }),
   S({
@@ -110,7 +111,7 @@ const warrior: FinalSkill[] = [
   // ---- extended kit (Q R F G C V)
   S({
     id: 'leap_crash', cls: 'warrior', slot: 8, name: 'Leap Crash', roles: ['gapClose', 'knockdown'], targeting: 'mouseTarget',
-    startup: 160, active: 320, recovery: 380, cooldown: 3500, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    startup: 160, active: 320, recovery: 380, cooldown: 2500, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 210, lift: 80, crash: true },
     hits: [H(140, 10, { kind: 'circle', radius: 90 }, { stun: 300, slam: true }, { reachUp: 160 }),
       H(285, 20, { kind: 'circle', radius: 125 }, { stun: 300, launch: 95, juggleCost: 25 }, { reachUp: 60, heavy: true })],
@@ -129,30 +130,30 @@ const warrior: FinalSkill[] = [
   S({
     id: 'radiant_blade', cls: 'warrior', slot: 10, name: 'Radiant Blade', roles: ['setup', 'extender'], targeting: 'self',
     startup: 400, active: 160, recovery: 260, cooldown: 20000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 2100],
-    hits: [H(0, 8, { kind: 'circle', radius: 130 }, { stun: 360, push: 30 }, { reachUp: 140 })],
-    cancelOnHit: ['warrior_basic', 'dash_slash', 'rising_slash', 'whirlwind', 'blade_storm'], tags: ['buff'],
-    description: 'Your sword becomes a long blade of pure light for 15s: every sword strike reaches 85% farther and deals +15% damage, and your plain sword strikes (basic attack, Dash Slash, Rising Slash, Ground Breaker, Wave Slash, Iron Grip) are 3× faster. The transformation releases a light burst around you.',
+    hits: [H(0, 8, { kind: 'circle', radius: 130 }, { stun: 380, launch: 90, juggleCost: 10 }, { reachUp: 140 })],
+    cancelOnHit: ['warrior_basic', 'dash_slash', 'rising_slash', 'whirlwind', 'blade_storm', 'sky_breaker', 'leap_crash'], tags: ['buff'],
+    description: 'Your sword becomes a long blade of pure light for 15s: every sword strike reaches 85% farther and deals +15% damage, and your plain sword strikes (basic attack, Dash Slash, Rising Slash, Ground Breaker, Wave Slash, Iron Grip) are 3× faster. The transformation releases a light burst around you that pops foes into the air.',
     relations: ['Buff 15s', 'Range +85%'],
   }),
   S({
     id: 'iron_oath', cls: 'warrior', slot: 14, name: 'Iron Oath', roles: ['setup'], targeting: 'self',
     startup: 300, active: 200, recovery: 260, cooldown: 30000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 760],
-    hits: [H(0, 4, { kind: 'circle', radius: 120 }, { stun: 400, pull: 30 }, { reachUp: 140 })],
-    cancelOnHit: ['dash_slash', 'rising_slash', 'leap_crash'], tags: ['buff', 'party'],
-    description: 'Swear the iron oath: Max HP +30% for 60s; its flash of light pulls foes around you in. In a party it also strengthens every party member near you.',
+    hits: [H(0, 4, { kind: 'circle', radius: 120 }, { stun: 380, pull: 40, launch: 100, juggleCost: 12 }, { reachUp: 140 })],
+    cancelOnHit: ['dash_slash', 'rising_slash', 'leap_crash', 'sky_breaker', 'lance_thrust', 'blade_storm'], tags: ['buff', 'party'],
+    description: 'Swear the iron oath: Max HP +30% for 60s; its flash of light drags foes around you in and lifts them off their feet. In a party it also strengthens every party member near you.',
     relations: ['Buff 60s', 'Party buff'],
   }),
   S({
     id: 'legacy_banner', cls: 'warrior', slot: 15, name: 'Legacy Banner', roles: ['setup'], targeting: 'self',
     startup: 450, active: 200, recovery: 300, cooldown: 60000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 950],
     hits: [H(0, 10, { kind: 'circle', radius: 160 }, { stun: 400, pull: 30 }, { reachUp: 140 })],
-    cancelOnHit: ['warrior_basic', 'dash_slash', 'blade_storm', 'titans_verdict'], tags: ['buff', 'party'],
+    cancelOnHit: ['warrior_basic', 'dash_slash', 'blade_storm', 'titans_verdict', 'rising_slash', 'iron_grip', 'sky_breaker', 'lance_thrust'], tags: ['buff', 'party'],
     description: 'A pillar of light drives your war banner into the floor beside you: its rally wave pulls nearby foes in, and for 90s you deal +10% damage and take 10% less (a golden crest ring at your feet shows it). In a party every member near you is rallied too. The banner keeps waving for 10s.',
     relations: ['Buff 90s', 'Party buff'],
   }),
   S({
     id: 'lance_thrust', cls: 'warrior', slot: 11, name: 'Impaling Rush', roles: ['extender', 'peel'], targeting: 'mouseDir',
-    startup: 160, active: 420, recovery: 300, cooldown: 4500, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    startup: 160, active: 420, recovery: 300, cooldown: 3500, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 260 }, carry: true,
     hits: [0, 70, 140, 210, 280, 380].map((t, i) => H(t, i === 5 ? 16 : 4, { kind: 'sector', range: 80, angle: 100 }, i === 5 ? { stun: 420, launch: 110, juggleCost: 20 } : { stun: 320 }, { reachUp: 140, heavy: i === 5 })),
     cancelOnHit: ['rising_slash', 'leap_crash', 'blade_storm', 'titans_verdict', 'wave_slash'],
@@ -180,7 +181,7 @@ const warrior: FinalSkill[] = [
   // ---- new kit (Z X B N): the grab, the hook, the air chase, the charged fissure (own timings: not stretched)
   S({
     id: 'iron_grip', cls: 'warrior', slot: 16, name: 'Iron Grip', roles: ['opener', 'extender'], targeting: 'mouseDir',
-    startup: 160, active: 560, recovery: 300, cooldown: 6000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, armor: [0, 720],
+    startup: 160, active: 560, recovery: 300, cooldown: 4000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, armor: [0, 720],
     hits: [H(0, 6, { kind: 'sector', range: 78, angle: 90 }, { stun: 800, grab: true }, { reachUp: 140 }),
       H(440, 16, { kind: 'circle', radius: 110, at: 'aimBias', bias: 60 }, { stun: 440, launch: 100, juggleCost: 20 }, { reachUp: 220, heavy: true })],
     cancelOnHit: ['rising_slash', 'leap_crash', 'sky_breaker', 'wave_slash', 'whirlwind'],
@@ -189,7 +190,7 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'judgment_hook', cls: 'warrior', slot: 17, name: 'Judgment Hook', roles: ['pull', 'gapClose'], targeting: 'mouseDir',
-    startup: 140, active: 260, recovery: 240, cooldown: 7000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    startup: 140, active: 260, recovery: 240, cooldown: 5500, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     hits: [H(90, 10, { kind: 'line', length: 380, width: 46 }, { stun: 560, grab: true }, { reachUp: 160 })],
     cancelOnHit: ['warrior_basic', 'iron_grip', 'dash_slash', 'rising_slash', 'whirlwind', 'ground_breaker', 'lance_thrust'],
     description: 'Hurl a chain of golden light up to 380px: it hooks the first foe it reaches and yanks it right in front of you, stunned, ready for your next blow.',
@@ -197,7 +198,7 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'sky_breaker', cls: 'warrior', slot: 18, name: 'Sky Breaker', roles: ['airExtender', 'chase'], targeting: 'mouseTarget',
-    startup: 110, active: 620, recovery: 300, cooldown: 6000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    startup: 110, active: 620, recovery: 300, cooldown: 4500, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 140, lift: 170, crash: true },
     hits: [H(60, 7, { kind: 'circle', radius: 90 }, { stun: 380, launch: 150, juggleCost: 6 }, { reachUp: 240 }), // pops the foe up to rise with him
       H(170, 7, { kind: 'circle', radius: 90 }, { stun: 380, float: true, juggleCost: 4 }, { reachUp: 240 }),
@@ -223,6 +224,18 @@ const warrior: FinalSkill[] = [
     cancelOnHit: ['sky_breaker', 'blade_storm', 'titans_verdict'],
     description: 'Hold the key: you raise your sword overhead as the ground trembles, in three steps. Release: you split the earth — a wide fissure tears across the floor in front of you and pillars of light burst out of it, launching every foe; the longer you held, the farther, wider and higher.',
     relations: ['Hold to charge (3 levels)', 'Wide launcher'],
+  }),
+  S({
+    id: 'lions_maw', cls: 'warrior', slot: 20, name: "Lion's Maw", roles: ['airExtender', 'extender'], targeting: 'mouseTarget',
+    startup: 150, active: 520, recovery: 220, cooldown: 9000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    // the warrior roars and his lion of light pounces through the foe: a bite, a raking claw, a dive — and slams it into a bounce
+    hits: [H(120, 8, { kind: 'circle', radius: 120, at: 'aimBias', bias: 130 }, { stun: 460, float: true, juggleCost: 4 }, { reachUp: 320 }),
+      H(240, 8, { kind: 'circle', radius: 120, at: 'aimBias', bias: 130 }, { stun: 460, launch: 60, juggleCost: 4 }, { reachUp: 320 }),
+      H(330, 6, { kind: 'circle', radius: 120, at: 'aimBias', bias: 130 }, { stun: 440, float: true }, { reachUp: 320 }),
+      H(450, 16, { kind: 'circle', radius: 140, at: 'aimBias', bias: 130 }, { stun: 440, slam: true }, { reachUp: 320, heavy: true })],
+    cancelOnHit: ['rising_slash', 'sky_breaker', 'iron_grip', 'lance_thrust', 'ground_breaker', 'blade_storm', 'titans_verdict', 'leap_crash'],
+    description: 'Roar, and a lion of golden light pounces from your side through the foe in front of you — a bite, a raking claw, a dive — keeping it in the air and slamming it into the floor so it bounces back up for more. Usable in the air.',
+    relations: ['Air extender', 'Slam → bounce'],
   }),
 ];
 
