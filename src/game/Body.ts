@@ -653,9 +653,10 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
       if (a2 !== undefined && a2 >= 0 && HEROES[cls].actions.djump) {
         if (cls === 'book_mage') return { ...H('djump', Math.floor(a2 / 450) % 2), cloth: true };
         if (cls === 'archer' && a2 < 440) return H('djump', a2 < 200 ? 0 : 1);
-        if (cls === 'samurai' && a2 < 380) return H('djump', a2 < 110 ? 0 : 1);
+        if (cls === 'samurai' && a2 < 380) return HEROES[cls].actions.djump.length >= 4 ? H('djump', a2 < 70 ? 0 : a2 < 150 ? 1 : a2 < 290 ? 2 : 3) : H('djump', a2 < 110 ? 0 : 1);
         if (cls === 'warrior' && a2 < 560 && q.phase !== 'fall') return H('djump', a2 < 160 ? 0 : 1);
       }
+      if (HEROES[cls].actions.jump.length >= 4) return H('jump', { takeoff: 0, rise: 1, apex: 2, fall: 3, land: 0 }[q.phase]); // painted: crouch, rise, apex, reach down
       return H('jump', { takeoff: 0, rise: 1, apex: 1, fall: 2, land: 0 }[q.phase]);
     }
     case 'airAttack': {

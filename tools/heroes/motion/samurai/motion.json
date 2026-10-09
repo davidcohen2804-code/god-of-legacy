@@ -1,0 +1,89 @@
+{
+  "status": "draft_failed_qa",
+  "canvas": [
+    768,
+    768
+  ],
+  "ground_y": 700,
+  "hip_x": 384,
+  "animations": {
+    "walk": {
+      "frames": [
+        "walk_01.png",
+        "walk_02.png",
+        "walk_03.png",
+        "walk_04.png",
+        "walk_05.png",
+        "walk_06.png",
+        "walk_07.png",
+        "walk_08.png"
+      ],
+      "loop": true,
+      "fps": 10,
+      "cycle_px": null,
+      "cycle_px_estimate": 909.76,
+      "cycle_px_status": "unvalidated: support speed is not constant",
+      "support_delta_px": [
+        -126.75,
+        -48.27,
+        -167.05,
+        -109.6,
+        -36.4,
+        -194.25
+      ]
+    },
+    "run": {
+      "frames": [
+        "run_01.png",
+        "run_02.png",
+        "run_03.png",
+        "run_04.png",
+        "run_05.png",
+        "run_06.png",
+        "run_07.png",
+        "run_08.png"
+      ],
+      "loop": true,
+      "fps": 14,
+      "cycle_px": null,
+      "cycle_px_estimate": 1256.94,
+      "cycle_px_status": "unvalidated: support speed is not constant",
+      "support_delta_px": [
+        -35.12,
+        -288.92,
+        20.68,
+        -325.11
+      ]
+    },
+    "jump": {
+      "frames": [
+        "jump_01.png",
+        "jump_02.png",
+        "jump_03.png",
+        "jump_04.png"
+      ],
+      "loop": false,
+      "frame_ms": [
+        100,
+        120,
+        140,
+        120
+      ]
+    },
+    "djump": {
+      "frames": [
+        "djump_01.png",
+        "djump_02.png",
+        "djump_03.png",
+        "djump_04.png"
+      ],
+      "loop": false,
+      "frame_ms": [
+        80,
+        70,
+        100,
+        100
+      ]
+    }
+  }
+}

@@ -296,6 +296,40 @@ def face_size(f):
     return float(np.sqrt(sz[i - 1])) if sz[i - 1] >= 30 else None
 
 
+
+def motion_frames(mdir, frames, rig_cyc):
+    """Painted move frames (tools/heroes/motion/<cls>/walk_01.png …: 768x768, ground at y 700, hips at x 384, standing
+    height ~509 px) at the hero's size: they replace the rig's walk / run / jump / djump; the cycle distance is measured
+    on the feet (the spread of the soles at the two contact frames)."""
+    import glob
+    idle = next(im for a, im, ax, ay in frames if a == 'idle')
+    k = idle.shape[0] / 509.0
+    out = [f for f in frames if f[0] not in ('walk', 'run', 'jump', 'djump')]
+    cyc = dict(rig_cyc or {})
+    for act in ('walk', 'run', 'jump', 'djump'):
+        files = sorted(glob.glob(os.path.join(mdir, act + '_[0-9]*.png')))
+        if not files:
+            out += [f for f in frames if f[0] == act]
+            continue
+        spreads = []
+        for f in files:
+            rgba = np.array(Image.open(f).convert('RGBA'))
+            a = rgba[..., 3] > 40
+            ys, xs = np.where(a.any(1))[0], np.where(a.any(0))[0]
+            crop = rgba[ys[0]:ys[-1] + 1, xs[0]:xs[-1] + 1]
+            low = a[max(0, 700 - 40):701]
+            cols = np.where(low.any(0))[0]
+            if len(cols):
+                spreads.append(cols[-1] - cols[0])
+            im = Image.fromarray(crop)
+            im = im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.LANCZOS)
+            out.append((act, np.array(im), (384 - xs[0]) * k, (700 - ys[0]) * k))
+        if act in ('walk', 'run') and spreads:
+            step = float(np.percentile(spreads, 90)) * 0.78 * k  # sole to sole (the boots' own length taken off)
+            cyc[act] = 2 * step * (1.0 if act == 'walk' else 1.3)
+    return out, cyc
+
+
 def pack(frames, width=4096, pad=2):
     x = y = rowh = 0
     pos = []
@@ -437,6 +471,9 @@ def main():
             keep = [i for i, (ac, _, _) in enumerate(acts) if ac not in ('walk', 'run', 'walk2', 'run2', 'idle', 'stance', 'jump')]
             acts = [acts[i] for i in keep]; ims = [ims[i] for i in keep]; tags = [tags[i] for i in keep]
             frames, rig_cyc = rig.bake(parts_png, cls, idle_now, size)
+            mdir = os.path.join(ROOT, 'tools', 'heroes', 'motion', cls)
+            if os.path.isdir(mdir):  # hand-drawn moves (whole painted frames) replace the animated body's walk / run / jumps
+                frames, rig_cyc = motion_frames(mdir, frames, rig_cyc)
             for act, im, ax, ay in frames:
                 acts.append((act, ax, ay)); ims.append(im); tags.append('RIG')
         sheet, pos = pack(ims)
