@@ -18,7 +18,8 @@ export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
   'mfx-nova': ['frost_nova.png', 448, 448, 16],
   'mfx-bolt': ['arcane_bolt.png', 384, 384, 16],
   'mfx-clock': ['time_collapse.png', 448, 448, 16],
-  'mfx-sfield': ['storm_field.png', 320, 410, 16], // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
+  'mfx-sfield': ['storm_field.png', 320, 410, 16],
+  'mfx-spikes': ['glacial_spikes.png', 384, 384, 16], // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
 };
 const TOP = 100000, GROUND = 2, SQUASH = 0.42;
 const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
@@ -568,6 +569,19 @@ export class MageFx {
   /** Glacial Spikes: three rows of spikes erupt one after another along a fan, stand as a wall, then shatter. */
   private spikes(r: CastRun): void {
     const o = this.me(r), base = Math.atan2(r.aim.y, r.aim.x), side = sideOf(r);
+    if (this.ctx.scene.textures.exists('mfx-spikes')) { // the painted wall: one line along the aim, two lesser ones on the fan's sides
+      for (const [da, k, dl] of [[0, 1, 0], [-15, 0.72, 50], [15, 0.72, 50]] as const) {
+        const a = base + (da * Math.PI) / 180, dx = Math.cos(a), dy = Math.sin(a), x = o.x + dx * 40, y = o.y + dy * 40 * 0.75;
+        const ang = screenAng(dx, dy), len = 300 * k;
+        this.sheet('mfx-spikes', x, y, len / 0.8, 3100, { ox: side < 0 ? 0.9 : 0.1, oy: 0.75, flipX: side < 0, depth: y + 2 + (da === 0 ? 1 : 0), delay: dl, run: r,
+          keys: [[0, 0], [6.9, 380], [7, 400], [11.9, 2650], [15.9, 3100]] });
+        this.later(dl, () => this.list.at(-1)?.setAngle(side < 0 ? ang - 180 : ang), r);
+      }
+      this.floor('floor_frost', o.x + r.aim.x * 150, o.y + r.aim.y * 110, 330, 3100, { add: true, a: kf([0, 0], [0.04, 0.5], [0.9, 0.35], [1, 0]), angle: screenAng(r.aim.x, r.aim.y) });
+      this.warp.ring(o.x + r.aim.x * 140, o.y + r.aim.y * 100, { r1: 220, life: 380, s: 22, width: 24, squash: SQUASH });
+      this.shake(150, 0.007); this.ctx.hitStop?.(50);
+      return;
+    }
     for (const da of [-15, 0, 15]) {
       const a = base + (da * Math.PI) / 180, dx = Math.cos(a), dy = Math.sin(a);
       for (let k = 0; k < 6; k++) {
