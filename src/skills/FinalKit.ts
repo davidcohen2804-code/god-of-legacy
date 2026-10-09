@@ -129,7 +129,7 @@ const warrior: FinalSkill[] = [
     startup: 400, active: 160, recovery: 260, cooldown: 20000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 2100],
     hits: [H(0, 8, { kind: 'circle', radius: 130 }, { stun: 360, push: 30 }, { reachUp: 140 })],
     cancelOnHit: ['warrior_basic', 'dash_slash', 'rising_slash', 'whirlwind', 'blade_storm'], tags: ['buff'],
-    description: 'Your sword becomes a long blade of pure light for 15s: every sword strike reaches 85% farther and deals +15% damage. The transformation releases a light burst around you.',
+    description: 'Your sword becomes a long blade of pure light for 15s: every sword strike reaches 85% farther and deals +15% damage, and your plain sword strikes (basic attack, Dash Slash, Rising Slash, Ground Breaker, Wave Slash, Iron Grip) are 3× faster. The transformation releases a light burst around you.',
     relations: ['Buff 15s', 'Range +85%'],
   }),
   S({

@@ -89,6 +89,9 @@ const TRIAL_HP = 200; // (the world's own scale, not the arena's)
 const HIT_IFRAMES = 2000, HIT_BLINK = 90;
 /** Radiant Blade: the warrior's attacks this many times faster while the blade of light is on. */
 const RADIANT_SPEED = 3;
+/** Radiant Blade quickens the plain sword strikes only. Spins, storms, dashes, leaps, throws, charges, buffs and the
+ *  ultimate keep their own pace (sped up they broke: a 0.5s whirlwind, a fast-forward ultimate, a charge too short to hold). */
+const RADIANT_FAST = new Set(['warrior_basic', 'dash_slash', 'rising_slash', 'ground_breaker', 'wave_slash', 'iron_grip']);
 /** God of Blades: the halo's katanas (each one that flies is spent). */
 const GOD_BLADES = 8;
 /** World damage roll: from this fraction of the maximum up to it (MapleStory's mastery). */
@@ -2059,7 +2062,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private ownRangeMul(s: FinalSkill): number { return s.cls === 'archer' ? this.passives.rangeMul : 1; }
   /** Archer: Bow Haste (+20%) × Ranger Mastery attack speed (startup / recovery shortened). */
   private ownSpeedMul(s: FinalSkill): number { return (this.simMs < this.mage.hasteUntil ? 1.1 : 1) * this.classSpeedMul(s); }
-  private classSpeedMul(s: FinalSkill): number { return s.cls === 'gambler' ? (this.simMs < this.gTailsUntil ? 1.15 : 1) : s.cls === 'warrior' && this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && s.id !== 'radiant_blade' ? RADIANT_SPEED : s.cls === 'archer' ? this.passives.atkSpeed * (this.simMs < this.hasteUntil ? 1.2 : 1) : s.cls === 'samurai' ? this.passives.atkSpeed : 1; }
+  private classSpeedMul(s: FinalSkill): number { return s.cls === 'gambler' ? (this.simMs < this.gTailsUntil ? 1.15 : 1) : s.cls === 'warrior' && this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && RADIANT_FAST.has(s.id) ? RADIANT_SPEED : s.cls === 'archer' ? this.passives.atkSpeed * (this.simMs < this.hasteUntil ? 1.2 : 1) : s.cls === 'samurai' ? this.passives.atkSpeed : 1; }
   /** Own critical rate bonus: passives + Hunter's Spirit (+15%). */
   private critAddNow(): number { return this.passives.critAdd + (this.arena ? 0 : this.statD.critAdd) + (this.simMs < this.spiritUntil ? 0.15 : 0) + (this.simMs < this.gHeadsUntil ? 0.2 : 0) + (this.simMs < this.gLuckUntil ? 0.1 : 0) + (this.passives.gamble.streak ? 0.02 * this.gStreak : 0); }
   /** Own extra critical damage: passives + Rising Sun (+20%). */
