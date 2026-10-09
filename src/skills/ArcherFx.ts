@@ -194,7 +194,7 @@ export class ArcherFx {
             this.muzzle(r, 110); const q = this.me(r), sx = q.x + side * 16, sy = q.y - q.z - 54, dx = gx - sx, dy = gy - sy;
             this.spr({ name: 'arrow_heavy', x: sx, y: sy, depth: TOP + 3, w: 100, angle: Math.atan2(dy, dx) * (180 / Math.PI), glow: 0.3, life: 110, mx: (u) => dx * u, my: (u) => dy * u });
             this.later(110, () => {
-              this.spr({ name: 'arrow_stuck', x: gx, y: gy + 4, oy: 0.9, depth: gy + 1, w: 70, flipX: side < 0, life: 240, glow: 0.4 });
+              this.spr({ name: 'arrow_planted', x: gx, y: gy + 6, oy: 0.96, depth: gy + 1, w: 90, life: 240, glow: 0.4 });
               this.floor('floor_cracks', gx, gy, 80, 300, { add: true, s: kf([0, 0.4], [1, 1.2, out3]), a: kf([0, 0.6], [1, 1]) });
               this.pop('arrow_glint', gx, gy - 20, 50, { life: 200 });
             });
@@ -229,7 +229,8 @@ export class ArcherFx {
         this.later(T.startup, () => {
           this.floor('floor_cracks', kx, ky, 190, 900, { run: r, a: kf([0, 1], [0.7, 0.9], [1, 0]) }); // the floor breaks open
           this.spr({ name: 'dust', x: kx, y: ky + 4, oy: 0.85, depth: ky + 1, w: 200, life: 640, sx: kf([0, 0.4], [1, 1.5, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
-          this.spr({ name: 'launch_beam', x: kx, y: ky + 6, oy: 0.97, depth: ky + 2, w: 130, h: 360, life: 460, add: true, glow: 0.3, sy: kf([0, 0.2], [0.22, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) });
+          this.floor('crater', kx, ky, 210, 1300, { a: kf([0, 0], [0.04, 1], [0.6, 0.85], [1, 0]) });
+          this.spr({ name: 'debris', x: kx, y: ky + 6, oy: 0.95, depth: ky + 4, w: 210, life: 640, my: (u) => -30 * out(u), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
           // the big boot rises out of the ground (grows up from the floor line), toe the way she faces, a whirl turning round it
           this.spr({ name: 'wind_boot', x: kx, y: ky + 8, oy: 1, depth: ky + 3, w: 210, flipX: side < 0, life: T.active + 360, glow: 0.3,
             sy: kf([0, 0], [0.18, 1.12, out3], [0.3, 1]), sx: kf([0, 0.7], [0.18, 1, out3]), my: kf([0, 0], [0.18, -20, out3], [1, -70]), a: kf([0, 1], [0.75, 1], [1, 0]) }); // always faces the way she faces
@@ -283,47 +284,46 @@ export class ArcherFx {
     if (s.id === 'rain_of_arrows') { // the charged lightning arrow strikes the floor (near, middle, far)
       const sh = r.hits[i].shape as { bias?: number }, cx = r.origin.x + a.x * (sh.bias ?? 200), cy = r.origin.y + a.y * (sh.bias ?? 200);
       const q = this.me(r), sx = q.x + sideOf(r) * 30, sy = q.y - q.z - 58, lv = { x: cx - sx, y: cy - 20 - sy }, L = Math.hypot(lv.x, lv.y) || 1;
-      this.spr({ name: 'arrow_storm', x: sx, y: sy, depth: TOP + 3, w: 170, angle: Math.atan2(lv.y, lv.x) * (180 / Math.PI), add: true, glow: 0.4, life: 110, mx: (u) => lv.x * u, my: (u) => lv.y * u, a: kf([0, 1], [1, 1]) });
+      this.spr({ name: 'elec_arrow', x: sx, y: sy, ox: 0.9, depth: TOP + 3, w: 190, angle: Math.atan2(lv.y, lv.x) * (180 / Math.PI), add: true, glow: 0.4, life: 110, mx: (u) => lv.x * u, my: (u) => lv.y * u, a: kf([0, 1], [1, 1]) });
       this.later(100, () => {
-        // the arrow stands in the floor, then the sky answers: a great bolt strikes it, and the floor round it stays charged
-        this.spr({ name: 'arrow_storm', x: cx, y: cy + 4, ox: 0.85, depth: cy + 2, w: 150, angle: lv.x >= 0 ? 62 : 118, flipY: lv.x < 0, add: true, glow: 0.4, life: 2000, a: (u) => (u > 0.8 ? (1 - u) * 5 : 1) * (0.75 + 0.25 * Math.sin(u * 60)) });
-        this.pop('burst_crit', cx, cy - 26, 150, { life: 220, tint: 0x9fe6ff });
+        // the arrow stands in the floor, then the sky answers: a great bolt strikes it, and the burnt ground round it stays charged
+        this.spr({ name: 'elec_arrow', x: cx, y: cy + 6, ox: 0.97, depth: cy + 2, w: 170, angle: lv.x >= 0 ? 58 : 122, flipY: lv.x < 0, add: true, glow: 0.4, life: 2000, a: (u) => (u > 0.8 ? (1 - u) * 5 : 1) * (0.75 + 0.25 * Math.sin(u * 60)) });
+        this.spr({ name: 'elec_burst', x: cx, y: cy - 30, depth: cy + 4, w: 200, add: true, life: 260, sx: kf([0, 0.4], [0.3, 1.1, out3]), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) });
         this.later(70, () => {
-          this.spr({ name: 'bolt_v', x: cx, y: cy + 8, oy: 0.97, depth: cy + 3, w: 170, h: 560, life: 320, add: true, glow: 0.6, sy: kf([0, 0.2], [0.12, 1.05, out3], [1, 1]), a: kf([0, 1], [0.4, 1], [1, 0, inQ]) });
-          this.floor('shock_ring', cx, cy, 230, 420, { add: true, tint: 0x9fe6ff, s: kf([0, 0.3], [1, 1.3, out3]), a: kf([0, 1], [1, 0, inQ]) });
+          this.spr({ name: 'strike', x: cx, y: cy + 10, oy: 0.97, depth: cy + 3, w: 230, h: 560, life: 360, add: true, glow: 0.5, sy: kf([0, 0.2], [0.12, 1.05, out3], [1, 1]), a: kf([0, 1], [0.4, 1], [1, 0, inQ]) });
+          this.floor('elec_ring', cx, cy, 240, 460, { add: true, s: kf([0, 0.3], [1, 1.3, out3]), a: kf([0, 1], [1, 0, inQ]) });
           if (r.own && i === 2) this.ctx.punch(0.02, 160);
         }, r);
-        this.floor('elec_floor', cx, cy, 190, 2100, { add: true, glow: 0.2, s: kf([0, 0.4], [0.1, 1.05, out3], [0.2, 1]), a: (u) => kf([0, 0], [0.06, 0.8], [0.8, 0.55], [1, 0])(u) * (0.8 + 0.2 * Math.sin(u * 45)) }); // the floor stays charged, flickering
-        this.floor('floor_cracks', cx, cy, 140, 2100, { tint: 0x7fdcff, a: kf([0, 0], [0.05, 0.85], [0.8, 0.6], [1, 0]) });
-        for (let k = 0; k < 12; k++) this.later(120 + k * 150, () => { const an = rnd(0, Math.PI * 2), rr = rnd(40, 95); this.bolt('arc_small', { x: cx, y: cy - 4 }, { x: cx + Math.cos(an) * rr, y: cy + Math.sin(an) * rr * 0.45 }, { thick: 24, life: 130 }); if (k % 3 === 0) this.pop('spark_cyan', cx + rnd(-50, 50), cy - rnd(10, 40), 40, { life: 220 }); });
-        for (let k = 0; k < 4; k++) { const an = rnd(0, Math.PI * 2); this.bolt('arc_small', { x: cx, y: cy - 4 }, { x: cx + Math.cos(an) * 90, y: cy + Math.sin(an) * 40 }, { thick: 34, delay: 70 + k * 40, life: 170 }); }
+        this.floor('elec_ground', cx, cy, 210, 2100, { add: false, glow: 0.35, s: kf([0, 0.5], [0.1, 1.05, out3], [0.2, 1]), a: (u) => kf([0, 0], [0.06, 1], [0.8, 0.85], [1, 0])(u) * (0.85 + 0.15 * Math.sin(u * 45)) }); // burnt ground, flickering
+        for (let k = 0; k < 7; k++) this.later(150 + k * 260, () => {
+          this.spr({ name: k % 2 ? 'ground_arcs' : 'elec_sparks', x: cx + rnd(-40, 40), y: cy + rnd(-10, 10) + 6, oy: 0.95, depth: cy + 3, w: k % 2 ? 160 : 120, add: true, life: 300, sy: kf([0, 0.5], [0.3, 1.05, out3]), a: kf([0, 1], [1, 0, inQ]) });
+        }, r);
         this.shake(r, i === 2 ? 200 : 110, i === 2 ? 0.006 : 0.003);
       }, r);
     }
-    if (s.id === 'arrow_storm' && r.place) { // one big shining arrow at a time drops straight down from high above onto the mark and blows up on the floor
-      const c = r.place, big = i % 3 === 2, fx = c.x + rnd(-70, 70), fy = c.y + rnd(-26, 26), H = 820, fall = 200, L = big ? 260 : 210;
-      this.spr({ name: 'arrow_streak', x: fx, y: fy - H, depth: fy + 1.5, w: big ? 340 : 280, ox: 1, angle: 90, add: true, glow: 0.35, life: fall + 80, my: (u) => H * inQ(Math.min(1, u * 1.4)), a: kf([0, 0], [0.15, 0.85], [0.7, 0.7], [1, 0]) });
-      this.spr({ name: 'arrow_heavy', x: fx, y: fy - H, ox: 0.95, depth: fy + 2, w: L, angle: 90, glow: 0.5, life: fall, my: (u) => H * inQ(u), a: kf([0, 0.7], [0.2, 1], [1, 1]) });
+    if (s.id === 'arrow_storm' && r.place) { // one big shining arrow at a time drops straight down from high above onto the mark and blows the ground up
+      const c = r.place, big = i % 3 === 2, fx = c.x + rnd(-70, 70), fy = c.y + rnd(-26, 26), H = 820, fall = 200, L = big ? 230 : 190;
+      this.spr({ name: 'fall_arrow', x: fx, y: fy - H, oy: 0.98, depth: fy + 2, w: L * 0.62, glow: 0.4, life: fall, my: (u) => H * inQ(u), sy: kf([0, 1.2], [1, 1]), a: kf([0, 0.6], [0.2, 1], [1, 1]) });
       this.later(fall, () => {
-        this.spr({ name: 'arrow_heavy', x: fx, y: fy + 6, ox: 0.82, depth: fy + 1, w: L, angle: 90, glow: 0.3, life: 1100, a: kf([0, 1], [0.7, 1], [1, 0]) }); // it stands in the floor a moment
-        this.pop('burst_heavy', fx, fy - 30, big ? 230 : 180, { life: 300 });
-        this.spr({ name: 'launch_beam', x: fx, y: fy + 6, oy: 0.97, depth: fy + 3, w: big ? 120 : 90, h: big ? 320 : 240, life: 320, add: true, glow: 0.3, sy: kf([0, 0.3], [0.25, 1.05, out3]), a: kf([0, 1], [1, 0, inQ]) });
-        this.floor('floor_cracks', fx, fy, big ? 190 : 140, 1300, { a: kf([0, 1], [0.6, 0.8], [1, 0]) });
-        this.floor('shock_ring', fx, fy, big ? 280 : 210, 460, { add: true, s: kf([0, 0.3], [1, 1.3, out3]), a: kf([0, 1], [1, 0, inQ]) });
-        this.spr({ name: 'dust', x: fx, y: fy + 4, oy: 0.85, depth: fy, w: big ? 200 : 160, life: 600, sx: kf([0, 0.5], [1, 1.4, out3]), a: kf([0, 0.85], [1, 0, inQ]) });
-        this.leaves(fx, fy - 20, big ? 12 : 7, 60, { up: 150, life: 800 });
-        this.shake(r, big ? 160 : 100, big ? 0.006 : 0.0035);
+        this.spr({ name: 'arrow_planted', x: fx, y: fy + 6, oy: 0.96, depth: fy + 1, w: big ? 150 : 120, glow: 0.2, life: 800, sy: kf([0, 0.6], [0.08, 1.05, out3], [0.2, 1]), a: kf([0, 1], [0.7, 1], [1, 0]) }); // it stands in the floor a moment
+        this.spr({ name: 'earth_burst', x: fx, y: fy + 8, oy: 0.97, depth: fy + 3, w: big ? 240 : 180, life: 380, sy: kf([0, 0.3], [0.25, 1.05, out3], [1, 1.15]), sx: kf([0, 0.6], [0.3, 1, out3]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
+        this.spr({ name: 'debris', x: fx, y: fy + 6, oy: 0.95, depth: fy + 4, w: big ? 220 : 160, life: 640, my: (u) => -30 * out(u), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
+        this.floor('crater', fx, fy, big ? 220 : 170, 1500, { a: kf([0, 0], [0.04, 1], [0.6, 0.85], [1, 0]) });
+        this.spr({ name: 'dust_roll', x: fx, y: fy + 10, oy: 0.9, depth: fy + 2, w: big ? 300 : 230, life: 700, sx: kf([0, 0.5], [1, 1.4, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+        if (big) { this.spr({ name: 'wind_dome', x: fx, y: fy + 8, oy: 0.95, depth: fy + 3.5, w: 280, add: true, life: 300, sx: kf([0, 0.3], [1, 1.25, out3]), sy: kf([0, 0.3], [1, 1.25, out3]), a: kf([0, 0.7], [1, 0, inQ]) }); }
+        this.leaves(fx, fy - 20, big ? 10 : 6, 60, { up: 150, life: 800 });
+        this.shake(r, big ? 170 : 100, big ? 0.007 : 0.0035);
       }, r);
     }
-    if (s.id === 'bow_haste') { // the arrow in the ground bursts: earth and green light throw the foe up
+    if (s.id === 'bow_haste') { // the arrow in the ground bursts: the earth blows up in green light and throws the foe up
       const sh = r.hits[i].shape as { bias?: number }, gx = r.origin.x + a.x * (sh.bias ?? 200), gy = r.origin.y + a.y * (sh.bias ?? 200);
-      this.pop('burst_heavy', gx, gy - 24, 150, { life: 300 });
-      this.spr({ name: 'launch_beam', x: gx, y: gy + 6, oy: 0.97, depth: gy + 3, w: 110, h: 320, life: 420, add: true, glow: 0.3, sy: kf([0, 0.2], [0.25, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) });
-      this.floor('floor_cracks', gx, gy, 170, 1100, { a: kf([0, 1], [0.7, 0.9], [1, 0]) });
-      this.spr({ name: 'dust', x: gx, y: gy + 4, oy: 0.85, depth: gy + 1, w: 180, life: 620, sx: kf([0, 0.4], [1, 1.4, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
-      this.floor('shock_ring', gx, gy, 170, 400, { add: true, s: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 1], [1, 0, inQ]) });
+      this.spr({ name: 'geyser', x: gx, y: gy + 8, oy: 0.97, depth: gy + 3, w: 190, glow: 0.3, life: 560, sy: kf([0, 0.2], [0.25, 1.1, out3], [1, 1.2]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
+      this.spr({ name: 'earth_burst', x: gx, y: gy + 8, oy: 0.97, depth: gy + 3.5, w: 230, life: 500, sy: kf([0, 0.3], [0.25, 1.05, out3]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
+      this.spr({ name: 'debris', x: gx, y: gy + 6, oy: 0.95, depth: gy + 4, w: 200, life: 640, my: (u) => -30 * out(u), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
+      this.floor('crater', gx, gy, 200, 1400, { a: kf([0, 0], [0.04, 1], [0.6, 0.85], [1, 0]) });
+      this.spr({ name: 'dust_roll', x: gx, y: gy + 10, oy: 0.9, depth: gy + 2, w: 260, life: 700, sx: kf([0, 0.5], [1, 1.4, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
       this.leaves(gx, gy - 20, 12, 50, { up: 160, life: 900 });
-      this.shake(r, 150, 0.005);
+      this.shake(r, 160, 0.006);
     }
     if (s.id === 'eagle_arrow' && i === 0) { /* the eagle sweep is scheduled from the cast */ }
     void o;

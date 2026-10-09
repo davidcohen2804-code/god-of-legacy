@@ -87,6 +87,8 @@ ARCHER_SHEETS = {
     'a7.png': grid(4, 2, ['bolt_v', 'bolt_h', 'storm_orb', 'arc_small', 'elec_floor', 'bolt_seg', 'storm_cloud', 'spark_cyan'], [440, 360, 240, 160, 380, 220, 300, 100]),
     'a8.png': grid(4, 1, ['hawk_up', 'hawk_down', 'hawk_dive', 'feather_burst'], [260, 260, 260, 240], h=512)
               + [('eagle_wide', (0, 530, 600, 990), 520, 'box'), ('eagle_head', (590, 530, 912, 960), 380, 'box'), ('wolf_head', (920, 512, 1200, 1024), 280), ('wolf', (1200, 512, 1536, 1024), 300)],
+    'a10.png': grid(4, 2, ['fall_arrow', 'arrow_planted', 'earth_burst', 'debris', 'crater', 'geyser', 'dust_roll', 'wind_dome'], [440, 420, 420, 340, 440, 440, 400, 400]),
+    'a11.png': grid(4, 2, ['elec_rise_arrow', 'strike', 'elec_burst', 'elec_arrow', 'elec_ground', 'ground_arcs', 'elec_sparks', 'elec_ring'], [420, 460, 380, 360, 420, 380, 380, 420]),
     'a9.png': [('bow', (0, 40, 390, 480), 300, 'box')] + grid(4, 2, [None, 'bow_drawn', 'aura_gold', 'aura_green', 'emblem', 'pillar', 'sparkles', 'rain_ring'], [300, 300, 300, 300, 240, 380, 200, 300]),
 }
 PROFILES = {'samurai': (G + 'tools/skills/gpt/kit/', G + 'public/assets/final/skills/samurai/kit/', None),
