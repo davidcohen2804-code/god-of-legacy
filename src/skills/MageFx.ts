@@ -17,7 +17,8 @@ export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
   'mfx-storm': ['arcane_lightning.png', 384, 384, 16],
   'mfx-nova': ['frost_nova.png', 448, 448, 16],
   'mfx-bolt': ['arcane_bolt.png', 384, 384, 16],
-  'mfx-clock': ['time_collapse.png', 448, 448, 16], // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
+  'mfx-clock': ['time_collapse.png', 448, 448, 16],
+  'mfx-sfield': ['storm_field.png', 320, 410, 16], // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
 };
 const TOP = 100000, GROUND = 2, SQUASH = 0.42;
 const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
@@ -360,7 +361,7 @@ export class MageFx {
       case 'astral_burst': this.starHand(r); break;
       case 'frost_nova': this.novaCharge(r); break;
       case 'lightning_chain': this.stormCharge(r); break;
-      case 'storm_field': this.floor('storm_disc', r.place?.x ?? me.x, r.place?.y ?? me.y, 280, T.startup + T.active + 300, { add: true, glow: 0.6, spin: 20, run: r, a: kf([0, 0], [0.15, 0.5], [0.85, 0.9], [1, 0]), s: kf([0, 0.6], [0.2, 1, out3]) }); break;
+      case 'storm_field': if (!this.ctx.scene.textures.exists('mfx-sfield')) this.floor('storm_disc', r.place?.x ?? me.x, r.place?.y ?? me.y, 280, T.startup + T.active + 300, { add: true, glow: 0.6, spin: 20, run: r, a: kf([0, 0], [0.15, 0.5], [0.85, 0.9], [1, 0]), s: kf([0, 0.6], [0.2, 1, out3]) }); break;
       case 'time_collapse': this.timeCollapse(r); break;
       case 'blink': this.blinkOut(me, side); break;
       case 'glacial_spikes': this.drift(['snowflake'], me.x + side * 20, me.y - me.z - 30, 5, 24, { life: T.startup + 200, up: 40, size: [10, 18], add: true }); break;
@@ -393,7 +394,7 @@ export class MageFx {
       case 'levity_field': if (r.place) this.levity(r.place, 2500); break;
       case 'arcane_ward': this.ward(r.attackerId, 8000); break;
       case 'elemental_ascension': this.aura(r.attackerId, 'ascension', 20000); this.ctx.punch(0.006, 200); break;
-      case 'storm_field': if (r.place) this.spr({ name: 'storm_orb', x: r.place.x, y: r.place.y - 60, depth: r.place.y + 2, w: 90, life: T.active, add: true, glow: 0.7, run: r, sx: (u) => 0.9 + 0.15 * Math.sin(u * 30), sy: (u) => 0.9 + 0.15 * Math.cos(u * 27), a: kf([0, 0], [0.05, 1], [0.92, 1], [1, 0]), rot: (u) => 900 * u }); break;
+      case 'storm_field': if (r.place && this.ctx.scene.textures.exists('mfx-sfield')) { this.sheet('mfx-sfield', r.place.x, r.place.y, 420, T.active + 200, { frames: [0, 8], loop: 70, oy: 0.72, sy: 1.28, depth: GROUND + 4, run: r }); this.ctx.darken(T.active, 0.25); } else if (r.place) this.spr({ name: 'storm_orb', x: r.place.x, y: r.place.y - 60, depth: r.place.y + 2, w: 90, life: T.active, add: true, glow: 0.7, run: r, sx: (u) => 0.9 + 0.15 * Math.sin(u * 30), sy: (u) => 0.9 + 0.15 * Math.cos(u * 27), a: kf([0, 0], [0.05, 1], [0.92, 1], [1, 0]), rot: (u) => 900 * u }); break;
     }
   }
 
@@ -401,7 +402,12 @@ export class MageFx {
   hit(r: CastRun, i: number, o: V3): void {
     if (!this.ready) return;
     const s = r.skill, h = r.hits[i];
-    if (s.id === 'storm_field' && r.place) { // a bolt out of the sky on every pulse
+    if (s.id === 'storm_field' && r.place && this.ctx.scene.textures.exists('mfx-sfield')) { // the painted strike on every pulse, the burst on the last
+      const p = r.place, last = i === r.hits.length - 1;
+      this.sheet('mfx-sfield', p.x, p.y, 420, last ? 520 : 320, { frames: last ? [12, 4] : [8, 4], oy: 0.72, sy: 1.28, depth: p.y + 4 });
+      this.warp.ring(p.x, p.y, { r1: last ? 340 : 220, life: last ? 460 : 300, s: last ? 34 : 18, width: 26, squash: SQUASH });
+      this.shake(last ? 200 : 90, last ? 0.01 : 0.004); if (last) { this.ctx.hitStop?.(80); this.ctx.punch(0.02, 200); }
+    } else if (s.id === 'storm_field' && r.place) { // a bolt out of the sky on every pulse
       const p = r.place;
       for (let k = 0; k < 3; k++) this.later(k * 60, () => { const x = p.x + rnd(-90, 90), y = p.y + rnd(-30, 30); this.bolt('bolt_diag', { x: x - 60, y: y - 260 }, { x, y: y - 10 }, { thick: 70, life: 200 }); this.pop('bolt_impact', x, y - 20, 90, { depth: y + 3, life: 200 }); }, r);
       if (i === 3) { this.ripple(p.x, p.y - 4, 300, ARCANE); this.ctx.punch(0.005, 160); }
