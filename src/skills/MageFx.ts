@@ -20,7 +20,8 @@ export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
   'mfx-clock': ['time_collapse.png', 448, 448, 16],
   'mfx-sfield': ['storm_field.png', 320, 410, 16],
   'mfx-spikes': ['glacial_spikes.png', 384, 384, 16],
-  'mfx-wave': ['arcane_wave.png', 384, 384, 16], // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
+  'mfx-wave': ['arcane_wave.png', 384, 384, 16],
+  'mfx-blink': ['blink.png', 384, 384, 16], // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
 };
 const TOP = 100000, GROUND = 2, SQUASH = 0.42;
 const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
@@ -639,11 +640,13 @@ export class MageFx {
   }
 
   private blinkOut(me: V3, side: number): void {
+    if (this.ctx.scene.textures.exists('mfx-blink')) { this.sheet('mfx-blink', me.x, me.y - me.z - 52, 300, 300, { frames: [0, 8], depth: me.y + 3 }); this.warp.well(me.x, me.y - me.z - 50, { r: 120, life: 220, s: 24, twist: 22 * side }); return; }
     this.warp.well(me.x, me.y - me.z - 50, { r: 110, life: 200, s: 22, twist: 20 * side }); this.star(me.x, me.y - me.z - 50, 180, 200, { rays: 4 });
     this.spr({ name: 'blink_out', x: me.x, y: me.y - me.z - 50, depth: me.y + 2, w: 90, h: 130, life: 260, add: true, glow: 0.5, flipX: side < 0, a: kf([0, 1], [1, 0]), sx: kf([0, 1], [1, 0.3, inQ]) });
     this.pop('ghost_haze', me.x, me.y - me.z - 50, 100, { life: 300, tint: ARCANE });
   }
   private blinkIn(me: V3, side: number): void {
+    if (this.ctx.scene.textures.exists('mfx-blink')) { this.sheet('mfx-blink', me.x, me.y - me.z - 52, 300, 360, { frames: [8, 8], depth: me.y + 3 }); this.warp.ring(me.x, me.y - me.z - 50, { r1: 150, life: 260, s: 16, width: 18 }); void side; return; }
     this.warp.ring(me.x, me.y - me.z - 50, { r1: 140, life: 260, s: 16, width: 18 }); this.star(me.x, me.y - me.z - 50, 200, 240, { rays: 4 });
     this.spr({ name: 'blink_in', x: me.x, y: me.y - me.z - 50, depth: me.y + 2, w: 100, h: 130, life: 300, add: true, glow: 0.5, flipX: side < 0, sx: kf([0, 0.2], [0.3, 1, out3]), a: kf([0, 1], [0.6, 1], [1, 0]) });
     this.floor('sig_disk', me.x, me.y, 90, 380, { add: true, a: kf([0, 1], [1, 0]), s: kf([0, 0.5], [1, 1.2, out3]) });
