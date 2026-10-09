@@ -2235,7 +2235,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (run.skill.id === 'eagle_arrow' && run.phase !== 'startup') return; // Eagle Tide: turned while charging, fixed once released
     const u = unit(inp.moveX, inp.moveY), face = this.dir === 'left' || run.aim.x < -0.01 ? -1 : 1;
     // Spirit Bow: level to a side, up at 45°, or straight up (never down)
-    const a = run.skill.id === 'piercing_arrow' ? (u.y < -0.3 && Math.abs(u.x) < 0.38 ? { x: 0, y: -1 } : u.y < -0.3 ? unit(Math.sign(u.x), -1) : { x: Math.abs(u.x) > 0.2 ? Math.sign(u.x) : face, y: 0 }) : sideAim(u.x, u.y, face);
+    const a = run.skill.id === 'piercing_arrow' ? (u.y < -0.3 ? { x: 0, y: -1 } : { x: Math.abs(u.x) > 0.2 ? Math.sign(u.x) : face, y: 0 }) : sideAim(u.x, u.y, face); // Spirit Bow: left, right or straight up (never a corner)
     if (Math.abs(a.x - run.aim.x) < 1e-3 && Math.abs(a.y - run.aim.y) < 1e-3) return;
     run.aim = a; this.aim = a; if (Math.abs(a.x) > 0.01) this.dir = dirOf(a.x, 0, this.dir);
     this.pvp?.sendRelease({ castId: run.castId, at: -1, ax: Math.round(a.x * 1000), ay: Math.round(a.y * 1000) });
