@@ -179,8 +179,8 @@ const warrior: FinalSkill[] = [
   S({
     id: 'iron_grip', cls: 'warrior', slot: 16, name: 'Iron Grip', roles: ['opener', 'extender'], targeting: 'mouseDir',
     startup: 160, active: 560, recovery: 300, cooldown: 6000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, armor: [0, 720],
-    hits: [H(0, 8, { kind: 'sector', range: 78, angle: 90 }, { stun: 800, grab: true }, { reachUp: 140 }),
-      H(440, 24, { kind: 'circle', radius: 110, at: 'aimBias', bias: 60 }, { stun: 440, launch: 100, juggleCost: 20 }, { reachUp: 220, heavy: true })],
+    hits: [H(0, 6, { kind: 'sector', range: 78, angle: 90 }, { stun: 800, grab: true }, { reachUp: 140 }),
+      H(440, 16, { kind: 'circle', radius: 110, at: 'aimBias', bias: 60 }, { stun: 440, launch: 100, juggleCost: 20 }, { reachUp: 220, heavy: true })],
     cancelOnHit: ['rising_slash', 'leap_crash', 'sky_breaker', 'wave_slash', 'whirlwind'],
     description: 'Seize the foe in front of you with a hand of golden light, hoist it high over your head and smash it into the floor before you; it bounces up, open for the next strike.',
     relations: ['Grab', 'Bounce → combo'],
@@ -197,7 +197,7 @@ const warrior: FinalSkill[] = [
     id: 'sky_breaker', cls: 'warrior', slot: 18, name: 'Sky Breaker', roles: ['airExtender', 'chase'], targeting: 'mouseTarget',
     startup: 110, active: 620, recovery: 300, cooldown: 6000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 140, lift: 170, crash: true },
-    hits: [H(60, 7, { kind: 'circle', radius: 90 }, { stun: 380, float: true, juggleCost: 4 }, { reachUp: 240 }),
+    hits: [H(60, 7, { kind: 'circle', radius: 90 }, { stun: 380, launch: 150, juggleCost: 6 }, { reachUp: 240 }), // pops the foe up to rise with him
       H(170, 7, { kind: 'circle', radius: 90 }, { stun: 380, float: true, juggleCost: 4 }, { reachUp: 240 }),
       H(280, 8, { kind: 'circle', radius: 95 }, { stun: 380, float: true, juggleCost: 4 }, { reachUp: 240 }),
       H(560, 18, { kind: 'circle', radius: 120 }, { stun: 420, slam: true }, { reachUp: 260, heavy: true })],
@@ -207,16 +207,16 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'earthsplitter', cls: 'warrior', slot: 19, name: 'Earthsplitter', roles: ['finisher', 'launcher'], targeting: 'mouseCone',
-    startup: 1200, active: 320, recovery: 380, cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1500],
-    // hold the key: the sword raised overhead charges (160..1200 ms); the level picks how far and wide the fissure tears
-    hits: [H(0, 22, { kind: 'sector', range: 200, angle: 70 }, { stun: 420, launch: 90, juggleCost: 15 }, { reachUp: 120, heavy: true })],
+    startup: 800, active: 320, recovery: 380, cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1100],
+    // hold the key: the sword raised overhead charges (160..800 ms); the level picks how far and wide the fissure tears
+    hits: [H(0, 16, { kind: 'sector', range: 200, angle: 70 }, { stun: 420, launch: 90, juggleCost: 15 }, { reachUp: 120, heavy: true })],
     charge: { minMs: 160, levels: [
-      { at: 0, hits: [H(0, 22, { kind: 'sector', range: 200, angle: 70 }, { stun: 420, launch: 90, juggleCost: 15 }, { reachUp: 120, heavy: true })] },
-      { at: 500, hits: [H(0, 34, { kind: 'sector', range: 280, angle: 80 }, { stun: 460, launch: 130, juggleCost: 15 }, { reachUp: 140, heavy: true }),
-        H(150, 10, { kind: 'sector', range: 300, angle: 90 }, { stun: 380, float: true }, { reachUp: 220 })] },
-      { at: 1000, hits: [H(0, 48, { kind: 'sector', range: 360, angle: 90 }, { stun: 500, launch: 170, juggleCost: 10 }, { reachUp: 160, heavy: true }),
-        H(150, 12, { kind: 'sector', range: 380, angle: 95 }, { stun: 400, float: true }, { reachUp: 260 }),
-        H(300, 12, { kind: 'sector', range: 380, angle: 95 }, { stun: 400, float: true }, { reachUp: 300 })] },
+      { at: 0, hits: [H(0, 16, { kind: 'sector', range: 200, angle: 70 }, { stun: 420, launch: 90, juggleCost: 15 }, { reachUp: 120, heavy: true })] },
+      { at: 350, hits: [H(0, 22, { kind: 'sector', range: 280, angle: 80 }, { stun: 460, launch: 130, juggleCost: 15 }, { reachUp: 140, heavy: true }),
+        H(150, 8, { kind: 'sector', range: 300, angle: 90 }, { stun: 380, float: true }, { reachUp: 220 })] },
+      { at: 700, hits: [H(0, 28, { kind: 'sector', range: 360, angle: 90 }, { stun: 500, launch: 170, juggleCost: 10 }, { reachUp: 160, heavy: true }),
+        H(150, 8, { kind: 'sector', range: 380, angle: 95 }, { stun: 400, float: true }, { reachUp: 260 }),
+        H(300, 8, { kind: 'sector', range: 380, angle: 95 }, { stun: 400, float: true }, { reachUp: 300 })] },
     ] },
     cancelOnHit: ['sky_breaker', 'blade_storm', 'titans_verdict'],
     description: 'Hold the key: you raise your sword overhead as the ground trembles, in three steps. Release: you split the earth — a wide fissure tears across the floor in front of you and pillars of light burst out of it, launching every foe; the longer you held, the farther, wider and higher.',
