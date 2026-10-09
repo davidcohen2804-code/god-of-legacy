@@ -19,7 +19,8 @@ export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
   'mfx-bolt': ['arcane_bolt.png', 384, 384, 16],
   'mfx-clock': ['time_collapse.png', 448, 448, 16],
   'mfx-sfield': ['storm_field.png', 320, 410, 16],
-  'mfx-spikes': ['glacial_spikes.png', 384, 384, 16], // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
+  'mfx-spikes': ['glacial_spikes.png', 384, 384, 16],
+  'mfx-wave': ['arcane_wave.png', 384, 384, 16], // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
 };
 const TOP = 100000, GROUND = 2, SQUASH = 0.42;
 const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
@@ -534,6 +535,11 @@ export class MageFx {
   /** Arcane Wave: a wide crescent sweeps out along the floor. */
   private wave(r: CastRun): void {
     const o = this.me(r), side = sideOf(r), ang = screenAng(r.aim.x, r.aim.y), y = o.y - o.z - 46;
+    if (this.ctx.scene.textures.exists('mfx-wave')) {
+      this.sheet('mfx-wave', o.x + r.aim.x * 10, o.y + r.aim.y * 10 - o.z, 420, 560, { ox: side < 0 ? 0.88 : 0.12, oy: 0.75, flipX: side < 0, angle: side < 0 ? ang - 180 : ang, depth: o.y + 3 });
+      this.warp.ring(o.x + r.aim.x * 200, o.y + r.aim.y * 140, { r1: 160, life: 300, s: 16, width: 20, squash: SQUASH, });
+      return;
+    }
     for (const [dy, k, d] of [[0, 1, 0], [-18, 0.75, 40], [18, 0.75, 40]] as const)
       this.spr({ name: 'wave_arc', x: o.x + r.aim.x * 30, y: y + dy, depth: TOP + 3, w: 120 * k, h: 170 * k, angle: side < 0 ? ang - 180 : ang, flipX: side < 0, add: true, glow: 0.4, life: 300, delay: d,
         mx: (u) => r.aim.x * 210 * out(u), my: (u) => r.aim.y * 110 * out(u), sx: kf([0, 0.5], [1, 1.2]), sy: kf([0, 0.7], [1, 1.3]), a: kf([0, 0.95], [0.6, 0.8], [1, 0, inQ]) });
