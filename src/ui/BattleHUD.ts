@@ -22,6 +22,10 @@ const ARENA_BREAK_MS = ARENA.breakCdMs;
 const VS_NAME_W = 440;
 /** The VS emblem (steel, gold and fire). */
 const VS_EMBLEM = 'assets/hud/vs_emblem.webp';
+/** The big calls drawn as art in the VS emblem's style (assets/hud/calls/<id>.webp): their height on screen (design px).
+ *  A call with no art yet is lettered (word()). */
+const CALL_ART: Record<string, number> = {};
+const callUrl = (id: string) => `assets/hud/calls/${id}.webp`;
 /** VS with the heroes' art: the widest a name may be under its hero. */
 const VS2_NAME_W = 640;
 /** Room around a VS name for its glow (the box clips, for the ellipsis). */
@@ -135,6 +139,14 @@ const CSS = `
 @keyframes golShine{to{background-position:-60% 0}}
 .gol-bt .b-call.in .b-w{animation:golIn .45s cubic-bezier(.2,.9,.25,1.12) both}
 .gol-bt .b-call.slam .b-w{animation:golSlam .4s cubic-bezier(.3,1.35,.5,1) both}
+.gol-bt .b-ca{position:relative;flex:none;filter:drop-shadow(0 14px 26px rgba(0,0,0,.65))}
+.gol-bt .b-ca img{display:block;height:100%;width:auto}
+.gol-bt .b-ca::after{content:'';position:absolute;inset:0;-webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat;
+  background:linear-gradient(100deg,rgba(255,255,255,0) 42%,rgba(255,255,255,.75) 50%,rgba(255,255,255,0) 58%) no-repeat;background-size:320% 100%;background-position:160% 0;
+  mix-blend-mode:screen;animation:golShine .9s ease-out .3s forwards}
+.gol-bt .b-call.in .b-ca{animation:golIn .45s cubic-bezier(.2,.9,.25,1.12) both}
+.gol-bt .b-call.slam .b-ca{animation:golSlam .4s cubic-bezier(.3,1.35,.5,1) both}
+.gol-bt .b-sub .b-ca{animation:none}
 .gol-bt .b-call.fight .b-w{transform:skewX(-8deg)}
 .gol-bt .b-call.fight.slam .b-w{animation-name:golSlamSkew}
 @keyframes golIn{0%{opacity:0;transform:scale(1.9)}100%{opacity:1;transform:scale(1)}}
@@ -217,6 +229,14 @@ const CSS = `
 @keyframes golVs2OutR{to{transform:translateX(100%)}}
 .gol-bt .b-vs2.out .b-dim,.gol-bt .b-vs2.out .b-seam,.gol-bt .b-vs2.out .b-mid,.gol-bt .b-vs2.out .b-stage{animation:golFadeOut .35s ease-in forwards}
 .gol-bt .b-pf .b-img.m{transform:scaleX(-1)}
+/* the battle: your combo count in the fight's lettering — big italic metal digits, HITS, the route's name on a chip */
+.gol-hud.battle .combo .n{border-radius:0;border:0;box-shadow:none;padding:0 16px;gap:10px;font:900 italic 78px/1 ${DISPLAY};
+  background:linear-gradient(180deg,#ffffff 0%,#fff6d0 40%,#ffc93a 56%,#f08a0a 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 3px 0 #2b1404) drop-shadow(0 0 16px rgba(255,170,40,.5))}
+.gol-hud.battle .combo .n small{font:800 italic 28px/1 ${DISPLAY};letter-spacing:2px;color:transparent}
+.gol-hud.battle .combo .l{font:700 italic 13px/24px ${LABEL};letter-spacing:2px;text-transform:uppercase;color:#0b0d12;background:#ffd34c;padding:0 16px;
+  clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);text-shadow:none}
+.gol-hud.battle .combo .l:empty{display:none}
 /* the end of the match */
 .gol-bt .b-res{position:absolute;left:0;top:0;width:1920px;height:1080px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;pointer-events:auto;
   background:radial-gradient(ellipse at 50% 46%,rgba(4,7,14,.2),rgba(4,7,14,.74));animation:golFade .45s ease-out both}
@@ -304,7 +324,7 @@ export class BattleHUD {
   }
 
   setFighters(l: Fighter, r: Fighter): void {
-    this.prewarm([VS_EMBLEM, ...[l, r].flatMap((f) => (f.vs ? [f.vs.url, ...(f.vs.win ? [f.vs.win] : [])] : []))]);
+    this.prewarm([VS_EMBLEM, ...Object.keys(CALL_ART).map(callUrl), ...[l, r].flatMap((f) => (f.vs ? [f.vs.url, ...(f.vs.win ? [f.vs.win] : [])] : []))]);
     for (const [s, f] of [['l', l], ['r', r]] as const) {
       const e = this.sides[s];
       e.name.textContent = f.name; e.name.title = f.name; e.cls.textContent = f.cls;
@@ -424,7 +444,7 @@ export class BattleHUD {
     this.clearCalls();
     const c = this.el('div', 'b-call in', this.calls);
     this.el('div', 'b-streak', c);
-    this.word(c, final ? 'FINAL ROUND' : `ROUND ${n}`, 'gold', final ? 128 : 150);
+    if (!this.art(c, final ? 'final' : `round${n}`)) this.word(c, final ? 'FINAL ROUND' : `ROUND ${n}`, 'gold', final ? 128 : 150);
     this.later(() => c.classList.add('out'), Math.max(300, ms - 320));
     this.later(() => c.remove(), ms);
   }
@@ -434,7 +454,7 @@ export class BattleHUD {
     this.clearCalls();
     const c = this.el('div', 'b-call slam fight', this.calls);
     this.burst(c, 'fire'); this.sparks(c, '#ffb43a', 14);
-    this.word(c, 'FIGHT!', 'fire', 220);
+    if (!this.art(c, 'fight')) this.word(c, 'FIGHT!', 'fire', 220);
     this.shake();
     this.later(() => c.classList.add('out'), 820);
     this.later(() => c.remove(), 1150);
@@ -448,8 +468,8 @@ export class BattleHUD {
     if (big) { this.burst(c, 'blood'); this.sparks(c, '#ff5a3a', 16); this.shake(); }
     else this.el('div', 'b-streak', c);
     const [text, metal, size]: [string, Metal, number] = kind === 'ko' ? ['K.O.', 'blood', 260] : kind === 'double' ? ['DOUBLE K.O.', 'blood', 150] : kind === 'time' ? ['TIME', 'steel', 210] : ['DRAW', 'steel', 210];
-    this.word(c, text, metal, size);
-    if (perfect) this.el('div', 'b-sub', c).textContent = 'PERFECT';
+    if (!this.art(c, kind)) this.word(c, text, metal, size);
+    if (perfect) { const p = this.el('div', 'b-sub', c); if (!this.art(p, 'perfect')) p.textContent = 'PERFECT'; }
     this.later(() => c.classList.add('out'), Math.max(400, hold - 330));
     this.later(() => c.remove(), hold);
   }
@@ -467,7 +487,7 @@ export class BattleHUD {
       img.src = winner.vs.win ?? winner.vs.url; img.alt = ''; img.draggable = false;
     }
     const c = this.el('div', 'b-call slam', r);
-    this.word(c, o.title, o.title === 'VICTORY' ? 'gold' : o.title === 'DEFEAT' ? 'blood' : 'steel', 168);
+    if (!this.art(c, o.title.toLowerCase())) this.word(c, o.title, o.title === 'VICTORY' ? 'gold' : o.title === 'DEFEAT' ? 'blood' : 'steel', 168);
     if (o.title === 'VICTORY') this.sparks(c, '#ffd25a', 12);
     const card = this.el('div', 'b-card gl-panel', r);
     const sc = this.el('div', 'b-sc', card);
@@ -511,6 +531,16 @@ export class BattleHUD {
   destroy(): void { this.clearCalls(); this.root.remove(); this.cache.clear(); }
 
   // ------------------------------------------------------------------ pieces
+
+  /** A call drawn as art (CALL_ART), with a sweep of light across its letters; false: it has none yet. */
+  private art(parent: HTMLElement, id: string): boolean {
+    const h = CALL_ART[id];
+    if (!h) return false;
+    const a = this.el('div', 'b-ca', parent), img = this.el('img', '', a) as HTMLImageElement;
+    a.style.height = `${h}px`; a.style.setProperty('--m', `url("${callUrl(id)}")`);
+    img.src = callUrl(id); img.alt = id.toUpperCase(); img.draggable = false;
+    return true;
+  }
 
   /** A word in metal lettering (fill gradient, thick dark outline, glow, a sweep of light). */
   private word(parent: HTMLElement, text: string, metal: Metal, px: number): HTMLElement {

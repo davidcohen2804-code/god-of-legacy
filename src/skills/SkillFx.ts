@@ -824,10 +824,14 @@ export class SkillFx {
   }
 
   /** DFO-style callout above a target (COUNTER!! / BACK ATTACK!!). */
+  /** Battle (the arena's 1v1): the callouts in the fight's own lettering (heavy italic, Tekken-style) instead of the world's. */
+  battleLook = false;
   callout(at: V3, text: string, color: string, row = 0): void {
-    const t = this.scene.add.text(at.x, at.y - at.z - 120 - this.lift - row * 30, text, {
-      fontFamily: 'Cinzel, Georgia, serif', fontStyle: 'bold italic', fontSize: '30px', color, stroke: '#1a0602', strokeThickness: 6, resolution: 2,
-    }).setOrigin(0.5).setDepth(TOP + 30).setScale(1.6).setAlpha(0);
+    const t = this.scene.add.text(at.x, at.y - at.z - 120 - this.lift - row * 30, text, this.battleLook
+      ? { fontFamily: "'Exo 2', 'Segoe UI', sans-serif", fontStyle: 'italic 900', fontSize: '32px', color, stroke: '#05070c', strokeThickness: 7, resolution: 2 }
+      : { fontFamily: 'Cinzel, Georgia, serif', fontStyle: 'bold italic', fontSize: '30px', color, stroke: '#1a0602', strokeThickness: 6, resolution: 2 },
+    ).setOrigin(0.5).setDepth(TOP + 30).setScale(1.6).setAlpha(0);
+    if (this.battleLook) t.setShadow(0, 3, 'rgba(0,0,0,0.55)', 0, true, true);
     this.scene.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 110, ease: 'Back.easeOut' });
     this.scene.tweens.add({ targets: t, y: t.y - 26, alpha: 0, delay: 520, duration: 260, onComplete: () => t.destroy() });
   }
