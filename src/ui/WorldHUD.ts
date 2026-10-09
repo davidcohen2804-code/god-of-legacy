@@ -105,10 +105,11 @@ const CSS = `
 .gol-hud .gold img{width:26px;height:26px}
 .gol-hud .camc{position:absolute;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 6px;border-radius:14px;pointer-events:auto}
 .gol-hud .camc.pvp{left:auto!important;top:auto!important;right:${1920 - 1846 + 12}px!important;bottom:${1080 - 1006 - 58 + 10}px!important;flex-direction:row;padding:6px 8px}
-.gol-hud .camc.pvp .cl{margin:0 4px 0 2px}
+.gol-hud .camc.pvp .cl{display:none}
 .gol-hud .camc.pvp .sep{width:1px;height:22px;margin:0 3px}
 .gol-hud .camc .cl{font:700 9.5px/12px var(--gl-body);letter-spacing:1.4px;color:#c9ae78;margin-bottom:2px}
 .gol-hud .camc .sep{width:22px;height:1px;background:var(--gl-line2);margin:3px 0}
+.gol-hud .camc .pv{font:700 11px/14px var(--gl-body);color:var(--gl-text);font-variant-numeric:tabular-nums;min-width:34px;text-align:center;padding:1px 0}
 .gol-hud .camc button{width:34px;height:34px;padding:0;border-radius:10px;border:1px solid var(--gl-line2);background:rgba(255,255,255,.04);color:var(--gl-text2);
   cursor:pointer;display:grid;place-items:center;transition:background 120ms,border-color 120ms,color 120ms,transform 100ms}
 .gol-hud .camc button:hover{background:var(--gl-goldsoft);border-color:var(--gl-goldline);color:var(--gl-gold2)}
@@ -194,8 +195,15 @@ const CSS = `
 .gol-hud .menu button .gl-key{min-width:26px}
 /* battle mode (arena 1v1): the fight's own HUD across the top takes over — no card, target, map, panels pills or EXP */
 .gol-hud.battle .card,.gol-hud.battle .target,.gol-hud.battle .tfx,.gol-hud.battle .mm,.gol-hud.battle .region,.gol-hud.battle .menu,
-.gol-hud.battle .room,.gol-hud.battle .gol-qt,.gol-hud.battle .xpw,.gol-hud.battle .camc,.gol-hud.battle .gol-chat{display:none!important}
+.gol-hud.battle .room,.gol-hud.battle .gol-qt,.gol-hud.battle .xpw,.gol-hud.battle .gol-chat{display:none!important}
+/* the camera buttons in a fight: one column at the right edge, over the settings button */
+.gol-hud.battle .camc{left:auto!important;top:auto!important;right:22px!important;bottom:84px!important;flex-direction:column;padding:8px 6px}
+.gol-hud.battle .camc .cl{display:block;margin:0 0 2px}
+.gol-hud.battle .camc .sep{width:22px;height:1px;margin:3px 0}
 `;
+
+/** A camera button: zoom in / out, view up / down, the camera higher / lower on its arc (its pitch), reset. */
+export type CamStep = 'in' | 'out' | 'up' | 'down' | 'higher' | 'lower' | 'reset';
 
 interface Bar { root: HTMLDivElement; fill: HTMLDivElement; val?: HTMLSpanElement; w: number; last: string }
 interface SlotEl { btn: HTMLButtonElement; icon: HTMLImageElement; cd: HTMLDivElement; last: string; slot?: HudSlot }
@@ -210,7 +218,7 @@ export interface WorldHUDOptions {
   /** Gear menu: open the Key Settings window. */
   onKeys?: () => void;
   /** The camera buttons beside the minimap. */
-  onCam?: (what: 'in' | 'out' | 'up' | 'down' | 'reset') => void;
+  onCam?: (what: CamStep) => void;
   /** A buff right-clicked (one that can be ended early). */
   onCancelBuff?: (id: string) => void;
   /** Click on a potion (0 HP, 1 MP). */
@@ -381,7 +389,7 @@ export class WorldHUD {
     // the camera's buttons: zoom in / out, view up / down, reset — a slim column left of the minimap (held: repeats)
     const cc = this.div('camc gl-panel', this.root); cc.style.right = `${1920 - (G.menu.right - G.menu.w - 10)}px`; cc.style.bottom = `${1080 - G.menu.bottom}px`;   // left of the panels' pills, bottom right cc.setAttribute('aria-label', 'Camera'); this.els.camc = cc;
     this.div('cl', cc).textContent = 'CAM';
-    const btn = (what: 'in' | 'out' | 'up' | 'down' | 'reset', icon: string, title: string) => {
+    const btn = (what: CamStep, icon: string, title: string) => {
       const b = document.createElement('button'); b.type = 'button'; b.title = title; b.setAttribute('aria-label', title); b.style.setProperty('--i', icon);
       b.addEventListener('mousedown', (e) => e.preventDefault());
       let rep = 0; const go = () => this.opts.onCam?.(what);
@@ -393,9 +401,16 @@ export class WorldHUD {
     this.div('sep', cc);
     btn('up', ICONS.up, 'View up (PageUp)'); btn('down', ICONS.down, 'View down (PageDown)');
     this.div('sep', cc);
+    btn('higher', ICONS.tiltUp, 'Camera higher: look down more (Insert)');
+    const pv = this.div('pv', cc); pv.title = 'Camera angle (0° eye level, 90° straight down)'; this.els.pitch = pv;
+    btn('lower', ICONS.tiltDown, 'Camera lower: look across more (Delete)');
+    this.div('sep', cc);
     btn('reset', ICONS.rotate, 'Reset camera (Home)');
     this.placeDock(0);
   }
+
+  /** The camera's angle on its arc (the camera buttons' readout). */
+  setPitch(deg: number): void { if (this.els.pitch) this.els.pitch.textContent = `${deg}°`; }
 
   setPassives(list: { id: string; name: string; iconUrl: string; owned: boolean; info: string }[]): void {
     const box = this.els.passives, A = DK.pas;

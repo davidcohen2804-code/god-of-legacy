@@ -85,6 +85,7 @@ import { DeathFx, preloadDeathFx } from '../game/DeathFx';
 import { SkillBook } from '../ui/SkillBook';
 import { CosmeticPanel } from '../ui/CosmeticPanel';
 import { preloadPanelArt } from '../ui/PreviewStage';
+import { CameraPitch } from '../world/CameraPitch';
 import { addMotes, preloadLife } from '../ui/PresentationLife';
 /** The panels' keys (Key Settings) for the HUD's menu pills and gear menu. */
 const menuKeys = (b: Record<BindAction, string>) => ({ K: keyLabel(b.book), I: keyLabel(b.bag), O: keyLabel(b.shop), J: keyLabel(b.quests), P: keyLabel(b.party), U: keyLabel(b.stats) });
@@ -302,6 +303,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** The arena's camera, by the player: zoom (wheel / the camera buttons) and height (PageUp / PageDown), Home resets. */
   private arenaZoom = 1;
   private arenaLift = 0;
+  /** The camera's angle on its arc, by the player (the camera buttons, Insert / Delete; Home resets): in the world and the arena. */
+  private pitch?: CameraPitch;
   private arenaCam(what: 'in' | 'out' | 'up' | 'down' | 'reset'): void {
     if (what === 'in' || what === 'out') this.arenaZoom = Phaser.Math.Clamp(this.arenaZoom * (what === 'out' ? 0.93 : 1 / 0.93), Math.max(0.8, this.cameras.main.width / (arenaRect().w * this.baseZoom)), 1.5)   // never wider than the arena's picture;
     else if (what === 'up' || what === 'down') this.arenaLift = Phaser.Math.Clamp(this.arenaLift + (what === 'up' ? 30 : -30), -180, 180);
@@ -501,6 +504,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       }
       const fadeTop = R.y + H - 110 * R.s;
       this.add.image(R.x, fadeTop, 'arena-fade').setOrigin(0, 0).setDisplaySize(W, R.y + H + extra - fadeTop).setDepth(-0.97);
+      this.add.rectangle(R.x, R.y + H + extra, W, H, 0x05080e, 0.9).setOrigin(0, 0).setDepth(-0.97);   // (a lower camera sees further down)
       cam.setBounds(R.x, R.y, W, H + extra);
       this.camTarget.set(R.x + W / 2, this.kin ? this.kin.y : R.y + H / 2);
       cam.startFollow(this.camTarget, true, 0, 0.09);
@@ -521,6 +525,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.world = new OpenWorld(this, { onArea: (a) => { if (a.name !== this.areaName) { this.areaName = a.name; this.areaTitle?.show(a.name); } } }, at ?? toWorld(START.area, [START.x, START.y]));
       this.world.onNpcClick = (n) => this.talkTo(n);
     }
+    this.pitch = new CameraPitch(this, cam, () => AR?.s ?? 1, (d) => this.hud?.setPitch(d));
+    this.input.keyboard?.on('keydown-INSERT', () => this.pitch?.step(1)); this.input.keyboard?.on('keydown-DELETE', () => this.pitch?.step(-1));
+    this.input.keyboard?.on('keydown-HOME', () => this.pitch?.reset());
 
     if (!pvpRoom) {
       const CT = COMBAT_ASSETS.textures;
@@ -601,11 +608,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onReturn: pvpRoom ? exitArena : () => this.scene.start('CharacterSelectScene'),
       onSlot: (i) => this.useSlot(i),
       onPotion: (i) => this.usePotion(i),
-      onCam: (w) => (this.world ? this.world.camStep(w) : this.arenaCam(w)),
+      onCam: (w) => {
+        if (w === 'higher' || w === 'lower') { this.pitch?.step(w === 'higher' ? 1 : -1); return; }
+        if (w === 'reset') this.pitch?.reset();
+        if (this.world) this.world.camStep(w); else this.arenaCam(w);
+      },
       onCancelBuff: (id) => { if (id === 'cloud_form') this.endCloudForm(); },
       onMenu: (k) => this.togglePanel(k),
       onKeys: () => { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.keySettings?.open(loadBindings()); },
     });
+    if (this.pitch) this.hud.setPitch(this.pitch.deg);
     this.hud.setKeyLabels(slotKeyLabels());
     this.hud.setMenuKeys(menuKeys(this.bindings));
     this.refreshPassiveStrip();
@@ -640,7 +652,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.world.setTalkKey(keyLabel(this.bindings.talk));
       this.refreshQuests();
       this.chat.add({ kind: 'system', text: `Walk on to explore the world. Talk to people with ${keyLabel(this.bindings.talk) || 'the talk key'}.` });
-      this.chat.add({ kind: 'system', text: 'Camera: mouse wheel to zoom · PageUp / PageDown (or Shift + wheel) for height · Home to reset.' });
+      this.chat.add({ kind: 'system', text: 'Camera: mouse wheel to zoom · PageUp / PageDown (or Shift + wheel) for height · Insert / Delete for the angle · Home to reset.' });
     }
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, (_t: number, d: number) => {
       if (!this.hud) return;

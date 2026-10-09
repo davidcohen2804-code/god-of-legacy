@@ -52,6 +52,9 @@ export const ICONS = {
   jump: svg('<path d="M12 16V4M7 9l5-5 5 5"/><path d="M5 20h14"/>', 2),
   up: svg('<path d="M12 19V5M6 11l6-6 6 6"/>', 2.2),
   down: svg('<path d="M12 5v14M6 13l6 6 6-6"/>', 2.2),
+  // the camera on its arc over the floor (the half moon): higher, toward straight down / lower, toward eye level
+  tiltUp: svg('<path d="M2 20h9"/><path d="M20 20A11 11 0 0 0 9 9"/><path d="M12.5 5.5L9 9l3.5 3.5"/>', 2),
+  tiltDown: svg('<path d="M2 20h9"/><path d="M20 20A11 11 0 0 0 9 9"/><path d="M16.5 16.5L20 20l3.5-3.5"/>', 2),
   arrowL: svg('<path d="M19 12H5M11 6l-6 6 6 6"/>', 2.2),
   arrowR: svg('<path d="M5 12h14M13 6l6 6-6 6"/>', 2.2),
 } as const;
