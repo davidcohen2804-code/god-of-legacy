@@ -24,7 +24,7 @@ const VS_NAME_W = 440;
 const VS_EMBLEM = 'assets/hud/vs_emblem.webp';
 /** The big calls drawn as art in the VS emblem's style (assets/hud/calls/<id>.webp): their height on screen (design px).
  *  A call with no art yet is lettered (word()). */
-const CALL_ART: Record<string, number> = { fight: 340, ko: 420, round1: 250, round2: 257, round3: 251, round4: 247, final: 280 };
+const CALL_ART: Record<string, number> = { fight: 340, ko: 420, round1: 250, round2: 257, round3: 251, round4: 247, final: 280, perfect: 150, victory: 230, defeat: 230, double: 170, time: 300, draw: 275 };
 const callUrl = (id: string) => `assets/hud/calls/${id}.webp`;
 /** VS with the heroes' art: the widest a name may be under its hero. */
 const VS2_NAME_W = 640;
@@ -493,7 +493,8 @@ export class BattleHUD {
     if (big) { this.burst(c, 'blood'); this.sparks(c, '#ff5a3a', 16); this.shake(); }
     else this.el('div', 'b-streak', c);
     const [text, metal, size]: [string, Metal, number] = kind === 'ko' ? ['K.O.', 'blood', 260] : kind === 'double' ? ['DOUBLE K.O.', 'blood', 150] : kind === 'time' ? ['TIME', 'steel', 210] : ['DRAW', 'steel', 210];
-    if (!this.art(c, kind)) this.word(c, text, metal, size);
+    const drawn = kind === 'double' ? CALL_ART.double && CALL_ART.ko && this.art(c, 'double') && this.art(c, 'ko', 300) : this.art(c, kind); // (DOUBLE over the K.O.)
+    if (!drawn) this.word(c, text, metal, size);
     if (perfect) { const p = this.el('div', 'b-sub', c); if (!this.art(p, 'perfect')) p.textContent = 'PERFECT'; }
     this.later(() => c.classList.add('out'), Math.max(400, hold - 330));
     this.later(() => c.remove(), hold);
@@ -512,7 +513,7 @@ export class BattleHUD {
       img.src = winner.vs.win ?? winner.vs.url; img.alt = ''; img.draggable = false;
     }
     const c = this.el('div', 'b-call slam', r);
-    if (!this.art(c, o.title.toLowerCase())) this.word(c, o.title, o.title === 'VICTORY' ? 'gold' : o.title === 'DEFEAT' ? 'blood' : 'steel', 168);
+    if (!this.art(c, o.title.toLowerCase(), o.title === 'DRAW' ? 211 : 230)) this.word(c, o.title, o.title === 'VICTORY' ? 'gold' : o.title === 'DEFEAT' ? 'blood' : 'steel', 168); // (DRAW at the round call's scale)
     if (o.title === 'VICTORY') this.sparks(c, '#ffd25a', 12);
     const card = this.el('div', 'b-card gl-panel', r);
     const sc = this.el('div', 'b-sc', card);
@@ -558,8 +559,8 @@ export class BattleHUD {
   // ------------------------------------------------------------------ pieces
 
   /** A call drawn as art (CALL_ART), with a sweep of light across its letters; false: it has none yet. */
-  private art(parent: HTMLElement, id: string): boolean {
-    const h = CALL_ART[id];
+  private art(parent: HTMLElement, id: string, height?: number): boolean {
+    const h = CALL_ART[id] && (height ?? CALL_ART[id]);
     if (!h) return false;
     const a = this.el('div', 'b-ca', parent), img = this.el('img', '', a) as HTMLImageElement;
     a.style.height = `${h}px`; a.style.setProperty('--m', `url("${callUrl(id)}")`);

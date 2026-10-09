@@ -7,7 +7,7 @@ import type { PortraitRef } from '../ui/hud/HudState';
 /** A hero's VS splash (the approved battle-stance art, facing right): file, size, the face square on it and the class colours;
  *  `win` = the victory pose (same canvas), when there is one; `card` = no splash yet, this is the hero's card instead. */
 export interface HeroVs { url: string; w: number; h: number; face: { x: number; y: number; s: number }; color: string; glow: string; win?: string; card?: boolean }
-const VS_W = 820, VS_H = 1230;
+const VS_W = 1024, VS_H = 1536;
 /** Each hero's colours (VS screen, battle HUD, select tiles). */
 const COLOR: Record<string, [string, string]> = {
   warrior: ['#f0b24a', 'rgba(255,168,56,.58)'],
@@ -18,11 +18,11 @@ const COLOR: Record<string, [string, string]> = {
 };
 /** The heroes that have a battle-stance splash (assets/final/heroes/<cls>/vs.webp): the face square on it. */
 const FACE: Record<string, [number, number, number]> = {
-  warrior: [448, 160, 136],
-  samurai: [376, 192, 152],
-  book_mage: [352, 120, 136],
-  archer: [344, 216, 136],
-  gambler: [433, 104, 142],
+  warrior: [559, 200, 170],
+  samurai: [470, 240, 190],
+  book_mage: [440, 150, 170],
+  archer: [430, 270, 170],
+  gambler: [541, 130, 177],
 };
 /** The heroes that have a victory pose (assets/final/heroes/<cls>/win.webp). */
 const WIN = new Set(['samurai', 'warrior']);

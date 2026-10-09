@@ -42,6 +42,7 @@ import { Match, MatchPhase } from '../pvp/Match';
 import { BattleHUD, Fighter } from '../ui/BattleHUD';
 import { classColor, heroArt, heroVsPortrait } from '../pvp/Fighters';
 import { TAG_SCALE, fighterTag, tagFontsReady } from '../pvp/FighterTag';
+import { LoadSide, showArenaLoading, takeArenaLoading } from '../ui/ArenaLoading';
 /** '#rrggbb' as a number. */
 const colorNum = (c: string): number => parseInt(c.slice(1), 16);
 import { ComboGuide } from '../ui/ComboGuide';
@@ -309,6 +310,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
    *  none) and the camera's own zoom (the K.O. punches in from it). */
   private match?: Match;
   private battleHud?: BattleHUD;
+  /** The arena's loading screen, taken over as the first match's VS (it lifts at ROUND 1; when the match is slow to
+   *  begin — the other player not here yet — it lifts by itself and the match gets its own VS). */
+  private curtain?: { out(): void } | null;
+  private curtainAt = 0;
+  private liftCurtain(): void { this.curtain?.out(); this.curtain = null; }
   /** Battle: the fighters wear their tags over their heads (battleTags; on once the tags' lettering is loaded). */
   private tagsOn = false;
   private tagsWanted = false;
@@ -378,7 +384,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   preload(): void {
     const T = ATLAS.textures, CT = COMBAT_ASSETS.textures;
     // The world holds only your own class; the PvP arena can hold any class (other players, the sparring knight).
-    const sd = this.sys.settings.data as { pvpRoom?: string; fighter?: Character } | undefined;
+    const sd = this.sys.settings.data as { pvpRoom?: string; fighter?: Character; botCls?: string; foe?: LoadSide } | undefined;
     const pvp = !!sd?.pvpRoom;
     const me = sd?.fighter ?? CharacterStore.getSelectedCharacter(); // (the PvP select's fighter)
     const cls = me ? playedClass(me) : undefined; // the class actually played (Beginner = warrior base)
@@ -401,7 +407,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!this.textures.exists('loot.beam')) this.load.image('loot.beam', 'assets/final/ui/kit/drop_beam.png');
     if (!this.textures.exists('loot.coin')) this.load.spritesheet('loot.coin', 'assets/final/items/coin_spin.png', { frameWidth: 128, frameHeight: 128 });
     for (let n = 0; n < EMOTES; n++) if (!this.textures.exists(`kit.emote_${n}`)) this.load.image(`kit.emote_${n}`, `assets/final/ui/kit/emote_${n}.png`);
-    showLoading(this, pvp ? 'PVP ARENA' : 'GOD OF LEGACY');
+    // the arena from the fighter select: the two fighters face to face while it loads (else the plain loading screen)
+    const foe = sd?.foe ?? (sd?.botCls ? { cls: sd.botCls, name: BOT_NAMES[sd.botCls] ?? BOT_NAME } : null);
+    if (!(pvp && me && cls && foe && showArenaLoading(this, { name: me.name, cls, you: true }, foe))) showLoading(this, pvp ? 'PVP ARENA' : 'GOD OF LEGACY');
   }
 
   create(data?: { pvpRoom?: string; at?: { x: number; y: number }; fighter?: Character; botCls?: string; vs?: 'cpu' | 'player' }): void {
@@ -623,6 +631,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         hpFrac: (id) => this.hpFracOf(id),
       });
     }
+    if (pvpRoom) { this.curtain = takeArenaLoading(); this.curtainAt = performance.now(); }
     if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name, gender: genderOf(character), ...(character.hero ? { hero: true } : {}), ...(headLookOf(character) ? { look: headLookOf(character)! } : {}) });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -3299,6 +3308,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Starts / ends the match as opponents come and go, runs it, and feeds the fight's HUD. */
   private updateMatch(real: number, ms: number): void {
     const m = this.match, B = this.battleHud;
+    if (this.curtain && !m?.active && performance.now() - this.curtainAt > (this.waitFoe ? 2500 : 9000)) this.liftCurtain(); // (no match coming yet)
     if (!m || !B || !this.pvpReady) return;
     const opp = this.duelOpponent();
     if (m.active && m.opponent !== opp) m.abort(); // the opponent left / a third player came in
@@ -3324,7 +3334,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const B = this.battleHud, T = PVP.battle;
     if (!B) return;
     if (m.phase === 'idle') { // no match any more: back to the free arena
-      B.clearCalls(); B.hideResult(); B.setOn(false); this.hud?.setBattle(false); this.battleTags(false);
+      B.clearCalls(); B.hideResult(); B.setOn(false); this.hud?.setBattle(false); this.battleTags(false); this.liftCurtain();
       if (this.bot) this.bot.hold = false;
       this.endKoMoment();
       if (this.dead >= 0) this.dead = Math.max(this.dead, PVP.respawnMs - 500); // down in the last round: up again in a moment
@@ -3334,8 +3344,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     else if (this.tagsOn) this.wearTags(); // (a body made anew meanwhile wears its tag again)
     if (prev === 'idle' || m.phase === 'vs') B.setFighters(this.fighterOf(m.host), this.fighterOf(m.guest));
     switch (m.phase) {
-      case 'vs': B.hideResult(); this.placeForRound(m); B.vs(this.fighterOf(m.host), this.fighterOf(m.guest), T.vsMs); break;
-      case 'intro': B.hideResult(); this.placeForRound(m); B.round(m.round, m.finalRound, T.introMs); break;
+      case 'vs': // (the arena's loading screen, still up, is this first VS: both fighters face to face already)
+        B.hideResult(); this.placeForRound(m);
+        if (prev !== 'idle') this.liftCurtain();
+        if (!this.curtain) B.vs(this.fighterOf(m.host), this.fighterOf(m.guest), T.vsMs);
+        break;
+      case 'intro': B.hideResult(); this.placeForRound(m); this.liftCurtain(); B.round(m.round, m.finalRound, T.introMs); break;
       case 'fight': B.hideResult(); this.ci?.clearBuffer(); B.fight(); if (this.bot) this.bot.hold = false; break;
       case 'ko':
         if (this.bot) this.bot.hold = true;
