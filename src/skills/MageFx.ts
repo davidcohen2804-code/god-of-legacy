@@ -6,6 +6,7 @@ import Phaser from 'phaser';
 import type { CastRun, Trap } from './SkillRuntime';
 import type { FinalSkill, HitEvent } from './SkillTypes';
 import type { Projectile, V2, V3 } from './HitGeometry';
+import { inkQuad, type InkKind } from './InkShaders';
 
 export const MAGE_KIT = 'mage-kit';
 export const MAGE_KIT_URL = 'assets/final/skills/book_mage/kit/';
@@ -264,6 +265,57 @@ export class MageFx {
     } });
   }
   private shake(ms: number, i: number): void { this.ctx.shake?.(ms, i); }
+
+  // ------------------------------------------------------------------ ink (GPU shader) effects — The Scribe
+
+  /** One shader quad on the piece clock: drive(u, ms, quad) each frame for `life` ms, then it is removed. */
+  private ink(kind: InkKind, x: number, y: number, w: number, h: number, life: number, drive: (u: number, ms: number, q: Phaser.GameObjects.Shader) => void,
+    o: { delay?: number; depth?: number; angle?: number; flip?: boolean; seed?: number; uA?: number } = {}): void {
+    const start = () => {
+      const q = inkQuad(this.ctx.scene, kind, x, y, w, h, o.seed); if (!q) return;
+      q.setDepth(o.depth ?? TOP + 6).setAngle(o.angle ?? 0); if (o.flip) q.setScale(-1, 1);
+      if (o.uA !== undefined) q.setUniform('uA.value', o.uA);
+      drive(0, 0, q);
+      this.add({ t: 0, step: (_dt, t) => { if (t >= life || !q.active) { q.destroy(); return false; } drive(t / life, t, q); return true; } });
+    };
+    if (o.delay) this.later(o.delay, start); else start();
+  }
+
+  /** Proof of the ink look: Quill Lance — the sentence is written in the air, flies as a lance of light, and seals the foe. */
+  demoQuill(casterId: string, targetId: string): void {
+    const c = this.ctx.casterPos(casterId), tg = this.ctx.targetPos?.(targetId); if (!c || !tg) return;
+    const side = tg.x >= c.x ? 1 : -1, h = this.ctx.hand(casterId) ?? { x: c.x + side * 30, y: c.y - c.z - 72 };
+    const P = (q: Phaser.GameObjects.Shader, k: 'uP' | 'uE', v: number) => q.setUniform(`${k}.value`, v);
+    const WRITE = 280, FLY = 140, HIT = WRITE + FLY;
+    // 1 — the stroke, written from the hand outward
+    const sx = h.x + side * 86, sy = h.y - 6;
+    this.ink('stroke', sx, sy, 170, 64, WRITE + 420, (u, ms, q) => { P(q, 'uP', out(Math.min(1, ms / WRITE))); P(q, 'uE', ms < WRITE + 40 ? 0 : out((ms - WRITE - 40) / 380)); },
+      { flip: side < 0, uA: 0.55, angle: -4 * side });
+    this.glow(h.x + side * 6, h.y, 70, 0x59d6ff, WRITE, { alpha: 0.5 });
+    // 2 — the lance: launched from the end of the stroke, its head reaching the foe at HIT
+    const ax = sx + side * 70, ay = sy, bx = tg.x - side * 10, by = tg.y - tg.z - 62;
+    const len = 230, ang = Math.atan2(by - ay, bx - ax) * 180 / Math.PI;
+    this.ink('lance', ax, ay, len, 64, FLY + 160, (u, ms, q) => {
+      const k = Math.min(1, ms / FLY), e = out3(k);
+      const hx = ax + (bx - ax) * e, hy = ay + (by - ay) * e;   // head position; the quad trails behind it
+      const r = (ang * Math.PI) / 180; q.setPosition(hx - Math.cos(r) * len * 0.42, hy - Math.sin(r) * len * 0.42);
+      q.setScale(0.6 + 0.4 * e, 1 - 0.25 * Math.max(0, (ms - FLY) / 160));
+      P(q, 'uE', ms < FLY ? 0 : (ms - FLY) / 160);
+    }, { delay: WRITE, angle: ang });
+    // 3 — impact: the seal stamped on the foe, ink bursting behind it, a ring along the floor, a beat of stillness
+    this.later(HIT, () => {
+      const p = this.ctx.targetPos?.(targetId) ?? tg, cy = p.y - p.z - 60;
+      this.ctx.hitStop?.(85); this.shake(170, 0.009); this.ctx.flash?.(0xfff1c8, 0.12, 110); this.ctx.punch(0.02, 200);
+      this.ink('splash', p.x + side * 26, cy, 260, 230, 1100, (u, ms, q) => { P(q, 'uP', out3(Math.min(1, ms / 220))); P(q, 'uE', ms < 380 ? 0 : (ms - 380) / 720); }, { depth: TOP + 5 });
+      this.ink('seal', p.x, cy, 150, 150, 1300, (u, ms, q) => {
+        const s = ms < 110 ? 1.7 - 0.7 * out3(ms / 110) : 1; q.setScale(s);
+        P(q, 'uP', ms < 110 ? 1 : Math.max(0, 1 - (ms - 110) / 260)); P(q, 'uE', ms < 700 ? 0 : (ms - 700) / 600);
+      }, { depth: TOP + 7 });
+      this.ink('wave', p.x, p.y, 340, 340 * SQUASH, 460, (u, _ms, q) => P(q, 'uP', out(u)), { depth: GROUND + 2 });
+      this.flare(p.x, cy, 150, 0xffd27a, 220);
+      this.burst(p.x, cy, { n: 18, speed: [160, 420], life: [260, 520], scale: [0.05, 0.22], tint: [0xffd27a, 0x8fe6ff, 0xffffff], drag: 1 });
+    });
+  }
 
   // ------------------------------------------------------------------ cast timeline
 

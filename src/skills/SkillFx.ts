@@ -280,6 +280,8 @@ export class SkillFx {
   }
 
   get count(): number { return this.anims.length + this.projs.size; }
+  /** Preview of the ink (shader) look for the book mage — not wired to any skill yet. */
+  demoInk(casterId: string, targetId: string): void { this.mage.demoQuill(casterId, targetId); }
 
   // ------------------------------------------------------------------ cast timeline
 
