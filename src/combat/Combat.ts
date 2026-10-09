@@ -148,6 +148,7 @@ export function settleOnBlocks(k: Kin, ms: number, moveY: number, own = false): 
   }
   for (const o of WORLD_OBJECTS) {
     if (!o.stand || o.topZ === undefined) continue;
+    if (o.soft && k.z < o.topZ - 1) continue;   // a cloud: nothing to bump into below its top
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     for (const p of o.footprint) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
     // Stepped off its back edge: you drop down behind it. The step back stops at once (walking on back at full speed

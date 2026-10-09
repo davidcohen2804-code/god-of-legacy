@@ -157,11 +157,11 @@ export const SKY_AREA: AreaDef = { id: 'sky_path', name: SKY.name, x: SKY.lane[0
 /** Falling between the clouds: below this height you drop through to the floor under the lane. */
 export const SKY_DROP = Math.min(...SKY.path.map((c) => c.z)) - 60;
 const cloudProps = () => CLOUDS.map((c, i) => ({ id: `sky-${i}`, foot: [[c.x0, SKY.band[0]], [c.x1, SKY.band[0]], [c.x1, SKY.band[1]], [c.x0, SKY.band[1]]] as Pt[],
-  base: [[c.x0, SKY.band[0]], [c.x1, SKY.band[0]], [c.x1, SKY.band[1]], [c.x0, SKY.band[1]]] as Pt[], h: c.z, top: c.z, stand: [SKY.band[0], SKY.band[1]] as [number, number] }));
+  base: [[c.x0, SKY.band[0]], [c.x1, SKY.band[0]], [c.x1, SKY.band[1]], [c.x0, SKY.band[1]]] as Pt[], h: c.z, top: c.z, soft: true, stand: [SKY.band[0], SKY.band[1]] as [number, number] }));
 export function worldObjects(): WorldObject[] {
-  return ([...STRIP.props, ...GATE.props, ...towerProps(), ...heightProps(), ...cloudProps()] as { id: string; foot: Pt[]; base?: Pt[]; h: number; top?: number; stand?: [number, number] }[]).map((p) => ({
+  return ([...STRIP.props, ...GATE.props, ...towerProps(), ...heightProps(), ...cloudProps()] as { id: string; foot: Pt[]; base?: Pt[]; h: number; top?: number; soft?: boolean; stand?: [number, number] }[]).map((p) => ({
     id: p.id, footprint: p.stand && p.base ? p.base : p.foot, height: p.h, ...(p.top !== undefined ? { topZ: p.top } : {}), ...(p.stand ? { stand: p.stand } : {}),
-    ...(p.base ? { base: p.base } : {}),
+    ...(p.base ? { base: p.base } : {}), ...(p.soft ? { soft: true } : {}),
     cover: 'hard' as const, occluder: [], frontY: Math.max(...p.foot.map((q) => q[1])) + 1,
   }));
 }

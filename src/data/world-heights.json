@@ -282,10 +282,10 @@
   "id": "cloud_haven",
   "name": "Cloud Haven",
   "x": 6350,
-  "w": 1672,
+  "w": 3344,
   "walk": [
    6362,
-   8010
+   9134
   ],
   "H": 800,
   "front": 122,
@@ -322,6 +322,32 @@
      "x": 7654,
      "py": 412
     }
+   },
+   {
+    "id": "block-l-m",
+    "x0": 9242,
+    "x1": 9432,
+    "front": 52,
+    "h": 82,
+    "depth": 30,
+    "occ": {
+     "img": "assets/world/heights/cloud_haven-block-l-m.webp",
+     "x": 9244,
+     "py": 395
+    }
+   },
+   {
+    "id": "block-r-m",
+    "x0": 8256,
+    "x1": 8392,
+    "front": 59,
+    "h": 76,
+    "depth": 26,
+    "occ": {
+     "img": "assets/world/heights/cloud_haven-block-r-m.webp",
+     "x": 8258,
+     "py": 412
+    }
    }
   ],
   "mobs": {
@@ -345,6 +371,26 @@
     ],
     [
      7910,
+     47
+    ],
+    [
+     9534,
+     17
+    ],
+    [
+     9054,
+     -23
+    ],
+    [
+     8794,
+     87
+    ],
+    [
+     8574,
+     -3
+    ],
+    [
+     8134,
      47
     ]
    ]

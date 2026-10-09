@@ -10,6 +10,8 @@ export interface WorldObject {
   id: string;
   /** Ground-plane footprint (blocks ground locomotion below `height`). */
   footprint: Pt[];
+  /** A one-way platform (a cloud): you only land on it from above — it never stops you from the side or below. */
+  soft?: boolean;
   /** Physical obstacle height (px): an actor/projectile above it passes over. */
   height: number;
   /** Standable top surface (same polygon as the footprint, at z = topZ). */
@@ -97,7 +99,7 @@ const inBlocker = (b: { x: number; y: number; rx: number; ry: number }, x: numbe
 export function footAllowed(x: number, y: number, z: number, r: number, from?: { x: number; y: number }): boolean {
   if (!insideArena(x, y, r)) return false;
   for (const o of WORLD_OBJECTS) {
-    if (z >= o.height - 1) continue;
+    if (o.soft || z >= o.height - 1) continue;
     const d = polyDist(x, y, o.footprint);
     if (d >= r) continue;
     const d0 = from ? polyDist(from.x, from.y, o.footprint) : Infinity;
@@ -134,7 +136,7 @@ export function coverHit(ax: number, ay: number, bx: number, by: number, h: numb
   if (ax < SANDBOX_X && bx < SANDBOX_X) return null;
   let best: number | null = null;
   for (const o of WORLD_OBJECTS) {
-    if (h >= o.height || (mode === 'hard' && o.cover !== 'hard')) continue;
+    if (o.soft || h >= o.height || (mode === 'hard' && o.cover !== 'hard')) continue;
     const t = segPolyEntry(ax, ay, bx, by, o.base ?? o.footprint);
     if (t !== null && (best === null || t < best)) best = t;
   }
