@@ -78,16 +78,17 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     // the new kit (Iron Grip Z, Judgment Hook X, Sky Breaker B, Earthsplitter N): played in the arena against a foe that does
     // nothing, each key right after the last hit and 0.12s later, from three distances — locked to the combo's end every time
     // long strings (launch, a full air string, relaunch, again — the arena's longer combos): locked to the end at every distance / timing tried
-    { name: 'JUDGMENT DAY', range: 'FAR', hits: 46, steps: [{ id: 'judgment_hook' }, { id: 'lance_thrust' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'ground_breaker' }, { id: 'blade_storm' }, { id: 'titans_verdict' }] },
-    { name: 'PRIDE', range: 'CLOSE', hits: 21, steps: [{ id: 'radiant_blade' }, { id: 'sky_breaker' }, { id: 'lions_maw' }, { id: 'blade_storm' }] },
+    { name: 'JUDGMENT DAY', range: 'FAR', hits: 50, steps: [{ id: 'judgment_hook' }, { id: 'lance_thrust' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'ground_breaker' }, { id: 'blade_storm' }, { id: 'titans_verdict' }] },
+    { name: 'PRIDE', range: 'CLOSE', hits: 23, steps: [{ id: 'radiant_blade' }, { id: 'sky_breaker' }, { id: 'blade_storm' }, { id: 'lions_maw' }] },
     { name: 'CYCLONE', range: 'FAR', hits: 25, steps: [{ id: 'judgment_hook' }, { id: 'whirlwind' }, { id: 'blade_storm' }] },
     { name: 'RALLY', range: 'CLOSE', hits: 18, steps: [{ id: 'legacy_banner' }, { id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'blade_storm' }] },
     { name: 'OATHBOUND', range: 'CLOSE', hits: 17, steps: [{ id: 'iron_oath' }, { id: 'sky_breaker' }, { id: 'blade_storm' }] },
-    { name: 'SKYFALL', range: 'CLOSE', hits: 31, steps: [{ id: 'sky_breaker' }, { id: 'lance_thrust' }, { id: 'rising_slash' }, { id: 'leap_crash' }, { id: 'whirlwind' }, { id: 'blade_storm' }] },
-    { name: 'HOOKSHOT', range: 'FAR', hits: 15, steps: [{ id: 'judgment_hook' }, { id: 'lance_thrust' }, { id: 'blade_storm' }] },
-    { name: 'SKYLANCE', range: 'CLOSE', hits: 15, steps: [{ id: 'sky_breaker' }, { id: 'lance_thrust' }, { id: 'blade_storm' }] },
-    { name: 'IRONFIST', range: 'CLOSE', hits: 13, steps: [{ id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'blade_storm' }] },
-    { name: 'FAULTLINE', range: 'MID', hits: 13, steps: [{ id: 'earthsplitter', hold: true }, { id: 'blade_storm' }] },
+    { name: 'SKYFALL', range: 'CLOSE', hits: 28, steps: [{ id: 'sky_breaker' }, { id: 'rising_slash' }, { id: 'lance_thrust' }, { id: 'whirlwind' }, { id: 'leap_crash' }, { id: 'blade_storm' }] },
+    { name: 'TITANFALL', range: 'CLOSE', hits: 56, steps: [{ id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'lance_thrust' }, { id: 'whirlwind' }, { id: 'leap_crash' }, { id: 'ground_breaker' }, { id: 'blade_storm' }, { id: 'titans_verdict' }] },
+    { name: 'HOOKSHOT', range: 'FAR', hits: 19, steps: [{ id: 'judgment_hook' }, { id: 'lance_thrust' }, { id: 'blade_storm' }] },
+    { name: 'SKYLANCE', range: 'CLOSE', hits: 19, steps: [{ id: 'sky_breaker' }, { id: 'lance_thrust' }, { id: 'blade_storm' }] },
+    { name: 'IRONFIST', range: 'CLOSE', hits: 17, steps: [{ id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'blade_storm' }] },
+    { name: 'FAULTLINE', range: 'MID', hits: 14, steps: [{ id: 'earthsplitter', hold: true }, { id: 'blade_storm' }] },
     { name: 'RAMPAGE', range: 'FAR', hits: 8, steps: [{ id: 'leap_crash' }, { id: 'warrior_basic' }, { id: 'war_cry' }, { id: 'iron_oath' }, { id: 'ground_breaker' }] },
   ],
   // the Book Mage: ice spikes, a lightning chain or the storm field, the starlight lift or a blink, then the storm field, the
