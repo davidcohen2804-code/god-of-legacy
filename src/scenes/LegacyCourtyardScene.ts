@@ -2410,6 +2410,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private onSkillHit(run: CastRun, hit: HitEvent, hi: number, t: HitTarget, at: V3): void {
     if (t.id.startsWith('kage:')) { this.kageStruck(t.id); return; } // a Kagemusha double: the blow is wasted on it
+    if (run.skill.id === 'judgment_hook') { const f = this.hitFrom(run, hit), d = Math.hypot(at.x - f.x, at.y - f.y); hit = { ...hit, reaction: { ...hit.reaction, pull: Math.max(0, Math.min(340, d - 58)) } }; } // the chain yanks it to just in front of him
     if (!run.own) { if (t.id === this.localId) this.applyRemoteHitToSelf(run, hit, hi, at); return; }
     if (t.kind === 'enemy') { this.applyToPve(run, hit, t, at); return; }
     if (t.id === BOT_ID) { this.applyToBot(run, hit, t, at); return; }

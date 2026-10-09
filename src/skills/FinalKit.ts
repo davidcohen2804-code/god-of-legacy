@@ -175,6 +175,53 @@ const warrior: FinalSkill[] = [
     description: 'Leap and hurl the first blade at once (it lands in under half a second; an airborne foe is slammed into a bounce), then up to 2 more: every press of V throws the next blade at once (no wait between throws); if you stop, you float slowly back down. Each blade stays planted for 5s inside a storm ring that shocks and roots anyone standing in it.',
     relations: ['Zone 5s', 'Root → free combo'],
   }),
+  // ---- new kit (Z X B N): the grab, the hook, the air chase, the charged fissure (own timings: not stretched)
+  S({
+    id: 'iron_grip', cls: 'warrior', slot: 16, name: 'Iron Grip', roles: ['opener', 'extender'], targeting: 'mouseDir',
+    startup: 160, active: 560, recovery: 300, cooldown: 6000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, armor: [0, 720],
+    hits: [H(0, 8, { kind: 'sector', range: 78, angle: 90 }, { stun: 800, grab: true }, { reachUp: 140 }),
+      H(440, 24, { kind: 'circle', radius: 110, at: 'aimBias', bias: 60 }, { stun: 440, launch: 100, juggleCost: 20 }, { reachUp: 220, heavy: true })],
+    cancelOnHit: ['rising_slash', 'leap_crash', 'sky_breaker', 'wave_slash', 'whirlwind'],
+    description: 'Seize the foe in front of you with a hand of golden light, hoist it high over your head and smash it into the floor before you; it bounces up, open for the next strike.',
+    relations: ['Grab', 'Bounce → combo'],
+  }),
+  S({
+    id: 'judgment_hook', cls: 'warrior', slot: 17, name: 'Judgment Hook', roles: ['pull', 'gapClose'], targeting: 'mouseDir',
+    startup: 140, active: 260, recovery: 240, cooldown: 7000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(90, 10, { kind: 'line', length: 380, width: 46 }, { stun: 560, grab: true }, { reachUp: 160 })],
+    cancelOnHit: ['warrior_basic', 'iron_grip', 'dash_slash', 'rising_slash', 'whirlwind', 'ground_breaker', 'lance_thrust'],
+    description: 'Hurl a chain of golden light up to 380px: it hooks the first foe it reaches and yanks it right in front of you, stunned, ready for your next blow.',
+    relations: ['Pull to you', 'Combo starter'],
+  }),
+  S({
+    id: 'sky_breaker', cls: 'warrior', slot: 18, name: 'Sky Breaker', roles: ['airExtender', 'chase'], targeting: 'mouseTarget',
+    startup: 110, active: 620, recovery: 300, cooldown: 6000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    dash: { distance: 140, lift: 170, crash: true },
+    hits: [H(60, 7, { kind: 'circle', radius: 90 }, { stun: 380, float: true, juggleCost: 4 }, { reachUp: 240 }),
+      H(170, 7, { kind: 'circle', radius: 90 }, { stun: 380, float: true, juggleCost: 4 }, { reachUp: 240 }),
+      H(280, 8, { kind: 'circle', radius: 95 }, { stun: 380, float: true, juggleCost: 4 }, { reachUp: 240 }),
+      H(560, 18, { kind: 'circle', radius: 120 }, { stun: 420, slam: true }, { reachUp: 260, heavy: true })],
+    cancelOnHit: ['leap_crash', 'iron_grip', 'judgment_hook', 'whirlwind', 'blade_storm'],
+    description: 'Spring into the air after your foe: three rising slashes keep it floating, then a crushing downward strike smashes it into the floor so it bounces back up.',
+    relations: ['Air chase', 'Slam → bounce'],
+  }),
+  S({
+    id: 'earthsplitter', cls: 'warrior', slot: 19, name: 'Earthsplitter', roles: ['finisher', 'launcher'], targeting: 'mouseCone',
+    startup: 1200, active: 320, recovery: 380, cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1500],
+    // hold the key: the sword raised overhead charges (160..1200 ms); the level picks how far and wide the fissure tears
+    hits: [H(0, 22, { kind: 'sector', range: 200, angle: 70 }, { stun: 420, launch: 90, juggleCost: 15 }, { reachUp: 120, heavy: true })],
+    charge: { minMs: 160, levels: [
+      { at: 0, hits: [H(0, 22, { kind: 'sector', range: 200, angle: 70 }, { stun: 420, launch: 90, juggleCost: 15 }, { reachUp: 120, heavy: true })] },
+      { at: 500, hits: [H(0, 34, { kind: 'sector', range: 280, angle: 80 }, { stun: 460, launch: 130, juggleCost: 15 }, { reachUp: 140, heavy: true }),
+        H(150, 10, { kind: 'sector', range: 300, angle: 90 }, { stun: 380, float: true }, { reachUp: 220 })] },
+      { at: 1000, hits: [H(0, 48, { kind: 'sector', range: 360, angle: 90 }, { stun: 500, launch: 170, juggleCost: 10 }, { reachUp: 160, heavy: true }),
+        H(150, 12, { kind: 'sector', range: 380, angle: 95 }, { stun: 400, float: true }, { reachUp: 260 }),
+        H(300, 12, { kind: 'sector', range: 380, angle: 95 }, { stun: 400, float: true }, { reachUp: 300 })] },
+    ] },
+    cancelOnHit: ['sky_breaker', 'blade_storm', 'titans_verdict'],
+    description: 'Hold the key: you raise your sword overhead as the ground trembles, in three steps. Release: you split the earth — a wide fissure tears across the floor in front of you and pillars of light burst out of it, launching every foe; the longer you held, the farther, wider and higher.',
+    relations: ['Hold to charge (3 levels)', 'Wide launcher'],
+  }),
 ];
 
 // ------------------------------------------------------------------ BOOK MAGE
@@ -713,7 +760,7 @@ const samurai: FinalSkill[] = [
 // Warrior skills: longer, weightier presence (free cancel keeps the flow): stretch timings and hit spacing.
 // (The PvP arena runs them at their base timings again: arenaTimeScale.)
 const WARRIOR_STRETCH = { startup: 1.3, active: 1.4, recovery: 1.15, at: 1.4 };
-const warriorStretched = (s: FinalSkill): boolean => s.cls === 'warrior' && s.slot >= 1 && s.id !== 'war_cry' && s.id !== 'guard_counter' && s.id !== 'radiant_blade';
+const warriorStretched = (s: FinalSkill): boolean => s.cls === 'warrior' && s.slot >= 1 && s.slot <= 15 && s.id !== 'war_cry' && s.id !== 'guard_counter' && s.id !== 'radiant_blade';
 for (const w of warrior) if (warriorStretched(w)) {
   w.startup = Math.round(w.startup * WARRIOR_STRETCH.startup); w.active = Math.round(w.active * WARRIOR_STRETCH.active); w.recovery = Math.round(w.recovery * WARRIOR_STRETCH.recovery);
   for (const h of w.hits) h.at = Math.round(h.at * WARRIOR_STRETCH.at);
