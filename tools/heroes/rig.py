@@ -167,7 +167,7 @@ def gait(kind, phase, L):
     if kind == 'walk':
         D, duty, lift, lean = 1.62 * L, 0.6, 0.16 * L, 3.0
     else:
-        D, duty, lift, lean = 2.5 * L, 0.36, 0.42 * L, 16.0
+        D, duty, lift, lean = 2.5 * L, 0.36, 0.42 * L, 19.0
     S = duty * D  # how far a planted foot travels relative to the hips
     feet, planted = [], []
     for off in (0.0, 0.5):
@@ -184,7 +184,7 @@ def gait(kind, phase, L):
                 y = -lift * math.sin(math.pi * t)
             planted.append(None)
         feet.append(np.array([x, y]))
-    reach = 0.975 * L if kind == 'walk' else 0.93 * L  # a running leg stays bent
+    reach = 0.975 * L if kind == 'walk' else 0.88 * L  # a running leg stays bent: the body low, driving forward
     if kind == 'walk':
         xs = [f[0] for f, p in zip(feet, planted) if p is not None]
         hh = min(math.sqrt(max(0, reach * reach - x * x)) for x in xs) if xs else reach
@@ -212,10 +212,17 @@ def bake(path, cls, idle_h, size=1.0):
     stand_h = hip_u[1] + 0.975 * L + ankle_h  # head top to sole when standing (upper crop starts at the head)
     k = 0.985 * idle_h / stand_h * size
     out = []
-    for kind, n in (('idle', 1), ('stance', 1), ('walk', WALK_N), ('run', RUN_N)):
+    JUMP = [  # (near foot, far foot) from the floor under the hips, hip height, lean — take-off crouch, tucked in the air, reaching down
+        ((0.12, 0.0), (-0.14, 0.0), 0.8, 8.0),
+        ((0.24, -0.42), (-0.06, -0.3), 0.97, 4.0),
+        ((0.14, -0.1), (-0.12, -0.02), 0.97, 0.0)]
+    for kind, n in (('idle', 1), ('stance', 1), ('jump', 3), ('walk', WALK_N), ('run', RUN_N)):
         for i in range(n):
             ph = i / n
-            if kind in ('idle', 'stance'):  # standing (feet a little apart) / the combat stance (wider, knees bent, leaning in)
+            if kind == 'jump':
+                (a1, b1), (a2, b2), hk, lean = JUMP[i]
+                feet = [np.array([a1 * L, b1 * L]), np.array([a2 * L, b2 * L])]; hh = hk * L
+            elif kind in ('idle', 'stance'):  # standing (feet a little apart) / the combat stance (wider, knees bent, leaning in)
                 sp = 0.16 * L if kind == 'idle' else 0.34 * L
                 feet = [np.array([sp / 2, 0.0]), np.array([-sp / 2, 0.0])]
                 hh = math.sqrt((0.985 * L) ** 2 - (sp / 2) ** 2) if kind == 'idle' else 0.9 * L
@@ -227,7 +234,7 @@ def bake(path, cls, idle_h, size=1.0):
             ground = Hc - 20 - ankle_h
             hip = np.array([W / 2.0, ground - hh])
             # the upper body: hips at `hip`, leaning forward around them, a small sway with the steps
-            sway = 0.0 if kind in ('idle', 'stance') else (1.2 if kind == 'walk' else 2.0) * math.sin(4 * math.pi * ph)
+            sway = 0.0 if kind in ('idle', 'stance', 'jump') else (1.2 if kind == 'walk' else 2.0) * math.sin(4 * math.pi * ph)
             ang_u = lean + sway * 0.3
             def upper(layer):
                 _place(cv, layer, hip_u, 0.0, hip, -ang_u)  # the drawing turned clockwise (forward) by the lean
@@ -253,6 +260,8 @@ def bake(path, cls, idle_h, size=1.0):
             ys = np.where(a[..., 3].any(1))[0]; xs = np.where(a[..., 3].any(0))[0]
             crop = a[ys[0]:ys[-1] + 1, xs[0]:xs[-1] + 1]
             ax, ay = hip[0] - xs[0], (ground + ankle_h) - ys[0]
+            if kind == 'jump' and i > 0:  # in the air: placed on its own lowest point (the game lifts it by the jump's height)
+                ay = float(ys[-1] - ys[0] + 1)
             im = Image.fromarray(crop)
             im = im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.LANCZOS)
             out.append((kind, np.array(im), ax * k, ay * k))
