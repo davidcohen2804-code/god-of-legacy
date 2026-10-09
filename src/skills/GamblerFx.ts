@@ -39,7 +39,7 @@ const out3 = (u: number) => 1 - Math.pow(1 - u, 3);
 export class GamblerFx {
   private live: Step[] = [];
   private incoming: Step[] = [];
-  private projs = new Map<Projectile, { img: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image; trail: { x: number; y: number }[]; g: Phaser.GameObjects.Graphics; big: boolean }>();
+  private projs = new Map<Projectile, { img: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image; trail: { x: number; y: number }[]; g: Phaser.GameObjects.Graphics; big: boolean; streak?: Phaser.GameObjects.Image | null }>();
   /** Cards stuck in a fighter / monster, drawn on it until they burst. */
   private stuck = new Map<string, { img: Phaser.GameObjects.Image; dx: number; dy: number; ang: number; at: number; t: number }[]>();
   /** The local gambler's Hand, fanned over his shoulder. */
@@ -48,6 +48,12 @@ export class GamblerFx {
   private lucks = new Map<string, { until: number; img: Phaser.GameObjects.Image }>();
   private clock = 0;
   ready = false;
+  /** The painted cards (GPT sheet: kit/card_*.png) when loaded, else the ones drawn here; `u` scales a painted card to the drawn one's size. */
+  private get painted(): boolean { return this.ctx.scene.textures.exists('gbk-card_back'); }
+  private get BK(): string { return this.painted ? 'gbk-card_back' : 'gb-back'; }
+  private get FK(): string { return this.painted ? 'gbk-card_face' : 'gb-face'; }
+  private get acePic(): string { return this.painted ? 'gbk-card_ace' : 'gb-face'; }
+  private get u(): number { return this.painted ? 60 / (this.ctx.scene.textures.get('gbk-card_back').getSourceImage().width || 60) : 1; }
 
   constructor(private ctx: GambleCtx) {
     const s = ctx.scene;
@@ -118,34 +124,67 @@ export class GamblerFx {
   private glow(x: number, y: number, size: number, tint = FUCHSIA, depth = TOP + 2): Phaser.GameObjects.Image {
     return this.ctx.scene.add.image(x, y, 'gb-glow').setTint(tint).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(size, size).setDepth(depth);
   }
+  /** A launch beam rising from the floor (the painted one, or a plain bar). */
+  private beam(x: number, y: number, h: number, life: number): void {
+    const k = this.kit('k_beam', x, y, h * 0.85, y + 3);
+    if (k) { k.setOrigin(0.5, 0.97); const k0 = k.scale; this.piece(k, life, (u, o) => o.setScale(k0 * lerp(0.6, 1.1, out3(u)), k0 * lerp(0.2, 1.05, out3(u))).setAlpha(1 - u * u)); return; }
+    const b = this.ctx.scene.add.rectangle(x, y, h * 0.3, h, FUCHSIA, 0.7).setOrigin(0.5, 1).setDepth(y + 3).setBlendMode(Phaser.BlendModes.ADD);
+    this.piece(b, life, (u, o) => o.setScale(lerp(0.4, 1.3, out3(u)), lerp(0.3, 1.1, out3(u))).setAlpha(1 - u));
+  }
+  /** A painted piece (GPT sheet, kit/<name>.png) as an additive image, or null when it is not loaded. */
+  private kit(name: string, x: number, y: number, w: number, depth: number, add = true): Phaser.GameObjects.Image | null {
+    const k = `gbk-${name}`, s = this.ctx.scene;
+    if (!s.textures.exists(k)) return null;
+    const im = s.add.image(x, y, k).setDepth(depth);
+    if (add) im.setBlendMode(Phaser.BlendModes.ADD);
+    im.setScale(w / im.width);
+    return im;
+  }
   /** A short pop of light. */
   private pop(x: number, y: number, size: number, tint = FUCHSIA, life = 260, delay = 0, depth = TOP + 2): void {
     const core = this.glow(x, y, size * 0.5, 0xffffff, depth + 0.1), halo = this.glow(x, y, size, tint, depth);
     this.piece(core, life * 0.7, (u, o) => o.setScale(lerp(0.4, 1.1, out3(u)) * (size * 0.5) / 128).setAlpha(1 - u), delay);
     this.piece(halo, life, (u, o) => o.setScale(lerp(0.5, 1.4, out3(u)) * size / 128).setAlpha((1 - u) * 0.9), delay);
+    if (tint === FUCHSIA || tint === FUCHSIA_2) {
+      const k = this.kit('k_pop', x, y, size * 1.1, depth + 0.05);
+      if (k) { const k0 = k.scale, a0 = rnd(0, 360); this.piece(k, life, (u, o) => o.setScale(k0 * lerp(0.45, 1.15, out3(u))).setAngle(a0 + u * 30).setAlpha(1 - u * u), delay); }
+    }
   }
   /** Card shards thrown out of a burst. */
   private shards(x: number, y: number, n: number, spread: number, life = 420, delay = 0, depth = TOP + 3): void {
     for (let i = 0; i < n; i++) {
       const a = rnd(0, Math.PI * 2), d = rnd(0.5, 1) * spread, spin = rnd(-720, 720), sc = rnd(0.18, 0.32);
-      const im = this.ctx.scene.add.image(x, y, Math.random() < 0.5 ? 'gb-back' : 'gb-face').setDepth(depth).setScale(sc);
+      const im = this.ctx.scene.add.image(x, y, Math.random() < 0.5 ? this.BK : this.FK).setDepth(depth).setScale(this.u * (sc));
       this.piece(im, life, (u, o) => o.setPosition(x + Math.cos(a) * d * out3(u), y + Math.sin(a) * d * 0.6 * out3(u) + 40 * u * u).setAngle(spin * u).setAlpha(1 - u * u), delay);
     }
   }
   /** A burst: the kinetic charge going off (card-sized white core, fuchsia halo, shards). */
   burst(x: number, y: number, size = 90, delay = 0, depth = TOP + 3): void {
-    this.pop(x, y, size, FUCHSIA, 300, delay, depth);
-    this.shards(x, y, Math.round(size / 18), size * 0.8, 420, delay, depth);
-    const ring = this.ctx.scene.add.ellipse(x, y, size, size * 0.6).setStrokeStyle(4, FUCHSIA_2, 0.9).setDepth(depth).setBlendMode(Phaser.BlendModes.ADD);
-    this.piece(ring, 260, (u, o) => o.setScale(lerp(0.3, 1.3, out3(u))).setAlpha(1 - u), delay);
+    const blast = size >= 140 ? this.kit('k_blast', x, y, size * 1.25, depth + 0.1) : null;
+    if (blast) {
+      const k0 = blast.scale, a0 = rnd(0, 360);
+      this.piece(blast, 420, (u, o) => o.setScale(k0 * lerp(0.35, 1.2, out3(u))).setAngle(a0 + u * 20).setAlpha(u < 0.6 ? 1 : (1 - u) / 0.4), delay);
+      const core = this.glow(x, y, size * 0.6, 0xffffff, depth + 0.2); this.piece(core, 200, (u, o) => o.setAlpha(1 - u), delay);
+    } else this.pop(x, y, size, FUCHSIA, 300, delay, depth);
+    this.shards(x, y, Math.round(size / 26), size * 0.8, 420, delay, depth);
+    const ring = this.kit('k_ring', x, y + size * 0.15, size * 1.3, depth - 0.1);
+    if (ring) { const k0 = ring.scale; this.piece(ring, 300, (u, o) => o.setScale(k0 * lerp(0.3, 1.2, out3(u))).setAlpha(1 - u), delay); }
+    else { const e = this.ctx.scene.add.ellipse(x, y, size, size * 0.6).setStrokeStyle(4, FUCHSIA_2, 0.9).setDepth(depth).setBlendMode(Phaser.BlendModes.ADD); this.piece(e, 260, (u, o) => o.setScale(lerp(0.3, 1.3, out3(u))).setAlpha(1 - u), delay); }
   }
   /** A card (back or face with a glyph) as a container. */
   private card(x: number, y: number, c: Card | null, scale: number, depth: number): Phaser.GameObjects.Container {
-    const s = this.ctx.scene, box = s.add.container(x, y).setDepth(depth);
-    if (!c) { box.add(s.add.image(0, 0, 'gb-back').setScale(scale)); return box; }
+    const s = this.ctx.scene, box = s.add.container(x, y).setDepth(depth), u = this.u;
+    if (!c) { box.add(s.add.image(0, 0, this.BK).setScale(scale * u)); return box; }
+    const red = c.suit === 'H' || c.suit === 'D', col = c.joker ? '#c9a8ff' : red ? '#d0109e' : '#151018';
+    const small = Math.round(20 * scale);
+    if (this.painted) { // the painted face: its suit (or the ace / the joker), the rank in the corner
+      const pic = c.joker ? 'gbk-card_joker' : c.rank === 14 && c.suit === 'S' ? 'gbk-card_ace' : `gbk-card_${c.suit}`;
+      box.add(s.add.image(0, 0, pic).setScale(scale * u));
+      if (!c.joker) box.add(s.add.text(-17 * scale, -27 * scale, RANK_NAME(c.rank), { fontFamily: 'Georgia, serif', fontStyle: 'bold', fontSize: `${small}px`, color: col, stroke: '#f4efe6', strokeThickness: 3 * scale }).setOrigin(0.5));
+      return box;
+    }
     box.add(s.add.image(0, 0, 'gb-face').setScale(scale));
-    const red = c.suit === 'H' || c.suit === 'D', col = c.joker ? '#c9a8ff' : red ? '#ff2bd6' : '#151018';
-    const big = Math.round(34 * scale), small = Math.round(20 * scale);
+    const big = Math.round(34 * scale);
     if (c.joker) {
       box.add(s.add.text(0, -2 * scale, '★', { fontFamily: 'Georgia, serif', fontSize: `${big}px`, color: '#ffc94a', stroke: '#3a0a4a', strokeThickness: 3 * scale }).setOrigin(0.5));
       box.add(s.add.text(0, 26 * scale, 'JOKER', { fontFamily: 'Georgia, serif', fontStyle: 'bold', fontSize: `${Math.round(10 * scale)}px`, color: '#3a0a4a' }).setOrigin(0.5));
@@ -180,6 +219,10 @@ export class GamblerFx {
   }
   /** A ring on the floor (flattened). */
   private floorRing(x: number, y: number, r: number, color = FUCHSIA, life = 420, delay = 0, width = 6): void {
+    if (color === FUCHSIA || color === FUCHSIA_2) {
+      const k = this.kit('k_ring', x, y, r * 2.2, GROUND + 2);
+      if (k) { const kx = k.scaleX, ky = (r * 2.2 * SQUASH) / k.height; this.piece(k, life, (u, o) => o.setScale(kx * lerp(0.2, 1, out3(u)), ky * lerp(0.2, 1, out3(u))).setAlpha(1 - u * u), delay); return; }
+    }
     const e = this.ctx.scene.add.ellipse(x, y, r * 2, r * 2 * SQUASH).setStrokeStyle(width, color, 0.95).setDepth(GROUND + 2).setBlendMode(Phaser.BlendModes.ADD);
     this.piece(e, life, (u, o) => o.setScale(lerp(0.2, 1, out3(u))).setAlpha(1 - u * u), delay);
   }
@@ -251,10 +294,12 @@ export class GamblerFx {
 
   projectile(p: Projectile): void {
     const s = this.ctx.scene, big = p.skill.id === 'ace_in_the_hole';
-    const img = s.add.image(p.x, p.y - p.z, big ? 'gb-face' : 'gb-back').setScale(big ? 0.62 : 0.36).setDepth(p.y + 3);
+    const img = s.add.image(p.x, p.y - p.z, big ? this.acePic : this.BK).setScale(this.u * (big ? 0.62 : 0.36)).setDepth(p.y + 3);
     const glow = this.glow(p.x, p.y - p.z, big ? 110 : 60, FUCHSIA, p.y + 2);
     const g = s.add.graphics().setDepth(p.y + 1).setBlendMode(Phaser.BlendModes.ADD);
-    this.projs.set(p, { img, glow, trail: [], g, big });
+    const streak = this.kit('k_streak', p.x, p.y - p.z, big ? 300 : 150, p.y + 2);
+    if (streak) streak.setOrigin(0.97, 0.52).setAngle(screenAng(p.dx, p.dy)).setFlipY(p.dx < -0.01);
+    this.projs.set(p, { img, glow, trail: [], g, big, streak });
   }
   private stepProjectiles(dt: number): void {
     for (const [p, v] of this.projs) {
@@ -262,6 +307,7 @@ export class GamblerFx {
       v.img.setPosition(x, y).setDepth(p.y + 3);
       if (v.big) v.img.setAngle(screenAng(p.dx, p.dy) + 90); else v.img.setAngle(v.img.angle + dt * 1.4);
       v.glow.setPosition(x, y);
+      if (v.streak) { v.streak.setPosition(x, y).setDepth(p.y + 2); v.g.clear(); continue; }
       v.trail.push({ x, y }); if (v.trail.length > (v.big ? 14 : 7)) v.trail.shift();
       v.g.clear();
       for (let i = 1; i < v.trail.length; i++) { const k = i / v.trail.length; v.g.lineStyle((v.big ? 14 : 7) * k, k > 0.8 ? 0xffffff : FUCHSIA, 0.7 * k); v.g.lineBetween(v.trail[i - 1].x, v.trail[i - 1].y, v.trail[i].x, v.trail[i].y); }
@@ -270,7 +316,7 @@ export class GamblerFx {
   projectileEnd(p: Projectile): void {
     const v = this.projs.get(p); if (!v) return;
     this.projs.delete(p);
-    v.img.destroy(); v.glow.destroy();
+    v.img.destroy(); v.glow.destroy(); if (v.streak) this.piece(v.streak, 140, (u, o) => o.setAlpha(1 - u));
     this.piece(v.g, 160, (u, o) => o.setAlpha(1 - u));
     const end = p.end ?? { x: p.x, y: p.y, reason: 'range' as const };
     if (end.reason === 'cover') this.burst(end.x, end.y - p.z, 70, 0, end.y + 2);
@@ -281,9 +327,9 @@ export class GamblerFx {
     const tp = this.ctx.targetPos(id); if (!tp) return;
     const s = this.ctx.scene, list = this.stuck.get(id) ?? [];
     for (let i = 0; i < n; i++) {
-      const img = s.add.image(0, 0, 'gb-back').setScale(0.26).setDepth(TOP + 1);
+      const img = s.add.image(0, 0, this.BK).setScale(this.u * (0.26)).setDepth(TOP + 1);
       list.push({ img, dx: rnd(-14, 14), dy: rnd(-(tp.h ?? 90) * 0.75, -(tp.h ?? 90) * 0.3), ang: rnd(-40, 40), at: this.clock + FUSE_MS + i * 70, t: 0 });
-      if (double) list.push({ img: s.add.image(0, 0, 'gb-back').setScale(0.22).setDepth(TOP + 1), dx: rnd(-14, 14), dy: rnd(-(tp.h ?? 90) * 0.75, -(tp.h ?? 90) * 0.3), ang: rnd(-40, 40), at: this.clock + FUSE_MS + 260 + i * 70, t: 0 });
+      if (double) list.push({ img: s.add.image(0, 0, this.BK).setScale(this.u * (0.22)).setDepth(TOP + 1), dx: rnd(-14, 14), dy: rnd(-(tp.h ?? 90) * 0.75, -(tp.h ?? 90) * 0.3), ang: rnd(-40, 40), at: this.clock + FUSE_MS + 260 + i * 70, t: 0 });
     }
     while (list.length > 8) list.shift()?.img.destroy();
     this.stuck.set(id, list);
@@ -380,10 +426,9 @@ export class GamblerFx {
     this.add((t) => {
       if (t < T.startup + 800) return true;
       this.floorRing(p.x, p.y, 120, FUCHSIA_2, 380);
-      const beam = this.ctx.scene.add.rectangle(p.x, p.y, 70, 260, FUCHSIA, 0.7).setOrigin(0.5, 1).setDepth(p.y + 3).setBlendMode(Phaser.BlendModes.ADD);
-      this.piece(beam, 360, (u, o) => o.setScale(lerp(0.4, 1.3, out3(u)), lerp(0.3, 1.1, out3(u))).setAlpha(1 - u));
+      this.beam(p.x, p.y, 280, 360);
       this.burst(p.x, p.y - 40, 150, 0, p.y + 3);
-      for (let i = 0; i < 6; i++) { const im = this.ctx.scene.add.image(p.x + rnd(-60, 60), p.y, 'gb-back').setScale(0.3).setDepth(p.y + 4); const vy = rnd(220, 340); this.piece(im, 600, (u, o) => o.setPosition(o.x, p.y - vy * u + 300 * u * u).setAngle(u * 600).setAlpha(1 - u)); }
+      for (let i = 0; i < 6; i++) { const im = this.ctx.scene.add.image(p.x + rnd(-60, 60), p.y, this.BK).setScale(this.u * (0.3)).setDepth(p.y + 4); const vy = rnd(220, 340); this.piece(im, 600, (u, o) => o.setPosition(o.x, p.y - vy * u + 300 * u * u).setAngle(u * 600).setAlpha(1 - u)); }
       this.ctx.cam().shake(160, 0.007);
       return false;
     });
@@ -391,7 +436,9 @@ export class GamblerFx {
 
   private shuffle(r: CastRun): void {
     const T = r.timings, n = 16, life = T.startup + T.active;
-    const cards = Array.from({ length: n }, () => this.ctx.scene.add.image(0, 0, 'gb-back').setScale(0.34));
+    const vx = this.kit('k_vortex', r.origin.x, r.origin.y, 300, GROUND + 2);
+    if (vx) { const kx = vx.scaleX, ky = (300 * SQUASH) / vx.height; this.add((t) => { const c = this.ctx.casterPos(r.attackerId); if (t >= life || !c) { this.piece(vx, 200, (u, o) => o.setAlpha(1 - u)); return false; } vx.setPosition(c.x, c.y).setScale(kx * Math.min(1, t / 200), ky * Math.min(1, t / 200)).setAlpha(0.9); return true; }); }
+    const cards = Array.from({ length: n }, () => this.ctx.scene.add.image(0, 0, this.BK).setScale(this.u * (0.34)));
     this.add((t) => {
       const c = this.ctx.casterPos(r.attackerId);
       if (t >= life || !c) { const at = c ?? r.origin; for (const im of cards) { const a = rnd(0, Math.PI * 2); const x0 = im.x, y0 = im.y; this.piece(im, 360, (u, o) => o.setPosition(x0 + Math.cos(a) * 160 * u, y0 + Math.sin(a) * 70 * u).setAlpha(1 - u)); } void at; return false; }
@@ -399,7 +446,7 @@ export class GamblerFx {
       cards.forEach((im, i) => {
         const half = i % 2, a = (i / n) * Math.PI * 2 + (half ? 1 : -1) * t * 0.012;
         const x = c.x + Math.cos(a) * R, y = c.y + Math.sin(a) * R * SQUASH, h = c.z + 46 + Math.sin(t * 0.02 + i) * 8;
-        im.setPosition(x, y - h).setDepth(y + (Math.sin(a) > 0 ? 3 : -3)).setAngle(a * 57 + 90).setScale(0.34, 0.34 * (0.55 + 0.45 * Math.abs(Math.cos(a))));
+        im.setPosition(x, y - h).setDepth(y + (Math.sin(a) > 0 ? 3 : -3)).setAngle(a * 57 + 90).setScale(this.u * 0.34, this.u * 0.34 * (0.55 + 0.45 * Math.abs(Math.cos(a))));
       });
       return true;
     });
@@ -500,14 +547,13 @@ export class GamblerFx {
     this.ctx.callout({ x: p.x, y: p.y, z: 40 }, res.red ? 'RED!' : 'BLACK!', res.red ? '#ff2bd6' : '#e8e0f0', 0);
     if (res.red) {
       this.burst(p.x, p.y - 40, 260, 0, p.y + 3);
-      const beam = this.ctx.scene.add.rectangle(p.x, p.y, 160, 340, FUCHSIA, 0.6).setOrigin(0.5, 1).setDepth(p.y + 3).setBlendMode(Phaser.BlendModes.ADD);
-      this.piece(beam, 420, (u, o) => o.setScale(lerp(0.4, 1.2, out3(u)), lerp(0.2, 1, out3(u))).setAlpha(1 - u));
+      this.beam(p.x, p.y, 340, 420);
       this.ctx.cam().shake(240, 0.01);
     } else { // black: a cage of standing cards round everyone in the wheel for 2s
       for (let k = 0; k < 12; k++) {
         const a = (k / 12) * Math.PI * 2, x = p.x + Math.cos(a) * 140, y = p.y + Math.sin(a) * 140 * SQUASH;
-        const im = this.ctx.scene.add.image(x, y, 'gb-back').setOrigin(0.5, 1).setScale(0.6).setDepth(y);
-        this.piece(im, 2000, (u, o) => o.setScale(0.6, 0.6 * (u < 0.1 ? u / 0.1 : u > 0.85 ? (1 - u) / 0.15 : 1)));
+        const im = this.ctx.scene.add.image(x, y, this.BK).setOrigin(0.5, 1).setScale(this.u * (0.6)).setDepth(y);
+        this.piece(im, 2000, (u, o) => o.setScale(this.u * 0.6, this.u * 0.6 * (u < 0.1 ? u / 0.1 : u > 0.85 ? (1 - u) / 0.15 : 1)));
       }
       this.floorRing(p.x, p.y, 150, 0xd8d0e8, 600);
     }
@@ -562,12 +608,12 @@ export class GamblerFx {
       const c = this.me(r), side = sideOf(r);
       for (let k = 0; k < 44; k++) {
         const ang = Math.atan2(r.aim.y, r.aim.x) + rnd(-0.6, 0.6), dist = rnd(80, 440), x1 = c.x + Math.cos(ang) * dist, y1 = c.y + Math.sin(ang) * dist * 0.8;
-        const im = s.add.image(c.x + side * 20, c.y - c.z - 60, 'gb-back').setScale(0.3).setDepth(y1 + 2);
+        const im = s.add.image(c.x + side * 20, c.y - c.z - 60, this.BK).setScale(this.u * (0.3)).setDepth(y1 + 2);
         const fly = rnd(160, 260), delay = rnd(0, 120);
         this.piece(im, fly + 760, (u, o) => {
           const tt = u * (fly + 760);
           if (tt < fly) { const k2 = tt / fly; o.setPosition(lerp(c.x + side * 20, x1, k2), lerp(c.y - c.z - 60, y1 - 4, k2) - Math.sin(k2 * Math.PI) * 30).setAngle(k2 * 540); }
-          else o.setTint(Math.floor(tt / 60) % 2 ? 0xffffff : FUCHSIA).setAngle(70).setScale(0.3, 0.16);
+          else o.setTint(Math.floor(tt / 60) % 2 ? 0xffffff : FUCHSIA).setAngle(70).setScale(this.u * 0.3, this.u * 0.16);
         }, delay);
       }
       return false;
@@ -604,6 +650,10 @@ export class GamblerFx {
       if (!c || this.clock > o.until) { o.g.destroy(); o.glow.destroy(); this.overloads.delete(id); continue; }
       o.glow.setPosition(c.x, c.y - c.z - 60).setDepth(c.y - 1).setAlpha(0.25 + 0.12 * Math.sin(this.clock * 0.01));
       o.g.clear().setDepth(c.y + 3);
+      if (this.ctx.scene.textures.exists('gbk-k_arcs')) {
+        if (Math.random() < 0.18) { const a = this.kit('k_arcs', c.x + rnd(-14, 14), c.y - c.z - rnd(40, 90), rnd(70, 110), c.y + 3); if (a) { const a0 = a.scale; a.setAngle(rnd(0, 360)).setFlipX(Math.random() < 0.5); this.piece(a, 160, (u, im) => im.setAlpha(1 - u).setScale(a0 * (1 + u * 0.2))); } }
+        continue;
+      }
       for (let k = 0; k < 3; k++) {
         const x = c.x + rnd(-34, 34), y = c.y - c.z - rnd(10, 120);
         o.g.lineStyle(2, k ? FUCHSIA : 0xffffff, 0.8); o.g.beginPath(); o.g.moveTo(x, y);
@@ -706,8 +756,8 @@ export class GamblerFx {
   }
   /** Card Step: a card under his feet bursts and throws him on. */
   cardStep(x: number, y: number, dir: number): void {
-    const im = this.ctx.scene.add.image(x, y + 8, 'gb-back').setScale(0.34, 0.16).setDepth(TOP + 2).setTint(FUCHSIA_2);
-    this.piece(im, 220, (u, o) => o.setAlpha(1 - u).setScale(0.34 + u * 0.2, 0.16));
+    const im = this.ctx.scene.add.image(x, y + 8, this.BK).setScale(this.u * (0.34), this.u * (0.16)).setDepth(TOP + 2).setTint(FUCHSIA_2);
+    this.piece(im, 220, (u, o) => o.setAlpha(1 - u).setScale(this.u * (0.34 + u * 0.2), this.u * 0.16));
     this.burst(x - dir * 6, y + 6, 80);
   }
 

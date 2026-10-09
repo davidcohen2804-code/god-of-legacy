@@ -157,6 +157,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   L('dmg-n', `${F}/ui/hud/dmg_normal.png`, DIGITS.cell[0], DIGITS.cell[1]); L('dmg-c', `${F}/ui/hud/dmg_crit.png`, DIGITS.cell[0], DIGITS.cell[1]); // MapleStory damage digits (tools/ui/damage_digits.py)
   // passive-skill sheets shared by the warrior and the archer (heal sparkle, stance ring, chains, target mark)
   if (want('warrior') || want('archer') || want('samurai')) for (const k of ['heal_sparkle', 'stance_ring', 'chains_break', 'target_mark']) if (!scene.textures.exists(`pas-${k}`)) scene.load.spritesheet(`pas-${k}`, `${F}/skills/warrior/passives/${k}.png`, { frameWidth: 256, frameHeight: 256 });
+  if (want('gambler')) for (const n of ['card_back', 'card_face', 'card_S', 'card_H', 'card_D', 'card_C', 'card_ace', 'card_joker', 'k_streak', 'k_charge', 'k_pop', 'k_blast', 'k_ring', 'k_beam', 'k_vortex', 'k_arcs']) I(`gbk-${n}`, `${F}/skills/gambler/kit/${n}.png`); // the gambler's painted cards (tools/skills/gambler_kit.py)
   if (want('archer')) {
     ensureArcherArt(scene);
     L('vfx-wind_leap', `${F}/skills/archer/wind_leap/vfx.png`, 256);
