@@ -4,8 +4,11 @@
 // DOM overlay (1920x1080 design px, scaled to the canvas by syncOverlay); the two big fighters are drawn by the scene
 // (FighterArt, under this overlay), told what to show through the handlers.
 import '@fontsource/cinzel/900.css';
+import '@fontsource/exo-2/700-italic.css';
+import '@fontsource/exo-2/800-italic.css';
+import '@fontsource/exo-2/900-italic.css';
 import { CLASS_NAMES } from '../config/layout';
-import { ROSTER, fighterFor, heroCard } from '../pvp/Fighters';
+import { ROSTER, fighterFor, heroArt } from '../pvp/Fighters';
 import { BOT_NAMES } from '../pvp/SparringBot';
 import { syncOverlay } from './CharacterSelectUI';
 import type { ArtState } from './FighterArt';
@@ -30,6 +33,10 @@ export interface PvpSelectHandlers {
 
 const STYLE_ID = 'gol-ps-style';
 const TITLE = 'Cinzel, Georgia, serif';
+/** The fight's lettering (as the arena's calls): a heavy italic display face. */
+const DISPLAY = "'Exo 2', 'Segoe UI', sans-serif";
+/** Small labels (Exo 2's rounded E reads as an "e" under ~16px). */
+const LABEL = "'Inter', 'Segoe UI', sans-serif";
 const TILE = { w: 150, h: 190, gap: 14, top: 840 };
 const TILES_X = 960 - (ROSTER.length * TILE.w + (ROSTER.length - 1) * TILE.gap) / 2;
 const GOLD = 'linear-gradient(180deg,#fffdf2 0%,#ffeab2 24%,#f7c75c 47%,#9a580b 50%,#d58d27 68%,#ffe7a1 100%)';
@@ -38,7 +45,7 @@ const STEEL = 'linear-gradient(180deg,#ffffff 0%,#e8f2ff 24%,#9fc4ef 47%,#2a4c82
 const CSS = `
 .gol-ps{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;overflow:hidden;pointer-events:auto;font-family:var(--gl-body);color:#f3e3bd;user-select:none}
 /* metal lettering (as the arena's calls) */
-.gol-ps .ps-w{position:relative;display:inline-block;isolation:isolate;white-space:nowrap;font-family:${TITLE};font-weight:900;line-height:1.1;letter-spacing:.05em;padding:0 .1em}
+.gol-ps .ps-w{position:relative;display:inline-block;isolation:isolate;white-space:nowrap;font-family:${DISPLAY};font-weight:900;font-style:italic;line-height:1.1;letter-spacing:.02em;padding:0 .14em}
 .gol-ps .ps-w .ps-f{color:transparent;background-image:var(--g);-webkit-background-clip:text;background-clip:text}
 .gol-ps .ps-w::before{content:attr(data-t);position:absolute;left:0;top:0;width:100%;height:100%;padding:inherit;box-sizing:border-box;z-index:-1;color:var(--o);-webkit-text-stroke:.1em var(--o);filter:drop-shadow(0 .05em 0 rgba(0,0,0,.6)) drop-shadow(0 0 .2em var(--gl))}
 .gol-ps .ps-w.gold{--g:${GOLD};--o:#2b1404;--gl:rgba(255,178,64,.5)}
@@ -49,48 +56,51 @@ const CSS = `
 .gol-ps .ps-score div.w1{box-shadow:inset 0 0 0 2px #e8442c,0 0 18px rgba(232,68,44,.45)}
 .gol-ps .ps-score div.dr{width:136px;box-shadow:inset 0 0 0 2px #e8b84a,0 0 14px rgba(232,184,74,.35)}
 .gol-ps .ps-score div.w2{box-shadow:inset 0 0 0 2px #3f8ff2,0 0 18px rgba(63,143,242,.45)}
-.gol-ps .ps-score b{font:900 44px/1 ${TITLE};font-style:italic}
+.gol-ps .ps-score b{font:900 italic 46px/1 ${DISPLAY}}
 .gol-ps .ps-score .w1 b{color:#ff5a3a;text-shadow:0 0 12px rgba(255,90,58,.6)}
 .gol-ps .ps-score .dr b{color:#ffd25a;text-shadow:0 0 12px rgba(255,210,90,.5)}
 .gol-ps .ps-score .w2 b{color:#4aa3ff;text-shadow:0 0 12px rgba(74,163,255,.6)}
-.gol-ps .ps-score small{margin-top:5px;font:700 13px/1 var(--gl-body);font-style:italic;letter-spacing:1.5px;color:#d9cdb2}
-.gol-ps .ps-tabs{position:absolute;left:50%;top:124px;transform:translateX(-50%);display:flex;gap:10px;padding:6px;border-radius:14px;background:rgba(6,10,18,.72);box-shadow:inset 0 0 0 1px rgba(201,154,69,.45)}
-.gol-ps .ps-tabs button{width:196px;height:44px;border-radius:10px;border:1px solid transparent;background:transparent;color:#bfae86;font:900 16px ${TITLE};letter-spacing:2.5px;cursor:pointer}
+.gol-ps .ps-score small{margin-top:5px;font:700 italic 13px/1 ${LABEL};letter-spacing:1.5px;color:#d9cdb2}
+.gol-ps .ps-tabs{position:absolute;left:50%;top:124px;transform:translateX(-50%);display:flex;gap:10px;padding:6px 18px;background:rgba(6,10,18,.78);clip-path:polygon(14px 0,100% 0,calc(100% - 14px) 100%,0 100%);box-shadow:inset 0 1px 0 rgba(201,154,69,.6),inset 0 -2px 0 rgba(201,154,69,.6)}
+.gol-ps .ps-tabs button{width:196px;height:44px;border-radius:0;clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%);border:1px solid transparent;background:transparent;color:#bfae86;font:800 italic 17px ${DISPLAY};letter-spacing:2.5px;cursor:pointer}
 .gol-ps .ps-tabs button:hover{color:#f3dca2;background:rgba(255,255,255,.05)}
-.gol-ps .ps-tabs button.on{color:#24180a;background:linear-gradient(180deg,#f2d493,#d2a65a);border-color:#f6dc9f;box-shadow:0 6px 18px rgba(210,166,90,.25)}
-.gol-ps .ps-back{position:absolute;left:28px;top:28px;width:132px}
+.gol-ps .ps-tabs button.on{color:#24180a;background:linear-gradient(180deg,#f2d493,#d2a65a);border-color:#f6dc9f}
+.gol-ps .ps-back{position:absolute;left:28px;top:28px;width:150px;height:44px;padding:0 16px;border:0;border-radius:0;clip-path:polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%);
+  background:linear-gradient(180deg,rgba(32,38,54,.96),rgba(8,11,18,.96));box-shadow:inset 0 1px 0 rgba(240,204,128,.55),inset 0 -2px 0 rgba(240,204,128,.85);color:#f3e3bd;font:800 italic 19px ${DISPLAY};letter-spacing:2px}
+.gol-ps .ps-back:hover:not(:disabled){color:#24180a;background:linear-gradient(180deg,#f2d493,#d2a65a)}
 /* name plates */
 .gol-ps .ps-pl{position:absolute;top:610px;width:600px;display:flex;flex-direction:column;gap:6px;pointer-events:none}
 .gol-ps .ps-pl.l{left:64px;align-items:flex-start}
 .gol-ps .ps-pl.r{right:64px;align-items:flex-end}
 .gol-ps .ps-bd{display:flex;gap:8px}
-.gol-ps .ps-bd i{font:800 14px/1 var(--gl-body);font-style:normal;letter-spacing:2px;padding:7px 12px 6px;border-radius:8px;color:#fff}
+.gol-ps .ps-bd i{font:700 italic 14px/1 ${LABEL};letter-spacing:2px;padding:7px 12px 6px;border-radius:8px;color:#fff}
 .gol-ps .ps-pl.l .ps-bd i.side{background:linear-gradient(180deg,#e8642c,#a8300f);box-shadow:0 0 14px rgba(232,100,44,.5)}
 .gol-ps .ps-pl.r .ps-bd i.side{background:linear-gradient(180deg,#4c8fe8,#1f4f9c);box-shadow:0 0 14px rgba(76,143,232,.5)}
 .gol-ps .ps-bd i.you{background:rgba(6,10,18,.8);color:#f3dca2;box-shadow:inset 0 0 0 1px rgba(240,204,128,.6)}
 .gol-ps .ps-bd i.ok{background:linear-gradient(180deg,#f2d493,#d2a65a);color:#24180a}
-.gol-ps .ps-pl .ps-cls{font-size:72px}
-.gol-ps .ps-pl .ps-cls .ps-w{transform:skewX(-9deg)}
-.gol-ps .ps-pl .ps-nm{font:700 22px/1.2 var(--gl-body);letter-spacing:3px;color:#e9dcc0;text-shadow:0 2px 6px #000;text-transform:uppercase;max-width:600px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gol-ps .ps-pl .ps-cls{font-size:84px}
+.gol-ps .ps-pl .ps-nm{font:800 italic 24px/1.2 ${DISPLAY};letter-spacing:3px;color:#e9dcc0;text-shadow:0 2px 6px #000;text-transform:uppercase;max-width:600px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* the middle: VS, what to do now */
-.gol-ps .ps-vs{position:absolute;left:0;right:0;top:420px;text-align:center;font-size:96px;opacity:.92;pointer-events:none}
+.gol-ps .ps-vs{position:absolute;left:0;right:0;top:372px;text-align:center;opacity:.96;pointer-events:none}
+.gol-ps .ps-vs img{width:300px;height:auto;filter:drop-shadow(0 10px 22px rgba(0,0,0,.7))}
 .gol-ps .ps-vs.go{animation:psPulse .7s ease-in-out infinite alternate}
 @keyframes psPulse{to{transform:scale(1.12);filter:brightness(1.35)}}
-.gol-ps .ps-st{position:absolute;left:560px;right:560px;top:772px;text-align:center;font:900 26px/1.2 ${TITLE};letter-spacing:.2em;color:#ffe9b0;text-shadow:0 3px 0 #2b1404,0 0 18px rgba(255,180,70,.55);pointer-events:none}
+.gol-ps .ps-st{position:absolute;left:560px;right:560px;top:772px;text-align:center;font:900 italic 28px/1.2 ${DISPLAY};letter-spacing:.16em;color:#ffe9b0;text-shadow:0 3px 0 #2b1404,0 0 18px rgba(255,180,70,.55);pointer-events:none}
 .gol-ps .ps-st.go{color:#fff;animation:psPulse .45s ease-in-out infinite alternate}
 /* the roster */
-.gol-ps .ps-tile{position:absolute;top:${TILE.top}px;width:${TILE.w}px;height:${TILE.h}px;border-radius:12px;overflow:hidden;cursor:pointer;background:#0b1220 no-repeat;
-  box-shadow:0 0 0 2px rgba(201,154,69,.75),0 10px 24px rgba(0,0,0,.6)}
+.gol-ps .ps-tile{position:absolute;top:${TILE.top}px;width:${TILE.w}px;height:${TILE.h}px;border-radius:3px;overflow:hidden;cursor:pointer;background:radial-gradient(ellipse at 50% 30%,#2a3346,#080b12) no-repeat;
+  box-shadow:0 0 0 2px rgba(214,222,240,.55),0 0 0 3px rgba(0,0,0,.8),0 10px 24px rgba(0,0,0,.6)}
+.gol-ps .ps-tile::before{content:'';position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,0) 22%);pointer-events:none}
 .gol-ps .ps-tile::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 55%,rgba(4,6,12,.92) 100%)}
-.gol-ps .ps-tile span{position:absolute;left:0;right:0;bottom:12px;z-index:1;text-align:center;font:900 15px ${TITLE};letter-spacing:1.5px;color:#f3dca2;text-shadow:0 2px 4px #000}
+.gol-ps .ps-tile span{position:absolute;left:0;right:0;bottom:11px;z-index:1;text-align:center;font:900 italic 16px ${DISPLAY};letter-spacing:1.5px;color:#ffffff;text-shadow:0 2px 4px #000}
 .gol-ps .ps-tile.off{filter:saturate(.4) brightness(.6)}
-.gol-ps .ps-cur{position:absolute;top:${TILE.top}px;width:${TILE.w}px;height:${TILE.h}px;border-radius:12px;pointer-events:none;transition:left .12s cubic-bezier(.3,.8,.3,1)}
+.gol-ps .ps-cur{position:absolute;top:${TILE.top}px;width:${TILE.w}px;height:${TILE.h}px;border-radius:3px;pointer-events:none;transition:left .12s cubic-bezier(.3,.8,.3,1)}
 .gol-ps .ps-cur.p1{box-shadow:0 0 0 4px #ff9a3c,0 0 22px 4px rgba(255,140,50,.75)}
 .gol-ps .ps-cur.p2{box-shadow:0 0 0 4px #5aa8ff,0 0 22px 4px rgba(80,160,255,.75)}
 .gol-ps .ps-cur.p1.p2s{box-shadow:0 0 0 4px #ff9a3c,0 0 0 8px #5aa8ff,0 0 26px 6px rgba(160,150,255,.6)}
 .gol-ps .ps-cur:not(.lock){animation:psBlink .7s ease-in-out infinite alternate}
 @keyframes psBlink{to{filter:brightness(1.45)}}
-.gol-ps .ps-cur b{position:absolute;top:-30px;font:800 13px/1 var(--gl-body);letter-spacing:1.5px;color:#fff;padding:5px 9px 4px;border-radius:7px}
+.gol-ps .ps-cur b{position:absolute;top:-30px;font:700 italic 14px/1 ${LABEL};letter-spacing:1.5px;color:#fff;padding:5px 12px 4px;clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)}
 .gol-ps .ps-cur.p1 b{left:-4px;background:linear-gradient(180deg,#e8642c,#a8300f)}
 .gol-ps .ps-cur.p2 b{right:-4px;background:linear-gradient(180deg,#4c8fe8,#1f4f9c)}
 .gol-ps .ps-cur.hide{display:none}
@@ -99,8 +109,8 @@ const CSS = `
 /* VS PLAYER: the invite (until the other player is in) */
 .gol-ps .ps-inv{position:absolute;left:1220px;top:300px;width:600px;box-sizing:border-box;padding:26px 30px 28px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:14px;
   background:linear-gradient(rgba(6,10,18,.9),rgba(6,10,18,.8));box-shadow:0 10px 30px rgba(0,0,0,.55),inset 0 0 0 1px rgba(90,168,255,.55)}
-.gol-ps .ps-inv h3{margin:0;font:900 22px ${TITLE};letter-spacing:3px;color:#cfe4ff}
-.gol-ps .ps-inv .code{font:900 54px/1 ${TITLE};letter-spacing:.3em;padding-left:.3em;color:#fff;text-shadow:0 0 18px rgba(90,168,255,.7)}
+.gol-ps .ps-inv h3{margin:0;font:900 italic 24px ${DISPLAY};letter-spacing:3px;color:#cfe4ff}
+.gol-ps .ps-inv .code{font:900 italic 58px/1 ${DISPLAY};letter-spacing:.3em;padding-left:.3em;color:#fff;text-shadow:0 0 18px rgba(90,168,255,.7)}
 .gol-ps .ps-inv .lnk{max-width:540px;font:600 13px var(--gl-body);color:#9fb3c8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gol-ps .ps-inv .wait{font:700 15px var(--gl-body);letter-spacing:1px;color:#e9dcc0}
 .gol-ps .ps-inv .wait::after{content:'';display:inline-block;width:1.2em;text-align:left;animation:psDots 1.2s steps(4) infinite}
@@ -158,15 +168,16 @@ export class PvpSelectUI {
       return { side, tag, cls, nm, box };
     };
     this.plate = { l: mkPlate('l'), r: mkPlate('r') };
-    this.vs = this.el('div', 'ps-vs', root); this.metal(this.vs, 'VS', 'gold');
+    this.vs = this.el('div', 'ps-vs', root);
+    const em = this.el('img', '', this.vs) as HTMLImageElement; em.src = 'assets/hud/vs_emblem.webp'; em.alt = 'VS'; em.draggable = false; // (the arena's VS screen slams the same emblem in)
     this.st = this.el('div', 'ps-st', root);
     ROSTER.forEach((c, i) => {
       const t = this.el('div', 'ps-tile', root) as HTMLDivElement;
       t.style.left = `${TILES_X + i * (TILE.w + TILE.gap)}px`;
-      const hc = heroCard(c);
-      if (hc) { // the hero's head and shoulders, from its card
-        const w = hc.face.s * 2.1, k = TILE.w / w, x = hc.face.x + hc.face.s / 2 - w / 2;
-        Object.assign(t.style, { backgroundImage: `url("${hc.file}")`, backgroundSize: `${hc.w * k}px ${hc.h * k}px`, backgroundPosition: `${-x * k}px ${-hc.face.y * k + 8}px` });
+      const a = heroArt(c);
+      if (a) { // the hero's head and shoulders, from its battle-stance art (or its card, until it has one)
+        const w = a.face.s * 1.9, k = TILE.w / w, x = a.face.x + a.face.s / 2 - w / 2, y = a.face.y - a.face.s * 0.28;
+        Object.assign(t.style, { backgroundImage: `url("${a.url}"), radial-gradient(ellipse at 50% 30%,${a.color}55,#080b12 70%)`, backgroundSize: `${a.w * k}px ${a.h * k}px, 100% 100%`, backgroundPosition: `${-x * k}px ${-y * k}px, 0 0` });
       }
       this.el('span', '', t).textContent = (CLASS_NAMES[c] ?? c).toUpperCase();
       t.addEventListener('mouseenter', () => this.point(i));

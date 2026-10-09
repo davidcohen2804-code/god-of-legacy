@@ -194,7 +194,7 @@ const CSS = `
 .gol-hud .menu button .gl-key{min-width:26px}
 /* battle mode (arena 1v1): the fight's own HUD across the top takes over — no card, target, map, panels pills or EXP */
 .gol-hud.battle .card,.gol-hud.battle .target,.gol-hud.battle .tfx,.gol-hud.battle .mm,.gol-hud.battle .region,.gol-hud.battle .menu,
-.gol-hud.battle .room,.gol-hud.battle .gol-qt,.gol-hud.battle .xpw{display:none!important}
+.gol-hud.battle .room,.gol-hud.battle .gol-qt,.gol-hud.battle .xpw,.gol-hud.battle .camc,.gol-hud.battle .gol-chat{display:none!important}
 `;
 
 interface Bar { root: HTMLDivElement; fill: HTMLDivElement; val?: HTMLSpanElement; w: number; last: string }

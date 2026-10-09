@@ -40,6 +40,7 @@ import { isQAMode } from '../qa/QAPanel';
 import { PvpController } from '../pvp/PvpController';
 import { Match, MatchPhase } from '../pvp/Match';
 import { BattleHUD, Fighter } from '../ui/BattleHUD';
+import { heroArt, heroVsPortrait } from '../pvp/Fighters';
 import { ComboGuide } from '../ui/ComboGuide';
 import { addResult, scoreKey } from '../pvp/Score';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
@@ -3379,10 +3380,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private botHero(): boolean { return !!this.character?.hero; }
   /** Name, class and portrait of a fighter for the battle HUD. */
   private fighterOf(id: string): Fighter {
-    if (id === this.localId) { const ch = this.character!; return { name: ch.name, cls: CLASS_NAMES[this.cls] ?? this.cls, portrait: ch.hero ? heroPortrait(this.cls) : portraitOf(previewKeyOf(ch)), you: true }; }
-    if (id === BOT_ID) { const c = this.botCls; return { name: this.botName(), cls: CLASS_NAMES[c] ?? c, portrait: this.botHero() ? heroPortrait(c) : portraitOf(c === 'warrior' ? 'base/male' : `${c}/${c}_default`), you: false }; }
+    // a hero: its battle-stance art for the VS and its face from that art on the health bar
+    const hero = (c: string) => ({ portrait: heroVsPortrait(c) ?? heroPortrait(c), vs: heroArt(c) });
+    if (id === this.localId) { const ch = this.character!; return { name: ch.name, cls: CLASS_NAMES[this.cls] ?? this.cls, ...(ch.hero ? hero(this.cls) : { portrait: portraitOf(previewKeyOf(ch)) }), you: true }; }
+    if (id === BOT_ID) { const c = this.botCls; return { name: this.botName(), cls: CLASS_NAMES[c] ?? c, ...(this.botHero() ? hero(c) : { portrait: portraitOf(c === 'warrior' ? 'base/male' : `${c}/${c}_default`) }), you: false }; }
     const r = this.pvp?.remotes.get(id), c = r?.meta.classId ?? 'warrior';
-    return { name: r?.meta.name ?? this.nameOf(id), cls: CLASS_NAMES[c] ?? c, portrait: r?.meta.hero ? heroPortrait(c) : portraitOf(c === 'warrior' ? `base/${r?.meta.gender ?? 'male'}` : `${c}/${c}_default`), you: false };
+    return { name: r?.meta.name ?? this.nameOf(id), cls: CLASS_NAMES[c] ?? c, ...(r?.meta.hero ? hero(c) : { portrait: portraitOf(c === 'warrior' ? `base/${r?.meta.gender ?? 'male'}` : `${c}/${c}_default`) }), you: false };
   }
 
   private showResult(m: Match): void {
