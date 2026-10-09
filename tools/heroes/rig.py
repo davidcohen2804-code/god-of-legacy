@@ -200,7 +200,7 @@ def gait(kind, phase, L):
     return feet, hh, lean, D, planted
 
 
-def bake(path, cls, idle_h):
+def bake(path, cls, idle_h, size=1.0):
     """The hero's walk / run frames: [(act, rgba crop, ax, ay)], and the cycle distances {act: px}, at the idle's scale."""
     P = load_parts(path, cls)
     front, back, hip_u = P['upper']
@@ -209,18 +209,24 @@ def bake(path, cls, idle_h):
     T = float(np.hypot(*(tn1 - tn0))); S = float(np.hypot(*(sn1 - sn0))); L = T + S
     ankle_h = (P['shin_n_sole'] - sn1[1])  # ankle above the sole
     stand_h = hip_u[1] + 0.975 * L + ankle_h  # head top to sole when standing (upper crop starts at the head)
-    k = 0.985 * idle_h / stand_h
+    k = 0.985 * idle_h / stand_h * size
     out = []
-    for kind, n in (('walk', WALK_N), ('run', RUN_N)):
+    for kind, n in (('idle', 1), ('stance', 1), ('walk', WALK_N), ('run', RUN_N)):
         for i in range(n):
             ph = i / n
-            feet, hh, lean, D, planted = gait(kind, ph, L)
+            if kind in ('idle', 'stance'):  # standing (feet a little apart) / the combat stance (wider, knees bent, leaning in)
+                sp = 0.16 * L if kind == 'idle' else 0.34 * L
+                feet = [np.array([sp / 2, 0.0]), np.array([-sp / 2, 0.0])]
+                hh = math.sqrt((0.985 * L) ** 2 - (sp / 2) ** 2) if kind == 'idle' else 0.9 * L
+                lean = 0.0 if kind == 'idle' else 6.0
+            else:
+                feet, hh, lean, D, planted = gait(kind, ph, L)
             W = int(front.shape[1] + 2.4 * L) + 40; Hc = int(front.shape[0] + L + 80)
             cv = Image.new('RGBA', (W, Hc))
             ground = Hc - 20 - ankle_h
             hip = np.array([W / 2.0, ground - hh])
             # the upper body: hips at `hip`, leaning forward around them, a small sway with the steps
-            sway = (1.2 if kind == 'walk' else 2.0) * math.sin(4 * math.pi * ph)
+            sway = 0.0 if kind in ('idle', 'stance') else (1.2 if kind == 'walk' else 2.0) * math.sin(4 * math.pi * ph)
             ang_u = lean + sway * 0.3
             def upper(layer):
                 _place(cv, layer, hip_u, 0.0, hip, -ang_u)  # the drawing turned clockwise (forward) by the lean

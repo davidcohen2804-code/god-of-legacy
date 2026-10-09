@@ -7,6 +7,7 @@ Out: public/assets/final/heroes/<cls>/body.png and src/data/hero-atlas.json
 Run: python3 tools/heroes/cut.py
 """
 import json
+import math
 import sys
 import os
 import sys
@@ -20,6 +21,7 @@ OWN_FEET = {'jump', 'leap_crash', 'judgment_blade', 'finisher', 'spin_cut', 'fal
 # frames left out of a cut row (drawn upright inside a leaning run: the body would jump)
 DROP = {}
 HEADY = {}  # cls -> run frames (index, figure height, in the air)
+HERO_H = {}  # cls -> the drawn idle's height (the size every frame is shown by)
 STRIDES = {}  # (cls, act) -> feet spread per frame (atlas px)
 SCALE = 0.6  # frame size kept in the atlas (source px x SCALE)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -353,9 +355,17 @@ def main():
         if os.path.exists(parts_png):
             import rig
             idle_now = float(np.median([im.shape[0] for (ac, _, _), im in zip(acts, ims) if ac == 'idle']))
-            keep = [i for i, (ac, _, _) in enumerate(acts) if ac not in ('walk', 'run', 'walk2', 'run2')]
+            HERO_H[cls] = idle_now  # the hero's size reference stays the drawn idle's (skills keep their size)
+            # The parts are drawn with longer, slimmer proportions than the drawn frames: matched by height alone the hero
+            # looks much smaller walking. Sized halfway (geometric mean) between the same height and the same face.
+            face_old = float(np.median([v for v in (face_size(im) for (ac, _, _), im in zip(acts, ims) if ac == 'idle') if v]))
+            probe, _ = rig.bake(parts_png, cls, idle_now)
+            face_rig = float(np.median([v for v in (face_size(im) for a, im, _, _ in probe if a in ('idle', 'walk')) if v]))
+            size = math.sqrt(max(0.8, min(1.8, face_old / face_rig)))
+            print(cls, 'rig size', round(size, 3))
+            keep = [i for i, (ac, _, _) in enumerate(acts) if ac not in ('walk', 'run', 'walk2', 'run2', 'idle', 'stance')]
             acts = [acts[i] for i in keep]; ims = [ims[i] for i in keep]; tags = [tags[i] for i in keep]
-            frames, rig_cyc = rig.bake(parts_png, cls, idle_now)
+            frames, rig_cyc = rig.bake(parts_png, cls, idle_now, size)
             for act, im, ax, ay in frames:
                 acts.append((act, ax, ay)); ims.append(im); tags.append('RIG')
         sheet, pos = pack(ims)
@@ -381,7 +391,7 @@ def main():
             if a + '2' in A:
                 A[a] = A[a] + A.pop(a + '2')
                 STRIDES[(cls, a)] = STRIDES.get((cls, a), []) + STRIDES.pop((cls, a + '2'), [])
-        idle_h = float(np.median([f[3] for f in A['idle']]))
+        idle_h = HERO_H.get(cls) or float(np.median([f[3] for f in A['idle']]))
         # the distance one leg cycle carries the body: two steps of the widest stride (the game matches the legs to the speed)
         # a cycle of n frames: 8 = two steps, 4 = one step (half cycle, repeated). A run carries the body farther than the
         # feet's spread (the flight), about half as far again.
