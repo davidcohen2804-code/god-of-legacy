@@ -21,7 +21,8 @@ export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
   'mfx-sfield': ['storm_field.png', 320, 410, 16],
   'mfx-spikes': ['glacial_spikes.png', 384, 384, 16],
   'mfx-wave': ['arcane_wave.png', 384, 384, 16],
-  'mfx-blink': ['blink.png', 384, 384, 16], // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
+  'mfx-blink': ['blink.png', 384, 384, 16],
+  'mfx-levity': ['levity_field.png', 384, 384, 16], // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
 };
 const TOP = 100000, GROUND = 2, SQUASH = 0.42;
 const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
@@ -604,6 +605,13 @@ export class MageFx {
 
   /** Levity Field: a column of light where gravity turned over; stones and runes drift up. */
   private levity(p: V2, ms: number): void {
+    if (this.ctx.scene.textures.exists('mfx-levity')) {
+      const o = { oy: 0.78, depth: p.y + 3 };
+      this.sheet('mfx-levity', p.x, p.y, 390, 300, { ...o, frames: [0, 4] });
+      this.sheet('mfx-levity', p.x, p.y, 390, ms - 600, { ...o, frames: [4, 8], loop: 95, delay: 300 });
+      this.sheet('mfx-levity', p.x, p.y, 390, 320, { ...o, frames: [12, 4], delay: ms - 300 });
+      return;
+    }
     this.spr({ name: 'implosion', x: p.x, y: p.y + 10, oy: 0.95, depth: p.y + 2, w: 230, life: 600, add: true, glow: 0.4, sy: kf([0, 0.3], [0.4, 1.1, out3], [1, 1.2]), a: kf([0, 0], [0.15, 0.9], [1, 0]) });
     for (let t = 0; t < ms; t += 220) this.later(t, () => this.drift(['ice_shards', 'rune_violet', 'rune_cyan', 'paper_scraps'], p.x, p.y - 10, 3, 120, { up: 160, life: 1100, size: [10, 22], add: true }));
     this.floor('time_ripple', p.x, p.y, 300, ms, { add: true, a: kf([0, 0], [0.05, 0.6], [0.9, 0.5], [1, 0]), s: (u) => 0.95 + 0.05 * Math.sin(u * 40) });
