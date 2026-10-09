@@ -125,6 +125,7 @@ def load_parts(path, cls):
     back_l = img.copy(); back_l[..., 3] = np.where(behind, img[..., 3], 0)
     front_l = img.copy(); front_l[..., 3] = np.where(behind, 0, img[..., 3])
     parts['upper'] = (front_l, back_l, hip)
+    parts['cape_root'] = np.array([back * w, hy * h - 0.02 * h])  # where the cloth behind leaves the body
     return parts
 
 
@@ -166,7 +167,7 @@ def gait(kind, phase, L):
     if kind == 'walk':
         D, duty, lift, lean = 1.62 * L, 0.6, 0.16 * L, 3.0
     else:
-        D, duty, lift, lean = 2.5 * L, 0.36, 0.42 * L, 11.0
+        D, duty, lift, lean = 2.5 * L, 0.36, 0.42 * L, 16.0
     S = duty * D  # how far a planted foot travels relative to the hips
     feet, planted = [], []
     for off in (0.0, 0.5):
@@ -232,7 +233,16 @@ def bake(path, cls, idle_h, size=1.0):
                 _place(cv, layer, hip_u, 0.0, hip, -ang_u)  # the drawing turned clockwise (forward) by the lean
             fn = np.array([hip[0] + feet[0][0], ground + feet[0][1]]); ff = np.array([hip[0] + feet[1][0], ground + feet[1][1]])
             kn, kf = _ik(hip, fn, T, S), _ik(hip, ff, T, S)
-            upper(back)                                                     # the cloth hanging behind the legs
+            # the cloth behind the hips streams back with the speed (lifted, fluttering): a run reads by its cape
+            lift_c = {'walk': 5.0, 'run': 24.0}.get(kind, 0.0) + {'walk': 1.5, 'run': 4.0}.get(kind, 0.0) * math.sin(2 * math.pi * ph * 2 + 1.0)
+            if lift_c:
+                root = P['cape_root']
+                # the root, carried with the body's lean, stays put; the cloth turns up round it (clockwise = up behind)
+                th = math.radians(-ang_u); d = root - hip_u
+                root_w = hip + np.array([d[0] * math.cos(th) - d[1] * math.sin(th), d[0] * math.sin(th) + d[1] * math.cos(th)])
+                _place(cv, back, root, 0.0, root_w, -ang_u - lift_c)
+            else:
+                upper(back)                                                 # the cloth hanging behind the legs
             _place(cv, tf, tf0, _axis_deg(tf0, tf1), hip, _axis_deg(hip, kf))   # the far leg
             _place(cv, sf, sf0, _axis_deg(sf0, sf1), kf, _axis_deg(kf, ff))
             _place(cv, tn, tn0, _axis_deg(tn0, tn1), hip, _axis_deg(hip, kn))   # the near thigh (its top under the tunic)
