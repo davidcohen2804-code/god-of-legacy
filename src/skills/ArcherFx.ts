@@ -411,15 +411,20 @@ export class ArcherFx {
   }
 
   private tree(r: CastRun): void {
-    const T = r.timings, o = r.origin, life = 20000, tx = o.x, ty = o.y - 46;
+    const T = r.timings, o = r.origin, life = 20000, tx = o.x, ty = o.y - 46, grow = T.startup + 250;
     this.later(T.startup * 0.2, () => this.spr({ name: 'pillar', x: tx, y: ty + 8, oy: 0.97, depth: ty, w: 160, h: 520, add: true, life: 700, sy: kf([0, 0.2], [0.3, 1, out3]), a: kf([0, 0.9], [1, 0, inQ]) }));
     this.floor('root_tangle', tx, ty + 6, 260, T.startup + life, { s: kf([0, 0.2], [0.03, 1, out3]), a: kf([0, 0], [0.02, 0.9], [0.97, 0.9], [1, 0]) });
+    this.floor('leaf_ring', tx, ty + 6, 300, T.startup + life, { add: true, s: kf([0, 0.3], [0.03, 1, out3]), a: (u) => kf([0, 0], [0.02, 0.7], [0.97, 0.7], [1, 0])(u) * (0.8 + 0.2 * Math.sin(u * 160)) });
+    // it grows before your eyes: sprout, sapling, young tree, then the great tree
+    const stages: [string, number, number, number][] = [['tree_1', 0, 0.3, 150], ['tree_2', 0.22, 0.55, 230], ['tree_3', 0.47, 0.85, 330]];
+    for (const [nm, t0, t1, w] of stages) this.spr({ name: nm, x: tx, y: ty + 8, oy: 0.97, depth: ty - 1, w, delay: grow * t0, life: grow * (t1 - t0), glow: 0.2, sy: kf([0, 0.7], [0.4, 1, out3]), a: kf([0, 0], [0.2, 1], [0.75, 1], [1, 0]) });
     const base = kf([0, 0], [0.01, 1], [0.94, 1], [1, 0]);
     let im: Phaser.GameObjects.Image | null = null;
-    const tree = im = this.spr({ name: 'tree_light', x: tx, y: ty + 8, oy: 0.97, depth: ty - 1, w: 400, life: T.startup + life, add: false, glow: 0.25,
-      sy: kf([0, 0.05], [0.03, 1, out3]), sx: kf([0, 0.3], [0.03, 1, out3]), a: (u) => base(u) * ((im?.getData('fade') as number | undefined) ?? 1) }); // (see-through when someone stands behind it)
+    const tree = im = this.spr({ name: 'tree_4', x: tx, y: ty + 8, oy: 0.97, depth: ty - 1, w: 470, delay: grow * 0.78, life: grow * 0.22 + life, add: false, glow: 0.25,
+      sy: kf([0, 0.75], [0.03, 1.04, out3], [0.05, 1]), sx: kf([0, 0.8], [0.03, 1, out3]), a: (u) => base(u) * ((im?.getData('fade') as number | undefined) ?? 1) }); // (see-through when someone stands behind it)
     if (tree) { this.trees.add(tree); tree.once('destroy', () => this.trees.delete(tree)); }
     this.later(T.startup, () => { this.floor('shock_ring', tx, ty, 200, 500, { add: true, s: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 1], [1, 0]) }); this.pop('sparkles', tx, ty - 200, 220, { life: 900 }); this.leaves(tx, ty - 260, 16, 140, { life: 1600, up: -40 }); });
+    for (let k = 1; k < 10; k++) this.later(T.startup + k * 2000, () => this.leaves(tx, ty - 280, 3, 150, { life: 1800, up: -30 })); // a leaf drifts down now and then
     this.later(T.startup + life - 900, () => this.leaves(tx, ty - 260, 30, 160, { life: 1600, up: -60 }));
   }
 
@@ -551,13 +556,13 @@ export class ArcherFx {
         h.dive.t += ms;
         const out1 = Math.min(1, h.dive.t / 180), back = Math.max(0, (h.dive.t - 180) / 220);
         face = h.dive.x >= h.px ? 1 : -1; ang = 0;
-        if (back <= 0) { x = h.px + (h.dive.x - h.px) * out1; y = h.py + (h.dive.y - h.py) * out1; frame = 'hawk_dive'; }
+        if (back <= 0) { x = h.px + (h.dive.x - h.px) * out1; y = h.py + (h.dive.y - h.py) * out1; frame = 'hawk_strike'; }
         else { x = h.dive.x + (h.px - h.dive.x) * back; y = h.dive.y + (h.py - h.dive.y) * back; }
         d = h.dive.d + 3;
         if (h.dive.t >= 180 && h.dive.t - ms < 180) this.pop('feather_burst', h.dive.x, h.dive.y, 90, { life: 320 });
         if (back >= 1) h.dive = null;
       }
-      const fr = this.ctx.scene.textures.getFrame(ARCHER_KIT, frame), w = frame === 'hawk_dive' ? 80 : 72;
+      const fr = this.ctx.scene.textures.getFrame(ARCHER_KIT, frame), w = frame === 'hawk_strike' ? 110 : 72;
       h.im.setFrame(frame).setDisplaySize(w, (w * fr.height) / fr.width).setPosition(x, y).setFlipX(face < 0).setAngle(ang).setDepth(d);
     }
   }
@@ -587,7 +592,10 @@ export class ArcherFx {
     if (!fired || !this.ready) return;
     // the mine bursts: a column of vines and green light throws everyone in it high (no stain left behind)
     this.spr({ name: 'vine_column', x: t.x, y: t.y + 8, oy: 0.96, depth: t.y + 3, w: 200, h: 420, life: 720, add: false, glow: 0.3, sy: kf([0, 0.15], [0.22, 1.08, out3], [1, 1]), a: kf([0, 1], [0.7, 1], [1, 0, inQ]) }); // a tall column of vines
-    this.spr({ name: 'launch_beam', x: t.x, y: t.y + 4, oy: 0.97, depth: t.y + 4, w: 150, h: 520, life: 520, add: true, glow: 0.4, sy: kf([0, 0.2], [0.25, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) });
+    this.spr({ name: 'vine_burst', x: t.x, y: t.y + 8, oy: 0.97, depth: t.y + 4, w: 260, life: 760, glow: 0.3, sy: kf([0, 0.1], [0.2, 1.1, out3], [1, 1.05]), sx: kf([0, 0.6], [0.2, 1, out3]), a: kf([0, 1], [0.7, 1], [1, 0, inQ]) });
+    this.spr({ name: 'vine_spiral', x: t.x, y: t.y + 8, oy: 0.97, depth: t.y + 4.5, w: 170, life: 700, delay: 60, glow: 0.25, sy: kf([0, 0.1], [0.3, 1.15, out3], [1, 1.2]), a: kf([0, 0], [0.1, 1], [0.7, 0.9], [1, 0, inQ]) });
+    this.spr({ name: 'debris', x: t.x, y: t.y + 6, oy: 0.95, depth: t.y + 5, w: 220, life: 640, my: (u) => -30 * out(u), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
+    this.floor('crater', t.x, t.y, 230, 1400, { a: kf([0, 0], [0.04, 1], [0.6, 0.85], [1, 0]) });
     this.spr({ name: 'dust', x: t.x, y: t.y + 4, oy: 0.85, depth: t.y + 1, w: 220, life: 700, sx: kf([0, 0.5], [1, 1.4, out3]), a: kf([0, 0.85], [1, 0, inQ]) });
     this.floor('shock_ring', t.x, t.y, 2.4 * t.radius, 420, { add: true, s: kf([0, 0.4], [1, 1.25, out3]), a: kf([0, 1], [1, 0, inQ]) });
     this.leaves(t.x, t.y - 30, 18, 60, { up: 260, life: 1100 });
