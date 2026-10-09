@@ -373,7 +373,7 @@ const archer: FinalSkill[] = [
   // ---- 1st job (Archer)
   S({
     id: 'rising_arrow', cls: 'archer', slot: 1, name: 'Rising Arrow', roles: ['launcher', 'antiAir'], targeting: 'mouseCone',
-    startup: 300, active: 220, recovery: 220, cooldown: 3000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    startup: 180, active: 220, recovery: 220, cooldown: 3000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(0, 18, { kind: 'circle', radius: 62, at: 'aimBias', bias: 95 }, { stun: 440, launch: 150, juggleCost: 30 }, { reachUp: 120, useMark: 'launch' }),
       H(80, 5, { kind: 'circle', radius: 62, at: 'aimBias', bias: 95 }, { stun: 300, float: true, juggleCost: 3 }, { reachUp: 240 })],
     cancelOnHit: ['quick_shot', 'skyhunters_step', 'multi_shot', 'leaping_arrow', 'eagle_arrow', 'retreat_kick'], telegraph: 'circle',
@@ -391,7 +391,7 @@ const archer: FinalSkill[] = [
   // ---- 2nd job (Hunter)
   S({
     id: 'multi_shot', cls: 'archer', slot: 3, name: 'Triple Arrow', roles: ['confirm', 'projectile'], targeting: 'mouseCone',
-    startup: 480, active: 150, recovery: 220, cooldown: 2800, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    startup: 280, active: 150, recovery: 220, cooldown: 2800, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     hits: [H(0, 22, { kind: 'projectile', speed: 640, range: 620, radius: 12, count: 5, spread: 17 }, { stun: 240, push: 10, float: true, juggleCost: 12 }, { mark: 1 })],
     cancelOnHit: ['explosive_arrow', 'piercing_arrow', 'quick_shot', 'skyhunters_step', 'retreat_kick'], telegraph: 'cone',
     description: 'A steady draw, then three arrows fan out in three directions; one damage event per target.',
@@ -399,7 +399,7 @@ const archer: FinalSkill[] = [
   }),
   S({
     id: 'explosive_arrow', cls: 'archer', slot: 4, name: 'Fireball Arrow', roles: ['projectile', 'launcher'], targeting: 'mouseProjectile',
-    startup: 480, active: 0, recovery: 220, cooldown: 6000, ground: true, air: true, cover: 'EXPLODES_ON_COVER', move: LOCK,
+    startup: 280, active: 0, recovery: 220, cooldown: 6000, ground: true, air: true, cover: 'EXPLODES_ON_COVER', move: LOCK,
     hits: [H(0, 30, { kind: 'projectile', speed: 620, range: 460, radius: 16, explodeRadius: 80 }, { stun: 320, launch: 70, push: 20, juggleCost: 25 }, { useMark: 'blast' })],
     cancelOnHit: ['quick_shot', 'rain_of_arrows', 'skyhunters_step'],
     description: 'A burning arrow wrapped in a fireball; it bursts into a blast of fire at the target, a wall or its full range.',
@@ -407,9 +407,9 @@ const archer: FinalSkill[] = [
   }),
   S({
     id: 'retreat_kick', cls: 'archer', slot: 5, name: 'Retreat Kick', roles: ['launcher', 'escape'], targeting: 'mouseCone',
-    startup: 380, active: 420, recovery: 200, cooldown: 4000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    startup: 200, active: 420, recovery: 200, cooldown: 4000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     dash: { distance: -170, lift: 70 },
-    hits: [H(0, 16, { kind: 'sector', range: 110, angle: 110 }, { stun: 460, launch: 200, juggleCost: 28 }, { reachUp: 100 })],
+    hits: [H(0, 16, { kind: 'sector', range: 110, angle: 110 }, { stun: 460, launch: 150, juggleCost: 28 }, { reachUp: 100 })],
     cancelOnHit: ['quick_shot', 'multi_shot', 'piercing_arrow', 'skyhunters_step', 'eagle_arrow', 'leaping_arrow'],
     description: 'A rising kick of wind launches the foe into the air while you flip backward out of reach — then shoot him down.',
     relations: ['Launcher', 'Escape'],
@@ -420,7 +420,7 @@ const archer: FinalSkill[] = [
     dash: { distance: -130, lift: 38 }, // plants the mine and hops back away from it
     placeRange: 260, trap: { radius: 90, lifeMs: 4000, fuseMs: 2000 },
     hits: [H(0, 0, { kind: 'placed', radius: 90 }, { hardCC: { kind: 'root', ms: 2000, long: true }, stun: 120 }),
-      H(0, 32, { kind: 'placed', radius: 110 }, { stun: 700, launch: 420, juggleCost: 30 }, { reachUp: 200, heavy: true })],
+      H(0, 32, { kind: 'placed', radius: 110 }, { stun: 700, launch: 150, juggleCost: 30 }, { reachUp: 200, heavy: true })],
     cancelOnHit: [], telegraph: 'ground',
     description: 'A vine mine buried in the floor. Whoever steps on it — a player or a whole pack of monsters — is held, and 2s later it explodes and throws them all very high; untouched, it goes off by itself after 4s.',
     relations: ['Setup', 'High launcher'],
@@ -430,24 +430,24 @@ const archer: FinalSkill[] = [
     id: 'skyhunters_step', cls: 'archer', slot: 6, name: 'Air Volley', roles: ['signature', 'mobility', 'chase'], targeting: 'mouseDir',
     startup: 260, active: 1150, recovery: 300, cooldown: 16000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 320, lift: 170 },
-    hits: [120, 340, 560, 780, 1000].map((t, i) => H(t, [8, 8, 9, 9, 10][i], { kind: 'projectile', speed: 760, range: 420, radius: 9, rows: 3, rowGap: 52 }, { stun: 200, float: true, juggleCost: 12 }, { mark: i === 4 ? 1 : 0 })),
+    hits: [120, 340, 560, 780, 1000].map((t, i) => H(t, [8, 8, 9, 9, 10][i], { kind: 'projectile', speed: 760, range: 420, radius: 9, rows: 3, rowGap: 52 }, { stun: 300, float: true, juggleCost: 12 }, { mark: i === 4 ? 1 : 0 })),
     cancelOnHit: ['sky_rain'], tags: ['signature'], telegraph: 'trajectory',
     description: 'Acrobatic leap in the facing direction while firing five shots from the air — keeps a launched foe up.',
     relations: ['Signature', 'Air combo'],
   }),
   S({
     id: 'rain_of_arrows', cls: 'archer', slot: 9, name: 'Thunder Rain', roles: ['zone', 'extender'], targeting: 'mouseDir',
-    startup: 300, active: 2300, recovery: 300, cooldown: 12000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [300, 1800],
+    startup: 300, active: 1200, recovery: 300, cooldown: 12000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [300, 900],
     dash: { distance: 0, lift: 150, hang: true },
-    hits: [1500, 1650, 1800].map((t, i) => H(t, i === 2 ? 16 : 12, { kind: 'circle', radius: 100, at: 'aimBias', bias: [150, 300, 450][i], floor: true }, { stun: 320, float: true, juggleCost: 10, slow: { pct: 30, ms: 800 } }, { reachUp: 200, heavy: i === 2, useMark: i === 2 ? 'stun' as const : undefined })),
+    hits: [600, 750, 900].map((t, i) => H(t, i === 2 ? 16 : 12, { kind: 'circle', radius: 100, at: 'aimBias', bias: [150, 300, 450][i], floor: true }, { stun: 320, float: true, juggleCost: 10, slow: { pct: 30, ms: 800 } }, { reachUp: 200, heavy: i === 2, useMark: i === 2 ? 'stun' as const : undefined })),
     cancelOnHit: ['quick_shot', 'skyhunters_step'], telegraph: 'line',
-    description: 'Leap, hang in the air charging a lightning arrow for 1.5s, then loose three lightning arrows that strike the floor near, middle and far in front of you.',
+    description: 'Leap, hang in the air charging a lightning arrow, then loose three lightning arrows that strike the floor near, middle and far in front of you.',
     relations: ['Zone 2s', 'Keeps foes up'],
   }),
   S({
     id: 'piercing_arrow', cls: 'archer', slot: 10, name: 'Spirit Bow', roles: ['projectile', 'zone'], targeting: 'mouseDir',
     startup: 350, active: 5000, recovery: 200, cooldown: 22000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    hits: Array.from({ length: 20 }, (_, i) => H(i * 250, 7, { kind: 'projectile', speed: 900, range: 560, radius: 12 }, { stun: 220, push: 8, float: true, juggleCost: 4 }, { mark: 1 })),
+    hits: Array.from({ length: 20 }, (_, i) => H(i * 250, 7, { kind: 'projectile', speed: 900, range: 560, radius: 12 }, { stun: 320, push: 8, float: true, juggleCost: 4 }, { mark: 1 })),
     description: 'Stand your ground: a great green spirit bow fires on its own for 5s. The direction you hold aims it — to a side, up at an angle or straight up; arrows shot up arc high and fall back onto the floor.',
     relations: ['Auto-fire 5s', 'Rooted, aim it'],
   }),
@@ -461,10 +461,10 @@ const archer: FinalSkill[] = [
   }),
   S({
     id: 'leaping_arrow', cls: 'archer', slot: 12, name: 'Binding Leaves', roles: ['hardCC', 'setup'], targeting: 'mouseLine',
-    startup: 2000, active: 300, recovery: 260, cooldown: 14000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, armor: [0, 2300],
+    startup: 600, active: 300, recovery: 260, cooldown: 14000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, armor: [0, 900],
     hits: [H(120, 12, { kind: 'line', length: 600, width: 260 }, { hardCC: { kind: 'root', ms: 4000, long: true }, stun: 200 }, { reachUp: 60 })],
     cancelOnHit: ['quick_shot', 'multi_shot', 'rain_of_arrows'], telegraph: 'line',
-    description: 'Charge for 2s, then send a wide band of leaves and vines across the floor: every player and monster on it is bound in place for 4s.',
+    description: 'Charge briefly, then send a wide band of leaves and vines across the floor: every player and monster on it is bound in place for 4s.',
     relations: ['Charge 2s', 'Bind 4s'],
   }),
   S({
@@ -479,7 +479,7 @@ const archer: FinalSkill[] = [
   // ---- 4th job (Bowmaster)
   S({
     id: 'sky_rain', cls: 'archer', slot: 7, name: 'Sky Rain', roles: ['ultimate', 'finisher'], targeting: 'self',
-    startup: 1300, active: 1600, recovery: 400, cooldown: 45000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    startup: 800, active: 1600, recovery: 400, cooldown: 45000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     hits: [
       ...[200, 400, 600, 800, 1000, 1200].map((t) => H(t, 10, { kind: 'circle', radius: 600 }, { stun: 280, float: true, juggleCost: 4 }, { reachUp: 420 })),
       H(1420, 40, { kind: 'circle', radius: 600 }, { stun: 420, knockdown: 'heavy' }, { reachUp: 420, heavy: true }),
@@ -515,10 +515,10 @@ const archer: FinalSkill[] = [
   }),
   S({
     id: 'eagle_arrow', cls: 'archer', slot: 16, name: 'Eagle Tide', roles: ['finisher', 'peel'], targeting: 'mouseLine',
-    startup: 3000, active: 700, recovery: 400, cooldown: 25000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 3700], // the held direction turns it while charging
+    startup: 1200, active: 700, recovery: 400, cooldown: 25000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1900], // the held direction turns it while charging
     hits: [0, 230, 460].map((t, i) => H(t, i === 2 ? 30 : 16, { kind: 'line', length: 960, width: 320 }, i === 2 ? { stun: 460, launch: 160, push: 90, juggleCost: 30 } : { stun: 300, push: 40, float: true, juggleCost: 8 }, { reachUp: 260, heavy: i === 2 })),
     cancelOnHit: ['sky_rain'], telegraph: 'line',
-    description: 'Charge for 3s, then release a gigantic spirit-eagle tide that sweeps half the map in front of you, tearing through everything in its path.',
+    description: 'Charge, then release a gigantic spirit-eagle tide that sweeps half the map in front of you, tearing through everything in its path.',
     relations: ['Charge 3s', 'Half the map'],
   }),
 ];

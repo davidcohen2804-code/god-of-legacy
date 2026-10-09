@@ -2547,7 +2547,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (hit.useMark && n > 0) {
       this.marks.delete(key);
       const R = { ...hit.reaction };
-      if (hit.useMark === 'launch') R.launch = Math.round((R.launch ?? 0) * (1 + 0.3 * n));
+      if (hit.useMark === 'launch') R.launch = Math.round((R.launch ?? 0) * (1 + 0.1 * n));
+      R.stun = (R.stun ?? 0) + 100 * n; // spent marks hold the foe longer, so the small shots link into the launchers
       if (hit.useMark === 'stun') R.hardCC = { kind: 'stun', ms: 500 + 300 * n, long: true };
       const dm = hit.useMark === 'blast' ? 1 + 0.35 * n : hit.useMark === 'roar' ? 1 + 0.4 * n : 1;
       out = { ...hit, damage: Math.round(hit.damage * dm), reaction: R };
