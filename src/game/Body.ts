@@ -559,7 +559,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     iron_grip: { act: 'ground_breaker', st: [0], ac: [0, 1, 1, 2, 3], rc: [3, 4, 5] }, // (until his own row: the overhead smash)
     judgment_hook: { act: 'wave_slash', st: [0, 1], ac: [3], rc: [3, 4, 5] },
     sky_breaker: { act: 'leap_crash', st: [0], ac: [1, 2, 2, 3, 4], rc: [4, 5] },
-    earthsplitter: { act: 'ground_breaker', st: [0, 1, 1, 1, 1, 1], ac: [2, 3], rc: [3, 4, 5] },
+    earthsplitter: { act: 'finisher', st: [0], ac: [1, 2], rc: [2, 2, 0] }, // the sword held overhead through the charge, brought down to split the earth
   },
   samurai: {
     shadow_step: { act: 'shadow_step', st: [0], ac: [1, 2], rc: [3, 4, 5] },
