@@ -358,8 +358,8 @@ export class SkillFx {
     else if (s.id === 'earthsplitter') this.aura(r); // (the charge: his aura while the key is held; the split itself plays on the release, onActive)
     else if (s.id === 'iron_oath') this.oathSigil(r);
     else if (s.id === 'legacy_banner') { // planted in front of the caster where the sword comes down (every client sees it)
-      const side = r.aim.x < 0 ? -1 : 1, bx = r.origin.x + side * 70, by = r.origin.y;
-      this.scene.time.delayedCall(Math.round(r.timings.startup * 0.7), () => this.bannerPlant(bx, by, 8000));
+      const side = r.aim.x < 0 ? -1 : 1, bx = r.origin.x - side * 46, by = r.origin.y - 16; // planted just behind his shoulder (a step back in depth): it never hides the fight in front
+      this.scene.time.delayedCall(Math.round(r.timings.startup * 0.7), () => this.bannerPlant(bx, by, 10000));
     }
     else if (s.id === 'radiant_blade') { /* lightning fired by the scene at the real sword tip */ }
     else if (s.id === 'sanctuary') { /* the wall itself is the effect: no ring on the floor */ }
@@ -541,6 +541,23 @@ export class SkillFx {
       this.scene.tweens.add({ targets: col, displayHeight: 210, displayWidth: 70, duration: 140, ease: 'Cubic.easeOut' });
       this.scene.tweens.add({ targets: col, alpha: 0, delay: 120, duration: 320, onComplete: () => col.destroy() }); // (one slim column: stacked bright layers burned the hero and the foe to white)
     });
+  }
+
+  private bannerMarks = new Map<string, Phaser.GameObjects.Container>();
+  /** Legacy Banner's buff: a slowly turning golden crest ring at the feet of whoever carries it (hidden when off). */
+  bannerMark(id: string, at: V3 | null, depth: number): void {
+    let c = this.bannerMarks.get(id);
+    if (!at) { if (c) c.setVisible(false); return; }
+    if (!c) {
+      const glow = this.scene.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffb040).setDisplaySize(170, 170).setAlpha(0.45);
+      const ring = this.scene.add.image(0, 0, 'magic-circle').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd070).setDisplaySize(150, 150).setAlpha(0.95);
+      const ring2 = this.scene.add.image(0, 0, 'magic-circle').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff0b0).setDisplaySize(96, 96).setAlpha(0.6);
+      c = this.scene.add.container(0, 0, [glow, ring, ring2]).setScale(1, 0.4); this.bannerMarks.set(id, c);
+      this.scene.tweens.add({ targets: ring, angle: 360, duration: 6000, repeat: -1 });
+      this.scene.tweens.add({ targets: ring2, angle: -360, duration: 4500, repeat: -1 });
+      this.scene.tweens.add({ targets: [ring, glow], alpha: '-=0.3', duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    }
+    c.setVisible(true).setPosition(at.x, at.y - at.z + 2).setDepth(depth);
   }
 
   /** Ground Breaker heal: a yellow "HP" glyph rises softly out of the ground. */
@@ -797,21 +814,30 @@ export class SkillFx {
   /** Legacy Banner: a banner of light falls and plants beside the caster, then waves in place for `holdMs`. */
   bannerPlant(x: number, y: number, holdMs: number): void {
     if (!this.scene.textures.exists('pas-banner_plant')) return;
-    const SINK = 16;
-    const img = this.scene.add.image(x, y + 4, 'pas-banner_plant', 0).setOrigin(0.5, 1).setDisplaySize(230, 230).setDepth(y);
-    const mix = this.scene.add.image(x, y + 4, 'pas-banner_plant', 1).setOrigin(0.5, 1).setDisplaySize(230, 230).setDepth(y + 0.001).setAlpha(0);
-    const dissolve = (key: string, next: number, f: number) => { const k = f * f * (3 - 2 * f); if (mix.texture.key !== key) mix.setTexture(key).setDisplaySize(230, 230); mix.setFrame(next).setAlpha(img.alpha * k); };
+    const SINK = 22, SZ = 330; // (a war banner taller than the hero: it reads from across the arena)
+    const img = this.scene.add.image(x, y + 4, 'pas-banner_plant', 0).setOrigin(0.5, 1).setDisplaySize(SZ, SZ).setDepth(y);
+    const mix = this.scene.add.image(x, y + 4, 'pas-banner_plant', 1).setOrigin(0.5, 1).setDisplaySize(SZ, SZ).setDepth(y + 0.001).setAlpha(0);
+    const dissolve = (key: string, next: number, f: number) => { const k = f * f * (3 - 2 * f); if (mix.texture.key !== key) mix.setTexture(key).setDisplaySize(SZ, SZ); mix.setFrame(next).setAlpha(img.alpha * k); };
+    if (this.scene.textures.exists('holy-bolt')) { // a pillar of holy light drives the banner into the floor
+      const bolt = this.scene.add.image(x, y + 6, 'holy-bolt', 1).setOrigin(0.5, 0.79).setBlendMode(Phaser.BlendModes.ADD).setDepth(y + 1).setDisplaySize(200, 400).setAlpha(0.9);
+      let bf = 1; const bev = this.scene.time.addEvent({ delay: 60, repeat: 6, callback: () => { bf++; if (bf < 8) bolt.setFrame(bf); else { bev.remove(); bolt.destroy(); } } });
+    }
+    let pulseT = 0;
     const plant = [50, 50, 60, 80, 90, 100, 110, 120];
     let i = 0, t = 0, phase: 'plant' | 'wave' | 'fade' = 'plant', waveT = 0; // eslint-disable-line prefer-const
     this.spark(IMPACT.warrior.key, x, y - 20, IMPACT.warrior.frames, 170, 0.9, 0);
     const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
       t += 16;
       if (phase === 'plant') {
-        while (i < 7 && t >= plant[i]) { t -= plant[i]; i++; img.setFrame(i); if (i === 2) { this.shockwave(x, y, 150, 0xffd27a); this.dust(x, y, 90, 0.8); } }
+        while (i < 7 && t >= plant[i]) { t -= plant[i]; i++; img.setFrame(i); if (i === 2) { // planted: the rally wave rolls out over the floor
+          this.shockwave(x, y, 230, 0xffd27a); this.scene.time.delayedCall(110, () => this.shockwave(x, y, 330, 0xffe9b0)); this.dust(x, y, 110, 0.8);
+          (this.cam ?? this.scene.cameras.main).shake(140, 0.004);
+        } }
         if (i >= 7 && t >= plant[7]) { phase = 'wave'; t = 0; img.setTexture('pas-banner_wave', 0).setDisplaySize(230, 230).setY(y + 4 + SINK); mix.setY(y + 4 + SINK); } // the waving art ends at the spear tip: sink it into the floor
         else if (i < 7) dissolve('pas-banner_plant', i + 1, Math.min(1, t / plant[i])); else { mix.setY(y + 4 + SINK); dissolve('pas-banner_wave', 0, Math.min(1, t / plant[7])); }
       } else if (phase === 'wave') {
         waveT += 16; const q = waveT / 160, wi = Math.floor(q) % 8; img.setFrame(wi); dissolve('pas-banner_wave', (wi + 1) % 8, q - Math.floor(q));
+        pulseT += 16; if (pulseT >= 1400) { pulseT = 0; this.shockwave(x, y, 170, 0xffc860); } // while it stands it keeps calling: a soft golden ring every 1.4s
         if (waveT >= holdMs) { phase = 'fade'; this.scene.tweens.add({ targets: [img, mix], alpha: 0, duration: 500, onComplete: () => { ev.remove(); img.destroy(); mix.destroy(); } }); }
       }
     } });

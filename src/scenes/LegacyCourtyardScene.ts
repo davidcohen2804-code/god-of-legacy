@@ -1493,6 +1493,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.renderGambler();
     this.fx?.treeFade(k.x, k.y); // a tree in front of the player turns see-through
     this.renderRadiant(pose, dir);
+    this.fx?.bannerMark(this.localId, this.simMs < this.bannerUntil && this.dead < 0 && !!this.view?.visible ? this.kin : null, actorDepth(this.kin.x, this.kin.y, this.kin.z) - 0.5); // Legacy Banner carried: the crest ring at his feet
     this.renderEyes(pose, dir);
     this.renderHolyAura();
     this.renderCryShields();
@@ -2259,7 +2260,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.body.armorUntil = -1;
     if (s.id === 'war_cry') { this.warCryUntil = this.simMs + s.startup + 8000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 8000 }); /* shared at the release (sim clock), like the caster's own */ }
     if (s.id === 'iron_oath') { this.oathUntil = this.simMs + ct.startup + 60000; this.shares.push({ at: this.simMs + ct.startup, id: s.id, ms: 60000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(ct.startup, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'IRON OATH', '#ffd27a', 0)); }
-    if (s.id === 'legacy_banner') { this.bannerUntil = this.simMs + ct.startup + 90000; this.shares.push({ at: this.simMs + ct.startup, id: s.id, ms: 90000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(Math.round(ct.startup * 0.7), () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'LEGACY BANNER', '#ffe7a0', 0)); }
+    if (s.id === 'legacy_banner') { this.bannerUntil = this.simMs + ct.startup + 90000; this.shares.push({ at: this.simMs + ct.startup, id: s.id, ms: 90000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(Math.round(ct.startup * 0.7), () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'LEGACY BANNER', '#ffe7a0', 0)); this.time.delayedCall(Math.round(ct.startup * 0.7) + 760, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, '+10% DMG  ·  -10% DMG TAKEN', '#fff3c4', 0)); }
     if (s.cls === 'archer') this.archerCast(s, stage);
     if (s.cls === 'samurai') this.samuraiCast(s, stage);
     if (s.cls === 'gambler') this.gamblerCast(s, stage, castId);

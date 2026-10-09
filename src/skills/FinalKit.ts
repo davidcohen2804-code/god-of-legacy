@@ -147,7 +147,7 @@ const warrior: FinalSkill[] = [
     startup: 450, active: 200, recovery: 300, cooldown: 60000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 950],
     hits: [H(0, 10, { kind: 'circle', radius: 160 }, { stun: 400, pull: 30 }, { reachUp: 140 })],
     cancelOnHit: ['warrior_basic', 'dash_slash', 'blade_storm', 'titans_verdict'], tags: ['buff', 'party'],
-    description: 'Plant a banner of light: +10% damage and 10% less damage taken for 90s; the impact pulls foes around you in. In a party every party member near you shares it.',
+    description: 'A pillar of light drives your war banner into the floor beside you: its rally wave pulls nearby foes in, and for 90s you deal +10% damage and take 10% less (a golden crest ring at your feet shows it). In a party every member near you is rallied too. The banner keeps waving for 10s.',
     relations: ['Buff 90s', 'Party buff'],
   }),
   S({
