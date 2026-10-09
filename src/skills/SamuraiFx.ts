@@ -84,7 +84,9 @@ interface Spr {
 interface Live { t: number; step(dt: number, t: number): boolean }
 /** God of Blades' halo: the katanas (each with its glow), the halo (its glow), which katanas are out striking, when each came back. */
 interface Halo { run: CastRun; imgs: Phaser.GameObjects.Image[]; gls: Phaser.GameObjects.Image[]; halo: Phaser.GameObjects.Image; hg: Phaser.GameObjects.Image; t: number; until: number;
-  lastX: number; face: number; next: number; away: Set<number>; back: Map<number, number> }
+  lastX: number; face: number; next: number; away: Set<number>; spent: Set<number> }
+/** The order the halo's katanas fly in (from the ends of the fan inward: it stays even as it empties). */
+const BLADE_ORDER = [0, 7, 1, 6, 2, 5, 3, 4];
 /** Rising Sun's light on a fighter through the buff. */
 interface Sun { t: number; ims: Phaser.GameObjects.Image[]; next: number }
 interface Wave { im: Phaser.GameObjects.Image; gl: Phaser.GameObjects.Image; t: number; trail: number; ghosts: { im: Phaser.GameObjects.Image; dx: number; dy: number }[] }
@@ -275,13 +277,14 @@ export class SamuraiFx {
       return true;
     } });
   }
-  /** Bound (Sakura Bind): a ring of petals round the shins, and a ring on the floor that shrinks as the bind runs out. */
+  /** Bound (Sakura Bind): a ring of petals round the shins, and a ring of fallen petals on the stones round the feet that
+   *  closes in as the bind runs out (natural petals — no glow). */
   private bindMark(x: number, y: number, hold: number): void {
-    this.spr({ name: 'timer_ring', x, y: y + 2, depth: y - 1, w: 124, life: hold, glow: 0.45,
-      sx: kf([0, 1.3], [0.08, 1, out3], [1, 0.32]), sy: kf([0, 1.3], [0.08, 1, out3], [1, 0.32]), a: kf([0, 0], [0.06, 1], [0.92, 1], [1, 0]) });
+    this.spr({ name: 'petal_ring', x, y: y + 3, depth: y - 1, w: 128, life: hold, tint: 0xf0c2ca,
+      sx: kf([0, 1.25], [0.08, 1, out3], [1, 0.42]), sy: kf([0, 1.25], [0.08, 0.7, out3], [1, 0.3]), a: kf([0, 0], [0.06, 0.9], [0.9, 0.85], [1, 0]) });
     for (const [crop, z] of [[undefined, -2], [0.5, 2]] as const)
-      this.spr({ name: 'petal_ring', x, y: y - 24, depth: y + z, w: 98, life: hold, crop, flick: 170, glow: 0.25,
-        sx: kf([0, 0.4], [0.12, 1, back]), sy: kf([0, 0.4], [0.12, 1, back]), a: kf([0, 0], [0.1, 0.95], [0.88, 0.95], [1, 0]) });
+      this.spr({ name: 'petal_ring', x, y: y - 24, depth: y + z, w: 92, life: hold, crop, flick: 170,
+        sx: kf([0, 0.4], [0.12, 1, back]), sy: kf([0, 0.4], [0.12, 1, back]), a: kf([0, 0], [0.1, 0.9], [0.88, 0.9], [1, 0]) });
   }
   /** The blade's glint at the hand (or in front of the chest): a four-pointed star that flares and turns. */
   private glint(r: CastRun, delay: number, size: number, dz = 62): void {
@@ -291,41 +294,136 @@ export class SamuraiFx {
       sx: kf([0, 0.2], [0.25, 1.15, out3], [1, 0.6]), sy: kf([0, 0.2], [0.25, 1.15, out3], [1, 0.6]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]), rot: (u) => 45 * (1 - out(u)) });
   }
 
-  // ------------------------------------------------------------------ the dragon (head, bent body, tail)
+  // ------------------------------------------------------------------ strips: a picture bent along a path
 
-  /** Places the crimson dragon along points (head first): a head, slices of its body between the points, two clawed legs
-   *  reaching down from its front, a tail. */
-  private dragon(thick: number): { place(pts: Pt[], alpha: number): void; destroy(): void } {
-    const s = this.ctx.scene, imgs: Phaser.GameObjects.Image[] = [];
-    const head = s.add.image(0, 0, KIT, 'dragon_head').setOrigin(0.06, 0.62).setVisible(false);
-    const tail = s.add.image(0, 0, KIT, 'dragon_tail').setOrigin(0.02, 0.42).setVisible(false);
-    const hg = s.add.image(0, 0, KIT, 'dragon_head').setOrigin(0.06, 0.62).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
-    const claws = [0, 1].map(() => s.add.image(0, 0, KIT, 'dragon_claw').setOrigin(0.1, 0.24).setVisible(false));
-    const hf = s.textures.getFrame(KIT, 'dragon_head'), tf = s.textures.getFrame(KIT, 'dragon_tail'), bf = s.textures.getFrame(KIT, 'dragon_body_0'), cf = s.textures.getFrame(KIT, 'dragon_claw');
-    const headH = thick * 1.7, tailH = thick * 0.95, clawH = thick * 1.15;
+  /** A strip of a picture bent along points (a rope: no seams, whatever the curve), each point as wide as its half-width
+   *  and as bright as its alpha — the dragon's body and tail, a ribbon of light. Points run from the picture's left end to
+   *  its right end; `flipY` turns the picture over (its top below the path), `flipX` runs it the other way along. */
+  private strip(name: string | undefined, n: number, o: { add?: boolean; flipX?: boolean; flipY?: boolean; tint?: number; key?: string } = {}) {
+    const s = this.ctx.scene, pts = Array.from({ length: n }, (_, i) => new Phaser.Math.Vector2(i, 0));
+    const rope = s.add.rope(0, 0, o.key ?? KIT, name, pts, true).setVisible(false);
+    if (o.add) rope.setBlendMode(Phaser.BlendModes.ADD);
+    if (o.flipX) rope.flipX = true;
+    if (o.flipY) rope.flipY = true;
+    if (o.tint !== undefined) rope.setColors(o.tint);
+    const w = new Float32Array(n);
+    (rope as unknown as { updateVertices(): unknown }).updateVertices = function (this: Phaser.GameObjects.Rope) {
+      const P = this.points, V = this.vertices;
+      this.dirty = false;
+      let px = 0, py = -1;
+      for (let i = 0; i < n; i++) {
+        const a = P[Math.max(0, i - 1)], b = P[Math.min(n - 1, i + 1)], dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy);
+        if (l > 1e-4) { px = dy / l; py = -dx / l; } // (a point on top of its neighbours keeps the last direction)
+        V[i * 4] = P[i].x + px * w[i]; V[i * 4 + 1] = P[i].y + py * w[i]; V[i * 4 + 2] = P[i].x - px * w[i]; V[i * 4 + 3] = P[i].y - py * w[i];
+      }
+      return this;
+    };
     return {
-      place: (pts, alpha) => {
-        while (imgs.length < pts.length - 1) imgs.push(s.add.image(0, 0, KIT, 'dragon_body_0').setOrigin(0.5, 0.5));
-        imgs.forEach((im, i) => {
-          if (i >= pts.length - 2) { im.setVisible(false); return; }
-          const p = pts[i], q = pts[i + 1], ang = Math.atan2(p.y - q.y, p.x - q.x), len = Math.hypot(p.x - q.x, p.y - q.y);
-          im.setFrame(`dragon_body_${7 - (i % 8)}`).setVisible(alpha > 0.01).setPosition((p.x + q.x) / 2, (p.y + q.y) / 2).setRotation(ang)
-            .setScale((len * 1.3) / (bf.width || 1), thick / (bf.height || 1)).setFlipY(Math.cos(ang) < 0).setDepth((p.d + q.d) / 2).setAlpha(alpha);
-        });
-        [3, 8].forEach((ci, j) => { // the legs: from the underside of the body, reaching forward and down
-          const c = claws[j];
-          if (ci + 1 >= pts.length - 1) { c.setVisible(false); return; }
-          const p = pts[ci], q = pts[ci + 1], ang = Math.atan2(p.y - q.y, p.x - q.x), left = Math.cos(ang) < 0;
-          c.setVisible(alpha > 0.01).setPosition(p.x, p.y).setRotation(ang + (left ? -0.6 : 0.6)).setFlipY(left).setScale(clawH / (cf.height || 1)).setDepth(p.d - 0.02).setAlpha(alpha);
-        });
-        if (pts.length < 2) { head.setVisible(false); tail.setVisible(false); hg.setVisible(false); return; }
-        const a0 = Math.atan2(pts[0].y - pts[1].y, pts[0].x - pts[1].x), left = Math.cos(a0) < 0;
-        for (const h of [head, hg]) h.setVisible(alpha > 0.01).setPosition(pts[1].x, pts[1].y).setRotation(a0).setScale(headH / hf.height).setFlipY(left).setDepth(pts[0].d + (h === hg ? 0.02 : 0.01));
-        head.setAlpha(alpha); hg.setAlpha(alpha * 0.35);
-        const n = pts.length, ta = Math.atan2(pts[n - 1].y - pts[n - 2].y, pts[n - 1].x - pts[n - 2].x);
-        tail.setVisible(alpha > 0.01).setPosition(pts[n - 2].x, pts[n - 2].y).setRotation(ta).setScale(tailH / tf.height).setFlipY(Math.cos(ta) < 0).setDepth(pts[n - 1].d).setAlpha(alpha);
+      rope,
+      /** Lays it out: point i at `at(i)`, half as wide as `hw(i)`, as bright as `av(i)`. */
+      set: (at: (i: number) => { x: number; y: number }, hw: (i: number) => number, av: (i: number) => number): void => {
+        const al = rope.alphas;
+        for (let i = 0; i < n; i++) { const p = at(i); pts[i].set(p.x, p.y); w[i] = hw(i); al[i * 2] = al[i * 2 + 1] = Math.max(0, Math.min(1, av(i))); }
+        rope.setDirty().setVisible(true);
       },
-      destroy: () => { for (const im of [...imgs, head, tail, hg, ...claws]) im.destroy(); },
+      destroy: (): void => { rope.destroy(); },
+    };
+  }
+
+  /** A band of light across its width (clear at its edges, crimson, a white-hot core): ribbons of light are drawn with it. */
+  private ribbonTex(): string {
+    const tm = this.ctx.scene.textures, key = 'sam-ribbon';
+    if (!tm.exists(key)) {
+      const c = tm.createCanvas(key, 8, 64);
+      if (c) {
+        const g = c.context, gr = g.createLinearGradient(0, 0, 0, 64);
+        ([[0, 'rgba(255,40,72,0)'], [0.1, 'rgba(255,40,72,0.42)'], [0.26, 'rgba(255,66,94,0.92)'], [0.4, 'rgba(255,168,180,1)'], [0.5, 'rgba(255,250,250,1)'], [0.6, 'rgba(255,168,180,1)'],
+          [0.74, 'rgba(255,66,94,0.92)'], [0.9, 'rgba(255,40,72,0.42)'], [1, 'rgba(255,40,72,0)']] as const)
+          .forEach(([at, col]) => gr.addColorStop(at, col));
+        g.fillStyle = gr; g.fillRect(0, 0, 8, 64); c.refresh();
+      }
+    }
+    return key;
+  }
+
+  /** A ribbon of light behind a moving point (where it went in the last `span` ms): widest and brightest at its head,
+   *  thinning to nothing at its tail; drawn solid with its light added over it. It stops growing when `at` gives nothing
+   *  (or `until` ms pass) and fades out over `fade` ms. */
+  private trail(at: (t: number) => Pt | null, o: { span: number; w: number; tint?: number; glow?: number; until?: number; fade?: number; delay?: number; run?: CastRun }): void {
+    const key = this.ribbonTex(), N = 24, base = this.strip(undefined, N, { key, tint: o.tint }), light = this.strip(undefined, N, { key, add: true });
+    const hist: { x: number; y: number; d: number; t: number }[] = [], fade = o.fade ?? 180;
+    let stop = -1;
+    const kill = () => { base.destroy(); light.destroy(); };
+    this.add({ t: 0, step: (_dt, t0) => {
+      const t = t0 - (o.delay ?? 0);
+      if (t < 0) return true;
+      if (this.gone(o.run) || (this.broken(o.run) && !hist.length)) { kill(); return false; }
+      if (stop < 0) { const p = o.until !== undefined && t > o.until ? null : at(t); if (p) hist.push({ x: p.x, y: p.y, d: p.d, t }); else stop = t; }
+      const now = stop < 0 ? t : stop;
+      while (hist.length > 2 && hist[1].t < now - o.span) hist.shift();
+      const k = stop < 0 ? 1 : 1 - (t - stop) / fade;
+      if (k <= 0) { kill(); return false; }
+      if (hist.length < 2) return true;
+      const ta = Math.max(hist[0].t, now - o.span), tb = hist[hist.length - 1].t;
+      let j = 0;
+      const pos = (i: number) => { // (evenly in time from its tail to its head)
+        const tt = ta + (tb - ta) * (i / (N - 1));
+        while (j < hist.length - 2 && hist[j + 1].t < tt) j++;
+        const p = hist[j], q = hist[Math.min(hist.length - 1, j + 1)], f = q.t > p.t ? Math.max(0, Math.min(1, (tt - p.t) / (q.t - p.t))) : 1;
+        return { x: p.x + (q.x - p.x) * f, y: p.y + (q.y - p.y) * f };
+      };
+      const hw = (i: number) => o.w * 0.5 * Math.pow(i / (N - 1), 0.75), av = (i: number) => k * Math.min(1, (i / (N - 1)) * 1.6);
+      j = 0; base.set(pos, hw, (i) => av(i) * 0.9);
+      j = 0; light.set(pos, (i) => hw(i) * 0.62, (i) => av(i) * (o.glow ?? 0.8));
+      const d = hist[hist.length - 1].d;
+      base.rope.setDepth(d); light.rope.setDepth(d + 0.01);
+      return true;
+    } });
+  }
+
+  // ------------------------------------------------------------------ the dragon
+
+  /** The crimson dragon as one living body: its body and its tail are strips bent along one path (no seams, whatever the
+   *  curve), the body thinning toward the tail, the head at the front with its glow, two clawed legs under the body.
+   *  `place(path, neck, alpha, melt)` lays it along a path (s ↦ point, s = the distance along it) with its neck at distance
+   *  `neck`; what lies before the path's start (s < 0, still in the floor) is not drawn; `melt` (0..1) melts it away from
+   *  its tail tip to its head. `flip`: its back stays up when it flies to the left (the picture turned over). */
+  private serpent(thick: number, o: { glow?: number; flip?: boolean } = {}) {
+    const s = this.ctx.scene, NB = 28, NT = 12, flip = !!o.flip, glow = o.glow ?? 0.35, ADD = Phaser.BlendModes.ADD;
+    const LB = thick * 7.2, LT = thick * 4.4, all = LB + LT;
+    const body = this.strip('dragon_body', NB, { flipY: flip }), shine = this.strip('dragon_body', NB, { add: true, flipY: flip });
+    const tail = this.strip('dragon_tail', NT, { flipX: true, flipY: flip });
+    const head = s.add.image(0, 0, KIT, 'dragon_head').setOrigin(0.06, 0.62).setVisible(false).setFlipY(flip);
+    const hg = s.add.image(0, 0, KIT, 'dragon_head').setOrigin(0.06, 0.62).setBlendMode(ADD).setVisible(false).setFlipY(flip);
+    const claws = [0, 1].map(() => s.add.image(0, 0, KIT, 'dragon_claw').setOrigin(0.1, 0.24).setVisible(false).setFlipY(flip));
+    const hk = (thick * 1.7) / head.height, ck = (thick * 1.1) / claws[0].height;
+    const sm = (u: number) => { const v = Math.max(0, Math.min(1, u)); return v * v * (3 - 2 * v); };
+    const tangent = (path: (sv: number) => Pt, sv: number) => { const a = path(Math.max(0, sv - 6)), b = path(Math.max(0, sv) + 6); return Math.atan2(b.y - a.y, b.x - a.x); };
+    return {
+      /** its whole length (tail tip to the jaws) */
+      length: all + thick * 3.9,
+      place: (path: (sv: number) => Pt, neck: number, alpha: number, melt = 0): void => {
+        const tip = neck - all, out = (sv: number) => (sv < 0 ? 0 : Math.min(1, sv / 14)); // (fades out where it goes into the floor)
+        const gone = (sv: number) => sm(((sv - tip) / all - melt * 1.2 + 0.2) / 0.2); // (melted away from the tail tip up)
+        const P = (sv: number) => path(Math.max(0, sv));
+        const sb = (i: number) => neck - LB * (1 - i / (NB - 1)), st = (j: number) => tip + LT * (j / (NT - 1));
+        const bw = (i: number) => thick * 0.5 * (0.8 + 0.32 * sm(i / (NB * 0.6)));
+        body.set((i) => P(sb(i)), bw, (i) => alpha * out(sb(i)) * gone(sb(i)));
+        shine.set((i) => P(sb(i)), (i) => bw(i) * 1.06, (i) => alpha * out(sb(i)) * gone(sb(i)) * glow * 0.6);
+        tail.set((j) => P(st(j)), () => thick * 0.46, (j) => alpha * out(st(j)) * gone(st(j)));
+        const n = P(neck), d = n.d, a0 = tangent(path, neck), ah = alpha * out(neck) * gone(neck);
+        body.rope.setDepth(d); shine.rope.setDepth(d + 0.005); tail.rope.setDepth(d - 0.01);
+        for (const h of [head, hg]) h.setVisible(ah > 0.01).setPosition(n.x, n.y).setRotation(a0).setScale(hk).setDepth(d + (h === hg ? 0.03 : 0.02));
+        head.setAlpha(ah); hg.setAlpha(ah * glow);
+        [0.16, 0.6].forEach((f, k) => { // the legs: from under the body, reaching forward
+          const sv = neck - LB * f, p = P(sv), ang = tangent(path, sv), bx = Math.sin(ang) * (flip ? -1 : 1), by = -Math.cos(ang) * (flip ? -1 : 1);
+          claws[k].setVisible(ah > 0.01 && sv > 0).setPosition(p.x - bx * thick * 0.22, p.y - by * thick * 0.22).setRotation(ang + (flip ? -0.6 : 0.6)).setScale(ck)
+            .setDepth(d - 0.02).setAlpha(alpha * out(sv) * gone(sv));
+        });
+      },
+      /** a point along it (0 tail tip .. 1 neck), for sparks */
+      at: (path: (sv: number) => Pt, neck: number, u: number): Pt => path(Math.max(0, neck - all * (1 - u))),
+      destroy: (): void => { body.destroy(); shine.destroy(); tail.destroy(); for (const im of [head, hg, ...claws]) im.destroy(); },
     };
   }
 
@@ -398,9 +496,12 @@ export class SamuraiFx {
       case 'iai_strike': this.iaiCut(r); break;
       case 'spin_cut': if (i === 1) this.spinRing(r, 1); break;
       case 'hundred_cuts': this.flurry(r, i); break;
-      case 'mirage':
-        this.cut('cut_heavy', 190, side * 8, { x: q.x + side * 50, y: y0 - 56, depth: TOP + 3, flipX: side < 0, grow: 60, hold: 50, fade: 200 });
-        this.spr({ name: 'blade_trail', x: q.x + side * 36, y: y0 - 50, w: 180, life: 240, flipX: side < 0, angle: side * 6, glow: 0.35, sx: kf([0, 0.6], [0.2, 1, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+      case 'mirage': // the counter cut, from behind: a great draw-cut across the attacker
+        this.cut('cut_heavy', 236, side * 8, { x: q.x + side * 58, y: y0 - 56, depth: TOP + 3, flipX: side < 0, grow: 60, hold: 60, fade: 220, glow: 0.7 });
+        this.spr({ name: 'blade_trail', x: q.x + side * 40, y: y0 - 52, w: 220, life: 260, flipX: side < 0, angle: side * 6, glow: 0.4, sx: kf([0, 0.6], [0.2, 1, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+        this.spr({ name: 'cut_line', x: q.x + side * 6, y: y0 - 58, ox: side > 0 ? 0.03 : 0.97, flipX: side < 0, w: 270, h: 18, depth: TOP + 3.2, life: 250, glow: 0.85,
+          sx: kf([0, 0.1], [0.16, 1, out3]), sy: kf([0, 1.3], [1, 0.3, inQ]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
+        if (r.own) this.ctx.cam().shake(150, 0.005);
         break;
       case 'kagemusha': this.kageVanish(r.origin); break; // he vanishes where he stood (every screen, from the cast)
       case 'falcon_dive': if (i === 1) this.falconImpact(r); else this.cut('cut_thin', 120, side * 30, { x: q.x + side * 30, y: y0 - 40, depth: q.y + 4, flipX: side < 0 }); break;
@@ -479,18 +580,60 @@ export class SamuraiFx {
     }
   }
 
-  /** The Mirage Counter fired: the mirage the blow struck shatters where he stood (the counter cut comes as its hit). */
+  /** The Mirage Counter fired: time stops a beat; the blow cuts the mirage where he stood in two — its halves slide apart and
+   *  melt into petals — while he is already behind the attacker: his path through it an ink stroke and a line of light,
+   *  out of a swirl of ink the flash of his blade (the counter cut comes as its hit). */
   counter(r: CastRun): void {
     const m = this.stances.get(r.castId);
     if (!m || !this.ready) return;
     m.done = true;
-    this.pop('ink_burst', m.x, m.y - m.z - 50, 170, { depth: m.y + 4, life: 460, glow: 0 });
-    this.petals(m.x, m.y - m.z - 60, 14, 90, { depth: m.y + 5 });
-    const q = this.me(r); // he is already behind the attacker: out of a swirl of ink, a flash of the blade
-    this.spr({ name: 'ink_smoke', x: q.x, y: q.y - q.z - 44, depth: q.y + 4, w: 110, life: 320, sx: kf([0, 1.2], [1, 0.5, out]), sy: kf([0, 1.2], [1, 0.5, out]), a: kf([0, 0.8], [1, 0, inQ]), rot: (u) => -80 * u });
-    this.pop('glint', q.x + sideOf(r) * 20, q.y - q.z - 56, 160, { life: 220, angle: 0, depth: TOP + 6, glow: 0.8 });
+    const q = this.me(r), toward = Math.sign(q.x - m.x) || sideOf(r);
+    if (r.own) { this.ctx.freeze?.(70); this.ctx.darken(280, 0.32); }
+    this.mirageCut(r, m, toward);
+    // his path through the attacker: an ink stroke with a line of light along it, petals left hanging in it
+    const x0 = m.x, y0 = m.y - m.z - 46, x1 = q.x, y1 = q.y - q.z - 46, L = Math.hypot(x1 - x0, y1 - y0), ang = (Math.atan2(y1 - y0, x1 - x0) * 180) / Math.PI, dd = Math.max(m.y, q.y) + 2;
+    if (L > 20) {
+      this.spr({ name: 'ink_long', x: x0, y: y0, ox: 0.03, angle: ang, flipY: x1 < x0, w: L + 70, h: 30, depth: dd, life: 380,
+        sx: kf([0, 0.25], [0.14, 1, out3]), sy: kf([0, 0.9], [0.14, 1], [1, 0.45, inQ]), a: kf([0, 0.6], [0.4, 0.45], [1, 0, inQ]) });
+      this.spr({ name: 'cut_line', x: x0, y: y0, ox: 0.03, angle: ang, flipY: x1 < x0, w: L + 80, h: 16, depth: dd + 0.1, life: 280, glow: 0.85,
+        sx: kf([0, 0.1], [0.18, 1, out3]), sy: kf([0, 1.3], [1, 0.3, inQ]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
+      for (let k = 0; k < 6; k++) { const f = (k + 0.5) / 6; this.petals(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f, 1, 18, { depth: dd + 1, life: 800 }); }
+    }
+    // he steps out behind the attacker: out of a swirl of ink, a flash of the blade, a ring of light at his feet
+    this.spr({ name: 'ink_smoke', x: q.x, y: q.y - q.z - 44, depth: q.y + 4, w: 92, life: 320, sx: kf([0, 1.25], [1, 0.5, out]), sy: kf([0, 1.25], [1, 0.5, out]), a: kf([0, 0.65], [1, 0, inQ]), rot: (u) => -80 * u });
+    this.pop('glint', q.x + sideOf(r) * 20, q.y - q.z - 56, 170, { life: 240, angle: 0, depth: TOP + 6, glow: 0.8 });
+    this.shock(q.x, q.y, 150, { life: 320 });
     this.ctx.callout({ x: q.x, y: q.y, z: q.z + 50 }, 'COUNTER!!', '#ff8a96', 0);
-    this.ctx.punch(0.03, 200);
+    this.ctx.punch(0.035, 220);
+  }
+
+  /** The mirage the blow struck: his body as it stood, cut in two at the waist by a line of light — the halves slide apart
+   *  (the top one away from the blow, tipping) and melt into petals as they go. */
+  private mirageCut(r: CastRun, m: { x: number; y: number; z: number }, toward: number): void {
+    const b = this.ctx.body?.(r.attackerId), x = m.x, y = m.y - m.z;
+    // a puff of ink where he stood (he is gone from there: the halves are all that is left of him)
+    this.spr({ name: 'ink_smoke', x, y: y - 50, depth: m.y + 0.6, w: 104, life: 480, sx: kf([0, 0.85], [1, 1.35, out3]), sy: kf([0, 0.95], [1, 1.3, out3]), a: kf([0, 0.8], [0.35, 0.7], [1, 0, inQ]), rot: (u) => 50 * u });
+    if (b) {
+      const s = this.ctx.scene, CUT = 0.5;
+      const half = (top: boolean) => {
+        const im = s.add.image(x, y, b.key, b.frame).setOrigin(b.ox, b.oy).setScale(b.sx, b.sy).setFlipX(b.flipX).setTintFill(0xffc4ce).setDepth(m.y + 1.2); // (a ghost of light: not him)
+        if (top) im.setCrop(0, 0, im.width, im.height * CUT); else im.setCrop(0, im.height * CUT, im.width, im.height * (1 - CUT));
+        return im;
+      };
+      const up = half(true), low = half(false), H = up.height * b.sy, cy = y - (b.oy - CUT) * H;
+      this.add({ t: 0, step: (_dt, t) => {
+        const u = Math.min(1, t / 420), e = out(Math.max(0, (t - 50) / 370)); // (a beat cut through, then the halves part)
+        up.setPosition(x - toward * 40 * e, y - 24 * e - 12 * u * u).setAngle(-toward * 14 * e).setAlpha(0.88 * (1 - inQ(u)));
+        low.setPosition(x + toward * 10 * e, y + 2 * e).setAngle(toward * 3 * e).setAlpha(0.88 * (1 - inQ(Math.min(1, u * 1.15))));
+        if (u >= 1) { up.destroy(); low.destroy(); return false; }
+        return true;
+      } });
+      for (let k = 0; k < 7; k++) this.later(40 + k * 45, () => this.petals(x - toward * rnd(0, 24), cy - rnd(-34, 50), 2, 26, { depth: m.y + 3, life: 900 })); // (melting into petals)
+      this.spr({ name: 'cut_line', x, y: cy, w: 170, h: 16, angle: -toward * 6, depth: m.y + 4, life: 280, glow: 1,
+        sx: kf([0, 0.1], [0.15, 1, out3], [1, 1.1]), sy: kf([0, 1.4], [1, 0.2, inQ]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
+      this.pop('blossom_burst', x, cy, 96, { depth: m.y + 3.5, life: 360, glow: 0.2, delay: 50 });
+    }
+    this.petals(x, y - 56, 12, 90, { depth: m.y + 5 });
   }
 
   // ------------------------------------------------------------------ skills
@@ -537,20 +680,27 @@ export class SamuraiFx {
     }, r);
   }
 
+  /** Swallow Cut, read at a glance: one ribbon of light traces the blade — up from the floor in front of him in a rising
+   *  crescent that throws the foe up, a flash where it turns at the top, straight back down through the foe in the air
+   *  (a Λ: a swallow's tail). */
   private swallow(r: CastRun, i: number): void {
-    const side = sideOf(r), fl = side < 0;
+    const side = sideOf(r), fl = side < 0, ret = r.skill.hits[1]?.at ?? 130;
     if (i === 0) {
-      this.cut('cut_rise', 160, 0, { follow: this.front(r, 46, 84), flipX: fl, grow: 70, hold: 45, fade: 190, glow: 0.7 });
-      // the swallow of light: out of the blade, up the arc high over the foe, turning back down for the return cut (its afterimages behind it)
-      const base = this.front(r, 40, 46), fly = { mx: kf([0, 0], [0.45, side * 54, out], [1, side * 72]), my: kf([0, 0], [0.45, -196, out], [1, -132, inQ]), rot: kf([0, side * -60], [0.45, side * -8], [1, side * 42]) };
-      const grow = { sx: kf([0, 0.5], [0.25, 1, out]), sy: kf([0, 0.5], [0.25, 1, out]) };
-      this.spr({ name: 'swallow', w: 156, life: 430, flipX: fl, follow: base, dz: 8, glow: 0.6, ...fly, ...grow, a: kf([0, 0], [0.1, 1], [0.82, 1], [1, 0]) });
-      for (let k = 1; k <= 4; k++)
-        this.spr({ name: 'swallow', w: 156, life: 430, delay: k * 30, flipX: fl, follow: base, dz: 7, add: true, ...fly, ...grow, a: kf([0, 0], [0.1, 0.42 - k * 0.08], [0.8, 0.3 - k * 0.06], [1, 0]) });
-      this.later(170, () => { const p = base(); if (p) this.petals(p.x + side * 54, p.y - 180, 9, 64, { depth: p.d + 4 }); }, r);
+      // the point of the blade: up from his front foot to over the foe, a hook at the top, down to the floor beyond it
+      const bz = (u: number, a: number[], c: number[], b: number[]) => [(1 - u) * (1 - u) * a[0] + 2 * (1 - u) * u * c[0] + u * u * b[0], (1 - u) * (1 - u) * a[1] + 2 * (1 - u) * u * c[1] + u * u * b[1]];
+      const tip = (t: number): Pt | null => {
+        const c = this.ctx.casterPos(r.attackerId); if (!c) return null;
+        const [dx, dy] = t <= ret - 25 ? bz(out(t / (ret - 25)), [34, -8], [42, -140], [84, -200]) : t <= ret ? bz((t - ret + 25) / 25, [84, -200], [96, -214], [98, -196])
+          : bz(Math.min(1, (t - ret) / 100), [98, -196], [136, -150], [152, -12]);
+        return { x: c.x + side * dx, y: c.y - c.z + dy, d: c.y + 4 };
+      };
+      this.trail(tip, { span: 240, w: 66, until: ret + 105, fade: 280, run: r, glow: 1 });
+      this.later(ret - 10, () => { const p = tip(ret - 10); if (p) this.pop('glint', p.x, p.y, 130, { life: 220, angle: 0, depth: p.d + 6, glow: 0.8 }); }, r); // (the turn)
+      this.cut('cut_rise', 156, 0, { follow: this.front(r, 52, 90), flipX: fl, grow: 70, hold: 40, fade: 190, glow: 0.5 });
+      const p = this.front(r, 54, 60)(); if (p) this.petals(p.x, p.y, 7, 50, { depth: p.d + 4, up: 40 });
     } else {
-      this.cut('cut_thin', 156, -side * 18, { follow: this.front(r, 58, 124), flipX: fl, flipY: true, grow: 50, hold: 40, fade: 180, glow: 0.7 });
-      const p = this.front(r, 60, 120)(); if (p) this.pop('spark_s', p.x, p.y, 90, { depth: p.d + 5 });
+      this.cut('cut_heavy', 168, -side * 32, { follow: this.front(r, 96, 104), flipX: fl, flipY: true, grow: 45, hold: 40, fade: 190, glow: 0.5 }); // the return: back down through the foe in the air
+      const p = this.front(r, 68, 112)(); if (p) this.pop('spark_s', p.x, p.y, 92, { depth: p.d + 5 });
     }
   }
 
@@ -632,21 +782,67 @@ export class SamuraiFx {
     const p = f(); if (p) this.petals(p.x, p.y, 6, 110, { depth: p.d + 4 });
   }
 
+  /** Hundred Cuts, a storm of swords: a cage of spectral katanas whirls round the foe while katanas of light fly through
+   *  it from every side, three at each cut, each leaving its cut line; at the last cut the cage stops, turns its points in
+   *  and slams into the foe — which bursts in a cross of light. */
   private flurry(r: CastRun, i: number): void {
-    const side = sideOf(r), q = this.me(r), cx = q.x + side * 82, cy = q.y - q.z - 60, last = i >= 12;
+    const side = sideOf(r), f = this.front(r, 84, 62), q = this.me(r), c = f() ?? { x: q.x + side * 84, y: q.y - q.z - 62, d: q.y }, last = i >= r.skill.hits.length - 1;
+    if (i === 0) this.swordCage(r, f);
     if (!last) {
-      for (let n = 0; n < 2; n++) {
-        const name = Math.random() < 0.6 ? 'cut_thin' : Math.random() < 0.6 ? 'cut_x' : 'cut_fan';
-        this.cut(name, rnd(80, 128), rnd(0, 360), { x: cx + rnd(-46, 46), y: cy + rnd(-40, 34), depth: q.y + 4, grow: 30, hold: 18, fade: 95, glow: 0.5, sweep: 20 });
+      for (let n = 0; n < 3; n++) { // katanas of light through the foe, one after another
+        const th = rnd(0, Math.PI * 2), R0 = rnd(118, 150), ox = rnd(-12, 12), oy = rnd(-16, 12), dx = Math.cos(th), dy = Math.sin(th) * 0.6;
+        this.flyBlade(c.x + ox - dx * R0, c.y + oy - dy * R0, c.x + ox + dx * R0, c.y + oy + dy * R0, { delay: n * 24, life: 120, depth: c.d + 5 + n * 0.02, run: r });
       }
-      if (i % 2 === 0) this.spr({ name: 'wind_lines', x: cx + rnd(-16, 16), y: cy + rnd(-24, 18), depth: q.y + 3.5, w: 150, add: true, life: 160, flipX: Math.random() < 0.5, // the air torn by the blade
-        angle: rnd(-28, 28), sx: kf([0, 0.6], [1, 1.15]), a: kf([0, 0.75], [1, 0, inQ]) });
+      if (i % 2 === 0) this.cut('cut_thin', rnd(96, 124), rnd(0, 360), { x: c.x + rnd(-26, 26), y: c.y + rnd(-22, 18), depth: c.d + 5.5, grow: 28, hold: 16, fade: 90, glow: 0.5, sweep: 20 });
+      if (i % 3 === 1) this.pop('spark_s', c.x + rnd(-18, 18), c.y + rnd(-18, 18), 64, { life: 150, depth: c.d + 6 });
       return;
     }
-    this.cut('cut_x', 220, rnd(-10, 10), { x: cx, y: cy, depth: TOP + 4, grow: 60, hold: 70, fade: 230, glow: 0.7 });
-    this.pop('burst', cx + side * 10, cy, 150, { life: 320 });
-    this.petals(cx, cy, 12, 110, { depth: q.y + 5 });
-    if (r.own) { this.ctx.cam().shake(160, 0.005); this.ctx.punch(0.03, 200); }
+    // the cage has slammed in: a cross of light bursts out of the foe
+    this.cut('cut_x', 240, rnd(-10, 10), { x: c.x, y: c.y, depth: TOP + 4, grow: 50, hold: 80, fade: 240, glow: 0.8 });
+    this.pop('burst_crit', c.x, c.y, 220, { life: 360, depth: TOP + 4.5 });
+    this.shock(c.x, q.y, 260);
+    this.petals(c.x, c.y, 18, 130, { depth: TOP + 3 });
+    for (let k = 0; k < 6; k++) { const th = (k / 6) * Math.PI * 2 + rnd(-0.2, 0.2); this.flyBlade(c.x, c.y, c.x + Math.cos(th) * 170, c.y + Math.sin(th) * 100, { life: 200, depth: TOP + 3.5, len: 96 }); } // (shards of the cage thrown out)
+    if (r.own) { this.ctx.cam().shake(200, 0.007); this.ctx.punch(0.04, 240); }
+  }
+
+  /** A crimson katana flying straight from (x0, y0) to (x1, y1), point first, two ghostly afterimages behind it, the cut
+   *  it leaves along its line. */
+  private flyBlade(x0: number, y0: number, x1: number, y1: number, o: { delay?: number; life?: number; depth?: number; run?: CastRun; len?: number } = {}): void {
+    const L = o.len ?? 112, kw = (L * 89) / 400, ang = (Math.atan2(y1 - y0, x1 - x0) * 180) / Math.PI, life = o.life ?? 120, d = o.depth ?? TOP + 3, dl = o.delay ?? 0;
+    const mx = (u: number) => (x1 - x0) * u, my = (u: number) => (y1 - y0) * u;
+    for (let k = 0; k < 3; k++)
+      this.spr({ name: k === 0 ? 'katana' : 'katana_ghost', x: x0, y: y0, w: kw, h: L, angle: ang + 90, life, delay: dl + k * 16, depth: d - k * 0.01, run: o.run, add: k > 0, glow: k === 0 ? 0.3 : undefined,
+        mx, my, a: k === 0 ? kf([0, 0], [0.12, 1], [0.82, 1], [1, 0]) : kf([0, 0], [0.12, 0.4 - k * 0.12], [0.8, 0.3 - k * 0.1], [1, 0]) });
+    const len = Math.hypot(x1 - x0, y1 - y0);
+    this.spr({ name: 'cut_line', x: (x0 + x1) / 2, y: (y0 + y1) / 2, angle: ang, w: len * 0.9, h: 12, delay: dl + life * 0.35, life: 170, depth: d - 0.05, glow: 0.7, run: o.run,
+      sx: kf([0, 0.2], [0.25, 1, out3]), sy: kf([0, 1], [1, 0.3, inQ]), a: kf([0, 0.95], [1, 0, inQ]) });
+  }
+
+  /** The cage of swords round the foe through Hundred Cuts: eight spectral katanas whirling round it (the near ones in front
+   *  of it, the far ones behind), points along the turn; before the last cut they stop, turn their points in and slam into
+   *  it as it lands. */
+  private swordCage(r: CastRun, f: () => Pt | null): void {
+    const s = this.ctx.scene, N = 8, fin = r.skill.hits[r.skill.hits.length - 1]?.at ?? 1000, TURN = fin - 150, IN = fin - 45, KL = 118, ADD = Phaser.BlendModes.ADD;
+    const mk = (add: boolean) => { const im = s.add.image(0, 0, KIT, add ? 'katana_ghost' : 'katana').setVisible(false); if (add) im.setBlendMode(ADD); return im.setScale(KL / im.height); };
+    const bl = Array.from({ length: N }, (_, k) => ({ im: mk(false), gl: mk(true), th0: (k / N) * Math.PI * 2 }));
+    let last: Pt = f() ?? { x: 0, y: 0, d: 0 }, stopAt = 0;
+    const kill = () => { for (const b of bl) { b.im.destroy(); b.gl.destroy(); } };
+    this.add({ t: 0, step: (_dt, t) => {
+      if (this.gone(r) || (r.phase === 'done' && t < fin) || t >= fin) { kill(); return false; } // (broken off, or slammed in)
+      const p = f() ?? last; last = p;
+      const spin = t < TURN ? t * 0.012 : (stopAt ||= TURN * 0.012) + (1 - Math.pow(1 - Math.min(1, (t - TURN) / 90), 2)) * 0.5; // (the whirl stops)
+      const grow = Math.min(1, t / 140), rad = t < IN ? (40 + 56 * out(grow)) * (1 + 0.05 * Math.sin(t / 55)) : 96 * (1 - inQ(Math.min(1, (t - IN) / 45)));
+      const turnIn = t < TURN ? 0 : out(Math.min(1, (t - TURN) / 80));
+      bl.forEach((b) => {
+        const th = b.th0 + spin, sn = Math.sin(th), x = p.x + Math.cos(th) * rad, y = p.y + sn * rad * 0.42;
+        const along = (Math.atan2(Math.cos(th) * 0.42, -Math.sin(th)) * 180) / Math.PI + 90, inward = (Math.atan2(p.y - y, p.x - x) * 180) / Math.PI + 90;
+        const ang = along + Phaser.Math.Angle.ShortestBetween(along, inward) * turnIn, al = grow * (sn > 0 ? 1 : 0.6);
+        b.im.setVisible(true).setPosition(x, y).setAngle(ang).setDepth(p.d + (sn > 0 ? 4 : -4)).setAlpha(0.95 * al);
+        b.gl.setVisible(true).setPosition(x, y).setAngle(ang).setDepth(p.d + (sn > 0 ? 4.01 : -3.99)).setAlpha(0.3 * al);
+      });
+      return true;
+    } });
   }
 
   /** A foe hits the floor (knocked down, or down from the air): a ring and puffs of dust the colour of the ground. */
@@ -700,30 +896,48 @@ export class SamuraiFx {
     this.petals(x, y - 46, 5, 50, { depth: at.y + 5 });
   }
 
-  /** Mirage Counter: the stance shimmers (a crimson mirage over him) for the counter window. */
+  /** Mirage Counter's stance: copies of him trembling round him like a heat haze, petals hanging still in the air round
+   *  his waist, a ring under him shrinking as the window runs out (so everyone sees how long it lasts). A blow that comes
+   *  in hits only the mirage (`counter`); if none comes, the copies fold back into him, the petals drop, the ring breaks. */
   private mirageStance(r: CastRun): void {
-    const o = r.origin, T = r.timings, win = r.skill.counter?.window ?? 420;
+    const o = r.origin, T = r.timings, win = r.skill.counter?.window ?? 420, end = T.startup + win, s = this.ctx.scene, ADD = Phaser.BlendModes.ADD;
     this.stances.set(r.castId, { x: o.x, y: o.y, z: o.z, done: false });
     this.glint(r, 0, 22, 56);
-    // the mirage: see-through copies of him trembling round him, beside and behind, all through the stance (so it reads in PvP)
-    const s = this.ctx.scene, ADD = Phaser.BlendModes.ADD, offs: [number, number, number, number][] = [[-15, -2, 0.5, 0xff3048], [14, 1, 0.45, 0xff3048], [0, -10, 0.32, 0xffd6de]];
+    const offs: [number, number, number, number][] = [[-22, -2, 0.42, 0xff3048], [21, 1, 0.38, 0xff3048], [-11, -8, 0.32, 0xffd6de], [12, -6, 0.26, 0xff6a80], [0, -15, 0.2, 0xffd6de]];
     const imgs = offs.map(() => s.add.image(0, 0, KIT, 'glint').setBlendMode(ADD).setVisible(false));
-    this.add({ t: 0, step: (_dt, t) => {
+    const petals = Array.from({ length: 7 }, (_, i) => {
+      const im = s.add.image(0, 0, KIT, `petal_${1 + (i % 4)}`).setVisible(false);
+      return { im: im.setScale(rnd(14, 19) / im.width), th: (i / 7) * Math.PI * 2 + rnd(-0.3, 0.3), h: rnd(34, 96), rad: rnd(40, 60), sp: (i % 2 ? 1 : -1) * rnd(0.5, 0.8), rot: rnd(0, 360) };
+    });
+    const ring = s.add.image(0, 0, KIT, 'timer_ring').setVisible(false), rg = s.add.image(0, 0, KIT, 'timer_ring').setBlendMode(ADD).setVisible(false), rk = 150 / ring.width;
+    const kill = () => { for (const im of [...imgs, ring, rg, ...petals.map((p) => p.im)]) im.destroy(); };
+    let fold = -1; // (the window ran out with no blow: ms since)
+    this.add({ t: 0, step: (dt, t) => {
       const st = this.stances.get(r.castId), c = this.ctx.casterPos(r.attackerId), b = this.ctx.body?.(r.attackerId);
-      const on = !!st && !st.done && r.phase !== 'done' && r.elapsed < T.startup + win && !!c && !!b;
-      if (!on) { for (const im of imgs) im.destroy(); return false; }
-      const fade = Math.min(1, t / 110) * Math.min(1, (T.startup + win - r.elapsed) / 90);
-      imgs.forEach((im, k) => {
-        const [dx, dy, al, col] = offs[k], j = Math.sin(t / 21 + k * 2.1) * 3.2, fl = 0.7 + 0.3 * Math.sin(t / 33 + k * 1.7);
-        if (im.texture.key !== b!.key || im.frame.name !== String(b!.frame)) im.setTexture(b!.key, b!.frame);
-        im.setOrigin(b!.ox, b!.oy).setScale(b!.sx, b!.sy).setFlipX(b!.flipX).setTintFill(col)
-          .setPosition(c!.x + dx + j, c!.y - c!.z + dy).setDepth(c!.y - 0.5).setAlpha(fade * al * fl).setVisible(true);
+      if (!st || st.done || !c || !b || this.gone(r) || (r.phase === 'done' && fold < 0 && r.elapsed < end)) { kill(); return false; } // (struck: the counter draws the rest)
+      if (fold < 0 && (r.elapsed >= end || r.phase === 'done')) { fold = 0; this.petals(c.x, c.y - c.z - 40, 6, 50, { depth: c.y + 3 }); }
+      if (fold >= 0) fold += dt;
+      if (fold > 300) { kill(); return false; }
+      const vis = this.seen(r.attackerId), on = Math.min(1, t / 110) * vis, f = fold < 0 ? 0 : Math.min(1, fold / 170), gone = fold < 0 ? 1 : 1 - Math.min(1, fold / 240);
+      imgs.forEach((im, k) => { // the copies (folding back into him at the end)
+        const [dx, dy, al, col] = offs[k], j = (Math.sin(t / 21 + k * 2.1) * 3.4 + Math.sin(t / 47 + k) * 2) * (1 - f), fl = 0.7 + 0.3 * Math.sin(t / 33 + k * 1.7);
+        if (im.texture.key !== b.key || im.frame.name !== String(b.frame)) im.setTexture(b.key, b.frame);
+        im.setOrigin(b.ox, b.oy).setScale(b.sx * (1 + 0.03 * Math.sin(t / 40 + k)), b.sy).setFlipX(b.flipX).setTintFill(col)
+          .setPosition(c.x + (dx + j) * (1 - out(f)), c.y - c.z + dy * (1 - out(f))).setDepth(c.y - 0.5).setAlpha(on * al * fl * gone).setVisible(true);
       });
+      petals.forEach((p) => { // hanging still round his waist, turning slowly — dropping at the end
+        const th = p.th + t * 0.0022 * p.sp, sn = Math.sin(th), drop = fold < 0 ? 0 : Math.pow(fold / 300, 2) * (p.h + 10);
+        p.im.setVisible(true).setPosition(c.x + Math.cos(th) * p.rad, c.y - c.z - p.h + sn * p.rad * 0.3 + drop).setDepth(c.y + (sn > 0 ? 3 : -3)).setAngle(p.rot + t * 0.04 * p.sp).setAlpha(on * Math.min(1, gone * 1.4));
+      });
+      const w = r.elapsed < T.startup ? 0.55 + 0.45 * out(r.elapsed / Math.max(1, T.startup)) : 1 - 0.62 * Math.min(1, (r.elapsed - T.startup) / win); // (the ring: shrinking as the window runs out)
+      const rk2 = rk * w * (fold < 0 ? 1 : 1 + 0.5 * f);
+      ring.setVisible(true).setPosition(c.x, c.y - c.z + 2).setScale(rk2).setDepth(c.y - 1).setAlpha(on * 0.95 * gone);
+      rg.setVisible(true).setPosition(c.x, c.y - c.z + 2).setScale(rk2 * 1.03).setDepth(c.y - 0.99).setAlpha(on * gone * (0.45 + 0.2 * Math.sin(t / 50)));
       return true;
     } });
     this.spr({ name: 'shock_ring', w: 120, life: 360, run: r, glow: 0.6, follow: () => { const c = this.ctx.casterPos(r.attackerId); return c ? { x: c.x, y: c.y - c.z, d: c.y } : null; },
       dz: -2, sx: kf([0, 0.3], [1, 1.1, out3]), sy: kf([0, 0.3], [1, 1.1, out3]), a: kf([0, 0.8], [1, 0, inQ]) });
-    this.later(T.startup + win + 400, () => this.stances.delete(r.castId));
+    this.later(end + 400, () => this.stances.delete(r.castId));
   }
 
   /** Blossom Storm: petals gather through the wind-up, then a storm of them whirls round him as he chases. */
@@ -821,58 +1035,79 @@ export class SamuraiFx {
     this.pop('burst_crit', at.x, y, 240, { life: 380, depth: TOP + 6 });
     this.spr({ name: 'ground_slash', x: at.x, y: at.y + 2, angle: ang, flipY: a.x < -0.01, w: 460, depth: GROUND + 2.2, life: 1600, glow: 0.55,
       sx: kf([0, 0.1], [0.1, 1, out3]), sy: kf([0, 1.5], [0.1, 1]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
-    // the dragon flies along the cut, through the foe and away
-    const dr = this.dragon(60), dx = Math.cos(ang * Math.PI / 180), dy = Math.sin(ang * Math.PI / 180), x0 = at.x - dx * 420, y0 = y - dy * 420, L = 1100, gap = 38, n = 16;
+    // the dragon swims out of the dark along the cut, through the foe and away (its whole body following its head along
+    // one gently waving path, faster through the foe, easing in and out), and melts back into the dark from its tail
+    const fl = a.x < -0.01, ux = Math.cos((ang * Math.PI) / 180), uy = Math.sin((ang * Math.PI) / 180), drg = this.serpent(56, { glow: 0.5, flip: fl });
+    const S0 = { x: at.x - ux * 600, y: y - uy * 600 }, wave = (sv: number) => 15 * Math.sin(sv / 56);
+    const path = (sv: number): Pt => ({ x: S0.x + ux * sv - uy * wave(sv), y: S0.y + uy * sv + ux * wave(sv), d: TOP + 4 });
+    const FLY = 900, D0 = 330, D1 = 1650, MELT0 = 620, MELT = 420;
+    let nextSpark = 0;
     this.add({ t: 0, step: (_dt, t) => {
-      const head = Math.min(1, t / 360) * L, fade = t > 380 ? Math.max(0, 1 - (t - 380) / 200) : 1;
-      dr.place(Array.from({ length: n }, (_, i) => { const dd = head - i * gap; return { x: x0 + dx * dd, y: y0 + dy * dd + Math.sin(dd / 70) * 12, d: TOP + 4 }; }), fade * Math.min(1, t / 60));
-      if (t >= 600) { dr.destroy(); return false; }
+      const u = Math.min(1, t / FLY), neck = D0 + (D1 - D0) * (0.3 * u + 0.7 * u * u * (3 - 2 * u)), melt = Math.max(0, (t - MELT0) / MELT);
+      drg.place(path, neck, Math.min(1, t / 160), Math.min(1, melt));
+      if (melt > 0 && melt < 1 && t >= nextSpark) { // it scatters into sparks where it melts
+        nextSpark = t + 30;
+        for (let k = 0; k < 2; k++) { const p = drg.at(path, neck, Math.min(1, melt * 1.2 - 0.1 + rnd(-0.04, 0.04))); this.pop('spark_s', p.x + rnd(-14, 14), p.y + rnd(-12, 12), rnd(34, 56), { life: 240, depth: TOP + 4.5, glow: 0.5 }); }
+      }
+      if (melt >= 1) { drg.destroy(); return false; }
       return true;
     } });
     for (let i = 0; i < 24; i++) this.later(200 + i * 40, () => this.petals(at.x + rnd(-260, 260), y - rnd(80, 220), 1, 30, { life: 1600, depth: TOP + 3 }));
     cam.flash(130, 255, 236, 228, false); // the corona bursts white
-    this.ctx.darken(380, 0.55); // and the dark lifts only after the dragon has passed
+    this.ctx.darken(MELT0 + MELT - 100, 0.55); // and the dark lifts only after the dragon has passed
     if (r.own) { cam.shake(320, 0.012); this.ctx.punch(0.06, 320); }
   }
 
-  /** Tornado Blade: a crimson whirlwind rolling along tornadoPath (the path its hits take): its body turning (two mirrored
-   *  copies crossing over), rings of wind rising up it and widening, blade glints circling it in front and behind, petals
-   *  sucked in and up, dust kicked up at its foot. */
+  /** Tornado Blade: a crimson whirlwind rolling along tornadoPath (the path its hits take), weaving toward you and away
+   *  through the courtyard: larger as it comes near, smaller as it goes away, leaning into its way, a spinning eddy and its
+   *  shadow on the floor under it; its body turning (two mirrored copies crossing over), rings of wind rising up it and
+   *  widening, blade glints circling it in front and behind, petals sucked in and up, dust kicked up at its foot. */
   private tornado(r: CastRun): void {
-    const s = this.ctx.scene, T = r.timings, path = tornadoPath(r.origin, r.aim), t0 = T.startup + TORNADO.startMs, life = TORNADO.everyMs * (TORNADO.count - 1) + 260;
-    const mk = (add: boolean, flip: boolean) => s.add.image(0, 0, KIT, 'tornado').setOrigin(0.5, 0.95).setFlipX(flip).setBlendMode(add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL).setVisible(false);
+    const s = this.ctx.scene, T = r.timings, path = tornadoPath(r.origin, r.aim), t0 = T.startup + TORNADO.startMs, life = TORNADO.everyMs * (TORNADO.count - 1) + 260, ADD = Phaser.BlendModes.ADD;
+    const mk = (add: boolean, flip: boolean) => s.add.image(0, 0, KIT, 'tornado').setOrigin(0.5, 0.95).setFlipX(flip).setBlendMode(add ? ADD : Phaser.BlendModes.NORMAL).setVisible(false);
     const A = mk(false, false), B = mk(false, true), glow = mk(true, false);
-    const H = 300, k = H / A.height, end = t0 + life, cur: Pt = { x: path[0].x, y: path[0].y, d: path[0].y };
-    const blades = Array.from({ length: 4 }, (_, i) => ({ im: s.add.image(0, 0, KIT, 'glint').setBlendMode(Phaser.BlendModes.ADD).setVisible(false), th: (i / 4) * Math.PI * 2, h: 50 + i * 58, sp: 0.012 + i * 0.002 }));
-    const kill = () => { A.destroy(); B.destroy(); glow.destroy(); for (const b of blades) b.im.destroy(); };
-    let nextPetal = 0, nextRing = 0, nextDust = 0;
-    this.add({ t: 0, step: (_dt, t) => {
+    const shadow = s.add.image(0, 0, 'dmg-glow').setTint(0x1a0508).setVisible(false), eddy = s.add.image(0, 0, KIT, 'vortex').setVisible(false), eg = s.add.image(0, 0, KIT, 'vortex').setBlendMode(ADD).setVisible(false);
+    const H = 300, k = H / A.height, ek = 170 / eddy.width, end = t0 + life, y0 = path[0].y, cur: Pt = { x: path[0].x, y: path[0].y, d: path[0].y };
+    const blades = Array.from({ length: 4 }, (_, i) => ({ im: s.add.image(0, 0, KIT, 'glint').setBlendMode(ADD).setVisible(false), th: (i / 4) * Math.PI * 2, h: 50 + i * 58, sp: 0.012 + i * 0.002 }));
+    const kill = () => { for (const im of [A, B, glow, shadow, eddy, eg, ...blades.map((b) => b.im)]) im.destroy(); };
+    const at = (u: number) => { // (a smooth curve through the path's points: Catmull-Rom)
+      const i = Math.max(0, Math.min(path.length - 2, Math.floor(u))), f = Math.max(0, Math.min(1, u - i));
+      const p0 = path[Math.max(0, i - 1)], p1 = path[i], p2 = path[i + 1], p3 = path[Math.min(path.length - 1, i + 2)];
+      const cr = (a: number, b: number, c: number, d: number) => 0.5 * (2 * b + (-a + c) * f + (2 * a - 5 * b + 4 * c - d) * f * f + (-a + 3 * b - 3 * c + d) * f * f * f);
+      return { x: cr(p0.x, p1.x, p2.x, p3.x), y: cr(p0.y, p1.y, p2.y, p3.y) };
+    };
+    let nextPetal = 0, nextRing = 0, nextDust = 0, lean = 0, px = path[0].x;
+    this.add({ t: 0, step: (dt, t) => {
       if (t < T.startup - 40) return true;
       if ((this.broken(r) && t < T.startup + 20) || this.gone(r)) { kill(); return false; }
-      const u = Math.max(0, t - t0) / TORNADO.everyMs, i = Math.min(path.length - 2, Math.floor(u)), f = Math.min(1, u - i);
-      const x = path[i].x + (path[i + 1].x - path[i].x) * f, y = path[i].y + (path[i + 1].y - path[i].y) * f;
+      const { x, y } = at(Math.max(0, t - t0) / TORNADO.everyMs);
       cur.x = x; cur.y = y; cur.d = y;
+      const near = 1 + (y - y0) * 0.0024; // (nearer you: larger)
+      lean += (Math.max(-9, Math.min(9, ((x - px) / Math.max(1, dt)) * 60)) - lean) * Math.min(1, dt / 120); px = x;
       const fade = Math.min(1, (t - T.startup) / 160) * (t > end - 260 ? Math.max(0, (end - t) / 260) : 1);
-      const turn = 0.5 + 0.5 * Math.sin(t / 55), w = 1 + 0.05 * Math.sin(t / 50), bx = x + Math.sin(t / 40) * 3;
-      A.setVisible(true).setPosition(bx, y + 6).setScale(k * 1.15 * w, k).setDepth(y + 1).setAlpha(fade * (0.3 + 0.7 * turn));
-      B.setVisible(true).setPosition(bx, y + 6).setScale(k * 1.15 * w, k).setDepth(y + 1.005).setAlpha(fade * (0.3 + 0.7 * (1 - turn)));
-      glow.setVisible(true).setPosition(bx, y + 6).setScale(k * 1.2 * w, k * 1.02).setFlipX(turn > 0.5).setDepth(y + 1.01).setAlpha(fade * 0.4);
+      const turn = 0.5 + 0.5 * Math.sin(t / 55), w = 1 + 0.05 * Math.sin(t / 50), bx = x + Math.sin(t / 40) * 3, kk = k * near;
+      A.setVisible(true).setPosition(bx, y + 6).setScale(kk * 1.15 * w, kk).setAngle(lean).setDepth(y + 1).setAlpha(fade * (0.3 + 0.7 * turn));
+      B.setVisible(true).setPosition(bx, y + 6).setScale(kk * 1.15 * w, kk).setAngle(lean).setDepth(y + 1.005).setAlpha(fade * (0.3 + 0.7 * (1 - turn)));
+      glow.setVisible(true).setPosition(bx, y + 6).setScale(kk * 1.2 * w, kk * 1.02).setAngle(lean).setFlipX(turn > 0.5).setDepth(y + 1.01).setAlpha(fade * 0.4);
+      shadow.setVisible(true).setPosition(x, y + 4).setDisplaySize(150 * near, 42 * near).setDepth(GROUND + 1.8).setAlpha(fade * 0.5);
+      eddy.setVisible(true).setPosition(x, y + 4).setScale(ek * near, ek * near * SQUASH).setAngle(-t * 0.5).setDepth(GROUND + 2.1).setAlpha(fade * 0.75);
+      eg.setVisible(true).setPosition(x, y + 4).setScale(ek * near * 1.04, ek * near * SQUASH * 1.04).setAngle(-t * 0.5).setDepth(GROUND + 2.11).setAlpha(fade * 0.35);
       for (const b of blades) { // glints of the blades in the wind, circling it (bright in front, dim behind)
-        const th = b.th + t * b.sp, rad = 26 + b.h * 0.26, sn = Math.sin(th);
-        b.im.setVisible(fade > 0.2).setPosition(x + Math.cos(th) * rad, y - b.h + sn * rad * 0.3).setDepth(y + (sn > 0 ? 2.5 : 0.5))
-          .setScale(0.15 + 0.06 * Math.sin(t / 30 + b.th)).setAngle(t * 0.4).setAlpha(fade * (sn > 0 ? 1 : 0.5));
+        const th = b.th + t * b.sp, rad = (26 + b.h * 0.26) * near, sn = Math.sin(th);
+        b.im.setVisible(fade > 0.2).setPosition(x + Math.cos(th) * rad, y - b.h * near + sn * rad * 0.3).setDepth(y + (sn > 0 ? 2.5 : 0.5))
+          .setScale((0.15 + 0.06 * Math.sin(t / 30 + b.th)) * near).setAngle(t * 0.4).setAlpha(fade * (sn > 0 ? 1 : 0.5));
       }
       if (t >= nextRing && fade > 0.3) { // a ring of wind rising up the funnel, widening (its far half behind, its near half in front)
         nextRing = t + 100;
         const fl = Math.random() < 0.5;
         for (const [crop, z] of [[undefined, 0.6], [0.5, 2.4]] as const)
-          this.spr({ name: 'wind_ring', w: 80, life: 560, add: true, crop, flipX: fl, follow: () => ({ x: cur.x, y: cur.y - 12, d: cur.y }), dz: z,
-            my: (uu) => -250 * uu, sx: (uu) => 0.8 + 1.5 * uu, sy: (uu) => 0.6 + 0.8 * uu, a: kf([0, 0], [0.15, 0.85], [0.7, 0.55], [1, 0]) });
+          this.spr({ name: 'wind_ring', w: 80 * near, life: 560, add: true, crop, flipX: fl, follow: () => ({ x: cur.x, y: cur.y - 12, d: cur.y }), dz: z,
+            my: (uu) => -250 * near * uu, sx: (uu) => 0.8 + 1.5 * uu, sy: (uu) => 0.6 + 0.8 * uu, a: kf([0, 0], [0.15, 0.85], [0.7, 0.55], [1, 0]) });
       }
-      if (t >= nextDust && fade > 0.5) { nextDust = t + 280; this.dust(x, y + 4, 74); }
+      if (t >= nextDust && fade > 0.5) { nextDust = t + 240; this.dust(x, y + 4, 74 * near); }
       if (t >= nextPetal && fade > 0.3) { // petals sucked in and up
         nextPetal = t + 55;
-        const th = Math.random() * Math.PI * 2, d = rnd(80, 120);
+        const th = Math.random() * Math.PI * 2, d = rnd(80, 120) * near;
         this.spr({ name: `petal_${1 + Math.floor(Math.random() * 4)}`, x: x + Math.cos(th) * d, y: y - 20 + Math.sin(th) * d * 0.35, depth: y + (Math.sin(th) > 0 ? 3 : -1), w: rnd(13, 19), life: 420,
           mx: (uu) => -Math.cos(th) * d * out(uu), my: (uu) => -Math.sin(th) * d * 0.35 * out(uu) - 160 * uu * uu, rot: (uu) => 600 * uu, a: kf([0, 0], [0.15, 1], [0.8, 1], [1, 0]) });
       }
@@ -881,11 +1116,15 @@ export class SamuraiFx {
     } });
   }
 
-  /** Falcon Dive: the samurai wrapped in a falcon of fire through the leap and the dive. */
+  /** Falcon Dive: the samurai wrapped in a falcon of fire through the leap and the dive, a ribbon of red light streaming
+   *  behind him all the way down. */
   private falcon(r: CastRun): void {
     const T = r.timings, s = this.ctx.scene, side = sideOf(r), fl = side < 0;
     const q0 = this.me(r);
     this.later(T.startup, () => { this.dust(q0.x, q0.y, 110); this.dustRing(q0.x, q0.y, 150); }, r);
+    const land = T.startup + (r.skill.hits[1]?.at ?? 300);
+    this.trail(() => { const c = this.ctx.casterPos(r.attackerId); return c ? { x: c.x - side * 4, y: c.y - c.z - 52, d: c.y - 0.5 } : null; },
+      { delay: T.startup - 20, until: land - T.startup + 30, span: 230, w: 46, fade: 240, run: r, glow: 0.9 });
     const bird = s.add.image(0, 0, KIT, 'falcon_dive').setVisible(false).setFlipX(fl);
     const glow = s.add.image(0, 0, KIT, 'falcon_dive').setVisible(false).setFlipX(fl).setBlendMode(Phaser.BlendModes.ADD);
     const k = 190 / bird.width, hitAt = r.skill.hits[1]?.at ?? 300;
@@ -907,6 +1146,13 @@ export class SamuraiFx {
   }
   private falconImpact(r: CastRun): void {
     const q = this.me(r), side = sideOf(r), cam = this.ctx.cam();
+    // an explosion of light where he strikes the floor: a flare, rays, a pillar of light, a burst
+    this.pop('sun_flare', q.x, q.y - 46, 380, { life: 520, depth: TOP + 3, angle: 0, glow: 0.55 });
+    this.spr({ name: 'sun_rays', x: q.x, y: q.y - 40, w: 470, life: 620, add: true, tint: 0xff6a78, depth: TOP + 2.9, rot: (u) => 18 * u,
+      sx: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.2]), sy: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.2]), a: kf([0, 1], [0.4, 0.85], [1, 0, inQ]) });
+    this.spr({ name: 'launch_beam', x: q.x, y: q.y + 6, oy: 0.95, depth: q.y + 3.2, w: 230, h: 300, life: 420, glow: 0.45,
+      sx: kf([0, 0.4], [0.2, 1, out3], [1, 0.6]), sy: kf([0, 0.2], [0.18, 1, out3], [1, 1.1]), a: kf([0, 1], [0.35, 0.9], [1, 0, inQ]) });
+    this.pop('burst_crit', q.x, q.y - 30, 260, { life: 380, depth: TOP + 3.2 });
     this.spr({ name: 'falcon_spread', x: q.x, y: q.y + 6, oy: 0.92, depth: q.y + 3, w: 270, life: 560, glow: 0.45,
       sx: kf([0, 0.5], [0.25, 1.05, out3], [1, 1.15]), sy: kf([0, 0.4], [0.25, 1.05, out3], [1, 1.2]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]), my: (u) => -24 * u });
     this.shock(q.x, q.y, 300); this.shock(q.x, q.y, 380, { delay: 80 });
@@ -1042,36 +1288,50 @@ export class SamuraiFx {
     } });
   }
 
-  /** Sakura Bind: the sigil opens on the floor where it was aimed, petals drawn into it through the wind-up. */
+  /** Sakura Bind: a gust blows petals in to where it was aimed and a pattern of blossoms shows faintly in the stones there
+   *  (drawn into the floor, not glowing over it). */
   private bind(r: CastRun): void {
     const T = r.timings, h0 = r.skill.hits[0], R = (h0.shape as { radius: number }).radius, c = r.place ?? r.origin, hold = h0.reaction.hardCC?.ms ?? 2000;
-    const life = T.startup + hold + 260;
-    this.floor('sigil_sakura', c.x, c.y, R * 2.2, life, { spin: 150, run: r, glow: 0.35, depth: GROUND + 2,
-      a: kf([0, 0], [Math.max(0.02, T.startup / life), 1], [(life - 320) / life, 1], [1, 0]), s: kf([0, 0.6], [Math.max(0.02, T.startup / life), 1, out3]) });
-    this.petals(c.x, c.y - 30, 10, R, { inward: true, life: T.startup + 120, depth: c.y + 3 });
+    const life = T.startup + hold + 260, k0 = Math.max(0.02, T.startup / life);
+    this.floor('sigil_sakura', c.x, c.y, R * 2.05, life, { spin: 40, run: r, depth: GROUND + 2, tint: 0xe8b4bf,
+      a: kf([0, 0], [k0, 0.55], [(life - 360) / life, 0.42], [1, 0]), s: kf([0, 0.85], [k0, 1, out3]) });
+    this.petals(c.x, c.y - 30, 14, R * 1.1, { inward: true, life: T.startup + 140, depth: c.y + 3 });
   }
-  /** The bind itself: a vortex pulls everyone in and blossoms burst open round the rim (each bound foe gets its cage, `cage`). */
+  /** The bind itself: the petals swirl in over the stones and blossoms push up through cracks round the rim, with a puff
+   *  of stone dust each (each bound foe gets its branches, `cage`). */
   private bloom(r: CastRun): void {
     const h0 = r.skill.hits[0], R = (h0.shape as { radius: number }).radius, c = r.place ?? r.origin;
-    this.floor('vortex', c.x, c.y, R * 2.2, 380, { add: true, spin: -320, depth: GROUND + 2.6, a: kf([0, 1], [0.6, 1], [1, 0, inQ]), s: kf([0, 1.1], [1, 0.25, inQ]) });
-    this.pop('glint', c.x, c.y - 50, 160, { life: 260, angle: 0 });
-    for (let i = 0; i < 10; i++) {
-      const th = (i / 10) * Math.PI * 2 + rnd(-0.12, 0.12), bx = c.x + Math.cos(th) * R * 1.02, by = c.y + Math.sin(th) * R * 1.02 * SQUASH;
-      this.spr({ name: 'blossom_cluster', x: bx, y: by, oy: 0.88, depth: by + 1, w: rnd(30, 38), life: 900, delay: 40 + i * 16, angle: rnd(-18, 18), flipX: Math.random() < 0.5,
-        sx: kf([0, 0], [0.22, 1, back], [0.75, 1], [1, 0.6]), sy: kf([0, 0], [0.22, 1, back], [0.75, 1], [1, 0.6]), a: kf([0, 1], [0.75, 1], [1, 0, inQ]) });
+    this.floor('vortex', c.x, c.y, R * 1.9, 420, { spin: -240, depth: GROUND + 2.4, tint: 0xffd2da, a: kf([0, 0.5], [0.5, 0.35], [1, 0, inQ]), s: kf([0, 1.1], [1, 0.35, inQ]) });
+    for (let i = 0; i < 8; i++) {
+      const th = (i / 8) * Math.PI * 2 + rnd(-0.15, 0.15), bx = c.x + Math.cos(th) * R * 1.0, by = c.y + Math.sin(th) * R * SQUASH, dl = 30 + i * 18;
+      this.floor('crack', bx, by + 3, 34, 1400, { angle: rnd(0, 360) + CRACK_TILT, squash: 0.5, delay: dl, depth: GROUND + 1.6, tint: 0x4a2418, a: kf([0, 0], [0.05, 0.7], [0.7, 0.6], [1, 0]) });
+      this.spr({ name: 'dust', x: bx, y: by + 2, oy: 0.85, depth: by + 2, w: 46, delay: dl, life: 420, tint: DUST, sx: kf([0, 0.4], [1, 1.2, out3]), sy: kf([0, 0.4], [1, 1.05, out3]), a: kf([0, 0.7], [1, 0, inQ]), my: (u) => -8 * u });
+      this.spr({ name: 'blossom_cluster', x: bx, y: by, oy: 0.88, depth: by + 1, w: rnd(28, 36), life: 1000, delay: dl, angle: rnd(-18, 18), flipX: Math.random() < 0.5,
+        sx: kf([0, 0], [0.2, 1, back], [0.78, 1], [1, 0.6]), sy: kf([0, 0], [0.2, 1, back], [0.78, 1], [1, 0.6]), a: kf([0, 1], [0.78, 1], [1, 0, inQ]) });
     }
     this.ctx.punch(0.02, 160);
   }
-  /** A bound foe: cherry branches grow up round it and curl in over it (the near ones low, so the foe stays in sight), hold
-   *  through the bind, then wither into falling petals. */
+  /** A bound foe: cherry branches break up through the stones round it (cracks and stone dust at their roots) and curl in
+   *  over it (the near ones low, so the foe stays in sight); petals come off them and drift down all through the bind; at
+   *  its end they wither back into the floor. */
   private cage(x: number, y: number, hold: number): void {
     const life = hold + 120, grow = 240 / life, wither = (hold - 180) / life;
     ([[-34, -6, 64, false], [34, -6, 60, false], [-28, 7, 48, true], [30, 7, 46, true]] as const).forEach(([dx, dy, w, near], i) => {
-      const ph = rnd(0, 6), lean = (dx > 0 ? -10 : 10) + rnd(-3, 3), al = near ? 0.9 : 1;
-      this.spr({ name: i % 2 ? 'branch_2' : 'branch_1', x: x + dx, y: y + dy + 4, oy: 0.97, depth: y + (near ? 3 : -3), w: w + rnd(-3, 3), life, delay: i * 30, flipX: dx < 0,
+      const ph = rnd(0, 6), lean = (dx > 0 ? -10 : 10) + rnd(-3, 3), al = near ? 0.9 : 1, rx = x + dx, ry = y + dy + 4;
+      this.floor('crack', rx, ry, 30, life + 300, { angle: rnd(0, 360) + CRACK_TILT, squash: 0.5, delay: i * 30, depth: GROUND + 1.6, tint: 0x4a2418, a: kf([0, 0], [0.04, 0.75], [0.8, 0.6], [1, 0]) });
+      this.spr({ name: 'dust', x: rx, y: ry, oy: 0.85, depth: ry + 2, w: 40, delay: i * 30, life: 380, tint: DUST, sx: kf([0, 0.4], [1, 1.2, out3]), sy: kf([0, 0.4], [1, 1.05, out3]), a: kf([0, 0.65], [1, 0, inQ]), my: (u) => -6 * u });
+      this.spr({ name: i % 2 ? 'branch_2' : 'branch_1', x: rx, y: ry, oy: 0.97, depth: y + (near ? 3 : -3), w: w + rnd(-3, 3), life, delay: i * 30, flipX: dx < 0,
         sy: kf([0, 0], [grow, 1, back], [wither, 1], [1, 0, inQ]), sx: kf([0, 0.5], [grow, 1, out], [wither, 1], [1, 0.7]), rot: (u) => lean + 3 * Math.sin((u * life) / 220 + ph), a: kf([0, al], [wither, al], [1, 0]) });
     });
+    for (let t = 260; t < hold - 120; t += rnd(110, 190)) this.fallPetal(x + rnd(-36, 36), y - rnd(50, 86), y + rnd(-4, 10), t); // (petals coming off the branches)
     this.later(hold - 160, () => this.petals(x, y - 50, 8, 50, { depth: y + 4 }));
+  }
+  /** A petal coming off a branch: it drifts down, swaying and turning, and lies a moment on the floor before it fades. */
+  private fallPetal(x: number, y0: number, floorY: number, delay: number): void {
+    const drop = floorY - y0, life = 900 + drop * 4, sw = rnd(8, 16), ph = rnd(0, 6), spin = rnd(-260, 260), land = 0.7;
+    this.spr({ name: `petal_${1 + Math.floor(Math.random() * 4)}`, x, y: y0, w: rnd(12, 16), life, delay, depth: floorY + 2, angle: rnd(0, 360),
+      mx: (u) => Math.sin(Math.min(u, land) * 9 + ph) * sw * Math.min(1, u * 4), my: (u) => drop * Math.min(1, u / land), rot: (u) => spin * Math.min(u, land),
+      sx: (u) => (u < land ? 0.55 + 0.45 * Math.abs(Math.cos(u * 10 + ph)) : 1), a: kf([0, 0], [0.08, 1], [0.86, 1], [1, 0]) });
   }
 
   /** Dragon Ascension: the dragon crest turns on the floor through the wind-up. */
@@ -1083,37 +1343,27 @@ export class SamuraiFx {
   }
   /** The dragon breaks out of the floor and spirals up round him as high as it carries the foes, then flies off. */
   private ascensionBurst(r: CastRun): void {
-    const T = r.timings, q = this.me(r), cx = q.x, cy = q.y, side = sideOf(r), cam = this.ctx.cam();
+    const q = this.me(r), cx = q.x, cy = q.y, side = sideOf(r), cam = this.ctx.cam();
     this.launchBeam(cx, cy, 260);
     this.shock(cx, cy, 300); this.dustRing(cx, cy, 260); this.dust(cx - 60, cy, 110); this.dust(cx + 60, cy, 110, 40);
-    const RAD = 104, HIGH = 420, rise = T.active + 160, turns = 2.1, ph0 = side > 0 ? Math.PI : 0, gap = 30, n = 15; // (wide as the ring it lifts)
-    const ROAR = 0.8; // (it roars near the top of its climb, still in sight)
-    const pos = (u: number): Pt => {
-      const th = ph0 + side * u * turns * Math.PI * 2, h = u <= 1 ? HIGH * (1 - Math.pow(1 - u, 1.7)) : HIGH + (u - 1) * 900, rad = RAD * (1 - 0.3 * Math.min(1, u));
-      return { x: cx + Math.cos(th) * rad, y: cy - 34 - h + Math.sin(th) * rad * 0.34, d: cy + (Math.sin(th) > 0 ? 5 : -5) };
-    };
-    const dr = this.dragon(50), trail: Pt[] = [];
-    let roared = false, nextSpark = 0;
+    // the dragon bursts out of the floor just in front of him and climbs into the sky in long S-curves — its whole body
+    // following its head along one path (no seams, nothing jumping), fast out of the floor, slowing near the top — roars
+    // there, and melts into sparks from its tail up as it drifts on
+    const gx = cx + side * 30, gy = cy + 2, A = 64, LAM = 330, TOPS = 300, RISE = 950, ROAR = 0.8, MELT0 = 900, MELT = 520, d = cy + 6; // (its jaws stay in sight at the top)
+    const path = (sv: number): Pt => { const e = Math.min(1, Math.max(0, sv) / 150), w = e * e * (3 - 2 * e); return { x: gx + side * A * w * Math.sin((sv / LAM) * Math.PI * 2), y: gy - sv, d }; };
+    const drg = this.serpent(48, { glow: 0.32, flip: side < 0 });
+    let roared = false, nextSpark = 0, nextPetal = 0;
     this.add({ t: 0, step: (_dt, t) => {
-      const u = t / rise;
-      trail.unshift(pos(u));
-      // even spacing along the trail (head first)
-      const pts: Pt[] = [trail[0]];
-      let acc = 0;
-      for (let i = 1; i < trail.length && pts.length < n; i++) {
-        acc += Math.hypot(trail[i].x - trail[i - 1].x, trail[i].y - trail[i - 1].y);
-        if (acc >= gap) { pts.push(trail[i]); acc = 0; }
+      if (this.gone(r)) { drg.destroy(); return false; }
+      const u = Math.min(1, t / RISE), neck = -40 + (TOPS + 40) * out3(u) + Math.max(0, t - RISE) * 0.2, melt = Math.max(0, (t - MELT0) / MELT);
+      drg.place(path, neck, Math.min(1, t / 90), Math.min(1, melt));
+      if (t >= nextPetal && melt < 0.5) { nextPetal = t + 60; const p = drg.at(path, neck, 0.9); this.petals(p.x, p.y, 1, 24, { depth: p.d + 1, life: 700 }); }
+      if (!roared && u >= ROAR) { roared = true; const n = path(neck), a0 = Math.atan2(n.y - path(neck - 8).y, n.x - path(neck - 8).x); this.roar(r, { x: n.x + Math.cos(a0) * 150, y: n.y + Math.sin(a0) * 150, d: n.d }); }
+      if (melt > 0 && melt < 1 && t >= nextSpark) { // it scatters into sparks where it melts
+        nextSpark = t + 30;
+        for (let k = 0; k < 2; k++) { const p = drg.at(path, neck, Math.min(1, melt * 1.2 - 0.1 + rnd(-0.04, 0.04))); this.pop('spark_s', p.x + rnd(-12, 12), p.y + rnd(-12, 12), rnd(34, 56), { life: 240, depth: p.d + 2, glow: 0.5 }); }
       }
-      while (trail.length > 400) trail.pop();
-      const fade = u > 1.15 ? Math.max(0, 1 - (u - 1.15) / 0.25) : Math.min(1, t / 80);
-      dr.place(pts, fade);
-      if (t % 64 < 17) { const p = trail[0]; this.petals(p.x, p.y, 1, 24, { depth: p.d + 1, life: 700 }); }
-      if (!roared && u >= ROAR && !this.gone(r)) { roared = true; this.roar(r, trail[0]); }
-      if (u > 1.1 && t >= nextSpark) { // it scatters into sparks as it goes
-        nextSpark = t + 28;
-        for (let j = 0; j < 2; j++) { const p = pts[Math.floor(Math.random() * pts.length)]; if (p) this.pop('spark_s', p.x + rnd(-12, 12), p.y + rnd(-12, 12), rnd(34, 58), { life: 240, depth: p.d + 2, glow: 0.5 }); }
-      }
-      if (u >= 1.4 || this.gone(r)) { dr.destroy(); return false; }
+      if (melt >= 1) { drg.destroy(); return false; }
       return true;
     } });
     if (r.own) { cam.shake(220, 0.007); this.ctx.punch(0.035, 240); }
@@ -1138,7 +1388,7 @@ export class SamuraiFx {
     const ring = (add: boolean) => { const im = s.add.image(c.x, c.y - c.z - 74, KIT, 'halo_gold').setAlpha(0); if (add) im.setBlendMode(ADD); return im.setScale(HALO / im.width); };
     const blade = (add: boolean) => { const im = s.add.image(c.x, c.y - c.z - 70, KIT, 'katana_ghost').setOrigin(0.5, 0.9).setAlpha(0); if (add) im.setBlendMode(ADD); return im.setScale(KATANA / im.height); };
     this.halos.set(r.attackerId, { run: r, imgs: Array.from({ length: 8 }, () => blade(false)), gls: Array.from({ length: 8 }, () => blade(true)), halo: ring(false), hg: ring(true),
-      t: 0, until, lastX: c.x, face: side, next: 0, away: new Set(), back: new Map() });
+      t: 0, until, lastX: c.x, face: side, next: 0, away: new Set(), spent: new Set() });
   }
 
   clearHalo(attackerId: string, now = false): void {
@@ -1164,26 +1414,28 @@ export class SamuraiFx {
       if (f) h.face = f; else if (Math.abs(c.x - h.lastX) > 0.5) h.face = c.x > h.lastX ? 1 : -1;
       h.lastX = c.x;
       const vis = this.seen(id), rise = Math.min(1, h.t / 600) * vis, breathe = 1 + 0.04 * Math.sin(h.t / 300), hx = c.x - h.face * 12, hy = c.y - c.z - 72, hk = (HALO / h.halo.width) * breathe;
-      h.halo.setPosition(hx, hy).setDepth(c.y - 2.2).setAlpha(0.85 * rise).setAngle(h.t * 0.02).setScale(hk);
-      h.hg.setPosition(hx, hy).setDepth(c.y - 2.19).setAlpha(rise * (0.32 + 0.1 * Math.sin(h.t / 170))).setAngle(h.t * 0.02).setScale(hk * 1.03);
+      const left = 1 - h.spent.size / 8 * 0.45; // (the halo dims as its katanas are spent)
+      h.halo.setPosition(hx, hy).setDepth(c.y - 2.2).setAlpha(0.85 * rise * left).setAngle(h.t * 0.02).setScale(hk);
+      h.hg.setPosition(hx, hy).setDepth(c.y - 2.19).setAlpha(rise * left * (0.32 + 0.1 * Math.sin(h.t / 170))).setAngle(h.t * 0.02).setScale(hk * 1.03);
       h.imgs.forEach((im, k) => {
-        if (h.away.has(k)) return;
-        const p = this.haloSlot(h, k, c), b = h.back.get(k), ret = b === undefined ? 1 : Math.min(1, (h.t - b) / 220); // (back from a strike: it fades in, growing into place)
-        const on = Math.min(1, Math.max(0, (h.t - k * 70) / 160)) * ret * vis, kk = (KATANA / im.height) * (0.75 + 0.25 * out(ret));
-        im.setPosition(p.x, p.y).setAngle(p.ang).setScale(kk).setDepth(c.y - 1.6).setAlpha(0.95 * on);
-        h.gls[k].setPosition(p.x, p.y).setAngle(p.ang).setScale(kk * 1.05).setDepth(c.y - 1.59).setAlpha(on * (0.3 + 0.12 * Math.sin(h.t / 140 + k)));
+        if (h.away.has(k) || h.spent.has(k)) return;
+        const p = this.haloSlot(h, k, c), on = Math.min(1, Math.max(0, (h.t - k * 70) / 160)) * vis;
+        im.setPosition(p.x, p.y).setAngle(p.ang).setDepth(c.y - 1.6).setAlpha(0.95 * on);
+        h.gls[k].setPosition(p.x, p.y).setAngle(p.ang).setDepth(c.y - 1.59).setAlpha(on * (0.3 + 0.12 * Math.sin(h.t / 140 + k)));
       });
     }
   }
 
   /** God of Blades strike: a katana of the halo turns on the foe and flies at it (its afterimages behind it), stabs down
-   *  into it and stays in a moment, shuddering, then pulls out and fades — and grows back into the halo. The hit lands as it
-   *  arrives (150 ms: LegacyCourtyardScene.bladeStrikes); it follows the foe it was thrown at (`targetId`). */
+   *  into it and stays in a moment, shuddering, then pulls out and fades away — it is spent: the halo has one fewer (eight
+   *  strikes in all, LegacyCourtyardScene.bladeStrikes). The hit lands as it arrives (150 ms); it follows the foe it was
+   *  thrown at (`targetId`). */
   bladeStrike(attackerId: string, to: V3, targetId?: string): void {
-    const h = this.halos.get(attackerId), c = this.ctx.casterPos(attackerId); if (!h || !c || !this.ready) return;
-    const k = h.next % 8; h.next++;
-    const im = h.imgs[k], gl = h.gls[k]; if (!im || h.away.has(k)) return;
-    h.away.add(k); h.back.delete(k);
+    const h = this.halos.get(attackerId), c = this.ctx.casterPos(attackerId); if (!h || !c || !this.ready || h.next >= 8) return;
+    const k = BLADE_ORDER[h.next++];
+    const im = h.imgs[k], gl = h.gls[k]; if (!im) return;
+    h.away.add(k); h.spent.add(k);
+    this.petals(im.x, im.y - 20, 4, 30, { depth: c.y + 2 }); // (petals left where it was)
     const FLY = 150, STICK = 210, OUT = 130, L = KATANA * 0.9, IN = 26, sx = im.x, sy = im.y, a0 = im.angle, kk = KATANA / im.height, kw = (KATANA * im.width) / im.height;
     const goal = () => { const t = targetId ? this.ctx.targetPos?.(targetId) : null; return t ? { x: t.x, y: t.y - t.z - 78 } : { x: to.x, y: to.y - to.z - 38 }; };
     // the stab: from where it flies, at least this steep (it comes down from the halo)
@@ -1211,7 +1463,7 @@ export class SamuraiFx {
         return true;
       }
       im.setAlpha(0); gl.setAlpha(0);
-      h.away.delete(k); h.back.set(k, h.t);
+      h.away.delete(k);
       return false;
     } });
   }

@@ -88,6 +88,8 @@ const TRIAL_HP = 200; // (the world's own scale, not the arena's)
 const HIT_IFRAMES = 2000, HIT_BLINK = 90;
 /** Radiant Blade: the warrior's attacks this many times faster while the blade of light is on. */
 const RADIANT_SPEED = 3;
+/** God of Blades: the halo's katanas (each one that flies is spent). */
+const GOD_BLADES = 8;
 /** World damage roll: from this fraction of the maximum up to it (MapleStory's mastery). */
 const STAT_MASTERY = 0.8;
 /** MP (MapleStory-style): every skill but the regular attack spends it; it refills over time (a share of the max a second). */
@@ -1319,10 +1321,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     });
   }
 
-  /** God of Blades tick: two blades of the halo fly at the two nearest foes in reach (the hits land as they arrive). */
-  private bladeStrikes(l: { run: CastRun; x: number; y: number }, L: NonNullable<FinalSkill['linger']>): void {
+  /** God of Blades tick: two blades of the halo fly at the two nearest foes in reach (the hits land as they arrive); each
+   *  blade that flies is spent — the halo has eight. */
+  private bladeStrikes(l: { run: CastRun; x: number; y: number; blades?: number }, L: NonNullable<FinalSkill['linger']>): void {
+    const left = (l.blades ??= GOD_BLADES);
+    if (left <= 0) return;
     const near = this.targetsFor(l.run).filter((t) => t.alive && !t.invulnerable && t.id !== l.run.attackerId && t.z <= L.maxZ && !(l.run.own && this.party?.has(t.id)) && Math.hypot(t.x - l.x, t.y - l.y) <= L.radius + t.radius)
-      .sort((p, q) => Math.hypot(p.x - l.x, p.y - l.y) - Math.hypot(q.x - l.x, q.y - l.y)).slice(0, 2);
+      .sort((p, q) => Math.hypot(p.x - l.x, p.y - l.y) - Math.hypot(q.x - l.x, q.y - l.y)).slice(0, Math.min(2, left));
+    l.blades = left - near.length;
     near.forEach((t, n) => this.time.delayedCall(n * 90, () => {
       if (!t.alive) return;
       const at = { x: t.x, y: t.y, z: t.z + 40 }, zr = { ...l.run, origin: { x: t.x - (t.x >= l.x ? 30 : -30), y: t.y, z: 0 } } as CastRun;

@@ -683,10 +683,10 @@ const samurai: FinalSkill[] = [
     id: 'god_of_blades', cls: 'samurai', slot: 15, name: 'God of Blades', roles: ['setup', 'zone'], targeting: 'self',
     startup: 600, active: 200, recovery: 260, cooldown: 60000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1060],
     hits: [H(0, 10, { kind: 'circle', radius: 170 }, { stun: 360, push: 40 }, { reachUp: 160 })],
-    // every second two of the halo's blades fly at the nearest foes (LegacyCourtyardScene: bladeStrike)
+    // every second two of the halo's blades fly at the nearest foes, each one spent (eight in all; LegacyCourtyardScene: bladeStrikes)
     linger: { at: 'caster', startMs: 600, everyMs: 1000, count: 30, radius: 220, maxZ: 220, hit: H(0, 6, { kind: 'circle', radius: 220 }, { stun: 300, float: true }, { reachUp: 220 }) },
     cancelOnHit: ['quick_slash', 'phantom_blades', 'blossom_storm', 'dragon_eclipse'], tags: ['buff'],
-    description: 'Eight spectral katanas rise behind you for 30s: +15% damage, and every second two of them fly at the nearest foes on their own.',
+    description: 'Eight spectral katanas rise behind you for 30s: +15% damage, and every second two of them fly at the nearest foes on their own — each one that flies is spent, eight strikes in all.',
     relations: ['Buff 30s', 'Blades strike on their own'],
   }),
   S({

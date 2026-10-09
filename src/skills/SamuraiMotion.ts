@@ -132,13 +132,16 @@ export function shinsokuMotion(t: number, face: number, ms = 340): Motion | null
   return M({ ang: face * 16 * k, sx: 1 + 0.1 * k, sy: 1 - 0.06 * k, after: true });
 }
 
-/** Tornado Blade: the whirlwind rolls forward one step per strike, stopping where the ground ends (walls, edges). */
-export const TORNADO = { offset: 90, step: 18, everyMs: 150, count: 14, startMs: 120 };
+/** Tornado Blade: the whirlwind rolls forward one step per strike, weaving across the floor as it goes (toward you, away,
+ *  back: through the depth of the courtyard, not along a line), stopping where the ground ends (walls, edges). */
+export const TORNADO = { offset: 90, step: 18, everyMs: 150, count: 14, startMs: 120, weave: 84 };
 export function tornadoPath(o: { x: number; y: number }, aim: { x: number; y: number }): { x: number; y: number }[] {
-  const pts = [{ x: o.x + aim.x * TORNADO.offset, y: o.y + aim.y * TORNADO.offset }];
-  for (let i = 1; i < TORNADO.count; i++) {
-    const p = pts[i - 1], nx = p.x + aim.x * TORNADO.step, ny = p.y + aim.y * TORNADO.step * 0.75;
-    pts.push(footAllowed(nx, ny, 0, 24) ? { x: nx, y: ny } : p);
+  const n = TORNADO.count, side = { x: -aim.y, y: aim.x }, pts: { x: number; y: number }[] = [];
+  let stop = false;
+  for (let i = 0; i < n; i++) {
+    const w = TORNADO.weave * Math.sin((i / (n - 1)) * Math.PI * 2);
+    const p = { x: o.x + aim.x * (TORNADO.offset + i * TORNADO.step) + side.x * w, y: o.y + aim.y * (TORNADO.offset + i * TORNADO.step * 0.75) + side.y * w };
+    if (i > 0 && (stop || !footAllowed(p.x, p.y, 0, 24))) { stop = true; pts.push(pts[i - 1]); } else pts.push(p);
   }
   return pts;
 }
