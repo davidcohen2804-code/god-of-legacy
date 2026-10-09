@@ -36,6 +36,7 @@ export function preloadBackdrop(scene: Phaser.Scene): void {
   if (BACKDROP.sky && !scene.textures.exists('world-bg-sky')) scene.load.image('world-bg-sky', BG_SKY_URL);
   if (S.clouds.length && !scene.textures.exists('sky-clouds')) scene.load.image('sky-clouds', SKY_URL('clouds'));
   if (S.birds && !scene.textures.exists('sky-birds')) scene.load.spritesheet('sky-birds', SKY_URL('birds'), { frameWidth: S.birds.w, frameHeight: S.birds.h });
+  if (!scene.textures.exists('sky-phoenix')) scene.load.spritesheet('sky-phoenix', SKY_URL('phoenix'), { frameWidth: 122, frameHeight: 160 });
   if (S.falls && !scene.textures.exists('sky-falls')) scene.load.spritesheet('sky-falls', SKY_URL('falls'), { frameWidth: S.falls.w, frameHeight: S.falls.h });
 }
 
@@ -59,6 +60,9 @@ export class Backdrop {
   private falls: Phaser.GameObjects.Sprite[] = [];
   private birds: Bird[] = [];
   private nextFlock = rnd([4000, 9000]);
+  /** The sky phoenix: now and then it glides slowly across the far sky. */
+  private phoenix?: { box: Phaser.GameObjects.Container; img: Phaser.GameObjects.Sprite; v: number; ph: number; y: number };
+  private nextPhoenix = rnd([20000, 40000]);
   /** Clouds and mist spread over the first view (once they exist). */
   private placed = false;
   private t = 0;
@@ -221,6 +225,25 @@ export class Backdrop {
       f.setFrame(Math.floor((this.t + (f.getData('ph') as number)) / (1000 / FALL.fps)) % (S.falls?.n ?? 1)).setDisplaySize(w, h);
     }
     this.stepBirds(ms);
+    this.stepPhoenix(ms);
+  }
+
+  /** Now and then the sky phoenix glides across, far away (slow, its tail flowing, rising and falling softly). */
+  private stepPhoenix(ms: number): void {
+    if (!this.scene.textures.exists('sky-phoenix')) return;
+    const f = this.f('clouds'), u0 = this.left * f, u1 = u0 + this.span, s = ms / 1000;
+    if (!this.phoenix) {
+      this.nextPhoenix -= ms; if (this.nextPhoenix > 0) return;
+      this.nextPhoenix = rnd([45000, 90000]);
+      const dir = Math.random() < 0.5 ? 1 : -1, y = rnd([-300, 140]), w = rnd([90, 130]);
+      const img = this.scene.add.sprite(0, 0, 'sky-phoenix', 0).setScale(w / 122).setFlipX(dir < 0).setAlpha(0.95);
+      const box = this.scene.add.container(dir > 0 ? u0 - 140 : u1 + 140, y, [img]);
+      this.phoenix = { box, img, v: rnd([38, 52]) * dir, ph: 0, y }; this.sky.add(box);
+    }
+    const p = this.phoenix; p.ph += ms;
+    p.box.x += p.v * s; p.box.y = p.y + Math.sin(p.ph / 1700) * 14;
+    const sc = p.img.scaleX; p.img.setFrame(Math.floor(p.ph / 140) % 8).setScale(sc);
+    if ((p.v > 0 && p.box.x > u1 + 200) || (p.v < 0 && p.box.x < u0 - 200)) { p.box.destroy(true); this.phoenix = undefined; }
   }
 
   /** Now and then a small flock crosses the sky, wings beating, gently rising and falling. */

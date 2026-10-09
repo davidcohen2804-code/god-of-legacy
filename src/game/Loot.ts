@@ -2,7 +2,7 @@
 // gold. Monsters drop them on the floor (their own drop table), walking over them picks them up, Mira's shop sells them.
 // Recovery is a fixed amount (bigger items for bigger HP pools later); HP costs ~1.2 gold a point, MP ~2.7.
 
-export type ItemKind = 'hp' | 'mp' | 'both' | 'pct' | 'buff' | 'scroll' | 'feather' | 'mat';
+export type ItemKind = 'hp' | 'mp' | 'both' | 'pct' | 'buff' | 'scroll' | 'feather' | 'cloud' | 'mat';
 export interface ItemDef {
   id: string; name: string; kind: ItemKind; icon: string;
   hp?: number; mp?: number; /** pct: share of max HP and MP */ pct?: number;
@@ -37,6 +37,7 @@ export const ITEMS: Record<string, ItemDef> = {
   rust_shard: { id: 'rust_shard', name: 'Rust Shard', kind: 'mat', icon: I('rust_shard'), sell: 5, desc: 'A broken piece of a rusted blade. Merchants buy it.', rarity: 'common', lore: "All that is left of the old Courtyard guard's blades, eaten by rust when the Curse fell." },
   cloud_puff: { id: 'cloud_puff', name: 'Cloud Puff', kind: 'mat', icon: I('cloud_puff'), sell: 8, desc: 'A soft tuft of sunset cloud. Nimbus would love it back.', rarity: 'common', lore: "Nibbled off Cloud Haven by the Pufflings. Old Nimbus is patching his cloud with them, one puff at a time." },
   cloud_feather: { id: 'cloud_feather', name: 'Cloud Feather', kind: 'feather', icon: I('cloud_feather'), sell: 60, desc: 'Carries you up to Cloud Haven.', rarity: 'uncommon', lore: "Nimbus's gift. Hold it up to the sky and the wind lifts you all the way to Cloud Haven." },
+  cloud_form: { id: 'cloud_form', name: 'Cloud Form', kind: 'cloud', icon: I('cloud_form'), sell: 150, desc: 'Turns you into a cloud: the sun of Sunfall Pass cannot burn you.', rarity: 'rare', lore: "Big Grumble's thank-you, bottled. Uncork it and you are light as a cloud — the only way past the low sun." },
   storm_core: { id: 'storm_core', name: 'Storm Core', kind: 'mat', icon: I('storm_core'), sell: 400, desc: 'A swirling pearl of calm storm. Rare and precious.', rarity: 'rare', lore: "What is left of Big Grumble's bad mood once he cheers up: a little storm, sleeping in a pearl." },
   cursed_cloth: { id: 'cursed_cloth', name: 'Cursed Cloth', kind: 'mat', icon: I('cursed_cloth'), sell: 12, desc: 'A scrap of cloth that still hums with a curse. Merchants buy it.', rarity: 'common', lore: "Torn from the cloaks of the Cursed Swordsmen. The curse still hums in its threads." },
 };
@@ -47,6 +48,7 @@ export function shortDesc(d: ItemDef): string {
   if (d.kind === 'pct') return `${Math.round((d.pct ?? 0) * 100)}% HP and MP`;
   if (d.kind === 'scroll') return 'Back to the Courtyard';
   if (d.kind === 'feather') return 'Up to Cloud Haven';
+  if (d.kind === 'cloud') return 'Become a cloud';
   if (d.kind === 'mat') return 'Material';
   return [d.hp ? `+${d.hp} HP` : '', d.mp ? `+${d.mp} MP` : ''].filter(Boolean).join('  ');
 }
@@ -71,7 +73,7 @@ export const DEFAULT_QUICK: [string, string] = ['red_potion', 'blue_potion'];
 const DROPS: Record<string, { gold: [number, number]; items: [string, number][] }> = {
   rusted: { gold: [3, 6], items: [['rust_shard', 0.4], ['apple', 0.08], ['orange', 0.06], ['red_potion', 0.04]] },
   puffling: { gold: [6, 11], items: [['cloud_puff', 0.6], ['orange', 0.06], ['blue_potion', 0.04]] },
-  big_grumble: { gold: [90, 150], items: [['storm_core', 1], ['cloud_feather', 0.6], ['elixir', 0.25], ['cloud_puff', 1]] },
+  big_grumble: { gold: [90, 150], items: [['cloud_form', 1], ['storm_core', 1], ['cloud_feather', 0.6], ['elixir', 0.25], ['cloud_puff', 1]] },
   cursed: { gold: [8, 14], items: [['cursed_cloth', 0.35], ['meat', 0.06], ['red_potion', 0.06], ['blue_potion', 0.04], ['elixir', 0.003]] },
 };
 

@@ -104,6 +104,10 @@ const MP_CLASS: Record<string, number> = { warrior: 0.8, samurai: 0.9, archer: 1
 /** A skill's MP: none for the regular attack and passives / buffs' own cost by cooldown (the big ones cost more). */
 interface LootDrop { kind: 'gold' | 'item'; id?: string; amount: number; img: Phaser.GameObjects.Image; sh: Phaser.GameObjects.Ellipse; glow: Phaser.GameObjects.Image; beam?: Phaser.GameObjects.Image; sz: number; bounced: boolean; seed: number; nextGlint: number;
   x: number; y: number; z: number; vx: number; vz: number; landed: boolean; base: number; born: number; taken: number; done?: boolean; /** a treasure waiting on a perch: never fades */ keep?: boolean }
+/** Cloud Form: lasts this long if you never reach the sun; this long after you have crossed it. */
+const CLOUD_FORM = { ms: 90_000, after: 10_000 };
+/** Sunfall Pass: the blaze (the pass less this much at each end), the burn (share of max HP) every tickMs, the push back. */
+const SUN = { edge: 300, burn: 0.07, tickMs: 450, push: 320 };
 const mpCost = (s: FinalSkill): number => (s.slot === 0 ? 0 : Math.min(60, Math.round(6 + (s.cooldown / 1000) * 2.2)));
 /** The slash-trail art (radiant_blade/slash_trail.jpg, 288 cells): its arc's circle (centre as a fraction of the cell, radius px) and the angle of its bright head (deg, y down). */
 const SLASH = { cx: 189 / 288, cy: 81 / 288, r: 122, head: 190 };
@@ -342,6 +346,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private gripFoe: Monster | null = null;
   /** Where the seized monster stood (its slam lands it back on its own floor). */
   private gripFrom: { x: number; y: number } | null = null;
+  /** Cloud Form (the Cloud Form item): on, crossed the sun, ends at (sim ms); its sprite; the sun's burn timer. */
+  private cloudOn = false; private cloudCrossed = false; private cloudEnd = 0;
+  private cloudSprite?: Phaser.GameObjects.Image; private sunTick = 0; private sunGlare?: Phaser.GameObjects.Rectangle; private sunWarned = 0;
   /** Touching monsters: not again before this (sim ms). */
   private touchUntil = -1;
   private motes?: Phaser.GameObjects.Container;
@@ -555,6 +562,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onSlot: (i) => this.useSlot(i),
       onPotion: (i) => this.usePotion(i),
       onCam: (w) => (this.world ? this.world.camStep(w) : this.arenaCam(w)),
+      onCancelBuff: (id) => { if (id === 'cloud_form') this.endCloudForm(); },
       onMenu: (k) => this.togglePanel(k),
       onKeys: () => { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.keySettings?.open(loadBindings()); },
     });
@@ -690,7 +698,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const now = this.simMs;
     this.ci.update(now);
     this.stepPlayer(ms, now);
-    if (this.world) { this.stepMonsters(ms, now); this.stepTreasures(); this.stepLoot(ms, now); }
+    if (this.world) { this.stepMonsters(ms, now); this.stepTreasures(); this.stepLoot(ms, now); this.stepSun(ms, now); }
     this.rt.update(ms);
     this.stepLingers(now);
     this.stepStorm();
@@ -1022,7 +1030,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.arena || !this.character || !this.world) return;
     if (!this.treasures) {
       const sky: Tower[] = CLOUDS.filter((c) => c.reward).map((c, i) => ({ id: `sky-${i}`, x0: c.x0, x1: c.x1, front: SKY.band[1], h: c.z, depth: SKY.band[1] - SKY.band[0], base: 0, reward: c.reward }));
-      this.treasures = [...TOWERS, ...sky].filter((t) => t.reward && ITEMS[t.reward.item]).map((t) => ({ t, next: 0, drop: null as LootDrop | null }));
+      const ups: Tower[] = HEIGHTS.filter((h) => h.reward).map((h) => ({ id: `${h.id}-reward`, x0: h.reward!.x0, x1: h.reward!.x1, front: h.front - 30, h: 0, depth: 40, base: h.H, reward: { item: h.reward!.item, every: h.reward!.every } }));
+      this.treasures = [...TOWERS, ...sky, ...ups].filter((t) => t.reward && ITEMS[t.reward.item]).map((t) => ({ t, next: 0, drop: null as LootDrop | null }));
     }
     for (const q of this.treasures) {
       if (q.drop && !q.drop.done && q.drop.taken < 0 && this.drops.includes(q.drop)) continue;
@@ -1117,6 +1126,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (it.kind === 'scroll') {
       if (this.warping || this.rt?.ownRun || !this.world) return;
       this.useAt[id] = now; this.takeItem(id, 1); this.usePortal(); return;
+    }
+    if (it.kind === 'cloud') {   // Cloud Form: light as a cloud (the sun of Sunfall Pass cannot burn you)
+      if (this.cloudOn || this.rt?.ownRun) return;
+      this.useAt[id] = now; this.takeItem(id, 1); this.cloudOn = true; this.cloudCrossed = false; this.cloudEnd = now + CLOUD_FORM.ms;
+      this.fx?.shockwave(k.x, k.y, 110, 0xfff6e0); this.fx?.callout({ x: k.x, y: k.y, z: k.z + 70 }, 'CLOUD FORM', '#fff2c8', 0);
+      return;
     }
     if (it.kind === 'feather') {   // up to Cloud Haven (Nimbus's side)
       if (this.warping || this.rt?.ownRun || !this.world) return;
@@ -1482,6 +1497,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.kage?.hidden && this.dead < 0 && !(run && run.skill.id === 'kagemusha')) alpha *= KAGE.shade;
     if (this.simMs < this.body.curseUntil && this.dead < 0) alpha = 0; // Paper Curse: folded into the crane (drawn by the effect) // Kagemusha: hidden among the doubles (you, a shade)
     v.render(ms, pose, k.x + jx, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
+    this.renderCloudForm(ms);
     if (this.kage?.hidden && this.dead < 0) v.ring.setAlpha(0.9); // hidden among the doubles: your ring still shows you where you are (your screen only)
     if (this.cls === 'archer') { // archer body motion: lean, recoil, flips, leaps + afterimages
       const face = this.aim.x < -0.01 ? -1 : 1;
@@ -2184,6 +2200,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.fx!.callout({ x: k.x, y: k.y, z: k.z + 40 }, 'BREAK FREE!!', '#ffe7a0', 0);
     }
     if (b.state !== 'free') return false;
+    if (this.cloudOn) return false; // a cloud has no sword arm
     if (b.hard.active(now) && b.hard.kind !== 'root') return false;
     if (now < b.curseUntil) return false; // a paper crane cannot cast
     if (s.id === 'chrono_sigil' && this.sigil && now < this.sigil.until) { this.sigilRecall(); return true; } // the sigil laid: back to it in time
@@ -2850,6 +2867,54 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   /** Returns the damage actually taken (the worn equipment's defence and Iron Body cut it). */
+  /** Sunfall Pass: inside its blaze (not a cloud) you burn and are pushed back; a cloud drifts through; 10 s after the
+   *  cloud has crossed it, it turns back (sooner: right-click its buff). The glare brightens toward the sun. */
+  private stepSun(ms: number, now: number): void {
+    const h = HEIGHTS.find((q) => q.id === 'sunfall_pass'), k = this.kin; if (!h) return;
+    const x0 = h.x + SUN.edge, x1 = h.x + h.w - SUN.edge, onIt = this.dead < 0 && k.supportZ >= h.H - 10 && k.x > h.x && k.x < h.x + h.w && k.y <= h.front + 4;
+    const inSun = onIt && k.x > x0 && k.x < x1;
+    // the glare: brighter toward the middle of the pass
+    const mid = (x0 + x1) / 2, glow = onIt ? Math.max(0, 1 - Math.abs(k.x - mid) / ((x1 - x0) / 2 + 160)) : 0;
+    if (!this.sunGlare) this.sunGlare = this.add.rectangle(-480, -480, 1920 + 960, 1080 + 960, 0xfff1c4, 0).setOrigin(0, 0).setScrollFactor(0).setDepth(1e6 - 10).setBlendMode(Phaser.BlendModes.ADD);
+    const want = glow * (this.cloudOn ? 0.12 : 0.32);
+    this.sunGlare.setAlpha(this.sunGlare.alpha + (want - this.sunGlare.alpha) * Math.min(1, ms / 200));
+    if (this.cloudOn) {
+      if (!this.cloudCrossed && onIt && k.x >= x1) { this.cloudCrossed = true; this.cloudEnd = now + CLOUD_FORM.after; this.fx?.callout({ x: k.x, y: k.y, z: k.z + 70 }, 'THROUGH THE SUN!', '#fff2c8', 0); }
+      if (now >= this.cloudEnd) this.endCloudForm();
+      return;
+    }
+    if (!inSun) return;
+    const nx = k.x - SUN.push * ms / 1000; if (footAllowed(nx, k.y, k.z, 10)) k.x = nx;   // the blaze drives you back
+    this.sunTick -= ms;
+    if (this.sunTick <= 0) {
+      this.sunTick = SUN.tickMs;
+      this.takeDamage(Math.max(1, Math.round(this.maxHpNow() * SUN.burn)));
+      this.fx?.callout({ x: k.x, y: k.y, z: k.z + 70 }, 'TOO HOT!', '#ffb36b', 0);
+      if (now - this.sunWarned > 8000) { this.sunWarned = now; this.chat?.add({ kind: 'system', text: 'The sun is far too bright here... only a cloud could drift through. (Nimbus may know a way.)' }); }
+    }
+  }
+
+  private endCloudForm(): void {
+    if (!this.cloudOn) return;
+    this.cloudOn = false; const k = this.kin;
+    this.cloudSprite?.setVisible(false); this.view?.setVisible(true);
+    this.fx?.shockwave(k.x, k.y, 90, 0xfff6e0);
+  }
+
+  /** The player drawn as a cloud while Cloud Form is on (his own body hidden). */
+  private renderCloudForm(ms: number): void {
+    const v = this.view; if (!v) return;
+    if (!this.cloudOn) { if (this.cloudSprite?.visible) this.cloudSprite.setVisible(false); return; }
+    if (!this.textures.exists('cloud-form')) return;
+    const k = this.kin, moving = Math.hypot(k.vx, k.vy) > 20, t = this.simMs;
+    if (!this.cloudSprite) this.cloudSprite = this.add.sprite(0, 0, 'cloud-form', 0).setOrigin(0.5, 0.92) as unknown as Phaser.GameObjects.Image;
+    const f = moving ? 4 + Math.floor(t / 110) % 6 : Math.floor(t / 220) % 4;
+    const bob = Math.sin(t / 380) * 4;
+    this.cloudSprite.setFrame(f).setScale(1.4).setFlipX(this.dir === 'left').setVisible(this.dead < 0)
+      .setPosition(k.x, k.y - k.z - 6 + bob).setDepth(actorDepth(k.x, k.y, k.z) + 0.01).setAlpha(0.96);
+    v.setVisible(false);
+  }
+
   private takeDamage(raw: number): number {
     if (this.dead >= 0 || raw <= 0) return 0;
     let dmg = Math.max(1, Math.round(raw * this.passives.takenMul * takenMul(this.gearSt) * (this.simMs < this.bannerUntil ? 0.9 : 1)));
@@ -3691,6 +3756,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (now < until) out.push({ id, label, iconUrl: ic(id), harmful: false, expiresAtMs: until });
     if (this.mage.weave > 0) out.push({ id: 'spell_weave', label: `Spell Weave ×${this.mage.weave}`, iconUrl: 'assets/final/skills/book_mage/spell_weave/icon.png', harmful: false, expiresAtMs: this.mage.weaveAt + WEAVE.fadeMs });
     if (now < this.itemDmgUntil) out.push({ id: 'warrior_potion', label: 'Warrior Potion', iconUrl: ITEMS.warrior_potion.icon, harmful: false, expiresAtMs: this.itemDmgUntil });
+    if (this.cloudOn) out.push({ id: 'cloud_form', label: this.cloudCrossed ? 'Cloud Form' : 'Cloud Form (lasts until 10 s after the sun)', iconUrl: 'assets/final/items/cloud_form_buff.png', harmful: false, expiresAtMs: this.cloudCrossed ? this.cloudEnd : undefined, cancellable: true });
     if (now < this.itemSpeedUntil) out.push({ id: 'swift_potion', label: 'Swift Potion', iconUrl: ITEMS.swift_potion.icon, harmful: false, expiresAtMs: this.itemSpeedUntil });
     return out;
   }

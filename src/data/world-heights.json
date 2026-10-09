@@ -285,7 +285,7 @@
   "w": 3344,
   "walk": [
    6362,
-   9192
+   9682
   ],
   "H": 800,
   "front": 122,
@@ -335,6 +335,19 @@
      "x": 8286,
      "py": 395
     }
+   },
+   {
+    "id": "block-r",
+    "x0": 9324,
+    "x1": 9460,
+    "front": 59,
+    "h": 76,
+    "depth": 26,
+    "occ": {
+     "img": "assets/world/heights/cloud_haven-block-r.webp",
+     "x": 9326,
+     "py": 412
+    }
    }
   ],
   "mobs": {
@@ -371,6 +384,14 @@
     [
      8922,
      87
+    ],
+    [
+     9142,
+     -3
+    ],
+    [
+     9582,
+     47
     ]
    ]
   },
@@ -382,6 +403,83 @@
      27
     ]
    ]
+  }
+ },
+ {
+  "id": "sunfall_pass",
+  "name": "Sunfall Pass",
+  "x": 9474,
+  "w": 1672,
+  "walk": [
+   9486,
+   11134
+  ],
+  "H": 800,
+  "front": 122,
+  "back": 2,
+  "img": "assets/world/heights/sunfall_pass.webp",
+  "cloud": true,
+  "imgX": 8994,
+  "depth": -1.24,
+  "imgY": -1303,
+  "imgH": 941,
+  "blocks": [],
+  "mobs": {
+   "kind": "puffling",
+   "spawns": []
+  }
+ },
+ {
+  "id": "afterglow",
+  "name": "Afterglow Rest",
+  "x": 10926,
+  "w": 1672,
+  "walk": [
+   10938,
+   12096
+  ],
+  "H": 800,
+  "front": 122,
+  "back": -108,
+  "img": "assets/world/heights/afterglow.webp",
+  "cloud": true,
+  "imgX": 10446,
+  "depth": -1.245,
+  "imgY": -1253,
+  "imgH": 941,
+  "blocks": [
+   {
+    "id": "block-l",
+    "x0": 11188,
+    "x1": 11378,
+    "front": 52,
+    "h": 82,
+    "depth": 30,
+    "occ": {
+     "img": "assets/world/heights/afterglow-block-l.webp",
+     "x": 11190,
+     "py": 395
+    }
+   }
+  ],
+  "mobs": {
+   "kind": "puffling",
+   "spawns": [
+    [
+     11626,
+     17
+    ],
+    [
+     11906,
+     67
+    ]
+   ]
+  },
+  "reward": {
+   "x0": 11243,
+   "x1": 11323,
+   "item": "storm_core",
+   "every": 600
   }
  }
 ]

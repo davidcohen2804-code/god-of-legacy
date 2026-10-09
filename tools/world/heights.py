@@ -34,11 +34,20 @@ MAPS = {
   # at the Sky Path's end: a whole map made of one huge cloud, floating (no wall below it, no towers at its ends; its
   # painted cloud cubes are its blocks)
   'cloud_haven': {'name': 'Cloud Haven', 'over': 'training_2', 'dx': 22, 'H': 800, 'front': 122, 'floor': (345, 575), 'sky': (140, 300),
-                  'cloud': True, 'depth': -1.25, 'end': 'cloud_haven_end', 'wall_x': 1170,
+                  'cloud': True, 'depth': -1.25, 'mirror': True,
                   'blocks': [{'id': 'block-l', 'x': (262, 452), 'front': 505, 'h': 82, 'depth': 30},
                              {'id': 'block-r', 'x': (1302, 1438), 'front': 512, 'h': 76, 'depth': 26}],
                   'mobs': {'kind': 'puffling', 'spawns': [[160, 470], [640, 430], [900, 540], [1120, 450], [1560, 500]]},
                   'boss': {'kind': 'big_grumble', 'spawns': [[2560, 480]]}},
+  # on to the right: the pass where the sun hangs low (only a cloud gets through: the game burns anyone else)
+  'sunfall_pass': {'name': 'Sunfall Pass', 'src': 'sunfall_pass', 'over': 'training_3', 'dx': 1564, 'H': 800, 'front': 122, 'floor': (505, 625),
+                   'sky': (0, 150), 'cloud': True, 'depth': -1.24, 'blocks': [], 'mobs': {'kind': 'puffling', 'spawns': []}},
+  # past the sun: a quiet cloud closed by the great cloud wall (GPT's painted end), a treasure for the brave
+  'afterglow': {'name': 'Afterglow Rest', 'src': 'cloud_haven_end', 'over': 'plaza', 'dx': 1434, 'H': 800, 'front': 122, 'floor': (345, 575),
+                'sky': (140, 300), 'cloud': True, 'depth': -1.245, 'wall_x': 1170,
+                'blocks': [{'id': 'block-l', 'x': (262, 452), 'front': 505, 'h': 82, 'depth': 30}],
+                'mobs': {'kind': 'puffling', 'spawns': [[700, 470], [980, 520]]},
+                'reward': {'x': 357, 'item': 'storm_core', 'every': 600}},
 }
 EDGE_SHADE = 34   # px: the ends shaded toward their edge (they turn away from the light: volume)
 WALK_IN = 12    # the walkable floor stops this far in from each end (the corner towers stand just beyond): the picture's left / right ends fade out (the floor ends in the air there; you cannot walk off it)
@@ -58,6 +67,11 @@ for id_, m in MAPS.items():
   if m.get('flip'): im = cv2.flip(im, 1)
   if m.get('crop'): im = im[:, m['crop'][0]:m['crop'][1]].copy()
   h, w = im.shape[:2]
+  if m.get('mirror'):   # twice as wide: its mirror image, then itself (they meet seamlessly); blocks and monsters on both
+    W0 = w; im = np.hstack([cv2.flip(im, 1), im]); h, w = im.shape[:2]
+    m = dict(m, blocks=[dict(b, id=b['id'] + '-m', x=(W0 - b['x'][1], W0 - b['x'][0])) for b in m['blocks']] + [dict(b, x=(W0 + b['x'][0], W0 + b['x'][1])) for b in m['blocks']],
+             mobs={'kind': m['mobs']['kind'], 'spawns': [[W0 - x, y] for x, y in m['mobs']['spawns']] + [[W0 + x, y] for x, y in m['mobs']['spawns']]})
+  if m.get('wall_x'): W0 = w; m = dict(m, wall_r=w - m['wall_x'])
   if m.get('end'):   # twice as wide: its mirror image first, then GPT's own picture of its right end (that picture's left part
     # is this one's left part — the two meet seamlessly), where the floor ends against a towering wall of cloud
     W0 = w; end = cv2.imread(G + f"heights/{m['end']}.png"); end = cv2.resize(end, (W0, h)) if end.shape[:2] != (h, W0) else end
@@ -71,15 +85,15 @@ for id_, m in MAPS.items():
     a = np.clip((yy - m['sky'][0]) / (m['sky'][1] - m['sky'][0]), 0, 1) * np.clip((h - 20 - yy) / 160, 0, 1)
     edge = np.minimum(xx, w - 1 - xx)
     a = a * np.clip(edge / 320, 0, 1) ** 1.5                       # its sky and underside melt away toward both ends
-    if m.get('end'):   # the cloud wall at its right end: whole, from near the top down to the underside (its right edge soft)
+    if m.get('end') or m.get('wall_x'):   # the cloud wall at its right end: whole, from near the top down to the underside (its right edge soft)
       wall = np.clip((xx - (w - (W0 - m['wall_x']) - 80)) / 120, 0, 1) * np.clip(yy / 90, 0, 1) * np.clip((w - 1 - xx) / 150, 0, 1)
       a = np.maximum(a, wall)
     up = np.clip((m['floor'][0] - 12 - yy) / 70, 0, 1)   # 0 at the floor's back edge, 1 from 70 px above it (no hard line)
-    a = a * (1 - up * (1 - np.clip((xx - 120) / 640, 0, 1) ** 1.3))   # the left end (where the Sky Path's clouds come in): its own sky gone, only the floor
+    if m.get('mirror') or m.get('wall_x'): a = a * (1 - up * (1 - np.clip((xx - 120) / 640, 0, 1) ** 1.3))   # the left end (where the Sky Path's clouds come in): its own sky gone, only the floor
     band = (yy >= m['floor'][0] + 6) & (yy < m['floor'][1] + 60)
     wob = 18 * np.sin(yy / 23.0) + 10 * np.sin(yy / 9.0 + 1)      # the floor's own ends: soft, uneven cloud edges
-    a = np.where(band & ((xx < w / 2) if m.get('end') else True), np.maximum(a, np.clip((edge - 14 - wob) / 40, 0, 1)), a)   # (a closed right end: the wall's own edge)
-    if m.get('end'): a = np.where(band & (xx >= w / 2), np.maximum(a, np.clip((w - 1 - xx) / 150, 0, 1)), a)
+    a = np.where(band & ((xx < w / 2) if (m.get('end') or m.get('wall_x')) else True), np.maximum(a, np.clip((edge - 14 - wob) / 40, 0, 1)), a)   # (a closed right end: the wall's own edge)
+    if m.get('end') or m.get('wall_x'): a = np.where(band & (xx >= w / 2), np.maximum(a, np.clip((w - 1 - xx) / 150, 0, 1)), a)
     rgba = np.dstack([cv2.cvtColor(im, cv2.COLOR_BGR2RGB), (a * 255).astype(np.uint8)])
     EXT = CAP_X1 - CAP_J1; wide = np.zeros((h, w + 2 * EXT, 4), np.uint8); wide[:, EXT:EXT + w] = rgba; rgba = wide
   else:
@@ -135,6 +149,7 @@ for id_, m in MAPS.items():
                'img': f'assets/world/heights/{id_}.webp', 'cloud': bool(m.get('cloud')), 'imgX': X0 - EXT, 'depth': m.get('depth', -1.2), 'imgY': F - H - f1, 'imgH': h,
                'blocks': [{'id': b['id'], 'x0': X0 + b['x'][0], 'x1': X0 + b['x'][1], 'front': gy(b['front']), 'h': b['h'], 'depth': b['depth'], 'occ': o} for b, o in zip(m['blocks'], occ)],
                'mobs': {'kind': m['mobs']['kind'], 'spawns': [[X0 + x, gy(p)] for x, p in m['mobs']['spawns']]},
+               **({'reward': {'x0': X0 + m['reward']['x'] - 40, 'x1': X0 + m['reward']['x'] + 40, 'item': m['reward']['item'], 'every': m['reward']['every']}} if m.get('reward') else {}),
                **({'boss': {'kind': m['boss']['kind'], 'spawns': [[X0 + x, gy(p)] for x, p in m['boss']['spawns']]}} if m.get('boss') else {})})
   print(id_, 'x', X0, 'H', H, 'floor y', gy(f0), '..', F)
 json.dump(data, open(R + 'src/data/world-heights.json', 'w'), indent=1)

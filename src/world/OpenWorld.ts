@@ -53,6 +53,7 @@ export function preloadOpenWorld(scene: Phaser.Scene): void {
   for (const i of tilesNear(toWorld(START.area, [START.x, START.y]).x, AREA_W * 1.5)) L(tileKey(i), tileUrl(i));
   ARENA.tiles.forEach((_, i) => L(arenaTileKey(i), arenaTileUrl(i)));
   L(BANNERS_KEY, BANNERS_URL);
+  if (!scene.textures.exists('cloud-form')) scene.load.spritesheet('cloud-form', 'assets/final/fx/cloud_form.png', { frameWidth: 80, frameHeight: 120 });
   SKY.sprites.forEach((sp, i) => L(`sky-cloud-${i}`, sp.img));
   L('world-gate-back', 'assets/world/gate/back.png'); L('world-gate-front', 'assets/world/gate/front.png');
   for (const id of Object.keys(CUTS)) L(`prop-${id}`, `assets/world/props/${id}.png`);

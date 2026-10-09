@@ -211,6 +211,8 @@ export interface WorldHUDOptions {
   onKeys?: () => void;
   /** The camera buttons beside the minimap. */
   onCam?: (what: 'in' | 'out' | 'up' | 'down' | 'reset') => void;
+  /** A buff right-clicked (one that can be ended early). */
+  onCancelBuff?: (id: string) => void;
   /** Click on a potion (0 HP, 1 MP). */
   onPotion?: (i: 0 | 1) => void;
 }
@@ -627,14 +629,15 @@ export class WorldHUD {
 
   private effects(row: HTMLElement, list: HudEffect[], size: number, now: number, id: string): void {
     const live = list.filter((e) => e.expiresAtMs === undefined || e.expiresAtMs > now);
-    const key = live.map((e) => `${e.id}:${e.iconUrl}:${e.harmful}`).join(',');
+    const key = live.map((e) => `${e.id}:${e.iconUrl}:${e.harmful}:${e.cancellable ? 1 : 0}`).join(',');
     if (!this.changed(id, key)) return;
     row.replaceChildren();
     row.style.display = live.length ? 'flex' : 'none';
     live.slice(0, H.buffs.max).forEach((e) => {
       const d = this.div(`e${e.harmful ? ' bad' : ''}`, row);
       Object.assign(d.style, { width: `${size}px`, height: `${size}px` });
-      d.title = e.label; d.setAttribute('aria-label', e.label);
+      d.title = e.cancellable ? `${e.label} — right-click to end` : e.label; d.setAttribute('aria-label', e.label);
+      if (e.cancellable) { d.style.pointerEvents = 'auto'; d.style.cursor = 'pointer'; d.addEventListener('contextmenu', (ev) => { ev.preventDefault(); this.opts.onCancelBuff?.(e.id); }); }
       const img = document.createElement('img'); img.alt = ''; img.src = e.iconUrl; d.appendChild(img);
     });
     if (live.length > H.buffs.max) {

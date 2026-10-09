@@ -141,6 +141,8 @@ export interface Heights {
   id: string; name: string; x: number; w: number; H: number; front: number; back: number; img: string; imgX?: number; imgY: number; imgH: number; depth: number; /** made of cloud: its own painted cubes, no stone */ cloud?: boolean;
   blocks: { id: string; x0: number; x1: number; front: number; h: number; depth: number; occ: { img: string; x: number; py: number } }[];
   mobs: { kind: string; spawns: Pt[] };
+  /** A treasure waiting on its floor (back every `every` s once taken). */
+  reward?: { x0: number; x1: number; item: string; every: number };
   /** Its boss (one, away from the rest). */
   boss?: { kind: string; spawns: Pt[] };
 }

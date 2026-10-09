@@ -33,6 +33,7 @@ def save(sheet, cols, rows, names):
     print(n, c.size)
 
 save(key(R + 'tools/items/loot_gpt.png'), 4, 1, ['red_potion', 'blue_potion', 'gold_small', 'gold_big'])
+save(key(R + 'tools/items/cloud_form_icons.png'), 2, 1, ['cloud_form', 'cloud_form_buff'])
 save(key(R + 'tools/items/cloud_icons.png'), 3, 1, ['cloud_puff', 'cloud_feather', 'storm_core'])
 save(key(R + 'tools/items/items_gpt.png'), 5, 2, ['apple', 'meat', 'orange', 'cake', 'return_scroll', 'warrior_potion', 'swift_potion', 'elixir', 'rust_shard', 'cursed_cloth'])
 

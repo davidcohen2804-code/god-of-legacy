@@ -14555,9 +14555,9 @@
    "giver": "nimbus",
    "title": "Cheer Up, Big Grumble",
    "after": "lost_puffs",
-   "summary": "Nimbus asked you to cheer up Big Grumble, the sulky cloud by the cloud wall.",
+   "summary": "Nimbus asked you to cheer up Big Grumble, the sulky cloud east of Cloud Haven. His gift lets you pass the sun.",
    "offer": [
-    "Hmm... can you hear that huffing? That's Big Grumble, by the great cloud wall.",
+    "Hmm... can you hear that huffing? That's Big Grumble, at the east end of Cloud Haven.",
     "He's not bad — just a very grumpy cloud. When he's in a mood he blows everyone off their feet.",
     "Give him a good bout and he'll puff out his bad mood. He always feels better after!"
    ],
@@ -14568,7 +14568,8 @@
    ],
    "done": [
     "Ho ho! He's smiling again — I can see it from here.",
-    "He left you this, I think. A Storm Core... a little storm, fast asleep. Keep it safe."
+    "And look what he left you: a Cloud Form. Uncork it and you'll be light as a cloud...",
+    "...light enough to slip past the low sun of Sunfall Pass, just east of here. Few have seen what lies beyond!"
    ],
    "complete": "Glad to help",
    "objectives": [
@@ -14589,7 +14590,8 @@
     "exp": 500,
     "items": {
      "elixir": 2,
-     "cloud_feather": 2
+     "cloud_feather": 2,
+     "cloud_form": 1
     }
    }
   }

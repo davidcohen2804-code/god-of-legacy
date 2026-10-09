@@ -5,7 +5,7 @@
 /** Portrait source: a dedicated portrait file, or a crop of a full-body preview (source pixels). */
 export interface PortraitRef { url: string; crop?: { x: number; y: number; w: number; imgW: number; imgH: number } }
 
-export interface HudEffect { id: string; label: string; iconUrl: string; harmful: boolean; expiresAtMs?: number }
+export interface HudEffect { id: string; label: string; iconUrl: string; harmful: boolean; expiresAtMs?: number; /** right-click on it ends it */ cancellable?: boolean }
 
 export interface HudSlot {
   id: string;
