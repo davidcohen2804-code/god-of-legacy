@@ -27,7 +27,8 @@ export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
   'mfx-paper': ['origami.png', 384, 384, 16],
   'mfx-wg': ['ward_gate.png', 384, 384, 16],
   'mfx-buff': ['buffs.png', 384, 384, 16],
-  'mfx-rx': ['reactions.png', 384, 384, 16], // 0-3 freeze forming, 4-7 frozen (loop), 8-11 shatter, 12-15 conduct (feet 88% down) // 0-3 haste clock under the feet (loop, 48% down), 4-7 the sigil (loop, 57%), 8-15 the ascension aura (loop, feet 70%) // 0-3 the ward dome (loop, base 75% down), 4-7 it shatters, 8-11 a gate opening, 12-15 the gate (loop, centre 57% down) // 0-3 crane flying right (loop), 4-7 crane burst, 8-11 pages wrapping a body, 12-15 the cursed crane (loop) // 0-3 the armed rune (loop), 4-11 chains binding, 12-15 release (ground centre ~72% down) // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
+  'mfx-rx': ['reactions.png', 384, 384, 16],
+  'mfx-hit': ['hit_sparks.png', 320, 320, 16], // 0-3 arcane, 4-7 frost, 8-11 storm, 12-15 heavy / critical // 0-3 freeze forming, 4-7 frozen (loop), 8-11 shatter, 12-15 conduct (feet 88% down) // 0-3 haste clock under the feet (loop, 48% down), 4-7 the sigil (loop, 57%), 8-15 the ascension aura (loop, feet 70%) // 0-3 the ward dome (loop, base 75% down), 4-7 it shatters, 8-11 a gate opening, 12-15 the gate (loop, centre 57% down) // 0-3 crane flying right (loop), 4-7 crane burst, 8-11 pages wrapping a body, 12-15 the cursed crane (loop) // 0-3 the armed rune (loop), 4-11 chains binding, 12-15 release (ground centre ~72% down) // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
 };
 const TOP = 100000, GROUND = 2, SQUASH = 0.42;
 const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
@@ -937,13 +938,14 @@ export class MageFx {
     const e = p.end ?? { x: p.x, y: p.y, reason: 'range' as const }, x = e.x, y = e.y - p.z;
     if (e.reason === 'range') { this.glow(x, y, lance ? 90 : 50, tint, 180); this.burst(x, y, { n: 5, speed: [40, 120], life: [120, 240], scale: [0.03, 0.1], tint: [tint] }); return; }
     const onFoe = e.reason === 'target'; // (the hit itself draws its spark on the foe: here the bolt's own burst, lighter)
-    this.glow(x, y, lance ? 220 : 120, tint, lance ? 300 : 220, { alpha: onFoe ? 0.45 : 0.8 });
+    const painted = this.ctx.scene.textures.exists('mfx-bolt');
+    if (!painted) this.glow(x, y, lance ? 220 : 120, tint, lance ? 300 : 220, { alpha: onFoe ? 0.45 : 0.8 });
     if (this.ctx.scene.textures.exists('mfx-bolt')) this.sheet('mfx-bolt', x, y, lance ? 340 : 220, lance ? 340 : 260, { frames: [8, 4], tint: el === 'frost' ? 0xbfefff : el === 'storm' ? 0xa8e8ff : undefined, depth: TOP + 6 });
     else this.pop(el === 'frost' ? 'ice_shatter' : el === 'storm' ? 'bolt_impact' : 'bolt_burst', x, y, lance ? 230 : 140, { life: lance ? 320 : 240, add: el !== 'frost' });
     this.ringOut(x, y, lance ? 230 : 130, tint, lance ? 340 : 260);
     this.burst(x, y, { n: lance ? 26 : 12, speed: [140, lance ? 560 : 380], life: [160, 420], scale: [0.03, lance ? 0.22 : 0.14], tint: [0xffffff, tint], gravity: 300 });
     if (el === 'frost') this.burst(x, y, { frame: 'snowflake', n: lance ? 10 : 5, speed: [80, 260], life: [300, 600], scale: [0.05, 0.13], tint: [0xffffff], gravity: 260, spin: true });
-    if (lance) { this.shake(110, 0.005); this.flare(x, y, 200, 0xffffff, 260); }
+    if (lance) { this.shake(110, 0.005); if (!painted) this.flare(x, y, 200, 0xffffff, 260); }
   }
 
   // ------------------------------------------------------------------ hits and reactions
@@ -953,6 +955,11 @@ export class MageFx {
     if (!this.ready || (s.slot === 99 && !hit.damage)) return;
     const x = at.x, y = at.y - at.z - 40, el = hit.el, tint = el === 'frost' ? 0xcff6ff : el === 'storm' ? 0x8fe3ff : 0x6fb8ff;
     const big = crit || heavy;
+    if (this.ctx.scene.textures.exists('mfx-hit')) { // the painted spark: one per element, a heavier one for heavy blows and crits
+      const row = big ? 12 : el === 'frost' ? 4 : el === 'storm' ? 8 : 0;
+      this.sheet('mfx-hit', x + rnd(-6, 6), y + rnd(-6, 6), crit ? 230 : big ? 190 : 140, big ? 260 : 210, { frames: [row, 4], angle: rnd(-20, 20), depth: TOP + 6 });
+      return;
+    }
     this.glow(x, y, crit ? 200 : big ? 150 : 100, tint, big ? 220 : 170, { alpha: el === 'storm' ? 0.35 : big ? 0.7 : 0.5 });
     if (crit) this.pop('hit_crit', x, y, 190, { life: 320 });
     else if (big) this.pop(el === 'storm' ? 'spark_arc' : 'hit_heavy', x, y, el === 'storm' ? 110 : 150, { life: 260 });
