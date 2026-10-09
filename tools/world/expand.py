@@ -14,18 +14,18 @@ AW = D['size'][0]
 ROUTE = [
   ('courtyard', None),
   ('terraces_1', ('Ivy Terraces', None, False, 'sprout')),            # its own map (platforms.py)
-  ('terraces_2', ('Ivy Terraces', 'courtyard', False, 'sprout')),
+  ('terraces_2', ('Upper Gardens', None, False, 'sprout')),
   ('training', None),
-  ('training_2', ('Training Grounds', 'training', True, 'rusted')),
-  ('training_3', ('Training Grounds', 'training', False, 'rusted')),
+  ('training_2', ('Sparring Yard', None, False, 'rusted')),
+  ('training_3', ('Archery Range', None, False, 'rusted')),
   ('plaza', None),
-  ('orchard_1', ('Old Orchard', 'plaza', True, 'thorn')),
-  ('orchard_2', ('Old Orchard', 'plaza', False, 'thorn')),
+  ('orchard_1', ('Orchard Path', None, False, 'thorn')),
+  ('orchard_2', ('Harvest Square', None, False, 'thorn')),
   ('ruins', None),
-  ('ruins_2', ('Crimson Ruins', 'ruins', True, 'cursed')),
-  ('ruins_3', ('Crimson Ruins', 'ruins', False, 'cursed')),
-  ('gate_1', ('Ruined Gate', 'ruins', True, 'cursed')),
-  ('gate_2', ('Ruined Gate', 'ruins', False, 'warden')),
+  ('ruins_2', ('Broken Colonnade', None, False, 'cursed')),
+  ('ruins_3', ('Sunken Shrine', None, False, 'cursed')),
+  ('gate_1', ('Siege Approach', None, False, 'cursed')),
+  ('gate_2', ("Warden's Hold", None, False, 'warden')),
   ('temple', None),
 ]
 SPAWNS = [[420, 440], [600, 610], [760, 420], [930, 600], [1090, 430], [1260, 610], [1400, 450]]   # 7 a map
@@ -43,8 +43,11 @@ for id_, spec in ROUTE:
   name, src, flip, mob = spec
   if src is not None and id_ in OWN_SPAWNS: pass
   if src is None:   # painted: keep its props (platforms.py, urns.py), set its name / floor / monsters
-    a = D['areas'].get(id_, {'props': []}); a.pop('standin', None); a.pop('mirrored', None)
-    a.update({'name': name, 'walk': [[0, 346], [AW, 346], [AW, 652], [0, 652]], 'mobs': {'kind': mob, 'spawns': OWN_SPAWNS.get(id_, SPAWNS)}})
+    a = D['areas'].get(id_, {'props': []})
+    if a.pop('standin', None): a['props'] = []; a.pop('paint', None)   # was a stand-in copy: its own GPT map now (blocks.py finds its blocks)
+    a.pop('mirrored', None)
+    a.update({'name': name, 'walk': [[0, 346], [AW, 346], [AW, 652], [0, 652]], 'mobs': {'kind': mob, 'spawns': WARDEN if mob == 'warden' else OWN_SPAWNS.get(id_, SPAWNS)}})
+    if mob == 'warden': a['mobs2'] = {'kind': 'cursed', 'spawns': SPAWNS[::2]}
     D['areas'][id_] = a; continue
   for d in ('src/', 'layers/gpt/'):
     im = Image.open(G + d + src + '.png')
