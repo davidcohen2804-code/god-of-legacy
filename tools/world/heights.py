@@ -19,7 +19,7 @@ MAPS = {
                   'mobs': {'kind': 'sprout', 'spawns': [[300, 545], [620, 470], [820, 545], [1010, 445], [1180, 530], [1400, 480]]}},
   # the summit: higher still, behind Ivy Heights' left part (its wall rises from Ivy Heights' back balustrade); its
   # stair of cubes stands on Ivy Heights
-  'ivy_summit': {'name': 'Ivy Summit', 'src': 'ivy_heights', 'flip': True, 'crop': (560, 1672), 'over': 'terraces_2', 'dx': 40, 'H': 680, 'front': 122,
+  'ivy_summit': {'name': 'Ivy Summit', 'src': 'ivy_heights', 'flip': True, 'open_right': True, 'crop': (560, 1672), 'over': 'terraces_2', 'dx': 40, 'H': 680, 'front': 122,
                  'floor': (352, 580), 'sky': (120, 350), 'depth': -1.3,
                  'blocks': [{'id': 'block-l', 'x': (663, 846), 'front': 503, 'h': 85, 'depth': 26}],
                  'mobs': {'kind': 'thorn', 'spawns': [[300, 470], [520, 540], [960, 460]]}},
@@ -123,7 +123,7 @@ for id_, m in MAPS.items():
       cap = c.clip(0, 255).astype(np.uint8)
     r = cap[:, CAP_J0:CAP_X1].astype(np.float32); bl = CAP_J1 - CAP_J0
     ramp = np.clip(np.arange(r.shape[1]) / bl, 0, 1)[None, :, None]
-    for side in (1, 0):
+    for side in ((0,) if m.get('open_right') else (1, 0)):   # open on the right: the Sky Path's clouds go on from there
       c = r if side else r[:, ::-1]; rr = ramp if side else ramp[:, ::-1]
       x0 = EXT + w - bl if side else 0
       reg = wide[:, x0:x0 + c.shape[1]].astype(np.float32)
@@ -131,6 +131,9 @@ for id_, m in MAPS.items():
       reg[..., :3] = c[..., :3] * ca + reg[..., :3] * (1 - ca); reg[..., 3:4] = reg[..., 3:4] * (1 - rr) + c[..., 3:4] * rr   # (a max of the two left the seam half see-through)
       wide[:, x0:x0 + c.shape[1]] = reg.clip(0, 255).astype(np.uint8)
     rgba = wide
+    if m.get('open_right'):   # its right end melts into cloud (no tower, no cut edge)
+      fx = np.clip((EXT + w - 1 - np.arange(rgba.shape[1])) / 90, 0, 1)[None, :]
+      rgba[..., 3] = (rgba[..., 3] * fx).astype(np.uint8)
   cv2.imwrite(out_dir + f'{id_}.webp', cv2.cvtColor(rgba, cv2.COLOR_RGBA2BGRA), [cv2.IMWRITE_WEBP_QUALITY, 90])
   EXT = CAP_X1 - CAP_J1; w = rgba.shape[1] - 2 * EXT
   X0 = STRIP['areas'][m['over']]['x'] + m.get('dx', 0); f0, f1 = m['floor']; F = m['front']; H = m['H']
