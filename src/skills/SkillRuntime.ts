@@ -258,6 +258,16 @@ export class SkillRuntime {
       for (const d of fanDirs(aim, s.count, s.spread)) for (let k = 0; k < rows; k++) {
         const off = (k - (rows - 1) / 2) * gap, o2 = rows > 1 ? { x: origin.x - d.y * off, y: origin.y + d.x * off * 0.75, z: origin.z } : origin; // rows side by side across the floor
         const p = spawnProjectile(r.castId, i, r.skill, s, r.attackerId, o2, d, pick++);
+        if (s.antiAir) { // a foe up in the air in front of the shot: it rises to his body as it flies
+          let best: { along: number; z: number } | null = null;
+          for (const t of this.world.targets(r)) {
+            if (!t.alive || t.id === r.attackerId || t.z < 24) continue;
+            const ox = t.x - p.x, oy = t.y - p.y, along = ox * d.x + oy * d.y, side = Math.abs(-ox * d.y + oy * d.x);
+            if (along < 20 || along > s.range || side > t.radius + 46) continue;
+            if (!best || along < best.along) best = { along, z: t.z + t.height * 0.45 };
+          }
+          if (best && best.z > p.z) { p.dropPerPx = -(best.z - p.z) / Math.max(40, best.along * 0.8); p.zTop = best.z + 8; }
+        }
         if (r.skill.id === 'piercing_arrow' && d.y < -0.3) { // Spirit Bow aimed up: from where she stands, up into the air and back down onto the floor beside her (never into the depth of the map)
           const loft = Math.abs(d.x) > 0.2 ? 1 : 2, sd = d.x < 0 ? -1 : 1;
           p.loft = loft; p.dx = sd; p.dy = 0; p.x = o2.x + sd * 16; p.y = o2.y;

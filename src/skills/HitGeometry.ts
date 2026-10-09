@@ -127,6 +127,8 @@ export interface Projectile {
   done: boolean;
   /** Height lost per px travelled (shots fired from the air descend toward chest height of grounded targets). */
   dropPerPx: number;
+  /** Rising shot (anti-air): the height it climbs to (dropPerPx is then negative). */
+  zTop?: number;
   /** Shot up into the air (Spirit Bow): 1 = at 45°, 2 = straight up. It flies over the floor along a side and only strikes as it comes down. */
   loft?: number;
   /** Where/why it ended. */
@@ -184,6 +186,7 @@ export function stepProjectile(p: Projectile, ms: number, targets: HitTarget[], 
   }
   p.x = bx; p.y = by; p.travelled += len;
   if (p.dropPerPx > 0) p.z = Math.max(34, p.z - p.dropPerPx * len);
+  else if (p.dropPerPx < 0) p.z = Math.min(p.zTop ?? Infinity, p.z - p.dropPerPx * len);
   if (p.travelled >= p.range - 1e-6) { p.done = true; p.end = { x: p.x, y: p.y, reason: 'range' }; }
   return hits.map((h) => h.t);
 }

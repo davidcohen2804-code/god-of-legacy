@@ -425,11 +425,11 @@ const mageBolts: FinalSkill[] = (['frost', 'storm', 'arcane'] as const).map((e) 
 const archer: FinalSkill[] = [
   // ---- Beginner / every job: the bow's basic attack
   S({
-    id: 'quick_shot', cls: 'archer', slot: 0, name: 'Double Shot', roles: ['basic', 'projectile'], targeting: 'mouseProjectile',
+    id: 'quick_shot', cls: 'archer', arenaDmg: 0.5, slot: 0, name: 'Double Shot', roles: ['basic', 'projectile'], targeting: 'mouseProjectile',
     startup: 85, active: 70, recovery: 110, cooldown: 350, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: { startup: 0.85, active: 0.85, recovery: 0.85 },
-    hits: [H(0, 7, { kind: 'projectile', speed: 900, range: 430, radius: 9 }, { stun: 140, push: 2 }), H(70, 7, { kind: 'projectile', speed: 900, range: 430, radius: 9 }, { stun: 160, push: 3 }, { mark: 1 })],
+    hits: [H(0, 7, { kind: 'projectile', speed: 900, range: 430, radius: 9, antiAir: true }, { stun: 180, push: 2 }), H(70, 7, { kind: 'projectile', speed: 900, range: 430, radius: 9, antiAir: true }, { stun: 200, push: 3 }, { mark: 1 })],
     cancelOnHit: ['rising_arrow', 'multi_shot', 'explosive_arrow', 'retreat_kick', 'piercing_arrow', 'vine_trap', 'rain_of_arrows'],
-    description: 'Two fast arrows in the facing direction; usable while moving at 85% speed.',
+    description: 'Two fast arrows in the facing direction; usable while moving at 85% speed. A foe up in the air in front is shot where he is: keep him up with it.',
     relations: ['Poke', 'Air follow-up'],
   }),
   // ---- 1st job (Archer)
@@ -446,15 +446,15 @@ const archer: FinalSkill[] = [
     id: 'bow_haste', cls: 'archer', slot: 2, name: 'Wind Step', roles: ['escape', 'projectile'], targeting: 'mouseDir',
     startup: 60, active: 380, recovery: 160, cooldown: 4500, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     dash: { distance: -190, lift: 70 },
-    hits: [H(340, 16, { kind: 'circle', radius: 85, at: 'aimBias', bias: 200, floor: true }, { stun: 420, launch: 140, juggleCost: 22 }, { reachUp: 120, mark: 1 })],
+    hits: [H(340, 16, { kind: 'circle', radius: 85, at: 'aimBias', bias: 200, floor: true }, { stun: 420, launch: 140, juggleCost: 22 }, { reachUp: 220, mark: 1 })],
     description: 'A gust throws you back out of reach; mid-leap you shoot an arrow into the ground in front of you — it bursts and throws the foe there into the air (and leaves a Hunter\'s Mark).',
     relations: ['Escape', 'Marks'],
   }),
   // ---- 2nd job (Hunter)
   S({
-    id: 'multi_shot', cls: 'archer', slot: 3, name: 'Triple Arrow', roles: ['confirm', 'projectile'], targeting: 'mouseCone',
+    id: 'multi_shot', cls: 'archer', arenaDmg: 0.6, slot: 3, name: 'Triple Arrow', roles: ['confirm', 'projectile'], targeting: 'mouseCone',
     startup: 280, active: 150, recovery: 220, cooldown: 2800, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    hits: [H(0, 22, { kind: 'projectile', speed: 640, range: 620, radius: 12, count: 5, spread: 17 }, { stun: 240, push: 10, float: true, juggleCost: 12 }, { mark: 1 })],
+    hits: [H(0, 22, { kind: 'projectile', speed: 640, range: 620, radius: 12, count: 5, spread: 17, antiAir: true }, { stun: 240, push: 10, float: true, juggleCost: 12 }, { mark: 1 })],
     cancelOnHit: ['explosive_arrow', 'piercing_arrow', 'quick_shot', 'skyhunters_step', 'retreat_kick'], telegraph: 'cone',
     description: 'A steady draw, then three arrows fan out in three directions; one damage event per target.',
     relations: ['Confirm', 'Cancel → Explosive Arrow'],
@@ -462,7 +462,7 @@ const archer: FinalSkill[] = [
   S({
     id: 'explosive_arrow', cls: 'archer', slot: 4, name: 'Fireball Arrow', roles: ['projectile', 'launcher'], targeting: 'mouseProjectile',
     startup: 280, active: 0, recovery: 220, cooldown: 6000, ground: true, air: true, cover: 'EXPLODES_ON_COVER', move: LOCK,
-    hits: [H(0, 30, { kind: 'projectile', speed: 620, range: 460, radius: 16, explodeRadius: 80 }, { stun: 320, launch: 70, push: 20, juggleCost: 25 }, { useMark: 'blast' })],
+    hits: [H(0, 30, { kind: 'projectile', speed: 620, range: 460, radius: 16, explodeRadius: 80, antiAir: true }, { stun: 320, launch: 70, push: 20, juggleCost: 25 }, { useMark: 'blast' })],
     cancelOnHit: ['quick_shot', 'rain_of_arrows', 'skyhunters_step'],
     description: 'A burning arrow wrapped in a fireball; it bursts into a blast of fire at the target, a wall or its full range.',
     relations: ['Pop', 'Jump → Double Shot'],
@@ -489,7 +489,7 @@ const archer: FinalSkill[] = [
   }),
   // ---- 3rd job (Ranger)
   S({
-    id: 'skyhunters_step', cls: 'archer', slot: 6, name: 'Air Volley', roles: ['signature', 'mobility', 'chase'], targeting: 'mouseDir',
+    id: 'skyhunters_step', cls: 'archer', arenaDmg: 0.6, slot: 6, name: 'Air Volley', roles: ['signature', 'mobility', 'chase'], targeting: 'mouseDir',
     startup: 260, active: 1150, recovery: 300, cooldown: 16000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 320, lift: 170 },
     hits: [120, 340, 560, 780, 1000].map((t, i) => H(t, [8, 8, 9, 9, 10][i], { kind: 'projectile', speed: 760, range: 420, radius: 9, rows: 3, rowGap: 52 }, { stun: 300, float: true, juggleCost: 12 }, { mark: i === 4 ? 1 : 0 })),
@@ -498,7 +498,7 @@ const archer: FinalSkill[] = [
     relations: ['Signature', 'Air combo'],
   }),
   S({
-    id: 'rain_of_arrows', cls: 'archer', slot: 9, name: 'Thunder Rain', roles: ['zone', 'extender'], targeting: 'mouseDir',
+    id: 'rain_of_arrows', cls: 'archer', arenaDmg: 0.8, slot: 9, name: 'Thunder Rain', roles: ['zone', 'extender'], targeting: 'mouseDir',
     startup: 300, active: 1200, recovery: 300, cooldown: 12000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [300, 900],
     dash: { distance: 0, lift: 150, hang: true },
     linger: { at: 'aim', offset: 300, startMs: 1000, everyMs: 400, count: 4, radius: 210, maxZ: 60, hit: H(0, 4, { kind: 'circle', radius: 210 }, { stun: 320, float: true, juggleCost: 4, slow: { pct: 30, ms: 500 } }, { reachUp: 60 }) },
@@ -508,9 +508,9 @@ const archer: FinalSkill[] = [
     relations: ['Zone 2s', 'Keeps foes up'],
   }),
   S({
-    id: 'piercing_arrow', cls: 'archer', slot: 10, name: 'Spirit Bow', roles: ['projectile', 'zone'], targeting: 'mouseDir',
+    id: 'piercing_arrow', cls: 'archer', arenaDmg: 0.6, slot: 10, name: 'Spirit Bow', roles: ['projectile', 'zone'], targeting: 'mouseDir',
     startup: 350, active: 5000, recovery: 200, cooldown: 22000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    hits: Array.from({ length: 40 }, (_, i) => H(i * 125, 4, { kind: 'projectile', speed: 900, range: 560, radius: 11 }, { stun: 320, push: 6, float: true, juggleCost: 3 }, { mark: i % 3 === 0 ? 1 : 0 })),
+    hits: Array.from({ length: 40 }, (_, i) => H(i * 125, 5, { kind: 'projectile', speed: 900, range: 560, radius: 11 }, { stun: 200, push: 12, juggleCost: 3, drop: true }, { mark: i % 3 === 0 ? 1 : 0 })),
     description: 'Stand your ground: a great green spirit bow fires on its own for 5s. It looses a stream of small arrows; the direction you hold aims it — to a side, up at an angle or straight up; arrows shot up arc high and fall back onto the floor.',
     relations: ['Auto-fire 5s', 'Rooted, aim it'],
   }),
@@ -568,7 +568,7 @@ const archer: FinalSkill[] = [
     relations: ['Buff 120s', 'Party buff'],
   }),
   S({
-    id: 'arrow_storm', cls: 'archer', slot: 17, name: "Hunter's Rain", roles: ['zone', 'extender'], targeting: 'mouseGround',
+    id: 'arrow_storm', cls: 'archer', arenaDmg: 0.7, slot: 17, name: "Hunter's Rain", roles: ['zone', 'extender'], targeting: 'mouseGround',
     startup: 550, active: 3000, recovery: 300, cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 3550],
     placeRange: 260,
     hits: Array.from({ length: 15 }, (_, i) => H(i * 200, 7, { kind: 'placed', radius: 115 }, { stun: 240, float: true, juggleCost: 4, slow: { pct: 30, ms: 500 } }, { reachUp: 180 })),

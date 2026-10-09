@@ -23,11 +23,13 @@ export type HitShape =
   | { kind: 'circle'; radius: number; at?: 'self' | 'place' | 'aimBias'; bias?: number; /** strikes the floor below an airborne caster */ floor?: boolean }
   | { kind: 'line'; length: number; width: number }
   | { kind: 'capsule'; radius: number } // swept along the caster's dash path
-  | { kind: 'projectile'; speed: number; range: number; radius: number; count?: number; spread?: number; /** parallel rows across the floor's depth */ rows?: number; rowGap?: number; pierce?: boolean; explodeRadius?: number; arc?: number; /** turns toward a foe (deg/s): each shot of a fan picks its own foe */ homing?: number }
+  | { kind: 'projectile'; speed: number; range: number; radius: number; count?: number; spread?: number; /** parallel rows across the floor's depth */ rows?: number; rowGap?: number; pierce?: boolean; explodeRadius?: number; arc?: number; /** turns toward a foe (deg/s): each shot of a fan picks its own foe */ homing?: number; /** aimed up at a foe in the air in front (rises to his body as it flies): air combos */ antiAir?: boolean }
   | { kind: 'chain'; corridor: number; width: number; jump: number }
   | { kind: 'placed'; radius: number }; // ground point (rune / trap / zone)
 
 export interface Reaction {
+  /** A foe in the air is not held up by it (he keeps falling): streams and pokes that should not juggle. */
+  drop?: boolean;
   /** Ordinary combo hit-stun (soft, repeatable, scaled by combo index). */
   stun?: number;
   /** Knockback distance (world px, away from the hit origin). */
@@ -128,6 +130,8 @@ export interface FinalSkill {
   /** Visual: telegraph shown to everyone during startup. */
   telegraph?: 'circle' | 'cone' | 'line' | 'trajectory' | 'ground';
   pvpMultiplier: number;
+  /** Arena: damage factor of its hits (light juggle tools hit softer so a long air string fits the gauges). */
+  arenaDmg?: number;
   pveMultiplier: number;
   description: string;
   unlockLevel: number;

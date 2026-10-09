@@ -642,6 +642,9 @@ export class ArcherFx {
         ang = Math.atan2(p.dy * 0.5 + fall, Math.abs(p.dx)) * (180 / Math.PI) * (flip ? -1 : 1);
         if (zv <= 0 && a.im.visible) { a.im.setVisible(false); a.tr?.setVisible(false); this.floorStrike(p.x, p.y, flip); }
       }
+      if (p.dropPerPx < 0 && p.zTop !== undefined && p.z < p.zTop - 1) { // a rising shot at a foe in the air: tilted up
+        const raw = Math.atan2(p.dropPerPx, Math.abs(p.dx) + 0.2) * (180 / Math.PI); ang = flip ? -raw : raw;
+      }
       if (p.loft) { // Spirit Bow shot up: a high arc straight above the floor where she stands, falling back down onto it
         const k = Math.min(1, p.travelled / p.range), H = p.loft === 2 ? 340 : 210, lift = 4 * H * k * (1 - k), slope = 4 * H * (1 - 2 * k) / p.range; // screen px up per px along
         y -= lift; const raw = Math.atan2(-slope, 1) * (180 / Math.PI); ang = flip ? -raw : raw;

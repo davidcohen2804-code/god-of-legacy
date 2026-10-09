@@ -396,7 +396,7 @@ export class CombatBody {
     if (shatter) hit = { ...hit, damage: hit.damage * (hit.shatterMul ?? 1.5) };
     let damage: number, release = false;
     if (this.arena) { // the arena: softer hits, each later one softer still, at most one combo's budget
-      damage = hit.damage > 0 ? Math.max(1, Math.round(hit.damage * ARENA.dmgMul * arenaScale(c.hits, ult))) : 0;
+      damage = hit.damage > 0 ? Math.max(1, Math.round(hit.damage * ARENA.dmgMul * (skill.arenaDmg ?? 1) * arenaScale(c.hits, ult))) : 0;
       const cap = ARENA.budget * this.maxHp;
       damage = Math.max(0, Math.min(damage, Math.ceil(cap - c.dmg)));
       c.dmg += damage;
@@ -473,7 +473,7 @@ export class CombatBody {
     } else if (air && this.state === 'launched') {
       // Air extender: keep the target afloat while budget remains, otherwise it falls.
       c.juggle += juggleCost;
-      const over = this.airOver(now);
+      const over = R.drop ? 1 : this.airOver(now);
       if (over < 1) { // hold: lift while low, only stall the fall when already high (keeps targets inside melee reach)
         const lift = GAUGE.holdVz * (R.float ? 1 : 0.8) * (1 - over) * Math.max(0, Math.min(1, (GAUGE.holdCeil - k.z) / GAUGE.holdCeil));
         k.vz = Math.max(k.vz, k.z > GAUGE.holdCeil ? -60 : lift); out.reaction = 'float'; out.launchVz = k.vz;
