@@ -26,6 +26,8 @@ export interface StageLook {
   /** The light source's flare and rays: tint and strength (1 = the sunset's). */
   rayTint?: number;
   rays?: number;
+  /** The light comes from the upper left (its rays fan down to the right). */
+  sunLeft?: boolean;
   /** Who crosses the sky now and then. */
   fliers?: 'birds' | 'bats' | null;
   /** The weather: what falls or floats across the stage, how many, in which colours. */
@@ -226,7 +228,8 @@ export class StageFx {
     this.flare = scene.make.image({ x: sx, y: sy, key: T.glow }, false).setBlendMode(Phaser.BlendModes.ADD).setTint(L.rayTint ?? 0xffe2a8).setScale(2.6, 2.2).setAlpha(0.22 * rk);
     this.lay(-0.45).add(this.flare);
     const RAYS: [number, number, number, number][] = [[24, 150, 0.05, 1250], [33, 230, 0.042, 1350], [42, 120, 0.06, 1300], [51, 200, 0.04, 1400], [61, 140, 0.047, 1250], [70, 260, 0.032, 1150]];
-    RAYS.forEach(([a, w, al, len], i) => {
+    RAYS.forEach(([a0, w, al, len], i) => {
+      const a = L.sunLeft ? -a0 : a0;
       const o = scene.make.image({ x: sx, y: sy, key: T.ray }, false).setOrigin(0.5, 0).setBlendMode(Phaser.BlendModes.ADD).setTint(rt)
         .setAngle(a).setScale(w / 128, len / 1024).setAlpha(al * rk);
       this.lay(-0.45).add(o);
