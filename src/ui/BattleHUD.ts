@@ -24,7 +24,7 @@ const VS_NAME_W = 440;
 const VS_EMBLEM = 'assets/hud/vs_emblem.webp';
 /** The big calls drawn as art in the VS emblem's style (assets/hud/calls/<id>.webp): their height on screen (design px).
  *  A call with no art yet is lettered (word()). */
-const CALL_ART: Record<string, number> = { fight: 340, ko: 420, round1: 250, round2: 257, round3: 251, round4: 247 };
+const CALL_ART: Record<string, number> = { fight: 340, ko: 420, round1: 250, round2: 257, round3: 251, round4: 247, final: 280 };
 const callUrl = (id: string) => `assets/hud/calls/${id}.webp`;
 /** VS with the heroes' art: the widest a name may be under its hero. */
 const VS2_NAME_W = 640;

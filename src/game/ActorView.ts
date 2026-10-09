@@ -8,6 +8,8 @@ import { actorDepth } from '../world/WorldGeometry';
 import { ClassKey, PoseFrame, applyPose, heroFrameRect, SHEET_PATH, BASE_GEOM, baseComplete, ensureWeaponMasks, BaseLook, baseLookLayers, hasOver, overKey, NAKED_LOOK, GearLook, GearPiece, gearLayers, helmKey, loadGear, swingTrail } from './Body';
 /** Name plates sit above the world (props in front included), like MapleStory's. */
 export const NAME_DEPTH = 90000;
+/** The ring under a fighter's feet (in a battle: the class colour). */
+export const RING_COLOR = 0x4aa8ff;
 import { DEFAULT_SKIN, toneTexture } from '../characters/Skin';
 import { namePlate } from './Plates';
 
@@ -303,7 +305,7 @@ export class ActorView {
 
   constructor(private scene: Phaser.Scene, readonly cls: ClassKey, x: number, y: number) {
     this.shadow = scene.add.image(x, y, 'contact-shadow').setOrigin(0.5, 0.5);
-    this.ring = scene.add.ellipse(x, y, 70, 26).setStrokeStyle(3, 0x4aa8ff, 0.85).setFillStyle(0x4aa8ff, 0.1);
+    this.ring = scene.add.ellipse(x, y, 70, 26).setStrokeStyle(3, RING_COLOR, 0.85).setFillStyle(RING_COLOR, 0.1);
     this.sprite = scene.add.sprite(x, y, '__DEFAULT');
     this.weapon = scene.add.sprite(x, y, '__DEFAULT').setVisible(false);
     this.weaponGlow = scene.add.sprite(x, y, '__DEFAULT').setVisible(false).setBlendMode(Phaser.BlendModes.ADD);
