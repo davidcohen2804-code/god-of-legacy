@@ -369,7 +369,7 @@ def main():
             if a == 'walk':
                 cyc[a] = round((2 if n >= 8 else 1) * max(sp), 1)
             else:  # a run: brisk legs (~2.8 steps a second at full speed), measured on the typical stride (not the flight's split)
-                cyc[a] = round((2 if n >= 8 else 1) * float(np.median(sp)) * 1.15, 1)
+                cyc[a] = round((2 if n >= 8 else 1) * max(sp), 1)
         table[cls] = {'h': idle_h, 'actions': A, 'cycle': cyc}
         print(cls, {k: len(v) for k, v in A.items()}, 'idle h', idle_h, 'sheet', sheet.shape[:2])
     json.dump(table, open(table_path, 'w'), separators=(',', ':'))
