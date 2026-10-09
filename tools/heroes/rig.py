@@ -261,6 +261,26 @@ def load_parts(path, cls):
             i, j = two
         uppers = sorted([rest[i], rest[j]], key=lambda im: -float(im[..., :3][im[..., 3] > 100].mean()))
         fore_f = rest[3 - i - j]
+        bow_png = path.replace('.png', '_bow.png')
+        if cls == 'archer' and os.path.exists(bow_png):  # the bow drawn on its own + the forearm with an empty fist
+            bc = _components(alpha_from_white(np.array(Image.open(bow_png).convert('RGB'))))
+            bc.sort(key=lambda c: -c[0].shape[0])
+            bow, farm = bc[0][0], bc[1][0]
+            # GPT drew a ball, a cloth flap and bare skin above her bracer: the forearm starts at the bracer
+            al_ = farm[..., 3] > 100; lum_ = farm[..., :3].astype(float).mean(2); Hf = farm.shape[0]
+            y_br = next(y for y in range(int(0.3 * Hf), Hf) if al_[y].sum() > 10 and (lum_[y][al_[y]] < 95).mean() > 0.5)
+            farm = farm[y_br:].copy()
+            sc = 0.9 * fore_f.shape[0] / farm.shape[0]  # as long as the far forearm below its ball
+            parts['bow_arm'] = True
+            rz = lambda im: np.array(Image.fromarray(im).resize((max(1, round(im.shape[1] * sc)), max(1, round(im.shape[0] * sc))), Image.LANCZOS))
+            fore_n, bow = rz(farm), rz(bow)
+            bow = np.array(Image.fromarray(bow).resize((round(bow.shape[1] * 0.95), round(bow.shape[0] * 0.95)), Image.LANCZOS))  # as long as in her drawings
+            al = fore_n[..., 3] > 100; yb = int(np.where(al.any(1))[0][-1])
+            yh = int(yb - 0.075 * fore_n.shape[0]); hg = np.array([float(np.where(al[yh])[0].mean()), float(yh)])  # the fist
+            ab = bow[..., 3] > 100; ys_b = np.where(ab.any(1))[0]; ym = int((ys_b[0] + ys_b[-1]) / 2)
+            lab_, _ = ndimage.label(ab[ym]); runs = [np.where(lab_ == q)[0] for q in range(1, lab_.max() + 1)]
+            gb = np.array([float(max(runs, key=len).mean()), float(ym)])  # the bow's grip: the middle of its stave
+            parts['weapon'] = (bow, gb, 180.0, hg)  # drawn upright: grip → top tip points up
         if cls in WEAPON:  # the weapon apart from the fist: it turns at the wrist
             wd = WEAPON[cls]
             from matplotlib.path import Path
@@ -276,13 +296,19 @@ def load_parts(path, cls):
             _D.Draw(gi).line([tuple(h0), tuple(h1)], fill=tuple(int(v) for v in col) + (255,), width=max(3, int(16 * kt)))
             wimg = np.array(gi)
             g = np.array(wd['grip'], float) * kt; tip = np.array(wd['tip'], float) * kt
-            parts['weapon'] = (wimg, g, _axis_deg(g, tip))
+            parts['weapon'] = (wimg, g, _axis_deg(g, tip), g)
             fore_n = fist
         tb = _top_ball(uppers[0]) if cls in DROP_BALLS else None  # the sheet's ball colour, when the balls stand apart from the limbs (skin / grey)
         for name, im, both in (('uarm_n', uppers[0], True), ('uarm_f', uppers[1], True), ('farm_n', fore_n, False), ('farm_f', fore_f, False)):
             im = im.copy()
             al = im[..., 3] > 100
             cxr = lambda y: float(np.where(al[int(min(im.shape[0] - 1, max(0, y)))])[0].mean())
+            if name == 'farm_n' and parts.get('bow_arm'):  # no ball: the elbow at the bracer's top
+                ys_ = np.where(al.any(1))[0]; p0 = np.array([cxr(ys_[0] + 6), float(ys_[0] + 6)])
+                parts[name] = (im, p0, p0 + np.array([0.0, 100.0])); parts[name + '_joint'] = ((0, 0, 0), 0.0)
+                fist_ = im.copy(); fist_[: int(ys_[-1] - 0.2 * (ys_[-1] - ys_[0])), :, 3] = 0; parts['farm_n_fist'] = fist_
+                yb_ = int(ys_[-1]); parts[name + '_len'] = float(yb_ - 0.08 * im.shape[0] - p0[1])
+                continue
             blobs = _ball_blobs(im, tb[0], tb[1]) if tb else []
             own = _top_ball(im) if both else None  # the far arm is drawn darker: its balls too
             if both and len(blobs) < 2 and own and tb:
@@ -308,6 +334,10 @@ def load_parts(path, cls):
                 else:
                     p1 = p0 + np.array([0.0, 100.0])  # drawn hanging straight down
             parts[name] = (im, p0, p1)
+            if name == 'farm_n':  # the fist alone (drawn again over the weapon's grip)
+                fist_ = im.copy(); ysf = np.where((im[..., 3] > 100).any(1))[0]
+                fist_[: int(ysf[-1] - 0.2 * (ysf[-1] - ysf[0])), :, 3] = 0
+                parts['farm_n_fist'] = fist_
             if not both:  # the fist: the forearm's length for reaching a point
                 al2 = im[..., 3] > 100; yb = int(np.where(al2.any(1))[0][-1])
                 parts[name + '_len'] = float(yb - 0.08 * im.shape[0] - p0[1])
@@ -391,21 +421,21 @@ def arm_pose(cls, kind, ph, i):
     blade = cls in WEAPON
     if kind == 'walk':
         n = -11 * c; f = 22 * c
-        return {'n': (n, 8 + 0.4 * max(0, n)), 'f': (f, 10 + 0.5 * max(0, f)), 'D': None}
+        return {'n': (n, 8 + 0.4 * max(0, n)), 'f': (f, 10 + 0.5 * max(0, f)), 'D': 162 + 4 * c if cls == 'archer' else None}
     if kind == 'run':  # sprinting arms: the free arm pumps (elbow near square, the fist up to the chest), the blade trails
         f = (4 + 42 * c, 87 - 9 * c)
         if cls == 'warrior':
             return {'n': (-15 - 14 * c, 30 + 6 * c), 'f': f, 'D': -70 + 8 * c}
         if cls == 'samurai':
             return {'n': (-18 - 12 * c, 28), 'f': f, 'D': -78 + 6 * c}
-        if cls == 'archer':  # the bow carried low in front
-            return {'n': (22 - 10 * c, 22), 'f': f, 'D': None}
+        if cls == 'archer':  # the bow carried low in front, upright, its top leaning into the run
+            return {'n': (18 - 10 * c, 30), 'f': f, 'D': 158 - 4 * c}
         return {'n': (8 - 10 * c, 85 + 5 * c), 'f': f, 'D': None}  # the book against the chest
     if kind == 'jump':  # take-off crouch (arms swung back) → rising → falling (arms lift for balance)
         J = {
             'warrior': [((-20, 20), (-30, 25), -55), ((-30, 25), (40, 45), -68), ((-22, 20), (30, 40), -62)],
             'samurai': [((-15, 20), (-25, 30), -55), ((-30, 25), (15, 95), -72), ((-22, 20), (15, 85), -66)],
-            'archer': [((10, 10), (-35, 20), None), ((40, 0), (-50, 35), None), ((32, 5), (-30, 45), None)],
+            'archer': [((10, 10), (-35, 20), 170), ((40, 8), (-50, 35), 158), ((32, 10), (-30, 45), 165)],
             'book_mage': [((10, 70), (15, 60), None), ((15, 90), (25, 85), None), ((15, 88), (30, 70), None)],
         }.get(cls, [((5, 25), (-30, 30), None), ((25, 30), (-40, 40), None), ((15, 25), (-25, 45), None)])[i]
         return {'n': J[0], 'f': J[1], 'D': J[2]}
@@ -413,7 +443,7 @@ def arm_pose(cls, kind, ph, i):
         J = {
             'warrior': [((-25, 25), (60, 50), -80), ((-30, 20), (50, 30), -92)],
             'samurai': [((-38, 20), (20, 95), -88), ((-42, 18), (20, 95), -92)],
-            'archer': [((40, 40), (50, 50), None), ((44, 44), (54, 54), None)],
+            'archer': [((40, 40), (50, 50), 140), ((44, 44), (54, 54), 135)],
             'book_mage': [((30, 40), (-30, 30), None), ((34, 44), (-26, 34), None)],
         }.get(cls, [((30, 40), (-30, 30), None), ((34, 44), (-26, 34), None)])[i]
         return {'n': J[0], 'f': J[1], 'D': J[2]}
@@ -424,8 +454,10 @@ def arm_pose(cls, kind, ph, i):
             return {'n': (25, 55), 'f': 'grip2', 'D': 135}  # the katana up in both hands
         if cls == 'book_mage':
             return {'n': (5, 20), 'f': (45, 30), 'D': None}  # the book at his side, the free hand raised to cast
+        if cls == 'archer':
+            return {'n': (80, 4), 'f': (-60, 140), 'D': 178}  # the bow raised upright in front, the free hand drawing the string to the cheek
         return {'n': (24, 34), 'f': (12, 30), 'D': None}
-    return {'n': (3, 6), 'f': (-3, 8), 'D': None}  # standing
+    return {'n': (3, 6), 'f': (-3, 8), 'D': 165 if cls == 'archer' else None}  # standing
 
 
 # The second jump, one per hero's air move: (near foot, far foot) from the floor under the hips (fractions of the leg),
@@ -521,7 +553,7 @@ def bake(path, cls, idle_h, size=1.0):
                 lean = 0.0 if kind == 'idle' else 6.0
             else:
                 feet, hh, lean, D, planted = gait(kind, ph, L)
-            W = int(front.shape[1] + 2.4 * L) + 40; Hc = int(front.shape[0] + L + 80)
+            W = int(front.shape[1] + 3.2 * L) + 40; Hc = int(front.shape[0] + L + 80 + 0.6 * L)
             cv = Image.new('RGBA', (W, Hc))
             ground = Hc - 20 - ankle_h
             hip = np.array([W / 2.0, ground - hh])
@@ -554,13 +586,15 @@ def bake(path, cls, idle_h, size=1.0):
                 if nm == 'uarm_n': _disc(cv, sh_w, *uj)                    # the shoulder joint, under the arm's top (the far one is behind the body)
                 _disc(cv, elbow, *fj)                                       # the elbow, under both (fills the bend's notch)
                 if nm == 'uarm_n' and 'weapon' in P:                        # the weapon behind the fist, turned at the wrist
-                    wi, wg, wnat = P['weapon']
-                    r = math.radians(fa); v = wg - f0
+                    wi, wg, wnat, hg = P['weapon']
+                    r = math.radians(fa); v = hg - f0
                     gw = elbow + np.array([v[0] * math.cos(r) + v[1] * math.sin(r), -v[0] * math.sin(r) + v[1] * math.cos(r)])
                     wdir = D if D is not None else fa + wnat
-                    _place(cv, wi, wg, wnat, gw, wdir)
                 _place(cv, fi, f0, 0.0, elbow, fa)
                 _place(cv, ui, u0, _axis_deg(u0, u1), sh_w, tot)            # the upper arm over the forearm's top (the elbow)
+                if nm == 'uarm_n' and 'weapon' in P:  # the weapon on the outside of the arm, the fingers closed over its grip
+                    _place(cv, wi, wg, wnat, gw, wdir)
+                    _place(cv, P['farm_n_fist'], f0, 0.0, elbow, fa)
             def upper(layer):
                 _place(cv, layer, hip_u, 0.0, hip, -ang_u)  # the drawing turned clockwise (forward) by the lean
             fn = np.array([hip[0] + feet[0][0], ground + feet[0][1]]); ff = np.array([hip[0] + feet[1][0], ground + feet[1][1]])
@@ -579,8 +613,8 @@ def bake(path, cls, idle_h, size=1.0):
                 fa_ = AP['f']
                 if fa_ == 'grip2':  # both hands on the handle: the far fist just below the near one, along the handle
                     t_n, el_n, f_n = solve(P['uarm_n'], *AP['n'])
-                    wi, wg, wnat = P['weapon']; f0n = P['farm_n'][1]
-                    r = math.radians(f_n); v = wg - f0n
+                    wi, wg, wnat, hg = P['weapon']; f0n = P['farm_n'][1]
+                    r = math.radians(f_n); v = hg - f0n
                     gw = el_n + np.array([v[0] * math.cos(r) + v[1] * math.sin(r), -v[0] * math.sin(r) + v[1] * math.cos(r)])
                     hd_ = math.radians(AP['D'] + 180)
                     fa_ = reach(P['uarm_f'], P['farm_f_len'], gw + 0.55 * P['farm_f_len'] * 0.45 * np.array([math.sin(hd_), math.cos(hd_)]))
