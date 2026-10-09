@@ -339,7 +339,7 @@ const mage: FinalSkill[] = [
     startup: 40, active: 100, recovery: 110, cooldown: 5000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 170 }, through: true, charges: 2, chargeGap: 220,
     hits: [H(0, 10, { kind: 'capsule', radius: 34 }, { stun: 350, juggleCost: 6 }, { reachUp: 90 })],
-    description: 'Vanish and reappear a short way off in the direction you hold, in the air too; a foe you pass through is struck and stunned. Two blinks in a row. It cancels the end of any of your spells.',
+    description: 'Vanish and reappear a short way off in the direction you hold, in the air too; a foe you pass through is struck and stunned. Toward a foe in the air it carries you up to it, to go on with the combo there. Two blinks in a row. It cancels the end of any of your spells.',
     relations: ['2 in a row', 'Cancels any spell'],
   }),
   S({

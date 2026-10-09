@@ -10,7 +10,7 @@ import { Projectile, V2, V3, circleCentre } from './HitGeometry';
 import { FINAL_SKILLS } from './FinalKit';
 import DIGITS from '../data/damage-digits.json';
 import { SamuraiFx, KIT, KIT_URL } from './SamuraiFx';
-import { MageFx, MAGE_KIT, MAGE_KIT_URL } from './MageFx';
+import { MageFx, MAGE_KIT, MAGE_KIT_URL, MAGE_SHEETS } from './MageFx';
 import { ArcherFx, ARCHER_KIT, ARCHER_KIT_URL } from './ArcherFx';
 import { SKILL_BLOCKERS, WORLD_OBJECTS, clearLine } from '../world/WorldGeometry';
 
@@ -182,6 +182,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   if (want('book_mage')) { // every book mage effect is built from its pieces (MageFx)
     I('mage-cutin', `${F}/skills/book_mage/time_collapse/cutin.png`);
     if (!scene.textures.exists(MAGE_KIT)) scene.load.multiatlas(MAGE_KIT, `${MAGE_KIT_URL}kit.json`, MAGE_KIT_URL);
+    for (const [k, [f, w, h]] of Object.entries(MAGE_SHEETS)) if (!scene.textures.exists(k)) scene.load.spritesheet(k, `${F}/skills/book_mage/fx/${f}`, { frameWidth: w, frameHeight: h }); // painted animated effects (black ground, drawn additive)
   }
   if (want('samurai')) {
     I('samurai-cutin', `${F}/skills/samurai/dragon_eclipse/cutin.png`);

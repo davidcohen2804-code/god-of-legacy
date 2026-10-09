@@ -56,7 +56,7 @@ export const PASSIVES: PassiveSkill[] = [
   { id: 'sword_saint', cls: 'samurai', job: 4, name: 'Sword Saint', kind: 'passive', description: 'The legendary sword saint: every cut strikes with sacred force.', effects: ['Damage +15%', 'Critical hits +10% more'] },
   { id: 'advanced_final_cut', cls: 'samurai', job: 4, name: 'Advanced Final Cut', kind: 'passive', description: 'Final Cut evolves: ghost blades follow far more often and cut deeper — two of them.', effects: ['Final Cut chance 45%', 'Ghost cuts: 55% of the hit', 'Not against players'] },
   // Book Mage (the mage spec): every passive a rule only the mage has
-  { id: 'levitate', cls: 'book_mage', job: 1, name: 'Levitate', kind: 'movement', description: 'Press Jump again in mid-air to float slowly forward for up to 1.5s; you can cast spells while you float.', effects: ['Second jump: a slow float', 'Cast while floating', 'Once per jump'] },
+  { id: 'levitate', cls: 'book_mage', job: 1, name: 'Levitate', kind: 'movement', description: 'Every book mage floats on a second jump (1.5s) and hangs in the air while he casts there. Levitate makes the float last 2.6s.', effects: ['Float 2.6s (from 1.5s)', 'Cast while floating', 'Once per jump'] },
   { id: 'spell_weave', cls: 'book_mage', job: 1, name: 'Spell Weave', kind: 'passive', description: 'Every spell that hits and is different from the one before weaves a rune that circles you: +4% damage each, up to 5. Casting the same spell twice in a row unravels them all; they fade 6s after your last hit.', effects: ['+4% damage per rune', 'Up to 5 runes', 'Same spell twice: all lost'] },
   { id: 'arcane_mind', cls: 'book_mage', job: 1, name: 'Arcane Mind', kind: 'passive', description: 'A mind trained in the arcane: more HP, and slows and binds wear off sooner.', effects: ['Max HP +15%', 'Slow / bind / freeze −20%'] },
   { id: 'attunement', cls: 'book_mage', job: 2, name: 'Attunement', kind: 'passive', description: 'Arcane Bolt takes the element of your last spell: after frost a frost bolt that chills, after lightning a storm bolt that conducts, otherwise an arcane bolt that flies through foes.', effects: ['Frost bolt: chills', 'Storm bolt: conducts', 'Arcane bolt: pierces'] },
@@ -191,4 +191,4 @@ export const REGEN = { frac: 0.02, everyMs: 5000 };
 /** Spell Weave: damage per rune, the most runes, how long they last after the last hit. */
 export const WEAVE = { per: 0.04, max: 5, fadeMs: 6000 };
 /** Levitate: how long the float lasts, its forward speed (px/s) and the gravity it keeps. */
-export const LEVITATE = { ms: 1500, forward: 170, gravity: 0.1 };
+export const LEVITATE = { ms: 1500, longMs: 2600, forward: 170, gravity: 0.1 };
