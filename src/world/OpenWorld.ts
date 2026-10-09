@@ -317,7 +317,7 @@ export class OpenWorld {
       const sp = SKY.sprites[c.s], key = `sky-cloud-${c.s}`;
       const make = () => {
         // its width over the cloud's; its walkable top face drawn as deep as the lane (back edge on the lane's back)
-        const sc = (c.x1 - c.x0 + 40) / sp.w, sy = Phaser.Math.Clamp((b1 - b0) / Math.max(1, (sp.top[1] - sp.top[0]) * sc), 1, 1.35) * sc;
+        const sc = (c.x1 - c.x0 + 40) / sp.w, sy = Phaser.Math.Clamp((b1 - b0) / Math.max(1, (sp.top[1] - sp.top[0]) * sc), 1, 1.7) * sc;
         const y = b0 - c.z - sp.top[0] * sy;
         const img = this.scene.add.image(c.x0 - 20, y, key).setOrigin(0, 0).setScale(sc, sy).setDepth(b1 + 0.5);
         this.skyClouds.push({ img, y, ph: i * 1.7 });

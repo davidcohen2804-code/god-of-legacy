@@ -89,7 +89,9 @@ for id_, m in MAPS.items():
       wall = np.clip((xx - (w - (W0 - m['wall_x']) - 80)) / 120, 0, 1) * np.clip(yy / 90, 0, 1) * np.clip((w - 1 - xx) / 150, 0, 1)
       a = np.maximum(a, wall)
     up = np.clip((m['floor'][0] - 12 - yy) / 70, 0, 1)   # 0 at the floor's back edge, 1 from 70 px above it (no hard line)
-    if m.get('mirror') or m.get('wall_x'): a = a * (1 - up * (1 - np.clip((xx - 120) / 640, 0, 1) ** 1.3))   # the left end (where the Sky Path's clouds come in): its own sky gone, only the floor
+    if m.get('mirror') or m.get('wall_x'):
+      sm = np.clip((xx - 80) / 1300, 0, 1); sm = sm * sm * (3 - 2 * sm)   # a long, smooth fade: no edge in the sky
+      a = a * (1 - up * (1 - sm))   # the left end (where the Sky Path's clouds come in): its own sky gone, only the floor
     band = (yy >= m['floor'][0] + 6) & (yy < m['floor'][1] + 60)
     wob = 18 * np.sin(yy / 23.0) + 10 * np.sin(yy / 9.0 + 1)      # the floor's own ends: soft, uneven cloud edges
     a = np.where(band & ((xx < w / 2) if (m.get('end') or m.get('wall_x')) else True), np.maximum(a, np.clip((edge - 14 - wob) / 40, 0, 1)), a)   # (a closed right end: the wall's own edge)
