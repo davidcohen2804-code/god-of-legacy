@@ -216,7 +216,10 @@ export function clampPlace(origin: V2, want: V2, range: number): V2 {
 /** Projectile directions for a fan (count/spread). */
 export function fanDirs(aim: V2, count = 1, spreadDeg = 0): V2[] {
   if (count <= 1) return [aim];
-  const out: V2[] = [], base = Math.atan2(aim.y, aim.x);
+  const out: V2[] = [], left = aim.x < 0, half = ((count - 1) / 2) * spreadDeg, lim = Math.max(0, 45 - half);
+  // the whole fan stays within 45° of the side (no shot near straight up / down): a corner aim tilts the fan, not past it
+  const rel = Math.max(-lim, Math.min(lim, (Math.atan2(aim.y, Math.abs(aim.x)) * 180) / Math.PI));
+  const base = left ? Math.PI - (rel * Math.PI) / 180 : (rel * Math.PI) / 180;
   for (let i = 0; i < count; i++) {
     const a = base + ((i - (count - 1) / 2) * spreadDeg * Math.PI) / 180;
     out.push({ x: Math.cos(a), y: Math.sin(a) });

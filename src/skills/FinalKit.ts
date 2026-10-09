@@ -46,7 +46,7 @@ const warrior: FinalSkill[] = [
     hits: [0, 50, 100].map((t, i) => H(t, i === 2 ? 10 : 7, { kind: 'capsule', radius: 32 }, { stun: 240, push: i === 2 ? 10 : 2, float: true, juggleCost: 4 }, { reachUp: 90 })),
     cancelOnHit: CORE(['rising_slash', 'whirlwind', 'sanctuary', 'warrior_basic', 'blade_storm', 'titans_verdict']),
     telegraph: 'line',
-    description: 'Charge up to 180px in the facing direction; stops on cover. A confirmed hit can cancel into Rising Slash, Leap Crash or any other skill.',
+    description: 'Charge up to 210px in the facing direction, slashing through the foe; stops on cover. A confirmed hit can cancel into Rising Slash, Leap Crash or any other skill.',
     relations: ['Opener', 'Cancel → any skill on hit'],
   }),
   S({
@@ -80,7 +80,7 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'sanctuary', cls: 'warrior', slot: 5, name: 'Sanctuary', roles: ['setup', 'zone'], targeting: 'self',
-    startup: 520, active: 200, recovery: 260, cooldown: 30000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 980],
+    startup: 350, active: 200, recovery: 260, cooldown: 30000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 810],
     hits: [H(0, 6, { kind: 'circle', radius: 120 }, { stun: 400, pull: 30 }, { reachUp: 120 })],
     cancelOnHit: ['warrior_basic', 'rising_slash', 'dash_slash', 'blade_storm'], tags: ['buff'],
     description: 'Trace a half-circle on the ground with your sword: a translucent dome of light rises where you stand for 15s. While you are inside it you take no damage at all. The dome stays where it was cast.',
@@ -118,10 +118,10 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'wave_slash', cls: 'warrior', slot: 9, name: 'Wave Slash', roles: ['projectile', 'precision'], targeting: 'mouseProjectile',
-    startup: 700, active: 0, recovery: 220, cooldown: 2500, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    startup: 480, active: 0, recovery: 220, cooldown: 2500, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     hits: [H(0, 18, { kind: 'projectile', speed: 400, range: 520, radius: 22, pierce: true, count: 3, spread: 28 }, { stun: 320, launch: 80, juggleCost: 10 }, { reachUp: 120 })],
     cancelOnHit: ['dash_slash', 'leap_crash', 'lance_thrust'],
-    description: 'Charge the blade for a second, then release three crescent shockwaves in a fan; they pierce, and any target they catch is popped into the air.',
+    description: 'Charge the blade for an instant, then release three crescent shockwaves in a fan; they pierce, and any target they catch is popped into the air.',
     relations: ['Ranged check', 'Pierces'],
   }),
   S({
@@ -134,7 +134,7 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'iron_oath', cls: 'warrior', slot: 14, name: 'Iron Oath', roles: ['setup'], targeting: 'self',
-    startup: 420, active: 200, recovery: 260, cooldown: 30000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 880],
+    startup: 300, active: 200, recovery: 260, cooldown: 30000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 760],
     hits: [H(0, 4, { kind: 'circle', radius: 120 }, { stun: 400, pull: 30 }, { reachUp: 140 })],
     cancelOnHit: ['dash_slash', 'rising_slash', 'leap_crash'], tags: ['buff', 'party'],
     description: 'Swear the iron oath: Max HP +30% for 60s; its flash of light pulls foes around you in. In a party it also strengthens every party member near you.',
@@ -142,7 +142,7 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'legacy_banner', cls: 'warrior', slot: 15, name: 'Legacy Banner', roles: ['setup'], targeting: 'self',
-    startup: 900, active: 200, recovery: 300, cooldown: 60000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1400],
+    startup: 450, active: 200, recovery: 300, cooldown: 60000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 950],
     hits: [H(0, 10, { kind: 'circle', radius: 160 }, { stun: 400, pull: 30 }, { reachUp: 140 })],
     cancelOnHit: ['warrior_basic', 'dash_slash', 'blade_storm', 'titans_verdict'], tags: ['buff', 'party'],
     description: 'Plant a banner of light: +10% damage and 10% less damage taken for 90s; the impact pulls foes around you in. In a party every party member near you shares it.',

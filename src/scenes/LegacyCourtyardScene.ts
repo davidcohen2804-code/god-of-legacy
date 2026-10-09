@@ -2264,7 +2264,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.id === 'radiant_blade') { this.boltDone = false; this.radiantFrom = this.simMs + Math.round(s.startup * 0.4); } // light appears when the sword is raised
     if (s.id === 'radiant_blade') this.radiantUntil = this.simMs + s.startup + 15000;
     if (s.id === 'guard_counter') this.body.invulnUntil = this.simMs + s.startup + 600; // Aegis barrier
-    if (s.armor) this.body.armorUntil = Math.max(this.body.armorUntil, this.simMs + s.armor[1]); // super armor from the first frame (never interrupted mid-windup)
+    if (s.armor) { const st = this.arena ? null : arenaTimeScale(s); this.body.armorUntil = Math.max(this.body.armorUntil, this.simMs + s.armor[1] / (st?.active ?? 1)); } // super armor from the first frame (never interrupted mid-windup); outside the arena the warrior's stretched skills keep it to their stretched end
     if (s.slot === 7) this.body.invulnUntil = this.simMs + ct.startup + ct.active; // ultimate: untouchable while it plays
     else if (this.simMs < this.warCryUntil) this.body.armorUntil = this.simMs + ct.startup + ct.active; // War Cry: super armor while attacking
     this.kage?.arm(castId, s.id, { x: k.x, y: k.y, z: k.z }); // he strikes: out of hiding; a cast while the doubles stand: its first hit that lands is the AMBUSH

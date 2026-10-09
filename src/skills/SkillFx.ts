@@ -354,6 +354,7 @@ export class SkillFx {
     else if (s.id === 'war_cry') this.roar(r);
     else if (s.id === 'judgment_hook') this.hookChain(r);
     else if (s.id === 'sky_breaker') this.skyBreaker(r);
+    else if (s.id === 'leap_crash') { this.aura(r); this.scene.time.delayedCall(r.timings.startup, () => { const c = this.casterPos(r.attackerId) ?? r.origin; this.leapBurst(c.x, c.y - c.z, r.aim.x < 0 ? -1 : 1); }); } // the take-off: a burst of light at his feet, the crater comes on the landing
     else if (s.id === 'earthsplitter') this.aura(r); // (the charge: his aura while the key is held; the split itself plays on the release, onActive)
     else if (s.id === 'iron_oath') this.oathSigil(r);
     else if (s.id === 'legacy_banner') { // planted in front of the caster where the sword comes down (every client sees it)
