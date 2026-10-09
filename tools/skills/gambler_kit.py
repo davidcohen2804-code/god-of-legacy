@@ -19,6 +19,9 @@ OUT = os.path.join(ROOT, 'public', 'assets', 'final', 'skills', 'gambler', 'kit'
 # sheet -> (background, columns, rows, piece names in reading order, size the piece is kept at (longest side px))
 SHEETS = {
     'cards': ('green', 4, 2, ['card_back', 'card_face', 'card_S', 'card_H', 'card_D', 'card_C', 'card_ace', 'card_joker'], 168),
+    'casino': ('green', 4, 2, ['c_wheel', 'c_ball', 'c_die_a', 'c_die_b', 'c_coin_h', 'c_coin_t', 'c_chip', 'c_stack'], 420, False),
+    'luck': ('black', 4, 2, ['j_slot', 'j_cherry', 'j_bell', 'j_star', 'j_clover', 'j_ring', 'j_fountain', 'j_jackpot'], 360),
+    'staff': ('black', 4, 2, ['s_swing', 's_heavy', 's_disc', 's_thrust', 's_rise', 's_vault', 's_homerun', 's_crack'], 360),
     'kinetic': ('black', 4, 2, ['k_streak', 'k_charge', 'k_pop', 'k_blast', 'k_ring', 'k_beam', 'k_vortex', 'k_arcs'], 320),
 }
 
@@ -40,14 +43,65 @@ def key_black(rgb):
 
 
 def cut(name):
-    bg, cols, rows, names, keep = SHEETS[name]
+    bg, cols, rows, names, keep, *rest = SHEETS[name]
+    split = rest[0] if rest else True  # False: a wide piece (the roulette wheel) is never cut along the grid
     im = np.array(Image.open(os.path.join(SRC, f'gambler_{name}.png')).convert('RGB'))
     rgba = key_green(im) if bg == 'green' else key_black(im)
     H, W = rgba.shape[:2]
     os.makedirs(OUT, exist_ok=True)
+    # every blob belongs to the grid cell its weight centre falls in (a piece may reach over its cell's border)
+    a0 = rgba[..., 3] > (40 if bg == 'green' else 14)
+    grp, ng = ndimage.label(ndimage.binary_dilation(a0, iterations=3))
+    cen = ndimage.center_of_mass(a0, grp, range(1, ng + 1))
+    cell_of = np.zeros(ng + 1, np.int32) - 1
+    for k, (yy, xx) in enumerate(cen, start=1):
+        if np.isnan(yy): continue
+        cell_of[k] = int(min(rows - 1, yy // (H / rows)) * cols + min(cols - 1, xx // (W / cols)))
+    owner = cell_of[grp]; owner[grp == 0] = -1
+    # two pieces that touch (one blob much wider / taller than a cell): split along the grid instead
+    yy, xx = np.mgrid[0:H, 0:W]
+    grid = (np.minimum(rows - 1, yy // (H / rows)) * cols + np.minimum(cols - 1, xx // (W / cols))).astype(np.int32)
+    for k, sl in enumerate(ndimage.find_objects(grp), start=1):
+        if split and sl and ((sl[1].stop - sl[1].start) > 1.35 * W / cols or (sl[0].stop - sl[0].start) > 1.35 * H / rows):
+            m = grp[sl] == k
+            # its cores (the blob worn down until the pieces part), each pixel to the nearest core, each core to its cell
+            for it in (4, 8, 12, 18, 26):
+                core, nc = ndimage.label(ndimage.binary_erosion(m & a0[sl], iterations=it))
+                csz = ndimage.sum(core > 0, core, range(1, nc + 1))
+                big = [j + 1 for j in range(nc) if csz[j] > 0.04 * m.sum()]
+                if len(big) >= 2: break
+            if len(big) >= 2:
+                seeds = np.where(np.isin(core, big), core, 0)
+                _, (iy, ix) = ndimage.distance_transform_edt(seeds == 0, return_indices=True)
+                near = seeds[iy, ix]
+                cc = {j: ndimage.center_of_mass(seeds == j) for j in big}
+                to = {j: int(min(rows - 1, (cc[j][0] + sl[0].start) // (H / rows)) * cols + min(cols - 1, (cc[j][1] + sl[1].start) // (W / cols))) for j in big}
+                sub = owner[sl]; sub[m] = np.vectorize(lambda j: to.get(j, -1))(near[m])
+            else: # no clean cores: cut along the darkest winding path near each grid line inside the blob
+                sub = owner[sl]; gy = grid[sl].copy()
+                x0, y0 = sl[1].start, sl[0].start
+                lum = rgba[sl][..., 3].astype(np.float64)
+                for kc in range(1, cols):
+                    gx = int(kc * W / cols) - x0
+                    if not (0 < gx < lum.shape[1]): continue
+                    lo, hi = max(0, gx - 90), min(lum.shape[1], gx + 90)
+                    cost = lum[:, lo:hi] + 1; acc = cost[0].copy(); back = np.zeros(cost.shape, np.int8)
+                    for yy_ in range(1, cost.shape[0]):
+                        l = np.r_[np.inf, acc[:-1]]; r_ = np.r_[acc[1:], np.inf]; best = np.minimum(np.minimum(l, acc), r_)
+                        back[yy_] = np.where(best == l, -1, np.where(best == r_, 1, 0)); acc = best + cost[yy_]
+                    xx_ = int(np.argmin(acc)); path = np.zeros(cost.shape[0], int)
+                    for yy_ in range(cost.shape[0] - 1, -1, -1): path[yy_] = lo + xx_; xx_ += int(back[yy_, xx_]) if yy_ else 0
+                    cx_ = np.arange(lum.shape[1])[None, :]
+                    left = cx_ < path[:, None]
+                    rowcell = (np.minimum(rows - 1, (np.arange(lum.shape[0])[:, None] + y0) // (H / rows)) * cols).astype(np.int32)
+                    band = (cx_ >= lo) & (cx_ < hi)
+                    gy = np.where(band, np.where(left, rowcell + kc - 1, rowcell + kc), gy)
+                sub[m] = gy[m]
     for i, nm in enumerate(names):
-        r, c = divmod(i, cols)
-        cell = rgba[r * H // rows:(r + 1) * H // rows, c * W // cols:(c + 1) * W // cols]
+        m = owner == i
+        ys, xs = np.where(m)
+        sl = (slice(ys.min(), ys.max() + 1), slice(xs.min(), xs.max() + 1))
+        cell = rgba[sl].copy(); cell[..., 3] = np.where(m[sl], cell[..., 3], 0)
         a = cell[..., 3] > (40 if bg == 'green' else 14)
         lab, k = ndimage.label(a)
         if k:

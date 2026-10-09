@@ -862,8 +862,8 @@ const gambler: FinalSkill[] = [
     id: 'dice_bomb', cls: 'gambler', slot: 10, name: 'Dice Bomb', roles: ['zone', 'projectile'], targeting: 'mouseDir',
     startup: 300, active: 700, recovery: 220, cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     // two dice roll along the floor and burst; the sum sets the size (Gamble.ts), a double bursts twice and stuns
-    hits: [H(560, 14, { kind: 'circle', radius: 110, at: 'aimBias', bias: 220 }, { stun: 400, push: 40 }, { reachUp: 90, heavy: true }),
-      H(640, 14, { kind: 'circle', radius: 110, at: 'aimBias', bias: 270 }, { stun: 400, push: 40, launch: 50 }, { reachUp: 90, heavy: true })],
+    hits: [H(560, 14, { kind: 'circle', radius: 120, at: 'aimBias', bias: 140 }, { stun: 400, push: 40 }, { reachUp: 90, heavy: true }),
+      H(640, 14, { kind: 'circle', radius: 120, at: 'aimBias', bias: 195 }, { stun: 400, push: 40, launch: 50 }, { reachUp: 90, heavy: true })],
     cancelOnHit: ['cut_the_deck', 'charged_deal', 'staff_vault', 'roulette_wheel'], telegraph: 'line',
     description: 'Roll two glowing dice along the floor: they tumble forward and burst. The higher the roll (2 to 12), the bigger the blast; a double bursts twice and stuns.',
     relations: ['Blast by the roll', 'Double: stun'],
