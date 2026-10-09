@@ -67,8 +67,9 @@ const BOT_LOOK = 'back:war_cape_shadow_smoke,aura:war_aura_shadow_flame,gear:w1t
 /** A Master in his trial: his job's sword (the rest of his job set comes as it is drawn). */
 const TRIAL_LOOK = 'gear:w2t0p0s0h1a1b1';
 const rnd = (a: number, b: number) => a + Math.random() * (b - a);
-/** Open middle of the courtyard (fallback direction when wedged against a prop). */
+/** Open middle of the arena's stage (fallback direction when wedged against a prop): set by the scene for its stage. */
 const ARENA_CENTRE = { x: 835, y: 640 };
+export function setBotCentre(x: number, y: number): void { ARENA_CENTRE.x = x; ARENA_CENTRE.y = y; }
 /** A Master's trial (the open world): his own name, a boss's HP, he can be beaten, and the floor's middle to fall back to. */
 export interface BotTrial { name: string; hp: number; centre: { x: number; y: number } }
 

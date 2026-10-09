@@ -31,8 +31,9 @@ import { addExp, expToNext } from '../game/Progression';
 import { passiveIconUrl, passivesFor } from '../skills/Passives';
 import { LEVITATE, NO_PASSIVES, ORBS, PassiveStats, REGEN, SHINSOKU, WAR_LEAP, WEAVE, ownedPassives, passiveStats } from '../skills/Passives';
 import { SKILL_BLOCKERS, WORLD_OBJECTS, actorDepth, arenaPt, arenaRect, supportAt, footAllowed, insideArena, placementOk, pushOutOfBlockers, useArenaGeometry } from '../world/WorldGeometry';
-/** The arena's spawn points (PVP.spawnPoints are on the courtyard painting: shown bigger in the arena). */
-const arenaSpawns = (): { x: number; y: number }[] => PVP.spawnPoints.map((p) => { const [x, y] = arenaPt(p.x, p.y); return { x, y }; });
+/** The arena's spawn points (on its stage's painting: shown bigger in the arena). */
+let ARENA_SPAWNS: [number, number][] = PVP.spawnPoints.map((p) => [p.x, p.y]);
+const arenaSpawns = (): { x: number; y: number }[] => ARENA_SPAWNS.map(([px, py]) => { const [x, y] = arenaPt(px, py); return { x, y }; });
 import { OpenWorld, preloadOpenWorld } from '../world/OpenWorld';
 import { AreaNpc, IDLE_LINES, MOB_KINDS, QUESTS, QuestDef, START, TOWERS, CLOUDS, SKY, SKY_DROP, HEIGHTS, type Tower, toWorld } from '../world/Areas';
 import type { Monster } from '../world/Monster';
@@ -55,7 +56,7 @@ import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
 import { NetMsg, PeerMeta } from '../pvp/Transport';
 import { genderOf, headLookOf, previewKeyOf } from '../characters/Look';
 import { buildLook, preloadLooks } from '../characters/LookArt';
-import { BOT_ID, BOT_NAME, BOT_NAMES, SparringBot } from '../pvp/SparringBot';
+import { BOT_ID, BOT_NAME, BOT_NAMES, SparringBot, setBotCentre } from '../pvp/SparringBot';
 import { RARITY, BAG_MAX, DEFAULT_QUICK, GOLD_BIG, GOLD_ICON, GOLD_MAX, ITEMS, ITEM_IDS, POTION_DELAY, STARTER_BAG, cleanBag, cleanQuick, fmtGold, rollDrops, usable, type Drop } from '../game/Loot';
 import { AP_PER_LEVEL, BASE_STAT, STAT_KEYS, Derived, StatKey, Stats, autoAssign, baseStats, cleanStats, derive, freeAp, mainStats } from '../game/Stats';
 import { ShopWindow } from '../ui/ShopWindow';
@@ -412,7 +413,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // Weapon masks only when your own look already needs them (others load on first need).
     const masks = me && cls && wantsWeaponMasks(cls, CharacterStore.getCosmetics(me.id).equipped as Equipped) ? [cls] : [];
     this.stage = pvp ? stageOf(sd?.pvpRoom) : undefined;
-    if (this.stage && !this.textures.exists(this.stage.key)) this.load.image(this.stage.key, this.stage.file); // the arena: its stage's painting
+    if (this.stage) { if (!this.textures.exists(this.stage.key)) this.load.image(this.stage.key, this.stage.file); } // the arena: its stage's painting
     else preloadOpenWorld(this); // the open world: the start area and its neighbours (the rest streams in)
     if (!this.textures.exists(CT.dummy.key)) this.load.image(CT.dummy.key, CT.dummy.file);
     preloadBodies(this, classes, masks);
@@ -481,7 +482,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       { depth: 1500, tint: 0xffd9a0, size: [5, 9], speed: [3, 8], drift: 10, alpha: 0.32 });
     this.quests = CharacterStore.getQuests(character.id);
     if (pvpRoom) {
-      useArenaGeometry();
+      useArenaGeometry(this.stage!.geo); // the stage's own floor and props
+      ARENA_SPAWNS = this.stage!.geo.spawns;
+      setBotCentre(...arenaPt(...this.stage!.geo.centre)); // (the sparring partner falls back toward the stage's open middle)
       const mapKey = this.stage?.key ?? T.map.key, R = AR!;
       this.add.image(R.x, R.y, mapKey).setOrigin(0, 0).setScale(R.s).setDepth(-1);
       // The skill tray covers the bottom of the screen: the camera follows you up / down so the whole floor stays
@@ -3503,7 +3506,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Every round (and the VS before the first): both fighters on their marks, facing each other, whole again. */
   private placeForRound(m: Match): void {
-    const S = PVP.battle.start, left = m.sideOf(this.localId) === 'l';
+    const g = this.stage?.geo.start, [sl, sy] = g ? arenaPt(g.left, g.y) : [PVP.battle.start.left, PVP.battle.start.y], sr = g ? arenaPt(g.right, g.y)[0] : PVP.battle.start.right;
+    const S = { left: sl, right: sr, y: sy }, left = m.sideOf(this.localId) === 'l'; // the stage's round marks
     this.roundReset(left ? S.left : S.right, S.y, left ? 1 : -1);
     this.rt?.cancelAttacker(m.opponent);
     this.remoteCasts.clear(); // a new round: the opponent's skills are all ready again too (its earlier casts no longer count against it)

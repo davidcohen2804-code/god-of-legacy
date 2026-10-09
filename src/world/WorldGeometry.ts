@@ -30,7 +30,7 @@ export interface WorldObject {
 }
 
 /** The PvP arena (Legacy Courtyard map) props. */
-const COURTYARD_OBJECTS: WorldObject[] = [
+export const COURTYARD_OBJECTS: WorldObject[] = [
   {
     id: 'stone-pedestal',
     footprint: [[419, 487], [545, 487], [547, 535], [419, 535]],
@@ -81,8 +81,11 @@ const arenaObject = (o: WorldObject): WorldObject => ({
   height: o.height * ARENA_VIEW.scale, topZ: o.topZ === undefined ? undefined : o.topZ * ARENA_VIEW.scale,
   ...(o.base ? { base: arenaPoly(o.base) } : {}),
 });
-/** The PvP arena: the closed Legacy Courtyard floor and its props, at the arena's size. */
-export const useArenaGeometry = (): void => setWorldGeometry(arenaPoly(WORLD.walkablePolygon as Pt[]), COURTYARD_OBJECTS.map(arenaObject));
+/** A PvP stage's layout, in its painting's pixels (1672x941, as the courtyard's): the walkable floor, its props, the
+ *  spawn points, the round's marks (y, left x, right x) and its open middle. */
+export interface StageGeo { floor: Pt[]; props: WorldObject[]; spawns: Pt[]; start: { y: number; left: number; right: number }; centre: Pt }
+/** The PvP arena: a stage's closed floor and its props, at the arena's size. */
+export const useArenaGeometry = (g: StageGeo): void => setWorldGeometry(arenaPoly(g.floor), g.props.map(arenaObject));
 
 export function pointInPoly(x: number, y: number, poly: readonly Pt[]): boolean {
   let c = false;
