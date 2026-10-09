@@ -118,10 +118,11 @@ export const areaAt = (x: number): AreaDef => ROW.find((a) => x < a.span[1]) ?? 
  *  its top edge (depth), and walks or jumps onto it from any side. */
 /** Stone towers you climb by jumping from one to the next (src/data/world-towers.json, map px of their area): drawn by
  *  the game (not part of the strip's picture), solid from the floor to their flat top. */
-export interface Tower { id: string; x0: number; x1: number; front: number; h: number; depth: number; /** the ground it stands on (a map above: its height) */ base: number; /** flush against the wall: solid back to this y */ solid?: number }
+export interface Tower { id: string; x0: number; x1: number; front: number; h: number; depth: number; /** the ground it stands on (a map above: its height) */ base: number; /** flush against the wall: solid back to this y */ solid?: number;
+  /** A treasure on its top: this item, back every `every` s once taken (a reward for the climb). */ reward?: { item: string; every: number } }
 const FOOT_R = 10, EDGE = 2;
-export const TOWERS: Tower[] = Object.entries(TOWER_DATA as unknown as Record<string, { id: string; x: [number, number]; front: number; h: number; depth: number; base?: number; solid_to?: number }[]>)
-  .filter(([a]) => AREAS[a]).flatMap(([a, list]) => list.map((t) => ({ id: `${a}-${t.id}`, x0: AREAS[a].x + t.x[0], x1: AREAS[a].x + t.x[1], front: t.front, h: t.h, depth: t.depth, base: t.base ?? 0, solid: t.solid_to })));
+export const TOWERS: Tower[] = Object.entries(TOWER_DATA as unknown as Record<string, { id: string; x: [number, number]; front: number; h: number; depth: number; base?: number; solid_to?: number; reward?: { item: string; every: number } }[]>)
+  .filter(([a]) => AREAS[a]).flatMap(([a, list]) => list.map((t) => ({ id: `${a}-${t.id}`, x0: AREAS[a].x + t.x[0], x1: AREAS[a].x + t.x[1], front: t.front, h: t.h, depth: t.depth, base: t.base ?? 0, solid: t.solid_to, reward: t.reward })));
 const towerProps = () => TOWERS.map((t) => {
   const s0 = t.front - t.depth, back = s0 - t.h + FOOT_R - EDGE;
   return { id: t.id, foot: [[t.x0, back], [t.x1, back], [t.x1, t.front], [t.x0, t.front]] as Pt[], base: [[t.x0, t.solid ?? s0], [t.x1, t.solid ?? s0], [t.x1, t.front], [t.x0, t.front]] as Pt[],

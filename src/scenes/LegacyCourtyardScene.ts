@@ -32,7 +32,7 @@ import { passiveIconUrl, passivesFor } from '../skills/Passives';
 import { LEVITATE, NO_PASSIVES, ORBS, PassiveStats, REGEN, SHINSOKU, WAR_LEAP, WEAVE, ownedPassives, passiveStats } from '../skills/Passives';
 import { SKILL_BLOCKERS, WORLD_OBJECTS, actorDepth, supportAt, footAllowed, insideArena, placementOk, pushOutOfBlockers, useArenaGeometry } from '../world/WorldGeometry';
 import { OpenWorld, preloadOpenWorld } from '../world/OpenWorld';
-import { AreaNpc, IDLE_LINES, MOB_KINDS, QUESTS, QuestDef, START, toWorld } from '../world/Areas';
+import { AreaNpc, IDLE_LINES, MOB_KINDS, QUESTS, QuestDef, START, TOWERS, type Tower, toWorld } from '../world/Areas';
 import type { Monster } from '../world/Monster';
 import { AreaTitle, DialogChoice, NpcDialog } from '../ui/WorldUI';
 import { QuestState } from '../characters/CharacterTypes';
@@ -47,7 +47,7 @@ import { NetMsg, PeerMeta } from '../pvp/Transport';
 import { genderOf, headLookOf, previewKeyOf } from '../characters/Look';
 import { buildLook, preloadLooks } from '../characters/LookArt';
 import { BOT_ID, BOT_NAME, BOT_NAMES, SparringBot } from '../pvp/SparringBot';
-import { RARITY, BAG_MAX, DEFAULT_QUICK, GOLD_BIG, GOLD_ICON, GOLD_MAX, ITEMS, ITEM_IDS, POTION_DELAY, STARTER_BAG, cleanBag, cleanQuick, fmtGold, rollDrops, usable } from '../game/Loot';
+import { RARITY, BAG_MAX, DEFAULT_QUICK, GOLD_BIG, GOLD_ICON, GOLD_MAX, ITEMS, ITEM_IDS, POTION_DELAY, STARTER_BAG, cleanBag, cleanQuick, fmtGold, rollDrops, usable, type Drop } from '../game/Loot';
 import { AP_PER_LEVEL, BASE_STAT, STAT_KEYS, Derived, StatKey, Stats, autoAssign, baseStats, cleanStats, derive, freeAp, mainStats } from '../game/Stats';
 import { ShopWindow } from '../ui/ShopWindow';
 import { StatsWindow } from '../ui/StatsWindow';
@@ -99,7 +99,7 @@ const MP_REGEN = 0.03, MP_ARENA = 220;
 const MP_CLASS: Record<string, number> = { warrior: 0.8, samurai: 0.9, archer: 1, book_mage: 1.6 };
 /** A skill's MP: none for the regular attack and passives / buffs' own cost by cooldown (the big ones cost more). */
 interface LootDrop { kind: 'gold' | 'item'; id?: string; amount: number; img: Phaser.GameObjects.Image; sh: Phaser.GameObjects.Ellipse; glow: Phaser.GameObjects.Image; beam?: Phaser.GameObjects.Image; sz: number; bounced: boolean; seed: number; nextGlint: number;
-  x: number; y: number; z: number; vx: number; vz: number; landed: boolean; base: number; born: number; taken: number; done?: boolean }
+  x: number; y: number; z: number; vx: number; vz: number; landed: boolean; base: number; born: number; taken: number; done?: boolean; /** a treasure waiting on a perch: never fades */ keep?: boolean }
 const mpCost = (s: FinalSkill): number => (s.slot === 0 ? 0 : Math.min(60, Math.round(6 + (s.cooldown / 1000) * 2.2)));
 /** The slash-trail art (radiant_blade/slash_trail.jpg, 288 cells): its arc's circle (centre as a fraction of the cell, radius px) and the angle of its bright head (deg, y down). */
 const SLASH = { cx: 189 / 288, cy: 81 / 288, r: 122, head: 190 };
@@ -346,6 +346,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private itemSpeedUntil = -1;
   private useAt: Record<string, number> = {};
   private drops: LootDrop[] = [];
+  /** The cube perches' treasures (stepTreasures). */
+  private treasures?: { t: Tower; next: number; drop: LootDrop | null }[];
   shop?: ShopWindow;
   /** The area's name last shown (one title for an area of several maps). */
   private areaName = '';
@@ -406,7 +408,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.cls = playedClass(character) as ClassKey;
     this.stats = cleanStats(character.stats, character.level); this.statD = derive(this.stats, this.cls, character.level);
     this.kit = kitFor(this.cls);
-    this.gold = character.gold ?? 0; this.bag = cleanBag(character.bag ?? STARTER_BAG); this.quick = cleanQuick(character.quick); this.seen = new Set(character.seen ?? Object.keys(this.bag)); this.potionAt = [-Infinity, -Infinity]; this.drops = []; this.itemDmgUntil = -1; this.itemSpeedUntil = -1; this.useAt = {};
+    this.gold = character.gold ?? 0; this.bag = cleanBag(character.bag ?? STARTER_BAG); this.quick = cleanQuick(character.quick); this.seen = new Set(character.seen ?? Object.keys(this.bag)); this.potionAt = [-Infinity, -Infinity]; this.drops = []; this.treasures = undefined; this.itemDmgUntil = -1; this.itemSpeedUntil = -1; this.useAt = {};
     this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.hitBlinkUntil = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
     this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
@@ -675,7 +677,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const now = this.simMs;
     this.ci.update(now);
     this.stepPlayer(ms, now);
-    if (this.world) { this.stepMonsters(ms, now); this.stepLoot(ms, now); }
+    if (this.world) { this.stepMonsters(ms, now); this.stepTreasures(); this.stepLoot(ms, now); }
     this.rt.update(ms);
     this.stepLingers(now);
     this.stepStorm();
@@ -963,10 +965,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.arena || !this.character) return;
     this.lootTextures();
     const list = rollDrops(Object.entries(MOB_KINDS).find(([, k]) => k === m.kind)?.[0], m.kind.exp ?? Math.round(m.kind.hp / 5));
+    this.spawnDrops(list, m.kin, supportAt(m.kin.x, m.kin.y, m.kin.z + 1).z);
+  }
+
+  /** Drops thrown up from a spot (x, y, height z), landing on the floor at `base`. */
+  private spawnDrops(list: Drop[], at: { x: number; y: number; z: number }, base: number, toss = 1): LootDrop[] {
+    const made: LootDrop[] = [];
     list.forEach((d, i) => {
       const gold = d.kind === 'gold', big = gold && d.amount >= GOLD_BIG;
       const sz = gold ? (big ? 34 : 28) : 36;
-      const x = m.kin.x, y = m.kin.y + (Math.random() - 0.5) * 12;
+      const x = at.x, y = at.y + (Math.random() - 0.5) * 12;
       const img = gold ? this.add.sprite(x, y, 'loot.coin', 0).play({ key: 'loot.coin.spin', startFrame: Math.floor(Math.random() * 8) }) : this.add.image(x, y, `loot.${d.id}`);
       img.setOrigin(0.5, 0.9).setDisplaySize(sz, sz);
       if (big) img.setTint(0xfff0c0);
@@ -976,9 +984,27 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const beam = rar === 'rare' ? this.add.image(x, y, 'loot.beam').setOrigin(0.5, 0.92).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setDisplaySize(46, 150) : undefined;
       const sh = this.add.ellipse(x, y, sz * 0.7, sz * 0.2, 0x000000, 0.3);
       const spread = (i - (list.length - 1) / 2) * 30;
-      this.drops.push({ ...d, img, sh, glow, sz, x, y, z: Math.max(14, m.kin.z + 34), vx: spread * 2.4 + (Math.random() - 0.5) * 120, vz: 360 + Math.random() * 60,
-        beam, base: supportAt(m.kin.x, m.kin.y, m.kin.z + 1).z, landed: false, bounced: false, born: this.simMs, taken: -1, seed: Math.random() * 6.28, nextGlint: this.simMs + 600 + Math.random() * 1400 });
+      const drop: LootDrop = { ...d, img, sh, glow, sz, x, y, z: Math.max(base + 14, at.z + 34), vx: (spread * 2.4 + (Math.random() - 0.5) * 120) * toss, vz: (360 + Math.random() * 60) * (0.5 + 0.5 * toss),
+        beam, base, landed: false, bounced: false, born: this.simMs, taken: -1, seed: Math.random() * 6.28, nextGlint: this.simMs + 600 + Math.random() * 1400 };
+      this.drops.push(drop); made.push(drop);
     });
+    return made;
+  }
+
+  /** The treasures on the tops of the cube perches (Areas.TOWERS reward): one waits up there; taken (or faded), another
+   *  comes back after its time. */
+  private stepTreasures(): void {
+    if (this.arena || !this.character || !this.world) return;
+    if (!this.treasures) this.treasures = TOWERS.filter((t) => t.reward && ITEMS[t.reward.item]).map((t) => ({ t, next: 0, drop: null as LootDrop | null }));
+    for (const q of this.treasures) {
+      if (q.drop && !q.drop.done && q.drop.taken < 0 && this.drops.includes(q.drop)) continue;
+      if (q.drop) { q.drop = null; q.next = this.simMs + q.t.reward!.every * 1000; }
+      if (this.simMs < q.next) continue;
+      this.lootTextures();
+      const top = q.t.base + q.t.h, x = (q.t.x0 + q.t.x1) / 2, y = q.t.front - q.t.depth / 2;
+      q.drop = this.spawnDrops([{ kind: 'item', id: q.t.reward!.item, amount: 1 }], { x, y, z: top }, top, 0)[0] ?? null;
+      if (q.drop) q.drop.keep = true;
+    }
   }
 
   /** Drops fly, bounce, bob gently with a soft light under them and a glint now and then; walked over: they swoop into
@@ -1007,7 +1033,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         d.glow.setAlpha(Math.min(1, age / 300) * (0.55 + Math.sin(age / 420 + d.seed) * 0.2));
         d.beam?.setAlpha(Math.min(1, age / 400) * (0.75 + Math.sin(age / 300) * 0.2));
         if (now >= d.nextGlint) { d.nextGlint = now + 1400 + Math.random() * 1800; this.lootGlint(d); }
-        if (age > 60_000) { const f = Math.max(0, 1 - (age - 60_000) / 3000); d.img.setAlpha(f); d.glow.setAlpha(d.glow.alpha * f); if (age > 63_000) d.done = true; }
+        if (age > 60_000 && !d.keep) { const f = Math.max(0, 1 - (age - 60_000) / 3000); d.img.setAlpha(f); d.glow.setAlpha(d.glow.alpha * f); if (age > 63_000) d.done = true; }
         if (alive && age > 250 && Math.abs(d.x - k.x) < 40 && Math.abs(d.y - k.y) < 24 && Math.abs(k.z - d.base) < 50) this.takeDrop(d, now);
       }
       d.img.setPosition(d.x, d.y - d.z).setDepth(actorDepth(d.x, d.y, d.z) - 0.2).setDisplaySize(d.sz * (2 - sq), d.sz * sq);
