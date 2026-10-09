@@ -14,7 +14,8 @@ export const MAGE_KIT_URL = 'assets/final/skills/book_mage/kit/';
 /** Painted animated effects (GPT sheets on black, drawn additive): key → [file, frame w, frame h, frames]. */
 export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
   'mfx-pillar': ['astral_pillar.png', 384, 384, 16],
-  'mfx-storm': ['arcane_lightning.png', 384, 384, 16], // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
+  'mfx-storm': ['arcane_lightning.png', 384, 384, 16],
+  'mfx-nova': ['frost_nova.png', 448, 448, 16], // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
 };
 const TOP = 100000, GROUND = 2, SQUASH = 0.42;
 const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
@@ -538,7 +539,9 @@ export class MageFx {
     this.smoke(x, y - 20, 560, 1, 700, { squash: 0.5, depth: y + 3, delay: 60 });
     this.warp.ring(x, cy, { r1: 280, life: 340, s: 24, width: 26 });
     this.star(x, cy, 300, 280, { rays: 6 });
-    for (let k = 0; k < 22; k++) { // the crown of crystals, two rings
+    const painted = this.ctx.scene.textures.exists('mfx-nova');
+    if (painted) this.sheet('mfx-nova', x, y, 540, 1150, { oy: 0.62, depth: y - 2 }); // drawn behind him: he stands in its hollow centre
+    for (let k = 0; k < (painted ? 0 : 22); k++) { // the crown of crystals, two rings
       const outer = k >= 12, n = outer ? 10 : 12, i = outer ? k - 12 : k;
       const a = (i / n) * Math.PI * 2 + (outer ? 0.3 : 0) + rnd(-0.1, 0.1), rr = outer ? rnd(230, 280) : rnd(130, 170), sx = x + Math.cos(a) * rr, sy = y + Math.sin(a) * rr * SQUASH, big = !outer && k % 2 === 0;
       const w = big ? rnd(60, 76) : rnd(38, 52), h = big ? rnd(160, 210) : rnd(90, 130), delay = (outer ? 90 : 30) + (i % 5) * 14, hold = 600;
