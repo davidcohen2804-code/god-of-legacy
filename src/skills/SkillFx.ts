@@ -336,7 +336,7 @@ export class SkillFx {
       return;
     }
     if (s.cls === 'gambler') { // the gambler: drawn in code (GamblerFx)
-      if (s.telegraph && s.slot !== 7) this.telegraph(r);
+      if (s.telegraph && s.slot !== 7 && s.id !== 'dice_bomb' && s.id !== 'roulette_wheel') this.telegraph(r); // the dice and the wheel mark their own ground (GamblerFx)
       this.gamb.cast(r);
       return;
     }
@@ -2034,7 +2034,7 @@ export class SkillFx {
   gambleClear(id: string): void { this.gamb.clearBuffs(id); }
   cardStep(x: number, y: number, dir: number): void { this.gamb.cardStep(x, y, dir); }
   gambleZone(id: string, x: number, y: number, r: number): void { this.gamb.zone(id, x, y, r); }
-  gambleFollow(skill: string, id: string, hit: number): void { this.gamb.follow(skill, id, hit); }
+  gambleFollow(skill: string, id: string, hit: number, by?: string): void { this.gamb.follow(skill, id, hit, by); }
   cheatDeath(x: number, y: number): void { this.gamb.cheatDeath(x, y); }
   archerMark(id: string, n: number, ms: number): void { this.arch.mark(id, n, ms, () => this.targetPos?.(id) ?? null); }
   archerMarkSpend(id: string, n: number, _kind: string): void { this.arch.markSpend(id, n, () => this.targetPos?.(id) ?? null); }

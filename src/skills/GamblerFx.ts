@@ -292,7 +292,13 @@ export class GamblerFx {
       case 'fuse_slam': this.scar(o.x + r.aim.x * 70, o.y + r.aim.y * 70, 90); this.ctx.shockwave(o.x + r.aim.x * 70, o.y + r.aim.y * 70, 140, FUCHSIA); this.ctx.cam().shake(140, 0.006); break;
       case 'riffle_shuffle': if (i === r.hits.length - 1) { const tor = this.kit('x_tornado', o.x, o.y, 260, o.y + 3); if (tor) { tor.setOrigin(0.5, 0.97); const t0 = tor.scale; this.piece(tor, 460, (u, im) => im.setScale(t0 * lerp(1, 1.3, u), t0 * lerp(0.8, 1.2, out3(u))).setFlipX(Math.floor(u * 10) % 2 === 1).setAlpha(1 - u * u)); } this.floorRing(o.x, o.y, 170, FUCHSIA_2, 380); this.shards(o.x, y0 - 50, 18, 200, 520); } break;
       case 'rotor_staff': if (i === r.hits.length - 1) { if (!this.stroke('s_thrust', o.x + side * 24, y0 - 56, 210, side, 300, d, 0, 0.05, 0.5)) this.band(o.x + side * 30, y0 - 56, 150, side > 0 ? 0 : 180, 260, 30, d); this.pop(o.x + side * 150, y0 - 56, 120); } break;
-      case 'kinetic_grab': if (i === 1) this.stroke('s_heavy', o.x + side * 50, y0 - 64, 180, side, 300, d); break;
+      case 'kinetic_grab': if (i === 0) { // the reach: a hand of kinetic light shoots out from his palm and clenches
+        const h = this.ctx.hand(r.attackerId) ?? { x: o.x + side * 26, y: y0 - 64 }, tx = o.x + side * 90, ty = y0 - 50;
+        const g = this.kit('x_grip', h.x, h.y, 150, d + 2);
+        if (g) { const g0 = g.scale; g.setFlipX(side < 0); this.piece(g, 300, (u, im) => { const k = out3(clamp01(u * 2.2)); im.setPosition(lerp(h.x, tx, k), lerp(h.y, ty, k)).setScale(g0 * (u < 0.45 ? lerp(0.5, 1.1, k) : lerp(1.1, 0.55, (u - 0.45) / 0.55))).setAlpha(u < 0.75 ? 1 : (1 - u) / 0.25); }); }
+        this.band(h.x, h.y, Math.abs(tx - h.x) + 20, side > 0 ? 0 : 180, 200, 16, d + 1);
+      }
+      if (i === 1) this.stroke('s_heavy', o.x + side * 50, y0 - 64, 180, side, 300, d); break;
       case 'grand_slam': break;
       case 'dice_bomb': this.diceBlast(r, i); break;
       case 'roulette_wheel': if (i === r.hits.length - 1) this.rouletteEnd(r); break;
@@ -428,7 +434,7 @@ export class GamblerFx {
   private thrownBomb(_at: V3): void { /* drawn by follow() from the scene (it knows the foe) */ }
 
   /** Effects that ride on a foe the gambler struck (the scene tells which foe): the grab's charge and throw, the home run's comet. */
-  follow(skill: string, id: string, hit: number): void {
+  follow(skill: string, id: string, hit: number, by?: string): void {
     const tp0 = this.ctx.targetPos(id); if (!tp0) return;
     const s = this.ctx.scene, H = tp0.h ?? 90;
     const at = () => { const t = this.ctx.targetPos(id); return t ? { x: t.x, y: t.y - t.z - H * 0.5, d: t.y } : null; };
@@ -443,11 +449,33 @@ export class GamblerFx {
         return true;
       });
       this.ctx.callout({ x: tp0.x, y: tp0.y, z: tp0.z + 20 }, 'GRAB!', '#ff7ae6', 1);
+      // the snap: the grip slams shut on him (big → tight), a white flash, a beat of hit-stop
+      this.ctx.freeze(70); this.ctx.cam().shake(110, 0.006);
+      const snap = this.kit('x_grip', tp0.x, tp0.y - tp0.z - H * 0.5, H * 2.6, tp0.y + 5);
+      if (snap) { const s0 = snap.scale; this.piece(snap, 220, (u, o) => o.setScale(s0 * lerp(1, 0.42, out3(u))).setAlpha(u < 0.7 ? 1 : (1 - u) / 0.3)); }
+      this.pop(tp0.x, tp0.y - tp0.z - H * 0.5, H * 1.5, 0xffffff, 200);
+      // the tether: a crackling bolt from his hand to the foe while he holds him
+      if (by) {
+        const bolt = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+        this.add((t) => {
+          const p = at(), h = this.ctx.hand(by); if (!p || !h || t > 500) { bolt.destroy(); return false; }
+          bolt.clear().setDepth(Math.max(p.d, h.y) + 4);
+          const n = 9, jit = 10 + 6 * Math.sin(t * 0.05), pts: [number, number][] = [];
+          for (let i = 0; i <= n; i++) { const k = i / n, e = i === 0 || i === n ? 0 : jit; pts.push([lerp(h.x, p.x, k) + rnd(-e, e) * 0.4, lerp(h.y, p.y, k) + rnd(-e, e) - Math.sin(k * Math.PI) * 12]); }
+          for (const [w, c, a] of [[12, FUCHSIA, 0.35], [5, FUCHSIA_2, 0.85], [2, 0xffffff, 1]] as const) { bolt.lineStyle(w, c, a); bolt.beginPath(); bolt.moveTo(pts[0][0], pts[0][1]); for (const q of pts.slice(1)) bolt.lineTo(q[0], q[1]); bolt.strokePath(); }
+          return true;
+        });
+      }
     }
     if ((skill === 'kinetic_grab' && hit === 1) || skill === 'grand_slam') { // thrown: a comet of fuchsia light streams behind the flying body
       const big = skill === 'grand_slam', g = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD), glow = this.glow(0, 0, H * (big ? 1.4 : 1.2), FUCHSIA, 0);
       const pts: { x: number; y: number }[] = []; let lastBurst = 0;
       const comet = this.kit('x_comet', tp0.x, tp0.y - tp0.z - H * 0.5, big ? 300 : 220, tp0.y + 1); comet?.setOrigin(0.92, 0.5);
+      if (!big) { // the throw: the charge goes critical — a white burst on him, a shock ring, the tether snaps
+        const y = tp0.y - tp0.z - H * 0.5; this.ctx.freeze(90); this.ctx.cam().shake(200, 0.011); this.ctx.flash(0xffffff, 0.18, 110);
+        this.pop(tp0.x, y, H * 2.2, FUCHSIA, 320); this.shards(tp0.x, y, 7, 130, 460);
+        const ring = this.kit('k_ring', tp0.x, y, H * 2.4, tp0.y + 6); if (ring) { const r0 = ring.scale; this.piece(ring, 280, (u, o) => o.setScale(r0 * lerp(0.3, 1.25, out3(u))).setAlpha(1 - u)); }
+      }
       this.add((t) => {
         const p = at(), life = big ? 900 : 760;
         if (!p || t > life) { this.piece(g, 200, (u, o) => o.setAlpha(1 - u)); glow.destroy(); if (comet) this.piece(comet, 200, (u, o) => o.setAlpha(1 - u)); return false; }

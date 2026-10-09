@@ -2397,7 +2397,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const s = run.skill;
     if (damage <= 0) return;
     if (this.pvp?.remotes.has(target) && hit.stick) this.fx?.gambleStick(target, hit.stick, this.simMs < this.gOverUntil);
-    if (s.id === 'kinetic_grab' || s.id === 'grand_slam') { const hi = run.hits.findIndex((h) => h.at === hit.at); /* a hit the gambler rules rewrote is a copy: matched by its time */ if (hi >= 0 && !(this.gFollowed.get(`${run.castId}:${hi}`))) { this.gFollowed.set(`${run.castId}:${hi}`, true); if (this.gFollowed.size > 50) this.gFollowed.clear(); this.fx?.gambleFollow(s.id, target, s.id === 'grand_slam' ? 1 : hi); } }
+    if (s.id === 'kinetic_grab' || s.id === 'grand_slam') { const hi = run.hits.findIndex((h) => h.at === hit.at); /* a hit the gambler rules rewrote is a copy: matched by its time */ if (hi >= 0 && !(this.gFollowed.get(`${run.castId}:${hi}`))) { this.gFollowed.set(`${run.castId}:${hi}`, true); if (this.gFollowed.size > 50) this.gFollowed.clear(); this.fx?.gambleFollow(s.id, target, s.id === 'grand_slam' ? 1 : hi, run.attackerId); } }
     if (s.slot !== 0) this.gStreak = crit ? Math.min(5, this.gStreak + 1) : 0;
     if (this.passives.gamble.joker && this.simMs >= this.gJokerAt) { // Ace of Fate: a joker every 30s in a fight
       this.gJokerAt = this.simMs + 30000; const j = this.gHand.joker(this.simMs); this.fx?.gambleDealt(at, this.handFan(), j); this.refreshHand();
