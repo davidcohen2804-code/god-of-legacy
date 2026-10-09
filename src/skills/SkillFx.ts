@@ -202,7 +202,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   if (!scene.textures.exists('holy-bolt')) scene.load.spritesheet('holy-bolt', `${F}/skills/warrior/radiant_blade/bolt.png`, { frameWidth: 250, frameHeight: 500 });
   if (!scene.textures.exists('radiant-slash')) scene.load.spritesheet('radiant-slash', `${F}/skills/warrior/radiant_blade/slash_trail.jpg`, { frameWidth: 288, frameHeight: 288 }); // the blade of light's slash trail (GPT, on black: additive)
   if (!scene.textures.exists('radiant-blade')) scene.load.spritesheet('radiant-blade', `${F}/skills/warrior/radiant_blade/blade_small.png`, { frameWidth: 256, frameHeight: 81 });
-  for (const k of ['war_leap_burst', 'final_slash', 'combo_orb', 'heal_sparkle', 'stance_ring', 'chains_break', 'target_mark', 'iron_oath_cast', 'banner_plant', 'banner_wave']) if (!scene.textures.exists(`pas-${k}`)) scene.load.spritesheet(`pas-${k}`, `${F}/skills/warrior/passives/${k}.png`, { frameWidth: 256, frameHeight: 256 }); // passive skills
+  for (const k of ['war_leap_burst', 'final_slash', 'combo_orb', 'heal_sparkle', 'stance_ring', 'chains_break', 'target_mark', 'iron_oath_cast', 'banner_plant', 'banner_wave']) if (!scene.textures.exists(`pas-${k}`)) scene.load.spritesheet(`pas-${k}`, `${F}/skills/warrior/passives/${k}.png`, { frameWidth: k === 'banner_wave' ? 512 : 256, frameHeight: k === 'banner_wave' ? 512 : 256 }); // passive skills (the waving banner: drawn at 512)
   if (!scene.textures.exists('phantom-blade')) scene.load.spritesheet('phantom-blade', `${F}/skills/warrior/blade_storm/phantom.png`, { frameWidth: 256, frameHeight: 256 });
 }
 
@@ -814,7 +814,7 @@ export class SkillFx {
   /** Legacy Banner: a banner of light falls and plants beside the caster, then waves in place for `holdMs`. */
   bannerPlant(x: number, y: number, holdMs: number): void {
     if (!this.scene.textures.exists('pas-banner_plant')) return;
-    const SINK = 22, SZ = 330; // (a war banner taller than the hero: it reads from across the arena)
+    const SINK = 24, SZ = 390; // (a war banner taller than the hero: it reads from across the arena)
     const img = this.scene.add.image(x, y + 4, 'pas-banner_plant', 0).setOrigin(0.5, 1).setDisplaySize(SZ, SZ).setDepth(y);
     const mix = this.scene.add.image(x, y + 4, 'pas-banner_plant', 1).setOrigin(0.5, 1).setDisplaySize(SZ, SZ).setDepth(y + 0.001).setAlpha(0);
     const dissolve = (key: string, next: number, f: number) => { const k = f * f * (3 - 2 * f); if (mix.texture.key !== key) mix.setTexture(key).setDisplaySize(SZ, SZ); mix.setFrame(next).setAlpha(img.alpha * k); };
@@ -833,7 +833,7 @@ export class SkillFx {
           this.shockwave(x, y, 230, 0xffd27a); this.scene.time.delayedCall(110, () => this.shockwave(x, y, 330, 0xffe9b0)); this.dust(x, y, 110, 0.8);
           (this.cam ?? this.scene.cameras.main).shake(140, 0.004);
         } }
-        if (i >= 7 && t >= plant[7]) { phase = 'wave'; t = 0; img.setTexture('pas-banner_wave', 0).setDisplaySize(230, 230).setY(y + 4 + SINK); mix.setY(y + 4 + SINK); } // the waving art ends at the spear tip: sink it into the floor
+        if (i >= 7 && t >= plant[7]) { phase = 'wave'; t = 0; img.setTexture('pas-banner_wave', 0).setDisplaySize(SZ, SZ).setY(y + 4 + SINK); mix.setY(y + 4 + SINK); } // the waving art ends at the spear tip: sink it into the floor
         else if (i < 7) dissolve('pas-banner_plant', i + 1, Math.min(1, t / plant[i])); else { mix.setY(y + 4 + SINK); dissolve('pas-banner_wave', 0, Math.min(1, t / plant[7])); }
       } else if (phase === 'wave') {
         waveT += 16; const q = waveT / 160, wi = Math.floor(q) % 8; img.setFrame(wi); dissolve('pas-banner_wave', (wi + 1) % 8, q - Math.floor(q));
