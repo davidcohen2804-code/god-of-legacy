@@ -44,7 +44,7 @@ export class GamblerFx {
   private stuck = new Map<string, { img: Phaser.GameObjects.Image; dx: number; dy: number; ang: number; at: number; t: number }[]>();
   /** The local gambler's Hand, fanned over his shoulder. */
   private handView: { cards: Phaser.GameObjects.Container[]; label?: Phaser.GameObjects.Text } = { cards: [] };
-  private overloads = new Map<string, { until: number; g: Phaser.GameObjects.Graphics; glow: Phaser.GameObjects.Image }>();
+  private overloads = new Map<string, { until: number; g: Phaser.GameObjects.Graphics; back: Phaser.GameObjects.Graphics; glow: Phaser.GameObjects.Image }>();
   private lucks = new Map<string, { until: number; img: Phaser.GameObjects.Image }>();
   private clock = 0;
   ready = false;
@@ -480,6 +480,7 @@ export class GamblerFx {
       const big = skill === 'grand_slam', g = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD), glow = this.glow(0, 0, H * (big ? 1.4 : 1.2), FUCHSIA, 0);
       const pts: { x: number; y: number }[] = []; let lastBurst = 0;
       const comet = this.kit('x_comet', tp0.x, tp0.y - tp0.z - H * 0.5, big ? 300 : 220, tp0.y + 1); comet?.setOrigin(0.92, 0.5);
+      if (big) this.ctx.callout({ x: tp0.x, y: tp0.y, z: tp0.z + 40 }, 'HOME RUN!', '#ffc94a', 0);
       if (!big) { // the throw: the charge goes critical — a white burst on him, a shock ring, the tether snaps
         const y = tp0.y - tp0.z - H * 0.5; this.ctx.freeze(90); this.ctx.cam().shake(200, 0.011); this.ctx.flash(0xffffff, 0.18, 110);
         this.pop(tp0.x, y, H * 1.6, FUCHSIA, 260); this.shards(tp0.x, y, 7, 130, 460);
@@ -489,7 +490,15 @@ export class GamblerFx {
       }
       this.add((t) => {
         const p = at(), life = big ? 900 : 760;
-        if (!p || t > life) { this.piece(g, 200, (u, o) => o.setAlpha(1 - u)); glow.destroy(); if (comet) this.piece(comet, 200, (u, o) => o.setAlpha(1 - u)); return false; }
+        if (!p || t > life) {
+          this.piece(g, 200, (u, o) => o.setAlpha(1 - u)); glow.destroy(); if (comet) this.piece(comet, 200, (u, o) => o.setAlpha(1 - u));
+          if (big && p) { // the crash: where he comes down, the floor cracks and the cards in him go off
+            const fy = p.d, cr = this.kit('g_crater', p.x, fy, 230, GROUND + 3);
+            if (cr) { const cx = cr.scaleX, cy = (230 * SQUASH * 1.3) / cr.height; this.piece(cr, 800, (u, o) => o.setScale(cx * lerp(0.5, 1, out3(clamp01(u * 4))), cy * lerp(0.5, 1, out3(clamp01(u * 4)))).setAlpha(u < 0.4 ? 1 : (1 - u) / 0.6)); }
+            this.pop(p.x, p.y, 200, FUCHSIA, 300); this.shards(p.x, p.y, 10, 160, 520); this.ctx.dust(p.x, fy, 90); this.ctx.cam().shake(200, 0.01);
+          }
+          return false;
+        }
         pts.push({ x: p.x, y: p.y }); if (pts.length > 16) pts.shift();
         if (comet) { const a = pts[0], b = pts[pts.length - 1], mv = Math.hypot(b.x - a.x, b.y - a.y); comet.setPosition(p.x, p.y).setDepth(p.d + 1).setAlpha(Math.min(1, mv / 30) * (1 - t / life * 0.5)); if (mv > 4) comet.setAngle(Math.atan2(b.y - a.y, b.x - a.x) * 57.3); }
         g.clear().setDepth(p.d + 1);
@@ -1053,13 +1062,17 @@ export class GamblerFx {
   /** Grand Slam's wind-up: energy pours into the staff over his shoulder — motes drawn in, arcs crackling, a swelling glow; dust at his feet. */
   private slamCharge(r: CastRun): void {
     const T = r.timings, s = this.ctx.scene, side = sideOf(r), o0 = this.me(r);
-    const glow = this.glow(0, 0, 120, FUCHSIA, 0);
+    const glow = this.glow(0, 0, 120, FUCHSIA, 0), bat = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
     this.ctx.dust(o0.x, o0.y, 80);
     this.add((t) => {
       const c = this.ctx.casterPos(r.attackerId);
-      if (t >= T.startup || !c) { glow.destroy(); return false; }
-      const u = t / T.startup, sx = c.x - side * 26, sy = c.y - c.z - 100; // the staff's head, over his back shoulder
-      glow.setPosition(sx, sy).setDepth(c.y + 3).setAlpha(0.35 + 0.5 * u).setScale((80 + 120 * u) / 128);
+      if (t >= T.startup || !c) { glow.destroy(); bat.destroy(); return false; }
+      // the staff GROWS: a bat of light stretches out of his hands over his back shoulder, to twice his height
+      const u = t / T.startup, h = this.ctx.hand(r.attackerId) ?? { x: c.x + side * 10, y: c.y - c.z - 60 };
+      const L = lerp(60, 200, out3(clamp01(u * 1.3))), ang = side > 0 ? -2.25 : -0.89, sx = h.x + Math.cos(ang) * L, sy = h.y + Math.sin(ang) * L;
+      bat.clear().setDepth(c.y + 3);
+      for (const [w, col, al] of [[22, FUCHSIA, 0.22], [11, FUCHSIA_2, 0.7], [4, 0xffffff, 1]] as [number, number, number][]) { bat.lineStyle(w * (0.7 + 0.3 * u), col, al); bat.lineBetween(h.x, h.y, sx, sy); }
+      glow.setPosition(sx, sy).setDepth(c.y + 3).setAlpha(0.45 + 0.5 * u).setScale((70 + 110 * u) / 128);
       if (Math.random() < 0.5) { // motes drawn into the staff
         const a = rnd(0, Math.PI * 2), d = rnd(70, 130), m = this.glow(sx + Math.cos(a) * d, sy + Math.sin(a) * d, 18, FUCHSIA_2, c.y + 3);
         this.piece(m, 220, (uu, o) => o.setPosition(lerp(sx + Math.cos(a) * d, sx, out3(uu)), lerp(sy + Math.sin(a) * d, sy, out3(uu))).setAlpha(1 - uu * 0.5));
@@ -1077,31 +1090,35 @@ export class GamblerFx {
   }
   /** Kinetic Overload's charge stays on him (an outline of crackling arcs). */
   overload(id: string, ms: number): void {
-    this.overloads.get(id)?.g.destroy(); this.overloads.get(id)?.glow.destroy();
-    const g = this.ctx.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD), glow = this.kit('x_aura', 0, 0, 120, 0) ?? this.glow(0, 0, 170, FUCHSIA, 0).setAlpha(0.35);
-    this.overloads.set(id, { until: this.clock + ms, g, glow });
+    this.clearOverload(id);
+    const g = this.ctx.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD), back = this.ctx.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+    const glow = this.kit('k_ring', 0, 0, 150, 0) ?? this.glow(0, 0, 150, FUCHSIA, 0);
+    this.overloads.set(id, { until: this.clock + ms, g, back, glow });
   }
+  private clearOverload(id: string): void { const o = this.overloads.get(id); if (o) { o.g.destroy(); o.back.destroy(); o.glow.destroy(); this.overloads.delete(id); } }
   clearBuffs(id: string): void {
-    const o = this.overloads.get(id); if (o) { o.g.destroy(); o.glow.destroy(); this.overloads.delete(id); }
+    this.clearOverload(id);
     const l = this.lucks.get(id); if (l) { l.img.destroy(); this.lucks.delete(id); }
   }
   private stepBuffs(): void {
-    for (const [id, o] of this.overloads) {
+    for (const [id, o] of this.overloads) { // electricity running round his feet on the floor: arcs chase each other round an ellipse
       const c = this.ctx.casterPos(id);
-      if (!c || this.clock > o.until) { o.g.destroy(); o.glow.destroy(); this.overloads.delete(id); continue; }
-      if (o.glow.texture.key === 'gbk-x_aura') o.glow.setOrigin(0.5, 0.95).setPosition(c.x, c.y - c.z + 6).setDepth(c.y - 1).setDisplaySize(118 * (1 + 0.04 * Math.sin(this.clock * 0.02)), 190).setAlpha(0.55 + 0.25 * Math.sin(this.clock * 0.013)).setFlipX(Math.floor(this.clock / 90) % 2 === 1);
-      else o.glow.setPosition(c.x, c.y - c.z - 60).setDepth(c.y - 1).setAlpha(0.25 + 0.12 * Math.sin(this.clock * 0.01));
-      o.g.clear().setDepth(c.y + 3);
-      if (this.ctx.scene.textures.exists('gbk-k_arcs')) {
-        if (Math.random() < 0.18) { const a = this.kit('k_arcs', c.x + rnd(-14, 14), c.y - c.z - rnd(40, 90), rnd(70, 110), c.y + 3); if (a) { const a0 = a.scale; a.setAngle(rnd(0, 360)).setFlipX(Math.random() < 0.5); this.piece(a, 160, (u, im) => im.setAlpha(1 - u).setScale(a0 * (1 + u * 0.2))); } }
-        continue;
+      if (!c || this.clock > o.until) { this.clearOverload(id); continue; }
+      const fx = c.x, fy = c.y - c.z + 2, RX = 72, RY = 72 * SQUASH, t = this.clock;
+      o.glow.setPosition(fx, fy).setDepth(c.y - 2).setDisplaySize(RX * 2.5 * (1 + 0.05 * Math.sin(t * 0.02)), RY * 2.5).setAlpha(0.7 + 0.25 * Math.sin(t * 0.013));
+      o.g.clear().setDepth(c.y + 3); o.back.clear().setDepth(c.y - 1);
+      for (let k = 0; k < 4; k++) {
+        const a0 = t * 0.011 + (k / 4) * Math.PI * 2, len = 1.0, n = 9;
+        let px = 0, py = 0;
+        for (let j = 0; j <= n; j++) {
+          const a = a0 + (j / n) * len, jr = j === 0 || j === n ? 0 : rnd(-7, 7);
+          const x = fx + Math.cos(a) * (RX + jr), y = fy + Math.sin(a) * (RY + jr * SQUASH) - Math.abs(rnd(0, 5));
+          if (j) { const gg = Math.sin(a) > 0 ? o.g : o.back, k2 = j / n; // the near half passes in front of him, the far half behind
+            gg.lineStyle(12, FUCHSIA, 0.35 * k2).lineBetween(px, py, x, y); gg.lineStyle(5, FUCHSIA_2, 0.95 * k2).lineBetween(px, py, x, y); gg.lineStyle(2, 0xffffff, k2).lineBetween(px, py, x, y); }
+          px = x; py = y;
+        }
       }
-      for (let k = 0; k < 3; k++) {
-        const x = c.x + rnd(-34, 34), y = c.y - c.z - rnd(10, 120);
-        o.g.lineStyle(2, k ? FUCHSIA : 0xffffff, 0.8); o.g.beginPath(); o.g.moveTo(x, y);
-        for (let j = 0; j < 3; j++) o.g.lineTo(x + rnd(-14, 14), y + rnd(-14, 14));
-        o.g.strokePath();
-      }
+      if (Math.random() < 0.3) { const a = rnd(0, Math.PI * 2), x = fx + Math.cos(a) * RX, y = fy + Math.sin(a) * RY; const sp = this.kit('g_crackle', x, y - 6, rnd(34, 50), Math.sin(a) > 0 ? c.y + 3 : c.y - 1) ?? this.kit('k_arcs', x, y - 6, 40, c.y + 3); if (sp) { const s0 = sp.scale; sp.setAngle(rnd(0, 360)); this.piece(sp, 140, (u, im) => im.setAlpha(1 - u).setScale(s0 * (1 + u * 0.3))); } }
     }
     for (const [id, l] of this.lucks) {
       const c = this.ctx.casterPos(id);
