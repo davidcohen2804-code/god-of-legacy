@@ -250,8 +250,17 @@ export class ArcherFx {
       case 'rain_of_arrows': this.thunderCharge(r); break;
       case 'piercing_arrow': this.spiritBow(r); break;
       case 'hunters_roar': { // the spirit wolf rises behind her and howls; the wave of wind and lightning goes all round
-        this.spr({ name: 'wolf', w: 170, oy: 0.95, follow: this.at(r.attackerId, -side, 20, -10), dz: -3, flipX: side < 0, life: T.startup + T.active + 500, add: true, glow: 0.35, run: r,
-          sy: kf([0, 0.3], [0.3, 1, out3]), a: kf([0, 0], [0.2, 0.9], [0.75, 0.9], [1, 0]) });
+        // the spirit wolf gathers behind her, crouched and snarling — then rears up and howls
+        this.spr({ name: 'wolf_crouch', w: 190, oy: 0.95, follow: this.at(r.attackerId, -side, 34, -12), dz: -3, flipX: side < 0, life: T.startup + 40, add: true, glow: 0.3, run: r,
+          sx: kf([0, 0.6], [0.6, 1, out3]), sy: kf([0, 0.4], [0.6, 1, out3]), a: kf([0, 0], [0.4, 0.95], [1, 0.95]) });
+        this.spr({ name: 'wolf_howl', w: 210, oy: 0.95, follow: this.at(r.attackerId, -side, 30, -12), dz: -3, flipX: side < 0, delay: T.startup, life: T.active + 700, add: true, glow: 0.35, run: r,
+          sy: kf([0, 0.8], [0.15, 1.08, out3], [0.3, 1]), a: kf([0, 0.95], [0.7, 0.9], [1, 0]) });
+        this.later(T.startup, () => { // the roar rolls out both ways in great arcs
+          const q = this.me(r);
+          for (const d of [1, -1]) for (let k = 0; k < 3; k++)
+            this.spr({ name: 'roar_wave', x: q.x + d * 40, y: q.y - q.z - 60, ox: 0.15, depth: q.y + 5, w: 200, flipX: d < 0, add: true, glow: 0.3, life: 520, delay: k * 110,
+              mx: (u) => d * 230 * out(u), sx: kf([0, 0.5], [1, 1.5, out3]), sy: kf([0, 0.5], [1, 1.5, out3]), a: kf([0, 0], [0.12, 1], [1, 0, inQ]) });
+        }, r);
         this.later(T.startup, () => {
           const q = this.me(r);
           this.floor('wind_ring', q.x, q.y, 200, 520, { add: true, glow: 0.5, s: kf([0, 0.3], [1, 2.6, out3]), a: kf([0, 1], [0.6, 0.8], [1, 0, inQ]) });
@@ -346,6 +355,14 @@ export class ArcherFx {
     this.later(hits[0] - 300, () => { if (r.own) this.ctx.cam().shake(300, 0.002); }, r);
   }
 
+  /** Beats a spirit eagle's wings: up, level, down, level … (one frame each 80 ms). */
+  private flap(im: Phaser.GameObjects.Image | null, delay: number, phase: number): void {
+    if (!im) return;
+    const seq = ['eagle_up', 'eagle_glide', 'eagle_down', 'eagle_glide'];
+    let t = -delay;
+    this.add({ t: 0, step: (dt) => { if (!im.active) return false; t += dt; if (t >= 0) im.setFrame(seq[(Math.floor(t / 80) + phase) % 4], false, false); return true; } });
+  }
+
   private spiritBow(r: CastRun): void {
     const T = r.timings, side = sideOf(r);
     let t = 0, on = true, shots = 0;
@@ -417,14 +434,15 @@ export class ArcherFx {
     // keep the band turned to the live aim
     this.add({ t: 0, step: () => { if (r.phase !== 'startup') { on = false; return false; } return true; } });
     this.later(T.startup, () => {
-      const q = this.me(r), a = r.aim, lv = level(a.x, a.y), x0 = q.x + a.x * 30, y0 = q.y + a.y * 30 - 50, len = 1880, ms = T.active + 900;
+      const q = this.me(r), a = r.aim, lv = level(a.x, a.y), x0 = q.x + a.x * 30, y0 = q.y + a.y * 30 - 60, len = 1880, ms = T.active + 1100;
       this.muzzle(r, 150);
-      for (const [k, d, sc] of [[0, 0, 1], [-1, 70, 0.7], [1, 140, 0.7]] as const) {
-        const px = -a.y * k * 120, py = a.x * k * 60;
-        this.spr({ name: 'eagle_wide', x: x0, y: y0, depth: TOP - 4 + k, w: 300 * sc, ox: lv.flip ? 0.2 : 0.8, flipX: lv.flip, angle: lv.ang, add: true, glow: 0.35, life: ms - d, delay: d,
-          mx: (u) => a.x * len * out(u) + px * Math.min(1, u * 3), my: (u) => a.y * len * 0.5 * out(u) + py * Math.min(1, u * 3), a: kf([0, 0], [0.06, 1], [0.5, 1], [1, 0, out]) });
-        this.spr({ name: 'wind_streaks', x: x0, y: y0, depth: TOP - 5 + k, w: 240 * sc, ox: lv.flip ? 0 : 1, flipX: lv.flip, angle: lv.ang, add: true, life: ms - d, delay: d + 40,
-          mx: (u) => a.x * len * out(u) + px * Math.min(1, u * 3), my: (u) => a.y * len * 0.5 * out(u) + py * Math.min(1, u * 3), a: kf([0, 0], [0.08, 0.8], [0.45, 0.8], [1, 0, out]) });
+      for (const [k, d, sc] of [[0, 0, 1], [-1, 110, 0.62], [1, 220, 0.62]] as const) {
+        const px = -a.y * k * 170, py = a.x * k * 95;
+        const eg = this.spr({ name: 'eagle_glide', x: x0, y: y0, depth: TOP - 4 + k, w: 420 * sc, ox: lv.flip ? 0.25 : 0.75, flipX: lv.flip, angle: lv.ang, add: true, glow: 0, life: ms - d, delay: d,
+          mx: (u) => a.x * len * (0.15 * out(u) + 0.85 * u) + px * Math.min(1, u * 3), my: (u) => a.y * len * 0.5 * (0.15 * out(u) + 0.85 * u) + py * Math.min(1, u * 3) + Math.sin(u * 40) * 6, a: kf([0, 0], [0.06, 1], [0.5, 1], [1, 0, out]) });
+        this.flap(eg, d, k * 2);
+        this.spr({ name: 'feather_trail', x: x0, y: y0, depth: TOP - 5 + k, w: 260 * sc, ox: lv.flip ? 0 : 1, flipX: lv.flip, angle: lv.ang, add: true, life: ms - d, delay: d + 40,
+          mx: (u) => a.x * (len * (0.15 * out(u) + 0.85 * u) - 190 * sc) + px * Math.min(1, u * 3), my: (u) => a.y * (len * (0.15 * out(u) + 0.85 * u) - 190 * sc) * 0.5 + py * Math.min(1, u * 3), a: kf([0, 0], [0.08, 0.55], [0.45, 0.5], [1, 0, out]) });
       }
       for (let k = 0; k < 12; k++) this.leaves(x0 + a.x * k * 150, y0 + 40 + a.y * k * 75, 4, 50, { delay: k * 70, dir: side });
       // the wind it leaves behind lingers along the path and fades away slowly
