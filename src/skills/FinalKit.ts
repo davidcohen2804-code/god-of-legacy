@@ -885,10 +885,12 @@ const gambler: FinalSkill[] = [
   }),
   S({
     id: 'ace_in_the_hole', cls: 'gambler', slot: 12, name: 'Ace in the Hole', roles: ['precision', 'projectile'], targeting: 'mouseProjectile',
-    startup: 300, active: 0, recovery: 220, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 34, { kind: 'projectile', speed: 1100, range: 760, radius: 16, pierce: true }, { stun: 420, push: 30 }, { reachUp: 100, heavy: true, stick: 2 })],
+    startup: 420, active: 0, recovery: 220, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 34, { kind: 'projectile', speed: 1100, range: 700, radius: 18, pierce: true }, { stun: 460, push: 30 }, { reachUp: 100, heavy: true, stick: 2 })],
+    // where its flight ends, the ace stops, spins and blows up (0.64s of flight + its spin)
+    linger: { at: 'aim', offset: 700, startMs: 870, everyMs: 1000, count: 1, radius: 130, maxZ: 140, hit: H(0, 26, { kind: 'circle', radius: 130 }, { stun: 460, launch: 110, juggleCost: 18 }, { reachUp: 140, heavy: true }) },
     cancelOnHit: ['cut_the_deck', 'staff_vault', 'rotor_staff', 'showdown'], telegraph: 'line',
-    description: 'One great ace, thrown like a dart: it flies straight through every foe in the line and sticks in each with a double charge. It always deals an Ace to your Hand.',
+    description: 'One great ace, charged between two fingers and thrown like a lance: it tears straight through every foe in the line, sticking in each with a double charge — then stops dead at the end of its flight, spins and blows up, throwing everyone there into the air. It always deals an Ace to your Hand.',
     relations: ['Pierces', 'Always an Ace'],
   }),
   S({

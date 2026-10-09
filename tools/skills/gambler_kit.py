@@ -20,6 +20,7 @@ OUT = os.path.join(ROOT, 'public', 'assets', 'final', 'skills', 'gambler', 'kit'
 SHEETS = {
     'cards': ('green', 4, 2, ['card_back', 'card_face', 'card_S', 'card_H', 'card_D', 'card_C', 'card_ace', 'card_joker'], 168),
     'casino': ('green', 4, 2, ['c_wheel', 'c_ball', 'c_die_a', 'c_die_b', 'c_coin_h', 'c_coin_t', 'c_chip', 'c_stack'], 420, False),
+    'extra': ('black', 4, 2, ['x_lance', 'x_comet', 'x_grip', 'x_seal', 'x_erupt', 'x_aura', 'x_tornado', 'x_cross'], 380),
     'luck': ('black', 4, 2, ['j_slot', 'j_cherry', 'j_bell', 'j_star', 'j_clover', 'j_ring', 'j_fountain', 'j_jackpot'], 360),
     'staff': ('black', 4, 2, ['s_swing', 's_heavy', 's_disc', 's_thrust', 's_rise', 's_vault', 's_homerun', 's_crack'], 360),
     'kinetic': ('black', 4, 2, ['k_streak', 'k_charge', 'k_pop', 'k_blast', 'k_ring', 'k_beam', 'k_vortex', 'k_arcs'], 320),

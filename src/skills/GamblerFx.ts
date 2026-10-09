@@ -253,9 +253,9 @@ export class GamblerFx {
       case 'roulette_wheel': this.roulette(r); break;
       case 'dice_bomb': this.dice(r); break;
       case 'kinetic_grab': handGlow(T.startup + T.active, 50); break;
-      case 'ace_in_the_hole': this.aceAim(r); break;
+      case 'ace_in_the_hole': this.aceAim(r); this.ctx.darken(T.startup + 700, 0.2); break;
       case 'lady_luck': this.ladyLuckCast(r); break;
-      case 'pickup_52': handGlow(T.startup, 60); this.deckSpray(r); break;
+      case 'pickup_52': handGlow(T.startup, 70); this.ctx.darken(T.startup + 900, 0.22); this.deckSpray(r); break;
       case 'grand_slam': this.slamCharge(r); break;
       case 'kinetic_overload': this.overloadCast(r); break;
       case 'wild_card': this.wildCard(r); break;
@@ -290,18 +290,13 @@ export class GamblerFx {
       }
       case 'staff_vault': if (i === 1) { this.floorRing(o.x, o.y, 90); this.pop(o.x + side * 30, y0 - 40, 90); } break;
       case 'fuse_slam': this.scar(o.x + r.aim.x * 70, o.y + r.aim.y * 70, 90); this.ctx.shockwave(o.x + r.aim.x * 70, o.y + r.aim.y * 70, 140, FUCHSIA); this.ctx.cam().shake(140, 0.006); break;
-      case 'riffle_shuffle': if (i === r.hits.length - 1) { this.floorRing(o.x, o.y, 170, FUCHSIA_2, 380); this.shards(o.x, y0 - 50, 18, 200, 520); } break;
+      case 'riffle_shuffle': if (i === r.hits.length - 1) { const tor = this.kit('x_tornado', o.x, o.y, 260, o.y + 3); if (tor) { tor.setOrigin(0.5, 0.97); const t0 = tor.scale; this.piece(tor, 460, (u, im) => im.setScale(t0 * lerp(1, 1.3, u), t0 * lerp(0.8, 1.2, out3(u))).setFlipX(Math.floor(u * 10) % 2 === 1).setAlpha(1 - u * u)); } this.floorRing(o.x, o.y, 170, FUCHSIA_2, 380); this.shards(o.x, y0 - 50, 18, 200, 520); } break;
       case 'rotor_staff': if (i === r.hits.length - 1) { if (!this.stroke('s_thrust', o.x + side * 24, y0 - 56, 210, side, 300, d, 0, 0.05, 0.5)) this.band(o.x + side * 30, y0 - 56, 150, side > 0 ? 0 : 180, 260, 30, d); this.pop(o.x + side * 150, y0 - 56, 120); } break;
       case 'kinetic_grab': if (i === 1) this.stroke('s_heavy', o.x + side * 50, y0 - 64, 180, side, 300, d); break;
       case 'grand_slam': break;
       case 'dice_bomb': this.diceBlast(r, i); break;
       case 'roulette_wheel': if (i === r.hits.length - 1) this.rouletteEnd(r); break;
-      case 'pickup_52': if (i > 0) { // a wave of the stuck cards goes off across the whole width of the cone; the last one throws them up
-        const p = this.ahead(r, 90 + (i - 1) * 95), span = 60 + (i - 1) * 55, perp = { x: -r.aim.y, y: r.aim.x };
-        for (const k of [-1, 0, 1]) { const q = { x: p.x + perp.x * span * k, y: p.y + perp.y * span * k * 0.8 }; this.burst(q.x, q.y - 26, i === 4 ? 190 : 120, Math.abs(k) * 40, q.y + 2); }
-        this.floorRing(p.x, p.y, span + 60, FUCHSIA, 360);
-        if (i === 4) { this.beam(p.x, p.y, 320, 420); this.ctx.cam().shake(240, 0.011); this.ctx.freeze(70); } else this.ctx.cam().shake(90, 0.004);
-      } break;
+      case 'pickup_52': if (i > 0) this.pickWave(r, i); break;
       case 'jackpot': this.jackpotBlast(r, i); break;
       case 'lady_luck': this.floorRing(o.x, o.y, 150, GOLD, 520); break;
       case 'kinetic_overload': this.floorRing(o.x, o.y, 170, FUCHSIA, 420); this.pop(o.x, y0 - 60, 220, FUCHSIA, 420); break;
@@ -318,6 +313,23 @@ export class GamblerFx {
     const g = s.add.graphics().setDepth(p.y + 1).setBlendMode(Phaser.BlendModes.ADD);
     const streak = this.kit('k_streak', p.x, p.y - p.z, big ? 300 : 150, p.y + 2);
     if (streak) streak.setOrigin(0.97, 0.52).setAngle(screenAng(p.dx, p.dy)).setFlipY(p.dx < -0.01);
+    if (big) { // the ace's lance: a ribbon of light from the throw to the ace, lingering a moment after it passes
+      const x0 = p.x, y0 = p.y - p.z, lance = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD), lancePic = this.kit('x_lance', x0, y0, 100, p.y + 2);
+      lancePic?.setOrigin(0.97, 0.5);
+      img.setScale(this.u * 0.95);
+      this.add((t) => {
+        const end = this.projs.has(p) ? { x: p.x, y: p.y - p.z } : null;
+        if (end) (lance as unknown as { e: { x: number; y: number } }).e = end;
+        const e = (lance as unknown as { e?: { x: number; y: number } }).e ?? { x: x0, y: y0 }, fade = end ? 1 : Math.max(0, 1 - (t - ((lance as unknown as { t0?: number }).t0 ??= t)) / 260);
+        lance.clear().setDepth(p.y + 1);
+        if (lancePic) { const L = Math.hypot(e.x - x0, e.y - y0); lancePic.setPosition(e.x, e.y).setDepth(p.y + 2).setAngle(Math.atan2(e.y - y0, e.x - x0) * 57.3).setScale(Math.max(0.05, L / lancePic.width), (46 / lancePic.height) * (0.8 + 0.3 * Math.sin(t * 0.08))).setAlpha(fade); if (fade <= 0) { lancePic.destroy(); lance.destroy(); return false; } return true; }
+        lance.lineStyle(26, FUCHSIA, 0.35 * fade).lineBetween(x0, y0, e.x, e.y);
+        lance.lineStyle(9, FUCHSIA_2, 0.7 * fade).lineBetween(x0, y0, e.x, e.y);
+        lance.lineStyle(3, 0xffffff, 0.95 * fade).lineBetween(x0, y0, e.x, e.y);
+        if (fade <= 0) { lance.destroy(); return false; }
+        return true;
+      });
+    }
     this.projs.set(p, { img, glow, trail: [], g, big, streak });
   }
   private stepProjectiles(dt: number): void {
@@ -346,6 +358,12 @@ export class GamblerFx {
     v.img.destroy(); v.glow.destroy(); if (v.streak) this.piece(v.streak, 140, (u, o) => o.setAlpha(1 - u));
     this.piece(v.g, 160, (u, o) => o.setAlpha(1 - u));
     const end = p.end ?? { x: p.x, y: p.y, reason: 'range' as const };
+    if (p.skill.id === 'ace_in_the_hole') { // the ace stops dead, spins, swells with light — its blast comes with the lingering hit (zone)
+      const ace = this.ctx.scene.add.image(end.x, end.y - p.z, this.acePic).setScale(this.u * 0.95).setDepth(end.y + 4), ch = this.kit('k_charge', end.x, end.y - p.z, 110, end.y + 3);
+      this.piece(ace, 230, (u, o) => o.setScale(this.u * 0.95 * (1 + u * 0.35) * Math.abs(Math.cos(u * 12)) + 0.02, this.u * 0.95 * (1 + u * 0.35)).setTint(Math.sin(u * 40) > 0 ? 0xffffff : FUCHSIA));
+      if (ch) { const c0 = ch.scale; this.piece(ch, 230, (u, o) => o.setScale(c0 * (1 + u)).setAlpha(0.6 + 0.4 * u)); }
+      return;
+    }
     if (end.reason === 'cover') this.burst(end.x, end.y - p.z, 70, 0, end.y + 2);
   }
 
@@ -391,9 +409,15 @@ export class GamblerFx {
   /** A hit that landed (the attacker's view): a fuchsia burst with card shards; heavier for heavy / signature hits. */
   confirmed(s: FinalSkill, hit: HitEvent, at: V3, heavy: boolean, crit: boolean): void {
     const y = at.y - at.z, size = heavy ? 120 : 64;
+    if (crit || (heavy && s.slot === 7)) { const x = this.kit('x_cross', at.x, y, crit ? 150 : 200, TOP + 4); if (x) { const x0 = x.scale, a0 = rnd(-15, 15); this.piece(x, 300, (u, o) => o.setScale(x0 * lerp(1.4, 1, out3(clamp01(u * 3)))).setAngle(a0).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5)); } }
     this.pop(at.x, y, size * (crit ? 1.4 : 1), crit ? 0xffffff : FUCHSIA, heavy ? 320 : 200);
     if (heavy || crit) this.shards(at.x, y, heavy ? 6 : 3, size * 0.9);
     if (s.id === 'grand_slam') this.ctx.cam().shake(260, 0.014);
+    if (s.id === 'ace_in_the_hole' && hit.damage >= 30) { // pierced: a beat of hit-stop, a ring punched through the foe, a spray of shards
+      const y = at.y - at.z; this.ctx.freeze(70); this.ctx.cam().shake(120, 0.006);
+      const ring = this.kit('k_ring', at.x, y, 150, TOP + 4); if (ring) { ring.setAngle(90); const r0 = ring.scale; this.piece(ring, 300, (u, o) => o.setScale(r0 * lerp(0.3, 1.2, out3(u))).setAlpha(1 - u)); }
+      this.shards(at.x, y, 8, 120, 420); this.pop(at.x, y, 180, 0xffffff, 220);
+    }
     if (s.id === 'kinetic_grab' && hit.reaction.grab && !hit.reaction.pin) this.thrownBomb(at);
   }
   private comet(at: V3): void {
@@ -409,7 +433,7 @@ export class GamblerFx {
     const s = this.ctx.scene, H = tp0.h ?? 90;
     const at = () => { const t = this.ctx.targetPos(id); return t ? { x: t.x, y: t.y - t.z - H * 0.5, d: t.y } : null; };
     if (skill === 'kinetic_grab' && hit === 0) { // seized: the body charges up — arcs crawl over it, a card-shaped charge pulses, the glow swells
-      const glow = this.glow(0, 0, H * 1.6, FUCHSIA, 0), ring = this.kit('k_charge', 0, 0, H * 0.9, 0);
+      const glow = this.glow(0, 0, H * 1.6, FUCHSIA, 0), ring = this.kit('x_grip', 0, 0, H * 1.1, 0) ?? this.kit('k_charge', 0, 0, H * 0.9, 0);
       this.add((t) => {
         const p = at(); if (!p || t > 520) { glow.destroy(); ring?.destroy(); return false; }
         const u = t / 520;
@@ -423,10 +447,12 @@ export class GamblerFx {
     if ((skill === 'kinetic_grab' && hit === 1) || skill === 'grand_slam') { // thrown: a comet of fuchsia light streams behind the flying body
       const big = skill === 'grand_slam', g = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD), glow = this.glow(0, 0, H * (big ? 1.4 : 1.2), FUCHSIA, 0);
       const pts: { x: number; y: number }[] = []; let lastBurst = 0;
+      const comet = this.kit('x_comet', tp0.x, tp0.y - tp0.z - H * 0.5, big ? 300 : 220, tp0.y + 1); comet?.setOrigin(0.92, 0.5);
       this.add((t) => {
         const p = at(), life = big ? 900 : 760;
-        if (!p || t > life) { this.piece(g, 200, (u, o) => o.setAlpha(1 - u)); glow.destroy(); return false; }
+        if (!p || t > life) { this.piece(g, 200, (u, o) => o.setAlpha(1 - u)); glow.destroy(); if (comet) this.piece(comet, 200, (u, o) => o.setAlpha(1 - u)); return false; }
         pts.push({ x: p.x, y: p.y }); if (pts.length > 16) pts.shift();
+        if (comet) { const a = pts[0], b = pts[pts.length - 1], mv = Math.hypot(b.x - a.x, b.y - a.y); comet.setPosition(p.x, p.y).setDepth(p.d + 1).setAlpha(Math.min(1, mv / 30) * (1 - t / life * 0.5)); if (mv > 4) comet.setAngle(Math.atan2(b.y - a.y, b.x - a.x) * 57.3); }
         g.clear().setDepth(p.d + 1);
         for (let i = 1; i < pts.length; i++) { const k = i / pts.length; g.lineStyle((big ? 34 : 24) * k, k > 0.75 ? 0xffffff : FUCHSIA, 0.75 * k); g.lineBetween(pts[i - 1].x, pts[i - 1].y, pts[i].x, pts[i].y); }
         glow.setPosition(p.x, p.y).setDepth(p.d + 2).setAlpha(0.6 * (1 - t / life) + 0.2);
@@ -482,11 +508,14 @@ export class GamblerFx {
   private fuseFloor(r: CastRun): void {
     const T = r.timings, p = this.ahead(r, 70);
     // the charged floor: a pulsing scar until it erupts 0.8s after the blow
-    const e = this.ctx.scene.add.ellipse(p.x, p.y, 230, 230 * SQUASH, FUCHSIA, 0.25).setDepth(GROUND + 2).setBlendMode(Phaser.BlendModes.ADD);
-    this.piece(e, 820, (u, o) => o.setAlpha(0.15 + 0.35 * Math.abs(Math.sin(u * u * 26))).setScale(0.6 + u * 0.4), T.startup);
+    const seal = this.kit('x_seal', p.x, p.y - 20, 250, GROUND + 2);
+    if (seal) { const s0 = seal.scale; seal.setVisible(false); this.piece(seal, 820, (u, o) => o.setAlpha(0.45 + 0.55 * Math.abs(Math.sin(u * u * 22))).setScale(s0 * (0.7 + 0.3 * out3(u))), T.startup); }
+    else { const e = this.ctx.scene.add.ellipse(p.x, p.y, 230, 230 * SQUASH, FUCHSIA, 0.25).setDepth(GROUND + 2).setBlendMode(Phaser.BlendModes.ADD);
+    this.piece(e, 820, (u, o) => o.setAlpha(0.15 + 0.35 * Math.abs(Math.sin(u * u * 26))).setScale(0.6 + u * 0.4), T.startup); }
     this.add((t) => {
       if (t < T.startup + 800) return true;
       this.floorRing(p.x, p.y, 120, FUCHSIA_2, 380);
+      const er = this.kit('x_erupt', p.x, p.y, 230, p.y + 3); if (er) { er.setOrigin(0.5, 0.97); const e0 = er.scale; this.piece(er, 460, (u, o) => o.setScale(e0 * lerp(0.7, 1.1, out3(u)), e0 * lerp(0.2, 1.15, out3(u))).setAlpha(u < 0.55 ? 1 : (1 - u) / 0.45)); } else
       this.beam(p.x, p.y, 280, 360);
       this.burst(p.x, p.y - 40, 150, 0, p.y + 3);
       for (let i = 0; i < 6; i++) { const im = this.ctx.scene.add.image(p.x + rnd(-60, 60), p.y, this.BK).setScale(this.u * (0.3)).setDepth(p.y + 4); const vy = rnd(220, 340); this.piece(im, 600, (u, o) => o.setPosition(o.x, p.y - vy * u + 300 * u * u).setAngle(u * 600).setAlpha(1 - u)); }
@@ -622,8 +651,22 @@ export class GamblerFx {
           spin.strokePath();
         }
         const target = rot + ((res.pocket + 0.5) / 18) * Math.PI * 2, ba = u >= 1 ? target : target + (1 - out3(u)) * 26, br = u >= 1 ? 0.72 : 0.9;
-        ball.setPosition(cx + Math.cos(ba) * rx * br, cy + Math.sin(ba) * ry * 0.5 * br - 4).setVisible(t > T.startup).setAlpha(fade);
-        if (u >= 1 && !(spin as unknown as { won?: boolean }).won) { (spin as unknown as { won?: boolean }).won = true; this.pop(ball.x, ball.y, 80, res.red ? FUCHSIA : 0xffffff, 400); }
+        // the ball skips over the pockets: it bounces at each one it crosses, with a spark; ever slower, ever louder
+        const pocketNow = Math.floor((ba - rot) / ((Math.PI * 2) / 18));
+        const st = spin as unknown as { pk?: number; tense?: boolean };
+        const hop = u < 1 ? Math.abs(Math.sin(((ba - rot) / ((Math.PI * 2) / 18)) * Math.PI)) * (6 + 10 * u) : 0;
+        ball.setPosition(cx + Math.cos(ba) * rx * br, cy + Math.sin(ba) * ry * 0.5 * br - 4 - hop).setVisible(t > T.startup).setAlpha(fade);
+        if (t > T.startup && u < 1 && st.pk !== undefined && pocketNow !== st.pk && u > 0.45) {
+          this.pop(ball.x, ball.y + 4, 22 + 26 * u, u > 0.8 ? 0xffffff : FUCHSIA_2, 140);
+          if (u > 0.7) this.ctx.cam().shake(40, 0.0015 + u * 0.002);
+        }
+        st.pk = pocketNow;
+        if (!st.tense && u > 0.72) { st.tense = true; this.ctx.darken(spinMs * 0.3 + 500, 0.28); } // the last turns: the world holds its breath
+        if (u >= 1 && !(spin as unknown as { won?: boolean }).won) { // it drops in: a beat of stillness, the pocket lights up
+          (spin as unknown as { won?: boolean }).won = true; this.pop(ball.x, ball.y, 110, res.red ? FUCHSIA : 0xffffff, 420);
+          this.ctx.freeze(160); this.ctx.punch(0.07, 360);
+          const pillar = this.kit('k_beam', ball.x, ball.y, 200, GROUND + 6); if (pillar) { pillar.setOrigin(0.5, 0.97).setTint(res.red ? 0xffffff : 0xb8a8d0); const p0 = pillar.scale; this.piece(pillar, 500, (uu, o) => o.setScale(p0 * 0.6, p0 * lerp(0.2, 1, out3(uu))).setAlpha(1 - uu)); }
+        }
         return true;
       });
       return;
@@ -653,11 +696,15 @@ export class GamblerFx {
   private rouletteEnd(r: CastRun): void {
     const p = r.place ?? this.ahead(r, 200), res = rouletteOf(r.castId), c = this.me(r);
     this.ctx.callout({ x: p.x, y: p.y, z: 40 }, res.red ? 'RED!' : 'BLACK!', res.red ? '#ff2bd6' : '#e8e0f0', 0);
-    if (res.red) {
-      this.burst(p.x, p.y - 40, 260, 0, p.y + 3);
-      this.beam(p.x, p.y, 340, 420);
-      this.ctx.cam().shake(240, 0.01);
-    } else { // black: a cage of standing cards round everyone in the wheel for 2s
+    if (res.red) { // RED: the wheel erupts
+      this.ctx.flash(0xff2bd6, 0.32, 200);
+      this.burst(p.x, p.y - 40, 300, 0, p.y + 3);
+      this.beam(p.x, p.y, 380, 480);
+      for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; this.burst(p.x + Math.cos(a) * 130, p.y + Math.sin(a) * 130 * SQUASH - 20, 110, 60 + k * 25, p.y + 3); }
+      this.floorRing(p.x, p.y, 200, FUCHSIA, 500); this.scar(p.x, p.y, 140);
+      this.ctx.cam().shake(380, 0.014); this.ctx.freeze(90);
+    } else { // BLACK: the cage slams shut
+      this.ctx.flash(0xd8d0e8, 0.22, 160); this.ctx.cam().shake(220, 0.01); this.ctx.freeze(70); // black: a cage of standing cards round everyone in the wheel for 2s
       for (let k = 0; k < 12; k++) {
         const a = (k / 12) * Math.PI * 2, x = p.x + Math.cos(a) * 140, y = p.y + Math.sin(a) * 140 * SQUASH;
         const im = this.ctx.scene.add.image(x, y, this.BK).setOrigin(0.5, 1).setScale(this.u * (0.6)).setDepth(y);
@@ -732,8 +779,17 @@ export class GamblerFx {
     const charge = this.kit('k_charge', 0, 0, 70, TOP + 3), line = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
     this.add((t) => {
       const h = this.ctx.hand(r.attackerId), c = this.ctx.casterPos(r.attackerId);
-      if (t >= T.startup || !h || !c) { card.destroy(); charge?.destroy(); this.piece(line, 120, (u, o) => o.setAlpha(1 - u)); if (h) this.pop(h.x, h.y, 110, 0xffffff, 200); return false; }
+      if (t >= T.startup || !h || !c) { // the release: a sonic ring at his hand, a flash, the camera kicked
+        card.destroy(); charge?.destroy(); this.piece(line, 120, (u, o) => o.setAlpha(1 - u));
+        if (h) {
+          this.pop(h.x, h.y, 170, 0xffffff, 220); this.shards(h.x, h.y, 6, 80, 300);
+          const ring = this.kit('k_ring', h.x + side * 20, h.y, 120, TOP + 4); if (ring) { ring.setAngle(90); const r0 = ring.scale; this.piece(ring, 260, (u, o) => o.setScale(r0 * lerp(0.4, 1.4, out3(u)), r0 * lerp(0.4, 1.4, out3(u))).setAlpha(1 - u)); }
+        }
+        this.ctx.punch(0.05, 220); this.ctx.freeze(45); this.ctx.cam().shake(160, 0.007); this.ctx.flash(0xffffff, 0.18, 90);
+        return false;
+      }
       const u = t / T.startup;
+      if (Math.random() < 0.5) { const a = rnd(0, Math.PI * 2), d = rnd(50, 90), m = this.glow(h.x + Math.cos(a) * d, h.y + Math.sin(a) * d, 16, FUCHSIA_2, TOP + 3); this.piece(m, 180, (uu, o) => o.setPosition(lerp(h.x + Math.cos(a) * d, h.x, out3(uu)), lerp(h.y + Math.sin(a) * d, h.y - 18, out3(uu))).setAlpha(1 - uu * 0.5)); }
       card.setPosition(h.x - side * 6, h.y - 18 - u * 6).setAngle(side * (-30 + u * 20) + Math.sin(t * 0.05) * 3);
       if (charge) charge.setPosition(card.x, card.y).setAngle(card.angle).setAlpha(0.4 + 0.6 * u).setScale((60 + 30 * u) / charge.width);
       line.clear().setDepth(c.y + 1);
@@ -744,26 +800,76 @@ export class GamblerFx {
     });
   }
 
+  /** 52 Pickup: the deck is drawn into his hand in a whirl, then sprayed as a sweeping stream (near to far, one side to the other);
+   *  the cards stand in the floor turning and blinking, the waves tear through them, the last wave sucks the rest up and blows. */
+  private pickCards = new Map<string, { im: Phaser.GameObjects.Image; wave: number; x: number; y: number }[]>();
   private deckSpray(r: CastRun): void {
-    const T = r.timings, s = this.ctx.scene;
+    const T = r.timings, s = this.ctx.scene, side = sideOf(r);
+    // wind-up: cards whirl in toward his hand
+    this.add((t) => {
+      if (t >= T.startup) return false;
+      const h = this.ctx.hand(r.attackerId); if (!h || Math.random() > 0.55) return true;
+      const a = rnd(0, Math.PI * 2), d = rnd(90, 160), im = s.add.image(h.x + Math.cos(a) * d, h.y + Math.sin(a) * d * 0.7, this.BK).setScale(this.u * 0.22).setDepth(TOP + 3);
+      this.piece(im, 200, (u, o) => { const hh = this.ctx.hand(r.attackerId) ?? h, aa = a + u * 2.5, dd = d * (1 - out3(u)); o.setPosition(hh.x + Math.cos(aa) * dd, hh.y + Math.sin(aa) * dd * 0.7).setAngle(u * 540).setAlpha(0.4 + 0.6 * u); });
+      return true;
+    });
+    const list: { im: Phaser.GameObjects.Image; wave: number; x: number; y: number }[] = [];
+    this.pickCards.set(r.castId, list);
+    const N = 48, streamMs = 240, base = Math.atan2(r.aim.y, r.aim.x);
+    let sent = 0;
     this.add((t) => {
       if (t < T.startup) return true;
-      const c = this.me(r), side = sideOf(r);
-      for (let k = 0; k < 44; k++) {
-        // the deck sprayed in a wide fan, in waves: every card streaks out, lands upright in the floor and blinks faster until its wave goes off
-        const ang = Math.atan2(r.aim.y, r.aim.x) + rnd(-0.6, 0.6), dist = 80 + (k / 44) * 360 + rnd(-30, 30), x1 = c.x + Math.cos(ang) * dist, y1 = c.y + Math.sin(ang) * dist * 0.8;
-        const im = s.add.image(c.x + side * 20, c.y - c.z - 60, this.BK).setScale(this.u * 0.34).setDepth(y1 + 2);
-        const tr = this.kit('k_streak', c.x, c.y - c.z - 60, 90, y1 + 1); if (tr) tr.setOrigin(0.97, 0.5).setFlipX(side < 0);
-        const fly = 120 + (k / 44) * 160, delay = (k % 11) * 12, wave = 250 + Math.min(3, Math.floor((dist - 80) / 95)) * 150 - delay;
-        this.piece(im, wave, (u, o) => {
-          const tt = u * wave;
-          if (tt < fly) { const k2 = tt / fly; o.setPosition(lerp(c.x + side * 20, x1, out3(k2)), lerp(c.y - c.z - 60, y1 - 10, out3(k2)) - Math.sin(k2 * Math.PI) * 26).setAngle(k2 * 720); if (tr) tr.setPosition(o.x, o.y).setAngle(Math.atan2(y1 - 10 - (c.y - c.z - 60), x1 - c.x) * 57.3 + (side < 0 ? 180 : 0)).setAlpha(1 - k2); }
-          else { if (tr && tr.active) tr.destroy(); const left = wave - tt, bl = Math.sin(tt / Math.max(25, left * 0.3)) > 0; o.setTint(bl ? 0xffffff : FUCHSIA).setAngle(side * 12).setScale(this.u * 0.34, this.u * 0.3); }
-        }, delay);
-        if (tr) this.add((t) => { if (t > fly + delay + 20) { if (tr.active) tr.destroy(); return false; } return true; });
+      const c = this.me(r), hx = c.x + side * 22, hy = c.y - c.z - 62;
+      const want = Math.min(N, Math.floor(((t - T.startup) / streamMs) * N) + 1);
+      if (sent === 0) { // the release: a fan of light from his hand, a kick of the camera
+        this.stroke('s_heavy', hx + side * 60, hy, 200, side, 280, c.y + 3, -10);
+        this.ctx.punch(0.04, 220); this.ctx.cam().shake(260, 0.006);
       }
-      return false;
+      for (; sent < want; sent++) {
+        const k = sent / N, sweep = Math.sin(k * Math.PI * 3) * 0.55, dist = 85 + k * 360 + rnd(-20, 20);
+        const ang = base + sweep, x1 = c.x + Math.cos(ang) * dist, y1 = c.y + Math.sin(ang) * dist * 0.8;
+        const wave = Math.min(3, Math.max(0, Math.floor((dist - 85) / 95)));
+        const im = s.add.image(hx, hy, this.BK).setScale(this.u * 0.36).setDepth(y1 + 2);
+        const tr = this.kit('k_streak', hx, hy, 110, y1 + 1); if (tr) tr.setOrigin(0.97, 0.5).setFlipX(side < 0);
+        const fly = 110 + k * 120, spin = rnd(500, 900) * (Math.random() < 0.5 ? -1 : 1), ph = rnd(0, 6);
+        const card = { im, wave, x: x1, y: y1 }; list.push(card);
+        let age = 0;
+        this.add((_, dt) => {
+          age += dt;
+          if (!im.active) { tr?.destroy(); return false; }
+          if (age < fly) { const q = out3(age / fly); im.setPosition(lerp(hx, x1, q), lerp(hy, y1 - 12, q) - Math.sin(q * Math.PI) * 24).setAngle(spin * q); if (tr) tr.setPosition(im.x, im.y).setAngle(Math.atan2(y1 - 12 - hy, x1 - hx) * 57.3 + (side < 0 ? 180 : 0)).setAlpha(1 - q); return true; }
+          if (tr && tr.active) { tr.destroy(); this.pop(x1, y1 - 10, 34, FUCHSIA_2, 140); }
+          // standing in the floor: it turns slowly (its face narrowing) and blinks
+          const turn = Math.cos(age * 0.012 + ph);
+          im.setPosition(x1, y1 - 12).setAngle(side * 8).setScale(this.u * 0.36 * (0.25 + 0.75 * Math.abs(turn)), this.u * 0.32).setTint(Math.sin(age * 0.05 + ph) > 0.3 ? 0xffffff : FUCHSIA);
+          return age < 2200;
+        });
+      }
+      return sent < N;
     });
+  }
+  /** A wave of 52 Pickup: its cards are torn out of the floor and blow; the last wave sucks the rest up and blows them all. */
+  private pickWave(r: CastRun, i: number): void {
+    const list = this.pickCards.get(r.castId) ?? [], w = i - 1, last = i === 4;
+    const mine = list.filter((c) => (last ? c.im.active : c.wave === w && c.im.active));
+    const p = this.ahead(r, 90 + w * 95), perp = { x: -r.aim.y, y: r.aim.x }, span = 60 + w * 55;
+    if (last) { // the vortex: every card left is pulled into one point, rises, and the whole deck goes off
+      const vx = this.kit('k_vortex', p.x, p.y, 320, GROUND + 3);
+      if (vx) { const kx = vx.scaleX, ky = (320 * SQUASH) / vx.height; this.piece(vx, 420, (u, o) => o.setScale(kx * (1 - u * 0.6), ky * (1 - u * 0.6)).setAngle(-u * 200).setAlpha(1 - u * u)); }
+      for (const c of mine) { const x0 = c.im.x, y0 = c.im.y; this.piece(c.im, 240, (u, o) => o.setPosition(lerp(x0, p.x, out3(u)), lerp(y0, p.y - 40, out3(u)) - u * 60).setAngle(u * 720).setScale(this.u * 0.36 * (1 - u * 0.5))); }
+      const tor = this.kit('x_tornado', p.x, p.y, 300, p.y + 2); if (tor) { tor.setOrigin(0.5, 0.97); const t0 = tor.scale; this.piece(tor, 620, (u, o) => o.setScale(t0 * lerp(0.6, 1.1, out3(u)), t0 * lerp(0.2, 1.2, out3(u))).setFlipX(Math.floor(u * 12) % 2 === 1).setAlpha(u < 0.6 ? 1 : (1 - u) / 0.4)); }
+      this.add((t) => { if (t < 220) return true; this.burst(p.x, p.y - 80, 300, 0, p.y + 3); this.beam(p.x, p.y, 380, 460); this.floorRing(p.x, p.y, 220, FUCHSIA, 460); this.ctx.cam().shake(320, 0.014); this.ctx.freeze(90); this.ctx.punch(0.06, 300); this.ctx.flash(0xffe0f8, 0.3, 160); return false; });
+      this.pickCards.delete(r.castId);
+      return;
+    }
+    for (const c of mine) { // each card of the wave is ripped up out of the floor and pops in the air
+      const x0 = c.im.x, y0 = c.im.y, d = rnd(0, 60);
+      this.piece(c.im, 120 + d, (u, o) => o.setPosition(x0, y0 - out3(u) * 40).setAngle(u * 360).setTint(0xffffff));
+      this.pop(x0, y0 - 40, 70, FUCHSIA, 240, 110 + d, y0 + 3);
+    }
+    for (const k of [-1, 0, 1]) { const q = { x: p.x + perp.x * span * k, y: p.y + perp.y * span * k * 0.8 }; this.burst(q.x, q.y - 26, 130, 60 + Math.abs(k) * 40, q.y + 2); }
+    this.floorRing(p.x, p.y, span + 60, FUCHSIA, 360);
+    this.ctx.cam().shake(110, 0.005); this.ctx.freeze(35);
   }
 
   /** Grand Slam's wind-up: energy pours into the staff over his shoulder — motes drawn in, arcs crackling, a swelling glow; dust at his feet. */
@@ -794,7 +900,7 @@ export class GamblerFx {
   /** Kinetic Overload's charge stays on him (an outline of crackling arcs). */
   overload(id: string, ms: number): void {
     this.overloads.get(id)?.g.destroy(); this.overloads.get(id)?.glow.destroy();
-    const g = this.ctx.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD), glow = this.glow(0, 0, 170, FUCHSIA, 0).setAlpha(0.35);
+    const g = this.ctx.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD), glow = this.kit('x_aura', 0, 0, 120, 0) ?? this.glow(0, 0, 170, FUCHSIA, 0).setAlpha(0.35);
     this.overloads.set(id, { until: this.clock + ms, g, glow });
   }
   clearBuffs(id: string): void {
@@ -805,7 +911,8 @@ export class GamblerFx {
     for (const [id, o] of this.overloads) {
       const c = this.ctx.casterPos(id);
       if (!c || this.clock > o.until) { o.g.destroy(); o.glow.destroy(); this.overloads.delete(id); continue; }
-      o.glow.setPosition(c.x, c.y - c.z - 60).setDepth(c.y - 1).setAlpha(0.25 + 0.12 * Math.sin(this.clock * 0.01));
+      if (o.glow.texture.key === 'gbk-x_aura') o.glow.setOrigin(0.5, 0.95).setPosition(c.x, c.y - c.z + 6).setDepth(c.y - 1).setDisplaySize(118 * (1 + 0.04 * Math.sin(this.clock * 0.02)), 190).setAlpha(0.55 + 0.25 * Math.sin(this.clock * 0.013)).setFlipX(Math.floor(this.clock / 90) % 2 === 1);
+      else o.glow.setPosition(c.x, c.y - c.z - 60).setDepth(c.y - 1).setAlpha(0.25 + 0.12 * Math.sin(this.clock * 0.01));
       o.g.clear().setDepth(c.y + 3);
       if (this.ctx.scene.textures.exists('gbk-k_arcs')) {
         if (Math.random() < 0.18) { const a = this.kit('k_arcs', c.x + rnd(-14, 14), c.y - c.z - rnd(40, 90), rnd(70, 110), c.y + 3); if (a) { const a0 = a.scale; a.setAngle(rnd(0, 360)).setFlipX(Math.random() < 0.5); this.piece(a, 160, (u, im) => im.setAlpha(1 - u).setScale(a0 * (1 + u * 0.2))); } }
@@ -924,6 +1031,13 @@ export class GamblerFx {
 
   /** A gambler zone strikes (its lingering hit): the thrown foe's landing bursts; the charged floor is drawn by fuseFloor. */
   zone(id: string, x: number, y: number, r: number): void {
+    if (id === 'ace_in_the_hole') { // the ace's blast at the end of its flight
+      const bl = this.kit('k_blast', x, y - 60, 320, y + 4); if (bl) { const b0 = bl.scale; this.piece(bl, 460, (u, o) => o.setScale(b0 * lerp(0.4, 1.2, out3(u))).setAlpha(u < 0.6 ? 1 : (1 - u) / 0.4)); }
+      for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2, im = this.ctx.scene.add.image(x, y - 60, this.acePic).setScale(this.u * 0.3).setDepth(y + 5); this.piece(im, 520, (u, o) => o.setPosition(x + Math.cos(a) * 170 * out3(u), y - 60 + Math.sin(a) * 90 * out3(u) + 40 * u * u).setAngle(u * 600).setAlpha(1 - u * u)); }
+      this.pop(x, y - 60, 260, 0xffffff, 260); this.floorRing(x, y, r * 1.3, FUCHSIA, 420); this.scar(x, y, r);
+      this.ctx.cam().shake(260, 0.012); this.ctx.freeze(80); this.ctx.flash(0xffe0f8, 0.25, 120);
+      return;
+    }
     if (id === 'card_swap') { this.burst(x, y - 34, 170, 0, y + 3); this.floorRing(x, y, r, FUCHSIA_2, 360); this.beam(x, y, 220, 320); this.ctx.cam().shake(140, 0.006); return; }
     if (id === 'kinetic_grab') { this.burst(x, y - 40, r * 2, 0, y + 3); this.floorRing(x, y, r, FUCHSIA_2, 420); this.scar(x, y, r); this.ctx.cam().shake(220, 0.01); }
   }
