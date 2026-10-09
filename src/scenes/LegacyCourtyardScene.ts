@@ -42,6 +42,8 @@ import { Match, MatchPhase } from '../pvp/Match';
 import { BattleHUD, Fighter } from '../ui/BattleHUD';
 import { classColor, heroArt, heroVsPortrait } from '../pvp/Fighters';
 import { TAG_SCALE, fighterTag, tagFontsReady } from '../pvp/FighterTag';
+/** '#rrggbb' as a number. */
+const colorNum = (c: string): number => parseInt(c.slice(1), 16);
 import { ComboGuide } from '../ui/ComboGuide';
 import { addResult, scoreKey } from '../pvp/Score';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
@@ -56,7 +58,7 @@ import { StatsWindow } from '../ui/StatsWindow';
 import { ARENA as PLAZA, AREAS as WORLD_AREAS } from '../world/Areas';
 import { jobsFor } from '../skills/Jobs';
 import { CombatInput } from '../game/CombatInput';
-import { ActorView, Equipped, preloadCosmetics, skinColor, grayKey, damageSkin, wantsWeaponMasks } from '../game/ActorView';
+import { ActorView, Equipped, RING_COLOR, preloadCosmetics, skinColor, grayKey, damageSkin, wantsWeaponMasks } from '../game/ActorView';
 import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
 import { baseLoop, ClassKey, dirOf, HERO_HEIGHT, HERO_LIFT, heroPortrait, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame, sideAim } from '../game/Body';
@@ -2030,7 +2032,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       makeView: () => {
         const ch = this.character!, g = genderOf(ch), v = new ActorView(this, this.cls, this.kin.x, this.kin.y);
         v.setBaseLook(headLookOf(ch), g); v.setGear(wornLook(CharacterStore.getGear(ch.id) ?? ch.gear), g); v.setName(ch.name); v.setEquipped(this.equipped);
-        if (this.tagsOn) { const [key, top] = this.myTag(false); v.setTag(key, top, PVP.labelDepth, TAG_SCALE); } // battle: your doubles wear your tag (with no YOU)
+        if (this.tagsOn) { const [key, top] = this.myTag(false); v.setTag(key, top, PVP.labelDepth, TAG_SCALE); v.setRing(colorNum(classColor(this.cls))); } // battle: your doubles wear your tag (with no YOU) and ring
         return v;
       },
       pose: (snap, dir) => resolvePose(this.cls, dir, poseQuery(snap), this.view!.wantsBase || !hasJob(this.character!), genderOf(this.character), !!this.character!.hero),
@@ -3473,7 +3475,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.fx) this.fx.battleLook = on; // (and the callouts in the fight's lettering)
     if (on) { void tagFontsReady().then(() => { if (this.tagsWanted) { this.tagsOn = true; this.wearTags(); } }); return; }
     this.tagsOn = false;
-    this.view?.setTag(null); this.bot?.view.setTag(null);
+    this.view?.setTag(null); this.view?.setRing(RING_COLOR); this.bot?.view.setTag(null);
     for (const r of this.pvp?.remotes.values() ?? []) r.setTag(null);
   }
   /** Your tag (`you` false: your doubles' — his name, not YOU) and where it sits over the head. */
@@ -3484,9 +3486,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const m = this.match;
     if (!m?.active || !this.character) return;
     const [key, top] = this.myTag();
-    this.view?.setTag(key, top, PVP.labelDepth, TAG_SCALE);
-    const opp = m.opponent, r = opp === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(opp);
-    if (r) r.setTag(fighterTag(this, this.fighterOf(opp).name, classColor(opp === BOT_ID ? this.botCls : r.meta.classId), false));
+    this.view?.setTag(key, top, PVP.labelDepth, TAG_SCALE); this.view?.setRing(colorNum(classColor(this.cls))); // (and the ring under your feet in your colour)
+    const opp = m.opponent, r = opp === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(opp), oc = classColor(opp === BOT_ID ? this.botCls : r?.meta.classId ?? '');
+    if (r) r.setTag(fighterTag(this, this.fighterOf(opp).name, oc, false), colorNum(oc));
   }
 
   /** START HERO: the sparring partner is a ready hero too (its body and face). */

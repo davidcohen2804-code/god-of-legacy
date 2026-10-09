@@ -6,7 +6,7 @@ import { FONT_FAMILY, PVP } from '../config/layout';
 import { Dir } from '../world/collision';
 import { PeerMeta, NetMsg } from './Transport';
 import { DeathFx } from '../game/DeathFx';
-import { ActorView, CosSlot, Equipped } from '../game/ActorView';
+import { ActorView, CosSlot, Equipped, RING_COLOR } from '../game/ActorView';
 import { TAG_SCALE } from './FighterTag';
 import { ClassKey, HERO_LIFT, cleanLook, loadBaseLook, resolvePose } from '../game/Body';
 import { DEFAULT_SKIN, SKIN_TONES } from '../characters/Skin';
@@ -75,8 +75,10 @@ export class RemotePlayer {
   /** Battle: his tag over the head (FighterTag) in place of the name and bar — the battle HUD shows both; his doubles
    *  wear the very same one. null: the name and bar again. */
   private tagKey: string | null = null;
-  setTag(key: string | null): void {
-    this.tagKey = key;
+  private ringC = RING_COLOR;
+  /** `ring`: the ring under his feet (and his doubles') in his class colour while he wears the tag. */
+  setTag(key: string | null, ring = RING_COLOR): void {
+    this.tagKey = key; this.ringC = key ? ring : RING_COLOR;
     this.wearTag(this.view, this.label, this.bar);
     for (const d of this.kage) if (d) this.wearTag(d.view, d.label, d.bar);
   }
@@ -84,6 +86,7 @@ export class RemotePlayer {
   private wearTag(v: ActorView, label: Phaser.GameObjects.Text, bar: Phaser.GameObjects.Graphics): void {
     label.setVisible(!this.tagKey); bar.setVisible(!this.tagKey);
     v.setTag(this.tagKey, this.headTop() + PVP.remoteLabel.gap - PVP.hpBar.h, PVP.labelDepth, TAG_SCALE); // (its tip where the bar's foot was)
+    v.setRing(this.ringC);
   }
 
   constructor(private scene: Phaser.Scene, readonly meta: PeerMeta, x: number, y: number) {
