@@ -7,6 +7,7 @@ Out: public/assets/final/heroes/<cls>/body.png and src/data/hero-atlas.json
 Run: python3 tools/heroes/cut.py
 """
 import json
+import sys
 import os
 import sys
 
@@ -21,6 +22,7 @@ DROP = {}
 HEADY = {}  # cls -> run frames (index, figure height, in the air)
 STRIDES = {}  # (cls, act) -> feet spread per frame (atlas px)
 SCALE = 0.6  # frame size kept in the atlas (source px x SCALE)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC = os.path.join(ROOT, 'tools', 'heroes', 'src')
 
@@ -345,6 +347,17 @@ def main():
             t = next((t for (ac, _, _), t in zip(acts, tags) if ac == a), None)
             if t and (cls, a) in STRIDES:
                 STRIDES[(cls, a)] = [v * sk.get(t, 1.0) for v in STRIDES[(cls, a)]]
+        # Walk / run animated in code from the hero's cut-out parts (tools/heroes/rig.py): real gait cycles, feet planted
+        rig_cyc = None
+        parts_png = os.path.join(ROOT, 'tools', 'heroes', 'parts', f'{cls}.png')
+        if os.path.exists(parts_png):
+            import rig
+            idle_now = float(np.median([im.shape[0] for (ac, _, _), im in zip(acts, ims) if ac == 'idle']))
+            keep = [i for i, (ac, _, _) in enumerate(acts) if ac not in ('walk', 'run', 'walk2', 'run2')]
+            acts = [acts[i] for i in keep]; ims = [ims[i] for i in keep]; tags = [tags[i] for i in keep]
+            frames, rig_cyc = rig.bake(parts_png, cls, idle_now)
+            for act, im, ax, ay in frames:
+                acts.append((act, ax, ay)); ims.append(im); tags.append('RIG')
         sheet, pos = pack(ims)
         out_dir = os.path.join(ROOT, 'public', 'assets', 'final', 'heroes', cls)
         os.makedirs(out_dir, exist_ok=True)
@@ -379,6 +392,8 @@ def main():
                 cyc[a] = round((2 if n >= 8 else 1) * max(sp), 1)
             else:  # a run: brisk legs (~2.8 steps a second at full speed), measured on the typical stride (not the flight's split)
                 cyc[a] = round((2 if n >= 8 else 1) * max(sp), 1)
+        if rig_cyc:
+            cyc = {a: round(float(v), 1) for a, v in rig_cyc.items()}
         table[cls] = {'h': idle_h, 'actions': A, 'cycle': cyc}
         print(cls, {k: len(v) for k, v in A.items()}, 'idle h', idle_h, 'sheet', sheet.shape[:2])
     json.dump(table, open(table_path, 'w'), separators=(',', ':'))
