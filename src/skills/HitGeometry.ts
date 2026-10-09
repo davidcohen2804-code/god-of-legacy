@@ -127,6 +127,8 @@ export interface Projectile {
   done: boolean;
   /** Height lost per px travelled (shots fired from the air descend toward chest height of grounded targets). */
   dropPerPx: number;
+  /** Shot up into the air (Spirit Bow): 1 = at 45°, 2 = straight up. It flies over the floor along a side and only strikes as it comes down. */
+  loft?: number;
   /** Where/why it ended. */
   end?: { x: number; y: number; reason: 'target' | 'cover' | 'range' };
 }
@@ -162,6 +164,7 @@ export function stepProjectile(p: Projectile, ms: number, targets: HitTarget[], 
   for (const t of targets) {
     if (already.has(t.id) || !legal(p.skill, p.attackerId, t)) continue;
     if (!(p.z >= t.z - 6 && p.z <= t.z + t.height + 6)) continue; // jump over / under a projectile
+    if (p.loft && p.travelled + len < p.range * 0.6) continue; // shot up: still high in the air
     const R = t.radius + p.radius, ox = p.x - t.x, oy = p.y - t.y;
     const b = ox * p.dx + oy * p.dy, c = ox * ox + oy * oy - R * R;
     let at: number;

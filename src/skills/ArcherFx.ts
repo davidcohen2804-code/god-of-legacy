@@ -230,9 +230,11 @@ export class ArcherFx {
           this.floor('floor_cracks', kx, ky, 190, 900, { run: r, a: kf([0, 1], [0.7, 0.9], [1, 0]) }); // the floor breaks open
           this.spr({ name: 'dust', x: kx, y: ky + 4, oy: 0.85, depth: ky + 1, w: 200, life: 640, sx: kf([0, 0.4], [1, 1.5, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
           this.spr({ name: 'launch_beam', x: kx, y: ky + 6, oy: 0.97, depth: ky + 2, w: 130, h: 360, life: 460, add: true, glow: 0.3, sy: kf([0, 0.2], [0.22, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) });
-          // the big boot rises out of the ground (grows up from the floor line) spinning in place, toe toward the kick
+          // the big boot rises out of the ground (grows up from the floor line), toe the way she faces, a whirl turning round it
           this.spr({ name: 'wind_boot', x: kx, y: ky + 8, oy: 1, depth: ky + 3, w: 210, flipX: side < 0, life: T.active + 360, glow: 0.3,
-            sy: kf([0, 0], [0.18, 1.12, out3], [0.3, 1]), sx: (u) => kf([0, 0.7], [0.18, 1, out3])(u) * Math.cos(Math.PI * 4 * out(Math.min(1, u / 0.6))), my: kf([0, 0], [0.18, -20, out3], [1, -70]), a: kf([0, 1], [0.75, 1], [1, 0]) }); // spins in place twice and settles with the toe toward the kick
+            sy: kf([0, 0], [0.18, 1.12, out3], [0.3, 1]), sx: kf([0, 0.7], [0.18, 1, out3]), my: kf([0, 0], [0.18, -20, out3], [1, -70]), a: kf([0, 1], [0.75, 1], [1, 0]) }); // always faces the way she faces
+          // a whirl of wind and leaves turns round the boot
+          this.spr({ name: 'leaf_whirl', x: kx, y: ky - 40, depth: ky + 2, w: 170, add: true, life: T.active + 300, delay: 40, my: (u) => -50 * out(u), sy: () => 0.75, rot: (u) => side * 900 * u, a: kf([0, 0], [0.15, 0.5], [0.7, 0.4], [1, 0]) });
           // the upward kick: a crescent of wind sweeping up, streaks shooting skyward
           this.spr({ name: 'wind_crescent', x: kx + side * 20, y: ky - 90, depth: ky + 4, w: 200, angle: side * -70, flipX: side < 0, add: true, glow: 0.3, life: 360, delay: 60, my: (u) => -50 * out(u), sx: kf([0, 0.6], [0.4, 1.1, out3]), a: kf([0, 0], [0.15, 1], [1, 0, inQ]) });
           for (let k = 0; k < 3; k++) this.spr({ name: 'wind_streaks', x: kx + (k - 1) * 30, y: ky - 40, depth: ky + 4, w: 150, angle: -90, add: true, life: 320, delay: 40 + k * 40, my: (u) => -140 * out(u), a: kf([0, 0], [0.2, 0.9], [1, 0]) });
@@ -283,32 +285,35 @@ export class ArcherFx {
       const q = this.me(r), sx = q.x + sideOf(r) * 30, sy = q.y - q.z - 58, lv = { x: cx - sx, y: cy - 20 - sy }, L = Math.hypot(lv.x, lv.y) || 1;
       this.spr({ name: 'arrow_storm', x: sx, y: sy, depth: TOP + 3, w: 170, angle: Math.atan2(lv.y, lv.x) * (180 / Math.PI), add: true, glow: 0.4, life: 110, mx: (u) => lv.x * u, my: (u) => lv.y * u, a: kf([0, 1], [1, 1]) });
       this.later(100, () => {
-        this.spr({ name: 'bolt_v', x: cx, y: cy + 6, oy: 0.97, depth: cy + 3, w: 110, life: 300, add: true, glow: 0.5, sy: kf([0, 0.3], [0.15, 1.05, out3], [1, 1]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
-        this.floor('elec_floor', cx, cy, 160, 2000, { add: true, s: kf([0, 0.5], [0.12, 1.1, out3], [0.2, 1]), a: kf([0, 1], [0.15, 0.85], [0.8, 0.6], [1, 0]) }); // the floor stays charged
-        this.floor('floor_cracks', cx, cy, 120, 2000, { tint: 0x7fdcff, a: kf([0, 0], [0.05, 0.8], [0.8, 0.6], [1, 0]) });
-        for (let k = 0; k < 8; k++) this.later(150 + k * 220, () => { const an = rnd(0, Math.PI * 2), rr = rnd(30, 70); this.bolt('arc_small', { x: cx, y: cy - 4 }, { x: cx + Math.cos(an) * rr, y: cy + Math.sin(an) * rr * 0.45 }, { thick: 22, life: 140 }); });
-        this.pop('spark_cyan', cx, cy - 30, 60, { life: 200 });
-        for (let k = 0; k < 3; k++) { const an = rnd(0, Math.PI * 2); this.bolt('arc_small', { x: cx, y: cy - 4 }, { x: cx + Math.cos(an) * 70, y: cy + Math.sin(an) * 30 }, { thick: 30, delay: k * 40, life: 160 }); }
+        // the arrow stands in the floor, then the sky answers: a great bolt strikes it, and the floor round it stays charged
+        this.spr({ name: 'arrow_storm', x: cx, y: cy + 4, ox: 0.85, depth: cy + 2, w: 150, angle: lv.x >= 0 ? 62 : 118, flipY: lv.x < 0, add: true, glow: 0.4, life: 2000, a: (u) => (u > 0.8 ? (1 - u) * 5 : 1) * (0.75 + 0.25 * Math.sin(u * 60)) });
+        this.pop('burst_crit', cx, cy - 26, 150, { life: 220, tint: 0x9fe6ff });
+        this.later(70, () => {
+          this.spr({ name: 'bolt_v', x: cx, y: cy + 8, oy: 0.97, depth: cy + 3, w: 170, h: 560, life: 320, add: true, glow: 0.6, sy: kf([0, 0.2], [0.12, 1.05, out3], [1, 1]), a: kf([0, 1], [0.4, 1], [1, 0, inQ]) });
+          this.floor('shock_ring', cx, cy, 230, 420, { add: true, tint: 0x9fe6ff, s: kf([0, 0.3], [1, 1.3, out3]), a: kf([0, 1], [1, 0, inQ]) });
+          if (r.own && i === 2) this.ctx.punch(0.02, 160);
+        }, r);
+        this.floor('elec_floor', cx, cy, 190, 2100, { add: true, glow: 0.2, s: kf([0, 0.4], [0.1, 1.05, out3], [0.2, 1]), a: (u) => kf([0, 0], [0.06, 0.8], [0.8, 0.55], [1, 0])(u) * (0.8 + 0.2 * Math.sin(u * 45)) }); // the floor stays charged, flickering
+        this.floor('floor_cracks', cx, cy, 140, 2100, { tint: 0x7fdcff, a: kf([0, 0], [0.05, 0.85], [0.8, 0.6], [1, 0]) });
+        for (let k = 0; k < 12; k++) this.later(120 + k * 150, () => { const an = rnd(0, Math.PI * 2), rr = rnd(40, 95); this.bolt('arc_small', { x: cx, y: cy - 4 }, { x: cx + Math.cos(an) * rr, y: cy + Math.sin(an) * rr * 0.45 }, { thick: 24, life: 130 }); if (k % 3 === 0) this.pop('spark_cyan', cx + rnd(-50, 50), cy - rnd(10, 40), 40, { life: 220 }); });
+        for (let k = 0; k < 4; k++) { const an = rnd(0, Math.PI * 2); this.bolt('arc_small', { x: cx, y: cy - 4 }, { x: cx + Math.cos(an) * 90, y: cy + Math.sin(an) * 40 }, { thick: 34, delay: 70 + k * 40, life: 170 }); }
         this.shake(r, i === 2 ? 200 : 110, i === 2 ? 0.006 : 0.003);
       }, r);
     }
-    if (s.id === 'arrow_storm' && r.place) { // each wave: shining arrows streak down from far above onto the mark, light trails behind them; they bite into the floor, flash and stay a moment
-      const c = r.place, heavy = i % 3 === 2, n = heavy ? 7 : 9;
-      for (let k = 0; k < n; k++) {
-        const fx = c.x + rnd(-95, 95), fy = c.y + rnd(-36, 36), d = rnd(0, 170), big = heavy && k < 2, H = 760, sx = 90, ang = Math.atan2(H, sx) * (180 / Math.PI) - 90 - 12, fall = 230;
-        // the light trail behind the arrow
-        this.spr({ name: 'arrow_streak', x: fx - sx, y: fy - H, depth: fy + 1.5, w: big ? 240 : 170, ox: 0.9, angle: ang + 90, add: true, glow: 0.35, life: fall + 90, delay: d,
-          mx: (u) => sx * Math.min(1, u * 1.4), my: (u) => H * inQ(Math.min(1, u * 1.4)), a: kf([0, 0], [0.15, 0.8], [0.7, 0.7], [1, 0]) });
-        this.spr({ name: 'arrow_fall', x: fx - sx, y: fy - H, depth: fy + 2, w: big ? 130 : 78, angle: -12, glow: 0.45, life: fall, delay: d, mx: (u) => sx * u, my: (u) => H * inQ(u), a: kf([0, 0.6], [0.2, 1], [1, 1]) });
-        this.later(d + fall, () => {
-          this.spr({ name: 'arrow_stuck', x: fx, y: fy + 4, oy: 0.9, depth: fy + 1, w: big ? 104 : 66, life: 1500, glow: 0.2, a: kf([0, 1], [0.75, 1], [1, 0]) });
-          this.spr({ name: 'arrow_glint', x: fx, y: fy - 18, depth: fy + 3, w: big ? 120 : 70, life: 200, add: true, sx: kf([0, 0.4], [0.3, 1.2, out3], [1, 0.8]), sy: kf([0, 0.4], [0.3, 1.2, out3], [1, 0.8]), a: kf([0, 1], [1, 0]) });
-          this.pop(big ? 'burst_heavy' : 'spark_s', fx, fy - 12, big ? 160 : 84, { life: 260 });
-          this.floor('floor_cracks', fx, fy, big ? 140 : 70, 1100, { a: kf([0, 0.9], [0.6, 0.7], [1, 0]) });
-          this.floor('shock_ring', fx, fy, big ? 220 : 80, big ? 460 : 260, { add: true, s: kf([0, 0.3], [1, 1.2, out3]), a: kf([0, big ? 1 : 0.6], [1, 0]) });
-          if (big) { this.spr({ name: 'dust', x: fx, y: fy + 4, oy: 0.85, depth: fy, w: 160, life: 560, a: kf([0, 0.8], [1, 0]) }); this.shake(r, 130, 0.005); }
-        });
-      }
+    if (s.id === 'arrow_storm' && r.place) { // one big shining arrow at a time drops straight down from high above onto the mark and blows up on the floor
+      const c = r.place, big = i % 3 === 2, fx = c.x + rnd(-70, 70), fy = c.y + rnd(-26, 26), H = 820, fall = 200, L = big ? 260 : 210;
+      this.spr({ name: 'arrow_streak', x: fx, y: fy - H, depth: fy + 1.5, w: big ? 340 : 280, ox: 1, angle: 90, add: true, glow: 0.35, life: fall + 80, my: (u) => H * inQ(Math.min(1, u * 1.4)), a: kf([0, 0], [0.15, 0.85], [0.7, 0.7], [1, 0]) });
+      this.spr({ name: 'arrow_heavy', x: fx, y: fy - H, ox: 0.95, depth: fy + 2, w: L, angle: 90, glow: 0.5, life: fall, my: (u) => H * inQ(u), a: kf([0, 0.7], [0.2, 1], [1, 1]) });
+      this.later(fall, () => {
+        this.spr({ name: 'arrow_heavy', x: fx, y: fy + 6, ox: 0.82, depth: fy + 1, w: L, angle: 90, glow: 0.3, life: 1100, a: kf([0, 1], [0.7, 1], [1, 0]) }); // it stands in the floor a moment
+        this.pop('burst_heavy', fx, fy - 30, big ? 230 : 180, { life: 300 });
+        this.spr({ name: 'launch_beam', x: fx, y: fy + 6, oy: 0.97, depth: fy + 3, w: big ? 120 : 90, h: big ? 320 : 240, life: 320, add: true, glow: 0.3, sy: kf([0, 0.3], [0.25, 1.05, out3]), a: kf([0, 1], [1, 0, inQ]) });
+        this.floor('floor_cracks', fx, fy, big ? 190 : 140, 1300, { a: kf([0, 1], [0.6, 0.8], [1, 0]) });
+        this.floor('shock_ring', fx, fy, big ? 280 : 210, 460, { add: true, s: kf([0, 0.3], [1, 1.3, out3]), a: kf([0, 1], [1, 0, inQ]) });
+        this.spr({ name: 'dust', x: fx, y: fy + 4, oy: 0.85, depth: fy, w: big ? 200 : 160, life: 600, sx: kf([0, 0.5], [1, 1.4, out3]), a: kf([0, 0.85], [1, 0, inQ]) });
+        this.leaves(fx, fy - 20, big ? 12 : 7, 60, { up: 150, life: 800 });
+        this.shake(r, big ? 160 : 100, big ? 0.006 : 0.0035);
+      }, r);
     }
     if (s.id === 'bow_haste') { // the arrow in the ground bursts: earth and green light throw the foe up
       const sh = r.hits[i].shape as { bias?: number }, gx = r.origin.x + a.x * (sh.bias ?? 200), gy = r.origin.y + a.y * (sh.bias ?? 200);
@@ -348,14 +353,17 @@ export class ArcherFx {
     // a great spirit bow of light floats beside her, a pillar of green light under it and its emblem behind
     this.spr({ name: 'aura_green', w: 120, oy: 0.92, follow: this.at(r.attackerId, 0, 0, -6), dz: -1, life: T.startup + T.active + 200, add: true, glow: 0.2, run: r, alive, a: kf([0, 0], [0.05, 0.75], [0.95, 0.75], [1, 0]) });
     const emb = this.spr({ name: 'emblem', w: 150, follow: this.at(r.attackerId, side, 70, 72), dz: 5, add: true, run: r, alive, life: T.startup + T.active + 200, a: kf([0, 0], [0.05, 0.45], [0.95, 0.45], [1, 0]), rot: (u) => side * 60 * u }); void emb;
-    const draw = this.spr({ name: 'bow_drawn', w: 170, life: T.startup + T.active + 200, follow: this.at(r.attackerId, side, 70, 72), dz: 6, add: true, glow: 0.3, run: r, flipX: side < 0,
-      alive, sx: kf([0, 0.3], [0.08, 1, out3]), sy: kf([0, 0.3], [0.08, 1, out3]), a: kf([0, 0], [0.05, 1], [0.95, 1], [1, 0]) });
+    const tilt = () => (r.aim.y < -0.3 ? (Math.abs(r.aim.x) > 0.2 ? 45 : 80) : 0); // level, 45° up or (nearly) straight up
+    const bowAt = (): Pt | null => { const c = this.ctx.casterPos(r.attackerId); if (!c) return null; const sd = r.aim.x < -0.01 ? -1 : 1, tr = (tilt() * Math.PI) / 180;
+      return { x: c.x + sd * (30 + 40 * Math.cos(tr)), y: c.y - c.z - 72 - 40 * Math.sin(tr), d: c.y }; };
+    const draw = this.spr({ name: 'bow_drawn', w: 170, life: T.startup + T.active + 200, follow: bowAt, dz: 6, add: true, glow: 0.3, run: r, flipX: side < 0,
+      alive, rot: () => -(r.aim.x < -0.01 ? -1 : 1) * tilt(), sx: kf([0, 0.3], [0.08, 1, out3]), sy: kf([0, 0.3], [0.08, 1, out3]), a: kf([0, 0], [0.05, 1], [0.95, 1], [1, 0]) });
     // the bow stands still beside her (it never turns); a small flash at it on every arrow
     this.add({ t: 0, step: (dt) => {
       t += dt; if (!draw?.active || r.phase === 'recovery' || r.phase === 'done') { on = false; return false; }
       const e = t - T.startup, n = Math.floor(e / 125);
-      if (e > 0 && n > shots) { shots = n; const q = this.me(r), bx = q.x + side * 70, by = q.y - q.z - 72;
-        this.pop('arrow_glint', bx + side * 30, by + rnd(-14, 14), 34, { life: 120, depth: q.y + 7 }); }
+      if (e > 0 && n > shots) { shots = n; const b = bowAt(); if (b) { const sd = r.aim.x < -0.01 ? -1 : 1, tr = (tilt() * Math.PI) / 180;
+        draw?.setFlipX(sd < 0); this.pop('arrow_glint', b.x + sd * 30 * Math.cos(tr), b.y - 30 * Math.sin(tr) + rnd(-10, 10), 34, { life: 120, depth: b.d + 7 }); } }
       return true;
     } });
     this.later(T.startup, () => { const q = this.me(r); this.pop('sparkles', q.x + side * 70, q.y - q.z - 72, 120, { life: 500 }); this.floor('shock_ring', q.x, q.y, 140, 380, { add: true, s: kf([0, 0.4], [1, 1.2, out3]), a: kf([0, 1], [1, 0]) }); }, r);
@@ -559,9 +567,9 @@ export class ArcherFx {
         ang = Math.atan2(p.dy * 0.5 + fall, Math.abs(p.dx)) * (180 / Math.PI) * (flip ? -1 : 1);
         if (zv <= 0 && a.im.visible) { a.im.setVisible(false); a.tr?.setVisible(false); this.floorStrike(p.x, p.y, flip); }
       }
-      if (p.skill.id === 'piercing_arrow' && p.dy < -0.3) { // Spirit Bow aimed up: arcs high and falls back down onto the floor
-        const life = 620, k = Math.min(1, p.ageMs / life), H = Math.abs(p.dx) < 0.1 ? 320 : 170, lift = 4 * H * k * (1 - k), slope = (4 * H * (1 - 2 * k)) / life * 1000;
-        y -= lift; const raw = Math.atan2(p.dy * 900 * 0.5 - slope, Math.abs(p.dx) * 900 + 1) * (180 / Math.PI); ang = flip ? -raw : raw;
+      if (p.loft) { // Spirit Bow shot up: a high arc straight above the floor where she stands, falling back down onto it
+        const k = Math.min(1, p.travelled / p.range), H = p.loft === 2 ? 340 : 210, lift = 4 * H * k * (1 - k), slope = 4 * H * (1 - 2 * k) / p.range; // screen px up per px along
+        y -= lift; const raw = Math.atan2(-slope, 1) * (180 / Math.PI); ang = flip ? -raw : raw;
       }
       const grow = Math.min(1, 0.2 + a.t / 80), len = Math.min(120, 20 + a.t * 0.8);
       a.im.setPosition(x, y).setFlipX(flip).setAngle(ang).setDepth(p.y + 2).setAlpha(Math.min(1, a.t / 30)).setScale((a.im.getData('sx') as number) * grow, a.im.scaleY); // grows out of the bow's flash
