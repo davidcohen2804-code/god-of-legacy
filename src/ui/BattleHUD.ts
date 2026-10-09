@@ -260,9 +260,31 @@ const CSS = `
 .gol-hud.battle .gol-spar .act button{font-size:16px;letter-spacing:2px}
 .gol-hud.battle .gol-spar .act .stop.on{background:linear-gradient(180deg,#ff7a5c,#b8301c);color:#ffffff}
 .gol-hud.battle .gol-spar .spd span{font:700 italic 11px ${LABEL};letter-spacing:1.6px;color:#c9c2b0}
-/* the battle: the skill dock as a plate of dark metal with cut corners and a gold edge */
-.gol-hud.battle .dock.gl-panel{border:0;border-radius:0;clip-path:polygon(22px 0,calc(100% - 22px) 0,100% 22px,100% 100%,0 100%,0 22px);
-  background:linear-gradient(180deg,rgba(18,23,35,.93),rgba(5,7,12,.9));box-shadow:inset 0 2px 0 rgba(240,204,128,.7)}
+/* the battle: the skill bar in the fight's metal — a slanted plate with a bevelled silver-and-gold rim (as the health bars),
+   each skill in a cut-corner metal frame, the keys on white slanted caps, cooldowns in the fight's lettering */
+.gol-hud.battle .dock.gl-panel{border:0;border-radius:0;box-shadow:none;background:linear-gradient(180deg,#ffffff 0%,#aab3c6 9%,#3b4252 30%,#20252f 70%,#d7ae58 100%);
+  clip-path:polygon(28px 0,calc(100% - 28px) 0,100% 100%,0 100%);filter:drop-shadow(0 -4px 14px rgba(0,0,0,.55))}
+.gol-hud.battle .dock.gl-panel::before{content:'';position:absolute;inset:3px 3px 0;clip-path:polygon(26px 0,calc(100% - 26px) 0,100% 100%,0 100%);
+  background:radial-gradient(ellipse at 50% 0%,rgba(255,214,140,.10),rgba(0,0,0,0) 60%),linear-gradient(180deg,#1b2130 0%,#0b0e16 55%,#06080d 100%)}
+.gol-hud.battle .aslot{border-radius:0;background:linear-gradient(150deg,#ffffff 0%,#aab3c6 20%,#2c3240 52%,#d7ae58 100%);box-shadow:none;
+  clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px)}
+.gol-hud.battle .aslot .ic,.gol-hud.battle .aslot .cd,.gol-hud.battle .aslot .ult{border-radius:0;clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)}
+.gol-hud.battle .aslot .ic{left:2px;top:2px;width:calc(100% - 4px);height:calc(100% - 4px);background:#0b1018}
+.gol-hud.battle .aslot .cd{inset:2px}
+.gol-hud.battle .aslot.pot .ic{left:8px;top:8px;width:calc(100% - 16px);height:calc(100% - 16px);clip-path:none;background:none}
+.gol-hud.battle .aslot.empty{background:linear-gradient(150deg,#59606e,#232833 55%,#4d4430)}
+.gol-hud.battle .aslot.empty::before{z-index:1}
+.gol-hud.battle .aslot.empty::after{content:'';position:absolute;inset:2px;clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);background:linear-gradient(180deg,#141925,#07090e)}
+.gol-hud.battle .aslot.sig{background:linear-gradient(150deg,#fff6d6 0%,#ffd36a 25%,#7a5212 55%,#ffcf5a 100%)}
+.gol-hud.battle .aslot .cd{font:900 italic 27px/1 ${DISPLAY};color:#ffffff;text-shadow:0 2px 0 #000,0 0 8px #000}
+.gol-hud.battle .aslot .ult{inset:0;box-shadow:inset 0 0 0 3px #ff7a5c,inset 0 0 14px rgba(255,110,80,.75)}
+.gol-hud.battle .aslot:hover{transform:translateY(-2px);filter:brightness(1.15)}
+.gol-hud.battle .dock .key{height:17px;min-width:19px;padding:0 6px;border:0;border-radius:0;background:linear-gradient(180deg,#ffffff,#c3ccdb);
+  clip-path:polygon(4px 0,100% 0,calc(100% - 4px) 100%,0 100%);font:800 italic 11px/17px ${DISPLAY};letter-spacing:.3px;color:#0b0d12}
+.gol-hud.battle .dock .sep{width:2px;background:linear-gradient(180deg,rgba(215,174,88,0),#d7ae58 25%,#fff0c0 50%,#d7ae58 75%,rgba(215,174,88,0))}
+.gol-hud.battle .dock .pas .pi{border-radius:0;box-shadow:none;background:linear-gradient(150deg,#ffffff 0%,#aab3c6 22%,#2c3240 55%,#d7ae58 100%);padding:2px;box-sizing:border-box;
+  clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px)}
+.gol-hud.battle .dock .pas .pi img{clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px)}
 .gol-hud.battle .dock .pas .lab{font:800 italic 12px/14px ${DISPLAY};letter-spacing:1.8px;color:#f3e3bd}
 /* the end of the match */
 .gol-bt .b-res{position:absolute;left:0;top:0;width:1920px;height:1080px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;pointer-events:auto;

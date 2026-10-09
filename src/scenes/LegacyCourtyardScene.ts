@@ -43,6 +43,7 @@ import { BattleHUD, Fighter } from '../ui/BattleHUD';
 import { classColor, heroArt, heroVsPortrait } from '../pvp/Fighters';
 import { TAG_SCALE, fighterTag, tagFontsReady } from '../pvp/FighterTag';
 import { LoadSide, showArenaLoading, takeArenaLoading } from '../ui/ArenaLoading';
+import { COURTYARD_LOOK, StageFx } from '../world/StageFx';
 /** '#rrggbb' as a number. */
 const colorNum = (c: string): number => parseInt(c.slice(1), 16);
 import { ComboGuide } from '../ui/ComboGuide';
@@ -175,6 +176,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private dummyBar?: Phaser.GameObjects.Graphics;
   dummyState?: DummyState;
   private ambience?: CourtyardAmbience;
+  /** The PvP arena's living stage: clouds, mist, birds, god rays, the floor's light, blowing leaves (visual only). */
+  private stageFx?: StageFx;
   private occluders: Phaser.GameObjects.Image[] = [];
   // ---- combat
   rt?: SkillRuntime;
@@ -485,6 +488,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.input.keyboard?.on('keydown-PAGE_UP', () => this.arenaCam('up')); this.input.keyboard?.on('keydown-PAGE_DOWN', () => this.arenaCam('down'));
       this.input.keyboard?.on('keydown-HOME', () => this.arenaCam('reset'));
       this.ambience = new CourtyardAmbience(this, WORLD.coordinateSpace.width, WORLD.coordinateSpace.height);
+      this.stageFx = new StageFx(this, COURTYARD_LOOK, WORLD.coordinateSpace.width, WORLD.coordinateSpace.height);
       // Baked-map occlusion: each prop silhouette is redrawn from the map at its footprint depth (no floor crop).
       this.occluders = WORLD_OBJECTS.map((o) => {
         const g = this.make.graphics({}, false);
@@ -665,6 +669,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.comboGuide?.destroy(); this.comboGuide = undefined;
       this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1;
       this.ambience?.destroy(); this.ambience = undefined;
+      this.stageFx?.destroy(); this.stageFx = undefined;
       for (const o of this.occluders) { o.clearMask(true); o.destroy(); }
       this.occluders = [];
       this.hud?.destroy(); this.hud = undefined;
@@ -695,6 +700,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const real = Math.min(delta, 50);
     const ms = real * this.slowMo * this.koFactor(real); // arena analysis: slow motion; a K.O.: a beat of slow motion
     this.ambience?.update(ms);
+    this.stageFx?.update(ms);
     this.pvp?.update(ms);
     this.skillBook?.update(ms);
     this.cosPanel?.update(ms);
@@ -3406,7 +3412,23 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   /** Starts / ends the match as opponents come and go, runs it, and feeds the fight's HUD. */
+  /** Battle: the two fighters' tags step apart sideways when they would overlap (the fighters close together), easing back. */
+  private spreadTags(ms: number): void {
+    const m = this.match, a = this.view;
+    const b = m?.active ? (m.opponent === BOT_ID ? this.bot?.view.view : this.pvp?.remotes.get(m.opponent)?.view) : undefined;
+    let sa = 0, sb = 0;
+    const ra = a?.tagBox(), rb = b?.tagBox();
+    if (this.tagsOn && a && b && ra && rb && ra.y0 < rb.y1 + 4 && rb.y0 < ra.y1 + 4) {
+      const over = Math.min(ra.x1, rb.x1) - Math.max(ra.x0, rb.x0) + 8; // (and a little air between them)
+      if (over > 0) { const left = (ra.x0 + ra.x1) / 2 <= (rb.x0 + rb.x1) / 2 ? -1 : 1; sa = (left * over) / 2; sb = (-left * over) / 2; }
+    }
+    const k = Math.min(1, ms / 90);
+    if (a) a.tagShift += (sa - a.tagShift) * k;
+    if (b) b.tagShift += (sb - b.tagShift) * k;
+  }
+
   private updateMatch(real: number, ms: number): void {
+    this.spreadTags(ms);
     const m = this.match, B = this.battleHud;
     if (this.curtain && !m?.active && performance.now() - this.curtainAt > (this.waitFoe ? 2500 : 9000)) this.liftCurtain(); // (no match coming yet)
     if (!m || !B || !this.pvpReady) return;

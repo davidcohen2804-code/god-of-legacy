@@ -253,6 +253,14 @@ export class ActorView {
   private tag: Phaser.GameObjects.Image | null = null;
   /** The tag's own alpha (null: the body's). */
   tagAlpha: number | null = null;
+  /** Sideways nudge of the tag (two fighters close together: their tags step apart instead of overlapping). */
+  tagShift = 0;
+  private tagAt = { x: 0, y: 0 };
+  /** The tag's box where it would stand unnudged (null: no tag shown). */
+  tagBox(): { x0: number; x1: number; y0: number; y1: number } | null {
+    const t = this.tag; if (!t || !t.visible) return null;
+    return { x0: this.tagAt.x - t.displayWidth / 2, x1: this.tagAt.x + t.displayWidth / 2, y0: this.tagAt.y, y1: this.tagAt.y + t.displayHeight };
+  }
   private tagDepth = 0;
   /** A tag (texture key) under the feet, in the name plate's place; null: the name plate again. */
   setTag(key: string | null, depth = NAME_DEPTH + 5000, scale = 0.5): void {
@@ -466,7 +474,10 @@ export class ActorView {
         this.nameFrame.setPosition(x, ny).setDepth(d0).setAlpha(alpha).setVisible(this.visible && !this.tag);
       }
     }
-    this.tag?.setPosition(Math.round(x), Math.round(y - Math.max(supportZ, z - 12) + 15)).setDepth(this.tagDepth).setAlpha(this.tagAlpha ?? alpha).setVisible(this.visible); // (its notch just under the ring)
+    if (this.tag) { // (its notch just under the ring)
+      this.tagAt.x = x; this.tagAt.y = y - Math.max(supportZ, z - 12) + 15;
+      this.tag.setPosition(Math.round(x + this.tagShift), Math.round(this.tagAt.y)).setDepth(this.tagDepth).setAlpha(this.tagAlpha ?? alpha).setVisible(this.visible);
+    }
     const tr = this.equipped.trail;
     if (tr && this.visible && this.scene.textures.exists(`cos-${tr}`)) {
       const lf = this.lastFeet, moved = lf ? Math.hypot(x - lf.x, y - lf.y) : 0; this.lastFeet = { x, y };
