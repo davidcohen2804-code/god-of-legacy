@@ -24,7 +24,8 @@ export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
   'mfx-blink': ['blink.png', 384, 384, 16],
   'mfx-levity': ['levity_field.png', 384, 384, 16],
   'mfx-rune': ['binding_rune.png', 384, 384, 16],
-  'mfx-paper': ['origami.png', 384, 384, 16], // 0-3 crane flying right (loop), 4-7 crane burst, 8-11 pages wrapping a body, 12-15 the cursed crane (loop) // 0-3 the armed rune (loop), 4-11 chains binding, 12-15 release (ground centre ~72% down) // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
+  'mfx-paper': ['origami.png', 384, 384, 16],
+  'mfx-wg': ['ward_gate.png', 384, 384, 16], // 0-3 the ward dome (loop, base 75% down), 4-7 it shatters, 8-11 a gate opening, 12-15 the gate (loop, centre 57% down) // 0-3 crane flying right (loop), 4-7 crane burst, 8-11 pages wrapping a body, 12-15 the cursed crane (loop) // 0-3 the armed rune (loop), 4-11 chains binding, 12-15 release (ground centre ~72% down) // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
 };
 const TOP = 100000, GROUND = 2, SQUASH = 0.42;
 const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
@@ -687,6 +688,9 @@ export class MageFx {
     this.wards.get(id)?.stop();
     let on = true; const h = { stop: () => { on = false; } }; this.wards.set(id, h);
     const at = () => { const c = this.ctx.casterPos(id); return c ? { x: c.x, y: c.y - c.z + 6, d: c.y } : null; };
+    if (this.ctx.scene.textures.exists('mfx-wg')) { const c0 = this.ctx.casterPos(id);
+      this.sheet('mfx-wg', c0?.x ?? 0, c0?.y ?? 0, 210, ms, { frames: [0, 4], loop: 130, oy: 0.75, alive: () => on, depth: (c0?.y ?? 0) + 4, follow: () => { const c = this.ctx.casterPos(id); return c ? { x: c.x, y: c.y - c.z + 4 } : null; } });
+      return; }
     this.spr({ name: 'ward_dome', w: 120, oy: 0.96, life: ms, follow: at, dz: 4, add: true, glow: 0.25, alive: () => on, sx: kf([0, 0.4], [0.01, 1, out3]), sy: (u) => (u < 0.01 ? 0.4 + 60 * u : 1) * (1 + 0.02 * Math.sin(u * ms / 160)), a: kf([0, 0], [0.01, 0.55], [0.98, 0.5], [1, 0]) });
   }
   /** The ward took a blow (broken: it bursts; expired: it fades). */
@@ -695,6 +699,7 @@ export class MageFx {
     const c = this.ctx.casterPos(id); if (!c) return;
     if (expired || broken) { this.wards.get(id)?.stop(); this.wards.delete(id); }
     if (expired) return;
+    if (broken && this.ctx.scene.textures.exists('mfx-wg')) { this.sheet('mfx-wg', c.x, c.y - c.z + 4, 210, 360, { frames: [4, 4], oy: 0.75, depth: c.y + 4 }); this.ctx.punch(0.008, 160); return; }
     this.pop(broken ? 'ward_break' : 'spark_arc', c.x, c.y - c.z - 50, broken ? 170 : 80, { life: broken ? 380 : 200 });
     if (broken) { this.floor('ice_ring', c.x, c.y, 300, 480, { a: kf([0, 0.9], [1, 0]), s: kf([0, 0.3], [0.4, 1, out3]) }); this.ctx.punch(0.006, 160); }
   }
@@ -759,6 +764,10 @@ export class MageFx {
   /** Arcane Gates: two portals standing for `ms`. */
   gates(_id: string, a: V2, b: V2, ms: number): void {
     if (!this.ready) return;
+    if (this.ctx.scene.textures.exists('mfx-wg')) {
+      for (const p of [a, b]) { this.sheet('mfx-wg', p.x, p.y, 150, 300, { frames: [8, 4], oy: 0.57, depth: GROUND + 4 }); this.sheet('mfx-wg', p.x, p.y, 150, ms - 300, { frames: [12, 4], loop: 110, delay: 300, oy: 0.57, depth: GROUND + 4 }); }
+      return;
+    }
     for (const p of [a, b]) {
       this.pop('blink_in', p.x, p.y - 60, 120, { life: 360 });
       this.spr({ name: 'sig_star', x: p.x, y: p.y - 58, depth: p.y + 1, w: 74, h: 116, life: ms, add: true, glow: 0.4, sx: kf([0, 0.1], [0.04, 1, out3]), a: kf([0, 0], [0.03, 0.9], [0.97, 0.9], [1, 0]), rot: (u) => (ms / 1000) * 30 * u });
