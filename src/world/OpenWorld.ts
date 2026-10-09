@@ -87,7 +87,7 @@ export class OpenWorld {
   private puffs: Phaser.GameObjects.Image[] = [];
   private banners?: WorldBanners;
   /** The Sky Path's clouds (drawn; they bob a little). */
-  private skyClouds: { img: Phaser.GameObjects.Image; y: number; ph: number }[] = [];
+  private skyClouds: { img: Phaser.GameObjects.Image; y: number; ph: number; amp: number; per: number }[] = [];
   private gate: Phaser.GameObjects.Image[] = [];
   private npcs: NpcView[] = [];
   private prompt: Phaser.GameObjects.Container;
@@ -319,8 +319,8 @@ export class OpenWorld {
         // its width over the cloud's; its walkable top face drawn as deep as the lane (back edge on the lane's back)
         const sc = (c.x1 - c.x0 + 40) / sp.w, sy = Phaser.Math.Clamp((b1 - b0) / Math.max(1, (sp.top[1] - sp.top[0]) * sc), 1, 1.7) * sc;
         const y = b0 - c.z - sp.top[0] * sy;
-        const img = this.scene.add.image(c.x0 - 20, y, key).setOrigin(0, 0).setScale(sc, sy).setDepth(b1 + 0.5);
-        this.skyClouds.push({ img, y, ph: i * 1.7 });
+        const img = this.scene.add.image(c.x0 - 20, y, key).setOrigin(0, 0).setScale(sc, sy).setDepth(b1 + 0.5).setFlipX(!!c.flip);
+        this.skyClouds.push({ img, y, ph: i * 1.7, amp: 2 + (i % 3) * 0.8, per: 1250 + i * 260 });
       };
       if (this.scene.textures.exists(key)) make();
       else { this.scene.load.image(key, sp.img); this.scene.load.once(`filecomplete-image-${key}`, make); if (!this.scene.load.isLoading()) this.scene.load.start(); }
@@ -511,7 +511,7 @@ export class OpenWorld {
     this.follow(player.x, player.y, ms, false, player.supportZ ?? 0, player.absZ ?? 0, player.grounded ?? true);
     this.ambience.update(ms);
     this.banners?.update(this.t, this.scene.cameras.main.worldView, this.gate[1]?.alpha ?? 1);
-    for (const c of this.skyClouds) c.img.y = c.y + Math.sin(this.t / 1400 + c.ph) * 2.5;
+    for (const c of this.skyClouds) c.img.y = c.y + Math.sin(this.t / c.per + c.ph) * c.amp;
     this.backdrop?.update(ms);
     // the area you are in (by where you stand on the strip; a little past the line, so it never flickers)
     const sky = Math.max(player.supportZ ?? 0, player.absZ ?? 0) >= 600 && player.x >= SKY.lane[0] && player.x <= SKY.lane[1] && player.y <= SKY.band[1] + 4;
