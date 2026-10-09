@@ -26,7 +26,8 @@ export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
   'mfx-rune': ['binding_rune.png', 384, 384, 16],
   'mfx-paper': ['origami.png', 384, 384, 16],
   'mfx-wg': ['ward_gate.png', 384, 384, 16],
-  'mfx-buff': ['buffs.png', 384, 384, 16], // 0-3 haste clock under the feet (loop, 48% down), 4-7 the sigil (loop, 57%), 8-15 the ascension aura (loop, feet 70%) // 0-3 the ward dome (loop, base 75% down), 4-7 it shatters, 8-11 a gate opening, 12-15 the gate (loop, centre 57% down) // 0-3 crane flying right (loop), 4-7 crane burst, 8-11 pages wrapping a body, 12-15 the cursed crane (loop) // 0-3 the armed rune (loop), 4-11 chains binding, 12-15 release (ground centre ~72% down) // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
+  'mfx-buff': ['buffs.png', 384, 384, 16],
+  'mfx-rx': ['reactions.png', 384, 384, 16], // 0-3 freeze forming, 4-7 frozen (loop), 8-11 shatter, 12-15 conduct (feet 88% down) // 0-3 haste clock under the feet (loop, 48% down), 4-7 the sigil (loop, 57%), 8-15 the ascension aura (loop, feet 70%) // 0-3 the ward dome (loop, base 75% down), 4-7 it shatters, 8-11 a gate opening, 12-15 the gate (loop, centre 57% down) // 0-3 crane flying right (loop), 4-7 crane burst, 8-11 pages wrapping a body, 12-15 the cursed crane (loop) // 0-3 the armed rune (loop), 4-11 chains binding, 12-15 release (ground centre ~72% down) // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
 };
 const TOP = 100000, GROUND = 2, SQUASH = 0.42;
 const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
@@ -109,6 +110,8 @@ export class MageFx {
 
   private warp: SpaceWarp;
   private quads = new Set<Phaser.GameObjects.Shader>();
+  /** Painted ice shells standing on frozen foes (a shatter ends the one it hits). */
+  private frozen = new Set<{ at: () => { x: number; y: number }; stop(): void }>();
   constructor(private ctx: MageCtx) { this.warp = new SpaceWarp(ctx.scene, () => ctx.cam()); }
 
   get ready(): boolean { return this.ctx.scene.textures.exists(MAGE_KIT); }
@@ -970,6 +973,14 @@ export class MageFx {
         break;
       case 'freeze': { // ice grows up round the foe out of the floor, glowing, snow bursting off it
         const life = Math.max(300, ms);
+        if (this.ctx.scene.textures.exists('mfx-rx')) {
+          const ff = follow ? () => { const p = follow(); return p ? { x: p.x, y: p.y - p.z + 6 } : null; } : undefined;
+          let on = true; const h = { at: () => ff?.() ?? { x: at.x, y: at.y - at.z }, stop: () => { on = false; } }; this.frozen.add(h); this.later(life, () => this.frozen.delete(h));
+          this.sheet('mfx-rx', at.x, at.y - at.z + 6, 220, 240, { frames: [0, 4], oy: 0.88, follow: ff, depth: at.y + 4, alive: () => on });
+          this.sheet('mfx-rx', at.x, at.y - at.z + 6, 220, life - 240, { frames: [4, 4], loop: 120, delay: 240, oy: 0.88, follow: ff, depth: at.y + 4, alive: () => on });
+          this.shake(100, 0.004);
+          break;
+        }
         this.spr({ name: 'ice_block', x, y: at.y - at.z + 10, oy: 0.96, depth: at.y + 4, w: 112, life, follow: fp, dz: 4, sy: kf([0, 0.1], [0.05, 1.12, out3], [0.1, 1]), sx: kf([0, 0.85], [0.05, 1]), a: kf([0, 0.6], [0.04, 0.9], [0.9, 0.9], [1, 0]) });
         this.img('mg-dot', { x, y: y - 10, w: 170, tint: 0x9fdcff, life, follow: fp ? () => { const p = fp(); return p ? { ...p, y: p.y - 70 } : null; } : undefined, dz: 5, a: kf([0, 0], [0.05, 0.55], [0.9, 0.4], [1, 0]), sx: (u) => 1 + 0.05 * Math.sin(u * 40) });
         this.glow(x, y, 200, 0xcff6ff, 240);
@@ -980,6 +991,13 @@ export class MageFx {
       }
       case 'shatter': // the ice bursts apart: a flash, a storm of shards, the world stops for a beat
         this.ctx.hitStop?.(90);
+        if (this.ctx.scene.textures.exists('mfx-rx')) {
+          for (const h of [...this.frozen]) { const p = h.at(); if (Math.hypot(p.x - at.x, p.y - (at.y - at.z)) < 60) { h.stop(); this.frozen.delete(h); } }
+          this.sheet('mfx-rx', at.x, at.y - at.z + 6, 260, 420, { frames: [8, 4], oy: 0.88, depth: at.y + 5 });
+          this.warp.ring(at.x, at.y - at.z - 50, { r1: 240, life: 380, s: 26, width: 24 });
+          this.ctx.flash?.(0xe6fbff, 0.12, 140); this.shake(240, 0.013); this.ctx.punch(0.045, 260);
+          break;
+        }
         this.ctx.flash?.(0xe6fbff, 0.24, 160);
         this.glow(x, y - 10, 320, 0xcff6ff, 320);
         this.pop('ice_shatter', x, y - 10, 280, { life: 460, add: false });
@@ -991,6 +1009,7 @@ export class MageFx {
         this.shake(240, 0.013); this.ctx.punch(0.045, 260);
         break;
       case 'conduct':
+        if (this.ctx.scene.textures.exists('mfx-rx')) { this.sheet('mfx-rx', at.x, at.y - at.z + 6, 240, 420, { frames: [12, 4], oy: 0.88, depth: at.y + 5, follow: follow ? () => { const p = follow(); return p ? { x: p.x, y: p.y - p.z + 6 } : null; } : undefined }); this.shake(90, 0.004); break; }
         this.pop('stun_ring', x, at.y - at.z - 100, 90, { life: 700 });
         this.glow(x, y, 200, 0x8fe3ff, 260);
         for (let k = 0; k < 5; k++) this.later(k * 50, () => { const a = rnd(0, Math.PI * 2); this.zap({ x, y }, { x: x + Math.cos(a) * 70, y: y + Math.sin(a) * 60 }, { life: 120, width: 2.4, forks: 2 }); });
