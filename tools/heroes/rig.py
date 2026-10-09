@@ -375,14 +375,27 @@ def load_parts(path, cls):
 
 def _place(canvas, img, src_pivot, src_axis_deg, dst, ang_deg):
     """Draw img onto canvas rotated so its axis points at ang (deg, 0 = straight down, + = toward +x), src_pivot at dst."""
-    rot = ang_deg - src_axis_deg  # rotate the drawing by this (counter-clockwise positive in PIL is the other way)
-    im = Image.fromarray(img)
-    pad = int(math.hypot(*img.shape[:2])) + 4
-    big = Image.new('RGBA', (img.shape[1] + 2 * pad, img.shape[0] + 2 * pad))
-    big.paste(im, (pad, pad))
-    cx, cy = src_pivot[0] + pad, src_pivot[1] + pad
-    r = big.rotate(rot, resample=Image.BICUBIC, center=(cx, cy))  # PIL rotates counter-clockwise for +deg
-    canvas.alpha_composite(r, (int(round(dst[0] - cx)), int(round(dst[1] - cy))))
+    import cv2
+    th = math.radians(ang_deg - src_axis_deg)
+    c, s_ = math.cos(th), math.sin(th)
+    R = np.array([[c, s_], [-s_, c]])
+    t = np.asarray(dst, float) - R @ np.asarray(src_pivot, float)
+    h, w = img.shape[:2]
+    corners = (R @ np.array([[0, w, 0, w], [0, 0, h, h]], float)).T + t
+    x0, y0 = np.floor(corners.min(0)).astype(int) - 1; x1, y1 = np.ceil(corners.max(0)).astype(int) + 1
+    x0c, y0c = max(0, x0), max(0, y0); x1c, y1c = min(canvas.width, x1), min(canvas.height, y1)
+    if x1c <= x0c or y1c <= y0c:
+        return
+    M = np.hstack([R, (t - [x0c, y0c])[:, None]])
+    pm = _premul(img)
+    out = cv2.warpAffine(pm, M, (x1c - x0c, y1c - y0c), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+    canvas.alpha_composite(Image.fromarray(_unpremul(out)), (int(x0c), int(y0c)))
+
+
+def _unpremul(out):
+    a = out[..., 3:4]
+    rgb = np.where(a > 0, out[..., :3] * 255.0 / np.maximum(a, 1e-3), 0)
+    return np.concatenate([np.clip(rgb, 0, 255), np.clip(a, 0, 255)], -1).astype(np.uint8)
 
 
 def _axis_deg(p0, p1):
@@ -423,7 +436,7 @@ def arm_pose(cls, kind, ph, i):
         n = -11 * c; f = 22 * c
         return {'n': (n, 8 + 0.4 * max(0, n)), 'f': (f, 10 + 0.5 * max(0, f)), 'D': 162 + 4 * c if cls == 'archer' else None}
     if kind == 'run':  # sprinting arms: the free arm pumps (elbow near square, the fist up to the chest), the blade trails
-        f = (4 + 42 * c, 87 - 9 * c)
+        f = (10 + (34 if c > 0 else 24) * c, 87 - 9 * c)  # the backswing kept short: the shoulder plate rides on the arm
         if cls == 'warrior':
             return {'n': (-15 - 14 * c, 30 + 6 * c), 'f': f, 'D': -70 + 8 * c}
         if cls == 'samurai':
@@ -522,7 +535,143 @@ def gait(kind, phase, L):
     return feet, hh, lean, D, planted
 
 
-def bake(path, cls, idle_h, size=1.0):
+
+# ---------------------------------------------------------------- mesh skinning (limbs bend smoothly, like Spine meshes)
+# Each limb is put together straight once (its rest pose) and covered with a fine triangle mesh. Every mesh point is
+# carried by its bones (thigh / shin / foot, upper arm / forearm) with weights that blend across the joint, so a knee or
+# an elbow bends as one continuous drawing instead of two rigid pieces meeting at a seam.
+
+def _rot(a_deg, v):
+    """Turn vectors v (…, 2) so that 'down' (0, 1) points at a (deg, 0 = down, + = toward +x)."""
+    a = math.radians(a_deg); c, s_ = math.cos(a), math.sin(a)
+    return np.stack([v[..., 0] * c + v[..., 1] * s_, -v[..., 0] * s_ + v[..., 1] * c], -1)
+
+
+def _mesh(alpha, g=7):
+    ys, xs = np.where(alpha > 8)
+    x0, x1, y0, y1 = xs.min() - 3, xs.max() + 4, ys.min() - 3, ys.max() + 4
+    gx = np.arange(x0, x1 + g, g, dtype=float); gy = np.arange(y0, y1 + g, g, dtype=float)
+    X, Y = np.meshgrid(gx, gy); V = np.stack([X.ravel(), Y.ravel()], 1)
+    nx, ny = len(gx), len(gy)
+    idx = np.arange(nx * ny).reshape(ny, nx)
+    a, b, c, d = idx[:-1, :-1].ravel(), idx[:-1, 1:].ravel(), idx[1:, :-1].ravel(), idx[1:, 1:].ravel()
+    tris = np.concatenate([np.stack([a, b, d], 1), np.stack([a, d, c], 1)])
+    tris = tris[np.argsort(V[tris].mean(1)[:, 1], kind='stable')]  # top to bottom: the lower bone's skin wins a fold
+    return V, tris
+
+
+def _smooth(t):
+    t = np.clip(t, 0, 1)
+    return t * t * (3 - 2 * t)
+
+
+def _skin(rest_pm, V, tris, W, bones, shape):
+    """Draw a rest-pose limb (premultiplied RGBA) deformed by its bones [(rest pivot, world pivot, angle)] with the
+    per-point weights W (n, bones) into a canvas of `shape` (h, w). Returns straight RGBA uint8."""
+    Vd = np.zeros_like(V)
+    for b, (pr, pw, ang) in enumerate(bones):
+        Vd += W[:, b:b + 1] * (np.asarray(pw)[None] + _rot(ang, V - np.asarray(pr)[None]))
+    off = np.floor(Vd.min(0)).astype(int) - 2
+    off = np.maximum(off, 0)
+    Hh = int(min(shape[0], np.ceil(Vd[:, 1].max()) + 2) - off[1]); Ww = int(min(shape[1], np.ceil(Vd[:, 0].max()) + 2) - off[0])
+    Vd = Vd - off
+    mx = np.full((Hh, Ww), -10.0, np.float32); my = np.full((Hh, Ww), -10.0, np.float32)
+    D_all = Vd[tris]; S_all = V[tris]
+    ext = (np.ceil(D_all.max(1)) - np.floor(D_all.min(1))).max(1)
+    for sel in (ext <= 12, (ext > 12) & (ext <= 24), ext > 24):  # triangles batched by size (small arrays)
+        if not sel.any():
+            continue
+        D = D_all[sel]; Sr = S_all[sel]
+        lo = np.floor(D.min(1)).astype(int)
+        B = int(min(64, ext[sel].max() + 1))
+        oy, ox = np.mgrid[0:B, 0:B]
+        px = lo[:, 0, None, None] + ox[None]; py = lo[:, 1, None, None] + oy[None]
+        v0 = D[:, 1] - D[:, 0]; v1 = D[:, 2] - D[:, 0]
+        den = v0[:, 0] * v1[:, 1] - v1[:, 0] * v0[:, 1]
+        ok = np.abs(den) > 1e-6
+        den = np.where(ok, den, 1.0)
+        dx = px + 0.5 - D[:, 0, 0, None, None]; dy = py + 0.5 - D[:, 0, 1, None, None]
+        l1 = (dx * v1[:, 1, None, None] - v1[:, 0, None, None] * dy) / den[:, None, None]
+        l2 = (v0[:, 0, None, None] * dy - dx * v0[:, 1, None, None]) / den[:, None, None]
+        l0 = 1 - l1 - l2
+        e = -1e-4
+        inside = (l0 >= e) & (l1 >= e) & (l2 >= e) & ok[:, None, None] & (px >= 0) & (px < Ww) & (py >= 0) & (py < Hh)
+        sx = l0 * Sr[:, 0, 0, None, None] + l1 * Sr[:, 1, 0, None, None] + l2 * Sr[:, 2, 0, None, None]
+        sy = l0 * Sr[:, 0, 1, None, None] + l1 * Sr[:, 1, 1, None, None] + l2 * Sr[:, 2, 1, None, None]
+        mx[py[inside], px[inside]] = sx[inside]; my[py[inside], px[inside]] = sy[inside]
+    import cv2
+    out = cv2.remap(rest_pm, mx, my, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0).astype(np.float32)
+    return Image.fromarray(_unpremul(out)), (int(off[0]), int(off[1]))
+
+
+def _premul(rgba):
+    f = rgba.astype(np.float32)
+    return np.concatenate([f[..., :3] * f[..., 3:4] / 255.0, f[..., 3:4]], -1)
+
+
+def _rest_leg(P, side, L):
+    """A leg put together straight (thigh over the shin's top, the thigh's cuff over the knee), its mesh and weights."""
+    t, t0, t1 = P['thigh_' + side]; sh, s0, s1 = P['shin_' + side]
+    T = float(np.hypot(*(t1 - t0))); S = float(np.hypot(*(s1 - s0)))
+    Wc = int(2 * max(t.shape[1], sh.shape[1]) + 200); Hc = int(T + S + t.shape[0] + sh.shape[0] + 200)
+    hip = np.array([Wc / 2.0, 60.0 + max(t0[1], 0)]); knee = hip + [0, T]; ankle = knee + [0, S]
+    cv = Image.new('RGBA', (Wc, Hc))
+    _place(cv, sh, s0, _axis_deg(s0, s1), knee, 0.0)
+    _place(cv, t, t0, _axis_deg(t0, t1), hip, 0.0)
+    _place(cv, P['thigh_%s_low' % side], t0, _axis_deg(t0, t1), hip, 0.0)
+    img = np.array(cv); al = img[..., 3]
+    foot = al[int(ankle[1]):] > 100
+    fy, fx = np.where(foot)
+    sole = ankle[1] + fy.max(); toe = float(fx.max()); heel = float(fx.min())
+    V, tris = _mesh(al)
+    zk, zf = 0.07 * L, 0.03 * L
+    ws = _smooth((V[:, 1] - (knee[1] - zk)) / (2 * zk))
+    wf = _smooth((V[:, 1] - (ankle[1] - zf)) / (2 * zf))
+    Wt = np.stack([1 - ws, ws * (1 - wf), ws * wf], 1)
+    return {'pm': _premul(img), 'V': V, 'tris': tris, 'W': Wt, 'hip': hip, 'knee': knee, 'ankle': ankle,
+            'toe': np.array([toe - ankle[0], sole - ankle[1]]), 'heel': np.array([heel - ankle[0], sole - ankle[1]])}
+
+
+def _rest_arm(P, side):
+    """An arm put together hanging straight (the upper arm over the forearm's top), its mesh and weights."""
+    u, u0, u1 = P['uarm_' + side]; f, f0, f1 = P['farm_' + side]
+    Lu = float(np.hypot(*(u1 - u0)))
+    Wc = int(2 * max(u.shape[1], f.shape[1]) + 200); Hc = int(Lu + u.shape[0] + f.shape[0] + 200)
+    sh = np.array([Wc / 2.0, 60.0 + max(u0[1], 0)]); el = sh + [0, Lu]
+    cv = Image.new('RGBA', (Wc, Hc))
+    _place(cv, f, f0, 0.0, el, 0.0)
+    _place(cv, u, u0, _axis_deg(u0, u1), sh, 0.0)
+    img = np.array(cv)
+    V, tris = _mesh(img[..., 3])
+    ze = 0.16 * Lu
+    we = _smooth((V[:, 1] - (el[1] - ze)) / (2 * ze))
+    return {'pm': _premul(img), 'V': V, 'tris': tris, 'W': np.stack([1 - we, we], 1), 'sh': sh, 'el': el}
+
+
+def foot_roll(kind, p, duty):
+    """The foot's angle (deg, + = toes up) and the point it turns on ('heel' / 'toe' / None in the air), at moment p of
+    its own cycle (0 = it touches down). Walk: heel strike → flat → heel rise onto the ball → toe-off → the swing
+    (toes drop, then lift for the next heel strike). Run: lands on the forefoot, pushes off hard, the heel kicks up."""
+    if kind == 'walk':
+        if p < 0.1:
+            return 16 * (1 - _ease(p / 0.1)), 'heel'
+        if p < 0.4:
+            return 0.0, None
+        if p < duty:
+            return -34 * _ease((p - 0.4) / (duty - 0.4)), 'toe'
+        t = (p - duty) / (1 - duty)
+        return (-34 + 22 * _ease(t / 0.35)) if t < 0.35 else (-12 + 28 * _ease((t - 0.35) / 0.65)), None
+    if p < 0.08:
+        return -8 * (1 - _ease(p / 0.08)), 'toe'
+    if p < 0.18:
+        return 0.0, None
+    if p < duty:
+        return -42 * _ease((p - 0.18) / (duty - 0.18)), 'toe'
+    t = (p - duty) / (1 - duty)
+    return (-42 - 18 * math.sin(math.pi * min(1, t / 0.5))) if t < 0.5 else (-42 + 34 * _ease((t - 0.5) / 0.5)), None
+
+
+def bake(path, cls, idle_h, size=1.0, kinds=None):
     """The hero's walk / run frames: [(act, rgba crop, ax, ay)], and the cycle distances {act: px}, at the idle's scale."""
     P = load_parts(path, cls)
     front, back, hip_u = P['upper']
@@ -533,11 +682,15 @@ def bake(path, cls, idle_h, size=1.0):
     stand_h = hip_u[1] + 0.975 * L + ankle_h  # head top to sole when standing (upper crop starts at the head)
     k = 0.985 * idle_h / stand_h * size
     out = []
+    RL = {sd: _rest_leg(P, sd, L) for sd in ('n', 'f')}
+    RA = {sd: _rest_arm(P, sd) for sd in ('n', 'f')} if 'uarm_n' in P else {}
     JUMP = [  # (near foot, far foot) from the floor under the hips, hip height, lean — take-off crouch, tucked in the air, reaching down
         ((0.12, 0.0), (-0.14, 0.0), 0.8, 8.0),
         ((0.24, -0.42), (-0.06, -0.3), 0.97, 4.0),
         ((0.14, -0.1), (-0.12, -0.02), 0.97, 0.0)]
     for kind, n in (('idle', 1), ('stance', 1), ('jump', 3), ('djump', 2 if cls in DJUMP else 0), ('walk', WALK_N), ('run', RUN_N)):
+        if kinds and kind not in kinds:
+            continue
         for i in range(n):
             ph = i / n
             if kind == 'djump':
@@ -553,6 +706,20 @@ def bake(path, cls, idle_h, size=1.0):
                 lean = 0.0 if kind == 'idle' else 6.0
             else:
                 feet, hh, lean, D, planted = gait(kind, ph, L)
+            # the feet: their angle (+ = toes up) and, while one stands on its heel / ball, the ankle lifted round it
+            if kind in ('walk', 'run'):
+                duty = 0.6 if kind == 'walk' else 0.36
+                phi, pivs = zip(*[foot_roll(kind, (ph + off) % 1.0, duty) for off in (0.0, 0.5)])
+            elif kind == 'jump':
+                phi, pivs = ((0.0, 0.0), (-28.0, -22.0), (-16.0, -12.0))[i], (None, None)
+            elif kind == 'djump':
+                phi, pivs = (-30.0, -24.0), (None, None)
+            else:
+                phi, pivs = (0.0, 0.0), (None, None)
+            for j, sd in enumerate(('n', 'f')):
+                if pivs[j] and feet[j][1] >= -1e-6:
+                    r = RL[sd][pivs[j]]
+                    feet[j] = feet[j] + r - _rot(phi[j], r)
             W = int(front.shape[1] + 3.2 * L) + 40; Hc = int(front.shape[0] + L + 80 + 0.6 * L)
             cv = Image.new('RGBA', (W, Hc))
             ground = Hc - 20 - ankle_h
@@ -590,8 +757,9 @@ def bake(path, cls, idle_h, size=1.0):
                     r = math.radians(fa); v = hg - f0
                     gw = elbow + np.array([v[0] * math.cos(r) + v[1] * math.sin(r), -v[0] * math.sin(r) + v[1] * math.cos(r)])
                     wdir = D if D is not None else fa + wnat
-                _place(cv, fi, f0, 0.0, elbow, fa)
-                _place(cv, ui, u0, _axis_deg(u0, u1), sh_w, tot)            # the upper arm over the forearm's top (the elbow)
+                ra = RA[nm[-1]]                                             # the arm as one mesh, bending at the elbow
+                cv.alpha_composite(*_skin(ra['pm'], ra['V'], ra['tris'], ra['W'],
+                                   [(ra['sh'], sh_w, tot), (ra['el'], elbow, fa)], (cv.height, cv.width)))
                 if nm == 'uarm_n' and 'weapon' in P:  # the weapon on the outside of the arm, the fingers closed over its grip
                     _place(cv, wi, wg, wnat, gw, wdir)
                     _place(cv, P['farm_n_fist'], f0, 0.0, elbow, fa)
@@ -619,11 +787,11 @@ def bake(path, cls, idle_h, size=1.0):
                     hd_ = math.radians(AP['D'] + 180)
                     fa_ = reach(P['uarm_f'], P['farm_f_len'], gw + 0.55 * P['farm_f_len'] * 0.45 * np.array([math.sin(hd_), math.cos(hd_)]))
                 arm(P['uarm_f'], P['farm_f'], fa_[0], fa_[1], 'uarm_f')
-            _place(cv, sf, sf0, _axis_deg(sf0, sf1), kf, _axis_deg(kf, ff))   # the far leg: the shin under the thigh
-            _place(cv, tf, tf0, _axis_deg(tf0, tf1), hip, _axis_deg(hip, kf))
-            _place(cv, tn, tn0, _axis_deg(tn0, tn1), hip, _axis_deg(hip, kn))   # the near thigh (its top under the tunic)
-            _place(cv, sn, sn0, _axis_deg(sn0, sn1), kn, _axis_deg(kn, fn))   # the near shin
-            _place(cv, P['thigh_n_low'], tn0, _axis_deg(tn0, tn1), hip, _axis_deg(hip, kn))  # the knee: the thigh's cuff over the shin
+            for sd, kk, aa, fph in (('f', kf, ff, phi[1]), ('n', kn, fn, phi[0])):  # the legs as meshes: knee and ankle bend smoothly
+                rl = RL[sd]
+                cv.alpha_composite(*_skin(rl['pm'], rl['V'], rl['tris'], rl['W'],
+                                   [(rl['hip'], hip, _axis_deg(hip, kk)), (rl['knee'], kk, _axis_deg(kk, aa)), (rl['ankle'], aa, fph)],
+                                   (cv.height, cv.width)))
             upper(front)                                                    # the body (its hem over the legs)
             if 'uarm_n' in P:                                               # the near arm over all (the weapon in front)
                 arm(P['uarm_n'], P['farm_n'], AP['n'][0], AP['n'][1], 'uarm_n', AP['D'])
