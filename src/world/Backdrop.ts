@@ -20,7 +20,10 @@ const NEAR_MIST = 0.3;
  *  behind the balustrade: the same clouds, wide, pale and faint. */
 const CLOUDS = { n: 6, y: [24, 110], width: [160, 380], alpha: [0.85, 0.97], speed: [1.8, 3.6] };
 /** More clouds higher up (seen once the camera rises over the maps above): bigger, softer, slower. */
-const HIGH_CLOUDS = { n: 9, y: [-760, -40], width: [300, 620], alpha: [0.55, 0.85], speed: [1.2, 2.6] };
+const HIGH_CLOUDS = { n: 11, y: [-760, -40], width: [140, 720], alpha: [0.5, 0.9], speed: [0.8, 3.2] };
+/** Each cloud its own: a size, its shape stretched or squashed, mirrored or not, and a light of its own (golden, rosy or
+ *  shaded lavender) — never a row of the same cloud. */
+const LOOKS = [0xffffff, 0xfff0dc, 0xffe2e8, 0xe8dcf4, 0xffead0];
 const MIST = { valley: { n: 6, y: [780, 930] }, far: { n: 4, y: [250, 300] }, width: [520, 900], alpha: [0.14, 0.26], speed: [1, 2.4], tint: 0xffe9ee };
 const FLOCK = { every: [16000, 36000], size: [3, 5], y: [55, 205], speed: [62, 96], fps: 11, width: [24, 32] };
 /** The falling water laid over each painted fall: soft (far away, see sky.py), slow, sunset-tinted and faint — the
@@ -67,6 +70,11 @@ export class Backdrop {
     this.land = scene.add.container(0, 0).setDepth(DEPTH.bg);
     this.skyBack = scene.add.container(0, 0).setDepth(DEPTH.sky);
     this.sky = scene.add.container(0, 0).setDepth(DEPTH.clouds);
+    // the sky a shade deeper and cooler than the clouds toward its top (the warm clouds stand out from it; the horizon
+    // keeps its glow): a soft screen-wide veil between the sky picture and the clouds
+    const cam = scene.cameras.main, vw = cam.width / cam.zoom * 2.4, vh = cam.height / cam.zoom * 2.4;
+    this.veil = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH.sky + 1);
+    this.veil.fillGradientStyle(0x6f68a8, 0x6f68a8, 0x6f68a8, 0x6f68a8, 0.34, 0.34, 0, 0).fillRect(-vw / 2, -vh * 0.4, vw * 2, vh * 0.75);
     this.ensureSky();
     this.haze = scene.add.container(0, 0).setDepth(DEPTH.mist);
     this.tiles = (BACKDROP?.tiles ?? []).map(() => null);
@@ -113,13 +121,13 @@ export class Backdrop {
     const frame = () => `c${Math.floor(Math.random() * S.clouds.length)}`;
     for (let i = 0; i < CLOUDS.n; i++) {
       const img = this.scene.add.image(0, 0, 'sky-clouds', frame()).setOrigin(0, 0.5).setAlpha(rnd(CLOUDS.alpha));
-      img.setScale(rnd(CLOUDS.width) / img.width);
+      this.vary(img, rnd([110, 460]));
       const box = this.scene.add.container(0, rnd(CLOUDS.y), [img]).setData('slot', (i + Math.random() * 0.6) / CLOUDS.n);
       this.clouds.push({ box, img, v: rnd(CLOUDS.speed) }); this.sky.add(box);
     }
     for (let i = 0; i < HIGH_CLOUDS.n; i++) {
       const img = this.scene.add.image(0, 0, 'sky-clouds', frame()).setOrigin(0, 0.5).setAlpha(rnd(HIGH_CLOUDS.alpha));
-      img.setScale(rnd(HIGH_CLOUDS.width) / img.width);
+      this.vary(img, rnd(HIGH_CLOUDS.width));
       const y = HIGH_CLOUDS.y[0] + ((i + 0.5) / HIGH_CLOUDS.n) * (HIGH_CLOUDS.y[1] - HIGH_CLOUDS.y[0]) + rnd([-40, 40]);
       const box = this.scene.add.container(0, y, [img]).setData('slot', ((i * 0.37) % 1));
       this.clouds.push({ box, img, v: rnd(HIGH_CLOUDS.speed) }); this.sky.add(box);
@@ -131,6 +139,12 @@ export class Backdrop {
       this.mist.push({ box, img, v: rnd(MIST.speed) }); this.haze.add(box);
     }
     this.placed = false;
+  }
+
+  /** One cloud's own look: its width, a stretch or squash, mirrored or not, a light of its own. */
+  private vary(img: Phaser.GameObjects.Image, width: number): void {
+    const s = width / img.width;
+    img.setScale(s, s * rnd([0.72, 1.18])).setFlipX(Math.random() < 0.5).setTint(LOOKS[Math.floor(Math.random() * LOOKS.length)]);
   }
 
   /** Share of the terrace's scrolling speed the landscape moves at: its picture's ends meet the world's ends. */
@@ -152,7 +166,7 @@ export class Backdrop {
         c = Phaser.Display.Color.GetColor(r / 64, g / 64, b / 64);
       } catch { /* the default */ }
       // higher up the sky deepens a little toward a soft rose-violet (never a flat sheet of one colour)
-      const hi = Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(c), Phaser.Display.Color.ValueToColor(0xb98aa6), 100, 55);
+      const hi = Phaser.Display.Color.Interpolate.ColorWithColor(Phaser.Display.Color.ValueToColor(c), Phaser.Display.Color.ValueToColor(0x8d7cb4), 100, 62);
       const top = Phaser.Display.Color.GetColor(hi.r, hi.g, hi.b);
       this.skyTop = this.scene.add.graphics();
       this.skyTop.fillStyle(top, 1).fillRect(-4000, -3000, 60000, 1800);
@@ -163,6 +177,7 @@ export class Backdrop {
     }
   }
   private skyTop?: Phaser.GameObjects.Graphics;
+  private veil: Phaser.GameObjects.Graphics;
 
   setView(left: number, span: number): void {
     this.left = left; this.span = span;
@@ -235,7 +250,7 @@ export class Backdrop {
 
   destroy(): void {
     this.scene.load.off(Phaser.Loader.Events.FILE_COMPLETE, this.onFile, this);
-    this.land.destroy(true); this.skyBack.destroy(true); this.sky.destroy(true); this.haze.destroy(true);
+    this.veil.destroy(); this.land.destroy(true); this.skyBack.destroy(true); this.sky.destroy(true); this.haze.destroy(true);
     this.clouds = []; this.mist = []; this.falls = []; this.birds = [];
   }
 }
