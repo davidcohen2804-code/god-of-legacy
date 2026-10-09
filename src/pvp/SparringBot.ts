@@ -5,7 +5,8 @@
 // player through the normal PvP victim path (reactions, damage, death and respawn of the player).
 import Phaser from 'phaser';
 import { PVP } from '../config/layout';
-import { CombatBody, HitOutcome, Kin, PHYS, newKin, steer, stepKin } from '../combat/Combat';
+import { ARENA, CombatBody, HitOutcome, Kin, PHYS, newKin, steer, stepKin } from '../combat/Combat';
+const ARENA_TECH_MS = ARENA.techMinMs;
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import { arenaTimeScale, finalSkill, kitFor } from '../skills/FinalKit';
 import { HitTarget, V2, V3, unit } from '../skills/HitGeometry';
@@ -53,9 +54,24 @@ export interface BotApi {
 
 export interface BotWorld {
   now: number;
-  /** guard: the player is guarded right now (the arena's wake-up / BREAK): the knight waits it out instead of swinging. */
-  player: { x: number; y: number; z: number; alive: boolean; guard?: boolean };
+  /** guard: the player is guarded right now (the arena's wake-up / BREAK): the knight waits it out instead of swinging.
+   *  stuck: the player is caught (hit-stun / launched / down / hard CC): the moment to go on with a combo. */
+  player: { x: number; y: number; z: number; alive: boolean; guard?: boolean; stuck?: boolean };
 }
+
+/** Sparring difficulty. */
+export type BotLevel = 'easy' | 'middle' | 'hard';
+/** How each difficulty plays:
+ *  think: reaction time (ms) between decisions · answer: how fast it acts again once free · after: pause after a move
+ *  chain: chance to go on with its basic chain · skill: chance to use a ready skill over the basic attack
+ *  follow: chance to cancel a landed skill into the next one (a real combo) · cd: its cooldowns (× the skill's)
+ *  backOff: chance to step back and give you room after its string · ult: it closes combos with its ultimate
+ *  opening: its big moves held back at the start · rush: it closes in at a run */
+const LEVEL: Record<BotLevel, { think: [number, number]; answer: [number, number]; after: [number, number]; chain: number; skill: number; follow: number; cd: number; backOff: number; ult: boolean; opening: boolean; rush: boolean }> = {
+  easy: { think: [480, 760], answer: [420, 800], after: [1000, 1700], chain: 0.4, skill: 0.22, follow: 0, cd: 2.5, backOff: 0.85, ult: false, opening: true, rush: false },
+  middle: { think: [240, 420], answer: [120, 420], after: [600, 1100], chain: 0.6, skill: 0.45, follow: 0.4, cd: 2, backOff: 0.5, ult: false, opening: true, rush: false },
+  hard: { think: [50, 110], answer: [20, 80], after: [60, 180], chain: 1, skill: 0.9, follow: 1, cd: 1.5, backOff: 0, ult: true, opening: false, rush: true },
+};
 
 const R = PHYS.footR;
 /** The bot uses its skills less often than a player could (cooldown × this). */
@@ -73,7 +89,7 @@ export function setBotCentre(x: number, y: number): void { ARENA_CENTRE.x = x; A
 /** A Master's trial (the open world): his own name, a boss's HP, he can be beaten, and the floor's middle to fall back to. */
 export interface BotTrial { name: string; hp: number; centre: { x: number; y: number } }
 
-interface BotCast { s: FinalSkill; stage: number; t: number; T: { startup: number; active: number; recovery: number }; origin: V3; aim: V2; dist: number }
+interface BotCast { s: FinalSkill; stage: number; t: number; T: { startup: number; active: number; recovery: number }; origin: V3; aim: V2; dist: number; followRolled?: boolean }
 
 export class SparringBot {
   readonly kin: Kin;
@@ -99,6 +115,11 @@ export class SparringBot {
 
   /** STOP: it stands still and never attacks (it still reacts to hits). */
   paused = false;
+  /** Difficulty (EASY / MIDDLE / HARD). */
+  level: BotLevel = 'middle';
+  private get L() { return LEVEL[this.level]; }
+  /** Skills it has chained in its current combo on you (hit-confirm follow-ups). */
+  private comboN = 0;
   /** COMBO: the scripted chain in progress (ids with ':stage'). */
   private combo: string[] = [];
   private readonly kit: FinalSkill[];
@@ -124,6 +145,13 @@ export class SparringBot {
     for (const [id, ms] of Object.entries(OPENING_CD)) this.cdEnd.set(id, now + ms);
     this.lastNow = now;
     this.pushState();
+  }
+
+  /** Set the difficulty (its opening hold-back follows it). */
+  setLevel(lv: BotLevel, now: number): void {
+    this.level = lv;
+    for (const id of Object.keys(OPENING_CD)) this.cdEnd.delete(id);
+    if (this.L.opening) for (const [id, ms] of Object.entries(OPENING_CD)) this.cdEnd.set(id, now + ms);
   }
 
   get x(): number { return this.kin.x; }
@@ -158,16 +186,21 @@ export class SparringBot {
     this.lastNow = now;
     const free = b.canAct(now);
     if (!free && this.cast) this.interrupt();
-    if (free && !this.wasFree) this.nextAct = Math.min(this.nextAct, now + rnd(120, 420)); // recovered: answer quickly
+    if (free && !this.wasFree) this.nextAct = Math.min(this.nextAct, now + rnd(...this.L.answer)); // recovered: answer quickly
     this.wasFree = free;
+    if (!w.player.stuck) this.comboN = 0;
 
-    if (this.cast) { this.stepCast(ms, w); if (this.combo.length && this.cast && this.cast.t >= this.cast.T.startup + this.cast.T.active + 30 && w.player.alive) this.nextCombo(w, true); }
+    if (this.cast) {
+      this.stepCast(ms, w);
+      if (this.combo.length && this.cast && this.cast.t >= this.cast.T.startup + this.cast.T.active + 30 && w.player.alive) this.nextCombo(w, true);
+      else if (this.cast && !this.combo.length && !this.paused && !this.hold) this.followUp(w);
+    }
     else if (free && this.combo.length && !this.hold) this.approachCombo(ms, w);
     else if (free && !this.paused && !this.hold) this.thinkAndMove(ms, w);
     else if (free) { k.vx *= 0.8; k.vy *= 0.8; const dx = w.player.x - k.x; if (Math.abs(dx) > 4 && !this.defeated) this.dir = dx > 0 ? 'right' : 'left'; }
     else if (b.state === 'hitstun' && k.grounded && !b.push) { k.vx *= 0.8; k.vy *= 0.8; }
 
-    if (this.duel && b.state === 'knockdown' && b.kdPhase === 'down' && now - b.downAt > 260) b.quickGetup(now); // a duel: it gets up quickly, like a player would
+    if ((this.duel || this.level === 'hard') && b.state === 'knockdown' && b.kdPhase === 'down' && now - b.downAt > (this.level === 'hard' ? ARENA_TECH_MS : 260)) b.quickGetup(now); // a duel: it gets up quickly, like a player would
     const r = stepKin(k, ms, b.gravityScale(now));
     b.update(now, ms, r.landed, r.impactVz);
     this.pushState();
@@ -184,7 +217,7 @@ export class SparringBot {
     this.hp = this.body.maxHp; this.defeated = false; this.refilled = 0;
     this.cast = null; this.combo = []; this.chainStage = -1; this.chainEnd = -Infinity; this.wasFree = true;
     this.cdEnd.clear();
-    for (const [id, ms] of Object.entries(OPENING_CD)) this.cdEnd.set(id, now + ms);
+    if (this.L.opening) for (const [id, ms] of Object.entries(OPENING_CD)) this.cdEnd.set(id, now + ms);
     this.nextAct = now + 700; this.thinkT = 0;
     this.dir = dir; this.aim = { x: dir === 'right' ? 1 : -1, y: 0 };
     this.view.revive(x, y, this.hp);
@@ -229,7 +262,7 @@ export class SparringBot {
     this.thinkT -= ms;
     const room = this.duel && (now < this.backOffUntil || !!p.guard); // a duel: it gives you room after its string, and never swings into your guarded wake-up
     if (p.alive && !room && now >= this.nextAct && this.thinkT <= 0) {
-      this.thinkT = this.duel ? rnd(240, 420) : rnd(110, 210); // reaction time (a duel: a human's)
+      this.thinkT = this.level === 'middle' && !this.duel ? rnd(110, 210) : rnd(...this.L.think); // reaction time
       if (this.decide(w, dx, dy, dist, ady)) return;
     }
     this.move(ms, w, dx, dy, dist, room);
@@ -237,12 +270,12 @@ export class SparringBot {
 
   /** Pick a move; true when a cast started. */
   private decide(w: BotWorld, dx: number, dy: number, dist: number, ady: number): boolean {
-    if (this.cls !== 'warrior') return this.decideGeneric(w, dist, ady);
+    if (this.cls !== 'warrior' || this.level === 'hard') return this.decideGeneric(w, dist, ady);
     const now = w.now, p = w.player;
     const ready = (id: string) => (this.cdEnd.get(id) ?? 0) <= now;
     // keep the basic chain going while it lands in range
     if (this.chainStage >= 0 && this.chainStage < 3 && now - this.chainEnd < 520 && dist < 115 && ady < 46) {
-      if (Math.random() < (this.duel ? 0.55 : 0.72)) return this.start('warrior_basic', this.chainStage + 1, w);
+      if (Math.random() < this.L.chain) return this.start('warrior_basic', this.chainStage + 1, w);
       this.chainStage = -1;
       this.nextAct = now + rnd(500, 900);
       return false;
@@ -276,11 +309,11 @@ export class SparringBot {
     const ready = (s: FinalSkill) => (this.cdEnd.get(s.id) ?? 0) <= now;
     const n = basic?.chain?.stages.length ?? 1;
     if (basic?.chain && this.chainStage >= 0 && this.chainStage < n - 1 && now - this.chainEnd < 520 && dist < reachOf(basic) && ady < 46) {
-      if (Math.random() < (this.duel ? 0.55 : 0.7)) return this.start(basic.id, this.chainStage + 1, w);
+      if (Math.random() < this.L.chain) return this.start(basic.id, this.chainStage + 1, w);
     }
     this.chainStage = -1;
-    const options = this.kit.filter((s) => !s.wip && s.slot > 0 && s.slot !== 7 && ready(s) && s.hits.some((h) => h.damage > 0) && reachOf(s) >= dist && (ady < 50 || s.targeting === 'mouseGround'));
-    if (options.length && Math.random() < 0.45) return this.start(options[Math.floor(Math.random() * options.length)].id, 0, w);
+    const options = this.kit.filter((s) => !s.wip && s.slot > 0 && (s.slot !== 7 || (this.L.ult && !!w.player.stuck)) && ready(s) && s.hits.some((h) => h.damage > 0) && reachOf(s) >= dist && (ady < 50 || s.targeting === 'mouseGround'));
+    if (options.length && Math.random() < this.L.skill) return this.start(this.pick(options, w).id, 0, w);
     if (basic && dist <= reachOf(basic) && ady < 46) return this.start(basic.id, 0, w);
     return false;
   }
@@ -312,7 +345,7 @@ export class SparringBot {
             }
           }
         }
-        const sp = dist > 320 ? PHYS.run : PHYS.stroll * (dist < 140 ? 0.75 : 1);
+        const sp = dist > 320 || (this.L.rush && dist > 110) ? PHYS.run : PHYS.stroll * (dist < 140 ? 0.75 : 1);
         tx = d.x * sp; ty = d.y * sp;
       }
     }
@@ -332,7 +365,7 @@ export class SparringBot {
     let dist = s.dash?.distance ?? 0;
     if (s.dash && s.targeting === 'mouseTarget') dist = Math.min(dist, Math.max(0, Math.hypot(p.x - k.x, p.y - k.y) - 34));
     this.cast = { s, stage, t: 0, T, origin: { x: k.x, y: k.y, z: k.z }, aim, dist };
-    if (s.cooldown > 0) this.cdEnd.set(s.id, w.now + s.cooldown * CD_MUL);
+    if (s.cooldown > 0) this.cdEnd.set(s.id, w.now + s.cooldown * (this.level === 'middle' ? CD_MUL : this.L.cd));
     if (s.chain) this.chainStage = stage;
     k.vx *= 0.3; k.vy *= 0.3;
     const place = s.targeting === 'mouseGround' ? { x: p.x, y: p.y } : null, lock = s.targeting === 'mouseTarget' ? 'self' : null;
@@ -365,10 +398,56 @@ export class SparringBot {
     } else if (k.grounded) { k.vx *= 0.7; k.vy *= 0.7; }
     if (c.t >= activeEnd + T.recovery) {
       this.cast = null;
-      if (s.chain) { this.chainEnd = w.now; this.nextAct = w.now + (c.stage >= 3 ? rnd(700, 1200) : rnd(40, 120)); }
-      else this.nextAct = w.now + rnd(700, 1400);
-      if (this.duel && (!s.chain || c.stage >= 3) && Math.random() < 0.6) this.backOffUntil = w.now + rnd(600, 1200); // a duel: room for you after its string
+      if (s.chain) { this.chainEnd = w.now; this.nextAct = w.now + (c.stage >= 3 ? rnd(...this.L.after) : rnd(40, 120)); }
+      else this.nextAct = w.now + rnd(...this.L.after);
+      if (this.duel && (!s.chain || c.stage >= 3) && Math.random() < this.L.backOff) this.backOffUntil = w.now + rnd(600, 1200); // a duel: room for you after its string
     }
+  }
+
+  /** A real combo (MIDDLE sometimes, HARD always): its skill landed and you are caught — cancel into the next skill its
+   *  cancel list allows, the one that fits where you are (in the air: what holds or re-launches you; on your feet: a
+   *  launcher), and on HARD close it with the ultimate. */
+  private followUp(w: BotWorld): void {
+    const c = this.cast!, p = w.player, s = c.s;
+    if (!p.alive || !p.stuck || this.L.follow <= 0) return;
+    const hitsAt = (s.chain ? s.chain.stages[c.stage] : s.hits).filter((h) => h.damage > 0).map((h) => h.at);
+    const last = c.T.startup + (hitsAt.length ? Math.max(...hitsAt) * (c.T.active / Math.max(1, s.chain?.timings?.[c.stage]?.active ?? s.active)) : c.T.active);
+    if (c.t < last + 40 || c.t < c.T.startup + 60) return;
+    if (c.followRolled) return;
+    c.followRolled = true;
+    if (Math.random() >= this.L.follow) return;
+    const now = w.now, k = this.kin, dist = Math.hypot(p.x - k.x, p.y - k.y);
+    const ready = (x: FinalSkill) => (this.cdEnd.get(x.id) ?? 0) <= now;
+    const list = s.cancelOnHit.length ? s.cancelOnHit : this.kit.map((x) => x.id);
+    const opts = list.map((id) => this.kit.find((x) => x.id === id)).filter((x): x is FinalSkill => !!x && x.id !== s.id && !x.wip && ready(x)
+      && (k.grounded ? x.ground : x.air) && x.hits.some((h) => h.damage > 0) && reachOf(x) >= dist - 10 && (x.slot !== 7 || (this.L.ult && this.comboN >= 3)));
+    const basic = this.kit[0];
+    // the basic chain goes on when nothing else fits (it holds you there)
+    if (!opts.length) {
+      if (s.id === basic?.id && basic.chain && c.stage < basic.chain.stages.length - 1 && dist < reachOf(basic)) { this.api.cancel(); this.cast = null; this.start(basic.id, c.stage + 1, w); this.comboN++; }
+      return;
+    }
+    const next = this.pick(opts, w);
+    this.api.cancel(); this.cast = null;
+    if (this.start(next.id, 0, w)) this.comboN++;
+  }
+
+  /** The best skill for the moment (HARD: by where you are; otherwise at random). */
+  private pick(opts: FinalSkill[], w: BotWorld): FinalSkill {
+    if (this.level !== 'hard') return opts[Math.floor(Math.random() * opts.length)];
+    const p = w.player, air = p.z > 24;
+    const score = (x: FinalSkill): number => {
+      const r = new Set(x.roles), up = Math.max(...x.hits.map((h) => h.reachUp ?? 80));
+      let v = Math.random() * 0.5;
+      if (air) { if (up < p.z) return -1; if (r.has('airExtender') || r.has('extender')) v += 3; if (r.has('launcher')) v += 2; if (r.has('finisher') || r.has('signature')) v += this.comboN >= 4 ? 4 : 1; }
+      else if (p.stuck) { if (r.has('launcher')) v += 4; if (r.has('extender') || r.has('confirm')) v += 2; }
+      else { if (r.has('gapClose') || r.has('opener') || r.has('chase')) v += 3; if (r.has('launcher')) v += 2; }
+      if (x.slot === 7) v += this.comboN >= 5 ? 6 : -2;
+      return v;
+    };
+    let best = opts[0], bv = -Infinity;
+    for (const x of opts) { const v = score(x); if (v > bv) { bv = v; best = x; } }
+    return best;
   }
 
   /** COMBO button: run its class's scripted combo on the player (cooldowns ignored). */

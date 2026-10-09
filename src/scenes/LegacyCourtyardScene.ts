@@ -56,7 +56,7 @@ import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
 import { NetMsg, PeerMeta } from '../pvp/Transport';
 import { genderOf, headLookOf, previewKeyOf } from '../characters/Look';
 import { buildLook, preloadLooks } from '../characters/LookArt';
-import { BOT_ID, BOT_NAME, BOT_NAMES, SparringBot, setBotCentre } from '../pvp/SparringBot';
+import { BotLevel, BOT_ID, BOT_NAME, BOT_NAMES, SparringBot, setBotCentre } from '../pvp/SparringBot';
 import { RARITY, BAG_MAX, DEFAULT_QUICK, GOLD_BIG, GOLD_ICON, GOLD_MAX, ITEMS, ITEM_IDS, POTION_DELAY, STARTER_BAG, cleanBag, cleanQuick, fmtGold, rollDrops, usable, type Drop } from '../game/Loot';
 import { AP_PER_LEVEL, BASE_STAT, STAT_KEYS, Derived, StatKey, Stats, autoAssign, baseStats, cleanStats, derive, freeAp, mainStats } from '../game/Stats';
 import { ShopWindow } from '../ui/ShopWindow';
@@ -314,13 +314,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** VS PLAYER: still waiting for the other player (the sparring partner only comes if they never do). */
   private waitFoe = false;
   private botPaused = false;
+  /** Sparring difficulty (EASY / MIDDLE / HARD). */
+  private botLevel: BotLevel = 'middle';
   /** Sparring test switch: your skills have no cooldown (only while the sparring partner is there). */
   private noCd = false;
   /** Arena analysis: simulation speed (1, 0.5, 0.25) and the hit log. */
   private slowMo = 1;
   private logEl?: HTMLDivElement;
   private logSum = { out: { hits: 0, dmg: 0, combo: -1 }, in: { hits: 0, dmg: 0, combo: -1 } };
-  private sparUi?: { root: HTMLDivElement; clsBtns: { id: string; b: HTMLButtonElement }[]; stop: HTMLButtonElement; combo: HTMLButtonElement; speedBtns: { v: number; b: HTMLButtonElement }[]; log: HTMLButtonElement; nocd: HTMLButtonElement };
+  private sparUi?: { root: HTMLDivElement; clsBtns: { id: string; b: HTMLButtonElement }[]; levelBtns: { v: BotLevel; b: HTMLButtonElement }[]; stop: HTMLButtonElement; combo: HTMLButtonElement; speedBtns: { v: number; b: HTMLButtonElement }[]; log: HTMLButtonElement; nocd: HTMLButtonElement };
   private botSeq = 0;
   /** Battle mode (the arena's 1v1): the match in rounds and its HUD; the K.O. slow motion (real ms since the K.O., -1 =
    *  none) and the camera's own zoom (the K.O. punches in from it). */
@@ -3064,7 +3066,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.sparUi) this.sparUi.combo.disabled = bot.comboRunning || this.dead >= 0;
     if (this.botBreakAt > 0 && now >= this.botBreakAt) { this.botBreakAt = 0; if (bot.body.canBreak(now)) this.botBreak(); }
     const bd = this.kage?.decoyFor(bot); // Kagemusha: the knight goes after a double
-    bot.update(ms, { now, player: bd ? { x: bd.x, y: bd.y, z: this.kin.z - this.kin.supportZ, alive: true } : { x: this.kin.x, y: this.kin.y, z: this.kin.z - this.kin.supportZ, alive: this.dead < 0, guard: this.body.ghost(now) } });
+    bot.update(ms, { now, player: bd ? { x: bd.x, y: bd.y, z: this.kin.z - this.kin.supportZ, alive: true } : { x: this.kin.x, y: this.kin.y, z: this.kin.z - this.kin.supportZ, alive: this.dead < 0, guard: this.body.ghost(now), stuck: this.body.state !== 'free' || (this.body.hard.active(now) && this.body.hard.kind !== 'root') } });
   }
 
   private botName(): string { return this.bot?.trial?.name ?? BOT_NAMES[this.botCls] ?? BOT_NAME; }
@@ -3148,6 +3150,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       cast: (skill, stage, origin, aim, place, lock) => { this.rt?.start({ castId: `${BOT_ID}-${++this.botSeq}`, skill, stage, attackerId: BOT_ID, own: false, origin, aim, place, lock: lock ? this.localId : null }); },
       cancel: () => { for (const r of this.rt?.runs ?? []) if (r.attackerId === BOT_ID && (r.phase === 'startup' || r.phase === 'active')) r.phase = 'done'; },
     }, now, this.botCls);
+    this.bot.setLevel(this.botLevel, now);
     this.bot.paused = paused;
     this.bot.duel = true; // battle mode: the knight can be knocked out (its entrance is the battle's VS)
     this.bot.body.arena = true; // the same duel rules as the players
@@ -3177,8 +3180,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 .gol-spar .spd span{font:700 11px ${FONT_FAMILY};letter-spacing:2px;color:#bfb08e;padding-right:4px}
 .gol-spar .spd button{height:28px}
 .gol-spar .tg{display:grid;grid-template-columns:2fr 3fr;gap:8px}
+.gol-spar .lv{display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:6px;align-items:center}
+.gol-spar .lv span{font:700 11px ${FONT_FAMILY};letter-spacing:2px;color:#bfb08e;padding-right:4px}
+.gol-spar .lv button{height:30px;padding:0 8px;letter-spacing:.6px;font-size:11.5px}
+.gol-spar .lv button.hard.on{border-color:#e0503c;background:linear-gradient(#4a1410,#2a0a08);color:#ffd2c4}
 .gol-spar .tog{height:30px;padding:0 10px;letter-spacing:1px;white-space:nowrap}
-.gol-hitlog{position:absolute;left:1602px;top:484px;width:300px;max-height:420px;overflow:hidden;display:none;flex-direction:column;gap:4px;padding:10px 10px 12px;box-sizing:border-box;pointer-events:none;
+.gol-hitlog{position:absolute;left:1602px;top:532px;width:300px;max-height:420px;overflow:hidden;display:none;flex-direction:column;gap:4px;padding:10px 10px 12px;box-sizing:border-box;pointer-events:none;
   background:linear-gradient(rgba(6,10,18,.82),rgba(6,10,18,.62));border-radius:12px;box-shadow:inset 0 0 0 1px rgba(201,154,69,.35);font-family:${FONT_FAMILY}}
 .gol-hitlog.on{display:flex}
 .gol-hitlog .ln{display:grid;grid-template-columns:auto 1fr auto;column-gap:8px;row-gap:1px;padding:5px 8px;border-radius:6px;background:rgba(255,255,255,.04);font-size:12px;line-height:15px}
@@ -3201,6 +3208,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
       b.addEventListener('click', () => { if (this.botCls === id) return; this.botCls = id; const bt = this.bot; if (bt) this.spawnBot(bt.x, bt.y, this.simMs); this.refreshSparUi(); });
       cl.appendChild(b); return { id, b };
+    });
+    const lv = document.createElement('div'); lv.className = 'lv'; root.appendChild(lv);
+    const ll = document.createElement('span'); ll.textContent = 'LEVEL'; lv.appendChild(ll);
+    const levelBtns = ([['easy', 'EASY'], ['middle', 'MIDDLE'], ['hard', 'HARD']] as const).map(([v, label]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.className = v;
+      b.title = v === 'hard' ? 'Full speed: it combos you on every hit and closes with its ultimate' : v === 'easy' ? 'Slow and gentle: single moves, room to answer' : 'A fair fight: short combos';
+      b.addEventListener('click', () => { this.botLevel = v; this.bot?.setLevel(v, this.simMs); this.refreshSparUi(); });
+      lv.appendChild(b); return { v, b };
     });
     const act = document.createElement('div'); act.className = 'act'; root.appendChild(act);
     const stop = document.createElement('button'); stop.type = 'button'; stop.className = 'stop';
@@ -3225,7 +3240,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     nocd.addEventListener('click', () => { this.noCd = !this.noCd; if (this.noCd) this.rt?.resetCooldowns(); this.refreshSparUi(); });
     tg.append(log, nocd);
     this.logEl = document.createElement('div'); this.logEl.className = 'gol-hitlog'; host.appendChild(this.logEl);
-    this.sparUi = { root, clsBtns, stop, combo, speedBtns, log, nocd };
+    this.sparUi = { root, clsBtns, levelBtns, stop, combo, speedBtns, log, nocd };
     this.refreshSparUi();
   }
 
@@ -3253,6 +3268,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const u = this.sparUi; if (!u) return;
     u.root.classList.toggle('on', !!this.bot);
     for (const c of u.clsBtns) c.b.classList.toggle('on', c.id === this.botCls);
+    for (const l of u.levelBtns) l.b.classList.toggle('on', l.v === this.botLevel);
     u.stop.textContent = this.botPaused ? 'RESUME' : 'STOP';
     for (const sb of u.speedBtns) sb.b.classList.toggle('on', sb.v === this.slowMo);
     u.log.classList.toggle('on', !!this.logEl?.classList.contains('on'));
