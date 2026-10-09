@@ -85,7 +85,7 @@ export class RemotePlayer {
   get hasTag(): boolean { return !!this.tagKey; }
   private wearTag(v: ActorView, label: Phaser.GameObjects.Text, bar: Phaser.GameObjects.Graphics): void {
     label.setVisible(!this.tagKey); bar.setVisible(!this.tagKey);
-    v.setTag(this.tagKey, this.headTop() + PVP.remoteLabel.gap - PVP.hpBar.h, PVP.labelDepth, TAG_SCALE); // (its tip where the bar's foot was)
+    v.setTag(this.tagKey, PVP.labelDepth, TAG_SCALE);
     v.setRing(this.ringC);
   }
 

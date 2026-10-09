@@ -9,6 +9,7 @@ import '@fontsource/exo-2/800-italic.css';
 import '@fontsource/exo-2/900-italic.css';
 import { CLASS_NAMES } from '../config/layout';
 import { ROSTER, fighterFor, heroArt } from '../pvp/Fighters';
+import { heroFxUrls } from './HeroFx';
 import { BOT_NAMES } from '../pvp/SparringBot';
 import { syncOverlay } from './CharacterSelectUI';
 import type { ArtState } from './FighterArt';
@@ -79,7 +80,13 @@ const CSS = `
 .gol-ps .ps-bd i.you{background:rgba(6,10,18,.8);color:#f3dca2;box-shadow:inset 0 0 0 1px rgba(240,204,128,.6)}
 .gol-ps .ps-bd i.ok{background:linear-gradient(180deg,#f2d493,#d2a65a);color:#24180a}
 .gol-ps .ps-pl .ps-cls{font-size:84px}
-.gol-ps .ps-pl .ps-nm{font:800 italic 24px/1.2 ${DISPLAY};letter-spacing:3px;color:#e9dcc0;text-shadow:0 2px 6px #000;text-transform:uppercase;max-width:600px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* the player's name: a slanted plate of dark metal, white lettering, a line in the side's colour (1P orange / 2P blue) */
+.gol-ps .ps-pl .ps-nm{position:relative;max-width:560px;box-sizing:border-box;padding:8px 32px 10px;margin-top:4px;
+  font:900 italic 32px/1.15 ${DISPLAY};letter-spacing:1.5px;color:#ffffff;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  text-shadow:0 2px 0 #000,0 0 12px rgba(0,0,0,.7);background:linear-gradient(180deg,rgba(30,36,52,.95),rgba(6,8,14,.95));
+  clip-path:polygon(15px 0,100% 0,calc(100% - 15px) 100%,0 100%);box-shadow:inset 0 2px 0 rgba(255,255,255,.16),inset 0 -4px 0 var(--sc)}
+.gol-ps .ps-pl.l .ps-nm{--sc:#e8642c}
+.gol-ps .ps-pl.r .ps-nm{--sc:#4c8fe8}
 /* the middle: VS, what to do now */
 .gol-ps .ps-vs{position:absolute;left:0;right:0;top:372px;text-align:center;opacity:.96;pointer-events:none}
 .gol-ps .ps-vs img{width:300px;height:auto;filter:drop-shadow(0 10px 22px rgba(0,0,0,.7))}
@@ -342,7 +349,18 @@ export class PvpSelectUI {
     for (const t of this.tiles) t.classList.toggle('off', this.going);
   }
 
-  private showArt(s: 'l' | 'r', cls: string | null, state: 'live' | 'shade' | ''): void { this.h.art(s, cls, state === '' ? 'locked' : state); }
+  private showArt(s: 'l' | 'r', cls: string | null, state: 'live' | 'shade' | ''): void {
+    this.h.art(s, cls, state === '' ? 'locked' : state);
+    if (cls && state !== 'shade') this.warmFx(cls);
+  }
+  /** The heroes' effects (the arena's loading screen, VS, result) loaded ahead for each hero shown here. */
+  private warmed = new Set<string>();
+  private warmImgs: HTMLImageElement[] = [];
+  private warmFx(cls: string): void {
+    if (this.warmed.has(cls)) return;
+    this.warmed.add(cls);
+    for (const u of heroFxUrls(cls)) { const i = new Image(); i.src = u; this.warmImgs.push(i); }
+  }
 
   private flashArt(s: 'l' | 'r'): void { this.h.lock(s); }
 

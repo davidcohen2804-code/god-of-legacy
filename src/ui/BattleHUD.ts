@@ -9,10 +9,11 @@ import '@fontsource/exo-2/900-italic.css';
 import { PortraitRef } from './hud/HudState';
 import { ARENA } from '../combat/Combat';
 import { ensureTheme } from './theme';
+import { heroFx, heroFxUrls } from './HeroFx';
 
 export type Side = 'l' | 'r';
 /** A hero's VS splash art (facing right) and its class colours. */
-export interface VsArt { url: string; w: number; h: number; color: string; glow: string; win?: string; card?: boolean }
+export interface VsArt { cls?: string; url: string; w: number; h: number; color: string; glow: string; win?: string; card?: boolean }
 export interface Fighter { name: string; cls: string; portrait?: PortraitRef; you: boolean; vs?: VsArt }
 export type RoundCall = 'ko' | 'double' | 'time' | 'draw';
 
@@ -207,7 +208,7 @@ const CSS = `
 .gol-bt .b-vs2 .b-half.r .b-art{right:150px;animation:golArtR 2.4s cubic-bezier(.12,.85,.2,1) both}
 .gol-bt .b-vs2 .b-half.r .b-art img{transform:scaleX(-1)}
 /* a hero with no splash yet: its card, standing on the same line at the splash heroes' height */
-.gol-bt .b-vs2 .b-art.card img,.gol-bt .b-res .b-rart.card img{position:absolute;left:0;bottom:5%;height:88%;object-fit:contain;object-position:50% 100%}
+.gol-bt .b-vs2 .b-art.card img,.gol-bt .b-res .b-rart.card > img{position:absolute;left:0;bottom:5%;height:88%;object-fit:contain;object-position:50% 100%}
 @keyframes golArtL{0%{transform:translateX(-520px);filter:blur(10px);opacity:0}20%{transform:translateX(16px);filter:none;opacity:1}100%{transform:translateX(-12px) scale(1.035)}}
 @keyframes golArtR{0%{transform:translateX(520px);filter:blur(10px);opacity:0}20%{transform:translateX(-16px);filter:none;opacity:1}100%{transform:translateX(12px) scale(1.035)}}
 .gol-bt .b-vs2 .b-plate{position:absolute;bottom:72px;z-index:3;display:flex;flex-direction:column;gap:10px;animation:golPlate .5s ease-out .3s both}
@@ -273,7 +274,8 @@ const CSS = `
 .gol-bt .b-res > .b-call,.gol-bt .b-res > .b-card{position:relative;z-index:1}
 .gol-bt .b-res .b-rart{position:absolute;left:40px;bottom:-40px;width:760px;height:1140px;z-index:0;animation:golArtL 1.2s cubic-bezier(.12,.85,.2,1) both}
 .gol-bt .b-res .b-rart::before{content:'';position:absolute;left:-180px;bottom:-60px;width:1120px;height:1120px;border-radius:50%;background:radial-gradient(circle,var(--g) 0%,rgba(0,0,0,0) 62%)}
-.gol-bt .b-res .b-rart img{position:relative;display:block;width:100%;height:100%;filter:drop-shadow(0 0 2px rgba(255,255,255,.45)) drop-shadow(0 0 18px var(--g))}
+.gol-bt .b-res .b-rart .hfx{overflow:visible}
+.gol-bt .b-res .b-rart > img{position:relative;display:block;width:100%;height:100%;filter:drop-shadow(0 0 2px rgba(255,255,255,.45)) drop-shadow(0 0 18px var(--g))}
 .gol-bt .b-res .b-card{display:flex;flex-direction:column;align-items:center;gap:22px;padding:28px 40px 30px;min-width:620px;box-sizing:border-box;animation:golRise .45s ease-out .35s both}
 @keyframes golRise{from{opacity:0;transform:translateY(18px)}}
 .gol-bt .b-res .b-sc{display:flex;align-items:center;gap:26px}
@@ -350,7 +352,7 @@ export class BattleHUD {
   }
 
   setFighters(l: Fighter, r: Fighter): void {
-    this.prewarm([VS_EMBLEM, ...Object.keys(CALL_ART).map(callUrl), ...[l, r].flatMap((f) => (f.vs ? [f.vs.url, ...(f.vs.win ? [f.vs.win] : [])] : []))]);
+    this.prewarm([VS_EMBLEM, ...Object.keys(CALL_ART).map(callUrl), ...[l, r].flatMap((f) => (f.vs ? [f.vs.url, ...(f.vs.win ? [f.vs.win] : []), ...(f.vs.cls ? heroFxUrls(f.vs.cls) : [])] : []))]);
     for (const [s, f] of [['l', l], ['r', r]] as const) {
       const e = this.sides[s];
       e.name.textContent = f.name; e.name.title = f.name; e.cls.textContent = f.cls;
@@ -443,8 +445,11 @@ export class BattleHUD {
       const a = f.vs!, half = this.el('div', `b-half ${s}`, v);
       half.style.setProperty('--c', a.color); half.style.setProperty('--g', a.glow);
       this.el('div', 'b-rays', half); this.el('div', 'b-glow', half);
+      const fx = a.cls ? heroFx(a.cls, { W: 1100, H: 1080, ax: 503, ay: 400, mirror: s === 'r' }) : null; // their own things flying round them
+      if (fx) half.appendChild(fx.back);
       const img = this.el('img', '', this.el('div', a.card ? 'b-art card' : 'b-art', half));
       img.src = a.url; img.alt = ''; img.draggable = false;
+      if (fx) half.appendChild(fx.front);
       const plate = this.el('div', 'b-plate', half), nm = this.el('b', '', plate);
       nm.textContent = f.name;
       this.el('i', '', plate).textContent = f.you ? `${f.cls}  ·  YOU` : f.cls; // a slanted bar in the class colour
@@ -509,7 +514,11 @@ export class BattleHUD {
     const winner = o.title === 'VICTORY' ? o.me : o.title === 'DEFEAT' ? o.them : null;
     if (winner?.vs) { // the winner stands at the left in their victory pose (else their battle stance), the score at the right
       r.classList.add('art');
-      const art = this.el('div', winner.vs.card ? 'b-rart card' : 'b-rart', r), img = this.el('img', '', art);
+      const art = this.el('div', winner.vs.card ? 'b-rart card' : 'b-rart', r);
+      const fx = winner.vs.cls ? heroFx(winner.vs.cls, { W: 760, H: 1140, ax: 380, ay: 420 }) : null; // their own things flying round them
+      if (fx) art.appendChild(fx.back);
+      const img = this.el('img', '', art);
+      if (fx) art.appendChild(fx.front);
       art.style.setProperty('--c', winner.vs.color); art.style.setProperty('--g', winner.vs.glow);
       img.src = winner.vs.win ?? winner.vs.url; img.alt = ''; img.draggable = false;
     }
