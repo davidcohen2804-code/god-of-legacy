@@ -382,10 +382,10 @@ const archer: FinalSkill[] = [
   }),
   S({
     id: 'bow_haste', cls: 'archer', slot: 2, name: 'Wind Step', roles: ['escape', 'projectile'], targeting: 'mouseDir',
-    startup: 60, active: 300, recovery: 160, cooldown: 4500, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    startup: 60, active: 380, recovery: 160, cooldown: 4500, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     dash: { distance: -190, lift: 70 },
-    hits: [H(140, 14, { kind: 'projectile', speed: 1000, range: 440, radius: 11 }, { stun: 260, push: 14, float: true, juggleCost: 10 }, { mark: 1 })],
-    description: 'A gust throws you back out of reach, and you loose an arrow at the foe in the middle of the leap (it leaves a Hunter\'s Mark).',
+    hits: [H(340, 16, { kind: 'circle', radius: 85, at: 'aimBias', bias: 200, floor: true }, { stun: 420, launch: 140, juggleCost: 22 }, { reachUp: 120, mark: 1 })],
+    description: 'A gust throws you back out of reach; mid-leap you shoot an arrow into the ground in front of you — it bursts and throws the foe there into the air (and leaves a Hunter\'s Mark).',
     relations: ['Escape', 'Marks'],
   }),
   // ---- 2nd job (Hunter)
@@ -439,6 +439,7 @@ const archer: FinalSkill[] = [
     id: 'rain_of_arrows', cls: 'archer', slot: 9, name: 'Thunder Rain', roles: ['zone', 'extender'], targeting: 'mouseDir',
     startup: 300, active: 1200, recovery: 300, cooldown: 12000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [300, 900],
     dash: { distance: 0, lift: 150, hang: true },
+    linger: { at: 'aim', offset: 300, startMs: 1000, everyMs: 400, count: 4, radius: 210, maxZ: 60, hit: H(0, 4, { kind: 'circle', radius: 210 }, { stun: 320, float: true, juggleCost: 4, slow: { pct: 30, ms: 500 } }, { reachUp: 60 }) },
     hits: [600, 750, 900].map((t, i) => H(t, i === 2 ? 16 : 12, { kind: 'circle', radius: 100, at: 'aimBias', bias: [150, 300, 450][i], floor: true }, { stun: 320, float: true, juggleCost: 10, slow: { pct: 30, ms: 800 } }, { reachUp: 200, heavy: i === 2, useMark: i === 2 ? 'stun' as const : undefined })),
     cancelOnHit: ['quick_shot', 'skyhunters_step'], telegraph: 'line',
     description: 'Leap, hang in the air charging a lightning arrow, then loose three lightning arrows that strike the floor near, middle and far in front of you.',
@@ -447,8 +448,8 @@ const archer: FinalSkill[] = [
   S({
     id: 'piercing_arrow', cls: 'archer', slot: 10, name: 'Spirit Bow', roles: ['projectile', 'zone'], targeting: 'mouseDir',
     startup: 350, active: 5000, recovery: 200, cooldown: 22000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    hits: Array.from({ length: 20 }, (_, i) => H(i * 250, 7, { kind: 'projectile', speed: 900, range: 560, radius: 12 }, { stun: 320, push: 8, float: true, juggleCost: 4 }, { mark: 1 })),
-    description: 'Stand your ground: a great green spirit bow fires on its own for 5s. The direction you hold aims it — to a side, up at an angle or straight up; arrows shot up arc high and fall back onto the floor.',
+    hits: Array.from({ length: 40 }, (_, i) => H(i * 125, 4, { kind: 'projectile', speed: 900, range: 560, radius: 11 }, { stun: 320, push: 6, float: true, juggleCost: 3 }, { mark: i % 3 === 0 ? 1 : 0 })),
+    description: 'Stand your ground: a great green spirit bow fires on its own for 5s. It looses a stream of small arrows; the direction you hold aims it — to a side, up at an angle or straight up; arrows shot up arc high and fall back onto the floor.',
     relations: ['Auto-fire 5s', 'Rooted, aim it'],
   }),
   S({
@@ -516,7 +517,7 @@ const archer: FinalSkill[] = [
   S({
     id: 'eagle_arrow', cls: 'archer', slot: 16, name: 'Eagle Tide', roles: ['finisher', 'peel'], targeting: 'mouseLine',
     startup: 1200, active: 700, recovery: 400, cooldown: 25000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1900], // the held direction turns it while charging
-    hits: [0, 230, 460].map((t, i) => H(t, i === 2 ? 30 : 16, { kind: 'line', length: 960, width: 320 }, i === 2 ? { stun: 460, launch: 160, push: 90, juggleCost: 30 } : { stun: 300, push: 40, float: true, juggleCost: 8 }, { reachUp: 260, heavy: i === 2 })),
+    hits: [0, 230, 460].map((t, i) => H(t, i === 2 ? 30 : 16, { kind: 'line', length: 1920, width: 320 }, i === 2 ? { stun: 460, launch: 160, push: 90, juggleCost: 30 } : { stun: 300, push: 40, float: true, juggleCost: 8 }, { reachUp: 260, heavy: i === 2 })),
     cancelOnHit: ['sky_rain'], telegraph: 'line',
     description: 'Charge, then release a gigantic spirit-eagle tide that sweeps half the map in front of you, tearing through everything in its path.',
     relations: ['Charge 3s', 'Half the map'],
