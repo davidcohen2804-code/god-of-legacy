@@ -808,7 +808,7 @@ const gambler: FinalSkill[] = [
     relations: ['Cards stick and burst', 'Hold: 5 cards'],
   }),
   S({
-    id: 'staff_vault', cls: 'gambler', slot: 2, name: 'Staff Vault', roles: ['gapClose', 'launcher', 'escape'], targeting: 'mouseDir',
+    id: 'staff_vault', cls: 'gambler', slot: 2, name: 'Staff Vault', roles: ['gapClose', 'launcher', 'escape'], targeting: 'mouseTarget', // locks the foe ahead: the vault comes down on him, not past him
     startup: 120, active: 340, recovery: 200, cooldown: 4000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 220, lift: 110, crash: true },
     hits: [H(220, 8, { kind: 'circle', radius: 80 }, { stun: 300, push: 6 }, { reachUp: 150, fuse: true }),
