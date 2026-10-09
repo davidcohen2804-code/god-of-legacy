@@ -14,7 +14,7 @@ import { SKILL_BLOCKERS, WORLD_OBJECTS, clearLine } from '../world/WorldGeometry
 
 const F = 'assets/final';
 /** Skills that borrow another skill's VFX sheet (no art of their own). */
-const VFX_ALIAS: Record<string, string> = { earthsplitter: 'ground_breaker', wave_slash: 'warrior_basic', radiant_blade: 'war_cry', sanctuary: 'war_cry', iron_oath: 'war_cry', legacy_banner: 'war_cry' };
+const VFX_ALIAS: Record<string, string> = { wave_slash: 'warrior_basic', radiant_blade: 'war_cry', sanctuary: 'war_cry', iron_oath: 'war_cry', legacy_banner: 'war_cry' };
 const vfxKey = (id: string) => `vfx-${VFX_ALIAS[id] ?? id}`;
 const isBig = (s: FinalSkill) => s.slot === 6 || s.slot === 7;
 const TOP = 100000;
@@ -338,6 +338,7 @@ export class SkillFx {
     else if (s.id === 'war_cry') this.roar(r);
     else if (s.id === 'judgment_hook') this.hookChain(r);
     else if (s.id === 'sky_breaker') this.skyBreaker(r);
+    else if (s.id === 'earthsplitter') this.aura(r); // (the charge: his aura while the key is held; the split itself plays on the release, onActive)
     else if (s.id === 'iron_oath') this.oathSigil(r);
     else if (s.id === 'legacy_banner') { // planted in front of the caster where the sword comes down (every client sees it)
       const side = r.aim.x < 0 ? -1 : 1, bx = r.origin.x + side * 70, by = r.origin.y;
@@ -356,6 +357,7 @@ export class SkillFx {
   private onActive(r: CastRun): void {
     if (r.skill.cls === 'samurai') this.sam.active(r);
     if (r.skill.cls === 'book_mage') this.mage.active(r);
+    if (r.skill.id === 'earthsplitter') this.earthsplit(r);
     this.dropTele(r, true); // VFX timelines are pre-scheduled from the cast; telegraphs end here
     const sh = SHOCK[r.skill.id];
     if (sh) {
@@ -479,6 +481,17 @@ export class SkillFx {
       this.play(key, c.x, c.y + 6, size * 1.15, size * 1.15, [120, 150, 200], { frames: [5, 6, 7], oy: 0.9, flip, depth: c.y + 2, blend: Phaser.BlendModes.ADD, fadeLast: 160 });
       (this.cam ?? this.scene.cameras.main).shake(160, 0.007);
     });
+  }
+
+  /** Earthsplitter's release: the earth splits in front of him — as far and wide as the level the hold reached. */
+  private earthsplit(r: CastRun): void {
+    const key = vfxKey('earthsplitter'), T = r.timings, lv = r.chargeLevel ?? 0, c = this.casterPos(r.attackerId) ?? r.origin;
+    const range = [200, 280, 360][lv] ?? 200, a = r.aim, w = range * 1.25, h = w * (256 / 384);
+    const x = c.x + a.x * range * 0.55, y = c.y + a.y * range * 0.55;
+    const d = Math.max(60, (T.active + T.recovery) / 8);
+    this.play(key, x, y + 10, w, h, [d * 0.6, d * 0.7, d, d, d * 1.3, d * 1.2, d * 1.2, d * 1.4], { oy: 0.98, flip: a.x < 0, depth: y + 4, blend: Phaser.BlendModes.ADD, fadeLast: 200 });
+    (this.cam ?? this.scene.cameras.main).shake(180 + lv * 120, 0.006 + lv * 0.004);
+    this.shockwave(x, y, range * 0.9, 0xffc060);
   }
 
   private roar(r: CastRun): void {
