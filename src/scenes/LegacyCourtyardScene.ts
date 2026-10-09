@@ -760,9 +760,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const jbs = this.kit.find((x) => x.id === 'judgment_blade'); if (jbs) this.rt!.closeCharges({ id: jbs.id, cooldown: jbs.cooldown * this.cdMul(jbs) });
       this.jb = null; this.jbWant = 0;
     }
-    const floating = now < this.mage.floatUntil && !k.grounded && b.state === 'free'; // Levitate: a slow float
+    // the book mage hangs in the air while he casts there (no fall), then floats down a moment: his combos go on in the air
+    const hang = this.cls === 'book_mage' && !!run && !k.grounded && b.state === 'free' && !run.skill.dash;
+    if (hang) { k.vz = 0; this.mage.floatUntil = Math.max(this.mage.floatUntil, now + 260); }
+    const floating = !hang && now < this.mage.floatUntil && !k.grounded && b.state === 'free'; // Levitate: a slow float
     if (floating) k.vz = Math.max(k.vz, -40);
-    const r = stepKin(k, ms, floating ? LEVITATE.gravity : b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z, !!this.rt!.ownRun), b.state === 'free' && !b.push && !this.rt!.ownRun);
+    const r = stepKin(k, ms, hang ? 0 : floating ? LEVITATE.gravity : b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z, !!this.rt!.ownRun), b.state === 'free' && !b.push && !this.rt!.ownRun);
     // the Sky Path: fallen between its clouds, below them — on down to the floor under the lane (Ivy Heights where it runs
     // under, else the terrace), kept where it is on screen (y and height shifted together)
     if (!k.grounded && k.vz < 0 && k.z < SKY_DROP && k.z > 200 && k.y < SKY.band[1] + 8 && k.x > SKY.lane[0] - 4 && k.x < SKY.lane[1] + 40) {
@@ -811,7 +814,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const jumpKey = inp.takeJump() && !locked; // a jump pressed while talking is dropped
     if (k.grounded) { this.leapUsed = false; if (!rooted && jumpKey) { jump(k, PHYS.jumpVz * this.passives.jumpMul); this.setMode('takeoff'); } }
     else if (this.passives.airLeap && !this.leapUsed && !rooted && !(this.mode === 'takeoff' && this.modeT <= PHYS.takeoffMs) && jumpKey) this.warLeap(now);
-    else if (this.passives.mage.levitate && !this.leapUsed && !rooted && !(this.mode === 'takeoff' && this.modeT <= PHYS.takeoffMs) && jumpKey) this.levitate(now);
+    else if ((this.passives.mage.levitate || this.cls === 'book_mage') && !this.leapUsed && !rooted && !(this.mode === 'takeoff' && this.modeT <= PHYS.takeoffMs) && jumpKey) this.levitate(now);
     const sp = Math.hypot(k.vx, k.vy);
     if (!k.grounded) { if (this.mode !== 'takeoff' || this.modeT > PHYS.takeoffMs) this.setMode('air'); return; }
     if (this.mode === 'land' && this.modeT < LAND_MS && !mx && !my) return;
@@ -1807,7 +1810,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private levitate(now: number): void {
     const k = this.kin, inp = this.ci!;
     const d = inp.hasMove ? unit(inp.moveX, inp.moveY) : FACE[this.dir];
-    this.leapUsed = true; this.mage.floatUntil = now + LEVITATE.ms; this.leapAt = now;
+    this.leapUsed = true; this.mage.floatUntil = now + (this.passives.mage.levitate ? LEVITATE.longMs : LEVITATE.ms); this.leapAt = now;
     k.vz = Math.max(k.vz, 60); k.vx = d.x * LEVITATE.forward; k.vy = d.y * LEVITATE.forward * 0.6;
     this.fx?.levitate(this.localId, () => (this.simMs < this.mage.floatUntil && !this.kin.grounded ? { x: this.kin.x, y: this.kin.y, z: this.kin.z } : null));
   }
