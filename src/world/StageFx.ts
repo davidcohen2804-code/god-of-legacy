@@ -6,6 +6,7 @@
 import Phaser from 'phaser';
 
 type Pt = [number, number];
+export interface Fall { kind: 'leaf' | 'petal' | 'snow' | 'rain' | 'firefly' | 'ember'; n: number; tints: number[] }
 /** A stage's look: where its far background, sun and floor emblem are, and its colours. */
 export interface StageLook {
   /** The far background (sky, valley) as a polygon: the clouds, mist and birds stay inside it. */
@@ -28,7 +29,7 @@ export interface StageLook {
   /** Who crosses the sky now and then. */
   fliers?: 'birds' | 'bats' | null;
   /** The weather: what falls or floats across the stage, how many, in which colours. */
-  fall: { kind: 'leaf' | 'petal' | 'snow' | 'rain' | 'firefly' | 'ember'; n: number; tints: number[] };
+  fall: Fall | Fall[];
   /** A storm: lightning flashes now and then. */
   lightning?: boolean;
   /** The emblem's light. */
@@ -37,10 +38,13 @@ export interface StageLook {
   fires?: Pt[];
 }
 
+/** The courtyard's far background (traced on the painting: above the balustrade, round its posts and the statue) —
+ *  every painting of the courtyard shares its layout. */
+const COURTYARD_FAR: Pt[] = [[336, 0], [336, 164], [390, 164], [391, 213], [547, 213], [547, 189], [560, 167], [572, 120], [575, 121], [586, 167], [601, 189], [601, 213], [757, 213], [779, 209], [779, 199], [793, 182], [798, 179], [816, 199], [816, 209], [841, 210], [841, 246], [1039, 246], [1040, 229], [1094, 229], [1095, 213], [1131, 213], [1131, 181], [1149, 167], [1159, 124], [1162, 125], [1171, 167], [1181, 181], [1181, 213], [1197, 213], [1194, 207], [1195, 193], [1190, 182], [1201, 152], [1206, 151], [1209, 146], [1218, 145], [1224, 131], [1232, 124], [1243, 129], [1252, 147], [1265, 153], [1274, 171], [1272, 213], [1366, 213], [1366, 179], [1385, 164], [1396, 128], [1399, 129], [1408, 162], [1421, 179], [1421, 207], [1499, 207], [1499, 0]];
+
 /** Legacy Courtyard at sunset (assets/environment/Legacy_Courtyard.png). */
 export const COURTYARD_LOOK: StageLook = {
-  far: [[255, 0], [1495, 0], [1495, 160], [1440, 160], [1440, 212], [1258, 212], [1258, 135], [1216, 135], [1216, 212], [1032, 212], [1032, 130],
-    [985, 130], [985, 250], [830, 250], [830, 212], [668, 212], [668, 140], [628, 140], [628, 212], [450, 212], [450, 140], [405, 140], [405, 212], [255, 212]],
+  far: COURTYARD_FAR,
   sky: [0, 120],
   mist: [150, 262],
   sun: [1440, 15],
@@ -51,6 +55,24 @@ export const COURTYARD_LOOK: StageLook = {
   lightTint: 0xffc070,
   fliers: 'birds',
   fall: { kind: 'leaf', n: 16, tints: [0xc8281e, 0xe0501e, 0xa81c22, 0xf07a2a] },
+};
+
+/** The courtyard by moonlight (assets/environment/stages/courtyard_night.webp): bats, fireflies, braziers burning. */
+export const NIGHT_LOOK: StageLook = {
+  far: COURTYARD_FAR,
+  sky: [0, 120],
+  mist: [150, 262],
+  sun: [1412, 6],
+  floorTop: 262,
+  emblem: { c: [904, 565], outer: [288, 122], inner: [92, 45] },
+  cloudTint: 0x8e9cc8,
+  mistTint: 0xb8c8f0,
+  lightTint: 0x7f9fe0,
+  rayTint: 0xc8d8ff,
+  rays: 0.6,
+  fliers: 'bats',
+  fall: [{ kind: 'firefly', n: 22, tints: [0xd8ff8a, 0xfff2a0] }, { kind: 'leaf', n: 8, tints: [0xa81c22, 0xc8281e, 0x7a1418] }],
+  fires: [[368, 178], [574, 172], [800, 179], [1159, 171], [1394, 172], [263, 134], [117, 160], [1572, 160]],
 };
 
 const T = { cloud: 'sfx-cloud', mist: 'sfx-mist', ray: 'sfx-ray', glow: 'sfx-glow', light: 'sfx-light', ring: 'sfx-ring', leaf: 'sfx-leaf', petal: 'sfx-petal', drop: 'sfx-drop', dot: 'sfx-dot', bird: 'sfx-bird', bat: 'sfx-bat' };
@@ -131,7 +153,7 @@ function makeTextures(scene: Phaser.Scene): void {
   });
 }
 
-interface Drifter { o: Phaser.GameObjects.Image; vx: number; vy: number; w: number; spin?: number; sway?: number; ph?: number; a?: number }
+interface Drifter { o: Phaser.GameObjects.Image; vx: number; vy: number; w: number; spin?: number; sway?: number; ph?: number; a?: number; kind?: Fall['kind'] }
 interface Bird { o: Phaser.GameObjects.Image; vx: number; vy: number; t: number; fps: number }
 
 export class StageFx {
@@ -217,10 +239,9 @@ export class StageFx {
       }
     }
     // the weather: most of it behind the fighters, a share in front of them
-    const F = L.fall;
-    for (let i = 0; i < F.n; i++) {
+    for (const F of Array.isArray(L.fall) ? L.fall : [L.fall]) for (let i = 0; i < F.n; i++) {
       const front = i % 4 === 0, tint = F.tints[i % F.tints.length];
-      const d = (o: Phaser.GameObjects.Image, vx: number, vy: number, extra: Partial<Drifter> = {}) => this.leaves.push({ o, vx, vy, w: 40, spin: 0, sway: 0, ph: r() * Math.PI * 2, ...extra });
+      const d = (o: Phaser.GameObjects.Image, vx: number, vy: number, extra: Partial<Drifter> = {}) => this.leaves.push({ o, vx, vy, w: 40, spin: 0, sway: 0, ph: r() * Math.PI * 2, kind: F.kind, ...extra });
       const at = (key: string) => { const o = scene.make.image({ x: r() * W, y: r() * H, key }, false).setTint(tint); this.lay(front ? 89000 : -0.4).add(o); return o; };
       switch (F.kind) {
         case 'leaf': case 'petal': {
@@ -282,8 +303,9 @@ export class StageFx {
     this.light.setAlpha(0.07 + 0.025 * Math.sin((t / 9000) * Math.PI * 2));
     this.glow?.setAlpha(0.1 + 0.06 * Math.sin((t / 4200) * Math.PI * 2));
     for (const w of this.sweeps) w.img.rotation += w.v * ms;
-    const H = this.H, kind = this.look.fall.kind, top = this.look.floorTop;
+    const H = this.H, top = this.look.floorTop;
     for (const l of this.leaves) {
+      const kind = l.kind;
       l.ph! += s * 2.2;
       l.o.x += (l.vx + Math.sin(l.ph!) * l.sway!) * s; l.o.y += (l.vy + Math.cos(l.ph! * 0.8) * (kind === 'rain' ? 0 : 10)) * s;
       if (l.a) { l.o.rotation += l.spin! * s; l.o.scaleY = l.o.scaleX * (0.35 + 0.65 * Math.abs(Math.sin(l.ph! * 1.3))); } // a leaf turning over as it flies
