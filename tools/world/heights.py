@@ -34,7 +34,7 @@ MAPS = {
   # at the Sky Path's end: a whole map made of one huge cloud, floating (no wall below it, no towers at its ends; its
   # painted cloud cubes are its blocks)
   'cloud_haven': {'name': 'Cloud Haven', 'over': 'training_2', 'dx': 22, 'H': 800, 'front': 122, 'floor': (345, 575), 'sky': (140, 300),
-                  'cloud': True, 'depth': -1.25, 'mirror': True, 'wall_r': 560,
+                  'cloud': True, 'depth': -1.25, 'end': 'cloud_haven_end', 'wall_x': 1170,
                   'blocks': [{'id': 'block-l', 'x': (262, 452), 'front': 505, 'h': 82, 'depth': 30},
                              {'id': 'block-r', 'x': (1302, 1438), 'front': 512, 'h': 76, 'depth': 26}],
                   'mobs': {'kind': 'thorn', 'spawns': [[160, 470], [640, 430], [900, 540], [1120, 450], [1560, 500]]}},
@@ -57,45 +57,30 @@ for id_, m in MAPS.items():
   if m.get('flip'): im = cv2.flip(im, 1)
   if m.get('crop'): im = im[:, m['crop'][0]:m['crop'][1]].copy()
   h, w = im.shape[:2]
-  if m.get('mirror'):   # twice as wide: the picture and its mirror image side by side (they meet seamlessly), its blocks
-    # and monsters mirrored with it
-    W0 = w; im = np.hstack([im, cv2.flip(im, 1)]); h, w = im.shape[:2]
-    m = dict(m, blocks=m['blocks'] + [dict(b, id=b['id'] + '-m', x=(2 * W0 - b['x'][1], 2 * W0 - b['x'][0])) for b in m['blocks']],
-             mobs={'kind': m['mobs']['kind'], 'spawns': m['mobs']['spawns'] + [[2 * W0 - x, y] for x, y in m['mobs']['spawns']]})
+  if m.get('end'):   # twice as wide: its mirror image first, then GPT's own picture of its right end (that picture's left part
+    # is this one's left part — the two meet seamlessly), where the floor ends against a towering wall of cloud
+    W0 = w; end = cv2.imread(G + f"heights/{m['end']}.png"); end = cv2.resize(end, (W0, h)) if end.shape[:2] != (h, W0) else end
+    im = np.hstack([cv2.flip(im, 1), end]); h, w = im.shape[:2]
+    m = dict(m, blocks=[dict(b, id=b['id'] + '-m', x=(W0 - b['x'][1], W0 - b['x'][0])) for b in m['blocks']] + [dict(b, x=(W0 + b['x'][0], W0 + b['x'][1])) for b in m['blocks'][:1]],
+             mobs={'kind': m['mobs']['kind'], 'spawns': [[W0 - x, y] for x, y in m['mobs']['spawns']] + [[W0 + x, y] for x, y in m['mobs']['spawns'] if x < m['wall_x'] - 80]},
+             wall_r=W0 - m['wall_x'])
   if m.get('cloud'):   # cloud on cloud: no GrabCut — the sky fades out above the rim, the underside fades out below, the
     # two ends fade out (it floats), the floor solid
     yy = np.arange(h, dtype=np.float32)[:, None]; xx = np.arange(w, dtype=np.float32)[None, :]
     a = np.clip((yy - m['sky'][0]) / (m['sky'][1] - m['sky'][0]), 0, 1) * np.clip((h - 20 - yy) / 160, 0, 1)
     edge = np.minimum(xx, w - 1 - xx)
     a = a * np.clip(edge / 320, 0, 1) ** 1.5                       # its sky and underside melt away toward both ends
+    if m.get('end'):   # the cloud wall at its right end: whole, from near the top down to the underside (its right edge soft)
+      wall = np.clip((xx - (w - (W0 - m['wall_x']) - 80)) / 120, 0, 1) * np.clip(yy / 90, 0, 1) * np.clip((w - 1 - xx) / 150, 0, 1)
+      a = np.maximum(a, wall)
     up = np.clip((m['floor'][0] - 12 - yy) / 70, 0, 1)   # 0 at the floor's back edge, 1 from 70 px above it (no hard line)
     a = a * (1 - up * (1 - np.clip((xx - 120) / 640, 0, 1) ** 1.3))   # the left end (where the Sky Path's clouds come in): its own sky gone, only the floor
     band = (yy >= m['floor'][0] + 6) & (yy < m['floor'][1] + 60)
     wob = 18 * np.sin(yy / 23.0) + 10 * np.sin(yy / 9.0 + 1)      # the floor's own ends: soft, uneven cloud edges
-    a = np.where(band, np.maximum(a, np.clip((edge - 14 - wob) / 40, 0, 1)), a)
+    a = np.where(band & ((xx < w / 2) if m.get('end') else True), np.maximum(a, np.clip((edge - 14 - wob) / 40, 0, 1)), a)   # (a closed right end: the wall's own edge)
+    if m.get('end'): a = np.where(band & (xx >= w / 2), np.maximum(a, np.clip((w - 1 - xx) / 150, 0, 1)), a)
     rgba = np.dstack([cv2.cvtColor(im, cv2.COLOR_BGR2RGB), (a * 255).astype(np.uint8)])
     EXT = CAP_X1 - CAP_J1; wide = np.zeros((h, w + 2 * EXT, 4), np.uint8); wide[:, EXT:EXT + w] = rgba; rgba = wide
-    if m.get('wall_r'):   # its right end closed: a tall bank of big clouds rising over the floor's end (you go no further)
-      cv = rgba.astype(np.float32); W2 = cv.shape[1]
-      TOPS = [sp['top'][1] for sp in json.load(open(R + 'src/data/world-clouds.json'))['sprites']]
-      f0, f1 = m['floor']
-      spots = [(-140, f1 + 170, 760, 1), (-60, f1 + 90, 700, 0), (-190, f1 + 10, 660, 1), (-80, f1 - 70, 680, 0), (-170, f0 + 30, 640, 1),
-               (-60, f0 - 40, 620, 0), (-150, f0 - 120, 580, 1), (-50, f0 - 200, 540, 0), (-130, f0 - 270, 480, 1), (-40, f0 - 340, 420, 0)]
-      for k, (dx, cy, cw, fl) in enumerate(spots):
-        cl = cv2.cvtColor(cv2.imread(R + f'public/assets/world/clouds/c{4 + k % 2}.png', cv2.IMREAD_UNCHANGED), cv2.COLOR_BGRA2RGBA)
-        sc = cw / cl.shape[1]; cl = cv2.resize(cl, None, fx=sc, fy=sc * 1.25, interpolation=cv2.INTER_AREA)
-        if fl: cl = cl[:, ::-1]
-        if k < len(spots) - 1: cl = cl[int(TOPS[4 + k % 2] * sc * 1.25) + 6:]   # only its puffy body (no flat top face): the bank's face
-        if k < len(spots) - 1:   # its cut top melts in (no straight line)
-          cl = cl.copy(); rr = min(60, cl.shape[0] // 3); cl[:rr, :, 3] = (cl[:rr, :, 3] * (np.arange(rr) / rr)[:, None] ** 1.2).astype(np.uint8)
-        ch, cwd = cl.shape[:2]; cx = EXT + w - 250 + dx
-        x0, y0 = int(cx - cwd / 2), int(cy - ch / 2)
-        sx0, sy0 = max(0, -x0), max(0, -y0); x0c, y0c = max(0, x0), max(0, y0); x1c, y1c = min(W2, x0 + cwd), min(h, y0 + ch)
-        part = cl[sy0:sy0 + y1c - y0c, sx0:sx0 + x1c - x0c].astype(np.float32); ca = part[..., 3:4] / 255
-        rgbp = part[..., :3] * 0.72 + np.array([255, 196, 160]) * 0.28   # toward this map's peach clouds
-        cv[y0c:y1c, x0c:x1c, :3] = rgbp * ca + cv[y0c:y1c, x0c:x1c, :3] * (1 - ca)
-        cv[y0c:y1c, x0c:x1c, 3:4] = np.maximum(cv[y0c:y1c, x0c:x1c, 3:4], ca * 255)
-      rgba = cv.clip(0, 255).astype(np.uint8)
   else:
     seed = np.full((h, w), cv2.GC_PR_BGD, np.uint8); seed[:m['sky'][0]] = cv2.GC_BGD; seed[m['sky'][1]:] = cv2.GC_FGD
     seed[m['sky'][0] + 80:m['sky'][1]] = cv2.GC_PR_FGD

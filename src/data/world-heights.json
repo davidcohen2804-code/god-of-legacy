@@ -69,7 +69,7 @@
      300
     ],
     [
-     4564,
+     4636,
      250
     ]
    ]
@@ -272,7 +272,7 @@
      300
     ],
     [
-     12474,
+     12546,
      250
     ]
    ]
@@ -285,7 +285,7 @@
   "w": 3344,
   "walk": [
    6362,
-   9134
+   9192
   ],
   "H": 800,
   "front": 122,
@@ -298,55 +298,42 @@
   "imgH": 941,
   "blocks": [
    {
-    "id": "block-l",
-    "x0": 6612,
-    "x1": 6802,
-    "front": 52,
-    "h": 82,
-    "depth": 30,
-    "occ": {
-     "img": "assets/world/heights/cloud_haven-block-l.webp",
-     "x": 6614,
-     "py": 395
-    }
-   },
-   {
-    "id": "block-r",
-    "x0": 7652,
-    "x1": 7788,
-    "front": 59,
-    "h": 76,
-    "depth": 26,
-    "occ": {
-     "img": "assets/world/heights/cloud_haven-block-r.webp",
-     "x": 7654,
-     "py": 412
-    }
-   },
-   {
     "id": "block-l-m",
-    "x0": 9242,
-    "x1": 9432,
+    "x0": 7570,
+    "x1": 7760,
     "front": 52,
     "h": 82,
     "depth": 30,
     "occ": {
      "img": "assets/world/heights/cloud_haven-block-l-m.webp",
-     "x": 9244,
+     "x": 7572,
      "py": 395
     }
    },
    {
     "id": "block-r-m",
-    "x0": 8256,
-    "x1": 8392,
+    "x0": 6584,
+    "x1": 6720,
     "front": 59,
     "h": 76,
     "depth": 26,
     "occ": {
      "img": "assets/world/heights/cloud_haven-block-r-m.webp",
-     "x": 8258,
+     "x": 6586,
      "py": 412
+    }
+   },
+   {
+    "id": "block-l",
+    "x0": 8284,
+    "x1": 8474,
+    "front": 52,
+    "h": 82,
+    "depth": 30,
+    "occ": {
+     "img": "assets/world/heights/cloud_haven-block-l.webp",
+     "x": 8286,
+     "py": 395
     }
    }
   ],
@@ -354,44 +341,36 @@
    "kind": "thorn",
    "spawns": [
     [
-     6510,
+     7862,
      17
     ],
     [
-     6990,
+     7382,
      -23
     ],
     [
-     7250,
+     7122,
      87
     ],
     [
-     7470,
+     6902,
      -3
     ],
     [
-     7910,
+     6462,
      47
     ],
     [
-     9534,
+     8182,
      17
     ],
     [
-     9054,
+     8662,
      -23
     ],
     [
-     8794,
+     8922,
      87
-    ],
-    [
-     8574,
-     -3
-    ],
-    [
-     8134,
-     47
     ]
    ]
   }
