@@ -23,7 +23,8 @@ export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
   'mfx-wave': ['arcane_wave.png', 384, 384, 16],
   'mfx-blink': ['blink.png', 384, 384, 16],
   'mfx-levity': ['levity_field.png', 384, 384, 16],
-  'mfx-rune': ['binding_rune.png', 384, 384, 16], // 0-3 the armed rune (loop), 4-11 chains binding, 12-15 release (ground centre ~72% down) // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
+  'mfx-rune': ['binding_rune.png', 384, 384, 16],
+  'mfx-paper': ['origami.png', 384, 384, 16], // 0-3 crane flying right (loop), 4-7 crane burst, 8-11 pages wrapping a body, 12-15 the cursed crane (loop) // 0-3 the armed rune (loop), 4-11 chains binding, 12-15 release (ground centre ~72% down) // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
 };
 const TOP = 100000, GROUND = 2, SQUASH = 0.42;
 const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
@@ -90,7 +91,7 @@ interface Spr {
   alive?: () => boolean;
 }
 interface Live { t: number; step(dt: number, t: number): boolean }
-interface Bolt { im: Phaser.GameObjects.Image; gl: Phaser.GameObjects.Image; t: number; trail: number; kind: 'arcane' | 'frost' | 'storm' | 'crane' | 'spike' }
+interface Bolt { im: Phaser.GameObjects.Image; gl: Phaser.GameObjects.Image; t: number; trail: number; kind: 'arcane' | 'frost' | 'storm' | 'crane' | 'spike' | 'paperCrane' }
 
 export class MageFx {
   private live: Live[] = [];
@@ -835,6 +836,11 @@ export class MageFx {
     const id = p.skill.id, s = this.ctx.scene;
     const kind: Bolt['kind'] = id === 'origami_flock' ? 'crane' : id === 'arcane_bolt_frost' ? 'frost' : id === 'arcane_bolt_storm' ? 'storm' : id === 'glacial_spikes' ? 'spike' : 'arcane';
     const name = kind === 'crane' ? 'crane_up' : kind === 'frost' ? 'bolt_frost' : kind === 'storm' ? 'bolt_storm' : 'bolt_arcane';
+    if (kind === 'crane' && s.textures.exists('mfx-paper')) { // the painted crane: its wing-beat loop
+      const im = s.add.image(p.x, p.y - p.z, 'mfx-paper', 0).setBlendMode(Phaser.BlendModes.SCREEN).setDisplaySize(150, 150);
+      this.bolts.set(p, { im, gl: s.add.image(0, 0, 'mfx-paper', 0).setVisible(false), t: 0, trail: 0, kind: 'paperCrane' as Bolt['kind'] });
+      return;
+    }
     const mk = (add: boolean) => s.add.image(p.x, p.y - p.z, MAGE_KIT, name).setOrigin(kind === 'crane' ? 0.5 : 0.82, 0.5).setBlendMode(add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL).setDepth(p.y + 2).setVisible(kind !== 'spike');
     this.bolts.set(p, { im: mk(kind === 'arcane' || kind === 'storm'), gl: mk(true).setAlpha(kind === 'crane' ? 0 : 0.35), t: 0, trail: 0, kind });
   }
@@ -845,7 +851,8 @@ export class MageFx {
     this.bolts.delete(p); b.im.destroy(); b.gl.destroy();
     if (!this.ready) return;
     const e = p.end ?? { x: p.x, y: p.y }, y = e.y - p.z;
-    if (b.kind === 'crane') this.pop('paper_burst', e.x, y, 70, { life: 260, add: false });
+    if (b.kind === 'paperCrane') this.sheet('mfx-paper', e.x, y, 170, 300, { frames: [4, 4], depth: TOP + 5 });
+    else if (b.kind === 'crane') this.pop('paper_burst', e.x, y, 70, { life: 260, add: false });
     else if (b.kind === 'frost') { this.pop('ice_shatter', e.x, y, 80, { life: 240, add: false }); this.pop('snowflake', e.x, y, 40, { life: 200 }); }
     else if (b.kind === 'storm') this.pop('bolt_impact', e.x, y, 90, { life: 220 });
     else if (b.kind === 'arcane') this.pop('bolt_burst', e.x, y, 80, { life: 220 });
@@ -855,6 +862,7 @@ export class MageFx {
       b.t += dt;
       const x = p.x, y = p.y - p.z, fl = p.dx < -0.01, ang = screenAng(p.dx, p.dy);
       if (b.kind === 'spike') continue; // Glacial Spikes: the spikes in the floor are its picture
+      if (b.kind === 'paperCrane') { b.im.setPosition(x, y).setFrame(Math.floor(b.t / 70) % 4).setFlipX(fl).setAngle(fl ? ang + 180 - 180 : ang).setDepth(p.y + 2); continue; }
       if (b.kind === 'crane') { // a paper crane: wings beat, it banks toward where it flies
         const up = Math.floor(b.t / 90) % 2 === 0, k = 46 / 150;
         b.im.setFrame(up ? 'crane_up' : 'crane_down').setPosition(x, y + (up ? -2 : 2)).setScale(fl ? -k : k, k).setAngle(fl ? ang + 180 - 180 : ang).setDepth(p.y + 2);
@@ -972,7 +980,13 @@ export class MageFx {
         for (let k = 0; k < 5; k++) this.later(k * 50, () => { const a = rnd(0, Math.PI * 2); this.zap({ x, y }, { x: x + Math.cos(a) * 70, y: y + Math.sin(a) * 60 }, { life: 120, width: 2.4, forks: 2 }); });
         this.shake(90, 0.004);
         break;
-      case 'curse': {
+      case 'curse': if (this.ctx.scene.textures.exists('mfx-paper')) {
+        const ff = follow ? () => { const p = follow(); return p ? { x: p.x, y: p.y - p.z - 50 } : null; } : undefined;
+        this.sheet('mfx-paper', x, at.y - at.z - 50, 210, 260, { frames: [8, 4], follow: ff, depth: at.y + 4 });
+        this.sheet('mfx-paper', x, at.y - at.z - 50, 200, Math.max(300, ms - 220), { frames: [12, 4], loop: 140, delay: 220, follow: ff, depth: at.y + 4 });
+        this.later(Math.max(300, ms), () => { const p = follow?.() ?? at; this.sheet('mfx-paper', p.x, p.y - p.z - 50, 200, 300, { frames: [4, 4] }); });
+        break;
+      } else {
         this.pop('page_cocoon', x, y - 10, 90, { life: 360, add: false });
         this.spr({ name: 'crane_big', x, y: at.y - at.z + 6, oy: 0.95, depth: at.y + 4, w: 80, delay: 220, life: Math.max(300, ms - 220), follow: fp, dz: 4,
           sx: kf([0, 0.2], [0.06, 1, out3]), sy: (u) => 1 + 0.03 * Math.sin(u * 40), a: kf([0, 0], [0.05, 1], [0.95, 1], [1, 0]) });
