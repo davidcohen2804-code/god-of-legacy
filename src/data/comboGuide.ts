@@ -75,6 +75,12 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     { name: 'WARHORN', range: 'FAR', hits: 14, steps: [{ id: 'lance_thrust' }, { id: 'war_cry' }, { id: 'blade_storm' }] },
     { name: 'IRONCLAD', range: 'FAR', hits: 14, steps: [{ id: 'lance_thrust' }, { id: 'iron_oath' }, { id: 'blade_storm' }] },
     { name: 'BASTION', range: 'CLOSE', hits: 14, steps: [{ id: 'sanctuary' }, { id: 'leap_crash' }, { id: 'blade_storm' }] },
+    // the new kit (Iron Grip Z, Judgment Hook X, Sky Breaker B, Earthsplitter N): played in the arena against a foe that does
+    // nothing, each key right after the last hit and 0.12s later, from three distances — locked to the combo's end every time
+    { name: 'HOOKSHOT', range: 'FAR', hits: 15, steps: [{ id: 'judgment_hook' }, { id: 'lance_thrust' }, { id: 'blade_storm' }] },
+    { name: 'SKYLANCE', range: 'CLOSE', hits: 15, steps: [{ id: 'sky_breaker' }, { id: 'lance_thrust' }, { id: 'blade_storm' }] },
+    { name: 'IRONFIST', range: 'CLOSE', hits: 13, steps: [{ id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'blade_storm' }] },
+    { name: 'FAULTLINE', range: 'MID', hits: 13, steps: [{ id: 'earthsplitter', hold: true }, { id: 'blade_storm' }] },
     { name: 'RAMPAGE', range: 'FAR', hits: 8, steps: [{ id: 'leap_crash' }, { id: 'warrior_basic' }, { id: 'war_cry' }, { id: 'iron_oath' }, { id: 'ground_breaker' }] },
   ],
   // the Book Mage: ice spikes, a lightning chain or the storm field, the starlight lift or a blink, then the storm field, the
