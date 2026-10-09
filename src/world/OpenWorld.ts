@@ -7,7 +7,10 @@ import Phaser from 'phaser';
 import PROPS from '../data/world-props.json';
 import NPC_ART from '../data/npc-sprites.json';
 import { BANNERS_KEY, BANNERS_URL, WorldBanners } from './Banners';
-import { ARENA, ARENA_AREA, GATE, ARENA_MINIMAP_URL, AREA_H, AREA_W, AreaDef, arenaTileKey, arenaTileUrl, belowTerrace, AreaNpc, BACKDROP, MINIMAP_URL, MOB_KINDS, ROW, START, TILES, TOWERS, HEIGHTS, heightArea, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
+import MINI from '../data/world-minimap.json';
+/** The minimap's picture with the maps above in it (tools/world/minimap.py). */
+const MINIMAP_UP_URL = 'assets/world/minimap/world_up.jpg';
+import { ARENA, ARENA_AREA, GATE, ARENA_MINIMAP_URL, AREA_H, AREA_W, AreaDef, arenaTileKey, arenaTileUrl, belowTerrace, AreaNpc, BACKDROP, MOB_KINDS, ROW, START, TILES, TOWERS, HEIGHTS, heightArea, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
 import { WorldObject, actorDepth, setWorldGeometry } from './WorldGeometry';
 import { Backdrop, preloadBackdrop } from './Backdrop';
 import { Monster, preloadMonsterFrames } from './Monster';
@@ -520,16 +523,18 @@ export class OpenWorld {
   }
 
   /** The minimap: a square of the world around you (its full height), sliding along as you walk; its people, the portal. */
-  minimap(player: { x: number; y: number }): { label: string; imageUrl: string; image: { x: number; y: number; w: number; h: number }; bounds: { minX: number; minY: number; width: number; height: number }; markers: { id: string; kind: 'player' | 'npc' | 'portal'; x: number; y: number }[] } {
+  minimap(player: { x: number; y: number; z?: number; floor?: number }): { label: string; imageUrl: string; image: { x: number; y: number; w: number; h: number }; bounds: { minX: number; minY: number; width: number; height: number }; markers: { id: string; kind: 'player' | 'npc' | 'portal'; x: number; y: number }[] } {
     if (this.area === ARENA_AREA) {
       const side = ARENA.h, minX = Phaser.Math.Clamp(player.x - side / 2, ARENA.x, ARENA.x + ARENA.w - side);
       return { label: ARENA.name, imageUrl: ARENA_MINIMAP_URL, image: { x: ARENA.x, y: ARENA.y, w: ARENA.w, h: ARENA.h }, bounds: { minX, minY: ARENA.y, width: side, height: side }, markers: [{ id: 'local', kind: 'player', x: player.x, y: player.y }] };
     }
+    // as drawn on screen (y - height): up on a map above, the minimap rises with you and shows it
     const side = WORLD_H, minX = Phaser.Math.Clamp(player.x - side / 2, 0, Math.max(0, WORLD_W - side));
-    const markers: { id: string; kind: 'player' | 'npc' | 'portal'; x: number; y: number }[] = [{ id: 'local', kind: 'player', x: player.x, y: player.y }];
-    for (const n of this.npcs) markers.push({ id: `npc:${n.def.id}`, kind: 'npc', x: n.x, y: n.y });
+    const minY = player.floor ? Phaser.Math.Clamp(player.y - player.floor - side * 0.55, MINI.top, 0) : 0;
+    const markers: { id: string; kind: 'player' | 'npc' | 'portal'; x: number; y: number }[] = [{ id: 'local', kind: 'player', x: player.x, y: player.y - (player.z ?? 0) }];
+    for (const n of this.npcs) markers.push({ id: `npc:${n.def.id}`, kind: 'npc', x: n.x, y: n.y - (n.def.z ?? 0) });
     if (this.portal) markers.push({ id: 'portal', kind: 'portal', x: this.portal.x, y: this.portal.y - this.portal.z });
-    return { label: this.area.name, imageUrl: MINIMAP_URL, image: { x: 0, y: 0, w: WORLD_W, h: WORLD_H }, bounds: { minX, minY: 0, width: side, height: side }, markers };
+    return { label: this.area.name, imageUrl: MINIMAP_UP_URL, image: { x: 0, y: MINI.top, w: WORLD_W, h: WORLD_H - MINI.top }, bounds: { minX, minY, width: side, height: side }, markers };
   }
 
   destroy(): void {

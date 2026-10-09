@@ -30,7 +30,7 @@ import { PartyUI, PartyView } from '../ui/PartyUI';
 import { addExp, expToNext } from '../game/Progression';
 import { passiveIconUrl, passivesFor } from '../skills/Passives';
 import { LEVITATE, NO_PASSIVES, ORBS, PassiveStats, REGEN, SHINSOKU, WAR_LEAP, WEAVE, ownedPassives, passiveStats } from '../skills/Passives';
-import { SKILL_BLOCKERS, WORLD_OBJECTS, actorDepth, footAllowed, insideArena, placementOk, pushOutOfBlockers, useArenaGeometry } from '../world/WorldGeometry';
+import { SKILL_BLOCKERS, WORLD_OBJECTS, actorDepth, supportAt, footAllowed, insideArena, placementOk, pushOutOfBlockers, useArenaGeometry } from '../world/WorldGeometry';
 import { OpenWorld, preloadOpenWorld } from '../world/OpenWorld';
 import { AreaNpc, IDLE_LINES, MOB_KINDS, QUESTS, QuestDef, START, toWorld } from '../world/Areas';
 import type { Monster } from '../world/Monster';
@@ -328,6 +328,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** After a glide into a new area he walks on to its entry until you steer (or he arrives). */
   /** Iron Grip: the monster held in the fist between the seize and the slam. */
   private gripFoe: Monster | null = null;
+  /** Where the seized monster stood (its slam lands it back on its own floor). */
+  private gripFrom: { x: number; y: number } | null = null;
+  /** Touching monsters: not again before this (sim ms). */
+  private touchUntil = -1;
   private motes?: Phaser.GameObjects.Container;
   /** Gold and potions carried; drops lying on the floor. */
   gold = 0;
@@ -973,7 +977,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const sh = this.add.ellipse(x, y, sz * 0.7, sz * 0.2, 0x000000, 0.3);
       const spread = (i - (list.length - 1) / 2) * 30;
       this.drops.push({ ...d, img, sh, glow, sz, x, y, z: Math.max(14, m.kin.z + 34), vx: spread * 2.4 + (Math.random() - 0.5) * 120, vz: 360 + Math.random() * 60,
-        beam, base: m.homeZ ?? 0, landed: false, bounced: false, born: this.simMs, taken: -1, seed: Math.random() * 6.28, nextGlint: this.simMs + 600 + Math.random() * 1400 });
+        beam, base: supportAt(m.kin.x, m.kin.y, m.kin.z + 1).z, landed: false, bounced: false, born: this.simMs, taken: -1, seed: Math.random() * 6.28, nextGlint: this.simMs + 600 + Math.random() * 1400 });
     });
   }
 
@@ -990,7 +994,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (t >= 1) d.done = true;
       } else if (!d.landed) {
         d.vz -= 1400 * dt; d.z += d.vz * dt; d.x += d.vx * dt;
-        if (!footAllowed(d.x, d.y, 0, 8)) { d.x -= d.vx * dt; d.vx = 0; }
+        if (!footAllowed(d.x, d.y, d.base, 8) || supportAt(d.x, d.y, d.base + 1).z !== d.base) { d.x -= d.vx * dt; d.vx = 0; }   // stays on the floor it fell on
         if (d.z <= d.base && d.vz < 0) {
           d.z = d.base;
           if (!d.bounced) { d.bounced = true; d.vz = -d.vz * 0.32; d.vx *= 0.4; }
@@ -2448,12 +2452,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       out = m.body.receive(run.attackerId, s, hit, from, now);
       if (out.damage > 0) { m.hitFromX = from.x; m.faceToward(from.x); }
       if (run.attackerId === this.localId && (out.pushX || out.pushY) && s.id !== 'shield_slam') this.momentum = { x: out.pushX * 0.7, y: out.pushY * 0.7, left: 120 };
-      if (s.id === 'iron_grip' && hit === s.hits[0]) { m.kin.grounded = false; m.kin.z = Math.max(m.kin.z, 40); m.kin.vz = 0; m.body.state = 'launched'; m.body.push = null; this.gripHeld = true; this.gripFoe = m; this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 70); this.fx!.callout(at, 'GRAB!!', '#ffd27a', 0); }
+      if (s.id === 'iron_grip' && hit === s.hits[0]) { m.kin.grounded = false; m.kin.z = Math.max(m.kin.z, 40); m.kin.vz = 0; m.body.state = 'launched'; m.body.push = null; this.gripHeld = true; this.gripFoe = m; this.gripFrom = { x: m.kin.x, y: m.kin.y }; this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 70); this.fx!.callout(at, 'GRAB!!', '#ffd27a', 0); }
       if (s.id === 'iron_grip' && hit === s.hits[1]) {
         this.gripHeld = false; this.gripFoe = null;
         const nx = from.x + run.aim.x * 62, ny = from.y + run.aim.y * 62;
-        if (footAllowed(nx, ny, 0, 10)) { m.kin.x = nx; m.kin.y = ny; }
-        m.kin.z = Math.min(m.kin.z, 30);
+        // down on its own floor (a map above: up there), never inside a block or another monster
+        const free = (x: number, y: number) => footAllowed(x, y, m.homeZ, 10) && supportAt(x, y, m.homeZ + 1).z === m.homeZ && !(this.world?.mobs ?? []).some((o) => o !== m && o.alive && Math.hypot(o.x - x, o.y - y) < 30);
+        const to = [{ x: nx, y: ny }, { x: from.x, y: from.y }, this.gripFrom ?? m.home].find((q) => free(q.x, q.y)) ?? m.home;
+        m.kin.x = to.x; m.kin.y = to.y; this.gripFrom = null;
+        m.kin.z = Math.min(m.kin.z, m.homeZ + 30);
         this.fx!.crack(m.kin.x, m.kin.y, 120); this.fx!.shockwave(m.kin.x, m.kin.y, 200, 0xffc070); this.fx!.callout(at, 'SLAM!!', '#ff9a4a', 1); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 120); this.cameras.main.shake(220, 0.011);
       }
       crit = amb || (hit.damage > 0 && s.slot !== 0 && Math.random() < 0.12 + (own ? this.critAddNow() : 0)); // attack skills only: a regular attack never crits
@@ -3287,13 +3294,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       m.update(ms, {
         player: dc ? { x: dc.x, y: dc.y, z: k.z - k.supportZ, alive: true, level: dc.sz } : { x: k.x, y: k.y, z: k.z - k.supportZ, alive: this.dead < 0, level: k.supportZ },
         now,
-        blocked: (self, x, y) => mobs.some((o) => o !== self && o.alive && Math.hypot(x - o.x, y - o.y) < 26 * Math.max(o.kind.scale, self.kind.scale)),
+        blocked: (self, x, y) => mobs.some((o) => { if (o === self || !o.alive) return false; const d = Math.hypot(x - o.x, y - o.y); return d < 26 * Math.max(o.kind.scale, self.kind.scale) && d < Math.hypot(self.x - o.x, self.y - o.y); }),   // moving apart: always
         onStrikePlayer: (m, dmg) => { if (dc) this.kage?.pop(dc.k); else this.enemyStrike(dmg, { x: m.x, y: m.y }); },
       });
     }
     // MapleStory: touching a monster hurts a little and knocks you back, then you blink and can walk through it
-    if (this.dead < 0 && now >= this.hitBlinkUntil && !this.rt?.ownRun) for (const m of mobs) {
-      if (!m.alive || Math.abs(m.z - k.z) > 40 || Math.hypot(m.x - k.x, (m.y - k.y) * 1.6) > STAGE6.enemy.collisionRadius * m.kind.scale + R * 0.6) continue;
+    if (this.dead < 0 && now >= this.hitBlinkUntil && now >= this.touchUntil && !this.rt?.ownRun) for (const m of mobs) {
+      if (!m.alive || m.body.state === 'knockdown' || m.body.state === 'launched' || Math.abs(m.z - k.z) > 40 || Math.hypot(m.x - k.x, (m.y - k.y) * 1.6) > STAGE6.enemy.collisionRadius * m.kind.scale + R * 0.6) continue;
+      this.touchUntil = now + 600;   // a touch blocked (guard, ward, dodge) still counts: never every frame
       this.enemyStrike(Math.max(1, Math.round(m.kind.damage * 0.5)), { x: m.x, y: m.y }, 34); break;
     }
   }
@@ -3476,7 +3484,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       },
       target: alive && this.pvpReady ? this.hudTarget() : null,
       slots,
-      minimap: this.world ? this.world.minimap({ x: k.x, y: k.y }) : this.arenaMinimap(markers),
+      minimap: this.world ? this.world.minimap({ x: k.x, y: k.y, z: k.z, floor: k.supportZ }) : this.arenaMinimap(markers),
       room: pvp ? { label: `ROOM ${pvp.room}`, playerCount: pvp.connected ? pvp.remotes.size + 1 : 0, maxPlayers: PVP.maxPlayers } : null,
       combatFeedback: showCombo ? { count: this.combo.count, chain: `${this.combo.label}  ·  TOTAL ${Math.min(999, Math.round((this.combo.dmg / this.combo.max) * 100))}%`, expiresAtMs: this.combo.at + COMBO_SHOW_MS } : null,
     };

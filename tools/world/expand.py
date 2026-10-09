@@ -59,6 +59,7 @@ for id_, spec in ROUTE:
     if 'paint' in a: a['paint'] = [[mx(b[2]), b[1], mx(b[0]), b[3]] for b in a['paint']]
   a['mobs'] = {'kind': mob, 'spawns': WARDEN if mob == 'warden' else OWN_SPAWNS.get(id_) or ([[mx(x), y] for x, y in SPAWNS] if flip else SPAWNS)}
   if mob == 'warden': a['mobs2'] = {'kind': 'cursed', 'spawns': SPAWNS[::2]}
+  if id_ == 'terraces_2': a['walk'] = [[0, 346], [AW, 346], [AW, 652], [0, 652]]   # Ivy Heights stands over the courtyard's back alcove
   a['standin'] = src; a['mirrored'] = flip
   D['areas'][id_] = a
 D['row'] = [r[0] for r in ROUTE]
