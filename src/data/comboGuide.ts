@@ -49,17 +49,36 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     { name: 'IAIDO', range: 'MID', hits: 18, steps: [{ id: 'blossom_storm' }, { id: 'iai_strike' }, { id: 'tornado_blade' }] },
     { name: 'SHOGUN', range: 'CLOSE', hits: 15, steps: [{ id: 'blossom_storm' }, { id: 'shadow_step' }, { id: 'dragon_eclipse' }] },
     { name: 'RONIN', range: 'CLOSE', hits: 17, steps: [{ id: 'swallow_cut' }, { id: 'spin_cut' }, { id: 'hundred_cuts' }] },
+    // the hundred cuts, the tornado, the storm and the phantoms in other orders
+    { name: 'KATANA', range: 'CLOSE', hits: 24, steps: [{ id: 'hundred_cuts' }, { id: 'tornado_blade' }] },
+    { name: 'GHOST', range: 'FAR', hits: 19, steps: [{ id: 'phantom_blades' }, { id: 'tornado_blade' }] },
+    { name: 'PETAL', range: 'CLOSE', hits: 18, steps: [{ id: 'blossom_storm' }, { id: 'hundred_cuts' }] },
+    { name: 'SWALLOW', range: 'CLOSE', hits: 17, steps: [{ id: 'swallow_cut' }, { id: 'tornado_blade' }] },
+    { name: 'GALE', range: 'MID', hits: 29, steps: [{ id: 'tornado_blade' }, { id: 'shadow_step' }, { id: 'hundred_cuts' }] },
+    { name: 'HANAMI', range: 'CLOSE', hits: 19, steps: [{ id: 'hundred_cuts' }, { id: 'quick_slash' }, { id: 'blossom_storm' }] },
+    { name: 'HAYABUSA', range: 'CLOSE', hits: 17, steps: [{ id: 'swallow_cut' }, { id: 'falcon_dive' }, { id: 'hundred_cuts' }] },
+    { name: 'SPIRAL', range: 'CLOSE', hits: 16, steps: [{ id: 'swallow_cut' }, { id: 'spin_cut' }, { id: 'tornado_blade' }] },
+    { name: 'MIRAGE', range: 'CLOSE', hits: 23, steps: [{ id: 'hundred_cuts' }, { id: 'quick_slash', n: 2 }, { id: 'phantom_blades' }] },
+    { name: 'KENSEI', range: 'CLOSE', hits: 17, steps: [{ id: 'blossom_storm' }, { id: 'quick_slash' }, { id: 'shadow_step' }, { id: 'spin_cut' }, { id: 'phantom_blades' }] },
   ],
-  // the Warrior: a launcher or a charge (and the War Cry's pull), then the Blade Storm; its other locked strings need hit-
-  // confirm cancels that a 100 ms connection makes too late, so only these stand online too
+  // the Warrior: a launcher, a charge, a leap or the sanctuary (the War Cry's pull, the Iron Oath), then the Blade Storm,
+  // the Verdict or the Ground Breaker; strings that need hit-confirm cancels miss over a 100 ms connection and are left out
   warrior: [
     { name: 'SKYBREAK', range: 'CLOSE', hits: 15, steps: [{ id: 'rising_slash' }, { id: 'blade_storm' }] },
     { name: 'QUAKE', range: 'MID', hits: 21, steps: [{ id: 'ground_breaker' }, { id: 'blade_storm' }] },
     { name: 'IMPALER', range: 'FAR', hits: 15, steps: [{ id: 'lance_thrust' }, { id: 'blade_storm' }] },
     { name: 'COMET', range: 'CLOSE', hits: 15, steps: [{ id: 'rising_slash' }, { id: 'leap_crash' }, { id: 'blade_storm' }] },
     { name: 'BATTLECRY', range: 'MID', hits: 7, steps: [{ id: 'wave_slash' }, { id: 'war_cry' }, { id: 'warrior_basic', n: 2 }, { id: 'rising_slash' }] },
+    { name: 'VERDICT', range: 'FAR', hits: 12, steps: [{ id: 'lance_thrust' }, { id: 'titans_verdict' }] },
+    { name: 'METEOR', range: 'FAR', hits: 14, steps: [{ id: 'leap_crash' }, { id: 'blade_storm' }] },
+    { name: 'RIPTIDE', range: 'MID', hits: 14, steps: [{ id: 'wave_slash' }, { id: 'leap_crash' }, { id: 'blade_storm' }] },
+    { name: 'WARHORN', range: 'FAR', hits: 14, steps: [{ id: 'lance_thrust' }, { id: 'war_cry' }, { id: 'blade_storm' }] },
+    { name: 'IRONCLAD', range: 'FAR', hits: 14, steps: [{ id: 'lance_thrust' }, { id: 'iron_oath' }, { id: 'blade_storm' }] },
+    { name: 'BASTION', range: 'CLOSE', hits: 14, steps: [{ id: 'sanctuary' }, { id: 'leap_crash' }, { id: 'blade_storm' }] },
+    { name: 'RAMPAGE', range: 'FAR', hits: 8, steps: [{ id: 'leap_crash' }, { id: 'warrior_basic' }, { id: 'war_cry' }, { id: 'iron_oath' }, { id: 'ground_breaker' }] },
   ],
-  // the Book Mage: ice spikes or a lightning chain, the starlight lift, then the storm field, the cranes or the clock
+  // the Book Mage: ice spikes, a lightning chain or the storm field, the starlight lift or a blink, then the storm field, the
+  // chain, the cranes or the clock
   book_mage: [
     { name: 'GLACIER', range: 'MID', hits: 8, steps: [{ id: 'glacial_spikes' }, { id: 'storm_field' }] },
     { name: 'EPOCH', range: 'MID', hits: 8, steps: [{ id: 'glacial_spikes' }, { id: 'time_collapse' }] },
@@ -80,12 +99,28 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     { name: 'GRIMOIRE', range: 'MID', hits: 10, steps: [{ id: 'astral_burst' }, { id: 'arcane_wave' }, { id: 'paper_curse' }, {}, { id: 'origami_flock' }] },
     { name: 'NOVA', range: 'MID', hits: 10, steps: [{ id: 'astral_burst' }, { id: 'arcane_wave' }, { id: 'frost_nova' }, {}, { id: 'origami_flock' }] },
     { name: 'PARADOX', range: 'MID', hits: 10, steps: [{ id: 'glacial_spikes' }, {}, { id: 'paper_curse' }, { id: 'levity_field' }, { id: 'arcane_wave' }, { id: 'lightning_chain' }] },
+    { name: 'VOLTAGE', range: 'FAR', hits: 9, steps: [{ id: 'storm_field' }, { id: 'lightning_chain' }] },
+    { name: 'ICEBOLT', range: 'CLOSE', hits: 11, steps: [{ id: 'glacial_spikes' }, { id: 'lightning_chain' }] },
+    { name: 'NEBULA', range: 'MID', hits: 5, steps: [{ id: 'storm_field' }, { id: 'astral_burst' }] },
+    { name: 'CHRONO', range: 'FAR', hits: 5, steps: [{ id: 'storm_field' }, { id: 'time_collapse' }] },
+    { name: 'SIGIL', range: 'CLOSE', hits: 8, steps: [{ id: 'glacial_spikes' }, { id: 'paper_curse' }] },
+    { name: 'CRANE', range: 'FAR', hits: 11, steps: [{ id: 'origami_flock' }, { id: 'storm_field' }] },
+    { name: 'SQUALL', range: 'MID', hits: 10, steps: [{ id: 'glacial_spikes' }, { id: 'arcane_wave' }, { id: 'storm_field' }] },
+    { name: 'PLASMA', range: 'MID', hits: 9, steps: [{ id: 'storm_field' }, { id: 'astral_burst' }, { id: 'lightning_chain' }] },
+    { name: 'FLICKER', range: 'MID', hits: 11, steps: [{ id: 'storm_field' }, { id: 'blink' }, { id: 'arcane_wave' }, { id: 'lightning_chain' }] },
+    { name: 'ORACLE', range: 'MID', hits: 9, steps: [{ id: 'storm_field' }, { id: 'blink' }, { id: 'arcane_wave' }, { id: 'paper_curse' }, { id: 'frost_nova' }, { id: 'astral_burst' }] },
+    { name: 'ETHER', range: 'MID', hits: 9, steps: [{ id: 'storm_field' }, { id: 'blink' }, { id: 'arcane_wave' }, { id: 'paper_curse' }, { id: 'frost_nova' }, { id: 'levity_field' }] },
   ],
-  // the Archer: the rising arrow or a fireball, then the hawk, the vine mine, the rain or the sky
+  // the Archer: the rising arrow, the hawk or a fireball, then the storm, the sky, the rain or the hunter's leap
   archer: [
     { name: 'INFERNO', range: 'FAR', hits: 13, steps: [{ id: 'explosive_arrow' }, { id: 'arrow_storm' }] },
     { name: 'SKYFALL', range: 'CLOSE', hits: 9, steps: [{ id: 'rising_arrow' }, { id: 'sky_rain' }] },
     { name: 'MONSOON', range: 'CLOSE', hits: 11, steps: [{ id: 'rising_arrow' }, { id: 'arrow_storm' }] },
     { name: 'RAPTOR', range: 'CLOSE', hits: 12, steps: [{ id: 'rising_arrow' }, { id: 'spirit_hawk' }, { id: 'arrow_storm' }] },
+    { name: 'TALON', range: 'MID', hits: 14, steps: [{ id: 'spirit_hawk' }, { id: 'arrow_storm' }] },
+    { name: 'FIREFALL', range: 'MID', hits: 8, steps: [{ id: 'explosive_arrow' }, { id: 'sky_rain' }] },
+    { name: 'PHOENIX', range: 'MID', hits: 14, steps: [{ id: 'spirit_hawk' }, { id: 'explosive_arrow' }, { id: 'arrow_storm' }] },
+    { name: 'FLURRY', range: 'MID', hits: 4, steps: [{ id: 'explosive_arrow' }, { id: 'rain_of_arrows' }, { id: 'bow_haste' }] },
+    { name: 'HUNTSMAN', range: 'MID', hits: 6, steps: [{ id: 'explosive_arrow' }, { id: 'vine_trap' }, { id: 'rain_of_arrows' }, { id: 'skyhunters_step' }] },
   ],
 };
