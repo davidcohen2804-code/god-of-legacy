@@ -45,15 +45,19 @@ export const GAUGE = { stand: 0.3, air: 0.4, airRamp: 0.15, down: 0.15, resetMs:
  *  - dmgMul: damage of a hit in the arena (× the skill's hit damage; arena HP is 1000); ladder: each later hit of a combo hits softer
  *    (index = the hit's number in the combo), never under ladderFloor (an ultimate: never under ultFloor).
  *  - budget: one combo takes at most this share of max HP — or lasts maxHits hits / maxComboMs — then the target drops
- *    out of it: a short fall, untouchable until it is up again; floorMs: how long a fallen fighter lies there.
- *  - stunDecay: hit-stun of the combo's later hits shrinks ([up to hit n, × scale]).
+ *    out of it: a short fall, untouchable until it is up again; floorMs: how long a fallen fighter lies there. In maxHits a
+ *    cast's first hit counts whole, its later hits (a multi-hit skill's ticks) tickWeight each, a hit without damage not at
+ *    all. A finisher that ends the combo (an ultimate's knockdown) drops the target out of it the same way.
+ *  - stunDecay: hit-stun of the combo's later skills shrinks ([up to hit n, × scale]); a cast keeps the scale of its first
+ *    hit to its last (a multi-hit skill never lets go halfway).
+ *  - launchCap: the highest a launch (or a re-launch) throws a body, px above the floor (in reach of the follow-ups).
  *  - wakeInvulnMs: every getup is guarded this long; techMinMs: down at least this long before a key stands you up.
  *  - BREAK: from the combo's breakMinHits-th hit, the jump key frees you (hop back breakHop px, untouchable
  *    breakInvulnMs), then breakCdMs to wait.
  *  - cdMul: skill cooldowns in the arena (more spacing and fewer skill strings). */
 export const ARENA = {
   dmgMul: 4, ladder: [1, 1, 0.9, 0.8, 0.72, 0.65, 0.58, 0.52, 0.47, 0.43, 0.4], ladderFloor: 0.35, ultFloor: 0.6,
-  budget: 0.3, maxHits: 15, maxComboMs: 2600, floorMs: 300,
+  budget: 0.3, maxHits: 15, tickWeight: 0.25, maxComboMs: 2600, floorMs: 300, launchCap: 200,
   stunDecay: [[5, 1], [8, 0.85], [11, 0.7], [Infinity, 0.55]] as [number, number][],
   wakeInvulnMs: 700, techMinMs: 120,
   breakMinHits: 3, breakCdMs: 15000, breakInvulnMs: 600, breakHop: 110,
@@ -236,7 +240,8 @@ export class HardCC {
 
 // ------------------------------------------------------------------ combo context (victim side, per attacker)
 
-export interface ComboCtx { id: number; attacker: string; startedAt: number; lastAt: number; hits: number; juggle: number; relaunches: number; ended: boolean; /** damage taken in it */ dmg: number }
+export interface ComboCtx { id: number; attacker: string; startedAt: number; lastAt: number; hits: number; juggle: number; relaunches: number; ended: boolean; /** damage taken in it */ dmg: number;
+  /** the arena's hit cap count (ARENA.maxHits: ticks weigh less); the combo hit index of each cast's first hit */ load: number; firstOf: Record<string, number> }
 
 export class ComboBook {
   private ctx = new Map<string, ComboCtx>();
@@ -244,7 +249,7 @@ export class ComboBook {
   get(attacker: string, now: number): ComboCtx {
     let c = this.ctx.get(attacker);
     if (!c || c.ended || now - c.lastAt > COMBO.comboTimeoutMs) {
-      c = { id: ++this.seq, attacker, startedAt: now, lastAt: now, hits: 0, juggle: 0, relaunches: 0, ended: false, dmg: 0 };
+      c = { id: ++this.seq, attacker, startedAt: now, lastAt: now, hits: 0, juggle: 0, relaunches: 0, ended: false, dmg: 0, load: 0, firstOf: {} };
       this.ctx.set(attacker, c);
     }
     return c;
@@ -359,11 +364,16 @@ export class CombatBody {
    * Order: damage (scaled by combo index) → reaction (soft hit-stun / launch within juggle budget / knockdown / hard CC
    * via DR) → push / pull. Hard-CC immunity never cancels ordinary combo hit reactions.
    */
-  receive(attacker: string, skill: FinalSkill, hit: HitEvent, from: { x: number; y: number }, now: number): HitOutcome {
+  receive(attacker: string, skill: FinalSkill, hit: HitEvent, from: { x: number; y: number }, now: number, cast?: string): HitOutcome {
     if (this.arena && (now < this.invulnUntil || this.ghost(now) || this.released)) // guarded: the hit does nothing (and is no part of a combo)
       return { damage: 0, hitIndex: 0, comboId: 0, reaction: 'armor', stunMs: 0, ccMs: 0, juggle: 0, endsCombo: false, pushX: 0, pushY: 0, launchVz: 0 };
     const c = this.combos.get(attacker, now);
     c.hits++; c.lastAt = now;
+    // `cast` = the cast this hit belongs to: its first hit counts whole in the arena's hit cap, its later ones (ticks) a
+    // quarter, a hit without damage not at all; its hit-stun decays only as far as its first hit's.
+    const first = cast ? (c.firstOf[cast] ??= c.hits) : c.hits;
+    c.load += hit.damage > 0 ? (first === c.hits ? 1 : ARENA.tickWeight) : 0;
+    const stunIdx = this.arena ? first : c.hits;
     const ult = skill.slot === 7;
     // Book Mage SHATTER: a heavy hit on a frozen body breaks the ice for extra damage.
     const frozen = this.frozen(now), shatter = frozen && !!hit.heavy && hit.damage > 0;
@@ -374,7 +384,7 @@ export class CombatBody {
       const cap = ARENA.budget * this.maxHp;
       damage = Math.max(0, Math.min(damage, Math.ceil(cap - c.dmg)));
       c.dmg += damage;
-      release = c.dmg >= cap - 0.5 || c.hits >= ARENA.maxHits || now - c.startedAt >= ARENA.maxComboMs;
+      release = c.dmg >= cap - 0.5 || c.load >= ARENA.maxHits || now - c.startedAt >= ARENA.maxComboMs;
     } else {
       const base = Math.floor(hit.damage * (this.pvp ? skill.pvpMultiplier : skill.pveMultiplier));
       damage = hit.damage > 0 ? Math.max(1, Math.round(base * damageScale(c.hits, ult))) : 0;
@@ -394,7 +404,10 @@ export class CombatBody {
     }
     if (now < this.curseUntil && hit.heavy && damage > 0) this.curseUntil = now; // a heavy blow unfolds the paper crane
     if (R.curse) { const ms = R.curse * (1 - this.ccResist); this.curseUntil = Math.max(this.curseUntil, now + ms); out.rx = out.rx ?? 'curse'; out.rxMs = ms; }
-    if (R.levity) { this.levityUntil = Math.max(this.levityUntil, now + R.levity); this.push = null; out.rx = out.rx ?? 'levity'; out.rxMs = R.levity; }
+    if (R.levity) {
+      this.levityUntil = Math.max(this.levityUntil, now + R.levity); this.push = null; out.rx = out.rx ?? 'levity'; out.rxMs = R.levity;
+      if (this.arena) { const ms = this.hard.apply('stun', R.levity, now, this.pvp, true); if (ms > 0) out.ccMs = Math.max(out.ccMs, ms); } // the arena: floating, it cannot act either (BREAK still frees it)
+    }
     this.lastHitAt = now;
     const R0: Reaction = hit.reaction;
     const downNow = this.state === 'knockdown' && this.kdPhase !== 'fall' && this.kin.grounded;
@@ -422,19 +435,23 @@ export class CombatBody {
       out.reaction = 'knockdown';
       this.enterKnockdown(now, R.knockdown, air ? -260 : 160);
       out.launchVz = k.vz;
-      if (skill.endsCombo) this.combos.end(attacker);
+      if (skill.endsCombo) {
+        if (this.arena) { this.released = true; this.combos.endAll(); this.hard.reset(); this.pinUntil = -1; this.bounce = false; } // the arena: the finisher ends it — untouchable until up again (no new combo off the fall)
+        else this.combos.end(attacker);
+      }
     } else if (R.launch) {
       const relaunch = air;
       const over = R.grab ? 0 : this.airOver();
       const budgetOk = over < 1 && (!relaunch || c.relaunches < COMBO.maxRelaunchesPerCombo + 2);
       if (budgetOk) {
-        const h = (relaunch ? R.launch * 0.8 : R.launch) * 1.3 * (1 - 0.6 * over);
+        let h = (relaunch ? R.launch * 0.8 : R.launch) * 1.3 * (1 - 0.6 * over);
+        if (this.arena) h = Math.max(30, Math.min(h, ARENA.launchCap - (k.z - k.supportZ))); // never out of the follow-ups' reach
         k.grounded = false; k.vz = Math.sqrt(2 * PHYS.gravity * LAUNCH_G * h); out.launchVz = k.vz;
         if (relaunch) c.relaunches++;
         c.juggle += relaunch ? COMBO.juggleCosts.relaunch : juggleCost;
         this.state = 'launched'; out.reaction = 'launch';
       } else {
-        out.reaction = 'hit'; this.hitstun(now, R.stun ?? 150, c.hits, out);
+        out.reaction = 'hit'; this.hitstun(now, R.stun ?? 150, stunIdx, out);
         if (air) k.vz = Math.min(k.vz, -120); // budget spent: forced toward the fall
       }
     } else if (air && this.state === 'launched') {
@@ -447,7 +464,7 @@ export class CombatBody {
       }
       else k.vz = Math.min(k.vz, -160);
     } else if (R.stun && out.reaction !== 'cc') {
-      this.hitstun(now, R.stun, c.hits, out);
+      this.hitstun(now, R.stun, stunIdx, out);
     }
     if (R.pin) { this.pinUntil = now + R.pin; this.push = null; k.vx = 0; k.vy = 0; k.vz = Math.max(0, Math.min(k.vz, 0)); if (this.state === 'free') { this.state = 'hitstun'; this.stateEnd = now + R.pin; } }
     if (!airNow && !downNow && this.gauge.stand >= GAUGE.stand && this.state !== 'knockdown' && out.reaction === 'hit') { // standing limit → forced fall

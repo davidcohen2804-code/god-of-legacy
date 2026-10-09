@@ -61,7 +61,7 @@ import { baseLoop, ClassKey, dirOf, HERO_LIFT, heroPortrait, loadBaseLook, loadG
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
 import { ARENA, CombatBody, GAUGE, HitOutcome, Kin, MAGE, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
-import { MAGE_HIDDEN, finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
+import { MAGE_HIDDEN, arenaTimeScale, finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
 import { CastRun, RT_EVENTS, SkillRuntime, Trap } from '../skills/SkillRuntime';
 import type { Projectile } from '../skills/HitGeometry';
 import { Afterimages, applyMotion, archerMotion, heroMotion, leapMotion } from '../skills/ArcherMotion';
@@ -489,6 +489,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       casterPos: (id) => this.casterPos(id),
       dashPos: (r) => (r.attackerId === BOT_ID ? null : this.remoteDashPos(r)), // (the knight is simulated here: its body is where it is)
       cooldownMul: (req) => this.cdMul(req.skill),
+      timeScale: (req) => (this.arena ? arenaTimeScale(req.skill) : null), // the arena: the warrior at his base pace
       onPhase: (r, ph) => this.onRunPhase(r, ph),
       reachMul: (req) => (req.own ? (req.skill.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.85 : 1) : (req.reach ?? 1)),
       rangeMul: (req) => (req.own ? this.ownRangeMul(req.skill) : (req.range ?? 1)),
@@ -2170,31 +2171,32 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private startCast(s: FinalSkill, stage: number, aim: V2, place: V2 | null, lock: string | null): void {
     const k = this.kin;
+    const ct = this.castTimes(s, stage); // (the arena's warrior: his base pace, as the runtime plays it)
     if (stage === 0 && !MP_FREE) this.mp = Math.max(0, this.mp - mpCost(s));
     // Lunge-in: melee skills step toward a soft-locked target that is just out of reach.
     this.lunge = null;
     const shape = (s.chain ? s.chain.stages[stage] : s.hits)[0]?.shape;
     const want = shape && (shape.kind === 'sector' ? shape.range * 0.75 : shape.kind === 'line' ? shape.length * 0.6 : shape.kind === 'circle' && !shape.at ? shape.radius * 0.7 : 0);
     const t = want && !s.dash ? this.softTarget(want + 70, 0.3) : null;
-    if (t) { const d = Math.hypot(t.x - k.x, t.y - k.y) - want; if (d > 4) this.lunge = { x: aim.x * Math.min(70, d), y: aim.y * Math.min(70, d), left: Math.max(60, s.chain?.timings?.[stage]?.startup ?? s.startup) }; }
+    if (t) { const d = Math.hypot(t.x - k.x, t.y - k.y) - want; if (d > 4) this.lunge = { x: aim.x * Math.min(70, d), y: aim.y * Math.min(70, d), left: Math.max(60, ct.startup) }; }
     // The cut is measured from where the lunge takes you (the step in is done by the time it strikes) — here and for the others.
     const from = { x: k.x + (this.lunge?.x ?? 0), y: k.y + (this.lunge?.y ?? 0), z: k.z };
     const castId = `${this.localId}:${++this.castSeq}`;
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
     this.body.armorUntil = -1;
     if (s.id === 'war_cry') { this.warCryUntil = this.simMs + s.startup + 8000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 8000 }); /* shared at the release (sim clock), like the caster's own */ }
-    if (s.id === 'iron_oath') { this.oathUntil = this.simMs + s.startup + 60000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 60000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(s.startup, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'IRON OATH', '#ffd27a', 0)); }
-    if (s.id === 'legacy_banner') { this.bannerUntil = this.simMs + s.startup + 90000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 90000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(Math.round(s.startup * 0.7), () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'LEGACY BANNER', '#ffe7a0', 0)); }
+    if (s.id === 'iron_oath') { this.oathUntil = this.simMs + ct.startup + 60000; this.shares.push({ at: this.simMs + ct.startup, id: s.id, ms: 60000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(ct.startup, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'IRON OATH', '#ffd27a', 0)); }
+    if (s.id === 'legacy_banner') { this.bannerUntil = this.simMs + ct.startup + 90000; this.shares.push({ at: this.simMs + ct.startup, id: s.id, ms: 90000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(Math.round(ct.startup * 0.7), () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'LEGACY BANNER', '#ffe7a0', 0)); }
     if (s.cls === 'archer') this.archerCast(s, stage);
     if (s.cls === 'samurai') this.samuraiCast(s, stage);
-    if (s.id === 'blade_storm') this.radiantUntil = Math.max(this.radiantUntil, this.simMs + s.startup + s.active + 15000); // the storm leaves the blade of light in your hand (15s, as Radiant Blade)
-    if (s.id === 'sanctuary') this.domeAt = this.simMs + Math.round(s.startup * 0.95); // sim clock (hit-stop/fast-step safe)
+    if (s.id === 'blade_storm') this.radiantUntil = Math.max(this.radiantUntil, this.simMs + ct.startup + ct.active + 15000); // the storm leaves the blade of light in your hand (15s, as Radiant Blade)
+    if (s.id === 'sanctuary') this.domeAt = this.simMs + Math.round(ct.startup * 0.95); // sim clock (hit-stop/fast-step safe)
     if (s.id === 'radiant_blade') { this.boltDone = false; this.radiantFrom = this.simMs + Math.round(s.startup * 0.4); } // light appears when the sword is raised
     if (s.id === 'radiant_blade') this.radiantUntil = this.simMs + s.startup + 15000;
     if (s.id === 'guard_counter') this.body.invulnUntil = this.simMs + s.startup + 600; // Aegis barrier
     if (s.armor) this.body.armorUntil = Math.max(this.body.armorUntil, this.simMs + s.armor[1]); // super armor from the first frame (never interrupted mid-windup)
-    if (s.slot === 7) this.body.invulnUntil = this.simMs + s.startup + s.active; // ultimate: untouchable while it plays
-    else if (this.simMs < this.warCryUntil) this.body.armorUntil = this.simMs + s.startup + s.active; // War Cry: super armor while attacking
+    if (s.slot === 7) this.body.invulnUntil = this.simMs + ct.startup + ct.active; // ultimate: untouchable while it plays
+    else if (this.simMs < this.warCryUntil) this.body.armorUntil = this.simMs + ct.startup + ct.active; // War Cry: super armor while attacking
     this.kage?.arm(castId, s.id, { x: k.x, y: k.y, z: k.z }); // he strikes: out of hiding; a cast while the doubles stand: its first hit that lands is the AMBUSH
     const mf = s.cls === 'book_mage' ? this.mageFlags() : 0;
     const run = this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: from, aim, place, lock, ...(mf ? { mf } : {}) });
@@ -2582,7 +2584,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.fx?.samStun(this.localId, KAGE.ambushStun);
       this.pvp?.remotes.get(run.attackerId)?.burstDoubles();
     }
-    const out = this.body.receive(run.attackerId, s, h, this.hitFrom(run, hit), this.simMs);
+    const out = this.body.receive(run.attackerId, s, h, this.hitFrom(run, hit), this.simMs, run.castId);
     out.damage = this.takeDamage(out.damage);
     if (trial && out.damage > 0) this.hitBlinkUntil = this.simMs + HIT_IFRAMES;
     if (run.attackerId === BOT_ID) this.logHit(false, s, out, this.body, this.kin.z);
@@ -2941,7 +2943,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     hit = this.mageHit(run, hit); hit = this.markHit(run, hit, t.id);
     const chB = run.attackerId === this.localId ? this.chanceMul(b.body) : 1;
     const m = run.attackerId === this.localId ? this.ownDamageMul(run.skill) * chB : 1, h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
-    const out = b.receive(run.attackerId, run.skill, h, this.hitFrom(run, h), this.simMs);
+    const out = b.receive(run.attackerId, run.skill, h, this.hitFrom(run, h), this.simMs, run.castId);
     this.logHit(true, run.skill, out, b.body, b.kin.z);
     this.mageReact(run, out, BOT_ID, at);
     if (chB > 1 && out.damage > 0) this.chanceMark(BOT_ID, at);
@@ -3056,6 +3058,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** The combo guide's keys: every slot's and the jump's (Key Settings). */
   private guideKeys(): { slots: string[]; jump: string } { return { slots: slotKeyLabels(this.bindings), jump: keyLabel(this.bindings.jump) }; }
+
+  /** A cast's own timeline as the runtime plays it (the arena's warrior at his base pace), before attack speed. */
+  private castTimes(s: FinalSkill, stage: number): { startup: number; active: number; recovery: number } {
+    const t = s.chain?.timings?.[stage] ?? { startup: s.startup, active: s.active, recovery: s.recovery }, k = this.arena ? arenaTimeScale(s) : null;
+    return k ? { startup: Math.round(t.startup * k.startup), active: Math.round(t.active * k.active), recovery: Math.round(t.recovery * k.recovery) } : t;
+  }
 
   /** Skill cooldown multiplier: longer in the arena (more spacing, fewer strings of skills); the basic attack never waits. */
   private cdMul(s: FinalSkill): number { if (this.noCd && this.pvp && this.bot) return 0; // sparring test switch (never against a player)

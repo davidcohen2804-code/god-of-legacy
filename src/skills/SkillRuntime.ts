@@ -81,6 +81,8 @@ export interface RuntimeWorld {
   rangeMul?(req: CastRequest): number;
   /** Attack speed: startup and recovery are divided by it (archer Bow Haste / Ranger Mastery). */
   speedMul?(req: CastRequest): number;
+  /** Phase scales of a cast's timeline (the PvP arena's warrior at its base pace); null = unchanged. */
+  timeScale?(req: CastRequest): { startup: number; active: number; recovery: number; at: number } | null;
   /** Every projectile after its step (Book Mage gates and Levity Field). */
   projectileHook?(p: Projectile, run: CastRun): void;
 }
@@ -114,9 +116,14 @@ export class SkillRuntime {
     req = { ...req, aim: clampAim(req.aim) }; // no straight up / down attacks, for every caster
     const s = req.skill;
     const timings = { ...(s.chain?.timings?.[req.stage] ?? { startup: s.startup, active: s.active, recovery: s.recovery }) };
+    let hits = s.chain ? s.chain.stages[req.stage] : s.hits;
+    const ts = this.world.timeScale?.(req);
+    if (ts) {
+      timings.startup = Math.round(timings.startup * ts.startup); timings.active = Math.round(timings.active * ts.active); timings.recovery = Math.round(timings.recovery * ts.recovery);
+      hits = hits.map((h) => ({ ...h, at: Math.round(h.at * ts.at) }));
+    }
     const sp = this.world.speedMul?.(req) ?? 1;
     if (sp !== 1) { timings.startup = Math.round(timings.startup / sp); timings.recovery = Math.round(timings.recovery / sp); }
-    let hits = s.chain ? s.chain.stages[req.stage] : s.hits;
     if (sp >= 2) { timings.active = Math.max(40, Math.round(timings.active / sp)); hits = hits.map((h) => ({ ...h, at: Math.round(h.at / sp) })); } // a big haste (Radiant Blade): the strike itself is faster too
     const rm = this.world.reachMul?.(req) ?? 1;
     if (rm !== 1) hits = hits.map((h) => h.shape.kind === 'sector' ? { ...h, shape: { ...h.shape, range: h.shape.range * rm } }

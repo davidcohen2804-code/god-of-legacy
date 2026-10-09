@@ -710,9 +710,16 @@ const samurai: FinalSkill[] = [
 ];
 
 // Warrior skills: longer, weightier presence (free cancel keeps the flow): stretch timings and hit spacing.
-for (const w of warrior) if (w.slot >= 1 && w.id !== 'war_cry' && w.id !== 'guard_counter' && w.id !== 'radiant_blade') {
-  w.startup = Math.round(w.startup * 1.3); w.active = Math.round(w.active * 1.4); w.recovery = Math.round(w.recovery * 1.15);
-  for (const h of w.hits) h.at = Math.round(h.at * 1.4);
+// (The PvP arena runs them at their base timings again: arenaTimeScale.)
+const WARRIOR_STRETCH = { startup: 1.3, active: 1.4, recovery: 1.15, at: 1.4 };
+const warriorStretched = (s: FinalSkill): boolean => s.cls === 'warrior' && s.slot >= 1 && s.id !== 'war_cry' && s.id !== 'guard_counter' && s.id !== 'radiant_blade';
+for (const w of warrior) if (warriorStretched(w)) {
+  w.startup = Math.round(w.startup * WARRIOR_STRETCH.startup); w.active = Math.round(w.active * WARRIOR_STRETCH.active); w.recovery = Math.round(w.recovery * WARRIOR_STRETCH.recovery);
+  for (const h of w.hits) h.at = Math.round(h.at * WARRIOR_STRETCH.at);
+}
+/** The PvP arena: the warrior's stretched skills at their base pace (fast, explosive duels); null = as they are. */
+export function arenaTimeScale(s: FinalSkill): { startup: number; active: number; recovery: number; at: number } | null {
+  return warriorStretched(s) ? { startup: 1 / WARRIOR_STRETCH.startup, active: 1 / WARRIOR_STRETCH.active, recovery: 1 / WARRIOR_STRETCH.recovery, at: 1 / WARRIOR_STRETCH.at } : null;
 }
 // Warrior extended kit: every core skill (and the basic chain) can cancel into the new extenders on a confirmed hit.
 for (const w of warrior) if (w.slot <= 5) for (const id of ['leap_crash', 'wave_slash', 'lance_thrust']) if (!w.cancelOnHit.includes(id) && id !== w.id) w.cancelOnHit.push(id);

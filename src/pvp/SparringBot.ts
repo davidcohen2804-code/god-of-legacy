@@ -7,7 +7,7 @@ import Phaser from 'phaser';
 import { PVP } from '../config/layout';
 import { CombatBody, HitOutcome, Kin, PHYS, newKin, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
-import { finalSkill, kitFor } from '../skills/FinalKit';
+import { arenaTimeScale, finalSkill, kitFor } from '../skills/FinalKit';
 import { HitTarget, V2, V3, unit } from '../skills/HitGeometry';
 import { Mode } from '../game/PoseState';
 import { sideAim } from '../game/Body';
@@ -133,8 +133,8 @@ export class SparringBot {
   }
 
   /** A confirmed hit from the local player (this client is the authority for the bot). HP never reaches zero. */
-  receive(attacker: string, skill: FinalSkill, hit: HitEvent, from: { x: number; y: number }, now: number): HitOutcome {
-    const out = this.body.receive(attacker, skill, hit, from, now);
+  receive(attacker: string, skill: FinalSkill, hit: HitEvent, from: { x: number; y: number }, now: number, cast?: string): HitOutcome {
+    const out = this.body.receive(attacker, skill, hit, from, now, cast);
     this.refilled = 0;
     const msg = { t: 'hp' as const, from: BOT_ID, hp: 0, by: attacker, rx: out.reaction };
     if (out.damage > 0 && !(this.body.arena && PVP.hpLocked)) { // (testing: the arena's HP stays)
@@ -325,7 +325,8 @@ export class SparringBot {
     const k = this.kin, p = w.player;
     const u = unit(p.x - k.x, p.y - k.y, this.dir === 'right' ? 1 : -1, 0), aim = sideAim(u.x, u.y, this.dir === 'left' ? -1 : 1); // (side / corner)
     this.aim = aim; this.dir = aim.x >= 0 ? 'right' : 'left';
-    const T = s.chain?.timings?.[stage] ?? { startup: s.startup, active: s.active, recovery: s.recovery };
+    const T0 = s.chain?.timings?.[stage] ?? { startup: s.startup, active: s.active, recovery: s.recovery }, ts = this.body.arena ? arenaTimeScale(s) : null;
+    const T = ts ? { startup: Math.round(T0.startup * ts.startup), active: Math.round(T0.active * ts.active), recovery: Math.round(T0.recovery * ts.recovery) } : T0; // (the arena's warrior: his base pace, as the runtime plays it)
     let dist = s.dash?.distance ?? 0;
     if (s.dash && s.targeting === 'mouseTarget') dist = Math.min(dist, Math.max(0, Math.hypot(p.x - k.x, p.y - k.y) - 34));
     this.cast = { s, stage, t: 0, T, origin: { x: k.x, y: k.y, z: k.z }, aim, dist };
