@@ -102,7 +102,7 @@ const warrior: FinalSkill[] = [
     hits: [H(0, 14, { kind: 'circle', radius: 190, at: 'aimBias', bias: 110 }, { stun: 600, launch: 150, juggleCost: 0 }, { reachUp: 260, heavy: true }),
       ...[90, 160, 230, 300, 370, 440, 510, 580].map((t) => H(t, 6, { kind: 'circle', radius: 200, at: 'aimBias', bias: 110 }, { stun: 420, float: true }, { reachUp: 320 }))],
     endsCombo: true, tags: ['ultimate'], telegraph: 'cone',
-    description: 'Sword lifted, ground-crack telegraph, overhead impact. Heavy knockdown; ends the combo.',
+    description: 'Raise your sword with a battle roar: a colossal titan of light rises behind you and drives its giant sword into the floor, and a golden shockwave tears across the arena. Heavy knockdown; ends the combo.',
     relations: ['Ultimate', 'Ends combo'],
   }),
   // ---- extended kit (Q R F G C V)

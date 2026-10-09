@@ -503,10 +503,10 @@ export class SkillFx {
   /** Titan's Verdict: a colossal lightning dragon dives from the sky onto the target zone (after the cut-in and screen split). */
   private dragon(r: CastRun): void {
     const T = r.timings, a = r.aim, at = { x: r.origin.x + a.x * 110, y: r.origin.y + a.y * 110 };
-    const pre = 420, dive = T.startup - pre; // the dragon dives after the cut-in and the tear // frames 0-3 dive in, frame 4 = impact on the active start
+    const pre = 480, dive = Math.max(0, T.startup - pre); // the titan of light rises after the cut-in and the tear: frames 0-5 rise and lift the sword, frame 6 = the sword driven into the floor on the active start
     const img = this.scene.add.image(at.x, at.y + 10, 'titan-dragon', 0).setOrigin(0.5, 0.97).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(470, 740).setDepth(TOP + 2);
-    const fr = [12, 0, 1, 2, 3, 4, 5, 5, 6, 7, 8, 9, 10, 11]; // 12 = empty frame while the cut-in plays (sim-timed)
-    const fms = [dive, pre * 0.25, pre * 0.25, pre * 0.25, pre * 0.25, 130, 160, 140, 170, 170, 170, 180, 200, 240];
+    const fr = [12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]; // 12 = empty frame while the cut-in plays (sim-timed)
+    const fms = [dive, pre * 0.14, pre * 0.14, pre * 0.16, pre * 0.16, pre * 0.18, pre * 0.22, 150, 170, 180, 190, 210, 260];
     this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: fr, frameMs: fms, fadeLast: 240 });
     this.scene.time.delayedCall(T.startup, () => { // impact flash rings
       this.shockwave(at.x, at.y, 320, 0xfff0b0); this.scene.time.delayedCall(90, () => this.shockwave(at.x, at.y, 420, 0xffc860));
