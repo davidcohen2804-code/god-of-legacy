@@ -25,7 +25,7 @@ const FACE: Record<string, [number, number, number]> = {
   gambler: [541, 130, 177],
 };
 /** The heroes that have a victory pose (assets/final/heroes/<cls>/win.webp). */
-const WIN = new Set(['samurai', 'warrior']);
+const WIN = new Set(['samurai', 'warrior', 'book_mage', 'archer']);
 const colorOf = (cls: string): [string, string] => COLOR[cls] ?? ['#c9d2e6', 'rgba(170,184,214,.5)'];
 /** A hero's colour (the battle tag over its head, the HUD). */
 export const classColor = (cls: string): string => colorOf(cls)[0];
