@@ -7,7 +7,7 @@ import { RemotePlayer } from './RemotePlayer';
 import { createTransport, NetMsg, PeerMeta, Transport } from './Transport';
 import type { MatchMsg } from './Match';
 
-export interface LocalSnapshot { x: number; y: number; z: number; sz: number; dir: string; anim: string; mode: string; sp: number; vz: number; ax: number; ay: number; hp: number; alive: boolean; cos: string; mhp?: number; iv?: boolean; kg?: string }
+export interface LocalSnapshot { x: number; y: number; z: number; sz: number; dir: string; anim: string; mode: string; sp: number; vz: number; ax: number; ay: number; hp: number; alive: boolean; cos: string; mhp?: number; iv?: boolean; kg?: string; /** ms since the second jump (in the air) */ a2?: number }
 
 export interface PvpHandlers {
   onJoined(): void;
@@ -74,9 +74,9 @@ export class PvpController {
     if (!s || !this.connected) return;
     const msg = {
       t: 'state' as const, from: this.meta.playerId, x: Math.round(s.x), y: Math.round(s.y), z: Math.round(s.z), sz: Math.round(s.sz), dir: s.dir,
-      anim: s.anim, mode: s.mode, sp: Math.round(s.sp), vz: Math.round(s.vz), ax: Math.round(s.ax * 100), ay: Math.round(s.ay * 100), hp: s.hp, alive: s.alive, cos: s.cos, ...(s.mhp ? { mhp: s.mhp } : {}), ...(s.iv ? { iv: 1 } : {}), ...(s.kg ? { kg: s.kg } : {}),
+      anim: s.anim, mode: s.mode, sp: Math.round(s.sp), vz: Math.round(s.vz), ax: Math.round(s.ax * 100), ay: Math.round(s.ay * 100), hp: s.hp, alive: s.alive, cos: s.cos, ...(s.mhp ? { mhp: s.mhp } : {}), ...(s.iv ? { iv: 1 } : {}), ...(s.kg ? { kg: s.kg } : {}), ...(s.a2 !== undefined ? { a2: Math.round(s.a2) } : {}),
     };
-    const key = `${msg.x},${msg.y},${msg.z},${msg.dir},${msg.mode},${msg.ax},${msg.ay},${msg.hp},${msg.alive},${msg.cos},${s.mhp ?? ''},${s.iv ? 1 : 0},${s.kg ?? ''}`;
+    const key = `${msg.x},${msg.y},${msg.z},${msg.dir},${msg.mode},${msg.ax},${msg.ay},${msg.hp},${msg.alive},${msg.cos},${s.mhp ?? ''},${s.iv ? 1 : 0},${s.kg ?? ''},${s.a2 !== undefined ? 1 : 0}`;
     if (!force && !keepAlive && key === this.lastSent) return;
     this.sinceSend = 0;
     this.lastSent = key;

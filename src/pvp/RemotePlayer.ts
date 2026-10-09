@@ -26,6 +26,8 @@ export class RemotePlayer {
   private label: Phaser.GameObjects.Text;
   private bar: Phaser.GameObjects.Graphics;
   private snaps: Snap[] = [];
+  /** when its second jump began (local clock), -1 = none */
+  private air2At = -1;
   dir: Dir = 'right';
   mode: Mode = 'idle';
   private modeT = 0;
@@ -97,6 +99,7 @@ export class RemotePlayer {
     if (this.snaps.length > 30) this.snaps.shift();
     this.dir = asDir(m.dir);
     this.sz = m.sz ?? 0; this.speed = m.sp ?? 0; this.vz = m.vz ?? 0;
+    this.air2At = m.a2 !== undefined ? this.lastSeen - m.a2 : -1;
     this.aim = { x: (m.ax ?? 0) / 100, y: (m.ay ?? 100) / 100 };
     const mode = (m.mode ?? m.anim) as Mode;
     if (mode !== this.mode && !(this.skill && mode === 'skill')) { this.mode = mode; this.modeT = 0; }
@@ -192,7 +195,7 @@ export class RemotePlayer {
     const hid = this.alive && (this.kageHidden || (!this.skill && performance.now() < this.kageHold)); // Kagemusha: hidden among his doubles
     const seen = hid ? 0 : this.meta.classId === 'samurai' && this.skill && this.alive ? samuraiSeen(this.skill.id, this.skill.elapsed, this.skill) : 1; // he vanishes (Shadow Step, Kagemusha, Dragon Eclipse)
     alpha *= seen;
-    const snap: AnimSnap = { mode: this.skill ? 'skill' : this.mode, t: this.modeT, speed: this.speed, vz: this.vz, skill: this.skill ?? undefined, stunMs: 200 };
+    const snap: AnimSnap = { mode: this.skill ? 'skill' : this.mode, t: this.modeT, speed: this.speed, vz: this.vz, skill: this.skill ?? undefined, stunMs: 200, air2: this.air2At >= 0 ? performance.now() - this.air2At : undefined };
     const pose = resolvePose(this.meta.classId as ClassKey, this.dir, poseQuery(snap), this.view.wantsBase, this.meta.gender === 'female' ? 'female' : 'male', !!this.meta.hero);
     this.jbAir = this.skill?.id === 'judgment_blade' || (this.jbAir && this.alive && z - this.sz > 2); // Judgment Blade: no sword until the landing
     this.view.swordOff = this.jbAir;

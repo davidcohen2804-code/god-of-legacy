@@ -422,7 +422,7 @@ const atlasCount = (cls: string, dir: Dir, act: AtlasAction) => ATLAS[cls].direc
 
 export type PoseQuery =
   | { k: 'loop'; state: 'idle' | 'walk' | 'run' | 'alert'; t: number; speed: number } // alert: combat stance after an attack / a hit (MapleStory)
-  | { k: 'jump'; phase: 'takeoff' | 'rise' | 'apex' | 'fall' | 'land'; t: number }
+  | { k: 'jump'; phase: 'takeoff' | 'rise' | 'apex' | 'fall' | 'land'; t: number; air2?: number }
   | { k: 'airAttack'; p: number }
   | { k: 'hurt'; p: number }
   | { k: 'launched'; vz: number }
@@ -625,7 +625,18 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
         const dist = (h.cycle?.[st] ?? h.h) * (HERO_HEIGHT / h.h), sp = Math.max(st === 'walk' ? 120 : 180, q.speed);
         return H(st, (q.t * n * sp) / dist / 1000);
       }
-    case 'jump': return H('jump', { takeoff: 0, rise: 1, apex: 1, fall: 2, land: 0 }[q.phase]);
+    case 'jump': {
+      // the second jump: each hero's own body move (the drawn frames' arms and legs) — War Leap drives the knee and
+      // stretches over the burst, Shinsoku lies into the dash, Wind Leap tucks into the somersault, Levitate floats upright
+      const a2 = q.air2;
+      if (a2 !== undefined && a2 >= 0 && HEROES[cls].actions.djump) {
+        if (cls === 'book_mage') return { ...H('djump', Math.floor(a2 / 450) % 2), cloth: true };
+        if (cls === 'archer' && a2 < 440) return H('djump', a2 < 200 ? 0 : 1);
+        if (cls === 'samurai' && a2 < 380) return H('djump', a2 < 110 ? 0 : 1);
+        if (cls === 'warrior' && a2 < 560 && q.phase !== 'fall') return H('djump', a2 < 160 ? 0 : 1);
+      }
+      return H('jump', { takeoff: 0, rise: 1, apex: 1, fall: 2, land: 0 }[q.phase]);
+    }
     case 'airAttack': {
       if (HEROES[cls].actions.finisher) return H('finisher', 3 + Math.min(2, Math.floor(q.p * 3))); // the air strike
       if (HEROES[cls].actions.air_shot) return H('air_shot', Math.min(5, Math.floor(q.p * 6))); // the shot in the air

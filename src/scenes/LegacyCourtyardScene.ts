@@ -1420,7 +1420,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const mode = this.mode === 'idle' && this.simMs < this.alertUntil ? 'alert' : this.mode;
     const snap: AnimSnap = {
       mode, t: this.mode === 'walk' || this.mode === 'run' || this.mode === 'idle' ? this.loopT : this.modeT,
-      speed: Math.hypot(k.vx, k.vy), vz: k.vz, stunMs: 220,
+      speed: Math.hypot(k.vx, k.vy), vz: k.vz, stunMs: 220, air2: this.air2(),
       skill: run ? { id: run.skill.id, stage: run.stage, elapsed: run.elapsed, ...run.timings, seed: castSeed(run.castId) } : undefined,
     };
     const dir = this.dir; // Whirlwind spins inside its own 360° body loop
@@ -1447,7 +1447,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.kage?.hidden && this.dead < 0) v.ring.setAlpha(0.9); // hidden among the doubles: your ring still shows you where you are (your screen only)
     if (this.cls === 'archer') { // archer body motion: lean, recoil, flips, leaps + afterimages
       const face = this.aim.x < -0.01 ? -1 : 1;
-      const m = heroMotion((run && this.dead < 0 ? archerMotion(run.skill.id, run.elapsed, run.timings, face) : null) ?? (this.dead < 0 ? leapMotion(this.simMs - this.leapAt, this.dir === 'left' ? -1 : 1) : null), !!this.character?.hero);
+      const hero = !!this.character?.hero, lm = this.dead < 0 ? leapMotion(this.simMs - this.leapAt, this.dir === 'left' ? -1 : 1) : null;
+      // a START HERO keeps the Wind Leap's somersault: her tucked frame turns round its middle
+      const m = (run && this.dead < 0 ? heroMotion(archerMotion(run.skill.id, run.elapsed, run.timings, face), hero) : null) ?? (lm && hero ? { ...lm, pivot: 62 } : lm);
       applyMotion(v.motionSprites, m);
       (this.afterimg ??= new Afterimages(this)).step(this.simMs, v.sprite, !!m?.after);
       this.renderArcherBuffs();
@@ -1771,11 +1773,18 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.pvp?.forceState();
   }
 
+  /** ms since the second jump while it shapes the body (in the air; Levitate: while floating), else undefined. */
+  private air2(): number | undefined {
+    if (this.kin.grounded || !this.leapUsed || this.dead >= 0) return undefined;
+    if (this.cls === 'book_mage' && this.simMs >= this.mage.floatUntil) return undefined;
+    return this.simMs - this.leapAt;
+  }
+
   /** Levitate: the second jump is a slow float you can cast from. */
   private levitate(now: number): void {
     const k = this.kin, inp = this.ci!;
     const d = inp.hasMove ? unit(inp.moveX, inp.moveY) : FACE[this.dir];
-    this.leapUsed = true; this.mage.floatUntil = now + LEVITATE.ms;
+    this.leapUsed = true; this.mage.floatUntil = now + LEVITATE.ms; this.leapAt = now;
     k.vz = Math.max(k.vz, 60); k.vx = d.x * LEVITATE.forward; k.vy = d.y * LEVITATE.forward * 0.6;
     this.fx?.levitate(this.localId, () => (this.simMs < this.mage.floatUntil && !this.kin.grounded ? { x: this.kin.x, y: this.kin.y, z: this.kin.z } : null));
   }
@@ -3038,7 +3047,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (!this.view || !this.pvpReady) return null;
         const k = this.kin, dead = this.dead >= 0;
         const cos = [...Object.entries(this.equipped).filter(([, v]) => v).map(([s, v]) => `${s}:${v}`), `gear:${this.gearCode}`].join(','); // + what is worn
-        return { x: k.x, y: k.y, z: k.z, sz: k.supportZ, dir: this.dir, anim: dead ? 'dead' : this.mode, mode: this.mode, sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: this.aim.x, ay: this.aim.y, hp: this.playerHP, alive: !dead, cos, mhp: this.maxHpNow(), iv: this.body.ghost(this.simMs), kg: this.kage?.code(k) };
+        return { x: k.x, y: k.y, z: k.z, sz: k.supportZ, dir: this.dir, anim: dead ? 'dead' : this.mode, mode: this.mode, sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: this.aim.x, ay: this.aim.y, hp: this.playerHP, alive: !dead, cos, mhp: this.maxHpNow(), iv: this.body.ghost(this.simMs), kg: this.kage?.code(k), a2: this.air2() };
       },
     });
     this.pvp = pvp;

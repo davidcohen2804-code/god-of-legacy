@@ -323,6 +323,24 @@ def arm_pose(kind, ph, i):
     return (2, 4), (-3, 6)
 
 
+# The second jump, one per hero's air move: (near foot, far foot) from the floor under the hips (fractions of the leg),
+# hip height, lean, (near shoulder, elbow), (far shoulder, elbow) — two frames each.
+#   warrior  War Leap: the knee drives up, then the body stretches forward over the burst
+#   samurai  Shinsoku: the dash — laid forward, legs trailing, the blade swept back
+#   archer   Wind Leap: tucked into the somersault (the game turns her round)
+#   mage     Levitate: floating upright, toes down, arms spread to hold the air
+DJUMP = {
+    'warrior': [((0.30, -0.52), (-0.28, -0.16), 0.97, 16.0, (-25, 30), (40, 55)),
+                ((0.40, -0.26), (-0.46, -0.08), 0.97, 24.0, (-45, 20), (25, 45))],
+    'samurai': [((0.22, -0.46), (-0.48, -0.16), 0.97, 32.0, (-60, 10), (22, 40)),
+                ((0.18, -0.42), (-0.52, -0.12), 0.97, 36.0, (-70, 8), (18, 45))],
+    'archer': [((0.28, -0.60), (0.16, -0.52), 0.97, 10.0, (28, 62), (40, 62)),
+               ((0.30, -0.64), (0.20, -0.58), 0.97, 14.0, (32, 66), (44, 66))],
+    'book_mage': [((0.04, -0.12), (-0.07, -0.09), 0.97, -2.0, (20, 20), (-25, 20)),
+                  ((0.06, -0.15), (-0.05, -0.12), 0.97, -1.0, (24, 24), (-21, 24))],
+}
+
+
 def _ease(t):
     return t * t * (3 - 2 * t)
 
@@ -382,10 +400,13 @@ def bake(path, cls, idle_h, size=1.0):
         ((0.12, 0.0), (-0.14, 0.0), 0.8, 8.0),
         ((0.24, -0.42), (-0.06, -0.3), 0.97, 4.0),
         ((0.14, -0.1), (-0.12, -0.02), 0.97, 0.0)]
-    for kind, n in (('idle', 1), ('stance', 1), ('jump', 3), ('walk', WALK_N), ('run', RUN_N)):
+    for kind, n in (('idle', 1), ('stance', 1), ('jump', 3), ('djump', 2 if cls in DJUMP else 0), ('walk', WALK_N), ('run', RUN_N)):
         for i in range(n):
             ph = i / n
-            if kind == 'jump':
+            if kind == 'djump':
+                (a1, b1), (a2, b2), hk, lean, _an, _af = DJUMP[cls][i]
+                feet = [np.array([a1 * L, b1 * L]), np.array([a2 * L, b2 * L])]; hh = hk * L
+            elif kind == 'jump':
                 (a1, b1), (a2, b2), hk, lean = JUMP[i]
                 feet = [np.array([a1 * L, b1 * L]), np.array([a2 * L, b2 * L])]; hh = hk * L
             elif kind in ('idle', 'stance'):  # standing (feet a little apart) / the combat stance (wider, knees bent, leaning in)
@@ -400,10 +421,10 @@ def bake(path, cls, idle_h, size=1.0):
             ground = Hc - 20 - ankle_h
             hip = np.array([W / 2.0, ground - hh])
             # the upper body: hips at `hip`, leaning forward around them, a small sway with the steps
-            sway = 0.0 if kind in ('idle', 'stance', 'jump') else (1.2 if kind == 'walk' else 2.0) * math.sin(4 * math.pi * ph)
+            sway = 0.0 if kind in ('idle', 'stance', 'jump', 'djump') else (1.2 if kind == 'walk' else 2.0) * math.sin(4 * math.pi * ph)
             ang_u = lean + sway * 0.3
             # the arms: (shoulder angle, elbow bend) — 0 = hanging, + = forward; near = the weapon arm, swinging less
-            arm_ang = arm_pose(kind, ph, i)
+            arm_ang = (DJUMP[cls][i][4], DJUMP[cls][i][5]) if kind == 'djump' else arm_pose(kind, ph, i)
             if 'shoulder' in P:
                 th_ = math.radians(-ang_u); d_ = P['shoulder'] - hip_u
                 sh_w = hip + np.array([d_[0] * math.cos(th_) - d_[1] * math.sin(th_), d_[0] * math.sin(th_) + d_[1] * math.cos(th_)])
@@ -424,7 +445,7 @@ def bake(path, cls, idle_h, size=1.0):
             fn = np.array([hip[0] + feet[0][0], ground + feet[0][1]]); ff = np.array([hip[0] + feet[1][0], ground + feet[1][1]])
             kn, kf = _ik(hip, fn, T, S), _ik(hip, ff, T, S)
             # the cloth behind the hips streams back with the speed (lifted, fluttering): a run reads by its cape
-            lift_c = {'walk': 5.0, 'run': 24.0}.get(kind, 0.0) + {'walk': 1.5, 'run': 4.0}.get(kind, 0.0) * math.sin(2 * math.pi * ph * 2 + 1.0)
+            lift_c = {'walk': 5.0, 'run': 24.0, 'djump': {'warrior': 20.0, 'samurai': 26.0, 'archer': 10.0}.get(cls, 6.0)}.get(kind, 0.0) + {'walk': 1.5, 'run': 4.0}.get(kind, 0.0) * math.sin(2 * math.pi * ph * 2 + 1.0)
             if lift_c:
                 root = P['cape_root']
                 # the root, carried with the body's lean, stays put; the cloth turns up round it (clockwise = up behind)
@@ -447,7 +468,7 @@ def bake(path, cls, idle_h, size=1.0):
             ys = np.where(a[..., 3].any(1))[0]; xs = np.where(a[..., 3].any(0))[0]
             crop = a[ys[0]:ys[-1] + 1, xs[0]:xs[-1] + 1]
             ax, ay = hip[0] - xs[0], (ground + ankle_h) - ys[0]
-            if kind == 'jump' and i > 0:  # in the air: placed on its own lowest point (the game lifts it by the jump's height)
+            if (kind == 'jump' and i > 0) or kind == 'djump':  # in the air: placed on its own lowest point (the game lifts it by the jump's height)
                 ay = float(ys[-1] - ys[0] + 1)
             im = Image.fromarray(crop)
             im = im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.LANCZOS)
