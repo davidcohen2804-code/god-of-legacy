@@ -43,6 +43,13 @@ const COURTYARD_OBJECTS: WorldObject[] = [
     height: 62, topZ: 62, cover: 'hard', frontY: 723,
     occluder: [[1300, 602], [1334, 582], [1376, 584], [1418, 609], [1435, 643], [1438, 690], [1435, 723], [1313, 723], [1297, 694], [1291, 655], [1293, 615]],
   },
+  {
+    // the guardian statue at the back right: tall stone cover to hide behind (nobody jumps over it or stands on it)
+    id: 'guardian-statue',
+    footprint: [[1182, 368], [1288, 368], [1288, 412], [1182, 412]],
+    height: 290, cover: 'hard', frontY: 413,
+    occluder: [[1233, 126], [1226, 132], [1220, 147], [1210, 148], [1209, 152], [1202, 154], [1192, 184], [1197, 192], [1196, 205], [1202, 217], [1191, 265], [1195, 273], [1196, 294], [1201, 304], [1190, 309], [1189, 329], [1179, 339], [1182, 345], [1178, 354], [1182, 353], [1182, 363], [1187, 365], [1179, 377], [1181, 383], [1172, 397], [1178, 395], [1174, 404], [1183, 412], [1288, 412], [1292, 402], [1298, 405], [1294, 399], [1297, 394], [1289, 385], [1290, 382], [1296, 386], [1296, 378], [1289, 371], [1293, 370], [1291, 363], [1285, 366], [1289, 340], [1281, 327], [1282, 315], [1277, 308], [1273, 309], [1268, 304], [1278, 291], [1268, 247], [1274, 238], [1269, 208], [1272, 173], [1263, 154], [1249, 148], [1241, 130]],
+  },
 ];
 /** Props of the area you are in. Replaced in place (setWorldGeometry) — importers keep this same array. */
 export const WORLD_OBJECTS: WorldObject[] = [...COURTYARD_OBJECTS];
@@ -56,8 +63,26 @@ export function setWorldGeometry(walk: readonly Pt[], objects: readonly WorldObj
   WORLD_OBJECTS.length = 0; WORLD_OBJECTS.push(...objects);
 }
 export const walkPolygon = (): readonly Pt[] => POLY;
-/** The PvP arena: the closed Legacy Courtyard floor and its two props. */
-export const useArenaGeometry = (): void => setWorldGeometry(WORLD.walkablePolygon as Pt[], COURTYARD_OBJECTS);
+/** The PvP arena is the courtyard painting shown `scale` times bigger in the world — more room to move, the camera
+ *  further back — grown about the fight's centre (cx, cy), so the middle of the floor keeps its coordinates. Its floor,
+ *  props (their heights too: they are painted bigger) and spawn points follow; the fighters, their skills and every
+ *  combat number stay as they are. */
+export const ARENA_VIEW = { scale: 1.25, cx: 850, cy: 640 } as const;
+/** A point of the courtyard painting (its pixels) in the arena's world. */
+export const arenaPt = (x: number, y: number): Pt => [ARENA_VIEW.cx + (x - ARENA_VIEW.cx) * ARENA_VIEW.scale, ARENA_VIEW.cy + (y - ARENA_VIEW.cy) * ARENA_VIEW.scale];
+/** The painting's rectangle in the arena's world. */
+export const arenaRect = (): { x: number; y: number; w: number; h: number; s: number } => {
+  const [x, y] = arenaPt(0, 0), s = ARENA_VIEW.scale;
+  return { x, y, w: WORLD.coordinateSpace.width * s, h: WORLD.coordinateSpace.height * s, s };
+};
+const arenaPoly = (p: Pt[]): Pt[] => p.map(([x, y]) => arenaPt(x, y));
+const arenaObject = (o: WorldObject): WorldObject => ({
+  ...o, footprint: arenaPoly(o.footprint), occluder: arenaPoly(o.occluder), frontY: arenaPt(0, o.frontY)[1],
+  height: o.height * ARENA_VIEW.scale, topZ: o.topZ === undefined ? undefined : o.topZ * ARENA_VIEW.scale,
+  ...(o.base ? { base: arenaPoly(o.base) } : {}),
+});
+/** The PvP arena: the closed Legacy Courtyard floor and its props, at the arena's size. */
+export const useArenaGeometry = (): void => setWorldGeometry(arenaPoly(WORLD.walkablePolygon as Pt[]), COURTYARD_OBJECTS.map(arenaObject));
 
 export function pointInPoly(x: number, y: number, poly: readonly Pt[]): boolean {
   let c = false;

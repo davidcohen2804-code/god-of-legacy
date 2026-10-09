@@ -30,7 +30,9 @@ import { PartyUI, PartyView } from '../ui/PartyUI';
 import { addExp, expToNext } from '../game/Progression';
 import { passiveIconUrl, passivesFor } from '../skills/Passives';
 import { LEVITATE, NO_PASSIVES, ORBS, PassiveStats, REGEN, SHINSOKU, WAR_LEAP, WEAVE, ownedPassives, passiveStats } from '../skills/Passives';
-import { SKILL_BLOCKERS, WORLD_OBJECTS, actorDepth, supportAt, footAllowed, insideArena, placementOk, pushOutOfBlockers, useArenaGeometry } from '../world/WorldGeometry';
+import { SKILL_BLOCKERS, WORLD_OBJECTS, actorDepth, arenaPt, arenaRect, supportAt, footAllowed, insideArena, placementOk, pushOutOfBlockers, useArenaGeometry } from '../world/WorldGeometry';
+/** The arena's spawn points (PVP.spawnPoints are on the courtyard painting: shown bigger in the arena). */
+const arenaSpawns = (): { x: number; y: number }[] => PVP.spawnPoints.map((p) => { const [x, y] = arenaPt(p.x, p.y); return { x, y }; });
 import { OpenWorld, preloadOpenWorld } from '../world/OpenWorld';
 import { AreaNpc, IDLE_LINES, MOB_KINDS, QUESTS, QuestDef, START, TOWERS, CLOUDS, SKY, SKY_DROP, HEIGHTS, type Tower, toWorld } from '../world/Areas';
 import type { Monster } from '../world/Monster';
@@ -300,7 +302,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private arenaZoom = 1;
   private arenaLift = 0;
   private arenaCam(what: 'in' | 'out' | 'up' | 'down' | 'reset'): void {
-    if (what === 'in' || what === 'out') this.arenaZoom = Phaser.Math.Clamp(this.arenaZoom * (what === 'out' ? 0.93 : 1 / 0.93), Math.max(0.8, this.cameras.main.width / (WORLD.coordinateSpace.width * this.baseZoom)), 1.5)   // never wider than the arena's picture;
+    if (what === 'in' || what === 'out') this.arenaZoom = Phaser.Math.Clamp(this.arenaZoom * (what === 'out' ? 0.93 : 1 / 0.93), Math.max(0.8, this.cameras.main.width / (arenaRect().w * this.baseZoom)), 1.5)   // never wider than the arena's picture;
     else if (what === 'up' || what === 'down') this.arenaLift = Phaser.Math.Clamp(this.arenaLift + (what === 'up' ? 30 : -30), -180, 180);
     else { this.arenaZoom = 1; this.arenaLift = 0; }
     if (this.koT < 0) this.cameras.main.zoomTo(this.baseZoom * this.arenaZoom, 160, 'Sine.easeOut', true);
@@ -468,37 +470,37 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // Map + camera (contain: one area fills the screen), crisp pixels.
     const T = ATLAS.textures;
     const cam = this.cameras.main;
-    cam.setZoom(Math.min(cam.width / WORLD.camera.worldWidth, cam.height / WORLD.camera.worldHeight));
+    const AR = pvpRoom ? arenaRect() : null; // the arena: the courtyard painting shown bigger (more room, the camera further back)
+    cam.setZoom(Math.min(cam.width / (WORLD.camera.worldWidth * (AR?.s ?? 1)), cam.height / (WORLD.camera.worldHeight * (AR?.s ?? 1))));
     cam.setRoundPixels(true);
     this.baseZoom = cam.zoom; this.koT = -1;
     // Very low density warm dust drifting in the sun (never over telegraphs: faint, small, sparse).
-    this.motes = addMotes(this, { x: 60, y: 220, w: WORLD.coordinateSpace.width - 120, h: WORLD.coordinateSpace.height - 260 }, 7,
+    this.motes = addMotes(this, AR ? { x: AR.x + 60 * AR.s, y: AR.y + 220 * AR.s, w: AR.w - 120 * AR.s, h: AR.h - 260 * AR.s } : { x: 60, y: 220, w: WORLD.coordinateSpace.width - 120, h: WORLD.coordinateSpace.height - 260 }, 7,
       { depth: 1500, tint: 0xffd9a0, size: [5, 9], speed: [3, 8], drift: 10, alpha: 0.32 });
     this.quests = CharacterStore.getQuests(character.id);
     if (pvpRoom) {
       useArenaGeometry();
-      const mapKey = this.stage?.key ?? T.map.key;
-      this.add.image(0, 0, mapKey).setOrigin(0, 0).setDepth(-1);
+      const mapKey = this.stage?.key ?? T.map.key, R = AR!;
+      this.add.image(R.x, R.y, mapKey).setOrigin(0, 0).setScale(R.s).setDepth(-1);
       // The skill tray covers the bottom of the screen: the camera follows you up / down so the whole floor stays
       // playable above it; below the map the floor is mirrored and darkened (only ever seen under the HUD).
-      const W = WORLD.coordinateSpace.width, H = WORLD.coordinateSpace.height, extra = Math.ceil(ARENA_HUD_PX / cam.zoom);
-      this.add.image(0, H, mapKey).setOrigin(0, 0).setFlipY(true).setDepth(-1.1);
-      this.add.rectangle(0, H, W, extra, 0x05080e, 0.45).setOrigin(0, 0).setDepth(-1.05);
-      cam.setBounds(0, 0, W, H + extra);
-      this.camTarget.set(W / 2, this.kin ? this.kin.y : H / 2);
+      const W = R.w, H = R.h, extra = Math.ceil(ARENA_HUD_PX / cam.zoom);
+      this.add.image(R.x, R.y + H, mapKey).setOrigin(0, 0).setScale(R.s).setFlipY(true).setDepth(-1.1);
+      this.add.rectangle(R.x, R.y + H, W, extra, 0x05080e, 0.45).setOrigin(0, 0).setDepth(-1.05);
+      cam.setBounds(R.x, R.y, W, H + extra);
+      this.camTarget.set(R.x + W / 2, this.kin ? this.kin.y : R.y + H / 2);
       cam.startFollow(this.camTarget, true, 0, 0.09);
-      cam.centerOn(W / 2, H / 2);
+      cam.centerOn(R.x + W / 2, R.y + H / 2);
       this.arenaZoom = 1; this.arenaLift = 0;
       this.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, dy: number) => this.arenaCam(dy > 0 ? 'out' : 'in'));
       this.input.keyboard?.on('keydown-PAGE_UP', () => this.arenaCam('up')); this.input.keyboard?.on('keydown-PAGE_DOWN', () => this.arenaCam('down'));
       this.input.keyboard?.on('keydown-HOME', () => this.arenaCam('reset'));
-      this.ambience = new CourtyardAmbience(this, WORLD.coordinateSpace.width, WORLD.coordinateSpace.height);
-      if (this.stage) this.stageFx = new StageFx(this, this.stage.look, WORLD.coordinateSpace.width, WORLD.coordinateSpace.height);
+      if (this.stage) this.stageFx = new StageFx(this, this.stage.look, WORLD.coordinateSpace.width, WORLD.coordinateSpace.height, R); // (its own light, cloud shadows and weather)
       // Baked-map occlusion: each prop silhouette is redrawn from the map at its footprint depth (no floor crop).
       this.occluders = WORLD_OBJECTS.map((o) => {
         const g = this.make.graphics({}, false);
         g.fillStyle(0xffffff).fillPoints(o.occluder.map(([x, y]) => new Phaser.Geom.Point(x, y)), true);
-        return this.add.image(0, 0, mapKey).setOrigin(0, 0).setDepth(o.frontY).setMask(g.createGeometryMask());
+        return this.add.image(R.x, R.y, mapKey).setOrigin(0, 0).setScale(R.s).setDepth(o.frontY).setMask(g.createGeometryMask());
       });
     } else {
       // The open world: one long world left to right, the camera following you along it.
@@ -754,7 +756,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.updateBot(ms, now);
     this.updateMatch(real, ms);
     this.reactionFx(ms);
-    if (this.pvp || this.arena) this.camTarget.set(WORLD.coordinateSpace.width / 2, this.kin.y + 70 - this.arenaLift); // keep yourself above the tray
+    if (this.pvp || this.arena) this.camTarget.set(arenaRect().x + arenaRect().w / 2, this.kin.y + 70 - this.arenaLift); // keep yourself above the tray
     this.renderPlayer(this.fx.hitStopLeft > 0 ? 0 : ms);
     this.updateWorldUi(ms);
     this.bubbles?.update(now, (id) => {
@@ -3038,7 +3040,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.botAwayMs += ms;
       if (this.botAwayMs < (this.waitFoe ? PVP.foeWaitMs : 1200)) return;
       this.waitFoe = false;
-      const k = this.kin, pts = PVP.spawnPoints.filter((p) => footAllowed(p.x, p.y, 0, R));
+      const k = this.kin, pts = arenaSpawns().filter((p) => footAllowed(p.x, p.y, 0, R));
       const sp = pts.reduce((best, p) => (Math.hypot(p.x - k.x, p.y - k.y) > Math.hypot(best.x - k.x, best.y - k.y) && Math.hypot(p.x - k.x, p.y - k.y) < 700 ? p : best), pts[0]);
       this.spawnBot(sp.x, sp.y, now);
       this.chat?.add({ kind: 'system', text: `${this.botName()} entered the arena (sparring partner while you are alone).` });
@@ -3356,7 +3358,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private freeSpawnPoint(): { x: number; y: number } {
     const others = [...(this.pvp?.remotes.values() ?? [])].filter((r) => r.alive).map((r) => ({ x: r.x, y: r.y }));
     if (this.bot) others.push({ x: this.bot.x, y: this.bot.y });
-    const pts = PVP.spawnPoints.filter((s) => footAllowed(s.x, s.y, 0, R));
+    const pts = arenaSpawns().filter((s) => footAllowed(s.x, s.y, 0, R));
     const clearance = (s: { x: number; y: number }) => Math.min(Infinity, ...others.map((o) => Math.hypot(o.x - s.x, o.y - s.y)));
     const free = pts.filter((s) => clearance(s) >= PVP.spawnClearRadius);
     if (free.length) return free[Math.floor(Math.random() * free.length)];
@@ -3794,9 +3796,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** The arena's minimap: a square of the courtyard around you (its full height). */
   private arenaMinimap(markers: HudMarker[]): HudState['minimap'] {
-    const W = WORLD.coordinateSpace.width, H = WORLD.coordinateSpace.height, side = H;
-    const minX = Phaser.Math.Clamp(this.kin.x - side / 2, 0, Math.max(0, W - side));
-    return { label: WORLD.name, imageUrl: ATLAS.textures.map.file, image: { x: 0, y: 0, w: W, h: H }, markers, bounds: { minX, minY: 0, width: side, height: side } };
+    const A = arenaRect(), side = A.h;
+    const minX = Phaser.Math.Clamp(this.kin.x - side / 2, A.x, Math.max(A.x, A.x + A.w - side));
+    return { label: this.stage?.name ?? WORLD.name, imageUrl: this.stage?.file ?? ATLAS.textures.map.file, image: { x: A.x, y: A.y, w: A.w, h: A.h }, markers, bounds: { minX, minY: A.y, width: side, height: side } };
   }
 
   private hudState(): HudState {

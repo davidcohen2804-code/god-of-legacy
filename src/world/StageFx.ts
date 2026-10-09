@@ -133,7 +133,15 @@ interface Drifter { o: Phaser.GameObjects.Image; vx: number; vy: number; w: numb
 interface Bird { o: Phaser.GameObjects.Image; vx: number; vy: number; t: number; fps: number }
 
 export class StageFx {
+  /** Layers by depth, each placed (and scaled) like the painting in the world: everything inside is in its pixels. */
+  private layers = new Map<number, Phaser.GameObjects.Container>();
+  private lay(depth: number): Phaser.GameObjects.Container {
+    let c = this.layers.get(depth);
+    if (!c) { c = this.scene.add.container(this.at.x, this.at.y).setScale(this.at.s).setDepth(depth); this.layers.set(depth, c); }
+    return c;
+  }
   private far: Phaser.GameObjects.Container;
+  private shade: Phaser.GameObjects.TileSprite;
   private farMask: Phaser.GameObjects.Graphics;
   private clouds: Drifter[] = [];
   private mists: { o: Phaser.GameObjects.TileSprite; v: number }[] = [];
@@ -152,46 +160,56 @@ export class StageFx {
   private readonly W: number;
   private readonly H: number;
 
-  constructor(private scene: Phaser.Scene, private look: StageLook, W: number, H: number) {
+  /** W x H: the painting's size; `at`: where it is in the world and how much bigger it is shown there. */
+  constructor(private scene: Phaser.Scene, private look: StageLook, W: number, H: number, private at = { x: 0, y: 0, s: 1 }) {
     makeTextures(scene);
     this.W = W; this.H = H;
     const L = look, r = rng(3);
     // the far background: clouds, mist and birds, behind the balustrade and the arches
-    this.far = scene.add.container(0, 0).setDepth(-0.95);
-    this.farMask = scene.make.graphics({}, false);
+    this.far = this.lay(-0.95);
+    this.farMask = scene.make.graphics({}, false).setPosition(this.at.x, this.at.y).setScale(this.at.s);
     this.farMask.fillStyle(0xffffff).fillPoints(L.far.map(([x, y]) => new Phaser.Math.Vector2(x, y)), true);
     this.far.setMask(this.farMask.createGeometryMask());
     for (let i = 0; i < 6; i++) {
-      const o = scene.add.image(r() * W, L.sky[0] + r() * (L.sky[1] - L.sky[0]), T.cloud).setTint(L.cloudTint).setAlpha(0.18 + r() * 0.2).setScale(0.9 + r() * 1.1, 0.7 + r() * 0.6);
+      const o = scene.make.image({ x: r() * W, y: L.sky[0] + r() * (L.sky[1] - L.sky[0]), key: T.cloud }, false).setTint(L.cloudTint).setAlpha(0.18 + r() * 0.2).setScale(0.9 + r() * 1.1, 0.7 + r() * 0.6);
       this.far.add(o); this.clouds.push({ o, vx: 5 + r() * 9, vy: 0, w: o.displayWidth });
     }
     for (const [i, v] of [[0, 7], [1, 13]] as const) { // two banks of valley mist, the nearer one quicker
-      const [y0, y1] = L.mist, o = scene.add.tileSprite(0, y0 + i * 18, W, y1 - y0, T.mist).setOrigin(0, 0).setTint(L.mistTint).setAlpha(i ? 0.32 : 0.42);
+      const [y0, y1] = L.mist, o = scene.make.tileSprite({ x: 0, y: y0 + i * 18, width: W, height: y1 - y0, key: T.mist }, false).setOrigin(0, 0).setTint(L.mistTint).setAlpha(i ? 0.32 : 0.42);
       o.setTileScale(1.2 - i * 0.25, 0.7); this.far.add(o); this.mists.push({ o, v });
     }
     // the sun: a soft flare and god rays fanning down to the left, each sweeping a little and breathing
     const [sx, sy] = L.sun;
     const rk = L.rays ?? 1, rt = L.rayTint ?? 0xffd590;
-    this.flare = scene.add.image(sx, sy, T.glow).setDepth(-0.45).setBlendMode(Phaser.BlendModes.ADD).setTint(L.rayTint ?? 0xffe2a8).setScale(2.6, 2.2).setAlpha(0.22 * rk);
+    this.flare = scene.make.image({ x: sx, y: sy, key: T.glow }, false).setBlendMode(Phaser.BlendModes.ADD).setTint(L.rayTint ?? 0xffe2a8).setScale(2.6, 2.2).setAlpha(0.22 * rk);
+    this.lay(-0.45).add(this.flare);
     const RAYS: [number, number, number, number][] = [[24, 150, 0.05, 1250], [33, 230, 0.042, 1350], [42, 120, 0.06, 1300], [51, 200, 0.04, 1400], [61, 140, 0.047, 1250], [70, 260, 0.032, 1150]];
     RAYS.forEach(([a, w, al, len], i) => {
-      const o = scene.add.image(sx, sy, T.ray).setOrigin(0.5, 0).setDepth(-0.45).setBlendMode(Phaser.BlendModes.ADD).setTint(rt)
+      const o = scene.make.image({ x: sx, y: sy, key: T.ray }, false).setOrigin(0.5, 0).setBlendMode(Phaser.BlendModes.ADD).setTint(rt)
         .setAngle(a).setScale(w / 128, len / 1024).setAlpha(al * rk);
+      this.lay(-0.45).add(o);
       this.rays.push({ o, a, al: al * rk, p: 11000 + i * 1700, ph: r() * Math.PI * 2 });
     });
-    // warm light drifting over the floor
-    this.light = scene.add.tileSprite(0, L.floorTop, W, H - L.floorTop, T.light).setOrigin(0, 0).setDepth(-0.55)
+    // cloud shadows and warm light drifting over the floor
+    this.shade = scene.make.tileSprite({ x: 0, y: L.floorTop, width: W, height: H - L.floorTop, key: T.light }, false).setOrigin(0, 0)
+      .setBlendMode(Phaser.BlendModes.MULTIPLY).setTint(0x2a2f3c).setAlpha(0.28);
+    this.shade.setTileScale(2.6, 1.4);
+    this.lay(-0.6).add(this.shade);
+    this.light = scene.make.tileSprite({ x: 0, y: L.floorTop, width: W, height: H - L.floorTop, key: T.light }, false).setOrigin(0, 0)
       .setBlendMode(Phaser.BlendModes.ADD).setTint(L.lightTint).setAlpha(0.1);
     this.light.setTileScale(2.2, 1.1);
+    this.lay(-0.55).add(this.light);
     // the floor emblem: a breathing glow and light running round its rings
     const E = L.emblem;
     if (E) {
       const [ex, ey] = E.c;
-      this.glow = scene.add.image(ex, ey, T.glow).setDepth(-0.55).setBlendMode(Phaser.BlendModes.ADD).setTint(L.emblemTint ?? 0xffc860)
+      this.glow = scene.make.image({ x: ex, y: ey, key: T.glow }, false).setBlendMode(Phaser.BlendModes.ADD).setTint(L.emblemTint ?? 0xffc860)
         .setScale((E.outer[0] * 2.3) / 256, (E.outer[1] * 2.3) / 256).setAlpha(0.1);
+      this.lay(-0.55).add(this.glow);
       for (const [ring, v, al] of [[E.outer, 0.00055, 0.42], [E.inner, -0.0009, 0.55]] as const) {
-        const img = scene.add.image(0, 0, T.ring).setBlendMode(Phaser.BlendModes.ADD).setTint(L.emblemTint ?? 0xffd27a).setAlpha(al).setScale(ring[0] / 240);
-        const box = scene.add.container(ex, ey, [img]).setDepth(-0.54).setScale(1, ring[1] / ring[0]);
+        const img = scene.make.image({ x: 0, y: 0, key: T.ring }, false).setBlendMode(Phaser.BlendModes.ADD).setTint(L.emblemTint ?? 0xffd27a).setAlpha(al).setScale(ring[0] / 240);
+        const box = scene.make.container({ x: ex, y: ey }, false).add(img).setScale(1, ring[1] / ring[0]);
+        this.lay(-0.54).add(box);
         this.sweeps.push({ box, img, v });
       }
     }
@@ -200,7 +218,7 @@ export class StageFx {
     for (let i = 0; i < F.n; i++) {
       const front = i % 4 === 0, tint = F.tints[i % F.tints.length];
       const d = (o: Phaser.GameObjects.Image, vx: number, vy: number, extra: Partial<Drifter> = {}) => this.leaves.push({ o, vx, vy, w: 40, spin: 0, sway: 0, ph: r() * Math.PI * 2, ...extra });
-      const at = (key: string) => scene.add.image(r() * W, r() * H, key).setTint(tint).setDepth(front ? 89000 : -0.4);
+      const at = (key: string) => { const o = scene.make.image({ x: r() * W, y: r() * H, key }, false).setTint(tint); this.lay(front ? 89000 : -0.4).add(o); return o; };
       switch (F.kind) {
         case 'leaf': case 'petal': {
           const s = (front ? 0.9 : 0.55) + r() * 0.4, o = at(F.kind === 'leaf' ? T.leaf : T.petal).setScale(s).setAlpha(front ? 0.95 : 0.8);
@@ -212,7 +230,7 @@ export class StageFx {
         case 'ember': { const o = at(T.dot).setScale(0.1 + r() * 0.12).setBlendMode(Phaser.BlendModes.ADD); d(o, (r() - 0.3) * 30, -(30 + r() * 50), { sway: 16 + r() * 20 }); break; }
       }
     }
-    if (L.lightning) this.flash = scene.add.rectangle(0, 0, W, H * 2, 0xdfe8ff, 0).setOrigin(0, 0).setDepth(88990).setBlendMode(Phaser.BlendModes.ADD);
+    if (L.lightning) { this.flash = new Phaser.GameObjects.Rectangle(scene, -W, -H, W * 3, H * 4, 0xdfe8ff, 1).setOrigin(0, 0).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD); this.lay(88990).add(this.flash); }
   }
 
   private flock(): void {
@@ -220,7 +238,7 @@ export class StageFx {
     const y0 = L.sky[0] + 30 + r() * (L.mist[0] - L.sky[0] - 20), v = (fromLeft ? 1 : -1) * (38 + r() * 30), s = 0.45 + r() * 0.45;
     for (let i = 0; i < n; i++) { // a loose V
       const back = Math.ceil(i / 2) * (i % 2 ? 1 : -1);
-      const o = this.scene.add.image((fromLeft ? 160 : this.W - 160) - Math.sign(v) * Math.abs(back) * 26 * s * 1.6, y0 + back * 9 * s, `${key}0`)
+      const o = this.scene.make.image({ x: (fromLeft ? 160 : this.W - 160) - Math.sign(v) * Math.abs(back) * 26 * s * 1.6, y: y0 + back * 9 * s, key: `${key}0` }, false)
         .setTint(L.fliers === 'bats' ? 0x10121c : 0x3a2222).setAlpha(0.85).setScale(s * (0.85 + r() * 0.3));
       o.setData('k', key);
       this.far.add(o); this.birds.push({ o, vx: v * (0.95 + r() * 0.1) * (L.fliers === 'bats' ? 1.4 : 1), vy: (r() - 0.5) * 4, t: r() * 1000, fps: (7 + r() * 4) * (L.fliers === 'bats' ? 1.8 : 1) });
@@ -246,6 +264,7 @@ export class StageFx {
       r.o.setAngle(r.a + 2.5 * k).setAlpha(r.al * (1 + 0.35 * Math.sin((t / (r.p * 0.7)) * Math.PI * 2 + r.ph * 2)));
     }
     this.light.tilePositionX += 6 * s; this.light.tilePositionY += 2 * s;
+    this.shade.tilePositionX += 9 * s; this.shade.tilePositionY += 3 * s;
     this.light.setAlpha(0.07 + 0.025 * Math.sin((t / 9000) * Math.PI * 2));
     this.glow?.setAlpha(0.1 + 0.06 * Math.sin((t / 4200) * Math.PI * 2));
     for (const w of this.sweeps) w.img.rotation += w.v * ms;
@@ -278,9 +297,9 @@ export class StageFx {
   }
 
   destroy(): void {
-    this.far.clearMask(true); this.far.destroy(true); this.farMask.destroy();
-    this.flare.destroy(); this.rays.forEach((r) => r.o.destroy()); this.light.destroy(); this.glow?.destroy();
-    this.sweeps.forEach((w) => w.box.destroy(true)); this.leaves.forEach((l) => l.o.destroy()); this.flash?.destroy();
+    this.far.clearMask(true); this.farMask.destroy();
+    for (const c of this.layers.values()) c.destroy(true);
+    this.layers.clear();
     this.clouds = []; this.birds = []; this.rays = []; this.sweeps = []; this.leaves = [];
   }
 }
