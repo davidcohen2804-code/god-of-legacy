@@ -147,6 +147,7 @@ const CSS = `
 .gol-bt .b-call.in .b-ca{animation:golIn .45s cubic-bezier(.2,.9,.25,1.12) both}
 .gol-bt .b-call.slam .b-ca{animation:golSlam .4s cubic-bezier(.3,1.35,.5,1) both}
 .gol-bt .b-sub .b-ca{animation:none}
+.gol-bt .b-sub:has(.b-ca){padding-left:0;letter-spacing:0;margin-top:-10px}
 .gol-bt .b-call.fight .b-w{transform:skewX(-8deg)}
 .gol-bt .b-call.fight.slam .b-w{animation-name:golSlamSkew}
 @keyframes golIn{0%{opacity:0;transform:scale(1.9)}100%{opacity:1;transform:scale(1)}}
