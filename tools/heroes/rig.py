@@ -23,15 +23,17 @@ HIPS = {
 WALK_N, RUN_N = 16, 12
 # heroes whose arm sheet has joint balls in a colour apart from the limbs (removed; a shaded joint is drawn instead) —
 # the others' balls are armour-coloured and stay as the joint
-DROP_BALLS = {'archer', 'book_mage'}
+DROP_BALLS = {'archer', 'book_mage', 'gambler'}
 # sleeves that hide the joint themselves (the mage's bells): the ball's socket is only cut away, not painted over
-NO_SOCKET_FILL = {'book_mage'}
+NO_SOCKET_FILL = {'book_mage', 'gambler'}
+DROP_LEG_BALLS = {'archer', 'book_mage'}
 # The armless torso (tools/heroes/parts/<cls>_arms.png): hips x, y, the cloth-behind column, the near shoulder x, y (fractions)
 TORSO = {
     'warrior': (0.62, 0.60, 0.45, 0.55, 0.24),
     'samurai': (0.56, 0.68, 0.42, 0.50, 0.36),
     'archer': (0.60, 0.64, 0.45, 0.64, 0.36),
     'book_mage': (0.60, 0.60, 0.42, 0.49, 0.30),
+    'gambler': (0.72, 0.56, 0.60, 0.44, 0.25),
 }
 
 
@@ -204,7 +206,7 @@ def load_parts(path, cls):
         a0 = img[..., 3] > 100
         cx0 = lambda y: float(np.where(a0[int(y)])[0].mean())
         top_c = np.array([cx0(top_pivot), top_pivot])
-        if cls in DROP_BALLS and not thigh:  # the ball found by its colour (the top pixels are the ball)
+        if cls in DROP_LEG_BALLS and not thigh:  # the ball found by its colour (the top pixels are the ball)
             tb_ = _top_ball(img)
             bl = _ball_blobs(img, tb_[0], tb_[1]) if tb_ else []
             if bl:
@@ -217,7 +219,7 @@ def load_parts(path, cls):
         if thigh:
             bn, b1, bot_pivot, bbw = b['bottom']
             bot_c = np.array([float(np.where(a[int(bot_pivot)])[0].mean()), bot_pivot])
-            if cls in DROP_BALLS:  # the knee ball removed; a shaded knee is drawn under the thigh and the shin instead
+            if cls in DROP_LEG_BALLS:  # the knee ball removed; a shaded knee is drawn under the thigh and the shin instead
                 bl = _ball_blobs(img, knee[0], knee[1]) if knee else []
                 if bl:
                     bot_c = np.array(bl[-1][:2]); bbw = bl[-1][2]; bot_pivot = bot_c[1]
@@ -310,8 +312,8 @@ def load_parts(path, cls):
                 yb_ = int(ys_[-1]); parts[name + '_len'] = float(yb_ - 0.08 * im.shape[0] - p0[1])
                 continue
             blobs = _ball_blobs(im, tb[0], tb[1]) if tb else []
-            own = _top_ball(im) if both else None  # the far arm is drawn darker: its balls too
-            if both and len(blobs) < 2 and own and tb:
+            own = _top_ball(im)  # the far arm is drawn darker / lighter: its balls too
+            if len(blobs) < (2 if both else 1) and own and tb:
                 blobs = _ball_blobs(im, own[0], own[1])
             if blobs and (not both or len(blobs) >= 2):
                 tp_, bt_ = blobs[0], blobs[-1]
@@ -435,27 +437,28 @@ def arm_pose(cls, kind, ph, i):
     if kind == 'walk':
         n = -11 * c; f = 22 * c
         return {'n': (n, 8 + 0.4 * max(0, n)), 'f': (f, 10 + 0.5 * max(0, f)), 'D': 162 + 4 * c if cls == 'archer' else None}
-    if kind == 'run':  # sprinting arms: the free arm pumps (elbow near square, the fist up to the chest), the blade trails
-        f = (10 + (34 if c > 0 else 24) * c, 87 - 9 * c)  # the backswing kept short: the shoulder plate rides on the arm
-        if cls == 'warrior':
-            return {'n': (-15 - 14 * c, 30 + 6 * c), 'f': f, 'D': -70 + 8 * c}
-        if cls == 'samurai':
-            return {'n': (-18 - 12 * c, 28), 'f': f, 'D': -78 + 6 * c}
+    if kind == 'run':  # sprinting arms: the free arm pumps (elbow near square, the fist up to the chest); the weapon arm
+        # swings less, the weapon held as drawn (it turns with the fist, never against it)
+        f = (14 + (32 if c > 0 else 14) * c, 80 - 8 * c)  # the backswing kept short: the shoulder plate stays on the shoulder
+        if cls in ('warrior', 'samurai'):
+            return {'n': (-4 - 10 * c, 24 + 6 * c), 'f': f, 'D': None}
+        if cls == 'gambler':  # the staff carried along the forearm, the cards held up
+            return {'n': (6 - 12 * c, 30 + 4 * c), 'f': f, 'D': None}
         if cls == 'archer':  # the bow carried low in front, upright, its top leaning into the run
             return {'n': (18 - 10 * c, 30), 'f': f, 'D': 158 - 4 * c}
         return {'n': (8 - 10 * c, 85 + 5 * c), 'f': f, 'D': None}  # the book against the chest
     if kind == 'jump':  # take-off crouch (arms swung back) → rising → falling (arms lift for balance)
         J = {
-            'warrior': [((-20, 20), (-30, 25), -55), ((-30, 25), (40, 45), -68), ((-22, 20), (30, 40), -62)],
-            'samurai': [((-15, 20), (-25, 30), -55), ((-30, 25), (15, 95), -72), ((-22, 20), (15, 85), -66)],
+            'warrior': [((-14, 20), (-24, 25), None), ((-10, 30), (40, 45), None), ((4, 20), (30, 40), None)],
+            'samurai': [((-14, 20), (-24, 30), None), ((-10, 30), (15, 95), None), ((4, 20), (15, 85), None)],
             'archer': [((10, 10), (-35, 20), 170), ((40, 8), (-50, 35), 158), ((32, 10), (-30, 45), 165)],
             'book_mage': [((10, 70), (15, 60), None), ((15, 90), (25, 85), None), ((15, 88), (30, 70), None)],
         }.get(cls, [((5, 25), (-30, 30), None), ((25, 30), (-40, 40), None), ((15, 25), (-25, 45), None)])[i]
         return {'n': J[0], 'f': J[1], 'D': J[2]}
     if kind == 'djump':
         J = {
-            'warrior': [((-25, 25), (60, 50), -80), ((-30, 20), (50, 30), -92)],
-            'samurai': [((-38, 20), (20, 95), -88), ((-42, 18), (20, 95), -92)],
+            'warrior': [((-6, 40), (60, 50), None), ((-14, 30), (50, 30), None)],
+            'samurai': [((-24, 20), (20, 95), None), ((-28, 18), (20, 95), None)],
             'archer': [((40, 40), (50, 50), 140), ((44, 44), (54, 54), 135)],
             'book_mage': [((30, 40), (-30, 30), None), ((34, 44), (-26, 34), None)],
         }.get(cls, [((30, 40), (-30, 30), None), ((34, 44), (-26, 34), None)])[i]
@@ -501,7 +504,7 @@ def gait(kind, phase, L):
     if kind == 'walk':
         D, duty, lift, lean = 1.62 * L, 0.6, 0.16 * L, 3.0
     else:
-        D, duty, lift, lean = 2.5 * L, 0.36, 0.42 * L, 19.0
+        D, duty, lift, lean = 2.4 * L, 0.36, 0.36 * L, 12.0
     S = duty * D  # how far a planted foot travels relative to the hips
     feet, planted = [], []
     for off in (0.0, 0.5):
@@ -518,7 +521,7 @@ def gait(kind, phase, L):
                 y = -lift * math.sin(math.pi * t)
             planted.append(None)
         feet.append(np.array([x, y]))
-    reach = 0.975 * L if kind == 'walk' else 0.88 * L  # a running leg stays bent: the body low, driving forward
+    reach = 0.975 * L if kind == 'walk' else 0.92 * L  # a running leg stays bent: the body low, driving forward
     if kind == 'walk':
         xs = [f[0] for f, p in zip(feet, planted) if p is not None]
         hh = min(math.sqrt(max(0, reach * reach - x * x)) for x in xs) if xs else reach
@@ -768,7 +771,7 @@ def bake(path, cls, idle_h, size=1.0, kinds=None):
             fn = np.array([hip[0] + feet[0][0], ground + feet[0][1]]); ff = np.array([hip[0] + feet[1][0], ground + feet[1][1]])
             kn, kf = _ik(hip, fn, T, S), _ik(hip, ff, T, S)
             # the cloth behind the hips streams back with the speed (lifted, fluttering): a run reads by its cape
-            lift_c = {'walk': 5.0, 'run': 24.0, 'djump': {'warrior': 20.0, 'samurai': 26.0, 'archer': 10.0}.get(cls, 6.0)}.get(kind, 0.0) + {'walk': 1.5, 'run': 4.0}.get(kind, 0.0) * math.sin(2 * math.pi * ph * 2 + 1.0)
+            lift_c = {'walk': 5.0, 'run': 8.0 if cls == 'gambler' else 24.0, 'djump': {'warrior': 20.0, 'samurai': 26.0, 'archer': 10.0}.get(cls, 6.0)}.get(kind, 0.0) + {'walk': 1.5, 'run': 4.0}.get(kind, 0.0) * math.sin(2 * math.pi * ph * 2 + 1.0)
             if lift_c:
                 root = P['cape_root']
                 # the root, carried with the body's lean, stays put; the cloth turns up round it (clockwise = up behind)
