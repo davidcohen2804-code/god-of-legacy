@@ -3,6 +3,9 @@
 // platform → combat state (hit-stun / launch / knockdown / getup / hard CC with DR) → final 4-class kits on the shared
 // SkillRuntime with hit-confirm cancels, combo scaling and juggle budget → confirmed-hit feedback (damage numbers, combo
 // counter, hit-stop / shake hierarchy) → HUD, Skill Book (K), Inventory (I) and Cosmetic Shop (O).
+import { sunGateX, SUN_GATE } from '../world/SunGate';
+/** Kept with the quests: the Sun Gate opened (the sun over Sunfall Pass crossed). */
+const SUN_GATE_KEY = 'sun_gate';
 import Phaser from 'phaser';
 import WORLD from '../data/legacy-courtyard.json';
 import ATLAS from '../data/asset-manifest.json';
@@ -525,7 +528,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       });
     } else {
       // The open world: one long world left to right, the camera following you along it.
-      this.world = new OpenWorld(this, { onArea: (a) => { if (a.name !== this.areaName) { this.areaName = a.name; this.areaTitle?.show(a.name); } } }, at ?? toWorld(START.area, [START.x, START.y]));
+      this.world = new OpenWorld(this, { sunGateOpen: this.quests[SUN_GATE_KEY]?.state === 'done', onArea: (a) => { if (a.name !== this.areaName) { this.areaName = a.name; this.areaTitle?.show(a.name); } if (a.id === 'afterglow') this.openSunGate(); } }, at ?? toWorld(START.area, [START.x, START.y]));
       this.world.onNpcClick = (n) => this.talkTo(n);
     }
     if (AR) this.pitch = new CameraPitch(this, cam, () => ({ parts: [...this.arenaMap, ...this.occluders, ...(this.stageFx?.layerList() ?? [])], top: AR.y }), (d) => this.hud?.setPitch(d));
@@ -859,6 +862,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!k.grounded && k.vz < 0 && k.z < SKY_DROP && k.z > 200 && this.lastGroundSky && k.y < SKY.band[1] + 8 && k.x > SKY.lane[0] - 4 && k.x < SKY.lane[1] + 40) {
       const ivy = HEIGHTS.find((h) => h.id === 'ivy_heights'), ty = ivy && k.x < ivy.x + ivy.w - 22 ? ivy.front - 40 : 400, d = ty - k.y;
       k.y += d; k.z += d;
+    }
+    // the Sun Gate shut: down on the ground past it (fallen from the clouds) — a friendly cloud carries you back up to the
+    // Sky Path's start (the way below opens only once the sun is crossed)
+    if (this.world && !this.world.sunGate.open && k.grounded && k.z < 5 && k.x > sunGateX(Phaser.Math.Clamp(k.y, SUN_GATE.back[1], SUN_GATE.front[1])) + 24) {
+      this.fx?.dust(k.x, k.y, 90, 0.8, this.dustDepth(k));
+      k.x = 4210; k.y = 63; k.z = 680; k.supportZ = 680; k.supportId = 'ivy_summit'; k.vx = k.vy = k.vz = 0; k.grounded = true; k.from = null;
+      this.fx?.dust(k.x, k.y - k.z, 90, 0.8, this.dustDepth(k));
+      this.chat?.add({ kind: 'system', text: 'A friendly cloud carries you back up. The road below stays shut until the sun is crossed.' });
     }
     if (this.world) settleOnBlocks(k, ms, this.blockHold.y ? 0 : this.ci?.moveY ?? 0, b.state === 'free');
     const ev = b.update(now, ms, r.landed, r.impactVz);
@@ -3808,6 +3819,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
   }
 
+  /** Over the sun (Afterglow Rest reached): the Sun Gate below opens for good. */
+  private openSunGate(): void {
+    if (!this.world || this.world.sunGate.open) return;
+    this.world.sunGate.unlock();
+    this.quests[SUN_GATE_KEY] = { state: 'done', progress: [] }; this.saveQuests();
+    this.chat?.add({ kind: 'system', text: 'Far below, the golden Sun Gate swings open. The road on is free.' });
+  }
   private saveQuests(): void { if (this.character) CharacterStore.setQuests(this.character.id, this.quests); this.refreshQuests(); }
 
   /** Tracker (left side), quest log (J) and the markers over the quest givers. */

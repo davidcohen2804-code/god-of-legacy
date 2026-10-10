@@ -13,28 +13,9 @@
       "source": "magnific video"
     },
     "run": {
-      "frames": [
-        "run_01.png",
-        "run_02.png",
-        "run_03.png",
-        "run_04.png",
-        "run_05.png",
-        "run_06.png",
-        "run_07.png",
-        "run_08.png"
-      ],
-      "loop": true,
-      "fps": 14,
-      "cycle_px": null,
-      "cycle_px_estimate": 1256.94,
-      "cycle_px_status": "unvalidated: support speed is not constant",
-      "support_delta_px": [
-        -35.12,
-        -288.92,
-        20.68,
-        -325.11
-      ],
-      "cycle_atlas": 270
+      "frames": 16,
+      "cycle_atlas": 262,
+      "source": "pixverse video, in place, native 24fps timing at 270 px/s"
     },
     "jump": {
       "frames": [
