@@ -624,7 +624,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     spirit_hawk: { act: 'spirit_hawk', st: [0, 1, 2], ac: [3], rc: [4, 5] },
     sky_rain: { act: 'sky_rain', st: [0, 1, 2, 3], ac: [4, 4], rc: [4, 3] }, // (her last frame lets the bow fly: never shown)
     tree_of_life: { act: 'tree_of_life', st: [0, 1, 2, 3], ac: [4], rc: [4, 5] },
-    hunters_spirit: { act: 'hunters_spirit', st: [0, 1, 2], ac: [3], rc: [4, 5] },
+    hunters_spirit: { act: 'double_shot', st: [0, 1], ac: [2, 3], rc: [5] }, // Vine Lash: a shot
     arrow_storm: { act: 'arrow_storm', st: [0, 1], ac: [2], rc: [5], loop: [1, 2, 3, 4], fps: 5 },
     eagle_arrow: { act: 'eagle_arrow', st: [0, 1, 2, 3, 4, 4, 4, 4], ac: [5], rc: [5] },
   },

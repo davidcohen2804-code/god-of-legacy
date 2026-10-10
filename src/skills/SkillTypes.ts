@@ -32,6 +32,8 @@ export interface Reaction {
   drop?: boolean;
   /** Caught near the floor (falling, landing or lying): stood up at once and held — the combo goes on (a trap on the floor). */
   catch?: boolean;
+  /** Yanked to the attacker, stopping this far from him (a vine whip): even out of the air — the combo comes back in reach. */
+  yank?: number;
   /** Ordinary combo hit-stun (soft, repeatable, scaled by combo index). */
   stun?: number;
   /** Knockback distance (world px, away from the hit origin). */

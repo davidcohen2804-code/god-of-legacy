@@ -535,7 +535,7 @@ const archer: FinalSkill[] = [
     id: 'spirit_hawk', cls: 'archer', slot: 13, name: 'Spirit Hawk', roles: ['setup', 'extender'], targeting: 'self',
     startup: 300, active: 100, recovery: 200, cooldown: 30000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(0, 3, { kind: 'circle', radius: 90 }, { stun: 160, push: 10 }, { reachUp: 120 })],
-    linger: { at: 'caster', startMs: 1200, everyMs: 2200, count: 10, radius: 360, maxZ: 320, hit: H(0, 16, { kind: 'circle', radius: 40 }, { stun: 260, push: 10, float: true, juggleCost: 4 }, { reachUp: 320 }) },
+    linger: { at: 'caster', startMs: 1200, everyMs: 2200, count: 10, radius: 360, maxZ: 320, hit: H(0, 16, { kind: 'circle', radius: 40 }, { stun: 300, push: 6, slam: true, juggleCost: 4 }, { reachUp: 320 }) }, // a foe up in the air is slammed onto the floor and bounces back up
     tags: ['buff'],
     description: 'Summons a spirit hawk that roams the sky around you for 20s and every few seconds dives on a foe by itself.',
     relations: ['Summon 20s', 'Attacks alone'],
@@ -561,12 +561,12 @@ const archer: FinalSkill[] = [
     relations: ['Heal zone 20s', 'Party heal'],
   }),
   S({
-    id: 'hunters_spirit', cls: 'archer', slot: 15, name: "Hunter's Spirit", roles: ['setup'], targeting: 'self',
-    startup: 360, active: 160, recovery: 240, cooldown: 60000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 760],
-    hits: [H(0, 4, { kind: 'circle', radius: 130 }, { stun: 240, push: 18 }, { reachUp: 140 })],
-    tags: ['buff', 'party'],
-    description: 'The hawk-eye sigil sharpens every eye: critical rate +15% for 120s. In a party every party member near you shares it.',
-    relations: ['Buff 120s', 'Party buff'],
+    id: 'hunters_spirit', cls: 'archer', slot: 15, name: 'Vine Lash', roles: ['projectile', 'setup'], targeting: 'mouseProjectile', // (the old Hunter's Spirit buff is now her passive: +15% critical rate)
+    startup: 160, active: 120, recovery: 200, cooldown: 7000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(0, 10, { kind: 'projectile', speed: 1100, range: 520, radius: 14, antiAir: true }, { stun: 520, yank: 50, float: true, juggleCost: 6 }, { mark: 1 })],
+    cancelOnHit: ['quick_shot', 'rising_arrow', 'retreat_kick', 'multi_shot', 'explosive_arrow', 'bow_haste', 'leaping_arrow', 'arrow_storm'],
+    description: 'A thorned vine arrow: it snags the first foe it reaches — even up in the air — and yanks him right back in front of you, held a moment. Bring a foe that flew away back into your traps.',
+    relations: ['Pull', 'Air too'],
   }),
   S({
     id: 'arrow_storm', cls: 'archer', arenaDmg: 0.7, slot: 17, name: "Hunter's Rain", roles: ['zone', 'extender'], targeting: 'mouseGround',
@@ -1015,16 +1015,16 @@ for (const w of warrior) if (w.slot <= 5) for (const id of ['leap_crash', 'wave_
 // Archer: a dense combo graph (PvP engine audit) — every combo skill leads on to several others, the signature and the
 // ultimate, so her strings run as long as the other classes' (before: most of her skills were dead ends).
 const ARCHER_LINKS: Record<string, string[]> = {
-  quick_shot: ['skyhunters_step', 'leaping_arrow', 'eagle_arrow', 'arrow_storm'],
+  quick_shot: ['hunters_spirit', 'skyhunters_step', 'leaping_arrow', 'eagle_arrow', 'arrow_storm'],
   rising_arrow: ['explosive_arrow', 'rain_of_arrows', 'arrow_storm', 'sky_rain'],
-  multi_shot: ['rising_arrow', 'rain_of_arrows', 'leaping_arrow', 'eagle_arrow', 'sky_rain'],
-  explosive_arrow: ['multi_shot', 'rising_arrow', 'retreat_kick', 'eagle_arrow', 'arrow_storm', 'sky_rain'],
-  retreat_kick: ['explosive_arrow', 'rain_of_arrows', 'arrow_storm', 'sky_rain'],
-  skyhunters_step: ['quick_shot', 'eagle_arrow', 'rain_of_arrows'],
-  rain_of_arrows: ['multi_shot', 'explosive_arrow', 'rising_arrow', 'eagle_arrow', 'sky_rain'],
+  multi_shot: ['hunters_spirit', 'rising_arrow', 'rain_of_arrows', 'leaping_arrow', 'eagle_arrow', 'sky_rain'],
+  explosive_arrow: ['hunters_spirit', 'multi_shot', 'rising_arrow', 'retreat_kick', 'eagle_arrow', 'arrow_storm', 'sky_rain'],
+  retreat_kick: ['hunters_spirit', 'explosive_arrow', 'rain_of_arrows', 'arrow_storm', 'sky_rain'],
+  skyhunters_step: ['hunters_spirit', 'quick_shot', 'eagle_arrow', 'rain_of_arrows'],
+  rain_of_arrows: ['hunters_spirit', 'multi_shot', 'explosive_arrow', 'rising_arrow', 'eagle_arrow', 'sky_rain'],
   leaping_arrow: ['explosive_arrow', 'skyhunters_step', 'eagle_arrow', 'sky_rain'],
   eagle_arrow: ['skyhunters_step'],
-  arrow_storm: ['multi_shot', 'explosive_arrow', 'skyhunters_step', 'eagle_arrow'],
+  arrow_storm: ['hunters_spirit', 'multi_shot', 'explosive_arrow', 'skyhunters_step', 'eagle_arrow'],
   hunters_roar: ['sky_rain'],
 };
 for (const a of archer) for (const id of ARCHER_LINKS[a.id] ?? []) if (!a.cancelOnHit.includes(id)) a.cancelOnHit.push(id);
