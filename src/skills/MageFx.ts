@@ -30,7 +30,8 @@ export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
   'mfx-rx': ['reactions.png', 384, 384, 16],
   'mfx-hit': ['hit_sparks.png', 320, 320, 16],
   'mfx-circle': ['cast_circles.png', 384, 384, 16],
-  'mfx-beam': ['chain_beam.png', 384, 384, 16], // 0-7 thick beams edge to edge, 8-11 lightning cage on a foe (loop), 12-15 the source at the hand (loop, orb at 25% across) // rows: arcane, frost, storm, ultimate — frames 0-1 drawing on, 2-3 drawn (loop); centre 55% down // 0-3 arcane, 4-7 frost, 8-11 storm, 12-15 heavy / critical // 0-3 freeze forming, 4-7 frozen (loop), 8-11 shatter, 12-15 conduct (feet 88% down) // 0-3 haste clock under the feet (loop, 48% down), 4-7 the sigil (loop, 57%), 8-15 the ascension aura (loop, feet 70%) // 0-3 the ward dome (loop, base 75% down), 4-7 it shatters, 8-11 a gate opening, 12-15 the gate (loop, centre 57% down) // 0-3 crane flying right (loop), 4-7 crane burst, 8-11 pages wrapping a body, 12-15 the cursed crane (loop) // 0-3 the armed rune (loop), 4-11 chains binding, 12-15 release (ground centre ~72% down) // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
+  'mfx-beam': ['chain_beam.png', 384, 384, 16],
+  'mfx-rift': ['time_rift.png', 448, 448, 16], // 0-3 the floor cracks open, 4-11 the rift (loop), 12-15 the eruption (ground centre 72% down) // 0-7 thick beams edge to edge, 8-11 lightning cage on a foe (loop), 12-15 the source at the hand (loop, orb at 25% across) // rows: arcane, frost, storm, ultimate — frames 0-1 drawing on, 2-3 drawn (loop); centre 55% down // 0-3 arcane, 4-7 frost, 8-11 storm, 12-15 heavy / critical // 0-3 freeze forming, 4-7 frozen (loop), 8-11 shatter, 12-15 conduct (feet 88% down) // 0-3 haste clock under the feet (loop, 48% down), 4-7 the sigil (loop, 57%), 8-15 the ascension aura (loop, feet 70%) // 0-3 the ward dome (loop, base 75% down), 4-7 it shatters, 8-11 a gate opening, 12-15 the gate (loop, centre 57% down) // 0-3 crane flying right (loop), 4-7 crane burst, 8-11 pages wrapping a body, 12-15 the cursed crane (loop) // 0-3 the armed rune (loop), 4-11 chains binding, 12-15 release (ground centre ~72% down) // 0-3 opening, 4-11 floating (loop), 12-15 closing (ground centre 78% down) // 0-7 vanish, 8-15 appear (centred on the body) // a crescent of force rushing right (ground 75% down, from 15% across) // a line of ice bursting up left → right, standing, shattering (ground 75% down, from 10% to 90% across) // 0-7 the vortex (loop), 8-11 a strike from the sky, 12-15 the final burst (ground centre 72% down) // the clock draws, sweeps, stops, cracks, collapses, blasts (centre 55% down) // 0-3 bolt in flight (loop, orb at 70% across), 4-7 the lance, 8-11 its hit, 12-15 the cast flash at the hand // a ring of ice erupting round the caster (ground centre at 62% down) // 0-7 bolts (edge to edge), 8-11 strike, 12-15 hand orb (loop)
 };
 const TOP = 100000, GROUND = 2, SQUASH = 0.42;
 const ARCANE = 0x6fb8ff, VIOLET = 0xa98cff, ICE = 0xcff6ff;
@@ -680,7 +681,10 @@ export class MageFx {
       const fz = T.startup + 260, bl = T.startup + 1250;
       this.circle(p.x, p.y, 620, 0, total + 500, { run: r, draw: 400, ult: true });
       this.ctx.darken(total + 300, 0.5);
-      this.smoke(p.x, p.y - 40, 640, 0, total + 400, { squash: 0.5, depth: GROUND + 3 });
+      if (this.ctx.scene.textures.exists('mfx-rift')) { // the rift of time under the clock: opens, swirls until the blast (its eruption is drawn there)
+        this.sheet('mfx-rift', p.x, p.y, 640, 380, { frames: [0, 4], oy: 0.72, depth: GROUND + 4, run: r });
+        this.sheet('mfx-rift', p.x, p.y, 640, bl - 380, { frames: [4, 8], loop: 90, oy: 0.72, depth: GROUND + 4, delay: 380, run: r });
+      } else this.smoke(p.x, p.y - 40, 640, 0, total + 400, { squash: 0.5, depth: GROUND + 3 });
       this.gpu('vortex', p.x, p.y - 60, 520, 520, fz + 200, (u, ms, q) => { MageFx.U(q, 'uP', Math.min(1, ms / fz)); MageFx.U(q, 'uE', ms < fz ? 0 : (ms - fz) / 200); }, { uA: -1, run: r, depth: TOP + 4 });
       for (let t = 0; t < total; t += 120) this.later(t, () => this.img('mg-dot', { x: p.x + rnd(-260, 260), y: p.y + rnd(-60, 40), w: rnd(5, 12), tint: Math.random() < 0.5 ? 0xffd27a : 0xb9a2ff, life: 900, my: (u) => -160 * u, a: kf([0, 0], [0.2, 1], [1, 0]) }), r);
       this.later(fz, () => { this.warp.ring(p.x, p.y - 60, { r1: 380, life: 520, s: 26, width: 30 }); this.ctx.flash?.(0xe9e2ff, 0.12, 160); this.shake(160, 0.007); }, r);
@@ -698,7 +702,8 @@ export class MageFx {
     if (this.ctx.scene.textures.exists('mfx-clock')) {
       this.warp.ring(p.x, p.y, { r1: 520, life: 600, s: 46, width: 40, squash: SQUASH }); this.warp.ring(p.x, p.y - 80, { r1: 360, life: 460, s: 30, width: 30 });
       this.gpu('nova', p.x, p.y, 900, 900 * SQUASH, 640, (u, _ms, q) => { MageFx.U(q, 'uP', out3(u)); MageFx.U(q, 'uE', u > 0.4 ? (u - 0.4) / 0.6 : 0); }, { depth: GROUND + 2 });
-      this.sheet('mfx-pillar', p.x, p.y + 8, 700, 640, { oy: 0.85, depth: TOP + 6, frames: [5, 11], tint: 0xffe2b0 });
+      if (this.ctx.scene.textures.exists('mfx-rift')) this.sheet('mfx-rift', p.x, p.y, 700, 900, { frames: [12, 4], oy: 0.72, depth: TOP + 6 });
+      else this.sheet('mfx-pillar', p.x, p.y + 8, 700, 640, { oy: 0.85, depth: TOP + 6, frames: [5, 11], tint: 0xffe2b0 });
       this.sheet('mfx-hit', p.x, p.y - 90, 420, 360, { frames: [12, 4], depth: TOP + 7 });
       this.smoke(p.x, p.y - 20, 760, 0, 1100, { squash: 0.45, depth: GROUND + 3 });
       this.burst(p.x, p.y - 80, { n: 40, speed: [300, 900], life: [400, 900], scale: [0.04, 0.22], tint: [0xffffff, 0xffd27a, 0xb9a2ff], gravity: 400 });
