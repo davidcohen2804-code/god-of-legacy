@@ -451,7 +451,8 @@ export class CombatBody {
     if (R.catch && this.state !== 'getup' && this.state !== 'dead' && (this.state === 'launched' || this.state === 'knockdown' || !this.kin.grounded) && this.kin.z - this.kin.supportZ < 60) {
       // a trap on the floor catches a falling / fallen body: on its feet at once, held — and, as in DFO, the hold eases the air gauge
       const kk = this.kin; kk.z = kk.supportZ; kk.vz = 0; kk.grounded = true; this.bounce = false;
-      this.state = 'hitstun'; this.kdPhase = 'fall'; this.stateEnd = now + (R.stun ?? 300); this.gauge.air *= 0.5;
+      this.state = 'hitstun'; this.kdPhase = 'fall'; this.stateEnd = now + (R.stun ?? 300);
+      if (c.binds === 0) { this.gauge.air *= 0.5; c.binds++; } // the gravity reset is a rare trick: once a combo (the catch itself every time)
     }
     this.lastHitAt = now;
     const R0: Reaction = hit.reaction;
