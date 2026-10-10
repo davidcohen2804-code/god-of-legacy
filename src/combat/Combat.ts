@@ -327,6 +327,8 @@ export interface HitOutcome {
   rx?: 'chill' | 'freeze' | 'shatter' | 'conduct' | 'curse' | 'levity' | 'bind';
   /** How long that reaction holds (freeze / curse / levity), ms. */
   rxMs?: number;
+  /** The arena: this hit broke through super armor (a grab, or the standing gauge passed). */
+  broke?: boolean;
 }
 
 /** Combat state + reactions of one actor. The owner is the authority for its own body (victim-side model). */
@@ -460,7 +462,10 @@ export class CombatBody {
     const airNow = !this.kin.grounded || this.state === 'launched';
     const frac = damage / Math.max(1, this.maxHp);
     if (!R0.grab) { if (downNow) this.gauge.down += frac; else if (airNow) this.gauge.air += frac; else this.gauge.stand += frac; }
-    const armored = now < this.armorUntil;
+    let armored = now < this.armorUntil;
+    // The arena (DFO): super armor takes the hits but not everything — a grab takes hold of it, and the standing gauge,
+    // once passed, knocks the armored body down all the same. (Armor beats a poke; a grab beats armor; moving beats a grab.)
+    if (this.arena && armored && (R0.grab || (!airNow && !downNow && this.gauge.stand >= gaugeOf(true).stand))) { armored = false; this.armorUntil = now; out.broke = true; }
     // Push / pull direction.
     let dx = k.x - from.x, dy = k.y - from.y; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
     if (!armored) {

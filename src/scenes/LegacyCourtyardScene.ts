@@ -335,6 +335,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private rageCalled = new Set<string>();
   /** The arena's step back: when it was pressed (-1: not) and until when it is in the air (no steering, no skills). */
   private backstepWant = -1;
+  /** Remote casts that landed on me (a whiff of theirs is one that did not), and own casts that already called PUNISH. */
+  private landedOnMe = new Set<string>();
+  private punished = new Set<string>();
   private backstepUntil = -1;
   private remoteRuns = new Map<string, { run: CastRun; at: number }>();
   private resolved = new Map<string, number>();
@@ -2321,6 +2324,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!s || !this.rt || this.dead >= 0) return false;
     if (this.inputLocked()) return false; // talking / a battle's VS, ROUND n, K.O.: no attacks (buffered ones too)
     if (this.simMs < this.backstepUntil && !this.kin.grounded) return false; // stepping back: skills wait until you land (buffered)
+    if (this.arena && this.body.ghostUntil > this.simMs) this.body.ghostUntil = this.simMs; // an attack out of the wake-up drops its guard (no invincible reversal; DFO: rising gives only a moment of protection)
     if (!this.skillOpen(s)) return false; // skills open with the job advancements (all open in the arena)
     if (s.wip) return false; // a template: not built yet
     const now = this.simMs, k = this.kin, b = this.body;
@@ -2734,7 +2738,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (t.kind === 'enemy') { this.applyToPve(run, hit, t, at); return; }
     if (t.id === BOT_ID) { this.applyToBot(run, hit, t, at); return; }
     if (run.confirmedAt < 0 && !t.invulnerable && !this.isPoke(run, hit, t)) run.confirmedAt = run.elapsed; // predicted contact on a remote player (their client is authority; a guarded one: no contact; a poke from afar: no cancel)
-    if (!t.invulnerable && t.kind === 'player' && this.pvp?.remotes.has(t.id)) this.pvp.sendClaim(t.id, run.castId, hi, t.x, t.y, t.z); // what we saw: they take it if lag alone made them miss it (onClaim)
+    if (!t.invulnerable && t.kind === 'player' && this.pvp?.remotes.has(t.id)) this.pvp.sendClaim(t.id, run.castId, hi, t.x, t.y, t.z);
+    if (!t.invulnerable && t.kind === 'player') { const theirs = this.rt?.runs.find((r) => r.attackerId === t.id && r.phase === 'recovery'); this.callPunish(run, !!theirs && arenaCommits(theirs.skill) && !this.landedOnMe.has(theirs.castId), at); } // what we saw: they take it if lag alone made them miss it (onClaim)
   }
 
   /** PvE authority: combat body reaction on the enemy/dummy, damage, confirmed-hit feedback. */
@@ -2944,6 +2949,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.claims = keep;
   }
 
+  /** The arena: your hit caught the foe in the recovery of an attack he missed — PUNISH! (once a cast; it tells the player
+   *  that stepping out of the line and answering pays). */
+  private callPunish(run: CastRun, whiff: boolean, at: V3): void {
+    if (!this.arena || !whiff || this.punished.has(run.castId)) return;
+    this.punished.add(run.castId); if (this.punished.size > 200) this.punished.clear();
+    this.fx?.callout({ x: at.x, y: at.y, z: at.z + 40 }, 'PUNISH!', '#ffd27a', 1);
+  }
   /** The arena: a shot landing from afar (not a combo follow-up) is a poke — the foe flinches, nothing more (no lift, no
    *  hold, no knockdown) and the shooter cannot cancel off it. Same rule on every client (attacker and victim). */
   private isPoke(run: CastRun, hit: HitEvent, victim: { x: number }): boolean {
@@ -2986,6 +2998,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (trial && out.damage > 0) this.hitBlinkUntil = this.simMs + HIT_IFRAMES;
     if (run.attackerId === BOT_ID) this.logHit(false, s, out, this.body, this.kin.z);
     if (run.attackerId === BOT_ID && out.damage > 0) this.bot?.noteHit();
+    if (out.damage > 0) this.landedOnMe.add(run.castId);
+    if (out.broke) this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 60 }, 'ARMOR BREAK', '#ff9a6a', 0);
     if (out.rx) this.fx?.mageReaction(out.rx, { x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 }, this.localId, out.rxMs);
     this.fx!.confirmed(s, hit, at, out.damage, out.reaction, false, out.hitIndex, false, this.hitFrom(run, hit));
     if (this.arena && out.damage > 0) { // the arena: a hit lands on you — a beat of hit-stop, your body shudders, heavy ones shake the screen
@@ -3418,8 +3432,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.isPoke(run, hit, b.kin)) { hit = this.pokeHit(hit); run.poked = true; } // a poke from afar: no cancel off it
     const chB = run.attackerId === this.localId ? this.chanceMul(b.body) : 1;
     const m = (run.attackerId === this.localId ? this.ownDamageMul(run.skill) * chB : 1) * this.rageMul(run.attackerId, BOT_ID), h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
+    const whiff = b.whiffing(); // (read before the hit: taking it drops the knight's cast)
     const out = b.receive(run.attackerId, run.skill, h, this.hitFrom(run, h), this.simMs, run.castId);
     this.logHit(true, run.skill, out, b.body, b.kin.z);
+    if (run.own && out.damage > 0) this.callPunish(run, whiff, at);
+    if (out.broke) this.fx?.callout({ x: at.x, y: at.y, z: at.z + 30 }, 'ARMOR BREAK', '#ff9a6a', 0);
     this.mageReact(run, out, BOT_ID, at);
     if (chB > 1 && out.damage > 0) this.chanceMark(BOT_ID, at);
     if (b.refilled) this.fx!.healNumber({ x: b.x, y: b.y, z: b.z }, b.refilled);

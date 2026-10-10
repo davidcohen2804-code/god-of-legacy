@@ -131,6 +131,8 @@ export class SparringBot {
   private judged = '';
   /** One of its hits landed on you (the scene tells it): its current cast is no miss. */
   noteHit(): void { if (this.cast) this.cast.landed = true; }
+  /** The arena: it is in the recovery of an attack that missed (a punish window for you). */
+  whiffing(): boolean { const c = this.cast; return !!c && this.body.arena && !c.landed && c.t >= c.T.startup + c.T.active && arenaCommits(c.s); }
   /** Its hit was only a poke from afar: no combo off it. */
   notePoke(): void { if (this.cast) this.cast.poke = true; }
   /** COMBO: the scripted chain in progress (ids with ':stage'). */
@@ -395,6 +397,7 @@ export class SparringBot {
     const T = ts ? { startup: Math.round(T0.startup * ts.startup), active: Math.round(T0.active * ts.active), recovery: Math.round(T0.recovery * ts.recovery) } : T0; // (the arena's warrior: his base pace, as the runtime plays it)
     let dist = s.dash?.distance ?? 0;
     if (s.dash && s.targeting === 'mouseTarget') dist = Math.min(dist, Math.max(0, Math.hypot(p.x - k.x, p.y - k.y) - 34));
+    if (this.body.arena && this.body.ghostUntil > w.now) this.body.ghostUntil = w.now; // an attack out of the wake-up drops its guard, as for the players
     this.cast = { s, stage, t: 0, T, origin: { x: k.x, y: k.y, z: k.z }, aim, dist };
     if (s.cooldown > 0) this.cdEnd.set(s.id, w.now + s.cooldown * (this.level === 'middle' ? CD_MUL : this.L.cd));
     if (s.chain) this.chainStage = stage;
