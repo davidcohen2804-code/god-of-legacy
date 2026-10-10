@@ -94,6 +94,26 @@ export const NIGHT_LOOK: StageLook = {
   fires: [[368, 178], [574, 172], [800, 179], [1159, 171], [1394, 172], [263, 134], [117, 160], [1572, 160]],
 };
 
+/** The Sakura Temple (assets/environment/stages/sakura_temple.webp): a deck over a koi pond at sunset, the sun at the
+ *  upper left; its far background is the valley between the pines and the waterfall's cliff, down to the red railing. */
+export const SAKURA_LOOK: StageLook = {
+  far: [[462, 0], [1088, 0], [1088, 30], [1040, 42], [1000, 36], [960, 46], [905, 40], [855, 56], [832, 90], [826, 150], [838, 168], [930, 172],
+    [1005, 176], [1005, 224], [910, 224], [910, 206], [903, 194], [891, 194], [884, 206], [884, 224], [786, 224], [786, 206], [779, 194],
+    [767, 194], [760, 206], [760, 224], [663, 224], [663, 206], [656, 194], [644, 194], [637, 206], [637, 224], [541, 224], [532, 172],
+    [514, 122], [506, 64], [488, 22]],
+  sky: [0, 70],
+  mist: [140, 224],
+  sun: [484, 5],
+  sunLeft: true,
+  floorTop: 285,
+  cloudTint: 0xffd6e2,
+  mistTint: 0xffe6ee,
+  lightTint: 0xffc890,
+  rayTint: 0xffd8b8,
+  fliers: 'birds',
+  fall: { kind: 'petal', n: 26, tints: [0xffc0d8, 0xffa8c8, 0xffd6e6, 0xf598b8] },
+};
+
 const T = { cloud: 'sfx-cloud', mist: 'sfx-mist', ray: 'sfx-ray', glow: 'sfx-glow', light: 'sfx-light', ring: 'sfx-ring', leaf: 'sfx-leaf', petal: 'sfx-petal', drop: 'sfx-drop', dot: 'sfx-dot', bird: 'sfx-bird', bat: 'sfx-bat' };
 const BIRD_FRAMES = 4;
 
