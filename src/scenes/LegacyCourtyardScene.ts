@@ -2380,13 +2380,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // Soft lock (DFO-style tracking): snap the aim to the nearest enemy roughly in front, so attacks never whiff on a near-miss angle.
     // (the samurai, right after stepping through the foe: the next cut turns back to him — he is behind now)
     const lockT = this.softTarget(260, s.cls === 'samurai' && this.simMs < this.throughUntil ? -1.01 : 0.05);
-    if (lockT) this.aim = this.arena ? { x: Math.sign(lockT.x - k.x) || (this.aim.x < 0 ? -1 : 1), y: 0 } : unit(lockT.x - k.x, lockT.y - k.y, this.aim.x, this.aim.y); // (the arena: it turns you to face him, never aims into the depth — DFO: step off the line and it misses)
+    if (lockT) this.aim = { x: Math.sign(lockT.x - k.x) || (this.aim.x < 0 ? -1 : 1), y: 0 }; // (it turns you to face him, never aims into the depth)
     const reach = s.id === 'arcane_gate' ? 360 : s.targeting === 'mouseGround' ? Math.min(180, s.placeRange ?? 180) : 160; // (the far gate: well ahead of him)
-    const mouse = { x: k.x + this.aim.x * reach, y: k.y + this.aim.y * reach };
+    const ha = sideAim(this.aim.x, this.aim.y, this.dir === 'left' ? -1 : 1), mouse = { x: k.x + ha.x * reach, y: k.y + ha.y * reach }; // (placed on your line, ahead)
     let aim = unit(mouse.x - k.x, mouse.y - k.y, FACE[this.dir].x, FACE[this.dir].y);
     let place: V2 | null = null, lock: string | null = null;
     if (s.targeting === 'mouseGround') {
-      const under = s.snapPlace && !this.arena ? this.softTarget(s.placeRange ?? 260, -1.01) : null; // a catch: opened under the nearest foe (any side)
+      const under0 = s.snapPlace && !this.arena ? this.softTarget(s.placeRange ?? 260, 0.05) : null, under = under0 && Math.abs(under0.y - k.y) <= 140 ? under0 : null; // a catch: opened under the nearest foe in front (on your side, near your line)
       place = under && placementOk(under.x, under.y) ? { x: under.x, y: under.y } : clampPlace(k, mouse, s.placeRange ?? 260);
       if (!placementOk(place.x, place.y)) return null;
     }
@@ -2584,8 +2584,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!run || !AIM_STEER.has(run.skill.id) || run.phase === 'done' || !inp?.hasMove) return;
     if (run.skill.id === 'eagle_arrow' && run.phase !== 'startup') return; // Eagle Tide: turned while charging, fixed once released
     const u = unit(inp.moveX, inp.moveY), face = this.dir === 'left' || run.aim.x < -0.01 ? -1 : 1;
-    // Spirit Bow: level to a side, up at 45°, or straight up (never down)
-    const a = run.skill.id === 'piercing_arrow' ? (u.y < -0.3 ? (Math.abs(u.x) > 0.38 ? unit(Math.sign(u.x), -1) : unit(face * 0.05, -1)) : { x: Math.abs(u.x) > 0.2 ? Math.sign(u.x) : face, y: 0 }) : sideAim(u.x, u.y, face); // Spirit Bow: to a side, up at 45° or straight up
+    const a = sideAim(u.x, u.y, face); // (to the left or the right only)
     if (Math.abs(a.x - run.aim.x) < 1e-3 && Math.abs(a.y - run.aim.y) < 1e-3) return;
     run.aim = a; this.aim = a; if (Math.abs(a.x) > 0.01) this.dir = dirOf(a.x, 0, this.dir);
     this.pvp?.sendRelease({ castId: run.castId, at: -1, ax: Math.round(a.x * 1000), ay: Math.round(a.y * 1000) });
@@ -3440,7 +3439,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onRelease: (from, m) => { // Judgment Blade thrown: final aim + the moment it left the hand
         const r = this.rt?.runs.find((x) => x.castId === m.castId && x.attackerId === from);
         if (r && r.skill.id === 'arrow_storm' && m.at === -2) { r.place = { x: m.ax, y: m.ay }; return; } // Hunter's Rain: the caster moved the mark
-        if (r && AIM_STEER.has(r.skill.id) && m.at === -1) { r.aim = r.skill.id === 'piercing_arrow' ? unit(m.ax, m.ay) : sideAim(m.ax / 1000, m.ay / 1000, m.ax < 0 ? -1 : 1); return; } // Volley Stance / Spirit Bow / Eagle Tide: the caster turned the aim
+        if (r && AIM_STEER.has(r.skill.id) && m.at === -1) { r.aim = sideAim(m.ax / 1000, m.ay / 1000, m.ax < 0 ? -1 : 1); return; } // Volley Stance / Spirit Bow / Eagle Tide: the caster turned the aim
         if (r && r.phase === 'startup') { r.aim = clampAim(unit(m.ax, m.ay)); r.timings.startup = Math.max(r.elapsed, m.at); }
         this.pvp?.remotes.get(from)?.setSkillStartup(r?.skill.id ?? '', r ? r.timings.startup : m.at);
       },

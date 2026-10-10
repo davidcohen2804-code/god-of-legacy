@@ -837,10 +837,10 @@ export function dirOf(x: number, y: number, fallback: Dir): Dir {
 }
 /** An attack's direction in side view: to the side or to a corner, never straight up or down — within 22.5° of level it
  *  goes straight to the side, else along the 45° diagonal on that side (straight up / down: the facing side). */
-export function sideAim(x: number, y: number, facing: number): { x: number; y: number } {
-  const sx = Math.abs(x) < 1e-6 ? (facing < 0 ? -1 : 1) : Math.sign(x);
-  if (Math.abs(y) <= Math.abs(x) * Math.tan(Math.PI / 8)) return { x: sx, y: 0 };
-  return { x: sx * Math.SQRT1_2, y: Math.sign(y) * Math.SQRT1_2 };
+export function sideAim(x: number, _y: number, facing: number): { x: number; y: number } {
+  // every attack and skill goes to the left or the right only (never into the depth or a corner); the hit's own width
+  // (a swing's arc, a beam's breadth, a spell's area) is what reaches a little up and down the floor
+  return { x: Math.abs(x) < 1e-6 ? (facing < 0 ? -1 : 1) : Math.sign(x), y: 0 };
 }
 /** Side-view facing for any stored/remote direction value. */
 export const sideDir = (d: Dir | string): Dir => (d === 'left' ? 'left' : 'right');
