@@ -60,6 +60,9 @@ const hash = (s: string, seed: number): number => {
   return h;
 };
 
+/** A stage by its id (the stage select's choice). */
+export function stageById(id: string | undefined | null): Stage | undefined { return STAGES.find((s) => s.id === id); }
+
 /** The stage of a room (the same on every screen in it): a place, then one of its moods. */
 export function stageOf(room: string | undefined | null): Stage {
   const places = [...new Set(STAGES.map((s) => s.place))];

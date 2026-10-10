@@ -50,7 +50,7 @@ import { classColor, heroArt, heroVsPortrait } from '../pvp/Fighters';
 import { TAG_SCALE, fighterTag, tagFontsReady } from '../pvp/FighterTag';
 import { LoadSide, showArenaLoading, takeArenaLoading } from '../ui/ArenaLoading';
 import { StageFx } from '../world/StageFx';
-import { Stage, stageOf } from '../world/Stages';
+import { Stage, stageById, stageOf } from '../world/Stages';
 /** '#rrggbb' as a number. */
 const colorNum = (c: string): number => parseInt(c.slice(1), 16);
 import { ComboGuide } from '../ui/ComboGuide';
@@ -429,14 +429,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   preload(): void {
     const T = ATLAS.textures, CT = COMBAT_ASSETS.textures;
     // The world holds only your own class; the PvP arena can hold any class (other players, the sparring knight).
-    const sd = this.sys.settings.data as { pvpRoom?: string; fighter?: Character; botCls?: string; foe?: LoadSide } | undefined;
+    const sd = this.sys.settings.data as { pvpRoom?: string; fighter?: Character; botCls?: string; foe?: LoadSide; stage?: string } | undefined;
     const pvp = !!sd?.pvpRoom;
     const me = sd?.fighter ?? CharacterStore.getSelectedCharacter(); // (the PvP select's fighter)
     const cls = me ? playedClass(me) : undefined; // the class actually played (Beginner = warrior base)
     const classes = pvp || !cls ? undefined : [cls];
     // Weapon masks only when your own look already needs them (others load on first need).
     const masks = me && cls && wantsWeaponMasks(cls, CharacterStore.getCosmetics(me.id).equipped as Equipped) ? [cls] : [];
-    this.stage = pvp ? stageOf(sd?.pvpRoom) : undefined;
+    this.stage = pvp ? stageById(sd?.stage) ?? stageOf(sd?.pvpRoom) : undefined; // (VS CPU: the stage picked on the select screen)
     if (this.stage) { if (!this.textures.exists(this.stage.key)) this.load.image(this.stage.key, this.stage.file); } // the arena: its stage's painting
     else preloadOpenWorld(this); // the open world: the start area and its neighbours (the rest streams in)
     if (!this.textures.exists(CT.dummy.key)) this.load.image(CT.dummy.key, CT.dummy.file);
