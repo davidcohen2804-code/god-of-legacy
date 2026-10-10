@@ -524,6 +524,12 @@ const heroKey = (cls: string) => `hero-${cls}`;
 export const HERO_HEIGHT = 124;
 /** How much taller a hero stands than the 124 px the heights over the head (name, bar, numbers, calls) were set for. */
 export const HERO_LIFT = HERO_HEIGHT - 124;
+/** Every hero's drawing fitted to one body: the eyes of each class 120 world px over the feet (measured on the idle
+ *  frames — the drawings came out between 101 and 132), so the whole cast stands the same height. Re-measure after a
+ *  class gets a new idle drawing. */
+const HERO_FIT: Record<string, number> = { warrior: 0.907, samurai: 1.049, archer: 1.075, book_mage: 1.182, gambler: 0.935 };
+/** A hero drawing's scale in the world (atlas px to world px). */
+const heroScale = (cls: string): number => (HERO_HEIGHT / HEROES[cls].h) * (HERO_FIT[cls] ?? 1);
 export const isHeroClass = (cls: string): boolean => !!HEROES[cls];
 /** Portrait of a ready hero: the face cut from its card (image w / h, square at x, y of size). */
 /** A hero frame's rectangle and feet anchor in its atlas (for effects fitted to that drawing). */
@@ -628,7 +634,7 @@ function heroFrame(cls: string, dir: Dir, act: string, i: number): PoseFrame {
   const list = h.actions[act] ?? h.actions.stance ?? h.actions.idle;
   const name = h.actions[act] ? act : h.actions.stance ? 'stance' : 'idle';
   const idx = ((Math.floor(i) % list.length) + list.length) % list.length, f = list[idx];
-  const k = HERO_HEIGHT / h.h, flip = dir === 'left', b = f[6];
+  const k = heroScale(cls), flip = dir === 'left', b = f[6];
   // the sword line (Radiant Blade grows its light blade along it), mirrored when facing left
   const blade = b ? [b[0] * k * (flip ? -1 : 1), b[1] * k, b[2] * k * (flip ? -1 : 1), b[3] * k] : null;
   return { key: heroKey(cls), frame: `${name}-${idx}`, wkey: `${heroKey(cls)}-w`, ox: flip ? 1 - f[4] / f[2] : f[4] / f[2], oy: f[5] / f[3], scale: k, flip, anchor: null, top: HERO_HEIGHT, blade }; // Phaser mirrors a flipped frame about its middle, not its origin: the feet point is mirrored with it
@@ -646,7 +652,7 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
       if (q.state === 'alert') return { ...H('stance', 0), cloth: true };
       { // the legs keep pace with the ground: one cycle per the distance its two widest strides carry the body (no sliding feet)
         const st = q.state === 'walk' ? 'walk' : 'run', h = HEROES[cls], n = h.actions[st].length;
-        const dist = (h.cycle?.[st] ?? h.h) * (HERO_HEIGHT / h.h), sp = Math.max(st === 'walk' ? 120 : 180, q.speed);
+        const dist = (h.cycle?.[st] ?? h.h) * heroScale(cls), sp = Math.max(st === 'walk' ? 120 : 180, q.speed);
         return H(st, (q.t * n * sp) / dist / 1000);
       }
     case 'jump': {
