@@ -8,29 +8,9 @@
   "hip_x": 384,
   "animations": {
     "walk": {
-      "frames": [
-        "walk_01.png",
-        "walk_02.png",
-        "walk_03.png",
-        "walk_04.png",
-        "walk_05.png",
-        "walk_06.png",
-        "walk_07.png",
-        "walk_08.png"
-      ],
-      "loop": true,
-      "fps": 10,
-      "cycle_px": null,
-      "cycle_px_estimate": 909.76,
-      "cycle_px_status": "unvalidated: support speed is not constant",
-      "support_delta_px": [
-        -126.75,
-        -48.27,
-        -167.05,
-        -109.6,
-        -36.4,
-        -194.25
-      ]
+      "frames": 34,
+      "cycle_canvas": 361.50005338620844,
+      "source": "magnific video"
     },
     "run": {
       "frames": [
@@ -85,6 +65,10 @@
         100,
         100
       ]
+    },
+    "idle": {
+      "frames": 38,
+      "fps": 15
     }
   }
 }

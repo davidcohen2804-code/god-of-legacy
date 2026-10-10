@@ -639,7 +639,10 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
   switch (q.k) {
     case 'loop':
       // standing: one still drawing (separately painted idle frames make the whole body tremble); only the cloth moves
-      if (q.state === 'idle') return { ...H('idle', 0), cloth: true };
+      if (q.state === 'idle') { // painted breathing loop when there is one (15 fps), else one still drawing + the cloth
+        const n = HEROES[cls].actions.idle.length;
+        return n > 1 ? H('idle', Math.floor((q.t * 15) / 1000) % n) : { ...H('idle', 0), cloth: true };
+      }
       if (q.state === 'alert') return { ...H('stance', 0), cloth: true };
       { // the legs keep pace with the ground: one cycle per the distance its two widest strides carry the body (no sliding feet)
         const st = q.state === 'walk' ? 'walk' : 'run', h = HEROES[cls], n = h.actions[st].length;
