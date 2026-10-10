@@ -7,9 +7,11 @@ import { WORLD_OBJECTS, type Pt, type WorldObject } from './WorldGeometry';
  *  open for good. Drawn in narrow columns, each at the depth of the gate's foot line where it stands (whoever is in front
  *  of a part of it is drawn over that part), its posts and doors solid. */
 const COLS = 32;
+const RAIL_DEPTH = 352.95;  // over Ivy Heights' floor and whoever stands up there (their band: 352 and a little)
 const BACK = 48;     // how deep its walls, pillars and doors stand behind their painted base (world px)
 
-export const SUN_GATE = GATE as { img: { closed: string; open: string }; x: number; y: number; w: number; h: number; sx: number; sy: number; back: [number, number]; front: [number, number]; doors: [number, number]; foot: [number, number][] };
+export const SUN_GATE = GATE as unknown as { img: { closed: string; open: string }; x: number; y: number; w: number; h: number; sx: number; sy: number; back: [number, number]; front: [number, number]; doors: [number, number]; foot: [number, number][];
+  rail: { img: string; x: number; y: number; w: number; h: number; sx: number; sy: number; x0: number; x1: number } };
 /** The gate line's x at depth y (its foot line, extended). */
 export const sunGateX = (y: number): number => {
   const [bx, by] = SUN_GATE.back, [fx, fy] = SUN_GATE.front;
@@ -37,13 +39,17 @@ const solid = (id: string, foot: Pt[]): WorldObject => ({ id, footprint: foot, h
 
 export class SunGate {
   private cols: Phaser.GameObjects.Image[] = [];
+  private rail?: Phaser.GameObjects.Image;
   private isOpen: boolean;
 
   constructor(private scene: Phaser.Scene, open: boolean) {
     this.isOpen = open;
     const load = (k: 'closed' | 'open') => `sun-gate-${k}`;
     const make = () => {
-      if (!scene.textures.exists(load('closed')) || !scene.textures.exists(load('open')) || this.cols.length) return;
+      if (!scene.textures.exists(load('closed')) || !scene.textures.exists(load('open')) || !scene.textures.exists('sun-gate-rail') || this.cols.length) return;
+      // the balustrade on Ivy Heights' corner above it: on that floor's front edge, before whoever stands up there
+      const r = SUN_GATE.rail;
+      this.rail = scene.add.image(r.x, r.y, 'sun-gate-rail').setOrigin(0, 0).setScale(r.sx, r.sy).setDepth(RAIL_DEPTH);
       const cw = Math.ceil(SUN_GATE.w / COLS);
       for (let i = 0; i < COLS; i++) {
         const x0 = i * cw, mid = SUN_GATE.x + (x0 + cw / 2) * SUN_GATE.sx;
@@ -54,7 +60,8 @@ export class SunGate {
       }
     };
     for (const k of ['closed', 'open'] as const) if (!scene.textures.exists(load(k))) scene.load.image(load(k), SUN_GATE.img[k]);
-    if (scene.textures.exists(load('closed')) && scene.textures.exists(load('open'))) make();
+    if (!scene.textures.exists('sun-gate-rail')) scene.load.image('sun-gate-rail', SUN_GATE.rail.img);
+    if (scene.textures.exists(load('closed')) && scene.textures.exists(load('open')) && scene.textures.exists('sun-gate-rail')) make();
     else { scene.load.on(Phaser.Loader.Events.COMPLETE, make); if (!scene.load.isLoading()) scene.load.start(); }
     this.solids();
   }
@@ -75,13 +82,15 @@ export class SunGate {
   /** Its solid parts in the world: the walls and pillars always, the doors while closed. */
   private solids(): void {
     for (let i = WORLD_OBJECTS.length - 1; i >= 0; i--) if (WORLD_OBJECTS[i].id.startsWith('sun-gate')) WORLD_OBJECTS.splice(i, 1);
-    const f = SUN_GATE.foot, x0 = f[0][0], x1 = f[f.length - 1][0], [d0, d1] = SUN_GATE.doors;
+    const f = SUN_GATE.foot, x0 = f[0][0], x1 = f[f.length - 1][0], [d0, d1] = SUN_GATE.doors, r = SUN_GATE.rail;
+    // the balustrade up on Ivy Heights' front edge: too high to jump over
+    WORLD_OBJECTS.push({ ...solid('sun-gate-rail', [[r.x0, 334], [r.x1, 334], [r.x1, 352], [r.x0, 352]]), height: 480 });
     if (!this.isOpen) WORLD_OBJECTS.push(...strips('sun-gate', x0, x1, 30, 40));
     else WORLD_OBJECTS.push(...strips('sun-gate-back', x0, d0 + 26, 30, 0), ...strips('sun-gate-front', d1 - 26, x1, 0, 40));
   }
 
   destroy(): void {
-    for (const c of this.cols) c.destroy(); this.cols = [];
+    for (const c of this.cols) c.destroy(); this.cols = []; this.rail?.destroy();
     for (let i = WORLD_OBJECTS.length - 1; i >= 0; i--) if (WORLD_OBJECTS[i].id.startsWith('sun-gate')) WORLD_OBJECTS.splice(i, 1);
   }
 }

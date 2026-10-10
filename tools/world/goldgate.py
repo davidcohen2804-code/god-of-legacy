@@ -70,5 +70,14 @@ line = lambda x: by0 + (fy0 - by0) * (x - bx0) / (fx0 - bx0)
 ys = np.array([min(max(y, line(x) - 30), line(x) + 30) for x, y in foot])
 ys = np.array([np.median(ys[max(0, i - 3):i + 4]) for i in range(len(ys))])
 data['foot'] = [[x, round(float(y), 1)] for (x, _), y in zip(foot, ys)]
+# the balustrade GPT added on Ivy Heights' corner above it (painted into ref_corner.png, whose camera is here): nobody
+# steps or jumps down from up there onto the gate
+CV = json.load(open(G + 'goldgate/ref_corner_view.json'))
+rail = key(G + 'goldgate/iso_rail.png'); ys, xs = np.nonzero(rail[..., 3] > 8)
+rb = (int(max(0, xs.min() - 4)), int(max(0, ys.min() - 4)), int(xs.max() + 5), int(ys.max() + 5))
+Image.fromarray(rail[rb[1]:rb[3], rb[0]:rb[2]], 'RGBA').save(OUT + 'rail.png', optimize=True)
+rsx, rsy = CV['w'] / rail.shape[1], CV['h'] / rail.shape[0]
+data['rail'] = {'img': 'assets/world/goldgate/rail.png', 'x': round(CV['x'] + rb[0] * rsx, 1), 'y': round(CV['y'] + rb[1] * rsy, 1), 'w': rb[2] - rb[0], 'h': rb[3] - rb[1],
+                'sx': round(rsx, 5), 'sy': round(rsy, 5), 'x0': round(CV['x'] + xs.min() * rsx, 1), 'x1': round(CV['x'] + xs.max() * rsx, 1), 'base': round(CV['y'] + ys.max() * rsy, 1)}
 json.dump(data, open(R + 'src/data/world-goldgate.json', 'w'), indent=1)
 print(data)

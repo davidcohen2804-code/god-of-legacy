@@ -178,7 +178,7 @@ const skyUnder = () => {
   // range's fence): the maps above's floors reach further back up there, never down here
   const ivy = HEIGHTS_RAW.find((h) => h.x <= SKY.lane[0] && h.x + h.w > SKY.lane[0]), x0 = ivy ? ivy.x + ivy.w + 4 : SKY.lane[0];
   return [{ id: 'lane-under', foot: [[SKY.lane[0], -3000], [SKY.lane[1], -3000], [SKY.lane[1], 0], [SKY.lane[0], 0]] as Pt[], h: 2 },
-    { id: 'lane-under-back', foot: [[x0, -3000], [SKY.lane[1] - 400, -3000], [SKY.lane[1] - 400, 326], [x0, 326]] as Pt[], h: 360 }];   // (as high as Ivy Heights: nobody steps off its end down in there either)
+    { id: 'lane-under-back', foot: [[x0, -3000], [SKY.lane[1] - 400, -3000], [SKY.lane[1] - 400, 326], [x0, 326]] as Pt[], h: 480 }];   // (higher than a jump off Ivy Heights: nobody drops down in there from its end either)
 };
 const cloudProps = () => CLOUDS.map((c, i) => ({ id: `sky-${i}`, foot: [[c.x0, SKY.band[0]], [c.x1, SKY.band[0]], [c.x1, SKY.band[1]], [c.x0, SKY.band[1]]] as Pt[],
   base: [[c.x0, SKY.band[0]], [c.x1, SKY.band[0]], [c.x1, SKY.band[1]], [c.x0, SKY.band[1]]] as Pt[], h: c.z, top: c.z, soft: true, stand: [SKY.band[0], SKY.band[1]] as [number, number] }));
