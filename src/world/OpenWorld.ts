@@ -3,6 +3,7 @@
 // and platforms you jump on, pillars you walk behind), the NPC, the monsters of every area and the Temple portal. The camera
 // follows the player; walking from one area into the next is just walking on (its name shows as you cross into it).
 // Combat with the monsters and the quests stay in the scene.
+import { SunGate } from './SunGate';
 import Phaser from 'phaser';
 import PROPS from '../data/world-props.json';
 import NPC_ART from '../data/npc-sprites.json';
@@ -42,6 +43,8 @@ interface NpcView { def: AreaNpc; area: string; x: number; y: number; top: numbe
 export interface WorldHooks {
   /** The player walked into another area (its title). */
   onArea: (area: AreaDef) => void;
+  /** The Sun Gate starts open (the sun already crossed). */
+  sunGateOpen?: boolean;
 }
 
 /** The picture tiles within `reach` px of world x. */
@@ -103,10 +106,13 @@ export class OpenWorld {
   near: { kind: 'npc'; npc: AreaNpc } | { kind: 'portal' } | null = null;
   /** Set by the scene: an NPC was clicked. */
   onNpcClick?: (n: AreaNpc) => void;
+  /** The Sun Gate across the terrace (closed until the sun over Sunfall Pass is crossed). */
+  readonly sunGate: SunGate;
 
   constructor(private scene: Phaser.Scene, private hooks: WorldHooks, start: { x: number; y: number }) {
     this.area = this.areaOf(start.x, start.y);
     setWorldGeometry(WORLD_FLOOR, worldObjects());
+    this.sunGate = new SunGate(scene, !!hooks.sunGateOpen);
     TILES.forEach((_, i) => this.ensureTile(i));
     ARENA.tiles.forEach((_, i) => this.ensureArenaTile(i));
     scene.load.on(Phaser.Loader.Events.FILE_COMPLETE, this.onFile, this);
@@ -581,6 +587,7 @@ export class OpenWorld {
   }
 
   destroy(): void {
+    this.sunGate.destroy();
     this.scene.load.off(Phaser.Loader.Events.FILE_COMPLETE, this.onFile, this);
     for (const m of this.mobs) m.destroy();
     this.mobs = [];

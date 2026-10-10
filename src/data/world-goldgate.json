@@ -1,0 +1,18 @@
+{
+ "img": {
+  "closed": "assets/world/goldgate/closed.png",
+  "open": "assets/world/goldgate/open.png"
+ },
+ "x": 4944.4,
+ "y": -18.1,
+ "w": 401,
+ "h": 707,
+ "back": [
+  5020,
+  336
+ ],
+ "front": [
+  5286.1,
+  664.0
+ ]
+}
