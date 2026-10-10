@@ -159,6 +159,7 @@ export function settleOnBlocks(k: Kin, ms: number, moveY: number, own = false): 
     if (want !== k.y) k.y += Math.min(Math.max(want - k.y, -step), step);
     return;
   }
+  let pulled = false;   // one forgiving pull a frame (two blocks side by side never pull twice as far)
   for (const o of WORLD_OBJECTS) {
     if (!o.stand || o.topZ === undefined) continue;
     if (o.soft && k.z < o.topZ - 1) continue;   // a cloud: nothing to bump into below its top
@@ -184,11 +185,11 @@ export function settleOnBlocks(k: Kin, ms: number, moveY: number, own = false): 
     }
     // Forgiving landing (a jump a little in front of a block, or a little behind it): at or above its top and over its
     // width, the feet are drawn onto its top face, so a jump at a block never just misses it by a few px of depth.
-    if (own && o.id !== k.from && k.vz <= 120 && k.x > x0 + 6 && k.x < x1 - 6 && k.z >= o.topZ - 12 && !pointInPoly(k.x, k.y, o.footprint)) {
+    if (own && !pulled && o.id !== k.from && k.vz <= 120 && k.x > x0 + 6 && k.x < x1 - 6 && k.z >= o.topZ - 12 && !pointInPoly(k.x, k.y, o.footprint)) {
       const gap = k.y >= y1 ? k.y - y1 : y0 - k.y, toward = k.y >= y1 ? -1 : 1;   // only when moving toward it (or not moving in depth)
       if (gap >= 0 && gap < LAND_FORGIVE && (moveY === 0 || Math.sign(moveY) === toward) && footAllowed(k.x, k.y >= y1 ? y1 - 2 : y0 + 2, Math.max(k.z, o.topZ), PHYS.footR, k)) {
         const to = k.y >= y1 ? y1 - 2 : y0 + 2, step = Math.max(2, ms * 1.2);
-        k.y += Math.max(-step, Math.min(step, to - k.y)); k.vy *= 0.5;
+        k.y += Math.max(-step, Math.min(step, to - k.y)); k.vy *= 0.5; pulled = true;
       }
     }
     if (!own || o.id === k.from || !pointInPoly(k.x, k.y, o.footprint)) continue;

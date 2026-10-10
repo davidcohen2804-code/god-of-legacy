@@ -156,6 +156,8 @@ export const heightArea = (h: Heights): AreaDef => ({ id: h.id, name: h.name, x:
 const heightProps = () => HEIGHTS.flatMap((h) => [
   { id: h.id, foot: [[h.x, h.back], [h.x + h.w, h.back], [h.x + h.w, h.front], [h.x, h.front]] as Pt[], base: [[h.x, h.back], [h.x + h.w, h.back], [h.x + h.w, h.front], [h.x, h.front]] as Pt[],
     h: h.H, top: h.H, stand: [h.back + 4, h.front - 3] as [number, number] },
+  // the ground behind it is out of sight (behind its picture): a wall there, nobody walks in behind it from its ends
+  { id: `${h.id}-behind`, foot: [[h.x - 40, -3000], [h.x + h.w + 40, -3000], [h.x + h.w + 40, h.back], [h.x - 40, h.back]] as Pt[], h: h.H },
   ...h.blocks.map((b) => {
     const s0 = b.front - b.depth, back = s0 - b.h + FOOT_R - EDGE;
     return { id: `${h.id}-${b.id}`, foot: [[b.x0, back], [b.x1, back], [b.x1, b.front], [b.x0, b.front]] as Pt[], base: [[b.x0, s0], [b.x1, s0], [b.x1, b.front], [b.x0, b.front]] as Pt[],
@@ -170,10 +172,12 @@ export const CLOUDS: SkyCloud[] = SKY.path.map((c) => ({ x0: c.x[0], x1: c.x[1],
 export const SKY_AREA: AreaDef = { id: 'sky_path', name: SKY.name, x: SKY.lane[0], span: [SKY.lane[0], SKY.lane[1]], walk: [], props: [] };
 /** Falling between the clouds: below this height you drop through to the floor under the lane. */
 export const SKY_DROP = Math.min(...SKY.path.map((c) => c.z)) - 60;
+/** Under the Sky Path the terrace floor runs back past its picture's edge (out of sight): nobody walks in there. */
+const skyUnder = () => [{ id: 'lane-under', foot: [[SKY.lane[0], -3000], [SKY.lane[1], -3000], [SKY.lane[1], 0], [SKY.lane[0], 0]] as Pt[], h: 2 }];
 const cloudProps = () => CLOUDS.map((c, i) => ({ id: `sky-${i}`, foot: [[c.x0, SKY.band[0]], [c.x1, SKY.band[0]], [c.x1, SKY.band[1]], [c.x0, SKY.band[1]]] as Pt[],
   base: [[c.x0, SKY.band[0]], [c.x1, SKY.band[0]], [c.x1, SKY.band[1]], [c.x0, SKY.band[1]]] as Pt[], h: c.z, top: c.z, soft: true, stand: [SKY.band[0], SKY.band[1]] as [number, number] }));
 export function worldObjects(): WorldObject[] {
-  return ([...STRIP.props, ...GATE.props, ...towerProps(), ...heightProps(), ...cloudProps()] as { id: string; foot: Pt[]; base?: Pt[]; h: number; top?: number; soft?: boolean; stand?: [number, number] }[]).map((p) => ({
+  return ([...STRIP.props, ...GATE.props, ...towerProps(), ...heightProps(), ...cloudProps(), ...skyUnder()] as { id: string; foot: Pt[]; base?: Pt[]; h: number; top?: number; soft?: boolean; stand?: [number, number] }[]).map((p) => ({
     id: p.id, footprint: p.stand && p.base ? p.base : p.foot, height: p.h, ...(p.top !== undefined ? { topZ: p.top } : {}), ...(p.stand ? { stand: p.stand } : {}),
     ...(p.base ? { base: p.base } : {}), ...(p.soft ? { soft: true } : {}),
     cover: 'hard' as const, occluder: [], frontY: Math.max(...p.foot.map((q) => q[1])) + 1,

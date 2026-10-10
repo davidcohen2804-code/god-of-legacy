@@ -377,7 +377,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private cloudOn = false; private cloudCrossed = false; private cloudEnd = 0;
   private cloudSprite?: Phaser.GameObjects.Image; private sunTick = 0; private sunGlare?: Phaser.GameObjects.Rectangle; private sunWarned = 0;
   /** The height last stood on (the Sky Path's fall-through: only off a cloud). */
-  private lastGroundZ = 0;
+  /** Last stood on a cloud (a Sky Path cloud or a cloud map): a fall from it goes on down to the floor under the lane. */
+  private lastGroundSky = false;
   /** Touching monsters: not again before this (sim ms). */
   private touchUntil = -1;
   private motes?: Phaser.GameObjects.Container;
@@ -852,8 +853,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     // the Sky Path: fallen between its clouds, below them — on down to the floor under the lane (Ivy Heights where it runs
     // under, else the terrace), kept where it is on screen (y and height shifted together)
-    if (k.grounded) this.lastGroundZ = k.supportZ;
-    if (!k.grounded && k.vz < 0 && k.z < SKY_DROP && k.z > 200 && this.lastGroundZ >= SKY_DROP && !HEIGHTS.some((h) => h.H === this.lastGroundZ) && k.y < SKY.band[1] + 8 && k.x > SKY.lane[0] - 4 && k.x < SKY.lane[1] + 40) {
+    if (k.grounded) this.lastGroundSky = !!k.supportId && (k.supportId.startsWith('sky-') || k.supportId === 'ivy_summit' || !!HEIGHTS.find((h) => k.supportId!.startsWith(h.id) && h.cloud));
+    if (!k.grounded && k.vz < 0 && k.z < SKY_DROP && k.z > 200 && this.lastGroundSky && k.y < SKY.band[1] + 8 && k.x > SKY.lane[0] - 4 && k.x < SKY.lane[1] + 40) {
       const ivy = HEIGHTS.find((h) => h.id === 'ivy_heights'), ty = ivy && k.x < ivy.x + ivy.w - 22 ? ivy.front - 40 : 400, d = ty - k.y;
       k.y += d; k.z += d;
     }
