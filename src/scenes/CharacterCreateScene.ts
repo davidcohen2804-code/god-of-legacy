@@ -10,6 +10,8 @@ import MENU_LOOK from '../data/menu-look.json';
  *  over the head — one image each, all on the menu canvas (tools/base/naked_frames.py). The face and hairstyle
  *  buttons are pictures of this same look, redrawn with every choice. */
 const FIT = MENU_LOOK as Record<string, { fit: number }>;
+/** The new Beginner, painted like the ready heroes (one picture per body; a body without one still shows the old base). */
+const BEGINNER_ART: Record<string, string> = { male: 'assets/final/heroes/beginner/male.png' };
 
 // Background, pedestal and the dressed preview; all UI lives in CharacterCreateUI (DOM overlay).
 export class CharacterCreateScene extends Phaser.Scene {
@@ -19,6 +21,7 @@ export class CharacterCreateScene extends Phaser.Scene {
 
   preload(): void {
     queueLayers(this, [...lookFiles(FIRST_LOOK), ...lookIconLayers(FIRST_LOOK)]); // the first look shown and its buttons
+    for (const g of Object.keys(BEGINNER_ART)) this.load.image(`beginner.${g}`, BEGINNER_ART[g]);
   }
 
   create(): void {
@@ -33,9 +36,18 @@ export class CharacterCreateScene extends Phaser.Scene {
     // The new character: the clean base, dressed in the starter outfit with the chosen face, hair, skin and colours.
     const layers: Phaser.GameObjects.Image[] = [];
     let want: CreateLook = FIRST_LOOK, ver = 0;
+    const art = this.add.image(P.centerX, P.pedestalY + 8, '__DEFAULT').setOrigin(0.5, 1).setVisible(false);
     const apply = (v: number) => {
       if (v !== ver) return; // a newer choice is on its way
-      const l = want, files = lookFiles(l);
+      const l = want;
+      if (this.textures.exists(`beginner.${l.gender}`)) { // the painted Beginner on the pedestal
+        art.setTexture(`beginner.${l.gender}`).setVisible(true);
+        art.setScale((P.height * 0.86) / art.height);
+        layers.forEach((im) => im.setVisible(false));
+        return;
+      }
+      art.setVisible(false);
+      const files = lookFiles(l);
       const keys = files.map(([k, , toned]) => (toned ? toneTexture(this, k, l.skin) : this.textures.exists(k) ? k : null));
       if (keys.some((k) => !k)) return; // the rest still loading
       const s = (P.height * 0.84) / FIT[l.gender].fit; // sized by the figure (the canvas has room above for the hair)
