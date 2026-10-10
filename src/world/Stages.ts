@@ -47,13 +47,18 @@ const SAKURA_GEO: StageGeo = {
   centre: [840, 560],
 };
 
-/** The Lava Fortress: an eight-sided stone platform over a lava lake — its corners cut, open all round. */
+/** The Lava Fortress: an eight-sided stone platform over a lava lake — its corners cut, open all round — with an obsidian
+ *  obelisk in the middle to fight round and hide behind. */
 const LAVA_GEO: StageGeo = {
   floor: [[610, 300], [1140, 300], [1380, 402], [1506, 606], [1352, 790], [382, 790], [220, 606], [360, 402]],
-  props: [],
-  spawns: [[860, 740], [420, 700], [1300, 700], [660, 360], [1080, 360], [330, 560], [1400, 560], [860, 560]],
-  start: { y: 560, left: 732, right: 988 },
-  centre: [860, 560],
+  props: [
+    // the obelisk on the floor's emblem: its square base turned 45° (a diamond on the floor); tall cover, nobody stands on it
+    { id: 'obsidian-obelisk', footprint: [[866, 547], [918, 520], [866, 493], [814, 520]], height: 290, cover: 'hard', frontY: 547,
+      occluder: [[867, 259], [847, 294], [833, 472], [824, 476], [819, 484], [821, 506], [814, 520], [815, 524], [865, 548], [919, 523], [912, 501], [914, 483], [908, 475], [900, 472], [887, 296]] },
+  ],
+  spawns: [[860, 740], [420, 700], [1300, 700], [660, 360], [1080, 360], [330, 560], [1400, 560], [866, 640]],
+  start: { y: 640, left: 732, right: 1000 },
+  centre: [866, 650],
 };
 
 export const STAGES: Stage[] = [
