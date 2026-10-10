@@ -12,6 +12,7 @@ import { PvpSelectUI, VsMode } from '../ui/PvpSelectUI';
 import { score, scoreKey } from '../pvp/Score';
 import { addMotes, preloadLife } from '../ui/PresentationLife';
 import { FighterArt } from '../ui/FighterArt';
+import { stageById } from '../world/Stages';
 
 /** The select screen's backdrop: the arena's courtyard by night. */
 const SELECT_BG = 'pvp-select-bg';
@@ -20,6 +21,10 @@ export interface PvpSelectData { mode?: VsMode; p1?: string; p2?: string }
 
 export class PvpSelectScene extends Phaser.Scene {
   private ui?: PvpSelectUI;
+  /** The backdrop: the courtyard by night, or the stage chosen (its painting, the arena's own texture: loaded once). */
+  private bg?: Phaser.GameObjects.Image;
+  private bgKey = '';
+  private bgWant = '';
   private lobby?: PvpLobby;
   private hover = 'samurai';
   private arts?: Record<'l' | 'r', FighterArt>;
@@ -37,8 +42,8 @@ export class PvpSelectScene extends Phaser.Scene {
   create(data?: PvpSelectData): void {
     const mode: VsMode = data?.mode ?? 'cpu';
     this.cameras.main.fadeIn(240, 0, 0, 0);
-    const bg = this.add.image(DESIGN.width / 2, DESIGN.height / 2, this.textures.exists(SELECT_BG) ? SELECT_BG : ATLAS.textures.map.key);
-    bg.setScale(Math.max(DESIGN.width / bg.width, DESIGN.height / bg.height));
+    this.bg = undefined; this.bgKey = ''; this.bgWant = '';
+    this.swapBg(this.textures.exists(SELECT_BG) ? SELECT_BG : ATLAS.textures.map.key, false);
     this.add.image(0, 0, washTex(this)).setOrigin(0).setDisplaySize(DESIGN.width, DESIGN.height).setDepth(1);
     this.arts = { l: new FighterArt(this, 'l'), r: new FighterArt(this, 'r') };
     const sel = CharacterStore.getSelectedCharacter();
@@ -51,6 +56,7 @@ export class PvpSelectScene extends Phaser.Scene {
       copyLink: async () => { try { await navigator.clipboard.writeText(window.location.href); return true; } catch { return false; } },
       art: (s, cls, state) => this.arts?.[s].set(cls, state),
       lock: (s) => this.arts?.[s].lock(),
+      stage: (id) => this.backdrop(id),
     }, { mode, p1: this.hover, p2: data?.p2 });
     if (mode === 'player') this.openLobby(); else clearPvpFromUrl();
     this.ui.setScore(score(scoreKey(mode, this.lobby?.room)));
@@ -64,6 +70,30 @@ export class PvpSelectScene extends Phaser.Scene {
   }
 
   private layout(): void { this.ui?.layout(); }
+
+  /** The stage behind the whole screen (null: the courtyard by night): its painting, loaded the first time it is shown. */
+  private backdrop(id: string | null): void {
+    const st = id ? stageById(id) : undefined, key = st ? st.key : SELECT_BG;
+    this.bgWant = key;
+    if (this.textures.exists(key)) { this.swapBg(key); return; }
+    if (!st) return;
+    this.load.image(key, st.file);
+    this.load.once(`filecomplete-image-${key}`, () => { if (this.sys.isActive() && this.bgWant === key) this.swapBg(key); });
+    this.load.start();
+  }
+
+  /** The new backdrop fades in over the old one (a stage's painting a little darker: the fighters and the panels stay in front). */
+  private swapBg(key: string, fade = true): void {
+    if (key === this.bgKey) return;
+    const old = this.bg, img = this.add.image(DESIGN.width / 2, DESIGN.height / 2, key).setDepth(0);
+    img.setScale(Math.max(DESIGN.width / img.width, DESIGN.height / img.height));
+    if (key !== SELECT_BG && key !== ATLAS.textures.map.key) img.setTint(0x9c9c9c);
+    this.bg = img; this.bgKey = key;
+    if (!old) return;
+    if (!fade) { old.destroy(); return; }
+    img.setAlpha(0);
+    this.tweens.add({ targets: img, alpha: 1, duration: 320, ease: 'Sine.easeOut', onComplete: () => old.destroy() });
+  }
 
   /** VS PLAYER: the room of the link (or a new one, written into the link) and its select-screen channel. */
   private openLobby(): void {

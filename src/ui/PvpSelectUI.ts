@@ -33,6 +33,8 @@ export interface PvpSelectHandlers {
   art(side: 'l' | 'r', cls: string | null, state: ArtState): void;
   /** A side's fighter was just locked in (the flash). */
   lock(side: 'l' | 'r'): void;
+  /** The stage behind the whole screen: the one chosen (VS CPU; at GET READY the one RANDOM drew), null: none. */
+  stage?(id: string | null): void;
 }
 
 const STYLE_ID = 'gol-ps-style';
@@ -248,7 +250,11 @@ export class PvpSelectUI {
     window.addEventListener('keydown', this.onKey);
     this.render();
     this.layout();
+    this.h.stage?.(this.mode === 'cpu' ? this.stageId() : null);
   }
+
+  /** The chosen stage's id (null: RANDOM). */
+  private stageId(): string | null { return this.stage === RANDOM ? null : STAGES[this.stage].id; }
 
   /** Keep the overlay on the canvas (every frame; cheap). */
   layout(): void { this.lastRect = syncOverlay(this.root, this.host, this.canvas, this.lastRect); }
@@ -274,6 +280,7 @@ export class PvpSelectUI {
     if (this.going || m === this.mode) return;
     this.mode = m; this.active = 'p1'; this.p1.pick = null; this.p2.pick = null; this.remote = null;
     this.h.mode(m);
+    this.h.stage?.(m === 'cpu' ? this.stageId() : null);
     this.sendLocal();
     this.render();
   }
@@ -289,6 +296,7 @@ export class PvpSelectUI {
     if (this.going || this.mode !== 'cpu') return;
     this.stage = lastStage = (i + CARDS) % CARDS;
     this.render();
+    this.h.stage?.(this.stageId());
   }
 
   private point(i: number): void { const s = this.side(); if (!s || s.hover === i) return; s.hover = i; this.sendLocal(); this.render(); }
@@ -342,6 +350,7 @@ export class PvpSelectUI {
     if (this.mode === 'cpu') { // the stage chosen, or RANDOM drawn now (the row shows which before the arena)
       const k = this.stage === RANDOM ? Math.floor(Math.random() * STAGES.length) : this.stage;
       this.drawn = k; stage = STAGES[k].id;
+      this.h.stage?.(stage);   // (RANDOM: the stage it drew comes up behind GET READY)
     }
     this.going = true;
     this.render();
