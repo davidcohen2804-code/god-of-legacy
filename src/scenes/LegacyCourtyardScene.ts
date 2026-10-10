@@ -287,7 +287,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Iron Grip: the foe is held in the fist between the seize and the slam. */
   private gripHeld = false;
   /** Detached lingering strikes (Ground Breaker cracks, Blade Storm phantom blades) of own casts. */
-  private lingers: { run: CastRun; x: number; y: number; next: number; left: number }[] = [];
+  private lingers: { run: CastRun; x: number; y: number; next: number; left: number; struck?: Set<string> }[] = [];
   private cryAura?: Phaser.GameObjects.Image;
   private cryFire?: Phaser.GameObjects.Particles.ParticleEmitter[];
   private cryBody?: Phaser.GameObjects.Sprite;
@@ -1516,7 +1516,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
           for (let n = 0; n < 2; n++) { const a = (l.left * 2.4 + n * Math.PI) + (Math.random() - 0.5) * 0.9, rr = 70 + Math.random() * (L.radius - 40); this.fx!.risingBlade(l.x + Math.cos(a) * rr, l.y + Math.sin(a) * rr * 0.6, n * 90); }
         }
         else if (l.run.skill.cls === 'gambler') this.fx!.gambleZone(l.run.skill.id, l.x, l.y, L.radius); // (the gambler's floor eruption / thrown-foe bomb: GamblerFx)
-        else if (l.run.skill.id !== 'ground_breaker' && l.run.skill.id !== 'tornado_blade' && l.run.skill.id !== 'rain_of_arrows' && l.run.skill.id !== 'titans_verdict') this.fx!.crack(l.x, l.y, L.radius); // (Thunder Rain: the charged floor is drawn by ArcherFx) // the quake has one steady rotating ring instead of per-tick sparks; the tornado is its own picture
+        else if (l.run.skill.id !== 'ground_breaker' && l.run.skill.id !== 'tornado_blade' && l.run.skill.id !== 'rain_of_arrows' && l.run.skill.id !== 'titans_verdict' && l.run.skill.id !== 'leaping_arrow') this.fx!.crack(l.x, l.y, L.radius); // (Thunder Rain: the charged floor is drawn by ArcherFx) // the quake has one steady rotating ring instead of per-tick sparks; the tornado is its own picture
         if (l.run.skill.id === 'ground_breaker' && l.run.own && this.dead < 0) { // the quake mends the warrior: +2 HP per pulse
           const max = this.maxHpNow(), before = this.playerHP;
           this.playerHP = Math.min(max, this.playerHP + 2);
@@ -1527,7 +1527,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const zr = { ...l.run, origin: { x: l.x, y: l.y, z: 0 }, zone: true } as CastRun; // hits come from the zone, not the caster
         for (const t of this.targetsFor(l.run)) {
           if (!t.alive || t.invulnerable || t.id === l.run.attackerId) continue;
-          if (Math.hypot(t.x - l.x, t.y - l.y) > L.radius + t.radius || t.z > L.maxZ) continue;
+          if (L.line) { const a = l.run.aim, ox = t.x - l.x, oy = t.y - l.y, al = ox * a.x + oy * a.y, side = Math.abs(-ox * a.y + oy * a.x);
+            if (al < -t.radius || al > L.line.length + t.radius || side > L.line.width / 2 + t.radius || t.z > L.maxZ) continue; }
+          else if (Math.hypot(t.x - l.x, t.y - l.y) > L.radius + t.radius || t.z > L.maxZ) continue;
+          if (L.once) { const st = (l.struck ??= new Set()); if (st.has(t.id)) continue; st.add(t.id); this.fx?.trapCatch(l.run.skill.id, { x: t.x, y: t.y, z: t.z }); }
           const at = { x: t.x, y: t.y, z: t.z + 40 };
           if (l.run.own) { if (t.kind === 'enemy') this.applyToPve(zr, L.hit, t, at); else if (t.id === BOT_ID) this.applyToBot(zr, L.hit, t, at); } // remote players resolve your zone on their side
           else if (t.id === this.localId) this.applyRemoteHitToSelf(zr, L.hit, 0, at); // another player's / the knight's zone on you

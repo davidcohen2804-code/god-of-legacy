@@ -418,6 +418,9 @@ export class ArcherFx {
         if (k % 2 === 0) this.floor('root_tangle', cx, cy, rnd(70, 100), 4000 - dl, { delay: dl + 60, run: r, depth: GROUND + 2.4, s: kf([0, 0.1], [0.15, 1, out3]), a: kf([0, 0], [0.08, 0.7], [0.9, 0.7], [1, 0]) });
         this.later(dl, () => this.leaves(cx, cy - 4, 3, 50, { life: 900 }), r);
       }
+      // the leaves stay on the floor as a carpet (about 3s): whoever lands on it is caught
+      for (let k = 0; k < 4; k++) { const d = 75 + k * 150, cx = o.x + a.x * d, cy = o.y + a.y * d; if (!clearLine(o.x, o.y, cx, cy, 30)) break;
+        this.floor('leaf_carpet', cx, cy, 230, 3400, { delay: (k / 4) * grow, angle: lv.ang, depth: GROUND + 2.2, s: kf([0, 0.4], [0.08, 1, out3]), a: kf([0, 0], [0.06, 0.9], [0.85, 0.8], [1, 0]) }); }
       this.later(grow * 0.5, () => this.shake(r, 120, 0.002), r);
     }, r);
   }
@@ -552,6 +555,20 @@ export class ArcherFx {
     this.ctx.scene.tweens.add({ targets: im, alpha: 1, duration: 300 });
     const life = L ? L.startMs + L.everyMs * L.count : 20000;
     this.hawks.set(r.attackerId, { until: this.ctx.scene.time.now + life, t: 0, px: q.x, py: q.y - q.z - 110, vx: 0, vy: 0, wx: q.x, wy: q.y - q.z - 110, next: 0, face: sideOf(r), dive: null, im });
+  }
+  /** Leaves on the floor snap round a foe that lands on them; the charged floor strikes one that lands on it. */
+  trapCatch(skillId: string, at: V3): void {
+    if (!this.ready) return;
+    const x = at.x, y = at.y;
+    if (skillId === 'leaping_arrow') {
+      this.spr({ name: 'vine_snare', x, y: y + 8, oy: 0.97, depth: y + 3, w: 150, life: 2200, glow: 0.25, sy: kf([0, 0.1], [0.08, 1.08, out3], [0.15, 1]), a: kf([0, 1], [0.85, 1], [1, 0]) }); // vines snap up round him
+      this.spr({ name: 'vine_grab', x, y: y - 34, depth: y + 4, w: 96, life: 2200, glow: 0.2, sx: kf([0, 1.6], [0.08, 1, out3]), a: kf([0, 0], [0.05, 1], [0.85, 1], [1, 0]) }); // and coil tight round the body
+      this.floor('shock_ring', x, y, 140, 360, { add: true, s: kf([0, 0.4], [1, 1.2, out3]), a: kf([0, 1], [1, 0]) });
+      this.leaves(x, y - 20, 10, 40, { up: 120, life: 700 });
+    } else if (skillId === 'rain_of_arrows') {
+      this.spr({ name: 'strike', x, y: y + 8, oy: 0.97, depth: y + 3, w: 140, h: 360, life: 260, add: true, glow: 0.4, sy: kf([0, 0.2], [0.15, 1.05, out3]), a: kf([0, 1], [1, 0, inQ]) });
+      this.spr({ name: 'elec_burst', x, y: y - 30, depth: y + 4, w: 150, add: true, life: 240, sx: kf([0, 0.4], [0.3, 1.1, out3]), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) });
+    }
   }
   hawkDive(id: string, to: V3): void { const h = this.hawks.get(id); if (h) h.dive = { x: to.x, y: to.y - to.z - 30, d: to.y, t: 0 }; }
   private stepHawks(ms: number): void {

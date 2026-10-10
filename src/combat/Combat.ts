@@ -435,6 +435,11 @@ export class CombatBody {
       this.levityUntil = Math.max(this.levityUntil, now + R.levity); this.push = null; out.rx = out.rx ?? 'levity'; out.rxMs = R.levity;
       if (this.arena) { const ms = this.hard.apply('stun', R.levity, now, this.pvp, true); if (ms > 0) out.ccMs = Math.max(out.ccMs, ms); } // the arena: floating, it cannot act either (BREAK still frees it)
     }
+    if (R.catch && this.state !== 'getup' && this.state !== 'dead' && (this.state === 'launched' || this.state === 'knockdown' || !this.kin.grounded) && this.kin.z - this.kin.supportZ < 60) {
+      // a trap on the floor catches a falling / fallen body: on its feet at once, held — and, as in DFO, the hold eases the air gauge
+      const kk = this.kin; kk.z = kk.supportZ; kk.vz = 0; kk.grounded = true; this.bounce = false;
+      this.state = 'hitstun'; this.kdPhase = 'fall'; this.stateEnd = now + (R.stun ?? 300); this.gauge.air *= 0.5;
+    }
     this.lastHitAt = now;
     const R0: Reaction = hit.reaction;
     const downNow = this.state === 'knockdown' && this.kdPhase !== 'fall' && this.kin.grounded;

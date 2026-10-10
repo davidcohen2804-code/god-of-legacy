@@ -30,6 +30,8 @@ export type HitShape =
 export interface Reaction {
   /** A foe in the air is not held up by it (he keeps falling): streams and pokes that should not juggle. */
   drop?: boolean;
+  /** Caught near the floor (falling, landing or lying): stood up at once and held — the combo goes on (a trap on the floor). */
+  catch?: boolean;
   /** Ordinary combo hit-stun (soft, repeatable, scaled by combo index). */
   stun?: number;
   /** Knockback distance (world px, away from the hit origin). */
@@ -106,7 +108,9 @@ export interface FinalSkill {
   /** Persistent zone / trap lifetime after active (ms). */
   zoneMs?: number;
   /** Detached lingering hits (cracks / summons): keep striking after the caster moves on or cancels. */
-  linger?: { at: 'origin' | 'aim' | 'caster'; offset?: number; startMs: number; everyMs: number; count: number; radius: number; maxZ: number; hit: HitEvent };
+  linger?: { at: 'origin' | 'aim' | 'caster'; offset?: number; startMs: number; everyMs: number; count: number; radius: number; maxZ: number; hit: HitEvent;
+    /** each foe is struck by it once (a trap on the floor that catches whoever lands on it) */ once?: boolean;
+    /** a band along the aim from the origin instead of a circle */ line?: { length: number; width: number } };
   /** Dash passes through bodies and turns to face the target behind. */
   through?: boolean;
   /** Uses in a row before the full cooldown. */

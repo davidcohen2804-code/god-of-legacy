@@ -481,7 +481,7 @@ const archer: FinalSkill[] = [
     startup: 220, active: 280, recovery: 160, cooldown: 7000, ground: true, air: false, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
     dash: { distance: -130, lift: 38 }, // plants the mine and hops back away from it
     placeRange: 260, trap: { radius: 90, lifeMs: 4000, fuseMs: 2000 },
-    hits: [H(0, 0, { kind: 'placed', radius: 90 }, { hardCC: { kind: 'root', ms: 2000, long: true }, stun: 120 }),
+    hits: [H(0, 0, { kind: 'placed', radius: 90 }, { hardCC: { kind: 'root', ms: 2000, long: true }, stun: 120, catch: true }),
       H(0, 32, { kind: 'placed', radius: 110 }, { stun: 700, launch: 150, juggleCost: 30 }, { reachUp: 200, heavy: true })],
     cancelOnHit: [], telegraph: 'ground',
     description: 'A vine mine buried in the floor. Whoever steps on it — a player or a whole pack of monsters — is held, and 2s later it explodes and throws them all very high; untouched, it goes off by itself after 4s.',
@@ -501,7 +501,7 @@ const archer: FinalSkill[] = [
     id: 'rain_of_arrows', cls: 'archer', arenaDmg: 0.8, slot: 9, name: 'Thunder Rain', roles: ['zone', 'extender'], targeting: 'mouseDir',
     startup: 300, active: 1200, recovery: 300, cooldown: 12000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [300, 900],
     dash: { distance: 0, lift: 150, hang: true },
-    linger: { at: 'aim', offset: 300, startMs: 1000, everyMs: 400, count: 4, radius: 210, maxZ: 60, hit: H(0, 4, { kind: 'circle', radius: 210 }, { stun: 320, float: true, juggleCost: 4, slow: { pct: 30, ms: 500 } }, { reachUp: 60 }) },
+    linger: { at: 'aim', offset: 300, startMs: 1000, everyMs: 80, count: 26, radius: 210, maxZ: 50, once: true, hit: H(0, 6, { kind: 'circle', radius: 210 }, { stun: 320, launch: 110, juggleCost: 10, slow: { pct: 30, ms: 500 } }, { reachUp: 50 }) }, // the charged floor throws whoever lands on it back up (once each)
     hits: [600, 750, 900].map((t, i) => H(t, i === 2 ? 16 : 12, { kind: 'circle', radius: 100, at: 'aimBias', bias: [150, 300, 450][i], floor: true }, { stun: 320, float: true, juggleCost: 10, slow: { pct: 30, ms: 800 } }, { reachUp: 200, heavy: i === 2, useMark: i === 2 ? 'stun' as const : undefined })),
     cancelOnHit: ['quick_shot', 'skyhunters_step'], telegraph: 'line',
     description: 'Leap, hang in the air charging a lightning arrow, then loose three lightning arrows that strike the floor near, middle and far in front of you.',
@@ -526,8 +526,9 @@ const archer: FinalSkill[] = [
     id: 'leaping_arrow', cls: 'archer', slot: 12, name: 'Binding Leaves', roles: ['hardCC', 'setup'], targeting: 'mouseLine',
     startup: 600, active: 300, recovery: 260, cooldown: 14000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, armor: [0, 900],
     hits: [H(120, 12, { kind: 'line', length: 600, width: 260 }, { hardCC: { kind: 'root', ms: 4000, long: true }, stun: 200 }, { reachUp: 60 })],
+    linger: { at: 'origin', startMs: 260, everyMs: 80, count: 40, radius: 0, maxZ: 50, once: true, line: { length: 600, width: 260 }, hit: H(0, 6, { kind: 'circle', radius: 40 }, { hardCC: { kind: 'root', ms: 2200, long: true }, stun: 300, catch: true }, { reachUp: 50 }) }, // the leaves stay on the floor ~3s: whoever lands on them is caught
     cancelOnHit: ['quick_shot', 'multi_shot', 'rain_of_arrows'], telegraph: 'line',
-    description: 'Charge briefly, then send a wide band of leaves and vines across the floor: every player and monster on it is bound in place for 4s.',
+    description: 'Charge briefly, then send a wide band of leaves and vines across the floor: every player and monster on it is bound in place for 4s, and the leaves stay on the floor about 3s more — a foe that falls onto them is caught on landing and held.',
     relations: ['Charge 2s', 'Bind 4s'],
   }),
   S({

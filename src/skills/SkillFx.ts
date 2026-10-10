@@ -2034,6 +2034,8 @@ export class SkillFx {
   }
 
   /** Spirit Hawk dive: the hawk swoops onto the foe and back. */
+  /** A floor trap of a lingering zone caught someone (once each): its own burst there. */
+  trapCatch(skillId: string, at: V3): void { if (this.arch.ready) this.arch.trapCatch(skillId, at); }
   hawkDive(attackerId: string, to: V3): void { if (this.arch.ready) { this.arch.hawkDive(attackerId, to); return; } const h = this.hawks.get(attackerId); if (h) h.dive = { to, t: 0 }; }
   /** Hunter's Mark: leaves over a foe's head / spent in a burst (ArcherFx). */
   /** Gambler: charged cards stuck in a target / set off by a staff blow / the Hand over his shoulder / his buffs. */
