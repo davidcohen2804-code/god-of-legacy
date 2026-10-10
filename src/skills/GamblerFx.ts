@@ -411,16 +411,18 @@ export class GamblerFx {
     const tp = this.ctx.targetPos(id); if (!tp) return;
     const list = this.stuck.get(id) ?? []; this.stuck.delete(id);
     const H = tp.h ?? 90, x = tp.x, y0 = tp.y - tp.z - H * 0.35;
-    list.forEach((c, i) => { const cx = c.img.x, cy = c.img.y; c.img.destroy(); this.pop(cx, cy, 70, 0xffffff, 120, i * 55); this.burst(cx, cy, 90, i * 55); });
+    list.forEach((c, i) => { // each card in him flares white-hot, then blows — one after another
+      const cx = c.img.x, cy = c.img.y, d = i * 55; c.img.destroy();
+      const pr = this.kit('ai_card', cx, cy, 64, TOP + 4); if (pr) { const p0 = pr.scale; pr.setAngle(rnd(-30, 30)); this.piece(pr, d + 90, (u, o) => o.setScale(p0 * (1 + 0.15 * Math.sin(u * 30))).setAlpha(1)); }
+      const bl = this.kit('ai_blast', cx, cy, 120, TOP + 4); if (bl) { bl.setAlpha(0); const b0 = bl.scale, a0 = rnd(0, 360); this.piece(bl, 360, (u, o) => o.setScale(b0 * lerp(0.4, 1.15, out3(u))).setAngle(a0).setAlpha(u < 0.45 ? 1 : (1 - u) / 0.55), d + 90); } else this.burst(cx, cy, 90, d + 90);
+    });
     if (n <= 0) { this.pop(x, y0, 70, FUCHSIA_2, 180); return; } // nothing in him: a fizzle
-    for (let k = 0; k < n; k++) { // the chain climbs his body: each blast a little higher and bigger
-      const d = 70 + k * 60, yy = y0 - k * 22, sz = 110 + k * 26;
-      const geo = this.kit('ai_chain', x, yy + 30, sz, TOP + 3) ?? this.kit('k_blast', x, yy, sz, TOP + 3);
-      if (geo) { geo.setAlpha(0); const g0 = geo.scale; this.piece(geo, 380, (u, o) => o.setScale(g0 * lerp(0.4, 1.15, out3(u))).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5), d); }
-      this.pop(x, yy, sz * 0.7, 0xffffff, 160, d);
-    }
-    const jet = this.kit('ai_geyser', x, tp.y - tp.z + 6, 120 + n * 14, TOP + 2); if (jet) { jet.setOrigin(0.5, 0.95).setAlpha(0); const j0 = jet.scale; this.piece(jet, 520, (u, o) => o.setScale(j0 * 0.8, j0 * lerp(0.3, 1.1, out3(u))).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5), 60); }
-    if (n >= 5) { const jp = this.kit('ai_jackpot', x, y0 - 20, 280, TOP + 4); if (jp) { const p0 = jp.scale; this.piece(jp, 640, (u, o) => o.setScale(p0 * lerp(0.4, 1.1, out3(u))).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5), 120); } }
+    const ch = this.kit('ai_chain', x, tp.y - tp.z + 8, 90 + n * 22, TOP + 3); // the chain reaction climbs his body
+    if (ch) { ch.setOrigin(0.5, 0.97).setAlpha(0); const c0 = ch.scale; this.piece(ch, 560, (u, o) => o.setScale(c0, c0 * lerp(0.2, 1.1, out3(clamp01(u * 1.6)))).setAlpha(u < 0.55 ? 1 : (1 - u) / 0.45), 80); }
+    for (let k = 0; k < Math.min(n, 5); k++) this.pop(x, y0 - k * 22, 90 + k * 20, 0xffffff, 150, 80 + k * 60);
+    const jet = this.kit('ai_geyser', x, tp.y - tp.z + 6, 110 + n * 14, TOP + 2); if (jet) { jet.setOrigin(0.5, 0.95).setAlpha(0); const j0 = jet.scale; this.piece(jet, 520, (u, o) => o.setScale(j0 * 0.8, j0 * lerp(0.3, 1.1, out3(u))).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5), 60); }
+    if (n >= 5) { const jp = this.kit('ai_jackpot', x, y0 - 20, 280, TOP + 5); if (jp) { const p0 = jp.scale; this.piece(jp, 640, (u, o) => o.setScale(p0 * lerp(0.4, 1.1, out3(u))).setAngle(u * 25).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5), 160); } this.ctx.flash(0xffc94a, 0.18, 140); }
+    const sm = this.kit('ai_smoke', x, y0 - 10, 150 + n * 12, TOP + 1); if (sm) { sm.setAlpha(0); const s0 = sm.scale; this.piece(sm, 1100, (u, o) => o.setScale(s0 * lerp(0.7, 1.15, u)).setPosition(x, y0 - 10 - u * 40).setAlpha(u < 0.2 ? u / 0.2 * 0.7 : 0.7 * (1 - (u - 0.2) / 0.8)), 260); }
     this.ctx.freeze(50 + n * 12); this.ctx.cam().shake(140 + n * 30, 0.004 + n * 0.0015);
     this.ctx.callout({ x: tp.x, y: tp.y, z: tp.z + 20 }, n >= 5 ? 'ALL IN!!' : n >= 3 ? `ALL IN ×${n}!` : `ALL IN ×${n}`, n >= 3 ? '#ffc94a' : '#ff7ae6', 1);
   }
