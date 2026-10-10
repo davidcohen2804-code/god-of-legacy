@@ -6,11 +6,15 @@
 <title>God Of Legacy</title>
 <link rel="icon" href="data:," />
 <style>
-  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  html, body { margin: 0; height: 100%; background: #14121a; overflow: hidden; }
+  /* around the game (a window of another shape): a soft, darkened blur of the game itself, never bare black bars */
+  #ambient { position: fixed; inset: -6%; width: 112%; height: 112%; filter: blur(28px) brightness(0.55) saturate(1.15); pointer-events: none; }
   #game { position: fixed; inset: 0; margin: auto; width: 100vw; height: 100vh; overflow: hidden; }
+  #game canvas { box-shadow: 0 0 48px rgba(0, 0, 0, 0.45); }
 </style>
 </head>
 <body>
+<canvas id="ambient" width="64" height="36"></canvas>
 <div id="game"></div>
 <script type="module" src="/src/main.ts"></script>
 </body>
