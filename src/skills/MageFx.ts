@@ -371,7 +371,7 @@ export class MageFx {
   /** A thick painted lightning beam between two points: two shapes flicker in turn, it swells in and thins out. */
   private beam(a: { x: number; y: number }, b: { x: number; y: number }, life: number, k = 1): void {
     const sc = this.ctx.scene, L = Math.hypot(b.x - a.x, b.y - a.y), ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
-    const h = Math.min(170, Math.max(90, L * 0.42)) * k, f0 = Math.floor(Math.random() * 8);
+    const h = Math.min(190, Math.max(120, L * 0.5)) * k, f0 = Math.floor(Math.random() * 8);
     const im = sc.add.image(a.x, a.y, 'mfx-beam', f0).setOrigin(0, 0.5).setAngle(ang).setBlendMode(Phaser.BlendModes.SCREEN).setDepth(TOP + 7).setDisplaySize(L, h).setAlpha(0.9);
     let last = -1;
     this.add({ t: 0, step: (_dt, t) => { if (t >= life || !im.active) { im.destroy(); return false; }
@@ -505,7 +505,7 @@ export class MageFx {
     const a = from ? { x: from.x, y: from.y - from.z - 50 } : hand ?? { x: o.x + r.aim.x * 30, y: o.y + r.aim.y * 30 - o.z - 70 };
     const b = target ? { x: target.x, y: target.y - target.z - 50 } : { x: o.x + r.aim.x * 300, y: o.y + r.aim.y * 300 - o.z - 50 };
     const last = r.hits.length - 1, fired = r.fired.size - 1, big = fired <= 0 || fired === last;
-    if (this.ctx.scene.textures.exists('mfx-beam')) this.beam(a, b, big ? 340 : 280, big ? 1.15 : 0.9);
+    if (this.ctx.scene.textures.exists('mfx-beam')) { this.beam(a, b, big ? 340 : 280, big ? 1.15 : 0.95); this.arc(a, b, { life: big ? 260 : 200, thick: big ? 3 : 2.2, delay: 30 }); } // the beam, and a sharp bolt crackling through it
     else { this.arc(a, b, { life: big ? 320 : 260, thick: big ? 5.5 : 4.2 }); this.arc(a, b, { life: 220, thick: 3, delay: 50 }); this.arc(a, b, { life: 160, thick: 2, delay: 110 }); }
     if (!target) return;
     if (this.ctx.scene.textures.exists('mfx-storm')) { if (big && !this.ctx.scene.textures.exists('mfx-beam')) this.sheet('mfx-storm', b.x, b.y, 240, 300, { frames: [8, 4], alpha: 0.9 }); if (this.ctx.scene.textures.exists('mfx-beam')) this.sheet('mfx-beam', target.x, target.y - target.z + 4, big ? 220 : 180, 460, { alpha: 0.75, frames: [8, 4], loop: 60, oy: 0.86, depth: target.y + 4 }); else this.sheet('mfx-storm', b.x, b.y, big ? 150 : 110, 420, { frames: [12, 4], loop: 60, alpha: 0.8 }); } else this.star(b.x, b.y, big ? 160 : 100, 200, { rays: 8 });
@@ -567,8 +567,7 @@ export class MageFx {
     const hand = (): { x: number; y: number } | null => { const h = this.ctx.hand(r.attackerId), c = this.ctx.casterPos(r.attackerId); if (!c) return null; return h ? { x: h.x + side * 12, y: h.y } : { x: c.x + side * 34, y: c.y - c.z - 72 }; };
     this.ctx.darken(T.startup + T.active, 0.38);
     if (!this.ctx.scene.textures.exists('mfx-beam')) this.circle(0, 0, 124, 2, T.startup + T.active, { upright: true, run: r, draw: T.startup, follow: () => { const p = hand(); return p ? { x: p.x + side * 26, y: p.y } : null; } });
-    if (this.ctx.scene.textures.exists('mfx-beam')) this.sheet('mfx-beam', 0, 0, 180, T.startup + T.active, { alpha: 0.85, frames: [12, 4], loop: 60, depth: TOP + 7, ox: side < 0 ? 0.75 : 0.25, flipX: side < 0, follow: () => { const p = hand(); return p ? { x: p.x + side * 6, y: p.y } : null; } });
-    else if (this.ctx.scene.textures.exists('mfx-storm')) this.sheet('mfx-storm', 0, 0, 190, T.startup + T.active, { frames: [12, 4], loop: 60, depth: TOP + 7, follow: () => { const p = hand(); return p ? { x: p.x + side * 26, y: p.y } : null; } });
+    if (this.ctx.scene.textures.exists('mfx-storm')) /* (not the beam's own hand frames: they carry a stub of beam ending in mid-air) */ this.sheet('mfx-storm', 0, 0, 140, T.startup + T.active, { alpha: 0.9, frames: [12, 4], loop: 60, depth: TOP + 7, follow: () => { const p = hand(); return p ? { x: p.x + side * 26, y: p.y } : null; } });
     else this.gpu('vortex', 0, 0, 130, 130, T.startup + 120, (u, ms, q) => { MageFx.U(q, 'uP', Math.min(1, ms / T.startup)); MageFx.U(q, 'uE', ms < T.startup ? 0 : (ms - T.startup) / 120); },
       { follow: () => { const p = hand(); return p ? { x: p.x + side * 30, y: p.y } : null; }, uA: -side, run: r, depth: TOP + 7 });
     for (let k = 0; k < 5; k++) this.later(k * (T.startup / 5), () => { const p = hand(); if (!p) return; const a = rnd(0, Math.PI * 2), l = rnd(50, 90); this.arc({ x: p.x + side * 30, y: p.y }, { x: p.x + side * 30 + Math.cos(a) * l, y: p.y + Math.sin(a) * l }, { life: 120, thick: 1.6 }); }, r);
