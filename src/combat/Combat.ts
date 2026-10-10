@@ -58,13 +58,16 @@ export const GAUGE = { stand: 0.3, air: 0.4, airRamp: 0.15, down: 0.15, resetMs:
  *  - launchCap: the highest a launch throws a body, px above the floor (in reach of the follow-ups).
  *  - BREAK (off: breakOn — a comboed foe waits for his turn; no air tech, no War Cry break-out in the arena): from the combo's breakMinHits-th hit, the jump key frees you (hop back breakHop px, untouchable
  *    breakInvulnMs), then breakCdMs to wait.
+ *  Combo damage (PvP engine audit vs DFO, where a full combo takes ~20–35% HP): a full combo here takes ≤ budget (40%),
+ *  so a round has 3–4 combos a side; dmgMul and the gauges were scaled together (×0.57 from 3 / 0.25 / 0.34 / 0.07 / 0.7),
+ *  so a combo strings as many skills as before, it just hurts less.
  *  - cdMul: skill cooldowns in the arena; pushMul: knockback in the arena. */
 export const ARENA = {
-  dmgMul: 3, ladder: [1, 1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.66, 0.62, 0.58, 0.55, 0.52, 0.5, 0.47, 0.44, 0.42, 0.4], ladderFloor: 0.3, ultFloor: 0.6,
-  gauge: { stand: 0.25, air: 0.34, airRamp: 0.14, down: 0.07 },
+  dmgMul: 1.7, ladder: [1, 1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.66, 0.62, 0.58, 0.55, 0.52, 0.5, 0.47, 0.44, 0.42, 0.4], ladderFloor: 0.3, ultFloor: 0.6,
+  gauge: { stand: 0.142, air: 0.193, airRamp: 0.08, down: 0.04 },
   recovery: [[2500, 1], [5000, 0.8], [7500, 0.62], [Infinity, 0.5]] as [number, number][],
   relaunches: 2, heavyAfterMs: 4500, heavyRampMs: 2500,
-  budget: 0.7, maxHits: 80, tickWeight: 0.25, maxComboMs: 14000, floorMs: 650, launchCap: 220,
+  budget: 0.4, maxHits: 80, tickWeight: 0.25, maxComboMs: 14000, floorMs: 650, launchCap: 220,
   wakeInvulnMs: 700, techMinMs: 380,
   /** the quick rise (jump or a move key while down) recharges this long (DFO's arena: 20 s on 75 s+ rounds) */
   quickRiseCdMs: 15000,
@@ -72,6 +75,8 @@ export const ARENA = {
   ultPreCdMs: 20000, sigPreCdMs: 6000,
   breakOn: false, breakMinHits: 3, breakCdMs: 15000, breakInvulnMs: 600, breakHop: 110,
   cdMul: 1.5,
+  /** comeback (DFO's rage mode): at or below `at` of max HP a fighter deals ×dmg and takes ×taken until the round ends */
+  rage: { at: 0.25, dmg: 1.15, taken: 0.9 },
   /** knockback in the arena (× a hit's push): enough to read, never out of the next skill's reach */
   pushMul: 1,
 } as const;

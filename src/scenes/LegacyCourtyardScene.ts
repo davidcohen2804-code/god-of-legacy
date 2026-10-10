@@ -327,6 +327,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private botPaused = false;
   /** Online lag (victim side): remote casts by id (for their attackers' claims), hits of them already resolved here
    *  (taken / missed by our own check / dodged), hits taken through a claim, and claims waiting for our own check. */
+  /** Fighters whose RAGE was called this round. */
+  private rageCalled = new Set<string>();
   private remoteRuns = new Map<string, { run: CastRun; at: number }>();
   private resolved = new Map<string, number>();
   private claimed = new Set<string>();
@@ -2928,6 +2930,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (hit.damage > 0 && this.tryEvade(this.casterPos(run.attackerId) ?? run.origin)) { this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'armor' }); return; }
     let h = run.dmgMul && run.dmgMul !== 1 ? { ...hit, damage: hit.damage * run.dmgMul } : hit; // caster's War Cry / Radiant Blade
+    const rg = this.rageMul(run.attackerId, this.localId); if (rg !== 1 && h.damage > 0) h = { ...h, damage: h.damage * rg }; // the arena's comeback (rage)
     if (hit.damage > 0 && this.ambushIn.delete(run.castId)) { // a samurai's AMBUSH (Kagemusha): a sure critical and a stun; his doubles burst
       h = { ...h, damage: h.damage * KAGE.ambushMul, reaction: { ...h.reaction, stun: Math.max(h.reaction.stun ?? 0, KAGE.ambushStun) } };
       this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'AMBUSH!!', '#ff5a6a', 0);
@@ -3360,7 +3363,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!b || b.defeated || (this.match?.active && !this.match.live)) return;
     hit = this.mageHit(run, hit); hit = this.markHit(run, hit, t.id); hit = this.gambleHit(run, hit, t.id);
     const chB = run.attackerId === this.localId ? this.chanceMul(b.body) : 1;
-    const m = run.attackerId === this.localId ? this.ownDamageMul(run.skill) * chB : 1, h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
+    const m = (run.attackerId === this.localId ? this.ownDamageMul(run.skill) * chB : 1) * this.rageMul(run.attackerId, BOT_ID), h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
     const out = b.receive(run.attackerId, run.skill, h, this.hitFrom(run, h), this.simMs, run.castId);
     this.logHit(true, run.skill, out, b.body, b.kin.z);
     this.mageReact(run, out, BOT_ID, at);
@@ -3561,6 +3564,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!m.active) return;
     if (this.tagsOn) { const r = m.opponent === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(m.opponent); if (r && !r.hasTag) this.wearTags(); } // (the knight swapped meanwhile)
     B.setHp('l', this.hpFracOf(m.host)); B.setHp('r', this.hpFracOf(m.guest));
+    for (const id of [m.host, m.guest]) { // RAGE: called once a round as a fighter enters it
+      if (!this.raging(id) || this.rageCalled.has(id)) continue;
+      this.rageCalled.add(id);
+      const p = this.casterPos(id); if (p) this.fx?.callout({ x: p.x, y: p.y, z: p.z + 70 }, 'RAGE!', '#ff5a4a', 0);
+    }
     B.setClock(m.phase === 'vs' || m.phase === 'intro' ? PVP.battle.roundMs : m.left, m.round);
     B.setWins(m.wins[0], m.wins[1], PVP.battle.winsNeeded);
     const now = this.simMs, mine = m.sideOf(this.localId);
@@ -3623,7 +3631,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.warCryUntil = -1; this.radiantUntil = -1; this.radiantFrom = -1; this.domeAt = -1;
     if (this.dome) this.dome.until = this.simMs;
     this.jb = null; this.jbWant = 0; this.carriedBy = null; this.lunge = null; this.momentum = null; this.gripHeld = false; this.leapUsed = false; this.leapUntil = -1;
-    this.rt?.resetCooldowns();
+    this.rt?.resetCooldowns(); this.rageCalled.clear();
     if (this.arena) for (const s of this.kit) if (s.slot === 7 || s.slot === 6) this.rt?.holdCooldown(s.id, this.simMs + PVP.battle.introMs + (s.slot === 7 ? ARENA.ultPreCdMs : ARENA.sigPreCdMs)); // the round opens with the big moves held back
     this.respawnAt(x, y, PVP.maxHp);
     this.body.maxHp = this.maxHpNow();
@@ -3636,6 +3644,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   /** A fighter's HP as a fraction of its maximum (0 when down). */
+  /** The arena's comeback (DFO rage mode): a fighter at or below ARENA.rage.at of max HP is raging. */
+  private raging(id: string): boolean { if (!this.arena) return false; const f = this.hpFracOf(id.split('#')[0]); return f > 0 && f <= ARENA.rage.at; }
+  /** Damage multiplier of a hit from `atk` on `vic`: a raging attacker hits harder, a raging victim takes less. */
+  private rageMul(atk: string, vic: string): number { return (this.raging(atk) ? ARENA.rage.dmg : 1) * (this.raging(vic) ? ARENA.rage.taken : 1); }
   private hpFracOf(id: string): number {
     if (id === this.localId) return this.dead >= 0 ? 0 : this.playerHP / Math.max(1, this.maxHpNow());
     if (id === BOT_ID) { const b = this.bot; return b && !b.defeated ? b.hp / Math.max(1, b.body.maxHp) : 0; }
