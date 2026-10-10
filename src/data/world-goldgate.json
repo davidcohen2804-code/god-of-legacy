@@ -3,16 +3,16 @@
   "closed": "assets/world/goldgate/closed.png",
   "open": "assets/world/goldgate/open.png"
  },
- "x": 4946.7,
- "y": -30.2,
- "w": 410,
- "h": 714,
+ "x": 4819.3,
+ "y": -310.3,
+ "w": 730,
+ "h": 993,
  "back": [
-  5020,
+  4950,
   336
  ],
  "front": [
-  5292.1,
+  5435.2,
   664.0
  ]
 }
