@@ -15,7 +15,7 @@
     "run": {
       "frames": 16,
       "cycle_atlas": 262,
-      "source": "pixverse video, in place, native 24fps timing at 270 px/s"
+      "source": "GPT sheets (green), legs exchanged in 9-16"
     },
     "jump": {
       "frames": [
