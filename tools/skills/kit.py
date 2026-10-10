@@ -95,6 +95,8 @@ ARCHER_SHEETS = {
     'a14.png': grid(4, 2, ['tree_1', 'tree_2', 'tree_3', 'tree_4', 'vine_burst', 'vine_spiral', 'hawk_strike', 'leaf_ring'], [300, 380, 440, 480, 420, 420, 400, 420]),
     'a15.png': grid(4, 2, ['rise_arrow', 'muzzle_fan', 'sonic_boom', 'spiral_arrow', 'power_aura', 'arrow_halo', 'power_flash', 'dive_trail'], [420, 360, 320, 360, 420, 400, 320, 400]),
     'a16.png': grid(4, 2, ['vine_arrow', 'vine_whip', 'vine_grab', 'leaf_carpet', 'vine_snare', 'tree_hit', 'talon_slash', 'slam_burst'], [380, 440, 380, 440, 400, 400, 380, 420]),
+    'a17.png': [('t_cloud', (0, 0, 445, 512), 420), ('t_circle', (445, 0, 735, 512), 420), ('t_bow', (740, 0, 1150, 512), 380), ('t_orb', (1150, 0, 1536, 512), 340),
+                ('t_arrow', (0, 540, 448, 1000), 420, 'box'), ('t_blast', (452, 540, 780, 1000), 360, 'box'), ('t_sparks', (780, 512, 1150, 1024), 320), ('t_aura', (1150, 512, 1536, 1024), 400)],
     'a9.png': [('bow', (0, 40, 390, 480), 300, 'box')] + grid(4, 2, [None, 'bow_drawn', 'aura_gold', 'aura_green', 'emblem', 'pillar', 'sparkles', 'rain_ring'], [300, 300, 300, 300, 240, 380, 200, 300]),
 }
 PROFILES = {'samurai': (G + 'tools/skills/gpt/kit/', G + 'public/assets/final/skills/samurai/kit/', None),
