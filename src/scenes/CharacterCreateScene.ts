@@ -11,7 +11,7 @@ import MENU_LOOK from '../data/menu-look.json';
  *  buttons are pictures of this same look, redrawn with every choice. */
 const FIT = MENU_LOOK as Record<string, { fit: number }>;
 /** The new Beginner, painted like the ready heroes (one picture per body; a body without one still shows the old base). */
-const BEGINNER_ART: Record<string, string> = { male: 'assets/final/heroes/beginner/male.png' };
+const BEGINNER_ART: Record<string, string> = { male: 'assets/final/heroes/beginner/male.png', female: 'assets/final/heroes/beginner/female.png' };
 
 // Background, pedestal and the dressed preview; all UI lives in CharacterCreateUI (DOM overlay).
 export class CharacterCreateScene extends Phaser.Scene {
