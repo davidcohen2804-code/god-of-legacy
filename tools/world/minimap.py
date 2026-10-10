@@ -39,6 +39,15 @@ for h in sorted(H, key=lambda h: h.get('depth', -1.2)):
         part = np.asarray(alpha)[a0 - oy:a1 - oy, x:x + im.width] / 255
         st[a0 - sy0:a1 - sy0, :part.shape[1]] = part
     out.paste(im.convert('RGB'), (x, y), Image.fromarray((m * (1 - st) * 255).astype(np.uint8)))
+# the Sky Path's clouds (clouds.py), drawn as in the game (OpenWorld.buildSky)
+C = json.load(open(R + 'src/data/world-clouds.json')); b0, b1 = C['band']
+for c in C['path']:
+    sp = C['sprites'][c['s']]; im = Image.open(R + 'public/' + sp['img']).convert('RGBA')
+    sc = (c['x'][1] - c['x'][0] + 40) / sp['w']; sy = min(max((b1 - b0) / max(1, (sp['top'][1] - sp['top'][0]) * sc), 1), 1.7) * sc
+    y = b0 - c['z'] - sp['top'][0] * sy
+    if c.get('flip'): im = im.transpose(Image.FLIP_LEFT_RIGHT)
+    im = im.resize((max(1, round(sp['w'] * sc / K)), max(1, round(sp['h'] * sy / K))), Image.LANCZOS)
+    out.paste(im.convert('RGB'), (round((c['x'][0] - 20) / K), round((y - TOP) / K)), im.getchannel('A'))
 out.save(A + 'minimap/world_up.jpg', quality=82)
 open(R + 'src/data/world-minimap.json', 'w').write(json.dumps({'top': TOP, 'scale': K}) + '\n')
 print('minimap', out.size, 'top', TOP)
