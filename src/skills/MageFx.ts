@@ -118,7 +118,14 @@ export class MageFx {
   private quads = new Set<Phaser.GameObjects.Shader>();
   /** Painted ice shells standing on frozen foes (a shatter ends the one it hits). */
   private frozen = new Set<{ at: () => { x: number; y: number }; stop(): void }>();
-  constructor(private ctx: MageCtx) { this.warp = new SpaceWarp(ctx.scene, () => ctx.cam()); }
+  constructor(private ctx: MageCtx) {
+    this.warp = new SpaceWarp(ctx.scene, () => ctx.cam());
+    // the arena stays the arena: a spell only dims it a little and never washes the screen with a flash
+    const darken = ctx.darken.bind(ctx), flash = ctx.flash?.bind(ctx);
+    this.ctx = { ...ctx, darken: (ms, a) => darken(ms, a * 0.35), flash: flash ? (c, a, ms) => flash(c, a * 0.3, ms) : undefined };
+  }
+  /** The painted sheets are loaded (then they lead, and the procedural layers step back). */
+  private get painted(): boolean { return this.ctx.scene.textures.exists('mfx-pillar'); }
 
   get ready(): boolean { return this.ctx.scene.textures.exists(MAGE_KIT); }
 
@@ -302,6 +309,7 @@ export class MageFx {
   /** One shader quad on the effect clock: drive(u, ms, quad) every frame for `life` ms, then removed. */
   private gpu(kind: MageShader, x: number, y: number, w: number, h: number, life: number, drive: (u: number, ms: number, q: Phaser.GameObjects.Shader) => void,
     o: { delay?: number; depth?: number; angle?: number; ox?: number; oy?: number; seed?: number; uA?: number; run?: CastRun; follow?: () => { x: number; y: number } | null } = {}): void {
+    if ((kind === 'nova' || kind === 'vortex') && this.painted) return; // the painted art carries it: no procedural ring over it
     const start = () => {
       const q = mageQuad(this.ctx.scene, kind, x, y, w, h, o.seed); if (!q) return;
       this.quads.add(q);
@@ -348,6 +356,7 @@ export class MageFx {
   }
   /** A billow of smoke: dark void (el 0) or frost mist (el 1). */
   private smoke(x: number, y: number, size: number, el: number, life: number, o: { delay?: number; squash?: number; depth?: number } = {}): void {
+    if (this.painted) return; // (grey shader smoke reads as a blob pasted over the painted floor)
     this.gpu('smoke', x, y, size, size * (o.squash ?? 1), life, (u, _ms, q) => { MageFx.U(q, 'uP', out3(Math.min(1, u * 1.6))); MageFx.U(q, 'uE', u < 0.35 ? 0 : (u - 0.35) / 0.65); },
       { uA: el, delay: o.delay, depth: o.depth ?? TOP + 4 });
   }
@@ -357,14 +366,19 @@ export class MageFx {
     const f0 = o.frames?.[0] ?? 0, n = o.frames?.[1] ?? MAGE_SHEETS[key]?.[3] ?? 16;
     const start = () => {
       const im = sc.add.image(x, y, key, f0).setOrigin(o.ox ?? 0.5, o.oy ?? 0.5).setBlendMode(Phaser.BlendModes.SCREEN).setDepth(o.depth ?? TOP + 6).setFlipX(!!o.flipX).setAlpha(o.alpha ?? 1);
-      if (o.floor) (im as unknown as { floorFlat: boolean }).floorFlat = true; // lies on the floor: flattens with the camera's pitch
+      let sh: Phaser.GameObjects.Image | null = null;
+      if (o.floor) { // lies on the floor: flattens with the camera's pitch; a soft dark imprint under it so it reads on a bright floor too
+        (im as unknown as { floorFlat: boolean }).floorFlat = true; im.setAlpha((o.alpha ?? 1) * 0.9);
+        const sk = this.shadeTex(key);
+        if (sk) { sh = sc.add.image(x, y, sk, f0).setOrigin(o.ox ?? 0.5, o.oy ?? 0.5).setDepth(im.depth - 0.01).setFlipX(!!o.flipX).setAlpha((o.alpha ?? 1) * 0.55); (sh as unknown as { floorFlat: boolean }).floorFlat = true; }
+      }
       if (o.tint !== undefined) im.setTint(o.tint);
       if (o.angle) im.setAngle(o.angle);
-      im.setDisplaySize(size * (o.sx ?? 1), size * (o.sy ?? 1));
-      this.add({ t: 0, step: (_dt, t) => { if (t >= life || !im.active || (o.alive && !o.alive())) { im.destroy(); return false; } const f = o.follow?.(); if (f) im.setPosition(f.x, f.y); const K = o.keys, sp = o.split, fr = K ? keyFrame(K, t) : sp ? (t < sp[1] ? (t / sp[1]) * sp[0] : sp[0] + ((t - sp[1]) / (life - sp[1])) * (n - sp[0])) : (t / life) * n;
+      im.setDisplaySize(size * (o.sx ?? 1), size * (o.sy ?? 1)); sh?.setDisplaySize(size * (o.sx ?? 1), size * (o.sy ?? 1)).setAngle(im.angle);
+      this.add({ t: 0, step: (_dt, t) => { if (t >= life || !im.active || (o.alive && !o.alive())) { im.destroy(); sh?.destroy(); return false; } const f = o.follow?.(); if (f) { im.setPosition(f.x, f.y); sh?.setPosition(f.x, f.y); } const K = o.keys, sp = o.split, fr = K ? keyFrame(K, t) : sp ? (t < sp[1] ? (t / sp[1]) * sp[0] : sp[0] + ((t - sp[1]) / (life - sp[1])) * (n - sp[0])) : (t / life) * n;
         const k = o.loop ? Math.floor(t / o.loop) % n : Math.min(n - 1, Math.floor(fr));
         if (o.loop) im.setAlpha((o.alpha ?? 1) * Math.min(1, t / 80, (life - t) / 100));
-        im.setFrame(f0 + k); return true; } });
+        im.setFrame(f0 + k); if (sh) sh.setFrame(f0 + k).setAlpha(im.alpha * 0.6); return true; } });
     };
     if (o.delay) this.later(o.delay, start, o.run); else start();
   }
@@ -388,7 +402,7 @@ export class MageFx {
       ensureLight(this.ctx.scene);
       const im = this.ctx.scene.add.image(x, fy, 'mg-dot').setBlendMode(Phaser.BlendModes.ADD).setTint(tint).setDepth(GROUND + 3.5).setDisplaySize(w, w * SQUASH);
       (im as unknown as { floorFlat: boolean }).floorFlat = true;
-      const a0 = o.alpha ?? 0.55;
+      const a0 = (o.alpha ?? 0.55) * 0.6;
       this.add({ t: 0, step: (_dt, t) => { if (t >= life) { im.destroy(); return false; } const u = t / life; im.setAlpha(a0 * (u < 0.12 ? u / 0.12 : 1 - (u - 0.12) / 0.88)); return true; } });
     };
     if (o.delay) this.later(o.delay, start); else start();
@@ -408,6 +422,20 @@ export class MageFx {
     this.shade(x, fy, w, 1600, { alpha: 0.6 });
     this.pool(x, fy, w * 0.7, tint, 700, { alpha: 0.5 });
     this.burst(x, fy - 6, { n: 10, speed: [80, 260], life: [300, 600], scale: [0.03, 0.08], tint: [0x6b5a7a, 0x8c7c96], angle: [-160, -20], gravity: 900, add: false, depth: fy + 2 });
+  }
+  /** A dark imprint of a painted sheet (its light turned into a soft violet-black shade), made once per sheet. */
+  private shadeTex(key: string): string | null {
+    const sk = key + '~shade', tx = this.ctx.scene.textures;
+    if (tx.exists(sk)) return sk;
+    const src = tx.get(key).getSourceImage() as HTMLImageElement, meta = MAGE_SHEETS[key]; if (!src?.width || !meta) return null;
+    const W = src.width, H = src.height, c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d', { willReadFrequently: true }); if (!g) return null;
+    g.filter = 'blur(6px)'; g.drawImage(src, 0, 0); g.filter = 'none';
+    const d = g.getImageData(0, 0, W, H), a = d.data;
+    for (let i = 0; i < a.length; i += 4) { const l = Math.max(a[i], a[i + 1], a[i + 2]); a[i] = 18; a[i + 1] = 10; a[i + 2] = 34; a[i + 3] = Math.min(255, l * 1.4); }
+    g.putImageData(d, 0, 0);
+    const t = tx.addSpriteSheet(sk, c as unknown as HTMLImageElement, { frameWidth: meta[1], frameHeight: meta[2] });
+    return t ? sk : null;
   }
   /** A starburst of light (additive). */
   private star(x: number, y: number, size: number, life = 260, o: { rays?: number; delay?: number; depth?: number } = {}): void {
