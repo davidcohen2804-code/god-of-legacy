@@ -32,7 +32,7 @@ const C = {
   // YOUR JOURNEY (left, under CHARACTER): how a new character grows (Beginner → his class at level 10)
   path: { x: 92, y: 432, w: 470, h: 412 },
   // the class fan (right column) with its caption under it, CREATE at the bottom
-  fan: { x: 1300, y: 250, w: 600 },
+  fan: { x: 1212, y: 250, w: 690 },
   create: { x: 1418, y: 884, w: 400, h: 60 },
 } as const;
 
