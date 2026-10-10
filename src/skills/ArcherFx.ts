@@ -291,24 +291,28 @@ export class ArcherFx {
   hit(r: CastRun, i: number, o: V3): void {
     if (!this.ready) return;
     const s = r.skill, a = r.aim;
-    if (s.id === 'rain_of_arrows') { // the charged lightning arrow strikes the floor (near, middle, far)
-      const sh = r.hits[i].shape as { bias?: number }, cx = r.origin.x + a.x * (sh.bias ?? 200), cy = r.origin.y + a.y * (sh.bias ?? 200);
-      const q = this.me(r), sx = q.x + sideOf(r) * 30, sy = q.y - q.z - 58, lv = { x: cx - sx, y: cy - 20 - sy }, L = Math.hypot(lv.x, lv.y) || 1;
-      this.spr({ name: 'elec_arrow', x: sx, y: sy, ox: 0.9, depth: TOP + 3, w: 190, angle: Math.atan2(lv.y, lv.x) * (180 / Math.PI), add: true, glow: 0.4, life: 110, mx: (u) => lv.x * u, my: (u) => lv.y * u, a: kf([0, 1], [1, 1]) });
+    if (s.id === 'rain_of_arrows') { // the charged lightning arrows strike the floor near, middle and far — each bigger than the last; the third is a storm
+      const sh = r.hits[i].shape as { bias?: number }, cx = r.origin.x + a.x * (sh.bias ?? 200), cy = r.origin.y + a.y * (sh.bias ?? 200), K = [0.7, 1, 1.5][i] ?? 1, big = i === 2;
+      const q = this.me(r), sx = q.x + sideOf(r) * 30, sy = q.y - q.z - 58, lv = { x: cx - sx, y: cy - 20 - sy }, ang = Math.atan2(lv.y, lv.x) * (180 / Math.PI);
+      this.spr({ name: 'elec_arrow', x: sx, y: sy, ox: 0.9, depth: TOP + 3, w: 170 * K, angle: ang, add: true, glow: 0.45, life: 110, mx: (u) => lv.x * u, my: (u) => lv.y * u });
+      this.bolt('bolt_seg', { x: sx, y: sy }, { x: cx, y: cy - 20 }, { thick: 26 * K, life: 160, delay: 40 }); // its lightning trail
+      this.pop('elec_burst', sx, sy, 110 * K, { life: 180 });
       this.later(100, () => {
-        // the arrow stands in the floor, then the sky answers: a great bolt strikes it, and the burnt ground round it stays charged
-        this.spr({ name: 'elec_arrow', x: cx, y: cy + 6, ox: 0.97, depth: cy + 2, w: 170, angle: lv.x >= 0 ? 58 : 122, flipY: lv.x < 0, add: true, glow: 0.4, life: 2000, a: (u) => (u > 0.8 ? (1 - u) * 5 : 1) * (0.75 + 0.25 * Math.sin(u * 60)) });
-        this.spr({ name: 'elec_burst', x: cx, y: cy - 30, depth: cy + 4, w: 200, add: true, life: 260, sx: kf([0, 0.4], [0.3, 1.1, out3]), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) });
-        this.later(70, () => {
-          this.spr({ name: 'strike', x: cx, y: cy + 10, oy: 0.97, depth: cy + 3, w: 230, h: 560, life: 360, add: true, glow: 0.5, sy: kf([0, 0.2], [0.12, 1.05, out3], [1, 1]), a: kf([0, 1], [0.4, 1], [1, 0, inQ]) });
-          this.floor('elec_ring', cx, cy, 240, 460, { add: true, s: kf([0, 0.3], [1, 1.3, out3]), a: kf([0, 1], [1, 0, inQ]) });
-          if (r.own && i === 2) this.ctx.punch(0.02, 160);
+        this.spr({ name: 'elec_rise_arrow', x: cx, y: cy + 8, oy: 0.97, depth: cy + 2, w: 120 * K, flipX: lv.x < 0, add: true, glow: 0.4, life: 1900, a: (u) => (u > 0.8 ? (1 - u) * 5 : 1) * (0.75 + 0.25 * Math.sin(u * 60)) }); // it stands in the floor, crackling
+        this.spr({ name: 'elec_burst', x: cx, y: cy - 30 * K, depth: cy + 4, w: 210 * K, add: true, life: 260, sx: kf([0, 0.4], [0.3, 1.1, out3]), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) });
+        this.later(60, () => { // the sky answers onto it
+          this.spr({ name: 'strike', x: cx, y: cy + 10, oy: 0.97, depth: cy + 3, w: 200 * K, h: 520 * Math.min(1.3, K + 0.15), life: 360, add: true, glow: 0.5, sy: kf([0, 0.2], [0.12, 1.05, out3], [1, 1]), a: kf([0, 1], [0.4, 1], [1, 0, inQ]) });
+          if (big) { for (const dx of [-90, 90]) this.later(70, () => this.spr({ name: 'bolt_v', x: cx + dx, y: cy + 6, oy: 0.97, depth: cy + 2, w: 130, h: 460, life: 300, add: true, glow: 0.4, sy: kf([0, 0.2], [0.15, 1, out3]), a: kf([0, 1], [1, 0, inQ]) }));
+            this.spr({ name: 'elec_burst', x: cx, y: cy - 120, depth: TOP + 6, w: 420, add: true, life: 200, a: kf([0, 0.8], [1, 0, inQ]) }); }
+          this.floor('elec_ring', cx, cy, 240 * K, 460, { add: true, s: kf([0, 0.3], [1, 1.3, out3]), a: kf([0, 1], [1, 0, inQ]) });
+          if (r.own && big) this.ctx.punch(0.03, 200);
         }, r);
-        this.floor('elec_ground', cx, cy, 210, 2100, { add: false, glow: 0.35, s: kf([0, 0.5], [0.1, 1.05, out3], [0.2, 1]), a: (u) => kf([0, 0], [0.06, 1], [0.8, 0.85], [1, 0])(u) * (0.85 + 0.15 * Math.sin(u * 45)) }); // burnt ground, flickering
-        for (let k = 0; k < 7; k++) this.later(150 + k * 260, () => {
-          this.spr({ name: k % 2 ? 'ground_arcs' : 'elec_sparks', x: cx + rnd(-40, 40), y: cy + rnd(-10, 10) + 6, oy: 0.95, depth: cy + 3, w: k % 2 ? 160 : 120, add: true, life: 300, sy: kf([0, 0.5], [0.3, 1.05, out3]), a: kf([0, 1], [1, 0, inQ]) });
+        this.floor('elec_ground', cx, cy, 200 * K, 2100, { glow: 0.35, s: kf([0, 0.5], [0.1, 1.05, out3], [0.2, 1]), a: (u) => kf([0, 0], [0.06, 1], [0.8, 0.85], [1, 0])(u) * (0.85 + 0.15 * Math.sin(u * 45)) }); // burnt ground, flickering
+        this.floor('floor_cracks', cx, cy, 150 * K, 2100, { tint: 0x7fdcff, a: kf([0, 0], [0.05, 0.8], [0.8, 0.6], [1, 0]) });
+        for (let k = 0; k < (big ? 9 : 6); k++) this.later(150 + k * 230, () => {
+          this.spr({ name: k % 2 ? 'ground_arcs' : 'elec_sparks', x: cx + rnd(-50, 50) * K, y: cy + rnd(-10, 10) + 6, oy: 0.95, depth: cy + 3, w: (k % 2 ? 160 : 120) * K, add: true, life: 300, sy: kf([0, 0.5], [0.3, 1.05, out3]), a: kf([0, 1], [1, 0, inQ]) });
         }, r);
-        this.shake(r, i === 2 ? 200 : 110, i === 2 ? 0.006 : 0.003);
+        this.shake(r, big ? 260 : 110, big ? 0.009 : 0.003);
       }, r);
     }
     if (s.id === 'arrow_storm' && r.place) { // one big shining arrow at a time drops straight down from high above onto the mark and blows the ground up
@@ -342,18 +346,28 @@ export class ArcherFx {
   // ------------------------------------------------------------------ skills with their own staging
 
   private thunderCharge(r: CastRun): void {
-    const T = r.timings, side = sideOf(r), hits = r.hits.map((h) => T.startup + h.at);
-    // hanging in the air: the three lightning arrows themselves gather at the bow, crackling brighter — each one leaves as it is loosed
+    const T = r.timings, side = sideOf(r), hits = r.hits.map((h) => T.startup + h.at), until = hits[0];
+    const bow = (): Pt | null => { const c = this.ctx.casterPos(r.attackerId); return c ? { x: c.x + side * 34, y: c.y - c.z - 60, d: c.y } : null; };
+    const above = (): Pt | null => { const c = this.ctx.casterPos(r.attackerId); return c ? { x: c.x + side * 20, y: c.y - c.z - 250, d: c.y } : null; };
+    // the sky darkens over her: a storm cloud gathers, swelling and crackling
+    this.spr({ name: 'storm_cloud', w: 220, follow: above, dz: -6, life: until + 260, add: true, run: r, sx: kf([0, 0.3], [0.4, 1.05, out3], [1, 1.15]), sy: kf([0, 0.2], [0.4, 0.6, out3], [1, 0.7]), a: kf([0, 0], [0.2, 0.45], [0.9, 0.55], [1, 0]) });
+    // a ring of lightning turns behind her bow, and the storm orb swells in it
+    this.spr({ name: 'elec_ring', w: 110, follow: bow, dz: 5, life: until, add: true, run: r, rot: (u) => side * 540 * u, sy: () => 0.55, sx: kf([0, 0.2], [0.3, 1, out3], [1, 1.2]), a: kf([0, 0], [0.2, 0.9], [0.95, 1], [1, 0]) });
+    this.spr({ name: 'storm_orb', w: 56, follow: bow, dz: 6, life: until, add: true, glow: 0.5, run: r, sx: (u) => kf([0, 0.1], [1, 1.3, inQ])(u) * (1 + 0.08 * Math.sin(u * 70)), sy: (u) => kf([0, 0.1], [1, 1.3, inQ])(u) * (1 + 0.08 * Math.sin(u * 70 + 1)), a: kf([0, 0], [0.15, 0.9], [1, 1]) });
+    // the cloud answers: bolts strike down into the bow again and again, faster and faster
+    for (let k = 0; k < 7; k++) { const at = T.startup * 0.25 + (until - T.startup * 0.25) * (1 - Math.pow(1 - k / 7, 1.6));
+      this.later(at, () => { const t = above(), b = bow(); if (!t || !b) return; this.bolt('bolt_seg', { x: t.x + rnd(-40, 40), y: t.y + 40 }, { x: b.x - side * 20, y: b.y - 90 }, { thick: 22 + k * 3, life: 120 }); this.pop('spark_cyan', b.x, b.y, 50 + k * 8, { life: 160 }); }, r); }
+    // sparks rush in to the bow from all round
+    for (let k = 0; k < 14; k++) this.later(T.startup * 0.2 + k * (until - T.startup * 0.2) / 14, () => { const b = bow(); if (!b) return; const an = rnd(0, Math.PI * 2), rr = rnd(70, 120);
+      this.spr({ name: 'spark_cyan', x: b.x + Math.cos(an) * rr, y: b.y + Math.sin(an) * rr * 0.7, depth: b.d + 7, w: 26, add: true, life: 220, mx: (u) => -Math.cos(an) * rr * inQ(u), my: (u) => -Math.sin(an) * rr * 0.7 * inQ(u), a: kf([0, 0], [0.3, 1], [1, 0.4]) }); }, r);
+    // the three lightning arrows gather at the bow, each bigger than the last
     hits.forEach((at, k) => {
-      const tilt = (k - 1) * 12;
-      this.spr({ name: 'arrow_storm', w: 190, life: at, follow: this.at(r.attackerId, side, 60, 58 + (k - 1) * 16), dz: 6 + k * 0.1, flipX: side < 0, angle: side * (18 + tilt), add: true, glow: 0.4, run: r,
-        sx: kf([0, 0], [0.15, 0.3], [0.9, 1, out]), sy: kf([0, 0], [0.15, 0.6], [0.9, 1, out]), a: kf([0, 0], [0.15, 0.7], [0.97, 1], [1, 0]) });
+      const W = [90, 125, 170][k] ?? 125, tilt = (k - 1) * 14;
+      this.spr({ name: 'elec_arrow', w: W, ox: 0.5, life: at, follow: this.at(r.attackerId, -side, 6 - k * 10, 112 + k * 30), dz: -2 + k * 0.1, flipX: side < 0, angle: side * (22 + tilt), add: true, glow: 0.4, run: r, // a fan of lightning arrows hangs above and behind her, the last the biggest
+        sx: kf([0, 0], [0.2, 0.25], [0.9, 1, out]), sy: kf([0, 0], [0.2, 0.5], [0.9, 1, out]), a: (u) => kf([0, 0], [0.2, 0.7], [0.97, 1], [1, 0])(u) * (0.8 + 0.2 * Math.sin(u * 90 + k)) });
     });
-    for (let k = 0; k < 12; k++) this.later(T.startup + 120 + k * (hits[0] - T.startup - 120) / 12, () => {
-      const q = this.me(r), bx = q.x + side * 40, by = q.y - q.z - 58, an = rnd(0, Math.PI * 2), rr = rnd(30, 60);
-      this.bolt('arc_small', { x: bx, y: by }, { x: bx + Math.cos(an) * rr, y: by + Math.sin(an) * rr }, { thick: 24, life: 130 });
-    }, r);
-    this.later(hits[0] - 300, () => { if (r.own) this.ctx.cam().shake(300, 0.002); }, r);
+    this.later(until - 80, () => { const b = bow(); if (b) this.pop('elec_burst', b.x, b.y, 180, { life: 200 }); }, r);
+    this.later(until - 300, () => { if (r.own) this.ctx.cam().shake(300, 0.003); }, r);
   }
 
   /** Beats a spirit eagle's wings: up, level, down, level … (one frame each 80 ms). */
