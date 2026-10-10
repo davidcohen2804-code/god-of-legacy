@@ -68,7 +68,7 @@ export class CameraPitch {
       const floor = top && o.depth > wy - 2 && o.depth - wy < AIR && Math.abs(o.depth) > 1 ? o.depth : wy;
       keep(o);
       o.y += (q - 1) * (floor - a) / ps;
-      if (o instanceof Phaser.GameObjects.Ellipse || (o as { texture?: { key: string } }).texture?.key === 'contact-shadow') o.scaleY *= q;
+      if (o instanceof Phaser.GameObjects.Ellipse || (o as { texture?: { key: string } }).texture?.key === 'contact-shadow' || (o as { floorFlat?: boolean }).floorFlat) o.scaleY *= q; // (effects lying on the floor too)
     };
     for (const o of this.scene.children.list as Placed[]) visit(o, 0, 1, true);
   }
