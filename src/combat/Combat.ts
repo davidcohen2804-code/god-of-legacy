@@ -491,7 +491,7 @@ export class CombatBody {
       const over = R.grab ? 0 : this.airOver(now);
       const budgetOk = over < 1 && (!relaunch || c.relaunches < (this.arena ? ARENA.relaunches : COMBO.maxRelaunchesPerCombo + 2));
       if (budgetOk) {
-        let h = (relaunch ? R.launch * 0.8 : R.launch) * 1.3 * (1 - 0.6 * over);
+        let h = (relaunch ? R.launch * 0.8 : R.launch) * 1.3 * (1 - 0.6 * over) * (this.arena ? skill.arenaLaunch ?? 1 : 1); // (a skill's own arena height: DFO-low juggles)
         if (this.arena) h = Math.max(30, Math.min(h, ARENA.launchCap - (k.z - k.supportZ))); // never out of the follow-ups' reach
         this.pinUntil = -1; // (a launch breaks a hold: the court's chains, a pin)
         k.grounded = false; k.vz = Math.sqrt(2 * PHYS.gravity * LAUNCH_G * h); out.launchVz = k.vz;

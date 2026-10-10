@@ -306,6 +306,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private botAwayMs = 0;
   /** Arena camera follow point (vertical only). */
   private camTarget = new Phaser.Math.Vector2();
+  /** A dash through the foe just passed him (sim clock): the next skill may turn back toward him. */
+  private throughUntil = -1;
   /** The arena's camera, by the player: zoom (wheel / the camera buttons) and height (PageUp / PageDown), Home resets. */
   private arenaZoom = 1;
   private arenaLift = 0;
@@ -1540,6 +1542,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
           if (L.line) { const a = l.run.aim, ox = t.x - l.x, oy = t.y - l.y, al = ox * a.x + oy * a.y, side = Math.abs(-ox * a.y + oy * a.x);
             if (al < -t.radius || al > L.line.length + t.radius || side > L.line.width / 2 + t.radius || t.z > L.maxZ) continue; }
           else if (Math.hypot(t.x - l.x, t.y - l.y) > L.radius + t.radius || t.z > L.maxZ) continue;
+          if (L.fresh && [...l.run.hitKeys].some((key) => key.endsWith(`|${t.id}`))) continue; // (already struck by the cast itself)
           if (L.once) { const st = (l.struck ??= new Set()); if (st.has(t.id)) continue; st.add(t.id); this.fx?.trapCatch(l.run.skill.id, { x: t.x, y: t.y, z: t.z }); }
           const at = { x: t.x, y: t.y, z: t.z + 40 };
           if (l.run.own) { if (t.kind === 'enemy') this.applyToPve(zr, L.hit, t, at); else if (t.id === BOT_ID) this.applyToBot(zr, L.hit, t, at); } // remote players resolve your zone on their side
@@ -2349,14 +2352,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private resolveCast(s: FinalSkill): { aim: V2; place: V2 | null; lock: string | null } | null {
     const k = this.kin, inp = this.ci!;
     // Soft lock (DFO-style tracking): snap the aim to the nearest enemy roughly in front, so attacks never whiff on a near-miss angle.
-    const lockT = this.softTarget(260, 0.05);
+    // (the samurai, right after stepping through the foe: the next cut turns back to him — he is behind now)
+    const lockT = this.softTarget(260, s.cls === 'samurai' && this.simMs < this.throughUntil ? -1.01 : 0.05);
     if (lockT) this.aim = unit(lockT.x - k.x, lockT.y - k.y, this.aim.x, this.aim.y);
     const reach = s.id === 'arcane_gate' ? 360 : s.targeting === 'mouseGround' ? Math.min(180, s.placeRange ?? 180) : 160; // (the far gate: well ahead of him)
     const mouse = { x: k.x + this.aim.x * reach, y: k.y + this.aim.y * reach };
     let aim = unit(mouse.x - k.x, mouse.y - k.y, FACE[this.dir].x, FACE[this.dir].y);
     let place: V2 | null = null, lock: string | null = null;
     if (s.targeting === 'mouseGround') {
-      place = clampPlace(k, mouse, s.placeRange ?? 260);
+      const under = s.snapPlace ? this.softTarget(s.placeRange ?? 260, -1.01) : null; // a catch: opened under the nearest foe (any side)
+      place = under && placementOk(under.x, under.y) ? { x: under.x, y: under.y } : clampPlace(k, mouse, s.placeRange ?? 260);
       if (!placementOk(place.x, place.y)) return null;
     }
     if (s.targeting === 'mouseTarget') {
@@ -2575,10 +2580,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (phase === 'active' && run.skill.cls === 'book_mage') this.mageZone(run);
     const L = run.skill.linger;
     if (phase === 'active' && L) { // every caster's lingering zone (yours, other players', the sparring knight's)
-      const off = L.at === 'aim' ? (L.offset ?? 0) : 0;
-      this.lingers.push({ run, x: run.origin.x + run.aim.x * off, y: run.origin.y + run.aim.y * off, next: this.simMs + L.startMs, left: L.count });
+      const off = L.at === 'aim' ? (L.offset ?? 0) : 0, pl = L.at === 'place' ? run.place : null; // ('place': where the cast was opened on the floor)
+      this.lingers.push({ run, x: pl ? pl.x : run.origin.x + run.aim.x * off, y: pl ? pl.y : run.origin.y + run.aim.y * off, next: this.simMs + L.startMs, left: L.count });
     }
     if (run.own) {
+      if (phase === 'active' && run.skill.through) this.throughUntil = this.simMs + run.timings.active + run.timings.recovery + 450;
       if (phase === 'active' && run.skill.armor) this.body.armorUntil = this.simMs + Math.max(0, run.skill.armor[1] - run.timings.startup);
       if (phase === 'active' && run.skill.id === 'kagemusha') this.kageStart(run);
       if (phase === 'done') this.endRun(run, false);

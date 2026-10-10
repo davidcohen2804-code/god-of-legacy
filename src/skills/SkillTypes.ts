@@ -110,11 +110,14 @@ export interface FinalSkill {
   dash?: { distance: number; lift?: number; /** rise fast, hold at the top, drop at the end (shots from the apex) */ hang?: boolean; stopOnHit?: boolean; /** arc back down to the ground by the end of active (leap attacks) */ crash?: boolean };
   /** Ranged placement limit for ground target skills. */
   placeRange?: number;
+  /** Ground target: opened under the nearest foe in placeRange (any side), not at the aim's distance (a catch under him). */
+  snapPlace?: boolean;
   /** Persistent zone / trap lifetime after active (ms). */
   zoneMs?: number;
   /** Detached lingering hits (cracks / summons): keep striking after the caster moves on or cancels. */
-  linger?: { at: 'origin' | 'aim' | 'caster'; offset?: number; startMs: number; everyMs: number; count: number; radius: number; maxZ: number; hit: HitEvent;
+  linger?: { at: 'origin' | 'aim' | 'caster' | 'place'; offset?: number; startMs: number; everyMs: number; count: number; radius: number; maxZ: number; hit: HitEvent;
     /** each foe is struck by it once (a trap on the floor that catches whoever lands on it) */ once?: boolean;
+    /** foes the cast's own hits already struck are left to them (the trap only takes the ones that fall into it later) */ fresh?: boolean;
     /** a band along the aim from the origin instead of a circle */ line?: { length: number; width: number } };
   /** Dash passes through bodies and turns to face the target behind. */
   through?: boolean;
@@ -141,6 +144,8 @@ export interface FinalSkill {
   pvpMultiplier: number;
   /** Arena: damage factor of its hits (light juggle tools hit softer so a long air string fits the gauges). */
   arenaDmg?: number;
+  /** Arena: height factor of its launches (DFO pace: the foe juggled low, in reach of the next cut). */
+  arenaLaunch?: number;
   pveMultiplier: number;
   description: string;
   unlockLevel: number;

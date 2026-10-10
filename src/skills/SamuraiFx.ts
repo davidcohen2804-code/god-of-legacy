@@ -1417,6 +1417,16 @@ export class SamuraiFx {
     }
     this.ctx.punch(0.02, 160);
   }
+  /** The catch: a foe coming down into the blossoms left on the floor — the ring flares under him, petals burst up round
+   *  his feet as the branches take him (the branches themselves: `cage`, from the hit). */
+  blossomCatch(at: V3): void {
+    if (!this.ready) return;
+    const { x, y } = at;
+    this.floor('shock_ring', x, y, 190, 380, { add: true, depth: GROUND + 2.6, tint: 0xffc4d0, s: kf([0, 0.35], [1, 1.15, out3]), a: kf([0, 0.85], [1, 0, inQ]) });
+    this.floor('sigil_sakura', x, y, 150, 520, { spin: 120, depth: GROUND + 2.2, tint: 0xffd2da, a: kf([0, 0.7], [0.4, 0.5], [1, 0, inQ]), s: kf([0, 1.2], [0.3, 1, out3]) });
+    this.petals(x, y - 12, 14, 70, { depth: y + 4 });
+    this.dust(x, y, 90);
+  }
   /** A bound foe: cherry branches break up through the stones round it (cracks and stone dust at their roots) and curl in
    *  over it (the near ones low, so the foe stays in sight); petals come off them and drift down all through the bind; at
    *  its end they wither back into the floor. */
