@@ -612,7 +612,7 @@ const samurai: FinalSkill[] = [
     id: 'shadow_step', cls: 'samurai', slot: 1, name: 'Shadow Step', roles: ['chase', 'gapClose'], targeting: 'mouseDir',
     startup: 100, active: 150, recovery: 150, cooldown: 3500, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 160 }, through: true, charges: 2, chargeGap: 200,
-    hits: [H(0, 22, { kind: 'capsule', radius: 28 }, { stun: 220, push: 8 }, { reachUp: 200 })],
+    hits: [H(0, 22, { kind: 'capsule', radius: 28 }, { stun: 400, push: 8 }, { reachUp: 200 })], // (held long enough for the next cut, turned back toward him)
     cancelOnHit: ['spin_cut', 'iai_strike', 'quick_slash', 'blossom_storm', 'dragon_eclipse'], telegraph: 'line',
     description: 'Step through the foe in a blink, cutting as you pass, and land behind it facing it. Two steps in a row, then the cooldown.',
     relations: ['2 steps in a row', 'Cancel → Swallow Cut'],
@@ -660,12 +660,12 @@ const samurai: FinalSkill[] = [
     relations: ['Counter', 'Launch on counter'],
   }),
   S({
-    id: 'blossom_storm', cls: 'samurai', slot: 6, name: 'Blossom Storm', roles: ['signature', 'chase'], targeting: 'mouseTarget',
+    id: 'blossom_storm', cls: 'samurai', arenaLaunch: 0.6, slot: 6, name: 'Blossom Storm', roles: ['signature', 'chase'], targeting: 'mouseTarget',
     startup: 300, active: 700, recovery: 320, cooldown: 16000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     dash: { distance: 150 },
     hits: [0, 140, 280, 420, 600].map((t, i) => H(t, [9, 9, 9, 9, 10][i], { kind: 'circle', radius: 92 },
       i === 4 ? { stun: 300, launch: 110, juggleCost: 30 } : { stun: 220, float: true, juggleCost: 8 }, { reachUp: 230, heavy: i === 4 })),
-    cancelOnHit: ['dragon_eclipse'], tags: ['signature'], telegraph: 'circle',
+    cancelOnHit: ['dragon_eclipse', 'iai_strike'], tags: ['signature'], telegraph: 'circle', // (the fall → a draw-cut on the fallen foe)
     description: 'Chase the foe as a storm of cherry blossoms and afterimages: five cuts, the last one throws it high into the air.',
     relations: ['Signature', 'Cancel → Dragon Eclipse'],
   }),
@@ -682,7 +682,7 @@ const samurai: FinalSkill[] = [
   }),
   // ---- extended kit (Q R F G C V T H Z X)
   S({
-    id: 'swallow_cut', cls: 'samurai', slot: 8, name: 'Swallow Cut', roles: ['launcher', 'antiAir'], targeting: 'mouseCone',
+    id: 'swallow_cut', cls: 'samurai', arenaLaunch: 0.5, slot: 8, name: 'Swallow Cut', roles: ['launcher', 'antiAir'], targeting: 'mouseCone',
     startup: 120, active: 220, recovery: 240, cooldown: 3000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(0, 15, { kind: 'sector', range: 104, angle: 110 }, { stun: 420, launch: 150, juggleCost: 30 }, { reachUp: 220 }),
       H(130, 10, { kind: 'sector', range: 108, angle: 120 }, { stun: 340, float: true, juggleCost: 6 }, { reachUp: 240 })],
@@ -691,7 +691,7 @@ const samurai: FinalSkill[] = [
     relations: ['Launcher', 'Jump → Hundred Cuts'],
   }),
   S({
-    id: 'hundred_cuts', cls: 'samurai', slot: 9, name: 'Hundred Cuts', roles: ['extender', 'airExtender'], targeting: 'mouseCone',
+    id: 'hundred_cuts', cls: 'samurai', arenaLaunch: 0.6, slot: 9, name: 'Hundred Cuts', roles: ['extender', 'airExtender'], targeting: 'mouseCone',
     startup: 130, active: 1040, recovery: 220, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1170],
     hits: [...Array.from({ length: 12 }, (_, i) => H(i * 80, 3, { kind: 'sector', range: 110, angle: 130 }, { stun: 300, float: true, juggleCost: 2 }, { reachUp: 200 })),
       H(1000, 12, { kind: 'sector', range: 118, angle: 140 }, { stun: 420, push: 34, launch: 70, juggleCost: 10 }, { reachUp: 200, heavy: true })],
@@ -702,7 +702,7 @@ const samurai: FinalSkill[] = [
   S({
     id: 'kagemusha', cls: 'samurai', slot: 10, name: 'Kagemusha', roles: ['setup'], targeting: 'self',
     startup: 220, active: 80, recovery: 160, cooldown: 18000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 3, { kind: 'circle', radius: 110 }, { stun: 240, push: 16 }, { reachUp: 120 })], tags: ['buff'],
+    hits: [H(0, 3, { kind: 'circle', radius: 110 }, { stun: 240, push: 16, drop: true }, { reachUp: 120 })], tags: ['buff'], // (a buff: no juggle link — a foe in the air keeps falling)
     description: 'Vanish in a burst of ink and petals: a ring of five shadow doubles stands round the spot, then they scatter and move on their own — running, stopping, closing in on the foe and feinting at it — while you stay hidden among them for 6s. Strike and you step out of hiding, the doubles swinging with you (no damage; 30% against monsters). Monsters go after the doubles; a double that is struck bursts into petals. Your first real hit is an AMBUSH: a sure critical and a short stun, and the doubles vanish. If you are struck, they vanish at once.',
     relations: ['5 doubles · hidden 6s', 'Ambush: sure critical + stun'],
   }),
@@ -722,20 +722,20 @@ const samurai: FinalSkill[] = [
     dash: { distance: 230, lift: 120, crash: true },
     hits: [H(150, 10, { kind: 'circle', radius: 90 }, { stun: 300, slam: true }, { reachUp: 200 }),
       H(300, 24, { kind: 'circle', radius: 135 }, { stun: 380, launch: 100, juggleCost: 25 }, { reachUp: 220, heavy: true })],
-    cancelOnHit: ['quick_slash', 'swallow_cut', 'hundred_cuts', 'tornado_blade', 'phantom_blades', 'blossom_storm'], telegraph: 'circle',
+    cancelOnHit: ['quick_slash', 'swallow_cut', 'hundred_cuts', 'tornado_blade', 'phantom_blades', 'blossom_storm', 'sakura_bind'], telegraph: 'circle', // (the slam → the blossoms catch him as he comes down)
     description: 'Leap high and dive like a falcon onto the target: the crimson impact slams airborne foes into the floor and blasts grounded ones up.',
     relations: ['Gap close', 'Pop-up → air chase'],
   }),
   S({
     id: 'rising_sun', cls: 'samurai', slot: 13, name: 'Rising Sun', roles: ['setup'], targeting: 'self',
     startup: 700, active: 200, recovery: 280, cooldown: 60000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1180],
-    hits: [H(0, 8, { kind: 'circle', radius: 160 }, { stun: 340, push: 30 }, { reachUp: 150 })],
+    hits: [H(0, 8, { kind: 'circle', radius: 160 }, { stun: 340, push: 30, drop: true }, { reachUp: 150 })], // (a buff: no juggle link — a foe in the air keeps falling)
     cancelOnHit: ['quick_slash', 'shadow_step', 'blossom_storm', 'dragon_eclipse'], tags: ['buff', 'party'],
     description: 'Raise the banner of the Rising Sun: +10% damage and critical hits 20% stronger for 90s; its light staggers foes around you. In a party, every party member near you shares it.',
     relations: ['Buff 90s', 'Party buff'],
   }),
   S({
-    id: 'phantom_blades', cls: 'samurai', slot: 14, name: 'Phantom Blades', roles: ['finisher', 'zone'], targeting: 'mouseCone',
+    id: 'phantom_blades', cls: 'samurai', arenaLaunch: 0.55, slot: 14, name: 'Phantom Blades', roles: ['finisher', 'zone'], targeting: 'mouseCone',
     startup: 420, active: 640, recovery: 340, cooldown: 18000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1100],
     hits: [...[0, 80, 160, 240, 320, 400, 480].map((t) => H(t, 7, { kind: 'circle', radius: 220, at: 'aimBias', bias: 150 }, { stun: 400, float: true, juggleCost: 3 }, { reachUp: 280 })),
       H(600, 22, { kind: 'circle', radius: 230, at: 'aimBias', bias: 150 }, { stun: 500, launch: 130, juggleCost: 20 }, { reachUp: 280, heavy: true })],
@@ -756,14 +756,18 @@ const samurai: FinalSkill[] = [
   S({
     id: 'sakura_bind', cls: 'samurai', slot: 16, name: 'Sakura Bind', roles: ['hardCC', 'pull', 'setup'], targeting: 'mouseGround',
     startup: 240, active: 160, recovery: 220, cooldown: 12000, ground: true, air: false, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
-    placeRange: 300,
-    hits: [H(0, 8, { kind: 'placed', radius: 125 }, { stun: 400, pull: 70, hardCC: { kind: 'root', ms: 2000 } }, { reachUp: 60 })],
-    cancelOnHit: ['quick_slash', 'shadow_step', 'hundred_cuts', 'phantom_blades', 'tornado_blade', 'iai_strike'], telegraph: 'ground',
-    description: 'A ring of cherry blossoms opens where you aim: every foe in it is pulled to its centre and held by blossoming branches for 2s — ready for your cuts.',
-    relations: ['Pull + bind 2s', 'Setup → Hundred Cuts'],
+    placeRange: 300, snapPlace: true, // (opened under the nearest foe)
+    hits: [H(0, 8, { kind: 'placed', radius: 125 }, { stun: 400, pull: 70, catch: true, hardCC: { kind: 'root', ms: 2000 } }, { reachUp: 60 })],
+    // the combo's catch (DFO): the blossoms stay on the floor ~1.2s — a foe that comes down into them (from a slam, a fall)
+    // is caught on landing, stood up and held by the branches: the string goes on (a launch from the floor)
+    linger: { at: 'place', startMs: 60, everyMs: 60, count: 20, radius: 125, maxZ: 50, once: true, fresh: true,
+      hit: H(0, 6, { kind: 'circle', radius: 125 }, { stun: 420, pull: 70, catch: true, hardCC: { kind: 'root', ms: 1200, long: true } }, { reachUp: 50 }) },
+    cancelOnHit: ['quick_slash', 'shadow_step', 'hundred_cuts', 'phantom_blades', 'tornado_blade', 'iai_strike', 'dragon_ascension', 'swallow_cut'], telegraph: 'ground',
+    description: 'A ring of cherry blossoms opens under the foe: every foe in it is pulled to its centre and held by blossoming branches for 2s — and the blossoms stay on the floor a moment: a foe that comes down into them is caught on landing and held. Ready for your cuts.',
+    relations: ['Pull + bind 2s', 'Catches a falling foe'],
   }),
   S({
-    id: 'dragon_ascension', cls: 'samurai', slot: 17, name: 'Dragon Ascension', roles: ['launcher', 'extender'], targeting: 'self',
+    id: 'dragon_ascension', cls: 'samurai', arenaLaunch: 0.55, slot: 17, name: 'Dragon Ascension', roles: ['launcher', 'extender'], targeting: 'self',
     startup: 260, active: 600, recovery: 300, cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 900],
     hits: [H(0, 18, { kind: 'circle', radius: 150 }, { stun: 460, launch: 145, juggleCost: 30 }, { reachUp: 220, heavy: true }), // (lifts ~190 px: the follow-ups reach it at once)
       ...[160, 320, 480].map((t) => H(t, 7, { kind: 'circle', radius: 160 }, { stun: 380, float: true, juggleCost: 4 }, { reachUp: 380 }))],
@@ -824,7 +828,7 @@ const gambler: FinalSkill[] = [
     hits: [H(0, 16, { kind: 'circle', radius: 100, at: 'aimBias', bias: 70, floor: true }, { stun: 420, slam: true, push: 6 }, { reachUp: 140, heavy: true, fuse: true })],
     // the charged floor erupts 0.8s later under whoever stands on it
     linger: { at: 'aim', offset: 70, startMs: 800, everyMs: 1000, count: 1, radius: 115, maxZ: 40, hit: H(0, 18, { kind: 'circle', radius: 115 }, { stun: 460, launch: 120, juggleCost: 20 }, { reachUp: 60, heavy: true }) },
-    cancelOnHit: ['cut_the_deck', 'charged_deal', 'riffle_shuffle', 'rotor_staff', 'roulette_wheel', 'kinetic_grab', 'dice_bomb'], telegraph: 'circle',
+    cancelOnHit: ['cut_the_deck', 'charged_deal', 'riffle_shuffle', 'rotor_staff', 'roulette_wheel', 'kinetic_grab', 'dice_bomb', 'triple_down'], telegraph: 'circle',
     description: 'Slam the staff into the floor: a foe in the air is smashed down, and the floor stays charged — 0.8s later it erupts and throws up whoever stands on it.',
     relations: ['Smash down', 'Floor erupts 0.8s later'],
   }),
@@ -853,7 +857,7 @@ const gambler: FinalSkill[] = [
     startup: 360, active: 520, recovery: 300, cooldown: 9000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 880],
     // five cards turn over in a row and burst one by one (Gamble.ts: the Hand's rank sets the damage and the bonus)
     hits: [0, 100, 200, 300, 400].map((t, i) => H(t, i === 4 ? 16 : 8, { kind: 'line', length: 330, width: 80 }, { stun: 420, float: i < 4, launch: i === 4 ? 60 : undefined, juggleCost: i === 4 ? 14 : 4 }, { reachUp: 160, heavy: i === 4 })),
-    cancelOnHit: ['cut_the_deck', 'rotor_staff', 'grand_slam', 'pickup_52', 'all_in'], telegraph: 'line', endsCombo: false,
+    cancelOnHit: ['cut_the_deck', 'rotor_staff', 'grand_slam', 'pickup_52', 'all_in', 'fuse_slam'], telegraph: 'line', endsCombo: false,
     description: 'Show your Hand: the cards fly from your shoulder, stand in a row before the foe and turn over one by one, each one bursting. The better the Hand, the harder it hits — a Pair, a Flush, a Full House... a Royal Flush. At least 2 cards.',
     relations: ['Plays the Hand', 'Royal Flush ×3.2'],
   }),
@@ -872,7 +876,7 @@ const gambler: FinalSkill[] = [
     // the ball spins 2s (foes in the wheel are slowed); then red: a blast that lifts, black: a 2s bind (Gamble.ts picks it)
     hits: [...[0, 500, 1000, 1500].map((t) => H(t, 3, { kind: 'placed', radius: 150 }, { stun: 200, slow: { pct: 40, ms: 600 } }, { reachUp: 60 })),
       H(2000, 30, { kind: 'placed', radius: 160 }, { stun: 460, launch: 130, juggleCost: 20 }, { reachUp: 80, heavy: true })],
-    cancelOnHit: ['cut_the_deck', 'charged_deal', 'dice_bomb', 'kinetic_grab', 'all_in'], telegraph: 'ground',
+    cancelOnHit: ['cut_the_deck', 'charged_deal', 'dice_bomb', 'kinetic_grab', 'all_in', 'triple_down'], telegraph: 'ground',
     description: 'A giant roulette wheel opens on the floor where you aim; the ball spins for 2s and every foe in the wheel is slowed. Where it stops: RED — a great blast throws them all up; BLACK — everyone in it is bound for 2s.',
     relations: ['Slow 2s', 'Red: launch · Black: bind'],
   }),
@@ -882,7 +886,7 @@ const gambler: FinalSkill[] = [
     // two dice roll along the floor and burst; the sum sets the size (Gamble.ts), a double bursts twice and stuns
     hits: [H(560, 14, { kind: 'circle', radius: 120, at: 'aimBias', bias: 140 }, { stun: 400, push: 40 }, { reachUp: 90, heavy: true }),
       H(640, 14, { kind: 'circle', radius: 120, at: 'aimBias', bias: 195 }, { stun: 400, push: 40, launch: 50 }, { reachUp: 90, heavy: true })],
-    cancelOnHit: ['cut_the_deck', 'charged_deal', 'staff_vault', 'roulette_wheel', 'kinetic_grab'], telegraph: 'line',
+    cancelOnHit: ['cut_the_deck', 'charged_deal', 'staff_vault', 'roulette_wheel', 'kinetic_grab', 'triple_down'], telegraph: 'line',
     description: 'Roll two glowing dice along the floor: they tumble forward and burst. The higher the roll (2 to 12), the bigger the blast; a double bursts twice and stuns.',
     relations: ['Blast by the roll', 'Double: stun'],
   }),
@@ -893,7 +897,7 @@ const gambler: FinalSkill[] = [
       H(480, 26, { kind: 'sector', range: 96, angle: 80 }, { stun: 480, push: 200, launch: 60, knockdown: 'heavy', grab: true, juggleCost: 18 }, { reachUp: 100, heavy: true })],
     // the thrown foe is a bomb: where it lands it bursts and hits everyone around it
     linger: { at: 'aim', offset: 230, startMs: 820, everyMs: 1000, count: 1, radius: 130, maxZ: 120, hit: H(0, 18, { kind: 'circle', radius: 130 }, { stun: 420, push: 40, launch: 40 }, { reachUp: 120, heavy: true }) },
-    cancelOnHit: ['charged_deal', 'staff_vault', 'ace_in_the_hole', 'rotor_staff', 'all_in'],
+    cancelOnHit: ['charged_deal', 'staff_vault', 'ace_in_the_hole', 'rotor_staff', 'all_in', 'triple_down'],
     description: 'Seize the foe by the collar, charge its whole body with kinetic power and throw it: it becomes a bomb, and where it lands it bursts on everyone around. A grab — combo protection does not stop it.',
     relations: ['Grab', 'The foe becomes a bomb'],
   }),
@@ -931,17 +935,21 @@ const gambler: FinalSkill[] = [
     id: 'grand_slam', cls: 'gambler', slot: 15, name: 'Grand Slam', roles: ['finisher', 'knockdown'], targeting: 'mouseCone',
     startup: 420, active: 140, recovery: 320, cooldown: 11000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 560],
     hits: [H(0, 46, { kind: 'sector', range: 150, angle: 120 }, { stun: 520, push: 380, launch: 40, knockdown: 'heavy', juggleCost: 30 }, { reachUp: 200, heavy: true, fuse: true })],
-    cancelOnHit: ['showdown', 'jackpot', 'pickup_52', 'dice_bomb', 'ace_in_the_hole'], telegraph: 'cone',
+    cancelOnHit: ['showdown', 'jackpot', 'pickup_52', 'dice_bomb', 'ace_in_the_hole', 'triple_down'], telegraph: 'cone',
     description: 'The staff grows to twice its length and you swing it like a bat: the foe flies far away on a comet\'s tail and crashes into the floor or a wall. It sets off every card stuck in it at once.',
     relations: ['Sends far', 'Sets off all cards'],
   }),
   S({
-    id: 'kinetic_overload', cls: 'gambler', slot: 16, name: 'Kinetic Overload', roles: ['setup'], targeting: 'self',
-    startup: 560, active: 160, recovery: 240, cooldown: 60000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 4000],
-    hits: [H(0, 10, { kind: 'circle', radius: 170 }, { stun: 360, push: 50 }, { reachUp: 160 })], tags: ['buff'],
-    cancelOnHit: ['cut_the_deck', 'showdown', 'grand_slam', 'jackpot'],
-    description: 'Charge your whole body for 30s: +15% damage, every card that sticks bursts twice, and every staff blow leaves a small blast. Super armor for the first 4s.',
-    relations: ['Buff 30s', 'Super armor 4s'],
+    id: 'triple_down', cls: 'gambler', slot: 16, name: 'Triple Down', roles: ['knockdown', 'finisher'], targeting: 'mouseCone',
+    startup: 200, active: 760, recovery: 300, cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 960],
+    // the staff grows into a pillar of light and hammers the floor ahead three times — each blow on a foe lying there keeps
+    // him down and sets off the cards in him; the third, the heaviest, bounces him off the floor (one more link)
+    hits: [H(0, 12, { kind: 'circle', radius: 95, at: 'aimBias', bias: 85 }, { stun: 420 }, { reachUp: 120, heavy: true, fuse: true }),
+      H(300, 14, { kind: 'circle', radius: 100, at: 'aimBias', bias: 85 }, { stun: 420 }, { reachUp: 120, heavy: true, fuse: true }),
+      H(700, 24, { kind: 'circle', radius: 125, at: 'aimBias', bias: 85 }, { stun: 520, launch: 70, juggleCost: 14 }, { reachUp: 130, heavy: true, fuse: true })],
+    cancelOnHit: ['all_in', 'rotor_staff', 'showdown', 'cut_the_deck', 'charged_deal', 'fuse_slam', 'grand_slam'], telegraph: 'circle',
+    description: 'Your staff grows into a pillar of light and you hammer the floor ahead three times. Every blow lands on a foe lying there — keeping him down and setting off the cards stuck in him — and the third, the heaviest, bounces him off the floor.',
+    relations: ['Hits the fallen', 'Sets off all cards'],
   }),
   S({
     id: 'card_swap', cls: 'gambler', slot: 17, name: 'Card Swap', roles: ['mobility', 'escape', 'trap'], targeting: 'mouseDir',

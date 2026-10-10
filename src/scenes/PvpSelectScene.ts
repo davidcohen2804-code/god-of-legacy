@@ -47,7 +47,7 @@ export class PvpSelectScene extends Phaser.Scene {
       back: () => this.leave(() => { clearPvpFromUrl(); this.scene.start('MainMenuScene'); }),
       mode: (m) => { if (m === 'player') this.openLobby(); else this.closeLobby(); this.ui?.setScore(score(scoreKey(m, this.lobby?.room))); },
       local: (hover, pick) => { this.hover = hover; this.lobby?.set(hover, pick, fighterFor(hover).name); },
-      start: (p1, p2, m) => this.start(p1, p2, m),
+      start: (p1, p2, m, stage) => this.start(p1, p2, m, stage),
       copyLink: async () => { try { await navigator.clipboard.writeText(window.location.href); return true; } catch { return false; } },
       art: (s, cls, state) => this.arts?.[s].set(cls, state),
       lock: (s) => this.arts?.[s].lock(),
@@ -85,10 +85,11 @@ export class PvpSelectScene extends Phaser.Scene {
     this.ui.setNet({ status: l.status, room: l.room, link: window.location.href, local: l.kind === 'Local' }, o ? { name: o.name, hover: o.hover, pick: o.pick } : null);
   }
 
-  /** Both locked in: into the arena — against the CPU in a room of your own, or with the other player in the shared one. */
-  private start(p1: string, p2: string, mode: VsMode): void {
+  /** Both locked in: into the arena — against the CPU in a room of your own on the stage you picked, or with the other
+   *  player in the shared one (its stage comes from the room, the same on both screens). */
+  private start(p1: string, p2: string, mode: VsMode, stage?: string): void {
     const fighter = fighterFor(p1);
-    if (mode === 'cpu') this.scene.start('LegacyCourtyardScene', { pvpRoom: generateRoomId(6), fighter, botCls: p2, vs: 'cpu' });
+    if (mode === 'cpu') this.scene.start('LegacyCourtyardScene', { pvpRoom: generateRoomId(6), fighter, botCls: p2, vs: 'cpu', stage });
     else this.scene.start('LegacyCourtyardScene', { pvpRoom: this.lobby?.room ?? ensurePvpRoomInUrl(), fighter, vs: 'player', foe: { cls: p2, name: this.lobby?.other?.name || 'Player 2' } }); // (foe: for the loading screen)
   }
 

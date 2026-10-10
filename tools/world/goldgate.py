@@ -1,6 +1,6 @@
 # goldgate.py : the Sun Gate — a golden gate across the terrace right of Ivy Heights, closed until the sun is crossed
-# (Sunfall Pass), then open. GPT painted it (closed / open, same pillars) in a steeper 3/4 view than the game's; a vertical
-# shear (posts stay upright) lays its foot line across the terrace's whole depth, from its back to its front edge.
+# (Sunfall Pass), then open. GPT painted it (closed / open, same pillars); its own angle kept, scaled so its foot line
+# runs across the terrace's whole depth, from its back to its front edge.
 #   in : tools/world/goldgate/{closed,open}.png (magenta background)
 #   out: public/assets/world/goldgate/{closed,open}.png, src/data/world-goldgate.json
 #   python3 tools/world/goldgate.py
@@ -10,9 +10,8 @@ from PIL import Image
 G = os.path.dirname(os.path.abspath(__file__)) + '/'
 R = G + '../../'
 OUT = R + 'public/assets/world/goldgate/'; os.makedirs(OUT, exist_ok=True)
-S = 0.42                      # world px per picture px (the pillars about three figures tall)
 BACK, FRONT = 336, 664        # the terrace's back and front at its feet (world y): the gate seals the whole depth
-X0 = 5020                     # world x of its back pillar's foot
+X0 = 4950                     # world x of its back pillar's foot
 
 
 def key(path):
@@ -40,8 +39,10 @@ def foot(x0, x1):   # a pillar's foot: the middle of its lowest rows
 
 
 bx, by = foot(0, W // 3); fx, fy = foot(2 * W // 3, W)
-span = (FRONT - BACK) / S
-k = (span - (fy - by)) / (fx - bx)    # the shear: y' = y + k (x - bx)
+# no stretch at all (a sheared picture reads flat): its own angle kept, scaled so its feet span the terrace's depth —
+# as tall and grand as the Temple Gate's towers
+S = (FRONT - BACK) / (fy - by)
+k = 0.0
 print('feet', (bx, by), (fx, fy), 'shear', round(k, 3))
 oy = int(k * bx) + 10
 OH = H + int(k * W) + 20

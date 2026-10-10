@@ -316,6 +316,7 @@ export class GamblerFx {
       case 'jackpot': this.jackpotBlast(r, i); break;
       case 'lady_luck': this.floorRing(o.x, o.y, 150, GOLD, 520); break;
       case 'kinetic_overload': this.floorRing(o.x, o.y, 170, FUCHSIA, 420); this.pop(o.x, y0 - 60, 220, FUCHSIA, 420); break;
+      case 'triple_down': this.tripleSlam(r, i); break;
       case 'showdown': this.showdownBurst(r, i); break;
     }
   }
@@ -405,6 +406,23 @@ export class GamblerFx {
       this.burst(tp.x, y, 90 + n * 22); this.ctx.freeze(40 + n * 10);
       this.ctx.callout({ x: tp.x, y: tp.y, z: tp.z + 10 }, n >= 3 ? `CHAIN BURST ×${n}!` : `BURST ×${n}`, '#ff7ae6', 1);
     }
+  }
+  /** Triple Down: the staff as a pillar of light comes down on the floor ahead — each blow bigger, the third shatters it. */
+  private tripleSlam(r: CastRun, i: number): void {
+    const o = this.me(r), side = sideOf(r), p = this.ahead(r, 85), h = this.ctx.hand(r.attackerId) ?? { x: o.x + side * 30, y: o.y - o.z - 70 };
+    const big = i === 2, k = [0.8, 1, 1.5][i] ?? 1;
+    const rod = this.kit('td_staff', p.x, p.y + 4, 64 * k, p.y + 3); // the pillar of light from his hands to the floor
+    if (rod) { const L = Math.hypot(p.x - h.x, p.y - h.y) + 40; rod.setOrigin(0.5, 0.97).setDisplaySize(64 * k, L).setAngle(Math.atan2(h.x - p.x, p.y - h.y) * 57.3 * -1 + 180); const r0 = rod.scaleX, ry = rod.scaleY; this.piece(rod, 220, (u, im) => im.setScale(r0, ry * lerp(1.15, 1, out3(u))).setAlpha(1 - u * u)); }
+    else this.band(h.x, h.y, Math.hypot(p.x - h.x, p.y - h.y), Math.atan2(p.y - h.y, p.x - h.x) * 57.3, 200, 22 * k, p.y + 3);
+    const arc = this.kit('td_arc', p.x - side * 20, p.y - 80, 170 * k, p.y + 2); if (arc) { arc.setFlipX(side > 0); const a0 = arc.scale; this.piece(arc, 200, (u, im) => im.setScale(a0 * lerp(0.9, 1.05, u)).setAlpha(1 - u)); }
+    const imp = this.kit(big ? 'td_final' : i === 1 ? 'td_heavy' : 'td_light', p.x, p.y + 6, (big ? 300 : 190) * k, p.y + 4);
+    if (imp) { imp.setOrigin(0.5, big ? 0.85 : 0.6); const m0 = imp.scale; this.piece(imp, big ? 560 : 340, (u, im) => im.setScale(m0 * lerp(0.5, 1.1, out3(u))).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5)); }
+    else this.pop(p.x, p.y - 10, 140 * k, FUCHSIA, 260);
+    const ring = this.kit('td_wave', p.x, p.y, 260 * k, GROUND + 3); if (ring) { const rx = ring.scaleX, ry2 = (260 * k * SQUASH) / ring.height; this.piece(ring, 380, (u, im) => im.setScale(rx * lerp(0.3, 1.2, out3(u)), ry2 * lerp(0.3, 1.2, out3(u))).setAlpha(1 - u)); } else this.floorRing(p.x, p.y, 120 * k, FUCHSIA_2, 360);
+    const cr = this.kit('td_cracks', p.x, p.y, 230 * k, GROUND + 2); if (cr) { const cx = cr.scaleX, cy = (230 * k * SQUASH * 1.2) / cr.height; this.piece(cr, big ? 1400 : 900, (u, im) => im.setScale(cx, cy).setAlpha(u < 0.6 ? 1 : (1 - u) / 0.4)); } else this.scar(p.x, p.y, 90 * k);
+    const db = this.kit('td_debris', p.x, p.y - 20, 150 * k, p.y + 5); if (db) { const d0 = db.scale; this.piece(db, 420, (u, im) => im.setScale(d0 * lerp(0.4, 1.1, out3(u))).setPosition(p.x, p.y - 20 - u * 30).setAlpha(1 - u)); } else this.shards(p.x, p.y - 20, 6, 120, 420);
+    this.ctx.dust(p.x, p.y, 70 * k); this.ctx.cam().shake(big ? 320 : 140, big ? 0.016 : 0.007); this.ctx.freeze(big ? 110 : 50);
+    if (big) { this.ctx.flash(0xffffff, 0.16, 120); this.ctx.crack(p.x, p.y, 120); }
   }
   /** All In: the snap sets off every card in him — they blow one after another up his body, a chain that throws him up. */
   allIn(id: string, n: number): void {

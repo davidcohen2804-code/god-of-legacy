@@ -605,6 +605,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     pickup_52: { act: 'pickup_52', st: [0, 1, 2], ac: [3, 4, 4], rc: [5] },
     grand_slam: { act: 'grand_slam', st: [0, 1, 2], ac: [3], rc: [4, 5] },
     kinetic_overload: { act: 'kinetic_overload', st: [0, 1, 2], ac: [3], rc: [4, 5] },
+    triple_down: { act: 'triple_down', st: [0], ac: [1, 2, 3, 4, 5], rc: [5] },
     card_swap: { act: 'ace_in_the_hole', st: [2], ac: [3], rc: [4] },
     jackpot: { act: 'jackpot', st: [0, 0, 1, 1, 2, 3], ac: [4, 4], rc: [5] },
   },

@@ -9,7 +9,7 @@ export interface Card { suit: Suit; rank: number; joker?: boolean }
 /** The suit each skill deals: ♠ the staff up close, ♦ the thrown cards, ♣ the blasts, ♥ luck, moves and the grab. */
 export const SUIT: Record<string, Suit> = {
   charged_deal: 'D', riffle_shuffle: 'D', ace_in_the_hole: 'D', pickup_52: 'D',
-  staff_vault: 'S', rotor_staff: 'S', grand_slam: 'S',
+  staff_vault: 'S', rotor_staff: 'S', grand_slam: 'S', triple_down: 'S',
   fuse_slam: 'C', roulette_wheel: 'C', dice_bomb: 'C', jackpot: 'C', all_in: 'C',
   coin_flip: 'H', kinetic_grab: 'H', lady_luck: 'H', kinetic_overload: 'H', card_swap: 'H',
 };
