@@ -2733,7 +2733,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!run.own) { if (t.id === this.localId) this.applyRemoteHitToSelf(run, hit, hi, at); return; }
     if (t.kind === 'enemy') { this.applyToPve(run, hit, t, at); return; }
     if (t.id === BOT_ID) { this.applyToBot(run, hit, t, at); return; }
-    if (run.confirmedAt < 0 && !t.invulnerable) run.confirmedAt = run.elapsed; // predicted contact on a remote player (their client is authority; a guarded one: no contact)
+    if (run.confirmedAt < 0 && !t.invulnerable && !this.isPoke(run, hit, t)) run.confirmedAt = run.elapsed; // predicted contact on a remote player (their client is authority; a guarded one: no contact; a poke from afar: no cancel)
     if (!t.invulnerable && t.kind === 'player' && this.pvp?.remotes.has(t.id)) this.pvp.sendClaim(t.id, run.castId, hi, t.x, t.y, t.z); // what we saw: they take it if lag alone made them miss it (onClaim)
   }
 
@@ -2836,7 +2836,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private confirm(run: CastRun | null, hit: HitEvent, target: string, at: V3, damage: number, idx: number, comboId: number, reaction: string, ends: boolean, tz: number, crit = false): void {
     const s = run?.skill;
     if (!s) return;
-    if (run && run.confirmedAt < 0) run.confirmedAt = run.elapsed;
+    if (run && run.confirmedAt < 0 && !run.poked) run.confirmedAt = run.elapsed; // (a poke from afar opens no cancel)
     if (run && run.own && this.passives.orbs && damage > 0) { // Combo Force: one orb per skill that connects
       if (this.orbs.cast !== run.castId) { this.orbs.cast = run.castId; this.orbs.n = Math.min(ORBS.max, this.orbs.n + 1); }
       this.orbs.lastAt = this.simMs;
@@ -2944,7 +2944,19 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.claims = keep;
   }
 
+  /** The arena: a shot landing from afar (not a combo follow-up) is a poke — the foe flinches, nothing more (no lift, no
+   *  hold, no knockdown) and the shooter cannot cancel off it. Same rule on every client (attacker and victim). */
+  private isPoke(run: CastRun, hit: HitEvent, victim: { x: number }): boolean {
+    if (!this.arena || run.followUp || hit.shape.kind !== 'projectile') return false;
+    const c = this.casterPos(run.attackerId) ?? run.origin;
+    return Math.abs(victim.x - c.x) > ARENA_FLOW.pokeRange;
+  }
+  private pokeHit(hit: HitEvent): HitEvent {
+    const R = hit.reaction;
+    return { ...hit, reaction: { ...R, stun: Math.min(R.stun ?? ARENA_FLOW.pokeStun, ARENA_FLOW.pokeStun), launch: undefined, float: undefined, slam: undefined, pin: undefined, knockdown: undefined, juggleCost: undefined } };
+  }
   private applyRemoteHitToSelf(run: CastRun, hit: HitEvent, hi: number, at: V3, claimed = false): void {
+    if (this.isPoke(run, hit, this.kin)) { hit = this.pokeHit(hit); if (run.attackerId === BOT_ID) this.bot?.notePoke(); }
     const ck = `${run.castId}|${hi}`;
     if (!claimed && this.claimed.delete(ck)) return; // already taken through the attacker's claim (lag): not twice
     this.resolved.set(ck, this.simMs);
@@ -3403,6 +3415,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const b = this.bot;
     if (!b || b.defeated || (this.match?.active && !this.match.live)) return;
     hit = this.mageHit(run, hit); hit = this.markHit(run, hit, t.id); hit = this.gambleHit(run, hit, t.id);
+    if (this.isPoke(run, hit, b.kin)) { hit = this.pokeHit(hit); run.poked = true; } // a poke from afar: no cancel off it
     const chB = run.attackerId === this.localId ? this.chanceMul(b.body) : 1;
     const m = (run.attackerId === this.localId ? this.ownDamageMul(run.skill) * chB : 1) * this.rageMul(run.attackerId, BOT_ID), h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
     const out = b.receive(run.attackerId, run.skill, h, this.hitFrom(run, h), this.simMs, run.castId);

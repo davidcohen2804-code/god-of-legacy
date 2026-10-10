@@ -55,6 +55,8 @@ export interface CastRun extends CastRequest {
   chainFirst?: string | null;
   /** Chain hits: the foe the last arc struck (the next one leaps on from it). */
   chainLast?: string;
+  /** The arena: it landed only as a poke from afar (no hit-confirm cancel off it). */
+  poked?: boolean;
   /** The arena's reach rules for this cast (charged levels are picked later and get them too). */
   tune?: { reach?: number; antiAir?: boolean; depth?: number };
   /** Hold-to-charge skills: the startup's scale (attack speed) and the level picked when the startup ended (0..). */

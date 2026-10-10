@@ -94,7 +94,7 @@ export function setBotCentre(x: number, y: number): void { ARENA_CENTRE.x = x; A
 /** A Master's trial (the open world): his own name, a boss's HP, he can be beaten, and the floor's middle to fall back to. */
 export interface BotTrial { name: string; hp: number; centre: { x: number; y: number } }
 
-interface BotCast { s: FinalSkill; stage: number; t: number; T: { startup: number; active: number; recovery: number }; origin: V3; aim: V2; dist: number; followRolled?: boolean; landed?: boolean }
+interface BotCast { s: FinalSkill; stage: number; t: number; T: { startup: number; active: number; recovery: number }; origin: V3; aim: V2; dist: number; followRolled?: boolean; landed?: boolean; poke?: boolean }
 
 export class SparringBot {
   readonly kin: Kin;
@@ -131,6 +131,8 @@ export class SparringBot {
   private judged = '';
   /** One of its hits landed on you (the scene tells it): its current cast is no miss. */
   noteHit(): void { if (this.cast) this.cast.landed = true; }
+  /** Its hit was only a poke from afar: no combo off it. */
+  notePoke(): void { if (this.cast) this.cast.poke = true; }
   /** COMBO: the scripted chain in progress (ids with ':stage'). */
   private combo: string[] = [];
   private readonly kit: FinalSkill[];
@@ -438,7 +440,7 @@ export class SparringBot {
    *  launcher), and on HARD close it with the ultimate. */
   private followUp(w: BotWorld): void {
     const c = this.cast!, p = w.player, s = c.s;
-    if (!p.alive || !p.stuck || this.L.follow <= 0) return;
+    if (!p.alive || !p.stuck || this.L.follow <= 0 || c.poke) return;
     const hitsAt = (s.chain ? s.chain.stages[c.stage] : s.hits).filter((h) => h.damage > 0).map((h) => h.at);
     const last = c.T.startup + (hitsAt.length ? Math.max(...hitsAt) * (c.T.active / Math.max(1, s.chain?.timings?.[c.stage]?.active ?? s.active)) : c.T.active);
     if (c.t < last + 40 || c.t < c.T.startup + 60) return;

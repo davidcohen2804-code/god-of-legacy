@@ -997,7 +997,10 @@ export const ARENA_FLOW = { startup: 160, ultStartup: 400, active: 700, minSquee
    *  (The effects stay as wide as they are drawn.) */
   depth: 34,
   /** A committed skill that misses leaves its caster open this much longer (and can be cancelled only from a hit). */
-  whiffMs: 150 };
+  whiffMs: 150,
+  /** A shot that lands from farther than this (px; not a combo follow-up) is a poke: a short flinch, no lift, no cancel —
+   *  DFO: a poke from afar is a guess with a small reward, the combo starts up close. */
+  pokeRange: 150, pokeStun: 140 };
 /** Keeps its full area in the arena: ultimates, traps, ground-placed skills, big area bursts (radius ≥ 150). (A chain finds
  *  its first foe only near its line.) */
 export const arenaWide = (s: FinalSkill): boolean => s.slot === 7 || !!s.trap
