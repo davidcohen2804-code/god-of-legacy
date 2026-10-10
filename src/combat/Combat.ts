@@ -458,9 +458,11 @@ export class CombatBody {
     // Push / pull direction.
     let dx = k.x - from.x, dy = k.y - from.y; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
     if (!armored) {
-      const pushPx = (R.push ?? 0) * (this.arena ? ARENA.pushMul : this.pvp ? 1.4 : 2) - (R.pull ?? 0);
+      let pushPx = (R.push ?? 0) * (this.arena ? ARENA.pushMul : this.pvp ? 1.4 : 2) - (R.pull ?? 0);
+      if (this.arena && pushPx > 0 && (airNow || downNow || c.hits > 1)) pushPx *= 0.4; // DFO: in a combo the foe hardly drifts sideways (stays in reach)
+      if (R.yank !== undefined) { pushPx = -Math.max(0, Math.hypot(k.x - from.x, k.y - from.y) - R.yank); if (airNow) k.vz = Math.max(k.vz, 140); } // a vine whip: back in front of the attacker
       if (pushPx > 0 && this.kbResist > 0 && Math.random() < this.kbResist) this.stanceAt = now; // stance: not pushed back
-      else if (pushPx !== 0) { out.pushX = dx * pushPx; out.pushY = dy * pushPx; this.push = { vx: out.pushX / 110, vy: out.pushY / 110, left: 110 }; }
+      else if (pushPx !== 0) { const pm = R.yank !== undefined ? 60 : 110; out.pushX = dx * pushPx; out.pushY = dy * pushPx; this.push = { vx: out.pushX / pm, vy: out.pushY / pm, left: pm }; } // (a yank snaps in fast)
     }
     const cr = 1 - this.ccResist;
     if (R.slow) { this.slowPct = R.slow.pct; this.slowUntil = Math.max(this.slowUntil, now + R.slow.ms * cr); }

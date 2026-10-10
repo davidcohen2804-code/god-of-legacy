@@ -2191,7 +2191,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private ownSpeedMul(s: FinalSkill): number { return (this.simMs < this.mage.hasteUntil ? 1.1 : 1) * this.classSpeedMul(s); }
   private classSpeedMul(s: FinalSkill): number { return s.cls === 'gambler' ? (this.simMs < this.gTailsUntil ? 1.15 : 1) : s.cls === 'warrior' && this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && RADIANT_FAST.has(s.id) ? RADIANT_SPEED : s.cls === 'archer' ? this.passives.atkSpeed * (this.simMs < this.hasteUntil ? 1.2 : 1) : s.cls === 'samurai' ? this.passives.atkSpeed : 1; }
   /** Own critical rate bonus: passives + Hunter's Spirit (+15%). */
-  private critAddNow(): number { return this.passives.critAdd + (this.arena ? 0 : this.statD.critAdd) + (this.simMs < this.spiritUntil ? 0.15 : 0) + (this.simMs < this.gHeadsUntil ? 0.2 : 0) + (this.simMs < this.gLuckUntil ? 0.1 : 0) + (this.passives.gamble.streak ? 0.02 * this.gStreak : 0); }
+  private critAddNow(): number { return this.passives.critAdd + (this.arena ? 0 : this.statD.critAdd) + (this.simMs < this.spiritUntil || this.cls === 'archer' ? 0.15 : 0) + (this.simMs < this.gHeadsUntil ? 0.2 : 0) + (this.simMs < this.gLuckUntil ? 0.1 : 0) + (this.passives.gamble.streak ? 0.02 * this.gStreak : 0); }
   /** Own extra critical damage: passives + Rising Sun (+20%). */
   private critDmgNow(): number { return this.passives.critDmgAdd + (this.simMs < this.sunUntil ? 0.2 : 0) + (this.simMs < this.gLuckUntil ? 0.15 : 0); }
 
@@ -2414,7 +2414,6 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Archer casts: buffs, the tree, the channelled storm (timers on the sim clock, from the run's real startup). */
   private archerCast(s: FinalSkill, stage: number): void {
     const T = s.chain?.timings?.[stage] ?? s, up = Math.round(T.startup / this.ownSpeedMul(s)), k = this.kin, now = this.simMs;
-    if (s.id === 'hunters_spirit') { this.spiritUntil = now + up + 120000; this.shares.push({ at: now + up, id: s.id, ms: 120000 }); this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, "HUNTER'S SPIRIT", '#ffe27a', 0)); }
     if (s.id === 'tree_of_life') { const side = this.aim.x < 0 ? -1 : 1; void side; this.tree = { x: k.x, y: k.y - 46, until: now + up + 20000, next: now + up + 1000 }; this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'TREE OF LIFE', '#b8ff9a', 0)); }
     if (s.id === 'piercing_arrow') this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'SPIRIT BOW', '#c8ffb0', 0));
   }

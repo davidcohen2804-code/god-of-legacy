@@ -49,7 +49,7 @@ interface Spr {
   alive?: () => boolean;
 }
 interface Live { t: number; step(dt: number, t: number): boolean }
-interface Arrow { im: Phaser.GameObjects.Image; tr: Phaser.GameObjects.Image | null; t: number; kind: string; z0: number }
+interface Arrow { im: Phaser.GameObjects.Image; tr: Phaser.GameObjects.Image | null; t: number; kind: string; z0: number; whip?: Phaser.GameObjects.Image }
 
 export class ArcherFx {
   private live: Live[] = [];
@@ -280,18 +280,7 @@ export class ArcherFx {
       case 'leaping_arrow': this.bindingRoots(r); break;
       case 'spirit_hawk': this.hawkCall(r); break;
       case 'tree_of_life': this.tree(r); break;
-      case 'hunters_spirit': { // power rises round her in green-gold flames of light; a halo of spirit arrows turns about her; a flash of sparkles
-        this.spr({ name: 'power_aura', w: 170, oy: 0.95, follow: this.at(r.attackerId, 0, 0, -8), dz: 1, life: T.startup + T.active + 900, add: true, glow: 0.3, run: r,
-          sy: (u) => kf([0, 0.2], [0.25, 1.05, out3], [0.4, 1])(u) * (1 + 0.04 * Math.sin(u * 40)), a: kf([0, 0], [0.15, 1], [0.7, 0.9], [1, 0]) });
-        this.later(T.startup, () => {
-          const q = this.me(r);
-          this.floor('arrow_halo', q.x, q.y, 240, 1200, { add: true, run: r, s: kf([0, 0.4], [0.25, 1.05, out3], [1, 1.15]), a: kf([0, 0], [0.1, 1], [0.7, 0.9], [1, 0]) });
-          this.pop('power_flash', q.x, q.y - q.z - 70, 200, { life: 420 });
-          this.floor('shock_ring', q.x, q.y, 160, 420, { add: true, tint: 0xffe27a, s: kf([0, 0.4], [1, 1.4, out3]), a: kf([0, 1], [1, 0]) });
-          this.leaves(q.x, q.y - 40, 12, 60, { up: 120, life: 900 });
-        }, r);
-        break;
-      }
+      case 'hunters_spirit': this.charge(r, 'leaf_whirl', 50, T.startup, { spin: 500, dx: 16 }); this.muzzle(r, 110, T.startup); break; // Vine Lash
       case 'eagle_arrow': this.eagleTide(r); break;
       case 'arrow_storm': this.huntersRain(r); break;
       case 'sky_rain': this.skyRain(r); break;
@@ -570,7 +559,15 @@ export class ArcherFx {
       this.spr({ name: 'elec_burst', x, y: y - 30, depth: y + 4, w: 150, add: true, life: 240, sx: kf([0, 0.4], [0.3, 1.1, out3]), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) });
     }
   }
-  hawkDive(id: string, to: V3): void { const h = this.hawks.get(id); if (h) h.dive = { x: to.x, y: to.y - to.z - 30, d: to.y, t: 0 }; }
+  hawkDive(id: string, to: V3): void {
+    const h = this.hawks.get(id); if (!h) return;
+    h.dive = { x: to.x, y: to.y - to.z - 30, d: to.y, t: 0 };
+    if (to.z > 20) { // a foe up in the air: talons rake him and slam him down onto the floor (he bounces back up)
+      this.later(170, () => this.spr({ name: 'talon_slash', x: to.x, y: to.y - to.z - 40, depth: to.y + 5, w: 150, life: 220, add: true, glow: 0.3, sy: kf([0, 0.4], [0.3, 1.05, out3]), a: kf([0, 1], [1, 0, inQ]) }));
+      this.later(330, () => { this.spr({ name: 'slam_burst', x: to.x, y: to.y + 8, oy: 0.97, depth: to.y + 4, w: 220, life: 460, glow: 0.3, sy: kf([0, 0.3], [0.25, 1.05, out3]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
+        this.floor('crater', to.x, to.y, 200, 1200, { a: kf([0, 0], [0.04, 1], [0.6, 0.85], [1, 0]) }); this.floor('shock_ring', to.x, to.y, 220, 380, { add: true, s: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 1], [1, 0]) }); this.ctx.cam().shake(140, 0.005); });
+    }
+  }
   private stepHawks(ms: number): void {
     const now = this.ctx.scene.time.now;
     for (const [id, h] of this.hawks) {
@@ -639,8 +636,8 @@ export class ArcherFx {
     let iron = false;
     if (id === 'multi_shot') { const n = (this.fanCount.get(p.castId) ?? 0) + 1; this.fanCount.set(p.castId, n); iron = n % 2 === 0; if (n === 1) this.later(2000, () => this.fanCount.delete(p.castId)); } // between the green arrows: iron ones
     const mid = id === 'multi_shot' && (this.fanCount.get(p.castId) ?? 0) === 3;
-    const kind = mid ? 'spiral_arrow' : id === 'explosive_arrow' || iron ? 'arrow_heavy' : 'arrow_wind';
-    const w = mid ? 130 : id === 'explosive_arrow' ? 110 : id === 'piercing_arrow' ? 56 : id === 'skyhunters_step' ? 80 : 86;
+    const kind = id === 'hunters_spirit' ? 'vine_arrow' : mid ? 'spiral_arrow' : id === 'explosive_arrow' || iron ? 'arrow_heavy' : 'arrow_wind';
+    const w = id === 'hunters_spirit' ? 120 : mid ? 130 : id === 'explosive_arrow' ? 110 : id === 'piercing_arrow' ? 56 : id === 'skyhunters_step' ? 80 : 86;
     const s = this.ctx.scene, fr = s.textures.getFrame(ARCHER_KIT, kind);
     const im = s.add.image(p.x, p.y - p.z, ARCHER_KIT, kind).setOrigin(0.92, 0.5).setDisplaySize(w, (w * fr.height) / fr.width).setAlpha(0);
     if (id === 'explosive_arrow') im.setTint(0xffc070, 0xffc070, 0xff8a30, 0xff8a30);
@@ -648,7 +645,8 @@ export class ArcherFx {
     const tr = s.add.image(p.x, p.y - p.z, ARCHER_KIT, 'arrow_streak').setOrigin(1, 0.5).setAlpha(0).setDisplaySize(10, 12);
     if (id === 'explosive_arrow') tr.setTint(0xffa040);
     im.setData('sx', im.scaleX);
-    this.arrows.set(p, { im, tr, t: 0, kind, z0: p.z });
+    const whip = id === 'hunters_spirit' ? s.add.image(p.x, p.y - p.z, ARCHER_KIT, 'vine_whip').setOrigin(0, 0.5).setAlpha(0) : undefined; // the vine runs from her bow to the arrow
+    this.arrows.set(p, { im, tr, t: 0, kind, z0: p.z, whip });
   }
   private stepArrows(dt: number): void {
     for (const [p, a] of this.arrows) {
@@ -668,12 +666,26 @@ export class ArcherFx {
       }
       const grow = Math.min(1, 0.2 + a.t / 80), len = Math.min(120, 20 + a.t * 0.8);
       a.im.setPosition(x, y).setFlipX(flip).setAngle(ang).setDepth(p.y + 2).setAlpha(Math.min(1, a.t / 30)).setScale((a.im.getData('sx') as number) * grow, a.im.scaleY); // grows out of the bow's flash
+      if (a.whip) { const c = this.ctx.casterPos(p.attackerId); if (c) { const bx = c.x + (flip ? -16 : 16), by = c.y - c.z - 54, L = Math.hypot(x - bx, y - by);
+        a.whip.setPosition(bx, by).setAngle(Math.atan2(y - by, x - bx) * (180 / Math.PI)).setDisplaySize(Math.max(8, L), 34).setDepth(p.y + 1.8).setAlpha(Math.min(1, a.t / 40)); } }
       a.tr?.setPosition(x - (flip ? -1 : 1) * a.im.displayWidth * 0.8, y).setFlipX(flip).setAngle(ang).setDepth(p.y + 1.9).setAlpha(0.7 * Math.min(1, a.t / 40)).setDisplaySize(len, 12);
     }
   }
   projectileEnd(p: Projectile): void {
     const a = this.arrows.get(p); if (!a) return;
-    this.arrows.delete(p); a.im.destroy(); a.tr?.destroy();
+    this.arrows.delete(p); a.im.destroy(); a.tr?.destroy(); a.whip?.destroy();
+    if (p.skill.id === 'hunters_spirit') { // Vine Lash: it snags the foe and the vine reels him in
+      const end0 = p.end ?? { x: p.x, y: p.y, reason: 'range' as const };
+      if (end0.reason === 'target') {
+        const tx = end0.x, ty = end0.y - p.z - 10, c = this.ctx.casterPos(p.attackerId);
+        this.spr({ name: 'vine_grab', x: tx, y: ty, depth: end0.y + 4, w: 100, life: 520, glow: 0.2, sx: kf([0, 1.6], [0.15, 1, out3]), a: kf([0, 0], [0.08, 1], [0.8, 1], [1, 0]),
+          mx: (u) => (c ? (c.x - tx) * 0.82 * out(Math.min(1, u * 2.2)) : 0) });
+        if (c) { const bx = c.x, by = c.y - c.z - 54, L = Math.hypot(tx - bx, ty - by), ang = Math.atan2(ty - by, tx - bx) * (180 / Math.PI);
+          this.spr({ name: 'vine_whip', x: bx, y: by, ox: 0, depth: end0.y + 3, w: L, h: 34, angle: ang, life: 300, glow: 0.2, sx: (u) => Math.max(0.05, 1 - out(u)), a: kf([0, 1], [0.8, 1], [1, 0]) }); }
+        this.leaves(tx, ty, 8, 30, { life: 500 });
+      } else this.pop('leaf_spray', end0.x, end0.y - p.z, 70, { life: 300 });
+      return;
+    }
     const end = p.end ?? { x: p.x, y: p.y, reason: 'range' };
     if (p.skill.id === 'explosive_arrow') { // a real fire blast: the painted fireball, a flash, a ring of fire on the floor, embers, smoke-dark scorch
       const y = end.y - p.z;
