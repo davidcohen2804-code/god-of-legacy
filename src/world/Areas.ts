@@ -173,7 +173,13 @@ export const SKY_AREA: AreaDef = { id: 'sky_path', name: SKY.name, x: SKY.lane[0
 /** Falling between the clouds: below this height you drop through to the floor under the lane. */
 export const SKY_DROP = Math.min(...SKY.path.map((c) => c.z)) - 60;
 /** Under the Sky Path the terrace floor runs back past its picture's edge (out of sight): nobody walks in there. */
-const skyUnder = () => [{ id: 'lane-under', foot: [[SKY.lane[0], -3000], [SKY.lane[1], -3000], [SKY.lane[1], 0], [SKY.lane[0], 0]] as Pt[], h: 2 }];
+const skyUnder = () => {
+  // between Ivy Heights' and Cloud Haven's ends the ground stops at the terrace's own back edge (its back wall, the archery
+  // range's fence): the maps above's floors reach further back up there, never down here
+  const ivy = HEIGHTS_RAW.find((h) => h.x <= SKY.lane[0] && h.x + h.w > SKY.lane[0]), x0 = ivy ? ivy.x + ivy.w + 4 : SKY.lane[0];
+  return [{ id: 'lane-under', foot: [[SKY.lane[0], -3000], [SKY.lane[1], -3000], [SKY.lane[1], 0], [SKY.lane[0], 0]] as Pt[], h: 2 },
+    { id: 'lane-under-back', foot: [[x0, -3000], [SKY.lane[1] - 400, -3000], [SKY.lane[1] - 400, 326], [x0, 326]] as Pt[], h: 360 }];   // (as high as Ivy Heights: nobody steps off its end down in there either)
+};
 const cloudProps = () => CLOUDS.map((c, i) => ({ id: `sky-${i}`, foot: [[c.x0, SKY.band[0]], [c.x1, SKY.band[0]], [c.x1, SKY.band[1]], [c.x0, SKY.band[1]]] as Pt[],
   base: [[c.x0, SKY.band[0]], [c.x1, SKY.band[0]], [c.x1, SKY.band[1]], [c.x0, SKY.band[1]]] as Pt[], h: c.z, top: c.z, soft: true, stand: [SKY.band[0], SKY.band[1]] as [number, number] }));
 export function worldObjects(): WorldObject[] {
