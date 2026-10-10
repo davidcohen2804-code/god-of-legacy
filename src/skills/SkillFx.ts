@@ -198,6 +198,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   if (!scene.textures.exists('bs-erupt')) scene.load.spritesheet('bs-erupt', `${F}/skills/warrior/blade_storm/erupt_a.png`, { frameWidth: 250, frameHeight: 667 });
   if (!scene.textures.exists('titan-dragon')) scene.load.spritesheet('titan-dragon', `${F}/skills/warrior/titans_verdict/dragon.png`, { frameWidth: 280, frameHeight: 440 });
   if (!scene.textures.exists('titan-tear')) scene.load.spritesheet('titan-tear', `${F}/skills/warrior/titans_verdict/tear.png`, { frameWidth: 640, frameHeight: 360 });
+  if (!scene.textures.exists('court-chains')) scene.load.spritesheet('court-chains', `${F}/skills/warrior/judgment_blade/chains.png`, { frameWidth: 384, frameHeight: 384 }); // Judgment court: the chains that bind a foe upright
   if (!scene.textures.exists('banner-rally')) scene.load.spritesheet('banner-rally', `${F}/skills/warrior/legacy_banner/rally.png`, { frameWidth: 512, frameHeight: 512 }); // Legacy Banner: the lion of light that roars behind it
   if (!scene.textures.exists('titan-field')) scene.load.spritesheet('titan-field', `${F}/skills/warrior/titans_verdict/field.png`, { frameWidth: 512, frameHeight: 256 }); // the electrified floor it leaves
   if (!scene.textures.exists('titan-cutin')) scene.load.image('titan-cutin', `${F}/skills/warrior/titans_verdict/cutin.png`);
@@ -2130,7 +2131,10 @@ export class SkillFx {
   runeBeamBreak(A: Trap, B: Trap, at: V3): void { this.mage.runeBeamBreak(A, B, at); }
   /** A magic reaction on a foe (chill, freeze, shatter, conduct, curse, levity); the foe's id: it follows him for `ms`. */
   mageReaction(rx: string, at: V3, id?: string, ms = 0): void {
-    if (rx === 'bind') { this.callout({ x: at.x, y: at.y, z: at.z + 30 }, 'BOUND!', '#ffd76a', 0); return; } // the Judgment court's catch (painted chains: to come)
+    if (rx === 'bind') { // the Judgment court's catch: golden chains burst out of the floor round him and bind him upright
+      this.play('court-chains', at.x, at.y + 4, 290, 290, [50, 50, 60, 70, 140, 160, 140, 160, 90, 140], { frames: [0, 1, 2, 3, 4, 5, 4, 5, 6, 7], oy: 300 / 384, depth: at.y + 3, blend: Phaser.BlendModes.ADD, fadeLast: 140 });
+      return;
+    }
     this.mage.reaction(rx, at, id ? () => this.targetPos?.(id) ?? null : undefined, ms);
   }
   /** Kagemusha: he vanishes; one of the three steps out of the ink; a double bursts into petals / melts into ink. */
