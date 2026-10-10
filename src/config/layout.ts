@@ -150,6 +150,9 @@ export const CHARACTER_PREVIEWS: Record<string, { key: string; file: string; wid
   // the clean base character (menus show him / her standing; portraits crop the head)
   'base/male': { key: 'base.male', file: 'assets/characters/base/Base_Male.png', width: 317, height: 630, crop: { x: 48, y: 14, w: 228 } },
   'base/female': { key: 'base.female', file: 'assets/characters/base/Base_Female.png', width: 374, height: 765, crop: { x: 60, y: 14, w: 261 } },
+  // the painted Beginner (a character before its class): menus show it standing, portraits crop its head
+  'beginner/male': { key: 'base.beginner.male', file: 'assets/final/heroes/beginner/male.png', width: 467, height: 979, crop: { x: 128, y: 0, w: 236 } },
+  'beginner/female': { key: 'base.beginner.female', file: 'assets/final/heroes/beginner/female.png', width: 461, height: 974, crop: { x: 112, y: 0, w: 240 } },
   'warrior/warrior_default': {
     key: 'characterCreate.warriorPreview', file: 'assets/Warrior_Preview.png', width: 1024, height: 1536,
     crop: { x: 400, y: 40, w: 420 },

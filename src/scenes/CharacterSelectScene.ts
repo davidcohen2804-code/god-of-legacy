@@ -30,7 +30,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     const chars = CharacterStore.getSlots().map((s) => s.character);
     preloadLooks(this, chars); // each character's full style (hair, outfit, colours): its layers load here
     for (const c of chars) { // without a chosen look: the bare base picture
-      const pv = c && !c.look ? CHARACTER_PREVIEWS[previewKeyOf(c)] : undefined;
+      const pk = c ? previewKeyOf(c) : '', pv = c && (!c.look || pk.startsWith('beginner/')) ? CHARACTER_PREVIEWS[pk] : undefined;
       if (pv && !this.textures.exists(pv.key)) this.load.image(pv.key, pv.file);
     }
   }

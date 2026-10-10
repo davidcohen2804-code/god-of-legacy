@@ -18,6 +18,7 @@ export const headLookOf = (c: { gender?: string; look?: StoredLook } | null | un
 /** CHARACTER_PREVIEWS key for menus / portraits. */
 export const previewKeyOf = (c: { classId: string; level: number; gender?: string; appearanceId: string | null; look?: StoredLook }): string => {
   const g = baseLookOf(c);
+  if (g && CHARACTER_PREVIEWS[`beginner/${g}`]) return `beginner/${g}`; // the painted Beginner (no per-character style any more)
   const l = g ? lookOf(c) : null;
   if (l && CHARACTER_PREVIEWS[lookPreviewKey(l)]) return lookPreviewKey(l); // the full style (hair, face, skin, outfit, sword)
   return g ? `base/${g}` : `${c.classId}/${c.appearanceId ?? `${c.classId}_default`}`;
