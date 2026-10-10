@@ -756,14 +756,14 @@ const samurai: FinalSkill[] = [
   S({
     id: 'sakura_bind', cls: 'samurai', slot: 16, name: 'Sakura Bind', roles: ['hardCC', 'pull', 'setup'], targeting: 'mouseGround',
     startup: 240, active: 160, recovery: 220, cooldown: 12000, ground: true, air: false, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
-    placeRange: 300, snapPlace: true, // (opened under the nearest foe)
+    placeRange: 90, snapPlace: true, // (opened just in front of him, on his line: the arena places it ahead, never under the foe — in a combo the foe is that close)
     hits: [H(0, 8, { kind: 'placed', radius: 125 }, { stun: 400, pull: 70, catch: true, hardCC: { kind: 'root', ms: 2000 } }, { reachUp: 60 })],
     // the combo's catch (DFO): the blossoms stay on the floor ~1.2s — a foe that comes down into them (from a slam, a fall)
     // is caught on landing, stood up and held by the branches: the string goes on (a launch from the floor)
     linger: { at: 'place', startMs: 60, everyMs: 60, count: 20, radius: 125, maxZ: 50, once: true, fresh: true,
       hit: H(0, 6, { kind: 'circle', radius: 125 }, { stun: 420, pull: 70, catch: true, hardCC: { kind: 'root', ms: 1200, long: true } }, { reachUp: 50 }) },
     cancelOnHit: ['quick_slash', 'shadow_step', 'hundred_cuts', 'phantom_blades', 'tornado_blade', 'iai_strike', 'dragon_ascension', 'swallow_cut'], telegraph: 'ground',
-    description: 'A ring of cherry blossoms opens under the foe: every foe in it is pulled to its centre and held by blossoming branches for 2s — and the blossoms stay on the floor a moment: a foe that comes down into them is caught on landing and held. Ready for your cuts.',
+    description: 'A ring of cherry blossoms opens on the floor just in front of you: every foe in it is pulled to its centre and held by blossoming branches for 2s — and the blossoms stay on the floor a moment: a foe that comes down into them is caught on landing and held. Ready for your cuts.',
     relations: ['Pull + bind 2s', 'Catches a falling foe'],
   }),
   S({
