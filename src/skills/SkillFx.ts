@@ -360,7 +360,7 @@ export class SkillFx {
     else if (s.id === 'sky_breaker') this.skyBreaker(r);
     else if (s.id === 'lions_maw') this.lionsMaw(r);
     else if (s.id === 'leap_crash') { this.aura(r); this.scene.time.delayedCall(r.timings.startup, () => { const c = this.casterPos(r.attackerId) ?? r.origin; this.leapBurst(c.x, c.y - c.z, r.aim.x < 0 ? -1 : 1); }); } // the take-off: a burst of light at his feet, the crater comes on the landing
-    else if (s.id === 'earthsplitter') this.aura(r); // (the charge: his aura while the key is held; the split itself plays on the release, onActive)
+    else if (s.id === 'earthsplitter') this.chargeAura(r); // (the charge: flames of light rise round him while the key is held, stronger at each level; the split itself plays on the release, onActive)
     else if (s.id === 'iron_oath') this.oathSigil(r);
     else if (s.id === 'legacy_banner') { // planted in front of the caster where the sword comes down (every client sees it)
       const side = r.aim.x < 0 ? -1 : 1, bx = r.origin.x - side * 46, by = r.origin.y - 16; // planted just behind his shoulder (a step back in depth): it never hides the fight in front
@@ -411,6 +411,29 @@ export class SkillFx {
   }
 
   /** Class aura around the caster for the cast (stronger on signature / ultimate). */
+  /** Earthsplitter's hold: the painted holy flames rise round him while the key is held, growing with each charge level
+   *  (a burst of light marks the level reached); gone on the release. */
+  private chargeAura(r: CastRun): void {
+    if (!this.scene.textures.exists('holy-aura')) return;
+    const L = r.skill.charge?.levels ?? [], marks = L.slice(1).map((l) => l.at * (r.chargeScale ?? 1));
+    const img = this.scene.add.image(0, 0, 'holy-aura', 0).setOrigin(0.5, 515 / 667).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
+    let reached = 0, fade = -1;
+    const tick = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
+      const c = this.casterPos(r.attackerId);
+      if (!c) { tick.remove(); img.destroy(); return; }
+      const held = r.phase === 'startup', e = r.elapsed;
+      while (held && reached < marks.length && e >= marks[reached]) { // a level reached: a burst of light at his feet
+        reached++; this.shockwave(c.x, c.y, 90 + 50 * reached, 0xffd27a);
+        this.spark(IMPACT.warrior.key, c.x, c.y - c.z - 60, IMPACT.warrior.frames, 150 + 40 * reached, 0.9);
+      }
+      if (!held && fade < 0) fade = 0;
+      if (fade >= 0) fade += 16;
+      const grow = 0.75 + 0.18 * reached, a = fade >= 0 ? Math.max(0, 1 - fade / 200) : Math.min(1, e / 200);
+      img.setFrame(Math.floor(e / 90) % 8).setPosition(c.x, c.y - c.z + 4).setDisplaySize(125 * grow, 333 * grow).setDepth(c.y - 0.2).setAlpha((0.55 + 0.15 * reached) * a);
+      if (fade >= 200) { tick.remove(); img.destroy(); }
+    } });
+  }
+
   private aura(r: CastRun): void {
     const s = r.skill, T = r.timings, lvl = s.slot === 7 ? 1 : s.slot === 6 ? 0.8 : s.slot === 0 ? 0 : 0.5;
     if (lvl <= 0) return;
@@ -456,8 +479,8 @@ export class SkillFx {
   /** Radiant Blade: a lightning bolt strikes down from the sky onto the sword tip (clean finish, no rings). */
   lightningAt(tx: number, ty: number, small = false): void {
     if (!small && this.scene.textures.exists('holy-bolt')) { // painted holy lightning strike onto the sword tip
-      const img = this.scene.add.image(tx, ty, 'holy-bolt', 0).setOrigin(0.5, 0.79).setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 4).setDisplaySize(260, 520);
-      const fr = [0, 1, 2, 3, 2, 3, 4, 3, 2, 3, 4, 3, 4, 5, 6, 7], fms = [60, 60, 90, 90, 80, 90, 90, 80, 80, 90, 90, 90, 100, 110, 130, 180]; // a sustained surge of power
+      const img = this.scene.add.image(tx, ty, 'holy-bolt', 0).setOrigin(0.5, 0.79).setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 4).setDisplaySize(220, 440).setAlpha(0.85);
+      const fr = [0, 1, 2, 3, 4, 3, 4, 5, 6, 7], fms = [60, 60, 80, 90, 90, 80, 90, 100, 120, 160]; // a surge of power (short: never a white-out over the fight)
       this.anims.push({ img, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: fr, frameMs: fms, fadeLast: 180 });
       this.scene.time.delayedCall(100, () => (this.cam ?? this.scene.cameras.main).shake(180, 0.008));
       return;
@@ -712,7 +735,7 @@ export class SkillFx {
           this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: [7, 8, 9, 10, 11], frameMs: fms, fadeLast: 280, loop: [1, 3], until: 5000 });
           this.shockwave(land.x, land.y, 170, 0xffffff); this.scene.time.delayedCall(70, () => this.shockwave(land.x, land.y, 280, 0x6fe0ff));
           this.spark(IMPACT.warrior.key, land.x, land.y - 30, IMPACT.warrior.frames, 200, 1);
-          cam.flash(90, 150, 225, 255); cam.shake(240, 0.013);
+          this.screenFlash(0x96e1ff, 0.16, 160); cam.shake(240, 0.011); // (a soft flash: no full-screen white-out)
           this.stormRing(land.x, land.y, 5000);
         } });
       });
@@ -936,8 +959,8 @@ export class SkillFx {
     }
     const zone = s.zoneMs && s.zoneMs > 600;
     const glow = VFX_MULT[s.cls] && s.cls !== 'archer' ? this.scene.add.image(img.x, img.y, key, 0).setOrigin(img.originX, img.originY).setBlendMode(Phaser.BlendModes.ADD)
-      .setDepth(img.depth - 0.01).setAngle(img.angle).setFlipX(img.flipX).setFlipY(img.flipY).setAlpha(0.45).setTint(CLASS_COLOR[s.cls]) : undefined;
-    glow?.setData('a0', 0.45);
+      .setDepth(img.depth - 0.01).setAngle(img.angle).setFlipX(img.flipX).setFlipY(img.flipY).setAlpha(0.28).setTint(CLASS_COLOR[s.cls]) : undefined;
+    glow?.setData('a0', 0.28); // (a soft halo: at 0.45 it burnt the sheet to white on the bright floors — snow, sun)
     if (basic) glow?.setVisible(false);
     this.anims.push({ img, glow, t: Math.min(r.elapsed, T.startup), total: fms.reduce((a, b) => a + b, 0), frames: fr, frameMs: fms, follow, z: pos.z, fadeLast: basic ? 110 : s.cls === 'warrior' ? 260 : 140,
       loop: zone ? [preFrames + 1, frames - 2] : undefined, until: zone ? T.startup + (s.zoneMs ?? 0) : undefined });

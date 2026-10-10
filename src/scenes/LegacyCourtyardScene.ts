@@ -1799,9 +1799,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     d.vis = (d.vis ?? 1) + ((prot || !over ? 1 : 0.22) - (d.vis ?? 1)) * 0.15; // crossed to the open side: the wall fades (no protection)
     const fade = Math.min(1, left / 600) * (over && prot ? 0.62 : 0.9) * d.vis, dep = actorDepth(d.x, d.y + 200, 0) + 1; // in front of everything along its whole span (its near end reaches y+186)
     d.glow.setAlpha(fade * (0.18 + 0.1 * Math.sin(age / 700))).setDepth(dep - 0.01); // soft breathing glow, no frame flicker
-    const g = 1 - Math.pow(1 - Math.min(1, age / 380), 3), sy = 1.15 * 1.4 * Math.max(0.05, g); // rises from the floor (sim clock)
-    d.img.setScale(1.15, sy).setAlpha(fade).setDepth(dep);
-    d.glow.setScale(1.15 * 1.06, sy * 1.04);
+    const g = 1 - Math.pow(1 - Math.min(1, age / 380), 3), sy = 1.02 * Math.max(0.05, g); // rises from the floor (sim clock) — about two and a half times his height, the shield wall readable (not a band across the screen)
+    d.img.setScale(0.95, sy).setAlpha(fade).setDepth(dep);
+    d.glow.setScale(0.95 * 1.06, sy * 1.04);
   }
 
   // ======================================================================= actions
