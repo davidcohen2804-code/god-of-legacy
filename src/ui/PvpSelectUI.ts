@@ -1,7 +1,8 @@
 // PvP fighter select (Tekken style): the roster of fighters along the bottom, your fighter large on the left, the opponent
-// on the right. VS CPU: pick yours, then pick the one you fight, then the stage (or RANDOM). VS PLAYER: an invite link; the
-// other player picks on their own screen and each sees the other's cursor and choice as it happens (the stage comes from
-// the room, the same on both screens). Both locked in: GET READY — then the arena.
+// on the right, the stage under the mode tabs. VS CPU: pick yours, then pick the one you fight; the stage (or RANDOM) can
+// be changed at any time meanwhile (its arrows, ↑ / ↓). VS PLAYER: an invite link; the other player picks on their own screen and each sees
+// the other's cursor and choice as it happens (the stage comes from the room, the same on both screens). Both locked in:
+// GET READY — then the arena.
 // DOM overlay (1920x1080 design px, scaled to the canvas by syncOverlay); the two big fighters are drawn by the scene
 // (FighterArt, under this overlay), told what to show through the handlers.
 import '@fontsource/cinzel/900.css';
@@ -42,10 +43,10 @@ const DISPLAY = "'Exo 2', 'Segoe UI', sans-serif";
 const LABEL = "'Inter', 'Segoe UI', sans-serif";
 const TILE = { w: 150, h: 190, gap: 14, top: 840 };
 const TILES_X = 960 - (ROSTER.length * TILE.w + (ROSTER.length - 1) * TILE.gap) / 2;
-/** The stage select's cards (the stages, then RANDOM) along the bottom, 16:9. */
-const CARD = { w: 216, h: 122, gap: 16, top: 872 };
+/** The stage panel under the mode tabs (16:9, between the two fighters' heads), its arrows either side; the choices are
+ *  the stages, then RANDOM. */
+const STP = { w: 256, h: 144, top: 196 };
 const CARDS = STAGES.length + 1;
-const CARDS_X = 960 - (CARDS * CARD.w + (CARDS - 1) * CARD.gap) / 2;
 const GOLD = 'linear-gradient(180deg,#fffdf2 0%,#ffeab2 24%,#f7c75c 47%,#9a580b 50%,#d58d27 68%,#ffe7a1 100%)';
 const STEEL = 'linear-gradient(180deg,#ffffff 0%,#e8f2ff 24%,#9fc4ef 47%,#2a4c82 50%,#5d89c6 70%,#e0f0ff 100%)';
 
@@ -133,32 +134,27 @@ const CSS = `
 .gol-ps .ps-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
 .gol-ps .ps-flash.on{animation:psFlash .5s ease-out forwards}
 @keyframes psFlash{0%{opacity:0}30%{opacity:.9}100%{opacity:1}}
-/* the stage select (VS CPU, both fighters in): the highlighted stage large in the middle, every stage along the bottom */
-.gol-ps .ps-stg{position:absolute;inset:0;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .2s}
-.gol-ps.stage .ps-stg{opacity:1;visibility:visible}
-.gol-ps.stage .ps-tile,.gol-ps.stage .ps-cur,.gol-ps.stage .ps-vs{display:none}
-.gol-ps .ps-big{position:absolute;left:560px;top:206px;width:800px;height:450px;border-radius:4px;overflow:hidden;background:radial-gradient(ellipse at 50% 38%,#2a3346,#05070c 75%);
-  box-shadow:0 0 0 2px rgba(240,204,128,.9),0 0 0 5px rgba(0,0,0,.85),0 20px 44px rgba(0,0,0,.72)}
-.gol-ps .ps-big .im{position:absolute;inset:0;background:center/cover no-repeat;animation:psPan 9s ease-in-out infinite alternate}
-@keyframes psPan{from{transform:scale(1.02) translateX(-6px)}to{transform:scale(1.09) translateX(6px)}}
-.gol-ps .ps-big::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 56%,rgba(4,6,12,.9) 100%)}
-.gol-ps .ps-big .nm{position:absolute;left:0;right:0;bottom:18px;z-index:1;text-align:center;font-size:50px}
-.gol-ps .ps-big .q{position:absolute;left:0;right:0;top:92px;text-align:center;font:900 italic 170px/1 ${DISPLAY};color:#f3dca2;text-shadow:0 0 34px rgba(255,190,90,.55)}
-.gol-ps .ps-sc{position:absolute;top:${CARD.top}px;width:${CARD.w}px;height:${CARD.h}px;border-radius:3px;overflow:hidden;cursor:pointer;pointer-events:auto;background:#080b12 center/cover no-repeat;
-  box-shadow:0 0 0 2px rgba(214,222,240,.55),0 0 0 3px rgba(0,0,0,.8),0 10px 24px rgba(0,0,0,.6)}
-.gol-ps .ps-sc::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 42%,rgba(4,6,12,.92) 100%)}
-.gol-ps .ps-sc span{position:absolute;left:8px;right:8px;bottom:10px;z-index:1;text-align:center;font:900 italic 15px ${DISPLAY};letter-spacing:1.2px;color:#fff;text-shadow:0 2px 4px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.gol-ps .ps-sc.rand{background:radial-gradient(ellipse at 50% 35%,#2a3346,#080b12)}
-.gol-ps .ps-sc.rand i{position:absolute;left:0;right:0;top:12px;text-align:center;font:900 italic 64px/1 ${DISPLAY};color:#f3dca2;text-shadow:0 0 16px rgba(255,190,90,.45)}
-.gol-ps.going .ps-sc:not(.pick){filter:saturate(.4) brightness(.55)}
-.gol-ps .ps-scur{position:absolute;top:${CARD.top}px;width:${CARD.w}px;height:${CARD.h}px;border-radius:3px;pointer-events:none;box-shadow:0 0 0 4px #ffc94a,0 0 24px 5px rgba(255,190,70,.7);
-  transition:left .12s cubic-bezier(.3,.8,.3,1);animation:psBlink .7s ease-in-out infinite alternate}
-.gol-ps .ps-scur.lock{animation:none}
-.gol-ps .ps-scur b{position:absolute;top:-30px;left:-4px;font:700 italic 14px/1 ${LABEL};letter-spacing:1.5px;color:#24180a;padding:5px 12px 4px;background:linear-gradient(180deg,#f2d493,#d2a65a);clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)}`;
+/* the stage panel (VS CPU): the chosen stage under the mode tabs, arrows either side, a dot per choice under it */
+.gol-ps .ps-stp{position:absolute;left:${960 - STP.w / 2}px;top:${STP.top}px;width:${STP.w}px;height:${STP.h}px;border-radius:4px;overflow:hidden;background:radial-gradient(ellipse at 50% 35%,#2a3346,#080b12) center/cover no-repeat;
+  box-shadow:0 0 0 2.5px #ffc94a,0 0 0 4px rgba(0,0,0,.85),0 12px 28px rgba(0,0,0,.65),0 0 22px 2px rgba(255,190,70,.35);pointer-events:none}
+.gol-ps .ps-stp::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 46%,rgba(4,6,12,.9) 100%)}
+.gol-ps .ps-stp b{position:absolute;left:0;top:0;z-index:2;padding:4px 12px 3px 8px;font:700 italic 11px/1 ${LABEL};letter-spacing:1.5px;color:#24180a;background:linear-gradient(180deg,#f2d493,#d2a65a);clip-path:polygon(0 0,100% 0,calc(100% - 7px) 100%,0 100%)}
+.gol-ps .ps-stp .q{position:absolute;left:0;right:0;top:26px;text-align:center;font:900 italic 64px/1 ${DISPLAY};color:#f3dca2;text-shadow:0 0 18px rgba(255,190,90,.5)}
+.gol-ps .ps-stp .nm{position:absolute;left:0;right:0;bottom:8px;z-index:1;text-align:center;font-size:20px}
+.gol-ps .ps-sa{position:absolute;top:${STP.top + STP.h / 2 - 26}px;width:40px;height:52px;padding:0;border:0;border-radius:0;cursor:pointer;color:#f3dca2;font:900 20px/52px ${DISPLAY};
+  background:linear-gradient(180deg,rgba(32,38,54,.96),rgba(8,11,18,.96));box-shadow:inset 0 1px 0 rgba(240,204,128,.55),inset 0 -2px 0 rgba(240,204,128,.85)}
+.gol-ps .ps-sa:hover{color:#24180a;background:linear-gradient(180deg,#f2d493,#d2a65a)}
+.gol-ps .ps-sa.l{left:${960 - STP.w / 2 - 54}px;clip-path:polygon(10px 0,100% 0,100% 100%,10px 100%,0 50%)}
+.gol-ps .ps-sa.r{left:${960 + STP.w / 2 + 14}px;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,0 100%)}
+.gol-ps .ps-sd{position:absolute;left:0;right:0;top:${STP.top + STP.h + 12}px;display:flex;justify-content:center;gap:8px;pointer-events:none}
+.gol-ps .ps-sd i{width:7px;height:7px;transform:rotate(45deg);background:rgba(214,222,240,.35);box-shadow:0 0 0 1px rgba(0,0,0,.6)}
+.gol-ps .ps-sd i.on{background:#ffc94a;box-shadow:0 0 8px rgba(255,190,70,.8)}
+.gol-ps.vsp .ps-stp,.gol-ps.vsp .ps-sa,.gol-ps.vsp .ps-sd{display:none}`;
 
 interface Side { hover: number; pick: number | null }
-/** The stage select's choice: the stages, then RANDOM (index STAGES.length). */
+/** The stage row's choice: the stages, then RANDOM (index STAGES.length) — kept from one visit of this screen to the next. */
 const RANDOM = STAGES.length;
+let lastStage = RANDOM;
 
 export class PvpSelectUI {
   private readonly root: HTMLDivElement;
@@ -171,18 +167,20 @@ export class PvpSelectUI {
   private readonly st: HTMLElement;
   private readonly hint: HTMLElement;
   private readonly inv: { box: HTMLDivElement; code: HTMLElement; lnk: HTMLElement; wait: HTMLElement; note: HTMLElement; copy: HTMLButtonElement };
-  private readonly stg: { big: HTMLDivElement; img: HTMLDivElement; q: HTMLElement; nm: HTMLElement; cards: HTMLDivElement[]; cur: HTMLDivElement };
-  /** VS CPU: the stage, chosen after both fighters (starts on RANDOM). */
-  private stage: Side = { hover: RANDOM, pick: null };
+  private readonly stp: { box: HTMLDivElement; q: HTMLElement; nm: HTMLElement; dots: HTMLElement[] };
+  /** VS CPU: the stage (index into STAGES, RANDOM: drawn at GET READY), changed at any time before GET READY. */
+  private stage = lastStage;
   private lastRect = '';
   private mode: VsMode;
   private p1: Side;
   private p2: Side;
-  /** VS CPU: whose cursor the keys move (then the stage's). */
-  private active: 'p1' | 'p2' | 'stage' = 'p1';
+  /** VS CPU: whose cursor the keys move. */
+  private active: 'p1' | 'p2' = 'p1';
   private remote: RemoteView | null = null;
   private net: { status: string; room: string; link: string; local: boolean } = { status: 'connecting', room: '', link: '', local: false };
   private going = false;
+  /** GET READY: the stage the match is on (RANDOM drawn). */
+  private drawn = -1;
   private timer = 0;
   private readonly onKey = (e: KeyboardEvent) => this.key(e);
 
@@ -233,25 +231,18 @@ export class PvpSelectUI {
     copy.addEventListener('click', () => { void this.h.copyLink().then((ok) => { copy.textContent = ok ? 'LINK COPIED' : 'COPY INVITE LINK'; window.setTimeout(() => { copy.textContent = 'COPY INVITE LINK'; }, 1600); }); });
     const wait = this.el('div', 'wait', inv), note = this.el('div', 'note', inv);
     this.inv = { box: inv, code, lnk, wait, note, copy };
-    // the stage select (VS CPU, after both fighters)
-    const stg = this.el('div', 'ps-stg', root);
-    const big = this.el('div', 'ps-big', stg) as HTMLDivElement, img = this.el('div', 'im', big) as HTMLDivElement;
-    const q = this.el('div', 'q', big); q.textContent = '?';
-    const bigNm = this.el('div', 'nm', big);
-    const cards = Array.from({ length: CARDS }, (_, i) => {
-      const c = this.el('div', `ps-sc${i === RANDOM ? ' rand' : ''}`, stg) as HTMLDivElement;
-      c.style.left = `${CARDS_X + i * (CARD.w + CARD.gap)}px`;
-      if (i === RANDOM) this.el('i', '', c).textContent = '?';
-      else c.style.backgroundImage = `url("${STAGES[i].preview}")`;
-      this.el('span', '', c).textContent = i === RANDOM ? 'RANDOM' : STAGES[i].name;
-      c.addEventListener('mouseenter', () => this.pointStage(i));
-      c.addEventListener('click', () => { this.pointStage(i); this.confirm(); });
-      return c;
-    });
-    const scur = this.el('div', 'ps-scur', stg) as HTMLDivElement; this.el('b', '', scur).textContent = 'STAGE';
-    this.stg = { big, img, q, nm: bigNm, cards, cur: scur };
+    // the stage panel (VS CPU)
+    const stp = this.el('div', 'ps-stp', root) as HTMLDivElement;
+    this.el('b', '', stp).textContent = 'STAGE';
+    const q = this.el('div', 'q', stp); q.textContent = '?';
+    const nm = this.el('div', 'nm', stp);
+    for (const [c, d, t] of [['l', -1, '◀'], ['r', 1, '▶']] as const) {
+      const a = this.el('button', `ps-sa ${c}`, root) as HTMLButtonElement; a.type = 'button'; a.textContent = t; a.setAttribute('aria-label', d < 0 ? 'Previous stage' : 'Next stage');
+      a.addEventListener('click', () => this.setStage(this.stage + d));
+    }
+    const sd = this.el('div', 'ps-sd', root);
+    this.stp = { box: stp, q, nm, dots: Array.from({ length: CARDS }, () => this.el('i', '', sd)) };
     this.hint = this.el('div', 'ps-hint', root);
-    this.hint.innerHTML = '<b>← →</b> CHOOSE &nbsp;·&nbsp; <b>ENTER</b> CONFIRM &nbsp;·&nbsp; <b>ESC</b> BACK';
     this.el('div', 'ps-flash', root);
     root.addEventListener('mousedown', (e) => { if (!(e.target as HTMLElement).closest('button')) e.preventDefault(); });
     window.addEventListener('keydown', this.onKey);
@@ -281,7 +272,7 @@ export class PvpSelectUI {
 
   private setMode(m: VsMode): void {
     if (this.going || m === this.mode) return;
-    this.mode = m; this.active = 'p1'; this.p1.pick = null; this.p2.pick = null; this.stage.pick = null; this.remote = null;
+    this.mode = m; this.active = 'p1'; this.p1.pick = null; this.p2.pick = null; this.remote = null;
     this.h.mode(m);
     this.sendLocal();
     this.render();
@@ -291,17 +282,17 @@ export class PvpSelectUI {
   private side(): Side | null {
     if (this.going) return null;
     if (this.mode === 'player') return this.p1.pick === null ? this.p1 : null;
-    return this.active === 'p1' ? this.p1 : this.active === 'p2' && this.p2.pick === null ? this.p2 : null;
+    return this.active === 'p1' ? this.p1 : this.p2.pick === null ? this.p2 : null;
   }
-  /** The stage select's cursor (VS CPU, both fighters in, the stage not yet chosen). */
-  private stageOpen(): boolean { return !this.going && this.mode === 'cpu' && this.active === 'stage' && this.stage.pick === null; }
-  private pointStage(i: number): void { if (!this.stageOpen() || this.stage.hover === i) return; this.stage.hover = i; this.render(); }
+  /** VS CPU: the stage, chosen at any time before GET READY (the row's cards, or ↑ / ↓). */
+  private setStage(i: number): void {
+    if (this.going || this.mode !== 'cpu') return;
+    this.stage = lastStage = (i + CARDS) % CARDS;
+    this.render();
+  }
 
   private point(i: number): void { const s = this.side(); if (!s || s.hover === i) return; s.hover = i; this.sendLocal(); this.render(); }
-  private move(d: number): void {
-    if (this.stageOpen()) { this.stage.hover = (this.stage.hover + d + CARDS) % CARDS; this.render(); return; }
-    const s = this.side(); if (!s) return; s.hover = (s.hover + d + ROSTER.length) % ROSTER.length; this.sendLocal(); this.render();
-  }
+  private move(d: number): void { const s = this.side(); if (!s) return; s.hover = (s.hover + d + ROSTER.length) % ROSTER.length; this.sendLocal(); this.render(); }
 
   private confirm(): void {
     if (this.going) return;
@@ -310,10 +301,8 @@ export class PvpSelectUI {
       this.p1.pick = this.p1.hover; this.flashArt('l');
     } else if (this.active === 'p1') {
       this.p1.pick = this.p1.hover; this.flashArt('l'); this.active = 'p2';
-    } else if (this.active === 'p2') {
-      if (this.p2.pick === null) { this.p2.pick = this.p2.hover; this.flashArt('r'); this.active = 'stage'; this.stage.pick = null; }
-    } else if (this.stage.pick === null) {
-      this.stage.pick = this.stage.hover;
+    } else if (this.p2.pick === null) {
+      this.p2.pick = this.p2.hover; this.flashArt('r');
     }
     this.sendLocal();
     this.render();
@@ -322,9 +311,7 @@ export class PvpSelectUI {
 
   private back(): void {
     if (this.going) return;
-    if (this.mode === 'cpu' && this.active === 'stage') { // undo: the stage, then back to the opponent's pick
-      if (this.stage.pick !== null) this.stage.pick = null; else { this.active = 'p2'; this.p2.pick = null; }
-    } else if (this.mode === 'cpu' && this.active === 'p2') { // undo: back to your own pick
+    if (this.mode === 'cpu' && this.active === 'p2') { // undo: back to your own pick
       if (this.p2.pick !== null) this.p2.pick = null; else { this.active = 'p1'; this.p1.pick = null; }
     } else if (this.p1.pick !== null) this.p1.pick = null;
     else { this.h.back(); return; }
@@ -337,6 +324,8 @@ export class PvpSelectUI {
     const k = e.key;
     if (k === 'ArrowLeft' || k === 'a' || k === 'A') { e.preventDefault(); this.move(-1); }
     else if (k === 'ArrowRight' || k === 'd' || k === 'D') { e.preventDefault(); this.move(1); }
+    else if (k === 'ArrowUp' || k === 'w' || k === 'W') { e.preventDefault(); this.setStage(this.stage - 1); }
+    else if (k === 'ArrowDown' || k === 's' || k === 'S') { e.preventDefault(); this.setStage(this.stage + 1); }
     else if (k === 'Enter' || k === ' ') { e.preventDefault(); this.confirm(); }
     else if (k === 'Escape' || k === 'Backspace') { e.preventDefault(); this.back(); }
   }
@@ -350,10 +339,9 @@ export class PvpSelectUI {
     const p2 = this.mode === 'cpu' ? (this.p2.pick === null ? null : ROSTER[this.p2.pick]) : this.remote?.pick ?? null;
     if (!p1 || !p2) return;
     let stage: string | undefined;
-    if (this.mode === 'cpu') { // the stage too: one picked, or RANDOM drawn now (shown large before the arena)
-      if (this.stage.pick === null) return;
-      if (this.stage.pick === RANDOM) this.stage.pick = Math.floor(Math.random() * STAGES.length);
-      stage = STAGES[this.stage.pick].id;
+    if (this.mode === 'cpu') { // the stage chosen, or RANDOM drawn now (the row shows which before the arena)
+      const k = this.stage === RANDOM ? Math.floor(Math.random() * STAGES.length) : this.stage;
+      this.drawn = k; stage = STAGES[k].id;
     }
     this.going = true;
     this.render();
@@ -404,22 +392,17 @@ export class PvpSelectUI {
       this.inv.wait.style.setProperty('display', 'block');
       this.inv.note.textContent = net.local ? 'Test mode: open the link in another tab of this browser (online play between computers needs the server key).' : 'Send the link: whoever opens it lands here, on the other side.';
     }
-    // the stage select
-    const stg = cpu && this.active === 'stage';
-    this.root.classList.toggle('stage', stg);
-    this.root.classList.toggle('going', this.going);
-    if (stg) {
-      const i = this.stage.pick ?? this.stage.hover, rand = i === RANDOM;
-      this.stg.img.style.backgroundImage = rand ? 'none' : `url("${STAGES[i].preview}")`;
-      this.stg.q.style.display = rand ? '' : 'none';
-      const label = rand ? 'RANDOM' : STAGES[i].name;
-      if (this.stg.nm.dataset.t !== label) { this.stg.nm.innerHTML = ''; this.metal(this.stg.nm, label, 'gold'); this.stg.nm.dataset.t = label; }
-      this.stg.cards.forEach((c, k) => c.classList.toggle('pick', k === i));
-      this.stg.cur.style.left = `${CARDS_X + i * (CARD.w + CARD.gap)}px`;
-      this.stg.cur.classList.toggle('lock', this.stage.pick !== null);
-    }
+    // the stage panel (VS CPU)
+    this.root.classList.toggle('vsp', !cpu);
+    const on = this.going && this.drawn >= 0 ? this.drawn : this.stage, rand = on === RANDOM;
+    this.stp.box.style.backgroundImage = rand ? '' : `url("${STAGES[on].preview}")`;
+    this.stp.q.style.display = rand ? '' : 'none';
+    const sl = rand ? 'RANDOM' : STAGES[on].name;
+    if (this.stp.nm.dataset.t !== sl) { this.stp.nm.innerHTML = ''; this.metal(this.stp.nm, sl, 'gold'); this.stp.nm.dataset.t = sl; }
+    this.stp.dots.forEach((d, k) => d.classList.toggle('on', k === on));
+    this.hint.innerHTML = `<b>← →</b> CHOOSE &nbsp;·&nbsp; ${cpu ? '<b>↑ ↓</b> STAGE &nbsp;·&nbsp; ' : ''}<b>ENTER</b> CONFIRM &nbsp;·&nbsp; <b>ESC</b> BACK`;
     // the middle
-    const st = this.going ? 'GET READY!' : cpu ? (this.active === 'p1' ? 'CHOOSE YOUR FIGHTER' : this.active === 'p2' ? 'CHOOSE YOUR OPPONENT' : 'CHOOSE THE STAGE')
+    const st = this.going ? 'GET READY!' : cpu ? (this.active === 'p1' ? 'CHOOSE YOUR FIGHTER' : 'CHOOSE YOUR OPPONENT')
       : !rem ? (this.p1.pick === null ? 'CHOOSE YOUR FIGHTER' : 'READY — WAITING FOR A PLAYER')
       : this.p1.pick === null ? 'CHOOSE YOUR FIGHTER' : `WAITING FOR ${rem.name.toUpperCase()}`;
     this.st.textContent = st;

@@ -14,6 +14,8 @@ export interface StageLook {
   /** The sky's band (clouds) and the valley's (mist), y ranges. */
   sky: [number, number];
   mist: [number, number];
+  /** The mist fades in at its top and out at its bottom (a far background with no edge to end it behind). */
+  mistSoft?: boolean;
   /** The sun (god rays fan from it, down to the left). */
   sun: Pt;
   /** The floor (its light drifts there): top y. */
@@ -38,6 +40,8 @@ export interface StageLook {
   emblemTint?: number;
   /** Fires burning on the stage (braziers, torches): a flickering glow with sparks rising, at these points. */
   fires?: Pt[];
+  /** Molten lava round the floor: its glow breathing and its light rolling slowly, everywhere but `keep` (the floor). */
+  lava?: { tint: number; keep: Pt[] };
 }
 
 /** The courtyard's far background (traced on the painting: above the balustrade, round its posts and the statue) —
@@ -112,6 +116,26 @@ export const SAKURA_LOOK: StageLook = {
   rayTint: 0xffd8b8,
   fliers: 'birds',
   fall: { kind: 'petal', n: 26, tints: [0xffc0d8, 0xffa8c8, 0xffd6e6, 0xf598b8] },
+};
+
+/** The Lava Fortress (assets/environment/stages/lava_fortress.webp): a stone platform over a lava lake inside a volcanic
+ *  fortress — embers rising, smoke over the lava behind, bats, the braziers burning, the volcano glowing, the lava alive. */
+export const LAVA_LOOK: StageLook = {
+  far: [[0, 0], [1672, 0], [1672, 300], [1140, 292], [610, 292], [0, 300]],
+  sky: [0, 60],
+  mist: [180, 282],
+  mistSoft: true,
+  sun: [1222, 28],
+  rays: 0,
+  floorTop: 293,
+  cloudTint: 0x4a2a28,
+  mistTint: 0x9a6a58,
+  lightTint: 0xff7a30,
+  rayTint: 0xff5a1a,
+  fliers: 'bats',
+  fall: [{ kind: 'ember', n: 70, tints: [0xffb050, 0xff7a20, 0xffd890] }],
+  fires: [[88, 15], [652, 38], [1250, 80], [1545, 52]],
+  lava: { tint: 0xff8a2a, keep: [[610, 300], [1140, 300], [1380, 402], [1506, 606], [1352, 790], [382, 790], [220, 606], [360, 402]] },
 };
 
 const T = { cloud: 'sfx-cloud', mist: 'sfx-mist', ray: 'sfx-ray', glow: 'sfx-glow', light: 'sfx-light', ring: 'sfx-ring', leaf: 'sfx-leaf', petal: 'sfx-petal', drop: 'sfx-drop', dot: 'sfx-dot', bird: 'sfx-bird', bat: 'sfx-bat' };
@@ -220,6 +244,7 @@ export class StageFx {
   private leaves: Drifter[] = [];
   private flash?: Phaser.GameObjects.Rectangle;
   private fires: { glow: Phaser.GameObjects.Image; core: Phaser.GameObjects.Image; sparks: Drifter[]; at: Pt; ph: number }[] = [];
+  private lava?: Phaser.GameObjects.TileSprite;
   private nextBolt = 6000;
   private bolt = -1;
   private t = 0;
@@ -241,6 +266,16 @@ export class StageFx {
       this.far.add(o); this.clouds.push({ o, vx: 5 + r() * 9, vy: 0, w: o.displayWidth });
     }
     for (const [i, v] of [[0, 7], [1, 13]] as const) { // two banks of valley mist, the nearer one quicker
+      if (L.mistSoft) { // each bank in two halves, the upper fading in, the lower fading out (one texture across both)
+        const [y0, y1] = L.mist, a = i ? 0.32 : 0.42, h = (y1 - y0) / 2, ty = 0.7;
+        for (const half of [0, 1]) {
+          const o = scene.make.tileSprite({ x: 0, y: y0 + i * 18 + half * h, width: W, height: h, key: T.mist }, false).setOrigin(0, 0).setTint(L.mistTint);
+          o.setAlpha(half ? a : 0, half ? a : 0, half ? 0 : a, half ? 0 : a);
+          o.setTileScale(1.2 - i * 0.25, ty); o.tilePositionY = (half * h) / ty;
+          this.far.add(o); this.mists.push({ o, v });
+        }
+        continue;
+      }
       const [y0, y1] = L.mist, o = scene.make.tileSprite({ x: 0, y: y0 + i * 18, width: W, height: y1 - y0, key: T.mist }, false).setOrigin(0, 0).setTint(L.mistTint).setAlpha(i ? 0.32 : 0.42);
       o.setTileScale(1.2 - i * 0.25, 0.7); this.far.add(o); this.mists.push({ o, v });
     }
@@ -307,6 +342,16 @@ export class StageFx {
       }
       this.fires.push({ glow, core, sparks, at, ph: r() * 10 });
     }
+    if (L.lava) { // the lava: warm light rolling over it and breathing, masked off the floor
+      const box = this.lay(-0.58);
+      this.lava = scene.make.tileSprite({ x: 0, y: 0, width: W, height: H, key: T.light }, false).setOrigin(0, 0).setBlendMode(Phaser.BlendModes.ADD).setTint(L.lava.tint).setAlpha(0.16);
+      this.lava.setTileScale(1.5, 0.75);
+      box.add(this.lava);
+      const mk = scene.make.graphics({}, false).setPosition(this.at.x, this.at.y).setScale(this.at.s);
+      mk.fillStyle(0xffffff).fillPoints(L.lava.keep.map(([x, y]) => new Phaser.Math.Vector2(x, y)), true);
+      const gm = mk.createGeometryMask(); gm.setInvertAlpha(true);
+      box.setMask(gm);
+    }
     if (L.lightning) { this.flash = new Phaser.GameObjects.Rectangle(scene, -W, -H, W * 3, H * 4, 0xdfe8ff, 1).setOrigin(0, 0).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD); this.lay(88990).add(this.flash); }
   }
 
@@ -343,6 +388,10 @@ export class StageFx {
     this.light.tilePositionX += 6 * s; this.light.tilePositionY += 2 * s;
     this.shade.tilePositionX += 9 * s; this.shade.tilePositionY += 3 * s;
     this.light.setAlpha(0.07 + 0.025 * Math.sin((t / 9000) * Math.PI * 2));
+    if (this.lava) { // rolling slowly, breathing, a little unsteady
+      this.lava.tilePositionX += 5 * s; this.lava.tilePositionY -= 3 * s;
+      this.lava.setAlpha(0.13 + 0.05 * Math.sin((t / 2600) * Math.PI * 2) + 0.025 * Math.sin((t / 730) * Math.PI * 2));
+    }
     this.glow?.setAlpha(0.1 + 0.06 * Math.sin((t / 4200) * Math.PI * 2));
     for (const w of this.sweeps) w.img.rotation += w.v * ms;
     const H = this.H, top = this.look.floorTop;

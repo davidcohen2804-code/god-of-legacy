@@ -4,7 +4,7 @@
 // own against the CPU: a stage at random) — first the place, then its mood.
 import WORLD from '../data/legacy-courtyard.json';
 import { PVP } from '../config/layout';
-import { COURTYARD_LOOK, NIGHT_LOOK, SAKURA_LOOK, StageLook, WINTER_LOOK } from './StageFx';
+import { COURTYARD_LOOK, LAVA_LOOK, NIGHT_LOOK, SAKURA_LOOK, StageLook, WINTER_LOOK } from './StageFx';
 import { COURTYARD_OBJECTS, Pt, StageGeo } from './WorldGeometry';
 
 export interface Stage {
@@ -47,10 +47,20 @@ const SAKURA_GEO: StageGeo = {
   centre: [840, 560],
 };
 
+/** The Lava Fortress: an eight-sided stone platform over a lava lake — its corners cut, open all round. */
+const LAVA_GEO: StageGeo = {
+  floor: [[610, 300], [1140, 300], [1380, 402], [1506, 606], [1352, 790], [382, 790], [220, 606], [360, 402]],
+  props: [],
+  spawns: [[860, 740], [420, 700], [1300, 700], [660, 360], [1080, 360], [330, 560], [1400, 560], [860, 560]],
+  start: { y: 560, left: 732, right: 988 },
+  centre: [860, 560],
+};
+
 export const STAGES: Stage[] = [
   { id: 'courtyard', place: 'courtyard', name: 'LEGACY COURTYARD', file: 'assets/environment/Legacy_Courtyard.png', key: 'legacy-courtyard', preview: 'assets/pvp/stages/courtyard.webp', look: COURTYARD_LOOK, geo: COURTYARD_GEO },
   { id: 'night', place: 'courtyard', name: 'MOONLIT COURTYARD', file: 'assets/environment/stages/courtyard_night.webp', key: 'stage-courtyard-night', preview: 'assets/pvp/stages/night.webp', look: NIGHT_LOOK, geo: COURTYARD_GEO },
   { id: 'winter', place: 'courtyard', name: 'FROZEN COURTYARD', file: 'assets/environment/stages/courtyard_winter.webp', key: 'stage-courtyard-winter', preview: 'assets/pvp/stages/winter.webp', look: WINTER_LOOK, geo: COURTYARD_GEO },
+  { id: 'lava', place: 'lava', name: 'LAVA FORTRESS', file: 'assets/environment/stages/lava_fortress.webp', key: 'stage-lava-fortress', preview: 'assets/pvp/stages/lava.webp', look: LAVA_LOOK, geo: LAVA_GEO },
   { id: 'sakura', place: 'sakura', name: 'SAKURA TEMPLE', file: 'assets/environment/stages/sakura_temple.webp', key: 'stage-sakura-temple', preview: 'assets/pvp/stages/sakura.webp', look: SAKURA_LOOK, geo: SAKURA_GEO },
 ];
 
