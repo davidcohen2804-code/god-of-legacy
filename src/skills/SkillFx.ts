@@ -959,8 +959,8 @@ export class SkillFx {
     }
     const zone = s.zoneMs && s.zoneMs > 600;
     const glow = VFX_MULT[s.cls] && s.cls !== 'archer' ? this.scene.add.image(img.x, img.y, key, 0).setOrigin(img.originX, img.originY).setBlendMode(Phaser.BlendModes.ADD)
-      .setDepth(img.depth - 0.01).setAngle(img.angle).setFlipX(img.flipX).setFlipY(img.flipY).setAlpha(0.28).setTint(CLASS_COLOR[s.cls]) : undefined;
-    glow?.setData('a0', 0.28); // (a soft halo: at 0.45 it burnt the sheet to white on the bright floors — snow, sun)
+      .setDepth(img.depth - 0.01).setAngle(img.angle).setFlipX(img.flipX).setFlipY(img.flipY).setAlpha(s.cls === 'warrior' ? 0.28 : 0.45).setTint(CLASS_COLOR[s.cls]) : undefined;
+    glow?.setData('a0', s.cls === 'warrior' ? 0.28 : 0.45); // (a soft halo: at 0.45 it burnt the sheet to white on the bright floors — snow, sun)
     if (basic) glow?.setVisible(false);
     this.anims.push({ img, glow, t: Math.min(r.elapsed, T.startup), total: fms.reduce((a, b) => a + b, 0), frames: fr, frameMs: fms, follow, z: pos.z, fadeLast: basic ? 110 : s.cls === 'warrior' ? 260 : 140,
       loop: zone ? [preFrames + 1, frames - 2] : undefined, until: zone ? T.startup + (s.zoneMs ?? 0) : undefined });
