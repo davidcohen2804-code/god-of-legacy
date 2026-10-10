@@ -64,7 +64,7 @@ const warrior: FinalSkill[] = [
     startup: 300, active: 260, recovery: 300, cooldown: 3000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(0, 26, { kind: 'circle', radius: 118 }, { stun: 320, push: 4 }, { reachUp: 130, heavy: true }),
       H(200, 14, { kind: 'circle', radius: 150 }, { stun: 300, launch: 110, juggleCost: 10 }, { reachUp: 120 })],
-    linger: { at: 'caster', startMs: 300, everyMs: 300, count: 10, radius: 150, maxZ: 130, hit: H(0, 3, { kind: 'circle', radius: 150 }, { stun: 380, pull: 40, float: true }, { reachUp: 130 }) },
+    linger: { at: 'caster', startMs: 300, everyMs: 300, count: 10, radius: 150, maxZ: 130, hit: H(0, 0, { kind: 'circle', radius: 150 }, { stun: 380, pull: 40, float: true }, { reachUp: 130 }) }, // (the quake holds, it does not hurt: its ticks used to fill a fallen foe's floor gauge and stand him up mid-combo)
     cancelOnHit: ['titans_verdict'], telegraph: 'circle',
     description: 'Smash the earth and blast foes up into the air: a living quake follows you for 3s, dragging in and holding any foe it touches while you keep fighting.',
     relations: ['Finisher', 'Anti-air slam'],
@@ -156,7 +156,7 @@ const warrior: FinalSkill[] = [
     startup: 160, active: 420, recovery: 300, cooldown: 3500, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 260 }, carry: true,
     hits: [0, 70, 140, 210, 280, 380].map((t, i) => H(t, i === 5 ? 16 : 4, { kind: 'sector', range: 80, angle: 100 }, i === 5 ? { stun: 420, launch: 110, juggleCost: 20 } : { stun: 320 }, { reachUp: 140, heavy: i === 5 })),
-    cancelOnHit: ['rising_slash', 'leap_crash', 'blade_storm', 'titans_verdict', 'wave_slash'],
+    cancelOnHit: ['rising_slash', 'leap_crash', 'blade_storm', 'titans_verdict', 'wave_slash', 'whirlwind', 'sky_breaker', 'lions_maw', 'iron_grip'], // (the rush's lift → a spin, the chase, the lion or the grab)
     description: 'Skewer the target on your blade and rush it across the arena (into a wall if one is in the way), then rip it upward with a burst of light.',
     relations: ['Extender', 'Carry'],
   }),
@@ -230,7 +230,7 @@ const warrior: FinalSkill[] = [
     startup: 150, active: 520, recovery: 220, cooldown: 9000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     // the warrior roars and his lion of light pounces through the foe: a bite, a raking claw, a dive — and slams it into a bounce
     hits: [H(120, 8, { kind: 'circle', radius: 120, at: 'aimBias', bias: 130 }, { stun: 460, float: true, juggleCost: 4 }, { reachUp: 320 }),
-      H(240, 8, { kind: 'circle', radius: 120, at: 'aimBias', bias: 130 }, { stun: 460, launch: 60, juggleCost: 4 }, { reachUp: 320 }),
+      H(240, 8, { kind: 'circle', radius: 120, at: 'aimBias', bias: 130 }, { stun: 460, float: true, juggleCost: 4 }, { reachUp: 320 }), // (holds him up: it no longer spends a re-launch the chase after it needs)
       H(330, 6, { kind: 'circle', radius: 120, at: 'aimBias', bias: 130 }, { stun: 440, float: true }, { reachUp: 320 }),
       H(450, 16, { kind: 'circle', radius: 140, at: 'aimBias', bias: 130 }, { stun: 440, slam: true }, { reachUp: 320, heavy: true })],
     cancelOnHit: ['rising_slash', 'sky_breaker', 'iron_grip', 'lance_thrust', 'ground_breaker', 'blade_storm', 'titans_verdict', 'leap_crash'],
@@ -1036,6 +1036,14 @@ export function armorMul(s: FinalSkill, arena: boolean): number {
 const ARENA_PACE: Record<string, { startup?: number; squeeze?: number }> = {};
 // Warrior extended kit: every core skill (and the basic chain) can cancel into the new extenders on a confirmed hit.
 for (const w of warrior) if (w.slot <= 5) for (const id of ['leap_crash', 'wave_slash', 'lance_thrust']) if (!w.cancelOnHit.includes(id) && id !== w.id) w.cancelOnHit.push(id);
+// Warrior air links (the arena measure: different skills landed while the foe cannot act): every attack can close on the
+// Verdict, and the air extenders (rush, spin, chase, lion, crash, quake, grip) lead into each other — a string never waits
+// out a recovery for the next link.
+const WARRIOR_AIR = ['lance_thrust', 'whirlwind', 'sky_breaker', 'lions_maw', 'leap_crash', 'ground_breaker', 'iron_grip'];
+for (const w of warrior) if (w.slot !== 7 && w.slot !== 0 && w.hits.some((h) => h.damage > 0) && !w.tags.includes('buff')) {
+  if (!w.cancelOnHit.includes('titans_verdict')) w.cancelOnHit.push('titans_verdict');
+  if (WARRIOR_AIR.includes(w.id)) for (const id of WARRIOR_AIR) if (id !== w.id && !w.cancelOnHit.includes(id)) w.cancelOnHit.push(id);
+}
 // Archer: a dense combo graph (PvP engine audit) — every combo skill leads on to several others, the signature and the
 // ultimate, so her strings run as long as the other classes' (before: most of her skills were dead ends).
 const ARCHER_LINKS: Record<string, string[]> = {
