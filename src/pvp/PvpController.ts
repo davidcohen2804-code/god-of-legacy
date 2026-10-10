@@ -30,7 +30,12 @@ export interface PvpHandlers {
   onRematch?(from: string, m: Extract<NetMsg, { t: 'rematch' }>): void;
   /** The arena: the other fighter used BREAK. */
   onBreak?(from: string, m: Extract<NetMsg, { t: 'brk' }>): void;
+  /** Another fighter saw its hit land on you (see NetMsg 'claim'). */
+  onClaim?(from: string, m: Extract<NetMsg, { t: 'claim' }>): void;
 }
+
+/** Round trip per peer: a ping a second, smoothed; one way = half of it (capped — beyond it a game is not playable). */
+const PING_MS = 1000, RTT_SMOOTH = 0.25, ONE_WAY_CAP = 150;
 
 export class PvpController {
   readonly transport: Transport;
@@ -41,6 +46,8 @@ export class PvpController {
   private lastSent = '';
   private lastNet = 0;
   private keepAlive = 0;
+  private pinger = 0;
+  private rtt = new Map<string, number>();
   private destroyed = false;
   private readonly onPageHide = () => this.destroy();
 
@@ -59,6 +66,16 @@ export class PvpController {
     this.h.onJoined();
     this.sendState(true);
     this.keepAlive = window.setInterval(() => this.sendState(false, true), PVP.idleResendMs);
+    this.pinger = window.setInterval(() => { if (this.connected && this.peers.size) this.transport.send({ t: 'ping', from: this.meta.playerId, ts: performance.now() }); }, PING_MS);
+  }
+
+  /** Measured round trip to a peer (ms), or null before the first answer. */
+  rttOf(id: string): number | null { return this.rtt.get(id) ?? null; }
+  /** Estimated one-way delay from a peer (ms): how late its messages reach us. */
+  oneWay(id: string): number { return Math.min(ONE_WAY_CAP, Math.max(0, (this.rtt.get(id) ?? 0) / 2)); }
+  /** Tell `to` that our hit `hit` of cast `castId` landed on it where we saw it (x, y, z). */
+  sendClaim(to: string, castId: string, hit: number, x: number, y: number, z: number): void {
+    this.transport.send({ t: 'claim', from: this.meta.playerId, to, castId, hit, x: Math.round(x), y: Math.round(y), z: Math.round(z) });
   }
 
   get connected(): boolean { return this.transport.status === 'connected'; }
@@ -118,7 +135,9 @@ export class PvpController {
   private receive(m: NetMsg): void {
     if (this.destroyed || m.from === this.meta.playerId) return;
     this.lastNet = performance.now();
-    if (m.t === 'leave') { this.removeRemote(m.from); this.peers.delete(m.from); return; }
+    if (m.t === 'ping') { this.transport.send({ t: 'pong', from: this.meta.playerId, to: m.from, ts: m.ts }); return; }
+    if (m.t === 'pong') { if (m.to === this.meta.playerId) { const s = performance.now() - m.ts, o = this.rtt.get(m.from); if (s >= 0 && s < 5000) this.rtt.set(m.from, o === undefined ? s : o + (s - o) * RTT_SMOOTH); } return; }
+    if (m.t === 'leave') { this.removeRemote(m.from); this.peers.delete(m.from); this.rtt.delete(m.from); return; }
     if (m.t === 'pinv' || m.t === 'pans' || m.t === 'party' || m.t === 'pleave' || m.t === 'pbuff') { this.h.onParty?.(m); return; }
     if (m.t === 'state') {
       const r = this.remotes.get(m.from);
@@ -138,6 +157,7 @@ export class PvpController {
     else if (m.t === 'match') this.h.onMatch?.(m.from, m);
     else if (m.t === 'rematch') this.h.onRematch?.(m.from, m);
     else if (m.t === 'brk') this.h.onBreak?.(m.from, m);
+    else if (m.t === 'claim') { if (m.to === this.meta.playerId) this.h.onClaim?.(m.from, m); }
   }
 
   private syncPeers(list: PeerMeta[]): void {
@@ -180,6 +200,7 @@ export class PvpController {
   }
 
   destroy(): void {
+    window.clearInterval(this.pinger);
     if (this.destroyed) return;
     this.destroyed = true;
     window.removeEventListener('pagehide', this.onPageHide);

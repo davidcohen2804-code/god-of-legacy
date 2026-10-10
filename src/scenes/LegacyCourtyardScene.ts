@@ -128,6 +128,9 @@ const SLASH = { cx: 189 / 288, cy: 81 / 288, r: 122, head: 190 };
 const FACE: Record<Dir, V2> = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
 /** PvP victim-side sanity checks for a remote cast intent (network jitter tolerances). */
 const CAST_COOLDOWN_TOLERANCE_MS = 250;
+/** Hit claims across lag (stepClaims): how long a claim may wait (ms), how long for its cast to arrive, how far we may have
+ *  moved from where the attacker saw us (px). 300 ms ≈ the 250 ms rewind cap of Battlefield 4 / Overwatch plus a frame or two. */
+const CLAIM = { maxMs: 300, waitCastMs: 250, reach: 150 };
 /** Judgment Blade pacing: earliest throw after the leap starts, auto-throw of a follow-up blade, earliest follow-up throw. */
 const JB = { firstMin: 250, follow: 90, followMin: 40 } as const;
 const CAST_ORIGIN_TOLERANCE_PX = 140;
@@ -322,6 +325,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** VS PLAYER: still waiting for the other player (the sparring partner only comes if they never do). */
   private waitFoe = false;
   private botPaused = false;
+  /** Online lag (victim side): remote casts by id (for their attackers' claims), hits of them already resolved here
+   *  (taken / missed by our own check / dodged), hits taken through a claim, and claims waiting for our own check. */
+  private remoteRuns = new Map<string, { run: CastRun; at: number }>();
+  private resolved = new Map<string, number>();
+  private claimed = new Set<string>();
+  private claims: { from: string; castId: string; hit: number; x: number; y: number; z: number; at: number }[] = [];
   /** Sparring difficulty (EASY / MIDDLE / HARD). */
   private botLevel: BotLevel = 'middle';
   /** Sparring test switch: your skills have no cooldown (only while the sparring partner is there). */
@@ -763,6 +772,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.world) { this.stepMonsters(ms, now); this.stepTreasures(); this.stepLoot(ms, now); this.stepSun(ms, now); }
     this.rt.update(ms);
     this.stepLingers(now);
+    this.stepClaims(now);
     this.stepStorm();
     this.stepTree(now);
     this.stepMage(ms, now);
@@ -2693,6 +2703,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (t.kind === 'enemy') { this.applyToPve(run, hit, t, at); return; }
     if (t.id === BOT_ID) { this.applyToBot(run, hit, t, at); return; }
     if (run.confirmedAt < 0 && !t.invulnerable) run.confirmedAt = run.elapsed; // predicted contact on a remote player (their client is authority; a guarded one: no contact)
+    if (!t.invulnerable && t.kind === 'player' && this.pvp?.remotes.has(t.id)) this.pvp.sendClaim(t.id, run.castId, hi, t.x, t.y, t.z); // what we saw: they take it if lag alone made them miss it (onClaim)
   }
 
   /** PvE authority: combat body reaction on the enemy/dummy, damage, confirmed-hit feedback. */
@@ -2878,7 +2889,34 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     return out;
   }
 
-  private applyRemoteHitToSelf(run: CastRun, hit: HitEvent, hi: number, at: V3): void {
+  /** Lag between two players: the attacker hits what it sees (us, ~0.1 s + one network delay in the past), we check against
+   *  where we really are. When the two disagree the attacker's claim decides, within limits (favour the attacker, capped —
+   *  as in Overwatch / Battlefield): it waits for our own check of that hit; if ours missed, we take it when we are still
+   *  close to where they saw us (CLAIM.reach) or already in their combo, never later than CLAIM.maxMs, never through a
+   *  guard (wake-up, dodge, death). Without it a laggy victim slips out of every combo (Elsword's complaint). */
+  private stepClaims(now: number): void {
+    if (!this.claims.length) { if (this.resolved.size > 400) this.resolved.clear(); return; }
+    const keep: typeof this.claims = [];
+    for (const c of this.claims) {
+      const ck = `${c.castId}|${c.hit}`, age = now - c.at, run = this.remoteRuns.get(c.castId)?.run;
+      if (this.resolved.has(ck) || age > CLAIM.maxMs || this.dead >= 0) continue; // ours took it (or the claim is too old)
+      if (!run || run.attackerId !== c.from || run.skill.counter || !run.hits[c.hit]) { if (age < CLAIM.waitCastMs) keep.push(c); continue; } // its cast has not reached us yet
+      const proj = run.hits[c.hit].shape.kind === 'projectile', flying = proj && this.rt?.projectiles?.some((e) => e.run === run && e.p.hitIndex === c.hit);
+      if (!run.fired.has(c.hit) || (flying && age < CLAIM.maxMs - 40)) { keep.push(c); continue; } // our own check of it is still to come
+      const b = this.body, k = this.kin;
+      if (now < b.invulnUntil || b.ghost(now) || b.released) continue;
+      const near = Math.hypot(k.x - c.x, k.y - c.y) <= CLAIM.reach && Math.abs(k.z - c.z) <= CLAIM.reach;
+      if (!near && !(b.state !== 'free' && b.combos.has(c.from, now))) continue; // far from where they saw us, and free: a real miss
+      this.claimed.add(ck);
+      this.applyRemoteHitToSelf(run, run.hits[c.hit], c.hit, { x: k.x, y: k.y, z: k.z + 40 }, true);
+    }
+    this.claims = keep;
+  }
+
+  private applyRemoteHitToSelf(run: CastRun, hit: HitEvent, hi: number, at: V3, claimed = false): void {
+    const ck = `${run.castId}|${hi}`;
+    if (!claimed && this.claimed.delete(ck)) return; // already taken through the attacker's claim (lag): not twice
+    this.resolved.set(ck, this.simMs);
     if (this.dead >= 0 || this.party?.has(run.attackerId)) return; // party members never hit each other
     if (this.match?.active && !this.match.live) return; // a battle: only the fight counts (not VS / ROUND n / after the K.O.)
     const trial = run.attackerId === BOT_ID && !!this.bot?.trial;   // a Master's trial is the world: hits leave you blinking, untouchable
@@ -3369,7 +3407,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const s = finalSkill(m.skillId);
         if (!s) return;
         const hits = s.chain ? s.chain.stages.flat() : s.hits;
-        const run = this.rt?.runs.find((r) => r.castId === m.castId) ?? ({ skill: s, confirmedAt: 0, elapsed: 0 } as unknown as CastRun);
+        const run = this.rt?.runs.find((r) => r.castId === m.castId) ?? ({ skill: s, castId: m.castId, attackerId: this.localId, own: true, origin: { x: this.kin.x, y: this.kin.y, z: this.kin.z }, aim: this.aim, confirmedAt: 0, elapsed: 0, hits, timings: { startup: s.startup, active: s.active, recovery: s.recovery } } as unknown as CastRun); // (its run already over: the answer came late over the network)
         const r = this.pvp?.remotes.get(victim);
         const at = r ? { x: r.x, y: r.y, z: (m.z ?? r.z) + 40 } : { x: 0, y: 0, z: 0 };
         this.confirm(run, hits[m.hit ?? 0] ?? hits[0], victim, at, m.dmg, m.idx ?? 1, m.cid ?? 0, m.rx ?? 'hit', !!m.ends, m.z ?? 0);
@@ -3380,6 +3418,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onRemoteDeath: (id, by) => { this.match?.death(id); this.chat?.add({ kind: 'system', text: `${this.nameOf(id)} was defeated by ${this.nameOf(by)}.` }); },
       onMatch: (from, m) => { if (this.duelOpponent() === from) { this.matchHeard = performance.now(); this.match?.apply(from, m); } },
       onRematch: (from, m) => { this.match?.rematch(from, m.mid); this.refreshRematch(); },
+      onClaim: (from, m) => { if (this.claims.length < 64) this.claims.push({ from, castId: m.castId, hit: m.hit, x: m.x, y: m.y, z: m.z, at: this.simMs }); },
       onBreak: (from, m) => { this.breakFx(m.x, m.y, m.z); this.oppBreakAt = this.simMs; if (this.combo.target === from) this.combo.at = -Infinity; },
       onChat: (from, m) => this.receiveChat(from, m),
       onParty: (m) => this.party?.receive(m),
@@ -3421,7 +3460,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (m.amb && s.cls === 'samurai' && r.kageGhosts().length) this.ambushIn.add(m.castId); // made while his doubles stand: an ambush
     const run = this.rt?.start({ castId: m.castId, skill: s, stage: Math.max(0, Math.min(2, m.stage ?? 0)), attackerId: from, own: false, origin: { x: m.x, y: m.y, z: m.z ?? 0 }, aim: unit(m.ax, m.ay), place, lock: m.lock ?? null, followUp: !!m.fu,
       dmgMul: Math.max(0.3, Math.min(1.4, (m.dm ?? 100) / 100)), reach: Math.max(1, Math.min(1.85, (m.rm ?? 100) / 100)),
-      range: Math.max(1, Math.min(1.2, (m.rg ?? 100) / 100)), speed: Math.max(1, Math.min(1.35, (m.sp ?? 100) / 100)), ...(m.mf ? { mf: m.mf } : {}) });
+      range: Math.max(1, Math.min(1.2, (m.rg ?? 100) / 100)), speed: Math.max(1, Math.min(1.35, (m.sp ?? 100) / 100)), ...(m.mf ? { mf: m.mf } : {}) }, this.pvp?.oneWay(from) ?? 0); // (it left their hand one network delay ago: its wind-up is caught up)
+    if (run) { this.remoteRuns.set(m.castId, { run, at: this.simMs }); for (const [k, v] of this.remoteRuns) if (this.simMs - v.at > 4000) this.remoteRuns.delete(k); }
     if (run && s.id === 'judgment_blade') { // the blade leaves the caster's hand when its release message arrives (fallback: a little after the full charge)
       run.timings.startup = s.startup + 600; r.setSkillStartup(s.id, run.timings.startup);
     }
@@ -3530,6 +3570,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const oppLeft = m.opponent === BOT_ID ? (this.bot ? this.bot.body.breakReadyAt - now : 0) : this.oppBreakAt + ARENA.breakCdMs - now;
     if (ARENA.breakOn) { B.setBreak(mine, { leftMs: this.body.breakReadyAt - now, live: this.body.canBreak(now), key: keyLabel(this.bindings.jump) });
       B.setBreak(mine === 'l' ? 'r' : 'l', { leftMs: oppLeft, live: false }); }
+    else { // the quick rise: ready / recharging (lit while you lie there and can use it); the knight's too, a player's is his own
+      B.setBreak(mine, { leftMs: this.body.quickReadyAt - now, live: this.body.canQuickRise(now), key: keyLabel(this.bindings.jump), label: 'RISE', totalMs: ARENA.quickRiseCdMs });
+      B.setBreak(mine === 'l' ? 'r' : 'l', m.opponent === BOT_ID && this.bot ? { leftMs: this.bot.body.quickReadyAt - now, live: false, label: 'RISE', totalMs: ARENA.quickRiseCdMs } : { leftMs: 0, live: false, hidden: true }); }
   }
 
   private onMatchPhase(m: Match, prev: MatchPhase): void {
@@ -3584,6 +3627,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.dome) this.dome.until = this.simMs;
     this.jb = null; this.jbWant = 0; this.carriedBy = null; this.lunge = null; this.momentum = null; this.gripHeld = false; this.leapUsed = false; this.leapUntil = -1;
     this.rt?.resetCooldowns();
+    if (this.arena) for (const s of this.kit) if (s.slot === 7 || s.slot === 6) this.rt?.holdCooldown(s.id, this.simMs + PVP.battle.introMs + (s.slot === 7 ? ARENA.ultPreCdMs : ARENA.sigPreCdMs)); // the round opens with the big moves held back
     this.respawnAt(x, y, PVP.maxHp);
     this.body.maxHp = this.maxHpNow();
     this.dir = face > 0 ? 'right' : 'left'; this.aim = { x: face, y: 0 }; this.faceSide = face;

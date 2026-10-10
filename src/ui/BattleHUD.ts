@@ -103,7 +103,7 @@ const CSS = `
 .gol-bt .b-wn.on{border-color:#fff7cf;background:linear-gradient(180deg,#fffbe2,#ffd34c 50%,#e08a10);box-shadow:0 0 14px rgba(255,196,70,.95);animation:golWin .5s cubic-bezier(.2,1.4,.4,1)}
 @keyframes golWin{0%{scale:2.4;opacity:0}100%{scale:1;opacity:1}}
 /* BREAK: under each portrait — ready, now! (bright, pulsing: you are being comboed and can break out), cooling down */
-.gol-bt .b-brk{display:${ARENA.breakOn ? 'flex' : 'none'}!important;position:absolute;top:114px;width:122px;height:28px;box-sizing:border-box;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:7px;
+.gol-bt .b-brk{position:absolute;top:114px;width:122px;height:28px;box-sizing:border-box;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:7px;
   clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);background:linear-gradient(180deg,rgba(28,34,48,.95),rgba(8,11,18,.95));
   font:700 italic 13px/1 ${LABEL};letter-spacing:1.6px;color:#eef2ff;box-shadow:inset 0 0 0 1px rgba(220,226,240,.35)}
 .gol-bt .b-sd.l .b-brk{left:-6px}
@@ -402,14 +402,18 @@ export class BattleHUD {
   }
 
   /** A fighter's BREAK: ready / usable right now (live) / recharging (leftMs); `key` only on your own (the jump key). */
-  setBreak(s: Side, o: { leftMs: number; live: boolean; key?: string }): void {
-    const e = this.sides[s], left = Math.max(0, o.leftMs), cd = left > 0;
+  /** BREAK (or, with BREAK off, the quick RISE): ready / recharging / lit while it can be used. */
+  setBreak(s: Side, o: { leftMs: number; live: boolean; key?: string; label?: string; totalMs?: number; hidden?: boolean }): void {
+    const e = this.sides[s], left = Math.max(0, o.leftMs), cd = left > 0, total = o.totalMs ?? ARENA_BREAK_MS, label = o.label ?? 'BREAK';
+    e.brk.style.display = o.hidden ? 'none' : '';
+    if (o.hidden) return;
     const state = o.live ? 'live' : cd ? `cd${Math.ceil(left / 1000)}` : 'ready';
-    if (!this.changed(`brk${s}`, `${state}|${o.key ?? ''}`)) { if (cd) e.brkFill.style.width = `${(1 - left / ARENA_BREAK_MS) * 100}%`; return; }
+    if (!this.changed(`brk${s}`, `${state}|${o.key ?? ''}|${label}`)) { if (cd) e.brkFill.style.width = `${(1 - left / total) * 100}%`; return; }
+    e.brk.title = label === 'RISE' ? 'QUICK RISE: lying on the floor, press jump or move to get up at once (guarded) — then it recharges' : 'BREAK: being comboed (from its 3rd hit), press jump to break free — then it recharges';
     e.brk.classList.toggle('live', o.live); e.brk.classList.toggle('cd', cd && !o.live);
     e.brkKey.textContent = o.key ?? ''; e.brkKey.style.display = o.key ? '' : 'none';
-    e.brkText.textContent = cd && !o.live ? `BREAK ${Math.ceil(left / 1000)}` : 'BREAK';
-    e.brkFill.style.width = cd ? `${(1 - left / ARENA_BREAK_MS) * 100}%` : '0%';
+    e.brkText.textContent = cd && !o.live ? `${label} ${Math.ceil(left / 1000)}` : label;
+    e.brkFill.style.width = cd ? `${(1 - left / total) * 100}%` : '0%';
   }
 
   /** The round clock (ms left) and the round number under it. */

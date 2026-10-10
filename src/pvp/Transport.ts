@@ -28,6 +28,12 @@ export type NetMsg =
   /** Battle mode: the match as the side running it sees it (phase and the ms spent in it, round, round wins, the clock,
    *  the round's result, the match winner). */
   | ({ t: 'match'; from: string } & MatchMsg)
+  /** A hit this fighter saw land on `to` (castId's hit `hit`) where it saw `to` standing (x, y, z): the victim takes it
+   *  when its own check missed by a small margin or it is already in this attacker's combo (lag: see onClaim). */
+  | { t: 'claim'; from: string; to: string; castId: string; hit: number; x: number; y: number; z: number }
+  /** Round-trip measure: a ping and its answer (the sender's own clock `ts`, sent back as it came). */
+  | { t: 'ping'; from: string; ts: number }
+  | { t: 'pong'; from: string; to: string; ts: number }
   /** The arena: this fighter broke out of a combo (BREAK) here. */
   | { t: 'brk'; from: string; x: number; y: number; z: number }
   /** Battle mode: this fighter wants a rematch of match `mid`. */
@@ -54,7 +60,32 @@ const ENV = import.meta.env as Record<string, string | undefined>;
 
 export function createTransport(room: string): Transport {
   const url = ENV.VITE_SUPABASE_URL?.trim(), key = ENV.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
-  return url && key ? new SupabaseTransport(room, url, key) : new LocalTransport(room);
+  const q = new URLSearchParams(window.location.search);
+  const base: Transport = url && key && q.get('net') !== 'local' ? new SupabaseTransport(room, url, key) : new LocalTransport(room);
+  const lag = Math.max(0, Math.min(1000, Number(q.get('lag') ?? 0) || 0)), jitter = Math.max(0, Math.min(200, Number(q.get('jitter') ?? 0) || 0));
+  return lag > 0 || jitter > 0 ? new LaggedTransport(base, lag, jitter) : base;
+}
+
+/** Practice / QA: plays a connection of `lag` ms round trip (± `jitter`) on top of any transport (?lag=150&jitter=20):
+ *  every incoming message waits half the round trip (in order, as a real connection delivers). DFO's practice mode has
+ *  the same setting so combos can be trained at a real ping. */
+class LaggedTransport implements Transport {
+  get kind(): TransportKind { return this.base.kind; }
+  get status(): string { return this.base.status; }
+  set status(v: string) { this.base.status = v; }
+  private last = 0;
+  constructor(private base: Transport, private lag: number, private jitter: number) {}
+  join(meta: PeerMeta, maxPlayers: number): Promise<JoinResult> { return this.base.join(meta, maxPlayers); }
+  send(msg: NetMsg): void { this.base.send(msg); }
+  onMessage(fn: (m: NetMsg) => void): void {
+    this.base.onMessage((m) => {
+      const at = Math.max(this.last, performance.now() + this.lag / 2 + (Math.random() * 2 - 1) * this.jitter); // never out of order
+      this.last = at;
+      window.setTimeout(() => fn(m), Math.max(0, at - performance.now()));
+    });
+  }
+  onPeers(fn: (p: PeerMeta[]) => void): void { this.base.onPeers(fn); }
+  close(): void { this.base.close(); }
 }
 
 // ---------------------------------------------------------------- Supabase Realtime

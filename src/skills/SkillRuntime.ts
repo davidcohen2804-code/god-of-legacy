@@ -121,6 +121,8 @@ export class SkillRuntime {
   cooldownRemaining(id: string): number { return Math.max(0, (this.cooldownEnd.get(id) ?? 0) - this.world.now()); }
   /** Every skill ready again (a new battle round). */
   resetCooldowns(): void { this.cooldownEnd.clear(); this.charges.clear(); }
+  /** A skill not ready before `until` (the arena's pre-cooldown at a round's start). */
+  holdCooldown(id: string, until: number): void { this.cooldownEnd.set(id, Math.max(this.cooldownEnd.get(id) ?? 0, until)); }
   get projectileCount(): number { return this.projectiles.length; }
   get runCount(): number { return this.runs.length; }
 
@@ -143,7 +145,7 @@ export class SkillRuntime {
     const pm = this.world.rangeMul?.(req) ?? 1;
     if (pm !== 1) hits = hits.map((h) => h.shape.kind === 'projectile' ? { ...h, shape: { ...h.shape, range: h.shape.range * pm } } : h);
     const run: CastRun = {
-      ...req, elapsed: startElapsed, phase: 'startup', fired: new Set(), hitKeys: new Set(), confirmedAt: -1,
+      ...req, elapsed: req.own || s.charge || s.counter ? startElapsed : Math.min(startElapsed, Math.max(0, timings.startup - 16)), phase: 'startup', fired: new Set(), hitKeys: new Set(), confirmedAt: -1, // (a remote cast starts late by the network delay: its wind-up is caught up, never its strike)
       pathStart: { x: req.origin.x, y: req.origin.y }, counterTriggered: false, extraRecovery: 0, timings, hits,
       ...(s.charge ? { chargeScale: timings.startup / Math.max(1, s.startup) } : {}), ...(ts ? { tune: ts } : {}),
     };

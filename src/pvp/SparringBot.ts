@@ -218,6 +218,7 @@ export class SparringBot {
     this.cast = null; this.combo = []; this.chainStage = -1; this.chainEnd = -Infinity; this.wasFree = true;
     this.cdEnd.clear();
     if (this.L.opening) for (const [id, ms] of Object.entries(OPENING_CD)) this.cdEnd.set(id, now + ms);
+    if (this.body.arena) for (const s of this.kit) if (s.slot === 7 || s.slot === 6) this.cdEnd.set(s.id, Math.max(this.cdEnd.get(s.id) ?? 0, now + PVP.battle.introMs + (s.slot === 7 ? ARENA.ultPreCdMs : ARENA.sigPreCdMs))); // the round's pre-cooldown, as for the players
     this.nextAct = now + 700; this.thinkT = 0;
     this.dir = dir; this.aim = { x: dir === 'right' ? 1 : -1, y: 0 };
     this.view.revive(x, y, this.hp);

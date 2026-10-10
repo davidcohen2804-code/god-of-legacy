@@ -977,8 +977,8 @@ for (const w of warrior) if (warriorStretched(w)) {
 /** The PvP arena's combat pace and reach, the same rules for every class (the duel is about how many skills you string,
  *  so every class strings them at the same rhythm):
  *  - the warrior's stretched skills at their base pace (WARRIOR_STRETCH undone);
- *  - a combo skill cancelled into from a confirmed hit strikes within ARENA_FLOW.startup ms (an ultimate always within
- *    ARENA_FLOW.ultStartup; from neutral a skill keeps its own wind-up, so big moves stay readable), multi-hit
+ *  - a combo skill cancelled into from a confirmed hit strikes within ARENA_FLOW.startup ms (an ultimate within
+ *    ARENA_FLOW.ultStartup); from neutral a skill keeps its own wind-up, so big moves stay readable; multi-hit
  *    skills squeezed so their hits run in at most ARENA_FLOW.active ms (never below half their length) — the same hits, faster;
  *  - every hit reaches a foe up to ARENA_FLOW.reach px above the caster's feet (launches stay within the follow-ups'
  *    reach) and projectiles rise to a foe in the air in front of them (every damaging skill but traps and buffs);
@@ -994,7 +994,7 @@ export function arenaTimeScale(s: FinalSkill, followUp = false): { startup: numb
   if (p) { fs = p.startup ? p.startup / s.startup : 1; sq = p.squeeze ?? 1; }
   else if (combat) {
     const base = s.startup * w.startup, cap = s.slot === 7 ? ARENA_FLOW.ultStartup : ARENA_FLOW.startup;
-    if (base > cap && (followUp || s.slot === 7)) fs = cap / base; // (a skill opened from neutral keeps its own wind-up: readable; cancelled into from a hit, it comes out at once)
+    if (base > cap && followUp) fs = cap / base; // (a skill opened from neutral keeps its own wind-up — an ultimate too: readable, the foe can step out of it; cancelled into from a hit, it comes out at once)
     const act = s.active * w.active;
     if (s.slot !== 7 && dmg.length >= 4 && act > ARENA_FLOW.active) sq = Math.max(ARENA_FLOW.minSqueeze, ARENA_FLOW.active / act);
   }

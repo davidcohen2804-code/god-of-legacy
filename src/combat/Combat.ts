@@ -54,7 +54,7 @@ export const GAUGE = { stand: 0.3, air: 0.4, airRamp: 0.15, down: 0.15, resetMs:
  *    never under ladderFloor (an ultimate: never under ultFloor).
  *  - safety (never reached in play): budget share of max HP / maxHits / maxComboMs end a combo outright.
  *  - floorMs: how long a fallen fighter lies there (room for an OTG hit); techMinMs: down at least this long before
- *    the getup key stands you up (guarded); wakeInvulnMs: every getup is guarded this long.
+ *    the getup key stands you up (guarded; then quickRiseCdMs to recharge); wakeInvulnMs: every getup is guarded this long.
  *  - launchCap: the highest a launch throws a body, px above the floor (in reach of the follow-ups).
  *  - BREAK (off: breakOn — a comboed foe waits for his turn; no air tech, no War Cry break-out in the arena): from the combo's breakMinHits-th hit, the jump key frees you (hop back breakHop px, untouchable
  *    breakInvulnMs), then breakCdMs to wait.
@@ -66,6 +66,10 @@ export const ARENA = {
   relaunches: 2, heavyAfterMs: 4500, heavyRampMs: 2500,
   budget: 0.7, maxHits: 80, tickWeight: 0.25, maxComboMs: 14000, floorMs: 650, launchCap: 220,
   wakeInvulnMs: 700, techMinMs: 380,
+  /** the quick rise (jump or a move key while down) recharges this long (DFO's arena: 20 s on 75 s+ rounds) */
+  quickRiseCdMs: 15000,
+  /** at each round's start the ultimate / the signature are held back this long (DFO's arena pre-cooldown 선쿨) */
+  ultPreCdMs: 20000, sigPreCdMs: 6000,
   breakOn: false, breakMinHits: 3, breakCdMs: 15000, breakInvulnMs: 600, breakHop: 110,
   cdMul: 1.5,
   /** knockback in the arena (× a hit's push): enough to read, never out of the next skill's reach */
@@ -284,6 +288,8 @@ export class ComboBook {
   /** Keep every live combo going (the arena: no combo runs out while its victim is still helpless). */
   hold(now: number): void { for (const c of this.ctx.values()) if (!c.ended && now - c.lastAt <= COMBO.comboTimeoutMs) c.lastAt = now; }
   end(attacker: string): void { const c = this.ctx.get(attacker); if (c) c.ended = true; }
+  /** A live combo by this attacker on this victim. */
+  has(attacker: string, now: number): boolean { const c = this.ctx.get(attacker); return !!c && !c.ended && now - c.lastAt <= COMBO.comboTimeoutMs; }
   clear(): void { this.ctx.clear(); }
 }
 
@@ -365,6 +371,8 @@ export class CombatBody {
   ghostUntil = -1;
   /** Arena: when BREAK is ready again; when the body came to rest on the floor. */
   breakReadyAt = 0;
+  /** Arena: when the quick rise is ready again. */
+  quickReadyAt = 0;
   downAt = -Infinity;
   airOver(now?: number): number {
     const g = gaugeOf(this.arena), dmg = Math.max(0, (this.gauge.air - g.air) / g.airRamp);
@@ -382,7 +390,7 @@ export class CombatBody {
   chilled(now: number): boolean { return now < this.chillUntil; }
   frozen(now: number): boolean { return this.hard.active(now) && this.hard.kind === 'freeze'; }
   reset(): void { this.pinUntil = -1; this.gauge = { stand: 0, air: 0, down: 0 }; this.invulnUntil = -1; this.bounce = false; this.state = 'free'; this.stateEnd = 0; this.hard.reset(); this.combos.clear(); this.push = null; this.slowUntil = 0; this.armorUntil = -1; this.chillUntil = -1; this.curseUntil = -1; this.curseFrom = -1; this.levityUntil = -1;
-    this.released = false; this.ghostUntil = -1; this.breakReadyAt = 0; this.downAt = -Infinity; }
+    this.released = false; this.ghostUntil = -1; this.breakReadyAt = 0; this.quickReadyAt = 0; this.downAt = -Infinity; }
   /** Guarded right now (the arena: rising from the floor, the wake-up after it, BREAK). */
   ghost(now: number): boolean { return now < this.ghostUntil || (this.arena && this.state === 'getup'); }
 
@@ -547,9 +555,12 @@ export class CombatBody {
     this.ghostUntil = now + ARENA.breakInvulnMs; this.gauge = { stand: 0, air: 0, down: 0 };
   }
 
-  /** Arena: down on the floor a moment, a key pressed — up at once (a short, guarded rise). */
+  /** Arena: down on the floor a moment and the quick rise recharged. */
+  canQuickRise(now: number): boolean { return this.arena && this.state === 'knockdown' && this.kdPhase === 'down' && this.kin.grounded && now - this.downAt >= ARENA.techMinMs && now >= this.quickReadyAt; }
+  /** Arena: down on the floor a moment, a key pressed — up at once (a short, guarded rise), then it recharges. */
   quickGetup(now: number): boolean {
-    if (!this.arena || this.state !== 'knockdown' || this.kdPhase !== 'down' || !this.kin.grounded || now - this.downAt < ARENA.techMinMs) return false;
+    if (!this.canQuickRise(now)) return false;
+    this.quickReadyAt = now + ARENA.quickRiseCdMs;
     this.state = 'getup'; this.kdPhase = 'up'; this.stateEnd = now + 160;
     return true;
   }
