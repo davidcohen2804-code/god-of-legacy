@@ -2041,6 +2041,7 @@ export class SkillFx {
   /** Gambler: charged cards stuck in a target / set off by a staff blow / the Hand over his shoulder / his buffs. */
   gambleStick(id: string, n: number, double = false): void { this.gamb.stick(id, n, double); }
   gambleDetonate(id: string, n: number, hot: boolean): void { this.gamb.detonate(id, n, hot); }
+  gambleAllIn(id: string, n: number): void { this.gamb.allIn(id, n); }
   gambleHand(cards: Card[], value: HandValue | null, counting: boolean): void { this.gamb.showHand(cards, value, counting); }
   gamblePlaceHand(at: { x: number; y: number } | null, face: number): void { this.gamb.placeHand(at, face); }
   gambleDealt(from: V3 | null, to: { x: number; y: number } | null, c: Card): void { this.gamb.dealt(from, to, c); }

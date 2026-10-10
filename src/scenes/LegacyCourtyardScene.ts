@@ -2477,6 +2477,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       }
       out = { ...out, reaction: R };
     }
+    if (s.id === 'all_in') { // the snap: every card stuck in him goes off — each one harder and higher; none: he only reels
+      const n = this.gStuck.take(targetId, now), hot = run.own && this.passives.gamble.shortFuse;
+      const R = { ...out.reaction };
+      if (n > 0) { R.launch = Math.min(170, 70 + 22 * n); out = { ...out, damage: Math.round(out.damage * (0.6 + 0.55 * n * (hot ? 1.3 : 1))) }; }
+      else { R.launch = undefined; R.stun = 300; out = { ...out, damage: Math.round(out.damage * 0.4) }; }
+      out = { ...out, reaction: R };
+      this.fx?.gambleAllIn(targetId, n);
+      return out;
+    }
     if (hit.fuse) { // a staff blow: the cards stuck in the foe go off at once
       const n = this.gStuck.take(targetId, now), hot = run.own && this.passives.gamble.shortFuse;
       if (n > 0) { out = { ...out, damage: Math.round(out.damage * (1 + FUSE_PER_CARD * n * (hot ? 1.3 : 1))) }; this.fx?.gambleDetonate(targetId, n, hot); }

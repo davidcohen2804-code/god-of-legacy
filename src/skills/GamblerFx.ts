@@ -268,6 +268,12 @@ export class GamblerFx {
   /** The release (active start). */
   active(r: CastRun): void {
     const o = this.me(r), y0 = o.y - o.z, side = sideOf(r);
+    if (r.skill.id === 'all_in') { // the click of the fingers: a sharp star at his hand, a thin ring running out over the floor
+      const h = this.ctx.hand(r.attackerId) ?? { x: o.x + side * 40, y: y0 - 80 };
+      const fl = this.kit('ai_snap', h.x, h.y, 90, TOP + 5); if (fl) { const f0 = fl.scale; this.piece(fl, 220, (u, im) => im.setScale(f0 * lerp(0.5, 1.3, out3(u))).setAlpha(1 - u)); } else this.pop(h.x, h.y, 80, 0xffffff, 200);
+      const rg = this.kit('ai_ring', o.x, o.y, 300, GROUND + 3); if (rg) { const rx = rg.scaleX, ry = (300 * SQUASH) / rg.height; this.piece(rg, 360, (u, im) => im.setScale(rx * lerp(0.2, 1.3, out3(u)), ry * lerp(0.2, 1.3, out3(u))).setAlpha(1 - u)); } else this.floorRing(o.x, o.y, 200, FUCHSIA_2, 320, 0, 3);
+      this.ctx.flash(0xffffff, 0.08, 80);
+    }
     if (r.skill.id === 'grand_slam') {
       this.pop(o.x + side * 110, y0 - 60, 220, 0xffffff, 220); // the crack of the bat
       const bl = this.kit('k_blast', o.x + side * 120, y0 - 60, 220, o.y + 3); if (bl) { const b0 = bl.scale; this.piece(bl, 360, (u, im) => im.setScale(b0 * lerp(0.4, 1.2, out3(u))).setAlpha(1 - u)); }
@@ -399,6 +405,24 @@ export class GamblerFx {
       this.burst(tp.x, y, 90 + n * 22); this.ctx.freeze(40 + n * 10);
       this.ctx.callout({ x: tp.x, y: tp.y, z: tp.z + 10 }, n >= 3 ? `CHAIN BURST ×${n}!` : `BURST ×${n}`, '#ff7ae6', 1);
     }
+  }
+  /** All In: the snap sets off every card in him — they blow one after another up his body, a chain that throws him up. */
+  allIn(id: string, n: number): void {
+    const tp = this.ctx.targetPos(id); if (!tp) return;
+    const list = this.stuck.get(id) ?? []; this.stuck.delete(id);
+    const H = tp.h ?? 90, x = tp.x, y0 = tp.y - tp.z - H * 0.35;
+    list.forEach((c, i) => { const cx = c.img.x, cy = c.img.y; c.img.destroy(); this.pop(cx, cy, 70, 0xffffff, 120, i * 55); this.burst(cx, cy, 90, i * 55); });
+    if (n <= 0) { this.pop(x, y0, 70, FUCHSIA_2, 180); return; } // nothing in him: a fizzle
+    for (let k = 0; k < n; k++) { // the chain climbs his body: each blast a little higher and bigger
+      const d = 70 + k * 60, yy = y0 - k * 22, sz = 110 + k * 26;
+      const geo = this.kit('ai_chain', x, yy + 30, sz, TOP + 3) ?? this.kit('k_blast', x, yy, sz, TOP + 3);
+      if (geo) { geo.setAlpha(0); const g0 = geo.scale; this.piece(geo, 380, (u, o) => o.setScale(g0 * lerp(0.4, 1.15, out3(u))).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5), d); }
+      this.pop(x, yy, sz * 0.7, 0xffffff, 160, d);
+    }
+    const jet = this.kit('ai_geyser', x, tp.y - tp.z + 6, 120 + n * 14, TOP + 2); if (jet) { jet.setOrigin(0.5, 0.95).setAlpha(0); const j0 = jet.scale; this.piece(jet, 520, (u, o) => o.setScale(j0 * 0.8, j0 * lerp(0.3, 1.1, out3(u))).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5), 60); }
+    if (n >= 5) { const jp = this.kit('ai_jackpot', x, y0 - 20, 280, TOP + 4); if (jp) { const p0 = jp.scale; this.piece(jp, 640, (u, o) => o.setScale(p0 * lerp(0.4, 1.1, out3(u))).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5), 120); } }
+    this.ctx.freeze(50 + n * 12); this.ctx.cam().shake(140 + n * 30, 0.004 + n * 0.0015);
+    this.ctx.callout({ x: tp.x, y: tp.y, z: tp.z + 20 }, n >= 5 ? 'ALL IN!!' : n >= 3 ? `ALL IN ×${n}!` : `ALL IN ×${n}`, n >= 3 ? '#ffc94a' : '#ff7ae6', 1);
   }
   private stepStuck(): void {
     for (const [id, list] of this.stuck) {
