@@ -183,6 +183,8 @@ export class StageFx {
     if (!c) { c = this.scene.add.container(this.at.x, this.at.y).setScale(this.at.s).setDepth(depth); this.layers.set(depth, c); }
     return c;
   }
+  /** Its layers (all of them placed like the painting): a camera pitch squashes them with the floor. */
+  layerList(): Phaser.GameObjects.Container[] { return [...this.layers.values()]; }
   private far: Phaser.GameObjects.Container;
   private shade: Phaser.GameObjects.TileSprite;
   private farMask: Phaser.GameObjects.Graphics;

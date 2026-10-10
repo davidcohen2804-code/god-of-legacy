@@ -396,21 +396,26 @@ export class WorldHUD {
       b.addEventListener('pointerdown', () => { go(); if (what !== 'reset') rep = window.setInterval(go, 140); });
       for (const ev of ['pointerup', 'pointerleave']) b.addEventListener(ev, () => window.clearInterval(rep));
       cc.appendChild(b);
+      return b;
     };
     btn('in', ICONS.plus, 'Zoom in (mouse wheel)'); btn('out', ICONS.minus, 'Zoom out (mouse wheel)');
     this.div('sep', cc);
     btn('up', ICONS.up, 'View up (PageUp)'); btn('down', ICONS.down, 'View down (PageDown)');
     this.div('sep', cc);
-    btn('higher', ICONS.tiltUp, 'Camera higher: look down more (Insert)');
+    const hi = btn('higher', ICONS.tiltUp, 'Camera higher: look down more (Insert)');
     const pv = this.div('pv', cc); pv.title = 'Camera angle (0° eye level, 90° straight down)'; this.els.pitch = pv;
-    btn('lower', ICONS.tiltDown, 'Camera lower: look across more (Delete)');
-    this.div('sep', cc);
+    const lo = btn('lower', ICONS.tiltDown, 'Camera lower: look across more (Delete)');
+    this.pitchEls = [hi, pv, lo, this.div('sep', cc)];
     btn('reset', ICONS.rotate, 'Reset camera (Home)');
     this.placeDock(0);
   }
 
-  /** The camera's angle on its arc (the camera buttons' readout). */
-  setPitch(deg: number): void { if (this.els.pitch) this.els.pitch.textContent = `${deg}°`; }
+  /** The camera's angle on its arc (the camera buttons' readout); null: no such buttons here. */
+  setPitch(deg: number | null): void {
+    for (const e of this.pitchEls) e.style.display = deg === null ? 'none' : '';
+    if (deg !== null && this.els.pitch) this.els.pitch.textContent = `${deg}°`;
+  }
+  private pitchEls: HTMLElement[] = [];
 
   setPassives(list: { id: string; name: string; iconUrl: string; owned: boolean; info: string }[]): void {
     const box = this.els.passives, A = DK.pas;

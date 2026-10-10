@@ -76,6 +76,14 @@ loadFonts().then(() => {
     scene: [BootScene, MainMenuScene, CharacterSelectScene, CharacterCreateScene, PvpSelectScene, LegacyCourtyardScene],
   });
 
+  // the letterbox around the game: a tiny copy of the frame (4 times a second), blurred and dimmed by its CSS (index.html)
+  const amb = document.getElementById('ambient') as HTMLCanvasElement | null, ax = amb?.getContext('2d');
+  let ambAt = 0;
+  if (amb && ax) game.events.on(Phaser.Core.Events.POST_RENDER, () => {
+    const now = performance.now(); if (now - ambAt < 250) return; ambAt = now;
+    try { ax.drawImage(game.canvas, 0, 0, amb.width, amb.height); } catch { /* not ready */ }
+  });
+
   ErrorCapture.attachGame(game);
   if (isQAMode()) startQAPanel(game);
 
