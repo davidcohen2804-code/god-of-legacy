@@ -173,9 +173,9 @@ const warrior: FinalSkill[] = [
     startup: 150, active: 320, recovery: 240, cooldown: 9000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     charges: 3, chargeGap: 120,
     hits: [H(140, 14, { kind: 'circle', radius: 80, at: 'aimBias', bias: 150 }, { stun: 420, pin: 400, slam: true }, { reachUp: 280, heavy: true })],
-    linger: { at: 'aim', offset: 150, startMs: 520, everyMs: 500, count: 10, radius: 130, maxZ: 40, hit: H(0, 3, { kind: 'circle', radius: 130 }, { stun: 560, pin: 480 }, { reachUp: 40 }) },
+    linger: { at: 'aim', offset: 150, startMs: 520, everyMs: 500, count: 10, radius: 130, maxZ: 40, hit: H(0, 3, { kind: 'circle', radius: 130 }, { stun: 560, bind: 1100 }, { reachUp: 40 }) },
     cancelOnHit: ['warrior_basic', 'rising_slash', 'leap_crash', 'lance_thrust', 'blade_storm'],
-    description: 'Leap and hurl the first blade at once (it lands in under half a second; an airborne foe is slammed into a bounce), then up to 2 more: every press of V throws the next blade at once (no wait between throws); if you stop, you float slowly back down. Each blade stays planted for 5s inside a storm ring that shocks and roots anyone standing in it.',
+    description: 'Leap and hurl the first blade at once (it lands in under half a second; an airborne foe is slammed into a bounce), then up to 2 more: every press of V throws the next blade at once (no wait between throws); if you stop, you float slowly back down. Each blade stays planted for 5s inside a storm ring that shocks and roots anyone standing in it. The court catches a foe who comes down into it: chained upright once per combo — beat him on the floor, then launch him again.',
     relations: ['Zone 5s', 'Root → free combo'],
   }),
   // ---- new kit (Z X B N): the grab, the hook, the air chase, the charged fissure (own timings: not stretched)

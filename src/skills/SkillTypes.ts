@@ -52,6 +52,9 @@ export interface Reaction {
   pin?: number;
   /** Grab: ignores the combo-protection gauges. */
   grab?: boolean;
+  /** Warrior Judgment court: a foe on (or just over) the floor is chained upright in place for this long (ms) — the floor
+   *  phase becomes a standing one again (once per combo: the court's catch, then the beating, then the next launch). */
+  bind?: number;
   /** Book Mage Paper Curse: folded into a paper crane (ms): moves slowly, cannot attack; a heavy hit unfolds it. */
   curse?: number;
   /** Book Mage Levity Field: gravity turns over (ms): the body floats up and hangs there, unable to move. */

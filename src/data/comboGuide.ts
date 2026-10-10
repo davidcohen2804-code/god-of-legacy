@@ -84,6 +84,9 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     { name: 'RALLY', range: 'CLOSE', hits: 18, steps: [{ id: 'legacy_banner' }, { id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'blade_storm' }] },
     { name: 'OATHBOUND', range: 'CLOSE', hits: 17, steps: [{ id: 'iron_oath' }, { id: 'sky_breaker' }, { id: 'blade_storm' }] },
     { name: 'SKYFALL', range: 'CLOSE', hits: 28, steps: [{ id: 'sky_breaker' }, { id: 'rising_slash' }, { id: 'lance_thrust' }, { id: 'whirlwind' }, { id: 'leap_crash' }, { id: 'blade_storm' }] },
+    // the Judge (his combo identity): hook and grip, launch, slam him down into the Judgment court — its chains hold him up
+    // for the beating — launch again, the lion, the chase, the crash, the storm, the Verdict on the floor
+    { name: 'JUDGMENT COURT', range: 'FAR', hits: 44, steps: [{ id: 'judgment_hook' }, { id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'judgment_blade' }, { id: 'warrior_basic' }, { id: 'ground_breaker' }, { id: 'lance_thrust' }, { id: 'whirlwind' }, { id: 'lions_maw' }, { id: 'sky_breaker' }, { id: 'leap_crash' }, { id: 'blade_storm' }, { id: 'titans_verdict' }] },
     { name: 'TITANFALL', range: 'CLOSE', hits: 56, steps: [{ id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'lance_thrust' }, { id: 'whirlwind' }, { id: 'leap_crash' }, { id: 'ground_breaker' }, { id: 'blade_storm' }, { id: 'titans_verdict' }] },
     { name: 'HOOKSHOT', range: 'FAR', hits: 19, steps: [{ id: 'judgment_hook' }, { id: 'lance_thrust' }, { id: 'blade_storm' }] },
     { name: 'SKYLANCE', range: 'CLOSE', hits: 19, steps: [{ id: 'sky_breaker' }, { id: 'lance_thrust' }, { id: 'blade_storm' }] },

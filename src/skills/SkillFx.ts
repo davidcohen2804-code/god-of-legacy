@@ -2128,7 +2128,10 @@ export class SkillFx {
   runeBeam(A: Trap, B: Trap, g: Phaser.GameObjects.Graphics, now: number): void { this.mage.runeBeam(A, B, g, now); }
   runeBeamBreak(A: Trap, B: Trap, at: V3): void { this.mage.runeBeamBreak(A, B, at); }
   /** A magic reaction on a foe (chill, freeze, shatter, conduct, curse, levity); the foe's id: it follows him for `ms`. */
-  mageReaction(rx: string, at: V3, id?: string, ms = 0): void { this.mage.reaction(rx, at, id ? () => this.targetPos?.(id) ?? null : undefined, ms); }
+  mageReaction(rx: string, at: V3, id?: string, ms = 0): void {
+    if (rx === 'bind') { this.callout({ x: at.x, y: at.y, z: at.z + 30 }, 'BOUND!', '#ffd76a', 0); return; } // the Judgment court's catch (painted chains: to come)
+    this.mage.reaction(rx, at, id ? () => this.targetPos?.(id) ?? null : undefined, ms);
+  }
   /** Kagemusha: he vanishes; one of the three steps out of the ink; a double bursts into petals / melts into ink. */
   kageVanish(at: V3): void { this.sam.kageVanish(at); }
   kageAppear(at: V3): void { this.sam.kageAppear(at); }

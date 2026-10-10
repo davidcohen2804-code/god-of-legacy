@@ -260,7 +260,7 @@ export class HardCC {
 
 // ------------------------------------------------------------------ combo context (victim side, per attacker)
 
-export interface ComboCtx { id: number; attacker: string; startedAt: number; lastAt: number; hits: number; juggle: number; relaunches: number; ended: boolean; /** damage taken in it */ dmg: number;
+export interface ComboCtx { id: number; attacker: string; startedAt: number; lastAt: number; hits: number; juggle: number; relaunches: number; /** court catches (bind) so far */ binds: number; ended: boolean; /** damage taken in it */ dmg: number;
   /** the arena's hit cap count (ARENA.maxHits: ticks weigh less); the combo hit index of each cast's first hit */ load: number; firstOf: Record<string, number> }
 
 export class ComboBook {
@@ -269,7 +269,7 @@ export class ComboBook {
   get(attacker: string, now: number): ComboCtx {
     let c = this.ctx.get(attacker);
     if (!c || c.ended || now - c.lastAt > COMBO.comboTimeoutMs) {
-      c = { id: ++this.seq, attacker, startedAt: now, lastAt: now, hits: 0, juggle: 0, relaunches: 0, ended: false, dmg: 0, load: 0, firstOf: {} };
+      c = { id: ++this.seq, attacker, startedAt: now, lastAt: now, hits: 0, juggle: 0, relaunches: 0, binds: 0, ended: false, dmg: 0, load: 0, firstOf: {} };
       this.ctx.set(attacker, c);
     }
     return c;
@@ -313,7 +313,7 @@ export interface HitOutcome {
   /** Displacement applied (for remote replication / visuals). */
   pushX: number; pushY: number; launchVz: number;
   /** Book Mage magic reaction this hit caused (chill / freeze / shatter / conduct). */
-  rx?: 'chill' | 'freeze' | 'shatter' | 'conduct' | 'curse' | 'levity';
+  rx?: 'chill' | 'freeze' | 'shatter' | 'conduct' | 'curse' | 'levity' | 'bind';
   /** How long that reaction holds (freeze / curse / levity), ms. */
   rxMs?: number;
 }
@@ -478,6 +478,7 @@ export class CombatBody {
       if (budgetOk) {
         let h = (relaunch ? R.launch * 0.8 : R.launch) * 1.3 * (1 - 0.6 * over);
         if (this.arena) h = Math.max(30, Math.min(h, ARENA.launchCap - (k.z - k.supportZ))); // never out of the follow-ups' reach
+        this.pinUntil = -1; // (a launch breaks a hold: the court's chains, a pin)
         k.grounded = false; k.vz = Math.sqrt(2 * PHYS.gravity * LAUNCH_G * h); out.launchVz = k.vz;
         if (relaunch) c.relaunches++;
         c.juggle += relaunch ? COMBO.juggleCosts.relaunch : juggleCost;
@@ -499,11 +500,18 @@ export class CombatBody {
       this.hitstun(now, R.stun, stunIdx, out);
     }
     if (R.pin) { this.pinUntil = now + R.pin; this.push = null; k.vx = 0; k.vy = 0; k.vz = Math.max(0, Math.min(k.vz, 0)); if (this.state === 'free') { this.state = 'hitstun'; this.stateEnd = now + R.pin; } }
-    if (!airNow && !downNow && this.gauge.stand >= gaugeOf(this.arena).stand && this.state !== 'knockdown' && out.reaction === 'hit') { // standing limit → forced fall
+    let bound = false;
+    if (R.bind && c.binds < 1 && this.state !== 'getup' && k.z - k.supportZ < 60) { // the court's chains: up off the floor, upright, held
+      c.binds++; bound = true;
+      k.z = k.supportZ; k.grounded = true; k.vz = 0; k.vx = 0; k.vy = 0; this.push = null; this.bounce = false;
+      this.state = 'hitstun'; this.kdPhase = 'fall'; this.stateEnd = now + R.bind; this.pinUntil = now + R.bind;
+      this.gauge.stand = 0; out.reaction = 'cc'; out.rx = 'bind'; out.rxMs = R.bind;
+    }
+    if (!bound && !airNow && !downNow && this.gauge.stand >= gaugeOf(this.arena).stand && this.state !== 'knockdown' && out.reaction === 'hit') { // standing limit → forced fall
       this.enterKnockdown(now, 'light', 200); out.reaction = 'knockdown'; out.launchVz = k.vz;
     }
-    if (this.arena && downNow && this.state === 'knockdown' && damage > 0) this.stateEnd = Math.max(this.stateEnd, now + 320); // hit on the floor: kept down (OTG)
-    if (downNow && this.gauge.down >= gaugeOf(this.arena).down) { // ground limit → quick invulnerable getup
+    if (!bound && this.arena && downNow && this.state === 'knockdown' && damage > 0) this.stateEnd = Math.max(this.stateEnd, now + 320); // hit on the floor: kept down (OTG)
+    if (!bound && downNow && this.gauge.down >= gaugeOf(this.arena).down) { // ground limit → quick invulnerable getup
       this.state = 'getup'; this.kdPhase = 'up'; this.stateEnd = now + 160; this.invulnUntil = now + 160 + GAUGE.wakeInvulnMs; this.combos.endAll();
     }
     if (release && this.state !== 'getup') { this.release(now); out.reaction = 'knockdown'; out.endsCombo = true; out.launchVz = k.vz; }
