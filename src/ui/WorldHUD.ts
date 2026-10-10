@@ -1,6 +1,7 @@
 // In-game HUD (DOM overlay, 1920x1080 design pixels scaled to the displayed game rect by syncOverlay).
 // Panels: player status, contextual target, 8 action slots, north-up minimap, PvP room chip,
 // plus hooks (effects, combat feedback) that stay hidden until the game supplies real data.
+import { CHAT_RIGHT } from './ChatBox';
 import { FONT_FAMILY, HUD as H, PVP } from '../config/layout';
 import { ensureCharacterUIStyles, syncOverlay } from './CharacterSelectUI';
 import { HudEffect, HudSlot, HudState, PortraitRef } from './hud/HudState';
@@ -454,7 +455,10 @@ export class WorldHUD {
       this.at(box, sx + 1 + A.sep, DK.pad.t + Math.round((INNER_H - bh) / 2), bw, bh);
       w = sx + 1 + A.sep + bw + DK.pad.r;
     }
-    this.box(dock, { x: Math.round(960 - w / 2), y: DK.bottom - DOCK_H, w, h: DOCK_H });
+    // centred, but never under the chat (bottom left): moved right as far as it needs; the EXP bar runs under it
+    const dx = Math.max(Math.round(960 - w / 2), CHAT_RIGHT + 18);
+    this.box(dock, { x: dx, y: DK.bottom - DOCK_H, w, h: DOCK_H });
+    if (this.exp) { this.at(this.exp.root, dx + 12, G.exp.y, w - 24, G.exp.h); this.exp.w = w - 24; }
   }
 
   private buildCombat(): void {

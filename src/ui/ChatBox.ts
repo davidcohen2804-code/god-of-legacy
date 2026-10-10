@@ -13,7 +13,9 @@ export const CHAT_MAX_LEN = 120;
 export const EMOTES = 8;
 const MAX_LINES = 120;
 /** Layout (design px): one panel — channel tabs on top, the messages, the typing row at the bottom. */
-const L = { x: 18, y: 778, w: 420, h: 284, tabH: 42, inH: 54 };
+const L = { x: 18, y: 778, w: 400, h: 284, tabH: 42, inH: 54 };
+/** The chat's right edge (design px): the skill dock keeps clear of it. */
+export const CHAT_RIGHT = L.x + L.w;
 const COLOR: Record<ChatKind, string> = { all: '#f4f1ea', party: '#ffbb6e', whisper: '#ffa3e2', system: '#f0d28a' };
 const STYLE_ID = 'gol-chat-style';
 
