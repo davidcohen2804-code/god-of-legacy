@@ -505,6 +505,13 @@ export class MageFx {
     const a = from ? { x: from.x, y: from.y - from.z - 50 } : hand ?? { x: o.x + r.aim.x * 30, y: o.y + r.aim.y * 30 - o.z - 70 };
     const b = target ? { x: target.x, y: target.y - target.z - 50 } : { x: o.x + r.aim.x * 300, y: o.y + r.aim.y * 300 - o.z - 50 };
     const last = r.hits.length - 1, fired = r.fired.size - 1, big = fired <= 0 || fired === last;
+    if (!target) { // nothing struck: no beam cut off in mid-air — a short crackle that frays out into sparks
+      const e = { x: a.x + (b.x - a.x) * 0.55, y: a.y + (b.y - a.y) * 0.55 };
+      this.arc(a, e, { life: 160, thick: 2 });
+      this.arc(a, { x: e.x - (b.x - a.x) * 0.15, y: e.y + rnd(-30, 30) }, { life: 120, thick: 1.4, delay: 40 });
+      this.burst(e.x, e.y, { n: 8, speed: [60, 220], life: [160, 360], scale: [0.03, 0.1], tint: [0xffffff, 0x9fe4ff, 0xb9a2ff], gravity: 200 });
+      return;
+    }
     if (this.ctx.scene.textures.exists('mfx-beam')) { this.beam(a, b, big ? 340 : 280, big ? 1.15 : 0.95); this.arc(a, b, { life: big ? 260 : 200, thick: big ? 3 : 2.2, delay: 30 }); } // the beam, and a sharp bolt crackling through it
     else { this.arc(a, b, { life: big ? 320 : 260, thick: big ? 5.5 : 4.2 }); this.arc(a, b, { life: 220, thick: 3, delay: 50 }); this.arc(a, b, { life: 160, thick: 2, delay: 110 }); }
     if (!target) return;
