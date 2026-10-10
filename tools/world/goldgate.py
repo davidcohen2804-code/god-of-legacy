@@ -18,6 +18,9 @@ SX, SY = VIEW['w'] / PW, VIEW['h'] / PH
 # its foot line on the picture (the walls' and pillars' base, back end by the arcade to the front urn) and the doors' span
 FOOT = [(540, 402), (1060, 698)]
 DOORS = (700, 878)
+# set this far right of where it was painted: its back wall right against Ivy Heights' end tower (nobody drops down past it
+# from up there), the terrace's depth the same all along
+SHIFT = 362
 
 
 def key(path):
@@ -41,9 +44,31 @@ for a in pics.values():
   bb = b if bb is None else (min(bb[0], b[0]), min(bb[1], b[1]), max(bb[2], b[2]), max(bb[3], b[3]))
 bb = tuple(int(v) for v in (max(0, bb[0] - 4), max(0, bb[1] - 4), min(PW, bb[2] + 4), min(PH, bb[3] + 4)))
 for n, a in pics.items(): Image.fromarray(a[bb[1]:bb[3], bb[0]:bb[2]], 'RGBA').save(OUT + f'{n}.png', optimize=True)
-W = lambda px, py: [round(VIEW['x'] + px * SX, 1), round(VIEW['y'] + py * SY, 1)]
+W = lambda px, py: [round(VIEW['x'] + SHIFT + px * SX, 1), round(VIEW['y'] + py * SY, 1)]
 data = {'img': {'closed': 'assets/world/goldgate/closed.png', 'open': 'assets/world/goldgate/open.png'},
         'x': W(bb[0], bb[1])[0], 'y': W(bb[0], bb[1])[1], 'w': bb[2] - bb[0], 'h': bb[3] - bb[1], 'sx': round(SX, 5), 'sy': round(SY, 5),
         'back': W(*FOOT[0]), 'front': W(*FOOT[1]), 'doors': [W(DOORS[0], 0)[0], W(DOORS[1], 0)[0]]}
+# its real foot, column by column (the base of its walls, pillars and doors as painted — the loose leaves on the floor in
+# front of it left out: a column's base is where a solid run of it at least 30 px tall ends)
+A = pics['closed'][..., 3] > 200
+foot = []
+for px in range(bb[0], bb[2], 6):
+  col = A[:, px]; ys = np.nonzero(col)[0]
+  if len(ys) < 30: continue
+  run, best = 0, None
+  for y in range(ys.min(), ys.max() + 1):
+    run = run + 1 if col[y] else 0
+    if run >= 30: best = y
+  if best is not None:
+    # the run's end: follow it down while solid
+    y = best
+    while y + 1 < PH and col[y + 1]: y += 1
+    foot.append(W(px, y))
+# kept near the straight foot line (a heap of leaves at a pillar's base is no wall), then smoothed
+(bx0, by0), (fx0, fy0) = data['back'], data['front']
+line = lambda x: by0 + (fy0 - by0) * (x - bx0) / (fx0 - bx0)
+ys = np.array([min(max(y, line(x) - 30), line(x) + 30) for x, y in foot])
+ys = np.array([np.median(ys[max(0, i - 3):i + 4]) for i in range(len(ys))])
+data['foot'] = [[x, round(float(y), 1)] for (x, _), y in zip(foot, ys)]
 json.dump(data, open(R + 'src/data/world-goldgate.json', 'w'), indent=1)
 print(data)
