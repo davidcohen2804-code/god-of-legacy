@@ -1,14 +1,15 @@
 // The camera's pitch in the arena, by the player (the camera panel's two buttons, Insert / Delete; Home resets): how high
 // on its arc — the half moon from eye level (0°) to straight down (90°) — the camera looks at the floor from. The
-// paintings are drawn at about 45°; another pitch is shown without bending anything that stands on the floor: the map
+// paintings are drawn at about 25° (measured: the courtyard's round floor emblem is 0.42 as tall as wide, sin 25°); another
+// pitch is shown without bending anything that stands on the floor: the map
 // (the painting, its living layers and its props' cut-outs) is squashed (a lower camera) or stretched (a higher one) in
 // depth as the floor would be, and everything else — fighters, effects, names — keeps its own shape and size and only
 // moves with the floor point it stands on. Drawn that way and put straight back: the game itself never sees it.
 import Phaser from 'phaser';
 
-/** The paintings' own pitch (degrees below eye level), the player's range and one step. */
-export const PITCH_BASE = 45;
-const MIN = 30, MAX = 70, STEP = 5;
+/** The paintings' own pitch (degrees below eye level), the player's range (down to DFO's arena, about 15°) and one step. */
+export const PITCH_BASE = 25;
+const MIN = 15, MAX = 60, STEP = 5;
 /** The pitch the camera is at: kept while the game runs (match to match); Home resets it. */
 let pitch = PITCH_BASE;
 
