@@ -8,7 +8,7 @@ import { WORLD_OBJECTS, type Pt, type WorldObject } from './WorldGeometry';
  *  of a part of it is drawn over that part), its posts and doors solid. */
 const COLS = 12;
 const THICK = 16;    // half the width of the closed doors' footprint (world px)
-const POST = 26;     // half the size of a pillar's footprint
+const POST = 34;     // half the size of a pillar's footprint
 
 export const SUN_GATE = GATE as { img: { closed: string; open: string }; x: number; y: number; w: number; h: number; back: [number, number]; front: [number, number] };
 /** The gate line's x at depth y (its foot line, extended). */
