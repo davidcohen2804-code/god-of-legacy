@@ -71,6 +71,8 @@ export interface HitEvent {
   reaction: Reaction;
   /** Vertical reach above the attacker's feet (melee), px. */
   reachUp?: number;
+  /** The arena: how far off the attack's line (in floor depth) it still hits, px (+ the target's own radius). */
+  depth?: number;
   heavy?: boolean;
   /** Book Mage element: frost chills (a second chill freezes), storm conducts through chilled foes, both = both. */
   el?: 'frost' | 'storm' | 'both';

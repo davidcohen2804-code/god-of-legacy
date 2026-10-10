@@ -8,7 +8,7 @@ import { PVP } from '../config/layout';
 import { ARENA, CombatBody, HitOutcome, Kin, PHYS, newKin, steer, stepKin } from '../combat/Combat';
 const ARENA_TECH_MS = ARENA.techMinMs;
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
-import { arenaTimeScale, finalSkill, kitFor } from '../skills/FinalKit';
+import { ARENA_FLOW, arenaCommits, arenaTimeScale, finalSkill, kitFor } from '../skills/FinalKit';
 import { HitTarget, V2, V3, unit } from '../skills/HitGeometry';
 import { Mode } from '../game/PoseState';
 import { sideAim } from '../game/Body';
@@ -55,8 +55,9 @@ export interface BotApi {
 export interface BotWorld {
   now: number;
   /** guard: the player is guarded right now (the arena's wake-up / BREAK): the knight waits it out instead of swinging.
-   *  stuck: the player is caught (hit-stun / launched / down / hard CC): the moment to go on with a combo. */
-  player: { x: number; y: number; z: number; alive: boolean; guard?: boolean; stuck?: boolean };
+   *  stuck: the player is caught (hit-stun / launched / down / hard CC): the moment to go on with a combo.
+   *  wind: the player's own skill in its wind-up (its cast, ms left to its strike, its reach) — something to step away from. */
+  player: { x: number; y: number; z: number; alive: boolean; guard?: boolean; stuck?: boolean; wind?: { id: string; left: number; reach: number } };
 }
 
 /** Sparring difficulty. */
@@ -67,11 +68,15 @@ export type BotLevel = 'easy' | 'middle' | 'hard';
  *  follow: chance to cancel a landed skill into the next one (a real combo) · cd: its cooldowns (× the skill's)
  *  backOff: chance to step back and give you room after its string · ult: it closes combos with its ultimate
  *  opening: its big moves held back at the start · rush: it closes in at a run */
-const LEVEL: Record<BotLevel, { think: [number, number]; answer: [number, number]; after: [number, number]; chain: number; skill: number; follow: number; cd: number; backOff: number; ult: boolean; opening: boolean; rush: boolean }> = {
-  easy: { think: [480, 760], answer: [420, 800], after: [1000, 1700], chain: 0.4, skill: 0.22, follow: 0, cd: 2.5, backOff: 0.85, ult: false, opening: true, rush: false },
-  middle: { think: [240, 420], answer: [120, 420], after: [600, 1100], chain: 0.6, skill: 0.45, follow: 0.4, cd: 2, backOff: 0.5, ult: false, opening: true, rush: false },
-  hard: { think: [50, 110], answer: [20, 80], after: [60, 180], chain: 1, skill: 0.9, follow: 1, cd: 1.5, backOff: 0, ult: true, opening: false, rush: true },
+const LEVEL: Record<BotLevel, { think: [number, number]; answer: [number, number]; after: [number, number]; chain: number; skill: number; follow: number; cd: number; backOff: number; ult: boolean; opening: boolean; rush: boolean; dodge: number }> = {
+  easy: { think: [480, 760], answer: [420, 800], after: [1000, 1700], chain: 0.4, skill: 0.22, follow: 0, cd: 2.5, backOff: 0.85, ult: false, opening: true, rush: false, dodge: 0 },
+  middle: { think: [240, 420], answer: [200, 420], after: [600, 1100], chain: 0.6, skill: 0.45, follow: 0.4, cd: 2, backOff: 0.5, ult: false, opening: true, rush: false, dodge: 0.35 },
+  // HARD plays like a strong human, not a machine: ~0.2 s reactions (DFO neutral needs room to read and answer), every
+  // landed skill comboed, steps off the line of your big wind-ups
+  hard: { think: [200, 300], answer: [200, 320], after: [150, 300], chain: 1, skill: 0.9, follow: 1, cd: 1.5, backOff: 0, ult: true, opening: false, rush: true, dodge: 0.7 },
 };
+/** The arena: how far off the foe's line on the floor the knight still swings (its attacks hit only near their line). */
+const LINE = ARENA_FLOW.depth + 8;
 
 const R = PHYS.footR;
 /** The bot uses its skills less often than a player could (cooldown × this). */
@@ -89,7 +94,7 @@ export function setBotCentre(x: number, y: number): void { ARENA_CENTRE.x = x; A
 /** A Master's trial (the open world): his own name, a boss's HP, he can be beaten, and the floor's middle to fall back to. */
 export interface BotTrial { name: string; hp: number; centre: { x: number; y: number } }
 
-interface BotCast { s: FinalSkill; stage: number; t: number; T: { startup: number; active: number; recovery: number }; origin: V3; aim: V2; dist: number; followRolled?: boolean }
+interface BotCast { s: FinalSkill; stage: number; t: number; T: { startup: number; active: number; recovery: number }; origin: V3; aim: V2; dist: number; followRolled?: boolean; landed?: boolean }
 
 export class SparringBot {
   readonly kin: Kin;
@@ -120,6 +125,12 @@ export class SparringBot {
   private get L() { return LEVEL[this.level]; }
   /** Skills it has chained in its current combo on you (hit-confirm follow-ups). */
   private comboN = 0;
+  /** Stepping off your line (dodging your wind-up): until when, to which depth; the cast it already judged. */
+  private dodgeUntil = -Infinity;
+  private dodgeY = 0;
+  private judged = '';
+  /** One of its hits landed on you (the scene tells it): its current cast is no miss. */
+  noteHit(): void { if (this.cast) this.cast.landed = true; }
   /** COMBO: the scripted chain in progress (ids with ':stage'). */
   private combo: string[] = [];
   private readonly kit: FinalSkill[];
@@ -146,6 +157,9 @@ export class SparringBot {
     this.lastNow = now;
     this.pushState();
   }
+
+  /** How far off your line it still swings (the arena: its attacks hit only near their line). */
+  private line(free: number): number { return this.body.arena ? Math.min(free, LINE) : free; }
 
   /** Set the difficulty (its opening hold-back follows it). */
   setLevel(lv: BotLevel, now: number): void {
@@ -261,6 +275,20 @@ export class SparringBot {
     this.aim = unit(dx, dy, this.dir === 'right' ? 1 : -1, 0);
 
     this.thinkT -= ms;
+    const wd = p.wind;
+    if (wd && wd.id !== this.judged && this.body.arena) { // your wind-up, seen once: step off its line (a human's reaction, not a machine's)
+      this.judged = wd.id;
+      if (dist < wd.reach + 60 && wd.left > 220 && Math.random() < this.L.dodge) {
+        this.dodgeUntil = now + Math.min(650, wd.left + 250);
+        this.dodgeY = k.y + (dy > 0 ? -1 : 1) * (LINE + 46) * (Math.random() < 0.85 ? 1 : -1);
+      }
+    }
+    if (now < this.dodgeUntil) { // off the line, quickly (then back to the fight: your miss is its chance)
+      const gy = this.dodgeY - k.y;
+      steer(k, 0, Math.abs(gy) > 6 ? Math.sign(gy) * PHYS.run : 0, ms);
+      if (Math.abs(gy) <= 6) this.nextAct = Math.min(this.nextAct, this.dodgeUntil);
+      return;
+    }
     const room = this.duel && (now < this.backOffUntil || !!p.guard); // a duel: it gives you room after its string, and never swings into your guarded wake-up
     if (p.alive && !room && now >= this.nextAct && this.thinkT <= 0) {
       this.thinkT = this.level === 'middle' && !this.duel ? rnd(110, 210) : rnd(...this.L.think); // reaction time
@@ -275,7 +303,7 @@ export class SparringBot {
     const now = w.now, p = w.player;
     const ready = (id: string) => (this.cdEnd.get(id) ?? 0) <= now;
     // keep the basic chain going while it lands in range
-    if (this.chainStage >= 0 && this.chainStage < 3 && now - this.chainEnd < 520 && dist < 115 && ady < 46) {
+    if (this.chainStage >= 0 && this.chainStage < 3 && now - this.chainEnd < 520 && dist < 115 && ady < this.line(46)) {
       if (Math.random() < this.L.chain) return this.start('warrior_basic', this.chainStage + 1, w);
       this.chainStage = -1;
       this.nextAct = now + rnd(500, 900);
@@ -283,11 +311,11 @@ export class SparringBot {
     }
     this.chainStage = -1;
     // juggle / anti-air: the player is in the air close by (only sometimes — it leaves openings)
-    if (p.z > 24 && dist < 125 && ady < 50) {
+    if (p.z > 24 && dist < 125 && ady < this.line(50)) {
       if (ready('rising_slash') && Math.random() < 0.35) return this.start('rising_slash', 0, w);
       if (ready('whirlwind') && Math.random() < 0.25) return this.start('whirlwind', 0, w);
     }
-    if (dist < 108 && ady < 44) {
+    if (dist < 108 && ady < this.line(44)) {
       const r = Math.random();
       if (r < 0.05 && ready('titans_verdict')) return this.start('titans_verdict', 0, w);
       if (r < 0.12 && ready('blade_storm')) return this.start('blade_storm', 0, w);
@@ -309,13 +337,13 @@ export class SparringBot {
     const now = w.now, basic = this.kit[0];
     const ready = (s: FinalSkill) => (this.cdEnd.get(s.id) ?? 0) <= now;
     const n = basic?.chain?.stages.length ?? 1;
-    if (basic?.chain && this.chainStage >= 0 && this.chainStage < n - 1 && now - this.chainEnd < 520 && dist < reachOf(basic) && ady < 46) {
+    if (basic?.chain && this.chainStage >= 0 && this.chainStage < n - 1 && now - this.chainEnd < 520 && dist < reachOf(basic) && ady < this.line(46)) {
       if (Math.random() < this.L.chain) return this.start(basic.id, this.chainStage + 1, w);
     }
     this.chainStage = -1;
-    const options = this.kit.filter((s) => !s.wip && s.slot > 0 && (s.slot !== 7 || (this.L.ult && !!w.player.stuck)) && ready(s) && s.hits.some((h) => h.damage > 0) && reachOf(s) >= dist && (ady < 50 || s.targeting === 'mouseGround'));
+    const options = this.kit.filter((s) => !s.wip && s.slot > 0 && (s.slot !== 7 || (this.L.ult && !!w.player.stuck)) && ready(s) && s.hits.some((h) => h.damage > 0) && reachOf(s) >= dist && (ady < this.line(50) || s.targeting === 'mouseGround'));
     if (options.length && Math.random() < this.L.skill) return this.start(this.pick(options, w).id, 0, w);
-    if (basic && dist <= reachOf(basic) && ady < 46) return this.start(basic.id, 0, w);
+    if (basic && dist <= reachOf(basic) && ady < this.line(46)) return this.start(basic.id, 0, w);
     return false;
   }
 
@@ -332,7 +360,7 @@ export class SparringBot {
     let tx = 0, ty = 0;
     if (p.alive) {
       const want = room ? 210 : RANGED.has(this.cls) ? 230 : 78, side = dx >= 0 ? -1 : 1; // stand on our side of the player (casters keep their distance; giving room: further off)
-      const gx = p.x + side * want - k.x, gy = p.y + this.strafe * 26 - k.y;
+      const gx = p.x + side * want - k.x, gy = p.y + (dist > 180 || !this.body.arena ? this.strafe * 26 : 0) - k.y; // (the arena, close in: onto your line)
       const gd = Math.hypot(gx, gy);
       if (gd > 10) {
         let d = unit(gx, gy);
@@ -397,7 +425,7 @@ export class SparringBot {
       const p = w.player, d = unit(p.x - k.x, p.y - k.y);
       steer(k, d.x * PHYS.stroll * 0.8, d.y * PHYS.stroll * 0.8, ms);
     } else if (k.grounded) { k.vx *= 0.7; k.vy *= 0.7; }
-    if (c.t >= activeEnd + T.recovery) {
+    if (c.t >= activeEnd + T.recovery + (this.body.arena && !c.landed && arenaCommits(s) ? ARENA_FLOW.whiffMs : 0)) { // (a miss: open a moment longer, like the players)
       this.cast = null;
       if (s.chain) { this.chainEnd = w.now; this.nextAct = w.now + (c.stage >= 3 ? rnd(...this.L.after) : rnd(40, 120)); }
       else this.nextAct = w.now + rnd(...this.L.after);

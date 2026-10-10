@@ -56,7 +56,7 @@ export interface CastRun extends CastRequest {
   /** Chain hits: the foe the last arc struck (the next one leaps on from it). */
   chainLast?: string;
   /** The arena's reach rules for this cast (charged levels are picked later and get them too). */
-  tune?: { reach?: number; antiAir?: boolean };
+  tune?: { reach?: number; antiAir?: boolean; depth?: number };
   /** Hold-to-charge skills: the startup's scale (attack speed) and the level picked when the startup ended (0..). */
   chargeScale?: number;
   chargeLevel?: number;
@@ -86,17 +86,17 @@ export interface RuntimeWorld {
   /** Attack speed: startup and recovery are divided by it (archer Bow Haste / Ranger Mastery). */
   speedMul?(req: CastRequest): number;
   /** Phase scales of a cast's timeline (the PvP arena's warrior at its base pace); null = unchanged. */
-  timeScale?(req: CastRequest): { startup: number; active: number; recovery: number; at: number; reach?: number; antiAir?: boolean } | null;
+  timeScale?(req: CastRequest): { startup: number; active: number; recovery: number; at: number; reach?: number; antiAir?: boolean; depth?: number } | null;
   /** Every projectile after its step (Book Mage gates and Levity Field). */
   projectileHook?(p: Projectile, run: CastRun): void;
 }
 
 /** The arena: every hit reaches the launched foe (up to `reach` above the caster's feet; floor waves stay on the floor) and
  *  a shot rises to a foe in the air in front of it. */
-function arenaReach(hits: HitEvent[], ts: { reach?: number; antiAir?: boolean } | null | undefined): HitEvent[] {
+function arenaReach(hits: HitEvent[], ts: { reach?: number; antiAir?: boolean; depth?: number } | null | undefined): HitEvent[] {
   if (!ts || (!ts.reach && !ts.antiAir)) return hits;
   return hits.map((h) => h.shape.kind === 'projectile' ? (ts.antiAir ? { ...h, shape: { ...h.shape, antiAir: true } } : h)
-    : ts.reach && !(h.shape.kind === 'circle' && h.shape.floor) ? { ...h, reachUp: Math.max(h.reachUp ?? 80, ts.reach) } : h);
+    : { ...h, ...(ts.reach && !(h.shape.kind === 'circle' && h.shape.floor) ? { reachUp: Math.max(h.reachUp ?? 80, ts.reach) } : {}), ...(ts.depth !== undefined && h.shape.kind !== 'capsule' ? { depth: ts.depth } : {}) });
 }
 
 export const RT_EVENTS = {
@@ -302,7 +302,7 @@ export class SkillRuntime {
     if (s.kind === 'chain') {
       const alive = targets.filter((t) => t.alive && t.id !== r.attackerId);
       let hit: HitTarget | null = null;
-      if (s.jump <= 0) { hit = chainTargets(s, origin, r.aim, alive, h.reachUp ?? 140)[0] ?? null; r.chainFirst = hit?.id ?? null; }
+      if (s.jump <= 0) { hit = chainTargets(h.depth !== undefined ? { ...s, width: Math.min(s.width, 2 * h.depth) } : s, origin, r.aim, alive, h.reachUp ?? 140)[0] ?? null; r.chainFirst = hit?.id ?? null; } // (the arena: only a foe near its line)
       else {
         const first = alive.find((t) => t.id === (r.chainLast ?? r.chainFirst)) ?? alive.find((t) => t.id === r.chainFirst);
         if (first) { // leaps on from the last foe it struck, to one it has not struck yet if there is one in reach

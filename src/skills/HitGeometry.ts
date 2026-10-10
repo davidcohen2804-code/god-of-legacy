@@ -51,6 +51,8 @@ export function shapeContains(hit: HitEvent, origin: V3, aim: V2, place: V2 | nu
   const s = hit.shape, reach = hit.reachUp ?? 80;
   const vx = t.x - origin.x, vy = t.y - origin.y, d = Math.hypot(vx, vy);
   const band = (lo: number, hi: number) => vOverlap(lo, hi, t);
+  // the arena: an attack hits only near its own line on the floor (DFO: step off the line and it misses)
+  const onLine = (ox: number, oy: number) => hit.depth === undefined || Math.abs(-(t.x - ox) * aim.y + (t.y - oy) * aim.x) <= hit.depth + t.radius;
   const los = () => clearLine(origin.x, origin.y, t.x, t.y, Math.max(origin.z, t.z) + 30);
   switch (s.kind) {
     case 'sector': {
@@ -58,16 +60,16 @@ export function shapeContains(hit: HitEvent, origin: V3, aim: V2, place: V2 | nu
       const half = (s.angle / 2) * (Math.PI / 180);
       const ang = d === 0 ? 0 : Math.acos(Math.max(-1, Math.min(1, (vx * aim.x + vy * aim.y) / d)));
       const tol = d > 0 ? Math.asin(Math.min(1, t.radius / d)) : Math.PI;
-      return ang <= half + tol && band(origin.z - 16, origin.z + reach) && los();
+      return ang <= half + tol && band(origin.z - 16, origin.z + reach) && onLine(origin.x, origin.y) && los();
     }
     case 'circle': {
       const c = circleCentre(s, origin, aim, place);
       const z0 = s.floor ? 0 : origin.z;
-      return Math.hypot(t.x - c.x, t.y - c.y) <= s.radius + t.radius && band(z0 - 24, z0 + reach) && clearLine(c.x, c.y, t.x, t.y, Math.max(origin.z, t.z) + 30);
+      return Math.hypot(t.x - c.x, t.y - c.y) <= s.radius + t.radius && band(z0 - 24, z0 + reach) && onLine(c.x, c.y) && clearLine(c.x, c.y, t.x, t.y, Math.max(origin.z, t.z) + 30);
     }
     case 'line': {
       const along = vx * aim.x + vy * aim.y, lateral = Math.abs(-vx * aim.y + vy * aim.x);
-      return along >= -t.radius && along <= s.length + t.radius && lateral <= s.width / 2 + t.radius && band(origin.z - 16, origin.z + reach) && los();
+      return along >= -t.radius && along <= s.length + t.radius && lateral <= Math.min(s.width / 2, hit.depth ?? Infinity) + t.radius && band(origin.z - 16, origin.z + reach) && los();
     }
     case 'capsule': {
       const [a, b] = path ?? [origin, origin];

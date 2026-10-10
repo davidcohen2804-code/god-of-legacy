@@ -17,6 +17,7 @@ const OTHER: Record<string, { short: string; name: string; ico: IconName }> = {
   bag: { short: 'BAG', name: 'Inventory', ico: 'bag' }, shop: { short: 'SHOP', name: 'Cosmetic Shop', ico: 'sparkle' }, quests: { short: 'QUEST', name: 'Quest Log', ico: 'scroll' },
   talk: { short: 'TALK', name: 'Talk to NPC / Enter portal', ico: 'chat' }, party: { short: 'PARTY', name: 'Party', ico: 'users' }, stats: { short: 'STAT', name: 'Stats', ico: 'stats' },
   hpPot: { short: 'HP', name: 'Red Potion (HP)', ico: 'stats' }, mpPot: { short: 'MP', name: 'Blue Potion (MP)', ico: 'stats' },
+  backstep: { short: 'STEP', name: 'Step back (arena)', ico: 'arrowL' },
 };
 const HINT = 'Drag a skill or an action onto a key — or click it, then click the key. Drag it back down here to clear it. Arrows move, Enter chats and Esc closes (fixed).';
 

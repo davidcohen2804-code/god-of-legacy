@@ -13,6 +13,7 @@ export const DEFAULT_BINDINGS: Record<BindAction, string> = {
   party: 'P',
   stats: 'U', // the stat window
   hpPot: 'EIGHT', mpPot: 'NINE', // the potions
+  backstep: 'SHIFT', // the arena's step back (DFO backstep: no cooldown)
 };
 export const ACTIONS: BindAction[] = Object.keys(DEFAULT_BINDINGS);
 

@@ -991,9 +991,22 @@ for (const w of warrior) if (warriorStretched(w)) {
  *  - every hit reaches a foe up to ARENA_FLOW.reach px above the caster's feet (launches stay within the follow-ups'
  *    reach) and projectiles rise to a foe in the air in front of them (every damaging skill but traps and buffs);
  *  - per-skill exceptions: ARENA_PACE. Not for the basic chain, charged / counter / trap skills or buffs. */
-export const ARENA_FLOW = { startup: 160, ultStartup: 400, active: 700, minSqueeze: 0.5, reach: 240 };
+export const ARENA_FLOW = { startup: 160, ultStartup: 400, active: 700, minSqueeze: 0.5, reach: 240,
+  /** DFO's neutral (PvP engine audit): an attack hits only within `depth` px of its own line on the floor (+ the target's
+   *  radius), so a step up / down out of its line dodges it; ultimates, zones, traps and ground-placed skills keep their area.
+   *  (The effects stay as wide as they are drawn.) */
+  depth: 34,
+  /** A committed skill that misses leaves its caster open this much longer (and can be cancelled only from a hit). */
+  whiffMs: 150 };
+/** Keeps its full area in the arena: ultimates, traps, ground-placed skills, big area bursts (radius ≥ 150). (A chain finds
+ *  its first foe only near its line.) */
+export const arenaWide = (s: FinalSkill): boolean => s.slot === 7 || !!s.trap
+  || s.hits.some((h) => h.shape.kind === 'placed' || (h.shape.kind === 'circle' && (h.shape.at === 'place' || h.shape.radius >= 150)));
+/** A committed attack: missing it is punished in the arena (not the basic chain, projectiles, counters, zones, set-ups, escapes). */
+export const arenaCommits = (s: FinalSkill): boolean => s.slot > 0 && !s.chain && !s.counter && !arenaWide(s) && !s.hits.some((h) => h.shape.kind === 'projectile')
+  && !s.roles.some((r) => r === 'setup' || r === 'mobility' || r === 'escape') && s.hits.some((h) => h.damage > 0);
 const isArenaBuff = (s: FinalSkill): boolean => s.tags.includes('buff') || (s.slot !== 7 && s.cooldown >= 20000 && s.roles.every((r) => ['setup', 'zone', 'mobility', 'escape', 'pull'].includes(r)));
-export function arenaTimeScale(s: FinalSkill, followUp = false): { startup: number; active: number; recovery: number; at: number; reach?: number; antiAir?: boolean } | null {
+export function arenaTimeScale(s: FinalSkill, followUp = false): { startup: number; active: number; recovery: number; at: number; reach?: number; antiAir?: boolean; depth?: number } | null {
   const w = warriorStretched(s) ? { startup: 1 / WARRIOR_STRETCH.startup, active: 1 / WARRIOR_STRETCH.active, recovery: 1 / WARRIOR_STRETCH.recovery, at: 1 / WARRIOR_STRETCH.at } : { startup: 1, active: 1, recovery: 1, at: 1 };
   const p = ARENA_PACE[s.id];
   const dmg = s.hits.filter((h) => h.damage > 0);
@@ -1007,7 +1020,7 @@ export function arenaTimeScale(s: FinalSkill, followUp = false): { startup: numb
     if (s.slot !== 7 && dmg.length >= 4 && act > ARENA_FLOW.active) sq = Math.max(ARENA_FLOW.minSqueeze, ARENA_FLOW.active / act);
   }
   const hitsAny = s.chain ? s.chain.stages.flat() : s.charge ? s.charge.levels.flatMap((l) => l.hits) : s.hits;
-  const reach = !isArenaBuff(s) && !s.trap && hitsAny.some((h) => h.damage > 0) ? { reach: ARENA_FLOW.reach, antiAir: true } : {}; // (charged / counter skills too)
+  const reach = !isArenaBuff(s) && !s.trap && hitsAny.some((h) => h.damage > 0) ? { reach: ARENA_FLOW.reach, antiAir: true, ...(arenaWide(s) ? {} : { depth: ARENA_FLOW.depth }) } : {}; // (charged / counter skills too)
   if (fs === 1 && sq === 1 && w.startup === 1 && !('reach' in reach)) return null;
   return { startup: w.startup * fs, active: w.active * sq, recovery: w.recovery, at: w.at * sq, ...reach };
 }

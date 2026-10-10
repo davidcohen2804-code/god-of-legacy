@@ -74,7 +74,7 @@ import { baseLoop, ClassKey, dirOf, HERO_HEIGHT, HERO_LIFT, heroPortrait, loadBa
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
 import { ARENA, CombatBody, HitOutcome, gaugeOf, Kin, MAGE, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
-import { MAGE_HIDDEN, arenaTimeScale, armorMul, finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
+import { ARENA_FLOW, MAGE_HIDDEN, arenaCommits, arenaTimeScale, armorMul, finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
 import { CastRun, RT_EVENTS, SkillRuntime, Trap } from '../skills/SkillRuntime';
 import type { Projectile } from '../skills/HitGeometry';
 import { Afterimages, applyMotion, archerMotion, heroMotion, leapMotion } from '../skills/ArcherMotion';
@@ -128,6 +128,8 @@ const SLASH = { cx: 189 / 288, cy: 81 / 288, r: 122, head: 190 };
 const FACE: Record<Dir, V2> = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
 /** PvP victim-side sanity checks for a remote cast intent (network jitter tolerances). */
 const CAST_COOLDOWN_TOLERANCE_MS = 250;
+/** The arena's step back: hop speed (px/s, away from the facing) and lift (≈ 0.4 s in the air, ≈ 90 px). */
+const BACKSTEP = { speed: 230, vz: 220 };
 /** Hit claims across lag (stepClaims): how long a claim may wait (ms), how long for its cast to arrive, how far we may have
  *  moved from where the attacker saw us (px). 300 ms ≈ the 250 ms rewind cap of Battlefield 4 / Overwatch plus a frame or two. */
 const CLAIM = { maxMs: 300, waitCastMs: 250, reach: 150 };
@@ -331,6 +333,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
    *  (taken / missed by our own check / dodged), hits taken through a claim, and claims waiting for our own check. */
   /** Fighters whose RAGE was called this round. */
   private rageCalled = new Set<string>();
+  /** The arena's step back: when it was pressed (-1: not) and until when it is in the air (no steering, no skills). */
+  private backstepWant = -1;
+  private backstepUntil = -1;
   private remoteRuns = new Map<string, { run: CastRun; at: number }>();
   private resolved = new Map<string, number>();
   private claimed = new Set<string>();
@@ -613,7 +618,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (isQAMode()) (window as unknown as { __combatQA: unknown }).__combatQA = { finalSkill, kitFor, WORLD_OBJECTS, footAllowed, placementOk };
 
     this.bindings = loadBindings();
-    this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), this.bindings, () => this.onTalk(), (i) => this.usePotion(i));
+    this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), this.bindings, () => this.onTalk(), (i) => this.usePotion(i), () => this.onBackstepKey());
     const stop = () => { this.ci?.reset(); };
     this.game.events.on(Phaser.Core.Events.BLUR, stop);
     this.game.events.on(Phaser.Core.Events.HIDDEN, stop);
@@ -831,6 +836,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
     if (this.dead >= 0) { this.dead += ms; this.setMode('dead'); k.vx = 0; k.vy = 0; stepKin(k, ms); this.deathFx?.update(ms); this.updateDeath(); return; }
 
+    this.tryBackstep(now);
     const run = this.rt!.ownRun;
     const reacting = b.state !== 'free';
     const ccLocked = b.hard.active(now) && b.hard.kind !== 'root';
@@ -920,8 +926,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (hold.y && (Math.sign(inp.moveY) !== hold.y || !k.grounded)) hold.y = 0;
     const mx = locked || hold.x ? 0 : inp.moveX, my = locked || hold.y ? 0 : inp.moveY;
     const speed = (inp.running && !locked ? PHYS.run : PHYS.stroll) * b.moveScale(now) * this.passives.moveMul * (now < this.itemSpeedUntil ? 1.1 : 1) * (now < this.mage.hasteUntil ? 1.1 : 1);
-    steer(k, rooted ? 0 : mx * speed, rooted ? 0 : my * speed, ms, now < this.leapUntil ? 0.12 : 1); // War Leap keeps its burst
-    if ((mx || my) && !rooted) this.dir = dirOf(mx, my, this.dir); // side view only: up/down keeps the facing
+    const stepping = now < this.backstepUntil && !k.grounded; // the step back carries you (no steering, facing kept)
+    if (!stepping) steer(k, rooted ? 0 : mx * speed, rooted ? 0 : my * speed, ms, now < this.leapUntil ? 0.12 : 1); // War Leap keeps its burst
+    if ((mx || my) && !rooted && !stepping) this.dir = dirOf(mx, my, this.dir); // side view only: up/down keeps the facing
     const jumpKey = inp.takeJump() && !locked; // a jump pressed while talking is dropped
     if (k.grounded) { this.leapUsed = false; if (!rooted && jumpKey) { jump(k, PHYS.jumpVz * this.passives.jumpMul); this.setMode('takeoff'); } }
     else if (this.passives.airLeap && !this.leapUsed && !rooted && !(this.mode === 'takeoff' && this.modeT <= PHYS.takeoffMs) && jumpKey) this.warLeap(now);
@@ -1014,14 +1021,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     } else if (scale > 0) steer(k, inp.moveX * PHYS.walk * scale, inp.moveY * PHYS.walk * scale, ms, 0.6);
     else { k.vx *= 0.97; k.vy *= 0.97; } // air skill keeps most of its momentum
     // Movement cancel from recovery after 35% (whiffed counters stay committed).
-    if (run.phase === 'recovery' && inp.hasMove && !s.counter && run.elapsed >= T.startup + T.active + 0.35 * T.recovery) {
+    if (run.phase === 'recovery' && inp.hasMove && !s.counter && run.elapsed >= T.startup + T.active + 0.35 * T.recovery && !(this.arena && run.confirmedAt < 0 && arenaCommits(s))) { // (the arena: not out of a miss)
       this.rt!.cancelForFollowUp(run);
       this.endRun(run, true);
       return;
     }
     // Jump cancel from recovery: after a confirmed hit (chase), or after 35% of recovery; never the Ultimate / a whiffed counter.
     const jumpOk = run.phase === 'recovery' && k.grounded && !s.counter && s.slot !== 7
-      && (run.confirmedAt >= 0 || run.elapsed >= T.startup + T.active + 0.35 * T.recovery);
+      && (run.confirmedAt >= 0 || (run.elapsed >= T.startup + T.active + 0.35 * T.recovery && !(this.arena && arenaCommits(s))));
     if (jumpOk && inp.takeJump()) {
       this.rt!.cancelForFollowUp(run);
       this.endRun(run, true);
@@ -1819,6 +1826,23 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   private onJumpKey(): void { if (this.pvpReady && this.dead < 0 && !this.inputLocked()) this.ci?.queueJump(); }
+  /** The arena's step back (DFO backstep): pressed now, done on the first free frame (within the input buffer). */
+  private onBackstepKey(): void { if (this.arena && this.pvpReady && this.dead < 0 && !this.inputLocked()) this.backstepWant = this.simMs; }
+  /** Step back: a short hop away from where you face — no cooldown, no invulnerability (it is airborne: low hits miss it,
+   *  anything in reach still hits). Out of the basic chain too (DFO). Skills wait until you land. */
+  private tryBackstep(now: number): void {
+    if (this.backstepWant < 0 || now - this.backstepWant > 160) { this.backstepWant = -1; return; }
+    const k = this.kin, b = this.body, run = this.rt?.ownRun;
+    if (b.state !== 'free' || b.hard.active(now) || !k.grounded || now < this.backstepUntil) return;
+    if (run && !(run.skill.slot === 0 && run.elapsed >= run.timings.startup)) return; // only out of the basic chain, once it has swung
+    this.backstepWant = -1;
+    if (run) { this.rt!.cancelForFollowUp(run); this.endRun(run, true); }
+    const back = -(FACE[this.dir].x || (this.faceSide < 0 ? -1 : 1));
+    jump(k, BACKSTEP.vz); k.vx = back * BACKSTEP.speed; k.vy = 0;
+    this.backstepUntil = now + (2 * BACKSTEP.vz / PHYS.gravity) * 1000;
+    this.setMode('air');
+    this.fx?.dust(k.x, k.y, 46, 0.6, this.dustDepth(k));
+  }
 
   /** Own damage buffs right now: War Cry +20%, Radiant Blade +15% (same as against monsters). */
   private ownDamageMul(s?: FinalSkill): number { return this.weaveMul() * this.skillMul(s) * (this.simMs < this.warCryUntil ? 1.2 : this.simMs < this.allyCryUntil ? 1.1 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * (this.simMs < this.bannerUntil ? 1.1 : 1) * (this.simMs < this.sunUntil ? 1.1 : 1) * (this.simMs < this.godUntil ? 1.15 : 1) * (this.simMs < this.itemDmgUntil ? 1.1 : 1) * this.passiveDmgMul() * (s?.cls === 'gambler' ? (s.id === 'showdown' ? this.gShowMul : 1) * (this.simMs < this.gOverUntil ? 1.15 : 1) : 1); }
@@ -2296,6 +2320,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const s = this.mageVariant(this.kit[i]); // (Arcane Bolt: the element Attunement gives it)
     if (!s || !this.rt || this.dead >= 0) return false;
     if (this.inputLocked()) return false; // talking / a battle's VS, ROUND n, K.O.: no attacks (buffered ones too)
+    if (this.simMs < this.backstepUntil && !this.kin.grounded) return false; // stepping back: skills wait until you land (buffered)
     if (!this.skillOpen(s)) return false; // skills open with the job advancements (all open in the arena)
     if (s.wip) return false; // a template: not built yet
     const now = this.simMs, k = this.kin, b = this.body;
@@ -2345,6 +2370,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // that hit on; a whiff only late in its recovery. (A skill whose list is still empty keeps the old free cancel.)
     if (s.cancelOnHit.length && !s.cancelOnHit.includes(next.id)) return false;
     if (run.confirmedAt >= 0) return e >= run.confirmedAt;
+    if (this.arena && arenaCommits(s)) return false; // the arena: a missed attack is seen through to its end (DFO: a whiff is punished)
     return e >= T.startup + T.active + 0.5 * T.recovery;
   }
 
@@ -2354,13 +2380,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // Soft lock (DFO-style tracking): snap the aim to the nearest enemy roughly in front, so attacks never whiff on a near-miss angle.
     // (the samurai, right after stepping through the foe: the next cut turns back to him — he is behind now)
     const lockT = this.softTarget(260, s.cls === 'samurai' && this.simMs < this.throughUntil ? -1.01 : 0.05);
-    if (lockT) this.aim = unit(lockT.x - k.x, lockT.y - k.y, this.aim.x, this.aim.y);
+    if (lockT) this.aim = this.arena ? { x: Math.sign(lockT.x - k.x) || (this.aim.x < 0 ? -1 : 1), y: 0 } : unit(lockT.x - k.x, lockT.y - k.y, this.aim.x, this.aim.y); // (the arena: it turns you to face him, never aims into the depth — DFO: step off the line and it misses)
     const reach = s.id === 'arcane_gate' ? 360 : s.targeting === 'mouseGround' ? Math.min(180, s.placeRange ?? 180) : 160; // (the far gate: well ahead of him)
     const mouse = { x: k.x + this.aim.x * reach, y: k.y + this.aim.y * reach };
     let aim = unit(mouse.x - k.x, mouse.y - k.y, FACE[this.dir].x, FACE[this.dir].y);
     let place: V2 | null = null, lock: string | null = null;
     if (s.targeting === 'mouseGround') {
-      const under = s.snapPlace ? this.softTarget(s.placeRange ?? 260, -1.01) : null; // a catch: opened under the nearest foe (any side)
+      const under = s.snapPlace && !this.arena ? this.softTarget(s.placeRange ?? 260, -1.01) : null; // a catch: opened under the nearest foe (any side)
       place = under && placementOk(under.x, under.y) ? { x: under.x, y: under.y } : clampPlace(k, mouse, s.placeRange ?? 260);
       if (!placementOk(place.x, place.y)) return null;
     }
@@ -2369,7 +2395,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       for (const t of this.targetsFor({ own: true, attackerId: this.localId } as CastRun)) {
         if (!t.alive || t.id === this.localId || this.pvp?.remotes.get(t.id)?.kageHidden) continue;
         const vx = t.x - k.x, vy = t.y - k.y, along = vx * aim.x + vy * aim.y, lat = Math.abs(-vx * aim.y + vy * aim.x);
-        if (along < -10 || along > 320 || lat > 110) continue;
+        if (along < -10 || along > 320 || lat > (this.arena ? ARENA_FLOW.depth + 20 : 110)) continue; // (the arena: only a foe on your line)
         if (along < bd) { bd = along; best = t; }
       }
       if (best) { lock = best.id; aim = unit(best.x - k.x, best.y - k.y, aim.x, aim.y); }
@@ -2577,6 +2603,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   private onRunPhase(run: CastRun, phase: string): void {
+    if (phase === 'recovery' && this.arena && run.confirmedAt < 0 && arenaCommits(run.skill) && (run.own || run.attackerId === BOT_ID)) run.extraRecovery = Math.max(run.extraRecovery, ARENA_FLOW.whiffMs); // a miss leaves you open a moment longer
     if (phase === 'active' && run.skill.cls === 'book_mage') this.mageZone(run);
     const L = run.skill.linger;
     if (phase === 'active' && L) { // every caster's lingering zone (yours, other players', the sparring knight's)
@@ -2607,7 +2634,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private applyKeys(b: Record<BindAction, string>): void {
     this.ci?.destroy();
     this.bindings = b;
-    this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), b, () => this.onTalk(), (i) => this.usePotion(i));
+    this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), b, () => this.onTalk(), (i) => this.usePotion(i), () => this.onBackstepKey());
     this.hud?.setKeyLabels(slotKeyLabels(b));
     this.hud?.setMenuKeys(menuKeys(b));
     this.comboGuide?.setKeys(this.guideKeys());
@@ -2947,6 +2974,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     out.damage = this.takeDamage(out.damage);
     if (trial && out.damage > 0) this.hitBlinkUntil = this.simMs + HIT_IFRAMES;
     if (run.attackerId === BOT_ID) this.logHit(false, s, out, this.body, this.kin.z);
+    if (run.attackerId === BOT_ID && out.damage > 0) this.bot?.noteHit();
     if (out.rx) this.fx?.mageReaction(out.rx, { x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 }, this.localId, out.rxMs);
     this.fx!.confirmed(s, hit, at, out.damage, out.reaction, false, out.hitIndex, false, this.hitFrom(run, hit));
     if (this.arena && out.damage > 0) { // the arena: a hit lands on you — a beat of hit-stop, your body shudders, heavy ones shake the screen
@@ -3151,9 +3179,17 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.sparUi) this.sparUi.combo.disabled = bot.comboRunning || this.dead >= 0;
     if (this.botBreakAt > 0 && now >= this.botBreakAt) { this.botBreakAt = 0; if (bot.body.canBreak(now)) this.botBreak(); }
     const bd = this.kage?.decoyFor(bot); // Kagemusha: the knight goes after a double
-    bot.update(ms, { now, player: bd ? { x: bd.x, y: bd.y, z: this.kin.z - this.kin.supportZ, alive: true } : { x: this.kin.x, y: this.kin.y, z: this.kin.z - this.kin.supportZ, alive: this.dead < 0, guard: this.body.ghost(now), stuck: this.body.state !== 'free' || (this.body.hard.active(now) && this.body.hard.kind !== 'root') } });
+    bot.update(ms, { now, player: bd ? { x: bd.x, y: bd.y, z: this.kin.z - this.kin.supportZ, alive: true } : { x: this.kin.x, y: this.kin.y, z: this.kin.z - this.kin.supportZ, alive: this.dead < 0, guard: this.body.ghost(now), stuck: this.body.state !== 'free' || (this.body.hard.active(now) && this.body.hard.kind !== 'root'), wind: this.windInfo() } });
   }
 
+  /** Your skill in its wind-up (for the sparring partner to read): its cast, ms left to its first strike, its reach. */
+  private windInfo(): { id: string; left: number; reach: number } | undefined {
+    const r = this.rt?.ownRun; if (!r || r.phase !== 'startup') return undefined;
+    const h = r.hits.find((x) => x.damage > 0) ?? r.hits[0]; if (!h) return undefined;
+    const sh = h.shape, dash = Math.max(0, r.skill.dash?.distance ?? 0);
+    const reach = sh.kind === 'sector' ? sh.range : sh.kind === 'line' ? sh.length : sh.kind === 'circle' ? sh.radius + (sh.bias ?? 0) : sh.kind === 'projectile' ? sh.range : 200;
+    return { id: r.castId, left: r.timings.startup + h.at - r.elapsed, reach: reach + dash };
+  }
   private botName(): string { return this.bot?.trial?.name ?? BOT_NAMES[this.botCls] ?? BOT_NAME; }
 
   // ======================================================================= the Masters' trial (1st job)
