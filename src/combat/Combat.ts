@@ -334,6 +334,8 @@ export interface HitOutcome {
   rxMs?: number;
   /** The arena: this hit broke through super armor (a grab, or the standing gauge passed). */
   broke?: boolean;
+  /** Pulled into a trap: a foe yanked a moment ago was caught by a floor trap (held a little longer). */
+  caught?: boolean;
 }
 
 /** Combat state + reactions of one actor. The owner is the authority for its own body (victim-side model). */
@@ -390,6 +392,8 @@ export class CombatBody {
   /** Arena: when the quick rise is ready again. */
   quickReadyAt = 0;
   downAt = -Infinity;
+  /** When a vine whip last yanked this body (a trap that catches it soon after: CAUGHT). */
+  yankedAt = -Infinity;
   airOver(now?: number): number {
     const g = gaugeOf(this.arena), dmg = Math.max(0, (this.gauge.air - g.air) / g.airRamp);
     if (!this.arena || now === undefined) return dmg;
@@ -465,6 +469,7 @@ export class CombatBody {
       // a trap on the floor catches a falling / fallen body: on its feet at once, held — and, as in DFO, the hold eases the air gauge
       const kk = this.kin; kk.z = kk.supportZ; kk.vz = 0; kk.grounded = true; this.bounce = false;
       this.state = 'hitstun'; this.kdPhase = 'fall'; this.stateEnd = now + (R.stun ?? 300);
+      if (now - this.yankedAt < 2500) { this.stateEnd += 300; out.caught = true; this.yankedAt = -Infinity; } // pulled into the trap: CAUGHT — held a little longer
       if (c.binds === 0) { this.gauge.air *= 0.5; c.binds++; } // the gravity reset is a rare trick: once a combo (the catch itself every time)
     }
     this.lastHitAt = now;
@@ -482,7 +487,7 @@ export class CombatBody {
     if (!armored) {
       let pushPx = (R.push ?? 0) * (this.arena ? ARENA.pushMul : this.pvp ? 1.4 : 2) - (R.pull ?? 0);
       if (this.arena && pushPx > 0 && (airNow || downNow || c.hits > 1)) pushPx *= 0.4; // DFO: in a combo the foe hardly drifts sideways (stays in reach)
-      if (R.yank !== undefined) { pushPx = -Math.max(0, Math.hypot(k.x - from.x, k.y - from.y) - R.yank); if (airNow) k.vz = Math.max(k.vz, 140); } // a vine whip: back in front of the attacker
+      if (R.yank !== undefined) { this.yankedAt = now; pushPx = -Math.max(0, Math.hypot(k.x - from.x, k.y - from.y) - R.yank); if (airNow) k.vz = Math.max(k.vz, 140); } // a vine whip: back in front of the attacker
       if (this.arena && pushPx > 0) { dx = Math.sign(k.x - from.x) || (dx < 0 ? -1 : 1); dy = 0; } // the arena: knocked straight back along the line (a combo stays on one line)
       if (pushPx > 0 && this.kbResist > 0 && Math.random() < this.kbResist) this.stanceAt = now; // stance: not pushed back
       else if (pushPx !== 0) { const pm = R.yank !== undefined ? 60 : 110; out.pushX = dx * pushPx; out.pushY = dy * pushPx; this.push = { vx: out.pushX / pm, vy: out.pushY / pm, left: pm }; } // (a yank snaps in fast)

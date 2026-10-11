@@ -3038,7 +3038,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** The arena: a shot landing from afar (not a combo follow-up) is a poke — the foe flinches, nothing more (no lift, no
    *  hold, no knockdown) and the shooter cannot cancel off it. Same rule on every client (attacker and victim). */
   private isPoke(run: CastRun, hit: HitEvent, victim: { x: number }): boolean {
-    if (!this.arena || run.followUp || hit.shape.kind !== 'projectile') return false;
+    if (!this.arena || run.followUp || hit.shape.kind !== 'projectile' || run.skill.tags.includes('farLaunch') || run.skill.tags.includes('farPull')) return false; // (a skill made to launch / pull from afar keeps it)
     const c = this.casterPos(run.attackerId) ?? run.origin;
     return Math.abs(victim.x - c.x) > ARENA_FLOW.pokeRange;
   }
@@ -3075,6 +3075,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const ctr = h.damage > 0 && this.attackingNow(); // a counter hit: caught in my own wind-up / swing
     if (ctr) h = { ...h, reaction: { ...h.reaction, stun: (h.reaction.stun ?? 300) + COUNTER.stunMs } };
     const out = this.body.receive(run.attackerId, s, h, this.hitFrom(run, hit), this.simMs, run.castId);
+    if (out.caught) this.fx?.callout({ x: at.x, y: at.y, z: at.z + 60 }, 'CAUGHT!', '#9be27a', 1); // pulled into the trap
     out.damage = this.takeDamage(out.damage);
     const countered = ctr && out.damage > 0 && out.reaction !== 'armor';
     if (countered) this.counterCall({ x: this.kin.x, y: this.kin.y, z: this.kin.z });
@@ -3518,6 +3519,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const whiff = b.whiffing(), ctr = h.damage > 0 && b.attacking(); // (read before the hit: taking it drops the knight's cast)
     if (ctr) h = { ...h, reaction: { ...h.reaction, stun: (h.reaction.stun ?? 300) + COUNTER.stunMs } };
     const out = b.receive(run.attackerId, run.skill, h, this.hitFrom(run, h), this.simMs, run.castId);
+    if (out.caught) this.fx?.callout({ x: at.x, y: at.y, z: at.z + 60 }, 'CAUGHT!', '#9be27a', 1); // pulled into the trap
     if (ctr && out.damage > 0 && out.reaction !== 'armor') this.counterCall({ x: b.kin.x, y: b.kin.y, z: b.kin.z });
     this.logHit(true, run.skill, out, b.body, b.kin.z);
     if (run.own && out.damage > 0) this.callPunish(run, whiff, at);
