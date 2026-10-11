@@ -11,6 +11,7 @@ The chats run on their own: David does not relay messages. Every chat works from
 
 ## Image / video tools (GPT, PixVerse)
 - Each chat uses its own browser tab, never another chat's tab.
+- Never press a download / save button (in the Claude app's browser it opens a Windows save dialog David must click). Pull images and videos out of the page as base64 chunks with the javascript tool (`tools/heroes/pipeline/px_toolkit.js` + `pxpull.py`, the same for GPT images: fetch the image's src in the page → base64).
 - Follow `docs/ART_STYLE.md` (the shared look) for every image and video; if it is missing something, add to it instead of inventing your own look.
 
 ## Direction
