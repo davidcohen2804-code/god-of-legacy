@@ -450,6 +450,8 @@ export class StageFx {
   };
   private nextBolt = 6000;
   private bolt = -1;
+  /** Told of the stage's own moments (the arena's sound answers: thunder after a bolt, the dragon's roar, the aurora). */
+  onEvent?: (kind: 'bolt' | 'roar' | 'flare') => void;
   /** The storm's sea and what lives on the ship's deck (see StageLook.water and the rest). */
   private water?: Phaser.GameObjects.Shader;
   private lamps: { glow: Phaser.GameObjects.Image; core: Phaser.GameObjects.Image; ph: number }[] = [];
@@ -807,7 +809,7 @@ export class StageFx {
     if (this.flash) { // a storm: now and then the sky flashes twice
       this.nextBolt -= ms;
       if (this.nextBolt <= 0) {
-        this.bolt = 0; this.nextBolt = 6000 + Math.random() * 9000;
+        this.bolt = 0; this.nextBolt = 6000 + Math.random() * 9000; this.onEvent?.('bolt');
         // its bolt: the painting's own now and then, else one drawn somewhere down the sky
         this.boltOn?.setAlpha(0);
         this.boltOn = this.boltImg && Math.random() < 0.4 ? this.boltImg : this.boltGfx;
@@ -885,8 +887,8 @@ export class StageFx {
 
   /** A moment of the fight the stage answers: the dragon rears up and roars (FIGHT!, K.O.). */
   event(kind: 'fight' | 'ko'): void {
-    if (this.dragon) this.dragon.roar = 0;
-    if (this.look.emblemFlash) this.flare2 = 0;
+    if (this.dragon) { this.dragon.roar = 0; this.onEvent?.('roar'); }
+    if (this.look.emblemFlash) { this.flare2 = 0; this.onEvent?.('flare'); }
     void kind;
   }
 

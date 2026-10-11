@@ -243,6 +243,8 @@ export class SkillFx {
   private dmgCols: { x: number; y: number; last: number; rows: (DmgLine | null)[] }[] = [];
   /** Local presentation freeze (ms) requested by confirmed hits (scene applies it to the local actor + VFX only). */
   hitStopLeft = 0;
+  /** Told of every call shown over a fighter (the arena's sound answers BREAK!, PUNISH!, SLAM!! ...). */
+  onCallout?: (text: string, at: V3) => void;
   /** Where the caster's raised hand is right now (set by the scene from the body pose). */
   handPos?: (id: string) => { x: number; y: number } | null;
   /** Where a samurai's Kagemusha doubles stand (they swing with him), set by the scene. */
@@ -911,6 +913,7 @@ export class SkillFx {
   /** Battle (the arena's 1v1): the callouts in the fight's own lettering (heavy italic, Tekken-style) instead of the world's. */
   battleLook = false;
   callout(at: V3, text: string, color: string, row = 0): void {
+    this.onCallout?.(text, at);
     const t = this.scene.add.text(at.x, at.y - at.z - 120 - this.lift - row * 30, text, this.battleLook
       ? { fontFamily: "'Exo 2', 'Segoe UI', sans-serif", fontStyle: 'italic 900', fontSize: '32px', color, stroke: '#05070c', strokeThickness: 7, resolution: 2 }
       : { fontFamily: 'Cinzel, Georgia, serif', fontStyle: 'bold italic', fontSize: '30px', color, stroke: '#1a0602', strokeThickness: 6, resolution: 2 },

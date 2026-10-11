@@ -17,6 +17,7 @@ import { BOT_NAMES } from '../pvp/SparringBot';
 import { syncOverlay } from './CharacterSelectUI';
 import type { ArtState } from './FighterArt';
 import { ensureTheme } from './theme';
+import { Sound } from '../audio/Sound';
 
 export type VsMode = 'cpu' | 'player';
 export interface RemoteView { name: string; hover: string; pick: string | null }
@@ -279,6 +280,7 @@ export class PvpSelectUI {
   private setMode(m: VsMode): void {
     if (this.going || m === this.mode) return;
     this.mode = m; this.active = 'p1'; this.p1.pick = null; this.p2.pick = null; this.remote = null;
+    Sound.ui('select');
     this.h.mode(m);
     this.h.stage?.(m === 'cpu' ? this.stageId() : null);
     this.sendLocal();
@@ -295,12 +297,13 @@ export class PvpSelectUI {
   private setStage(i: number): void {
     if (this.going || this.mode !== 'cpu') return;
     this.stage = lastStage = (i + CARDS) % CARDS;
+    Sound.ui('swipe');
     this.render();
     this.h.stage?.(this.stageId());
   }
 
-  private point(i: number): void { const s = this.side(); if (!s || s.hover === i) return; s.hover = i; this.sendLocal(); this.render(); }
-  private move(d: number): void { const s = this.side(); if (!s) return; s.hover = (s.hover + d + ROSTER.length) % ROSTER.length; this.sendLocal(); this.render(); }
+  private point(i: number): void { const s = this.side(); if (!s || s.hover === i) return; s.hover = i; Sound.ui('move'); this.sendLocal(); this.render(); }
+  private move(d: number): void { const s = this.side(); if (!s) return; s.hover = (s.hover + d + ROSTER.length) % ROSTER.length; Sound.ui('move'); this.sendLocal(); this.render(); }
 
   private confirm(): void {
     if (this.going) return;
@@ -322,7 +325,8 @@ export class PvpSelectUI {
     if (this.mode === 'cpu' && this.active === 'p2') { // undo: back to your own pick
       if (this.p2.pick !== null) this.p2.pick = null; else { this.active = 'p1'; this.p1.pick = null; }
     } else if (this.p1.pick !== null) this.p1.pick = null;
-    else { this.h.back(); return; }
+    else { Sound.ui('back'); this.h.back(); return; }
+    Sound.ui('back');
     this.sendLocal();
     this.render();
   }
@@ -353,6 +357,7 @@ export class PvpSelectUI {
       this.h.stage?.(stage);   // (RANDOM: the stage it drew comes up behind GET READY)
     }
     this.going = true;
+    Sound.getReady();
     this.render();
     this.timer = window.setTimeout(() => {
       this.root.querySelector('.ps-flash')?.classList.add('on');
@@ -435,7 +440,10 @@ export class PvpSelectUI {
     for (const u of heroFxUrls(cls)) { const i = new Image(); i.src = u; this.warmImgs.push(i); }
   }
 
-  private flashArt(s: 'l' | 'r'): void { this.h.lock(s); }
+  private flashArt(s: 'l' | 'r'): void {
+    const cls = s === 'l' ? (this.p1.pick === null ? null : ROSTER[this.p1.pick]) : this.mode === 'cpu' ? (this.p2.pick === null ? null : ROSTER[this.p2.pick]) : this.remote?.pick ?? null;
+    Sound.lockIn(cls ?? undefined); this.h.lock(s);
+  }
 
   private fillPlate(s: 'l' | 'r', side: string, tag: string, cls: string, name: string, locked: boolean): void {
     const p = this.plate[s];

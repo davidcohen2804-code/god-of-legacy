@@ -13,6 +13,7 @@ import { score, scoreKey } from '../pvp/Score';
 import { addMotes, preloadLife } from '../ui/PresentationLife';
 import { FighterArt } from '../ui/FighterArt';
 import { stageById } from '../world/Stages';
+import { Sound, loadMenuSound } from '../audio/Sound';
 
 /** The select screen's backdrop: the arena's courtyard by night. */
 const SELECT_BG = 'pvp-select-bg';
@@ -37,11 +38,14 @@ export class PvpSelectScene extends Phaser.Scene {
     if (!this.textures.exists(SELECT_BG)) this.load.image(SELECT_BG, 'assets/character_select/pvp_select_bg.webp'); // the courtyard by night
     for (const c of ROSTER) { const hc = heroCard(c); if (hc && !this.textures.exists(`hero-card-${c}`)) this.load.image(`hero-card-${c}`, hc.file); } // the heroes' cards
     preloadLife(this); // (the embers)
+    loadMenuSound(this); // (the menu's cues; the music streams in after)
   }
 
   create(data?: PvpSelectData): void {
     const mode: VsMode = data?.mode ?? 'cpu';
     this.cameras.main.fadeIn(240, 0, 0, 0);
+    Sound.music(this, 'select', 700); // (on from the menu, or back from the arena: it crossfades from the stage's)
+    Sound.voice('choose', 650);       // CHOOSE YOUR FIGHTER
     this.bg = undefined; this.bgKey = ''; this.bgWant = '';
     this.swapBg(this.textures.exists(SELECT_BG) ? SELECT_BG : ATLAS.textures.map.key, false);
     this.add.image(0, 0, washTex(this)).setOrigin(0).setDisplaySize(DESIGN.width, DESIGN.height).setDepth(1);
@@ -49,7 +53,7 @@ export class PvpSelectScene extends Phaser.Scene {
     const sel = CharacterStore.getSelectedCharacter();
     this.hover = data?.p1 ?? (sel && (ROSTER as readonly string[]).includes(sel.classId) ? sel.classId : 'samurai');
     this.ui = new PvpSelectUI(this.game.canvas.parentElement!, this.game.canvas, {
-      back: () => this.leave(() => { clearPvpFromUrl(); this.scene.start('MainMenuScene'); }),
+      back: () => { Sound.music(this, null, 500); this.leave(() => { clearPvpFromUrl(); this.scene.start('MainMenuScene'); }); },
       mode: (m) => { if (m === 'player') this.openLobby(); else this.closeLobby(); this.ui?.setScore(score(scoreKey(m, this.lobby?.room))); },
       local: (hover, pick) => { this.hover = hover; this.lobby?.set(hover, pick, fighterFor(hover).name); },
       start: (p1, p2, m, stage) => this.start(p1, p2, m, stage),

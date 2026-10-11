@@ -93,6 +93,8 @@ import { SkillBook } from '../ui/SkillBook';
 import { CosmeticPanel } from '../ui/CosmeticPanel';
 import { preloadPanelArt } from '../ui/PreviewStage';
 import { CameraPitch } from '../world/CameraPitch';
+import { ArenaSound, type HeardFighter } from '../audio/ArenaSound';
+import { loadArenaSound } from '../audio/Sound';
 import { addMotes, preloadLife } from '../ui/PresentationLife';
 /** The panels' keys (Key Settings) for the HUD's menu pills and gear menu. */
 const menuKeys = (b: Record<BindAction, string>) => ({ K: keyLabel(b.book), I: keyLabel(b.bag), O: keyLabel(b.shop), J: keyLabel(b.quests), P: keyLabel(b.party), U: keyLabel(b.stats) });
@@ -314,6 +316,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private arenaLift = 0;
   /** The camera's angle on its arc, by the player (the camera buttons, Insert / Delete; Home resets): in the arena. */
   private pitch?: CameraPitch;
+  /** The arena's sound (music, announcer, effects, the stage's ambience). */
+  private arenaSnd?: ArenaSound;
   /** The arena's painting and what is drawn with it (the mirror under it, the fade into the dark): the pitch's map. */
   private arenaMap: Phaser.GameObjects.GameObject[] = [];
   private arenaCam(what: 'in' | 'out' | 'up' | 'down' | 'reset'): void {
@@ -471,6 +475,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.stage) { // the arena: its stage's painting (and what else it draws: its dragon)
       if (!this.textures.exists(this.stage.key)) this.load.image(this.stage.key, this.stage.file);
       for (const e of this.stage.extras ?? []) if (!this.textures.exists(e.key)) this.load.image(e.key, e.file);
+      loadArenaSound(this, this.stage.id);
     }
     else preloadOpenWorld(this); // the open world: the start area and its neighbours (the rest streams in)
     if (!this.textures.exists(CT.dummy.key)) this.load.image(CT.dummy.key, CT.dummy.file);
@@ -567,6 +572,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.input.keyboard?.on('keydown-PAGE_UP', () => this.arenaCam('up')); this.input.keyboard?.on('keydown-PAGE_DOWN', () => this.arenaCam('down'));
       this.input.keyboard?.on('keydown-HOME', () => this.arenaCam('reset'));
       if (this.stage) this.stageFx = new StageFx(this, this.stage.look, WORLD.coordinateSpace.width, WORLD.coordinateSpace.height, R); // (its own light, cloud shadows and weather)
+      this.arenaSnd = new ArenaSound(this, this.stage?.id, () => this.heardFighters(), () => (this.match?.live ? this.match.left : null));
+      this.arenaSnd.myId = () => this.localId;
+      if (this.stageFx) this.stageFx.onEvent = (k) => this.arenaSnd?.stageEvent(k);
       // Baked-map occlusion: each prop silhouette is redrawn from the map at its footprint depth (no floor crop).
       this.occluders = WORLD_OBJECTS.filter((o) => o.occluder.length >= 3).map((o) => {   // (a step or a lip drawn on the painting's own floor hides nobody)
         const g = this.make.graphics({}, false);
@@ -635,6 +643,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.fx.lift = character.hero ? HERO_LIFT : 0; // a ready hero stands taller: its numbers and calls go up with its head
     this.fx.handPos = (id) => (id === this.localId ? this.lastHand : null);
     this.fx.ghosts = (id) => this.ghostsOf(id);
+    this.fx.onCallout = (text, at) => this.arenaSnd?.callout(text, at);
     this.fx.targetPos = (id) => {
       const c = this.casterPos(id);
       if (c) { const v = id === this.localId ? this.view : id === BOT_ID ? this.bot?.view.view : this.pvp?.remotes.get(id)?.view; return { ...c, h: v?.headHeight || undefined }; }
@@ -752,6 +761,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.rt?.cancelOwn('sceneExit');
       this.kage?.clear(); this.kage = undefined;
       this.fx?.destroy(); this.fx = undefined;
+      this.arenaSnd?.destroy(); this.arenaSnd = undefined;
       this.deathFx?.destroy(); this.deathFx = undefined;
       this.rt?.destroy(); this.rt = undefined;
       this.ci?.reset();
@@ -796,6 +806,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const ms = real * this.slowMo * this.koFactor(real); // arena analysis: slow motion; a K.O.: a beat of slow motion
     this.ambience?.update(ms);
     this.stageFx?.update(ms, this.fightFocus());
+    this.arenaSnd?.update();
     this.pvp?.update(ms);
     this.skillBook?.update(ms);
     this.cosPanel?.update(ms);
@@ -2673,6 +2684,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   private onRunPhase(run: CastRun, phase: string): void {
+    this.arenaSnd?.cast(run, phase);
     if (phase === 'recovery' && run.confirmedAt < 0 && arenaCommits(run.skill) && (run.own || run.attackerId === BOT_ID)) run.extraRecovery = Math.max(run.extraRecovery, ARENA_FLOW.whiffMs); // a miss leaves you open a moment longer
     if (phase === 'active' && run.skill.cls === 'book_mage') this.mageZone(run);
     if (phase === 'recovery' && run.skill.id === 'page_bind' && run.own) { // Page Bind: on a hit the pages stick and he springs back; a miss leaves him open
@@ -2920,6 +2932,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (run?.own && s.cls === 'book_mage' && damage > 0) this.weaveHit(run);
     if (run?.own && s.cls === 'gambler') this.gambleConfirm(run, hit, target, at, damage, crit);
     this.fx!.confirmed(s, hit, at, damage, reaction, true, idx, crit, run ? this.hitFrom(run, hit) : undefined);
+    this.arenaSnd?.hit(s, hit, at, damage, reaction, crit);
     if (damage > 0) { // your hit on another fighter: it shudders through the hit-stop (fighting-game feel)
       const sh = Math.max(90, Math.min(220, this.fx!.hitStopLeft + 60));
       if (target === BOT_ID) this.bot?.view.shake(sh); else this.pvp?.remotes.get(target)?.shake(sh);
@@ -3086,6 +3099,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (out.broke) this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 60 }, 'ARMOR BREAK', '#ff9a6a', 0);
     if (out.rx) this.fx?.mageReaction(out.rx, { x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 }, this.localId, out.rxMs);
     this.fx!.confirmed(s, hit, at, out.damage, out.reaction, false, out.hitIndex, false, this.hitFrom(run, hit));
+    this.arenaSnd?.hit(s, hit, at, out.damage, out.reaction, false);
     if (this.arena && out.damage > 0) { // the arena: a hit lands on you — a beat of hit-stop, your body shudders, heavy ones shake the screen
       const heavy = !!hit.heavy || out.reaction === 'launch' || out.reaction === 'knockdown' || s.slot === 7;
       this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, heavy ? 110 : 60);
@@ -3743,6 +3757,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private onMatchPhase(m: Match, prev: MatchPhase): void {
     const B = this.battleHud, T = PVP.battle;
     if (!B) return;
+    this.arenaSnd?.phase(m, prev);
     if (m.phase === 'idle') { // no match any more: back to the free arena
       B.clearCalls(); B.hideResult(); B.setOn(false); this.hud?.setBattle(false); this.battleTags(false); this.liftCurtain();
       if (this.bot) this.bot.hold = false;
@@ -3768,6 +3783,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         break;
       case 'over': if (this.bot) this.bot.hold = true; this.showResult(m); break;
     }
+  }
+
+  /** The fighters as the arena's sound hears them: where, how high off the floor, knocked about or not. */
+  private heardFighters(): HeardFighter[] {
+    const out: HeardFighter[] = [], hurt = (st: string | undefined) => st === 'launched' || st === 'knockdown';
+    if (this.kin && this.dead < 0) out.push({ id: this.localId, x: this.kin.x, h: this.kin.z - this.kin.supportZ, hurt: hurt(this.body?.state) });
+    const b = this.bot;
+    if (b && !b.defeated) out.push({ id: BOT_ID, x: b.kin.x, h: b.kin.z - b.kin.supportZ, hurt: hurt(b.body.state) });
+    for (const [id, r] of this.pvp?.remotes ?? []) if (r.alive) out.push({ id, x: r.x, h: r.z - r.sz, hurt: false });
+    return out;
   }
 
   /** Every round (and the VS before the first): both fighters on their marks, facing each other, whole again. */

@@ -10,6 +10,7 @@ import { PortraitRef } from './hud/HudState';
 import { ARENA } from '../combat/Combat';
 import { ensureTheme } from './theme';
 import { heroFx, heroFxUrls } from './HeroFx';
+import { Sound } from '../audio/Sound';
 
 export type Side = 'l' | 'r';
 /** A hero's VS splash art (facing right) and its class colours. */
@@ -568,10 +569,10 @@ export class BattleHUD {
     const bt = this.el('div', 'b-bt', card);
     const again = this.el('button', 'gl-btn pri lg', bt) as HTMLButtonElement;
     again.type = 'button'; again.textContent = 'REMATCH';
-    again.addEventListener('click', () => this.h.rematch());
+    again.addEventListener('click', () => { Sound.ui('lock'); this.h.rematch(); });
     const out = this.el('button', 'gl-btn ghost lg', bt) as HTMLButtonElement;
     out.type = 'button'; out.textContent = 'EXIT ARENA';
-    out.addEventListener('click', () => this.h.exit());
+    out.addEventListener('click', () => { Sound.ui('back'); this.h.exit(); });
     this.resState = this.el('div', 'b-st', card);
     this.res = r; this.resBtn = again; this.root.classList.add('res'); // (the fight's HUD steps aside)
   }
