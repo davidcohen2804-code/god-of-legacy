@@ -3395,7 +3395,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const m = Object.values(WORLD_AREAS).flatMap((a) => a.npcs ?? []).find((n) => n.job === ch.trial);
       const c = { x: PLAZA.x + PLAZA.w * 0.5, y: PLAZA.y + PLAZA.h * 0.42 };
       this.bot = new SparringBot(this, c.x, c.y, {
-        cast: (skill, stage, origin, aim, place, lock, followUp) => { this.rt?.start({ castId: `${BOT_ID}-${++this.botSeq}`, skill, stage, attackerId: BOT_ID, own: false, origin, aim, place, lock: lock ? this.localId : null, followUp }); },
+        cast: (skill, stage, origin, aim, place, lock, followUp) => { const run = this.rt?.start({ castId: `${BOT_ID}-${++this.botSeq}`, skill, stage, attackerId: BOT_ID, own: false, origin, aim, place, lock: lock ? this.localId : null, followUp }); const cs = this.bot?.castStartup(); if (run && skill.charge && cs !== undefined) run.timings.startup = cs; }, // (a charged skill: let go where the knight chose)
         cancel: () => { for (const r of this.rt?.runs ?? []) if (r.attackerId === BOT_ID && (r.phase === 'startup' || r.phase === 'active')) r.phase = 'done'; },
       }, now, ch.trial, { name: m?.name ?? 'Master', hp: TRIAL_HP, centre: c });
       this.chat?.add({ kind: 'system', text: `${this.botName()} awaits you in the Sun Seal Plaza, down the great stairs. Defeat him to complete your trial.` });
@@ -3460,7 +3460,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.match?.opponent === BOT_ID) this.match.abort(); // a new opponent: a new match
     if (this.bot) { this.rt?.cancelAttacker(BOT_ID); this.bot.destroy(); }
     this.bot = new SparringBot(this, x, y, {
-      cast: (skill, stage, origin, aim, place, lock, followUp) => { this.rt?.start({ castId: `${BOT_ID}-${++this.botSeq}`, skill, stage, attackerId: BOT_ID, own: false, origin, aim, place, lock: lock ? this.localId : null, followUp }); },
+      cast: (skill, stage, origin, aim, place, lock, followUp) => { const run = this.rt?.start({ castId: `${BOT_ID}-${++this.botSeq}`, skill, stage, attackerId: BOT_ID, own: false, origin, aim, place, lock: lock ? this.localId : null, followUp }); const cs = this.bot?.castStartup(); if (run && skill.charge && cs !== undefined) run.timings.startup = cs; }, // (a charged skill: let go where the knight chose)
       cancel: () => { for (const r of this.rt?.runs ?? []) if (r.attackerId === BOT_ID && (r.phase === 'startup' || r.phase === 'active')) r.phase = 'done'; },
     }, now, this.botCls);
     this.bot.setLevel(this.botLevel, now);

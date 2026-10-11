@@ -133,6 +133,8 @@ export class SparringBot {
   noteHit(): void { if (this.cast) this.cast.landed = true; }
   /** The arena: it is in the recovery of an attack that missed (a punish window for you). */
   /** Winding up or swinging an attack right now (a blow landing now is a counter hit). */
+  /** The wind-up its current cast plays (a hold-to-charge skill: where it lets go). */
+  castStartup(): number | undefined { return this.cast?.T.startup; }
   attacking(): boolean { const c = this.cast; return !!c && !c.s.counter && c.t < c.T.startup + c.T.active && c.s.hits.some((h) => h.damage > 0); }
   whiffing(): boolean { const c = this.cast; return !!c && this.body.arena && !c.landed && c.t >= c.T.startup + c.T.active && arenaCommits(c.s); }
   /** Its hit was only a poke from afar: no combo off it. */
@@ -396,7 +398,12 @@ export class SparringBot {
     const u = unit(p.x - k.x, p.y - k.y, this.dir === 'right' ? 1 : -1, 0), aim = sideAim(u.x, u.y, this.dir === 'left' ? -1 : 1); // (side / corner)
     this.aim = aim; this.dir = aim.x >= 0 ? 'right' : 'left';
     const T0 = s.chain?.timings?.[stage] ?? { startup: s.startup, active: s.active, recovery: s.recovery }, ts = arenaTimeScale(s, followUp);
-    const T = ts ? { startup: Math.round(T0.startup * ts.startup), active: Math.round(T0.active * ts.active), recovery: Math.round(T0.recovery * ts.recovery) } : T0; // (the arena's warrior: his base pace, as the runtime plays it)
+    let T = ts ? { startup: Math.round(T0.startup * ts.startup), active: Math.round(T0.active * ts.active), recovery: Math.round(T0.recovery * ts.recovery) } : T0; // (the arena's warrior: his base pace, as the runtime plays it)
+    if (s.charge) { // hold-to-charge: released like a player would — a quick draw from afar or mid-combo, a full charge only now and then up close
+      const far = Math.hypot(p.x - k.x, p.y - k.y) > 140, L = s.charge.levels;
+      const lv = followUp || far ? (Math.random() < 0.8 ? 0 : Math.min(1, L.length - 1)) : Math.floor(Math.random() * L.length);
+      T = { ...T, startup: Math.max(s.charge.minMs, L[lv].at) };
+    }
     let dist = s.dash?.distance ?? 0;
     if (s.dash && s.targeting === 'mouseTarget') dist = Math.min(dist, Math.max(0, Math.hypot(p.x - k.x, p.y - k.y) - 34));
     if (this.body.arena && this.body.ghostUntil > w.now) this.body.ghostUntil = w.now; // an attack out of the wake-up drops its guard, as for the players
