@@ -14126,7 +14126,7 @@
   },
   "cursed": {
    "name": "Cursed Swordsman",
-   "frames": "cursed_swordsman",
+   "frames": "cursed",
    "scale": 1.0,
    "hp": 140,
    "damage": 12,
@@ -14136,7 +14136,8 @@
    "cooldown": 950,
    "respawnMs": 12000,
    "exp": 30,
-   "level": 8
+   "level": 8,
+   "texQ": 2
   },
   "sprout": {
    "name": "Ivy Sproutling",
