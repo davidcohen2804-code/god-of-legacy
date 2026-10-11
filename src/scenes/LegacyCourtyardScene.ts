@@ -7,7 +7,8 @@ import { FloorLift } from '../world/FloorLift';
 import { sunGateX, SUN_GATE } from '../world/SunGate';
 /** The arena camera: a fixed view, maxZoom × the whole-arena view (the owner's framing; the player's zoom on top), centred
  *  between the two fighters; it widens only when they part further than the screen holds (their gap + `edge`). */
-const ARENA_CAM = { maxZoom: 1.48, edge: 420, easeMs: 260, /** the player's own zoom (wheel / camera buttons): down to the whole arena, up a little closer */ userMin: 0.55, userMax: 1.25 };
+const ARENA_CAM = { maxZoom: 1.48, edge: 420, easeMs: 260, /** the player's own zoom (wheel / camera buttons): down to the whole arena, up a little closer */ userMin: 0.55, userMax: 1.25,
+  /** big moments: the camera rises with a juggle (share of the height, at most px) and punches in during an ultimate */ airFollow: 0.4, airMax: 120, ultPunch: 1.12 };
 /** The arena's screen shake, governed (the skills' effects call it freely): scaled down, small ones dropped (no shake
  *  on every basic / core hit), one at a time unless a stronger one comes, never long. */
 const ARENA_SHAKE = { mul: 0.45, min: 0.0012, gapMs: 280, maxMs: 260 };
@@ -120,6 +121,12 @@ const STAT_MASTERY = 0.8;
 /** Testing: skills cost no MP for now (turn back to false to spend MP again). */
 const MP_FREE = true;
 const MP_REGEN = 0.03, MP_ARENA = 220;
+/** Hit weight beats (impactBeat): freeze ms, flash color / alpha / ms, ring radius, camera shake [ms, intensity]. */
+const IMPACT_BEAT = {
+  counter: { stop: 150, color: 0xff5a2a, flash: 0.16, flashMs: 130, ring: 150, shake: [150, 0.006] as [number, number] },
+  punish: { stop: 120, color: 0xffd27a, flash: 0.1, flashMs: 110, ring: 120, shake: [120, 0.004] as [number, number] },
+  break: { stop: 140, color: 0xffffff, flash: 0.2, flashMs: 120, ring: 170, shake: [170, 0.007] as [number, number] },
+};
 const MP_CLASS: Record<string, number> = { warrior: 0.8, samurai: 0.9, archer: 1, book_mage: 1.6 };
 /** A skill's MP: none for the regular attack and passives / buffs' own cost by cooldown (the big ones cost more). */
 interface LootDrop { kind: 'gold' | 'item'; id?: string; amount: number; img: Phaser.GameObjects.Image; sh: Phaser.GameObjects.Ellipse; glow: Phaser.GameObjects.Image; beam?: Phaser.GameObjects.Image; sz: number; bounced: boolean; seed: number; nextGlint: number;
@@ -339,13 +346,21 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const foe = this.bot && !this.bot.defeated ? this.bot.kin : [...(this.pvp?.remotes.values() ?? [])].find((r) => r.alive) ?? null;
     const fx = foe ? foe.x : k.x, fy = foe ? foe.y : k.y;
     const mx = (k.x + fx) / 2, my = (k.y + fy) / 2, span = Math.abs(k.x - fx);
-    this.camTarget.set(mx, my + 70 - this.arenaLift); // (above the skill tray)
+    // the camera lives in the big moments, calm otherwise: it rises with a juggle (the body in the air stays framed) and
+    // punches in while an ultimate plays (anyone's), easing back after
+    const air = Math.max(k.z, foe ? (foe as { z?: number }).z ?? 0 : 0);
+    this.camAir += (Math.min(ARENA_CAM.airMax, air * ARENA_CAM.airFollow) - this.camAir) * Math.min(1, ms / 200);
+    const ult = !!this.rt?.runs.some((r) => r.skill.slot === 7 && (r.phase === 'startup' || r.phase === 'active'));
+    this.camPunch += ((ult ? ARENA_CAM.ultPunch : 1) - this.camPunch) * Math.min(1, ms / (ult ? 180 : 420));
+    this.camTarget.set(mx, my + 70 - this.arenaLift - this.camAir); // (above the skill tray)
     if (this.koT >= 0) return; // the K.O. drives its own zoom
     // a fixed view (the owner's framing): the same zoom all fight long; it widens only if the two would leave the screen
     const fixed = this.baseZoom * ARENA_CAM.maxZoom * this.arenaZoom, fits = cam.width / (span + ARENA_CAM.edge);
     const want = Phaser.Math.Clamp(Math.min(fixed, fits), this.baseZoom, this.baseZoom * ARENA_CAM.maxZoom * ARENA_CAM.userMax);
-    cam.setZoom(cam.zoom + (want - cam.zoom) * Math.min(1, ms / ARENA_CAM.easeMs));
+    cam.setZoom(cam.zoom + (want * this.camPunch - cam.zoom) * Math.min(1, ms / ARENA_CAM.easeMs));
   }
+  private camAir = 0;
+  private camPunch = 1;
   private botCls = 'warrior';
   /** Came from the PvP fighter select: against the CPU / another player. */
   private vs: 'cpu' | 'player' | null = null;
@@ -533,7 +548,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.gHeadsUntil = -1; this.gTailsFree = false; this.gTailsUntil = -1; this.gLuckUntil = -1; this.gOverUntil = -1; this.gStreak = 0; this.fx?.gambleClear(this.localId); this.gHand.clear(); this.gStuck.clear();
     this.sunUntil = -1; this.godUntil = -1; this.kage?.clear(); this.kage = undefined; this.ambushIn.clear();
     this.mageReset(); this.gates.clear(); this.levityZones = []; this.brokenLinks.clear(); this.linkGfx = undefined;
-    this.hpMaxSeen = 0; this.seenStance = -Infinity; this.seenEndure = -Infinity; this.markAt.clear(); this.partyTick = 0; this.shares = []; this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1;
+    this.hpMaxSeen = 0; this.seenStance = -Infinity; this.seenEndure = -Infinity; this.markAt.clear(); this.partyTick = 0; this.shares = []; this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1; this.camAir = 0; this.camPunch = 1;
     this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
     this.combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1, skills: new Set<string>() };
     this.confirmedLog = [];
@@ -3093,12 +3108,22 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const r = this.rt?.ownRun; if (!r || r.skill.counter || !(r.phase === 'startup' || r.phase === 'active')) return false;
     return (r.skill.chain ? r.skill.chain.stages.flat() : r.skill.hits).some((x) => x.damage > 0);
   }
-  private counterCall(at: V3): void { this.fx?.callout({ x: at.x, y: at.y, z: at.z + 70 }, 'COUNTER!', '#ff6a3a', 1); }
+  private counterCall(at: V3): void { this.fx?.callout({ x: at.x, y: at.y, z: at.z + 70 }, 'COUNTER!', '#ff6a3a', 1); this.impactBeat('counter', at); }
+  /** The big hits felt by their weight (the same in the arena and in the open game): a counter, a punish, an armor break
+   *  get a longer freeze, a flash of their color, a ring at the body and a shake above the hit's own (DFO's heavy "clack"). */
+  private impactBeat(kind: 'counter' | 'punish' | 'break', at: V3): void {
+    const fx = this.fx; if (!fx) return;
+    const B = IMPACT_BEAT[kind];
+    fx.hitStopLeft = Math.max(fx.hitStopLeft, B.stop);
+    fx.screenFlash(B.color, B.flash, B.flashMs);
+    fx.shockwave(at.x, at.y, B.ring, B.color); if (kind !== 'punish') fx.shockwave(at.x, at.y, B.ring * 0.55, 0xffffff);
+    this.cameras.main.shake(B.shake[0], B.shake[1]);
+  }
 
   private callPunish(run: CastRun, whiff: boolean, at: V3): void {
     if (!this.arena || !whiff || this.punished.has(run.castId)) return;
     this.punished.add(run.castId); if (this.punished.size > 200) this.punished.clear();
-    this.fx?.callout({ x: at.x, y: at.y, z: at.z + 40 }, 'PUNISH!', '#ffd27a', 1);
+    this.fx?.callout({ x: at.x, y: at.y, z: at.z + 40 }, 'PUNISH!', '#ffd27a', 1); this.impactBeat('punish', at);
   }
   /** The arena: a shot landing from afar (not a combo follow-up) is a poke — the foe flinches, nothing more (no lift, no
    *  hold, no knockdown) and the shooter cannot cancel off it. Same rule on every client (attacker and victim). */
@@ -3149,7 +3174,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (run.attackerId === BOT_ID) this.logHit(false, s, out, this.body, this.kin.z);
     if (run.attackerId === BOT_ID && out.damage > 0) this.bot?.noteHit();
     if (out.damage > 0) this.landedOnMe.add(run.castId);
-    if (out.broke) this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 60 }, 'ARMOR BREAK', '#ff9a6a', 0);
+    if (out.broke) { this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 60 }, 'ARMOR BREAK', '#ff9a6a', 0); this.impactBeat('break', { x: this.kin.x, y: this.kin.y, z: this.kin.z }); }
     if (out.rx) this.fx?.mageReaction(out.rx, { x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 }, this.localId, out.rxMs);
     this.fx!.confirmed(s, hit, at, out.damage, out.reaction, false, out.hitIndex, false, this.hitFrom(run, hit));
     this.arenaSnd?.hit(s, hit, at, out.damage, out.reaction, false);
@@ -3612,7 +3637,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.fx?.callout({ x: at.x, y: at.y, z: at.z + 40 }, 'BREAK!', '#ffd24a', 0);
       this.fx?.shockwave(at.x, b.kin.y, 150, 0xffd27a); this.fx?.shockwave(at.x, b.kin.y, 90, 0xffffff);
       this.cameras.main.shake(180, 0.008); if (this.fx) this.fx.hitStopLeft = Math.max(this.fx.hitStopLeft, 90);
-    } else if (out.broke) this.fx?.callout({ x: at.x, y: at.y, z: at.z + 30 }, 'ARMOR BREAK', '#ff9a6a', 0);
+    } else if (out.broke) { this.fx?.callout({ x: at.x, y: at.y, z: at.z + 30 }, 'ARMOR BREAK', '#ff9a6a', 0); this.impactBeat('break', at); }
     this.mageReact(run, out, BOT_ID, at);
     if (chB > 1 && out.damage > 0) this.chanceMark(BOT_ID, at);
     if (b.refilled) this.fx!.healNumber({ x: b.x, y: b.y, z: b.z }, b.refilled);

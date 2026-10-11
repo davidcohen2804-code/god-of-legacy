@@ -11,6 +11,8 @@ import { ICONS, ensureTheme } from './theme';
 const A = (f: string) => `${H.path}/${f}.png`;
 const P = H.palette;
 const STYLE_ID = 'gol-hud-style';
+/** The combo counter's ranks (hits in one combo → the word over the count). */
+const COMBO_RANKS = [{ at: 8, word: 'GREAT', color: '#7fd8ff' }, { at: 16, word: 'EXCELLENT', color: '#ffd24a' }, { at: 25, word: 'LEGENDARY', color: '#ff5a3a' }];
 
 const K = (f: string) => `assets/final/ui/kit/${f}.png`;
 /** HUD geometry (1920x1080 design px). The player card (portrait, level, name, HP / resource) top-left, buffs under it. */
@@ -181,6 +183,9 @@ const CSS = `
 .gol-hud .combo .n small{font:700 12px var(--gl-body);letter-spacing:1.6px;color:#d9c79f}
 .gol-hud .combo .l{font:600 13px var(--gl-body);letter-spacing:.6px;color:#cfe3f5;text-shadow:0 1px 3px rgba(0,0,0,.8);white-space:nowrap}
 .gol-hud .combo.bump .n{animation:golBump .22s ease-out 1}
+.gol-hud .combo .r{font:700 30px/1 var(--gl-title);letter-spacing:4px;text-shadow:0 3px 0 rgba(0,0,0,.65),0 0 18px currentColor;min-height:30px}
+.gol-hud .combo .r.pop{animation:golRank .38s cubic-bezier(.2,1.6,.4,1) 1}
+@keyframes golRank{0%{transform:scale(2.2);opacity:0}60%{transform:scale(.92);opacity:1}100%{transform:scale(1)}}
 @keyframes golBump{0%{transform:scale(1.14)}100%{transform:scale(1)}}
 .gol-hud .banner{position:absolute;left:560px;top:300px;width:800px;height:110px;display:none;align-items:center;justify-content:center;
   font-family:var(--gl-title);font-weight:700;font-size:64px;letter-spacing:10px;color:#f0c27a;text-shadow:0 3px 0 #2a0a04,0 0 24px rgba(200,40,20,.7);
@@ -467,7 +472,8 @@ export class WorldHUD {
     c.remove();
     const combo = this.div('combo', this.root); combo.style.display = 'none';
     const n = this.div('n', combo), l = this.div('l', combo);
-    this.els.combat = combo; this.els.cN = n; this.els.cL = l;
+    const r = this.div('r', combo);
+    this.els.combat = combo; this.els.cN = n; this.els.cL = l; this.els.cR = r;
     const ban = this.div('banner', this.root); this.els.banner = ban;
     if (this.opts.onMenu) {
       const m = this.div('menu', this.root);
@@ -550,10 +556,16 @@ export class WorldHUD {
       if (this.changed('cN', String(f.count))) {
         this.els.cN.innerHTML = `${f.count}<small>HITS</small>`; // the count bumps on every hit
         this.els.combat.classList.remove('bump'); void this.els.combat.offsetWidth; this.els.combat.classList.add('bump');
+        // the combo's rank: a word that bursts in as the combo grows (GREAT → EXCELLENT → LEGENDARY)
+        const rank = COMBO_RANKS.filter((r) => (f.count ?? 0) >= r.at).pop();
+        if (this.changed('cR', rank?.word ?? '')) {
+          this.els.cR.textContent = rank?.word ?? ''; this.els.cR.style.color = rank?.color ?? '';
+          this.els.cR.classList.remove('pop'); void this.els.cR.offsetWidth; if (rank) this.els.cR.classList.add('pop');
+        }
       }
       this.text(this.els.cL, f.chain ?? '', 'cL');
       this.els.combat.style.opacity = String(Math.min(1, (f.expiresAtMs - now) / 180));
-    } else this.changed('cN', '');
+    } else { this.changed('cN', ''); this.changed('cR', ''); }
     if (this.bannerLeft > 0) { this.bannerLeft -= ms; if (this.bannerLeft <= 0) this.show(this.els.banner, false); else this.els.banner.querySelector('small')!.textContent = this.bannerSub(); }
   }
 
