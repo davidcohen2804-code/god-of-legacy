@@ -400,7 +400,7 @@ const mageBolts: FinalSkill[] = (['frost', 'storm', 'arcane'] as const).map((e) 
 const archer: FinalSkill[] = [
   // ---- Beginner / every job: the bow's basic attack
   S({
-    id: 'quick_shot', cls: 'archer', arenaDmg: 0.7, slot: 0, name: 'Double Shot', roles: ['basic', 'projectile'], targeting: 'mouseProjectile',
+    id: 'quick_shot', cls: 'archer', arenaDmg: 0.6, slot: 0, name: 'Double Shot', roles: ['basic', 'projectile'], targeting: 'mouseProjectile',
     startup: 85, active: 70, recovery: 110, cooldown: 350, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: { startup: 0.85, active: 0.85, recovery: 0.85 },
     hits: [H(0, 7, { kind: 'projectile', speed: 900, range: 430, radius: 9, antiAir: true }, { stun: 180, push: 2 }), H(70, 7, { kind: 'projectile', speed: 900, range: 430, radius: 9, antiAir: true }, { stun: 200, push: 3 }, { mark: 1 })],
     cancelOnHit: ['rising_arrow', 'multi_shot', 'explosive_arrow', 'retreat_kick', 'piercing_arrow', 'vine_trap', 'rain_of_arrows'],
@@ -482,7 +482,7 @@ const archer: FinalSkill[] = [
     relations: ['Signature', 'Air combo'],
   }),
   S({
-    id: 'rain_of_arrows', cls: 'archer', arenaDmg: 1.0, slot: 9, name: 'Thunder Rain', roles: ['zone', 'extender'], targeting: 'mouseDir',
+    id: 'rain_of_arrows', cls: 'archer', arenaDmg: 0.85, slot: 9, name: 'Thunder Rain', roles: ['zone', 'extender'], targeting: 'mouseDir',
     startup: 300, active: 1200, recovery: 300, cooldown: 12000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [300, 900],
     dash: { distance: 0, lift: 150, hang: true },
     linger: { at: 'aim', offset: 300, startMs: 1000, everyMs: 80, count: 26, radius: 210, maxZ: 50, once: true, hit: H(0, 6, { kind: 'circle', radius: 210 }, { stun: 320, launch: 110, juggleCost: 10, slow: { pct: 30, ms: 500 } }, { reachUp: 50 }) }, // the charged floor throws whoever lands on it back up (once each)
@@ -553,7 +553,7 @@ const archer: FinalSkill[] = [
     relations: ['Pull', 'Air too'],
   }),
   S({
-    id: 'arrow_storm', cls: 'archer', arenaDmg: 0.9, slot: 17, name: "Hunter's Rain", roles: ['zone', 'extender'], targeting: 'mouseGround',
+    id: 'arrow_storm', cls: 'archer', arenaDmg: 0.75, slot: 17, name: "Hunter's Rain", roles: ['zone', 'extender'], targeting: 'mouseGround',
     startup: 550, active: 3000, recovery: 300, cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 550],
     placeRange: 420, // a zone that holds a foe far from her
     hits: Array.from({ length: 15 }, (_, i) => H(i * 200, 7, { kind: 'placed', radius: 115 }, { stun: 240, float: true, juggleCost: 4, slow: { pct: 30, ms: 500 } }, { reachUp: 180 })),
