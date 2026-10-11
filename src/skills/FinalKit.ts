@@ -317,7 +317,7 @@ const mage: FinalSkill[] = [
       ...[100, 200, 300].map((t) => H(t, 9, { kind: 'chain', corridor: 380, width: 70, jump: 200 }, { stun: 280, float: true, juggleCost: 6 }, { reachUp: 170, el: STORM })),
       H(400, 8, { kind: 'chain', corridor: 380, width: 70, jump: 0 }, { stun: 320, push: 18, float: true, juggleCost: 6 }, { reachUp: 170, el: STORM }),
     ],
-    cancelOnHit: ['arcane_wave', 'blink', 'storm_field', 'levity_field', 'time_collapse'], telegraph: 'line',
+    cancelOnHit: ['arcane_wave', 'astral_burst', 'blink', 'storm_field', 'levity_field', 'time_collapse'], telegraph: 'line',
     description: 'Lightning seizes the first foe in front of you and leaps on to 3 more, holding them in the air. Through CHILLED foes it CONDUCTS: a longer shock.',
     relations: ['Air hold', 'Conducts through the chilled'],
   }),
