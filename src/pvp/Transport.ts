@@ -162,7 +162,7 @@ class SupabaseTransport implements Transport {
 
 // ---------------------------------------------------------------- Peer to peer (WebRTC, signalled over Nostr)
 
-/** Public Nostr relays for finding each other (signalling only; the game itself flows browser to browser). Many, so one
+/** Public Nostr relays for finding each other (with the first of trystero's own tested list) (signalling only; the game itself flows browser to browser). Many, so one
  *  being down never matters: two players meet as soon as they share any one. */
 const RELAYS = ['relay.damus.io', 'nos.lol', 'relay.primal.net', 'relay.snort.social', 'offchain.pub', 'nostr.mom', 'relay.nostr.net', 'nostr.oxtr.dev'].map((h) => 'wss://' + h);
 /** STUN (each browser learns its public address); a TURN relay can be added through VITE_TURN_URL / _USER / _PASS for
@@ -190,12 +190,12 @@ class P2PTransport implements Transport {
   async join(meta: PeerMeta, maxPlayers: number): Promise<JoinResult> {
     this.meta = meta; this.max = maxPlayers;
     try {
-      const { joinRoom } = await import('trystero');
+      const { joinRoom, defaultRelayUrls } = await import('trystero');
       if (this.closed) return 'error';
       const turn = ENV.VITE_TURN_URL?.trim();
       const ice = turn ? [...ICE, { urls: turn.split(','), username: ENV.VITE_TURN_USER, credential: ENV.VITE_TURN_PASS }] : ICE;
       const room = joinRoom( // (?relay=: a test relay on this machine — no STUN needed)
-        { appId: APP_ID, relayConfig: { urls: this.relay ? [this.relay] : RELAYS, warnOnRelayFailure: false }, rtcConfig: { iceServers: this.relay ? [] : ice } }, `gol-pvp-${this.roomId}`);
+        { appId: APP_ID, relayConfig: { urls: this.relay ? [this.relay] : [...new Set([...RELAYS, ...defaultRelayUrls.slice(0, 8)])], warnOnRelayFailure: false }, rtcConfig: { iceServers: this.relay ? [] : ice } }, `gol-pvp-${this.roomId}`);
       this.room = room;
       type Wire = import('trystero').DataPayload;
       const m = room.makeAction('m'), who = room.makeAction('who');
