@@ -10,6 +10,7 @@ import { PortraitRef } from './hud/HudState';
 import { ARENA } from '../combat/Combat';
 import { ensureTheme } from './theme';
 import { heroFx, heroFxUrls } from './HeroFx';
+import { liven } from './LivingArt';
 import { Sound } from '../audio/Sound';
 
 export type Side = 'l' | 'r';
@@ -480,6 +481,7 @@ export class BattleHUD {
       if (fx) half.appendChild(fx.back);
       const img = this.el('img', '', this.el('div', a.card ? 'b-art card' : 'b-art', half));
       img.src = a.url; img.alt = ''; img.draggable = false;
+      if (!a.card) liven(img, a.cls, 'vs');
       if (fx) half.appendChild(fx.front);
       const plate = this.el('div', 'b-plate', half), nm = this.el('b', '', plate);
       nm.textContent = f.name;
@@ -552,6 +554,7 @@ export class BattleHUD {
       if (fx) art.appendChild(fx.front);
       art.style.setProperty('--c', winner.vs.color); art.style.setProperty('--g', winner.vs.glow);
       img.src = winner.vs.win ?? winner.vs.url; img.alt = ''; img.draggable = false;
+      if (!winner.vs.card) liven(img, winner.vs.cls, winner.vs.win ? 'win' : 'vs');
     }
     const c = this.el('div', 'b-call slam', r);
     if (!this.art(c, o.title.toLowerCase(), o.title === 'DRAW' ? 211 : 230)) this.word(c, o.title, o.title === 'VICTORY' ? 'gold' : o.title === 'DEFEAT' ? 'blood' : 'steel', 168); // (DRAW at the round call's scale)

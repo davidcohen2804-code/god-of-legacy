@@ -9,6 +9,7 @@ import { CLASS_NAMES } from '../config/layout';
 import { heroArt } from '../pvp/Fighters';
 import { syncOverlay } from './CharacterSelectUI';
 import { heroFx } from './HeroFx';
+import { liven } from './LivingArt';
 
 /** One side of the loading screen: a fighter's name and class (`you`: yours). */
 export interface LoadSide { name: string; cls: string; you?: boolean }
@@ -122,6 +123,7 @@ export function showArenaLoading(scene: Phaser.Scene, l: LoadSide, r: LoadSide, 
     if (fx) h.appendChild(fx.back);
     const img = el('img', '', el('div', a.card ? 'al-art card' : 'al-art', h));
     img.src = a.url; img.alt = ''; img.draggable = false;
+    if (!a.card) liven(img, f.cls, 'vs'); // (the painting itself moves: cloth and hair in the wind, breathing)
     if (fx) h.appendChild(fx.front);
   }
   el('div', 'al-seam', box);
