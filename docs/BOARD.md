@@ -21,7 +21,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 
 ## Open items
 ### Everyone first
-- [ ] Movements (made the hero art): write `docs/ART_STYLE.md` — base prompt, per-hero reference images, palette, lighting, line weight, camera angle, frame sizes.
+- [x] Movements: `docs/ART_STYLE.md` written (look, per-hero refs, palette, lighting, camera, frame sizes, GPT / PixVerse recipes, effects rules, the pipeline in `tools/heroes/pipeline/`).
 
 ### Skills, effects and hit frames (each class chat, for its own class)
 - [ ] Review every skill's frames: clear windup → sharp impact frame (smear / motion lines on the hit frame) → readable follow-through. Redo weak frames with GPT/PixVerse.
@@ -53,5 +53,9 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 ## Decisions for David
 
 ## Done
+- Movements: `docs/ART_STYLE.md` + the art pipeline scripts in `tools/heroes/pipeline/` (PixVerse driver, keying, cycle cutting, stills placement, in-game capture)
+- Movements: every hero's jump + djump repainted (GPT stills), gambler djump (Card Step), Beginner jump — 3360e0a, 55fa84f, ab33d6e
+- Movements: painted hit states wired in heroPose (hurt / launched by vz / down_impact → down / getup) — 78ed600 (DFO PvP arena dynamics: check in the arena)
+- Movements: PixVerse run cycles for all six heroes — 1a2e397, 433e3b0
 - DFO PvP arena dynamics: online P2P checked in two browsers (both connect, hits sync) — bbbe9097
 - DFO PvP arena dynamics: no MP in the arena — a4b1f4ac
