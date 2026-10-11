@@ -804,7 +804,8 @@ const gambler: FinalSkill[] = [
     id: 'staff_vault', cls: 'gambler', arenaDmg: 1.15, slot: 2, name: 'Staff Vault', roles: ['gapClose', 'launcher', 'escape'], targeting: 'mouseTarget', // locks the foe ahead: the vault comes down on him, not past him
     startup: 120, active: 340, recovery: 200, cooldown: 4000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 220, lift: 110, crash: true },
-    hits: [H(220, 8, { kind: 'circle', radius: 80 }, { stun: 300, push: 6 }, { reachUp: 150, fuse: true }),
+    hits: [H(40, 6, { kind: 'capsule', radius: 30 }, { stun: 340, push: 2 }, { reachUp: 150 }), // (balance: the staff catches whoever it vaults through — the opener lands from the distance fights open at)
+      H(220, 8, { kind: 'circle', radius: 80 }, { stun: 300, push: 6 }, { reachUp: 150, fuse: true }),
       H(300, 14, { kind: 'circle', radius: 90 }, { stun: 420, launch: 95, juggleCost: 16 }, { reachUp: 160, heavy: true, fuse: true })],
     cancelOnHit: ['rotor_staff', 'showdown', 'riffle_shuffle'], telegraph: 'line',
     description: 'Plant the staff and vault over in a long arc, landing in a double kick that lifts the foe. Aim backwards to vault away.',
@@ -891,10 +892,10 @@ const gambler: FinalSkill[] = [
   }),
   S({
     id: 'ace_in_the_hole', cls: 'gambler', slot: 12, name: 'Ace in the Hole', roles: ['precision', 'projectile'], targeting: 'mouseProjectile',
-    startup: 420, active: 0, recovery: 220, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 34, { kind: 'projectile', speed: 1100, range: 700, radius: 18, pierce: true }, { stun: 460, push: 30 }, { reachUp: 100, heavy: true, stick: 2 })],
+    startup: 300, active: 0, recovery: 220, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, // (balance: 420 → 300, a usable opener)
+    hits: [H(0, 34, { kind: 'projectile', speed: 1100, range: 700, radius: 22, pierce: true }, { stun: 460, push: 30 }, { reachUp: 100, heavy: true, stick: 2 })],
     // where its flight ends, the ace stops, spins and blows up (0.64s of flight + its spin)
-    linger: { at: 'aim', offset: 700, startMs: 870, everyMs: 1000, count: 1, radius: 130, maxZ: 140, hit: H(0, 26, { kind: 'circle', radius: 130 }, { stun: 460, launch: 110, juggleCost: 18 }, { reachUp: 140, heavy: true }) },
+    linger: { at: 'aim', offset: 700, startMs: 750, everyMs: 1000, count: 1, radius: 130, maxZ: 140, hit: H(0, 26, { kind: 'circle', radius: 130 }, { stun: 460, launch: 110, juggleCost: 18 }, { reachUp: 140, heavy: true }) },
     cancelOnHit: ['rotor_staff', 'showdown'], telegraph: 'line',
     description: 'One great ace, charged between two fingers and thrown like a lance: it tears straight through every foe in the line, sticking in each with a double charge — then stops dead at the end of its flight, spins and blows up, throwing everyone there into the air. It always deals an Ace to your Hand.',
     relations: ['Pierces', 'Always an Ace'],
