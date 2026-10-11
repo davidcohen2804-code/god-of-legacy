@@ -947,8 +947,8 @@ const gambler: FinalSkill[] = [
     hits: [],
     // the card he leaves where he stood: a charged bomb that goes off 0.45s later
     linger: { at: 'origin', startMs: 450, everyMs: 1000, count: 1, radius: 110, maxZ: 120, hit: H(0, 16, { kind: 'circle', radius: 110 }, { stun: 400, launch: 80, juggleCost: 14 }, { reachUp: 120, heavy: true }) },
-    cancelOnHit: [],
-    description: 'Flick a card and swap places with it in a flash — up to 210 px, any direction, in the air too; twice in a row. The card left where you stood is charged: 0.45s later it blows up whoever chased you there.',
+    cancelOnHit: ['staff_vault'],
+    description: 'Flick a card and swap places with it in a flash — up to 210 px, any direction, in the air too; twice in a row. The card left where you stood is charged: 0.45s later it blows up whoever chased you there. When the bomb catches a foe, Staff Vault comes out at once on him: the way back into a combo.',
     relations: ['2 swaps in a row', 'Leaves a card bomb'],
   }),
   S({

@@ -2437,7 +2437,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     const target = this.resolveCast(s);
     if (!target) return false;
-    const followUp = !!run && run.confirmedAt >= 0 && run.skill.id !== s.id; // a combo follow-up (hit-confirm cancel)
+    const followUp = (!!run && run.confirmedAt >= 0 && run.skill.id !== s.id) || (s.id === 'staff_vault' && this.simMs < this.gSwapOpenUntil); // a combo follow-up (hit-confirm cancel; Card Swap's bomb opens one into Staff Vault)
     if (run) { this.rt.cancelForFollowUp(run); this.endRun(run, true); }
     this.startCast(s, stage, target.aim, target.place, target.lock, followUp);
     return true;
@@ -2574,6 +2574,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
   /** The ace blows up where it stopped (a wall, its range); the thrown foe's bomb where he came down. */
   private gAceEnd = new Map<string, { x: number; y: number }>();
+  private gSwapOpenUntil = -1;
   private gamblerZoneAt(l: { run: CastRun; x: number; y: number }): void {
     if (l.run.skill.id === 'ace_in_the_hole') { const e = this.gAceEnd.get(l.run.castId); if (e) { l.x = e.x; l.y = e.y; } return; }
     if (l.run.skill.id === 'kinetic_grab') {
@@ -2627,6 +2628,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       }
       out = { ...out, reaction: R };
     }
+    if (s.id === 'card_swap' && run.own) this.gSwapOpenUntil = now + 700; // the bomb caught him: Staff Vault comes out at once on him
     if (s.id === 'pickup_52' && last) { // the detonation finisher: every card in him goes off with the last wave
       const n = this.gStuck.take(targetId, now);
       out = { ...out, damage: Math.round(out.damage * (n > 0 ? 0.7 + 0.45 * n : 0.5)) };
