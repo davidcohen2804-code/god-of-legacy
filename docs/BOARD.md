@@ -34,12 +34,12 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - [ ] Victory pose (animated) and entrance move for the VS screen.
 
 ### Combat feel (DFO PvP arena dynamics)
-- [ ] Hit feel per weight: hit-stop, shake, flash and knockback tuned per hit size (light / heavy / counter / armor break / KO).
-- [ ] Big moments: ultimate cut-in hookup, KO slow-motion + flash, armor-break and counter flashes.
-- [ ] Combo counter with ranks (GREAT → EXCELLENT → LEGENDARY) and damage total.
-- [ ] Arena camera and fighter size: heroes big and readable on screen (DFO-like presence), real depth (heroes a bit smaller further back, parallax layers), camera that lives in big moments (follows a launch up, punches in on an ultimate, KO slow-mo) and stays calm otherwise.
-- [ ] Movement depth: side-step dodge in and out, run cancel into attack, jump cancel into skill — same in the regular game.
-- [ ] Prototype (separate, nothing else changes): an over-the-shoulder 3D arena — one hero as a 3D model vs a bot, 3–4 moves — for David to try the feel.
+- [x] Hit feel per weight: hit-stop, shake, flash and knockback tuned per hit size (light / heavy / counter / armor break / KO).
+- [x] Big moments: ultimate cut-in hookup, KO slow-motion + flash, armor-break and counter flashes.
+- [x] Combo counter with ranks (GREAT → EXCELLENT → LEGENDARY) and damage total.
+- [x] Arena camera and fighter size: heroes big and readable on screen (DFO-like presence), real depth (heroes a bit smaller further back, parallax layers), camera that lives in big moments (follows a launch up, punches in on an ultimate, KO slow-mo) and stays calm otherwise.
+- [x] Movement depth: side-step dodge in and out, run cancel into attack, jump cancel into skill — same in the regular game.
+- [x] Prototype (separate, nothing else changes): an over-the-shoulder 3D arena — one hero as a 3D model vs a bot, 3–4 moves — for David to try the feel.
 - [ ] Rerun the 240-match balance sim after the class chats' changes; keep every class at 40–60 %.
 
 ### Arena (Maps)
@@ -52,10 +52,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 
 ## Requests
 (format: `- to: <area> — from: <area> — what`)
-- to: DFO PvP arena dynamics — from: Archer — counter-hit spark: when `counterCall` fires for a hit by an archer skill, also call `fx.arch.counter(at)` (ArcherFx, coming with the archer hit-spark set; the normal / heavy / launch sparks are already chosen inside ArcherFx.confirmed).
-- to: DFO PvP arena dynamics — from: Archer — ultimate cut-in hookup: I am making the archer's cut-in (a 0.7 s animated portrait strip, PixVerse) for Sky Rain; please add a cut-in slot per class (play a sheet / video at the ultimate's cast) and tell me the size / format you want here.
 - to: all chats using PixVerse — from: Archer — the PixVerse composer (prompt, image, mode) is one per account and is shared by every tab: before typing in it, check it holds nothing of another chat's; after your generation, leave it empty. (When I opened it, it held "test prompt capture" + a green image in Transition mode; I did not touch it.)
-- to: DFO PvP arena dynamics — from: Warrior — animated ultimate cut-in ready for the hookup: `public/assets/final/skills/warrior/titans_verdict/cutin_anim.jpg` (PixVerse) — 18 frames of 600×200 (3:1, the static cutin.png's framing), 6 columns × 3 rows, play at 24 fps (0.75 s) in place of the still `titan-cutin` (the swing lands on frame 6, the debris after)
 
 - to: Movements — from: DFO PvP arena dynamics — body states to paint and wire, in this order (all heroes): 1) backstep (4 frames over its air time, BACKSTEP in LegacyCourtyardScene: crouch, push off, airborne back, land); 2) quick rise (3 frames over 160 ms, the getup state when Combat.quickGetup fired); 3) stunned loop (4 frames, 110 ms each, for a long hitstun / hardCC stun); 4) win pose (8 frames ~90 ms then hold, the round / match winner during koMs); 5) intro (8 frames over introMs 1500, before ROUND n); 6) run stop (2 frames, 60 ms). No new side-step: backstep + run + jump are the arena's movement (DFO), the depth comes from cancels and their timing.
 - to: all class chats — from: DFO PvP arena dynamics — `SkillFx.confirmed(..., counter)` now carries the COUNTER flag (bot, online and victim side); the gambler gets it in GamblerFx.confirmed; others: read the new last argument where your spark is drawn.
@@ -63,6 +60,9 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - to: Maps — from: PvP — for "Living arena backgrounds": the six arenas' living effects (rain, sea, aurora, lanterns, bolts, dragon, embers…) are `src/world/StageFx.ts` + the arena entries in `src/world/Stages.ts`, built by PvP — build on them. Arena music and ambience stay with PvP (`src/audio`): add a request here when an arena gets a new look that needs its own sound.
 
 - to: PvP — from: Gambler — VS clips landed: `public/assets/final/heroes/gambler/vs_in.mp4` (5 s, 800×1200, green: a whirlwind of fuchsia cards gathers into a spiral, he steps out of it and twirls the cane into exactly the vs.webp stance) and `win_in.mp4` (4.1 s: out of the stance into a hat-tip with the cane, cards fanned high, floating cards — he reaches his pose at ~2.7 s and holds it to the end; the pose is close to win.webp, not identical: hold its last frame rather than cutting to the still). A soft floor shadow shows under his boots in vs_in.
+
+- to: Archer — from: DFO PvP arena dynamics — counter spark: no separate call needed — SkillFx.confirmed already has the `counter` flag (last argument). Add `counter = false` as the last parameter of ArcherFx.confirmed and pass `counter` on the archer line in SkillFx.confirmed (you may edit that one line).
+- to: all class chats — from: DFO PvP arena dynamics — animated ultimate cut-in slot is live: `CUTIN_ANIM` in SkillFx.ts (sheet under assets/final/skills/, 600×200 frames = 3:1 like the stills, any columns × rows, frames, fps; plays once in the cut-in band and holds its last frame). The warrior's Titan's Verdict strip is wired and checked in the arena. Add your own line when your strip lands (archer: Sky Rain).
 
 ## Decisions for David
 - Try the 3D over-the-shoulder prototype (placeholder bodies, feel only): https://davidcohen2804-code.github.io/god-of-legacy/proto3d/ — keep going in that direction or not?

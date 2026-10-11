@@ -44,6 +44,12 @@ const ARCHER_GROUND: Record<string, number> = { rising_arrow: 0.94, leaping_arro
 const ARCHER_OWN = new Set(['vine_trap', 'rain_of_arrows', 'rising_arrow', 'leaping_arrow', 'retreat_kick', 'bow_haste', 'hunters_roar', 'spirit_hawk', 'tree_of_life', 'hunters_spirit', 'arrow_storm', 'sky_rain', 'eagle_arrow', 'piercing_arrow']);
 /** Ultimate cut-in art per skill. */
 const CUTIN: Record<string, string> = { titans_verdict: 'titan-cutin', sky_rain: 'archer-cutin', dragon_eclipse: 'samurai-cutin', time_collapse: 'mage-cutin' };
+/** Animated ultimate cut-ins (a class chat's PixVerse strip, played in place of the still one): sheet path under
+ *  assets/final/skills/, frame size (3:1 like the stills), columns × rows, frames and fps. Add a line per hero. */
+const CUTIN_ANIM: Record<string, { path: string; fw: number; fh: number; frames: number; fps: number }> = {
+  titans_verdict: { path: 'warrior/titans_verdict/cutin_anim.jpg', fw: 600, fh: 200, frames: 18, fps: 24 },
+};
+const cutAnimKey = (id: string): string => `cutin-anim-${id}`;
 /** Orientation of each final VFX sheet: 'dir' sheets are drawn pointing right and rotate with the aim. */
 /** Upright sheets whose bottom edge is the ground line (drawn standing on the impact point). */
 /** Ground-point origin (fraction of the cell height) for sheets drawn standing on the impact point. */
@@ -203,6 +209,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   if (!scene.textures.exists('banner-rally')) scene.load.spritesheet('banner-rally', `${F}/skills/warrior/legacy_banner/rally.png`, { frameWidth: 512, frameHeight: 512 }); // Legacy Banner: the lion of light that roars behind it
   if (!scene.textures.exists('titan-field')) scene.load.spritesheet('titan-field', `${F}/skills/warrior/titans_verdict/field.png`, { frameWidth: 512, frameHeight: 256 }); // the electrified floor it leaves
   if (!scene.textures.exists('titan-cutin')) scene.load.image('titan-cutin', `${F}/skills/warrior/titans_verdict/cutin.png`);
+  for (const [id, a] of Object.entries(CUTIN_ANIM)) if (!scene.textures.exists(cutAnimKey(id))) scene.load.spritesheet(cutAnimKey(id), `${F}/skills/${a.path}`, { frameWidth: a.fw, frameHeight: a.fh });
   if (!scene.textures.exists('holy-aura')) scene.load.spritesheet('holy-aura', `${F}/skills/warrior/radiant_blade/aura.png`, { frameWidth: 250, frameHeight: 667 });
   if (!scene.textures.exists('holy-bolt')) scene.load.spritesheet('holy-bolt', `${F}/skills/warrior/radiant_blade/bolt.png`, { frameWidth: 250, frameHeight: 500 });
   if (!scene.textures.exists('radiant-slash')) scene.load.spritesheet('radiant-slash', `${F}/skills/warrior/radiant_blade/slash_trail.jpg`, { frameWidth: 288, frameHeight: 288 }); // the blade of light's slash trail (GPT, on black: additive)
@@ -1056,8 +1063,12 @@ export class SkillFx {
     const cutKey = CUTIN[r.skill.id];
     if (cutKey && this.scene.textures.exists(cutKey)) {
       const v = cam.worldView, w = v.width * 0.9, cy = v.y + v.height * 0.42;
-      const img = this.scene.add.image(v.x - w / 2, cy, cutKey).setDepth(TOP + 50); // slides in from the left
+      const anim = CUTIN_ANIM[r.skill.id], ak = cutAnimKey(r.skill.id), animated = !!anim && this.scene.textures.exists(ak);
+      const img = this.scene.add.image(v.x - w / 2, cy, animated ? ak : cutKey, animated ? 0 : undefined).setDepth(TOP + 50); // slides in from the left
       img.setDisplaySize(w, w / 3);
+      if (animated) { // the painted strip plays through once and holds its last frame
+        let at = 0; const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { at += 16; if (!img.active) { ev.remove(); return; } img.setFrame(Math.min(anim.frames - 1, Math.floor((at * anim.fps) / 1000))); } });
+      }
       const band = this.scene.add.rectangle(v.centerX, cy, v.width, w / 3 + 16, 0x000000, 0.55).setDepth(TOP + 49).setScale(1, 0);
       this.scene.tweens.add({ targets: band, scaleY: 1, duration: 120, ease: 'Cubic.easeOut' });
       const out = r.timings.startup < 700 ? Math.max(320, r.timings.startup - 80) : r.skill.cls === 'samurai' ? Math.max(600, r.timings.startup - 300) : r.skill.id === 'titans_verdict' ? Math.max(420, Math.round(r.timings.startup * 0.51)) : 1100; // (a fast arena ultimate: gone before its first hit) // (Titan: paced to its short wind-up) // (samurai: gone before the eight cuts out of the dark)
