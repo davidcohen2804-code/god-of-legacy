@@ -221,6 +221,9 @@ def main():
         used.append({'image': f'kit-{pi}.webp', 'format': 'RGBA8888', 'size': {'w': PAGE, 'h': hh}, 'scale': 1, 'frames': frames[pi]})
         print(f'page {pi}: {PAGE}x{hh}', f'{os.path.getsize(OUT + f"kit-{pi}.webp") / 1024:.0f} KB')
     json.dump({'textures': used, 'meta': {'app': 'tools/skills/kit.py'}}, open(OUT + 'kit.json', 'w'), separators=(',', ':'))
+    if prof is PROFILES['samurai']:   # the samurai's pieces in the class's other tones (each skill its own colour)
+        import kit_tones
+        kit_tones.main()
 
 
 if __name__ == '__main__':

@@ -17,8 +17,25 @@ const CRACK_TILT = -57;
 const SLASH_TILT = 43;
 /** A trail of the blade (blade_trail) / a flipped piece: angle that points it along `ang` (deg on screen). */
 const along = (ang: number, left: boolean) => (left ? ang - 180 : ang);
-/** Hits whose cut "arrives late": a thin line stays on the foe and splits open a beat after. */
-const DELAYED = new Set(['shadow_step', 'iai_strike', 'dragon_eclipse', 'mirage']);
+/** Hits whose cut "arrives late": a thin line stays on the foe and splits open a beat after (the Iai's signature, and the
+ *  ultimate's great cut). */
+const DELAYED = new Set(['iai_strike', 'dragon_eclipse']);
+/** The class's tones (tools/skills/kit_tones.py: `<piece>@<tone>`; no tone: the crimson originals). Every skill carries its
+ *  own: steel (the bare blade), gold, sakura, rose, fire, blood (dark ink-red) — and crimson. */
+type Tone = 'steel' | 'gold' | 'sakura' | 'rose' | 'fire' | 'blood';
+/** Each skill's signature colour (its cuts, sparks and hit marks): no two skills of the class look alike. */
+const SKILL_TONE: Record<string, Tone | undefined> = {
+  quick_slash: 'steel', shadow_step: 'blood', sheathe: 'gold', iai_strike: 'steel', sword_wave: 'gold', mirage: 'rose', blossom_storm: 'sakura',
+  dragon_eclipse: undefined, swallow_cut: undefined, hundred_cuts: 'steel', kagemusha: undefined, tornado_blade: 'steel', falcon_dive: 'fire',
+  rising_sun: 'gold', phantom_blades: undefined, god_of_blades: 'gold', sakura_bind: 'sakura', dragon_ascension: 'gold',
+};
+/** A piece in a tone (the crimson original when no tone). */
+const tn = (name: string, tone?: Tone) => (tone ? `${name}@${tone}` : name);
+/** Light colours of the tones (tints of white light, ribbons, silhouettes' rims). */
+const TONE_RGB: Record<Tone | 'crimson', [number, number, number]> = {
+  crimson: [255, 48, 72], steel: [214, 228, 255], gold: [255, 196, 72], sakura: [255, 150, 196], rose: [255, 92, 176], fire: [255, 120, 36], blood: [150, 10, 24],
+};
+const toneHex = (t: Tone | 'crimson') => { const [r, g, b] = TONE_RGB[t]; return (r << 16) | (g << 8) | b; };
 /** God of Blades: a katana of the halo (drawn length) and the halo itself (drawn width). */
 const KATANA = 150, HALO = 190;
 /** Rising Sun's buff (its light stays on him this long). */
@@ -121,14 +138,22 @@ export class SamuraiFx {
     return () => { const c = this.ctx.casterPos(r.attackerId); return c ? { x: c.x + side * dx, y: c.y - c.z - dz + dy, d: c.y } : null; };
   }
 
+  /** A piece's frame name as the atlas has it (a toned piece the atlas lacks: its crimson original). */
+  private fname(name: string): string {
+    const t = this.ctx.scene.textures;
+    if (!name.includes('@') || !t.exists(KIT) || t.get(KIT).has(name)) return name;
+    return name.slice(0, name.indexOf('@'));
+  }
+
   private spr(o: Spr): Phaser.GameObjects.Image | null {
     const s = this.ctx.scene;
     if (!s.textures.exists(KIT)) return null;
-    const fr = s.textures.getFrame(KIT, o.name); if (!fr) return null;
+    const name = this.fname(o.name);
+    const fr = s.textures.getFrame(KIT, name); if (!fr) return null;
     const fw = fr.cutWidth || fr.width, fh = fr.cutHeight || fr.height;
     const bx = o.w / fw, by = (o.h ?? (o.w * fh) / fw) / fh;
     const mk = (glow: boolean) => {
-      const im = s.add.image(o.x ?? 0, o.y ?? 0, KIT, o.name).setOrigin(o.ox ?? 0.5, o.oy ?? 0.5).setFlip(!!o.flipX, !!o.flipY).setVisible(false)
+      const im = s.add.image(o.x ?? 0, o.y ?? 0, KIT, name).setOrigin(o.ox ?? 0.5, o.oy ?? 0.5).setFlip(!!o.flipX, !!o.flipY).setVisible(false)
         .setBlendMode(glow || o.add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
       if (o.tint !== undefined) im.setTint(o.tint);
       if (o.crop !== undefined) im.setCrop(0, fh * o.crop, fw, fh * (1 - o.crop));
@@ -160,6 +185,7 @@ export class SamuraiFx {
     depth?: number; delay?: number; add?: boolean; glow?: number; squash?: number; run?: CastRun; h?: number; tint?: number } = {}): void {
     const s = this.ctx.scene;
     if (!s.textures.exists(KIT)) return;
+    name = this.fname(name);
     const fr = s.textures.getFrame(KIT, name); if (!fr) return;
     const mk = (glow: boolean) => {
       const im = s.add.image(0, 0, KIT, name).setDisplaySize(w, o.h ?? (w * fr.height) / fr.width).setBlendMode(glow || o.add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
@@ -209,8 +235,16 @@ export class SamuraiFx {
   }
 
   /** A shockwave ring on the floor (its colour drawn solid, its light added over it: it reads on bright floors too). */
-  private shock(x: number, y: number, w: number, o: { delay?: number; tint?: number; life?: number } = {}): void {
-    this.spr({ name: 'shock_ring', x, y, depth: GROUND + 2.5, w, delay: o.delay, glow: 0.6, tint: o.tint, life: o.life ?? 420, sx: kf([0, 0.25], [1, 1.25, out3]), sy: kf([0, 0.25], [1, 1.25, out3]), a: kf([0, 1], [0.35, 1], [1, 0, inQ]) });
+  private shock(x: number, y: number, w: number, o: { delay?: number; tint?: number; life?: number; tone?: Tone } = {}): void {
+    this.spr({ name: tn('shock_ring', o.tone), x, y, depth: GROUND + 2.5, w, delay: o.delay, glow: 0.6, tint: o.tint, life: o.life ?? 420, sx: kf([0, 0.25], [1, 1.25, out3]), sy: kf([0, 0.25], [1, 1.25, out3]), a: kf([0, 1], [0.35, 1], [1, 0, inQ]) });
+  }
+  /** Sparks of a tone thrown out from (x, y) and falling (the accent of the skills that carry no petals). */
+  private sparks(x: number, y: number, n: number, spread: number, o: { tone?: Tone; depth?: number; delay?: number; life?: number; up?: number } = {}): void {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, d = spread * rnd(0.35, 1), tx = Math.cos(a) * d, ty = Math.sin(a) * d * 0.6 - (o.up ?? 0), life = (o.life ?? 420) * rnd(0.7, 1.2);
+      this.spr({ name: tn('spark_s', o.tone), x, y, depth: o.depth ?? TOP + 2, w: rnd(14, 24), life, delay: o.delay, angle: rnd(0, 360), glow: 0.7,
+        mx: (u) => tx * out(u), my: (u) => ty * out(u) + 30 * u * u, rot: (u) => 180 * u, a: kf([0, 1], [0.55, 1], [1, 0, inQ]) });
+    }
   }
   /** Dust kicked up: two puffs the colour of the ground rolling out to the sides, thinning as they go. */
   private dust(x: number, y: number, w: number, delay = 0): void {
@@ -227,9 +261,9 @@ export class SamuraiFx {
     this.floor('crack', x, y, len * 0.82, 1700, { angle: ang + CRACK_TILT, squash: 0.5, delay, glow: 0.7, depth: GROUND + 1.5, a: kf([0, 0], [0.04, 1], [0.6, 1], [1, 0, inQ]), s: kf([0, 0.7], [0.08, 1, out3]) });
   }
   /** A foe thrown up: a beam from under it and streaks of light and petals shooting up after it. */
-  private launchBeam(x: number, y: number, h = 110): void {
-    this.spr({ name: 'launch_beam', x, y: y + 4, oy: 0.95, depth: y + 3, w: h * 1.45, h, life: 280, glow: 0.3, sx: kf([0, 0.6], [1, 0.85]), sy: kf([0, 0.2], [0.3, 1, out3], [1, 1.15]), a: kf([0, 0.8], [0.35, 0.8], [1, 0, inQ]) });
-    this.spr({ name: 'launch_streaks', x, y: y + 6, oy: 0.97, depth: y + 3.2, w: h * 0.78, h: h * 1.35, life: 440, glow: 0.35, my: (u) => -46 * out(u),
+  private launchBeam(x: number, y: number, h = 110, tone?: Tone): void {
+    this.spr({ name: tn('launch_beam', tone), x, y: y + 4, oy: 0.95, depth: y + 3, w: h * 1.45, h, life: 280, glow: 0.3, sx: kf([0, 0.6], [1, 0.85]), sy: kf([0, 0.2], [0.3, 1, out3], [1, 1.15]), a: kf([0, 0.8], [0.35, 0.8], [1, 0, inQ]) });
+    this.spr({ name: tn('launch_streaks', tone), x, y: y + 6, oy: 0.97, depth: y + 3.2, w: h * 0.78, h: h * 1.35, life: 440, glow: 0.35, my: (u) => -46 * out(u),
       sy: kf([0, 0.25], [0.3, 1, out3], [1, 1.2]), sx: kf([0, 0.7], [0.3, 1]), a: kf([0, 1], [0.45, 0.9], [1, 0, inQ]) });
   }
   /** A power aura flaring up round him (aura_gold / aura_crimson): flames rising from a ring at his feet, flaring, fading —
@@ -286,9 +320,9 @@ export class SamuraiFx {
         sx: kf([0, 0.4], [0.12, 1, back]), sy: kf([0, 0.4], [0.12, 1, back]), a: kf([0, 0], [0.1, 0.9], [0.88, 0.9], [1, 0]) });
   }
   /** The blade's glint at the hand (or in front of the chest): a four-pointed star that flares and turns. */
-  private glint(r: CastRun, delay: number, size: number, dz = 62): void {
+  private glint(r: CastRun, delay: number, size: number, dz = 62, tone?: Tone): void {
     const f = this.front(r, 16, dz);
-    this.spr({ name: 'glint', w: size * 1.5, delay, life: 300, run: r, glow: 0.8, dz: 6,
+    this.spr({ name: tn('glint', tone), w: size * 1.5, delay, life: 300, run: r, glow: 0.8, dz: 6,
       follow: () => { const h = this.ctx.hand(r.attackerId), p = f(); return h && p ? { x: h.x, y: h.y, d: p.d } : p; },
       sx: kf([0, 0.2], [0.25, 1.15, out3], [1, 0.6]), sy: kf([0, 0.2], [0.25, 1.15, out3], [1, 0.6]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]), rot: (u) => 45 * (1 - out(u)) });
   }
@@ -332,15 +366,17 @@ export class SamuraiFx {
     };
   }
 
-  /** A band of light across its width (clear at its edges, crimson, a white-hot core): ribbons of light are drawn with it. */
-  private ribbonTex(): string {
-    const tm = this.ctx.scene.textures, key = 'sam-ribbon';
+  /** A band of light across its width (clear at its edges, the tone's colour — crimson by default — a white-hot core):
+   *  ribbons of light are drawn with it. */
+  private ribbonTex(tone?: Tone): string {
+    const tm = this.ctx.scene.textures, key = tone ? `sam-ribbon-${tone}` : 'sam-ribbon';
     if (!tm.exists(key)) {
       const c = tm.createCanvas(key, 8, 64);
       if (c) {
+        const [r, gg, b] = TONE_RGB[tone ?? 'crimson'], mid = (k: number) => [r, gg, b].map((v) => Math.round(v + (255 - v) * k)).join(',');
         const g = c.context, gr = g.createLinearGradient(0, 0, 0, 64);
-        ([[0, 'rgba(255,40,72,0)'], [0.1, 'rgba(255,40,72,0.42)'], [0.26, 'rgba(255,66,94,0.92)'], [0.4, 'rgba(255,168,180,1)'], [0.5, 'rgba(255,250,250,1)'], [0.6, 'rgba(255,168,180,1)'],
-          [0.74, 'rgba(255,66,94,0.92)'], [0.9, 'rgba(255,40,72,0.42)'], [1, 'rgba(255,40,72,0)']] as const)
+        ([[0, `rgba(${mid(0)},0)`], [0.1, `rgba(${mid(0)},0.42)`], [0.26, `rgba(${mid(0.1)},0.92)`], [0.4, `rgba(${mid(0.55)},1)`], [0.5, 'rgba(255,250,250,1)'], [0.6, `rgba(${mid(0.55)},1)`],
+          [0.74, `rgba(${mid(0.1)},0.92)`], [0.9, `rgba(${mid(0)},0.42)`], [1, `rgba(${mid(0)},0)`]] as const)
           .forEach(([at, col]) => gr.addColorStop(at, col));
         g.fillStyle = gr; g.fillRect(0, 0, 8, 64); c.refresh();
       }
@@ -365,8 +401,8 @@ export class SamuraiFx {
   /** A ribbon of light behind a moving point (where it went in the last `span` ms): widest and brightest at its head,
    *  thinning to nothing at its tail; drawn solid with its light added over it. It stops growing when `at` gives nothing
    *  (or `until` ms pass) and fades out over `fade` ms. */
-  private trail(at: (t: number) => Pt | null, o: { span: number; w: number; tint?: number; glow?: number; until?: number; fade?: number; delay?: number; run?: CastRun }): void {
-    const key = this.ribbonTex(), N = 24, base = this.strip(undefined, N, { key, tint: o.tint }), light = this.strip(undefined, N, { key, add: true });
+  private trail(at: (t: number) => Pt | null, o: { span: number; w: number; tint?: number; glow?: number; until?: number; fade?: number; delay?: number; run?: CastRun; tone?: Tone }): void {
+    const key = this.ribbonTex(o.tone), N = 24, base = this.strip(undefined, N, { key, tint: o.tint }), light = this.strip(undefined, N, { key, add: true });
     const hist: { x: number; y: number; d: number; t: number }[] = [], fade = o.fade ?? 180;
     let stop = -1;
     const kill = () => { base.destroy(); light.destroy(); };
@@ -404,14 +440,14 @@ export class SamuraiFx {
    *  `place(path, neck, alpha, melt)` lays it along a path (s ↦ point, s = the distance along it) with its neck at distance
    *  `neck`; what lies before the path's start (s < 0, still in the floor) is not drawn; `melt` (0..1) melts it away from
    *  its tail tip to its head. `flip`: its back stays up when it flies to the left (the picture turned over). */
-  private serpent(thick: number, o: { glow?: number; flip?: boolean } = {}) {
-    const s = this.ctx.scene, NB = 28, NT = 12, flip = !!o.flip, glow = o.glow ?? 0.35, ADD = Phaser.BlendModes.ADD;
+  private serpent(thick: number, o: { glow?: number; flip?: boolean; tone?: Tone } = {}) {
+    const s = this.ctx.scene, NB = 28, NT = 12, flip = !!o.flip, glow = o.glow ?? 0.35, ADD = Phaser.BlendModes.ADD, P = (n: string) => this.fname(tn(n, o.tone));
     const LB = thick * 7.2, LT = thick * 4.4, all = LB + LT;
-    const body = this.strip('dragon_body', NB, { flipY: flip }), shine = this.strip('dragon_body', NB, { add: true, flipY: flip });
-    const tail = this.strip('dragon_tail', NT, { flipX: true, flipY: flip });
-    const head = s.add.image(0, 0, KIT, 'dragon_head').setOrigin(0.06, 0.62).setVisible(false).setFlipY(flip);
-    const hg = s.add.image(0, 0, KIT, 'dragon_head').setOrigin(0.06, 0.62).setBlendMode(ADD).setVisible(false).setFlipY(flip);
-    const claws = [0, 1].map(() => s.add.image(0, 0, KIT, 'dragon_claw').setOrigin(0.1, 0.24).setVisible(false).setFlipY(flip));
+    const body = this.strip(P('dragon_body'), NB, { flipY: flip }), shine = this.strip(P('dragon_body'), NB, { add: true, flipY: flip });
+    const tail = this.strip(P('dragon_tail'), NT, { flipX: true, flipY: flip });
+    const head = s.add.image(0, 0, KIT, P('dragon_head')).setOrigin(0.06, 0.62).setVisible(false).setFlipY(flip);
+    const hg = s.add.image(0, 0, KIT, P('dragon_head')).setOrigin(0.06, 0.62).setBlendMode(ADD).setVisible(false).setFlipY(flip);
+    const claws = [0, 1].map(() => s.add.image(0, 0, KIT, P('dragon_claw')).setOrigin(0.1, 0.24).setVisible(false).setFlipY(flip));
     const hk = (thick * 1.7) / head.height, ck = (thick * 1.1) / claws[0].height;
     const sm = (u: number) => { const v = Math.max(0, Math.min(1, u)); return v * v * (3 - 2 * v); };
     const tangent = (path: (sv: number) => Pt, sv: number) => { const a = path(Math.max(0, sv - 6)), b = path(Math.max(0, sv) + 6); return Math.atan2(b.y - a.y, b.x - a.x); };
@@ -470,7 +506,7 @@ export class SamuraiFx {
   private castOne(r: CastRun, ghost: boolean): void {
     const s = r.skill, T = r.timings;
     switch (s.id) {
-      case 'quick_slash': if ((r.stage ?? 0) === 3) this.glint(r, T.startup * 0.3, 30); break;
+      case 'quick_slash': if ((r.stage ?? 0) === 3) this.glint(r, T.startup * 0.3, 30, 62, 'steel'); break;
       case 'shadow_step': this.glint(r, 0, 26, 50); break;
       case 'swallow_cut': this.glint(r, 0, 24); break;
       case 'sheathe': this.sheathe(r); break;
@@ -482,7 +518,7 @@ export class SamuraiFx {
       case 'kagemusha': this.glint(r, 0, 26, 52); this.petals(this.me(r).x, this.me(r).y - this.me(r).z - 50, 8, 80, { inward: true, life: T.startup + 60 }); break;
       case 'tornado_blade': this.airSpin(r); break;
       case 'falcon_dive': this.falcon(r); break;
-      case 'rising_sun': this.risingSun(r); break;
+      case 'rising_sun': this.risingSun(r); this.sunShield(r); break;
       case 'phantom_blades': if (!ghost) this.ctx.darken(T.startup + T.active + 160, 0.38); this.phantomField(r); break;
       case 'god_of_blades': this.halo(r); break;
       case 'sakura_bind': this.bind(r); break;
@@ -511,23 +547,25 @@ export class SamuraiFx {
       case 'swallow_cut': this.swallow(r, i); break;
       case 'iai_strike': this.iaiCut(r); break;
       case 'hundred_cuts': this.flurry(r, i); break;
-      case 'mirage': // the counter cut, from behind: a draw-cut across the attacker — drawn as far as it reaches (its 96 px, ~115 with his width)
-        this.cut('cut_heavy', 120, side * 8, { x: q.x + side * 52, y: y0 - 56, depth: TOP + 3, flipX: side < 0, grow: 60, hold: 60, fade: 220, glow: 0.7 });
-        this.spr({ name: 'blade_trail', x: q.x + side * 44, y: y0 - 52, w: 112, life: 260, flipX: side < 0, angle: side * 6, glow: 0.4, sx: kf([0, 0.6], [0.2, 1, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
-        this.spr({ name: 'cut_line', x: q.x + side * 6, y: y0 - 58, ox: side > 0 ? 0.03 : 0.97, flipX: side < 0, w: 112, h: 14, depth: TOP + 3.2, life: 250, glow: 0.85,
+      case 'mirage': // the counter cut, from behind: a draw-cut across the attacker — drawn as far as it reaches (its 96 px, ~115 with his width) — in
+        // the mirage's rose, a flash of bare steel along it and a white X on the attacker (the counter's mark)
+        this.cut(tn('cut_heavy', 'rose'), 120, side * 8, { x: q.x + side * 52, y: y0 - 56, depth: TOP + 3, flipX: side < 0, grow: 60, hold: 60, fade: 220, glow: 0.7 });
+        this.spr({ name: tn('blade_trail', 'rose'), x: q.x + side * 44, y: y0 - 52, w: 112, life: 260, flipX: side < 0, angle: side * 6, glow: 0.4, sx: kf([0, 0.6], [0.2, 1, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+        this.spr({ name: tn('cut_line', 'steel'), x: q.x + side * 6, y: y0 - 58, ox: side > 0 ? 0.03 : 0.97, flipX: side < 0, w: 112, h: 14, depth: TOP + 3.2, life: 250, glow: 0.85,
           sx: kf([0, 0.1], [0.16, 1, out3]), sy: kf([0, 1.3], [1, 0.3, inQ]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
+        this.cut(tn('cut_x', 'steel'), 128, 0, { x: q.x + side * 60, y: y0 - 58, depth: TOP + 3.4, grow: 40, hold: 50, fade: 200, glow: 0.9, sweep: 0 });
         if (r.own) this.ctx.cam().shake(150, 0.005);
         break;
       case 'kagemusha': this.kageVanish(r.origin); break; // he vanishes where he stood (every screen, from the cast)
-      case 'falcon_dive': if (i === 1) this.falconImpact(r); else this.cut('cut_thin', 120, side * 30, { x: q.x + side * 30, y: y0 - 40, depth: q.y + 4, flipX: side < 0 }); break;
+      case 'falcon_dive': if (i === 1) this.falconImpact(r); else this.cut(tn('cut_thin', 'fire'), 120, side * 30, { x: q.x + side * 30, y: y0 - 40, depth: q.y + 4, flipX: side < 0 }); break;
       case 'rising_sun': this.sunBurst(r); break;
       case 'phantom_blades': this.phantom(r, i); break;
-      case 'god_of_blades': this.shock(q.x, q.y, 300); this.petals(q.x, y0 - 80, 12, 120); this.auraFlare(r, 'aura_gold', 180, 820); break;
+      case 'god_of_blades': this.shock(q.x, q.y, 300, { tone: 'gold' }); this.sparks(q.x, y0 - 80, 12, 120, { tone: 'gold' }); this.auraFlare(r, 'aura_gold', 180, 820); break;
       case 'sakura_bind': this.bloom(r); break;
-      case 'dragon_ascension': if (i === 0) this.ascensionBurst(r); else this.cut('cut_thin', 150, rnd(-30, 30), { x: q.x + rnd(-60, 60), y: y0 - 90 - i * 70, depth: TOP + 3, flipX: Math.random() < 0.5 }); break;
+      case 'dragon_ascension': if (i === 0) this.ascensionBurst(r); else this.cut(tn('cut_thin', 'gold'), 150, rnd(-30, 30), { x: q.x + rnd(-60, 60), y: y0 - 90 - i * 70, depth: TOP + 3, flipX: Math.random() < 0.5 }); break;
       case 'blossom_storm': this.stormCut(r, i); break;
       case 'dragon_eclipse': if (i < r.hits.length - 1) this.eclipseSlash(r, i); else this.eclipseCut(r, o); break;
-      case 'tornado_blade': if (i === r.hits.length - 1) this.pop('burst', q.x + side * 36, y0 - 46, 110); break; // (the smash down)
+      case 'tornado_blade': if (i === r.hits.length - 1) { this.pop(tn('burst', 'steel'), q.x + side * 36, y0 - 46, 130); this.cut(tn('cut_x', 'steel'), 150, rnd(-10, 10), { x: q.x + side * 36, y: y0 - 46, depth: TOP + 3.5, grow: 35, hold: 40, fade: 160, sweep: 0 }); } break; // (the smash down)
     }
     void cam;
   }
@@ -563,36 +601,43 @@ export class SamuraiFx {
    *  blow came from (the cut and the sparks face away from there). */
   confirmed(s: FinalSkill, hit: HitEvent, at: V3, reaction: string, heavy: boolean, crit: boolean, from?: { x: number; y: number }, local = false): void {
     if (!this.ready) return;
-    const x = at.x, y = at.y - at.z - 38, rapid = s.hits.length > 3 && !hit.heavy, side = from && at.x < from.x - 2 ? -1 : 1;
+    const x = at.x, y = at.y - at.z - 38, rapid = s.hits.length > 3 && !hit.heavy, side = from && at.x < from.x - 2 ? -1 : 1, tone = SKILL_TONE[s.id];
     const line = this.slashLine(s, hit), ang = line ? side * line.ang : 0;
-    if (line) {
-      const name = crit || (heavy && !rapid) ? 'slash_hit_heavy' : line.double ? 'slash_hit_double' : 'slash_hit';
+    if (s.id === 'shadow_step') { // the shadow's cut: a stroke of ink through the foe along the step, ink spattered past it, a blood-red edge
+      this.spr({ name: 'ink_short', x, y, depth: TOP + 4, w: 170, h: 54, angle: side * 4, flipX: side < 0, life: 380,
+        sx: kf([0, 0.3], [0.14, 1, out3], [1, 1.08]), sy: kf([0, 1.2], [0.14, 1], [1, 0.55, inQ]), a: kf([0, 0.95], [0.5, 0.85], [1, 0, inQ]) });
+      this.spr({ name: tn('cut_line', 'blood'), x, y: y - 2, angle: side * 4, w: 190, h: 12, depth: TOP + 4.2, life: 240, glow: 0.5,
+        sx: kf([0, 0.2], [0.14, 1, out3]), sy: kf([0, 1.3], [1, 0.3, inQ]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
+      this.pop('ink_spatter', x + side * 34, y, 110, { depth: TOP + 3.9, life: 420, glow: 0, angle: side > 0 ? rnd(-15, 15) : 180 + rnd(-15, 15) });
+    } else if (line) {
+      const name = tn(crit || (heavy && !rapid) ? 'slash_hit_heavy' : line.double ? 'slash_hit_double' : 'slash_hit', tone);
       const w = crit ? (rapid ? 170 : 230) : heavy && !rapid ? 196 : rapid ? 112 : line.double ? 160 : 150, life = crit ? 320 : heavy ? 280 : rapid ? 170 : 220;
       this.spr({ name, x, y, depth: TOP + 4, w, life, angle: ang - SLASH_TILT, glow: crit ? 0.45 : heavy ? 0.35 : 0.2,
         sx: kf([0, 0.5], [0.16, 1.06, out3], [1, 1.14]), sy: kf([0, 0.5], [0.16, 1.06, out3], [1, 1.14]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
-      if (crit) this.pop('burst_crit', x, y, rapid ? 100 : 130, { life: 260, depth: TOP + 3.6, glow: 0.3 });
+      if (crit) this.pop(tn('burst_crit', tone), x, y, rapid ? 100 : 130, { life: 260, depth: TOP + 3.6, glow: 0.3 });
     } else if (s.id === 'sakura_bind') { // the bind: blossoms burst open on the foe (natural, no spark of a blade)
       this.spr({ name: 'blossom_burst', x, y: y - 4, w: crit ? 140 : 112, life: 440, depth: TOP + 3.5, angle: rnd(0, 360), glow: 0.12,
         sx: kf([0, 0.3], [0.25, 1, back], [1, 1.12]), sy: kf([0, 0.3], [0.25, 1, back], [1, 1.12]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
       this.petals(x, y, 10, 64, { depth: TOP + 3 });
-    } else if (crit) this.pop('burst_crit', x, y, rapid ? 120 : 165, { life: 300 });
-    else if (heavy && !rapid) this.pop('burst', x, y, 140, { life: 280 });
-    else this.pop('spark_s', x, y, rapid ? 64 : 86, { life: 190 });
-    if (crit) this.petals(x, y, 5, 56, { depth: TOP + 3 });
+    } else if (crit) this.pop(tn('burst_crit', tone), x, y, rapid ? 120 : 165, { life: 300 });
+    else if (heavy && !rapid) this.pop(tn('burst', tone), x, y, 140, { life: 280 });
+    else this.pop(tn('spark_s', tone), x, y, rapid ? 64 : 86, { life: 190 });
+    if (crit) { if (tone === 'sakura') this.petals(x, y, 5, 56, { depth: TOP + 3 }); else this.sparks(x, y, 5, 56, { tone, depth: TOP + 3 }); }
     const up = reaction === 'launch' || reaction === 'float', thrown = up || reaction === 'knockdown' || heavy || (hit.reaction.push ?? 0) >= 14;
     if (thrown && (!rapid || hit.heavy) && reaction !== 'cc') // sparks sprayed the way the foe is thrown (up when it is lifted)
-      this.spr({ name: 'spark_spray', x: x - side * 8, y, ox: side > 0 ? 0.05 : 0.95, oy: 0.45, flipX: side < 0, depth: TOP + 3.8, w: heavy ? 168 : 126, life: 260,
+      this.spr({ name: tn('spark_spray', tone), x: x - side * 8, y, ox: side > 0 ? 0.05 : 0.95, oy: 0.45, flipX: side < 0, depth: TOP + 3.8, w: heavy ? 168 : 126, life: 260,
         angle: up ? -side * 50 : side * rnd(-6, 10), sx: kf([0, 0.4], [0.25, 1, out3], [1, 1.12]), sy: kf([0, 0.6], [0.25, 1, out3]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
-    if (reaction === 'launch') this.launchBeam(at.x, at.y);
+    if (reaction === 'launch') this.launchBeam(at.x, at.y, 110, tone === 'gold' || tone === 'fire' ? tone : undefined);
     if (reaction === 'knockdown' || reaction === 'slam') { this.crack(at.x, at.y + 2, 120); this.dust(at.x, at.y, 120); }
     if (s.id === 'sakura_bind' && reaction === 'cc') { const hold = hit.reaction.hardCC?.ms ?? 2000; this.cage(at.x, at.y, hold); this.bindMark(at.x, at.y, hold); }
     if (DELAYED.has(s.id) && (s.id !== 'dragon_eclipse' || hit.heavy)) { // the cut arrives late: a thin line stays on the foe a beat — then splits open
-      const la = line ? ang : rnd(-28, 28), lw = s.id === 'mirage' ? 128 : 196; // (the counter's short cut: its mark no wider than its reach)
-      this.spr({ name: 'cut_line', x, y: y - 4, angle: la, w: lw, h: 12, depth: TOP + 5, life: 200, glow: 0.85, sx: kf([0, 0.25], [0.12, 1, out3]), a: kf([0, 1], [0.86, 1], [1, 0]) });
+      const la = line ? ang : rnd(-28, 28), lw = 196, iai = s.id === 'iai_strike';
+      // (the Iai: a hair-thin line of bare steel — then it opens in crimson)
+      this.spr({ name: tn('cut_line', iai ? 'steel' : undefined), x, y: y - 4, angle: la, w: lw, h: iai ? 9 : 12, depth: TOP + 5, life: 200, glow: 0.85, sx: kf([0, 0.25], [0.12, 1, out3]), a: kf([0, 1], [0.86, 1], [1, 0]) });
       this.later(190, () => {
         this.cut('cut_split', lw, la, { x, y: y - 4, depth: TOP + 5, grow: 35, hold: 70, fade: 230, glow: 0.8 });
-        this.pop('blossom_burst', x, y - 4, 130, { life: 320, depth: TOP + 4.5, glow: 0.3, angle: rnd(0, 360) });
-        this.petals(x, y, 8, 70, { depth: TOP + 3 });
+        if (iai) { this.pop('burst', x, y - 4, 150, { life: 300, depth: TOP + 4.5, glow: 0.4, angle: la }); this.sparks(x, y - 4, 8, 70, { depth: TOP + 3 }); }
+        else { this.pop('blossom_burst', x, y - 4, 130, { life: 320, depth: TOP + 4.5, glow: 0.3, angle: rnd(0, 360) }); this.petals(x, y, 8, 70, { depth: TOP + 3 }); }
         if (local) { this.ctx.cam().shake(90, 0.004); this.ctx.freeze?.(55); }
       });
     }
@@ -613,14 +658,14 @@ export class SamuraiFx {
     if (L > 20) {
       this.spr({ name: 'ink_long', x: x0, y: y0, ox: 0.03, angle: ang, flipY: x1 < x0, w: L + 70, h: 30, depth: dd, life: 380,
         sx: kf([0, 0.25], [0.14, 1, out3]), sy: kf([0, 0.9], [0.14, 1], [1, 0.45, inQ]), a: kf([0, 0.6], [0.4, 0.45], [1, 0, inQ]) });
-      this.spr({ name: 'cut_line', x: x0, y: y0, ox: 0.03, angle: ang, flipY: x1 < x0, w: L + 80, h: 16, depth: dd + 0.1, life: 280, glow: 0.85,
+      this.spr({ name: tn('cut_line', 'rose'), x: x0, y: y0, ox: 0.03, angle: ang, flipY: x1 < x0, w: L + 80, h: 16, depth: dd + 0.1, life: 280, glow: 0.85,
         sx: kf([0, 0.1], [0.18, 1, out3]), sy: kf([0, 1.3], [1, 0.3, inQ]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
       for (let k = 0; k < 6; k++) { const f = (k + 0.5) / 6; this.petals(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f, 1, 18, { depth: dd + 1, life: 800 }); }
     }
     // he steps out behind the attacker: out of a swirl of ink, a flash of the blade, a ring of light at his feet
     this.spr({ name: 'ink_smoke', x: q.x, y: q.y - q.z - 44, depth: q.y + 4, w: 92, life: 320, sx: kf([0, 1.25], [1, 0.5, out]), sy: kf([0, 1.25], [1, 0.5, out]), a: kf([0, 0.65], [1, 0, inQ]), rot: (u) => -80 * u });
-    this.pop('glint', q.x + sideOf(r) * 20, q.y - q.z - 56, 170, { life: 240, angle: 0, depth: TOP + 6, glow: 0.8 });
-    this.shock(q.x, q.y, 150, { life: 320 });
+    this.pop(tn('glint', 'steel'), q.x + sideOf(r) * 20, q.y - q.z - 56, 170, { life: 240, angle: 0, depth: TOP + 6, glow: 0.8 });
+    this.shock(q.x, q.y, 150, { life: 320, tone: 'rose' });
     this.ctx.callout({ x: q.x, y: q.y, z: q.z + 50 }, 'COUNTER!!', '#ff8a96', 0);
     this.ctx.punch(0.035, 220);
   }
@@ -634,7 +679,7 @@ export class SamuraiFx {
     if (b) {
       const s = this.ctx.scene, CUT = 0.5;
       const half = (top: boolean) => {
-        const im = s.add.image(x, y, b.key, b.frame).setOrigin(b.ox, b.oy).setScale(b.sx, b.sy).setFlipX(b.flipX).setTintFill(0xffc4ce).setDepth(m.y + 1.2); // (a ghost of light: not him)
+        const im = s.add.image(x, y, b.key, b.frame).setOrigin(b.ox, b.oy).setScale(b.sx, b.sy).setFlipX(b.flipX).setTintFill(0xffc2e6).setDepth(m.y + 1.2); // (a ghost of rose light: not him)
         if (top) im.setCrop(0, 0, im.width, im.height * CUT); else im.setCrop(0, im.height * CUT, im.width, im.height * (1 - CUT));
         return im;
       };
@@ -647,7 +692,7 @@ export class SamuraiFx {
         return true;
       } });
       for (let k = 0; k < 7; k++) this.later(40 + k * 45, () => this.petals(x - toward * rnd(0, 24), cy - rnd(-34, 50), 2, 26, { depth: m.y + 3, life: 900 })); // (melting into petals)
-      this.spr({ name: 'cut_line', x, y: cy, w: 170, h: 16, angle: -toward * 6, depth: m.y + 4, life: 280, glow: 1,
+      this.spr({ name: tn('cut_line', 'steel'), x, y: cy, w: 170, h: 16, angle: -toward * 6, depth: m.y + 4, life: 280, glow: 1,
         sx: kf([0, 0.1], [0.15, 1, out3], [1, 1.1]), sy: kf([0, 1.4], [1, 0.2, inQ]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
       this.pop('blossom_burst', x, cy, 96, { depth: m.y + 3.5, life: 360, glow: 0.2, delay: 50 });
     }
@@ -656,16 +701,17 @@ export class SamuraiFx {
 
   // ------------------------------------------------------------------ skills
 
+  /** Quick Slash: the bare blade — thin crescents of cold steel light, the fourth rising. */
   private quickSlash(r: CastRun, i: number): void {
-    const st = r.stage ?? 0, side = sideOf(r), fl = side < 0;
-    if (st === 0) this.cut('cut_thin', 128, side * 14, { follow: this.front(r, 46, 54), flipX: fl });
-    else if (st === 1) this.cut('cut_thin', 128, -side * 12, { follow: this.front(r, 46, 50), flipX: fl, flipY: true });
+    const st = r.stage ?? 0, side = sideOf(r), fl = side < 0, S = (n: string) => tn(n, 'steel');
+    if (st === 0) this.cut(S('cut_thin'), 128, side * 14, { follow: this.front(r, 46, 54), flipX: fl });
+    else if (st === 1) this.cut(S('cut_thin'), 128, -side * 12, { follow: this.front(r, 46, 50), flipX: fl, flipY: true });
     else if (st === 2) {
-      this.cut('cut_thin', 138, side * (i === 0 ? 36 : -36), { follow: this.front(r, 50, 56), flipX: fl, flipY: i === 1 });
-      if (i === 1) { const p = this.front(r, 52, 56)(); if (p) this.pop('spark_s', p.x, p.y, 74, { depth: p.d + 5 }); }
+      this.cut(S('cut_thin'), 138, side * (i === 0 ? 36 : -36), { follow: this.front(r, 50, 56), flipX: fl, flipY: i === 1 });
+      if (i === 1) { const p = this.front(r, 52, 56)(); if (p) this.pop(S('spark_s'), p.x, p.y, 74, { depth: p.d + 5 }); }
     } else {
-      this.cut('cut_rise', 152, 0, { follow: this.front(r, 42, 86), flipX: fl, grow: 70, hold: 50, fade: 190, glow: 0.7 });
-      const p = this.front(r, 44, 96)(); if (p) this.petals(p.x, p.y, 9, 60, { depth: p.d + 4 });
+      this.cut(S('cut_rise'), 152, 0, { follow: this.front(r, 42, 86), flipX: fl, grow: 70, hold: 50, fade: 190, glow: 0.7 });
+      const p = this.front(r, 44, 96)(); if (p) this.sparks(p.x, p.y, 7, 60, { tone: 'steel', depth: p.d + 4, up: 30 });
     }
   }
 
@@ -690,9 +736,9 @@ export class SamuraiFx {
       const f = 0.22 + k * 0.24;
       this.silhouette(r, o.x + a.x * D * f, o.y + a.y * D * f - o.z, o.y + a.y * D * f + 1, 300, { delay: k * 34, face: side, a: kf([0, 0], [0.12, 0.8], [0.4, 0.6], [1, 0, inQ]) });
     }
-    this.later(T.active, () => { // he lands: out of a swirl of ink, the blade's glint
+    this.later(T.active, () => { // he lands: out of a swirl of ink (drops of it flung off), the blade's glint
       const c = this.ctx.casterPos(r.attackerId); if (!c) return;
-      this.petals(c.x, c.y - c.z - 50, 8, 56, { depth: c.y + 4 });
+      this.pop('ink_spatter', c.x - side * 30, c.y - c.z - 40, 96, { depth: c.y + 2, life: 380, glow: 0, angle: side > 0 ? 180 : 0 });
       this.spr({ name: 'ink_smoke', x: c.x, y: c.y - c.z - 46, depth: c.y + 3, w: 104, life: 300, sx: kf([0, 1.25], [1, 0.5, out]), sy: kf([0, 1.25], [1, 0.5, out]), a: kf([0, 0.75], [1, 0, inQ]), rot: (u) => -80 * u });
       this.glint(r, 0, 24, 56);
     }, r);
@@ -715,7 +761,7 @@ export class SamuraiFx {
       this.trail(tip, { span: 240, w: 66, until: ret + 105, fade: 280, run: r, glow: 1 });
       this.later(ret - 10, () => { const p = tip(ret - 10); if (p) this.pop('glint', p.x, p.y, 130, { life: 220, angle: 0, depth: p.d + 6, glow: 0.8 }); }, r); // (the turn)
       this.cut('cut_rise', 156, 0, { follow: this.front(r, 52, 90), flipX: fl, grow: 70, hold: 40, fade: 190, glow: 0.5 });
-      const p = this.front(r, 54, 60)(); if (p) this.petals(p.x, p.y, 7, 50, { depth: p.d + 4, up: 40 });
+      const p = this.front(r, 54, 60)(); if (p) this.sparks(p.x, p.y, 7, 50, { depth: p.d + 4, up: 40 });
     } else {
       this.cut('cut_heavy', 168, -side * 32, { follow: this.front(r, 96, 104), flipX: fl, flipY: true, grow: 45, hold: 40, fade: 190, glow: 0.5 }); // the return: back down through the foe in the air
       const p = this.front(r, 68, 112)(); if (p) this.pop('spark_s', p.x, p.y, 92, { depth: p.d + 5 });
@@ -749,7 +795,7 @@ export class SamuraiFx {
         lv = nl;
         this.pop('glint', q.x, q.y, 70 + lv * 45, { life: 220, angle: 0, depth: TOP + 1 });
         this.pop('burst', q.x, q.y, 40 + lv * 24, { life: 180, depth: TOP + 1 });
-        if (lv === 2) this.petals(q.x, q.y, 8, 70, { depth: q.d + 5 });
+        if (lv === 2) this.sparks(q.x, q.y, 8, 70, { depth: q.d + 5 });
         if (r.own) this.ctx.cam().shake(50 + lv * 30, 0.0012 * lv);
       }
       const ease = Math.min(1, dt / 70); // the reach eases out to this step's length, pulsing faintly
@@ -767,17 +813,18 @@ export class SamuraiFx {
     } });
   }
 
-  /** The draw: a line of light shoots out as far as the cut reaches, and a beat later splits open along its length. */
+  /** The draw: a razor line of bare steel shoots out as far as the cut reaches, and a beat later splits open in crimson
+   *  along its length (the Iai's signature: the cut arrives late). */
   private iaiCut(r: CastRun): void {
     const lv = r.chargeLevel ?? 0, len = (r.hits[0].shape as { length: number }).length, a = r.aim, side = sideOf(r), q = this.me(r), cam = this.ctx.cam();
     const ang = screenAng(a.x, a.y), x0 = q.x + a.x * 8, y0 = q.y + a.y * 4 - q.z - 46, fl = a.x < -0.01;
-    this.spr({ name: 'cut_line', x: x0, y: y0, ox: 0.03, angle: ang, flipY: fl, w: len * 1.12, h: 30 + 10 * lv, depth: TOP + 3, life: 380 + lv * 60, glow: 0.75,
+    this.spr({ name: tn('cut_line', 'steel'), x: x0, y: y0, ox: 0.03, angle: ang, flipY: fl, w: len * 1.12, h: 24 + 10 * lv, depth: TOP + 3, life: 380 + lv * 60, glow: 0.85,
       sx: kf([0, 0.05], [0.11, 1, out3], [1, 1.02]), sy: kf([0, 1.4], [0.11, 1], [0.35, 1], [1, 0.15, inQ]), a: kf([0, 1], [0.4, 1], [1, 0, inQ]) });
     const mx = x0 + Math.cos(ang * Math.PI / 180) * len * 0.56, my = y0 + Math.sin(ang * Math.PI / 180) * len * 0.56;
     this.spr({ name: 'cut_split', x: mx, y: my, angle: ang, flipY: fl, w: len * 0.95, delay: 110, life: 360, glow: 0.65, depth: TOP + 3.5,
       sx: kf([0, 0.7], [0.2, 1, out3]), sy: kf([0, 0.3], [0.2, 1.1, out3], [1, 0.5]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
-    this.pop('burst', x0 + side * 18, y0, 90 + 30 * lv, { life: 200 });
-    this.spr({ name: 'blade_trail', x: x0 + a.x * 36, y: y0 + a.y * 18, w: 170 + 30 * lv, life: 230, flipX: fl, angle: along(ang, fl), glow: 0.4, // the trail of the draw
+    this.pop(tn('burst', 'steel'), x0 + side * 18, y0, 90 + 30 * lv, { life: 200 });
+    this.spr({ name: tn('blade_trail', 'steel'), x: x0 + a.x * 36, y: y0 + a.y * 18, w: 170 + 30 * lv, life: 230, flipX: fl, angle: along(ang, fl), glow: 0.4, // the trail of the draw
       sx: kf([0, 0.6], [0.2, 1, out3], [1, 1.08]), sy: kf([0, 0.8], [0.2, 1], [1, 0.6, inQ]), a: kf([0, 0.95], [0.4, 0.8], [1, 0, inQ]) });
     if (lv === 2) { // fully drawn: the floor is cut too, a shockwave runs down it, dust where the foes go down
       this.spr({ name: 'ground_slash', x: q.x + a.x * len * 0.52, y: q.y + a.y * len * 0.52 + 2, angle: ang, flipY: fl, w: len * 0.95, depth: GROUND + 2.2, life: 1500, delay: 60, glow: 0.5,
@@ -793,17 +840,23 @@ export class SamuraiFx {
   /** Sheathe: the blade snaps home in its sheath — at the click (the stance's release) a sharp glint at the sheath's mouth
    *  under his hand, a flash running back along the scabbard, a few sparks, and a small crimson ring at his feet. */
   private sheathe(r: CastRun): void {
-    const at = r.timings.startup, side = sideOf(r), f = this.front(r, 14, 52);
+    const at = r.timings.startup, side = sideOf(r), f = this.front(r, 14, 52), G = (n: string) => tn(n, 'gold');
     const mouth = () => { const h = this.ctx.hand(r.attackerId), p = f(); return h && p ? { x: h.x, y: h.y + 4, d: p.d } : p; };
-    this.spr({ name: 'glint', w: 40, delay: at, life: 240, run: r, glow: 0.95, dz: 6, follow: mouth,
-      sx: kf([0, 0.2], [0.18, 1.25, out3], [1, 0.5]), sy: kf([0, 0.2], [0.18, 1.25, out3], [1, 0.5]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]), rot: (u) => 45 * (1 - out(u)) });
-    this.spr({ name: 'cut_line', w: 58, h: 7, delay: at, life: 170, run: r, glow: 0.9, dz: 5, follow: mouth, ox: side > 0 ? 1 : 0, flipX: side < 0, angle: -side * 14, // (back and down along the scabbard)
-      sx: kf([0, 0.15], [0.35, 1, out3]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
-    for (let i = 0; i < 4; i++) {
-      const a = rnd(-150, -30) * (Math.PI / 180), d = rnd(14, 30), tx = Math.cos(a) * d * side, ty = Math.sin(a) * d;
-      this.spr({ name: 'spark_s', w: rnd(9, 14), delay: at, life: rnd(160, 220), run: r, glow: 0.8, dz: 7, follow: mouth, angle: rnd(0, 360), mx: (u) => tx * out(u), my: (u) => ty * out(u) + 8 * u * u, a: kf([0, 1], [1, 0, inQ]) });
+    // the click, in gold — read from across the arena: a bright four-pointed flash at the sheath's mouth, a streak of light
+    // running back along the scabbard, a spray of gold sparks, a ring of gold at his feet
+    this.spr({ name: 'glint', w: 96, delay: at, life: 300, run: r, glow: 1, dz: 6, follow: mouth,
+      sx: kf([0, 0.3], [0.14, 1.3, out3], [1, 0.45]), sy: kf([0, 0.3], [0.14, 1.3, out3], [1, 0.45]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]), rot: (u) => 45 * (1 - out(u)) });
+    this.spr({ name: G('cut_line'), w: 120, h: 12, delay: at, life: 220, run: r, glow: 1, dz: 5, follow: mouth, ox: side > 0 ? 1 : 0, flipX: side < 0, angle: -side * 14, // (back and down along the scabbard)
+      sx: kf([0, 0.15], [0.3, 1, out3]), sy: kf([0, 1.4], [1, 0.4, inQ]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
+    for (let i = 0; i < 8; i++) {
+      const a = rnd(-160, -20) * (Math.PI / 180), d = rnd(22, 50), tx = Math.cos(a) * d * side, ty = Math.sin(a) * d;
+      this.spr({ name: G('spark_s'), w: rnd(12, 20), delay: at, life: rnd(200, 300), run: r, glow: 0.9, dz: 7, follow: mouth, angle: rnd(0, 360), mx: (u) => tx * out(u), my: (u) => ty * out(u) + 14 * u * u, a: kf([0, 1], [1, 0, inQ]) });
     }
-    this.later(at, () => { const c = this.me(r); this.shock(c.x, c.y, 76, { tint: 0xff3048, life: 260 }); }, r);
+    this.later(at, () => { const c = this.me(r); this.shock(c.x, c.y, 130, { tone: 'gold', life: 340 }); }, r);
+    // primed (the next Iai / Quick Slash comes out at once): a small gold star stays at the hilt, pulsing, through the window
+    const win = r.skill.primes?.windowMs ?? 600, from = at + r.timings.active;
+    this.spr({ name: 'glint', w: 34, delay: from, life: win, run: r, glow: 0.9, dz: 6, follow: mouth, flick: 90,
+      sx: (u) => 0.75 + 0.25 * Math.sin(u * 22), sy: (u) => 0.75 + 0.25 * Math.sin(u * 22), a: kf([0, 0], [0.08, 0.95], [0.8, 0.8], [1, 0]), rot: (u) => 90 * u });
   }
 
   /** Hundred Cuts, a storm of swords: a cage of spectral katanas whirls round the foe while katanas of light fly through
@@ -817,15 +870,15 @@ export class SamuraiFx {
         const th = rnd(0, Math.PI * 2), R0 = rnd(118, 150), ox = rnd(-12, 12), oy = rnd(-16, 12), dx = Math.cos(th), dy = Math.sin(th) * 0.6;
         this.flyBlade(c.x + ox - dx * R0, c.y + oy - dy * R0, c.x + ox + dx * R0, c.y + oy + dy * R0, { delay: n * 24, life: 120, depth: c.d + 5 + n * 0.02, run: r });
       }
-      if (i % 2 === 0) this.cut('cut_thin', rnd(96, 124), rnd(0, 360), { x: c.x + rnd(-26, 26), y: c.y + rnd(-22, 18), depth: c.d + 5.5, grow: 28, hold: 16, fade: 90, glow: 0.5, sweep: 20 });
-      if (i % 3 === 1) this.pop('spark_s', c.x + rnd(-18, 18), c.y + rnd(-18, 18), 64, { life: 150, depth: c.d + 6 });
+      if (i % 2 === 0) this.cut(tn('cut_thin', 'steel'), rnd(96, 124), rnd(0, 360), { x: c.x + rnd(-26, 26), y: c.y + rnd(-22, 18), depth: c.d + 5.5, grow: 28, hold: 16, fade: 90, glow: 0.5, sweep: 20 });
+      if (i % 3 === 1) this.pop(tn('spark_s', 'gold'), c.x + rnd(-18, 18), c.y + rnd(-18, 18), 64, { life: 150, depth: c.d + 6 }); // (steel on steel: gold sparks)
       return;
     }
-    // the cage has slammed in: a cross of light bursts out of the foe
-    this.cut('cut_x', 240, rnd(-10, 10), { x: c.x, y: c.y, depth: TOP + 4, grow: 50, hold: 80, fade: 240, glow: 0.8 });
-    this.pop('burst_crit', c.x, c.y, 220, { life: 360, depth: TOP + 4.5 });
-    this.shock(c.x, q.y, 260);
-    this.petals(c.x, c.y, 18, 130, { depth: TOP + 3 });
+    // the cage has slammed in: a cross of steel light bursts out of the foe, gold sparks thrown off
+    this.cut(tn('cut_x', 'steel'), 240, rnd(-10, 10), { x: c.x, y: c.y, depth: TOP + 4, grow: 50, hold: 80, fade: 240, glow: 0.8 });
+    this.pop(tn('burst_crit', 'gold'), c.x, c.y, 220, { life: 360, depth: TOP + 4.5 });
+    this.shock(c.x, q.y, 260, { tone: 'steel' });
+    this.sparks(c.x, c.y, 18, 130, { tone: 'gold', depth: TOP + 3 });
     for (let k = 0; k < 6; k++) { const th = (k / 6) * Math.PI * 2 + rnd(-0.2, 0.2); this.flyBlade(c.x, c.y, c.x + Math.cos(th) * 170, c.y + Math.sin(th) * 100, { life: 200, depth: TOP + 3.5, len: 96 }); } // (shards of the cage thrown out)
     if (r.own) { this.ctx.cam().shake(200, 0.007); this.ctx.punch(0.04, 240); }
   }
@@ -836,10 +889,10 @@ export class SamuraiFx {
     const L = o.len ?? 112, kw = (L * 89) / 400, ang = (Math.atan2(y1 - y0, x1 - x0) * 180) / Math.PI, life = o.life ?? 120, d = o.depth ?? TOP + 3, dl = o.delay ?? 0;
     const mx = (u: number) => (x1 - x0) * u, my = (u: number) => (y1 - y0) * u;
     for (let k = 0; k < 3; k++)
-      this.spr({ name: k === 0 ? 'katana' : 'katana_ghost', x: x0, y: y0, w: kw, h: L, angle: ang + 90, life, delay: dl + k * 16, depth: d - k * 0.01, run: o.run, add: k > 0, glow: k === 0 ? 0.3 : undefined,
+      this.spr({ name: tn(k === 0 ? 'katana' : 'katana_ghost', 'steel'), x: x0, y: y0, w: kw, h: L, angle: ang + 90, life, delay: dl + k * 16, depth: d - k * 0.01, run: o.run, add: k > 0, glow: k === 0 ? 0.3 : undefined,
         mx, my, a: k === 0 ? kf([0, 0], [0.12, 1], [0.82, 1], [1, 0]) : kf([0, 0], [0.12, 0.4 - k * 0.12], [0.8, 0.3 - k * 0.1], [1, 0]) });
     const len = Math.hypot(x1 - x0, y1 - y0);
-    this.spr({ name: 'cut_line', x: (x0 + x1) / 2, y: (y0 + y1) / 2, angle: ang, w: len * 0.9, h: 12, delay: dl + life * 0.35, life: 170, depth: d - 0.05, glow: 0.7, run: o.run,
+    this.spr({ name: tn('cut_line', 'steel'), x: (x0 + x1) / 2, y: (y0 + y1) / 2, angle: ang, w: len * 0.9, h: 12, delay: dl + life * 0.35, life: 170, depth: d - 0.05, glow: 0.7, run: o.run,
       sx: kf([0, 0.2], [0.25, 1, out3]), sy: kf([0, 1], [1, 0.3, inQ]), a: kf([0, 0.95], [1, 0, inQ]) });
   }
 
@@ -848,7 +901,7 @@ export class SamuraiFx {
    *  it as it lands. */
   private swordCage(r: CastRun, f: () => Pt | null): void {
     const s = this.ctx.scene, N = 8, fin = r.skill.hits[r.skill.hits.length - 1]?.at ?? 1000, TURN = fin - 150, IN = fin - 45, KL = 118, ADD = Phaser.BlendModes.ADD;
-    const mk = (add: boolean) => { const im = s.add.image(0, 0, KIT, add ? 'katana_ghost' : 'katana').setVisible(false); if (add) im.setBlendMode(ADD); return im.setScale(KL / im.height); };
+    const mk = (add: boolean) => { const im = s.add.image(0, 0, KIT, this.fname(tn(add ? 'katana_ghost' : 'katana', 'steel'))).setVisible(false); if (add) im.setBlendMode(ADD); return im.setScale(KL / im.height); };
     const bl = Array.from({ length: N }, (_, k) => ({ im: mk(false), gl: mk(true), th0: (k / N) * Math.PI * 2 }));
     let last: Pt = f() ?? { x: 0, y: 0, d: 0 }, stopAt = 0;
     const kill = () => { for (const b of bl) { b.im.destroy(); b.gl.destroy(); } };
@@ -926,18 +979,19 @@ export class SamuraiFx {
   private mirageStance(r: CastRun): void {
     const o = r.origin, T = r.timings, win = r.skill.counter?.window ?? 420, end = T.startup + win, s = this.ctx.scene, ADD = Phaser.BlendModes.ADD;
     this.stances.set(r.castId, { x: o.x, y: o.y, z: o.z, done: false });
-    this.glint(r, 0, 22, 56);
-    const offs: [number, number, number, number][] = [[-22, -2, 0.42, 0xff3048], [21, 1, 0.38, 0xff3048], [-11, -8, 0.32, 0xffd6de], [12, -6, 0.26, 0xff6a80], [0, -15, 0.2, 0xffd6de]];
+    this.glint(r, 0, 22, 56, 'rose');
+    const offs: [number, number, number, number][] = [[-22, -2, 0.42, 0xff4fae], [21, 1, 0.38, 0xff4fae], [-11, -8, 0.32, 0xffd2ee], [12, -6, 0.26, 0xff86c8], [0, -15, 0.2, 0xffd2ee]]; // (rose haze)
     const imgs = offs.map(() => s.add.image(0, 0, KIT, 'glint').setBlendMode(ADD).setVisible(false));
     const petals = Array.from({ length: 7 }, (_, i) => {
       const im = s.add.image(0, 0, KIT, `petal_${1 + (i % 4)}`).setVisible(false);
       return { im: im.setScale(rnd(14, 19) / im.width), th: (i / 7) * Math.PI * 2 + rnd(-0.3, 0.3), h: rnd(34, 96), rad: rnd(40, 60), sp: (i % 2 ? 1 : -1) * rnd(0.5, 0.8), rot: rnd(0, 360) };
     });
-    const ring = s.add.image(0, 0, KIT, 'timer_ring').setVisible(false), rg = s.add.image(0, 0, KIT, 'timer_ring').setBlendMode(ADD).setVisible(false), rk = 150 / ring.width;
+    const rn = this.fname(tn('timer_ring', 'rose'));
+    const ring = s.add.image(0, 0, KIT, rn).setVisible(false), rg = s.add.image(0, 0, KIT, rn).setBlendMode(ADD).setVisible(false), rk = 150 / ring.width;
     // its name over his head for as long as the window is open (so it reads what it is — on every screen: in a duel too)
-    const label = s.add.text(0, 0, 'COUNTER STANCE', { fontFamily: 'Cinzel, Georgia, serif', fontStyle: 'bold italic', fontSize: '22px', color: '#ffc4cc', stroke: '#1a0602', strokeThickness: 5, resolution: 2 })
+    const label = s.add.text(0, 0, 'COUNTER STANCE', { fontFamily: 'Cinzel, Georgia, serif', fontStyle: 'bold italic', fontSize: '22px', color: '#ffc2e8', stroke: '#1a0210', strokeThickness: 5, resolution: 2 })
       .setOrigin(0.5).setDepth(TOP + 29).setVisible(false);
-    this.auraFlare(r, 'aura_crimson', 150, end + 120);
+    this.auraFlare(r, tn('aura_crimson', 'rose'), 150, end + 120);
     const kill = () => { for (const im of [...imgs, ring, rg, ...petals.map((p) => p.im)]) im.destroy(); label.destroy(); };
     let fold = -1; // (the window ran out with no blow: ms since)
     this.add({ t: 0, step: (dt, t) => {
@@ -965,7 +1019,7 @@ export class SamuraiFx {
       rg.setVisible(true).setPosition(c.x, c.y - c.z + 2).setScale(rk2 * 1.03).setDepth(c.y - 0.99).setAlpha(on * gone * (0.45 + 0.2 * Math.sin(t / 50)));
       return true;
     } });
-    this.spr({ name: 'shock_ring', w: 120, life: 360, run: r, glow: 0.6, follow: () => { const c = this.ctx.casterPos(r.attackerId); return c ? { x: c.x, y: c.y - c.z, d: c.y } : null; },
+    this.spr({ name: tn('shock_ring', 'rose'), w: 120, life: 360, run: r, glow: 0.6, follow: () => { const c = this.ctx.casterPos(r.attackerId); return c ? { x: c.x, y: c.y - c.z, d: c.y } : null; },
       dz: -2, sx: kf([0, 0.3], [1, 1.1, out3]), sy: kf([0, 0.3], [1, 1.1, out3]), a: kf([0, 0.8], [1, 0, inQ]) });
     this.later(end + 400, () => this.stances.delete(r.castId));
   }
@@ -975,11 +1029,11 @@ export class SamuraiFx {
     const T = r.timings, q = this.me(r);
     this.petals(q.x, q.y - q.z - 56, 16, 140, { inward: true, life: T.startup + 80, depth: q.y + 4 });
     for (const [crop, z] of [[undefined, -3], [0.5, 3]] as const) // a ring of petals whirling round his waist through the chase
-      this.spr({ name: 'petal_ring', w: 190, delay: T.startup, life: T.active + 160, run: r, glow: 0.3, follow: this.front(r, 0, 44), dz: z, crop, flick: 70,
+      this.spr({ name: tn('petal_ring', 'sakura'), w: 190, delay: T.startup, life: T.active + 160, run: r, glow: 0.3, follow: this.front(r, 0, 44), dz: z, crop, flick: 70,
         sx: kf([0, 0.5], [0.2, 1, out3], [1, 1.12]), sy: kf([0, 0.5], [0.2, 1, out3], [1, 1.12]), a: kf([0, 0], [0.15, 0.95], [0.85, 0.95], [1, 0]) });
-    // the storm: a funnel of petals round him, turning (two mirrored copies crossing over), and petals orbiting through it
-    const s = this.ctx.scene, N = 34, life = T.startup + T.active + 260;
-    const mk = (flip: boolean) => s.add.image(0, 0, KIT, 'petal_storm').setOrigin(0.5, 0.96).setFlipX(flip).setVisible(false);
+    // the storm: a funnel of cherry blossom round him, turning (two mirrored copies crossing over), and petals orbiting through it
+    const s = this.ctx.scene, N = 34, life = T.startup + T.active + 260, storm = this.fname(tn('petal_storm', 'sakura'));
+    const mk = (flip: boolean) => s.add.image(0, 0, KIT, storm).setOrigin(0.5, 0.96).setFlipX(flip).setVisible(false);
     const A = mk(false), B = mk(true), kS = 210 / A.height;
     const ps = Array.from({ length: N }, (_, i) => ({ im: s.add.image(0, 0, KIT, i % 6 === 5 ? 'blossom' : `petal_${1 + (i % 4)}`).setVisible(false).setScale(rnd(0.22, 0.42)),
       th: (i / N) * Math.PI * 2, rad: rnd(48, 96), h: rnd(6, 150), sp: rnd(0.008, 0.016) }));
@@ -1007,20 +1061,20 @@ export class SamuraiFx {
   }
   private stormCut(r: CastRun, i: number): void {
     const side = sideOf(r), f = this.stormFoe(r), last = i >= (r.skill.hits.length - 1), fy = f.y - f.z;
-    if (!last) { // a silhouette of him strikes through the foe from another side each time, the cut behind it
+    if (!last) { // a silhouette of him strikes through the foe from another side each time, the cut behind it — all in blossom pink
       const deg = [0, 180, 32, 212][i % 4] + rnd(-8, 8), c = Math.cos((deg * Math.PI) / 180), sn = Math.sin((deg * Math.PI) / 180) * 0.5, L = 112;
-      this.phantomDash(r, f.x - c * L, fy - sn * L, f.x + c * L, fy + sn * L, TOP + 2.5);
-      this.cut('cut_thin', rnd(150, 180), (Math.atan2(sn, c) * 180) / Math.PI, { x: f.x, y: fy - 56, depth: TOP + 3, grow: 40, hold: 30, fade: 150, glow: 0.65, flipY: c < 0 });
+      this.phantomDash(r, f.x - c * L, fy - sn * L, f.x + c * L, fy + sn * L, TOP + 2.5, toneHex('sakura'));
+      this.cut(tn('cut_thin', 'sakura'), rnd(150, 180), (Math.atan2(sn, c) * 180) / Math.PI, { x: f.x, y: fy - 56, depth: TOP + 3, grow: 40, hold: 30, fade: 150, glow: 0.65, flipY: c < 0 });
       this.petals(f.x, fy - 56, 4, 50, { depth: TOP + 2 });
       return;
     }
     const x = f.x, y = f.y;
     this.spr({ name: 'blossom_burst', x, y: fy - 70, w: 290, life: 560, glow: 0.22, depth: TOP + 4, angle: rnd(0, 360),
       sx: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.25]), sy: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.25]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
-    this.spr({ name: 'petal_column', x, y: y + 6, oy: 0.96, depth: y + 3, w: 150, life: 700, glow: 0.5, sy: kf([0, 0.15], [0.3, 1.1, out3], [1, 1.2]), sx: kf([0, 0.7], [0.3, 1]), a: kf([0, 1], [0.55, 1], [1, 0, inQ]) });
-    this.cut('cut_rise', 180, 0, { x, y: fy - 110, depth: TOP + 4.5, flipX: side < 0, grow: 70, hold: 60, fade: 220, glow: 0.75 });
+    this.spr({ name: tn('petal_column', 'sakura'), x, y: y + 6, oy: 0.96, depth: y + 3, w: 150, life: 700, glow: 0.5, sy: kf([0, 0.15], [0.3, 1.1, out3], [1, 1.2]), sx: kf([0, 0.7], [0.3, 1]), a: kf([0, 1], [0.55, 1], [1, 0, inQ]) });
+    this.cut(tn('cut_rise', 'sakura'), 180, 0, { x, y: fy - 110, depth: TOP + 4.5, flipX: side < 0, grow: 70, hold: 60, fade: 220, glow: 0.75 });
     this.petals(x, fy - 90, 26, 160, { depth: TOP + 3 });
-    this.shock(x, y, 260);
+    this.shock(x, y, 260, { tone: 'sakura' });
     if (r.own) { this.ctx.cam().shake(200, 0.007); this.ctx.punch(0.04, 260); }
   }
 
@@ -1091,17 +1145,18 @@ export class SamuraiFx {
   /** Tornado Blade, the air spin: a whirl of blade light round his waist (its far half behind him, its near half in front,
    *  flickering as it turns), a ring of wind spreading from it, petals and blade glints circling him — for the whole spin. */
   private airSpin(r: CastRun): void {
-    const T = r.timings, life = T.active + 140, fl = sideOf(r) < 0, f = this.front(r, 0, 56);
+    const T = r.timings, life = T.active + 140, fl = sideOf(r) < 0, f = this.front(r, 0, 56), S = (n: string) => tn(n, 'steel');
+    // (in the cold white of bare steel: a whirlwind of blade light — read apart from the crimson launcher and the pink storm round it)
     for (const [crop, z] of [[undefined, -3], [0.5, 3]] as const)
-      this.spr({ name: 'cut_ring', w: 210, life, delay: T.startup, run: r, follow: f, dz: z, crop, glow: 0.65, flipX: fl, flick: 48,
+      this.spr({ name: S('cut_ring'), w: 220, life, delay: T.startup, run: r, follow: f, dz: z, crop, glow: 0.75, flipX: fl, flick: 48,
         sx: kf([0, 0.45], [0.18, 1, out3], [1, 1.1]), sy: kf([0, 0.45], [0.18, 1, out3], [1, 1.1]), a: kf([0, 1], [0.7, 1], [1, 0, inQ]) });
     for (const [crop, z] of [[undefined, -2], [0.5, 2]] as const)
-      this.spr({ name: 'wind_ring', w: 150, life: life + 80, delay: T.startup, run: r, follow: f, dz: z, crop, add: true, flipX: !fl,
-        sx: (u) => 0.8 + 0.7 * u, sy: (u) => 0.55 + 0.35 * u, a: kf([0, 0], [0.12, 0.7], [0.7, 0.45], [1, 0]) });
+      this.spr({ name: S('wind_ring'), w: 160, life: life + 80, delay: T.startup, run: r, follow: f, dz: z, crop, add: true, flipX: !fl,
+        sx: (u) => 0.8 + 0.7 * u, sy: (u) => 0.55 + 0.35 * u, a: kf([0, 0], [0.12, 0.8], [0.7, 0.5], [1, 0]) });
     for (let k = 0; k < 3; k++) // blade glints whirling round him
-      this.spr({ name: 'glint', w: 30, life: T.active, delay: T.startup + k * 40, run: r, follow: f, dz: 4, glow: 0.8,
+      this.spr({ name: S('glint'), w: 30, life: T.active, delay: T.startup + k * 40, run: r, follow: f, dz: 4, glow: 0.8,
         mx: (u) => Math.cos(u * Math.PI * 4 + k * 2.1) * 92, my: (u) => Math.sin(u * Math.PI * 4 + k * 2.1) * 26, rot: (u) => 360 * u, a: kf([0, 0], [0.1, 1], [0.85, 1], [1, 0]) });
-    this.later(T.startup, () => { const p = f(); if (p) this.petals(p.x, p.y, 8, 110, { depth: p.d + 4 }); }, r);
+    this.later(T.startup, () => { const p = f(); if (p) this.sparks(p.x, p.y, 8, 110, { tone: 'steel', depth: p.d + 4 }); }, r);
   }
 
   /** Falcon Dive: the samurai wrapped in a falcon of fire through the leap and the dive, a ribbon of red light streaming
@@ -1112,9 +1167,10 @@ export class SamuraiFx {
     this.later(T.startup, () => { this.dust(q0.x, q0.y, 110); this.dustRing(q0.x, q0.y, 150); }, r);
     const land = T.startup + (r.skill.hits[1]?.at ?? 300);
     this.trail(() => { const c = this.ctx.casterPos(r.attackerId); return c ? { x: c.x - side * 4, y: c.y - c.z - 52, d: c.y - 0.5 } : null; },
-      { delay: T.startup - 20, until: land - T.startup + 30, span: 230, w: 46, fade: 240, run: r, glow: 0.9 });
-    const bird = s.add.image(0, 0, KIT, 'falcon_dive').setVisible(false).setFlipX(fl);
-    const glow = s.add.image(0, 0, KIT, 'falcon_dive').setVisible(false).setFlipX(fl).setBlendMode(Phaser.BlendModes.ADD);
+      { delay: T.startup - 20, until: land - T.startup + 30, span: 230, w: 46, fade: 240, run: r, glow: 0.9, tone: 'fire' });
+    const fb = this.fname(tn('falcon_dive', 'fire'));
+    const bird = s.add.image(0, 0, KIT, fb).setVisible(false).setFlipX(fl);
+    const glow = s.add.image(0, 0, KIT, fb).setVisible(false).setFlipX(fl).setBlendMode(Phaser.BlendModes.ADD);
     const k = 190 / bird.width, hitAt = r.skill.hits[1]?.at ?? 300;
     let lastGhost = 0;
     this.add({ t: 0, step: (_dt, t) => {
@@ -1127,7 +1183,7 @@ export class SamuraiFx {
       glow.setVisible(true).setPosition(x, y).setScale(k * 1.04).setAngle(ang).setDepth(c.y + 3.01).setAlpha(al * 0.4);
       if (!up && e - lastGhost > 36) { // afterimages of the bird on the dive
         lastGhost = e;
-        this.spr({ name: 'falcon_dive', x, y, depth: c.y + 2, w: 190, angle: ang, flipX: fl, life: 140, add: true, a: kf([0, 0.4], [1, 0, inQ]) });
+        this.spr({ name: fb, x, y, depth: c.y + 2, w: 190, angle: ang, flipX: fl, life: 140, add: true, a: kf([0, 0.4], [1, 0, inQ]) });
       }
       return true;
     } });
@@ -1138,16 +1194,17 @@ export class SamuraiFx {
     // light and a pillar of light opening BEHIND the fighters (they stay in sight, standing in it); the wave runs out along
     // the floor
     this.pop('glint', q.x, q.y - 44, 210, { life: 180, depth: TOP + 3, angle: 0, glow: 0.7, add: true }); // (the flash: light only — no dark core over the fighters)
-    this.spr({ name: 'sun_rays', x: q.x, y: q.y - 50, w: 320, life: 440, add: true, tint: 0xff6a78, depth: q.y - 3, rot: (u) => 18 * u,
+    const F = (n: string) => tn(n, 'fire');
+    this.spr({ name: F('sun_rays'), x: q.x, y: q.y - 50, w: 320, life: 440, add: true, depth: q.y - 3, rot: (u) => 18 * u,
       sx: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.15]), sy: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.15]), a: kf([0, 0.9], [0.35, 0.65], [1, 0, inQ]) });
-    this.spr({ name: 'launch_beam', x: q.x, y: q.y + 6, oy: 0.95, depth: q.y - 2.8, w: 160, h: 240, life: 320, glow: 0.4,
+    this.spr({ name: F('launch_beam'), x: q.x, y: q.y + 6, oy: 0.95, depth: q.y - 2.8, w: 160, h: 240, life: 320, glow: 0.4,
       sx: kf([0, 0.4], [0.2, 1, out3], [1, 0.6]), sy: kf([0, 0.2], [0.18, 1, out3], [1, 1.1]), a: kf([0, 1], [0.35, 0.85], [1, 0, inQ]) });
-    this.pop('burst_crit', q.x, q.y - 30, 120, { life: 220, depth: TOP + 3.2 });
-    this.spr({ name: 'falcon_spread', x: q.x, y: q.y + 6, oy: 0.92, depth: q.y - 3.2, w: 250, life: 460, glow: 0.4,
+    this.pop(F('burst_crit'), q.x, q.y - 30, 120, { life: 220, depth: TOP + 3.2 });
+    this.spr({ name: F('falcon_spread'), x: q.x, y: q.y + 6, oy: 0.92, depth: q.y - 3.2, w: 250, life: 460, glow: 0.4,
       sx: kf([0, 0.5], [0.25, 1.05, out3], [1, 1.15]), sy: kf([0, 0.4], [0.25, 1.05, out3], [1, 1.2]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]), my: (u) => -24 * u });
-    this.shock(q.x, q.y, 300); this.shock(q.x, q.y, 380, { delay: 80 });
+    this.shock(q.x, q.y, 300, { tone: 'fire' }); this.shock(q.x, q.y, 380, { delay: 80, tone: 'fire' });
     this.crack(q.x, q.y + 2, 170, side * 8); this.dustRing(q.x, q.y, 240); this.dust(q.x - 50, q.y, 110); this.dust(q.x + 50, q.y, 110, 40);
-    this.petals(q.x, q.y - 40, 12, 150, { depth: q.y + 5 });
+    this.sparks(q.x, q.y - 40, 14, 150, { tone: 'fire', depth: q.y + 5, up: 30 });
     if (r.own) { cam.shake(220, 0.008); this.ctx.punch(0.04, 240); }
   }
 
@@ -1187,25 +1244,27 @@ export class SamuraiFx {
       return true;
     } });
   }
-  /** The banner's light breaks over him: a golden aura flares up round him, the sun on the banner flares, rings of light run out —
-   *  and a faint golden light stays on him for the buff. */
+  /** Untouchable while the sun rises (his defensive ultimate): the sun's rays open behind him, turning, and a golden flame
+   *  wraps him for as long as nothing can touch him (cast to the burst). */
+  private sunShield(r: CastRun): void {
+    const T = r.timings, until = T.startup + T.active, q = () => { const c = this.ctx.casterPos(r.attackerId); return c ? { x: c.x, y: c.y - c.z - 60, d: c.y } : null; };
+    this.auraFlare(r, 'aura_gold', 176, until + 80);
+    this.spr({ name: tn('sun_rays', 'gold'), w: 300, life: until + 120, run: r, follow: q, dz: -4, add: true, rot: (u) => 40 * u,
+      sx: kf([0, 0.2], [0.35, 1, out3], [1, 1.12]), sy: kf([0, 0.2], [0.35, 1, out3], [1, 1.12]), a: kf([0, 0], [0.2, 0.6], [0.88, 0.7], [1, 0]) });
+  }
+  /** The banner's light breaks over him: the sun's rays flare out, rings of golden light throw every foe back. */
   private sunBurst(r: CastRun): void {
     const q = this.me(r);
-    this.auraFlare(r, 'aura_gold', 200, 1000);
-    this.shock(q.x, q.y, 320, { tint: 0xffd27a }); this.shock(q.x, q.y, 420, { tint: 0xffd27a, delay: 90 });
-    this.petals(q.x, q.y - 80, 14, 140, { depth: q.y + 4 });
+    this.spr({ name: tn('sun_rays', 'gold'), x: q.x, y: q.y - q.z - 60, w: 420, life: 520, add: true, depth: q.y - 3, rot: (u) => 30 * u,
+      sx: kf([0, 0.6], [0.25, 1.1, out3], [1, 1.25]), sy: kf([0, 0.6], [0.25, 1.1, out3], [1, 1.25]), a: kf([0, 1], [0.4, 0.8], [1, 0, inQ]) });
+    this.pop('glint', q.x, q.y - q.z - 60, 260, { life: 260, angle: 0, depth: TOP + 3, glow: 0.8 });
+    this.shock(q.x, q.y, 340, { tone: 'gold' }); this.shock(q.x, q.y, 440, { tone: 'gold', delay: 90 });
+    this.sparks(q.x, q.y - 80, 16, 160, { tone: 'gold', depth: q.y + 4 });
     if (r.own) this.ctx.cam().shake(160, 0.004);
-    this.sunAura(r);
   }
 
-  /** Rising Sun's light on him through the buff: a faint golden flame round him, breathing, motes of light rising off him
-   *  (as much of it shows as of him: none while he is hidden among his doubles). */
-  private sunAura(r: CastRun): void {
-    if (r.attackerId.includes('#')) return; // (a double's copy of the cast: the buff is his)
-    this.clearSun(r.attackerId, true);
-    const s = this.ctx.scene, mk = (add: boolean) => s.add.image(0, 0, KIT, 'aura_gold').setOrigin(0.5, 0.92).setVisible(false).setBlendMode(add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
-    this.suns.set(r.attackerId, { t: 0, ims: [mk(false), mk(true)], next: 700 });
-  }
+  /** (Rising Sun was a buff once — its light stayed on him; it is his defensive ultimate now: nothing stays on him. Kept for
+   *  the scene's round reset.) */
   clearSun(id: string, now = false): void {
     const u = this.suns.get(id); if (!u) return;
     this.suns.delete(id);
@@ -1247,7 +1306,7 @@ export class SamuraiFx {
     this.cut('cut_x', R * 1.9, rnd(-8, 8), { x: cx, y: cy, depth: TOP + 4, grow: 60, hold: 90, fade: 260, glow: 0.8 });
     this.pop('burst_crit', cx, cy, R * 1.2, { life: 380 });
     this.shock(cx, cy + 60, R * 2.4);
-    this.petals(cx, cy, 24, R, { depth: TOP + 3 });
+    this.sparks(cx, cy, 20, R, { depth: TOP + 3 }); // (crimson sparks off the ink field: no petals — those are the blossom skills')
     if (r.own) { cam.shake(260, 0.009); this.ctx.punch(0.05, 260); }
   }
 
@@ -1267,11 +1326,11 @@ export class SamuraiFx {
 
   /** A phantom of the samurai — his own body as it is this moment, in ink with a crimson edge — dashing from (x0, y0) to
    *  (x1, y1) (feet), afterimages in its wake. */
-  private phantomDash(r: CastRun, x0: number, y0: number, x1: number, y1: number, depth: number): void {
+  private phantomDash(r: CastRun, x0: number, y0: number, x1: number, y1: number, depth: number, rimCol = 0xff3048): void {
     const b = this.ctx.body?.(r.attackerId); if (!b) return;
     const s = this.ctx.scene, ADD = Phaser.BlendModes.ADD, flip = (x1 < x0) !== (sideOf(r) < 0) ? !b.flipX : b.flipX;
     const mk = (fill: number, k: number) => s.add.image(x0, y0, b.key, b.frame).setOrigin(b.ox, b.oy).setScale(b.sx * k * 1.12, b.sy * k * 1.12).setFlipX(flip).setTintFill(fill).setVisible(false);
-    const rim = mk(0xff3048, 1.08).setBlendMode(ADD), ink = mk(0x12040a, 1), life = 190; // the crimson glow behind, the ink body over it: a lit edge
+    const rim = mk(rimCol, 1.08).setBlendMode(ADD), ink = mk(0x12040a, 1), life = 190; // the glow behind (crimson, or the skill's own), the ink body over it: a lit edge
     let trail = -99;
     this.add({ t: 0, step: (_dt, t) => {
       const u = Math.min(1, t / life), p = out(u), x = x0 + (x1 - x0) * p, y = y0 + (y1 - y0) * p, a = u < 0.12 ? u / 0.12 : u > 0.72 ? (1 - u) / 0.28 : 1;
@@ -1279,7 +1338,7 @@ export class SamuraiFx {
       ink.setVisible(true).setPosition(x, y).setDepth(depth).setAlpha(0.92 * a);
       if (t - trail > 28 && u < 0.9) {
         trail = t;
-        const g = mk(0xff3048, 1).setBlendMode(ADD).setPosition(x, y).setDepth(depth - 0.02).setVisible(true).setAlpha(0.32 * a);
+        const g = mk(rimCol, 1).setBlendMode(ADD).setPosition(x, y).setDepth(depth - 0.02).setVisible(true).setAlpha(0.32 * a);
         this.add({ t: 0, step: (_d, tt) => { g.setAlpha(0.32 * a * (1 - tt / 170)); if (tt >= 170) { g.destroy(); return false; } return true; } });
       }
       if (u >= 1) { ink.destroy(); rim.destroy(); return false; }
@@ -1300,7 +1359,7 @@ export class SamuraiFx {
    *  of stone dust each (each bound foe gets its branches, `cage`). */
   private bloom(r: CastRun): void {
     const h0 = r.skill.hits[0], R = (h0.shape as { radius: number }).radius, c = r.place ?? r.origin;
-    this.floor('vortex', c.x, c.y, R * 1.9, 420, { spin: -240, depth: GROUND + 2.4, tint: 0xffd2da, a: kf([0, 0.28], [0.5, 0.2], [1, 0, inQ]), s: kf([0, 1.1], [1, 0.35, inQ]) });
+    this.floor(tn('vortex', 'sakura'), c.x, c.y, R * 1.9, 420, { spin: -240, depth: GROUND + 2.4, a: kf([0, 0.32], [0.5, 0.24], [1, 0, inQ]), s: kf([0, 1.1], [1, 0.35, inQ]) });
     for (let i = 0; i < 8; i++) {
       const th = (i / 8) * Math.PI * 2 + rnd(-0.15, 0.15), bx = c.x + Math.cos(th) * R * 1.0, by = c.y + Math.sin(th) * R * SQUASH, dl = 30 + i * 18;
       this.floor('crack', bx, by + 3, 34, 1400, { angle: rnd(0, 360) + CRACK_TILT, squash: 0.5, delay: dl, depth: GROUND + 1.6, tint: 0x4a2418, a: kf([0, 0], [0.05, 0.7], [0.7, 0.6], [1, 0]) });
@@ -1315,7 +1374,7 @@ export class SamuraiFx {
   blossomCatch(at: V3): void {
     if (!this.ready) return;
     const { x, y } = at;
-    this.floor('shock_ring', x, y, 190, 380, { add: true, depth: GROUND + 2.6, tint: 0xffc4d0, s: kf([0, 0.35], [1, 1.15, out3]), a: kf([0, 0.85], [1, 0, inQ]) });
+    this.floor(tn('shock_ring', 'sakura'), x, y, 190, 380, { add: true, depth: GROUND + 2.6, s: kf([0, 0.35], [1, 1.15, out3]), a: kf([0, 0.85], [1, 0, inQ]) });
     this.floor('sigil_sakura', x, y, 150, 520, { spin: 120, depth: GROUND + 2.2, tint: 0xffd2da, a: kf([0, 0.7], [0.4, 0.5], [1, 0, inQ]), s: kf([0, 1.2], [0.3, 1, out3]) });
     this.petals(x, y - 12, 14, 70, { depth: y + 4 });
     this.dust(x, y, 90);
@@ -1343,34 +1402,35 @@ export class SamuraiFx {
       sx: (u) => (u < land ? 0.55 + 0.45 * Math.abs(Math.cos(u * 10 + ph)) : 1), a: kf([0, 0], [0.08, 1], [0.86, 1], [1, 0]) });
   }
 
-  /** Dragon Ascension: the dragon crest turns on the floor through the wind-up. */
+  /** Dragon Ascension: the golden dragon crest turns on the floor through the wind-up (the ultimate's dragon is crimson —
+   *  this one is gold: they never read alike). */
   private ascension(r: CastRun): void {
     const T = r.timings, q = this.me(r);
-    this.floor('sigil_dragon', q.x, q.y, 300, T.startup + T.active + 500, { spin: -200 * sideOf(r), run: r, glow: 0.35,
+    this.floor(tn('sigil_dragon', 'gold'), q.x, q.y, 300, T.startup + T.active + 500, { spin: -200 * sideOf(r), run: r, glow: 0.35,
       a: kf([0, 0], [0.12, 1], [0.8, 1], [1, 0]), s: kf([0, 0.6], [0.2, 1, out3]) });
-    this.petals(q.x, q.y - 30, 10, 140, { inward: true, life: T.startup + 80, depth: q.y + 3 });
+    this.glint(r, T.startup * 0.4, 28, 62);
   }
-  /** The dragon breaks out of the floor and spirals up round him as high as it carries the foes, then flies off. */
+  /** The golden dragon breaks out of the floor and spirals up round him as high as it carries the foes, then flies off. */
   private ascensionBurst(r: CastRun): void {
     const q = this.me(r), cx = q.x, cy = q.y, side = sideOf(r), cam = this.ctx.cam();
-    this.launchBeam(cx, cy, 260);
-    this.shock(cx, cy, 300); this.dustRing(cx, cy, 260); this.dust(cx - 60, cy, 110); this.dust(cx + 60, cy, 110, 40);
+    this.launchBeam(cx, cy, 260, 'gold');
+    this.shock(cx, cy, 300, { tone: 'gold' }); this.dustRing(cx, cy, 260); this.dust(cx - 60, cy, 110); this.dust(cx + 60, cy, 110, 40);
     // the dragon bursts out of the floor just in front of him and climbs into the sky in long S-curves — its whole body
     // following its head along one path (no seams, nothing jumping), fast out of the floor, slowing near the top — roars
     // there, and melts into sparks from its tail up as it drifts on
     const gx = cx + side * 30, gy = cy + 2, A = 64, LAM = 330, TOPS = 300, RISE = 950, ROAR = 0.8, MELT0 = 900, MELT = 520, d = cy + 6; // (its jaws stay in sight at the top)
     const path = (sv: number): Pt => { const e = Math.min(1, Math.max(0, sv) / 150), w = e * e * (3 - 2 * e); return { x: gx + side * A * w * Math.sin((sv / LAM) * Math.PI * 2), y: gy - sv, d }; };
-    const drg = this.serpent(48, { glow: 0.32, flip: side < 0 });
+    const drg = this.serpent(48, { glow: 0.32, flip: side < 0, tone: 'gold' });
     let roared = false, nextSpark = 0, nextPetal = 0;
     this.add({ t: 0, step: (_dt, t) => {
       if (this.gone(r)) { drg.destroy(); return false; }
       const u = Math.min(1, t / RISE), neck = -40 + (TOPS + 40) * out3(u) + Math.max(0, t - RISE) * 0.2, melt = Math.max(0, (t - MELT0) / MELT);
       drg.place(path, neck, Math.min(1, t / 90), Math.min(1, melt));
-      if (t >= nextPetal && melt < 0.5) { nextPetal = t + 60; const p = drg.at(path, neck, 0.9); this.petals(p.x, p.y, 1, 24, { depth: p.d + 1, life: 700 }); }
+      if (t >= nextPetal && melt < 0.5) { nextPetal = t + 60; const p = drg.at(path, neck, 0.9); this.sparks(p.x, p.y, 1, 24, { tone: 'gold', depth: p.d + 1, life: 600 }); }
       if (!roared && u >= ROAR) { roared = true; const n = path(neck), a0 = Math.atan2(n.y - path(neck - 8).y, n.x - path(neck - 8).x); this.roar(r, { x: n.x + Math.cos(a0) * 150, y: n.y + Math.sin(a0) * 150, d: n.d }); }
       if (melt > 0 && melt < 1 && t >= nextSpark) { // it scatters into sparks where it melts
         nextSpark = t + 30;
-        for (let k = 0; k < 2; k++) { const p = drg.at(path, neck, Math.min(1, melt * 1.2 - 0.1 + rnd(-0.04, 0.04))); this.pop('spark_s', p.x + rnd(-12, 12), p.y + rnd(-12, 12), rnd(34, 56), { life: 240, depth: p.d + 2, glow: 0.5 }); }
+        for (let k = 0; k < 2; k++) { const p = drg.at(path, neck, Math.min(1, melt * 1.2 - 0.1 + rnd(-0.04, 0.04))); this.pop(tn('spark_s', 'gold'), p.x + rnd(-12, 12), p.y + rnd(-12, 12), rnd(34, 56), { life: 240, depth: p.d + 2, glow: 0.5 }); }
       }
       if (melt >= 1) { drg.destroy(); return false; }
       return true;
@@ -1379,10 +1439,10 @@ export class SamuraiFx {
   }
   /** At the top of its climb the dragon roars: a burst at its jaws, a ring of air thrown out, petals, the screen shakes. */
   private roar(r: CastRun, p: Pt): void {
-    this.pop('burst', p.x, p.y, 220, { life: 380, depth: TOP + 3, angle: 0, glow: 0.5 });
-    this.spr({ name: 'shock_ring', x: p.x, y: p.y + 6, depth: TOP + 2.8, w: 300, h: 190, life: 480, glow: 0.6, tint: 0xff6a78,
+    this.pop(tn('burst', 'gold'), p.x, p.y, 220, { life: 380, depth: TOP + 3, angle: 0, glow: 0.5 });
+    this.spr({ name: tn('shock_ring', 'gold'), x: p.x, y: p.y + 6, depth: TOP + 2.8, w: 300, h: 190, life: 480, glow: 0.6,
       sx: kf([0, 0.2], [1, 1.25, out3]), sy: kf([0, 0.2], [1, 1.25, out3]), a: kf([0, 1], [0.35, 1], [1, 0, inQ]) });
-    this.petals(p.x, p.y, 16, 150, { depth: TOP + 2.5 });
+    this.sparks(p.x, p.y, 16, 150, { tone: 'gold', depth: TOP + 2.5 });
     if (r.own) { this.ctx.cam().shake(170, 0.006); this.ctx.punch(0.02, 160); }
   }
 
@@ -1395,7 +1455,8 @@ export class SamuraiFx {
     this.clearHalo(r.attackerId, true);
     const c = this.me(r), side = sideOf(r), until = r.timings.startup + L.startMs + L.everyMs * L.count, ADD = Phaser.BlendModes.ADD;
     const ring = (add: boolean) => { const im = s.add.image(c.x, c.y - c.z - 74, KIT, 'halo_gold').setAlpha(0); if (add) im.setBlendMode(ADD); return im.setScale(HALO / im.width); };
-    const blade = (add: boolean) => { const im = s.add.image(c.x, c.y - c.z - 70, KIT, 'katana_ghost').setOrigin(0.5, 0.9).setAlpha(0); if (add) im.setBlendMode(ADD); return im.setScale(KATANA / im.height); };
+    const kg = this.fname(tn('katana_ghost', 'gold')); // (golden katanas round the golden halo)
+    const blade = (add: boolean) => { const im = s.add.image(c.x, c.y - c.z - 70, KIT, kg).setOrigin(0.5, 0.9).setAlpha(0); if (add) im.setBlendMode(ADD); return im.setScale(KATANA / im.height); };
     this.halos.set(r.attackerId, { run: r, imgs: Array.from({ length: 8 }, () => blade(false)), gls: Array.from({ length: 8 }, () => blade(true)), halo: ring(false), hg: ring(true),
       t: 0, until, lastX: c.x, face: side, next: 0, away: new Set(), spent: new Set() });
   }
@@ -1444,7 +1505,7 @@ export class SamuraiFx {
     const k = BLADE_ORDER[h.next++];
     const im = h.imgs[k], gl = h.gls[k]; if (!im) return;
     h.away.add(k); h.spent.add(k);
-    this.petals(im.x, im.y - 20, 4, 30, { depth: c.y + 2 }); // (petals left where it was)
+    this.sparks(im.x, im.y - 20, 4, 30, { tone: 'gold', depth: c.y + 2 }); // (sparks of gold left where it was)
     const FLY = 150, STICK = 210, OUT = 130, L = KATANA * 0.9, IN = 26, sx = im.x, sy = im.y, a0 = im.angle, kk = KATANA / im.height, kw = (KATANA * im.width) / im.height;
     const goal = () => { const t = targetId ? this.ctx.targetPos?.(targetId) : null; return t ? { x: t.x, y: t.y - t.z - 78 } : { x: to.x, y: to.y - to.z - 38 }; };
     // the stab: from where it flies, at least this steep (it comes down from the halo)
@@ -1460,10 +1521,10 @@ export class SamuraiFx {
       if (t < FLY) {
         const u = t / FLY, e = 0.25 * u + 0.75 * u * u, x = sx + (hx - sx) * e, y = sy + (hy - sy) * e - 34 * Math.sin(Math.PI * u), ang = a0 + turn * out3(Math.min(1, u / 0.35));
         im.setPosition(x, y).setAngle(ang).setScale(kk).setAlpha(1); gl.setPosition(x, y).setAngle(ang).setScale(kk * 1.05).setAlpha(0.55);
-        if (t - last > 22) { last = t; this.spr({ name: 'katana_ghost', x, y, oy: 0.9, w: kw, h: KATANA, angle: ang, add: true, life: 150, depth: TOP + 1.9, a: kf([0, 0.42], [1, 0, inQ]) }); }
+        if (t - last > 22) { last = t; this.spr({ name: tn('katana_ghost', 'gold'), x, y, oy: 0.9, w: kw, h: KATANA, angle: ang, add: true, life: 150, depth: TOP + 1.9, a: kf([0, 0.42], [1, 0, inQ]) }); }
         return true;
       }
-      if (!struck) { struck = true; this.pop('spark_s', g.x, g.y, 66, { life: 200, depth: TOP + 3, glow: 0.5 }); }
+      if (!struck) { struck = true; this.pop(tn('spark_s', 'gold'), g.x, g.y, 66, { life: 200, depth: TOP + 3, glow: 0.5 }); }
       const e = t - FLY;
       if (e < STICK + OUT) { // in the foe, shuddering — then pulled out, fading
         const j = e < STICK ? 2.4 * (1 - e / STICK) * Math.sin(e / 9) : 0, pull = e < STICK ? 0 : out((e - STICK) / OUT) * 18, al = e < STICK ? 1 : 1 - (e - STICK) / OUT;
@@ -1483,13 +1544,14 @@ export class SamuraiFx {
    *  the fling at his blade; on impact (a foe, a wall, its end) it shatters into shards and petals. */
   projectile(p: Projectile): void {
     if (!this.ready) return;
-    const s = this.ctx.scene, mk = (add: boolean) => s.add.image(p.x, p.y - p.z, KIT, 'wave_crescent').setOrigin(0.76, 0.5).setBlendMode(add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL).setDepth(p.y + 2);
+    const s = this.ctx.scene, wc = this.fname(tn('wave_crescent', 'gold')); // (a golden crescent moon)
+    const mk = (add: boolean) => s.add.image(p.x, p.y - p.z, KIT, wc).setOrigin(0.76, 0.5).setBlendMode(add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL).setDepth(p.y + 2);
     const im = mk(false), gl = mk(true).setAlpha(0.45);
     const me = this.ctx.casterPos(p.attackerId), ghosts = me ? (this.ctx.ghosts?.(p.attackerId) ?? []).map((g) => ({ im: mk(false), dx: g.x - me.x, dy: g.y - me.y })) : [];
     this.waves.set(p, { im, gl, t: 0, trail: 0, ghosts }); // (the doubles throw theirs too: the same crescent beside his)
     if (me) { // the fling: the trail of the swing at his blade
       const fl = p.dx < -0.01, ang = screenAng(p.dx, p.dy);
-      this.spr({ name: 'blade_trail', x: me.x + p.dx * 30, y: me.y - me.z - 52, w: 150, life: 200, flipX: fl, angle: along(ang, fl), glow: 0.3,
+      this.spr({ name: tn('blade_trail', 'gold'), x: me.x + p.dx * 30, y: me.y - me.z - 52, w: 150, life: 200, flipX: fl, angle: along(ang, fl), glow: 0.3,
         sx: kf([0, 0.6], [0.25, 1, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
     }
   }
@@ -1497,14 +1559,15 @@ export class SamuraiFx {
     const w = this.waves.get(p); if (!w) return;
     this.waves.delete(p);
     const end = p.end ?? { x: p.x, y: p.y, reason: 'range' as const }, fl = p.dx < -0.01, ang = screenAng(p.dx, p.dy), foe = end.reason === 'target', wall = end.reason === 'cover';
-    const shatter = (x: number, y: number, size: number) => this.spr({ name: 'wave_break', x, y, w: size, life: foe ? 380 : 320, flipX: fl, angle: along(ang, fl) * 0.3, glow: 0.35, depth: TOP + 4,
+    const G = (n: string) => tn(n, 'gold');
+    const shatter = (x: number, y: number, size: number) => this.spr({ name: G('wave_break'), x, y, w: size, life: foe ? 380 : 320, flipX: fl, angle: along(ang, fl) * 0.3, glow: 0.35, depth: TOP + 4,
       sx: kf([0, 0.6], [0.2, 1.05, out3], [1, 1.2]), sy: kf([0, 0.6], [0.2, 1.05, out3], [1, 1.2]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
     const impact = (x: number, y: number, k: number) => { // it strikes: the crescent flattens against what it hit and bursts, its force spraying on through
-      this.spr({ name: 'wave_crescent', x, y, ox: 0.76, angle: ang, flipY: fl, w: 150 * k, depth: TOP + 4.2, life: 200, glow: 0.5,
+      this.spr({ name: G('wave_crescent'), x, y, ox: 0.76, angle: ang, flipY: fl, w: 150 * k, depth: TOP + 4.2, life: 200, glow: 0.5,
         sx: kf([0, 1], [1, 1.5, out]), sy: kf([0, 1], [1, 0.25, inQ]), a: kf([0, 1], [1, 0, inQ]) });
-      this.spr({ name: 'spark_spray', x, y, ox: fl ? 0.95 : 0.05, oy: 0.45, flipX: fl, angle: along(ang, fl), depth: TOP + 3.9, w: 170 * k, life: 280,
+      this.spr({ name: G('spark_spray'), x, y, ox: fl ? 0.95 : 0.05, oy: 0.45, flipX: fl, angle: along(ang, fl), depth: TOP + 3.9, w: 170 * k, life: 280,
         sx: kf([0, 0.4], [0.25, 1, out3], [1, 1.12]), sy: kf([0, 0.6], [0.25, 1, out3]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
-      this.petals(x, y, Math.round(10 * k), 70 * k, { depth: TOP + 3 });
+      this.sparks(x, y, Math.round(10 * k), 70 * k, { tone: 'gold', depth: TOP + 3 });
     };
     const size = foe ? 190 : wall ? 150 : 112;
     shatter(end.x, end.y - p.z, size);
@@ -1521,8 +1584,8 @@ export class SamuraiFx {
       for (const g of w.ghosts) g.im.setPosition(x + g.dx, y + g.dy).setAngle(ang).setScale(k, k * pulse).setFlipY(fl).setDepth(p.y + g.dy + 2);
       if (w.t - w.trail > 40) { // afterimages and a petal trail
         w.trail = w.t;
-        this.spr({ name: 'wave_crescent', x, y, ox: 0.76, depth: p.y + 1, w: 150, angle: ang, flipY: fl, add: true, life: 150, a: kf([0, 0.24], [1, 0, inQ]) });
-        if (Math.random() < 0.5) this.petals(x, y, 1, 22, { depth: p.y + 1, life: 600 });
+        this.spr({ name: tn('wave_crescent', 'gold'), x, y, ox: 0.76, depth: p.y + 1, w: 150, angle: ang, flipY: fl, add: true, life: 150, a: kf([0, 0.24], [1, 0, inQ]) });
+        if (Math.random() < 0.5) this.sparks(x, y, 1, 22, { tone: 'gold', depth: p.y + 1, life: 500 });
       }
     }
   }
