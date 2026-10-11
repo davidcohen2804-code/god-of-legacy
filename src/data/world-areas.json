@@ -14187,15 +14187,15 @@
    "frames": "puffling",
    "texQ": 2,
    "scale": 1.0,
-   "hp": 110,
-   "damage": 9,
+   "hp": 50,
+   "damage": 4,
    "speed": 70,
    "aggro": 220,
    "range": 62,
    "cooldown": 1200,
    "respawnMs": 9000,
-   "exp": 24,
-   "level": 7,
+   "exp": 10,
+   "level": 3,
    "gust": true
   },
   "big_grumble": {
@@ -14203,15 +14203,15 @@
    "frames": "big_grumble",
    "texQ": 2,
    "scale": 1.7,
-   "hp": 1600,
-   "damage": 16,
+   "hp": 700,
+   "damage": 8,
    "speed": 48,
    "aggro": 300,
    "range": 118,
    "cooldown": 1800,
    "respawnMs": 120000,
-   "exp": 320,
-   "level": 10,
+   "exp": 150,
+   "level": 5,
    "gust": true,
    "boss": true
   }
@@ -14259,12 +14259,47 @@
    }
   },
   {
+   "id": "sealed_road",
+   "giver": "aldric",
+   "title": "The Sealed Road",
+   "after": "first_steps",
+   "summary": "Master Aldric told you the road east is shut by the golden Sun Gate, and sent you up to Nimbus, the old cloud above the terraces.",
+   "offer": [
+    "Well done. Now, the road east... the golden Sun Gate has shut it. It opens only for those who have crossed the low sun of Sunfall Pass.",
+    "No path on the ground leads there. Climb the stone steps up the Ivy Heights, walk on to the summit, and step out onto the clouds.",
+    "At the end of the clouds lives Nimbus, a kind old cloud. Tell him Aldric sent you."
+   ],
+   "accept": "I'll climb",
+   "decline": "Not yet",
+   "progress": [
+    "Up the stone steps of the Ivy Heights, over the summit, along the clouds to Nimbus."
+   ],
+   "done": [
+    "Aldric sent you? Ho ho, then you're very welcome up here, little traveller!"
+   ],
+   "complete": "Hello, Nimbus",
+   "objectives": [
+    {
+     "kind": "talk",
+     "npc": "nimbus",
+     "text": "Find Nimbus (Cloud Haven, over the Sky Path)"
+    }
+   ],
+   "reward": {
+    "gold": 100,
+    "exp": 60,
+    "items": {
+     "apple": 5
+    }
+   }
+  },
+  {
    "id": "training_grounds",
    "giver": "aldric",
    "title": "The Training Grounds",
-   "after": "first_steps",
+   "after": "sun_gate",
    "offer": [
-    "Past the Ivy Terraces lie the old Training Grounds. The Courtyard's guard trained there — until the Curse turned them to rust.",
+    "You crossed the sun! The Sun Gate stands open now, and the road east is yours. Just past it lie the old Training Grounds. The Courtyard's guard trained there, until the Curse turned them to rust.",
     "The Rusted Swordsmen still drill there, blades and all. Defeat fifteen of them.",
     "Then walk on to Sunstone Plaza and find Mira. She'll want to meet you."
    ],
@@ -14548,7 +14583,8 @@
      "cloud_feather": 3,
      "blue_potion": 5
     }
-   }
+   },
+   "after": "sealed_road"
   },
   {
    "id": "big_grumble",

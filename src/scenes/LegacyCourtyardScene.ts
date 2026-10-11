@@ -560,7 +560,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       });
     } else {
       // The open world: one long world left to right, the camera following you along it.
-      this.world = new OpenWorld(this, { sunGateOpen: this.quests[SUN_GATE_KEY]?.state === 'done', onArea: (a) => { if (a.name !== this.areaName) { this.areaName = a.name; this.areaTitle?.show(a.name); } if (a.id === 'afterglow') this.openSunGate(); } }, at ?? toWorld(START.area, [START.x, START.y]));
+      this.world = new OpenWorld(this, { sunGateOpen: this.quests[SUN_GATE_KEY]?.state === 'done' || !!this.quests.training_grounds /* (walked the old road east before the gate stood: it stays open) */, onArea: (a) => { if (a.name !== this.areaName) { this.areaName = a.name; this.areaTitle?.show(a.name); } if (a.id === 'afterglow') this.openSunGate(); } }, at ?? toWorld(START.area, [START.x, START.y]));
       this.world.onNpcClick = (n) => this.talkTo(n);
     }
     if (AR) this.pitch = new CameraPitch(this, cam, () => ({ parts: [...this.arenaMap, ...this.occluders, ...(this.stageFx?.layerList() ?? [])], top: AR.y }), (d) => this.hud?.setPitch(d));
@@ -3971,7 +3971,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!this.world || this.world.sunGate.open) return;
     this.world.sunGate.unlock();
     this.quests[SUN_GATE_KEY] = { state: 'done', progress: [] }; this.saveQuests();
-    this.chat?.add({ kind: 'system', text: 'Far below, the golden Sun Gate swings open. The road on is free.' });
+    this.chat?.add({ kind: 'system', text: 'Far below, the golden Sun Gate swings open. The road east is free: Master Aldric has something to tell you.' });
   }
   private saveQuests(): void { if (this.character) CharacterStore.setQuests(this.character.id, this.quests); this.refreshQuests(); }
 
