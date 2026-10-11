@@ -7,7 +7,7 @@ import { WORLD_OBJECTS, type Pt, type WorldObject } from './WorldGeometry';
  *  open for good. Drawn in narrow columns, each at the depth of the gate's foot line where it stands (whoever is in front
  *  of a part of it is drawn over that part), its posts and doors solid. */
 const COLS = 32;
-const RAIL_DEPTH = 352.95;  // over Ivy Heights' floor and whoever stands up there (their band: 352 and a little)
+const RAIL_DEPTH = 356.5;   // over Ivy Heights' floor and whoever stands up there (their band reaches ~355 by the gate's walls)
 const BACK = 48;     // how deep its walls, pillars and doors stand behind their painted base (world px)
 
 export const SUN_GATE = GATE as unknown as { img: { closed: string; open: string }; x: number; y: number; w: number; h: number; sx: number; sy: number; back: [number, number]; front: [number, number]; doors: [number, number]; foot: [number, number][];
