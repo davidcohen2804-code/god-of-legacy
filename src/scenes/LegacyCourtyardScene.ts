@@ -2433,7 +2433,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const from = { x: k.x + (this.lunge?.x ?? 0), y: k.y + (this.lunge?.y ?? 0), z: k.z };
     const castId = `${this.localId}:${++this.castSeq}`;
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
-    this.body.armorUntil = -1;
+    this.body.armorUntil = -1; this.body.shotArmorUntil = -1;
     if (s.id === 'war_cry') { this.warCryUntil = this.simMs + s.startup + 8000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 8000 }); /* shared at the release (sim clock), like the caster's own */ }
     if (s.id === 'iron_oath') { this.oathUntil = this.simMs + ct.startup + 60000; this.shares.push({ at: this.simMs + ct.startup, id: s.id, ms: 60000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(ct.startup, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'IRON OATH', '#ffd27a', 0)); }
     if (s.id === 'legacy_banner') { this.bannerUntil = this.simMs + ct.startup + 90000; this.shares.push({ at: this.simMs + ct.startup, id: s.id, ms: 90000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(Math.round(ct.startup * 0.7), () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'LEGACY BANNER', '#ffe7a0', 0)); this.time.delayedCall(Math.round(ct.startup * 0.7) + 760, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, '+10% DMG  ·  -10% DMG TAKEN', '#fff3c4', 0)); }
@@ -2445,6 +2445,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.id === 'radiant_blade') { this.boltDone = false; this.radiantFrom = this.simMs + Math.round(s.startup * 0.4); } // light appears when the sword is raised
     if (s.id === 'radiant_blade') this.radiantUntil = this.simMs + s.startup + 15000;
     if (s.id === 'guard_counter') this.body.invulnUntil = this.simMs + s.startup + 600; // Aegis barrier
+    if (s.shotArmor) this.body.shotArmorUntil = this.simMs + s.shotArmor[1] * armorMul(s, this.arena); // a shield up: shots break on it
     if (s.armor) this.body.armorUntil = Math.max(this.body.armorUntil, this.simMs + s.armor[1] * armorMul(s, this.arena)); // super armor from the first frame (never interrupted mid-windup); outside the arena the warrior's stretched skills keep it to their stretched end
     if (s.slot === 7) this.body.invulnUntil = this.simMs + ct.startup + ct.active; // ultimate: untouchable while it plays
     else if (this.simMs < this.warCryUntil) this.body.armorUntil = this.simMs + ct.startup + ct.active; // War Cry: super armor while attacking
@@ -2610,7 +2611,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!run.own) return;
     if (run.skill.id === 'iron_grip') this.gripHeld = false;
     if (run.skill.chain) this.chain = { stage: run.stage, lastEnd: this.simMs, skill: run.skill.id };
-    this.body.armorUntil = -1;
+    this.body.armorUntil = -1; this.body.shotArmorUntil = -1;
     // Warrior skill sheets end in their own battle stance: go straight to idle (the old recovery frames popped and froze the body).
     if (!toMove && this.kin.grounded) this.setMode(this.cls === 'warrior' ? 'idle' : 'recover');
     else if (!this.kin.grounded) this.setMode('air');

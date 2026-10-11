@@ -351,6 +351,8 @@ export class CombatBody {
   /** Push motion (px/ms) applied over a short window. */
   push: { vx: number; vy: number; left: number } | null = null;
   armorUntil = -1;
+  /** armor against projectiles only (a shield raised): melee hits land as usual */
+  shotArmorUntil = -1;
   airTechCdUntil = 0;
   lastHitAt = -Infinity;
   /** One ground bounce pending (slams): the body pops back up on impact for an OTG follow-up. */
@@ -398,7 +400,7 @@ export class CombatBody {
   moveScale(now: number): number { return (now < this.slowUntil ? 1 - this.slowPct : 1) * (now < this.curseUntil ? (now < this.curseFrom + MAGE.curseStillMs ? 0 : 0.5) : 1); }
   chilled(now: number): boolean { return now < this.chillUntil; }
   frozen(now: number): boolean { return this.hard.active(now) && this.hard.kind === 'freeze'; }
-  reset(): void { this.pinUntil = -1; this.gauge = { stand: 0, air: 0, down: 0 }; this.invulnUntil = -1; this.bounce = false; this.state = 'free'; this.stateEnd = 0; this.hard.reset(); this.combos.clear(); this.push = null; this.slowUntil = 0; this.armorUntil = -1; this.chillUntil = -1; this.curseUntil = -1; this.curseFrom = -1; this.levityUntil = -1;
+  reset(): void { this.pinUntil = -1; this.gauge = { stand: 0, air: 0, down: 0 }; this.invulnUntil = -1; this.bounce = false; this.state = 'free'; this.stateEnd = 0; this.hard.reset(); this.combos.clear(); this.push = null; this.slowUntil = 0; this.armorUntil = -1; this.shotArmorUntil = -1; this.chillUntil = -1; this.curseUntil = -1; this.curseFrom = -1; this.levityUntil = -1;
     this.released = false; this.ghostUntil = -1; this.breakReadyAt = 0; this.quickReadyAt = 0; this.downAt = -Infinity; }
   /** Guarded right now (the arena: rising from the floor, the wake-up after it, BREAK). */
   ghost(now: number): boolean { return now < this.ghostUntil || (this.arena && this.state === 'getup'); }
@@ -465,7 +467,7 @@ export class CombatBody {
     const airNow = !this.kin.grounded || this.state === 'launched';
     const frac = damage / Math.max(1, this.maxHp);
     if (!R0.grab) { if (downNow) this.gauge.down += frac; else if (airNow) this.gauge.air += frac; else this.gauge.stand += frac; }
-    let armored = now < this.armorUntil;
+    let armored = now < this.armorUntil || (now < this.shotArmorUntil && hit.shape.kind === 'projectile');
     // The arena (DFO): super armor takes the hits but not everything — a grab takes hold of it, and the standing gauge,
     // once passed, knocks the armored body down all the same. (Armor beats a poke; a grab beats armor; moving beats a grab.)
     if (this.arena && armored && (R0.grab || (!airNow && !downNow && this.gauge.stand >= gaugeOf(true).stand))) { armored = false; this.armorUntil = now; out.broke = true; }

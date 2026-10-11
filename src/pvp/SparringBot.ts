@@ -8,7 +8,7 @@ import { PVP } from '../config/layout';
 import { ARENA, CombatBody, HitOutcome, Kin, PHYS, newKin, steer, stepKin } from '../combat/Combat';
 const ARENA_TECH_MS = ARENA.techMinMs;
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
-import { ARENA_FLOW, arenaCommits, arenaTimeScale, finalSkill, kitFor } from '../skills/FinalKit';
+import { ARENA_FLOW, arenaCommits, arenaTimeScale, armorMul, finalSkill, kitFor } from '../skills/FinalKit';
 import { HitTarget, V2, V3, unit } from '../skills/HitGeometry';
 import { Mode } from '../game/PoseState';
 import { sideAim } from '../game/Body';
@@ -399,6 +399,9 @@ export class SparringBot {
     if (s.dash && s.targeting === 'mouseTarget') dist = Math.min(dist, Math.max(0, Math.hypot(p.x - k.x, p.y - k.y) - 34));
     if (this.body.arena && this.body.ghostUntil > w.now) this.body.ghostUntil = w.now; // an attack out of the wake-up drops its guard, as for the players
     this.cast = { s, stage, t: 0, T, origin: { x: k.x, y: k.y, z: k.z }, aim, dist };
+    // its skills' super armor, as the players' (it had none: the knight's armored moves could be swatted out of their wind-up)
+    this.body.armorUntil = s.armor ? w.now + s.armor[1] * armorMul(s, this.body.arena) : -1;
+    this.body.shotArmorUntil = s.shotArmor ? w.now + s.shotArmor[1] * armorMul(s, this.body.arena) : -1;
     if (s.cooldown > 0) this.cdEnd.set(s.id, w.now + s.cooldown * (this.level === 'middle' ? CD_MUL : this.L.cd));
     if (s.chain) this.chainStage = stage;
     k.vx *= 0.3; k.vy *= 0.3;

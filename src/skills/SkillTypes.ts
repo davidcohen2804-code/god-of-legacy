@@ -135,6 +135,8 @@ export interface FinalSkill {
   /** fuseMs: stepping on it arms it (hits[0] at once), then it explodes after fuseMs (hits[1] on everyone in it). */
   trap?: { radius: number; lifeMs: number; fuseMs?: number };
   armor?: [number, number]; // elapsed window (ms from cast) with armor
+  /** Armor against shots only (projectiles), from the cast's start to [1] ms: a melee blow still lands (a shield charge). */
+  shotArmor?: [number, number];
   /** Counter stance: its window (ms); where he reappears: `behind` px past the attacker (falls back to a `sidestep`). */
   counter?: { window: number; sidestep: number; behind?: number };
   /** Tags of skills this one may cancel into on a confirmed hit. */
