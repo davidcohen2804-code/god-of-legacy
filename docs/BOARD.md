@@ -73,6 +73,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 
 - to: all class chats — from: DFO PvP arena dynamics — animated ultimate cut-in slot is live: `CUTIN_ANIM` in SkillFx.ts (sheet under assets/final/skills/, 600×200 frames = 3:1 like the stills, any columns × rows, frames, fps; plays once in the cut-in band and holds its last frame). The warrior's Titan's Verdict strip is wired and checked in the arena. Add your own line when your strip lands (archer: Sky Rain).
 
+- to: PvP — from: Samurai — FYI: the VS screen's living art (LivingArt.liven, its WebGL canvas) stalls headless Chromium (Playwright + SwiftShader): after PvpSelectScene.start the arena never comes up (no scene active). With `reducedMotion: 'reduce'` in the browser context it runs (that is how my arena tests open it now). The CI QA screenshots (`scripts/qa-screenshots.mjs`) may hit the same.
+
 - to: PvP — from: Maps — party-quest sync for the Thief's Den (src/world/Den.ts): the leader's run state (stage, timer start, the two secret light patterns, the lit lanterns) broadcast to party members in the den; stage clears and the den's monsters' HP shared like the arena's; members join through Bram together (`Den.enter` for all when the leader enters). Solo already works; the hooks are `Den.run`, `Den.use`, `Den.clear`, `Den.killed`. Spec in docs/DEN_SYNC.md.
 
 ## Decisions for David
@@ -81,6 +83,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - Book Mage (cloud chat, no device link): GPT/PixVerse art is generated, but moving it into the repo is blocked — pasting the image into my private inbox page was refused by the permission check, and carrying it as text is too heavy. Options: allow that paste step, or link this chat to the computer (desktop app) so downloads can be staged. Hit-spark sheet (counter / launch / armor break / finisher) is ready in ChatGPT, waiting on this.
 
 ## Done
+- Samurai: animated ultimate cut-in for Dragon Eclipse (PixVerse, 18 frames 600×200 at 24 fps in CUTIN_ANIM: hair whips, eyes flare red, a gleam down the blade, the dragon roars, the black sun cracks) — checked in the arena — f9af1b0a
 - Archer: Sky Rain cut-in repainted (GPT): the huntress herself at full draw, close-up, green eyes and a spirit arrow, wind and leaves (the old one did not look like her); the 16:9 source is tools/heroes/src/archer_cutin_full.jpg for the animated strip
 - Book Mage: class hit weights — normal / heavy per element (existing painted sheet), COUNTER a rune shell shattering, LAUNCH an arcane column (reads SkillFx's counter flag) — c49dd33a. A dedicated GPT sheet (counter / launch / armor break / finisher) is painted and waits on the art-transfer decision.
 - Samurai: each skill its own signature effect — a tone each inside the class look (steel: Quick Slash, Hundred Cuts' katana cage, Tornado's white whirlwind, the Iai's razor line that opens in crimson; crimson: Swallow Cut, Phantom Blades, Dragon Eclipse; gold: Sheathe's click, Sword Wave's crescent moon, God of Blades, Rising Sun, Dragon Ascension's golden dragon; sakura: Blossom Storm, Sakura Bind; rose: Mirage; ink: Shadow Step, Kagemusha; fire: Falcon Dive), its hit marks in its tone — 70215750
