@@ -70,6 +70,11 @@
       "frame_ms": [
         500
       ]
+    },
+    "idle": {
+      "frames": 40,
+      "fps": 15,
+      "source": "pixverse bm_idle.mp4"
     }
   },
   "hit_source": "pixverse bm_hit.mp4"

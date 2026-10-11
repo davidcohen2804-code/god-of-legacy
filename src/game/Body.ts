@@ -102,7 +102,7 @@ export function preloadBodies(scene: Phaser.Scene, classes?: readonly string[], 
       LS(skillKey(cls, s.id), skillPath(cls, s.id)); M(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id), cls, cs?.w ?? CELL, cs?.h ?? CELL); if (cls === 'warrior') SHEET_PATH[skillKey(cls, s.id)] = skillPath(cls, s.id); }
   }
   for (const [cls, a] of Object.entries(ATLAS)) { if (!want(cls)) continue; L(atlasKey(cls), a.sheet, false); M(`${atlasKey(cls)}-w`, a.sheet, cls, 0, 0, true); }
-  for (const cls of Object.keys(HEROES)) if (want(cls)) L(heroKey(cls), `assets/final/heroes/${cls}/body.png`, false); // START HERO bodies
+  for (const cls of Object.keys(HEROES)) if (want(cls) || cls.startsWith('beginner_')) L(heroKey(cls), `assets/final/heroes/${cls}/body.png`, false); // START HERO bodies; the painted Beginner always (every class plays it below the 1st job)
   if (want('warrior')) for (const [g, anims] of Object.entries(NAKED)) for (const anim of Object.keys(anims)) {
     L(nakedKey(g, anim), `assets/final/body/naked/${g}/${anim}.png`, true);
     if (hasOver(g, anim)) L(overKey(g, anim), `assets/final/body/naked/${g}/${anim}_o.png`, true); // the sword arm in front of the head
@@ -447,6 +447,7 @@ const pick = <T,>(list: T[], p: number): T => list[Math.max(0, Math.min(list.len
 type BodyQuery = Exclude<PoseQuery, { k: 'loop' }> | { k: 'loop'; state: 'idle' | 'walk' | 'run'; t: number; speed: number };
 export function resolvePose(cls: ClassKey, dir: Dir, q: PoseQuery, base = false, gender?: 'male' | 'female', hero = false): PoseFrame {
   if (hero && HEROES[cls]) return heroPose(cls, dir, q);
+  if (base && gender && HEROES[`beginner_${gender}`]) return heroPose(`beginner_${gender}`, dir, q); // the painted Beginner (male / female) when its body is cut
   BASE_MODE = base && cls === 'warrior';
   try {
     if (BASE_MODE && gender) return nakedPose(cls, dir, gender, q); // the clean base character (its look: ActorView layers)

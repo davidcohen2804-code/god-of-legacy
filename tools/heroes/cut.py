@@ -528,6 +528,25 @@ def main():
             cyc = {a: round(float(v), 1) for a, v in rig_cyc.items()}
         table[cls] = {'h': idle_h, 'actions': A, 'cycle': cyc}
         print(cls, {k: len(v) for k, v in A.items()}, 'idle h', idle_h, 'sheet', sheet.shape[:2])
+    # Painted-only bodies (the Beginner, male and female): no model sheet and no rig — every frame is a painted picture in
+    # tools/heroes/motion/<cls>/ (768x768, ground y 700, hips x 384, standing height ~509). The idle gives the size.
+    mroot = os.path.join(ROOT, 'tools', 'heroes', 'motion')
+    for cls in sorted(os.listdir(mroot)) if os.path.isdir(mroot) else []:
+        mdir = os.path.join(mroot, cls)
+        if cls in SPEC or (only and cls not in only) or not os.path.isdir(mdir) or not os.path.exists(os.path.join(mdir, 'idle_01.png')):
+            continue
+        frames, cyc = motion_frames(mdir, [('idle', np.zeros((190, 1, 4), np.uint8), 0, 0)], {})  # shown ~190 px tall like the heroes
+        acts, ims = [(a, ax, ay) for a, _, ax, ay in frames], [im for _, im, _, _ in frames]
+        sheet, pos = pack(ims)
+        out_dir = os.path.join(ROOT, 'public', 'assets', 'final', 'heroes', cls)
+        os.makedirs(out_dir, exist_ok=True)
+        Image.fromarray(sheet).save(os.path.join(out_dir, 'body.png'), optimize=True)
+        A = {}
+        for (act, ax, ay), (px, py), im in zip(acts, pos, ims):
+            A.setdefault(act, []).append([px, py, im.shape[1], im.shape[0], round(ax, 1), round(ay, 1)])
+        idle_h = float(np.median([f[3] for f in A['idle']]))
+        table[cls] = {'h': idle_h, 'actions': A, 'cycle': {a: round(float(v), 1) for a, v in cyc.items() if a in ('walk', 'run')}}
+        print(cls, {k: len(v) for k, v in A.items()}, 'idle h', idle_h, 'sheet', sheet.shape[:2])
     json.dump(table, open(table_path, 'w'), separators=(',', ':'))
     # START HERO cards: the front view of each approved model sheet
     for cls in SPEC:
