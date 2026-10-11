@@ -5,6 +5,9 @@
 // counter, hit-stop / shake hierarchy) → HUD, Skill Book (K), Inventory (I) and Cosmetic Shop (O).
 import { FloorLift } from '../world/FloorLift';
 import { sunGateX, SUN_GATE } from '../world/SunGate';
+/** The arena camera: at least `minView` world px across the screen (the fighters ~1.7× the whole-arena view), the gap
+ *  between them plus `margin` when they part; zoom at most maxZoom × the whole-arena view; eases in easeMs. */
+const ARENA_CAM = { minView: 1150, margin: 760, maxZoom: 1.75, easeMs: 260 };
 /** Kept with the quests: the Sun Gate opened (the sun over Sunfall Pass crossed). */
 const SUN_GATE_KEY = 'sun_gate';
 import Phaser from 'phaser';
@@ -73,7 +76,7 @@ import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
 import { baseLoop, ClassKey, dirOf, HERO_HEIGHT, HERO_LIFT, heroPortrait, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame, sideAim } from '../game/Body';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
-import { ARENA, CombatBody, HitOutcome, gaugeOf, Kin, MAGE, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
+import { ARENA, COUNTER, CombatBody, HitOutcome, gaugeOf, Kin, MAGE, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import { ARENA_FLOW, MAGE_HIDDEN, arenaCommits, arenaTimeScale, armorMul, finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
 import { CastRun, RT_EVENTS, SkillRuntime, Trap } from '../skills/SkillRuntime';
@@ -317,7 +320,20 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (what === 'in' || what === 'out') this.arenaZoom = Phaser.Math.Clamp(this.arenaZoom * (what === 'out' ? 0.93 : 1 / 0.93), Math.max(0.8, this.cameras.main.width / (arenaRect().w * this.baseZoom)), 1.5)   // never wider than the arena's picture;
     else if (what === 'up' || what === 'down') this.arenaLift = Phaser.Math.Clamp(this.arenaLift + (what === 'up' ? 30 : -30), -180, 180);
     else { this.arenaZoom = 1; this.arenaLift = 0; }
-    if (this.koT < 0) this.cameras.main.zoomTo(this.baseZoom * this.arenaZoom, 160, 'Sine.easeOut', true);
+    if (this.koT < 0 && !this.arena) this.cameras.main.zoomTo(this.baseZoom * this.arenaZoom, 160, 'Sine.easeOut', true); // (the arena: arenaCamStep eases to it)
+  }
+  /** The arena camera (DFO): frames both fighters — close in when they are close (the bodies big and readable, ~1.7×
+   *  the whole-arena view), wider as they part; the player's wheel zoom (arenaZoom) and height (arenaLift) on top. */
+  private arenaCamStep(ms: number): void {
+    const cam = this.cameras.main, k = this.kin;
+    const foe = this.bot && !this.bot.defeated ? this.bot.kin : [...(this.pvp?.remotes.values() ?? [])].find((r) => r.alive) ?? null;
+    const fx = foe ? foe.x : k.x, fy = foe ? foe.y : k.y;
+    const mx = (k.x + fx) / 2, my = (k.y + fy) / 2, span = Math.abs(k.x - fx);
+    this.camTarget.set(mx, my + 70 - this.arenaLift); // (above the skill tray)
+    if (this.koT >= 0) return; // the K.O. drives its own zoom
+    const view = Math.max(ARENA_CAM.minView, span + ARENA_CAM.margin); // world px across the screen
+    const want = Phaser.Math.Clamp(cam.width / view, this.baseZoom, this.baseZoom * ARENA_CAM.maxZoom) * this.arenaZoom;
+    cam.setZoom(cam.zoom + (want - cam.zoom) * Math.min(1, ms / ARENA_CAM.easeMs));
   }
   private botCls = 'warrior';
   /** Came from the PvP fighter select: against the CPU / another player. */
@@ -544,7 +560,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         this.add.rectangle(R.x, R.y + H + extra, W, H, 0x05080e, 0.9).setOrigin(0, 0).setDepth(-0.97));   // (a lower camera sees further down)
       cam.setBounds(R.x, R.y, W, H + extra);
       this.camTarget.set(R.x + W / 2, this.kin ? this.kin.y : R.y + H / 2);
-      cam.startFollow(this.camTarget, true, 0, 0.09);
+      cam.startFollow(this.camTarget, true, 0.09, 0.09); // (the arena: the camera frames both fighters — arenaCamStep)
       cam.centerOn(R.x + W / 2, R.y + H / 2);
       this.arenaZoom = 1; this.arenaLift = 0;
       this.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, dy: number) => this.arenaCam(dy > 0 ? 'out' : 'in'));
@@ -828,7 +844,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.updateBot(ms, now);
     this.updateMatch(real, ms);
     this.reactionFx(ms);
-    if (this.pvp || this.arena) this.camTarget.set(arenaRect().x + arenaRect().w / 2, this.kin.y + 70 - this.arenaLift); // keep yourself above the tray
+    if (this.arena) this.arenaCamStep(ms);
+    else if (this.pvp) this.camTarget.set(arenaRect().x + arenaRect().w / 2, this.kin.y + 70 - this.arenaLift); // keep yourself above the tray
     if (this.pvp && this.fx.hitStopLeft > 0) { // PvP hit-stop (presentation only, the simulation never waits): the other fighters hold their pose too
       for (const r of this.pvp.remotes.values()) r.hold(this.fx.hitStopLeft);
       this.bot?.view.hold(this.fx.hitStopLeft);
@@ -3006,6 +3023,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** The arena: your hit caught the foe in the recovery of an attack he missed — PUNISH! (once a cast; it tells the player
    *  that stepping out of the line and answering pays). */
+  /** Am I winding up or swinging an attack right now (a blow landing now is a counter hit)? */
+  private attackingNow(): boolean {
+    const r = this.rt?.ownRun; if (!r || r.skill.counter || !(r.phase === 'startup' || r.phase === 'active')) return false;
+    return (r.skill.chain ? r.skill.chain.stages.flat() : r.skill.hits).some((x) => x.damage > 0);
+  }
+  private counterCall(at: V3): void { this.fx?.callout({ x: at.x, y: at.y, z: at.z + 70 }, 'COUNTER!', '#ff6a3a', 1); }
+
   private callPunish(run: CastRun, whiff: boolean, at: V3): void {
     if (!this.arena || !whiff || this.punished.has(run.castId)) return;
     this.punished.add(run.castId); if (this.punished.size > 200) this.punished.clear();
@@ -3048,8 +3072,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.fx?.samStun(this.localId, KAGE.ambushStun);
       this.pvp?.remotes.get(run.attackerId)?.burstDoubles();
     }
+    const ctr = h.damage > 0 && this.attackingNow(); // a counter hit: caught in my own wind-up / swing
+    if (ctr) h = { ...h, reaction: { ...h.reaction, stun: (h.reaction.stun ?? 300) + COUNTER.stunMs } };
     const out = this.body.receive(run.attackerId, s, h, this.hitFrom(run, hit), this.simMs, run.castId);
     out.damage = this.takeDamage(out.damage);
+    const countered = ctr && out.damage > 0 && out.reaction !== 'armor';
+    if (countered) this.counterCall({ x: this.kin.x, y: this.kin.y, z: this.kin.z });
     if (trial && out.damage > 0) this.hitBlinkUntil = this.simMs + HIT_IFRAMES;
     if (run.attackerId === BOT_ID) this.logHit(false, s, out, this.body, this.kin.z);
     if (run.attackerId === BOT_ID && out.damage > 0) this.bot?.noteHit();
@@ -3066,7 +3094,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.carry && out.reaction !== 'armor' && out.damage > 0) this.carriedBy = run; // Impaling Rush: ride the blade
     this.pvp?.sendHp(this.playerHP, run.attackerId, {
       castId: run.castId, skillId: s.id, hit: hi, dmg: out.damage, idx: out.hitIndex, cid: out.comboId, rx: out.reaction, ends: out.endsCombo, vz: Math.round(this.kin.vz), z: Math.round(this.kin.z),
-      ...(out.rx ? { mx: out.rx, mms: Math.round(out.rxMs ?? 0) } : {}),
+      ...(out.rx ? { mx: out.rx, mms: Math.round(out.rxMs ?? 0) } : {}), ...(countered ? { cx: 1 } : {}),
     });
     if (this.playerHP === 0) this.pvp?.sendDeath(run.attackerId);
   }
@@ -3486,9 +3514,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     hit = this.mageHit(run, hit); hit = this.markHit(run, hit, t.id); hit = this.gambleHit(run, hit, t.id); if (hit.damage < 0) return; // (All In on a foe without cards: untouched)
     if (this.isPoke(run, hit, b.kin)) { hit = this.pokeHit(hit); run.poked = true; } // a poke from afar: no cancel off it
     const chB = run.attackerId === this.localId ? this.chanceMul(b.body) : 1;
-    const m = (run.attackerId === this.localId ? this.ownDamageMul(run.skill) * chB : 1) * this.rageMul(run.attackerId, BOT_ID), h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
-    const whiff = b.whiffing(); // (read before the hit: taking it drops the knight's cast)
+    const m = (run.attackerId === this.localId ? this.ownDamageMul(run.skill) * chB : 1) * this.rageMul(run.attackerId, BOT_ID); let h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
+    const whiff = b.whiffing(), ctr = h.damage > 0 && b.attacking(); // (read before the hit: taking it drops the knight's cast)
+    if (ctr) h = { ...h, reaction: { ...h.reaction, stun: (h.reaction.stun ?? 300) + COUNTER.stunMs } };
     const out = b.receive(run.attackerId, run.skill, h, this.hitFrom(run, h), this.simMs, run.castId);
+    if (ctr && out.damage > 0 && out.reaction !== 'armor') this.counterCall({ x: b.kin.x, y: b.kin.y, z: b.kin.z });
     this.logHit(true, run.skill, out, b.body, b.kin.z);
     if (run.own && out.damage > 0) this.callPunish(run, whiff, at);
     if (out.broke) this.fx?.callout({ x: at.x, y: at.y, z: at.z + 30 }, 'ARMOR BREAK', '#ff9a6a', 0);
@@ -3537,6 +3567,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const run = this.rt?.runs.find((r) => r.castId === m.castId) ?? ({ skill: s, castId: m.castId, attackerId: this.localId, own: true, origin: { x: this.kin.x, y: this.kin.y, z: this.kin.z }, aim: this.aim, confirmedAt: 0, elapsed: 0, hits, timings: { startup: s.startup, active: s.active, recovery: s.recovery } } as unknown as CastRun); // (its run already over: the answer came late over the network)
         const r = this.pvp?.remotes.get(victim);
         const at = r ? { x: r.x, y: r.y, z: (m.z ?? r.z) + 40 } : { x: 0, y: 0, z: 0 };
+        if (m.cx && r) this.counterCall({ x: r.x, y: r.y, z: m.z ?? r.z });
         this.confirm(run, hits[m.hit ?? 0] ?? hits[0], victim, at, m.dmg, m.idx ?? 1, m.cid ?? 0, m.rx ?? 'hit', !!m.ends, m.z ?? 0);
         if (m.mx) { this.fx?.mageReaction(m.mx, at, victim, m.mms ?? 0); if (m.mx === 'curse') r?.paper(m.mms ?? 0); }
       },

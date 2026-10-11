@@ -132,6 +132,8 @@ export class SparringBot {
   /** One of its hits landed on you (the scene tells it): its current cast is no miss. */
   noteHit(): void { if (this.cast) this.cast.landed = true; }
   /** The arena: it is in the recovery of an attack that missed (a punish window for you). */
+  /** Winding up or swinging an attack right now (a blow landing now is a counter hit). */
+  attacking(): boolean { const c = this.cast; return !!c && !c.s.counter && c.t < c.T.startup + c.T.active && c.s.hits.some((h) => h.damage > 0); }
   whiffing(): boolean { const c = this.cast; return !!c && this.body.arena && !c.landed && c.t >= c.T.startup + c.T.active && arenaCommits(c.s); }
   /** Its hit was only a poke from afar: no combo off it. */
   notePoke(): void { if (this.cast) this.cast.poke = true; }

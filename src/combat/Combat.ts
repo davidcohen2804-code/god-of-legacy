@@ -234,6 +234,10 @@ export function steer(k: Kin, tx: number, ty: number, ms: number, scale = 1): vo
 
 const HCC = COMBO.hardCC;
 /** Book Mage reactions: chill (slow) length, freeze length, Levity Field hover height. */
+/** Counter hit (DFO): a blow that lands while the victim is winding up or swinging its own attack holds it this much
+ *  longer (a read, rewarded). The same everywhere; armor still takes it. */
+export const COUNTER = { stunMs: 200 };
+
 export const MAGE = { chillMs: 3000, chillSlow: 0.3, freezeMs: 800, levityZ: 90, curseStillMs: 600, levityHoldMs: 900 };
 
 /** Root / freeze / stun policy: max single, DR multipliers in a window, post-CC immunity. Damage always applies. */
