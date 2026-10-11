@@ -7,7 +7,7 @@ import { FloorLift } from '../world/FloorLift';
 import { sunGateX, SUN_GATE } from '../world/SunGate';
 /** The arena camera: at least `minView` world px across the screen (the fighters ~1.7× the whole-arena view), the gap
  *  between them plus `margin` when they part; zoom at most maxZoom × the whole-arena view; eases in easeMs. */
-const ARENA_CAM = { minView: 1150, margin: 760, maxZoom: 1.6, easeMs: 260, /** the player's own zoom (wheel / camera buttons): down to the whole arena, up a little closer */ userMin: 0.55, userMax: 1.25 };
+const ARENA_CAM = { minView: 1150, margin: 760, maxZoom: 1.48, easeMs: 260, /** the player's own zoom (wheel / camera buttons): down to the whole arena, up a little closer */ userMin: 0.55, userMax: 1.25 };
 /** The arena's screen shake, governed (the skills' effects call it freely): scaled down, small ones dropped (no shake
  *  on every basic / core hit), one at a time unless a stronger one comes, never long. */
 const ARENA_SHAKE = { mul: 0.45, min: 0.0012, gapMs: 280, maxMs: 260 };
@@ -327,7 +327,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (what === 'in' || what === 'out') this.arenaZoom = Phaser.Math.Clamp(this.arenaZoom * (what === 'out' ? 0.93 : 1 / 0.93), ARENA_CAM.userMin, ARENA_CAM.userMax); // (the arena camera: arenaCamStep — down to the whole arena)
     else if (what === 'up' || what === 'down') this.arenaLift = Phaser.Math.Clamp(this.arenaLift + (what === 'up' ? 30 : -30), -180, 180);
     else { this.arenaZoom = 1; this.arenaLift = 0; }
-    if (this.arena) try { localStorage.setItem('gol-arena-zoom', String(this.arenaZoom)); } catch { /* private mode */ } // (kept for the next fight)
+    if (this.arena) try { localStorage.setItem('gol-arena-zoom2', String(this.arenaZoom)); } catch { /* private mode */ } // (kept for the next fight)
     if (this.koT < 0 && !this.arena) this.cameras.main.zoomTo(this.baseZoom * this.arenaZoom, 160, 'Sine.easeOut', true); // (the arena: arenaCamStep eases to it)
   }
   /** The arena camera (DFO): frames both fighters — close in when they are close (the bodies big and readable, ~1.7×
@@ -573,7 +573,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       cam.startFollow(this.camTarget, true, 0.09, 0.09); // (the arena: the camera frames both fighters — arenaCamStep)
       cam.centerOn(R.x + W / 2, R.y + H / 2);
       this.arenaZoom = 1; this.arenaLift = 0;
-      try { const z = Number(localStorage.getItem('gol-arena-zoom')); if (z >= ARENA_CAM.userMin && z <= ARENA_CAM.userMax) this.arenaZoom = z; } catch { /* private mode */ }
+      try { const z = Number(localStorage.getItem('gol-arena-zoom2')); if (z >= ARENA_CAM.userMin && z <= ARENA_CAM.userMax) this.arenaZoom = z; } catch { /* private mode */ }
       { // the shake governor (ARENA_SHAKE): every effect's camera shake goes through it in the arena
         const raw = cam.shake.bind(cam); let last = -1e9, lastI = 0;
         cam.shake = ((dur?: number, int?: number | Phaser.Math.Vector2, force?: boolean, cb?: Phaser.Types.Cameras.Scene2D.CameraShakeCallback, ctx?: unknown) => {
