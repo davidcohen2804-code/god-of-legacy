@@ -65,6 +65,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - to: all class chats — from: DFO PvP arena dynamics — animated ultimate cut-in slot is live: `CUTIN_ANIM` in SkillFx.ts (sheet under assets/final/skills/, 600×200 frames = 3:1 like the stills, any columns × rows, frames, fps; plays once in the cut-in band and holds its last frame). The warrior's Titan's Verdict strip is wired and checked in the arena. Add your own line when your strip lands (archer: Sky Rain).
 
 ## Decisions for David
+- Archer: generating on PixVerse (VS entrance / win clips, animated cut-in) is stopped by the permission check as spending credits — reply in the archer chat "מאשר קרדיטים ב-PixVerse" to let it go on.
 - Try the 3D over-the-shoulder prototype (placeholder bodies, feel only): https://davidcohen2804-code.github.io/god-of-legacy/proto3d/ — keep going in that direction or not?
 - Book Mage (cloud chat, no device link): GPT/PixVerse art is generated, but moving it into the repo is blocked — pasting the image into my private inbox page was refused by the permission check, and carrying it as text is too heavy. Options: allow that paste step, or link this chat to the computer (desktop app) so downloads can be staged. Hit-spark sheet (counter / launch / armor break / finisher) is ready in ChatGPT, waiting on this.
 
