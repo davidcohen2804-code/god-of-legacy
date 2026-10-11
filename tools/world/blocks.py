@@ -27,6 +27,7 @@ BLOCKS = {  # rough boxes (x0, y0, x1, y1) of the blocks, map px
  'ruins_3': [(430,372,525,462),(185,470,305,578),(1195,372,1290,462),(1405,470,1525,578)],
  'gate_1': [(430,372,525,462),(185,470,305,578),(1195,372,1290,462),(1405,470,1525,578)],
  'gate_2': [(430,372,525,462),(185,470,305,578),(1195,372,1290,462),(1405,470,1525,578)],
+ 'dusk_1': [(430,372,525,462),(185,470,305,578),(1195,372,1290,462),(1405,470,1525,578)],
 }
 # Two measured blocks (courtyard, 5x zoom): one left of the middle (shows its right side), one right of it (its left side).
 #   box, silhouette (box-relative, a little inside the outline), top face front edge (box-relative), footprint x range

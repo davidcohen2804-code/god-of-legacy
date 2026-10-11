@@ -27,6 +27,8 @@ ROUTE = [
   ('gate_1', ('Siege Approach', None, False, 'cursed')),
   ('gate_2', ("Warden's Hold", None, False, 'warden')),
   ('temple', None),
+  # chapter 3: east of the Temple Road, the twilight gardens (their own GPT maps; blocks.py)
+  ('dusk_1', ('Wisteria Walk', None, False, 'thorn')),
 ]
 SPAWNS = [[420, 440], [600, 610], [760, 420], [930, 600], [1090, 430], [1260, 610], [1400, 450]]   # 7 a map
 WARDEN = [[1000, 520]]
