@@ -76,7 +76,7 @@ import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
 import { baseLoop, ClassKey, dirOf, HERO_HEIGHT, HERO_LIFT, heroPortrait, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame, sideAim } from '../game/Body';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
-import { ARENA, COUNTER, CombatBody, HitOutcome, gaugeOf, Kin, MAGE, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
+import { ARENA, CombatBody, counterStun, HitOutcome, gaugeOf, Kin, MAGE, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import { ARENA_FLOW, MAGE_HIDDEN, arenaCommits, arenaTimeScale, armorMul, finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
 import { CastRun, RT_EVENTS, SkillRuntime, Trap } from '../skills/SkillRuntime';
@@ -1965,6 +1965,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** PRISM — the mage's reward for weaving elements, not spamming: once a combo on a foe has carried frost, storm and arcane,
    *  the spell that completes the three strikes ×1.5 with a visible burst (once per combo; the combo ends after 1.5s without a mage hit). */
   private prism = new Map<string, { els: number; at: number; done: boolean }>();
+  private prismFired = false;
   private prismHit(run: CastRun, hit: HitEvent, tid: string, at?: V3): HitEvent {
     if (hit.damage <= 0) return hit;
     const now = this.simMs, key = `${run.attackerId}>${tid}`, base = LegacyCourtyardScene.MAGE_EL[run.skill.id];
@@ -1977,6 +1978,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const where = at ?? { x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 };
     this.fx?.mageReaction('prism', where, tid, 0);
     this.fx?.callout({ x: where.x, y: where.y, z: where.z + 60 }, 'PRISM!', '#e9d2ff', 0);
+    this.prismFired = true; // (told to the attacker's screen with the hit: applyRemoteHitToSelf)
     return { ...hit, damage: Math.round(hit.damage * PRISM.mul) };
   }
   private weaveMul(): number { return this.cls === 'book_mage' && this.passives.mage.weave ? 1 + WEAVE.per * this.mage.weave : 1; }
@@ -3089,6 +3091,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     return { ...hit, reaction: { ...R, stun: Math.min(R.stun ?? ARENA_FLOW.pokeStun, ARENA_FLOW.pokeStun), launch: undefined, float: undefined, slam: undefined, pin: undefined, knockdown: undefined, juggleCost: undefined, yank: undefined } }; // (no yank from afar either: a long pull would hand the shooter's foe her own doorstep)
   }
   private applyRemoteHitToSelf(run: CastRun, hit: HitEvent, hi: number, at: V3, claimed = false): void {
+    this.prismFired = false;
     if (this.isPoke(run, hit, this.kin)) { hit = this.pokeHit(hit); if (run.attackerId === BOT_ID) this.bot?.notePoke(); }
     const ck = `${run.castId}|${hi}`;
     if (!claimed && this.claimed.delete(ck)) return; // already taken through the attacker's claim (lag): not twice
@@ -3115,7 +3118,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.pvp?.remotes.get(run.attackerId)?.burstDoubles();
     }
     const ctr = h.damage > 0 && this.attackingNow(); // a counter hit: caught in my own wind-up / swing
-    if (ctr) h = { ...h, reaction: { ...h.reaction, stun: (h.reaction.stun ?? 300) + COUNTER.stunMs } };
+    if (ctr) h = { ...h, reaction: { ...h.reaction, stun: (h.reaction.stun ?? 300) + counterStun(run.skill.cls) } };
     const out = this.body.receive(run.attackerId, s, h, this.hitFrom(run, hit), this.simMs, run.castId);
     if (out.caught) this.fx?.callout({ x: at.x, y: at.y, z: at.z + 60 }, 'CAUGHT!', '#9be27a', 1); // pulled into the trap
     out.damage = this.takeDamage(out.damage);
@@ -3138,8 +3141,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.carry && out.reaction !== 'armor' && out.damage > 0) this.carriedBy = run; // Impaling Rush: ride the blade
     this.pvp?.sendHp(this.playerHP, run.attackerId, {
       castId: run.castId, skillId: s.id, hit: hi, dmg: out.damage, idx: out.hitIndex, cid: out.comboId, rx: out.reaction, ends: out.endsCombo, vz: Math.round(this.kin.vz), z: Math.round(this.kin.z),
-      ...(out.rx ? { mx: out.rx, mms: Math.round(out.rxMs ?? 0) } : {}), ...(countered ? { cx: 1 } : {}),
+      ...(out.rx ? { mx: out.rx, mms: Math.round(out.rxMs ?? 0) } : {}), ...(countered ? { cx: 1 } : {}), ...(this.prismFired ? { pz: 1 } : {}),
     });
+    this.prismFired = false;
     if (this.playerHP === 0) this.pvp?.sendDeath(run.attackerId);
   }
 
@@ -3576,7 +3580,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const chB = run.attackerId === this.localId ? this.chanceMul(b.body) : 1;
     const m = (run.attackerId === this.localId ? this.ownDamageMul(run.skill) * chB : 1) * this.rageMul(run.attackerId, BOT_ID); let h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
     const whiff = b.whiffing(), ctr = h.damage > 0 && b.attacking(); // (read before the hit: taking it drops the knight's cast)
-    if (ctr) h = { ...h, reaction: { ...h.reaction, stun: (h.reaction.stun ?? 300) + COUNTER.stunMs } };
+    if (ctr) h = { ...h, reaction: { ...h.reaction, stun: (h.reaction.stun ?? 300) + counterStun(run.skill.cls) } };
     const out = b.receive(run.attackerId, run.skill, h, this.hitFrom(run, h), this.simMs, run.castId);
     if (out.caught) this.fx?.callout({ x: at.x, y: at.y, z: at.z + 60 }, 'CAUGHT!', '#9be27a', 1); // pulled into the trap
     if (ctr && out.damage > 0 && out.reaction !== 'armor') this.counterCall({ x: b.kin.x, y: b.kin.y, z: b.kin.z });
@@ -3633,6 +3637,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const r = this.pvp?.remotes.get(victim);
         const at = r ? { x: r.x, y: r.y, z: (m.z ?? r.z) + 40 } : { x: 0, y: 0, z: 0 };
         if (m.cx && r) this.counterCall({ x: r.x, y: r.y, z: m.z ?? r.z });
+        if (m.pz && r) { this.fx?.mageReaction('prism', at, victim, 0); this.fx?.callout({ x: at.x, y: at.y, z: at.z + 60 }, 'PRISM!', '#e9d2ff', 0); } // (the mage's PRISM, fired on the victim's side)
         this.confirm(run, hits[m.hit ?? 0] ?? hits[0], victim, at, m.dmg, m.idx ?? 1, m.cid ?? 0, m.rx ?? 'hit', !!m.ends, m.z ?? 0);
         if (m.mx) { this.fx?.mageReaction(m.mx, at, victim, m.mms ?? 0); if (m.mx === 'curse') r?.paper(m.mms ?? 0); }
       },

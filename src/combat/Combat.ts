@@ -236,7 +236,8 @@ const HCC = COMBO.hardCC;
 /** Book Mage reactions: chill (slow) length, freeze length, Levity Field hover height. */
 /** Counter hit (DFO): a blow that lands while the victim is winding up or swinging its own attack holds it this much
  *  longer (a read, rewarded). The same everywhere; armor still takes it. */
-export const COUNTER = { stunMs: 200 };
+export const COUNTER = { stunMs: 200, /** a class's own edge on a counter hit (the samurai, the duelist: 0.3 s) */ byClass: { samurai: 300 } as Record<string, number> };
+export const counterStun = (attackerCls: string): number => COUNTER.byClass[attackerCls] ?? COUNTER.stunMs;
 
 export const MAGE = { chillMs: 3000, chillSlow: 0.3, freezeMs: 800, levityZ: 90, curseStillMs: 600, levityHoldMs: 900 };
 
@@ -481,9 +482,9 @@ export class CombatBody {
     const frac = damage / Math.max(1, this.maxHp);
     if (!R0.grab) { if (downNow) this.gauge.down += frac; else if (airNow) this.gauge.air += frac; else this.gauge.stand += frac; }
     let armored = now < this.armorUntil || (now < this.shotArmorUntil && hit.shape.kind === 'projectile');
-    // The arena (DFO): super armor takes the hits but not everything — a grab takes hold of it, and the standing gauge,
+    // (Everywhere, DFO:) super armor takes the hits but not everything — a grab takes hold of it, and the standing gauge,
     // once passed, knocks the armored body down all the same. (Armor beats a poke; a grab beats armor; moving beats a grab.)
-    if (this.arena && armored && (R0.grab || (!airNow && !downNow && this.gauge.stand >= gaugeOf(true).stand))) { armored = false; this.armorUntil = now; out.broke = true; }
+    if (armored && (R0.grab || (!airNow && !downNow && this.gauge.stand >= gaugeOf(true).stand))) { armored = false; this.armorUntil = now; out.broke = true; }
     // Push / pull direction.
     let dx = k.x - from.x, dy = k.y - from.y; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
     if (!armored) {
