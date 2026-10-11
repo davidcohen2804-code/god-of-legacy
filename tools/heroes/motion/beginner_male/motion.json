@@ -75,6 +75,11 @@
       "frames": 40,
       "fps": 15,
       "source": "pixverse bm_idle.mp4"
+    },
+    "run": {
+      "frames": 22,
+      "source": "pixverse beginner_male_run2h.mp4",
+      "cycle_canvas": 760.0
     }
   },
   "hit_source": "pixverse bm_hit.mp4"
