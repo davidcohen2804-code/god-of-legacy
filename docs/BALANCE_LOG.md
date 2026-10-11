@@ -13,3 +13,9 @@ Values apply to the whole game (only damage may differ in PvP: arenaDmg / the ar
 
 ## 2026-10-12 — No MP in PvP
 - The arena never uses MP: skills cost nothing there and the MP bar is hidden (cooldowns are the only limit). The regular game keeps its MP rules (MP_FREE test flag unchanged).
+
+## 2026-10-12 — Class arena damage (PvP only; skills unchanged everywhere)
+- The match sim now applies each skill's super armor / shot armor / the ultimate's invulnerability like the game does (it ignored them: the warrior, the armored Judge, looked far weaker than he is).
+- 240 matches (10 class pairs × 24), before: warrior 21 %, samurai 70 %, mage 43 %, archer 61 %, gambler 55 %.
+- New `ARENA.clsDmg` (Combat.ts), arena damage per class: warrior ×1.2, samurai ×0.95, book mage ×1.1.
+- After (3 seeds × 240 matches, average): warrior 45 %, samurai 54 %, mage 48 %, archer 56 %, gambler 48 % — every class inside 40–60 %.
