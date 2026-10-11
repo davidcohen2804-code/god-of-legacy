@@ -73,11 +73,11 @@ export class PvpSelectScene extends Phaser.Scene {
 
   /** The stage behind the whole screen (null: the courtyard by night): its painting, loaded the first time it is shown. */
   private backdrop(id: string | null): void {
-    const st = id ? stageById(id) : undefined, key = st ? st.key : SELECT_BG;
+    const st = id ? stageById(id) : undefined, key = st ? (st.poster ? `${st.key}-poster` : st.key) : SELECT_BG;
     this.bgWant = key;
     if (this.textures.exists(key)) { this.swapBg(key); return; }
     if (!st) return;
-    this.load.image(key, st.file);
+    this.load.image(key, st.poster ?? st.file);
     this.load.once(`filecomplete-image-${key}`, () => { if (this.sys.isActive() && this.bgWant === key) this.swapBg(key); });
     this.load.start();
   }

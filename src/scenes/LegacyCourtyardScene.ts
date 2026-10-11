@@ -362,6 +362,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private curtain?: { out(): void } | null;
   private curtainAt = 0;
   private liftCurtain(): void { this.curtain?.out(); this.curtain = null; }
+  /** Where the fight is, in the stage painting's pixels (the stage's dragon watches it): between you and your opponent. */
+  private fightFocus(): { x: number; y: number } | undefined {
+    if (!this.stage || !this.kin) return undefined;
+    const R = arenaRect(), k = this.kin, o = this.bot?.kin ?? [...(this.pvp?.remotes.values() ?? [])][0];
+    let x = k.x, y = k.y - k.z, n = 1;
+    if (o) { x += o.x; y += o.y - o.z; n++; }
+    return { x: (x / n - R.x) / R.s, y: (y / n - R.y) / R.s };
+  }
   /** Battle: the fighters wear their tags over their heads (battleTags; on once the tags' lettering is loaded). */
   private tagsOn = false;
   private tagsWanted = false;
@@ -445,7 +453,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // Weapon masks only when your own look already needs them (others load on first need).
     const masks = me && cls && wantsWeaponMasks(cls, CharacterStore.getCosmetics(me.id).equipped as Equipped) ? [cls] : [];
     this.stage = pvp ? stageById(sd?.stage) ?? stageOf(sd?.pvpRoom) : undefined; // (VS CPU: the stage picked on the select screen)
-    if (this.stage) { if (!this.textures.exists(this.stage.key)) this.load.image(this.stage.key, this.stage.file); } // the arena: its stage's painting
+    if (this.stage) { // the arena: its stage's painting (and what else it draws: its dragon)
+      if (!this.textures.exists(this.stage.key)) this.load.image(this.stage.key, this.stage.file);
+      for (const e of this.stage.extras ?? []) if (!this.textures.exists(e.key)) this.load.image(e.key, e.file);
+    }
     else preloadOpenWorld(this); // the open world: the start area and its neighbours (the rest streams in)
     if (!this.textures.exists(CT.dummy.key)) this.load.image(CT.dummy.key, CT.dummy.file);
     preloadBodies(this, classes, masks);
@@ -761,7 +772,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const real = Math.min(delta, 50);
     const ms = real * this.slowMo * this.koFactor(real); // arena analysis: slow motion; a K.O.: a beat of slow motion
     this.ambience?.update(ms);
-    this.stageFx?.update(ms);
+    this.stageFx?.update(ms, this.fightFocus());
     this.pvp?.update(ms);
     this.skillBook?.update(ms);
     this.cosPanel?.update(ms);
@@ -3671,10 +3682,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (!this.curtain) B.vs(this.fighterOf(m.host), this.fighterOf(m.guest), T.vsMs);
         break;
       case 'intro': B.hideResult(); this.placeForRound(m); this.liftCurtain(); B.round(m.round, m.finalRound, T.introMs); break;
-      case 'fight': B.hideResult(); this.ci?.clearBuffer(); B.fight(); if (this.bot) this.bot.hold = false; break;
+      case 'fight': B.hideResult(); this.ci?.clearBuffer(); B.fight(); this.stageFx?.event('fight'); if (this.bot) this.bot.hold = false; break;
       case 'ko':
         if (this.bot) this.bot.hold = true;
-        B.ko(m.why, m.perfect, T.koMs - 500);
+        B.ko(m.why, m.perfect, T.koMs - 500); this.stageFx?.event('ko');
         if (m.why === 'ko' || m.why === 'double') this.koMoment();
         break;
       case 'over': if (this.bot) this.bot.hold = true; this.showResult(m); break;

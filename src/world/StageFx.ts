@@ -42,6 +42,20 @@ export interface StageLook {
   fires?: Pt[];
   /** Molten lava round the floor: its glow breathing and its light rolling slowly, everywhere but `keep` (the floor). */
   lava?: { tint: number; keep: Pt[] };
+  /** A dragon in the far background (its two pictures loaded with the stage): its body ripples as it flies, its head
+   *  watches the fight, breathes smoke now and then and rears up roaring at FIGHT! and at K.O. */
+  dragon?: DragonLook;
+}
+
+/** A stage's dragon: the body (a long picture, drawn along a line that ripples) and the head on its own, in the painting's
+ *  pixels — the body's middle, scale and angle; the head's neck pivot (where it is on the painting and in its picture),
+ *  scale, and its eye and nostril in its picture. It flies in front of the whole far background (the temple too) and
+ *  behind `front`: the outlines of what stands nearer (the floor, the terrace, the pillars). */
+export interface DragonLook {
+  body: string; head: string;
+  front: Pt[][];
+  bodyAt: { x: number; y: number; s: number; angle: number };
+  headAt: { x: number; y: number; s: number; pivot: Pt; eye: Pt; nostril: Pt };
 }
 
 /** The courtyard's far background (traced on the painting: above the balustrade, round its posts and the statue) —
@@ -136,6 +150,40 @@ export const LAVA_LOOK: StageLook = {
   fall: [{ kind: 'ember', n: 70, tints: [0xffb050, 0xff7a20, 0xffd890] }],
   fires: [[88, 15], [652, 38], [1250, 80], [1545, 52]],
   lava: { tint: 0xff8a2a, keep: [[610, 300], [1140, 300], [1380, 402], [1506, 606], [1352, 790], [382, 790], [220, 606], [360, 402]] },
+};
+
+/** The Shaolin Monastery (assets/environment/stages/shaolin_monastery.webp): high in the mountains at sunrise — the sun at the
+ *  upper left, a sea of clouds either side, cranes, red leaves drifting, the temple's fires at its door, the courtyard's
+ *  dragon emblem glowing gold. */
+export const SHAOLIN_LOOK: StageLook = {
+  far: [[0, 0], [1672, 0], [1672, 569], [1568, 434], [1345, 436], [1340, 277], [1300, 210], [1440, 200], [1440, 3], [535, 3], [535, 215],
+    [447, 216], [411, 290], [408, 436], [175, 436], [0, 628]],
+  sky: [0, 140],
+  mist: [300, 440],
+  mistSoft: true,
+  sun: [70, 0],
+  sunLeft: true,
+  rays: 0.9,
+  floorTop: 436,
+  emblem: { c: [878, 673], outer: [380, 158], inner: [305, 128] },
+  cloudTint: 0xffd8c0,
+  mistTint: 0xfff0e0,
+  lightTint: 0xffc070,
+  rayTint: 0xffdca0,
+  fliers: 'birds',
+  fall: { kind: 'leaf', n: 14, tints: [0xc8281e, 0xe0501e, 0xf07a2a, 0xd8a040] },
+  // the golden dragon round the monastery: its tail coiling through the clouds on the left, its head rising from the
+  // clouds beside the courtyard on the right, watching the fight
+  dragon: {
+    body: 'shaolin-dragon-body', head: 'shaolin-dragon-head',
+    front: [
+      [[0, 628], [175, 436], [408, 436], [411, 290], [447, 216], [1300, 210], [1340, 277], [1345, 436], [1568, 434], [1672, 569], [1672, 941], [0, 941]],
+      [[331, 377], [338, 368], [355, 362], [392, 360], [429, 362], [446, 368], [453, 377], [453, 500], [331, 500]],
+      [[1294, 379], [1301, 370], [1318, 364], [1355, 361], [1392, 364], [1409, 370], [1416, 379], [1416, 500], [1294, 500]],
+    ],
+    bodyAt: { x: 288, y: 166, s: 0.8, angle: 6 },
+    headAt: { x: 1560, y: 446, s: 0.775, pivot: [226, 537], eye: [133, 260], nostril: [84, 324] },
+  },
 };
 
 const T = { cloud: 'sfx-cloud', mist: 'sfx-mist', ray: 'sfx-ray', glow: 'sfx-glow', light: 'sfx-light', ring: 'sfx-ring', leaf: 'sfx-leaf', petal: 'sfx-petal', drop: 'sfx-drop', dot: 'sfx-dot', bird: 'sfx-bird', bat: 'sfx-bat' };
@@ -245,6 +293,11 @@ export class StageFx {
   private flash?: Phaser.GameObjects.Rectangle;
   private fires: { glow: Phaser.GameObjects.Image; core: Phaser.GameObjects.Image; sparks: Drifter[]; at: Pt; ph: number }[] = [];
   private lava?: Phaser.GameObjects.TileSprite;
+  private dragon?: {
+    body: Phaser.GameObjects.Rope; pts: Phaser.Math.Vector2[]; head: Phaser.GameObjects.Container; eye: Phaser.GameObjects.Image;
+    look: number; roar: number; puff: number; smoke: { o: Phaser.GameObjects.Image; vx: number; vy: number; t: number; life: number }[];
+    flash: Phaser.GameObjects.Rectangle; box: Phaser.GameObjects.Container; D: DragonLook;
+  };
   private nextBolt = 6000;
   private bolt = -1;
   private t = 0;
@@ -261,6 +314,7 @@ export class StageFx {
     this.farMask = scene.make.graphics({}, false).setPosition(this.at.x, this.at.y).setScale(this.at.s);
     this.farMask.fillStyle(0xffffff).fillPoints(L.far.map(([x, y]) => new Phaser.Math.Vector2(x, y)), true);
     this.far.setMask(this.farMask.createGeometryMask());
+    if (L.dragon) this.makeDragon(L.dragon);   // (first: the clouds and the mist drift in front of it)
     for (let i = 0; i < 6; i++) {
       const o = scene.make.image({ x: r() * W, y: L.sky[0] + r() * (L.sky[1] - L.sky[0]), key: T.cloud }, false).setTint(L.cloudTint).setAlpha(0.18 + r() * 0.2).setScale(0.9 + r() * 1.1, 0.7 + r() * 0.6);
       this.far.add(o); this.clouds.push({ o, vx: 5 + r() * 9, vy: 0, w: o.displayWidth });
@@ -367,7 +421,9 @@ export class StageFx {
     }
   }
 
-  update(ms: number): void {
+  /** `focus`: where the fight is (painting px) — the dragon watches it. */
+  update(ms: number, focus?: { x: number; y: number }): void {
+    if (this.dragon) this.dragonStep(ms, focus);
     this.t += ms;
     const s = ms / 1000, t = this.t;
     for (const c of this.clouds) { c.o.x += c.vx * s; if (c.o.x - c.w / 2 > this.W) c.o.x = -c.w / 2; }
@@ -433,7 +489,84 @@ export class StageFx {
     }
   }
 
+  /** The dragon: the body along a line of points (rippled every frame), the head in a box turning round its neck pivot. */
+  private makeDragon(D: DragonLook): void {
+    const s = this.scene;
+    if (!s.textures.exists(D.body) || !s.textures.exists(D.head)) return;
+    const W = (s.textures.get(D.body).getSourceImage() as HTMLImageElement).width, N = 40;
+    const pts = Array.from({ length: N }, (_, i) => new Phaser.Math.Vector2(-W / 2 + (W * i) / (N - 1), 0));
+    const body = s.make.rope({ key: D.body, points: pts, horizontal: true }, false) as Phaser.GameObjects.Rope;
+    body.setPosition(D.bodyAt.x, D.bodyAt.y).setScale(D.bodyAt.s).setAngle(D.bodyAt.angle);
+    const H = D.headAt, head = s.make.container({ x: H.x, y: H.y }, false).setScale(H.s);
+    const img = s.make.image({ x: 0, y: 0, key: D.head }, false).setOrigin(H.pivot[0] / s.textures.get(D.head).getSourceImage().width, H.pivot[1] / s.textures.get(D.head).getSourceImage().height);
+    const eye = s.make.image({ x: H.eye[0] - H.pivot[0], y: H.eye[1] - H.pivot[1], key: T.glow }, false).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd060).setScale(0.16).setAlpha(0.55);
+    head.add([img, eye]);
+    const flash = new Phaser.GameObjects.Rectangle(s, 0, 0, this.W, this.H, 0xffb860, 1).setOrigin(0, 0).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD);
+    // its own layer, under the far clouds and mist (they drift in front of it), cut off where the nearer things stand
+    const box = this.lay(-0.96).add([body, head, flash]);
+    const mk = s.make.graphics({}, false).setPosition(this.at.x, this.at.y).setScale(this.at.s);
+    mk.fillStyle(0xffffff);
+    for (const poly of D.front) mk.fillPoints(poly.map(([x, y]) => new Phaser.Math.Vector2(x, y)), true);
+    const gm = mk.createGeometryMask(); gm.setInvertAlpha(true);
+    box.setMask(gm);
+    this.dragon = { body, pts, head, eye, look: 0, roar: -1, puff: 2500, smoke: [], flash, box, D };
+  }
+
+  /** A moment of the fight the stage answers: the dragon rears up and roars (FIGHT!, K.O.). */
+  event(kind: 'fight' | 'ko'): void {
+    if (this.dragon) this.dragon.roar = 0;
+    void kind;
+  }
+
+  private dragonStep(ms: number, focus?: { x: number; y: number }): void {
+    const g = this.dragon!, D = g.D, t = this.t, H = D.headAt;
+    // the roar: up and back in 1.4 s, shaking while it lasts
+    let rr = 0, shake = 0;
+    if (g.roar >= 0) {
+      g.roar += ms; const u = g.roar / 1400;
+      if (u >= 1) g.roar = -1;
+      else { rr = Math.sin(Math.min(1, u * 1.6) * Math.PI) * (u < 0.62 ? 1 : 1 - (u - 0.62) / 0.38); shake = u < 0.7 ? Math.sin(g.roar / 16) * 0.012 : 0; }
+    }
+    // the body ripples from the head to the tail, a little more while it roars
+    const amp = 13 * (1 + rr * 1.2), n = g.pts.length;
+    for (let i = 0; i < n; i++) g.pts[i].y = amp * Math.sin((i / (n - 1)) * Math.PI * 2.4 + t / 900) * (0.5 + 0.5 * i / (n - 1));
+    g.body.setDirty();
+    g.body.y = D.bodyAt.y + 5 * Math.sin(t / 2300); g.body.setAngle(D.bodyAt.angle + 1.2 * Math.sin(t / 3100));
+    // the head: watching the fight (turned toward it a little), breathing, rearing up when it roars
+    if (focus) {
+      const ex = H.x + (H.eye[0] - H.pivot[0]) * H.s, ey = H.y + (H.eye[1] - H.pivot[1]) * H.s;
+      const a = Math.atan2(focus.y - ey, focus.x - ex), rest = Math.atan2(0.6, -1);
+      const want = Phaser.Math.Clamp(Phaser.Math.Angle.Wrap(a - rest) * 0.35, -0.14, 0.14);
+      g.look += (want - g.look) * Math.min(1, ms / 420);
+    }
+    g.head.rotation = g.look + 0.022 * Math.sin(t / 2700) - rr * 0.13 + shake;
+    g.head.y = H.y + 4 * Math.sin(t / 2300 + 1.1) - rr * 10;
+    g.eye.setAlpha(0.5 + 0.12 * Math.sin(t / 700) + rr * 0.5).setScale(0.16 + rr * 0.1);
+    g.flash.setAlpha(rr * 0.16);
+    // smoke from its nostrils now and then (a burst when it roars)
+    g.puff -= ms;
+    const nose = () => { const c = Math.cos(g.head.rotation), sn = Math.sin(g.head.rotation), dx = (H.nostril[0] - H.pivot[0]) * H.s, dy = (H.nostril[1] - H.pivot[1]) * H.s; return [g.head.x + dx * c - dy * sn, g.head.y + dx * sn + dy * c]; };
+    const emit = (k: number, hot: boolean) => {
+      for (let i = 0; i < k; i++) {
+        const [nx, ny] = nose(), o = this.scene.make.image({ x: nx, y: ny, key: T.dot }, false).setTint(hot ? 0xffb050 : 0xd8d0c8).setAlpha(0).setScale(0.25 + Math.random() * 0.3);
+        if (hot) o.setBlendMode(Phaser.BlendModes.ADD);
+        g.box.addAt(o, g.box.getIndex(g.head) + 1);
+        g.smoke.push({ o, vx: -30 - Math.random() * 40 - (hot ? 60 : 0), vy: -14 - Math.random() * 18 + (hot ? 20 : 0), t: 0, life: 1600 + Math.random() * 900 });
+      }
+    };
+    if (g.puff <= 0) { emit(5, false); g.puff = 3800 + Math.random() * 3000; }
+    if (g.roar >= 0 && g.roar < ms * 1.5) emit(16, true);
+    const s = ms / 1000;
+    g.smoke = g.smoke.filter((p) => {
+      p.t += ms; const u = p.t / p.life;
+      if (u >= 1) { p.o.destroy(); return false; }
+      p.o.x += p.vx * s; p.o.y += p.vy * s; p.o.setScale(p.o.scale + s * 0.35).setAlpha(Math.sin(Math.min(1, u * 3) * Math.PI / 2) * (1 - u) * 0.5);
+      return true;
+    });
+  }
+
   destroy(): void {
+    this.dragon = undefined;
     this.far.clearMask(true); this.farMask.destroy();
     for (const c of this.layers.values()) c.destroy(true);
     this.layers.clear();

@@ -4,7 +4,7 @@
 // own against the CPU: a stage at random) — first the place, then its mood.
 import WORLD from '../data/legacy-courtyard.json';
 import { PVP } from '../config/layout';
-import { COURTYARD_LOOK, LAVA_LOOK, NIGHT_LOOK, SAKURA_LOOK, StageLook, WINTER_LOOK } from './StageFx';
+import { COURTYARD_LOOK, LAVA_LOOK, NIGHT_LOOK, SAKURA_LOOK, SHAOLIN_LOOK, StageLook, WINTER_LOOK } from './StageFx';
 import { COURTYARD_OBJECTS, Pt, StageGeo } from './WorldGeometry';
 
 export interface Stage {
@@ -20,6 +20,10 @@ export interface Stage {
   preview: string;
   look: StageLook;
   geo: StageGeo;
+  /** More pictures the stage draws (its dragon), loaded with its painting. */
+  extras?: { key: string; file: string }[];
+  /** The select screen's backdrop when the painting alone is not the whole stage (its dragon baked in). */
+  poster?: string;
 }
 
 /** The Legacy Courtyard: a wide open square, a pedestal to jump on, a planter and the guardian statue to hide behind. */
@@ -61,11 +65,40 @@ const LAVA_GEO: StageGeo = {
   centre: [866, 650],
 };
 
+/** The Shaolin Monastery, on two levels: the training courtyard below; the temple terrace above (a second arena up there,
+ *  in slices along its curved front); on each side two lotus pillars of rising height to jump up to it (floor -> low ->
+ *  tall -> terrace: each step within one jump). Fitted to the painting. */
+const SHAOLIN_GEO: StageGeo = {
+  floor: [[175, 436], [408, 436], [447, 352], [1300, 346], [1345, 436], [1568, 434], [1672, 569], [1672, 880], [0, 880], [0, 628]],
+  props: [
+    { id: 'terrace-1', footprint: [[447, 356], [458, 356], [470, 356], [470, 436], [458, 435], [446, 434], [435, 432], [423, 431], [411, 430]], height: 140, topZ: 140, cover: 'hard', frontY: 436, occluder: [[411, 290], [423, 291], [435, 292], [446, 294], [458, 295], [470, 296], [470, 436], [458, 435], [446, 434], [435, 432], [423, 431], [411, 430]] },
+    { id: 'terrace-2', footprint: [[470, 356], [488, 356], [506, 356], [524, 355], [542, 355], [560, 355], [560, 445], [542, 443], [524, 441], [506, 440], [488, 438], [470, 436]], height: 140, topZ: 140, cover: 'hard', frontY: 445, occluder: [[470, 296], [488, 298], [506, 300], [524, 301], [542, 303], [560, 305], [560, 445], [542, 443], [524, 441], [506, 440], [488, 438], [470, 436]] },
+    { id: 'terrace-3', footprint: [[560, 355], [580, 355], [600, 355], [620, 355], [640, 355], [660, 355], [660, 454], [640, 453], [620, 451], [600, 449], [580, 447], [560, 445]], height: 140, topZ: 140, cover: 'hard', frontY: 454, occluder: [[560, 305], [580, 307], [600, 309], [620, 311], [640, 313], [660, 314], [660, 454], [640, 453], [620, 451], [600, 449], [580, 447], [560, 445]] },
+    { id: 'terrace-4', footprint: [[660, 355], [682, 354], [704, 354], [726, 354], [748, 354], [770, 354], [770, 461], [748, 460], [726, 459], [704, 458], [682, 456], [660, 454]], height: 140, topZ: 140, cover: 'hard', frontY: 461, occluder: [[660, 314], [682, 316], [704, 318], [726, 319], [748, 320], [770, 321], [770, 461], [748, 460], [726, 459], [704, 458], [682, 456], [660, 454]] },
+    { id: 'terrace-5', footprint: [[770, 354], [792, 354], [814, 353], [836, 353], [858, 353], [880, 353], [880, 466], [858, 465], [836, 464], [814, 463], [792, 462], [770, 461]], height: 140, topZ: 140, cover: 'hard', frontY: 466, occluder: [[770, 321], [792, 322], [814, 323], [836, 324], [858, 325], [880, 326], [880, 466], [858, 465], [836, 464], [814, 463], [792, 462], [770, 461]] },
+    { id: 'terrace-6', footprint: [[880, 353], [902, 353], [924, 353], [946, 352], [968, 352], [990, 352], [990, 464], [968, 464], [946, 465], [924, 465], [902, 466], [880, 466]], height: 140, topZ: 140, cover: 'hard', frontY: 466, occluder: [[880, 326], [902, 326], [924, 325], [946, 325], [968, 324], [990, 324], [990, 464], [968, 464], [946, 465], [924, 465], [902, 466], [880, 466]] },
+    { id: 'terrace-7', footprint: [[990, 352], [1012, 352], [1034, 352], [1056, 352], [1078, 352], [1100, 351], [1100, 458], [1078, 459], [1056, 460], [1034, 462], [1012, 463], [990, 464]], height: 140, topZ: 140, cover: 'hard', frontY: 464, occluder: [[990, 324], [1012, 323], [1034, 322], [1056, 320], [1078, 319], [1100, 318], [1100, 458], [1078, 459], [1056, 460], [1034, 462], [1012, 463], [990, 464]] },
+    { id: 'terrace-8', footprint: [[1100, 351], [1120, 351], [1140, 351], [1160, 351], [1180, 351], [1200, 351], [1200, 449], [1180, 452], [1160, 454], [1140, 455], [1120, 456], [1100, 458]], height: 140, topZ: 140, cover: 'hard', frontY: 458, occluder: [[1100, 318], [1120, 316], [1140, 315], [1160, 314], [1180, 312], [1200, 309], [1200, 449], [1180, 452], [1160, 454], [1140, 455], [1120, 456], [1100, 458]] },
+    { id: 'terrace-9', footprint: [[1200, 351], [1216, 351], [1232, 350], [1248, 350], [1264, 350], [1280, 350], [1280, 431], [1264, 434], [1248, 438], [1232, 442], [1216, 445], [1200, 449]], height: 140, topZ: 140, cover: 'hard', frontY: 449, occluder: [[1200, 309], [1216, 305], [1232, 302], [1248, 298], [1264, 294], [1280, 291], [1280, 431], [1264, 434], [1248, 438], [1232, 442], [1216, 445], [1200, 449]] },
+    { id: 'terrace-10', footprint: [[1280, 350], [1292, 350], [1300, 350], [1340, 417], [1328, 420], [1316, 422], [1304, 425], [1292, 428], [1280, 431]], height: 140, topZ: 140, cover: 'hard', frontY: 431, occluder: [[1280, 291], [1292, 288], [1304, 285], [1316, 282], [1328, 280], [1340, 277], [1340, 417], [1328, 420], [1316, 422], [1304, 425], [1292, 428], [1280, 431]] },
+    { id: 'lotus-pillar-l1', footprint: [[335, 585], [333, 589], [328, 592], [321, 595], [310, 598], [298, 599], [284, 601], [269, 601], [254, 601], [240, 599], [228, 598], [217, 595], [210, 592], [205, 589], [203, 585], [205, 581], [210, 578], [217, 575], [228, 572], [240, 571], [254, 569], [269, 569], [284, 569], [298, 571], [310, 572], [321, 575], [328, 578], [333, 581]], height: 54, topZ: 54, cover: 'hard', frontY: 601, occluder: [[203, 531], [205, 527], [211, 524], [220, 520], [232, 518], [246, 516], [261, 515], [277, 515], [292, 516], [306, 518], [318, 520], [327, 524], [333, 527], [335, 531], [339, 585], [337, 589], [331, 593], [321, 597], [309, 600], [294, 602], [277, 603], [261, 603], [244, 602], [229, 600], [217, 597], [207, 593], [201, 589], [199, 585]] },
+    { id: 'lotus-pillar-l2', footprint: [[453, 483], [451, 487], [447, 490], [440, 494], [430, 496], [418, 498], [406, 500], [392, 500], [378, 500], [366, 498], [354, 496], [344, 494], [337, 490], [333, 487], [331, 483], [333, 479], [337, 476], [344, 472], [354, 470], [366, 468], [378, 466], [392, 466], [406, 466], [418, 468], [430, 470], [440, 472], [447, 476], [451, 479]], height: 106, topZ: 106, cover: 'hard', frontY: 500, occluder: [[331, 377], [333, 373], [338, 369], [346, 366], [357, 363], [370, 361], [385, 360], [399, 360], [414, 361], [427, 363], [438, 366], [446, 369], [451, 373], [453, 377], [457, 483], [455, 488], [450, 492], [441, 496], [429, 499], [415, 501], [400, 502], [384, 502], [369, 501], [355, 499], [343, 496], [334, 492], [329, 488], [327, 483]] },
+    { id: 'lotus-pillar-r1', footprint: [[1542, 583], [1540, 587], [1535, 590], [1528, 593], [1517, 596], [1505, 597], [1491, 599], [1476, 599], [1461, 599], [1447, 597], [1435, 596], [1424, 593], [1417, 590], [1412, 587], [1410, 583], [1412, 579], [1417, 576], [1424, 573], [1435, 570], [1447, 569], [1461, 567], [1476, 567], [1491, 567], [1505, 569], [1517, 570], [1528, 573], [1535, 576], [1540, 579]], height: 52, topZ: 52, cover: 'hard', frontY: 599, occluder: [[1410, 531], [1412, 527], [1418, 524], [1427, 520], [1439, 518], [1453, 516], [1468, 515], [1484, 515], [1499, 516], [1513, 518], [1525, 520], [1534, 524], [1540, 527], [1542, 531], [1546, 583], [1544, 587], [1538, 591], [1528, 595], [1516, 598], [1501, 600], [1484, 601], [1468, 601], [1451, 600], [1436, 598], [1424, 595], [1414, 591], [1408, 587], [1406, 583]] },
+    { id: 'lotus-pillar-r2', footprint: [[1416, 483], [1414, 487], [1410, 491], [1403, 494], [1393, 497], [1381, 499], [1369, 501], [1355, 501], [1341, 501], [1329, 499], [1317, 497], [1307, 494], [1300, 491], [1296, 487], [1294, 483], [1296, 479], [1300, 475], [1307, 472], [1317, 469], [1329, 467], [1341, 465], [1355, 465], [1369, 465], [1381, 467], [1393, 469], [1403, 472], [1410, 475], [1414, 479]], height: 104, topZ: 104, cover: 'hard', frontY: 501, occluder: [[1294, 379], [1296, 375], [1301, 371], [1309, 367], [1320, 364], [1333, 362], [1348, 361], [1362, 361], [1377, 362], [1390, 364], [1401, 367], [1409, 371], [1414, 375], [1416, 379], [1420, 483], [1418, 488], [1413, 492], [1404, 496], [1392, 499], [1378, 502], [1363, 503], [1347, 503], [1332, 502], [1318, 499], [1306, 496], [1297, 492], [1292, 488], [1290, 483]] },
+  ],
+  spawns: [[878, 790], [440, 740], [1310, 740], [620, 600], [1130, 600], [230, 690], [1510, 690], [878, 520]],
+  start: { y: 700, left: 748, right: 1008 },
+  centre: [878, 690],
+};
+
 export const STAGES: Stage[] = [
   { id: 'courtyard', place: 'courtyard', name: 'LEGACY COURTYARD', file: 'assets/environment/Legacy_Courtyard.png', key: 'legacy-courtyard', preview: 'assets/pvp/stages/courtyard.webp', look: COURTYARD_LOOK, geo: COURTYARD_GEO },
   { id: 'night', place: 'courtyard', name: 'MOONLIT COURTYARD', file: 'assets/environment/stages/courtyard_night.webp', key: 'stage-courtyard-night', preview: 'assets/pvp/stages/night.webp', look: NIGHT_LOOK, geo: COURTYARD_GEO },
   { id: 'winter', place: 'courtyard', name: 'FROZEN COURTYARD', file: 'assets/environment/stages/courtyard_winter.webp', key: 'stage-courtyard-winter', preview: 'assets/pvp/stages/winter.webp', look: WINTER_LOOK, geo: COURTYARD_GEO },
   { id: 'lava', place: 'lava', name: 'LAVA FORTRESS', file: 'assets/environment/stages/lava_fortress.webp', key: 'stage-lava-fortress', preview: 'assets/pvp/stages/lava.webp', look: LAVA_LOOK, geo: LAVA_GEO },
+  { id: 'shaolin', place: 'shaolin', name: 'SHAOLIN MONASTERY', file: 'assets/environment/stages/shaolin_monastery.webp', key: 'stage-shaolin-monastery', preview: 'assets/pvp/stages/shaolin.webp', look: SHAOLIN_LOOK, geo: SHAOLIN_GEO,
+    extras: [{ key: 'shaolin-dragon-body', file: 'assets/pvp/stages/shaolin_dragon_body.webp' }, { key: 'shaolin-dragon-head', file: 'assets/pvp/stages/shaolin_dragon_head.webp' }],
+    poster: 'assets/pvp/stages/shaolin_poster.webp' },
   { id: 'sakura', place: 'sakura', name: 'SAKURA TEMPLE', file: 'assets/environment/stages/sakura_temple.webp', key: 'stage-sakura-temple', preview: 'assets/pvp/stages/sakura.webp', look: SAKURA_LOOK, geo: SAKURA_GEO },
 ];
 
