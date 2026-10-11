@@ -43,7 +43,7 @@ MAPS = {
   'sunfall_pass': {'name': 'Sunfall Pass', 'src': 'sunfall_pass', 'over': 'training_3', 'dx': 1564, 'H': 800, 'front': 122, 'floor': (505, 625),
                    'sky': (0, 150), 'cloud': True, 'depth': -1.24, 'blocks': [], 'mobs': {'kind': 'puffling', 'spawns': []}},
   # past the sun: a quiet cloud closed by the great cloud wall (GPT's painted end), a treasure for the brave
-  'afterglow': {'name': 'Afterglow Rest', 'src': 'cloud_haven_end', 'over': 'plaza', 'dx': 1434, 'H': 800, 'front': 122, 'floor': (345, 575),
+  'afterglow': {'name': 'Afterglow Rest', 'src': 'afterglow_shrine', 'over': 'plaza', 'dx': 1434, 'H': 800, 'front': 122, 'floor': (345, 575),
                 'sky': (140, 300), 'cloud': True, 'depth': -1.245, 'wall_x': 1170,
                 'blocks': [{'id': 'block-l', 'x': (262, 452), 'front': 505, 'h': 82, 'depth': 30}],
                 'mobs': {'kind': 'puffling', 'spawns': [[700, 470], [980, 520]]},
