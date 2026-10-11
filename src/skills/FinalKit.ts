@@ -1044,6 +1044,8 @@ export function arenaTimeScale(s: FinalSkill, followUp = false): { startup: numb
 export function armorMul(s: FinalSkill, _arena?: boolean): number { return arenaTimeScale(s)?.active ?? 1; }
 /** Per-skill exceptions to ARENA_FLOW (arena startup in ms; squeeze: active and hit-spacing factor). */
 const ARENA_PACE: Record<string, { startup?: number; squeeze?: number }> = {};
+// the Roulette keeps its whole 2 s spin (its colour lights 1 s in: the foe gets a second to react — PvP audit)
+ARENA_PACE.roulette_wheel = { squeeze: 1 };
 // Warrior extended kit: every core skill (and the basic chain) can cancel into the new extenders on a confirmed hit.
 for (const w of warrior) if (w.slot <= 5) for (const id of ['leap_crash', 'wave_slash', 'lance_thrust']) if (!w.cancelOnHit.includes(id) && id !== w.id) w.cancelOnHit.push(id);
 // Warrior links (the PvP balance pass: a ~6-skill combo, one job per skill): every attack can close on the Verdict; the

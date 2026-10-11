@@ -811,7 +811,7 @@ export class GamblerFx {
     const T = r.timings, p = r.place ?? this.ahead(r, 200), R = 150, res = rouletteOf(r.castId);
     const s = this.ctx.scene, g = s.add.graphics().setDepth(GROUND + 3);
     const ballPic = s.textures.exists('gbk-c_ball'), ball = ballPic ? s.add.image(0, 0, 'gbk-c_ball').setDisplaySize(18, 18).setDepth(GROUND + 5) : s.add.circle(0, 0, 7, 0xfffbe8).setDepth(GROUND + 4);
-    const spinMs = 2000, total = T.startup + spinMs + 500;
+    const spinMs = Math.max(600, r.hits[r.hits.length - 1]?.at ?? 2000), total = T.startup + spinMs + 500; // the ball drops on the result's hit
     if (s.textures.exists('gbk-r_sigil')) { ball.destroy(); g.destroy(); this.rouletteSigil(r, p, R, res, total, spinMs); return; }
     const wheel = this.kit('c_wheel', p.x, p.y, R * 2.3, GROUND + 3, false);
     if (wheel) { // the painted wheel stands on the floor; light runs round its top while it spins, the ball rolls on it
@@ -896,8 +896,8 @@ export class GamblerFx {
       // it draws itself in: from a thin bright line to the full ellipse (no pop of furniture)
       base.setScale(bx * lerp(0.92, 1, open), by * lerp(0.15, 1, open)).setAlpha(open * fade * (st.won ? 1 : 0.92));
       spin.setScale(sx * lerp(0.92, 1, open), sy * lerp(0.15, 1, open)).setAlpha(open * fade * speed * 0.85).setFlipX(Math.floor(t / 70) % 2 === 1);
-      if (t >= T.startup + 1000) { // one second in, the wheel shows where it is going: lit red or black — time to react
-        const k = clamp01((t - T.startup - 1000) / 200), col = res.red ? 0xff3a5a : 0xd8d0f0;
+      if (t >= T.startup + Math.min(1000, spinMs * 0.5)) { // one second in, the wheel shows where it is going: lit red or black — time to react
+        const k = clamp01((t - T.startup - Math.min(1000, spinMs * 0.5)) / 200), col = res.red ? 0xff3a5a : 0xd8d0f0;
         base.setTint(res.red ? 0xff9ab0 : 0xe4e0f4);
         if (lit) lit.setTint(col).setDisplaySize(Wd * 1.12, Hd * 1.15).setAlpha(fade * k * (0.55 + 0.3 * Math.sin(t * 0.02)));
         if (!(st as { told?: boolean }).told) { (st as { told?: boolean }).told = true; this.ctx.callout({ x: p.x, y: p.y, z: 30 }, res.red ? 'RED…' : 'BLACK…', res.red ? '#ff6a8a' : '#e8e0f0', 1); }
