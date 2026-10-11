@@ -567,7 +567,8 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     iron_grip: { act: 'iron_grip', st: [0], ac: [1, 2, 3, 3, 3, 4], rc: [5, 5, 0] }, // the open hand seizes, the fist hoists it overhead, the slam
     judgment_hook: { act: 'judgment_hook', st: [0, 1], ac: [2, 3, 4], rc: [4, 5] }, // wind back, hurl the chain, yank it in
     sky_breaker: { act: 'sky_breaker', st: [0], ac: [1, 1, 2, 3, 3, 4], rc: [5, 5] }, // the rising slashes, sword overhead, the dive, landed
-    earthsplitter: { act: 'finisher', st: [0], ac: [1, 2], rc: [2, 2, 0] }, // the sword held overhead through the charge, brought down to split the earth
+    earthsplitter: { act: 'finisher', st: [0], ac: [1, 2], rc: [2, 2, 0] },
+    shield_charge: { act: 'lance_thrust', st: [0], ac: [0], rc: [4, 5] }, // (the rush stance, the barrier before him: no thrust) // the sword held overhead through the charge, brought down to split the earth
   },
   samurai: {
     shadow_step: { act: 'shadow_step', st: [0], ac: [1, 2], rc: [3, 4, 5] },

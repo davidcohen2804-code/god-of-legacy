@@ -101,11 +101,6 @@ const TOP_DEPTH = 100000;
 const TRIAL_HP = 200; // (the world's own scale, not the arena's)
 /** Hit in the world (a monster, a Master's trial): untouchable this long (ms), blinking all the while (MapleStory-style). */
 const HIT_IFRAMES = 2000, HIT_BLINK = 90;
-/** Radiant Blade: the warrior's attacks this many times faster while the blade of light is on. */
-const RADIANT_SPEED = 3;
-/** Radiant Blade quickens the plain sword strikes only. Spins, storms, dashes, leaps, throws, charges, buffs and the
- *  ultimate keep their own pace (sped up they broke: a 0.5s whirlwind, a fast-forward ultimate, a charge too short to hold). */
-const RADIANT_FAST = new Set(['warrior_basic', 'dash_slash', 'rising_slash', 'ground_breaker', 'wave_slash', 'iron_grip']);
 /** God of Blades: the halo's katanas (each one that flies is spent). */
 const GOD_BLADES = 8;
 /** World damage roll: from this fraction of the maximum up to it (MapleStory's mastery). */
@@ -269,7 +264,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private storm: null = null;
   /** Hunter's Resolve: blows cannot stun or push the archer until this time. */
   resolveUntil = -1;
-  /** Sanctuary dome (fixed in the world): full damage immunity while the player stands inside. */
+  /** Sanctuary wall (fixed in the world): half damage for 4 s while the player stands behind it. */
   private domeAt = -1;
   private dome: { x: number; y: number; rx: number; ry: number; until: number; t0: number; img: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image; wx: number; side: number; vis?: number } | null = null;
   private beam?: Phaser.GameObjects.Image;
@@ -602,7 +597,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       cooldownMul: (req) => this.cdMul(req.skill),
       timeScale: (req) => (finalSkill(req.skill.id) === req.skill ? arenaTimeScale(req.skill, !!req.followUp) : null), // every class skill at its one pace, in the open game and in PvP alike
       onPhase: (r, ph) => this.onRunPhase(r, ph),
-      reachMul: (req) => (req.own ? (req.skill.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.85 : 1) : (req.reach ?? 1)),
+      reachMul: (req) => (req.own ? (req.skill.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.4 : 1) : (req.reach ?? 1)), // Radiant Blade: +40% reach
       rangeMul: (req) => (req.own ? this.ownRangeMul(req.skill) : (req.range ?? 1)),
       speedMul: (req) => (req.own ? this.ownSpeedMul(req.skill) : (req.speed ?? 1)),
       projectileHook: (p, r) => this.mageProjectile(p, r),
@@ -1783,7 +1778,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private domeBlock(from: { x: number; y: number }): void {
     const k = this.kin;
-    this.fx!.callout({ x: k.x, y: k.y, z: k.z + 40 }, 'IMMUNE', '#ffe7a0', 0);
+    this.fx!.callout({ x: k.x, y: k.y, z: k.z + 40 }, 'HALF', '#ffe7a0', 0);
     const d = this.dome!, ang = Math.atan2(from.y - d.y, from.x - d.x);
     const sx = d.x + Math.cos(ang) * d.rx, sy = d.y + Math.sin(ang) * d.ry - 40;
     const f = this.add.image(sx, sy, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff0b0).setDepth(sy + 400).setDisplaySize(70, 90);
@@ -1803,7 +1798,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const glow = this.add.image(wx, k.y + 186, 'sanctuary-wall', 11).setOrigin(70 / 256, 414 / 512).setBlendMode(Phaser.BlendModes.ADD).setFlipX(side < 0).setTint(0xffd27a);
     glow.setScale(S * 1.06, 0.05);
     // protected zone: an ellipse behind the wall covering its full depth
-    this.dome = { x: wx - side * 200, y: k.y, rx: 240, ry: 175, until: this.simMs + 15000, t0: this.simMs, img, glow, wx, side };
+    this.dome = { x: wx - side * 200, y: k.y, rx: 240, ry: 175, until: this.simMs + 4000, t0: this.simMs, img, glow, wx, side }; // 4 s of half damage behind the wall
     this.cameras.main.shake(180, 0.006);
   }
 
@@ -2232,7 +2227,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private ownRangeMul(s: FinalSkill): number { return s.cls === 'archer' ? this.passives.rangeMul : 1; }
   /** Archer: Bow Haste (+20%) × Ranger Mastery attack speed (startup / recovery shortened). */
   private ownSpeedMul(s: FinalSkill): number { return (this.simMs < this.mage.hasteUntil ? 1.1 : 1) * this.classSpeedMul(s); }
-  private classSpeedMul(s: FinalSkill): number { return s.cls === 'gambler' ? (this.simMs < this.gTailsUntil ? 1.15 : 1) : s.cls === 'warrior' && this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && RADIANT_FAST.has(s.id) ? RADIANT_SPEED : s.cls === 'archer' ? this.passives.atkSpeed * (this.simMs < this.hasteUntil ? 1.2 : 1) : s.cls === 'samurai' ? this.passives.atkSpeed : 1; }
+  private classSpeedMul(s: FinalSkill): number { return s.cls === 'gambler' ? (this.simMs < this.gTailsUntil ? 1.15 : 1) : s.cls === 'archer' ? this.passives.atkSpeed * (this.simMs < this.hasteUntil ? 1.2 : 1) : s.cls === 'samurai' ? this.passives.atkSpeed : 1; }
   /** Own critical rate bonus: passives + Hunter's Spirit (+15%). */
   private critAddNow(): number { return this.passives.critAdd + (this.arena ? 0 : this.statD.critAdd) + (this.simMs < this.spiritUntil || this.cls === 'archer' ? 0.15 : 0) + (this.simMs < this.gHeadsUntil ? 0.2 : 0) + (this.simMs < this.gLuckUntil ? 0.1 : 0) + (this.passives.gamble.streak ? 0.02 * this.gStreak : 0); }
   /** Own extra critical damage: passives + Rising Sun (+20%). */
@@ -2456,7 +2451,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.cls === 'gambler') this.gamblerStarted(s);
     if (s.chain) this.chain = { stage, lastEnd: Infinity, skill: s.id };
     this.setMode('skill');
-    const dm = this.ownDamageMul(s), rm = s.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.85 : 1; // buffs travel with the cast (victim-side damage / reach)
+    const dm = this.ownDamageMul(s), rm = s.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.4 : 1; // buffs travel with the cast (victim-side damage / reach)
     this.pvp?.sendCast({ castId, skillId: s.id, stage, x: Math.round(from.x), y: Math.round(from.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000), ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}), lock, ...(followUp ? { fu: 1 } : {}), ...(dm !== 1 ? { dm: Math.round(dm * 100) } : {}), ...(rm !== 1 ? { rm: Math.round(rm * 100) } : {}), ...(this.ownRangeMul(s) !== 1 ? { rg: Math.round(this.ownRangeMul(s) * 100) } : {}), ...(this.ownSpeedMul(s) !== 1 ? { sp: Math.round(this.ownSpeedMul(s) * 100) } : {}), ...(this.kage?.isAmbush(castId) ? { amb: 1 } : {}), ...(mf ? { mf } : {}) });
   }
 
@@ -2881,7 +2876,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Enemy (PvE) strike on the local player: Mirage counter first, then the usual reaction rules. */
   private enemyStrike(dmg: number, from: { x: number; y: number }, push = 14): void {
     if (this.dead >= 0 || this.simMs < this.hitBlinkUntil) return; // just hit: untouchable (blinking)
-    if (this.inDome()) { this.domeBlock(from); return; }
+    if (this.inDome()) { this.domeBlock(from); dmg = Math.max(1, Math.round(dmg * 0.5)); } // Sanctuary: half damage behind the wall
     if (this.tryCounter(from)) return;
     if (this.tryEvade(from)) return;
     const hit: HitEvent = { at: 0, damage: dmg, shape: { kind: 'sector', range: 58, angle: 120 }, reaction: { stun: 220, push } };
@@ -2988,7 +2983,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.match?.active && !this.match.live) return; // a battle: only the fight counts (not VS / ROUND n / after the K.O.)
     const trial = run.attackerId === BOT_ID && !!this.bot?.trial;   // a Master's trial is the world: hits leave you blinking, untouchable
     if (trial && this.simMs < this.hitBlinkUntil) return;
-    if (this.inDome()) { this.domeBlock(this.casterPos(run.attackerId) ?? run.origin); this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: run.skill.id, hit: hi, dmg: 0, rx: 'armor' }); return; }
+    if (this.inDome() && hit.damage > 0) { this.domeBlock(this.casterPos(run.attackerId) ?? run.origin); hit = { ...hit, damage: hit.damage * 0.5 }; } // Sanctuary: half damage behind the wall (the hit still lands)
     const s = run.skill;
     hit = this.mageHit(run, hit); hit = this.markHit(run, hit, this.localId); hit = this.gambleHit(run, hit, this.localId);
     if (hit.damage > 0 && this.mageGuard(hit, this.casterPos(run.attackerId) ?? run.origin, run.attackerId === BOT_ID ? this.bot?.body : undefined)) { this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'armor' }); return; }

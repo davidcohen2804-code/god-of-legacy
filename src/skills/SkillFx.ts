@@ -355,6 +355,7 @@ export class SkillFx {
     if (shape.kind === 'projectile' || shape.kind === 'chain') { if (s.cls !== 'archer') this.castFlare(r); else if (!CHARGE[s.id]) this.bowFlash(r, 0.6); return; }
     if (s.id === 'judgment_blade') this.judgment(r);
     else if (s.id === 'guard_counter') this.aegis(r);
+    else if (s.id === 'shield_charge') this.shieldCharge(r);
     else if (s.id === 'war_cry') this.roar(r);
     else if (s.id === 'judgment_hook') this.hookChain(r);
     else if (s.id === 'sky_breaker') this.skyBreaker(r);
@@ -772,6 +773,16 @@ export class SkillFx {
     const ev = this.scene.time.addEvent({ delay: 70, loop: true, callback: draw });
     g.setAlpha(0); this.scene.tweens.add({ targets: g, alpha: 1, duration: 150 });
     this.scene.tweens.add({ targets: g, alpha: 0, delay: ms - 250, duration: 250, onComplete: () => { ev.remove(); g.destroy(); } });
+  }
+
+  /** Shield Charge: the hex barrier of light rises before him and rides with the run, then breaks into shards at its end. */
+  private shieldCharge(r: CastRun): void {
+    const a = r.aim, key = vfxKey('shield_charge'), ang = Math.atan2(a.y, a.x) * (180 / Math.PI), T = r.timings;
+    const img = this.scene.add.image(0, 0, key, 0).setBlendMode(Phaser.BlendModes.ADD).setAngle(ang).setFlipY(a.x < -0.01);
+    const hold = Math.max(60, T.startup + T.active - 120), fr = [0, 1, 1, 2, 3, 6, 7], fms = [Math.max(40, T.startup), hold * 0.5, hold * 0.5, 50, 60, 80, 160];
+    const follow = () => { const c = this.casterPos(r.attackerId); if (!c) return null; img.setDisplaySize(170, 170); return { x: c.x + a.x * 40, y: c.y + a.y * 40, z: c.z + 42 }; };
+    const p = follow(); if (p) img.setPosition(p.x, p.y - p.z).setDepth(p.y + 2);
+    this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: fr, frameMs: fms, follow, fadeLast: 160 });
   }
 
   /** Aegis Burst: the hex barrier holds in front of the caster, then bursts into the crescent wave. */
