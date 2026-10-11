@@ -4,8 +4,8 @@
 // own against the CPU: a stage at random) — first the place, then its mood.
 import WORLD from '../data/legacy-courtyard.json';
 import { PVP } from '../config/layout';
-import { COURTYARD_LOOK, LAVA_LOOK, SAKURA_LOOK, SHAOLIN_LOOK, StageLook } from './StageFx';
-import { COURTYARD_OBJECTS, Pt, StageGeo } from './WorldGeometry';
+import { COURTYARD_LOOK, LAVA_LOOK, SAKURA_LOOK, SHAOLIN_LOOK, SHIP_LOOK, StageLook } from './StageFx';
+import { COURTYARD_OBJECTS, Pt, StageGeo, WorldObject } from './WorldGeometry';
 
 export interface Stage {
   id: string;
@@ -91,6 +91,52 @@ const SHAOLIN_GEO: StageGeo = {
   centre: [878, 690],
 };
 
+/** The Storm Ship's quarterdeck: a raised deck along the right side, its base on the main deck from (1188, 406) back left
+ *  to (1336, 797) front left, out to the ship's side on the right. Drawn in depth, so taller nearer (97 px at the back,
+ *  150 at the front: `qdH`) — a second floor up there in 14 slices by depth, one step apart (walked across freely), and
+ *  along its left side a lip as high as the next slice: a wall from the main deck (up there with a double jump, or from
+ *  the crate beside it), a rail from above (jump over it to get down). */
+const QD = { top: 406, bottom: 797, left: [[1188.5, 406], [1336, 797]] as Pt[], right: [[1452, 406], [1672, 754]] as Pt[], side: 1672, n: 14 };
+const qdH = (yf: number): number => (150 * (yf + 294)) / 1089;
+function quarterdeck(): WorldObject[] {
+  const lerp = ([a, b]: Pt[], y: number) => a[0] + ((b[0] - a[0]) * (y - a[1])) / (b[1] - a[1]);
+  const xl = (y: number) => lerp(QD.left, y), xr = (y: number) => (y <= QD.right[1][1] ? lerp(QD.right, y) : QD.side);
+  const r1 = (v: number) => Math.round(v * 10) / 10, out: WorldObject[] = [];
+  for (let k = 0; k < QD.n; k++) {
+    const y0 = r1(QD.top + ((QD.bottom - QD.top) * k) / QD.n), y1 = r1(QD.top + ((QD.bottom - QD.top) * (k + 1)) / QD.n);
+    const h = r1(qdH((y0 + y1) / 2)), next = r1(qdH(y1 + (QD.bottom - QD.top) / QD.n / 2));
+    const corner = y0 < QD.right[1][1] && y1 > QD.right[1][1] ? [[QD.side, QD.right[1][1]] as Pt] : [];
+    out.push({ id: `quarterdeck-${k + 1}`, soft: true, height: h, topZ: h, cover: 'none', occluder: [], frontY: y1,
+      footprint: [[r1(xl(y0)), y0], [r1(xr(y0)), y0], ...corner, [r1(xr(y1)), y1], [r1(xl(y1)), y1]] });
+    out.push({ id: `quarterdeck-lip-${k + 1}`, height: next, cover: 'hard', occluder: [], frontY: y1,
+      footprint: [[r1(xl(y0) - 6), y0], [r1(xl(y0)), y0], [r1(xl(y1)), y1], [r1(xl(y1) - 6), y1]] });
+  }
+  return out;
+}
+
+/** The Storm Ship: the main deck (the mast in its middle, three crates to hide behind and jump on) and the quarterdeck
+ *  raised along its right side — up there from the crate beside it, or with a double jump. Fitted to the painting. */
+const SHIP_GEO: StageGeo = {
+  floor: [[460, 444], [540, 428], [640, 424], [1150, 428], [1188, 406], [1452, 406], [1672, 754], [1672, 797], [1000, 797], [900, 795], [800, 789], [700, 781], [600, 769], [500, 753], [400, 729], [330, 708], [270, 686], [220, 661], [188, 632], [192, 600], [205, 562], [216, 522], [250, 498], [300, 481], [380, 465]],
+  props: [
+    // three crates: one by the back rail, one at the front left, one beside the quarterdeck (its step up)
+    { id: 'crate-back', footprint: [[648, 453], [712, 451], [703, 486], [640, 487]], height: 65, topZ: 65, cover: 'hard', frontY: 487,
+      occluder: [[646, 382], [716, 380], [713, 478], [704, 493], [639, 493], [637, 412]] },
+    { id: 'crate-front', footprint: [[471, 645], [551, 643], [528, 704], [444, 705]], height: 75, topZ: 75, cover: 'hard', frontY: 705,
+      occluder: [[468, 562], [555, 560], [551, 682], [531, 708], [443, 708], [441, 618]] },
+    { id: 'crate-side', footprint: [[1140, 547], [1222, 547], [1232, 600], [1155, 600]], height: 60, topZ: 60, cover: 'hard', frontY: 600,
+      occluder: [[1138, 483], [1226, 482], [1240, 540], [1238, 604], [1156, 606], [1135, 585]] },
+    // the mast: round its foot, up out of sight (nobody jumps over it)
+    { id: 'mast', footprint: Array.from({ length: 16 }, (_, i) => [Math.round(870 + 52 * Math.cos((i / 16) * Math.PI * 2)), Math.round(546 + 16 * Math.sin((i / 16) * Math.PI * 2))] as Pt),
+      height: 700, cover: 'hard', frontY: 562,
+      occluder: [[838, 0], [902, 0], [903, 480], [911, 500], [926, 525], [934, 545], [920, 556], [870, 561], [820, 556], [806, 545], [815, 525], [829, 500], [837, 480]] },
+    ...quarterdeck(),
+  ],
+  spawns: [[760, 700], [300, 640], [1100, 700], [520, 500], [1000, 480], [620, 620], [990, 640], [360, 690]],
+  start: { y: 660, left: 640, right: 920 },
+  centre: [770, 640],
+};
+
 export const STAGES: Stage[] = [
   { id: 'courtyard', place: 'courtyard', name: 'LEGACY COURTYARD', file: 'assets/environment/Legacy_Courtyard.png', key: 'legacy-courtyard', preview: 'assets/pvp/stages/courtyard.webp', look: COURTYARD_LOOK, geo: COURTYARD_GEO },
   { id: 'lava', place: 'lava', name: 'LAVA FORTRESS', file: 'assets/environment/stages/lava_fortress.webp', key: 'stage-lava-fortress', preview: 'assets/pvp/stages/lava.webp', look: LAVA_LOOK, geo: LAVA_GEO },
@@ -98,6 +144,9 @@ export const STAGES: Stage[] = [
     extras: [{ key: 'shaolin-dragon-body', file: 'assets/pvp/stages/shaolin_dragon_body.webp' }, { key: 'shaolin-dragon-head', file: 'assets/pvp/stages/shaolin_dragon_head.webp' }],
     poster: 'assets/pvp/stages/shaolin_poster.webp' },
   { id: 'sakura', place: 'sakura', name: 'SAKURA TEMPLE', file: 'assets/environment/stages/sakura_temple.webp', key: 'stage-sakura-temple', preview: 'assets/pvp/stages/sakura.webp', look: SAKURA_LOOK, geo: SAKURA_GEO },
+  { id: 'ship', place: 'ship', name: 'STORM SHIP', file: 'assets/environment/stages/storm_ship.webp', key: 'stage-storm-ship', preview: 'assets/pvp/stages/ship.webp', look: SHIP_LOOK, geo: SHIP_GEO,
+    extras: [{ key: 'ship-water', file: 'assets/pvp/stages/ship_water.png' }, { key: 'ship-bolt', file: 'assets/pvp/stages/ship_bolt.png' }, { key: 'ship-beam', file: 'assets/pvp/stages/ship_beam.png' }],
+    poster: 'assets/pvp/stages/ship_poster.webp' },
 ];
 
 const hash = (s: string, seed: number): number => {

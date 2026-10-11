@@ -3,14 +3,16 @@
 // light drifting over the floor, the floor's sun emblem glowing with light running round its rings, and the stage's
 // weather — leaves, petals, snow, rain or fireflies (a few in front of the fighters), lightning in a storm. All in the
 // map's pixels; the far layers are masked to the far background so they pass behind the balustrade and the arches.
+// A stormy sea (the ship): the painting's water redrawn rolling on the GPU, its sails flapping, spray bursting, rain
+// splashing on the planks, the lanterns flickering, a lighthouse beam turning, lightning bolts striking the sea.
 import Phaser from 'phaser';
 
 type Pt = [number, number];
 export interface Fall { kind: 'leaf' | 'petal' | 'snow' | 'rain' | 'firefly' | 'ember'; n: number; tints: number[] }
 /** A stage's look: where its far background, sun and floor emblem are, and its colours. */
 export interface StageLook {
-  /** The far background (sky, valley) as a polygon: the clouds, mist and birds stay inside it. */
-  far: Pt[];
+  /** The far background (sky, valley) as a polygon (or several): the clouds, mist and birds stay inside it. */
+  far: Pt[] | Pt[][];
   /** The sky's band (clouds) and the valley's (mist), y ranges. */
   sky: [number, number];
   mist: [number, number];
@@ -45,7 +47,73 @@ export interface StageLook {
   /** A dragon in the far background (its two pictures loaded with the stage): its body ripples as it flies, its head
    *  watches the fight, breathes smoke now and then and rears up roaring at FIGHT! and at K.O. */
   dragon?: DragonLook;
+  /** A living sea: the painting's water redrawn rolling (and its sails flapping) — see WaterLook. */
+  water?: WaterLook;
+  /** Lanterns: a warm glow flickering at each. */
+  lamps?: Pt[];
+  /** Where the sea breaks (on the swells, against the hull): spray bursts up there now and then. */
+  spray?: Pt[];
+  /** Where the rain splashes (the wet planks): small rings spreading on them all the time. */
+  puddles?: Pt[][];
+  /** A lighthouse: its lamp and its beam (a picture: the painted beam, pointing right from the lamp), turning round once
+   *  every `period` ms — swinging out to either side, flaring when it faces the fight. */
+  beacon?: { at: Pt; beam: string; period: number };
+  /** The storm's bolts, with each flash: the painting's own bolt (a picture of its light, its top-left corner at `at`)
+   *  or one drawn down the open sky (inside the x ranges, down to the horizon `to`). */
+  bolts?: { img?: string; at?: Pt; x: [number, number][]; to: number };
 }
+
+/** A stage's sea: `paint` the painting's texture, `mask` a picture of the same size — red where the painting is water,
+ *  green where it is cloth (the sails) — and the sea's far edge (y): the swells grow toward the viewer from there. */
+export interface WaterLook { paint: string; mask: string; horizon: number }
+
+/** The sea on the GPU: each water pixel of the painting drawn from a little way off (long swells rolling in, a choppy
+ *  surface on them, bigger nearer), the crests catching the light as they pass, the foam glittering; each sail pixel
+ *  drawn from a cloth flapping in the wind. A pixel is only ever taken from water (or cloth): the ropes, the rails and
+ *  the hull stay still. The phases come in already wrapped (no precision lost on a long match). Output premultiplied. */
+const WATER_FRAG = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+uniform sampler2D iChannel0;
+uniform sampler2D iChannel1;
+uniform vec2 uRes;
+uniform float uHorizon;
+uniform float uP1;
+uniform float uP2;
+uniform float uP3;
+uniform float uP4;
+uniform float uP5;
+uniform float uP6;
+varying vec2 outTexCoord;
+void main() {
+  vec2 uv = vec2(outTexCoord.x, 1.0 - outTexCoord.y);
+  vec4 m = texture2D(iChannel1, uv);
+  float w = m.r, c = m.g;
+  if (w + c < 0.004) discard;
+  vec2 px = uv * uRes;
+  float near = clamp((px.y - uHorizon) / (uRes.y - uHorizon), 0.0, 1.0);
+  float swell = sin(px.x * 0.011 + px.y * 0.045 - uP1);
+  vec2 d = vec2(0.0);
+  d.y += (1.0 + 5.0 * near) * swell * w;
+  d.y += (0.5 + 2.2 * near) * sin(px.x * 0.031 - px.y * 0.02 + uP2) * w;
+  d.x += (0.7 + 2.8 * near) * sin(px.y * 0.09 + px.x * 0.013 - uP3) * w;
+  d.x += 2.6 * sin(px.y * 0.065 + px.x * 0.021 + uP4) * c;
+  d.y += 1.4 * sin(px.x * 0.05 + uP5) * c;
+  vec2 suv = uv + d / uRes;
+  vec4 ms = texture2D(iChannel1, suv);
+  float ok = w >= c ? step(0.45, ms.r) : step(0.45, ms.g);
+  vec3 col = mix(texture2D(iChannel0, uv).rgb, texture2D(iChannel0, suv).rgb, ok);
+  col *= 1.0 + 0.09 * swell * w;
+  float lum = dot(col, vec3(0.299, 0.587, 0.114));
+  col += smoothstep(0.55, 0.9, lum) * w * 0.16 * (0.5 + 0.5 * sin(px.x * 0.07 + px.y * 0.05 + uP6));
+  float a = max(w, c);
+  gl_FragColor = vec4(col * a, a);
+}`;
+/** The water's phases (uniform, radians per second). */
+const WATER_PH: [string, number][] = [['uP1', 1.15], ['uP2', 1.9], ['uP3', 1.6], ['uP4', 4.4], ['uP5', 3.1], ['uP6', 3.0]];
 
 /** A stage's dragon: the body (a long picture, drawn along a line that ripples) and the head on its own, in the painting's
  *  pixels — the body's middle, scale and angle; the head's neck pivot (where it is on the painting and in its picture),
@@ -151,10 +219,55 @@ export const SHAOLIN_LOOK: StageLook = {
   },
 };
 
-const T = { cloud: 'sfx-cloud', mist: 'sfx-mist', ray: 'sfx-ray', glow: 'sfx-glow', light: 'sfx-light', ring: 'sfx-ring', leaf: 'sfx-leaf', petal: 'sfx-petal', drop: 'sfx-drop', dot: 'sfx-dot', bird: 'sfx-bird', bat: 'sfx-bat' };
+/** The Storm Ship (assets/environment/stages/storm_ship.webp): a ship's deck at night in a storm — the sea rolling and
+ *  breaking against the hull, the torn sails flapping, rain lashing the wet planks, the lanterns flickering, the
+ *  lighthouse's beam turning on the rock behind, lightning striking the sea. Its far background: the open sky either side
+ *  of the mast (round the sails and the shrouds), down over the horizon. */
+export const SHIP_LOOK: StageLook = {
+  far: [
+    [[914, 176], [914, 282], [921, 287], [1470, 286], [1473, 0], [1031, 0], [1032, 10], [1023, 18], [1025, 36], [1014, 38], [1002, 31], [985, 55], [995, 102], [981, 104], [971, 94], [962, 94], [952, 100], [943, 118], [944, 132], [954, 149], [951, 166], [957, 194], [946, 195], [937, 185], [928, 184], [921, 172]],
+    [[0, 230], [0, 253], [7, 257], [6, 265], [0, 267], [0, 287], [469, 287], [479, 282], [512, 287], [824, 286], [827, 0], [788, 0], [790, 9], [780, 31], [782, 42], [770, 46], [765, 54], [770, 70], [789, 81], [783, 95], [797, 112], [791, 123], [750, 109], [749, 101], [760, 82], [740, 70], [714, 65], [710, 76], [719, 93], [710, 97], [688, 85], [689, 68], [684, 60], [676, 61], [667, 75], [637, 79], [634, 65], [638, 52], [629, 43], [602, 47], [571, 66], [560, 66], [558, 57], [578, 0], [277, 0], [271, 8], [253, 4], [240, 12], [227, 10], [204, 28], [216, 39], [218, 58], [213, 65], [181, 64], [171, 74], [166, 102], [132, 103], [133, 114], [126, 122], [122, 144], [103, 142], [81, 151], [75, 166], [48, 199], [31, 197]],
+    [[105, 0], [0, 0], [0, 160], [9, 164], [6, 177], [0, 179], [0, 202], [24, 172], [24, 158], [41, 136], [45, 120], [53, 115], [64, 82]],
+  ],
+  sky: [0, 150],
+  mist: [208, 262],
+  mistSoft: true,
+  sun: [1398, 33],
+  rays: 0.45,
+  rayTint: 0xcfe0ff,
+  floorTop: 400,
+  cloudTint: 0x5a6478,
+  mistTint: 0xb8c8e0,
+  lightTint: 0x9fb8e8,
+  fliers: null,
+  fall: { kind: 'rain', n: 150, tints: [0xffffff, 0xcfe0ff] },
+  lightning: true,
+  water: { paint: 'stage-storm-ship', mask: 'ship-water', horizon: 238 },
+  lamps: [[75, 412], [1166, 372], [1280, 612], [1624, 332], [1567, 382], [1634, 718]],
+  spray: [[90, 330], [260, 320], [400, 330], [602, 300], [975, 300], [1040, 320], [1125, 330], [1372, 262], [24, 470], [41, 625], [103, 760], [72, 880]],
+  puddles: [
+    [[460, 444], [540, 428], [640, 424], [1150, 428], [1188, 406], [1336, 797], [1000, 797], [900, 795], [800, 789], [700, 781], [600, 769], [500, 753], [400, 729], [330, 708], [270, 686], [220, 661], [188, 632], [192, 600], [205, 562], [216, 522], [250, 498], [300, 481], [380, 465]],
+    [[1190, 312], [1450, 306], [1672, 610], [1672, 640], [1335, 640]],
+  ],
+  beacon: { at: [1166, 91], beam: 'ship-beam', period: 9000 },
+  bolts: { img: 'ship-bolt', at: [200, 0], x: [[250, 540], [1010, 1460]], to: 236 },
+};
+
+const T = { cloud: 'sfx-cloud', mist: 'sfx-mist', ray: 'sfx-ray', glow: 'sfx-glow', light: 'sfx-light', ring: 'sfx-ring', leaf: 'sfx-leaf', petal: 'sfx-petal', drop: 'sfx-drop', dot: 'sfx-dot', bird: 'sfx-bird', bat: 'sfx-bat', splash: 'sfx-splash' };
 const BIRD_FRAMES = 4;
 
 function rng(seed: number): () => number { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+
+const inPoly = (x: number, y: number, poly: readonly Pt[]): boolean => {
+  let c = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i], b = poly[j];
+    if ((a[1] > y) !== (b[1] > y) && x < ((b[0] - a[0]) * (y - a[1])) / (b[1] - a[1]) + a[0]) c = !c;
+  }
+  return c;
+};
+/** Several polygons, or one. */
+const polys = (p: Pt[] | Pt[][]): Pt[][] => (Array.isArray(p[0]?.[0]) ? p as Pt[][] : [p as Pt[]]);
 
 function makeTextures(scene: Phaser.Scene): void {
   const tx = scene.textures;
@@ -210,6 +323,10 @@ function makeTextures(scene: Phaser.Scene): void {
     g.fillStyle = gr; g.fillRect(1, 0, 2, 48);
   });
   canvas(T.dot, 32, 32, (g) => blob(g, 16, 16, 16, 16, 1)); // a soft dot: snow, a firefly, an ember
+  canvas(T.splash, 64, 64, (g) => { // a raindrop's ring on a puddle (drawn round, laid flat on the floor)
+    g.strokeStyle = 'rgba(255,255,255,1)'; g.lineWidth = 5; g.beginPath(); g.arc(32, 32, 26, 0, Math.PI * 2); g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 3; g.beginPath(); g.arc(32, 32, 16, 0, Math.PI * 2); g.stroke();
+  });
   for (let f = 0; f < BIRD_FRAMES; f++) canvas(`${T.bat}${f}`, 44, 24, (g) => { // a bat: scalloped wings, four beats
     const lift = [-8, -2, 6, -2][f];
     g.translate(22, 12); g.fillStyle = '#ffffff';
@@ -265,6 +382,19 @@ export class StageFx {
   };
   private nextBolt = 6000;
   private bolt = -1;
+  /** The storm's sea and what lives on the ship's deck (see StageLook.water and the rest). */
+  private water?: Phaser.GameObjects.Shader;
+  private lamps: { glow: Phaser.GameObjects.Image; core: Phaser.GameObjects.Image; ph: number }[] = [];
+  private spray: { o: Phaser.GameObjects.Image; vx: number; vy: number; g: number; t: number; life: number; a: number; grow: number }[] = [];
+  private nextSpray = 700;
+  private rings: { o: Phaser.GameObjects.Image; t: number; life: number; s: number }[] = [];
+  private ringPool: Phaser.GameObjects.Image[] = [];
+  private nextRing = 0;
+  private beacon?: { beam: Phaser.GameObjects.Image; lamp: Phaser.GameObjects.Image; flare: Phaser.GameObjects.Image; period: number };
+  /** This flash's bolt: the painting's own, or one drawn down the sky. */
+  private boltImg?: Phaser.GameObjects.Image;
+  private boltGfx?: Phaser.GameObjects.Graphics;
+  private boltOn?: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics;
   private t = 0;
   private readonly W: number;
   private readonly H: number;
@@ -277,8 +407,10 @@ export class StageFx {
     // the far background: clouds, mist and birds, behind the balustrade and the arches
     this.far = this.lay(-0.95);
     this.farMask = scene.make.graphics({}, false).setPosition(this.at.x, this.at.y).setScale(this.at.s);
-    this.farMask.fillStyle(0xffffff).fillPoints(L.far.map(([x, y]) => new Phaser.Math.Vector2(x, y)), true);
+    this.farMask.fillStyle(0xffffff);
+    for (const p of polys(L.far)) this.farMask.fillPoints(p.map(([x, y]) => new Phaser.Math.Vector2(x, y)), true);
     this.far.setMask(this.farMask.createGeometryMask());
+    if (L.water) this.makeWater(L.water);      // (under everything: it is the painting itself, moving)
     if (L.dragon) this.makeDragon(L.dragon);   // (first: the clouds and the mist drift in front of it)
     for (let i = 0; i < 6; i++) {
       const o = scene.make.image({ x: r() * W, y: L.sky[0] + r() * (L.sky[1] - L.sky[0]), key: T.cloud }, false).setTint(L.cloudTint).setAlpha(0.18 + r() * 0.2).setScale(0.9 + r() * 1.1, 0.7 + r() * 0.6);
@@ -372,6 +504,97 @@ export class StageFx {
       box.setMask(gm);
     }
     if (L.lightning) { this.flash = new Phaser.GameObjects.Rectangle(scene, -W, -H, W * 3, H * 4, 0xdfe8ff, 1).setOrigin(0, 0).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD); this.lay(88990).add(this.flash); }
+    for (const at of L.lamps ?? []) { // a lantern: a warm glow and a bright core, flickering
+      const glow = scene.make.image({ x: at[0], y: at[1], key: T.glow }, false).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffa040).setScale(0.62).setAlpha(0.4);
+      const core = scene.make.image({ x: at[0], y: at[1], key: T.glow }, false).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffe6a8).setScale(0.13, 0.17).setAlpha(0.75);
+      this.lay(-0.44).add([glow, core]);
+      this.lamps.push({ glow, core, ph: r() * 10 });
+    }
+    const B = L.beacon;
+    if (B && scene.textures.exists(B.beam)) { // the lighthouse: its beam swinging round, its lamp flaring as it faces us
+      const beam = scene.make.image({ x: B.at[0], y: B.at[1], key: B.beam }, false).setOrigin(0, 0.5).setBlendMode(Phaser.BlendModes.ADD);
+      const lamp = scene.make.image({ x: B.at[0] - 3, y: B.at[1], key: T.glow }, false).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc060).setScale(0.14).setAlpha(0.7);
+      const flare = scene.make.image({ x: B.at[0] - 3, y: B.at[1], key: T.glow }, false).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffe2b0).setAlpha(0);
+      this.far.add([beam, lamp, flare]);
+      this.beacon = { beam, lamp, flare, period: B.period };
+    }
+    const Bo = L.bolts;
+    if (Bo && this.flash) { // the bolts, in the sky (behind the sails and the mast), lit with each flash
+      if (Bo.img && Bo.at && scene.textures.exists(Bo.img)) { this.boltImg = scene.make.image({ x: Bo.at[0], y: Bo.at[1], key: Bo.img }, false).setOrigin(0, 0).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0); this.far.add(this.boltImg); }
+      this.boltGfx = scene.make.graphics({}, false).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
+      this.far.add(this.boltGfx);
+    }
+  }
+
+  /** The sea: the painting's water and sails drawn again over it, moving (WATER_FRAG), right above the painting. */
+  private makeWater(Wl: WaterLook): void {
+    const s = this.scene;
+    if (s.game.renderer.type !== Phaser.WEBGL || !s.textures.exists(Wl.paint) || !s.textures.exists(Wl.mask)) return;
+    if (!s.cache.shader.has('stage-water')) {
+      const u: Record<string, { type: string; value: unknown }> = { uRes: { type: '2f', value: { x: this.W, y: this.H } }, uHorizon: { type: '1f', value: 0 } };
+      for (const [k] of WATER_PH) u[k] = { type: '1f', value: 0 };
+      s.cache.shader.add('stage-water', new Phaser.Display.BaseShader('stage-water', WATER_FRAG, undefined, u));
+    }
+    const sh = new Phaser.GameObjects.Shader(s, 'stage-water', 0, 0, this.W, this.H).setOrigin(0, 0);
+    const clamp = () => ({ wrapS: 'clamp_to_edge', wrapT: 'clamp_to_edge', repeat: false });  // (NPOT pictures: never repeat)
+    sh.setChannel0(Wl.paint, clamp()).setChannel1(Wl.mask, clamp());
+    sh.setUniform('uRes.value.x', this.W); sh.setUniform('uRes.value.y', this.H); sh.setUniform('uHorizon.value', Wl.horizon);
+    this.lay(-0.99).add(sh);
+    this.water = sh;
+  }
+
+  /** Spray bursting up where the sea breaks: droplets flung up and falling back, a puff of mist — bigger nearer. */
+  private burst(at: Pt): void {
+    const L = this.look, hz = L.water?.horizon ?? L.sky[1], r = Math.random;
+    const k = 0.45 + 0.9 * Phaser.Math.Clamp((at[1] - hz) / (this.H - hz), 0, 1), box = this.lay(-0.45);
+    const puff = this.scene.make.image({ x: at[0], y: at[1], key: T.glow }, false).setTint(0xd8e4f4).setScale(0.3 * k, 0.22 * k).setAlpha(0);
+    box.add(puff); this.spray.push({ o: puff, vx: (r() - 0.5) * 20 * k, vy: -40 * k, g: 30 * k, t: 0, life: 1300, a: 0.32, grow: 0.45 * k });
+    for (let i = 0, n = 9 + Math.floor(r() * 8); i < n; i++) {
+      const o = this.scene.make.image({ x: at[0] + (r() - 0.5) * 30 * k, y: at[1], key: T.dot }, false).setTint(r() < 0.5 ? 0xffffff : 0xcfe0ff).setScale((0.1 + r() * 0.18) * k).setAlpha(0);
+      box.add(o); this.spray.push({ o, vx: (r() - 0.5) * 120 * k, vy: -(90 + r() * 150) * k, g: 300 * k, t: 0, life: 800 + r() * 600, a: 0.85, grow: 0 });
+    }
+  }
+
+  /** A raindrop lands on the planks: a ring at a random spot of the wet floor (a ring kept for the next one after). */
+  private splash(): void {
+    const P = this.look.puddles!, r = Math.random;
+    const p = P[Math.floor(r() * P.length)];
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const [x, y] of p) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    for (let i = 0; i < 8; i++) {
+      const x = x0 + r() * (x1 - x0), y = y0 + r() * (y1 - y0);
+      if (!inPoly(x, y, p)) continue;
+      const o = this.ringPool.pop() ?? this.scene.make.image({ x: 0, y: 0, key: T.splash }, false).setBlendMode(Phaser.BlendModes.ADD).setTint(0xd8e6ff);
+      if (!o.parentContainer) this.lay(-0.5).add(o);
+      o.setPosition(x, y).setVisible(true).setAlpha(0);
+      const near = Phaser.Math.Clamp((y - this.look.floorTop) / (this.H - this.look.floorTop), 0, 1);
+      this.rings.push({ o, t: 0, life: 320 + r() * 220, s: (0.22 + r() * 0.16) * (0.75 + 0.5 * near) });
+      return;
+    }
+  }
+
+  /** A bolt drawn down the open sky: a jagged line to the horizon with a fork or two, a glow round it. */
+  private drawBolt(): void {
+    const g = this.boltGfx!, Bo = this.look.bolts!, r = Math.random;
+    const [xa, xb] = Bo.x[Math.floor(r() * Bo.x.length)];
+    let x = xa + r() * (xb - xa), y = -10;
+    const main: Pt[] = [[x, y]];
+    while (y < Bo.to) { y = Math.min(Bo.to, y + 12 + r() * 16); x += (r() - 0.5) * 26; main.push([x, y]); }
+    const forks: Pt[][] = [];
+    for (let k = 0, n = 1 + Math.floor(r() * 3); k < n && main.length > 5; k++) {
+      const i = 2 + Math.floor(r() * (main.length - 4)), dir = r() < 0.5 ? -1 : 1;
+      let [fx, fy] = main[i]; const f: Pt[] = [[fx, fy]];
+      for (let j = 0, m = 3 + Math.floor(r() * 4); j < m && fy < Bo.to; j++) { fx += dir * (6 + r() * 16); fy = Math.min(Bo.to, fy + 8 + r() * 14); f.push([fx, fy]); }
+      forks.push(f);
+    }
+    const line = (pts: Pt[], w: number, col: number, a: number) => {
+      g.lineStyle(w, col, a); g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]);
+      g.strokePath();
+    };
+    g.clear();
+    line(main, 16, 0x6f86ff, 0.16); line(main, 6, 0xbcd0ff, 0.5); line(main, 2.6, 0xffffff, 1);
+    for (const f of forks) { line(f, 8, 0x6f86ff, 0.14); line(f, 3, 0xbcd0ff, 0.4); line(f, 1.4, 0xf0f4ff, 0.9); }
   }
 
   private flock(): void {
@@ -445,12 +668,57 @@ export class StageFx {
     }
     if (this.flash) { // a storm: now and then the sky flashes twice
       this.nextBolt -= ms;
-      if (this.nextBolt <= 0) { this.bolt = 0; this.nextBolt = 6000 + Math.random() * 9000; }
+      if (this.nextBolt <= 0) {
+        this.bolt = 0; this.nextBolt = 6000 + Math.random() * 9000;
+        // its bolt: the painting's own now and then, else one drawn somewhere down the sky
+        this.boltOn?.setAlpha(0);
+        this.boltOn = this.boltImg && Math.random() < 0.4 ? this.boltImg : this.boltGfx;
+        if (this.boltOn === this.boltGfx) this.drawBolt();
+      }
       if (this.bolt >= 0) {
         this.bolt += ms; const b = this.bolt;
         const a = b < 90 ? 0.45 * (1 - b / 90) : b < 170 ? 0 : b < 260 ? 0.55 * (1 - (b - 170) / 90) : -1;
         if (a < 0) { this.bolt = -1; this.flash.setAlpha(0); } else this.flash.setAlpha(a);
-      }
+        // the bolt: bright with both flashes, glowing faintly between them, gone soon after
+        this.boltOn?.setAlpha(b < 90 ? 1 : b < 170 ? 0.4 : b < 260 ? 1 - ((b - 170) / 90) * 0.4 : Math.max(0, 0.6 * (1 - (b - 260) / 200)));
+      } else if (this.boltOn && this.boltOn.alpha > 0) this.boltOn.setAlpha(0);
+    }
+    if (this.water) { const k = t / 1000; for (const [u, w] of WATER_PH) this.water.setUniform(`${u}.value`, (k * w) % (Math.PI * 2)); }
+    for (const l of this.lamps) { // a lantern's flame: two sines and a little noise
+      const k = 0.82 + 0.1 * Math.sin(t / 113 + l.ph) + 0.06 * Math.sin(t / 47 + l.ph * 2) + (Math.random() - 0.5) * 0.05;
+      l.glow.setAlpha(0.4 * k).setScale(0.58 + 0.08 * k); l.core.setAlpha(0.75 * k);
+    }
+    const L = this.look;
+    if (L.spray?.length) {
+      this.nextSpray -= ms;
+      if (this.nextSpray <= 0) { this.burst(L.spray[Math.floor(Math.random() * L.spray.length)]); this.nextSpray = 450 + Math.random() * 1200; }
+    }
+    this.spray = this.spray.filter((p) => {
+      p.t += ms; const u = p.t / p.life;
+      if (u >= 1) { p.o.destroy(); return false; }
+      p.vy += p.g * s; p.o.x += p.vx * s; p.o.y += p.vy * s;
+      if (p.grow) p.o.setScale(p.o.scaleX + p.grow * s, p.o.scaleY + p.grow * 0.75 * s);
+      p.o.setAlpha(p.a * (u < 0.12 ? u / 0.12 : 1 - Math.max(0, (u - 0.45) / 0.55)));
+      return true;
+    });
+    if (L.puddles?.length) {
+      this.nextRing -= ms;
+      for (let i = 0; this.nextRing <= 0 && i < 8; i++) { this.splash(); this.nextRing += 12 + Math.random() * 14; }
+      if (this.nextRing < 0) this.nextRing = 0;
+    }
+    this.rings = this.rings.filter((g) => {
+      g.t += ms; const u = g.t / g.life;
+      if (u >= 1) { g.o.setVisible(false); this.ringPool.push(g.o); return false; }
+      const sc = g.s * (0.25 + 0.75 * u);
+      g.o.setScale(sc, sc * 0.4).setAlpha(0.8 * (1 - u) * Math.min(1, u * 6));
+      return true;
+    });
+    if (this.beacon) { // turning round: its beam swings out to the right, shortens toward us (the lamp flares), out to the left, dims away
+      const B = this.beacon, th = ((t % B.period) / B.period) * Math.PI * 2, cx = Math.cos(th), sn = Math.sin(th);
+      const face = Math.pow(Math.max(0, sn), 6);
+      B.beam.setScale(cx, 1 + 0.35 * Math.max(0, sn)).setAlpha(0.35 + 0.65 * (0.5 + 0.5 * sn));
+      B.flare.setScale(0.16 + 0.3 * face).setAlpha(0.75 * face);
+      B.lamp.setAlpha(0.6 + 0.3 * (0.5 + 0.5 * sn));
     }
   }
 
@@ -531,10 +799,12 @@ export class StageFx {
   }
 
   destroy(): void {
-    this.dragon = undefined;
+    this.dragon = undefined; this.water = undefined; this.beacon = undefined;
+    this.boltImg = undefined; this.boltGfx = undefined; this.boltOn = undefined;
     this.far.clearMask(true); this.farMask.destroy();
     for (const c of this.layers.values()) c.destroy(true);
     this.layers.clear();
     this.clouds = []; this.birds = []; this.rays = []; this.sweeps = []; this.leaves = [];
+    this.lamps = []; this.spray = []; this.rings = []; this.ringPool = [];
   }
 }

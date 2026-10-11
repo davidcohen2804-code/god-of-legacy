@@ -553,7 +553,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.input.keyboard?.on('keydown-HOME', () => this.arenaCam('reset'));
       if (this.stage) this.stageFx = new StageFx(this, this.stage.look, WORLD.coordinateSpace.width, WORLD.coordinateSpace.height, R); // (its own light, cloud shadows and weather)
       // Baked-map occlusion: each prop silhouette is redrawn from the map at its footprint depth (no floor crop).
-      this.occluders = WORLD_OBJECTS.map((o) => {
+      this.occluders = WORLD_OBJECTS.filter((o) => o.occluder.length >= 3).map((o) => {   // (a step or a lip drawn on the painting's own floor hides nobody)
         const g = this.make.graphics({}, false);
         g.fillStyle(0xffffff).fillPoints(o.occluder.map(([x, y]) => new Phaser.Geom.Point(x, y)), true);
         return this.add.image(R.x, R.y, mapKey).setOrigin(0, 0).setScale(R.s).setDepth(o.frontY).setMask(g.createGeometryMask());
