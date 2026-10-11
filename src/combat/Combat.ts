@@ -71,6 +71,8 @@ export const ARENA = {
   wakeInvulnMs: 700, techMinMs: 380,
   /** the quick rise (jump or a move key while down) recharges this long (DFO's arena: 20 s on 75 s+ rounds) */
   quickRiseCdMs: 15000,
+  /** longest a paper curse holds in the arena (it stops you acting: a hold, kept as short as the others) */
+  curseMaxMs: 1200,
   /** at each round's start the ultimate / the signature are held back this long (DFO's arena pre-cooldown 선쿨) */
   ultPreCdMs: 20000, sigPreCdMs: 6000,
   breakOn: false, breakMinHits: 3, breakCdMs: 15000, breakInvulnMs: 600, breakHop: 110,
@@ -445,7 +447,8 @@ export class CombatBody {
       }
     }
     if (now < this.curseUntil && hit.heavy && damage > 0) this.curseUntil = now; // a heavy blow unfolds the paper crane
-    if (R.curse) { const ms = R.curse * (1 - this.ccResist); if (now >= this.curseUntil) this.curseFrom = now; this.curseUntil = Math.max(this.curseUntil, now + ms); out.rx = out.rx ?? 'curse'; out.rxMs = ms; }
+    if (R.curse) { const ms = Math.min(this.arena ? ARENA.curseMaxMs : Infinity, R.curse * (1 - this.ccResist)); // (the arena: a curse is a hold like any other — capped)
+      if (now >= this.curseUntil) this.curseFrom = now; this.curseUntil = Math.max(this.curseUntil, now + ms); out.rx = out.rx ?? 'curse'; out.rxMs = ms; }
     if (R.levity) {
       this.levityUntil = Math.max(this.levityUntil, now + R.levity); this.push = null; out.rx = out.rx ?? 'levity'; out.rxMs = R.levity;
       if (this.arena) { const ms = this.hard.apply('stun', R.levity, now, this.pvp, true); if (ms > 0) out.ccMs = Math.max(out.ccMs, ms); } // the arena: floating, it cannot act either (BREAK still frees it)

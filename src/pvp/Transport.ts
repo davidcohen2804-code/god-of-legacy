@@ -1,5 +1,7 @@
-// PvP network transport: Supabase Realtime when credentials exist, otherwise a same-origin BroadcastChannel
-// (local QA fallback only — works between tabs of one browser, never between computers).
+// PvP network transport. Online: a direct peer-to-peer link between the players' browsers (WebRTC data channel —
+// no game server in the middle, so the lowest delay a connection can have), found through public Nostr relays
+// (signalling only). Supabase Realtime when credentials exist and ?net=supabase. ?net=local: a same-origin
+// BroadcastChannel (QA only — tabs of one browser).
 // Presence = who is in the room (join/leave). Broadcast = all gameplay messages.
 import type { MatchMsg } from './Match';
 
@@ -42,7 +44,7 @@ export type NetMsg =
   | { t: 'sel'; from: string; name: string; hover: string; pick: string | null };
 
 export type JoinResult = 'ok' | 'full' | 'error';
-export type TransportKind = 'Supabase' | 'Local';
+export type TransportKind = 'Supabase' | 'Local' | 'P2P';
 
 export interface Transport {
   readonly kind: TransportKind;
@@ -61,7 +63,8 @@ const ENV = import.meta.env as Record<string, string | undefined>;
 export function createTransport(room: string): Transport {
   const url = ENV.VITE_SUPABASE_URL?.trim(), key = ENV.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
   const q = new URLSearchParams(window.location.search);
-  const base: Transport = url && key && q.get('net') !== 'local' ? new SupabaseTransport(room, url, key) : new LocalTransport(room);
+  const net = q.get('net');
+  const base: Transport = net === 'local' ? new LocalTransport(room) : net === 'supabase' && url && key ? new SupabaseTransport(room, url, key) : new P2PTransport(room, q.get('relay'));
   const lag = Math.max(0, Math.min(1000, Number(q.get('lag') ?? 0) || 0)), jitter = Math.max(0, Math.min(200, Number(q.get('jitter') ?? 0) || 0));
   return lag > 0 || jitter > 0 ? new LaggedTransport(base, lag, jitter) : base;
 }
@@ -154,6 +157,85 @@ class SupabaseTransport implements Transport {
     this.channel = undefined;
     if (ch) { void ch.untrack().catch(() => {}); void client?.removeChannel(ch); }
     void client?.realtime.disconnect();
+  }
+}
+
+// ---------------------------------------------------------------- Peer to peer (WebRTC, signalled over Nostr)
+
+/** Public Nostr relays for finding each other (signalling only; the game itself flows browser to browser). Many, so one
+ *  being down never matters: two players meet as soon as they share any one. */
+const RELAYS = ['relay.damus.io', 'nos.lol', 'relay.primal.net', 'relay.snort.social', 'offchain.pub', 'nostr.mom', 'relay.nostr.net', 'nostr.oxtr.dev'].map((h) => 'wss://' + h);
+/** STUN (each browser learns its public address); a TURN relay can be added through VITE_TURN_URL / _USER / _PASS for
+ *  the rare networks that block a direct link. */
+const ICE: RTCIceServer[] = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
+const APP_ID = 'god-of-legacy-pvp-v1';
+/** How long a joiner listens for who is already in the room before it counts the room full or not. */
+const DISCOVER_MS = 1800;
+
+class P2PTransport implements Transport {
+  readonly kind = 'P2P' as const;
+  status = 'connecting';
+  private msgFn: (m: NetMsg) => void = () => {};
+  private peersFn: (p: PeerMeta[]) => void = () => {};
+  private room?: import('trystero').Room;
+  private sendMsg?: (m: NetMsg) => void;
+  private sendMeta?: (m: PeerMeta, to?: string) => void;
+  private peers = new Map<string, PeerMeta>(); // trystero peer id → that player
+  private meta?: PeerMeta;
+  private max = 2;
+  private closed = false;
+
+  constructor(private roomId: string, private relay: string | null) {}
+
+  async join(meta: PeerMeta, maxPlayers: number): Promise<JoinResult> {
+    this.meta = meta; this.max = maxPlayers;
+    try {
+      const { joinRoom } = await import('trystero');
+      if (this.closed) return 'error';
+      const turn = ENV.VITE_TURN_URL?.trim();
+      const ice = turn ? [...ICE, { urls: turn.split(','), username: ENV.VITE_TURN_USER, credential: ENV.VITE_TURN_PASS }] : ICE;
+      const room = joinRoom( // (?relay=: a test relay on this machine — no STUN needed)
+        { appId: APP_ID, relayConfig: { urls: this.relay ? [this.relay] : RELAYS, warnOnRelayFailure: false }, rtcConfig: { iceServers: this.relay ? [] : ice } }, `gol-pvp-${this.roomId}`);
+      this.room = room;
+      type Wire = import('trystero').DataPayload;
+      const m = room.makeAction('m'), who = room.makeAction('who');
+      this.sendMsg = (x) => { void m.send(x as unknown as Wire).catch(() => {}); };
+      this.sendMeta = (x, to) => { void who.send(x as unknown as Wire, to ? { target: to } : undefined).catch(() => {}); };
+      m.onMessage = (x, { peerId }) => { if (!this.closed && this.peers.has(peerId)) this.msgFn(x as unknown as NetMsg); };
+      who.onMessage = (d, { peerId }) => {
+        const x = d as unknown as PeerMeta;
+        if (this.closed) return;
+        if (!this.peers.has(peerId) && this.peers.size >= this.max) return; // (a room already full: an extra is not one of us)
+        this.peers.set(peerId, x); this.emitPeers();
+      };
+      room.onPeerJoin = (peerId) => { if (!this.closed && this.meta) this.sendMeta?.(this.meta, peerId); };
+      room.onPeerLeave = (peerId) => { if (this.peers.delete(peerId) && !this.closed) this.emitPeers(); };
+      this.status = 'connected'; // (it hears the room from now on; who is already there answers within moments)
+      const t0 = performance.now();
+      while (!this.closed && this.peers.size === 0 && performance.now() - t0 < DISCOVER_MS) await new Promise((r) => setTimeout(r, 100));
+      if (this.closed) return 'error';
+      if (this.peers.size >= maxPlayers) { this.status = 'room-full'; this.close(); return 'full'; }
+      return 'ok';
+    } catch (e) {
+      console.error('[pvp] p2p join failed', e);
+      this.status = 'error';
+      return 'error';
+    }
+  }
+
+  private emitPeers(): void { this.peersFn([...this.peers.values()]); }
+
+  send(msg: NetMsg): void { if (this.status === 'connected' && this.peers.size) this.sendMsg?.(msg); }
+  onMessage(fn: (m: NetMsg) => void): void { this.msgFn = fn; }
+  onPeers(fn: (p: PeerMeta[]) => void): void { this.peersFn = fn; }
+
+  close(): void {
+    if (this.closed) return;
+    this.closed = true;
+    if (this.status !== 'room-full') this.status = 'closed';
+    this.peers.clear();
+    void this.room?.leave().catch(() => {});
+    this.room = undefined;
   }
 }
 

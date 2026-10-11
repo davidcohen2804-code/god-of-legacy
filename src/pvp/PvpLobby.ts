@@ -1,7 +1,7 @@
 // The PvP select screen between two players (VS PLAYER): who else is in the room, the fighter each one points at and the
 // one each locked in. Its own channel next to the arena's (room + '-SEL') on the arena's transport (Supabase online, or this
 // browser's tabs for a local test). Two players at most.
-import { createTransport, NetMsg, PeerMeta, Transport } from './Transport';
+import { createTransport, NetMsg, PeerMeta, Transport, TransportKind } from './Transport';
 import { newPlayerId } from './Room';
 
 export interface LobbyPeer { id: string; name: string; hover: string; pick: string | null }
@@ -21,7 +21,7 @@ export class PvpLobby {
     this.t.onPeers((list) => this.peers(list));
   }
 
-  get kind(): 'Supabase' | 'Local' { return this.t.kind; }
+  get kind(): TransportKind { return this.t.kind; }
   get other(): LobbyPeer | null { return this.peer; }
 
   async join(hover: string): Promise<void> {

@@ -2976,7 +2976,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
   private pokeHit(hit: HitEvent): HitEvent {
     const R = hit.reaction;
-    return { ...hit, reaction: { ...R, stun: Math.min(R.stun ?? ARENA_FLOW.pokeStun, ARENA_FLOW.pokeStun), launch: undefined, float: undefined, slam: undefined, pin: undefined, knockdown: undefined, juggleCost: undefined } };
+    return { ...hit, reaction: { ...R, stun: Math.min(R.stun ?? ARENA_FLOW.pokeStun, ARENA_FLOW.pokeStun), launch: undefined, float: undefined, slam: undefined, pin: undefined, knockdown: undefined, juggleCost: undefined, yank: undefined } }; // (no yank from afar either: a long pull would hand the shooter's foe her own doorstep)
   }
   private applyRemoteHitToSelf(run: CastRun, hit: HitEvent, hi: number, at: V3, claimed = false): void {
     if (this.isPoke(run, hit, this.kin)) { hit = this.pokeHit(hit); if (run.attackerId === BOT_ID) this.bot?.notePoke(); }
