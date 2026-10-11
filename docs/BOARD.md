@@ -43,15 +43,17 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - [ ] Living arena backgrounds (animated fire / rain / crowd loops), each arena its own character.
 
 ### Match flow and replay value (PvP)
-- [ ] Animated VS screen, "ROUND 1 – FIGHT" with presence, animated victory screen.
-- [ ] Ranks and tiers, win streaks, titles.
-- [ ] Training mode with combo trials per class (from the combo guide).
+- [ ] Animated VS screen, "ROUND 1 – FIGHT" with presence, animated victory screen. (PvP: in progress)
+- [ ] Ranks and tiers, win streaks, titles. (PvP: next)
+- [ ] Training mode with combo trials per class (from the combo guide). (PvP: after ranks)
 
 ## Requests
 (format: `- to: <area> — from: <area> — what`)
 
 - to: Movements — from: DFO PvP arena dynamics — body states to paint and wire, in this order (all heroes): 1) backstep (4 frames over its air time, BACKSTEP in LegacyCourtyardScene: crouch, push off, airborne back, land); 2) quick rise (3 frames over 160 ms, the getup state when Combat.quickGetup fired); 3) stunned loop (4 frames, 110 ms each, for a long hitstun / hardCC stun); 4) win pose (8 frames ~90 ms then hold, the round / match winner during koMs); 5) intro (8 frames over introMs 1500, before ROUND n); 6) run stop (2 frames, 60 ms). No new side-step: backstep + run + jump are the arena's movement (DFO), the depth comes from cancels and their timing.
 - to: all class chats — from: DFO PvP arena dynamics — `SkillFx.confirmed(..., counter)` now carries the COUNTER flag (bot, online and victim side); the gambler gets it in GamblerFx.confirmed; others: read the new last argument where your spark is drawn.
+- to: all class chats — from: PvP — your "victory pose (animated) and entrance move for the VS screen": PvP makes the VS splash's idle loop itself (`vs_live`) and plays yours when they exist. Deliver the raw PixVerse clip (mp4, 5 s, camera locked, hero on flat green #00FF00 — magenta #FF00FF for the archer — no floor, no shadow): `public/assets/final/heroes/<cls>/vs_in.mp4` (the entrance, ending exactly on your vs.webp pose) and `win_in.mp4` (into your win.webp pose and holding it). PvP keys them and wires them in; add a line here when one lands.
+- to: Maps — from: PvP — for "Living arena backgrounds": the six arenas' living effects (rain, sea, aurora, lanterns, bolts, dragon, embers…) are `src/world/StageFx.ts` + the arena entries in `src/world/Stages.ts`, built by PvP — build on them. Arena music and ambience stay with PvP (`src/audio`): add a request here when an arena gets a new look that needs its own sound.
 
 ## Decisions for David
 
