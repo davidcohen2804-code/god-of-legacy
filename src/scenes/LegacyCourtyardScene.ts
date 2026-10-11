@@ -5,9 +5,9 @@
 // counter, hit-stop / shake hierarchy) → HUD, Skill Book (K), Inventory (I) and Cosmetic Shop (O).
 import { FloorLift } from '../world/FloorLift';
 import { sunGateX, SUN_GATE } from '../world/SunGate';
-/** The arena camera: at least `minView` world px across the screen (the fighters ~1.7× the whole-arena view), the gap
- *  between them plus `margin` when they part; zoom at most maxZoom × the whole-arena view; eases in easeMs. */
-const ARENA_CAM = { minView: 1150, margin: 760, maxZoom: 1.48, easeMs: 260, /** the player's own zoom (wheel / camera buttons): down to the whole arena, up a little closer */ userMin: 0.55, userMax: 1.25 };
+/** The arena camera: a fixed view, maxZoom × the whole-arena view (the owner's framing; the player's zoom on top), centred
+ *  between the two fighters; it widens only when they part further than the screen holds (their gap + `edge`). */
+const ARENA_CAM = { maxZoom: 1.48, edge: 420, easeMs: 260, /** the player's own zoom (wheel / camera buttons): down to the whole arena, up a little closer */ userMin: 0.55, userMax: 1.25 };
 /** The arena's screen shake, governed (the skills' effects call it freely): scaled down, small ones dropped (no shake
  *  on every basic / core hit), one at a time unless a stronger one comes, never long. */
 const ARENA_SHAKE = { mul: 0.45, min: 0.0012, gapMs: 280, maxMs: 260 };
@@ -339,8 +339,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const mx = (k.x + fx) / 2, my = (k.y + fy) / 2, span = Math.abs(k.x - fx);
     this.camTarget.set(mx, my + 70 - this.arenaLift); // (above the skill tray)
     if (this.koT >= 0) return; // the K.O. drives its own zoom
-    const view = Math.max(ARENA_CAM.minView, span + ARENA_CAM.margin); // world px across the screen
-    const want = Phaser.Math.Clamp(cam.width / view * this.arenaZoom, this.baseZoom, this.baseZoom * ARENA_CAM.maxZoom * ARENA_CAM.userMax);
+    // a fixed view (the owner's framing): the same zoom all fight long; it widens only if the two would leave the screen
+    const fixed = this.baseZoom * ARENA_CAM.maxZoom * this.arenaZoom, fits = cam.width / (span + ARENA_CAM.edge);
+    const want = Phaser.Math.Clamp(Math.min(fixed, fits), this.baseZoom, this.baseZoom * ARENA_CAM.maxZoom * ARENA_CAM.userMax);
     cam.setZoom(cam.zoom + (want - cam.zoom) * Math.min(1, ms / ARENA_CAM.easeMs));
   }
   private botCls = 'warrior';
