@@ -508,11 +508,23 @@ export class GamblerFx {
   }
 
   /** A hit that landed (the attacker's view): a fuchsia burst with card shards; heavier for heavy / signature hits. */
-  confirmed(s: FinalSkill, hit: HitEvent, at: V3, heavy: boolean, crit: boolean): void {
-    const y = at.y - at.z, size = heavy ? 120 : 64;
-    if (crit || (heavy && s.slot === 7)) { const x = this.kit('x_cross', at.x, y, crit ? 150 : 200, TOP + 4); if (x) { const x0 = x.scale, a0 = rnd(-15, 15); this.piece(x, 300, (u, o) => o.setScale(x0 * lerp(1.4, 1, out3(clamp01(u * 3)))).setAngle(a0).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5)); } }
-    this.pop(at.x, y, size * (crit ? 1.4 : 1), crit ? 0xffffff : FUCHSIA, heavy ? 320 : 200);
-    if (heavy || crit) this.shards(at.x, y, heavy ? 6 : 3, size * 0.9);
+  confirmed(s: FinalSkill, hit: HitEvent, at: V3, heavy: boolean, crit: boolean, counter = false): void {
+    // the gambler's hit sparks, one shape per weight (all from his own painted pieces): NORMAL a card-pop, HEAVY a card
+    // blast, LAUNCH a spark geyser shooting up, CRIT / COUNTER a gold cross of light
+    const y = at.y - at.z, kind = crit || counter ? 'crit' : hit.reaction.launch ? 'launch' : heavy ? 'heavy' : 'normal';
+    if (kind === 'normal') {
+      this.pop(at.x, y, 64, FUCHSIA, 200); this.shards(at.x, y, 2, 50, 260);
+    } else if (kind === 'heavy') {
+      const bl = this.kit('ai_blast', at.x, y, 130, TOP + 4); if (bl) { const b0 = bl.scale, a0 = rnd(0, 360); this.piece(bl, 280, (u, o) => o.setScale(b0 * lerp(0.45, 1.1, out3(u))).setAngle(a0).setAlpha(u < 0.4 ? 1 : (1 - u) / 0.6)); } else this.pop(at.x, y, 120, FUCHSIA, 300);
+      this.pop(at.x, y, 70, 0xffffff, 140); this.shards(at.x, y, 6, 110, 380);
+    } else if (kind === 'launch') {
+      const gy = this.kit('ai_geyser', at.x, y + 30, 90, TOP + 4); if (gy) { gy.setOrigin(0.5, 0.95); const g0 = gy.scale; this.piece(gy, 320, (u, o) => o.setScale(g0 * 0.8, g0 * lerp(0.3, 1.1, out3(u))).setAlpha(u < 0.4 ? 1 : (1 - u) / 0.6)); }
+      this.pop(at.x, y, 100, FUCHSIA_2, 240); this.shards(at.x, y - 20, 4, 90, 380);
+    } else {
+      const x = this.kit('x_cross', at.x, y, 170, TOP + 5); if (x) { x.setTint(0xffe7a0); const x0 = x.scale, a0 = rnd(-15, 15); this.piece(x, 300, (u, o) => o.setScale(x0 * lerp(1.4, 1, out3(clamp01(u * 3)))).setAngle(a0).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5)); }
+      this.pop(at.x, y, 150, 0xffffff, 240); this.pop(at.x, y, 110, GOLD, 300); this.shards(at.x, y, 5, 120, 400);
+    }
+    if (heavy && s.slot === 7) { const x = this.kit('x_cross', at.x, y, 200, TOP + 4); if (x) { const x0 = x.scale; this.piece(x, 300, (u, o) => o.setScale(x0 * lerp(1.4, 1, out3(clamp01(u * 3)))).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5)); } }
     if (s.id === 'grand_slam') this.ctx.cam().shake(260, 0.014);
     if (s.id === 'staff_vault' && hit.shape.kind === 'capsule') { // caught by the vault on its way: the staff's arc flashes right where it passed him
       const st = this.kit('s_swing', at.x, y, 150, TOP + 4); if (st) { const s0 = st.scale; st.setAngle(rnd(-20, 20)); this.piece(st, 200, (u, o) => o.setScale(s0 * lerp(0.8, 1.15, out3(u))).setAlpha(1 - u)); }
