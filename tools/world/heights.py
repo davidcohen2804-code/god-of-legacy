@@ -46,7 +46,7 @@ MAPS = {
   'afterglow': {'name': 'Afterglow Rest', 'src': 'afterglow_shrine', 'over': 'plaza', 'dx': 1434, 'H': 800, 'front': 122, 'floor': (345, 575),
                 'sky': (140, 300), 'cloud': True, 'depth': -1.245, 'wall_x': 1170,
                 'blocks': [{'id': 'block-l', 'x': (262, 452), 'front': 505, 'h': 82, 'depth': 30}],
-                'mobs': {'kind': 'puffling', 'spawns': [[700, 470], [980, 520]]},
+                'mobs': {'kind': 'sunbeam', 'spawns': [[560, 540], [760, 455], [960, 525]]},   # the Sunbeams round the Sun Shrine (Solenne's shards)
                 'reward': {'x': 357, 'item': 'storm_core', 'every': 600}},
 }
 EDGE_SHADE = 34   # px: the ends shaded toward their edge (they turn away from the light: volume)

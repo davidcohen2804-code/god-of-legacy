@@ -466,9 +466,9 @@ export class CosmeticPanel {
     }
     const wrap = this.el('div', 'bagwrap', c); wrap.style.left = '24px';
     const top = this.el('div', 'bagtop', wrap); this.el('span', 'gl-cap', top, MAIN_TABS.find(([t]) => t === this.mainTab)?.[1] ?? ''); this.toolbar(top);
-    if (this.mainTab === 'items' || this.mainTab === 'materials') {
-      const mats = this.mainTab === 'materials', grid = this.el('div', 'bag wide', wrap), bag = this.character.bag ?? {};
-      const have = ITEM_IDS.filter((id) => (bag[id] ?? 0) > 0 && (ITEMS[id].kind === 'mat') === mats);
+    if (this.mainTab === 'items' || this.mainTab === 'materials' || this.mainTab === 'key') {
+      const mats = this.mainTab === 'materials', keys = this.mainTab === 'key', grid = this.el('div', 'bag wide', wrap), bag = this.character.bag ?? {};
+      const have = ITEM_IDS.filter((id) => (bag[id] ?? 0) > 0 && (ITEMS[id].kind === 'mat') === mats && (ITEMS[id].kind === 'key') === keys);
       if (this.selItem && !have.includes(this.selItem)) this.selItem = null;
       const quick = this.itemActions?.quick() ?? ['', ''];
       for (let i = 0; i < 48; i++) {
@@ -488,8 +488,8 @@ export class CosmeticPanel {
           const keys = this.itemActions.keys();
           const u = this.el('button', 'gl-btn pri', bar, 'Use') as HTMLButtonElement; u.type = 'button'; u.addEventListener('click', () => { this.itemActions!.use(sel.id); });
           for (const i of [0, 1] as const) { const k = this.el('button', 'gl-btn', bar, `Set on ${keys[i] || (i ? 'MP key' : 'HP key')}`) as HTMLButtonElement; k.type = 'button'; k.disabled = quick[i] === sel.id; k.addEventListener('click', () => { this.itemActions!.setQuick(i, sel.id); this.renderMain(); }); }
-        } else this.el('span', 'isell', bar, `Sells for ${sel.sell} gold`);
-      } else this.el('span', 'ihint', bar, mats ? 'Monster materials — sell them to Mira in Sunstone Plaza.' : 'Select an item to use it or put it on an item key.');
+        } else if (sel.kind !== 'key') this.el('span', 'isell', bar, `Sells for ${sel.sell} gold`);
+      } else this.el('span', 'ihint', bar, keys ? (have.length ? 'Select a key item to read about it.' : 'Quest items, keys and tokens will be kept here.') : mats ? 'Monster materials — sell them to Mira in Sunstone Plaza.' : 'Select an item to use it or put it on an item key.');
       this.invHint.textContent = '';
       return;
     }
@@ -525,10 +525,10 @@ export class CosmeticPanel {
       const d = ITEMS[id], t = this.tip; t.innerHTML = '';
       const th = this.el('div', 'th', t); const im = this.el('img', '', th); im.src = d.icon; im.alt = '';
       const nm = this.el('div', '', th); const tn = this.el('div', 'tn', nm, d.name); tn.style.color = RARITY[d.rarity].color;
-      const tt = this.el('div', 'tt', nm, `${RARITY[d.rarity].label} · ${d.kind === 'mat' ? 'Material' : d.kind === 'buff' ? 'Buff' : d.kind === 'scroll' || d.kind === 'feather' ? 'Travel' : 'Recovery'}`); tt.style.color = 'var(--gl-gold2)';
+      const tt = this.el('div', 'tt', nm, `${RARITY[d.rarity].label} · ${d.kind === 'mat' ? 'Material' : d.kind === 'key' ? 'Key Item' : d.kind === 'buff' ? 'Buff' : d.kind === 'scroll' || d.kind === 'feather' ? 'Travel' : 'Recovery'}`); tt.style.color = 'var(--gl-gold2)';
       const tb = this.el('div', 'tb', t), ts = this.el('div', 'ts', tb); this.el('div', '', ts, d.desc);
       const lo = this.el('div', 'td', tb, d.lore); lo.style.fontStyle = 'italic';
-      this.el('div', 'te', t, `Sells for ${d.sell} gold`);
+      if (d.kind !== 'key') this.el('div', 'te', t, `Sells for ${d.sell} gold`);
       t.classList.add('on');
     });
     this.tipFollow(cell);

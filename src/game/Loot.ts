@@ -2,7 +2,7 @@
 // gold. Monsters drop them on the floor (their own drop table), walking over them picks them up, Mira's shop sells them.
 // Recovery is a fixed amount (bigger items for bigger HP pools later); HP costs ~1.2 gold a point, MP ~2.7.
 
-export type ItemKind = 'hp' | 'mp' | 'both' | 'pct' | 'buff' | 'scroll' | 'feather' | 'cloud' | 'mat';
+export type ItemKind = 'hp' | 'mp' | 'both' | 'pct' | 'buff' | 'scroll' | 'feather' | 'cloud' | 'mat' | 'key';
 export interface ItemDef {
   id: string; name: string; kind: ItemKind; icon: string;
   hp?: number; mp?: number; /** pct: share of max HP and MP */ pct?: number;
@@ -39,6 +39,8 @@ export const ITEMS: Record<string, ItemDef> = {
   cloud_feather: { id: 'cloud_feather', name: 'Cloud Feather', kind: 'feather', icon: I('cloud_feather'), sell: 60, desc: 'Carries you up to Cloud Haven.', rarity: 'uncommon', lore: "Nimbus's gift. Hold it up to the sky and the wind lifts you all the way to Cloud Haven." },
   cloud_form: { id: 'cloud_form', name: 'Cloud Form', kind: 'cloud', icon: I('cloud_form'), sell: 150, desc: 'Turns you into a cloud: the sun of Sunfall Pass cannot burn you.', rarity: 'rare', lore: "Big Grumble's thank-you, bottled. Uncork it and you are light as a cloud — the only way past the low sun." },
   storm_core: { id: 'storm_core', name: 'Storm Core', kind: 'mat', icon: I('storm_core'), sell: 400, desc: 'A swirling pearl of calm storm. Rare and precious.', rarity: 'rare', lore: "What is left of Big Grumble's bad mood once he cheers up: a little storm, sleeping in a pearl." },
+  sun_shard: { id: 'sun_shard', name: 'Sun Shard', kind: 'mat', icon: I('sun_shard'), sell: 10, desc: 'A warm sliver of sunlight. Solenne at the Sun Shrine is looking for these.', rarity: 'uncommon', lore: "A last spark of the stolen Heart of the Sun. The Sunbeams of Afterglow Rest keep them close." },
+  sun_amulet: { id: 'sun_amulet', name: 'Sun Amulet', kind: 'key', icon: I('sun_amulet'), sell: 0, desc: "Three Sun Shards set in gold by the Keeper of the Sun. Show it to the Masters in the east.", rarity: 'rare', lore: "Solenne's gift. It stays warm in your hand, like a little piece of morning." },
   cursed_cloth: { id: 'cursed_cloth', name: 'Cursed Cloth', kind: 'mat', icon: I('cursed_cloth'), sell: 12, desc: 'A scrap of cloth that still hums with a curse. Merchants buy it.', rarity: 'common', lore: "Torn from the cloaks of the Cursed Swordsmen. The curse still hums in its threads." },
 };
 export const ITEM_IDS = Object.keys(ITEMS);
@@ -50,10 +52,11 @@ export function shortDesc(d: ItemDef): string {
   if (d.kind === 'feather') return 'Up to Cloud Haven';
   if (d.kind === 'cloud') return 'Become a cloud';
   if (d.kind === 'mat') return 'Material';
+  if (d.kind === 'key') return 'Key item';
   return [d.hp ? `+${d.hp} HP` : '', d.mp ? `+${d.mp} MP` : ''].filter(Boolean).join('  ');
 }
 /** Usable from the bag / a hotkey. */
-export const usable = (id: string): boolean => !!ITEMS[id] && ITEMS[id].kind !== 'mat';
+export const usable = (id: string): boolean => !!ITEMS[id] && ITEMS[id].kind !== 'mat' && ITEMS[id].kind !== 'key';
 /** Mira's shelf, in order. */
 export const SHOP = ['apple', 'red_potion', 'meat', 'orange', 'blue_potion', 'cake', 'warrior_potion', 'swift_potion', 'return_scroll'];
 
@@ -74,6 +77,7 @@ const DROPS: Record<string, { gold: [number, number]; items: [string, number][] 
   rusted: { gold: [3, 6], items: [['rust_shard', 0.4], ['apple', 0.08], ['orange', 0.06], ['red_potion', 0.04]] },
   puffling: { gold: [6, 11], items: [['cloud_puff', 0.6], ['orange', 0.06], ['blue_potion', 0.04]] },
   big_grumble: { gold: [90, 150], items: [['cloud_form', 1], ['storm_core', 1], ['cloud_feather', 0.6], ['elixir', 0.25], ['cloud_puff', 1]] },
+  sunbeam: { gold: [7, 12], items: [['sun_shard', 0.5], ['orange', 0.06], ['red_potion', 0.05]] },
   cursed: { gold: [8, 14], items: [['cursed_cloth', 0.35], ['meat', 0.06], ['red_potion', 0.06], ['blue_potion', 0.04], ['elixir', 0.003]] },
 };
 

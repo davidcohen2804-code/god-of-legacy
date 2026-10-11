@@ -11,12 +11,20 @@ R = __file__.rsplit('/', 3)[0] + '/'
 ACTIONS = [('idle', 4), ('walk', 6), ('attack', 6), ('hurt', 2), ('death', 6)]
 # per monster: its height in the game (world px, standing) and texture px per world px
 MOBS = {'sprout': {'height': 62, 'q': 2, 'fx': True}, 'rusted': {'height': 78, 'q': 2, 'fx': True}, 'thorn': {'height': 70, 'q': 2, 'fx': True}, 'cursed': {'height': 84, 'q': 2, 'fx': True}, 'warden': {'height': 150, 'q': 2, 'fx': True},   # fx: its attack's leaf whip kept (not a gust the game blows itself)
-        'puffling': {'height': 72, 'q': 2}, 'big_grumble': {'height': 250, 'q': 2, 'same': {('attack', 4): ('attack', 3)}}}   # same: a frame drawn as another (GPT's frame unusable)
+        'puffling': {'height': 72, 'q': 2}, 'sunbeam': {'height': 66, 'q': 2, 'fx': True, 'glow': True}, 'big_grumble': {'height': 250, 'q': 2, 'same': {('attack', 4): ('attack', 3)}}}   # same: a frame drawn as another (GPT's frame unusable)
 
 
-def key(path):
+def key(path, glow=False):
   im = np.asarray(Image.open(path).convert('RGB')).astype(np.float32)
   r, g, b = im[..., 0], im[..., 1], im[..., 2]
+  if glow:   # a glowing creature: its soft light over magenta un-mixed (alpha from green — magenta has none), no pink rim
+    pink = np.minimum(r, b) > g + 8
+    a = np.clip(g / 235, 0.002, 1)
+    F = (im - (1 - a)[..., None] * np.array([255, 0, 255])) / a[..., None]
+    F = np.clip(F, 0, 255); F[..., 0] = 255; F[..., 1] = np.clip(F[..., 1], 0, 236); F[..., 2] = np.minimum(F[..., 2], F[..., 1] * 0.66)   # its glow warm gold
+    A2 = np.where(pink, np.clip((a - 0.04) / 0.96, 0, 1) ** 1.25, 1.0)
+    rgb = np.where(pink[..., None], F, im)
+    return np.dstack([rgb, A2 * 255]).astype(np.uint8)
   a = 1 - np.clip((np.minimum(r, b) - g - 60) / 90, 0, 1)
   k = np.where(np.minimum(r, b) > g, (np.minimum(r, b) - g) * (1 - a), 0)
   rgb = im.copy(); rgb[..., 0] -= k; rgb[..., 2] -= k
@@ -37,8 +45,10 @@ def bands(mask, axis, min_gap):
   return runs
 
 
+ONLY = os.environ.get('MOB')
 for mid, spec in MOBS.items():
-  rgba = key(R + f'tools/mobs/{mid}.png'); A = rgba[..., 3] > 100
+  if ONLY and mid != ONLY: continue
+  rgba = key(R + f'tools/mobs/{mid}.png', spec.get('glow', False)); A = rgba[..., 3] > 100
   rows = bands(A, 1, 14)
   rows = [r for r in rows if r[1] - r[0] > 40]
   assert len(rows) == 5, (mid, rows)

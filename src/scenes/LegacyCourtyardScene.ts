@@ -1314,7 +1314,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.gold -= cost; this.giveItem(id, n); return null;
   }
   private sell(id: string, n: number): string | null {
-    const d = ITEMS[id]; if (!d || n <= 0 || !this.takeItem(id, n)) return 'You do not have that many.';
+    const d = ITEMS[id]; if (d?.kind === 'key') return 'Keep this one — it is not for sale.';
+    if (!d || n <= 0 || !this.takeItem(id, n)) return 'You do not have that many.';
     this.gold = Math.min(GOLD_MAX, this.gold + d.sell * n); this.saveLoot(); return null;
   }
 

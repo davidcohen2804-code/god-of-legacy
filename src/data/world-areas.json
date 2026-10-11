@@ -14217,6 +14217,21 @@
    "level": 3,
    "gust": true
   },
+  "sunbeam": {
+   "name": "Sunbeam",
+   "frames": "sunbeam",
+   "texQ": 2,
+   "scale": 1.15,
+   "hp": 80,
+   "damage": 5,
+   "speed": 66,
+   "aggro": 220,
+   "range": 70,
+   "cooldown": 1300,
+   "respawnMs": 8000,
+   "exp": 14,
+   "level": 4
+  },
   "big_grumble": {
    "name": "Big Grumble",
    "frames": "big_grumble",
@@ -14648,6 +14663,48 @@
      "elixir": 2,
      "cloud_feather": 2,
      "cloud_form": 1
+    }
+   }
+  },
+  {
+   "id": "sun_heart",
+   "giver": "solenne",
+   "title": "The Stolen Sun",
+   "after": "sun_gate",
+   "summary": "Solenne, Keeper of the Sun, told you the Heart of the Sun was stolen from her shrine. The Sunbeams keep what is left of its light: bring her three Sun Shards.",
+   "offer": [
+    "Long ago the Heart of the Sun shone on this pedestal, and its light kept the whole land warm.",
+    "One dark night it was stolen. As its light faded, the Curse crept in from the east: that is how it all began.",
+    "A little of its light still lingers in the Sunbeams floating round the shrine. Tap them gently and they let go of a Sun Shard. Bring me three, and I'll make you something to carry its warmth."
+   ],
+   "accept": "I'll find them",
+   "decline": "Not now",
+   "progress": [
+    "Three Sun Shards. The Sunbeams float all round the shrine."
+   ],
+   "done": [
+    "Three Sun Shards... feel how warm they are. Here: I set them in an amulet for you.",
+    "Whoever took the Heart went east. Past the Sun Gate stands the Temple Gate, where the Masters keep watch. Tell them the Keeper of the Sun sent you."
+   ],
+   "complete": "Thank you, Solenne",
+   "objectives": [
+    {
+     "kind": "collect",
+     "item": "sun_shard",
+     "count": 3,
+     "text": "Collect Sun Shards from Sunbeams (Afterglow Rest)"
+    },
+    {
+     "kind": "talk",
+     "npc": "solenne",
+     "text": "Bring them to Solenne"
+    }
+   ],
+   "reward": {
+    "gold": 300,
+    "exp": 350,
+    "items": {
+     "sun_amulet": 1
     }
    }
   }

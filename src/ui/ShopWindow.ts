@@ -82,7 +82,7 @@ export class ShopWindow {
       this.row(this.buyL, id, shortDesc(d), (d.price ?? 0) * n, gold >= (d.price ?? 0) * n, key, n, max, 'Buy', () => { const e = this.h.buy(id, n); if (e) this.say(e, false); else { this.say(`Bought ${d.name} ×${n}`, true); this.qty.delete(key); } this.refresh(); });
     }
     this.sellL.textContent = '';
-    const have = ITEM_IDS.filter((id) => (bag[id] ?? 0) > 0);
+    const have = ITEM_IDS.filter((id) => (bag[id] ?? 0) > 0 && ITEMS[id].kind !== 'key');
     if (!have.length) this.el('div', 'empty', this.sellL).textContent = 'Your bag is empty.';
     for (const id of have) {
       const d = ITEMS[id], key = `s:${id}`, max = bag[id], n = Math.min(this.qty.get(key) ?? 1, max);
