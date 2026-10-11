@@ -31,7 +31,8 @@ ROUTE = [
   ('dusk_1', ('Wisteria Walk', None, False, 'glowcap')),
   ('dusk_2', ('Lantern Steps', None, False, 'moth')),
   ('dusk_bridge', ('Moonfall Bridge', None, False, 'moth')),
-  ('dusk_3', ('Hollow Gate', None, False, 'shade_fox')),
+  ('dusk_wood', ('Elderwood Path', None, False, 'glowcap')),
+  ('dusk_3', ('The Elder Hollow', None, False, 'shade_fox')),
 ]
 SPAWNS = [[420, 440], [600, 610], [760, 420], [930, 600], [1090, 430], [1260, 610], [1400, 450]]   # 7 a map
 WARDEN = [[1000, 520]]

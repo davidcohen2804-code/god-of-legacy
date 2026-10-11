@@ -19,7 +19,7 @@ leaf = (((Hh <= 7) | (Hh >= 165) | ((Hh >= 18) & (Hh <= 50))) & (Ss > 120)) | (V
 X = {a: S['areas'][a]['x'] for a in D['row']}
 URNS_LOCAL = {'courtyard': [60, 586, 1097], 'training': [547, 1162], 'plaza': [547, 1162], 'ruins': [547, 1159], 'temple': [547, 1162, 1626],
               'terraces_1': [580, 1095], 'terraces_2': [586, 1097],
-              'training_2': [547, 1162], 'training_3': [547, 1162], 'orchard_1': [547, 1162], 'orchard_2': [547, 1162], 'ruins_2': [547, 1162], 'ruins_3': [547, 1162], 'gate_1': [547, 1162], 'gate_2': [547, 1162], 'dusk_1': [547, 1162, 1626], 'dusk_2': [547, 1162, 1626], 'dusk_3': [547, 1162, 1626], 'dusk_bridge': [547, 1162, 1626]}
+              'training_2': [547, 1162], 'training_3': [547, 1162], 'orchard_1': [547, 1162], 'orchard_2': [547, 1162], 'ruins_2': [547, 1162], 'ruins_3': [547, 1162], 'gate_1': [547, 1162], 'gate_2': [547, 1162], 'dusk_1': [547, 1162, 1626], 'dusk_2': [547, 1162, 1626], 'dusk_bridge': [547, 1162, 1626]}
 AW = D['size'][0]
 ST = json.load(open(R + 'src/data/world-arena.json'))['stairs']
 for a in D['row']:   # stand-in maps (tools/world/expand.py): their picture's urns, mirrored with it
@@ -27,6 +27,8 @@ for a in D['row']:   # stand-in maps (tools/world/expand.py): their picture's ur
   if A.get('standin') in URNS_LOCAL: URNS_LOCAL[a] = [round(AW - u) if A.get('mirrored') else u for u in URNS_LOCAL[A['standin']]]
 centres = sorted({round(X[a] + u) for a, us in URNS_LOCAL.items() for u in us} | {X[b] + 60 for b in D['row'][1:]})  # + one urn on every seam
 centres = [c for i, c in enumerate(centres) if i == 0 or c - centres[i - 1] > 50]   # (the same urn seen from both sides of a seam: once)
+NO_URNS = {'dusk_wood', 'dusk_3'}   # forest maps: no railing, no urns (their flowers are no urn)
+centres = [c for c in centres if next(r for r in reversed(D['row']) if X[r] <= c) not in NO_URNS]
 TOP, CUT = 560, 668                                  # search band; the part that can overlap a player ends at the railing
 for a in D['row']: D['areas'][a]['props'] = [p for p in D['areas'][a]['props'] if not p['id'].startswith('urn-')]
 n = 0
