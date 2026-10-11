@@ -152,6 +152,10 @@ export class RemotePlayer {
 
   /** A hit you landed on it: it shudders for the hit-stop (fighting-game feel; its owner's client moves the body). */
   shake(ms: number): void { this.shakeMs = Math.max(this.shakeMs, ms); }
+  /** Hit-stop on this screen: the body holds its pose this long (presentation only — where it is keeps following the
+   *  network; nothing it does is delayed). */
+  hold(ms: number): void { this.holdMs = Math.max(this.holdMs, ms); }
+  private holdMs = 0;
   /** Paper Curse: hidden for `ms` (the crane is drawn in its place). */
   private paperUntil = 0;
   paper(ms: number): void { this.paperUntil = Math.max(this.paperUntil, performance.now() + ms); }
@@ -198,9 +202,10 @@ export class RemotePlayer {
     }
     while (s.length > 2 && s[1].t <= rt) s.shift();
     this.x = x; this.y = y; this.z = z;
-    this.modeT += ms;
+    const am = this.holdMs > 0 ? 0 : ms; this.holdMs = Math.max(0, this.holdMs - ms); // (hit-stop: the pose holds)
+    this.modeT += am;
     if (this.skill) {
-      this.skill.elapsed += ms;
+      this.skill.elapsed += am;
       if (this.skill.elapsed >= this.skill.startup + this.skill.active + this.skill.recovery || !this.alive) { this.skill = null; if (this.mode === 'skill') { this.mode = 'recover'; this.modeT = 0; } }
     }
     let tint: number | null = null, fill = false, alpha = 1;

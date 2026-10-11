@@ -818,6 +818,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.updateMatch(real, ms);
     this.reactionFx(ms);
     if (this.pvp || this.arena) this.camTarget.set(arenaRect().x + arenaRect().w / 2, this.kin.y + 70 - this.arenaLift); // keep yourself above the tray
+    if (this.pvp && this.fx.hitStopLeft > 0) { // PvP hit-stop (presentation only, the simulation never waits): the other fighters hold their pose too
+      for (const r of this.pvp.remotes.values()) r.hold(this.fx.hitStopLeft);
+      this.bot?.view.hold(this.fx.hitStopLeft);
+    }
     this.renderPlayer(this.fx.hitStopLeft > 0 ? 0 : ms);
     this.updateWorldUi(ms);
     this.bubbles?.update(now, (id) => {
