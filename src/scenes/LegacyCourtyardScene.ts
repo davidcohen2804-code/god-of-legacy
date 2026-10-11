@@ -7,7 +7,10 @@ import { FloorLift } from '../world/FloorLift';
 import { sunGateX, SUN_GATE } from '../world/SunGate';
 /** The arena camera: at least `minView` world px across the screen (the fighters ~1.7× the whole-arena view), the gap
  *  between them plus `margin` when they part; zoom at most maxZoom × the whole-arena view; eases in easeMs. */
-const ARENA_CAM = { minView: 1150, margin: 760, maxZoom: 1.75, easeMs: 260 };
+const ARENA_CAM = { minView: 1150, margin: 760, maxZoom: 1.6, easeMs: 260, /** the player's own zoom (wheel / camera buttons): down to the whole arena, up a little closer */ userMin: 0.55, userMax: 1.25 };
+/** The arena's screen shake, governed (the skills' effects call it freely): scaled down, small ones dropped (no shake
+ *  on every basic / core hit), one at a time unless a stronger one comes, never long. */
+const ARENA_SHAKE = { mul: 0.45, min: 0.0012, gapMs: 280, maxMs: 260 };
 /** Kept with the quests: the Sun Gate opened (the sun over Sunfall Pass crossed). */
 const SUN_GATE_KEY = 'sun_gate';
 import Phaser from 'phaser';
@@ -321,9 +324,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** The arena's painting and what is drawn with it (the mirror under it, the fade into the dark): the pitch's map. */
   private arenaMap: Phaser.GameObjects.GameObject[] = [];
   private arenaCam(what: 'in' | 'out' | 'up' | 'down' | 'reset'): void {
-    if (what === 'in' || what === 'out') this.arenaZoom = Phaser.Math.Clamp(this.arenaZoom * (what === 'out' ? 0.93 : 1 / 0.93), Math.max(0.8, this.cameras.main.width / (arenaRect().w * this.baseZoom)), 1.5)   // never wider than the arena's picture;
+    if (what === 'in' || what === 'out') this.arenaZoom = Phaser.Math.Clamp(this.arenaZoom * (what === 'out' ? 0.93 : 1 / 0.93), ARENA_CAM.userMin, ARENA_CAM.userMax); // (the arena camera: arenaCamStep — down to the whole arena)
     else if (what === 'up' || what === 'down') this.arenaLift = Phaser.Math.Clamp(this.arenaLift + (what === 'up' ? 30 : -30), -180, 180);
     else { this.arenaZoom = 1; this.arenaLift = 0; }
+    if (this.arena) try { localStorage.setItem('gol-arena-zoom', String(this.arenaZoom)); } catch { /* private mode */ } // (kept for the next fight)
     if (this.koT < 0 && !this.arena) this.cameras.main.zoomTo(this.baseZoom * this.arenaZoom, 160, 'Sine.easeOut', true); // (the arena: arenaCamStep eases to it)
   }
   /** The arena camera (DFO): frames both fighters — close in when they are close (the bodies big and readable, ~1.7×
@@ -336,7 +340,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.camTarget.set(mx, my + 70 - this.arenaLift); // (above the skill tray)
     if (this.koT >= 0) return; // the K.O. drives its own zoom
     const view = Math.max(ARENA_CAM.minView, span + ARENA_CAM.margin); // world px across the screen
-    const want = Phaser.Math.Clamp(cam.width / view, this.baseZoom, this.baseZoom * ARENA_CAM.maxZoom) * this.arenaZoom;
+    const want = Phaser.Math.Clamp(cam.width / view * this.arenaZoom, this.baseZoom, this.baseZoom * ARENA_CAM.maxZoom * ARENA_CAM.userMax);
     cam.setZoom(cam.zoom + (want - cam.zoom) * Math.min(1, ms / ARENA_CAM.easeMs));
   }
   private botCls = 'warrior';
@@ -569,6 +573,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       cam.startFollow(this.camTarget, true, 0.09, 0.09); // (the arena: the camera frames both fighters — arenaCamStep)
       cam.centerOn(R.x + W / 2, R.y + H / 2);
       this.arenaZoom = 1; this.arenaLift = 0;
+      try { const z = Number(localStorage.getItem('gol-arena-zoom')); if (z >= ARENA_CAM.userMin && z <= ARENA_CAM.userMax) this.arenaZoom = z; } catch { /* private mode */ }
+      { // the shake governor (ARENA_SHAKE): every effect's camera shake goes through it in the arena
+        const raw = cam.shake.bind(cam); let last = -1e9, lastI = 0;
+        cam.shake = ((dur?: number, int?: number | Phaser.Math.Vector2, force?: boolean, cb?: Phaser.Types.Cameras.Scene2D.CameraShakeCallback, ctx?: unknown) => {
+          const i = (typeof int === 'number' ? int : 0.005) * ARENA_SHAKE.mul, now = this.time.now;
+          if (i < ARENA_SHAKE.min || (now - last < ARENA_SHAKE.gapMs && i <= lastI)) return cam;
+          last = now; lastI = i;
+          return raw(Math.min(dur ?? 100, ARENA_SHAKE.maxMs), i, true, cb, ctx);
+        }) as typeof cam.shake;
+      }
       this.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, dy: number) => this.arenaCam(dy > 0 ? 'out' : 'in'));
       this.input.keyboard?.on('keydown-PAGE_UP', () => this.arenaCam('up')); this.input.keyboard?.on('keydown-PAGE_DOWN', () => this.arenaCam('down'));
       this.input.keyboard?.on('keydown-HOME', () => this.arenaCam('reset'));
