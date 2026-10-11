@@ -69,6 +69,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - Book Mage (cloud chat, no device link): GPT/PixVerse art is generated, but moving it into the repo is blocked — pasting the image into my private inbox page was refused by the permission check, and carrying it as text is too heavy. Options: allow that paste step, or link this chat to the computer (desktop app) so downloads can be staged. Hit-spark sheet (counter / launch / armor break / finisher) is ready in ChatGPT, waiting on this.
 
 ## Done
+- Samurai: each skill its own signature effect — a tone each inside the class look (steel: Quick Slash, Hundred Cuts' katana cage, Tornado's white whirlwind, the Iai's razor line that opens in crimson; crimson: Swallow Cut, Phantom Blades, Dragon Eclipse; gold: Sheathe's click, Sword Wave's crescent moon, God of Blades, Rising Sun, Dragon Ascension's golden dragon; sakura: Blossom Storm, Sakura Bind; rose: Mirage; ink: Shadow Step, Kagemusha; fire: Falcon Dive), its hit marks in its tone — 70215750
+- Samurai: hit-spark set by weight (normal the skill's cut + spark, heavy cut + burst, launch sprayed up + beam, COUNTER an ensō: an ink circle brushed round the foe with a crimson cut through it) on the COUNTER flag — 4f483850
 - Archer: hit-spark set (GPT, 4 kinds × 5 frames: normal green star / heavy green-gold burst with a ring / counter gold-orange cross on the COUNTER flag / launch an upward column of leaves from the foe's feet), drawn in ArcherFx.confirmed — same in the regular game and PvP
 - DFO PvP arena dynamics: arena depth (fighters smaller at the back, bigger in front; camera keeps both in view) — ad47c22
 - DFO PvP arena dynamics: 3D over-the-shoulder prototype page /proto3d/ — af9c9b6
