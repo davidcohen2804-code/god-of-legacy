@@ -232,7 +232,8 @@ export class OpenWorld {
       }
       const under = HEIGHTS.find((o) => o !== h && o.H < h.H && h.x + 40 >= o.x && h.x + h.w - 40 <= o.x + o.w);
       const baseZ = under ? under.H : 0;
-      this.towers.push(this.scene.add.image(h.x + h.w / 2, h.front - baseZ, 'heights-shade').setOrigin(0.5, 0).setDisplaySize(h.w + 20, 70)
+      // (a map of cloud floats: no contact shadow where it would meet the floor — a hard dark band across the view)
+      if (!h.cloud) this.towers.push(this.scene.add.image(h.x + h.w / 2, h.front - baseZ, 'heights-shade').setOrigin(0.5, 0).setDisplaySize(h.w + 20, 70)
         .setDepth(under ? (under.depth ?? -1.2) + 0.05 : -0.9));
       // its blocks: drawn as real cubes by buildTowers (the painted ones are low and flat for their height)
     }
