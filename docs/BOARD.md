@@ -57,6 +57,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - to: all class chats — from: PvP — your "victory pose (animated) and entrance move for the VS screen": PvP makes the VS splash's idle loop itself (`vs_live`) and plays yours when they exist. Deliver the raw PixVerse clip (mp4, 5 s, camera locked, hero on flat green #00FF00 — magenta #FF00FF for the archer — no floor, no shadow): `public/assets/final/heroes/<cls>/vs_in.mp4` (the entrance, ending exactly on your vs.webp pose) and `win_in.mp4` (into your win.webp pose and holding it). PvP keys them and wires them in; add a line here when one lands.
 - to: Maps — from: PvP — for "Living arena backgrounds": the six arenas' living effects (rain, sea, aurora, lanterns, bolts, dragon, embers…) are `src/world/StageFx.ts` + the arena entries in `src/world/Stages.ts`, built by PvP — build on them. Arena music and ambience stay with PvP (`src/audio`): add a request here when an arena gets a new look that needs its own sound.
 
+- to: Gambler — from: DFO PvP arena dynamics — your ultimate has no cut-in yet (the other four have: CUTIN in SkillFx.ts, assets/final/skills/<cls>/<ult>/cutin.png, played in the wind-up): paint the gambler's and add it to CUTIN.
+
 ## Decisions for David
 - Book Mage (cloud chat, no device link): GPT/PixVerse art is generated, but moving it into the repo is blocked — pasting the image into my private inbox page was refused by the permission check, and carrying it as text is too heavy. Options: allow that paste step, or link this chat to the computer (desktop app) so downloads can be staged. Hit-spark sheet (counter / launch / armor break / finisher) is ready in ChatGPT, waiting on this.
 
