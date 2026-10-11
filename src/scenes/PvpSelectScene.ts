@@ -45,7 +45,7 @@ export class PvpSelectScene extends Phaser.Scene {
     const mode: VsMode = data?.mode ?? 'cpu';
     this.cameras.main.fadeIn(240, 0, 0, 0);
     Sound.music(this, 'select', 700); // (on from the menu, or back from the arena: it crossfades from the stage's)
-    Sound.voice('choose', 650);       // CHOOSE YOUR FIGHTER
+    Sound.choose();                   // CHOOSE YOUR FIGHTER
     this.bg = undefined; this.bgKey = ''; this.bgWant = '';
     this.swapBg(this.textures.exists(SELECT_BG) ? SELECT_BG : ATLAS.textures.map.key, false);
     this.add.image(0, 0, washTex(this)).setOrigin(0).setDisplaySize(DESIGN.width, DESIGN.height).setDepth(1);

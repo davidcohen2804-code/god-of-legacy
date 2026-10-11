@@ -22,13 +22,15 @@ export const SFX = {
 } satisfies Record<string, [number, number]>;
 export type SfxName = keyof typeof SFX;
 /** The menus' cues. */
-const UI = { move: 0.35, select: 0.45, lock: 0.6, back: 0.45, swipe: 0.4 } as const;
+const UI = { move: 0.55, select: 0.65, lock: 0.9, back: 0.6, swipe: 0.6 } as const;
 export type UiName = keyof typeof UI;
 /** The announcer's lines. */
 export const VOICE = ['round_1', 'round_2', 'round_3', 'final_round', 'fight', 'ko', 'double_ko', 'perfect', 'time', 'draw', 'you_win', 'you_lose'] as const;
 /** The select screen's: CHOOSE YOUR FIGHTER, each fighter's name as it is locked in, GET READY. */
 export const MENU_VOICE = ['choose', 'get_ready', 'warrior', 'samurai', 'archer', 'book_mage', 'gambler'] as const;
 export type VoiceLine = typeof VOICE[number] | typeof MENU_VOICE[number];
+/** The select screen's lines are off until the new announcer is in (the first voice did not sound right there). */
+const MENU_VOICE_ON = false;
 /** The music in the game so far (each a seamless loop): the select screen and the stages by id. */
 const MUSIC = new Set(['select', 'courtyard', 'lava', 'shaolin', 'sakura', 'ship', 'ice']);
 /** Short pieces played once over the music (the music fades out under them and comes back after). */
@@ -50,8 +52,8 @@ function load(scene: Phaser.Scene, k: string, path: string): void {
 /** The select screen's cues (and the lock-in's punch). */
 export function loadMenuSound(scene: Phaser.Scene): void {
   for (const u of Object.keys(UI)) load(scene, `ui_${u}`, `ui/${u}`);
-  for (const n of ['hit_heavy_1', 'round_swoosh']) load(scene, n, `sfx/${n}`);
-  for (const v of MENU_VOICE) load(scene, `v_${v}`, `voice/${v}`);
+  load(scene, 'round_swoosh', 'sfx/round_swoosh');
+  if (MENU_VOICE_ON) for (const v of MENU_VOICE) load(scene, `v_${v}`, `voice/${v}`);
 }
 /** The arena's: every effect, the announcer, the stage's ambience and its one-shots. */
 export function loadArenaSound(scene: Phaser.Scene, stage: string | undefined): void {
@@ -108,11 +110,13 @@ export const Sound = {
 
   /** A fighter locked in on the select screen: the cue with a punch under it, the announcer calling its name. */
   lockIn(cls?: string): void {
-    Sound.ui('lock'); playKey('hit_heavy_1', SFX.hit_heavy[1] * 0.55 * sfxVol(), { rate: 0.92 });
-    if (cls && (MENU_VOICE as readonly string[]).includes(cls)) Sound.voice(cls as VoiceLine, 120);
+    Sound.ui('lock');
+    if (MENU_VOICE_ON && cls && (MENU_VOICE as readonly string[]).includes(cls)) Sound.voice(cls as VoiceLine, 120);
   },
   /** Both locked in: GET READY. */
-  getReady(): void { playKey('round_swoosh', SFX.round_swoosh[1] * sfxVol()); Sound.voice('get_ready', 700); },
+  getReady(): void { playKey('round_swoosh', SFX.round_swoosh[1] * sfxVol()); if (MENU_VOICE_ON) Sound.voice('get_ready', 700); },
+  /** CHOOSE YOUR FIGHTER (the select screen opening). */
+  choose(): void { if (MENU_VOICE_ON) Sound.voice('choose', 650); },
 
   /** A menu cue. */
   ui(name: UiName, vol = 1): void {
