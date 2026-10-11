@@ -183,7 +183,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
     if (!scene.textures.exists('jb-bolt')) scene.load.spritesheet('jb-bolt', `${F}/skills/warrior/judgment_blade/bolt.png`, { frameWidth: 256, frameHeight: 512 }); // Thunder Rain: the warrior's blue lightning
     I('afx-apple', `${AF}/apple.png`); for (let i = 1; i < 4; i++) I(`afx-apple-${i}`, `${AF}/apple_${i}.png`); I('afx-roots', `${AF}/roots.png`);
     L('afx-fan', `${AF}/release_fan.png`, 512, 256); L('afx-triple', `${AF}/triple_trail.png`, 512, 256); L('afx-storm', `${AF}/storm_top.png`, 512, 256); L('afx-eagle', `${AF}/eagle_top.png`, 512, 256); L('vfx-evasion', `${F}/skills/archer/evasion/vfx.png`, 256);
-    I('archer-cutin', `${F}/skills/archer/sky_rain/cutin.png`);
+    I('archer-cutin', `${F}/skills/archer/sky_rain/cutin.webp`);
     if (!scene.textures.exists('afx-hits')) scene.load.spritesheet('afx-hits', `${AF}/hit_sparks.webp`, { frameWidth: 256, frameHeight: 256 }); // the archer's hit sparks: normal / heavy / counter / launch × 5 frames (ArcherFx.hitSpark)
     if (!scene.textures.exists(ARCHER_KIT)) scene.load.multiatlas(ARCHER_KIT, `${ARCHER_KIT_URL}kit.json`, ARCHER_KIT_URL); // every archer effect is built from its pieces (ArcherFx)
   }
