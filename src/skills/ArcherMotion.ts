@@ -66,6 +66,13 @@ export function archerMotion(id: string, e: number, T: Timeline, face: number): 
       const up = Math.sin(Math.PI * clamp01(r / (T.active + 120)));
       return M({ dy: -18 * big * up, sy: 1 + 0.07 * big * kick(r, 200), sx: 1 - 0.04 * big * kick(r, 200), ang: -face * 6 * big * up, dx: -face * 10 * kick(r, 300), after: r < 160 });
     }
+    case 'backstep_shot': { // a back flip: at its top she shoots, then lands crouched
+      const r = e - T.startup;
+      if (r < 0) return M({ sy: 0.92, sx: 1.05 });
+      const p = clamp01(r / T.active);
+      if (e < A) return M({ ang: -face * 360 * easeInOut(p), pivot: 56, after: true });
+      return M({ sy: 1 - 0.12 * kick(e - A, 200), sx: 1 + 0.08 * kick(e - A, 200) });
+    }
     case 'retreat_kick': { // crouch → high kick → back-flip away → crouched landing
       const r = e - T.startup;
       if (r < 0) return M({ sy: 0.9, sx: 1.06 });

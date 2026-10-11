@@ -280,6 +280,14 @@ export class ArcherFx {
       case 'leaping_arrow': this.bindingRoots(r); break;
       case 'spirit_hawk': this.hawkCall(r); break;
       case 'tree_of_life': this.tree(r); break;
+      case 'backstep_shot': { // a back flip out of reach, leaves trailing; at its top one arrow at the foe
+        this.floor('wind_ring', me.x, me.y, 120, 420, { add: true, glow: 0.3, run: r, s: kf([0, 0.4], [0.4, 1.2, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+        this.spr({ name: 'dust', x: me.x, y: me.y + 4, oy: 0.85, depth: me.y + 1, w: 120, life: 420, sx: kf([0, 0.6], [1, 1.3, out3]), a: kf([0, 0.7], [1, 0, inQ]) });
+        for (let k = 0; k < 5; k++) this.later(T.startup + k * 45, () => { const q = this.me(r); this.leaves(q.x - side * 10, q.y - q.z - 40, 2, 16, { dir: -side, life: 600 }); }, r);
+        this.spr({ name: 'wind_crescent', w: 120, follow: this.at(r.attackerId, 0, 0, 50), dz: -1, angle: side * 30, flipX: side < 0, add: true, life: 300, delay: T.startup, run: r, a: kf([0, 0], [0.2, 0.8], [1, 0]) });
+        this.muzzle(r, 100, T.startup + (r.hits[0]?.at ?? 0)); // (on the shot's own timing)
+        break;
+      }
       case 'hunters_spirit': this.charge(r, 'leaf_whirl', 50, T.startup, { spin: 500, dx: 16 }); this.muzzle(r, 110, T.startup); break; // Vine Lash
       case 'eagle_arrow': this.eagleTide(r); break;
       case 'arrow_storm': this.huntersRain(r); break;
