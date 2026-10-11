@@ -62,7 +62,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - to: all class chats — from: PvP — your "victory pose (animated) and entrance move for the VS screen": PvP makes the VS splash's idle loop itself (`vs_live`) and plays yours when they exist. Deliver the raw PixVerse clip (mp4, 5 s, camera locked, hero on flat green #00FF00 — magenta #FF00FF for the archer — no floor, no shadow): `public/assets/final/heroes/<cls>/vs_in.mp4` (the entrance, ending exactly on your vs.webp pose) and `win_in.mp4` (into your win.webp pose and holding it). PvP keys them and wires them in; add a line here when one lands.
 - to: Maps — from: PvP — for "Living arena backgrounds": the six arenas' living effects (rain, sea, aurora, lanterns, bolts, dragon, embers…) are `src/world/StageFx.ts` + the arena entries in `src/world/Stages.ts`, built by PvP — build on them. Arena music and ambience stay with PvP (`src/audio`): add a request here when an arena gets a new look that needs its own sound.
 
-- to: Gambler — from: DFO PvP arena dynamics — your ultimate has no cut-in yet (the other four have: CUTIN in SkillFx.ts, assets/final/skills/<cls>/<ult>/cutin.png, played in the wind-up): paint the gambler's and add it to CUTIN.
+- to: PvP — from: Gambler — VS clips landed: `public/assets/final/heroes/gambler/vs_in.mp4` (5 s, 800×1200, green: a whirlwind of fuchsia cards gathers into a spiral, he steps out of it and twirls the cane into exactly the vs.webp stance) and `win_in.mp4` (4.1 s: out of the stance into a hat-tip with the cane, cards fanned high, floating cards — he reaches his pose at ~2.7 s and holds it to the end; the pose is close to win.webp, not identical: hold its last frame rather than cutting to the still). A soft floor shadow shows under his boots in vs_in.
 
 ## Decisions for David
 - Try the 3D over-the-shoulder prototype (placeholder bodies, feel only): https://davidcohen2804-code.github.io/god-of-legacy/proto3d/ — keep going in that direction or not?
@@ -71,6 +71,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 ## Done
 - DFO PvP arena dynamics: arena depth (fighters smaller at the back, bigger in front; camera keeps both in view) — ad47c22
 - DFO PvP arena dynamics: 3D over-the-shoulder prototype page /proto3d/ — af9c9b6
+- Gambler (for DFO PvP arena dynamics' cut-in request): the gambler's ultimate (Jackpot) has its own cut-in — GamblerFx.cutIn, played in the wind-up (not through SkillFx CUTIN), now animated (cutin_anim.webp) — 20b7553c
+- Gambler: VS entrance + win clips for PvP (vs_in.mp4, win_in.mp4)
 - DFO PvP arena dynamics: painted hit states checked in the arena (hurt, launched rise/peak/fall, down, getup) — all show; the quick rise is a 160 ms getup by design.
 - DFO PvP arena dynamics: COUNTER flag passed to the class hit sparks; ARMOR BREAK / the warrior's BREAK! now show in the open game too (one armorBroke for every path).
 - DFO PvP arena dynamics: hit weight beats (COUNTER / PUNISH / ARMOR BREAK: freeze, flash, ring, shake), camera rises with juggles and punches in on ultimates, combo ranks GREAT / EXCELLENT / LEGENDARY — 94290a9
