@@ -403,10 +403,12 @@ export class CombatBody {
 
   constructor(readonly kin: Kin, readonly pvp: boolean) {}
 
-  canAct(now: number): boolean { return this.state === 'free' && !this.hard.active(now) && now >= this.curseUntil; }
+  canAct(now: number): boolean { return this.state === 'free' && !this.hard.active(now); }
+  /** Paper Curse: a silence — no attacks or skills, movement free. */
+  silenced(now: number): boolean { return now < this.curseUntil; }
   /** A paper crane still walks (slowly); a body floating in a Levity Field cannot move. */
   canMove(now: number): boolean { return this.state === 'free' && !this.hard.active(now) && now >= this.levityHoldUntil; }
-  moveScale(now: number): number { return (now < this.slowUntil ? 1 - this.slowPct : 1) * (now < this.curseUntil ? (now < this.curseFrom + MAGE.curseStillMs ? 0 : 0.5) : 1); }
+  moveScale(now: number): number { return now < this.slowUntil ? 1 - this.slowPct : 1; } // (Paper Curse is a silence: it does not slow or root)
   chilled(now: number): boolean { return now < this.chillUntil; }
   frozen(now: number): boolean { return this.hard.active(now) && this.hard.kind === 'freeze'; }
   reset(): void { this.pinUntil = -1; this.gauge = { stand: 0, air: 0, down: 0 }; this.invulnUntil = -1; this.bounce = false; this.state = 'free'; this.stateEnd = 0; this.hard.reset(); this.combos.clear(); this.push = null; this.slowUntil = 0; this.armorUntil = -1; this.shotArmorUntil = -1; this.chillUntil = -1; this.curseUntil = -1; this.curseFrom = -1; this.levityUntil = -1; this.levityHoldUntil = -1;

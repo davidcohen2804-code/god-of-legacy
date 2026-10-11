@@ -36,7 +36,7 @@ import { Party } from '../pvp/Party';
 import { PartyUI, PartyView } from '../ui/PartyUI';
 import { addExp, expToNext } from '../game/Progression';
 import { passiveIconUrl, passivesFor } from '../skills/Passives';
-import { LEVITATE, NO_PASSIVES, ORBS, PassiveStats, REGEN, SHINSOKU, WAR_LEAP, WEAVE, ownedPassives, passiveStats } from '../skills/Passives';
+import { LEVITATE, NO_PASSIVES, ORBS, PRISM, PassiveStats, REGEN, SHINSOKU, SIGIL, WAR_LEAP, WEAVE, ownedPassives, passiveStats } from '../skills/Passives';
 import { SKILL_BLOCKERS, WORLD_OBJECTS, actorDepth, arenaPt, arenaRect, supportAt, footAllowed, insideArena, placementOk, pushOutOfBlockers, useArenaGeometry } from '../world/WorldGeometry';
 /** The arena's spawn points (on its stage's painting: shown bigger in the arena). */
 let ARENA_SPAWNS: [number, number][] = PVP.spawnPoints.map((p) => [p.x, p.y]);
@@ -1928,6 +1928,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     pageChill: 0, hasteUntil: -1, ascUntil: -1, wardHp: 0, wardUntil: -1, barrierAt: -Infinity, recoverAt: -Infinity, floatUntil: -1, gateAt: -Infinity };
   /** Chrono Sigil: where it lies, the HP when it was laid, until when it can be snapped back to. */
   private sigil: { x: number; y: number; z: number; hp: number; until: number } | null = null;
+  /** Chrono Sigil (passive): where he stood the last ~2s (and his HP then), when it can turn time back again. */
+  private sigilTrail: { t: number; x: number; y: number; z: number; hp: number }[] = [];
+  private sigilReadyAt = -Infinity;
   /** Arcane Gates of every caster (the gate by him, the gate where he aimed). */
   private gates = new Map<string, { a: V2; b: V2; until: number }>();
   /** Levity Fields standing now (bolts of their caster fly twice as fast through them). */
@@ -1939,7 +1942,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private mageReset(): void {
     const M = this.mage;
     M.pageChill = 0; M.el = null; M.weave = 0; M.weaveLast = ''; M.weaveCast = ''; M.grand = false; M.hasteUntil = -1; M.ascUntil = -1; M.wardHp = 0; M.wardUntil = -1; M.floatUntil = -1;
-    this.sigil = null; this.gates.delete(this.localId);
+    this.sigil = null; this.gates.delete(this.localId); this.sigilTrail = []; this.sigilReadyAt = -Infinity; this.prism.clear();
   }
 
   /** Arcane Bolt as Attunement turns it: the element of the last spell. */
@@ -1950,12 +1953,31 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** The caster's state carried by his casts: 1 Elemental Ascension, 2 Conductor, 4 Shatter Mastery. */
   private mageFlags(): number { const M = this.passives.mage; return (this.simMs < this.mage.ascUntil ? 1 : 0) | (M.conductor ? 2 : 0) | (M.shatter ? 4 : 0) | (this.mage.pageChill > 0 ? 8 : 0); }
   /** A mage hit as its caster's state makes it: every damaging hit both elements under Elemental Ascension; his passives. */
-  private mageHit(run: CastRun, hit: HitEvent): HitEvent {
+  private mageHit(run: CastRun, hit: HitEvent, tid?: string, at?: V3): HitEvent {
     if (run.skill.cls !== 'book_mage') return hit;
     const f = run.own ? (this.mageFlags() & 7) | ((run.mf ?? 0) & 8) : (run.mf ?? 0);
-    if (!f) return hit;
-    const page = f & 8 && hit.damage > 0 ? { el: hit.el === 'storm' || hit.el === 'both' ? 'both' as const : 'frost' as const } : {}; // Page Bind: the frozen pages chill with the next spells
-    return { ...hit, ...page, ...(f & 1 && hit.damage > 0 ? { el: 'both' as const } : {}), ...(f & 2 ? { conductor: true } : {}), ...(f & 4 ? { shatterMul: 2 } : {}) };
+    if (f) {
+      const page = f & 8 && hit.damage > 0 ? { el: hit.el === 'storm' || hit.el === 'both' ? 'both' as const : 'frost' as const } : {}; // Page Bind: the frozen pages chill with the next spells
+      hit = { ...hit, ...page, ...(f & 1 && hit.damage > 0 ? { el: 'both' as const } : {}), ...(f & 2 ? { conductor: true } : {}), ...(f & 4 ? { shatterMul: 2 } : {}) };
+    }
+    return tid ? this.prismHit(run, hit, tid, at) : hit;
+  }
+  /** PRISM — the mage's reward for weaving elements, not spamming: once a combo on a foe has carried frost, storm and arcane,
+   *  the spell that completes the three strikes ×1.5 with a visible burst (once per combo; the combo ends after 1.5s without a mage hit). */
+  private prism = new Map<string, { els: number; at: number; done: boolean }>();
+  private prismHit(run: CastRun, hit: HitEvent, tid: string, at?: V3): HitEvent {
+    if (hit.damage <= 0) return hit;
+    const now = this.simMs, key = `${run.attackerId}>${tid}`, base = LegacyCourtyardScene.MAGE_EL[run.skill.id];
+    let p = this.prism.get(key);
+    if (!p || now - p.at > PRISM.gapMs) { p = { els: 0, at: now, done: false }; this.prism.set(key, p); }
+    const bits = (hit.el === 'frost' || hit.el === 'both' || base === 'frost' ? 1 : 0) | (hit.el === 'storm' || hit.el === 'both' || base === 'storm' ? 2 : 0) | (base ? 0 : 4);
+    p.els |= bits; p.at = now;
+    if (p.els !== 7 || p.done) return hit;
+    p.done = true;
+    const where = at ?? { x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 };
+    this.fx?.mageReaction('prism', where, tid, 0);
+    this.fx?.callout({ x: where.x, y: where.y, z: where.z + 60 }, 'PRISM!', '#e9d2ff', 0);
+    return { ...hit, damage: Math.round(hit.damage * PRISM.mul) };
   }
   private weaveMul(): number { return this.cls === 'book_mage' && this.passives.mage.weave ? 1 + WEAVE.per * this.mage.weave : 1; }
   /** Time Collapse reads the woven runes: +10% each. */
@@ -2146,6 +2168,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (M.weave > 0 && now - M.weaveAt > WEAVE.fadeMs) { M.weave = 0; this.fx?.weave(this.localId, 0, true); }
     if (M.wardHp > 0 && now >= M.wardUntil) { M.wardHp = 0; this.fx?.wardHit(this.localId, false, true); }
     if (this.sigil && now >= this.sigil.until) this.sigil = null;
+    if (this.passives.mage.sigil) { const tr = this.sigilTrail, k = this.kin; if (!tr.length || now - tr[tr.length - 1].t >= 100) tr.push({ t: now, x: k.x, y: k.y, z: k.z, hp: this.playerHP }); while (tr.length > 1 && now - tr[1].t >= SIGIL.backMs) tr.shift(); }
     for (const [id, g] of this.gates) if (now >= g.until) this.gates.delete(id);
     this.levityZones = this.levityZones.filter((z) => now < z.until);
     const g = this.gates.get(this.localId), k = this.kin;
@@ -2830,7 +2853,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** PvE authority: combat body reaction on the enemy/dummy, damage, confirmed-hit feedback. */
   private applyToPve(run: CastRun, hit: HitEvent, t: HitTarget, at: V3): void {
     const now = this.simMs, s = run.skill;
-    hit = this.mageHit(run, hit); hit = this.markHit(run, hit, t.id); hit = this.gambleHit(run, hit, t.id); if (hit.damage < 0) return; // (All In on a foe without cards: untouched)
+    hit = this.mageHit(run, hit, t.id, at); hit = this.markHit(run, hit, t.id); hit = this.gambleHit(run, hit, t.id); if (hit.damage < 0) return; // (All In on a foe without cards: untouched)
     const amb = run.own && hit.damage > 0 && !!this.kage?.isAmbush(run.castId); // Kagemusha's AMBUSH: a sure critical and a stun
     if (amb) hit = { ...hit, reaction: { ...hit.reaction, stun: Math.max(hit.reaction.stun ?? 0, KAGE.ambushStun) } };
     let out: HitOutcome | null = null, crit = false; // (a critical: its own number, MapleStory — no CRITICAL text)
@@ -3072,7 +3095,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (trial && this.simMs < this.hitBlinkUntil) return;
     if (this.inDome() && hit.damage > 0) { this.domeBlock(this.casterPos(run.attackerId) ?? run.origin); hit = { ...hit, damage: hit.damage * 0.5 }; } // Sanctuary: half damage behind the wall (the hit still lands)
     const s = run.skill;
-    hit = this.mageHit(run, hit); hit = this.markHit(run, hit, this.localId); hit = this.gambleHit(run, hit, this.localId); if (hit.damage < 0) return; // (All In on a foe without cards: untouched)
+    hit = this.mageHit(run, hit, this.localId, at); hit = this.markHit(run, hit, this.localId); hit = this.gambleHit(run, hit, this.localId); if (hit.damage < 0) return; // (All In on a foe without cards: untouched)
     if (hit.damage > 0 && this.mageGuard(hit, this.casterPos(run.attackerId) ?? run.origin, run.attackerId === BOT_ID ? this.bot?.body : undefined)) { this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'armor' }); return; }
     if (hit.shape.kind !== 'placed' && hit.damage > 0 && this.tryCounter(this.casterPos(run.attackerId) ?? run.origin)) {
       this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'countered' });
@@ -3232,7 +3255,23 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.flash = 0;
     this.kage?.end('fade'); // struck: the doubles vanish at once
     if (this.playerHP === 0) this.killPlayer();
+    else this.sigilRewind();
     return dmg;
+  }
+
+  /** Chrono Sigil (passive): a blow that drops him below 30% HP turns time back — to where he stood ~2s ago, half the HP lost since back. */
+  private sigilRewind(): void {
+    const now = this.simMs, max = this.maxHpNow(), old = this.sigilTrail[0];
+    if (!this.passives.mage.sigil || now < this.sigilReadyAt || this.playerHP >= max * SIGIL.below || !old || now - old.t < SIGIL.backMs * 0.6) return;
+    const k = this.kin, from = { x: k.x, y: k.y, z: k.z };
+    this.sigilReadyAt = now + SIGIL.everyMs; this.sigilTrail = [];
+    const own = this.rt?.ownRun; if (own) { this.rt!.cancelForFollowUp(own); this.endRun(own, true); }
+    k.x = old.x; k.y = old.y; k.z = old.z; k.vx = 0; k.vy = 0; k.vz = 0; k.grounded = old.z <= k.supportZ + 1;
+    this.body.push = null; this.body.combos.clear(); this.body.hard.reset(); this.body.state = 'free'; this.body.stateEnd = 0; this.body.invulnUntil = Math.max(this.body.invulnUntil, now + 400);
+    const back = Math.max(0, Math.round((old.hp - this.playerHP) / 2));
+    if (back > 0) { this.playerHP = Math.min(max, this.playerHP + back); this.fx?.healNumber({ x: k.x, y: k.y, z: k.z }, back); }
+    this.fx?.rewind(this.localId, from, { x: old.x, y: old.y, z: old.z });
+    this.fx?.callout({ x: k.x, y: k.y, z: k.z + 60 }, 'CHRONO SIGIL', '#c9b6ff', 0);
   }
 
   /** Buffs end (death, a new battle round). */
@@ -3528,7 +3567,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private applyToBot(run: CastRun, hit: HitEvent, t: HitTarget, at: V3): void {
     const b = this.bot;
     if (!b || b.defeated || (this.match?.active && !this.match.live)) return;
-    hit = this.mageHit(run, hit); hit = this.markHit(run, hit, t.id); hit = this.gambleHit(run, hit, t.id); if (hit.damage < 0) return; // (All In on a foe without cards: untouched)
+    hit = this.mageHit(run, hit, t.id, at); hit = this.markHit(run, hit, t.id); hit = this.gambleHit(run, hit, t.id); if (hit.damage < 0) return; // (All In on a foe without cards: untouched)
     if (this.isPoke(run, hit, b.kin)) { hit = this.pokeHit(hit); run.poked = true; } // a poke from afar: no cancel off it
     const chB = run.attackerId === this.localId ? this.chanceMul(b.body) : 1;
     const m = (run.attackerId === this.localId ? this.ownDamageMul(run.skill) * chB : 1) * this.rageMul(run.attackerId, BOT_ID); let h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;

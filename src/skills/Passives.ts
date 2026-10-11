@@ -63,9 +63,11 @@ export const PASSIVES: PassiveSkill[] = [
   { id: 'arcane_mind', cls: 'book_mage', job: 1, name: 'Arcane Mind', kind: 'passive', description: 'A mind trained in the arcane: more HP, and slows and binds wear off sooner.', effects: ['Max HP +15%', 'Slow / bind / freeze −20%'] },
   { id: 'attunement', cls: 'book_mage', job: 2, name: 'Attunement', kind: 'passive', description: 'Arcane Bolt takes the element of your last spell: after frost a frost bolt that chills, after lightning a storm bolt that conducts, otherwise an arcane bolt that flies through foes.', effects: ['Frost bolt: chills', 'Storm bolt: conducts', 'Arcane bolt: pierces'] },
   { id: 'cold_blood', cls: 'book_mage', job: 2, name: 'Cold Blood', kind: 'passive', description: 'Whoever strikes you up close is CHILLED by the cold in your veins.', effects: ['Melee attackers are chilled'] },
+  { id: 'chrono_haste', cls: 'book_mage', job: 2, name: 'Chrono Haste', kind: 'passive', description: 'Time runs a little faster around you, always: you move and cast quicker and your skills are ready sooner.', effects: ['Movement speed +10%', 'Attack speed +10%', 'Cooldowns −10%'] },
   { id: 'mana_barrier', cls: 'book_mage', job: 2, name: 'Mana Barrier', kind: 'passive', description: 'Once every 20s, a heavy blow is stopped completely by a rune shield.', effects: ['Blocks a heavy hit', 'Every 20s'] },
   { id: 'conductor', cls: 'book_mage', job: 3, name: 'Conductor', kind: 'passive', description: 'Lightning conducts through frozen foes too, and the shock lasts longer.', effects: ['Conducts through the frozen', 'Shock +0.25s'] },
   { id: 'blink_mastery', cls: 'book_mage', job: 3, name: 'Blink Mastery', kind: 'passive', description: 'Blink leaves a rune of frost where you vanished: whoever walks over it is CHILLED.', effects: ['Frost rune 5s', 'Chills'] },
+  { id: 'chrono_sigil', cls: 'book_mage', job: 3, name: 'Chrono Sigil', kind: 'passive', description: 'Once every 30s, a blow that drops you below 30% HP turns time back: you snap back to where you stood 2s ago and get back half the HP you lost since.', effects: ['Rewind 2s below 30% HP', 'Half the HP lost back', 'Every 30s'] },
   { id: 'arcane_recovery', cls: 'book_mage', job: 3, name: 'Arcane Recovery', kind: 'passive', description: 'Every magic reaction you cause (freeze, shatter, conduct) heals you.', effects: ['Heal 3% per reaction'] },
   { id: 'shatter_mastery', cls: 'book_mage', job: 4, name: 'Shatter Mastery', kind: 'passive', description: 'A shatter deals double damage instead of +50%, and its shards CHILL the foes around it.', effects: ['Shatter ×2 damage', 'Shards chill around'] },
   { id: 'grand_weave', cls: 'book_mage', job: 4, name: 'Grand Weave', kind: 'passive', description: 'A full Spell Weave (5 runes) makes your next spell instant: it is cast with no wind-up at all.', effects: ['5 runes: next spell instant'] },
@@ -93,14 +95,14 @@ export interface PassiveStats {
   /** Archer: chance to dodge a hit entirely, projectile range multiplier, attack-speed multiplier (startup / recovery divided by it). */
   evade: number; rangeMul: number; atkSpeed: number;
   /** Book Mage rules (the mage spec). */
-  mage: { levitate: boolean; weave: boolean; attune: boolean; coldBlood: boolean; barrier: boolean; conductor: boolean; blinkRune: boolean; recovery: boolean; shatter: boolean; grand: boolean; timeLord: boolean };
+  mage: { levitate: boolean; weave: boolean; attune: boolean; coldBlood: boolean; barrier: boolean; conductor: boolean; blinkRune: boolean; recovery: boolean; shatter: boolean; grand: boolean; timeLord: boolean; sigil: boolean };
   /** Gambler rules (the gambler spec). */
   gamble: { shortFuse: boolean; streak: boolean; counting: boolean; cheatDeath: boolean; stacked: boolean; joker: boolean };
   cdMul: number;
 }
 
 export const NO_PASSIVES: PassiveStats = { dmg: 1, critAdd: 0, critDmgAdd: 0, takenMul: 1, hpMul: 1, moveMul: 1, jumpMul: 1, kbResist: 0, ccResist: 0, regen: false, fa: null, orbs: false, chanceAttack: 1, airLeap: false, evade: 0, rangeMul: 1, atkSpeed: 1, cdMul: 1,
-  mage: { levitate: false, weave: false, attune: false, coldBlood: false, barrier: false, conductor: false, blinkRune: false, recovery: false, shatter: false, grand: false, timeLord: false },
+  mage: { levitate: false, weave: false, attune: false, coldBlood: false, barrier: false, conductor: false, blinkRune: false, recovery: false, shatter: false, grand: false, timeLord: false, sigil: false },
   gamble: { shortFuse: false, streak: false, counting: false, cheatDeath: false, stacked: false, joker: false } };
 
 /** Passives owned at this level (all = arena / QA: every job open). */
@@ -173,6 +175,8 @@ export function passiveStats(owned: Set<string>): PassiveStats {
   if (has('arcane_mind')) { s.hpMul += 0.15; s.ccResist = Math.max(s.ccResist, 0.2); }
   if (has('attunement')) M.attune = true;
   if (has('cold_blood')) M.coldBlood = true;
+  if (has('chrono_haste')) { s.moveMul *= 1.1; s.atkSpeed *= 1.1; s.cdMul *= 0.9; }
+  if (has('chrono_sigil')) M.sigil = true;
   if (has('mana_barrier')) M.barrier = true;
   if (has('conductor')) M.conductor = true;
   if (has('blink_mastery')) M.blinkRune = true;
@@ -196,3 +200,8 @@ export const REGEN = { frac: 0.02, everyMs: 5000 };
 export const WEAVE = { per: 0.04, max: 5, fadeMs: 6000 };
 /** Levitate: how long the float lasts, its forward speed (px/s) and the gravity it keeps. */
 export const LEVITATE = { ms: 1500, forward: 170, gravity: 0.1 };
+
+/** Chrono Sigil (passive): below this HP fraction a blow turns time back, how far back (ms), how often (ms). */
+export const SIGIL = { below: 0.3, backMs: 2000, everyMs: 30000 };
+/** PRISM (the mage's element chain): a combo on a foe that has carried frost, storm and arcane — the spell that completes it strikes ×mul (once per combo; a combo ends gapMs after the last mage hit). */
+export const PRISM = { mul: 1.5, gapMs: 1500 };

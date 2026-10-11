@@ -255,10 +255,10 @@ const mage: FinalSkill[] = [
   S({
     id: 'arcane_wave', cls: 'book_mage', slot: 1, name: 'Arcane Wave', roles: ['confirm', 'peel'], targeting: 'mouseLine',
     startup: 150, active: 180, recovery: 180, cooldown: 4000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    hits: [H(0, 24, { kind: 'line', length: 230, width: 110 }, { stun: 260, push: 34, float: true, juggleCost: 12 }, { reachUp: 170 })],
+    hits: [H(0, 24, { kind: 'line', length: 230, width: 110 }, { stun: 260, launch: 90, float: true, juggleCost: 12 }, { reachUp: 170 })],
     cancelOnHit: ['astral_burst', 'lightning_chain', 'blink', 'glacial_spikes'], telegraph: 'line',
-    description: 'A wide, short wave across the floor: a foe on the ground is thrown back, a foe in the air is held where it is for your next spell.',
-    relations: ['Push back', 'Holds in the air'],
+    description: 'A wide, short wave across the floor that lifts a foe on the ground into the air, low and in reach of your next spell; a foe already in the air is bounced up again.',
+    relations: ['Lifts a grounded foe', 'Bounces one in the air'],
   }),
   S({
     id: 'binding_rune', cls: 'book_mage', slot: 2, name: 'Binding Rune', roles: ['trap', 'setup', 'hardCC'], targeting: 'mouseGround',
@@ -281,10 +281,10 @@ const mage: FinalSkill[] = [
     id: 'frost_nova', cls: 'book_mage', slot: 4, name: 'Frost Nova', roles: ['zone', 'peel'], targeting: 'self',
     startup: 220, active: 260, recovery: 320, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     dash: { distance: 0, lift: 46 }, // he rises a little on the burst of cold, then drops
-    hits: [H(0, 20, { kind: 'circle', radius: 120 }, { stun: 340, push: 6 }, { reachUp: 120, el: FROST }),
-      H(160, 8, { kind: 'circle', radius: 175 }, { stun: 300, push: 4 }, { reachUp: 140 })],
+    hits: [H(0, 20, { kind: 'circle', radius: 120 }, { stun: 340 }, { reachUp: 120, el: FROST }),
+      H(160, 8, { kind: 'circle', radius: 175 }, { stun: 300 }, { reachUp: 140 })],
     cancelOnHit: ['glacial_spikes', 'astral_burst', 'blink', 'arcane_bolt'], telegraph: 'circle',
-    description: 'A ring of ice bursts out across the floor around you. It CHILLS every foe it touches; a foe already chilled FREEZES solid.',
+    description: 'A ring of ice bursts out across the floor around you without moving anyone: it CHILLS every foe it touches (a foe already chilled FREEZES solid) — the cold that opens your element chain.',
     relations: ['Chill', 'Freezes the chilled'],
   }),
   S({
@@ -342,14 +342,6 @@ const mage: FinalSkill[] = [
     relations: ['Launcher', 'Ice wall 1.5s'],
   }),
   S({
-    id: 'chrono_haste', cls: 'book_mage', slot: 10, name: 'Chrono Haste', roles: ['setup'], targeting: 'self',
-    startup: 320, active: 120, recovery: 180, cooldown: 30000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 3, { kind: 'circle', radius: 110 }, { stun: 180, push: 12 }, { reachUp: 120 })],
-    tags: ['buff', 'party'],
-    description: 'Speed up time around you for 120s: +10% movement speed, +10% attack speed and skills ready 10% sooner. In a party every party member near you shares it.',
-    relations: ['Buff 120s', 'Party buff'],
-  }),
-  S({
     id: 'levity_field', cls: 'book_mage', slot: 11, name: 'Levity Field', roles: ['zone', 'hardCC', 'setup'], targeting: 'mouseGround',
     startup: 380, active: 140, recovery: 200, cooldown: 13000, ground: true, air: true, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
     placeRange: 320, zoneMs: 2500,
@@ -367,13 +359,6 @@ const mage: FinalSkill[] = [
     relations: ['5 cranes', 'Gently homing'],
   }),
   S({
-    id: 'chrono_sigil', cls: 'book_mage', slot: 13, name: 'Chrono Sigil', roles: ['escape', 'setup'], targeting: 'self',
-    startup: 180, active: 80, recovery: 140, cooldown: 18000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [], tags: ['buff'],
-    description: 'Lay a clock sigil under your feet. Within 5s, press again to snap back to it in time, getting back half of the HP you lost since.',
-    relations: ['Rewind 5s', 'Half the HP back'],
-  }),
-  S({
     id: 'arcane_ward', cls: 'book_mage', slot: 14, name: 'Arcane Ward', roles: ['setup'], targeting: 'self',
     startup: 260, active: 100, recovery: 180, cooldown: 30000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     hits: [], tags: ['buff', 'party'],
@@ -381,19 +366,12 @@ const mage: FinalSkill[] = [
     relations: ['Shield 8s', 'Party shield'],
   }),
   S({
-    id: 'arcane_gate', cls: 'book_mage', slot: 15, name: 'Arcane Gate', roles: ['mobility', 'setup'], targeting: 'mouseGround',
-    startup: 260, active: 100, recovery: 200, cooldown: 20000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    placeRange: 420, hits: [], telegraph: 'ground',
-    description: 'Open two gates for 12s: one beside you and one where you aim. Walk into one and step out of the other; every bolt or crane you send into one flies out of the other.',
-    relations: ['Two gates 12s', 'Spells pass through'],
-  }),
-  S({
     id: 'paper_curse', cls: 'book_mage', slot: 16, name: 'Paper Curse', roles: ['hardCC', 'setup'], targeting: 'mouseTarget',
     startup: 280, active: 100, recovery: 200, cooldown: 16000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 10, { kind: 'chain', corridor: 360, width: 70, jump: 0 }, { curse: 2000, stun: 120 }, { reachUp: 160 })],
+    hits: [H(0, 10, { kind: 'chain', corridor: 360, width: 70, jump: 0 }, { curse: 2000 }, { reachUp: 160 })],
     cancelOnHit: ['binding_rune', 'storm_field', 'origami_flock', 'blink'],
-    description: 'Pages wrap a foe and fold it into a paper crane for 2s: it can still walk, slowly, but cannot attack or use skills (for its first 0.6s it cannot move at all). A heavy blow unfolds it early. A monster turned into a crane takes 30% more damage.',
-    relations: ['Crane 2s', 'No attacks'],
+    description: 'A SILENCE: pages fold a foe into a paper crane for 1.2s — it walks and jumps freely but cannot attack or use skills. It holds nothing in place, so it does not extend a combo. A heavy blow unfolds it early. A monster turned into a crane takes 30% more damage.',
+    relations: ['Silence 1.2s', 'No attacks or skills'],
   }),
   S({
     id: 'elemental_ascension', cls: 'book_mage', slot: 17, name: 'Elemental Ascension', roles: ['setup'], targeting: 'self',

@@ -145,7 +145,7 @@ export class Monster {
       this.respawnLeft -= ms;
       if (this.stateMs > 900) this.deathFade = Math.max(0, this.deathFade - ms / 500);
       if (this.respawnLeft <= 0 && Math.hypot(w.player.x - this.home.x, w.player.y - this.home.y) > 90 && !w.blocked(this, this.home.x, this.home.y)) this.reset();
-    } else if (b.canAct(now) && !this.frozen) this.think(ms, w, dx, dy, dist);
+    } else if (b.canAct(now) && !b.silenced(now) && !this.frozen) this.think(ms, w, dx, dy, dist);
     else if (b.state === 'free') { this.kin.vx = 0; this.kin.vy = 0; }
     const r = stepKin(this.kin, ms, b.gravityScale(now), (x, y) => x > MOB_WALL_X || w.blocked(this, x, y) || supportAt(x, y, this.kin.z + 1).z < this.homeZ - 1, this.moving && b.state === 'free' && !b.push);
     this.lastBlocked = r.blockedX || r.blockedY;

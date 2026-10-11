@@ -204,7 +204,7 @@ export class SparringBot {
   update(ms: number, w: BotWorld): void {
     const now = w.now, k = this.kin, b = this.body;
     this.lastNow = now;
-    const free = b.canAct(now);
+    const free = b.canAct(now) && !b.silenced(now); // (a paper crane: silenced)
     if (!free && this.cast) this.interrupt();
     if (free && !this.wasFree) this.nextAct = Math.min(this.nextAct, now + rnd(...this.L.answer)); // recovered: answer quickly
     this.wasFree = free;

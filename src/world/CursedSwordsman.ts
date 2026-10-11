@@ -113,7 +113,7 @@ export class CursedSwordsman {
     // Kinematics: knockback push / launch arcs (AI locomotion only while free).
     const dx = w.player.x - this.x, dy = w.player.y - this.y, dist = Math.hypot(dx, dy);
     this.moving = false;
-    if (this.ai !== 'dead' && b.canAct(now) && !this.frozen) this.think(ms, w, dx, dy, dist);
+    if (this.ai !== 'dead' && b.canAct(now) && !b.silenced(now) && !this.frozen) this.think(ms, w, dx, dy, dist);
     else if (this.ai !== 'dead' && b.state === 'free') { this.kin.vx = 0; this.kin.vy = 0; }
     const r = stepKin(this.kin, ms, b.gravityScale(now), (x, y) => w.blocked(x, y));
     const ev = b.update(now, ms, r.landed, r.impactVz);

@@ -1198,6 +1198,20 @@ export class MageFx {
         this.later(Math.max(300, ms), () => { const p = follow?.() ?? at; this.pop('paper_burst', p.x, p.y - p.z - 30, 100, { life: 300, add: false }); });
         break;
       }
+      case 'prism': { // frost, storm and arcane met on one foe: the three burst together — ice, lightning and a violet ring of bent space
+        this.ctx.hitStop?.(80);
+        const fy = at.y - at.z + 6;
+        if (this.ctx.scene.textures.exists('mfx-rx')) {
+          this.sheet('mfx-rx', at.x, fy, 250, 380, { frames: [8, 4], oy: 0.88, depth: at.y + 5 });
+          this.sheet('mfx-rx', at.x, fy, 270, 420, { frames: [12, 4], oy: 0.88, depth: at.y + 6 });
+        }
+        this.glow(x, y - 10, 300, 0xd9b8ff, 300);
+        this.ringOut(at.x, at.y, 280, 0xb48cff, 420, { squash: 0.42, depth: at.y + 1 });
+        this.warp.ring(at.x, at.y - at.z - 50, { r1: 260, life: 420, s: 28, width: 26 });
+        this.burst(x, y - 20, { n: 26, speed: [200, 620], life: [220, 520], scale: [0.04, 0.2], tint: [0xffffff, 0x9fdcff, 0xc9a6ff, 0x8fe3ff] });
+        this.ctx.flash?.(0xeedcff, 0.12, 140); this.shake(200, 0.01); this.ctx.punch(0.04, 240);
+        break;
+      }
       case 'levity':
         this.spr({ name: 'sig_disk', x, y: at.y - at.z + 2, depth: at.y + 2, w: 60, h: 24, life: Math.max(300, ms), follow: fp, dz: -1, add: true, a: kf([0, 0], [0.05, 0.8], [0.95, 0.8], [1, 0]) });
         break;
