@@ -391,7 +391,7 @@ export class SparringBot {
 
   private start(id: string, stage: number, w: BotWorld, followUp = false): boolean {
     const s = finalSkill(id);
-    if (!s || !this.kin.grounded && !s.air) return false;
+    if (!s || (this.kin.grounded ? !s.ground : !s.air)) return false; // (an air-only skill — the samurai's Tornado Blade — never from the floor)
     const k = this.kin, p = w.player;
     const u = unit(p.x - k.x, p.y - k.y, this.dir === 'right' ? 1 : -1, 0), aim = sideAim(u.x, u.y, this.dir === 'left' ? -1 : 1); // (side / corner)
     this.aim = aim; this.dir = aim.x >= 0 ? 'right' : 'left';

@@ -2336,6 +2336,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     else if (id === 'legacy_banner') this.bannerUntil = Math.max(this.bannerUntil, now + ms);
     else if (id === 'hunters_spirit') this.spiritUntil = Math.max(this.spiritUntil, now + ms);
     else if (id === 'rising_sun') this.sunUntil = Math.max(this.sunUntil, now + ms);
+    else if (id === 'god_of_blades') this.godUntil = Math.max(this.godUntil, now + ms); // (the samurai's one buff, shared with the party)
     else if (id === 'coin_heads') this.gHeadsUntil = Math.max(this.gHeadsUntil, now + ms);
     else if (id === 'coin_tails') this.gTailsUntil = Math.max(this.gTailsUntil, now + ms);
     else if (id === 'lady_luck') { this.gLuckUntil = Math.max(this.gLuckUntil, now + ms); this.fx?.gambleLuck(this.localId, ms); }
@@ -2343,7 +2344,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     else if (id === 'arcane_ward') { this.mage.wardHp = Math.max(this.mage.wardHp, Math.round(this.maxHpNow() * 0.1)); this.mage.wardUntil = Math.max(this.mage.wardUntil, now + ms); this.fx?.mageWard(this.localId, ms); }
     else if (id === 'tree_of_life') { this.treeHeal(); return; } // one heal pulse from a party member's tree (sent every second while you stand near it)
     else return;
-    const label = id === 'chrono_haste' ? 'CHRONO HASTE' : id === 'arcane_ward' ? 'ARCANE WARD' : id === 'war_cry' ? 'WAR CRY' : id === 'iron_oath' ? 'IRON OATH' : id === 'hunters_spirit' ? "HUNTER'S SPIRIT" : id === 'rising_sun' ? 'RISING SUN' : id === 'coin_heads' ? 'HEADS' : id === 'coin_tails' ? 'TAILS' : id === 'lady_luck' ? 'LADY LUCK' : 'LEGACY BANNER';
+    const label = id === 'chrono_haste' ? 'CHRONO HASTE' : id === 'arcane_ward' ? 'ARCANE WARD' : id === 'war_cry' ? 'WAR CRY' : id === 'iron_oath' ? 'IRON OATH' : id === 'hunters_spirit' ? "HUNTER'S SPIRIT" : id === 'rising_sun' ? 'RISING SUN' : id === 'god_of_blades' ? 'GOD OF BLADES' : id === 'coin_heads' ? 'HEADS' : id === 'coin_tails' ? 'TAILS' : id === 'lady_luck' ? 'LADY LUCK' : 'LEGACY BANNER';
     this.fx?.callout({ x: k.x, y: k.y, z: k.z + 50 }, `+${label}`, '#ffd27a', 0);
     this.fx?.shockwave(k.x, k.y, 90, 0xffd27a);
     this.chat?.add({ kind: 'system', text: `${name} gave you ${label.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}.` });
@@ -2489,6 +2490,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.id === 'radiant_blade') { this.boltDone = false; this.radiantFrom = this.simMs + Math.round(s.startup * 0.4); } // light appears when the sword is raised
     if (s.id === 'radiant_blade') this.radiantUntil = this.simMs + s.startup + 15000;
     if (s.id === 'guard_counter') this.body.invulnUntil = this.simMs + s.startup + 600; // Aegis barrier
+    if (s.id === 'rising_sun') this.body.invulnUntil = this.simMs + ct.startup + ct.active; // the samurai's defensive ultimate: nothing touches him while the sun rises
     if (s.shotArmor) this.body.shotArmorUntil = this.simMs + s.shotArmor[1] * armorMul(s, this.arena); // a shield up: shots break on it
     if (s.armor) this.body.armorUntil = Math.max(this.body.armorUntil, this.simMs + s.armor[1] * armorMul(s, this.arena)); // super armor from the first frame (never interrupted mid-windup), at the skill's own pace
     if (s.slot === 7) this.body.invulnUntil = this.simMs + ct.startup + ct.active; // ultimate: untouchable while it plays
@@ -2515,8 +2517,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private samuraiCast(s: FinalSkill, stage: number): void {
     const T = s.chain?.timings?.[stage] ?? s, up = Math.round(T.startup / this.ownSpeedMul(s)), now = this.simMs;
     const say = (text: string, color: string) => this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, text, color, 0));
-    if (s.id === 'rising_sun') { this.sunUntil = now + up + 90000; this.shares.push({ at: now + up, id: s.id, ms: 90000 }); say('RISING SUN', '#ffd27a'); }
-    if (s.id === 'god_of_blades') { this.godUntil = now + up + 30000; say('GOD OF BLADES', '#ffc8d4'); }
+    if (s.id === 'rising_sun') say('RISING SUN', '#ffd27a'); // (his defensive ultimate: untouchable while it plays — startCast)
+    if (s.id === 'god_of_blades') { this.godUntil = now + up + 30000; this.shares.push({ at: now + up, id: s.id, ms: 30000 }); say('GOD OF BLADES', '#ffc8d4'); }
   }
 
   /** Gambler casts (the gambler spec): Showdown plays the Hand; the coin, Lady Luck, the overload and the joker. */

@@ -579,7 +579,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     mirage: { act: 'mirage', st: [0], ac: [0, 1, 0, 1], rc: [2, 3, 4, 5] },
     blossom_storm: { act: 'blossom_storm', st: [0], ac: [1, 2, 3, 4], rc: [5, 5] },
     hundred_cuts: { act: 'hundred_cuts', st: [0], ac: [1], rc: [5], loop: [1, 2, 3, 4], fps: 14 },
-    tornado_blade: { act: 'tornado_blade', st: [0, 1], ac: [2, 3], rc: [4, 5] },
+    tornado_blade: { act: 'spin_cut', st: [0], ac: [0], rc: [0], loop: [0, 1, 2, 3, 4], fps: 16 }, // the air spin: the painted spin, round and round
     falcon_dive: { act: 'falcon_dive', st: [0], ac: [1, 2, 3], rc: [4, 5] },
     dragon_ascension: { act: 'dragon_ascension', st: [0, 1], ac: [2, 3, 4, 3, 4], rc: [5] },
     dragon_eclipse: { act: 'dragon_eclipse', st: [0, 1], ac: [2, 3], rc: [3, 4, 5] },
@@ -777,7 +777,7 @@ const SEQ: Record<string, Seq> = {
   swallow_cut: { st: at(3), ac: at(2, 0, 0, 2), rc: [['attack', 3], ['idle', 0]] },
   hundred_cuts: { st: at(1), ac: at(2, 3, 2, 1, 2, 3, 2, 1, 2, 3, 2, 1, 2, 3, 2, 0), rc: [['attack', 2], ['attack', 3], ['idle', 0]] },
   kagemusha: { st: [['idle', 0], ['attack', 1]], ac: at(1), rc: [['attack', 1], ['idle', 0]] },
-  tornado_blade: { st: at(1, 2, 3, 2), ac: at(2, 3), rc: [['attack', 3], ['idle', 0]] },
+  tornado_blade: { st: at(0), ac: at(2, 1, 2), rc: [['attack', 3], ['idle', 0]] },
   falcon_dive: { st: [['attack', 3]], ac: [['jump', 0], ['attack', 0], ['attack', 2], ['attack', 2]], rc: [['attack', 3], ['attack', 3], ['idle', 0]] },
   rising_sun: { st: [['idle', 0], ['attack', 0]], ac: at(0), rc: [['attack', 0], ['idle', 0]] },
   phantom_blades: { st: at(1, 1), ac: at(2, 3, 2, 1, 2, 3, 2, 0), rc: [['attack', 3], ['attack', 3], ['idle', 0]] },

@@ -7,7 +7,6 @@ import Phaser from 'phaser';
 import type { CastRun } from './SkillRuntime';
 import type { FinalSkill, HitEvent } from './SkillTypes';
 import type { Projectile, V3 } from './HitGeometry';
-import { TORNADO, tornadoPath } from './SamuraiMotion';
 
 export const KIT = 'sam-kit';
 export const KIT_URL = 'assets/final/skills/samurai/kit/';
@@ -349,38 +348,6 @@ export class SamuraiFx {
     return key;
   }
 
-  /** A band of wind going round (two turns of it side by side, so it slides round seamlessly): a crimson body fading to its
-   *  edges and streaks of light, bright at their heads. */
-  private windTex(): string {
-    const tm = this.ctx.scene.textures, key = 'sam-wind';
-    if (tm.exists(key)) return key;
-    const W = 512, H = 64, P = 256, c = tm.createCanvas(key, W, H);
-    if (!c) return key;
-    const g = c.context;
-    let seed = 11;
-    const rr = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    // the body: crimson wind, denser in patches (periodic: two turns side by side), fading to its edges
-    const k1 = rr() * 6, k2 = rr() * 6;
-    for (let x = 0; x < W; x += 2) {
-      const d = 0.72 + 0.16 * Math.sin((x / P) * Math.PI * 2 * 2 + k1) + 0.12 * Math.sin((x / P) * Math.PI * 2 * 5 + k2);
-      const col = g.createLinearGradient(0, 0, 0, H);
-      col.addColorStop(0, 'rgba(176,14,40,0)'); col.addColorStop(0.14, 'rgba(176,14,40,0.06)'); col.addColorStop(0.5, `rgba(204,22,52,${(0.7 * d).toFixed(3)})`); col.addColorStop(0.86, 'rgba(176,14,40,0.06)'); col.addColorStop(1, 'rgba(176,14,40,0)');
-      g.fillStyle = col; g.fillRect(x, 0, 2, H);
-    }
-    // wisps: soft, slanting a little (the wind climbs as it goes round), bright at their heads; and a few fine glints
-    const wisp = (x: number, y: number, len: number, th: number, a: number, slant: number, soft: number) => {
-      for (const ox of [-P, 0, P, 2 * P]) { // (each one in every turn: the picture repeats exactly)
-        const lg = g.createLinearGradient(-len / 2, 0, len / 2, 0); // (in the wisp's own frame: it is drawn at the origin)
-        lg.addColorStop(0, 'rgba(255,60,90,0)'); lg.addColorStop(0.55, `rgba(255,110,136,${(a * 0.8).toFixed(2)})`); lg.addColorStop(0.82, `rgba(255,214,222,${a.toFixed(2)})`); lg.addColorStop(1, 'rgba(255,255,255,0)');
-        g.save(); g.shadowColor = 'rgba(230,40,72,0.9)'; g.shadowBlur = soft; g.fillStyle = lg;
-        g.translate(x + ox + len / 2, y); g.rotate(slant); g.beginPath(); g.ellipse(0, 0, len / 2, th / 2, 0, 0, Math.PI * 2); g.fill(); g.restore();
-      }
-    };
-    for (let i = 0; i < 18; i++) wisp(rr() * P, 18 + rr() * (H - 36), 34 + rr() * 70, 4 + rr() * 7, 0.45 + rr() * 0.45, -0.06 - rr() * 0.08, 7);
-    for (let i = 0; i < 10; i++) wisp(rr() * P, 20 + rr() * (H - 40), 26 + rr() * 50, 1.2 + rr() * 1.6, 0.7 + rr() * 0.3, -0.06 - rr() * 0.06, 2);
-    c.refresh();
-    return key;
-  }
 
   /** One ray of sunlight: golden, bright at its root, tapering and fading out to its tip (drawn from its root, pointing right). */
   private rayTex(): string {
@@ -513,7 +480,7 @@ export class SamuraiFx {
       case 'blossom_storm': this.blossomStorm(r); break;
       case 'dragon_eclipse': this.eclipse(r); break;
       case 'kagemusha': this.glint(r, 0, 26, 52); this.petals(this.me(r).x, this.me(r).y - this.me(r).z - 50, 8, 80, { inward: true, life: T.startup + 60 }); break;
-      case 'tornado_blade': this.tornado(r); break;
+      case 'tornado_blade': this.airSpin(r); break;
       case 'falcon_dive': this.falcon(r); break;
       case 'rising_sun': this.risingSun(r); break;
       case 'phantom_blades': if (!ghost) this.ctx.darken(T.startup + T.active + 160, 0.38); this.phantomField(r); break;
@@ -560,7 +527,7 @@ export class SamuraiFx {
       case 'dragon_ascension': if (i === 0) this.ascensionBurst(r); else this.cut('cut_thin', 150, rnd(-30, 30), { x: q.x + rnd(-60, 60), y: y0 - 90 - i * 70, depth: TOP + 3, flipX: Math.random() < 0.5 }); break;
       case 'blossom_storm': this.stormCut(r, i); break;
       case 'dragon_eclipse': if (i < r.hits.length - 1) this.eclipseSlash(r, i); else this.eclipseCut(r, o); break;
-      case 'tornado_blade': this.pop('burst', q.x + r.aim.x * 90, y0 - 40, 120); break;
+      case 'tornado_blade': if (i === r.hits.length - 1) this.pop('burst', q.x + side * 36, y0 - 46, 110); break; // (the smash down)
     }
     void cam;
   }
@@ -1121,98 +1088,20 @@ export class SamuraiFx {
     if (r.own) { cam.shake(320, 0.012); this.ctx.punch(0.06, 320); }
   }
 
-  /** Tornado Blade: a broad, round crimson whirlwind rolling along tornadoPath (the path its hits take), weaving toward
-   *  you and away through the courtyard. Its body is a funnel of wind bands going round it — the far side of each behind
-   *  whatever is inside it, the near side in front, the streaks sliding across its face (quick in the middle, slow at its
-   *  edges, the way a turning drum looks) — over the painted whirl at its heart; petals and blade glints circle it in front
-   *  and behind, climbing; it sways and leans into its way; larger as it comes near; a spinning eddy, its shadow and dust
-   *  on the floor under it. */
-  private tornado(r: CastRun): void {
-    const s = this.ctx.scene, T = r.timings, path = tornadoPath(r.origin, r.aim), t0 = T.startup + TORNADO.startMs, life = TORNADO.everyMs * (TORNADO.count - 1) + 260, ADD = Phaser.BlendModes.ADD;
-    const H = 240, R0 = 44, R1 = 112, ELL = 0.3, rad = (h: number) => R0 + (R1 - R0) * Math.pow(Math.max(0, h) / H, 0.8); // (its height, its radius at the floor and at the top)
-    const core = s.add.image(0, 0, KIT, 'tornado').setOrigin(0.5, 0.95).setVisible(false), coreB = s.add.image(0, 0, KIT, 'tornado').setOrigin(0.5, 0.95).setFlipX(true).setVisible(false);
-    const coreG = s.add.image(0, 0, KIT, 'tornado').setOrigin(0.5, 0.95).setBlendMode(ADD).setVisible(false);
-    const shadow = s.add.image(0, 0, 'dmg-glow').setTint(0x1a0508).setVisible(false), eddy = s.add.image(0, 0, KIT, 'vortex').setVisible(false), eg = s.add.image(0, 0, KIT, 'vortex').setBlendMode(ADD).setVisible(false);
-    const tex = this.windTex(), NB = 13, NP = 20, PITCH = H / (NB - 2);
-    const bands = Array.from({ length: NB }, () => ({ // (the turns of one spiral of wind round it, climbing)
-      back: this.strip(undefined, NP, { key: tex, vertical: true }), front: this.strip(undefined, NP, { key: tex, vertical: true }), light: this.strip(undefined, NP, { key: tex, vertical: true, add: true }),
-    }));
-    let climb = 0, ph = 0;
-    const motes = Array.from({ length: 18 }, (_, i) => ({ im: s.add.image(0, 0, KIT, i % 6 === 5 ? 'blossom' : `petal_${1 + (i % 4)}`).setVisible(false), th: rnd(0, Math.PI * 2), h: rnd(0, H), k: rnd(0.2, 0.34), rot: rnd(0, 360) }));
-    const blades = Array.from({ length: 4 }, (_, i) => ({ im: s.add.image(0, 0, KIT, 'glint').setBlendMode(ADD).setVisible(false), th: (i / 4) * Math.PI * 2, h: 40 + i * 62 }));
-    const kh = H / core.height, ek = 190 / eddy.width, end = t0 + life, y0 = path[0].y, cur: Pt = { x: path[0].x, y: path[0].y, d: path[0].y };
-    const kill = () => { for (const im of [core, coreB, coreG, shadow, eddy, eg, ...motes.map((m) => m.im), ...blades.map((b) => b.im)]) im.destroy(); for (const b of bands) { b.back.destroy(); b.front.destroy(); b.light.destroy(); } };
-    const at = (u: number) => { // (a smooth curve through the path's points: Catmull-Rom)
-      const i = Math.max(0, Math.min(path.length - 2, Math.floor(u))), f = Math.max(0, Math.min(1, u - i));
-      const p0 = path[Math.max(0, i - 1)], p1 = path[i], p2 = path[i + 1], p3 = path[Math.min(path.length - 1, i + 2)];
-      const cr = (a: number, b: number, c: number, d: number) => 0.5 * (2 * b + (-a + c) * f + (2 * a - 5 * b + 4 * c - d) * f * f + (-a + 3 * b - 3 * c + d) * f * f * f);
-      return { x: cr(p0.x, p1.x, p2.x, p3.x), y: cr(p0.y, p1.y, p2.y, p3.y) };
-    };
-    let nextRing = 0, nextDust = 0, lean = 0, px = path[0].x;
-    this.add({ t: 0, step: (dt, t) => {
-      if (t < T.startup - 40) return true;
-      if ((this.broken(r) && t < T.startup + 20) || this.gone(r)) { kill(); return false; }
-      const { x, y } = at(Math.max(0, t - t0) / TORNADO.everyMs);
-      cur.x = x; cur.y = y; cur.d = y;
-      const near = 1 + (y - y0) * 0.0036; // (nearer you: larger)
-      lean += (Math.max(-9, Math.min(9, ((x - px) / Math.max(1, dt)) * 60)) - lean) * Math.min(1, dt / 120); px = x;
-      const fade = Math.min(1, (t - T.startup) / 160) * (t > end - 260 ? Math.max(0, (end - t) / 260) : 1), grow = 0.55 + 0.45 * out(Math.min(1, (t - T.startup + 40) / 260));
-      const tilt = Math.tan((lean * Math.PI) / 180), axis = (h: number) => x + tilt * h * near + Math.sin(t / 190 + h / 80) * 6 * (h / H) * near; // (its axis: leaning into its way, swaying)
-      // the heart: the painted whirl, dim, inside the walls (two mirrored copies crossing over: it turns)
-      const turn = 0.5 + 0.5 * Math.sin(t / 55), kc = kh * near * grow;
-      core.setVisible(true).setPosition(axis(0), y + 6).setScale(kc * 0.95, kc).setAngle(lean).setDepth(y).setAlpha(fade * (0.12 + 0.22 * turn));
-      coreB.setVisible(true).setPosition(axis(0), y + 6).setScale(kc * 0.95, kc).setAngle(lean).setDepth(y + 0.005).setAlpha(fade * (0.12 + 0.22 * (1 - turn)));
-      coreG.setVisible(true).setPosition(axis(0), y + 6).setScale(kc, kc * 1.02).setAngle(lean).setFlipX(turn > 0.5).setDepth(y + 0.01).setAlpha(fade * 0.16);
-      // the walls: one spiral of wind round it, its turns climbing (a turning screw), the wind sliding round along it; the far
-      // side of each turn behind what is inside, the near side in front; thin and faint at the floor, melting away at the top
-      climb = (climb + dt * 0.11) % PITCH; ph = (ph + 0.00072 * dt) % 0.5;
-      const thick = PITCH * 0.6 * near * grow, ryMax = rad(H) * ELL * near * grow;
-      const lit = (a: number) => { // (lit from the front left, in shadow round its right side: it is round)
-        const k = Math.max(0, Math.min(1, 0.5 - 0.5 * Math.cos(a - 2.2))) * 0.62, ch = (c0: number, c1: number) => Math.round(c0 + (c1 - c0) * k);
-        return (ch(255, 112) << 16) | (ch(255, 24) << 8) | ch(255, 40);
-      };
-      const sm = (v: number) => { const q = Math.max(0, Math.min(1, v)); return q * q * (3 - 2 * q); };
-      bands.forEach((b, k) => {
-        const base = (k - 1) * PITCH + climb, hAt = (a: number) => base + (a / (Math.PI * 2)) * PITCH;
-        const P = (a: number) => { const h = hAt(a), R = rad(h) * near * grow * (1 + 0.07 * Math.sin(2 * a + t / 90 + h / 40)); return { x: axis(h * grow) + R * Math.cos(a), y: y - h * near * grow + R * ELL * Math.sin(a) }; }; // (gusting: not a perfect coil)
-        const EXT = 0.32, A = (a0: number) => (i: number) => a0 - EXT + ((Math.PI + 2 * EXT) * i) / (NP - 1); // (each side runs a little past its edge: the near and far sides cross-fade there, no seam)
-        const ends = (i: number) => sm(((Math.min(i, NP - 1 - i) / (NP - 1)) * (Math.PI + 2 * EXT)) / (2 * EXT));
-        const vis0 = (a: number) => { const h = hAt(a); return sm(h / 34) * sm((H - h) / 60); };
-        const edge = (a: number) => 0.72 + 0.28 * Math.pow(Math.abs(Math.cos(a)), 0.5); // (a see-through shell: thicker at its edges)
-        const uvs = (a0: number) => (i: number) => ph + (A(a0)(i) / (Math.PI * 2)) * 0.5 + hAt(A(a0)(i)) * 0.0011;
-        const vis = (a0: number) => (i: number) => vis0(A(a0)(i)) * ends(i) * edge(A(a0)(i));
-        b.back.set((i) => P(A(Math.PI)(i)), () => thick, (i) => fade * 0.72 * vis(Math.PI)(i), (i) => lit(A(Math.PI)(i))); b.back.uv(uvs(Math.PI)); b.back.rope.setDepth(y - ryMax - 1);
-        b.front.set((i) => P(A(0)(i)), () => thick, (i) => fade * 0.85 * vis(0)(i), (i) => lit(A(0)(i))); b.front.uv(uvs(0)); b.front.rope.setDepth(y + ryMax + 1);
-        b.light.set((i) => P(A(0)(i)), () => thick, (i) => fade * 0.3 * vis(0)(i)); b.light.uv(uvs(0)); b.light.rope.setDepth(y + ryMax + 1.01);
-      });
-      // petals and blade glints circling it, climbing (bright and big in front, dim and small behind)
-      for (const m of motes) {
-        m.h += dt * 0.07; if (m.h > H) m.h -= H;
-        m.th += dt * (0.0042 + 0.003 * (1 - m.h / H));
-        const R = rad(m.h) * 1.08 * near * grow, sn = Math.sin(m.th), my = y - m.h * near * grow + sn * R * ELL;
-        m.im.setVisible(fade > 0.05).setPosition(axis(m.h * grow) + Math.cos(m.th) * R, my).setDepth(y + sn * R * ELL + (sn > 0 ? 1.5 : -1.5))
-          .setScale(m.k * near * (0.8 + 0.25 * sn)).setAngle(m.rot + t * 0.3).setAlpha(fade * (sn > 0 ? 1 : 0.45) * Math.min(1, m.h / 30, (H - m.h) / 30));
-      }
-      for (const bl of blades) {
-        const th = bl.th + t * 0.0075, sn = Math.sin(th), R = rad(bl.h) * 0.95 * near * grow;
-        bl.im.setVisible(fade > 0.2).setPosition(axis(bl.h) + Math.cos(th) * R, y - bl.h * near * grow + sn * R * ELL).setDepth(y + sn * R * ELL + (sn > 0 ? 1.6 : -1.6))
-          .setScale((0.15 + 0.06 * Math.sin(t / 30 + bl.th)) * near).setAngle(t * 0.4).setAlpha(fade * (sn > 0 ? 1 : 0.4));
-      }
-      // the floor under it
-      shadow.setVisible(true).setPosition(x, y + 4).setDisplaySize(190 * near, 54 * near).setDepth(GROUND + 1.8).setAlpha(fade * 0.5);
-      eddy.setVisible(true).setPosition(x, y + 4).setScale(ek * near, ek * near * SQUASH).setAngle(-t * 0.5).setDepth(GROUND + 2.1).setAlpha(fade * 0.75);
-      eg.setVisible(true).setPosition(x, y + 4).setScale(ek * near * 1.04, ek * near * SQUASH * 1.04).setAngle(-t * 0.5).setDepth(GROUND + 2.11).setAlpha(fade * 0.35);
-      if (t >= nextRing && fade > 0.3) { // a gust rising up it, widening (its far half behind, its near half in front)
-        nextRing = t + 260;
-        const fl = Math.random() < 0.5;
-        for (const [crop, z] of [[undefined, -R0 * ELL], [0.5, R0 * ELL]] as const)
-          this.spr({ name: 'wind_ring', w: 96 * near, life: 640, add: true, crop, flipX: fl, follow: () => ({ x: cur.x, y: cur.y - 12, d: cur.y }), dz: z,
-            my: (uu) => -240 * near * uu, sx: (uu) => 1 + 1.6 * uu, sy: (uu) => 0.8 + 1.2 * uu, a: kf([0, 0], [0.15, 0.6], [0.7, 0.4], [1, 0]) });
-      }
-      if (t >= nextDust && fade > 0.5) { nextDust = t + 240; this.dust(x, y + 4, 96 * near); }
-      if (t >= end) { kill(); return false; }
-      return true;
-    } });
+  /** Tornado Blade, the air spin: a whirl of blade light round his waist (its far half behind him, its near half in front,
+   *  flickering as it turns), a ring of wind spreading from it, petals and blade glints circling him — for the whole spin. */
+  private airSpin(r: CastRun): void {
+    const T = r.timings, life = T.active + 140, fl = sideOf(r) < 0, f = this.front(r, 0, 56);
+    for (const [crop, z] of [[undefined, -3], [0.5, 3]] as const)
+      this.spr({ name: 'cut_ring', w: 210, life, delay: T.startup, run: r, follow: f, dz: z, crop, glow: 0.65, flipX: fl, flick: 48,
+        sx: kf([0, 0.45], [0.18, 1, out3], [1, 1.1]), sy: kf([0, 0.45], [0.18, 1, out3], [1, 1.1]), a: kf([0, 1], [0.7, 1], [1, 0, inQ]) });
+    for (const [crop, z] of [[undefined, -2], [0.5, 2]] as const)
+      this.spr({ name: 'wind_ring', w: 150, life: life + 80, delay: T.startup, run: r, follow: f, dz: z, crop, add: true, flipX: !fl,
+        sx: (u) => 0.8 + 0.7 * u, sy: (u) => 0.55 + 0.35 * u, a: kf([0, 0], [0.12, 0.7], [0.7, 0.45], [1, 0]) });
+    for (let k = 0; k < 3; k++) // blade glints whirling round him
+      this.spr({ name: 'glint', w: 30, life: T.active, delay: T.startup + k * 40, run: r, follow: f, dz: 4, glow: 0.8,
+        mx: (u) => Math.cos(u * Math.PI * 4 + k * 2.1) * 92, my: (u) => Math.sin(u * Math.PI * 4 + k * 2.1) * 26, rot: (u) => 360 * u, a: kf([0, 0], [0.1, 1], [0.85, 1], [1, 0]) });
+    this.later(T.startup, () => { const p = f(); if (p) this.petals(p.x, p.y, 8, 110, { depth: p.d + 4 }); }, r);
   }
 
   /** Falcon Dive: the samurai wrapped in a falcon of fire through the leap and the dive, a ribbon of red light streaming
