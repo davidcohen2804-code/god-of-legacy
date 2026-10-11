@@ -16,7 +16,7 @@ const PATH: Record<string, Job[]> = {
     { name: 'Beginner', level: 1, to: 10, slots: [0] },
     // The mage spec: 1st = the blink, the wave and the launcher; 2nd = frost and the rune net (+ the party haste);
     // 3rd = lightning, levity, paper, time and the ward; 4th = gates, the curse, the storm, the elements and the ultimate.
-    { name: 'Arcanist', level: 10, to: 29, slots: [8, 1, 3] },                       // Blink, Arcane Wave, Astral Lift
+    { name: 'Arcanist', level: 10, to: 29, slots: [8, 1, 3, 18] },                   // Blink, Arcane Wave, Astral Lift, Page Bind
     { name: 'Spellbinder', level: 29, to: 40, slots: [2, 4, 9, 10] },                // Binding Rune, Frost Nova, Glacial Spikes, Chrono Haste (party)
     { name: 'Archmage', level: 40, to: 80, slots: [5, 11, 12, 13, 14] },             // Lightning Chain, Levity Field, Origami Flock, Chrono Sigil, Arcane Ward (party)
     { name: 'Codex Sovereign', level: 80, to: 150, slots: [15, 16, 6, 17, 7] },      // Arcane Gate, Paper Curse, Storm Field, Elemental Ascension, Time Collapse

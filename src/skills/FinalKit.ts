@@ -285,11 +285,11 @@ const mage: FinalSkill[] = [
   S({
     id: 'binding_rune', cls: 'book_mage', slot: 2, name: 'Binding Rune', roles: ['trap', 'setup', 'hardCC'], targeting: 'mouseGround',
     startup: 200, active: 100, recovery: 160, cooldown: 9000, ground: true, air: false, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
-    placeRange: 300, charges: 3, chargeGap: 260, trap: { radius: 46, lifeMs: 10000 },
-    hits: [H(0, 12, { kind: 'placed', radius: 46 }, { hardCC: { kind: 'stun', ms: 700, long: true }, stun: 120 }, { reachUp: 40 })],
+    placeRange: 300, charges: 2, chargeGap: 260, trap: { radius: 46, lifeMs: 10000 },
+    hits: [H(0, 12, { kind: 'placed', radius: 46 }, { hardCC: { kind: 'stun', ms: 500, long: true }, stun: 120 }, { reachUp: 40 })],
     cancelOnHit: [], telegraph: 'ground',
-    description: 'Lay up to 3 runes on the floor (10s each). Stepping on one stuns the foe for 0.7s. Two runes close together join in a beam of light: whoever crosses it is bound and shocked, and the beam breaks. Three runes make a cage.',
-    relations: ['Rune net', 'Stun 0.7s'],
+    description: 'Lay up to 2 runes on the floor (10s each). Stepping on one stuns the foe for 0.5s. Two runes close together join in a beam of light: whoever crosses it is bound and shocked, and the beam breaks.',
+    relations: ['Rune net', 'Stun 0.5s'],
   }),
   S({
     id: 'astral_burst', cls: 'book_mage', slot: 3, name: 'Astral Lift', roles: ['launcher', 'pull'], targeting: 'selfAim',
@@ -301,9 +301,9 @@ const mage: FinalSkill[] = [
   }),
   S({
     id: 'frost_nova', cls: 'book_mage', slot: 4, name: 'Frost Nova', roles: ['zone', 'peel'], targeting: 'self',
-    startup: 220, active: 260, recovery: 240, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    startup: 220, active: 260, recovery: 320, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     dash: { distance: 0, lift: 46 }, // he rises a little on the burst of cold, then drops
-    hits: [H(0, 20, { kind: 'circle', radius: 150 }, { stun: 340, push: 6 }, { reachUp: 120, el: FROST }),
+    hits: [H(0, 20, { kind: 'circle', radius: 120 }, { stun: 340, push: 6 }, { reachUp: 120, el: FROST }),
       H(160, 8, { kind: 'circle', radius: 175 }, { stun: 300, push: 4 }, { reachUp: 140 })],
     cancelOnHit: ['glacial_spikes', 'astral_burst', 'blink', 'arcane_bolt'], telegraph: 'circle',
     description: 'A ring of ice bursts out across the floor around you. It CHILLS every foe it touches; a foe already chilled FREEZES solid.',
@@ -333,7 +333,7 @@ const mage: FinalSkill[] = [
   }),
   S({
     id: 'time_collapse', cls: 'book_mage', slot: 7, name: 'Time Collapse', roles: ['ultimate', 'finisher'], targeting: 'mouseGround',
-    startup: 900, active: 1300, recovery: 480, cooldown: 45000, ground: true, air: true, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
+    startup: 900, active: 1300, recovery: 480, cooldown: 36000, ground: true, air: true, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
     placeRange: 300,
     hits: [
       H(0, 0, { kind: 'placed', radius: 175 }, { pull: 40 }),
@@ -357,11 +357,11 @@ const mage: FinalSkill[] = [
     id: 'glacial_spikes', cls: 'book_mage', slot: 9, name: 'Glacial Spikes', roles: ['launcher', 'zone'], targeting: 'mouseCone',
     startup: 220, active: 200, recovery: 220, cooldown: 6000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(0, 22, { kind: 'projectile', speed: 700, range: 260, radius: 30, count: 3, spread: 30, pierce: true }, { stun: 380, launch: 100, juggleCost: 22 }, { reachUp: 120, el: FROST })],
-    // the spikes stand 3s as a wall of ice: foes are held back from it
-    linger: { at: 'aim', offset: 180, startMs: 260, everyMs: 150, count: 20, radius: 90, maxZ: 60, hit: H(0, 0, { kind: 'circle', radius: 90 }, { push: 24 }, { reachUp: 60 }) },
+    // the spikes stand 1.5s as a wall of ice: foes are held back from it
+    linger: { at: 'aim', offset: 180, startMs: 260, everyMs: 150, count: 10, radius: 90, maxZ: 60, hit: H(0, 0, { kind: 'circle', radius: 90 }, { push: 24 }, { reachUp: 60 }) },
     cancelOnHit: ['astral_burst', 'lightning_chain', 'blink', 'arcane_bolt'], telegraph: 'cone',
-    description: 'Three rows of ice spikes burst from the floor in a fan: each spike throws its foe up and CHILLS it (a chilled foe FREEZES). The spikes stand for 3s as a wall of ice no foe can walk through.',
-    relations: ['Launcher', 'Ice wall 3s'],
+    description: 'Three rows of ice spikes burst from the floor in a fan: each spike throws its foe up and CHILLS it (a chilled foe FREEZES). The spikes stand for 1.5s as a wall of ice no foe can walk through.',
+    relations: ['Launcher', 'Ice wall 1.5s'],
   }),
   S({
     id: 'chrono_haste', cls: 'book_mage', slot: 10, name: 'Chrono Haste', roles: ['setup'], targeting: 'self',
@@ -373,20 +373,20 @@ const mage: FinalSkill[] = [
   }),
   S({
     id: 'levity_field', cls: 'book_mage', slot: 11, name: 'Levity Field', roles: ['zone', 'hardCC', 'setup'], targeting: 'mouseGround',
-    startup: 260, active: 140, recovery: 200, cooldown: 13000, ground: true, air: true, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
+    startup: 380, active: 140, recovery: 200, cooldown: 13000, ground: true, air: true, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
     placeRange: 320, zoneMs: 2500,
-    hits: [H(0, 10, { kind: 'placed', radius: 150 }, { levity: 2500, stun: 160 }, { reachUp: 120 })],
+    hits: [H(0, 10, { kind: 'placed', radius: 110 }, { levity: 2500, stun: 160 }, { reachUp: 120 })],
     cancelOnHit: ['lightning_chain', 'storm_field', 'origami_flock', 'frost_nova', 'blink', 'arcane_bolt'], telegraph: 'ground',
-    description: 'Gravity turns over where you aim: every foe in the circle floats up and hangs there for 2.5s, unable to move, then drops. Your bolts fly twice as fast through it.',
-    relations: ['Float 2.5s', 'Bolts x2 inside'],
+    description: 'Gravity turns over where you aim: every foe in the circle floats up — held still for 0.9s, then hovering free until it drops after 2.5s. Your bolts fly twice as fast through it.',
+    relations: ['Hold 0.9s', 'Float 2.5s'],
   }),
   S({
     id: 'origami_flock', cls: 'book_mage', slot: 12, name: 'Origami Flock', roles: ['projectile', 'chase'], targeting: 'mouseCone',
     startup: 300, active: 120, recovery: 220, cooldown: 9000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    hits: [H(0, 8, { kind: 'projectile', speed: 460, range: 720, radius: 16, count: 7, spread: 70, homing: 420 }, { stun: 220, push: 6, float: true, juggleCost: 3 }, { reachUp: 160 })],
+    hits: [H(0, 8, { kind: 'projectile', speed: 460, range: 520, radius: 16, count: 5, spread: 70, homing: 150 }, { stun: 220, push: 6, float: true, juggleCost: 3 }, { reachUp: 160 })],
     cancelOnHit: ['levity_field', 'paper_curse', 'blink', 'arcane_bolt'],
-    description: 'Seven pages tear out of the book and fold into paper cranes. Each crane picks a foe and flies after it, turning when it dodges.',
-    relations: ['7 homing cranes', 'Hard to dodge'],
+    description: 'Five pages tear out of the book and fold into paper cranes. Each crane picks a foe and bends a little toward it — a step aside still slips them.',
+    relations: ['5 cranes', 'Gently homing'],
   }),
   S({
     id: 'chrono_sigil', cls: 'book_mage', slot: 13, name: 'Chrono Sigil', roles: ['escape', 'setup'], targeting: 'self',
@@ -424,6 +424,14 @@ const mage: FinalSkill[] = [
     tags: ['buff'],
     description: 'Merge with the elements for 20s: every one of your hits both CHILLS and shocks, so magic reactions come from anything you cast, even Arcane Bolt.',
     relations: ['Buff 20s', 'Every hit: frost + storm'],
+  }),
+  S({
+    id: 'page_bind', cls: 'book_mage', slot: 18, name: 'Page Bind', roles: ['confirm', 'setup'], targeting: 'mouseDir',
+    startup: 140, active: 100, recovery: 180, cooldown: 7000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(0, 16, { kind: 'sector', range: 120, angle: 100 }, { stun: 380, push: 4, juggleCost: 10 }, { reachUp: 100, el: FROST })],
+    cancelOnHit: ['blink', 'arcane_bolt', 'lightning_chain', 'glacial_spikes'], telegraph: 'cone',
+    description: 'The book slams shut on a foe in front of you: frozen pages stick to it, and your next two spells CHILL it. Then you spring back out of reach. A miss leaves you open for a moment.',
+    relations: ['Next 2 spells chill', 'Springs back'],
   }),
 ];
 /** Arcane Bolt as Attunement turns it (the element of the last spell): cast in its place, never on the skill bar. */

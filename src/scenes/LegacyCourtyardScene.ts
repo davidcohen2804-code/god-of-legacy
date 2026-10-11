@@ -929,7 +929,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Free locomotion: walk / double-tap run, jump take-off, air control, landing settle, idle breathing. */
   private stepLocomotion(ms: number, now: number): void {
     const k = this.kin, inp = this.ci!, b = this.body;
-    const rooted = (b.hard.active(now) && b.hard.kind === 'root') || now < b.levityUntil; // (a Levity Field: floating, unable to move)
+    const rooted = (b.hard.active(now) && b.hard.kind === 'root') || now < b.levityHoldUntil; // (a Levity Field: held still at first, then floating free)
     const locked = this.inputLocked(); // talking to an NPC: he stands still
     const hold = this.blockHold; // let go (or off the block): that way is free again
     if (hold.x && (Math.sign(inp.moveX) !== hold.x || !k.grounded)) hold.x = 0;
@@ -1882,7 +1882,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Blink carrying him up to a foe in the air (the cast it belongs to). */
   private blinkChase: { castId: string; id: string } | null = null;
   private mage = { el: null as 'frost' | 'storm' | 'arcane' | null, weave: 0, weaveLast: '', weaveCast: '', weaveAt: -Infinity, grand: false,
-    hasteUntil: -1, ascUntil: -1, wardHp: 0, wardUntil: -1, barrierAt: -Infinity, recoverAt: -Infinity, floatUntil: -1, gateAt: -Infinity };
+    pageChill: 0, hasteUntil: -1, ascUntil: -1, wardHp: 0, wardUntil: -1, barrierAt: -Infinity, recoverAt: -Infinity, floatUntil: -1, gateAt: -Infinity };
   /** Chrono Sigil: where it lies, the HP when it was laid, until when it can be snapped back to. */
   private sigil: { x: number; y: number; z: number; hp: number; until: number } | null = null;
   /** Arcane Gates of every caster (the gate by him, the gate where he aimed). */
@@ -1895,7 +1895,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private mageReset(): void {
     const M = this.mage;
-    M.el = null; M.weave = 0; M.weaveLast = ''; M.weaveCast = ''; M.grand = false; M.hasteUntil = -1; M.ascUntil = -1; M.wardHp = 0; M.wardUntil = -1; M.floatUntil = -1;
+    M.pageChill = 0; M.el = null; M.weave = 0; M.weaveLast = ''; M.weaveCast = ''; M.grand = false; M.hasteUntil = -1; M.ascUntil = -1; M.wardHp = 0; M.wardUntil = -1; M.floatUntil = -1;
     this.sigil = null; this.gates.delete(this.localId);
   }
 
@@ -1905,13 +1905,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     return finalSkill(`arcane_bolt_${this.mage.el}`) ?? s;
   }
   /** The caster's state carried by his casts: 1 Elemental Ascension, 2 Conductor, 4 Shatter Mastery. */
-  private mageFlags(): number { const M = this.passives.mage; return (this.simMs < this.mage.ascUntil ? 1 : 0) | (M.conductor ? 2 : 0) | (M.shatter ? 4 : 0); }
+  private mageFlags(): number { const M = this.passives.mage; return (this.simMs < this.mage.ascUntil ? 1 : 0) | (M.conductor ? 2 : 0) | (M.shatter ? 4 : 0) | (this.mage.pageChill > 0 ? 8 : 0); }
   /** A mage hit as its caster's state makes it: every damaging hit both elements under Elemental Ascension; his passives. */
   private mageHit(run: CastRun, hit: HitEvent): HitEvent {
     if (run.skill.cls !== 'book_mage') return hit;
-    const f = run.own ? this.mageFlags() : (run.mf ?? 0);
+    const f = run.own ? (this.mageFlags() & 7) | ((run.mf ?? 0) & 8) : (run.mf ?? 0);
     if (!f) return hit;
-    return { ...hit, ...(f & 1 && hit.damage > 0 ? { el: 'both' as const } : {}), ...(f & 2 ? { conductor: true } : {}), ...(f & 4 ? { shatterMul: 2 } : {}) };
+    const page = f & 8 && hit.damage > 0 ? { el: hit.el === 'storm' || hit.el === 'both' ? 'both' as const : 'frost' as const } : {}; // Page Bind: the frozen pages chill with the next spells
+    return { ...hit, ...page, ...(f & 1 && hit.damage > 0 ? { el: 'both' as const } : {}), ...(f & 2 ? { conductor: true } : {}), ...(f & 4 ? { shatterMul: 2 } : {}) };
   }
   private weaveMul(): number { return this.cls === 'book_mage' && this.passives.mage.weave ? 1 + WEAVE.per * this.mage.weave : 1; }
   /** Time Collapse reads the woven runes: +10% each. */
@@ -1936,6 +1937,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const now = this.simMs, k = this.kin, M = this.mage;
     if (s.slot !== 0 && s.slot !== 8) M.el = LegacyCourtyardScene.MAGE_EL[s.id] ?? 'arcane'; // Attunement: the element of the last spell
     if (M.grand && s.slot !== 0 && s.slot !== 8 && s.slot !== 7) { M.grand = false; run.timings.startup = Math.min(run.timings.startup, 30); this.fx?.grandWeave(this.localId); }
+    if (M.pageChill > 0 && s.id !== 'page_bind' && (run.mf ?? 0) & 8) M.pageChill--; // (this spell carries the pages' chill)
     const up = run.timings.startup, say = (text: string, color: string) => this.time.delayedCall(up, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, text, color, 0));
     switch (s.id) {
       case 'arcane_bolt': case 'arcane_bolt_frost': case 'arcane_bolt_storm': case 'arcane_bolt_arcane':
@@ -2639,6 +2641,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private onRunPhase(run: CastRun, phase: string): void {
     if (phase === 'recovery' && run.confirmedAt < 0 && arenaCommits(run.skill) && (run.own || run.attackerId === BOT_ID)) run.extraRecovery = Math.max(run.extraRecovery, ARENA_FLOW.whiffMs); // a miss leaves you open a moment longer
     if (phase === 'active' && run.skill.cls === 'book_mage') this.mageZone(run);
+    if (phase === 'recovery' && run.skill.id === 'page_bind' && run.own) { // Page Bind: on a hit the pages stick and he springs back; a miss leaves him open
+      if (run.confirmedAt >= 0) { this.mage.pageChill = 2; this.momentum = { x: -run.aim.x * 120, y: -run.aim.y * 60, left: 200 }; }
+      else run.extraRecovery = Math.max(run.extraRecovery, 300);
+    }
     const L = run.skill.linger;
     if (phase === 'active' && L) { // every caster's lingering zone (yours, other players', the sparring knight's)
       const off = L.at === 'aim' ? (L.offset ?? 0) : 0, pl = L.at === 'place' ? run.place : null; // ('place': where the cast was opened on the floor)

@@ -447,7 +447,7 @@ export class MageFx {
   cast(r: CastRun): void {
     if (!this.ready) return;
     const s = r.skill, T = r.timings, me = this.me(r), side = sideOf(r), hand = this.at(r.attackerId, side, 22, 70);
-    const own = !['astral_burst', 'frost_nova', 'lightning_chain', 'blink', 'chrono_haste', 'chrono_sigil', 'arcane_ward', 'elemental_ascension', 'levity_field', 'arcane_gate', 'binding_rune', 'storm_field'].includes(s.id) && !(s.slot === 0 && r.stage !== 2); // (skills with ground art of their own: no circle under it)
+    const own = !['page_bind', 'astral_burst', 'frost_nova', 'lightning_chain', 'blink', 'chrono_haste', 'chrono_sigil', 'arcane_ward', 'elemental_ascension', 'levity_field', 'arcane_gate', 'binding_rune', 'storm_field'].includes(s.id) && !(s.slot === 0 && r.stage !== 2); // (skills with ground art of their own: no circle under it)
     if (own) this.circle(me.x, this.floorY(me.x, me.y, me.z), s.slot === 7 ? 420 : s.slot === 0 ? 200 : 260, MageFx.EL[s.id] ?? 0, T.startup + T.active + 260, { run: r, draw: Math.max(120, T.startup), ult: s.slot === 7 }); // every spell is written as a circle
     switch (s.id) {
       case 'arcane_bolt': case 'arcane_bolt_arcane': case 'arcane_bolt_frost': case 'arcane_bolt_storm': this.boltCharge(r); break;
@@ -488,6 +488,13 @@ export class MageFx {
       case 'levity_field': if (r.place) this.levity(this.placeFloor(r), 2500); break;
       case 'arcane_ward': this.ward(r.attackerId, 8000); break;
       case 'elemental_ascension': this.aura(r.attackerId, 'ascension', 20000); this.ctx.punch(0.006, 200); break;
+      case 'page_bind': { // the book slams shut in front of him: a white-blue snap of pages, cold spraying off them
+        const x = me.x + r.aim.x * 70, y = me.y - me.z - 52 + r.aim.y * 30;
+        this.sheet('mfx-paper', x, y, 170, 240, { frames: [8, 4], tint: 0xcfefff });
+        this.sheet('mfx-hit', x, y, 150, 200, { frames: [4, 4] });
+        this.burst(x, y, { n: 14, speed: [120, 360], life: [220, 480], scale: [0.03, 0.1], tint: [0xffffff, 0xcff6ff, 0x9fdcff], angle: side > 0 ? [-60, 60] : [120, 240], gravity: 300 });
+        this.shake(80, 0.004); break;
+      }
       case 'storm_field': if (r.place && this.ctx.scene.textures.exists('mfx-sfield')) { const p = this.placeFloor(r);
         this.circle(p.x, p.y, 380, 2, T.active + 300, { run: r, draw: 200 });
         if (this.ctx.scene.textures.exists('mfx-tempest')) this.sheet('mfx-tempest', p.x, p.y, 600, T.active, { floor: true, frames: [4, 8], loop: 75, oy: 0.72, depth: GROUND + 4, run: r });
@@ -708,14 +715,14 @@ export class MageFx {
   private spikes(r: CastRun): void {
     const me0 = this.me(r), o = { ...me0, y: this.floorY(me0.x, me0.y, me0.z), z: 0 }, base = Math.atan2(r.aim.y, r.aim.x), side = sideOf(r);
     if (this.ctx.scene.textures.exists('mfx-spikes')) {
-      this.pool(o.x + r.aim.x * 160, o.y + r.aim.y * 100, 420, 0x9fdcff, 3000, { alpha: 0.4 }); this.shade(o.x + r.aim.x * 170, o.y + r.aim.y * 110, 340, 3000, { alpha: 0.35 }); // the painted wall: one line along the aim, two lesser ones on the fan's sides
-      for (const [da, k, dl] of [[0, 1, 0], [-15, 0.72, 50], [15, 0.72, 50]] as const) {
+      this.pool(o.x + r.aim.x * 160, o.y + r.aim.y * 100, 420, 0x9fdcff, 1600, { alpha: 0.4 }); this.shade(o.x + r.aim.x * 170, o.y + r.aim.y * 110, 340, 1600, { alpha: 0.35 }); // the painted wall: one line along the aim, two lesser ones on the fan's sides
+      for (const [da, , dl] of [[0, 1, 0], [-15, 1, 0], [15, 1, 0]] as const) { // the three shots of the fan, together
         const a = base + (da * Math.PI) / 180, dx = Math.cos(a), dy = Math.sin(a), x = o.x + dx * 40, y = o.y + dy * 40 * 0.75;
-        const ang = screenAng(dx, dy), len = 300 * k;
-        this.sheet('mfx-spikes', x, y, len / 0.8, 3100, { alpha: 0.85, ox: side < 0 ? 0.9 : 0.1, oy: 0.75, flipX: side < 0, depth: y + 2 + (da === 0 ? 1 : 0), delay: dl, run: r,
-          keys: [[0, 0], [6.9, 380], [7, 400], [11.9, 2650], [15.9, 3100]], angle: side < 0 ? ang - 180 : ang });
+        const ang = screenAng(dx, dy), len = 250;
+        this.sheet('mfx-spikes', x, y, len / 0.8, 1650, { alpha: 0.85, ox: side < 0 ? 0.9 : 0.1, oy: 0.75, flipX: side < 0, depth: y + 2 + (da === 0 ? 1 : 0), delay: dl, run: r,
+          keys: [[0, 0], [6.9, 370], [7, 390], [11.9, 1250], [15.9, 1650]], angle: side < 0 ? ang - 180 : ang }); // (erupting as the shot flies: 260 px at 700 px/s)
       }
-      this.floor('floor_frost', o.x + r.aim.x * 150, o.y + r.aim.y * 110, 330, 3100, { add: true, a: kf([0, 0], [0.04, 0.5], [0.9, 0.35], [1, 0]), angle: screenAng(r.aim.x, r.aim.y) });
+      this.floor('floor_frost', o.x + r.aim.x * 150, o.y + r.aim.y * 110, 330, 1650, { add: true, a: kf([0, 0], [0.04, 0.5], [0.9, 0.35], [1, 0]), angle: screenAng(r.aim.x, r.aim.y) });
       this.warp.ring(o.x + r.aim.x * 140, o.y + r.aim.y * 100, { r1: 220, life: 380, s: 22, width: 24, squash: SQUASH });
       this.shake(150, 0.007); this.ctx.hitStop?.(50);
       return;
@@ -737,12 +744,12 @@ export class MageFx {
   private levity(p: V2, ms: number): void {
     if (this.ctx.scene.textures.exists('mfx-levity')) {
       const o = { oy: 0.78, depth: p.y + 3 };
-      this.circle(p.x, p.y, 380, 0, ms, { draw: 260, alpha: 0.7 }); this.pool(p.x, p.y, 440, 0xa98cff, ms, { alpha: 0.4 });
-      this.sheet('mfx-levity', p.x, p.y, 470, 300, { ...o, frames: [0, 4] });
-      this.sheet('mfx-levity', p.x, p.y, 470, ms - 600, { ...o, frames: [4, 8], loop: 95, delay: 300 });
-      this.sheet('mfx-levity', p.x, p.y, 470, 320, { ...o, frames: [12, 4], delay: ms - 300 });
-      this.warp.well(p.x, p.y - 80, { r: 200, life: 500, s: 14, twist: 10 });
-      for (let t = 0; t < ms - 300; t += 140) this.later(t, () => this.img('mg-dot', { x: p.x + rnd(-150, 150), y: p.y + rnd(-40, 30), w: rnd(5, 12), tint: Math.random() < 0.5 ? 0xb9a2ff : 0x9fe6ff, life: 1100, my: (u) => -200 * u, a: kf([0, 0], [0.2, 1], [1, 0]), depth: p.y + 4 }));
+      this.circle(p.x, p.y, 250, 0, ms, { draw: 260, alpha: 0.7 }); this.pool(p.x, p.y, 240, 0xa98cff, ms, { alpha: 0.4 }); // (its ring = the 110 px it holds)
+      this.sheet('mfx-levity', p.x, p.y, 280, 300, { ...o, frames: [0, 4] });
+      this.sheet('mfx-levity', p.x, p.y, 280, ms - 600, { ...o, frames: [4, 8], loop: 95, delay: 300 });
+      this.sheet('mfx-levity', p.x, p.y, 280, 320, { ...o, frames: [12, 4], delay: ms - 300 });
+      this.warp.well(p.x, p.y - 80, { r: 130, life: 500, s: 14, twist: 10 });
+      for (let t = 0; t < ms - 300; t += 140) this.later(t, () => this.img('mg-dot', { x: p.x + rnd(-100, 100), y: p.y + rnd(-30, 22), w: rnd(5, 12), tint: Math.random() < 0.5 ? 0xb9a2ff : 0x9fe6ff, life: 1100, my: (u) => -200 * u, a: kf([0, 0], [0.2, 1], [1, 0]), depth: p.y + 4 }));
       return;
     }
     this.spr({ name: 'implosion', x: p.x, y: p.y + 10, oy: 0.95, depth: p.y + 2, w: 230, life: 600, add: true, glow: 0.4, sy: kf([0, 0.3], [0.4, 1.1, out3], [1, 1.2]), a: kf([0, 0], [0.15, 0.9], [1, 0]) });
@@ -754,7 +761,7 @@ export class MageFx {
   private timeCollapse(r: CastRun): void {
     const p = this.placeFloor(r), T = r.timings, total = T.startup + T.active;
     if (this.ctx.scene.textures.exists('mfx-clock')) { // the painted clock, timed to the cast: drawn and sweeping through the pull, stopped at the freeze, cracking until the blast
-      const fz = T.startup + 260, bl = T.startup + 1250;
+      const fz = T.startup + (r.hits[1]?.at ?? 260), bl = T.startup + (r.hits[2]?.at ?? 1250); // (from the cast's own timings and hits)
       this.circle(p.x, p.y, 620, 0, total + 500, { run: r, draw: 400, ult: true });
       this.ctx.darken(total + 300, 0.5);
       if (this.ctx.scene.textures.exists('mfx-rift')) { // the rift of time under the clock: opens, swirls until the blast (its eruption is drawn there)
@@ -1108,6 +1115,7 @@ export class MageFx {
     if (!this.ready || (s.slot === 99 && !hit.damage)) return;
     const x = at.x, y = at.y - at.z - 40, el = hit.el, tint = el === 'frost' ? 0xcff6ff : el === 'storm' ? 0x8fe3ff : 0x6fb8ff;
     const big = crit || heavy;
+    if (s.id === 'page_bind') this.sheet('mfx-paper', at.x, at.y - at.z - 50, 190, 520, { frames: [8, 4], tint: 0xcfefff, alpha: 0.85 }); // frozen pages stuck to the foe
     this.pool(at.x, this.floorY(at.x, at.y, at.z), big ? 190 : 130, tint, 300, { alpha: at.z > 30 ? 0.45 : 0.6 }); // the hit lights the floor under it
     if (this.ctx.scene.textures.exists('mfx-hit')) { // the painted spark: one per element, a heavier one for heavy blows and crits
       const row = big ? 12 : el === 'frost' ? 4 : el === 'storm' ? 8 : 0;

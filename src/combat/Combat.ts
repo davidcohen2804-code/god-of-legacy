@@ -234,7 +234,7 @@ export function steer(k: Kin, tx: number, ty: number, ms: number, scale = 1): vo
 
 const HCC = COMBO.hardCC;
 /** Book Mage reactions: chill (slow) length, freeze length, Levity Field hover height. */
-export const MAGE = { chillMs: 3000, chillSlow: 0.3, freezeMs: 800, levityZ: 90, curseStillMs: 600 };
+export const MAGE = { chillMs: 3000, chillSlow: 0.3, freezeMs: 800, levityZ: 90, curseStillMs: 600, levityHoldMs: 900 };
 
 /** Root / freeze / stun policy: max single, DR multipliers in a window, post-CC immunity. Damage always applies. */
 export class HardCC {
@@ -345,6 +345,8 @@ export class CombatBody {
   /** when the current paper crane began (it stands still for its first MAGE.curseStillMs) */
   curseFrom = -1;
   levityUntil = -1;
+  /** A Levity Field holds still only this long; the rest of it is a free hover. */
+  levityHoldUntil = -1;
   readonly hard = new HardCC();
   readonly combos = new ComboBook();
   /** Push motion (px/ms) applied over a short window. */
@@ -395,11 +397,11 @@ export class CombatBody {
 
   canAct(now: number): boolean { return this.state === 'free' && !this.hard.active(now) && now >= this.curseUntil; }
   /** A paper crane still walks (slowly); a body floating in a Levity Field cannot move. */
-  canMove(now: number): boolean { return this.state === 'free' && !this.hard.active(now) && now >= this.levityUntil; }
+  canMove(now: number): boolean { return this.state === 'free' && !this.hard.active(now) && now >= this.levityHoldUntil; }
   moveScale(now: number): number { return (now < this.slowUntil ? 1 - this.slowPct : 1) * (now < this.curseUntil ? (now < this.curseFrom + MAGE.curseStillMs ? 0 : 0.5) : 1); }
   chilled(now: number): boolean { return now < this.chillUntil; }
   frozen(now: number): boolean { return this.hard.active(now) && this.hard.kind === 'freeze'; }
-  reset(): void { this.pinUntil = -1; this.gauge = { stand: 0, air: 0, down: 0 }; this.invulnUntil = -1; this.bounce = false; this.state = 'free'; this.stateEnd = 0; this.hard.reset(); this.combos.clear(); this.push = null; this.slowUntil = 0; this.armorUntil = -1; this.shotArmorUntil = -1; this.chillUntil = -1; this.curseUntil = -1; this.curseFrom = -1; this.levityUntil = -1;
+  reset(): void { this.pinUntil = -1; this.gauge = { stand: 0, air: 0, down: 0 }; this.invulnUntil = -1; this.bounce = false; this.state = 'free'; this.stateEnd = 0; this.hard.reset(); this.combos.clear(); this.push = null; this.slowUntil = 0; this.armorUntil = -1; this.shotArmorUntil = -1; this.chillUntil = -1; this.curseUntil = -1; this.curseFrom = -1; this.levityUntil = -1; this.levityHoldUntil = -1;
     this.released = false; this.ghostUntil = -1; this.breakReadyAt = 0; this.quickReadyAt = 0; this.downAt = -Infinity; }
   /** Guarded right now (the arena: rising from the floor, the wake-up after it, BREAK). */
   ghost(now: number): boolean { return now < this.ghostUntil || (this.arena && this.state === 'getup'); }
@@ -451,8 +453,9 @@ export class CombatBody {
     if (R.curse) { const ms = Math.min(ARENA.curseMaxMs, R.curse * (1 - this.ccResist)); // (a curse is a hold like any other — capped, the same everywhere)
       if (now >= this.curseUntil) this.curseFrom = now; this.curseUntil = Math.max(this.curseUntil, now + ms); out.rx = out.rx ?? 'curse'; out.rxMs = ms; }
     if (R.levity) {
-      this.levityUntil = Math.max(this.levityUntil, now + R.levity); this.push = null; out.rx = out.rx ?? 'levity'; out.rxMs = R.levity;
-      if (this.arena) { const ms = this.hard.apply('stun', R.levity, now, this.pvp, true); if (ms > 0) out.ccMs = Math.max(out.ccMs, ms); } // the arena: floating, it cannot act either (BREAK still frees it)
+      const hold = Math.min(R.levity, MAGE.levityHoldMs);
+      this.levityUntil = Math.max(this.levityUntil, now + R.levity); this.levityHoldUntil = Math.max(this.levityHoldUntil, now + hold); this.push = null; out.rx = out.rx ?? 'levity'; out.rxMs = R.levity;
+      if (this.arena) { const ms = this.hard.apply('stun', hold, now, this.pvp, true); if (ms > 0) out.ccMs = Math.max(out.ccMs, ms); } // the arena: floating, it cannot act either (BREAK still frees it)
     }
     if (R.catch && this.state !== 'getup' && this.state !== 'dead' && (this.state === 'launched' || this.state === 'knockdown' || !this.kin.grounded) && this.kin.z - this.kin.supportZ < 60) {
       // a trap on the floor catches a falling / fallen body: on its feet at once, held — and, as in DFO, the hold eases the air gauge
@@ -654,7 +657,7 @@ export class CombatBody {
     if (now < this.pinUntil) { this.kin.vz = 0; return 0; }
     if (now < this.levityUntil) { // Levity Field: gravity turned over — up to a hover and held there, unable to move
       const k = this.kin, top = k.supportZ + MAGE.levityZ;
-      k.grounded = false; k.vx = 0; k.vy = 0; k.vz = Math.max(-80, Math.min(170, (top - k.z) * 4));
+      k.grounded = false; if (now < this.levityHoldUntil) { k.vx = 0; k.vy = 0; } k.vz = Math.max(-80, Math.min(170, (top - k.z) * 4)); // held still at first, then a free hover
       return 0;
     }
     if (this.state !== 'launched') return 1;
