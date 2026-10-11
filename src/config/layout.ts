@@ -233,8 +233,8 @@ export const PVP = {
   maxPlayers: 8,
   /** Arena HP (big MapleStory-style numbers; the duel rules work in shares of it). */
   maxHp: 1000,
-  /** Testing, for now: in the arena every hit lands (reaction, number, combo budget) but nobody's HP goes down. */
-  hpLocked: true,
+  /** The arena: hits take HP (false). true = testing: every hit lands (reaction, number, combo budget) but nobody's HP goes down. */
+  hpLocked: false,
   /** VS PLAYER from the fighter select: how long the arena waits for the other player before the sparring partner comes. */
   foeWaitMs: 15000,
   respawnMs: 1600,

@@ -8,3 +8,5 @@ Values apply to the whole game (only damage may differ in PvP: arenaDmg / the ar
 - staff_vault: a new first hit along the whole vault (capsule r30, at 40 ms, stun 340): it catches whoever it vaults through, from the distance fights open at (lands from 100 to 210 px in the arena). Visuals: the staff's arc can flash where it passes the foe.
 - ace_in_the_hole: startup 420 → 300; the ace 22 px wide (was 18: the floor-depth band); its blow-up 870 → 750 ms (still at the end of its flight). Visuals: the charge-up is 120 ms shorter.
 - Result (192 matches with the gambler): 53% wins (was 27%).
+## 2026-10-11 — Arena HP on
+- PVP.hpLocked false: hits in the arena take HP; a K.O. ends the round (checked: fight › K.O. › round 2, the win counted).
