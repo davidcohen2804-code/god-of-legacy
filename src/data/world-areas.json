@@ -9544,7 +9544,24 @@
       450
      ]
     ]
-   }
+   },
+   "npcs": [
+    {
+     "id": "solenne",
+     "name": "Solenne",
+     "title": "Keeper of the Sun",
+     "x": 926,
+     "y": 30,
+     "z": 800,
+     "art": "solenne",
+     "role": "quest",
+     "flip": true,
+     "lines": [
+      "Welcome to the Sun Shrine, traveller. You carry the sun's warmth — I can feel it.",
+      "The pedestal behind me is empty. Something precious once shone there..."
+     ]
+    }
+   ]
   },
   "orchard_2": {
    "name": "Harvest Square",
