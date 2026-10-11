@@ -195,7 +195,8 @@ class P2PTransport implements Transport {
       const turn = ENV.VITE_TURN_URL?.trim();
       const ice = turn ? [...ICE, { urls: turn.split(','), username: ENV.VITE_TURN_USER, credential: ENV.VITE_TURN_PASS }] : ICE;
       const room = joinRoom( // (?relay=: a test relay on this machine — no STUN needed)
-        { appId: APP_ID, relayConfig: { urls: this.relay ? [this.relay] : [...new Set([...RELAYS, ...defaultRelayUrls.slice(0, 8)])], warnOnRelayFailure: false }, rtcConfig: { iceServers: this.relay ? [] : ice } }, `gol-pvp-${this.roomId}`);
+        { appId: APP_ID, relayConfig: { urls: this.relay ? [this.relay] : [...new Set([...RELAYS, ...defaultRelayUrls.slice(0, 8)])], warnOnRelayFailure: false }, rtcConfig: { iceServers: this.relay ? [] : ice } }, `gol-pvp-${this.roomId}`,
+        { onJoinError: (d) => console.warn('[pvp] p2p peer could not connect', d?.error ?? d), handshakeTimeoutMs: 20000 }); // (a slow device: more time to shake hands)
       this.room = room;
       type Wire = import('trystero').DataPayload;
       const m = room.makeAction('m'), who = room.makeAction('who');
