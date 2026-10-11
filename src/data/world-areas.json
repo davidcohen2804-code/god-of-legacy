@@ -14155,9 +14155,8 @@
   },
   "thorn": {
    "name": "Orchard Thornling",
-   "frames": "cursed_swordsman",
-   "tint": 14262618,
-   "scale": 0.92,
+   "frames": "thorn",
+   "scale": 1.0,
    "hp": 95,
    "damage": 9,
    "speed": 74,
@@ -14166,7 +14165,8 @@
    "cooldown": 1100,
    "respawnMs": 10000,
    "exp": 19,
-   "level": 6
+   "level": 6,
+   "texQ": 2
   },
   "warden": {
    "name": "Gate Warden",
