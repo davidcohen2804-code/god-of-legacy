@@ -15,7 +15,7 @@ All on green screen `#00FF00`, side view facing right, standing: `tools/heroes/r
 
 | hero | file | signature |
 |---|---|---|
-| Warrior | `warrior_green.jpg` | steel plate, red cape, longsword right hand, round lion shield left arm |
+| Warrior | `warrior_green.jpg` | steel plate with a gold lion crest, red cape, longsword right hand — NO shield (David: the warrior carries no shield) |
 | Samurai | `samurai_green.jpg` | black-and-red lamellar, katana, long dark hair, red sash |
 | Archer | `archer_green.jpg` | hooded green cloak (hood always up), gold-trimmed leather, recurve bow left hand, quiver |
 | Book Mage | `book_mage_green.jpg` | white hair, blue-and-white robe with gold stars, open spell book left hand |
