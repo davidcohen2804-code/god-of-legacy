@@ -637,13 +637,13 @@ const samurai: FinalSkill[] = [
     relations: ['Hold Space to chain', 'Cancel into skills on hit'],
   }),
   S({
-    id: 'shadow_step', cls: 'samurai', slot: 1, name: 'Shadow Step', roles: ['chase', 'gapClose'], targeting: 'mouseDir',
+    id: 'shadow_step', cls: 'samurai', slot: 1, name: 'Shadow Step', roles: ['opener', 'chase', 'gapClose'], targeting: 'mouseDir',
     startup: 100, active: 150, recovery: 150, cooldown: 3500, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    dash: { distance: 160 }, through: true, charges: 2, chargeGap: 200,
-    hits: [H(0, 22, { kind: 'capsule', radius: 28 }, { stun: 400, push: 8 }, { reachUp: 200 })], // (held long enough for the next cut, turned back toward him)
-    cancelOnHit: ['sheathe', 'iai_strike', 'quick_slash', 'blossom_storm', 'dragon_eclipse'], telegraph: 'line',
-    description: 'Step through the foe in a blink, cutting as you pass, and land behind it facing it. Two steps in a row, then the cooldown.',
-    relations: ['2 steps in a row', 'Cancel → Swallow Cut'],
+    dash: { distance: 200 }, through: true, charges: 2, chargeGap: 200, // (the opener: through a foe at the distance fights open at, ~177 px)
+    hits: [H(0, 22, { kind: 'capsule', radius: 28 }, { stun: 300, push: 8 }, { reachUp: 200 })], // (the cut as he passes through; then Quick Slash / Swallow Cut / Iai, turned back toward him)
+    cancelOnHit: ['quick_slash', 'swallow_cut', 'iai_strike', 'sheathe', 'blossom_storm', 'dragon_eclipse'], telegraph: 'line',
+    description: 'Step through the foe in a blink, cutting as you pass, and land behind it facing it — your opener from the distance fights start at. Two steps in a row, then the cooldown.',
+    relations: ['Opener: through the foe', 'Cancel → Quick Slash · Swallow · Iai'],
   }),
   S({
     id: 'sheathe', cls: 'samurai', slot: 2, name: 'Sheathe', roles: ['setup'], targeting: 'self',
@@ -659,13 +659,13 @@ const samurai: FinalSkill[] = [
     id: 'iai_strike', cls: 'samurai', slot: 3, name: 'Iai Strike', roles: ['precision', 'finisher'], targeting: 'mouseLine',
     startup: 900, active: 80, recovery: 260, cooldown: 5500, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     // hold the key: the drawing stance charges (startup = how long it was held, 130..900 ms); the level picks the cut
-    hits: [H(0, 30, { kind: 'line', length: 160, width: 36 }, { stun: 380, push: 12 }, { reachUp: 200, heavy: true })],
+    hits: [H(0, 30, { kind: 'line', length: 200, width: 36 }, { stun: 380, push: 12 }, { reachUp: 200, heavy: true })],
     charge: { minMs: 130, levels: [
-      { at: 0, hits: [H(0, 30, { kind: 'line', length: 160, width: 36 }, { stun: 380, push: 12 }, { reachUp: 200, heavy: true })] },
+      { at: 0, hits: [H(0, 30, { kind: 'line', length: 200, width: 36 }, { stun: 380, push: 12 }, { reachUp: 200, heavy: true })] }, // (the draw from afar: his opener)
       { at: 340, hits: [H(0, 44, { kind: 'line', length: 230, width: 40 }, { stun: 420, knockdown: 'light', push: 14 }, { reachUp: 210, heavy: true })] },
       { at: 680, hits: [H(0, 64, { kind: 'line', length: 320, width: 48 }, { stun: 460, knockdown: 'heavy', push: 18 }, { reachUp: 220, heavy: true })] },
     ] },
-    cancelOnHit: ['sword_wave', 'blossom_storm', 'dragon_eclipse'], // (its reach is drawn by its own charge picture, SkillFx.iai)
+    cancelOnHit: ['shadow_step', 'sword_wave', 'blossom_storm', 'dragon_eclipse'], // (its reach is drawn by its own charge picture, SkillFx.iai; the draw from afar → Shadow Step through him)
     description: 'Hold the key: your hand on the sheath, a glint grows in three steps. Release: a lightning draw-cut along a line — the longer you held, the farther and harder it cuts; fully charged, every foe in the line crumples to the floor.',
     relations: ['Hold to charge (3 levels)', 'Knockdown'],
   }),
@@ -746,7 +746,7 @@ const samurai: FinalSkill[] = [
   }),
   S({
     id: 'falcon_dive', cls: 'samurai', slot: 12, name: 'Falcon Dive', roles: ['gapClose', 'knockdown'], targeting: 'mouseTarget',
-    startup: 180, active: 340, recovery: 300, cooldown: 5000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    startup: 130, active: 340, recovery: 300, cooldown: 5000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 230, lift: 120, crash: true },
     hits: [H(150, 10, { kind: 'circle', radius: 90 }, { stun: 300, slam: true }, { reachUp: 200 }),
       H(300, 24, { kind: 'circle', radius: 135 }, { stun: 380, launch: 100, juggleCost: 25 }, { reachUp: 220, heavy: true })],
