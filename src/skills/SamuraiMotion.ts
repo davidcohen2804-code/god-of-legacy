@@ -1,6 +1,6 @@
 // Samurai body motion layer (presentation only, every client draws it the same from the cast timeline): the four drawn
 // attack poses get real movement on top — the step into a cut, the crouch of a drawing stance, the spring of a rising
-// cut, the spin, the falcon's dive, the vanishing step — plus crimson afterimages on the fast moves. Gameplay never reads
+// cut, the sheathing, the falcon's dive, the vanishing step — plus crimson afterimages on the fast moves. Gameplay never reads
 // any of this. Also the Tornado Blade's path (shared by its hits and its picture).
 import type { Motion, Timeline } from './ArcherMotion';
 import { footAllowed } from '../world/WorldGeometry';
@@ -43,10 +43,11 @@ export function samuraiMotion(id: string, e: number, T: Timeline, face: number, 
       if (r < 0) return M({ sy: 1 - 0.08 * c, sx: 1 + 0.05 * c });
       if (e < A) return M({ ang: face * 12, sx: 1.08, sy: 0.94, after: true });
       return M({ ang: face * 8 * (1 - clamp01((e - A) / T.recovery)), sy: 1 - 0.06 * kick(e - A, 200) });
-    case 'spin_cut': // the body turns with the blade (facing flips round and round)
-      if (r < 0) return M({ sy: 1 - 0.07 * c, sx: 1 + 0.04 * c });
-      if (e < A) return M({ flip: Math.floor(r / 55) % 2 === 1, dy: -4, after: true });
-      return M({ sy: 1 - 0.05 * kick(e - A, 220) });
+    case 'sheathe': { // the blade slides home: he straightens, a small dip at the click, then settles low, hand on the hilt
+      if (r < 0) return M({ sy: 1 + 0.02 * c });
+      const low = clamp01(r / Math.max(1, T.active));
+      return M({ sy: 1 - 0.05 * kick(r, 120) - 0.05 * low, sx: 1 + 0.03 * low, dx: -face * 2 * kick(r, 120) });
+    }
     case 'iai_strike': { // deep drawing stance (sinks deeper while held, a tremble at full charge), then the snap of the draw
       if (r < 0) { const d = Math.min(1, e / 600), full = e > 680 ? Math.sin(e * 1.4) * 0.8 : 0; return M({ sy: 1 - 0.13 * d, sx: 1 + 0.07 * d, ang: -face * 7 * d, dx: -face * 5 * d + full }); }
       const k = kick(r, 260);

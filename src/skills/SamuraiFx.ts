@@ -505,7 +505,8 @@ export class SamuraiFx {
     switch (s.id) {
       case 'quick_slash': if ((r.stage ?? 0) === 3) this.glint(r, T.startup * 0.3, 30); break;
       case 'shadow_step': this.glint(r, 0, 26, 50); break;
-      case 'swallow_cut': case 'spin_cut': this.glint(r, 0, 24); break;
+      case 'swallow_cut': this.glint(r, 0, 24); break;
+      case 'sheathe': this.sheathe(r); break;
       case 'sword_wave': this.glint(r, 0, 34, 80); break;
       case 'iai_strike': this.iai(r); break;
       case 'mirage': this.mirageStance(r); break;
@@ -527,7 +528,6 @@ export class SamuraiFx {
     if (!this.ready) return;
     for (const g of [r, ...this.shadows(r)]) {
       if (g.skill.id === 'shadow_step') this.stepStreak(g);
-      if (g.skill.id === 'spin_cut') this.spinRing(g, 0);
     }
   }
 
@@ -543,12 +543,11 @@ export class SamuraiFx {
       case 'quick_slash': this.quickSlash(r, i); break;
       case 'swallow_cut': this.swallow(r, i); break;
       case 'iai_strike': this.iaiCut(r); break;
-      case 'spin_cut': if (i === 1) this.spinRing(r, 1); break;
       case 'hundred_cuts': this.flurry(r, i); break;
-      case 'mirage': // the counter cut, from behind: a great draw-cut across the attacker
-        this.cut('cut_heavy', 236, side * 8, { x: q.x + side * 58, y: y0 - 56, depth: TOP + 3, flipX: side < 0, grow: 60, hold: 60, fade: 220, glow: 0.7 });
-        this.spr({ name: 'blade_trail', x: q.x + side * 40, y: y0 - 52, w: 220, life: 260, flipX: side < 0, angle: side * 6, glow: 0.4, sx: kf([0, 0.6], [0.2, 1, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
-        this.spr({ name: 'cut_line', x: q.x + side * 6, y: y0 - 58, ox: side > 0 ? 0.03 : 0.97, flipX: side < 0, w: 270, h: 18, depth: TOP + 3.2, life: 250, glow: 0.85,
+      case 'mirage': // the counter cut, from behind: a draw-cut across the attacker — drawn as far as it reaches (its 96 px, ~115 with his width)
+        this.cut('cut_heavy', 120, side * 8, { x: q.x + side * 52, y: y0 - 56, depth: TOP + 3, flipX: side < 0, grow: 60, hold: 60, fade: 220, glow: 0.7 });
+        this.spr({ name: 'blade_trail', x: q.x + side * 44, y: y0 - 52, w: 112, life: 260, flipX: side < 0, angle: side * 6, glow: 0.4, sx: kf([0, 0.6], [0.2, 1, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+        this.spr({ name: 'cut_line', x: q.x + side * 6, y: y0 - 58, ox: side > 0 ? 0.03 : 0.97, flipX: side < 0, w: 112, h: 14, depth: TOP + 3.2, life: 250, glow: 0.85,
           sx: kf([0, 0.1], [0.16, 1, out3]), sy: kf([0, 1.3], [1, 0.3, inQ]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
         if (r.own) this.ctx.cam().shake(150, 0.005);
         break;
@@ -579,7 +578,6 @@ export class SamuraiFx {
       case 'shadow_step': return { ang: 4 };
       case 'swallow_cut': return { ang: i === 1 ? 55 : -70 };
       case 'iai_strike': return { ang: 2 };
-      case 'spin_cut': return { ang: i === 1 ? -14 : 12 };
       case 'sword_wave': return { ang: 76 };
       case 'hundred_cuts': return hit.heavy ? { ang: 18 } : { ang: R(), double: Math.random() < 0.4 };
       case 'mirage': return { ang: 24 };
@@ -622,10 +620,10 @@ export class SamuraiFx {
     if (reaction === 'knockdown' || reaction === 'slam') { this.crack(at.x, at.y + 2, 120); this.dust(at.x, at.y, 120); }
     if (s.id === 'sakura_bind' && reaction === 'cc') { const hold = hit.reaction.hardCC?.ms ?? 2000; this.cage(at.x, at.y, hold); this.bindMark(at.x, at.y, hold); }
     if (DELAYED.has(s.id) && (s.id !== 'dragon_eclipse' || hit.heavy)) { // the cut arrives late: a thin line stays on the foe a beat — then splits open
-      const la = line ? ang : rnd(-28, 28);
-      this.spr({ name: 'cut_line', x, y: y - 4, angle: la, w: 196, h: 12, depth: TOP + 5, life: 200, glow: 0.85, sx: kf([0, 0.25], [0.12, 1, out3]), a: kf([0, 1], [0.86, 1], [1, 0]) });
+      const la = line ? ang : rnd(-28, 28), lw = s.id === 'mirage' ? 128 : 196; // (the counter's short cut: its mark no wider than its reach)
+      this.spr({ name: 'cut_line', x, y: y - 4, angle: la, w: lw, h: 12, depth: TOP + 5, life: 200, glow: 0.85, sx: kf([0, 0.25], [0.12, 1, out3]), a: kf([0, 1], [0.86, 1], [1, 0]) });
       this.later(190, () => {
-        this.cut('cut_split', 196, la, { x, y: y - 4, depth: TOP + 5, grow: 35, hold: 70, fade: 230, glow: 0.8 });
+        this.cut('cut_split', lw, la, { x, y: y - 4, depth: TOP + 5, grow: 35, hold: 70, fade: 230, glow: 0.8 });
         this.pop('blossom_burst', x, y - 4, 130, { life: 320, depth: TOP + 4.5, glow: 0.3, angle: rnd(0, 360) });
         this.petals(x, y, 8, 70, { depth: TOP + 3 });
         if (local) { this.ctx.cam().shake(90, 0.004); this.ctx.freeze?.(55); }
@@ -825,14 +823,20 @@ export class SamuraiFx {
     this.later(r.timings.active + r.timings.recovery * 0.6, () => this.glint(r, 0, 22, 44));   // the blade clicks back into its sheath
   }
 
-  /** Spin Cut: a ring of slash light whirling round his waist (the far half behind him, the near half in front), rising with him. */
-  private spinRing(r: CastRun, n: number): void {
-    const T = r.timings, life = (n ? T.active - (r.skill.hits[1]?.at ?? 130) : T.active) + 170, fl = sideOf(r) < 0, w = n ? 214 : 190, dz = n ? 66 : 46;
-    const f = this.front(r, 0, dz);
-    for (const [crop, z] of [[undefined, -3], [0.5, 3]] as const)
-      this.spr({ name: 'cut_ring', w, life, follow: f, dz: z, crop, glow: 0.6, flipX: fl, flick: 48,
-        sx: kf([0, 0.5], [0.18, 1, out3], [1, 1.12]), sy: kf([0, 0.5], [0.18, 1, out3], [1, 1.12]), a: kf([0, 1], [0.65, 1], [1, 0, inQ]) });
-    const p = f(); if (p) this.petals(p.x, p.y, 6, 110, { depth: p.d + 4 });
+  /** Sheathe: the blade snaps home in its sheath — at the click (the stance's release) a sharp glint at the sheath's mouth
+   *  under his hand, a flash running back along the scabbard, a few sparks, and a small crimson ring at his feet. */
+  private sheathe(r: CastRun): void {
+    const at = r.timings.startup, side = sideOf(r), f = this.front(r, 14, 52);
+    const mouth = () => { const h = this.ctx.hand(r.attackerId), p = f(); return h && p ? { x: h.x, y: h.y + 4, d: p.d } : p; };
+    this.spr({ name: 'glint', w: 40, delay: at, life: 240, run: r, glow: 0.95, dz: 6, follow: mouth,
+      sx: kf([0, 0.2], [0.18, 1.25, out3], [1, 0.5]), sy: kf([0, 0.2], [0.18, 1.25, out3], [1, 0.5]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]), rot: (u) => 45 * (1 - out(u)) });
+    this.spr({ name: 'cut_line', w: 58, h: 7, delay: at, life: 170, run: r, glow: 0.9, dz: 5, follow: mouth, ox: side > 0 ? 1 : 0, flipX: side < 0, angle: -side * 14, // (back and down along the scabbard)
+      sx: kf([0, 0.15], [0.35, 1, out3]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
+    for (let i = 0; i < 4; i++) {
+      const a = rnd(-150, -30) * (Math.PI / 180), d = rnd(14, 30), tx = Math.cos(a) * d * side, ty = Math.sin(a) * d;
+      this.spr({ name: 'spark_s', w: rnd(9, 14), delay: at, life: rnd(160, 220), run: r, glow: 0.8, dz: 7, follow: mouth, angle: rnd(0, 360), mx: (u) => tx * out(u), my: (u) => ty * out(u) + 8 * u * u, a: kf([0, 1], [1, 0, inQ]) });
+    }
+    this.later(at, () => { const c = this.me(r); this.shock(c.x, c.y, 76, { tint: 0xff3048, life: 260 }); }, r);
   }
 
   /** Hundred Cuts, a storm of swords: a cage of spectral katanas whirls round the foe while katanas of light fly through

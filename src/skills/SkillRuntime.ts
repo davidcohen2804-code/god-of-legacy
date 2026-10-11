@@ -28,6 +28,9 @@ export interface CastRequest {
   speed?: number;
   /** Book Mage caster flags at cast time: 1 Elemental Ascension, 2 Conductor, 4 Shatter Mastery. */
   mf?: number;
+  /** Primed by the caster's stance (Sheathe): no startup, a hold-to-charge skill `chargeUp` levels higher. An own cast is
+   *  judged by the runtime; a remote one carries it from its caster's screen (the caster decides). */
+  primed?: { chargeUp: number };
 }
 
 export interface CastRun extends CastRequest {
@@ -62,6 +65,8 @@ export interface CastRun extends CastRequest {
   /** Hold-to-charge skills: the startup's scale (attack speed) and the level picked when the startup ended (0..). */
   chargeScale?: number;
   chargeLevel?: number;
+  /** Primed by Sheathe: the charge levels it adds. */
+  chargeUp?: number;
   /** Own hold-to-charge run: the release was sent / taken. */
   chargeDone?: boolean;
   /** A lingering zone's hit (its origin is the zone's centre, not the caster). */
@@ -113,8 +118,16 @@ export class SkillRuntime {
   traps: Trap[] = [];
   readonly cooldownEnd = new Map<string, number>();
   private charges = new Map<string, { used: number; last: number }>();
+  /** Own priming stances (Sheathe) per caster: until when, which skills it primes, how many charge levels. */
+  private primedBy = new Map<string, { until: number; ids: string[]; chargeUp: number }>();
 
   constructor(private world: RuntimeWorld) {}
+
+  /** Would an own cast of `skillId` by `attackerId` start primed now (Sheathe)? Its extra charge levels, else null. */
+  primedFor(attackerId: string, skillId: string): number | null {
+    const p = this.primedBy.get(attackerId);
+    return p && this.world.now() <= p.until && p.ids.includes(skillId) ? p.chargeUp : null;
+  }
 
   /** End a charge sequence early: the skill goes on its full cooldown now. */
   closeCharges(s: { id: string; cooldown: number }): void { if (!this.charges.has(s.id)) return; this.charges.delete(s.id); this.cooldownEnd.set(s.id, Math.max(this.cooldownEnd.get(s.id) ?? 0, this.world.now() + s.cooldown)); }
@@ -146,11 +159,18 @@ export class SkillRuntime {
       : h.shape.kind === 'line' ? { ...h, shape: { ...h.shape, length: h.shape.length * rm } } : h);
     const pm = this.world.rangeMul?.(req) ?? 1;
     if (pm !== 1) hits = hits.map((h) => h.shape.kind === 'projectile' ? { ...h, shape: { ...h.shape, range: h.shape.range * pm } } : h);
+    // A priming stance (Sheathe): the caster's next cast, if it is one the stance primes and within its window, leaves at
+    // once (no startup; a charged skill levels higher); any other cast spends the stance. (A remote cast says so itself.)
+    let primed = req.primed ?? null;
+    if (req.own && this.primedBy.has(req.attackerId)) { const up = this.primedFor(req.attackerId, s.id); this.primedBy.delete(req.attackerId); if (up !== null) primed = { chargeUp: up }; }
+    const chargeScale = timings.startup / Math.max(1, s.startup);
+    if (primed) timings.startup = 0;
     const run: CastRun = {
       ...req, elapsed: req.own || s.charge || s.counter ? startElapsed : Math.min(startElapsed, Math.max(0, timings.startup - 16)), phase: 'startup', fired: new Set(), hitKeys: new Set(), confirmedAt: -1, // (a remote cast starts late by the network delay: its wind-up is caught up, never its strike)
       pathStart: { x: req.origin.x, y: req.origin.y }, counterTriggered: false, extraRecovery: 0, timings, hits,
-      ...(s.charge ? { chargeScale: timings.startup / Math.max(1, s.startup) } : {}), ...(ts ? { tune: ts } : {}),
+      ...(s.charge ? { chargeScale } : {}), ...(ts ? { tune: ts } : {}), ...(primed ? { primed, chargeUp: primed.chargeUp } : {}),
     };
+    if (req.own && s.primes) this.primedBy.set(req.attackerId, { until: this.world.now() + timings.startup + timings.active + s.primes.windowMs, ids: s.primes.ids, chargeUp: s.primes.chargeUp ?? 0 });
     if (req.own && s.cooldown > 0) {
       // Charged skills: N quick uses in a row (window 7s between uses), then the full cooldown.
       const now = this.world.now(), ch = this.charges.get(s.id), cd = s.cooldown * (this.world.cooldownMul?.(req) ?? 1);
@@ -170,6 +190,7 @@ export class SkillRuntime {
 
   /** Interrupt the own caster (death / scene exit / hard reaction): pending startup/active cancelled, no refund. */
   cancelOwn(reason: 'death' | 'sceneExit' | 'hit' | 'cancel'): void {
+    if (reason !== 'cancel') this.primedBy.clear(); // (struck out of it: the stance primes nothing)
     for (const r of this.runs) {
       if (!r.own || r.phase === 'done') continue;
       if (reason === 'cancel' && r.phase === 'recovery') { r.phase = 'done'; continue; }
@@ -236,6 +257,7 @@ export class SkillRuntime {
       if (r.skill.charge) { // hold-to-charge: the level the startup reached picks the hits
         const held = T.startup / (r.chargeScale ?? 1), L = r.skill.charge.levels;
         let lv = 0; L.forEach((l, i) => { if (held >= l.at - 1) lv = i; });
+        lv = Math.min(L.length - 1, lv + (r.chargeUp ?? 0)); // (primed by Sheathe: levels higher)
         r.chargeLevel = lv; r.hits = arenaReach(L[lv].hits, r.tune);
       }
       r.phase = 'active';

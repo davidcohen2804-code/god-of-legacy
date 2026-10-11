@@ -15,7 +15,7 @@ import { AnimSnap, Mode, poseQuery } from '../game/PoseState';
 import { Afterimages, applyMotion, archerMotion, heroMotion } from '../skills/ArcherMotion';
 import { SAMURAI_AFTER, samuraiMotion, samuraiSeen } from '../skills/SamuraiMotion';
 import { finalSkill } from '../skills/FinalKit';
-import { KAGE, KageMode, KageSeen, decodeKage, kageFeintMotion, kageSnap, kageTargets } from '../skills/Kagemusha';
+import { KAGE, KageMode, KageSeen, decodeKage, kageFeintMotion, kageFlicker, kageSnap, kageTargets } from '../skills/Kagemusha';
 import type { HitTarget, V3 } from '../skills/HitGeometry';
 import type { BaseLook } from '../game/Body';
 
@@ -64,6 +64,8 @@ export class RemotePlayer {
   private kageGone = new Set<number>();
   /** He is hidden among them (his state says so; and right after his cast, until that state comes). */
   kageHidden = false;
+  /** When he vanished among his doubles (performance.now(); -1: not hidden) — after 1.5 s his body flickers faintly. */
+  private kageHidSince = -1;
   private kageHold = 0;
   /** A double comes / goes / feints (the scene draws it: ink, petals, a cut in the air). */
   onKage?: (at: V3, how: 'appear' | 'burst' | 'fade' | 'feint', face?: number, stage?: number) => void;
@@ -216,7 +218,8 @@ export class RemotePlayer {
     let jx = 0, jz = 0;
     if (this.shakeMs > 0) { this.shakeMs -= ms; const f = Math.min(1, this.shakeMs / 60); jx = (Math.random() - 0.5) * 7 * f; jz = Math.random() * 2.5 * f; }
     const hid = this.alive && (this.kageHidden || (!this.skill && performance.now() < this.kageHold)); // Kagemusha: hidden among his doubles
-    const seen = hid ? 0 : this.meta.classId === 'samurai' && this.skill && this.alive ? samuraiSeen(this.skill.id, this.skill.elapsed, this.skill) : 1; // he vanishes (Shadow Step, Kagemusha, Dragon Eclipse)
+    if (hid) { if (this.kageHidSince < 0) this.kageHidSince = performance.now(); } else this.kageHidSince = -1;
+    const seen = hid ? kageFlicker(performance.now() - this.kageHidSince) : this.meta.classId === 'samurai' && this.skill && this.alive ? samuraiSeen(this.skill.id, this.skill.elapsed, this.skill) : 1; // he vanishes (Shadow Step, Kagemusha, Dragon Eclipse)
     alpha *= seen;
     const snap: AnimSnap = { mode: this.skill ? 'skill' : this.mode, t: this.modeT, speed: this.speed, vz: this.vz, skill: this.skill ?? undefined, stunMs: 200, air2: this.air2At >= 0 ? performance.now() - this.air2At : undefined };
     const pose = resolvePose(this.meta.classId as ClassKey, this.dir, poseQuery(snap), this.view.wantsBase, this.meta.gender === 'female' ? 'female' : 'male', !!this.meta.hero);

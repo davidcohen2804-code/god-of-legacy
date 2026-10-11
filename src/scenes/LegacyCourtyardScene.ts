@@ -2436,7 +2436,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private startCast(s: FinalSkill, stage: number, aim: V2, place: V2 | null, lock: string | null, followUp = false): void {
     this.lastCastAt = this.simMs;
     const k = this.kin;
-    const ct = this.castTimes(s, stage, followUp); // (the arena's warrior: his base pace, as the runtime plays it)
+    const primeUp = this.rt!.primedFor(this.localId, s.id), ct0 = this.castTimes(s, stage, followUp); // (the arena's warrior: his base pace, as the runtime plays it)
+    const ct = primeUp !== null ? { ...ct0, startup: 0 } : ct0; // (primed by Sheathe: it leaves the sheath at once)
     if (stage === 0 && !MP_FREE) this.mp = Math.max(0, this.mp - mpCost(s));
     // Lunge-in: melee skills step toward a soft-locked target that is just out of reach.
     this.lunge = null;
@@ -2472,7 +2473,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.chain) this.chain = { stage, lastEnd: Infinity, skill: s.id };
     this.setMode('skill');
     const dm = this.ownDamageMul(s), rm = s.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.4 : 1; // buffs travel with the cast (victim-side damage / reach)
-    this.pvp?.sendCast({ castId, skillId: s.id, stage, x: Math.round(from.x), y: Math.round(from.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000), ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}), lock, ...(followUp ? { fu: 1 } : {}), ...(dm !== 1 ? { dm: Math.round(dm * 100) } : {}), ...(rm !== 1 ? { rm: Math.round(rm * 100) } : {}), ...(this.ownRangeMul(s) !== 1 ? { rg: Math.round(this.ownRangeMul(s) * 100) } : {}), ...(this.ownSpeedMul(s) !== 1 ? { sp: Math.round(this.ownSpeedMul(s) * 100) } : {}), ...(this.kage?.isAmbush(castId) ? { amb: 1 } : {}), ...(mf ? { mf } : {}) });
+    this.pvp?.sendCast({ castId, skillId: s.id, stage, x: Math.round(from.x), y: Math.round(from.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000), ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}), lock, ...(followUp ? { fu: 1 } : {}), ...(dm !== 1 ? { dm: Math.round(dm * 100) } : {}), ...(rm !== 1 ? { rm: Math.round(rm * 100) } : {}), ...(this.ownRangeMul(s) !== 1 ? { rg: Math.round(this.ownRangeMul(s) * 100) } : {}), ...(this.ownSpeedMul(s) !== 1 ? { sp: Math.round(this.ownSpeedMul(s) * 100) } : {}), ...(this.kage?.isAmbush(castId) ? { amb: 1 } : {}), ...(mf ? { mf } : {}), ...(run.primed ? { pr: 1 + run.primed.chargeUp } : {}) });
   }
 
   /** Archer casts: buffs, the tree, the channelled storm (timers on the sim clock, from the run's real startup). */
@@ -2941,7 +2942,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const k = this.kin, c = run.skill.counter!;
     const away = unit(k.x - from.x, k.y - from.y), side = { x: -away.y, y: away.x };
     let moved = false;
-    for (let d = c.behind ?? 0; d >= 26 && !moved; d -= 6) { // the mirage takes the blow: he reappears behind the attacker
+    const near = Math.hypot(k.x - from.x, k.y - from.y) <= ARENA_FLOW.pokeRange; // behind the attacker only when he is close (a shot from afar: a sidestep)
+    for (let d = near ? c.behind ?? 0 : 0; d >= 26 && !moved; d -= 6) { // the mirage takes the blow: he reappears behind the attacker
       const nx = from.x - away.x * d, ny = from.y - away.y * d;
       if (footAllowed(nx, ny, k.z, R)) { k.x = nx; k.y = ny; moved = true; }
     }
@@ -3585,7 +3587,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (m.amb && s.cls === 'samurai' && r.kageGhosts().length) this.ambushIn.add(m.castId); // made while his doubles stand: an ambush
     const run = this.rt?.start({ castId: m.castId, skill: s, stage: Math.max(0, Math.min(2, m.stage ?? 0)), attackerId: from, own: false, origin: { x: m.x, y: m.y, z: m.z ?? 0 }, aim: unit(m.ax, m.ay), place, lock: m.lock ?? null, followUp: !!m.fu,
       dmgMul: Math.max(0.3, Math.min(1.4, (m.dm ?? 100) / 100)), reach: Math.max(1, Math.min(1.85, (m.rm ?? 100) / 100)),
-      range: Math.max(1, Math.min(1.2, (m.rg ?? 100) / 100)), speed: Math.max(1, Math.min(1.35, (m.sp ?? 100) / 100)), ...(m.mf ? { mf: m.mf } : {}) }, this.pvp?.oneWay(from) ?? 0); // (it left their hand one network delay ago: its wind-up is caught up)
+      range: Math.max(1, Math.min(1.2, (m.rg ?? 100) / 100)), speed: Math.max(1, Math.min(1.35, (m.sp ?? 100) / 100)), ...(m.mf ? { mf: m.mf } : {}), ...(m.pr && kitFor(s.cls).some((x) => x.primes?.ids.includes(s.id)) ? { primed: { chargeUp: Math.max(0, Math.min(2, m.pr - 1)) } } : {}) }, this.pvp?.oneWay(from) ?? 0); // (pr: primed by his Sheathe — his screen decides) // (it left their hand one network delay ago: its wind-up is caught up)
     if (run) { this.remoteRuns.set(m.castId, { run, at: this.simMs }); for (const [k, v] of this.remoteRuns) if (this.simMs - v.at > 4000) this.remoteRuns.delete(k); }
     if (run && s.id === 'judgment_blade') { // the blade leaves the caster's hand when its release message arrives (fallback: a little after the full charge)
       run.timings.startup = s.startup + 600; r.setSkillStartup(s.id, run.timings.startup);

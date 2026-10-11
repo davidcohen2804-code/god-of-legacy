@@ -1,7 +1,7 @@
 // Kagemusha (samurai): he vanishes in a burst of ink and petals; a ring of shadow doubles — his body, his name plate (and on
 // other screens his name and HP bar) — stands round the spot, then they scatter and move on their own: run, stop, turn,
-// close in on the foe and feint at it. He stays hidden (unseen on every other screen; a shade on his own) for 6 s, so the
-// one facing him never knows where the real blade is. When he strikes he steps out of hiding and the doubles swing with
+// close in on the foe and feint at it. He stays hidden (unseen on every other screen; a shade on his own) for 3 s, so the
+// one facing him never knows where the real blade is — but after 1.5 s his real body flickers faintly on their screens. When he strikes he steps out of hiding and the doubles swing with
 // him; his first hit that lands is an AMBUSH (a sure critical and a short stun) and the doubles burst into petals; a blow
 // on a double bursts it (the blow is wasted); a hit on him ends it all. The caster's screen runs the doubles and sends
 // where they are and what they do with his movement state; every other screen draws them from that (RemotePlayer).
@@ -17,11 +17,13 @@ import { Afterimages, applyMotion, type Motion } from './ArcherMotion';
 import { SAMURAI_AFTER, samuraiMotion } from './SamuraiMotion';
 
 export const KAGE = {
-  lifeMs: 6000,
+  lifeMs: 3000,
+  /** After this long hidden, his real body flickers faintly on the other screens (the foe can find the real blade). */
+  flickerAfterMs: 1500,
   /** The ring: this many doubles, this far round him. */
   count: 5, ring: 112,
   /** AMBUSH, the first real hit: a sure critical (×1.5 on players, who take no criticals otherwise) and this stun (ms). */
-  ambushMul: 1.5, ambushStun: 650,
+  ambushMul: 1.5, ambushStun: 300,
   /** A double's swing against monsters, of his damage. */
   monsterMul: 0.3,
   /** A double's feet (walls and props stop the doubles as they stop him). */
@@ -33,6 +35,14 @@ export const KAGE = {
   /** He sees himself as a shade while hidden (everyone else sees nothing). */
   shade: 0.42,
 };
+
+/** How much of the hidden samurai shows on another screen `ms` after he vanished: nothing at first, then (after
+ *  KAGE.flickerAfterMs) a faint flicker — a short shimmer of his body about twice a second. */
+export function kageFlicker(ms: number): number {
+  if (ms < KAGE.flickerAfterMs) return 0;
+  const ph = (ms - KAGE.flickerAfterMs) % 430;
+  return ph < 110 ? 0.24 * Math.sin((ph / 110) * Math.PI) : 0;
+}
 
 /** A double's feint: a quick cut in the air (its own timeline; the stage picks which of the four cuts). */
 export const FEINT = { id: 'quick_slash', startup: 75, active: 70, recovery: 150 };

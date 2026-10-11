@@ -130,6 +130,9 @@ export interface FinalSkill {
   /** Hold-to-charge: the key held keeps the startup going (up to `startup`, at least minMs); at the release the level whose
    *  `at` the startup reached picks the hits (both sides pick it from the startup: the release is sent to the others). */
   charge?: { minMs: number; levels: { at: number; hits: HitEvent[] }[] };
+  /** A priming stance (the samurai's Sheathe): the caster's next cast, if it is one of `ids` and starts within `windowMs`
+   *  of the stance's end, has no startup — a hold-to-charge skill `chargeUp` levels higher. Any other cast spends it. */
+  primes?: { ids: string[]; windowMs: number; chargeUp?: number };
   /** Dash carries the first confirmed target along on the blade. */
   carry?: boolean;
   /** fuseMs: stepping on it arms it (hits[0] at once), then it explodes after fuseMs (hits[1] on everyone in it). */

@@ -620,19 +620,19 @@ const samurai: FinalSkill[] = [
   S({
     id: 'quick_slash', cls: 'samurai', slot: 0, name: 'Quick Slash', roles: ['basic', 'confirm'], targeting: 'aimAssist',
     startup: 75, active: 70, recovery: 100, cooldown: 0, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 10, { kind: 'sector', range: 80, angle: 110 }, { stun: 150, push: 3 }, { reachUp: 70 })],
+    hits: [H(0, 10, { kind: 'sector', range: 100, angle: 110 }, { stun: 150, push: 3 }, { reachUp: 70 })],
     chain: {
       resetMs: 600,
       stages: [
-        [H(0, 9, { kind: 'sector', range: 80, angle: 110 }, { stun: 300, push: 3 }, { reachUp: 70 })],
-        [H(0, 9, { kind: 'sector', range: 80, angle: 110 }, { stun: 300, push: 3 }, { reachUp: 70 })],
-        [H(0, 6, { kind: 'sector', range: 84, angle: 120 }, { stun: 320, push: 2 }, { reachUp: 80 }),
-          H(60, 6, { kind: 'sector', range: 84, angle: 120 }, { stun: 320, push: 4 }, { reachUp: 80 })],
-        [H(0, 14, { kind: 'sector', range: 90, angle: 130 }, { stun: 420, launch: 70, juggleCost: 12 }, { reachUp: 110, heavy: true })],
+        [H(0, 9, { kind: 'sector', range: 100, angle: 110 }, { stun: 300, push: 3 }, { reachUp: 70 })],
+        [H(0, 9, { kind: 'sector', range: 100, angle: 110 }, { stun: 300, push: 3 }, { reachUp: 70 })],
+        [H(0, 6, { kind: 'sector', range: 104, angle: 120 }, { stun: 320, push: 2 }, { reachUp: 80 }),
+          H(60, 6, { kind: 'sector', range: 104, angle: 120 }, { stun: 320, push: 4 }, { reachUp: 80 })],
+        [H(0, 14, { kind: 'sector', range: 110, angle: 130 }, { stun: 420, launch: 70, juggleCost: 12 }, { reachUp: 110, heavy: true })],
       ],
       timings: [{ startup: 75, active: 70, recovery: 100 }, { startup: 70, active: 70, recovery: 100 }, { startup: 80, active: 120, recovery: 110 }, { startup: 95, active: 90, recovery: 190 }],
     },
-    cancelOnHit: ['shadow_step', 'spin_cut', 'iai_strike', 'sword_wave'],
+    cancelOnHit: ['shadow_step', 'sheathe', 'iai_strike', 'sword_wave'],
     description: 'Four quick cuts: tap or hold Space. Slash, backhand, a cross cut, then a rising cut that lifts the foe — the opening for your skills.',
     relations: ['Hold Space to chain', 'Cancel into skills on hit'],
   }),
@@ -641,26 +641,26 @@ const samurai: FinalSkill[] = [
     startup: 100, active: 150, recovery: 150, cooldown: 3500, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 160 }, through: true, charges: 2, chargeGap: 200,
     hits: [H(0, 22, { kind: 'capsule', radius: 28 }, { stun: 400, push: 8 }, { reachUp: 200 })], // (held long enough for the next cut, turned back toward him)
-    cancelOnHit: ['spin_cut', 'iai_strike', 'quick_slash', 'blossom_storm', 'dragon_eclipse'], telegraph: 'line',
+    cancelOnHit: ['sheathe', 'iai_strike', 'quick_slash', 'blossom_storm', 'dragon_eclipse'], telegraph: 'line',
     description: 'Step through the foe in a blink, cutting as you pass, and land behind it facing it. Two steps in a row, then the cooldown.',
     relations: ['2 steps in a row', 'Cancel → Swallow Cut'],
   }),
   S({
-    id: 'spin_cut', cls: 'samurai', slot: 2, name: 'Spin Cut', roles: ['extender', 'airExtender'], targeting: 'self',
-    startup: 110, active: 260, recovery: 170, cooldown: 4000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    dash: { distance: 24, lift: 70 }, // he rises with the spin (and with the foe it lifts)
-    hits: [H(0, 12, { kind: 'circle', radius: 96 }, { stun: 320, launch: 60, juggleCost: 12 }, { reachUp: 220 }),
-      H(130, 12, { kind: 'circle', radius: 100 }, { stun: 320, float: true, juggleCost: 6 }, { reachUp: 230 })],
-    cancelOnHit: ['iai_strike', 'quick_slash', 'sword_wave', 'blossom_storm', 'dragon_eclipse'], telegraph: 'circle',
-    description: 'Spin with the blade out and rise with it: two cuts all around you lift the foe and keep it in the air with you.',
-    relations: ['Rises with the foe', 'Cancel → Iai Strike'],
+    id: 'sheathe', cls: 'samurai', slot: 2, name: 'Sheathe', roles: ['setup'], targeting: 'self',
+    startup: 40, active: 90, recovery: 20, cooldown: 3000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    // a 150 ms stance (its last 10 ms already open to the next cut: no frame of a bare blade between), cancelled into from any hit: the blade snaps home in its sheath with a click — and for 0.6 s after
+    // it the next Iai Strike or Quick Slash leaves the sheath at once (SkillRuntime: primes), the Iai one charge level higher
+    hits: [], primes: { ids: ['iai_strike', 'quick_slash'], windowMs: 600, chargeUp: 1 },
+    cancelOnHit: ['iai_strike', 'quick_slash'],
+    description: 'Snap the blade home in its sheath with a click: a 150 ms stance you can cancel into from any hit. For 0.6s after it, your next Iai Strike or Quick Slash leaves the sheath at once — no wind-up — and the Iai Strike one charge level higher.',
+    relations: ['Cancel from any hit', 'Next Iai / Quick Slash: instant'],
   }),
   S({
     id: 'iai_strike', cls: 'samurai', slot: 3, name: 'Iai Strike', roles: ['precision', 'finisher'], targeting: 'mouseLine',
     startup: 900, active: 80, recovery: 260, cooldown: 5500, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    // hold the key: the drawing stance charges (startup = how long it was held, 160..900 ms); the level picks the cut
+    // hold the key: the drawing stance charges (startup = how long it was held, 130..900 ms); the level picks the cut
     hits: [H(0, 30, { kind: 'line', length: 160, width: 36 }, { stun: 380, push: 12 }, { reachUp: 200, heavy: true })],
-    charge: { minMs: 160, levels: [
+    charge: { minMs: 130, levels: [
       { at: 0, hits: [H(0, 30, { kind: 'line', length: 160, width: 36 }, { stun: 380, push: 12 }, { reachUp: 200, heavy: true })] },
       { at: 340, hits: [H(0, 44, { kind: 'line', length: 230, width: 40 }, { stun: 420, knockdown: 'light', push: 14 }, { reachUp: 210, heavy: true })] },
       { at: 680, hits: [H(0, 64, { kind: 'line', length: 320, width: 48 }, { stun: 460, knockdown: 'heavy', push: 18 }, { reachUp: 220, heavy: true })] },
@@ -672,19 +672,19 @@ const samurai: FinalSkill[] = [
   S({
     id: 'sword_wave', cls: 'samurai', slot: 4, name: 'Sword Wave', roles: ['projectile'], targeting: 'mouseProjectile',
     startup: 150, active: 0, recovery: 180, cooldown: 6000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    charges: 3, chargeGap: 150,
+    charges: 2, chargeGap: 150,
     hits: [H(0, 26, { kind: 'projectile', speed: 800, range: 380, radius: 18 }, { stun: 230, push: 12, float: true, juggleCost: 15 })],
     cancelOnHit: ['shadow_step', 'blossom_storm'],
-    description: 'Fling a crimson crescent of steel that flies fast and pops the foe up. Press again or hold the key to throw up to three in a row. Walls stop it.',
-    relations: ['Up to 3 in a row', 'Pop-up'],
+    description: 'Fling a crimson crescent of steel that flies fast and pops the foe up. Press again or hold the key to throw a second one. Walls stop it.',
+    relations: ['2 in a row', 'Pop-up'],
   }),
   S({
     id: 'mirage', cls: 'samurai', slot: 5, name: 'Mirage Counter', roles: ['counter', 'escape'], targeting: 'mouseDir',
     startup: 120, active: 420, recovery: 260, cooldown: 7000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    counter: { window: 420, sidestep: 46, behind: 62 },
+    counter: { window: 260, sidestep: 46, behind: 62 },
     hits: [H(0, 24, { kind: 'sector', range: 96, angle: 140 }, { stun: 320, push: 20, launch: 55, juggleCost: 20 }, { reachUp: 90, heavy: true })],
     cancelOnHit: ['quick_slash', 'shadow_step', 'blossom_storm', 'dragon_eclipse'],
-    description: 'Take the counter stance for a moment: a blow that reaches you hits only a mirage — it shatters into ink and petals — and you reappear behind the attacker with a cut that throws him up. If no blow comes, you are open.',
+    description: 'Take the counter stance for a moment: a blow that reaches you hits only a mirage — it shatters into ink and petals — and you reappear behind the attacker (if he is close; from afar you only sidestep) with a cut that throws him up. If no blow comes, you are open.',
     relations: ['Counter', 'Launch on counter'],
   }),
   S({
@@ -711,16 +711,16 @@ const samurai: FinalSkill[] = [
   // ---- extended kit (Q R F G C V T H Z X)
   S({
     id: 'swallow_cut', cls: 'samurai', arenaLaunch: 0.5, slot: 8, name: 'Swallow Cut', roles: ['launcher', 'antiAir'], targeting: 'mouseCone',
-    startup: 120, active: 220, recovery: 240, cooldown: 3000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    startup: 120, active: 220, recovery: 200, cooldown: 3000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(0, 15, { kind: 'sector', range: 104, angle: 110 }, { stun: 420, launch: 150, juggleCost: 30 }, { reachUp: 220 }),
       H(130, 10, { kind: 'sector', range: 108, angle: 120 }, { stun: 340, float: true, juggleCost: 6 }, { reachUp: 240 })],
-    cancelOnHit: ['quick_slash', 'shadow_step', 'iai_strike', 'spin_cut', 'hundred_cuts', 'falcon_dive', 'tornado_blade', 'phantom_blades'],
+    cancelOnHit: ['quick_slash', 'shadow_step', 'iai_strike', 'sheathe', 'hundred_cuts', 'falcon_dive', 'tornado_blade', 'phantom_blades'],
     description: 'The blade rises in a crescent that throws the foe into the air, then turns back like a swallow for a second cut while it hangs there.',
     relations: ['Launcher', 'Jump → Hundred Cuts'],
   }),
   S({
     id: 'hundred_cuts', cls: 'samurai', arenaLaunch: 0.6, slot: 9, name: 'Hundred Cuts', roles: ['extender', 'airExtender'], targeting: 'mouseCone',
-    startup: 130, active: 1040, recovery: 220, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1170],
+    startup: 130, active: 1040, recovery: 220, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 130], // (armor in the wind-up only)
     hits: [...Array.from({ length: 12 }, (_, i) => H(i * 80, 3, { kind: 'sector', range: 110, angle: 130 }, { stun: 300, float: true, juggleCost: 2 }, { reachUp: 200 })),
       H(1000, 12, { kind: 'sector', range: 118, angle: 140 }, { stun: 420, push: 34, launch: 70, juggleCost: 10 }, { reachUp: 200, heavy: true })],
     cancelOnHit: ['swallow_cut', 'iai_strike', 'sword_wave', 'falcon_dive', 'phantom_blades', 'blossom_storm', 'dragon_eclipse'],
@@ -731,8 +731,8 @@ const samurai: FinalSkill[] = [
     id: 'kagemusha', cls: 'samurai', slot: 10, name: 'Kagemusha', roles: ['setup'], targeting: 'self',
     startup: 220, active: 80, recovery: 160, cooldown: 18000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(0, 3, { kind: 'circle', radius: 110 }, { stun: 240, push: 16, drop: true }, { reachUp: 120 })], tags: ['buff'], // (a buff: no juggle link — a foe in the air keeps falling)
-    description: 'Vanish in a burst of ink and petals: a ring of five shadow doubles stands round the spot, then they scatter and move on their own — running, stopping, closing in on the foe and feinting at it — while you stay hidden among them for 6s. Strike and you step out of hiding, the doubles swinging with you (no damage; 30% against monsters). Monsters go after the doubles; a double that is struck bursts into petals. Your first real hit is an AMBUSH: a sure critical and a short stun, and the doubles vanish. If you are struck, they vanish at once.',
-    relations: ['5 doubles · hidden 6s', 'Ambush: sure critical + stun'],
+    description: 'Vanish in a burst of ink and petals: a ring of five shadow doubles stands round the spot, then they scatter and move on their own — running, stopping, closing in on the foe and feinting at it — while you stay hidden among them for 3s (after 1.5s the foe catches a faint flicker of you). Strike and you step out of hiding, the doubles swinging with you (no damage; 30% against monsters). Monsters go after the doubles; a double that is struck bursts into petals. Your first real hit is an AMBUSH: a sure critical and a short stun, and the doubles vanish. If you are struck, they vanish at once.',
+    relations: ['5 doubles · hidden 3s', 'Ambush: sure critical + stun'],
   }),
   S({
     id: 'tornado_blade', cls: 'samurai', slot: 11, name: 'Tornado Blade', roles: ['zone', 'pull'], targeting: 'mouseDir',
@@ -746,7 +746,7 @@ const samurai: FinalSkill[] = [
   }),
   S({
     id: 'falcon_dive', cls: 'samurai', slot: 12, name: 'Falcon Dive', roles: ['gapClose', 'knockdown'], targeting: 'mouseTarget',
-    startup: 180, active: 340, recovery: 360, cooldown: 5000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    startup: 180, active: 340, recovery: 300, cooldown: 5000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 230, lift: 120, crash: true },
     hits: [H(150, 10, { kind: 'circle', radius: 90 }, { stun: 300, slam: true }, { reachUp: 200 }),
       H(300, 24, { kind: 'circle', radius: 135 }, { stun: 380, launch: 100, juggleCost: 25 }, { reachUp: 220, heavy: true })],
@@ -764,11 +764,11 @@ const samurai: FinalSkill[] = [
   }),
   S({
     id: 'phantom_blades', cls: 'samurai', arenaLaunch: 0.55, slot: 14, name: 'Phantom Blades', roles: ['finisher', 'zone'], targeting: 'mouseCone',
-    startup: 420, active: 640, recovery: 340, cooldown: 18000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1100],
-    hits: [...[0, 80, 160, 240, 320, 400, 480].map((t) => H(t, 7, { kind: 'circle', radius: 220, at: 'aimBias', bias: 150 }, { stun: 400, float: true, juggleCost: 3 }, { reachUp: 280 })),
-      H(600, 22, { kind: 'circle', radius: 230, at: 'aimBias', bias: 150 }, { stun: 500, launch: 130, juggleCost: 20 }, { reachUp: 280, heavy: true })],
+    startup: 420, active: 640, recovery: 340, cooldown: 18000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 420],
+    hits: [...[0, 80, 160, 240, 320, 400, 480].map((t) => H(t, 7, { kind: 'circle', radius: 140, at: 'aimBias', bias: 150 }, { stun: 400, float: true, juggleCost: 3 }, { reachUp: 280 })),
+      H(600, 22, { kind: 'circle', radius: 146, at: 'aimBias', bias: 150 }, { stun: 500, launch: 130, juggleCost: 20 }, { reachUp: 280, heavy: true })],
     cancelOnHit: ['blossom_storm', 'dragon_eclipse', 'god_of_blades'], telegraph: 'circle',
-    description: 'Draw once, and a thousand phantom blades cut the whole field in front of you: seven cuts on every foe in it, the last one throws them all into the air.',
+    description: 'Draw once, and a thousand phantom blades cut the field in front of you: seven cuts on every foe in it, the last one throws them all into the air.',
     relations: ['Wide area', 'Cancel → Blossom Storm'],
   }),
   S({
@@ -785,20 +785,20 @@ const samurai: FinalSkill[] = [
     id: 'sakura_bind', cls: 'samurai', slot: 16, name: 'Sakura Bind', roles: ['hardCC', 'pull', 'setup'], targeting: 'mouseGround',
     startup: 240, active: 160, recovery: 220, cooldown: 12000, ground: true, air: false, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
     placeRange: 90, snapPlace: true, // (opened just in front of him, on his line: the arena places it ahead, never under the foe — in a combo the foe is that close)
-    hits: [H(0, 8, { kind: 'placed', radius: 125 }, { stun: 400, pull: 70, catch: true, hardCC: { kind: 'root', ms: 2000 } }, { reachUp: 60 })],
+    hits: [H(0, 8, { kind: 'placed', radius: 125 }, { stun: 400, pull: 70, catch: true, hardCC: { kind: 'root', ms: 900 } }, { reachUp: 60 })],
     // the combo's catch (DFO): the blossoms stay on the floor ~1.2s — a foe that comes down into them (from a slam, a fall)
     // is caught on landing, stood up and held by the branches: the string goes on (a launch from the floor)
     linger: { at: 'place', startMs: 60, everyMs: 60, count: 20, radius: 125, maxZ: 50, once: true, fresh: true,
-      hit: H(0, 6, { kind: 'circle', radius: 125 }, { stun: 420, pull: 70, catch: true, hardCC: { kind: 'root', ms: 1200, long: true } }, { reachUp: 50 }) },
+      hit: H(0, 6, { kind: 'circle', radius: 125 }, { stun: 420, pull: 70, catch: true, hardCC: { kind: 'root', ms: 900, long: true } }, { reachUp: 50 }) },
     cancelOnHit: ['quick_slash', 'shadow_step', 'hundred_cuts', 'phantom_blades', 'tornado_blade', 'iai_strike', 'dragon_ascension', 'swallow_cut'], telegraph: 'ground',
-    description: 'A ring of cherry blossoms opens on the floor just in front of you: every foe in it is pulled to its centre and held by blossoming branches for 2s — and the blossoms stay on the floor a moment: a foe that comes down into them is caught on landing and held. Ready for your cuts.',
-    relations: ['Pull + bind 2s', 'Catches a falling foe'],
+    description: 'A ring of cherry blossoms opens on the floor just in front of you: every foe in it is pulled to its centre and held by blossoming branches for 0.9s — and the blossoms stay on the floor a moment: a foe that comes down into them is caught on landing and held. Ready for your cuts.',
+    relations: ['Pull + bind 0.9s', 'Catches a falling foe'],
   }),
   S({
     id: 'dragon_ascension', cls: 'samurai', arenaLaunch: 0.55, slot: 17, name: 'Dragon Ascension', roles: ['launcher', 'extender'], targeting: 'self',
-    startup: 260, active: 600, recovery: 300, cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 900],
-    hits: [H(0, 18, { kind: 'circle', radius: 150 }, { stun: 460, launch: 145, juggleCost: 30 }, { reachUp: 220, heavy: true }), // (lifts ~190 px: the follow-ups reach it at once)
-      ...[160, 320, 480].map((t) => H(t, 7, { kind: 'circle', radius: 160 }, { stun: 380, float: true, juggleCost: 4 }, { reachUp: 380 }))],
+    startup: 260, active: 600, recovery: 300, cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 260],
+    hits: [H(0, 18, { kind: 'circle', radius: 120 }, { stun: 460, launch: 145, juggleCost: 30 }, { reachUp: 220, heavy: true }), // (lifts ~190 px: the follow-ups reach it at once)
+      ...[160, 320, 480].map((t) => H(t, 7, { kind: 'circle', radius: 130 }, { stun: 380, float: true, juggleCost: 4 }, { reachUp: 380 }))],
     cancelOnHit: ['falcon_dive', 'hundred_cuts', 'phantom_blades', 'blossom_storm', 'dragon_eclipse'], telegraph: 'circle',
     description: 'A crimson dragon spirals up from your blade and carries every foe around you high into the air, cutting them as it rises.',
     relations: ['Big launcher', 'Air chase → Falcon Dive'],
@@ -1085,7 +1085,9 @@ const ARCHER_LINKS: Record<string, string[]> = {
 };
 for (const a of archer) for (const id of ARCHER_LINKS[a.id] ?? []) if (!a.cancelOnHit.includes(id)) a.cancelOnHit.push(id);
 // Samurai extended kit: every core skill (and the basic chain) can cancel into the new cuts on a confirmed hit.
-for (const m of samurai) if (m.slot <= 5) for (const id of ['swallow_cut', 'hundred_cuts', 'falcon_dive', 'tornado_blade']) if (!m.cancelOnHit.includes(id)) m.cancelOnHit.push(id);
+for (const m of samurai) if (m.slot <= 5 && !m.primes) for (const id of ['swallow_cut', 'hundred_cuts', 'falcon_dive', 'tornado_blade']) if (!m.cancelOnHit.includes(id)) m.cancelOnHit.push(id);
+// Sheathe: cancelled into from any hit of his (the ultimate's cut is its own end).
+for (const m of samurai) if (!m.primes && m.slot !== 7 && m.cancelOnHit.length && !m.cancelOnHit.includes('sheathe')) m.cancelOnHit.push('sheathe');
 /** The mage's effects that are no skill of their own (slot 99: never on the bar, never in the Spell Weave): the frost rune
  *  Blink Mastery leaves, the Arcane Ward's burst, a broken rune beam, a conducted arc, the shards of a shatter. */
 const hidden = (id: string, name: string, hit: HitEvent): FinalSkill => ({ ...mage[0], id, name, slot: 99, hits: [hit], move: LOCK, cooldown: 0, cancelOnHit: [], tags: [], relations: [], description: '', roles: ['setup'] });

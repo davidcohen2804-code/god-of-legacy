@@ -573,7 +573,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
   samurai: {
     shadow_step: { act: 'shadow_step', st: [0], ac: [1, 2], rc: [3, 4, 5] },
     swallow_cut: { act: 'swallow_cut', st: [0], ac: [1, 2, 3, 4], rc: [4, 5] },
-    spin_cut: { act: 'spin_cut', st: [0], ac: [0], rc: [0], loop: [0, 1, 2, 3, 4], fps: 16 },
+    sheathe: { act: 'iai_strike', st: [4], ac: [5, 0], rc: [0] }, // the blade slides home (the Iai's own return), the click, then low again with the hand on the hilt
     iai_strike: { act: 'iai_strike', st: [0, 1], ac: [2], rc: [3, 4, 5] },
     sword_wave: { act: 'sword_wave', st: [0], ac: [1], rc: [1, 2] },
     mirage: { act: 'mirage', st: [0], ac: [0, 1, 0, 1], rc: [2, 3, 4, 5] },
@@ -767,7 +767,7 @@ const SEQ: Record<string, Seq> = {
   eagle_arrow: { st: at(0, 1, 2, 2), ac: at(3), rc: [['attack', 3], ['attack', 3], ['idle', 0]] },
   quick_slash: { st: at(0), ac: at(1, 2), rc: at(3) },
   shadow_step: { st: [['run', 1]], ac: [['run', 3], ['attack', 2]], rc: [['attack', 3], ['idle', 0]] },
-  spin_cut: { st: at(0), ac: at(2, 1, 2), rc: [['attack', 3], ['idle', 0]] },
+  sheathe: { st: at(3), ac: at(1), rc: at(1) },
   iai_strike: { st: at(0, 0), ac: at(2), rc: [['attack', 3], ['attack', 3], ['idle', 0]] },
   sword_wave: { st: at(0, 1), ac: at(2), rc: [['attack', 3], ['idle', 0]] },
   mirage: { st: [['idle', 0], ['attack', 0]], ac: [['attack', 0]], rc: [['attack', 3], ['idle', 0]] },
