@@ -219,6 +219,9 @@ const HEAD_FIT = [{ w: 1.3, b: 0.12, dx: 0 }, { w: 1.32, b: 0.12, dx: 0.04 }, { 
 const GEAR_DEPTH: Record<GearPiece, number> = { pants: 0.001, shoes: 0.0013, top: 0.0016, topo: 0.0085, sword: 0.009 };
 
 export class ActorView {
+  /** The arena's depth (set by the scene, null elsewhere): a body further back on the floor is drawn a little smaller,
+   *  one nearer a little bigger — the stage reads as a room, not a strip (presentation only: hitboxes are untouched). */
+  static depthScale: ((y: number) => number) | null = null;
   readonly sprite: Phaser.GameObjects.Sprite;
   readonly weapon: Phaser.GameObjects.Sprite;
   readonly weaponGlow: Phaser.GameObjects.Sprite;
@@ -398,6 +401,7 @@ export class ActorView {
       this.blendT = 0;
     }
     this.lastAct = act;
+    if (ActorView.depthScale) pose = { ...pose, scale: pose.scale * ActorView.depthScale(y) };
     applyPose(p, pose, this.weapon);
     this.clothWind(ms, pose);
     const depth = actorDepth(x, y, z);

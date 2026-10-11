@@ -8,7 +8,8 @@ import { sunGateX, SUN_GATE } from '../world/SunGate';
 /** The arena camera: a fixed view, maxZoom × the whole-arena view (the owner's framing; the player's zoom on top), centred
  *  between the two fighters; it widens only when they part further than the screen holds (their gap + `edge`). */
 const ARENA_CAM = { maxZoom: 1.48, edge: 420, easeMs: 260, /** the player's own zoom (wheel / camera buttons): down to the whole arena, up a little closer */ userMin: 0.55, userMax: 1.25,
-  /** big moments: the camera rises with a juggle (share of the height, at most px) and punches in during an ultimate */ airFollow: 0.4, airMax: 120, ultPunch: 1.12 };
+  /** big moments: the camera rises with a juggle (share of the height, at most px) and punches in during an ultimate */ airFollow: 0.4, airMax: 120, ultPunch: 1.12,
+  /** the room kept above and below the two in depth (the top bars and the skill tray) */ edgeY: 520 };
 /** The arena's screen shake, governed (the skills' effects call it freely): scaled down, small ones dropped (no shake
  *  on every basic / core hit), one at a time unless a stronger one comes, never long. */
 const ARENA_SHAKE = { mul: 0.45, min: 0.0012, gapMs: 280, maxMs: 260 };
@@ -121,6 +122,8 @@ const STAT_MASTERY = 0.8;
 /** Testing: skills cost no MP for now (turn back to false to spend MP again). */
 const MP_FREE = true;
 const MP_REGEN = 0.03, MP_ARENA = 220;
+/** The arena's depth: a body's drawn size at the floor's back edge and at its front edge (ActorView.depthScale). */
+const ARENA_DEPTH = { back: 0.9, front: 1.08 };
 /** Hit weight beats (impactBeat): freeze ms, flash color / alpha / ms, ring radius, camera shake [ms, intensity]. */
 const IMPACT_BEAT = {
   counter: { stop: 150, color: 0xff5a2a, flash: 0.16, flashMs: 130, ring: 150, shake: [150, 0.006] as [number, number] },
@@ -355,7 +358,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.camTarget.set(mx, my + 70 - this.arenaLift - this.camAir); // (above the skill tray)
     if (this.koT >= 0) return; // the K.O. drives its own zoom
     // a fixed view (the owner's framing): the same zoom all fight long; it widens only if the two would leave the screen
-    const fixed = this.baseZoom * ARENA_CAM.maxZoom * this.arenaZoom, fits = cam.width / (span + ARENA_CAM.edge);
+    const fixed = this.baseZoom * ARENA_CAM.maxZoom * this.arenaZoom, fits = Math.min(cam.width / (span + ARENA_CAM.edge), cam.height / (Math.abs(k.y - fy) + ARENA_CAM.edgeY)); // (apart in depth too: both kept under the bars)
     const want = Phaser.Math.Clamp(Math.min(fixed, fits), this.baseZoom, this.baseZoom * ARENA_CAM.maxZoom * ARENA_CAM.userMax);
     cam.setZoom(cam.zoom + (want * this.camPunch - cam.zoom) * Math.min(1, ms / ARENA_CAM.easeMs));
   }
@@ -567,9 +570,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.motes = addMotes(this, AR ? { x: AR.x + 60 * AR.s, y: AR.y + 220 * AR.s, w: AR.w - 120 * AR.s, h: AR.h - 260 * AR.s } : { x: 60, y: 220, w: WORLD.coordinateSpace.width - 120, h: WORLD.coordinateSpace.height - 260 }, 7,
       { depth: 1500, tint: 0xffd9a0, size: [5, 9], speed: [3, 8], drift: 10, alpha: 0.32 });
     this.quests = CharacterStore.getQuests(character.id);
+    ActorView.depthScale = null;
     if (pvpRoom) {
       useArenaGeometry(this.stage!.geo); // the stage's own floor and props
       ARENA_SPAWNS = this.stage!.geo.spawns;
+      { // the floor's depth band (back edge → front edge, through the stage's middle): bodies scale with it
+        const [cx] = arenaPt(...this.stage!.geo.centre), ys: number[] = [];
+        for (let y = AR!.y; y < AR!.y + AR!.h; y += 8) if (footAllowed(cx, y, 0, 12)) ys.push(y);
+        const back = ys.length ? ys[0] : AR!.y, front = ys.length ? ys[ys.length - 1] : AR!.y + AR!.h;
+        ActorView.depthScale = (y) => ARENA_DEPTH.back + (ARENA_DEPTH.front - ARENA_DEPTH.back) * Phaser.Math.Clamp((y - back) / Math.max(1, front - back), 0, 1);
+      }
       setBotCentre(...arenaPt(...this.stage!.geo.centre)); // (the sparring partner falls back toward the stage's open middle)
       const mapKey = this.stage?.key ?? T.map.key, R = AR!;
       this.arenaMap = [this.add.image(R.x, R.y, mapKey).setOrigin(0, 0).setScale(R.s).setDepth(-1)];
