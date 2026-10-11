@@ -30,7 +30,9 @@ const GATE_Y: [number, number] = [300, 700];
 const ROOM = {
   den_1: { keeper: [1420, 560], spawns: [[300, 450], [520, 610], [760, 450], [980, 610], [1150, 450], [1300, 610]], start: [180, 560] },
   // pedestals / ledges: where you stand to use one (in front of it) and where its light is drawn (map px)
-  den_2: { keeper: [1500, 560], pedestals: [[480, 590], [740, 590], [1010, 590], [1270, 590]], light: [[480, 262], [740, 262], [1010, 262], [1270, 262]], start: [160, 560] },
+  // room 2: the picture is the unlit one; a lit root is its painted light (den/light_<i>.png: tools/world/den/lights.py,
+  // 240 × 360, top centre at `light`), drawn over the pedestal's cut-out (front 538)
+  den_2: { keeper: [1500, 560], pedestals: [[480, 590], [740, 590], [1010, 590], [1270, 590]], light: [[480, 50], [740, 50], [1010, 50], [1270, 50]], front: 538, start: [160, 560] },
   den_3: { keeper: [1500, 560], pedestals: [[380, 530], [615, 530], [840, 530], [1070, 530], [1290, 530]], light: [[380, 250], [615, 250], [840, 250], [1070, 250], [1290, 250]], start: [140, 560] },
   den_4: { keeper: [1550, 560], boss: [900, 500], spawns: [[700, 440], [1000, 620], [1150, 450]], start: [150, 560] },
   den_5: { keeper: [1500, 560], spawns: [[300, 450], [520, 610], [760, 450], [980, 610], [1150, 450], [1300, 610], [600, 520], [1000, 520]], start: [150, 560] },
@@ -213,7 +215,12 @@ export class Den {
     if (!alive) { this.leave('You fell. The roots carry you gently back out of the den.'); return; }
     if (!this.entering && !this.inside(this.h.kin().x)) { this.leave(); return; }
     this.showTimer(r.stage, left);
-    for (const p of this.pedestals) { p.glow.setAlpha(0.3 + Math.sin(simMs / 300 + p.i) * 0.12); p.flame.setScale(1 + Math.sin(simMs / 170 + p.i * 2) * 0.03, 1 + Math.sin(simMs / 230 + p.i) * 0.05); }
+    for (const p of this.pedestals) {
+      p.glow.setAlpha((p.room === 'den_2' ? 0.2 : 0.3) + Math.sin(simMs / 300 + p.i) * 0.1);
+      // the painted lights breathe (they sit on their bowls: no scaling); the ledge lanterns flicker in size
+      if (p.room === 'den_2') p.flame.setAlpha(0.9 + Math.sin(simMs / 190 + p.i * 2) * 0.06 + Math.sin(simMs / 310 + p.i) * 0.04);
+      else p.flame.setScale(1 + Math.sin(simMs / 170 + p.i * 2) * 0.03, 1 + Math.sin(simMs / 230 + p.i) * 0.05);
+    }
   }
 
   // ---------------------------------------------------------------- the rooms' solids and lights
@@ -233,22 +240,26 @@ export class Den {
 
   private buildPedestals(): void {
     const sc = this.scene;
+    const keys: [string, string][] = [['den-flame', 'assets/world/den/flame.png'], ...[0, 1, 2, 3].map((i): [string, string] => [`den-light-${i}`, `assets/world/den/light_${i}.png`])];
     const make = () => {
-      if (this.pedestals.length || !sc.textures.exists('den-flame')) return;
+      if (this.pedestals.length || keys.some(([k]) => !sc.textures.exists(k))) return;
       for (const [room, n] of [['den_2', 4], ['den_3', 5]] as const) {
         const a = AREAS[room]; if (!a) continue;
-        const R = ROOM[room] as { pedestals: readonly (readonly number[])[]; light: readonly (readonly number[])[] };
+        const R = ROOM[room] as { pedestals: readonly (readonly number[])[]; light: readonly (readonly number[])[]; front?: number };
         R.pedestals.forEach(([x, y], i) => {
           const p = toWorld(room, [x, y]), l = toWorld(room, R.light[i] as [number, number]);
-          // the root's glowing tip over the bowl (room 2) / the lantern over the ledge (room 3): shown while lit
-          const flame = sc.add.image(l.x, l.y, 'den-flame').setOrigin(0.5, 0).setDepth(p.y - 200).setVisible(false);
-          const glow = sc.add.ellipse(l.x, l.y + 70, 150, 90, 0xffc878, 0.35).setDepth(p.y - 200.5).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
+          // room 2: the root's painted light (its glowing tip, the light on the bark, the bowl's rim) over the pedestal's
+          // cut-out; room 3: the lantern over the ledge. Shown while lit.
+          const painted = n === 4;
+          const flame = sc.add.image(l.x, l.y, painted ? `den-light-${i}` : 'den-flame').setOrigin(0.5, 0).setDepth(painted ? toWorld(room, [x, R.front ?? y]).y + 0.5 : p.y - 200).setVisible(false);
+          const glow = sc.add.ellipse(l.x, painted ? l.y + 290 : l.y + 70, 150, 90, 0xffc878, painted ? 0.22 : 0.35).setDepth(p.y - 200.5).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
           const count = n === 5 ? sc.add.text(l.x, l.y + 118, '●'.repeat(i + 1), { fontFamily: HUD.bodyFont, fontSize: '13px', color: '#ffe3a0', stroke: '#1a0e02', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(p.y + 1.1) : undefined;
           this.pedestals.push({ room, i, x: p.x, y: p.y, flame, glow, count });
         });
       }
     };
-    if (!sc.textures.exists('den-flame')) { sc.load.image('den-flame', 'assets/world/den/flame.png'); sc.load.once(Phaser.Loader.Events.COMPLETE, make); if (!sc.load.isLoading()) sc.load.start(); } else make();
+    const missing = keys.filter(([k]) => !sc.textures.exists(k));
+    if (missing.length) { for (const [k, url] of missing) sc.load.image(k, url); sc.load.once(Phaser.Loader.Events.COMPLETE, make); if (!sc.load.isLoading()) sc.load.start(); } else make();
   }
   private drawLights(): void {
     const r = this.run;
