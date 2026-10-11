@@ -26,6 +26,8 @@ export const PASSIVES: PassiveSkill[] = [
   { id: 'self_recovery', cls: 'warrior', job: 3, name: 'Self Recovery', kind: 'passive', description: 'The warrior\'s body mends itself over time, even in battle.', effects: ['Heals 2% of max HP every 5 s'] },
   { id: 'endure', cls: 'warrior', job: 3, name: 'Endure', kind: 'passive', description: 'Stubborn will: stuns, roots, freezes and slows wear off sooner.', effects: ['Stun / root / freeze −30%', 'Slow duration −30%'] },
   { id: 'chance_attack', cls: 'warrior', job: 3, name: 'Chance Attack', kind: 'passive', description: 'Strike the helpless harder: more damage to foes that are stunned, hit-stunned or knocked down.', effects: ['Damage +20% vs stunned / downed foes', 'Not against players'] },
+  { id: 'iron_oath', cls: 'warrior', job: 3, name: 'Iron Oath', kind: 'passive', description: 'The iron oath, sworn for good: a sturdier body for every fight.', effects: ['Max HP +15%'] },
+  { id: 'legacy_banner', cls: 'warrior', job: 4, name: 'Legacy Banner', kind: 'passive', description: 'The legacy you carry: a little harder in every blow, a little steadier under every one.', effects: ['Damage +5%', 'Damage taken −5%'] },
   { id: 'power_stance', cls: 'warrior', job: 4, name: 'Power Stance', kind: 'passive', description: 'An unshakable stance: most blows can no longer push you back.', effects: ['Knockback resist 70%'] },
   { id: 'combat_mastery', cls: 'warrior', job: 4, name: 'Combat Mastery', kind: 'passive', description: 'A veteran\'s precision: more critical hits, and critical hits cut deeper.', effects: ['Critical rate +10%', 'Critical hits 150% → 170%'] },
   { id: 'advanced_final_attack', cls: 'warrior', job: 4, name: 'Advanced Final Attack', kind: 'passive', description: 'Final Attack evolves: it triggers far more often and strikes harder.', effects: ['Final Attack chance 45%', 'Extra slash: 55% of the hit', 'Not against players'] },
@@ -119,6 +121,8 @@ export function passiveStats(owned: Set<string>): PassiveStats {
   if (has('self_recovery')) s.regen = true;
   if (has('endure')) s.ccResist = 0.3;
   if (has('chance_attack')) s.chanceAttack = 1.2;
+  if (has('iron_oath')) s.hpMul += 0.15;
+  if (has('legacy_banner')) { s.dmg *= 1.05; s.takenMul *= 0.95; }
   if (has('power_stance')) s.kbResist = 0.7;
   if (has('combat_mastery')) { s.critAdd += 0.1; s.critDmgAdd += 0.2; }
   if (has('advanced_final_attack')) s.fa = { chance: 0.45, mul: 0.55 };

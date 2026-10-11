@@ -1899,7 +1899,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   /** Own damage buffs right now: War Cry +20%, Radiant Blade +15% (same as against monsters). */
-  private ownDamageMul(s?: FinalSkill): number { return this.weaveMul() * this.skillMul(s) * (this.simMs < this.warCryUntil ? 1.2 : this.simMs < this.allyCryUntil ? 1.1 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * (this.simMs < this.bannerUntil ? 1.1 : 1) * (this.simMs < this.sunUntil ? 1.1 : 1) * (this.simMs < this.godUntil ? 1.15 : 1) * (this.simMs < this.itemDmgUntil ? 1.1 : 1) * this.passiveDmgMul() * (s?.cls === 'gambler' ? (s.id === 'showdown' ? this.gShowMul : 1) * (this.simMs < this.gOverUntil ? 1.15 : 1) : 1); }
+  private ownDamageMul(s?: FinalSkill): number { return this.weaveMul() * this.skillMul(s) * (this.simMs < this.warCryUntil ? 1.1 : this.simMs < this.allyCryUntil ? 1.1 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * (this.simMs < this.bannerUntil ? 1.1 : 1) * (this.simMs < this.sunUntil ? 1.1 : 1) * (this.simMs < this.godUntil ? 1.15 : 1) * (this.simMs < this.itemDmgUntil ? 1.1 : 1) * this.passiveDmgMul() * (s?.cls === 'gambler' ? (s.id === 'showdown' ? this.gShowMul : 1) * (this.simMs < this.gOverUntil ? 1.15 : 1) : 1); }
 
   private hasteFx?: Phaser.GameObjects.Particles.ParticleEmitter;
   private spiritFx?: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -2478,7 +2478,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const castId = `${this.localId}:${++this.castSeq}`;
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
     this.body.armorUntil = -1; this.body.shotArmorUntil = -1;
-    if (s.id === 'war_cry') { this.warCryUntil = this.simMs + s.startup + 8000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 8000 }); /* shared at the release (sim clock), like the caster's own */ }
+    if (s.id === 'war_cry') { this.radiantFrom = this.simMs + Math.round(s.startup * 0.4); this.radiantUntil = Math.max(this.radiantUntil, this.simMs + s.startup + 8000); /* the roar lights the blade of light too (Radiant Blade folded into War Cry) */ this.warCryUntil = this.simMs + s.startup + 8000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 8000 }); /* shared at the release (sim clock), like the caster's own */ }
     if (s.id === 'iron_oath') { this.oathUntil = this.simMs + ct.startup + 60000; this.shares.push({ at: this.simMs + ct.startup, id: s.id, ms: 60000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(ct.startup, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'IRON OATH', '#ffd27a', 0)); }
     if (s.id === 'legacy_banner') { this.bannerUntil = this.simMs + ct.startup + 90000; this.shares.push({ at: this.simMs + ct.startup, id: s.id, ms: 90000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(Math.round(ct.startup * 0.7), () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'LEGACY BANNER', '#ffe7a0', 0)); this.time.delayedCall(Math.round(ct.startup * 0.7) + 760, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, '+10% DMG  ·  -10% DMG TAKEN', '#fff3c4', 0)); }
     if (s.cls === 'archer') this.archerCast(s, stage);
@@ -3537,7 +3537,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (ctr && out.damage > 0 && out.reaction !== 'armor') this.counterCall({ x: b.kin.x, y: b.kin.y, z: b.kin.z });
     this.logHit(true, run.skill, out, b.body, b.kin.z);
     if (run.own && out.damage > 0) this.callPunish(run, whiff, at);
-    if (out.broke) this.fx?.callout({ x: at.x, y: at.y, z: at.z + 30 }, 'ARMOR BREAK', '#ff9a6a', 0);
+    if (out.broke && run.skill.cls === 'warrior') { // the Judge's grab tears through super armor: BREAK!
+      this.fx?.callout({ x: at.x, y: at.y, z: at.z + 40 }, 'BREAK!', '#ffd24a', 0);
+      this.fx?.shockwave(at.x, b.kin.y, 150, 0xffd27a); this.fx?.shockwave(at.x, b.kin.y, 90, 0xffffff);
+      this.cameras.main.shake(180, 0.008); if (this.fx) this.fx.hitStopLeft = Math.max(this.fx.hitStopLeft, 90);
+    } else if (out.broke) this.fx?.callout({ x: at.x, y: at.y, z: at.z + 30 }, 'ARMOR BREAK', '#ff9a6a', 0);
     this.mageReact(run, out, BOT_ID, at);
     if (chB > 1 && out.damage > 0) this.chanceMark(BOT_ID, at);
     if (b.refilled) this.fx!.healNumber({ x: b.x, y: b.y, z: b.z }, b.refilled);

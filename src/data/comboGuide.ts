@@ -69,7 +69,6 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     { name: 'JUDGMENT', range: 'CLOSE', hits: 22, steps: [{ id: 'warrior_basic' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'judgment_blade' }, { id: 'lance_thrust' }, { id: 'titans_verdict' }] },
     { name: 'IRONCLAD', range: 'CLOSE', hits: 22, steps: [{ id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'ground_breaker' }, { id: 'judgment_blade' }, { id: 'lance_thrust' }, { id: 'titans_verdict' }] },
     { name: 'HOOKSHOT', range: 'FAR', hits: 24, steps: [{ id: 'judgment_hook' }, { id: 'rising_slash' }, { id: 'ground_breaker' }, { id: 'lions_maw' }, { id: 'lance_thrust' }, { id: 'titans_verdict' }] },
-    { name: 'FAULTLINE', range: 'MID', hits: 24, steps: [{ id: 'earthsplitter', hold: true }, { id: 'sky_breaker' }, { id: 'judgment_blade' }, { id: 'lance_thrust' }, { id: 'titans_verdict' }] },
     { name: 'SHIELDWALL', range: 'MID', hits: 22, steps: [{ id: 'shield_charge' }, { id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'lions_maw' }, { id: 'titans_verdict' }] },
   ],
   // the Book Mage: ice spikes, a lightning chain or the storm field, the starlight lift or a blink, then the storm field, the
