@@ -14263,11 +14263,11 @@
    "giver": "aldric",
    "title": "The Sealed Road",
    "after": "first_steps",
-   "summary": "Master Aldric told you the road east is shut by the golden Sun Gate, and sent you up to Nimbus, the old cloud above the terraces.",
+   "summary": "Master Aldric told you why the road east is shut: the Masters sealed the Sun Gate against the Curse, and it opens only for one who has crossed the sun. He sent you up to Nimbus, the old cloud above the terraces.",
    "offer": [
-    "Well done. Now, the road east... the golden Sun Gate has shut it. It opens only for those who have crossed the low sun of Sunfall Pass.",
-    "No path on the ground leads there. Climb the stone steps up the Ivy Heights, walk on to the summit, and step out onto the clouds.",
-    "At the end of the clouds lives Nimbus, a kind old cloud. Tell him Aldric sent you."
+    "Well done. Now listen. Long ago the Curse rose in the east, and it turned the Courtyard's own guard to rust.",
+    "The Masters shut the golden Sun Gate to keep it from us. Its lock opens only for one who has crossed the low sun of Sunfall Pass: the sun's warmth stays with them, and the Curse cannot take hold of a warm heart.",
+    "No path on the ground leads there. Climb the stone steps up the Ivy Heights, walk on to the summit and step out onto the clouds. At the end of them lives Nimbus, a kind old cloud. Tell him Aldric sent you."
    ],
    "accept": "I'll climb",
    "decline": "Not yet",
@@ -14299,8 +14299,8 @@
    "title": "The Training Grounds",
    "after": "sun_gate",
    "offer": [
-    "You crossed the sun! The Sun Gate stands open now, and the road east is yours. Just past it lie the old Training Grounds. The Courtyard's guard trained there, until the Curse turned them to rust.",
-    "The Rusted Swordsmen still drill there, blades and all. Defeat fifteen of them.",
+    "You crossed the sun! I felt the Sun Gate open from here. Carry that warmth with you: east of it the Curse is still strong.",
+    "Just past the gate lie the old Training Grounds. Our guard drilled there until the Curse turned them to rust, and the Rusted Swordsmen drill there still. Set fifteen of them free.",
     "Then walk on to Sunstone Plaza and find Mira. She'll want to meet you."
    ],
    "accept": "I'll go",
@@ -14605,6 +14605,7 @@
    "done": [
     "Ho ho! He's smiling again — I can see it from here.",
     "And look what he left you: a Cloud Form. Uncork it and you'll be light as a cloud...",
+    "The sun's light will stay with you once you've crossed it. That's what the old gate below is waiting for.",
     "...light enough to slip past the low sun of Sunfall Pass, just east of here. Few have seen what lies beyond!"
    ],
    "complete": "Glad to help",
