@@ -3420,7 +3420,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (!JOBS_OPEN.has(job)) { say([...(n.lines ?? []).slice(0, 1), 'My path is not open to new students yet.']); return; }
     if (ch.level < BEGINNER_TO) { say([...(n.lines ?? []).slice(0, 1), `You are not ready yet. Reach level ${BEGINNER_TO}, then come back to me.`]); return; }
-    say([...(n.lines ?? []).slice(0, 1), `You have grown strong. I can teach you the path of the ${jobName}.`, 'Take my path, and face me in the Sun Seal Plaza below. Defeat me, and my gear is yours. Will you?'],
+    const warm = (this.bag.sun_amulet ?? 0) > 0 ? ['That amulet at your neck... the Keeper of the Sun sent you. Good: the Curse finds no hold in a warm heart.'] : [];   // (the Sun Shrine's token: Solenne's hint east answered)
+    say([...(n.lines ?? []).slice(0, 1), ...warm, `You have grown strong. I can teach you the path of the ${jobName}.`, 'Take my path, and face me in the Sun Seal Plaza below. Defeat me, and my gear is yours. Will you?'],
       [{ label: `BECOME A ${jobName.toUpperCase()}`, main: true, run: () => this.takeJob(n) }, { label: 'NOT YET', run: () => undefined }]);
   }
 
