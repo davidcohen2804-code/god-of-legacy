@@ -10,7 +10,7 @@ from scipy import ndimage as nd
 R = __file__.rsplit('/', 3)[0] + '/'
 ACTIONS = [('idle', 4), ('walk', 6), ('attack', 6), ('hurt', 2), ('death', 6)]
 # per monster: its height in the game (world px, standing) and texture px per world px
-MOBS = {'sprout': {'height': 62, 'q': 2, 'fx': True}, 'rusted': {'height': 78, 'q': 2, 'fx': True}, 'thorn': {'height': 70, 'q': 2, 'fx': True}, 'cursed': {'height': 84, 'q': 2, 'fx': True},   # fx: its attack's leaf whip kept (not a gust the game blows itself)
+MOBS = {'sprout': {'height': 62, 'q': 2, 'fx': True}, 'rusted': {'height': 78, 'q': 2, 'fx': True}, 'thorn': {'height': 70, 'q': 2, 'fx': True}, 'cursed': {'height': 84, 'q': 2, 'fx': True}, 'warden': {'height': 150, 'q': 2, 'fx': True},   # fx: its attack's leaf whip kept (not a gust the game blows itself)
         'puffling': {'height': 72, 'q': 2}, 'big_grumble': {'height': 250, 'q': 2, 'same': {('attack', 4): ('attack', 3)}}}   # same: a frame drawn as another (GPT's frame unusable)
 
 

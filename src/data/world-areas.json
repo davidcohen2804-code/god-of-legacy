@@ -14171,9 +14171,8 @@
   },
   "warden": {
    "name": "Gate Warden",
-   "frames": "cursed_swordsman",
-   "tint": 11832575,
-   "scale": 1.35,
+   "frames": "warden",
+   "scale": 1.0,
    "hp": 1100,
    "damage": 22,
    "speed": 70,
@@ -14182,7 +14181,8 @@
    "cooldown": 1400,
    "respawnMs": 90000,
    "exp": 260,
-   "level": 10
+   "level": 10,
+   "texQ": 2
   },
   "puffling": {
    "name": "Puffling",
