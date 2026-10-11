@@ -2605,11 +2605,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     let out = hit;
     const last = hit === run.hits[run.hits.length - 1];
     if (s.id === 'roulette_wheel' && last && !rouletteOf(run.castId).red) // BLACK: a 2s bind instead of the blast
-      out = { ...out, damage: Math.round(out.damage * 0.8), reaction: { stun: 420, hardCC: { kind: 'root', ms: 2000, long: true } } };
+      out = { ...out, reaction: { stun: 420, hardCC: { kind: 'root', ms: 2000, long: true } } }; // the bet is on the reaction only: same damage
     if (s.id === 'dice_bomb') {
       const [a, b] = diceOf(run.castId);
       out = { ...out, damage: Math.round(out.damage * (a + b + 7) / 14) }; // ×0.64 … ×1.36: luck seasons the hit, never decides it
-      if (a === b && last) out = { ...out, reaction: { ...out.reaction, hardCC: { kind: 'stun', ms: 700 } } };
     }
     if (s.id === 'showdown' && run.own) {
       const v = this.gShow.get(run.castId), R = { ...out.reaction }, first = hit === run.hits[0];
@@ -2623,6 +2622,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (v.bonus === 'royal' && last) R.hardCC = { kind: 'stun', ms: 800 };
       }
       out = { ...out, reaction: R };
+    }
+    if (s.id === 'pickup_52' && last) { // the detonation finisher: every card in him goes off with the last wave
+      const n = this.gStuck.take(targetId, now);
+      out = { ...out, damage: Math.round(out.damage * (n > 0 ? 0.7 + 0.45 * n : 0.5)) };
+      if (n > 0) this.fx?.gambleDetonate(targetId, n, false);
     }
     if (s.id === 'all_in') { // the snap: every card stuck in him goes off — each one harder and higher; none: he only reels
       const n = this.gStuck.take(targetId, now), hot = run.own && this.passives.gamble.shortFuse;

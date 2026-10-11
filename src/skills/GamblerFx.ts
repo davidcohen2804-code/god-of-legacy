@@ -399,13 +399,32 @@ export class GamblerFx {
   /** A staff blow: every card stuck in the target goes off now (white flash first with Short Fuse). */
   detonate(id: string, n: number, hot: boolean): void {
     const list = this.stuck.get(id) ?? [], tp = this.ctx.targetPos(id);
-    for (const c of list) { if (hot) this.pop(c.img.x, c.img.y, 60, 0xffffff, 140); this.burst(c.img.x, c.img.y, 80); c.img.destroy(); }
-    this.stuck.delete(id);
+    this.stuck.delete(id); this.popCards(list, hot);
     if (tp && n > 0) {
       const y = tp.y - tp.z - (tp.h ?? 90) * 0.5;
       this.burst(tp.x, y, 90 + n * 22); this.ctx.freeze(40 + n * 10);
       this.ctx.callout({ x: tp.x, y: tp.y, z: tp.z + 10 }, n >= 3 ? `CHAIN BURST ×${n}!` : `BURST ×${n}`, '#ff7ae6', 1);
     }
+  }
+  /** The cards in him go off ONE BY ONE so the count reads: each jumps out of him, flares white-hot, bursts — with its number. */
+  private popCards(list: { img: Phaser.GameObjects.Image }[], hot = false): number {
+    const s = this.ctx.scene, step = 85;
+    list.forEach((c, i) => {
+      const x0 = c.img.x, y0 = c.img.y, d = i * step, dx = rnd(-26, 26), ang = rnd(-200, 200);
+      c.img.setTint(0xffffff).setDepth(TOP + 5);
+      this.piece(c.img, d + 140, (u, o) => { const k = clamp01((u * (d + 140) - d) / 140); o.setPosition(x0 + dx * k, y0 - 34 * Math.sin(k * Math.PI * 0.9)).setAngle(ang * k).setScale(this.u * 0.26 * (1 + 0.5 * k)); });
+      this.add((t) => {
+        if (t < d + 140) return true;
+        const x = x0 + dx * 0.95, y = y0 - 30;
+        const bl = this.kit('ai_blast', x, y, 110 + i * 8, TOP + 5); if (bl) { const b0 = bl.scale, a0 = rnd(0, 360); this.piece(bl, 320, (u, o) => o.setScale(b0 * lerp(0.4, 1.1, out3(u))).setAngle(a0).setAlpha(u < 0.45 ? 1 : (1 - u) / 0.55)); } else this.burst(x, y, 80);
+        if (hot) this.pop(x, y, 60, 0xffffff, 140);
+        const num = s.add.text(x, y - 18, String(i + 1), { fontFamily: 'Cinzel, Georgia, serif', fontStyle: 'bold', fontSize: '22px', color: i + 1 >= 3 ? '#ffc94a' : '#ffe0f6', stroke: '#3a0a2e', strokeThickness: 5, resolution: 2, padding: { x: 4, y: 2 } }).setOrigin(0.5).setDepth(TOP + 8);
+        this.piece(num, 520, (u, o) => o.setPosition(x, y - 18 - u * 30).setScale(u < 0.15 ? lerp(1.6, 1, u / 0.15) : 1).setAlpha(u < 0.7 ? 1 : (1 - u) / 0.3));
+        this.ctx.cam().shake(60, 0.002 + i * 0.0008);
+        return false;
+      });
+    });
+    return list.length * step + 140;
   }
   /** DOUBLE OR NOTHING: a gold coin flicked high over his head spins down onto the dice (or the wheel) — they go again.
    *  A worse throw: the coin lands tails-up, grey, and he reels (the scene stuns him). */
@@ -450,11 +469,7 @@ export class GamblerFx {
     const tp = this.ctx.targetPos(id); if (!tp) return;
     const list = this.stuck.get(id) ?? []; this.stuck.delete(id);
     const H = tp.h ?? 90, x = tp.x, y0 = tp.y - tp.z - H * 0.35;
-    list.forEach((c, i) => { // each card in him flares white-hot, then blows — one after another
-      const cx = c.img.x, cy = c.img.y, d = i * 55; c.img.destroy();
-      const pr = this.kit('ai_card', cx, cy, 64, TOP + 4); if (pr) { const p0 = pr.scale; pr.setAngle(rnd(-30, 30)); this.piece(pr, d + 90, (u, o) => o.setScale(p0 * (1 + 0.15 * Math.sin(u * 30))).setAlpha(1)); }
-      const bl = this.kit('ai_blast', cx, cy, 120, TOP + 4); if (bl) { bl.setAlpha(0); const b0 = bl.scale, a0 = rnd(0, 360); this.piece(bl, 360, (u, o) => o.setScale(b0 * lerp(0.4, 1.15, out3(u))).setAngle(a0).setAlpha(u < 0.45 ? 1 : (1 - u) / 0.55), d + 90); } else this.burst(cx, cy, 90, d + 90);
-    });
+    this.popCards(list);
     if (n <= 0) { this.pop(x, y0, 70, FUCHSIA_2, 180); return; } // nothing in him: a fizzle
     const ch = this.kit('ai_chain', x, tp.y - tp.z + 8, 90 + n * 22, TOP + 3); // the chain reaction climbs his body
     if (ch) { ch.setOrigin(0.5, 0.97).setAlpha(0); const c0 = ch.scale; this.piece(ch, 560, (u, o) => o.setScale(c0, c0 * lerp(0.2, 1.1, out3(clamp01(u * 1.6)))).setAlpha(u < 0.55 ? 1 : (1 - u) / 0.45), 80); }
@@ -487,7 +502,7 @@ export class GamblerFx {
   private stuckBadge(id: string, tp: (V3 & { h?: number }) | null, n: number): void {
     let b = this.badges.get(id);
     if (!tp || n <= 0) { b?.destroy(); this.badges.delete(id); return; }
-    if (!b) { b = this.ctx.scene.add.text(0, 0, '', { fontFamily: 'Cinzel, Georgia, serif', fontStyle: 'bold', fontSize: '18px', color: '#ffe0f6', stroke: '#3a0a2e', strokeThickness: 5, resolution: 2, padding: { x: 6, y: 3 } }).setOrigin(0.5, 1).setDepth(TOP + 7); this.badges.set(id, b); }
+    if (!b) { b = this.ctx.scene.add.text(0, 0, '', { fontFamily: 'Cinzel, Georgia, serif', fontStyle: 'bold', fontSize: '22px', color: '#ffe0f6', stroke: '#3a0a2e', strokeThickness: 6, resolution: 2, padding: { x: 8, y: 4 } }).setOrigin(0.5, 1).setDepth(TOP + 7); this.badges.set(id, b); }
     const t = `♦×${n}`; if (b.text !== t) { b.setText(t); b.setScale(1.35); }
     b.setScale(Math.max(1, b.scale - 0.04)).setPosition(tp.x, tp.y - tp.z - (tp.h ?? 90) - 26).setColor(n >= 3 ? '#ffc94a' : '#ffe0f6');
   }
