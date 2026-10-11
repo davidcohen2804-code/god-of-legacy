@@ -600,7 +600,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       casterPos: (id) => this.casterPos(id),
       dashPos: (r) => (r.attackerId === BOT_ID ? null : this.remoteDashPos(r)), // (the knight is simulated here: its body is where it is)
       cooldownMul: (req) => this.cdMul(req.skill),
-      timeScale: (req) => (this.arena ? arenaTimeScale(req.skill, !!req.followUp) : null), // the arena: the warrior at his base pace
+      timeScale: (req) => (finalSkill(req.skill.id) === req.skill ? arenaTimeScale(req.skill, !!req.followUp) : null), // every class skill at its one pace, in the open game and in PvP alike
       onPhase: (r, ph) => this.onRunPhase(r, ph),
       reachMul: (req) => (req.own ? (req.skill.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.85 : 1) : (req.reach ?? 1)),
       rangeMul: (req) => (req.own ? this.ownRangeMul(req.skill) : (req.range ?? 1)),
@@ -2446,7 +2446,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.id === 'radiant_blade') this.radiantUntil = this.simMs + s.startup + 15000;
     if (s.id === 'guard_counter') this.body.invulnUntil = this.simMs + s.startup + 600; // Aegis barrier
     if (s.shotArmor) this.body.shotArmorUntil = this.simMs + s.shotArmor[1] * armorMul(s, this.arena); // a shield up: shots break on it
-    if (s.armor) this.body.armorUntil = Math.max(this.body.armorUntil, this.simMs + s.armor[1] * armorMul(s, this.arena)); // super armor from the first frame (never interrupted mid-windup); outside the arena the warrior's stretched skills keep it to their stretched end
+    if (s.armor) this.body.armorUntil = Math.max(this.body.armorUntil, this.simMs + s.armor[1] * armorMul(s, this.arena)); // super armor from the first frame (never interrupted mid-windup), at the skill's own pace
     if (s.slot === 7) this.body.invulnUntil = this.simMs + ct.startup + ct.active; // ultimate: untouchable while it plays
     else if (this.simMs < this.warCryUntil) this.body.armorUntil = this.simMs + ct.startup + ct.active; // War Cry: super armor while attacking
     this.kage?.arm(castId, s.id, { x: k.x, y: k.y, z: k.z }); // he strikes: out of hiding; a cast while the doubles stand: its first hit that lands is the AMBUSH
@@ -3565,9 +3565,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** The combo guide's keys: every slot's and the jump's (Key Settings). */
   private guideKeys(): { slots: string[]; jump: string } { return { slots: slotKeyLabels(this.bindings), jump: keyLabel(this.bindings.jump) }; }
 
-  /** A cast's own timeline as the runtime plays it (the arena's warrior at his base pace), before attack speed. */
+  /** A cast's own timeline as the runtime plays it (the same in and out of the arena), before attack speed. */
   private castTimes(s: FinalSkill, stage: number, followUp = false): { startup: number; active: number; recovery: number } {
-    const t = s.chain?.timings?.[stage] ?? { startup: s.startup, active: s.active, recovery: s.recovery }, k = this.arena ? arenaTimeScale(s, followUp) : null;
+    const t = s.chain?.timings?.[stage] ?? { startup: s.startup, active: s.active, recovery: s.recovery }, k = arenaTimeScale(s, followUp);
     return k ? { startup: Math.round(t.startup * k.startup), active: Math.round(t.active * k.active), recovery: Math.round(t.recovery * k.recovery) } : t;
   }
 

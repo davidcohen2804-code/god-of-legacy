@@ -974,17 +974,10 @@ const gambler: FinalSkill[] = [
   }),
 ];
 
-// Warrior skills: longer, weightier presence (free cancel keeps the flow): stretch timings and hit spacing.
-// (The PvP arena runs them at their base timings again: arenaTimeScale.)
-const WARRIOR_STRETCH = { startup: 1.3, active: 1.4, recovery: 1.15, at: 1.4 };
-const warriorStretched = (s: FinalSkill): boolean => s.cls === 'warrior' && s.slot >= 1 && s.slot <= 15 && s.id !== 'war_cry' && s.id !== 'guard_counter' && s.id !== 'radiant_blade';
-for (const w of warrior) if (warriorStretched(w)) {
-  w.startup = Math.round(w.startup * WARRIOR_STRETCH.startup); w.active = Math.round(w.active * WARRIOR_STRETCH.active); w.recovery = Math.round(w.recovery * WARRIOR_STRETCH.recovery);
-  for (const h of w.hits) h.at = Math.round(h.at * WARRIOR_STRETCH.at);
-}
-/** The PvP arena's combat pace and reach, the same rules for every class (the duel is about how many skills you string,
+// (Warrior skills once ran stretched outside the arena — slower — and at base pace inside it. A skill is the same
+// everywhere now: the base pace in the open game and in PvP alike.)
+/** The combat pace and reach of every skill — in the open game and in PvP alike (a skill is the same everywhere), the same rules for every class (the duel is about how many skills you string,
  *  so every class strings them at the same rhythm):
- *  - the warrior's stretched skills at their base pace (WARRIOR_STRETCH undone);
  *  - a combo skill cancelled into from a confirmed hit strikes within ARENA_FLOW.startup ms (an ultimate within
  *    ARENA_FLOW.ultStartup); from neutral a skill keeps its own wind-up, so big moves stay readable; multi-hit
  *    skills squeezed so their hits run in at most ARENA_FLOW.active ms (never below half their length) — the same hits, faster;
@@ -1010,7 +1003,7 @@ export const arenaCommits = (s: FinalSkill): boolean => s.slot > 0 && !s.chain &
   && !s.roles.some((r) => r === 'setup' || r === 'mobility' || r === 'escape') && s.hits.some((h) => h.damage > 0);
 const isArenaBuff = (s: FinalSkill): boolean => s.tags.includes('buff') || (s.slot !== 7 && s.cooldown >= 20000 && s.roles.every((r) => ['setup', 'zone', 'mobility', 'escape', 'pull'].includes(r)));
 export function arenaTimeScale(s: FinalSkill, followUp = false): { startup: number; active: number; recovery: number; at: number; reach?: number; antiAir?: boolean; depth?: number } | null {
-  const w = warriorStretched(s) ? { startup: 1 / WARRIOR_STRETCH.startup, active: 1 / WARRIOR_STRETCH.active, recovery: 1 / WARRIOR_STRETCH.recovery, at: 1 / WARRIOR_STRETCH.at } : { startup: 1, active: 1, recovery: 1, at: 1 };
+  const w = { startup: 1, active: 1, recovery: 1, at: 1 };
   const p = ARENA_PACE[s.id];
   const dmg = s.hits.filter((h) => h.damage > 0);
   const combat = !s.chain && !s.charge && !s.counter && !s.trap && !isArenaBuff(s) && dmg.length > 0;
@@ -1027,11 +1020,8 @@ export function arenaTimeScale(s: FinalSkill, followUp = false): { startup: numb
   if (fs === 1 && sq === 1 && w.startup === 1 && !('reach' in reach)) return null;
   return { startup: w.startup * fs, active: w.active * sq, recovery: w.recovery, at: w.at * sq, ...reach };
 }
-/** Super armor length multiplier of a skill's armor window: in the arena (its arena pace) / outside it (the warrior's stretch). */
-export function armorMul(s: FinalSkill, arena: boolean): number {
-  const k = arenaTimeScale(s), stretch = warriorStretched(s) ? WARRIOR_STRETCH.active : 1;
-  return arena ? (k?.active ?? 1) * stretch : stretch;
-}
+/** Super armor length multiplier of a skill's armor window (its pace: the same in and out of the arena). */
+export function armorMul(s: FinalSkill, _arena?: boolean): number { return arenaTimeScale(s)?.active ?? 1; }
 /** Per-skill exceptions to ARENA_FLOW (arena startup in ms; squeeze: active and hit-spacing factor). */
 const ARENA_PACE: Record<string, { startup?: number; squeeze?: number }> = {};
 // Warrior extended kit: every core skill (and the basic chain) can cancel into the new extenders on a confirmed hit.

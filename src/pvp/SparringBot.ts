@@ -393,7 +393,7 @@ export class SparringBot {
     const k = this.kin, p = w.player;
     const u = unit(p.x - k.x, p.y - k.y, this.dir === 'right' ? 1 : -1, 0), aim = sideAim(u.x, u.y, this.dir === 'left' ? -1 : 1); // (side / corner)
     this.aim = aim; this.dir = aim.x >= 0 ? 'right' : 'left';
-    const T0 = s.chain?.timings?.[stage] ?? { startup: s.startup, active: s.active, recovery: s.recovery }, ts = this.body.arena ? arenaTimeScale(s, followUp) : null;
+    const T0 = s.chain?.timings?.[stage] ?? { startup: s.startup, active: s.active, recovery: s.recovery }, ts = arenaTimeScale(s, followUp);
     const T = ts ? { startup: Math.round(T0.startup * ts.startup), active: Math.round(T0.active * ts.active), recovery: Math.round(T0.recovery * ts.recovery) } : T0; // (the arena's warrior: his base pace, as the runtime plays it)
     let dist = s.dash?.distance ?? 0;
     if (s.dash && s.targeting === 'mouseTarget') dist = Math.min(dist, Math.max(0, Math.hypot(p.x - k.x, p.y - k.y) - 34));
