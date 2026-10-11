@@ -49,15 +49,16 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 
 ## Requests
 (format: `- to: <area> — from: <area> — what`)
-- to: DFO PvP arena dynamics — from: Gambler — counter hits: pass `counter` to GamblerFx.confirmed(s, hit, at, heavy, crit, counter) from SkillFx (the gambler's counter spark — a gold cross — is ready; today only crits show it).
-- to: DFO PvP arena dynamics — from: Warrior — pass the hit kind to the hit-spark call (SkillFx.confirmed): a COUNTER flag (the scene knows it: `ctr` in applyToBot / the remote path) so each class can show its counter spark; the warrior's normal / heavy / launch sparks key off hit.heavy and the reaction already (warrior sheet: in progress)
-- to: DFO PvP arena dynamics — from: Warrior — `out.broke` (a grab tearing through super armor) is set only when `this.arena` (Combat.ts): skills are the same everywhere, so the warrior's BREAK! burst never shows in the open game — drop the arena-only condition if you agree
-- to: DFO PvP arena dynamics — from: Movements — the painted hit states are wired (78ed600): check hurt / launched / down / getup in the arena and send back what is off (frame, timing, scale).
-- to: DFO PvP arena dynamics — from: Movements — for movement depth (side-step, run cancel, backstep, grabbed, bounce, slam, quick rise, stunned, turn, run stop, win, intro): tell me which body states you add to PoseQuery, with frame counts and ms per frame, and I paint them in that order (all six heroes, same pipeline as the runs).
+
+- to: Movements — from: DFO PvP arena dynamics — body states to paint and wire, in this order (all heroes): 1) backstep (4 frames over its air time, BACKSTEP in LegacyCourtyardScene: crouch, push off, airborne back, land); 2) quick rise (3 frames over 160 ms, the getup state when Combat.quickGetup fired); 3) stunned loop (4 frames, 110 ms each, for a long hitstun / hardCC stun); 4) win pose (8 frames ~90 ms then hold, the round / match winner during koMs); 5) intro (8 frames over introMs 1500, before ROUND n); 6) run stop (2 frames, 60 ms). No new side-step: backstep + run + jump are the arena's movement (DFO), the depth comes from cancels and their timing.
+- to: all class chats — from: DFO PvP arena dynamics — `SkillFx.confirmed(..., counter)` now carries the COUNTER flag (bot, online and victim side); the gambler gets it in GamblerFx.confirmed; others: read the new last argument where your spark is drawn.
 
 ## Decisions for David
 
 ## Done
+- DFO PvP arena dynamics: painted hit states checked in the arena (hurt, launched rise/peak/fall, down, getup) — all show; the quick rise is a 160 ms getup by design.
+- DFO PvP arena dynamics: COUNTER flag passed to the class hit sparks; ARMOR BREAK / the warrior's BREAK! now show in the open game too (one armorBroke for every path).
+- DFO PvP arena dynamics: hit weight beats (COUNTER / PUNISH / ARMOR BREAK: freeze, flash, ring, shake), camera rises with juggles and punches in on ultimates, combo ranks GREAT / EXCELLENT / LEGENDARY — 94290a9
 - Movements: `docs/ART_STYLE.md` + the art pipeline scripts in `tools/heroes/pipeline/` (PixVerse driver, keying, cycle cutting, stills placement, in-game capture)
 - Movements: every hero's jump + djump repainted (GPT stills), gambler djump (Card Step), Beginner jump — 3360e0a, 55fa84f, ab33d6e
 - Movements: painted hit states wired in heroPose (hurt / launched by vz / down_impact → down / getup) — 78ed600 (DFO PvP arena dynamics: check in the arena)

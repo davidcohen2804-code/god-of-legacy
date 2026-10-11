@@ -2981,6 +2981,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (!out) return;
     this.mageReact(run, out, t.id, at);
+    if (out.broke) this.armorBroke(run, at, t.y);
     this.confirm(run, hit, t.id, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!s.endsCombo, t.z - supportAt(t.x, t.y, t.z + 1).z, crit);
     if (out.reaction !== 'armor') this.finalAttack(run, t.id, at, out.damage);
   }
@@ -2988,7 +2989,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private mobById(id: string): Monster | undefined { return this.world?.mobs.find((m) => m.id === id); }
 
   /** Attacker-side confirmed hit (PvE immediate; PvP from the victim's confirmation). */
-  private confirm(run: CastRun | null, hit: HitEvent, target: string, at: V3, damage: number, idx: number, comboId: number, reaction: string, ends: boolean, tz: number, crit = false): void {
+  private confirm(run: CastRun | null, hit: HitEvent, target: string, at: V3, damage: number, idx: number, comboId: number, reaction: string, ends: boolean, tz: number, crit = false, counter = false): void {
     const s = run?.skill;
     if (!s) return;
     if (run && run.confirmedAt < 0 && !run.poked) run.confirmedAt = run.elapsed; // (a poke from afar opens no cancel)
@@ -2998,7 +2999,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (run?.own && s.cls === 'book_mage' && damage > 0) this.weaveHit(run);
     if (run?.own && s.cls === 'gambler') this.gambleConfirm(run, hit, target, at, damage, crit);
-    this.fx!.confirmed(s, hit, at, damage, reaction, true, idx, crit, run ? this.hitFrom(run, hit) : undefined);
+    this.fx!.confirmed(s, hit, at, damage, reaction, true, idx, crit, run ? this.hitFrom(run, hit) : undefined, counter);
     this.arenaSnd?.hit(s, hit, at, damage, reaction, crit);
     if (damage > 0) { // your hit on another fighter: it shudders through the hit-stop (fighting-game feel)
       const sh = Math.max(90, Math.min(220, this.fx!.hitStopLeft + 60));
@@ -3108,6 +3109,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const r = this.rt?.ownRun; if (!r || r.skill.counter || !(r.phase === 'startup' || r.phase === 'active')) return false;
     return (r.skill.chain ? r.skill.chain.stages.flat() : r.skill.hits).some((x) => x.damage > 0);
   }
+  /** A hit tore through super armor (the same in the arena and the open game): the warrior's grab — BREAK! — or ARMOR BREAK. */
+  private armorBroke(run: CastRun, at: V3, floorY: number): void {
+    if (run.skill.cls === 'warrior') { // the Judge's grab tears through super armor: BREAK!
+      this.fx?.callout({ x: at.x, y: at.y, z: at.z + 40 }, 'BREAK!', '#ffd24a', 0);
+      this.fx?.shockwave(at.x, floorY, 150, 0xffd27a); this.fx?.shockwave(at.x, floorY, 90, 0xffffff);
+      this.cameras.main.shake(180, 0.008); if (this.fx) this.fx.hitStopLeft = Math.max(this.fx.hitStopLeft, 90);
+    } else { this.fx?.callout({ x: at.x, y: at.y, z: at.z + 30 }, 'ARMOR BREAK', '#ff9a6a', 0); this.impactBeat('break', at); }
+  }
   private counterCall(at: V3): void { this.fx?.callout({ x: at.x, y: at.y, z: at.z + 70 }, 'COUNTER!', '#ff6a3a', 1); this.impactBeat('counter', at); }
   /** The big hits felt by their weight (the same in the arena and in the open game): a counter, a punish, an armor break
    *  get a longer freeze, a flash of their color, a ring at the body and a shake above the hit's own (DFO's heavy "clack"). */
@@ -3176,7 +3185,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (out.damage > 0) this.landedOnMe.add(run.castId);
     if (out.broke) { this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 60 }, 'ARMOR BREAK', '#ff9a6a', 0); this.impactBeat('break', { x: this.kin.x, y: this.kin.y, z: this.kin.z }); }
     if (out.rx) this.fx?.mageReaction(out.rx, { x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 }, this.localId, out.rxMs);
-    this.fx!.confirmed(s, hit, at, out.damage, out.reaction, false, out.hitIndex, false, this.hitFrom(run, hit));
+    this.fx!.confirmed(s, hit, at, out.damage, out.reaction, false, out.hitIndex, false, this.hitFrom(run, hit), countered);
     this.arenaSnd?.hit(s, hit, at, out.damage, out.reaction, false);
     if (this.arena && out.damage > 0) { // the arena: a hit lands on you — a beat of hit-stop, your body shudders, heavy ones shake the screen
       const heavy = !!hit.heavy || out.reaction === 'launch' || out.reaction === 'knockdown' || s.slot === 7;
@@ -3633,15 +3642,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (ctr && out.damage > 0 && out.reaction !== 'armor') this.counterCall({ x: b.kin.x, y: b.kin.y, z: b.kin.z });
     this.logHit(true, run.skill, out, b.body, b.kin.z);
     if (run.own && out.damage > 0) this.callPunish(run, whiff, at);
-    if (out.broke && run.skill.cls === 'warrior') { // the Judge's grab tears through super armor: BREAK!
-      this.fx?.callout({ x: at.x, y: at.y, z: at.z + 40 }, 'BREAK!', '#ffd24a', 0);
-      this.fx?.shockwave(at.x, b.kin.y, 150, 0xffd27a); this.fx?.shockwave(at.x, b.kin.y, 90, 0xffffff);
-      this.cameras.main.shake(180, 0.008); if (this.fx) this.fx.hitStopLeft = Math.max(this.fx.hitStopLeft, 90);
-    } else if (out.broke) { this.fx?.callout({ x: at.x, y: at.y, z: at.z + 30 }, 'ARMOR BREAK', '#ff9a6a', 0); this.impactBeat('break', at); }
+    if (out.broke) this.armorBroke(run, at, b.kin.y);
     this.mageReact(run, out, BOT_ID, at);
     if (chB > 1 && out.damage > 0) this.chanceMark(BOT_ID, at);
     if (b.refilled) this.fx!.healNumber({ x: b.x, y: b.y, z: b.z }, b.refilled);
-    this.confirm(run, hit, BOT_ID, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!run.skill.endsCombo, t.z);
+    this.confirm(run, hit, BOT_ID, at, out.damage, out.hitIndex, out.comboId, out.reaction, !!run.skill.endsCombo, t.z, false, ctr && out.damage > 0 && out.reaction !== 'armor');
     if (out.reaction !== 'armor') this.finalAttack(run, BOT_ID, at, out.damage);
     if (b.defeated) { this.rt?.cancelAttacker(BOT_ID); b.knockOut(); this.match?.death(BOT_ID); } // a battle round: the knight is down
     else if (!this.botBreakAt && b.duel && b.body.canBreak(this.simMs) && (b.body.combos.live(this.simMs)?.hits ?? 0) >= 4 && Math.random() < 0.3)
@@ -3685,7 +3690,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const at = r ? { x: r.x, y: r.y, z: (m.z ?? r.z) + 40 } : { x: 0, y: 0, z: 0 };
         if (m.cx && r) this.counterCall({ x: r.x, y: r.y, z: m.z ?? r.z });
         if (m.pz && r) { this.fx?.mageReaction('prism', at, victim, 0); this.fx?.callout({ x: at.x, y: at.y, z: at.z + 60 }, 'PRISM!', '#e9d2ff', 0); } // (the mage's PRISM, fired on the victim's side)
-        this.confirm(run, hits[m.hit ?? 0] ?? hits[0], victim, at, m.dmg, m.idx ?? 1, m.cid ?? 0, m.rx ?? 'hit', !!m.ends, m.z ?? 0);
+        this.confirm(run, hits[m.hit ?? 0] ?? hits[0], victim, at, m.dmg, m.idx ?? 1, m.cid ?? 0, m.rx ?? 'hit', !!m.ends, m.z ?? 0, false, !!m.cx);
         if (m.mx) { this.fx?.mageReaction(m.mx, at, victim, m.mms ?? 0); if (m.mx === 'curse') r?.paper(m.mms ?? 0); }
       },
       onRemoteLeft: (id) => { this.party?.dropped(id); this.rt?.cancelAttacker(id); this.bubbles?.clear(id); this.chat?.add({ kind: 'system', text: `${this.nameOf(id)} left the arena.` }); },
