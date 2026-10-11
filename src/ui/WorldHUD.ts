@@ -30,9 +30,9 @@ const G = {
   combo: { x: 1320, y: 470, w: 300, h: 97 },
   /** The panels' pills: a column at the bottom right, over the gear menu. */
   menu: { right: 1904, bottom: 994, w: 220, h: 40, gap: 6 },
-  /** Gold (left of the gear menu) and the pickup feed above it. */
+  /** Gold (left of the gear menu); the pickup feed up the right side, over the panels' pills and the camera's buttons. */
   gold: { right: 1834, y: 1015 },
-  feed: { right: 1668, bottom: 994 },
+  feed: { right: 1904, bottom: 706 },
 } as const;
 
 /** Skill dock (bottom centre): the 20 slots in two rows of 10 — Space, 1-7, Q R above, F G C V T H Z X B N below — each slot

@@ -4105,7 +4105,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (got.length) this.chat?.add({ kind: 'system', text: `Received: ${got.join(', ')}` });
     }
     this.chat?.add({ kind: 'system', text: `Quest complete: ${q.title}` });
-    this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'QUEST COMPLETE', '#9dff9a', 0);
+    this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 10 }, 'QUEST COMPLETE', '#9dff9a', 0);   // (under the reward's EXP line)
     this.fx?.shockwave(this.kin.x, this.kin.y, 110, 0xffe2a0);
   }
 
@@ -4127,9 +4127,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Over the sun (Afterglow Rest reached): the Sun Gate below opens for good. */
   private openSunGate(): void {
-    if (!this.world || this.world.sunGate.open) return;
+    if (!this.world) return;
+    const crossed = this.quests[SUN_GATE_KEY]?.state === 'done';
+    if (!crossed) { this.quests[SUN_GATE_KEY] = { state: 'done', progress: [] }; this.saveQuests(); }   // (the sun crossed: Solenne's quest opens, whether or not the gate already stood open)
+    if (this.world.sunGate.open) return;
     this.world.sunGate.unlock();
-    this.quests[SUN_GATE_KEY] = { state: 'done', progress: [] }; this.saveQuests();
     this.chat?.add({ kind: 'system', text: 'Far below, the golden Sun Gate swings open. The road east is free: Master Aldric has something to tell you.' });
   }
   private saveQuests(): void { if (this.character) CharacterStore.setQuests(this.character.id, this.quests); this.refreshQuests(); }

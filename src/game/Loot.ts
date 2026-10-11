@@ -77,7 +77,7 @@ const DROPS: Record<string, { gold: [number, number]; items: [string, number][] 
   rusted: { gold: [3, 6], items: [['rust_shard', 0.4], ['apple', 0.08], ['orange', 0.06], ['red_potion', 0.04]] },
   puffling: { gold: [6, 11], items: [['cloud_puff', 0.6], ['orange', 0.06], ['blue_potion', 0.04]] },
   big_grumble: { gold: [90, 150], items: [['cloud_form', 1], ['storm_core', 1], ['cloud_feather', 0.6], ['elixir', 0.25], ['cloud_puff', 1]] },
-  sunbeam: { gold: [7, 12], items: [['sun_shard', 0.5], ['orange', 0.06], ['red_potion', 0.05]] },
+  sunbeam: { gold: [7, 12], items: [['sun_shard', 0.6], ['orange', 0.06], ['red_potion', 0.05]] },
   cursed: { gold: [8, 14], items: [['cursed_cloth', 0.35], ['meat', 0.06], ['red_potion', 0.06], ['blue_potion', 0.04], ['elixir', 0.003]] },
 };
 
