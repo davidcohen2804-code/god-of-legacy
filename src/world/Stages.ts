@@ -4,7 +4,7 @@
 // own against the CPU: a stage at random) — first the place, then its mood.
 import WORLD from '../data/legacy-courtyard.json';
 import { PVP } from '../config/layout';
-import { COURTYARD_LOOK, LAVA_LOOK, SAKURA_LOOK, SHAOLIN_LOOK, SHIP_LOOK, StageLook } from './StageFx';
+import { COURTYARD_LOOK, ICE_LOOK, LAVA_LOOK, SAKURA_LOOK, SHAOLIN_LOOK, SHIP_LOOK, StageLook } from './StageFx';
 import { COURTYARD_OBJECTS, Pt, StageGeo, WorldObject } from './WorldGeometry';
 
 export interface Stage {
@@ -137,6 +137,32 @@ const SHIP_GEO: StageGeo = {
   centre: [770, 640],
 };
 
+/** The Ice Palace: the throne hall — an open floor of ice; at the back in the middle the throne's dais, one long step in
+ *  front of it (floor -> step -> dais, each within one jump; the dais straight from the floor only just), the throne at
+ *  its back (the dais walked along in front of it); three ice columns either side, from the floor up out of sight: cover to hide behind and fight round, aisles
+ *  behind them. Fitted to the painting. */
+const iceColumn = (id: string, foot: Pt[], occluder: Pt[]): WorldObject =>
+  ({ id, footprint: foot, height: 700, cover: 'hard', frontY: Math.max(...foot.map((p) => p[1])), occluder });
+const ICE_GEO: StageGeo = {
+  floor: [[0, 880], [0, 520], [58, 508], [62, 462], [172, 458], [240, 400], [330, 370], [480, 336], [590, 336], [590, 396], [1180, 396], [1180, 336], [1270, 336], [1440, 392], [1600, 468], [1672, 484], [1672, 880]],
+  props: [
+    { id: 'ice-step', footprint: [[556, 421], [1216, 421], [1216, 441], [556, 441]], height: 40, topZ: 40, cover: 'hard', frontY: 441,
+      occluder: [[556, 381], [1216, 381], [1216, 441], [556, 441]] },
+    // the dais reaches back past the floor's edge (its top as drawn is shallow: stood on in front of the throne)
+    { id: 'ice-dais', footprint: [[595, 388], [1175, 388], [1175, 421], [595, 421]], height: 81, topZ: 81, cover: 'hard', frontY: 421,
+      occluder: [[595, 322], [1175, 322], [1175, 381], [595, 381]] },
+    iceColumn('ice-column-lf', [[192, 606], [316, 606], [318, 656], [190, 656]], [[205, 0], [304, 0], [304, 440], [312, 470], [318, 540], [318, 656], [190, 656], [190, 540], [197, 470], [205, 440]]),
+    iceColumn('ice-column-lm', [[323, 474], [410, 474], [412, 508], [321, 508]], [[331, 0], [410, 0], [410, 380], [418, 440], [414, 508], [321, 508], [322, 440], [331, 380]]),
+    iceColumn('ice-column-lb', [[416, 374], [485, 374], [487, 400], [414, 400]], [[414, 0], [481, 0], [481, 320], [489, 370], [487, 400], [414, 400], [410, 370], [414, 320]]),
+    iceColumn('ice-column-rb', [[1279, 384], [1350, 384], [1352, 412], [1277, 412]], [[1283, 0], [1351, 0], [1351, 330], [1357, 380], [1352, 412], [1277, 412], [1276, 380], [1283, 330]]),
+    iceColumn('ice-column-rm', [[1359, 482], [1437, 482], [1439, 514], [1357, 514]], [[1357, 0], [1437, 0], [1437, 390], [1446, 450], [1440, 514], [1356, 514], [1350, 450], [1357, 390]]),
+    iceColumn('ice-column-rf', [[1475, 610], [1584, 610], [1588, 658], [1471, 658]], [[1479, 0], [1596, 0], [1596, 450], [1600, 540], [1588, 658], [1471, 658], [1462, 540], [1479, 450]]),
+  ],
+  spawns: [[880, 760], [460, 720], [1300, 720], [640, 560], [1120, 560], [300, 780], [1460, 780], [880, 500]],
+  start: { y: 690, left: 740, right: 1020 },
+  centre: [880, 690],
+};
+
 export const STAGES: Stage[] = [
   { id: 'courtyard', place: 'courtyard', name: 'LEGACY COURTYARD', file: 'assets/environment/Legacy_Courtyard.png', key: 'legacy-courtyard', preview: 'assets/pvp/stages/courtyard.webp', look: COURTYARD_LOOK, geo: COURTYARD_GEO },
   { id: 'lava', place: 'lava', name: 'LAVA FORTRESS', file: 'assets/environment/stages/lava_fortress.webp', key: 'stage-lava-fortress', preview: 'assets/pvp/stages/lava.webp', look: LAVA_LOOK, geo: LAVA_GEO },
@@ -147,6 +173,8 @@ export const STAGES: Stage[] = [
   { id: 'ship', place: 'ship', name: 'STORM SHIP', file: 'assets/environment/stages/storm_ship.webp', key: 'stage-storm-ship', preview: 'assets/pvp/stages/ship.webp', look: SHIP_LOOK, geo: SHIP_GEO,
     extras: [{ key: 'ship-water', file: 'assets/pvp/stages/ship_water.png' }, { key: 'ship-bolt', file: 'assets/pvp/stages/ship_bolt.png' }, { key: 'ship-beam', file: 'assets/pvp/stages/ship_beam.png' }],
     poster: 'assets/pvp/stages/ship_poster.webp' },
+  { id: 'ice', place: 'ice', name: 'ICE PALACE', file: 'assets/environment/stages/ice_palace.webp', key: 'stage-ice-palace', preview: 'assets/pvp/stages/ice.webp', look: ICE_LOOK, geo: ICE_GEO,
+    extras: [{ key: 'ice-aurora', file: 'assets/pvp/stages/ice_aurora.png' }] },
 ];
 
 const hash = (s: string, seed: number): number => {

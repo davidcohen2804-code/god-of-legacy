@@ -22,8 +22,10 @@ export interface StageLook {
   sun: Pt;
   /** The floor (its light drifts there): top y. */
   floorTop: number;
-  /** The floor emblem: centre and its outer and inner rings' half axes. */
-  emblem?: { c: Pt; outer: Pt; inner: Pt };
+  /** The floor emblem: centre and its outer and inner rings' half axes (light runs round each). */
+  emblem?: { c: Pt; outer: Pt; inner?: Pt };
+  /** The emblem flares up at FIGHT! and at K.O. (and an aurora with it). */
+  emblemFlash?: boolean;
   cloudTint: number;
   mistTint: number;
   lightTint: number;
@@ -61,16 +63,25 @@ export interface StageLook {
   /** The storm's bolts, with each flash: the painting's own bolt (a picture of its light, its top-left corner at `at`)
    *  or one drawn down the open sky (inside the x ranges, down to the horizon `to`). */
   bolts?: { img?: string; at?: Pt; x: [number, number][]; to: number };
+  /** Crystals giving their own cold light: a glow breathing slowly at each (radius `r`). `front`: the painting's y of the
+   *  front of what it is set in (a column) — drawn with it, so it hides behind it whoever it hides. */
+  crystals?: { at: Pt; r: number; front?: number }[];
+  /** Ice glinting: little stars of light twinkling all over these shapes (`n`: their share; `front` as for crystals). */
+  glints?: { poly: Pt[]; n: number; front?: number }[];
+  /** Frost mist lying low over the floor: the y band it drifts in. */
+  floorMist?: [number, number];
 }
 
-/** A stage's sea: `paint` the painting's texture, `mask` a picture of the same size — red where the painting is water,
- *  green where it is cloth (the sails) — and the sea's far edge (y): the swells grow toward the viewer from there. */
+/** A stage's living painting: `paint` the painting's texture, `mask` a picture of the same size — red where the painting
+ *  is water, green where it is cloth (sails), blue where it is an aurora — and the sea's far edge (y): the swells grow
+ *  toward the viewer from there. */
 export interface WaterLook { paint: string; mask: string; horizon: number }
 
-/** The sea on the GPU: each water pixel of the painting drawn from a little way off (long swells rolling in, a choppy
+/** The painting's moving parts on the GPU: each water pixel drawn from a little way off (long swells rolling in, a choppy
  *  surface on them, bigger nearer), the crests catching the light as they pass, the foam glittering; each sail pixel
- *  drawn from a cloth flapping in the wind. A pixel is only ever taken from water (or cloth): the ropes, the rails and
- *  the hull stay still. The phases come in already wrapped (no precision lost on a long match). Output premultiplied. */
+ *  drawn from a cloth flapping in the wind; an aurora's curtains swaying, waves of light running along them (brighter
+ *  while uBoost is up). A pixel is only ever taken from its own kind: the ropes, the rails, the hull, the throne stay
+ *  still. The phases come in already wrapped (no precision lost on a long match). Output premultiplied. */
 const WATER_FRAG = `
 #ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
@@ -87,12 +98,16 @@ uniform float uP3;
 uniform float uP4;
 uniform float uP5;
 uniform float uP6;
+uniform float uP7;
+uniform float uP8;
+uniform float uP9;
+uniform float uBoost;
 varying vec2 outTexCoord;
 void main() {
   vec2 uv = vec2(outTexCoord.x, 1.0 - outTexCoord.y);
   vec4 m = texture2D(iChannel1, uv);
-  float w = m.r, c = m.g;
-  if (w + c < 0.004) discard;
+  float w = m.r, c = m.g, au = m.b;
+  if (w + c + au < 0.004) discard;
   vec2 px = uv * uRes;
   float near = clamp((px.y - uHorizon) / (uRes.y - uHorizon), 0.0, 1.0);
   float swell = sin(px.x * 0.011 + px.y * 0.045 - uP1);
@@ -102,18 +117,21 @@ void main() {
   d.x += (0.7 + 2.8 * near) * sin(px.y * 0.09 + px.x * 0.013 - uP3) * w;
   d.x += 2.6 * sin(px.y * 0.065 + px.x * 0.021 + uP4) * c;
   d.y += 1.4 * sin(px.x * 0.05 + uP5) * c;
+  d.x += 6.0 * sin(px.y * 0.035 + px.x * 0.004 - uP7) * au;
+  d.y += 2.5 * sin(px.x * 0.012 + uP8) * au;
   vec2 suv = uv + d / uRes;
   vec4 ms = texture2D(iChannel1, suv);
-  float ok = w >= c ? step(0.45, ms.r) : step(0.45, ms.g);
+  float ok = au > max(w, c) ? step(0.3, ms.b) : w >= c ? step(0.45, ms.r) : step(0.45, ms.g);
   vec3 col = mix(texture2D(iChannel0, uv).rgb, texture2D(iChannel0, suv).rgb, ok);
   col *= 1.0 + 0.09 * swell * w;
   float lum = dot(col, vec3(0.299, 0.587, 0.114));
   col += smoothstep(0.55, 0.9, lum) * w * 0.16 * (0.5 + 0.5 * sin(px.x * 0.07 + px.y * 0.05 + uP6));
-  float a = max(w, c);
+  col *= 1.0 + au * (0.55 * (0.5 + 0.5 * sin(px.x * 0.022 - uP9 + 1.6 * sin(px.y * 0.03 + uP8))) + 0.9 * uBoost);
+  float a = max(max(w, c), au);
   gl_FragColor = vec4(col * a, a);
 }`;
 /** The water's phases (uniform, radians per second). */
-const WATER_PH: [string, number][] = [['uP1', 1.15], ['uP2', 1.9], ['uP3', 1.6], ['uP4', 4.4], ['uP5', 3.1], ['uP6', 3.0]];
+const WATER_PH: [string, number][] = [['uP1', 1.15], ['uP2', 1.9], ['uP3', 1.6], ['uP4', 4.4], ['uP5', 3.1], ['uP6', 3.0], ['uP7', 0.9], ['uP8', 0.6], ['uP9', 1.3]];
 
 /** A stage's dragon: the body (a long picture, drawn along a line that ripples) and the head on its own, in the painting's
  *  pixels — the body's middle, scale and angle; the head's neck pivot (where it is on the painting and in its picture),
@@ -253,7 +271,46 @@ export const SHIP_LOOK: StageLook = {
   bolts: { img: 'ship-bolt', at: [200, 0], x: [[250, 540], [1010, 1460]], to: 236 },
 };
 
-const T = { cloud: 'sfx-cloud', mist: 'sfx-mist', ray: 'sfx-ray', glow: 'sfx-glow', light: 'sfx-light', ring: 'sfx-ring', leaf: 'sfx-leaf', petal: 'sfx-petal', drop: 'sfx-drop', dot: 'sfx-dot', bird: 'sfx-bird', bat: 'sfx-bat', splash: 'sfx-splash' };
+/** The Ice Palace (assets/environment/stages/ice_palace.webp): a throne hall of ice at night — the aurora swaying in the
+ *  great window behind the throne, snow drifting through the hall, frost mist low over the floor, the crystals in the
+ *  columns, the lamps and the throne breathing cold light, the ice glinting everywhere, the snowflake emblem glowing
+ *  (flaring with the aurora at FIGHT! and at K.O.). Its far background: the great window, round the throne. */
+const ICE_COLS: [number, number, number, number][] = [[205, 304, 440, 656], [331, 410, 380, 508], [414, 481, 320, 400], [1283, 1351, 330, 412], [1357, 1437, 390, 514], [1479, 1596, 450, 658]];
+export const ICE_LOOK: StageLook = {
+  far: [[590, 90], [590, 262], [775, 262], [775, 250], [772, 248], [772, 236], [783, 229], [781, 223], [781, 210], [787, 207], [792, 189], [794, 187], [799, 186], [802, 188], [809, 206], [809, 210], [815, 211], [815, 162], [817, 160], [817, 154], [820, 148], [821, 131], [817, 129], [824, 28], [827, 26], [830, 28], [836, 99], [839, 101], [847, 6], [850, 4], [853, 6], [858, 72], [860, 72], [874, 46], [877, 44], [882, 46], [894, 71], [897, 71], [897, 44], [899, 41], [901, 25], [905, 21], [910, 23], [912, 44], [914, 49], [913, 56], [915, 58], [915, 63], [912, 67], [914, 75], [914, 103], [916, 103], [920, 85], [919, 74], [924, 41], [928, 38], [933, 40], [937, 61], [936, 71], [938, 73], [936, 87], [940, 92], [938, 104], [942, 106], [940, 120], [943, 122], [943, 127], [940, 132], [942, 147], [940, 149], [941, 157], [939, 167], [939, 218], [941, 218], [942, 212], [944, 211], [952, 187], [955, 185], [959, 186], [962, 191], [966, 208], [968, 211], [974, 213], [971, 229], [981, 236], [982, 261], [1178, 262], [1178, 90], [1149, 58], [1135, 0], [640, 0], [625, 70]],
+  sky: [0, 100],
+  mist: [175, 262],
+  mistSoft: true,
+  sun: [1040, 50],
+  rays: 0.3,
+  rayTint: 0xa8ffe8,
+  floorTop: 330,
+  emblem: { c: [880, 660], outer: [331, 131] },
+  emblemTint: 0x9fe0ff,
+  emblemFlash: true,
+  cloudTint: 0x3a4a78,
+  mistTint: 0xd0e4ff,
+  lightTint: 0x9fd0ff,
+  fliers: null,
+  fall: { kind: 'snow', n: 60, tints: [0xffffff, 0xe0f0ff, 0xc8e0ff] },
+  water: { paint: 'stage-ice-palace', mask: 'ice-aurora', horizon: 0 },
+  crystals: [
+    // the columns' crystal crowns (drawn with their columns), the lamps on their stands, the wall sconces, the throne's
+    { at: [251, 545], r: 62, front: 656 }, { at: [368, 435], r: 46, front: 508 }, { at: [445, 345], r: 36, front: 400 },
+    { at: [1318, 355], r: 36, front: 412 }, { at: [1400, 436], r: 46, front: 514 }, { at: [1540, 546], r: 62, front: 658 },
+    { at: [28, 305], r: 40 }, { at: [175, 272], r: 30 }, { at: [1631, 282], r: 40 },
+    { at: [131, 140], r: 30 }, { at: [500, 128], r: 26 }, { at: [1258, 128], r: 26 },
+    { at: [797, 205], r: 24 }, { at: [952, 205], r: 24 }, { at: [876, 165], r: 34 },
+  ],
+  glints: [
+    { poly: [[0, 700], [500, 452], [1260, 452], [1672, 700], [1672, 880], [0, 880]], n: 6 },
+    { poly: [[823, 50], [941, 50], [941, 320], [823, 320]], n: 1 },
+    ...ICE_COLS.map(([x0, x1, y1, front]) => ({ poly: [[x0, 20], [x1, 20], [x1, y1], [x0, y1]] as Pt[], n: 1, front })),
+  ],
+  floorMist: [330, 520],
+};
+
+const T = { cloud: 'sfx-cloud', mist: 'sfx-mist', ray: 'sfx-ray', glow: 'sfx-glow', light: 'sfx-light', ring: 'sfx-ring', leaf: 'sfx-leaf', petal: 'sfx-petal', drop: 'sfx-drop', dot: 'sfx-dot', bird: 'sfx-bird', bat: 'sfx-bat', splash: 'sfx-splash', star: 'sfx-star' };
 const BIRD_FRAMES = 4;
 
 function rng(seed: number): () => number { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
@@ -323,6 +380,14 @@ function makeTextures(scene: Phaser.Scene): void {
     g.fillStyle = gr; g.fillRect(1, 0, 2, 48);
   });
   canvas(T.dot, 32, 32, (g) => blob(g, 16, 16, 16, 16, 1)); // a soft dot: snow, a firefly, an ember
+  canvas(T.star, 64, 64, (g) => { // a glint: four thin points of light round a soft bright heart
+    blob(g, 32, 32, 9, 9, 1);
+    for (const [w, h] of [[2.2, 30], [30, 2.2]]) {
+      const gr = g.createRadialGradient(32, 32, 0, 32, 32, 30);
+      gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr; g.beginPath(); g.ellipse(32, 32, w, h, 0, 0, Math.PI * 2); g.fill();
+    }
+  });
   canvas(T.splash, 64, 64, (g) => { // a raindrop's ring on a puddle (drawn round, laid flat on the floor)
     g.strokeStyle = 'rgba(255,255,255,1)'; g.lineWidth = 5; g.beginPath(); g.arc(32, 32, 26, 0, Math.PI * 2); g.stroke();
     g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 3; g.beginPath(); g.arc(32, 32, 16, 0, Math.PI * 2); g.stroke();
@@ -357,6 +422,9 @@ export class StageFx {
     if (!c) { c = this.scene.add.container(this.at.x, this.at.y).setScale(this.at.s).setDepth(depth); this.layers.set(depth, c); }
     return c;
   }
+  /** The depth (in the world) just in front of a thing whose front edge is at this y of the painting (a prop's cut-out
+   *  is drawn at its front edge's depth): what is drawn there shows on it and hides with it. */
+  private depthAt(py: number): number { return this.at.y + py * this.at.s + 0.02; }
   /** Its layers (all of them placed like the painting): a camera pitch squashes them with the floor. */
   layerList(): Phaser.GameObjects.Container[] { return [...this.layers.values()]; }
   private far: Phaser.GameObjects.Container;
@@ -395,6 +463,15 @@ export class StageFx {
   private boltImg?: Phaser.GameObjects.Image;
   private boltGfx?: Phaser.GameObjects.Graphics;
   private boltOn?: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics;
+  /** The ice: crystals breathing light, glints twinkling (a pool, in the layers of what they sit on), the floor's mist. */
+  private crystals: { o: Phaser.GameObjects.Image; a: number; p: number; ph: number }[] = [];
+  private glints: { o: Phaser.GameObjects.Image; t: number; life: number; s: number }[] = [];
+  private glintPool = new Map<number, Phaser.GameObjects.Image[]>();
+  private glintAt: { poly: Pt[]; box: [number, number, number, number]; depth: number; w: number }[] = [];
+  private nextGlint = 0;
+  private floorMists: { o: Phaser.GameObjects.TileSprite; v: number }[] = [];
+  /** The emblem's flare (ms since FIGHT! / K.O.; -1: none). */
+  private flare2 = -1;
   private t = 0;
   private readonly W: number;
   private readonly H: number;
@@ -460,6 +537,7 @@ export class StageFx {
         .setScale((E.outer[0] * 2.3) / 256, (E.outer[1] * 2.3) / 256).setAlpha(0.1);
       this.lay(-0.55).add(this.glow);
       for (const [ring, v, al] of [[E.outer, 0.00055, 0.42], [E.inner, -0.0009, 0.55]] as const) {
+        if (!ring) continue;
         const img = scene.make.image({ x: 0, y: 0, key: T.ring }, false).setBlendMode(Phaser.BlendModes.ADD).setTint(L.emblemTint ?? 0xffd27a).setAlpha(al).setScale(ring[0] / 240);
         const box = scene.make.container({ x: ex, y: ey }, false).add(img).setScale(1, ring[1] / ring[0]);
         this.lay(-0.54).add(box);
@@ -504,6 +582,26 @@ export class StageFx {
       box.setMask(gm);
     }
     if (L.lightning) { this.flash = new Phaser.GameObjects.Rectangle(scene, -W, -H, W * 3, H * 4, 0xdfe8ff, 1).setOrigin(0, 0).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD); this.lay(88990).add(this.flash); }
+    if (L.floorMist) { // frost mist low over the floor: two banks drifting apart, each fading in at its top and out at its bottom
+      const [y0, y1] = L.floorMist, h = (y1 - y0) / 2;
+      for (const [i, v] of [[0, 6], [1, -9]] as const) for (const half of [0, 1]) {
+        const a = i ? 0.2 : 0.26, ty = 0.55;
+        const o = scene.make.tileSprite({ x: 0, y: y0 + i * 14 + half * h, width: W, height: h, key: T.mist }, false).setOrigin(0, 0).setTint(L.mistTint);
+        o.setAlpha(half ? a : 0, half ? a : 0, half ? 0 : a, half ? 0 : a);
+        o.setTileScale(1.1 - i * 0.2, ty); o.tilePositionY = (half * h) / ty;
+        this.lay(-0.57).add(o); this.floorMists.push({ o, v });
+      }
+    }
+    for (const c of L.crystals ?? []) { // a crystal's cold light, breathing (drawn with what it is set in)
+      const o = scene.make.image({ x: c.at[0], y: c.at[1], key: T.glow }, false).setBlendMode(Phaser.BlendModes.ADD).setTint(0xa8e4ff).setScale((c.r * 2) / 256).setAlpha(0.35);
+      this.lay(c.front === undefined ? -0.44 : this.depthAt(c.front)).add(o);
+      this.crystals.push({ o, a: 0.3 + r() * 0.12, p: 2600 + r() * 2400, ph: r() * Math.PI * 2 });
+    }
+    for (const g of L.glints ?? []) { // where the ice glints: each shape, its share and its layer
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      for (const [x, y] of g.poly) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+      this.glintAt.push({ poly: g.poly, box: [x0, y0, x1, y1], depth: g.front === undefined ? -0.43 : this.depthAt(g.front), w: g.n });
+    }
     for (const at of L.lamps ?? []) { // a lantern: a warm glow and a bright core, flickering
       const glow = scene.make.image({ x: at[0], y: at[1], key: T.glow }, false).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffa040).setScale(0.62).setAlpha(0.4);
       const core = scene.make.image({ x: at[0], y: at[1], key: T.glow }, false).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffe6a8).setScale(0.13, 0.17).setAlpha(0.75);
@@ -531,7 +629,7 @@ export class StageFx {
     const s = this.scene;
     if (s.game.renderer.type !== Phaser.WEBGL || !s.textures.exists(Wl.paint) || !s.textures.exists(Wl.mask)) return;
     if (!s.cache.shader.has('stage-water')) {
-      const u: Record<string, { type: string; value: unknown }> = { uRes: { type: '2f', value: { x: this.W, y: this.H } }, uHorizon: { type: '1f', value: 0 } };
+      const u: Record<string, { type: string; value: unknown }> = { uRes: { type: '2f', value: { x: this.W, y: this.H } }, uHorizon: { type: '1f', value: 0 }, uBoost: { type: '1f', value: 0 } };
       for (const [k] of WATER_PH) u[k] = { type: '1f', value: 0 };
       s.cache.shader.add('stage-water', new Phaser.Display.BaseShader('stage-water', WATER_FRAG, undefined, u));
     }
@@ -569,6 +667,25 @@ export class StageFx {
       o.setPosition(x, y).setVisible(true).setAlpha(0);
       const near = Phaser.Math.Clamp((y - this.look.floorTop) / (this.H - this.look.floorTop), 0, 1);
       this.rings.push({ o, t: 0, life: 320 + r() * 220, s: (0.22 + r() * 0.16) * (0.75 + 0.5 * near) });
+      return;
+    }
+  }
+
+  /** A glint somewhere on the ice: a shape by its share, a point inside it, a star from that layer's pool. */
+  private glint(): void {
+    const A = this.glintAt, r = Math.random;
+    let pick = r() * A.reduce((n, g) => n + g.w, 0), g = A[0];
+    for (const c of A) { pick -= c.w; if (pick <= 0) { g = c; break; } }
+    const [x0, y0, x1, y1] = g.box;
+    for (let i = 0; i < 8; i++) {
+      const x = x0 + r() * (x1 - x0), y = y0 + r() * (y1 - y0);
+      if (!inPoly(x, y, g.poly)) continue;
+      let pool = this.glintPool.get(g.depth);
+      if (!pool) { pool = []; this.glintPool.set(g.depth, pool); }
+      const o = pool.pop() ?? this.scene.make.image({ x: 0, y: 0, key: T.star }, false).setBlendMode(Phaser.BlendModes.ADD).setData('d', g.depth);
+      if (!o.parentContainer) this.lay(g.depth).add(o);
+      o.setPosition(x, y).setVisible(true).setScale(0).setAngle(r() * 45).setTint([0xffffff, 0xd8f0ff, 0xbfe6ff][Math.floor(r() * 3)]);
+      this.glints.push({ o, t: 0, life: 380 + r() * 340, s: 0.16 + r() * 0.26 });
       return;
     }
   }
@@ -636,8 +753,29 @@ export class StageFx {
       this.lava.tilePositionX += 5 * s; this.lava.tilePositionY -= 3 * s;
       this.lava.setAlpha(0.13 + 0.05 * Math.sin((t / 2600) * Math.PI * 2) + 0.025 * Math.sin((t / 730) * Math.PI * 2));
     }
-    this.glow?.setAlpha(0.1 + 0.06 * Math.sin((t / 4200) * Math.PI * 2));
-    for (const w of this.sweeps) w.img.rotation += w.v * ms;
+    // the emblem's flare at FIGHT! / K.O.: up in a moment, fading over a second and a half (the rings racing round)
+    let fl = 0;
+    if (this.flare2 >= 0) {
+      this.flare2 += ms; const u = this.flare2 / 1600;
+      if (u >= 1) this.flare2 = -1; else fl = u < 0.12 ? u / 0.12 : Math.pow(1 - (u - 0.12) / 0.88, 1.5);
+    }
+    this.glow?.setAlpha(0.1 + 0.06 * Math.sin((t / 4200) * Math.PI * 2) + 0.45 * fl);
+    for (const w of this.sweeps) { w.img.rotation += w.v * ms * (1 + 6 * fl); w.img.setAlpha((w.v > 0 ? 0.42 : 0.55) * (1 + 0.8 * fl)); }
+    this.water?.setUniform('uBoost.value', fl);
+    for (const c of this.crystals) c.o.setAlpha(c.a * (0.75 + 0.25 * Math.sin((t / c.p) * Math.PI * 2 + c.ph)) * (1 + 0.6 * fl));
+    for (const m of this.floorMists) m.o.tilePositionX -= m.v * s;
+    if (this.glintAt.length) { // the ice glinting: a star of light here and there, coming and going
+      this.nextGlint -= ms;
+      for (let i = 0; this.nextGlint <= 0 && i < 4; i++) { this.glint(); this.nextGlint += 50 + Math.random() * 70; }
+      if (this.nextGlint < 0) this.nextGlint = 0;
+    }
+    this.glints = this.glints.filter((g) => {
+      g.t += ms; const u = g.t / g.life;
+      if (u >= 1) { g.o.setVisible(false); this.glintPool.get(g.o.getData('d') as number)?.push(g.o); return false; }
+      const k = Math.sin(u * Math.PI);
+      g.o.setScale(g.s * k).setAlpha(Math.min(1, k * 1.4)); g.o.angle += 50 * s;
+      return true;
+    });
     const H = this.H, top = this.look.floorTop;
     for (const l of this.leaves) {
       const kind = l.kind;
@@ -748,6 +886,7 @@ export class StageFx {
   /** A moment of the fight the stage answers: the dragon rears up and roars (FIGHT!, K.O.). */
   event(kind: 'fight' | 'ko'): void {
     if (this.dragon) this.dragon.roar = 0;
+    if (this.look.emblemFlash) this.flare2 = 0;
     void kind;
   }
 
@@ -806,5 +945,6 @@ export class StageFx {
     this.layers.clear();
     this.clouds = []; this.birds = []; this.rays = []; this.sweeps = []; this.leaves = [];
     this.lamps = []; this.spray = []; this.rings = []; this.ringPool = [];
+    this.crystals = []; this.glints = []; this.glintPool.clear(); this.glintAt = []; this.floorMists = [];
   }
 }
