@@ -1,4 +1,4 @@
-# God Of Legacy — automatic screenshots of build bfa6b3c (2026-10-11 14:58 UTC)
+# God Of Legacy — automatic screenshots of build d12a5a9 (2026-10-11 15:16 UTC)
 
 ### 1920_01_main_menu.jpg
 ![1920_01_main_menu.jpg](1920_01_main_menu.jpg)
