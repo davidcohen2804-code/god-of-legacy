@@ -1,10 +1,10 @@
-// The PvP arena's stages (Tekken-style): different places, each with its own floor, props, cover and feel — and a place
-// can come in moods (the Legacy Courtyard by day, by night, in winter: one layout, other paintings and weather). A
+// The PvP arena's stages (Tekken-style): different places, each with its own floor, props, cover and feel (a place can
+// come in moods: one layout, other paintings and weather — none now: every stage is a place of its own). A
 // match's stage comes from its room's name, so both players of a room always fight on the same stage (a room of your
 // own against the CPU: a stage at random) — first the place, then its mood.
 import WORLD from '../data/legacy-courtyard.json';
 import { PVP } from '../config/layout';
-import { COURTYARD_LOOK, LAVA_LOOK, NIGHT_LOOK, SAKURA_LOOK, SHAOLIN_LOOK, StageLook, WINTER_LOOK } from './StageFx';
+import { COURTYARD_LOOK, LAVA_LOOK, SAKURA_LOOK, SHAOLIN_LOOK, StageLook } from './StageFx';
 import { COURTYARD_OBJECTS, Pt, StageGeo } from './WorldGeometry';
 
 export interface Stage {
@@ -93,8 +93,6 @@ const SHAOLIN_GEO: StageGeo = {
 
 export const STAGES: Stage[] = [
   { id: 'courtyard', place: 'courtyard', name: 'LEGACY COURTYARD', file: 'assets/environment/Legacy_Courtyard.png', key: 'legacy-courtyard', preview: 'assets/pvp/stages/courtyard.webp', look: COURTYARD_LOOK, geo: COURTYARD_GEO },
-  { id: 'night', place: 'courtyard', name: 'MOONLIT COURTYARD', file: 'assets/environment/stages/courtyard_night.webp', key: 'stage-courtyard-night', preview: 'assets/pvp/stages/night.webp', look: NIGHT_LOOK, geo: COURTYARD_GEO },
-  { id: 'winter', place: 'courtyard', name: 'FROZEN COURTYARD', file: 'assets/environment/stages/courtyard_winter.webp', key: 'stage-courtyard-winter', preview: 'assets/pvp/stages/winter.webp', look: WINTER_LOOK, geo: COURTYARD_GEO },
   { id: 'lava', place: 'lava', name: 'LAVA FORTRESS', file: 'assets/environment/stages/lava_fortress.webp', key: 'stage-lava-fortress', preview: 'assets/pvp/stages/lava.webp', look: LAVA_LOOK, geo: LAVA_GEO },
   { id: 'shaolin', place: 'shaolin', name: 'SHAOLIN MONASTERY', file: 'assets/environment/stages/shaolin_monastery.webp', key: 'stage-shaolin-monastery', preview: 'assets/pvp/stages/shaolin.webp', look: SHAOLIN_LOOK, geo: SHAOLIN_GEO,
     extras: [{ key: 'shaolin-dragon-body', file: 'assets/pvp/stages/shaolin_dragon_body.webp' }, { key: 'shaolin-dragon-head', file: 'assets/pvp/stages/shaolin_dragon_head.webp' }],

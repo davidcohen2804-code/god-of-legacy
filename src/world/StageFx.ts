@@ -77,41 +77,6 @@ export const COURTYARD_LOOK: StageLook = {
   fall: { kind: 'leaf', n: 16, tints: [0xc8281e, 0xe0501e, 0xa81c22, 0xf07a2a] },
 };
 
-/** The courtyard in winter (assets/environment/stages/courtyard_winter.webp): snow falling, a pale low sun. */
-export const WINTER_LOOK: StageLook = {
-  far: COURTYARD_FAR,
-  sky: [0, 120],
-  mist: [150, 262],
-  sun: [1436, 30],
-  floorTop: 262,
-  emblem: { c: [904, 565], outer: [288, 122], inner: [92, 45] },
-  cloudTint: 0xf2f6ff,
-  mistTint: 0xf4f8ff,
-  lightTint: 0xfff0d0,
-  rayTint: 0xfff2d8,
-  rays: 0.85,
-  fliers: 'birds',
-  fall: [{ kind: 'snow', n: 150, tints: [0xffffff, 0xeef4ff] }],
-};
-
-/** The courtyard by moonlight (assets/environment/stages/courtyard_night.webp): bats, fireflies, braziers burning. */
-export const NIGHT_LOOK: StageLook = {
-  far: COURTYARD_FAR,
-  sky: [0, 120],
-  mist: [150, 262],
-  sun: [1412, 6],
-  floorTop: 262,
-  emblem: { c: [904, 565], outer: [288, 122], inner: [92, 45] },
-  cloudTint: 0x8e9cc8,
-  mistTint: 0xb8c8f0,
-  lightTint: 0x7f9fe0,
-  rayTint: 0xc8d8ff,
-  rays: 0.6,
-  fliers: 'bats',
-  fall: [{ kind: 'firefly', n: 22, tints: [0xd8ff8a, 0xfff2a0] }, { kind: 'leaf', n: 8, tints: [0xa81c22, 0xc8281e, 0x7a1418] }],
-  fires: [[368, 178], [574, 172], [800, 179], [1159, 171], [1394, 172], [263, 134], [117, 160], [1572, 160]],
-};
-
 /** The Sakura Temple (assets/environment/stages/sakura_temple.webp): a deck over a koi pond at sunset, the sun at the
  *  upper left; its far background is the valley between the pines and the waterfall's cliff, down to the red railing. */
 export const SAKURA_LOOK: StageLook = {
