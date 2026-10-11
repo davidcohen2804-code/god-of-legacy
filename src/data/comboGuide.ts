@@ -64,35 +64,12 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
   // the Warrior: a launcher, a charge, a leap or the sanctuary (the War Cry's pull, the Iron Oath), then the Blade Storm,
   // the Verdict or the Ground Breaker; strings that need hit-confirm cancels miss over a 100 ms connection and are left out
   warrior: [
-    { name: 'SKYBREAK', range: 'CLOSE', hits: 15, steps: [{ id: 'rising_slash' }, { id: 'blade_storm' }] },
-    { name: 'QUAKE', range: 'MID', hits: 21, steps: [{ id: 'ground_breaker' }, { id: 'blade_storm' }] },
-    { name: 'IMPALER', range: 'FAR', hits: 15, steps: [{ id: 'lance_thrust' }, { id: 'blade_storm' }] },
-    { name: 'COMET', range: 'CLOSE', hits: 15, steps: [{ id: 'rising_slash' }, { id: 'leap_crash' }, { id: 'blade_storm' }] },
-    { name: 'BATTLECRY', range: 'MID', hits: 7, steps: [{ id: 'wave_slash' }, { id: 'war_cry' }, { id: 'warrior_basic', n: 2 }, { id: 'rising_slash' }] },
-    { name: 'VERDICT', range: 'FAR', hits: 12, steps: [{ id: 'lance_thrust' }, { id: 'titans_verdict' }] },
-    { name: 'METEOR', range: 'FAR', hits: 14, steps: [{ id: 'leap_crash' }, { id: 'blade_storm' }] },
-    { name: 'RIPTIDE', range: 'MID', hits: 14, steps: [{ id: 'wave_slash' }, { id: 'leap_crash' }, { id: 'blade_storm' }] },
-    { name: 'WARHORN', range: 'FAR', hits: 14, steps: [{ id: 'lance_thrust' }, { id: 'war_cry' }, { id: 'blade_storm' }] },
-    { name: 'IRONCLAD', range: 'FAR', hits: 14, steps: [{ id: 'lance_thrust' }, { id: 'iron_oath' }, { id: 'blade_storm' }] },
-    { name: 'BASTION', range: 'CLOSE', hits: 14, steps: [{ id: 'sanctuary' }, { id: 'leap_crash' }, { id: 'blade_storm' }] },
-    // the new kit (Iron Grip Z, Judgment Hook X, Sky Breaker B, Earthsplitter N): played in the arena against a foe that does
-    // nothing, each key right after the last hit and 0.12s later, from three distances — locked to the combo's end every time
-    // long strings (launch, a full air string, relaunch, again — the arena's longer combos): locked to the end at every distance / timing tried
-    { name: 'JUDGMENT DAY', range: 'FAR', hits: 50, steps: [{ id: 'judgment_hook' }, { id: 'lance_thrust' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'ground_breaker' }, { id: 'blade_storm' }, { id: 'titans_verdict' }] },
-    { name: 'PRIDE', range: 'CLOSE', hits: 23, steps: [{ id: 'radiant_blade' }, { id: 'sky_breaker' }, { id: 'blade_storm' }, { id: 'lions_maw' }] },
-    { name: 'CYCLONE', range: 'FAR', hits: 25, steps: [{ id: 'judgment_hook' }, { id: 'whirlwind' }, { id: 'blade_storm' }] },
-    { name: 'RALLY', range: 'CLOSE', hits: 18, steps: [{ id: 'legacy_banner' }, { id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'blade_storm' }] },
-    { name: 'OATHBOUND', range: 'CLOSE', hits: 17, steps: [{ id: 'iron_oath' }, { id: 'sky_breaker' }, { id: 'blade_storm' }] },
-    { name: 'SKYFALL', range: 'CLOSE', hits: 28, steps: [{ id: 'sky_breaker' }, { id: 'rising_slash' }, { id: 'lance_thrust' }, { id: 'whirlwind' }, { id: 'leap_crash' }, { id: 'blade_storm' }] },
-    // the Judge (his combo identity): hook and grip, launch, slam him down into the Judgment court — its chains hold him up
-    // for the beating — launch again, the lion, the chase, the crash, the storm, the Verdict on the floor
-    { name: 'JUDGMENT COURT', range: 'FAR', hits: 44, steps: [{ id: 'judgment_hook' }, { id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'judgment_blade' }, { id: 'warrior_basic' }, { id: 'ground_breaker' }, { id: 'lance_thrust' }, { id: 'whirlwind' }, { id: 'lions_maw' }, { id: 'sky_breaker' }, { id: 'leap_crash' }, { id: 'blade_storm' }, { id: 'titans_verdict' }] },
-    { name: 'TITANFALL', range: 'CLOSE', hits: 56, steps: [{ id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'lance_thrust' }, { id: 'whirlwind' }, { id: 'leap_crash' }, { id: 'ground_breaker' }, { id: 'blade_storm' }, { id: 'titans_verdict' }] },
-    { name: 'HOOKSHOT', range: 'FAR', hits: 19, steps: [{ id: 'judgment_hook' }, { id: 'lance_thrust' }, { id: 'blade_storm' }] },
-    { name: 'SKYLANCE', range: 'CLOSE', hits: 19, steps: [{ id: 'sky_breaker' }, { id: 'lance_thrust' }, { id: 'blade_storm' }] },
-    { name: 'IRONFIST', range: 'CLOSE', hits: 17, steps: [{ id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'blade_storm' }] },
-    { name: 'FAULTLINE', range: 'MID', hits: 14, steps: [{ id: 'earthsplitter', hold: true }, { id: 'blade_storm' }] },
-    { name: 'RAMPAGE', range: 'FAR', hits: 8, steps: [{ id: 'leap_crash' }, { id: 'warrior_basic' }, { id: 'war_cry' }, { id: 'iron_oath' }, { id: 'ground_breaker' }] },
+    // the PvP balance pass: each skill leads to 2–3 others — open, grab, launch, chase or spin, the court, the beating, the
+    // Verdict (measured in the arena against a foe that does nothing: every skill lands while he cannot act)
+    { name: 'JUDGMENT', range: 'CLOSE', hits: 25, steps: [{ id: 'warrior_basic' }, { id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'judgment_blade' }, { id: 'ground_breaker' }, { id: 'titans_verdict' }] },
+    { name: 'HOOKSHOT', range: 'FAR', hits: 32, steps: [{ id: 'judgment_hook' }, { id: 'rising_slash' }, { id: 'whirlwind' }, { id: 'lance_thrust' }, { id: 'titans_verdict' }] },
+    { name: 'FAULTLINE', range: 'MID', hits: 24, steps: [{ id: 'earthsplitter', hold: true }, { id: 'sky_breaker' }, { id: 'judgment_blade' }, { id: 'lance_thrust' }, { id: 'titans_verdict' }] },
+    { name: 'SHIELDWALL', range: 'MID', hits: 22, steps: [{ id: 'shield_charge' }, { id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'titans_verdict' }] },
   ],
   // the Book Mage: ice spikes, a lightning chain or the storm field, the starlight lift or a blink, then the storm field, the
   // chain, the cranes or the clock
