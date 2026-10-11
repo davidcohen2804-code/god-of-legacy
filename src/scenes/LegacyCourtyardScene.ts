@@ -80,7 +80,7 @@ import type { Projectile } from '../skills/HitGeometry';
 import { Afterimages, applyMotion, archerMotion, heroMotion, leapMotion } from '../skills/ArcherMotion';
 import { SAMURAI_AFTER, TORNADO, samuraiMotion, samuraiSeen, shinsokuMotion, tornadoPath } from '../skills/SamuraiMotion';
 import { KAGE, KageLocal, kageTarget } from '../skills/Kagemusha';
-import { FUSE_PER_CARD, HAND_KEEP_MS, HAND_KEEP_STACKED_MS, Hand, type HandValue, PVP_HAND_CAP, SUIT, Stuck, coinOf, diceOf, rouletteOf } from '../skills/Gamble';
+import { FUSE_PER_CARD, HAND_KEEP_MS, HAND_KEEP_STACKED_MS, Hand, type HandValue, PVP_HAND_CAP, SUIT, Stuck, coinOf, diceOf, isRerolled, reroll, rouletteOf } from '../skills/Gamble';
 import { HitTarget, V2, V3, clampAim, clampPlace, shapeContains, unit } from '../skills/HitGeometry';
 import { SkillFx, preloadSkillFx } from '../skills/SkillFx';
 import { BEGINNER_TO, JOBS_OPEN, TEST_MIN_LEVEL, hasJob, jobOfSlot, playedClass, skillLevel } from '../skills/Jobs';
@@ -621,6 +621,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     };
     this.fx.aliveOf = (id) => (id === this.localId ? this.dead < 0 : id === BOT_ID ? !!this.bot && !this.bot.defeated : this.pvp?.remotes.get(id)?.alive !== false);
     this.rt.events.on(RT_EVENTS.hit, (r: CastRun, i: number, o: V3) => this.kageSwing(r, i, o));
+    this.rt.events.on(RT_EVENTS.projectileEnd, (p: { x: number; y: number }, r: CastRun) => { if (r.skill.id === 'ace_in_the_hole') { this.gAceEnd.set(r.castId, { x: p.x, y: p.y }); if (this.gAceEnd.size > 30) this.gAceEnd.delete(this.gAceEnd.keys().next().value as string); } }); // the ace blows where it stopped
     this.fx.unarmed = (id) => (id === this.localId ? !this.gearSt.armed : this.pvp?.remotes.get(id)?.armed === false);
     this.renderPlayer(0);
     if (pvpRoom) this.view.setVisible(false);
@@ -1543,7 +1544,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (l.run.skill.id === 'blade_storm') { // swords erupt all around the caster + lightning crackles
           for (let n = 0; n < 2; n++) { const a = (l.left * 2.4 + n * Math.PI) + (Math.random() - 0.5) * 0.9, rr = 70 + Math.random() * (L.radius - 40); this.fx!.risingBlade(l.x + Math.cos(a) * rr, l.y + Math.sin(a) * rr * 0.6, n * 90); }
         }
-        else if (l.run.skill.cls === 'gambler') this.fx!.gambleZone(l.run.skill.id, l.x, l.y, L.radius); // (the gambler's floor eruption / thrown-foe bomb: GamblerFx)
+        else if (l.run.skill.cls === 'gambler') { this.gamblerZoneAt(l); this.fx!.gambleZone(l.run.skill.id, l.x, l.y, L.radius); } // (the gambler's floor eruption / thrown-foe bomb: GamblerFx)
         else if (l.run.skill.id !== 'ground_breaker' && l.run.skill.id !== 'tornado_blade' && l.run.skill.id !== 'rain_of_arrows' && l.run.skill.id !== 'titans_verdict' && l.run.skill.id !== 'leaping_arrow') this.fx!.crack(l.x, l.y, L.radius); // (Thunder Rain: the charged floor is drawn by ArcherFx) // the quake has one steady rotating ring instead of per-tick sparks; the tornado is its own picture
         if (l.run.skill.id === 'ground_breaker' && l.run.own && this.dead < 0) { // the quake mends the warrior: +2 HP per pulse
           const max = this.maxHpNow(), before = this.playerHP;
@@ -1831,6 +1832,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.jbWant = Math.min(3, this.jbWant + 1);
       return;
     }
+    if (own && own.skill.cls === 'gambler' && (own.skill.id === 'dice_bomb' || own.skill.id === 'roulette_wheel') && this.kit[i]?.id === own.skill.id && own.elapsed <= 400) { this.doubleOrNothing(own, true); return; } // Double or Nothing
     if (!this.tryStartSlot(i)) this.ci?.bufferAction(i);
   }
 
@@ -2494,9 +2496,31 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.id === 'kinetic_overload') { this.gOverUntil = now + up + 30000; this.time.delayedCall(up, () => this.fx?.gambleOverload(this.localId, 30000)); say('KINETIC OVERLOAD', '#ff7ae6'); }
     if (s.id === 'wild_card') this.time.delayedCall(up, () => { this.gHand.joker(this.simMs); this.refreshHand(); this.fx?.callout(here(), 'WILD CARD', '#c9a8ff', 0); });
   }
+  /** The ace blows up where it stopped (a wall, its range); the thrown foe's bomb where he came down. */
+  private gAceEnd = new Map<string, { x: number; y: number }>();
+  private gamblerZoneAt(l: { run: CastRun; x: number; y: number }): void {
+    if (l.run.skill.id === 'ace_in_the_hole') { const e = this.gAceEnd.get(l.run.castId); if (e) { l.x = e.x; l.y = e.y; } return; }
+    if (l.run.skill.id === 'kinetic_grab') {
+      const tid = [...l.run.hitKeys].find((k) => k.split('|')[1] === '1')?.split('|')[2]; if (!tid) return;
+      const p = tid === this.localId ? { x: this.kin.x, y: this.kin.y } : this.targetsFor(l.run).find((x) => x.id === tid);
+      if (p) { l.x = p.x; l.y = p.y; }
+    }
+  }
+  /** DOUBLE OR NOTHING: the dice / the wheel thrown again (a second press within 0.4 s) — worse than before: stunned 0.6 s. */
+  private doubleOrNothing(run: CastRun, own: boolean): void {
+    if (isRerolled(run.castId)) return;
+    const was = run.skill.id === 'dice_bomb' ? diceOf(run.castId, true).reduce((a, b) => a + b, 0) : rouletteOf(run.castId, true).red ? 1 : 0;
+    reroll(run.castId);
+    const now = run.skill.id === 'dice_bomb' ? diceOf(run.castId).reduce((a, b) => a + b, 0) : rouletteOf(run.castId).red ? 1 : 0;
+    const worse = now < was;
+    this.fx?.gambleDouble(run, worse);
+    if (!own) return;
+    this.pvp?.sendRelease({ castId: run.castId, at: -3, ax: 0, ay: 0 });
+    if (worse) this.time.delayedCall(260, () => { this.body.hard.apply('stun', 600, this.simMs, !!this.pvp, true); this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'BUST!', '#e8e0f0', 1); });
+  }
   /** Tails: the next skill comes with no cooldown. */
   private gamblerStarted(s: FinalSkill): void {
-    if (!this.gTailsFree || s.slot === 0 || s.id === 'coin_flip' || s.cooldown <= 0) return;
+    if (!this.gTailsFree || s.slot === 0 || s.slot === 7 || s.id === 'coin_flip' || s.cooldown <= 0 || s.cooldown >= 20000) return; // never the ultimate nor a long cooldown
     this.gTailsFree = false;
     this.rt?.cooldownEnd.delete(s.id);
     this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'FREE!', '#ff7ae6', 1);
@@ -2509,10 +2533,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     let out = hit;
     const last = hit === run.hits[run.hits.length - 1];
     if (s.id === 'roulette_wheel' && last && !rouletteOf(run.castId).red) // BLACK: a 2s bind instead of the blast
-      out = { ...out, damage: Math.round(out.damage * 0.6), reaction: { stun: 420, hardCC: { kind: 'root', ms: 2000, long: true } } };
+      out = { ...out, damage: Math.round(out.damage * 0.8), reaction: { stun: 420, hardCC: { kind: 'root', ms: 2000, long: true } } };
     if (s.id === 'dice_bomb') {
       const [a, b] = diceOf(run.castId);
-      out = { ...out, damage: Math.round(out.damage * (a + b) / 7) };
+      out = { ...out, damage: Math.round(out.damage * (a + b + 7) / 14) }; // ×0.64 … ×1.36: luck seasons the hit, never decides it
       if (a === b && last) out = { ...out, reaction: { ...out.reaction, hardCC: { kind: 'stun', ms: 700 } } };
     }
     if (s.id === 'showdown' && run.own) {
@@ -2532,7 +2556,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const n = this.gStuck.take(targetId, now), hot = run.own && this.passives.gamble.shortFuse;
       const R = { ...out.reaction };
       if (n > 0) { R.launch = Math.min(170, 70 + 22 * n); out = { ...out, damage: Math.round(out.damage * (0.6 + 0.55 * n * (hot ? 1.3 : 1))) }; }
-      else { R.launch = undefined; R.stun = 300; out = { ...out, damage: Math.round(out.damage * 0.4) }; }
+      else return { ...out, damage: -1 }; // no card in him: the snap does nothing to him (a whiff to punish)
       out = { ...out, reaction: R };
       this.fx?.gambleAllIn(targetId, n);
       return out;
@@ -2752,7 +2776,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** PvE authority: combat body reaction on the enemy/dummy, damage, confirmed-hit feedback. */
   private applyToPve(run: CastRun, hit: HitEvent, t: HitTarget, at: V3): void {
     const now = this.simMs, s = run.skill;
-    hit = this.mageHit(run, hit); hit = this.markHit(run, hit, t.id); hit = this.gambleHit(run, hit, t.id);
+    hit = this.mageHit(run, hit); hit = this.markHit(run, hit, t.id); hit = this.gambleHit(run, hit, t.id); if (hit.damage < 0) return; // (All In on a foe without cards: untouched)
     const amb = run.own && hit.damage > 0 && !!this.kage?.isAmbush(run.castId); // Kagemusha's AMBUSH: a sure critical and a stun
     if (amb) hit = { ...hit, reaction: { ...hit.reaction, stun: Math.max(hit.reaction.stun ?? 0, KAGE.ambushStun) } };
     let out: HitOutcome | null = null, crit = false; // (a critical: its own number, MapleStory — no CRITICAL text)
@@ -2985,7 +3009,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (trial && this.simMs < this.hitBlinkUntil) return;
     if (this.inDome() && hit.damage > 0) { this.domeBlock(this.casterPos(run.attackerId) ?? run.origin); hit = { ...hit, damage: hit.damage * 0.5 }; } // Sanctuary: half damage behind the wall (the hit still lands)
     const s = run.skill;
-    hit = this.mageHit(run, hit); hit = this.markHit(run, hit, this.localId); hit = this.gambleHit(run, hit, this.localId);
+    hit = this.mageHit(run, hit); hit = this.markHit(run, hit, this.localId); hit = this.gambleHit(run, hit, this.localId); if (hit.damage < 0) return; // (All In on a foe without cards: untouched)
     if (hit.damage > 0 && this.mageGuard(hit, this.casterPos(run.attackerId) ?? run.origin, run.attackerId === BOT_ID ? this.bot?.body : undefined)) { this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'armor' }); return; }
     if (hit.shape.kind !== 'placed' && hit.damage > 0 && this.tryCounter(this.casterPos(run.attackerId) ?? run.origin)) {
       this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'countered' });
@@ -3435,7 +3459,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private applyToBot(run: CastRun, hit: HitEvent, t: HitTarget, at: V3): void {
     const b = this.bot;
     if (!b || b.defeated || (this.match?.active && !this.match.live)) return;
-    hit = this.mageHit(run, hit); hit = this.markHit(run, hit, t.id); hit = this.gambleHit(run, hit, t.id);
+    hit = this.mageHit(run, hit); hit = this.markHit(run, hit, t.id); hit = this.gambleHit(run, hit, t.id); if (hit.damage < 0) return; // (All In on a foe without cards: untouched)
     if (this.isPoke(run, hit, b.kin)) { hit = this.pokeHit(hit); run.poked = true; } // a poke from afar: no cancel off it
     const chB = run.attackerId === this.localId ? this.chanceMul(b.body) : 1;
     const m = (run.attackerId === this.localId ? this.ownDamageMul(run.skill) * chB : 1) * this.rageMul(run.attackerId, BOT_ID), h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
@@ -3475,6 +3499,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       },
       onRelease: (from, m) => { // Judgment Blade thrown: final aim + the moment it left the hand
         const r = this.rt?.runs.find((x) => x.castId === m.castId && x.attackerId === from);
+        if (r && m.at === -3 && (r.skill.id === 'dice_bomb' || r.skill.id === 'roulette_wheel')) { this.doubleOrNothing(r, false); return; } // the gambler threw again
         if (r && r.skill.id === 'arrow_storm' && m.at === -2) { r.place = { x: m.ax, y: m.ay }; return; } // Hunter's Rain: the caster moved the mark
         if (r && AIM_STEER.has(r.skill.id) && m.at === -1) { r.aim = sideAim(m.ax / 1000, m.ay / 1000, m.ax < 0 ? -1 : 1); return; } // Volley Stance / Spirit Bow / Eagle Tide: the caster turned the aim
         if (r && r.phase === 'startup') { r.aim = clampAim(unit(m.ax, m.ay)); r.timings.startup = Math.max(r.elapsed, m.at); }

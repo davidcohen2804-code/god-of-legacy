@@ -2077,6 +2077,7 @@ export class SkillFx {
   gambleStick(id: string, n: number, double = false): void { this.gamb.stick(id, n, double); }
   gambleDetonate(id: string, n: number, hot: boolean): void { this.gamb.detonate(id, n, hot); }
   gambleAllIn(id: string, n: number): void { this.gamb.allIn(id, n); }
+  gambleDouble(r: CastRun, worse: boolean): void { this.gamb.double(r, worse); }
   gambleHand(cards: Card[], value: HandValue | null, counting: boolean): void { this.gamb.showHand(cards, value, counting); }
   gamblePlaceHand(at: { x: number; y: number } | null, face: number): void { this.gamb.placeHand(at, face); }
   gambleDealt(from: V3 | null, to: { x: number; y: number } | null, c: Card): void { this.gamb.dealt(from, to, c); }

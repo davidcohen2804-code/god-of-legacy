@@ -814,10 +814,10 @@ const gambler: FinalSkill[] = [
   S({
     id: 'charged_deal', cls: 'gambler', slot: 1, name: 'Charged Deal', roles: ['opener', 'projectile'], targeting: 'mouseCone',
     startup: 600, active: 120, recovery: 200, cooldown: 2600, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    hits: [H(0, 12, { kind: 'projectile', speed: 720, range: 560, radius: 13, count: 3, spread: 14, rows: 3, rowGap: 22 }, { stun: 300, push: 6 }, { reachUp: 90, stick: 1 })],
+    hits: [H(0, 12, { kind: 'projectile', speed: 720, range: 560, radius: 13, count: 3, spread: 7, rows: 3, rowGap: 22 }, { stun: 300, push: 6 }, { reachUp: 90, stick: 1 })],
     charge: { minMs: 120, levels: [
-      { at: 0, hits: [H(0, 12, { kind: 'projectile', speed: 720, range: 560, radius: 13, count: 3, spread: 14, rows: 3, rowGap: 22 }, { stun: 300, push: 6 }, { reachUp: 90, stick: 1 })] },
-      { at: 520, hits: [H(0, 12, { kind: 'projectile', speed: 760, range: 600, radius: 13, count: 5, spread: 11, rows: 3, rowGap: 22 }, { stun: 320, push: 8 }, { reachUp: 90, stick: 1 })] },
+      { at: 0, hits: [H(0, 12, { kind: 'projectile', speed: 720, range: 560, radius: 13, count: 3, spread: 7, rows: 3, rowGap: 22 }, { stun: 300, push: 6 }, { reachUp: 90, stick: 1 })] },
+      { at: 520, hits: [H(0, 12, { kind: 'projectile', speed: 760, range: 600, radius: 13, count: 5, spread: 6, rows: 3, rowGap: 22 }, { stun: 320, push: 8 }, { reachUp: 90, stick: 1 })] },
     ] },
     cancelOnHit: ['staff_vault', 'fuse_slam', 'cut_the_deck', 'riffle_shuffle', 'ace_in_the_hole', 'all_in'], telegraph: 'cone',
     description: 'A fan of three charged cards across the whole floor; hold the key for five. Every card that hits sticks in the foe and bursts 0.6s later — or at once, when your staff strikes it.',
@@ -847,7 +847,7 @@ const gambler: FinalSkill[] = [
     id: 'riffle_shuffle', cls: 'gambler', slot: 4, name: 'Riffle Shuffle', roles: ['pull', 'zone', 'extender'], targeting: 'self',
     startup: 160, active: 900, recovery: 220, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 900],
     hits: [...Array.from({ length: 7 }, (_, i) => H(i * 110, 4, { kind: 'circle', radius: 150 }, { stun: 320, pull: 26, float: true, juggleCost: 3 }, { reachUp: 160 })),
-      H(820, 12, { kind: 'circle', radius: 170 }, { stun: 400, push: 60 }, { reachUp: 170, heavy: true, stick: 2 })],
+      H(820, 12, { kind: 'circle', radius: 170 }, { stun: 400, push: 10 }, { reachUp: 170, heavy: true, stick: 2 })],
     cancelOnHit: ['cut_the_deck', 'fuse_slam', 'rotor_staff', 'showdown', 'staff_vault', 'pickup_52', 'all_in'],
     description: 'A ring of cards shuffles round you like a deck in a dealer\'s hands: it pulls nearby foes in and cuts them again and again, then the cards spread out and stick in everyone around.',
     relations: ['Pull', 'Sticks 2 cards'],
@@ -858,7 +858,7 @@ const gambler: FinalSkill[] = [
     // the spinning staff throws charged cards out of its circle nonstop: every second blow sticks one more card in the foe;
     // the last blow (a staff thrust) sets them all off at once
     hits: [...Array.from({ length: 14 }, (_, i) => H(i * 100, 3, { kind: 'sector', range: 150, angle: 80 }, { stun: 300, float: true, juggleCost: 2 }, { reachUp: 190, stick: i % 2 ? 1 : undefined })),
-      H(1440, 14, { kind: 'sector', range: 130, angle: 120 }, { stun: 420, push: 70, juggleCost: 10 }, { reachUp: 190, heavy: true, fuse: true })],
+      H(1440, 14, { kind: 'sector', range: 130, angle: 120 }, { stun: 420, push: 15, juggleCost: 10 }, { reachUp: 190, heavy: true, fuse: true })],
     cancelOnHit: ['fuse_slam', 'staff_vault', 'grand_slam', 'showdown', 'pickup_52', 'riffle_shuffle', 'all_in'],
     description: 'Spin the staff in front of you like a propeller for 1.5s while you walk on: its circle throws charged cards nonstop, holding the foe where it is (in the air too) and sticking card after card in it — then the last blow sets them all off at once and throws it away.',
     relations: ['Cards nonstop', 'Last blow: chain burst'],
@@ -888,7 +888,7 @@ const gambler: FinalSkill[] = [
     hits: [...[0, 500, 1000, 1500].map((t) => H(t, 3, { kind: 'placed', radius: 150 }, { stun: 200, slow: { pct: 40, ms: 600 } }, { reachUp: 60 })),
       H(2000, 30, { kind: 'placed', radius: 160 }, { stun: 460, launch: 130, juggleCost: 20 }, { reachUp: 80, heavy: true })],
     cancelOnHit: ['cut_the_deck', 'charged_deal', 'dice_bomb', 'kinetic_grab', 'all_in', 'triple_down'], telegraph: 'ground',
-    description: 'A giant roulette wheel opens on the floor where you aim; the ball spins for 2s and every foe in the wheel is slowed. Where it stops: RED — a great blast throws them all up; BLACK — everyone in it is bound for 2s.',
+    description: 'A giant roulette wheel opens on the floor where you aim; the ball spins for 2s and every foe in the wheel is slowed. Where it stops: RED — a great blast throws them all up; BLACK — everyone in it is bound for 2s. DOUBLE OR NOTHING: press again within 0.4 s to throw again — but if the new throw is worse, you are stunned 0.6 s.',
     relations: ['Slow 2s', 'Red: launch · Black: bind'],
   }),
   S({
@@ -898,7 +898,7 @@ const gambler: FinalSkill[] = [
     hits: [H(560, 14, { kind: 'circle', radius: 120, at: 'aimBias', bias: 140 }, { stun: 400, push: 40 }, { reachUp: 90, heavy: true }),
       H(640, 14, { kind: 'circle', radius: 120, at: 'aimBias', bias: 195 }, { stun: 400, push: 40, launch: 50 }, { reachUp: 90, heavy: true })],
     cancelOnHit: ['cut_the_deck', 'charged_deal', 'staff_vault', 'roulette_wheel', 'kinetic_grab', 'triple_down'], telegraph: 'line',
-    description: 'Roll two glowing dice along the floor: they tumble forward and burst. The higher the roll (2 to 12), the bigger the blast; a double bursts twice and stuns.',
+    description: 'Roll two glowing dice along the floor: they tumble forward and burst. The higher the roll (2 to 12), the bigger the blast; a double bursts twice and stuns. DOUBLE OR NOTHING: press again within 0.4 s to throw again — but if the new throw is worse, you are stunned 0.6 s.',
     relations: ['Blast by the roll', 'Double: stun'],
   }),
   S({
@@ -924,12 +924,12 @@ const gambler: FinalSkill[] = [
   }),
   S({
     id: 'all_in', cls: 'gambler', slot: 13, name: 'All In', roles: ['launcher', 'extender'], targeting: 'self',
-    startup: 240, active: 120, recovery: 240, cooldown: 8000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    startup: 240, active: 120, recovery: 240, cooldown: 10000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     // a snap of the fingers: every charged card stuck in a foe near him goes off at once and blows him up into the air —
-    // the more cards, the harder and higher (Gamble.ts / the scene: gambleHit); a foe with no card in him only reels
-    hits: [H(80, 8, { kind: 'circle', radius: 380 }, { stun: 420, launch: 70, juggleCost: 10 }, { reachUp: 240, heavy: true })],
+    // the more cards, the harder and higher (Gamble.ts / the scene: gambleHit); a foe with no card in him is not touched at all (a whiff to punish)
+    hits: [H(80, 8, { kind: 'circle', radius: 220 }, { stun: 420, launch: 70, juggleCost: 10 }, { reachUp: 240, heavy: true })],
     cancelOnHit: ['rotor_staff', 'showdown', 'pickup_52', 'grand_slam', 'riffle_shuffle', 'cut_the_deck', 'fuse_slam', 'kinetic_grab'],
-    description: 'Snap your fingers: every charged card stuck in a foe near you detonates at once and blasts him up into the air. Each card adds damage and height — a foe full of cards flies; a foe with none only reels.',
+    description: 'Snap your fingers: every charged card stuck in a foe near you detonates at once and blasts him up into the air. Each card adds damage and height — a foe full of cards flies; a foe with none is not even touched — a miss your foe can punish.',
     relations: ['Detonates stuck cards', 'Re-launch'],
   }),
   S({
@@ -939,14 +939,14 @@ const gambler: FinalSkill[] = [
       // the cards stuck in the floor go off in a wave, near to far; the last one lifts
       ...[250, 400, 550, 700].map((t, i) => H(t, i === 3 ? 18 : 9, { kind: 'circle', radius: 120, at: 'aimBias', bias: 90 + i * 95 }, { stun: 400, float: i < 3, launch: i === 3 ? 110 : undefined, juggleCost: i === 3 ? 18 : 5 }, { reachUp: 150, heavy: i === 3 }))],
     cancelOnHit: ['showdown', 'grand_slam', 'jackpot', 'rotor_staff', 'all_in'], telegraph: 'cone',
-    description: 'Spray the whole deck in a wide cone: the cards stick in the floor and in every foe across the depth of the floor, then go off in a wave from near to far — the last blast throws them up.',
+    description: 'Spray the whole deck in a wide cone: the cards stick in the floor and in every foe in the cone ahead, then go off in a wave from near to far along it — the last blast throws them up.',
     relations: ['Wide zone', 'Sticks 2 cards'],
   }),
   S({
     id: 'grand_slam', cls: 'gambler', slot: 15, name: 'Grand Slam', roles: ['finisher', 'knockdown'], targeting: 'mouseCone',
     startup: 420, active: 140, recovery: 320, cooldown: 11000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 560],
-    hits: [H(0, 46, { kind: 'sector', range: 150, angle: 120 }, { stun: 520, push: 380, launch: 40, knockdown: 'heavy', juggleCost: 30 }, { reachUp: 200, heavy: true, fuse: true })],
-    cancelOnHit: ['showdown', 'jackpot', 'pickup_52', 'dice_bomb', 'ace_in_the_hole', 'triple_down'], telegraph: 'cone',
+    hits: [H(0, 46, { kind: 'sector', range: 150, angle: 120 }, { stun: 520, push: 160, launch: 40, knockdown: 'heavy', juggleCost: 30 }, { reachUp: 200, heavy: true, fuse: true })],
+    cancelOnHit: ['pickup_52', 'dice_bomb', 'ace_in_the_hole', 'triple_down'], telegraph: 'cone',
     description: 'The staff grows to twice its length and you swing it like a bat: the foe flies far away on a comet\'s tail and crashes into the floor or a wall. It sets off every card stuck in it at once.',
     relations: ['Sends far', 'Sets off all cards'],
   }),
@@ -955,8 +955,8 @@ const gambler: FinalSkill[] = [
     startup: 200, active: 760, recovery: 300, cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 960],
     // the staff grows into a pillar of light and hammers the floor ahead three times — each blow on a foe lying there keeps
     // him down and sets off the cards in him; the third, the heaviest, bounces him off the floor (one more link)
-    hits: [H(0, 12, { kind: 'circle', radius: 95, at: 'aimBias', bias: 85 }, { stun: 420 }, { reachUp: 120, heavy: true, fuse: true }),
-      H(300, 14, { kind: 'circle', radius: 100, at: 'aimBias', bias: 85 }, { stun: 420 }, { reachUp: 120, heavy: true, fuse: true }),
+    hits: [H(0, 12, { kind: 'circle', radius: 95, at: 'aimBias', bias: 85 }, { stun: 420, juggleCost: 6 }, { reachUp: 120, heavy: true, fuse: true }),
+      H(300, 14, { kind: 'circle', radius: 100, at: 'aimBias', bias: 85 }, { stun: 420, juggleCost: 6 }, { reachUp: 120, heavy: true, fuse: true }),
       H(700, 24, { kind: 'circle', radius: 125, at: 'aimBias', bias: 85 }, { stun: 520, launch: 70, juggleCost: 14 }, { reachUp: 130, heavy: true, fuse: true })],
     cancelOnHit: ['all_in', 'rotor_staff', 'showdown', 'cut_the_deck', 'charged_deal', 'fuse_slam', 'grand_slam'], telegraph: 'circle',
     description: 'Your staff grows into a pillar of light and you hammer the floor ahead three times. Every blow lands on a foe lying there — keeping him down and setting off the cards stuck in him — and the third, the heaviest, bounces him off the floor.',

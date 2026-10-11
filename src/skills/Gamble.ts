@@ -34,8 +34,8 @@ export const HAND_TABLE: Omit<HandValue, 'flush'>[] = [
 export const PVP_HAND_CAP = 2.2;
 export const HAND_MAX = 5;
 export const HAND_KEEP_MS = 8000, HAND_KEEP_STACKED_MS = 15000;
-/** Charged cards stuck in a foe: they burst after this; at most this many at once. */
-export const FUSE_MS = 600, STUCK_MAX = 5;
+/** Charged cards stuck in a foe: they stay this long (a staff blow or All In sets them off; alone they fizzle out); at most this many. */
+export const FUSE_MS = 1800, STUCK_MAX = 5;
 /** A staff blow on a charged foe: each stuck card adds this share of the blow (Short Fuse: ×1.3). */
 export const FUSE_PER_CARD = 0.12;
 
@@ -141,14 +141,20 @@ export function castRoll(castId: string, salt: number): number {
   h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995); h ^= h >>> 15;
   return (h >>> 0) / 4294967296;
 }
+/** Double or Nothing: casts whose dice / wheel were thrown again (drawn from another salt — the same on every client). */
+const REROLL = new Set<string>();
+export const reroll = (castId: string): void => { REROLL.add(castId); if (REROLL.size > 200) REROLL.delete(REROLL.values().next().value as string); };
+export const isRerolled = (castId: string): boolean => REROLL.has(castId);
+const eff = (castId: string) => (REROLL.has(castId) ? `${castId}~again` : castId);
 /** Coin Flip: heads (true) or tails. */
 export const coinOf = (castId: string): boolean => castRoll(castId, 1) < 0.5;
 /** Roulette Wheel: where the ball stops — the pocket (0..17) and red (true) or black. */
-export function rouletteOf(castId: string): { pocket: number; red: boolean } {
-  const pocket = Math.floor(castRoll(castId, 2) * 18);
+export function rouletteOf(castId: string, first = false): { pocket: number; red: boolean } {
+  const pocket = Math.floor(castRoll(first ? castId : eff(castId), 2) * 18);
   return { pocket, red: pocket % 2 === 0 };
 }
 /** Dice Bomb: the two dice. */
-export function diceOf(castId: string): [number, number] {
-  return [1 + Math.floor(castRoll(castId, 3) * 6), 1 + Math.floor(castRoll(castId, 4) * 6)];
+export function diceOf(castId: string, first = false): [number, number] {
+  const id = first ? castId : eff(castId);
+  return [1 + Math.floor(castRoll(id, 3) * 6), 1 + Math.floor(castRoll(id, 4) * 6)];
 }

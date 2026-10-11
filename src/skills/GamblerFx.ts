@@ -407,6 +407,27 @@ export class GamblerFx {
       this.ctx.callout({ x: tp.x, y: tp.y, z: tp.z + 10 }, n >= 3 ? `CHAIN BURST ×${n}!` : `BURST ×${n}`, '#ff7ae6', 1);
     }
   }
+  /** DOUBLE OR NOTHING: a gold coin flicked high over his head spins down onto the dice (or the wheel) — they go again.
+   *  A worse throw: the coin lands tails-up, grey, and he reels (the scene stuns him). */
+  double(r: CastRun, worse: boolean): void {
+    const c = this.me(r), s = this.ctx.scene, h = this.ctx.hand(r.attackerId) ?? { x: c.x, y: c.y - c.z - 70 };
+    const tgt = r.skill.id === 'roulette_wheel' ? (r.place ?? this.ahead(r, 200)) : this.ahead(r, 165);
+    const pic = s.textures.exists('gbk-o_spin'), coin = s.add.image(h.x, h.y, pic ? 'gbk-o_spin' : 'gb-coin').setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 6);
+    const top = c.y - c.z - 190, D = 44;
+    this.piece(coin, 380, (u, o) => {
+      const fl = Math.cos(u * 30), face = Math.abs(fl) > 0.8, x = lerp(h.x, tgt.x, u), y = u < 0.45 ? lerp(h.y, top, out3(u / 0.45)) : lerp(top, tgt.y - 24, ((u - 0.45) / 0.55) ** 2);
+      if (pic) o.setTexture(face ? (fl > 0 ? 'gbk-o_heads' : 'gbk-o_tails') : 'gbk-o_spin');
+      o.setPosition(x, y).setDisplaySize(face ? D : D * 0.7, D);
+    });
+    this.add((t) => {
+      if (t < 380) return true;
+      const land = this.kit(worse ? 'o_tails' : 'o_heads', tgt.x, tgt.y - 30, 70, TOP + 6);
+      if (land) { if (worse) land.setTint(0x9a90a8); const l0 = land.scale; this.piece(land, 520, (u, o) => o.setScale(l0 * (u < 0.15 ? lerp(1.5, 1, u / 0.15) : 1)).setPosition(tgt.x, tgt.y - 30 - u * 20).setAlpha(u < 0.6 ? 1 : (1 - u) / 0.4)); }
+      this.pop(tgt.x, tgt.y - 20, 120, worse ? 0xb8b0c8 : GOLD, 300);
+      this.ctx.callout({ x: tgt.x, y: tgt.y, z: 40 }, worse ? 'NOTHING…' : 'DOUBLE!', worse ? '#b8b0c8' : '#ffc94a', 0);
+      return false;
+    });
+  }
   /** Triple Down: the staff as a pillar of light comes down on the floor ahead — each blow bigger, the third shatters it. */
   private tripleSlam(r: CastRun, i: number): void {
     const o = this.me(r), side = sideOf(r), p = this.ahead(r, 85), h = this.ctx.hand(r.attackerId) ?? { x: o.x + side * 30, y: o.y - o.z - 70 };
@@ -451,13 +472,24 @@ export class GamblerFx {
         if (!tp) { c.img.destroy(); return false; }
         c.img.setPosition(tp.x + c.dx, tp.y - tp.z + c.dy).setAngle(c.ang);
         const left = c.at - this.clock;
-        if (left <= 0) { this.burst(c.img.x, c.img.y, 70); c.img.destroy(); return false; }
-        const blink = Math.sin((this.clock / Math.max(30, left * 0.25)) * Math.PI) > 0;
-        c.img.setTint(blink ? 0xffffff : FUCHSIA);
+        if (left <= 0) { const im = c.img; this.piece(im, 260, (u, o) => o.setAlpha(1 - u).setScale(o.scaleX * 0.98)); return false; } // left alone it fizzles out (no blast: it does no damage)
+        const blink = left < 500 && Math.sin((this.clock / Math.max(30, left * 0.25)) * Math.PI) > 0;
+        c.img.setTint(blink ? 0xffffff : FUCHSIA).setAlpha(left < 500 ? 0.55 + 0.45 * (left / 500) : 1);
         return true;
       });
       if (keep.length) this.stuck.set(id, keep); else this.stuck.delete(id);
+      this.stuckBadge(id, tp, keep.length);
     }
+    for (const [id, b] of this.badges) if (!this.stuck.has(id)) { b.destroy(); this.badges.delete(id); }
+  }
+  /** How many charged cards are in him, over his head: what a staff blow or All In will set off. */
+  private badges = new Map<string, Phaser.GameObjects.Text>();
+  private stuckBadge(id: string, tp: (V3 & { h?: number }) | null, n: number): void {
+    let b = this.badges.get(id);
+    if (!tp || n <= 0) { b?.destroy(); this.badges.delete(id); return; }
+    if (!b) { b = this.ctx.scene.add.text(0, 0, '', { fontFamily: 'Cinzel, Georgia, serif', fontStyle: 'bold', fontSize: '18px', color: '#ffe0f6', stroke: '#3a0a2e', strokeThickness: 5, resolution: 2, padding: { x: 6, y: 3 } }).setOrigin(0.5, 1).setDepth(TOP + 7); this.badges.set(id, b); }
+    const t = `♦×${n}`; if (b.text !== t) { b.setText(t); b.setScale(1.35); }
+    b.setScale(Math.max(1, b.scale - 0.04)).setPosition(tp.x, tp.y - tp.z - (tp.h ?? 90) - 26).setColor(n >= 3 ? '#ffc94a' : '#ffe0f6');
   }
 
   /** A hit that landed (the attacker's view): a fuchsia burst with card shards; heavier for heavy / signature hits. */
@@ -844,7 +876,8 @@ export class GamblerFx {
   }
   /** The roulette as a sigil of light laid flat on the floor: it draws itself in, spins (a blur of light), the ball of light
    *  runs round its rim skipping pockets, slows — the world holds its breath — and drops; the sigil stays lit till the result. */
-  private rouletteSigil(r: CastRun, p: { x: number; y: number }, R: number, res: { pocket: number; red: boolean }, total: number, spinMs: number): void {
+  private rouletteSigil(r: CastRun, p: { x: number; y: number }, R: number, res0: { pocket: number; red: boolean }, total: number, spinMs: number): void {
+    void res0;
     const T = r.timings, s = this.ctx.scene, Wd = R * 2.35, Hd = Wd * SQUASH * 1.02;
     const base = s.add.image(p.x, p.y, 'gbk-r_sigil').setDepth(GROUND + 3).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(Wd, Hd).setAlpha(0);
     const spin = s.add.image(p.x, p.y, 'gbk-r_spin').setDepth(GROUND + 3.1).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(Wd * 1.04, Hd * 1.06).setAlpha(0);
@@ -854,13 +887,21 @@ export class GamblerFx {
     const rx = Wd * 0.43, ry = Hd * 0.43, cy = p.y;
     this.floorRing(p.x, p.y, R * 1.15, FUCHSIA_2, 360, 0, 4); // the circle snaps open first
     const st = { pk: -1, tense: false, won: false, lx: p.x, ly: p.y };
+    const lit = this.kit('k_ring', p.x, p.y, Wd * 1.1, GROUND + 2.9); lit?.setAlpha(0);
     this.add((t) => {
-      if (t >= total + 300) { base.destroy(); spin.destroy(); ball.destroy(); streak.destroy(); return false; }
+      const res = rouletteOf(r.castId); // (Double or Nothing may throw it again)
+      if (t >= total + 300) { lit?.destroy(); base.destroy(); spin.destroy(); ball.destroy(); streak.destroy(); return false; }
       const open = out3(clamp01(t / Math.max(1, T.startup + 80))), u = clamp01((t - T.startup) / spinMs), speed = t < T.startup ? open : 1 - out3(u);
       const fade = t > T.startup + spinMs + 260 ? clamp01(1 - (t - T.startup - spinMs - 260) / 340) : 1;
       // it draws itself in: from a thin bright line to the full ellipse (no pop of furniture)
       base.setScale(bx * lerp(0.92, 1, open), by * lerp(0.15, 1, open)).setAlpha(open * fade * (st.won ? 1 : 0.92));
       spin.setScale(sx * lerp(0.92, 1, open), sy * lerp(0.15, 1, open)).setAlpha(open * fade * speed * 0.85).setFlipX(Math.floor(t / 70) % 2 === 1);
+      if (t >= T.startup + 1000) { // one second in, the wheel shows where it is going: lit red or black — time to react
+        const k = clamp01((t - T.startup - 1000) / 200), col = res.red ? 0xff3a5a : 0xd8d0f0;
+        base.setTint(res.red ? 0xff9ab0 : 0xe4e0f4);
+        if (lit) lit.setTint(col).setDisplaySize(Wd * 1.12, Hd * 1.15).setAlpha(fade * k * (0.55 + 0.3 * Math.sin(t * 0.02)));
+        if (!(st as { told?: boolean }).told) { (st as { told?: boolean }).told = true; this.ctx.callout({ x: p.x, y: p.y, z: 30 }, res.red ? 'RED…' : 'BLACK…', res.red ? '#ff6a8a' : '#e8e0f0', 1); }
+      }
       // a few thin arcs of light sweep round the rim — the spin you read at a glance
       const rot = t * 0.011 * (0.12 + 0.88 * speed);
       streak.clear().setAlpha(fade);
