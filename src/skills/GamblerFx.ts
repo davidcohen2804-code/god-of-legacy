@@ -58,6 +58,8 @@ export class GamblerFx {
   constructor(private ctx: GambleCtx) {
     const s = ctx.scene;
     if (!s.textures.exists('gb-cutin')) { s.load.image('gb-cutin', 'assets/final/heroes/gambler/cutin.png'); if (!s.load.isLoading()) s.load.start(); }
+    // the animated cut-in (PixVerse, keyed): 18 frames of 640×360 — the card flares into a lightning burst and settles
+    if (!s.textures.exists('gb-cutin-anim')) { s.load.spritesheet('gb-cutin-anim', 'assets/final/heroes/gambler/cutin_anim.webp', { frameWidth: 640, frameHeight: 360 }); if (!s.load.isLoading()) s.load.start(); }
     this.makeTextures();
     this.ready = true;
   }
@@ -1329,15 +1331,17 @@ export class GamblerFx {
     const band = s.add.rectangle(v.centerX, cy, v.width, h, 0x12040e, 0.82).setDepth(TOP + 49).setScale(1, 0);
     const edgeT = s.add.rectangle(v.centerX, cy - h / 2, v.width, 4, FUCHSIA, 1).setDepth(TOP + 50).setScale(0, 1);
     const edgeB = s.add.rectangle(v.centerX, cy + h / 2, v.width, 4, FUCHSIA, 1).setDepth(TOP + 50).setScale(0, 1);
+    const anim = s.textures.exists('gb-cutin-anim');
     const tex = s.textures.get('gb-cutin').getSourceImage() as HTMLImageElement;
-    const k = (h * 1.25) / tex.height; // the painted cut-in (his reach with the card spills a little over the band)
-    const img = s.add.image(v.x - 300, cy + h * 0.5, 'gb-cutin').setOrigin(0.5, 1).setScale(k).setDepth(TOP + 51);
+    // the painted cut-in (his reach with the card spills a little over the band); the animated one: his figure is 320 of its 360 px
+    const k = (h * 1.25) / (anim ? 320 : tex.height);
+    const img = s.add.image(v.x - 300, cy + h * 0.5, anim ? 'gb-cutin-anim' : 'gb-cutin', anim ? 0 : undefined).setOrigin(0.5, 1).setScale(k).setDepth(TOP + 51);
     const sx = (u: number) => (u < 0.22 ? lerp(v.x - 300, v.centerX - 30, out3(u / 0.22)) : u < 0.82 ? lerp(v.centerX - 30, v.centerX + 30, (u - 0.22) / 0.6) : lerp(v.centerX + 30, v.right + 300, (u - 0.82) / 0.18));
     const env = (u: number) => (u < 0.12 ? u / 0.12 : u > 0.85 ? (1 - u) / 0.15 : 1);
     this.piece(band, life, (u, o) => o.setScale(1, env(u)));
     this.piece(edgeT, life, (u, o) => o.setScale(clamp01(u * 4), 1).setAlpha(env(u)));
     this.piece(edgeB, life, (u, o) => o.setScale(clamp01(u * 4), 1).setAlpha(env(u)));
-    this.piece(img, life, (u, o) => o.setX(sx(u)).setAlpha(u > 0.82 ? env(u) : 1));
+    this.piece(img, life, (u, o) => { o.setX(sx(u)).setAlpha(u > 0.82 ? env(u) : 1); if (anim) o.setFrame(Math.min(17, Math.floor(u * 18))); });
   }
 
   /** A gambler zone strikes (its lingering hit): the thrown foe's landing bursts; the charged floor is drawn by fuseFloor. */
