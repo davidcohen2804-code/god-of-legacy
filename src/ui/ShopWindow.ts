@@ -51,7 +51,7 @@ export class ShopWindow {
     ensureTheme();
     if (!document.getElementById(STYLE_ID)) { const st = document.createElement('style'); st.id = STYLE_ID; st.textContent = CSS; document.head.appendChild(st); }
     this.root = this.el('div', 'gol-shop gl-win pop', parent) as HTMLDivElement;
-    const hd = this.el('div', 'gl-head', this.root); this.el('div', 'gl-title', hd).textContent = "MIRA'S GOODS"; this.el('div', 'gl-sub', hd).textContent = 'Traveling merchant · Sunstone Plaza';
+    const hd = this.el('div', 'gl-head', this.root); this.title = this.el('div', 'gl-title', hd); this.title.textContent = "MIRA'S GOODS"; this.sub = this.el('div', 'gl-sub', hd); this.sub.textContent = 'Traveling merchant · Sunstone Plaza';
     this.el('div', 'gl-sp', hd);
     const x = this.el('button', 'gl-x', hd) as HTMLButtonElement; x.type = 'button'; x.setAttribute('aria-label', 'Close'); x.title = 'Close (Esc)'; x.addEventListener('click', () => this.close());
     const body = this.el('div', 'body', this.root);
@@ -65,6 +65,10 @@ export class ShopWindow {
   private el(tag: string, cls: string, parent: HTMLElement): HTMLElement { const e = document.createElement(tag); if (cls) e.className = cls; parent.appendChild(e); return e; }
 
   get isOpen(): boolean { return this.root.classList.contains('open'); }
+  private title!: HTMLElement;
+  private sub!: HTMLElement;
+  /** Whose shop this is (the head's title and line). */
+  keeper(title: string, sub: string): void { this.title.textContent = title; this.sub.textContent = sub; }
   open(): void { if (this.isOpen) return; this.qty.clear(); this.msg.textContent = ''; this.root.classList.add('open'); window.addEventListener('keydown', this.onEsc, true); this.refresh(); this.h.onOpen(true); }
   close(): void { if (!this.isOpen) return; this.root.classList.remove('open'); window.removeEventListener('keydown', this.onEsc, true); this.h.onOpen(false); }
   destroy(): void { window.removeEventListener('keydown', this.onEsc, true); this.root.remove(); }

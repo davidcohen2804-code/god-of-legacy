@@ -61,6 +61,8 @@ export class Monster {
   private struck = false;
   private flashLeft = 0;
   private respawnLeft = 0;
+  /** Home west of the Temple Gate: never crosses its line (the monsters of the twilight gardens live east of it). */
+  private get west(): boolean { return this.home.x < MOB_WALL_X; }
   /** Hit by the player: it keeps after him this long (ms) however far he runs (never past the Temple Gate). */
   private provokedLeft = 0;
   /** Chasing and a block is in the way: it steps around it (up or down the floor) for this long (ms). */
@@ -147,7 +149,7 @@ export class Monster {
       if (this.respawnLeft <= 0 && Math.hypot(w.player.x - this.home.x, w.player.y - this.home.y) > 90 && !w.blocked(this, this.home.x, this.home.y)) this.reset();
     } else if (b.canAct(now) && !b.silenced(now) && !this.frozen) this.think(ms, w, dx, dy, dist);
     else if (b.state === 'free') { this.kin.vx = 0; this.kin.vy = 0; }
-    const r = stepKin(this.kin, ms, b.gravityScale(now), (x, y) => x > MOB_WALL_X || w.blocked(this, x, y) || supportAt(x, y, this.kin.z + 1).z < this.homeZ - 1, this.moving && b.state === 'free' && !b.push);
+    const r = stepKin(this.kin, ms, b.gravityScale(now), (x, y) => (x > MOB_WALL_X && this.west) || w.blocked(this, x, y) || supportAt(x, y, this.kin.z + 1).z < this.homeZ - 1, this.moving && b.state === 'free' && !b.push);
     this.lastBlocked = r.blockedX || r.blockedY;
     settleOnBlocks(this.kin, ms, 0);   // knocked onto a block: onto its top face; beside one: never left half inside it
     if ((this.ai === 'chase' || this.ai === 'home') && this.moving && r.blockedX && this.detourLeft <= 0) {
@@ -174,7 +176,7 @@ export class Monster {
     const fromHome = Math.hypot(k.x - this.home.x, k.y - this.home.y);
     const up = (w.player.level ?? 0) - this.homeZ;
     const level = Math.abs(up) < 40 || (up >= 40 && up <= REACH_UP);   // on its floor, or up on a block it can swing at
-    const sees = w.player.alive && level && w.player.x < MOB_WALL_X + 40 && dist <= K.aggro && (up >= 40 || clearLine(k.x, k.y, w.player.x, w.player.y, 30));
+    const sees = w.player.alive && level && (w.player.x < MOB_WALL_X + 40 || !this.west) && dist <= K.aggro && (up >= 40 || clearLine(k.x, k.y, w.player.x, w.player.y, 30));
     switch (this.ai) {
       case 'idle': case 'wander': {
         if (sees) { this.enter('chase'); break; }
@@ -197,7 +199,7 @@ export class Monster {
       }
       case 'chase': {
         const provoked = this.provokedLeft > 0; // hit by him: it follows him wherever he goes, for a while
-        if (!w.player.alive || (!provoked && (dist > K.aggro * 1.8 || fromHome > 520)) || w.player.x > MOB_WALL_X + 60 || (!level && !provoked)) { this.provokedLeft = 0; this.enter('home'); break; }  // past the Temple Gate: out of reach
+        if (!w.player.alive || (!provoked && (dist > K.aggro * 1.8 || fromHome > 520)) || (w.player.x > MOB_WALL_X + 60 && this.west) || (!level && !provoked)) { this.provokedLeft = 0; this.enter('home'); break; }  // past the Temple Gate: out of reach
         this.faceToward(w.player.x);
         const reach = K.range + (up >= 40 ? 34 : 0);   // at a block's side: its blade reaches the one standing on top
         if (dist <= reach && Math.abs(dy) < 34 + (up >= 40 ? 30 : 0)) { k.vx = 0; k.vy = 0; if (this.sinceAttack >= K.cooldown && w.player.z < 40 && level) this.startAttack(); break; }

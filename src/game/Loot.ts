@@ -44,6 +44,8 @@ export const ITEMS: Record<string, ItemDef> = {
   moth_dust: { id: 'moth_dust', name: 'Moth Dust', kind: 'mat', icon: I('moth_dust'), sell: 9, desc: 'Glimmering golden dust. Lumen the Lamplighter wants it.', rarity: 'common', lore: "Shed by the Lantern Moths of the Lantern Steps when they are startled. It keeps a little light of its own." },
   dusk_lantern: { id: 'dusk_lantern', name: 'Dusk Lantern', kind: 'key', icon: I('dusk_lantern'), sell: 0, desc: 'A lantern lit with moth light. It shows what hides in the twilight.', rarity: 'uncommon', lore: "Lumen made it from ten pinches of Moth Dust. It never goes out." },
   sun_ember: { id: 'sun_ember', name: 'Sun Ember', kind: 'key', icon: I('sun_ember'), sell: 0, desc: 'A piece of the Heart of the Sun, still warm. Keep it close.', rarity: 'rare', lore: "Taken back from the Shade Fox at the Hollow Gate. The first piece of the stolen Heart." },
+  spark: { id: 'spark', name: 'Spark', kind: 'mat', icon: I('spark'), sell: 1, desc: "A mote of stolen sunlight. Pip in the Thief's Den collects them.", rarity: 'common', lore: "The Shade Imps of the Root Cellar keep them in their pockets. They fade once you leave the den." },
+  sun_ember_2: { id: 'sun_ember_2', name: 'Second Sun Ember', kind: 'key', icon: I('sun_ember'), sell: 0, desc: 'The second piece of the Heart of the Sun, taken back from the magpie. Keep it close.', rarity: 'rare', lore: "Found in Pouncer's hoard inside the Elder Tree. Two pieces now; the rest is still out there." },
   cursed_cloth: { id: 'cursed_cloth', name: 'Cursed Cloth', kind: 'mat', icon: I('cursed_cloth'), sell: 12, desc: 'A scrap of cloth that still hums with a curse. Merchants buy it.', rarity: 'common', lore: "Torn from the cloaks of the Cursed Swordsmen. The curse still hums in its threads." },
 };
 export const ITEM_IDS = Object.keys(ITEMS);
@@ -84,6 +86,9 @@ const DROPS: Record<string, { gold: [number, number]; items: [string, number][] 
   glowcap: { gold: [10, 18], items: [['orange', 0.07], ['red_potion', 0.06], ['cake', 0.02]] },
   moth: { gold: [12, 22], items: [['moth_dust', 0.6], ['blue_potion', 0.05], ['orange', 0.05]] },
   shade_fox: { gold: [300, 500], items: [['elixir', 0.5], ['swift_potion', 0.6], ['moth_dust', 1]] },
+  shade_imp: { gold: [6, 12], items: [['spark', 1], ['red_potion', 0.05]] },
+  coin_imp: { gold: [25, 60], items: [['orange', 0.1]] },
+  pouncer: { gold: [500, 800], items: [['elixir', 0.6], ['swift_potion', 0.6], ['cake', 1]] },
   cursed: { gold: [8, 14], items: [['cursed_cloth', 0.35], ['meat', 0.06], ['red_potion', 0.06], ['blue_potion', 0.04], ['elixir', 0.003]] },
 };
 

@@ -76,6 +76,7 @@ import { ARENA as PLAZA, AREAS as WORLD_AREAS } from '../world/Areas';
 import { ROW as WORLD_ROW } from '../world/Areas';
 import { isQAMode } from '../qa/QAPanel';
 import type { DevApi } from '../qa/TestMode';
+import { Den, DEN_CLEAR_KEY } from '../world/Den';
 import { jobsFor } from '../skills/Jobs';
 import { CombatInput } from '../game/CombatInput';
 import { ActorView, Equipped, RING_COLOR, preloadCosmetics, skinColor, grayKey, damageSkin, wantsWeaponMasks } from '../game/ActorView';
@@ -628,6 +629,18 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       // The open world: one long world left to right, the camera following you along it.
       this.world = new OpenWorld(this, { sunGateOpen: this.quests[SUN_GATE_KEY]?.state === 'done' || !!this.quests.training_grounds /* (walked the old road east before the gate stood: it stays open) */, onArea: (a) => { if (a.name !== this.areaName) { this.areaName = a.name; this.areaTitle?.show(a.name); } if (a.id === 'afterglow') this.openSunGate(); } }, at ?? toWorld(START.area, [START.x, START.y]));
       this.world.onNpcClick = (n) => this.talkTo(n);
+      this.den = new Den(this, {
+        kin: this.kin, level: () => this.character?.level ?? 1,
+        hasItem: (id) => this.bag[id] ?? 0, takeItem: (id, n) => this.takeItem(id, n), giveItem: (id, n) => { this.giveItem(id, n, false); this.saveLoot(); },
+        gold: (n) => { this.gold = Math.min(GOLD_MAX, this.gold + n); this.saveLoot(); this.hud?.lootFeed(GOLD_ICON.small, `+${fmtGold(n)} Gold`, '#f3d58c'); },
+        exp: (n) => this.gainExp(n, { x: this.kin.x, y: this.kin.y, z: this.kin.z }),
+        chat: (t) => this.chat?.add({ kind: 'system', text: t }), callout: (t, c) => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, t, c, 0),
+        spawn: (kind, x, y, id) => this.world?.spawnMob(kind, x, y, id) ?? null, removeMobs: (p) => this.world?.removeMobs(p),
+        jump: (area, x, y, done) => { this.ci?.reset(); this.warping = true; this.world?.jumpTo(area, x, y, this.kin, () => { this.warping = false; this.setMode('idle'); this.dev.free = true; done?.(); }); },
+        say: (n, lines, choices) => this.npcDialog?.open({ name: n.name, title: n.title, portrait: `assets/world/npc/${n.art}_face.png`, lines, choices: choices?.map((c) => ({ label: c.label, main: c.main, run: c.run })) }),
+        flag: (k) => this.quests[k]?.state === 'done', setFlag: (k) => { this.quests[k] = { state: 'done', progress: [] }; this.saveQuests(); },
+      });
+      this.world.nearUse = (x, y) => this.den?.nearPedestal(x, y) ?? null;
       // skill effects on the floor lifted to the floor their actor stands on (a cloud, a map above)
       this.floorLift = new FloorLift(this, () => {
         const out = [{ x: this.kin.x, y: this.kin.y, z: this.kin.z }];
@@ -831,6 +844,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.keySettings?.destroy(); this.keySettings = undefined;
       this.statsWin?.destroy(); this.statsWin = undefined;
       this.shop?.destroy(); this.shop = undefined;
+      this.den?.destroy(); this.den = undefined;
       this.world?.destroy(); this.world = undefined; this.floorLift?.destroy(); this.floorLift = undefined;
       this.npcDialog?.destroy(); this.npcDialog = undefined;
       this.areaTitle?.destroy(); this.areaTitle = undefined;
@@ -1425,7 +1439,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       }
       else if (target.startsWith('mob:')) {
         const m = this.mobById(target); if (!m?.alive) return;
-        if (m.damage(extra, this.simMs)) { this.questKill(m); this.gainExp(m.kind.exp ?? Math.round(m.kind.hp / 5), { x: m.kin.x, y: m.kin.y, z: m.kin.z }); this.dropLoot(m); if (this.gripFoe === m) { this.gripFoe = null; this.gripHeld = false; } }
+        if (m.damage(extra, this.simMs)) { this.questKill(m); this.den?.killed(m); this.gainExp(m.kind.exp ?? Math.round(m.kind.hp / 5), { x: m.kin.x, y: m.kin.y, z: m.kin.z }); this.dropLoot(m); if (this.gripFoe === m) { this.gripFoe = null; this.gripHeld = false; } }
       }
       else return;
       const big = fa.mul >= 0.5; // Advanced Final Attack: a bigger triple cut
@@ -2983,7 +2997,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (crit && own && this.critDmgNow() > 0) { this.fx!.shockwave(at.x, at.y, 110, this.cls === 'archer' ? 0x9be35a : this.cls === 'samurai' ? 0xff4a5a : this.cls === 'gambler' ? 0xff2bd6 : 0xff8a5a); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 40); } // Combat Mastery: heavier crits
       if (ch > 1 && out.damage > 0) this.chanceMark(t.id, at);
       if (killed) { // defeated: counts for the quests that ask for it
-        this.questKill(m);
+        this.questKill(m); this.den?.killed(m);
         this.gainExp(m.kind.exp ?? Math.round(m.kind.hp / 5), { x: m.kin.x, y: m.kin.y, z: m.kin.z });
         this.dropLoot(m);
         if (this.gripFoe === m) { this.gripFoe = null; this.gripHeld = false; }
@@ -4087,6 +4101,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private updateWorldUi(ms: number): void {
     if (!this.world) return;
     this.world.update(ms, { x: this.kin.x, y: this.kin.y, z: this.kin.z - this.kin.supportZ, supportZ: this.kin.supportZ, absZ: this.kin.z, grounded: this.kin.grounded, alive: this.dead < 0 });
+    this.den?.update(this.simMs, this.dead < 0);
     this.motes?.setPosition(this.world.viewLeft, 0); // the dust hangs in the air in front of you
   }
 
@@ -4098,6 +4113,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const n = this.world.near;
     if (n?.kind === 'npc') this.talkTo(n.npc);
     else if (n?.kind === 'portal') this.usePortal();
+    else if (n?.kind === 'use') this.den?.use(n.id, n.room);
   }
 
   /** An NPC's conversation: a quest to offer, the one running, the one to hand in — or just his lines. */
@@ -4110,6 +4126,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (Math.abs(np.x - this.kin.x) > 4) this.dir = np.x < this.kin.x ? 'left' : 'right'; // turns to face them
     const say = (lines: string[], choices?: DialogChoice[]) => this.npcDialog!.open({ name: n.name, title: n.title, portrait: `assets/world/npc/${n.art}_face.png`, lines, choices });
     if (n.job) { this.masterTalk(n, say); return; }
+    if (n.role === 'den_door') { this.den?.door(n); return; }
+    if (n.role === 'den_keeper') { this.den?.keeper(n, this.world.npcArea(n) ?? ''); return; }
     const mine = QUESTS.filter((q) => q.giver === n.id);
     const ready = QUESTS.find((q) => this.turnIn(q) === n.id && this.quests[q.id]?.state === 'active' && this.questReady(q)); // handed in where its last goal says
     if (ready) { say(ready.done, [{ label: ready.complete, main: true, run: () => this.finishQuest(ready) }]); return; }
@@ -4119,12 +4137,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (offer) { say(offer.offer, [{ label: offer.accept, main: true, run: () => this.takeQuest(offer) }, { label: offer.decline, run: () => undefined }]); return; }
     if (n.role === 'shop') {
       const unlocked = !mine.length || mine.every((q) => this.quests[q.id]?.state === 'done');
-      if (unlocked) { say(n.lines?.length ? n.lines : IDLE_LINES, [{ label: "Let's trade", main: true, run: () => this.openShop() }, { label: 'Goodbye', run: () => undefined }]); return; }
+      if (unlocked) { say(n.lines?.length ? n.lines : IDLE_LINES, [{ label: "Let's trade", main: true, run: () => this.openShop(n) }, { label: 'Goodbye', run: () => undefined }]); return; }
     }
     say(n.lines?.length ? n.lines : IDLE_LINES);
   }
 
-  private openShop(): void { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.statsWin?.close(); this.shop?.open(); }
+  private openShop(n?: AreaNpc): void { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.statsWin?.close(); if (n) this.shop?.keeper(`${n.name.toUpperCase()}'S GOODS`, `${n.title} · ${this.areaName}`); this.shop?.open(); }
 
   // ---- quests (the NPC's first missions)
   /** Can be offered now: not taken yet, the quest before it done. */
@@ -4135,6 +4153,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private goalHave(q: QuestDef, i: number): number {
     const o = q.objectives[i], st = this.quests[q.id];
     if (o.kind === 'collect') return Math.min(o.count ?? 1, this.bag[o.item ?? ''] ?? 0);
+    if (o.kind === 'flag') return this.quests[o.flag ?? '']?.state === 'done' ? 1 : 0;
     if (o.kind === 'level') return Math.min(o.level ?? 1, this.character?.level ?? 1);
     return st?.progress[i] ?? 0;
   }
@@ -4189,6 +4208,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   // ---- test mode (?qa=1, F8: src/qa/TestMode.ts): look at anything freely, untouched by the game's rules
   /** god: no damage · peace: the monsters pay no mind · free: never carried back from past the closed gate. */
   dev = { god: false, peace: false, free: false };
+  /** The Thief's Den (the party quest inside the Elder Tree). */
+  private den?: Den;
   /** What the test panel drives. */
   devApi(): DevApi {
     const sc = this;

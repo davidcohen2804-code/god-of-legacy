@@ -27,9 +27,10 @@ export interface AreaNpc {
   /** Stands on a block of this height (drawn that much higher, in front of the block). */
   z?: number;
   /** quest: gives the quests whose `giver` is this NPC; talk: just its lines. */
-  role: 'quest' | 'talk' | 'shop'; lines?: string[];
+  /** den_door / den_keeper: the Thief's Den's Bram and Pip (Den.ts). */
+  role: 'quest' | 'talk' | 'shop' | 'den_door' | 'den_keeper'; lines?: string[];
 }
-export interface QuestObjective { kind: 'kill' | 'talk' | 'collect' | 'level'; mob?: string; npc?: string; item?: string; level?: number; count?: number; text: string }
+export interface QuestObjective { kind: 'kill' | 'talk' | 'collect' | 'level' | 'flag'; mob?: string; npc?: string; item?: string; level?: number; count?: number; /** flag: a quest-state key set by the game (the den cleared) */ flag?: string; text: string }
 export interface QuestDef {
   id: string; giver: string; title: string; summary: string;
   /** What the giver says when offering it (last line: accept / decline), while it runs, and when you finish it. */
@@ -52,6 +53,8 @@ export interface AreaDef {
   /** Waterfalls painted in the map itself (near: they scroll with the terrace): rectangles of falling water (area px),
    *  animated by the game over the picture. */
   falls?: [number, number, number, number][];
+  /** Inside the Elder Tree (the Thief's Den): a whole picture, no sky; a hard edge against the map before it. */
+  interior?: boolean;
   /** Until its own map is painted: the painted map it is a copy of. */
   standin?: string;
   /** z: the height of what it stands on (the Temple's stairs, up on the stage's level). */

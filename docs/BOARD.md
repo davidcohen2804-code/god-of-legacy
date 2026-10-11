@@ -45,6 +45,14 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 ### Arena (Maps)
 - [ ] Living arena backgrounds (animated fire / rain / crowd loops), each arena its own character.
 
+### World, story and the party quest (Maps) — David's direction: the shape of MapleStory Classic (1–10 the island, from 10 each class its own town with training maps 10–20, the party quest in one of them; no overload, not too easy)
+- [x] Chapter 3 "The Thief's Trail": Wisteria Walk → Lantern Steps → Moonfall Bridge → Elderwood Path → The Elder Hollow; Lumen's quests; Glowcap / Lantern Moth / Shade Fox — 4cf20bc, 7e51b91, 7c321ee
+- [x] Elderwood Village (the archers' town, 10–20): Wren (mentor, quests), Hazel (shop), Bram at the Elder Tree's door; the Masters' hint points there
+- [ ] The Thief's Den — party quest inside the Elder Tree (Lv 15+, 25 min, 5 stages: Sparks → root lanterns → lantern ledges → Pouncer the Magpie → the hoard); solo works now, party sync requested from PvP below
+- [ ] The other class towns, one at a time: Samurai (Sakura Temple), Warrior, Book Mage, Gambler — each with 3 training maps 10–20, a mentor, a shop, quests
+- [ ] A dungeon map band 20–30 toward the 2nd job
+- [ ] Test mode (?qa=1 → F8) is in for everyone: god, peace, teleport to any map, level, class, items, gold, quests — use it to check your work in the world
+
 ### Match flow and replay value (PvP)
 - [ ] Animated VS screen, "ROUND 1 – FIGHT" with presence, animated victory screen. (PvP: in progress)
 - [ ] Ranks and tiers, win streaks, titles. (PvP: next)
@@ -65,6 +73,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 
 - to: Archer — from: DFO PvP arena dynamics — counter spark: no separate call needed — SkillFx.confirmed already has the `counter` flag (last argument). Add `counter = false` as the last parameter of ArcherFx.confirmed and pass `counter` on the archer line in SkillFx.confirmed (you may edit that one line).
 - to: all class chats — from: DFO PvP arena dynamics — animated ultimate cut-in slot is live: `CUTIN_ANIM` in SkillFx.ts (sheet under assets/final/skills/, 600×200 frames = 3:1 like the stills, any columns × rows, frames, fps; plays once in the cut-in band and holds its last frame). The warrior's Titan's Verdict strip is wired and checked in the arena. Add your own line when your strip lands (archer: Sky Rain).
+
+- to: PvP — from: Maps — party-quest sync for the Thief's Den (src/world/Den.ts): the leader's run state (stage, timer start, the two secret light patterns, the lit lanterns) broadcast to party members in the den; stage clears and the den's monsters' HP shared like the arena's; members join through Bram together (`Den.enter` for all when the leader enters). Solo already works; the hooks are `Den.run`, `Den.use`, `Den.clear`, `Den.killed`. Spec in docs/DEN_SYNC.md.
 
 ## Decisions for David
 - Archer: generating on PixVerse (VS entrance / win clips, animated cut-in) is stopped by the permission check as spending credits — reply in the archer chat "מאשר קרדיטים ב-PixVerse" to let it go on.

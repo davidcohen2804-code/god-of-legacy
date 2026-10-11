@@ -106,7 +106,9 @@ export class OpenWorld {
   private camY = 0;
   private t = 0;
   /** The talk / portal prompt target (null = none in reach). */
-  near: { kind: 'npc'; npc: AreaNpc } | { kind: 'portal' } | null = null;
+  near: { kind: 'npc'; npc: AreaNpc } | { kind: 'portal' } | { kind: 'use'; id: number; room: string } | null = null;
+  /** Something else to use with the talk key (the den's lanterns): set by the scene. */
+  nearUse?: (x: number, y: number) => { i: number; room: string; x: number; y: number } | null;
   /** Set by the scene: an NPC was clicked. */
   onNpcClick?: (n: AreaNpc) => void;
   /** The Sun Gate across the terrace (closed until the sun over Sunfall Pass is crossed). */
@@ -383,6 +385,18 @@ export class OpenWorld {
     }
   }
 
+  /** A monster born now (the den's stages): of `kind`, at home (x, y), with its own id. */
+  spawnMob(kind: string, x: number, y: number, id: string): Monster | null {
+    const k = MOB_KINDS[kind]; if (!k) return null;
+    const m = new Monster(this.scene, id, k, { x, y }, this.mobs.length); this.mobs.push(m); return m;
+  }
+  /** The monsters whose id starts with `prefix`, gone. */
+  removeMobs(prefix: string): void {
+    for (let i = this.mobs.length - 1; i >= 0; i--) if (this.mobs[i].id.startsWith(prefix)) { this.mobs[i].destroy(); this.mobs.splice(i, 1); }
+  }
+  /** The NPC's area. */
+  npcArea(n: AreaNpc): string | undefined { return this.npcs.find((q) => q.def === n)?.area; }
+
   /** Where an NPC stands (world px). */
   npcPos(n: AreaNpc): { x: number; y: number } { const v = this.npcs.find((q) => q.def === n); return v ? { x: v.x, y: v.y } : { x: n.x, y: n.y }; }
 
@@ -569,7 +583,7 @@ export class OpenWorld {
       P.ring.setScale(1 + 0.05 * s); P.beam.setAlpha(0.72 + 0.18 * s); P.glow.setAngle(this.t / 12).setAlpha(0.75 + 0.2 * s);
     }
     // talk / portal prompt
-    this.near = null;
+    this.near = null; let useAt: { x: number; y: number } | null = null;
     if (player.alive && player.z < 30) {
       let best = TALK_R;
       for (const n of this.npcs) {
@@ -578,9 +592,11 @@ export class OpenWorld {
       }
       const P = this.portal;
       if (!this.near && P && Math.abs((player.supportZ ?? 0) - P.z) < 8 && Math.hypot(player.x - P.x, (player.y - P.y) * 1.4) < PORTAL_R) this.near = { kind: 'portal' };
+      const u = !this.near && this.nearUse ? this.nearUse(player.x, player.y) : null;
+      if (u) { this.near = { kind: 'use', id: u.i, room: u.room }; useAt = { x: u.x, y: u.y - 90 }; }
     }
     const nv = this.near?.kind === 'npc' ? this.npcs.find((n) => n.def === (this.near as { npc: AreaNpc }).npc) : null;
-    const at = nv ? { x: nv.x + 34, y: nv.top - 4 } : this.near?.kind === 'portal' && this.portal ? { x: this.portal.x, y: this.portal.y - this.portal.z - 120 } : null;
+    const at = nv ? { x: nv.x + 34, y: nv.top - 4 } : this.near?.kind === 'portal' && this.portal ? { x: this.portal.x, y: this.portal.y - this.portal.z - 120 } : useAt;
     this.prompt.setVisible(!!at);
     if (at) this.prompt.setPosition(at.x, at.y + Math.sin(this.t / 260) * 3);
   }

@@ -22,6 +22,13 @@ PLATFORMS = {
   'dusk_3': [stump('boulder', 95, 455, 400, 530, 40, 24), stump('boulder-small', 500, 640, 455, 530, 25, 14),
              {'id': 'root-arch', 'x': (900, 1240), 'front': 525, 'h': 95, 'depth': 35, 'occ': [[940, 397], [1200, 397], [1238, 430], [1238, 522], [1200, 528], [940, 528], [902, 522], [902, 430]]},
              {'id': 'log', 'x': (1300, 1660), 'front': 520, 'h': 70, 'depth': 30, 'occ': [[1315, 422], [1645, 428], [1658, 450], [1658, 515], [1640, 522], [1315, 522], [1302, 505], [1302, 440]]}],
+  # Elderwood Village: the crates and barrel, the well (its rim), the mossy boulder
+  'dusk_village': [{'id': 'crates', 'x': (268, 436), 'front': 525, 'h': 70, 'depth': 28, 'occ': [[272, 388], [352, 388], [352, 440], [432, 440], [434, 522], [270, 522]]},
+                   {'id': 'well', 'x': (690, 850), 'front': 528, 'h': 85, 'depth': 30, 'occ': [[700, 425], [840, 425], [848, 450], [848, 526], [692, 526], [692, 450]]},
+                   stump('boulder', 1300, 1545, 420, 522, 35, 24)],
+  # The Thief's Den, room 1 (Root Cellar): the glowing mushroom cap, the root knot, the stolen crates and chest
+  'den_1': [stump('mushroom', 95, 455, 410, 545, 45, 30), {'id': 'root-knot', 'x': (700, 1080), 'front': 580, 'h': 60, 'depth': 40, 'occ': [[760, 470], [1020, 470], [1078, 520], [1078, 578], [702, 578], [702, 520]]},
+            {'id': 'crates', 'x': (1230, 1600), 'front': 585, 'h': 110, 'depth': 40, 'occ': [[1240, 415], [1450, 415], [1455, 440], [1595, 440], [1598, 583], [1232, 583]]}],
   'terraces_1': [
     {'id': 'block-low', 'x': (262, 372), 'front': 528, 'h': 73, 'depth': 22},
     {'id': 'block-tall', 'x': (376, 492), 'front': 520, 'h': 100, 'depth': 31},

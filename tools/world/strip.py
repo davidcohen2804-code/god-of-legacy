@@ -110,10 +110,12 @@ def paint(k, im):
   return im
 
 
+INTERIOR = {k for k in ROW if D['areas'][k].get('interior')}   # inside the Elder Tree: whole pictures, their own light, a hard edge against the map before
+HARD = {a for a, b in zip(ROW, ROW[1:]) if J[f'{a}|{b}']['blend'] <= 0}   # the join after these maps: none (a wall stands there)
 maps, alpha, painted = {}, {}, {}
 for k in ROW:
   maps[k] = paint(k, load(k))
-  alpha[k] = cutout(k, maps[k])
+  alpha[k] = np.ones((AH, AW), np.float32) if k in INTERIOR else cutout(k, maps[k])
 
 
 def level_light():
@@ -123,6 +125,7 @@ def level_light():
   x = np.arange(AW, dtype=np.float32) - AW / 2
   fits = {}
   for k, im in maps.items():
+    if k in INTERIOR: continue
     w = cv2.GaussianBlur(alpha[k], (0, 0), sigmaX=40, sigmaY=20) + 1e-4
     L = cv2.GaussianBlur(im.mean(2) * alpha[k], (0, 0), sigmaX=40, sigmaY=20) / w
     W0, W1, W2 = w.sum(1), (w * x).sum(1), (w * x * x).sum(1)
@@ -158,7 +161,8 @@ def match_seam(a, b, ov, ramp=460):
 
 
 level_light()
-for a, b in zip(ROW, ROW[1:]): match_seam(a, b, J[f'{a}|{b}']['blend'])
+for a, b in zip(ROW, ROW[1:]):
+  if a not in HARD: match_seam(a, b, J[f'{a}|{b}']['blend'])
 strip = np.zeros((AH, W, 4), np.float32)
 for k in ROW: strip[:, xs[k]:xs[k] + AW] = np.dstack([maps[k], alpha[k] * 255])
 
@@ -183,7 +187,9 @@ def blend_join(a, b, ov):
   strip[:, xs[b]:xs[b] + ov] = A * (1 - m) + B * m
 
 
-for a, b in zip(ROW, ROW[1:]): blend_join(a, b, J[f'{a}|{b}']['blend']); print('join', a, b, 'blend', J[f'{a}|{b}']['blend'])
+for a, b in zip(ROW, ROW[1:]):
+  if a in HARD: print('join', a, b, 'hard'); continue
+  blend_join(a, b, J[f'{a}|{b}']['blend']); print('join', a, b, 'blend', J[f'{a}|{b}']['blend'])
 strip = np.clip(strip, 0, 255).astype(np.uint8)
 
 
@@ -303,7 +309,7 @@ floor = floor.simplify(0.6)
 walk = [[round(x, 1), round(y, 1)] for x, y in list(floor.exterior.coords)[:-1]]
 # Walkable in one piece? (the floor shrunk by the foot radius, minus every prop grown by it: a pinch or a prop in a narrow
 # path would cut the world in two)
-free = floor.buffer(-10).difference(unary_union([Polygon(p['foot']).buffer(10) for p in world_props]))
+free = floor.buffer(-10).difference(unary_union([Polygon(p['foot']).buffer(10) for p in world_props if not p['id'].endswith('entry-wall')]))   # (the den's mouth is sealed on purpose)
 pieces = sorted([free] if free.geom_type == 'Polygon' else list(free.geoms), key=lambda g: -g.area)
 if len(pieces) > 1 and pieces[1].area > 1500:
   sys.exit('the world is cut in two: ' + ', '.join(f'{round(g.area)} px² at {[round(v) for v in g.bounds]}' for g in pieces[:4]))
