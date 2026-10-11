@@ -10,3 +10,6 @@ Values apply to the whole game (only damage may differ in PvP: arenaDmg / the ar
 - Result (192 matches with the gambler): 53% wins (was 27%).
 ## 2026-10-11 — Arena HP on
 - PVP.hpLocked false: hits in the arena take HP; a K.O. ends the round (checked: fight › K.O. › round 2, the win counted).
+
+## 2026-10-12 — No MP in PvP
+- The arena never uses MP: skills cost nothing there and the MP bar is hidden (cooldowns are the only limit). The regular game keeps its MP rules (MP_FREE test flag unchanged).

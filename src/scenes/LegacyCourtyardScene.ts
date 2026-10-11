@@ -2443,7 +2443,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const run = this.rt.ownRun;
     if (run && !this.cancelAllowed(run, s)) return false;
     if (this.rt.cooldownRemaining(s.id) > 0) return false;
-    if (!MP_FREE && (this.localId === 'local' || this.arena)) { const c = mpCost(s), chainNext = run && run.skill.id === s.id; // MP: a chain's later strikes are paid with its first
+    if (!MP_FREE && !this.arena && this.localId === 'local') { /* (the arena: no MP at all) */ const c = mpCost(s), chainNext = run && run.skill.id === s.id; // MP: a chain's later strikes are paid with its first
       if (c > 0 && !chainNext && this.mp < c) { if (this.simMs - this.noMpAt > 900) { this.noMpAt = this.simMs; this.fx?.callout({ x: k.x, y: k.y, z: k.z + 70 }, 'NOT ENOUGH MP', '#7fb6ff', 0); } return false; } }
     let stage = 0;
     if (s.chain) {
@@ -2511,7 +2511,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const k = this.kin;
     const primeUp = this.rt!.primedFor(this.localId, s.id), ct0 = this.castTimes(s, stage, followUp); // (the arena's warrior: his base pace, as the runtime plays it)
     const ct = primeUp !== null ? { ...ct0, startup: 0 } : ct0; // (primed by Sheathe: it leaves the sheath at once)
-    if (stage === 0 && !MP_FREE) this.mp = Math.max(0, this.mp - mpCost(s));
+    if (stage === 0 && !MP_FREE && !this.arena) this.mp = Math.max(0, this.mp - mpCost(s));
     // Lunge-in: melee skills step toward a soft-locked target that is just out of reach.
     this.lunge = null;
     const shape = (s.chain ? s.chain.stages[stage] : s.hits)[0]?.shape;
@@ -4275,7 +4275,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       mode: pvp ? 'pvp' : 'pve',
       player: {
         id: pvp?.meta.playerId ?? ch.id, name: ch.name, level: ch.level, portrait: ch.hero ? heroPortrait(this.cls) : portraitOf(previewKeyOf(ch)),
-        hp: this.playerHP, maxHp: this.maxHpNow(), resource: { kind: 'mp', value: Math.round(this.mp), max: this.maxMpNow() }, effects: [...this.buffEffects(), ...this.statusEffects(this.body, now)],
+        hp: this.playerHP, maxHp: this.maxHpNow(), resource: this.arena ? null : { kind: 'mp', value: Math.round(this.mp), max: this.maxMpNow() }, effects: [...this.buffEffects(), ...this.statusEffects(this.body, now)],
         exp: Number.isFinite(expToNext(ch.level)) ? { value: ch.exp ?? 0, max: expToNext(ch.level) } : undefined,
         job: pvp ? undefined : this.jobTitle(), gold: pvp ? undefined : this.gold,
         potions: pvp ? undefined : this.quick.map((id, i) => ({ id, name: ITEMS[id].name, iconUrl: ITEMS[id].icon, count: this.bag[id] ?? 0, hotkey: keyLabel(this.bindings[i ? 'mpPot' : 'hpPot']) })),
