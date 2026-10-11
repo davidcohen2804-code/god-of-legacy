@@ -29,6 +29,16 @@ PLATFORMS = {
   # The Thief's Den, room 1 (Root Cellar): the glowing mushroom cap, the root knot, the stolen crates and chest
   'den_1': [stump('mushroom', 95, 455, 410, 545, 45, 30), {'id': 'root-knot', 'x': (700, 1080), 'front': 580, 'h': 60, 'depth': 40, 'occ': [[760, 470], [1020, 470], [1078, 520], [1078, 578], [702, 578], [702, 520]]},
             {'id': 'crates', 'x': (1230, 1600), 'front': 585, 'h': 110, 'depth': 40, 'occ': [[1240, 415], [1450, 415], [1455, 440], [1595, 440], [1598, 583], [1232, 583]]}],
+  # room 2 (Hanging Roots): the four root pedestals (too tall to climb; their lantern bowls are lit by the game)
+  'den_2': [stump(f'pedestal-{i + 1}', x - 60, x + 60, 362, 538, 24, 14) for i, x in enumerate((480, 740, 1010, 1270))],
+  # room 3 (Lantern Ledges): five carved ledges along the back wall, one can jump onto
+  'den_3': [{'id': f'ledge-{i + 1}', 'x': (x0, x1), 'front': 484, 'h': 108, 'depth': 20, 'occ': [[x0 + 6, 354], [x1 - 6, 354], [x1 - 1, 372], [x1 - 40, 482], [x0 + 40, 482], [x0 + 1, 372]]} for i, (x0, x1) in enumerate(((300, 462), (530, 702), (758, 922), (988, 1152), (1208, 1372)))],
+  # room 4 (Magpie's Nest): the heap of chests and the overturned cauldron
+  'den_4': [{'id': 'chests', 'x': (235, 640), 'front': 560, 'h': 95, 'depth': 40, 'occ': [[300, 390], [520, 390], [560, 430], [638, 470], [638, 558], [237, 558], [237, 470]]},
+            stump('cauldron', 1195, 1470, 385, 545, 60, 40)],
+  # room 5 (Treasure Hoard): the open chest and the golden barrels
+  'den_5': [{'id': 'chest', 'x': (300, 760), 'front': 545, 'h': 95, 'depth': 40, 'occ': [[420, 330], [700, 335], [740, 380], [758, 460], [758, 543], [302, 543], [302, 440], [330, 360]]},
+            stump('barrels', 1190, 1500, 385, 535, 50, 36)],
   'terraces_1': [
     {'id': 'block-low', 'x': (262, 372), 'front': 528, 'h': 73, 'depth': 22},
     {'id': 'block-tall', 'x': (376, 492), 'front': 520, 'h': 100, 'depth': 31},
@@ -38,7 +48,8 @@ PLATFORMS = {
 }
 D = json.load(open(R + 'src/data/world-areas.json'))
 for a, blocks in PLATFORMS.items():
-  props = [p for p in D['areas'][a].get('props', []) if not p['id'].startswith(('block', 'ledge', 'platform', 'stump'))]
+  mine = {b['id'] for b in blocks}
+  props = [p for p in D['areas'][a].get('props', []) if not p['id'].startswith(('block', 'ledge', 'platform', 'stump')) and p['id'] not in mine]
   for b in blocks:
     x0, x1 = b['x']; f, h = b['front'], b['h']
     s0 = f - b['depth']; back = s0 - h + FOOT_R - EDGE

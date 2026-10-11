@@ -630,7 +630,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.world = new OpenWorld(this, { sunGateOpen: this.quests[SUN_GATE_KEY]?.state === 'done' || !!this.quests.training_grounds /* (walked the old road east before the gate stood: it stays open) */, onArea: (a) => { if (a.name !== this.areaName) { this.areaName = a.name; this.areaTitle?.show(a.name); } if (a.id === 'afterglow') this.openSunGate(); } }, at ?? toWorld(START.area, [START.x, START.y]));
       this.world.onNpcClick = (n) => this.talkTo(n);
       this.den = new Den(this, {
-        kin: this.kin, level: () => this.character?.level ?? 1,
+        kin: () => this.kin, level: () => this.character?.level ?? 1,
         hasItem: (id) => this.bag[id] ?? 0, takeItem: (id, n) => this.takeItem(id, n), giveItem: (id, n) => { this.giveItem(id, n, false); this.saveLoot(); },
         gold: (n) => { this.gold = Math.min(GOLD_MAX, this.gold + n); this.saveLoot(); this.hud?.lootFeed(GOLD_ICON.small, `+${fmtGold(n)} Gold`, '#f3d58c'); },
         exp: (n) => this.gainExp(n, { x: this.kin.x, y: this.kin.y, z: this.kin.z }),

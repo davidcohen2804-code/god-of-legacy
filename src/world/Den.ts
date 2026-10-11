@@ -28,16 +28,17 @@ const GATE_Y: [number, number] = [300, 700];
 
 /** The rooms' fixtures (map px of each room). */
 const ROOM = {
-  den_1: { keeper: [1420, 470], spawns: [[300, 450], [520, 600], [760, 430], [980, 610], [1150, 440], [1300, 600]], start: [180, 500] },
-  den_2: { keeper: [1440, 470], pedestals: [[330, 560], [600, 430], [900, 580], [1180, 440]], start: [160, 500] },
-  den_3: { keeper: [1460, 470], pedestals: [[240, 560], [520, 440], [800, 580], [1080, 440], [1320, 580]], start: [140, 500] },
-  den_4: { keeper: [1500, 470], boss: [960, 500], spawns: [[500, 440], [700, 610], [1250, 450]], start: [150, 500] },
-  den_5: { keeper: [1460, 470], spawns: [[300, 450], [520, 600], [760, 430], [980, 610], [1150, 440], [1300, 600], [600, 500], [1000, 500]], start: [150, 500] },
+  den_1: { keeper: [1420, 560], spawns: [[300, 450], [520, 610], [760, 450], [980, 610], [1150, 450], [1300, 610]], start: [180, 560] },
+  // pedestals / ledges: where you stand to use one (in front of it) and where its light is drawn (map px)
+  den_2: { keeper: [1500, 560], pedestals: [[480, 590], [740, 590], [1010, 590], [1270, 590]], light: [[480, 262], [740, 262], [1010, 262], [1270, 262]], start: [160, 560] },
+  den_3: { keeper: [1500, 560], pedestals: [[380, 530], [615, 530], [840, 530], [1070, 530], [1290, 530]], light: [[380, 250], [615, 250], [840, 250], [1070, 250], [1290, 250]], start: [140, 560] },
+  den_4: { keeper: [1550, 560], boss: [900, 500], spawns: [[700, 440], [1000, 620], [1150, 450]], start: [150, 560] },
+  den_5: { keeper: [1500, 560], spawns: [[300, 450], [520, 610], [760, 450], [980, 610], [1150, 450], [1300, 610], [600, 520], [1000, 520]], start: [150, 560] },
 } as const;
 
 type Stage = 1 | 2 | 3 | 4 | 5;
 export interface DenHooks {
-  kin: { x: number; y: number; z: number };
+  kin(): { x: number; y: number; z: number };
   level(): number;
   hasItem(id: string): number;
   takeItem(id: string, n: number): boolean;
@@ -62,8 +63,10 @@ const choose = <T,>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length
 export class Den {
   /** Running: the stage, when it started (sim ms), the secrets. */
   private run: { stage: Stage; t0: number; secret2: number[]; secret3: number[]; lit: Set<number>; hoardAt: number } | null = null;
-  private pedestals: { room: string; i: number; x: number; y: number; orb: Phaser.GameObjects.Ellipse; glow: Phaser.GameObjects.Ellipse; count?: Phaser.GameObjects.Text }[] = [];
+  private pedestals: { room: string; i: number; x: number; y: number; flame: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Ellipse; count?: Phaser.GameObjects.Text }[] = [];
   private timer?: HTMLElement;
+  /** The fade into the den is still on (the hero is not inside yet). */
+  private entering = false;
   private now = 0;
 
   constructor(private scene: Phaser.Scene, private h: DenHooks) {
@@ -88,8 +91,9 @@ export class Den {
 
   private enter(): void {
     this.run = { stage: 1, t0: this.now, secret2: this.pick(4, 3), secret3: this.pick(5, 3), lit: new Set(), hoardAt: 0 };
-    this.walls(true);
+    this.walls(true); this.entering = true;
     this.h.jump('den_1', ROOM.den_1.start[0], ROOM.den_1.start[1], () => {
+      this.entering = false;
       this.h.chat("The Thief's Den — stage 1: the Root Cellar. Shade Imps drop Sparks: bring Pip ten of them.");
       this.h.callout('STAGE 1', '#ffe08a');
       this.spawnRoom(1);
@@ -194,7 +198,7 @@ export class Den {
   /** Out of the den (done, out of time, fallen): before the Elder Tree's door, the run over. */
   leave(reason?: string): void {
     if (!this.run) return;
-    this.run = null; this.h.removeMobs('den:'); this.walls(true); this.drawLights();
+    this.run = null; this.entering = false; this.h.removeMobs('den:'); this.walls(true); this.drawLights();
     while (this.h.hasItem('spark') > 0) this.h.takeItem('spark', this.h.hasItem('spark'));
     if (reason) this.h.chat(reason);
     this.h.jump('dusk_3', 1050, 520);
@@ -207,9 +211,9 @@ export class Den {
     const left = DEN_MS - (simMs - r.t0);
     if (left <= 0) { this.leave('Time is up. The roots close, and Pip waves you out.'); return; }
     if (!alive) { this.leave('You fell. The roots carry you gently back out of the den.'); return; }
-    if (!this.inside(this.h.kin.x)) { this.leave(); return; }
+    if (!this.entering && !this.inside(this.h.kin().x)) { this.leave(); return; }
     this.showTimer(r.stage, left);
-    for (const p of this.pedestals) p.glow.setAlpha(0.35 + Math.sin(simMs / 300 + p.i) * 0.12);
+    for (const p of this.pedestals) { p.glow.setAlpha(0.3 + Math.sin(simMs / 300 + p.i) * 0.12); p.flame.setScale(1 + Math.sin(simMs / 170 + p.i * 2) * 0.03, 1 + Math.sin(simMs / 230 + p.i) * 0.05); }
   }
 
   // ---------------------------------------------------------------- the rooms' solids and lights
@@ -228,23 +232,29 @@ export class Den {
   }
 
   private buildPedestals(): void {
-    for (const [room, n] of [['den_2', 4], ['den_3', 5]] as const) {
-      const a = AREAS[room]; if (!a) continue;
-      const R = ROOM[room] as { pedestals: readonly (readonly number[])[] };
-      R.pedestals.forEach(([x, y], i) => {
-        const p = toWorld(room, [x, y]);
-        const glow = this.scene.add.ellipse(p.x, p.y - 30, 90, 60, 0xffd27a, 0.3).setDepth(p.y + 0.5).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
-        const orb = this.scene.add.ellipse(p.x, p.y - 30, 22, 22, 0x5a5a66, 1).setDepth(p.y + 1).setStrokeStyle(2, 0x2a2a30, 1);
-        const count = n === 5 ? this.scene.add.text(p.x, p.y - 62, '●'.repeat(i + 1), { fontFamily: HUD.bodyFont, fontSize: '11px', color: '#ffe3a0', stroke: '#1a0e02', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(p.y + 1.1) : undefined;
-        this.pedestals.push({ room, i, x: p.x, y: p.y, orb, glow, count });
-      });
-    }
+    const sc = this.scene;
+    const make = () => {
+      if (this.pedestals.length || !sc.textures.exists('den-flame')) return;
+      for (const [room, n] of [['den_2', 4], ['den_3', 5]] as const) {
+        const a = AREAS[room]; if (!a) continue;
+        const R = ROOM[room] as { pedestals: readonly (readonly number[])[]; light: readonly (readonly number[])[] };
+        R.pedestals.forEach(([x, y], i) => {
+          const p = toWorld(room, [x, y]), l = toWorld(room, R.light[i] as [number, number]);
+          // the root's glowing tip over the bowl (room 2) / the lantern over the ledge (room 3): shown while lit
+          const flame = sc.add.image(l.x, l.y, 'den-flame').setOrigin(0.5, 0).setDepth(p.y - 200).setVisible(false);
+          const glow = sc.add.ellipse(l.x, l.y + 70, 150, 90, 0xffc878, 0.35).setDepth(p.y - 200.5).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
+          const count = n === 5 ? sc.add.text(l.x, l.y + 118, '●'.repeat(i + 1), { fontFamily: HUD.bodyFont, fontSize: '13px', color: '#ffe3a0', stroke: '#1a0e02', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(p.y + 1.1) : undefined;
+          this.pedestals.push({ room, i, x: p.x, y: p.y, flame, glow, count });
+        });
+      }
+    };
+    if (!sc.textures.exists('den-flame')) { sc.load.image('den-flame', 'assets/world/den/flame.png'); sc.load.once(Phaser.Loader.Events.COMPLETE, make); if (!sc.load.isLoading()) sc.load.start(); } else make();
   }
   private drawLights(): void {
     const r = this.run;
     for (const p of this.pedestals) {
       const on = !!r && DEN_ROOMS[r.stage - 1] === p.room && r.lit.has(p.i);
-      p.glow.setVisible(on); p.orb.setFillStyle(on ? 0xffe08a : 0x5a5a66, 1);
+      p.glow.setVisible(on); p.flame.setVisible(on);
     }
   }
 
@@ -260,5 +270,5 @@ export class Den {
     this.timer.style.color = s < 60 ? '#ffb3a0' : '#f6e7c4';
   }
 
-  destroy(): void { this.timer?.remove(); this.walls(false); for (const p of this.pedestals) { p.orb.destroy(); p.glow.destroy(); p.count?.destroy(); } this.pedestals = []; }
+  destroy(): void { this.timer?.remove(); this.walls(false); for (const p of this.pedestals) { p.flame.destroy(); p.glow.destroy(); p.count?.destroy(); } this.pedestals = []; }
 }
