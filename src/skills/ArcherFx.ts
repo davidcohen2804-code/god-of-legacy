@@ -146,6 +146,20 @@ export class ArcherFx {
       return true;
     } });
   }
+  /** One of the class hit sparks (row of the 'afx-hits' sheet: 0 normal, 1 heavy, 2 counter, 3 launch), 5 frames, additive:
+   *  a white-hot point → the sharp impact frame (held longest) → the burst → shards and leaves → sparkles. */
+  private hitSpark(row: number, x: number, y: number, size: number, oy: number, depth: number): void {
+    const sc = this.ctx.scene, fms = row === 0 ? [24, 50, 50, 60, 70] : [30, 70, 60, 70, 90];
+    const im = sc.add.image(x, y, 'afx-hits', row * 5).setOrigin(0.5, oy).setDisplaySize(size, size).setDepth(depth).setAngle(row === 3 ? 0 : rnd(-12, 12));
+    let acc = 0, i = 0;
+    this.add({ t: 0, step: (dt) => {
+      acc += dt;
+      while (i < fms.length && acc >= fms[i]) { acc -= fms[i]; i++; }
+      if (i >= fms.length) { im.destroy(); return false; }
+      im.setFrame(row * 5 + i); if (i === fms.length - 1) im.setAlpha(1 - acc / fms[i]);
+      return true;
+    } });
+  }
   /** Leaves drifting from a point. */
   private leaves(x: number, y: number, n: number, spread: number, o: { depth?: number; life?: number; up?: number; delay?: number; dir?: number } = {}): void {
     const names = ['leaf_1', 'leaf_2', 'leaf_3'];
@@ -738,15 +752,25 @@ export class ArcherFx {
 
   // ------------------------------------------------------------------ on the foe
 
-  confirmed(s: FinalSkill, hit: HitEvent, at: V3, heavy: boolean, crit: boolean): void {
+  confirmed(s: FinalSkill, hit: HitEvent, at: V3, heavy: boolean, crit: boolean, counter = false): void {
     if (!this.ready) return;
-    const x = at.x, y = at.y - at.z - 38, rapid = s.hits.length > 3 && !hit.heavy;
-    if (s.id === 'rain_of_arrows') { this.pop('spark_cyan', x, y, 70, { life: 200 }); return; }
+    const x = at.x, y = at.y - at.z - 38, rapid = s.hits.length > 3 && !hit.heavy, launch = !!hit.reaction.launch && hit.reaction.launch >= 120;
+    if (s.id === 'rain_of_arrows' && !counter) { this.pop('spark_cyan', x, y, 70, { life: 200 }); return; }
+    if (this.ctx.scene.textures.exists('afx-hits')) { // the class hit sparks (GPT, 4 kinds × 5 frames): normal / heavy / counter / launch
+      const kind = counter ? 2 : launch ? 3 : heavy && !rapid ? 1 : 0;
+      const size = [rapid ? 84 : 112, 196, 210, 190][kind];
+      if (kind === 3) this.hitSpark(3, x, at.y - at.z + 6, size, 0.9, at.y + 3); // the column climbs from the foe's feet
+      else this.hitSpark(kind, x + rnd(-6, 6), y + rnd(-6, 6), size, 0.5, TOP + 4);
+      if (kind === 3 && !rapid) this.hitSpark(0, x, y, 100, 0.5, TOP + 4);
+      if (crit) this.pop('burst_crit', x, y, rapid ? 90 : 120, { life: 260 });
+      if (!rapid && Math.random() < 0.6) this.leaves(x, y, kind ? 5 : 3, 14, { life: 420, up: 30 });
+    } else {
     if (crit) this.pop('burst_crit', x, y, rapid ? 110 : 150, { life: 300 });
     else if (heavy && !rapid) this.pop('burst_heavy', x, y, 130, { life: 260 });
     else this.pop('spark_s', x, y, rapid ? 60 : 82, { life: 200 });
     if (!rapid && Math.random() < 0.6) this.leaves(x, y, 3, 14, { life: 420, up: 30 });
-    if (hit.reaction.launch && hit.reaction.launch >= 120) this.spr({ name: 'launch_beam', x, y: at.y + 4, oy: 0.97, depth: at.y + 3, w: 60, life: 300, add: true, sy: kf([0, 0.3], [0.3, 1, out3]), a: kf([0, 1], [1, 0, inQ]) });
+    if (launch) this.spr({ name: 'launch_beam', x, y: at.y + 4, oy: 0.97, depth: at.y + 3, w: 60, life: 300, add: true, sy: kf([0, 0.3], [0.3, 1, out3]), a: kf([0, 1], [1, 0, inQ]) });
+    }
     if (s.id === 'leaping_arrow' && hit.reaction.hardCC) { // roots grip the caught foe's legs for the hold
       const ms = hit.reaction.hardCC.ms;
       this.spr({ name: 'vine_wrap', x: at.x, y: at.y - 6, depth: at.y + 2, w: 80, life: ms, sx: kf([0, 0.4], [0.06, 1, out3]), sy: kf([0, 0.4], [0.06, 1, out3]), a: kf([0, 0], [0.04, 1], [0.92, 1], [1, 0]) });

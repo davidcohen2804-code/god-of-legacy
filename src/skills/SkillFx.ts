@@ -184,6 +184,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
     I('afx-apple', `${AF}/apple.png`); for (let i = 1; i < 4; i++) I(`afx-apple-${i}`, `${AF}/apple_${i}.png`); I('afx-roots', `${AF}/roots.png`);
     L('afx-fan', `${AF}/release_fan.png`, 512, 256); L('afx-triple', `${AF}/triple_trail.png`, 512, 256); L('afx-storm', `${AF}/storm_top.png`, 512, 256); L('afx-eagle', `${AF}/eagle_top.png`, 512, 256); L('vfx-evasion', `${F}/skills/archer/evasion/vfx.png`, 256);
     I('archer-cutin', `${F}/skills/archer/sky_rain/cutin.png`);
+    if (!scene.textures.exists('afx-hits')) scene.load.spritesheet('afx-hits', `${AF}/hit_sparks.webp`, { frameWidth: 256, frameHeight: 256 }); // the archer's hit sparks: normal / heavy / counter / launch × 5 frames (ArcherFx.hitSpark)
     if (!scene.textures.exists(ARCHER_KIT)) scene.load.multiatlas(ARCHER_KIT, `${ARCHER_KIT_URL}kit.json`, ARCHER_KIT_URL); // every archer effect is built from its pieces (ArcherFx)
   }
   if (want('book_mage')) { // every book mage effect is built from its pieces (MageFx)
@@ -1284,7 +1285,7 @@ export class SkillFx {
     const tier = tierOf(s, hit);
     const k = IMPACT[s.cls] ?? IMPACT.warrior;
     const im = s.cls === 'warrior' ? 0.8 : 1; // MapleStory: a small, quick hit spark on the target (no flash over the body)
-    if (s.cls === 'archer' && this.arch.ready) this.arch.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit); // (ArcherFx)
+    if (s.cls === 'archer' && this.arch.ready) this.arch.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, counter); // (ArcherFx)
     else if (s.cls === 'archer' && (this.scene.textures.exists('afx-hit') || this.scene.textures.exists('afx-impact'))) { // painted arrow impact (two variants, alternating)
       const rapid = s.hits.length > 3 && !hit.heavy; // storms / volleys: small sparks, never a white-out
       const sz = rapid ? 64 : tier === 'ultimate' || hit.heavy ? 140 : 86, key = this.scene.textures.exists('afx-hit') ? 'afx-hit' : (this.impactFlip = !this.impactFlip) ? 'afx-impact' : 'afx-impact-b';

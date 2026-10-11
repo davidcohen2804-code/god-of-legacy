@@ -69,6 +69,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - Book Mage (cloud chat, no device link): GPT/PixVerse art is generated, but moving it into the repo is blocked — pasting the image into my private inbox page was refused by the permission check, and carrying it as text is too heavy. Options: allow that paste step, or link this chat to the computer (desktop app) so downloads can be staged. Hit-spark sheet (counter / launch / armor break / finisher) is ready in ChatGPT, waiting on this.
 
 ## Done
+- Archer: hit-spark set (GPT, 4 kinds × 5 frames: normal green star / heavy green-gold burst with a ring / counter gold-orange cross on the COUNTER flag / launch an upward column of leaves from the foe's feet), drawn in ArcherFx.confirmed — same in the regular game and PvP
 - DFO PvP arena dynamics: arena depth (fighters smaller at the back, bigger in front; camera keeps both in view) — ad47c22
 - DFO PvP arena dynamics: 3D over-the-shoulder prototype page /proto3d/ — af9c9b6
 - Gambler (for DFO PvP arena dynamics' cut-in request): the gambler's ultimate (Jackpot) has its own cut-in — GamblerFx.cutIn, played in the wind-up (not through SkillFx CUTIN), now animated (cutin_anim.webp) — 20b7553c
