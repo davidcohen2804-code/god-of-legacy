@@ -30,7 +30,7 @@ export const VOICE = ['round_1', 'round_2', 'round_3', 'final_round', 'fight', '
 export const MENU_VOICE = ['choose', 'get_ready', 'warrior', 'samurai', 'archer', 'book_mage', 'gambler'] as const;
 export type VoiceLine = typeof VOICE[number] | typeof MENU_VOICE[number];
 /** Each fighter's own line on the VS screen (the classes recorded so far). */
-const CHAR_LINES = new Set<string>([]);
+const CHAR_LINES = new Set<string>(['warrior', 'samurai', 'book_mage', 'archer', 'gambler']); // (the owner's own takes; the archer in a woman's voice)
 let vsHeard = false;
 /** The select screen's lines on (the announcer is the owner's own voice). */
 const MENU_VOICE_ON = true;
