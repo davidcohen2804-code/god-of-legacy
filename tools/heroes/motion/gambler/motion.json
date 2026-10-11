@@ -79,6 +79,10 @@
     "djump": {
       "frames": 2,
       "source": "gpt stills"
+    },
+    "jump": {
+      "frames": 3,
+      "source": "gpt stills"
     }
   },
   "hit_source": "pixverse gambler_hit.mp4"
