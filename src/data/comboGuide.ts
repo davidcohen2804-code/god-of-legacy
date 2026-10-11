@@ -97,13 +97,10 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     { name: 'ICEBOLT', range: 'CLOSE', hits: 11, steps: [{ id: 'glacial_spikes' }, { id: 'lightning_chain' }] },
     { name: 'NEBULA', range: 'MID', hits: 5, steps: [{ id: 'storm_field' }, { id: 'astral_burst' }] },
     { name: 'CHRONO', range: 'FAR', hits: 5, steps: [{ id: 'storm_field' }, { id: 'time_collapse' }] },
-    { name: 'SIGIL', range: 'CLOSE', hits: 8, steps: [{ id: 'glacial_spikes' }, { id: 'paper_curse' }] },
-    { name: 'CRANE', range: 'FAR', hits: 11, steps: [{ id: 'origami_flock' }, { id: 'storm_field' }] },
+    { name: 'SIGIL', range: 'MID', hits: 8, steps: [{ id: 'glacial_spikes' }, { id: 'paper_curse' }] },
+    { name: 'CRANE', range: 'MID', hits: 11, steps: [{ id: 'origami_flock' }, { id: 'storm_field' }] },
     { name: 'SQUALL', range: 'MID', hits: 10, steps: [{ id: 'glacial_spikes' }, { id: 'arcane_wave' }, { id: 'storm_field' }] },
     { name: 'PLASMA', range: 'MID', hits: 9, steps: [{ id: 'storm_field' }, { id: 'astral_burst' }, { id: 'lightning_chain' }] },
-    { name: 'FLICKER', range: 'MID', hits: 11, steps: [{ id: 'storm_field' }, { id: 'blink' }, { id: 'arcane_wave' }, { id: 'lightning_chain' }] },
-    { name: 'ORACLE', range: 'MID', hits: 9, steps: [{ id: 'storm_field' }, { id: 'blink' }, { id: 'arcane_wave' }, { id: 'paper_curse' }, { id: 'frost_nova' }, { id: 'astral_burst' }] },
-    { name: 'ETHER', range: 'MID', hits: 9, steps: [{ id: 'storm_field' }, { id: 'blink' }, { id: 'arcane_wave' }, { id: 'paper_curse' }, { id: 'frost_nova' }, { id: 'levity_field' }] },
   ],
   // the Archer: the rising arrow, the hawk or a fireball, then the storm, the sky, the rain or the hunter's leap
   archer: [
