@@ -3,7 +3,7 @@
 // Files under assets/audio (.ogg; .mp3 where ogg does not play). Volumes: Settings' Master (Phaser's own volume),
 // Music and SFX (the announcer and the ambience with the effects).
 // Sources: the effects and ambiences are synthesised for the game; the menu cues are uisfx's (CC0); the announcer is
-// Kokoro TTS (Apache-2.0 model, voice am_onyx) with the game's own processing; the music is the owner's Suno tracks.
+// the owner's own voice with the game's processing (a big hall); the music is the owner's Suno tracks.
 import Phaser from 'phaser';
 import { SettingsStore } from '../core/SettingsStore';
 
@@ -29,8 +29,8 @@ export const VOICE = ['round_1', 'round_2', 'round_3', 'final_round', 'fight', '
 /** The select screen's: CHOOSE YOUR FIGHTER, each fighter's name as it is locked in, GET READY. */
 export const MENU_VOICE = ['choose', 'get_ready', 'warrior', 'samurai', 'archer', 'book_mage', 'gambler'] as const;
 export type VoiceLine = typeof VOICE[number] | typeof MENU_VOICE[number];
-/** The select screen's lines are off until the new announcer is in (the first voice did not sound right there). */
-const MENU_VOICE_ON = false;
+/** The select screen's lines on (the announcer is the owner's own voice). */
+const MENU_VOICE_ON = true;
 /** The music in the game so far (each a seamless loop): the select screen and the stages by id. */
 const MUSIC = new Set(['select', 'courtyard', 'lava', 'shaolin', 'sakura', 'ship', 'ice']);
 /** Short pieces played once over the music (the music fades out under them and comes back after). */
