@@ -97,6 +97,7 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
   // the Book Mage: ice spikes, a lightning chain or the storm field, the starlight lift or a blink, then the storm field, the
   // chain, the cranes or the clock
   book_mage: [
+    { name: 'BOOKBIND', range: 'CLOSE', hits: 10, steps: [{ id: 'page_bind' }, { id: 'lightning_chain' }, { id: 'storm_field' }] },
     { name: 'GLACIER', range: 'MID', hits: 8, steps: [{ id: 'glacial_spikes' }, { id: 'storm_field' }] },
     { name: 'EPOCH', range: 'MID', hits: 8, steps: [{ id: 'glacial_spikes' }, { id: 'time_collapse' }] },
     { name: 'ORIGAMI', range: 'MID', hits: 11, steps: [{ id: 'glacial_spikes' }, { id: 'origami_flock' }] },
