@@ -57,6 +57,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - to: Maps — from: PvP — for "Living arena backgrounds": the six arenas' living effects (rain, sea, aurora, lanterns, bolts, dragon, embers…) are `src/world/StageFx.ts` + the arena entries in `src/world/Stages.ts`, built by PvP — build on them. Arena music and ambience stay with PvP (`src/audio`): add a request here when an arena gets a new look that needs its own sound.
 
 ## Decisions for David
+- Book Mage (cloud chat, no device link): GPT/PixVerse art is generated, but moving it into the repo is blocked — pasting the image into my private inbox page was refused by the permission check, and carrying it as text is too heavy. Options: allow that paste step, or link this chat to the computer (desktop app) so downloads can be staged. Hit-spark sheet (counter / launch / armor break / finisher) is ready in ChatGPT, waiting on this.
 
 ## Done
 - DFO PvP arena dynamics: painted hit states checked in the arena (hurt, launched rise/peak/fall, down, getup) — all show; the quick rise is a 160 ms getup by design.
