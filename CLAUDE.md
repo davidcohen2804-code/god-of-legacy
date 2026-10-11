@@ -5,6 +5,7 @@
 - Public URLs (must stay the same):
   - https://davidcohen2804-code.github.io/god-of-legacy/
   - https://davidcohen2804-code.github.io/god-of-legacy/?qa=1
+- Skills are identical in the regular game and in PvP: a change made for PvP is made in the regular game too (no arena-only skill values).
 - Implement only what each stage spec asks. Do not add features, guess missing details, or change approved decisions without approval.
 - No QA summary documents unless explicitly requested.
 - Update `CURRENT_STAGE` in `src/config/layout.ts` when a new stage is approved.
