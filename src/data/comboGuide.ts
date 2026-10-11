@@ -66,10 +66,11 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
   warrior: [
     // the PvP balance pass: each skill leads to 2–3 others — open, grab, launch, chase or spin, the court, the beating, the
     // Verdict (measured in the arena against a foe that does nothing: every skill lands while he cannot act)
-    { name: 'JUDGMENT', range: 'CLOSE', hits: 25, steps: [{ id: 'warrior_basic' }, { id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'judgment_blade' }, { id: 'ground_breaker' }, { id: 'titans_verdict' }] },
-    { name: 'HOOKSHOT', range: 'FAR', hits: 32, steps: [{ id: 'judgment_hook' }, { id: 'rising_slash' }, { id: 'whirlwind' }, { id: 'lance_thrust' }, { id: 'titans_verdict' }] },
+    { name: 'JUDGMENT', range: 'CLOSE', hits: 22, steps: [{ id: 'warrior_basic' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'judgment_blade' }, { id: 'lance_thrust' }, { id: 'titans_verdict' }] },
+    { name: 'IRONCLAD', range: 'CLOSE', hits: 22, steps: [{ id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'ground_breaker' }, { id: 'judgment_blade' }, { id: 'lance_thrust' }, { id: 'titans_verdict' }] },
+    { name: 'HOOKSHOT', range: 'FAR', hits: 24, steps: [{ id: 'judgment_hook' }, { id: 'rising_slash' }, { id: 'ground_breaker' }, { id: 'lions_maw' }, { id: 'lance_thrust' }, { id: 'titans_verdict' }] },
     { name: 'FAULTLINE', range: 'MID', hits: 24, steps: [{ id: 'earthsplitter', hold: true }, { id: 'sky_breaker' }, { id: 'judgment_blade' }, { id: 'lance_thrust' }, { id: 'titans_verdict' }] },
-    { name: 'SHIELDWALL', range: 'MID', hits: 22, steps: [{ id: 'shield_charge' }, { id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'titans_verdict' }] },
+    { name: 'SHIELDWALL', range: 'MID', hits: 22, steps: [{ id: 'shield_charge' }, { id: 'iron_grip' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'lions_maw' }, { id: 'titans_verdict' }] },
   ],
   // the Book Mage: ice spikes, a lightning chain or the storm field, the starlight lift or a blink, then the storm field, the
   // chain, the cranes or the clock
