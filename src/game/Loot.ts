@@ -41,6 +41,9 @@ export const ITEMS: Record<string, ItemDef> = {
   storm_core: { id: 'storm_core', name: 'Storm Core', kind: 'mat', icon: I('storm_core'), sell: 400, desc: 'A swirling pearl of calm storm. Rare and precious.', rarity: 'rare', lore: "What is left of Big Grumble's bad mood once he cheers up: a little storm, sleeping in a pearl." },
   sun_shard: { id: 'sun_shard', name: 'Sun Shard', kind: 'mat', icon: I('sun_shard'), sell: 10, desc: 'A warm sliver of sunlight. Solenne at the Sun Shrine is looking for these.', rarity: 'uncommon', lore: "A last spark of the stolen Heart of the Sun. The Sunbeams of Afterglow Rest keep them close." },
   sun_amulet: { id: 'sun_amulet', name: 'Sun Amulet', kind: 'key', icon: I('sun_amulet'), sell: 0, desc: "Three Sun Shards set in gold by the Keeper of the Sun. Show it to the Masters in the east.", rarity: 'rare', lore: "Solenne's gift. It stays warm in your hand, like a little piece of morning." },
+  moth_dust: { id: 'moth_dust', name: 'Moth Dust', kind: 'mat', icon: I('moth_dust'), sell: 9, desc: 'Glimmering golden dust. Lumen the Lamplighter wants it.', rarity: 'common', lore: "Shed by the Lantern Moths of the Lantern Steps when they are startled. It keeps a little light of its own." },
+  dusk_lantern: { id: 'dusk_lantern', name: 'Dusk Lantern', kind: 'key', icon: I('dusk_lantern'), sell: 0, desc: 'A lantern lit with moth light. It shows what hides in the twilight.', rarity: 'uncommon', lore: "Lumen made it from ten pinches of Moth Dust. It never goes out." },
+  sun_ember: { id: 'sun_ember', name: 'Sun Ember', kind: 'key', icon: I('sun_ember'), sell: 0, desc: 'A piece of the Heart of the Sun, still warm. Keep it close.', rarity: 'rare', lore: "Taken back from the Shade Fox at the Hollow Gate. The first piece of the stolen Heart." },
   cursed_cloth: { id: 'cursed_cloth', name: 'Cursed Cloth', kind: 'mat', icon: I('cursed_cloth'), sell: 12, desc: 'A scrap of cloth that still hums with a curse. Merchants buy it.', rarity: 'common', lore: "Torn from the cloaks of the Cursed Swordsmen. The curse still hums in its threads." },
 };
 export const ITEM_IDS = Object.keys(ITEMS);
@@ -78,6 +81,9 @@ const DROPS: Record<string, { gold: [number, number]; items: [string, number][] 
   puffling: { gold: [6, 11], items: [['cloud_puff', 0.6], ['orange', 0.06], ['blue_potion', 0.04]] },
   big_grumble: { gold: [90, 150], items: [['cloud_form', 1], ['storm_core', 1], ['cloud_feather', 0.6], ['elixir', 0.25], ['cloud_puff', 1]] },
   sunbeam: { gold: [7, 12], items: [['sun_shard', 0.6], ['orange', 0.06], ['red_potion', 0.05]] },
+  glowcap: { gold: [10, 18], items: [['orange', 0.07], ['red_potion', 0.06], ['cake', 0.02]] },
+  moth: { gold: [12, 22], items: [['moth_dust', 0.6], ['blue_potion', 0.05], ['orange', 0.05]] },
+  shade_fox: { gold: [300, 500], items: [['elixir', 0.5], ['swift_potion', 0.6], ['moth_dust', 1]] },
   cursed: { gold: [8, 14], items: [['cursed_cloth', 0.35], ['meat', 0.06], ['red_potion', 0.06], ['blue_potion', 0.04], ['elixir', 0.003]] },
 };
 

@@ -11,7 +11,7 @@ R = __file__.rsplit('/', 3)[0] + '/'
 ACTIONS = [('idle', 4), ('walk', 6), ('attack', 6), ('hurt', 2), ('death', 6)]
 # per monster: its height in the game (world px, standing) and texture px per world px
 MOBS = {'sprout': {'height': 62, 'q': 2, 'fx': True}, 'rusted': {'height': 78, 'q': 2, 'fx': True}, 'thorn': {'height': 70, 'q': 2, 'fx': True}, 'cursed': {'height': 84, 'q': 2, 'fx': True}, 'warden': {'height': 150, 'q': 2, 'fx': True},   # fx: its attack's leaf whip kept (not a gust the game blows itself)
-        'puffling': {'height': 72, 'q': 2}, 'sunbeam': {'height': 66, 'q': 2, 'fx': True, 'glow': True}, 'big_grumble': {'height': 250, 'q': 2, 'same': {('attack', 4): ('attack', 3)}}}   # same: a frame drawn as another (GPT's frame unusable)
+        'puffling': {'height': 72, 'q': 2}, 'sunbeam': {'height': 66, 'q': 2, 'fx': True, 'glow': True}, 'glowcap': {'height': 60, 'q': 2, 'fx': True}, 'moth': {'height': 64, 'q': 2, 'fx': True}, 'shade_fox': {'height': 112, 'q': 2, 'fx': True}, 'big_grumble': {'height': 250, 'q': 2, 'same': {('attack', 4): ('attack', 3)}}}   # same: a frame drawn as another (GPT's frame unusable)
 
 
 def key(path, glow=False):
@@ -51,6 +51,11 @@ for mid, spec in MOBS.items():
   rgba = key(R + f'tools/mobs/{mid}.png', spec.get('glow', False)); A = rgba[..., 3] > 100
   rows = bands(A, 1, 14)
   rows = [r for r in rows if r[1] - r[0] > 40]
+  while len(rows) < 5:   # two rows run together (an attack's trail reaching down into the hurt row): the tallest band split at its emptiest line
+    i = max(range(len(rows)), key=lambda j: rows[j][1] - rows[j][0]); y0, y1 = rows[i]
+    cnt = A[y0:y1].sum(1); lo, hi = y0 + (y1 - y0) * 3 // 10, y0 + (y1 - y0) * 7 // 10
+    cut = int(lo + np.argmin(cnt[lo - y0:hi - y0]))
+    rows[i:i + 1] = [(y0, cut), (cut, y1)]
   assert len(rows) == 5, (mid, rows)
   frames = []   # (action, i, crop rgba, anchor x in crop, baseline y in crop)
   # the grid's columns: the walk row's six frames (well apart); every row uses its first n of them

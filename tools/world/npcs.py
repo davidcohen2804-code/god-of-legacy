@@ -17,7 +17,7 @@ NPCS = {'aldric': {'cols': 4, 'height': 112}, 'gate_guard': {'cols': 4, 'height'
         'mage_master_pose': {'cols': 4, 'height': 124, 'baseline': 855}, 'warrior_master_pose': {'cols': 4, 'height': 150},
         'samurai_master_pose': {'cols': 4, 'height': 125},
         'archer_master_pose': {'cols': 4, 'height': 300},
-        'nimbus': {'cols': 4, 'height': 132}, 'solenne': {'cols': 4, 'height': 118}}
+        'nimbus': {'cols': 4, 'height': 132}, 'solenne': {'cols': 4, 'height': 118}, 'lumen': {'cols': 4, 'height': 108}}
 
 def strip(frames, name):
   """frames: [(RGBA image, foot x, foot y, world scale)] → one strip, all feet at the same point."""

@@ -28,7 +28,7 @@ DX = STRIP['areas']['temple']['x'] - 6373          # the temple moved along the 
 GAP = (6923 + DX, 7433 + DX)
 # the plaza starts at the world's left end (x 0): the terrace runs above all of it, so looking up from anywhere on the
 # plaza shows the courtyard's arcade (the stairs come down onto its left part, the seal is further right)
-OX = STRIP['w'] - round(1672 * SCALE)         # the plaza ends where the world ends (x 8000): the terrace runs above all of it
+OX = STRIP['areas']['temple']['x'] + 1672 - round(1672 * SCALE)   # the plaza ends where the temple's map ends (the stairs come down from it; the world may run on east of it)
 OY = TERRACE_H
 # the walkable stairs (inside the cheek walls)
 WALK_STAIRS = (6955 + DX, 7401 + DX)

@@ -28,10 +28,14 @@ ROUTE = [
   ('gate_2', ("Warden's Hold", None, False, 'warden')),
   ('temple', None),
   # chapter 3: east of the Temple Road, the twilight gardens (their own GPT maps; blocks.py)
-  ('dusk_1', ('Wisteria Walk', None, False, 'thorn')),
+  ('dusk_1', ('Wisteria Walk', None, False, 'glowcap')),
+  ('dusk_2', ('Lantern Steps', None, False, 'moth')),
+  ('dusk_3', ('Hollow Gate', None, False, 'shade_fox')),
 ]
 SPAWNS = [[420, 440], [600, 610], [760, 420], [930, 600], [1090, 430], [1260, 610], [1400, 450]]   # 7 a map
 WARDEN = [[1000, 520]]
+# a map's boss: where it stands (map px) and the lesser monsters round it (mobs2)
+BOSSES = {'warden': {'spawns': WARDEN, 'mobs2': 'cursed'}, 'shade_fox': {'spawns': [[836, 530]], 'mobs2': 'moth'}}
 # maps of their own: spawns clear of their blocks and ledges
 OWN_SPAWNS = {'terraces_2': [[420, 600], [380, 440], [700, 560], [1000, 590], [1250, 430], [1300, 610], [1520, 470]],
               'orchard_1': [[300, 430], [250, 610], [650, 560], [950, 600], [1300, 430], [1250, 610], [1550, 450]],
@@ -48,8 +52,9 @@ for id_, spec in ROUTE:
     a = D['areas'].get(id_, {'props': []})
     if a.pop('standin', None): a['props'] = []; a.pop('paint', None)   # was a stand-in copy: its own GPT map now (blocks.py finds its blocks)
     a.pop('mirrored', None)
-    a.update({'name': name, 'walk': [[0, 346], [AW, 346], [AW, 652], [0, 652]], 'mobs': {'kind': mob, 'spawns': WARDEN if mob == 'warden' else OWN_SPAWNS.get(id_, SPAWNS)}})
-    if mob == 'warden': a['mobs2'] = {'kind': 'cursed', 'spawns': SPAWNS[::2]}
+    a.update({'name': name, 'walk': [[0, 346], [AW, 346], [AW, 652], [0, 652]], 'mobs': {'kind': mob, 'spawns': BOSSES[mob]['spawns'] if mob in BOSSES else OWN_SPAWNS.get(id_, SPAWNS)}})
+    if mob in BOSSES: a['mobs2'] = {'kind': BOSSES[mob]['mobs2'], 'spawns': SPAWNS[::2]}
+    else: a.pop('mobs2', None)
     D['areas'][id_] = a; continue
   for d in ('src/', 'layers/gpt/'):
     im = Image.open(G + d + src + '.png')
@@ -62,8 +67,8 @@ for id_, spec in ROUTE:
       for k in ('foot', 'base', 'occ'):
         if k in p: p[k] = mirror_poly(p[k])
     if 'paint' in a: a['paint'] = [[mx(b[2]), b[1], mx(b[0]), b[3]] for b in a['paint']]
-  a['mobs'] = {'kind': mob, 'spawns': WARDEN if mob == 'warden' else OWN_SPAWNS.get(id_) or ([[mx(x), y] for x, y in SPAWNS] if flip else SPAWNS)}
-  if mob == 'warden': a['mobs2'] = {'kind': 'cursed', 'spawns': SPAWNS[::2]}
+  a['mobs'] = {'kind': mob, 'spawns': BOSSES[mob]['spawns'] if mob in BOSSES else OWN_SPAWNS.get(id_) or ([[mx(x), y] for x, y in SPAWNS] if flip else SPAWNS)}
+  if mob in BOSSES: a['mobs2'] = {'kind': BOSSES[mob]['mobs2'], 'spawns': SPAWNS[::2]}
   if id_ == 'terraces_2': a['walk'] = [[0, 346], [AW, 346], [AW, 652], [0, 652]]   # Ivy Heights stands over the courtyard's back alcove
   a['standin'] = src; a['mirrored'] = flip
   D['areas'][id_] = a
