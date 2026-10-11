@@ -75,6 +75,14 @@
       "frames": 20,
       "source": "pixverse archer_run.mp4",
       "cycle_canvas": 760.0
+    },
+    "jump": {
+      "frames": 3,
+      "source": "gpt stills"
+    },
+    "djump": {
+      "frames": 2,
+      "source": "gpt stills"
     }
   },
   "hit_source": "pixverse archer_hit.mp4"
