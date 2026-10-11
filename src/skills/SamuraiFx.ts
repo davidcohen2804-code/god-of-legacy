@@ -596,13 +596,15 @@ export class SamuraiFx {
     return null; // (Rising Sun, Sakura Bind, Kagemusha: light, blossoms, ink — no blade)
   }
 
-  /** A confirmed hit on a foe: a real cut of the blade across it along the swing (heavier and brighter for heavy and
-   *  critical hits), sparks sprayed the way it is thrown, and the shared marks of what happened to it. `from`: where the
-   *  blow came from (the cut and the sparks face away from there). */
-  confirmed(s: FinalSkill, hit: HitEvent, at: V3, reaction: string, heavy: boolean, crit: boolean, from?: { x: number; y: number }, local = false): void {
+  /** A confirmed hit on a foe — the class's hit sparks, by the hit's weight, in the skill's own tone: NORMAL a cut of the
+   *  blade across it along the swing and a small spark; HEAVY (heavy / signature / ultimate hits) the heavy cut and a burst;
+   *  LAUNCH sparks sprayed up after it and a beam from under it; COUNTER (caught in his own swing) the ensō — a circle of ink
+   *  brushed round him and a crimson cut through it. `from`: where the blow came from (the cut and the sparks face away from there). */
+  confirmed(s: FinalSkill, hit: HitEvent, at: V3, reaction: string, heavy: boolean, crit: boolean, from?: { x: number; y: number }, local = false, counter = false): void {
     if (!this.ready) return;
     const x = at.x, y = at.y - at.z - 38, rapid = s.hits.length > 3 && !hit.heavy, side = from && at.x < from.x - 2 ? -1 : 1, tone = SKILL_TONE[s.id];
     const line = this.slashLine(s, hit), ang = line ? side * line.ang : 0;
+    if (counter) this.counterMark(x, y, side, local);
     if (s.id === 'shadow_step') { // the shadow's cut: a stroke of ink through the foe along the step, ink spattered past it, a blood-red edge
       this.spr({ name: 'ink_short', x, y, depth: TOP + 4, w: 170, h: 54, angle: side * 4, flipX: side < 0, life: 380,
         sx: kf([0, 0.3], [0.14, 1, out3], [1, 1.08]), sy: kf([0, 1.2], [0.14, 1], [1, 0.55, inQ]), a: kf([0, 0.95], [0.5, 0.85], [1, 0, inQ]) });
@@ -641,6 +643,31 @@ export class SamuraiFx {
         if (local) { this.ctx.cam().shake(90, 0.004); this.ctx.freeze?.(55); }
       });
     }
+  }
+
+  /** COUNTER — the foe caught in his own swing: an ensō, one stroke of ink brushed round him (the brush runs round in a
+   *  blink, thick in the middle of its sweep, thin where it starts and lifts off), a crimson cut slashed through it, a white
+   *  flash where they cross and crimson sparks. Over the shared COUNTER beat (freeze, flash, callout: LegacyCourtyardScene). */
+  private counterMark(x: number, y: number, side: number, local: boolean): void {
+    const N = 28, R = 58, SWEEP = 1.72 * Math.PI, DRAW = 110, HOLD = 260, FADE = 240, life = DRAW + HOLD + FADE;
+    const a0 = (side > 0 ? -2.3 : -0.84) + rnd(-0.15, 0.15), dir = side > 0 ? 1 : -1;
+    const ink = this.strip('ink_long', N), rim = this.strip(this.fname(tn('cut_line', 'blood')), N, { add: true });
+    const at = (i: number) => { const th = a0 + dir * SWEEP * (i / (N - 1)); return { x: x + Math.cos(th) * R, y: y + Math.sin(th) * R * 0.86 }; };
+    const thick = (i: number) => { const u = i / (N - 1); return 5 + 12 * Math.sin(Math.PI * Math.min(1, u * 1.15)) * (u < 0.08 ? u / 0.08 : 1); };
+    ink.rope.setDepth(TOP + 5.4); rim.rope.setDepth(TOP + 5.3);
+    this.add({ t: 0, step: (_dt, t) => {
+      const d = out(Math.min(1, t / DRAW)), f = t < DRAW + HOLD ? 1 : Math.max(0, 1 - (t - DRAW - HOLD) / FADE);
+      const shown = (i: number) => Math.max(0, Math.min(1, (d * (N + 3) - i) / 3)); // (the brush's head runs round; behind it the ink stays)
+      ink.set(at, thick, (i) => shown(i) * f * 0.94);
+      rim.set(at, (i) => thick(i) * 1.7, (i) => shown(i) * f * 0.55);
+      if (t >= life) { ink.destroy(); rim.destroy(); return false; }
+      return true;
+    } });
+    // the crimson cut through it, the flash where it crosses, sparks
+    this.cut('cut_line', 168, -side * 32, { x, y, depth: TOP + 5.6, h: 18, grow: 40, hold: 120, fade: 200, glow: 0.9, sweep: 0, delay: 70 });
+    this.pop('glint', x, y, 150, { life: 260, angle: 0, depth: TOP + 5.8, glow: 0.9, delay: 70 });
+    this.sparks(x, y, 10, 90, { depth: TOP + 5.2, delay: 70 });
+    if (local) this.ctx.cam().shake(110, 0.004);
   }
 
   /** The Mirage Counter fired: time stops a beat; the blow cuts the mirage where he stood in two — its halves slide apart and

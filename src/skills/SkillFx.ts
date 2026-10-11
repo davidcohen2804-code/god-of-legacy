@@ -1292,7 +1292,7 @@ export class SkillFx {
       this.play(key, at.x, at.y - at.z - 38, sz, sz, [20, 22, 24, 26, 28, 30, 34, 40], { depth: TOP + 2, fadeLast: 60 }); // the samurai's hit sizes
     } else if (s.cls === 'book_mage') this.mage.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit);
     else if (s.cls === 'gambler') this.gamb.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, counter);
-    else if (s.cls === 'samurai') this.sam.confirmed(s, hit, at, reaction, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, from, local); // (the cut of the blade on the foe and the marks of what happened to it)
+    else if (s.cls === 'samurai') this.sam.confirmed(s, hit, at, reaction, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, from, local, counter); // (the cut of the blade on the foe and the marks of what happened to it; the ensō on a COUNTER)
     else if (s.cls === 'warrior' && this.scene.textures.exists('imp-wsparks')) { // the Judge's sparks: few hits, each one felt — normal / heavy / launch
       const row = counter ? 3 : reaction === 'launch' ? 2 : tier === 'ultimate' || tier === 'signature' || hit.heavy ? 1 : 0;
       const size = row === 3 ? 200 : row === 1 ? (tier === 'ultimate' ? 220 : 170) : row === 2 ? 160 : s.id === 'warrior_basic' ? 84 : 112;
