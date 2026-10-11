@@ -306,9 +306,13 @@ def motion_frames(mdir, frames, rig_cyc):
     import glob
     idle = next(im for a, im, ax, ay in frames if a == 'idle')
     k = idle.shape[0] / 509.0
-    out = [f for f in frames if f[0] not in ('idle', 'walk', 'run', 'jump', 'djump')]
+    # every painted set in the folder: the rig's locomotion plus the body states the movement videos add
+    # (hurt, launched, down_impact, down, getup, stance, …), named <act>_NN.png
+    acts = ['idle', 'walk', 'run', 'jump', 'djump']
+    acts += sorted({os.path.basename(f).rsplit('_', 1)[0] for f in glob.glob(os.path.join(mdir, '*_[0-9][0-9].png'))} - set(acts))
+    out = [f for f in frames if f[0] not in acts]
     cyc = dict(rig_cyc or {})
-    for act in ('idle', 'walk', 'run', 'jump', 'djump'):
+    for act in acts:
         files = sorted(glob.glob(os.path.join(mdir, act + '_[0-9]*.png')))
         if not files:
             out += [f for f in frames if f[0] == act]
