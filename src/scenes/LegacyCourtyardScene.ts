@@ -94,7 +94,7 @@ import { CosmeticPanel } from '../ui/CosmeticPanel';
 import { preloadPanelArt } from '../ui/PreviewStage';
 import { CameraPitch } from '../world/CameraPitch';
 import { ArenaSound, type HeardFighter } from '../audio/ArenaSound';
-import { loadArenaSound } from '../audio/Sound';
+import { Sound, loadArenaSound } from '../audio/Sound';
 import { addMotes, preloadLife } from '../ui/PresentationLife';
 /** The panels' keys (Key Settings) for the HUD's menu pills and gear menu. */
 const menuKeys = (b: Record<BindAction, string>) => ({ K: keyLabel(b.book), I: keyLabel(b.bag), O: keyLabel(b.shop), J: keyLabel(b.quests), P: keyLabel(b.party), U: keyLabel(b.stats) });
@@ -494,7 +494,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     for (let n = 0; n < EMOTES; n++) if (!this.textures.exists(`kit.emote_${n}`)) this.load.image(`kit.emote_${n}`, `assets/final/ui/kit/emote_${n}.png`);
     // the arena from the fighter select: the two fighters face to face while it loads (else the plain loading screen)
     const foe = sd?.foe ?? (sd?.botCls ? { cls: sd.botCls, name: BOT_NAMES[sd.botCls] ?? BOT_NAME } : null);
-    if (!(pvp && me && cls && foe && showArenaLoading(this, { name: me.name, cls, you: true }, foe, this.stage))) showLoading(this, pvp ? 'PVP ARENA' : 'GOD OF LEGACY');
+    if (pvp && me && cls && foe && showArenaLoading(this, { name: me.name, cls, you: true }, foe, this.stage)) Sound.vsIntro(cls, foe.cls); // (the slam, both fighters' lines, GET READY)
+    else showLoading(this, pvp ? 'PVP ARENA' : 'GOD OF LEGACY');
   }
 
   create(data?: { pvpRoom?: string; at?: { x: number; y: number }; fighter?: Character; botCls?: string; vs?: 'cpu' | 'player' }): void {

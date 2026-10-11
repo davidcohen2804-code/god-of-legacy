@@ -29,6 +29,9 @@ export const VOICE = ['round_1', 'round_2', 'round_3', 'final_round', 'fight', '
 /** The select screen's: CHOOSE YOUR FIGHTER, each fighter's name as it is locked in, GET READY. */
 export const MENU_VOICE = ['choose', 'get_ready', 'warrior', 'samurai', 'archer', 'book_mage', 'gambler'] as const;
 export type VoiceLine = typeof VOICE[number] | typeof MENU_VOICE[number];
+/** Each fighter's own line on the VS screen (the classes recorded so far). */
+const CHAR_LINES = new Set<string>([]);
+let vsHeard = false;
 /** The select screen's lines on (the announcer is the owner's own voice). */
 const MENU_VOICE_ON = true;
 /** The music in the game so far (each a seamless loop): the select screen and the stages by id. */
@@ -52,7 +55,8 @@ function load(scene: Phaser.Scene, k: string, path: string): void {
 /** The select screen's cues (and the lock-in's punch). */
 export function loadMenuSound(scene: Phaser.Scene): void {
   for (const u of Object.keys(UI)) load(scene, `ui_${u}`, `ui/${u}`);
-  load(scene, 'round_swoosh', 'sfx/round_swoosh');
+  load(scene, 'round_swoosh', 'sfx/round_swoosh'); load(scene, 'vs_slam', 'sfx/vs_slam'); // (the VS loading screen's slam: before the arena's own sounds are in)
+  for (const c of CHAR_LINES) load(scene, `c_${c}`, `voice/c_${c}`);
   if (MENU_VOICE_ON) for (const v of MENU_VOICE) load(scene, `v_${v}`, `voice/${v}`);
 }
 /** The arena's: every effect, the announcer, the stage's ambience and its one-shots. */
@@ -114,7 +118,24 @@ export const Sound = {
     if (MENU_VOICE_ON && cls && (MENU_VOICE as readonly string[]).includes(cls)) Sound.voice(cls as VoiceLine, 120);
   },
   /** Both locked in: GET READY. */
-  getReady(): void { playKey('round_swoosh', SFX.round_swoosh[1] * sfxVol()); if (MENU_VOICE_ON) Sound.voice('get_ready', 700); },
+  getReady(): void { playKey('round_swoosh', SFX.round_swoosh[1] * sfxVol()); },
+
+  /** The VS loading screen: the slam as the emblem lands, each fighter's own line (yours, then the other's), GET READY. */
+  vsIntro(l: string, r: string): void {
+    vsHeard = true;
+    window.setTimeout(() => playKey('vs_slam', SFX.vs_slam[1] * sfxVol()), 380);
+    const lines = [l, r].filter((c) => CHAR_LINES.has(c)).map((c) => `c_${c}`);
+    const next = (i: number, delay: number) => window.setTimeout(() => {
+      if (i >= lines.length) { if (MENU_VOICE_ON) Sound.voice('get_ready'); return; }
+      voiceSnd?.stop(); voiceSnd?.destroy();
+      const s = playKey(lines[i], VOICE_VOL * sfxVol()); voiceSnd = s;
+      duckUntil = performance.now() + ((s?.duration || 1.5) * 1000);
+      next(i + 1, ((s?.duration || 1.4) * 1000) * 0.8 + 250);
+    }, delay);
+    next(0, 1150);
+  },
+  /** The VS slam already heard on the loading screen: the match's first VS keeps quiet (asked once). */
+  vsHeardOnce(): boolean { const h = vsHeard; vsHeard = false; return h; },
   /** CHOOSE YOUR FIGHTER (the select screen opening). */
   choose(): void { if (MENU_VOICE_ON) Sound.voice('choose', 650); },
 

@@ -39,7 +39,7 @@ export class ArenaSound {
   /** The round's moments. */
   phase(m: Match, prev: MatchPhase): void {
     switch (m.phase) {
-      case 'vs': if (prev === 'idle' || prev === 'over') Sound.sfx('vs_slam'); break;
+      case 'vs': if ((prev === 'idle' && !Sound.vsHeardOnce()) || prev === 'over') Sound.sfx('vs_slam'); break;
       case 'intro': Sound.sfx('round_swoosh'); this.say(m.finalRound ? 'final_round' : (`round_${Math.min(3, m.round)}` as VoiceLine), 260); break;
       case 'fight': Sound.sfx('fight_hit'); this.say('fight', 0); break;
       case 'ko':
