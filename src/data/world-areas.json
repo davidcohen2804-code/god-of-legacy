@@ -14139,9 +14139,8 @@
   },
   "sprout": {
    "name": "Ivy Sproutling",
-   "frames": "cursed_swordsman",
-   "tint": 10477706,
-   "scale": 0.72,
+   "frames": "sprout",
+   "scale": 1.0,
    "hp": 26,
    "damage": 3,
    "speed": 52,
@@ -14150,7 +14149,8 @@
    "cooldown": 1600,
    "respawnMs": 7000,
    "exp": 5,
-   "level": 1
+   "level": 1,
+   "texQ": 2
   },
   "thorn": {
    "name": "Orchard Thornling",

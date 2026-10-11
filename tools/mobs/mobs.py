@@ -10,7 +10,8 @@ from scipy import ndimage as nd
 R = __file__.rsplit('/', 3)[0] + '/'
 ACTIONS = [('idle', 4), ('walk', 6), ('attack', 6), ('hurt', 2), ('death', 6)]
 # per monster: its height in the game (world px, standing) and texture px per world px
-MOBS = {'puffling': {'height': 72, 'q': 2}, 'big_grumble': {'height': 250, 'q': 2, 'same': {('attack', 4): ('attack', 3)}}}   # same: a frame drawn as another (GPT's frame unusable)
+MOBS = {'sprout': {'height': 62, 'q': 2, 'fx': True},   # fx: its attack's leaf whip kept (not a gust the game blows itself)
+        'puffling': {'height': 72, 'q': 2}, 'big_grumble': {'height': 250, 'q': 2, 'same': {('attack', 4): ('attack', 3)}}}   # same: a frame drawn as another (GPT's frame unusable)
 
 
 def key(path):
@@ -53,6 +54,7 @@ for mid, spec in MOBS.items():
     band = rgba[y0:y1]; m = band[..., 3] > 60
     er = nd.binary_erosion(m, iterations=14); lb, kk = nd.label(er)
     seeds = np.zeros(m.shape, np.int32)
+    if act == 'death' and spec.get('fx'): kk = 0   # (dissolving into many leaves: by the sheet's columns)
     if kk >= n:
       ss = nd.sum(er, lb, range(1, kk + 1)); big = sorted(np.argsort(ss)[-n:], key=lambda q: nd.find_objects(lb)[q][1].start)
       for t, q in enumerate(big): seeds[lb == q + 1] = t + 1
@@ -72,12 +74,12 @@ for mid, spec in MOBS.items():
         owner[sl][cm] = o[cm]
       else:
         v = np.bincount(near[sl][cm]).argmax() if cm.any() else 0
-        if act == 'attack' and kk >= n and len(ids) == 0:   # a loose gust: to the body it blows from (the nearest one left of it)
+        if act == 'attack' and kk >= n and len(ids) == 0 and not spec.get('fx'):   # a loose gust: to the body it blows from (the nearest one left of it)
           cxq = (sl[1].start + sl[1].stop) / 2
           left = [t for t in range(1, n + 1) if np.nonzero((seeds == t).any(0))[0].max() < cxq]
           if left: v = max(left)
         owner[sl][cm] = v
-    if act == 'attack' and kk >= n:   # a gust blows right: everything outside the bodies goes to the nearest body on its left
+    if act == 'attack' and kk >= n and not spec.get('fx'):   # a gust blows right: everything outside the bodies goes to the nearest body on its left
       def body_of(t):
         bm = nd.binary_dilation(seeds == t, iterations=16) & m
         core = nd.binary_opening(bm, iterations=3); lb_, k_ = nd.label(core)   # thin gust tendrils cut off, the body kept
