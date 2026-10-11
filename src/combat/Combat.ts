@@ -61,7 +61,7 @@ export const GAUGE = { stand: 0.3, air: 0.4, airRamp: 0.15, down: 0.15, resetMs:
  *  Combo damage (PvP engine audit vs DFO, where a full combo takes ~20–35% HP): a full combo here takes ≤ budget (40%),
  *  so a round has 3–4 combos a side; dmgMul and the gauges were scaled together (×0.57 from 3 / 0.25 / 0.34 / 0.07 / 0.7),
  *  so a combo strings as many skills as before, it just hurts less.
- *  - cdMul: skill cooldowns in the arena; pushMul: knockback in the arena. */
+ *  - pushMul: knockback in the arena. (No cooldown multiplier: a skill's cooldown is the same everywhere.) */
 export const ARENA = {
   dmgMul: 1.7, ladder: [1, 1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.66, 0.62, 0.58, 0.55, 0.52, 0.5, 0.47, 0.44, 0.42, 0.4], ladderFloor: 0.3, ultFloor: 0.6,
   gauge: { stand: 0.142, air: 0.193, airRamp: 0.08, down: 0.04 },
@@ -76,7 +76,6 @@ export const ARENA = {
   /** at each round's start the ultimate / the signature are held back this long (DFO's arena pre-cooldown 선쿨) */
   ultPreCdMs: 20000, sigPreCdMs: 6000,
   breakOn: false, breakMinHits: 3, breakCdMs: 15000, breakInvulnMs: 600, breakHop: 110,
-  cdMul: 1.5,
   /** comeback (DFO's rage mode): at or below `at` of max HP a fighter deals ×dmg and takes ×taken until the round ends */
   rage: { at: 0.25, dmg: 1.15, taken: 0.9 },
   /** knockback in the arena (× a hit's push): enough to read, never out of the next skill's reach */

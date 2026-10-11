@@ -433,7 +433,7 @@ export class SparringBot {
       const p = w.player, d = unit(p.x - k.x, p.y - k.y);
       steer(k, d.x * PHYS.stroll * 0.8, d.y * PHYS.stroll * 0.8, ms);
     } else if (k.grounded) { k.vx *= 0.7; k.vy *= 0.7; }
-    if (c.t >= activeEnd + T.recovery + (this.body.arena && !c.landed && arenaCommits(s) ? ARENA_FLOW.whiffMs : 0)) { // (a miss: open a moment longer, like the players)
+    if (c.t >= activeEnd + T.recovery + (!c.landed && arenaCommits(s) ? ARENA_FLOW.whiffMs : 0)) { // (a miss: open a moment longer, like the players)
       this.cast = null;
       if (s.chain) { this.chainEnd = w.now; this.nextAct = w.now + (c.stage >= 3 ? rnd(...this.L.after) : rnd(40, 120)); }
       else this.nextAct = w.now + rnd(...this.L.after);

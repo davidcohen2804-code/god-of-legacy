@@ -1030,14 +1030,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     } else if (scale > 0) steer(k, inp.moveX * PHYS.walk * scale, inp.moveY * PHYS.walk * scale, ms, 0.6);
     else { k.vx *= 0.97; k.vy *= 0.97; } // air skill keeps most of its momentum
     // Movement cancel from recovery after 35% (whiffed counters stay committed).
-    if (run.phase === 'recovery' && inp.hasMove && !s.counter && run.elapsed >= T.startup + T.active + 0.35 * T.recovery && !(this.arena && run.confirmedAt < 0 && arenaCommits(s))) { // (the arena: not out of a miss)
+    if (run.phase === 'recovery' && inp.hasMove && !s.counter && run.elapsed >= T.startup + T.active + 0.35 * T.recovery && !(run.confirmedAt < 0 && arenaCommits(s))) { // (the arena: not out of a miss)
       this.rt!.cancelForFollowUp(run);
       this.endRun(run, true);
       return;
     }
     // Jump cancel from recovery: after a confirmed hit (chase), or after 35% of recovery; never the Ultimate / a whiffed counter.
     const jumpOk = run.phase === 'recovery' && k.grounded && !s.counter && s.slot !== 7
-      && (run.confirmedAt >= 0 || (run.elapsed >= T.startup + T.active + 0.35 * T.recovery && !(this.arena && arenaCommits(s))));
+      && (run.confirmedAt >= 0 || (run.elapsed >= T.startup + T.active + 0.35 * T.recovery && !arenaCommits(s)));
     if (jumpOk && inp.takeJump()) {
       this.rt!.cancelForFollowUp(run);
       this.endRun(run, true);
@@ -2380,7 +2380,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // that hit on; a whiff only late in its recovery. (A skill whose list is still empty keeps the old free cancel.)
     if (s.cancelOnHit.length && !s.cancelOnHit.includes(next.id)) return false;
     if (run.confirmedAt >= 0) return e >= run.confirmedAt;
-    if (this.arena && arenaCommits(s)) return false; // the arena: a missed attack is seen through to its end (DFO: a whiff is punished)
+    if (arenaCommits(s)) return false; // a missed attack is seen through to its end (DFO: a whiff is punished) — in and out of the arena alike
     return e >= T.startup + T.active + 0.5 * T.recovery;
   }
 
@@ -2613,7 +2613,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   private onRunPhase(run: CastRun, phase: string): void {
-    if (phase === 'recovery' && this.arena && run.confirmedAt < 0 && arenaCommits(run.skill) && (run.own || run.attackerId === BOT_ID)) run.extraRecovery = Math.max(run.extraRecovery, ARENA_FLOW.whiffMs); // a miss leaves you open a moment longer
+    if (phase === 'recovery' && run.confirmedAt < 0 && arenaCommits(run.skill) && (run.own || run.attackerId === BOT_ID)) run.extraRecovery = Math.max(run.extraRecovery, ARENA_FLOW.whiffMs); // a miss leaves you open a moment longer
     if (phase === 'active' && run.skill.cls === 'book_mage') this.mageZone(run);
     const L = run.skill.linger;
     if (phase === 'active' && L) { // every caster's lingering zone (yours, other players', the sparring knight's)
@@ -3566,9 +3566,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     return k ? { startup: Math.round(t.startup * k.startup), active: Math.round(t.active * k.active), recovery: Math.round(t.recovery * k.recovery) } : t;
   }
 
-  /** Skill cooldown multiplier: longer in the arena (more spacing, fewer strings of skills); the basic attack never waits. */
+  /** Skill cooldown multiplier (the same in and out of the arena: a skill is the same everywhere). */
   private cdMul(s: FinalSkill): number { if (this.noCd && this.pvp && this.bot) return 0; // sparring test switch (never against a player)
-    return (this.arena && s.slot !== 0 ? ARENA.cdMul : 1) * (s.cls === 'book_mage' ? this.passives.cdMul : 1) * (this.simMs < this.mage.hasteUntil ? 0.9 : 1); }
+    return (s.cls === 'book_mage' ? this.passives.cdMul : 1) * (this.simMs < this.mage.hasteUntil ? 0.9 : 1); }
 
   /** BREAK (the arena): out of the combo — a hop back from the attacker, a burst of light, untouchable a moment. */
   private breakFree(now: number): void {
