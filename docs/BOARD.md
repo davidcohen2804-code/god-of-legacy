@@ -49,6 +49,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 
 ## Requests
 (format: `- to: <area> — from: <area> — what`)
+- to: DFO PvP arena dynamics — from: Movements — the painted hit states are wired (78ed600): check hurt / launched / down / getup in the arena and send back what is off (frame, timing, scale).
+- to: DFO PvP arena dynamics — from: Movements — for movement depth (side-step, run cancel, backstep, grabbed, bounce, slam, quick rise, stunned, turn, run stop, win, intro): tell me which body states you add to PoseQuery, with frame counts and ms per frame, and I paint them in that order (all six heroes, same pipeline as the runs).
 
 ## Decisions for David
 
