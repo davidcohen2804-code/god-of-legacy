@@ -19,7 +19,7 @@ leaf = (((Hh <= 7) | (Hh >= 165) | ((Hh >= 18) & (Hh <= 50))) & (Ss > 120)) | (V
 X = {a: S['areas'][a]['x'] for a in D['row']}
 URNS_LOCAL = {'courtyard': [60, 586, 1097], 'training': [547, 1162], 'plaza': [547, 1162], 'ruins': [547, 1159], 'temple': [547, 1162, 1626],
               'terraces_1': [580, 1095], 'terraces_2': [586, 1097],
-              'training_2': [547, 1162], 'training_3': [547, 1162], 'orchard_1': [547, 1162], 'orchard_2': [547, 1162], 'ruins_2': [547, 1162], 'ruins_3': [547, 1162], 'gate_1': [547, 1162], 'gate_2': [547, 1162], 'dusk_1': [547, 1162, 1626], 'dusk_2': [547, 1162, 1626], 'dusk_3': [547, 1162, 1626]}
+              'training_2': [547, 1162], 'training_3': [547, 1162], 'orchard_1': [547, 1162], 'orchard_2': [547, 1162], 'ruins_2': [547, 1162], 'ruins_3': [547, 1162], 'gate_1': [547, 1162], 'gate_2': [547, 1162], 'dusk_1': [547, 1162, 1626], 'dusk_2': [547, 1162, 1626], 'dusk_3': [547, 1162, 1626], 'dusk_bridge': [547, 1162, 1626]}
 AW = D['size'][0]
 ST = json.load(open(R + 'src/data/world-arena.json'))['stairs']
 for a in D['row']:   # stand-in maps (tools/world/expand.py): their picture's urns, mirrored with it

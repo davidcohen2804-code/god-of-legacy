@@ -49,6 +49,9 @@ export interface AreaDef {
   mobs?: { kind: string; spawns: Pt[] };
   /** A second kind in the same area (the Ruined Gate: its warden and the swordsmen round him). */
   mobs2?: { kind: string; spawns: Pt[] };
+  /** Waterfalls painted in the map itself (near: they scroll with the terrace): rectangles of falling water (area px),
+   *  animated by the game over the picture. */
+  falls?: [number, number, number, number][];
   /** Until its own map is painted: the painted map it is a copy of. */
   standin?: string;
   /** z: the height of what it stands on (the Temple's stairs, up on the stage's level). */

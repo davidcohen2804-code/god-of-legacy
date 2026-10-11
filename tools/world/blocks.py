@@ -30,6 +30,7 @@ BLOCKS = {  # rough boxes (x0, y0, x1, y1) of the blocks, map px
  'dusk_1': [(430,372,525,462),(185,470,305,578),(1195,372,1290,462),(1405,470,1525,578)],
  'dusk_2': [(355,373,455,452),(522,474,620,564),(1156,365,1254,449),(1463,471,1560,557)],
  'dusk_3': [(439,383,529,455),(195,481,300,571),(1205,376,1303,448),(1414,474,1518,557)],
+ 'dusk_bridge': [(370,360,470,450),(500,480,600,570),(1145,355,1245,450),(1450,475,1555,565)],
 }
 # Two measured blocks (courtyard, 5x zoom): one left of the middle (shows its right side), one right of it (its left side).
 #   box, silhouette (box-relative, a little inside the outline), top face front edge (box-relative), footprint x range

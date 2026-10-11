@@ -9,7 +9,14 @@ import json, os
 G = os.path.dirname(os.path.abspath(__file__)) + '/'
 R = G + '../../'
 FOOT_R, EDGE = 10, 2
+def stump(id_, x0, x1, top, front, depth, cut=12):
+  """A round-topped stump / boulder: its box, its silhouette an octagon (the corners cut)."""
+  return {'id': id_, 'x': (x0, x1), 'front': front, 'h': front - depth - top, 'depth': depth,
+          'occ': [[x0 + cut, top + 2], [x1 - cut, top + 2], [x1 - 1, top + cut], [x1 - 1, front - 3], [x1 - cut, front - 1], [x0 + cut, front - 1], [x0 + 1, front - 3], [x0 + 1, top + cut]]}
+
 PLATFORMS = {
+  # Elderwood Path: four broad mossy stumps on the path (measured on the GPT picture)
+  'dusk_wood': [stump('stump-1', 305, 425, 383, 465, 22), stump('stump-2', 652, 790, 438, 525, 25), stump('stump-3', 1000, 1158, 383, 465, 24), stump('stump-4', 1400, 1540, 440, 525, 26)],
   'terraces_1': [
     {'id': 'block-low', 'x': (262, 372), 'front': 528, 'h': 73, 'depth': 22},
     {'id': 'block-tall', 'x': (376, 492), 'front': 520, 'h': 100, 'depth': 31},

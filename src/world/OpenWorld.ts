@@ -9,6 +9,7 @@ import PROPS from '../data/world-props.json';
 import NPC_ART from '../data/npc-sprites.json';
 import { BANNERS_KEY, BANNERS_URL, WorldBanners } from './Banners';
 import MINI from '../data/world-minimap.json';
+import SKY_ART from '../data/world-sky.json';
 /** The minimap's picture with the maps above in it (tools/world/minimap.py). */
 const MINIMAP_UP_URL = 'assets/world/minimap/world_up.jpg';
 import { ARENA, ARENA_AREA, GATE, ARENA_MINIMAP_URL, AREA_H, AREA_W, AreaDef, arenaTileKey, arenaTileUrl, belowTerrace, AreaNpc, BACKDROP, MOB_KINDS, ROW, START, TILES, TOWERS, HEIGHTS, CLOUDS, SKY, SKY_AREA, heightArea, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
@@ -91,6 +92,8 @@ export class OpenWorld {
   private banners?: WorldBanners;
   /** The Sky Path's clouds (drawn; they bob a little). */
   private skyClouds: { img: Phaser.GameObjects.Image; y: number; ph: number; amp: number; per: number }[] = [];
+  /** The waterfalls painted in the terrace's own maps (a bridge over a gorge): falling water animated over them. */
+  private falls: Phaser.GameObjects.Sprite[] = [];
   private gate: Phaser.GameObjects.Image[] = [];
   private npcs: NpcView[] = [];
   private prompt: Phaser.GameObjects.Container;
@@ -118,6 +121,7 @@ export class OpenWorld {
     scene.load.on(Phaser.Loader.Events.FILE_COMPLETE, this.onFile, this);
     if (!scene.load.isLoading()) scene.load.start();
     this.buildOccluders(); this.buildTowers(); this.buildHeights(); this.buildGate(); this.buildNpcs();
+    this.buildFalls();
     this.banners = new WorldBanners(scene, (l) => (l === 'strip' ? -0.999 : l === 'gate' ? GATE.front.depth + 0.001 : (HEIGHTS.find((h) => `heights:${h.id}` === l)?.depth ?? -1.2) + 0.001)); this.buildPortal(); this.buildSky(); this.spawnMobs();
     if (BACKDROP) this.backdrop = new Backdrop(scene);
     const cam = scene.cameras.main;
@@ -135,6 +139,22 @@ export class OpenWorld {
   private onFile(key: string): void {
     if (key.startsWith('world-tile-')) this.ensureTile(Number(key.slice(11)));
     else if (key.startsWith('world-arena-')) this.ensureArenaTile(Number(key.slice(12)));
+    else if (key === 'sky-falls') this.buildFalls();
+  }
+
+  /** Falling water over each waterfall painted in a map of the terrace (AreaDef.falls): two sheets of water a little apart
+   *  in time over each, soft and pale, right over the picture and under everything that moves. */
+  private buildFalls(): void {
+    const F = (SKY_ART as { falls: { w: number; h: number; n: number } | null }).falls;
+    if (this.falls.length || !F || !this.scene.textures.exists('sky-falls')) return;
+    for (const a of ROW) for (const [x, y, w, h] of a.falls ?? []) {
+      for (const k of [0, 1]) {
+        const f = this.scene.add.sprite(a.x + x + (k ? w * 0.06 : 0), y + (k ? 10 : 0), 'sky-falls', 0).setOrigin(0, 0).setDisplaySize(w * (k ? 0.88 : 1), h - (k ? 10 : 0))
+          .setTint(0xf4fbff).setAlpha(k ? 0.3 : 0.42).setDepth(-0.98 + k * 0.001).setBlendMode(Phaser.BlendModes.SCREEN);
+        f.setData('ph', Math.random() * 1000); f.setData('w', f.displayWidth); f.setData('h', f.displayHeight);
+        this.falls.push(f);
+      }
+    }
   }
 
   /** A tile of the Sun Seal Plaza's picture, under the terrace (its arcade stands on the plaza's top edge). */
@@ -520,6 +540,7 @@ export class OpenWorld {
     this.banners?.update(this.t, this.scene.cameras.main.worldView, this.gate[1]?.alpha ?? 1);
     this.sunGate.near(player.x, player.y, player.z, ms);
     for (const c of this.skyClouds) c.img.y = c.y + Math.sin(this.t / c.per + c.ph) * c.amp;
+    if (this.falls.length) { const F = (SKY_ART as { falls: { n: number } | null }).falls, n = F?.n ?? 1; for (const f of this.falls) f.setFrame(Math.floor((this.t + (f.getData('ph') as number)) / 90) % n).setDisplaySize(f.getData('w') as number, f.getData('h') as number); }
     this.backdrop?.update(ms);
     // the area you are in (by where you stand on the strip; a little past the line, so it never flickers)
     const sky = Math.max(player.supportZ ?? 0, player.absZ ?? 0) >= 600 && player.x >= SKY.lane[0] && player.x <= SKY.lane[1] && player.y <= SKY.band[1] + 4;
@@ -595,6 +616,8 @@ export class OpenWorld {
     this.mobs = [];
     for (const im of this.tiles) im?.destroy();
     this.tiles = TILES.map(() => null);
+    for (const f of this.falls) f.destroy();
+    this.falls = [];
     for (const im of this.arenaTiles) im?.destroy();
     this.arenaTiles = ARENA.tiles.map(() => null);
     for (const o of this.occluders) o.destroy();
