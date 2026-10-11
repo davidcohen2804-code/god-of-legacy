@@ -48,7 +48,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 ### World, story and the party quest (Maps) — David's direction: the shape of MapleStory Classic (1–10 the island, from 10 each class its own town with training maps 10–20, the party quest in one of them; no overload, not too easy)
 - [x] Chapter 3 "The Thief's Trail": Wisteria Walk → Lantern Steps → Moonfall Bridge → Elderwood Path → The Elder Hollow; Lumen's quests; Glowcap / Lantern Moth / Shade Fox — 4cf20bc, 7e51b91, 7c321ee
 - [x] Elderwood Village (the archers' town, 10–20): Wren (mentor, quests), Hazel (shop), Bram at the Elder Tree's door; the Masters' hint points there
-- [ ] The Thief's Den — party quest inside the Elder Tree (Lv 15+, 25 min, 5 stages: Sparks → root lanterns → lantern ledges → Pouncer the Magpie → the hoard); solo works now, party sync requested from PvP below
+- [x] The Thief's Den — party quest inside the Elder Tree (Lv 15+, 25 min, 5 stages: Sparks → root lanterns → lantern ledges → Pouncer the Magpie → the hoard): five painted rooms, Pip and Bram, Shade Imp / Coin Imp / Pouncer, the lantern puzzles with Pip's hints, the hoard's rewards — 346821c, 295f971, ef8447b. Solo complete and checked end to end; the party sync is requested from PvP below
 - [ ] The other class towns, one at a time: Samurai (Sakura Temple), Warrior, Book Mage, Gambler — each with 3 training maps 10–20, a mentor, a shop, quests
 - [ ] A dungeon map band 20–30 toward the 2nd job
 - [ ] Test mode (?qa=1 → F8) is in for everyone: god, peace, teleport to any map, level, class, items, gold, quests — use it to check your work in the world
@@ -83,6 +83,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - Book Mage (cloud chat, no device link): GPT/PixVerse art is generated, but moving it into the repo is blocked — pasting the image into my private inbox page was refused by the permission check, and carrying it as text is too heavy. Options: allow that paste step, or link this chat to the computer (desktop app) so downloads can be staged. Hit-spark sheet (counter / launch / armor break / finisher) is ready in ChatGPT, waiting on this.
 
 ## Done
+- Maps: Elderwood Village (the archers' town) and the Thief's Den party quest (5 rooms, 25 min, Lv 15+), with the quest Into the Den — 346821c, 295f971, ef8447b. Test mode (?qa=1 → F8) for everyone.
 - Samurai: animated ultimate cut-in for Dragon Eclipse (PixVerse, 18 frames 600×200 at 24 fps in CUTIN_ANIM: hair whips, eyes flare red, a gleam down the blade, the dragon roars, the black sun cracks) — checked in the arena — f9af1b0a
 - Archer: Sky Rain cut-in repainted (GPT): the huntress herself at full draw, close-up, green eyes and a spirit arrow, wind and leaves (the old one did not look like her); the 16:9 source is tools/heroes/src/archer_cutin_full.jpg for the animated strip
 - Book Mage: class hit weights — normal / heavy per element (existing painted sheet), COUNTER a rune shell shattering, LAUNCH an arcane column (reads SkillFx's counter flag) — c49dd33a. A dedicated GPT sheet (counter / launch / armor break / finisher) is painted and waits on the art-transfer decision.
