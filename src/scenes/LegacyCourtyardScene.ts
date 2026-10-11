@@ -3113,6 +3113,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private armorBroke(run: CastRun, at: V3, floorY: number): void {
     if (run.skill.cls === 'warrior') { // the Judge's grab tears through super armor: BREAK!
       this.fx?.callout({ x: at.x, y: at.y, z: at.z + 40 }, 'BREAK!', '#ffd24a', 0);
+      this.fx?.warriorCross(at, 230);
       this.fx?.shockwave(at.x, floorY, 150, 0xffd27a); this.fx?.shockwave(at.x, floorY, 90, 0xffffff);
       this.cameras.main.shake(180, 0.008); if (this.fx) this.fx.hitStopLeft = Math.max(this.fx.hitStopLeft, 90);
     } else { this.fx?.callout({ x: at.x, y: at.y, z: at.z + 30 }, 'ARMOR BREAK', '#ff9a6a', 0); this.impactBeat('break', at); }

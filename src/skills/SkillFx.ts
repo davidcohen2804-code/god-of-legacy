@@ -149,6 +149,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   for (const s of FINAL_SKILLS) { if (VFX_ALIAS[s.id] || s.wip || s.cls === 'samurai' || s.cls === 'book_mage' || s.cls === 'gambler' || !want(s.cls)) continue; const big = isBig(s) ? 384 : 256, c = VFX_CELL[s.id]; L(vfxKey(s.id), `${F}/skills/${s.cls}/${s.id}/vfx.png`, c?.[0] ?? big, c?.[1] ?? big); } // (the samurai: pieces, SamuraiFx)
   for (const [id, p] of Object.entries(PROJECTILE_SHEETS)) { const cls = FINAL_SKILLS.find((s) => s.id === id)!.cls; if (want(cls)) L(`proj-${id}`, `${F}/projectiles/${cls}/${id}.${p.ext ?? 'png'}`, p.cell); }
   for (const v of Object.values(IMPACT)) L(v.key, v.path, v.cell);
+  if (want('warrior')) L('imp-wsparks', `${F}/impact/warrior_sparks.png`, 256); // the warrior's hit sparks: rows normal / heavy / launch / counter (GPT)
   const I = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.image(k, p); };
   I('tg-circle', `${F}/world/telegraph_circle.png`); I('tg-cone', `${F}/world/telegraph_cone.png`);
   I('tg-line', `${F}/world/telegraph_line.png`); I('tg-traj', `${F}/world/telegraph_trajectory.png`);
@@ -1280,6 +1281,11 @@ export class SkillFx {
     } else if (s.cls === 'book_mage') this.mage.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit);
     else if (s.cls === 'gambler') this.gamb.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, counter);
     else if (s.cls === 'samurai') this.sam.confirmed(s, hit, at, reaction, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, from, local); // (the cut of the blade on the foe and the marks of what happened to it)
+    else if (s.cls === 'warrior' && this.scene.textures.exists('imp-wsparks')) { // the Judge's sparks: few hits, each one felt — normal / heavy / launch
+      const row = counter ? 3 : reaction === 'launch' ? 2 : tier === 'ultimate' || tier === 'signature' || hit.heavy ? 1 : 0;
+      const size = row === 3 ? 200 : row === 1 ? (tier === 'ultimate' ? 220 : 170) : row === 2 ? 160 : s.id === 'warrior_basic' ? 84 : 112;
+      this.spark('imp-wsparks', at.x, at.y - at.z - 38, row * 6 + 6, size, 0.95, row * 6);
+    }
     else if (s.id !== 'warrior_basic') this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.4 : hit.heavy ? 1.15 : 1), 0.8); // (a regular attack: none, as in MapleStory)
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).
     if (s.cls !== 'samurai' && tier !== 'ultimate' && reaction === 'launch') this.spark(IMPACT.dust.key, at.x, at.y + 4, 6, 90, 0.5);
@@ -1355,6 +1361,9 @@ export class SkillFx {
     const rec: DmgLine = { t: c, age: 0, x, y, crit }; this.texts.push(rec); column.put(rec);   // appears at once (no pop)
     void combo;
   }
+
+  /** The warrior's counter / armor-break spark: the crimson-and-gold cross (the spark sheet's last row). */
+  warriorCross(at: V3, size = 210): void { if (this.scene.textures.exists('imp-wsparks')) this.spark('imp-wsparks', at.x, at.y - at.z - 38, 24, size, 1, 18); }
 
   /** The critical star (MapleStory): a white-gold four-point burst with short rays between, in a soft glow. */
   private critMark(): string {

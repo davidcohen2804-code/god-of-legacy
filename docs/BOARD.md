@@ -63,6 +63,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - DFO PvP arena dynamics: painted hit states checked in the arena (hurt, launched rise/peak/fall, down, getup) — all show; the quick rise is a 160 ms getup by design.
 - DFO PvP arena dynamics: COUNTER flag passed to the class hit sparks; ARMOR BREAK / the warrior's BREAK! now show in the open game too (one armorBroke for every path).
 - DFO PvP arena dynamics: hit weight beats (COUNTER / PUNISH / ARMOR BREAK: freeze, flash, ring, shake), camera rises with juggles and punches in on ultimates, combo ranks GREAT / EXCELLENT / LEGENDARY — 94290a9
+- Warrior: class hit-spark set (GPT, 4 kinds × 6 frames: normal / heavy / launch / counter) hooked for the warrior — normal and the regular attack small, heavy & signature big, launch an upward burst; the crimson-gold cross on a COUNTER and on a grab's BREAK!
 - Movements: `docs/ART_STYLE.md` + the art pipeline scripts in `tools/heroes/pipeline/` (PixVerse driver, keying, cycle cutting, stills placement, in-game capture)
 - Movements: every hero's jump + djump repainted (GPT stills), gambler djump (Card Step), Beginner jump — 3360e0a, 55fa84f, ab33d6e
 - Movements: painted hit states wired in heroPose (hurt / launched by vz / down_impact → down / getup) — 78ed600 (DFO PvP arena dynamics: check in the arena)
