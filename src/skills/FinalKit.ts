@@ -101,7 +101,8 @@ const warrior: FinalSkill[] = [
     id: 'titans_verdict', cls: 'warrior', slot: 7, name: "Titan's Verdict", roles: ['ultimate', 'finisher'], targeting: 'mouseCone',
     startup: 770, active: 640, recovery: 600, cooldown: 30000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 2750],
     hits: [H(0, 14, { kind: 'circle', radius: 190, at: 'aimBias', bias: 110 }, { stun: 600, launch: 150, juggleCost: 0 }, { reachUp: 260, heavy: true }),
-      ...[90, 160, 230, 300, 370, 440, 510, 580].map((t) => H(t, 6, { kind: 'circle', radius: 200, at: 'aimBias', bias: 110 }, { stun: 420, float: true }, { reachUp: 320 }))],
+      ...[90, 160, 230, 300, 370, 440, 510].map((t) => H(t, 6, { kind: 'circle', radius: 200, at: 'aimBias', bias: 110 }, { stun: 420, float: true }, { reachUp: 320 })),
+      H(580, 10, { kind: 'circle', radius: 200, at: 'aimBias', bias: 110 }, { stun: 420, knockdown: 'heavy' }, { reachUp: 320, heavy: true })], // the last blow floors him: the Verdict ends the combo (endsCombo)
     // the struck floor stays electrified for ~3.2s: a wide field across the floor's depth that keeps shocking anyone on it
     linger: { at: 'aim', offset: 110, startMs: 760, everyMs: 350, count: 9, radius: 200, maxZ: 60, hit: H(0, 3, { kind: 'circle', radius: 200 }, { stun: 260 }, { reachUp: 60 }) },
     endsCombo: true, tags: ['ultimate'], telegraph: 'cone',
@@ -1055,26 +1056,16 @@ const ARENA_PACE: Record<string, { startup?: number; squeeze?: number }> = {};
 // the Roulette keeps its whole 2 s spin (its colour lights 1 s in: the foe gets a second to react — PvP audit)
 ARENA_PACE.roulette_wheel = { squeeze: 1 };
 // Warrior links (PvP re-audit: a ~6-skill combo): each skill leads to 2–3 others only, one route per job —
-//   open (regular attack / Dash Slash / Shield Charge / the hook) → grab (Iron Grip) → launch (Rising Slash) → the chase
-//   (Sky Breaker) or the spin (Whirlwind) → into the court (Judgment Blade) → the beating (Ground Breaker / Impaling Rush)
-//   → the Verdict. Buffs and Sanctuary lead nowhere (a list is never empty: an empty one would mean free cancel).
-const WARRIOR_LINKS: Record<string, string[]> = {
-  warrior_basic: ['rising_slash', 'iron_grip'],
-  dash_slash: ['rising_slash', 'iron_grip'],
-  shield_charge: ['iron_grip', 'warrior_basic'],
-  judgment_hook: ['rising_slash', 'warrior_basic'],
-  iron_grip: ['rising_slash'],
-  rising_slash: ['sky_breaker', 'whirlwind'],
-  whirlwind: ['ground_breaker', 'lance_thrust'],
-  sky_breaker: ['judgment_blade', 'titans_verdict'],
-  judgment_blade: ['ground_breaker', 'lance_thrust'],
-  ground_breaker: ['titans_verdict'],
-  lance_thrust: ['titans_verdict'],
-  leap_crash: ['rising_slash', 'judgment_blade'],
-  lions_maw: ['rising_slash', 'iron_grip'],
-  wave_slash: ['dash_slash', 'leap_crash'],
-  earthsplitter: ['sky_breaker', 'titans_verdict'],
-  blade_storm: ['titans_verdict'],
+//   open (regular attack / Dash Slash / Iron Grip / the hook / Wave Slash) → launch (Rising Slash) → the air (Sky Breaker /
+//   Ground Breaker) → the court or the lion (Judgment Blade / Lion's Maw) → the finish (Impaling Rush → the Verdict). Buffs and Sanctuary lead nowhere (a list is never empty: an empty one would mean free cancel).
+const WARRIOR_LINKS: Record<string, string[]> = { // a one-way ladder: open → launch → air → finish (never back down it)
+  warrior_basic: ['rising_slash'], dash_slash: ['rising_slash'], iron_grip: ['rising_slash'],
+  judgment_hook: ['rising_slash'], wave_slash: ['rising_slash'], shield_charge: ['iron_grip', 'warrior_basic'],
+  earthsplitter: ['sky_breaker', 'ground_breaker'],
+  rising_slash: ['sky_breaker', 'ground_breaker'],
+  sky_breaker: ['judgment_blade', 'lions_maw'], ground_breaker: ['judgment_blade', 'lions_maw'], leap_crash: ['judgment_blade', 'lions_maw'],
+  judgment_blade: ['lance_thrust', 'titans_verdict'], lions_maw: ['lance_thrust', 'titans_verdict'],
+  lance_thrust: ['titans_verdict'], whirlwind: ['titans_verdict'], blade_storm: ['titans_verdict'],
   war_cry: ['warrior_basic'], radiant_blade: ['warrior_basic'], iron_oath: ['warrior_basic'], legacy_banner: ['warrior_basic'], sanctuary: ['warrior_basic'],
 };
 for (const w of warrior) if (WARRIOR_LINKS[w.id]) w.cancelOnHit = [...WARRIOR_LINKS[w.id]];
