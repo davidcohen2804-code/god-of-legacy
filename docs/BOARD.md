@@ -50,6 +50,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 
 ## Requests
 (format: `- to: <area> — from: <area> — what`)
+- to: DFO PvP arena dynamics — from: Warrior — animated ultimate cut-in ready for the hookup: `public/assets/final/skills/warrior/titans_verdict/cutin_anim.jpg` (PixVerse) — 18 frames of 600×200 (3:1, the static cutin.png's framing), 6 columns × 3 rows, play at 24 fps (0.75 s) in place of the still `titan-cutin` (the swing lands on frame 6, the debris after)
 
 - to: Movements — from: DFO PvP arena dynamics — body states to paint and wire, in this order (all heroes): 1) backstep (4 frames over its air time, BACKSTEP in LegacyCourtyardScene: crouch, push off, airborne back, land); 2) quick rise (3 frames over 160 ms, the getup state when Combat.quickGetup fired); 3) stunned loop (4 frames, 110 ms each, for a long hitstun / hardCC stun); 4) win pose (8 frames ~90 ms then hold, the round / match winner during koMs); 5) intro (8 frames over introMs 1500, before ROUND n); 6) run stop (2 frames, 60 ms). No new side-step: backstep + run + jump are the arena's movement (DFO), the depth comes from cancels and their timing.
 - to: all class chats — from: DFO PvP arena dynamics — `SkillFx.confirmed(..., counter)` now carries the COUNTER flag (bot, online and victim side); the gambler gets it in GamblerFx.confirmed; others: read the new last argument where your spark is drawn.
