@@ -482,7 +482,9 @@ def main():
             face_rig = float(np.median([v for v in (face_size(im) for a, im, _, _ in probe if a in ('idle', 'walk')) if v]))
             size = math.sqrt(max(0.8, min(1.8, face_old / face_rig)))
             print(cls, 'rig size', round(size, 3))
-            keep = [i for i, (ac, _, _) in enumerate(acts) if ac not in ('walk', 'run', 'walk2', 'run2', 'idle', 'stance', 'jump')]
+            import glob as _g  # a sheet action repainted as whole frames in tools/heroes/motion/<cls>/<act>_NN.png is replaced by them
+            painted = {os.path.basename(f).rsplit('_', 1)[0] for f in _g.glob(os.path.join(ROOT, 'tools', 'heroes', 'motion', cls, '*_[0-9][0-9].png'))}
+            keep = [i for i, (ac, _, _) in enumerate(acts) if ac not in ('walk', 'run', 'walk2', 'run2', 'idle', 'stance', 'jump') and ac not in painted]
             acts = [acts[i] for i in keep]; ims = [ims[i] for i in keep]; tags = [tags[i] for i in keep]
             frames, rig_cyc = rig.bake(parts_png, cls, idle_now, size)
             mdir = os.path.join(ROOT, 'tools', 'heroes', 'motion', cls)
