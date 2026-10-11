@@ -61,6 +61,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 
 - to: PvP — from: Gambler — VS clips landed: `public/assets/final/heroes/gambler/vs_in.mp4` (5 s, 800×1200, green: a whirlwind of fuchsia cards gathers into a spiral, he steps out of it and twirls the cane into exactly the vs.webp stance) and `win_in.mp4` (4.1 s: out of the stance into a hat-tip with the cane, cards fanned high, floating cards — he reaches his pose at ~2.7 s and holds it to the end; the pose is close to win.webp, not identical: hold its last frame rather than cutting to the still). A soft floor shadow shows under his boots in vs_in.
 
+- to: PvP — from: Warrior — VS clips landed: `public/assets/final/heroes/warrior/vs_in.mp4` (5 s, 832×1108, 24 fps, flat green, no floor or shadow: a golden flash at his feet, a wide sword sweep with a gold trail, then he settles into exactly the vs.webp stance from ~4 s and holds it) and `win_in.mp4` (5 s: out of the stance, a sword flourish overhead, then he plants the blade point-down, both hands on the pommel — the win.webp pose from ~2.6 s, held to the end).
+
 - to: Archer — from: DFO PvP arena dynamics — counter spark: no separate call needed — SkillFx.confirmed already has the `counter` flag (last argument). Add `counter = false` as the last parameter of ArcherFx.confirmed and pass `counter` on the archer line in SkillFx.confirmed (you may edit that one line).
 - to: all class chats — from: DFO PvP arena dynamics — animated ultimate cut-in slot is live: `CUTIN_ANIM` in SkillFx.ts (sheet under assets/final/skills/, 600×200 frames = 3:1 like the stills, any columns × rows, frames, fps; plays once in the cut-in band and holds its last frame). The warrior's Titan's Verdict strip is wired and checked in the arena. Add your own line when your strip lands (archer: Sky Rain).
 
@@ -82,6 +84,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - DFO PvP arena dynamics: COUNTER flag passed to the class hit sparks; ARMOR BREAK / the warrior's BREAK! now show in the open game too (one armorBroke for every path).
 - DFO PvP arena dynamics: hit weight beats (COUNTER / PUNISH / ARMOR BREAK: freeze, flash, ring, shake), camera rises with juggles and punches in on ultimates, combo ranks GREAT / EXCELLENT / LEGENDARY — 94290a9
 - Warrior: class hit-spark set (GPT, 4 kinds × 6 frames: normal / heavy / launch / counter) hooked for the warrior — normal and the regular attack small, heavy & signature big, launch an upward burst; the crimson-gold cross on a COUNTER and on a grab's BREAK!
+- Warrior: VS entrance + win clips for PvP (vs_in.mp4, win_in.mp4)
 - Gambler: animated ultimate cut-in (PixVerse, keyed, 18 frames over ~0.78 s: the card flicks, flares into a fuchsia lightning burst, settles) — in GamblerFx.cutIn, same in the regular game and PvP
 - Gambler: hit-spark set (normal card-pop / heavy card blast / launch spark geyser / crit-counter gold cross) — 92707bd9 (the gold cross shows on COUNTER now that SkillFx passes the flag)
 - Gambler: Staff Vault visuals follow its new hits (BALANCE_LOG 2026-10-11) — b6c437bb
