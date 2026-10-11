@@ -75,6 +75,10 @@
       "frames": 19,
       "source": "pixverse gambler_run2h.mp4",
       "cycle_canvas": 760.0
+    },
+    "djump": {
+      "frames": 2,
+      "source": "gpt stills"
     }
   },
   "hit_source": "pixverse gambler_hit.mp4"

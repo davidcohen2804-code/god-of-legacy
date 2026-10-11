@@ -80,6 +80,10 @@
       "frames": 21,
       "source": "pixverse beginner_female_run2h.mp4",
       "cycle_canvas": 760.0
+    },
+    "jump": {
+      "frames": 3,
+      "source": "gpt stills"
     }
   },
   "hit_source": "pixverse bf_hit.mp4"

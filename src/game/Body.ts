@@ -669,7 +669,9 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
         if (cls === 'archer' && a2 < 440) return H('djump', a2 < 200 ? 0 : 1);
         if (cls === 'samurai' && a2 < 380) return HEROES[cls].actions.djump.length >= 4 ? H('djump', a2 < 70 ? 0 : a2 < 150 ? 1 : a2 < 290 ? 2 : 3) : H('djump', a2 < 110 ? 0 : 1);
         if (cls === 'warrior' && a2 < 560 && q.phase !== 'fall') return H('djump', a2 < 160 ? 0 : 1);
+        if (cls === 'gambler' && a2 < 440) return H('djump', a2 < 180 ? 0 : 1); // Card Step: the tuck and the flick, then the long stride
       }
+      if (!HEROES[cls].actions.jump) return H('stance', 0);
       if (HEROES[cls].actions.jump.length >= 4) return H('jump', { takeoff: 0, rise: 1, apex: 2, fall: 3, land: 0 }[q.phase]); // painted: crouch, rise, apex, reach down
       return H('jump', { takeoff: 0, rise: 1, apex: 1, fall: 2, land: 0 }[q.phase]);
     }
