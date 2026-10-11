@@ -3,6 +3,7 @@
 // platform → combat state (hit-stun / launch / knockdown / getup / hard CC with DR) → final 4-class kits on the shared
 // SkillRuntime with hit-confirm cancels, combo scaling and juggle budget → confirmed-hit feedback (damage numbers, combo
 // counter, hit-stop / shake hierarchy) → HUD, Skill Book (K), Inventory (I) and Cosmetic Shop (O).
+import { FloorLift } from '../world/FloorLift';
 import { sunGateX, SUN_GATE } from '../world/SunGate';
 /** Kept with the quests: the Sun Gate opened (the sun over Sunfall Pass crossed). */
 const SUN_GATE_KEY = 'sun_gate';
@@ -408,6 +409,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** The height last stood on (the Sky Path's fall-through: only off a cloud). */
   /** Last stood on a cloud (a Sky Path cloud or a cloud map): a fall from it goes on down to the floor under the lane. */
   private lastGroundSky = false;
+  private floorLift?: FloorLift;
+  /** When a skill was last cast (its effects may linger a few seconds after its run). */
+  private lastCastAt = -1e9;
   /** Touching monsters: not again before this (sim ms). */
   private touchUntil = -1;
   private motes?: Phaser.GameObjects.Container;
@@ -557,6 +561,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       // The open world: one long world left to right, the camera following you along it.
       this.world = new OpenWorld(this, { sunGateOpen: this.quests[SUN_GATE_KEY]?.state === 'done' || !!this.quests.training_grounds /* (walked the old road east before the gate stood: it stays open) */, onArea: (a) => { if (a.name !== this.areaName) { this.areaName = a.name; this.areaTitle?.show(a.name); } if (a.id === 'afterglow') this.openSunGate(); } }, at ?? toWorld(START.area, [START.x, START.y]));
       this.world.onNpcClick = (n) => this.talkTo(n);
+      // skill effects on the floor lifted to the floor their actor stands on (a cloud, a map above)
+      this.floorLift = new FloorLift(this, () => {
+        const out = [{ x: this.kin.x, y: this.kin.y, z: this.kin.z }];
+        for (const m of this.world?.mobs ?? []) out.push({ x: m.kin.x, y: m.kin.y, z: m.kin.z });
+        for (const id of this.pvp?.remotes.keys() ?? []) { const c = this.casterPos(id); if (c) out.push(c); }
+        return out;
+      }, () => (this.rt?.runs.length ?? 0) > 0 || this.simMs - this.lastCastAt < 6000);
     }
     if (AR) this.pitch = new CameraPitch(this, cam, () => ({ parts: [...this.arenaMap, ...this.occluders, ...(this.stageFx?.layerList() ?? [])], top: AR.y }), (d) => this.hud?.setPitch(d));
     this.input.keyboard?.on('keydown-INSERT', () => this.pitch?.step(1)); this.input.keyboard?.on('keydown-DELETE', () => this.pitch?.step(-1));
@@ -751,7 +762,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.keySettings?.destroy(); this.keySettings = undefined;
       this.statsWin?.destroy(); this.statsWin = undefined;
       this.shop?.destroy(); this.shop = undefined;
-      this.world?.destroy(); this.world = undefined;
+      this.world?.destroy(); this.world = undefined; this.floorLift?.destroy(); this.floorLift = undefined;
       this.npcDialog?.destroy(); this.npcDialog = undefined;
       this.areaTitle?.destroy(); this.areaTitle = undefined;
       this.gripFoe = null;
@@ -2423,6 +2434,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   private startCast(s: FinalSkill, stage: number, aim: V2, place: V2 | null, lock: string | null, followUp = false): void {
+    this.lastCastAt = this.simMs;
     const k = this.kin;
     const ct = this.castTimes(s, stage, followUp); // (the arena's warrior: his base pace, as the runtime plays it)
     if (stage === 0 && !MP_FREE) this.mp = Math.max(0, this.mp - mpCost(s));
