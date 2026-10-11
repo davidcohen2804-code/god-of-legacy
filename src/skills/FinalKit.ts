@@ -1054,18 +1054,30 @@ export function armorMul(s: FinalSkill, _arena?: boolean): number { return arena
 const ARENA_PACE: Record<string, { startup?: number; squeeze?: number }> = {};
 // the Roulette keeps its whole 2 s spin (its colour lights 1 s in: the foe gets a second to react — PvP audit)
 ARENA_PACE.roulette_wheel = { squeeze: 1 };
-// Warrior extended kit: every core skill (and the basic chain) can cancel into the new extenders on a confirmed hit.
-for (const w of warrior) if (w.slot <= 5) for (const id of ['leap_crash', 'wave_slash', 'lance_thrust']) if (!w.cancelOnHit.includes(id) && id !== w.id) w.cancelOnHit.push(id);
-// Warrior links (the PvP balance pass: a ~6-skill combo, one job per skill): every attack can close on the Verdict; the
-// buffs (War Cry, Radiant Blade, Iron Oath, Legacy Banner) and Sanctuary are no combo links at all; the air chase is
-// Sky Breaker alone — Leap Crash (floors him) and Lion's Maw (drags and holds) never cancel into one another or into it.
-const WARRIOR_BUFFS = ['war_cry', 'radiant_blade', 'iron_oath', 'legacy_banner', 'sanctuary'];
-const WARRIOR_AIR_TRIO = ['sky_breaker', 'leap_crash', 'lions_maw'];
-for (const w of warrior) {
-  w.cancelOnHit = w.cancelOnHit.filter((id) => !WARRIOR_BUFFS.includes(id) && !(WARRIOR_AIR_TRIO.includes(w.id) && WARRIOR_AIR_TRIO.includes(id)));
-  if (w.slot !== 7 && w.slot !== 0 && w.hits.some((h) => h.damage > 0) && !WARRIOR_BUFFS.includes(w.id) && !w.cancelOnHit.includes('titans_verdict')) w.cancelOnHit.push('titans_verdict');
-}
-for (const id of WARRIOR_BUFFS) { const b = warrior.find((w) => w.id === id); if (b) b.cancelOnHit = ['warrior_basic']; } // (an empty list would mean free cancel)
+// Warrior links (PvP re-audit: a ~6-skill combo): each skill leads to 2–3 others only, one route per job —
+//   open (regular attack / Dash Slash / Shield Charge / the hook) → grab (Iron Grip) → launch (Rising Slash) → the chase
+//   (Sky Breaker) or the spin (Whirlwind) → into the court (Judgment Blade) → the beating (Ground Breaker / Impaling Rush)
+//   → the Verdict. Buffs and Sanctuary lead nowhere (a list is never empty: an empty one would mean free cancel).
+const WARRIOR_LINKS: Record<string, string[]> = {
+  warrior_basic: ['rising_slash', 'iron_grip'],
+  dash_slash: ['rising_slash', 'iron_grip'],
+  shield_charge: ['iron_grip', 'warrior_basic'],
+  judgment_hook: ['rising_slash', 'warrior_basic'],
+  iron_grip: ['rising_slash'],
+  rising_slash: ['sky_breaker', 'whirlwind'],
+  whirlwind: ['ground_breaker', 'lance_thrust'],
+  sky_breaker: ['judgment_blade', 'titans_verdict'],
+  judgment_blade: ['ground_breaker', 'lance_thrust'],
+  ground_breaker: ['titans_verdict'],
+  lance_thrust: ['titans_verdict'],
+  leap_crash: ['rising_slash', 'judgment_blade'],
+  lions_maw: ['rising_slash', 'iron_grip'],
+  wave_slash: ['dash_slash', 'leap_crash'],
+  earthsplitter: ['sky_breaker', 'titans_verdict'],
+  blade_storm: ['titans_verdict'],
+  war_cry: ['warrior_basic'], radiant_blade: ['warrior_basic'], iron_oath: ['warrior_basic'], legacy_banner: ['warrior_basic'], sanctuary: ['warrior_basic'],
+};
+for (const w of warrior) if (WARRIOR_LINKS[w.id]) w.cancelOnHit = [...WARRIOR_LINKS[w.id]];
 // Archer: a dense combo graph (PvP engine audit) — every combo skill leads on to several others, the signature and the
 // ultimate, so her strings run as long as the other classes' (before: most of her skills were dead ends).
 const ARCHER_LINKS: Record<string, string[]> = {

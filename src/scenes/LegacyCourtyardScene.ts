@@ -2394,7 +2394,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.slot === 7) return false; // Ultimate cannot be cancelled
     if (next.id === 'blink' && s.id !== 'blink' && e >= T.startup + T.active) return true; // Blink cancels the end of any spell
     if (next.id === s.id) return !!s.charges && e >= T.startup + T.active; // charged skill: throw again right away
-    if (s.id === 'whirlwind' && e >= T.startup + 200) return true; // channelled spin: break out into any skill at will
+    if (s.id === 'whirlwind' && e >= T.startup + 200 && s.cancelOnHit.includes(next.id)) return true; // channelled spin: break out at will — into its own links only
     // Cancel rules: a skill cancels only into the skills its own list names (cancelOnHit) — after a confirmed hit, from
     // that hit on; a whiff only late in its recovery. (A skill whose list is still empty keeps the old free cancel.)
     if (s.cancelOnHit.length && !s.cancelOnHit.includes(next.id)) return false;
