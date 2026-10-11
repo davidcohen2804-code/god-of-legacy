@@ -7,7 +7,7 @@
   "hip_x": 384,
   "animations": {
     "walk": {
-      "frames": 47,
+      "frames": 45,
       "source": "pixverse warrior_walk.mp4"
     },
     "hurt": {
