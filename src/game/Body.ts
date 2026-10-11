@@ -678,7 +678,20 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
       if (HEROES[cls].actions.air_shot) return H('air_shot', Math.min(5, Math.floor(q.p * 6))); // the shot in the air
       return STRIKES.has(cls) ? H('attack', q.p < 0.4 ? 0 : 1) : H('attack', q.p < 0.4 ? 1 : 3);
     }
-    case 'launched': return H('jump', 1);
+    case 'launched': { // painted: 0–1 rising, 2–3 the peak, 4–5 falling (by the vertical speed)
+      const A = HEROES[cls].actions;
+      if (!A.launched || A.launched.length < 6) return H('jump', 1);
+      const v = q.vz;
+      return H('launched', v > 260 ? 0 : v > 90 ? 1 : v > 0 ? 2 : v > -90 ? 3 : v > -260 ? 4 : 5);
+    }
+    case 'hurt': { const n = HEROES[cls].actions.hurt?.length ?? 0; return n ? H('hurt', Math.min(n - 1, Math.floor(q.p * n))) : H('stance', 0); }
+    case 'down': { // the slam (down_impact over the first 30 %), then lying (down, looping)
+      const A = HEROES[cls].actions;
+      if (q.p < 0.3 && A.down_impact) return H('down_impact', Math.min(A.down_impact.length - 1, Math.floor((q.p / 0.3) * A.down_impact.length)));
+      if (A.down) return H('down', Math.floor(((q.p - 0.3) / 0.7) * A.down.length * 2) % A.down.length);
+      return H('stance', 0);
+    }
+    case 'getup': { const n = HEROES[cls].actions.getup?.length ?? 0; return n ? H('getup', Math.min(n - 1, Math.floor(q.p * n))) : H('stance', 0); }
     case 'skill': {
       const sk = FINAL_SKILLS.find((s) => s.id === q.id);
       const winding = q.elapsed < q.startup, after = q.elapsed >= q.startup + q.active;
