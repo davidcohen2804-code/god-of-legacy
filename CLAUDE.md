@@ -1,5 +1,6 @@
 # God Of Legacy — working rules
 
+- **NEVER click a download / save button in the shared browser (GPT, PixVerse, anything)** — it opens a Windows save dialog on David's computer and he is away. Pull images / videos out of the page as base64 through the javascript tool (`tools/heroes/pipeline/px_toolkit.js` + `pxpull.py`; for GPT: fetch the image's src in the page → base64).
 - Source of truth: `main` branch of davidcohen2804-code/god-of-legacy. No separate project copies.
 - After every approved change: commit and push to `main`. The workflow `.github/workflows/deploy.yml` builds and publishes to the `gh-pages` branch (GitHub Pages).
 - Public URLs (must stay the same):

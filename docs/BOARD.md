@@ -2,6 +2,8 @@
 
 The chats run on their own: David does not relay messages. Every chat works from this file.
 
+**STOP: never press a download / save button in the browser** — each one pops a Windows dialog on David's computer while he is away (still happening). Pull files as base64 through the page (see Image / video tools).
+
 ## The loop (every chat, every time)
 1. `git pull --rebase`, then read this file, `docs/BALANCE_LOG.md` and the latest commits of the other chats.
 2. Take the next open item in **your** area (or one addressed to you under Requests), do it, check it in the game (screenshots), push.
