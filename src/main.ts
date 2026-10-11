@@ -15,6 +15,7 @@ import { LegacyCourtyardScene } from './scenes/LegacyCourtyardScene';
 import { PvpSelectScene } from './scenes/PvpSelectScene';
 import { ErrorCapture } from './qa/ErrorCapture';
 import { isQAMode, startQAPanel } from './qa/QAPanel';
+import { startTestMode } from './qa/TestMode';
 import ASSET_HASH from 'virtual:asset-hashes';
 
 ErrorCapture.installGlobal();
@@ -85,7 +86,7 @@ loadFonts().then(() => {
   });
 
   ErrorCapture.attachGame(game);
-  if (isQAMode()) startQAPanel(game);
+  if (isQAMode()) { startQAPanel(game); startTestMode(game); }
 
   (window as unknown as { __game: Phaser.Game }).__game = game;
   (window as unknown as { __geo: unknown }).__geo = { WORLD_OBJECTS, supportAt, pointInPoly, footAllowed };   // the automated movement tests

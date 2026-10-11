@@ -424,6 +424,8 @@ export class OpenWorld {
    *  stairs it goes down with you (no cut, no fade) and over the plaza it follows you both ways. Up on the blocks and the
    *  maps above it rises with the ground you stand on and draws back (zooms out) as you climb, so the floor below and the
    *  one above are both in view; a jump never moves it, a drop takes it down with you, all of it eased (no jumps). */
+  /** The camera put straight on (x, y) at height z (test mode's teleports). */
+  snapTo(x: number, y: number, z: number): void { this.follow(x, y, 0, true, z, z, true); }
   private follow(x: number, y: number, ms: number, snap = false, ground = 0, z = 0, grounded = true): void {
     const cam = this.scene.cameras.main, terraceCy = WORLD_H / 2;
     // the height the camera follows: the ground you stand on; in the air the last one, or lower while you fall

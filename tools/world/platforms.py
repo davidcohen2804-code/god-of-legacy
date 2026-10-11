@@ -15,10 +15,13 @@ def stump(id_, x0, x1, top, front, depth, cut=12):
           'occ': [[x0 + cut, top + 2], [x1 - cut, top + 2], [x1 - 1, top + cut], [x1 - 1, front - 3], [x1 - cut, front - 1], [x0 + cut, front - 1], [x0 + 1, front - 3], [x0 + 1, top + cut]]}
 
 PLATFORMS = {
-  # Elderwood Path: four broad mossy stumps on the path (measured on the GPT picture)
-  'dusk_wood': [stump('stump-1', 305, 425, 383, 465, 22), stump('stump-2', 652, 790, 438, 525, 25), stump('stump-3', 1000, 1158, 383, 465, 24), stump('stump-4', 1400, 1540, 440, 525, 26)],
-  # The Elder Hollow: four stumps before the Elder Tree's door
-  'dusk_3': [stump('stump-1', 120, 275, 390, 470, 25), stump('stump-2', 590, 740, 405, 490, 25), stump('stump-3', 1040, 1190, 390, 475, 25), stump('stump-4', 1420, 1560, 405, 490, 25)],
+  # Elderwood Path: a fallen log, an old stump and a flat boulder, each its own (measured on the GPT picture)
+  'dusk_wood': [{'id': 'log', 'x': (505, 935), 'front': 445, 'h': 55, 'depth': 30, 'occ': [[520, 357], [920, 372], [938, 392], [938, 440], [905, 452], [520, 452], [503, 440], [503, 372]]},
+                stump('stump', 320, 480, 480, 600, 25), stump('boulder', 1100, 1270, 400, 520, 30, 18)],
+  # The Elder Hollow: a great flat boulder, a small round one, the Elder Tree's arching root and a fallen log
+  'dusk_3': [stump('boulder', 95, 455, 400, 530, 40, 24), stump('boulder-small', 500, 640, 455, 530, 25, 14),
+             {'id': 'root-arch', 'x': (900, 1240), 'front': 525, 'h': 95, 'depth': 35, 'occ': [[940, 397], [1200, 397], [1238, 430], [1238, 522], [1200, 528], [940, 528], [902, 522], [902, 430]]},
+             {'id': 'log', 'x': (1300, 1660), 'front': 520, 'h': 70, 'depth': 30, 'occ': [[1315, 422], [1645, 428], [1658, 450], [1658, 515], [1640, 522], [1315, 522], [1302, 505], [1302, 440]]}],
   'terraces_1': [
     {'id': 'block-low', 'x': (262, 372), 'front': 528, 'h': 73, 'depth': 22},
     {'id': 'block-tall', 'x': (376, 492), 'front': 520, 'h': 100, 'depth': 31},

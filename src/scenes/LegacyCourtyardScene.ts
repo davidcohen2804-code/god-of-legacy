@@ -49,7 +49,6 @@ import { AreaNpc, IDLE_LINES, MOB_KINDS, QUESTS, QuestDef, START, TOWERS, CLOUDS
 import type { Monster } from '../world/Monster';
 import { AreaTitle, DialogChoice, NpcDialog } from '../ui/WorldUI';
 import { QuestState } from '../characters/CharacterTypes';
-import { isQAMode } from '../qa/QAPanel';
 import { PvpController } from '../pvp/PvpController';
 import { Match, MatchPhase } from '../pvp/Match';
 import { BattleHUD, Fighter } from '../ui/BattleHUD';
@@ -72,6 +71,9 @@ import { AP_PER_LEVEL, BASE_STAT, STAT_KEYS, Derived, StatKey, Stats, autoAssign
 import { ShopWindow } from '../ui/ShopWindow';
 import { StatsWindow } from '../ui/StatsWindow';
 import { ARENA as PLAZA, AREAS as WORLD_AREAS } from '../world/Areas';
+import { ROW as WORLD_ROW } from '../world/Areas';
+import { isQAMode } from '../qa/QAPanel';
+import type { DevApi } from '../qa/TestMode';
 import { jobsFor } from '../skills/Jobs';
 import { CombatInput } from '../game/CombatInput';
 import { ActorView, Equipped, RING_COLOR, preloadCosmetics, skinColor, grayKey, damageSkin, wantsWeaponMasks } from '../game/ActorView';
@@ -952,7 +954,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     // the Sun Gate shut: down on the ground past it (fallen from the clouds) — a friendly cloud carries you back up to the
     // Sky Path's start (the way below opens only once the sun is crossed)
-    if (this.world && !this.world.sunGate.open && k.grounded && k.z < 5 && k.x > sunGateX(Phaser.Math.Clamp(k.y, SUN_GATE.back[1], SUN_GATE.front[1])) + 24) {
+    if (this.world && !this.world.sunGate.open && !this.dev.free && k.grounded && k.z < 5 && k.x > sunGateX(Phaser.Math.Clamp(k.y, SUN_GATE.back[1], SUN_GATE.front[1])) + 24) {
       this.fx?.dust(k.x, k.y, 90, 0.8, this.dustDepth(k));
       k.x = 4210; k.y = 63; k.z = 680; k.supportZ = 680; k.supportId = 'ivy_summit'; k.vx = k.vy = k.vz = 0; k.grounded = true; k.from = null;
       this.fx?.dust(k.x, k.y - k.z, 90, 0.8, this.dustDepth(k));
@@ -3002,7 +3004,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Enemy (PvE) strike on the local player: Mirage counter first, then the usual reaction rules. */
   private enemyStrike(dmg: number, from: { x: number; y: number }, push = 14): void {
-    if (this.dead >= 0 || this.simMs < this.hitBlinkUntil) return; // just hit: untouchable (blinking)
+    if (this.dead >= 0 || this.simMs < this.hitBlinkUntil || this.dev.god) return; // just hit: untouchable (blinking); test mode: untouchable
     if (this.inDome()) { this.domeBlock(from); dmg = Math.max(1, Math.round(dmg * 0.5)); } // Sanctuary: half damage behind the wall
     if (this.tryCounter(from)) return;
     if (this.tryEvade(from)) return;
@@ -3269,7 +3271,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   private takeDamage(raw: number): number {
-    if (this.dead >= 0 || raw <= 0) return 0;
+    if (this.dead >= 0 || raw <= 0 || this.dev.god) return 0;
     let dmg = Math.max(1, Math.round(raw * this.passives.takenMul * takenMul(this.gearSt) * (this.simMs < this.bannerUntil ? 0.9 : 1)));
     dmg = this.wardAbsorb(dmg); if (dmg <= 0) return 0;
     if (this.passives.gamble.cheatDeath && dmg >= this.playerHP && this.simMs >= this.gCheatReady && !(this.arena && PVP.hpLocked)) { // Cheat Death: left at 1 HP, a step back in a cloud of cards
@@ -4026,14 +4028,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     for (const m of mobs) {
       const dc = m.alive ? this.kage?.decoyFor(m) : null; // Kagemusha: monsters go after the doubles (a blow bursts one)
       m.update(ms, {
-        player: dc ? { x: dc.x, y: dc.y, z: k.z - k.supportZ, alive: true, level: dc.sz } : { x: k.x, y: k.y, z: k.z - k.supportZ, alive: this.dead < 0, level: k.supportZ },
+        player: dc ? { x: dc.x, y: dc.y, z: k.z - k.supportZ, alive: true, level: dc.sz } : { x: k.x, y: k.y, z: k.z - k.supportZ, alive: this.dead < 0 && !this.dev.peace, level: k.supportZ },   // (test mode's peace: the monsters pay no mind)
         now,
         blocked: (self, x, y) => mobs.some((o) => { if (o === self || !o.alive) return false; const d = Math.hypot(x - o.x, y - o.y); return d < 26 * Math.max(o.kind.scale, self.kind.scale) && d < Math.hypot(self.x - o.x, self.y - o.y); }),   // moving apart: always
         onStrikePlayer: (m, dmg) => { if (dc) this.kage?.pop(dc.k); else this.enemyStrike(dmg, { x: m.x, y: m.y }); },
       });
     }
     // MapleStory: touching a monster hurts a little and knocks you back, then you blink and can walk through it
-    if (this.dead < 0 && now >= this.hitBlinkUntil && now >= this.touchUntil && !this.rt?.ownRun) for (const m of mobs) {
+    if (this.dead < 0 && !this.dev.god && !this.dev.peace && now >= this.hitBlinkUntil && now >= this.touchUntil && !this.rt?.ownRun) for (const m of mobs) {
       if (!m.alive || m.body.state === 'knockdown' || m.body.state === 'launched' || Math.abs(m.z - k.z) > 40 || Math.hypot(m.x - k.x, (m.y - k.y) * 1.6) > STAGE6.enemy.collisionRadius * m.kind.scale + R * 0.6) continue;
       this.touchUntil = now + 600;   // a touch blocked (guard, ward, dodge) still counts: never every frame
       this.enemyStrike(Math.max(1, Math.round(m.kind.damage * 0.5)), { x: m.x, y: m.y }, 34); break;
@@ -4141,6 +4143,59 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       });
       this.saveQuests();
     }
+  }
+
+  // ---- test mode (?qa=1, F8: src/qa/TestMode.ts): look at anything freely, untouched by the game's rules
+  /** god: no damage · peace: the monsters pay no mind · free: never carried back from past the closed gate. */
+  dev = { god: false, peace: false, free: false };
+  /** What the test panel drives. */
+  devApi(): DevApi {
+    const sc = this;
+    const place = (x: number, y: number, z: number, id: string | null) => {
+      const k = sc.kin; k.x = x; k.y = y; k.z = z; k.vx = k.vy = k.vz = 0; k.supportZ = z; k.supportId = id; k.grounded = true;
+      sc.world?.snapTo(k.x, k.y, z); sc.dev.free = true;
+    };
+    return {
+      flags: sc.dev,
+      areas: () => [
+        ...WORLD_ROW.map((a) => ({ id: `row:${a.id}`, name: a.name })),
+        ...HEIGHTS.map((h) => ({ id: `up:${h.id}`, name: `${h.name} (up)` })),
+        { id: 'sky', name: `${SKY.name} (clouds)` }, { id: 'arena', name: PLAZA.name },
+      ],
+      goto: (id) => {
+        if (!sc.world) return;
+        if (id.startsWith('row:')) { const a = WORLD_AREAS[id.slice(4)]; if (!a) return; const p = toWorld(a.id, [836, 500]); place(p.x, p.y, 0, null); }
+        else if (id.startsWith('up:')) { const h = HEIGHTS.find((q) => q.id === id.slice(3)); if (!h) return; place(h.x + h.w / 2, (h.back + h.front) / 2, h.H, h.id); }
+        else if (id === 'sky') { const c = SKY.path[0]; place((c.x[0] + c.x[1]) / 2, (SKY.band[0] + SKY.band[1]) / 2, c.z, 'sky-0'); }
+        else if (id === 'arena') { place(PLAZA.x + PLAZA.w / 2, PLAZA.y + 600, 0, null); }
+      },
+      state: () => ({ level: sc.character?.level ?? 1, hp: sc.playerHP, maxHp: sc.maxHpNow(), gold: sc.gold, area: sc.areaName, x: Math.round(sc.kin.x), y: Math.round(sc.kin.y), z: Math.round(sc.kin.z), cls: sc.cls }),
+      level: (n) => {
+        const ch = sc.character; if (!ch) return;
+        const was = ch.level; n = Math.max(1, Math.min(200, Math.round(n)));
+        ch.level = n; ch.exp = 0; CharacterStore.setProgress(ch.id, n, 0);
+        sc.statD = derive(sc.stats, sc.cls, ch.level); sc.applyPassives(); sc.playerHP = sc.maxHpNow(); sc.mp = sc.maxMpNow();
+        sc.skillBook?.setLevel(skillLevel(ch)); sc.refreshStats(); sc.hud?.banner(`LEVEL ${n}`, 1200, false);
+        if (playedClass({ ...ch, level: was }) !== playedClass(ch)) sc.scene.restart({ pvpRoom: null, at: { x: sc.kin.x, y: sc.kin.y } });
+      },
+      setClass: (job) => {
+        const ch = sc.character; if (!ch || !jobsFor(job).length) return;
+        CharacterStore.setJob(ch.id, job, null); ch.job = job; ch.classId = job; delete ch.trial;
+        sc.scene.restart({ pvpRoom: null, at: { x: sc.kin.x, y: sc.kin.y } });
+      },
+      give: (id, n) => { if (ITEMS[id]) { sc.giveItem(id, n, false); sc.saveLoot(); } },
+      gold: (n) => { sc.gold = Math.max(0, Math.min(GOLD_MAX, sc.gold + n)); sc.saveLoot(); },
+      heal: () => { sc.playerHP = sc.maxHpNow(); sc.mp = sc.maxMpNow(); },
+      allSkills: (on) => sc.setAllOpen(on),
+      questsDone: (upTo) => {
+        for (const q of QUESTS) { sc.quests[q.id] = { state: 'done', progress: q.objectives.map((o) => sc.goalNeed(o)) }; if (q.id === upTo) break; }
+        sc.quests[SUN_GATE_KEY] = { state: 'done', progress: [] }; sc.saveQuests(); sc.world?.sunGate.unlock();
+      },
+      questsReset: () => { sc.quests = {}; sc.saveQuests(); },
+      unlockGate: () => sc.world?.sunGate.unlock(),
+      killNear: () => { for (const m of sc.world?.mobs ?? []) if (m.alive && Math.hypot(m.x - sc.kin.x, m.y - sc.kin.y) < 900) { m.damage(1e9, sc.simMs); } },
+      quests: () => QUESTS.map((q) => ({ id: q.id, title: q.title, state: sc.quests[q.id]?.state ?? '-' })),
+    };
   }
 
   /** Over the sun (Afterglow Rest reached): the Sun Gate below opens for good. */
