@@ -518,6 +518,7 @@ export class OpenWorld {
     this.follow(player.x, player.y, ms, false, player.supportZ ?? 0, player.absZ ?? 0, player.grounded ?? true);
     this.ambience.update(ms);
     this.banners?.update(this.t, this.scene.cameras.main.worldView, this.gate[1]?.alpha ?? 1);
+    this.sunGate.near(player.x, player.y, player.z, ms);
     for (const c of this.skyClouds) c.img.y = c.y + Math.sin(this.t / c.per + c.ph) * c.amp;
     this.backdrop?.update(ms);
     // the area you are in (by where you stand on the strip; a little past the line, so it never flickers)

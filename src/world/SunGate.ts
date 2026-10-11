@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { HUD } from '../config/layout';
 import GATE from '../data/world-goldgate.json';
 import { WORLD_OBJECTS, type Pt, type WorldObject } from './WorldGeometry';
 
@@ -68,10 +69,39 @@ export class SunGate {
 
   get open(): boolean { return this.isOpen; }
 
+  /** The inscription over the closed gate (a parchment plaque), shown while someone stands before it. */
+  private plaque?: Phaser.GameObjects.Container;
+  private plaqueA = 0;
+  near(x: number, y: number, z: number, ms: number): void {
+    const by = Phaser.Math.Clamp(y, SUN_GATE.foot[0][1], SUN_GATE.foot[SUN_GATE.foot.length - 1][1]);
+    const close = !this.isOpen && z < 120 && Math.abs(x - sunGateX(by)) < 400 && x < sunGateX(by) + 20;
+    this.plaqueA += ((close ? 1 : 0) - this.plaqueA) * Math.min(1, ms / 140); if (!close && this.plaqueA < 0.02) this.plaqueA = 0;
+    if (this.plaqueA <= 0) { this.plaque?.setVisible(false); return; }
+    if (!this.plaque) this.plaque = this.makePlaque();
+    this.plaque?.setVisible(true).setAlpha(this.plaqueA);
+  }
+
+  private makePlaque(): Phaser.GameObjects.Container {
+    const sc = this.scene, PAD = { x: 24, y: 16 };
+    const title = sc.add.text(0, 0, 'THE SUN GATE', { fontFamily: 'Cinzel, Georgia, serif', fontSize: '18px', fontStyle: '700', color: '#7a4a0c', resolution: 2 }).setOrigin(0.5, 0);
+    const body = sc.add.text(0, 0, 'Sealed by the Masters against the Curse of the east.\nIt opens only for one who has crossed the sun.', {
+      fontFamily: HUD.bodyFont, fontSize: '14px', color: '#33230c', align: 'center', lineSpacing: 5, resolution: 2 }).setOrigin(0.5, 0);
+    const w = Math.max(title.width, body.width) + PAD.x * 2, h = title.height + 8 + body.height + PAD.y * 2;
+    // a parchment plaque: warm paper, a thin gold rim and a soft shadow
+    const g = sc.add.graphics();
+    g.fillStyle(0x000000, 0.28).fillRoundedRect(-w / 2 + 3, 5, w, h, 12);
+    g.fillStyle(0xf6e7c4, 0.97).fillRoundedRect(-w / 2, 0, w, h, 12);
+    g.lineStyle(2, 0xc9a24a, 1).strokeRoundedRect(-w / 2 + 1, 1, w - 2, h - 2, 11);
+    g.lineStyle(1, 0xe9cf8a, 1).strokeRoundedRect(-w / 2 + 5, 5, w - 10, h - 10, 8);
+    title.setPosition(0, PAD.y); body.setPosition(0, PAD.y + title.height + 8);
+    const dx = (SUN_GATE.doors[0] + SUN_GATE.doors[1]) / 2 + 20;
+    return sc.add.container(Math.round(dx), Math.round(SUN_GATE.y - h + 30), [g, title, body]).setDepth(1e6 - 1).setAlpha(0);
+  }
+
   /** The gate unlocked: its doors swing open (a flash of warm light), and the way is free from now on. */
   unlock(): void {
     if (this.isOpen) return;
-    this.isOpen = true; this.solids();
+    this.isOpen = true; this.solids(); this.plaque?.setVisible(false);
     for (const c of this.cols) c.setTexture('sun-gate-open');
     const dx = (SUN_GATE.doors[0] + SUN_GATE.doors[1]) / 2;
     const flash = this.scene.add.ellipse(dx, lineY(dx) - 110, 200, 240, 0xffe2a0, 0)
@@ -90,7 +120,7 @@ export class SunGate {
   }
 
   destroy(): void {
-    for (const c of this.cols) c.destroy(); this.cols = []; this.rail?.destroy();
+    for (const c of this.cols) c.destroy(); this.cols = []; this.rail?.destroy(); this.plaque?.destroy();
     for (let i = WORLD_OBJECTS.length - 1; i >= 0; i--) if (WORLD_OBJECTS[i].id.startsWith('sun-gate')) WORLD_OBJECTS.splice(i, 1);
   }
 }
