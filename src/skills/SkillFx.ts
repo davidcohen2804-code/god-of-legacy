@@ -1290,7 +1290,7 @@ export class SkillFx {
       const rapid = s.hits.length > 3 && !hit.heavy; // storms / volleys: small sparks, never a white-out
       const sz = rapid ? 64 : tier === 'ultimate' || hit.heavy ? 140 : 86, key = this.scene.textures.exists('afx-hit') ? 'afx-hit' : (this.impactFlip = !this.impactFlip) ? 'afx-impact' : 'afx-impact-b';
       this.play(key, at.x, at.y - at.z - 38, sz, sz, [20, 22, 24, 26, 28, 30, 34, 40], { depth: TOP + 2, fadeLast: 60 }); // the samurai's hit sizes
-    } else if (s.cls === 'book_mage') this.mage.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit);
+    } else if (s.cls === 'book_mage') this.mage.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, counter);
     else if (s.cls === 'gambler') this.gamb.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, counter);
     else if (s.cls === 'samurai') this.sam.confirmed(s, hit, at, reaction, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, from, local, counter); // (the cut of the blade on the foe and the marks of what happened to it; the ensō on a COUNTER)
     else if (s.cls === 'warrior' && this.scene.textures.exists('imp-wsparks')) { // the Judge's sparks: few hits, each one felt — normal / heavy / launch

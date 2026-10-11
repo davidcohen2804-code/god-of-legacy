@@ -1111,10 +1111,13 @@ export class MageFx {
   // ------------------------------------------------------------------ hits and reactions
 
   /** The hit spark of a mage hit on a foe (by element and weight). */
-  confirmed(s: FinalSkill, hit: HitEvent, at: V3, heavy: boolean, crit: boolean): void {
+  confirmed(s: FinalSkill, hit: HitEvent, at: V3, heavy: boolean, crit: boolean, counter = false): void {
     if (!this.ready || (s.slot === 99 && !hit.damage)) return;
     const x = at.x, y = at.y - at.z - 40, el = hit.el, tint = el === 'frost' ? 0xcff6ff : el === 'storm' ? 0x8fe3ff : 0x6fb8ff;
-    const big = crit || heavy;
+    const big = crit || heavy || counter;
+    // the class's hit weights: COUNTER — a rune shell bursts into shards round the foe; LAUNCH — a short column of arcane light throws it up
+    if (counter && this.ctx.scene.textures.exists('mfx-wg')) this.sheet('mfx-wg', at.x, at.y - at.z + 8, 200, 300, { frames: [5, 3], oy: 0.86, tint: 0xf0c8ff, depth: TOP + 7 });
+    else if (hit.reaction.launch && this.ctx.scene.textures.exists('mfx-pillar')) this.sheet('mfx-pillar', at.x, at.y - at.z + 6, 170, 320, { frames: [4, 4], oy: 0.86, depth: at.y + 5 });
     if (s.id === 'page_bind') this.sheet('mfx-paper', at.x, at.y - at.z - 50, 190, 520, { frames: [8, 4], tint: 0xcfefff, alpha: 0.85 }); // frozen pages stuck to the foe
     this.pool(at.x, this.floorY(at.x, at.y, at.z), big ? 190 : 130, tint, 300, { alpha: at.z > 30 ? 0.45 : 0.6 }); // the hit lights the floor under it
     if (this.ctx.scene.textures.exists('mfx-hit')) { // the painted spark: one per element, a heavier one for heavy blows and crits
