@@ -18,6 +18,7 @@ import { syncOverlay } from './CharacterSelectUI';
 import type { ArtState } from './FighterArt';
 import { ensureTheme } from './theme';
 import { Sound } from '../audio/Sound';
+import { warmClip } from './HeroClip';
 
 export type VsMode = 'cpu' | 'player';
 export interface RemoteView { name: string; hover: string; pick: string | null }
@@ -443,6 +444,7 @@ export class PvpSelectUI {
   private flashArt(s: 'l' | 'r'): void {
     const cls = s === 'l' ? (this.p1.pick === null ? null : ROSTER[this.p1.pick]) : this.mode === 'cpu' ? (this.p2.pick === null ? null : ROSTER[this.p2.pick]) : this.remote?.pick ?? null;
     Sound.lockIn(cls ?? undefined); this.h.lock(s);
+    warmClip(cls ?? undefined, 'vs'); warmClip(cls ?? undefined, 'win'); // (its entrance and victory clips on their way before the VS screen)
   }
 
   private fillPlate(s: 'l' | 'r', side: string, tag: string, cls: string, name: string, locked: boolean): void {

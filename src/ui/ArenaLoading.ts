@@ -10,6 +10,7 @@ import { heroArt } from '../pvp/Fighters';
 import { syncOverlay } from './CharacterSelectUI';
 import { heroFx } from './HeroFx';
 import { liven } from './LivingArt';
+import { playClip } from './HeroClip';
 import { CallFx } from './CallFx';
 
 /** One side of the loading screen: a fighter's name and class (`you`: yours). */
@@ -125,6 +126,7 @@ export function showArenaLoading(scene: Phaser.Scene, l: LoadSide, r: LoadSide, 
     const img = el('img', '', el('div', a.card ? 'al-art card' : 'al-art', h));
     img.src = a.url; img.alt = ''; img.draggable = false;
     if (!a.card) liven(img, f.cls, 'vs'); // (the painting itself moves: cloth and hair in the wind, breathing)
+    if (!a.card) playClip(img, f.cls, 'vs', 1.25); // (the hero's own entrance, ending in this very stance)
     if (fx) h.appendChild(fx.front);
   }
   el('div', 'al-seam', box);

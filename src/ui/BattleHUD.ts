@@ -11,6 +11,7 @@ import { ARENA } from '../combat/Combat';
 import { ensureTheme } from './theme';
 import { heroFx, heroFxUrls } from './HeroFx';
 import { liven } from './LivingArt';
+import { playClip, warmClip } from './HeroClip';
 import { CallFx } from './CallFx';
 import { Sound } from '../audio/Sound';
 
@@ -380,6 +381,7 @@ export class BattleHUD {
   }
 
   setFighters(l: Fighter, r: Fighter): void {
+    for (const f of [l, r]) warmClip(f.vs?.cls, 'win'); // (the victory clips, ready for the result)
     this.prewarm([VS_EMBLEM, ...Object.keys(CALL_ART).map(callUrl), ...[l, r].flatMap((f) => (f.vs ? [f.vs.url, ...(f.vs.win ? [f.vs.win] : []), ...(f.vs.cls ? heroFxUrls(f.vs.cls) : [])] : []))]);
     for (const [s, f] of [['l', l], ['r', r]] as const) {
       const e = this.sides[s];
@@ -569,6 +571,7 @@ export class BattleHUD {
       art.style.setProperty('--c', winner.vs.color); art.style.setProperty('--g', winner.vs.glow);
       img.src = winner.vs.win ?? winner.vs.url; img.alt = ''; img.draggable = false;
       if (!winner.vs.card) liven(img, winner.vs.cls, winner.vs.win ? 'win' : 'vs');
+      if (!winner.vs.card && winner.vs.win) playClip(img, winner.vs.cls, 'win'); // (the hero's own victory move, into this pose)
     }
     const c = this.el('div', 'b-call slam', r);
     if (!this.art(c, o.title.toLowerCase(), o.title === 'DRAW' ? 211 : 230)) this.word(c, o.title, o.title === 'VICTORY' ? 'gold' : o.title === 'DEFEAT' ? 'blood' : 'steel', 168); // (DRAW at the round call's scale)
