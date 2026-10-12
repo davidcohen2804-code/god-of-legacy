@@ -89,6 +89,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - Book Mage (cloud chat, no device link): GPT/PixVerse art is generated, but moving it into the repo is blocked — pasting the image into my private inbox page was refused by the permission check, and carrying it as text is too heavy. Options: allow that paste step, or link this chat to the computer (desktop app) so downloads can be staged. Hit-spark sheet (counter / launch / armor break / finisher) is ready in ChatGPT, waiting on this.
 
 ## Done
+- Movements: the six arena body states (backstep, quick rise, run stop, stunned loop, win, intro) painted for all seven heroes and wired on the body side — a4f781a6 (scene hookup requested from DFO PvP arena dynamics)
 - Samurai: skill frames reviewed (every skill: wind-up → strike → follow-through; the strike's smear is the blade's own cut arc drawn by SamuraiFx, ART_STYLE §8). The weak one redone: Tornado Blade, an air skill shown with standing spin poses, repainted as a tucked air spin (GPT sheet S7, 6 frames) — 75174382
 - Samurai: VS entrance + win clips for PvP (vs_in.mp4, win_in.mp4) — 830ab5ed
 - Archer: Double Shot body repainted (GPT, 6 frames: nock → full draw → a sharp release with the hand flung back and the cloak whipped → quick second draw → harder second release → recover), also used by Backstep Shot and Vine Lash (one release each); cut.py: a sheet action repainted in tools/heroes/motion/<cls>/<act>_NN.png now replaces the sheet's frames instead of adding to them
