@@ -13,6 +13,8 @@ import { heroFx, heroFxUrls } from './HeroFx';
 import { liven } from './LivingArt';
 import { playClip, warmClip } from './HeroClip';
 import { CallFx } from './CallFx';
+import { rankResult } from './RankUI';
+import type { RankChange } from '../pvp/Rank';
 import { Sound } from '../audio/Sound';
 
 export type Side = 'l' | 'r';
@@ -556,7 +558,7 @@ export class BattleHUD {
   }
 
   /** The end of the match: VICTORY / DEFEAT / DRAW, the score, REMATCH and EXIT ARENA. */
-  result(o: { title: 'VICTORY' | 'DEFEAT' | 'DRAW'; me: Fighter; them: Fighter; mine: number; theirs: number }): void {
+  result(o: { title: 'VICTORY' | 'DEFEAT' | 'DRAW'; me: Fighter; them: Fighter; mine: number; theirs: number; rank?: RankChange }): void {
     this.clearCalls(); this.hideResult();
     const r = this.el('div', 'b-res', this.root);
     r.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -591,6 +593,7 @@ export class BattleHUD {
     who(o.me);
     this.el('div', 'b-num', sc).textContent = `${o.mine} – ${o.theirs}`;
     who(o.them);
+    if (o.rank) rankResult(card, o.rank); // (the match on your rank: RP, promotion, streak, new titles)
     const bt = this.el('div', 'b-bt', card);
     const again = this.el('button', 'gl-btn pri lg', bt) as HTMLButtonElement;
     again.type = 'button'; again.textContent = 'REMATCH';

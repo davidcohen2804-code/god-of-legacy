@@ -12,9 +12,11 @@ import { heroFx } from './HeroFx';
 import { liven } from './LivingArt';
 import { playClip } from './HeroClip';
 import { CallFx } from './CallFx';
+import { rankLine } from './RankUI';
+import { myRank } from '../pvp/Rank';
 
 /** One side of the loading screen: a fighter's name and class (`you`: yours). */
-export interface LoadSide { name: string; cls: string; you?: boolean }
+export interface LoadSide { name: string; cls: string; you?: boolean; /** an online foe's rank (yours is read here) */ rank?: { rp: number; title: string | null } }
 
 const STYLE_ID = 'gol-al-style';
 const DISPLAY = "'Exo 2', 'Segoe UI', sans-serif";
@@ -136,6 +138,7 @@ export function showArenaLoading(scene: Phaser.Scene, l: LoadSide, r: LoadSide, 
     b.textContent = f.name;
     const cls = (CLASS_NAMES[f.cls] ?? f.cls).toUpperCase();
     el('i', '', n).textContent = f.you ? `${cls}  ·  YOU` : cls;
+    rankLine(n, f.you ? myRank() : f.rank ?? null); // (the tier's emblem and the title worn)
     const fit = () => { // a long name: smaller until it fits
       b.style.fontSize = '';
       for (let px = 96, i = 0; b.scrollWidth > NAME_W && i < 6 && px > 40; i++) { px = Math.max(40, Math.floor((px * NAME_W) / b.scrollWidth) - 1); b.style.fontSize = `${px}px`; }

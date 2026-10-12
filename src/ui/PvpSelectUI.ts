@@ -19,6 +19,7 @@ import type { ArtState } from './FighterArt';
 import { ensureTheme } from './theme';
 import { Sound } from '../audio/Sound';
 import { warmClip } from './HeroClip';
+import { rankPlate } from './RankUI';
 
 export type VsMode = 'cpu' | 'player';
 export interface RemoteView { name: string; hover: string; pick: string | null }
@@ -81,6 +82,7 @@ const CSS = `
   background:linear-gradient(180deg,rgba(32,38,54,.96),rgba(8,11,18,.96));box-shadow:inset 0 1px 0 rgba(240,204,128,.55),inset 0 -2px 0 rgba(240,204,128,.85);color:#f3e3bd;font:800 italic 19px ${DISPLAY};letter-spacing:2px}
 .gol-ps .ps-back:hover:not(:disabled){color:#24180a;background:linear-gradient(180deg,#f2d493,#d2a65a)}
 /* name plates */
+.gol-ps .ps-rkw{position:absolute;left:64px;top:850px;z-index:2}
 .gol-ps .ps-pl{position:absolute;top:610px;width:600px;display:flex;flex-direction:column;gap:6px;pointer-events:none}
 .gol-ps .ps-pl.l{left:64px;align-items:flex-start}
 .gol-ps .ps-pl.r{right:64px;align-items:flex-end}
@@ -210,6 +212,7 @@ export class PvpSelectUI {
       return { side, tag, cls, nm, box };
     };
     this.plate = { l: mkPlate('l'), r: mkPlate('r') };
+    rankPlate(this.el('div', 'ps-rkw', root), root); // (your rank: tier, RP, streak, the title you wear)
     this.vs = this.el('div', 'ps-vs', root);
     const em = this.el('img', '', this.vs) as HTMLImageElement; em.src = 'assets/hud/vs_emblem.webp'; em.alt = 'VS'; em.draggable = false; // (the arena's VS screen slams the same emblem in)
     this.st = this.el('div', 'ps-st', root);

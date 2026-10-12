@@ -64,6 +64,7 @@ import { Stage, stageById, stageOf } from '../world/Stages';
 const colorNum = (c: string): number => parseInt(c.slice(1), 16);
 import { ComboGuide } from '../ui/ComboGuide';
 import { addResult, scoreKey } from '../pvp/Score';
+import { myRank, settle } from '../pvp/Rank';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
 import { NetMsg, PeerMeta } from '../pvp/Transport';
 import { genderOf, headLookOf, previewKeyOf } from '../characters/Look';
@@ -322,6 +323,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private remoteCasts = new Map<string, number[]>();
   private seenCasts = new Set<string>();
   pvpReady = false;
+  /** This match's own numbers for the rank: your longest combo, your rounds won without a scratch. */
+  private mStats = { combo: 0, perfects: 0 };
   pvp?: PvpController;
   /** PvP sparring NPC: present while you are alone in the arena room (local only, endless HP). */
   private bot?: SparringBot;
@@ -813,7 +816,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       });
     }
     if (pvpRoom) { this.curtain = takeArenaLoading(); this.curtainAt = performance.now(); }
-    if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name, gender: genderOf(character), ...(character.hero ? { hero: true } : {}), ...(headLookOf(character) ? { look: headLookOf(character)! } : {}) });
+    if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name, gender: genderOf(character), ...(character.hero ? { hero: true } : {}), ...(headLookOf(character) ? { look: headLookOf(character)! } : {}), rp: myRank().rp, title: myRank().title });
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off(Phaser.Scenes.Events.POST_UPDATE);
@@ -3048,6 +3051,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const skills = same ? this.combo.skills : new Set<string>(); // skills landed in this combo (a basic chain counts once)
     skills.add(s.chain ? s.id : (run?.castId ?? `${s.id}@${this.simMs}`));
     this.combo = { count: idx, at: this.simMs, comboId, target, label: state, dmg: (same ? this.combo.dmg : 0) + damage, max, skills };
+    if (this.match?.live) this.mStats.combo = Math.max(this.mStats.combo, idx);
     this.confirmedLog.push({ skill: s.id, target, damage, idx, reaction, at: this.simMs, z: Math.round(tz) });
     if (this.confirmedLog.length > 300) this.confirmedLog.shift();
   }
@@ -3907,6 +3911,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       return;
     }
     if (prev === 'idle') { this.hud?.setBattle(true, m.sideOf(this.localId)); B.setOn(true); this.battleTags(true); }
+    if (m.phase === 'vs' && (prev === 'idle' || prev === 'over')) this.mStats = { combo: 0, perfects: 0 }; // (a new match)
     else if (this.tagsOn) this.wearTags(); // (a body made anew meanwhile wears its tag again)
     if (prev === 'idle' || m.phase === 'vs') B.setFighters(this.fighterOf(m.host), this.fighterOf(m.guest));
     switch (m.phase) {
@@ -3918,6 +3923,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       case 'intro': B.hideResult(); this.placeForRound(m); this.liftCurtain(); B.round(m.round, m.finalRound, T.introMs); this.lockPose('intro', T.introMs); break;
       case 'fight': this.poseLock = null; if (this.bot) this.bot.poseLock = null; B.hideResult(); this.ci?.clearBuffer(); B.fight(); this.stageFx?.event('fight'); if (this.bot) this.bot.hold = false; break;
       case 'ko':
+        if (m.perfect && m.winner === this.localId) this.mStats.perfects++;
         if (this.bot) this.bot.hold = true;
         B.ko(m.why, m.perfect, T.koMs - 500); this.stageFx?.event('ko');
         if (m.why === 'ko' || m.why === 'double') this.koMoment();
@@ -4018,7 +4024,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private showResult(m: Match): void {
     const me = this.localId, left = m.sideOf(me) === 'l';
     if (this.vs) addResult(scoreKey(this.vs, this.pvp?.room), m.champ === null ? 'd' : m.champ === me ? 'w' : 'l'); // the fighter select's count
-    this.battleHud?.result({ title: m.champ === null ? 'DRAW' : m.champ === me ? 'VICTORY' : 'DEFEAT', me: this.fighterOf(me), them: this.fighterOf(m.opponent), mine: m.wins[left ? 0 : 1], theirs: m.wins[left ? 1 : 0] });
+    const rank = this.vs ? settle({ won: m.champ === null ? null : m.champ === me, cls: this.cls, perfects: this.mStats.perfects, maxCombo: this.mStats.combo, vs: this.vs,
+      level: m.opponent === BOT_ID ? this.bot?.level : undefined, foeRp: this.pvp?.remotes.get(m.opponent)?.meta.rp }) : undefined; // (your rank: RP, streak, titles)
+    this.battleHud?.result({ title: m.champ === null ? 'DRAW' : m.champ === me ? 'VICTORY' : 'DEFEAT', me: this.fighterOf(me), them: this.fighterOf(m.opponent), mine: m.wins[left ? 0 : 1], theirs: m.wins[left ? 1 : 0], rank });
     this.refreshRematch();
   }
 
