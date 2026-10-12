@@ -11,6 +11,14 @@ export type LiveKind = 'vs' | 'win';
 const ATLAS = { frames: 61, fps: 12, cols: 8, cw: 128, ch: 192, range: 80 };
 /** One pass (forth or back) takes this much longer than the clip did (a calmer sway). */
 const SLOW = 1.25;
+/** Drawn at most this often (ms). */
+const FRAME_MS = 32;
+/** A software renderer (no graphics card: SwiftShader, llvmpipe…) — warping a big painting every frame would choke it. */
+function softGl(gl: WebGLRenderingContext): boolean {
+  const ext = gl.getExtension('WEBGL_debug_renderer_info');
+  const r = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+  return /swiftshader|llvmpipe|softpipe|software|basic render/i.test(r);
+}
 
 export const hasLife = (cls: string | undefined, kind: LiveKind): boolean => !!cls && LIVE[kind].has(cls);
 
@@ -47,8 +55,8 @@ export function liven(img: HTMLImageElement, cls: string | undefined, kind: Live
 
 function run(cv: HTMLCanvasElement, img: HTMLImageElement, art: HTMLImageElement, flow: HTMLImageElement): void {
   cv.width = art.naturalWidth; cv.height = art.naturalHeight;
-  const gl = cv.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false });
-  if (!gl) { cv.remove(); return; }
+  const gl = cv.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false, failIfMajorPerformanceCaveat: true });
+  if (!gl || softGl(gl)) { gl?.getExtension('WEBGL_lose_context')?.loseContext(); cv.remove(); return; } // (no graphics card: the painting stays still)
   const sh = (type: number, src: string) => { const s = gl.createShader(type)!; gl.shaderSource(s, src); gl.compileShader(s); return s; };
   const pr = gl.createProgram()!;
   gl.attachShader(pr, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(pr);
@@ -86,10 +94,14 @@ function run(cv: HTMLCanvasElement, img: HTMLImageElement, art: HTMLImageElement
   draw(0);
   cv.style.visibility = ''; img.style.visibility = 'hidden'; // (frame 0 is the painting itself: no jump)
   const pass = (last / ATLAS.fps) * SLOW * 1000, t0 = performance.now();
+  let drawn = 0;
   const tick = (now: number) => {
     if (!cv.isConnected) { gl.getExtension('WEBGL_lose_context')?.loseContext(); return; }
-    const ph = (((now - t0) / pass) % 2 + 2) % 2; // forth (0..1), back (1..2), eased at both ends
-    draw((last * (1 - Math.cos(Math.PI * ph))) / 2);
+    if (now - drawn >= FRAME_MS) { // (the motion is 12 fps under it: 30 drawn a second are plenty)
+      drawn = now;
+      const ph = (((now - t0) / pass) % 2 + 2) % 2; // forth (0..1), back (1..2), eased at both ends
+      draw((last * (1 - Math.cos(Math.PI * ph))) / 2);
+    }
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
