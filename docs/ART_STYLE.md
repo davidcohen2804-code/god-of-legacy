@@ -52,7 +52,7 @@ the weapon — gambler, beginners), `<hero>_small_green.jpg` (figure 50 % height
   + `src/data/hero-atlas.json`. Never edit those by hand; take theirs on a conflict and re-run.
 - Scale from a GPT still (1402×1122 canvas, same-size prompt) to the motion canvas: warrior 0.608, samurai —, archer 0.623,
   book_mage 0.626, gambler 0.558, beginner ♂ 0.615, beginner ♀ 0.622 (`tools/heroes/pipeline/stillpose.py <hero> <act> <scale> imgs…`).
-- Actions in the atlas today: idle, walk, run, jump (3: crouch, apex, fall), djump (2), stance, hurt 6, launched 6,
+- Actions in the atlas today: idle (painted breathing loop, 40 f at 15 fps — PixVerse Transition first = last = the standing ref, seed 5, 8 fps extraction of the 5 s clip; samurai 38 f), walk, run, jump (3: crouch, apex, fall), djump (2), stance, hurt 6, launched 6,
   down_impact 3, down 2, getup 7, backstep 4, quickrise 3, runstop 2, stunned 4 (loop), win 8 (holds), intro 8,
   plus each class's skill sheets (6 frames each).
 - Still-pose states (`pipeline/states.py <hero> <scale>`, stills in `st/<hero>_<pose>.jpg`): scale = 505 / the upright
@@ -64,6 +64,7 @@ the weapon — gambler, beginners), `<hero>_small_green.jpg` (figure 50 % height
 Ask for one pose per message; a series of poses works best in one chat ("Now the same character … <next pose>").
 
 **PixVerse (video, Transition mode, first = last = the ref, 720p, 5 s, seed 11111):**
+- idle: `stands in place breathing calmly: one subtle slow breathing loop that returns exactly to the starting pose, shoulders rise and fall gently, head steady, feet planted and never move, <weapon held exactly as in the image>, cloth and hair sway gently. No walking, no turning, no gestures. Camera locked. Background: solid pure green #00FF00 only, no shadow, no floor, no effects.` (seed 5; negative: `walking, turning, arm swing, weapon raised, gesture, gray background, floor, wall, shadow, motion blur, dust, zoom`)
 - walk: `walks in place, side view facing right, one full natural walk cycle that loops back exactly to the starting pose, <weapon held exactly as in the image>. Camera locked. Background: solid pure green #00FF00 only, no shadow, no effects.`
 - run (from the sprint ref): `sprints in place at full speed … one complete fast run cycle that loops back exactly to the starting pose … <both hands keep gripping the weapon exactly as in the image; hands and weapon stay locked in place>. The arms do not swing. Camera locked. Background: solid pure green #00FF00 only, no shadow, no effects, no dust, no motion blur.`
   Negative prompt: `gray background, studio floor, wall, shadow, arm swing, weapon raised, motion blur, dust`.

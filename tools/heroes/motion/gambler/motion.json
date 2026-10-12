@@ -156,6 +156,12 @@
         190,
         190
       ]
+    },
+    "idle": {
+      "frames": 40,
+      "source": "pixverse gambler_idle8.mp4",
+      "fps": 15,
+      "loop": true
     }
   },
   "hit_source": "pixverse gambler_hit.mp4"
