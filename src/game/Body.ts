@@ -28,7 +28,7 @@ const MOVE_COLS: Record<MoveState, number> = { idle: 12, walk: 8, run: 8, jump: 
 const SHEET_CLASSES = ['warrior', 'book_mage'] as const;
 const sheetKey = (cls: string, st: string) => `body-${cls}-${st}`;
 /** Extended-kit skills reuse an existing body animation (pose family) until they get their own sheet. */
-const BODY_ALIAS: Record<string, string> = { lions_maw: 'war_cry', guard_counter: 'iron_grip', judgment_hook: 'wave_slash', sky_breaker: 'leap_crash', earthsplitter: 'ground_breaker', iron_oath: 'sanctuary', legacy_banner: 'radiant_blade',
+const BODY_ALIAS: Record<string, string> = { lions_maw: 'war_cry', shield_charge: 'lance_thrust', guard_counter: 'iron_grip', judgment_hook: 'wave_slash', sky_breaker: 'leap_crash', earthsplitter: 'ground_breaker', iron_oath: 'sanctuary', legacy_banner: 'radiant_blade',
   // the book mage's new spells borrow its drawn casts until their own come (the mage spec)
   arcane_bolt_frost: 'arcane_bolt', arcane_bolt_storm: 'arcane_bolt', arcane_bolt_arcane: 'arcane_bolt', blink: 'arcane_bolt', glacial_spikes: 'frost_nova', chrono_haste: 'astral_burst',
   levity_field: 'storm_field', origami_flock: 'arcane_wave', chrono_sigil: 'binding_rune', arcane_ward: 'frost_nova', arcane_gate: 'binding_rune', paper_curse: 'lightning_chain', elemental_ascension: 'storm_field', page_bind: 'arcane_wave' };
