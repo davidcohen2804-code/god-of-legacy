@@ -63,6 +63,8 @@ import { Stage, stageById, stageOf } from '../world/Stages';
 /** '#rrggbb' as a number. */
 const colorNum = (c: string): number => parseInt(c.slice(1), 16);
 import { ComboGuide } from '../ui/ComboGuide';
+import { TrialUI } from '../ui/TrialUI';
+import type { GuideRange } from '../data/comboGuide';
 import { addResult, scoreKey } from '../pvp/Score';
 import { myRank, settle } from '../pvp/Rank';
 import { clearPvpFromUrl, newPlayerId } from '../pvp/Room';
@@ -376,7 +378,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private camPunch = 1;
   private botCls = 'warrior';
   /** Came from the PvP fighter select: against the CPU / another player. */
-  private vs: 'cpu' | 'player' | null = null;
+  private vs: 'cpu' | 'player' | 'training' | null = null;
   /** VS PLAYER: still waiting for the other player (the sparring partner only comes if they never do). */
   private waitFoe = false;
   private botPaused = false;
@@ -426,6 +428,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private tagsWanted = false;
   /** The arena: the class's combo routes on the left. */
   private comboGuide?: ComboGuide;
+  /** Training: the combo trials (in place of the guide). */
+  private trialUi?: TrialUI;
   private koT = -1;
   private koZoomBack = false;
   /** When the side running the match was last heard from (real ms). */
@@ -499,8 +503,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   preload(): void {
     const T = ATLAS.textures, CT = COMBAT_ASSETS.textures;
     // The world holds only your own class; the PvP arena can hold any class (other players, the sparring knight).
-    const sd = this.sys.settings.data as { pvpRoom?: string; fighter?: Character; botCls?: string; foe?: LoadSide; stage?: string } | undefined;
-    const pvp = !!sd?.pvpRoom;
+    const sd = this.sys.settings.data as { pvpRoom?: string; fighter?: Character; botCls?: string; foe?: LoadSide; stage?: string; vs?: string } | undefined;
+    const pvp = !!sd?.pvpRoom, training = sd?.vs === 'training';
     const me = sd?.fighter ?? CharacterStore.getSelectedCharacter(); // (the PvP select's fighter)
     const cls = me ? playedClass(me) : undefined; // the class actually played (Beginner = warrior base)
     const classes = pvp || !cls ? undefined : [cls];
@@ -529,16 +533,17 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     for (let n = 0; n < EMOTES; n++) if (!this.textures.exists(`kit.emote_${n}`)) this.load.image(`kit.emote_${n}`, `assets/final/ui/kit/emote_${n}.png`);
     // the arena from the fighter select: the two fighters face to face while it loads (else the plain loading screen)
     const foe = sd?.foe ?? (sd?.botCls ? { cls: sd.botCls, name: BOT_NAMES[sd.botCls] ?? BOT_NAME } : null);
-    if (pvp && me && cls && foe && showArenaLoading(this, { name: me.name, cls, you: true }, foe, this.stage)) Sound.vsIntro(cls, foe.cls); // (the slam, both fighters' lines, GET READY)
-    else showLoading(this, pvp ? 'PVP ARENA' : 'GOD OF LEGACY');
+    if (pvp && !training && me && cls && foe && showArenaLoading(this, { name: me.name, cls, you: true }, foe, this.stage)) Sound.vsIntro(cls, foe.cls); // (the slam, both fighters' lines, GET READY)
+    else showLoading(this, training ? 'TRAINING' : pvp ? 'PVP ARENA' : 'GOD OF LEGACY'); // (training: no match, no VS)
   }
 
-  create(data?: { pvpRoom?: string; at?: { x: number; y: number }; fighter?: Character; botCls?: string; vs?: 'cpu' | 'player' }): void {
+  create(data?: { pvpRoom?: string; at?: { x: number; y: number }; fighter?: Character; botCls?: string; vs?: 'cpu' | 'player' | 'training' }): void {
     const at = !data?.pvpRoom && data?.at ? data.at : null; // a restart in place (a new job): you stay where you were
     const character = (data?.pvpRoom && data.fighter) || CharacterStore.getSelectedCharacter(); // the PvP select's fighter (a copy, never saved)
     this.vs = data?.pvpRoom ? data.vs ?? null : null;
     if (data?.pvpRoom && data.botCls) this.botCls = data.botCls; // VS CPU: the opponent you picked
     this.waitFoe = this.vs === 'player'; // VS PLAYER: the other player is on the way (no sparring partner meanwhile)
+    this.botPaused = this.noCd = this.vs === 'training'; // TRAINING: the partner stands still, no cooldowns (both switchable on the panel)
     if (!character) { this.scene.start('CharacterSelectScene'); return; }
     const pvpRoom = data?.pvpRoom ?? null;
     this.arena = !!pvpRoom;
@@ -768,7 +773,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const ov = this.hud.overlay;
     this.chat = new ChatBox(ov, (text, kind) => this.sendChat(text, kind), (on) => this.chatTyping(on), (n) => { this.bubbles?.emote(this.localId, n, this.simMs); this.pvp?.sendChat('', undefined, n); });
     this.bubbles = new SpeechBubbles(this);
-    this.questsUi = new QuestTracker(ov);
+    if (this.vs !== 'training') this.questsUi = new QuestTracker(ov); // (training: the trials sit there)
     this.questLog = new QuestLog(ov, () => this.ci?.reset());
     this.partyUi = new PartyUI(ov, {
       invite: (id) => this.party?.invite(id), kick: (id) => this.party?.kick(id), leave: () => this.party?.leave(),
@@ -808,7 +813,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (pvpRoom) {
       this.battleHud = new BattleHUD(ov, { rematch: () => this.askRematch(), exit: exitArena });
       if (this.stage) this.battleHud.setStage(this.stage.name);
-      if (ComboGuide.has(this.cls)) this.comboGuide = new ComboGuide(ov, this.cls, this.kit, this.guideKeys());
+      if (this.vs === 'training') { if (TrialUI.has(this.cls)) this.trialUi = new TrialUI(ov, this.cls, this.kit, this.guideKeys(), { reset: (range) => this.trainingReset(range) }); }
+      else if (ComboGuide.has(this.cls)) this.comboGuide = new ComboGuide(ov, this.cls, this.kit, this.guideKeys());
       this.match = new Match(this.localId, {
         onPhase: (m, prev) => this.onMatchPhase(m, prev),
         send: (msg) => { if (this.match?.opponent !== BOT_ID) this.pvp?.sendMatch(msg); },
@@ -837,6 +843,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.bot?.destroy(); this.bot = undefined; this.sparUi?.root.remove(); this.sparUi = undefined; this.logEl?.remove(); this.logEl = undefined;
       this.battleHud?.destroy(); this.battleHud = undefined; this.match = undefined; this.koT = -1;
       this.comboGuide?.destroy(); this.comboGuide = undefined;
+      this.trialUi?.destroy(); this.trialUi = undefined;
       this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1;
       this.ambience?.destroy(); this.ambience = undefined;
       this.stageFx?.destroy(); this.stageFx = undefined;
@@ -2594,6 +2601,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.kage?.arm(castId, s.id, { x: k.x, y: k.y, z: k.z }); // he strikes: out of hiding; a cast while the doubles stand: its first hit that lands is the AMBUSH
     const mf = s.cls === 'book_mage' ? this.mageFlags() : 0;
     const run = this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: from, aim, place, lock, followUp, ...(mf ? { mf } : {}) });
+    this.trialUi?.cast(s.id, castId, !k.grounded, this.simMs); // (training: the trial's next key?)
     if (s.cls === 'book_mage') this.mageCast(s, run);
     if (s.cls === 'gambler') this.gamblerStarted(s);
     if (s.chain) this.chain = { stage, lastEnd: Infinity, skill: s.id };
@@ -2827,7 +2835,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), b, () => this.onTalk(), (i) => this.usePotion(i), () => this.onBackstepKey());
     this.hud?.setKeyLabels(slotKeyLabels(b));
     this.hud?.setMenuKeys(menuKeys(b));
-    this.comboGuide?.setKeys(this.guideKeys());
+    this.comboGuide?.setKeys(this.guideKeys()); this.trialUi?.setKeys(this.guideKeys());
     this.world?.setTalkKey(keyLabel(b.talk)); if (this.npcDialog) this.npcDialog.talkKey = keyLabel(b.talk);
   }
 
@@ -3052,6 +3060,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     skills.add(s.chain ? s.id : (run?.castId ?? `${s.id}@${this.simMs}`));
     this.combo = { count: idx, at: this.simMs, comboId, target, label: state, dmg: (same ? this.combo.dmg : 0) + damage, max, skills };
     if (this.match?.live) this.mStats.combo = Math.max(this.mStats.combo, idx);
+    if (run?.own && target === BOT_ID && reaction !== 'armor') this.trialUi?.hit(run.castId, comboId, !run.chargeDone); // (training: a HOLD key counts fully drawn only)
     this.confirmedLog.push({ skill: s.id, target, damage, idx, reaction, at: this.simMs, z: Math.round(tz) });
     if (this.confirmedLog.length > 300) this.confirmedLog.shift();
   }
@@ -3439,13 +3448,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const k = this.kin, pts = arenaSpawns().filter((p) => footAllowed(p.x, p.y, 0, R));
       const sp = pts.reduce((best, p) => (Math.hypot(p.x - k.x, p.y - k.y) > Math.hypot(best.x - k.x, best.y - k.y) && Math.hypot(p.x - k.x, p.y - k.y) < 700 ? p : best), pts[0]);
       this.spawnBot(sp.x, sp.y, now);
-      this.chat?.add({ kind: 'system', text: `${this.botName()} entered the arena (sparring partner while you are alone).` });
+      this.trialUi?.place(); // (training: both on their marks for the trial in hand)
+      this.chat?.add({ kind: 'system', text: this.vs === 'training' ? `${this.botName()} is your training partner.` : `${this.botName()} entered the arena (sparring partner while you are alone).` });
     }
     const bot = this.bot!;
     if (this.sparUi) this.sparUi.combo.disabled = bot.comboRunning || this.dead >= 0;
     if (this.botBreakAt > 0 && now >= this.botBreakAt) { this.botBreakAt = 0; if (bot.body.canBreak(now)) this.botBreak(); }
     const bd = this.kage?.decoyFor(bot); // Kagemusha: the knight goes after a double
     bot.update(ms, { now, player: bd ? { x: bd.x, y: bd.y, z: this.kin.z - this.kin.supportZ, alive: true } : { x: this.kin.x, y: this.kin.y, z: this.kin.z - this.kin.supportZ, alive: this.dead < 0, guard: this.body.ghost(now), stuck: this.body.state !== 'free' || (this.body.hard.active(now) && this.body.hard.kind !== 'root'), wind: this.windInfo() } });
+    this.trialUi?.update(now, bot.body.combos.has(this.localId, now), !this.kin.grounded); // (training: the partner still held in your combo?)
   }
 
   /** Your skill in its wind-up (for the sparring partner to read): its cast, ms left to its first strike, its reach. */
@@ -3540,7 +3551,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }, now, this.botCls);
     this.bot.setLevel(this.botLevel, now);
     this.bot.paused = paused;
-    this.bot.duel = true; // battle mode: the knight can be knocked out (its entrance is the battle's VS)
+    this.bot.duel = this.vs !== 'training'; // battle mode: the knight can be knocked out (its entrance is the battle's VS); training: its HP refills
     this.bot.body.arena = true; // the same duel rules as the players
     this.refreshSparUi();
   }
@@ -3589,7 +3600,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     const root = document.createElement('div'); root.className = 'gol-spar'; host.appendChild(root);
     root.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); });
-    const hd = document.createElement('div'); hd.className = 'hd'; hd.textContent = 'SPARRING OPPONENT'; root.appendChild(hd);
+    const hd = document.createElement('div'); hd.className = 'hd'; hd.textContent = this.vs === 'training' ? 'TRAINING PARTNER' : 'SPARRING OPPONENT'; root.appendChild(hd);
     const cl = document.createElement('div'); cl.className = 'cl'; root.appendChild(cl);
     const classes: [string, string][] = [['warrior', 'WARRIOR'], ['samurai', 'SAMURAI'], ['book_mage', 'MAGE'], ['archer', 'ARCHER']];
     const clsBtns = classes.map(([id, label]) => {
@@ -3747,7 +3758,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const cos = [...Object.entries(this.equipped).filter(([, v]) => v).map(([s, v]) => `${s}:${v}`), `gear:${this.gearCode}`].join(','); // + what is worn
         return { x: k.x, y: k.y, z: k.z, sz: k.supportZ, dir: this.dir, anim: dead ? 'dead' : this.mode, mode: this.mode, sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: this.aim.x, ay: this.aim.y, hp: this.playerHP, alive: !dead, cos, mhp: this.maxHpNow(), iv: this.body.ghost(this.simMs), kg: this.kage?.code(k), a2: this.air2() };
       },
-    }, this.vs === 'cpu'); // (VS CPU: no network — the sparring knight is in this page)
+    }, this.vs === 'cpu' || this.vs === 'training'); // (VS CPU, TRAINING: no network — the sparring knight is in this page)
     this.pvp = pvp;
     this.party = new Party(meta.playerId, {
       send: (m) => pvp.sendParty(m), nameOf: (id) => pvp.nameOf(id),
@@ -3875,11 +3886,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (m.active && m.opponent !== opp) m.abort(); // the opponent left / a third player came in
     else if (m.active && !m.isHost && performance.now() - this.matchHeard > 5000) m.abort(); // the side running it went silent (its window hidden / gone): a free fight until it is back
     if (!m.active && opp) { // the lower id runs a match between two players; against the knight it is always you
-      if (opp === BOT_ID) { m.koWindow = 0; m.start(BOT_ID); }
+      if (opp === BOT_ID) { if (this.vs !== 'training') { m.koWindow = 0; m.start(BOT_ID); } } // (training: no match)
       else if (this.localId < opp) { m.koWindow = PVP.battle.koWindowMs; m.start(opp); }
     }
     m.update(real, ms);
     this.comboGuide?.show(!m.active || (m.phase !== 'vs' && m.phase !== 'over')); // (not over the VS splash or the result)
+    this.trialUi?.show(!!this.bot);
     if (!m.active) return;
     if (this.tagsOn) { const r = m.opponent === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(m.opponent); if (r && !r.hasTag) this.wearTags(); } // (the knight swapped meanwhile)
     B.setHp('l', this.hpFracOf(m.host)); B.setHp('r', this.hpFracOf(m.guest));
@@ -3957,6 +3969,17 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.endKoMoment();
   }
 
+  /** Training: both on the stage's marks, `range` apart (a trial's opener: close by, a few steps, far), whole again, every
+   *  skill ready (the round's held-back ultimate too), the partner facing you. */
+  private trainingReset(range: GuideRange): void {
+    const b = this.bot; if (!b) return;
+    const g = this.stage?.geo.start, [sl, sy] = g ? arenaPt(g.left, g.y) : [PVP.battle.start.left, PVP.battle.start.y], sr = g ? arenaPt(g.right, g.y)[0] : PVP.battle.start.right;
+    const gap = range === 'CLOSE' ? 100 : range === 'MID' ? 160 : 240, x = (sl + sr) / 2 - gap / 2;
+    this.roundReset(x, sy, 1); this.rt?.resetCooldowns();
+    this.rt?.cancelAttacker(BOT_ID);
+    b.resetAt(x + gap, sy, this.simMs, 'left'); b.paused = this.botPaused;
+  }
+
   /** A new round for you: on your mark, full HP, every buff gone, every skill ready, nothing still flying. */
   private roundReset(x: number, y: number, face: 1 | -1): void {
     this.rt?.cancelOwn('death');
@@ -4023,8 +4046,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private showResult(m: Match): void {
     const me = this.localId, left = m.sideOf(me) === 'l';
-    if (this.vs) addResult(scoreKey(this.vs, this.pvp?.room), m.champ === null ? 'd' : m.champ === me ? 'w' : 'l'); // the fighter select's count
-    const rank = this.vs ? settle({ won: m.champ === null ? null : m.champ === me, cls: this.cls, perfects: this.mStats.perfects, maxCombo: this.mStats.combo, vs: this.vs,
+    if (this.vs && this.vs !== 'training') addResult(scoreKey(this.vs, this.pvp?.room), m.champ === null ? 'd' : m.champ === me ? 'w' : 'l'); // the fighter select's count
+    const rank = this.vs && this.vs !== 'training' ? settle({ won: m.champ === null ? null : m.champ === me, cls: this.cls, perfects: this.mStats.perfects, maxCombo: this.mStats.combo, vs: this.vs,
       level: m.opponent === BOT_ID ? this.bot?.level : undefined, foeRp: this.pvp?.remotes.get(m.opponent)?.meta.rp }) : undefined; // (your rank: RP, streak, titles)
     this.battleHud?.result({ title: m.champ === null ? 'DRAW' : m.champ === me ? 'VICTORY' : 'DEFEAT', me: this.fighterOf(me), them: this.fighterOf(m.opponent), mine: m.wins[left ? 0 : 1], theirs: m.wins[left ? 1 : 0], rank });
     this.refreshRematch();
@@ -4386,7 +4409,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       target: alive && this.pvpReady ? this.hudTarget() : null,
       slots,
       minimap: this.world ? this.world.minimap({ x: k.x, y: k.y, z: k.z, floor: k.supportZ }) : this.arenaMinimap(markers),
-      room: pvp ? { label: `ROOM ${pvp.room}`, playerCount: pvp.connected ? pvp.remotes.size + 1 : 0, maxPlayers: PVP.maxPlayers } : null,
+      room: pvp && this.vs !== 'training' ? { label: `ROOM ${pvp.room}`, playerCount: pvp.connected ? pvp.remotes.size + 1 : 0, maxPlayers: PVP.maxPlayers } : null, // (training: no room, nobody comes)
       combatFeedback: showCombo ? { count: this.combo.count, chain: `${this.combo.skills.size} SKILL${this.combo.skills.size === 1 ? '' : 'S'}  ·  ${this.combo.label}  ·  TOTAL ${Math.min(999, Math.round((this.combo.dmg / this.combo.max) * 100))}%`, expiresAtMs: this.combo.at + COMBO_SHOW_MS } : null,
     };
   }

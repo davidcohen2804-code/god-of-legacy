@@ -1,5 +1,6 @@
-// PvP fighter select (Tekken style) before the arena: VS CPU (you pick your fighter, then the one you fight) or VS PLAYER
-// (an invite link; the other player picks on their own screen, both see each other's choice). Background: the arena itself,
+// PvP fighter select (Tekken style) before the arena: VS CPU (you pick your fighter, then the one you fight), VS PLAYER
+// (an invite link; the other player picks on their own screen, both see each other's choice) or TRAINING (yours, then your
+// training partner: the arena without a match, the combo trials). Background: the arena itself,
 // under a light of each side's colour; the two fighters alive on it (FighterArt) and the select overlay (DOM) on top.
 import Phaser from 'phaser';
 import { DESIGN } from '../config/layout';
@@ -54,7 +55,7 @@ export class PvpSelectScene extends Phaser.Scene {
     this.hover = data?.p1 ?? (sel && (ROSTER as readonly string[]).includes(sel.classId) ? sel.classId : 'samurai');
     this.ui = new PvpSelectUI(this.game.canvas.parentElement!, this.game.canvas, {
       back: () => { Sound.music(this, null, 500); this.leave(() => { clearPvpFromUrl(); this.scene.start('MainMenuScene'); }); },
-      mode: (m) => { if (m === 'player') this.openLobby(); else this.closeLobby(); this.ui?.setScore(score(scoreKey(m, this.lobby?.room))); },
+      mode: (m) => { if (m === 'player') this.openLobby(); else this.closeLobby(); if (m !== 'training') this.ui?.setScore(score(scoreKey(m, this.lobby?.room))); },
       local: (hover, pick) => { this.hover = hover; this.lobby?.set(hover, pick, fighterFor(hover).name); },
       start: (p1, p2, m, stage) => this.start(p1, p2, m, stage),
       copyLink: async () => { try { await navigator.clipboard.writeText(window.location.href); return true; } catch { return false; } },
@@ -63,7 +64,7 @@ export class PvpSelectScene extends Phaser.Scene {
       stage: (id) => this.backdrop(id),
     }, { mode, p1: this.hover, p2: data?.p2 });
     if (mode === 'player') this.openLobby(); else clearPvpFromUrl();
-    this.ui.setScore(score(scoreKey(mode, this.lobby?.room)));
+    if (mode !== 'training') this.ui.setScore(score(scoreKey(mode, this.lobby?.room)));
     addMotes(this, { x: 0, y: 80, w: DESIGN.width, h: 900 }, 26, { depth: 3, size: [8, 20], speed: [10, 22], alpha: 0.55 }); // embers drifting over the arena (and the fighters)
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, this.layout, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -119,11 +120,11 @@ export class PvpSelectScene extends Phaser.Scene {
     this.ui.setNet({ status: l.status, room: l.room, link: window.location.href, local: l.kind === 'Local' }, o ? { name: o.name, hover: o.hover, pick: o.pick } : null);
   }
 
-  /** Both locked in: into the arena — against the CPU in a room of your own on the stage you picked, or with the other
-   *  player in the shared one (its stage comes from the room, the same on both screens). */
+  /** Both locked in: into the arena — against the CPU (or with your training partner) in a room of your own on the stage
+   *  you picked, or with the other player in the shared one (its stage comes from the room, the same on both screens). */
   private start(p1: string, p2: string, mode: VsMode, stage?: string): void {
     const fighter = fighterFor(p1);
-    if (mode === 'cpu') this.scene.start('LegacyCourtyardScene', { pvpRoom: generateRoomId(6), fighter, botCls: p2, vs: 'cpu', stage });
+    if (mode !== 'player') this.scene.start('LegacyCourtyardScene', { pvpRoom: generateRoomId(6), fighter, botCls: p2, vs: mode, stage });
     else this.scene.start('LegacyCourtyardScene', { pvpRoom: this.lobby?.room ?? ensurePvpRoomInUrl(), fighter, vs: 'player', foe: { cls: p2, name: this.lobby?.other?.name || 'Player 2' } }); // (foe: for the loading screen)
   }
 
