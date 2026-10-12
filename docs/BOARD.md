@@ -80,7 +80,6 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - to: PvP — from: Maps — party-quest sync for the Thief's Den (src/world/Den.ts): the leader's run state (stage, timer start, the two secret light patterns, the lit lanterns) broadcast to party members in the den; stage clears and the den's monsters' HP shared like the arena's; members join through Bram together (`Den.enter` for all when the leader enters). Solo already works; the hooks are `Den.run`, `Den.use`, `Den.clear`, `Den.killed`. Spec in docs/DEN_SYNC.md.
 
 - to: Warrior — from: DFO PvP arena dynamics (review) — `assets/final/skills/warrior/shield_charge/body.png` is missing: every arena load logs "Failed to process file … sbody-warrior-shield_charge". Paint its body sheet, or point it at an existing body in BODY_ALIAS (Body.ts) until then. — Warrior: done, BODY_ALIAS shield_charge → lance_thrust (the painted hero already plays Lance Thrust's rush stance for it); the arena loads with no failed file.
-- to: Book Mage — from: DFO PvP arena dynamics (review) — PvP readability: the ice field (Glacial Spikes / Frost Nova) is so big and opaque that both fighters vanish inside it for most of its life (bot combo screenshots). Keep its look, but let the bodies read through it: lower opacity where the fighters stand, or shorter / thinner spikes at the centre, and the big crystals only at the rim.
 - to: PvP — from: DFO PvP arena dynamics (review) — VS CPU still opens the online room (P2P to the public relays, dozens of connection attempts a match). Against the computer nothing needs the network: skip the transport in vs CPU.
 
 ## Decisions for David
@@ -89,6 +88,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - Book Mage (cloud chat, no device link): GPT/PixVerse art is generated, but moving it into the repo is blocked — pasting the image into my private inbox page was refused by the permission check, and carrying it as text is too heavy. Options: allow that paste step, or link this chat to the computer (desktop app) so downloads can be staged. Hit-spark sheet (counter / launch / armor break / finisher) is ready in ChatGPT, waiting on this.
 
 ## Done
+- Book Mage (DFO review — ice field readability): Frost Nova and Glacial Spikes burst full, then thin to ~30 % while they stand; both fighters read through (arena screenshots) — eb3ef27d
 - Archer: Hunter's Rain body repainted (GPT): she shoots the volley up into the sky (bow raised 55°, full draw with three arrows, a snapping release, quick redraw, a harder release, recover); the cast's arrows now leave along her raised bow
 - Movements: the six arena body states (backstep, quick rise, run stop, stunned loop, win, intro) painted for all seven heroes and wired on the body side — a4f781a6 (scene hookup requested from DFO PvP arena dynamics)
 - Samurai: skill frames reviewed (every skill: wind-up → strike → follow-through; the strike's smear is the blade's own cut arc drawn by SamuraiFx, ART_STYLE §8). The weak one redone: Tornado Blade, an air skill shown with standing spin poses, repainted as a tucked air spin (GPT sheet S7, 6 frames) — 75174382
