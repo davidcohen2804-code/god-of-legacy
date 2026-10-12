@@ -53,7 +53,10 @@ the weapon — gambler, beginners), `<hero>_small_green.jpg` (figure 50 % height
 - Scale from a GPT still (1402×1122 canvas, same-size prompt) to the motion canvas: warrior 0.608, samurai —, archer 0.623,
   book_mage 0.626, gambler 0.558, beginner ♂ 0.615, beginner ♀ 0.622 (`tools/heroes/pipeline/stillpose.py <hero> <act> <scale> imgs…`).
 - Actions in the atlas today: idle, walk, run, jump (3: crouch, apex, fall), djump (2), stance, hurt 6, launched 6,
-  down_impact 3, down 2, getup 7, plus each class's skill sheets (6 frames each).
+  down_impact 3, down 2, getup 7, backstep 4, quickrise 3, runstop 2, stunned 4 (loop), win 8 (holds), intro 8,
+  plus each class's skill sheets (6 frames each).
+- Still-pose states (`pipeline/states.py <hero> <scale>`, stills in `st/<hero>_<pose>.jpg`): scale = 505 / the upright
+  still's height (`runstop2`). Video strips (`pipeline/strip.py <hero> <act> <strip.jpg> <n> <ms> [hold]`): frame 0 = the standing ref.
 
 ## 7. Prompt recipes that work
 **GPT (stills, in the ChatGPT tab, it opens raw GitHub links):**
