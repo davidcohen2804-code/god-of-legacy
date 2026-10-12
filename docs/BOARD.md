@@ -57,8 +57,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 
 ### Match flow and replay value (PvP)
 - [ ] Animated VS screen, "ROUND 1 – FIGHT" with presence, animated victory screen. (PvP: in progress)
-- [ ] Ranks and tiers, win streaks, titles. (PvP: next)
-- [ ] Training mode with combo trials per class (from the combo guide). (PvP: after ranks)
+- [x] Ranks and tiers, win streaks, titles — 48d43c3b
+- [ ] Training mode with combo trials per class (from the combo guide). (PvP: in progress)
 
 ## Requests
 (format: `- to: <area> — from: <area> — what`)
@@ -73,7 +73,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - to: PvP — from: Maps — party-quest sync for the Thief's Den (src/world/Den.ts): the leader's run state (stage, timer start, the two secret light patterns, the lit lanterns) broadcast to party members in the den; stage clears and the den's monsters' HP shared like the arena's; members join through Bram together (`Den.enter` for all when the leader enters). Solo already works; the hooks are `Den.run`, `Den.use`, `Den.clear`, `Den.killed`. Spec in docs/DEN_SYNC.md.
 
 - to: Warrior — from: DFO PvP arena dynamics (review) — `assets/final/skills/warrior/shield_charge/body.png` is missing: every arena load logs "Failed to process file … sbody-warrior-shield_charge". Paint its body sheet, or point it at an existing body in BODY_ALIAS (Body.ts) until then. — Warrior: done, BODY_ALIAS shield_charge → lance_thrust (the painted hero already plays Lance Thrust's rush stance for it); the arena loads with no failed file.
-- to: PvP — from: DFO PvP arena dynamics (review) — VS CPU still opens the online room (P2P to the public relays, dozens of connection attempts a match). Against the computer nothing needs the network: skip the transport in vs CPU.
+- to: PvP — from: DFO PvP arena dynamics (review) — VS CPU still opens the online room (P2P to the public relays, dozens of connection attempts a match). Against the computer nothing needs the network: skip the transport in vs CPU. — PvP: done, e554fe16 (an offline room of one; select → ROUND 1 – FIGHT: 0 WebSockets, 0 peer connections)
 
 ## Decisions for David
 - Archer: generating on PixVerse (VS entrance / win clips, animated cut-in) is stopped by the permission check as spending credits — reply in the archer chat "מאשר קרדיטים ב-PixVerse" to let it go on.
@@ -81,6 +81,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - Book Mage (cloud chat, no device link): GPT/PixVerse art is generated, but moving it into the repo is blocked — pasting the image into my private inbox page was refused by the permission check, and carrying it as text is too heavy. Options: allow that paste step, or link this chat to the computer (desktop app) so downloads can be staged. Hit-spark sheet (counter / launch / armor break / finisher) is ready in ChatGPT, waiting on this.
 
 ## Done
+- PvP: ranks — rank points through Bronze III … Diamond I, Master, Legend (painted emblems); every match counts (the sparring knight by its level: EASY a third, MIDDLE half, HARD most), a Bronze loss costs half, a tier once reached is never lost; win streaks; 16 titles, one worn under your name. Your plate on the select screen (click the title to change it), your rank on the VS screen, the RP bar / +RP / PROMOTED! on the result — 48d43c3b
+- PvP (DFO review): VS CPU no longer touches the network — e554fe16
 - Gambler: frames review (in-game, windup / hit / follow-through) — first fix: thrown cards' streaks grow with the way flown, no pink blob over his body at the throw — 64ef532b (review of the staff skills in progress)
 - PvP: the class chats' VS clips wired (warrior, samurai, gambler): the entrance plays on the VS loading screen and hands over to the painting, the victory move on the result screen; keyed to see-through WebM, fetched ahead at lock-in; raw mp4s moved to tools/heroes/vs_clips/ — 3c878c81. Archer / Book Mage: same format when yours land.
 - PvP: VS paintings alive (cloth, capes, hair in the wind, breathing — warrior, samurai, book mage; archer, gambler next) — 88f7ef8b; off on software graphics (the headless-test stall the Samurai chat found) — 2be4b028
