@@ -11,6 +11,7 @@ import { ARENA } from '../combat/Combat';
 import { ensureTheme } from './theme';
 import { heroFx, heroFxUrls } from './HeroFx';
 import { liven } from './LivingArt';
+import { CallFx } from './CallFx';
 import { Sound } from '../audio/Sound';
 
 export type Side = 'l' | 'r';
@@ -331,6 +332,8 @@ export class BattleHUD {
   private clockN: HTMLDivElement;
   private clockRd: HTMLDivElement;
   private calls: HTMLDivElement;
+  /** The calls' presence: sparks, rings, speed lines, the ROUND band, letterbox bars, shards, cracks. */
+  private cf: CallFx;
   private res?: HTMLDivElement;
   private resState?: HTMLDivElement;
   private resBtn?: HTMLButtonElement;
@@ -349,6 +352,7 @@ export class BattleHUD {
     this.clockN = this.el('div', 'b-n', this.clock);
     this.clockRd = this.el('div', 'b-rd', this.clock);
     this.calls = this.el('div', 'b-calls', this.root);
+    this.cf = new CallFx(this.root, this.calls);
   }
 
   private side(top: HTMLElement, s: Side): SideEls {
@@ -367,7 +371,7 @@ export class BattleHUD {
   }
 
   /** The top HUD (bars, clock) in / out. */
-  setOn(on: boolean): void { this.root.classList.toggle('on', on); }
+  setOn(on: boolean): void { this.root.classList.toggle('on', on); if (!on) { this.cf.letterbox(false); this.cf.clear(); } }
 
   /** The VS art and emblem decoded ahead (the VS screen shows them the moment it opens). */
   private warm: HTMLImageElement[] = [];
@@ -465,7 +469,7 @@ export class BattleHUD {
       void document.fonts?.load(`900 66px ${TITLE}`).then(() => { if (nm.isConnected) fit(); }).catch(() => undefined);
     }
     const mid = this.el('div', 'b-mid b-call slam', v);
-    this.later(() => { this.word(mid, 'VS', 'fire', 210); this.burst(mid, 'fire'); this.shake(); }, 260);
+    this.later(() => { this.word(mid, 'VS', 'fire', 210); this.burst(mid, 'fire'); this.shake(); this.cf.ring(mid, 'fire', 8); this.cf.sparks(960, 490, 'fire', 70); }, 260);
     this.later(() => v.classList.add('out'), Math.max(600, ms - 350));
     this.later(() => v.remove(), ms);
   }
@@ -498,6 +502,7 @@ export class BattleHUD {
     this.later(() => { // the VS emblem slams in on the seam
       const em = this.el('img', 'b-vsem', mid); em.src = VS_EMBLEM; em.alt = 'VS'; em.draggable = false;
       this.burst(mid, 'fire'); this.sparks(mid, '#ffc04a', 14); seam.classList.add('lit'); this.shake();
+      this.cf.ring(mid, 'fire', 8); this.cf.lines(mid, 'fire'); this.cf.sparks(960, 510, 'fire', 90, 1.1); this.cf.embers(960, 560, 1500, 300, 'fire', 26);
     }, 380);
     this.later(() => v.classList.add('out'), Math.max(700, ms - 380));
     this.later(() => v.remove(), ms);
@@ -507,8 +512,10 @@ export class BattleHUD {
   round(n: number, final: boolean, ms: number): void {
     this.clearCalls();
     const c = this.el('div', 'b-call in', this.calls);
+    this.cf.letterbox(true); this.cf.band(c, final ? 'blood' : 'gold'); // (the round is being called: the screen narrows to a cinema's)
     this.el('div', 'b-streak', c);
     if (!this.art(c, final ? 'final' : `round${n}`)) this.word(c, final ? 'FINAL ROUND' : `ROUND ${n}`, 'gold', final ? 128 : 150);
+    this.later(() => { this.cf.sparks(960, 470, final ? 'blood' : 'gold', 46, 0.8); this.cf.embers(960, 470, 1500, 160, final ? 'fire' : 'gold', 34); }, 180);
     this.later(() => c.classList.add('out'), Math.max(300, ms - 320));
     this.later(() => c.remove(), ms);
   }
@@ -517,11 +524,14 @@ export class BattleHUD {
   fight(): void {
     this.clearCalls();
     const c = this.el('div', 'b-call slam fight', this.calls);
+    this.cf.letterbox(false); // (the bars pull back: the fight has the whole screen)
     this.burst(c, 'fire'); this.sparks(c, '#ffb43a', 14);
     if (!this.art(c, 'fight')) this.word(c, 'FIGHT!', 'fire', 220);
     this.shake();
-    this.later(() => c.classList.add('out'), 820);
-    this.later(() => c.remove(), 1150);
+    this.later(() => { this.cf.flash(this.calls, 'radial-gradient(circle at 50% 44%,#fff8e6,rgba(255,180,80,.5) 40%,rgba(0,0,0,0) 75%)', 0.9, 420, c); this.cf.ring(c, 'fire', 10); this.cf.lines(c, 'fire', 640);
+      this.cf.sparks(960, 470, 'fire', 110, 1.25); this.cf.embers(960, 470, 1200, 260, 'fire', 30); }, 150);
+    this.later(() => { const w = c.querySelector<HTMLElement>('.b-ca, .b-w'); if (w) { this.cf.shatter(w, 440); this.cf.sparks(960, 470, 'fire', 40, 0.7); } else c.classList.add('out'); }, 800); // (FIGHT! breaks apart as the fight begins)
+    this.later(() => c.remove(), 1300);
   }
 
   /** The round's end: K.O. (a white flash, blood-red metal), DOUBLE K.O., TIME or DRAW; PERFECT under a flawless K.O. */
@@ -529,12 +539,16 @@ export class BattleHUD {
     this.clearCalls();
     const big = kind === 'ko', c = this.el('div', `b-call ${big ? 'slam' : 'in'}`, this.calls);
     if (big || kind === 'double') { const f = this.el('div', 'b-flash', this.calls); this.later(() => f.remove(), 600); }
-    if (big) { this.burst(c, 'blood'); this.sparks(c, '#ff5a3a', 16); this.shake(); }
-    else this.el('div', 'b-streak', c);
+    if (big) { this.burst(c, 'blood'); this.sparks(c, '#ff5a3a', 16); this.shake();
+      this.cf.cracks(this.calls, 960, 470, 'blood'); this.cf.ring(c, 'blood', 11, 700); this.cf.ring(c, 'steel', 7, 520, 90); this.cf.lines(c, 'blood', 760);
+      this.cf.sparks(960, 470, 'blood', 120, 1.35); this.cf.debris(960, 470, 'ash', 26, 1.1); }
+    else if (kind === 'double') { this.cf.ring(c, 'blood', 9); this.cf.sparks(960, 470, 'blood', 80, 1.1); this.cf.debris(960, 470, 'ash', 16); }
+    else { this.el('div', 'b-streak', c); this.cf.band(c, 'steel'); this.cf.sparks(960, 470, 'steel', 40, 0.8); }
     const [text, metal, size]: [string, Metal, number] = kind === 'ko' ? ['K.O.', 'blood', 260] : kind === 'double' ? ['DOUBLE K.O.', 'blood', 150] : kind === 'time' ? ['TIME', 'steel', 210] : ['DRAW', 'steel', 210];
     const drawn = kind === 'double' ? CALL_ART.double && CALL_ART.ko && this.art(c, 'double') && this.art(c, 'ko', 300) : this.art(c, kind); // (DOUBLE over the K.O.)
     if (!drawn) this.word(c, text, metal, size);
-    if (perfect) { const p = this.el('div', 'b-sub', c); if (!this.art(p, 'perfect')) p.textContent = 'PERFECT'; }
+    if (perfect) { const p = this.el('div', 'b-sub', c); if (!this.art(p, 'perfect')) p.textContent = 'PERFECT';
+      this.later(() => { this.cf.sparks(960, 640, 'gold', 60, 0.9); this.cf.embers(960, 640, 900, 120, 'gold', 40); }, 500); }
     this.later(() => c.classList.add('out'), Math.max(400, hold - 330));
     this.later(() => c.remove(), hold);
   }
@@ -558,7 +572,12 @@ export class BattleHUD {
     }
     const c = this.el('div', 'b-call slam', r);
     if (!this.art(c, o.title.toLowerCase(), o.title === 'DRAW' ? 211 : 230)) this.word(c, o.title, o.title === 'VICTORY' ? 'gold' : o.title === 'DEFEAT' ? 'blood' : 'steel', 168); // (DRAW at the round call's scale)
-    if (o.title === 'VICTORY') this.sparks(c, '#ffd25a', 12);
+    if (o.title === 'VICTORY') {
+      this.sparks(c, '#ffd25a', 12);
+      this.later(() => { this.cf.ring(c, 'gold', 7); this.cf.sparks(1400, 360, 'gold', 90, 1.1); }, 200);
+      this.cf.emit(() => this.cf.embers(960, 1120, 1920, 40, 'gold', 3, 1.3), 90, 9000); // (gold rising all over the screen)
+    } else if (o.title === 'DEFEAT') this.cf.emit(() => this.cf.embers(960, -30, 1920, 40, 'ash', 2, -0.7), 110, 9000); // (ash drifting down)
+    else this.later(() => this.cf.sparks(1400, 360, 'steel', 50, 0.9), 200);
     const card = this.el('div', 'b-card gl-panel', r);
     const sc = this.el('div', 'b-sc', card);
     const who = (f: Fighter) => {
@@ -589,7 +608,7 @@ export class BattleHUD {
     this.resState.classList.toggle('hot', theirs && !mine);
   }
 
-  hideResult(): void { this.res?.remove(); this.res = undefined; this.resBtn = undefined; this.resState = undefined; this.root.classList.remove('res'); }
+  hideResult(): void { if (this.res) this.cf.clear(); this.res?.remove(); this.res = undefined; this.resBtn = undefined; this.resState = undefined; this.root.classList.remove('res'); }
 
   clearCalls(): void {
     for (const t of this.timers) clearTimeout(t);
@@ -598,7 +617,7 @@ export class BattleHUD {
     this.calls.classList.remove('shake');
   }
 
-  destroy(): void { this.clearCalls(); this.root.remove(); this.cache.clear(); }
+  destroy(): void { this.clearCalls(); this.cf.destroy(); this.root.remove(); this.cache.clear(); }
 
   // ------------------------------------------------------------------ pieces
 

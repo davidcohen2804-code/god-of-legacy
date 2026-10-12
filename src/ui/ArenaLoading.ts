@@ -10,6 +10,7 @@ import { heroArt } from '../pvp/Fighters';
 import { syncOverlay } from './CharacterSelectUI';
 import { heroFx } from './HeroFx';
 import { liven } from './LivingArt';
+import { CallFx } from './CallFx';
 
 /** One side of the loading screen: a fighter's name and class (`you`: yours). */
 export interface LoadSide { name: string; cls: string; you?: boolean }
@@ -141,6 +142,9 @@ export function showArenaLoading(scene: Phaser.Scene, l: LoadSide, r: LoadSide, 
   }
   el('div', 'al-flash', box);
   const vs = el('img', 'al-vs', box); vs.src = VS_EMBLEM; vs.alt = 'VS'; vs.draggable = false;
+  const cf = new CallFx(box, vs), slam = el('div', '', box); // the slam's presence: a shockwave, speed lines, sparks and embers
+  Object.assign(slam.style, { position: 'absolute', left: '0', top: '300px', width: '1920px', height: '362px', pointerEvents: 'none' });
+  window.setTimeout(() => { if (!root.isConnected) return; cf.ring(slam, 'fire', 8); cf.lines(slam, 'fire'); cf.sparks(960, 481, 'fire', 100, 1.15); cf.embers(960, 600, 1600, 360, 'fire', 30); }, 430);
   const ft = el('div', 'al-ft', box), st = el('div', 'al-st', ft);
   st.append('STAGE  ·  '); el('b', '', st).textContent = stage?.name ?? 'LEGACY COURTYARD';
   const fill = el('div', 'al-fl', el('div', 'al-tk', el('div', 'al-bar', ft)));
