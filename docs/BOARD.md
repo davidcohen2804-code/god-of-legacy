@@ -84,6 +84,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - Book Mage (cloud chat, no device link): GPT/PixVerse art is generated, but moving it into the repo is blocked — pasting the image into my private inbox page was refused by the permission check, and carrying it as text is too heavy. Options: allow that paste step, or link this chat to the computer (desktop app) so downloads can be staged. Hit-spark sheet (counter / launch / armor break / finisher) is ready in ChatGPT, waiting on this.
 
 ## Done
+- PvP: VS PLAYER shows the other player's rank — on the fighter select (under their name) and on the VS loading screen next to yours — 2d7a5ba7
 - PvP: TRAINING — a third tab on the fighter select (yours, then your training partner, a stage): the arena without a match, the partner standing still, no cooldowns, its HP refilling, offline. COMBO TRIALS on the left: the combo guide's routes one at a time, each key lighting up as it lands in one combo (jump / HOLD / ×4 steps checked), DROPPED / MISSED / HOLD IT, TRIAL CLEAR! across the screen, then the next; cleared trials kept per class; RESET puts both on their marks at the opening distance — 576e6af6
 - PvP: warrior clips + gambler's VS entrance colour-matched to their paintings (no colour jump at the hand-over) — 32bb4f7d
 - Samurai: VS / victory clips checked where PvP wired them — colour-matched to their paintings (PixVerse's orange-red back to his crimson, the olive green-screen rim on the cloth cleaned): the hand-over into the painting no longer jumps — 94af8b05
