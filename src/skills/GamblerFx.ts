@@ -365,7 +365,10 @@ export class GamblerFx {
         if (Math.random() < 0.5) this.shards(x - p.dx * 20, y, 1, 30, 240, 0, p.y + 2);
       } else v.img.setAngle(v.img.angle + dt * 1.4);
       v.glow.setPosition(x, y);
-      if (v.streak) { v.streak.setPosition(x, y).setDepth(p.y + 2).setScale(v.streak.scaleX, Math.abs(v.streak.scaleX) * (0.85 + 0.25 * Math.sin(p.ageMs * 0.07)) * (v.streak.flipY ? 1 : 1)); v.g.clear(); continue; }
+      if (v.streak) { // the streak trails the card: it grows with the way flown (never a full streak back over the thrower's body at the throw)
+        const st = v as { sx0?: number; sy0?: number; k0?: number }; st.sx0 ??= x; st.sy0 ??= y; st.k0 ??= Math.abs(v.streak.scaleX);
+        const grow = clamp01(Math.hypot(x - st.sx0, y - st.sy0) / (v.big ? 300 : 150));
+        v.streak.setPosition(x, y).setDepth(p.y + 2).setScale(Math.max(0.02, st.k0 * grow), st.k0 * (0.85 + 0.25 * Math.sin(p.ageMs * 0.07))).setAlpha(0.35 + 0.65 * grow); v.g.clear(); continue; }
       v.trail.push({ x, y }); if (v.trail.length > (v.big ? 14 : 7)) v.trail.shift();
       v.g.clear();
       for (let i = 1; i < v.trail.length; i++) { const k = i / v.trail.length; v.g.lineStyle((v.big ? 14 : 7) * k, k > 0.8 ? 0xffffff : FUCHSIA, 0.7 * k); v.g.lineBetween(v.trail[i - 1].x, v.trail[i - 1].y, v.trail[i].x, v.trail[i].y); }
