@@ -18,6 +18,7 @@ export const WAYSTONES: WaystoneDef[] = [
   { area: 'temple', name: 'Temple Road', x: 1472, y: 560 },
   { area: 'dusk_village', name: 'Elderwood Village', town: 'archer', x: 560, y: 540 },
   { area: 'sakura_village', name: 'Sakura Temple', town: 'samurai', x: 540, y: 560 },
+  { area: 'ironhold_village', name: 'Ironhold', town: 'warrior', x: 540, y: 530 },
 ];
 
 /** The class towns by job: where its Master sends a new student. */

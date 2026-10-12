@@ -38,7 +38,11 @@
   "sakura_village",
   "sakura_1",
   "sakura_2",
-  "sakura_3"
+  "sakura_3",
+  "ironhold_village",
+  "ironhold_1",
+  "ironhold_2",
+  "ironhold_3"
  ],
  "joins": {
   "courtyard|terraces_1": {
@@ -126,6 +130,18 @@
    "blend": 90
   },
   "sakura_2|sakura_3": {
+   "blend": 90
+  },
+  "sakura_3|ironhold_village": {
+   "blend": 0
+  },
+  "ironhold_village|ironhold_1": {
+   "blend": 90
+  },
+  "ironhold_1|ironhold_2": {
+   "blend": 90
+  },
+  "ironhold_2|ironhold_3": {
    "blend": 90
   }
  },
@@ -20159,6 +20175,884 @@
      ]
     ]
    }
+  },
+  "ironhold_village": {
+   "props": [
+    {
+     "id": "entry-wall",
+     "foot": [
+      [
+       -30,
+       290
+      ],
+      [
+       30,
+       290
+      ],
+      [
+       30,
+       710
+      ],
+      [
+       -30,
+       710
+      ]
+     ],
+     "h": 999
+    },
+    {
+     "id": "crates",
+     "foot": [
+      [
+       150,
+       462
+      ],
+      [
+       360,
+       462
+      ],
+      [
+       360,
+       525
+      ],
+      [
+       150,
+       525
+      ]
+     ],
+     "base": [
+      [
+       150,
+       499
+      ],
+      [
+       360,
+       499
+      ],
+      [
+       360,
+       525
+      ],
+      [
+       150,
+       525
+      ]
+     ],
+     "h": 70,
+     "top": 70,
+     "stand": [
+      499,
+      522
+     ],
+     "occ": [
+      [
+       212,
+       412
+      ],
+      [
+       300,
+       412
+      ],
+      [
+       300,
+       452
+      ],
+      [
+       358,
+       452
+      ],
+      [
+       358,
+       523
+      ],
+      [
+       152,
+       523
+      ],
+      [
+       152,
+       452
+      ],
+      [
+       212,
+       452
+      ]
+     ]
+    },
+    {
+     "id": "anvil-block",
+     "foot": [
+      [
+       1390,
+       470
+      ],
+      [
+       1570,
+       470
+      ],
+      [
+       1570,
+       530
+      ],
+      [
+       1390,
+       530
+      ]
+     ],
+     "base": [
+      [
+       1390,
+       504
+      ],
+      [
+       1570,
+       504
+      ],
+      [
+       1570,
+       530
+      ],
+      [
+       1390,
+       530
+      ]
+     ],
+     "h": 64,
+     "top": 64,
+     "stand": [
+      504,
+      527
+     ],
+     "occ": [
+      [
+       1455,
+       398
+      ],
+      [
+       1545,
+       398
+      ],
+      [
+       1545,
+       440
+      ],
+      [
+       1560,
+       442
+      ],
+      [
+       1568,
+       470
+      ],
+      [
+       1568,
+       528
+      ],
+      [
+       1392,
+       528
+      ],
+      [
+       1392,
+       470
+      ],
+      [
+       1400,
+       442
+      ],
+      [
+       1455,
+       440
+      ]
+     ]
+    }
+   ],
+   "name": "Ironhold",
+   "walk": [
+    [
+     0,
+     420
+    ],
+    [
+     1672,
+     420
+    ],
+    [
+     1672,
+     558
+    ],
+    [
+     0,
+     558
+    ]
+   ],
+   "mobs": {
+    "kind": "none",
+    "spawns": []
+   },
+   "npcs": [
+    {
+     "id": "waystone_ironhold_village",
+     "name": "Waystone",
+     "title": "Ironhold",
+     "x": 520,
+     "y": 470,
+     "art": "waystone",
+     "role": "waystone",
+     "lines": [
+      "A standing stone, warm to the touch, a golden sun rune glowing in its face. The old roads between the towns run through these."
+     ]
+    },
+    {
+     "id": "thorne",
+     "name": "Captain Thorne",
+     "title": "Warrior Mentor",
+     "x": 720,
+     "y": 452,
+     "art": "thorne",
+     "role": "quest",
+     "lines": [
+      "Welcome to Ironhold, recruit. Every warrior worth the name swung a wooden sword on these flagstones first.",
+      "The crags are restless this season. Keep your shield arm up out there."
+     ]
+    },
+    {
+     "id": "grit",
+     "name": "Grit",
+     "title": "Smith",
+     "x": 980,
+     "y": 446,
+     "art": "grit",
+     "role": "shop",
+     "lines": [
+      "Potions, whetstones, a hot meal from the forge fire. Grit sells what keeps a warrior standing.",
+      "Mind the sparks. The furnace has not gone cold in forty years."
+     ]
+    }
+   ]
+  },
+  "ironhold_1": {
+   "props": [
+    {
+     "id": "boulder",
+     "foot": [
+      [
+       410,
+       432
+      ],
+      [
+       705,
+       432
+      ],
+      [
+       705,
+       485
+      ],
+      [
+       410,
+       485
+      ]
+     ],
+     "base": [
+      [
+       410,
+       455
+      ],
+      [
+       705,
+       455
+      ],
+      [
+       705,
+       485
+      ],
+      [
+       410,
+       485
+      ]
+     ],
+     "h": 60,
+     "top": 60,
+     "stand": [
+      455,
+      482
+     ],
+     "occ": [
+      [
+       434,
+       397
+      ],
+      [
+       681,
+       397
+      ],
+      [
+       704,
+       419
+      ],
+      [
+       704,
+       482
+      ],
+      [
+       681,
+       484
+      ],
+      [
+       434,
+       484
+      ],
+      [
+       411,
+       482
+      ],
+      [
+       411,
+       419
+      ]
+     ]
+    },
+    {
+     "id": "cart",
+     "foot": [
+      [
+       1330,
+       440
+      ],
+      [
+       1540,
+       440
+      ],
+      [
+       1540,
+       490
+      ],
+      [
+       1330,
+       490
+      ]
+     ],
+     "base": [
+      [
+       1330,
+       466
+      ],
+      [
+       1540,
+       466
+      ],
+      [
+       1540,
+       490
+      ],
+      [
+       1330,
+       490
+      ]
+     ],
+     "h": 66,
+     "top": 66,
+     "stand": [
+      466,
+      487
+     ],
+     "occ": [
+      [
+       1345,
+       402
+      ],
+      [
+       1500,
+       398
+      ],
+      [
+       1538,
+       440
+      ],
+      [
+       1538,
+       488
+      ],
+      [
+       1332,
+       488
+      ],
+      [
+       1332,
+       440
+      ]
+     ]
+    }
+   ],
+   "name": "Crag Path",
+   "walk": [
+    [
+     0,
+     385
+    ],
+    [
+     1672,
+     385
+    ],
+    [
+     1672,
+     545
+    ],
+    [
+     0,
+     545
+    ]
+   ],
+   "mobs": {
+    "kind": "pebblit",
+    "spawns": [
+     [
+      250,
+      430
+     ],
+     [
+      300,
+      520
+     ],
+     [
+      800,
+      420
+     ],
+     [
+      950,
+      520
+     ],
+     [
+      1100,
+      430
+     ],
+     [
+      1250,
+      520
+     ],
+     [
+      1600,
+      440
+     ]
+    ]
+   }
+  },
+  "ironhold_2": {
+   "props": [
+    {
+     "id": "ore-cart",
+     "foot": [
+      [
+       495,
+       440
+      ],
+      [
+       650,
+       440
+      ],
+      [
+       650,
+       490
+      ],
+      [
+       495,
+       490
+      ]
+     ],
+     "base": [
+      [
+       495,
+       466
+      ],
+      [
+       650,
+       466
+      ],
+      [
+       650,
+       490
+      ],
+      [
+       495,
+       490
+      ]
+     ],
+     "h": 56,
+     "top": 56,
+     "stand": [
+      466,
+      487
+     ],
+     "occ": [
+      [
+       520,
+       396
+      ],
+      [
+       625,
+       396
+      ],
+      [
+       648,
+       430
+      ],
+      [
+       648,
+       488
+      ],
+      [
+       497,
+       488
+      ],
+      [
+       497,
+       430
+      ]
+     ]
+    },
+    {
+     "id": "ingots",
+     "foot": [
+      [
+       1360,
+       453
+      ],
+      [
+       1520,
+       453
+      ],
+      [
+       1520,
+       503
+      ],
+      [
+       1360,
+       503
+      ]
+     ],
+     "base": [
+      [
+       1360,
+       481
+      ],
+      [
+       1520,
+       481
+      ],
+      [
+       1520,
+       503
+      ],
+      [
+       1360,
+       503
+      ]
+     ],
+     "h": 36,
+     "top": 36,
+     "stand": [
+      481,
+      500
+     ],
+     "occ": [
+      [
+       1376,
+       447
+      ],
+      [
+       1504,
+       447
+      ],
+      [
+       1519,
+       461
+      ],
+      [
+       1519,
+       500
+      ],
+      [
+       1504,
+       502
+      ],
+      [
+       1376,
+       502
+      ],
+      [
+       1361,
+       500
+      ],
+      [
+       1361,
+       461
+      ]
+     ]
+    }
+   ],
+   "name": "Forge Road",
+   "walk": [
+    [
+     0,
+     400
+    ],
+    [
+     1672,
+     400
+    ],
+    [
+     1672,
+     545
+    ],
+    [
+     0,
+     545
+    ]
+   ],
+   "mobs": {
+    "kind": "cinder_boar",
+    "spawns": [
+     [
+      250,
+      440
+     ],
+     [
+      330,
+      525
+     ],
+     [
+      800,
+      430
+     ],
+     [
+      950,
+      525
+     ],
+     [
+      1100,
+      440
+     ],
+     [
+      1250,
+      525
+     ],
+     [
+      1620,
+      440
+     ]
+    ]
+   }
+  },
+  "ironhold_3": {
+   "props": [
+    {
+     "id": "ore-boulders",
+     "foot": [
+      [
+       240,
+       458
+      ],
+      [
+       575,
+       458
+      ],
+      [
+       575,
+       513
+      ],
+      [
+       240,
+       513
+      ]
+     ],
+     "base": [
+      [
+       240,
+       483
+      ],
+      [
+       575,
+       483
+      ],
+      [
+       575,
+       513
+      ],
+      [
+       240,
+       513
+      ]
+     ],
+     "h": 83,
+     "top": 83,
+     "stand": [
+      483,
+      510
+     ],
+     "occ": [
+      [
+       264,
+       402
+      ],
+      [
+       551,
+       402
+      ],
+      [
+       574,
+       424
+      ],
+      [
+       574,
+       510
+      ],
+      [
+       551,
+       512
+      ],
+      [
+       264,
+       512
+      ],
+      [
+       241,
+       510
+      ],
+      [
+       241,
+       424
+      ]
+     ]
+    },
+    {
+     "id": "tipped-cart",
+     "foot": [
+      [
+       1013,
+       462
+      ],
+      [
+       1187,
+       462
+      ],
+      [
+       1187,
+       513
+      ],
+      [
+       1013,
+       513
+      ]
+     ],
+     "base": [
+      [
+       1013,
+       489
+      ],
+      [
+       1187,
+       489
+      ],
+      [
+       1187,
+       513
+      ],
+      [
+       1013,
+       513
+      ]
+     ],
+     "h": 62,
+     "top": 62,
+     "stand": [
+      489,
+      510
+     ],
+     "occ": [
+      [
+       1030,
+       430
+      ],
+      [
+       1160,
+       428
+      ],
+      [
+       1185,
+       470
+      ],
+      [
+       1185,
+       511
+      ],
+      [
+       1015,
+       511
+      ],
+      [
+       1015,
+       470
+      ]
+     ]
+    }
+   ],
+   "name": "Ember Quarry",
+   "walk": [
+    [
+     0,
+     420
+    ],
+    [
+     1672,
+     420
+    ],
+    [
+     1672,
+     545
+    ],
+    [
+     0,
+     545
+    ]
+   ],
+   "mobs": {
+    "kind": "boulder_bear",
+    "spawns": [
+     [
+      1450,
+      500
+     ]
+    ]
+   },
+   "mobs2": {
+    "kind": "forge_golem",
+    "spawns": [
+     [
+      150,
+      525
+     ],
+     [
+      650,
+      440
+     ],
+     [
+      720,
+      525
+     ],
+     [
+      870,
+      445
+     ],
+     [
+      950,
+      525
+     ],
+     [
+      1260,
+      450
+     ]
+    ]
+   }
   }
  },
  "mobKinds": {
@@ -20436,6 +21330,67 @@
    "cooldown": 1600,
    "respawnMs": 150000,
    "exp": 1600,
+   "level": 19,
+   "boss": true
+  },
+  "pebblit": {
+   "name": "Pebblit",
+   "frames": "pebblit",
+   "texQ": 2,
+   "scale": 1.0,
+   "hp": 240,
+   "damage": 15,
+   "speed": 50,
+   "aggro": 220,
+   "range": 70,
+   "cooldown": 1300,
+   "respawnMs": 10000,
+   "exp": 45,
+   "level": 11
+  },
+  "cinder_boar": {
+   "name": "Cinder Boar",
+   "frames": "cinder_boar",
+   "texQ": 2,
+   "scale": 1.0,
+   "hp": 360,
+   "damage": 19,
+   "speed": 88,
+   "aggro": 280,
+   "range": 80,
+   "cooldown": 1300,
+   "respawnMs": 11000,
+   "exp": 66,
+   "level": 14
+  },
+  "forge_golem": {
+   "name": "Forge Golem",
+   "frames": "forge_golem",
+   "texQ": 2,
+   "scale": 1.0,
+   "hp": 620,
+   "damage": 24,
+   "speed": 56,
+   "aggro": 250,
+   "range": 90,
+   "cooldown": 1500,
+   "respawnMs": 12000,
+   "exp": 108,
+   "level": 17
+  },
+  "boulder_bear": {
+   "name": "Boulder Bear",
+   "frames": "boulder_bear",
+   "texQ": 1.4,
+   "scale": 1.0,
+   "hp": 5600,
+   "damage": 32,
+   "speed": 80,
+   "aggro": 440,
+   "range": 120,
+   "cooldown": 1700,
+   "respawnMs": 150000,
+   "exp": 1700,
    "level": 19,
    "boss": true
   }
@@ -21277,6 +22232,173 @@
     "items": {
      "elixir": 3,
      "swift_potion": 2
+    }
+   }
+  },
+  {
+   "id": "pebbles_underfoot",
+   "giver": "thorne",
+   "title": "Pebbles Underfoot",
+   "after": "before_road",
+   "summary": "Captain Thorne of Ironhold asked you to clear ten Pebblits off the Crag Path, where the recruits run their morning drills.",
+   "offer": [
+    "New blood! Good. The recruits run the Crag Path every morning, and every morning the Pebblits roll under their boots.",
+    "Clear ten of them off the path east of the gate and report back. They bounce and they bump. Nothing a recruit cannot handle."
+   ],
+   "accept": "Yes, Captain",
+   "decline": "Not now",
+   "progress": [
+    "Ten Pebblits on the Crag Path, east of the gate."
+   ],
+   "done": [
+    "Ten, and not a scratch on you. That is how it is done. Here, from the garrison stores."
+   ],
+   "complete": "Thank you, Captain",
+   "objectives": [
+    {
+     "kind": "kill",
+     "mob": "pebblit",
+     "count": 10,
+     "text": "Defeat Pebblits (Crag Path)"
+    },
+    {
+     "kind": "talk",
+     "npc": "thorne",
+     "text": "Report to Captain Thorne"
+    }
+   ],
+   "reward": {
+    "gold": 250,
+    "exp": 450,
+    "items": {
+     "meat": 5,
+     "red_potion": 5
+    }
+   }
+  },
+  {
+   "id": "cinder_tusks",
+   "giver": "thorne",
+   "title": "Cinder Tusks",
+   "after": "pebbles_underfoot",
+   "summary": "The Cinder Boars have come down onto the Forge Road and the carts cannot pass. Captain Thorne asked you for eight Cinder Tusks to prove the road is clear.",
+   "offer": [
+    "The Forge Road is blocked. Cinder Boars, a whole sounder of them, rooting through the ore carts and scattering embers everywhere.",
+    "Drive them off and bring me eight of their tusks so I know the road is clear. They charge straight: step aside, then strike."
+   ],
+   "accept": "On my way",
+   "decline": "Not now",
+   "progress": [
+    "Eight Cinder Tusks from the Cinder Boars on the Forge Road."
+   ],
+   "done": [
+    "Eight tusks, still warm. The carts are already rolling. You have a warrior's timing, whatever your weapon."
+   ],
+   "complete": "Glad to help",
+   "objectives": [
+    {
+     "kind": "collect",
+     "item": "cinder_tusk",
+     "count": 8,
+     "text": "Collect Cinder Tusks from Cinder Boars (Forge Road)"
+    },
+    {
+     "kind": "talk",
+     "npc": "thorne",
+     "text": "Bring them to Captain Thorne"
+    }
+   ],
+   "reward": {
+    "gold": 400,
+    "exp": 750,
+    "items": {
+     "blue_potion": 5,
+     "meat": 10
+    }
+   }
+  },
+  {
+   "id": "grits_order",
+   "giver": "thorne",
+   "title": "Grit's Order",
+   "after": "cinder_tusks",
+   "summary": "Grit the smith's furnace is running low on forge cores. Captain Thorne asked you to bring him six from the Forge Golems in the Ember Quarry.",
+   "offer": [
+    "Grit has been hammering cold iron for two days. His furnace wants forge cores, and the only ones left are inside the old Forge Golems in the Ember Quarry.",
+    "The golems were built to haul ore, not to fight, but they do not like being switched off. Bring Grit six cores. He will remember it when you need a blade."
+   ],
+   "accept": "I'll bring them",
+   "decline": "Not now",
+   "progress": [
+    "Six Forge Cores from the Forge Golems in the Ember Quarry, for Grit at the forge."
+   ],
+   "done": [
+    "Forge cores! Ha! Hear that? The furnace is singing again.",
+    "Anything on my racks is yours at a fair price, and come warm your hands whenever you like."
+   ],
+   "complete": "Good to hear",
+   "objectives": [
+    {
+     "kind": "collect",
+     "item": "forge_core",
+     "count": 6,
+     "text": "Collect Forge Cores from Forge Golems (Ember Quarry)"
+    },
+    {
+     "kind": "talk",
+     "npc": "grit",
+     "text": "Bring them to Grit"
+    }
+   ],
+   "reward": {
+    "gold": 450,
+    "exp": 900,
+    "items": {
+     "meat": 10,
+     "elixir": 1
+    }
+   }
+  },
+  {
+   "id": "crag_king",
+   "giver": "thorne",
+   "title": "The Crag King",
+   "after": "grits_order",
+   "summary": "The Boulder Bear that the recruits call the Crag King has taken the garrison's old war horn into his den at the end of the Ember Quarry. Captain Thorne asked you to bring it back.",
+   "offer": [
+    "One more, and this one is no drill. The Boulder Bear, the Crag King, the recruits call him, came down in the night and carried off the garrison's war horn, the one that has called Ironhold to arms for three hundred years.",
+    "He dens at the far end of the Ember Quarry. He is slow, he is proud and he hits like a landslide. Are you ready?",
+    "Bring the horn home and I will sound it for you myself."
+   ],
+   "accept": "I'm ready",
+   "decline": "Not yet",
+   "progress": [
+    "The Boulder Bear, at the far end of the Ember Quarry. Keep moving: his paws come down slow and heavy. Bring the War Horn to Captain Thorne."
+   ],
+   "done": [
+    "The horn! Thorne lifts it, draws a breath, and one long note rolls down the canyon and back.",
+    "Ironhold has heard it. Whatever your path, you have a place in these walls."
+   ],
+   "complete": "It was an honour",
+   "objectives": [
+    {
+     "kind": "collect",
+     "item": "war_horn",
+     "count": 1,
+     "text": "Take the War Horn from the Boulder Bear (Ember Quarry)"
+    },
+    {
+     "kind": "talk",
+     "npc": "thorne",
+     "text": "Bring it to Captain Thorne"
+    }
+   ],
+   "reward": {
+    "gold": 1200,
+    "exp": 2500,
+    "items": {
+     "elixir": 3,
+     "warrior_potion": 2
     }
    }
   }

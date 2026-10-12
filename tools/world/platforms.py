@@ -49,6 +49,16 @@ PLATFORMS = {
                {'id': 'offering-chest', 'x': (1347, 1560), 'front': 500, 'h': 56, 'depth': 24}],
   # Bamboo Grove: the stack of cut bamboo, the flat mossy rock before the tengu's cave
   'sakura_3': [stump('logs', 233, 400, 387, 467, 22, 14), stump('rock', 1153, 1347, 400, 468, 26, 20)],
+  # Ironhold: the iron-banded crates by the gate, the anvil's stone block by the keep
+  'ironhold_village': [{'id': 'crates', 'x': (150, 360), 'front': 525, 'h': 70, 'depth': 26, 'back': 462, 'occ': [[212, 412], [300, 412], [300, 452], [358, 452], [358, 523], [152, 523], [152, 452], [212, 452]]},
+                       {'id': 'anvil-block', 'x': (1390, 1570), 'front': 530, 'h': 64, 'depth': 26, 'back': 470, 'occ': [[1455, 398], [1545, 398], [1545, 440], [1560, 442], [1568, 470], [1568, 528], [1392, 528], [1392, 470], [1400, 442], [1455, 440]]}],
+  # Crag Path: the flat red boulder, the broken ore cart
+  'ironhold_1': [dict(stump('boulder', 410, 705, 395, 485, 30, 24), back=432), {'id': 'cart', 'x': (1330, 1540), 'front': 490, 'h': 66, 'depth': 24, 'back': 440, 'occ': [[1345, 402], [1500, 398], [1538, 440], [1538, 488], [1332, 488], [1332, 440]]}],
+  # Forge Road: the loaded ore cart on the rails, the stack of iron ingots
+  'ironhold_2': [{'id': 'ore-cart', 'x': (495, 650), 'front': 490, 'h': 56, 'depth': 24, 'back': 440, 'occ': [[520, 396], [625, 396], [648, 430], [648, 488], [497, 488], [497, 430]]},
+                 stump('ingots', 1360, 1520, 445, 503, 22, 16)],
+  # Ember Quarry: the ember-ore boulders, the overturned mine cart before the Crag King's cave
+  'ironhold_3': [dict(stump('ore-boulders', 240, 575, 400, 513, 30, 24), back=458), {'id': 'tipped-cart', 'x': (1013, 1187), 'front': 513, 'h': 62, 'depth': 24, 'back': 462, 'occ': [[1030, 430], [1160, 428], [1185, 470], [1185, 511], [1015, 511], [1015, 470]]}],
   'terraces_1': [
     {'id': 'block-low', 'x': (262, 372), 'front': 528, 'h': 73, 'depth': 22},
     {'id': 'block-tall', 'x': (376, 492), 'front': 520, 'h': 100, 'depth': 31},
@@ -62,7 +72,7 @@ for a, blocks in PLATFORMS.items():
   props = [p for p in D['areas'][a].get('props', []) if not p['id'].startswith(('block', 'ledge', 'platform', 'stump')) and p['id'] not in mine]
   for b in blocks:
     x0, x1 = b['x']; f, h = b['front'], b['h']
-    s0 = f - b['depth']; back = s0 - h + FOOT_R - EDGE
+    s0 = f - b['depth']; back = b.get('back', s0 - h + FOOT_R - EDGE)   # back: the footprint's own back edge (a tall block on a shallow floor would wall the path off)
     top = f - h - b['depth']
     occ = b.get('occ') or [[x0 + 2, top + 3], [x1 - 2, top + 3], [x1 - 1, f - 2], [x0 + 1, f - 2]]
     b0 = b.get('solid_to', s0)   # solid_to: nothing walkable behind it (it stands against the floor's back edge)

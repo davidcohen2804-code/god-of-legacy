@@ -104,7 +104,7 @@ export class OpenWorld {
   private backdrop: Backdrop | null = null;
   private camX = 0;
   /** The sealed walls between the regions (an area's `entry-wall` prop, at its west edge): the view never crosses one. */
-  private walls: number[] = ROW.filter((a) => a.props.some((p) => p.id === 'entry-wall')).map((a) => a.x);
+  private walls: number[] = ROW.filter((a) => Number.isFinite(a.x) && a.props?.some((p) => p.id === 'entry-wall')).map((a) => a.x);
   private camY = 0;
   private t = 0;
   /** The talk / portal prompt target (null = none in reach). */

@@ -46,26 +46,38 @@ ROUTE = [
   ('sakura_1', ('Blossom Steps', None, False, 'petal_sprite')),
   ('sakura_2', ('Fox Shrine Path', None, False, 'kitsune_kit')),
   ('sakura_3', ('Bamboo Grove', None, False, 'tengu_elder')),
+  # the warriors' region: Ironhold (the town) and its three training maps 10–20 (stand-ins until its GPT maps land)
+  ('ironhold_village', ('Ironhold', None, False, None)),   # the town: no monsters
+  ('ironhold_1', ('Crag Path', None, False, 'pebblit')),
+  ('ironhold_2', ('Forge Road', None, False, 'cinder_boar')),
+  ('ironhold_3', ('Ember Quarry', None, False, 'boulder_bear')),
 ]
 DEN = {'den_1', 'den_2', 'den_3', 'den_4', 'den_5'}
 # walled regions (first map, last map): a hard edge into them (no blend) and a wall at their first map's west edge —
 # you reach them by a jump (Bram's door; the Waystone), not on foot
-REGIONS = [('den_1', 'den_5'), ('sakura_village', 'sakura_3')]
+REGIONS = [('den_1', 'den_5'), ('sakura_village', 'sakura_3'), ('ironhold_village', 'ironhold_3')]
 WALLED = {r[0] for r in REGIONS}
 SPAWNS = [[420, 440], [600, 610], [760, 420], [930, 600], [1090, 430], [1260, 610], [1400, 450]]   # 7 a map
 WARDEN = [[1000, 520]]
 # a map's boss: where it stands (map px) and the lesser monsters round it (mobs2)
 BOSSES = {'warden': {'spawns': WARDEN, 'mobs2': 'cursed'}, 'shade_fox': {'spawns': [[836, 530]], 'mobs2': 'moth'},
-          'tengu_elder': {'spawns': [[1480, 500]], 'mobs2': 'bamboo_ronin', 'spawns2': [[480, 420], [640, 540], [800, 430], [980, 545], [1100, 420], [560, 500]]}}
+          'tengu_elder': {'spawns': [[1480, 500]], 'mobs2': 'bamboo_ronin', 'spawns2': [[480, 420], [640, 540], [800, 430], [980, 545], [1100, 420], [560, 500]]},
+          'boulder_bear': {'spawns': [[1450, 500]], 'mobs2': 'forge_golem', 'spawns2': [[150, 525], [650, 440], [720, 525], [870, 445], [950, 525], [1260, 450]]}}
 # maps of their own: spawns clear of their blocks and ledges
 # maps whose floor is not the standard band (map px): the village square ends at its front railing
 OWN_WALK = {'dusk_village': [[0, 346], [AW, 346], [AW, 586], [0, 586]],
             'sakura_village': [[0, 360], [1340, 360], [1340, 450], [AW, 450], [AW, 586], [0, 586]],
             'sakura_1': [[0, 350], [AW, 350], [AW, 575], [0, 575]],   # the mountain path: the cliff behind, the balustrade in front
             'sakura_2': [[0, 350], [AW, 350], [AW, 575], [0, 575]],
-            'sakura_3': [[0, 370], [AW, 370], [AW, 560], [0, 560]]}   # the grove's path: the stands behind, the bamboo fence in front   # the court: the shrine's steps behind, the koi pond at the back right, the railing in front
+            'sakura_3': [[0, 370], [AW, 370], [AW, 560], [0, 560]],   # the grove's path: the stands behind, the bamboo fence in front
+            'ironhold_village': [[0, 420], [AW, 420], [AW, 558], [0, 558]],   # the parade ground: the forge's fence behind, the wall's edge in front
+            'ironhold_1': [[0, 385], [AW, 385], [AW, 545], [0, 545]],   # the ledge road: the cliff behind, the stacked-stone wall in front
+            'ironhold_2': [[0, 400], [AW, 400], [AW, 545], [0, 545]],   # the ore road: the mine's shelf behind, the wall in front
+            'ironhold_3': [[0, 420], [AW, 420], [AW, 545], [0, 545]]}   # the quarry floor: the terraces behind, the rim in front   # the court: the shrine's steps behind, the koi pond at the back right, the railing in front
 OWN_SPAWNS = {'sakura_1': [[200, 440], [480, 548], [800, 420], [1000, 545], [1150, 430], [1450, 558], [1600, 430]],
               'sakura_2': [[250, 430], [420, 550], [900, 420], [1100, 550], [1250, 430], [1450, 555], [1620, 430]],
+              'ironhold_1': [[250, 430], [300, 520], [800, 420], [950, 520], [1100, 430], [1250, 520], [1600, 440]],
+              'ironhold_2': [[250, 440], [330, 525], [800, 430], [950, 525], [1100, 440], [1250, 525], [1620, 440]],
               'terraces_2': [[420, 600], [380, 440], [700, 560], [1000, 590], [1250, 430], [1300, 610], [1520, 470]],
               'orchard_1': [[300, 430], [250, 610], [650, 560], [950, 600], [1300, 430], [1250, 610], [1550, 450]],
               'terraces_1': [[600, 460], [820, 600], [1060, 470], [1230, 600], [1180, 430], [560, 615], [1520, 590]]}

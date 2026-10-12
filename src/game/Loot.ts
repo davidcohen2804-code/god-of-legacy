@@ -49,6 +49,9 @@ export const ITEMS: Record<string, ItemDef> = {
   fox_fire: { id: 'fox_fire', name: 'Fox Fire', kind: 'mat', icon: I('fox_fire'), sell: 9, desc: 'A wisp of blue fox fire, cool to the touch. Ayame at Sakura Temple wants it for the shrine lanterns.', rarity: 'common', lore: "The Kitsune Kits of the Fox Shrine Path ran off with the shrine foxes' lantern fire to play with. It never burns." },
   bamboo_shoot: { id: 'bamboo_shoot', name: 'Bamboo Shoot', kind: 'mat', icon: I('bamboo_shoot'), sell: 12, desc: "A fresh, tender bamboo shoot. Jiro's spring soup needs them.", rarity: 'common', lore: "Cut in the Bamboo Grove above Sakura Temple, where the old training dummies stand guard over the best ones." },
   bell_clapper: { id: 'bell_clapper', name: 'Bell Clapper', kind: 'key', icon: I('bell_clapper'), sell: 0, desc: "The great bell of Sakura Temple's clapper, taken by the Tengu Elder. Bring it to Ayame.", rarity: 'rare', lore: "Bronze, old and heavy, wrapped in a faded red cord. The temple's bell has been silent since it was taken." },
+  cinder_tusk: { id: 'cinder_tusk', name: 'Cinder Tusk', kind: 'mat', icon: I('cinder_tusk'), sell: 10, desc: 'A short curved tusk, still warm. Captain Thorne at Ironhold counts them.', rarity: 'common', lore: "The Cinder Boars of the Forge Road sharpen them on the ore carts. They glow a little in the dark." },
+  forge_core: { id: 'forge_core', name: 'Forge Core', kind: 'mat', icon: I('forge_core'), sell: 14, desc: "A glowing iron heart. Grit's furnace at Ironhold runs on these.", rarity: 'common', lore: "Taken from the old Forge Golems of the Ember Quarry, built to haul ore and never switched off." },
+  war_horn: { id: 'war_horn', name: 'War Horn', kind: 'key', icon: I('war_horn'), sell: 0, desc: "Ironhold's old war horn, carried off by the Boulder Bear. Bring it to Captain Thorne.", rarity: 'rare', lore: "A great curved horn bound in bronze. It has called Ironhold to arms for three hundred years." },
   cursed_cloth: { id: 'cursed_cloth', name: 'Cursed Cloth', kind: 'mat', icon: I('cursed_cloth'), sell: 12, desc: 'A scrap of cloth that still hums with a curse. Merchants buy it.', rarity: 'common', lore: "Torn from the cloaks of the Cursed Swordsmen. The curse still hums in its threads." },
 };
 export const ITEM_IDS = Object.keys(ITEMS);
@@ -96,6 +99,10 @@ const DROPS: Record<string, { gold: [number, number]; items: [string, number][] 
   kitsune_kit: { gold: [12, 22], items: [['fox_fire', 0.6], ['blue_potion', 0.05], ['orange', 0.05]] },
   bamboo_ronin: { gold: [16, 30], items: [['bamboo_shoot', 0.55], ['red_potion', 0.07], ['blue_potion', 0.04], ['cake', 0.03]] },
   tengu_elder: { gold: [400, 650], items: [['bell_clapper', 1], ['elixir', 0.6], ['swift_potion', 0.6]] },
+  pebblit: { gold: [10, 18], items: [['meat', 0.05], ['red_potion', 0.06], ['apple', 0.05]] },
+  cinder_boar: { gold: [14, 24], items: [['cinder_tusk', 0.6], ['red_potion', 0.06], ['meat', 0.05]] },
+  forge_golem: { gold: [18, 32], items: [['forge_core', 0.55], ['red_potion', 0.07], ['blue_potion', 0.04], ['rust_shard', 0.1]] },
+  boulder_bear: { gold: [400, 650], items: [['war_horn', 1], ['elixir', 0.6], ['warrior_potion', 0.6]] },
   cursed: { gold: [8, 14], items: [['cursed_cloth', 0.35], ['meat', 0.06], ['red_potion', 0.06], ['blue_potion', 0.04], ['elixir', 0.003]] },
 };
 
