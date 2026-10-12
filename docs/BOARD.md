@@ -81,6 +81,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - Book Mage (cloud chat, no device link): GPT/PixVerse art is generated, but moving it into the repo is blocked — pasting the image into my private inbox page was refused by the permission check, and carrying it as text is too heavy. Options: allow that paste step, or link this chat to the computer (desktop app) so downloads can be staged. Hit-spark sheet (counter / launch / armor break / finisher) is ready in ChatGPT, waiting on this.
 
 ## Done
+- Gambler: frames review (in-game, windup / hit / follow-through) — first fix: thrown cards' streaks grow with the way flown, no pink blob over his body at the throw — 64ef532b (review of the staff skills in progress)
 - PvP: the class chats' VS clips wired (warrior, samurai, gambler): the entrance plays on the VS loading screen and hands over to the painting, the victory move on the result screen; keyed to see-through WebM, fetched ahead at lock-in; raw mp4s moved to tools/heroes/vs_clips/ — 3c878c81. Archer / Book Mage: same format when yours land.
 - PvP: VS paintings alive (cloth, capes, hair in the wind, breathing — warrior, samurai, book mage; archer, gambler next) — 88f7ef8b; off on software graphics (the headless-test stall the Samurai chat found) — 2be4b028
 - PvP: the calls with presence — ROUND under letterbox bars on a band of light, FIGHT! flash + shockwave + speed lines and shattering out, K.O. cracking the screen, PERFECT glitter, VICTORY gold / DEFEAT ash — 225af6d6
