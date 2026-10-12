@@ -82,3 +82,26 @@ Ask for one pose per message; a series of poses works best in one chat ("Now the
 · `integrate.py loop|hits` (key a clip, cut a cycle, place frames) · `runfit.py` (run cycle at the walk's scale) ·
 `stillpose.py` (GPT stills → frames) · `allcap.mjs` / `begcap.mjs` (in-game screenshots of idle / walk / run / jump).
 Green keying: `gkey.py` (keeps the largest component; a 3-px despill rim is applied in `cut.py`).
+
+## 10. Maps, towns and monsters (Maps chat)
+- **Maps** are one GPT picture each, 1672×941, side view: the walkable floor band from ~36 % to 70 % of the height (y 346–652,
+  the ground a few steps deep, seen a little from above), the scenery and sky above it, the terrain's front face falling away
+  below it. Nothing stands inside the floor band except the listed platforms (2–3 things one can jump onto; they become props
+  by `tools/world/platforms.py`, measured by hand). Neighbouring maps continue each other: "its LEFT edge continues the
+  previous map's RIGHT edge". Look: bright, warm, painted, polished 2D game art (MapleStory-Classic feel, never dark or
+  scary), golden-hour light, saturated flowers and lanterns, lots of depth in the background (mountains, bridges, waterfalls,
+  giant trees). Start a new map chat by attaching an existing map (e.g. `tools/world/src/dusk_village.png`) and asking for
+  "exactly the same art style, canvas size, camera and scale"; GPT then outputs the same size. Interiors: "no sky", the back
+  wall and a pit below the floor instead. Variety first: no two maps on the same terrace idea, no repeated trunks.
+- **Monsters**: one sheet per creature on flat magenta `#FF00FF`, facing right, 5 rows: idle 4, move 6, attack 6, hit 2,
+  defeat 6, same frame size and spacing, consistent size (`tools/mobs/mobs.py` cuts it; `MOBS` gives its height in world px).
+  Cute and friendly, never scary, clean outlines, no shadows on the background; bosses bigger but still friendly (Pouncer, the
+  Shade Fox). Ask for the next creature in the same chat ("in exactly the same sheet format").
+- **NPCs**: 4 frames side by side in equal columns on magenta, facing right, full body, feet on one line, a gentle idle
+  (breathing, a small gesture, a blink), chibi proportions (`tools/world/npcs.py`, `NPCS` gives the height; it also cuts the
+  dialogue face). **Item icons**: a grid on magenta, 128 px each after `tools/items/loot.py`.
+- Pull GPT images without a download button: the Chrome tab gives the image's file id (React fiber `memoizedProps.src`,
+  `sediment://file_…`) → `/backend-api/files/<id>/download` → the signed URL; the built-in browser fetches it, re-encodes
+  (canvas → webp 0.97) and returns base64 in 240 000-char chunks with a space every 64 chars (the chunks land in the
+  session's tool-results folder; join them with `/tmp/claude-0/pull/pull.py`-style script). The ChatGPT conversation
+  endpoint rate-limits (429) when several chats poll it: read the page's DOM instead.

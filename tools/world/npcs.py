@@ -18,7 +18,9 @@ NPCS = {'aldric': {'cols': 4, 'height': 112}, 'gate_guard': {'cols': 4, 'height'
         'samurai_master_pose': {'cols': 4, 'height': 125},
         'archer_master_pose': {'cols': 4, 'height': 300},
         'nimbus': {'cols': 4, 'height': 132}, 'solenne': {'cols': 4, 'height': 118}, 'lumen': {'cols': 4, 'height': 108}, 'wren': {'cols': 4, 'height': 116}, 'hazel': {'cols': 4, 'height': 104},
-        'bram': {'cols': 4, 'height': 100}, 'pip': {'cols': 4, 'height': 70}}
+        'bram': {'cols': 4, 'height': 100}, 'pip': {'cols': 4, 'height': 70},
+        # Sakura Temple: the shrine maiden, the tea master; the Waystones (a standing stone, the same in every town)
+        'ayame': {'cols': 4, 'height': 112}, 'jiro': {'cols': 4, 'height': 100}, 'waystone': {'cols': 4, 'height': 150}}
 
 def strip(frames, name):
   """frames: [(RGBA image, foot x, foot y, world scale)] → one strip, all feet at the same point."""

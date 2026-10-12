@@ -103,6 +103,8 @@ export class OpenWorld {
   private ambience: CourtyardAmbience;
   private backdrop: Backdrop | null = null;
   private camX = 0;
+  /** The sealed walls between the regions (an area's `entry-wall` prop, at its west edge): the view never crosses one. */
+  private walls: number[] = ROW.filter((a) => a.props.some((p) => p.id === 'entry-wall')).map((a) => a.x);
   private camY = 0;
   private t = 0;
   /** The talk / portal prompt target (null = none in reach). */
@@ -470,8 +472,9 @@ export class OpenWorld {
     // never lose you: whatever happens, your body stays well inside the view
     const sy = y - z;
     ty = Phaser.Math.Clamp(ty, sy - halfH + 260, Math.max(sy - halfH + 260, sy + halfH - 250));
-    const hi = down ? Math.min(WORLD_W, ARENA.x + ARENA.w) - half : WORLD_W - half;
-    const lo = down ? Math.max(0, ARENA.x) + half : half;
+    let hi = down ? Math.min(WORLD_W, ARENA.x + ARENA.w) - half : WORLD_W - half;
+    let lo = down ? Math.max(0, ARENA.x) + half : half;
+    if (!down) for (const w of this.walls) { if (x >= w) lo = Math.max(lo, w + half); else hi = Math.min(hi, w - half); }   // a walled region keeps its view to itself
     const tx = Phaser.Math.Clamp(x, lo, Math.max(lo, hi));
     const k = snap ? 1 : 1 - Math.exp(-ms / CAM_EASE), ky = snap ? 1 : 1 - Math.exp(-ms / CAM_EASE_Y);
     this.camX += (tx - this.camX) * k;

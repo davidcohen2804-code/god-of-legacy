@@ -27,8 +27,8 @@ export interface AreaNpc {
   /** Stands on a block of this height (drawn that much higher, in front of the block). */
   z?: number;
   /** quest: gives the quests whose `giver` is this NPC; talk: just its lines. */
-  /** den_door / den_keeper: the Thief's Den's Bram and Pip (Den.ts). */
-  role: 'quest' | 'talk' | 'shop' | 'den_door' | 'den_keeper'; lines?: string[];
+  /** den_door / den_keeper: the Thief's Den's Bram and Pip (Den.ts). waystone: the standing stones between the towns (Waystones.ts). */
+  role: 'quest' | 'talk' | 'shop' | 'den_door' | 'den_keeper' | 'waystone'; lines?: string[];
 }
 export interface QuestObjective { kind: 'kill' | 'talk' | 'collect' | 'level' | 'flag'; mob?: string; npc?: string; item?: string; level?: number; count?: number; /** flag: a quest-state key set by the game (the den cleared) */ flag?: string; text: string }
 export interface QuestDef {

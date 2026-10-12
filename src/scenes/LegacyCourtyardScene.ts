@@ -48,6 +48,7 @@ let ARENA_SPAWNS: [number, number][] = PVP.spawnPoints.map((p) => [p.x, p.y]);
 const arenaSpawns = (): { x: number; y: number }[] => ARENA_SPAWNS.map(([px, py]) => { const [x, y] = arenaPt(px, py); return { x, y }; });
 import { OpenWorld, preloadOpenWorld } from '../world/OpenWorld';
 import { AreaNpc, IDLE_LINES, MOB_KINDS, QUESTS, QuestDef, START, TOWERS, CLOUDS, SKY, SKY_DROP, HEIGHTS, type Tower, toWorld } from '../world/Areas';
+import { TOWN_OF, waystoneOf, waystoneTargets } from '../world/Waystones';
 import type { Monster } from '../world/Monster';
 import { AreaTitle, DialogChoice, NpcDialog } from '../ui/WorldUI';
 import { QuestState } from '../characters/CharacterTypes';
@@ -3501,7 +3502,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!ch) { say(n.lines ?? IDLE_LINES); return; }
     if (hasJob(ch)) {
       if (ch.trial === job) say(['Your trial awaits in the Sun Seal Plaza, down the great stairs.', 'Come — show me what you have learned.']);
-      else if (playedClass(ch) === job) say(['You walk my path well.', 'Keep growing stronger.']);
+      else if (playedClass(ch) === job) { const t = TOWN_OF[job]; say(t ? ['You walk my path well.', `Your training grounds are at ${t.name}: the Waystone by the gate carries you there, and back again. Its people have work for a ${jobName}.`, 'Keep growing stronger.'] : ['You walk my path well.', 'Keep growing stronger.']); }
       else say(n.lines?.length ? n.lines : IDLE_LINES);
       return;
     }
@@ -4139,6 +4140,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (n.job) { this.masterTalk(n, say); return; }
     if (n.role === 'den_door') { this.den?.door(n); return; }
     if (n.role === 'den_keeper') { this.den?.keeper(n, this.world.npcArea(n) ?? ''); return; }
+    if (n.role === 'waystone') { this.waystoneTalk(n, say); return; }
     const mine = QUESTS.filter((q) => q.giver === n.id);
     const ready = QUESTS.find((q) => this.turnIn(q) === n.id && this.quests[q.id]?.state === 'active' && this.questReady(q)); // handed in where its last goal says
     if (ready) { say(ready.done, [{ label: ready.complete, main: true, run: () => this.finishQuest(ready) }]); return; }
@@ -4151,6 +4153,26 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (unlocked) { say(n.lines?.length ? n.lines : IDLE_LINES, [{ label: "Let's trade", main: true, run: () => this.openShop(n) }, { label: 'Goodbye', run: () => undefined }]); return; }
     }
     say(n.lines?.length ? n.lines : IDLE_LINES);
+  }
+
+  /** A Waystone: name another stone and it carries you there (Waystones.ts). */
+  private waystoneTalk(n: AreaNpc, say: (lines: string[], choices?: DialogChoice[]) => void): void {
+    const here = waystoneOf(n);
+    if (!here) { say(n.lines?.length ? n.lines : IDLE_LINES); return; }
+    const targets = waystoneTargets(here);
+    const ch = this.character;
+    const home = ch && hasJob(ch) ? TOWN_OF[playedClass(ch) ?? ''] : undefined;   // (a Beginner has no town yet)
+    const lead = home && home.area !== here.area ? [`The sun rune warms under your hand. ${home.name} is calling you home.`] : [];
+    say([...(n.lines?.length ? n.lines : ['The stone hums with a warm, steady light.']), ...lead, 'Where to?'],
+      [...targets.map((w): DialogChoice => ({ label: w.name.toUpperCase(), main: home ? w.area === home.area : w === targets[0], run: () => this.travel(w.area, w.x, w.y, w.name) })), { label: 'STAY', run: () => undefined }]);
+  }
+
+  /** Carried through a Waystone: a fade, there, and the town's name. */
+  private travel(area: string, x: number, y: number, name: string): void {
+    if (!this.world || this.warping) return;
+    this.ci?.reset(); this.warping = true;
+    this.fx?.shockwave(this.kin.x, this.kin.y, 120, 0xffd27a);
+    this.world.jumpTo(area, x, y, this.kin, () => { this.warping = false; this.setMode('idle'); this.chat?.add({ kind: 'system', text: `The Waystone carries you to ${name}.` }); });
   }
 
   private openShop(n?: AreaNpc): void { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.statsWin?.close(); if (n) this.shop?.keeper(`${n.name.toUpperCase()}'S GOODS`, `${n.title} · ${this.areaName}`); this.shop?.open(); }

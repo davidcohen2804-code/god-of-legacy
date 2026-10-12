@@ -39,6 +39,16 @@ PLATFORMS = {
   # room 5 (Treasure Hoard): the open chest and the golden barrels
   'den_5': [{'id': 'chest', 'x': (300, 760), 'front': 545, 'h': 95, 'depth': 40, 'occ': [[420, 330], [700, 335], [740, 380], [758, 460], [758, 543], [302, 543], [302, 440], [330, 360]]},
             stump('barrels', 1190, 1500, 385, 535, 50, 36)],
+  # Sakura Temple: the sake barrels by the torii, the mossy stone slab by the koi pond
+  'sakura_village': [stump('barrels', 250, 415, 392, 520, 24, 14), stump('rock', 1330, 1500, 450, 510, 26, 20)],
+  # Blossom Steps: the fallen cherry log and the mossy boulder
+  'sakura_1': [{'id': 'log', 'x': (300, 700), 'front': 505, 'h': 50, 'depth': 30, 'occ': [[330, 402], [660, 398], [698, 420], [698, 500], [640, 504], [320, 504], [302, 480], [302, 425]]},
+               stump('boulder', 1300, 1560, 420, 515, 32, 24)],
+  # Fox Shrine Path: the great stone fox on its plinth (one stands on the plinth's edge; the fox hides whoever is behind it), the offering chest
+  'sakura_2': [{'id': 'fox-statue', 'x': (567, 780), 'front': 500, 'h': 74, 'depth': 26, 'occ': [[600, 242], [740, 242], [778, 300], [778, 498], [569, 498], [569, 300]]},
+               {'id': 'offering-chest', 'x': (1347, 1560), 'front': 500, 'h': 56, 'depth': 24}],
+  # Bamboo Grove: the stack of cut bamboo, the flat mossy rock before the tengu's cave
+  'sakura_3': [stump('logs', 233, 400, 387, 467, 22, 14), stump('rock', 1153, 1347, 400, 468, 26, 20)],
   'terraces_1': [
     {'id': 'block-low', 'x': (262, 372), 'front': 528, 'h': 73, 'depth': 22},
     {'id': 'block-tall', 'x': (376, 492), 'front': 520, 'h': 100, 'depth': 31},

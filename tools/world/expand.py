@@ -40,16 +40,33 @@ ROUTE = [
   ('den_3', ('Lantern Ledges', None, False, None)),
   ('den_4', ("Magpie's Nest", None, False, None)),
   ('den_5', ('Treasure Hoard', None, False, None)),
+  # the samurai's region: Sakura Temple (the town) and its three training maps 10–20, reached by the Waystone
+  # (a walled region of its own east of the den: until its GPT maps land, stand-ins)
+  ('sakura_village', ('Sakura Temple', None, False, None)),   # the town: no monsters
+  ('sakura_1', ('Blossom Steps', None, False, 'petal_sprite')),
+  ('sakura_2', ('Fox Shrine Path', None, False, 'kitsune_kit')),
+  ('sakura_3', ('Bamboo Grove', None, False, 'tengu_elder')),
 ]
 DEN = {'den_1', 'den_2', 'den_3', 'den_4', 'den_5'}
+# walled regions (first map, last map): a hard edge into them (no blend) and a wall at their first map's west edge —
+# you reach them by a jump (Bram's door; the Waystone), not on foot
+REGIONS = [('den_1', 'den_5'), ('sakura_village', 'sakura_3')]
+WALLED = {r[0] for r in REGIONS}
 SPAWNS = [[420, 440], [600, 610], [760, 420], [930, 600], [1090, 430], [1260, 610], [1400, 450]]   # 7 a map
 WARDEN = [[1000, 520]]
 # a map's boss: where it stands (map px) and the lesser monsters round it (mobs2)
-BOSSES = {'warden': {'spawns': WARDEN, 'mobs2': 'cursed'}, 'shade_fox': {'spawns': [[836, 530]], 'mobs2': 'moth'}}
+BOSSES = {'warden': {'spawns': WARDEN, 'mobs2': 'cursed'}, 'shade_fox': {'spawns': [[836, 530]], 'mobs2': 'moth'},
+          'tengu_elder': {'spawns': [[1480, 500]], 'mobs2': 'bamboo_ronin', 'spawns2': [[480, 420], [640, 540], [800, 430], [980, 545], [1100, 420], [560, 500]]}}
 # maps of their own: spawns clear of their blocks and ledges
 # maps whose floor is not the standard band (map px): the village square ends at its front railing
-OWN_WALK = {'dusk_village': [[0, 346], [AW, 346], [AW, 586], [0, 586]]}
-OWN_SPAWNS = {'terraces_2': [[420, 600], [380, 440], [700, 560], [1000, 590], [1250, 430], [1300, 610], [1520, 470]],
+OWN_WALK = {'dusk_village': [[0, 346], [AW, 346], [AW, 586], [0, 586]],
+            'sakura_village': [[0, 360], [1340, 360], [1340, 450], [AW, 450], [AW, 586], [0, 586]],
+            'sakura_1': [[0, 350], [AW, 350], [AW, 575], [0, 575]],   # the mountain path: the cliff behind, the balustrade in front
+            'sakura_2': [[0, 350], [AW, 350], [AW, 575], [0, 575]],
+            'sakura_3': [[0, 370], [AW, 370], [AW, 560], [0, 560]]}   # the grove's path: the stands behind, the bamboo fence in front   # the court: the shrine's steps behind, the koi pond at the back right, the railing in front
+OWN_SPAWNS = {'sakura_1': [[200, 440], [480, 548], [800, 420], [1000, 545], [1150, 430], [1450, 558], [1600, 430]],
+              'sakura_2': [[250, 430], [420, 550], [900, 420], [1100, 550], [1250, 430], [1450, 555], [1620, 430]],
+              'terraces_2': [[420, 600], [380, 440], [700, 560], [1000, 590], [1250, 430], [1300, 610], [1520, 470]],
               'orchard_1': [[300, 430], [250, 610], [650, 560], [950, 600], [1300, 430], [1250, 610], [1550, 450]],
               'terraces_1': [[600, 460], [820, 600], [1060, 470], [1230, 600], [1180, 430], [560, 615], [1520, 590]]}
 
@@ -65,14 +82,16 @@ for id_, spec in ROUTE:
     if a.pop('standin', None): a['props'] = []; a.pop('paint', None)   # was a stand-in copy: its own GPT map now (blocks.py finds its blocks)
     a.pop('mirrored', None)
     a.update({'name': name, 'walk': OWN_WALK.get(id_, [[0, 346], [AW, 346], [AW, 652], [0, 652]]), 'mobs': {'kind': mob, 'spawns': BOSSES[mob]['spawns'] if mob in BOSSES else OWN_SPAWNS.get(id_, SPAWNS)} if mob else {'kind': 'none', 'spawns': []}})
-    if mob in BOSSES: a['mobs2'] = {'kind': BOSSES[mob]['mobs2'], 'spawns': SPAWNS[::2]}
+    if mob in BOSSES: a['mobs2'] = {'kind': BOSSES[mob]['mobs2'], 'spawns': BOSSES[mob].get('spawns2', SPAWNS[::2])}
     else: a.pop('mobs2', None)
     D['areas'][id_] = a; continue
   for d in ('src/', 'layers/gpt/'):
     im = Image.open(G + d + src + '.png')
     (ImageOps.mirror(im) if flip else im).save(G + d + id_ + '.png')
+  prev = D['areas'].get(id_, {})
   a = copy.deepcopy(D['areas'][src]); a['name'] = name
   a.pop('npcs', None); a.pop('portal', None)
+  if prev.get('npcs'): a['npcs'] = prev['npcs']   # the area's own people stay through its stand-in days
   if flip:
     a['walk'] = mirror_poly(a['walk'])
     for p in a.get('props', []):
@@ -80,17 +99,17 @@ for id_, spec in ROUTE:
         if k in p: p[k] = mirror_poly(p[k])
     if 'paint' in a: a['paint'] = [[mx(b[2]), b[1], mx(b[0]), b[3]] for b in a['paint']]
   a['mobs'] = {'kind': mob, 'spawns': BOSSES[mob]['spawns'] if mob in BOSSES else OWN_SPAWNS.get(id_) or ([[mx(x), y] for x, y in SPAWNS] if flip else SPAWNS)}
-  if mob in BOSSES: a['mobs2'] = {'kind': BOSSES[mob]['mobs2'], 'spawns': SPAWNS[::2]}
+  if mob in BOSSES: a['mobs2'] = {'kind': BOSSES[mob]['mobs2'], 'spawns': BOSSES[mob].get('spawns2', SPAWNS[::2])}
   if id_ == 'terraces_2': a['walk'] = [[0, 346], [AW, 346], [AW, 652], [0, 652]]   # Ivy Heights stands over the courtyard's back alcove
   a['standin'] = src; a['mirrored'] = flip
   D['areas'][id_] = a
 D['row'] = [r[0] for r in ROUTE]
-D['joins'] = {f'{a}|{b}': {'blend': 0} if b in DEN else {'blend': 90} for a, b in zip(D['row'], D['row'][1:])}   # (into / inside the den: a hard edge, no blend)
+D['joins'] = {f'{a}|{b}': {'blend': 0} if (b in DEN or b in WALLED) else {'blend': 90} for a, b in zip(D['row'], D['row'][1:])}   # (into / inside the den, into a region: a hard edge, no blend)
 for k in DEN:
-  if k in D['areas']:
-    D['areas'][k]['interior'] = True
-    if k == 'den_1' and not any(p['id'] == 'entry-wall' for p in D['areas'][k]['props']):   # the den's mouth: sealed (Bram's door is the way in, by Den.ts)
-      D['areas'][k]['props'].append({'id': 'entry-wall', 'foot': [[-30, 290], [30, 290], [30, 710], [-30, 710]], 'h': 999})
+  if k in D['areas']: D['areas'][k]['interior'] = True
+for k in WALLED:   # the region's mouth: sealed (a jump is the way in: Bram's door by Den.ts, the Waystone)
+  if k in D['areas'] and not any(p['id'] == 'entry-wall' for p in D['areas'][k]['props']):
+    D['areas'][k]['props'].append({'id': 'entry-wall', 'foot': [[-30, 290], [30, 290], [30, 710], [-30, 710]], 'h': 999})
 for k in list(D['areas']):
   if k not in D['row']: del D['areas'][k]
 open(R + 'src/data/world-areas.json', 'w').write(json.dumps(D, indent=1, ensure_ascii=False) + '\n')

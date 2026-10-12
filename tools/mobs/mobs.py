@@ -11,7 +11,8 @@ R = __file__.rsplit('/', 3)[0] + '/'
 ACTIONS = [('idle', 4), ('walk', 6), ('attack', 6), ('hurt', 2), ('death', 6)]
 # per monster: its height in the game (world px, standing) and texture px per world px
 MOBS = {'sprout': {'height': 62, 'q': 2, 'fx': True}, 'rusted': {'height': 78, 'q': 2, 'fx': True}, 'thorn': {'height': 70, 'q': 2, 'fx': True}, 'cursed': {'height': 84, 'q': 2, 'fx': True}, 'warden': {'height': 150, 'q': 2, 'fx': True},   # fx: its attack's leaf whip kept (not a gust the game blows itself)
-        'puffling': {'height': 72, 'q': 2}, 'sunbeam': {'height': 66, 'q': 2, 'fx': True, 'glow': True}, 'glowcap': {'height': 60, 'q': 2, 'fx': True}, 'moth': {'height': 64, 'q': 2, 'fx': True}, 'shade_fox': {'height': 112, 'q': 2, 'fx': True}, 'shade_imp': {'height': 58, 'q': 2, 'fx': True}, 'pouncer': {'height': 120, 'q': 2, 'fx': True}, 'big_grumble': {'height': 250, 'q': 2, 'same': {('attack', 4): ('attack', 3)}}}   # same: a frame drawn as another (GPT's frame unusable)
+        'puffling': {'height': 72, 'q': 2}, 'sunbeam': {'height': 66, 'q': 2, 'fx': True, 'glow': True}, 'glowcap': {'height': 60, 'q': 2, 'fx': True}, 'moth': {'height': 64, 'q': 2, 'fx': True}, 'shade_fox': {'height': 112, 'q': 2, 'fx': True}, 'shade_imp': {'height': 58, 'q': 2, 'fx': True}, 'pouncer': {'height': 120, 'q': 2, 'fx': True},
+        'petal_sprite': {'height': 56, 'q': 2, 'fx': True}, 'kitsune_kit': {'height': 64, 'q': 2, 'fx': True}, 'bamboo_ronin': {'height': 88, 'q': 2, 'fx': True}, 'tengu_elder': {'height': 126, 'q': 1.4, 'fx': True}, 'big_grumble': {'height': 250, 'q': 2, 'same': {('attack', 4): ('attack', 3)}}}   # same: a frame drawn as another (GPT's frame unusable)
 
 
 def key(path, glow=False):

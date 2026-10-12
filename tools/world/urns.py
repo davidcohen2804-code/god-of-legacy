@@ -27,7 +27,7 @@ for a in D['row']:   # stand-in maps (tools/world/expand.py): their picture's ur
   if A.get('standin') in URNS_LOCAL: URNS_LOCAL[a] = [round(AW - u) if A.get('mirrored') else u for u in URNS_LOCAL[A['standin']]]
 centres = sorted({round(X[a] + u) for a, us in URNS_LOCAL.items() for u in us} | {X[b] + 60 for b in D['row'][1:]})  # + one urn on every seam
 centres = [c for i, c in enumerate(centres) if i == 0 or c - centres[i - 1] > 50]   # (the same urn seen from both sides of a seam: once)
-NO_URNS = {'dusk_wood', 'dusk_3', 'dusk_village', 'den_1', 'den_2', 'den_3', 'den_4', 'den_5'}   # forest maps: no railing, no urns (their flowers are no urn)
+NO_URNS = {'dusk_wood', 'dusk_3', 'dusk_village', 'den_1', 'den_2', 'den_3', 'den_4', 'den_5', 'sakura_village', 'sakura_1', 'sakura_2', 'sakura_3'}   # forest maps: no railing, no urns (their flowers are no urn)
 centres = [c for c in centres if next(r for r in reversed(D['row']) if X[r] <= c) not in NO_URNS]
 TOP, CUT = 560, 668                                  # search band; the part that can overlap a player ends at the railing
 for a in D['row']: D['areas'][a]['props'] = [p for p in D['areas'][a]['props'] if not p['id'].startswith('urn-')]

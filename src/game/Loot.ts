@@ -46,6 +46,9 @@ export const ITEMS: Record<string, ItemDef> = {
   sun_ember: { id: 'sun_ember', name: 'Sun Ember', kind: 'key', icon: I('sun_ember'), sell: 0, desc: 'A piece of the Heart of the Sun, still warm. Keep it close.', rarity: 'rare', lore: "Taken back from the Shade Fox at the Hollow Gate. The first piece of the stolen Heart." },
   spark: { id: 'spark', name: 'Spark', kind: 'mat', icon: I('spark'), sell: 1, desc: "A mote of stolen sunlight. Pip in the Thief's Den collects them.", rarity: 'common', lore: "The Shade Imps of the Root Cellar keep them in their pockets. They fade once you leave the den." },
   sun_ember_2: { id: 'sun_ember_2', name: 'Second Sun Ember', kind: 'key', icon: I('sun_ember'), sell: 0, desc: 'The second piece of the Heart of the Sun, taken back from the magpie. Keep it close.', rarity: 'rare', lore: "Found in Pouncer's hoard inside the Elder Tree. Two pieces now; the rest is still out there." },
+  fox_fire: { id: 'fox_fire', name: 'Fox Fire', kind: 'mat', icon: I('fox_fire'), sell: 9, desc: 'A wisp of blue fox fire, cool to the touch. Ayame at Sakura Temple wants it for the shrine lanterns.', rarity: 'common', lore: "The Kitsune Kits of the Fox Shrine Path ran off with the shrine foxes' lantern fire to play with. It never burns." },
+  bamboo_shoot: { id: 'bamboo_shoot', name: 'Bamboo Shoot', kind: 'mat', icon: I('bamboo_shoot'), sell: 12, desc: "A fresh, tender bamboo shoot. Jiro's spring soup needs them.", rarity: 'common', lore: "Cut in the Bamboo Grove above Sakura Temple, where the old training dummies stand guard over the best ones." },
+  bell_clapper: { id: 'bell_clapper', name: 'Bell Clapper', kind: 'key', icon: I('bell_clapper'), sell: 0, desc: "The great bell of Sakura Temple's clapper, taken by the Tengu Elder. Bring it to Ayame.", rarity: 'rare', lore: "Bronze, old and heavy, wrapped in a faded red cord. The temple's bell has been silent since it was taken." },
   cursed_cloth: { id: 'cursed_cloth', name: 'Cursed Cloth', kind: 'mat', icon: I('cursed_cloth'), sell: 12, desc: 'A scrap of cloth that still hums with a curse. Merchants buy it.', rarity: 'common', lore: "Torn from the cloaks of the Cursed Swordsmen. The curse still hums in its threads." },
 };
 export const ITEM_IDS = Object.keys(ITEMS);
@@ -89,6 +92,10 @@ const DROPS: Record<string, { gold: [number, number]; items: [string, number][] 
   shade_imp: { gold: [6, 12], items: [['spark', 1], ['red_potion', 0.05]] },
   coin_imp: { gold: [25, 60], items: [['orange', 0.1]] },
   pouncer: { gold: [500, 800], items: [['elixir', 0.6], ['swift_potion', 0.6], ['cake', 1]] },
+  petal_sprite: { gold: [10, 18], items: [['orange', 0.07], ['red_potion', 0.06], ['cake', 0.02]] },
+  kitsune_kit: { gold: [12, 22], items: [['fox_fire', 0.6], ['blue_potion', 0.05], ['orange', 0.05]] },
+  bamboo_ronin: { gold: [16, 30], items: [['bamboo_shoot', 0.55], ['red_potion', 0.07], ['blue_potion', 0.04], ['cake', 0.03]] },
+  tengu_elder: { gold: [400, 650], items: [['bell_clapper', 1], ['elixir', 0.6], ['swift_potion', 0.6]] },
   cursed: { gold: [8, 14], items: [['cursed_cloth', 0.35], ['meat', 0.06], ['red_potion', 0.06], ['blue_potion', 0.04], ['elixir', 0.003]] },
 };
 
