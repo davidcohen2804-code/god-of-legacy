@@ -85,6 +85,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - Book Mage (cloud chat, no device link): GPT/PixVerse art is generated, but moving it into the repo is blocked — pasting the image into my private inbox page was refused by the permission check, and carrying it as text is too heavy. Options: allow that paste step, or link this chat to the computer (desktop app) so downloads can be staged. Hit-spark sheet (counter / launch / armor break / finisher) is ready in ChatGPT, waiting on this.
 
 ## Done
+- Samurai: skill frames reviewed (every skill: wind-up → strike → follow-through; the strike's smear is the blade's own cut arc drawn by SamuraiFx, ART_STYLE §8). The weak one redone: Tornado Blade, an air skill shown with standing spin poses, repainted as a tucked air spin (GPT sheet S7, 6 frames) — 75174382
+- Samurai: VS entrance + win clips for PvP (vs_in.mp4, win_in.mp4) — 830ab5ed
 - Archer: Double Shot body repainted (GPT, 6 frames: nock → full draw → a sharp release with the hand flung back and the cloak whipped → quick second draw → harder second release → recover), also used by Backstep Shot and Vine Lash (one release each); cut.py: a sheet action repainted in tools/heroes/motion/<cls>/<act>_NN.png now replaces the sheet's frames instead of adding to them
 - Maps: Elderwood Village (the archers' town) and the Thief's Den party quest (5 rooms, 25 min, Lv 15+), with the quest Into the Den — 346821c, 295f971, ef8447b. Test mode (?qa=1 → F8) for everyone.
 - Samurai: animated ultimate cut-in for Dragon Eclipse (PixVerse, 18 frames 600×200 at 24 fps in CUTIN_ANIM: hair whips, eyes flare red, a gleam down the blade, the dragon roars, the black sun cracks) — checked in the arena — f9af1b0a
