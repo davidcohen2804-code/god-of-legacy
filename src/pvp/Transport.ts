@@ -41,7 +41,7 @@ export type NetMsg =
   /** Battle mode: this fighter wants a rematch of match `mid`. */
   | { t: 'rematch'; from: string; mid: string }
   /** The PvP select screen (its own channel): the fighter this player points at and the one locked in. */
-  | { t: 'sel'; from: string; name: string; hover: string; pick: string | null };
+  | { t: 'sel'; from: string; name: string; hover: string; pick: string | null; /** the player's PvP rank points and title worn */ rp?: number; title?: string | null };
 
 export type JoinResult = 'ok' | 'full' | 'error';
 export type TransportKind = 'Supabase' | 'Local' | 'P2P' | 'Offline';

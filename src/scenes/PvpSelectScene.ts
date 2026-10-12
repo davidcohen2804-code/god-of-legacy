@@ -117,7 +117,7 @@ export class PvpSelectScene extends Phaser.Scene {
   private syncNet(): void {
     const l = this.lobby; if (!l || !this.ui) return;
     const o = l.other;
-    this.ui.setNet({ status: l.status, room: l.room, link: window.location.href, local: l.kind === 'Local' }, o ? { name: o.name, hover: o.hover, pick: o.pick } : null);
+    this.ui.setNet({ status: l.status, room: l.room, link: window.location.href, local: l.kind === 'Local' }, o ? { name: o.name, hover: o.hover, pick: o.pick, rank: o.rank } : null);
   }
 
   /** Both locked in: into the arena — against the CPU (or with your training partner) in a room of your own on the stage
@@ -125,7 +125,7 @@ export class PvpSelectScene extends Phaser.Scene {
   private start(p1: string, p2: string, mode: VsMode, stage?: string): void {
     const fighter = fighterFor(p1);
     if (mode !== 'player') this.scene.start('LegacyCourtyardScene', { pvpRoom: generateRoomId(6), fighter, botCls: p2, vs: mode, stage });
-    else this.scene.start('LegacyCourtyardScene', { pvpRoom: this.lobby?.room ?? ensurePvpRoomInUrl(), fighter, vs: 'player', foe: { cls: p2, name: this.lobby?.other?.name || 'Player 2' } }); // (foe: for the loading screen)
+    else this.scene.start('LegacyCourtyardScene', { pvpRoom: this.lobby?.room ?? ensurePvpRoomInUrl(), fighter, vs: 'player', foe: { cls: p2, name: this.lobby?.other?.name || 'Player 2', rank: this.lobby?.other?.rank } }); // (foe: for the loading screen — with their rank)
   }
 
   private leave(go: () => void): void {

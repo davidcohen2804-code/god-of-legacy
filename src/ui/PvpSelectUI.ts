@@ -20,10 +20,10 @@ import type { ArtState } from './FighterArt';
 import { ensureTheme } from './theme';
 import { Sound } from '../audio/Sound';
 import { warmClip } from './HeroClip';
-import { rankPlate } from './RankUI';
+import { rankLine, rankPlate } from './RankUI';
 
 export type VsMode = 'cpu' | 'player' | 'training';
-export interface RemoteView { name: string; hover: string; pick: string | null }
+export interface RemoteView { name: string; hover: string; pick: string | null; /** their PvP rank */ rank?: { rp: number; title: string | null } }
 export interface PvpSelectHandlers {
   back(): void;
   /** Switched VS CPU / VS PLAYER / TRAINING. */
@@ -101,6 +101,7 @@ const CSS = `
   clip-path:polygon(15px 0,100% 0,calc(100% - 15px) 100%,0 100%);box-shadow:inset 0 2px 0 rgba(255,255,255,.16),inset 0 -4px 0 var(--sc)}
 .gol-ps .ps-pl.l .ps-nm{--sc:#e8642c}
 .gol-ps .ps-pl.r .ps-nm{--sc:#4c8fe8}
+.gol-ps .ps-pl .ps-rk{margin-top:6px}
 /* the middle: VS, what to do now */
 .gol-ps .ps-vs{position:absolute;left:0;right:0;top:372px;text-align:center;opacity:.96;pointer-events:none}
 .gol-ps .ps-vs img{width:300px;height:auto;filter:drop-shadow(0 10px 22px rgba(0,0,0,.7))}
@@ -169,7 +170,7 @@ export class PvpSelectUI {
   private readonly root: HTMLDivElement;
   private readonly tabs: Record<VsMode, HTMLButtonElement>;
   private readonly score: Record<'w' | 'd' | 'l', HTMLElement>;
-  private readonly plate: Record<'l' | 'r', { side: HTMLElement; tag: HTMLElement; cls: HTMLElement; nm: HTMLElement; box: HTMLElement }>;
+  private readonly plate: Record<'l' | 'r', { side: HTMLElement; tag: HTMLElement; cls: HTMLElement; nm: HTMLElement; box: HTMLElement; rk: HTMLElement }>;
   private readonly tiles: HTMLDivElement[] = [];
   private readonly cur: Record<'p1' | 'p2', HTMLDivElement>;
   private readonly vs: HTMLElement;
@@ -211,8 +212,8 @@ export class PvpSelectUI {
     const mkPlate = (s: 'l' | 'r') => {
       const box = this.el('div', `ps-pl ${s}`, root), bd = this.el('div', 'ps-bd', box);
       const side = this.el('i', 'side', bd), tag = this.el('i', 'you', bd);
-      const cls = this.el('div', 'ps-cls', box), nm = this.el('div', 'ps-nm', box);
-      return { side, tag, cls, nm, box };
+      const cls = this.el('div', 'ps-cls', box), nm = this.el('div', 'ps-nm', box), rk = this.el('div', 'ps-rk', box);
+      return { side, tag, cls, nm, box, rk };
     };
     this.plate = { l: mkPlate('l'), r: mkPlate('r') };
     rankPlate(this.el('div', 'ps-rkw', root), root); // (your rank: tier, RP, streak, the title you wear)
@@ -392,6 +393,7 @@ export class PvpSelectUI {
     this.showArt('r', rc, rState);
     this.plate.r.box.style.display = rc ? '' : 'none';
     if (rc) this.fillPlate('r', cpu ? 'CPU' : '2P', trn ? 'PARTNER' : cpu ? 'OPPONENT' : 'PLAYER 2', rState === 'shade' ? '' : rc, rName, rLocked);
+    this.showRank(!cpu ? rem?.rank ?? null : null); // (VS PLAYER: the other player's rank under the name)
     // the roster cursors
     const place = (el: HTMLDivElement, i: number | null, label: string, lock: boolean) => {
       el.classList.toggle('hide', i === null);
@@ -435,6 +437,14 @@ export class PvpSelectUI {
     this.vs.classList.toggle('go', this.going);
     this.vs.style.display = (cpu && !trn) || rem ? '' : 'none'; // (TRAINING: no VS)
     for (const t of this.tiles) t.classList.toggle('off', this.going);
+  }
+
+  /** The other player's rank line on the right plate (none: empty). */
+  private showRank(r: { rp: number; title: string | null } | null): void {
+    const box = this.plate.r.rk, key = r ? `${r.rp}|${r.title ?? ''}` : '';
+    if (box.dataset.k === key) return;
+    box.dataset.k = key; box.innerHTML = '';
+    if (r) rankLine(box, r);
   }
 
   private showArt(s: 'l' | 'r', cls: string | null, state: 'live' | 'shade' | ''): void {

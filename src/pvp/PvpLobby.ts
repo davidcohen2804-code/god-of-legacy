@@ -3,8 +3,9 @@
 // browser's tabs for a local test). Two players at most.
 import { createTransport, NetMsg, PeerMeta, Transport, TransportKind } from './Transport';
 import { newPlayerId } from './Room';
+import { myRank } from './Rank';
 
-export interface LobbyPeer { id: string; name: string; hover: string; pick: string | null }
+export interface LobbyPeer { id: string; name: string; hover: string; pick: string | null; /** their PvP rank (for the VS screens) */ rank?: { rp: number; title: string | null } }
 
 export class PvpLobby {
   readonly me = newPlayerId();
@@ -26,7 +27,7 @@ export class PvpLobby {
 
   async join(hover: string): Promise<void> {
     this.mine.hover = hover;
-    const meta: PeerMeta = { playerId: this.me, characterId: this.me, classId: hover, name: this.name };
+    const r0 = myRank(), meta: PeerMeta = { playerId: this.me, characterId: this.me, classId: hover, name: this.name, rp: r0.rp, title: r0.title };
     const r = await this.t.join(meta, 2);
     if (this.closed) return;
     this.status = r === 'ok' ? 'ok' : r === 'full' ? 'full' : 'error';
@@ -41,13 +42,13 @@ export class PvpLobby {
     this.send();
   }
 
-  private send(): void { if (this.status === 'ok') this.t.send({ t: 'sel', from: this.me, name: this.name, hover: this.mine.hover, pick: this.mine.pick }); }
+  private send(): void { if (this.status === 'ok') { const r = myRank(); this.t.send({ t: 'sel', from: this.me, name: this.name, hover: this.mine.hover, pick: this.mine.pick, rp: r.rp, title: r.title }); } }
 
   private receive(m: NetMsg): void {
     if (this.closed || m.t !== 'sel' || m.from === this.me) return;
     if (this.peer && this.peer.id !== m.from) return; // (a third one: not in this 1v1)
-    const p = { id: m.from, name: m.name || 'Player', hover: m.hover, pick: m.pick };
-    if (this.peer && this.peer.hover === p.hover && this.peer.pick === p.pick && this.peer.name === p.name) return;
+    const p: LobbyPeer = { id: m.from, name: m.name || 'Player', hover: m.hover, pick: m.pick, ...(typeof m.rp === 'number' ? { rank: { rp: m.rp, title: m.title ?? null } } : {}) };
+    if (this.peer && this.peer.hover === p.hover && this.peer.pick === p.pick && this.peer.name === p.name && this.peer.rank?.rp === p.rank?.rp && this.peer.rank?.title === p.rank?.title) return;
     this.peer = p;
     this.onChange();
   }
@@ -55,7 +56,7 @@ export class PvpLobby {
   private peers(list: PeerMeta[]): void {
     if (this.closed) return;
     if (this.peer && !list.some((p) => p.playerId === this.peer!.id)) { this.peer = null; this.onChange(); } // gone
-    if (!this.peer && list[0]) { this.peer = { id: list[0].playerId, name: list[0].name, hover: list[0].classId, pick: null }; this.send(); this.onChange(); }
+    if (!this.peer && list[0]) { const q = list[0]; this.peer = { id: q.playerId, name: q.name, hover: q.classId, pick: null, ...(typeof q.rp === 'number' ? { rank: { rp: q.rp, title: q.title ?? null } } : {}) }; this.send(); this.onChange(); }
   }
 
   close(): void {
