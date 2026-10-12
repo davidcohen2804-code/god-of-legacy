@@ -84,6 +84,79 @@
     "jump": {
       "frames": 3,
       "source": "gpt stills"
+    },
+    "backstep": {
+      "frames": 4,
+      "source": "gpt stills",
+      "loop": false,
+      "frame_ms": [
+        80,
+        80,
+        80,
+        80
+      ]
+    },
+    "quickrise": {
+      "frames": 3,
+      "source": "gpt stills",
+      "loop": false,
+      "frame_ms": [
+        55,
+        55,
+        50
+      ]
+    },
+    "runstop": {
+      "frames": 2,
+      "source": "gpt stills",
+      "loop": false,
+      "frame_ms": [
+        60,
+        60
+      ]
+    },
+    "stunned": {
+      "frames": 4,
+      "source": "gpt stills",
+      "loop": true,
+      "frame_ms": [
+        110,
+        110,
+        110,
+        110
+      ]
+    },
+    "win": {
+      "frames": 8,
+      "source": "pixverse strip",
+      "loop": false,
+      "hold": true,
+      "frame_ms": [
+        90,
+        90,
+        90,
+        90,
+        90,
+        90,
+        90,
+        90
+      ]
+    },
+    "intro": {
+      "frames": 8,
+      "source": "pixverse strip",
+      "loop": false,
+      "hold": false,
+      "frame_ms": [
+        190,
+        190,
+        190,
+        190,
+        190,
+        190,
+        190,
+        190
+      ]
     }
   },
   "hit_source": "pixverse bm_hit.mp4"

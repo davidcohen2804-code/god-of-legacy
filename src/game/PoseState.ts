@@ -3,7 +3,8 @@
 // rise → apex → fall → landing, hit → hurt, launch → air hurt → knockdown → getup.
 import { PoseQuery } from './Body';
 
-export type Mode = 'idle' | 'alert' | 'walk' | 'run' | 'takeoff' | 'air' | 'land' | 'skill' | 'recover' | 'hurt' | 'launched' | 'down' | 'getup' | 'dead';
+export type Mode = 'idle' | 'alert' | 'walk' | 'run' | 'takeoff' | 'air' | 'land' | 'skill' | 'recover' | 'hurt' | 'launched' | 'down' | 'getup' | 'dead'
+  | 'backstep' | 'quickrise' | 'stunned' | 'win' | 'intro' | 'runstop'; // the arena's body states (painted per hero; the scene sets them)
 
 export interface SkillPose { id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number; seed?: number }
 
@@ -25,6 +26,8 @@ export interface AnimSnap {
   stunMs?: number;
   /** ms since the second jump (War Leap / Wind Leap / Shinsoku / Levitate), while in the air */
   air2?: number;
+  /** the mode's whole length in ms (backstep: its air time; quickrise 160; intro: introMs; runstop 120) — for the p-based poses */
+  ms?: number;
 }
 
 export const RECOVER_MS = 200;
@@ -45,6 +48,12 @@ export function poseQuery(s: AnimSnap): PoseQuery {
     case 'launched': return { k: 'launched', vz: s.vz };
     case 'down': return { k: 'down', p: Math.min(1, s.t / 260) };
     case 'getup': return { k: 'getup', p: Math.min(1, s.t / 260) };
+    case 'backstep': return { k: 'backstep', p: Math.min(1, s.t / Math.max(1, s.ms ?? 400)) };
+    case 'quickrise': return { k: 'quickrise', p: Math.min(1, s.t / Math.max(1, s.ms ?? 160)) };
+    case 'stunned': return { k: 'stunned', t: s.t };
+    case 'win': return { k: 'win', t: s.t };
+    case 'intro': return { k: 'intro', t: s.t, ms: s.ms ?? 1500 };
+    case 'runstop': return { k: 'runstop', p: Math.min(1, s.t / Math.max(1, s.ms ?? 120)) };
     case 'dead': return { k: 'hurt', p: 1 }; // MapleStory-style death: the body holds its stagger and fades while the ghost rises (no fall frames)
   }
 }

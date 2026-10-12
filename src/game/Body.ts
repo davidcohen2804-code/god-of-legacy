@@ -430,6 +430,12 @@ export type PoseQuery =
   | { k: 'down'; p: number } // knockdown fall → lying (p 0..1)
   | { k: 'getup'; p: number }
   | { k: 'recovery'; p: number }
+  | { k: 'backstep'; p: number } // the arena's step back, p 0..1 over its air time
+  | { k: 'quickrise'; p: number } // Combat.quickGetup: 3 frames over 160 ms
+  | { k: 'stunned'; t: number } // long hitstun / hard CC: 4-frame loop, 110 ms each
+  | { k: 'win'; t: number } // the round / match winner: 8 frames ~90 ms, then hold
+  | { k: 'intro'; t: number; ms: number } // before ROUND n: 8 frames over introMs
+  | { k: 'runstop'; p: number } // 2 frames, 60 ms
   | { k: 'death'; p: number }
   | { k: 'skill'; id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number; seed?: number };
 
@@ -486,6 +492,11 @@ function sheetPose(cls: string, dir: Dir, q: BodyQuery): PoseFrame {
     case 'launched': return cls === 'warrior' ? mv(cls, 'react', dir, 1) : mv(cls, 'hurt', dir, q.vz > 0 ? 1 : 2);
     case 'down': return cls === 'warrior' ? mv(cls, 'react', dir, 1) : mv(cls, 'hurt', dir, 2);
     case 'getup': return cls === 'warrior' ? mv(cls, 'react', dir, q.p < 0.5 ? 1 : 0) : mv(cls, 'hurt', dir, 0);
+    case 'backstep': return sheetPose(cls, dir, { k: 'jump', phase: q.p < 0.25 ? 'takeoff' : q.p < 0.8 ? 'apex' : 'land', t: 0 });
+    case 'quickrise': return sheetPose(cls, dir, { k: 'getup', p: q.p });
+    case 'stunned': return sheetPose(cls, dir, { k: 'hurt', p: 1 });
+    case 'win': case 'intro': return sheetPose(cls, dir, { k: 'loop', state: 'idle', t: q.t, speed: 0 });
+    case 'runstop': return sheetPose(cls, dir, { k: 'recovery', p: 0 });
     case 'recovery': return BASE_MODE ? mv(cls, 'react', dir, 7) : mv(cls, 'recovery', dir, 1 + Math.min(2, Math.floor(q.p * 3))); // base body: the stance frame (no recovery sheet)
     case 'death': return BASE_MODE ? mv(cls, 'react', dir, 1) : mv(cls, 'death', dir, Math.min(7, Math.floor(q.p * 8))); // base body: no fall frames (the ghost)
     case 'skill': {
@@ -719,6 +730,12 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
       if (!after) return H('attack', 3);
       return H('attack', q.elapsed - q.startup - q.active < q.recovery * 0.5 ? 4 : 5);
     }
+    case 'backstep': { const A = HEROES[cls].actions; if (!A.backstep) return H('jump', 1); return H('backstep', Math.min(A.backstep.length - 1, Math.floor(q.p * A.backstep.length))); }
+    case 'quickrise': { const A = HEROES[cls].actions; if (!A.quickrise) return H('getup', A.getup ? Math.min(A.getup.length - 1, Math.floor(q.p * A.getup.length)) : 0); return H('quickrise', Math.min(A.quickrise.length - 1, Math.floor(q.p * A.quickrise.length))); }
+    case 'stunned': { const A = HEROES[cls].actions; if (!A.stunned) return H('hurt', A.hurt ? A.hurt.length - 1 : 0); return H('stunned', Math.floor(q.t / 110) % A.stunned.length); }
+    case 'win': { const A = HEROES[cls].actions; if (!A.win) return H('stance', 0); return H('win', Math.min(A.win.length - 1, Math.floor(q.t / 90))); }
+    case 'intro': { const A = HEROES[cls].actions; if (!A.intro) return H('idle', 0); return H('intro', Math.min(A.intro.length - 1, Math.floor((q.t / Math.max(1, q.ms)) * A.intro.length))); }
+    case 'runstop': { const A = HEROES[cls].actions; if (!A.runstop) return H('stance', 0); return H('runstop', Math.min(A.runstop.length - 1, Math.floor(q.p * A.runstop.length))); }
     default: return H('stance', 0); // hit / pushed back / getting up / death (the ghost): the combat stance
   }
 }
@@ -823,6 +840,11 @@ function atlasPoseFor(cls: string, dir: Dir, q: BodyQuery): PoseFrame {
     case 'launched': return atlasPose(cls, dir, 'hurt', 1);
     case 'down': { const n = atlasCount(cls, dir, 'death'); return atlasPose(cls, dir, 'death', Math.min(n - 1, Math.floor(q.p * n))); }
     case 'getup': { const n = atlasCount(cls, dir, 'death'); return q.p < 0.6 ? atlasPose(cls, dir, 'death', Math.max(0, n - 2 - Math.floor(q.p * 2))) : atlasPose(cls, dir, 'hurt', 0); }
+    case 'backstep': return atlasPoseFor(cls, dir, { k: 'jump', phase: q.p < 0.25 ? 'takeoff' : q.p < 0.8 ? 'apex' : 'land', t: 0 });
+    case 'quickrise': return atlasPoseFor(cls, dir, { k: 'getup', p: q.p });
+    case 'stunned': return atlasPoseFor(cls, dir, { k: 'hurt', p: 1 });
+    case 'win': case 'intro': return atlasPoseFor(cls, dir, { k: 'loop', state: 'idle', t: q.t, speed: 0 });
+    case 'runstop': return atlasPoseFor(cls, dir, { k: 'recovery', p: 0 });
     case 'recovery': return q.p < 0.5 ? atlasPose(cls, dir, 'attack', 3) : atlasPose(cls, dir, 'idle', 0);
     case 'death': { const n = atlasCount(cls, dir, 'death'); return atlasPose(cls, dir, 'death', Math.min(n - 1, Math.floor(q.p * n))); }
     case 'skill': {
