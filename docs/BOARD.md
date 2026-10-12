@@ -49,7 +49,9 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - [x] Chapter 3 "The Thief's Trail": Wisteria Walk → Lantern Steps → Moonfall Bridge → Elderwood Path → The Elder Hollow; Lumen's quests; Glowcap / Lantern Moth / Shade Fox — 4cf20bc, 7e51b91, 7c321ee
 - [x] Elderwood Village (the archers' town, 10–20): Wren (mentor, quests), Hazel (shop), Bram at the Elder Tree's door; the Masters' hint points there
 - [x] The Thief's Den — party quest inside the Elder Tree (Lv 15+, 25 min, 5 stages: Sparks → root lanterns → lantern ledges → Pouncer the Magpie → the hoard): five painted rooms, Pip and Bram, Shade Imp / Coin Imp / Pouncer, the lantern puzzles with Pip's hints, the hoard's rewards — 346821c, 295f971, ef8447b. Solo complete and checked end to end; the party sync is requested from PvP below
-- [ ] The other class towns, one at a time: Samurai (Sakura Temple), Warrior, Book Mage, Gambler — each with 3 training maps 10–20, a mentor, a shop, quests
+- [x] Samurai: Sakura Temple — the court (Ayame's 4 quests, Jiro's shop, a Waystone), Blossom Steps (Petal Sprites 11), Fox Shrine Path (Kitsune Kits 13), Bamboo Grove (Bamboo Ronin 17, the Tengu Elder 19) — 636ecb6
+- [x] The Waystones: standing stones at the Temple Road, Elderwood Village and Sakura Temple carry you between the towns (talk to one, pick a town; the Masters point their students home) — 636ecb6. Each new town gets one (`src/world/Waystones.ts`)
+- [ ] The other class towns, one at a time: Warrior, Book Mage, Gambler — each its own walled region east of the last (expand.py REGIONS), 3 training maps 10–20, a mentor, a shop, 4 quests, a Waystone
 - [ ] A dungeon map band 20–30 toward the 2nd job
 - [ ] Test mode (?qa=1 → F8) is in for everyone: god, peace, teleport to any map, level, class, items, gold, quests — use it to check your work in the world
 
@@ -90,6 +92,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - Samurai: VS entrance + win clips for PvP (vs_in.mp4, win_in.mp4) — 830ab5ed
 - Archer: Double Shot body repainted (GPT, 6 frames: nock → full draw → a sharp release with the hand flung back and the cloak whipped → quick second draw → harder second release → recover), also used by Backstep Shot and Vine Lash (one release each); cut.py: a sheet action repainted in tools/heroes/motion/<cls>/<act>_NN.png now replaces the sheet's frames instead of adding to them
 - Maps: Elderwood Village (the archers' town) and the Thief's Den party quest (5 rooms, 25 min, Lv 15+), with the quest Into the Den — 346821c, 295f971, ef8447b. Test mode (?qa=1 → F8) for everyone.
+- Maps: Sakura Temple, the samurai's town and its three training maps, Ayame's quest chain up to the Tengu Elder, the Waystones between the towns — 636ecb6. ART_STYLE.md §10: maps / monsters / NPCs / icons recipes and the GPT image relay without a download button.
 - Samurai: animated ultimate cut-in for Dragon Eclipse (PixVerse, 18 frames 600×200 at 24 fps in CUTIN_ANIM: hair whips, eyes flare red, a gleam down the blade, the dragon roars, the black sun cracks) — checked in the arena — f9af1b0a
 - Archer: Sky Rain cut-in repainted (GPT): the huntress herself at full draw, close-up, green eyes and a spirit arrow, wind and leaves (the old one did not look like her); the 16:9 source is tools/heroes/src/archer_cutin_full.jpg for the animated strip
 - Book Mage: class hit weights — normal / heavy per element (existing painted sheet), COUNTER a rune shell shattering, LAUNCH an arcane column (reads SkillFx's counter flag) — c49dd33a. A dedicated GPT sheet (counter / launch / armor break / finisher) is painted and waits on the art-transfer decision.
