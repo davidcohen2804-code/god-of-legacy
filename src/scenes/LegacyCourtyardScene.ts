@@ -123,6 +123,8 @@ const STAT_MASTERY = 0.8;
 /** Testing: skills cost no MP for now (turn back to false to spend MP again). */
 const MP_FREE = true;
 const MP_REGEN = 0.03, MP_ARENA = 220;
+/** The arena's body states: a hitstun this long turns into the stunned loop; the run's stop frames last this long. */
+const STUN_LONG_MS = 450, RUNSTOP_MS = 120;
 /** The arena's depth: a body's drawn size at the floor's back edge and at its front edge (ActorView.depthScale). */
 const ARENA_DEPTH = { back: 0.9, front: 1.08 };
 /** Hit weight beats (impactBeat): freeze ms, flash color / alpha / ms, ring radius, camera shake [ms, intensity]. */
@@ -364,6 +366,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     cam.setZoom(cam.zoom + (want * this.camPunch - cam.zoom) * Math.min(1, ms / ARENA_CAM.easeMs));
   }
   private camAir = 0;
+  /** A pose the battle holds (the intro before ROUND n, the winner's pose), until sim time. */
+  private poseLock: { mode: Mode; until: number } | null = null;
+  private lockPose(mode: Mode, ms: number): void { this.poseLock = { mode, until: this.simMs + ms }; if (this.bot) this.bot.poseLock = { mode, until: this.simMs + ms }; }
   private camPunch = 1;
   private botCls = 'warrior';
   /** Came from the PvP fighter select: against the CPU / another player. */
@@ -957,7 +962,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const jumped = inp.takeJump();
       if (jumped && b.canBreak(now)) this.breakFree(now); // the arena: BREAK out of the combo
       else if (jumped && b.state === 'launched' && b.tryAirTech(now, inp.moveX || -this.aim.x, inp.moveY || -this.aim.y)) this.fx!.dust(k.x, k.y - k.z, 60, 0.6, this.dustDepth(k));
-      else if ((jumped || inp.hasMove) && b.quickGetup(now)) this.setMode('getup'); // the arena: down a moment, a key stands you up
+      else if ((jumped || inp.hasMove) && b.quickGetup(now)) this.setMode('quickrise'); // the arena: down a moment, a key stands you up
       if (ccLocked && b.state === 'free') { k.vx = 0; k.vy = 0; if (run) this.rt!.cancelOwn('hit'); }
     } else if (run) {
       this.stepCast(run, ms, now);
@@ -1008,11 +1013,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (b.state === 'free' && !this.rt!.ownRun) this.setMode('land');
     }
     if (ev === 'kdImpact') this.fx!.dust(k.x, k.y - k.z, 120, 0.9, this.dustDepth(k));
-    if (b.state === 'hitstun') this.setMode('hurt');
+    if (b.state === 'hitstun') this.setMode(this.mode === 'stunned' || (this.mode === 'hurt' && this.modeT > STUN_LONG_MS) ? 'stunned' : 'hurt'); // a long hitstun: the stunned loop
     else if (b.state === 'launched') this.setMode('launched');
     else if (b.state === 'knockdown') this.setMode(k.grounded ? 'down' : 'launched');
-    else if (b.state === 'getup') this.setMode('getup');
-    else if (this.mode === 'hurt' || this.mode === 'launched' || this.mode === 'down' || this.mode === 'getup') this.setMode(k.grounded ? 'idle' : 'air');
+    else if (b.state === 'getup') { if (this.mode !== 'quickrise') this.setMode('getup'); }
+    else if (b.hard.active(now) && b.hard.kind === 'stun' && k.grounded) this.setMode('stunned'); // held in a stun
+    else if (this.mode === 'hurt' || this.mode === 'launched' || this.mode === 'down' || this.mode === 'getup' || this.mode === 'quickrise' || this.mode === 'stunned') this.setMode(k.grounded ? 'idle' : 'air');
+    if (this.poseLock && now < this.poseLock.until) this.setMode(this.poseLock.mode); else this.poseLock = null; // the battle's intro / the winner's pose
     // Buffered action fires on the first legal frame (within the buffer window).
     const buf = this.ci!.takeBuffered();
     if (buf && this.tryStartSlot(buf.slot)) this.ci!.consumeBuffer();
@@ -1044,14 +1051,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     else if (this.passives.airLeap && !this.leapUsed && !rooted && !(this.mode === 'takeoff' && this.modeT <= PHYS.takeoffMs) && jumpKey) this.warLeap(now);
     else if (this.passives.mage.levitate && !this.leapUsed && !rooted && !(this.mode === 'takeoff' && this.modeT <= PHYS.takeoffMs) && jumpKey) this.levitate(now);
     const sp = Math.hypot(k.vx, k.vy);
-    if (!k.grounded) { if (this.mode !== 'takeoff' || this.modeT > PHYS.takeoffMs) this.setMode('air'); return; }
+    if (!k.grounded) { if (this.mode === 'backstep' && now < this.backstepUntil) return; if (this.mode !== 'takeoff' || this.modeT > PHYS.takeoffMs) this.setMode('air'); return; }
     if (this.mode === 'land' && this.modeT < LAND_MS && !mx && !my) return;
     if (this.mode === 'recover' && this.modeT < RECOVER_MS && !mx && !my) return;
     if (sp > 12) {
       const m: Mode = inp.running && !locked && sp > PHYS.walk + 20 ? 'run' : 'walk';
       if (m !== this.mode) { if (this.mode !== 'walk' && this.mode !== 'run') this.loopT = 0; this.setMode(m); } // every walk starts on its first step (walk↔run keep the stride)
       this.footDust(sp);
-    } else if (this.mode !== 'idle') this.setMode('idle');
+    } else if (this.mode === 'run') this.setMode('runstop'); // the run's two stopping frames
+    else if (this.mode === 'runstop' && this.modeT < RUNSTOP_MS) return;
+    else if (this.mode !== 'idle') this.setMode('idle');
   }
 
   /** Dust only on run foot-contact frames (cadence follows speed). */
@@ -1683,11 +1692,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private renderPlayer(ms: number): void {
     const v = this.view!, k = this.kin, run = this.rt?.ownRun;
     // MapleStory: after an attack or a hit he keeps the combat stance a few seconds while standing still
-    if (this.mode === 'skill' || this.mode === 'recover' || this.mode === 'hurt' || this.mode === 'launched' || this.mode === 'down' || this.mode === 'getup') this.alertUntil = this.simMs + ALERT_MS;
+    if (this.mode === 'skill' || this.mode === 'recover' || this.mode === 'hurt' || this.mode === 'launched' || this.mode === 'down' || this.mode === 'getup' || this.mode === 'quickrise' || this.mode === 'stunned') this.alertUntil = this.simMs + ALERT_MS;
     const mode = this.mode === 'idle' && this.simMs < this.alertUntil ? 'alert' : this.mode;
     const snap: AnimSnap = {
       mode, t: this.mode === 'walk' || this.mode === 'run' || this.mode === 'idle' ? this.loopT : this.modeT,
-      speed: Math.hypot(k.vx, k.vy), vz: k.vz, stunMs: 220, air2: this.air2(),
+      speed: Math.hypot(k.vx, k.vy), vz: k.vz, stunMs: 220, air2: this.air2(), ms: this.mode === 'backstep' ? (2 * BACKSTEP.vz / PHYS.gravity) * 1000 : this.mode === 'quickrise' ? 160 : this.mode === 'intro' ? PVP.battle.introMs : this.mode === 'runstop' ? RUNSTOP_MS : undefined,
       skill: run ? { id: run.skill.id, stage: run.stage, elapsed: run.elapsed, ...run.timings, seed: castSeed(run.castId) } : undefined,
     };
     const dir = this.dir; // Whirlwind spins inside its own 360° body loop
@@ -1952,7 +1961,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const back = -(FACE[this.dir].x || (this.faceSide < 0 ? -1 : 1));
     jump(k, BACKSTEP.vz); k.vx = back * BACKSTEP.speed; k.vy = 0;
     this.backstepUntil = now + (2 * BACKSTEP.vz / PHYS.gravity) * 1000;
-    this.setMode('air');
+    this.setMode('backstep'); // (its own painted body: crouch, push off, airborne back, land)
     this.fx?.dust(k.x, k.y, 46, 0.6, this.dustDepth(k));
   }
 
@@ -3905,12 +3914,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (prev !== 'idle') this.liftCurtain();
         if (!this.curtain) B.vs(this.fighterOf(m.host), this.fighterOf(m.guest), T.vsMs);
         break;
-      case 'intro': B.hideResult(); this.placeForRound(m); this.liftCurtain(); B.round(m.round, m.finalRound, T.introMs); break;
-      case 'fight': B.hideResult(); this.ci?.clearBuffer(); B.fight(); this.stageFx?.event('fight'); if (this.bot) this.bot.hold = false; break;
+      case 'intro': B.hideResult(); this.placeForRound(m); this.liftCurtain(); B.round(m.round, m.finalRound, T.introMs); this.lockPose('intro', T.introMs); break;
+      case 'fight': this.poseLock = null; if (this.bot) this.bot.poseLock = null; B.hideResult(); this.ci?.clearBuffer(); B.fight(); this.stageFx?.event('fight'); if (this.bot) this.bot.hold = false; break;
       case 'ko':
         if (this.bot) this.bot.hold = true;
         B.ko(m.why, m.perfect, T.koMs - 500); this.stageFx?.event('ko');
         if (m.why === 'ko' || m.why === 'double') this.koMoment();
+        if (m.winner === this.localId && this.dead < 0) this.poseLock = { mode: 'win', until: this.simMs + 60000 }; // the winner's pose through the K.O. and the result
+        if (m.winner === BOT_ID && this.bot) this.bot.poseLock = { mode: 'win', until: this.simMs + 60000 };
         break;
       case 'over': if (this.bot) this.bot.hold = true; this.showResult(m); break;
     }

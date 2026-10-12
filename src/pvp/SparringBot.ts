@@ -222,7 +222,7 @@ export class SparringBot {
     else if (free) { k.vx *= 0.8; k.vy *= 0.8; const dx = w.player.x - k.x; if (Math.abs(dx) > 4 && !this.defeated) this.dir = dx > 0 ? 'right' : 'left'; }
     else if (b.state === 'hitstun' && k.grounded && !b.push) { k.vx *= 0.8; k.vy *= 0.8; }
 
-    if ((this.duel || this.level === 'hard') && b.state === 'knockdown' && b.kdPhase === 'down' && now - b.downAt > (this.level === 'hard' ? ARENA_TECH_MS : 260)) b.quickGetup(now); // a duel: it gets up quickly, like a player would
+    if ((this.duel || this.level === 'hard') && b.state === 'knockdown' && b.kdPhase === 'down' && now - b.downAt > (this.level === 'hard' ? ARENA_TECH_MS : 260)) { if (b.quickGetup(now)) this.quickAt = now; } // a duel: it gets up quickly, like a player would
     const r = stepKin(k, ms, b.gravityScale(now));
     b.update(now, ms, r.landed, r.impactVz);
     this.pushState();
@@ -536,13 +536,20 @@ export class SparringBot {
 
   // ------------------------------------------------------------------ presentation
 
+  /** A pose the battle holds (set by the scene: intro, win), until sim time. */
+  poseLock: { mode: Mode; until: number } | null = null;
+  private hurtSince = -1;
+  private quickAt = -Infinity;
   private mode(): Mode {
     const b = this.body, k = this.kin;
     if (this.defeated) return 'dead';
-    if (b.state === 'hitstun') return 'hurt';
+    if (this.poseLock && this.lastNow < this.poseLock.until) return this.poseLock.mode; // the battle's intro / the winner's pose
+    if (b.state !== 'hitstun') this.hurtSince = -1;
+    if (b.state === 'hitstun') { if (this.hurtSince < 0) this.hurtSince = this.lastNow; return this.lastNow - this.hurtSince > 450 ? 'stunned' : 'hurt'; }
     if (b.state === 'launched') return 'launched';
     if (b.state === 'knockdown') return k.grounded ? 'down' : 'launched';
-    if (b.state === 'getup') return 'getup';
+    if (b.state === 'getup') return this.lastNow - this.quickAt < 200 ? 'quickrise' : 'getup';
+    if (b.hard.active(this.lastNow) && b.hard.kind === 'stun' && k.grounded) return 'stunned';
     if (this.cast) return 'skill';
     if (!k.grounded) return 'air';
     const sp = Math.hypot(k.vx, k.vy);
