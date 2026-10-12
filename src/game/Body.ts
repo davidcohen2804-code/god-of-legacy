@@ -580,7 +580,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     mirage: { act: 'mirage', st: [0], ac: [0, 1, 0, 1], rc: [2, 3, 4, 5] },
     blossom_storm: { act: 'blossom_storm', st: [0], ac: [1, 2, 3, 4], rc: [5, 5] },
     hundred_cuts: { act: 'hundred_cuts', st: [0], ac: [1], rc: [5], loop: [1, 2, 3, 4], fps: 14 },
-    tornado_blade: { act: 'spin_cut', st: [0], ac: [0], rc: [0], loop: [0, 1, 2, 3, 4], fps: 16 }, // the air spin: the painted spin, round and round
+    tornado_blade: { act: 'tornado_air', st: [0], ac: [1, 2, 3, 1, 2, 4, 5], rc: [5] }, // the air spin, tucked high: the blade whirls round (SamuraiMotion turns him), up over his head, down for the slam
     falcon_dive: { act: 'falcon_dive', st: [0], ac: [1, 2, 3], rc: [4, 5] },
     dragon_ascension: { act: 'dragon_ascension', st: [0, 1], ac: [2, 3, 4, 3, 4], rc: [5] },
     dragon_eclipse: { act: 'dragon_eclipse', st: [0, 1], ac: [2, 3], rc: [3, 4, 5] },

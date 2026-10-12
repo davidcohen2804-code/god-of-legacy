@@ -85,9 +85,10 @@ export function samuraiMotion(id: string, e: number, T: Timeline, face: number, 
     case 'kagemusha': // the hand seal: low and still, then gone in the burst
       if (r < 0) return M({ sy: 1 - 0.08 * c, ang: -face * 3 * c, after: e > T.startup * 0.6 });
       return M({ sy: 1 + 0.05 * kick(r, 200) });
-    case 'tornado_blade': // the air spin: the body turns with the blade round and round (facing flips), afterimages
+    case 'tornado_blade': // the air spin: the body turns with the blade round and round (facing flips), afterimages — then, facing
+      // the foe again, the blade up over his head and down for the slam (its last hit)
       if (r < 0) return M({ sy: 1 - 0.06 * c, sx: 1 + 0.04 * c });
-      if (e < A) return M({ flip: Math.floor(r / 55) % 2 === 1, after: true });
+      if (e < A) return M({ flip: r < T.active * 0.56 && Math.floor(r / 55) % 2 === 1, after: true });
       return M({ sy: 1 - 0.05 * kick(e - A, 200) });
     case 'falcon_dive': { // crouch, rise leaning back, dive nose-down, land low
       if (r < 0) return M({ sy: 1 - 0.14 * c, sx: 1 + 0.07 * c });

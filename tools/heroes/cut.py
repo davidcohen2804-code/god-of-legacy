@@ -82,7 +82,8 @@ SPEC = {
                 ('S3', [('blossom_storm', 6), ('hundred_cuts', 6), ('tornado_blade', 6)]),
                 ('S4', [('falcon_dive', 6), ('dragon_ascension', 6), ('dragon_eclipse', 6)]),
                 ('S5', [('kagemusha', 6), ('sakura_bind', 6), ('rising_sun', 6)]),
-                ('S6', [('phantom_blades', 6), ('god_of_blades', 6), ('finisher', 6)])],
+                ('S6', [('phantom_blades', 6), ('god_of_blades', 6), ('finisher', 6)]),
+                ('S7', [('tornado_air', 6)])],  # Tornado Blade as the air spin it is now: tucked high in the air, the blade whirling
     # The gambler has no drawn stand / walk sheets: idle, stance, walk, run and jump come from his cut-out parts (rig.py);
     # his size is measured on a standing frame (REF_STAND) and every sheet is matched to it by the face.
     'gambler': [('S1', [('attack', 6), ('charged_deal', 6), ('staff_vault', 6)]),
