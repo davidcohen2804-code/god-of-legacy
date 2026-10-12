@@ -108,6 +108,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - DFO PvP arena dynamics: hit weight beats (COUNTER / PUNISH / ARMOR BREAK: freeze, flash, ring, shake), camera rises with juggles and punches in on ultimates, combo ranks GREAT / EXCELLENT / LEGENDARY — 94290a9
 - Warrior: class hit-spark set (GPT, 4 kinds × 6 frames: normal / heavy / launch / counter) hooked for the warrior — normal and the regular attack small, heavy & signature big, launch an upward burst; the crimson-gold cross on a COUNTER and on a grab's BREAK!
 - Warrior: VS entrance + win clips for PvP (vs_in.mp4, win_in.mp4)
+- Warrior: signature effects no longer repeat — War Cry is now a crimson-gold roar of force rings from his chest (the lion stays only Lion's Maw); Rising Slash is a tall crimson tear of light ripping up from the floor with a red updraft (the golden crescent + cross + pillar stays only Sky Breaker). GPT sheets, checked in the arena.
 - Gambler: animated ultimate cut-in (PixVerse, keyed, 18 frames over ~0.78 s: the card flicks, flares into a fuchsia lightning burst, settles) — in GamblerFx.cutIn, same in the regular game and PvP
 - Gambler: hit-spark set (normal card-pop / heavy card blast / launch spark geyser / crit-counter gold cross) — 92707bd9 (the gold cross shows on COUNTER now that SkillFx passes the flag)
 - Gambler: Staff Vault visuals follow its new hits (BALANCE_LOG 2026-10-11) — b6c437bb

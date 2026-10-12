@@ -54,7 +54,7 @@ const cutAnimKey = (id: string): string => `cutin-anim-${id}`;
 /** Orientation of each final VFX sheet: 'dir' sheets are drawn pointing right and rotate with the aim. */
 /** Upright sheets whose bottom edge is the ground line (drawn standing on the impact point). */
 /** Ground-point origin (fraction of the cell height) for sheets drawn standing on the impact point. */
-const GROUND_ANCHORED = new Map<string, number>([['titans_verdict', 0.97], ['rising_slash', 0.84], ['ground_breaker', 0.8], ['whirlwind', 0.56], ['leap_crash', 0.88], ['war_cry', 0.88], ['sky_breaker', 0.84], ['earthsplitter', 0.8]]);
+const GROUND_ANCHORED = new Map<string, number>([['titans_verdict', 0.97], ['rising_slash', 0.94], ['ground_breaker', 0.8], ['whirlwind', 0.56], ['leap_crash', 0.88], ['war_cry', 0.88], ['sky_breaker', 0.84], ['earthsplitter', 0.8]]);
 /** Frames played during startup (anticipation) — the next frame is the impact at active start. */
 const PRE_FRAMES: Record<string, number> = { titans_verdict: 4 };
 /** Sheets whose frame count differs from the slot default. */
@@ -201,7 +201,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   if (!scene.textures.exists('jb-bolt')) scene.load.spritesheet('jb-bolt', `${F}/skills/warrior/judgment_blade/bolt.png`, { frameWidth: 256, frameHeight: 512 });
   if (!scene.textures.exists('storm-ring')) scene.load.spritesheet('storm-ring', `${F}/skills/warrior/judgment_blade/ring.png`, { frameWidth: 256, frameHeight: 256 });
   if (!scene.textures.exists('sanctuary-wall')) scene.load.spritesheet('sanctuary-wall', `${F}/skills/warrior/sanctuary/wall.png`, { frameWidth: 256, frameHeight: 512 });
-  if (!scene.textures.exists('cry-lion')) scene.load.spritesheet('cry-lion', `${F}/skills/warrior/war_cry/lion.png`, { frameWidth: 256, frameHeight: 256 }); // War Cry: the lion spirit roaring up out of the floor
+  if (!scene.textures.exists('cry-roar')) scene.load.spritesheet('cry-roar', `${F}/skills/warrior/war_cry/roar.png`, { frameWidth: 256, frameHeight: 256 }); // War Cry: the roar made visible — crimson-gold rings of force bursting out from his chest (the lion belongs to Lion's Maw)
   if (!scene.textures.exists('cry-shield')) scene.load.spritesheet('cry-shield', `${F}/skills/warrior/war_cry/shield.png`, { frameWidth: 300, frameHeight: 300 });
   if (!scene.textures.exists('bs-storm')) scene.load.spritesheet('bs-storm', `${F}/skills/warrior/blade_storm/storm.png`, { frameWidth: 280, frameHeight: 440 });
   if (!scene.textures.exists('bs-erupt')) scene.load.spritesheet('bs-erupt', `${F}/skills/warrior/blade_storm/erupt_a.png`, { frameWidth: 250, frameHeight: 667 });
@@ -236,7 +236,7 @@ const VFX_MULT: Record<string, number> = { warrior: 1.5, samurai: 1.25 };
 /** Warrior skills that get a ground shockwave ring at their impact. */
 const SHOCK: Record<string, { r: number; c: number }> = {
   ground_breaker: { r: 200, c: 0xffb050 }, shield_slam: { r: 110, c: 0xfff0c0 }, titans_verdict: { r: 260, c: 0xffd27a },
-  blade_storm: { r: 180, c: 0xffb04a }, rising_slash: { r: 90, c: 0xfff0c0 }, whirlwind: { r: 150, c: 0xffe0a0 },
+  blade_storm: { r: 180, c: 0xffb04a }, rising_slash: { r: 90, c: 0xff5a40 }, whirlwind: { r: 150, c: 0xffe0a0 },
 };
 const SHAKE: Record<HitTier, [number, number]> = { basic: [50, 0.0012], core: [80, 0.002], signature: [110, 0.003], ultimate: [170, 0.0048] };
 
@@ -561,21 +561,21 @@ export class SkillFx {
 
   private roar(r: CastRun): void {
     const T = r.timings, c0 = this.casterPos(r.attackerId); if (!c0) return;
-    const glow = this.scene.add.image(c0.x, c0.y - c0.z - 46, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd36a).setDepth(c0.y - 1).setDisplaySize(60, 80).setAlpha(0);
+    const glow = this.scene.add.image(c0.x, c0.y - c0.z - 46, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xe0402a).setDepth(c0.y - 1).setDisplaySize(60, 80).setAlpha(0);
     this.scene.tweens.add({ targets: glow, alpha: 0.8, displayWidth: 170, displayHeight: 210, duration: T.startup, ease: 'Quad.easeIn' });
     this.scene.time.delayedCall(T.startup, () => {
       const c = this.casterPos(r.attackerId) ?? c0;
       glow.destroy();
-      const pillar = this.scene.add.image(c.x, c.y - c.z - 10, 'dmg-glow').setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff1b8).setDepth(c.y + 1).setDisplaySize(110, 60);
+      const pillar = this.scene.add.image(c.x, c.y - c.z - 10, 'dmg-glow').setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setTint(0xe0402a).setDepth(c.y + 1).setDisplaySize(110, 60);
       this.scene.tweens.add({ targets: pillar, displayHeight: 420, displayWidth: 70, duration: 160, ease: 'Cubic.easeOut' });
       this.scene.tweens.add({ targets: pillar, alpha: 0, delay: 160, duration: 420, onComplete: () => pillar.destroy() });
       const flash = this.scene.add.image(c.x, c.y - c.z - 50, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffffff).setDepth(TOP).setDisplaySize(120, 120);
-      this.scene.tweens.add({ targets: flash, displayWidth: 380, displayHeight: 380, alpha: 0, duration: 260, ease: 'Cubic.easeOut', onComplete: () => flash.destroy() });
-      { const step = Math.max(70, Math.round((T.active + 260) / 8)); // the golden lion roars up out of the floor at his feet, its rings flat on the floor
-        this.play('cry-lion', c.x, c.y + 8, 330, 330, [step * 0.6, step * 0.8, step, step * 1.4, step * 1.2, step, step, step * 1.2], { oy: 0.97, depth: c.y + 2, blend: Phaser.BlendModes.ADD, fadeLast: 160, follow: () => this.casterPos(r.attackerId) }); }
+      this.scene.tweens.add({ targets: flash, displayWidth: 260, displayHeight: 260, alpha: 0, duration: 260, ease: 'Cubic.easeOut', onComplete: () => flash.destroy() });
+      { const step = Math.max(70, Math.round((T.active + 260) / 8)); // the roar: crimson-gold rings of force burst out from his chest
+        this.play('cry-roar', c.x, c.y - c.z - 62, 320, 320, [step * 0.5, step * 0.7, step, step * 1.5, step * 1.2, step, step, step * 1.3], { oy: 0.69, depth: TOP - 6, blend: Phaser.BlendModes.NORMAL, fadeLast: 180, follow: () => this.casterPos(r.attackerId) }); }
       const waves = Math.max(3, Math.round(T.active / 150)); // the roar keeps ringing out for the whole active window
-      for (let i = 0; i < waves; i++) this.scene.time.delayedCall(i * 150, () => { const p = this.casterPos(r.attackerId) ?? c; this.shockwave(p.x, p.y, 200 + (i % 3) * 70, i % 3 === 1 ? 0xffffff : 0xffd36a); });
-      const hold = this.scene.add.image(c.x, c.y - c.z - 50, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd36a).setDepth(c.y - 1).setDisplaySize(190, 230).setAlpha(0.75);
+      for (let i = 0; i < waves; i++) this.scene.time.delayedCall(i * 150, () => { const p = this.casterPos(r.attackerId) ?? c; this.shockwave(p.x, p.y, 200 + (i % 3) * 70, i % 3 === 1 ? 0xffd36a : 0xe0402a); });
+      const hold = this.scene.add.image(c.x, c.y - c.z - 50, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xe0402a).setDepth(c.y - 1).setDisplaySize(190, 230).setAlpha(0.6);
       this.scene.tweens.add({ targets: hold, scaleX: hold.scaleX * 1.12, scaleY: hold.scaleY * 1.12, yoyo: true, repeat: -1, duration: 110 });
       this.scene.tweens.add({ targets: hold, alpha: 0, delay: T.active, duration: 300, onComplete: () => { this.scene.tweens.killTweensOf(hold); hold.destroy(); } });
       (this.cam ?? this.scene.cameras.main).shake(T.active, 0.006);
@@ -966,7 +966,7 @@ export class SkillFx {
     else img.setFlipX(aim.x < -0.01);
     img.setDepth(upright && (shape.kind === 'placed') ? GROUND + 1 : TOP).setBlendMode(Phaser.BlendModes.SCREEN);
     if (shape.kind === 'placed' || (upright && shape.kind === 'circle')) img.setDepth(Math.max(GROUND + 1, pos.y - 2)).setBlendMode(Phaser.BlendModes.ADD);
-    if (s.cls === 'archer') img.setBlendMode(Phaser.BlendModes.NORMAL); // archer sheets are re-toned to keep their green on the sunny floor
+    if (s.cls === 'archer' || s.id === 'rising_slash') img.setBlendMode(Phaser.BlendModes.NORMAL); // (rising_slash: its crimson must not wash to gold on the sunny floor) // archer sheets are re-toned to keep their green on the sunny floor
     const T = r.timings, active = Math.max(T.active, 60);
     const fms: number[] = [], fr: number[] = [];
     if (basic) { // crisp: nothing during the wind-up, the arc snaps out exactly on the swing, short trail
