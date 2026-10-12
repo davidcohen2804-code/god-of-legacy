@@ -361,7 +361,7 @@ export class MageFx {
       { uA: el, delay: o.delay, depth: o.depth ?? TOP + 4 });
   }
   /** A painted sheet played once (additive): its frames spread over `life` ms; (ox, oy) = the anchor inside a frame. */
-  private sheet(key: string, x: number, y: number, size: number, life: number, o: { ox?: number; oy?: number; delay?: number; depth?: number; flipX?: boolean; alpha?: number; sx?: number; sy?: number; follow?: () => { x: number; y: number } | null; split?: [number, number]; run?: CastRun; frames?: [number, number]; loop?: number; tint?: number; keys?: [number, number][]; angle?: number; alive?: () => boolean; floor?: boolean } = {}): void {
+  private sheet(key: string, x: number, y: number, size: number, life: number, o: { ox?: number; oy?: number; delay?: number; depth?: number; flipX?: boolean; alpha?: number; sx?: number; sy?: number; follow?: () => { x: number; y: number } | null; split?: [number, number]; run?: CastRun; frames?: [number, number]; loop?: number; tint?: number; keys?: [number, number][]; angle?: number; alive?: () => boolean; floor?: boolean; fade?: [number, number][] } = {}): void {
     const sc = this.ctx.scene; if (!sc.textures.exists(key)) return;
     const f0 = o.frames?.[0] ?? 0, n = o.frames?.[1] ?? MAGE_SHEETS[key]?.[3] ?? 16;
     const start = () => {
@@ -378,6 +378,7 @@ export class MageFx {
       this.add({ t: 0, step: (_dt, t) => { if (t >= life || !im.active || (o.alive && !o.alive())) { im.destroy(); sh?.destroy(); return false; } const f = o.follow?.(); if (f) { im.setPosition(f.x, f.y); sh?.setPosition(f.x, f.y); } const K = o.keys, sp = o.split, fr = K ? keyFrame(K, t) : sp ? (t < sp[1] ? (t / sp[1]) * sp[0] : sp[0] + ((t - sp[1]) / (life - sp[1])) * (n - sp[0])) : (t / life) * n;
         const k = o.loop ? Math.floor(t / o.loop) % n : Math.min(n - 1, Math.floor(fr));
         if (o.loop) im.setAlpha((o.alpha ?? 1) * Math.min(1, t / 80, (life - t) / 100));
+        else if (o.fade) im.setAlpha((o.alpha ?? 1) * (o.floor ? 0.9 : 1) * kf(...o.fade)(t / life)); // (fade: [u, alpha] keys over its life — it thins once it has burst, the fighters read through it)
         im.setFrame(f0 + k); if (sh) sh.setFrame(f0 + k).setAlpha(im.alpha * 0.6); return true; } });
     };
     if (o.delay) this.later(o.delay, start, o.run); else start();
@@ -693,7 +694,7 @@ export class MageFx {
     if (!pn) this.star(x, cy, 160, 220, { rays: 6 });
     const painted = this.ctx.scene.textures.exists('mfx-nova');
     if (painted) { // drawn behind him (he stands in its hollow centre): bursts fast, stands, shatters slowly; the cold lingers
-      this.sheet('mfx-nova', x, y, 660, 1900, { floor: true, oy: 0.62, depth: y - 2, keys: [[0, 0], [6, 240], [8, 520], [11, 1200], [15.9, 1900]] });
+      this.sheet('mfx-nova', x, y, 660, 1900, { floor: true, oy: 0.62, depth: y - 2, keys: [[0, 0], [6, 240], [8, 520], [11, 1200], [15.9, 1900]], fade: [[0, 1], [0.15, 1], [0.3, 0.42], [0.85, 0.32], [1, 0]] });
       this.smoke(x, y - 10, 620, 1, 1600, { squash: 0.4, depth: y - 3, delay: 120 });
       this.floor('floor_frost', x, y, 520, 2400, { add: true, a: kf([0, 0], [0.08, 0.55], [0.8, 0.45], [1, 0]), s: kf([0, 0.5], [0.15, 1, out3]) });
       for (let k = 0; k < 8; k++) this.later(200 + k * 160, () => this.burst(x + rnd(-200, 200), y - rnd(20, 120), { n: 4, speed: [20, 80], life: [700, 1200], scale: [0.03, 0.09], tint: [0xffffff, 0xcff6ff], gravity: 40 }));
@@ -719,7 +720,7 @@ export class MageFx {
       for (const [da, , dl] of [[0, 1, 0], [-15, 1, 0], [15, 1, 0]] as const) { // the three shots of the fan, together
         const a = base + (da * Math.PI) / 180, dx = Math.cos(a), dy = Math.sin(a), x = o.x + dx * 40, y = o.y + dy * 40 * 0.75;
         const ang = screenAng(dx, dy), len = 250;
-        this.sheet('mfx-spikes', x, y, len / 0.8, 1650, { alpha: 0.85, ox: side < 0 ? 0.9 : 0.1, oy: 0.75, flipX: side < 0, depth: y + 2 + (da === 0 ? 1 : 0), delay: dl, run: r,
+        this.sheet('mfx-spikes', x, y, len / 0.8, 1650, { alpha: 0.85, fade: [[0, 1], [0.24, 1], [0.34, 0.32], [0.8, 0.28], [1, 0.12]], ox: side < 0 ? 0.9 : 0.1, oy: 0.75, flipX: side < 0, depth: y + 2 + (da === 0 ? 1 : 0), delay: dl, run: r,
           keys: [[0, 0], [6.9, 370], [7, 390], [11.9, 1250], [15.9, 1650]], angle: side < 0 ? ang - 180 : ang }); // (erupting as the shot flies: 260 px at 700 px/s)
       }
       this.floor('floor_frost', o.x + r.aim.x * 150, o.y + r.aim.y * 110, 330, 1650, { add: true, a: kf([0, 0], [0.04, 0.5], [0.9, 0.35], [1, 0]), angle: screenAng(r.aim.x, r.aim.y) });
