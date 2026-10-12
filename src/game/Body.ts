@@ -633,7 +633,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     vine_trap: { act: 'vine_trap', st: [0, 1], ac: [2, 3], rc: [4, 5] },
     skyhunters_step: { act: 'skyhunters_step', st: [0], ac: [1, 2, 3, 4], rc: [5] },
     rain_of_arrows: { act: 'rain_of_arrows', st: [0, 1], ac: [2, 3, 4, 3, 4, 3, 4, 5], rc: [5] },
-    piercing_arrow: { act: 'piercing_arrow', st: [0], ac: [1], rc: [5], loop: [1, 2, 3, 4], fps: 4 },
+    piercing_arrow: { act: 'piercing_arrow', st: [0, 1, 2, 4], ac: [5], rc: [5, 6] }, // low lunge: pull the arrow → draw / strain (the charge) → the snap → rise
     hunters_roar: { act: 'hunters_roar', st: [0], ac: [1, 2, 3], rc: [4, 5] },
     leaping_arrow: { act: 'leaping_arrow', st: [0, 1, 2], ac: [3, 4], rc: [5] },
     spirit_hawk: { act: 'spirit_hawk', st: [0, 1, 2], ac: [3], rc: [4, 5] },

@@ -81,6 +81,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - Book Mage (cloud chat, no device link): GPT/PixVerse art is generated, but moving it into the repo is blocked — pasting the image into my private inbox page was refused by the permission check, and carrying it as text is too heavy. Options: allow that paste step, or link this chat to the computer (desktop app) so downloads can be staged. Hit-spark sheet (counter / launch / armor break / finisher) is ready in ChatGPT, waiting on this.
 
 ## Done
+- Archer: Spirit Bow body repainted (GPT): a low lunge — pulls the long arrow, draws, strains to the limit through the charge, a violent snap that throws her back, rises
 - PvP: ranks — rank points through Bronze III … Diamond I, Master, Legend (painted emblems); every match counts (the sparring knight by its level: EASY a third, MIDDLE half, HARD most), a Bronze loss costs half, a tier once reached is never lost; win streaks; 16 titles, one worn under your name. Your plate on the select screen (click the title to change it), your rank on the VS screen, the RP bar / +RP / PROMOTED! on the result — 48d43c3b
 - PvP (DFO review): VS CPU no longer touches the network — e554fe16
 - Gambler: frames review (in-game, windup / hit / follow-through) — first fix: thrown cards' streaks grow with the way flown, no pink blob over his body at the throw — 64ef532b (review of the staff skills in progress)
