@@ -513,7 +513,7 @@ export class ArcherFx {
       const q = this.me(r);
       for (let k = 0; k < 7; k++) {
         const dx = rnd(-14, 14);
-        this.spr({ name: 'arrow_wind', x: q.x + side * 16 + dx, y: q.y - q.z - 70, depth: TOP + 2, w: 70, angle: -90 + rnd(-8, 8), add: true, glow: 0.3, life: 360, delay: k * 35, my: (u) => -420 * out(u), mx: (u) => dx * u, a: kf([0, 1], [0.7, 1], [1, 0]) });
+        this.spr({ name: 'arrow_wind', x: q.x + side * 46 + dx, y: q.y - q.z - 118, depth: TOP + 2, w: 70, angle: (side > 0 ? -58 : -122) + rnd(-6, 6), add: true, glow: 0.3, life: 360, delay: k * 35, my: (u) => -420 * out(u), mx: (u) => side * 270 * out(u) + dx * u, a: kf([0, 1], [0.7, 1], [1, 0]) }); // along her bow, raised up and forward
       }
       this.floor('shock_ring', q.x, q.y, 120, 360, { add: true, s: kf([0, 0.4], [1, 1.2, out3]), a: kf([0, 1], [1, 0]) });
     }, r);
