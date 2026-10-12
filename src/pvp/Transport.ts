@@ -44,7 +44,7 @@ export type NetMsg =
   | { t: 'sel'; from: string; name: string; hover: string; pick: string | null };
 
 export type JoinResult = 'ok' | 'full' | 'error';
-export type TransportKind = 'Supabase' | 'Local' | 'P2P';
+export type TransportKind = 'Supabase' | 'Local' | 'P2P' | 'Offline';
 
 export interface Transport {
   readonly kind: TransportKind;
@@ -60,7 +60,9 @@ export interface Transport {
 
 const ENV = import.meta.env as Record<string, string | undefined>;
 
-export function createTransport(room: string): Transport {
+/** `offline`: VS CPU — nobody else is coming (the sparring knight lives in this page), so no network at all. */
+export function createTransport(room: string, offline = false): Transport {
+  if (offline) return new OfflineTransport();
   const url = ENV.VITE_SUPABASE_URL?.trim(), key = ENV.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
   const q = new URLSearchParams(window.location.search);
   const net = q.get('net');
@@ -238,6 +240,23 @@ class P2PTransport implements Transport {
     void this.room?.leave().catch(() => {});
     this.room = undefined;
   }
+}
+
+// ---------------------------------------------------------------- Offline (VS CPU)
+
+/** A room of one: joined at once, nothing sent, nobody heard — no relay, no peer connection, no server. */
+class OfflineTransport implements Transport {
+  readonly kind = 'Offline' as const;
+  status = 'connecting';
+  join(): Promise<JoinResult> {
+    if (this.status !== 'connecting') return Promise.resolve('error');
+    this.status = 'connected';
+    return Promise.resolve('ok');
+  }
+  send(): void { /* nobody to tell */ }
+  onMessage(): void { /* nobody to hear */ }
+  onPeers(): void { /* nobody comes */ }
+  close(): void { this.status = 'closed'; }
 }
 
 // ---------------------------------------------------------------- Local QA fallback (BroadcastChannel)

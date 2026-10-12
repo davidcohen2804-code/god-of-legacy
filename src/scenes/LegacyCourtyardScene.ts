@@ -3747,7 +3747,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const cos = [...Object.entries(this.equipped).filter(([, v]) => v).map(([s, v]) => `${s}:${v}`), `gear:${this.gearCode}`].join(','); // + what is worn
         return { x: k.x, y: k.y, z: k.z, sz: k.supportZ, dir: this.dir, anim: dead ? 'dead' : this.mode, mode: this.mode, sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: this.aim.x, ay: this.aim.y, hp: this.playerHP, alive: !dead, cos, mhp: this.maxHpNow(), iv: this.body.ghost(this.simMs), kg: this.kage?.code(k), a2: this.air2() };
       },
-    });
+    }, this.vs === 'cpu'); // (VS CPU: no network — the sparring knight is in this page)
     this.pvp = pvp;
     this.party = new Party(meta.playerId, {
       send: (m) => pvp.sendParty(m), nameOf: (id) => pvp.nameOf(id),

@@ -51,8 +51,9 @@ export class PvpController {
   private destroyed = false;
   private readonly onPageHide = () => this.destroy();
 
-  constructor(private scene: Phaser.Scene, readonly room: string, readonly meta: PeerMeta, private h: PvpHandlers) {
-    this.transport = createTransport(room);
+  /** `offline`: VS CPU (no network: see createTransport). */
+  constructor(private scene: Phaser.Scene, readonly room: string, readonly meta: PeerMeta, private h: PvpHandlers, offline = false) {
+    this.transport = createTransport(room, offline);
     this.transport.onMessage((m) => this.receive(m));
     this.transport.onPeers((list) => this.syncPeers(list));
     window.addEventListener('pagehide', this.onPageHide);
