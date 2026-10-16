@@ -62,6 +62,8 @@ export interface SamCtx {
   body?(id: string): { key: string; frame: string | number; flipX: boolean; ox: number; oy: number; sx: number; sy: number; a?: number; face?: number } | null;
   /** Whether a fighter is alive (a buff's picture goes when he falls). */
   alive?(id: string): boolean;
+  /** A soft flash of light over the screen (added, fading out): never a white-out that hides the fighters. */
+  flash?(color: number, alpha: number, ms: number): void;
 }
 
 type Ease = (u: number) => number;
@@ -357,8 +359,13 @@ export class SamuraiFx {
       /** Lays it out: point i at `at(i)`, half as wide as `hw(i)`, as bright as `av(i)`. */
       set: (at: (i: number) => { x: number; y: number }, hw: (i: number) => number, av: (i: number) => number, cv?: (i: number) => number): void => {
         const al = rope.alphas, co = rope.colors;
-        for (let i = 0; i < n; i++) { const p = at(i); pts[i].set(p.x, p.y); w[i] = hw(i); al[i * 2] = al[i * 2 + 1] = Math.max(0, Math.min(1, av(i))); if (cv) co[i * 2] = co[i * 2 + 1] = cv(i); }
-        rope.setDirty().setVisible(true);
+        let mx = 0, my = 0;
+        for (let i = 0; i < n; i++) { const p = at(i); pts[i].set(p.x, p.y); mx += p.x; my += p.y; w[i] = hw(i); al[i * 2] = al[i * 2 + 1] = Math.max(0, Math.min(1, av(i))); if (cv) co[i * 2] = co[i * 2 + 1] = cv(i); }
+        // (the strip stands at the middle of its points, its points round it — a picture with a place of its own, which
+        // the PVP 3D room projects like any other: at (0, 0) with world points it was thrown off into the room)
+        mx /= n; my /= n;
+        for (const p of pts) { p.x -= mx; p.y -= my; }
+        rope.setPosition(mx, my).setDirty().setVisible(true);
       },
       /** Where along its picture each point lies (0..1 across it): a picture sliding along the strip. */
       uv: (u: (i: number) => number): void => { const U = rope.uv; for (let i = 0; i < n; i++) { U[i * 4] = U[i * 4 + 2] = u(i); U[i * 4 + 1] = 0; U[i * 4 + 3] = 1; } },
@@ -602,7 +609,12 @@ export class SamuraiFx {
    *  brushed round him and a crimson cut through it. `from`: where the blow came from (the cut and the sparks face away from there). */
   confirmed(s: FinalSkill, hit: HitEvent, at: V3, reaction: string, heavy: boolean, crit: boolean, from?: { x: number; y: number }, local = false, counter = false): void {
     if (!this.ready) return;
-    const x = at.x, y = at.y - at.z - 38, rapid = s.hits.length > 3 && !hit.heavy, side = from && at.x < from.x - 2 ? -1 : 1, tone = SKILL_TONE[s.id];
+    // the main hit (the same rule as the blow's weight in SkillFx): a heavy one, one that sends the foe flying or down,
+    // the last of a burst — its mark big; the small hits of a burst small, so the main one stands out
+    const many = s.hits.length > 3, flies = !!(hit.reaction.launch || hit.reaction.knockdown || hit.reaction.slam);
+    const main = !!hit.heavy || flies || (many && hit === s.hits[s.hits.length - 1]);
+    const x = at.x, y = at.y - at.z - 38, rapid = many && !main, side = from && at.x < from.x - 2 ? -1 : 1, tone = SKILL_TONE[s.id];
+    if (main && !hit.heavy) heavy = true;
     const line = this.slashLine(s, hit), ang = line ? side * line.ang : 0;
     if (counter) this.counterMark(x, y, side, local);
     if (s.id === 'shadow_step') { // the shadow's cut: a stroke of ink through the foe along the step, ink spattered past it, a blood-red edge
@@ -893,9 +905,10 @@ export class SamuraiFx {
     const side = sideOf(r), f = this.front(r, 84, 62), q = this.me(r), c = f() ?? { x: q.x + side * 84, y: q.y - q.z - 62, d: q.y }, last = i >= r.skill.hits.length - 1;
     if (i === 0) this.swordCage(r, f);
     if (!last) {
-      for (let n = 0; n < 3; n++) { // katanas of light through the foe, one after another
+      for (let n = 0; n < 2; n++) { // katanas of light through the foe, one after another (two a cut, their streaks short and
+        // faint: in a burst of twelve the bodies still read through the cage — PVP 3D review)
         const th = rnd(0, Math.PI * 2), R0 = rnd(118, 150), ox = rnd(-12, 12), oy = rnd(-16, 12), dx = Math.cos(th), dy = Math.sin(th) * 0.6;
-        this.flyBlade(c.x + ox - dx * R0, c.y + oy - dy * R0, c.x + ox + dx * R0, c.y + oy + dy * R0, { delay: n * 24, life: 120, depth: c.d + 5 + n * 0.02, run: r });
+        this.flyBlade(c.x + ox - dx * R0, c.y + oy - dy * R0, c.x + ox + dx * R0, c.y + oy + dy * R0, { delay: n * 30, life: 120, depth: c.d + 5 + n * 0.02, run: r, streak: 0.5, faint: 0.6 });
       }
       if (i % 2 === 0) this.cut(tn('cut_thin', 'steel'), rnd(96, 124), rnd(0, 360), { x: c.x + rnd(-26, 26), y: c.y + rnd(-22, 18), depth: c.d + 5.5, grow: 28, hold: 16, fade: 90, glow: 0.5, sweep: 20 });
       if (i % 3 === 1) this.pop(tn('spark_s', 'gold'), c.x + rnd(-18, 18), c.y + rnd(-18, 18), 64, { life: 150, depth: c.d + 6 }); // (steel on steel: gold sparks)
@@ -912,15 +925,15 @@ export class SamuraiFx {
 
   /** A crimson katana flying straight from (x0, y0) to (x1, y1), point first, two ghostly afterimages behind it, the cut
    *  it leaves along its line. */
-  private flyBlade(x0: number, y0: number, x1: number, y1: number, o: { delay?: number; life?: number; depth?: number; run?: CastRun; len?: number } = {}): void {
+  private flyBlade(x0: number, y0: number, x1: number, y1: number, o: { delay?: number; life?: number; depth?: number; run?: CastRun; len?: number; streak?: number; faint?: number } = {}): void {
     const L = o.len ?? 112, kw = (L * 89) / 400, ang = (Math.atan2(y1 - y0, x1 - x0) * 180) / Math.PI, life = o.life ?? 120, d = o.depth ?? TOP + 3, dl = o.delay ?? 0;
     const mx = (u: number) => (x1 - x0) * u, my = (u: number) => (y1 - y0) * u;
     for (let k = 0; k < 3; k++)
       this.spr({ name: tn(k === 0 ? 'katana' : 'katana_ghost', 'steel'), x: x0, y: y0, w: kw, h: L, angle: ang + 90, life, delay: dl + k * 16, depth: d - k * 0.01, run: o.run, add: k > 0, glow: k === 0 ? 0.3 : undefined,
-        mx, my, a: k === 0 ? kf([0, 0], [0.12, 1], [0.82, 1], [1, 0]) : kf([0, 0], [0.12, 0.4 - k * 0.12], [0.8, 0.3 - k * 0.1], [1, 0]) });
-    const len = Math.hypot(x1 - x0, y1 - y0);
-    this.spr({ name: tn('cut_line', 'steel'), x: (x0 + x1) / 2, y: (y0 + y1) / 2, angle: ang, w: len * 0.9, h: 12, delay: dl + life * 0.35, life: 170, depth: d - 0.05, glow: 0.7, run: o.run,
-      sx: kf([0, 0.2], [0.25, 1, out3]), sy: kf([0, 1], [1, 0.3, inQ]), a: kf([0, 0.95], [1, 0, inQ]) });
+        mx, my, a: k === 0 ? kf([0, 0], [0.12, 1], [0.82, 1], [1, 0]) : kf([0, 0], [0.12, (0.4 - k * 0.12) * (o.faint ?? 1)], [0.8, (0.3 - k * 0.1) * (o.faint ?? 1)], [1, 0]) });
+    const len = Math.hypot(x1 - x0, y1 - y0), fa = o.faint ?? 1;
+    this.spr({ name: tn('cut_line', 'steel'), x: (x0 + x1) / 2, y: (y0 + y1) / 2, angle: ang, w: len * (o.streak ?? 0.9), h: fa < 1 ? 9 : 12, delay: dl + life * 0.35, life: 170, depth: d - 0.05, glow: 0.7 * fa, run: o.run,
+      sx: kf([0, 0.2], [0.25, 1, out3]), sy: kf([0, 1], [1, 0.3, inQ]), a: kf([0, 0.95 * fa], [1, 0, inQ]) });
   }
 
   /** The cage of swords round the foe through Hundred Cuts: eight spectral katanas whirling round it (the near ones in front
@@ -1164,7 +1177,7 @@ export class SamuraiFx {
       return true;
     } });
     for (let i = 0; i < 24; i++) this.later(200 + i * 40, () => this.petals(at.x + rnd(-260, 260), y - rnd(80, 220), 1, 30, { life: 1600, depth: TOP + 3 }));
-    cam.flash(130, 255, 236, 228, false); // the corona bursts white
+    this.ctx.flash?.(0xffd2c8, 0.36, 170); // the corona bursts in light (soft: the colossal cut on the foe stays seen, PVP 3D review)
     this.ctx.darken(MELT0 + MELT - 100, 0.55); // and the dark lifts only after the dragon has passed
     if (r.own) { cam.shake(320, 0.012); this.ctx.punch(0.06, 320); }
   }

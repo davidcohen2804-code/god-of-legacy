@@ -284,7 +284,7 @@ export class SkillFx {
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, hand: (id) => this.handPos?.(id) ?? null,
       callout: (at, text, color, row) => this.callout(at, text, color, row), punch: (a, ms) => this.punch(a, ms), darken: (ms, a) => this.darken(ms, a), ultimateStage: (r) => this.ultimateStage(r),
       ghosts: (id) => this.ghosts?.(id) ?? [], body: (id) => this.bodyOf?.(id) ?? null, targetPos: (id) => this.targetPos?.(id) ?? null,
-      freeze: (ms) => { this.hitStopLeft = Math.max(this.hitStopLeft, ms); }, alive: (id) => this.aliveOf?.(id) ?? true,
+      freeze: (ms) => { this.hitStopLeft = Math.max(this.hitStopLeft, ms); }, alive: (id) => this.aliveOf?.(id) ?? true, flash: (c, a, ms) => this.screenFlash(c, a, ms),
     });
     this.arch = new ArcherFx({
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main,
