@@ -1124,7 +1124,7 @@ export class MageFx {
       else if (row >= 0) this.sheet('mfx-hit2', x, y, row === 12 ? 340 : 250, row === 12 ? 420 : 320, { frames: [row, 4], angle: rnd(-12, 12), depth: TOP + 7 });
     } else if (counter && this.ctx.scene.textures.exists('mfx-wg')) this.sheet('mfx-wg', at.x, at.y - at.z + 8, 200, 300, { frames: [5, 3], oy: 0.86, tint: 0xf0c8ff, depth: TOP + 7 });
     else if (hit.reaction.launch && this.ctx.scene.textures.exists('mfx-pillar')) this.sheet('mfx-pillar', at.x, at.y - at.z + 6, 170, 320, { frames: [4, 4], oy: 0.86, depth: at.y + 5 });
-    if (s.id === 'page_bind') this.sheet('mfx-paper', at.x, at.y - at.z - 50, 190, 520, { frames: [8, 4], tint: 0xcfefff, alpha: 0.85 }); // frozen pages stuck to the foe
+    if (s.id === 'page_bind') this.sheet('mfx-paper', at.x, at.y - at.z - 50, 160, 520, { frames: [8, 4], tint: 0xcfefff, alpha: 0.55 }); // frozen pages stuck to the foe (light: the foe reads under them)
     this.pool(at.x, this.floorY(at.x, at.y, at.z), big ? 190 : 130, tint, 300, { alpha: at.z > 30 ? 0.45 : 0.6 }); // the hit lights the floor under it
     if (this.ctx.scene.textures.exists('mfx-hit')) { // the painted spark: one per element, a heavier one for heavy blows and crits
       const row = big ? 12 : el === 'frost' ? 4 : el === 'storm' ? 8 : 0;
