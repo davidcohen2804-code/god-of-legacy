@@ -30,6 +30,7 @@ export const MAGE_SHEETS: Record<string, [string, number, number, number]> = {
   'mfx-buff': ['buffs.png', 384, 384, 16],
   'mfx-rx': ['reactions.png', 384, 384, 16],
   'mfx-hit': ['hit_sparks.png', 320, 320, 16],
+  'mfx-hit2': ['hit_sparks2.png', 320, 320, 16], // the hit weights: 0-3 counter (a rune shield shatters), 4-7 launch (a geyser up), 8-11 crit (rune glass bursts), 12-15 the ultimate's finisher
   'mfx-circle': ['cast_circles.png', 384, 384, 16],
   'mfx-beam': ['chain_beam.png', 384, 384, 16],
   'mfx-rift': ['time_rift.png', 448, 448, 16],
@@ -1117,7 +1118,11 @@ export class MageFx {
     const x = at.x, y = at.y - at.z - 40, el = hit.el, tint = el === 'frost' ? 0xcff6ff : el === 'storm' ? 0x8fe3ff : 0x6fb8ff;
     const big = crit || heavy || counter;
     // the class's hit weights: COUNTER — a rune shell bursts into shards round the foe; LAUNCH — a short column of arcane light throws it up
-    if (counter && this.ctx.scene.textures.exists('mfx-wg')) this.sheet('mfx-wg', at.x, at.y - at.z + 8, 200, 300, { frames: [5, 3], oy: 0.86, tint: 0xf0c8ff, depth: TOP + 7 });
+    if (this.ctx.scene.textures.exists('mfx-hit2')) { // the painted weights, over the element spark
+      const row = counter ? 0 : s.slot === 7 && big ? 12 : crit ? 8 : hit.reaction.launch ? 4 : -1;
+      if (row === 4) this.sheet('mfx-hit2', at.x, at.y - at.z + 10, 220, 340, { frames: [4, 4], oy: 0.8, depth: TOP + 7 });
+      else if (row >= 0) this.sheet('mfx-hit2', x, y, row === 12 ? 340 : 250, row === 12 ? 420 : 320, { frames: [row, 4], angle: rnd(-12, 12), depth: TOP + 7 });
+    } else if (counter && this.ctx.scene.textures.exists('mfx-wg')) this.sheet('mfx-wg', at.x, at.y - at.z + 8, 200, 300, { frames: [5, 3], oy: 0.86, tint: 0xf0c8ff, depth: TOP + 7 });
     else if (hit.reaction.launch && this.ctx.scene.textures.exists('mfx-pillar')) this.sheet('mfx-pillar', at.x, at.y - at.z + 6, 170, 320, { frames: [4, 4], oy: 0.86, depth: at.y + 5 });
     if (s.id === 'page_bind') this.sheet('mfx-paper', at.x, at.y - at.z - 50, 190, 520, { frames: [8, 4], tint: 0xcfefff, alpha: 0.85 }); // frozen pages stuck to the foe
     this.pool(at.x, this.floorY(at.x, at.y, at.z), big ? 190 : 130, tint, 300, { alpha: at.z > 30 ? 0.45 : 0.6 }); // the hit lights the floor under it
