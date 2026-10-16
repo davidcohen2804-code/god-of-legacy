@@ -28,7 +28,7 @@ export interface Room {
   dispose(): void;
 }
 
-const A = 'assets/arena3d/temple/', A0 = 'assets/arena3d/sakura/';
+const A = 'assets/arena3d/temple/';
 /** The courtyard ground's height (the deck's top is 0). */
 const G = -0.25;
 
@@ -102,7 +102,7 @@ export function buildRoom(scene: THREE.Scene, front: THREE.Scene, renderer: THRE
     rope: std({ map: ropeTex, roughness: 0.95 }),
     shide: std({ color: 0xf6f2ea, roughness: 0.9, side: THREE.DoubleSide }),
     bark: std({ map: tex(A + 'bark.webp'), normalMap: tex(A + 'bark_n.webp', false), normalScale: new THREE.Vector2(1.3, 1.3), roughness: 0.95, color: 0xd8d0cc }),
-    deck: std({ map: tex(A0 + 'floor.webp'), normalMap: tex(A + 'floor_n.webp', false), normalScale: new THREE.Vector2(0.5, 0.5), roughness: 0.62, metalness: 0.02, color: 0xd2c2ba }),
+    deck: std({ map: tex(A + 'planks.webp'), normalMap: tex(A + 'planks_n.webp', false), normalScale: new THREE.Vector2(0.8, 0.8), roughness: 0.5, metalness: 0.03, color: 0xf0e4dc }),
     stoneClean: std({ map: tex(A + 'stone_clean.webp'), normalMap: tex(A + 'stone_n.webp', false), normalScale: new THREE.Vector2(0.9, 0.9), roughness: 0.92, color: 0xe2dcd2 }),
   };
   // the window panels show only the lattice half of the door painting
@@ -111,15 +111,15 @@ export function buildRoom(scene: THREE.Scene, front: THREE.Scene, renderer: THRE
   const P = new Parts(), PF = new Parts();
 
   // ------------------------------------------------------------------ the ground and the fighting floor
-  const groundTex = tex(A0 + 'ground.webp'), groundN = tex(A + 'ground_n.webp', false);
-  groundTex.repeat.set(30, 24); groundN.repeat.set(30, 24);
-  const groundMat = std({ map: groundTex, normalMap: groundN, normalScale: new THREE.Vector2(1.2, 1.2), roughness: 0.92, color: 0xe2d8d2 });
+  const groundTex = tex(A + 'paving.webp'), groundN = tex(A + 'paving_n.webp', false);
+  groundTex.repeat.set(90 / 3.6, 72 / 3.6); groundN.repeat.set(90 / 3.6, 72 / 3.6);
+  const groundMat = std({ map: groundTex, normalMap: groundN, normalScale: new THREE.Vector2(1.3, 1.3), roughness: 0.9, color: 0xf2eae4 });
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(90, 72), groundMat);
   ground.rotation.x = -Math.PI / 2; ground.position.set(cx, G, zMid - 8); ground.receiveShadow = true; scene.add(ground); disposables.push(ground.geometry);
   // the deck: planks on top, its edge a dark beam, a stone curb round it at the ground
   {
     const w = deck.x1 - deck.x0, d = deck.z1 - deck.z0, g = new THREE.BoxGeometry(w, -G, d);
-    g.translate((deck.x0 + deck.x1) / 2, G / 2, (deck.z0 + deck.z1) / 2); worldUV(g, 3.2);
+    g.translate((deck.x0 + deck.x1) / 2, G / 2, (deck.z0 + deck.z1) / 2); worldUV(g, 2.6);
     const m = new THREE.Mesh(g, M.deck); m.receiveShadow = true; m.castShadow = true; scene.add(m); disposables.push(g);
     const cw = 0.28, ch = 0.1;
     P.add('stone', box(w + cw * 2, ch, cw, (deck.x0 + deck.x1) / 2, G, deck.z0 - cw / 2, 1, 0.03), box(w + cw * 2, ch, cw, (deck.x0 + deck.x1) / 2, G, deck.z1 + cw / 2, 1, 0.03),
