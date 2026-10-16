@@ -624,6 +624,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
   },
   archer: {
     quick_shot: { act: 'double_shot', st: [0, 1], ac: [2, 3, 4, 5], rc: [5] },
+    'quick_shot#1': { act: 'piercing_arrow', st: [1, 2], ac: [5], rc: [5, 6] }, // the charged third arrow: the low lunge's draw and snap
     rising_arrow: { act: 'rising_arrow', st: [0, 1, 2], ac: [3], rc: [4, 5] },
     bow_haste: { act: 'hunters_spirit', st: [0, 1], ac: [2], rc: [3, 4, 5] },
     backstep_shot: { act: 'double_shot', st: [1], ac: [2], rc: [5] }, // one shot: draw → release → recover
@@ -708,7 +709,7 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
     case 'skill': {
       const sk = FINAL_SKILLS.find((s) => s.id === q.id);
       const winding = q.elapsed < q.startup, after = q.elapsed >= q.startup + q.active;
-      const plan = HERO_PLANS[cls]?.[q.id];
+      const plan = (sk?.chain && q.stage > 0 ? HERO_PLANS[cls]?.[`${q.id}#${q.stage}`] : undefined) ?? HERO_PLANS[cls]?.[q.id]; // a chain stage may have its own moves (id#stage)
       if (plan && HEROES[cls].actions[plan.act]) { // the skill's own drawn moves, spread over its startup / active / recovery
         if (plan.loop && !winding && !after) return H(plan.act, plan.loop[Math.floor(((q.elapsed - q.startup) * (plan.fps ?? 10)) / 1000) % plan.loop.length]);
         const list = winding ? plan.st : !after ? plan.ac : plan.rc;

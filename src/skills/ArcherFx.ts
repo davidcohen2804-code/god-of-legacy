@@ -56,6 +56,7 @@ export class ArcherFx {
   private incoming: Live[] = [];
   private arrows = new Map<Projectile, Arrow>();
   private fanCount = new Map<string, number>();
+  private heavyShots = new Set<string>(); // casts of Double Shot's charged arrow (its projectile is drawn heavy)
   private trapArt = new Map<Trap, { stop(): void; arm(): void }>();
   private markArt = new Map<string, { n: number; until: number; im: Phaser.GameObjects.Image | null }>();
   private hawks = new Map<string, { until: number; t: number; px: number; py: number; vx: number; vy: number; wx: number; wy: number; next: number; face: number; dive: { x: number; y: number; d: number; t: number } | null; im: Phaser.GameObjects.Image }>();
@@ -201,7 +202,13 @@ export class ArcherFx {
     if (!this.ready) return;
     const s = r.skill, T = r.timings, me = this.me(r), side = sideOf(r), a = r.aim;
     switch (s.id) {
-      case 'quick_shot': this.muzzle(r, 70, T.startup); break;
+      case 'quick_shot':
+        if (r.stage === 1) { // the charged arrow: light gathers on the bow, then a heavy snap and a boom along the aim
+          this.heavyShots.add(r.castId); this.later(2000, () => this.heavyShots.delete(r.castId));
+          this.spr({ name: 'aura_green', w: 70, life: T.startup, follow: this.at(r.attackerId, side, 14, 54), dz: 4, add: true, glow: 0.5, run: r, sx: kf([0, 0.3], [1, 1.1, out3]), sy: kf([0, 0.3], [1, 1.1, out3]), a: kf([0, 0], [0.3, 0.9], [1, 1]) });
+          this.muzzle(r, 110, T.startup); this.bowBurst(r, 'sonic_boom', 120, T.startup, 300);
+        } else this.muzzle(r, 70, T.startup);
+        break;
       case 'bow_haste': { // Wind Step: a whirlwind bursts where she stood and hurls her back; wind streams along the leap; she looses an arrow mid-air
         this.spr({ name: 'tornado', x: me.x, y: me.y + 6, oy: 0.96, depth: me.y + 2, w: 120, life: 560, glow: 0.3, run: r, sy: kf([0, 0.3], [0.25, 1.05, out3], [1, 1.1]), sx: kf([0, 0.6], [0.25, 1, out3], [1, 1.3]), a: kf([0, 0.9], [0.6, 0.8], [1, 0, inQ]) });
         this.floor('wind_ring', me.x, me.y, 150, 560, { add: true, glow: 0.4, run: r, s: kf([0, 0.5], [0.4, 1.3, out3]), a: kf([0, 0.95], [1, 0, inQ]) });
@@ -677,8 +684,9 @@ export class ArcherFx {
     let iron = false;
     if (id === 'multi_shot') { const n = (this.fanCount.get(p.castId) ?? 0) + 1; this.fanCount.set(p.castId, n); iron = n % 2 === 0; if (n === 1) this.later(2000, () => this.fanCount.delete(p.castId)); } // between the green arrows: iron ones
     const mid = id === 'multi_shot' && (this.fanCount.get(p.castId) ?? 0) === 3;
-    const kind = id === 'piercing_arrow' ? 'spiral_arrow' : id === 'hunters_spirit' ? 'vine_arrow' : mid ? 'spiral_arrow' : id === 'explosive_arrow' || iron ? 'arrow_heavy' : 'arrow_wind';
-    const w = id === 'hunters_spirit' ? 120 : mid ? 130 : id === 'explosive_arrow' ? 110 : id === 'piercing_arrow' ? 230 : id === 'skyhunters_step' ? 80 : 86;
+    const heavyShot = id === 'quick_shot' && this.heavyShots.has(p.castId); // Double Shot's charged third arrow
+    const kind = id === 'piercing_arrow' || heavyShot ? 'spiral_arrow' : id === 'hunters_spirit' ? 'vine_arrow' : mid ? 'spiral_arrow' : id === 'explosive_arrow' || iron ? 'arrow_heavy' : 'arrow_wind';
+    const w = heavyShot ? 130 : id === 'hunters_spirit' ? 120 : mid ? 130 : id === 'explosive_arrow' ? 110 : id === 'piercing_arrow' ? 230 : id === 'skyhunters_step' ? 80 : 86;
     const s = this.ctx.scene, fr = s.textures.getFrame(ARCHER_KIT, kind);
     const im = s.add.image(p.x, p.y - p.z, ARCHER_KIT, kind).setOrigin(0.92, 0.5).setDisplaySize(w, (w * fr.height) / fr.width).setAlpha(0);
     if (id === 'explosive_arrow') im.setTint(0xffc070, 0xffc070, 0xff8a30, 0xff8a30);

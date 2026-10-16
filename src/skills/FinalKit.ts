@@ -233,6 +233,12 @@ const warrior: FinalSkill[] = [
 // (Combat.ts), a rune net on the floor, gravity turned over, gates, the paper crane curse, time. Ordered by Jobs.ts.
 const FROST = 'frost' as const, STORM = 'storm' as const;
 /** Arcane Bolt's three beats (el: the element Attunement gives them). */
+function doubleShotStages(): HitEvent[][] {
+  return [
+    [H(0, 7, { kind: 'projectile', speed: 900, range: 430, radius: 9, antiAir: true }, { stun: 180, push: 2 }), H(70, 7, { kind: 'projectile', speed: 900, range: 430, radius: 9, antiAir: true }, { stun: 200, push: 3 }, { mark: 1 })],
+    [H(0, 14, { kind: 'projectile', speed: 1250, range: 470, radius: 14, antiAir: true }, { stun: 320, push: 90 }, { heavy: true })],
+  ];
+}
 function boltStages(el?: 'frost' | 'storm'): HitEvent[][] {
   const e = el ? { el } : {}, sp = el === 'storm' ? 860 : 760;
   return [
@@ -402,10 +408,12 @@ const archer: FinalSkill[] = [
   S({
     id: 'quick_shot', cls: 'archer', arenaDmg: 0.6, slot: 0, name: 'Double Shot', roles: ['basic', 'projectile'], targeting: 'mouseProjectile',
     startup: 85, active: 70, recovery: 110, cooldown: 350, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: { startup: 0.85, active: 0.85, recovery: 0.85 },
-    hits: [H(0, 7, { kind: 'projectile', speed: 900, range: 430, radius: 9, antiAir: true }, { stun: 180, push: 2 }), H(70, 7, { kind: 'projectile', speed: 900, range: 430, radius: 9, antiAir: true }, { stun: 200, push: 3 }, { mark: 1 })],
+    hits: doubleShotStages()[0],
+    // a two-beat rhythm: the two fast arrows, then a charged arrow that throws the foe back (her chain's end) — numbers: DFO PvP arena dynamics
+    chain: { resetMs: 600, stages: doubleShotStages(), timings: [{ startup: 85, active: 70, recovery: 110 }, { startup: 170, active: 0, recovery: 220 }] },
     cancelOnHit: ['rising_arrow', 'multi_shot', 'explosive_arrow', 'retreat_kick', 'piercing_arrow', 'vine_trap', 'rain_of_arrows'],
-    description: 'Two fast arrows in the facing direction; usable while moving at 85% speed. A foe up in the air in front is shot where he is: keep him up with it.',
-    relations: ['Poke', 'Air follow-up'],
+    description: 'Tap or hold Space: two fast arrows, then a charged arrow that throws the foe back; usable while moving at 85% speed. A foe up in the air in front is shot where he is: keep him up with it.',
+    relations: ['Poke', 'Air follow-up', '2-beat chain'],
   }),
   // ---- 1st job (Archer)
   S({
