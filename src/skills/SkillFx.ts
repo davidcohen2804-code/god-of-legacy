@@ -1309,10 +1309,14 @@ export class SkillFx {
     }
     if (damage > 0) this.damageNumber(at, damage, hit.heavy || tier === 'ultimate' || tier === 'signature', combo, local, crit);
     if (local) {
-      const multi = (s.chain ? 1 : s.hits.length) > 3 && !hit.heavy; // rapid multi-hits: lighter per-hit freeze
-      this.hitStopLeft = Math.max(this.hitStopLeft, HITSTOP[tier] * (multi ? 0.45 : 1) + (hit.heavy && tier === 'core' ? 20 : 0));
-      const [d, i] = SHAKE[tier];
-      if (tier !== 'basic' || hit.heavy) this.scene.cameras.main.shake(d, i);
+      // the blow's weight (feel only): a heavy blow, one that sends the foe flying or down, and the last blow of a burst are
+      // the "main hit" — full freeze and a heavier shake; the small hits of a burst stay light so the main one stands out
+      const flies = !!(hit.reaction.launch || hit.reaction.knockdown || hit.reaction.slam);
+      const many = (s.chain ? 1 : s.hits.length) > 3, lastOfBurst = many && hit === s.hits[s.hits.length - 1];
+      const weighty = !!hit.heavy || flies || lastOfBurst;
+      this.hitStopLeft = Math.max(this.hitStopLeft, HITSTOP[tier] * (many && !weighty ? 0.45 : 1) + (weighty && tier !== 'ultimate' ? 25 : 0) + (flies ? 15 : 0));
+      const [d, i] = SHAKE[weighty && tier === 'core' ? 'signature' : tier];
+      if (tier !== 'basic' || weighty) this.scene.cameras.main.shake(d, i);
     }
   }
 

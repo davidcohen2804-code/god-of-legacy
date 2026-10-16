@@ -12,14 +12,13 @@ import * as THREE from 'three';
 /** World px → 3D units: 1 unit = 100 px; the floor's depth stretched (a deep room), heights as drawn. */
 const U = 100, HEIGHT_K = 1.0;
 /** The camera: pitch below the horizon, field of view, distance (units) — and how much it turns with the fight. */
-const CAM = { pitch: 26, fov: 32, dist: 9.5, distPerSpan: 0.3, distMax: 15, yawMax: 9, follow: 0.12, aim: 0.5 };
+const CAM = { pitch: 24, fov: 32, dist: 8.4, distPerSpan: 0.3, distMax: 14, yawMax: 9, follow: 0.12, aim: 0.5 };
 /** The floor's depth stretch (world px of depth → units). Things drawn without a floor point of their own (effects in
  *  the top layers, numbers) are placed over the fighter nearest to them, so any depth reads right. */
 const DEPTH_K = 1.15;
 /** Voxel size (units). */
-const V = 0.25;
-/** The room's render size (a share of the game's): the blocky room reads the same a little softer, and costs much less. */
-const RES = 0.6;
+/** The room's render size (a share of the game's): the paintings stay crisp, the cost stays low. */
+const RES = 0.85;
 
 type Placed = Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Transform & Phaser.GameObjects.Components.Visible
   & { scrollFactorX?: number; scrollFactorY?: number; depth: number; displayWidth?: number };
@@ -41,7 +40,19 @@ export class Arena3D {
   private yaw = 0;
   private dist = CAM.dist;
   private lanterns: THREE.PointLight[] = [];
+  private hemi!: THREE.HemisphereLight;
+  /** The painted cut-outs' materials (darkened together in a big moment). */
+  private cards: { mat: THREE.MeshBasicMaterial; base: THREE.Color }[] = [];
+  /** The hits' light: a small pool of point lights, each placed on a hit and fading (the floor and the ground take it). */
+  private hitLights: { L: THREE.PointLight; left: number; ms: number; power: number }[] = [];
+  /** The marks a heavy blow leaves on the floor (a soft dark scorch / dust ring, fading). */
+  private marks: { m: THREE.Mesh; left: number; ms: number }[] = [];
+  private markTex?: THREE.Texture;
+  /** How dark the room is (0 = as painted, 1 = night): eased toward `dimWant`, set by the scene in a big moment. */
+  private dimNow = 0;
+  dimWant = 0;
   private petals?: THREE.Points;
+  private loader = new THREE.TextureLoader();
   private t = 0;
   /** The fighters' midpoint and spread (world px), set by the scene each frame. */
   focus = { x: 0, y: 0, z: 0, span: 0 };
@@ -59,8 +70,8 @@ export class Arena3D {
     this.fgCanvas = this.bgCanvas;
     this.renderer = new THREE.WebGLRenderer({ canvas: this.bgCanvas, antialias: true, alpha: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(1); this.renderer.setSize(w, h, false);
-    this.renderer.shadowMap.enabled = !soft; this.renderer.shadowMap.type = THREE.PCFShadowMap;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.05;
+    this.renderer.shadowMap.enabled = false; void soft; // (painted cut-outs carry their own shadows)
+    this.renderer.toneMapping = THREE.NoToneMapping;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.camera = new THREE.PerspectiveCamera(CAM.fov, w / h, 0.5, 400);
     this.build();
@@ -84,114 +95,124 @@ export class Arena3D {
   private h3 = (z: number) => (z / U) * HEIGHT_K;
 
   private build(): void {
-    const S = this.scene3, F = this.floor;
-    const x0 = this.w3(F.x0) - 1.5, x1 = this.w3(F.x1) + 1.5, zBack = this.d3(F.back) - 0.4, zFront = this.d3(F.front) + 0.4;
-    S.background = new THREE.Color(0x2a1b2e);
-    S.fog = new THREE.Fog(0x3a2238, 30, 90);
-    // light: a low sunset sun from behind-left, a cool sky fill, warm lanterns
-    S.add(new THREE.HemisphereLight(0xffc9a8, 0x2a2440, 1.1));
-    const sun = new THREE.DirectionalLight(0xffa86a, 2.2);
-    sun.position.set(x0 - 10, 18, zBack - 14); sun.target.position.set((x0 + x1) / 2, 0, (zBack + zFront) / 2);
-    sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
-    Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, near: 1, far: 120 });
-    S.add(sun, sun.target);
+    const S = this.scene3, F = this.floor, A = 'assets/arena3d/sakura/';
+    const x0 = this.w3(F.x0) - 0.6, x1 = this.w3(F.x1) + 0.6, zBack = this.d3(F.back) - 0.3, zFront = this.d3(F.front) + 0.3;
+    const cx = (x0 + x1) / 2, W = x1 - x0;
+    S.background = new THREE.Color(0x3a2440);
+    S.fog = new THREE.Fog(0x8a5a6a, 26, 70);
+    // light: the paintings carry their own light (unlit cards); the floor takes a warm dusk light and the lanterns' glow
+    this.hemi = new THREE.HemisphereLight(0xfff0e6, 0x5a3a40, 1.55); S.add(this.hemi);
+    const sun = new THREE.DirectionalLight(0xffb27a, 1.4); sun.position.set(cx - 12, 14, zBack - 10); sun.target.position.set(cx, 0, (zBack + zFront) / 2); S.add(sun, sun.target);
+    const tex = (file: string, onLoad?: (t: THREE.Texture) => void): THREE.Texture => {
+      const t = this.loader.load(A + file, (tt) => { onLoad?.(tt); });
+      t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+      return t;
+    };
+    /** A painted cut-out standing in the room: its bottom centre at (x, y, z), h units tall (its width from the painting). */
+    const card = (target: THREE.Scene, file: string, x: number, y: number, z: number, h: number, opts: { flip?: boolean; fog?: boolean; tint?: number } = {}) => {
+      const mat = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.08, depthWrite: true, fog: opts.fog ?? true, color: opts.tint ?? 0xffffff });
+      this.cards.push({ mat, base: new THREE.Color(opts.tint ?? 0xffffff) });
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat); m.visible = false; target.add(m);
+      mat.map = tex(file, (t) => { const img = t.image as { width: number; height: number }; const w = h * img.width / img.height; m.scale.set(opts.flip ? -w : w, h, 1); m.position.set(x, y + h / 2, z); m.visible = true; mat.needsUpdate = true; });
+      return m;
+    };
 
-    const vox: { p: THREE.Vector3; c: THREE.Color; s?: THREE.Vector3 }[] = [];
-    const col = (hex: number, j = 0.06) => { const c = new THREE.Color(hex); const k = 1 + (Math.random() - 0.5) * j * 2; return c.multiplyScalar(k); };
-    const box = (ax: number, ay: number, az: number, bx: number, by: number, bz: number, hex: number, j = 0.06, step = V) => {
-      for (let x = ax; x < bx - 1e-6; x += step) for (let y = ay; y < by - 1e-6; y += step) for (let z = az; z < bz - 1e-6; z += step) {
-        // hollow inside (only the shell shows)
-        const edge = x - ax < step || bx - x <= step * 1.01 || y - ay < step || by - y <= step * 1.01 || z - az < step || bz - z <= step * 1.01;
-        if (edge) vox.push({ p: new THREE.Vector3(x + step / 2, y + step / 2, z + step / 2), c: col(hex, j), s: step !== V ? new THREE.Vector3(step, step, step) : undefined });
+    // the fighting floor: the painted planks, tiled (a plank about a quarter of a hero's height), lit by the room
+    const floorTex = tex('floor.webp'); floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping; floorTex.repeat.set(W / 3.2, (zFront - zBack) / 3.2);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, zFront - zBack), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.42, metalness: 0.08 }));
+    floor.rotation.x = -Math.PI / 2; floor.position.set(cx, 0, (zBack + zFront) / 2); S.add(floor);
+    // a dark stone rim round the planks and the ground beyond (stone paving when painted, else dusk earth)
+    const rim = new THREE.Mesh(new THREE.BoxGeometry(W + 0.5, 0.18, zFront - zBack + 0.5), new THREE.MeshStandardMaterial({ color: 0x3a2e2c, roughness: 0.9 }));
+    rim.position.set(cx, -0.1, (zBack + zFront) / 2); S.add(rim);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x4a3a3a, roughness: 0.95 });
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(W + 60, 60), groundMat); ground.rotation.x = -Math.PI / 2; ground.position.set(cx, -0.2, zBack + 5); S.add(ground);
+    this.loader.load(A + 'ground.webp', (t) => { t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set((W + 60) / 4, 60 / 4); groundMat.map = t; groundMat.color.set(0xffffff); groundMat.needsUpdate = true; }, undefined, () => { /* (no paving painted yet) */ });
+
+    // the far sky (no fog: it is the light itself), then the temple right behind the floor, cherry trees round it
+    card(S, 'sky.webp', cx, -6, zBack - 42, 36, { fog: false });
+    card(S, 'facade.webp', cx, -0.05, zBack - 0.35, 8.2);
+    card(S, 'tree.webp', x0 - 2.2, -0.05, zBack - 1.4, 7.5);
+    card(S, 'tree.webp', x1 + 2.2, -0.05, zBack - 1.4, 7.5, { flip: true });
+    card(S, 'tree.webp', x0 + 1.5, -0.05, zBack - 7, 9, { flip: true, tint: 0xe8d0dc });
+    card(S, 'tree.webp', x1 - 1.0, -0.05, zBack - 8, 9.5, { tint: 0xe8d0dc });
+    card(S, 'tree.webp', x0 - 5.5, -0.05, zBack + 3, 8, { tint: 0xf0e0e6 });
+    card(S, 'tree.webp', x1 + 5.5, -0.05, zBack + 3.5, 8, { flip: true, tint: 0xf0e0e6 });
+    // stone lanterns down both sides of the floor (their glow on the planks)
+    for (const [i, zc] of [zBack + 0.6, (zBack + zFront) / 2, zFront - 0.6].entries()) for (const side of [-1, 1]) {
+      const x = side < 0 ? x0 - 0.9 : x1 + 0.9;
+      card(S, 'lantern.webp', x, -0.05, zc, 2.3);
+      if (i !== 1) continue;
+      const L = new THREE.PointLight(0xffa04a, 6, 7, 1.7); L.position.set(x - side * 0.6, 1.5, zc + 0.3); S.add(L); this.lanterns.push(L);
+    }
+    { const L = new THREE.PointLight(0xffb060, 10, 9, 1.6); L.position.set(cx, 1.8, zBack + 0.4); S.add(L); this.lanterns.push(L); } // the temple's open doors light the back of the floor
+
+    // the railing in front (its own scene: drawn over the fighters), tiled across; dark wood bars if not painted yet
+    const rz = zFront + 0.9;
+    this.loader.load(A + 'railing.webp', (t) => {
+      t.colorSpace = THREE.SRGBColorSpace;
+      const img = t.image as { width: number; height: number }, h = 0.62, w = h * img.width / img.height; // (waist-high)
+      for (let x = x0 - 2; x < x1 + 2; x += w * 0.955) { // (each piece's first post over the last one's)
+        const rm = new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.08 }); this.cards.push({ mat: rm, base: new THREE.Color(0xffffff) });
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), rm);
+        m.position.set(x + w / 2, h / 2 - 0.1, rz); this.front3.add(m);
       }
-    };
+    }, undefined, () => { /* (not painted yet: no railing) */ });
 
-    // the fighting floor: dark planks (long boards along x), a stone border
-    const boards: { x: number; z: number; len: number; c: THREE.Color }[] = [];
-    for (let z = zBack; z < zFront; z += 0.33) {
-      let x = x0 - Math.random() * 1.5;
-      while (x < x1) { const len = Math.min(x1 - x, 0.9 + Math.random() * 1.1); if (len > 0.2) boards.push({ x: Math.max(x, x0), z, len: len - Math.max(0, x0 - x), c: col(0x6b3f2a, 0.14) }); x += len; }
-    }
-    { // one instanced mesh: each board its own length and tone, a hair of a gap between them
-      const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ roughness: 0.32, metalness: 0.12 }), boards.length), m = new THREE.Matrix4();
-      boards.forEach((b, i) => { m.makeScale(Math.max(0.1, b.len - 0.04), 0.2, 0.31).setPosition(b.x + b.len / 2, -0.1, b.z + 0.165); mesh.setMatrixAt(i, m); mesh.setColorAt(i, b.c); });
-      mesh.receiveShadow = true; S.add(mesh);
-    }
-    box(x0 - 0.5, -1.2, zBack - 0.5, x1 + 0.5, -0.2, zFront + 0.5, 0x7d7368, 0.08, 0.5); // stone base under the boards (its top just under them: no flicker)
-
-    // the back wall: a red temple — stone plinth, red pillars, white panels, a dark curved roof
-    const wz = zBack - 1.6;
-    box(x0 - 2, 0, wz - 2, x1 + 2, 1, wz + 1.2, 0x8a8075);               // plinth
-    box((x0 + x1) / 2 - 2, 0, wz + 1.2, (x0 + x1) / 2 + 2, 0.5, zBack - 0.5, 0x8a8075); // steps down to the floor
-    for (let x = x0 - 1; x <= x1 + 1; x += 3.5) box(x, 1, wz, x + 0.75, 6, wz + 0.75, 0xa0201e, 0.05);   // pillars
-    box(x0 - 1, 1, wz + 0.25, x1 + 1.5, 5.5, wz + 0.5, 0xe9dcc2, 0.04);                                  // white wall panels
-    box(x0 - 1, 5.25, wz - 0.25, x1 + 1.5, 6, wz + 1, 0x7a1414, 0.05);                                 // red beam
-    for (let i = 0; i < 4; i++) box(x0 - 2.5 + i * 0.25, 6 + i * 0.5, wz - 1 + i * 0.25, x1 + 3 - i * 0.25, 6.5 + i * 0.5, wz + 2 - i * 0.5, 0x2a2430, 0.05); // stepped roof
-    box(x0 - 3, 6, wz + 1.5, x0 - 1.5, 6.5, wz + 2.3, 0x2a2430); box(x1 + 2, 6, wz + 1.5, x1 + 3.5, 6.5, wz + 2.3, 0x2a2430); // upturned eaves
-    // lanterns on the temple and along the floor's back edge
-    const lantern = (x: number, y: number, z: number, glowY: number, light = true) => { // (few real lights: each one costs every pixel)
-      box(x - 0.25, y, z - 0.25, x + 0.25, y + 0.75, z + 0.25, 0xffd08a, 0.02);
-      if (!light) return;
-      const L = new THREE.PointLight(0xff9a40, 9, 10, 1.6); L.position.set(x, glowY, z + 0.4); S.add(L); this.lanterns.push(L);
-    };
-    for (let x = x0; x <= x1; x += (x1 - x0) / 3) lantern(x, 4, wz + 0.75, 4.4);
-    // stone lanterns at the floor's back corners
-    for (const x of [x0 - 2.75, x1 + 2.75]) for (const zc of [zBack + 1, (zBack + zFront) / 2, zFront - 1]) { // stone lanterns down both sides, past the fences
-      box(x - 0.5, 0, zc - 0.5, x + 0.5, 0.5, zc + 0.5, 0x8d8579); box(x - 0.25, 0.5, zc - 0.25, x + 0.25, 1.5, zc + 0.25, 0x8d8579); box(x - 0.5, 1.5, zc - 0.5, x + 0.5, 2.25, zc + 0.5, 0x8d8579);
-      lantern(x, 1.6, zc, 1.9, false);
-    }
-
-    // cherry trees behind the corners: trunks and pink blossom clouds
-    const tree = (x: number, z: number, s: number) => {
-      box(x - 0.25, 0, z - 0.25, x + 0.25, 3 * s, z + 0.25, 0x3b2418);
-      for (let i = 0; i < 26; i++) {
-        const a = Math.random() * Math.PI * 2, r = Math.random() * 2.2 * s;
-        const cx = x + Math.cos(a) * r, cz = z + Math.sin(a) * r * 0.7, cy = 3 * s + Math.random() * 1.8 * s;
-        box(Math.round(cx / V) * V, Math.round(cy / V) * V, Math.round(cz / V) * V, Math.round(cx / V) * V + 0.75, Math.round(cy / V) * V + 0.5, Math.round(cz / V) * V + 0.75, i % 3 ? 0xf2a0c0 : 0xffc6da, 0.05);
-      }
-    };
-    tree(x0 - 2.5, zBack - 1.5, 1.2); tree(x1 + 2.5, zBack - 1.5, 1.2); tree(x0 + 2, wz - 4, 1.4); tree(x1 - 2, wz - 4, 1.4);
-    // side walls (low stone fences) so the room reads closed
-    box(x0 - 1.25, 0, zBack - 0.5, x0 - 0.75, 1.25, zFront + 0.5, 0x8a8075); box(x1 + 0.75, 0, zBack - 0.5, x1 + 1.25, 1.25, zFront + 0.5, 0x8a8075);
-    // far hills and a pagoda against the sunset
-    for (let i = 0; i < 9; i++) { const x = x0 - 20 + i * ((x1 - x0 + 40) / 8); box(x, 0, wz - 25, x + 6, 3 + Math.random() * 6, wz - 19, 0x3d2a40, 0.05, 1); }
-    box((x0 + x1) / 2 + 9, 8, wz - 22, (x0 + x1) / 2 + 12, 16, wz - 19, 0x5a2a30, 0.04, 0.5);
-
-    // the koi pond in front of the floor (seen past the railing)
-    const pond = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0 + 30, 14), new THREE.MeshStandardMaterial({ color: 0x14303a, roughness: 0.08, metalness: 0.6 }));
-    pond.rotation.x = -Math.PI / 2; pond.position.set((x0 + x1) / 2, -0.7, zFront + 7.5); S.add(pond);
-
-    this.addVoxels(S, vox);
-    // the railing in front (its own scene: drawn over the fighters) — low wooden posts and rails, lanterns on posts
-    const rv: typeof vox = [];
-    const rbox = (ax: number, ay: number, az: number, bx: number, by: number, bz: number, hex: number) => {
-      for (let x = ax; x < bx - 1e-6; x += V) for (let y = ay; y < by - 1e-6; y += V) for (let z = az; z < bz - 1e-6; z += V) rv.push({ p: new THREE.Vector3(x + V / 2, y + V / 2, z + V / 2), c: col(hex, 0.06) });
-    };
-    const rz = zFront + 1.4;
-    for (let x = x0 - 1; x <= x1 + 1; x += 2.5) rbox(x, -0.5, rz, x + 0.5, 1.25, rz + 0.5, 0x5a2a1a);
-    rbox(x0 - 1, 0.75, rz + 0.125, x1 + 1.5, 1.0, rz + 0.375, 0x7a3a22);
-    rbox(x0 - 1, 0.25, rz + 0.125, x1 + 1.5, 0.5, rz + 0.375, 0x7a3a22);
-    this.front3.add(new THREE.HemisphereLight(0xffc9a8, 0x2a2440, 1.3));
-    const fsun = new THREE.DirectionalLight(0xffa86a, 1.6); fsun.position.copy(sun.position); this.front3.add(fsun);
-    this.addVoxels(this.front3, rv, false);
-    for (let x = x0 + 1.5; x <= x1; x += 7.5) { const L = new THREE.PointLight(0xff9a40, 5, 7, 1.6); L.position.set(x, 1.4, rz - 0.6); this.front3.add(L); } // (the rail's warm light, no block of a lamp in the way)
-    this.addVoxels(this.front3, rv.splice(0), false);
-
-    // drifting petals
-    const n = 260, g = new THREE.BufferGeometry(), pos = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) { pos[i * 3] = x0 - 5 + Math.random() * (x1 - x0 + 10); pos[i * 3 + 1] = Math.random() * 9; pos[i * 3 + 2] = wz - 4 + Math.random() * (zFront - wz + 8); }
-    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    this.petals = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffb3cf, size: 0.12, transparent: true, opacity: 0.85, depthWrite: false }));
+    // drifting petals (a soft pink petal sprite)
+    const pc = document.createElement('canvas'); pc.width = pc.height = 32;
+    { const g = pc.getContext('2d')!; g.translate(16, 16); g.rotate(0.6); const gr = g.createRadialGradient(0, 0, 1, 0, 0, 12); gr.addColorStop(0, '#ffe6f0'); gr.addColorStop(1, 'rgba(255,150,190,0)'); g.fillStyle = gr; g.beginPath(); g.ellipse(0, 0, 12, 6, 0, 0, Math.PI * 2); g.fill(); }
+    const n = 220, geo = new THREE.BufferGeometry(), pos = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { pos[i * 3] = x0 - 4 + Math.random() * (W + 8); pos[i * 3 + 1] = Math.random() * 7; pos[i * 3 + 2] = zBack - 3 + Math.random() * (zFront - zBack + 5); }
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    this.petals = new THREE.Points(geo, new THREE.PointsMaterial({ map: new THREE.CanvasTexture(pc), size: 0.16, transparent: true, depthWrite: false, color: 0xffd0e0 }));
     S.add(this.petals);
+    for (let i = 0; i < 6; i++) { const L = new THREE.PointLight(0xffffff, 0, 6, 1.6); L.visible = false; S.add(L); this.hitLights.push({ L, left: 0, ms: 1, power: 0 }); }
   }
 
-  private addVoxels(S: THREE.Scene, list: { p: THREE.Vector3; c: THREE.Color; s?: THREE.Vector3 }[], shadow = true): void {
-    if (!list.length) return;
-    const geo = new THREE.BoxGeometry(1, 1, 1), mat = new THREE.MeshStandardMaterial({ roughness: 0.8, metalness: 0.02 });
-    const mesh = new THREE.InstancedMesh(geo, mat, list.length), m = new THREE.Matrix4();
-    list.forEach((v, i) => { const s = v.s?.x ?? V; m.makeScale(s, s, s).setPosition(v.p); mesh.setMatrixAt(i, m); mesh.setColorAt(i, v.c); });
-    mesh.castShadow = shadow; mesh.receiveShadow = true;
-    S.add(mesh);
+  // ------------------------------------------------------------------ the skills in the room
+
+  /** A blow lands at a world point (x, depth y, height z px): its light flares on the floor around it in the skill's
+   *  colour and fades (heavier blows: brighter, wider, longer); a heavy one leaves a mark on the floor. */
+  hit(x: number, y: number, z: number, color: number, weight: 'light' | 'heavy' | 'ultimate'): void {
+    const slot = this.hitLights.reduce((a, b) => (b.left < a.left ? b : a));
+    const P = weight === 'ultimate' ? { power: 34, dist: 11, ms: 520 } : weight === 'heavy' ? { power: 20, dist: 8, ms: 340 } : { power: 9, dist: 5, ms: 200 };
+    slot.L.color.set(color); slot.L.distance = P.dist; slot.L.position.set(this.w3(x), this.h3(Math.max(40, z)) + 0.35, this.d3(y) + 0.25);
+    slot.L.visible = true; slot.left = P.ms; slot.ms = P.ms; slot.power = P.power;
+    if (weight !== 'light') this.mark(x, y, weight === 'ultimate' ? 2.4 : 1.4, color);
+  }
+
+  private mark(x: number, y: number, size: number, color: number): void {
+    if (!this.markTex) {
+      const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d')!;
+      const gr = g.createRadialGradient(64, 64, 4, 64, 64, 62); gr.addColorStop(0, 'rgba(20,10,8,0.75)'); gr.addColorStop(0.55, 'rgba(30,16,10,0.35)'); gr.addColorStop(1, 'rgba(30,16,10,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+      for (let i = 0; i < 26; i++) { const a = Math.random() * Math.PI * 2, r = 20 + Math.random() * 38; g.fillStyle = `rgba(15,8,6,${0.25 + Math.random() * 0.3})`; g.fillRect(64 + Math.cos(a) * r, 64 + Math.sin(a) * r, 3, 3); } // (grit)
+      this.markTex = new THREE.CanvasTexture(c);
+    }
+    const mat = new THREE.MeshBasicMaterial({ map: this.markTex, transparent: true, depthWrite: false, color: new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.6) });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size * 0.8), mat);
+    m.rotation.x = -Math.PI / 2; m.position.set(this.w3(x), 0.012 + this.marks.length * 0.0005, this.d3(y)); this.scene3.add(m);
+    this.marks.push({ m, left: 2600, ms: 2600 });
+    if (this.marks.length > 14) { const old = this.marks.shift()!; this.scene3.remove(old.m); old.m.geometry.dispose(); (old.m.material as THREE.Material).dispose(); }
+  }
+
+  /** Each frame: the hit lights fade, the marks fade, the room darkens / brightens toward what the moment wants. */
+  private stepFx(ms: number): void {
+    for (const h of this.hitLights) {
+      if (h.left <= 0) { h.L.visible = false; continue; }
+      h.left -= ms; const k = Math.max(0, h.left / h.ms);
+      h.L.intensity = h.power * (k * k * (3 - 2 * k)); // (a fast flare, a soft fade)
+    }
+    for (let i = this.marks.length - 1; i >= 0; i--) {
+      const mk = this.marks[i]; mk.left -= ms;
+      (mk.m.material as THREE.MeshBasicMaterial).opacity = Math.min(1, mk.left / 900);
+      if (mk.left <= 0) { this.scene3.remove(mk.m); mk.m.geometry.dispose(); (mk.m.material as THREE.Material).dispose(); this.marks.splice(i, 1); }
+    }
+    this.dimNow += (this.dimWant - this.dimNow) * Math.min(1, ms / (this.dimWant > this.dimNow ? 120 : 380));
+    const lit = 1 - 0.62 * this.dimNow;
+    if (this.hemi) this.hemi.intensity = 1.55 * lit;
+    for (const c of this.cards) c.mat.color.copy(c.base).multiplyScalar(lit);
+    for (const L of this.lanterns) L.visible = this.dimNow < 0.85;
   }
 
   // ------------------------------------------------------------------ the camera
@@ -199,6 +220,7 @@ export class Arena3D {
   /** Follow the fight: the fighters' midpoint ahead, pulled back as they part, turned a little as it slides. */
   step(ms: number): void {
     this.t += ms;
+    this.stepFx(ms);
     const f = this.focus, F = this.floor, k = Math.min(1, (ms / 16) * CAM.follow);
     const want = new THREE.Vector3(this.w3(f.x), this.h3(Math.min(160, f.z * 0.4)) + CAM.aim, this.d3(f.y));
     this.look.lerp(want, this.look.lengthSq() ? k : 1);
@@ -206,7 +228,7 @@ export class Arena3D {
     this.yaw += ((-Phaser.Math.Clamp((f.x - cx) / half, -1, 1) * CAM.yawMax) - this.yaw) * k;
     this.dist += (Math.min(CAM.distMax, CAM.dist + this.w3(f.span) * CAM.distPerSpan) / this.punch - this.dist) * k;
     this.place(false);
-    for (const [i, L] of this.lanterns.entries()) L.intensity = 8 + Math.sin(this.t / 140 + i * 1.7) * 0.9 + Math.sin(this.t / 53 + i) * 0.4; // flicker
+    for (const [i, L] of this.lanterns.entries()) { const b = (L.userData.base ??= L.intensity) as number; L.intensity = b * (1 + Math.sin(this.t / 140 + i * 1.7) * 0.08 + Math.sin(this.t / 53 + i) * 0.04); } // flicker
     if (this.petals) { const a = this.petals.geometry.attributes.position as THREE.BufferAttribute; for (let i = 0; i < a.count; i++) { let y = a.getY(i) - ms * 0.0006; if (y < 0) y = 9; a.setY(i, y); a.setX(i, a.getX(i) + Math.sin(this.t / 900 + i) * ms * 0.0004); } a.needsUpdate = true; }
   }
 

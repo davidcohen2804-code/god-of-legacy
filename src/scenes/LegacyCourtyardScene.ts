@@ -364,6 +364,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.a3d.anchors = foe ? [{ x: k.x, y: k.y }, { x: fx, y: fy }] : [{ x: k.x, y: k.y }];
       this.a3d.focus = { x: (k.x + fx) / 2, y: (k.y + fy) / 2, z: Math.max(k.z, foe ? (foe as { z?: number }).z ?? 0 : 0), span: Math.hypot(k.x - fx, (k.y - fy) * 1.7) };
       const want = this.koT >= 0 ? 1.25 : ult ? ARENA_CAM.ultPunch : 1;
+      const sig = !!this.rt?.runs.some((r) => r.skill.slot === 6 && (r.phase === 'startup' || r.phase === 'active'));
+      this.a3d.dimWant = ult ? 0.72 : this.koT >= 0 ? 0.5 : sig ? 0.32 : 0; // the room darkens in a big moment: the skill's light owns the screen
       this.a3d.punch += (want - this.a3d.punch) * Math.min(1, ms / (want > 1 ? 160 : 420));
       this.a3d.step(ms);
       return;
@@ -690,7 +692,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       void import('../arena3d/Arena3D').then(({ Arena3D }) => { // (three.js loads only here)
         if (gen !== this.sceneGen || !this.sys.isActive()) return;
         for (const o of [...this.arenaMap, ...this.occluders, ...(this.stageFx?.layerList() ?? [])]) (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false);
-        cam.stopFollow(); cam.removeBounds();
+        cam.stopFollow(); cam.removeBounds(); cam.setRoundPixels(false); // (the bodies glide with the 3D camera: no pixel snapping)
         this.a3d = new Arena3D(this, floor);
       });
     } else if (AR) this.pitch = new CameraPitch(this, cam, () => ({ parts: [...this.arenaMap, ...this.occluders, ...(this.stageFx?.layerList() ?? [])], top: AR.y }), (d) => this.hud?.setPitch(d));
@@ -3075,6 +3077,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (run?.own && s.cls === 'book_mage' && damage > 0) this.weaveHit(run);
     if (run?.own && s.cls === 'gambler') this.gambleConfirm(run, hit, target, at, damage, crit);
     this.fx!.confirmed(s, hit, at, damage, reaction, true, idx, crit, run ? this.hitFrom(run, hit) : undefined, counter);
+    if (damage > 0) this.roomHit(s, hit, at, reaction);
     this.arenaSnd?.hit(s, hit, at, damage, reaction, crit);
     if (damage > 0) { // your hit on another fighter: it shudders through the hit-stop (fighting-game feel)
       const sh = Math.max(90, Math.min(220, this.fx!.hitStopLeft + 60));
@@ -3195,6 +3198,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.cameras.main.shake(180, 0.008); if (this.fx) this.fx.hitStopLeft = Math.max(this.fx.hitStopLeft, 90);
     } else { this.fx?.callout({ x: at.x, y: at.y, z: at.z + 30 }, 'ARMOR BREAK', '#ff9a6a', 0); this.impactBeat('break', at); }
   }
+  /** PVP 3D: a blow lights the room in its class's colour where it lands (heavier: brighter, and a mark on the floor). */
+  private roomHit(s: FinalSkill, hit: HitEvent, at: V3, reaction: string): void {
+    if (!this.a3d) return;
+    const weight = s.slot === 7 ? 'ultimate' : hit.heavy || s.slot === 6 || reaction === 'launch' || reaction === 'knockdown' || reaction === 'slam' ? 'heavy' : 'light';
+    this.a3d.hit(at.x, at.y, at.z, parseInt(classColor(s.cls).slice(1), 16), weight);
+  }
   private counterCall(at: V3): void { this.fx?.callout({ x: at.x, y: at.y, z: at.z + 70 }, 'COUNTER!', '#ff6a3a', 1); this.impactBeat('counter', at); }
   /** The big hits felt by their weight (the same in the arena and in the open game): a counter, a punish, an armor break
    *  get a longer freeze, a flash of their color, a ring at the body and a shake above the hit's own (DFO's heavy "clack"). */
@@ -3264,6 +3273,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (out.broke) { this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 60 }, 'ARMOR BREAK', '#ff9a6a', 0); this.impactBeat('break', { x: this.kin.x, y: this.kin.y, z: this.kin.z }); }
     if (out.rx) this.fx?.mageReaction(out.rx, { x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 }, this.localId, out.rxMs);
     this.fx!.confirmed(s, hit, at, out.damage, out.reaction, false, out.hitIndex, false, this.hitFrom(run, hit), countered);
+    if (out.damage > 0) this.roomHit(s, hit, at, out.reaction);
     this.arenaSnd?.hit(s, hit, at, out.damage, out.reaction, false);
     if (this.arena && out.damage > 0) { // the arena: a hit lands on you — a beat of hit-stop, your body shudders, heavy ones shake the screen
       const heavy = !!hit.heavy || out.reaction === 'launch' || out.reaction === 'knockdown' || s.slot === 7;
