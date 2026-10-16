@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { ASSETS, DESIGN, LOGO } from '../config/layout';
 import { MainMenuUI } from '../ui/MainMenuUI';
 import { clearPvpFromUrl } from '../pvp/Room';
+import { ARENA3D } from '../arena3d/flag';
 import { addCapeWind, addGemLife, addGemPulse, addMotes, addPaintedWater, addSkyAndMist, addSkyDrift, addSunLight, addWaterGlints, preloadLife, preloadMenuSky } from '../ui/PresentationLife';
 
 /** Centre of the logo's red gem in logo image pixels (measured on the art). */
@@ -46,8 +47,9 @@ export class MainMenuScene extends Phaser.Scene {
 
     this.cameras.main.fadeIn(220, 0, 0, 0);
     new MainMenuUI(this, {
-      onStart: () => this.leave(() => this.scene.start('CharacterSelectScene')),
-      onPvp: () => this.leave(() => this.scene.start('PvpSelectScene', { mode: 'cpu' })), // the fighter select (Tekken style)
+      onStart: () => { ARENA3D.on = false; this.leave(() => this.scene.start('CharacterSelectScene')); },
+      onPvp: () => { ARENA3D.on = false; this.leave(() => this.scene.start('PvpSelectScene', { mode: 'cpu' })); }, // the fighter select (Tekken style)
+      onPvp3d: () => { ARENA3D.on = true; this.leave(() => this.scene.start('PvpSelectScene', { mode: 'cpu' })); }, // PVP 3D: the test build (the arena as a 3D room)
     });
   }
 

@@ -53,6 +53,8 @@ import type { Monster } from '../world/Monster';
 import { AreaTitle, DialogChoice, NpcDialog } from '../ui/WorldUI';
 import { QuestState } from '../characters/CharacterTypes';
 import { PvpController } from '../pvp/PvpController';
+import { ARENA3D } from '../arena3d/flag';
+import type { Arena3D, Floor } from '../arena3d/Arena3D';
 import { Match, MatchPhase } from '../pvp/Match';
 import { BattleHUD, Fighter } from '../ui/BattleHUD';
 import { classColor, heroArt, heroVsPortrait } from '../pvp/Fighters';
@@ -357,6 +359,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const cam = this.cameras.main, k = this.kin;
     const foe = this.bot && !this.bot.defeated ? this.bot.kin : [...(this.pvp?.remotes.values() ?? [])].find((r) => r.alive) ?? null;
     const fx = foe ? foe.x : k.x, fy = foe ? foe.y : k.y;
+    if (this.a3d) { // PVP 3D: the 3D camera frames the two (punching in on an ultimate and on the K.O.)
+      const ult = !!this.rt?.runs.some((r) => r.skill.slot === 7 && (r.phase === 'startup' || r.phase === 'active'));
+      this.a3d.focus = { x: (k.x + fx) / 2, y: (k.y + fy) / 2, z: Math.max(k.z, foe ? (foe as { z?: number }).z ?? 0 : 0), span: Math.hypot(k.x - fx, (k.y - fy) * 1.7) };
+      const want = this.koT >= 0 ? 1.25 : ult ? ARENA_CAM.ultPunch : 1;
+      this.a3d.punch += (want - this.a3d.punch) * Math.min(1, ms / (want > 1 ? 160 : 420));
+      this.a3d.step(ms);
+      return;
+    }
     const mx = (k.x + fx) / 2, my = (k.y + fy) / 2, span = Math.abs(k.x - fx);
     // the camera lives in the big moments, calm otherwise: it rises with a juggle (the body in the air stays framed) and
     // punches in while an ultimate plays (anyone's), easing back after
@@ -372,6 +382,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     cam.setZoom(cam.zoom + (want * this.camPunch - cam.zoom) * Math.min(1, ms / ARENA_CAM.easeMs));
   }
   private camAir = 0;
+  /** PVP 3D: the room and its camera (null: the painted arena). */
+  private a3d: Arena3D | null = null;
+  /** Counts the scene's starts (a late async load must not land in a newer run). */
+  private sceneGen = 0;
+  private floor3d: Floor | null = null;
   /** A pose the battle holds (the intro before ROUND n, the winner's pose), until sim time. */
   private poseLock: { mode: Mode; until: number } | null = null;
   private lockPose(mode: Mode, ms: number): void { this.poseLock = { mode, until: this.simMs + ms }; if (this.bot) this.bot.poseLock = { mode, until: this.simMs + ms }; }
@@ -566,7 +581,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.gHeadsUntil = -1; this.gTailsFree = false; this.gTailsUntil = -1; this.gLuckUntil = -1; this.gOverUntil = -1; this.gStreak = 0; this.fx?.gambleClear(this.localId); this.gHand.clear(); this.gStuck.clear();
     this.sunUntil = -1; this.godUntil = -1; this.kage?.clear(); this.kage = undefined; this.ambushIn.clear();
     this.mageReset(); this.gates.clear(); this.levityZones = []; this.brokenLinks.clear(); this.linkGfx = undefined;
-    this.hpMaxSeen = 0; this.seenStance = -Infinity; this.seenEndure = -Infinity; this.markAt.clear(); this.partyTick = 0; this.shares = []; this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1; this.camAir = 0; this.camPunch = 1;
+    this.hpMaxSeen = 0; this.seenStance = -Infinity; this.seenEndure = -Infinity; this.markAt.clear(); this.partyTick = 0; this.shares = []; this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1; this.camAir = 0; this.camPunch = 1; this.a3d = null; this.floor3d = null; this.sceneGen++;
     this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
     this.combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1, skills: new Set<string>() };
     this.confirmedLog = [];
@@ -594,6 +609,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         for (let y = AR!.y; y < AR!.y + AR!.h; y += 8) if (footAllowed(cx, y, 0, 12)) ys.push(y);
         const back = ys.length ? ys[0] : AR!.y, front = ys.length ? ys[ys.length - 1] : AR!.y + AR!.h;
         ActorView.depthScale = (y) => ARENA_DEPTH.back + (ARENA_DEPTH.front - ARENA_DEPTH.back) * Phaser.Math.Clamp((y - back) / Math.max(1, front - back), 0, 1);
+        if (ARENA3D.on) { // PVP 3D: the room's floor = the stage's walkable floor (its width through the middle)
+          const my = (back + front) / 2, xs: number[] = [];
+          for (let x = AR!.x; x < AR!.x + AR!.w; x += 8) if (footAllowed(x, my, 0, 12)) xs.push(x);
+          this.floor3d = { x0: xs.length ? xs[0] : AR!.x, x1: xs.length ? xs[xs.length - 1] : AR!.x + AR!.w, back, front };
+          ActorView.depthScale = null; // (the 3D camera gives each body its size)
+        }
       }
       setBotCentre(...arenaPt(...this.stage!.geo.centre)); // (the sparring partner falls back toward the stage's open middle)
       const mapKey = this.stage?.key ?? T.map.key, R = AR!;
@@ -663,7 +684,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         return out;
       }, () => (this.rt?.runs.length ?? 0) > 0 || this.simMs - this.lastCastAt < 6000);
     }
-    if (AR) this.pitch = new CameraPitch(this, cam, () => ({ parts: [...this.arenaMap, ...this.occluders, ...(this.stageFx?.layerList() ?? [])], top: AR.y }), (d) => this.hud?.setPitch(d));
+    if (AR && ARENA3D.on && this.floor3d) { // PVP 3D: the painted arena gives way to the 3D room and its camera
+      const floor = this.floor3d, gen = this.sceneGen;
+      void import('../arena3d/Arena3D').then(({ Arena3D }) => { // (three.js loads only here)
+        if (gen !== this.sceneGen || !this.sys.isActive()) return;
+        for (const o of [...this.arenaMap, ...this.occluders, ...(this.stageFx?.layerList() ?? [])]) (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false);
+        cam.stopFollow(); cam.removeBounds();
+        this.a3d = new Arena3D(this, floor);
+      });
+    } else if (AR) this.pitch = new CameraPitch(this, cam, () => ({ parts: [...this.arenaMap, ...this.occluders, ...(this.stageFx?.layerList() ?? [])], top: AR.y }), (d) => this.hud?.setPitch(d));
     this.input.keyboard?.on('keydown-INSERT', () => this.pitch?.step(1)); this.input.keyboard?.on('keydown-DELETE', () => this.pitch?.step(-1));
     this.input.keyboard?.on('keydown-HOME', () => this.pitch?.reset());
 

@@ -6,7 +6,7 @@ import { SettingsModal, createModalBase, createTextButton } from './SettingsModa
 import { SettingsStore } from '../core/SettingsStore';
 import { PlatformAdapter } from '../core/PlatformAdapter';
 
-export interface MainMenuHandlers { onStart: () => void; onPvp: () => void }
+export interface MainMenuHandlers { onStart: () => void; onPvp: () => void; onPvp3d?: () => void }
 
 export class MainMenuUI {
   private settings: SettingsModal;
@@ -18,6 +18,7 @@ export class MainMenuUI {
 
     this.imageButton(ASSETS.start.key, MENU_BUTTONS.start, handlers.onStart);
     this.imageButton(ASSETS.pvp.key, MENU_BUTTONS.pvp, handlers.onPvp);
+    if (handlers.onPvp3d) this.pvp3dButton(MENU_BUTTONS.pvp, handlers.onPvp3d);
     this.imageButton(ASSETS.settings.key, MENU_BUTTONS.settings, () => this.settings.open());
     this.imageButton(ASSETS.exit.key, MENU_BUTTONS.exit, () => this.openExit());
 
@@ -36,6 +37,16 @@ export class MainMenuUI {
       this.settings.close();
       this.closeExit();
     });
+  }
+
+  /** PVP 3D (the test build): a small badge beside the PvP button. */
+  private pvp3dButton(L: ButtonLayout, onClick: () => void): void {
+    const s = this.scene, x = L.x + L.w / 2 + 92, y = L.y;
+    const bg = s.add.rectangle(x, y, 150, 62, 0x1a0f14, 0.88).setStrokeStyle(2, 0xffc46a, 0.9).setDepth(6).setInteractive({ useHandCursor: true });
+    const t = s.add.text(x, y, 'PVP 3D', { fontFamily: FONT_FAMILY, fontSize: '26px', color: '#ffd98a', fontStyle: 'bold', shadow: { offsetX: 1, offsetY: 2, color: '#000000', blur: 4, fill: true } }).setOrigin(0.5).setDepth(7);
+    bg.on('pointerover', () => { bg.setFillStyle(0x3a1f22, 0.95); t.setScale(1.06); });
+    bg.on('pointerout', () => { bg.setFillStyle(0x1a0f14, 0.88); t.setScale(1); });
+    bg.on('pointerup', onClick);
   }
 
   /** One supplied PNG per button; hover/pressed states are produced in code. */
