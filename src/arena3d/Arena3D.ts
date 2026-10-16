@@ -1,18 +1,22 @@
-// PVP 3D (a test build, opened from the main menu's PVP 3D button): the arena as a real 3D room — a voxel temple
-// courtyard (back wall, a deep plank floor, a railing in front) seen by a perspective camera that follows the fight and
-// turns a little with it — while the fighters, skills, effects and the whole combat stay the game's own (Phaser, the
-// same world coordinates and rules). The room is drawn by three.js into its own canvas and shown as two Phaser layers
-// (everything behind the fighters, and the railing in front of them); every Phaser object of the world is placed for the
-// frame where the 3D camera sees its floor point, at the size the depth gives it, and put straight back after the frame
-// (like CameraPitch): the game itself never sees the projection.
+// PVP 3D (opened from the main menu's PVP 3D button): the arena as a real 3D place — the temple courtyard modelled in
+// 3D (Room.ts) under a perspective camera that follows the fight and turns a little with it — while the fighters,
+// skills, effects and the whole combat stay the game's own (Phaser, the same world coordinates and rules). The room is
+// drawn by three.js into its own canvas and shown as two Phaser layers (everything behind the fighters, and the railing
+// in front of them); every Phaser object of the world is placed for the frame where the 3D camera sees its floor point,
+// at the size the depth gives it, and put straight back after the frame (like CameraPitch): the game never sees it.
 import Phaser from 'phaser';
 import * as THREE from 'three';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { buildRoom, type Room } from './Room';
 
 
 /** World px → 3D units: 1 unit = 100 px; the floor's depth stretched (a deep room), heights as drawn. */
 const U = 100, HEIGHT_K = 1.0;
 /** The camera: pitch below the horizon, field of view, distance (units) — and how much it turns with the fight. */
-const CAM = { pitch: 24, fov: 32, dist: 8.4, distPerSpan: 0.3, distMax: 14, yawMax: 9, follow: 0.12, aim: 0.5 };
+const CAM = { pitch: 24, fov: 32, dist: 8.4, distPerSpan: 0.3, distMax: 14, yawMax: 11, follow: 0.12, aim: 0.5 };
 /** The floor's depth stretch (world px of depth → units). Things drawn without a floor point of their own (effects in
  *  the top layers, numbers) are placed over the fighter nearest to them, so any depth reads right. */
 const DEPTH_K = 1.15;
@@ -22,6 +26,81 @@ const RES = 0.85;
 
 type Placed = Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Transform & Phaser.GameObjects.Components.Visible
   & { scrollFactorX?: number; scrollFactorY?: number; depth: number; displayWidth?: number };
+
+/** A pool of soft particles in the room (dust, wood chips, embers): each its own colour, size and fade, falling under
+ *  its gravity and bouncing off the planks. Drawn as point sprites (one draw for the pool). */
+class Bits {
+  readonly pts: THREE.Points;
+  private pos: Float32Array; private vel: Float32Array; private col: Float32Array; private size: Float32Array; private alpha: Float32Array;
+  private life: Float32Array; private max: Float32Array; private a0: Float32Array; private grow: Float32Array; private grav: Float32Array; private drag: Float32Array;
+  private next = 0;
+  private mat: THREE.ShaderMaterial;
+  constructor(private n: number, tex: THREE.Texture, additive: boolean) {
+    const g = new THREE.BufferGeometry();
+    this.pos = new Float32Array(n * 3); this.vel = new Float32Array(n * 3); this.col = new Float32Array(n * 3);
+    this.size = new Float32Array(n); this.alpha = new Float32Array(n); this.life = new Float32Array(n); this.max = new Float32Array(n).fill(1);
+    this.a0 = new Float32Array(n); this.grow = new Float32Array(n); this.grav = new Float32Array(n); this.drag = new Float32Array(n);
+    g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
+    g.setAttribute('pcolor', new THREE.BufferAttribute(this.col, 3));
+    g.setAttribute('psize', new THREE.BufferAttribute(this.size, 1));
+    g.setAttribute('palpha', new THREE.BufferAttribute(this.alpha, 1));
+    this.mat = new THREE.ShaderMaterial({
+      uniforms: { map: { value: tex }, scale: { value: 400 } },
+      vertexShader: 'attribute float psize; attribute float palpha; attribute vec3 pcolor; uniform float scale; varying float vA; varying vec3 vC;\n'
+        + 'void main() { vA = palpha; vC = pcolor; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_PointSize = palpha > 0.0 ? psize * scale / max(0.2, -mv.z) : 0.0; gl_Position = projectionMatrix * mv; }',
+      fragmentShader: 'uniform sampler2D map; varying float vA; varying vec3 vC;\n'
+        + 'void main() { vec4 t = texture2D(map, gl_PointCoord); float a = t.a * vA; if (a < 0.004) discard; gl_FragColor = vec4(vC * t.rgb, a); }',
+      transparent: true, depthWrite: false, depthTest: true, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+    });
+    this.pts = new THREE.Points(g, this.mat); this.pts.frustumCulled = false;
+  }
+  /** px per unit of size at 1 unit from the camera (the render's height and the lens). */
+  setScale(s: number): void { this.mat.uniforms.scale.value = s; }
+  /** One particle: where, its speed (units / s), colour (sRGB hex), size (units), life (ms), and how it moves. */
+  emit(x: number, y: number, z: number, vx: number, vy: number, vz: number, color: number, size: number, ms: number, o: { a?: number; grow?: number; grav?: number; drag?: number } = {}): void {
+    const i = this.next; this.next = (this.next + 1) % this.n;
+    this.pos.set([x, y, z], i * 3); this.vel.set([vx, vy, vz], i * 3);
+    this.col.set([((color >> 16) & 255) / 255, ((color >> 8) & 255) / 255, (color & 255) / 255], i * 3);
+    this.size[i] = size; this.life[i] = ms; this.max[i] = ms; this.a0[i] = o.a ?? 1; this.alpha[i] = this.a0[i];
+    this.grow[i] = o.grow ?? 0; this.grav[i] = o.grav ?? 0; this.drag[i] = o.drag ?? 1;
+  }
+  step(ms: number): void {
+    const dt = ms / 1000;
+    let any = false;
+    for (let i = 0; i < this.n; i++) {
+      if (this.life[i] <= 0) { if (this.alpha[i] !== 0) { this.alpha[i] = 0; any = true; } continue; }
+      any = true; this.life[i] -= ms;
+      const j = i * 3, d = Math.pow(this.drag[i], dt);
+      this.vel[j + 1] -= this.grav[i] * dt;
+      this.vel[j] *= d; this.vel[j + 1] *= d; this.vel[j + 2] *= d;
+      this.pos[j] += this.vel[j] * dt; this.pos[j + 1] += this.vel[j + 1] * dt; this.pos[j + 2] += this.vel[j + 2] * dt;
+      if (this.grav[i] > 0 && this.pos[j + 1] < 0.01) { this.pos[j + 1] = 0.01; this.vel[j + 1] *= -0.32; this.vel[j] *= 0.55; this.vel[j + 2] *= 0.55; } // (a bounce on the planks)
+      this.size[i] += this.grow[i] * dt;
+      const k = Math.max(0, this.life[i] / this.max[i]);
+      this.alpha[i] = this.life[i] > 0 ? this.a0[i] * Math.min(1, k * 2.2) : 0; // (full most of its life, fading at the end)
+    }
+    if (!any) return;
+    const g = this.pts.geometry;
+    for (const a of ['position', 'psize', 'palpha', 'pcolor']) (g.attributes[a] as THREE.BufferAttribute).needsUpdate = true;
+  }
+  dispose(): void { this.pts.geometry.dispose(); this.mat.dispose(); }
+}
+
+/** Two sRGB hex colours mixed (t: 0 = a, 1 = b). */
+const mix = (a: number, b: number, t: number): number => {
+  const c = (s: number) => Math.round(((a >> s) & 255) * (1 - t) + ((b >> s) & 255) * t);
+  return (c(16) << 16) | (c(8) << 8) | c(0);
+};
+const r01 = Math.random;
+
+/** A soft round sprite (white, fading to the edge) for the particles: `core` keeps a solid middle (chips, embers). */
+function dotTexture(core: number): THREE.Texture {
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d')!;
+  const gr = g.createRadialGradient(32, 32, 0, 32, 32, 31);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(core, 'rgba(255,255,255,0.85)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
 
 export interface Floor { x0: number; x1: number; back: number; front: number }
 
@@ -39,10 +118,11 @@ export class Arena3D {
   private pos = new THREE.Vector3();
   private yaw = 0;
   private dist = CAM.dist;
-  private lanterns: THREE.PointLight[] = [];
-  private hemi!: THREE.HemisphereLight;
-  /** The painted cut-outs' materials (darkened together in a big moment). */
-  private cards: { mat: THREE.MeshBasicMaterial; base: THREE.Color }[] = [];
+  /** The modelled courtyard (its light, its petals, its wind). */
+  private room!: Room;
+  /** The room's picture with a soft bloom (the lanterns, the doors, the blows' light glow into the air). */
+  private composer?: EffectComposer;
+  private sunBase = 0; private hemiBase = 0;
   /** The hits' light: a small pool of point lights, each placed on a hit and fading (the floor and the ground take it). */
   private hitLights: { L: THREE.PointLight; left: number; ms: number; power: number }[] = [];
   /** The marks a heavy blow leaves on the floor (a soft dark scorch / dust ring, fading). */
@@ -51,8 +131,13 @@ export class Arena3D {
   /** How dark the room is (0 = as painted, 1 = night): eased toward `dimWant`, set by the scene in a big moment. */
   private dimNow = 0;
   dimWant = 0;
-  private petals?: THREE.Points;
-  private loader = new THREE.TextureLoader();
+  /** The room's answer to a blow: dust and wood chips (behind / in front of the fighters), embers (glowing, the same). */
+  private dustB!: Bits; private dustF!: Bits; private chipB!: Bits; private chipF!: Bits; private glowB!: Bits; private glowF!: Bits;
+  /** Rings of light running over the planks from a heavy blow / a body slammed down. */
+  private rings: { m: THREE.Mesh; left: number; ms: number; r0: number; r1: number; a: number }[] = [];
+  private ringTex?: THREE.Texture;
+  /** A small push-in of the camera on a heavy blow (fades by itself). */
+  private kick = 0;
   private t = 0;
   /** The fighters' midpoint and spread (world px), set by the scene each frame. */
   focus = { x: 0, y: 0, z: 0, span: 0 };
@@ -60,7 +145,7 @@ export class Arena3D {
   punch = 1;
   /** The fighters' floor points (world px), set by the scene: what floats without a floor of its own is drawn over the
    *  nearest of them. */
-  anchors: { x: number; y: number }[] = [];
+  anchors: { x: number; y: number; z?: number }[] = [];
 
   constructor(private scene: Phaser.Scene, private floor: Floor) {
     const soft = !!(navigator as { webdriver?: boolean }).webdriver; // (test browsers render on the CPU: half size, no shadows)
@@ -70,11 +155,15 @@ export class Arena3D {
     this.fgCanvas = this.bgCanvas;
     this.renderer = new THREE.WebGLRenderer({ canvas: this.bgCanvas, antialias: true, alpha: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(1); this.renderer.setSize(w, h, false);
-    this.renderer.shadowMap.enabled = false; void soft; // (painted cut-outs carry their own shadows)
-    this.renderer.toneMapping = THREE.NoToneMapping;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.camera = new THREE.PerspectiveCamera(CAM.fov, w / h, 0.5, 400);
-    this.build();
+    this.build(soft);
+    this.composer = new EffectComposer(this.renderer, new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, samples: soft ? 0 : 4 })); // (multisampled: the room's edges stay smooth)
+    this.composer.addPass(new RenderPass(this.scene3, this.camera));
+    this.composer.addPass(new UnrealBloomPass(new THREE.Vector2(Math.round(w / 2), Math.round(h / 2)), 0.5, 0.55, 0.86));
+    this.composer.addPass(new OutputPass());
+    const ps = h / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov / 2))); // (a particle's size in units → px at 1 unit away)
+    for (const b of [this.dustB, this.dustF, this.chipB, this.chipF, this.glowB, this.glowF]) b.setScale(ps);
     this.focus = { x: (floor.x0 + floor.x1) / 2, y: (floor.back + floor.front) / 2, z: 0, span: 0 };
     this.place(true);
     // the two layers: the room behind everything, the railing (front3) over the fighters
@@ -94,79 +183,18 @@ export class Arena3D {
   private d3 = (y: number) => (y / U) * DEPTH_K;
   private h3 = (z: number) => (z / U) * HEIGHT_K;
 
-  private build(): void {
-    const S = this.scene3, F = this.floor, A = 'assets/arena3d/sakura/';
-    const x0 = this.w3(F.x0) - 0.6, x1 = this.w3(F.x1) + 0.6, zBack = this.d3(F.back) - 0.3, zFront = this.d3(F.front) + 0.3;
-    const cx = (x0 + x1) / 2, W = x1 - x0;
-    S.background = new THREE.Color(0x3a2440);
-    S.fog = new THREE.Fog(0x8a5a6a, 26, 70);
-    // light: the paintings carry their own light (unlit cards); the floor takes a warm dusk light and the lanterns' glow
-    this.hemi = new THREE.HemisphereLight(0xfff0e6, 0x5a3a40, 1.55); S.add(this.hemi);
-    const sun = new THREE.DirectionalLight(0xffb27a, 1.4); sun.position.set(cx - 12, 14, zBack - 10); sun.target.position.set(cx, 0, (zBack + zFront) / 2); S.add(sun, sun.target);
-    const tex = (file: string, onLoad?: (t: THREE.Texture) => void): THREE.Texture => {
-      const t = this.loader.load(A + file, (tt) => { onLoad?.(tt); });
-      t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
-      return t;
-    };
-    /** A painted cut-out standing in the room: its bottom centre at (x, y, z), h units tall (its width from the painting). */
-    const card = (target: THREE.Scene, file: string, x: number, y: number, z: number, h: number, opts: { flip?: boolean; fog?: boolean; tint?: number } = {}) => {
-      const mat = new THREE.MeshBasicMaterial({ transparent: true, alphaTest: 0.08, depthWrite: true, fog: opts.fog ?? true, color: opts.tint ?? 0xffffff });
-      this.cards.push({ mat, base: new THREE.Color(opts.tint ?? 0xffffff) });
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat); m.visible = false; target.add(m);
-      mat.map = tex(file, (t) => { const img = t.image as { width: number; height: number }; const w = h * img.width / img.height; m.scale.set(opts.flip ? -w : w, h, 1); m.position.set(x, y + h / 2, z); m.visible = true; mat.needsUpdate = true; });
-      return m;
-    };
-
-    // the fighting floor: the painted planks, tiled (a plank about a quarter of a hero's height), lit by the room
-    const floorTex = tex('floor.webp'); floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping; floorTex.repeat.set(W / 3.2, (zFront - zBack) / 3.2);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, zFront - zBack), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.42, metalness: 0.08 }));
-    floor.rotation.x = -Math.PI / 2; floor.position.set(cx, 0, (zBack + zFront) / 2); S.add(floor);
-    // a dark stone rim round the planks and the ground beyond (stone paving when painted, else dusk earth)
-    const rim = new THREE.Mesh(new THREE.BoxGeometry(W + 0.5, 0.18, zFront - zBack + 0.5), new THREE.MeshStandardMaterial({ color: 0x3a2e2c, roughness: 0.9 }));
-    rim.position.set(cx, -0.1, (zBack + zFront) / 2); S.add(rim);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x4a3a3a, roughness: 0.95 });
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(W + 60, 60), groundMat); ground.rotation.x = -Math.PI / 2; ground.position.set(cx, -0.2, zBack + 5); S.add(ground);
-    this.loader.load(A + 'ground.webp', (t) => { t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set((W + 60) / 4, 60 / 4); groundMat.map = t; groundMat.color.set(0xffffff); groundMat.needsUpdate = true; }, undefined, () => { /* (no paving painted yet) */ });
-
-    // the far sky (no fog: it is the light itself), then the temple right behind the floor, cherry trees round it
-    card(S, 'sky.webp', cx, -6, zBack - 42, 36, { fog: false });
-    card(S, 'facade.webp', cx, -0.05, zBack - 0.35, 8.2);
-    card(S, 'tree.webp', x0 - 2.2, -0.05, zBack - 1.4, 7.5);
-    card(S, 'tree.webp', x1 + 2.2, -0.05, zBack - 1.4, 7.5, { flip: true });
-    card(S, 'tree.webp', x0 + 1.5, -0.05, zBack - 7, 9, { flip: true, tint: 0xe8d0dc });
-    card(S, 'tree.webp', x1 - 1.0, -0.05, zBack - 8, 9.5, { tint: 0xe8d0dc });
-    card(S, 'tree.webp', x0 - 5.5, -0.05, zBack + 3, 8, { tint: 0xf0e0e6 });
-    card(S, 'tree.webp', x1 + 5.5, -0.05, zBack + 3.5, 8, { flip: true, tint: 0xf0e0e6 });
-    // stone lanterns down both sides of the floor (their glow on the planks)
-    for (const [i, zc] of [zBack + 0.6, (zBack + zFront) / 2, zFront - 0.6].entries()) for (const side of [-1, 1]) {
-      const x = side < 0 ? x0 - 0.9 : x1 + 0.9;
-      card(S, 'lantern.webp', x, -0.05, zc, 2.3);
-      if (i !== 1) continue;
-      const L = new THREE.PointLight(0xffa04a, 6, 7, 1.7); L.position.set(x - side * 0.6, 1.5, zc + 0.3); S.add(L); this.lanterns.push(L);
-    }
-    { const L = new THREE.PointLight(0xffb060, 10, 9, 1.6); L.position.set(cx, 1.8, zBack + 0.4); S.add(L); this.lanterns.push(L); } // the temple's open doors light the back of the floor
-
-    // the railing in front (its own scene: drawn over the fighters), tiled across; dark wood bars if not painted yet
-    const rz = zFront + 0.9;
-    this.loader.load(A + 'railing.webp', (t) => {
-      t.colorSpace = THREE.SRGBColorSpace;
-      const img = t.image as { width: number; height: number }, h = 0.62, w = h * img.width / img.height; // (waist-high)
-      for (let x = x0 - 2; x < x1 + 2; x += w * 0.955) { // (each piece's first post over the last one's)
-        const rm = new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.08 }); this.cards.push({ mat: rm, base: new THREE.Color(0xffffff) });
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), rm);
-        m.position.set(x + w / 2, h / 2 - 0.1, rz); this.front3.add(m);
-      }
-    }, undefined, () => { /* (not painted yet: no railing) */ });
-
-    // drifting petals (a soft pink petal sprite)
-    const pc = document.createElement('canvas'); pc.width = pc.height = 32;
-    { const g = pc.getContext('2d')!; g.translate(16, 16); g.rotate(0.6); const gr = g.createRadialGradient(0, 0, 1, 0, 0, 12); gr.addColorStop(0, '#ffe6f0'); gr.addColorStop(1, 'rgba(255,150,190,0)'); g.fillStyle = gr; g.beginPath(); g.ellipse(0, 0, 12, 6, 0, 0, Math.PI * 2); g.fill(); }
-    const n = 220, geo = new THREE.BufferGeometry(), pos = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) { pos[i * 3] = x0 - 4 + Math.random() * (W + 8); pos[i * 3 + 1] = Math.random() * 7; pos[i * 3 + 2] = zBack - 3 + Math.random() * (zFront - zBack + 5); }
-    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    this.petals = new THREE.Points(geo, new THREE.PointsMaterial({ map: new THREE.CanvasTexture(pc), size: 0.16, transparent: true, depthWrite: false, color: 0xffd0e0 }));
-    S.add(this.petals);
-    for (let i = 0; i < 6; i++) { const L = new THREE.PointLight(0xffffff, 0, 6, 1.6); L.visible = false; S.add(L); this.hitLights.push({ L, left: 0, ms: 1, power: 0 }); }
+  private build(soft: boolean): void {
+    const F = this.floor;
+    this.room = buildRoom(this.scene3, this.front3, this.renderer, { x0: this.w3(F.x0), x1: this.w3(F.x1), zB: this.d3(F.back), zF: this.d3(F.front) }, soft);
+    this.sunBase = this.room.sun.intensity; this.hemiBase = this.room.hemi.intensity;
+    // what a blow throws up from the floor: dust, wood chips, embers — behind the fighters and in front of them
+    const dsoft = dotTexture(0.12), solid = dotTexture(0.6);
+    this.dustB = new Bits(120, dsoft, false); this.dustF = new Bits(80, dsoft, false);
+    this.chipB = new Bits(90, solid, false); this.chipF = new Bits(60, solid, false);
+    this.glowB = new Bits(140, solid, true); this.glowF = new Bits(90, solid, true);
+    this.scene3.add(this.dustB.pts, this.chipB.pts, this.glowB.pts); this.front3.add(this.dustF.pts, this.chipF.pts, this.glowF.pts);
+    // the blows' light: always in the scene (a light switched on or off recompiles every material: a hitch), dark when idle
+    for (let i = 0; i < 4; i++) { const L = new THREE.PointLight(0xffffff, 0, 6, 1.6); this.scene3.add(L); this.hitLights.push({ L, left: 0, ms: 1, power: 0 }); }
   }
 
   // ------------------------------------------------------------------ the skills in the room
@@ -177,9 +205,72 @@ export class Arena3D {
     const slot = this.hitLights.reduce((a, b) => (b.left < a.left ? b : a));
     const P = weight === 'ultimate' ? { power: 34, dist: 11, ms: 520 } : weight === 'heavy' ? { power: 20, dist: 8, ms: 340 } : { power: 9, dist: 5, ms: 200 };
     slot.L.color.set(color); slot.L.distance = P.dist; slot.L.position.set(this.w3(x), this.h3(Math.max(40, z)) + 0.35, this.d3(y) + 0.25);
-    slot.L.visible = true; slot.left = P.ms; slot.ms = P.ms; slot.power = P.power;
+    slot.left = P.ms; slot.ms = P.ms; slot.power = P.power;
     if (weight !== 'light') this.mark(x, y, weight === 'ultimate' ? 2.4 : 1.4, color);
+    // the room answers the blow (Prometheus: the skills live in the room): embers fly from it and bounce on the planks;
+    // a heavy one throws up wood chips and dust, runs a ring of its light over the floor, blows the petals away, and
+    // pushes the camera in a touch
+    const hx = this.w3(x), hy = this.h3(Math.max(40, z)), hz = this.d3(y), big = weight === 'ultimate' ? 2 : weight === 'heavy' ? 1 : 0;
+    const ember = mix(color, 0xffffff, 0.45), r = Math.random;
+    for (let i = 0, n = [4, 14, 28][big]; i < n; i++) {
+      const a = r() * Math.PI * 2, up = 0.35 + r() * 0.65, sp = (big ? 2.2 + r() * 3.4 : 1.4 + r() * 1.8) * (big === 2 ? 1.25 : 1);
+      const vx = Math.cos(a) * sp * (1 - up * 0.5), vz = Math.sin(a) * sp * (1 - up * 0.5) * 0.8, vy = up * sp;
+      (vz > 0 ? this.glowF : this.glowB).emit(hx, hy, hz, vx, vy, vz, ember, [0.07, 0.1, 0.12][big] + r() * [0.03, 0.07, 0.08][big], 420 + r() * 520, { grav: 7.5, drag: 0.55 });
+    }
+    if (!big) return;
+    for (let i = 0, n = big === 2 ? 16 : 8; i < n; i++) {
+      const a = r() * Math.PI * 2, out = 0.8 + r() * 1.8, ox = (r() - 0.5) * 0.4, oz = (r() - 0.5) * 0.3;
+      const wood = [0x5a3422, 0x7a4b2a, 0x3a2418, 0x8a5a34][i % 4];
+      (Math.sin(a) > 0 ? this.chipF : this.chipB).emit(hx + ox, 0.04, hz + oz, Math.cos(a) * out, 2 + r() * 2.6, Math.sin(a) * out * 0.8, wood, 0.04 + r() * 0.035, 800 + r() * 500, { grav: 11, drag: 0.8 });
+    }
+    this.dust(hx, hz, big === 2 ? 12 : 6, big === 2 ? 1.25 : 1);
+    this.ring(hx, hz, color, big === 2 ? 4.2 : 2.4, big === 2 ? 420 : 260, 0.9);
+    if (big === 2) this.ring(hx, hz, 0xffffff, 2.6, 300, 0.6);
+    this.blowPetals(hx, hy, hz, big === 2 ? 5 : 3.2, big === 2 ? 5.5 : 3.2);
+    this.kick = Math.max(this.kick, big === 2 ? 0.07 : 0.035);
   }
+
+  /** A body comes down on the floor (world px; its falling speed px / s): a slam throws up dust and chips and runs a
+   *  dusty ring over the planks; a landing from a jump only puffs a little dust. */
+  land(x: number, y: number, speed: number): void {
+    if (speed < 300) return;
+    const hx = this.w3(x), hz = this.d3(y), slam = speed >= 600;
+    this.dust(hx, hz, slam ? 7 : 3, slam ? 0.9 : 0.55);
+    if (!slam) return;
+    for (let i = 0; i < 6; i++) {
+      const a = r01() * Math.PI * 2, out = 0.6 + r01() * 1.2;
+      (Math.sin(a) > 0 ? this.chipF : this.chipB).emit(hx + (r01() - 0.5) * 0.6, 0.04, hz, Math.cos(a) * out, 1.4 + r01() * 1.8, Math.sin(a) * out * 0.8, [0x5a3422, 0x7a4b2a, 0x3a2418][i % 3], 0.035 + r01() * 0.03, 700 + r01() * 400, { grav: 11, drag: 0.8 });
+    }
+    this.ring(hx, hz, 0xd8bfa6, 2.0, 260, 0.45);
+    this.blowPetals(hx, 0.3, hz, 2.4, 2.2);
+    this.kick = Math.max(this.kick, 0.02);
+  }
+
+  /** Warm dust rolling out over the planks from a point (units): n puffs, `k` their size. */
+  private dust(hx: number, hz: number, n: number, k: number): void {
+    const r = Math.random;
+    for (let i = 0; i < n; i++) {
+      const a = r() * Math.PI * 2, out = (0.4 + r() * 0.9) * k;
+      (Math.sin(a) > 0 ? this.dustF : this.dustB).emit(hx + Math.cos(a) * 0.2, 0.12 + r() * 0.12, hz + Math.sin(a) * 0.15, Math.cos(a) * out, 0.12 + r() * 0.25, Math.sin(a) * out * 0.75, [0xcdb39c, 0xbfa38c, 0xd9c2a8][i % 3], (0.45 + r() * 0.35) * k, 700 + r() * 600, { a: 0.18 + r() * 0.1, grow: (1 + r() * 1.1) * k, drag: 0.3 });
+    }
+  }
+
+  /** A ring of light running out over the planks (units): from a little round the point to `r1`, fading. */
+  private ring(hx: number, hz: number, color: number, r1: number, ms: number, a: number): void {
+    if (!this.ringTex) {
+      const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d')!;
+      const gr = g.createRadialGradient(64, 64, 0, 64, 64, 63);
+      gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.72, 'rgba(255,255,255,0)'); gr.addColorStop(0.9, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 128, 128); this.ringTex = new THREE.CanvasTexture(c);
+    }
+    const mat = new THREE.MeshBasicMaterial({ map: this.ringTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: new THREE.Color(mix(color, 0xffffff, 0.25)), opacity: a, fog: false });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat);
+    m.rotation.x = -Math.PI / 2; m.position.set(hx, 0.02, hz); this.scene3.add(m);
+    this.rings.push({ m, left: ms, ms, r0: 0.3, r1, a });
+  }
+
+  /** The petals near a blow (falling, and lying on the floor) are thrown away from it. */
+  private blowPetals(hx: number, hy: number, hz: number, R: number, strength: number): void { this.room.blow(hx, hy, hz, R, strength); }
 
   private mark(x: number, y: number, size: number, color: number): void {
     if (!this.markTex) {
@@ -199,7 +290,7 @@ export class Arena3D {
   /** Each frame: the hit lights fade, the marks fade, the room darkens / brightens toward what the moment wants. */
   private stepFx(ms: number): void {
     for (const h of this.hitLights) {
-      if (h.left <= 0) { h.L.visible = false; continue; }
+      if (h.left <= 0) { h.L.intensity = 0; continue; }
       h.left -= ms; const k = Math.max(0, h.left / h.ms);
       h.L.intensity = h.power * (k * k * (3 - 2 * k)); // (a fast flare, a soft fade)
     }
@@ -208,11 +299,17 @@ export class Arena3D {
       (mk.m.material as THREE.MeshBasicMaterial).opacity = Math.min(1, mk.left / 900);
       if (mk.left <= 0) { this.scene3.remove(mk.m); mk.m.geometry.dispose(); (mk.m.material as THREE.Material).dispose(); this.marks.splice(i, 1); }
     }
+    for (const b of [this.dustB, this.dustF, this.chipB, this.chipF, this.glowB, this.glowF]) b.step(ms);
+    for (let i = this.rings.length - 1; i >= 0; i--) {
+      const g = this.rings[i]; g.left -= ms;
+      const k = 1 - Math.max(0, g.left / g.ms), e = 1 - (1 - k) * (1 - k) * (1 - k), s = g.r0 + (g.r1 - g.r0) * e; // (fast out, slowing)
+      g.m.scale.set(s * 2, s * 2, 1); (g.m.material as THREE.MeshBasicMaterial).opacity = g.a * (1 - k) * (1 - k * 0.3);
+      if (g.left <= 0) { this.scene3.remove(g.m); g.m.geometry.dispose(); (g.m.material as THREE.Material).dispose(); this.rings.splice(i, 1); }
+    }
+    this.kick -= this.kick * Math.min(1, ms / 110);
     this.dimNow += (this.dimWant - this.dimNow) * Math.min(1, ms / (this.dimWant > this.dimNow ? 120 : 380));
-    const lit = 1 - 0.62 * this.dimNow;
-    if (this.hemi) this.hemi.intensity = 1.55 * lit;
-    for (const c of this.cards) c.mat.color.copy(c.base).multiplyScalar(lit);
-    for (const L of this.lanterns) L.visible = this.dimNow < 0.85;
+    const lit = 1 - 0.7 * this.dimNow; // (the sun and the sky go down; the lanterns and the temple's doors burn on)
+    this.room.sun.intensity = this.sunBase * lit; this.room.hemi.intensity = this.hemiBase * (1 - 0.55 * this.dimNow);
   }
 
   // ------------------------------------------------------------------ the camera
@@ -228,14 +325,14 @@ export class Arena3D {
     this.yaw += ((-Phaser.Math.Clamp((f.x - cx) / half, -1, 1) * CAM.yawMax) - this.yaw) * k;
     this.dist += (Math.min(CAM.distMax, CAM.dist + this.w3(f.span) * CAM.distPerSpan) / this.punch - this.dist) * k;
     this.place(false);
-    for (const [i, L] of this.lanterns.entries()) { const b = (L.userData.base ??= L.intensity) as number; L.intensity = b * (1 + Math.sin(this.t / 140 + i * 1.7) * 0.08 + Math.sin(this.t / 53 + i) * 0.04); } // flicker
-    if (this.petals) { const a = this.petals.geometry.attributes.position as THREE.BufferAttribute; for (let i = 0; i < a.count; i++) { let y = a.getY(i) - ms * 0.0006; if (y < 0) y = 9; a.setY(i, y); a.setX(i, a.getX(i) + Math.sin(this.t / 900 + i) * ms * 0.0004); } a.needsUpdate = true; }
+    for (const [i, L] of this.room.warm.entries()) { const b = (L.userData.base ??= L.intensity) as number; L.intensity = b * (1 + Math.sin(this.t / 140 + i * 1.7) * 0.08 + Math.sin(this.t / 53 + i) * 0.04); } // flicker
+    this.room.update(ms, this.t / 1000, this.dimNow);
   }
 
   private place(snap: boolean): void {
     if (snap) { const f = this.focus; this.look.set(this.w3(f.x), CAM.aim, this.d3(f.y)); }
-    const p = Phaser.Math.DegToRad(CAM.pitch), y = Phaser.Math.DegToRad(this.yaw);
-    this.pos.set(this.look.x + Math.sin(y) * Math.cos(p) * this.dist, this.look.y + Math.sin(p) * this.dist, this.look.z + Math.cos(y) * Math.cos(p) * this.dist);
+    const p = Phaser.Math.DegToRad(CAM.pitch), y = Phaser.Math.DegToRad(this.yaw), d = this.dist / (1 + this.kick);
+    this.pos.set(this.look.x + Math.sin(y) * Math.cos(p) * d, this.look.y + Math.sin(p) * d, this.look.z + Math.cos(y) * Math.cos(p) * d);
     this.camera.position.copy(this.pos); this.camera.lookAt(this.look); this.camera.updateMatrixWorld(); this.camera.updateProjectionMatrix();
   }
 
@@ -255,7 +352,7 @@ export class Arena3D {
     this.restore();
     const cam = this.scene.cameras.main;
     cam.setZoom(1); cam.setScroll(0, 0); // (the 3D camera frames the fight; the Phaser camera only shakes / fades)
-    this.renderer.render(this.scene3, this.camera);
+    if (this.composer) this.composer.render(); else this.renderer.render(this.scene3, this.camera);
     this.scene.textures.get('arena3d-bg').source[0].update(); // (uploaded now: the next render draws over the canvas)
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.render(this.front3, this.camera);
@@ -290,6 +387,9 @@ export class Arena3D {
     this.restore();
     this.scene.events.off(Phaser.Scenes.Events.PRE_RENDER, this.apply, this);
     this.scene.events.off(Phaser.Scenes.Events.RENDER, this.restore, this);
+    for (const b of [this.dustB, this.dustF, this.chipB, this.chipF, this.glowB, this.glowF]) b?.dispose();
+    this.room?.dispose();
+    this.composer?.dispose();
     this.renderer.dispose();
   }
 }

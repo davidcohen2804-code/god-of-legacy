@@ -98,6 +98,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - Try the 3D over-the-shoulder prototype (placeholder bodies, feel only): https://davidcohen2804-code.github.io/god-of-legacy/proto3d/ — keep going in that direction or not?
 
 ## Done
+- DFO PvP arena dynamics: PVP 3D rebuilt as a real 3D scene (David: the painted cut-outs looked like paper) — a modelled temple (stone platform, a stair between stone cheeks with lacquered rails, red colonnade, glowing lattice doors, beams, brackets, rafters, a curved tiled roof), covered corridors, stone lanterns lit from inside, cherry trees with real branches and swaying blossom, petals falling and settling, dusk sun with soft shadows, bloom, a painted sky beyond; the blows throw embers, wood chips and dust, run rings of light over the planks and blow the petals away — src/arena3d/Room.ts, RoomKit.ts
 - Samurai: the white outline gone — idle loop (38 f) and walk cleaned of the background-removal white (rim, holes, hair specks; tools/heroes/rim_clean.py), atlas recut, checked on the lava floor — 5df7e368
 - Archer: animated Sky Rain cut-in (PixVerse, 18 frames 600×200 at 24 fps in CUTIN_ANIM: at full draw her eyes flare green as the spirit arrow charges, leaves and light rush past); VS entrance + win clips handed to PvP
 - Archer: PvP feel review — Double Shot's finishing charged arrow (2-beat chain), her three repainted sheets matched to the idle's size and colour — ba6d5d7c

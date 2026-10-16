@@ -361,12 +361,20 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const fx = foe ? foe.x : k.x, fy = foe ? foe.y : k.y;
     if (this.a3d) { // PVP 3D: the 3D camera frames the two (punching in on an ultimate and on the K.O.)
       const ult = !!this.rt?.runs.some((r) => r.skill.slot === 7 && (r.phase === 'startup' || r.phase === 'active'));
-      this.a3d.anchors = foe ? [{ x: k.x, y: k.y }, { x: fx, y: fy }] : [{ x: k.x, y: k.y }];
+      this.a3d.anchors = foe ? [{ x: k.x, y: k.y, z: k.z }, { x: fx, y: fy, z: (foe as { z?: number }).z ?? 0 }] : [{ x: k.x, y: k.y, z: k.z }];
       this.a3d.focus = { x: (k.x + fx) / 2, y: (k.y + fy) / 2, z: Math.max(k.z, foe ? (foe as { z?: number }).z ?? 0 : 0), span: Math.hypot(k.x - fx, (k.y - fy) * 1.7) };
       const want = this.koT >= 0 ? 1.25 : ult ? ARENA_CAM.ultPunch : 1;
       const sig = !!this.rt?.runs.some((r) => r.skill.slot === 6 && (r.phase === 'startup' || r.phase === 'active'));
       this.a3d.dimWant = ult ? 0.72 : this.koT >= 0 ? 0.5 : sig ? 0.32 : 0; // the room darkens in a big moment: the skill's light owns the screen
       this.a3d.punch += (want - this.a3d.punch) * Math.min(1, ms / (want > 1 ? 160 : 420));
+      // a body coming down on the floor (slammed, thrown, or a jump's landing): the room's dust answers it
+      const fall = (id: string, o: { x: number; y: number; z?: number; vz?: number }) => {
+        const z = o.z ?? 0, p = this.a3dFall.get(id) ?? { z, v: 0 };
+        const v = o.vz !== undefined ? Math.max(0, -o.vz) : ms > 0 ? Math.max(0, ((p.z - z) * 1000) / ms) : 0; // (falling speed, px / s)
+        if (p.z > 6 && z <= 1) this.a3d!.land(o.x, o.y, p.v);
+        this.a3dFall.set(id, { z, v: z > 1 ? (v || p.v) : 0 });
+      };
+      fall('me', k); if (foe) fall('foe', foe as { x: number; y: number; z?: number; vz?: number });
       this.a3d.step(ms);
       return;
     }
@@ -387,6 +395,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private camAir = 0;
   /** PVP 3D: the room and its camera (null: the painted arena). */
   private a3d: Arena3D | null = null;
+  /** PVP 3D: each fighter's height and falling speed last frame (a landing's dust). */
+  private a3dFall = new Map<string, { z: number; v: number }>();
   /** Counts the scene's starts (a late async load must not land in a newer run). */
   private sceneGen = 0;
   private floor3d: Floor | null = null;
@@ -584,7 +594,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.gHeadsUntil = -1; this.gTailsFree = false; this.gTailsUntil = -1; this.gLuckUntil = -1; this.gOverUntil = -1; this.gStreak = 0; this.fx?.gambleClear(this.localId); this.gHand.clear(); this.gStuck.clear();
     this.sunUntil = -1; this.godUntil = -1; this.kage?.clear(); this.kage = undefined; this.ambushIn.clear();
     this.mageReset(); this.gates.clear(); this.levityZones = []; this.brokenLinks.clear(); this.linkGfx = undefined;
-    this.hpMaxSeen = 0; this.seenStance = -Infinity; this.seenEndure = -Infinity; this.markAt.clear(); this.partyTick = 0; this.shares = []; this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1; this.camAir = 0; this.camPunch = 1; this.a3d = null; this.floor3d = null; this.sceneGen++;
+    this.hpMaxSeen = 0; this.seenStance = -Infinity; this.seenEndure = -Infinity; this.markAt.clear(); this.partyTick = 0; this.shares = []; this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1; this.camAir = 0; this.camPunch = 1; this.a3d = null; this.a3dFall.clear(); this.floor3d = null; this.sceneGen++;
     this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
     this.combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1, skills: new Set<string>() };
     this.confirmedLog = [];
