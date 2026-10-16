@@ -1,6 +1,7 @@
 // The book mage bends space: a camera post effect that refracts the whole scene around shockwaves (a ring of bent air racing
 // out, with a split of colour on its edge) and gravity wells (space drawn in and twisted toward a point). Presentation only.
 import Phaser from 'phaser';
+import { ImpactFx } from './ImpactFx';
 
 const N = 6;
 const FRAG = `
@@ -82,12 +83,14 @@ export class SpaceWarp {
   update(dt: number): void {
     if (!this.pipe) return;
     const cam = this.cam(), wv = cam.worldView, W = this.pipe.w, K = this.pipe.k;
-    const zx = this.scene.game.renderer.width / Math.max(1, wv.width);
+    const zx0 = this.scene.game.renderer.width / Math.max(1, wv.width);
     this.waves = this.waves.filter((w) => (w.t += dt) < w.life);
     W.fill(0); K.fill(0);
+    const D = ImpactFx.drawnAt, sw = this.scene.scale.width, sh = this.scene.scale.height;
     this.waves.forEach((w, i) => {
       const u = w.t / w.life, f = w.follow?.(); if (f) { w.x = f.x; w.y = f.y; }
-      const sx = (w.x - wv.x) / wv.width, sy = 1 - (w.y - wv.y) / wv.height;
+      let sx = (w.x - wv.x) / wv.width, sy = 1 - (w.y - wv.y) / wv.height, zx = zx0;
+      if (D) { const p = D(w.x, w.y); sx = p.sx / sw; sy = 1 - p.sy / sh; zx = p.k * (this.scene.game.renderer.width / sw); } // (PVP 3D: where the room's camera shows it)
       let r: number, s: number;
       if (w.kind === 1) { const e = 1 - Math.pow(1 - u, 3); r = (w.r0 + (w.r1 - w.r0) * e) * zx; s = w.s * (1 - u) * (1 - u) * zx; }
       else { r = w.r0 * zx; const env = u < 0.25 ? u / 0.25 : u > 0.75 ? (1 - u) / 0.25 : 1; s = w.s * env * zx; }

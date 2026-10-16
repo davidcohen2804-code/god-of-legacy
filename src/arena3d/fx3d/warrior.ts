@@ -1,0 +1,27 @@
+// PVP 3D — the Warrior's skills in the room's 3D (the Judge: gold and crimson steel): what each skill adds in 3D on top of its painted effect.
+// Owned by the Warrior chat: tune freely (pieces, colours, sizes, timings) and check in PVP 3D (?arena3d=1). The pieces
+// (pillar, dome, crack, debris, crystals, bolt, streak, slash, whirl, wave, rain, trail / crest / chainBolt) are in ../Fx3D.ts.
+import type { Recipe } from '../Fx3D';
+import { C, me, side, ahead, T } from './kit';
+
+export const WARRIOR: Record<string, Recipe> = {
+  warrior_basic: { own: true, active: (f, r) => { if (r.stage >= 2) f.slash(me(f, r), side(r), C.gold, { r: 125, tilt: 34, a0: -60, a1: 120, ms: 220, i: 1.6 }); } },
+  dash_slash: { active: (f, r) => { const c = me(f, r); f.later(T(r).active * 0.85, () => { const e = me(f, r); f.streak({ x: c.x, y: c.y, z: 95 }, { x: e.x, y: e.y, z: 95 }, C.gold, { w: 22, ms: 360, draw: 40 }); f.slash(e, side(r), C.gold, { r: 140, tilt: 12, a0: -120, a1: 110, ms: 260 }); }); } },
+  rising_slash: { active: (f, r) => f.slash(me(f, r), side(r), C.crimson, { r: 150, tilt: 82, a0: 160, a1: 10, ms: 300, y0: 60, i: 2.2 }) }, // (the launch's pillar of light rises under the foe: the default main hit)
+  ground_breaker: { own: true, active: (f, r) => { const c = me(f, r); f.crack(c.x, c.y, C.gold, { r: 180, chunks: 22, up: 1.2 }); f.dome(c.x, c.y, C.gold, { r: 190, ms: 360, a: 0.55 }); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), C.gold, 3.6, 420, 0.8); f.host.kick(0.06); f.host.impact({ x: c.x, y: c.y, z: 20 }, 1); } },
+  whirlwind: { active: (f, r) => f.whirl(r.attackerId, C.gold, { r: 150, ms: T(r).active, rings: 2, every: 120, dir: side(r) }) },
+  sanctuary: { own: true, active: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, C.gold, { r: 200, ms: 1400, a: 0.45, hold: 1, follow: () => f.host.casterPos(r.attackerId) }); f.pillar(c.x, c.y, C.gold, { h: 520, r: 70, ms: 700, i: 1.6, core: false }); } },
+  blade_storm: { own: true, hit: (f, _s, h, at, main) => { f.bolt({ x: at.x + (Math.random() - 0.5) * 120, y: at.y, z: 900 }, { x: at.x, y: at.y, z: 40 }, 0xffe7a8, { ms: main ? 300 : 180, w: main ? 14 : 9, forks: main ? 3 : 1 }); if (main || h.heavy) f.crack(at.x, at.y, C.gold, { r: 110, chunks: 10 }); } },
+  titans_verdict: { own: true, active: (f, r) => { const c = ahead(f, r, 120); f.pillar(c.x, c.y, C.gold, { h: 900, r: 70, ms: 900, i: 1.5, twist: true }); f.later(120, () => { f.crack(c.x, c.y, C.gold, { r: 260, chunks: 30, up: 1.4 }); f.dome(c.x, c.y, C.gold, { r: 280, ms: 600, a: 0.5 }); f.host.kick(0.09); f.host.impact({ x: c.x, y: c.y, z: 40 }, 2); }); } },
+  leap_crash: { own: true, fired: (f, r) => { const c = me(f, r); f.crack(c.x, c.y, C.gold, { r: 160, chunks: 18, up: 1.2 }); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), C.gold, 3.2, 360, 0.8); f.host.kick(0.05); } },
+  wave_slash: { crest: { c: C.gold, h: 130, w: 110 }, trail: false, active: (f, r) => f.slash(me(f, r), side(r), C.gold, { r: 150, tilt: 70, a0: 150, a1: -10, ms: 260 }) },
+  lance_thrust: { active: (f, r) => { const c = me(f, r); f.later(T(r).active * 0.8, () => { const e = me(f, r); f.streak({ x: c.x, y: c.y, z: 100 }, { x: e.x + side(r) * 120, y: e.y, z: 100 }, C.gold, { w: 28, ms: 380, draw: 50 }); f.dome(e.x + side(r) * 90, e.y, C.gold, { r: 90, ms: 260, a: 0.7 }); }); } },
+  war_cry: { own: true, active: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, C.crimson, { r: 300, ms: 520 }); f.later(90, () => f.dome(c.x, c.y, C.gold, { r: 220, ms: 440, a: 0.6 })); f.host.embers(f.host.w3(c.x), 0.9, f.host.d3(c.y), C.gold, 22, 3.2); f.host.impact({ x: c.x, y: c.y, z: 100 }, 1); } },
+  judgment_blade: { own: true, fired: (f, r, i, o) => { if (i === 0) return; f.pillar(o.x, o.y, C.gold, { h: 700, r: 46, ms: 520, i: 2.6 }); f.crack(o.x, o.y, C.gold, { r: 150, chunks: 16 }); f.host.impact({ x: o.x, y: o.y, z: 20 }, 1); } },
+  iron_grip: { hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, C.gold, { r: 110, ms: 300 }); } },
+  judgment_hook: { active: (f, r) => { const c = me(f, r), e = ahead(f, r, 420); f.streak({ x: c.x, y: c.y, z: 100 }, { x: e.x, y: e.y, z: 100 }, C.gold, { w: 10, ms: 420, draw: 110 }); } },
+  sky_breaker: { own: true, fired: (f, r) => { const c = me(f, r); f.pillar(c.x, c.y, C.gold, { h: 760, r: 52, ms: 560, i: 2.6 }); f.crack(c.x, c.y, C.gold, { r: 170, chunks: 18 }); f.host.impact({ x: c.x, y: c.y, z: 20 }, 1); } },
+  earthsplitter: { own: true, active: (f, r) => { const c = me(f, r); f.wave(c.x, c.y, r.aim.x, r.aim.y, C.gold, { len: 520, ms: 300, h: 150, w: 130 }); for (let i = 1; i <= 4; i++) f.later(i * 55, () => { const p = { x: c.x + r.aim.x * i * 120, y: c.y + r.aim.y * i * 70 }; f.crack(p.x, p.y, C.gold, { r: 90, chunks: 6 }); }); } },
+  shield_charge: { cast: (f, r) => f.dome(me(f, r).x + side(r) * 50, me(f, r).y, C.gold, { r: 120, ms: T(r).startup + T(r).active, a: 0.55, hold: 1, follow: () => { const c = f.host.casterPos(r.attackerId); return c ? { x: c.x + side(r) * 60, y: c.y, z: 0 } : null; } }) },
+  lions_maw: { crest: { c: C.crimson, h: 150, w: 120 }, trail: false },
+};

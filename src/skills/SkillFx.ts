@@ -13,6 +13,7 @@ import { SamuraiFx, KIT, KIT_URL } from './SamuraiFx';
 import { MageFx, MAGE_KIT, MAGE_KIT_URL, MAGE_SHEETS } from './MageFx';
 import { ArcherFx, ARCHER_KIT, ARCHER_KIT_URL } from './ArcherFx';
 import { SKILL_BLOCKERS, WORLD_OBJECTS, clearLine } from '../world/WorldGeometry';
+import { ImpactFx } from './ImpactFx';
 
 const F = 'assets/final';
 /** Skills that borrow another skill's VFX sheet (no art of their own). */
@@ -278,6 +279,8 @@ export class SkillFx {
   private arch: ArcherFx;
   /** The gambler's effects (drawn in code). */
   private gamb: GamblerFx;
+  /** The weight of the main hits on the whole picture: bent air, a split of colour, an ultimate's zoom blur. */
+  readonly impact: ImpactFx;
 
   constructor(private scene: Phaser.Scene, rt: SkillRuntime, private casterPos: (id: string) => V3 | null, private cam?: Phaser.Cameras.Scene2D.Camera) {
     this.sam = new SamuraiFx({
@@ -295,6 +298,7 @@ export class SkillFx {
       punch: (a, ms) => this.punch(a, ms), darken: (ms, a) => this.darken(ms, a), ultimateStage: (r) => this.ultimateStage(r), targetPos: (id) => this.targetPos?.(id) ?? null,
       shake: (ms, i) => (this.cam ?? this.scene.cameras.main).shake(ms, i), hitStop: (ms) => { this.hitStopLeft = Math.max(this.hitStopLeft, ms); }, flash: (c, a, ms) => this.screenFlash(c, a, ms),
     });
+    this.impact = new ImpactFx(scene, () => this.cam ?? this.scene.cameras.main);
     this.gamb = new GamblerFx({
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, hand: (id) => this.handPos?.(id) ?? null,
       targetPos: (id) => this.targetPos?.(id) ?? null, callout: (at, text, color, row) => this.callout(at, text, color, row), punch: (a, ms) => this.punch(a, ms),
@@ -1318,6 +1322,14 @@ export class SkillFx {
       this.hitStopLeft = Math.max(this.hitStopLeft, HITSTOP[tier] * (many && !weighty ? 0.45 : 1) + (weighty && tier !== 'ultimate' ? 25 : 0) + (flies ? 15 : 0));
       const [d, i] = SHAKE[weighty && tier === 'core' ? 'signature' : tier];
       if (tier !== 'basic' || weighty) this.scene.cameras.main.shake(d, i);
+      // the main hit bends the air (a ring racing out from the blow) and splits the colour for a beat; an ultimate's
+      // pulls the picture toward it (Prometheus: every big blow is felt on the whole screen)
+      if (weighty || counter || tier === 'signature' || tier === 'ultimate') {
+        const big = tier === 'ultimate' ? 2 : tier === 'signature' || flies || hit.heavy || counter ? 1 : 0, c = { x: at.x, y: at.y, z: at.z + 40 };
+        this.impact.ripple(c, { r1: [150, 240, 400][big], life: [240, 320, 480][big], s: [9, 15, 26][big], width: [16, 22, 32][big] });
+        this.impact.aberration([0.0025, 0.0045, 0.0075][big], [130, 170, 240][big], c);
+        if (big === 2) this.impact.blur(0.045, 240, c);
+      }
     }
   }
 
@@ -1434,6 +1446,7 @@ export class SkillFx {
     this.mage.update(step, performance.now());
     this.arch.update(step);
     this.gamb.update(step);
+    this.impact.update(step);
     if (this.hitStopLeft > 0) this.hitStopLeft = Math.max(0, this.hitStopLeft - ms);
     this.anims = this.anims.filter((a) => {
       a.t += step;
@@ -2235,6 +2248,7 @@ export class SkillFx {
     this.hawks.clear();
     this.sam.destroy();
     this.mage.destroy();
+    this.impact.destroy();
     for (const a of this.anims) { a.img.destroy(); a.glow?.destroy(); a.mix?.destroy(); }
     for (const t of this.teles) t.g.destroy();
     for (const i of this.projs.values()) i.destroy();

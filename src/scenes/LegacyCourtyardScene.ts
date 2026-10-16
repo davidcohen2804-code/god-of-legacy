@@ -375,7 +375,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         this.a3dFall.set(id, { z, v: z > 1 ? (v || p.v) : 0 });
       };
       fall('me', k); if (foe) fall('foe', foe as { x: number; y: number; z?: number; vz?: number });
-      this.a3d.step(ms);
+      this.a3d.flying = this.rt ? this.rt.projectiles.map((e) => e.p) : [];
+      // each fighter's body casts the low sun's shadow on the floor
+      const bodies: { body: Phaser.GameObjects.Sprite; foot: Phaser.GameObjects.Image; z: number }[] = this.view ? [{ body: this.view.sprite, foot: this.view.shadow, z: k.z }] : [];
+      if (this.bot) bodies.push({ body: this.bot.view.view.sprite, foot: this.bot.view.view.shadow, z: this.bot.kin.z });
+      for (const r of this.pvp?.remotes.values() ?? []) bodies.push({ body: r.view.sprite, foot: r.view.shadow, z: (r as unknown as { z?: number }).z ?? 0 });
+      this.a3d.bodies = bodies;
+      this.a3d.step(ms, (this.fx?.hitStopLeft ?? 0) > 0 ? 0 : ms);
       return;
     }
     const mx = (k.x + fx) / 2, my = (k.y + fy) / 2, span = Math.abs(k.x - fx);
@@ -703,8 +709,26 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (gen !== this.sceneGen || !this.sys.isActive()) return;
         for (const o of [...this.arenaMap, ...this.occluders, ...(this.stageFx?.layerList() ?? [])]) (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false);
         cam.stopFollow(); cam.removeBounds(); cam.setRoundPixels(false); // (the bodies glide with the 3D camera: no pixel snapping)
-        this.a3d = new Arena3D(this, floor);
-        this.arenaSnd?.use3D(this.a3d); // (its camera places the sounds; the fight rings in the courtyard)
+        const a3 = this.a3d = new Arena3D(this, floor);
+        this.arenaSnd?.use3D(a3); // (its camera places the sounds; the fight rings in the courtyard)
+        // the skills in the room's 3D (Fx3D): it follows the runtime's own events — the same casts every client sees
+        a3.casterPos = (id) => this.casterPos(id);
+        a3.onImpact = (at, big) => {
+          const fx = this.fx; if (!fx) return;
+          fx.impact.ripple(at, { r1: [150, 240, 400][big], life: [240, 320, 480][big], s: [9, 15, 26][big], width: [16, 22, 32][big], squash: 0.5 });
+          fx.impact.aberration([0.0025, 0.0045, 0.0075][big], [130, 170, 240][big], at); if (big === 2) fx.impact.blur(0.045, 240, at);
+        };
+        const rt = this.rt;
+        if (rt) {
+          const on: [string, (...a: never[]) => void][] = [
+            [RT_EVENTS.cast, (r: CastRun) => a3.fx.cast(r)],
+            [RT_EVENTS.active, (r: CastRun) => a3.fx.active(r)],
+            [RT_EVENTS.hit, (r: CastRun, i: number, o: V3) => a3.fx.fired(r, i, o)],
+            [RT_EVENTS.chain, (r: CastRun, _i: number, o: V3, t: V3 | null) => a3.fx.chain(r, o, t)],
+          ];
+          for (const [e, fn] of on) rt.events.on(e, fn);
+          this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { for (const [e, fn] of on) rt.events.off(e, fn); });
+        }
       });
     } else if (AR) this.pitch = new CameraPitch(this, cam, () => ({ parts: [...this.arenaMap, ...this.occluders, ...(this.stageFx?.layerList() ?? [])], top: AR.y }), (d) => this.hud?.setPitch(d));
     this.input.keyboard?.on('keydown-INSERT', () => this.pitch?.step(1)); this.input.keyboard?.on('keydown-DELETE', () => this.pitch?.step(-1));
@@ -3214,6 +3238,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!this.a3d) return;
     const weight = s.slot === 7 ? 'ultimate' : hit.heavy || s.slot === 6 || reaction === 'launch' || reaction === 'knockdown' || reaction === 'slam' ? 'heavy' : 'light';
     this.a3d.hit(at.x, at.y, at.z, parseInt(classColor(s.cls).slice(1), 16), weight);
+    // the skill's 3D pieces at the foe; the main hit (heavy, sending him flying or down, the last of a burst) carries the weight
+    const flies = !!(hit.reaction.launch || hit.reaction.knockdown || hit.reaction.slam), many = (s.chain ? 1 : s.hits.length) > 3;
+    const main = !!hit.heavy || flies || (many && hit === s.hits[s.hits.length - 1]) || (!many && (s.slot === 6 || s.slot === 7));
+    this.a3d.fx.hit(s, hit, at, main, reaction, s.slot === 7 && main ? 2 : s.slot === 6 || hit.heavy || flies ? 1 : 0);
   }
   private counterCall(at: V3): void { this.fx?.callout({ x: at.x, y: at.y, z: at.z + 70 }, 'COUNTER!', '#ff6a3a', 1); this.impactBeat('counter', at); }
   /** The big hits felt by their weight (the same in the arena and in the open game): a counter, a punish, an armor break
@@ -3225,6 +3253,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     fx.screenFlash(B.color, B.flash, B.flashMs);
     fx.shockwave(at.x, at.y, B.ring, B.color); if (kind !== 'punish') fx.shockwave(at.x, at.y, B.ring * 0.55, 0xffffff);
     this.cameras.main.shake(B.shake[0], B.shake[1]);
+    if (kind !== 'counter') { const c = { x: at.x, y: at.y, z: at.z + 40 }; fx.impact.ripple(c, { r1: 260, life: 340, s: 18, width: 24 }); fx.impact.aberration(0.007, 200, c); } // (a counter's comes with its hit)
   }
 
   private callPunish(run: CastRun, whiff: boolean, at: V3): void {
@@ -3989,7 +4018,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (m.perfect && m.winner === this.localId) this.mStats.perfects++;
         if (this.bot) this.bot.hold = true;
         B.ko(m.why, m.perfect, T.koMs - 500); this.stageFx?.event('ko');
-        if (m.why === 'ko' || m.why === 'double') this.koMoment();
+        if (m.why === 'ko' || m.why === 'double') this.koMoment(this.casterPos(m.winner === this.localId ? m.opponent : this.localId));
         if (m.winner === this.localId && this.dead < 0) this.poseLock = { mode: 'win', until: this.simMs + 60000 }; // the winner's pose through the K.O. and the result
         if (m.winner === BOT_ID && this.bot) this.bot.poseLock = { mode: 'win', until: this.simMs + 60000 };
         break;
@@ -4121,10 +4150,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   /** K.O.: the world slows to a quarter for a beat while the camera punches in, then eases back. */
-  private koMoment(): void {
+  private koMoment(at: V3 | null = null): void {
     this.koT = 0; this.koZoomBack = false;
     const cam = this.cameras.main;
     cam.shake(340, 0.011);
+    if (at && this.fx) { // the whole picture takes the last blow: a big ring of bent air, the colour split, a zoom blur toward the fallen
+      const c = { x: at.x, y: at.y, z: at.z + 50 };
+      this.fx.impact.ripple(c, { r1: 560, life: 700, s: 34, width: 40 }); this.fx.impact.aberration(0.014, 650, c); this.fx.impact.blur(0.085, 620, c);
+    }
     cam.zoomTo(this.baseZoom * this.arenaZoom * 1.08, 220, 'Quad.easeOut', true);
   }
 

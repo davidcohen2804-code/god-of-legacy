@@ -11,6 +11,9 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { buildRoom, type Room } from './Room';
+import { Fx3D } from './Fx3D';
+import { ImpactFx } from '../skills/ImpactFx';
+import type { Projectile } from '../skills/HitGeometry';
 
 
 /** World px → 3D units: 1 unit = 100 px; the floor's depth stretched (a deep room), heights as drawn. */
@@ -111,6 +114,21 @@ export class Arena3D {
   private camera: THREE.PerspectiveCamera;
   private bg: Phaser.GameObjects.Image;
   private fg: Phaser.GameObjects.Image;
+  /** The skills' glow in front of the fighters (Fx3D), added over the picture. */
+  private glow3 = new THREE.Scene();
+  private fxImg: Phaser.GameObjects.Image;
+  /** The skills in the room's 3D: pillars, cracks and chunks, waves, domes, crystals, lightning, trails, slash arcs. */
+  fx!: Fx3D;
+  /** The blow felt on the whole picture (set by the scene: its ImpactFx). */
+  onImpact?: (at: { x: number; y: number; z: number }, big: 0 | 1 | 2) => void;
+  /** The fighters' bodies as drawn (set by the scene each frame, with their contact shadow): each casts the sun's
+   *  shadow on the floor — its own silhouette laid down away from the low sun (sheared like a real cast shadow). */
+  bodies: { body: Phaser.GameObjects.Sprite; foot: Phaser.GameObjects.Image; z: number }[] = [];
+  private shades = new Map<Phaser.GameObjects.Sprite, { c: Phaser.GameObjects.Container; im: Phaser.GameObjects.Image; dark: Phaser.GameObjects.Image; lit: Phaser.GameObjects.Image }>();
+  /** The sun's shadow per px of height, as drawn: the shear of the silhouette laid on the floor. */
+  private sunShadow = { a: 0.9, b: 0.35 };
+  /** Where a fighter stands (set by the scene): the skills' pieces follow their caster. */
+  casterPos: (id: string) => { x: number; y: number; z: number } | null = () => null;
   private bgCanvas: HTMLCanvasElement;
   private fgCanvas: HTMLCanvasElement;
   private saved: [Placed, number, number, number, number][] = [];
@@ -124,7 +142,7 @@ export class Arena3D {
   private composer?: EffectComposer;
   private sunBase = 0; private hemiBase = 0;
   /** The hits' light: a small pool of point lights, each placed on a hit and fading (the floor and the ground take it). */
-  private hitLights: { L: THREE.PointLight; left: number; ms: number; power: number }[] = [];
+  private hitLights: { L: THREE.PointLight; F: THREE.PointLight; left: number; ms: number; power: number }[] = [];
   /** The marks a heavy blow leaves on the floor (a soft dark scorch / dust ring, fading). */
   private marks: { m: THREE.Mesh; left: number; ms: number }[] = [];
   private markTex?: THREE.Texture;
@@ -156,6 +174,7 @@ export class Arena3D {
     this.renderer = new THREE.WebGLRenderer({ canvas: this.bgCanvas, antialias: true, alpha: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(1); this.renderer.setSize(w, h, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.localClippingEnabled = true; // (the skills' pieces split round the fighters: behind them in the room, in front over them)
     this.camera = new THREE.PerspectiveCamera(CAM.fov, w / h, 0.5, 400);
     this.build(soft);
     this.composer = new EffectComposer(this.renderer, new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, samples: soft ? 0 : 4 })); // (multisampled: the room's edges stay smooth)
@@ -172,6 +191,13 @@ export class Arena3D {
     scene.textures.addImage('arena3d-fg', this.fgCanvas as unknown as HTMLImageElement);
     this.bg = scene.add.image(0, 0, 'arena3d-bg').setOrigin(0, 0).setScrollFactor(0).setDepth(-1e6).setDisplaySize(scene.scale.width, scene.scale.height);
     this.fg = scene.add.image(0, 0, 'arena3d-fg').setOrigin(0, 0).setScrollFactor(0).setDepth(90000).setDisplaySize(scene.scale.width, scene.scale.height);
+    if (scene.textures.exists('arena3d-fx')) scene.textures.remove('arena3d-fx');
+    scene.textures.addImage('arena3d-fx', this.bgCanvas as unknown as HTMLImageElement);
+    this.fxImg = scene.add.image(0, 0, 'arena3d-fx').setOrigin(0, 0).setScrollFactor(0).setDepth(89990).setDisplaySize(scene.scale.width, scene.scale.height).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
+    // the blows on the whole picture land where this camera shows them
+    ImpactFx.screenOf = (x, y, z) => this.project(x, y, z);
+    ImpactFx.drawnAt = (x, wy) => this.drawnAt(x, wy);
+    this.fx.warm(this.renderer);
     scene.events.on(Phaser.Scenes.Events.PRE_RENDER, this.apply, this);
     scene.events.on(Phaser.Scenes.Events.RENDER, this.restore, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this);
@@ -187,6 +213,11 @@ export class Arena3D {
     const F = this.floor;
     this.room = buildRoom(this.scene3, this.front3, this.renderer, { x0: this.w3(F.x0), x1: this.w3(F.x1), zB: this.d3(F.back), zF: this.d3(F.front) }, soft);
     this.sunBase = this.room.sun.intensity; this.hemiBase = this.room.hemi.intensity;
+    { // the sun's shadow: per unit of height, how far it lies on the floor (x, toward the camera) — and how that looks
+      const d = this.room.sun.position.clone().sub(this.room.sun.target.position).normalize(), up = Math.max(0.2, d.y);
+      const fx = -d.x / up, fz = -d.z / up, p = Phaser.Math.DegToRad(CAM.pitch);
+      this.sunShadow = { a: fx / Math.cos(p), b: fz * Math.tan(p) };
+    }
     // what a blow throws up from the floor: dust, wood chips, embers — behind the fighters and in front of them
     const dsoft = dotTexture(0.12), solid = dotTexture(0.6);
     this.dustB = new Bits(120, dsoft, false); this.dustF = new Bits(80, dsoft, false);
@@ -194,7 +225,48 @@ export class Arena3D {
     this.glowB = new Bits(140, solid, true); this.glowF = new Bits(90, solid, true);
     this.scene3.add(this.dustB.pts, this.chipB.pts, this.glowB.pts); this.front3.add(this.dustF.pts, this.chipF.pts, this.glowF.pts);
     // the blows' light: always in the scene (a light switched on or off recompiles every material: a hitch), dark when idle
-    for (let i = 0; i < 4; i++) { const L = new THREE.PointLight(0xffffff, 0, 6, 1.6); this.scene3.add(L); this.hitLights.push({ L, left: 0, ms: 1, power: 0 }); }
+    for (let i = 0; i < 4; i++) {
+      const L = new THREE.PointLight(0xffffff, 0, 6, 1.6), F = new THREE.PointLight(0xffffff, 0, 6, 1.6); // (the same light on the railing and the chunks in front)
+      this.scene3.add(L); this.front3.add(F); this.hitLights.push({ L, F, left: 0, ms: 1, power: 0 });
+    }
+    // the skills' 3D pieces
+    this.fx = new Fx3D({
+      back: this.scene3, solid: this.front3, glow: this.glow3, camera: this.camera,
+      w3: this.w3, d3: this.d3, h3: this.h3,
+      flare: (hx, hy, hz, color, power, dist, ms) => this.flare(hx, hy, hz, color, power, dist, ms),
+      dust: (hx, hz, n, k) => this.dust(hx, hz, n, k),
+      embers: (hx, hy, hz, color, n, speed) => this.embers(hx, hy, hz, color, n, speed),
+      ring: (hx, hz, color, r1, ms, a) => this.ring(hx, hz, color, r1, ms, a),
+      blow: (hx, hy, hz, R, st) => this.blowPetals(hx, hy, hz, R, st),
+      kick: (a) => { this.kick = Math.max(this.kick, a); },
+      casterPos: (id) => this.casterPos(id),
+      impact: (at, big) => this.onImpact?.(at, big),
+    });
+  }
+
+  /** A flare of light at a point (units) from the hit lights' pool. */
+  private flare(hx: number, hy: number, hz: number, color: number, power: number, dist: number, ms: number): void {
+    const slot = this.hitLights.reduce((a, b) => (b.left < a.left ? b : a));
+    for (const L of [slot.L, slot.F]) { L.color.set(color); L.distance = dist; L.position.set(hx, hy, hz); }
+    slot.left = ms; slot.ms = ms; slot.power = power;
+  }
+
+  /** Glowing sparks thrown from a point (units), falling and bouncing on the planks. */
+  private embers(hx: number, hy: number, hz: number, color: number, n: number, speed: number): void {
+    const r = Math.random, c = mix(color, 0xffffff, 0.4);
+    for (let i = 0; i < n; i++) {
+      const a = r() * Math.PI * 2, up = 0.3 + r() * 0.7, sp = speed * (0.5 + r() * 0.8);
+      const vx = Math.cos(a) * sp * (1 - up * 0.5), vz = Math.sin(a) * sp * (1 - up * 0.5) * 0.8;
+      (vz > 0 ? this.glowF : this.glowB).emit(hx, hy, hz, vx, up * sp, vz, c, 0.06 + r() * 0.07, 380 + r() * 500, { grav: 7, drag: 0.55 });
+    }
+  }
+
+  /** PVP 3D: a point drawn at (x, drawn y) with no floor of its own: over the nearest fighter, as every effect is placed. */
+  private drawnAt(x: number, wy: number): { sx: number; sy: number; k: number } {
+    let best: { x: number; y: number } | null = null;
+    for (const a of this.anchors) if (!best || Math.abs(a.x - x) < Math.abs(best.x - x)) best = a;
+    const floor = best && Math.abs(best.x - x) < 700 && wy <= best.y + 30 ? best.y : wy;
+    return this.project(x, floor, floor - wy);
   }
 
   // ------------------------------------------------------------------ the skills in the room
@@ -202,10 +274,8 @@ export class Arena3D {
   /** A blow lands at a world point (x, depth y, height z px): its light flares on the floor around it in the skill's
    *  colour and fades (heavier blows: brighter, wider, longer); a heavy one leaves a mark on the floor. */
   hit(x: number, y: number, z: number, color: number, weight: 'light' | 'heavy' | 'ultimate'): void {
-    const slot = this.hitLights.reduce((a, b) => (b.left < a.left ? b : a));
     const P = weight === 'ultimate' ? { power: 34, dist: 11, ms: 520 } : weight === 'heavy' ? { power: 20, dist: 8, ms: 340 } : { power: 9, dist: 5, ms: 200 };
-    slot.L.color.set(color); slot.L.distance = P.dist; slot.L.position.set(this.w3(x), this.h3(Math.max(40, z)) + 0.35, this.d3(y) + 0.25);
-    slot.left = P.ms; slot.ms = P.ms; slot.power = P.power;
+    this.flare(this.w3(x), this.h3(Math.max(40, z)) + 0.35, this.d3(y) + 0.25, color, P.power, P.dist, P.ms);
     if (weight !== 'light') this.mark(x, y, weight === 'ultimate' ? 2.4 : 1.4, color);
     // the room answers the blow (Prometheus: the skills live in the room): embers fly from it and bounce on the planks;
     // a heavy one throws up wood chips and dust, runs a ring of its light over the floor, blows the petals away, and
@@ -290,9 +360,9 @@ export class Arena3D {
   /** Each frame: the hit lights fade, the marks fade, the room darkens / brightens toward what the moment wants. */
   private stepFx(ms: number): void {
     for (const h of this.hitLights) {
-      if (h.left <= 0) { h.L.intensity = 0; continue; }
+      if (h.left <= 0) { h.L.intensity = h.F.intensity = 0; continue; }
       h.left -= ms; const k = Math.max(0, h.left / h.ms);
-      h.L.intensity = h.power * (k * k * (3 - 2 * k)); // (a fast flare, a soft fade)
+      h.L.intensity = h.F.intensity = h.power * (k * k * (3 - 2 * k)); // (a fast flare, a soft fade)
     }
     for (let i = this.marks.length - 1; i >= 0; i--) {
       const mk = this.marks[i]; mk.left -= ms;
@@ -315,9 +385,15 @@ export class Arena3D {
   // ------------------------------------------------------------------ the camera
 
   /** Follow the fight: the fighters' midpoint ahead, pulled back as they part, turned a little as it slides. */
-  step(ms: number): void {
+  /** What flies this frame (set by the scene): the skills' trails and crests follow it. */
+  flying: Projectile[] = [];
+
+  /** Each frame: `fxMs` is the effects' time (0 through a hit-stop: the blow's sparks, chunks and light hang in the air
+   *  with the fighters — the impact frame); the camera and the room's own life (wind, petals) run on `ms`. */
+  step(ms: number, fxMs = ms): void {
     this.t += ms;
-    this.stepFx(ms);
+    this.stepFx(fxMs);
+    this.fx.update(fxMs, this.flying);
     const f = this.focus, F = this.floor, k = Math.min(1, (ms / 16) * CAM.follow);
     const want = new THREE.Vector3(this.w3(f.x), this.h3(Math.min(160, f.z * 0.4)) + CAM.aim, this.d3(f.y));
     this.look.lerp(want, this.look.lengthSq() ? k : 1);
@@ -350,6 +426,7 @@ export class Arena3D {
 
   private apply(): void {
     this.restore();
+    this.shadeBodies();
     const cam = this.scene.cameras.main;
     cam.setZoom(1); cam.setScroll(0, 0); // (the 3D camera frames the fight; the Phaser camera only shakes / fades)
     if (this.composer) this.composer.render(); else this.renderer.render(this.scene3, this.camera);
@@ -357,10 +434,14 @@ export class Arena3D {
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.render(this.front3, this.camera);
     this.scene.textures.get('arena3d-fg').source[0].update();
+    // the skills' glow in front of the fighters: drawn alone, added over the picture (none drawn when there is none)
+    const glow = this.glow3.children.some((o) => o.visible);
+    if (glow) { this.renderer.render(this.glow3, this.camera); this.scene.textures.get('arena3d-fx').source[0].update(); }
+    this.fxImg.setVisible(glow);
     // every world object: placed where the 3D camera sees its floor point, scaled by its depth
     const sw = this.scene.scale.width;
     const visit = (o: Placed, top: boolean) => {
-      if (!o.visible || o === (this.bg as unknown) || o === (this.fg as unknown) || o.scrollFactorX === 0) return;
+      if (!o.visible || o === (this.bg as unknown) || o === (this.fg as unknown) || o === (this.fxImg as unknown) || o.scrollFactorX === 0) return;
       if (o instanceof Phaser.GameObjects.Container && o.x === 0 && o.y === 0) { for (const c of o.list as Placed[]) visit(c, false); return; }
       if ((o.displayWidth ?? 0) > sw * 0.6) return; // screen-sized overlays (a darkening, a cut-in band) stay where they are drawn
       if (o instanceof Phaser.GameObjects.Graphics && o.x === 0 && o.y === 0) return; // (drawn in world space: left as is)
@@ -378,6 +459,53 @@ export class Arena3D {
     for (const o of this.scene.children.list as Placed[]) visit(o, true);
   }
 
+  /** The fighters' sun shadows: each body's frame, black and faint, laid on the floor from its feet away from the sun —
+   *  a shear (built as a turned, scaled container round a turned image: any 2D linear map is R·S·R). */
+  private shadeBodies(): void {
+    const seen = new Set<Phaser.GameObjects.Sprite>(), S = this.sunShadow;
+    const lit = 1 - 0.75 * this.dimNow;
+    for (const { body, foot, z } of this.bodies) {
+      if (!body.active || !foot.active) continue;
+      seen.add(body);
+      let e = this.shades.get(body);
+      if (!e) {
+        const im = this.scene.add.image(0, 0, body.texture.key, body.frame.name).setTintFill(0x000000);
+        const c = this.scene.add.container(0, 0, [im]);
+        const dark = this.scene.add.image(0, 0, body.texture.key, body.frame.name).setTintFill(0x000000);
+        const lit = this.scene.add.image(0, 0, body.texture.key, body.frame.name).setTintFill(0xffffff).setBlendMode(Phaser.BlendModes.ADD);
+        e = { c, im, dark, lit }; this.shades.set(body, e);
+      }
+      const on = body.visible && foot.visible && body.alpha > 0.05;
+      e.c.setVisible(on); if (!on) { e.dark.setVisible(false); e.lit.setVisible(false); continue; }
+      // the body takes the room's light: darker when the room darkens, washed in a blow's colour when one flares near it
+      const copy = (o: Phaser.GameObjects.Image, depth: number) => o.setTexture(body.texture.key, body.frame.name).setOrigin(body.originX, body.originY).setFlipX(body.flipX)
+        .setScale(body.scaleX, body.scaleY).setRotation(body.rotation).setPosition(body.x, body.y).setDepth(depth);
+      const dk = 0.42 * this.dimNow * Math.min(1, body.alpha);
+      copy(e.dark, body.depth + 0.0003).setAlpha(dk).setVisible(dk > 0.01);
+      const bx = this.w3(body.x), by = this.h3(body.depth - body.y + 90), bz = this.d3(body.depth);
+      let sum = 0, best = 0, col = 0xffffff;
+      for (const h of this.hitLights) {
+        if (h.L.intensity <= 0) continue;
+        const d = Math.hypot(h.L.position.x - bx, h.L.position.y - by, h.L.position.z - bz), f = Math.max(0, 1 - d / h.L.distance), v = h.L.intensity * f * f;
+        sum += v; if (v > best) { best = v; col = h.L.color.getHex(); }
+      }
+      const la = Math.min(0.32, sum / 80) * Math.min(1, body.alpha);
+      copy(e.lit, body.depth + 0.0006).setAlpha(la).setTintFill(col).setVisible(la > 0.01);
+      e.im.setTexture(body.texture.key, body.frame.name).setOrigin(body.originX, body.originY).setFlipX(body.flipX).setScale(body.scaleX, body.scaleY);
+      // M = [[1, -a], [0, -b]] (a body point h px up lies at (+a·h, +b·h) from the feet) = R(φ)·diag(sx, sy)·R(θ)
+      const m00 = 1, m01 = -S.a, m10 = 0, m11 = -S.b;
+      const E = (m00 + m11) / 2, F = (m00 - m11) / 2, G = (m10 + m01) / 2, H = (m10 - m01) / 2;
+      const Q = Math.hypot(E, H), R = Math.hypot(F, G), a1 = Math.atan2(G, F), a2 = Math.atan2(H, E);
+      const th = (a2 - a1) / 2, h = Math.max(0, z), fade = Math.max(0, 1 - h / 320);
+      // a body up in the air: its shadow slides away from the sun along the floor (the feet's own point, h px up, laid down)
+      e.im.setRotation(th).setPosition(h * Math.sin(th), -h * Math.cos(th));
+      e.c.setRotation((a2 + a1) / 2).setScale(Q + R, Q - R)
+        .setPosition(foot.x, foot.y).setDepth(foot.depth - 0.02)
+        .setAlpha(0.3 * lit * fade * Math.min(1, body.alpha));
+    }
+    for (const [b, e] of this.shades) if (!seen.has(b)) { e.c.destroy(); e.dark.destroy(); e.lit.destroy(); this.shades.delete(b); }
+  }
+
   private restore(): void {
     for (let i = this.saved.length - 1; i >= 0; i--) { const [o, x, y, sx, sy] = this.saved[i]; o.x = x; o.y = y; o.scaleX = sx; o.scaleY = sy; }
     this.saved.length = 0;
@@ -388,6 +516,11 @@ export class Arena3D {
     this.scene.events.off(Phaser.Scenes.Events.PRE_RENDER, this.apply, this);
     this.scene.events.off(Phaser.Scenes.Events.RENDER, this.restore, this);
     for (const b of [this.dustB, this.dustF, this.chipB, this.chipF, this.glowB, this.glowF]) b?.dispose();
+    this.fx?.dispose();
+    for (const e of this.shades.values()) { e.c.destroy(); e.dark.destroy(); e.lit.destroy(); }
+    this.shades.clear();
+    if (ImpactFx.screenOf) ImpactFx.screenOf = null;
+    ImpactFx.drawnAt = null;
     this.room?.dispose();
     this.composer?.dispose();
     this.renderer.dispose();
