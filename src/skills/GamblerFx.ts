@@ -555,13 +555,13 @@ export class GamblerFx {
     const s = this.ctx.scene, H = tp0.h ?? 90;
     const at = () => { const t = this.ctx.targetPos(id); return t ? { x: t.x, y: t.y - t.z - H * 0.5, d: t.y } : null; };
     if (skill === 'kinetic_grab' && hit === 0) { // seized: the body charges up — arcs crawl over it, a card-shaped charge pulses, the glow swells
-      const glow = this.glow(0, 0, H * 1.6, FUCHSIA, 0), ring = this.kit('g_cocoon', 0, 0, H * 1.2, 0) ?? this.kit('k_charge', 0, 0, H * 0.9, 0);
+      const glow = this.glow(0, 0, H * 1.1, FUCHSIA, 0), ring = this.kit('g_cocoon', 0, 0, H * 0.8, 0)?.setBlendMode(Phaser.BlendModes.ADD) ?? this.kit('k_charge', 0, 0, H * 0.9, 0);
       const fuse = this.kit('g_fuse', 0, 0, 54, 0), orbit = this.kit('g_orbit', 0, 0, H * 1.3, 0), r0 = ring?.scale ?? 1, o0 = orbit?.scale ?? 1;
       this.add((t) => {
         const p = at(); if (!p || t > 540) { glow.destroy(); ring?.destroy(); fuse?.destroy(); orbit?.destroy(); return false; }
         const u = t / 540, beat = 0.5 + 0.5 * Math.sin(t * (0.03 + u * 0.05)); // the charge builds: it pulses faster and faster
-        glow.setPosition(p.x, p.y).setDepth(p.d + 2).setAlpha(0.3 + 0.35 * u + 0.15 * beat).setScale((H * (1.2 + u * 0.8)) / 128);
-        if (ring) ring.setPosition(p.x, p.y).setDepth(p.d + 3).setAlpha(0.55 + 0.45 * beat).setFlipX(Math.floor(t / 90) % 2 === 1).setScale(r0 * lerp(1.15, 0.95, out3(clamp01(u * 4))) * (1 + 0.06 * beat));
+        glow.setPosition(p.x, p.y).setDepth(p.d + 2).setAlpha(0.25 + 0.3 * u + 0.12 * beat).setScale((H * (0.9 + u * 0.5)) / 128); // (sized to the foe: the gambler beside him stays readable)
+        if (ring) ring.setPosition(p.x, p.y).setDepth(p.d + 3).setAlpha(0.3 + 0.25 * beat) // (light over him, not a ball hiding him).setFlipX(Math.floor(t / 90) % 2 === 1).setScale(r0 * lerp(1.15, 0.95, out3(clamp01(u * 4))) * (1 + 0.06 * beat));
         if (orbit) orbit.setPosition(p.x, p.y + H * 0.5).setDepth(p.d + 3).setAlpha(0.85).setFlipX(Math.floor(t / 120) % 2 === 1).setScale(o0 * (1 + 0.05 * Math.sin(t * 0.02)), o0 * 0.8);
         if (fuse) fuse.setPosition(p.x, p.y - H * 0.75 - 16).setDepth(p.d + 5).setAlpha(Math.floor(t / Math.max(50, 160 - u * 120)) % 2 ? 1 : 0.45).setAngle(t * 0.25);
         if (Math.random() < 0.4) { const a = this.kit('g_crackle', p.x + rnd(-18, 18), p.y + rnd(-H * 0.4, H * 0.4), rnd(45, 75), p.d + 4) ?? this.kit('k_arcs', p.x, p.y, 60, p.d + 4); if (a) { const a0 = a.scale; a.setAngle(rnd(0, 360)); this.piece(a, 110, (uu, o) => o.setAlpha(1 - uu).setScale(a0 * (1 + uu * 0.3))); } }
@@ -570,9 +570,9 @@ export class GamblerFx {
       this.ctx.callout({ x: tp0.x, y: tp0.y, z: tp0.z + 20 }, 'GRAB!', '#ff7ae6', 1);
       // the snap: the grip slams shut on him (big → tight), a white flash, a beat of hit-stop
       this.ctx.freeze(70); this.ctx.cam().shake(110, 0.006);
-      const snap = this.kit('g_fist', tp0.x, tp0.y - tp0.z - H * 0.5, H * 2.2, tp0.y + 5) ?? this.kit('x_grip', tp0.x, tp0.y - tp0.z - H * 0.5, H * 2.6, tp0.y + 5);
+      const snap = this.kit('g_fist', tp0.x, tp0.y - tp0.z - H * 0.5, H * 1.6, tp0.y + 5) ?? this.kit('x_grip', tp0.x, tp0.y - tp0.z - H * 0.5, H * 1.9, tp0.y + 5);
       if (snap) { const s0 = snap.scale; this.piece(snap, 220, (u, o) => o.setScale(s0 * lerp(1, 0.42, out3(u))).setAlpha(u < 0.7 ? 1 : (1 - u) / 0.3)); }
-      this.pop(tp0.x, tp0.y - tp0.z - H * 0.5, H * 1.5, 0xffffff, 200);
+      this.pop(tp0.x, tp0.y - tp0.z - H * 0.5, H * 1.1, 0xffffff, 200);
       // the tether: a crackling bolt from his hand to the foe while he holds him
       if (by) {
         const bolt = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD), teth = this.kit('g_tether', 0, 0, 100, 0);
