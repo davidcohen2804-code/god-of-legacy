@@ -499,7 +499,7 @@ export class MageFx {
       }
       case 'storm_field': if (r.place && this.ctx.scene.textures.exists('mfx-sfield')) { const p = this.placeFloor(r);
         this.circle(p.x, p.y, 380, 2, T.active + 300, { run: r, draw: 200 });
-        if (this.ctx.scene.textures.exists('mfx-tempest')) this.sheet('mfx-tempest', p.x, p.y, 600, T.active, { floor: true, frames: [4, 8], loop: 75, oy: 0.72, depth: GROUND + 4, run: r });
+        if (this.ctx.scene.textures.exists('mfx-tempest')) this.sheet('mfx-tempest', p.x, p.y, 600, T.active, { floor: true, frames: [4, 8], loop: 75, oy: 0.72, depth: GROUND + 4, run: r, alpha: 0.7 });
         else this.sheet('mfx-sfield', p.x, p.y, 520, T.active + 200, { frames: [0, 8], loop: 70, oy: 0.72, sy: 1.28, depth: GROUND + 4, run: r });
         this.smoke(p.x, p.y - 30, 460, 0, T.active + 300, { squash: 0.45, depth: GROUND + 3 });
         this.ctx.darken(T.active + 200, 0.42);
@@ -513,8 +513,8 @@ export class MageFx {
     const s = r.skill, h = r.hits[i];
     if (s.id === 'storm_field' && r.place && this.ctx.scene.textures.exists('mfx-sfield')) { // the painted strike on every pulse, the burst on the last
       const p = this.placeFloor(r), last = i === r.hits.length - 1;
-      if (last && this.ctx.scene.textures.exists('mfx-tempest')) this.sheet('mfx-tempest', p.x, p.y, 640, 640, { frames: [12, 4], oy: 0.72, depth: p.y + 4 });
-      else this.sheet('mfx-sfield', p.x, p.y, last ? 560 : 460, last ? 600 : 340, { frames: last ? [12, 4] : [8, 4], oy: 0.72, sy: 1.28, depth: p.y + 4, alpha: this.ctx.scene.textures.exists('mfx-tempest') ? 0.7 : 1 });
+      if (last && this.ctx.scene.textures.exists('mfx-tempest')) this.sheet('mfx-tempest', p.x, p.y, 640, 640, { frames: [12, 4], oy: 0.72, depth: p.y + 4, fade: [[0, 1], [0.2, 0.85], [0.45, 0.45], [1, 0]] });
+      else this.sheet('mfx-sfield', p.x, p.y, last ? 560 : 420, last ? 600 : 340, { frames: last ? [12, 4] : [8, 4], oy: 0.72, sy: 1.28, depth: p.y + 4, alpha: this.ctx.scene.textures.exists('mfx-tempest') ? 0.45 : 1 }); // (the pulses: lighter, the last burst the big one)
       this.arc({ x: p.x + rnd(-40, 40), y: p.y - 620 }, { x: p.x, y: p.y - 10 }, { life: last ? 360 : 260, thick: last ? 7 : 5 }); // the bolt out of the sky
       this.ctx.flash?.(0xc8d0ff, last ? 0.14 : 0.07, 90);
       this.warp.ring(p.x, p.y, { r1: last ? 340 : 220, life: last ? 460 : 300, s: last ? 34 : 18, width: 26, squash: SQUASH });
@@ -631,7 +631,7 @@ export class MageFx {
     }, { uA: side, run: r, depth: cy + 4 });
     this.warp.well(cx, hy, { r: 220, life: T.startup + 120, s: 34, twist: 36 * side });
     // the painted pillar: its ignition (frames 1-5) through the wind-up, the eruption on the throw; anchored at its foot
-    this.sheet('mfx-pillar', cx, cy + 6, 470, T.startup + 700, { oy: 0.85, depth: cy + 5, split: [5, T.startup], run: r });
+    this.sheet('mfx-pillar', cx, cy + 6, 470, T.startup + 700, { oy: 0.85, depth: cy + 5, split: [5, T.startup], run: r, fade: [[0, 1], [(T.startup + 110) / (T.startup + 700), 1], [(T.startup + 260) / (T.startup + 700), 0.42], [1, 0]] }); // (it erupts full, then thins: the thrown foe reads through it)
     this.smoke(cx, cy - 20, 300, 0, T.startup + 500, { squash: 0.5, depth: cy + 1 }); // dark void gathering at the foot
     for (let k = 0; k < 10; k++) this.img('mg-dot', { x: cx + rnd(-120, 120), y: cy + rnd(-30, 20), w: rnd(5, 11), tint: k % 2 ? 0xb9a2ff : 0x9fe6ff, life: T.startup + 300, delay: rnd(0, T.startup), run: r, my: (u) => -120 * u, a: kf([0, 0], [0.2, 1], [1, 0]) });
     const hand = this.ctx.hand(r.attackerId) ?? { x: c0.x + side * 30, y: c0.y - c0.z - 70 };
@@ -653,7 +653,7 @@ export class MageFx {
     if (!painted) this.star(c.x, c.y - 90, 320, 300, { rays: 6 });
     this.burst(c.x, c.y - 30, { n: painted ? 14 : 34, speed: [260, 760], life: [300, 700], scale: [0.04, 0.22], tint: [0xffffff, 0xb9a2ff, 0x8fe6ff], angle: [-125, -55], gravity: 320 });
     if (painted) { // depth: a wider, fainter echo of the pillar behind it, smoke bursting at its foot, stars rising after it, the circle glowing on
-      this.sheet('mfx-pillar', c.x, c.y + 8, 640, 560, { oy: 0.85, depth: c.y + 3, frames: [5, 11], alpha: 0.45, sx: 1.25 });
+      this.sheet('mfx-pillar', c.x, c.y + 8, 640, 560, { oy: 0.85, depth: c.y + 3, frames: [5, 11], alpha: 0.3, sx: 1.25 });
       this.smoke(c.x, c.y - 10, 420, 0, 900, { squash: 0.45, depth: c.y + 2 });
       for (let k = 0; k < 5; k++) this.later(k * 110, () => this.burst(c.x + rnd(-40, 40), c.y - 60 - k * 40, { n: 6, speed: [40, 160], life: [500, 900], scale: [0.03, 0.12], tint: [0xffffff, 0xb9a2ff, 0x8fe6ff], gravity: -180 }));
       this.circle(c.x, c.y, 420, 0, 900, { draw: 60, alpha: 0.75 });
