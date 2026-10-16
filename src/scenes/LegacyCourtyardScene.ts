@@ -704,6 +704,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         for (const o of [...this.arenaMap, ...this.occluders, ...(this.stageFx?.layerList() ?? [])]) (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false);
         cam.stopFollow(); cam.removeBounds(); cam.setRoundPixels(false); // (the bodies glide with the 3D camera: no pixel snapping)
         this.a3d = new Arena3D(this, floor);
+        this.arenaSnd?.use3D(this.a3d); // (its camera places the sounds; the fight rings in the courtyard)
       });
     } else if (AR) this.pitch = new CameraPitch(this, cam, () => ({ parts: [...this.arenaMap, ...this.occluders, ...(this.stageFx?.layerList() ?? [])], top: AR.y }), (d) => this.hud?.setPitch(d));
     this.input.keyboard?.on('keydown-INSERT', () => this.pitch?.step(1)); this.input.keyboard?.on('keydown-DELETE', () => this.pitch?.step(-1));
@@ -3999,10 +4000,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** The fighters as the arena's sound hears them: where, how high off the floor, knocked about or not. */
   private heardFighters(): HeardFighter[] {
     const out: HeardFighter[] = [], hurt = (st: string | undefined) => st === 'launched' || st === 'knockdown';
-    if (this.kin && this.dead < 0) out.push({ id: this.localId, x: this.kin.x, h: this.kin.z - this.kin.supportZ, hurt: hurt(this.body?.state) });
+    if (this.kin && this.dead < 0) out.push({ id: this.localId, x: this.kin.x, y: this.kin.y, h: this.kin.z - this.kin.supportZ, hurt: hurt(this.body?.state) });
     const b = this.bot;
-    if (b && !b.defeated) out.push({ id: BOT_ID, x: b.kin.x, h: b.kin.z - b.kin.supportZ, hurt: hurt(b.body.state) });
-    for (const [id, r] of this.pvp?.remotes ?? []) if (r.alive) out.push({ id, x: r.x, h: r.z - r.sz, hurt: false });
+    if (b && !b.defeated) out.push({ id: BOT_ID, x: b.kin.x, y: b.kin.y, h: b.kin.z - b.kin.supportZ, hurt: hurt(b.body.state) });
+    for (const [id, r] of this.pvp?.remotes ?? []) if (r.alive) out.push({ id, x: r.x, y: r.y, h: r.z - r.sz, hurt: false });
     return out;
   }
 

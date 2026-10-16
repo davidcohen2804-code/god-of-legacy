@@ -2,8 +2,12 @@
 // announcer, the effects (impacts, swings, each class's own family, the round's moments), each stage's living ambience.
 // Files under assets/audio (.ogg; .mp3 where ogg does not play). Volumes: Settings' Master (Phaser's own volume),
 // Music and SFX (the announcer and the ambience with the effects).
-// Sources: the effects and ambiences are synthesised for the game; the menu cues are uisfx's (CC0); the announcer is
-// the owner's own voice with the game's processing (a big hall); the music is the owner's Suno tracks.
+// Sources: the effects and ambiences are synthesised for the game (the main hit's boom and the darkening's whoosh by
+// tools/audio/impacts.py); the menu cues are uisfx's (CC0); the announcer is the owner's own voice with the game's
+// processing (a big hall); the music is the owner's Suno tracks.
+// Where a sound happens: each one with a place is panned to where it is on the screen and quieter far from the camera
+// (setPanner: the arena tells how its camera sees a point). PVP 3D: the effects of the fight sound in the temple
+// courtyard (room(): a short reverb with the walls' early reflections), each sound sending its share (PlayOpts.wet).
 import Phaser from 'phaser';
 import { SettingsStore } from '../core/SettingsStore';
 
@@ -14,6 +18,7 @@ const urls = (path: string) => [`${A}${path}.ogg`, `${A}${path}.mp3`];
 export const SFX = {
   hit_light: [3, 0.7], hit_heavy: [3, 0.8], hit_ult: [2, 0.85], block: [3, 0.6], whiff: [3, 0.4], whiff_heavy: [2, 0.45], crit: [1, 0.45], jump: [2, 0.25], land: [3, 0.35], fall: [2, 0.65],
   vs_slam: [1, 0.85], round_swoosh: [1, 0.55], fight_hit: [1, 0.7], ko_boom: [1, 0.95], perfect_shine: [1, 0.55], break: [1, 0.75], punish: [1, 0.6], rage: [1, 0.65], tick: [1, 0.35],
+  boom: [3, 0.62], dim_whoosh: [1, 0.7],
   war_swing: [3, 0.5], war_hit: [3, 0.7], war_shield: [1, 0.75], war_cry: [1, 0.6], slam: [2, 0.85],
   sam_swish: [3, 0.5], sam_cut: [3, 0.7], sam_draw: [1, 0.55], sam_sheathe: [1, 0.45],
   arc_shot: [3, 0.55], arc_hit: [3, 0.65], arc_volley: [1, 0.55], arc_hawk: [1, 0.45],
@@ -76,21 +81,87 @@ const sfxVol = () => SettingsStore.get().sfxVolume / 100;
 const musicVol = () => SettingsStore.get().musicVolume / 100;
 const sm = () => game?.sound;
 
-/** Where on the screen a point of the world is (-1 left .. 1 right): its sound comes from that side (a little). */
-export type Panner = (x: number) => number;
+/** Where a point of the world is heard: its side of the screen (pan, -1 left .. 1 right) and how loud from where the
+ *  camera is (gain: 1 at the fight, less far back or off the screen). */
+export interface Heard { pan: number; gain: number }
+export type Panner = (x: number, y?: number, z?: number) => Heard;
 let panner: Panner | null = null;
 export function setPanner(p: Panner | null): void { panner = p; }
+/** How far a sound goes to its side (an equal-power pan: wide, never all in one ear); near the middle of the screen the
+ *  side still tells (the fight stays framed near the middle: a blow a little right of it is heard a little right). */
+const PAN_WIDTH = 0.8, PAN_CURVE = 0.65;
+const panOf = (p: number) => Math.sign(p) * Math.pow(Math.min(1, Math.abs(p)), PAN_CURVE) * PAN_WIDTH;
 
-export interface PlayOpts { vol?: number; rate?: number; x?: number; delay?: number; at?: number }
+/** x, y, z: where it happens (world px: across, depth, height); wet: its share in the room's reverb (PVP 3D). */
+export interface PlayOpts { vol?: number; rate?: number; x?: number; y?: number; z?: number; delay?: number; at?: number; wet?: number }
 
 function playKey(k: string, vol: number, o: PlayOpts = {}): Phaser.Sound.BaseSound | null {
   const m = sm();
   if (!m || !game?.cache.audio.exists(key(k))) return null;
-  const s = m.add(key(k), { volume: vol, rate: o.rate ?? 1, delay: o.delay ?? 0, pan: o.x !== undefined && panner ? Phaser.Math.Clamp(panner(o.x), -1, 1) * 0.55 : 0 });
+  const h = o.x !== undefined && panner ? panner(o.x, o.y, o.z) : null;
+  const s = m.add(key(k), { volume: vol * (h ? h.gain : 1), rate: o.rate ?? 1, delay: o.delay ?? 0, pan: h ? panOf(h.pan) : 0 });
+  const send = roomSend(s, o.wet ?? 0);
   live.set(k, (live.get(k) ?? 0) + 1);
-  s.once(Phaser.Sound.Events.COMPLETE, () => { live.set(k, (live.get(k) ?? 1) - 1); s.destroy(); });
+  s.once(Phaser.Sound.Events.COMPLETE, () => { live.set(k, (live.get(k) ?? 1) - 1); send?.disconnect(); s.destroy(); });
   s.play();
   return s;
+}
+
+// ---------------------------------------------------------------- the room (PVP 3D: the temple courtyard)
+
+/** The courtyard's reverb level (the wet return) and its shape: a stone yard open to the sky — the walls and the temple
+ *  front answer at once (early reflections), then a short, darkening tail (about a second). */
+const ROOM_WET = 1;
+/** The response's energy (set offline against the game's own blows: a hit rings ~14 dB under itself and its tail runs
+ *  out over ~0.8 s; a steady sound comes back about as loud as its send). */
+const ROOM_ENERGY = 1;
+interface RoomFx { ctx: AudioContext; inp: GainNode; out: GainNode }
+let roomFx: RoomFx | null = null;
+let roomOn = false;
+
+function courtyardIR(ctx: BaseAudioContext): AudioBuffer {
+  const sr = ctx.sampleRate, len = Math.round(sr * 1.25), b = ctx.createBuffer(2, len, sr);
+  const taps: [number, number][] = [[9, 0.5], [17, 0.42], [26, 0.34], [38, 0.27], [53, 0.21], [71, 0.15]]; // (ms, level)
+  for (let c = 0; c < 2; c++) {
+    const d = b.getChannelData(c);
+    let lp = 0;
+    for (let i = 0; i < len; i++) {
+      const t = i / sr;
+      lp += ((Math.random() * 2 - 1) - lp) * (0.35 + 0.6 * Math.exp(-t / 0.25)); // (bright stone; the highs go as it fades)
+      d[i] = lp * Math.exp(-t / 0.16) * Math.min(1, t / 0.008) * 0.6;           // (-60 dB in ~1.1 s)
+    }
+    for (const [ms, g] of taps) { const i = Math.round((ms / 1000) * sr * (c ? 1.09 : 1)); if (i < len) d[i] += g * (c ? -1 : 1) * (0.8 + Math.random() * 0.4); } // (each side its own walls)
+    let e = 0; for (let i = 0; i < len; i++) e += d[i] * d[i];
+    const k = Math.sqrt(ROOM_ENERGY / Math.max(1e-9, e)); for (let i = 0; i < len; i++) d[i] *= k; // (its level set here: the
+  }                                                                                                  //  browser's own normalising buries a blow's tail)
+  return b;
+}
+
+/** The room's chain on the game's audio: the sends in, a short pre-delay, the courtyard's response, the low end and the
+ *  fizz taken out (the boom's sub stays dry and tight), back into the master. Built once per audio context. */
+function room(): RoomFx | null {
+  const m = sm() as unknown as { context?: AudioContext; destination?: AudioNode } | undefined;
+  if (!m?.context || !m.destination) return null;
+  if (roomFx?.ctx === m.context) return roomFx;
+  const ctx = m.context, inp = ctx.createGain(), pre = ctx.createDelay(0.1), conv = ctx.createConvolver();
+  const hp = ctx.createBiquadFilter(), lpf = ctx.createBiquadFilter(), out = ctx.createGain();
+  pre.delayTime.value = 0.012; conv.normalize = false; conv.buffer = courtyardIR(ctx);
+  hp.type = 'highpass'; hp.frequency.value = 170; lpf.type = 'lowpass'; lpf.frequency.value = 6500;
+  out.gain.value = roomOn ? ROOM_WET : 0;
+  inp.connect(pre); pre.connect(conv); conv.connect(hp); hp.connect(lpf); lpf.connect(out); out.connect(m.destination);
+  roomFx = { ctx, inp, out };
+  return roomFx;
+}
+
+/** A sound's share into the room (after its own volume and pan: the reverb follows the Settings and the side). */
+function roomSend(s: Phaser.Sound.BaseSound, wet: number): GainNode | null {
+  if (!roomOn || wet <= 0) return null;
+  const r = room(), w = s as unknown as { pannerNode?: AudioNode | null; volumeNode?: AudioNode | null };
+  const src = w.pannerNode ?? w.volumeNode;
+  if (!r || !src) return null;
+  const g = r.ctx.createGain(); g.gain.value = wet;
+  src.connect(g); g.connect(r.inp);
+  return g;
 }
 
 export const Sound = {
@@ -191,11 +262,18 @@ export const Sound = {
   /** A stage's ambience (loaded with the arena) or none. */
   ambience(stage: string | null, fadeMs = 1200): void { channel(chAmb, stage && AMB[stage] ? `amb_${stage}` : null, fadeMs, stage ? AMB_VOL[stage] : 1); },
 
-  /** The music dips for a while (a K.O.). */
-  duck(ms: number, level = 0.3): void { duckUntil = performance.now() + ms; duckLevel = level; },
+  /** The music dips for a while (a K.O., an ultimate): the longer and the deeper of two dips at once wins. */
+  duck(ms: number, level = 0.3): void { const now = performance.now(); duckLevel = now < duckUntil ? Math.min(duckLevel, level) : level; duckUntil = Math.max(duckUntil, now + ms); },
+
+  /** PVP 3D: the fight's effects sound in the temple courtyard (its reverb fades in), or back to dry. */
+  room(on: boolean): void {
+    roomOn = on;
+    const r = room();
+    if (r) r.out.gain.setTargetAtTime(on ? ROOM_WET : 0, r.ctx.currentTime, 0.15);
+  },
 
   /** Leaving the arena: its ambience and music fade (the select screen, if that is next, brings its own back in). */
-  leaveArena(): void { Sound.ambience(null, 700); wantMusic = null; channel(chMusic, null, 900); voiceSnd?.stop(); setPanner(null); },
+  leaveArena(): void { Sound.ambience(null, 700); wantMusic = null; channel(chMusic, null, 900); voiceSnd?.stop(); setPanner(null); Sound.room(false); },
 };
 
 let voiceSnd: Phaser.Sound.BaseSound | null = null;

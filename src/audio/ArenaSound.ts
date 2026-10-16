@@ -1,15 +1,29 @@
 // The PvP arena's sound director: the stage's music and ambience, the announcer and the round's stingers (VS, ROUND n,
 // FIGHT!, K.O., PERFECT, TIME, the result), every cast and every hit by its class (yours, the other player's, the
-// sparring knight's — panned to where it happens), the fight's calls (BREAK!, PUNISH!, COUNTER!, RAGE!, SLAM!!), jumps, landings
-// and falls, the round clock's last seconds, the stage's own events (thunder with the lightning, the dragon's roar).
+// sparring knight's), the fight's calls (BREAK!, PUNISH!, COUNTER!, RAGE!, SLAM!!), jumps, landings and falls, the round
+// clock's last seconds, the stage's own events (thunder with the lightning, the dragon's roar).
+// The weight of a blow (SkillFx's rule for the hit-stop and the shake): the main hit — a heavy blow, one that sends the
+// foe flying or down, the last blow of a burst — lands with a heavy layered boom under the class's own impact; the small
+// blows of a burst are soft ticks, so the main one stands out. Every sound with a place is panned to where it is on the
+// screen and quieter far from the camera. PVP 3D: the fight sounds in the temple courtyard (its reverb), a deep whoosh
+// goes down as the room darkens (a signature, an ultimate, the K.O.); the music ducks under an ultimate (both arenas).
 import Phaser from 'phaser';
 import type { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import type { CastRun } from '../skills/SkillRuntime';
 import type { Match, MatchPhase } from '../pvp/Match';
-import { Sound, setPanner, SfxName, VoiceLine } from './Sound';
+import { Heard, Sound, setPanner, SfxName, VoiceLine } from './Sound';
 
-/** A fighter as the sound sees it: where (world x), how high above what it stands on, knocked about (launched / down). */
-export interface HeardFighter { id: string; x: number; h: number; hurt: boolean }
+/** A fighter as the sound sees it: where (world x, y), how high above what it stands on, knocked about (launched / down). */
+export interface HeardFighter { id: string; x: number; /** depth on the floor */ y: number; h: number; hurt: boolean }
+
+/** PVP 3D as the sound needs it (Arena3D): where its camera sees a world point (screen px, and px per world px there —
+ *  smaller farther away), the fight it frames, and how dark the room wants to be (0 none .. 1). */
+export interface RoomView { project(x: number, y: number, z: number): { sx: number; sy: number; k: number }; focus: { x: number; y: number; z: number }; dimWant: number }
+
+/** The room's share (reverb send) of each kind of sound: the fight's blows ring in the courtyard, the small ticks less. */
+const WET = { hit: 0.42, tick: 0.25, boom: 0.45, swing: 0.3, body: 0.38, call: 0.32, dark: 0.25 } as const;
+/** Off the screen: how much quieter per screen-half beyond the edge (and never below). */
+const OFF = { k: 0.45, min: 0.35 };
 
 const BUFFS: Record<string, SfxName> = {
   war_cry: 'war_cry', iron_oath: 'war_cry', legacy_banner: 'war_cry', radiant_blade: 'war_cry', sanctuary: 'war_cry', shield_charge: 'war_shield',
@@ -27,13 +41,34 @@ const CALLS: [RegExp, SfxName, number][] = [
 export class ArenaSound {
   private air = new Map<string, { up: boolean; peak: number; hurt: boolean }>();
   private tickAt = -1;
+  /** PVP 3D's room (null: the painted arena). */
+  private view: RoomView | null = null;
+  /** The darkness last heard (a deeper darkening: the whoosh again). */
+  private dimHeard = 0;
 
   constructor(private scene: Phaser.Scene, private stage: string | undefined, private fighters: () => HeardFighter[], private clock: () => number | null) {
     Sound.attach(scene.game);
-    const cam = scene.cameras.main;
-    setPanner((x) => (x - cam.midPoint.x) / Math.max(1, cam.width / cam.zoom / 2));
+    setPanner((x, y, z) => this.where(x, y ?? 0, z ?? 0));
     Sound.ambience(stage ?? null);
     Sound.music(scene, stage ?? null, 1400);
+  }
+
+  /** PVP 3D: the room's camera places the sounds, the fight rings in the courtyard. */
+  use3D(view: RoomView): void { this.view = view; this.dimHeard = 0; Sound.room(true); }
+
+  /** Where a world point is heard: its side of the screen, and quieter the farther it is from the camera — farther back
+   *  on the floor (PVP 3D: by the depth the camera sees it at, against the fight it frames) and off the screen. */
+  private where(x: number, y: number, z: number): Heard {
+    const off = (pan: number) => (Math.abs(pan) <= 1 ? 1 : Math.max(OFF.min, 1 - OFF.k * (Math.abs(pan) - 1)));
+    const v = this.view;
+    if (v) {
+      const P = v.project(x, y, z), F = v.project(v.focus.x, v.focus.y, 0), pan = (P.sx / Math.max(1, this.scene.scale.width)) * 2 - 1;
+      const near = P.k / Math.max(1e-6, F.k); // (1 at the fight, <1 farther back, >1 nearer the camera)
+      return { pan, gain: Phaser.Math.Clamp(0.45 + 0.55 * near, 0.55, 1.08) * off(pan) };
+    }
+    const cam = this.scene.cameras.main, hw = Math.max(1, cam.width / cam.zoom / 2), hh = Math.max(1, cam.height / cam.zoom / 2);
+    const pan = (x - cam.midPoint.x) / hw, back = Phaser.Math.Clamp((cam.midPoint.y - y) / hh, 0, 1); // (up the screen = farther back on the floor)
+    return { pan, gain: (1 - 0.2 * back) * off(pan) };
   }
 
   /** The round's moments. */
@@ -59,48 +94,58 @@ export class ArenaSound {
   /** Who "you" are (set by the scene). */
   myId: () => string = () => '';
 
-  /** A cast reaching its strike: the class's swing, shot, spell or throw (or a buff's own flourish). */
+  /** A cast reaching its strike: the class's swing, shot, spell or throw (or a buff's own flourish). An ultimate's wind-up
+   *  ducks the music under it until it is over. */
   cast(run: CastRun, phase: string): void {
+    const s = run.skill, T = run.timings;
+    if (phase === 'startup' && s.slot === 7) Sound.duck(T.startup + T.active + Math.min(T.recovery, 900) + 300, 0.3);
     if (phase !== 'active') return;
-    const s = run.skill, x = run.origin.x, heavy = run.hits.some((h) => h.heavy) || s.slot === 7;
+    const heavy = run.hits.some((h) => h.heavy) || s.slot === 7;
+    const x = { x: run.origin.x, y: run.origin.y, z: run.origin.z, wet: WET.swing };
     const own = BUFFS[s.id];
-    if (own) { Sound.sfx(own, { x, vol: own === 'war_cry' || own === 'rage' ? 0.9 : 1 }); return; }
+    if (own) { Sound.sfx(own, { ...x, vol: own === 'war_cry' || own === 'rage' ? 0.9 : 1 }); return; }
     const proj = run.hits.some((h) => h.shape.kind === 'projectile');
     const rate = s.slot === 0 ? 1.06 : heavy ? 0.9 : 1;
     switch (s.cls) {
-      case 'warrior': Sound.sfx(s.slot === 0 ? 'whiff' : 'war_swing', { x, rate }); break;
-      case 'samurai': Sound.sfx('sam_swish', { x, rate }); break;
-      case 'archer': Sound.sfx(proj ? 'arc_shot' : 'whiff', { x, rate }); break;
-      case 'book_mage': Sound.sfx(run.hits.some((h) => h.el === 'storm') ? 'mag_bolt' : run.hits.some((h) => h.el === 'frost') ? 'mag_ice' : 'mag_cast', { x, rate, vol: 0.85 }); break;
-      case 'gambler': Sound.sfx(proj || run.hits.some((h) => h.stick) ? 'gam_throw' : heavy ? 'whiff_heavy' : 'whiff', { x, rate }); break;
-      default: Sound.sfx(heavy ? 'whiff_heavy' : 'whiff', { x });
+      case 'warrior': Sound.sfx(s.slot === 0 ? 'whiff' : 'war_swing', { ...x, rate }); break;
+      case 'samurai': Sound.sfx('sam_swish', { ...x, rate }); break;
+      case 'archer': Sound.sfx(proj ? 'arc_shot' : 'whiff', { ...x, rate }); break;
+      case 'book_mage': Sound.sfx(run.hits.some((h) => h.el === 'storm') ? 'mag_bolt' : run.hits.some((h) => h.el === 'frost') ? 'mag_ice' : 'mag_cast', { ...x, rate, vol: 0.85 }); break;
+      case 'gambler': Sound.sfx(proj || run.hits.some((h) => h.stick) ? 'gam_throw' : heavy ? 'whiff_heavy' : 'whiff', { ...x, rate }); break;
+      default: Sound.sfx(heavy ? 'whiff_heavy' : 'whiff', x);
     }
   }
 
-  /** A hit landing (or held off): the class's impact with the weight of the blow under it. */
-  hit(s: FinalSkill, hit: HitEvent, at: { x: number }, damage: number, reaction: string, crit: boolean): void {
-    const x = at.x;
-    if (reaction === 'armor' || damage <= 0) { Sound.sfx('block', { x, vol: 0.85 }); return; }
+  /** A hit landing (or held off): the class's impact; the main hit with the boom under it, a burst's small blows soft. */
+  hit(s: FinalSkill, hit: HitEvent, at: { x: number; y?: number; z?: number }, damage: number, reaction: string, crit: boolean): void {
+    const w = { x: at.x, y: at.y, z: at.z };
+    if (reaction === 'armor' || damage <= 0) { Sound.sfx('block', { ...w, vol: 0.85, wet: WET.hit }); return; }
     const tier = s.slot === 7 ? 3 : hit.heavy || s.slot === 6 ? 2 : s.slot === 0 ? 0 : 1;
-    const many = s.hits.length > 4 && !hit.heavy, v = (many ? 0.6 : 1) * [0.75, 0.9, 1, 1][tier];
+    // the main hit (as SkillFx weighs it): heavy, one that sends the foe flying or down, the last blow of a burst
+    const flies = !!(hit.reaction.launch || hit.reaction.knockdown || hit.reaction.slam) || reaction === 'launch' || reaction === 'knockdown' || reaction === 'slam';
+    const many = (s.chain ? 1 : s.hits.length) > 3, main = !!hit.heavy || flies || (many && hit === s.hits[s.hits.length - 1]);
+    const tick = many && !main; // (a burst's small blow: a soft tick, so the main one stands out)
+    const o = { ...w, vol: tick ? 0.42 : [0.75, 0.9, 1, 1][tier], rate: tick ? 1.1 : 1, wet: tick ? WET.tick : WET.hit, at: tick ? 30 : 38 };
     const proj = hit.shape.kind === 'projectile';
     switch (s.cls) {
-      case 'warrior': Sound.sfx(tier === 0 ? 'hit_light' : 'war_hit', { x, vol: v }); break;
-      case 'samurai': Sound.sfx('sam_cut', { x, vol: v }); break;
-      case 'archer': Sound.sfx(proj ? 'arc_hit' : 'hit_light', { x, vol: v }); break;
-      case 'book_mage': Sound.sfx(hit.el === 'frost' ? 'mag_ice' : 'mag_hit', { x, vol: v }); if (hit.el === 'storm' || hit.el === 'both') Sound.sfx('mag_bolt', { x, vol: 0.45 * v, at: 120 }); break;
-      case 'gambler': Sound.sfx(hit.fuse ? (tier >= 2 ? 'hit_heavy' : 'hit_light') : 'gam_hit', { x, vol: v }); break;
-      default: Sound.sfx('hit_light', { x, vol: v });
+      case 'warrior': Sound.sfx(tier === 0 || tick ? 'hit_light' : 'war_hit', o); break;
+      case 'samurai': Sound.sfx('sam_cut', o); break;
+      case 'archer': Sound.sfx(proj ? 'arc_hit' : 'hit_light', o); break;
+      case 'book_mage': Sound.sfx(hit.el === 'frost' ? 'mag_ice' : 'mag_hit', o); if (!tick && (hit.el === 'storm' || hit.el === 'both')) Sound.sfx('mag_bolt', { ...o, vol: 0.45 * o.vol, at: 120 }); break;
+      case 'gambler': Sound.sfx(hit.fuse ? (tier >= 2 ? 'hit_heavy' : 'hit_light') : 'gam_hit', o); break;
+      default: Sound.sfx('hit_light', o);
     }
-    if (tier === 2) Sound.sfx('hit_heavy', { x, vol: 0.6, at: 60 });
-    if (tier === 3) Sound.sfx('hit_ult', { x, vol: 0.7, at: 120 });
-    if (reaction === 'knockdown' || reaction === 'slam') Sound.sfx('hit_heavy', { x, vol: 0.5, at: 60 });
-    if (crit) Sound.sfx('crit', { x, vol: 0.8 });
+    if (main) { // the boom: deeper and bigger with the blow's weight (a regular attack's main hit: a small one)
+      Sound.sfx('boom', { ...w, vol: [0.5, 0.78, 0.92, 1][tier], rate: [1.08, 1, 0.94, 0.86][tier], wet: WET.boom, at: 70 });
+      if (tier >= 2) Sound.sfx('hit_heavy', { ...w, vol: 0.45, at: 60, wet: WET.hit }); // (the crack of it)
+    }
+    if (tier === 3 && !tick) Sound.sfx('hit_ult', { ...w, vol: 0.7, at: 120, wet: WET.boom });
+    if (crit) Sound.sfx('crit', { ...w, vol: 0.8 });
   }
 
   /** The fight's calls over the fighters (BREAK!, PUNISH!, RAGE!, SLAM!! ...). */
-  callout(text: string, at: { x: number }): void {
-    for (const [re, name, vol] of CALLS) if (re.test(text)) { Sound.sfx(name, { x: at.x, vol }); return; }
+  callout(text: string, at: { x: number; y?: number; z?: number }): void {
+    for (const [re, name, vol] of CALLS) if (re.test(text)) { Sound.sfx(name, { x: at.x, y: at.y, z: at.z, vol, wet: WET.call }); return; }
   }
 
   /** The stage's own events. */
@@ -110,16 +155,22 @@ export class ArenaSound {
     else Sound.oneShot('ice_flare');
   }
 
-  /** Every frame: jumps, landings and falls; the round clock's last five seconds. */
+  /** Every frame: jumps, landings and falls; the round clock's last five seconds; PVP 3D: the room darkening. */
   update(): void {
     for (const f of this.fighters()) {
-      const a = this.air.get(f.id) ?? { up: false, peak: 0, hurt: false };
-      if (!a.up && f.h > 6) { a.up = true; a.peak = f.h; a.hurt = f.hurt; if (!f.hurt) Sound.sfx('jump', { x: f.x }); }
+      const a = this.air.get(f.id) ?? { up: false, peak: 0, hurt: false }, p = { x: f.x, y: f.y, z: 0, wet: WET.body };
+      if (!a.up && f.h > 6) { a.up = true; a.peak = f.h; a.hurt = f.hurt; if (!f.hurt) Sound.sfx('jump', p); }
       else if (a.up) {
         a.peak = Math.max(a.peak, f.h); a.hurt ||= f.hurt;
-        if (f.h <= 1.5) { a.up = false; Sound.sfx(a.hurt && a.peak > 30 ? 'fall' : 'land', { x: f.x, vol: Math.min(1, 0.5 + a.peak / 160) }); }
+        if (f.h <= 1.5) { a.up = false; Sound.sfx(a.hurt && a.peak > 30 ? 'fall' : 'land', { ...p, vol: Math.min(1, 0.5 + a.peak / 160) }); }
       }
       this.air.set(f.id, a);
+    }
+    const v = this.view;
+    if (v) { // the room goes dark (a signature, the K.O., an ultimate — darker each): a deep whoosh down with it
+      const d = v.dimWant;
+      if (d > this.dimHeard + 0.12) Sound.sfx('dim_whoosh', { vol: 0.5 + 0.6 * d, rate: d >= 0.7 ? 0.88 : d >= 0.45 ? 0.94 : 1, wet: WET.dark, at: 300 });
+      this.dimHeard = d;
     }
     const left = this.clock();
     if (left !== null && left > 0 && left <= 5000) {
