@@ -96,9 +96,9 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - PvP (Maps' Thief's Den request): play together in the open world — see each other in the maps, party up, run the Thief's Den as a party. A big new system: build it now, or keep the world single-player for now?
 - Archer: generating on PixVerse (VS entrance / win clips, animated cut-in) is stopped by the permission check as spending credits — reply in the archer chat "מאשר קרדיטים ב-PixVerse" to let it go on.
 - Try the 3D over-the-shoulder prototype (placeholder bodies, feel only): https://davidcohen2804-code.github.io/god-of-legacy/proto3d/ — keep going in that direction or not?
-- Book Mage (cloud chat, no device link): GPT/PixVerse art is generated, but moving it into the repo is blocked — pasting the image into my private inbox page was refused by the permission check, and carrying it as text is too heavy. Options: allow that paste step, or link this chat to the computer (desktop app) so downloads can be staged. Hit-spark sheet (counter / launch / armor break / finisher) is ready in ChatGPT, waiting on this.
 
 ## Done
+- Book Mage: hit-spark set from GPT (counter shield shatter / launch geyser / crit glass burst / ultimate finisher) over the element sparks — 92917fe1
 - DFO PvP arena dynamics: PVP 3D — a PVP 3D button (and ?arena3d=1): the arena as a painted 3D room (GPT layers set in depth: floor, temple, sky, trees, lanterns, railing), a 3D camera that follows / turns / punches in, bigger heroes; every blow lights the floor in its colour, heavy ones scorch it, the room darkens on big moments — c4fe57a … 6058518
 - DFO PvP arena dynamics: the main hit of every skill felt (full freeze, heavier shake for heavy / launch / knockdown / last of a burst; burst hits light) — 6058518
 - PvP: VS PLAYER shows the other player's rank — on the fighter select (under their name) and on the VS loading screen next to yours — 2d7a5ba7
