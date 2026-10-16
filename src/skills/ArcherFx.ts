@@ -56,6 +56,7 @@ export class ArcherFx {
   private incoming: Live[] = [];
   private arrows = new Map<Projectile, Arrow>();
   private fanCount = new Map<string, number>();
+  private bigSpark = new Map<string, number>(); // skill → when its last big hit spark was drawn
   private heavyShots = new Set<string>(); // casts of Double Shot's charged arrow (its projectile is drawn heavy)
   private trapArt = new Map<Trap, { stop(): void; arm(): void }>();
   private markArt = new Map<string, { n: number; until: number; im: Phaser.GameObjects.Image | null }>();
@@ -765,8 +766,10 @@ export class ArcherFx {
     const x = at.x, y = at.y - at.z - 38, rapid = s.hits.length > 3 && !hit.heavy, launch = !!hit.reaction.launch && hit.reaction.launch >= 120;
     if (s.id === 'rain_of_arrows' && !counter) { this.pop('spark_cyan', x, y, 70, { life: 200 }); return; }
     if (this.ctx.scene.textures.exists('afx-hits')) { // the class hit sparks (GPT, 4 kinds × 5 frames): normal / heavy / counter / launch
-      const kind = counter ? 2 : launch ? 3 : heavy && !rapid ? 1 : 0;
-      const size = [rapid ? 84 : 112, 196, 210, 190][kind];
+      const now = this.ctx.scene.time.now, volleyLead = rapid && now - (this.bigSpark.get(s.id) ?? -1e9) > 160; // a burst: its first arrow in lands big, the rest small
+      if (volleyLead || (heavy && !rapid)) this.bigSpark.set(s.id, now);
+      const kind = counter ? 2 : launch ? 3 : (heavy && !rapid) || volleyLead ? 1 : 0;
+      const size = [rapid ? 84 : 112, volleyLead ? 170 : 196, 210, 190][kind];
       if (kind === 3) this.hitSpark(3, x, at.y - at.z + 6, size, 0.9, at.y + 3); // the column climbs from the foe's feet
       else this.hitSpark(kind, x + rnd(-6, 6), y + rnd(-6, 6), size, 0.5, TOP + 4);
       if (kind === 3 && !rapid) this.hitSpark(0, x, y, 100, 0.5, TOP + 4);
