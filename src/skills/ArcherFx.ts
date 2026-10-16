@@ -179,15 +179,15 @@ export class ArcherFx {
       sy: (u) => (0.8 + 0.4 * Math.abs(Math.sin(u * 23))) * (1 - 0.6 * u), a: kf([0, 1], [0.5, 0.9], [1, 0, inQ]) });
   }
   /** The bow's flash at the hand (the arrows come out of it). */
-  private muzzle(r: CastRun, size: number, delay = 0): void {
+  private muzzle(r: CastRun, size: number, delay = 0, tint?: number): void {
     const side = sideOf(r), lv = level(r.aim.x, r.aim.y);
-    this.spr({ name: 'muzzle', w: size, life: 200, delay, follow: this.at(r.attackerId, side, 14, 54), dz: 4, ox: lv.flip ? 0.85 : 0.15, flipX: lv.flip, angle: lv.ang, add: true, glow: 0.4, run: r,
+    this.spr({ name: 'muzzle', w: size, life: 200, delay, tint, follow: this.at(r.attackerId, side, 14, 54), dz: 4, ox: lv.flip ? 0.85 : 0.15, flipX: lv.flip, angle: lv.ang, add: true, glow: 0.4, run: r,
       sx: kf([0, 0.4], [0.25, 1.1, out3], [1, 1.2]), sy: kf([0, 0.6], [0.25, 1, out3], [1, 0.6]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
   }
   /** A painted burst at the bow along the aim (fan of light, sonic boom). */
-  private bowBurst(r: CastRun, name: string, size: number, delay = 0, life = 260): void {
+  private bowBurst(r: CastRun, name: string, size: number, delay = 0, life = 260, tint?: number): void {
     const side = sideOf(r), lv = level(r.aim.x, r.aim.y);
-    this.spr({ name, w: size, life, delay, follow: this.at(r.attackerId, side, 16, 54), dz: 4, ox: lv.flip ? 0.88 : 0.12, flipX: lv.flip, angle: lv.ang, add: true, glow: 0.3, run: r,
+    this.spr({ name, w: size, life, delay, tint, follow: this.at(r.attackerId, side, 16, 54), dz: 4, ox: lv.flip ? 0.88 : 0.12, flipX: lv.flip, angle: lv.ang, add: true, glow: 0.3, run: r,
       sx: kf([0, 0.4], [0.3, 1.05, out3], [1, 1.2]), sy: kf([0, 0.6], [0.3, 1, out3]), a: kf([0, 1], [0.5, 0.9], [1, 0, inQ]) });
   }
   /** Light gathering at the bow during a wind-up. */
@@ -232,7 +232,7 @@ export class ArcherFx {
         break;
       }
       case 'multi_shot': this.charge(r, 'leaf_whirl', 56, T.startup, { spin: 420, dx: 16 }); this.bowBurst(r, 'muzzle_fan', 220, T.startup, 240); this.bowBurst(r, 'sonic_boom', 120, T.startup + 20, 300); break;
-      case 'explosive_arrow': this.charge(r, 'burst_crit', 60, T.startup, { tint: 0xffa040, spin: 260, dx: 16 }); this.muzzle(r, 120, T.startup); this.bowBurst(r, 'sonic_boom', 130, T.startup, 320); break;
+      case 'explosive_arrow': this.charge(r, 'burst_crit', 60, T.startup, { tint: 0xffa040, spin: 260, dx: 16 }); this.muzzle(r, 130, T.startup, 0xffa040); this.bowBurst(r, 'sonic_boom', 150, T.startup, 320, 0xff9a40); break; // (fire-coloured at the bow: it is a fireball)
       case 'rising_arrow': { // the earth cracks and glows under the foe, gathering power; then a great arrow of light bursts up out of it and throws the foe high
         const sh = s.hits[0].shape as { bias?: number }, bx = r.origin.x + a.x * (sh.bias ?? 95), by = r.origin.y + a.y * (sh.bias ?? 95);
         this.floor('rune_circle', bx, by, 150, T.startup + T.active + 300, { add: true, glow: 0.3, run: r, rot: () => 0, s: kf([0, 0.3], [0.5, 1, out3]), a: kf([0, 0], [0.2, 0.9], [0.75, 0.8], [1, 0]) });
@@ -739,8 +739,8 @@ export class ArcherFx {
     const end = p.end ?? { x: p.x, y: p.y, reason: 'range' };
     if (p.skill.id === 'explosive_arrow') { // a real fire blast: the painted fireball, a flash, a ring of fire on the floor, embers, smoke-dark scorch
       const y = end.y - p.z;
-      this.sheet('afx-fire', end.x, y - 30, 250, [40, 50, 60, 80, 100, 120, 150, 180], { depth: end.y + 4 });
-      this.pop('burst_crit', end.x, y - 16, 170, { life: 260, tint: 0xffa040 });
+      this.sheet('afx-fire', end.x, y - 40, 330, [40, 50, 60, 80, 100, 120, 150, 180], { depth: end.y + 4 });
+      this.pop('burst_crit', end.x, y - 16, 220, { life: 280, tint: 0xffa040 });
       this.floor('shock_ring', end.x, end.y, 220, 420, { add: true, tint: 0xff9a40, s: kf([0, 0.3], [1, 1.35, out3]), a: kf([0, 1], [1, 0, inQ]) });
       this.floor('scorch_ring', end.x, end.y, 170, 1800, { a: kf([0, 0.9], [0.6, 0.6], [1, 0]) });
       for (let k = 0; k < 10; k++) { const an = rnd(0, Math.PI * 2), d = rnd(40, 120); this.spr({ name: 'spark_cyan', x: end.x, y: y - 20, depth: TOP + 5, w: 26, tint: 0xffa040, add: true, life: rnd(400, 650), mx: (u) => Math.cos(an) * d * out(u), my: (u) => Math.sin(an) * d * 0.6 * out(u) - 40 * u + 90 * u * u, a: kf([0, 1], [1, 0]) }); }
