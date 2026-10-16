@@ -686,7 +686,7 @@ export class ArcherFx {
     const mid = id === 'multi_shot' && (this.fanCount.get(p.castId) ?? 0) === 3;
     const heavyShot = id === 'quick_shot' && this.heavyShots.has(p.castId); // Double Shot's charged third arrow
     const kind = id === 'piercing_arrow' || heavyShot ? 'spiral_arrow' : id === 'hunters_spirit' ? 'vine_arrow' : mid ? 'spiral_arrow' : id === 'explosive_arrow' || iron ? 'arrow_heavy' : 'arrow_wind';
-    const w = heavyShot ? 130 : id === 'hunters_spirit' ? 120 : mid ? 130 : id === 'explosive_arrow' ? 110 : id === 'piercing_arrow' ? 230 : id === 'skyhunters_step' ? 80 : 86;
+    const w = heavyShot ? 150 : id === 'quick_shot' ? 112 : id === 'hunters_spirit' ? 120 : mid ? 130 : id === 'explosive_arrow' ? 110 : id === 'piercing_arrow' ? 230 : id === 'skyhunters_step' ? 80 : 86;
     const s = this.ctx.scene, fr = s.textures.getFrame(ARCHER_KIT, kind);
     const im = s.add.image(p.x, p.y - p.z, ARCHER_KIT, kind).setOrigin(0.92, 0.5).setDisplaySize(w, (w * fr.height) / fr.width).setAlpha(0);
     if (id === 'explosive_arrow') im.setTint(0xffc070, 0xffc070, 0xff8a30, 0xff8a30);
