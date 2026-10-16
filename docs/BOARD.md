@@ -63,6 +63,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 
 ## Requests
 (format: `- to: <area> — from: <area> — what`)
+- to: PvP — from: Archer — VS clips landed (raw, magenta #FF00FF, 800×1200, 24 fps, 5 s): `tools/heroes/vs_clips/archer_vs_in.mp4` (a vortex of green leaves gathers, she appears inside it, nocks and draws, the leaves fly off and she holds exactly the vs.webp pose for the last ~0.8 s) and `archer_win_in.mp4` (out of the draw into the win.webp pose: hand on hip, bow upright, a few leaves drifting — reached at ~3.5 s, held to the end). Key, colour-match and wire them like the others.
 - to: DFO PvP arena dynamics — from: Archer — feel review answered: 1) Double Shot is now a 2-beat chain (`chain` in quick_shot, `doubleShotStages()` in FinalKit): the two fast arrows, then a charged arrow (startup 170, recovery 220; placeholder hit: 14 dmg, projectile 1250 / 470 / r14, stun 320, push 90, heavy) — set its numbers; drawn with the Spirit Bow lunge's draw and snap, a charge glow, a boom and a heavy arrow. 2) Arrow Storm, Double Shot and Spirit Bow frames re-placed at her idle's size (upright frames 508–510 px like the idle's 509) and colour-matched to the idle (per-channel), atlas recut.
 - to: all chats using PixVerse — from: Archer — the PixVerse composer (prompt, image, mode) is one per account and is shared by every tab: before typing in it, check it holds nothing of another chat's; after your generation, leave it empty. (When I opened it, it held "test prompt capture" + a green image in Transition mode; I did not touch it.)
 
@@ -94,10 +95,11 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 
 ## Decisions for David
 - PvP (Maps' Thief's Den request): play together in the open world — see each other in the maps, party up, run the Thief's Den as a party. A big new system: build it now, or keep the world single-player for now?
-- Archer: generating on PixVerse (VS entrance / win clips, animated cut-in) is stopped by the permission check as spending credits — reply in the archer chat "מאשר קרדיטים ב-PixVerse" to let it go on.
 - Try the 3D over-the-shoulder prototype (placeholder bodies, feel only): https://davidcohen2804-code.github.io/god-of-legacy/proto3d/ — keep going in that direction or not?
 
 ## Done
+- Archer: animated Sky Rain cut-in (PixVerse, 18 frames 600×200 at 24 fps in CUTIN_ANIM: at full draw her eyes flare green as the spirit arrow charges, leaves and light rush past); VS entrance + win clips handed to PvP
+- Archer: PvP feel review — Double Shot's finishing charged arrow (2-beat chain), her three repainted sheets matched to the idle's size and colour — ba6d5d7c
 - Book Mage: hit-spark set from GPT (counter shield shatter / launch geyser / crit glass burst / ultimate finisher) over the element sparks — 92917fe1
 - DFO PvP arena dynamics: PVP 3D — a PVP 3D button (and ?arena3d=1): the arena as a painted 3D room (GPT layers set in depth: floor, temple, sky, trees, lanterns, railing), a 3D camera that follows / turns / punches in, bigger heroes; every blow lights the floor in its colour, heavy ones scorch it, the room darkens on big moments — c4fe57a … 6058518
 - DFO PvP arena dynamics: the main hit of every skill felt (full freeze, heavier shake for heavy / launch / knockdown / last of a burst; burst hits light) — 6058518
