@@ -18,6 +18,8 @@ const CAM = { pitch: 26, fov: 32, dist: 9.5, distPerSpan: 0.3, distMax: 15, yawM
 const DEPTH_K = HEIGHT_K / Math.tan((CAM.pitch * Math.PI) / 180);
 /** Voxel size (units). */
 const V = 0.25;
+/** The room's render size (a share of the game's): the blocky room reads the same a little softer, and costs much less. */
+const RES = 0.7;
 
 type Placed = Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Transform & Phaser.GameObjects.Components.Visible
   & { scrollFactorX?: number; scrollFactorY?: number; depth: number; displayWidth?: number };
@@ -48,12 +50,13 @@ export class Arena3D {
 
   constructor(private scene: Phaser.Scene, private floor: Floor) {
     const soft = !!(navigator as { webdriver?: boolean }).webdriver; // (test browsers render on the CPU: half size, no shadows)
-    const res = soft ? 0.4 : 1, w = Math.round(scene.scale.width * res), h = Math.round(scene.scale.height * res);
-    this.bgCanvas = document.createElement('canvas'); this.bgCanvas.width = w; this.bgCanvas.height = h;
-    this.fgCanvas = document.createElement('canvas'); this.fgCanvas.width = w; this.fgCanvas.height = h;
-    this.renderer = new THREE.WebGLRenderer({ canvas: document.createElement('canvas'), antialias: true, alpha: true, preserveDrawingBuffer: true });
-    this.renderer.setSize(w, h, false);
-    this.renderer.shadowMap.enabled = !soft; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    const res = soft ? 0.4 : RES, w = Math.round(scene.scale.width * res), h = Math.round(scene.scale.height * res);
+    // one three.js canvas: the room is drawn into it, handed to Phaser (a GPU copy), then the railing, handed over too
+    this.bgCanvas = document.createElement('canvas');
+    this.fgCanvas = this.bgCanvas;
+    this.renderer = new THREE.WebGLRenderer({ canvas: this.bgCanvas, antialias: true, alpha: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(1); this.renderer.setSize(w, h, false);
+    this.renderer.shadowMap.enabled = !soft; this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.05;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.camera = new THREE.PerspectiveCamera(CAM.fov, w / h, 0.5, 400);
@@ -86,7 +89,7 @@ export class Arena3D {
     S.add(new THREE.HemisphereLight(0xffc9a8, 0x2a2440, 1.1));
     const sun = new THREE.DirectionalLight(0xffa86a, 2.2);
     sun.position.set(x0 - 10, 18, zBack - 14); sun.target.position.set((x0 + x1) / 2, 0, (zBack + zFront) / 2);
-    sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+    sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
     Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, near: 1, far: 120 });
     S.add(sun, sun.target);
 
@@ -224,12 +227,10 @@ export class Arena3D {
     const cam = this.scene.cameras.main;
     cam.setZoom(1); cam.setScroll(0, 0); // (the 3D camera frames the fight; the Phaser camera only shakes / fades)
     this.renderer.render(this.scene3, this.camera);
-    this.bgCanvas.getContext('2d')!.clearRect(0, 0, this.bgCanvas.width, this.bgCanvas.height);
-    this.bgCanvas.getContext('2d')!.drawImage(this.renderer.domElement, 0, 0);
-    this.renderer.setClearColor(0x000000, 0); const bgc = this.scene3.background; void bgc;
+    this.scene.textures.get('arena3d-bg').source[0].update(); // (uploaded now: the next render draws over the canvas)
+    this.renderer.setClearColor(0x000000, 0);
     this.renderer.render(this.front3, this.camera);
-    const fc = this.fgCanvas.getContext('2d')!; fc.clearRect(0, 0, this.fgCanvas.width, this.fgCanvas.height); fc.drawImage(this.renderer.domElement, 0, 0);
-    this.scene.textures.get('arena3d-bg').source[0].update(); this.scene.textures.get('arena3d-fg').source[0].update();
+    this.scene.textures.get('arena3d-fg').source[0].update();
     // every world object: placed where the 3D camera sees its floor point, scaled by its depth
     const sw = this.scene.scale.width;
     const visit = (o: Placed, top: boolean) => {
