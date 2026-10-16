@@ -559,6 +559,22 @@ const STRIKES = new Set(['warrior', 'samurai']);
  *  loop = frames cycled through the whole active phase at fps. */
 interface HeroPlan { act: string; st: number[]; ac: number[]; rc: number[]; loop?: number[]; fps?: number }
 const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
+  // the book mage's own body moves (PixVerse clips of her painted design, 6 frames each): wind-up → strike → follow-through
+  book_mage: {
+    storm_field: { act: 'storm_field', st: [0, 1, 2], ac: [3, 4, 4, 4], rc: [5] }, // arm raised to the sky, then flung down and forward as the storm falls
+    levity_field: { act: 'storm_field', st: [0, 1, 2], ac: [2], rc: [1, 0] }, // (the hand raised: gravity turns over)
+    time_collapse: { act: 'time_collapse', st: [0, 1, 2, 3], ac: [4], rc: [4, 5] }, // the book lifted over the head, then slammed to the floor on one knee
+    elemental_ascension: { act: 'time_collapse', st: [0, 1, 2], ac: [2], rc: [1, 0] }, // (the book held aloft)
+    lightning_chain: { act: 'lightning_chain', st: [0, 1], ac: [2, 3], rc: [4, 5] }, // the hand drawn up by the ear, then the arm thrown out
+    paper_curse: { act: 'lightning_chain', st: [0, 1], ac: [2], rc: [5] },
+    glacial_spikes: { act: 'glacial_spikes', st: [0, 1], ac: [2, 3], rc: [4, 5] }, // a low lunge, the palm sweeping the floor
+    frost_nova: { act: 'frost_nova', st: [0, 1], ac: [2, 3, 4], rc: [5] }, // the arms flung wide, the book out to the side
+    arcane_ward: { act: 'frost_nova', st: [0, 1], ac: [2], rc: [5] },
+    arcane_wave: { act: 'arcane_wave', st: [0, 1, 2], ac: [3, 4], rc: [5] }, // the arm drawn back, then swept out flat
+    origami_flock: { act: 'arcane_wave', st: [0, 1], ac: [3], rc: [4, 5] },
+    page_bind: { act: 'arcane_wave', st: [1], ac: [3], rc: [4, 5] },
+    astral_burst: { act: 'astral_burst', st: [0, 1], ac: [2, 3, 4], rc: [5] }, // the clawed hand reached out, then yanked up overhead
+  },
   warrior: {
     dash_slash: { act: 'dash_slash', st: [0], ac: [1, 2, 3], rc: [4, 5] },
     rising_slash: { act: 'rising_slash', st: [0], ac: [1, 2, 3], rc: [4, 5] },
