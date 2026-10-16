@@ -13,13 +13,13 @@ import * as THREE from 'three';
 const U = 100, HEIGHT_K = 1.0;
 /** The camera: pitch below the horizon, field of view, distance (units) — and how much it turns with the fight. */
 const CAM = { pitch: 26, fov: 32, dist: 9.5, distPerSpan: 0.3, distMax: 15, yawMax: 9, follow: 0.12, aim: 0.5 };
-/** The floor's depth stretch: a step back on the floor reads on screen like the same step up (the effects drawn above a
- *  body stay where the 2D game put them), so the room is as deep as the camera's pitch makes it. */
-const DEPTH_K = HEIGHT_K / Math.tan((CAM.pitch * Math.PI) / 180);
+/** The floor's depth stretch (world px of depth → units). Things drawn without a floor point of their own (effects in
+ *  the top layers, numbers) are placed over the fighter nearest to them, so any depth reads right. */
+const DEPTH_K = 1.15;
 /** Voxel size (units). */
 const V = 0.25;
 /** The room's render size (a share of the game's): the blocky room reads the same a little softer, and costs much less. */
-const RES = 0.7;
+const RES = 0.6;
 
 type Placed = Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Transform & Phaser.GameObjects.Components.Visible
   & { scrollFactorX?: number; scrollFactorY?: number; depth: number; displayWidth?: number };
@@ -47,6 +47,9 @@ export class Arena3D {
   focus = { x: 0, y: 0, z: 0, span: 0 };
   /** A punch-in (1 = none), set by the scene (an ultimate, the K.O.). */
   punch = 1;
+  /** The fighters' floor points (world px), set by the scene: what floats without a floor of its own is drawn over the
+   *  nearest of them. */
+  anchors: { x: number; y: number }[] = [];
 
   constructor(private scene: Phaser.Scene, private floor: Floor) {
     const soft = !!(navigator as { webdriver?: boolean }).webdriver; // (test browsers render on the CPU: half size, no shadows)
@@ -117,7 +120,7 @@ export class Arena3D {
     box(x0 - 0.5, -1.2, zBack - 0.5, x1 + 0.5, -0.2, zFront + 0.5, 0x7d7368, 0.08, 0.5); // stone base under the boards (its top just under them: no flicker)
 
     // the back wall: a red temple — stone plinth, red pillars, white panels, a dark curved roof
-    const wz = zBack - 3.2;
+    const wz = zBack - 1.6;
     box(x0 - 2, 0, wz - 2, x1 + 2, 1, wz + 1.2, 0x8a8075);               // plinth
     box((x0 + x1) / 2 - 2, 0, wz + 1.2, (x0 + x1) / 2 + 2, 0.5, zBack - 0.5, 0x8a8075); // steps down to the floor
     for (let x = x0 - 1; x <= x1 + 1; x += 3.5) box(x, 1, wz, x + 0.75, 6, wz + 0.75, 0xa0201e, 0.05);   // pillars
@@ -126,13 +129,17 @@ export class Arena3D {
     for (let i = 0; i < 4; i++) box(x0 - 2.5 + i * 0.25, 6 + i * 0.5, wz - 1 + i * 0.25, x1 + 3 - i * 0.25, 6.5 + i * 0.5, wz + 2 - i * 0.5, 0x2a2430, 0.05); // stepped roof
     box(x0 - 3, 6, wz + 1.5, x0 - 1.5, 6.5, wz + 2.3, 0x2a2430); box(x1 + 2, 6, wz + 1.5, x1 + 3.5, 6.5, wz + 2.3, 0x2a2430); // upturned eaves
     // lanterns on the temple and along the floor's back edge
-    const lantern = (x: number, y: number, z: number, glowY: number) => {
-      box(x - 0.25, y, z - 0.25, x + 0.25, y + 0.75, z + 0.25, 0xffb85a, 0.02);
-      const L = new THREE.PointLight(0xff9a40, 9, 9, 1.6); L.position.set(x, glowY, z + 0.4); S.add(L); this.lanterns.push(L);
+    const lantern = (x: number, y: number, z: number, glowY: number, light = true) => { // (few real lights: each one costs every pixel)
+      box(x - 0.25, y, z - 0.25, x + 0.25, y + 0.75, z + 0.25, 0xffd08a, 0.02);
+      if (!light) return;
+      const L = new THREE.PointLight(0xff9a40, 9, 10, 1.6); L.position.set(x, glowY, z + 0.4); S.add(L); this.lanterns.push(L);
     };
     for (let x = x0; x <= x1; x += (x1 - x0) / 3) lantern(x, 4, wz + 0.75, 4.4);
     // stone lanterns at the floor's back corners
-    for (const x of [x0 + 1, x1 - 1]) { box(x - 0.5, 0, zBack - 1.5, x + 0.5, 0.5, zBack - 0.5, 0x8d8579); box(x - 0.25, 0.5, zBack - 1.25, x + 0.25, 1.5, zBack - 0.75, 0x8d8579); box(x - 0.5, 1.5, zBack - 1.5, x + 0.5, 2.25, zBack - 0.5, 0x8d8579); lantern(x, 1.6, zBack - 1.0, 1.9); }
+    for (const x of [x0 - 2.75, x1 + 2.75]) for (const zc of [zBack + 1, (zBack + zFront) / 2, zFront - 1]) { // stone lanterns down both sides, past the fences
+      box(x - 0.5, 0, zc - 0.5, x + 0.5, 0.5, zc + 0.5, 0x8d8579); box(x - 0.25, 0.5, zc - 0.25, x + 0.25, 1.5, zc + 0.25, 0x8d8579); box(x - 0.5, 1.5, zc - 0.5, x + 0.5, 2.25, zc + 0.5, 0x8d8579);
+      lantern(x, 1.6, zc, 1.9, false);
+    }
 
     // cherry trees behind the corners: trunks and pink blossom clouds
     const tree = (x: number, z: number, s: number) => {
@@ -167,7 +174,7 @@ export class Arena3D {
     this.front3.add(new THREE.HemisphereLight(0xffc9a8, 0x2a2440, 1.3));
     const fsun = new THREE.DirectionalLight(0xffa86a, 1.6); fsun.position.copy(sun.position); this.front3.add(fsun);
     this.addVoxels(this.front3, rv, false);
-    for (let x = x0 + 1.5; x <= x1; x += 7.5) { const L = new THREE.PointLight(0xff9a40, 6, 7, 1.6); L.position.set(x, 1.7, rz); this.front3.add(L); rbox(x - 0.25, 1.25, rz, x + 0.25, 1.75, rz + 0.5, 0xffc070); }
+    for (let x = x0 + 1.5; x <= x1; x += 7.5) { const L = new THREE.PointLight(0xff9a40, 5, 7, 1.6); L.position.set(x, 1.4, rz - 0.6); this.front3.add(L); } // (the rail's warm light, no block of a lamp in the way)
     this.addVoxels(this.front3, rv.splice(0), false);
 
     // drifting petals
@@ -238,7 +245,13 @@ export class Arena3D {
       if (o instanceof Phaser.GameObjects.Container && o.x === 0 && o.y === 0) { for (const c of o.list as Placed[]) visit(c, false); return; }
       if ((o.displayWidth ?? 0) > sw * 0.6) return; // screen-sized overlays (a darkening, a cut-in band) stay where they are drawn
       if (o instanceof Phaser.GameObjects.Graphics && o.x === 0 && o.y === 0) return; // (drawn in world space: left as is)
-      const wy = o.y, floor = top && o.depth > wy - 2 && o.depth - wy < 450 && Math.abs(o.depth) > 1 && o.depth < 60000 ? o.depth : wy;
+      const wy = o.y;
+      let floor = top && o.depth > wy - 2 && o.depth - wy < 450 && Math.abs(o.depth) > 1 && o.depth < 60000 ? o.depth : NaN;
+      if (Number.isNaN(floor)) { // no floor point of its own (an effect, a number): over the nearest fighter, else on the floor where drawn
+        let best: { x: number; y: number } | null = null;
+        for (const a of this.anchors) if (!best || Math.abs(a.x - o.x) < Math.abs(best.x - o.x)) best = a;
+        floor = best && Math.abs(best.x - o.x) < 700 && wy <= best.y + 30 ? best.y : wy;
+      }
       const P = this.project(o.x, floor, floor - wy);
       this.saved.push([o, o.x, o.y, o.scaleX, o.scaleY]);
       o.x = P.sx; o.y = P.sy; o.scaleX *= P.k; o.scaleY *= P.k;

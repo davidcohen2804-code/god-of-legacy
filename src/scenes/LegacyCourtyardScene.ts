@@ -361,6 +361,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const fx = foe ? foe.x : k.x, fy = foe ? foe.y : k.y;
     if (this.a3d) { // PVP 3D: the 3D camera frames the two (punching in on an ultimate and on the K.O.)
       const ult = !!this.rt?.runs.some((r) => r.skill.slot === 7 && (r.phase === 'startup' || r.phase === 'active'));
+      this.a3d.anchors = foe ? [{ x: k.x, y: k.y }, { x: fx, y: fy }] : [{ x: k.x, y: k.y }];
       this.a3d.focus = { x: (k.x + fx) / 2, y: (k.y + fy) / 2, z: Math.max(k.z, foe ? (foe as { z?: number }).z ?? 0 : 0), span: Math.hypot(k.x - fx, (k.y - fy) * 1.7) };
       const want = this.koT >= 0 ? 1.25 : ult ? ARENA_CAM.ultPunch : 1;
       this.a3d.punch += (want - this.a3d.punch) * Math.min(1, ms / (want > 1 ? 160 : 420));
