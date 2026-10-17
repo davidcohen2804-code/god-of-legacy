@@ -142,9 +142,11 @@ export class KeySettings {
 
   destroy(): void { window.removeEventListener('keydown', this.onEsc, true); this.root.remove(); }
 
-  /** Action -> key; whatever was on that key loses it (one action per key, one key per action). */
+  /** Action -> key; whatever was on that key takes this action's old key (a swap: one action per key, one key per action,
+   *  and nothing left without a key — unless the action had none). */
   private bind(a: BindAction, key: string): void {
-    for (const o of ACTIONS) if (this.work[o] === key) this.work[o] = '';
+    const old = this.work[a];
+    for (const o of ACTIONS) if (o !== a && this.work[o] === key) this.work[o] = old;
     this.work[a] = key; this.sel = null;
     this.render();
   }

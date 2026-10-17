@@ -146,6 +146,8 @@ const CSS = `
 @keyframes golUlt{0%,100%{opacity:.65}50%{opacity:1}}
 .gol-hud .key{position:absolute;z-index:2;height:18px;min-width:20px;padding:0 5px;box-sizing:border-box;border-radius:6px;background:rgba(9,14,24,.88);
   border:1px solid rgba(255,255,255,.18);text-align:center;font:700 10.5px/16px var(--gl-body);letter-spacing:.3px;color:#ece5d3;pointer-events:none;white-space:nowrap}
+/* a skill on the bar with no key (Key Settings took it): said plainly */
+.gol-hud .key.nokey{visibility:visible!important;font-size:8.5px;letter-spacing:.6px;color:#ffb3a3;background:rgba(48,12,12,.92);border-color:rgba(255,120,100,.65)}
 .gol-hud .dock .sep{position:absolute;width:1px;background:var(--gl-line2)}
 .gol-hud .dock .pas{position:absolute}
 .gol-hud .dock .pas .lab{position:absolute;left:0;right:0;top:0;height:14px;text-align:center;font:700 10.5px/14px var(--gl-body);letter-spacing:1.6px;color:#c9ae78;white-space:nowrap}
@@ -212,7 +214,7 @@ const CSS = `
 export type CamStep = 'in' | 'out' | 'up' | 'down' | 'higher' | 'lower' | 'reset';
 
 interface Bar { root: HTMLDivElement; fill: HTMLDivElement; val?: HTMLSpanElement; w: number; last: string }
-interface SlotEl { btn: HTMLButtonElement; icon: HTMLImageElement; cd: HTMLDivElement; last: string; slot?: HudSlot }
+interface SlotEl { btn: HTMLButtonElement; icon: HTMLImageElement; cd: HTMLDivElement; last: string; slot?: HudSlot; i: number; nokey?: boolean }
 
 export interface WorldHUDOptions {
   returnLabel: string;
@@ -363,7 +365,7 @@ export class WorldHUD {
       btn.insertBefore(this.div('ult'), icon); // glowing red frame sits under the icon
       btn.addEventListener('mousedown', (e) => e.preventDefault()); // no focus steal from the game
       btn.addEventListener('keyup', (e) => { if (e.key === ' ') e.preventDefault(); }); // Phaser owns Space: block the button's own Space click (no 2nd attack)
-      const el: SlotEl = { btn, icon, cd, last: '' };
+      const el: SlotEl = { btn, icon, cd, last: '', i };
       btn.addEventListener('click', () => { if (el.slot?.assigned && el.slot.enabled && !el.slot.busy) this.opts.onSlot(i); });
       dock.appendChild(btn);
       const k = this.div('key', dock);
@@ -584,6 +586,12 @@ export class WorldHUD {
 
   private renderSlot(el: SlotEl, s: HudSlot, now: number): void {
     el.slot = s;
+    const nokey = s.assigned && !this.labels[el.i];
+    if (nokey !== el.nokey) { // a skill on the bar that no key fires: NO KEY on its cap
+      el.nokey = nokey;
+      const k = this.keyEls[el.i];
+      if (k) { k.el.classList.toggle('nokey', nokey); k.el.textContent = nokey ? 'NO KEY' : this.labels[el.i] ?? ''; k.el.title = nokey ? 'No key — give it one in KEY SETTINGS' : ''; }
+    }
     let rem = 0;
     const cd = s.cooldown;
     if (cd && Number.isFinite(cd.endTimeMs) && cd.durationMs > 0) rem = Math.min(cd.durationMs, Math.max(0, cd.endTimeMs - now));
@@ -774,9 +782,10 @@ export class WorldHUD {
     this.keyEls.forEach((k, i) => {
       const t = labels[i] ?? '';
       Object.assign(k.el.style, { position: 'absolute', left: `${k.x}px`, top: `${k.y}px` });
-      k.el.textContent = t; k.el.style.visibility = t ? '' : 'hidden';
+      k.el.textContent = t; k.el.style.visibility = t ? '' : 'hidden'; k.el.classList.remove('nokey');
     });
     this.labels = labels;
+    for (const el of this.slots) el.nokey = undefined; // (the no-key marks are set again on the next render)
   }
 
   /** A window is open: 'dim' — the HUD and the world fade back under it (windows inside the HUD); 'bare' — the HUD steps

@@ -77,6 +77,7 @@ const CSS = `
 .gol-sb .card.sel{border-color:var(--gl-gold);box-shadow:0 0 0 3px rgba(231,196,124,.16),inset 0 2px 6px rgba(0,0,0,.3)}
 .gol-sb .card img{position:absolute;left:32px;top:18px;width:92px;height:92px;border-radius:12px;pointer-events:none}
 .gol-sb .card .hk{position:absolute;right:8px;top:8px;z-index:1}
+.gol-sb .card .hk.nokey{font-size:9px;letter-spacing:.6px;color:#ffb3a3;background:rgba(48,12,12,.92);border-color:rgba(255,120,100,.65)}
 .gol-sb .card .pt{position:absolute;right:8px;top:8px;z-index:1}
 .gol-sb .card .nm{position:absolute;left:10px;right:10px;top:116px;height:46px;display:flex;align-items:center;justify-content:center;text-align:center;
   font:600 13.5px/1.3 var(--gl-body);color:var(--gl-text)}
@@ -229,7 +230,7 @@ export class SkillBook {
       const c = this.div('card', this.row);
       const img = document.createElement('img'); img.src = entryIcon(e); img.alt = ''; img.draggable = false; c.appendChild(img);
       if (isPassive(e)) { const t = this.div('pt gl-chip', c); t.textContent = e.kind === 'movement' ? 'Move' : 'Passive'; t.title = e.kind === 'movement' ? 'Movement skill' : 'Passive skill'; }
-      else { const k = HOTKEY[e.slot]; if (k) this.div('hk gl-key', c).textContent = k; }
+      else { const k = HOTKEY[e.slot]; if (k) this.div('hk gl-key', c).textContent = k; else if (this.unlocked(e)) { const n = this.div('hk gl-key nokey', c); n.textContent = 'NO KEY'; n.title = 'No key — give it one in KEY SETTINGS'; } }
       this.div('nm', c).textContent = e.name;
       c.addEventListener('mouseenter', () => { this.hover = e; this.refresh(); });
       c.addEventListener('mouseleave', () => { if (this.hover === e) { this.hover = null; this.refresh(); } });
@@ -254,7 +255,7 @@ export class SkillBook {
     const facts = this.div('facts', tx);
     const fact = (label: string): HTMLElement => { const d = this.div('', facts); const c = document.createElement('span'); c.className = 'gl-cap'; c.textContent = label; d.appendChild(c); const b = document.createElement('b'); d.appendChild(b); return b; };
     const k = fact('Key');
-    if (key) { const kc = document.createElement('span'); kc.className = 'gl-key'; kc.textContent = key; k.appendChild(kc); } else k.textContent = 'None';
+    if (key) { const kc = document.createElement('span'); kc.className = 'gl-key'; kc.textContent = key; k.appendChild(kc); } else k.textContent = 'None — give it one in KEY SETTINGS';
     fact('Cooldown').textContent = s.cooldown > 0 ? `${(s.cooldown / 1000).toFixed(s.cooldown % 1000 ? 1 : 0)} s` : 'None (chain)';
     fact('Use').textContent = s.ground && s.air ? 'Ground and air' : s.air ? 'Air only' : 'Ground only';
     fact('Reach').textContent = TARGETING[s.targeting];
