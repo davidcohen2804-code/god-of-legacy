@@ -242,9 +242,10 @@ function doubleShotStages(): HitEvent[][] {
 function boltStages(el?: 'frost' | 'storm'): HitEvent[][] {
   const e = el ? { el } : {}, sp = el === 'storm' ? 860 : 760;
   return [
-    [H(0, 9, { kind: 'projectile', speed: sp, range: 480, radius: 12 }, { stun: 220, push: 4 }, { ...e })],
-    [H(0, 9, { kind: 'projectile', speed: sp, range: 480, radius: 12 }, { stun: 240, push: 5 }, { ...e })],
-    [H(0, 18, { kind: 'projectile', speed: sp + 140, range: 520, radius: 20, pierce: true }, { stun: 380, push: 30 }, { heavy: true, ...e })],
+    // (magic missiles: they seek a foe in the air in front of her — antiAir — as the archer's arrows do)
+    [H(0, 9, { kind: 'projectile', speed: sp, range: 480, radius: 12, antiAir: true }, { stun: 220, push: 4 }, { ...e })],
+    [H(0, 9, { kind: 'projectile', speed: sp, range: 480, radius: 12, antiAir: true }, { stun: 240, push: 5 }, { ...e })],
+    [H(0, 18, { kind: 'projectile', speed: sp + 140, range: 520, radius: 20, pierce: true, antiAir: true }, { stun: 380, push: 30 }, { heavy: true, ...e })],
   ];
 }
 const mage: FinalSkill[] = [
@@ -978,10 +979,11 @@ const gambler: FinalSkill[] = [
  *  - a combo skill cancelled into from a confirmed hit strikes within ARENA_FLOW.startup ms (an ultimate within
  *    ARENA_FLOW.ultStartup); from neutral a skill keeps its own wind-up, so big moves stay readable; multi-hit
  *    skills squeezed so their hits run in at most ARENA_FLOW.active ms (never below half their length) — the same hits, faster;
- *  - every hit reaches a foe up to ARENA_FLOW.reach px above the caster's feet (launches stay within the follow-ups'
- *    reach) and projectiles rise to a foe in the air in front of them (every damaging skill but traps and buffs);
+ *  - (no blanket height: each hit reaches as high as its own attack does — its `reachUp` over the caster's feet, a
+ *    projectile rises to a foe in the air only when its shape is antiAir. David: a foe high above a horizontal swing
+ *    must not be hit by it. Until 17 Oct every hit reached 240 px and every shot rose to an airborne foe);
  *  - per-skill exceptions: ARENA_PACE. Not for the basic chain, charged / counter / trap skills or buffs. */
-export const ARENA_FLOW = { startup: 160, ultStartup: 400, active: 700, minSqueeze: 0.5, reach: 240,
+export const ARENA_FLOW = { startup: 160, ultStartup: 400, active: 700, minSqueeze: 0.5,
   /** DFO's neutral (PvP engine audit): an attack hits only within `depth` px of its own line on the floor (+ the target's
    *  radius), so a step up / down out of its line dodges it; ultimates, zones, traps and ground-placed skills keep their area.
    *  (The effects stay as wide as they are drawn.) */
@@ -1026,8 +1028,8 @@ export function arenaTimeScale(s: FinalSkill, followUp = false): { startup: numb
     if (s.slot !== 7 && dmg.length >= 4 && act > ARENA_FLOW.active) sq = Math.max(ARENA_FLOW.minSqueeze, ARENA_FLOW.active / act);
   }
   const hitsAny = s.chain ? s.chain.stages.flat() : s.charge ? s.charge.levels.flatMap((l) => l.hits) : s.hits;
-  const reach = !isArenaBuff(s) && !s.trap && hitsAny.some((h) => h.damage > 0) ? { reach: ARENA_FLOW.reach, antiAir: true, ...(arenaWide(s) ? {} : { depth: ARENA_FLOW.depth }) } : {}; // (charged / counter skills too)
-  if (fs === 1 && sq === 1 && w.startup === 1 && !('reach' in reach)) return null;
+  const reach = !isArenaBuff(s) && !s.trap && hitsAny.some((h) => h.damage > 0) && !arenaWide(s) ? { depth: ARENA_FLOW.depth } : {}; // (charged / counter skills too; the height each hit reaches is its own)
+  if (fs === 1 && sq === 1 && w.startup === 1 && !('depth' in reach)) return null;
   return { startup: w.startup * fs, active: w.active * sq, recovery: w.recovery, at: w.at * sq, ...reach };
 }
 /** Super armor length multiplier of a skill's armor window (its pace: the same in and out of the arena). */

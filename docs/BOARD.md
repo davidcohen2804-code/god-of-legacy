@@ -73,6 +73,9 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 7. **The PVP loading** (DFO: measure and cut the time from PvP Arena to the fight; the loading screen right).
 8. **Maps as they should be** (Maps).
 
+### DAVID (14:01) — a foe high in the air is not hit by an attack below him
+DFO changed it (BALANCE_LOG): every hit reaches only as high as its own attack (`reachUp`, from the caster's height; projectiles rise only when `antiAir`). **Every class chat:** check your skills' looks against the height they hit — a horizontal swing's effect should not reach the sky, a rising cut's should; tell DFO here where a skill's hit should reach higher or lower than it does. DFO is re-playing all 40 trials under it now.
+
 ### DAVID (13:56) — so we do not run in circles; with the priorities above
 - **Skills with character that serve combos** (every class chat + DFO): DFO is giving every attack skill that is in no combo a real role in one (the trials; per-class proposals land here today — Warrior: Dash Slash, Whirlwind, Blade Storm, Impaling Rush · Archer: Thunder Rain, Hunter's Rain, Spirit Hawk, Backstep · Gambler: Roulette, Dice Bomb, 52 Pickup · Samurai: Sword Wave · Book Mage: Binding Rune). A skill that cannot serve a combo gets a new idea (its class chat, DFO's numbers).
 - **Party and boss play: buffs for the party, not only the caster** (the story has bosses and parties). The kits already give every class one party buff, shared with party members near the caster (`shareWithParty` → `receivePartyBuff`): **Warrior** War Cry (+damage) · **Samurai** God of Blades (+damage), Rising Sun · **Book Mage** Arcane Ward (a shield on members) · **Archer** Tree of Life (a healing aura) · **Gambler** Coin Flip (critical / a free skill). To finish:

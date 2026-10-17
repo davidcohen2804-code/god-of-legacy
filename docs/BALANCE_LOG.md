@@ -4,6 +4,9 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-10-17 — Every hit reaches only as high as its own attack (David: a foe high above a swing was still hit)
+- **Everyone**: the arena's blanket height is gone — every damaging hit reached 240 px above the caster's feet and every projectile rose to a foe in the air. Now each hit reaches its own `reachUp` (as each skill was designed: a horizontal cut ~70–140 px — the legs of a foe lifted a little —, a rising cut / launcher ~190–260, the big aerial skills ~300), from the caster's own height (an attack thrown while jumping reaches the air), and a projectile rises to an airborne foe only when its shape is `antiAir` (the archer's arrows; now the mage's Arcane Bolt too — magic missiles that seek). Juggles now ask for the right attack: after a launch a rising / aerial / anti-air hit, or wait for the fall into a ground hit. Visuals: a class chat whose skill's look reaches higher or lower than its hit — tell DFO the height it should reach.
+
 ## 2026-10-17 — Blows thrown down from the air reach the floor (PvP's report)
 - **Warrior — Judgment Blade** and **Archer — Thunder Rain**: their circles strike the floor (`floor: true`, as Wind Step's arrow). A hit's height band starts at the caster's height, and both are thrown while hanging in the air (the warrior ~185 px up after a chase, the archer ~150 px up): the blade's pin + slam and the three bolts struck only the air above a standing foe (only the court's ticks / the charged floor's launch landed). Now they land on him there, up to their own reach (280 / 320 px). Thunder Rain's third bolt spends the marks (a hard stun) — that spend was dead before. Visuals: none (both already fall to the floor).
 

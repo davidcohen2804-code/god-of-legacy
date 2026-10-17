@@ -101,7 +101,7 @@ export interface RuntimeWorld {
 /** The arena: every hit reaches the launched foe (up to `reach` above the caster's feet; floor waves stay on the floor) and
  *  a shot rises to a foe in the air in front of it. */
 function arenaReach(hits: HitEvent[], ts: { reach?: number; antiAir?: boolean; depth?: number } | null | undefined): HitEvent[] {
-  if (!ts || (!ts.reach && !ts.antiAir)) return hits;
+  if (!ts || (!ts.reach && !ts.antiAir && ts.depth === undefined)) return hits;
   return hits.map((h) => h.shape.kind === 'projectile' ? (ts.antiAir ? { ...h, shape: { ...h.shape, antiAir: true } } : h)
     : { ...h, ...(ts.reach && !(h.shape.kind === 'circle' && h.shape.floor) ? { reachUp: Math.max(h.reachUp ?? 80, ts.reach) } : {}), ...(ts.depth !== undefined && h.shape.kind !== 'capsule' ? { depth: ts.depth } : {}) });
 }

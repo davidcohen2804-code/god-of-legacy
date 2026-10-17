@@ -187,7 +187,10 @@ const hash = (s: string, seed: number): number => {
 export function stageById(id: string | undefined | null): Stage | undefined { return STAGES.find((s) => s.id === id); }
 /** PVP 3D's one stage: the temple courtyard built in 3D on the courtyard's floor — no painted props on it (they would
  *  stand there unseen: the 3D room has its own lanterns and trees round the floor, none on it). */
-export const STAGE_3D: Stage = { ...STAGES[0], name: 'TEMPLE COURTYARD', geo: { ...COURTYARD_GEO, props: [] } };
+export const STAGE_3D: Stage = { ...STAGES[0], name: 'TEMPLE COURTYARD', geo: { ...COURTYARD_GEO, props: [] },
+  // its pictures: the 3D courtyard itself (rendered from the 3D stage — scratchpad render3d), never the old painting: the
+  // still under the loading cover that fades into the live room, and the VS loading screen's backdrop
+  file: 'assets/final/stages/courtyard3d.jpg', key: 'stage-courtyard3d', preview: 'assets/final/stages/courtyard3d_small.jpg', extras: [], poster: undefined };
 
 /** The stage of a room (the same on every screen in it): a place, then one of its moods. */
 export function stageOf(room: string | undefined | null): Stage {
