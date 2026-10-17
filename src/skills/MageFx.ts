@@ -499,11 +499,11 @@ export class MageFx {
       }
       case 'storm_field': if (r.place && this.ctx.scene.textures.exists('mfx-sfield')) { const p = this.placeFloor(r);
         this.circle(p.x, p.y, 380, 2, T.active + 300, { run: r, draw: 200 });
-        if (this.ctx.scene.textures.exists('mfx-tempest')) this.sheet('mfx-tempest', p.x, p.y, 600, T.active, { floor: true, frames: [4, 8], loop: 75, oy: 0.72, depth: GROUND + 4, run: r, alpha: 0.7 });
+        if (this.ctx.scene.textures.exists('mfx-tempest')) this.sheet('mfx-tempest', p.x, p.y, 600, T.active, { floor: true, frames: [4, 8], loop: 75, oy: 0.72, depth: GROUND + 4, run: r, alpha: 0.5 });
         else this.sheet('mfx-sfield', p.x, p.y, 520, T.active + 200, { frames: [0, 8], loop: 70, oy: 0.72, sy: 1.28, depth: GROUND + 4, run: r });
         this.smoke(p.x, p.y - 30, 460, 0, T.active + 300, { squash: 0.45, depth: GROUND + 3 });
-        this.ctx.darken(T.active + 200, 0.42);
-        for (let t = 120; t < T.active; t += 170) this.later(t, () => { const x = p.x + rnd(-150, 150), y = p.y + rnd(-50, 50); this.arc({ x: x + rnd(-80, 80), y: y - 560 }, { x, y: y - 6 }, { life: 220, thick: 3.6 }); this.pool(x, y, 160, 0x9a8cff, 360, { alpha: 0.7 }); this.sheet('mfx-hit', x, y - 20, 150, 220, { frames: [8, 4] }); }, r); } else if (r.place) this.spr({ name: 'storm_orb', x: r.place.x, y: r.place.y - 60, depth: r.place.y + 2, w: 90, life: T.active, add: true, glow: 0.7, run: r, sx: (u) => 0.9 + 0.15 * Math.sin(u * 30), sy: (u) => 0.9 + 0.15 * Math.cos(u * 27), a: kf([0, 0], [0.05, 1], [0.92, 1], [1, 0]), rot: (u) => 900 * u }); break;
+        this.ctx.darken(T.active + 200, 0.3);
+        for (let t = 120; t < T.active; t += 260) this.later(t, () => { const x = p.x + rnd(-150, 150), y = p.y + rnd(-50, 50); this.arc({ x: x + rnd(-80, 80), y: y - 560 }, { x, y: y - 6 }, { life: 220, thick: 1.5, depth: y - 40 }); /* (the stray bolts behind the fighters) */ this.pool(x, y, 140, 0x9a8cff, 360, { alpha: 0.45 }); }, r); } else if (r.place) this.spr({ name: 'storm_orb', x: r.place.x, y: r.place.y - 60, depth: r.place.y + 2, w: 90, life: T.active, add: true, glow: 0.7, run: r, sx: (u) => 0.9 + 0.15 * Math.sin(u * 30), sy: (u) => 0.9 + 0.15 * Math.cos(u * 27), a: kf([0, 0], [0.05, 1], [0.92, 1], [1, 0]), rot: (u) => 900 * u }); break;
     }
   }
 
@@ -513,12 +513,12 @@ export class MageFx {
     const s = r.skill, h = r.hits[i];
     if (s.id === 'storm_field' && r.place && this.ctx.scene.textures.exists('mfx-sfield')) { // the painted strike on every pulse, the burst on the last
       const p = this.placeFloor(r), last = i === r.hits.length - 1;
-      if (last && this.ctx.scene.textures.exists('mfx-tempest')) this.sheet('mfx-tempest', p.x, p.y, 640, 640, { frames: [12, 4], oy: 0.72, depth: p.y + 4, fade: [[0, 1], [0.2, 0.85], [0.45, 0.45], [1, 0]] });
-      else this.sheet('mfx-sfield', p.x, p.y, last ? 560 : 420, last ? 600 : 340, { frames: last ? [12, 4] : [8, 4], oy: 0.72, sy: 1.28, depth: p.y + 4, alpha: this.ctx.scene.textures.exists('mfx-tempest') ? 0.45 : 1 }); // (the pulses: lighter, the last burst the big one)
-      this.arc({ x: p.x + rnd(-40, 40), y: p.y - 620 }, { x: p.x, y: p.y - 10 }, { life: last ? 360 : 260, thick: last ? 7 : 5 }); // the bolt out of the sky
-      this.ctx.flash?.(0xc8d0ff, last ? 0.14 : 0.07, 90);
+      if (last && this.ctx.scene.textures.exists('mfx-tempest')) this.sheet('mfx-tempest', p.x, p.y, 560, 560, { frames: [12, 4], oy: 0.72, depth: p.y - 60, fade: [[0, 0.75], [0.2, 0.6], [0.45, 0.3], [1, 0]] }); // (the last burst behind the fighters in it)
+      else if (!this.ctx.scene.textures.exists('mfx-tempest')) this.sheet('mfx-sfield', p.x, p.y, last ? 560 : 420, last ? 600 : 340, { frames: last ? [12, 4] : [8, 4], oy: 0.72, sy: 1.28, depth: p.y + 4, alpha: this.ctx.scene.textures.exists('mfx-tempest') ? 0.45 : 1 }); // (the pulses: lighter, the last burst the big one)
+      this.arc({ x: p.x + rnd(-40, 40), y: p.y - 620 }, { x: p.x, y: p.y - 10 }, { life: last ? 360 : 260, thick: last ? 3 : 2 }); // the bolt out of the sky (the one idea of each pulse; a painted bolt's breadth follows thick — at 3.5 it stood ~300 px wide over both fighters)
+      this.ctx.flash?.(0xc8d0ff, last ? 0.08 : 0.03, 90);
       this.warp.ring(p.x, p.y, { r1: last ? 340 : 220, life: last ? 460 : 300, s: last ? 34 : 18, width: 26, squash: SQUASH });
-      this.pool(p.x, p.y, last ? 560 : 380, 0x8fb4ff, last ? 700 : 420, { alpha: last ? 0.8 : 0.55 }); if (last) this.scorch(p.x, p.y, 300, 0x8fb4ff);
+      this.pool(p.x, p.y, last ? 480 : 320, 0x8fb4ff, last ? 700 : 420, { alpha: last ? 0.55 : 0.35 }); if (last) this.scorch(p.x, p.y, 300, 0x8fb4ff);
       this.shake(last ? 200 : 90, last ? 0.01 : 0.004); if (last) { this.ctx.hitStop?.(80); this.ctx.punch(0.02, 200); }
     } else if (s.id === 'storm_field' && r.place) { // a bolt out of the sky on every pulse
       const p = r.place;
@@ -768,10 +768,10 @@ export class MageFx {
         this.sheet('mfx-rift', p.x, p.y, 640, 380, { floor: true, frames: [0, 4], oy: 0.72, depth: GROUND + 4, run: r });
         this.sheet('mfx-rift', p.x, p.y, 640, bl - 380, { floor: true, frames: [4, 8], loop: 90, oy: 0.72, depth: GROUND + 4, delay: 380, run: r });
       } else this.smoke(p.x, p.y - 40, 640, 0, total + 400, { squash: 0.5, depth: GROUND + 3 });
-      this.gpu('vortex', p.x, p.y - 60, 520, 520, fz + 200, (u, ms, q) => { MageFx.U(q, 'uP', Math.min(1, ms / fz)); MageFx.U(q, 'uE', ms < fz ? 0 : (ms - fz) / 200); }, { uA: -1, run: r, depth: TOP + 4 });
+      this.gpu('vortex', p.x, p.y - 60, 520, 520, fz + 200, (u, ms, q) => { MageFx.U(q, 'uP', Math.min(1, ms / fz)); MageFx.U(q, 'uE', ms < fz ? 0 : (ms - fz) / 200); }, { uA: -1, run: r, depth: p.y - 90 }); // (the pull and the clock stand behind the fighters caught in it: they read in front of it)
       for (let t = 0; t < total; t += 120) this.later(t, () => this.img('mg-dot', { x: p.x + rnd(-260, 260), y: p.y + rnd(-60, 40), w: rnd(5, 12), tint: Math.random() < 0.5 ? 0xffd27a : 0xb9a2ff, life: 900, my: (u) => -160 * u, a: kf([0, 0], [0.2, 1], [1, 0]) }), r);
       this.later(fz, () => { this.warp.ring(p.x, p.y - 60, { r1: 380, life: 520, s: 26, width: 30 }); this.ctx.flash?.(0xe9e2ff, 0.12, 160); this.shake(160, 0.007); }, r);
-      this.sheet('mfx-clock', p.x, p.y - 60, 580, total + 520, { alpha: 0.9, oy: 0.55, depth: TOP + 5, run: r, sy: 0.9,
+      this.sheet('mfx-clock', p.x, p.y - 60, 580, total + 520, { alpha: 0.75, oy: 0.55, depth: p.y - 80, run: r, sy: 0.9,
         keys: [[0, 0], [3, 420], [6.9, fz - 40], [7, fz], [8.9, fz + 260], [9, fz + 300], [11.9, bl - 20], [12, bl], [13.9, bl + 200], [15.9, total + 520]] });
       this.warp.well(p.x, p.y - 70, { r: 300, life: fz, s: 30, twist: 30 });
       return;
@@ -784,14 +784,13 @@ export class MageFx {
   private timeBlast(p: V2): void {
     if (this.ctx.scene.textures.exists('mfx-clock')) {
       this.warp.ring(p.x, p.y, { r1: 520, life: 600, s: 46, width: 40, squash: SQUASH }); this.warp.ring(p.x, p.y - 80, { r1: 360, life: 460, s: 30, width: 30 });
-      this.pool(p.x, p.y, 800, 0xd9b8ff, 1100, { alpha: 0.8 }); this.scorch(p.x, p.y, 460, 0xffd27a);
+      this.pool(p.x, p.y, 800, 0xd9b8ff, 1100, { alpha: 0.6 }); this.scorch(p.x, p.y, 460, 0xffd27a);
       this.gpu('nova', p.x, p.y, 900, 900 * SQUASH, 640, (u, _ms, q) => { MageFx.U(q, 'uP', out3(u)); MageFx.U(q, 'uE', u > 0.4 ? (u - 0.4) / 0.6 : 0); }, { depth: GROUND + 2 });
-      if (this.ctx.scene.textures.exists('mfx-rift')) this.sheet('mfx-rift', p.x, p.y, 700, 900, { frames: [12, 4], oy: 0.72, depth: TOP + 6 });
+      if (this.ctx.scene.textures.exists('mfx-rift')) this.sheet('mfx-rift', p.x, p.y, 700, 900, { frames: [12, 4], oy: 0.72, depth: TOP + 6, alpha: 0.8 });
       else this.sheet('mfx-pillar', p.x, p.y + 8, 700, 640, { oy: 0.85, depth: TOP + 6, frames: [5, 11], tint: 0xffe2b0 });
-      this.sheet('mfx-hit', p.x, p.y - 90, 420, 360, { frames: [12, 4], depth: TOP + 7 });
       this.smoke(p.x, p.y - 20, 760, 0, 1100, { squash: 0.45, depth: GROUND + 3 });
-      this.burst(p.x, p.y - 80, { n: 40, speed: [300, 900], life: [400, 900], scale: [0.04, 0.22], tint: [0xffffff, 0xffd27a, 0xb9a2ff], gravity: 400 });
-      this.ctx.hitStop?.(120); this.shake(360, 0.016); this.ctx.flash?.(0xe6dcff, 0.28, 200); this.ctx.punch(0.04, 380);
+      this.burst(p.x, p.y - 80, { n: 24, speed: [300, 900], life: [400, 900], scale: [0.04, 0.2], tint: [0xffd27a, 0xb9a2ff], gravity: 400 });
+      this.ctx.hitStop?.(120); this.shake(360, 0.016); this.ctx.flash?.(0xe6dcff, 0.18, 200); this.ctx.punch(0.04, 380);
       return;
     }
     this.pop('time_blast', p.x, p.y - 80, 420, { life: 520, glow: 0.7 });
