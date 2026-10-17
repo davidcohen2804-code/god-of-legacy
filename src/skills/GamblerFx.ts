@@ -1204,13 +1204,14 @@ export class GamblerFx {
   /** A card of his deck lands on the floor (the painted arena: lying flat, squashed into the floor; PVP 3D draws real cards). */
   deckLay(c: { key: string; x: number; y: number; stuck: boolean }): void {
     if (ARENA3D.on) return;
-    const s = this.ctx.scene, im = s.add.image(c.x, c.y - (c.stuck ? 8 : 2), this.BK).setDepth(c.stuck ? c.y + 1 : GROUND + 4).setAlpha(0);
-    const a = (c.x * 7.3 + c.y * 3.1) % 360, k = this.u * 0.34;
-    if (c.stuck) im.setScale(k * 0.8, k).setAngle(((a % 40) - 20)); else im.setScale(k, k * SQUASH).setAngle(a);
-    this.piece(im, 160, (u, o) => o.setAlpha(u));
+    const s = this.ctx.scene, a = (c.x * 7.3 + c.y * 3.1) % 360, pic = `gbk-d_floor${Math.floor(a) % 4}`, lying = !c.stuck && s.textures.exists(pic);
+    const im = s.add.image(c.x, c.y - (c.stuck ? 8 : 2), lying ? pic : this.BK).setDepth(c.stuck ? c.y + 1 : GROUND + 4).setAlpha(0), k = this.u * 0.34;
+    if (lying) im.setScale(58 / im.width).setFlipX(a > 180); // (painted lying on the planks, in the floor's perspective — GPT)
+    else if (c.stuck) im.setScale(k * 0.8, k).setAngle(((a % 40) - 20)); else im.setScale(k, k * SQUASH).setAngle(a);
+    this.add((t) => { if (!im.active) return false; im.setAlpha(Math.min(1, t / 160)); return t < 160; }); // (a fade in — piece() would destroy it at its end)
     this.deckImgs.set(c.key, im);
     // a faint glint now and then: it can be taken back
-    this.add((t) => { if (!im.active || this.deckImgs.get(c.key) !== im) return false; im.setTint(Math.sin(t * 0.004 + a) > 0.93 ? 0xffffff : 0xd8c8d0); return true; });
+    this.add((t) => { if (!im.active || this.deckImgs.get(c.key) !== im) return false; im.setTint(Math.sin(t * 0.004 + a) > 0.93 ? 0xffffff : 0xe8dce0); return true; });
   }
   /** A card spent or its time up: it crumbles. */
   deckDrop(key: string): void {
