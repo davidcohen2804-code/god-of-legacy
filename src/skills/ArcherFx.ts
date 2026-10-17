@@ -610,7 +610,7 @@ export class ArcherFx {
     if (!this.ready) return;
     const x = at.x, y = at.y;
     if (skillId === 'leaping_arrow') {
-      this.spr({ name: 'thorn_snare', x, y: y + 8, oy: 0.97, depth: y + 3, w: 120, life: 2200, glow: 0.25, sy: kf([0, 0.1], [0.08, 1.08, out3], [0.15, 1]), a: kf([0, 1], [0.85, 1], [1, 0]) }); // vines snap up round him
+      this.spr({ name: 'thorn_snare', x, y: y + 8, oy: 0.97, depth: y + 3, w: 96, h: 150, life: 2200, glow: 0.15, sy: kf([0, 0.1], [0.08, 1.08, out3], [0.15, 1]), a: kf([0, 1], [0.12, 0.8], [0.85, 0.72], [1, 0]) }); // vines snap up round his legs (low and see-through: he reads inside the cage)
       // (THORN: the thorned snare itself holds him — no leafy coil over his body)
       this.floor('thorn_roots', x, y, 150, 2200, { s: kf([0, 0.5], [0.1, 1, out3]), a: kf([0, 0], [0.06, 1], [0.85, 1], [1, 0]) }); // roots spread from his feet
       this.leaves(x, y - 20, 10, 40, { up: 120, life: 700 });
