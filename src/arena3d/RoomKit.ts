@@ -70,7 +70,7 @@ export function taperTube(curve: THREE.Curve<THREE.Vector3>, r0: number, r1: num
   }
   for (let i = 0; i < segs; i++) for (let j = 0; j < radial; j++) {
     const a = i * (radial + 1) + j, b = a + radial + 1;
-    idx.push(a, b, a + 1, b, b + 1, a + 1);
+    idx.push(a, a + 1, b, b, a + 1, b + 1); // (wound outward: the faces' normals agree with the vertex normals — the Maps chat found it inside-out: limbs drawn by their dark inner wall)
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
