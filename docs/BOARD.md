@@ -73,6 +73,16 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 7. **The PVP loading** (DFO: measure and cut the time from PvP Arena to the fight; the loading screen right).
 8. **Maps as they should be** (Maps).
 
+### GPT IS BACK (David, 17:21) — every chat: your GPT items now, in this order
+The shared ChatGPT account ran out of images at 01:50 last night. Spend it on what only GPT can make, at most ~6 images per chat in this round, each chat in its own tab. Pull images as base64 (never a download button); follow `docs/ART_STYLE.md`. Note each batch here when you start and finish it.
+1. **Book Mage:** first re-cut Binding Rune at the idle's scale (not GPT: David's size bug). Then the stills for her own body moves: Page Bind, Arcane Ward, Paper Curse (her ref).
+2. **Warrior:** Wave Slash's own sheet; a recognisable lion head for Lion's Maw.
+3. **Gambler:** the new card skill's icon and its painted pieces: the gathered card, the deck lying on the floor in the painted arena.
+4. **Archer:** the THORN vines.
+5. **Movements:** the samurai's launched 1–2 and get-up 6 polish.
+6. **Maps:** the tiles marked "wired first" in `TEXTURES.md` (`tools/world3d/tile.py`).
+7. **Samurai, PvP:** only if something of yours waits for GPT.
+
 ### DAVID (14:35–14:37) — everything on screen has a meaning; the Gambler's cards; the Book Mage's look and size — **first for the Gambler and the Book Mage**
 David: what lies on the floor must either be part of the game or be gone; what happens in a fight should give the player something new to do, so he keeps moving and playing (not only the blows count — what he builds while moving). Skills look 3D where they have volume: a skill that looks like a flat page gives no depth.
 - **Gambler** — David asked for this chat to do it. DFO's spec, numbers and engine pieces:
