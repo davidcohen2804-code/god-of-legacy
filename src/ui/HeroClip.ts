@@ -10,6 +10,7 @@ export type ClipKind = 'vs' | 'win';
 interface Fit { l: number; t: number; w: number; h: number; hand: boolean }
 const CLIPS: Record<string, Partial<Record<ClipKind, Fit>>> = {
   archer: { vs: { l: -0.12, t: -0.07, w: 100.09, h: 100.09, hand: true }, win: { l: -0.02, t: -0.08, w: 99.99, h: 99.99, hand: true } },
+  book_mage: { vs: { l: -0.13, t: -0.05, w: 99.91, h: 99.91, hand: true }, win: { l: -0.18, t: -0.12, w: 100.07, h: 100.07, hand: false } },
   gambler: { vs: { l: -0.42, t: -0.13, w: 100.15, h: 100.15, hand: true }, win: { l: 0, t: 0, w: 100, h: 100, hand: false } },
   samurai: { vs: { l: -0.02, t: 0.09, w: 99.6, h: 99.6, hand: true }, win: { l: -0.34, t: -0.26, w: 100.32, h: 100.32, hand: true } },
   warrior: { vs: { l: -6.14, t: 0.21, w: 111.81, h: 99.27, hand: true }, win: { l: -5.94, t: 0.11, w: 111.86, h: 99.32, hand: true } },

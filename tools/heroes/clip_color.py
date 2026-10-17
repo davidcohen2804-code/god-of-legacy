@@ -12,7 +12,10 @@ are untouched (the alpha is re-encoded with the frames).
 light outline): each rim pixel gets no more green than the solid figure just inside it has for its red, and green is
 never above the brighter of red / blue anywhere. Only for a hero with no green in his look (not the archer).
 
-    python3 tools/heroes/clip_color.py samurai vs [--rim] [--crf 34] [--dry]
+--first fits on the clip's first frame against the VS painting instead: a victory move that does not end on its painting
+(HeroClip.ts hand: false) but starts from the battle pose — its fit in HeroClip.ts measured on that first frame.
+
+    python3 tools/heroes/clip_color.py samurai vs [--rim] [--first] [--crf 34] [--dry]
 
 Reads / writes public/assets/final/heroes/<cls>/<kind>_in.webm; the painting is <kind>.webp next to it. Run it once on
 the keyed clip as delivered (each run re-encodes). Needs ffmpeg with libvpx-vp9, numpy, scipy, Pillow.
@@ -124,9 +127,10 @@ def main():
     ap.add_argument('--crf', type=int, default=34)  # (≈ the keyed clips' size; ~50 dB to the corrected frames)
     ap.add_argument('--rim', action='store_true', help='also clean the green-screen rim (heroes with no green only)')
     ap.add_argument('--dry', action='store_true', help='fit and report only')
+    ap.add_argument('--first', action='store_true', help="fit on the first frame against the VS painting (a clip that starts from it)")
     a = ap.parse_args()
     d = os.path.join(ROOT, 'public/assets/final/heroes', a.cls)
-    clip_path, paint_path = os.path.join(d, f'{a.kind}_in.webm'), os.path.join(d, f'{a.kind}.webp')
+    clip_path, paint_path = os.path.join(d, f'{a.kind}_in.webm'), os.path.join(d, f"{'vs' if a.first else a.kind}.webp")
     fit = fits(a.cls, a.kind)
     probe = json.loads(subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=r_frame_rate,width,height',
                                        '-of', 'json', clip_path], capture_output=True, text=True, check=True).stdout)['streams'][0]
@@ -139,7 +143,7 @@ def main():
         load = lambda f: np.asarray(Image.open(os.path.join(tmp, f)).convert('RGBA')).astype(float) / 255
         prep = (lambda im: clean_rim(im)) if a.rim else (lambda im: im)
         paint = Image.open(paint_path).convert('RGBA')
-        last = Image.fromarray((prep(load(frames[-1])) * 255 + 0.5).astype(np.uint8), 'RGBA')
+        last = Image.fromarray((prep(load(frames[0 if a.first else -1])) * 255 + 0.5).astype(np.uint8), 'RGBA')
         X, Y = samples(last, paint, fit)
         lut = fit_lut(X, Y)
         Xc = apply_lut(lut, X)
