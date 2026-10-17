@@ -113,8 +113,8 @@ export const SAMURAI: Record<string, Recipe> = {
   // the golden dragon bursts out of the floor and climbs: a tall twisting column of gold, the planks torn under the slam
   dragon_ascension: { own: true,
     active: (f, r) => { const c = me(f, r);
-      f.pillar(c.x, c.y, C.sun, { h: 860, r: 40, ms: 900, twist: true, core: false, i: 1.05 });
-      f.later(80, () => f.pillar(c.x, c.y, C.gold, { h: 760, r: 24, ms: 760, twist: true, core: false, i: 0.9 }));
+      // (one thin column under the dragon — the painted dragon is the show; two wide ones lit both fighters out)
+      f.pillar(c.x, c.y, C.gold, { h: 720, r: 16, ms: 720, twist: true, core: false, i: 0.5 });
       f.host.ring(f.host.w3(c.x), f.host.d3(c.y), C.gold, 3.2, 420, 0.8); f.host.impact({ x: c.x, y: c.y, z: 120 }, 1); },
     hit: (f, _s, _h, at, main) => { if (main) f.crack(at.x, at.y, C.gold, { r: 130, chunks: 14 }); } },
 };

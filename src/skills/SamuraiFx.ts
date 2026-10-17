@@ -1482,7 +1482,7 @@ export class SamuraiFx {
   /** The golden dragon breaks out of the floor and spirals up round him as high as it carries the foes, then flies off. */
   private ascensionBurst(r: CastRun): void {
     const q = this.me(r), cx = q.x, cy = q.y, side = sideOf(r), cam = this.ctx.cam();
-    this.launchBeam(cx, cy, 260, 'gold');
+    this.launchBeam(cx, cy, 200, 'gold'); // (a size down: the column hid both fighters in PVP 3D — the dragon is the show)
     this.shock(cx, cy, 300, { tone: 'gold' }); this.dustRing(cx, cy, 260); this.dust(cx - 60, cy, 110); this.dust(cx + 60, cy, 110, 40);
     // the dragon bursts out of the floor just in front of him and climbs into the sky in long S-curves — its whole body
     // following its head along one path (no seams, nothing jumping), fast out of the floor, slowing near the top — roars
