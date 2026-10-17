@@ -601,11 +601,16 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     shield_charge: { act: 'shield_charge', st: [0], ac: [1, 2, 1, 2], rc: [3, 3] }, // braced behind the barrier, the shoulder-first charge (two strides), the skid to a stop with the hand out for the grab
   },
   samurai: {
+    // the basic chain, his own four cuts (PixVerse clips of his painted design, 6 frames each)
+    quick_slash: { act: 'qs1', st: [0, 1, 2], ac: [3, 4], rc: [5] }, // the slash: blade up over the head, brought down to the front
+    'quick_slash#1': { act: 'qs2', st: [0, 1, 2], ac: [3, 4], rc: [5] }, // the backhand: wound back over the shoulder, whipped out flat
+    'quick_slash#2': { act: 'qs3', st: [0, 1], ac: [2, 3, 4, 4], rc: [5] }, // the cross cut: a lunging cut down to the floor, flicked back up (its two hits)
+    'quick_slash#3': { act: 'qs4', st: [0, 1], ac: [2, 3, 4], rc: [5] }, // the rising cut: from a low guard swept up over the head (the launch)
     shadow_step: { act: 'shadow_step', st: [0], ac: [1, 2], rc: [3, 4, 5] },
     swallow_cut: { act: 'swallow_cut', st: [0], ac: [1, 2, 3, 4], rc: [4, 5] },
-    sheathe: { act: 'iai_strike', st: [4], ac: [5, 0], rc: [0] }, // the blade slides home (the Iai's own return), the click, then low again with the hand on the hilt
+    sheathe: { act: 'sheathe', st: [1, 3], ac: [4, 4, 5], rc: [5] }, // his own (PixVerse): the blade brought back across the waist, slid home — the click — the hand resting on the hilt
     iai_strike: { act: 'iai_strike', st: [0, 1], ac: [2], rc: [3, 4, 5] },
-    sword_wave: { act: 'sword_wave', st: [0], ac: [1], rc: [1, 2] },
+    sword_wave: { act: 'sword_wave', st: [0, 1, 2, 3], ac: [4], rc: [4, 5, 5] }, // his own (PixVerse): low in a wide stance, the blade swung up behind and over his head, flung out flat at full reach as the crescent flies
     mirage: { act: 'mirage', st: [0], ac: [0, 1, 0, 1], rc: [2, 3, 4, 5] },
     blossom_storm: { act: 'blossom_storm', st: [0], ac: [1, 2, 3, 4], rc: [5, 5] },
     hundred_cuts: { act: 'hundred_cuts', st: [0], ac: [1], rc: [5], loop: [1, 2, 3, 4], fps: 14 },
