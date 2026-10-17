@@ -8,7 +8,8 @@
   "animations": {
     "walk": {
       "frames": 50,
-      "source": "pixverse gambler_walk2.mp4"
+      "source": "pixverse gambler_walk2.mp4",
+      "cycle_canvas": 346
     },
     "hurt": {
       "frames": 6,

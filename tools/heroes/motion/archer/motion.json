@@ -8,7 +8,8 @@
   "animations": {
     "walk": {
       "frames": 47,
-      "source": "pixverse archer_walk.mp4"
+      "source": "pixverse archer_walk.mp4",
+      "cycle_canvas": 290
     },
     "hurt": {
       "frames": 6,
@@ -73,7 +74,7 @@
     "run": {
       "frames": 20,
       "source": "pixverse archer_run.mp4",
-      "cycle_canvas": 760.0
+      "cycle_canvas": 980
     },
     "jump": {
       "frames": 3,

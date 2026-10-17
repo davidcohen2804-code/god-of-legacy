@@ -8,7 +8,8 @@
   "animations": {
     "walk": {
       "frames": 52,
-      "source": "pixverse bm_walk2.mp4"
+      "source": "pixverse bm_walk2.mp4",
+      "cycle_canvas": 340
     },
     "hurt": {
       "frames": 6,
@@ -79,7 +80,7 @@
     "run": {
       "frames": 22,
       "source": "pixverse beginner_male_run2h.mp4",
-      "cycle_canvas": 760.0
+      "cycle_canvas": 843
     },
     "jump": {
       "frames": 3,

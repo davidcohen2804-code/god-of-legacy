@@ -8,7 +8,8 @@
   "animations": {
     "walk": {
       "frames": 45,
-      "source": "pixverse warrior_walk.mp4"
+      "source": "pixverse warrior_walk.mp4",
+      "cycle_canvas": 316
     },
     "hurt": {
       "frames": 6,
@@ -72,9 +73,9 @@
       ]
     },
     "run": {
-      "frames": 26,
-      "source": "pixverse warrior_run.mp4",
-      "cycle_canvas": 760.0
+      "frames": 21,
+      "source": "pixverse warrior_run1h.mp4 (one-hand sprint ref)",
+      "cycle_canvas": 800
     },
     "jump": {
       "frames": 3,

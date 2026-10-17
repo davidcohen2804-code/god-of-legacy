@@ -8,7 +8,8 @@
   "animations": {
     "walk": {
       "frames": 40,
-      "source": "pixverse mage_walk.mp4"
+      "source": "pixverse mage_walk.mp4",
+      "cycle_canvas": 339
     },
     "hurt": {
       "frames": 6,
@@ -72,7 +73,7 @@
     "run": {
       "frames": 20,
       "source": "pixverse book_mage_run.mp4",
-      "cycle_canvas": 760.0
+      "cycle_canvas": 665
     },
     "jump": {
       "frames": 3,

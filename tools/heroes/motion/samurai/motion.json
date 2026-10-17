@@ -10,12 +10,12 @@
     "walk": {
       "frames": 39,
       "source": "pixverse transition v6, 720p",
-      "cycle_canvas": 470
+      "cycle_canvas": 391
     },
     "run": {
       "frames": 20,
       "source": "pixverse transition v6 seed 11111, two-hand grip, 720p",
-      "cycle_canvas": 760
+      "cycle_canvas": 897
     },
     "jump": {
       "frames": [
@@ -61,7 +61,8 @@
         60,
         80,
         100
-      ]
+      ],
+      "hip_x": 640
     },
     "launched": {
       "frames": 6,
