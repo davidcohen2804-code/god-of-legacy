@@ -11,7 +11,9 @@
 // bolt crackles, a dome whumps, a wave rushes past, crystals grow and shatter — the repeating ones held back); the
 // fighters' feet on the planks (steps when running, a scuff when driven back, a thump on landing). The music ducks under
 // an ultimate (both arenas).
-// Every skill of every class sounds like itself (SIG): its own swing / shot / spell, timed so it peaks on the strike, a
+// Every damaging blow lands with the blow itself under it, by its weight and its class (IMP, tools/audio/hits.py — the
+// crack, the body, a saturated crunch, the class's material, the tail: light for a basic or small blow, medium for a
+// skill's, heavy for the main hit). Every skill of every class sounds like itself (SIG): its own swing / shot / spell, timed so it peaks on the strike, a
 // wind-up for the big ones, its own main hit under the boom — in its class's palette, the warrior's and the archer's in
 // the families of their skills' looks (steel, stone, iron, holy, crimson · wind, thorn, storm, spirit).
 import Phaser from 'phaser';
@@ -173,6 +175,9 @@ const SIG: Record<string, Sig> = {
 const perStage = <V>(v: V | readonly V[] | undefined, stage: number): V | undefined =>
   Array.isArray(v) ? (v as readonly V[])[Math.min(Math.max(0, stage), v.length - 1)] : (v as V | undefined);
 
+/** Each class's blows (imp_<class>_<l|m|h>, loaded with its own sounds). */
+const IMP: Record<string, string> = { warrior: 'wr', samurai: 'sm', archer: 'ar', book_mage: 'bm', gambler: 'gb' };
+
 const CALLS: [RegExp, SfxName, number][] = [
   [/^BREAK/, 'break', 1], [/^PUNISH/, 'punish', 1], [/^COUNTER/, 'punish', 0.85], [/^BACK ATTACK/, 'hit_heavy', 0.5], [/^RAGE/, 'rage', 1], [/^SLAM/, 'slam', 1], [/^GRAB/, 'hit_heavy', 0.6], [/^AMBUSH/, 'sam_draw', 1],
   [/^ARMOR BREAK/, 'block', 1], [/^BLOCK/, 'block', 1], [/^(JOKER|WILD CARD)/, 'gam_coins', 1], [/^BUST/, 'gam_dice', 1], [/^KAGEMUSHA/, 'sam_draw', 0.8],
@@ -291,9 +296,12 @@ export class ArenaSound {
     const tick = many && !main; // (a burst's small blow: a soft tick, so the main one stands out)
     const o = { ...w, vol: tick ? 0.42 : [0.75, 0.9, 1, 1][tier], rate: tick ? 1.1 : 1, wet: tick ? WET.tick : WET.hit, at: tick ? 30 : 38 };
     const proj = hit.shape.kind === 'projectile';
+    // the blow itself, by its weight (its class's sounds in: else the class's old impact below)
+    const ic = IMP[s.cls], blow = ic && Sound.classReady(this.scene, s.cls) ? (`imp_${ic}_${tick || tier === 0 ? 'l' : main ? 'h' : 'm'}` as SfxName) : null;
+    if (blow) Sound.sfx(blow, { ...w, vol: tick ? 0.55 : 1, wet: tick ? WET.tick : WET.hit, at: tick ? 30 : 38 });
     const sig = tick ? undefined : this.sigOf(s), own = sig ? (sig.zone && hit === s.linger?.hit ? sig.zone : this.ownHit(s, sig, main, idx)) : undefined;
     if (own) Sound.sfx(own, !main && sig?.blowVol ? { ...o, vol: o.vol * sig.blowVol } : o);
-    else switch (s.cls) {
+    else if (!blow) switch (s.cls) {
       case 'warrior': Sound.sfx(tier === 0 || tick ? 'hit_light' : 'war_hit', o); break;
       case 'samurai': Sound.sfx('sam_cut', o); break;
       case 'archer': Sound.sfx(proj ? 'arc_hit' : 'hit_light', o); break;
@@ -303,7 +311,7 @@ export class ArenaSound {
     }
     if (main) { // the boom: deeper and bigger with the blow's weight (a regular attack's main hit: a small one)
       Sound.sfx('boom', { ...w, vol: [0.5, 0.78, 0.92, 1][tier], rate: [1.08, 1, 0.94, 0.86][tier], wet: WET.boom, at: 70 });
-      if (tier >= 2) Sound.sfx('hit_heavy', { ...w, vol: 0.45, at: 60, wet: WET.hit }); // (the crack of it)
+      if (tier >= 2 && !blow) Sound.sfx('hit_heavy', { ...w, vol: 0.45, at: 60, wet: WET.hit }); // (the crack of it: in the blow's own sound when it has one)
     }
     if (tier === 3 && !tick) Sound.sfx('hit_ult', { ...w, vol: 0.7, at: 120, wet: WET.boom });
     if (crit) Sound.sfx('crit', { ...w, vol: 0.8 });

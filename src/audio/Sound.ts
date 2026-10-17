@@ -28,7 +28,8 @@ export const SFX = {
   mag_cast: [3, 0.45], mag_hit: [3, 0.65], mag_bolt: [2, 0.6], mag_ice: [2, 0.6], mag_page: [2, 0.45],
   gam_throw: [3, 0.5], gam_hit: [3, 0.65], gam_chips: [2, 0.55], gam_dice: [1, 0.55], gam_coins: [1, 0.5], gam_roulette: [1, 0.5],
 } satisfies Record<string, [number, number]>;
-/** Each class's signature skills (ArenaSound's SIG): their own casts, wind-ups and hits (tools/audio/signatures.py) —
+/** Each class's own sounds — its skills' casts, wind-ups and hits (ArenaSound's SIG, tools/audio/signatures.py) and the
+ *  blows themselves by weight, imp_<class>_<l|m|h> (tools/audio/hits.py) —
  *  loaded with the arena for the classes fighting in it (another class, when it shows up: then). Variations and base
  *  volume, set from each one's measured loudness (A-weighted): a cast about as loud as the class swings were, a blow as
  *  its impacts, a main hit a little over them. */
@@ -40,9 +41,9 @@ export const SIG_SFX = {
     wr_dash_c: [1, 0.37], wr_dash_h: [1, 0.97], wr_whirl_c: [1, 0.41], wr_whirl_h: [1, 0.5], wr_sanct_c: [1, 0.29], wr_sanct_h: [1, 0.52],
     wr_leap_c: [1, 0.44], wr_leap_h: [1, 0.97], wr_leap_end: [1, 0.68], wr_wave_c: [1, 0.28], wr_wave_h: [1, 0.48], wr_cry_c: [1, 0.36],
     wr_cry_h: [1, 0.57], wr_jblade_c: [1, 0.21], wr_jblade_h: [1, 0.49], wr_jblade_z: [1, 0.45], wr_grip_c: [1, 0.28], wr_grip_b: [1, 0.59],
-    wr_grip_h: [1, 0.49], wr_hook_c: [1, 0.19], wr_hook_h: [1, 0.4], wr_sky_c: [1, 0.16], wr_sky_h: [1, 0.33],
-    wr_sky_end: [1, 0.65], wr_split_w: [1, 0.56], wr_split_c: [1, 0.51], wr_split_h: [1, 1.0], wr_lion_c: [1, 0.35], wr_lion_h: [1, 0.82],
-    wr_charge_c: [1, 0.45]
+    wr_grip_h: [1, 0.49], wr_hook_c: [1, 0.19], wr_hook_h: [1, 0.4], wr_sky_c: [1, 0.16], wr_sky_h: [1, 0.33], wr_sky_end: [1, 0.65],
+    wr_split_w: [1, 0.56], wr_split_c: [1, 0.51], wr_split_h: [1, 1.0], wr_lion_c: [1, 0.35], wr_lion_h: [1, 0.82], wr_charge_c: [1, 0.45],
+    imp_wr_l: [3, 0.31], imp_wr_m: [3, 0.36], imp_wr_h: [3, 0.32]
   },
   samurai: {
     sm_quick_1: [1, 0.53], sm_quick_2: [1, 0.54], sm_quick_3: [1, 0.42], sm_quick_4: [1, 0.43], sm_quick_hit: [2, 0.53], sm_quick_fin: [1, 0.29],
@@ -52,7 +53,7 @@ export const SIG_SFX = {
     sm_mirage_h: [1, 0.35], sm_kage_c: [1, 0.53], sm_kage_h: [1, 0.94], sm_tornado_c: [1, 0.36], sm_tornado_h: [1, 0.53], sm_falcon_c: [1, 0.4],
     sm_falcon_h: [1, 0.59], sm_sun_w: [1, 0.48], sm_sun_c: [1, 0.34], sm_sun_h: [1, 0.8], sm_phantom_c: [1, 0.61], sm_phantom_h: [1, 0.35],
     sm_gods_w: [1, 0.27], sm_gods_c: [1, 0.36], sm_gods_h: [1, 0.45], sm_bind_c: [1, 0.38], sm_bind_h: [1, 0.67], sm_ascend_c: [1, 0.49],
-    sm_ascend_h: [1, 0.51]
+    sm_ascend_h: [1, 0.51], imp_sm_l: [3, 0.34], imp_sm_m: [3, 0.36], imp_sm_h: [3, 0.33]
   },
   archer: {
     ar_double_c: [1, 0.4], ar_charged_c: [1, 0.36], ar_arrow_hit: [2, 0.77], ar_charged_h: [1, 0.89], ar_rise_c: [1, 0.42], ar_rise_h: [1, 0.44],
@@ -62,7 +63,8 @@ export const SIG_SFX = {
     ar_mine_z: [1, 0.52], ar_mine_h: [1, 0.5], ar_thunder_c: [1, 0.28], ar_thunder_b: [1, 0.66], ar_thunder_h: [1, 0.69], ar_thunder_z: [1, 0.73],
     ar_spirit_c: [1, 0.31], ar_spirit_h: [1, 0.68], ar_roar_c: [1, 0.23], ar_roar_h: [1, 0.99], ar_bind_c: [1, 0.45], ar_bind_h: [1, 0.73],
     ar_hawk_c: [1, 0.2], ar_hawk_b: [1, 0.33], ar_hawk_h: [1, 0.38], ar_tree_c: [1, 0.41], ar_tree_h: [1, 0.79], ar_lash_c: [1, 0.54],
-    ar_lash_h: [1, 0.95], ar_eagle_w: [1, 0.5], ar_eagle_c: [1, 0.18], ar_eagle_b: [1, 0.87], ar_eagle_h: [1, 0.3]
+    ar_lash_h: [1, 0.95], ar_eagle_w: [1, 0.5], ar_eagle_c: [1, 0.18], ar_eagle_b: [1, 0.87], ar_eagle_h: [1, 0.3], imp_ar_l: [3, 0.32],
+    imp_ar_m: [3, 0.33], imp_ar_h: [3, 0.29]
   },
   book_mage: {
     bm_bolt_c1: [1, 0.23], bm_bolt_c2: [1, 0.24], bm_lance_c: [1, 0.52], bm_bolt_h: [2, 0.26], bm_lance_h: [1, 0.6], bm_wave_c: [1, 0.22],
@@ -70,7 +72,8 @@ export const SIG_SFX = {
     bm_spikes_h: [1, 0.82], bm_field_c: [1, 0.89], bm_field_h: [1, 0.52], bm_time_w: [1, 0.41], bm_time_c: [1, 0.38], bm_time_h: [1, 0.55],
     bm_rune_c: [1, 0.34], bm_rune_h: [1, 0.63], bm_nova_c: [1, 0.4], bm_nova_h: [1, 0.88], bm_blink_c: [1, 0.3], bm_blink_z: [1, 0.73],
     bm_levity_c: [1, 0.43], bm_levity_h: [1, 0.61], bm_crane_c: [1, 0.36], bm_crane_h: [1, 0.6], bm_ward_c: [1, 0.32], bm_curse_c: [1, 0.5],
-    bm_curse_z: [1, 0.5], bm_elem_w: [1, 0.39], bm_elem_c: [1, 0.44], bm_elem_h: [1, 0.71], bm_slam_c: [1, 0.59], bm_slam_h: [1, 0.85]
+    bm_curse_z: [1, 0.5], bm_elem_w: [1, 0.39], bm_elem_c: [1, 0.44], bm_elem_h: [1, 0.71], bm_slam_c: [1, 0.59], bm_slam_h: [1, 0.85],
+    imp_bm_l: [3, 0.3], imp_bm_m: [3, 0.31], imp_bm_h: [3, 0.29]
   },
   gambler: {
     gb_deck_1: [1, 0.56], gb_deck_2: [1, 0.54], gb_deck_3: [1, 0.58], gb_deck_4: [1, 0.33], gb_staff_hit: [2, 0.58], gb_deck_fin: [1, 0.34],
@@ -80,7 +83,7 @@ export const SIG_SFX = {
     gb_wheel_c: [1, 0.56], gb_wheel_h: [1, 0.45], gb_dice_c: [1, 0.44], gb_dice_h: [1, 0.66], gb_grab_c: [1, 0.82], gb_grab_h: [1, 1.0],
     gb_grab_end: [1, 0.73], gb_ace_c: [1, 0.42], gb_ace_h: [1, 0.76], gb_snap_c: [1, 1.0], gb_allin_h: [1, 0.51], gb_52_c: [1, 0.37],
     gb_52_h: [1, 0.62], gb_slam_w: [1, 0.37], gb_slam_c: [1, 0.39], gb_slam_h: [1, 0.64], gb_triple_c: [1, 0.51], gb_triple_h: [1, 1.0],
-    gb_triple_end: [1, 1.0], gb_swap_c: [1, 0.42]
+    gb_triple_end: [1, 1.0], gb_swap_c: [1, 0.42], imp_gb_l: [3, 0.3], imp_gb_m: [3, 0.32], imp_gb_h: [3, 0.3]
   },
 } satisfies Record<string, Record<string, [number, number]>>;
 type SigName = { [C in keyof typeof SIG_SFX]: keyof (typeof SIG_SFX)[C] }[keyof typeof SIG_SFX];
