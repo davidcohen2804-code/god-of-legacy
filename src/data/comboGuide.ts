@@ -34,7 +34,7 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
   // the Samurai (rebuilt 17 Oct — David: every combo its own style, every step meaning something): three ways of the blade
   samurai: [
     // IAIDO — the quick-draw: the sheathe's click, the held draw, the step through him
-    { name: 'SAYA', tier: 'BEGINNER', style: 'IAIDO', range: 'CLOSE', hits: 7, steps: [{ id: 'quick_slash', n: 4 }, { id: 'sheathe' }, { id: 'iai_strike' }],
+    { name: 'SAYA', tier: 'BEGINNER', style: 'IAIDO', range: 'CLOSE', hits: 6, steps: [{ id: 'quick_slash', n: 4 }, { id: 'sheathe' }, { id: 'iai_strike' }],
       tip: 'The 4th cut lifts him — sheathe at once: the click makes the draw instant and a level higher' },
     { name: 'DUELIST', tier: 'MID', style: 'IAIDO', range: 'MID', hits: 17, steps: [{ id: 'iai_strike' }, { id: 'shadow_step' }, { id: 'swallow_cut' }, { id: 'hundred_cuts' }],
       tip: 'Let the Iai go early: it reaches him from two steps — step through him, turn back with the Swallow, hold him with the cuts' },
@@ -48,7 +48,7 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     { name: 'MIKAZUKI', tier: 'EXPERT', style: 'SKY', range: 'CLOSE', hits: 21, steps: [{ id: 'swallow_cut' }, {}, { id: 'sword_wave' }, { id: 'tornado_blade' }, { id: 'hundred_cuts' }, { id: 'falcon_dive' }],
       tip: 'From the floor the crescent flies under a foe in the air: jump with him and fling it a beat later, level with him — then spin him down, cut him off the bounce, dive on him' },
     // PHANTOM — illusions and blossoms
-    { name: 'FUBUKI', tier: 'BEGINNER', style: 'PHANTOM', range: 'MID', hits: 13, steps: [{ id: 'phantom_blades' }, { id: 'blossom_storm' }],
+    { name: 'FUBUKI', tier: 'BEGINNER', style: 'PHANTOM', range: 'MID', hits: 11, steps: [{ id: 'phantom_blades' }, { id: 'blossom_storm' }],
       tip: 'The phantom blades hold him where he stands (you are armored through them); the storm chases in and throws him' },
     { name: 'MIRAGE', tier: 'MID', style: 'PHANTOM', range: 'CLOSE', hits: 16, foeSwings: 900, steps: [{ id: 'mirage' }, { id: 'hundred_cuts' }, { id: 'falcon_dive' }],
       tip: 'Wait for his swing — counter it: you reappear behind him; hold him with the cuts, dive on him' },
@@ -148,21 +148,21 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     { name: 'ACEHIGH', tier: 'MID', style: 'SHORT FUSE', range: 'CLOSE', hits: 8, steps: [{ id: 'ace_in_the_hole' }, { id: 'showdown' }, { id: 'all_in' }, { id: 'grand_slam' }],
       tip: 'The Ace sticks two cards and joins your hand; Showdown plays it without touching the cards; snap them, then the bat' },
     // STAFF — spike, hammer, bat
-    { name: 'HOMERUN', tier: 'BEGINNER', style: 'STAFF', range: 'CLOSE', hits: 6, steps: [{ id: 'cut_the_deck', n: 4 }, { id: 'fuse_slam' }, { id: 'grand_slam' }],
+    { name: 'HOMERUN', tier: 'BEGINNER', style: 'STAFF', range: 'CLOSE', hits: 7, steps: [{ id: 'cut_the_deck', n: 4 }, { id: 'fuse_slam' }, { id: 'grand_slam' }],
       tip: 'The rising swing lifts him, Fuse Slam spikes him into a bounce, then the home run' },
-    { name: 'AFTERSHOCK', tier: 'MID', style: 'STAFF', range: 'CLOSE', hits: 6, steps: [{ id: 'fuse_slam' }, { id: 'triple_down' }, { id: 'grand_slam' }],
+    { name: 'AFTERSHOCK', tier: 'MID', style: 'STAFF', range: 'CLOSE', hits: 5, steps: [{ id: 'fuse_slam' }, { id: 'triple_down' }, { id: 'grand_slam' }],
       tip: 'Hammer him on the charged floor at once: it erupts under the hammers and the third throws him up — then the bat' },
-    { name: 'JACKPOT', tier: 'EXPERT', style: 'STAFF', range: 'MID', hits: 29, steps: [{ id: 'staff_vault' }, { id: 'rotor_staff' }, { id: 'all_in' }, {}, { id: 'fuse_slam' }, { id: 'triple_down' }, { id: 'jackpot' }],
+    { name: 'JACKPOT', tier: 'EXPERT', style: 'STAFF', range: 'MID', hits: 24, steps: [{ id: 'staff_vault' }, { id: 'rotor_staff' }, { id: 'all_in' }, {}, { id: 'fuse_slam' }, { id: 'triple_down' }, { id: 'jackpot' }],
       tip: 'Let the rotor spin out (five cards: the biggest snap) — it throws him high: jump at once and spike him from up there, three hammers on the bounce, then the slot machine' },
     // HOUSE — grab, bomb, switch
     { name: 'COLLAR', tier: 'BEGINNER', style: 'HOUSE', range: 'CLOSE', hits: 5, steps: [{ id: 'charged_deal' }, { id: 'kinetic_grab' }, { id: 'all_in' }],
       tip: 'Plant a card first; the grab keeps it on him; the snap throws him up' },
-    { name: 'SWITCH', tier: 'MID', style: 'HOUSE', range: 'CLOSE', hits: 13, steps: [{ id: 'card_swap' }, { id: 'staff_vault' }, { id: 'riffle_shuffle' }, { id: 'showdown' }, { id: 'grand_slam' }],
+    { name: 'SWITCH', tier: 'MID', style: 'HOUSE', range: 'CLOSE', hits: 16, steps: [{ id: 'card_swap' }, { id: 'staff_vault' }, { id: 'riffle_shuffle' }, { id: 'showdown' }, { id: 'grand_slam' }],
       tip: 'Hold away from him and swap — the card bomb left behind pops him up; hold back toward him and vault in: it throws him high — let him fall, shuffle as he drops back into reach, then Showdown and the bat' },
     { name: 'HIGHROLLER', tier: 'EXPERT', style: 'HOUSE', range: 'CLOSE', hits: 6, steps: [{ id: 'charged_deal', hold: true }, { id: 'kinetic_grab' }, { id: 'all_in' }, { id: 'grand_slam' }],
       tip: 'The max bet: hold for the five-card fan (three stick), grab him, a three-card snap twice as high — then the bat' },
     // CHANCE — the dice and the wheel: luck sets the damage or the hold, never the route
-    { name: 'LOADED', tier: 'MID', style: 'CHANCE', range: 'CLOSE', hits: 10, steps: [{ id: 'dice_bomb' }, { id: 'staff_vault' }, { id: 'riffle_shuffle' }, { id: 'all_in' }],
+    { name: 'LOADED', tier: 'MID', style: 'CHANCE', range: 'CLOSE', hits: 11, steps: [{ id: 'dice_bomb' }, { id: 'staff_vault' }, { id: 'riffle_shuffle' }, { id: 'all_in' }],
       tip: 'Roll the dice and let both burst (the roll only sets the damage) — the second throws him up: vault onto him, shuffle two cards into him, snap them' },
     { name: 'REDBLACK', tier: 'EXPERT', style: 'CHANCE', range: 'MID', hits: 12, steps: [{ id: 'roulette_wheel' }, { id: 'staff_vault' }, { id: 'rotor_staff' }, { id: 'grand_slam' }],
       tip: 'Lay the wheel under him and let the ball drop (2 s): RED throws him up, BLACK binds him — the vault takes him either way; spin the rotor, then the bat sets off its cards' },
