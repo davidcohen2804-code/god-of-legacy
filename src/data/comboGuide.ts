@@ -60,7 +60,7 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     // IRON HAND — grabs: no armor stops them, no gauge counts them
     { name: 'REEL', tier: 'BEGINNER', style: 'IRON HAND', range: 'FAR', hits: 3, steps: [{ id: 'judgment_hook' }, { id: 'iron_grip' }],
       tip: 'Reel him in from far with the chain, then seize him and slam him up — two grabs: no armor stops them' },
-    { name: 'SHACKLE', tier: 'MID', style: 'IRON HAND', range: 'CLOSE', hits: 7, steps: [{ id: 'iron_grip' }, { id: 'leap_crash' }, { id: 'judgment_hook' }, { id: 'rising_slash' }],
+    { name: 'SHACKLE', tier: 'MID', style: 'IRON HAND', range: 'CLOSE', hits: 8, steps: [{ id: 'iron_grip' }, { id: 'leap_crash' }, { id: 'judgment_hook' }, { id: 'rising_slash' }],
       tip: 'Crash down on him out of the grip\'s pop, chain him off the floor (a grab costs no down gauge), rip him back up before he rises' },
     { name: 'STORMCHAIN', tier: 'EXPERT', style: 'IRON HAND', range: 'MID', hits: 19, steps: [{ id: 'blade_storm' }, { id: 'judgment_hook' }, { id: 'iron_grip' }, { id: 'leap_crash' }],
       tip: 'Raise the storm two steps away — armored, its swords hold him up: press nothing till they stop, then chain him out of the air, seize him, crash' },
@@ -72,9 +72,9 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     { name: 'LIONHEART', tier: 'EXPERT', style: 'SKYBREAKER', range: 'CLOSE', hits: 13, steps: [{ id: 'rising_slash' }, {}, { id: 'lions_maw' }, { id: 'sky_breaker' }, { id: 'leap_crash' }],
       tip: 'Jump out of the launch: the lion holds him and drags him back in front of you — spike him, crash on the bounce' },
     // JUDGMENT — the quake, the court, the sentence
-    { name: 'QUAKE', tier: 'BEGINNER', style: 'JUDGMENT', range: 'CLOSE', hits: 4, steps: [{ id: 'ground_breaker' }, { id: 'earthsplitter', hold: true }],
+    { name: 'QUAKE', tier: 'BEGINNER', style: 'JUDGMENT', range: 'CLOSE', hits: 11, steps: [{ id: 'ground_breaker' }, { id: 'earthsplitter', hold: true }],
       tip: 'The quake holds him for free — charge the full fissure while it does' },
-    { name: 'COURT', tier: 'MID', style: 'JUDGMENT', range: 'CLOSE', hits: 4, steps: [{ id: 'wave_slash' }, { id: 'judgment_blade' }, { id: 'iron_grip' }],
+    { name: 'COURT', tier: 'MID', style: 'JUDGMENT', range: 'CLOSE', hits: 8, steps: [{ id: 'wave_slash' }, { id: 'judgment_blade' }, { id: 'iron_grip' }],
       tip: 'Pop him low; the blade pins him and the court chains him as he falls — land, then seize him in chains' },
     { name: 'VERDICT', tier: 'EXPERT', style: 'JUDGMENT', range: 'FAR', hits: 22, steps: [{ id: 'judgment_hook' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'judgment_blade' }, { id: 'iron_grip' }, { id: 'titans_verdict' }],
       tip: 'Throw the blade on the spike and press nothing until you land; grip him in chains — the grip\'s slam keeps him up for the Verdict' },
@@ -98,9 +98,9 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     // STORM — one chill, then every storm hit conducts
     { name: 'CONDUIT', tier: 'BEGINNER', style: 'STORM', range: 'CLOSE', hits: 6, steps: [{ id: 'page_bind' }, { id: 'lightning_chain' }],
       tip: 'Page Bind chills him: every arc of the chain conducts through the cold and holds him longer' },
-    { name: 'SPARK', tier: 'MID', style: 'STORM', range: 'CLOSE', hits: 9, steps: [{ id: 'glacial_spikes' }, { id: 'lightning_chain' }, { id: 'arcane_bolt', n: 3 }],
+    { name: 'SPARK', tier: 'MID', style: 'STORM', range: 'CLOSE', hits: 10, steps: [{ id: 'glacial_spikes' }, { id: 'lightning_chain' }, { id: 'arcane_bolt', n: 3 }],
       tip: 'The spikes chill him and throw him up, the chain conducts through the cold; your bolts are storm now — they seek him in the air and keep conducting' },
-    { name: 'TEMPEST', tier: 'EXPERT', style: 'STORM', range: 'MID', hits: 14, steps: [{ id: 'arcane_wave' }, { id: 'glacial_spikes' }, { id: 'lightning_chain' }, { id: 'storm_field' }, { id: 'time_collapse' }],
+    { name: 'TEMPEST', tier: 'EXPERT', style: 'STORM', range: 'MID', hits: 15, steps: [{ id: 'arcane_wave' }, { id: 'glacial_spikes' }, { id: 'lightning_chain' }, { id: 'storm_field' }, { id: 'time_collapse' }],
       tip: 'Nothing froze him before: the clock\'s own freeze holds in full and its blast shatters him' },
     // ARCANE — gravity, paper, the blink
     { name: 'UPDRAFT', tier: 'BEGINNER', style: 'ARCANE', range: 'FAR', hits: 4, steps: [{ id: 'levity_field' }, { id: 'origami_flock' }],
@@ -150,14 +150,14 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     // STAFF — spike, hammer, bat
     { name: 'HOMERUN', tier: 'BEGINNER', style: 'STAFF', range: 'CLOSE', hits: 7, steps: [{ id: 'cut_the_deck', n: 4 }, { id: 'fuse_slam' }, { id: 'grand_slam' }],
       tip: 'The rising swing lifts him, Fuse Slam spikes him into a bounce, then the home run' },
-    { name: 'AFTERSHOCK', tier: 'MID', style: 'STAFF', range: 'CLOSE', hits: 5, steps: [{ id: 'fuse_slam' }, { id: 'triple_down' }, { id: 'grand_slam' }],
+    { name: 'AFTERSHOCK', tier: 'MID', style: 'STAFF', range: 'CLOSE', hits: 6, steps: [{ id: 'fuse_slam' }, { id: 'triple_down' }, { id: 'grand_slam' }],
       tip: 'Hammer him on the charged floor at once: it erupts under the hammers and the third throws him up — then the bat' },
-    { name: 'JACKPOT', tier: 'EXPERT', style: 'STAFF', range: 'MID', hits: 28, steps: [{ id: 'staff_vault' }, { id: 'rotor_staff' }, { id: 'all_in' }, {}, { id: 'fuse_slam' }, { id: 'triple_down' }, { id: 'jackpot' }],
+    { name: 'JACKPOT', tier: 'EXPERT', style: 'STAFF', range: 'MID', hits: 29, steps: [{ id: 'staff_vault' }, { id: 'rotor_staff' }, { id: 'all_in' }, {}, { id: 'fuse_slam' }, { id: 'triple_down' }, { id: 'jackpot' }],
       tip: 'Let the rotor spin out (five cards: the biggest snap) — it throws him high: jump at once and spike him from up there, three hammers on the bounce, then the slot machine' },
     // HOUSE — grab, bomb, switch
     { name: 'COLLAR', tier: 'BEGINNER', style: 'HOUSE', range: 'CLOSE', hits: 5, steps: [{ id: 'charged_deal' }, { id: 'kinetic_grab' }, { id: 'all_in' }],
       tip: 'Plant a card first; the grab keeps it on him; the snap throws him up' },
-    { name: 'SWITCH', tier: 'MID', style: 'HOUSE', range: 'CLOSE', hits: 16, steps: [{ id: 'card_swap' }, { id: 'staff_vault' }, { id: 'riffle_shuffle' }, { id: 'showdown' }, { id: 'grand_slam' }],
+    { name: 'SWITCH', tier: 'MID', style: 'HOUSE', range: 'CLOSE', hits: 18, steps: [{ id: 'card_swap' }, { id: 'staff_vault' }, { id: 'riffle_shuffle' }, { id: 'showdown' }, { id: 'grand_slam' }],
       tip: 'Hold away from him and swap — the card bomb left behind pops him up; hold back toward him and vault in: it throws him high — let him fall, shuffle as he drops back into reach, then Showdown and the bat' },
     { name: 'HIGHROLLER', tier: 'EXPERT', style: 'HOUSE', range: 'CLOSE', hits: 6, steps: [{ id: 'charged_deal', hold: true }, { id: 'kinetic_grab' }, { id: 'all_in' }, { id: 'grand_slam' }],
       tip: 'The max bet: hold for the five-card fan (three stick), grab him, a three-card snap twice as high — then the bat' },
