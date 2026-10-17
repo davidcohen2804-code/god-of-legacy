@@ -43,7 +43,7 @@ export const LOOKS: Record<LookName, Look> = {
     fall: { petal: false, size: [0.11, 0.11], hue: [0.0, 0.09], sat: [0.65, 0.9], light: [0.42, 0.6], emissive: 0x301008 },
   },
   dusk: { // the sun just set: a rose-violet sky, the moon's cool light from the front-left, the lanterns' warmth the rest
-    kit: 'twilight', pavingTile: 'stone_violet', wallTile: 'stone_violet_wall', pavingBase: [168, 150, 178], wallBase: [150, 132, 162],
+    kit: 'twilight', pavingTile: 'stone_violet', wallTile: 'stone_violet', pavingBase: [168, 150, 178], wallBase: [150, 132, 162],
     sky: { sunFrom: new THREE.Vector3(-0.45, 0.72, 0.55), sunColor: 0xa8bcff, sunIntensity: 1.25, hemiSky: 0x9a84b8, hemiGround: 0x3a2e40, hemiIntensity: 1.0, top: 0x3e2c58, mid: 0x9a5a84, low: 0xe8a898, background: 0x6e4e74, fog: { color: 0x6a4c6e, near: 34, far: 100 }, exposure: 1.0 },
     tint: { paving: 0xd8ccdc, wall: 0xa898b0, balustrade: 0xcabed0, moulding: 0xd2c8d8, roof: 0x6a7490, terracotta: 0xa88898, wood: 0x3a2a26, barkBase: [58, 46, 44], bark: 0xb4a4ac, valley: 0x2a2438, mountains: 0x2e2244, mist: 0xb8a0c8, clouds: 0x8a6a98 },
     ivy: ['#8a6ab8', '#a98ad8', '#c4a8ee', '#6a4a98', '#5a7a4a', '#b89ae0'], flowers: ['#8a6ad0', '#b49af0', '#5a7a4a'],

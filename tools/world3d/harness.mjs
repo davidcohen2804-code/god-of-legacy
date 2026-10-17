@@ -31,14 +31,14 @@ export async function open(opts = {}) {
   try { await p.waitForFunction(() => { const s = window.__game?.scene.getScene('LegacyCourtyardScene'); return !!s && s.sys.isActive() && !!s.a3d && !!s.w3d; }, null, { timeout: 240000 }); }
   catch (e) { console.log('WORLD 3D DID NOT COME UP', errors.slice(0, 12).join('\n')); await p.screenshot({ path: `${OUT}/w3d_fail.jpg`, type: 'jpeg', quality: 60 }); throw e; }
   await W(p, opts.settle ?? 8000);
-  const state = () => p.evaluate(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const k = s.kin; return { x: k.x, y: k.y, z: k.z, area: s.world?.area?.id, hp: s.hp, mode: s.mode, fps: s.game.loop.actualFps, mobs: s.world?.mobs?.length }; });
+  const state = () => p.evaluate(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const k = s.kin; return { x: k.x, y: k.y, z: k.z, supportZ: k.supportZ, supportId: k.supportId, area: s.world?.area?.id, hp: s.hp, mode: s.mode, fps: s.game.loop.actualFps, mobs: s.world?.mobs?.length }; });
   const shot = (f) => p.screenshot({ path: f, type: 'jpeg', quality: 80, timeout: 150000 });
   const settled = async (want) => { // (the 3D place `want` is up, no crossing running, no fade, and three frames drawn since)
     await p.waitForFunction((want) => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); return !!s.w3d && (!want || s.w3d.areaId === want) && !s.warping && !s.cameras.main.fadeEffect.isRunning; }, want, { timeout: 180000 });
     const f0 = await p.evaluate(() => window.__game.loop.frame);
     await p.waitForFunction((f0) => window.__game.loop.frame >= f0 + 3, f0, { timeout: 180000 });
   };
-  const tele = async (x, y) => { await p.evaluate(([x, y]) => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); s.kin.x = x; s.kin.y = y; s.kin.vx = 0; s.kin.vy = 0; }, [x, y]); await settled(areaIdAt(x)); };
+  const tele = async (x, y) => { await p.evaluate(([x, y]) => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const k = s.kin; k.x = x; k.y = y; k.z = 0; k.vx = 0; k.vy = 0; k.vz = 0; k.supportZ = 0; k.supportId = null; k.grounded = true; }, [x, y]); await settled(areaIdAt(x)); }; // (onto the ground there)
   const hold = async (key, ms) => { await p.keyboard.down(key); await W(p, ms); await p.keyboard.up(key); };
   const info = () => p.evaluate(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const r = s.a3d.renderer.info; return { calls: r.render.calls, tris: r.render.triangles, geos: r.memory.geometries, tex: r.memory.textures }; });
   const openGate = () => p.evaluate(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); s.quests.sun_gate = { state: 'done', progress: [] }; s.saveQuests?.(); s.world.sunGate.unlock(); });

@@ -1,9 +1,10 @@
 # The 3D world's tiles — what to paint with GPT (from 19:00, when the image quota is back)
 
 Every tile: **seamless / tileable, 1024 × 1024, top-down flat lighting (no shadows baked in, no vignette), painted in the game's
-warm storybook style (ART_STYLE.md), no text, no watermark**. Saved as `public/assets/world3d/tex/<kit>/<name>.webp`
-(quality 82); the normal map `<name>_n.webp` made by `tools/world3d/normals.py` (Sobel from the colour tile, strength per
-tile below) unless GPT paints a better one. The builders fall back to their procedural stand-ins until a tile exists, and
+warm storybook style (ART_STYLE.md), no text, no watermark**. Saved by `python3 tools/world3d/tile.py <image> <kit> <name> --strength <n>` as
+`public/assets/world3d/tex/<kit>/<name>.webp` (quality 82; the tool squares, resizes to 1024, cross-fades the seams, writes the
+normal map `<name>_n.webp` — a Sobel of the tile, strength per tile below — and a 2 × 2 preview under /tmp/claude-0/tiles to
+check the tiling; `--atlas` for the clump / flower atlases on transparency: no seam blend, no normal map). The builders fall back to their procedural stand-ins until a tile exists, and
 swap it in when it loads — no code change per tile.
 
 Prompt frame (English, for GPT): *"Seamless tileable texture, 1024x1024, top-down, even flat lighting, no shadows, no

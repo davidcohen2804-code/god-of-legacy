@@ -8,6 +8,7 @@ import type { Life, Wind } from '../life/kit';
 import { banner } from '../life/cloth';
 import { pond } from '../life/pond';
 import { footBox } from '../kit/units';
+import { balustrade, sunRune } from '../kit/terrain';
 import type { AreaDef } from '../../world/Areas';
 import type { Disposable } from '../kit/units';
 import { growTrees, crownCanvas, leafFall } from '../kit/trees';
@@ -294,7 +295,17 @@ export const templeRoad: Dressing = (c) => {
   const petalTex = canvasTex(petalCanvas()); c.disposables.push(petalTex);
   const petals = leafFall(scene, { from: trees.clumps, groundY: (x, z) => (z > c.zFront + 0.05 ? -16 : z < zP ? 1.1 : 0), falling: c.soft ? 60 : 180, lying: c.soft ? 300 : 900, bounds: { x0: c.F.x0 - 2, x1: c.F.x1 + 2, z0: zWall, z1: c.zFront }, under: spots.map((s) => ({ x: s.x, z: s.z + 1 })), tex: petalTex, size: [0.085, 0.07], hue: [0.94, 0.98], sat: [0.6, 0.9], light: [0.7, 0.84], emissive: 0x3a1420 }, R);
   c.disposables.push(petals); c.sway.push((t, w) => petals.update(1 / 60, t, Math.max(0, w - 1) * 0.4, 1, { x: 0.3, z: 0.05 }));
-  // the stair down to the Sun Seal Plaza at the front (its gap in the balustrade is the spec's)
-  { const x0 = ux(ARENA.stairs[0]), x1 = ux(ARENA.stairs[1]), sx = (x0 + x1) / 2, sw = x1 - x0; for (let k = 0; k < 10; k++) P.add('moulding', box(sw, 0.28, 0.4, sx, -0.28 * (k + 1), c.zFront + 0.3 + 0.4 * k + 0.2, 1.1, 0.02)); for (const side of [-1, 1]) P.add('wall', box(0.3, 3.2, 4.4, sx + side * (sw / 2 + 0.15), -3.1, c.zFront + 2.3, 1.3, 0.02)); }
+  // M19b · the Sun Seal Plaza below the road (the game walks it at the road's own height — the painted plaza lay lower in
+  // the picture): a causeway through the balustrade's gap onto a paved square the plaza's size, its own balustrade round
+  // its far edges, stone lanterns at its corners, the sun seal set in its middle; the terrace's slab carried under it
+  { const x0 = ux(ARENA.stairs[0]), x1 = ux(ARENA.stairs[1]), sx = (x0 + x1) / 2, sw = x1 - x0;
+    const px0 = ux(ARENA.x), px1 = ux(ARENA.x + ARENA.w), pz0 = uz(ARENA.y), pz1 = uz(ARENA.y + ARENA.h), pcx = (px0 + px1) / 2;
+    P.add('paving', box(sw + 0.6, 0.06, pz0 - c.zFront + 0.4, sx, -0.06, (c.zFront + pz0) / 2, 2.2)); // the causeway
+    for (const side of [-1, 1]) P.add('balustrade', box(0.22, 0.82, pz0 - c.zFront - 0.2, sx + side * (sw / 2 + 0.2), 0, (c.zFront + pz0) / 2, 1, 0.02));
+    P.add('paving', box(px1 - px0 + 0.8, 0.06, pz1 - pz0 + 0.4, pcx, -0.06, (pz0 + pz1) / 2, 2.2)); P.add('wall', box(px1 - px0 + 1.2, 3.0, pz1 - pz0 + 0.8, pcx, -3.06, (pz0 + pz1) / 2, 1.3)); // the square and its slab
+    balustrade(P, px0 - 0.2, px1 + 0.2, 0, pz1 + 0.1, { post: 1.6, h: 0.82 });
+    for (const z of [pz0 + 0.1, pz1 - 0.1]) for (const x of [px0, px1]) P.add('balustrade', box(0.22, 0.82, Math.abs(pz1 - pz0) * 0.02 + 0.22, x, 0, z, 1, 0.02));
+    for (const x of [px0 + 0.6, px1 - 0.6]) P.add('balustrade', box(0.22, 0.82, pz1 - pz0 - 0.2, x, 0, (pz0 + pz1) / 2, 1, 0.02), box(0.22, 0.08, pz1 - pz0 - 0.2, x, 0.82, (pz0 + pz1) / 2, 1, 0.02)); // the side rails
+    c.disposables.push(sunRune(scene, pcx, 0.01, (pz0 + pz1) / 2, 2.6)); }
   void worldUV;
 };

@@ -4,7 +4,7 @@
 // (the hero, the monsters, the NPCs), what flies, the big moments' darkening, the landings' dust. One place at a time.
 import Phaser from 'phaser';
 import { Arena3D, type Cam3D, type Floor } from '../arena3d/Arena3D';
-import { AREAS, areaAt } from '../world/Areas';
+import { AREAS, ARENA, areaAt } from '../world/Areas';
 import { WORLD3D } from './flag';
 import { MAPS } from './maps';
 import { SKY_FLOOR } from './maps/sky';
@@ -88,7 +88,8 @@ export class World3D {
   step(ms: number, f: WorldFrame): void {
     const a = this.a3d, h = f.hero;
     this.lead += (h.facing * LEAD - this.lead) * Math.min(1, ms / 600);
-    const x0 = this.floor.x0 + HALF_VIEW, x1 = this.floor.x1 - HALF_VIEW;
+    const plaza = this.areaId === 'temple' && h.y >= ARENA.y; // (down on the Sun Seal Plaza: the camera ranges over the plaza, wider than the road)
+    const x0 = (plaza ? ARENA.x : this.floor.x0) + HALF_VIEW, x1 = (plaza ? ARENA.x + ARENA.w : this.floor.x1) - HALF_VIEW;
     let fx = x1 > x0 ? Phaser.Math.Clamp(h.x + this.lead, x0, x1) : (this.floor.x0 + this.floor.x1) / 2;
     let punch = 1;
     if (this.arrive) { // the glide in: wide and at the entry edge, easing onto the hero
@@ -126,7 +127,8 @@ export class World3D {
 
   /** The hero at the map's end: the next map in 3D (its id and the entry x there), or nothing — then the end is a soft
    *  wall while that map is not built yet. */
-  crossing(k: { x: number; vx: number; z: number; grounded: boolean; supportId?: string | null }, gateOpen = true): { area: string; x: number; fromX: number } | null {
+  crossing(k: { x: number; y?: number; vx: number; z: number; grounded: boolean; supportId?: string | null }, gateOpen = true): { area: string; x: number; fromX: number } | null {
+    if (this.areaId === 'temple' && (k.y ?? 0) >= ARENA.y) return null; // the Sun Seal Plaza below the Temple Road is the temple's own place (M19b)
     // the sky: one place over the island — entered on a cloud or a cloud floor, left when he stands on the ground again or has fallen well below the clouds
     const onSky = !!k.supportId && (k.supportId.startsWith('sky-') || k.supportId === 'cloud_haven' || k.supportId === 'sunfall_pass' || k.supportId === 'afterglow');
     if (this.areaId !== 'sky' && onSky && WORLD3D.has('sky')) return { area: 'sky', x: k.x, fromX: k.x - 300 };
