@@ -885,7 +885,7 @@ export class GamblerFx {
       if (roy) { roy.setOrigin(0.5, 0.9); const r0 = roy.scale; this.piece(roy, 760, (u, o) => o.setScale(r0 * lerp(0.4, 1.1, out3(clamp01(u * 2.2)))).setAlpha(u < 0.55 ? 1 : (1 - u) / 0.45), 100); }
       this.ctx.flash(0xffc94a, 0.16, 170); this.ctx.freeze(90);
     }
-    this.burst(face.x, face.y, i === 4 ? 115 : 70, 120, face.depth + 2); // (each card's pop smaller than the foe: he reads through the row)
+    if (!ARENA3D.on) this.burst(face.x, face.y, i === 4 ? 115 : 70, 120, face.depth + 2); // (each card's pop smaller than the foe: he reads through the row; PVP 3D: the 3D card star on him — its recipe)
     if (i === 4) { this.sdCards.delete(r.castId); this.sdHand.delete(r.castId); this.sdVal.delete(r.castId); this.ctx.cam().shake(220, 0.01); }
   }
 

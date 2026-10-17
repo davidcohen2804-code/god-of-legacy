@@ -72,8 +72,16 @@ export const GAMBLER: Record<string, Recipe> = {
   },
   // the row of cards turned face up: a crest of light runs down the row along the floor, the last card the big burst
   showdown: { tone: TONE.card,
-    own: true, hit: (f, _s, _h, at, main) => { if (main) { f.impact({ x: at.x, y: at.y, z: 60 }, F.red, { r: 70, embers: 12 }); } },
-    active: (f, r) => { const c = me(f, r); f.wave(c.x, c.y, r.aim.x, r.aim.y * 0.6, F.red, { len: 360, ms: 340, h: 50, w: 46 }); },
+    // (DAVID 20:56: the card family's star — each card turned over cuts a red-and-white star of crossing card lines through
+    // him; the last card's star the big one, one inked ring cut across it; the main hit's flash is the engine's)
+    own: true,
+    hit: (f, _s, _h, at, main) => {
+      const c = { x: at.x, y: at.y, z: at.z + 70 };
+      if (!main) { f.flurry(c, F.red, { ms: 110, every: 36, len: 170, w: 5, accent: 0, spread: 10 }); return; }
+      f.flurry(c, F.red, { ms: 220, every: 36, len: 300, w: 7, accent: 3, spread: 14 });
+      f.slash({ x: at.x, y: at.y, z: 0 }, 1, F.red, { r: 120, w: 40, tilt: 35, a0: -160, a1: 160, ms: 260, y0: 70, i: 2.4, ink: true });
+    },
+    active: (f, r) => { const c = me(f, r); f.wave(c.x, c.y, r.aim.x, r.aim.y * 0.6, F.red, { len: 360, ms: 340, h: 40, w: 36 }); },
   },
   // the coin: a thin gold column rising where it lands
   coin_flip: { tone: TONE.coin, own: true, active: (f, r) => f.pillar(me(f, r).x, me(f, r).y, C.coin, { h: 420, r: 30, ms: 520, core: false }) },
