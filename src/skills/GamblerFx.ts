@@ -366,7 +366,7 @@ export class GamblerFx {
         break;
       }
       case 'staff_vault': if (i === r.hits.length - 1) { this.floorRing(o.x, o.y, 90); this.pop(o.x + side * 30, y0 - 40, 90); } break; // (the landing blow: the last one)
-      case 'fuse_slam': this.scar(o.x + r.aim.x * 70, o.y + r.aim.y * 70, 90); this.ctx.shockwave(o.x + r.aim.x * 70, o.y + r.aim.y * 70, 140, FUCHSIA); this.ctx.cam().shake(140, 0.006); break;
+      case 'fuse_slam': this.scar(o.x + r.aim.x * 70, o.y + r.aim.y * 70, 90); this.ctx.shockwave(o.x + r.aim.x * 70, o.y + r.aim.y * 70, 140, this.fc(FUCHSIA)); this.ctx.cam().shake(140, 0.006); break;
       case 'riffle_shuffle': if (i === r.hits.length - 1) { const tor = this.kit('x_tornado', o.x, o.y, 260, o.y + 3); if (tor) { tor.setOrigin(0.5, 0.97); const t0 = tor.scale; this.piece(tor, 460, (u, im) => im.setScale(t0 * lerp(1, 1.3, u), t0 * lerp(0.8, 1.2, out3(u))).setFlipX(Math.floor(u * 10) % 2 === 1).setAlpha(1 - u * u)); } this.floorRing(o.x, o.y, 170, FUCHSIA_2, 380); this.shards(o.x, y0 - 50, 18, 200, 520); } break;
       case 'rotor_staff': if (i === r.hits.length - 1) { if (!this.stroke('s_thrust', o.x + side * 24, y0 - 56, 210, side, 300, d, 0, 0.05, 0.5)) this.band(o.x + side * 30, y0 - 56, 150, side > 0 ? 0 : 180, 260, 30, d); this.pop(o.x + side * 150, y0 - 56, 120); } break;
       case 'kinetic_grab': if (i === 0) { // the reach: a hand of kinetic light shoots out from his palm and clenches
