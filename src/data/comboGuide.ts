@@ -137,7 +137,7 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     { name: 'COLLAR', tier: 'BEGINNER', style: 'HOUSE', range: 'CLOSE', hits: 5, steps: [{ id: 'charged_deal' }, { id: 'kinetic_grab' }, { id: 'all_in' }],
       tip: 'Plant a card first; the grab keeps it on him; the snap throws him up' },
     { name: 'SWITCH', tier: 'MID', style: 'HOUSE', range: 'CLOSE', hits: 10, steps: [{ id: 'card_swap' }, { id: 'staff_vault' }, { id: 'showdown' }, { id: 'grand_slam' }],
-      tip: 'Swap away from him: the card bomb you leave pops him up — vault back in, Showdown, the bat' },
+      tip: 'Hold away from him and swap — the card bomb left behind pops him up; hold back toward him and vault in, then Showdown and the bat' },
     { name: 'HIGHROLLER', tier: 'EXPERT', style: 'HOUSE', range: 'CLOSE', hits: 6, steps: [{ id: 'charged_deal', hold: true }, { id: 'kinetic_grab' }, { id: 'all_in' }, { id: 'grand_slam' }],
       tip: 'The max bet: hold for the five-card fan (three stick), grab him, a three-card snap twice as high — then the bat' },
   ],
