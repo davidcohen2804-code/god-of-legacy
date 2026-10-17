@@ -354,7 +354,7 @@ export class ArcherFx {
       }, r);
     }
     if (s.id === 'arrow_storm' && r.place) { // one big shining arrow at a time drops straight down from high above onto the mark and blows the ground up
-      const c = r.place, big = i % 3 === 2, fx = c.x + rnd(-70, 70), fy = c.y + rnd(-26, 26), H = 820, fall = 200, L = big ? 230 : 190;
+      const c = r.place, last = i === r.hits.length - 1, big = i % 5 === 4 || last, fx = big ? c.x : c.x + rnd(-70, 70), fy = big ? c.y : c.y + rnd(-26, 26), H = 820, fall = 200, L = last ? 300 : big ? 250 : 170; // the rain's beat: every 5th volley a great arrow on the mark (it marks him), the last the greatest (it throws him up)
       this.spr({ name: 'fall_arrow', x: fx, y: fy - H, oy: 0.98, depth: fy + 2, w: L * 0.62, glow: 0.4, life: fall, my: (u) => H * inQ(u), sy: kf([0, 1.2], [1, 1]), a: kf([0, 0.6], [0.2, 1], [1, 1]) });
       this.later(fall, () => {
         this.spr({ name: 'arrow_planted', x: fx, y: fy + 6, oy: 0.96, depth: fy + 1, w: big ? 150 : 120, glow: 0.2, life: 800, sy: kf([0, 0.6], [0.08, 1.05, out3], [0.2, 1]), a: kf([0, 1], [0.7, 1], [1, 0]) }); // it stands in the floor a moment
@@ -363,8 +363,9 @@ export class ArcherFx {
         this.floor('crater', fx, fy, big ? 220 : 170, 1500, { a: kf([0, 0], [0.04, 1], [0.6, 0.85], [1, 0]) });
         this.spr({ name: 'dust_roll', x: fx, y: fy + 10, oy: 0.9, depth: fy + 2, w: big ? 300 : 230, life: 700, sx: kf([0, 0.5], [1, 1.4, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
         if (big) { this.spr({ name: 'wind_dome', x: fx, y: fy + 8, oy: 0.95, depth: fy + 3.5, w: 280, add: true, life: 300, sx: kf([0, 0.3], [1, 1.25, out3]), sy: kf([0, 0.3], [1, 1.25, out3]), a: kf([0, 0.7], [1, 0, inQ]) }); }
+        if (big) { this.floor('gold_ring', fx, fy, last ? 300 : 230, 520, { add: true, glow: 0.35, s: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 1], [1, 0, inQ]) }); this.spr({ name: 'mark_burst', x: fx, y: fy - 70, depth: fy + 6, w: last ? 170 : 130, add: true, life: 360, sx: kf([0, 0.4], [0.3, 1.1, out3]), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) }); } // the beat: a gold ring and the hunter's mark
         this.leaves(fx, fy - 20, big ? 10 : 6, 60, { up: 150, life: 800 });
-        this.shake(r, big ? 170 : 100, big ? 0.007 : 0.0035);
+        this.shake(r, last ? 240 : big ? 170 : 90, last ? 0.009 : big ? 0.007 : 0.003);
       }, r);
     }
     if (s.id === 'bow_haste') { // the arrow in the ground bursts: the earth blows up in green light and throws the foe up
@@ -622,6 +623,9 @@ export class ArcherFx {
   hawkDive(id: string, to: V3): void {
     const h = this.hawks.get(id); if (!h) return;
     h.dive = { x: to.x, y: to.y - to.z - 30, d: to.y, t: 0 };
+    // it reads before it lands: the cry (a burst of feathers and a sound ring at the hawk) and its shadow growing on the floor under the foe
+    this.pop('feather_burst', h.px, h.py, 110, { life: 300 }); this.spr({ name: 'sonic_boom', x: h.px, y: h.py, depth: TOP + 3, w: 90, add: true, life: 220, sx: kf([0, 0.4], [1, 1.3, out3]), sy: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+    this.spr({ name: 'hawk_dive', x: to.x, y: to.y + 4, oy: 0.5, depth: GROUND + 3, w: 150, h: 46, tint: 0x000000, life: 260, sx: kf([0, 0.4], [0.7, 1, out3]), a: kf([0, 0], [0.4, 0.45], [0.8, 0.45], [1, 0]) });
     if (to.z > 20) { // a foe up in the air: talons rake him and slam him down onto the floor (he bounces back up)
       this.later(170, () => this.spr({ name: 'talon_slash', x: to.x, y: to.y - to.z - 40, depth: to.y + 5, w: 150, life: 220, add: true, glow: 0.3, sy: kf([0, 0.4], [0.3, 1.05, out3]), a: kf([0, 1], [1, 0, inQ]) }));
       this.later(330, () => { this.spr({ name: 'slam_burst', x: to.x, y: to.y + 8, oy: 0.97, depth: to.y + 4, w: 220, life: 460, glow: 0.3, sy: kf([0, 0.3], [0.25, 1.05, out3]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
@@ -793,6 +797,10 @@ export class ArcherFx {
     else this.pop('spark_s', x, y, rapid ? 60 : 82, { life: 200 });
     if (!rapid && Math.random() < 0.6) this.leaves(x, y, 3, 14, { life: 420, up: 30 });
     if (launch) this.spr({ name: 'launch_beam', x, y: at.y + 4, oy: 0.97, depth: at.y + 3, w: 60, life: 300, add: true, sy: kf([0, 0.3], [0.3, 1, out3]), a: kf([0, 1], [1, 0, inQ]) });
+    }
+    if (s.id === 'backstep_shot') { // her arrow pins him: it stands in him and a ring of light holds him for the pin
+      this.spr({ name: 'arrow_stuck', x, y: y + 6, depth: at.y + 6, w: 70, life: 460, a: kf([0, 1], [0.8, 1], [1, 0]) });
+      this.spr({ name: 'arrow_halo', x, y, depth: at.y + 5, w: 96, add: true, glow: 0.3, life: 450, sy: () => 0.45, rot: (u) => u * 90, a: kf([0, 0], [0.1, 0.9], [0.8, 0.8], [1, 0]) });
     }
     if (s.id === 'leaping_arrow' && hit.reaction.hardCC) { // roots grip the caught foe's legs for the hold
       const ms = hit.reaction.hardCC.ms;

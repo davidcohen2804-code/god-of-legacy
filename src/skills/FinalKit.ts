@@ -457,7 +457,7 @@ const archer: FinalSkill[] = [
     dash: { distance: -150, lift: 60 },
     hits: [H(120, 12, { kind: 'projectile', speed: 1000, range: 300, radius: 11, antiAir: true }, { stun: 220, push: 8, pin: 450 }, { mark: 1 })], // (the arrow pins a launched foe up there for her follow-up from range)
     cancelOnHit: ['quick_shot', 'hunters_spirit', 'rising_arrow', 'explosive_arrow'],
-    description: 'A back flip out of reach — at the top of it she looses one arrow at the foe, leaves trailing behind her. Keep your distance.',
+    description: 'A back flip out of reach — at the top of it she looses one arrow at the foe, leaves trailing behind her; its arrow pins a foe in the air. Keep your distance.',
     relations: ['Keep distance', 'From the basic / Kick'],
   }),
   S({
@@ -530,7 +530,7 @@ const archer: FinalSkill[] = [
     hits: [H(0, 3, { kind: 'circle', radius: 90 }, { stun: 160, push: 10 }, { reachUp: 120 })],
     linger: { at: 'caster', startMs: 1200, everyMs: 2200, count: 10, radius: 360, maxZ: 320, hit: H(0, 16, { kind: 'circle', radius: 40 }, { stun: 300, push: 6, slam: true, juggleCost: 4 }, { reachUp: 320 }) }, // a foe up in the air is slammed onto the floor and bounces back up
     tags: ['buff'],
-    description: 'Summons a spirit hawk that roams the sky around you for 20s and every few seconds dives on a foe by itself.',
+    description: 'Summons a spirit hawk that roams the sky around you for 20s and every few seconds dives on a foe by itself — its first dive comes soon after the call, its cry and its shadow warn of each strike.',
     relations: ['Summon 20s', 'Attacks alone'],
   }),
   // ---- 4th job (Bowmaster)
@@ -568,7 +568,7 @@ const archer: FinalSkill[] = [
     hits: Array.from({ length: 15 }, (_, i) => i === 14 ? H(i * 200, 12, { kind: 'placed', radius: 115 }, { stun: 360, launch: 120, juggleCost: 20, slow: { pct: 30, ms: 500 } }, { reachUp: 180, heavy: true, mark: 1 }) // the last volley throws him up
       : H(i * 200, i % 5 === 4 ? 10 : 7, { kind: 'placed', radius: 115 }, { stun: i % 5 === 4 ? 320 : 240, float: true, juggleCost: 4, slow: { pct: 30, ms: 500 } }, { reachUp: 180, ...(i % 5 === 4 ? { mark: 1 } : {}) })), // (every 5th volley hits harder and marks him: the rain has a beat — cut it short and the marks and the throw are lost)
     cancelOnHit: ['quick_shot', 'sky_rain'],
-    description: 'Fire dozens of arrows into the sky: for 3s they rain down on a marked spot on the floor, and the direction you hold steers the mark anywhere around you while you stand your ground.',
+    description: 'Fire dozens of arrows into the sky: for 3s they rain down on a marked spot on the floor, and the direction you hold steers the mark anywhere around you while you stand your ground. The rain has a beat — every 5th volley is a great arrow that marks the foe, and the last one throws him up (cut it short and the beat is lost).',
     relations: ['Rooted', 'Steer the rain'],
   }),
   S({
