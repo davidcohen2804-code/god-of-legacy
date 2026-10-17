@@ -191,6 +191,8 @@ export class ArcherFx {
     const side = sideOf(r), lv = level(r.aim.x, r.aim.y);
     this.spr({ name: 'muzzle', w: size, life: 200, delay, tint, follow: this.at(r.attackerId, side, 14, 54), dz: 4, ox: lv.flip ? 0.85 : 0.15, flipX: lv.flip, angle: lv.ang, add: true, glow: 0.4, run: r,
       sx: kf([0, 0.4], [0.25, 1.1, out3], [1, 1.2]), sy: kf([0, 0.6], [0.25, 1, out3], [1, 0.6]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
+    // the release's star at the bow (David's bar: a white-hot core for 2–4 frames)
+    this.spr({ name: 'spark_s', w: size * 0.42, life: 90, delay, follow: this.at(r.attackerId, side, 18, 54), dz: 5, add: true, glow: 0.3, run: r, rot: (u) => u * 40, sx: kf([0, 0.5], [0.3, 1.15, out3], [1, 0.8]), sy: kf([0, 0.5], [0.3, 1.15, out3], [1, 0.8]), a: kf([0, 1], [0.6, 1], [1, 0]) });
   }
   /** A painted burst at the bow along the aim (fan of light, sonic boom). */
   private bowBurst(r: CastRun, name: string, size: number, delay = 0, life = 260, tint?: number): void {
@@ -239,7 +241,7 @@ export class ArcherFx {
         this.later(T.startup + T.active, () => { const q = this.me(r); this.floor('wind_ring', q.x, q.y, 100, 380, { add: true, s: kf([0, 0.5], [1, 1.2, out3]), a: kf([0, 0.9], [1, 0]) }); this.spr({ name: 'dust', x: q.x, y: q.y + 4, oy: 0.85, depth: q.y + 1, w: 110, life: 420, a: kf([0, 0.7], [1, 0]) }); }, r);
         break;
       }
-      case 'multi_shot': this.charge(r, 'leaf_whirl', 44, T.startup, { spin: 420, dx: 16 }); this.bowBurst(r, 'muzzle_fan', 150, T.startup, 240); this.bowBurst(r, 'sonic_boom', 90, T.startup + 20, 300); break; // (the fan a size down: it hid the foe)
+      case 'multi_shot': this.charge(r, 'leaf_whirl', 44, T.startup, { spin: 420, dx: 16 }); this.muzzle(r, 80, T.startup); this.bowBurst(r, 'muzzle_fan', 150, T.startup, 240); this.bowBurst(r, 'sonic_boom', 90, T.startup + 20, 300); break; // (the fan a size down: it hid the foe)
       case 'explosive_arrow': this.charge(r, 'burst_crit', 60, T.startup, { tint: 0xffa040, spin: 260, dx: 16 }); this.muzzle(r, 130, T.startup, 0xffa040); this.bowBurst(r, 'sonic_boom', 150, T.startup, 320, 0xff9a40); break; // (fire-coloured at the bow: it is a fireball)
       case 'rising_arrow': { // the earth cracks and glows under the foe, gathering power; then a great arrow of light bursts up out of it and throws the foe high
         const sh = s.hits[0].shape as { bias?: number }, bx = r.origin.x + a.x * (sh.bias ?? 95), by = r.origin.y + a.y * (sh.bias ?? 95);
