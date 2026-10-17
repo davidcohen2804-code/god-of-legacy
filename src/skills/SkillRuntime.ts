@@ -115,9 +115,15 @@ function arenaReach(hits: HitEvent[], ts: { reach?: number; antiAir?: boolean; d
     : { ...h, ...(ts.reach && !(h.shape.kind === 'circle' && h.shape.floor) ? { reachUp: Math.max(h.reachUp ?? 80, ts.reach) } : {}), ...(ts.depth !== undefined && h.shape.kind !== 'capsule' ? { depth: ts.depth } : {}) });
 }
 
+/** Thunder Rain's charged floor (the Archer's continuity, DFO's numbers): each strike point stays charged 2.5 s; a shot of
+ *  hers crossing one (within 90 px, 54 deep, under 120 up) is spent on it and comes out as lightning — +20% damage, and on
+ *  its hit a bolt chains to the nearest other foe within 220 px for half of it (the scene). One point, one arrow. */
+export const STORM = { ms: 2500, r: 90, depth: 54, z: 120, mul: 1.2, chainR: 220, chainShare: 0.5, chainStun: 240, shots: new Set(['quick_shot', 'multi_shot', 'piercing_arrow', 'backstep_shot']) };
+
 export const RT_EVENTS = {
   cast: 'cast', active: 'active', hit: 'hitFired', projectile: 'projectile', projectileEnd: 'projectileEnd',
   trap: 'trap', trapTrigger: 'trapTrigger', trapArm: 'trapArm', end: 'end', cancelled: 'cancelled', counter: 'counter', chain: 'chain',
+  /** (p, run, point): a shot crossed a charged point and turned to lightning — for its look */ storm: 'storm',
 } as const;
 
 export class SkillRuntime {
@@ -125,6 +131,8 @@ export class SkillRuntime {
   runs: CastRun[] = [];
   projectiles: { p: Projectile; run: CastRun; hit: HitEvent }[] = [];
   traps: Trap[] = [];
+  /** Thunder Rain's charged strike points (STORM), by caster. */
+  charged: { x: number; y: number; until: number; by: string }[] = [];
   readonly cooldownEnd = new Map<string, number>();
   private charges = new Map<string, { used: number; last: number }>();
   /** Own priming stances (Sheathe) per caster: until when, which skills it primes, how many charge levels. */
@@ -253,10 +261,25 @@ export class SkillRuntime {
     for (const r of this.runs) if (r.phase !== 'done') { r.phase = 'done'; this.events.emit(RT_EVENTS.cancelled, r); }
     this.runs = []; this.projectiles = []; this.traps = [];
     this.events.removeAllListeners();
-    this.cooldownEnd.clear(); this.charges.clear();
+    this.cooldownEnd.clear(); this.charges.clear(); this.charged = [];
   }
 
   // ------------------------------------------------------------------ internals
+
+  /** The samurai's blossom draw (DFO's numbers): the petals his Sheathe gathered ride on his Iai — from 6 its line is 40%
+   *  wider; one more cut per 4 petals (at most 4), each a stroke along the same line 70 ms after the one before (6 damage,
+   *  a 260 ms hold that keeps a lifted foe up); the active phase stretches to fit them. The same on both screens: the count
+   *  rides on the cast. */
+  private blossomDraw(r: CastRun): void {
+    const n = r.petals ?? 0, wide = n >= 6, last = r.hits[r.hits.length - 1];
+    const widen = (h: HitEvent): HitEvent => (wide && h.shape.kind === 'line' ? { ...h, shape: { ...h.shape, width: Math.round(h.shape.width * 1.4) } } : h);
+    r.hits = r.hits.map(widen);
+    const extra = Math.min(4, Math.floor(n / 4)), base = widen(last);
+    for (let k = 1; k <= extra; k++) {
+      r.hits.push({ ...base, at: last.at + 70 * k, damage: 6, heavy: false, reaction: { stun: 260, float: true, juggleCost: 3 } });
+    }
+    if (extra) r.timings.active = Math.max(r.timings.active, last.at + 70 * extra + 20);
+  }
 
   private advance(r: CastRun, ms: number): void {
     if (r.phase === 'done') return;
@@ -269,6 +292,7 @@ export class SkillRuntime {
         lv = Math.min(L.length - 1, lv + (r.chargeUp ?? 0)); // (primed by Sheathe: levels higher)
         r.chargeLevel = lv; r.hits = arenaReach(L[lv].hits, r.tune);
       }
+      if ((r.petals ?? 0) > 0 && r.hits.length) this.blossomDraw(r); // (the samurai's Iai drawn with the petals in the scabbard)
       r.phase = 'active';
       this.events.emit(RT_EVENTS.active, r);
       this.world.onPhase?.(r, 'active');
@@ -298,6 +322,11 @@ export class SkillRuntime {
     const cur = this.world.casterPos(r.attackerId) ?? r.origin;
     const origin: V3 = r.skill.dash || r.skill.counter ? cur : { x: r.origin.x, y: r.origin.y, z: cur.z };
     this.events.emit(RT_EVENTS.hit, r, i, origin);
+    if (r.skill.id === 'rain_of_arrows' && s.kind === 'circle' && s.floor) { // a strike point of Thunder Rain: the floor stays charged
+      const bias = s.bias ?? 0, now = this.world.now();
+      this.charged = this.charged.filter((c) => c.until > now);
+      this.charged.push({ x: r.origin.x + r.aim.x * bias, y: r.origin.y + r.aim.y * bias, until: now + STORM.ms, by: r.attackerId });
+    }
     if (s.kind === 'projectile') {
       const aim = this.liveAim(r, origin);
       const rows = s.rows ?? 1, gap = s.rowGap ?? 40;
@@ -391,7 +420,12 @@ export class SkillRuntime {
       const pid = e.p.pid, tag = pid ? `|p${pid}|` : null;
       const already = new Set([...e.run.hitKeys].filter((k) => (tag ? k.includes(tag) : k.includes(`|${e.p.hitIndex}|`) || k.includes('|fan|'))).map((k) => k.split('|')[2]));
       const hits = stepProjectile(e.p, ms, targets, already);
-      for (const t of hits) this.deliver(e.run, e.hit, e.p.hitIndex, t, { x: e.p.x, y: e.p.y, z: e.p.z }, pid);
+      if (!e.p.storm && this.charged.length && STORM.shots.has(e.p.skill.id) && e.p.z < STORM.z) { // over a charged point of her own: lightning
+        const now = this.world.now(), k = this.charged.findIndex((c) => c.by === e.p.attackerId && c.until > now && Math.abs(c.x - e.p.x) < STORM.r && Math.abs(c.y - e.p.y) < STORM.depth);
+        if (k >= 0) { const c = this.charged.splice(k, 1)[0]; e.p.storm = true; this.events.emit(RT_EVENTS.storm, e.p, e.run, c); }
+      }
+      const hit = e.p.storm ? { ...e.hit, damage: e.hit.damage * STORM.mul, storm: true } : e.hit;
+      for (const t of hits) this.deliver(e.run, hit, e.p.hitIndex, t, { x: e.p.x, y: e.p.y, z: e.p.z }, pid);
       if (!e.p.done) this.world.projectileHook?.(e.p, e.run);
       if (e.p.done) {
         if (e.p.explodeRadius > 0) { // burst at target / cover / max range

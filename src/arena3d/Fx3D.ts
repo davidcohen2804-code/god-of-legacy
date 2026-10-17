@@ -857,7 +857,7 @@ class Crystals {
  *  gilt edges). Any other picture lies, flies back and spins the same way: `tex` (the game's texture key, both sides
  *  unless `face`), `size` (× a card, 24 px wide), `aspect` (length / width, card 1.37), `edge` (the rim's colour; the card's
  *  gilt by default) — the samurai's fallen petals, the mage's torn pages. */
-export interface CardLook { tex?: string; face?: string; size?: number; aspect?: number; edge?: number }
+export interface CardLook { tex?: string; face?: string; size?: number; aspect?: number; edge?: number; /** how it goes when its time is up: embers of a colour (default gold), or 'wind' — lifted and carried off (petals, pages) */ crumble?: number | 'wind' }
 
 /** One card: its place (units: x across, y up, z depth), its turn, and what it is doing. */
 interface Card3 {
@@ -865,7 +865,7 @@ interface Card3 {
   x: number; y: number; z: number; yaw: number; roll: number; pitch: number;
   ax: number; ay: number; az: number; bx: number; bz: number;
   t: number; ms: number; delay: number; spin: number; stuck: number; life: number; hop: number; glint: number;
-  to?: () => V3 | null; done?: () => void; layer: 0 | 1; sw: number; sl: number;
+  to?: () => V3 | null; done?: () => void; layer: 0 | 1; sw: number; sl: number; crumble?: number | 'wind';
   mesh: THREE.Mesh; shadow: THREE.Mesh; mats: THREE.MeshStandardMaterial[];
 }
 /** The big spinning card. */
@@ -913,7 +913,7 @@ class Deck3 {
     const shadow = new THREE.Mesh(this.shadowGeo, new THREE.MeshBasicMaterial({ map: this.shadowTex, transparent: true, depthWrite: false, opacity: 0 }));
     shadow.scale.set(sw * 1.7, 1, sl * 1.5); shadow.frustumCulled = false; shadow.renderOrder = -1;
     this.h.back.add(mesh); this.h.back.add(shadow);
-    return { key, mode: 'fly', x: 0, y: 0, z: 0, yaw: 0, roll: 0, pitch: 0, ax: 0, ay: 0, az: 0, bx: 0, bz: 0, t: 0, ms: 1, delay: 0, spin: 0, stuck: 0, life: 12000, hop: 0, glint: Math.random() * 4000, layer: 0, sw, sl, mesh, shadow, mats };
+    return { key, mode: 'fly', x: 0, y: 0, z: 0, yaw: 0, roll: 0, pitch: 0, ax: 0, ay: 0, az: 0, bx: 0, bz: 0, t: 0, ms: 1, delay: 0, spin: 0, stuck: 0, life: 12000, hop: 0, glint: Math.random() * 4000, layer: 0, sw, sl, crumble: look?.crumble, mesh, shadow, mats };
   }
   lay(key: string, from: V3, to: { x: number; y: number }, o: { ms?: number; stuck?: boolean; life?: number; delay?: number; look?: CardLook }): void {
     this.drop(key);
@@ -1004,7 +1004,8 @@ class Deck3 {
         for (const m of c.mats) m.emissiveIntensity = 0.3 + u * 1.4;
         if (u >= 1) { this.h.flare(hx, hy, hz + 0.1, 0xffd27a, 4, 2, 160); c.done?.(); c.mode = 'crumble'; c.t = c.ms = 1; c.mesh.visible = false; }
       } else if (c.mode === 'crumble') { // burns away from the edges: gold embers
-        if (c.t <= ms && c.mesh.visible && c.ms > 1) this.h.embers(c.x, c.y + 0.03, c.z, 0xffb060, 4, 0.5);
+        if (c.crumble === 'wind') { c.y += dt * 0.9; c.x += dt * 0.6; c.yaw += dt * 4; c.roll += dt * 3; } // (lifted and carried off on the wind)
+        else if (c.t <= ms && c.mesh.visible && c.ms > 1) this.h.embers(c.x, c.y + 0.03, c.z, c.crumble ?? 0xffb060, 4, 0.5);
         const k = 1 - u; for (const m of c.mats) { m.opacity = k; m.emissiveIntensity = 0.22 + (1 - k) * 1.5; }
         c.mesh.scale.set(c.sw * (0.6 + 0.4 * k), this.T, c.sl * (0.6 + 0.4 * k));
       }

@@ -123,6 +123,8 @@ export interface Projectile {
   /** Homing shots (Origami Flock): turn rate (rad/s), which foe of the list this one hunts, its own id (each one hits). */
   homing?: number;
   pick?: number;
+  /** It crossed Thunder Rain's charged floor: lightning now (the Archer's continuity). */
+  storm?: boolean;
   pid?: number;
   /** Book Mage gates: last time it passed through one (no bouncing between them). */
   portedAt?: number;

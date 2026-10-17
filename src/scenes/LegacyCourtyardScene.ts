@@ -99,7 +99,7 @@ import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../gam
 import { ARENA, CombatBody, counterStun, HitOutcome, gaugeOf, Kin, MAGE, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import { ARENA_FLOW, MAGE_HIDDEN, arenaCommits, arenaTimeScale, armorMul, finalSkill, iconUrl, kitFor, lastOfBurst } from '../skills/FinalKit';
-import { CastRun, RT_EVENTS, SkillRuntime, Trap } from '../skills/SkillRuntime';
+import { CastRun, RT_EVENTS, SkillRuntime, Trap, STORM } from '../skills/SkillRuntime';
 import type { Projectile } from '../skills/HitGeometry';
 import { Afterimages, applyMotion, archerMotion, heroMotion, leapMotion } from '../skills/ArcherMotion';
 import { SAMURAI_AFTER, TORNADO, samuraiMotion, samuraiSeen, shinsokuMotion, tornadoPath } from '../skills/SamuraiMotion';
@@ -3236,11 +3236,26 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (t.id.startsWith('kage:')) { this.kageStruck(t.id); return; } // a Kagemusha double: the blow is wasted on it
     if (run.skill.id === 'judgment_hook') { const f = this.hitFrom(run, hit), d = Math.hypot(at.x - f.x, at.y - f.y); hit = { ...hit, reaction: { ...hit.reaction, pull: Math.max(0, Math.min(340, d - 58)) } }; } // the chain yanks it to just in front of him
     if (!run.own) { if (t.id === this.localId) this.applyRemoteHitToSelf(run, hit, hi, at); return; }
-    if (t.kind === 'enemy') { this.applyToPve(run, hit, t, at); return; }
-    if (t.id === BOT_ID) { this.applyToBot(run, hit, t, at); return; }
+    if (t.kind === 'enemy') { this.applyToPve(run, hit, t, at); this.stormChain(run, hit, t); return; }
+    if (t.id === BOT_ID) { this.applyToBot(run, hit, t, at); this.stormChain(run, hit, t); return; }
     if (run.confirmedAt < 0 && !t.invulnerable && !this.isPoke(run, hit, t)) run.confirmedAt = run.elapsed; // predicted contact on a remote player (their client is authority; a guarded one: no contact; a poke from afar: no cancel)
     if (!t.invulnerable && t.kind === 'player' && this.pvp?.remotes.has(t.id)) this.pvp.sendClaim(t.id, run.castId, hi, t.x, t.y, t.z);
     if (!t.invulnerable && t.kind === 'player') { const theirs = this.rt?.runs.find((r) => r.attackerId === t.id && r.phase === 'recovery'); this.callPunish(run, !!theirs && arenaCommits(theirs.skill) && !this.landedOnMe.has(theirs.castId), at); } // what we saw: they take it if lag alone made them miss it (onClaim)
+  }
+
+  /** A lightning arrow's hit (the Archer's continuity — Thunder Rain's charged floor, `STORM`): a bolt chains on from the
+   *  foe it struck to the nearest other foe within 220 px for half its damage (a 240 ms hold, no lift). Your own shots on the
+   *  sparring knight and the world's monsters (a remote player is not chained: his own screen does not see the strike). */
+  private stormChain(run: CastRun, hit: HitEvent, t: HitTarget): void {
+    if (!hit.storm || !run.own || run.zone) return;
+    const other = this.targetsFor(run).filter((x) => x.alive && !x.invulnerable && x.id !== t.id && x.id !== run.attackerId && !this.party?.has(x.id) && (x.kind === 'enemy' || x.id === BOT_ID) && Math.hypot(x.x - t.x, x.y - t.y) <= STORM.chainR)
+      .sort((a, b) => Math.hypot(a.x - t.x, a.y - t.y) - Math.hypot(b.x - t.x, b.y - t.y))[0];
+    if (!other) return;
+    const at = { x: other.x, y: other.y, z: other.z + 40 };
+    const chain: HitEvent = { ...hit, storm: false, heavy: false, damage: hit.damage * STORM.chainShare, shape: { kind: 'circle', radius: 40 }, reaction: { stun: STORM.chainStun } };
+    const zr = { ...run, origin: { x: other.x, y: other.y, z: Math.max(0, other.z - 20) }, zone: true } as CastRun; // (from the bolt itself, at his height)
+    this.fx?.stormChain(run, { x: t.x, y: t.y, z: t.z + 50 }, at);
+    if (other.kind === 'enemy') this.applyToPve(zr, chain, other, at); else this.applyToBot(zr, chain, other, at);
   }
 
   /** PvE authority: combat body reaction on the enemy/dummy, damage, confirmed-hit feedback. */

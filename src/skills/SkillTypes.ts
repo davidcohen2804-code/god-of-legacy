@@ -87,6 +87,9 @@ export interface HitEvent {
   stick?: number;
   /** Gambler: a staff blow — it sets off the cards stuck in the foe at once (Short Fuse). */
   fuse?: boolean;
+  /** Archer: a shot that crossed Thunder Rain's charged floor and came out as lightning — on its hit a bolt chains to the
+   *  nearest other foe (the scene). Set by the runtime on the shot's hit, never in the kit. */
+  storm?: boolean;
 }
 
 export interface FinalSkill {

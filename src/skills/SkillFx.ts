@@ -2190,6 +2190,9 @@ export class SkillFx {
   deckGather(r: CastRun, keys: string[]): void { this.gamb.deckGather(r, keys); }
   cardStep(x: number, y: number, dir: number): void { this.gamb.cardStep(x, y, dir); }
   gambleZone(id: string, x: number, y: number, r: number): void { this.gamb.zone(id, x, y, r); }
+  /** A lightning arrow's chain (the Archer's continuity): the bolt from the foe it struck to the next — drawn by ArcherFx
+   *  when it has a `stormChain(r, from, to)`. */
+  stormChain(r: CastRun, from: V3, to: V3): void { (this.arch as unknown as { stormChain?: (r: CastRun, from: V3, to: V3) => void }).stormChain?.(r, from, to); }
   /** A turn of a hold that follows its foe (`linger.at: 'target'`), at him: the class draws it when it has a `holdTick`
    *  (turn `i` from 0, `last` the final one) — the Gambler's spinning card under the foe. */
   holdTick(r: CastRun, at: V3, i: number, last: boolean): void {
