@@ -1821,13 +1821,18 @@ export class SamuraiFx {
   }
   /** The blossom draw's extra cuts (the Iai's hits after the draw): a pink stroke along the line a beat apart, a few
    *  petals where it bites. */
+  private bloomAt = new Map<string, number>();
   private blossomCut(r: CastRun, i: number): void {
     const a = r.aim, q = this.me(r), len = (r.hits[i]?.shape as { length?: number }).length ?? 200, fl = a.x < -0.01;
     const ang = screenAng(a.x, a.y) + (i % 2 ? 3 : -3), off = i % 2 ? 7 : -7, x0 = q.x + a.x * 8, y0 = q.y + a.y * 4 - q.z - 46 + off;
-    this.spr({ name: tn('cut_line', 'steel'), x: x0, y: y0, ox: 0.03, angle: ang, flipY: fl, w: len * (0.9 + 0.05 * i), h: 12, depth: TOP + 3, life: 240, glow: 0.7, tint: 0xffa8d2,
+    // (70 ms apart on screen: under the draw's hit-stop the runtime fires them all while the picture is held — staggered
+    // from the first one's moment, they still come one after another)
+    if (i === 1 || !this.bloomAt.has(r.castId)) { this.bloomAt.set(r.castId, this.clock); if (this.bloomAt.size > 20) this.bloomAt.delete(this.bloomAt.keys().next().value!); }
+    const delay = Math.max(0, this.bloomAt.get(r.castId)! + (i - 1) * 70 - this.clock);
+    this.spr({ name: tn('cut_line', 'rose'), x: x0, y: y0, ox: 0.03, angle: ang, flipY: fl, w: len * (0.9 + 0.05 * i), h: 14, depth: TOP + 3, life: 260, delay, glow: 0.5, tint: 0xffc2e0,
       sx: kf([0, 0.05], [0.18, 1, out3]), sy: kf([0, 1.3], [0.18, 1], [1, 0.2, inQ]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
     const f = 0.35 + Math.random() * 0.5, c = Math.cos(ang * Math.PI / 180), sn = Math.sin(ang * Math.PI / 180);
-    this.petals(x0 + c * len * f, y0 + sn * len * f, 4, 40, { depth: TOP + 2, life: 700 });
+    this.petals(x0 + c * len * f, y0 + sn * len * f, 4, 40, { depth: TOP + 2, life: 700, delay });
   }
 
   private endHalo(attackerId: string, now = false): void {
