@@ -73,7 +73,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 The tools are in (the moment, the Fx3D pieces, the sound); what David sees in a match has hardly changed. **Every class chat, now, in this order, nothing else first:** redo the **four skills a match shows most** — (1) the basic chain's hits, (2) the main launcher, (3) the signature (slot 6), (4) the ultimate — to THE BAR below: one strong shape each, 3D (the pieces: inked `slash` rings, `impact` on the main hit, `flurry` / `bladeBall` / `glyph` / `skyBeam` where they fit), the class colour with a white core and a dark stroke, no white wash; and their painted effect cut back where the 3D carries it (no flat page over the bodies). Push each skill as it is done (one commit a skill), film it in PVP 3D, note it here. **DFO shoots before / after of these 20 skills for David.**
 - Warrior: Iron Chain · Rising Slash · Blade Storm · Titan's Verdict
 - Samurai: Quick Slash · Swallow Cut · Blossom Storm · Dragon Eclipse
-- Archer: Double Shot · Rising Arrow · Air Volley · Sky Rain
+- Archer: Double Shot · Rising Arrow · Air Volley · Sky Rain — **Archer: the four done (David 22:14), one commit each:** a star at the bow on every release (Double Shot, Rising Arrow, Air Volley; the charged arrow gold); Rising Arrow one twisting leaf geyser; her own main-hit pieces dropped from all four (Sky Rain's impact, Double Shot's dome, Rising Arrow's crack) for DFO's main-hit impact. No combo broken on my side. Stopped.
 - Book Mage: Arcane Bolt · Astral Lift · Storm Field · Time Collapse
 - Gambler: Cut the Deck · Staff Vault · Showdown · Jackpot
 
