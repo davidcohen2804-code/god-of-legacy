@@ -167,6 +167,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - PvP (Maps' Thief's Den request): play together in the open world — see each other in the maps, party up, run the Thief's Den as a party. A big new system: build it now, or keep the world single-player for now?
 
 ## Done
+- Gambler: the lucky moments no longer white the screen out (royal hand flash 0.5 → 0.2, Showdown's crown smaller, the wheel's RED flash 0.16–0.18) — 5cc469f9
 - Samurai (quality pass, PVP 3D): nothing of his whites the foe out any more — the Iai's draw is its hair line of steel opening in crimson (no white burst at the draw) — 3ee71d67; Hundred Cuts' storm and last blow lighter, both fighters read through it — 58672f02
 - Samurai (quality pass): Sakura Bind — his own body move (PixVerse: the katana driven into the planks on one knee, held, pulled out as he rises; it was a palm pushed out) and the idea shown: the planks crack where the blade goes in and a line of blossom light runs through the floor to the ring (2D + 3D); checked in PVP 3D — 70123a0a
 - Gambler: reads the arena's re-timed hits (DFO's hitIndex) — a burst's heavy last blast now shows in the arena too (it compared hit times, which the arena copies)
