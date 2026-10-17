@@ -578,7 +578,7 @@ export class SamuraiFx {
       case 'falcon_dive': if (i === 1) this.falconImpact(r); else this.cut(tn('cut_thin', 'fire'), 120, side * 30, { x: q.x + side * 30, y: y0 - 40, depth: q.y + 4, flipX: side < 0 }); break;
       case 'rising_sun': this.sunBurst(r); break;
       case 'phantom_blades': this.phantom(r, i); break;
-      case 'god_of_blades': this.shock(q.x, q.y, 300, { tone: 'gold' }); this.sparks(q.x, y0 - 80, 12, 120, { tone: 'gold' }); this.auraFlare(r, 'aura_gold', 180, 820); break;
+      case 'god_of_blades': this.shock(q.x, q.y, 300, { tone: 'gold' }); this.sparks(q.x, y0 - 80, 12, 120, { tone: 'gold' }); this.auraFlare(r, 'aura_gold', 156, 680); break; // (a size down: it washed him out)
       case 'sakura_bind': this.bloom(r); break;
       case 'dragon_ascension': if (i === 0) this.ascensionBurst(r); else this.cut(tn('cut_thin', 'gold'), 150, rnd(-30, 30), { x: q.x + rnd(-60, 60), y: y0 - 90 - i * 70, depth: TOP + 3, flipX: Math.random() < 0.5 }); break;
       case 'blossom_storm': this.stormCut(r, i); break;

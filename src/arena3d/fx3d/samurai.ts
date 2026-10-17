@@ -100,8 +100,9 @@ export const SAMURAI: Record<string, Recipe> = {
   // later: a thin gold cut on the foe
   god_of_blades: { own: true,
     active: (f, r) => { const c = me(f, r);
-      for (let i = 0; i < 5; i++) f.later(i * 50, () => f.slash(me(f, r), -side(r), C.gold, { r: 105 + i * 10, w: 20, tilt: 80, a0: -60 + i * 30, a1: 40 + i * 30, ms: 520, y0: 110, i: 1.1 }));
-      f.host.ring(f.host.w3(c.x), f.host.d3(c.y), C.gold, 2.8, 460, 0.7); },
+      // (soft: the arcs' near halves pass over him — at 1.1 they bleached him white in PVP 3D)
+      for (let i = 0; i < 5; i++) f.later(i * 50, () => f.slash(me(f, r), -side(r), C.gold, { r: 105 + i * 10, w: 18, tilt: 80, a0: -60 + i * 30, a1: 40 + i * 30, ms: 520, y0: 110, i: 0.6 }));
+      f.host.ring(f.host.w3(c.x), f.host.d3(c.y), C.gold, 2.8, 460, 0.5); },
     hit: (f, _s, _h, at) => f.slash(at, flip(), C.gold, { r: 95, tilt: 20 + Math.random() * 40, a0: -100, a1: 100, ms: 200, i: 1.2 }) },
   // the bind: blossom light closing round the foe, a twisting column of it, petals
   sakura_bind: { own: true,
