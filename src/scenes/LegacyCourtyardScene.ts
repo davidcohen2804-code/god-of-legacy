@@ -3280,11 +3280,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (push) b.push = { vx: -push.vx * SPIKES.bounce, vy: -push.vy * SPIKES.bounce, left: Math.max(push.left, 90) };
       k.x += (k.x >= m.s.x ? 1 : -1) * 6; // (out of the spike's foot)
     };
-    if (this.dead < 0) { const m = meet(this.localId, this.kin, this.body); if (m) { this.spikes.shatter(m.s); bounce(this.kin, this.body, m, (zr, hit, at) => this.applyRemoteHitToSelf(zr, hit, 0, at)); } }
+    if (this.dead < 0) { const m = meet(this.localId, this.kin, this.body); if (m) { this.spikes.shatter(m.s); this.arenaSnd?.spikeBreak(m.s); bounce(this.kin, this.body, m, (zr, hit, at) => this.applyRemoteHitToSelf(zr, hit, 0, at)); } }
     const mine = (id: string, k: Kin, b: CombatBody) => {
       const m = meet(id, k, b); if (!m || !m.run.own) return;
       const t = this.targetsFor(m.run).find((x) => x.id === id); if (!t || !t.alive || t.invulnerable) return;
-      this.spikes.shatter(m.s);
+      this.spikes.shatter(m.s); this.arenaSnd?.spikeBreak(m.s);
       bounce(k, b, m, (zr, hit, at) => { if (id === BOT_ID) this.applyToBot(zr, hit, t, at); else this.applyToPve(zr, hit, t, at); });
     };
     if (this.bot && !this.bot.defeated) mine(BOT_ID, this.bot.kin, this.bot.body);

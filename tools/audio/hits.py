@@ -271,8 +271,152 @@ def page_fold(seed):
     return finish(x, 0.84, 20, 1.3)
 
 
+# ---------------------------------------------------------------- THE BAR's reference pieces (DFO's Fx3D, after David's
+# reference: each announced on onPieceRef — "each element its own layer: chimes and shimmer for magic sparkles, crackle
+# for fire and lightning, a deep void 'thoom' for ink / dark").
+
+def pc_line(seed):
+    """A flurry's line (a thin, very long cut of light through the foe, ~115 ms; a new one every ~40 ms): a fast thin
+    'tsing' — the air sliced (a band whipping up high), a hair-thin ring on its edge. Light: they come in streams."""
+    rng = R(seed); dur = 0.13; x = buf(dur)
+    place(x, swoosh(0.05, 3500, 11000, 8000, rng, peak=0.3, q=3.5, tail=6), 0, 0.9)
+    place(x, ring(0.12, rng.uniform(5600, 6800), [(1, 0.5, 0.03), (1.41, 0.3, 0.02), (2.13, 0.15, 0.012)], rng, beat=0.004), 0.005, 0.3)
+    x += click(dur, rng, 5000, 0.0004, 0.3)
+    return finish(x, 0.85, 3, 1.4)
+
+
+def pc_line_hv(seed):
+    """A flurry's heavier line (every fifth: wider, longer, a flare and embers): a full SHING — a broader slice, a ringing
+    edge, a knock of weight under it, the flare's 'fsh', a few sparks crackling off."""
+    rng = R(seed); dur = 0.42; t = T(dur); x = buf(dur)
+    place(x, swoosh(0.09, 1500, 8500, 4500, rng, peak=0.28, q=2.6, tail=5), 0, 0.95)
+    place(x, ring(0.36, rng.uniform(3050, 3550), [(1, 0.5, 0.12), (1.53, 0.36, 0.075), (2.41, 0.22, 0.045), (3.7, 0.12, 0.025)], rng, beat=0.005), 0.012, 0.45)
+    place(x, thud(0.18, 180, 85, 0.035), 0.01, 0.5)
+    place(x, hp(rng.standard_normal(T(0.06).size), 4500) * env(T(0.06), 0.002, 0.018), 0.014, 0.35)  # (the flare)
+    times = np.minimum(0.03 + np.sort(rng.exponential(0.07, 7)), 0.3)
+    x += grains(t.size, times, rng.uniform(0.15, 0.45, times.size), crackle_kernels(rng, 3000, (0.0005, 0.001)), rng)  # (embers)
+    return finish(x, 0.86, 10, 1.5)
+
+
+def pc_impact(seed):
+    """The main hit in one piece (the reference's hammer slam, 02): the white flash (a hard broadband crack), its colour
+    bursting out as a shell (a FWOOMP of energy, darkening as it spreads), the floor cracking under it (two splits, the
+    stone's body), the embers rising and fading (a fire's crackle thinning out). The blow's own boom stays under it
+    (ArenaSound): only a short push here."""
+    rng = R(seed); dur = 1.1; t = T(dur); x = buf(dur)
+    x += hp(rng.standard_normal(t.size), 1500) * env(t, 0.0003, 0.005)  # (the flash)
+    x += bp(rng.standard_normal(t.size), 2500, 9000) * env(t, 0.001, 0.02) * 0.45
+    ts = T(0.7); u = np.clip(ts / 0.28, 0, 1)
+    place(x, svf(rng.standard_normal(ts.size), 2600 * (380 / 2600) ** u, 0.9, 'lp') * env(ts, 0.018, 0.11), 0.03, 1.1)  # (the shell bursting out)
+    place(x, np.sin(glide(ts, 120, 55, 0.06)) * env(ts, 0.006, 0.12), 0.03, 0.45)  # (its push)
+    for st, f, tau, a in ((0.035, 900, 0.012, 0.75), (0.07 + rng.uniform(0, 0.02), 1200, 0.009, 0.5)):  # (the floor cracking)
+        tc = T(0.08); place(x, hp(rng.standard_normal(tc.size), f) * env(tc, 0.0005, tau), st, a)
+    tb = T(0.4); place(x, lp(brown(tb.size, rng), 320) * env(tb, 0.004, 0.09), 0.035, 0.5)  # (the stone's body)
+    times = 0.08 + np.sort(rng.exponential(0.22, 40)); times = times[times < 0.95]
+    x += grains(t.size, times, rng.uniform(0.1, 0.5, times.size) * np.exp(-(times - 0.08) / 0.35), crackle_kernels(rng, 2800, (0.0004, 0.0008, 0.0014)), rng) * 0.8  # (the embers)
+    x += hp(rng.standard_normal(t.size), 5000) * np.clip((t - 0.06) / 0.08, 0, 1) * np.exp(-np.maximum(0, t - 0.14) / 0.25) * 0.05  # (their hiss)
+    return finish(x, 0.86, 30, 1.5)
+
+
+def pc_beam(seed, small=False):
+    """A beam struck from the sky onto the foe (the reference's archer, 06): it falls in a breath (a bright tone and its
+    air dropping fast from on high), lands with a crack and a ring at its foot, then burns — a bright 'shhh' flickering
+    over a humming column — and fades. `small`: a thin quick one (a rain's volley: one of many) — the fall and its foot,
+    the burn a flicker (never a wall of them)."""
+    rng = R(seed); dur = 0.4 if small else 0.7; t = T(dur); x = buf(dur); bl = 0.16 if small else 0.42
+    dd = 0.065; td = T(dd); u = td / dd
+    place(x, np.sin(2 * np.pi * np.cumsum(4200 * (900 / 4200) ** u) / SR) * np.sin(np.pi * u) ** 0.7, 0, 0.22)  # (the fall)
+    place(x, svf(rng.standard_normal(td.size), 9000 * (1500 / 9000) ** u, 2.0) * u ** 1.2, 0, 0.7)
+    place(x, hp(rng.standard_normal(T(0.05).size), 1600) * env(T(0.05), 0.0003, 0.006), dd, 0.85)  # (its foot: the crack)
+    place(x, thud(0.25, 150, 70, 0.05), dd, 0.3 if small else 0.45)
+    place(x, ring(0.5, 1180 * (1.25 if small else 1), [(1, 0.4, 0.16), (2.0, 0.25, 0.1), (2.98, 0.15, 0.06), (4.1, 0.08, 0.04)], rng, beat=0.003), dd + 0.002, 0.14 if small else 0.2)  # (the ring at its foot)
+    tb = T(0.5); burn = np.clip(tb / 0.01, 0, 1) * np.clip((bl - tb) / (bl * 0.48), 0, 1) ** 1.5
+    flick = 0.82 + 0.18 * np.repeat(rng.random(int(0.5 * 70) + 2), SR // 70 + 1)[:tb.size]  # (the beam flickering)
+    place(x, bp(rng.standard_normal(tb.size), 2500, 8000) * burn * flick, dd, 0.3)
+    vib = 1 + 0.004 * np.sin(2 * np.pi * 7 * tb)
+    place(x, sum(np.sin(2 * np.pi * np.cumsum(880 * r * vib) / SR + i) for i, r in enumerate((1, 1.5, 2))) * burn * flick, dd, 0.07)
+    place(x, (np.sin(2 * np.pi * 110 * tb) + 0.5 * np.sin(2 * np.pi * 220 * tb + 0.3)) * burn, dd, 0.12)  # (the column humming)
+    return finish(x, 0.85, 20, 1.4)
+
+
+def pc_glyph(seed, chord=(659.26, 830.61, 987.77, 1318.51)):
+    """A big glyph opening on the floor (the reference's archer, mage and gothic ults: 06, 08, 09): it lands (a soft whump)
+    and blooms (a shimmer of chimes rising, its chord swelling), then hums under the fight, pulsing as it turns, and fades."""
+    rng = R(seed); dur = 2.0; t = T(dur); x = buf(dur)
+    x += np.sin(glide(t, 90, 50, 0.05)) * env(t, 0.008, 0.09) * 0.5  # (it lands)
+    tw = T(0.24); place(x, svf(rng.standard_normal(tw.size), 500 * (4000 / 500) ** (tw / 0.24), 2.2) * np.sin(np.pi * tw / 0.24), 0, 0.35)  # (it opens)
+    notes = [chord[i % len(chord)] * (2 if i >= len(chord) else 1) for i in range(6)]
+    for k, f in enumerate(notes):  # (a shimmer of chimes rising)
+        place(x, bell(0.6, f, ratio=2.0, index=1.0, tau=0.35, itau=0.06), 0.025 * k, 0.12)
+    fade = np.clip((1.9 - t) / 0.6, 0, 1)
+    pad = sum(np.sin(2 * np.pi * f * (1 + 0.0015 * (i - 1.5)) * t + i) for i, f in enumerate(chord)) * np.clip(t / 0.08, 0, 1) * np.exp(-t / 0.9) * fade
+    x += pad * 0.05
+    pulse = 0.7 + 0.3 * np.sin(2 * np.pi * 2.4 * t - np.pi / 2)  # (it pulses as it turns)
+    hum = (np.sin(2 * np.pi * 110 * t) + 0.6 * np.sin(2 * np.pi * 165 * t + 0.4) + 0.45 * np.sin(2 * np.pi * 220 * t + 1.1)) * pulse
+    x += hum * np.clip(t / 0.15, 0, 1) * fade * 0.12
+    x += (np.sin(2 * np.pi * 2637 * t) + np.sin(2 * np.pi * 2643 * t)) * np.clip((t - 0.1) / 0.3, 0, 1) * fade * 0.012  # (a glint as it turns)
+    return finish(x, 0.85, 60, 1.3)
+
+
+def pc_swirl(seed):
+    """Small pictures orbiting and rising round a fighter (the Samurai's petals, pages, leaves; or soft sparkles): a
+    whirling rush rising as they climb, fluttering as they pass, a rustle of them, a few glints."""
+    rng = R(seed); dur = 1.7; t = T(dur); x = buf(dur)
+    shape = np.clip(t / 0.25, 0, 1) * np.clip((1.7 - t) / 0.45, 0, 1)
+    orbit = np.sin(2 * np.pi * 4.5 * t)
+    fc = 800 * (3000 / 800) ** np.clip(t / 1.3, 0, 1) * (1 + 0.3 * orbit)
+    x += svf(rng.standard_normal(t.size), fc, 2.2) * (0.65 + 0.35 * np.sin(2 * np.pi * 4.5 * t + np.pi / 2)) * shape * 0.6
+    x += rustle(dur, rng, rate=450, lo=3000, hi=9500, amp=1.0) * shape * 0.45
+    x += lp(brown(t.size, rng), 250) * shape * 0.25
+    for k in range(10):
+        place(x, bell(0.25, rng.uniform(4000, 8000), ratio=2.0, index=0.6, tau=0.12), rng.uniform(0.2, 1.4), 0.05)
+    return finish(x, 0.84, 40, 1.3)
+
+
+def pc_ink(seed):
+    """An inked slash (its dark stroke inside the hot edge, the dark after-image as it fades): the void's deep 'thoom' —
+    a low drop, its octave, the dark air pulled down after it as the after-image dissolves."""
+    rng = R(seed); dur = 0.75; t = T(dur); x = buf(dur)
+    ph = glide(t, 78, 38, 0.09)
+    x += np.sin(ph) * env(t, 0.012, 0.22) * 0.8
+    for h, a, tau in ((2, 0.45, 0.15), (3, 0.25, 0.1), (4, 0.12, 0.07)):  # (its harmonics: the drop heard on small speakers too)
+        x += np.sin(h * ph + 0.5 * h) * env(t, 0.008, tau) * a
+    x += svf(rng.standard_normal(t.size), 1400 * (150 / 1400) ** np.clip(t / 0.5, 0, 1), 0.8, 'lp') * env(t, 0.02, 0.18) * 0.8  # (the dark air)
+    x += svf(rng.standard_normal(t.size), 320, 9.0) * env(t, 0.04, 0.2) * 0.6  # (hollow: the void)
+    return finish(x, 0.85, 40, 1.4)
+
+
+def spike_break(seed):
+    """A foe thrown into one of the warrior's rock spikes: the body slamming into stone, the spike cracking, crumbling in
+    chunks, gravel trickling down, a breath of dust."""
+    rng = R(seed); dur = 1.0; t = T(dur); x = buf(dur)
+    x += thud(dur, 115, 52, 0.08) * 0.85 + lp(rng.standard_normal(t.size), 600) * env(t, 0.001, 0.03) * 0.8  # (the slam)
+    for st, f, tau, a in ((0.0, 700, 0.012, 1.0), (0.022, 1100, 0.009, 0.6)):  # (the crack)
+        tc = T(0.08); place(x, hp(rng.standard_normal(tc.size), f) * env(tc, 0.0004, tau), st, a)
+    times = np.sort(0.02 + rng.exponential(0.08, 16))
+    x += grains(t.size, times, rng.uniform(0.4, 1.0, times.size) * np.exp(-times / 0.25), [knock(0.08, f, 0.02, rng, 0.8) for f in (300, 480, 700, 900)], rng) * 0.6  # (crumbling)
+    gr = np.sort(0.15 + rng.exponential(0.18, 40)); gr = gr[gr < 0.95]
+    x += grains(t.size, gr, rng.uniform(0.1, 0.45, gr.size) * np.exp(-(gr - 0.15) / 0.3), [knock(0.03, f, 0.006, rng, 1.0) for f in (900, 1400, 2000, 2400)], rng) * 0.5  # (gravel)
+    x += bp(rng.standard_normal(t.size), 500, 3000) * env(t, 0.03, 0.25) * 0.12  # (dust)
+    return finish(x, 0.86, 30, 1.4)
+
+
+PIECES = {'pc_line_1': lambda: pc_line(4201), 'pc_line_2': lambda: pc_line(4202), 'pc_line_3': lambda: pc_line(4203),
+          'pc_line_hv_1': lambda: pc_line_hv(4211), 'pc_line_hv_2': lambda: pc_line_hv(4212),
+          'pc_impact_1': lambda: pc_impact(4221), 'pc_impact_2': lambda: pc_impact(4222),
+          'pc_beam_1': lambda: pc_beam(4231), 'pc_beam_2': lambda: pc_beam(4232), 'pc_beam_s_1': lambda: pc_beam(4233, True), 'pc_beam_s_2': lambda: pc_beam(4234, True),
+          'pc_glyph_1': lambda: pc_glyph(4241) * 0.82,  # (as loud as the other take)
+          'pc_glyph_2': lambda: pc_glyph(4242, (587.33, 739.99, 880.0, 1108.73)),
+          'pc_swirl': lambda: pc_swirl(4251), 'pc_ink_1': lambda: pc_ink(4261), 'pc_ink_2': lambda: pc_ink(4262),
+          'spike_break': lambda: spike_break(4271)}
+
+
 if __name__ == '__main__':
     args = sys.argv[1:]
+    if args[:1] == ['pieces']:  # THE BAR's reference pieces (python3 tools/audio/hits.py pieces [name ...])
+        for n in args[1:] or PIECES:
+            write(n, PIECES[n]())
+        raise SystemExit
     if args[:1] == ['bar']:  # the risers and the flurries' ticks
         write('riser_s', riser(4101, 0.36)); write('riser_l', riser(4102, 0.52, ult=True))
         write('cutin_in', cutin_in(4103)); write('cutin_out', cutin_out(4104))

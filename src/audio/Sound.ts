@@ -24,6 +24,7 @@ export const SFX = {
   cutin_in: [1, 0.37], cutin_out: [1, 0.79], // (the ultimate's moment: the portrait slams in with its glint; cut away in a frame)
   // PVP 3D: the skills' pieces in the room, and the fighters on its planks
   crack: [2, 0.4], chunks: [2, 0.42], pillar: [1, 0.55], bolt: [2, 0.4], dome: [1, 0.5], wave: [1, 0.5], crystals: [1, 0.45], spikes: [1, 0.98], thorns: [1, 0.87], streak: [1, 0.32], slash: [1, 0.36], rain: [1, 0.45],
+  pc_line: [3, 0.47], pc_line_hv: [2, 0.37], pc_impact: [2, 0.375], pc_beam: [2, 0.43], pc_beam_s: [2, 0.26], pc_glyph: [2, 0.28], pc_swirl: [1, 0.27], pc_ink: [2, 0.62], // (THE BAR's reference pieces: a flurry's lines and its accent, the main hit's impact, a beam from the sky, a floor glyph, a swirl; an inked slash's thoom)
   step: [4, 0.42], scuff: [2, 0.45], thump: [2, 0.62],
   war_swing: [3, 0.5], war_hit: [3, 0.7], war_shield: [1, 0.75], war_cry: [1, 0.6], slam: [2, 0.85],
   sam_swish: [3, 0.5], sam_cut: [3, 0.7], sam_draw: [1, 0.55], sam_sheathe: [1, 0.45],
@@ -40,6 +41,7 @@ export const SIG_SFX = {
   warrior: {
     tk_wr: [2, 0.44], // (a flurry's small blows: its own 'shing')
     stone_burst: [1, 0.42], // (Leap Crash bursting his standing rock spikes)
+    spike_break: [1, 0.44], // (a foe thrown into one of his rock spikes: the wall breaking)
     wr_iron_1: [1, 0.44], wr_iron_2: [1, 0.44], wr_iron_3: [1, 0.47], wr_iron_4: [1, 0.62], wr_iron_hit: [2, 0.66], wr_iron_fin: [1, 0.65],
     wr_rise_c: [1, 0.29], wr_rise_h: [1, 0.29], wr_quake_c: [1, 0.61], wr_quake_h: [1, 0.58], wr_rush_c: [1, 0.5], wr_rush_h: [1, 0.47],
     wr_storm_w: [1, 0.38], wr_storm_c: [1, 0.33], wr_storm_h: [1, 0.28], wr_titan_w: [1, 0.27], wr_titan_h: [1, 0.58], wr_titan_end: [1, 1.0],

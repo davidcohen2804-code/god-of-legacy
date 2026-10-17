@@ -251,7 +251,7 @@ const REF_FALLBACK: Record<FxPieceRef, FxPiece | null> = { flurry: 'streak', imp
 
 export class Fx3D {
   /** Told of every piece as it appears: what, where (world px: x, floor depth y, height z) and how big (0 small … 2 huge). */
-  onPiece?: (kind: FxPiece, at: V3, size: number, o?: { stone?: boolean; color?: number }) => void; // (o: the piece's look — the sound picks ice, stone or thorns by it)
+  onPiece?: (kind: FxPiece, at: V3, size: number, o?: { stone?: boolean; color?: number; ink?: boolean }) => void; // (o: the piece's look — the sound picks ice, stone or thorns by it; an inked slash adds the void's thoom)
   /** Told of the reference pieces (flurry, impact, beam, glyph, swirl) by their own kind; `size` 0 a tick … 2 huge. */
   onPieceRef?: (kind: FxPieceRef, at: V3, size: number, o?: { color?: number; accent?: boolean }) => void;
   private announce(kind: FxPieceRef, at: V3, size: number, o?: { color?: number; accent?: boolean }): void {
@@ -536,7 +536,7 @@ export class Fx3D {
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
-    if (!o.quiet) this.onPiece?.('slash', at, (o.r ?? 120) > 160 ? 1 : 0);
+    if (!o.quiet) this.onPiece?.('slash', at, (o.r ?? 120) > 160 ? 1 : 0, o.ink ? { ink: true } : undefined);
     let p = this.P(at); p.y += this.h.h3(o.y0 ?? 95);
     const ms2 = this.both(geo, KIND.slash, color, p.z, { i: o.i ?? (o.ink ? 1.6 : 2.3) }); // (inked: the colour reads over its dark, less white bloom)
     const ink = o.ink === undefined || o.ink === false ? [] : this.inkPair(geo, typeof o.ink === 'number' ? o.ink : mix(color, 0x000000, 0.86), p.z);

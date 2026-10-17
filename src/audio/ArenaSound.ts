@@ -20,7 +20,7 @@ import Phaser from 'phaser';
 import type { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import type { CastRun } from '../skills/SkillRuntime';
 import type { Match, MatchPhase } from '../pvp/Match';
-import type { FxPiece } from '../arena3d/Fx3D';
+import type { FxPiece, FxPieceRef } from '../arena3d/Fx3D';
 import { hitIndex } from '../skills/FinalKit';
 import { Heard, PlayOpts, Sound, setPanner, SfxName, VoiceLine } from './Sound';
 
@@ -32,11 +32,14 @@ export interface HeardFighter { id: string; x: number; /** depth on the floor */
  *  smaller farther away), the fight it frames, and how dark the room wants to be (0 none .. 1). */
 export interface RoomView { project(x: number, y: number, z: number): { sx: number; sy: number; k: number }; focus: { x: number; y: number; z: number }; dimWant: number;
   /** The skills' 3D pieces: each one announced as it appears (what, where, how big 0..2, and its options when given). */
-  fx?: { onPiece?: (kind: FxPiece, at: { x: number; y: number; z: number }, size: number, o?: PieceLook) => void };
+  fx?: { onPiece?: (kind: FxPiece, at: { x: number; y: number; z: number }, size: number, o?: PieceLook) => void;
+    /** The reference pieces (David's bar, 18:23): each by its own kind (a flurry's line: `accent` its heavier one). */
+    onPieceRef?: (kind: FxPieceRef, at: { x: number; y: number; z: number }, size: number, o?: { color?: number; accent?: boolean }) => void };
   /** The room's life (Maps): the birds startled off the roofs into the air (where the flock rises, world px). */
   onLife?: (what: 'birds', at: { x: number; y: number; z: number }) => void }
-/** What a piece is made of, when the 3D layer says (its crystals: rock spikes — the Warrior's stone —, or green: thorns). */
-export interface PieceLook { stone?: boolean; color?: number }
+/** What a piece is made of, when the 3D layer says (its crystals: rock spikes — the Warrior's stone —, or green: thorns;
+ *  a slash inked: its dark stroke and after-image). */
+export interface PieceLook { stone?: boolean; color?: number; ink?: boolean }
 
 /** The room's share (reverb send) of each kind of sound: the fight's blows ring in the courtyard, the small ticks less. */
 const WET = { hit: 0.42, tick: 0.25, boom: 0.45, swing: 0.3, body: 0.38, call: 0.32, dark: 0.25, piece: 0.4 } as const;
@@ -47,6 +50,17 @@ const PIECE: Record<FxPiece, { sfx: SfxName; vol: number; gap: number; then?: [S
   crack: { sfx: 'crack', vol: 0.9, gap: 90, then: ['chunks', 170, 0.8] }, pillar: { sfx: 'pillar', vol: 0.9, gap: 250 }, bolt: { sfx: 'bolt', vol: 0.85, gap: 70 },
   dome: { sfx: 'dome', vol: 0.9, gap: 200 }, wave: { sfx: 'wave', vol: 0.85, gap: 200 }, crystals: { sfx: 'crystals', vol: 0.85, gap: 200 },
   streak: { sfx: 'streak', vol: 0.6, gap: 120 }, slash: { sfx: 'slash', vol: 0.65, gap: 90 }, rain: { sfx: 'rain', vol: 0.8, gap: 600 },
+};
+/** PVP 3D: the reference pieces (DFO's, after David's reference — THE BAR, 18:23: each element its own layer under the
+ *  blow): a flurry's lines a stream of thin 'tsing's (its accent, every fifth, a full SHING with sparks — pc_line_hv), the
+ *  main hit's impact (the flash's crack, its colour bursting out, the floor cracking, the embers crackling), a beam struck
+ *  from the sky (falling, the crack and ring at its foot, burning), a glyph opening on the floor (chimes, then a hum pulsing
+ *  as it turns), a swirl of petals / pages / sparkles (a whirling rush, a rustle). An inked slash adds the void's thoom
+ *  (pc_ink) under its swish. How soon each may come again (a flurry's lines: every one of them — its rhythm, four light and
+ *  the fifth heavy, is the bar's — each a little softer, so the stream stays under the blows). */
+const REF: Record<FxPieceRef, { sfx: SfxName; gap: number }> = {
+  flurry: { sfx: 'pc_line', gap: 28 }, impact: { sfx: 'pc_impact', gap: 120 }, beam: { sfx: 'pc_beam', gap: 80 },
+  glyph: { sfx: 'pc_glyph', gap: 400 }, swirl: { sfx: 'pc_swirl', gap: 400 },
 };
 /** The crystals by what they are made of: rock spikes crumble (the Warrior's stone), green ones are thorny roots (the
  *  Archer's), the rest ice (the Book Mage's) or arcane shards. */
@@ -205,7 +219,7 @@ export class ArenaSound {
   /** PVP 3D: the room's camera places the sounds, the fight rings in the courtyard, the skills' pieces sound in it. */
   use3D(view: RoomView): void {
     this.view = view; this.dimHeard = 0; Sound.room(true);
-    if (view.fx) view.fx.onPiece = (kind, at, size, o) => this.piece(kind, at, size, o);
+    if (view.fx) { view.fx.onPiece = (kind, at, size, o) => this.piece(kind, at, size, o); view.fx.onPieceRef = (kind, at, size, o) => this.pieceRef(kind, at, size, o); }
     view.onLife = (what, at) => { if (what === 'birds') Sound.oneShot(`birds_up_${1 + (this.birdTake++ % 2)}`, { x: at.x, y: at.y, z: at.z, wet: WET.piece }); }; // (a flurry of wings, flying off where they rose)
   }
   private birdTake = 0;
@@ -217,7 +231,22 @@ export class ArenaSound {
     const o = { x: at.x, y: at.y, z: at.z, vol: p.vol * k, rate: [1.08, 1, 0.9][s], wet: WET.piece, at: p.gap };
     Sound.sfx(kind === 'crystals' ? crystalSfx(look) : p.sfx, o);
     if (p.then) { const [n, ms, v] = p.then; this.later(ms, () => Sound.sfx(n, { ...o, vol: v * k, at: 60 })); }
+    if (kind === 'slash' && look?.ink) Sound.sfx('pc_ink', { ...o, vol: k, rate: 1, at: 260 }); // (inked: the void's deep thoom under its swish — a ball of inked blades: one every other ring)
   }
+
+  /** A reference piece in the room (REF): its own sound where it is (bigger: louder and deeper; a flurry's line light, its
+   *  accent heavier). A swirl right after a gather the scene already voiced (the samurai's petals, the mage's pages, the
+   *  gambler's cards) stays silent: one sound for one thing. */
+  private pieceRef(kind: FxPieceRef, at: { x: number; y: number; z: number }, size: number, look?: { color?: number; accent?: boolean }): void {
+    const p = REF[kind]; if (!p) return;
+    if (kind === 'swirl' && performance.now() - this.gatherAt < 300) return;
+    const s = Math.max(0, Math.min(2, Math.round(size))), k = [0.7, 0.85, 1][s], w = { x: at.x, y: at.y, z: at.z };
+    if (kind === 'flurry') { const hv = !!look?.accent; Sound.sfx(hv ? 'pc_line_hv' : 'pc_line', { ...w, vol: hv ? 1 : 0.8, wet: WET.tick, at: hv ? 90 : p.gap }); return; }
+    const small = kind === 'beam' && s === 0; // (a thin quick beam — a rain's volley, one of many: its own short sound)
+    Sound.sfx(small ? 'pc_beam_s' : p.sfx, { ...w, vol: small ? 1 : k, rate: [1.08, 1, 0.9][s], wet: WET.piece, at: p.gap });
+  }
+  /** When the scene last voiced a gather (its swirl then silent). */
+  private gatherAt = -1e9;
 
   /** The feet last heard (PVP 3D): where, when, the way run since the last step, the last scuff. */
   private feet = new Map<string, { x: number; y: number; t: number; run: number; scuff: number }>();
@@ -268,7 +297,7 @@ export class ArenaSound {
     if (phase === 'startup') this.riserFor(run);
     if (phase === 'startup' && s.slot === 7) this.moment(run);
     if (phase === 'active' && s.id === 'iai_strike' && (run.petals ?? 0) > 0) Sound.sfx('petal_draw', { ...this.at(run), vol: Math.min(1, 0.6 + 0.04 * (run.petals ?? 0)) }); // (the blossom draw: the petals burst out along the cut)
-    if (phase === 'startup' && s.id === 'origami_flock' && (run.mf ?? 0) >> 4 > 0) Sound.sfx('page_fold', { ...this.at(run), vol: 0.7 + 0.1 * ((run.mf ?? 0) >> 4) }); // (her pages lying near fold into cranes)
+    if (phase === 'startup' && s.id === 'origami_flock' && (run.mf ?? 0) >> 4 > 0) { this.gatherAt = performance.now(); Sound.sfx('page_fold', { ...this.at(run), vol: 0.7 + 0.1 * ((run.mf ?? 0) >> 4) }); } // (her pages lying near fold into cranes)
     const x = { x: run.origin.x, y: run.origin.y, z: run.origin.z, wet: WET.swing };
     const sig = this.sigOf(s);
     if (sig) {
@@ -296,6 +325,7 @@ export class ArenaSound {
   /** Call the Deck's gather: his cards on the floor whip home into his hand — as many as came (none: nothing to hear). */
   deckGather(run: CastRun, n: number): void {
     if (n <= 0 || !Sound.classReady(this.scene, run.skill.cls)) return;
+    this.gatherAt = performance.now();
     Sound.sfx(n >= 5 ? 'gb_wild_g2' : 'gb_wild_g1', { x: run.origin.x, y: run.origin.y, z: run.origin.z, wet: WET.swing, vol: n >= 5 ? 1 : 0.75 + 0.06 * n });
   }
 
@@ -342,12 +372,18 @@ export class ArenaSound {
 
   /** The samurai's Sheathe gathering his fallen petals into the scabbard (as many as came). */
   petalGather(run: CastRun, n: number): void {
-    if (n > 0 && Sound.classReady(this.scene, 'samurai')) Sound.sfx('petal_gather', { ...this.at(run), vol: Math.min(1, 0.55 + 0.04 * n) });
+    if (n > 0 && Sound.classReady(this.scene, 'samurai')) { this.gatherAt = performance.now(); Sound.sfx('petal_gather', { ...this.at(run), vol: Math.min(1, 0.55 + 0.04 * n) }); }
   }
 
   /** Leap Crash landing on the warrior's standing rock spikes: they burst into a rain of stone (as many as broke). */
   stoneBurst(at: { x: number; y: number; z?: number }, n: number): void {
     if (n > 0 && Sound.classReady(this.scene, 'warrior')) Sound.sfx('stone_burst', { x: at.x, y: at.y, z: at.z ?? 0, wet: WET.piece, vol: Math.min(1, 0.7 + 0.1 * n) });
+  }
+
+  /** A foe thrown into one of the warrior's rock spikes (the wall, DFO's engine): the body slamming into the stone, the
+   *  spike cracking and crumbling to gravel — under the small blow it deals. */
+  spikeBreak(at: { x: number; y: number; z?: number }): void {
+    if (Sound.classReady(this.scene, 'warrior')) Sound.sfx('spike_break', { x: at.x, y: at.y, z: at.z ?? 0, wet: WET.piece });
   }
 
   /** A flurry's count of small blows (a skill's ticks within 0.45 s of each other are one flurry). */
