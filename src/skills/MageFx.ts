@@ -823,8 +823,7 @@ export class MageFx {
       const onFloor = () => { const c = this.ctx.casterPos(id); return c ? { x: c.x, y: this.floorY(c.x, c.y, c.z) } : null; };
       if (kind === 'haste') this.sheet('mfx-buff', c0.x, c0.y, 120, ms, { floor: true, frames: [0, 4], loop: 90, oy: 0.48, sy: 0.8, depth: GROUND + 4, alive: () => on, follow: onFloor, alpha: 0.85 });
       else {
-        this.sheet('mfx-buff', c0.x, c0.y, 300, ms, { frames: [8, 8], loop: 85, oy: 0.7, depth: c0.y + 3, alive: () => on, follow: at, alpha: 0.9 });
-        this.circle(c0.x, c0.y, 220, 1, ms, { draw: 300, alpha: 0.7, alive: () => on, follow: onFloor });
+        this.sheet('mfx-buff', c0.x, c0.y, 220, ms, { frames: [8, 8], loop: 85, oy: 0.7, depth: c0.y - 2, alive: () => on, follow: at, alpha: 0.35 }); // (David 18 Oct: unprofessional on the hero — the standing shell faint and behind her, the floor circle gone: the sparks and frost motes stay)
         for (let t = 400; t < ms; t += 650) this.later(t, () => { if (!on) return; const c = this.ctx.casterPos(id); if (!c) return; const x = c.x + rnd(-40, 40), y = c.y - c.z - rnd(30, 110); this.sheet('mfx-hit', x, y, 90, 200, { frames: [Math.random() < 0.5 ? 8 : 4, 4] }); });
         for (let t = 0; t < ms; t += 260) this.later(t, () => { if (!on) return; const c = this.ctx.casterPos(id); if (c) this.img('mg-dot', { x: c.x + rnd(-60, 60), y: c.y - c.z - rnd(0, 40), w: rnd(4, 9), tint: Math.random() < 0.5 ? 0xcff6ff : 0xb9a2ff, life: 900, my: (u) => -120 * u, a: kf([0, 0], [0.2, 1], [1, 0]), depth: c.y + 4 }); });
       }
