@@ -4,6 +4,9 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-10-17 — The lifting dashes land where their arc ends (feel)
+- A dash with a lift (the archer's Backstep Shot, Retreat Kick, Wind Step, Vine Mine's hop, Air Volley; the mage's Frost Nova) rose along its arc but was held at its top on the way down (~0.8 px a frame), so a back flip landed ~0.3 s late and floated after its move. Now it follows its arc down and lands as it ends (cast in the air: back to the height it left, then it falls on). Found by the archer combo pass; every archer and mage trial played again under it.
+
 ## 2026-10-17 — Samurai, Gambler, Book Mage: their unused skills get trials; two cancel rules fixed
 - Trials (played by DFO in the game): the Samurai's MIKAZUKI (SKY's expert: Sword Wave thrown level with a foe in the air), the Gambler's CHANCE style (LOADED: Dice Bomb; REDBLACK: Roulette Wheel), the Book Mage's SNARE (ARCANE's expert: Binding Rune as the net under a falling foe). SWITCH (+ Riffle Shuffle: the vault threw him above Showdown's reach), JACKPOT (a jump before Fuse Slam: All In's five-card snap throws him past its reach from the floor), SPARK (no Blink: its chase stopped 34 px from him and the bolts flew level under him) and AVALANCHE (two bolts, then Astral Burst draws him back into Frost Nova's ring) rebuilt under the per-attack reach.
 - **Roulette Wheel links only once its ball has dropped:** an early vault cancelled it on its first spin and skipped the bet (the colour never showed).

@@ -1708,11 +1708,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (t) { k.grounded = false; k.z = run.origin.z + (Math.max(0, t.z - 10) - run.origin.z) * ease; k.vz = 0; }
       if (p >= 1) this.blinkChase = null;
     }
-    if (d.lift) { // acrobatic leap: real height (shots fire from it), lands by gravity afterwards
+    if (d.lift) { // acrobatic leap: real height (shots fire from it) along its arc, up and back down — it lands as it ends
+      // (it was held at its top — ~0.8 px a frame down after it — so a back flip landed ~0.3 s late and floated)
       k.grounded = false;
       const hang = d.hang ? (p < 0.1 ? Math.sin((Math.PI / 2) * (p / 0.1)) : p > 0.86 ? Math.cos((Math.PI / 2) * ((p - 0.86) / 0.14)) : 1) : 0;
-      k.z = d.hang ? run.origin.z + d.lift * hang : d.crash ? run.origin.z + d.lift * Math.sin(Math.PI * Math.min(1, p * 1.06)) : Math.max(k.z, run.origin.z + d.lift * Math.sin(Math.PI * p));
-      k.vz = p < 0.5 ? 40 : -40;
+      const plain = !d.hang && !d.crash;
+      k.z = d.hang ? run.origin.z + d.lift * hang : d.crash ? run.origin.z + d.lift * Math.sin(Math.PI * Math.min(1, p * 1.06)) : run.origin.z + d.lift * Math.sin(Math.PI * p);
+      k.vz = plain ? (d.lift * Math.PI * Math.cos(Math.PI * p)) / Math.max(0.05, run.timings.active / 1000) : p < 0.5 ? 40 : -40; // (the arc's own speed: the fall goes on smoothly after it)
     }
   }
 
