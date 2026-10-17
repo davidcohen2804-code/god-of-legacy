@@ -163,6 +163,16 @@
       "source": "pixverse warrior_idle8.mp4",
       "fps": 15,
       "loop": true
+    },
+    "jump_clip": {
+      "frames": 7,
+      "source": "pixverse wj2.mp4",
+      "hip_x": 640
+    },
+    "djump_flip": {
+      "frames": 7,
+      "hip_x": 512,
+      "source": "pixverse ws1.mp4"
     }
   },
   "hit_source": "pixverse warrior_hit.mp4"

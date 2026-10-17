@@ -163,6 +163,16 @@
       "source": "pixverse gambler_idle8.mp4",
       "fps": 15,
       "loop": true
+    },
+    "jump_clip": {
+      "frames": 7,
+      "source": "pixverse gj2.mp4",
+      "hip_x": 640
+    },
+    "djump_flip": {
+      "frames": 7,
+      "hip_x": 512,
+      "source": "pixverse gs1.mp4"
     }
   },
   "hit_source": "pixverse gambler_hit.mp4"

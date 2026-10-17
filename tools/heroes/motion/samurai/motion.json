@@ -181,6 +181,16 @@
         190,
         190
       ]
+    },
+    "jump_clip": {
+      "frames": 7,
+      "source": "pixverse sj2.mp4",
+      "hip_x": 640
+    },
+    "djump_flip": {
+      "frames": 7,
+      "hip_x": 512,
+      "source": "pixverse ss1.mp4"
     }
   },
   "hit_source": "pixverse i2v v6 seed 777 wide shot 720p"

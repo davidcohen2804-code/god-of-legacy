@@ -23,6 +23,7 @@ const CELL = 352, ORIGIN_Y = 310 / 352, SHEET_SCALE = 108 / 172;
 /** Skill sheets with taller cells (extra headroom above, feet still 42px above the cell bottom) and their column counts. */
 const CELLS = BODY_CELLS as Record<string, { w: number; h: number; cols: number }>;
 
+const FLIP_MS = 460; // the double jump's somersault: one turn
 type MoveState = 'idle' | 'walk' | 'run' | 'jump' | 'air_attack' | 'hurt' | 'recovery' | 'death' | 'react';
 const MOVE_COLS: Record<MoveState, number> = { idle: 12, walk: 8, run: 8, jump: 8, air_attack: 6, hurt: 4, recovery: 4, death: 8, react: 8 };
 const SHEET_CLASSES = ['warrior', 'book_mage'] as const;
@@ -716,6 +717,10 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
       // the second jump: each hero's own body move (the drawn frames' arms and legs) — War Leap drives the knee and
       // stretches over the burst, Shinsoku lies into the dash, Wind Leap tucks into the somersault, Levitate floats upright
       const a2 = q.air2;
+      { // the second jump's somersault (a PixVerse flip, 7 frames over FLIP_MS), then the jump clip's fall by the vertical speed
+        const F = HEROES[cls].actions.djump_flip;
+        if (a2 !== undefined && a2 >= 0 && F && F.length >= 4 && a2 < FLIP_MS) return H('djump_flip', Math.min(F.length - 1, Math.floor((a2 / FLIP_MS) * F.length)));
+      }
       if (a2 !== undefined && a2 >= 0 && HEROES[cls].actions.djump) {
         if (cls === 'book_mage') return { ...H('djump', Math.floor(a2 / 450) % 2), cloth: true };
         if (cls === 'archer' && a2 < 440) return H('djump', a2 < 200 ? 0 : 1);

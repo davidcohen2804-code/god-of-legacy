@@ -160,6 +160,10 @@
       "source": "pixverse book_mage_idle8.mp4",
       "fps": 15,
       "loop": true
+    },
+    "jump_clip": {
+      "frames": 7,
+      "source": "pixverse mj1.mp4"
     }
   },
   "hit_source": "pixverse mage_hit.mp4"
