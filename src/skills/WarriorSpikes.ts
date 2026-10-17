@@ -78,16 +78,18 @@ export class WarriorSpikes {
     const f3 = this.h.fx3d();
     if (f3) f3.crystals(s.x, s.y, { n: 2, r: 18, h: 95, ms: Math.max(300, left), stone: true }); // (real rock spikes standing in the planks)
     if (ARENA3D.on) return;
-    const sc = this.h.scene(), key = this.h.vfxKey('earthsplitter');
+    const sc = this.h.scene(), own = sc.textures.exists('w-spikes'), key = own ? 'w-spikes' : this.h.vfxKey('earthsplitter');
     if (!sc.textures.exists(key)) return;
-    s.img = sc.add.image(s.x, s.y + 4, key, 4).setOrigin(0.5, 0.95).setDepth(s.y).setDisplaySize(120, 10).setAlpha(1); // the painted spikes, thrust up
-    sc.tweens.add({ targets: s.img, displayHeight: 80, duration: 140, ease: 'Back.easeOut' });
+    const v = [...s.key].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % 4; // (one of four clusters, the same on every screen)
+    s.img = sc.add.image(s.x, s.y + 4, key, own ? v : 4).setOrigin(0.5, own ? 0.97 : 0.95).setDepth(s.y).setDisplaySize(own ? 130 : 120, 10).setAlpha(1); s.img.setData('v', v); // the painted spikes (GPT), thrust up
+    sc.tweens.add({ targets: s.img, displayHeight: own ? 130 : 80, duration: 140, ease: 'Back.easeOut' });
   }
 
   private remove(s: Spike, burst: boolean): void {
     this.spikes = this.spikes.filter((x) => x !== s);
     const im = s.img; if (!im) return;
     s.img = undefined;
+    if (im.texture.key === 'w-spikes') im.setFrame(4 + (im.getData('v') ?? 0)); // (its crumbling frame)
     im.scene.tweens.add({ targets: im, alpha: 0, displayHeight: burst ? 20 : im.displayHeight * 0.6, duration: burst ? 120 : 400, onComplete: () => im.destroy() });
   }
 }

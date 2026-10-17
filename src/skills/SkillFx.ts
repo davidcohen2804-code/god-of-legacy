@@ -17,7 +17,7 @@ import { ImpactFx } from './ImpactFx';
 
 const F = 'assets/final';
 /** Skills that borrow another skill's VFX sheet (no art of their own). */
-const VFX_ALIAS: Record<string, string> = { wave_slash: 'warrior_basic', radiant_blade: 'war_cry', iron_oath: 'war_cry', legacy_banner: 'war_cry' };
+const VFX_ALIAS: Record<string, string> = { radiant_blade: 'war_cry', iron_oath: 'war_cry', legacy_banner: 'war_cry' };
 const vfxKey = (id: string) => `vfx-${VFX_ALIAS[id] ?? id}`;
 const isBig = (s: FinalSkill) => s.slot === 6 || s.slot === 7;
 const TOP = 100000;
@@ -170,6 +170,9 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   for (const v of Object.values(IMPACT)) L(v.key, v.path, v.cell);
   if (want('warrior')) L('imp-wsparks', `${F}/impact/warrior_sparks.png`, 256); // the warrior's hit sparks: rows normal / heavy / launch / counter (GPT)
   if (want('warrior')) for (const fam of ['steel', 'stone', 'iron', 'holy', 'crimson']) L(`imp-wsparks-${fam}`, `${F}/impact/warrior_sparks_${fam}.webp`, 256); // the same sparks in each family's colour (tools/skills/wtone.py), drawn NORMAL
+  if (want('warrior')) if (!scene.textures.exists('w-spikes')) scene.load.spritesheet('w-spikes', `${F}/skills/warrior/earthsplitter/spikes.png`, { frameWidth: 256, frameHeight: 256 }); // Earthsplitter's rock spikes standing / crumbling (GPT, the continuity)
+  if (want('warrior')) if (!scene.textures.exists('jb-sword')) scene.load.spritesheet('jb-sword', `${F}/skills/warrior/judgment_blade/sword.png`, { frameWidth: 256, frameHeight: 256 }); // the Judge's sword of light falling point-down (GPT, DFO's review)
+  if (want('warrior')) if (!scene.textures.exists('jb-bolt-holy')) scene.load.spritesheet('jb-bolt-holy', `${F}/skills/warrior/judgment_blade/bolt_holy.png`, { frameWidth: 256, frameHeight: 512 }); // Thunder Rain: the warrior's blue lightning // (the Judge's own bolt in HOLY pale gold; the Archer keeps the blue one)
   const I = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.image(k, p); };
   I('tg-circle', `${F}/world/telegraph_circle.png`); I('tg-cone', `${F}/world/telegraph_cone.png`);
   I('tg-line', `${F}/world/telegraph_line.png`); I('tg-traj', `${F}/world/telegraph_trajectory.png`);
@@ -195,7 +198,6 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
       ['afx-fire', 'fire_burst', 320, 320], ['afx-rootband', 'roots_band', 640, 160], ['afx-tree2', 'tree_light', 360, 540], ['afx-heavy', 'heavy_arrow', 320, 480], ['afx-raura', 'rain_aura', 300, 450],
       ['afx-strike', 'floor_strike', 512, 256], ['afx-roar', 'roar_ring', 512, 256], ['afx-bcharge', 'bolt_charge', 320, 320], ['afx-rise', 'rise_thin', 240, 480]] as const) if (!scene.textures.exists(k)) scene.load.spritesheet(k, `${AF}/${f}.png`, { frameWidth: w, frameHeight: h }); // the painted round-3 set
     if (!scene.textures.exists('jb-bolt')) scene.load.spritesheet('jb-bolt', `${F}/skills/warrior/judgment_blade/bolt.png`, { frameWidth: 256, frameHeight: 512 }); // Thunder Rain: the warrior's blue lightning
-  if (!scene.textures.exists('jb-bolt-holy')) scene.load.spritesheet('jb-bolt-holy', `${F}/skills/warrior/judgment_blade/bolt_holy.png`, { frameWidth: 256, frameHeight: 512 }); // Thunder Rain: the warrior's blue lightning // (the Judge's own bolt in HOLY pale gold; the Archer keeps the blue one)
     I('afx-apple', `${AF}/apple.png`); for (let i = 1; i < 4; i++) I(`afx-apple-${i}`, `${AF}/apple_${i}.png`); I('afx-roots', `${AF}/roots.png`);
     L('afx-fan', `${AF}/release_fan.png`, 512, 256); L('afx-triple', `${AF}/triple_trail.png`, 512, 256); L('afx-storm', `${AF}/storm_top.png`, 512, 256); L('afx-eagle', `${AF}/eagle_top.png`, 512, 256); L('vfx-evasion', `${F}/skills/archer/evasion/vfx.png`, 256);
     I('archer-cutin', `${F}/skills/archer/sky_rain/cutin.webp`);
@@ -257,7 +259,7 @@ const WFAM_C: Record<string, number> = { warrior_basic: 0xe8f0ff, dash_slash: 0x
   ground_breaker: 0xb09474, leap_crash: 0xb09474, earthsplitter: 0xb09474, iron_grip: 0x9fc4ff, judgment_hook: 0x9fc4ff, shield_charge: 0x9fc4ff,
   judgment_blade: 0xfff0b8, sanctuary: 0xfff0b8, titans_verdict: 0xfff0b8, war_cry: 0xd8261c, lions_maw: 0xd8261c, blade_storm: 0xd8261c };
 const WFAM_N: Record<string, string> = Object.fromEntries(Object.entries(WFAM_C).map(([k, c]) => [k, c === 0xe8f0ff ? 'steel' : c === 0xb09474 ? 'stone' : c === 0x9fc4ff ? 'iron' : c === 0xfff0b8 ? 'holy' : c === 0xff5a40 ? 'steel' : 'crimson']));
-const WARRIOR_FEEL: Record<string, [number, number]> = { warrior_basic: [1.2, 1], whirlwind: [0.72, 0.72], ground_breaker: [0.7, 0.7], blade_storm: [0.7, 0.7], iron_grip: [0.6, 0.65], titans_verdict: [0.9, 0.9], leap_crash: [0.9, 0.9], lance_thrust: [0.85, 0.55] }; // (lance_thrust: the drill thinner and see-through round the foe — DFO's review)
+const WARRIOR_FEEL: Record<string, [number, number]> = { warrior_basic: [1.2, 1], whirlwind: [0.72, 0.72], ground_breaker: [0.7, 0.7], blade_storm: [0.7, 0.7], iron_grip: [0.85, 0.95], titans_verdict: [0.9, 0.9], leap_crash: [0.9, 0.9], lance_thrust: [0.85, 0.55] }; // (lance_thrust: the drill thinner and see-through round the foe — DFO's review)
 /** Warrior skills that get a ground shockwave ring at their impact. */
 const SHOCK: Record<string, { r: number; c: number }> = {
   ground_breaker: { r: 200, c: 0xb09474 }, shield_slam: { r: 110, c: 0xfff0c0 }, titans_verdict: { r: 260, c: 0xfff0b8 },
@@ -593,7 +595,9 @@ export class SkillFx {
   private lionsMaw(r: CastRun): void {
     const T = r.timings, key = vfxKey('lions_maw'), a = r.aim, c = this.casterPos(r.attackerId) ?? r.origin, flip = a.x < 0;
     const x = c.x + a.x * 70, y = c.y + a.y * 70, s = Math.max(40, T.startup / 2);
-    this.play(key, x, y + 8, 430, 430, [s, s, 50, 70, 120, 90, 120, 160, 160, 230], { oy: 508 / 512, flip, depth: y - 3, alpha: 0.95, blend: Phaser.BlendModes.NORMAL, fadeLast: 230 }); // (behind the two fighters and a size down: in PVP 3D the lion hid them both)
+    // the crimson lion's head (GPT): an ember at his side, the head forms, lunges at the foe with its jaw opening, the bite, embers
+    const fms = [s, s, 70, 80, 90, 120, 170, 230], img = this.play(key, x, y - c.z - 80, 300, 300, fms, { oy: 0.55, flip, depth: y - 3, alpha: 0.95, blend: Phaser.BlendModes.NORMAL, fadeLast: 230 }); // (behind the two fighters: in PVP 3D a bigger one hid them both)
+    if (img) this.scene.tweens.add({ targets: img, x: x + a.x * 110, delay: s * 2, duration: 240, ease: 'Cubic.easeOut' }); // the lunge
     this.scene.time.delayedCall(T.startup + 450, () => { this.shockwave(x + a.x * 60, y + a.y * 60, 220, 0xffc860); (this.cam ?? this.scene.cameras.main).shake(150, 0.006); });
   }
 
@@ -798,14 +802,21 @@ export class SkillFx {
         }, onComplete: () => {
           fly.destroy();
           // 3) impact: a lightning strike from the sky, screen flash, heavy shake, double shockwave
-          const bolt = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP);
-          zig(bolt, land.x + (Math.random() - 0.5) * 40, land.y - 520, land.x, land.y, 12, 16); zig(bolt, from.x, from.y, land.x, land.y - 10, 8, 10);
-          this.scene.tweens.add({ targets: bolt, alpha: 0, duration: 220, onComplete: () => bolt.destroy() });
+          const sword = this.scene.textures.exists('jb-sword');
+          if (!sword) { const bolt = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP);
+            zig(bolt, land.x + (Math.random() - 0.5) * 40, land.y - 520, land.x, land.y, 12, 16); zig(bolt, from.x, from.y, land.x, land.y - 10, 8, 10);
+            this.scene.tweens.add({ targets: bolt, alpha: 0, duration: 220, onComplete: () => bolt.destroy() }); }
           const burst = this.scene.add.image(land.x, land.y - 20, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff0b8).setDepth(TOP).setDisplaySize(120, 90);
           this.scene.tweens.add({ targets: burst, displayWidth: 420, displayHeight: 260, alpha: 0, duration: 260, ease: 'Cubic.easeOut', onComplete: () => burst.destroy() });
-          const img = this.scene.add.image(land.x, land.y + 6, jbKey, 7).setOrigin(0.5, 0.95).setDepth(land.y - 2).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(BW, BH * 1.15).setAlpha(0.6); img.setData('a0', 0.6); // (behind the pinned foe, softer: the pillar of light no longer hides him for its whole 5 s)
-          const fms = [90, 110, 110, 110, 280];
-          this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: [7, 8, 9, 10, 11], frameMs: fms, fadeLast: 280, loop: [1, 3], until: 5000 });
+          if (sword) { // the Judge's sword of light falls point-down onto him and stands planted for the pin, its runes spread where it bit (DFO: a sword's shape)
+            const img = this.scene.add.image(land.x, land.y - 2, 'jb-sword', 1).setOrigin(0.5, 0.93).setDepth(land.y - 2).setDisplaySize(340, 340).setAlpha(0.95).setTint(0xf0d8a0); img.setData('a0', 0.95); // (its drawn point is its floor point: PVP 3D plants it there, just behind him) // (behind the pinned foe)
+            const fms = [50, 50, 90, 140, 180, 180, 260];
+            this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: [1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 260, loop: [4, 5], until: 5000 });
+          } else {
+            const img = this.scene.add.image(land.x, land.y + 6, jbKey, 7).setOrigin(0.5, 0.95).setDepth(land.y - 2).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(BW, BH * 1.15).setAlpha(0.6); img.setData('a0', 0.6);
+            const fms = [90, 110, 110, 110, 280];
+            this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: [7, 8, 9, 10, 11], frameMs: fms, fadeLast: 280, loop: [1, 3], until: 5000 });
+          }
           this.shockwave(land.x, land.y, 170, 0xfff0b8); this.scene.time.delayedCall(70, () => this.shockwave(land.x, land.y, 280, 0xffd27a));
           this.spark(IMPACT.warrior.key, land.x, land.y - 30, IMPACT.warrior.frames, 200, 1);
           this.screenFlash(0xfff0b8, 0.12, 160); cam.shake(240, 0.011); // (a soft flash: no full-screen white-out)
