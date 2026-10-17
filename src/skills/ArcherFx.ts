@@ -610,9 +610,9 @@ export class ArcherFx {
     if (!this.ready) return;
     const x = at.x, y = at.y;
     if (skillId === 'leaping_arrow') {
-      this.spr({ name: 'vine_snare', x, y: y + 8, oy: 0.97, depth: y + 3, w: 150, life: 2200, glow: 0.25, sy: kf([0, 0.1], [0.08, 1.08, out3], [0.15, 1]), a: kf([0, 1], [0.85, 1], [1, 0]) }); // vines snap up round him
-      this.spr({ name: 'vine_grab', x, y: y - 34, depth: y + 4, w: 96, life: 2200, glow: 0.2, sx: kf([0, 1.6], [0.08, 1, out3]), a: kf([0, 0], [0.05, 1], [0.85, 1], [1, 0]) }); // and coil tight round the body
-      this.floor('shock_ring', x, y, 140, 360, { add: true, s: kf([0, 0.4], [1, 1.2, out3]), a: kf([0, 1], [1, 0]) });
+      this.spr({ name: 'thorn_snare', x, y: y + 8, oy: 0.97, depth: y + 3, w: 120, life: 2200, glow: 0.25, sy: kf([0, 0.1], [0.08, 1.08, out3], [0.15, 1]), a: kf([0, 1], [0.85, 1], [1, 0]) }); // vines snap up round him
+      // (THORN: the thorned snare itself holds him — no leafy coil over his body)
+      this.floor('thorn_roots', x, y, 150, 2200, { s: kf([0, 0.5], [0.1, 1, out3]), a: kf([0, 0], [0.06, 1], [0.85, 1], [1, 0]) }); // roots spread from his feet
       this.leaves(x, y - 20, 10, 40, { up: 120, life: 700 });
     } else if (skillId === 'rain_of_arrows') {
       this.spr({ name: 'strike', x, y: y + 8, oy: 0.97, depth: y + 3, w: 140, h: 360, life: 260, add: true, glow: 0.4, sy: kf([0, 0.2], [0.15, 1.05, out3]), a: kf([0, 1], [1, 0, inQ]) });
@@ -680,7 +680,7 @@ export class ArcherFx {
     const R0 = t.radius;
     let on = true, armed = false;
     // a seed-mine lies still in the soil (half see-through); motes and leaves drift up from it — it is alive
-    this.floor('mine_seed', t.x, t.y, 2.4 * R0, 600000, { a: kf([0, 0], [0.0005, 0.8]), alive: () => on });
+    this.floor('thorn_roots', t.x, t.y, 2.4 * R0, 600000, { a: kf([0, 0], [0.0005, 0.85]), alive: () => on }); // THORN: the mine is a patch of thorned roots in the floor
     const motes = () => { if (!on) return; this.leaves(t.x, t.y - 4, 1, R0 * 0.8, { life: 900, up: 30, depth: t.y + 1 }); this.later(armed ? 90 : 420, motes); };
     motes();
     this.trapArt.set(t, { stop: () => { on = false; }, arm: () => {
@@ -697,13 +697,13 @@ export class ArcherFx {
     const art = this.trapArt.get(t); art?.stop(); this.trapArt.delete(t);
     if (!fired || !this.ready) return;
     // the mine bursts: a column of vines and green light throws everyone in it high (no stain left behind)
-    this.spr({ name: 'vine_column', x: t.x, y: t.y + 8, oy: 0.96, depth: t.y + 3, w: 200, h: 420, life: 720, add: false, glow: 0.3, sy: kf([0, 0.15], [0.22, 1.08, out3], [1, 1]), a: kf([0, 1], [0.7, 1], [1, 0, inQ]) }); // a tall column of vines
-    this.spr({ name: 'vine_burst', x: t.x, y: t.y + 8, oy: 0.97, depth: t.y + 4, w: 260, life: 760, glow: 0.3, sy: kf([0, 0.1], [0.2, 1.1, out3], [1, 1.05]), sx: kf([0, 0.6], [0.2, 1, out3]), a: kf([0, 1], [0.7, 1], [1, 0, inQ]) });
-    this.spr({ name: 'vine_spiral', x: t.x, y: t.y + 8, oy: 0.97, depth: t.y + 4.5, w: 170, life: 700, delay: 60, glow: 0.25, sy: kf([0, 0.1], [0.3, 1.15, out3], [1, 1.2]), a: kf([0, 0], [0.1, 1], [0.7, 0.9], [1, 0, inQ]) });
+    this.spr({ name: 'thorn_column', x: t.x, y: t.y + 8, oy: 0.96, depth: t.y + 3, w: 170, h: 340, life: 720, add: false, glow: 0.3, sy: kf([0, 0.15], [0.22, 1.08, out3], [1, 1]), a: kf([0, 1], [0.7, 1], [1, 0, inQ]) }); // a tall column of vines
+    this.spr({ name: 'vine_burst', x: t.x, y: t.y + 8, oy: 0.97, depth: t.y + 4, w: 150, life: 760, glow: 0.3, sy: kf([0, 0.1], [0.2, 1.1, out3], [1, 1.05]), sx: kf([0, 0.6], [0.2, 1, out3]), a: kf([0, 1], [0.7, 1], [1, 0, inQ]) });
+    // (THORN: the thorned column alone — the leafy spiral and green glow over it gone)
     this.spr({ name: 'debris', x: t.x, y: t.y + 6, oy: 0.95, depth: t.y + 5, w: 220, life: 640, my: (u) => -30 * out(u), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
     this.floor('crater', t.x, t.y, 230, 1400, { a: kf([0, 0], [0.04, 1], [0.6, 0.85], [1, 0]) });
     this.spr({ name: 'dust', x: t.x, y: t.y + 4, oy: 0.85, depth: t.y + 1, w: 220, life: 700, sx: kf([0, 0.5], [1, 1.4, out3]), a: kf([0, 0.85], [1, 0, inQ]) });
-    this.floor('shock_ring', t.x, t.y, 2.4 * t.radius, 420, { add: true, s: kf([0, 0.4], [1, 1.25, out3]), a: kf([0, 1], [1, 0, inQ]) });
+    this.floor('thorn_roots', t.x, t.y, 2.6 * t.radius, 900, { s: kf([0, 0.6], [0.15, 1.1, out3]), a: kf([0, 1], [0.7, 1], [1, 0, inQ]) });
     this.leaves(t.x, t.y - 30, 18, 60, { up: 260, life: 1100 });
     this.shake(t.run, 240, 0.007);
   }

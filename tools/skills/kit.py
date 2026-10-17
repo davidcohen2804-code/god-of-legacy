@@ -97,6 +97,7 @@ ARCHER_SHEETS = {
     'a16.png': grid(4, 2, ['vine_arrow', 'vine_whip', 'vine_grab', 'leaf_carpet', 'vine_snare', 'tree_hit', 'talon_slash', 'slam_burst'], [380, 440, 380, 440, 400, 400, 380, 420]),
     'a17.png': [('t_cloud', (0, 0, 445, 512), 420), ('t_circle', (445, 0, 735, 512), 420), ('t_bow', (740, 0, 1150, 512), 380), ('t_orb', (1150, 0, 1536, 512), 340),
                 ('t_arrow', (0, 540, 448, 1000), 420, 'box'), ('t_blast', (452, 540, 780, 1000), 360, 'box'), ('t_sparks', (780, 512, 1150, 1024), 320), ('t_aura', (1150, 512, 1536, 1024), 400)],
+    'a18.png': [('thorn_column', (0, 0, 512, 1024), 460, 'box'), ('thorn_snare', (512, 0, 1024, 1024), 400, 'box'), ('thorn_roots', (1024, 260, 1536, 764), 460, 'box')],  # THORN (GPT, 17 Oct): Vine Mine's burst, Binding Leaves' hold, the roots on the floor
     'a9.png': [('bow', (0, 40, 390, 480), 300, 'box')] + grid(4, 2, [None, 'bow_drawn', 'aura_gold', 'aura_green', 'emblem', 'pillar', 'sparkles', 'rain_ring'], [300, 300, 300, 300, 240, 380, 200, 300]),
 }
 PROFILES = {'samurai': (G + 'tools/skills/gpt/kit/', G + 'public/assets/final/skills/samurai/kit/', None),
