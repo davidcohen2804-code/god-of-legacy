@@ -58,6 +58,7 @@ import { PvpController } from '../pvp/PvpController';
 import { ARENA3D } from '../arena3d/flag';
 import type { Arena3D, Floor } from '../arena3d/Arena3D';
 import { SamuraiPetals, PETALS } from '../skills/SamuraiPetals';
+import { WarriorSpikes } from '../skills/WarriorSpikes';
 import { WORLD3D } from '../world3d/flag';
 import type { World3D } from '../world3d/World3D';
 import { Match, MatchPhase } from '../pvp/Match';
@@ -269,6 +270,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private gHand = new Hand();
   private gStuck = new Stuck();
   /** The samurai's fallen petals (continuity: Blossom Storm / Sakura Bind leave them, Sheathe gathers them, the Iai draws them). */
+  /** The Warrior's rock spikes (continuity: Earthsplitter leaves them standing, a thrown foe bounces off one, Leap Crash bursts them). */
+  private spikes = new WarriorSpikes({ now: () => this.simMs, scene: () => this, vfxKey: (id) => `vfx-${id}`, fx3d: () => this.a3d?.fx });
   private petals = new SamuraiPetals({ now: () => this.simMs, localId: () => this.localId, casterPos: (id) => this.casterPos(id), fx: () => this.fx, fx3d: () => this.a3d?.fx });
   /** The Gambler's floor deck: the cards his skills leave lying (every caster's, laid from the cast alone — FloorDeck). */
   private gDeck = new FloorDeck();
@@ -903,7 +906,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       return sp ? { key: sp.texture.key, frame: sp.frame.name, flipX: sp.flipX, ox: sp.originX, oy: sp.originY, sx: Math.abs(sp.scaleX), sy: Math.abs(sp.scaleY), a: sp.visible ? sp.alpha : 0, face: dir === 'left' ? -1 : 1 } : null;
     };
     this.fx.aliveOf = (id) => (id === this.localId ? this.dead < 0 : id === BOT_ID ? !!this.bot && !this.bot.defeated : this.pvp?.remotes.get(id)?.alive !== false);
-    this.rt.events.on(RT_EVENTS.hit, (r: CastRun, i: number, o: V3) => { this.kageSwing(r, i, o); this.petals.cut(r, i, o); }); // (Blossom Storm's cuts leave their petals)
+    this.rt.events.on(RT_EVENTS.hit, (r: CastRun, i: number, o: V3) => { this.kageSwing(r, i, o); this.petals.cut(r, i, o); if (i === r.hits.length - 1) this.spikes.burst(r, this.casterPos(r.attackerId) ?? o); }); // (Leap Crash's landing bursts his spikes) // (Blossom Storm's cuts leave their petals)
     this.rt.events.on(RT_EVENTS.cast, (r: CastRun) => this.deckCast(r));
     this.rt.events.on(RT_EVENTS.active, (r: CastRun) => this.deckActive(r));
     this.gDeck.onLay = (c) => { this.fx?.deckLay(c); this.a3d?.fx.cardLay(c.key, { x: c.x, y: c.y, z: 70 }, { x: c.x, y: c.y }, { ms: 180, stuck: c.stuck, life: c.until - c.landAt + 400 }); };
@@ -1084,6 +1087,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.rt.update(ms);
     this.stepLingers(now);
     this.petals.step();
+    this.spikes.step();
     this.gDeck.step(now);
     this.stepClaims(now);
     this.stepStorm();
@@ -3098,6 +3102,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (run.confirmedAt >= 0) { this.mage.pageChill = 2; this.momentum = { x: -run.aim.x * 120, y: -run.aim.y * 60, left: 200 }; }
       else run.extraRecovery = Math.max(run.extraRecovery, 300);
     }
+    if (phase === 'active' && run.skill.id === 'earthsplitter') this.spikes.raise(run); // (the fissure's rock spikes stand a while)
     if (phase === 'active' && run.skill.cls === 'samurai') { this.petals.bind(run); this.petals.sheathe(run); } // (Sakura Bind's ring stays when the bind ends; Sheathe's click gathers his petals)
     const L = run.skill.linger;
     if (phase === 'active' && L && L.at !== 'target') { // every caster's lingering zone (yours, other players', the sparring knight's; a hold under a foe starts on its hit: startHold)
@@ -4319,7 +4324,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** A new round for you: on your mark, full HP, every buff gone, every skill ready, nothing still flying. */
   private roundReset(x: number, y: number, face: 1 | -1): void {
     this.rt?.cancelOwn('death');
-    this.lingers = []; this.shares = []; this.holdsStarted.clear(); this.petals.clear();
+    this.lingers = []; this.shares = []; this.holdsStarted.clear(); this.petals.clear(); this.spikes.clear();
     this.endBuffs();
     this.warCryUntil = -1; this.radiantUntil = -1; this.radiantFrom = -1; this.domeAt = -1;
     if (this.dome) this.dome.until = this.simMs;
