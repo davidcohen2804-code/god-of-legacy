@@ -578,6 +578,11 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     blink: { act: 'blink', st: [1], ac: [2], rc: [3] }, // the coat whirls round her as she vanishes
   },
   warrior: {
+    // the regular attack: each strike its own move (PixVerse, 9 frames): the flat cut, the backhand down, the rising cut, then the heavy chop (finisher)
+    warrior_basic: { act: 'basic_chain', st: [0], ac: [1, 2], rc: [2] },
+    'warrior_basic#1': { act: 'basic_chain', st: [3], ac: [4, 5], rc: [5] },
+    'warrior_basic#2': { act: 'basic_chain', st: [6], ac: [7], rc: [8] },
+    'warrior_basic#3': { act: 'finisher', st: [0], ac: [1], rc: [2] },
     dash_slash: { act: 'dash_slash', st: [0], ac: [1, 2, 3], rc: [4, 5] },
     rising_slash: { act: 'rising_slash', st: [0], ac: [1, 2, 3], rc: [4, 5] },
     lance_thrust: { act: 'lance_thrust', st: [0], ac: [0, 1, 2, 1, 2, 3, 4], rc: [4, 5] },
@@ -597,7 +602,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     iron_grip: { act: 'iron_grip', st: [0], ac: [1, 2, 3, 3, 3, 4], rc: [5, 5, 0] }, // the open hand seizes, the fist hoists it overhead, the slam
     judgment_hook: { act: 'judgment_hook', st: [0, 1], ac: [2, 3, 4], rc: [4, 5] }, // wind back, hurl the chain, yank it in
     sky_breaker: { act: 'sky_breaker', st: [0], ac: [1, 1, 2, 3, 3, 4], rc: [5, 5] }, // the rising slashes, sword overhead, the dive, landed
-    earthsplitter: { act: 'finisher', st: [0], ac: [1, 2], rc: [2, 2, 0] },
+    earthsplitter: { act: 'earthsplitter', st: [0, 1, 2, 1, 2], ac: [3, 4], rc: [4, 5] }, // his own move (PixVerse): the sword raised two-handed, held high and straining while the ground trembles, the huge chop into the floor, the recovery
     shield_charge: { act: 'shield_charge', st: [0], ac: [1, 2, 1, 2], rc: [3, 3] }, // braced behind the barrier, the shoulder-first charge (two strides), the skid to a stop with the hand out for the grab
   },
   samurai: {

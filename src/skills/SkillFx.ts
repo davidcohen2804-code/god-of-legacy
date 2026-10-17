@@ -160,6 +160,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   for (const [id, p] of Object.entries(PROJECTILE_SHEETS)) { const cls = FINAL_SKILLS.find((s) => s.id === id)!.cls; if (want(cls)) L(`proj-${id}`, `${F}/projectiles/${cls}/${id}.${p.ext ?? 'png'}`, p.cell); }
   for (const v of Object.values(IMPACT)) L(v.key, v.path, v.cell);
   if (want('warrior')) L('imp-wsparks', `${F}/impact/warrior_sparks.png`, 256); // the warrior's hit sparks: rows normal / heavy / launch / counter (GPT)
+  if (want('warrior')) for (const fam of ['steel', 'stone', 'iron', 'holy', 'crimson']) L(`imp-wsparks-${fam}`, `${F}/impact/warrior_sparks_${fam}.webp`, 256); // the same sparks in each family's colour (tools/skills/wtone.py), drawn NORMAL
   const I = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.image(k, p); };
   I('tg-circle', `${F}/world/telegraph_circle.png`); I('tg-cone', `${F}/world/telegraph_cone.png`);
   I('tg-line', `${F}/world/telegraph_line.png`); I('tg-traj', `${F}/world/telegraph_trajectory.png`);
@@ -238,11 +239,19 @@ const HITSTOP: Record<HitTier, number> = { basic: 45, core: 70, signature: 95, u
 const VFX_MULT: Record<string, number> = { warrior: 1.5, samurai: 1.25 };
 /** Warrior feel pass (PVP 3D): each skill's cast effect at its own size and strength — the big ones trimmed so both fighters
  *  stay readable through them, the regular attack's arc a size up so its strike reads. [size ×, alpha] */
-const WARRIOR_FEEL: Record<string, [number, number]> = { warrior_basic: [1.2, 1], whirlwind: [0.72, 0.72], ground_breaker: [0.7, 0.7], blade_storm: [0.7, 0.7], titans_verdict: [0.9, 0.9], leap_crash: [0.9, 0.9] };
+/** The Warrior's sheets re-toned into DFO's five families (tools/skills/wtone.py: STEEL / STONE / IRON / CRIMSON): drawn with NORMAL
+ *  blend so their colour holds on the red planks (additive, every one melted into the same orange), no gold halo. */
+const WTONED = new Set(['warrior_basic', 'dash_slash', 'whirlwind', 'lance_thrust', 'sky_breaker', 'ground_breaker', 'leap_crash', 'earthsplitter', 'iron_grip', 'judgment_hook', 'shield_charge', 'war_cry', 'lions_maw', 'blade_storm', 'wave_slash']);
+/** Each Warrior skill's family colour (its cast aura and accents). */
+const WFAM_C: Record<string, number> = { warrior_basic: 0xe8f0ff, dash_slash: 0xe8f0ff, rising_slash: 0xff5a40, wave_slash: 0xe8f0ff, whirlwind: 0xe8f0ff, lance_thrust: 0xe8f0ff, sky_breaker: 0xe8f0ff,
+  ground_breaker: 0xb09474, leap_crash: 0xb09474, earthsplitter: 0xb09474, iron_grip: 0x9fc4ff, judgment_hook: 0x9fc4ff, shield_charge: 0x9fc4ff,
+  judgment_blade: 0xfff0b8, sanctuary: 0xfff0b8, titans_verdict: 0xfff0b8, war_cry: 0xd8261c, lions_maw: 0xd8261c, blade_storm: 0xd8261c };
+const WFAM_N: Record<string, string> = Object.fromEntries(Object.entries(WFAM_C).map(([k, c]) => [k, c === 0xe8f0ff ? 'steel' : c === 0xb09474 ? 'stone' : c === 0x9fc4ff ? 'iron' : c === 0xfff0b8 ? 'holy' : c === 0xff5a40 ? 'steel' : 'crimson']));
+const WARRIOR_FEEL: Record<string, [number, number]> = { warrior_basic: [1.2, 1], whirlwind: [0.72, 0.72], ground_breaker: [0.7, 0.7], blade_storm: [0.7, 0.7], iron_grip: [0.6, 0.65], titans_verdict: [0.9, 0.9], leap_crash: [0.9, 0.9] };
 /** Warrior skills that get a ground shockwave ring at their impact. */
 const SHOCK: Record<string, { r: number; c: number }> = {
-  ground_breaker: { r: 200, c: 0xffb050 }, shield_slam: { r: 110, c: 0xfff0c0 }, titans_verdict: { r: 260, c: 0xffd27a },
-  blade_storm: { r: 180, c: 0xffb04a }, rising_slash: { r: 90, c: 0xff5a40 }, whirlwind: { r: 150, c: 0xffe0a0 },
+  ground_breaker: { r: 200, c: 0xb09474 }, shield_slam: { r: 110, c: 0xfff0c0 }, titans_verdict: { r: 260, c: 0xfff0b8 },
+  blade_storm: { r: 180, c: 0xd8261c }, rising_slash: { r: 90, c: 0xff5a40 }, whirlwind: { r: 150, c: 0xe8f0ff }, // (the Warrior's families: stone, holy, crimson, steel)
 };
 const SHAKE: Record<HitTier, [number, number]> = { basic: [50, 0.0012], core: [80, 0.002], signature: [110, 0.003], ultimate: [170, 0.0048] };
 
@@ -461,10 +470,10 @@ export class SkillFx {
     const s = r.skill, T = r.timings, lvl = s.slot === 7 ? 1 : s.slot === 6 ? 0.8 : s.slot === 0 ? 0 : 0.5;
     if (lvl <= 0) return;
     const c0 = this.casterPos(r.attackerId); if (!c0) return;
-    const img = this.scene.add.image(c0.x, c0.y - c0.z - 40, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(CLASS_COLOR[s.cls]).setDepth(c0.y - 1).setAlpha(0);
+    const img = this.scene.add.image(c0.x, c0.y - c0.z - 40, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(WFAM_C[s.id] ?? CLASS_COLOR[s.cls]).setDepth(c0.y - 1).setAlpha(0); // (his family's colour, softer: the gold aura on every cast melted him into the orange)
     img.setDisplaySize(150 + 90 * lvl, 190 + 110 * lvl);
     const life = T.startup + T.active + T.recovery * 0.5;
-    this.scene.tweens.add({ targets: img, alpha: 0.5 + 0.4 * lvl, duration: Math.min(160, T.startup) });
+    this.scene.tweens.add({ targets: img, alpha: s.cls === 'warrior' ? 0.2 + 0.25 * lvl : 0.5 + 0.4 * lvl, duration: Math.min(160, T.startup) });
     const tick = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { const c = this.casterPos(r.attackerId); if (c) img.setPosition(c.x, c.y - c.z - 40).setDepth(c.y - 1); } });
     this.scene.tweens.add({ targets: img, alpha: 0, delay: life - 180, duration: 180, onComplete: () => { tick.remove(); img.destroy(); } });
   }
@@ -527,7 +536,7 @@ export class SkillFx {
       if (r.phase === 'done' && r.elapsed < T.startup) return; // (cancelled before the throw)
       const c = this.casterPos(r.attackerId) ?? r.origin;
       this.play(key, c.x + a.x * 18, c.y + a.y * 18 - c.z - 44, len, len, [50, out, out, out, 110, back, back, back],
-        { ox: 0, oy: 0.5, angle: ang, flipY: a.x < 0, depth: TOP - 5, blend: Phaser.BlendModes.ADD, fadeLast: 90, follow: () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x + a.x * 18, y: p.y + a.y * 18, z: p.z + 44 } : null; } });
+        { ox: 0, oy: 0.5, angle: ang, flipY: a.x < 0, depth: TOP - 5, blend: Phaser.BlendModes.NORMAL, fadeLast: 90, follow: () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x + a.x * 18, y: p.y + a.y * 18, z: p.z + 44 } : null; } });
     });
   }
 
@@ -540,11 +549,11 @@ export class SkillFx {
       if (r.phase === 'done' && r.elapsed < T.startup) return;
       const c = this.casterPos(r.attackerId) ?? r.origin;
       const step = Math.max(50, h3 / 3), down = Math.max(60, slam - h3 - 40);
-      this.play(key, c.x, c.y - c.z, size, size, [50, step, step, step * 1.3, down], { oy: 0.9, flip, depth: c.y - 1, dz: -1, alpha: 0.85, blend: Phaser.BlendModes.ADD, fadeLast: 60, follow: air }); // (his slashes behind him: he stays readable in the air)
+      this.play(key, c.x, c.y - c.z, size, size, [50, step, step, step * 1.3, down], { oy: 0.9, flip, depth: c.y - 1, dz: -1, alpha: 0.9, blend: Phaser.BlendModes.NORMAL, fadeLast: 60, follow: air }); // (his slashes behind him: he stays readable in the air)
     });
     this.scene.time.delayedCall(T.startup + slam - 30, () => { // the landing: the ring on the floor where he comes down
       const c = this.casterPos(r.attackerId) ?? r.origin;
-      this.play(key, c.x, c.y + 6, size * 1.15, size * 1.15, [120, 150, 200], { frames: [5, 6, 7], oy: 0.9, flip, depth: c.y + 2, blend: Phaser.BlendModes.ADD, fadeLast: 160 });
+      this.play(key, c.x, c.y + 6, size * 1.15, size * 1.15, [120, 150, 200], { frames: [5, 6, 7], oy: 0.9, flip, depth: c.y + 2, blend: Phaser.BlendModes.NORMAL, fadeLast: 160 });
       (this.cam ?? this.scene.cameras.main).shake(160, 0.007);
     });
   }
@@ -555,7 +564,7 @@ export class SkillFx {
     const range = [200, 280, 360][lv] ?? 200, a = r.aim, w = range * 1.25, h = w * (256 / 384);
     const x = c.x + a.x * range * 0.55, y = c.y + a.y * range * 0.55;
     const d = Math.max(60, (T.active + T.recovery) / 8);
-    this.play(key, x, y + 10, w, h, [d * 0.6, d * 0.7, d, d, d * 1.3, d * 1.2, d * 1.2, d * 1.4], { oy: 0.98, flip: a.x < 0, depth: y + 4, blend: Phaser.BlendModes.ADD, fadeLast: 200 });
+    this.play(key, x, y + 10, w, h, [d * 0.6, d * 0.7, d, d, d * 1.3, d * 1.2, d * 1.2, d * 1.4], { oy: 0.98, flip: a.x < 0, depth: y + 4, blend: Phaser.BlendModes.NORMAL, fadeLast: 200 });
     (this.cam ?? this.scene.cameras.main).shake(180 + lv * 120, 0.006 + lv * 0.004);
     this.shockwave(x, y, range * 0.9, 0xffc060);
   }
@@ -565,7 +574,7 @@ export class SkillFx {
   private lionsMaw(r: CastRun): void {
     const T = r.timings, key = vfxKey('lions_maw'), a = r.aim, c = this.casterPos(r.attackerId) ?? r.origin, flip = a.x < 0;
     const x = c.x + a.x * 70, y = c.y + a.y * 70, s = Math.max(40, T.startup / 2);
-    this.play(key, x, y + 8, 430, 430, [s, s, 50, 70, 120, 90, 120, 160, 160, 230], { oy: 508 / 512, flip, depth: y - 3, alpha: 0.85, blend: Phaser.BlendModes.ADD, fadeLast: 230 }); // (behind the two fighters and a size down: in PVP 3D the lion hid them both)
+    this.play(key, x, y + 8, 430, 430, [s, s, 50, 70, 120, 90, 120, 160, 160, 230], { oy: 508 / 512, flip, depth: y - 3, alpha: 0.95, blend: Phaser.BlendModes.NORMAL, fadeLast: 230 }); // (behind the two fighters and a size down: in PVP 3D the lion hid them both)
     this.scene.time.delayedCall(T.startup + 450, () => { this.shockwave(x + a.x * 60, y + a.y * 60, 220, 0xffc860); (this.cam ?? this.scene.cameras.main).shake(150, 0.006); });
   }
 
@@ -628,10 +637,10 @@ export class SkillFx {
   /** Blade Storm: the painted lightning storm crashes down onto the raised sword and rages for the whole hold. */
   private lightningStorm(r: CastRun): void {
     const T = r.timings, c = this.casterPos(r.attackerId) ?? r.origin;
-    const img = this.scene.add.image(c.x, c.y + 6, 'bs-storm', 12).setOrigin(0.5, 342 / 440).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(310, 490).setDepth(c.y - 1).setAlpha(0.5); // (feel pass: in PVP 3D the storm at 0.72 hid both fighters for its whole life)
+    const img = this.scene.add.image(c.x, c.y + 6, 'bs-storm', 12).setOrigin(0.5, 342 / 440).setBlendMode(Phaser.BlendModes.NORMAL).setDisplaySize(310, 490).setDepth(c.y - 1).setAlpha(0.75); // (feel pass: in PVP 3D the storm at 0.72 hid both fighters for its whole life)
     const fr = [12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 11], up = T.startup;
     const fms = [up * 0.55, up * 0.15, up * 0.15, up * 0.15, 90, 90, 90, 70, 70, 70, 70, 70, 70, 260];
-    img.setData('a0', 0.5);
+    img.setData('a0', 0.75);
     this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: fr, frameMs: fms, fadeLast: 260, loop: [6, 11], until: T.startup + T.active,
       follow: () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x, y: p.y + 6, z: 0 } : null; } });
     this.scene.time.delayedCall(Math.round(up * 0.85), () => (this.cam ?? this.scene.cameras.main).shake(220, 0.007));
@@ -800,7 +809,7 @@ export class SkillFx {
   /** Shield Charge: the hex barrier of light rises before him and rides with the run, then breaks into shards at its end. */
   private shieldCharge(r: CastRun): void {
     const a = r.aim, key = vfxKey('shield_charge'), ang = Math.atan2(a.y, a.x) * (180 / Math.PI), T = r.timings;
-    const img = this.scene.add.image(0, 0, key, 0).setBlendMode(Phaser.BlendModes.ADD).setAngle(ang).setFlipY(a.x < -0.01);
+    const img = this.scene.add.image(0, 0, key, 0).setBlendMode(Phaser.BlendModes.NORMAL).setAngle(ang).setFlipY(a.x < -0.01);
     const hold = Math.max(60, T.startup + T.active - 120), fr = [0, 1, 1, 2, 3, 6, 7], fms = [Math.max(40, T.startup), hold * 0.5, hold * 0.5, 50, 60, 80, 160];
     const follow = () => { const c = this.casterPos(r.attackerId); if (!c) return null; img.setDisplaySize(170, 170); return { x: c.x + a.x * 40, y: c.y + a.y * 40, z: c.z + 42 }; };
     const p = follow(); if (p) img.setPosition(p.x, p.y - p.z).setDepth(p.y + 2);
@@ -829,7 +838,7 @@ export class SkillFx {
   /** Blade Storm summon: one phantom blade drops and stabs (dedicated sheet when present, else the storm sheet). */
   phantomBlade(x: number, y: number): void {
     if (this.scene.textures.exists('phantom-blade')) {
-      const img = this.scene.add.image(x, y, 'phantom-blade', 0).setOrigin(0.5, 0.92).setDepth(y + 1).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(170, 170);
+      const img = this.scene.add.image(x, y, 'phantom-blade', 0).setOrigin(0.5, 0.92).setDepth(y + 1).setBlendMode(Phaser.BlendModes.NORMAL).setDisplaySize(170, 170);
       const fms = [40, 40, 60, 60, 40, 60, 70, 80];
       this.anims.push({ img, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: [0, 1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 80 });
     } else this.spark(vfxKey('blade_storm'), x, y - 60, 12, 200, 0.9, 5);
@@ -842,8 +851,8 @@ export class SkillFx {
       if (!this.scene.textures.exists('bs-erupt')) return;
       const s = 0.65 + Math.random() * 0.25;
       const img = this.scene.add.image(x, y, 'bs-erupt', 0).setOrigin(0.5, 560 / 667).setDisplaySize(125 * s, 335 * s).setDepth(y + 1); // solid painted sword (readable on any floor)
-      const glow = this.scene.add.image(x, y, 'bs-erupt', 0).setOrigin(0.5, 560 / 667).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(125 * s, 335 * s).setDepth(y + 1.01).setAlpha(0.3);
-      glow.setData('a0', 0.3);
+      const glow = this.scene.add.image(x, y, 'bs-erupt', 0).setOrigin(0.5, 560 / 667).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(125 * s, 335 * s).setDepth(y + 1.01).setAlpha(0.15);
+      glow.setData('a0', 0.15);
       const fms = [50, 50, 60, 90, 110, 110, 120, 140];
       this.anims.push({ img, glow, t: 0, total: fms.reduce((p, q) => p + q, 0), frames: [0, 1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 140 });
     });
@@ -977,7 +986,7 @@ export class SkillFx {
     else img.setFlipX(aim.x < -0.01);
     img.setDepth(upright && (shape.kind === 'placed') ? GROUND + 1 : TOP).setBlendMode(Phaser.BlendModes.SCREEN);
     if (shape.kind === 'placed' || (upright && shape.kind === 'circle')) img.setDepth(Math.max(GROUND + 1, pos.y - 2)).setBlendMode(Phaser.BlendModes.ADD);
-    if (s.cls === 'archer' || s.id === 'rising_slash') img.setBlendMode(Phaser.BlendModes.NORMAL); // (rising_slash: its crimson must not wash to gold on the sunny floor) // archer sheets are re-toned to keep their green on the sunny floor
+    if (s.cls === 'archer' || s.id === 'rising_slash' || WTONED.has(s.id)) img.setBlendMode(Phaser.BlendModes.NORMAL); // (rising_slash: its crimson must not wash to gold on the sunny floor) // archer sheets are re-toned to keep their green on the sunny floor
     const T = r.timings, active = Math.max(T.active, 60);
     const fms: number[] = [], fr: number[] = [];
     if (basic) { // crisp: nothing during the wind-up, the arc snaps out exactly on the swing, short trail
@@ -993,7 +1002,7 @@ export class SkillFx {
       fr.push(frames - 1); fms.push(s.cls === 'warrior' ? 280 : 120); // the effect lingers on screen
     }
     const zone = s.zoneMs && s.zoneMs > 600;
-    const glow = VFX_MULT[s.cls] && s.cls !== 'archer' ? this.scene.add.image(img.x, img.y, key, 0).setOrigin(img.originX, img.originY).setBlendMode(Phaser.BlendModes.ADD)
+    const glow = VFX_MULT[s.cls] && s.cls !== 'archer' && !WTONED.has(s.id) ? this.scene.add.image(img.x, img.y, key, 0).setOrigin(img.originX, img.originY).setBlendMode(Phaser.BlendModes.ADD)
       .setDepth(img.depth - 0.01).setAngle(img.angle).setFlipX(img.flipX).setFlipY(img.flipY).setAlpha(s.cls === 'warrior' ? 0.28 : 0.45).setTint(CLASS_COLOR[s.cls]) : undefined;
     glow?.setData('a0', s.cls === 'warrior' ? 0.28 : 0.45); // (a soft halo: at 0.45 it burnt the sheet to white on the bright floors — snow, sun)
     if (basic) glow?.setVisible(false);
@@ -1314,7 +1323,8 @@ export class SkillFx {
       const rapid = s.hits.length > 4 && !hit.heavy;
       const size = row === 3 ? 190 : row === 1 ? (tier === 'ultimate' ? 180 : 150) : row === 2 ? 150 : s.id === 'warrior_basic' ? 100 : rapid ? 84 : 108; // (the chain's 4th strike is heavy: the 150 burst)
       const soft = rapid && row === 0; // (a burst's small sparks soft: stacked at full strength under an ultimate's camera punch-in they burnt to a white blob)
-      this.spark('imp-wsparks', at.x, at.y - at.z - 38, row * 6 + 6, soft && tier === 'ultimate' ? 64 : size, soft ? (tier === 'ultimate' ? 0.45 : 0.65) : 0.95, row * 6);
+      const fam = WFAM_N[s.id], fk = fam && row !== 3 ? `imp-wsparks-${fam}` : 'imp-wsparks', toned = fk !== 'imp-wsparks' && this.scene.textures.exists(fk); // (the spark in the skill's family; the COUNTER cross keeps its crimson-gold)
+      this.spark(toned ? fk : 'imp-wsparks', at.x, at.y - at.z - 38, row * 6 + 6, soft && tier === 'ultimate' ? 64 : size, soft ? (tier === 'ultimate' ? 0.45 : 0.65) : 0.95, row * 6, TOP + 2, toned);
     }
     else if (s.id !== 'warrior_basic') this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.4 : hit.heavy ? 1.15 : 1), 0.8); // (a regular attack: none, as in MapleStory)
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).
@@ -1438,8 +1448,8 @@ export class SkillFx {
   }
 
   /** One-shot animated sprite (impacts, bursts). */
-  spark(key: string, x: number, y: number, frames: number, size: number, alpha: number, start = 0, depth = TOP + 2): void {
-    const img = this.scene.add.image(x, y, key, start).setDepth(depth).setBlendMode(Phaser.BlendModes.ADD).setAlpha(alpha);
+  spark(key: string, x: number, y: number, frames: number, size: number, alpha: number, start = 0, depth = TOP + 2, normal = false): void {
+    const img = this.scene.add.image(x, y, key, start).setDepth(depth).setBlendMode(normal ? Phaser.BlendModes.NORMAL : Phaser.BlendModes.ADD).setAlpha(alpha);
     img.setDisplaySize(size, size);
     const fr: number[] = [], fms: number[] = [];
     for (let i = start; i < frames; i++) { fr.push(i); fms.push(42); }
