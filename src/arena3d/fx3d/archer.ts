@@ -31,8 +31,8 @@ export const ARCHER: Record<string, Recipe> = {
     active: (f, r) => { if (r.stage !== 1) return; const c = me(f, r); f.streak({ x: c.x + side(r) * 30, y: c.y, z: 62 }, { x: c.x + r.aim.x * 470, y: c.y + r.aim.y * 280, z: 62 }, SUN, { w: 16, ms: 260, draw: 70 }); f.host.kick(0.02); },
     own: true,
   },
-  // Rising Arrow: a green geyser bursts up under the foe — the floor cracks and a twisting column of leaf light throws him up
-  rising_arrow: { tone: WIND, own: true, hit: (f, _s, _h, at, main) => { if (!main) return; f.crack(at.x, at.y, WIND, { r: 80, chunks: 6, up: 1.3 }); f.pillar(at.x, at.y, WIND, { h: 440, r: 28, ms: 420, twist: true }); } },
+  // Rising Arrow: a star at the bow, then a twisting geyser of leaf light bursts up under the foe and throws him up
+  rising_arrow: { tone: WIND, own: true, fired: (f, _r, _i, o) => bowStar(f, o, WIND, 1.3), hit: (f, _s, _h, at, main) => { if (!main) return; f.pillar(at.x, at.y, WIND, { h: 520, r: 30, ms: 380, twist: true }); f.streak({ x: at.x, y: at.y, z: 0 }, { x: at.x, y: at.y, z: 600 }, C.leaf, { w: 10, ms: 260, draw: 60 }); } }, // (one shape: a twisting geyser of leaf light under him, a leaf streak shooting up through it; the floor's cracks and the flash are DFO's main-hit impact)
   // Wind Step: a gust ring bursts under her as she somersaults back, a streak of wind along the leap
   bow_haste: { tone: WIND, cast: (f, r) => { const c = me(f, r); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), WIND, 1.3, 320, 0.55); }, active: (f, r) => { const c = me(f, r); f.later(T(r).active * 0.6, () => { const e = me(f, r); f.streak({ x: c.x, y: c.y, z: 40 }, { x: e.x, y: e.y, z: 40 }, WIND, { w: 16, ms: 300, draw: 40 }); }); } },
   // Triple Arrow: five fine trails fanning out; the first to land rings the floor
