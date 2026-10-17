@@ -9,7 +9,7 @@
     "walk": {
       "frames": 40,
       "source": "pixverse mage_walk.mp4",
-      "cycle_canvas": 339
+      "cycle_canvas": 286
     },
     "hurt": {
       "frames": 6,

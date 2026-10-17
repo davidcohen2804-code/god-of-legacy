@@ -7,9 +7,9 @@
   "hip_x": 384,
   "animations": {
     "walk": {
-      "frames": 47,
+      "frames": 51,
       "source": "pixverse archer_walk.mp4",
-      "cycle_canvas": 290
+      "cycle_canvas": 308
     },
     "hurt": {
       "frames": 6,
