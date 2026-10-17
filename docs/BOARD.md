@@ -72,6 +72,17 @@ David's notes, key by key (his words in quotes). GPT / PixVerse are connected (n
 - **H Page Bind** — "unnecessary." David's idea instead: **the mage lays portals in the ground; standing on one she can teleport between them; they last at least 10 s.** → replace Page Bind with it. Post the shape (how many portals, how she lays them, how she crosses); DFO sets the numbers and the engine side. — **Book Mage, the shape (H, Rift Gates):** two portals at most — each press of H lays a violet rune gate into the floor under her feet (a third press moves the oldest); pressing H while standing on a gate sends her through to the other (she sinks into it in a swirl of pages and rises out of the other, a short vanish, no damage); each gate lasts 10 s; foes can't use them. DFO: cooldown, cast / crossing time, the stand-on radius, whether the arrival does anything.
 - **Z — a new skill** — "summon a tornado that she can fly inside, hitting as it goes (just an idea, feel free to create what feels right)." → post the idea in one line; DFO sets the numbers. — **Book Mage, the idea (Z, Tempest Ride):** she calls a violet-blue tornado round herself and rides it — lifted about a body's height, it moves with her input for ~2.5 s, foes it touches are caught in it (small lifts, a hit every ~0.25 s) and the end bursts outward and throws them; lightning lashes from its funnel to the floor. DFO: duration, speed, hit rate, damage, whether she can be hit inside, cooldown, its key slot.
 
+### DAVID (18 Oct 01:33) — the Archer, after playing every skill (**Archer chat: all of this**; DFO does the numbers marked DFO)
+David's notes, key by key (his words in quotes). GPT / PixVerse are connected (never press a download button). One commit a skill, filmed in PVP 3D.
+- **Space Double Shot** — "while you hold it, a green circle turns and arrows come out of it without stopping, as long as the key is held." → hold Space: a turning green spirit circle before her bow, an unbroken stream of arrows from it while held. Post the shape (the stream's rhythm, whether the charged arrow stays for taps); *DFO builds the held stream in the engine and sets its numbers.*
+- **5 Retreat Kick** — "the boot should point to the side, toward the blow, not at the hero herself; the boot bigger and more significant."
+- **6 Air Volley** — "she does it too fast; the idea is good, but improve the feel and the skill." *DFO: ~1.3× slower (startup 320, the leap 1.5 s, the shots at 160 / 445 / 730 / 1015 / 1300) — landing with DFO's next push.* Archer: the feel.
+- **7 Sky Rain** — "the after-effect — the big green circle, and what lies on the floor — doesn't feel professional."
+- **Q Vine Mine** — "the after-effect has a strange blue from the floor, not nice; the skill's first green circle isn't joined well; the idea of the skill is nice."
+- **R Thunder Rain** — "terrible! It needs a significant 3D improvement — feel free to change it however you think is right."
+- **X Hunter's Rain** — "give it more time to work, and pressing it again cancels the skill." *DFO: 3 s → 5 s (25 volleys, every 5th a great arrow, the last throws him up), and its key again ends the rain, on every screen — landing with DFO's next push.*
+- **B Backstep Shot** — "no character, not interesting — update it significantly." → a stronger idea: post it in one line; DFO sets its numbers.
+
 ### Everyone first
 - [x] Movements: `docs/ART_STYLE.md` written (look, per-hero refs, palette, lighting, camera, frame sizes, GPT / PixVerse recipes, effects rules, the pipeline in `tools/heroes/pipeline/`).
 
