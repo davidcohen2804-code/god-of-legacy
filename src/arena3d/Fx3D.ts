@@ -619,7 +619,7 @@ export class Fx3D {
   cardKeys(): string[] { return this.cards.keys(); }
   /** A big card spinning flat like a saw blade, held at `at()` (world px, z = its height) until that returns null, then it
    *  flares out: the thrown card riding its shot, the card spinning under a held foe. `size`: × a card (default 2.4);
-   *  `color`: its glow; `tilt` (rad): tipped toward the camera so its face reads. Half in front of the fighters, half behind. */
+   *  `color`: its glow; `tilt` (rad, default 0.6): tipped toward the camera so its face reads; `rps` (default 5) its turns a second — faster blurs it into a disc. Half in front of the fighters, half behind. */
   cardSpin(at: () => V3 | null, o: { size?: number; color?: number; tilt?: number; rps?: number } = {}): void { this.cards.spin(at, o); }
 
   /** A turn of a hold that follows its foe (`linger.at: 'target'`): the skill's recipe draws it (`tick`). */
@@ -950,7 +950,7 @@ class Deck3 {
     const glowMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, map: this.glowTex });
     const glow = [0, 1].map((k) => { const g = new THREE.Mesh(this.shadowGeo, glowMat.clone()); (g.material as THREE.MeshBasicMaterial).clippingPlanes = planes[k]; g.frustumCulled = false; (k ? this.h.glow : this.h.back).add(g); return g; });
     glowMat.dispose();
-    this.spins.push({ at, meshes, planes, mats: meshes.flatMap((m) => m.material as THREE.MeshStandardMaterial[]).filter((m, i, a) => a.indexOf(m) === i), glow, size, tilt: o.tilt ?? 0.32, rps: o.rps ?? 9, a: 0, out: -1, color, last: new THREE.Vector3(), t: 0 });
+    this.spins.push({ at, meshes, planes, mats: meshes.flatMap((m) => m.material as THREE.MeshStandardMaterial[]).filter((m, i, a) => a.indexOf(m) === i), glow, size, tilt: o.tilt ?? 0.6, rps: o.rps ?? 5, a: 0, out: -1, color, last: new THREE.Vector3(), t: 0 });
   }
   private place(c: Card3): void {
     c.mesh.position.set(c.x, c.y + this.T / 2 + (c.stuck && c.mode === 'lie' ? Math.abs(Math.sin(c.stuck)) * this.L * 0.32 : 0), c.z);
