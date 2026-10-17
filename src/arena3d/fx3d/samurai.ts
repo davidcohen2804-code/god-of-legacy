@@ -41,8 +41,11 @@ export const SAMURAI: Record<string, Recipe> = {
       f.later(160, () => f.streak({ ...c, z: 100 }, e, C.crimson, { w: 30, ms: 420, draw: 60 })); },
     hit: (f, _s, _h, at, main) => { if (main) f.slash(at, flip(), C.crimson, { r: 115, tilt: 45, a0: -80, a1: 100, ms: 260, i: 1.6 }); } },
   // the crescent thrown in gold: its swing, and a crest of gold light running with it along the floor
-  sword_wave: { tone: C.gold, crest: { c: C.sun, h: 115, w: 110 }, trail: false,
-    active: (f, r) => f.slash(me(f, r), side(r), C.gold, { r: 120, tilt: 18, a0: -110, a1: 120, ms: 220, i: 1.4 }) },
+  // (its strike is the painted crescent's: no dome of the room's over the foe — thrown close at a foe in the air, MIKAZUKI,
+  // the gold pile hid both; a launch from the floor: a slim short beam)
+  sword_wave: { own: true, tone: C.gold, crest: { c: C.sun, h: 115, w: 110 }, trail: false,
+    active: (f, r) => f.slash(me(f, r), side(r), C.gold, { r: 105, tilt: 18, a0: -110, a1: 120, ms: 200, i: 0.9 }),
+    hit: (f, _s, _h, at, main, react) => { if (main && react === 'launch') f.pillar(at.x, at.y, C.gold, { h: 300, r: 16, ms: 260, core: false, i: 0.6 }); } },
   // the stance: a rose haze round him for the window; the counter cut: three rose cuts crossing on the attacker
   mirage: { own: true, tone: C.rose,
     active: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, C.rose, { r: 120, ms: 480, a: 0.3, hold: 1, follow: () => f.host.casterPos(r.attackerId) }); },
@@ -70,7 +73,7 @@ export const SAMURAI: Record<string, Recipe> = {
   swallow_cut: { own: true, tone: C.crimson,
     active: (f, r) => f.slash(me(f, r), side(r), C.crimson, { r: 120, w: 24, tilt: 80, a0: 170, a1: 0, ms: 280, i: 0.8 }), // (thin: at its widest it covered the foe — DFO)
     hit: (f, _s, _h, at, main, react) => {
-      if (main && react === 'launch') f.pillar(at.x, at.y, C.crimson, { h: 420, r: 18, ms: 400, core: false, i: 0.8 });
+      if (main && react === 'launch') f.pillar(at.x, at.y, C.crimson, { h: 320, r: 18, ms: 240, core: false, i: 0.8 }); // (short: it stood through the chase after it — MIKAZUKI)
       else if (!main) f.slash(at, -1, C.crimson, { r: 100, w: 24, tilt: 65, a0: 160, a1: -10, ms: 200, i: 0.75 }); } },
   // the cage's small cuts: now and then a thin steel arc; the slam: a cross of steel light, gold sparks thrown off
   hundred_cuts: { own: true, tone: C.steel,

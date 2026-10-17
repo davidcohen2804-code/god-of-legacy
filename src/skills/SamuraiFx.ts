@@ -16,8 +16,8 @@ const TOP = 100000, GROUND = 2, SQUASH = 0.42, CRIMSON = 0xff3a4c, DUST = 0xd2a5
 const CRACK_TILT = -57;
 /** Hit marks a size down for the skills whose blows come thick and fast (they hid the foe in PVP 3D); the blow that lifts
  *  the foe in the basic opens in crimson. Sprays: their size and the skills whose spray is crimson (the Iai's opening). */
-const MARK_SCALE: Record<string, number> = { quick_slash: 0.8, hundred_cuts: 0.8, tornado_blade: 0.8, mirage: 0.8, swallow_cut: 0.62, dragon_ascension: 0.7 };
-const SPRAY_SCALE: Record<string, number> = { quick_slash: 0.7, iai_strike: 0.75, tornado_blade: 0.75, mirage: 0.7, swallow_cut: 0.75 };
+const MARK_SCALE: Record<string, number> = { quick_slash: 0.8, hundred_cuts: 0.8, tornado_blade: 0.8, mirage: 0.8, swallow_cut: 0.62, dragon_ascension: 0.7, sword_wave: 0.72 };
+const SPRAY_SCALE: Record<string, number> = { quick_slash: 0.7, iai_strike: 0.75, tornado_blade: 0.75, mirage: 0.7, swallow_cut: 0.75, sword_wave: 0.75 };
 const SPRAY_CRIMSON = new Set(['quick_slash', 'iai_strike']);
 /** The slash-hit pieces run this many degrees down to the right on their sheet (s11). */
 const SLASH_TILT = 43;
@@ -127,6 +127,8 @@ export class SamuraiFx {
   private waves = new Map<Projectile, Wave>();
   /** Mirage stances by cast: where the samurai stood (the mirage the blow strikes). */
   private stances = new Map<string, { x: number; y: number; z: number; done: boolean }>();
+  /** What a samurai's next skill clears (by attacker): his ribbons still fading (`trail`). */
+  private nexts = new Map<string, { castId: string; fn: () => void }[]>();
 
   constructor(private ctx: SamCtx) {}
 
@@ -422,17 +424,23 @@ export class SamuraiFx {
    *  (or `until` ms pass) and fades out over `fade` ms. */
   private trail(at: (t: number) => Pt | null, o: { span: number; w: number; tint?: number; glow?: number; until?: number; fade?: number; delay?: number; run?: CastRun; tone?: Tone }): void {
     const key = this.ribbonTex(o.tone), N = 24, base = this.strip(undefined, N, { key, tint: o.tint }), light = this.strip(undefined, N, { key, add: true });
-    const hist: { x: number; y: number; d: number; t: number }[] = [], fade = o.fade ?? 180;
-    let stop = -1;
-    const kill = () => { base.destroy(); light.destroy(); };
+    const hist: { x: number; y: number; d: number; t: number }[] = [];
+    let stop = -1, fade = o.fade ?? 180, k0 = 1, tNow = 0;
+    // (his next skill clears it: a fading ribbon froze on screen through the next skill's hit-stops — the effects' clock
+    // stops with them — and stood over the chase that followed: MIKAZUKI's jump and crescent after Swallow Cut)
+    const short = () => { const kn = stop < 0 ? 1 : k0 * (1 - (tNow - stop) / fade); if (kn <= 0) return; k0 = kn; stop = tNow; fade = 90; };
+    const nx = o.run ? { castId: o.run.castId, fn: short } : null, id = o.run?.attackerId;
+    if (nx && id) { const l = this.nexts.get(id) ?? []; l.push(nx); this.nexts.set(id, l); }
+    const kill = () => { base.destroy(); light.destroy(); if (nx && id) { const l = this.nexts.get(id); if (l) { const m = l.filter((x) => x !== nx); if (m.length) this.nexts.set(id, m); else this.nexts.delete(id); } } };
     this.add({ t: 0, step: (_dt, t0) => {
       const t = t0 - (o.delay ?? 0);
+      tNow = t;
       if (t < 0) return true;
       if (this.gone(o.run) || (this.broken(o.run) && !hist.length)) { kill(); return false; }
       if (stop < 0) { const p = o.until !== undefined && t > o.until ? null : at(t); if (p) hist.push({ x: p.x, y: p.y, d: p.d, t }); else stop = t; }
       const now = stop < 0 ? t : stop;
       while (hist.length > 2 && hist[1].t < now - o.span) hist.shift();
-      const k = stop < 0 ? 1 : 1 - (t - stop) / fade;
+      const k = stop < 0 ? 1 : k0 * (1 - (t - stop) / fade);
       if (k <= 0) { kill(); return false; }
       if (hist.length < 2) return true;
       const ta = Math.max(hist[0].t, now - o.span), tb = hist[hist.length - 1].t;
@@ -519,6 +527,7 @@ export class SamuraiFx {
   /** The wind-up (and whatever runs through the whole cast). */
   cast(r: CastRun): void {
     if (!this.ready) return;
+    for (const [k, l] of [...this.nexts]) if (k === r.attackerId || k.startsWith(`${r.attackerId}#`)) for (const x of [...l]) if (!x.castId.startsWith(r.castId)) x.fn(); // (his last skill's ribbons — his doubles' too — give way to this one)
     this.castOne(r, false);
     for (const g of this.shadows(r)) this.castOne(g, true);
   }
@@ -822,12 +831,14 @@ export class SamuraiFx {
           : bz(Math.min(1, (t - ret) / 100), [98, -196], [136, -150], [152, -12]);
         return { x: c.x + side * dx, y: c.y - c.z + dy, d: c.y - 3 }; // (behind both fighters: at its widest it covered the foe — DFO)
       };
-      this.trail(tip, { span: 240, w: 40, until: ret + 105, fade: 280, run: r, glow: 0.55 }); // (the swallow's flight, lit so the foe it lifts reads in it — PVP 3D)
+      this.trail(tip, { span: 240, w: 40, until: ret + 105, fade: 110, run: r, glow: 0.55 }); // (the swallow's flight, lit so the foe it lifts reads in it — PVP 3D; gone before the chase goes on: MIKAZUKI's jump and crescent)
       this.later(ret - 10, () => { const p = tip(ret - 10); if (p) this.pop('glint', p.x, p.y, 100, { life: 220, angle: 0, depth: p.d + 6, glow: 0.45 }); }, r); // (the turn)
-      this.cut('cut_rise', 124, 0, { follow: this.front(r, 46, 90), flipX: fl, grow: 70, hold: 40, fade: 190, glow: 0.3, alpha: 0.8 });
+      const cr = this.front(r, 46, 90)(); // (where he cut: following him, it rose with his jump after it — MIKAZUKI)
+      if (cr) this.cut('cut_rise', 124, 0, { x: cr.x, y: cr.y, depth: cr.d + 3, flipX: fl, grow: 70, hold: 40, fade: 130, glow: 0.3, alpha: 0.8 });
       const p = this.front(r, 54, 60)(); if (p) this.sparks(p.x, p.y, 7, 50, { depth: p.d + 4, up: 40 });
     } else {
-      this.cut('cut_heavy', 140, -side * 32, { follow: this.front(r, 96, 104), flipX: fl, flipY: true, grow: 45, hold: 40, fade: 190, glow: 0.3, alpha: 0.85 }); // the return: back down through the foe in the air
+      const ch = this.front(r, 96, 104)();
+      if (ch) this.cut('cut_heavy', 140, -side * 32, { x: ch.x, y: ch.y, depth: ch.d + 3, flipX: fl, flipY: true, grow: 45, hold: 40, fade: 130, glow: 0.3, alpha: 0.85 }); // the return: back down through the foe in the air
       const p = this.front(r, 68, 112)(); if (p) this.pop('spark_s', p.x, p.y, 92, { depth: p.d + 5 });
     }
   }
@@ -1703,21 +1714,25 @@ export class SamuraiFx {
     this.waves.delete(p);
     const end = p.end ?? { x: p.x, y: p.y, reason: 'range' as const }, fl = p.dx < -0.01, ang = screenAng(p.dx, p.dy), foe = end.reason === 'target', wall = end.reason === 'cover';
     const G = (n: string) => tn(n, 'gold');
-    const shatter = (x: number, y: number, size: number) => this.spr({ name: G('wave_break'), x, y, w: size, life: foe ? 380 : 320, flipX: fl, angle: along(ang, fl) * 0.3, glow: 0.35, depth: TOP + 4,
+    // (on a foe: the shards burst behind him and the strike a size down — thrown close, level with a foe in the air (the
+    // MIKAZUKI trial), the old pile hid both fighters for a third of a second; a wall keeps it whole)
+    const shatter = (x: number, y: number, size: number, d: number) => this.spr({ name: G('wave_break'), x, y, w: size, life: foe ? 260 : 320, flipX: fl, angle: along(ang, fl) * 0.3, glow: foe ? 0.25 : 0.35, depth: d,
       sx: kf([0, 0.6], [0.2, 1.05, out3], [1, 1.2]), sy: kf([0, 0.6], [0.2, 1.05, out3], [1, 1.2]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
-    const impact = (x: number, y: number, k: number) => { // it strikes: the crescent flattens against what it hit and bursts, its force spraying on through
-      this.spr({ name: G('wave_crescent'), x, y, ox: 0.76, angle: ang, flipY: fl, w: 150 * k, depth: TOP + 4.2, life: 200, glow: 0.5,
-        sx: kf([0, 1], [1, 1.5, out]), sy: kf([0, 1], [1, 0.25, inQ]), a: kf([0, 1], [1, 0, inQ]) });
-      this.spr({ name: G('spark_spray'), x, y, ox: fl ? 0.95 : 0.05, oy: 0.45, flipX: fl, angle: along(ang, fl), depth: TOP + 3.9, w: 170 * k, life: 280,
+    const impact = (x: number, y: number, k: number, d: number) => { // it strikes: the crescent flattens against what it hit and bursts, its force spraying on through
+      // (on a foe: pushed on into him, flattening less far back — thrown close, it lay over the thrower)
+      const ix = foe ? x + (fl ? -1 : 1) * 26 : x;
+      this.spr({ name: G('wave_crescent'), x: ix, y, ox: 0.76, angle: ang, flipY: fl, w: (foe ? 104 : 122) * k, depth: TOP + 4.2, life: 150, glow: 0.4,
+        sx: kf([0, 1], [1, foe ? 1.2 : 1.5, out]), sy: kf([0, 1], [1, 0.25, inQ]), a: kf([0, 0.85], [1, 0, inQ]) });
+      this.spr({ name: G('spark_spray'), x, y, ox: fl ? 0.95 : 0.05, oy: 0.45, flipX: fl, angle: along(ang, fl), depth: d, w: 132 * k, life: 240,
         sx: kf([0, 0.4], [0.25, 1, out3], [1, 1.12]), sy: kf([0, 0.6], [0.25, 1, out3]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
-      this.sparks(x, y, Math.round(10 * k), 70 * k, { tone: 'gold', depth: TOP + 3 });
+      this.sparks(x, y, Math.round(6 * k), 60 * k, { tone: 'gold', depth: TOP + 3 });
     };
-    const size = foe ? 190 : wall ? 150 : 112;
-    shatter(end.x, end.y - p.z, size);
-    if (foe || wall) impact(end.x, end.y - p.z, foe ? 1 : 0.75);
+    const size = foe ? 140 : wall ? 150 : 112, behind = foe ? end.y - 1.2 : TOP + 4;
+    shatter(end.x, end.y - p.z, size, behind);
+    if (foe || wall) impact(end.x, end.y - p.z, foe ? 1 : 0.75, foe ? end.y - 1.1 : TOP + 3.9);
     if (wall) this.dust(end.x, end.y, 90);
     w.im.destroy(); w.gl.destroy();
-    for (const g of w.ghosts) { shatter(end.x + g.dx, end.y + g.dy - p.z, size * 0.8); g.im.destroy(); }
+    for (const g of w.ghosts) { shatter(end.x + g.dx, end.y + g.dy - p.z, size * 0.8, foe ? end.y + g.dy - 1.2 : TOP + 4); g.im.destroy(); }
   }
   private stepWaves(dt: number): void {
     for (const [p, w] of this.waves) {
@@ -1776,6 +1791,6 @@ export class SamuraiFx {
     for (const id of [...this.marks.keys()]) this.clearMark(id, true);
     for (const id of [...this.suns.keys()]) this.clearSun(id, true);
     for (const [p] of this.waves) this.projectileEnd(p);
-    this.live = []; this.incoming = [];
+    this.live = []; this.incoming = []; this.nexts.clear();
   }
 }
