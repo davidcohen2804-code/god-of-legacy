@@ -31,6 +31,22 @@ The DFO PvP arena dynamics chat is the PvP director: it sets the bar per class, 
 Take the whole PvP up a level in everything — dynamics, skills, effects, hit frames, movement, camera, feel: every hit felt, every class unique and amazing, big moments that look like a cinematic, and reasons to keep playing.
 
 ## Open items
+### DAVID (18 Oct 01:07) — the Warrior, after playing every skill (**Warrior chat: all of this, in this order**; DFO does the numbers marked DFO)
+David's notes, key by key (his words in quotes). Use GPT / PixVerse where a look needs new art (they are connected — never press a download button). One commit a skill, filmed in PVP 3D.
+- **1 Dash Slash** — "looks like it drags him: if it drags, let it drag." → the dash really carries the foe along to its end. *DFO: it carries him, like Impaling Rush (landing with DFO's next push).* Warrior: the body and the look of a drag (the foe hooked on the blade, sparks / a furrow along the floor).
+- **2 Rising Slash** — "the hero's animation is not nice, and it lacks a 3D feel." → redo the body's motion (wind-up, the rise, the follow-through) and its 3D.
+- **3 Ground Breaker** — "improve the 3D and the feel."
+- **5 Sanctuary** — "it must feel that the shield is joined to the floor, not floating." → the wall of light planted in the planks: a base, cracks and glow where it meets the floor.
+- **7 Titan's Verdict** — "what stays on the floor must look more powerful."
+- **R Wave Slash** — "boring idea, it doesn't feel worth anything." → a stronger idea: post it here in one line; DFO sets its numbers.
+- **F Impaling Rush** — "maybe a skill you hold: it charges a blow and then runs forward with it." → hold to charge (in steps, like Earthsplitter), release to rush forward with it. Post the steps you want; *DFO sets the timings.*
+- **C Judgment Blade** — "throw 3 such swords when pressing 3 times while in the air." *DFO: 3 charges (landing with DFO's next push).* Warrior: three blades that read as one volley.
+- **V Iron Grip** — "hold the foe in stun at least 3 s." *DFO: the smash leaves him stunned 3 s, the bounce stays (landing with DFO's next push).*
+- **T Judgment Hook** — "very fast, unpleasant, not professional." *DFO: the chain reaches at 160 ms (was 90) and draws him in over 230 ms (was a 110 ms snap) — landing with DFO's next push.* Warrior: the chain's flight and the pull with weight.
+- **Z Earthsplitter** — "what comes out of the floor stays on screen 5 s, like boiling rocks, like lava; an improved effect." *DFO: the spikes stand 5 s (landing with DFO's next push).* Warrior: molten boiling rock (glowing cracks, magma dripping, heat, smoke).
+- **X Lion's Maw** — "unclear, no character; maybe the lion comes out and roars for at least 5 s, dealing damage." → the lion stays and roars ≥5 s, the roar hurting what it reaches. Post the shape; *DFO sets the roar's damage / ticks / reach.*
+- **B Shield Charge** — "meaningless, no character — change it, another idea." → a new idea: post it here in one line; DFO sets its numbers.
+
 ### Everyone first
 - [x] Movements: `docs/ART_STYLE.md` written (look, per-hero refs, palette, lighting, camera, frame sizes, GPT / PixVerse recipes, effects rules, the pipeline in `tools/heroes/pipeline/`).
 
