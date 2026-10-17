@@ -35,8 +35,14 @@ export const BOOK_MAGE: Record<string, Recipe> = {
     active: (f, r) => { const p = placeOf(f, r); const life = r.skill.zoneMs ?? 2400; f.glyph(p.x, p.y, C.storm, { shape: 'spiral', r: 200, ms: life, spin: 0.7, pulse: 2.2 }); for (let t = 200; t < life; t += 460) f.later(t, () => { const a = Math.random() * Math.PI * 2, d = 120 + Math.random() * 80; f.bolt({ x: p.x + Math.cos(a) * d * 0.5, y: p.y, z: 700 }, { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d * 0.5, z: 0 }, C.storm, { ms: 180, w: 5, forks: 2 }); }); },
     fired: (f, r, i) => { const p = placeOf(f, r), last = i === r.hits.length - 1; f.skyBeam({ x: p.x, y: p.y, z: 0 }, C.storm, { ms: last ? 520 : 320, w: last ? 16 : 9 }); if (last) f.host.kick(0.05); },
   },
-  // the ultimate: space folds in (an imploding dome), then a violet column with a crown of crystals — strong, never a white-out
-  time_collapse: { tone: C.arcane, own: true, active: (f, r) => { const p = placeOf(f, r); f.dome(p.x, p.y, C.arcane, { r: 380, ms: 1100, implode: true, a: 0.6 }); f.later(1000, () => { f.pillar(p.x, p.y, C.arcane, { h: 820, r: 70, ms: 700, i: 1.4, twist: true }); f.crystals(p.x, p.y, { n: 14, r: 210, h: 160, ms: 1700, ring: true, color: C.arcane }); f.host.ring(f.host.w3(p.x), f.host.d3(p.y), C.storm, 4.2, 600, 0.7); f.host.impact({ x: p.x, y: p.y, z: 60 }, 2); f.host.kick(0.08); }); } },
+  // the ultimate (the reference's book mage, 08): a rune glyph the size of the field turns under it from the cast; at the freeze lightning with legs
+  // strikes down round its rim, closing in; at the blast a dome bursts over the field and a spiral vortex turns on the floor after it (no white column)
+  time_collapse: { tone: C.arcane, own: true,
+    cast: (f, r) => { const p = placeOf(f, r); f.glyph(p.x, p.y, C.arcane, { shape: 'runes', r: 300, ms: r.timings.startup + r.timings.active, spin: -0.4, pulse: 1.2 }); },
+    active: (f, r) => { const p = placeOf(f, r); f.dome(p.x, p.y, C.arcane, { r: 340, ms: 900, implode: true, a: 0.35 }); },
+    fired: (f, r, i) => { const p = placeOf(f, r);
+      if (i === 1) for (let k = 0; k < 6; k++) f.later(k * 45, () => { const a = (k / 6) * Math.PI * 2 + 0.3; f.bolt({ x: p.x + Math.cos(a) * 140, y: p.y + Math.sin(a) * 70, z: 760 }, { x: p.x + Math.cos(a) * 280, y: p.y + Math.sin(a) * 140, z: 0 }, C.storm, { ms: 220, w: 6, forks: 2 }); });
+      if (i === 2) { f.dome(p.x, p.y, C.arcane, { r: 320, ms: 520, a: 0.45 }); f.glyph(p.x, p.y, C.arcane, { shape: 'spiral', r: 280, ms: 1300, spin: 2.6, pulse: 1 }); f.host.ring(f.host.w3(p.x), f.host.d3(p.y), C.storm, 4.2, 600, 0.6); f.host.kick(0.08); } } },
   // a slim flicker where she vanishes and where she steps out
   blink: { tone: C.arcane, cast: (f, r) => { const c = me(f, r); f.pillar(c.x, c.y, C.arcane, { h: 240, r: 24, ms: 260, core: false, i: 0.7 }); }, active: (f, r) => f.later(60, () => { const c = me(f, r); f.pillar(c.x, c.y, C.arcane, { h: 240, r: 24, ms: 300, core: false, i: 0.7 }); }) },
   // ice marching along the aim; the main hit grows a bigger cluster on the foe

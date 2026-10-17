@@ -756,7 +756,6 @@ export class MageFx {
     const p = this.placeFloor(r), T = r.timings, total = T.startup + T.active;
     if (this.ctx.scene.textures.exists('mfx-clock')) { // the painted clock, timed to the cast: drawn and sweeping through the pull, stopped at the freeze, cracking until the blast
       const fz = T.startup + (r.hits[1]?.at ?? 260), bl = T.startup + (r.hits[2]?.at ?? 1250); // (from the cast's own timings and hits)
-      this.circle(p.x, p.y, 620, 0, total + 500, { run: r, draw: 400, ult: true });
       this.ctx.darken(total + 300, 0.5);
       if (this.ctx.scene.textures.exists('mfx-rift')) { // the rift of time under the clock: opens, swirls until the blast (its eruption is drawn there)
         this.sheet('mfx-rift', p.x, p.y, 640, 380, { floor: true, frames: [0, 4], oy: 0.72, depth: GROUND + 4, run: r });
@@ -778,9 +777,9 @@ export class MageFx {
   private timeBlast(p: V2): void {
     if (this.ctx.scene.textures.exists('mfx-clock')) {
       this.warp.ring(p.x, p.y, { r1: 520, life: 600, s: 46, width: 40, squash: SQUASH }); this.warp.ring(p.x, p.y - 80, { r1: 360, life: 460, s: 30, width: 30 });
-      this.pool(p.x, p.y, 800, 0xd9b8ff, 1100, { alpha: 0.6 }); this.scorch(p.x, p.y, 460, 0xffd27a);
+      this.pool(p.x, p.y, 800, 0xd9b8ff, 1100, { alpha: 0.6 }); 
       this.gpu('nova', p.x, p.y, 900, 900 * SQUASH, 640, (u, _ms, q) => { MageFx.U(q, 'uP', out3(u)); MageFx.U(q, 'uE', u > 0.4 ? (u - 0.4) / 0.6 : 0); }, { depth: GROUND + 2 });
-      if (this.ctx.scene.textures.exists('mfx-rift')) this.sheet('mfx-rift', p.x, p.y, 700, 900, { frames: [12, 4], oy: 0.72, depth: TOP + 6, alpha: 0.8 });
+      if (this.ctx.scene.textures.exists('mfx-rift')) this.sheet('mfx-rift', p.x, p.y, 640, 820, { frames: [12, 4], oy: 0.72, depth: p.y - 60, alpha: 0.6 }); // (the eruption behind the fighters: the 3D dome and vortex carry the blast)
       else this.sheet('mfx-pillar', p.x, p.y + 8, 700, 640, { oy: 0.85, depth: TOP + 6, frames: [5, 11], tint: 0xffe2b0 });
       this.smoke(p.x, p.y - 20, 760, 0, 1100, { squash: 0.45, depth: GROUND + 3 });
       this.burst(p.x, p.y - 80, { n: 24, speed: [300, 900], life: [400, 900], scale: [0.04, 0.2], tint: [0xffd27a, 0xb9a2ff], gravity: 400 });
