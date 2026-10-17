@@ -20,7 +20,10 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // the trap snaps: a net of rune chains closes over the foe (the SNARE trial: under a falling foe it catches him as he lands)
   binding_rune: { tone: C.arcane, own: true, hit: (f, _s, _h, at) => { const z = at.z ?? 0; for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2; f.streak({ x: at.x + Math.cos(a) * 95, y: at.y + Math.sin(a) * 60, z: 0 }, { x: at.x + Math.cos(a) * 14, y: at.y + Math.sin(a) * 9, z: z + 70 + (k % 2) * 40 }, C.arcane, { w: 5, ms: 520, draw: 110 }); } f.host.ring(f.host.w3(at.x), f.host.d3(at.y), C.arcane, 1.6, 360, 0.7); } }, // (the net: six chains of rune light snap up from the floor and close over the foe — on a falling foe it catches him as he lands)
   // the launcher: the class's one tall twisting column, under the foe it throws up
-  astral_burst: { tone: C.storm, own: true, active: (f, r) => { const p = placeOf(f, r, 120); f.pillar(p.x, p.y, C.storm, { h: 520, r: 36, ms: 520, twist: true, i: 0.75, core: false }); f.dome(p.x, p.y, C.arcane, { r: 110, ms: 300, a: 0.28 }); } },
+  // (a rune glyph opens under the foe in the wind-up; the release: the twisting star column with a hot core and one inked ring sweeping up through him — the throw)
+  astral_burst: { tone: C.storm, own: true,
+    cast: (f, r) => { const p = placeOf(f, r, 120); f.glyph(p.x, p.y, C.arcane, { shape: 'runes', r: 80, ms: 620, spin: 2.2, pulse: 2 }); },
+    active: (f, r) => { const p = placeOf(f, r, 120); f.pillar(p.x, p.y, C.storm, { h: 520, r: 32, ms: 460, twist: true, i: 0.8 }); f.slash(p, side(r), C.arcane, { r: 85, w: 44, tilt: 90, a0: -110, a1: 70, ms: 230, y0: 95, ink: true }); } },
   // cold bursting out round her: crystals grow at the rim (the fighters inside stay clear), a pale shell, frost dust
   frost_nova: { tone: C.frost, own: true, active: (f, r) => { const c = me(f, r); f.crystals(c.x, c.y, { n: 12, r: 185, h: 120, ms: 1400, ring: true }); f.dome(c.x, c.y, C.frost, { r: 200, ms: 340, a: 0.5 }); f.host.dust(f.host.w3(c.x), f.host.d3(c.y), 8, 1.1); } },
   // lightning leaping link to link; the main link flashes a small shell on the foe

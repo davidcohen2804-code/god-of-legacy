@@ -622,14 +622,13 @@ export class MageFx {
     const cx = c0.x + r.aim.x * 80, cy = this.floorY(cx, c0.y + r.aim.y * 80, c0.z), hy = cy - 80;
     this.pool(cx, cy, 360, 0xa98cff, T.startup + 300, { alpha: 0.45 });
     this.ctx.darken(T.startup + 360, 0.32);
-    this.circle(cx, cy, 380, 0, T.startup + 520, { run: r, draw: T.startup });
     this.gpu('vortex', cx, hy, 230, 230, T.startup + 260, (u, ms, q) => {
       MageFx.U(q, 'uP', Math.min(1, ms / T.startup)); MageFx.U(q, 'uE', ms < T.startup ? 0 : (ms - T.startup) / 260);
       q.setScale(ms < T.startup ? 0.55 + 0.45 * out3(ms / T.startup) : 1 - 0.6 * out((ms - T.startup) / 260));
     }, { uA: side, run: r, depth: cy + 4 });
     this.warp.well(cx, hy, { r: 200, life: T.startup + 120, s: 18, twist: 20 * side });
     // the painted pillar: its ignition (frames 1-5) through the wind-up, the eruption on the throw; anchored at its foot
-    this.sheet('mfx-pillar', cx, cy + 6, 400, T.startup + 700, { oy: 0.85, depth: cy + 5, split: [5, T.startup], run: r, fade: [[0, 0.8], [(T.startup + 110) / (T.startup + 700), 0.8], [(T.startup + 260) / (T.startup + 700), 0.35], [1, 0]] }); // (it erupts full, then thins: the thrown foe reads through it)
+    this.sheet('mfx-pillar', cx, cy + 6, 340, T.startup + 700, { oy: 0.85, depth: cy - 4, split: [5, T.startup], run: r, fade: [[0, 0.65], [(T.startup + 110) / (T.startup + 700), 0.65], [(T.startup + 260) / (T.startup + 700), 0.25], [1, 0]] }); /* (behind the foe it throws, thinner: the 3D twisting column and the inked rising ring carry it) */ // (it erupts full, then thins: the thrown foe reads through it)
     this.smoke(cx, cy - 20, 300, 0, T.startup + 500, { squash: 0.5, depth: cy + 1 }); // dark void gathering at the foot
     for (let k = 0; k < 10; k++) this.img('mg-dot', { x: cx + rnd(-120, 120), y: cy + rnd(-30, 20), w: rnd(5, 11), tint: k % 2 ? 0xb9a2ff : 0x9fe6ff, life: T.startup + 300, delay: rnd(0, T.startup), run: r, my: (u) => -120 * u, a: kf([0, 0], [0.2, 1], [1, 0]) });
     const hand = this.ctx.hand(r.attackerId) ?? { x: c0.x + side * 30, y: c0.y - c0.z - 70 };
@@ -641,20 +640,17 @@ export class MageFx {
   /** Astral Lift's throw: a pillar of plasma, void smoke bursting at its foot, a ring of bent air along the floor, a beat of stillness. */
   private starLaunch(r: CastRun, o: V3): void {
     const c0 = r.place ?? { x: o.x + r.aim.x * 80, y: o.y + r.aim.y * 80 }, c = { x: c0.x, y: this.floorY(c0.x, c0.y, this.me(r).z) };
-    this.pool(c.x, c.y, 520, 0xb9a2ff, 900, { alpha: 0.75 }); this.scorch(c.x, c.y, 260, 0xb9a2ff); this.shade(c.x, c.y, 200, 700, { alpha: 0.5 });
+    this.pool(c.x, c.y, 420, 0xb9a2ff, 700, { alpha: 0.45 }); this.shade(c.x, c.y, 200, 700, { alpha: 0.5 }); // (no scorch: the room's impact cracks the floor)
     if (!this.ctx.scene.textures.exists('mfx-pillar')) this.gpu('pillar', c.x, c.y + 10, 250, 720, 700, (u, ms, q) => { MageFx.U(q, 'uP', ms < 70 ? 1.25 : Math.max(0, 1.25 - (ms - 70) / 500)); MageFx.U(q, 'uE', u * u); q.setScale(1 + 0.3 * out(Math.min(1, ms / 120)), 1); },
       { oy: 1, depth: c.y + 5 });
     this.gpu('nova', c.x, c.y, 600, 600 * SQUASH, 520, (u, _ms, q) => { MageFx.U(q, 'uP', out3(u)); MageFx.U(q, 'uE', u > 0.4 ? (u - 0.4) / 0.6 : 0); }, { depth: GROUND + 2 });
-    this.warp.ring(c.x, c.y, { r1: 380, life: 520, s: 38, width: 32, squash: SQUASH });
-    this.warp.ring(c.x, c.y - 100, { r1: 260, life: 380, s: 24, width: 24 });
+    this.warp.ring(c.x, c.y, { r1: 300, life: 460, s: 18, width: 26, squash: SQUASH });
     const painted = this.ctx.scene.textures.exists('mfx-pillar');
     if (!painted) this.star(c.x, c.y - 90, 320, 300, { rays: 6 });
-    this.burst(c.x, c.y - 30, { n: painted ? 14 : 34, speed: [260, 760], life: [300, 700], scale: [0.04, 0.22], tint: [0xffffff, 0xb9a2ff, 0x8fe6ff], angle: [-125, -55], gravity: 320 });
+    this.burst(c.x, c.y - 30, { n: painted ? 8 : 34, speed: [260, 760], life: [300, 700], scale: [0.04, 0.2], tint: [0xb9a2ff, 0x8fe6ff], angle: [-125, -55], gravity: 320 });
     if (painted) { // depth: a wider, fainter echo of the pillar behind it, smoke bursting at its foot, stars rising after it, the circle glowing on
-      this.sheet('mfx-pillar', c.x, c.y + 8, 640, 560, { oy: 0.85, depth: c.y + 3, frames: [5, 11], alpha: 0.3, sx: 1.25 });
       this.smoke(c.x, c.y - 10, 420, 0, 900, { squash: 0.45, depth: c.y + 2 });
       for (let k = 0; k < 5; k++) this.later(k * 110, () => this.burst(c.x + rnd(-40, 40), c.y - 60 - k * 40, { n: 6, speed: [40, 160], life: [500, 900], scale: [0.03, 0.12], tint: [0xffffff, 0xb9a2ff, 0x8fe6ff], gravity: -180 }));
-      this.circle(c.x, c.y, 420, 0, 900, { draw: 60, alpha: 0.75 });
     }
     this.ctx.hitStop?.(95); this.shake(230, 0.011); if (!painted) this.ctx.flash?.(0xd9ccff, 0.14, 120); this.ctx.punch(0.03, 240);
   }
