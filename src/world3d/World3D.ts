@@ -6,7 +6,7 @@ import Phaser from 'phaser';
 import { Arena3D, type Cam3D, type Floor } from '../arena3d/Arena3D';
 import { AREAS, ARENA, areaAt } from '../world/Areas';
 import { WORLD3D } from './flag';
-import { MAPS } from './maps';
+import { MAPS, VIEW } from './maps';
 import { SKY_FLOOR } from './maps/sky';
 
 /** The world camera: a little higher and further than the arena's (one player walking far), a gentle turn. */
@@ -44,7 +44,9 @@ export interface WorldFrame {
 
 /** The story's camera beats (docs/WORLD_3D_SPEC.md §1.8), on the stage's knobs: the focus (a pan turns the camera too),
  *  the punch (nearer / wider), the darkening, the swing. */
-const BEAT = { talkIn: 500, talkOut: 400, talkNear: 1.22, showMs: 2200, showHold: 800, showReach: 400, bossMs: 1800, bossWide: 0.78, bossDim: 0.5, fallMs: 1600, fallSwing: 6, openMs: 5000, openWide: 0.6 };
+const BEAT = { talkIn: 500, talkOut: 400, talkNear: 1.22, showMs: 2200, showHold: 800, showReach: 400, bossMs: 1800, bossWide: 0.78, bossDim: 0.5, fallMs: 1600, fallSwing: 6, openMs: 5000, openWide: 0.6,
+  /** the breath with his pace: standing, the camera settles a little nearer; running, it lets out (eased over `paceMs`) */
+  paceNear: 1.04, paceWide: 0.95, paceMs: 1500, paceRun: 0.32 };
 const ease = (k: number) => { const c = Phaser.Math.Clamp(k, 0, 1); return c * c * (3 - 2 * c); };
 /** An envelope: up over `inMs`, held, down over `outMs` — 0..1 at time `t` of `ms`. */
 const env = (t: number, ms: number, inMs: number, outMs: number) => Math.min(ease(t / inMs), ease((ms - t) / outMs));
@@ -59,6 +61,7 @@ export class World3D {
   private arrive: { t: number; ms: number; fromX: number; snap: boolean; wide: number } | null = null;
   // the beats running
   private talkK = 0; private talkAt: { x: number; y: number } | null = null;
+  private pace = 0; private wasAt: { x: number; y: number } | null = null;
   private showing: { x: number; t: number; ms: number } | null = null;
   private bossIn: { t: number } | null = null; private bossSeen = new Set<string>();
   private falling: { t: number } | null = null;
@@ -93,10 +96,14 @@ export class World3D {
     const plaza = this.areaId === 'temple' && h.y >= ARENA.y; // (down on the Sun Seal Plaza: the camera ranges over the plaza, wider than the road)
     const x0 = (plaza ? ARENA.x : this.floor.x0) + HALF_VIEW, x1 = (plaza ? ARENA.x + ARENA.w : this.floor.x1) - HALF_VIEW;
     let fx = x1 > x0 ? Phaser.Math.Clamp(h.x + this.lead, x0, x1) : (this.floor.x0 + this.floor.x1) / 2;
-    let punch = 1;
+    // the map's own view (a narrow way nearer, a square wider) and the breath with his pace (standing a little nearer, running let out)
+    const moved = this.wasAt && ms > 0 ? Math.hypot(h.x - this.wasAt.x, h.y - this.wasAt.y) / ms : 0; this.wasAt = { x: h.x, y: h.y };
+    if (moved < 1.2) this.pace += (Phaser.Math.Clamp(moved / BEAT.paceRun, 0, 1) - this.pace) * Math.min(1, ms / BEAT.paceMs); // (a leap of more than a screen a frame is a teleport, not a pace)
+    const base = (plaza ? 0.88 : VIEW[this.areaId] ?? 1) * Phaser.Math.Linear(BEAT.paceNear, BEAT.paceWide, ease(this.pace));
+    let punch = base;
     if (this.arrive) { // the glide in: wide and at the entry edge, easing onto the hero
       const ar = this.arrive; ar.t += ms; const k = Phaser.Math.Clamp(ar.t / ar.ms, 0, 1), e = ease(k);
-      fx = Phaser.Math.Linear(Phaser.Math.Clamp(ar.fromX, x0, x1), fx, e); punch = Phaser.Math.Linear(ar.wide, 1, e);
+      fx = Phaser.Math.Linear(Phaser.Math.Clamp(ar.fromX, x0, x1), fx, e); punch *= Phaser.Math.Linear(ar.wide, 1, e);
       if (k >= 1) this.arrive = null;
     }
     // the talk: nearer, the focus between the two faces (the camera turns a little toward the NPC)
@@ -114,7 +121,7 @@ export class World3D {
     // a fight spreads the view a little (the nearest foe counts), as the arena's does
     let span = 0; for (const o of f.others) { const d = Math.hypot(o.x - h.x, (o.y - h.y) * 1.7); if (d < 700) span = Math.max(span, d * 0.5); }
     a.focus = { x: fx, y: h.y, z: h.z, span, floorZ: h.floorZ };
-    if (this.arrive?.snap) { this.arrive.snap = false; a.snap((camOf(this.areaId).dist ?? 9) / this.arrive.wide); } // (the glide starts wide, straight on the entry — once the focus is known)
+    if (this.arrive?.snap) { this.arrive.snap = false; a.snap((camOf(this.areaId).dist ?? 9) / (this.arrive.wide * base)); } // (the glide starts wide, straight on the entry — once the focus is known)
     a.anchors = [{ x: h.x, y: h.y, z: h.z }, ...f.others.map((o) => ({ x: o.x, y: o.y, z: o.z }))];
     a.bodies = f.bodies;
     a.flying = f.flying;

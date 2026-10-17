@@ -45,6 +45,7 @@ export async function open(opts = {}) {
     return { draws, tris, lights, geos: r.memory.geometries, tex: r.memory.textures }; });
   const openGate = () => p.evaluate(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); s.quests.sun_gate = { state: 'done', progress: [] }; s.saveQuests?.(); s.world.sunGate.unlock(); });
   const up = (x, y, z, id) => p.evaluate(([x, y, z, id]) => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const k = s.kin; k.x = x; k.y = y; k.z = z; k.vz = 0; k.vx = 0; k.vy = 0; k.supportZ = z; k.supportId = id; k.grounded = true; }, [x, y, z, id]).then(() => settled(/^(sky-|cloud_haven|sunfall_pass|afterglow)/.test(id) ? 'sky' : areaIdAt(x))); // (onto an upper floor / a cloud; a crossing it starts is over when this resolves)
-  const settleCam = () => p.evaluate(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); if (s.w3d) { s.w3d.arrive = null; s.a3d.punch = 1; } s.a3d?.snap(); }); // (headless sim time is slow: end the arrival glide, camera straight on the hero)
-  return { b, p, errors, state, shot, tele, hold, info, openGate, up, settleCam, settled };
+  const frames = (n) => p.evaluate((n) => new Promise((r) => { let i = 0; const f = () => (++i >= n ? r() : requestAnimationFrame(f)); requestAnimationFrame(f); }), n);
+  const settleCam = async () => { await p.evaluate(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); if (s.w3d) { s.w3d.arrive = null; s.a3d.punch = 1; } }); await frames(2); await p.evaluate(() => { window.__game.scene.getScene('LegacyCourtyardScene').a3d?.snap(); }); }; // (headless sim time is slow: end the arrival glide, a frame for the focus to land on the hero, then the camera straight onto it)
+  return { b, p, errors, state, shot, tele, hold, info, openGate, up, settleCam, settled, frames };
 }

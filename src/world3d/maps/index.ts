@@ -40,3 +40,11 @@ export const MAPS: Record<string, MapFactory> = {
   sakura_village, sakura_1, sakura_2, sakura_3,
   ironhold_village, ironhold_1, ironhold_2, ironhold_3,
 };
+
+/** How near the camera keeps on each map (1 = the world camera; more = nearer): the narrow ways — a torii tunnel, a
+ *  path among roots, the steps, a crag — draw it in a little, the squares and the towns let it out so the place is
+ *  seen (docs/WORLD_3D_SPEC.md §1.8, "the camera breathes with the place"); eased on a crossing with the arrival. */
+export const VIEW: Record<string, number> = {
+  plaza: 0.9, orchard_2: 0.9, dusk_village: 0.88, sakura_village: 0.88, ironhold_village: 0.88, gate_1: 0.94, ironhold_3: 0.92, den_5: 0.94, ruins_3: 0.95,
+  ruins_2: 1.05, dusk_2: 1.08, dusk_bridge: 1.04, dusk_wood: 1.08, den_2: 1.06, sakura_1: 1.04, sakura_2: 1.1, ironhold_1: 1.1,
+};
