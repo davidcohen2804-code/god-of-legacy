@@ -51,7 +51,7 @@ export const SIG_SFX = {
     sm_eclipse_c: [1, 0.5], sm_eclipse_h: [1, 0.53], sm_sheathe_c: [1, 0.48], sm_wave_c: [1, 0.37], sm_wave_h: [1, 0.34], sm_mirage_c: [1, 0.37],
     sm_mirage_h: [1, 0.35], sm_kage_c: [1, 0.53], sm_kage_h: [1, 0.94], sm_tornado_c: [1, 0.36], sm_tornado_h: [1, 0.53], sm_falcon_c: [1, 0.4],
     sm_falcon_h: [1, 0.59], sm_sun_w: [1, 0.48], sm_sun_c: [1, 0.34], sm_sun_h: [1, 0.8], sm_phantom_c: [1, 0.61], sm_phantom_h: [1, 0.35],
-    sm_gods_w: [1, 0.27], sm_gods_c: [1, 0.36], sm_gods_h: [1, 0.45], sm_bind_c: [1, 0.35], sm_bind_h: [1, 0.67], sm_ascend_c: [1, 0.49],
+    sm_gods_w: [1, 0.27], sm_gods_c: [1, 0.36], sm_gods_h: [1, 0.45], sm_bind_c: [1, 0.38], sm_bind_h: [1, 0.67], sm_ascend_c: [1, 0.49],
     sm_ascend_h: [1, 0.51]
   },
   archer: {

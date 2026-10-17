@@ -1397,15 +1397,23 @@ def sm_gods_h():  # a spectral katana flies in and strikes: tching
     return finish(x, 0.85, 1.4)
 
 
-def sm_bind_c():  # Sakura Bind: a ring of blossoms opens on the floor (a soft bloom of air), branches creaking as they grow, a koto chord
-    rng = R(645); dur = 0.85; t = T(dur); x = buf(dur)
-    x += bp(rng.standard_normal(t.size), 500, 3000) * env(t, 0.06, 0.16) * 0.6
-    times = np.sort(0.05 + 0.5 * rng.random(18) ** 1.3)
+def sm_bind_c():  # Sakura Bind: his blade driven into the planks (steel biting into wood, the floor cracking), a line of blossom light
+    # running out through the floor to the ring (a run of chimes), and the ring of blossoms opening — branches creaking, a koto chord
+    rng = R(645); dur = 1.05; t = T(dur); x = buf(dur)
+    place(x, click(0.2, rng, 2600, 0.002, 0.9) + ring(0.2, 3300, [(1, 0.45, 0.05), (1.41, 0.3, 0.03)], rng) * 0.5, 0.0)  # (the steel)
+    place(x, knock(0.15, 330, 0.03, rng, 1.0) + thud(0.15, 170, 80, 0.03) * 0.7, 0.004, 0.9)  # (into the planks)
+    place(x, hp(rng.standard_normal(T(0.06).size), 900) * env(T(0.06), 0.0005, 0.01), 0.01, 0.5)  # (the crack)
+    for k in range(7):  # (the line of blossom light running out, segment by segment)
+        place(x, bell(0.25, 1568.0 * 2 ** (k / 8), ratio=2.0, index=0.7, tau=0.07), 0.04 + k * 0.026, 0.14)
+    place(x, swoosh(0.22, 900, 3200, 2600, rng, peak=0.4, q=2.2, tail=4), 0.03, 0.35)
+    u = t - 0.2
+    x += bp(rng.standard_normal(t.size), 500, 3000) * env(np.maximum(u, 0), 0.06, 0.16) * (u > 0) * 0.6
+    times = np.sort(0.25 + 0.5 * rng.random(18) ** 1.3)
     x += grains(t.size, times, rng.uniform(0.2, 0.5, 18), [knock(0.04, f, 0.012, rng, 0.2) for f in (260, 340, 420)], rng)
-    x += svf(rng.standard_normal(t.size), 420 + 200 * np.sin(2 * np.pi * 2.5 * t), 18) * env(t, 0.1, 0.25) * 1.2
+    x += svf(rng.standard_normal(t.size), 420 + 200 * np.sin(2 * np.pi * 2.5 * t), 18) * env(np.maximum(u, 0), 0.1, 0.25) * (u > 0) * 1.2
     for k, f in enumerate((587.3, 784.0, 880.0)):
-        place(x, pluck(0.6, f, R(646 + k), 0.992, 0.7) * env(T(0.6), 0.001, 0.3), 0.02 + k * 0.025, 0.35)
-    x += rustle(dur, rng, 250, 3000, 9000, 0.2) * env(t, 0.1, 0.25)
+        place(x, pluck(0.6, f, R(646 + k), 0.992, 0.7) * env(T(0.6), 0.001, 0.3), 0.22 + k * 0.025, 0.35)
+    x += rustle(dur, rng, 250, 3000, 9000, 0.2) * env(np.maximum(u, 0), 0.1, 0.25) * (u > 0)
     return finish(x, 0.82, 1.25)
 
 
