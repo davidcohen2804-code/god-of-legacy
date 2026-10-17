@@ -43,7 +43,7 @@ const warrior: FinalSkill[] = [
     id: 'dash_slash', cls: 'warrior', slot: 1, name: 'Dash Slash', roles: ['gapClose', 'opener'], targeting: 'mouseDir',
     startup: 110, active: 150, recovery: 230, cooldown: 1800, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 210 }, through: true,
-    hits: [0, 50, 100].map((t, i) => H(t, i === 2 ? 10 : 7, { kind: 'capsule', radius: 32 }, { stun: 240, push: i === 2 ? 10 : 2, float: true, juggleCost: 4 }, { reachUp: 90 })),
+    hits: [0, 50, 100].map((t, i) => H(t, i === 2 ? 10 : 7, { kind: 'capsule', radius: 32 }, { stun: i === 2 ? 360 : 240, push: i === 2 ? 10 : 2, float: true, juggleCost: 4 }, { reachUp: 90 })), // (the last cut holds 360: Rising Slash, its one link, has 0.2 s to come)
     cancelOnHit: CORE(['rising_slash', 'whirlwind', 'sanctuary', 'warrior_basic', 'blade_storm', 'titans_verdict']),
     telegraph: 'line',
     description: 'Charge up to 210px in the facing direction, slashing through the foe; stops on cover. A confirmed hit can cancel into Rising Slash, Leap Crash or any other skill.',
@@ -132,7 +132,7 @@ const warrior: FinalSkill[] = [
   S({
     id: 'lance_thrust', cls: 'warrior', slot: 10, name: 'Impaling Rush', roles: ['extender', 'peel'], targeting: 'mouseDir',
     startup: 160, active: 420, recovery: 300, cooldown: 3500, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    dash: { distance: 70 },
+    dash: { distance: 70 }, carry: true, // (he rides the blade: from close the rush walked through him and its thrusts hit nothing — the warrior trials' SKEWER)
     hits: [0, 70, 140, 210, 280, 380].map((t, i) => H(t, i === 5 ? 16 : 4, { kind: 'sector', range: 80, angle: 100 }, i === 5 ? { stun: 420, push: 45 } : { stun: 320 }, { reachUp: 140, heavy: i === 5 })),
     cancelOnHit: ['rising_slash', 'leap_crash', 'blade_storm', 'titans_verdict', 'wave_slash'], // (a finisher that drives him to the wall, not a mid-air link)
     description: 'Skewer the target on your blade and rush it across the arena (into a wall if one is in the way), then rip it upward with a burst of light.',
@@ -455,7 +455,7 @@ const archer: FinalSkill[] = [
     id: 'backstep_shot', cls: 'archer', slot: 18, name: 'Backstep Shot', roles: ['escape', 'projectile'], targeting: 'mouseProjectile',
     startup: 70, active: 260, recovery: 160, cooldown: 5000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, // her escape on the floor
     dash: { distance: -150, lift: 60 },
-    hits: [H(120, 12, { kind: 'projectile', speed: 1000, range: 300, radius: 11, antiAir: true }, { stun: 220, push: 8 }, { mark: 1 })],
+    hits: [H(120, 12, { kind: 'projectile', speed: 1000, range: 300, radius: 11, antiAir: true }, { stun: 220, push: 8, pin: 450 }, { mark: 1 })], // (the arrow pins a launched foe up there for her follow-up from range)
     cancelOnHit: ['quick_shot', 'hunters_spirit', 'rising_arrow', 'explosive_arrow'],
     description: 'A back flip out of reach — at the top of it she looses one arrow at the foe, leaves trailing behind her. Keep your distance.',
     relations: ['Keep distance', 'From the basic / Kick'],
@@ -464,7 +464,7 @@ const archer: FinalSkill[] = [
     id: 'retreat_kick', cls: 'archer', slot: 5, name: 'Retreat Kick', roles: ['launcher'], targeting: 'mouseCone',
     startup: 110, active: 420, recovery: 200, cooldown: 4000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 200], // her answer up close
     dash: { distance: -60, lift: 40 }, // (a short hop: the launcher up close, not an escape)
-    hits: [H(0, 16, { kind: 'sector', range: 110, angle: 110 }, { stun: 460, launch: 150, juggleCost: 28 }, { reachUp: 100 })],
+    hits: [H(0, 16, { kind: 'sector', range: 110, angle: 110 }, { stun: 460, launch: 150, juggleCost: 28 }, { reachUp: 120 })], // (a ground kick: it scoops a bounce, not a foe in the air)
     cancelOnHit: ['quick_shot', 'multi_shot', 'piercing_arrow', 'skyhunters_step', 'eagle_arrow', 'leaping_arrow'],
     description: 'A rising kick of wind launches the foe into the air while you flip backward out of reach — then shoot him down.',
     relations: ['Launcher', 'Escape'],
@@ -485,7 +485,7 @@ const archer: FinalSkill[] = [
     id: 'skyhunters_step', cls: 'archer', arenaDmg: 0.85, slot: 6, name: 'Air Volley', roles: ['signature', 'mobility', 'chase'], targeting: 'mouseDir',
     startup: 260, active: 1150, recovery: 300, cooldown: 16000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 320, lift: 170 },
-    hits: [120, 340, 560, 780, 1000].map((t, i) => H(t, [8, 8, 9, 9, 10][i], { kind: 'projectile', speed: 760, range: 420, radius: 9, rows: 3, rowGap: 52 }, { stun: 300, float: true, juggleCost: 12 }, { mark: i === 4 ? 1 : 0 })),
+    hits: [120, 340, 560, 780, 1000].map((t, i) => H(t, [8, 8, 9, 9, 10][i], { kind: 'projectile', speed: 760, range: 420, radius: 9, rows: 3, rowGap: 52, antiAir: true }, { stun: 300, float: true, juggleCost: 12 }, { mark: i === 4 ? 1 : 0 })),
     cancelOnHit: ['sky_rain'], tags: ['signature'], telegraph: 'trajectory',
     description: 'Acrobatic leap in the facing direction while firing five shots from the air — keeps a launched foe up.',
     relations: ['Signature', 'Air combo'],
@@ -565,7 +565,8 @@ const archer: FinalSkill[] = [
     id: 'arrow_storm', cls: 'archer', arenaDmg: 0.75, slot: 17, name: "Hunter's Rain", roles: ['zone', 'extender'], targeting: 'mouseGround',
     startup: 550, active: 3000, recovery: 300, cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 550],
     placeRange: 420, // a zone that holds a foe far from her
-    hits: Array.from({ length: 15 }, (_, i) => H(i * 200, 7, { kind: 'placed', radius: 115 }, { stun: 240, float: true, juggleCost: 4, slow: { pct: 30, ms: 500 } }, { reachUp: 180 })),
+    hits: Array.from({ length: 15 }, (_, i) => i === 14 ? H(i * 200, 12, { kind: 'placed', radius: 115 }, { stun: 360, launch: 120, juggleCost: 20, slow: { pct: 30, ms: 500 } }, { reachUp: 180, heavy: true, mark: 1 }) // the last volley throws him up
+      : H(i * 200, i % 5 === 4 ? 10 : 7, { kind: 'placed', radius: 115 }, { stun: i % 5 === 4 ? 320 : 240, float: true, juggleCost: 4, slow: { pct: 30, ms: 500 } }, { reachUp: 180, ...(i % 5 === 4 ? { mark: 1 } : {}) })), // (every 5th volley hits harder and marks him: the rain has a beat — cut it short and the marks and the throw are lost)
     cancelOnHit: ['quick_shot', 'sky_rain'],
     description: 'Fire dozens of arrows into the sky: for 3s they rain down on a marked spot on the floor, and the direction you hold steers the mark anywhere around you while you stand your ground.',
     relations: ['Rooted', 'Steer the rain'],
@@ -1056,7 +1057,7 @@ for (const w of warrior) if (WARRIOR_LINKS[w.id]) w.cancelOnHit = [...WARRIOR_LI
 // ultimate, so her strings run as long as the other classes' (before: most of her skills were dead ends).
 const ARCHER_LINKS: Record<string, string[]> = {
   quick_shot: ['backstep_shot', 'hunters_spirit', 'skyhunters_step', 'leaping_arrow', 'eagle_arrow', 'arrow_storm'],
-  rising_arrow: ['explosive_arrow', 'rain_of_arrows', 'arrow_storm', 'sky_rain'],
+  rising_arrow: ['explosive_arrow', 'rain_of_arrows', 'arrow_storm', 'sky_rain', 'backstep_shot'],
   multi_shot: ['piercing_arrow', 'hunters_spirit', 'rising_arrow', 'rain_of_arrows', 'leaping_arrow', 'eagle_arrow', 'sky_rain'],
   explosive_arrow: ['piercing_arrow', 'hunters_spirit', 'multi_shot', 'rising_arrow', 'retreat_kick', 'eagle_arrow', 'arrow_storm', 'sky_rain'],
   retreat_kick: ['backstep_shot', 'hunters_spirit', 'explosive_arrow', 'rain_of_arrows', 'arrow_storm', 'sky_rain'],

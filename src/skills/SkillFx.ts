@@ -2187,6 +2187,12 @@ export class SkillFx {
   gambleClear(id: string): void { this.gamb.clearBuffs(id); }
   cardStep(x: number, y: number, dir: number): void { this.gamb.cardStep(x, y, dir); }
   gambleZone(id: string, x: number, y: number, r: number): void { this.gamb.zone(id, x, y, r); }
+  /** A turn of a hold that follows its foe (`linger.at: 'target'`), at him: the class draws it when it has a `holdTick`
+   *  (turn `i` from 0, `last` the final one) — the Gambler's spinning card under the foe. */
+  holdTick(r: CastRun, at: V3, i: number, last: boolean): void {
+    const by: Record<string, unknown> = { gambler: this.gamb, archer: this.arch, samurai: this.sam, book_mage: this.mage };
+    (by[r.skill.cls] as { holdTick?: (r: CastRun, at: V3, i: number, last: boolean) => void } | undefined)?.holdTick?.(r, at, i, last);
+  }
   gambleFollow(skill: string, id: string, hit: number, by?: string): void { this.gamb.follow(skill, id, hit, by); }
   cheatDeath(x: number, y: number): void { this.gamb.cheatDeath(x, y); }
   archerMark(id: string, n: number, ms: number): void { this.arch.mark(id, n, ms, () => this.targetPos?.(id) ?? null); }

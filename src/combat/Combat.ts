@@ -540,7 +540,7 @@ export class CombatBody {
         k.vz = Math.max(k.vz, k.z > GAUGE.holdCeil ? -60 : lift); out.reaction = 'float'; out.launchVz = k.vz;
       }
       else k.vz = Math.min(k.vz, -160);
-    } else if (R.stun && out.reaction !== 'cc') {
+    } else if (R.stun && (out.reaction !== 'cc' || this.hard.kind === 'root')) { // (a root holds only his feet: the hit that roots him still staggers him — the binders' hold)
       this.hitstun(now, R.stun, stunIdx, out);
     }
     if (R.pin) { this.pinUntil = now + R.pin; this.push = null; k.vx = 0; k.vy = 0; k.vz = Math.max(0, Math.min(k.vz, 0)); if (this.state === 'free') { this.state = 'hitstun'; this.stateEnd = now + R.pin; } }

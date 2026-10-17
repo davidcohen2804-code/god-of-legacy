@@ -71,6 +71,9 @@ export interface CastRun extends CastRequest {
   chargeDone?: boolean;
   /** A lingering zone's hit (its origin is the zone's centre, not the caster). */
   zone?: boolean;
+  /** A hold that follows its foe (`linger.at: 'target'`): how many turns this cast's hold strikes (set at the cast by the
+   *  class's own logic — the Gambler's gathered cards; the same on both screens); default the linger's `count`. */
+  holdCount?: number;
 }
 
 export interface Trap { run: CastRun; hit: HitEvent; x: number; y: number; until: number; radius: number; fuseAt?: number }

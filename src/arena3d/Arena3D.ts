@@ -293,7 +293,18 @@ export class Arena3D {
       kick: (a) => { this.kick = Math.max(this.kick, a); },
       casterPos: (id) => this.casterPos(id),
       impact: (at, big) => this.onImpact?.(at, big),
+      texture: (key) => this.gameTexture(key),
     });
+  }
+
+  /** One of the game's loaded pictures as a 3D texture (the skills' real pieces: the Gambler's cards), cached. */
+  private gameTex = new Map<string, THREE.Texture>();
+  private gameTexture(key: string): THREE.Texture | null {
+    const had = this.gameTex.get(key); if (had) return had;
+    if (!this.scene.textures.exists(key)) return null;
+    const img = this.scene.textures.get(key).getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+    const t = new THREE.Texture(img); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.needsUpdate = true;
+    this.gameTex.set(key, t); return t;
   }
 
   /** A flare of light at a point (units) from the hit lights' pool; `wash`: how much it washes the fighters' bodies in its
@@ -626,6 +637,8 @@ export class Arena3D {
     this.scene.events.off(Phaser.Scenes.Events.RENDER, this.restore, this);
     for (const b of [this.dustB, this.dustF, this.chipB, this.chipF, this.glowB, this.glowF]) b?.dispose();
     this.fx?.dispose();
+    for (const t of this.gameTex.values()) t.dispose();
+    this.gameTex.clear();
     for (const e of this.shades.values()) { e.c.destroy(); e.dark.destroy(); e.lit.destroy(); }
     this.shades.clear();
     if (ImpactFx.screenOf) ImpactFx.screenOf = null;

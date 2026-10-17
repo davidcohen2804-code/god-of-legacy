@@ -117,7 +117,10 @@ export interface FinalSkill {
   /** Persistent zone / trap lifetime after active (ms). */
   zoneMs?: number;
   /** Detached lingering hits (cracks / summons): keep striking after the caster moves on or cancels. */
-  linger?: { at: 'origin' | 'aim' | 'caster' | 'place'; offset?: number; startMs: number; everyMs: number; count: number; radius: number; maxZ: number; hit: HitEvent;
+  linger?: { at: 'origin' | 'aim' | 'caster' | 'place' | 'target'; offset?: number; startMs: number; everyMs: number; count: number; radius: number; maxZ: number; hit: HitEvent;
+    /** ('target': a hold under the foe the cast's first landed hit struck — it follows him wherever he is thrown and
+     *  strikes only him, at his own height (radius / maxZ unused); it starts `startMs` after that hit; a cast's
+     *  `holdCount` sets its turns. Drawn by the class's `holdTick` and its 3D recipe's `tick`.) The last turn's hit. */ last?: HitEvent;
     /** each foe is struck by it once (a trap on the floor that catches whoever lands on it) */ once?: boolean;
     /** foes the cast's own hits already struck are left to them (the trap only takes the ones that fall into it later) */ fresh?: boolean;
     /** a band along the aim from the origin instead of a circle */ line?: { length: number; width: number } };

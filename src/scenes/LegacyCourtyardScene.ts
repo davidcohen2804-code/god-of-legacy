@@ -321,7 +321,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Iron Grip: the foe is held in the fist between the seize and the slam. */
   private gripHeld = false;
   /** Detached lingering strikes (Ground Breaker cracks, Blade Storm phantom blades) of own casts. */
-  private lingers: { run: CastRun; x: number; y: number; next: number; left: number; struck?: Set<string> }[] = [];
+  private lingers: { run: CastRun; x: number; y: number; next: number; left: number; struck?: Set<string>; target?: string; turn?: number }[] = [];
+  /** Casts whose hold (`linger.at: 'target'`) has started — once per cast, on the first foe it caught. */
+  private holdsStarted = new Set<string>();
   private cryAura?: Phaser.GameObjects.Image;
   private cryFire?: Phaser.GameObjects.Particles.ParticleEmitter[];
   private cryBody?: Phaser.GameObjects.Sprite;
@@ -1821,11 +1823,39 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }));
   }
 
+  /** A hold that follows its foe (`linger.at: 'target'`: the Gambler's spinning card under him) starts on the cast's first
+   *  landed hit — on the attacker's screen (its own hits: confirm) and on the victim's (a hit on you): each side runs the
+   *  turns it resolves, as every zone does. Once per cast. */
+  private startHold(run: CastRun, target: string): void {
+    const L = run.skill.linger;
+    if (!L || L.at !== 'target' || run.zone || this.holdsStarted.has(run.castId)) return;
+    this.holdsStarted.add(run.castId); if (this.holdsStarted.size > 200) this.holdsStarted.clear();
+    const t = this.targetsFor(run).find((x) => x.id === target), at = t ?? (target === this.localId ? this.kin : null);
+    if (!at) return;
+    this.lingers.push({ run, x: at.x, y: at.y, next: this.simMs + L.startMs, left: Math.max(1, run.holdCount ?? L.count), target, turn: 0 });
+  }
+  /** One turn of a hold: it follows its foe and strikes only him, at his own height (the hold is under him, wherever he
+   *  was thrown); a foe gone or down for good ends it. The last turn strikes with `last`. */
+  private holdTurn(l: { run: CastRun; x: number; y: number; left: number; target?: string; turn?: number }, L: NonNullable<FinalSkill['linger']>): void {
+    const t = this.targetsFor(l.run).find((x) => x.id === l.target);
+    if (!t || !t.alive) { l.left = 0; return; }
+    l.x = t.x; l.y = t.y;
+    const i = l.turn ?? 0, last = l.left === 0; l.turn = i + 1;
+    const at = { x: t.x, y: t.y, z: t.z + 40 };
+    this.fx?.holdTick(l.run, at, i, last); this.a3d?.fx.tick(l.run, at, i, last);
+    if (t.invulnerable) return;
+    const hit = last && L.last ? L.last : L.hit;
+    const zr = { ...l.run, origin: { x: t.x, y: t.y, z: Math.max(0, t.z - 20) }, zone: true } as CastRun; // (from just under him: it reaches him at any height)
+    if (l.run.own) { if (t.kind === 'enemy') this.applyToPve(zr, hit, t, at); else if (t.id === BOT_ID) this.applyToBot(zr, hit, t, at); } // a remote player resolves it on his side
+    else if (t.id === this.localId) this.applyRemoteHitToSelf(zr, hit, 0, at);
+  }
+
   private stepLingers(now: number): void {
     for (const l of this.lingers) {
       const L = l.run.skill.linger!;
       while (l.left > 0 && now >= l.next) {
         l.left--; l.next += L.everyMs;
+        if (L.at === 'target') { this.holdTurn(l, L); continue; }
         if (L.at === 'caster') { const c = this.casterPos(l.run.attackerId); if (c) { l.x = c.x; l.y = c.y; } } // the quake travels with you
         if (l.run.skill.id === 'spirit_hawk') { this.hawkDive(l, L); continue; }
         if (l.run.skill.id === 'god_of_blades') { if (l.run.own && this.dead >= 0) { l.left = 0; break; } this.bladeStrikes(l, L); continue; }
@@ -2714,8 +2744,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private resolveCast(s: FinalSkill): { aim: V2; place: V2 | null; lock: string | null } | null {
     const k = this.kin, inp = this.ci!;
     // Soft lock (DFO-style tracking): snap the aim to the nearest enemy roughly in front, so attacks never whiff on a near-miss angle.
-    // (the samurai, right after stepping through the foe: the next cut turns back to him — he is behind now)
-    const lockT = this.softTarget(260, s.cls === 'samurai' && this.simMs < this.throughUntil ? -1.01 : 0.05);
+    // (right after a dash through the foe — the samurai's step, the warrior's Dash Slash, the mage's Blink — the next attack
+    // turns back to him: he is behind now; a mobility / escape skill keeps your heading, except the samurai's own steps)
+    const behind = this.simMs < this.throughUntil && (s.cls === 'samurai' || !(s.roles.includes('mobility') || s.roles.includes('escape')));
+    const lockT = this.softTarget(260, behind ? -1.01 : 0.05);
     if (lockT) this.aim = { x: Math.sign(lockT.x - k.x) || (this.aim.x < 0 ? -1 : 1), y: 0 }; // (it turns you to face him, never aims into the depth)
     const reach = s.id === 'arcane_gate' ? 360 : s.targeting === 'mouseGround' ? Math.min(180, s.placeRange ?? 180) : 160; // (the far gate: well ahead of him)
     const ha = sideAim(this.aim.x, this.aim.y, this.dir === 'left' ? -1 : 1), mouse = { x: k.x + ha.x * reach, y: k.y + ha.y * reach }; // (placed on your line, ahead)
@@ -2979,7 +3011,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       else run.extraRecovery = Math.max(run.extraRecovery, 300);
     }
     const L = run.skill.linger;
-    if (phase === 'active' && L) { // every caster's lingering zone (yours, other players', the sparring knight's)
+    if (phase === 'active' && L && L.at !== 'target') { // every caster's lingering zone (yours, other players', the sparring knight's; a hold under a foe starts on its hit: startHold)
       const off = L.at === 'aim' ? (L.offset ?? 0) : 0, pl = L.at === 'place' ? run.place : null; // ('place': where the cast was opened on the floor)
       this.lingers.push({ run, x: pl ? pl.x : run.origin.x + run.aim.x * off, y: pl ? pl.y : run.origin.y + run.aim.y * off, next: this.simMs + L.startMs, left: L.count });
     }
@@ -3220,6 +3252,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (run?.own && s.cls === 'book_mage' && damage > 0) this.weaveHit(run);
     if (run?.own && s.cls === 'gambler') this.gambleConfirm(run, hit, target, at, damage, crit);
+    if (run?.own && damage > 0 && s.linger?.at === 'target') this.startHold(run, target); // a hold under the foe it caught
     this.fx!.confirmed(s, hit, at, damage, reaction, true, idx, crit, run ? this.hitFrom(run, hit) : undefined, counter);
     if (damage > 0) this.roomHit(s, hit, at, reaction);
     this.arenaSnd?.hit(s, hit, at, damage, reaction, crit);
@@ -3432,6 +3465,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (heavy) this.cameras.main.shake(150, 0.005);
     }
     if (s.carry && out.reaction !== 'armor' && out.damage > 0) this.carriedBy = run; // Impaling Rush: ride the blade
+    if (out.damage > 0 && s.linger?.at === 'target') this.startHold(run, this.localId); // a hold under you (the Gambler's spinning card)
     this.pvp?.sendHp(this.playerHP, run.attackerId, {
       castId: run.castId, skillId: s.id, hit: hi, dmg: out.damage, idx: out.hitIndex, cid: out.comboId, rx: out.reaction, ends: out.endsCombo, vz: Math.round(this.kin.vz), z: Math.round(this.kin.z),
       ...(out.rx ? { mx: out.rx, mms: Math.round(out.rxMs ?? 0) } : {}), ...(countered ? { cx: 1 } : {}), ...(this.prismFired ? { pz: 1 } : {}),
@@ -4184,7 +4218,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** A new round for you: on your mark, full HP, every buff gone, every skill ready, nothing still flying. */
   private roundReset(x: number, y: number, face: 1 | -1): void {
     this.rt?.cancelOwn('death');
-    this.lingers = []; this.shares = [];
+    this.lingers = []; this.shares = []; this.holdsStarted.clear();
     this.endBuffs();
     this.warCryUntil = -1; this.radiantUntil = -1; this.radiantFrom = -1; this.domeAt = -1;
     if (this.dome) this.dome.until = this.simMs;

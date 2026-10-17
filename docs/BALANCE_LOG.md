@@ -4,6 +4,24 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-10-17 — After a dash through the foe, the next attack turns back to him (every class)
+- Only the samurai's next cut turned back to a foe he had stepped through; the warrior's Dash Slash (`through`) left him facing away, so Rising Slash, its one link, cut the air (GALE and SKEWER failed in the game: the foe 53–99 px behind him, free). Now any attack within the through-dash's window (its active + recovery + 0.45 s) soft-locks a foe behind as well as in front (260 px); a mobility / escape skill keeps your heading (an escape stays an escape), except the samurai's own steps, as before.
+
+## 2026-10-17 — A hit that roots also staggers (the binders' hold holds)
+- A root holds only the feet — a rooted fighter can still swing. Every rooting hit carries a stun for that (Vine Mine 450, Binding Leaves 200 / 300, Sakura Bind 400 / 420, Rune Beam 240, the gambler's bet 420), but on a fresh root the rule skipped it (`receive`: no stun when a hard CC landed), so a standing foe caught in a mine could hit back at once. Now the stun applies with a root (a freeze or a hard stun still replaces it). Found by the archer combo pass.
+
+## 2026-10-17 — Archer: four new trials give Thunder Rain, Hunter's Rain, Backstep Shot and Spirit Hawk a combo role
+- **Hunter's Rain** gets a beat: every 5th volley 10 damage (7), 320 ms hold (240) and a mark; the 15th throws him up (12 damage, heavy, a mark, 120 launch). Before: 15 even volleys, a hold with nothing to read. Total 116 (105). Visuals / description: Archer chat (the 5th, 10th and last volley read bigger).
+- **Rising Arrow** links into **Backstep Shot** (her escape from under a foe she launched); Backstep's arrow **pins** (450 ms) — from 250 px every follow-up takes ≥0.4 s to arrive and the 220 ms hold let him drop under it. Long-range pokes still strip it; on a free foe within 150 px it holds 0.45 s.
+- **Air Volley's shots rise** (`antiAir`): "keeps a launched foe up" — under the per-attack reach its shots passed under him (STARFALL failed when the volley came at once).
+- **Retreat Kick** reaches 120 up (100): it missed a bounce at 101–105 px; still a ground kick (the launchers' band is 190–260).
+- The trials: TAILWIND, TALON (SKY), DOWNPOUR, THUNDERHEAD (TRAPPER) — archer 12.
+
+## 2026-10-17 — Warrior: four new trials give Dash Slash, Whirlwind, Blade Storm and Impaling Rush a combo role (David: every skill serves a combo)
+- **Impaling Rush** carries the foe (`carry: true`, as before c91865a7): from close the rush walked through him and its thrusts hit nothing (2–4 of 6 landed after Lion's Maw, the hook or a full Whirlwind) — now he rides the blade for all six (its 70 px step unchanged). Visuals: none.
+- **Dash Slash**: its last cut holds 360 ms (240): Rising Slash, its one link, gets 0.2 s to come. Visuals: none.
+- The trials: STORMCHAIN (IRON HAND's expert: the storm holds him, then chain, grip, crash), GALE · CYCLONE · SKEWER (STEEL, a new 4th style: the charge through him, the cyclone in the air, the skewer on the bounce).
+
 ## 2026-10-17 — Every hit reaches only as high as its own attack (David: a foe high above a swing was still hit)
 - **Everyone**: the arena's blanket height is gone — every damaging hit reached 240 px above the caster's feet and every projectile rose to a foe in the air. Now each hit reaches its own `reachUp` (as each skill was designed: a horizontal cut ~70–140 px — the legs of a foe lifted a little —, a rising cut / launcher ~190–260, the big aerial skills ~300), from the caster's own height (an attack thrown while jumping reaches the air), and a projectile rises to an airborne foe only when its shape is `antiAir` (the archer's arrows; now the mage's Arcane Bolt too — magic missiles that seek). Juggles now ask for the right attack: after a launch a rising / aerial / anti-air hit, or wait for the fall into a ground hit. Visuals: a class chat whose skill's look reaches higher or lower than its hit — tell DFO the height it should reach.
 

@@ -36,6 +36,8 @@ export interface FxHost {
   casterPos(id: string): V3 | null;
   /** The blow felt on the whole picture (bent air, colour split; 2: and a zoom blur). */
   impact(at: V3, big: 0 | 1 | 2): void;
+  /** One of the game's loaded pictures (its texture key) as a 3D texture (cached); null when it is not loaded. */
+  texture?(key: string): THREE.Texture | null;
 }
 
 // ------------------------------------------------------------------ colours
@@ -206,6 +208,10 @@ export interface Recipe {
   fired?: (f: Fx3D, r: CastRun, i: number, o: V3) => void;
   /** Each confirmed hit (at the foe): `main` for the hit that carries the skill's weight. */
   hit?: (f: Fx3D, s: FinalSkill, h: HitEvent, at: V3, main: boolean, react: string) => void;
+  /** Each turn of a hold that follows its foe (`linger.at: 'target'`), at him (his chest): turn `i` from 0, `last` the final one. */
+  tick?: (f: Fx3D, r: CastRun, at: V3, i: number, last: boolean) => void;
+  /** Each projectile of it as it is thrown (follow it with `p.x / p.y / p.z` while `!p.done`: a card riding the shot). */
+  shot?: (f: Fx3D, p: Projectile) => void;
   /** What a projectile of it trails: colour, width (px), length (ms of its path); false: none. */
   trail?: { c: number; w: number; len?: number; i?: number } | false;
   /** It runs along the floor (a crest follows the projectile). */
@@ -224,7 +230,7 @@ export type FxPiece = 'pillar' | 'dome' | 'crack' | 'crystals' | 'bolt' | 'strea
 
 export class Fx3D {
   /** Told of every piece as it appears: what, where (world px: x, floor depth y, height z) and how big (0 small … 2 huge). */
-  onPiece?: (kind: FxPiece, at: V3, size: number) => void;
+  onPiece?: (kind: FxPiece, at: V3, size: number, o?: { stone?: boolean; color?: number }) => void; // (o: the piece's look — the sound picks ice, stone or thorns by it)
   private items: Item[] = [];
   private timers: { at: number; fn: () => void }[] = [];
   private clock = 0;
@@ -239,6 +245,9 @@ export class Fx3D {
   private rock: Crystals[];
   /** Trails and crests following what flies (by projectile). */
   private follows = new Map<Projectile, { trail?: Strip; crest?: Crest; last: V3 }>();
+  /** Real cards in the room (the Gambler's deck on the floor, the big spinning card). */
+  private deck: Deck3 | null = null;
+  private get cards(): Deck3 { return (this.deck ??= new Deck3(this.h)); }
   private ttl = 0;
 
   constructor(private h: FxHost) {
@@ -389,7 +398,7 @@ export class Fx3D {
    *  Warrior's STONE family), they crumble into dust instead of bursting into shards. */
   crystals(x: number, y: number, o: { n?: number; r?: number; h?: number; ms?: number; ring?: boolean; delay?: number; color?: number; stone?: boolean } = {}): void {
     const n = o.n ?? 7, R = this.h.w3(o.r ?? 60), H = this.h.h3(o.h ?? 120), cx = this.h.w3(x), cz = this.h.d3(y), ms = o.ms ?? 1500;
-    this.later(o.delay ?? 0, () => this.onPiece?.('crystals', { x, y, z: 0 }, n > 10 ? 2 : n > 6 ? 1 : 0));
+    this.later(o.delay ?? 0, () => this.onPiece?.('crystals', { x, y, z: 0 }, n > 10 ? 2 : n > 6 ? 1 : 0, { stone: o.stone, color: o.color }));
     const pz = this.h.d3(y);
     for (let i = 0; i < n; i++) {
       const a = o.ring ? (i / n) * Math.PI * 2 + Math.random() * 0.3 : Math.random() * Math.PI * 2;
@@ -577,6 +586,7 @@ export class Fx3D {
   }
   projectile(p: Projectile): void {
     const rc = this.recipe(p.skill);
+    rc.shot?.(this, p);
     if (rc.crest) this.crestFor(p, rc.crest.c, rc.crest.h, rc.crest.w);
     if (rc.trail !== false) { const t = rc.trail ?? { c: this.color(p.skill), w: 10 }; this.trail(p, t.c, t.w, t.len ?? 14, t.i ?? 2); }
   }
@@ -592,6 +602,29 @@ export class Fx3D {
     else this.dome(at.x, at.y, col, { r: 70, ms: 240, a: 0.6 });
   }
 
+  // ------------------------------------------------------------------ cards: real cards in the room (the Gambler's deck)
+
+  /** A card thrown from `from` (world px; z = its height) to the floor point `to`, where it lies — flat, face down, or
+   *  `stuck` at a slant in the planks — with a soft shadow under it, lit by the room; a faint glint now and then says it
+   *  can be taken back. It lies `life` ms (default 12000), then crumbles. `key`: its name, to gather / drop it later. */
+  cardLay(key: string, from: V3, to: { x: number; y: number }, o: { ms?: number; stuck?: boolean; life?: number; delay?: number } = {}): void { this.cards.lay(key, from, to, o); }
+  /** The cards named rise off the floor and fly back to `to()` (his hand: world px), spinning, one after another
+   *  (`gap` ms apart, nearest first), each in `ms`; gone into the hand with a glint. `done(n)`: called as each arrives. */
+  cardGather(keys: string[], to: () => V3 | null, o: { ms?: number; gap?: number; done?: (n: number) => void } = {}): void { this.cards.gather(keys, to, o); }
+  /** Cards lying within `r` px of (x, y) hop and settle (a blow landing near them). */
+  cardFlutter(x: number, y: number, r: number): void { this.cards.flutter(x, y, r); }
+  /** A card spent or its time up: it crumbles away (gold embers). */
+  cardDrop(key: string): void { this.cards.drop(key); }
+  /** The keys of the cards lying now (for a check; the game's own count is its logic, not this). */
+  cardKeys(): string[] { return this.cards.keys(); }
+  /** A big card spinning flat like a saw blade, held at `at()` (world px, z = its height) until that returns null, then it
+   *  flares out: the thrown card riding its shot, the card spinning under a held foe. `size`: × a card (default 2.4);
+   *  `color`: its glow; `tilt` (rad): tipped toward the camera so its face reads. Half in front of the fighters, half behind. */
+  cardSpin(at: () => V3 | null, o: { size?: number; color?: number; tilt?: number; rps?: number } = {}): void { this.cards.spin(at, o); }
+
+  /** A turn of a hold that follows its foe (`linger.at: 'target'`): the skill's recipe draws it (`tick`). */
+  tick(r: CastRun, at: V3, i: number, last: boolean): void { this.recipe(r.skill).tick?.(this, r, at, i, last); }
+
   /** Each frame: the effects run; trails and crests follow what flies. */
   update(ms: number, flying: Projectile[]): void {
     this.clock += ms;
@@ -600,6 +633,7 @@ export class Fx3D {
     for (const c of this.chunks) c.step(ms);
     for (const c of this.ice) c.step(ms);
     for (const c of this.rock) c.step(ms);
+    this.deck?.step(ms);
     // what flies: each new one gets its trail / crest; each one gone lets its trail shrink away
     for (const p of flying) if (!this.follows.has(p) && !p.done) this.projectile(p);
     for (const [p, f] of this.follows) {
@@ -642,6 +676,7 @@ export class Fx3D {
     for (const c of this.chunks) c.dispose();
     for (const c of this.ice) c.dispose();
     for (const c of this.rock) c.dispose();
+    this.deck?.dispose(); this.deck = null;
     this.noise.dispose(); this.disc.dispose(); for (const [a, b] of this.cracks) { a.dispose(); b.dispose(); }
     this.pillarGeo.dispose(); this.domeGeo.dispose(); this.planeGeo.dispose();
   }
@@ -814,6 +849,194 @@ class Crystals {
     if (any) this.mesh.instanceMatrix.needsUpdate = true;
   }
   dispose(): void { this.mesh.parent?.remove(this.mesh); this.mesh.geometry.dispose(); (this.mesh.material as THREE.Material).dispose(); this.mesh.dispose(); }
+}
+
+// ------------------------------------------------------------------ cards in the room
+
+/** One card: its place (units: x across, y up, z depth), its turn, and what it is doing. */
+interface Card3 {
+  key: string; mode: 'fly' | 'lie' | 'rise' | 'home' | 'crumble';
+  x: number; y: number; z: number; yaw: number; roll: number; pitch: number;
+  ax: number; ay: number; az: number; bx: number; bz: number;
+  t: number; ms: number; delay: number; spin: number; stuck: number; life: number; hop: number; glint: number;
+  to?: () => V3 | null; done?: () => void; layer: 0 | 1;
+  mesh: THREE.Mesh; shadow: THREE.Mesh; mats: THREE.MeshStandardMaterial[];
+}
+/** The big spinning card. */
+interface Spin3 { at: () => V3 | null; meshes: THREE.Mesh[]; planes: THREE.Plane[][]; mats: THREE.MeshStandardMaterial[]; glow: THREE.Mesh[]; size: number; tilt: number; rps: number; a: number; out: number; color: number; last: THREE.Vector3; t: number }
+
+/** The Gambler's cards as real cards in the room: thin boxes with the painted back on top and a painted face below, gold
+ *  edges, a soft shadow on the planks; lying ones in the room (under the fighters), flying ones over or behind the fighters
+ *  by their depth; the big spinning card split round its own depth (half over the fighter it holds, half behind him). */
+class Deck3 {
+  private geo = new THREE.BoxGeometry(1, 1, 1);
+  private shadowGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  private shadowTex: THREE.Texture;
+  private glowTex: THREE.Texture;
+  private all: Card3[] = [];
+  private spins: Spin3[] = [];
+  private W: number; private L: number; private T: number;
+  private v = new THREE.Vector3();
+  constructor(private h: FxHost) {
+    this.W = h.w3(24); this.L = this.W * 1.37; this.T = h.w3(1.1);
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const g = c.getContext('2d')!, gr = g.createRadialGradient(32, 32, 4, 32, 32, 31);
+    gr.addColorStop(0, 'rgba(0,0,0,0.75)'); gr.addColorStop(0.55, 'rgba(0,0,0,0.35)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    this.shadowTex = new THREE.CanvasTexture(c);
+    const c2 = document.createElement('canvas'); c2.width = c2.height = 64;
+    const g2 = c2.getContext('2d')!, gr2 = g2.createRadialGradient(32, 32, 10, 32, 32, 31);
+    gr2.addColorStop(0, 'rgba(255,255,255,0)'); gr2.addColorStop(0.6, 'rgba(255,255,255,0.55)'); gr2.addColorStop(0.8, 'rgba(255,255,255,0.25)'); gr2.addColorStop(1, 'rgba(255,255,255,0)');
+    g2.fillStyle = gr2; g2.fillRect(0, 0, 64, 64);
+    this.glowTex = new THREE.CanvasTexture(c2); // (a ring of light: the spin's blurred edge)
+  }
+  private tex(key: string): THREE.Texture | null { return this.h.texture?.(key) ?? null; }
+  /** A card's three materials: the painted back (top), a painted face (bottom), the gilt edge. */
+  private materials(): THREE.MeshStandardMaterial[] {
+    const back = this.tex('gbk-card_back') ?? this.tex('gb-back'), face = this.tex(Math.random() < 0.5 ? 'gbk-card_S' : 'gbk-card_H') ?? this.tex('gb-face');
+    const m = (map: THREE.Texture | null, color: number) => new THREE.MeshStandardMaterial({ map, color: map ? 0xffffff : color, roughness: 0.42, metalness: 0.12, emissive: 0x2a0d3c, emissiveIntensity: 0.22, transparent: true, alphaTest: 0.35 });
+    const edge = new THREE.MeshStandardMaterial({ color: 0xe0b860, roughness: 0.3, metalness: 0.7, emissive: 0x5a3a08, emissiveIntensity: 0.3, transparent: true });
+    return [m(back, 0x5a2a7a), m(face, 0xf2ead8), edge];
+  }
+  private makeCard(key: string): Card3 {
+    const mats = this.materials();
+    // box faces: +x, -x, +y (top: the back), -y (bottom: the face), +z, -z
+    const mesh = new THREE.Mesh(this.geo, [mats[2], mats[2], mats[0], mats[1], mats[2], mats[2]]);
+    mesh.scale.set(this.W, this.T, this.L); mesh.frustumCulled = false;
+    const shadow = new THREE.Mesh(this.shadowGeo, new THREE.MeshBasicMaterial({ map: this.shadowTex, transparent: true, depthWrite: false, opacity: 0 }));
+    shadow.scale.set(this.W * 1.7, 1, this.L * 1.5); shadow.frustumCulled = false; shadow.renderOrder = -1;
+    this.h.back.add(mesh); this.h.back.add(shadow);
+    return { key, mode: 'fly', x: 0, y: 0, z: 0, yaw: 0, roll: 0, pitch: 0, ax: 0, ay: 0, az: 0, bx: 0, bz: 0, t: 0, ms: 1, delay: 0, spin: 0, stuck: 0, life: 12000, hop: 0, glint: Math.random() * 4000, layer: 0, mesh, shadow, mats };
+  }
+  lay(key: string, from: V3, to: { x: number; y: number }, o: { ms?: number; stuck?: boolean; life?: number; delay?: number }): void {
+    this.drop(key);
+    const c = this.makeCard(key), h = this.h;
+    Object.assign(c, { mode: 'fly', ax: h.w3(from.x), ay: h.h3(from.z), az: h.d3(from.y), bx: h.w3(to.x), bz: h.d3(to.y), t: 0, ms: o.ms ?? 420, delay: o.delay ?? 0,
+      spin: (Math.random() < 0.5 ? -1 : 1) * (9 + Math.random() * 7), stuck: o.stuck ? (0.5 + Math.random() * 0.5) * (Math.random() < 0.5 ? -1 : 1) : 0, life: o.life ?? 12000, yaw: Math.random() * Math.PI * 2 });
+    c.x = c.ax; c.y = c.ay; c.z = c.az; c.mesh.visible = c.delay <= 0;
+    this.all.push(c);
+  }
+  gather(keys: string[], to: () => V3 | null, o: { ms?: number; gap?: number; done?: (n: number) => void }): void {
+    const p = to(); if (!p) return;
+    const hx = this.h.w3(p.x), hz = this.h.d3(p.y);
+    const list = this.all.filter((c) => keys.includes(c.key) && (c.mode === 'lie' || c.mode === 'fly')).sort((a, b) => Math.hypot(a.x - hx, a.z - hz) - Math.hypot(b.x - hx, b.z - hz));
+    let n = 0;
+    list.forEach((c, i) => {
+      if (c.mode === 'fly') { c.x = c.bx; c.z = c.bz; c.y = 0; }
+      Object.assign(c, { mode: 'rise', t: 0, ms: 110, delay: i * (o.gap ?? 22), to, ax: c.x, ay: c.y, az: c.z, spin: (Math.random() < 0.5 ? -1 : 1) * (16 + Math.random() * 10),
+        done: () => { n++; o.done?.(n); } });
+    });
+    for (const c of list) (c as { homeMs?: number }).homeMs = o.ms ?? 300;
+  }
+  flutter(x: number, y: number, r: number): void {
+    const hx = this.h.w3(x), hz = this.h.d3(y), R = this.h.w3(r);
+    for (const c of this.all) if (c.mode === 'lie' && Math.hypot(c.x - hx, c.z - hz) <= R) c.hop = 320;
+  }
+  drop(key: string): void { for (const c of this.all) if (c.key === key && c.mode !== 'crumble') { c.mode = 'crumble'; c.t = 0; c.ms = 420; c.delay = 0; } }
+  keys(): string[] { return this.all.filter((c) => c.mode === 'lie').map((c) => c.key); }
+  spin(at: () => V3 | null, o: { size?: number; color?: number; tilt?: number; rps?: number }): void {
+    const size = o.size ?? 2.4, mats = this.materials(), color = o.color ?? 0xffd27a;
+    for (const m of mats) { m.emissiveIntensity = 0.55; m.side = THREE.DoubleSide; }
+    const planes: THREE.Plane[][] = [[new THREE.Plane()], [new THREE.Plane(), new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)]];
+    const meshes = [0, 1].map((k) => {
+      const ms = mats.map((m) => { const c = m.clone(); c.clippingPlanes = planes[k]; return c; });
+      const mesh = new THREE.Mesh(this.geo, [ms[2], ms[2], ms[0], ms[1], ms[2], ms[2]]);
+      mesh.scale.set(this.W * size, this.T * 1.6, this.L * size); mesh.frustumCulled = false;
+      (k ? this.h.solid : this.h.back).add(mesh);
+      return mesh;
+    });
+    for (const m of mats) m.dispose();
+    // a ring of light round its edge (the spin's blur): additive discs in both layers
+    const glowMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, map: this.glowTex });
+    const glow = [0, 1].map((k) => { const g = new THREE.Mesh(this.shadowGeo, glowMat.clone()); (g.material as THREE.MeshBasicMaterial).clippingPlanes = planes[k]; g.frustumCulled = false; (k ? this.h.glow : this.h.back).add(g); return g; });
+    glowMat.dispose();
+    this.spins.push({ at, meshes, planes, mats: meshes.flatMap((m) => m.material as THREE.MeshStandardMaterial[]).filter((m, i, a) => a.indexOf(m) === i), glow, size, tilt: o.tilt ?? 0.32, rps: o.rps ?? 9, a: 0, out: -1, color, last: new THREE.Vector3(), t: 0 });
+  }
+  private place(c: Card3): void {
+    c.mesh.position.set(c.x, c.y + this.T / 2 + (c.stuck && c.mode === 'lie' ? Math.abs(Math.sin(c.stuck)) * this.L * 0.32 : 0), c.z);
+    c.mesh.rotation.set(c.pitch, c.yaw, c.roll, 'YXZ');
+    const up = Math.max(0, c.y), k = Math.max(0, 1 - up / 1.6);
+    c.shadow.position.set(c.x, 0.004, c.z); c.shadow.rotation.y = c.yaw;
+    (c.shadow.material as THREE.MeshBasicMaterial).opacity = (c.mode === 'crumble' ? Math.max(0, 1 - c.t / c.ms) : 1) * 0.55 * k * (c.mesh.visible ? 1 : 0);
+  }
+  /** Over or behind the fighters: a flying card in front of the depth it flies from / to goes over them. */
+  private layer(c: Card3, refZ: number): void {
+    const want: 0 | 1 = c.z > refZ + 0.05 && c.y > 0.05 ? 1 : 0;
+    if (want === c.layer) return;
+    c.layer = want; c.mesh.parent?.remove(c.mesh); (want ? this.h.solid : this.h.back).add(c.mesh);
+  }
+  step(ms: number): void {
+    const dt = ms / 1000;
+    for (const c of this.all) {
+      if (c.delay > 0) { c.delay -= ms; if (c.delay > 0) { if (c.mode === 'fly') c.mesh.visible = false; continue; } }
+      c.mesh.visible = true; c.t += ms;
+      const u = Math.min(1, c.t / c.ms);
+      if (c.mode === 'fly') { // an arc to the floor, tumbling; it lands with a little bounce and settles
+        const q = 1 - Math.pow(1 - u, 2);
+        c.x = c.ax + (c.bx - c.ax) * q; c.z = c.az + (c.bz - c.az) * q; c.y = c.ay * (1 - u) + Math.sin(Math.PI * u) * 0.35;
+        c.yaw += c.spin * dt * (1 - u * 0.7); c.roll = Math.sin(c.t * 0.02) * 0.6 * (1 - u); c.pitch = c.stuck * u;
+        this.layer(c, c.az);
+        if (u >= 1) { c.mode = 'lie'; c.t = 0; c.y = 0; c.roll = 0; c.pitch = c.stuck; this.h.dust(c.x, c.z, 2, 0.35); this.layer(c, 99); }
+      } else if (c.mode === 'lie') { // lying: a hop when a blow lands near, a glint now and then; its time runs out: it crumbles
+        c.life -= ms;
+        if (c.hop > 0) { c.hop -= ms; const k = 1 - Math.max(0, c.hop) / 320; c.y = Math.sin(Math.PI * k) * 0.12; c.roll = Math.sin(k * Math.PI * 2) * 0.35; } else { c.y = 0; c.roll = 0; }
+        c.glint -= ms;
+        const gl = c.glint < 0 ? Math.max(0, 1 + c.glint / 260) : 0; if (c.glint < -260) c.glint = 2500 + Math.random() * 3000;
+        for (const m of c.mats) m.emissiveIntensity = 0.22 + gl * 1.1;
+        if (c.life <= 0) { c.mode = 'crumble'; c.t = 0; c.ms = 420; }
+      } else if (c.mode === 'rise') { // gathered: it flips up off the planks
+        c.y = c.ay + 0.45 * (1 - Math.pow(1 - u, 2)); c.roll += c.spin * dt; c.pitch = c.stuck * (1 - u);
+        if (u >= 1) { c.mode = 'home'; c.t = 0; c.ms = (c as { homeMs?: number }).homeMs ?? 300; c.ax = c.x; c.ay = c.y; c.az = c.z; }
+      } else if (c.mode === 'home') { // ...and flies to his hand, spinning, faster and faster
+        const p = c.to?.(); if (!p) { c.mode = 'crumble'; c.t = 0; c.ms = 300; continue; }
+        const hx = this.h.w3(p.x), hy = this.h.h3(p.z), hz = this.h.d3(p.y), q = u * u;
+        c.x = c.ax + (hx - c.ax) * q; c.y = c.ay + (hy - c.ay) * q + Math.sin(Math.PI * u) * 0.3; c.z = c.az + (hz - c.az) * q;
+        c.yaw += c.spin * dt * (1 + u * 2); c.roll += c.spin * 0.4 * dt;
+        this.layer(c, hz);
+        const k = 1 - u * 0.5; c.mesh.scale.set(this.W * k, this.T, this.L * k);
+        for (const m of c.mats) m.emissiveIntensity = 0.3 + u * 1.4;
+        if (u >= 1) { this.h.flare(hx, hy, hz + 0.1, 0xffd27a, 4, 2, 160); c.done?.(); c.mode = 'crumble'; c.t = c.ms = 1; c.mesh.visible = false; }
+      } else if (c.mode === 'crumble') { // burns away from the edges: gold embers
+        if (c.t <= ms && c.mesh.visible && c.ms > 1) this.h.embers(c.x, c.y + 0.03, c.z, 0xffb060, 4, 0.5);
+        const k = 1 - u; for (const m of c.mats) { m.opacity = k; m.emissiveIntensity = 0.22 + (1 - k) * 1.5; }
+        c.mesh.scale.set(this.W * (0.6 + 0.4 * k), this.T, this.L * (0.6 + 0.4 * k));
+      }
+      this.place(c);
+    }
+    const gone = this.all.filter((c) => c.mode === 'crumble' && c.t >= c.ms);
+    if (gone.length) { for (const c of gone) this.free(c); this.all = this.all.filter((c) => !gone.includes(c)); }
+    // the big spinning cards
+    for (const s of this.spins) {
+      s.t += ms;
+      const p = s.out < 0 ? s.at() : null;
+      if (p) s.last.set(this.h.w3(p.x), this.h.h3(p.z), this.h.d3(p.y));
+      else if (s.out < 0) { s.out = 0; this.h.flare(s.last.x, s.last.y, s.last.z, s.color, 8, 3, 220); }
+      if (s.out >= 0) s.out += ms;
+      const k = s.out < 0 ? Math.min(1, s.t / 90) : Math.max(0, 1 - s.out / 160);
+      s.a += Math.PI * 2 * s.rps * dt;
+      for (const m of s.meshes) { m.position.copy(s.last); m.rotation.set(s.tilt, s.a, 0, 'XYZ'); m.scale.set(this.W * s.size * k, this.T * 1.6, this.L * s.size * k); }
+      for (const g of s.glow) { g.position.copy(s.last); g.rotation.set(s.tilt, 0, 0, 'XYZ'); g.scale.set(this.L * s.size * 1.5 * k, 1, this.L * s.size * 1.5 * k); (g.material as THREE.MeshBasicMaterial).opacity = 0.55 * k; }
+      // split round its own depth: the far half in the room, the near half over the fighters
+      const f = new THREE.Vector3(); this.h.camera.getWorldDirection(f); f.y = 0; if (f.lengthSq() < 1e-6) f.set(0, 0, -1); f.normalize();
+      s.planes[0][0].setFromNormalAndCoplanarPoint(f, s.last); s.planes[1][0].setFromNormalAndCoplanarPoint(this.v.copy(f).negate(), s.last);
+    }
+    const done = this.spins.filter((s) => s.out >= 160);
+    if (done.length) {
+      for (const s of done) { for (const m of [...s.meshes, ...s.glow]) { m.parent?.remove(m); const mm = m.material; (Array.isArray(mm) ? mm : [mm]).forEach((x, i, a) => { if (a.indexOf(x) === i) x.dispose(); }); } }
+      this.spins = this.spins.filter((s) => !done.includes(s));
+    }
+  }
+  private free(c: Card3): void {
+    c.mesh.parent?.remove(c.mesh); c.shadow.parent?.remove(c.shadow);
+    for (const m of c.mats) m.dispose(); (c.shadow.material as THREE.Material).dispose();
+  }
+  dispose(): void {
+    for (const c of this.all) this.free(c);
+    this.all = [];
+    for (const s of this.spins) for (const m of [...s.meshes, ...s.glow]) { m.parent?.remove(m); const mm = m.material; (Array.isArray(mm) ? mm : [mm]).forEach((x) => x.dispose()); }
+    this.spins = [];
+    this.geo.dispose(); this.shadowGeo.dispose(); this.shadowTex.dispose(); this.glowTex.dispose();
+  }
 }
 
 // ------------------------------------------------------------------ the recipes (by skill id): one file per class (./fx3d/)

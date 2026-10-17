@@ -60,6 +60,8 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
       tip: 'Reel him in from far with the chain, then seize him and slam him up — two grabs: no armor stops them' },
     { name: 'SHACKLE', tier: 'MID', style: 'IRON HAND', range: 'CLOSE', hits: 7, steps: [{ id: 'iron_grip' }, { id: 'leap_crash' }, { id: 'judgment_hook' }, { id: 'rising_slash' }],
       tip: 'Crash down on him out of the grip\'s pop, chain him off the floor (a grab costs no down gauge), rip him back up before he rises' },
+    { name: 'STORMCHAIN', tier: 'EXPERT', style: 'IRON HAND', range: 'MID', hits: 19, steps: [{ id: 'blade_storm' }, { id: 'judgment_hook' }, { id: 'iron_grip' }, { id: 'leap_crash' }],
+      tip: 'Raise the storm two steps away — armored, its swords hold him up: press nothing till they stop, then chain him out of the air, seize him, crash' },
     // SKYBREAKER — launch, chase, spike, crash on the bounce
     { name: 'SKYWARD', tier: 'BEGINNER', style: 'SKYBREAKER', range: 'CLOSE', hits: 8, steps: [{ id: 'warrior_basic' }, { id: 'rising_slash' }, { id: 'sky_breaker' }],
       tip: 'Confirm with a strike, launch him, chase him up and spike him into a bounce' },
@@ -74,6 +76,13 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
       tip: 'Pop him low; the blade pins him and the court chains him as he falls — land, then seize him in chains' },
     { name: 'VERDICT', tier: 'EXPERT', style: 'JUDGMENT', range: 'FAR', hits: 22, steps: [{ id: 'judgment_hook' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'judgment_blade' }, { id: 'iron_grip' }, { id: 'titans_verdict' }],
       tip: 'Throw the blade on the spike and press nothing until you land; grip him in chains — the grip\'s slam keeps him up for the Verdict' },
+    // STEEL — the blade's own work: the charge through him, the cyclone, the skewer
+    { name: 'GALE', tier: 'BEGINNER', style: 'STEEL', range: 'MID', hits: 6, steps: [{ id: 'dash_slash' }, { id: 'rising_slash' }],
+      tip: 'Charge from two steps away and launch him right behind it — the charge holds him only an instant (late, you are past him: turn back)' },
+    { name: 'CYCLONE', tier: 'MID', style: 'STEEL', range: 'CLOSE', hits: 10, steps: [{ id: 'iron_grip' }, {}, { id: 'whirlwind' }, { id: 'leap_crash' }],
+      tip: 'Jump as the slam throws him up and spin in the air — the cyclone holds him and carries you under him: turn back toward him to crash' },
+    { name: 'SKEWER', tier: 'EXPERT', style: 'STEEL', range: 'MID', hits: 16, steps: [{ id: 'dash_slash' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'lance_thrust' }],
+      tip: 'Charge in and launch at once, chase and spike him — then run him through on his low bounce: he rides your blade to the end' },
   ],
   // the Book Mage (rebuilt 17 Oct): frost chills → freezes → a heavy hit shatters; storm conducts through the cold; arcane control
   book_mage: [
@@ -113,11 +122,19 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
       tip: 'The eagles sweep him from across the arena, the volley chases him up, then the sky falls on him' },
     { name: 'HAWKEYE', tier: 'EXPERT', style: 'SKY', range: 'CLOSE', hits: 5, steps: [{ id: 'rising_arrow' }, {}, { id: 'hunters_spirit' }, { id: 'bow_haste' }, { id: 'explosive_arrow' }],
       tip: 'Up, then in the air: lash him back, Wind Step off him (its burst throws him again and marks him), burn both marks' },
-    // TRAPPER — reel him in, bind him, let him fall into the vines
+    { name: 'TAILWIND', tier: 'MID', style: 'SKY', range: 'CLOSE', hits: 7, steps: [{ id: 'rising_arrow' }, { id: 'backstep_shot' }, { id: 'explosive_arrow' }, { id: 'skyhunters_step' }],
+      tip: 'Let both gusts throw him, then Backstep before you recover: its arrow pins him up there — Fireball him from range, the volley leaps the gap (up close it overshoots him)' },
+    { name: 'TALON', tier: 'EXPERT', style: 'SKY', range: 'MID', hits: 6, steps: [{ id: 'spirit_hawk' }, { id: 'explosive_arrow' }, { id: 'hunters_spirit' }, { id: 'retreat_kick' }, {}, { id: 'quick_shot' }],
+      tip: 'The hawk strikes 1.7 s after you call it and slams him into a bounce — Fireball him, lash him only once it has struck, kick the bounce back up, jump and shoot' },
+    // TRAPPER — reel him in, bind him, let him fall into the vines, the rain, the charged floor
     { name: 'BRAMBLE', tier: 'MID', style: 'TRAPPER', range: 'FAR', hits: 4, steps: [{ id: 'hunters_spirit' }, { id: 'leaping_arrow' }, { id: 'explosive_arrow' }],
       tip: 'From afar a plain arrow is only a poke: lash him in, bind him in the leaves, burn the mark' },
     { name: 'PITFALL', tier: 'EXPERT', style: 'TRAPPER', range: 'CLOSE', hits: 5, steps: [{ id: 'rising_arrow' }, { id: 'vine_trap' }, { id: 'hunters_spirit' }, { id: 'explosive_arrow' }],
       tip: 'Throw him up and lay the mine where he falls — it holds him as he lands; then lash and burn' },
+    { name: 'DOWNPOUR', tier: 'BEGINNER', style: 'TRAPPER', range: 'CLOSE', hits: 13, steps: [{ id: 'rising_arrow' }, { id: 'arrow_storm' }, { id: 'explosive_arrow' }],
+      tip: 'Open the rain where he hangs and let it pour out: every 5th volley marks him and the last throws him up — burn the marks with the Fireball' },
+    { name: 'THUNDERHEAD', tier: 'MID', style: 'TRAPPER', range: 'CLOSE', hits: 9, steps: [{ id: 'rising_arrow' }, { id: 'rain_of_arrows' }, { id: 'eagle_arrow' }],
+      tip: 'Hang in the storm: its three bolts strike him high, and as he lands the floor they charged throws him back up — the eagles take him there' },
   ],
   // the Gambler (new 17 Oct): cards planted and snapped, the staff's hammer, the house's grab
   gambler: [
