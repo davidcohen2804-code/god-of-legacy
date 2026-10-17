@@ -707,13 +707,13 @@ export class ArcherFx {
     const R0 = t.radius;
     let on = true, armed = false;
     // a seed-mine lies still in the soil (half see-through); motes and leaves drift up from it — it is alive
-    this.floor('thorn_roots', t.x, t.y, 2.4 * R0, 600000, { a: kf([0, 0], [0.0005, 0.85]), alive: () => on }); // THORN: the mine is a patch of thorned roots in the floor
+    this.floor('thorn_roots', t.x, t.y, 2.0 * R0, 600000, { a: kf([0, 0], [0.0005, 0.85]), alive: () => on }); // THORN: the mine is a patch of thorned roots in the floor, the size of its circle (David 01:33: one shape, joined)
     const motes = () => { if (!on) return; this.leaves(t.x, t.y - 4, 1, R0 * 0.8, { life: 900, up: 30, depth: t.y + 1 }); this.later(armed ? 90 : 420, motes); };
     motes();
     this.trapArt.set(t, { stop: () => { on = false; }, arm: () => {
       armed = true;
       // armed: the heart of the flower blinks faster and faster; the cracks blaze
-      this.floor('floor_cracks', t.x, t.y, 2.2 * R0, 2400, { add: true, alive: () => on, a: kf([0, 0], [0.1, 0.9]) });
+      this.floor('thorn_roots', t.x, t.y, 2.0 * R0, 2400, { add: true, glow: 0.3, alive: () => on, a: (u) => kf([0, 0], [0.1, 0.7])(u) * (0.6 + 0.4 * Math.sin(u * 40 * (1 + u))) }); // (the same roots glowing, pulsing faster — not a second patch of cracks pasted over them)
       let k = 0;
       const blink = () => { if (!on) return; this.pop('spark_s', t.x, t.y - 0.1 * R0, 40 + k * 3, { life: 160, depth: t.y + 2 }); k++; this.later(Math.max(70, 320 - k * 22), blink); };
       blink();
