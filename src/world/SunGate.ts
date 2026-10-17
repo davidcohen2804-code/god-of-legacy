@@ -43,7 +43,8 @@ export class SunGate {
   private rail?: Phaser.GameObjects.Image;
   private isOpen: boolean;
 
-  constructor(private scene: Phaser.Scene, open: boolean) {
+  /** `pictures`: its painting (the 3D world models the gate itself and keeps only its footprint and its logic). */
+  constructor(private scene: Phaser.Scene, open: boolean, private pictures = true) {
     this.isOpen = open;
     const load = (k: 'closed' | 'open') => `sun-gate-${k}`;
     const make = () => {
@@ -60,6 +61,7 @@ export class SunGate {
         this.cols.push(scene.add.image(SUN_GATE.x, SUN_GATE.y, load(this.isOpen ? 'open' : 'closed')).setOrigin(0, 0).setScale(SUN_GATE.sx, SUN_GATE.sy).setCrop(x0, 0, cw, SUN_GATE.h).setDepth(y + 0.5));
       }
     };
+    if (!this.pictures) { this.solids(); return; }
     for (const k of ['closed', 'open'] as const) if (!scene.textures.exists(load(k))) scene.load.image(load(k), SUN_GATE.img[k]);
     if (!scene.textures.exists('sun-gate-rail')) scene.load.image('sun-gate-rail', SUN_GATE.rail.img);
     if (scene.textures.exists(load('closed')) && scene.textures.exists(load('open')) && scene.textures.exists('sun-gate-rail')) make();

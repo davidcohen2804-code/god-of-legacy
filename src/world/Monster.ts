@@ -49,6 +49,8 @@ export class Monster {
   readonly homeZ: number;
   readonly sprite: Phaser.GameObjects.Image;
   private shadow: Phaser.GameObjects.Ellipse;
+  /** Its contact shadow (the 3D stage lays its sun shadow from it). */
+  get foot(): Phaser.GameObjects.Image { return this.shadow as unknown as Phaser.GameObjects.Image; }
   private bar: Phaser.GameObjects.Graphics;
   readonly kin: Kin;
   readonly body: CombatBody;

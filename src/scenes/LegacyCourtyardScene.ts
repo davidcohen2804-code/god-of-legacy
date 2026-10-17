@@ -47,7 +47,7 @@ import { SKILL_BLOCKERS, WORLD_OBJECTS, actorDepth, arenaPt, arenaRect, supportA
 let ARENA_SPAWNS: [number, number][] = PVP.spawnPoints.map((p) => [p.x, p.y]);
 const arenaSpawns = (): { x: number; y: number }[] => ARENA_SPAWNS.map(([px, py]) => { const [x, y] = arenaPt(px, py); return { x, y }; });
 import { OpenWorld, preloadOpenWorld } from '../world/OpenWorld';
-import { AreaNpc, IDLE_LINES, MOB_KINDS, QUESTS, QuestDef, START, TOWERS, CLOUDS, SKY, SKY_DROP, HEIGHTS, type Tower, toWorld } from '../world/Areas';
+import { AreaNpc, IDLE_LINES, MOB_KINDS, QUESTS, QuestDef, START, TOWERS, CLOUDS, SKY, SKY_DROP, HEIGHTS, type Tower, toWorld, areaAt } from '../world/Areas';
 import { TOWN_OF, waystoneOf, waystoneTargets } from '../world/Waystones';
 import type { Monster } from '../world/Monster';
 import { AreaTitle, DialogChoice, NpcDialog } from '../ui/WorldUI';
@@ -55,6 +55,8 @@ import { QuestState } from '../characters/CharacterTypes';
 import { PvpController } from '../pvp/PvpController';
 import { ARENA3D } from '../arena3d/flag';
 import type { Arena3D, Floor } from '../arena3d/Arena3D';
+import { WORLD3D } from '../world3d/flag';
+import type { World3D } from '../world3d/World3D';
 import { Match, MatchPhase } from '../pvp/Match';
 import { BattleHUD, Fighter } from '../ui/BattleHUD';
 import { classColor, heroArt, heroVsPortrait } from '../pvp/Fighters';
@@ -353,6 +355,43 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.arena) try { localStorage.setItem('gol-arena-zoom2', String(this.arenaZoom)); } catch { /* private mode */ } // (kept for the next fight)
     if (this.koT < 0 && !this.arena) this.cameras.main.zoomTo(this.baseZoom * this.arenaZoom, 160, 'Sine.easeOut', true); // (the arena: arenaCamStep eases to it)
   }
+  /** A 3D stage (the arena's room or a world map) takes the game's blows and skills: the skills' 3D pieces (Fx3D) follow
+   *  the runtime's own events — the same casts every client sees — and the big hits bend the whole picture. */
+  private wire3D(a3: Arena3D): void {
+    a3.casterPos = (id) => this.casterPos(id);
+    a3.onImpact = (at, big) => {
+      const fx = this.fx; if (!fx) return;
+      fx.impact.ripple(at, { r1: [150, 240, 400][big], life: [240, 320, 480][big], s: [9, 15, 26][big], width: [16, 22, 32][big], squash: 0.5 });
+      fx.impact.aberration([0.0018, 0.003, 0.005][big], [120, 160, 220][big], at); if (big === 2) fx.impact.blur(0.035, 220, at);
+    };
+    const rt = this.rt;
+    if (rt) {
+      const on: [string, (...a: never[]) => void][] = [
+        [RT_EVENTS.cast, (r: CastRun) => a3.fx.cast(r)],
+        [RT_EVENTS.active, (r: CastRun) => a3.fx.active(r)],
+        [RT_EVENTS.hit, (r: CastRun, i: number, o: V3) => a3.fx.fired(r, i, o)],
+        [RT_EVENTS.chain, (r: CastRun, _i: number, o: V3, t: V3 | null) => a3.fx.chain(r, o, t)],
+      ];
+      for (const [e, fn] of on) rt.events.on(e, fn);
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { for (const [e, fn] of on) rt.events.off(e, fn); });
+    }
+  }
+
+  /** The open world on the 3D stage: the camera on the hero (leading where he walks), every body's shadow and light, the
+   *  big moments' darkening — and, while only some maps exist in 3D, the hero kept on this one. */
+  private worldCamStep(ms: number): void {
+    const w = this.w3d; if (!w || !this.world) return;
+    const k = this.kin;
+    w.keepIn(k);
+    const ult = !!this.rt?.runs.some((r) => r.skill.slot === 7 && (r.phase === 'startup' || r.phase === 'active'));
+    const sig = !!this.rt?.runs.some((r) => r.skill.slot === 6 && (r.phase === 'startup' || r.phase === 'active'));
+    const bodies: { body: Phaser.GameObjects.Sprite; foot: Phaser.GameObjects.Image; z: number }[] = this.view ? [{ body: this.view.sprite, foot: this.view.shadow, z: k.z }] : [];
+    const others: { x: number; y: number; z: number }[] = [];
+    for (const m of this.world.mobs) { if (!m.alive) continue; others.push({ x: m.x, y: m.y, z: m.z }); bodies.push({ body: m.sprite as unknown as Phaser.GameObjects.Sprite, foot: m.foot, z: m.z }); }
+    bodies.push(...this.world.npcBodies());
+    w.step(ms, { hero: { x: k.x, y: k.y, z: k.z, facing: this.dir === 'left' ? -1 : 1 }, others, bodies, flying: this.rt ? this.rt.projectiles.map((e) => e.p) : [], hitStop: (this.fx?.hitStopLeft ?? 0) > 0, ult, sig });
+  }
+
   /** The arena camera (DFO): frames both fighters — close in when they are close (the bodies big and readable, ~1.7×
    *  the whole-arena view), wider as they part; the player's wheel zoom (arenaZoom) and height (arenaLift) on top. */
   private arenaCamStep(ms: number): void {
@@ -409,6 +448,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Counts the scene's starts (a late async load must not land in a newer run). */
   private sceneGen = 0;
   private floor3d: Floor | null = null;
+  /** The open world on the 3D stage (?world3d=1, the maps that exist in 3D): drives `a3d` from the hero. */
+  private w3d: World3D | null = null;
   /** A pose the battle holds (the intro before ROUND n, the winner's pose), until sim time. */
   private poseLock: { mode: Mode; until: number } | null = null;
   private lockPose(mode: Mode, ms: number): void { this.poseLock = { mode, until: this.simMs + ms }; if (this.bot) this.bot.poseLock = { mode, until: this.simMs + ms }; }
@@ -603,7 +644,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.gHeadsUntil = -1; this.gTailsFree = false; this.gTailsUntil = -1; this.gLuckUntil = -1; this.gOverUntil = -1; this.gStreak = 0; this.fx?.gambleClear(this.localId); this.gHand.clear(); this.gStuck.clear();
     this.sunUntil = -1; this.godUntil = -1; this.kage?.clear(); this.kage = undefined; this.ambushIn.clear();
     this.mageReset(); this.gates.clear(); this.levityZones = []; this.brokenLinks.clear(); this.linkGfx = undefined;
-    this.hpMaxSeen = 0; this.seenStance = -Infinity; this.seenEndure = -Infinity; this.markAt.clear(); this.partyTick = 0; this.shares = []; this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1; this.camAir = 0; this.camPunch = 1; this.a3d = null; this.a3dFall.clear(); this.floor3d = null; this.sceneGen++;
+    this.hpMaxSeen = 0; this.seenStance = -Infinity; this.seenEndure = -Infinity; this.markAt.clear(); this.partyTick = 0; this.shares = []; this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1; this.camAir = 0; this.camPunch = 1; this.a3d = null; this.w3d = null; this.a3dFall.clear(); this.floor3d = null; this.sceneGen++;
     this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
     this.combo = { count: 0, at: -Infinity, comboId: -1, target: '', label: '', dmg: 0, max: 1, skills: new Set<string>() };
     this.confirmedLog = [];
@@ -684,7 +725,19 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       });
     } else {
       // The open world: one long world left to right, the camera following you along it.
-      this.world = new OpenWorld(this, { sunGateOpen: this.quests[SUN_GATE_KEY]?.state === 'done' || !!this.quests.training_grounds /* (walked the old road east before the gate stood: it stays open) */, onArea: (a) => { if (a.name !== this.areaName) { this.areaName = a.name; this.areaTitle?.show(a.name); } if (a.id === 'afterglow') this.openSunGate(); } }, at ?? toWorld(START.area, [START.x, START.y]));
+      const startAt = at ?? toWorld(START.area, [START.x, START.y]);
+      const in3d = WORLD3D.has(areaAt(startAt.x).id); // (the world in 3D: only the maps rebuilt so far)
+      this.world = new OpenWorld(this, { no2d: in3d, sunGateOpen: this.quests[SUN_GATE_KEY]?.state === 'done' || !!this.quests.training_grounds /* (walked the old road east before the gate stood: it stays open) */, onArea: (a) => { if (a.name !== this.areaName) { this.areaName = a.name; this.areaTitle?.show(a.name); } if (a.id === 'afterglow') this.openSunGate(); } }, startAt);
+      if (in3d) { // the map as a 3D place: the stage, its camera on the hero, the skills' 3D pieces (three.js loads only here)
+        const gen = this.sceneGen, areaId = areaAt(startAt.x).id;
+        void import('../world3d/World3D').then(({ World3D }) => {
+          if (gen !== this.sceneGen || !this.sys.isActive()) return;
+          cam.stopFollow(); cam.removeBounds(); cam.setRoundPixels(false);
+          const w = this.w3d = new World3D(this, areaId); this.a3d = w.a3d;
+          this.motes?.setVisible(false);
+          this.wire3D(w.a3d);
+        });
+      }
       this.world.onNpcClick = (n) => this.talkTo(n);
       this.den = new Den(this, {
         kin: () => this.kin, level: () => this.character?.level ?? 1,
@@ -714,24 +767,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         cam.stopFollow(); cam.removeBounds(); cam.setRoundPixels(false); // (the bodies glide with the 3D camera: no pixel snapping)
         const a3 = this.a3d = new Arena3D(this, floor);
         this.arenaSnd?.use3D(a3); // (its camera places the sounds; the fight rings in the courtyard)
-        // the skills in the room's 3D (Fx3D): it follows the runtime's own events — the same casts every client sees
-        a3.casterPos = (id) => this.casterPos(id);
-        a3.onImpact = (at, big) => {
-          const fx = this.fx; if (!fx) return;
-          fx.impact.ripple(at, { r1: [150, 240, 400][big], life: [240, 320, 480][big], s: [9, 15, 26][big], width: [16, 22, 32][big], squash: 0.5 });
-          fx.impact.aberration([0.0018, 0.003, 0.005][big], [120, 160, 220][big], at); if (big === 2) fx.impact.blur(0.035, 220, at);
-        };
-        const rt = this.rt;
-        if (rt) {
-          const on: [string, (...a: never[]) => void][] = [
-            [RT_EVENTS.cast, (r: CastRun) => a3.fx.cast(r)],
-            [RT_EVENTS.active, (r: CastRun) => a3.fx.active(r)],
-            [RT_EVENTS.hit, (r: CastRun, i: number, o: V3) => a3.fx.fired(r, i, o)],
-            [RT_EVENTS.chain, (r: CastRun, _i: number, o: V3, t: V3 | null) => a3.fx.chain(r, o, t)],
-          ];
-          for (const [e, fn] of on) rt.events.on(e, fn);
-          this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { for (const [e, fn] of on) rt.events.off(e, fn); });
-        }
+        this.wire3D(a3);
       });
     } else if (AR) this.pitch = new CameraPitch(this, cam, () => ({ parts: [...this.arenaMap, ...this.occluders, ...(this.stageFx?.layerList() ?? [])], top: AR.y }), (d) => this.hud?.setPitch(d));
     this.input.keyboard?.on('keydown-INSERT', () => this.pitch?.step(1)); this.input.keyboard?.on('keydown-DELETE', () => this.pitch?.step(-1));
@@ -999,6 +1035,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.updateMatch(real, ms);
     this.reactionFx(ms);
     if (this.arena) this.arenaCamStep(ms);
+    else if (this.w3d) this.worldCamStep(ms);
     else if (this.pvp) this.camTarget.set(arenaRect().x + arenaRect().w / 2, this.kin.y + 70 - this.arenaLift); // keep yourself above the tray
     if (this.pvp && this.fx.hitStopLeft > 0) { // PvP hit-stop (presentation only, the simulation never waits): the other fighters hold their pose too
       for (const r of this.pvp.remotes.values()) r.hold(this.fx.hitStopLeft);

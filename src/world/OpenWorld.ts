@@ -46,6 +46,9 @@ export interface WorldHooks {
   onArea: (area: AreaDef) => void;
   /** The Sun Gate starts open (the sun already crossed). */
   sunGateOpen?: boolean;
+  /** The world in 3D (src/world3d): none of the painted pictures — the strip, the backdrop, the props' cut-outs, the
+   *  maps above, the gate's painting — only what plays (the floor, the NPCs, the monsters, the portal). */
+  no2d?: boolean;
 }
 
 /** The picture tiles within `reach` px of world x. */
@@ -100,7 +103,7 @@ export class OpenWorld {
   private promptKey: Phaser.GameObjects.Text;
   /** x, y: where you stand to use it (ground); z: the height of what it stands on. */
   private portal: { x: number; y: number; z: number; beam: Phaser.GameObjects.Image; ring: Phaser.GameObjects.Ellipse; glow: Phaser.GameObjects.Image; motes: Phaser.GameObjects.Particles.ParticleEmitter } | null = null;
-  private ambience: CourtyardAmbience;
+  private ambience: CourtyardAmbience | null = null;
   private backdrop: Backdrop | null = null;
   private camX = 0;
   /** The sealed walls between the regions (an area's `entry-wall` prop, at its west edge): the view never crosses one. */
@@ -119,19 +122,19 @@ export class OpenWorld {
   constructor(private scene: Phaser.Scene, private hooks: WorldHooks, start: { x: number; y: number }) {
     this.area = this.areaOf(start.x, start.y);
     setWorldGeometry(WORLD_FLOOR, worldObjects());
-    this.sunGate = new SunGate(scene, !!hooks.sunGateOpen);
-    TILES.forEach((_, i) => this.ensureTile(i));
-    ARENA.tiles.forEach((_, i) => this.ensureArenaTile(i));
+    this.sunGate = new SunGate(scene, !!hooks.sunGateOpen, !hooks.no2d);
+    const pictures = !hooks.no2d;
+    if (pictures) { TILES.forEach((_, i) => this.ensureTile(i)); ARENA.tiles.forEach((_, i) => this.ensureArenaTile(i)); }
     scene.load.on(Phaser.Loader.Events.FILE_COMPLETE, this.onFile, this);
     if (!scene.load.isLoading()) scene.load.start();
-    this.buildOccluders(); this.buildTowers(); this.buildHeights(); this.buildGate(); this.buildNpcs();
-    this.buildFalls();
-    this.banners = new WorldBanners(scene, (l) => (l === 'strip' ? -0.999 : l === 'gate' ? GATE.front.depth + 0.001 : (HEIGHTS.find((h) => `heights:${h.id}` === l)?.depth ?? -1.2) + 0.001)); this.buildPortal(); this.buildSky(); this.spawnMobs();
-    if (BACKDROP) this.backdrop = new Backdrop(scene);
+    if (pictures) { this.buildOccluders(); this.buildTowers(); this.buildHeights(); this.buildGate(); }
+    this.buildNpcs();
+    if (pictures) { this.buildFalls(); this.banners = new WorldBanners(scene, (l) => (l === 'strip' ? -0.999 : l === 'gate' ? GATE.front.depth + 0.001 : (HEIGHTS.find((h) => `heights:${h.id}` === l)?.depth ?? -1.2) + 0.001)); }
+    this.buildPortal(); if (pictures) this.buildSky(); this.spawnMobs();
+    if (BACKDROP && pictures) this.backdrop = new Backdrop(scene);
     const cam = scene.cameras.main;
     this.baseZoom = cam.zoom;
-    this.ambience = new CourtyardAmbience(scene, Math.ceil(cam.width / (cam.zoom * (1 - UP_ZOOM - TOP_ZOOM) * USER_ZOOM[0])) + 4, AREA_H, BACKDROP ? [330, 668] : undefined);
-    this.ambience.noRays();
+    if (pictures) { this.ambience = new CourtyardAmbience(scene, Math.ceil(cam.width / (cam.zoom * (1 - UP_ZOOM - TOP_ZOOM) * USER_ZOOM[0])) + 4, AREA_H, BACKDROP ? [330, 668] : undefined); this.ambience.noRays(); }
     const k = keyCap(scene, 0, 0, 32);
     this.promptKey = scene.add.text(0, -2, 'Y', { fontFamily: HUD.bodyFont, fontSize: '15px', fontStyle: '700', color: '#f3ede0', resolution: 2 }).setOrigin(0.5);
     this.prompt = scene.add.container(0, 0, [k, this.promptKey]).setDepth(UI_DEPTH).setVisible(false);
@@ -141,6 +144,7 @@ export class OpenWorld {
 
   // ------------------------------------------------------------------ building
   private onFile(key: string): void {
+    if (this.hooks.no2d) return;
     if (key.startsWith('world-tile-')) this.ensureTile(Number(key.slice(11)));
     else if (key.startsWith('world-arena-')) this.ensureArenaTile(Number(key.slice(12)));
     else if (key === 'sky-falls') this.buildFalls();
@@ -398,6 +402,8 @@ export class OpenWorld {
   }
   /** The NPC's area. */
   npcArea(n: AreaNpc): string | undefined { return this.npcs.find((q) => q.def === n)?.area; }
+  /** The NPCs' bodies and their contact shadows (the 3D stage casts their sun shadows and lights them). */
+  npcBodies(): { body: Phaser.GameObjects.Sprite; foot: Phaser.GameObjects.Image; z: number }[] { return this.npcs.map((n) => ({ body: n.sprite, foot: n.shadow as unknown as Phaser.GameObjects.Image, z: 0 })); }
 
   /** Where an NPC stands (world px). */
   npcPos(n: AreaNpc): { x: number; y: number } { const v = this.npcs.find((q) => q.def === n); return v ? { x: v.x, y: v.y } : { x: n.x, y: n.y }; }
@@ -482,10 +488,10 @@ export class OpenWorld {
     this.camY += (ty - this.camY) * ky;
     if (Math.abs(ty - this.camY) < 0.05) this.camY = ty;
     cam.centerOn(this.camX, this.camY);
-    this.ambience.setView(this.viewLeft);
+    this.ambience?.setView(this.viewLeft);
     const vl = this.camX - half, vr = this.camX + half;
     const over = HEIGHTS.reduce((m, h) => Math.max(m, 1 - Phaser.Math.Clamp(Math.max(h.x - 300 - vr, vl - (h.x + h.w + 300)) / 600, 0, 1)), 0);
-    this.ambience.setFade(Math.min(1 - Phaser.Math.SmoothStep(hView, 20, 160), 1 - over));   // no sun shafts over the walls of the maps above
+    this.ambience?.setFade(Math.min(1 - Phaser.Math.SmoothStep(hView, 20, 160), 1 - over));   // no sun shafts over the walls of the maps above
     this.backdrop?.setView(this.viewLeft, cam.width / zoom);
     this.backdrop?.setLift(Math.max(0, terraceCy - this.camY));
   }
@@ -555,7 +561,7 @@ export class OpenWorld {
     this.t += ms;
     for (const p of this.puffs) { const ph = p.getData('ph') as number; p.x = (p.getData('x0') as number) + Math.sin(this.t / 7000 + ph) * ((p.getData('sw') as number | undefined) ?? 60); }
     this.follow(player.x, player.y, ms, false, player.supportZ ?? 0, player.absZ ?? 0, player.grounded ?? true);
-    this.ambience.update(ms);
+    this.ambience?.update(ms);
     this.banners?.update(this.t, this.scene.cameras.main.worldView, this.gate[1]?.alpha ?? 1);
     this.sunGate.near(player.x, player.y, player.z, ms);
     for (const c of this.skyClouds) c.img.y = c.y + Math.sin(this.t / c.per + c.ph) * c.amp;
@@ -650,7 +656,7 @@ export class OpenWorld {
     for (const n of this.npcs) { n.sprite.destroy(); n.shadow.destroy(); n.plate.destroy(); n.name.destroy(); n.title.destroy(); n.mark.destroy(); }
     if (this.portal) { this.portal.beam.destroy(); this.portal.ring.destroy(); this.portal.glow.destroy(); this.portal.motes.destroy(); }
     this.prompt.destroy();
-    this.ambience.destroy();
+    this.ambience?.destroy();
     this.backdrop?.destroy(); this.backdrop = null;
   }
 }
