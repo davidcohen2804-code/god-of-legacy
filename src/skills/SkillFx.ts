@@ -1348,10 +1348,10 @@ export class SkillFx {
     else if (s.cls === 'gambler') this.gamb.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, counter);
     else if (s.cls === 'samurai') this.sam.confirmed(s, hit, at, reaction, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, from, local, counter); // (the cut of the blade on the foe and the marks of what happened to it; the ensō on a COUNTER)
     else if (s.cls === 'warrior' && this.scene.textures.exists('imp-wsparks')) { // the Judge's sparks: few hits, each one felt — normal / heavy / launch
-      const row = counter ? 3 : reaction === 'launch' ? 2 : tier === 'signature' || hit.heavy ? 1 : 0; // (an ultimate's small blows stay small: only its heavy ones burst — Titan's Verdict's 7 + 9 small hits whited the screen)
+      const row = counter ? 3 : reaction === 'launch' ? 2 : tier === 'signature' || hit.heavy || (s.hits.length > 3 && !s.chain && lastOfBurst(s, hit)) ? 1 : 0; // (a burst's last blow bursts big: Whirlwind, Impaling Rush, Blade Storm…) // (an ultimate's small blows stay small: only its heavy ones burst — Titan's Verdict's 7 + 9 small hits whited the screen)
       // (feel pass, PVP 3D: the small hits of a burst stay small so its last / heavy one stands out; the regular attack's
       //  strikes read, its heavy 4th one bigger; the heavy bursts a size down — at 170+ they hid the foe)
-      const rapid = s.hits.length > 4 && !hit.heavy;
+      const rapid = s.hits.length > 4 && !hit.heavy && row === 0;
       const size = row === 3 ? 190 : row === 1 ? (tier === 'ultimate' ? 180 : 150) : row === 2 ? 150 : s.id === 'warrior_basic' ? 100 : rapid ? 84 : 108; // (the chain's 4th strike is heavy: the 150 burst)
       const soft = rapid && row === 0; // (a burst's small sparks soft: stacked at full strength under an ultimate's camera punch-in they burnt to a white blob)
       const fam = WFAM_N[s.id], fk = fam && row !== 3 ? `imp-wsparks-${fam}` : 'imp-wsparks', toned = fk !== 'imp-wsparks' && this.scene.textures.exists(fk); // (the spark in the skill's family; the COUNTER cross keeps its crimson-gold)
