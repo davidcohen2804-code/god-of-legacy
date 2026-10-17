@@ -521,7 +521,8 @@ export class GamblerFx {
   confirmed(s: FinalSkill, hit: HitEvent, at: V3, heavy: boolean, crit: boolean, counter = false): void {
     // the gambler's hit sparks, one shape per weight (all from his own painted pieces): NORMAL a card-pop, HEAVY a card
     // blast, LAUNCH a spark geyser shooting up, CRIT / COUNTER a gold cross of light
-    const y = at.y - at.z, kind = crit || counter ? 'crit' : hit.reaction.launch ? 'launch' : heavy ? 'heavy' : 'normal';
+    const y = at.y - at.z, grip = s.id === 'kinetic_grab' && !!hit.reaction.grab; // (the grab's own snap is its spark)
+    const kind = crit || counter ? 'crit' : hit.reaction.launch ? 'launch' : heavy && !grip ? 'heavy' : 'normal';
     if (kind === 'normal') {
       this.pop(at.x, y, 64, FUCHSIA, 200); this.shards(at.x, y, 2, 50, 260);
     } else if (kind === 'heavy') {
@@ -560,12 +561,12 @@ export class GamblerFx {
     const s = this.ctx.scene, H = tp0.h ?? 90;
     const at = () => { const t = this.ctx.targetPos(id); return t ? { x: t.x, y: t.y - t.z - H * 0.5, d: t.y } : null; };
     if (skill === 'kinetic_grab' && hit === 0) { // seized: the body charges up — arcs crawl over it, a card-shaped charge pulses, the glow swells
-      const glow = this.glow(0, 0, H * 0.9, FUCHSIA, 0), ring = this.kit('g_cocoon', 0, 0, H * 0.62, 0)?.setBlendMode(Phaser.BlendModes.ADD) ?? this.kit('k_charge', 0, 0, H * 0.9, 0);
+      const glow = this.glow(0, 0, H * 0.7, FUCHSIA, 0), ring = this.kit('g_cocoon', 0, 0, H * 0.62, 0)?.setBlendMode(Phaser.BlendModes.ADD) ?? this.kit('k_charge', 0, 0, H * 0.9, 0);
       const fuse = this.kit('g_fuse', 0, 0, 54, 0), orbit = this.kit('g_orbit', 0, 0, H * 1.0, 0), r0 = ring?.scale ?? 1, o0 = orbit?.scale ?? 1;
       this.add((t) => {
         const p = at(); if (!p || t > 540) { glow.destroy(); ring?.destroy(); fuse?.destroy(); orbit?.destroy(); return false; }
         const u = t / 540, beat = 0.5 + 0.5 * Math.sin(t * (0.03 + u * 0.05)); // the charge builds: it pulses faster and faster
-        glow.setPosition(p.x, p.y).setDepth(p.d + 2).setAlpha(0.25 + 0.3 * u + 0.12 * beat).setScale((H * (0.9 + u * 0.5)) / 128); // (sized to the foe: the gambler beside him stays readable)
+        glow.setPosition(p.x, p.y).setDepth(p.d + 2).setAlpha(0.2 + 0.2 * u + 0.1 * beat).setScale((H * (0.7 + u * 0.35)) / 128); // (sized to the foe: the gambler beside him stays readable)
         if (ring) ring.setPosition(p.x, p.y).setDepth(p.d + 3).setAlpha(0.22 + 0.2 * beat) // (light over him, not a ball hiding him).setFlipX(Math.floor(t / 90) % 2 === 1).setScale(r0 * lerp(1.15, 0.95, out3(clamp01(u * 4))) * (1 + 0.06 * beat));
         if (orbit) orbit.setPosition(p.x, p.y + H * 0.5).setDepth(p.d + 3).setAlpha(0.85).setFlipX(Math.floor(t / 120) % 2 === 1).setScale(o0 * (1 + 0.05 * Math.sin(t * 0.02)), o0 * 0.8);
         if (fuse) fuse.setPosition(p.x, p.y - H * 0.75 - 16).setDepth(p.d + 5).setAlpha(Math.floor(t / Math.max(50, 160 - u * 120)) % 2 ? 1 : 0.45).setAngle(t * 0.25);
@@ -575,9 +576,9 @@ export class GamblerFx {
       this.ctx.callout({ x: tp0.x, y: tp0.y, z: tp0.z + 20 }, 'GRAB!', '#ff7ae6', 1);
       // the snap: the grip slams shut on him (big → tight), a white flash, a beat of hit-stop
       this.ctx.freeze(70); this.ctx.cam().shake(110, 0.006);
-      const snap = this.kit('g_fist', tp0.x, tp0.y - tp0.z - H * 0.5, H * 1.25, tp0.y + 5) ?? this.kit('x_grip', tp0.x, tp0.y - tp0.z - H * 0.5, H * 1.9, tp0.y + 5);
+      const snap = this.kit('g_fist', tp0.x, tp0.y - tp0.z - H * 0.5, H * 0.85, tp0.y + 5) ?? this.kit('x_grip', tp0.x, tp0.y - tp0.z - H * 0.5, H * 1.9, tp0.y + 5);
       if (snap) { const s0 = snap.scale; this.piece(snap, 220, (u, o) => o.setScale(s0 * lerp(1, 0.42, out3(u))).setAlpha(u < 0.7 ? 1 : (1 - u) / 0.3)); }
-      this.pop(tp0.x, tp0.y - tp0.z - H * 0.5, H * 1.1, 0xffffff, 200);
+      this.pop(tp0.x, tp0.y - tp0.z - H * 0.5, H * 0.8, 0xffffff, 180);
       // the tether: a crackling bolt from his hand to the foe while he holds him
       if (by) {
         const bolt = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD), teth = this.kit('g_tether', 0, 0, 100, 0);
