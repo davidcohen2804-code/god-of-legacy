@@ -629,6 +629,8 @@ export class SamuraiFx {
       this.spr({ name: tn('cut_line', 'blood'), x, y: y - 2, angle: side * 4, w: 190, h: 12, depth: TOP + 4.2, life: 240, glow: 0.5,
         sx: kf([0, 0.2], [0.14, 1, out3]), sy: kf([0, 1.3], [1, 0.3, inQ]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
       this.pop('ink_spatter', x + side * 34, y, 110, { depth: TOP + 3.9, life: 420, glow: 0, angle: side > 0 ? rnd(-15, 15) : 180 + rnd(-15, 15) });
+    } else if (s.id === 'iai_strike' && !crit) { // the Iai's blow is its hair line (DELAYED below), opening in crimson a beat
+      // later — no white burst over the foe at the draw itself (it hid him: PVP 3D quality pass)
     } else if (line) {
       const bs = s.id === 'quick_slash' ? 0.8 : 1; // (the basic's marks a size down: it plays all fight long)
       // (the basic's rising cut, the one that lifts the foe: its mark opens in crimson — steel all chain long, then red)
@@ -647,7 +649,7 @@ export class SamuraiFx {
     if (crit) { if (tone === 'sakura') this.petals(x, y, 5, 56, { depth: TOP + 3 }); else this.sparks(x, y, 5, 56, { tone, depth: TOP + 3 }); }
     const up = reaction === 'launch' || reaction === 'float', thrown = up || reaction === 'knockdown' || heavy || (hit.reaction.push ?? 0) >= 14;
     if (thrown && (!rapid || hit.heavy) && reaction !== 'cc') // sparks sprayed the way the foe is thrown (up when it is lifted)
-      this.spr({ name: tn('spark_spray', s.id === 'quick_slash' ? undefined : tone), x: x - side * 8, y, ox: side > 0 ? 0.05 : 0.95, oy: 0.45, flipX: side < 0, depth: TOP + 3.8, w: (heavy ? 168 : 126) * (s.id === 'quick_slash' ? 0.7 : 1), life: 260,
+      this.spr({ name: tn('spark_spray', s.id === 'quick_slash' || s.id === 'iai_strike' ? undefined : tone), x: x - side * 8, y, ox: side > 0 ? 0.05 : 0.95, oy: 0.45, flipX: side < 0, depth: TOP + 3.8, w: (heavy ? 168 : 126) * (s.id === 'quick_slash' ? 0.7 : s.id === 'iai_strike' ? 0.75 : 1), life: 260, delay: s.id === 'iai_strike' ? 190 : 0,
         angle: up ? -side * 50 : side * rnd(-6, 10), sx: kf([0, 0.4], [0.25, 1, out3], [1, 1.12]), sy: kf([0, 0.6], [0.25, 1, out3]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
     if (reaction === 'launch') this.launchBeam(at.x, at.y, s.id === 'quick_slash' ? 88 : 110, tone === 'gold' || tone === 'fire' ? tone : undefined);
     if (reaction === 'knockdown' || reaction === 'slam') { this.crack(at.x, at.y + 2, 120); this.dust(at.x, at.y, 120); }
