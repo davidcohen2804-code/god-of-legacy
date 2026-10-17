@@ -660,7 +660,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     'quick_shot#1': { act: 'piercing_arrow', st: [1, 2], ac: [5], rc: [5, 6] }, // the charged third arrow: the low lunge's draw and snap
     rising_arrow: { act: 'rising_arrow', st: [0, 1, 2], ac: [3], rc: [4, 5] },
     bow_haste: { act: 'wind_step', st: [0], ac: [1, 2, 3], rc: [4, 5] }, // Wind Step, her own move (PixVerse): crouch, the somersault through the air, lands with the bow up
-    backstep_shot: { act: 'backstep_shot', st: [1], ac: [3, 4], rc: [5] }, // her own move (PixVerse): she sways back off the ground, draws, looses it low and lands crouched
+    backstep_shot: { act: 'backstep_shot', st: [0], ac: [1, 2, 3, 4, 5], rc: [6, 7] }, // her own move (PixVerse): crouch, the tight back flip out of reach (the arrow leaves at its top), lands crouched with the bow still up, rises
     multi_shot: { act: 'triple_arrow', st: [0, 1, 2, 3, 4], ac: [5], rc: [6, 7] }, // Triple Arrow, her own move (PixVerse): a quick side-step down onto one knee, three arrows nocked, drawn low, the fan loosed, rises
     explosive_arrow: { act: 'explosive_arrow', st: [0, 1, 2, 3], ac: [4], rc: [4, 5] },
     retreat_kick: { act: 'retreat_kick', st: [0], ac: [1, 2, 3, 4], rc: [5] },
