@@ -45,6 +45,8 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
       tip: 'Launch him, jump after him: the air spin cuts him twice and slams him down' },
     { name: 'RYUJIN', tier: 'MID', style: 'SKY', range: 'CLOSE', hits: 8, steps: [{ id: 'quick_slash', n: 4 }, {}, { id: 'tornado_blade' }, { id: 'dragon_ascension' }],
       tip: 'Read the bounce: the golden dragon only smashes a foe in the air — strike as he bounces off the slam' },
+    { name: 'MIKAZUKI', tier: 'EXPERT', style: 'SKY', range: 'CLOSE', hits: 21, steps: [{ id: 'swallow_cut' }, {}, { id: 'sword_wave' }, { id: 'tornado_blade' }, { id: 'hundred_cuts' }, { id: 'falcon_dive' }],
+      tip: 'From the floor the crescent flies under a foe in the air: jump with him and fling it a beat later, level with him — then spin him down, cut him off the bounce, dive on him' },
     // PHANTOM — illusions and blossoms
     { name: 'FUBUKI', tier: 'BEGINNER', style: 'PHANTOM', range: 'MID', hits: 13, steps: [{ id: 'phantom_blades' }, { id: 'blossom_storm' }],
       tip: 'The phantom blades hold him where he stands (you are armored through them); the storm chases in and throws him' },
@@ -91,13 +93,13 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
       tip: 'The spikes chill him and lift him; the first frost bolt freezes him; the lance shatters him' },
     { name: 'SHATTER', tier: 'MID', style: 'FROST', range: 'CLOSE', hits: 4, steps: [{ id: 'frost_nova' }, { id: 'glacial_spikes' }, { id: 'astral_burst' }],
       tip: 'The ring chills him (spikes on its first ring), the spikes freeze him, the starlight hand shatters him' },
-    { name: 'AVALANCHE', tier: 'EXPERT', style: 'FROST', range: 'CLOSE', hits: 14, steps: [{ id: 'glacial_spikes' }, { id: 'arcane_bolt', n: 3 }, { id: 'frost_nova' }, { id: 'arcane_bolt', n: 3 }, { id: 'lightning_chain' }],
-      tip: 'Two shatters: keep the beat — the second ice takes only once the first has thawed; the chain\'s first arc shatters it' },
+    { name: 'AVALANCHE', tier: 'EXPERT', style: 'FROST', range: 'CLOSE', hits: 14, steps: [{ id: 'glacial_spikes' }, { id: 'arcane_bolt', n: 2 }, { id: 'astral_burst' }, { id: 'frost_nova' }, { id: 'arcane_bolt', n: 3 }, { id: 'lightning_chain' }],
+      tip: 'Two shatters: the first bolts freeze him, the starlight hand breaks the ice and draws him back to you — burst the frost ring as he comes down into it, freeze him again, the lance breaks it' },
     // STORM — one chill, then every storm hit conducts
     { name: 'CONDUIT', tier: 'BEGINNER', style: 'STORM', range: 'CLOSE', hits: 6, steps: [{ id: 'page_bind' }, { id: 'lightning_chain' }],
       tip: 'Page Bind chills him: every arc of the chain conducts through the cold and holds him longer' },
-    { name: 'SPARK', tier: 'MID', style: 'STORM', range: 'CLOSE', hits: 9, steps: [{ id: 'glacial_spikes' }, { id: 'lightning_chain' }, { id: 'blink' }, { id: 'arcane_bolt', n: 3 }],
-      tip: 'Blink cuts the chain\'s end and carries you to him; your bolts are storm now and keep conducting' },
+    { name: 'SPARK', tier: 'MID', style: 'STORM', range: 'CLOSE', hits: 9, steps: [{ id: 'glacial_spikes' }, { id: 'lightning_chain' }, { id: 'arcane_bolt', n: 3 }],
+      tip: 'The spikes chill him and throw him up, the chain conducts through the cold; your bolts are storm now — they seek him in the air and keep conducting' },
     { name: 'TEMPEST', tier: 'EXPERT', style: 'STORM', range: 'MID', hits: 12, steps: [{ id: 'arcane_wave' }, { id: 'glacial_spikes' }, { id: 'lightning_chain' }, { id: 'storm_field' }, { id: 'time_collapse' }],
       tip: 'Nothing froze him before: the clock\'s own freeze holds in full and its blast shatters him' },
     // ARCANE — gravity, paper, the blink
@@ -105,6 +107,8 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
       tip: 'The field opens under him from far away; the cranes home in while he hangs there' },
     { name: 'PAPERCUT', tier: 'MID', style: 'ARCANE', range: 'MID', hits: 3, steps: [{ id: 'arcane_wave' }, { id: 'astral_burst' }, { id: 'blink' }, { id: 'paper_curse' }],
       tip: 'Lift him, draw him back and throw him higher, blink to his height and fold him — he lands silenced' },
+    { name: 'SNARE', tier: 'EXPERT', style: 'ARCANE', range: 'MID', hits: 7, steps: [{ id: 'arcane_wave' }, { id: 'binding_rune' }, { id: 'astral_burst' }, { id: 'lightning_chain' }],
+      tip: 'From a few steps: lift him, lay the rune under him and wait — he falls into the net, bounces and is held; the starlight hand tears him out and throws him, the chain holds him up there' },
   ],
   // the Archer: the rising arrow, the hawk or a fireball, then the storm, the sky, the rain or the hunter's leap
   archer: [
@@ -148,14 +152,19 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
       tip: 'The rising swing lifts him, Fuse Slam spikes him into a bounce, then the home run' },
     { name: 'AFTERSHOCK', tier: 'MID', style: 'STAFF', range: 'CLOSE', hits: 6, steps: [{ id: 'fuse_slam' }, { id: 'triple_down' }, { id: 'grand_slam' }],
       tip: 'Hammer him on the charged floor at once: it erupts under the hammers and the third throws him up — then the bat' },
-    { name: 'JACKPOT', tier: 'EXPERT', style: 'STAFF', range: 'MID', hits: 32, steps: [{ id: 'staff_vault' }, { id: 'rotor_staff' }, { id: 'all_in' }, { id: 'fuse_slam' }, { id: 'triple_down' }, { id: 'jackpot' }],
-      tip: 'Let the rotor spin out (five cards: the biggest snap), spike him, three hammers — and the slot machine' },
+    { name: 'JACKPOT', tier: 'EXPERT', style: 'STAFF', range: 'MID', hits: 29, steps: [{ id: 'staff_vault' }, { id: 'rotor_staff' }, { id: 'all_in' }, {}, { id: 'fuse_slam' }, { id: 'triple_down' }, { id: 'jackpot' }],
+      tip: 'Let the rotor spin out (five cards: the biggest snap) — it throws him high: jump at once and spike him from up there, three hammers on the bounce, then the slot machine' },
     // HOUSE — grab, bomb, switch
     { name: 'COLLAR', tier: 'BEGINNER', style: 'HOUSE', range: 'CLOSE', hits: 5, steps: [{ id: 'charged_deal' }, { id: 'kinetic_grab' }, { id: 'all_in' }],
       tip: 'Plant a card first; the grab keeps it on him; the snap throws him up' },
-    { name: 'SWITCH', tier: 'MID', style: 'HOUSE', range: 'CLOSE', hits: 10, steps: [{ id: 'card_swap' }, { id: 'staff_vault' }, { id: 'showdown' }, { id: 'grand_slam' }],
-      tip: 'Hold away from him and swap — the card bomb left behind pops him up; hold back toward him and vault in, then Showdown and the bat' },
+    { name: 'SWITCH', tier: 'MID', style: 'HOUSE', range: 'CLOSE', hits: 13, steps: [{ id: 'card_swap' }, { id: 'staff_vault' }, { id: 'riffle_shuffle' }, { id: 'showdown' }, { id: 'grand_slam' }],
+      tip: 'Hold away from him and swap — the card bomb left behind pops him up; hold back toward him and vault in: it throws him over the cards — shuffle while he drifts back into reach, then Showdown and the bat' },
     { name: 'HIGHROLLER', tier: 'EXPERT', style: 'HOUSE', range: 'CLOSE', hits: 6, steps: [{ id: 'charged_deal', hold: true }, { id: 'kinetic_grab' }, { id: 'all_in' }, { id: 'grand_slam' }],
       tip: 'The max bet: hold for the five-card fan (three stick), grab him, a three-card snap twice as high — then the bat' },
+    // CHANCE — the dice and the wheel: luck sets the damage or the hold, never the route
+    { name: 'LOADED', tier: 'MID', style: 'CHANCE', range: 'CLOSE', hits: 10, steps: [{ id: 'dice_bomb' }, { id: 'staff_vault' }, { id: 'riffle_shuffle' }, { id: 'all_in' }],
+      tip: 'Roll the dice and let both burst (the roll only sets the damage) — the second throws him up: vault onto him, shuffle two cards into him, snap them' },
+    { name: 'REDBLACK', tier: 'EXPERT', style: 'CHANCE', range: 'MID', hits: 12, steps: [{ id: 'roulette_wheel' }, { id: 'staff_vault' }, { id: 'rotor_staff' }, { id: 'grand_slam' }],
+      tip: 'Lay the wheel under him and let the ball drop (2 s): RED throws him up, BLACK binds him — the vault takes him either way; spin the rotor, then the bat sets off its cards' },
   ],
 };

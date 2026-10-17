@@ -2727,8 +2727,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private cancelAllowed(run: CastRun, next: FinalSkill): boolean {
     const s = run.skill, T = run.timings, e = run.elapsed;
     const base = (id: string) => (id.startsWith('arcane_bolt') ? 'arcane_bolt' : id); // (the book mage's Attunement bolts are her Arcane Bolt: its links and its chain)
-    if (base(s.id) === base(next.id) && s.chain) return e >= T.startup + T.active - 20;
+    if (base(s.id) === base(next.id) && s.chain) return e >= T.startup + Math.max(0, T.active - 20); // (a bolt has no active: the next one waited for nothing and cut it 20 ms before it fired — fast taps lost bolts)
     if (s.slot === 7) return false; // Ultimate cannot be cancelled
+    if (s.id === 'roulette_wheel' && e < T.startup + (run.hits[run.hits.length - 1]?.at ?? 0)) return false; // the wheel links only once its ball has dropped (an early vault skipped the bet: its colour never showed)
     if (next.id === 'blink' && s.id !== 'blink' && e >= T.startup + T.active) return true; // Blink cancels the end of any spell
     if (next.id === s.id) return !!s.charges && e >= T.startup + T.active; // charged skill: throw again right away
     if (s.id === 'whirlwind' && e >= T.startup + 200 && s.cancelOnHit.includes(next.id)) return true; // channelled spin: break out at will — into its own links only

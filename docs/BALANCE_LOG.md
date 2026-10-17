@@ -4,6 +4,11 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-10-17 — Samurai, Gambler, Book Mage: their unused skills get trials; two cancel rules fixed
+- Trials (played by DFO in the game): the Samurai's MIKAZUKI (SKY's expert: Sword Wave thrown level with a foe in the air), the Gambler's CHANCE style (LOADED: Dice Bomb; REDBLACK: Roulette Wheel), the Book Mage's SNARE (ARCANE's expert: Binding Rune as the net under a falling foe). SWITCH (+ Riffle Shuffle: the vault threw him above Showdown's reach), JACKPOT (a jump before Fuse Slam: All In's five-card snap throws him past its reach from the floor), SPARK (no Blink: its chase stopped 34 px from him and the bolts flew level under him) and AVALANCHE (two bolts, then Astral Burst draws him back into Frost Nova's ring) rebuilt under the per-attack reach.
+- **Roulette Wheel links only once its ball has dropped:** an early vault cancelled it on its first spin and skipped the bet (the colour never showed).
+- **Arcane Bolt's chain:** the next bolt can no longer cut the current one 20 ms before it fires (its stages have no active time) — fast taps lost bolts (RIME's damage halved in the sim).
+
 ## 2026-10-17 — After a dash through the foe, the next attack turns back to him (every class)
 - Only the samurai's next cut turned back to a foe he had stepped through; the warrior's Dash Slash (`through`) left him facing away, so Rising Slash, its one link, cut the air (GALE and SKEWER failed in the game: the foe 53–99 px behind him, free). Now any attack within the through-dash's window (its active + recovery + 0.45 s) soft-locks a foe behind as well as in front (260 px); a mobility / escape skill keeps your heading (an escape stays an escape), except the samurai's own steps, as before.
 
