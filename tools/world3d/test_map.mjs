@@ -41,7 +41,7 @@ for (const id of ids) {
   const standable = (A.props ?? []).filter((q) => q.stand && q.h && q.h <= 110).sort((a, b2) => a.h - b2.h)[0]; // (what a jump reaches)
   if (standable) {
     const xs = standable.foot.map((q) => q[0]), px = (Math.min(...xs) + Math.max(...xs)) / 2 + ax, py = (standable.stand[0] + standable.stand[1]) / 2;
-    await tele(px - 55, py + 6); await W(p, 800); await p.keyboard.down('KeyD'); await W(p, 300); await p.keyboard.press('KeyE'); await W(p, 2500); await p.keyboard.up('KeyD'); await grounded();
+    await tele(px - 95, py + 6); await W(p, 800); await p.keyboard.down('KeyD'); await W(p, 2600); await p.keyboard.press('KeyE'); await W(p, 2600); await p.keyboard.up('KeyD'); await grounded(); // (headless sim time is slow: a run-up of a few frames, the jump, a few frames in the air)
     const up = await state(); check(up.supportZ > 0, `standing on ${standable.id} after the jump (supportZ ${up.supportZ}, ${up.supportId}, x ${Math.round(up.x - ax)} vs ${Math.round(px - ax)})`); if (SHOTS) await shot(`${OUT}/${id}_jump.jpg`);
   }
   // 4) every NPC: the talk opens
