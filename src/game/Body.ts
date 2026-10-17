@@ -587,9 +587,9 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
   },
   warrior: {
     // the regular attack: each strike its own move (PixVerse, 9 frames): the flat cut, the backhand down, the rising cut, then the heavy chop (finisher)
-    warrior_basic: { act: 'basic_chain', st: [0], ac: [1, 2], rc: [2] },
-    'warrior_basic#1': { act: 'basic_chain', st: [3], ac: [4, 5], rc: [5] },
-    'warrior_basic#2': { act: 'basic_chain', st: [6], ac: [7], rc: [8] },
+    warrior_basic: { act: 'basic_chain', st: [0], ac: [1, 2], rc: [2, 3] }, // (DFO: each strike its own short clip — PixVerse: anticipation → smear → impact → follow-through)
+    'warrior_basic#1': { act: 'basic_chain', st: [6], ac: [4, 5], rc: [7] }, // the backhand: raised over the shoulder, chopped round and down
+    'warrior_basic#2': { act: 'basic_chain', st: [8], ac: [9, 10], rc: [11] }, // the rising cut: dropped low, swung up over his head
     'warrior_basic#3': { act: 'finisher', st: [0], ac: [1], rc: [2] },
     dash_slash: { act: 'dash_slash', st: [0], ac: [1, 2, 3], rc: [4, 5] },
     rising_slash: { act: 'rising_slash', st: [0], ac: [1, 2, 3], rc: [4, 5] },
