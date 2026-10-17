@@ -169,7 +169,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 
 ## Done
 - Gambler: effects in five families (DFO's review) — STAFF steel/violet, CARDS white/red, COIN gold, CHANCE fuchsia neon, FUSE orange; painted pieces re-toned at run time, 3D layer recoloured, every recipe its own main hit — a682127f; checked in PVP 3D
-- Book Mage: own body moves for Origami Flock (hand flicked out from the shoulder) and Levity Field (arm lifted high, coat floating up) — PixVerse from her ref, checked in PVP 3D — 56566902. Still borrowing: Page Bind, Arcane Ward, Paper Curse, Elemental Ascension.
+- Book Mage: own body moves for Origami Flock (hand flicked out from the shoulder) and Levity Field (arm lifted high, coat floating up) — PixVerse from her ref, checked in PVP 3D — 56566902. Elemental Ascension too (arms wide, book overhead) — adf0af4c. Still borrowing: Page Bind, Arcane Ward, Paper Curse (PixVerse clips zoom or barely move; GPT after ~19:00).
 - Archer: own bodies for Fireball Arrow, Hunter's Roar and Double Shot's charged arrow; effects in families (3D layer, hit sparks, own floor pieces); Sky Rain's cut-in checked in PVP 3D — 59fdd9f2, e5fee28b
 - Gambler: the lucky moments no longer white the screen out (royal hand flash 0.5 → 0.2, Showdown's crown smaller, the wheel's RED flash 0.16–0.18) — 5cc469f9
 - Samurai (quality pass, PVP 3D): nothing of his whites the foe out any more — the Iai's draw is its hair line of steel opening in crimson (no white burst at the draw) — 3ee71d67; Hundred Cuts' storm and last blow lighter, both fighters read through it — 58672f02
