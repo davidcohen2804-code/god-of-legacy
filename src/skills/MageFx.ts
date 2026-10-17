@@ -665,8 +665,8 @@ export class MageFx {
     if (this.ctx.scene.textures.exists('mfx-wave')) {
       const x0 = o.x + r.aim.x * 10, y0 = o.y + r.aim.y * 10 - o.z, t0 = this.ctx.scene.time.now;
       const glide = (d: number) => () => { const u = Math.min(1, (this.ctx.scene.time.now - t0 - d) / 820); const e = out(Math.max(0, u)); return { x: x0 + r.aim.x * 150 * e, y: y0 + r.aim.y * 90 * e }; };
-      this.sheet('mfx-wave', x0, y0, 430, 820, { alpha: 0.85, ox: side < 0 ? 0.88 : 0.12, oy: 0.75, flipX: side < 0, angle: side < 0 ? ang - 180 : ang, depth: o.y + 3, follow: glide(0) });
-      this.sheet('mfx-wave', x0, y0, 370, 760, { ox: side < 0 ? 0.88 : 0.12, oy: 0.75, flipX: side < 0, angle: side < 0 ? ang - 180 : ang, depth: o.y + 2, delay: 110, alpha: 0.4, follow: glide(110) });
+      this.sheet('mfx-wave', x0, y0, 430, 820, { alpha: 0.8, ox: side < 0 ? 0.88 : 0.12, oy: 0.75, flipX: side < 0, angle: side < 0 ? ang - 180 : ang, depth: o.y - 6, follow: glide(0) }); // (drawn behind the fighters on the lane: it rolls through the foe, never over him)
+      this.sheet('mfx-wave', x0, y0, 370, 760, { ox: side < 0 ? 0.88 : 0.12, oy: 0.75, flipX: side < 0, angle: side < 0 ? ang - 180 : ang, depth: o.y - 7, delay: 110, alpha: 0.3, follow: glide(110) });
       for (let k = 0; k < 6; k++) this.later(80 + k * 90, () => { const p = glide(0)(); this.burst(p.x + r.aim.x * (120 + k * 30), p.y - 50, { n: 6, speed: [60, 220], life: [300, 600], scale: [0.03, 0.12], tint: [0xffffff, 0xb9a2ff, 0x8fe6ff], gravity: -60 }); });
       this.warp.ring(o.x + r.aim.x * 220, o.y + r.aim.y * 150, { r1: 220, life: 420, s: 22, width: 24, squash: SQUASH });
       this.shake(110, 0.005);
@@ -1067,7 +1067,7 @@ export class MageFx {
     this.bolts.delete(p); b.im.destroy(); b.gl.destroy();
     if (!this.ready) return;
     const e = p.end ?? { x: p.x, y: p.y }, y = e.y - p.z;
-    if (b.kind === 'paperCrane') this.sheet('mfx-paper', e.x, y, 170, 300, { frames: [4, 4], depth: TOP + 5 });
+    if (b.kind === 'paperCrane') { if (p.end?.reason !== 'target') this.sheet('mfx-paper', e.x, y, 110, 190, { frames: [4, 4], alpha: 0.6, depth: p.y + 3 }); } // (on a foe the hit draws the paper puff; the painted burst only where a crane falls short)
     else if (b.kind === 'crane') this.pop('paper_burst', e.x, y, 70, { life: 260, add: false });
     else if (b.kind === 'frost') { this.pop('ice_shatter', e.x, y, 80, { life: 240, add: false }); this.pop('snowflake', e.x, y, 40, { life: 200 }); }
     else if (b.kind === 'storm') this.pop('bolt_impact', e.x, y, 90, { life: 220 });
@@ -1157,6 +1157,11 @@ export class MageFx {
       else if (row >= 0) this.sheet('mfx-hit2', x, y, row === 12 ? 340 : 250, row === 12 ? 420 : 320, { frames: [row, 4], angle: rnd(-12, 12), depth: TOP + 7 });
     } else if (counter && this.ctx.scene.textures.exists('mfx-wg')) this.sheet('mfx-wg', at.x, at.y - at.z + 8, 200, 300, { frames: [5, 3], oy: 0.86, tint: 0xf0c8ff, depth: TOP + 7 });
     else if (hit.reaction.launch && this.ctx.scene.textures.exists('mfx-pillar')) this.sheet('mfx-pillar', at.x, at.y - at.z + 6, 170, 320, { frames: [4, 4], oy: 0.86, depth: at.y + 5 });
+    if (s.id === 'origami_flock' && !counter && !crit) { // a crane striking: a puff of torn paper, not a flash of light (the foe reads through)
+      this.pop('paper_burst', x + rnd(-8, 8), y + rnd(-8, 8), heavy ? 90 : 70, { life: 300, add: false });
+      this.burst(x, y, { frame: 'page_1', n: heavy ? 4 : 2, speed: [80, 220], life: [400, 700], scale: [0.05, 0.1], tint: [0xffffff], gravity: 260, spin: true, add: false });
+      return;
+    }
     if (s.id === 'page_bind') this.sheet('mfx-paper', at.x, at.y - at.z - 50, 160, 520, { frames: [8, 4], tint: 0xcfefff, alpha: 0.55 }); // frozen pages stuck to the foe (light: the foe reads under them)
     this.pool(at.x, this.floorY(at.x, at.y, at.z), big ? 190 : 130, tint, 300, { alpha: at.z > 30 ? 0.45 : 0.6 }); // the hit lights the floor under it
     if (this.ctx.scene.textures.exists('mfx-hit')) { // the painted spark: one per element, a heavier one for heavy blows and crits

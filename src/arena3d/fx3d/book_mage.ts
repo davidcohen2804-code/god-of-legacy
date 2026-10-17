@@ -21,7 +21,7 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // cold bursting out round her: crystals grow at the rim (the fighters inside stay clear), a pale shell, frost dust
   frost_nova: { tone: C.frost, own: true, active: (f, r) => { const c = me(f, r); f.crystals(c.x, c.y, { n: 12, r: 185, h: 120, ms: 1400, ring: true }); f.dome(c.x, c.y, C.frost, { r: 200, ms: 340, a: 0.5 }); f.host.dust(f.host.w3(c.x), f.host.d3(c.y), 8, 1.1); } },
   // lightning leaping link to link; the main link flashes a small shell on the foe
-  lightning_chain: { tone: C.storm, chainBolt: C.storm, trail: false, hit: (f, s, h, at, main) => { if (!main) return; const z = at.z ?? 0; if (h.at === s.hits[s.hits.length - 1].at) { f.bolt({ x: at.x + 30, y: at.y, z: z + 640 }, { x: at.x, y: at.y, z: z + 40 }, C.storm, { ms: 280, w: 6, forks: 1 }); f.host.kick(0.03); } } /* (the links are the beam itself: no sphere on each foe) */ }, // (the last link: a real bolt out of the sky through the room onto him)
+  lightning_chain: { own: true, tone: C.storm, chainBolt: C.storm, trail: false, hit: (f, s, h, at, main) => { if (!main) return; const z = at.z ?? 0; if (h.at === s.hits[s.hits.length - 1].at) { f.bolt({ x: at.x + 30, y: at.y, z: z + 640 }, { x: at.x, y: at.y, z: z + 40 }, C.storm, { ms: 280, w: 6, forks: 1 }); f.host.kick(0.03); } } /* (the links are the beam itself: no sphere on each foe) */ }, // (the last link: a real bolt out of the sky through the room onto him)
   // the signature: a faint storm shell over the field and bolts out of the sky; the last strike a heavy bolt that cracks the floor
   storm_field: { tone: C.storm,
     own: true,
@@ -37,7 +37,7 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // gravity turned over: a pale shell and motes drifting up out of it
   levity_field: { tone: C.ice, own: true, active: (f, r) => { const p = placeOf(f, r); const life = r.skill.zoneMs ?? 1800; f.dome(p.x, p.y, C.frost, { r: 180, ms: life, a: 0.22, hold: 1 }); for (let t = 0; t < life; t += 350) f.later(t, () => f.host.embers(f.host.w3(p.x), 0.1, f.host.d3(p.y), C.ice, 6, 1.4)); } },
   // paper cranes: a soft paper trail each
-  origami_flock: { tone: C.paper, trail: { c: C.paper, w: 7, len: 10, i: 1.4 } },
+  origami_flock: { tone: C.paper, own: true, trail: { c: C.paper, w: 6, len: 12, i: 0.8 } },
   // the rune shell round her, following her
   arcane_ward: { tone: C.arcane, own: true, active: (f, r) => f.dome(me(f, r).x, me(f, r).y, C.arcane, { r: 140, ms: 900, a: 0.5, follow: () => f.host.casterPos(r.attackerId) }) },
   // the pages fly to the foe as a paper streak (not lightning: that is the chain's)
