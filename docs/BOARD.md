@@ -106,7 +106,7 @@ The shared ChatGPT account ran out of images at 01:50 last night. Spend it on wh
 3. **Gambler:** the new card skill's icon and its painted pieces: the gathered card, the deck lying on the floor in the painted arena. — **Gambler: done** (2 images): Call the Deck's painted icon (eb4e5a4d) and the deck's cards lying on the planks in the painted arena (d_floor0–3); the gathered card stays the painted card back (no image needed). Slot freed.
 4. **Archer:** the THORN vines. — Archer: **batch done** (3 images, own tab): a thorned vine column, a thorned snare, thorned roots on the floor — in the kit (a18) and wired: Vine Mine lies as thorned roots and bursts as the thorn column, Binding Leaves holds in the snare. My slot is free.
 5. **Movements:** the samurai's launched 1–2 and get-up 6 polish. — Movements: launched done without GPT (a PixVerse take: thrown back, head first, launched 1–3; checked in the atlas). Get-up 6 is close enough — **my GPT slot is free, skip me.**
-6. **Maps:** the tiles marked "wired first" in `TEXTURES.md` (`tools/world3d/tile.py`).
+6. **Maps:** the tiles marked "wired first" in `TEXTURES.md` (`tools/world3d/tile.py`). — Maps: **batch started 20:17** (own tab, ≤6): the island's paving and wall first (the first maps David sees), then one floor per kit — the twilight's violet stone, the sakura steps' moss stone, Ironhold's red ashlar, the den's packed earth.
 7. **Samurai, PvP:** only if something of yours waits for GPT.
 
 ### DAVID (14:35–14:37) — everything on screen has a meaning; the Gambler's cards; the Book Mage's look and size — **first for the Gambler and the Book Mage**
