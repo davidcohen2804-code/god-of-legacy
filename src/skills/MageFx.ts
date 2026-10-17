@@ -659,8 +659,7 @@ export class MageFx {
     if (this.ctx.scene.textures.exists('mfx-wave')) {
       const x0 = o.x + r.aim.x * 10, y0 = o.y + r.aim.y * 10 - o.z, t0 = this.ctx.scene.time.now;
       const glide = (d: number) => () => { const u = Math.min(1, (this.ctx.scene.time.now - t0 - d) / 820); const e = out(Math.max(0, u)); return { x: x0 + r.aim.x * 150 * e, y: y0 + r.aim.y * 90 * e }; };
-      this.sheet('mfx-wave', x0, y0, 430, 820, { alpha: 0.8, ox: side < 0 ? 0.88 : 0.12, oy: 0.75, flipX: side < 0, angle: side < 0 ? ang - 180 : ang, depth: o.y - 6, follow: glide(0) }); // (drawn behind the fighters on the lane: it rolls through the foe, never over him)
-      this.sheet('mfx-wave', x0, y0, 370, 760, { ox: side < 0 ? 0.88 : 0.12, oy: 0.75, flipX: side < 0, angle: side < 0 ? ang - 180 : ang, depth: o.y - 7, delay: 110, alpha: 0.3, follow: glide(110) });
+      this.sheet('mfx-wave', x0, y0, 360, 820, { alpha: 0.35, ox: side < 0 ? 0.88 : 0.12, oy: 0.75, flipX: side < 0, angle: side < 0 ? ang - 180 : ang, depth: o.y - 6, follow: glide(0) }); // (drawn behind the fighters on the lane: it rolls through the foe, never over him)
       for (let k = 0; k < 6; k++) this.later(80 + k * 90, () => { const p = glide(0)(); this.burst(p.x + r.aim.x * (120 + k * 30), p.y - 50, { n: 6, speed: [60, 220], life: [300, 600], scale: [0.03, 0.12], tint: [0xffffff, 0xb9a2ff, 0x8fe6ff], gravity: -60 }); });
       this.warp.ring(o.x + r.aim.x * 220, o.y + r.aim.y * 150, { r1: 220, life: 420, s: 22, width: 24, squash: SQUASH });
       this.shake(110, 0.005);
