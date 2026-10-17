@@ -82,7 +82,7 @@ export const SAMURAI: Record<string, Recipe> = {
     active: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, INK, { r: 160, ms: 520, a: 0.35, implode: true }); f.host.blow(f.host.w3(c.x), 0.6, f.host.d3(c.y), 4, 4); } },
   // a whirlwind of steel rings round him in the air; the smash down: steel cracks where the foe hits the planks
   tornado_blade: { own: true,
-    active: (f, r) => f.whirl(r.attackerId, C.steel, { r: 120, ms: T(r).active, rings: 3, every: 90, y0: 40, dir: side(r) }),
+    active: (f, r) => f.whirl(r.attackerId, C.steel, { r: 110, ms: T(r).active, rings: 2, every: 110, y0: 40, dir: side(r) }), // (two rings: the fighters read through it)
     hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, C.steel, { r: 110, chunks: 8 }); f.host.kick(0.04); } } },
   // the falcon of fire strikes the floor: fire torn in the planks, a column of flame
   falcon_dive: { own: true,

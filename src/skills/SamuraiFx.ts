@@ -14,6 +14,11 @@ export const KIT_URL = 'assets/final/skills/samurai/kit/';
 const TOP = 100000, GROUND = 2, SQUASH = 0.42, CRIMSON = 0xff3a4c, DUST = 0xd2a57a;
 /** The crack piece runs diagonally on its sheet; this turns it level. */
 const CRACK_TILT = -57;
+/** Hit marks a size down for the skills whose blows come thick and fast (they hid the foe in PVP 3D); the blow that lifts
+ *  the foe in the basic opens in crimson. Sprays: their size and the skills whose spray is crimson (the Iai's opening). */
+const MARK_SCALE: Record<string, number> = { quick_slash: 0.8, hundred_cuts: 0.8, tornado_blade: 0.8 };
+const SPRAY_SCALE: Record<string, number> = { quick_slash: 0.7, iai_strike: 0.75, tornado_blade: 0.75 };
+const SPRAY_CRIMSON = new Set(['quick_slash', 'iai_strike']);
 /** The slash-hit pieces run this many degrees down to the right on their sheet (s11). */
 const SLASH_TILT = 43;
 /** A trail of the blade (blade_trail) / a flipped piece: angle that points it along `ang` (deg on screen). */
@@ -578,7 +583,7 @@ export class SamuraiFx {
       case 'dragon_ascension': if (i === 0) this.ascensionBurst(r); else this.cut(tn('cut_thin', 'gold'), 150, rnd(-30, 30), { x: q.x + rnd(-60, 60), y: y0 - 90 - i * 70, depth: TOP + 3, flipX: Math.random() < 0.5 }); break;
       case 'blossom_storm': this.stormCut(r, i); break;
       case 'dragon_eclipse': if (i < r.hits.length - 1) this.eclipseSlash(r, i); else this.eclipseCut(r, o); break;
-      case 'tornado_blade': if (i === r.hits.length - 1) { this.pop(tn('burst', 'steel'), q.x + side * 36, y0 - 46, 130); this.cut(tn('cut_x', 'steel'), 150, rnd(-10, 10), { x: q.x + side * 36, y: y0 - 46, depth: TOP + 3.5, grow: 35, hold: 40, fade: 160, sweep: 0 }); } break; // (the smash down)
+      case 'tornado_blade': if (i === r.hits.length - 1) { this.pop(tn('burst', 'steel'), q.x + side * 36, y0 - 46, 110, { glow: 0.3 }); this.cut(tn('cut_x', 'steel'), 132, rnd(-10, 10), { x: q.x + side * 36, y: y0 - 46, depth: TOP + 3.5, grow: 35, hold: 40, fade: 160, sweep: 0, glow: 0.35 }); } break; // (the smash down)
     }
     void cam;
   }
@@ -632,9 +637,9 @@ export class SamuraiFx {
     } else if (s.id === 'iai_strike' && !crit) { // the Iai's blow is its hair line (DELAYED below), opening in crimson a beat
       // later — no white burst over the foe at the draw itself (it hid him: PVP 3D quality pass)
     } else if (line) {
-      const bs = s.id === 'quick_slash' || s.id === 'hundred_cuts' ? 0.8 : 1; // (the basic's marks a size down: it plays all fight long; the storm's twelve too)
+      const bs = MARK_SCALE[s.id] ?? 1;
       // (the basic's rising cut, the one that lifts the foe: its mark opens in crimson — steel all chain long, then red)
-      const name = tn(crit || (heavy && !rapid) ? 'slash_hit_heavy' : line.double ? 'slash_hit_double' : 'slash_hit', bs < 1 && flies ? undefined : tone);
+      const name = tn(crit || (heavy && !rapid) ? 'slash_hit_heavy' : line.double ? 'slash_hit_double' : 'slash_hit', s.id === 'quick_slash' && flies ? undefined : tone);
       const w = bs * (crit ? (rapid ? 170 : 230) : heavy && !rapid ? 196 : rapid ? 112 : line.double ? 160 : 150), life = crit ? 320 : heavy ? 280 : rapid ? 170 : 220;
       this.spr({ name, x, y, depth: TOP + 4, w, life, angle: ang - SLASH_TILT, glow: crit ? 0.45 : heavy ? 0.35 : 0.2,
         sx: kf([0, 0.5], [0.16, 1.06, out3], [1, 1.14]), sy: kf([0, 0.5], [0.16, 1.06, out3], [1, 1.14]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
@@ -649,7 +654,7 @@ export class SamuraiFx {
     if (crit) { if (tone === 'sakura') this.petals(x, y, 5, 56, { depth: TOP + 3 }); else this.sparks(x, y, 5, 56, { tone, depth: TOP + 3 }); }
     const up = reaction === 'launch' || reaction === 'float', thrown = up || reaction === 'knockdown' || heavy || (hit.reaction.push ?? 0) >= 14;
     if (thrown && (!rapid || hit.heavy) && reaction !== 'cc') // sparks sprayed the way the foe is thrown (up when it is lifted)
-      this.spr({ name: tn('spark_spray', s.id === 'quick_slash' || s.id === 'iai_strike' ? undefined : tone), x: x - side * 8, y, ox: side > 0 ? 0.05 : 0.95, oy: 0.45, flipX: side < 0, depth: TOP + 3.8, w: (heavy ? 168 : 126) * (s.id === 'quick_slash' ? 0.7 : s.id === 'iai_strike' ? 0.75 : 1), life: 260, delay: s.id === 'iai_strike' ? 190 : 0,
+      this.spr({ name: tn('spark_spray', SPRAY_CRIMSON.has(s.id) ? undefined : tone), x: x - side * 8, y, ox: side > 0 ? 0.05 : 0.95, oy: 0.45, flipX: side < 0, depth: TOP + 3.8, w: (heavy ? 168 : 126) * (SPRAY_SCALE[s.id] ?? 1), life: 260, delay: s.id === 'iai_strike' ? 190 : 0,
         angle: up ? -side * 50 : side * rnd(-6, 10), sx: kf([0, 0.4], [0.25, 1, out3], [1, 1.12]), sy: kf([0, 0.6], [0.25, 1, out3]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
     if (reaction === 'launch') this.launchBeam(at.x, at.y, s.id === 'quick_slash' ? 88 : 110, tone === 'gold' || tone === 'fire' ? tone : undefined);
     if (reaction === 'knockdown' || reaction === 'slam') { this.crack(at.x, at.y + 2, 120); this.dust(at.x, at.y, 120); }
@@ -1200,11 +1205,11 @@ export class SamuraiFx {
     const T = r.timings, life = T.active + 140, fl = sideOf(r) < 0, f = this.front(r, 0, 56), S = (n: string) => tn(n, 'steel');
     // (in the cold white of bare steel: a whirlwind of blade light — read apart from the crimson launcher and the pink storm round it)
     for (const [crop, z] of [[undefined, -3], [0.5, 3]] as const)
-      this.spr({ name: S('cut_ring'), w: 220, life, delay: T.startup, run: r, follow: f, dz: z, crop, glow: 0.75, flipX: fl, flick: 48,
-        sx: kf([0, 0.45], [0.18, 1, out3], [1, 1.1]), sy: kf([0, 0.45], [0.18, 1, out3], [1, 1.1]), a: kf([0, 1], [0.7, 1], [1, 0, inQ]) });
+      this.spr({ name: S('cut_ring'), w: 204, life, delay: T.startup, run: r, follow: f, dz: z, crop, glow: 0.3, flipX: fl, flick: 48,
+        sx: kf([0, 0.45], [0.18, 1, out3], [1, 1.1]), sy: kf([0, 0.45], [0.18, 1, out3], [1, 1.1]), a: kf([0, 0.8], [0.7, 0.75], [1, 0, inQ]) });
     for (const [crop, z] of [[undefined, -2], [0.5, 2]] as const)
       this.spr({ name: S('wind_ring'), w: 160, life: life + 80, delay: T.startup, run: r, follow: f, dz: z, crop, add: true, flipX: !fl,
-        sx: (u) => 0.8 + 0.7 * u, sy: (u) => 0.55 + 0.35 * u, a: kf([0, 0], [0.12, 0.8], [0.7, 0.5], [1, 0]) });
+        sx: (u) => 0.8 + 0.7 * u, sy: (u) => 0.55 + 0.35 * u, a: kf([0, 0], [0.12, 0.55], [0.7, 0.35], [1, 0]) });
     for (let k = 0; k < 3; k++) // blade glints whirling round him
       this.spr({ name: S('glint'), w: 30, life: T.active, delay: T.startup + k * 40, run: r, follow: f, dz: 4, glow: 0.8,
         mx: (u) => Math.cos(u * Math.PI * 4 + k * 2.1) * 92, my: (u) => Math.sin(u * Math.PI * 4 + k * 2.1) * 26, rot: (u) => 360 * u, a: kf([0, 0], [0.1, 1], [0.85, 1], [1, 0]) });
