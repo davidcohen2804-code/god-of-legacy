@@ -4,6 +4,7 @@
 // Calibrated against the baked map: the pedestal's lid (screen y 407..455) sits 78px above its ground footprint
 // (front edge y 535), the planter's rim 60px (+ flowers) above its footprint (front edge y 721).
 import WORLD from '../data/legacy-courtyard.json';
+import { WORLD3D } from '../world3d/flag';
 
 export type Pt = [number, number];
 export interface WorldObject {
@@ -207,6 +208,7 @@ export function clearLine(ax: number, ay: number, bx: number, by: number, h = 30
  *  only someone behind its back edge is hidden by it). */
 export function actorDepth(x: number, y: number, z: number): number {
   let d = y;
+  if (WORLD3D.on) return d; // (the world in 3D: a prop is a real body in the place's own picture, nothing painted to sort against — the feet's depth is the truth the stage places the body by; the push to a prop's front edge drew him a dozen px above a block's top)
   // Drawn over a prop only when actually on / above its top (feet over the footprint); an airborne actor behind the
   // prop stays behind it. Up on a whole floor (a map above) with blocks of its own: that floor's band (its front edge),
   // ordered by y inside it — behind its block hidden by the block, on the block drawn on its top.

@@ -53,7 +53,8 @@ export function paperLanterns(scene: THREE.Scene, at: LanternAt[], opts: { wind:
     }
     place();
   };
-  const setLit = (k: number) => { const q = Math.max(0, Math.min(1, k)); paper.emissiveIntensity = 1.6 * q; gmat.uniforms.uLit.value = q; glows.visible = q > 0.01; };
+  const baseCol = new THREE.Color(opts.color ?? 0xd8442c), darkCol = baseCol.clone().multiplyScalar(0.45); // (unlit paper: dim, no glow — not a white lantern)
+  const setLit = (k: number) => { const q = Math.max(0, Math.min(1, k)); paper.emissiveIntensity = 1.6 * q; paper.color.copy(darkCol).lerp(baseCol, q); gmat.uniforms.uLit.value = q; glows.visible = q > 0.01; };
   if (opts.lit !== undefined) setLit(opts.lit);
   return { update, setLit, dispose: () => { for (const im of [bodies, caps, lines, tassels]) { scene.remove(im); im.dispose(); } scene.remove(glows); gg.dispose(); gmat.dispose(); for (const d of [paper, wood, cord, tassel, glowTex, body, cap, line, tas]) d.dispose(); } };
 }
