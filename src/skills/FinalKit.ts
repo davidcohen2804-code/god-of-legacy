@@ -805,8 +805,8 @@ const gambler: FinalSkill[] = [
       { at: 520, hits: [H(0, 12, { kind: 'projectile', speed: 760, range: 600, radius: 13, count: 5, spread: 6, rows: 3, rowGap: 22 }, { stun: 320, push: 8 }, { reachUp: 90, stick: 3 })] }, // (the max bet: a fan counts once on a foe — the full hold sticks three)
     ] },
     cancelOnHit: ['staff_vault', 'kinetic_grab'], telegraph: 'cone',
-    description: 'A fan of three charged cards across the whole floor; hold the key for five. Every card that hits sticks in the foe and bursts 0.6s later — or at once, when your staff strikes it.',
-    relations: ['Cards stick and burst', 'Hold: 5 cards'],
+    description: 'A fan of three charged cards across the whole floor — one sticks in the foe; hold the key for five, and three stick. Stuck cards wait: your next staff blow sets them off, or All In throws him up by their number (alone they fizzle out).',
+    relations: ['Cards stick', 'Hold: 5 cards, 3 stick'],
   }),
   S({
     id: 'staff_vault', cls: 'gambler', arenaDmg: 1.15, slot: 2, name: 'Staff Vault', roles: ['gapClose', 'launcher', 'escape'], targeting: 'mouseTarget', // locks the foe ahead: the vault comes down on him, not past him
@@ -846,8 +846,8 @@ const gambler: FinalSkill[] = [
     hits: [...Array.from({ length: 14 }, (_, i) => H(i * 100, 3, { kind: 'sector', range: 150, angle: 80 }, { stun: 300, float: true, juggleCost: 2 }, { reachUp: 190, stick: i % 2 ? 1 : undefined })),
       H(1440, 14, { kind: 'sector', range: 130, angle: 120 }, { stun: 420, push: 15, juggleCost: 10 }, { reachUp: 190, heavy: true, stick: 1 })],
     cancelOnHit: ['all_in', 'grand_slam', 'riffle_shuffle'],
-    description: 'Spin the staff in front of you like a propeller for 1.5s while you walk on: its circle throws charged cards nonstop, holding the foe where it is (in the air too) and sticking card after card in it — then the last blow sets them all off at once and throws it away.',
-    relations: ['Cards nonstop', 'Last blow: chain burst'],
+    description: 'Spin the staff in front of you like a propeller for 1.5s while you walk on: its circle throws charged cards nonstop, holding the foe where it is (in the air too) and sticking card after card in it — then the last blow, a staff thrust, drives one more in and throws it away. All In sets them all off.',
+    relations: ['Cards nonstop', 'Fills him with cards (5)'],
   }),
   S({
     id: 'showdown', cls: 'gambler', arenaDmg: 1.15, slot: 6, name: 'Showdown', roles: ['signature', 'finisher'], targeting: 'mouseLine',
@@ -926,7 +926,7 @@ const gambler: FinalSkill[] = [
       ...[250, 400, 550, 700].map((t, i) => H(t, i === 3 ? 18 : 9, { kind: 'circle', radius: 120, at: 'aimBias', bias: 90 + i * 95 }, { stun: 400, float: i < 3, knockdown: i === 3 ? 'heavy' : undefined, juggleCost: i === 3 ? 18 : 5 }, { reachUp: 150, heavy: i === 3 }))],
     cancelOnHit: ['showdown', 'grand_slam'], telegraph: 'cone',
     description: 'THE DETONATION FINISHER — every card stuck in the foes goes off in the last wave: its damage grows with each card (no card in them: a small wave). Sweep the deck along the floor in a cone ahead, then the wave runs from near to far.',
-    relations: ['Wide zone', 'Sticks 2 cards'],
+    relations: ['Wide zone', 'Sets off all cards'],
   }),
   S({
     id: 'grand_slam', cls: 'gambler', slot: 15, name: 'Grand Slam', roles: ['finisher', 'knockdown'], targeting: 'mouseCone',
@@ -945,8 +945,8 @@ const gambler: FinalSkill[] = [
       H(300, 14, { kind: 'circle', radius: 100, at: 'aimBias', bias: 85, floor: true }, { stun: 420, juggleCost: 6 }, { reachUp: 60, heavy: true, fuse: true }),
       H(700, 24, { kind: 'circle', radius: 125, at: 'aimBias', bias: 85, floor: true }, { stun: 520, launch: 70, juggleCost: 14 }, { reachUp: 70, heavy: true, fuse: true })],
     cancelOnHit: ['grand_slam', 'jackpot'], telegraph: 'circle',
-    description: 'Your staff grows into a pillar of light and you hammer the floor ahead three times — it only hits a foe lying on the floor. Every blow lands on him — keeping him down and setting off the cards stuck in him — and the third, the heaviest, bounces him off the floor.',
-    relations: ['Hits the fallen', 'Sets off all cards'],
+    description: 'Your staff grows into a pillar of light and you hammer the floor ahead three times — on a standing foe, a foe lying there, or one bouncing off the floor. Every blow lands on him — keeping him down and setting off the cards stuck in him — and the third, the heaviest, bounces him off the floor.',
+    relations: ['Three hammers', 'Sets off all cards'],
   }),
   S({
     id: 'card_swap', cls: 'gambler', slot: 17, name: 'Card Swap', roles: ['mobility', 'escape', 'trap'], targeting: 'mouseDir',
