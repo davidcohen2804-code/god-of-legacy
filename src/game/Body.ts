@@ -574,6 +574,8 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     origami_flock: { act: 'arcane_wave', st: [0, 1], ac: [3], rc: [4, 5] },
     page_bind: { act: 'arcane_wave', st: [1], ac: [3], rc: [4, 5] },
     astral_burst: { act: 'astral_burst', st: [0, 1], ac: [2, 3, 4], rc: [5] }, // the clawed hand reached out, then yanked up overhead
+    binding_rune: { act: 'binding_rune', st: [1, 2], ac: [3], rc: [4, 5] }, // she drops low and slaps her palm flat on the floor: the rune is laid
+    blink: { act: 'blink', st: [1], ac: [2], rc: [3] }, // the coat whirls round her as she vanishes
   },
   warrior: {
     dash_slash: { act: 'dash_slash', st: [0], ac: [1, 2, 3], rc: [4, 5] },

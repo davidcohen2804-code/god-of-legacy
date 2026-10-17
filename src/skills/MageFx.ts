@@ -807,14 +807,14 @@ export class MageFx {
   private blinkOut(me: V3, side: number): void {
     this.pool(me.x, this.floorY(me.x, me.y, me.z), 200, 0xa98cff, 360, { alpha: 0.5 });
     this.blinkFrom.set('last', { x: me.x, y: me.y - me.z - 52 });
-    if (this.ctx.scene.textures.exists('mfx-blink')) { this.sheet('mfx-blink', me.x, me.y - me.z - 52, 380, 320, { frames: [0, 8], depth: me.y + 3 }); this.burst(me.x, me.y - me.z - 52, { n: 16, speed: [60, 260], life: [300, 600], scale: [0.03, 0.12], tint: [0xffffff, 0xb9a2ff, 0x8fe6ff], gravity: -40 }); this.warp.well(me.x, me.y - me.z - 50, { r: 120, life: 220, s: 24, twist: 22 * side }); return; }
+    if (this.ctx.scene.textures.exists('mfx-blink')) { this.sheet('mfx-blink', me.x, me.y - me.z - 52, 240, 300, { frames: [0, 8], depth: me.y + 3, alpha: 0.75 }); /* (hero-sized: a vanish, not a blast) */ this.burst(me.x, me.y - me.z - 52, { n: 10, speed: [60, 220], life: [300, 600], scale: [0.03, 0.12], tint: [0xffffff, 0xb9a2ff, 0x8fe6ff], gravity: -40 }); this.warp.well(me.x, me.y - me.z - 50, { r: 120, life: 220, s: 24, twist: 22 * side }); return; }
     this.warp.well(me.x, me.y - me.z - 50, { r: 110, life: 200, s: 22, twist: 20 * side }); this.star(me.x, me.y - me.z - 50, 180, 200, { rays: 4 });
     this.spr({ name: 'blink_out', x: me.x, y: me.y - me.z - 50, depth: me.y + 2, w: 90, h: 130, life: 260, add: true, glow: 0.5, flipX: side < 0, a: kf([0, 1], [1, 0]), sx: kf([0, 1], [1, 0.3, inQ]) });
     this.pop('ghost_haze', me.x, me.y - me.z - 50, 100, { life: 300, tint: ARCANE });
   }
   private blinkIn(me: V3, side: number): void {
     this.pool(me.x, this.floorY(me.x, me.y, me.z), 220, 0xa98cff, 420, { alpha: 0.55 });
-    if (this.ctx.scene.textures.exists('mfx-blink')) { this.sheet('mfx-blink', me.x, me.y - me.z - 52, 400, 380, { frames: [8, 8], depth: me.y + 3 });
+    if (this.ctx.scene.textures.exists('mfx-blink')) { this.sheet('mfx-blink', me.x, me.y - me.z - 52, 250, 340, { frames: [8, 8], depth: me.y + 3, alpha: 0.75, fade: [[0, 1], [0.5, 0.7], [1, 0]] });
       const f = this.blinkFrom.get('last'); if (f) { const b = { x: me.x, y: me.y - me.z - 52 }, L = Math.hypot(b.x - f.x, b.y - f.y), a = Math.atan2(b.y - f.y, b.x - f.x) * 180 / Math.PI;
         this.img('mg-streak', { x: f.x, y: f.y, w: L, h: 26, ox: 0, angle: a, tint: 0xb9a2ff, life: 260, a: kf([0, 0.9], [1, 0]), sy: kf([0, 1], [1, 0.2]) });
         this.img('mg-streak', { x: f.x, y: f.y, w: L, h: 8, ox: 0, angle: a, tint: 0xffffff, life: 200, a: kf([0, 1], [1, 0]) });
