@@ -23,7 +23,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from impacts import SR, bp, brown, env, finish, hp, lp, write  # noqa: E402
+from impacts import SR, bp, brown, env, finish, glide, hp, lp, write  # noqa: E402
 from signatures import T, arc, bell, buf, click, crackle_kernels, grains, knock, place, ring, rustle, svf, swoosh, thud  # noqa: E402
 
 R = np.random.default_rng
@@ -189,10 +189,34 @@ def tick(cls, take):
     return finish(x, 0.85, 3, 1.5)
 
 
+def cutin_in(seed):
+    """The ultimate's moment: the hero's portrait slams in from the side (a deep thoom under a short swept whoosh) and the
+    star glint opens on his weapon (a bright shing and its sparkle)."""
+    rng = R(seed); dur = 0.95; t = T(dur); x = buf(dur)
+    x += np.sin(glide(t, 92, 42, 0.06)) * env(t, 0.004, 0.22) * 0.9  # (the thoom)
+    x += lp(rng.standard_normal(t.size), 400) * env(t, 0.003, 0.05) * 0.5
+    sw = T(0.16); place(x, svf(rng.standard_normal(sw.size), 600 * (4200 / 600) ** (sw / 0.16), 2.2) * np.sin(np.pi * sw / 0.16) ** 1.5, 0, 0.55)  # (the slide)
+    place(x, bell(0.6, 2490, ratio=2.0, index=1.6, tau=0.18, itau=0.05), 0.12, 0.35)  # (the glint: shing)
+    place(x, bell(0.5, 4980, ratio=1.5, index=1.0, tau=0.12), 0.125, 0.18)
+    for k in range(7):  # (its sparkle)
+        place(x, bell(0.2, rng.uniform(5500, 9000), ratio=2.0, index=0.6, tau=0.03), 0.15 + k * 0.035 + rng.uniform(0, 0.02), 0.06)
+    return finish(x, 0.85, 20, 1.4)
+
+
+def cutin_out(seed):
+    """The portrait cut away in a frame: a sharp snap of air rising off, a click and a small thump."""
+    rng = R(seed); dur = 0.3; t = T(dur); x = buf(dur)
+    sw = T(0.09); place(x, svf(rng.standard_normal(sw.size), 1800 * (8500 / 1800) ** (sw / 0.09), 3.0) * (sw / 0.09) ** 2, 0, 0.8)
+    place(x, click(0.05, rng, 2500, 0.0012, 1.0), 0.088)
+    place(x, thud(0.2, 160, 70, 0.03) * 0.5, 0.088)
+    return finish(x, 0.82, 10, 1.3)
+
+
 if __name__ == '__main__':
     args = sys.argv[1:]
     if args[:1] == ['bar']:  # the risers and the flurries' ticks
         write('riser_s', riser(4101, 0.36)); write('riser_l', riser(4102, 0.52, ult=True))
+        write('cutin_in', cutin_in(4103)); write('cutin_out', cutin_out(4104))
         for c in MAT:
             for take in (1, 2):
                 write(f'tk_{c}_{take}', tick(c, take))

@@ -21,6 +21,7 @@ export const SFX = {
   vs_slam: [1, 0.85], round_swoosh: [1, 0.55], fight_hit: [1, 0.7], ko_boom: [1, 0.95], perfect_shine: [1, 0.55], break: [1, 0.75], punish: [1, 0.6], rage: [1, 0.65], tick: [1, 0.35],
   boom: [3, 0.62], dim_whoosh: [1, 0.7],
   riser_s: [1, 0.23], riser_l: [1, 0.3], // (THE BAR: the rise into a big beat — a skill's / an ultimate's)
+  cutin_in: [1, 0.37], cutin_out: [1, 0.79], // (the ultimate's moment: the portrait slams in with its glint; cut away in a frame)
   // PVP 3D: the skills' pieces in the room, and the fighters on its planks
   crack: [2, 0.4], chunks: [2, 0.42], pillar: [1, 0.55], bolt: [2, 0.4], dome: [1, 0.5], wave: [1, 0.5], crystals: [1, 0.45], spikes: [1, 0.98], thorns: [1, 0.87], streak: [1, 0.32], slash: [1, 0.36], rain: [1, 0.45],
   step: [4, 0.42], scuff: [2, 0.45], thump: [2, 0.62],

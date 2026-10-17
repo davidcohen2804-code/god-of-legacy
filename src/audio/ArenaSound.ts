@@ -266,6 +266,7 @@ export class ArenaSound {
     const s = run.skill, T = run.timings;
     if (phase === 'startup' && s.slot === 7) Sound.duck(T.startup + T.active + Math.min(T.recovery, 900) + 300, 0.3);
     if (phase === 'startup') this.riserFor(run);
+    if (phase === 'startup' && s.slot === 7) this.moment(run);
     const x = { x: run.origin.x, y: run.origin.y, z: run.origin.z, wet: WET.swing };
     const sig = this.sigOf(s);
     if (sig) {
@@ -317,6 +318,16 @@ export class ArenaSound {
     if (start > 0) this.later(start, go); else go();
   }
   private risers: { run: CastRun; snd: Phaser.Sound.BaseSound; until: number }[] = [];
+
+  /** The ultimate's moment (DFO, after David's reference): the hero's portrait slams in from the side with a star glint on
+   *  his weapon, held through the wind-up, then cut away in a frame — heard: the slam and the glint's shing at once, the
+   *  snap of the cut. Its hold as SkillFx.cutOut has it (keep the two together). Screen-wide: from the middle. */
+  private moment(run: CastRun): void {
+    if (!this.scene.textures.exists(`ult-portrait-${run.skill.cls}`)) return; // (no portrait: the painted banner's own)
+    const T = run.timings.startup, out = T < 700 ? Math.max(320, T - 80) : run.skill.cls === 'samurai' ? Math.max(600, T - 300) : run.skill.id === 'titans_verdict' ? Math.max(420, Math.round(T * 0.51)) : Math.min(1100, T - 80);
+    Sound.sfx('cutin_in', { wet: WET.call });
+    this.later(out, () => { if (run.phase !== 'done') Sound.sfx('cutin_out', { wet: WET.call }); });
+  }
 
   /** A flurry's count of small blows (a skill's ticks within 0.45 s of each other are one flurry). */
   private flurry(id: string): number {
