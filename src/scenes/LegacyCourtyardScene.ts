@@ -2592,14 +2592,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Hit-confirm cancel windows (and the basic chain): only after a confirmed hit, until 70% of recovery. */
   private cancelAllowed(run: CastRun, next: FinalSkill): boolean {
     const s = run.skill, T = run.timings, e = run.elapsed;
-    if (s.id === next.id && s.chain) return e >= T.startup + T.active - 20;
+    const base = (id: string) => (id.startsWith('arcane_bolt') ? 'arcane_bolt' : id); // (the book mage's Attunement bolts are her Arcane Bolt: its links and its chain)
+    if (base(s.id) === base(next.id) && s.chain) return e >= T.startup + T.active - 20;
     if (s.slot === 7) return false; // Ultimate cannot be cancelled
     if (next.id === 'blink' && s.id !== 'blink' && e >= T.startup + T.active) return true; // Blink cancels the end of any spell
     if (next.id === s.id) return !!s.charges && e >= T.startup + T.active; // charged skill: throw again right away
     if (s.id === 'whirlwind' && e >= T.startup + 200 && s.cancelOnHit.includes(next.id)) return true; // channelled spin: break out at will — into its own links only
     // Cancel rules: a skill cancels only into the skills its own list names (cancelOnHit) — after a confirmed hit, from
     // that hit on; a whiff only late in its recovery. (A skill whose list is still empty keeps the old free cancel.)
-    if (s.cancelOnHit.length && !s.cancelOnHit.includes(next.id)) return false;
+    if (s.cancelOnHit.length && !s.cancelOnHit.includes(next.id) && !s.cancelOnHit.includes(base(next.id))) return false;
     if (run.confirmedAt >= 0) return e >= run.confirmedAt;
     if (arenaCommits(s)) return false; // a missed attack is seen through to its end (DFO: a whiff is punished) — in and out of the arena alike
     return e >= T.startup + T.active + 0.5 * T.recovery;
@@ -2671,7 +2672,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.kage?.arm(castId, s.id, { x: k.x, y: k.y, z: k.z }); // he strikes: out of hiding; a cast while the doubles stand: its first hit that lands is the AMBUSH
     const mf = s.cls === 'book_mage' ? this.mageFlags() : 0;
     const run = this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: from, aim, place, lock, followUp, ...(mf ? { mf } : {}) });
-    this.trialUi?.cast(s.id, castId, !k.grounded, this.simMs); // (training: the trial's next key?)
+    this.trialUi?.cast(s.id.startsWith('arcane_bolt') ? 'arcane_bolt' : s.id, castId, !k.grounded, this.simMs); // (training: the trial's next key? — an Attunement bolt is the trial's Arcane Bolt)
     if (s.cls === 'book_mage') this.mageCast(s, run);
     if (s.cls === 'gambler') this.gamblerStarted(s);
     if (s.chain) this.chain = { stage, lastEnd: Infinity, skill: s.id };
@@ -2993,6 +2994,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (run.zone) return run.origin;
       if (hit.shape.kind === 'placed' && run.place) return run.place;
     }
+    if (run.skill.cls === 'book_mage' && hit.shape.kind === 'placed' && run.place) return run.place; // (her fields pull toward their own middle — Storm Field, Time Collapse: never through her)
     return this.casterPos(run.attackerId) ?? run.origin;
   }
 

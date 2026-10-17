@@ -255,6 +255,7 @@ export class HardCC {
   apply(kind: 'root' | 'freeze' | 'stun', ms: number, now: number, pvp: boolean, long = false): number {
     if (long) { // binding skills (vines, mines): the whole hold, once; DR / immunity still guard against chains in PvP
       if (pvp && (now < this.end || now < this.immuneUntil)) return 0;
+      if (now - this.lastAccepted > HCC.drWindowMs) this.tier = 0; // (the diminishing returns wear off, as for the short holds — they never did: a round's 4th freeze held 0 ms)
       const d = pvp ? Math.floor(ms * HCC.multipliers[Math.min(this.tier, HCC.multipliers.length - 1)]) : ms;
       if (d <= 0) return 0;
       if (pvp) { this.tier++; this.lastAccepted = now; this.immuneUntil = now + d + HCC.postImmunityMs; }
@@ -454,7 +455,7 @@ export class CombatBody {
     if (now < this.invulnUntil || now < this.ghostUntil || this.released) { out.damage = 0; out.reaction = 'armor'; return out; }
     if (hit.el || shatter) { // Book Mage magic reactions: chill → freeze → shatter, storm conducts through the chilled
       const chilled = this.chilled(now), storm = hit.el === 'storm' || hit.el === 'both', frost = hit.el === 'frost' || hit.el === 'both';
-      if (shatter) { this.hard.end = now; this.hard.kind = null; out.rx = 'shatter'; R = { ...R, knockdown: undefined, launch: Math.max(R.launch ?? 0, 60), juggleCost: R.juggleCost ?? 10 }; }
+      if (shatter) { this.hard.end = now; this.hard.kind = null; out.rx = 'shatter'; R = skill.endsCombo ? R : { ...R, knockdown: undefined, launch: Math.max(R.launch ?? 0, 60), juggleCost: R.juggleCost ?? 10 }; } // (a finisher that shatters — Time Collapse's blast — still ends it: the knockdown stays)
       if (storm && (chilled || (hit.conductor && frozen))) { out.rx = out.rx ?? 'conduct'; R = { ...R, stun: (R.stun ?? 150) + (hit.conductor ? 500 : 250) }; }
       if (frost && !shatter) {
         if (chilled && !frozen) { const d = this.hard.apply('freeze', MAGE.freezeMs, now, this.pvp, true); /* (a freeze holds its whole length: time to shatter it) */ if (d > 0) { out.rx = 'freeze'; out.ccMs = d; out.rxMs = d; this.chillUntil = -1; } }
@@ -492,6 +493,7 @@ export class CombatBody {
       let pushPx = (R.push ?? 0) * (this.arena ? ARENA.pushMul : this.pvp ? 1.4 : 2) - (R.pull ?? 0);
       if (this.arena && pushPx > 0 && (airNow || downNow || c.hits > 1)) pushPx *= 0.4; // DFO: in a combo the foe hardly drifts sideways (stays in reach)
       if (R.yank !== undefined) { this.yankedAt = now; pushPx = -Math.max(0, Math.hypot(k.x - from.x, k.y - from.y) - R.yank); if (airNow) k.vz = Math.max(k.vz, 140); } // a vine whip: back in front of the attacker
+      else if (pushPx < 0) pushPx = Math.max(pushPx, -Math.max(0, d - 30)); // a pull draws him in, never through the puller to his back (the next blow in front would miss)
       if (this.arena && pushPx > 0) { dx = Math.sign(k.x - from.x) || (dx < 0 ? -1 : 1); dy = 0; } // the arena: knocked straight back along the line (a combo stays on one line)
       if (pushPx > 0 && this.kbResist > 0 && Math.random() < this.kbResist) this.stanceAt = now; // stance: not pushed back
       else if (pushPx !== 0) { const pm = R.yank !== undefined ? 60 : 110; out.pushX = dx * pushPx; out.pushY = dy * pushPx; this.push = { vx: out.pushX / pm, vy: out.pushY / pm, left: pm }; } // (a yank snaps in fast)

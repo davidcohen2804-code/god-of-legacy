@@ -752,7 +752,7 @@ const samurai: FinalSkill[] = [
     id: 'sakura_bind', cls: 'samurai', slot: 16, name: 'Sakura Bind', roles: ['hardCC', 'pull', 'setup'], targeting: 'mouseGround',
     startup: 240, active: 160, recovery: 220, cooldown: 12000, ground: true, air: false, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
     placeRange: 90, snapPlace: true, // (opened just in front of him, on his line: the arena places it ahead, never under the foe — in a combo the foe is that close)
-    hits: [H(0, 8, { kind: 'placed', radius: 125 }, { stun: 400, pull: 70, catch: true, hardCC: { kind: 'root', ms: 900 } }, { reachUp: 60 })],
+    hits: [H(0, 8, { kind: 'circle', at: 'place', radius: 125, floor: true }, { stun: 400, pull: 70, catch: true, hardCC: { kind: 'root', ms: 900 } }, { reachUp: 60 })], // (on the floor only — the arena's reach no longer lifts it into the air: a foe up there falls into the blossoms instead and is caught as he lands)
     // the combo's catch (DFO): the blossoms stay on the floor ~1.2s — a foe that comes down into them (from a slam, a fall)
     // is caught on landing, stood up and held by the branches: the string goes on (a launch from the floor)
     linger: { at: 'place', startMs: 60, everyMs: 60, count: 20, radius: 125, maxZ: 50, once: true, fresh: true,
@@ -798,11 +798,11 @@ const gambler: FinalSkill[] = [
   }),
   S({
     id: 'charged_deal', cls: 'gambler', slot: 1, name: 'Charged Deal', roles: ['opener', 'projectile'], targeting: 'mouseCone',
-    startup: 250, active: 120, recovery: 200, cooldown: 2600, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    startup: 520, active: 120, recovery: 200, cooldown: 2600, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK, // (startup = the longest hold: a tap still throws at 120 ms)
     hits: [H(0, 12, { kind: 'projectile', speed: 720, range: 560, radius: 13, count: 3, spread: 7, rows: 3, rowGap: 22 }, { stun: 300, push: 6 }, { reachUp: 90, stick: 1 })],
     charge: { minMs: 120, levels: [
       { at: 0, hits: [H(0, 12, { kind: 'projectile', speed: 720, range: 560, radius: 13, count: 3, spread: 7, rows: 3, rowGap: 22 }, { stun: 300, push: 6 }, { reachUp: 90, stick: 1 })] },
-      { at: 520, hits: [H(0, 12, { kind: 'projectile', speed: 760, range: 600, radius: 13, count: 5, spread: 6, rows: 3, rowGap: 22 }, { stun: 320, push: 8 }, { reachUp: 90, stick: 1 })] },
+      { at: 520, hits: [H(0, 12, { kind: 'projectile', speed: 760, range: 600, radius: 13, count: 5, spread: 6, rows: 3, rowGap: 22 }, { stun: 320, push: 8 }, { reachUp: 90, stick: 3 })] }, // (the max bet: a fan counts once on a foe — the full hold sticks three)
     ] },
     cancelOnHit: ['staff_vault', 'kinetic_grab'], telegraph: 'cone',
     description: 'A fan of three charged cards across the whole floor; hold the key for five. Every card that hits sticks in the foe and bursts 0.6s later — or at once, when your staff strikes it.',
@@ -891,7 +891,7 @@ const gambler: FinalSkill[] = [
     id: 'kinetic_grab', cls: 'gambler', slot: 11, name: 'Kinetic Grab', roles: ['hardCC', 'confirm'], targeting: 'mouseCone',
     startup: 160, active: 620, recovery: 260, cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(0, 8, { kind: 'sector', range: 84, angle: 70 }, { stun: 700, pin: 520, grab: true }, { reachUp: 90 }),
-      H(480, 26, { kind: 'sector', range: 96, angle: 80 }, { stun: 480, push: 200, launch: 60, knockdown: 'heavy', grab: true, juggleCost: 18 }, { reachUp: 100, heavy: true })],
+      H(480, 26, { kind: 'sector', range: 96, angle: 80 }, { stun: 480, push: 200, launch: 60, grab: true, juggleCost: 18 }, { reachUp: 100, heavy: true })], // (thrown up: he flies as the bomb, the burst catches him in the air)
     // the thrown foe is a bomb: where it lands it bursts and hits everyone around it
     linger: { at: 'aim', offset: 230, startMs: 820, everyMs: 1000, count: 1, radius: 130, maxZ: 120, hit: H(0, 18, { kind: 'circle', radius: 130 }, { stun: 420, push: 40, launch: 40 }, { reachUp: 120, heavy: true }) },
     cancelOnHit: ['all_in', 'rotor_staff', 'pickup_52'],
@@ -932,7 +932,7 @@ const gambler: FinalSkill[] = [
     id: 'grand_slam', cls: 'gambler', slot: 15, name: 'Grand Slam', roles: ['finisher', 'knockdown'], targeting: 'mouseCone',
     startup: 420, active: 140, recovery: 320, cooldown: 11000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 560],
     hits: [H(0, 46, { kind: 'sector', range: 150, angle: 120 }, { stun: 520, push: 300, launch: 40, knockdown: 'heavy', juggleCost: 30 }, { reachUp: 200, heavy: true, fuse: true })],
-    cancelOnHit: ['triple_down', 'jackpot'], telegraph: 'cone',
+    cancelOnHit: ['triple_down'], telegraph: 'cone',
     description: 'THE WALL FINISHER — The staff grows to twice its length and you swing it like a bat: the foe flies far away on a comet\'s tail and crashes into the floor or a wall. It sets off every card stuck in it at once.',
     relations: ['Sends far', 'Sets off all cards'],
   }),
@@ -941,7 +941,7 @@ const gambler: FinalSkill[] = [
     startup: 200, active: 760, recovery: 300, cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 960],
     // the staff grows into a pillar of light and hammers the floor ahead three times — each blow on a foe lying there keeps
     // him down and sets off the cards in him; the third, the heaviest, bounces him off the floor (one more link)
-    hits: [H(0, 12, { kind: 'circle', radius: 95, at: 'aimBias', bias: 85, floor: true }, { stun: 420, juggleCost: 6 }, { reachUp: 60, heavy: true, fuse: true }),
+    hits: [H(0, 12, { kind: 'circle', radius: 95, at: 'aimBias', bias: 85, floor: true }, { stun: 420, juggleCost: 6, catch: true }, { reachUp: 60, heavy: true, fuse: true }), // (catches him off the bounce / the floor: all three hammers land)
       H(300, 14, { kind: 'circle', radius: 100, at: 'aimBias', bias: 85, floor: true }, { stun: 420, juggleCost: 6 }, { reachUp: 60, heavy: true, fuse: true }),
       H(700, 24, { kind: 'circle', radius: 125, at: 'aimBias', bias: 85, floor: true }, { stun: 520, launch: 70, juggleCost: 14 }, { reachUp: 70, heavy: true, fuse: true })],
     cancelOnHit: ['grand_slam', 'jackpot'], telegraph: 'circle',
@@ -1026,12 +1026,12 @@ ARENA_PACE.roulette_wheel = { squeeze: 1 };
 // Warrior links (PvP re-audit: a ~6-skill combo): each skill leads to 2–3 others only, one route per job —
 //   open (regular attack / Dash Slash / Iron Grip / the hook / Wave Slash) → launch (Rising Slash) → the air (Sky Breaker /
 //   Ground Breaker) → the court or the lion (Judgment Blade / Lion's Maw) → the finish (Impaling Rush → the Verdict). Buffs and Sanctuary lead nowhere (a list is never empty: an empty one would mean free cancel).
-const WARRIOR_LINKS: Record<string, string[]> = { // a one-way ladder: open → launch → air → finish (never back down it)
-  warrior_basic: ['rising_slash'], dash_slash: ['rising_slash'], iron_grip: ['rising_slash'],
-  judgment_hook: ['rising_slash'], wave_slash: ['rising_slash'], shield_charge: ['iron_grip', 'warrior_basic'],
+const WARRIOR_LINKS: Record<string, string[]> = { // three ways (the combo trials, 17 Oct): IRON HAND — hook ↔ grip, the crash, the chain on the floor; SKYBREAKER — launch, chase, spike, crash on the bounce; JUDGMENT — the quake, the court, the sentence
+  warrior_basic: ['rising_slash'], dash_slash: ['rising_slash'], iron_grip: ['rising_slash', 'leap_crash'],
+  judgment_hook: ['rising_slash', 'iron_grip'], wave_slash: ['rising_slash'], shield_charge: ['iron_grip', 'warrior_basic'],
   earthsplitter: ['warrior_basic'], // (the charged punish: no combo link out of it)
   rising_slash: ['sky_breaker', 'ground_breaker'],
-  sky_breaker: ['judgment_blade', 'lions_maw'], ground_breaker: ['judgment_blade', 'lions_maw'], leap_crash: ['judgment_blade', 'lions_maw'],
+  sky_breaker: ['judgment_blade', 'lions_maw', 'leap_crash'], ground_breaker: ['judgment_blade', 'lions_maw'], leap_crash: ['judgment_blade', 'lions_maw', 'judgment_hook'],
   judgment_blade: ['lance_thrust', 'titans_verdict'], lions_maw: ['lance_thrust', 'titans_verdict'],
   lance_thrust: ['titans_verdict'], whirlwind: ['titans_verdict'], blade_storm: ['titans_verdict'],
   war_cry: ['warrior_basic'], sanctuary: ['warrior_basic'],
