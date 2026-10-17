@@ -593,7 +593,6 @@ export class MageFx {
     const T = r.timings, me = this.me(r);
     const chest = () => { const c = this.ctx.casterPos(r.attackerId); return c ? { x: c.x, y: c.y - c.z - 50 } : null; };
     this.ctx.darken(T.startup + 240, 0.3);
-    this.circle(me.x, this.floorY(me.x, me.y, me.z), 340, 1, T.startup + 420, { run: r, draw: T.startup });
     this.warp.well(me.x, me.y - me.z - 50, { r: 170, life: T.startup + 60, s: 20, twist: 14, follow: chest });
     this.glow(0, 0, 170, 0x8fdcff, T.startup + 80, { follow: () => { const c = chest(); return c ? { ...c, d: TOP } : null; }, alpha: 0.5 });
     for (let k = 0; k < 26; k++) { const a = rnd(0, Math.PI * 2), d = rnd(130, 230), w = rnd(6, 14);
@@ -686,8 +685,7 @@ export class MageFx {
     if (!pn) this.star(x, cy, 160, 220, { rays: 6 });
     const painted = this.ctx.scene.textures.exists('mfx-nova');
     if (painted) { // drawn behind him (he stands in its hollow centre): bursts fast, stands, shatters slowly; the cold lingers
-      this.sheet('mfx-nova', x, y, 660, 1900, { floor: true, oy: 0.62, depth: y - 2, keys: [[0, 0], [6, 240], [8, 520], [11, 1200], [15.9, 1900]], fade: [[0, 1], [0.15, 1], [0.3, 0.42], [0.85, 0.32], [1, 0]] });
-      this.smoke(x, y - 10, 620, 1, 1600, { squash: 0.4, depth: y - 3, delay: 120 });
+      this.sheet('mfx-nova', x, y, 560, 1300, { floor: true, oy: 0.62, depth: y - 2, keys: [[0, 0], [6, 240], [8, 520], [11, 900], [15.9, 1300]], fade: [[0, 0.6], [0.15, 0.55], [0.3, 0.22], [0.85, 0.15], [1, 0]] }); // (faint under the 3D ice rings)
       this.floor('floor_frost', x, y, 520, 2400, { add: true, a: kf([0, 0], [0.08, 0.55], [0.8, 0.45], [1, 0]), s: kf([0, 0.5], [0.15, 1, out3]) });
       for (let k = 0; k < 8; k++) this.later(200 + k * 160, () => this.burst(x + rnd(-200, 200), y - rnd(20, 120), { n: 4, speed: [20, 80], life: [700, 1200], scale: [0.03, 0.09], tint: [0xffffff, 0xcff6ff], gravity: 40 }));
     }
@@ -699,7 +697,7 @@ export class MageFx {
         { oy: 1, depth: sy + 1, delay, angle: Math.cos(a) * 16 + rnd(-6, 6) });
       this.later(delay + hold, () => this.burst(sx, sy - h * 0.4, { n: 6, speed: [90, 280], life: [280, 600], scale: [0.04, 0.13], tint: [0xffffff, 0xcff6ff], gravity: 600, depth: sy + 2 }));
     }
-    this.burst(x, cy + 10, { n: 50, speed: [240, 820], life: [280, 680], scale: [0.03, 0.2], tint: [0xffffff, 0xcff6ff, 0x7fc8ff], gravity: 160 });
+    this.burst(x, cy + 10, { n: 18, speed: [240, 720], life: [280, 600], scale: [0.03, 0.16], tint: [0xcff6ff, 0x7fc8ff], gravity: 160 });
     this.ctx.hitStop?.(80); this.ctx.flash?.(0xcff6ff, 0.06, 120);
     this.shake(240, 0.011); this.ctx.punch(0.035, 240);
   }
