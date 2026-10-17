@@ -286,12 +286,12 @@ export class ArcherFx {
         this.later(T.startup, () => { // the roar rolls out both ways in great arcs
           const q = this.me(r);
           for (const d of [1, -1]) for (let k = 0; k < 3; k++)
-            this.spr({ name: 'roar_wave', x: q.x + d * 40, y: q.y - q.z - 60, ox: 0.15, depth: q.y + 5, w: 200, flipX: d < 0, add: true, glow: 0.3, life: 520, delay: k * 110,
-              mx: (u) => d * 230 * out(u), sx: kf([0, 0.5], [1, 1.5, out3]), sy: kf([0, 0.5], [1, 1.5, out3]), a: kf([0, 0], [0.12, 1], [1, 0, inQ]) });
+            this.spr({ name: 'roar_wave', x: q.x + d * 40, y: q.y - q.z - 60, ox: 0.15, depth: q.y + 5, w: 150, flipX: d < 0, add: true, glow: 0.2, life: 520, delay: k * 110, // (see-through: in PVP 3D the arcs hid both fighters)
+              mx: (u) => d * 230 * out(u), sx: kf([0, 0.5], [1, 1.3, out3]), sy: kf([0, 0.5], [1, 1.3, out3]), a: kf([0, 0], [0.12, 0.6], [1, 0, inQ]) });
         }, r);
         this.later(T.startup, () => {
           const q = this.me(r);
-          this.floor('wind_ring', q.x, q.y, 200, 520, { add: true, glow: 0.5, s: kf([0, 0.3], [1, 2.6, out3]), a: kf([0, 1], [0.6, 0.8], [1, 0, inQ]) });
+          this.floor('wind_ring', q.x, q.y, 200, 520, { add: true, glow: 0.4, s: kf([0, 0.3], [1, 2.2, out3]), a: kf([0, 0.8], [0.6, 0.6], [1, 0, inQ]) });
           this.floor('elec_floor', q.x, q.y, 180, 420, { add: true, s: kf([0, 0.4], [1, 2.4, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
           for (let i = 0; i < 10; i++) { const an = (i / 10) * Math.PI * 2; this.bolt('bolt_seg', { x: q.x + Math.cos(an) * 40, y: q.y - 20 + Math.sin(an) * 18 }, { x: q.x + Math.cos(an) * 220, y: q.y - 10 + Math.sin(an) * 100 }, { thick: 26, delay: i * 12, life: 220 }); }
           this.leaves(q.x, q.y - 30, 14, 120);
