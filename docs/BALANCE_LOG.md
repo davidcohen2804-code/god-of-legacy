@@ -6,6 +6,7 @@ Values apply to the whole game (only damage may differ in PvP: arenaDmg / the ar
 
 ## 2026-10-17 — Origami Flock's cranes rise to a foe in the air (`antiAir`)
 - Homing paper cranes flew level under the per-attack reach: in UPDRAFT (the Levity Field floats him, the flock follows) 2 of its hits landed instead of 6. They seek him wherever he is now, the one homing shot in the game.
+- They home from farther, 150 → 240 px: fanned 70° and thrown from afar (UPDRAFT is a FAR trial), the outer cranes passed wide of him.
 
 ## 2026-10-17 — Five reaches matched to their looks (the class chats' reviews of looks vs reach)
 - **Samurai** (level strokes at chest height reached a foe two heights up): Shadow Step 200 → 120; Iai Strike 200 / 210 / 220 → 120 / 130 / 140; Phantom Blades 280 → 160.

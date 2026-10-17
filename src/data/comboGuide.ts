@@ -43,7 +43,7 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     // SKY — launch, spin, slam
     { name: 'TSUBAME', tier: 'BEGINNER', style: 'SKY', range: 'CLOSE', hits: 5, steps: [{ id: 'swallow_cut' }, {}, { id: 'tornado_blade' }],
       tip: 'Launch him, jump after him: the air spin cuts him twice and slams him down' },
-    { name: 'RYUJIN', tier: 'MID', style: 'SKY', range: 'CLOSE', hits: 8, steps: [{ id: 'quick_slash', n: 4 }, {}, { id: 'tornado_blade' }, { id: 'dragon_ascension' }],
+    { name: 'RYUJIN', tier: 'MID', style: 'SKY', range: 'CLOSE', hits: 9, steps: [{ id: 'quick_slash', n: 4 }, {}, { id: 'tornado_blade' }, { id: 'dragon_ascension' }],
       tip: 'Read the bounce: the golden dragon only smashes a foe in the air — strike as he bounces off the slam' },
     { name: 'MIKAZUKI', tier: 'EXPERT', style: 'SKY', range: 'CLOSE', hits: 21, steps: [{ id: 'swallow_cut' }, {}, { id: 'sword_wave' }, { id: 'tornado_blade' }, { id: 'hundred_cuts' }, { id: 'falcon_dive' }],
       tip: 'From the floor the crescent flies under a foe in the air: jump with him and fling it a beat later, level with him — then spin him down, cut him off the bounce, dive on him' },
@@ -100,7 +100,7 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
       tip: 'Page Bind chills him: every arc of the chain conducts through the cold and holds him longer' },
     { name: 'SPARK', tier: 'MID', style: 'STORM', range: 'CLOSE', hits: 9, steps: [{ id: 'glacial_spikes' }, { id: 'lightning_chain' }, { id: 'arcane_bolt', n: 3 }],
       tip: 'The spikes chill him and throw him up, the chain conducts through the cold; your bolts are storm now — they seek him in the air and keep conducting' },
-    { name: 'TEMPEST', tier: 'EXPERT', style: 'STORM', range: 'MID', hits: 12, steps: [{ id: 'arcane_wave' }, { id: 'glacial_spikes' }, { id: 'lightning_chain' }, { id: 'storm_field' }, { id: 'time_collapse' }],
+    { name: 'TEMPEST', tier: 'EXPERT', style: 'STORM', range: 'MID', hits: 14, steps: [{ id: 'arcane_wave' }, { id: 'glacial_spikes' }, { id: 'lightning_chain' }, { id: 'storm_field' }, { id: 'time_collapse' }],
       tip: 'Nothing froze him before: the clock\'s own freeze holds in full and its blast shatters him' },
     // ARCANE — gravity, paper, the blink
     { name: 'UPDRAFT', tier: 'BEGINNER', style: 'ARCANE', range: 'FAR', hits: 6, steps: [{ id: 'levity_field' }, { id: 'origami_flock' }],
