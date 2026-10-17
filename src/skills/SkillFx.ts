@@ -237,7 +237,7 @@ const HITSTOP: Record<HitTier, number> = { basic: 45, core: 70, signature: 95, u
 const VFX_MULT: Record<string, number> = { warrior: 1.5, samurai: 1.25 };
 /** Warrior feel pass (PVP 3D): each skill's cast effect at its own size and strength — the big ones trimmed so both fighters
  *  stay readable through them, the regular attack's arc a size up so its strike reads. [size ×, alpha] */
-const WARRIOR_FEEL: Record<string, [number, number]> = { warrior_basic: [1.2, 1], whirlwind: [0.72, 0.72], ground_breaker: [0.8, 0.85], blade_storm: [0.7, 0.7], titans_verdict: [0.9, 0.9], leap_crash: [0.9, 0.9] };
+const WARRIOR_FEEL: Record<string, [number, number]> = { warrior_basic: [1.2, 1], whirlwind: [0.72, 0.72], ground_breaker: [0.7, 0.7], blade_storm: [0.7, 0.7], titans_verdict: [0.9, 0.9], leap_crash: [0.9, 0.9] };
 /** Warrior skills that get a ground shockwave ring at their impact. */
 const SHOCK: Record<string, { r: number; c: number }> = {
   ground_breaker: { r: 200, c: 0xffb050 }, shield_slam: { r: 110, c: 0xfff0c0 }, titans_verdict: { r: 260, c: 0xffd27a },
@@ -413,12 +413,12 @@ export class SkillFx {
     if (r.skill.id === 'shield_slam') (this.cam ?? this.scene.cameras.main).shake(120, 0.004);
     if (r.skill.id === 'ground_breaker') { // the earth answers: heavy quake shake, double ring, dust burst
       (this.cam ?? this.scene.cameras.main).shake(150, 0.0045);
-      for (let i = 0; i < 6; i++) { const t = (i / 6) * Math.PI * 2; this.dust(r.origin.x + Math.cos(t) * 90, r.origin.y + Math.sin(t) * 38, 70, 0.55); } // the earth heaves: dust ring (the SHOCK ring is the one wave)
-      this.spark(IMPACT.warrior.key, r.origin.x, r.origin.y - 24, IMPACT.warrior.frames, 170, 0.6);
+      for (let i = 0; i < 4; i++) { const t = (i / 4) * Math.PI * 2 + 0.4; this.dust(r.origin.x + Math.cos(t) * 100, r.origin.y + Math.sin(t) * 40, 64, 0.28); } /* (feel pass: six puffs at 0.55 whited the floor round both fighters in PVP 3D) */ // the earth heaves: dust ring (the SHOCK ring is the one wave)
+      this.spark(IMPACT.warrior.key, r.origin.x, r.origin.y - 24, IMPACT.warrior.frames, 120, 0.45);
       // the living quake: one golden rune ring that slowly turns on the floor around the warrior and fades away over 3s
       const ring = this.scene.add.image(0, 0, 'magic-circle').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc070).setDisplaySize(360, 360);
       const plane = this.scene.add.container(r.origin.x, r.origin.y, [ring]).setScale(1, 0.42).setDepth(GROUND + 2).setAlpha(0); // floor perspective
-      this.scene.tweens.add({ targets: plane, alpha: 0.5, duration: 260 });
+      this.scene.tweens.add({ targets: plane, alpha: 0.3, duration: 260 });
       this.scene.tweens.add({ targets: ring, angle: 140, duration: 3100 });
       this.scene.tweens.add({ targets: plane, alpha: 0, delay: 800, duration: 2300, ease: 'Sine.easeIn', onComplete: () => plane.destroy() }); // stays where it was created
     }
