@@ -77,7 +77,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 The shared ChatGPT account ran out of images at 01:50 last night. Spend it on what only GPT can make, at most ~6 images per chat in this round, each chat in its own tab. Pull images as base64 (never a download button); follow `docs/ART_STYLE.md`. Note each batch here when you start and finish it.
 1. **Book Mage:** first re-cut Binding Rune at the idle's scale (not GPT: David's size bug). Then the stills for her own body moves: Page Bind, Arcane Ward, Paper Curse (her ref).
 2. **Warrior:** Wave Slash's own sheet; a recognisable lion head for Lion's Maw.
-3. **Gambler:** the new card skill's icon and its painted pieces: the gathered card, the deck lying on the floor in the painted arena. — Gambler: batch started (own tab): the icon, the gathered card, the deck lying on the floor.
+3. **Gambler:** the new card skill's icon and its painted pieces: the gathered card, the deck lying on the floor in the painted arena. — Gambler: batch started (own tab) — the first image was refused at 17:35: 'Plus plan limit, try again at 18:43'. Retrying then.
 4. **Archer:** the THORN vines.
 5. **Movements:** the samurai's launched 1–2 and get-up 6 polish.
 6. **Maps:** the tiles marked "wired first" in `TEXTURES.md` (`tools/world3d/tile.py`).
