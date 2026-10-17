@@ -103,7 +103,7 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     { name: 'TEMPEST', tier: 'EXPERT', style: 'STORM', range: 'MID', hits: 14, steps: [{ id: 'arcane_wave' }, { id: 'glacial_spikes' }, { id: 'lightning_chain' }, { id: 'storm_field' }, { id: 'time_collapse' }],
       tip: 'Nothing froze him before: the clock\'s own freeze holds in full and its blast shatters him' },
     // ARCANE — gravity, paper, the blink
-    { name: 'UPDRAFT', tier: 'BEGINNER', style: 'ARCANE', range: 'FAR', hits: 6, steps: [{ id: 'levity_field' }, { id: 'origami_flock' }],
+    { name: 'UPDRAFT', tier: 'BEGINNER', style: 'ARCANE', range: 'FAR', hits: 4, steps: [{ id: 'levity_field' }, { id: 'origami_flock' }],
       tip: 'The field opens under him from far away; the cranes home in while he hangs there' },
     { name: 'PAPERCUT', tier: 'MID', style: 'ARCANE', range: 'MID', hits: 4, steps: [{ id: 'arcane_wave' }, { id: 'astral_burst' }, { id: 'blink' }, { id: 'paper_curse' }],
       tip: 'Lift him, draw him back and throw him higher, blink to his height and fold him — he lands silenced' },
@@ -122,7 +122,7 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     // SKY — throw him up and hunt him in the air
     { name: 'KESTREL', tier: 'BEGINNER', style: 'SKY', range: 'CLOSE', hits: 3, steps: [{ id: 'retreat_kick' }, {}, { id: 'quick_shot' }],
       tip: 'The kick throws him up as you flip away — jump and shoot him out of the air' },
-    { name: 'STARFALL', tier: 'MID', style: 'SKY', range: 'FAR', hits: 12, steps: [{ id: 'eagle_arrow' }, { id: 'skyhunters_step' }, { id: 'sky_rain' }],
+    { name: 'STARFALL', tier: 'MID', style: 'SKY', range: 'FAR', hits: 14, steps: [{ id: 'eagle_arrow' }, { id: 'skyhunters_step' }, { id: 'sky_rain' }],
       tip: 'The eagles sweep him from across the arena, the volley chases him up, then the sky falls on him' },
     { name: 'HAWKEYE', tier: 'EXPERT', style: 'SKY', range: 'CLOSE', hits: 5, steps: [{ id: 'rising_arrow' }, {}, { id: 'hunters_spirit' }, { id: 'bow_haste' }, { id: 'explosive_arrow' }],
       tip: 'Up, then in the air: lash him back, Wind Step off him (its burst throws him again and marks him), burn both marks' },
@@ -135,7 +135,7 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
       tip: 'From afar a plain arrow is only a poke: lash him in, bind him in the leaves, burn the mark' },
     { name: 'PITFALL', tier: 'EXPERT', style: 'TRAPPER', range: 'CLOSE', hits: 5, steps: [{ id: 'rising_arrow' }, { id: 'vine_trap' }, { id: 'hunters_spirit' }, { id: 'explosive_arrow' }],
       tip: 'Throw him up and lay the mine where he falls — it holds him as he lands; then lash and burn' },
-    { name: 'DOWNPOUR', tier: 'BEGINNER', style: 'TRAPPER', range: 'CLOSE', hits: 11, steps: [{ id: 'rising_arrow' }, { id: 'arrow_storm' }, { id: 'explosive_arrow' }],
+    { name: 'DOWNPOUR', tier: 'BEGINNER', style: 'TRAPPER', range: 'CLOSE', hits: 14, steps: [{ id: 'rising_arrow' }, { id: 'arrow_storm' }, { id: 'explosive_arrow' }],
       tip: 'Open the rain where he hangs and let it pour out: every 5th volley marks him and the last throws him up — burn the marks with the Fireball' },
     { name: 'THUNDERHEAD', tier: 'MID', style: 'TRAPPER', range: 'CLOSE', hits: 9, steps: [{ id: 'rising_arrow' }, { id: 'rain_of_arrows' }, { id: 'eagle_arrow' }],
       tip: 'Hang in the storm: its three bolts strike him high, and as he lands the floor they charged throws him back up — the eagles take him there' },
@@ -152,7 +152,7 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
       tip: 'The rising swing lifts him, Fuse Slam spikes him into a bounce, then the home run' },
     { name: 'AFTERSHOCK', tier: 'MID', style: 'STAFF', range: 'CLOSE', hits: 5, steps: [{ id: 'fuse_slam' }, { id: 'triple_down' }, { id: 'grand_slam' }],
       tip: 'Hammer him on the charged floor at once: it erupts under the hammers and the third throws him up — then the bat' },
-    { name: 'JACKPOT', tier: 'EXPERT', style: 'STAFF', range: 'MID', hits: 24, steps: [{ id: 'staff_vault' }, { id: 'rotor_staff' }, { id: 'all_in' }, {}, { id: 'fuse_slam' }, { id: 'triple_down' }, { id: 'jackpot' }],
+    { name: 'JACKPOT', tier: 'EXPERT', style: 'STAFF', range: 'MID', hits: 28, steps: [{ id: 'staff_vault' }, { id: 'rotor_staff' }, { id: 'all_in' }, {}, { id: 'fuse_slam' }, { id: 'triple_down' }, { id: 'jackpot' }],
       tip: 'Let the rotor spin out (five cards: the biggest snap) — it throws him high: jump at once and spike him from up there, three hammers on the bounce, then the slot machine' },
     // HOUSE — grab, bomb, switch
     { name: 'COLLAR', tier: 'BEGINNER', style: 'HOUSE', range: 'CLOSE', hits: 5, steps: [{ id: 'charged_deal' }, { id: 'kinetic_grab' }, { id: 'all_in' }],
