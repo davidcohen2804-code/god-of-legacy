@@ -203,10 +203,15 @@ export class SparringBot {
     return out;
   }
 
+  /** Training (a counter trial): at this scene time it swings its regular attack once, even while it stands still — the
+   *  blow your counter waits for. 0: none. */
+  swingAt = 0;
+
   update(ms: number, w: BotWorld): void {
     const now = w.now, k = this.kin, b = this.body;
     this.lastNow = now;
     const free = b.canAct(now) && !b.silenced(now); // (a paper crane: silenced)
+    if (this.swingAt > 0 && now >= this.swingAt && free && !this.cast) { this.swingAt = 0; this.start(this.kit[0].id, 0, w); }
     if (!free && this.cast) this.interrupt();
     if (free && !this.wasFree) this.nextAct = Math.min(this.nextAct, now + rnd(...this.L.answer)); // recovered: answer quickly
     this.wasFree = free;

@@ -87,7 +87,7 @@ const CSS = `
 
 export interface TrialHandlers {
   /** Both fighters back on their marks, `range` apart (the trial's opener), every skill ready. */
-  reset(range: GuideRange): void;
+  reset(range: GuideRange, route?: GuideRoute): void;
 }
 
 const hitsOf = (s: FinalSkill) => [...s.hits, ...(s.chain?.stages.flat() ?? []), ...(s.charge?.levels.flatMap((l) => l.hits) ?? [])];
@@ -139,7 +139,7 @@ export class TrialUI {
     this.msg = this.el('div', 'tr-msg', root);
     const bt = this.el('div', 'tr-bt', root), rs = this.el('button', '', bt) as HTMLButtonElement;
     rs.type = 'button'; rs.textContent = 'RESET'; rs.title = 'Both fighters back on their marks, at this trial’s opening distance';
-    rs.addEventListener('click', () => { this.run.reset(); this.paint(); this.say(this.idleText()); this.h.reset(this.route.range); });
+    rs.addEventListener('click', () => { this.run.reset(); this.paint(); this.say(this.idleText()); this.h.reset(this.route.range, this.route); });
     const dots = this.el('div', 'tr-dots', root);
     this.routes.forEach((r, i) => { const d = this.el('i', '', dots); d.title = r.name; d.addEventListener('click', () => this.pick(i)); this.dots.push(d); });
     this.cf = new CallFx(parent, null);
@@ -160,7 +160,7 @@ export class TrialUI {
   update(now: number, held: boolean, air: boolean): void { if (this.on) this.run.update(now, held, air); }
 
   /** Both fighters on their marks for the trial in hand (the partner just came in). */
-  place(): void { this.run.reset(); this.paint(); this.h.reset(this.route.range); }
+  place(): void { this.run.reset(); this.paint(); this.h.reset(this.route.range, this.route); }
 
   /** The keys of Key Settings (unbound: a dash). */
   setKeys(keys: GuideKeys): void {
@@ -184,7 +184,7 @@ export class TrialUI {
   // ---------------------------------------------------------------- the trial in hand
 
   private newRun(): TrialRun {
-    return new TrialRun(this.route, (id) => { const s = this.kit.find((x) => x.id === id); return !s || hitsOf(s).some((h) => h.damage > 0); }, (n, i) => this.onNote(n, i));
+    return new TrialRun(this.route, (id) => { const s = this.kit.find((x) => x.id === id); return !s || (!s.tags.includes('buff') && hitsOf(s).some((h) => h.damage > 0)); }, (n, i) => this.onNote(n, i)); // (a buff — Kagemusha's doubles — counts as soon as it is pressed, like a stance)
   }
 
   /** Another trial (wraps round): its keys, both fighters back on their marks. */
@@ -196,7 +196,7 @@ export class TrialUI {
     this.run = this.newRun();
     this.build();
     Sound.ui('swipe');
-    this.h.reset(this.route.range);
+    this.h.reset(this.route.range, this.route);
   }
 
   private build(): void {
@@ -218,6 +218,7 @@ export class TrialUI {
     this.el('span', '', this.meta).textContent = '·';
     this.el('span', '', this.meta).textContent = RANGE[r.range];
     if (r.style) { this.el('span', '', this.meta).textContent = '·'; this.el('b', '', this.meta).textContent = r.style; }
+    if (r.tier) { this.el('span', '', this.meta).textContent = '·'; this.el('span', '', this.meta).textContent = r.tier; }
     this.setKeys(this.keys);
     this.counts();
     this.paint();

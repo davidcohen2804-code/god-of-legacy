@@ -23,7 +23,12 @@ export interface GuideRoute {
   style?: string;
   /** What it teaches, in one line (shown under the keys until the first press). */
   tip?: string;
+  /** Its level: the trials are played beginner → mid → expert. */
+  tier?: GuideTier;
+  /** A counter trial: the partner swings its regular attack once, this long (ms) after the reset — the blow to counter. */
+  foeSwings?: number;
 }
+export type GuideTier = 'BEGINNER' | 'MID' | 'EXPERT';
 
 export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
   samurai: [

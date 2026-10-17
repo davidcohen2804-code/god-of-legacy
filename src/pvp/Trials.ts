@@ -6,10 +6,11 @@
 import { COMBO_GUIDE, GuideRoute } from '../data/comboGuide';
 import type { ClassId } from '../skills/SkillTypes';
 
-/** A class's trials, in the guide's order: the shortest first (fewest keys on the row, then fewest presses). */
+/** A class's trials: beginner → mid → expert, the shortest first within a level (fewest keys, then fewest presses). */
 export function trialsOf(cls: string): GuideRoute[] {
   const presses = (r: GuideRoute) => r.steps.reduce((a, st) => a + (st.n ?? 1), 0);
-  return [...(COMBO_GUIDE[cls as ClassId] ?? [])].sort((a, b) => a.steps.length - b.steps.length || presses(a) - presses(b));
+  const tier = (r: GuideRoute) => (r.tier ? ['BEGINNER', 'MID', 'EXPERT'].indexOf(r.tier) : 1);
+  return [...(COMBO_GUIDE[cls as ClassId] ?? [])].sort((a, b) => tier(a) - tier(b) || a.steps.length - b.steps.length || presses(a) - presses(b));
 }
 
 const KEY = 'gol-trials';

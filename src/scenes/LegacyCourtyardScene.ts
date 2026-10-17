@@ -883,7 +883,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (pvpRoom) {
       this.battleHud = new BattleHUD(ov, { rematch: () => this.askRematch(), exit: exitArena });
       if (this.stage) this.battleHud.setStage(this.stage.name);
-      if (this.vs === 'training') { if (TrialUI.has(this.cls)) this.trialUi = new TrialUI(ov, this.cls, this.kit, this.guideKeys(), { reset: (range) => this.trainingReset(range) }); }
+      if (this.vs === 'training') { if (TrialUI.has(this.cls)) this.trialUi = new TrialUI(ov, this.cls, this.kit, this.guideKeys(), { reset: (range, route) => { this.trainingReset(range); if (this.bot) this.bot.swingAt = route?.foeSwings ? this.simMs + route.foeSwings : 0; } }); }
       else if (ComboGuide.has(this.cls)) this.comboGuide = new ComboGuide(ov, this.cls, this.kit, this.guideKeys());
       this.match = new Match(this.localId, {
         onPhase: (m, prev) => this.onMatchPhase(m, prev),
@@ -3131,7 +3131,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     skills.add(s.chain ? s.id : (run?.castId ?? `${s.id}@${this.simMs}`));
     this.combo = { count: idx, at: this.simMs, comboId, target, label: state, dmg: (same ? this.combo.dmg : 0) + damage, max, skills };
     if (this.match?.live) this.mStats.combo = Math.max(this.mStats.combo, idx);
-    if (run?.own && target === BOT_ID && reaction !== 'armor') this.trialUi?.hit(run.castId, comboId, !run.chargeDone); // (training: a HOLD key counts fully drawn only)
+    if (run?.own && target === BOT_ID && reaction !== 'armor') this.trialUi?.hit(run.castId, comboId, !run.skill.charge || (run.chargeLevel ?? 0) >= run.skill.charge.levels.length - 1); // (training: a HOLD key counts at its top level — let go there, or held to the end)
     this.confirmedLog.push({ skill: s.id, target, damage, idx, reaction, at: this.simMs, z: Math.round(tz) });
     if (this.confirmedLog.length > 300) this.confirmedLog.shift();
   }
