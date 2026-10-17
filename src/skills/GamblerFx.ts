@@ -522,11 +522,14 @@ export class GamblerFx {
     // the gambler's hit sparks, one shape per weight (all from his own painted pieces): NORMAL a card-pop, HEAVY a card
     // blast, LAUNCH a spark geyser shooting up, CRIT / COUNTER a gold cross of light
     const y = at.y - at.z, grip = s.id === 'kinetic_grab' && !!hit.reaction.grab; // (the grab's own snap is its spark)
-    const kind = crit || counter ? 'crit' : hit.reaction.launch ? 'launch' : heavy && !grip ? 'heavy' : 'normal';
+    // in a burst the small hits stay small and the last one carries the weight (the main hit unmistakable)
+    const hs = s.hits ?? [], burst = hs.length > 2, last = !burst || hit.at >= (hs[hs.length - 1]?.at ?? 0);
+    const weighty = burst ? (!!hit.heavy || last) : heavy;
+    const kind = crit || counter ? 'crit' : hit.reaction.launch ? 'launch' : weighty && !grip ? 'heavy' : 'normal';
     if (kind === 'normal') {
       this.pop(at.x, y, 64, FUCHSIA, 200); this.shards(at.x, y, 2, 50, 260);
     } else if (kind === 'heavy') {
-      const bl = this.kit('ai_blast', at.x, y, 130, TOP + 4); if (bl) { const b0 = bl.scale, a0 = rnd(0, 360); this.piece(bl, 280, (u, o) => o.setScale(b0 * lerp(0.45, 1.1, out3(u))).setAngle(a0).setAlpha(u < 0.4 ? 1 : (1 - u) / 0.6)); } else this.pop(at.x, y, 120, FUCHSIA, 300);
+      const bl = this.kit('ai_blast', at.x, y, burst && last ? 165 : 130, TOP + 4); if (bl) { const b0 = bl.scale, a0 = rnd(0, 360); this.piece(bl, 280, (u, o) => o.setScale(b0 * lerp(0.45, 1.1, out3(u))).setAngle(a0).setAlpha(u < 0.4 ? 1 : (1 - u) / 0.6)); } else this.pop(at.x, y, 120, FUCHSIA, 300);
       this.pop(at.x, y, 70, 0xffffff, 140); this.shards(at.x, y, 6, 110, 380);
     } else if (kind === 'launch') {
       const gy = this.kit('ai_geyser', at.x, y + 30, 90, TOP + 4); if (gy) { gy.setOrigin(0.5, 0.95); const g0 = gy.scale; this.piece(gy, 320, (u, o) => o.setScale(g0 * 0.8, g0 * lerp(0.3, 1.1, out3(u))).setAlpha(u < 0.4 ? 1 : (1 - u) / 0.6)); }
