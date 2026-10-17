@@ -710,7 +710,7 @@ export class MageFx {
       for (const [da, , dl] of [[0, 1, 0], [-15, 1, 0], [15, 1, 0]] as const) { // the three shots of the fan, together
         const a = base + (da * Math.PI) / 180, dx = Math.cos(a), dy = Math.sin(a), x = o.x + dx * 40, y = o.y + dy * 40 * 0.75;
         const ang = screenAng(dx, dy), len = 250;
-        this.sheet('mfx-spikes', x, y, len / 0.8, 1650, { alpha: da === 0 ? 0.8 : 0.5, fade: [[0, 1], [0.24, 1], [0.34, 0.32], [0.8, 0.28], [1, 0.12]], ox: side < 0 ? 0.9 : 0.1, oy: 0.75, flipX: side < 0, depth: y + 2 + (da === 0 ? 1 : 0), delay: dl, run: r,
+        this.sheet('mfx-spikes', x, y, len / 0.8, 1650, { alpha: da === 0 ? 0.4 : 0.22, fade: [[0, 1], [0.24, 1], [0.34, 0.32], [0.8, 0.28], [1, 0.12]], ox: side < 0 ? 0.9 : 0.1, oy: 0.75, flipX: side < 0, depth: y + 2 + (da === 0 ? 1 : 0), delay: dl, run: r,
           keys: [[0, 0], [6.9, 370], [7, 390], [11.9, 1250], [15.9, 1650]], angle: side < 0 ? ang - 180 : ang }); // (erupting as the shot flies: 260 px at 700 px/s)
       }
       this.floor('floor_frost', o.x + r.aim.x * 150, o.y + r.aim.y * 110, 330, 1650, { add: true, a: kf([0, 0], [0.04, 0.5], [0.9, 0.35], [1, 0]), angle: screenAng(r.aim.x, r.aim.y) });
