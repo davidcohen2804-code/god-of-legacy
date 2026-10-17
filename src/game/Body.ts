@@ -569,13 +569,13 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     time_collapse: { act: 'time_collapse', st: [0, 1, 2, 3], ac: [4], rc: [4, 5] }, // the book lifted over the head, then slammed to the floor on one knee
     elemental_ascension: { act: 'elemental_ascension', st: [1], ac: [2, 3], rc: [4, 5] }, // the arms flung wide, the book raised high overhead, the coat billowing out
     lightning_chain: { act: 'lightning_chain', st: [0, 1], ac: [2, 3], rc: [4, 5] }, // the hand drawn up by the ear, then the arm thrown out
-    paper_curse: { act: 'lightning_chain', st: [0, 1], ac: [2], rc: [5] },
+    paper_curse: { act: 'paper_curse', st: [0], ac: [0], rc: [0] }, // the two fingers thrust out at the foe, the book low at the hip: the hex
     glacial_spikes: { act: 'glacial_spikes', st: [0, 1], ac: [2, 3], rc: [4, 5] }, // a low lunge, the palm sweeping the floor
     frost_nova: { act: 'frost_nova', st: [0, 1], ac: [2, 3, 4], rc: [5] }, // the arms flung wide, the book out to the side
-    arcane_ward: { act: 'frost_nova', st: [0, 1], ac: [2], rc: [5] },
+    arcane_ward: { act: 'arcane_ward', st: [0], ac: [0], rc: [0] }, // the open book raised before her like a shield, the palm on its pages, braced
     arcane_wave: { act: 'arcane_wave', st: [0, 1, 2], ac: [3, 4], rc: [5] }, // the arm drawn back, then swept out flat
     origami_flock: { act: 'origami_flock', st: [1, 2], ac: [3, 4], rc: [5] }, // the hand drawn to the shoulder, then flicked out: the cranes take flight
-    page_bind: { act: 'arcane_wave', st: [1], ac: [3], rc: [4, 5] },
+    page_bind: { act: 'page_bind', st: [0], ac: [1], rc: [1] }, // the book swung up wide open, then slammed shut out in front
     astral_burst: { act: 'astral_burst', st: [0, 1], ac: [2, 3, 4], rc: [5] }, // the clawed hand reached out, then yanked up overhead
     // the basic bolts: a palm snapped out, then the book flung out with the other hand, then the lance: feet planted, a heavy lunging palm strike
     arcane_bolt: { act: 'bolt1', st: [2, 3], ac: [4], rc: [5] }, 'arcane_bolt#1': { act: 'bolt2', st: [1], ac: [2, 3], rc: [4, 5] }, 'arcane_bolt#2': { act: 'bolt3', st: [0, 1], ac: [2, 3], rc: [4, 5] },
