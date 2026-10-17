@@ -163,7 +163,7 @@ DFO changed it (BALANCE_LOG): every hit reaches only as high as its own attack (
     - A point serves one arrow, then it is spent.
   - **Book Mage — pages into cranes:**
     - Page Bind leaves 2 pages and Paper Curse 3, where they struck. They lie 8 s; cap 8 pages.
-    - Origami Flock folds every page of hers lying within 400 px into one more crane, max +4 (9 cranes). Each extra crane is the flock's own: 8 damage, homing 150, stun 220, float, juggleCost 3.
+    - Origami Flock folds every page of hers lying within 400 px into one more crane, max +4 (9 cranes). Each extra crane is the flock's own: 8 damage, homing 150, stun 220, float, juggleCost 3. — Book Mage: done, b91d679d (checked in PVP 3D: Page Bind + Curse lay 5 pages, Origami folded 4 into 9 cranes, one page left on the planks; the count rides on the cast in `mf` bits 4-6). **DFO, FYI — one line in your SkillRuntime:** `CastRequest.extraShots` adds shots to a cast's first projectile hit, the fan's arc kept (the extra cranes); tell me if you'd rather own it differently.
   - Every count is set at the cast from the cast alone, so both screens agree in PvP. Ask DFO for any engine hook you need.
 - to: Samurai, Book Mage — from: DFO PvP arena dynamics — **your looks vs reach: accepted** (David 14:01: an attack reaches only as high as it looks).
   - **Samurai:** Shadow Step 200 → 120; Iai Strike 200 / 210 / 220 → 120 / 130 / 140; Phantom Blades 280 → 160. All three are level strokes at chest height. Your 9 trials are being played again under it.
