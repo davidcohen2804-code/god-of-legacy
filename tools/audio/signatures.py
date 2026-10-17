@@ -1623,6 +1623,250 @@ SOUNDS3 = {
 }
 
 
+# ---------------------------------------------------------------- GAMBLER, the rest of his kit (his families: the staff, the cards, the coin, chance)
+
+def card_pop(rng, amp=1.0):
+    """A charged card going off: a small bright bang with a fizz."""
+    t = T(0.2)
+    x = hp(rng.standard_normal(t.size), 1200) * env(t, 0.0006, 0.012) * 1.0
+    x += np.sin(glide(t, 260, 120, 0.02)) * env(t, 0.001, 0.03) * 0.6
+    x += hp(rng.standard_normal(t.size), 4000) * (slow(rng, t.size, 120) > 0.3) * env(t, 0.005, 0.06) * 0.3
+    return x * amp
+
+
+def gb_riffle_c():  # Riffle Shuffle: a ring of cards shuffling round him (a cascade of riffles, swirling), the bridge spreading them at the end
+    rng = R(801); dur = 0.95; t = T(dur); x = buf(dur)
+    n = 34
+    for k in range(n):
+        place(x, flick(rng, rng.uniform(0.4, 0.9), 0.15), k * 0.018 + rng.uniform(0, 0.006), 0.55 + 0.25 * np.sin(2 * np.pi * 8 * k * 0.018))
+    x += bp(rng.standard_normal(t.size), 1500, 6000) * (0.6 + 0.4 * np.sin(2 * np.pi * 8 * t)) * env(t, 0.1, 0.3) * 0.25 * np.clip((0.8 - t) / 0.15, 0, 1)
+    place(x, swoosh(0.2, 1200, 5000, 6000, rng, peak=0.3, q=2.5, tail=4), 0.6, 0.6)
+    return finish(x, 0.82, 1.25)
+
+
+def gb_riffle_h():  # the cards spread out and stick in everyone round him: a burst of thunks and their charge fizzing
+    rng = R(802); dur = 0.55; t = T(dur); x = buf(dur)
+    for k in range(6):
+        place(x, click(0.1, rng, 2200, 0.0015, 0.8) + bp(rng.standard_normal(int(SR * 0.1)), 1000, 5000) * env(T(0.1), 0.001, 0.01) * 0.5, rng.uniform(0, 0.06))
+    x += thud(dur, 160, 70, 0.05) * 0.7
+    x += hp(rng.standard_normal(t.size), 4000) * (slow(rng, t.size, 90) > 0.3) * env(t, 0.02, 0.15) * 0.3
+    return finish(x, 0.85, 1.4)
+
+
+def gb_rotor_c():  # Rotor Staff: the staff spinning like a propeller (whup-whup on every 50 ms blow), cards flung off it nonstop
+    rng = R(805); dur = 0.82; t = T(dur); x = buf(dur)
+    x += bp(rng.standard_normal(t.size), 400, 2200) * (0.5 + 0.5 * np.sin(2 * np.pi * 20 * t)) ** 2 * env(t, 0.05, 0.6) * np.clip((0.75 - t) / 0.05, 0, 1) * 1.0
+    for k in range(7):
+        place(x, flick(rng, 0.7, 0.2), 0.05 + k * 0.1, 0.5)
+    return finish(x, 0.82, 1.25)
+
+
+def gb_rotor_h():  # the last blow sets them all off: pa-pa-pa-pa-POW, and it throws him away
+    rng = R(806); dur = 0.8; t = T(dur); x = buf(dur)
+    for k in range(5):
+        place(x, card_pop(rng, 0.45 + 0.08 * k), k * 0.035)
+    place(x, thud(0.6, 120, 50, 0.12) + svf(rng.standard_normal(int(SR * 0.6)), 300 + 4000 * np.exp(-T(0.6) / 0.05), 0.8, 'lp') * env(T(0.6), 0.001, 0.08) * 0.8, 0.18, 1.0)
+    for k in range(4):
+        place(x, clink(0.2, rng, amp=0.15), 0.2 + 0.03 * k)
+    return finish(x, 0.86, 1.5)
+
+
+def gb_coin_c():  # Coin Flip: the coin flicked off his thumb (ting), spinning in the air (its ring wobbling slower), caught with a clink (lead 420 ms)
+    rng = R(810); dur = 0.95; t = T(dur); x = buf(dur)
+    place(x, clink(0.3, rng, 4200, 0.9) + click(0.3, rng, 3000, 0.001, 0.6), 0.0)
+    ts = T(0.4); spin = 0.5 + 0.5 * np.sin(2 * np.pi * np.cumsum(14 - 9 * ts / 0.4) / SR)
+    place(x, (np.sin(2 * np.pi * 3600 * ts) * 0.6 + np.sin(2 * np.pi * 5470 * ts) * 0.3) * spin * env(ts, 0.01, 0.3) * 0.25, 0.02)
+    place(x, clink(0.3, rng, 3000, 0.8) + thud(0.3, 300, 150, 0.015) * 0.4, 0.42)
+    place(x, bell(0.5, 2093.0, ratio=2.0, index=0.6, tau=0.15), 0.44, 0.2)
+    return finish(x, 0.83, 1.3)
+
+
+def gb_wheel_c():  # Roulette Wheel: the wheel opens (a heavy clunk, its whirr), the ball rattling over the frets, slowing, and stopping (~2 s)
+    rng = R(815); dur = 2.25; t = T(dur); x = buf(dur)
+    place(x, knock(0.25, 180, 0.05, rng, 1.0) + thud(0.25, 120, 60, 0.05) * 0.6, 0, 0.9)
+    x += bp(rng.standard_normal(t.size), 300, 1500) * env(t, 0.1, 1.2) * 0.25 * np.clip((2.1 - t) / 0.2, 0, 1)
+    s_, times = 0.1, []
+    while s_ < 2.0:
+        times.append(s_); s_ += 1 / (26 - 20 * (s_ / 2.0) ** 0.8)
+    ks = [knock(0.03, f, 0.004, rng, 1.0) for f in (2400, 2800, 3200)]
+    x += grains(t.size, times, np.linspace(0.35, 0.5, len(times)), ks, rng)
+    place(x, knock(0.15, 2000, 0.01, rng, 1.0) + click(0.15, rng, 2500, 0.002, 0.5), 2.0, 0.9)
+    return finish(x, 0.82, 1.2)
+
+
+def gb_wheel_h():  # where it stops: the house pays out — a blast, a bell, chips flying
+    rng = R(816); dur = 1.0; t = T(dur); x = buf(dur)
+    x += thud(dur, 110, 45, 0.18, 0.05) * 1.0
+    x += svf(rng.standard_normal(t.size), 300 + 5000 * np.exp(-t / 0.06), 0.8, 'lp') * env(t, 0.001, 0.1) * 0.8
+    x += bell(dur, 1318.5, ratio=2.0, index=1.0, tau=0.3) * 0.25 + bell(dur, 1975.5, ratio=2.0, index=1.0, tau=0.3) * 0.15
+    for k in range(10):
+        place(x, clink(0.2, rng, amp=0.2), rng.uniform(0.02, 0.3))
+    return finish(x, 0.86, 1.45)
+
+
+def gb_dice_c():  # Dice Bomb: two dice rolled along the floor, tumbling and bouncing
+    rng = R(820); dur = 0.75; t = T(dur); x = buf(dur)
+    for d in range(2):
+        s_ = 0.02 + d * 0.03; gap = 0.07
+        while s_ < 0.55:
+            place(x, knock(0.04, rng.uniform(1800, 2600), 0.006, rng, 0.9), s_, rng.uniform(0.4, 0.8) * (1 - s_ / 0.9))
+            s_ += gap * rng.uniform(0.7, 1.2); gap *= 0.93
+    x += bp(rng.standard_normal(t.size), 600, 2500) * env(t, 0.05, 0.3) * 0.12
+    return finish(x, 0.82, 1.25)
+
+
+def gb_dice_h():  # the dice burst: a clack, a bang, a crackle
+    rng = R(821); dur = 0.8; t = T(dur); x = buf(dur)
+    place(x, knock(0.05, 2400, 0.006, rng, 1.0), 0, 0.7)
+    x += thud(dur, 120, 50, 0.13) * 1.0
+    x += svf(rng.standard_normal(t.size), 400 + 6000 * np.exp(-t / 0.04), 0.8, 'lp') * env(t, 0.001, 0.08) * 0.9
+    x += grains(t.size, rng.exponential(0.1, 25), rng.uniform(0.1, 0.4, 25), crackle_kernels(rng, 2000), rng)
+    return finish(x, 0.86, 1.5)
+
+
+def gb_grab_c():  # Kinetic Grab: he holds the foe and charges its whole body (a hum rising, static crackling)
+    rng = R(825); dur = 0.65; t = T(dur); x = buf(dur)
+    f = 120 * (3 ** np.clip(t / 0.5, 0, 1))
+    x += hp(saw(f, 3000), 200) * env(t, 0.05, 0.35) * 0.25 * np.clip((0.6 - t) / 0.05, 0, 1)
+    times = 0.5 * rng.random(40) ** 0.7
+    x += grains(t.size, times, rng.uniform(0.1, 0.4, 40) * (times / 0.5 + 0.3), crackle_kernels(rng), rng)
+    return finish(x, 0.82, 1.25)
+
+
+def gb_grab_h():  # the collar seized: a grip thump, a jolt of static
+    rng = R(826); x = buf(0.45)
+    place(x, thud(0.3, 140, 70, 0.04) + bp(rng.standard_normal(int(SR * 0.3)), 400, 2500) * env(T(0.3), 0.001, 0.015) * 0.6, 0, 0.9)
+    place(x, zap(rng, 0.06, 0.5), 0.01)
+    return finish(x, 0.84, 1.4)
+
+
+def gb_grab_end():  # thrown: the body a bomb — the heave, the kinetic discharge
+    rng = R(827); dur = 0.9; t = T(dur); x = buf(dur)
+    place(x, swoosh(0.35, 300, 1800, 900, rng, peak=0.3, q=1.4, tail=4) + air(0.35, 0.3, 4, rng, 260, 0.6), 0, 0.8)
+    place(x, arc(0.25, rng, f=110, jit=0.4) * env(T(0.25), 0.002, 0.1), 0.02, 0.5)
+    x += thud(dur, 110, 45, 0.15) * 0.8
+    return finish(x, 0.86, 1.45)
+
+
+def gb_ace_c():  # Ace in the Hole: the ace charged between two fingers (a rising whine), then thrown like a lance (SHWING) (lead 280 ms)
+    rng = R(830); dur = 0.7; x = buf(dur)
+    tc = T(0.28)
+    place(x, np.sin(2 * np.pi * np.cumsum(700 * (4 ** (tc / 0.28))) / SR) * (tc / 0.28) ** 2 * 0.25 + hp(rng.standard_normal(tc.size), 5000) * (tc / 0.28) ** 2 * 0.12, 0)
+    place(x, flick(rng, 1.2, 0.5), 0.28)
+    place(x, swoosh(0.35, 1500, 7500, 4000, rng, peak=0.15, q=3, tail=4, whistle=0.3, wq=20), 0.28, 0.8)
+    return finish(x, 0.83, 1.3)
+
+
+def gb_ace_h():  # the ace tears through him: a piercing tchk, its double charge fizzing
+    rng = R(831); dur = 0.6; t = T(dur); x = buf(dur)
+    x += click(dur, rng, 2500, 0.0015, 1.0)
+    x += ring(dur, 3600, [(1, 0.4, 0.08), (1.5, 0.25, 0.05)], rng) * 0.5
+    x += thud(dur, 180, 80, 0.04) * 0.6
+    place(x, card_pop(rng, 0.5), 0.05)
+    x += hp(rng.standard_normal(t.size), 4000) * (slow(rng, t.size, 90) > 0.3) * env(t, 0.02, 0.15) * 0.3
+    return finish(x, 0.85, 1.45)
+
+
+def gb_snap_c():  # All In: a snap of his fingers
+    rng = R(835); x = buf(0.3)
+    place(x, click(0.2, rng, 1800, 0.0012, 1.0) + bp(rng.standard_normal(int(SR * 0.2)), 1500, 4500) * env(T(0.2), 0.0005, 0.006) * 0.8, 0)
+    return finish(x, 0.8, 1.2)
+
+
+def gb_allin_h():  # every card in him goes off at once and he is blown up: a rattle of pops into one big blast
+    rng = R(836); dur = 1.0; t = T(dur); x = buf(dur)
+    for k in range(8):
+        place(x, card_pop(rng, 0.4), rng.uniform(0, 0.06))
+    x += thud(dur, 110, 42, 0.2, 0.05) * 1.1
+    x += svf(rng.standard_normal(t.size), 300 + 6000 * np.exp(-t / 0.05), 0.8, 'lp') * env(t, 0.001, 0.12) * 1.0
+    for k in range(8):
+        place(x, clink(0.2, rng, amp=0.15), rng.uniform(0.05, 0.3))
+    return finish(x, 0.87, 1.5)
+
+
+def gb_52_c():  # 52 Pickup: the deck swept along the floor in a cone (cards spraying, a long riffle rushing away)
+    rng = R(840); dur = 0.6; t = T(dur); x = buf(dur)
+    for k in range(40):
+        place(x, flick(rng, rng.uniform(0.3, 0.8), 0.2), 0.01 + 0.4 * (k / 40) ** 1.1 + rng.uniform(0, 0.01), 0.5 * (1 - k / 60))
+    place(x, swoosh(0.45, 700, 3500, 2000, rng, peak=0.25, q=1.5, tail=4), 0, 0.7)
+    return finish(x, 0.82, 1.25)
+
+
+def gb_52_h():  # the last wave goes off: pops running away merging into one blast
+    rng = R(841); dur = 0.95; t = T(dur); x = buf(dur)
+    for k in range(7):
+        place(x, card_pop(rng, 0.5 - 0.04 * k), k * 0.03)
+    x += thud(dur, 120, 48, 0.16) * 0.9
+    x += svf(rng.standard_normal(t.size), 300 + 4000 * np.exp(-t / 0.07), 0.8, 'lp') * env(t, 0.002, 0.12) * 0.8
+    return finish(x, 0.86, 1.45)
+
+
+def gb_slam_w():  # Grand Slam, the wind-up (0.42 s): the staff stretching to twice its length (a rising magical stretch, a creak)
+    rng = R(845); dur = 0.45; t = T(dur); u = t / dur; x = buf(dur)
+    x += np.sin(2 * np.pi * np.cumsum(180 * (3 ** u)) / SR) * u ** 1.5 * 0.25
+    x += svf(rng.standard_normal(t.size), 400 * (6 ** u), 3) * u ** 2 * 0.6
+    x += svf(rng.standard_normal(t.size), 350, 15) * env(t, 0.05, 0.15) * 0.8
+    return finish(x * np.clip((dur - t) / 0.02, 0, 1), 0.8, 1.2)
+
+
+def gb_slam_c():  # the swing like a bat: a huge whoosh
+    rng = R(846); dur = 0.45
+    x = place(buf(0.5), swoosh(dur, 250, 1600, 500, rng, peak=0.35, q=1.5, shape=2.2, tail=6) + air(dur, 0.35, 6, rng, 240, 1.0), 0)
+    return finish(x, 0.84, 1.3)
+
+
+def gb_slam_h():  # CRACK — a home run: the bat's crack, the foe flying off on a comet's tail
+    rng = R(847); dur = 1.1; t = T(dur); x = buf(dur)
+    x += click(dur, rng, 1500, 0.002, 1.2)
+    x += knock(dur, 650, 0.03, rng, 1.0) * 0.9 + knock(dur, 1150, 0.02, rng, 0.5) * 0.5
+    x += thud(dur, 130, 55, 0.08) * 0.9
+    place(x, swoosh(0.8, 3000, 900, 300, rng, peak=0.08, q=2, tail=3, whistle=0.4, wq=15), 0.03, 0.7)
+    return finish(x, 0.87, 1.5)
+
+
+def gb_triple_c():  # Triple Down: the staff swelling into a pillar of light (a bright hum rising)
+    rng = R(850); dur = 0.65; t = T(dur); x = buf(dur)
+    x += sum(np.sin(2 * np.pi * np.cumsum(f * (1 + 0.3 * np.clip(t / 0.25, 0, 1))) / SR) for f in (220.0, 330.0, 440.0)) * env(t, 0.1, 0.12) * 0.12
+    x += svf(rng.standard_normal(t.size), 600 * (4 ** np.clip(t / 0.25, 0, 1)), 3) * env(t, 0.1, 0.11) * 0.5
+    return finish(x, 0.8, 1.2)
+
+
+def gb_triple_h():  # a hammer blow of the pillar on the floor: DOOM, a ring of light
+    rng = R(851); dur = 0.95; t = T(dur); x = buf(dur)
+    x += thud(dur, 105, 42, 0.17, 0.05) * 1.1
+    x += lp(rng.standard_normal(t.size), 1500) * env(t, 0.001, 0.05) * 0.9
+    x += ring(dur, 880, [(1, 0.4, 0.3), (2.0, 0.25, 0.2), (3.0, 0.15, 0.1)], rng) * 0.25
+    return finish(x, 0.86, 1.45)
+
+
+def gb_triple_end():  # the third, the heaviest: DOOM, and he bounces off the floor
+    rng = R(852); dur = 1.1; t = T(dur); x = buf(dur)
+    x += thud(dur, 95, 36, 0.22, 0.06) * 1.2
+    x += lp(rng.standard_normal(t.size), 1800) * env(t, 0.001, 0.06) * 1.0
+    x += ring(dur, 660, [(1, 0.45, 0.4), (2.0, 0.3, 0.25), (3.0, 0.2, 0.12)], rng) * 0.3
+    place(x, thud(0.3, 160, 80, 0.04), 0.22, 0.5)  # (the bounce)
+    return finish(x, 0.87, 1.5)
+
+
+def gb_swap_c():  # Card Swap: a card flicked, and he swaps places with it in a flash (a pop)
+    rng = R(855); x = buf(0.35)
+    place(x, flick(rng, 1.0, 0.4), 0)
+    t = T(0.15); f = 800 + 3000 * (1 - np.exp(-t / 0.02))
+    place(x, np.sin(2 * np.pi * np.cumsum(f) / SR) * env(t, 0.002, 0.04) * 0.5, 0.06)
+    place(x, reverse(swoosh(0.08, 1500, 6000, 7000, rng, peak=0.3, q=2.5, tail=4)), 0.0, 0.5)
+    return finish(x, 0.82, 1.25)
+
+
+SOUNDS4 = {
+    'gb_riffle_c': gb_riffle_c, 'gb_riffle_h': gb_riffle_h, 'gb_rotor_c': gb_rotor_c, 'gb_rotor_h': gb_rotor_h, 'gb_coin_c': gb_coin_c,
+    'gb_wheel_c': gb_wheel_c, 'gb_wheel_h': gb_wheel_h, 'gb_dice_c': gb_dice_c, 'gb_dice_h': gb_dice_h,
+    'gb_grab_c': gb_grab_c, 'gb_grab_h': gb_grab_h, 'gb_grab_end': gb_grab_end, 'gb_ace_c': gb_ace_c, 'gb_ace_h': gb_ace_h,
+    'gb_snap_c': gb_snap_c, 'gb_allin_h': gb_allin_h, 'gb_52_c': gb_52_c, 'gb_52_h': gb_52_h,
+    'gb_slam_w': gb_slam_w, 'gb_slam_c': gb_slam_c, 'gb_slam_h': gb_slam_h, 'gb_triple_c': gb_triple_c, 'gb_triple_h': gb_triple_h,
+    'gb_triple_end': gb_triple_end, 'gb_swap_c': gb_swap_c,
+}
+
+
 SOUNDS = {
     # warrior
     'wr_iron_1': wr_iron_1, 'wr_iron_2': wr_iron_2, 'wr_iron_3': wr_iron_3, 'wr_iron_4': wr_iron_4,
@@ -1656,6 +1900,7 @@ SOUNDS = {
 
 SOUNDS.update(SOUNDS2)
 SOUNDS.update(SOUNDS3)
+SOUNDS.update(SOUNDS4)
 
 
 def loudness(x):

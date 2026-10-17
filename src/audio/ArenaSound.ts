@@ -59,8 +59,9 @@ const BUFFS: Record<string, SfxName> = {
  *  one's wind-up; `windLead` ms into it is the strike), `cast` its swing / shot / spell (a basic chain: one per stage;
  *  `lead` ms into it lands on the strike — started early, or partway in when the startup is short; none: at the strike),
  *  `hit` its first main hit (under the boom), `end` its last main hit, `blow` its other blows (a burst's small ones stay
- *  the class's soft ticks), `zero` a blow that does no damage but means something (a curse, a bind, a stun). */
-interface Sig { wind?: SfxName; windLead?: number; cast?: SfxName | readonly SfxName[]; lead?: number | readonly number[]; hit?: SfxName; end?: SfxName; blow?: SfxName; blowVol?: number; zero?: SfxName }
+ *  the class's soft ticks), `zero` a blow that does no damage but means something (a curse, a bind, a stun); `every`:
+ *  every main hit gets `hit` (the last one `end`), not only the first (blows of one kind: a hammer three times). */
+interface Sig { wind?: SfxName; windLead?: number; cast?: SfxName | readonly SfxName[]; lead?: number | readonly number[]; hit?: SfxName; end?: SfxName; blow?: SfxName; blowVol?: number; zero?: SfxName; every?: boolean }
 const SIG: Record<string, Sig> = {
   // warrior: a greatsword's weight, holy gold light, the storm, the titan
   warrior_basic: { cast: ['wr_iron_1', 'wr_iron_2', 'wr_iron_3', 'wr_iron_4'], lead: [153, 150, 135, 275], blow: 'wr_iron_hit', hit: 'wr_iron_fin' },
@@ -119,6 +120,18 @@ const SIG: Record<string, Sig> = {
   fuse_slam: { cast: 'gb_fuse_c', lead: 240, hit: 'gb_fuse_h', blow: 'gb_fuse_h' },
   showdown: { wind: 'gb_show_w', windLead: 360, cast: 'gb_show_c', hit: 'gb_show_h' },
   jackpot: { wind: 'gb_jack_w', windLead: 900, cast: 'gb_jack_c', hit: 'gb_jack_h' },
+  riffle_shuffle: { cast: 'gb_riffle_c', hit: 'gb_riffle_h' },
+  rotor_staff: { cast: 'gb_rotor_c', hit: 'gb_rotor_h' },
+  coin_flip: { cast: 'gb_coin_c', lead: 420 },
+  roulette_wheel: { cast: 'gb_wheel_c', hit: 'gb_wheel_h' },
+  dice_bomb: { cast: 'gb_dice_c', hit: 'gb_dice_h', end: 'gb_dice_h' },
+  kinetic_grab: { cast: 'gb_grab_c', blow: 'gb_grab_h', hit: 'gb_grab_end' },
+  ace_in_the_hole: { cast: 'gb_ace_c', lead: 280, hit: 'gb_ace_h', blow: 'gb_ace_h' },
+  all_in: { cast: 'gb_snap_c', hit: 'gb_allin_h' },
+  pickup_52: { cast: 'gb_52_c', hit: 'gb_52_h' },
+  grand_slam: { wind: 'gb_slam_w', windLead: 420, cast: 'gb_slam_c', lead: 157, hit: 'gb_slam_h' },
+  triple_down: { cast: 'gb_triple_c', hit: 'gb_triple_h', end: 'gb_triple_end', every: true },
+  card_swap: { cast: 'gb_swap_c' },
 };
 /** A chain's stage's own (the last one for the stages after). */
 const perStage = <V>(v: V | readonly V[] | undefined, stage: number): V | undefined =>
@@ -295,6 +308,7 @@ export class ArenaSound {
       s.hits.forEach((h, i) => { if (h.heavy || h.reaction.launch || h.reaction.knockdown || h.reaction.slam || (many && i === n - 1)) { if (m!.first < 0) m!.first = i; m!.last = i; } });
       this.mains.set(s.id, m);
     }
+    if (sig.every) return idx === m.last && sig.end ? sig.end : sig.hit;
     return idx === m.first ? sig.hit : idx === m.last ? sig.end : undefined;
   }
 

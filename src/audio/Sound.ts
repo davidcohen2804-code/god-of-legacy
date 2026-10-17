@@ -65,7 +65,11 @@ export const SIG_SFX = {
     gb_deck_1: [1, 0.56], gb_deck_2: [1, 0.54], gb_deck_3: [1, 0.58], gb_deck_4: [1, 0.33], gb_staff_hit: [2, 0.58], gb_deck_fin: [1, 0.34],
     gb_deal_w: [1, 0.47], gb_deal_c: [1, 0.37], gb_deal_h: [1, 0.84], gb_vault_c: [1, 0.49], gb_vault_h: [1, 0.55], gb_fuse_c: [1, 0.43],
     gb_fuse_h: [1, 0.92], gb_show_w: [1, 0.45], gb_show_c: [1, 0.36], gb_show_h: [1, 0.3], gb_jack_w: [1, 0.64], gb_jack_c: [1, 0.24],
-    gb_jack_h: [1, 0.37]
+    gb_jack_h: [1, 0.37], gb_riffle_c: [1, 0.72], gb_riffle_h: [1, 0.72], gb_rotor_c: [1, 0.51], gb_rotor_h: [1, 0.63], gb_coin_c: [1, 0.19],
+    gb_wheel_c: [1, 0.56], gb_wheel_h: [1, 0.45], gb_dice_c: [1, 0.44], gb_dice_h: [1, 0.66], gb_grab_c: [1, 0.82], gb_grab_h: [1, 1.0],
+    gb_grab_end: [1, 0.73], gb_ace_c: [1, 0.42], gb_ace_h: [1, 0.76], gb_snap_c: [1, 1.0], gb_allin_h: [1, 0.51], gb_52_c: [1, 0.37],
+    gb_52_h: [1, 0.62], gb_slam_w: [1, 0.37], gb_slam_c: [1, 0.39], gb_slam_h: [1, 0.64], gb_triple_c: [1, 0.51], gb_triple_h: [1, 1.0],
+    gb_triple_end: [1, 1.0], gb_swap_c: [1, 0.42]
   },
 } satisfies Record<string, Record<string, [number, number]>>;
 type SigName = { [C in keyof typeof SIG_SFX]: keyof (typeof SIG_SFX)[C] }[keyof typeof SIG_SFX];
