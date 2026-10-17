@@ -653,7 +653,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     all_in: { act: 'all_in', st: [0, 1], ac: [2, 3], rc: [4, 5] },
     pickup_52: { act: 'pickup_52', st: [0, 1, 2], ac: [3, 4, 4], rc: [5] },
     call_the_deck: { act: 'call_deck', st: [0, 1, 2, 3], ac: [4], rc: [5] }, // (its own clip, S14: the hand out calling the cards, one caught, by the face, the wind — the sidearm throw — the follow-through)
-    grand_slam: { act: 'grand_slam', st: [0, 1, 2], ac: [3], rc: [4, 5] },
+    grand_slam: { act: 'grand_swing', st: [0, 1, 2, 3], ac: [4], rc: [5] }, // (David 01:42: a golfer's full swing — S15)
     kinetic_overload: { act: 'kinetic_overload', st: [0, 1, 2], ac: [3], rc: [4, 5] },
     triple_down: { act: 'triple_down', st: [0], ac: [1, 2, 3, 4, 5], rc: [5] },
     // (David 18 Oct 01:42: the three that replace Kinetic Grab / All In / Triple Down — stand-ins from his own clips until the Gambler chat's)
