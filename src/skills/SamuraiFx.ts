@@ -1121,15 +1121,16 @@ export class SamuraiFx {
     if (!last) { // a silhouette of him strikes through the foe from another side each time, the cut behind it — all in blossom pink
       const deg = [0, 180, 32, 212][i % 4] + rnd(-8, 8), c = Math.cos((deg * Math.PI) / 180), sn = Math.sin((deg * Math.PI) / 180) * 0.5, L = 112;
       this.phantomDash(r, f.x - c * L, fy - sn * L, f.x + c * L, fy + sn * L, TOP + 2.5, toneHex('sakura'));
-      this.cut(tn('cut_thin', 'sakura'), rnd(150, 180), (Math.atan2(sn, c) * 180) / Math.PI, { x: f.x, y: fy - 56, depth: TOP + 3, grow: 40, hold: 30, fade: 150, glow: 0.65, flipY: c < 0 });
+      this.cut(tn('cut_thin', 'sakura'), rnd(124, 144), (Math.atan2(sn, c) * 180) / Math.PI, { x: f.x, y: fy - 56, depth: TOP + 3, grow: 40, hold: 30, fade: 150, glow: 0.35, flipY: c < 0, alpha: 0.85 });
       this.petals(f.x, fy - 56, 4, 50, { depth: TOP + 2 });
       return;
     }
     const x = f.x, y = f.y;
-    this.spr({ name: 'blossom_burst', x, y: fy - 70, w: 290, life: 560, glow: 0.22, depth: TOP + 4, angle: rnd(0, 360),
-      sx: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.25]), sy: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.25]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
-    this.spr({ name: tn('petal_column', 'sakura'), x, y: y + 6, oy: 0.96, depth: y + 3, w: 150, life: 700, glow: 0.5, sy: kf([0, 0.15], [0.3, 1.1, out3], [1, 1.2]), sx: kf([0, 0.7], [0.3, 1]), a: kf([0, 1], [0.55, 1], [1, 0, inQ]) });
-    this.cut(tn('cut_rise', 'sakura'), 180, 0, { x, y: fy - 110, depth: TOP + 4.5, flipX: side < 0, grow: 70, hold: 60, fade: 220, glow: 0.75 });
+    // (the finale: big enough to be the storm's end, lit softly enough that the foe thrown out of it reads — PVP 3D)
+    this.spr({ name: 'blossom_burst', x, y: fy - 70, w: 214, life: 520, glow: 0.12, depth: TOP + 4, angle: rnd(0, 360),
+      sx: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.25]), sy: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.25]), a: kf([0, 0.9], [0.45, 0.85], [1, 0, inQ]) });
+    this.spr({ name: tn('petal_column', 'sakura'), x, y: y + 6, oy: 0.96, depth: y + 3, w: 136, life: 640, glow: 0.3, sy: kf([0, 0.15], [0.3, 1.1, out3], [1, 1.2]), sx: kf([0, 0.7], [0.3, 1]), a: kf([0, 0.9], [0.55, 0.85], [1, 0, inQ]) });
+    this.cut(tn('cut_rise', 'sakura'), 152, 0, { x, y: fy - 110, depth: TOP + 4.5, flipX: side < 0, grow: 70, hold: 60, fade: 220, glow: 0.4 });
     this.petals(x, fy - 90, 26, 160, { depth: TOP + 3 });
     this.shock(x, y, 260, { tone: 'sakura' });
     if (r.own) { this.ctx.cam().shake(200, 0.007); this.ctx.punch(0.04, 260); }

@@ -51,9 +51,9 @@ export const SAMURAI: Record<string, Recipe> = {
   // the storm's cuts small and pink; the last one throws the foe up in a twisting column of blossom light
   blossom_storm: { own: true,
     hit: (f, _s, _h, at, main) => {
-      if (!main) { f.slash(at, flip(), C.sakura, { r: 90, tilt: 10 + Math.random() * 50, a0: -110, a1: 120, ms: 200, i: 1 }); return; }
-      f.pillar(at.x, at.y, C.sakura, { h: 520, r: 40, ms: 640, twist: true, core: false, i: 1.1 });
-      f.dome(at.x, at.y, C.sakura, { r: 140, ms: 420, a: 0.35 });
+      if (!main) { f.slash(at, flip(), C.sakura, { r: 88, w: 28, tilt: 10 + Math.random() * 50, a0: -110, a1: 120, ms: 200, i: 0.7 }); return; }
+      f.pillar(at.x, at.y, C.sakura, { h: 480, r: 34, ms: 600, twist: true, core: false, i: 0.8 });
+      f.dome(at.x, at.y, C.sakura, { r: 120, ms: 400, a: 0.25 });
       f.host.blow(f.host.w3(at.x), 0.6, f.host.d3(at.y), 5, 5); } },
   // the dark falls round him; the eight cuts out of the dark cross the foe in crimson from all sides; the colossal cut of
   // the dragon: a twisting crimson pillar, the planks torn, the whole picture pulled in (soft: the fighters stay seen)
