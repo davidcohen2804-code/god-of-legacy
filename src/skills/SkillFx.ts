@@ -1360,7 +1360,7 @@ export class SkillFx {
     else if (s.id !== 'warrior_basic') this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.4 : hit.heavy ? 1.15 : 1), 0.8); // (a regular attack: none, as in MapleStory)
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).
     if (s.cls !== 'samurai' && tier !== 'ultimate' && reaction === 'launch') this.spark(IMPACT.dust.key, at.x, at.y + 4, 6, 90, 0.5);
-    if (s.cls !== 'samurai' && tier !== 'ultimate' && (reaction === 'knockdown' || reaction === 'slam')) this.spark(IMPACT.dust.key, at.x, at.y + 6, 6, 110, 0.55);
+    if (s.cls !== 'samurai' && tier !== 'ultimate' && (reaction === 'knockdown' || reaction === 'slam')) this.spark(IMPACT.dust.key, at.x, at.y + 6, 6, s.cls === 'warrior' ? 80 : 110, s.cls === 'warrior' ? 0.3 : 0.55); // (warrior: lighter — his slams' dust whited the floor in PVP 3D)
     if (s.id === 'leaping_arrow' && this.scene.textures.exists('afx-vines')) { // Binding Leaves: vines climb round the caught foe's legs for the hold
       const hold = hit.reaction.hardCC?.ms ?? 3000;
       for (const dx of [-14, 14]) this.play('afx-vines', at.x + dx, at.y + 2, 90, 46, [60, 70, 90, 120, 600, 600, 900, 300], { oy: 0.85, flip: dx < 0, depth: at.y + 1, loop: [4, 6], until: hold - 300, loopMs: 260, fadeLast: 300 });
