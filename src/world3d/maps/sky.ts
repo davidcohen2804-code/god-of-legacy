@@ -30,7 +30,7 @@ export const sky = (focus: PlaceState) => (scene: THREE.Scene, front: THREE.Scen
 
   // ------------------------------------------------------------------ light: the low sun ahead in the east, a gold sky
   const light = skyAndLight(scene, front, renderer, {
-    cx, cz: zMid, soft, sunFrom: new THREE.Vector3(0.65, 0.55, -0.35), sunColor: 0xffd090, sunIntensity: 3.2, // (the sun ahead in the east, high enough that the bodies' shadows stay short on the cloud tops) hemiSky: 0xfff0dc, hemiGround: 0xd8a0b0, hemiIntensity: 0.9,
+    cx, cz: zMid, soft, sunFrom: new THREE.Vector3(0.65, 0.55, -0.35), sunColor: 0xffd090, sunIntensity: 3.2, hemiSky: 0xfff0dc, hemiGround: 0xd8a0b0, hemiIntensity: 0.9, // (the sun ahead in the east, high enough that the bodies' shadows stay short on the cloud tops)
     top: 0x5a6ab0, mid: 0xe89a84, low: 0xffc868, background: 0xf0bc90, fog: { color: 0xf4c8a0, near: 30, far: 130 }, exposure: 0.98, shadowReach: 10,
   });
   disposables.push(...light.disposables);

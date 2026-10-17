@@ -212,6 +212,9 @@ export interface Recipe {
   crest?: { c: number; h: number; w: number };
   /** Lightning between the links of its chain. */
   chainBolt?: number;
+  /** The colour the room answers its blows in (the light, the floor mark and ring, the embers) — its family's colour
+   *  (the Warrior's steel / stone / iron / holy / crimson); default: the class colour. Also the default 3D pieces'. */
+  tone?: number;
   /** The default main-hit layer is left out (the recipe's own hit does it all). */
   own?: boolean;
 }
@@ -561,7 +564,9 @@ export class Fx3D {
   // ------------------------------------------------------------------ the runtime's events
 
   private recipe(s: FinalSkill): Recipe { return R[s.id] ?? {}; }
-  private color(s: FinalSkill): number { return CLS[s.cls] ?? 0xffffff; }
+  private color(s: FinalSkill): number { return this.recipe(s).tone ?? CLS[s.cls] ?? 0xffffff; }
+  /** The colour the room lights a blow of this skill in (its recipe's tone, else the class colour). */
+  tone(s: FinalSkill): number | undefined { return this.recipe(s).tone; }
 
   cast(r: CastRun): void { this.recipe(r.skill).cast?.(this, r); }
   active(r: CastRun): void { this.recipe(r.skill).active?.(this, r); }
