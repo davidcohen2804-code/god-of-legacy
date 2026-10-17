@@ -845,9 +845,8 @@ export class MageFx {
     const at = () => { const c = this.ctx.casterPos(id); return c ? { x: c.x, y: c.y - c.z + 6, d: c.y } : null; };
     // the party mark (David: a party sees who is buffed): a small turning rune disk over the head while the ward holds
     this.spr({ name: 'sig_disk', w: 34, h: 34, follow: this.at(id, 1, 0, 165), dz: 6, life: ms, add: true, glow: 0.45, alive: () => on, a: kf([0, 0], [0.04, 0.9], [0.92, 0.9], [1, 0]), rot: (u) => (u * ms) / 12 });
-    if (this.ctx.scene.textures.exists('mfx-wg')) { const c0 = this.ctx.casterPos(id);
-      this.circle(c0?.x ?? 0, c0?.y ?? 0, 230, 0, ms, { draw: 200, alpha: 0.75, alive: () => on, follow: () => { const c = this.ctx.casterPos(id); return c ? { x: c.x, y: this.floorY(c.x, c.y, c.z) } : null; } });
-      this.sheet('mfx-wg', c0?.x ?? 0, c0?.y ?? 0, 280, ms, { alpha: 0.9, frames: [0, 4], loop: 130, oy: 0.75, alive: () => on, depth: (c0?.y ?? 0) + 4, follow: () => { const c = this.ctx.casterPos(id); return c ? { x: c.x, y: c.y - c.z + 4 } : null; } });
+    if (this.ctx.scene.textures.exists('mfx-wg')) { const c0 = this.ctx.casterPos(id); // (David 18 Oct: toy-like — the floor circle went, the painted shell faint: the 3D rune rings and orbiting sparks carry it)
+      this.sheet('mfx-wg', c0?.x ?? 0, c0?.y ?? 0, 240, ms, { alpha: 0.3, frames: [0, 4], loop: 130, oy: 0.75, alive: () => on, depth: (c0?.y ?? 0) + 4, follow: () => { const c = this.ctx.casterPos(id); return c ? { x: c.x, y: c.y - c.z + 4 } : null; } });
       return; }
     this.spr({ name: 'ward_dome', w: 120, oy: 0.96, life: ms, follow: at, dz: 4, add: true, glow: 0.25, alive: () => on, sx: kf([0, 0.4], [0.01, 1, out3]), sy: (u) => (u < 0.01 ? 0.4 + 60 * u : 1) * (1 + 0.02 * Math.sin(u * ms / 160)), a: kf([0, 0], [0.01, 0.55], [0.98, 0.5], [1, 0]) });
   }

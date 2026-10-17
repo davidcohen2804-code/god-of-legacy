@@ -57,7 +57,7 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // paper cranes: a soft paper trail each
   origami_flock: { tone: C.paper, own: true, trail: { c: C.paper, w: 6, len: 12, i: 0.8 } },
   // the rune shell round her, following her
-  arcane_ward: { tone: C.arcane, own: true, active: (f, r) => f.dome(me(f, r).x, me(f, r).y, C.arcane, { r: 140, ms: 900, a: 0.5, follow: () => f.host.casterPos(r.attackerId) }) },
+  arcane_ward: { tone: C.arcane, own: true, active: (f, r) => { const id = r.attackerId, at = () => { const c = f.host.casterPos(id); return c ? { x: c.x, y: c.y, z: 0 } : null; }; f.bladeBall(id, C.arcane, { r: 75, ms: 520, every: 60, ink: true }); f.swirl(at, {}, { n: 26, r0: 58, r1: 62, h: 170, ms: 8000, rps: 0.45, rise: 0.05, size: 0.55, color: C.arcane }); } }, // (David 18 Oct: "toy-like" → real 3D: inked rune rings close round her at many angles, then small rune sparks keep orbiting her body for the ward)
   // the pages fly to the foe as a paper streak (not lightning: that is the chain's)
   paper_curse: { tone: C.paper, trail: false, hit: (f, _s, _h, at, main) => { if (!main) return; f.dome(at.x, at.y, C.paper, { r: 90, ms: 300, a: 0.45 }); } },
   // the big buff: frost and storm columns braided round her, a shell — kept below white
