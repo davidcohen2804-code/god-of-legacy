@@ -1357,14 +1357,15 @@ export class SamuraiFx {
       const ox = cx + rnd(-R * 0.3, R * 0.3), oy = cy + rnd(-R * 0.15, R * 0.15);
       this.spr({ name: 'ink_long', x: ox, y: oy, angle: ang, flipY: fl, w: R * 2.1, h: 60, depth: TOP + 2, life: 520,
         sx: kf([0, 0.2], [0.14, 1, out3]), sy: kf([0, 0.8], [0.14, 1], [1, 0.4, inQ]), a: kf([0, 1], [0.35, 1], [1, 0, inQ]) });
-      this.cut('cut_line', R * 2.2, ang, { x: ox, y: oy, depth: TOP + 3, h: 22, grow: 60, hold: 40, fade: 180, glow: 0.7, sweep: 0, flipY: fl });
+      this.cut('cut_line', R * 2.2, ang, { x: ox, y: oy, depth: TOP + 3, h: 18, grow: 60, hold: 40, fade: 180, glow: 0.45, sweep: 0, flipY: fl });
       const c = Math.cos((ang * Math.PI) / 180), sn = Math.sin((ang * Math.PI) / 180), L = R * 1.15; // a phantom of him dashes along the stroke
       this.phantomDash(r, ox - c * L, oy - sn * L + 60, ox + c * L, oy + sn * L + 60, TOP + 2.5);
       return;
     }
     const cam = this.ctx.cam();
-    this.cut('cut_x', R * 1.9, rnd(-8, 8), { x: cx, y: cy, depth: TOP + 4, grow: 60, hold: 90, fade: 260, glow: 0.8 });
-    this.pop('burst_crit', cx, cy, R * 1.2, { life: 380 });
+    // (the last cross: big as the field, lit softly enough that the foe reads inside it — PVP 3D)
+    this.cut('cut_x', R * 1.7, rnd(-8, 8), { x: cx, y: cy, depth: TOP + 4, grow: 60, hold: 90, fade: 260, glow: 0.4 });
+    this.pop('burst_crit', cx, cy, R * 0.9, { life: 340, glow: 0.25 });
     this.shock(cx, cy + 60, R * 2.4);
     this.sparks(cx, cy, 20, R, { depth: TOP + 3 }); // (crimson sparks off the ink field: no petals — those are the blossom skills')
     if (r.own) { cam.shake(260, 0.009); this.ctx.punch(0.05, 260); }

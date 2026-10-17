@@ -94,8 +94,8 @@ export const SAMURAI: Record<string, Recipe> = {
   // the phantoms' cuts crimson and small; the last one a cross of crimson on the foe
   phantom_blades: { own: true,
     hit: (f, _s, _h, at, main) => {
-      if (!main) { f.slash(at, flip(), C.crimson, { r: 95, tilt: 10 + Math.random() * 60, a0: -100, a1: 110, ms: 190, i: 1 }); return; }
-      for (const d of [1, -1]) f.slash(at, d, C.crimson, { r: 120, tilt: 40, a0: -120, a1: 120, ms: 260, i: 1.6 }); } },
+      if (!main) { f.slash(at, flip(), C.crimson, { r: 92, w: 30, tilt: 10 + Math.random() * 60, a0: -100, a1: 110, ms: 190, i: 0.7 }); return; }
+      for (const d of [1, -1]) f.slash(at, d, C.crimson, { r: 112, w: 36, tilt: 40, a0: -120, a1: 120, ms: 260, i: 1.0 }); } },
   // the halo of golden blades rising behind him (upright arcs fanned out), a ring of gold on the floor; each blade that strikes
   // later: a thin gold cut on the foe
   god_of_blades: { own: true,
