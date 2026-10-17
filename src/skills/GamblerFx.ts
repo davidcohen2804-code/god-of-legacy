@@ -360,6 +360,7 @@ export class GamblerFx {
     const s = r.skill, o = this.me(r), y0 = o.y - o.z, side = sideOf(r), d = o.y + 2;
     switch (s.id) {
       case 'cut_the_deck': {
+        if (ARENA3D.on) break; // (PVP 3D: the strikes are the 3D rings — its recipe; no flat painted stroke over the bodies)
         const st = r.stage ?? 0;
         if (st === 0) { if (!this.stroke('s_thrust', o.x + side * 18, y0 - 58, 150, side, 220, d, 0, 0.05, 0.5)) this.band(o.x + side * 20, y0 - 58, 110, side > 0 ? 0 : 180, 200, 18, d); }
         else if (st === 1) { if (!this.stroke('s_swing', o.x + side * 40, y0 - 56, 160, side, 260, d)) this.swing(o.x, y0 - 58, 70, side > 0 ? -0.9 : Math.PI + 0.9, side > 0 ? 0.9 : Math.PI - 0.9, 230, 22, d); }

@@ -23,13 +23,17 @@ const HOLD = new Map<string, { at: { x: number; y: number; z: number }; end: boo
 export const GAMBLER: Record<string, Recipe> = {
   // the basic: a thrust, a swing, a rising cut — each its own cut in 3D, the last one the big one
   cut_the_deck: { tone: TONE.violet,
-    own: true, hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, F.steel, { r: 60, ms: 200, a: 0.5 }); },
-    trail: { c: F.card, w: 9, len: 10 },
+    // (DAVID 20:56, the bar: each strike one thick ribbon ring in perspective — a white-hot edge, violet, an ink stroke inside
+    // turning to ink as it fades; the jab a long thrust line; the flick two red card streaks; the rising swing the big one.
+    // The main hit's impact is the engine's own — none here.)
+    own: true,
+    trail: { c: F.red, w: 6, len: 8, i: 1.3 },
     active: (f, r) => {
       const c = me(f, r), s = side(r), st = r.stage ?? 0;
-      if (st === 0) f.streak(chest(c, 95), { x: c.x + s * 150, y: c.y, z: 95 }, F.steel, { w: 12, ms: 180, draw: 30 });
-      else if (st === 1) f.slash(c, s, F.violet, { r: 120, tilt: 30, a0: -70, a1: 110, ms: 220, i: 1.6 });
-      else f.slash(c, s, F.violet, { r: 135, tilt: 78, a0: 170, a1: 10, ms: 260, y0: 50, i: 2 });
+      if (st === 0) { f.streak(chest(c, 95), { x: c.x + s * 170, y: c.y, z: 95 }, F.steel, { w: 14, ms: 140, draw: 25 }); f.slash(c, s, 0xb4a6ff, { r: 100, w: 30, tilt: 6, a0: -40, a1: 40, ms: 160, y0: 70, i: 2.2, ink: true }); }
+      else if (st === 1) f.slash(c, s, 0xb4a6ff, { r: 125, w: 50, tilt: 50, a0: -50, a1: 150, ms: 230, y0: 70, i: 2.8, ink: true, follow: () => f.host.casterPos(r.attackerId) });
+      else if (st === 2) { for (const k of [-1, 1]) f.streak(chest(c, 92), { x: c.x + s * 200, y: c.y + k * 22, z: 92 + k * 6 }, F.red, { w: 5, ms: 120, draw: 30 }); }
+      else f.slash(c, s, 0xb4a6ff, { r: 155, w: 52, tilt: 80, a0: 175, a1: 5, ms: 260, y0: 40, i: 2.8, ink: true, follow: () => f.host.casterPos(r.attackerId) });
     },
   },
   // seven cards fanned out: a fan of thin streaks from his hand, each card trailing light
