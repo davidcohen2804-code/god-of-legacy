@@ -708,7 +708,7 @@ const samurai: FinalSkill[] = [
       H(110, 10, { kind: 'circle', radius: 100 }, { stun: 320, float: true, juggleCost: 6 }, { reachUp: 130 }),
       H(230, 16, { kind: 'circle', radius: 110 }, { stun: 420, slam: true }, { reachUp: 140, heavy: true })],
     cancelOnHit: ['quick_slash', 'swallow_cut', 'hundred_cuts', 'iai_strike'], telegraph: 'circle',
-    description: 'In the air only: spin into a whirlwind of blades around you. It meets a foe jumping at you — two cuts hold him there, the third smashes him down to the floor.',
+    description: 'In the air only, no cooldown — spin it as often as your jumps allow: a whirlwind of blades around you. It meets a foe jumping at you — two cuts hold him there, the third smashes him down to the floor.',
     relations: ['Air to air', 'Smash down'],
   }),
   S({

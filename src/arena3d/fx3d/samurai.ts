@@ -128,11 +128,11 @@ export const SAMURAI: Record<string, Recipe> = {
   // (David's bar: an ink burst — 05) he vanishes: a big burst of ink where he stood
   kagemusha: { own: true, tone: SAM.light,
     fired: (f, r) => { const c = me(f, r); inkBurst(f, { x: c.x, y: c.y, z: c.z + 60 }, { r: 112, n: 14, ms: 500, foeY: c.y - 60 }); f.host.blow(f.host.w3(c.x), 0.6, f.host.d3(c.y), 4, 4); } },
-  // (David's bar: a ball of blades — 07) rings of the blade at every tilt round him, turning with him through the spin; the
-  // smash down: cracks where the foe hits the planks
-  tornado_blade: { own: true, tone: SAM.light,
+  // (David's bar: a ball of blades — 07) rings of the blade at every tilt round him, turning with him through the spin;
+  // (David 01:15: spammed while jumping, no cooldown) each cast its own ball, gone before the next jump's
+  tornado_blade: { own: true, tone: SAM.rose, // (the room's main hit takes this colour: pale, its burst stood as a white bubble)
     active: (f, r) => bladeBall(f, r.attackerId, side(r), { ms: T(r).active, every: 42, r: 108, y0: 50 }),
-    hit: (f, _s, _h, at, main) => { sparks(f, at, Math.random() < 0.5 ? 1 : -1, main ? 7 : 4, 56); if (main) { f.crack(at.x, at.y, SAM.crimson, { r: 110, chunks: 8 }); f.host.kick(0.04); } } },
+    hit: (f, _s, _h, at, main) => sparks(f, at, Math.random() < 0.5 ? 1 : -1, main ? 7 : 4, 56) }, // (the smash down's blow is the room's main hit — no cracks of its own on top)
   // the falcon of fire strikes the floor: fire torn in the planks, a column of flame
   falcon_dive: { own: true, tone: C.fire,
     fired: (f, r) => { const c = me(f, r); f.crack(c.x, c.y, C.fire, { r: 150, chunks: 10 }); f.pillar(c.x, c.y, C.fire, { h: 480, r: 24, ms: 400, core: false, i: 0.7 }); f.host.kick(0.05); } }, // (the falcon is the show: a thin column)
