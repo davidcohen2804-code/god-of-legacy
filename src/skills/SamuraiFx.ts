@@ -16,7 +16,7 @@ const TOP = 100000, GROUND = 2, SQUASH = 0.42, CRIMSON = 0xff3a4c, DUST = 0xd2a5
 const CRACK_TILT = -57;
 /** Hit marks a size down for the skills whose blows come thick and fast (they hid the foe in PVP 3D); the blow that lifts
  *  the foe in the basic opens in crimson. Sprays: their size and the skills whose spray is crimson (the Iai's opening). */
-const MARK_SCALE: Record<string, number> = { quick_slash: 0.8, hundred_cuts: 0.8, tornado_blade: 0.8, mirage: 0.8, swallow_cut: 0.85 };
+const MARK_SCALE: Record<string, number> = { quick_slash: 0.8, hundred_cuts: 0.8, tornado_blade: 0.8, mirage: 0.8, swallow_cut: 0.62, dragon_ascension: 0.7 };
 const SPRAY_SCALE: Record<string, number> = { quick_slash: 0.7, iai_strike: 0.75, tornado_blade: 0.75, mirage: 0.7, swallow_cut: 0.75 };
 const SPRAY_CRIMSON = new Set(['quick_slash', 'iai_strike']);
 /** The slash-hit pieces run this many degrees down to the right on their sheet (s11). */
@@ -271,8 +271,9 @@ export class SamuraiFx {
   }
   /** A foe thrown up: a beam from under it and streaks of light and petals shooting up after it. */
   private launchBeam(x: number, y: number, h = 110, tone?: Tone): void {
-    this.spr({ name: tn('launch_beam', tone), x, y: y + 4, oy: 0.95, depth: y + 3, w: h * 1.45, h, life: 280, glow: 0.3, sx: kf([0, 0.6], [1, 0.85]), sy: kf([0, 0.2], [0.3, 1, out3], [1, 1.15]), a: kf([0, 0.8], [0.35, 0.8], [1, 0, inQ]) });
-    this.spr({ name: tn('launch_streaks', tone), x, y: y + 6, oy: 0.97, depth: y + 3.2, w: h * 0.78, h: h * 1.35, life: 440, glow: 0.35, my: (u) => -46 * out(u),
+    // (behind the foe it throws up: in front, the beam and its streaks washed him out in PVP 3D — DFO's review)
+    this.spr({ name: tn('launch_beam', tone), x, y: y + 4, oy: 0.95, depth: y - 1.2, w: h * 1.45, h, life: 280, glow: 0.3, sx: kf([0, 0.6], [1, 0.85]), sy: kf([0, 0.2], [0.3, 1, out3], [1, 1.15]), a: kf([0, 0.8], [0.35, 0.8], [1, 0, inQ]) });
+    this.spr({ name: tn('launch_streaks', tone), x, y: y + 6, oy: 0.97, depth: y - 1.1, w: h * 0.78, h: h * 1.35, life: 440, glow: 0.35, my: (u) => -46 * out(u),
       sy: kf([0, 0.25], [0.3, 1, out3], [1, 1.2]), sx: kf([0, 0.7], [0.3, 1]), a: kf([0, 1], [0.45, 0.9], [1, 0, inQ]) });
   }
   /** A power aura flaring up round him (aura_gold / aura_crimson): flames rising from a ring at his feet, flaring, fading —
@@ -655,7 +656,8 @@ export class SamuraiFx {
     if (crit) { if (tone === 'sakura') this.petals(x, y, 5, 56, { depth: TOP + 3 }); else this.sparks(x, y, 5, 56, { tone, depth: TOP + 3 }); }
     const up = reaction === 'launch' || reaction === 'float', thrown = up || reaction === 'knockdown' || heavy || (hit.reaction.push ?? 0) >= 14;
     if (thrown && (!rapid || hit.heavy) && reaction !== 'cc') // sparks sprayed the way the foe is thrown (up when it is lifted)
-      this.spr({ name: tn('spark_spray', SPRAY_CRIMSON.has(s.id) ? undefined : tone), x: x - side * 8, y, ox: side > 0 ? 0.05 : 0.95, oy: 0.45, flipX: side < 0, depth: TOP + 3.8, w: (heavy ? 168 : 126) * (SPRAY_SCALE[s.id] ?? 1), life: 260, delay: s.id === 'iai_strike' ? 190 : 0,
+      // (behind the foe: the sparks burst out round his body instead of over it — PVP 3D, DFO's review)
+      this.spr({ name: tn('spark_spray', SPRAY_CRIMSON.has(s.id) ? undefined : tone), x: x - side * 8, y, ox: side > 0 ? 0.05 : 0.95, oy: 0.45, flipX: side < 0, depth: at.y - 1, w: (heavy ? 168 : 126) * (SPRAY_SCALE[s.id] ?? 1), life: 260, delay: s.id === 'iai_strike' ? 190 : 0,
         angle: up ? -side * 50 : side * rnd(-6, 10), sx: kf([0, 0.4], [0.25, 1, out3], [1, 1.12]), sy: kf([0, 0.6], [0.25, 1, out3]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
     if (reaction === 'launch') this.launchBeam(at.x, at.y, s.id === 'quick_slash' || s.id === 'swallow_cut' ? 88 : 110, tone === 'gold' || tone === 'fire' ? tone : undefined); // (the launchers he uses most: a size down)
     if (reaction === 'knockdown' || reaction === 'slam') { this.crack(at.x, at.y + 2, 120); this.dust(at.x, at.y, 120); }
@@ -814,14 +816,14 @@ export class SamuraiFx {
         const c = this.ctx.casterPos(r.attackerId); if (!c) return null;
         const [dx, dy] = t <= ret - 25 ? bz(out(t / (ret - 25)), [34, -8], [42, -140], [84, -200]) : t <= ret ? bz((t - ret + 25) / 25, [84, -200], [96, -214], [98, -196])
           : bz(Math.min(1, (t - ret) / 100), [98, -196], [136, -150], [152, -12]);
-        return { x: c.x + side * dx, y: c.y - c.z + dy, d: c.y + 4 };
+        return { x: c.x + side * dx, y: c.y - c.z + dy, d: c.y - 3 }; // (behind both fighters: at its widest it covered the foe — DFO)
       };
-      this.trail(tip, { span: 240, w: 54, until: ret + 105, fade: 280, run: r, glow: 0.6 }); // (the swallow's flight, lit so the foe it lifts reads in it — PVP 3D)
+      this.trail(tip, { span: 240, w: 40, until: ret + 105, fade: 280, run: r, glow: 0.55 }); // (the swallow's flight, lit so the foe it lifts reads in it — PVP 3D)
       this.later(ret - 10, () => { const p = tip(ret - 10); if (p) this.pop('glint', p.x, p.y, 100, { life: 220, angle: 0, depth: p.d + 6, glow: 0.45 }); }, r); // (the turn)
-      this.cut('cut_rise', 150, 0, { follow: this.front(r, 52, 90), flipX: fl, grow: 70, hold: 40, fade: 190, glow: 0.35 });
+      this.cut('cut_rise', 124, 0, { follow: this.front(r, 46, 90), flipX: fl, grow: 70, hold: 40, fade: 190, glow: 0.3, alpha: 0.8 });
       const p = this.front(r, 54, 60)(); if (p) this.sparks(p.x, p.y, 7, 50, { depth: p.d + 4, up: 40 });
     } else {
-      this.cut('cut_heavy', 160, -side * 32, { follow: this.front(r, 96, 104), flipX: fl, flipY: true, grow: 45, hold: 40, fade: 190, glow: 0.35 }); // the return: back down through the foe in the air
+      this.cut('cut_heavy', 140, -side * 32, { follow: this.front(r, 96, 104), flipX: fl, flipY: true, grow: 45, hold: 40, fade: 190, glow: 0.3, alpha: 0.85 }); // the return: back down through the foe in the air
       const p = this.front(r, 68, 112)(); if (p) this.pop('spark_s', p.x, p.y, 92, { depth: p.d + 5 });
     }
   }
@@ -1102,8 +1104,9 @@ export class SamuraiFx {
       const c = this.ctx.casterPos(r.attackerId), e = t - T.startup;
       if (e >= 0 && c && !this.broken(r)) {
         const fade = Math.min(1, e / 120) * Math.max(0, Math.min(1, (life - t) / 220)), turn = 0.5 + 0.5 * Math.sin(e / 55), w = 1 + 0.06 * Math.sin(e / 45);
-        A.setVisible(true).setPosition(c.x, c.y - c.z + 10).setScale(kS * w, kS).setDepth(c.y + 3).setAlpha(fade * (0.25 + 0.55 * turn));
-        B.setVisible(true).setPosition(c.x, c.y - c.z + 10).setScale(kS * w, kS).setDepth(c.y + 3.01).setAlpha(fade * (0.25 + 0.55 * (1 - turn)));
+        // (the funnel behind the fighters, the orbiting petals round them: in front it hid the foe he chases — DFO's PVP 3D review)
+        A.setVisible(true).setPosition(c.x, c.y - c.z + 10).setScale(kS * w, kS).setDepth(c.y - 3).setAlpha(fade * (0.2 + 0.45 * turn));
+        B.setVisible(true).setPosition(c.x, c.y - c.z + 10).setScale(kS * w, kS).setDepth(c.y - 2.99).setAlpha(fade * (0.2 + 0.45 * (1 - turn)));
         for (const p of ps) {
           const th = p.th + e * p.sp, sn = Math.sin(th);
           p.im.setVisible(true).setPosition(c.x + Math.cos(th) * p.rad, c.y - c.z - p.h + sn * p.rad * 0.3).setDepth(c.y + (sn > 0 ? 4 : -4)).setAngle(e * 0.5 + p.th * 90).setAlpha(fade);
@@ -1123,16 +1126,17 @@ export class SamuraiFx {
     const side = sideOf(r), f = this.stormFoe(r), last = i >= (r.skill.hits.length - 1), fy = f.y - f.z;
     if (!last) { // a silhouette of him strikes through the foe from another side each time, the cut behind it — all in blossom pink
       const deg = [0, 180, 32, 212][i % 4] + rnd(-8, 8), c = Math.cos((deg * Math.PI) / 180), sn = Math.sin((deg * Math.PI) / 180) * 0.5, L = 112;
-      this.phantomDash(r, f.x - c * L, fy - sn * L, f.x + c * L, fy + sn * L, TOP + 2.5, toneHex('sakura'));
+      // (behind the foe, in a dark-red ink: in PVP 3D the black phantoms over him made the knight a black silhouette — DFO)
+      this.phantomDash(r, f.x - c * L, fy - sn * L, f.x + c * L, fy + sn * L, f.y - 1.5, toneHex('sakura'), 0x5a1630, 0.8);
       this.cut(tn('cut_thin', 'sakura'), rnd(124, 144), (Math.atan2(sn, c) * 180) / Math.PI, { x: f.x, y: fy - 56, depth: TOP + 3, grow: 40, hold: 30, fade: 150, glow: 0.35, flipY: c < 0, alpha: 0.85 });
       this.petals(f.x, fy - 56, 4, 50, { depth: TOP + 2 });
       return;
     }
     const x = f.x, y = f.y;
     // (the finale: big enough to be the storm's end, lit softly enough that the foe thrown out of it reads — PVP 3D)
-    this.spr({ name: 'blossom_burst', x, y: fy - 70, w: 214, life: 520, glow: 0.12, depth: TOP + 4, angle: rnd(0, 360),
+    this.spr({ name: 'blossom_burst', x, y: fy - 70, w: 180, life: 500, glow: 0.1, depth: TOP + 4, angle: rnd(0, 360),
       sx: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.25]), sy: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.25]), a: kf([0, 0.9], [0.45, 0.85], [1, 0, inQ]) });
-    this.spr({ name: tn('petal_column', 'sakura'), x, y: y + 6, oy: 0.96, depth: y + 3, w: 136, life: 640, glow: 0.3, sy: kf([0, 0.15], [0.3, 1.1, out3], [1, 1.2]), sx: kf([0, 0.7], [0.3, 1]), a: kf([0, 0.9], [0.55, 0.85], [1, 0, inQ]) });
+    this.spr({ name: tn('petal_column', 'sakura'), x, y: y + 6, oy: 0.96, depth: y - 2, w: 124, life: 600, glow: 0.2, sy: kf([0, 0.15], [0.3, 1.1, out3], [1, 1.2]), sx: kf([0, 0.7], [0.3, 1]), a: kf([0, 0.9], [0.55, 0.85], [1, 0, inQ]) }); // (behind the foe it lifts)
     this.cut(tn('cut_rise', 'sakura'), 152, 0, { x, y: fy - 110, depth: TOP + 4.5, flipX: side < 0, grow: 70, hold: 60, fade: 220, glow: 0.4 });
     this.petals(x, fy - 90, 26, 160, { depth: TOP + 3 });
     this.shock(x, y, 260, { tone: 'sakura' });
@@ -1159,13 +1163,36 @@ export class SamuraiFx {
     this.spr({ name: 'sun_rays', x: sx, y: sy, depth: TOP + 0.9, w: 330, add: true, tint: 0xff4050, delay: T.startup * 0.5, life: fin - T.startup * 0.5 + 140, run: r, rot: (u) => -30 * u, a: kf([0, 0], [0.3, 0.6], [1, 0]) });
     for (let k = 0; k < 3; k++) // a glint of the blade in the dark, here and there round the foe
       this.pop('glint', at.x + rnd(-90, 90), at.y - o.z - rnd(30, 100), 120, { delay: T.startup - 420 + k * 130, life: 220, angle: 0, depth: TOP + 5, run: r });
+    this.eclipseRims(r, fin + 1250);
+  }
+  /** Through the eclipse's dark each fighter stays readable: his body lit above the dark at part strength, a crimson rim
+   *  of light round it (DFO's PVP 3D review: in the dark the fighters were not readable at all) — over the eclipse's own
+   *  pieces at part strength (they show through the fighters), under the cut-in (TOP + 49 / 50). */
+  private eclipseRims(r: CastRun, until: number): void {
+    const s = this.ctx.scene, ids = [...new Set([r.attackerId, r.lock].filter((x): x is string => !!x))];
+    const mk = (add: boolean) => { const im = s.add.image(0, 0, KIT, this.fname('glint')).setVisible(false); if (add) im.setBlendMode(Phaser.BlendModes.ADD); return im; };
+    const parts = ids.map((id) => ({ id, rim: mk(true), lit: mk(false) }));
+    const kill = () => { for (const p of parts) { p.rim.destroy(); p.lit.destroy(); } };
+    this.add({ t: 0, step: (_dt, t) => {
+      if (this.gone(r) || t >= until) { kill(); return false; }
+      const on = Math.min(1, t / 220) * Math.min(1, (until - t) / 260);
+      for (const p of parts) {
+        const b = this.ctx.body?.(p.id), c = this.ctx.casterPos(p.id), seen = b?.a ?? 0;
+        if (!b || !c || seen < 0.05) { p.rim.setVisible(false); p.lit.setVisible(false); continue; }
+        p.rim.setTexture(b.key, b.frame).setOrigin(b.ox, b.oy).setFlipX(b.flipX).setScale(b.sx * 1.07, b.sy * 1.05).setPosition(c.x, c.y - c.z + 2)
+          .setTintFill(0xff3048).setDepth(TOP + 6.5).setAlpha(0.55 * on * seen).setVisible(true);
+        p.lit.setTexture(b.key, b.frame).setOrigin(b.ox, b.oy).setFlipX(b.flipX).setScale(b.sx, b.sy).setPosition(c.x, c.y - c.z)
+          .setDepth(TOP + 6.6).setAlpha(0.55 * on * seen).setVisible(true);
+      }
+      return true;
+    } });
   }
   /** One of the eight cuts out of the dark: a phantom of him crosses the foe from its own direction, the cut line behind it. */
   private eclipseSlash(r: CastRun, i: number): void {
     const o = r.origin, at = this.eclipsePoint(r);
     const th = (([0, 180, 45, 225, 90, 270, 135, 315][i % 8] + rnd(-10, 10)) * Math.PI) / 180, c = Math.cos(th), sn = Math.sin(th) * 0.5, L = 120, y = at.y - o.z - 50;
     this.cut('cut_line', 290, (Math.atan2(sn, c) * 180) / Math.PI, { x: at.x, y, depth: TOP + 5, grow: 35, hold: 25, fade: 130, glow: 0.8, sweep: 0 });
-    this.phantomDash(r, at.x - c * L, at.y - o.z - sn * L, at.x + c * L, at.y - o.z + sn * L, TOP + 4.5);
+    this.phantomDash(r, at.x - c * L, at.y - o.z - sn * L, at.x + c * L, at.y - o.z + sn * L, TOP - 9.8); // (over the dark, behind the fighters' light)
     this.pop('spark_s', at.x + rnd(-14, 14), y + rnd(-14, 14), 70, { life: 160 });
     this.ctx.darken(300, 0.55); // the dark holds through the cuts (their hit-stops stretch them past its timer)
     if (r.own) this.ctx.cam().shake(60, 0.002);
@@ -1173,18 +1200,19 @@ export class SamuraiFx {
   private eclipseCut(r: CastRun, o: V3): void {
     const a = r.aim, at = this.eclipsePoint(r), cam = this.ctx.cam(), ang = screenAng(a.x, a.y);
     const sx = at.x, sy = at.y - o.z - 230, y = at.y - o.z - 50;
-    this.pop('sun_flare', sx, sy, 300, { life: 520, depth: TOP + 1.2, angle: 0, glow: 0.5 });
+    this.pop('sun_flare', sx, sy, 240, { life: 500, depth: TOP + 1.2, angle: 0, glow: 0.4 });
     this.spr({ name: 'sun_break', x: sx, y: sy, depth: TOP + 1.1, w: 240, delay: 260, life: 900, my: (u) => 60 * u, rot: (u) => 20 * u, sx: kf([0, 1], [1, 1.25]), sy: kf([0, 1], [1, 1.25]), a: kf([0, 1], [1, 0, inQ]) });
-    this.cut('cut_line', 640, ang, { x: at.x - a.x * 40, y, depth: TOP + 5, h: 80, grow: 50, hold: 120, fade: 320, glow: 0.9, sweep: 0, flipY: a.x < -0.01 });
-    this.later(110, () => this.cut('cut_split', 520, ang, { x: at.x, y, depth: TOP + 5.5, grow: 50, hold: 120, fade: 300, glow: 0.8, sweep: 0 }));
-    this.pop('burst_crit', at.x, y, 240, { life: 380, depth: TOP + 6 });
+    // (the colossal cut over the foe, thin and lit softly enough that he reads under it — DFO's PVP 3D review)
+    this.cut('cut_line', 640, ang, { x: at.x - a.x * 40, y, depth: TOP + 5, h: 48, grow: 50, hold: 120, fade: 320, glow: 0.55, sweep: 0, flipY: a.x < -0.01 });
+    this.later(110, () => this.cut('cut_split', 480, ang, { x: at.x, y, depth: TOP + 5.5, grow: 50, hold: 120, fade: 300, glow: 0.5, sweep: 0, alpha: 0.85 }));
+    this.pop('burst_crit', at.x, y, 170, { life: 360, depth: TOP + 6, glow: 0.3 });
     this.spr({ name: 'ground_slash', x: at.x, y: at.y + 2, angle: ang, flipY: a.x < -0.01, w: 460, depth: GROUND + 2.2, life: 1600, glow: 0.55,
       sx: kf([0, 0.1], [0.1, 1, out3]), sy: kf([0, 1.5], [0.1, 1]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
     // the dragon swims out of the dark along the cut, through the foe and away (its whole body following its head along
     // one gently waving path, faster through the foe, easing in and out), and melts back into the dark from its tail
     const fl = a.x < -0.01, ux = Math.cos((ang * Math.PI) / 180), uy = Math.sin((ang * Math.PI) / 180), drg = this.serpent(56, { glow: 0.5, flip: fl });
     const S0 = { x: at.x - ux * 600, y: y - uy * 600 }, wave = (sv: number) => 15 * Math.sin(sv / 56);
-    const path = (sv: number): Pt => ({ x: S0.x + ux * sv - uy * wave(sv), y: S0.y + uy * sv + ux * wave(sv), d: TOP + 4 });
+    const path = (sv: number): Pt => ({ x: S0.x + ux * sv - uy * wave(sv), y: S0.y + uy * sv + ux * wave(sv), d: TOP - 9.7 }); // (over the dark, behind the fighters' light)
     const FLY = 900, D0 = 330, D1 = 1650, MELT0 = 620, MELT = 420;
     let nextSpark = 0;
     this.add({ t: 0, step: (_dt, t) => {
@@ -1317,9 +1345,9 @@ export class SamuraiFx {
   private sunBurst(r: CastRun): void {
     const q = this.me(r);
     // (the light breaks behind him and over the floor — lit softly enough that he and the foes thrown back read: PVP 3D)
-    this.spr({ name: tn('sun_rays', 'gold'), x: q.x, y: q.y - q.z - 60, w: 360, life: 520, add: true, depth: q.y - 3, rot: (u) => 30 * u,
+    this.spr({ name: tn('sun_rays', 'gold'), x: q.x, y: q.y - q.z - 60, w: 290, life: 500, add: true, depth: q.y - 3, rot: (u) => 30 * u,
       sx: kf([0, 0.6], [0.25, 1.1, out3], [1, 1.25]), sy: kf([0, 0.6], [0.25, 1.1, out3], [1, 1.25]), a: kf([0, 0.6], [0.4, 0.5], [1, 0, inQ]) });
-    this.pop('glint', q.x, q.y - q.z - 60, 150, { life: 240, angle: 0, depth: TOP + 3, glow: 0.35 });
+    this.pop('glint', q.x, q.y - q.z - 60, 110, { life: 220, angle: 0, depth: q.y - 2.5, glow: 0.3 }); // (behind him: over him it washed him gold — DFO)
     this.shock(q.x, q.y, 340, { tone: 'gold' }); this.shock(q.x, q.y, 440, { tone: 'gold', delay: 90 });
     this.sparks(q.x, q.y - 80, 16, 160, { tone: 'gold', depth: q.y + 4 });
     if (r.own) this.ctx.cam().shake(160, 0.004);
@@ -1389,16 +1417,16 @@ export class SamuraiFx {
 
   /** A phantom of the samurai — his own body as it is this moment, in ink with a crimson edge — dashing from (x0, y0) to
    *  (x1, y1) (feet), afterimages in its wake. */
-  private phantomDash(r: CastRun, x0: number, y0: number, x1: number, y1: number, depth: number, rimCol = 0xff3048): void {
+  private phantomDash(r: CastRun, x0: number, y0: number, x1: number, y1: number, depth: number, rimCol = 0xff3048, inkCol = 0x12040a, inkA = 0.92): void {
     const b = this.ctx.body?.(r.attackerId); if (!b) return;
     const s = this.ctx.scene, ADD = Phaser.BlendModes.ADD, flip = (x1 < x0) !== (sideOf(r) < 0) ? !b.flipX : b.flipX;
     const mk = (fill: number, k: number) => s.add.image(x0, y0, b.key, b.frame).setOrigin(b.ox, b.oy).setScale(b.sx * k * 1.12, b.sy * k * 1.12).setFlipX(flip).setTintFill(fill).setVisible(false);
-    const rim = mk(rimCol, 1.08).setBlendMode(ADD), ink = mk(0x12040a, 1), life = 190; // the glow behind (crimson, or the skill's own), the ink body over it: a lit edge
+    const rim = mk(rimCol, 1.08).setBlendMode(ADD), ink = mk(inkCol, 1), life = 190; // the glow behind (crimson, or the skill's own), the ink body over it: a lit edge
     let trail = -99;
     this.add({ t: 0, step: (_dt, t) => {
       const u = Math.min(1, t / life), p = out(u), x = x0 + (x1 - x0) * p, y = y0 + (y1 - y0) * p, a = u < 0.12 ? u / 0.12 : u > 0.72 ? (1 - u) / 0.28 : 1;
       rim.setVisible(true).setPosition(x, y + 3).setDepth(depth - 0.01).setAlpha(0.85 * a);
-      ink.setVisible(true).setPosition(x, y).setDepth(depth).setAlpha(0.92 * a);
+      ink.setVisible(true).setPosition(x, y).setDepth(depth).setAlpha(inkA * a);
       if (t - trail > 28 && u < 0.9) {
         trail = t;
         const g = mk(rimCol, 1).setBlendMode(ADD).setPosition(x, y).setDepth(depth - 0.02).setVisible(true).setAlpha(0.32 * a);
@@ -1487,14 +1515,17 @@ export class SamuraiFx {
   /** The golden dragon breaks out of the floor and spirals up round him as high as it carries the foes, then flies off. */
   private ascensionBurst(r: CastRun): void {
     const q = this.me(r), cx = q.x, cy = q.y, side = sideOf(r), cam = this.ctx.cam();
-    this.launchBeam(cx, cy, 200, 'gold'); // (a size down: the column hid both fighters in PVP 3D — the dragon is the show)
+    // (slim and behind the fighters: a wide gold burst and column covered both in PVP 3D — DFO; the dragon is the show)
+    this.spr({ name: tn('launch_beam', 'gold'), x: cx + side * 30, y: cy + 4, oy: 0.95, depth: cy - 3, w: 96, h: 250, life: 300, glow: 0.25, sx: kf([0, 0.6], [1, 0.8]), sy: kf([0, 0.2], [0.3, 1, out3], [1, 1.15]), a: kf([0, 0.7], [0.35, 0.6], [1, 0, inQ]) });
+    this.spr({ name: tn('launch_streaks', 'gold'), x: cx + side * 30, y: cy + 6, oy: 0.97, depth: cy - 2.9, w: 80, h: 240, life: 420, glow: 0.25, my: (u) => -46 * out(u),
+      sy: kf([0, 0.25], [0.3, 1, out3], [1, 1.2]), sx: kf([0, 0.7], [0.3, 1]), a: kf([0, 0.85], [0.45, 0.7], [1, 0, inQ]) });
     this.shock(cx, cy, 300, { tone: 'gold' }); this.dustRing(cx, cy, 260); this.dust(cx - 60, cy, 110); this.dust(cx + 60, cy, 110, 40);
     // the dragon bursts out of the floor just in front of him and climbs into the sky in long S-curves — its whole body
     // following its head along one path (no seams, nothing jumping), fast out of the floor, slowing near the top — roars
     // there, and melts into sparks from its tail up as it drifts on
-    const gx = cx + side * 30, gy = cy + 2, A = 64, LAM = 330, TOPS = 300, RISE = 950, ROAR = 0.8, MELT0 = 900, MELT = 520, d = cy + 6; // (its jaws stay in sight at the top)
+    const gx = cx + side * 30, gy = cy + 2, A = 64, LAM = 330, TOPS = 300, RISE = 950, ROAR = 0.8, MELT0 = 900, MELT = 520, d = cy - 4; // (its jaws stay in sight at the top; it climbs behind the fighters, both read in front of it — DFO)
     const path = (sv: number): Pt => { const e = Math.min(1, Math.max(0, sv) / 150), w = e * e * (3 - 2 * e); return { x: gx + side * A * w * Math.sin((sv / LAM) * Math.PI * 2), y: gy - sv, d }; };
-    const drg = this.serpent(48, { glow: 0.32, flip: side < 0, tone: 'gold' });
+    const drg = this.serpent(42, { glow: 0.24, flip: side < 0, tone: 'gold' }); // (slimmer)
     let roared = false, nextSpark = 0, nextPetal = 0;
     this.add({ t: 0, step: (_dt, t) => {
       if (this.gone(r)) { drg.destroy(); return false; }

@@ -53,25 +53,25 @@ export const SAMURAI: Record<string, Recipe> = {
   blossom_storm: { own: true, tone: C.sakura,
     hit: (f, _s, _h, at, main) => {
       if (!main) { f.slash(at, flip(), C.sakura, { r: 88, w: 28, tilt: 10 + Math.random() * 50, a0: -110, a1: 120, ms: 200, i: 0.7 }); return; }
-      f.pillar(at.x, at.y, C.sakura, { h: 480, r: 34, ms: 600, twist: true, core: false, i: 0.8 });
+      f.pillar(at.x, at.y, C.sakura, { h: 460, r: 24, ms: 580, twist: true, core: false, i: 0.7 });
       f.dome(at.x, at.y, C.sakura, { r: 120, ms: 400, a: 0.25 });
       f.host.blow(f.host.w3(at.x), 0.6, f.host.d3(at.y), 5, 5); } },
   // the dark falls round him; the eight cuts out of the dark cross the foe in crimson from all sides; the colossal cut of
   // the dragon: a twisting crimson pillar, the planks torn, the whole picture pulled in (soft: the fighters stay seen)
   dragon_eclipse: { own: true, tone: C.crimson,
-    active: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, 0x3a0a1a, { r: 420, ms: 900, a: 0.6 }); },
+    active: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, 0x3a0a1a, { r: 420, ms: 900, a: 0.4 }); }, // (lighter: in the dark the fighters were not readable — DFO)
     hit: (f, _s, _h, at, main) => {
-      if (!main) { f.slash(at, flip(), C.crimson, { r: 120, tilt: 10 + Math.random() * 65, a0: -120, a1: 140, ms: 220, i: 1.4 }); return; }
-      f.pillar(at.x, at.y, C.crimson, { h: 900, r: 56, ms: 760, twist: true, core: false, i: 1.2 });
+      if (!main) { f.slash(at, flip(), C.crimson, { r: 112, w: 30, tilt: 10 + Math.random() * 65, a0: -120, a1: 140, ms: 220, i: 0.9 }); return; }
+      f.pillar(at.x, at.y, C.crimson, { h: 860, r: 34, ms: 720, twist: true, core: false, i: 0.85 });
       f.crack(at.x, at.y, C.crimson, { r: 200, chunks: 16, up: 1.3 });
       f.later(60, () => f.dome(at.x, at.y, C.crimson, { r: 180, ms: 520, a: 0.3 }));
       f.host.kick(0.08); } },
   // the swallow's rising cut upright in crimson; the launch: a thin crimson pillar under the foe; the second cut backhand
   swallow_cut: { own: true, tone: C.crimson,
-    active: (f, r) => f.slash(me(f, r), side(r), C.crimson, { r: 124, w: 38, tilt: 80, a0: 170, a1: 0, ms: 280, i: 1.0 }), // (soft: the foe lifted reads through it)
+    active: (f, r) => f.slash(me(f, r), side(r), C.crimson, { r: 120, w: 24, tilt: 80, a0: 170, a1: 0, ms: 280, i: 0.8 }), // (thin: at its widest it covered the foe — DFO)
     hit: (f, _s, _h, at, main, react) => {
       if (main && react === 'launch') f.pillar(at.x, at.y, C.crimson, { h: 420, r: 18, ms: 400, core: false, i: 0.8 });
-      else if (!main) f.slash(at, -1, C.crimson, { r: 100, w: 32, tilt: 65, a0: 160, a1: -10, ms: 200, i: 0.85 }); } },
+      else if (!main) f.slash(at, -1, C.crimson, { r: 100, w: 24, tilt: 65, a0: 160, a1: -10, ms: 200, i: 0.75 }); } },
   // the cage's small cuts: now and then a thin steel arc; the slam: a cross of steel light, gold sparks thrown off
   hundred_cuts: { own: true, tone: C.steel,
     hit: (f, _s, _h, at, main) => {
@@ -91,7 +91,7 @@ export const SAMURAI: Record<string, Recipe> = {
   // the sun's shield held round him through the wind-up; the sun bursts: a column of gold, the light thrown out
   rising_sun: { own: true, tone: C.sun,
     cast: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, C.sun, { r: 130, ms: T(r).startup + 120, a: 0.32, hold: 1, follow: () => f.host.casterPos(r.attackerId) }); },
-    active: (f, r) => { const c = me(f, r); f.pillar(c.x, c.y, C.sun, { h: 600, r: 26, ms: 600, core: false, i: 0.6 }); f.dome(c.x, c.y, C.sun, { r: 170, ms: 420, a: 0.2 }); f.host.impact({ x: c.x, y: c.y, z: 80 }, 1); } }, // (soft: the burst whited both out)
+    active: (f, r) => { const c = me(f, r); f.pillar(c.x, c.y, C.sun, { h: 600, r: 18, ms: 560, core: false, i: 0.35 }); f.dome(c.x, c.y, C.sun, { r: 140, ms: 400, a: 0.12 }); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), C.sun, 3, 420, 0.6); } }, // (no impact light on him: it washed him gold — DFO; soft: the burst whited both out)
   // the phantoms' cuts crimson and small; the last one a cross of crimson on the foe
   phantom_blades: { own: true, tone: C.crimson,
     hit: (f, _s, _h, at, main) => {
@@ -117,6 +117,6 @@ export const SAMURAI: Record<string, Recipe> = {
     active: (f, r) => { const c = me(f, r);
       // (one thin column under the dragon — the painted dragon is the show; two wide ones lit both fighters out)
       f.pillar(c.x, c.y, C.gold, { h: 720, r: 16, ms: 720, twist: true, core: false, i: 0.5 });
-      f.host.ring(f.host.w3(c.x), f.host.d3(c.y), C.gold, 3.2, 420, 0.8); f.host.impact({ x: c.x, y: c.y, z: 120 }, 1); },
+      f.host.ring(f.host.w3(c.x), f.host.d3(c.y), C.gold, 3.2, 420, 0.6); }, // (no impact light on him: it washed both fighters gold at the burst — DFO)
     hit: (f, _s, _h, at, main) => { if (main) f.crack(at.x, at.y, C.gold, { r: 130, chunks: 14 }); } },
 };
