@@ -388,11 +388,11 @@ export class MageFx {
   private beam(a: { x: number; y: number }, b: { x: number; y: number }, life: number, k = 1): void {
     const sc = this.ctx.scene, L = Math.hypot(b.x - a.x, b.y - a.y), ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
     const h = Math.min(190, Math.max(120, L * 0.5)) * k, f0 = Math.floor(Math.random() * 8);
-    const im = sc.add.image(a.x, a.y, 'mfx-beam', f0).setOrigin(0, 0.5).setAngle(ang).setBlendMode(Phaser.BlendModes.SCREEN).setDepth(TOP + 7).setDisplaySize(L, h).setAlpha(0.75);
+    const im = sc.add.image(a.x, a.y, 'mfx-beam', f0).setOrigin(0, 0.5).setAngle(ang).setBlendMode(Phaser.BlendModes.SCREEN).setDepth(TOP + 7).setDisplaySize(L, h).setAlpha(0.6);
     let last = -1;
     this.add({ t: 0, step: (_dt, t) => { if (t >= life || !im.active) { im.destroy(); return false; }
       const n = Math.floor(t / 55); if (n !== last) { last = n; im.setFrame((f0 + n * 3) % 8).setFlipY(n % 2 === 1); }
-      const u = t / life; im.setDisplaySize(L, h * (u < 0.15 ? 0.5 + 3.3 * u : 1 - 0.6 * Math.max(0, (u - 0.6) / 0.4))).setAlpha(0.75 * (u < 0.7 ? 1 : (1 - u) / 0.3)); return true; } });
+      const u = t / life; im.setDisplaySize(L, h * (u < 0.15 ? 0.5 + 3.3 * u : 1 - 0.6 * Math.max(0, (u - 0.6) / 0.4))).setAlpha(0.6 * (u < 0.7 ? 1 : (1 - u) / 0.3)); return true; } });
   }
   /** Screen y of the floor under a point: the ground, or the top of the block / platform an actor at height z stands on. */
   private floorY(x: number, y: number, z = 0): number { return y - supportAt(x, y, z + 8).z; }
@@ -549,21 +549,19 @@ export class MageFx {
       this.burst(e.x, e.y, { n: 8, speed: [60, 220], life: [160, 360], scale: [0.03, 0.1], tint: [0xffffff, 0x9fe4ff, 0xb9a2ff], gravity: 200 });
       return;
     }
-    if (this.ctx.scene.textures.exists('mfx-beam')) { this.beam(a, b, big ? 340 : 280, big ? 0.95 : 0.8); this.arc(a, b, { life: big ? 260 : 200, thick: big ? 3 : 2.2, delay: 30 }); } // the beam, and a sharp bolt crackling through it
+    if (this.ctx.scene.textures.exists('mfx-beam')) { this.beam(a, b, big ? 320 : 260, big ? 0.75 : 0.65); this.arc(a, b, { life: big ? 260 : 200, thick: big ? 3 : 2.2, delay: 30 }); } // the beam, and a sharp bolt crackling through it
     else { this.arc(a, b, { life: big ? 320 : 260, thick: big ? 5.5 : 4.2 }); this.arc(a, b, { life: 220, thick: 3, delay: 50 }); this.arc(a, b, { life: 160, thick: 2, delay: 110 }); }
     if (!target) return;
     if (this.ctx.scene.textures.exists('mfx-storm')) { if (big && !this.ctx.scene.textures.exists('mfx-beam')) this.sheet('mfx-storm', b.x, b.y, 240, 300, { frames: [8, 4], alpha: 0.9 }); if (this.ctx.scene.textures.exists('mfx-beam')) this.sheet('mfx-beam', target.x, target.y - target.z + 4, big ? 200 : 170, 460, { alpha: 0.5, frames: [8, 4], loop: 60, oy: 0.86, depth: target.y - 1, fade: [[0, 1], [0.35, 0.8], [1, 0]] }); /* (the cage behind the foe and thin: he reads through it) */ else this.sheet('mfx-storm', b.x, b.y, big ? 150 : 110, 420, { frames: [12, 4], loop: 60, alpha: 0.8 }); } else this.star(b.x, b.y, big ? 160 : 100, 200, { rays: 8 });
     this.warp.ring(b.x, b.y, { r1: big ? 150 : 90, life: big ? 300 : 220, s: big ? 18 : 10, width: 18 });
     this.pool(target.x, this.floorY(target.x, target.y, target.z), big ? 220 : 150, 0x8fb4ff, 380, { alpha: 0.6 }); // the flash lights the floor under the foe (in the air: how high it is)
-    for (let k = 0; k < (big ? 2 : 1); k++) { const ang = rnd(0, Math.PI * 2), l = rnd(50, big ? 110 : 75); this.arc(b, { x: b.x + Math.cos(ang) * l, y: b.y + Math.sin(ang) * l * 0.8 }, { life: rnd(90, 160), thick: 1.3, delay: k * 14 }); }
-    this.burst(b.x, b.y, { n: big ? 14 : 9, speed: [160, 480], life: [180, 420], scale: [0.04, 0.18], tint: [0xffffff, 0x9fe4ff, 0xb9a2ff], gravity: 260 });
+    for (let k = 0; k < (big ? 1 : 0); k++) { const ang = rnd(0, Math.PI * 2), l = rnd(50, big ? 110 : 75); this.arc(b, { x: b.x + Math.cos(ang) * l, y: b.y + Math.sin(ang) * l * 0.8 }, { life: rnd(90, 160), thick: 1.3, delay: k * 14 }); }
+    this.burst(b.x, b.y, { n: big ? 10 : 6, speed: [160, 480], life: [180, 420], scale: [0.04, 0.14], tint: [0x9fe4ff, 0xb9a2ff], gravity: 260 });
     this.ctx.flash?.(0xc8d8ff, big ? 0.06 : 0.03, 80);
     this.shake(big ? 120 : 70, big ? 0.006 : 0.003);
     if (fired === last) { // the finish: a bolt out of the sky onto the foe
       this.arc({ x: b.x + rnd(-50, 50), y: b.y - 480 }, b, { life: 300, thick: 4 });
-      this.circle(target.x, this.floorY(target.x, target.y, target.z), 300, 2, 700, { draw: 90 });
-      this.gpu('nova', target.x, target.y, 420, 420 * SQUASH, 520, (u, _ms, q) => { MageFx.U(q, 'uP', out3(u)); MageFx.U(q, 'uE', u > 0.4 ? (u - 0.4) / 0.6 : 0); }, { depth: GROUND + 2 });
-      this.warp.ring(target.x, target.y, { r1: 320, life: 460, s: 32, width: 28, squash: SQUASH });
+      this.warp.ring(target.x, target.y, { r1: 260, life: 420, s: 18, width: 24, squash: SQUASH }); // (less on screen: the floor circle and the nova under him went — the sky bolt and the 3D strike carry the finish)
       this.ctx.hitStop?.(90); this.shake(220, 0.011); this.ctx.punch(0.03, 220);
     }
   }
