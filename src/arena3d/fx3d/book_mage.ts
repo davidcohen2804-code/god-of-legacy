@@ -44,5 +44,5 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // the big buff: frost and storm columns braided round her, a shell — kept below white
   elemental_ascension: { own: true, active: (f, r) => { const c = me(f, r); f.pillar(c.x, c.y, C.frost, { h: 620, r: 54, ms: 720, twist: true, i: 1.15 }); f.later(120, () => f.pillar(c.x, c.y, C.storm, { h: 540, r: 34, ms: 600, twist: true, core: false })); f.dome(c.x, c.y, C.arcane, { r: 230, ms: 440, a: 0.55 }); } },
   // the book slammed shut: a short arc of paper light, frost crystals where it lands
-  page_bind: { active: (f, r) => f.slash(me(f, r), side(r), C.paper, { r: 130, tilt: 20, a0: -40, a1: 140, ms: 240, i: 1.5 }), hit: (f, _s, _h, at, main) => { if (main) f.crystals(at.x, at.y, { n: 4, r: 40, h: 70, ms: 800 }); } },
+  page_bind: { active: (f, r) => f.slash(me(f, r), side(r), C.paper, { r: 130, tilt: 20, a0: -40, a1: 140, ms: 240, i: 1.0 }), hit: (f, _s, _h, at, main) => { if (main) f.crystals(at.x, at.y, { n: 4, r: 40, h: 70, ms: 800 }); } },
 };
