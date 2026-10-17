@@ -1252,13 +1252,13 @@ export class SamuraiFx {
     // an explosion of light where he strikes the floor: a short white flash in front, and the fire falcon's wings, rays of
     // light and a pillar of light opening BEHIND the fighters (they stay in sight, standing in it); the wave runs out along
     // the floor
-    this.pop('glint', q.x, q.y - 44, 210, { life: 180, depth: TOP + 3, angle: 0, glow: 0.7, add: true }); // (the flash: light only — no dark core over the fighters)
+    this.pop('glint', q.x, q.y - 44, 150, { life: 180, depth: TOP + 3, angle: 0, glow: 0.4, add: true }); // (the flash: light only — no dark core over the fighters; soft: PVP 3D)
     const F = (n: string) => tn(n, 'fire');
     this.spr({ name: F('sun_rays'), x: q.x, y: q.y - 50, w: 320, life: 440, add: true, depth: q.y - 3, rot: (u) => 18 * u,
-      sx: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.15]), sy: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.15]), a: kf([0, 0.9], [0.35, 0.65], [1, 0, inQ]) });
-    this.spr({ name: F('launch_beam'), x: q.x, y: q.y + 6, oy: 0.95, depth: q.y - 2.8, w: 160, h: 240, life: 320, glow: 0.4,
+      sx: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.15]), sy: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.15]), a: kf([0, 0.6], [0.35, 0.45], [1, 0, inQ]) });
+    this.spr({ name: F('launch_beam'), x: q.x, y: q.y + 6, oy: 0.95, depth: q.y - 2.8, w: 140, h: 220, life: 320, glow: 0.25,
       sx: kf([0, 0.4], [0.2, 1, out3], [1, 0.6]), sy: kf([0, 0.2], [0.18, 1, out3], [1, 1.1]), a: kf([0, 1], [0.35, 0.85], [1, 0, inQ]) });
-    this.pop(F('burst_crit'), q.x, q.y - 30, 120, { life: 220, depth: TOP + 3.2 });
+    this.pop(F('burst_crit'), q.x, q.y - 30, 96, { life: 220, depth: TOP + 3.2, glow: 0.3 });
     this.spr({ name: F('falcon_spread'), x: q.x, y: q.y + 6, oy: 0.92, depth: q.y - 3.2, w: 250, life: 460, glow: 0.4,
       sx: kf([0, 0.5], [0.25, 1.05, out3], [1, 1.15]), sy: kf([0, 0.4], [0.25, 1.05, out3], [1, 1.2]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]), my: (u) => -24 * u });
     this.shock(q.x, q.y, 300, { tone: 'fire' }); this.shock(q.x, q.y, 380, { delay: 80, tone: 'fire' });

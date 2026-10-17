@@ -86,7 +86,7 @@ export const SAMURAI: Record<string, Recipe> = {
     hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, C.steel, { r: 110, chunks: 8 }); f.host.kick(0.04); } } },
   // the falcon of fire strikes the floor: fire torn in the planks, a column of flame
   falcon_dive: { own: true,
-    fired: (f, r) => { const c = me(f, r); f.crack(c.x, c.y, C.fire, { r: 150, chunks: 10 }); f.pillar(c.x, c.y, C.fire, { h: 520, r: 34, ms: 420, core: false, i: 1.1 }); f.host.kick(0.05); } },
+    fired: (f, r) => { const c = me(f, r); f.crack(c.x, c.y, C.fire, { r: 150, chunks: 10 }); f.pillar(c.x, c.y, C.fire, { h: 480, r: 24, ms: 400, core: false, i: 0.7 }); f.host.kick(0.05); } }, // (the falcon is the show: a thin column)
   // the sun's shield held round him through the wind-up; the sun bursts: a column of gold, the light thrown out
   rising_sun: { own: true,
     cast: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, C.sun, { r: 130, ms: T(r).startup + 120, a: 0.32, hold: 1, follow: () => f.host.casterPos(r.attackerId) }); },
