@@ -54,6 +54,14 @@ const CUTIN_ANIM: Record<string, { path: string; fw: number; fh: number; frames:
   time_collapse: { path: 'book_mage/time_collapse/cutin_anim.jpg', fw: 600, fh: 200, frames: 18, fps: 24 }, // (book mage: his eyes flare, runes gather into an orb in the outstretched hand, pages rush past)
 };
 const cutAnimKey = (id: string): string => `cutin-anim-${id}`;
+/** The ultimate's portrait (David's reference, 18:23 — Prometheus: Ring of Fire): the hero's VS splash (heroes/<cls>/vs.webp)
+ *  slides in full height from the side, a star glint on its weapon, held through the wind-up while the fight goes on beside
+ *  it, then cut away at once (the 3:1 banners above stay for a revert: set false). */
+const ULT_PORTRAIT = true;
+/** Where the glint sits on each splash (fractions of its width / height), below the top of the screen (the HUD): the
+ *  warrior's blade, the samurai's blade, the archer's arrowhead, the book's light, the gambler's cards. */
+const ULT_GLINT: Record<string, [number, number]> = { warrior: [0.79, 0.27], samurai: [0.8, 0.29], archer: [0.965, 0.265], book_mage: [0.19, 0.27], gambler: [0.83, 0.16] };
+const ultPortraitKey = (cls: string): string => `ult-portrait-${cls}`;
 /** Orientation of each final VFX sheet: 'dir' sheets are drawn pointing right and rotate with the aim. */
 /** Upright sheets whose bottom edge is the ground line (drawn standing on the impact point). */
 /** Ground-point origin (fraction of the cell height) for sheets drawn standing on the impact point. */
@@ -154,6 +162,7 @@ const CHARGE: Record<string, [number, number, number]> = {
 /** Skill effects of the given classes (all classes when omitted: the PvP arena can hold any class); shared sheets always. */
 export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[]): void {
   const want = (cls: string) => !classes || classes.includes(cls);
+  if (ULT_PORTRAIT) for (const cls of Object.keys(ULT_GLINT)) if (want(cls) && !scene.textures.exists(ultPortraitKey(cls))) scene.load.image(ultPortraitKey(cls), `${F}/heroes/${cls}/vs.webp`); // (the ultimate's portrait)
   const L = (k: string, p: string, w: number, h = w) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: w, frameHeight: h }); };
   // (templates — wip skills — have no art loaded yet)
   for (const s of FINAL_SKILLS) { if (VFX_ALIAS[s.id] || s.wip || s.cls === 'samurai' || s.cls === 'book_mage' || s.cls === 'gambler' || !want(s.cls)) continue; const big = isBig(s) ? 384 : 256, c = VFX_CELL[s.id]; L(vfxKey(s.id), `${F}/skills/${s.cls}/${s.id}/vfx.png`, c?.[0] ?? big, c?.[1] ?? big); } // (the samurai: pieces, SamuraiFx)
@@ -373,6 +382,7 @@ export class SkillFx {
     if (s.cls === 'gambler') { // the gambler: drawn in code (GamblerFx)
       if (s.telegraph && s.slot !== 7 && s.id !== 'dice_bomb' && s.id !== 'roulette_wheel') this.telegraph(r); // the dice and the wheel mark their own ground (GamblerFx)
       this.gamb.cast(r);
+      if (s.slot === 7 && ULT_PORTRAIT && this.scene.textures.exists(ultPortraitKey('gambler'))) { const out = this.cutOut(r); this.ultPortrait(r, ultPortraitKey('gambler'), out); this.impact.quietUntil = Math.max(this.impact.quietUntil, this.scene.time.now + out + 160); } // (his own darkening and staging stay GamblerFx's; the portrait is the five's)
       return;
     }
     if (ARCHER_OWN.has(s.id)) { // archer skills with their own art timeline
@@ -1113,9 +1123,12 @@ export class SkillFx {
     const arch = r.skill.cls === 'archer';
     this.darkLeft = arch ? r.timings.startup + 260 : r.timings.startup + r.timings.active + 160; // archer: the dark lifts as the rain lands (the storm is seen in full colour)
     this.scene.tweens.add({ targets: this.dark, fillAlpha: 0.55, duration: Math.min(220, r.timings.startup) });
-    // Anime cut-in: the roaring hero slides across the screen during the wind-up (MapleStory 5th-job style).
-    const cutKey = CUTIN[r.skill.id];
-    if (cutKey && this.scene.textures.exists(cutKey)) {
+    // The cut-in. David's reference (18:23): the hero's portrait full height from the side with a star glint, the fight
+    // going on beside it — else the 3:1 painted banner across the screen (MapleStory 5th-job style).
+    const cutKey = CUTIN[r.skill.id], portrait = ultPortraitKey(r.skill.cls);
+    const out = this.cutOut(r);
+    if (ULT_PORTRAIT && this.scene.textures.exists(portrait)) { this.ultPortrait(r, portrait, out); this.impact.quietUntil = this.scene.time.now + out + 160; }
+    else if (cutKey && this.scene.textures.exists(cutKey)) {
       const v = cam.worldView, w = v.width * 0.9, cy = v.y + v.height * 0.42;
       const anim = CUTIN_ANIM[r.skill.id], ak = cutAnimKey(r.skill.id), animated = !!anim && this.scene.textures.exists(ak);
       const img = this.scene.add.image(v.x - w / 2, cy, animated ? ak : cutKey, animated ? 0 : undefined).setDepth(TOP + 50); // slides in from the left
@@ -1125,16 +1138,16 @@ export class SkillFx {
       }
       const band = this.scene.add.rectangle(v.centerX, cy, v.width, w / 3 + 16, 0x000000, 0.55).setDepth(TOP + 49).setScale(1, 0);
       this.scene.tweens.add({ targets: band, scaleY: 1, duration: 120, ease: 'Cubic.easeOut' });
-      const out = r.timings.startup < 700 ? Math.max(320, r.timings.startup - 80) : r.skill.cls === 'samurai' ? Math.max(600, r.timings.startup - 300) : r.skill.id === 'titans_verdict' ? Math.max(420, Math.round(r.timings.startup * 0.51)) : Math.min(1100, r.timings.startup - 80); // (a fast arena ultimate: gone before its first hit; any other: gone before its first blow lands) // (Titan: paced to its short wind-up) // (samurai: gone before the eight cuts out of the dark)
       this.impact.quietUntil = this.scene.time.now + out + 240; // (the portrait stays clean: no bent air or colour split over the cut-in)
       this.scene.tweens.add({ targets: img, x: v.centerX - w * 0.04, duration: 300, ease: 'Cubic.easeOut' });
       this.scene.tweens.add({ targets: img, x: v.centerX + w * 0.03, delay: 300, duration: out - 300 }); // slow drift while holding (a real beat)
       this.scene.tweens.add({ targets: img, x: v.right + w / 2, alpha: 0, delay: out, duration: 200, ease: 'Cubic.easeIn', onComplete: () => img.destroy() });
       this.scene.tweens.add({ targets: band, scaleY: 0, delay: out + 20, duration: 160, onComplete: () => band.destroy() });
-      if (r.skill.id === 'sky_rain' && this.scene.textures.exists('afx-eagle2')) { // a great spirit eagle sweeps across the cut-in
-        const ew = v.width * 0.55, eg = this.scene.add.image(v.x - ew, cy - w / 3 * 0.35, 'afx-eagle2', 0).setDepth(TOP + 51).setDisplaySize(ew, ew / 2);
-        let et = 0; const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { et += 16; const k = et / 1150; if (k >= 1 || !eg.active) { ev.remove(); eg.destroy(); return; } eg.setFrame(Math.floor(et / 60) % 8).setPosition(v.x - ew + (v.width + ew * 2) * k, cy - w / 3 * 0.35 + Math.sin(k * Math.PI) * 40).setAlpha(k > 0.85 ? (1 - k) / 0.15 : 1); } });
-      }
+    }
+    if (r.skill.id === 'sky_rain' && this.scene.textures.exists('afx-eagle2')) { // a great spirit eagle sweeps across the screen in the wind-up
+      const v = cam.worldView, w = v.width * 0.9, cy = v.y + v.height * 0.42;
+      const ew = v.width * 0.55, eg = this.scene.add.image(v.x - ew, cy - w / 3 * 0.35, 'afx-eagle2', 0).setDepth(TOP + 51).setDisplaySize(ew, ew / 2);
+      let et = 0; const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { et += 16; const k = et / 1150; if (k >= 1 || !eg.active) { ev.remove(); eg.destroy(); return; } eg.setFrame(Math.floor(et / 60) % 8).setPosition(v.x - ew + (v.width + ew * 2) * k, cy - w / 3 * 0.35 + Math.sin(k * Math.PI) * 40).setAlpha(k > 0.85 ? (1 - k) / 0.15 : 1); } });
     }
     // Cinematic cut-in (screen space): two golden slash bars cross the screen, then a white flash at the impact.
     const W = cam.width, H = cam.height;
@@ -1167,6 +1180,58 @@ export class SkillFx {
       }
       cam.shake(420, 0.014);
     });
+  }
+
+  /** How long an ultimate's cut-in holds (ms): gone before its first blow lands. */
+  private cutOut(r: CastRun): number {
+    const T = r.timings.startup;
+    return T < 700 ? Math.max(320, T - 80) : r.skill.cls === 'samurai' ? Math.max(600, T - 300) : r.skill.id === 'titans_verdict' ? Math.max(420, Math.round(T * 0.51)) : Math.min(1100, T - 80);
+  }
+  /** The ultimate's portrait (David's reference, Prometheus: Ring of Fire): the hero's VS splash full height, sliding in
+   *  from the side away from where he stands (facing right he stands on the fight's left: his portrait comes in on the
+   *  right, mirrored to face in), a star glint on his weapon; held `out` ms with a slow drift while the wind-up plays
+   *  beside it, then cut away at once. Screen space: it never covers the middle of the fight. */
+  private ultPortrait(r: CastRun, key: string, out: number): void {
+    const cam = this.cam ?? this.scene.cameras.main, W = cam.width, H = cam.height, z = cam.zoom || 1;
+    const src = this.scene.textures.get(key).getSourceImage() as { width: number; height: number };
+    const dh = H * 1.3, dw = (dh * src.width) / src.height, right = r.aim.x > 0;
+    const S = (X: number, Y: number) => ({ x: W / 2 + (X - W / 2) / z, y: H / 2 + (Y - H / 2) / z }); // (a screen point under the camera's zoom)
+    const y0 = -dh * 0.06, xIn = right ? W - dw * 0.9 : -dw * 0.1, xFrom = right ? W + 10 : -dw - 10, drift = (right ? -1 : 1) * W * 0.02;
+    const img = this.scene.add.image(0, 0, key).setOrigin(0, 0).setScrollFactor(0).setDepth(TOP + 50).setFlipX(right).setDisplaySize(dw / z, dh / z);
+    const g = ULT_GLINT[r.skill.cls] ?? [0.5, 0.2], gx = (right ? 1 - g[0] : g[0]) * dw, gy = g[1] * dh, gs = (H * 0.42) / 256;
+    const glint = this.scene.add.image(0, 0, this.glintTex()).setScrollFactor(0).setDepth(TOP + 51).setBlendMode(Phaser.BlendModes.ADD).setScale(0);
+    let t = 0;
+    const place = () => {
+      const k = Math.min(1, t / 130), e = 1 - Math.pow(1 - k, 3), X = xFrom + (xIn - xFrom) * e + drift * Math.max(0, (t - 130) / Math.max(1, out - 130));
+      const p = S(X, y0), q = S(X + gx, y0 + gy); img.setPosition(p.x, p.y); glint.setPosition(q.x, q.y);
+      const gk = Math.max(0, Math.min(1, (t - 90) / 110)); // (the glint opens as the portrait settles, then breathes)
+      glint.setScale((gk * gs * (0.92 + 0.1 * Math.sin(t / 42))) / z).setAngle(t * 0.012);
+    };
+    place();
+    const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
+      t += 16;
+      if (!img.active) { ev.remove(); glint.destroy(); return; }
+      if (t >= out) { ev.remove(); img.destroy(); glint.destroy(); return; } // (cut away in a frame, as the reference does)
+      place();
+    } });
+  }
+  /** A four-point star (long across, shorter up and down, small diagonals) round a soft white core: the portrait's glint. */
+  private glintTex(): string {
+    const k = 'ult-glint';
+    if (this.scene.textures.exists(k)) return k;
+    const N = 256, c = this.scene.textures.createCanvas(k, N, N)!, g = c.getContext(), m = N / 2;
+    const core = g.createRadialGradient(m, m, 0, m, m, N * 0.26); core.addColorStop(0, 'rgba(255,255,255,1)'); core.addColorStop(0.22, 'rgba(255,253,245,0.85)'); core.addColorStop(0.55, 'rgba(255,248,230,0.3)'); core.addColorStop(1, 'rgba(255,245,225,0)');
+    g.fillStyle = core; g.fillRect(0, 0, N, N);
+    g.fillStyle = 'rgba(255,255,255,1)'; g.shadowColor = 'rgba(255,255,255,1)'; g.shadowBlur = 10; // (the rays glow)
+    const ray = (dx: number, dy: number, len: number, w: number) => { g.beginPath(); g.moveTo(m - dy * w, m + dx * w); g.lineTo(m + dx * len, m + dy * len); g.lineTo(m + dy * w, m - dx * w); g.closePath(); g.fill(); };
+    for (let pass = 0; pass < 2; pass++) { ray(1, 0, m - 4, 6); ray(-1, 0, m - 4, 6); ray(0, 1, m * 0.74, 5); ray(0, -1, m * 0.74, 5); }
+    const d = Math.SQRT1_2; ray(d, d, m * 0.3, 2.2); ray(-d, -d, m * 0.3, 2.2); ray(d, -d, m * 0.3, 2.2); ray(-d, d, m * 0.3, 2.2);
+    g.shadowBlur = 0;
+    g.globalCompositeOperation = 'destination-in'; // (the rays fade toward their tips)
+    const fade = g.createRadialGradient(m, m, 0, m, m, m); fade.addColorStop(0, 'rgba(0,0,0,1)'); fade.addColorStop(0.5, 'rgba(0,0,0,0.85)'); fade.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = fade; g.fillRect(0, 0, N, N); g.globalCompositeOperation = 'source-over';
+    c.refresh();
+    return k;
   }
 
   // ------------------------------------------------------------------ hit-timed visuals
