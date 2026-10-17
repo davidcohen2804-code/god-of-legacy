@@ -51,6 +51,9 @@ interface Spr {
 interface Live { t: number; step(dt: number, t: number): boolean }
 interface Arrow { im: Phaser.GameObjects.Image; tr: Phaser.GameObjects.Image | null; t: number; kind: string; z0: number; whip?: Phaser.GameObjects.Image }
 
+/** Hit sparks in the skill's family colour (DFO's families): FIRE — Fireball Arrow only; SUN — Sky Rain, Hunter's Rain. The rest keep the green WIND star. */
+const HIT_FAMILY: Record<string, number> = { explosive_arrow: 0xffa040, arrow_storm: 0xffe27a, sky_rain: 0xffe27a };
+
 export class ArcherFx {
   private live: Live[] = [];
   private incoming: Live[] = [];
@@ -150,9 +153,10 @@ export class ArcherFx {
   }
   /** One of the class hit sparks (row of the 'afx-hits' sheet: 0 normal, 1 heavy, 2 counter, 3 launch), 5 frames, additive:
    *  a white-hot point → the sharp impact frame (held longest) → the burst → shards and leaves → sparkles. */
-  private hitSpark(row: number, x: number, y: number, size: number, oy: number, depth: number): void {
+  private hitSpark(row: number, x: number, y: number, size: number, oy: number, depth: number, tint?: number): void {
     const sc = this.ctx.scene, fms = row === 0 ? [24, 50, 50, 60, 70] : [30, 70, 60, 70, 90];
     const im = sc.add.image(x, y, 'afx-hits', row * 5).setOrigin(0.5, oy).setDisplaySize(size, size).setDepth(depth).setAngle(row === 3 ? 0 : rnd(-12, 12));
+    if (tint !== undefined) im.setTint(tint); // the skill's family colour (FIRE orange, SUN gold) over the green star
     let acc = 0, i = 0;
     this.add({ t: 0, step: (dt) => {
       acc += dt;
@@ -212,7 +216,7 @@ export class ArcherFx {
         break;
       case 'bow_haste': { // Wind Step: a whirlwind bursts where she stood and hurls her back; wind streams along the leap; she looses an arrow mid-air
         this.spr({ name: 'tornado', x: me.x, y: me.y + 6, oy: 0.96, depth: me.y + 2, w: 120, life: 560, glow: 0.3, run: r, sy: kf([0, 0.3], [0.25, 1.05, out3], [1, 1.1]), sx: kf([0, 0.6], [0.25, 1, out3], [1, 1.3]), a: kf([0, 0.9], [0.6, 0.8], [1, 0, inQ]) });
-        this.floor('wind_ring', me.x, me.y, 150, 560, { add: true, glow: 0.4, run: r, s: kf([0, 0.5], [0.4, 1.3, out3]), a: kf([0, 0.95], [1, 0, inQ]) });
+        this.floor('wind_puff', me.x, me.y, 150, 560, { add: true, glow: 0.4, run: r, s: kf([0, 0.5], [0.4, 1.3, out3]), a: kf([0, 0.95], [1, 0, inQ]) });
         this.spr({ name: 'dust', x: me.x, y: me.y + 4, oy: 0.85, depth: me.y + 1, w: 140, life: 520, sx: kf([0, 0.6], [1, 1.4, out3]), a: kf([0, 0.8], [1, 0, inQ]) });
         for (let k = 0; k < 4; k++) this.spr({ name: 'wind_streaks', w: 130, life: 260, delay: 40 + k * 60, follow: this.at(r.attackerId, side, 30, 50 - k * 6), dz: 2, flipX: side > 0, add: true, run: r, mx: (u) => side * 40 * u, a: kf([0, 0], [0.2, 0.9], [1, 0]) });
         this.leaves(me.x, me.y - 20, 10, 40, { dir: -side, up: 70 });
@@ -243,7 +247,7 @@ export class ArcherFx {
           this.spr({ name: 'rise_arrow', x: bx, y: by + 8, oy: 0.97, depth: by + 4, w: 150, glow: 0.3, life: 460, my: (u) => -120 * out3(Math.max(0, u - 0.3) / 0.7), sy: kf([0, 0.2], [0.25, 1.1, out3], [1, 1]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) }); // the arrow itself bursts up out of the earth
           this.spr({ name: 'dust', x: bx, y: by + 4, oy: 0.85, depth: by + 1, w: 150, life: 600, sx: kf([0, 0.5], [1, 1.4, out3]), a: kf([0, 0.85], [1, 0, inQ]) });
           this.pop('leaf_spray', bx, by - 40, 120, { angle: -90, life: 380 });
-          this.floor('shock_ring', bx, by, 160, 420, { add: true, s: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 1], [1, 0, inQ]) });
+          this.floor('floor_swirl', bx, by, 160, 420, { add: true, s: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 1], [1, 0, inQ]) });
           this.leaves(bx, by - 20, 10, 40, { up: 140 });
           this.shake(r, 140, 0.004);
         }, r);
@@ -303,7 +307,7 @@ export class ArcherFx {
       case 'spirit_hawk': this.hawkCall(r); break;
       case 'tree_of_life': this.tree(r); break;
       case 'backstep_shot': { // a back flip out of reach, leaves trailing; at its top one arrow at the foe
-        this.floor('wind_ring', me.x, me.y, 120, 420, { add: true, glow: 0.3, run: r, s: kf([0, 0.4], [0.4, 1.2, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+        this.floor('haste_ring', me.x, me.y, 120, 420, { add: true, glow: 0.3, run: r, s: kf([0, 0.4], [0.4, 1.2, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
         this.spr({ name: 'dust', x: me.x, y: me.y + 4, oy: 0.85, depth: me.y + 1, w: 120, life: 420, sx: kf([0, 0.6], [1, 1.3, out3]), a: kf([0, 0.7], [1, 0, inQ]) });
         for (let k = 0; k < 5; k++) this.later(T.startup + k * 45, () => { const q = this.me(r); this.leaves(q.x - side * 10, q.y - q.z - 40, 2, 16, { dir: -side, life: 600 }); }, r);
         this.spr({ name: 'wind_crescent', w: 120, follow: this.at(r.attackerId, 0, 0, 50), dz: -1, angle: side * 30, flipX: side < 0, add: true, life: 300, delay: T.startup, run: r, a: kf([0, 0], [0.2, 0.8], [1, 0]) });
@@ -476,7 +480,7 @@ export class ArcherFx {
     const tree = im = this.spr({ name: 'tree_4', x: tx, y: ty + 8, oy: 0.97, depth: ty - 1, w: 470, delay: grow * 0.78, life: grow * 0.22 + life, add: false, glow: 0.25,
       sy: kf([0, 0.75], [0.03, 1.04, out3], [0.05, 1]), sx: kf([0, 0.8], [0.03, 1, out3]), a: (u) => base(u) * ((im?.getData('fade') as number | undefined) ?? 1) }); // (see-through when someone stands behind it)
     if (tree) { this.trees.add(tree); tree.once('destroy', () => this.trees.delete(tree)); }
-    this.later(T.startup, () => { this.floor('shock_ring', tx, ty, 200, 500, { add: true, s: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 1], [1, 0]) }); this.pop('sparkles', tx, ty - 200, 220, { life: 900 }); this.leaves(tx, ty - 260, 16, 140, { life: 1600, up: -40 }); });
+    this.later(T.startup, () => { this.floor('bloom', tx, ty, 200, 500, { add: true, s: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 1], [1, 0]) }); this.pop('sparkles', tx, ty - 200, 220, { life: 900 }); this.leaves(tx, ty - 260, 16, 140, { life: 1600, up: -40 }); });
     for (let k = 1; k < 10; k++) this.later(T.startup + k * 2000, () => this.leaves(tx, ty - 280, 3, 150, { life: 1800, up: -30 })); // a leaf drifts down now and then
     this.later(T.startup + life - 900, () => this.leaves(tx, ty - 260, 30, 160, { life: 1600, up: -60 }));
   }
@@ -523,7 +527,7 @@ export class ArcherFx {
         const dx = rnd(-14, 14);
         this.spr({ name: 'arrow_wind', x: q.x + side * 46 + dx, y: q.y - q.z - 118, depth: TOP + 2, w: 70, angle: (side > 0 ? -58 : -122) + rnd(-6, 6), add: true, glow: 0.3, life: 360, delay: k * 35, my: (u) => -420 * out(u), mx: (u) => side * 270 * out(u) + dx * u, a: kf([0, 1], [0.7, 1], [1, 0]) }); // along her bow, raised up and forward
       }
-      this.floor('shock_ring', q.x, q.y, 120, 360, { add: true, s: kf([0, 0.4], [1, 1.2, out3]), a: kf([0, 1], [1, 0]) });
+      this.floor('arrow_halo', q.x, q.y, 120, 360, { add: true, s: kf([0, 0.4], [1, 1.2, out3]), a: kf([0, 1], [1, 0]) });
     }, r);
     // on her while the rain lasts: the rune circle with arrows streaming up
     this.spr({ name: 'rain_ring', w: 110, oy: 0.88, follow: this.at(r.attackerId, 0, 0, -6), dz: -1, life: T.startup + T.active, add: true, glow: 0.25, run: r,
@@ -614,7 +618,7 @@ export class ArcherFx {
     if (to.z > 20) { // a foe up in the air: talons rake him and slam him down onto the floor (he bounces back up)
       this.later(170, () => this.spr({ name: 'talon_slash', x: to.x, y: to.y - to.z - 40, depth: to.y + 5, w: 150, life: 220, add: true, glow: 0.3, sy: kf([0, 0.4], [0.3, 1.05, out3]), a: kf([0, 1], [1, 0, inQ]) }));
       this.later(330, () => { this.spr({ name: 'slam_burst', x: to.x, y: to.y + 8, oy: 0.97, depth: to.y + 4, w: 220, life: 460, glow: 0.3, sy: kf([0, 0.3], [0.25, 1.05, out3]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
-        this.floor('crater', to.x, to.y, 200, 1200, { a: kf([0, 0], [0.04, 1], [0.6, 0.85], [1, 0]) }); this.floor('shock_ring', to.x, to.y, 220, 380, { add: true, s: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 1], [1, 0]) }); this.ctx.cam().shake(140, 0.005); });
+        this.floor('crater', to.x, to.y, 200, 1200, { a: kf([0, 0], [0.04, 1], [0.6, 0.85], [1, 0]) }); this.floor('power_flash', to.x, to.y, 220, 380, { add: true, s: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 1], [1, 0]) }); this.ctx.cam().shake(140, 0.005); });
     }
   }
   private stepHawks(ms: number): void {
@@ -770,9 +774,10 @@ export class ArcherFx {
       if (volleyLead || (heavy && !rapid)) this.bigSpark.set(s.id, now);
       const kind = counter ? 2 : launch ? 3 : (heavy && !rapid) || volleyLead ? 1 : 0;
       const size = [rapid ? 84 : 112, volleyLead ? 170 : 196, 210, 190][kind];
-      if (kind === 3) this.hitSpark(3, x, at.y - at.z + 6, size, 0.9, at.y + 3); // the column climbs from the foe's feet
-      else this.hitSpark(kind, x + rnd(-6, 6), y + rnd(-6, 6), size, 0.5, TOP + 4);
-      if (kind === 3 && !rapid) this.hitSpark(0, x, y, 100, 0.5, TOP + 4);
+      const fam = HIT_FAMILY[s.id];
+      if (kind === 3) this.hitSpark(3, x, at.y - at.z + 6, size, 0.9, at.y + 3, fam); // the column climbs from the foe's feet
+      else this.hitSpark(kind, x + rnd(-6, 6), y + rnd(-6, 6), size, 0.5, TOP + 4, kind === 2 ? undefined : fam);
+      if (kind === 3 && !rapid) this.hitSpark(0, x, y, 100, 0.5, TOP + 4, fam);
       if (crit) this.pop('burst_crit', x, y, rapid ? 90 : 120, { life: 260 });
       if (!rapid && Math.random() < 0.6) this.leaves(x, y, kind ? 5 : 3, 14, { life: 420, up: 30 });
     } else {

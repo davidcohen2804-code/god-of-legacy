@@ -657,7 +657,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
   },
   archer: {
     quick_shot: { act: 'double_shot', st: [0, 1], ac: [2, 3, 4, 5], rc: [5] },
-    'quick_shot#1': { act: 'piercing_arrow', st: [1, 2], ac: [5], rc: [5, 6] }, // the charged third arrow: the low lunge's draw and snap
+    'quick_shot#1': { act: 'charged_shot', st: [0, 1, 2, 3], ac: [4], rc: [5, 6] }, // Double Shot's charged arrow, its own move (PixVerse): the bow raised overhead as she draws, swung down into a deep lunge, the heavy release, recover
     rising_arrow: { act: 'rising_arrow', st: [0, 1, 2], ac: [3], rc: [4, 5] },
     bow_haste: { act: 'wind_step', st: [0], ac: [1, 2, 3], rc: [4, 5] }, // Wind Step, her own move (PixVerse): crouch, the somersault through the air, lands with the bow up
     backstep_shot: { act: 'backstep_shot', st: [0], ac: [1, 2, 3, 4, 5], rc: [6, 7] }, // her own move (PixVerse): crouch, the tight back flip out of reach (the arrow leaves at its top), lands crouched with the bow still up, rises
