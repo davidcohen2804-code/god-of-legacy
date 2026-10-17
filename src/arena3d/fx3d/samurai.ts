@@ -25,7 +25,7 @@ export const SAMURAI: Record<string, Recipe> = {
   // backhand flat round him at the shoulder, the cross cut down and back up, the rising cut upright — white-hot at its
   // leading edge, its body a hot rose that reads on the red planks, an ink stroke inside, turning to ink as it goes;
   // 150–220 ms; the rising cut that launches: a white-hot line up through the foe)
-  quick_slash: { own: true, tone: SAM.light,
+  quick_slash: { own: true, tone: SAM.rose, // (the room's main hit takes this colour: in the pale light its burst stood as a white bubble over the foe)
     active: (f, r) => {
       const st = r.stage % 4, big = st === 3, d = side(r), on = () => f.host.casterPos(r.attackerId), c = me(f, r);
       const P = [
@@ -87,14 +87,14 @@ export const SAMURAI: Record<string, Recipe> = {
   // the dark are long thin lines crossing the foe, each there at once and held by its hit-stop — they cross into a star of
   // cuts; the colossal cut is the painted dragon's and the sun's breaking (the crescent is the Iai's alone), its blow the
   // room's main hit
-  dragon_eclipse: { own: true, tone: SAM.light,
+  dragon_eclipse: { own: true, tone: SAM.rose,
     active: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, 0x3a0a1a, { r: 420, ms: 900, a: 0.4 }); }, // (lighter: in the dark the fighters were not readable — DFO)
     hit: (f, _s, _h, at, main) => {
       if (!main) flurry(f, () => at, { ms: 1, len: 540, w: 14, front: true, draw: 0 }); } }, // (one cut a hit, there at once: the hit-stops hold them — eight lines crossing into a star; the great cut's blow is the room's main hit — no cracks of its own on top)
   // (David's bar: the main launcher, one shape — a swallow's tail, Λ) the rising cut: one upright ribbon ring swept up
   // from the planks through the foe (a hot rose body, white-hot edge, ink inside); the launch: a white-hot line up through
   // him; the second cut: a ring swept back down through him in the air. Its painted trail and marks stay out in PVP 3D.
-  swallow_cut: { own: true, tone: SAM.light,
+  swallow_cut: { own: true, tone: SAM.rose,
     active: (f, r) => { swallowDir = side(r);
       ring(f, me(f, r), side(r), { r: 128, w: 52, y0: 92, fwd: 26, tilt: 84, yaw: 30, a0: 178, a1: -12, ms: 220, lit: SAM.rose, gain: 1.3, follow: () => f.host.casterPos(r.attackerId) }); },
     hit: (f, _s, _h, at, main, react) => {
