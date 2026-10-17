@@ -82,7 +82,7 @@ export const GAMBLER: Record<string, Recipe> = {
   // the jackpot: a gold tower of light, then the crater (kept under a white-out: the fighters read through it)
   jackpot: { own: true, active: (f, r) => { const p = placeOf(f, r, 220); f.pillar(p.x, p.y, C.coin, { h: 900, r: 60, ms: 900, twist: true, i: 1.4 }); f.later(140, () => { f.dome(p.x, p.y, C.fuchsia, { r: 300, ms: 600, a: 0.35 }); f.crack(p.x, p.y, C.fuchsia, { r: 240, chunks: 26, up: 1.4 }); f.host.impact({ x: p.x, y: p.y, z: 60 }, 2); f.host.kick(0.08); }); } },
   // All In: every stuck card goes off — a crater and a gold column out of it
-  all_in: { own: true, hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, C.fuchsia, { r: 160, chunks: 18 }); f.pillar(at.x, at.y, C.coin, { h: 600, r: 46, ms: 520 }); } } },
+  all_in: { own: true, hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, C.fuchsia, { r: 150, chunks: 18 }); f.pillar(at.x, at.y, C.coin, { h: 600, r: 32, ms: 480, i: 1.4, core: false }); } } },
   // Triple Down: three slams — the cracks grow with each, the third the widest
   triple_down: { own: true, hit: (f, _s, _h, at, main, react) => { if (main || react === 'slam' || react === 'knockdown') f.crack(at.x, at.y, C.fuchsia, { r: main ? 150 : 95, chunks: main ? 16 : 7 }); } },
 };
