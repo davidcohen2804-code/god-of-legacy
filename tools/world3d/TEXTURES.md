@@ -11,6 +11,11 @@ Prompt frame (English, for GPT): *"Seamless tileable texture, 1024x1024, top-dow
 vignette, painted fantasy game style, warm colours, high detail: {description}. The texture must tile perfectly on all
 four edges."* Check the tile by placing four copies in a 2 × 2 grid before saving.
 
+**Wired first (the builders read these through `Tiles.pair`; the rest are drawn procedurally until a builder reads them):**
+`island/sandstone_paving`, `island/sandstone_wall` · `twilight/stone_violet` (paving and wall), `twilight/moss` · `den/earth_packed`,
+`den/root_bark`, `den/coin_heap` · `sakura/moss_stone_steps` (paving), `sakura/fox_stone` (wall) · `ironhold/red_ashlar` (paving),
+`ironhold/crag_red_strata` (wall). Paint these eleven at 19:00 first; each lands in the game with no code change.
+
 ## Kit A — the island (`island/`)
 | name | description | normal |
 |---|---|---|
