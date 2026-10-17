@@ -56,7 +56,10 @@ export const SIG_SFX = {
   book_mage: {
     bm_bolt_c1: [1, 0.23], bm_bolt_c2: [1, 0.24], bm_lance_c: [1, 0.52], bm_bolt_h: [2, 0.26], bm_lance_h: [1, 0.6], bm_wave_c: [1, 0.22],
     bm_wave_h: [1, 0.41], bm_astral_c: [1, 0.25], bm_astral_h: [1, 0.68], bm_chain_c: [1, 1.0], bm_chain_h: [1, 0.55], bm_spikes_c: [1, 0.51],
-    bm_spikes_h: [1, 0.82], bm_field_c: [1, 0.89], bm_field_h: [1, 0.52], bm_time_w: [1, 0.41], bm_time_c: [1, 0.38], bm_time_h: [1, 0.55]
+    bm_spikes_h: [1, 0.82], bm_field_c: [1, 0.89], bm_field_h: [1, 0.52], bm_time_w: [1, 0.41], bm_time_c: [1, 0.38], bm_time_h: [1, 0.55],
+    bm_rune_c: [1, 0.34], bm_rune_h: [1, 0.63], bm_nova_c: [1, 0.4], bm_nova_h: [1, 0.88], bm_blink_c: [1, 0.3], bm_blink_z: [1, 0.73],
+    bm_levity_c: [1, 0.43], bm_levity_h: [1, 0.61], bm_crane_c: [1, 0.36], bm_crane_h: [1, 0.6], bm_ward_c: [1, 0.32], bm_curse_c: [1, 0.5],
+    bm_curse_z: [1, 0.5], bm_elem_w: [1, 0.39], bm_elem_c: [1, 0.44], bm_elem_h: [1, 0.71], bm_slam_c: [1, 0.59], bm_slam_h: [1, 0.85]
   },
   gambler: {
     gb_deck_1: [1, 0.56], gb_deck_2: [1, 0.54], gb_deck_3: [1, 0.58], gb_deck_4: [1, 0.33], gb_staff_hit: [2, 0.58], gb_deck_fin: [1, 0.34],

@@ -59,8 +59,8 @@ const BUFFS: Record<string, SfxName> = {
  *  one's wind-up; `windLead` ms into it is the strike), `cast` its swing / shot / spell (a basic chain: one per stage;
  *  `lead` ms into it lands on the strike — started early, or partway in when the startup is short; none: at the strike),
  *  `hit` its first main hit (under the boom), `end` its last main hit, `blow` its other blows (a burst's small ones stay
- *  the class's soft ticks). */
-interface Sig { wind?: SfxName; windLead?: number; cast?: SfxName | readonly SfxName[]; lead?: number | readonly number[]; hit?: SfxName; end?: SfxName; blow?: SfxName; blowVol?: number }
+ *  the class's soft ticks), `zero` a blow that does no damage but means something (a curse, a bind, a stun). */
+interface Sig { wind?: SfxName; windLead?: number; cast?: SfxName | readonly SfxName[]; lead?: number | readonly number[]; hit?: SfxName; end?: SfxName; blow?: SfxName; blowVol?: number; zero?: SfxName }
 const SIG: Record<string, Sig> = {
   // warrior: a greatsword's weight, holy gold light, the storm, the titan
   warrior_basic: { cast: ['wr_iron_1', 'wr_iron_2', 'wr_iron_3', 'wr_iron_4'], lead: [153, 150, 135, 275], blow: 'wr_iron_hit', hit: 'wr_iron_fin' },
@@ -103,6 +103,15 @@ const SIG: Record<string, Sig> = {
   glacial_spikes: { cast: 'bm_spikes_c', hit: 'bm_spikes_h', blow: 'bm_spikes_h' }, // (a single blow: its sound whatever the frost makes of it)
   storm_field: { cast: 'bm_field_c', hit: 'bm_field_h' },
   time_collapse: { wind: 'bm_time_w', windLead: 900, cast: 'bm_time_c', hit: 'bm_time_h' },
+  binding_rune: { cast: 'bm_rune_c', hit: 'bm_rune_h', blow: 'bm_rune_h', zero: 'bm_rune_h' },
+  frost_nova: { cast: 'bm_nova_c', hit: 'bm_nova_h', blow: 'bm_nova_h', zero: 'bm_nova_h' },
+  blink: { cast: 'bm_blink_c', blow: 'bm_blink_z', zero: 'bm_blink_z' },
+  levity_field: { cast: 'bm_levity_c', hit: 'bm_levity_h', blow: 'bm_levity_h', zero: 'bm_levity_h' },
+  origami_flock: { cast: 'bm_crane_c', hit: 'bm_crane_h', blow: 'bm_crane_h' },
+  arcane_ward: { cast: 'bm_ward_c' },
+  paper_curse: { cast: 'bm_curse_c', blow: 'bm_curse_z', zero: 'bm_curse_z' },
+  elemental_ascension: { wind: 'bm_elem_w', windLead: 600, cast: 'bm_elem_c', hit: 'bm_elem_h', blow: 'bm_elem_h' },
+  page_bind: { cast: 'bm_slam_c', lead: 120, hit: 'bm_slam_h', blow: 'bm_slam_h' },
   // gambler: the staff, the cards, the casino
   cut_the_deck: { cast: ['gb_deck_1', 'gb_deck_2', 'gb_deck_3', 'gb_deck_4'], lead: [49, 88, 0, 112], blow: 'gb_staff_hit', hit: 'gb_deck_fin' },
   charged_deal: { wind: 'gb_deal_w', cast: 'gb_deal_c', blow: 'gb_deal_h' },
@@ -225,7 +234,7 @@ export class ArenaSound {
   hit(s: FinalSkill, hit: HitEvent, at: { x: number; y?: number; z?: number }, damage: number, reaction: string, crit: boolean): void {
     const w = { x: at.x, y: at.y, z: at.z };
     if (reaction === 'armor') { Sound.sfx('block', { ...w, vol: 0.85, wet: WET.hit }); return; }
-    if (damage <= 0) return; // (a hold, a pull, a zone's grip: no blow to hear)
+    if (damage <= 0) { const z = this.sigOf(s)?.zero; if (z) Sound.sfx(z, { ...w, wet: WET.hit }); return; } // (a hold, a pull, a zone's grip: no blow to hear — a curse or a bind its own)
     const tier = s.slot === 7 ? 3 : hit.heavy || s.slot === 6 ? 2 : s.slot === 0 ? 0 : 1;
     // the main hit (as SkillFx weighs it): heavy, one that sends the foe flying or down, the last blow of a burst
     const flies = !!(hit.reaction.launch || hit.reaction.knockdown || hit.reaction.slam) || reaction === 'launch' || reaction === 'knockdown' || reaction === 'slam';

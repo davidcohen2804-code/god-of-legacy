@@ -1443,6 +1443,186 @@ SOUNDS2 = {
 }
 
 
+# ---------------------------------------------------------------- BOOK MAGE, the rest of her kit
+
+def bm_rune_c():  # Binding Rune: a rune etched on the floor (a quick rising sparkle, the glyph settling with a low hum)
+    rng = R(701); dur = 0.95; t = T(dur); x = buf(dur)
+    for k in range(6):
+        place(x, bell(0.3, 1568.0 * 2 ** (k / 6), ratio=2.0, index=1.0, tau=0.08), 0.02 + k * 0.025, 0.18)
+    x += thud(dur, 110, 70, 0.12) * 0.6
+    x += (np.sin(2 * np.pi * 220 * t) + 0.6 * np.sin(2 * np.pi * 330 * t)) * env(t, 0.12, 0.2) * 0.15
+    return finish(x, 0.82, 1.25)
+
+
+def bm_rune_h():  # the rune snaps shut on him (a beam binding): tzing, a bell stab, a small shock
+    rng = R(702); dur = 0.9; t = T(dur); x = buf(dur)
+    x += sum(bell(dur, f, ratio=1.0, index=1.2, tau=0.22) for f in (880.0, 1318.5, 1760.0)) * 0.16
+    place(x, zap(rng, 0.08, 0.6), 0)
+    x += thud(dur, 160, 80, 0.05) * 0.6
+    return finish(x, 0.85, 1.4)
+
+
+def bm_nova_c():  # Frost Nova: a ring of ice bursting out across the floor (crunch spreading, a cold rush outward, a glassy sheen)
+    rng = R(705); dur = 0.75; t = T(dur); x = buf(dur)
+    times = 0.02 + 0.3 * rng.random(70) ** 0.8
+    x += grains(t.size, times, rng.uniform(0.15, 0.5, 70) * np.exp(-times / 0.4), crackle_kernels(rng, 3200, (0.0005, 0.001, 0.0018)), rng)
+    place(x, swoosh(0.45, 600, 4500, 3000, rng, peak=0.2, q=1.4, tail=4), 0, 0.6)
+    x += sum(np.sin(2 * np.pi * f * t) for f in (2637.0, 3520.0)) * env(t, 0.04, 0.22) * 0.06
+    x += thud(dur, 120, 60, 0.07) * 0.5
+    return finish(x, 0.83, 1.3)
+
+
+def bm_nova_h():  # the cold bites (chilled): an icy crackle, a glass tinkle
+    rng = R(706); dur = 0.5; t = T(dur); x = buf(dur)
+    x += grains(t.size, rng.uniform(0, 0.05, 25), rng.uniform(0.2, 0.6, 25), crackle_kernels(rng, 3000, (0.0005, 0.001)), rng)
+    for k in range(5):
+        place(x, bell(0.3, rng.uniform(3000, 7000), ratio=2.76, index=0.6, tau=0.06), 0.01 + rng.uniform(0, 0.12), 0.15)
+    x += thud(dur, 170, 80, 0.035) * 0.5
+    return finish(x, 0.84, 1.4)
+
+
+def bm_blink_c():  # Blink: gone (a fwip drawn in backwards) and back (a sparkling pop)
+    rng = R(710); x = buf(0.42)
+    place(x, reverse(swoosh(0.1, 1200, 6000, 7000, rng, peak=0.3, q=2.5, tail=4)), 0, 0.8)
+    t = T(0.2); f = 900 + 2600 * (1 - np.exp(-t / 0.03))
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    place(x, np.sin(ph + 2 * np.exp(-t / 0.05) * np.sin(ph * 2)) * env(t, 0.002, 0.05) * 0.5, 0.1)
+    for k in range(4):
+        place(x, bell(0.15, rng.uniform(4000, 8000), ratio=2.0, index=0.8, tau=0.04), 0.11 + 0.02 * k, 0.15)
+    return finish(x, 0.83, 1.3)
+
+
+def bm_blink_z():  # passing through a foe (it reels, no damage): a small static snap
+    rng = R(711); x = buf(0.3)
+    place(x, zap(rng, 0.05, 0.6), 0)
+    place(x, bell(0.25, 2793.8, ratio=1.5, index=1.0, tau=0.06), 0.005, 0.2)
+    return finish(x, 0.8, 1.3)
+
+
+def bm_levity_c():  # Levity Field: gravity turns over (air rising, a wavering tone sliding up, motes of light)
+    rng = R(715); dur = 1.15; t = T(dur); x = buf(dur)
+    x += svf(rng.standard_normal(t.size), 300 * (6 ** np.clip(t / 0.7, 0, 1)), 2.5) * env(t, 0.15, 0.24) * 0.8
+    f = 300 * (2.5 ** np.clip(t / 0.6, 0, 1)) * (1 + 0.025 * np.sin(2 * np.pi * 6 * t))
+    x += np.sin(2 * np.pi * np.cumsum(f) / SR) * env(t, 0.1, 0.24) * 0.2
+    for k in range(8):
+        place(x, bell(0.3, rng.uniform(2500, 6000), ratio=2.0, index=0.6, tau=0.08), 0.15 + rng.uniform(0, 0.6), 0.1)
+    return finish(x, 0.82, 1.25)
+
+
+def bm_levity_h():  # a foe floats up: a soft rising bloop and the air under him
+    rng = R(716); dur = 0.55; t = T(dur); x = buf(dur)
+    f = 220 * (3 ** np.clip(t / 0.25, 0, 1))
+    x += np.sin(2 * np.pi * np.cumsum(f) / SR) * env(t, 0.01, 0.12) * 0.5
+    place(x, swoosh(0.4, 300, 1800, 2400, rng, peak=0.35, q=1.8, tail=4), 0, 0.5)
+    return finish(x, 0.83, 1.3)
+
+
+def paper_rip(rng, dur=0.08, amp=1.0):
+    """A page torn out: a rough rip (stick-slip crackle of fibres)."""
+    t = T(dur)
+    g = np.clip(slow(rng, t.size, 300) + 0.3, 0, None)
+    return bp(rng.standard_normal(t.size), 1500, 7000) * g * env(t, 0.004, dur * 0.4) * amp
+
+
+def bm_crane_c():  # Origami Flock: five pages torn out (rips), folded (crisp creases), and the cranes flutter away
+    rng = R(720); dur = 1.0; t = T(dur); x = buf(dur)
+    for k in range(5):
+        place(x, paper_rip(rng, 0.07, 0.8), 0.0 + k * 0.045)
+        place(x, flick(rng, 0.7, 0.2), 0.06 + k * 0.045)
+    flutter = (0.5 + 0.5 * np.sin(2 * np.pi * np.cumsum(22 + 4 * slow(rng, t.size, 6)) / SR)) ** 2
+    x += bp(rng.standard_normal(t.size), 1200, 5000) * flutter * env(t, 0.25, 0.2) * 0.5
+    place(x, bell(0.5, 2093.0, ratio=3.5, index=0.8, tau=0.15), 0.22, 0.15)
+    return finish(x, 0.82, 1.25)
+
+
+def bm_crane_h():  # a crane strikes: a paper slap and a small chime
+    rng = R(721); dur = 0.45; t = T(dur); x = buf(dur)
+    x += bp(rng.standard_normal(t.size), 800, 5000) * env(t, 0.001, 0.025) * 0.9
+    x += click(dur, rng, 2500, 0.002, 0.6)
+    x += thud(dur, 180, 90, 0.03) * 0.5
+    place(x, bell(0.4, 2637.0, ratio=3.5, index=0.8, tau=0.1), 0.005, 0.25)
+    return finish(x, 0.84, 1.4)
+
+
+def bm_ward_c():  # Arcane Ward: a shell of rune hexagons snapping into place round her (glassy tinks), the shield's hum
+    rng = R(725); dur = 1.15; t = T(dur); x = buf(dur)
+    for k in range(9):
+        place(x, bell(0.25, 1760.0 * (1 + 0.06 * (k % 3)), ratio=2.76, index=0.9, tau=0.05) + click(0.25, rng, 4000, 0.001, 0.3), 0.02 + k * 0.035, 0.25)
+    hum = sum(np.sin(2 * np.pi * f * t + i) for i, f in enumerate((293.7, 440.0, 587.3)))
+    x += hum * env(t, 0.25, 0.28) * 0.08 * (1 + 0.2 * np.sin(2 * np.pi * 7 * t))
+    return finish(x, 0.82, 1.2)
+
+
+def bm_curse_c():  # Paper Curse: pages whirling round a foe (a paper flutter, rising), a minor chord whispering
+    rng = R(730); dur = 1.0; t = T(dur); x = buf(dur)
+    flutter = (0.5 + 0.5 * np.sin(2 * np.pi * np.cumsum(18 + 10 * t) / SR)) ** 2
+    x += bp(rng.standard_normal(t.size), 1500, 6000) * flutter * env(t, 0.2, 0.2) * 0.6
+    x += sum(np.sin(2 * np.pi * f * t + i) for i, f in enumerate((233.1, 277.2, 349.2))) * env(t, 0.2, 0.22) * 0.08
+    return finish(x, 0.82, 1.2)
+
+
+def bm_curse_z():  # cursed: he folds into a paper crane (a puff, crisp folds)
+    rng = R(731); dur = 0.5; t = T(dur); x = buf(dur)
+    x += lp(rng.standard_normal(t.size), 1500) * env(t, 0.004, 0.05) * 0.7
+    for k in range(4):
+        place(x, flick(rng, 0.8, 0.25), 0.04 + k * 0.05)
+    place(x, bell(0.4, 1661.2, ratio=3.5, index=0.8, tau=0.12), 0.02, 0.2)
+    return finish(x, 0.83, 1.3)
+
+
+def bm_elem_w():  # Elemental Ascension, the wind-up (0.6 s): frost and storm swirling up round her
+    rng = R(735); dur = 0.62; t = T(dur); u = t / dur; x = buf(dur)
+    x += svf(rng.standard_normal(t.size), 400 * (5 ** u), 2) * (0.6 + 0.4 * np.sin(2 * np.pi * 9 * t)) * u ** 1.5 * 0.9
+    times = 0.6 * rng.random(50) ** 0.6
+    x += grains(t.size, times, rng.uniform(0.1, 0.4, 50) * (times / 0.6), crackle_kernels(rng), rng)
+    for k in range(6):
+        place(x, bell(0.25, rng.uniform(3000, 6500), ratio=2.76, index=0.6, tau=0.05), 0.1 + 0.08 * k, 0.12)
+    return finish(x * np.clip((dur - t) / 0.02, 0, 1), 0.82, 1.2)
+
+
+def bm_elem_c():  # she merges with the elements: a burst (thunder's whoom, ice shattering, a bright chord)
+    rng = R(736); dur = 1.3; t = T(dur); x = buf(dur)
+    x += thud(dur, 80, 40, 0.25, 0.05) * 0.8
+    x += svf(rng.standard_normal(t.size), 200 + 3000 * np.exp(-t / 0.08), 0.8, 'lp') * env(t, 0.002, 0.15) * 0.7
+    for k in range(20):
+        s_ = rng.exponential(0.15)
+        if s_ < 0.7:
+            place(x, bell(0.3, rng.uniform(2500, 8000), ratio=2.76, index=0.7, tau=0.06), s_, 0.14)
+    x += sum(bell(dur, f, ratio=1.0, index=0.5, tau=0.4, att=0.005) for f in (587.3, 880.0, 1174.7)) * 0.1
+    return finish(x, 0.84, 1.3)
+
+
+def bm_elem_h():  # an elemental shock: a zap and an icy tink
+    rng = R(737); x = buf(0.45)
+    place(x, zap(rng, 0.07, 0.7), 0)
+    place(x, bell(0.35, 3520.0, ratio=2.76, index=0.7, tau=0.07), 0.01, 0.3)
+    place(x, thud(0.3, 170, 80, 0.035), 0, 0.5)
+    return finish(x, 0.84, 1.4)
+
+
+def bm_slam_c():  # Page Bind: the book swung shut (pages riffling through the air)
+    rng = R(740); dur = 0.3; x = buf(dur)
+    place(x, riffle_(0.12, 12, rng, accel=0.5, amp=0.6), 0)
+    place(x, swoosh(0.2, 500, 2200, 1500, rng, peak=0.6, q=1.8, tail=4), 0, 0.6)
+    return finish(x, 0.82, 1.25)
+
+
+def bm_slam_h():  # the book slams shut on him: THWAP, frozen pages sticking (an icy crackle)
+    rng = R(741); dur = 0.6; t = T(dur); x = buf(dur)
+    x += thud(dur, 150, 60, 0.06) * 1.0
+    x += bp(rng.standard_normal(t.size), 300, 4000) * env(t, 0.0008, 0.03) * 1.1
+    x += grains(t.size, 0.02 + rng.uniform(0, 0.15, 20), rng.uniform(0.15, 0.45, 20), crackle_kernels(rng, 3000, (0.0005, 0.001)), rng)
+    return finish(x, 0.85, 1.45)
+
+
+SOUNDS3 = {
+    'bm_rune_c': bm_rune_c, 'bm_rune_h': bm_rune_h, 'bm_nova_c': bm_nova_c, 'bm_nova_h': bm_nova_h, 'bm_blink_c': bm_blink_c, 'bm_blink_z': bm_blink_z,
+    'bm_levity_c': bm_levity_c, 'bm_levity_h': bm_levity_h, 'bm_crane_c': bm_crane_c, 'bm_crane_h': bm_crane_h, 'bm_ward_c': bm_ward_c,
+    'bm_curse_c': bm_curse_c, 'bm_curse_z': bm_curse_z, 'bm_elem_w': bm_elem_w, 'bm_elem_c': bm_elem_c, 'bm_elem_h': bm_elem_h,
+    'bm_slam_c': bm_slam_c, 'bm_slam_h': bm_slam_h,
+}
+
+
 SOUNDS = {
     # warrior
     'wr_iron_1': wr_iron_1, 'wr_iron_2': wr_iron_2, 'wr_iron_3': wr_iron_3, 'wr_iron_4': wr_iron_4,
@@ -1475,6 +1655,7 @@ SOUNDS = {
 }
 
 SOUNDS.update(SOUNDS2)
+SOUNDS.update(SOUNDS3)
 
 
 def loudness(x):
