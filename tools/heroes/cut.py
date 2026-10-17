@@ -24,12 +24,12 @@ DROP = {}
 REF_STAND = {'gambler': ('coin_flip', 0)}
 # Heroes whose faces cannot be measured (a hat shades them): every sheet at one scale; a sheet drawn bigger is matched by
 # the height of a standing frame {sheet: (its action, frame, the reference action, frame)}
-SAME_SCALE = {'gambler': {'S7': ('jackpot', 0, 'coin_flip', 0), 'S8': ('all_in', 0, 'coin_flip', 0), 'S9': ('triple_down', 2, 'coin_flip', 0), 'S10': ('card_swap', 0, 'coin_flip', 0)}}
+SAME_SCALE = {'gambler': {'S7': ('jackpot', 0, 'coin_flip', 0), 'S8': ('all_in', 0, 'coin_flip', 0), 'S9': ('triple_down', 2, 'coin_flip', 0), 'S10': ('card_swap', 0, 'coin_flip', 0), 'S11': ('roulette_wheel', 0, 'coin_flip', 0)}}
 # Model sheets with fewer full figures than three (the third item is a prop close-up)
 MODEL_N = {'gambler': 2}
 # Frames where GPT dropped the gambler's staff: it is put back, slung across his back (behind the body)
 STAFF_BACK = {('gambler', 'staff_vault'): {3}, ('gambler', 'riffle_shuffle'): {1, 2, 3, 4},
-              ('gambler', 'showdown'): {3}, ('gambler', 'roulette_wheel'): {2}}
+              ('gambler', 'showdown'): {3}, ('gambler', 'roulette_old'): {2}, ('gambler', 'roulette_wheel'): {5}}
 # Frames whose loose thrown objects are wiped (the game draws its own): only the body's largest piece is kept
 ONLY_BODY = {('gambler', 'showdown'): {3}, ('gambler', 'charged_deal'): {3}}
 
@@ -88,14 +88,15 @@ SPEC = {
     # his size is measured on a standing frame (REF_STAND) and every sheet is matched to it by the face.
     'gambler': [('S1', [('attack', 6), ('charged_deal', 6), ('staff_vault', 6)]),
                 ('S2', [('fuse_slam', 6), ('riffle_shuffle', 6), ('rotor_staff', 6)]),
-                ('S3', [('coin_flip', 6), ('showdown', 6), ('roulette_wheel', 6)]),
+                ('S3', [('coin_flip', 6), ('showdown', 6), ('roulette_old', 6)]),
                 ('S4', [('dice_bomb', 6), ('kinetic_grab', 6), ('ace_in_the_hole', 6)]),
                 ('S5', [('lady_luck', 6), ('pickup_52', 6), ('grand_slam', 6)]),
                 ('S6', [('kinetic_overload', 6), ('wild_card', 6), ('jackpot_old', 6)]),
                 ('S7', [('jackpot', 6)]),
                 ('S8', [('all_in', 6)]),
                 ('S9', [('triple_down', 6)]),
-                ('S10', [('card_swap', 6)])],  # (PixVerse: the card flicked, the low dash to it, the stop)
+                ('S10', [('card_swap', 6)]),
+                ('S11', [('roulette_wheel', 6)])],  # (PixVerse: down low, the cane sweeps the floor round like a wheel, up, he calls it)  # (PixVerse: the card flicked, the low dash to it, the stop)
     'archer': [('A', [('idle', 6), ('walk_old', 6), ('attack', 6)]), ('W', [('walk', 4), ('run', 4)]), ('W2', [('walk2', 4), ('run2', 4)]), ('B', [('run_old', 6), ('jump', 3), ('stance', 4)]),
                ('S1', [('rising_arrow', 6), ('multi_shot', 6), ('explosive_arrow', 6)]),
                ('S2', [('retreat_kick', 6), ('vine_trap', 6), ('skyhunters_step', 6)]),
