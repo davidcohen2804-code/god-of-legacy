@@ -4,6 +4,9 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-10-17 — Origami Flock's cranes rise to a foe in the air (`antiAir`)
+- Homing paper cranes flew level under the per-attack reach: in UPDRAFT (the Levity Field floats him, the flock follows) 2 of its hits landed instead of 6. They seek him wherever he is now, the one homing shot in the game.
+
 ## 2026-10-17 — Five reaches matched to their looks (the class chats' reviews of looks vs reach)
 - **Samurai** (level strokes at chest height reached a foe two heights up): Shadow Step 200 → 120; Iai Strike 200 / 210 / 220 → 120 / 130 / 140; Phantom Blades 280 → 160.
 - **Book Mage** (looks taller than their reach): Time Collapse 360 on all three hits (its pull and freeze had none: 80 — "every foe in it" — the clock stands over the whole area; the blast 200); Storm Field 160 → 240 (its bolts fall out of the sky onto a foe held up in it).

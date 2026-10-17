@@ -360,7 +360,7 @@ const mage: FinalSkill[] = [
   S({
     id: 'origami_flock', cls: 'book_mage', slot: 12, name: 'Origami Flock', roles: ['projectile', 'chase'], targeting: 'mouseCone',
     startup: 300, active: 120, recovery: 220, cooldown: 9000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    hits: [H(0, 8, { kind: 'projectile', speed: 460, range: 520, radius: 16, count: 5, spread: 70, homing: 150 }, { stun: 220, push: 6, float: true, juggleCost: 3 }, { reachUp: 160 })],
+    hits: [H(0, 8, { kind: 'projectile', speed: 460, range: 520, radius: 16, count: 5, spread: 70, homing: 150, antiAir: true }, { stun: 220, push: 6, float: true, juggleCost: 3 }, { reachUp: 160 })], // (homing cranes: they seek him in the air too — level, they passed under a foe floating in the Levity Field: UPDRAFT landed 2 of 6)
     cancelOnHit: ['levity_field', 'paper_curse', 'blink', 'arcane_bolt'],
     description: 'Five pages tear out of the book and fold into paper cranes. Each crane picks a foe and bends a little toward it — a step aside still slips them.',
     relations: ['5 cranes', 'Gently homing'],
