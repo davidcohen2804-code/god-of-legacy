@@ -62,7 +62,8 @@ const CSS = `
 .gol-tr .tr-k.ok::after{content:'✓';position:absolute;right:-6px;top:-7px;width:17px;height:17px;border-radius:50%;background:linear-gradient(180deg,#ffe9a8,#d79a2c);color:#24180a;font:900 11px/17px ${LABEL};text-align:center;box-shadow:0 0 0 1.5px #24180a}
 .gol-tr .tr-k.pop{animation:trPop .32s cubic-bezier(.3,1.5,.5,1)}
 @keyframes trPop{0%{transform:scale(1.35);filter:brightness(1.8)}100%{transform:none;filter:none}}
-.gol-tr .tr-mt{display:flex;justify-content:center;gap:10px;font:700 11.5px ${LABEL};letter-spacing:.6px;color:#bfb08e}
+.gol-tr .tr-mt{display:flex;flex-wrap:wrap;justify-content:center;gap:2px 10px;font:700 11.5px ${LABEL};letter-spacing:.6px;color:#bfb08e}
+.gol-tr .tr-mt>*{white-space:nowrap}
 .gol-tr .tr-mt b{color:#fff;font-weight:800}
 .gol-tr .tr-msg{min-height:22px;text-align:center;font:700 13.5px/22px ${LABEL};letter-spacing:.4px;color:#cfd7df;padding:0 4px}
 .gol-tr .tr-msg.bad{color:#ff8f74;letter-spacing:1px}
@@ -203,7 +204,7 @@ export class TrialUI {
   private build(): void {
     const r = this.route;
     this.tt.n.textContent = `TRIAL ${this.at + 1} / ${this.routes.length}`;
-    this.tt.rg.className = r.range; this.tt.rg.textContent = r.range;
+    this.tt.rg.className = r.range; this.tt.rg.textContent = r.range; this.tt.rg.title = RANGE[r.range];
     this.tt.ok.className = 'ok'; this.tt.ok.textContent = 'CLEARED';
     this.tt.n.append(this.tt.rg);
     if (this.done.has(r.name)) this.tt.n.append(this.tt.ok); else this.tt.ok.remove();
@@ -215,9 +216,7 @@ export class TrialUI {
       const c = this.chip(st); g.appendChild(c); this.chips.push(c);
     });
     this.meta.innerHTML = '';
-    const hb = this.el('span', '', this.meta); this.el('b', '', hb).textContent = String(r.hits); hb.append(' HITS');
-    this.el('span', '', this.meta).textContent = '·';
-    this.el('span', '', this.meta).textContent = RANGE[r.range];
+    const hb = this.el('span', '', this.meta); this.el('b', '', hb).textContent = String(r.hits); hb.append(' HITS'); // (the range: its badge above)
     if (r.style) { this.el('span', '', this.meta).textContent = '·'; this.el('b', '', this.meta).textContent = r.style; }
     if (r.tier) { this.el('span', '', this.meta).textContent = '·'; this.el('span', '', this.meta).textContent = r.tier; }
     this.setKeys(this.keys);
