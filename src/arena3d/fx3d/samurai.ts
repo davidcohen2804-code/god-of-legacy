@@ -1,45 +1,58 @@
-// PVP 3D — the Samurai's skills in the room's 3D: what each skill adds in 3D on top of its painted effect, in that skill's
-// own tone (as SamuraiFx paints it): steel — Quick Slash, Iai Strike's hair line, Hundred Cuts, Tornado Blade; crimson —
-// Swallow Cut, Phantom Blades, Dragon Eclipse, the Iai's opening; blood and ink — Shadow Step, Kagemusha; gold — Sheathe,
-// Sword Wave, God of Blades, Rising Sun, Dragon Ascension; sakura — Blossom Storm, Sakura Bind; rose — Mirage; fire — Falcon Dive.
-// The main hit of each skill carries the big pieces; the small hits of a burst stay small; nothing whites the screen out.
-// Each recipe names its `tone`: the colour the room answers the skill's blows in (its light, the floor mark and ring, the embers).
-// (The main hit's bent air / colour split comes from SkillFx.confirmed in every mode: the recipes' hits don't add another.)
-// Owned by the Samurai chat. The pieces (pillar, dome, crack, debris, crystals, bolt, streak, slash, whirl, wave, rain,
-// trail / crest / chainBolt) are in ../Fx3D.ts.
+// PVP 3D — the Samurai's skills in the room's 3D. Rebuilt to David's bar (17 Oct, his reference "Prometheus: Ring of
+// Fire", docs/ref/prometheus/; the board's 8 points), skill by skill: one colour family — a white-hot core → his crimson →
+// a dark ink stroke (blade3d.ts: SAM); every cut a thick ribbon ring in perspective round him (the basic chain); the Iai the
+// finisher — one huge crescent that goes dark; Phantom Blades, God of Blades' strikes and Dragon Eclipse's eight cuts the
+// flurry of long crossing lines; Tornado Blade a ball of blades; Shadow Step and Kagemusha ink bursts. The skills not
+// rebuilt yet keep their pieces (each its old family tone) until their turn. The room answers the rebuilt ones' blows in
+// SAM.light (a crimson flare washed the red courtyard redder). In PVP 3D the rebuilt skills' flat painted cuts and marks
+// stay out (SamuraiFx IN3D_OWN). Owned by the Samurai chat; the room's pieces are in ../Fx3D.ts (DFO's), ours in blade3d.ts.
 import type { Recipe } from '../Fx3D';
 import { C, me, side, T } from './kit';
+import { ring, crescent, flurry, slit, bladeBall, inkBurst, sparks, SAM } from './blade3d';
 
-/** The shadow's blood edge and its ink (a dark plum glow: ink itself gives no light). */
-const BLOOD = 0xd0142e, INK = 0x6a2a5a;
 const flip = () => (Math.random() < 0.5 ? 1 : -1);
 
 export const SAMURAI: Record<string, Recipe> = {
-  // the basic chain: a cut of bare steel round him per stage (slash, backhand, the cross cut's two, the rising cut);
-  // the rising cut that lifts the foe is the big one — a thin steel pillar under him
-  quick_slash: { own: true, tone: C.steel,
+  // (David's bar: each cut a thick ribbon ring round him in perspective — the slash from over the head slanted, the
+  // backhand flat round him at the shoulder, the cross cut down and back up, the rising cut upright — white-hot at its
+  // leading edge, crimson, an ink stroke inside, turning to ink as it goes; 150–220 ms)
+  quick_slash: { own: true, tone: SAM.light,
     active: (f, r) => {
-      const st = r.stage % 4, big = st === 3;
-      // (the basic plays all fight long: a thin steel arc a size under the skills', never white over the fighters)
-      f.slash(me(f, r), side(r), C.steel, { r: big ? 112 : 100, w: big ? 32 : 26, tilt: [24, 64, 14, 84][st], a0: [-70, 170, -130, 165][st], a1: [120, -10, 120, 10][st], ms: big ? 230 : 170, i: big ? 1.0 : 0.75 });
-      if (st === 2) f.later(60, () => f.slash(me(f, r), side(r), C.steel, { r: 96, w: 24, tilt: 72, a0: 160, a1: -20, ms: 170, i: 0.7 }));
+      const st = r.stage % 4, big = st === 3, d = side(r), on = () => f.host.casterPos(r.attackerId), c = me(f, r);
+      const P = [
+        { tilt: 62, yaw: 34, roll: 0, a0: -35, a1: 165, r: 112, w: 44, y0: 94, fwd: 20 },
+        { tilt: 34, yaw: 10, roll: 0, a0: 210, a1: -10, r: 116, w: 42, y0: 100, fwd: 12 },
+        { tilt: 58, yaw: -36, roll: 0, a0: -40, a1: 150, r: 108, w: 42, y0: 92, fwd: 22 },
+        { tilt: 82, yaw: 36, roll: 0, a0: 175, a1: -20, r: 124, w: 50, y0: 86, fwd: 18 },
+      ][st];
+      ring(f, c, d, { ...P, ms: big ? 220 : 170, follow: on });
+      if (st === 2) f.later(60, () => ring(f, me(f, r), d, { tilt: 58, yaw: 36, roll: 0, a0: 165, a1: -30, r: 104, w: 40, y0: 92, fwd: 22, ms: 160, follow: on }));
     },
-    hit: (f, _s, _h, at, main, react) => { if (main && react === 'launch') f.pillar(at.x, at.y, C.steel, { h: 300, r: 18, ms: 320, core: false, i: 0.9 }); } },
-  // a smear of ink along the step with a blood-red edge; the cut on the foe flat, blood red
-  shadow_step: { own: true, tone: BLOOD,
-    active: (f, r) => { const c = me(f, r); f.later(T(r).active * 0.8, () => { const e = me(f, r);
-      f.streak({ x: c.x, y: c.y, z: 85 }, { x: e.x, y: e.y, z: 85 }, INK, { w: 34, ms: 380, draw: 40 });
-      f.streak({ x: c.x, y: c.y, z: 88 }, { x: e.x, y: e.y, z: 88 }, BLOOD, { w: 8, ms: 300, draw: 40, front: true }); }); },
-    hit: (f, _s, _h, at) => f.slash(at, flip(), BLOOD, { r: 105, tilt: 6, a0: -100, a1: 100, ms: 220, i: 1.5 }) },
+    hit: (f, _s, _h, at, main, react) => {
+      sparks(f, at, Math.random() < 0.5 ? 1 : -1, main ? 7 : 4, main ? 60 : 44);
+      if (main && react === 'launch') f.pillar(at.x, at.y, SAM.crimson, { h: 300, r: 16, ms: 260, core: false, i: 0.8 }); } },
+  // (David's bar: an ink burst — 05) he vanishes in a burst of ink where he stood, a thin crimson line of the cut runs
+  // through the foe along his path, and he lands out of a smaller one
+  shadow_step: { own: true, tone: SAM.light,
+    active: (f, r) => {
+      const c = me(f, r), d = side(r), o = { x: c.x, y: c.y, z: c.z + 62 };
+      inkBurst(f, o, { r: 84, n: 10, ms: 400, foeY: c.y - 40 });
+      f.later(T(r).active * 0.85, () => { const e = me(f, r);
+        f.streak({ x: c.x - d * 20, y: c.y, z: 70 }, { x: e.x + d * 30, y: e.y, z: 70 }, SAM.crimson, { w: 7, ms: 260, draw: 40, front: true });
+        inkBurst(f, { x: e.x, y: e.y, z: e.z + 56 }, { r: 62, n: 7, ms: 340, foeY: e.y - 40 }); });
+    },
+    hit: (f, _s, _h, at) => { sparks(f, at, 1, 5, 52); } },
   // the click of the blade home: a thin ring of gold round his waist, a glint of gold at his feet
   sheathe: { own: true, tone: C.gold,
     active: (f, r) => { const c = me(f, r); f.slash(c, side(r), C.gold, { r: 72, w: 18, tilt: 2, a0: -160, a1: 160, ms: 240, y0: 70, i: 1.6 }); f.dome(c.x, c.y, C.gold, { r: 60, ms: 240, a: 0.45 }); } },
-  // a hair line of bare steel along the draw, then the crimson opening over it; the cut on the foe crimson
-  iai_strike: { own: true, tone: C.crimson,
-    active: (f, r) => { const c = me(f, r), e = { x: c.x + r.aim.x * 520, y: c.y + r.aim.y * 300, z: 100 };
-      f.streak({ ...c, z: 100 }, e, C.steel, { w: 12, ms: 300, draw: 30, front: true });
-      f.later(160, () => f.streak({ ...c, z: 100 }, e, C.crimson, { w: 30, ms: 420, draw: 60 })); },
-    hit: (f, _s, _h, at, main) => { if (main) f.slash(at, flip(), C.crimson, { r: 115, tilt: 45, a0: -80, a1: 100, ms: 260, i: 1.6 }); } },
+  // (David's bar: the finisher — 05) the draw is one huge crescent swept across in front of him through the foe, white-hot
+  // for a few frames, then it goes dark: an ink crescent that hangs a beat and dissolves (its size by the charge)
+  iai_strike: { own: true, tone: SAM.light,
+    active: (f, r) => {
+      const c = me(f, r), lv = r.chargeLevel ?? 0, d = side(r);
+      crescent(f, c, d, { r: 158 + 14 * lv, w: 70 + 10 * lv, ms: 700 + 60 * lv, hold: 300 + 30 * lv });
+    },
+    hit: (f, _s, _h, at, main) => { sparks(f, at, Math.random() < 0.5 ? 1 : -1, main ? 8 : 5, 70); } }, // (no impact piece: the crescent is its moment — with the flash and the rose shell the foe stood in a bubble)
   // the crescent thrown in gold: its swing, and a crest of gold light running with it along the floor
   // (its strike is the painted crescent's: no dome of the room's over the foe — thrown close at a foe in the air, MIKAZUKI,
   // the gold pile hid both; a launch from the floor: a slim short beam)
@@ -59,15 +72,14 @@ export const SAMURAI: Record<string, Recipe> = {
       f.pillar(at.x, at.y, C.sakura, { h: 460, r: 24, ms: 580, twist: true, core: false, i: 0.7 });
       f.dome(at.x, at.y, C.sakura, { r: 120, ms: 400, a: 0.25 });
       f.host.blow(f.host.w3(at.x), 0.6, f.host.d3(at.y), 5, 5); } },
-  // the dark falls round him; the eight cuts out of the dark cross the foe in crimson from all sides; the colossal cut of
-  // the dragon: a twisting crimson pillar, the planks torn, the whole picture pulled in (soft: the fighters stay seen)
-  dragon_eclipse: { own: true, tone: C.crimson,
+  // the dark falls round him; (David's bar: the flurry — 04) the eight cuts out of the dark are long thin lines crossing the
+  // foe, each there at once and held by its hit-stop — they cross into a star of cuts; the colossal cut is the painted
+  // dragon's (the crescent is the Iai's alone): the planks torn under it
+  dragon_eclipse: { own: true, tone: SAM.light,
     active: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, 0x3a0a1a, { r: 420, ms: 900, a: 0.4 }); }, // (lighter: in the dark the fighters were not readable — DFO)
     hit: (f, _s, _h, at, main) => {
-      if (!main) { f.slash(at, flip(), C.crimson, { r: 112, w: 30, tilt: 10 + Math.random() * 65, a0: -120, a1: 140, ms: 220, i: 0.9 }); return; }
-      f.pillar(at.x, at.y, C.crimson, { h: 860, r: 34, ms: 720, twist: true, core: false, i: 0.85 });
-      f.crack(at.x, at.y, C.crimson, { r: 200, chunks: 16, up: 1.3 });
-      f.later(60, () => f.dome(at.x, at.y, C.crimson, { r: 180, ms: 520, a: 0.3 }));
+      if (!main) { flurry(f, () => at, { ms: 1, len: 540, w: 14, front: true, draw: 0 }); return; } // (one cut a hit, there at once: the hit-stops hold them — eight lines crossing into a star)
+      f.crack(at.x, at.y, SAM.crimson, { r: 200, chunks: 16, up: 1.3 });
       f.host.kick(0.08); } },
   // the swallow's rising cut upright in crimson; the launch: a thin crimson pillar under the foe; the second cut backhand
   swallow_cut: { own: true, tone: C.crimson,
@@ -81,13 +93,14 @@ export const SAMURAI: Record<string, Recipe> = {
       if (!main) { if (Math.random() < 0.4) f.slash(at, flip(), C.steel, { r: 86, w: 20, tilt: Math.random() * 70, a0: -90, a1: 90, ms: 140, i: 0.6 }); return; }
       for (const d of [1, -1]) f.slash(at, d, C.steel, { r: 104, w: 32, tilt: 45, a0: -120, a1: 120, ms: 280, i: 0.9 });
       f.host.embers(f.host.w3(at.x), 0.9, f.host.d3(at.y), C.gold, 12, 3); } },
-  // he vanishes: the light drawn in round him (ink and rose), petals blown off
-  kagemusha: { own: true, tone: INK,
-    active: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, INK, { r: 160, ms: 520, a: 0.35, implode: true }); f.host.blow(f.host.w3(c.x), 0.6, f.host.d3(c.y), 4, 4); } },
-  // a whirlwind of steel rings round him in the air; the smash down: steel cracks where the foe hits the planks
-  tornado_blade: { own: true, tone: C.steel,
-    active: (f, r) => f.whirl(r.attackerId, C.steel, { r: 110, ms: T(r).active, rings: 2, every: 110, y0: 40, dir: side(r) }), // (two rings: the fighters read through it)
-    hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, C.steel, { r: 110, chunks: 8 }); f.host.kick(0.04); } } },
+  // (David's bar: an ink burst — 05) he vanishes: a big burst of ink where he stood
+  kagemusha: { own: true, tone: SAM.light,
+    fired: (f, r) => { const c = me(f, r); inkBurst(f, { x: c.x, y: c.y, z: c.z + 60 }, { r: 112, n: 14, ms: 500, foeY: c.y - 60 }); f.host.blow(f.host.w3(c.x), 0.6, f.host.d3(c.y), 4, 4); } },
+  // (David's bar: a ball of blades — 07) rings of the blade at every tilt round him, turning with him through the spin; the
+  // smash down: cracks where the foe hits the planks
+  tornado_blade: { own: true, tone: SAM.light,
+    active: (f, r) => bladeBall(f, r.attackerId, side(r), { ms: T(r).active, every: 42, r: 108, y0: 50 }),
+    hit: (f, _s, _h, at, main) => { sparks(f, at, Math.random() < 0.5 ? 1 : -1, main ? 7 : 4, 56); if (main) { f.crack(at.x, at.y, SAM.crimson, { r: 110, chunks: 8 }); f.host.kick(0.04); } } },
   // the falcon of fire strikes the floor: fire torn in the planks, a column of flame
   falcon_dive: { own: true, tone: C.fire,
     fired: (f, r) => { const c = me(f, r); f.crack(c.x, c.y, C.fire, { r: 150, chunks: 10 }); f.pillar(c.x, c.y, C.fire, { h: 480, r: 24, ms: 400, core: false, i: 0.7 }); f.host.kick(0.05); } }, // (the falcon is the show: a thin column)
@@ -95,19 +108,21 @@ export const SAMURAI: Record<string, Recipe> = {
   rising_sun: { own: true, tone: C.sun,
     cast: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, C.sun, { r: 130, ms: T(r).startup + 120, a: 0.32, hold: 1, follow: () => f.host.casterPos(r.attackerId) }); },
     active: (f, r) => { const c = me(f, r); f.pillar(c.x, c.y, C.sun, { h: 600, r: 18, ms: 560, core: false, i: 0.35 }); f.dome(c.x, c.y, C.sun, { r: 140, ms: 400, a: 0.12 }); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), C.sun, 3, 420, 0.6); } }, // (no impact light on him: it washed him gold — DFO; soft: the burst whited both out)
-  // the phantoms' cuts crimson and small; the last one a cross of crimson on the foe
-  phantom_blades: { own: true, tone: C.crimson,
+  // (David's bar: the flurry — 04) the phantoms' cuts: long thin lines crossing the foe, a new one every ~40 ms through the
+  // field; the last: two long crossing strokes of the blade through him
+  phantom_blades: { own: true, tone: SAM.light,
     hit: (f, _s, _h, at, main) => {
-      if (!main) { f.slash(at, flip(), C.crimson, { r: 92, w: 30, tilt: 10 + Math.random() * 60, a0: -100, a1: 110, ms: 190, i: 0.7 }); return; }
-      for (const d of [1, -1]) f.slash(at, d, C.crimson, { r: 112, w: 36, tilt: 40, a0: -120, a1: 120, ms: 260, i: 1.0 }); } },
-  // the halo of golden blades rising behind him (upright arcs fanned out), a ring of gold on the floor; each blade that strikes
-  // later: a thin gold cut on the foe
-  god_of_blades: { own: true, tone: C.gold,
-    active: (f, r) => { const c = me(f, r);
-      // (soft: the arcs' near halves pass over him — at 1.1 they bleached him white in PVP 3D)
-      for (let i = 0; i < 5; i++) f.later(i * 50, () => f.slash(me(f, r), -side(r), C.gold, { r: 105 + i * 10, w: 18, tilt: 80, a0: -60 + i * 30, a1: 40 + i * 30, ms: 520, y0: 110, i: 0.6 }));
-      f.host.ring(f.host.w3(c.x), f.host.d3(c.y), C.gold, 2.8, 460, 0.5); },
-    hit: (f, _s, _h, at) => f.slash(at, flip(), C.gold, { r: 95, tilt: 20 + Math.random() * 40, a0: -100, a1: 100, ms: 200, i: 1.2 }) },
+      if (!main) { flurry(f, () => at, { ms: 80, every: 40, len: 480, w: 12 }); return; }
+      for (const k of [0, 1]) f.later(k * 40, () => { const th = (k ? 135 : 45) + (Math.random() - 0.5) * 16, rad = (th * Math.PI) / 180, L = 620;
+        const a = { x: at.x - Math.cos(rad) * L * 0.5, y: at.y, z: 70 + Math.sin(rad) * L * 0.5 }, b = { x: at.x + Math.cos(rad) * L * 0.5, y: at.y, z: 70 - Math.sin(rad) * L * 0.5 };
+        slit(f, a, b, { w: 30, ms: 240, draw: 30, front: k === 0 }); if (!k) f.onPiece?.('streak', at, 1);
+        f.later(70, () => slit(f, { x: a.x, y: a.y + 4, z: a.z - 10 }, { x: b.x, y: b.y + 4, z: b.z - 10 }, { w: 22, ms: 230, draw: 26, ink: true, front: k === 0 })); });
+      sparks(f, at, 1, 8, 80); } },
+  // the halo of blades rising behind him (its own, painted), a ring of light on the floor; (David's bar: the flurry — 04)
+  // each blade that strikes: a few long thin lines crossing the foe
+  god_of_blades: { own: true, tone: SAM.light,
+    active: (f, r) => { const c = me(f, r); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), SAM.light, 2.8, 460, 0.5); },
+    hit: (f, _s, _h, at) => flurry(f, () => at, { ms: 110, every: 36, len: 440, w: 11 }) },
   // the bind: blossom light closing round the foe, a twisting column of it, petals
   sakura_bind: { own: true, tone: C.sakura,
     // his blade driven into the planks: they crack round its point and a line of blossom light runs through them to the ring

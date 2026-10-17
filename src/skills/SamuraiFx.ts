@@ -26,6 +26,9 @@ const along = (ang: number, left: boolean) => (left ? ang - 180 : ang);
 /** Hits whose cut "arrives late": a thin line stays on the foe and splits open a beat after (the Iai's signature, and the
  *  ultimate's great cut). */
 const DELAYED = new Set(['iai_strike', 'dragon_eclipse']);
+/** PVP 3D: the skills rebuilt to David's bar in the room's own 3D (fx3d/samurai.ts + blade3d.ts) — their flat painted cuts
+ *  and marks stay out there (the painted ones stay for the painted world). */
+const IN3D_OWN = new Set(['quick_slash', 'iai_strike', 'phantom_blades', 'dragon_eclipse', 'tornado_blade', 'shadow_step', 'god_of_blades']);
 /** Skills whose pieces show a state that outlasts the next press (a zone on the floor, a stance, a shield, the halo, the
  *  doubles): never cut short by his next skill. */
 const KEEP = new Set(['sakura_bind', 'mirage', 'rising_sun', 'god_of_blades', 'kagemusha']);
@@ -216,6 +219,8 @@ export class SamuraiFx {
     return () => { const c = this.ctx.casterPos(r.attackerId); return c ? { x: c.x + side * dx, y: c.y - c.z - dz + dy, d: c.y } : null; };
   }
 
+  /** In PVP 3D (the arena's 3D room is up): the skills in IN3D_OWN are drawn by the room's own pieces only. */
+  private in3d(): boolean { return !!(this.ctx.scene as unknown as { a3d?: unknown }).a3d; }
   /** A piece's frame name as the atlas has it (a toned piece the atlas lacks: its crimson original). */
   private fname(name: string): string {
     const t = this.ctx.scene.textures;
@@ -623,7 +628,7 @@ export class SamuraiFx {
       case 'blossom_storm': if (!ghost) this.blossomStorm(r); break; // (a double's storm: only its cuts — six funnels hid the foe, KAGEMUSHA)
       case 'dragon_eclipse': this.eclipse(r); break;
       case 'kagemusha': this.glint(r, 0, 26, 52); this.petals(this.me(r).x, this.me(r).y - this.me(r).z - 50, 8, 80, { inward: true, life: T.startup + 60 }); break;
-      case 'tornado_blade': this.airSpin(r); break;
+      case 'tornado_blade': if (!this.in3d()) this.airSpin(r); break; // (PVP 3D: a ball of blades in the room — fx3d/samurai.ts)
       case 'falcon_dive': this.falcon(r); break;
       case 'rising_sun': this.risingSun(r); this.sunShield(r); break;
       case 'phantom_blades': if (!ghost) this.ctx.darken(T.startup + T.active + 160, 0.38); this.phantomField(r); break;
@@ -677,7 +682,7 @@ export class SamuraiFx {
       case 'dragon_ascension': if (i === 0) this.ascensionBurst(r); else this.cut(tn('cut_thin', 'gold'), 150, rnd(-30, 30), { x: q.x + rnd(-60, 60), y: y0 - 90 - i * 70, depth: TOP + 3, flipX: Math.random() < 0.5 }); break;
       case 'blossom_storm': this.stormCut(r, i); break;
       case 'dragon_eclipse': if (i < r.hits.length - 1) this.eclipseSlash(r, i); else this.eclipseCut(r, o); break;
-      case 'tornado_blade': if (i === r.hits.length - 1) { this.pop(tn('burst', 'steel'), q.x + side * 36, y0 - 46, 110, { glow: 0.3 }); this.cut(tn('cut_x', 'steel'), 132, rnd(-10, 10), { x: q.x + side * 36, y: y0 - 46, depth: TOP + 3.5, grow: 35, hold: 40, fade: 160, sweep: 0, glow: 0.35 }); } break; // (the smash down)
+      case 'tornado_blade': if (i === r.hits.length - 1 && !this.in3d()) { this.pop(tn('burst', 'steel'), q.x + side * 36, y0 - 46, 110, { glow: 0.3 }); this.cut(tn('cut_x', 'steel'), 132, rnd(-10, 10), { x: q.x + side * 36, y: y0 - 46, depth: TOP + 3.5, grow: 35, hold: 40, fade: 160, sweep: 0, glow: 0.35 }); } break; // (the smash down)
     }
     void cam;
   }
@@ -724,7 +729,8 @@ export class SamuraiFx {
     const main = !!hit.heavy || flies || lastOfBurst(s, hit); // (lastOfBurst: the arena's re-timed copies of the hits too)
     const x = at.x, y = at.y - at.z - 38, rapid = many && !main, side = from && at.x < from.x - 2 ? -1 : 1, tone: Tone | undefined = s.id === 'iai_strike' && !hit.heavy ? 'sakura' : SKILL_TONE[s.id]; // (the blossom draw's extra cuts: sakura)
     if (main && !hit.heavy) heavy = true;
-    const line = this.slashLine(s, hit), ang = line ? side * line.ang : 0;
+    const line = IN3D_OWN.has(s.id) && this.in3d() ? null : this.slashLine(s, hit), ang = line ? side * line.ang : 0; // (PVP 3D: these skills' blows are the room's — sparks in 3D, no painted mark)
+    if (!line && IN3D_OWN.has(s.id) && this.in3d()) { if (counter) this.counterMark(x, y, side, local); return; }
     if (counter) this.counterMark(x, y, side, local);
     if (s.id === 'shadow_step') { // the shadow's cut: a stroke of ink through the foe along the step, ink spattered past it, a blood-red edge
       // (the ink behind him, the blood-red line across him: the foe reads through the cut — DFO, VS CPU)
@@ -858,6 +864,7 @@ export class SamuraiFx {
 
   /** Quick Slash: the bare blade — thin crescents of cold steel light, the fourth rising. */
   private quickSlash(r: CastRun, i: number): void {
+    if (this.in3d()) return; // (PVP 3D: the cuts are ribbons in the room — fx3d/samurai.ts, blade3d.ts)
     const st = r.stage ?? 0, side = sideOf(r), fl = side < 0, S = (n: string) => tn(n, 'steel');
     // (the basic plays all fight long: its cuts a size under the skills' and only lightly lit, so his body move and the foe
     // read through them — quality pass, PVP 3D)
@@ -875,6 +882,11 @@ export class SamuraiFx {
   /** Shadow Step: the ink streak — anchored where he started, its head stays on him through the step, then it dries out. */
   private stepStreak(r: CastRun): void {
     const s = this.ctx.scene, T = r.timings, o = r.origin, a = r.aim, side = sideOf(r), D = r.skill.dash?.distance ?? 160;
+    if (this.in3d()) { // (PVP 3D: the ink bursts where he vanishes and lands, the line through the foe — fx3d/samurai.ts; his silhouettes stay)
+      for (let k = 0; k < 3; k++) { const f = 0.22 + k * 0.24; this.silhouette(r, o.x + a.x * D * f, o.y + a.y * D * f - o.z, o.y + a.y * D * f - 2, 260, { delay: k * 34, face: side, a: kf([0, 0], [0.12, 0.7], [0.4, 0.5], [1, 0, inQ]) }); }
+      this.later(T.active, () => this.glint(r, 0, 24, 56), r);
+      return;
+    }
     const ang = screenAng(a.x, a.y), x0 = o.x - a.x * 34, y0 = o.y - a.y * 34 - o.z - 48, flip = side < 0;
     const ink = s.add.image(x0, y0, KIT, 'ink_long').setOrigin(0.03, 0.55).setAngle(ang).setFlipY(flip).setDepth(o.y - 2).setAlpha(0); // (behind the foe it passes through)
     const line = s.add.image(x0, y0, KIT, 'cut_line').setOrigin(0.03, 0.5).setAngle(ang).setFlipY(flip).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.y + 2.1).setAlpha(0);
@@ -982,6 +994,7 @@ export class SamuraiFx {
     const pb = r.petals ?? 0, base = r.skill.charge?.levels[lv]?.hits[0]?.shape as { width?: number } | undefined;
     const wk = Math.max(1, ((r.hits[0].shape as { width?: number }).width ?? 1) / (base?.width ?? (r.hits[0].shape as { width?: number }).width ?? 1));
     if (pb) this.blossomDraw(r, x0, y0, ang, len);
+    if (!this.in3d()) { // (PVP 3D: the draw is the room's crescent that goes dark — fx3d/samurai.ts, David's bar)
     this.spr({ name: tn('cut_line', 'steel'), x: x0, y: y0, ox: 0.03, angle: ang, flipY: fl, w: len * 1.12, h: (24 + 10 * lv) * wk, depth: TOP + 3, life: 380 + lv * 60, glow: 0.85, tint: pb ? 0xffb8dc : undefined,
       sx: kf([0, 0.05], [0.11, 1, out3], [1, 1.02]), sy: kf([0, 1.4], [0.11, 1], [0.35, 1], [1, 0.15, inQ]), a: kf([0, 1], [0.4, 1], [1, 0, inQ]) });
     const mx = x0 + Math.cos(ang * Math.PI / 180) * len * 0.56, my = y0 + Math.sin(ang * Math.PI / 180) * len * 0.56;
@@ -990,6 +1003,7 @@ export class SamuraiFx {
     this.pop(tn('burst', 'steel'), x0 + side * 18, y0, 70 + 20 * lv, { life: 200, glow: 0.35 }); // (a size down: white between them through the draw — SAYA)
     this.spr({ name: tn('blade_trail', 'steel'), x: x0 + a.x * 36, y: y0 + a.y * 18, w: 170 + 30 * lv, life: 230, flipX: fl, angle: along(ang, fl), glow: 0.4, // the trail of the draw
       sx: kf([0, 0.6], [0.2, 1, out3], [1, 1.08]), sy: kf([0, 0.8], [0.2, 1], [1, 0.6, inQ]), a: kf([0, 0.95], [0.4, 0.8], [1, 0, inQ]) });
+    }
     if (lv === 2) { // fully drawn: the floor is cut too, a shockwave runs down it, dust where the foes go down
       this.spr({ name: 'ground_slash', x: q.x + a.x * len * 0.52, y: q.y + a.y * len * 0.52 + 2, angle: ang, flipY: fl, w: len * 0.95, depth: GROUND + 2.2, life: 1500, delay: 60, glow: 0.5,
         sx: kf([0, 0.1], [0.1, 1, out3]), sy: kf([0, 1.4], [0.1, 1]), a: kf([0, 1], [0.55, 1], [1, 0, inQ]) });
@@ -1100,8 +1114,8 @@ export class SamuraiFx {
     if (!this.ready) return;
     const x = at.x, y = at.y - at.z;
     // (a size down and just behind his spot: a foe beside him reads in front of the ink — DFO, VS CPU)
-    this.pop('ink_burst', x, y - 48, 160, { depth: at.y - 1, life: 440, glow: 0, angle: rnd(-10, 10) });
-    this.spr({ name: 'ink_smoke', x, y: y - 46, depth: at.y - 1.5, w: 120, life: 600, sx: kf([0, 0.5], [0.3, 1.1, out3], [1, 1.5]), sy: kf([0, 0.5], [0.3, 1.1, out3], [1, 1.4]),
+    if (!this.in3d()) this.pop('ink_burst', x, y - 48, 160, { depth: at.y - 1, life: 440, glow: 0, angle: rnd(-10, 10) }); // (PVP 3D: the room's ink burst)
+    if (!this.in3d()) this.spr({ name: 'ink_smoke', x, y: y - 46, depth: at.y - 1.5, w: 120, life: 600, sx: kf([0, 0.5], [0.3, 1.1, out3], [1, 1.5]), sy: kf([0, 0.5], [0.3, 1.1, out3], [1, 1.4]),
       a: kf([0, 0.75], [0.4, 0.6], [1, 0, inQ]), rot: (u) => 70 * u, my: (u) => -24 * u });
     this.petals(x, y - 50, 22, 140, { depth: at.y + 6, life: 1100 });
     this.ctx.punch(0.02, 140);
@@ -1300,9 +1314,9 @@ export class SamuraiFx {
   private eclipseSlash(r: CastRun, i: number): void {
     const o = r.origin, at = this.eclipsePoint(r);
     const th = (([0, 180, 45, 225, 90, 270, 135, 315][i % 8] + rnd(-10, 10)) * Math.PI) / 180, c = Math.cos(th), sn = Math.sin(th) * 0.5, L = 120, y = at.y - o.z - 50;
-    this.cut('cut_line', 290, (Math.atan2(sn, c) * 180) / Math.PI, { x: at.x, y, depth: TOP + 5, grow: 35, hold: 25, fade: 130, glow: 0.8, sweep: 0 });
-    this.phantomDash(r, at.x - c * L, at.y - o.z - sn * L, at.x + c * L, at.y - o.z + sn * L, TOP - 9.8); // (over the dark, behind the fighters' light)
-    this.pop('spark_s', at.x + rnd(-14, 14), y + rnd(-14, 14), 70, { life: 160 });
+    if (!this.in3d()) this.cut('cut_line', 290, (Math.atan2(sn, c) * 180) / Math.PI, { x: at.x, y, depth: TOP + 5, grow: 35, hold: 25, fade: 130, glow: 0.8, sweep: 0 }); // (PVP 3D: the room's flurry)
+    if (!this.in3d()) this.phantomDash(r, at.x - c * L, at.y - o.z - sn * L, at.x + c * L, at.y - o.z + sn * L, TOP - 9.8); // (over the dark, behind the fighters' light; PVP 3D: the flurry's lines are the cuts — the eight phantoms held by the hit-stops ran all at once as one black mass over the foe at the great cut)
+    if (!this.in3d()) this.pop('spark_s', at.x + rnd(-14, 14), y + rnd(-14, 14), 70, { life: 160 });
     this.ctx.darken(300, 0.55); // the dark holds through the cuts (their hit-stops stretch them past its timer)
     if (r.own) this.ctx.cam().shake(60, 0.002);
   }
@@ -1312,9 +1326,11 @@ export class SamuraiFx {
     this.pop('sun_flare', sx, sy, 240, { life: 500, depth: TOP + 1.2, angle: 0, glow: 0.4 });
     this.spr({ name: 'sun_break', x: sx, y: sy, depth: TOP + 1.1, w: 240, delay: 260, life: 900, my: (u) => 60 * u, rot: (u) => 20 * u, sx: kf([0, 1], [1, 1.25]), sy: kf([0, 1], [1, 1.25]), a: kf([0, 1], [1, 0, inQ]) });
     // (the colossal cut over the foe, thin and lit softly enough that he reads under it — DFO's PVP 3D review)
-    this.cut('cut_line', 640, ang, { x: at.x - a.x * 40, y, depth: TOP + 5, h: 48, grow: 50, hold: 120, fade: 320, glow: 0.55, sweep: 0, flipY: a.x < -0.01 });
-    this.later(110, () => this.cut('cut_split', 480, ang, { x: at.x, y, depth: TOP + 5.5, grow: 50, hold: 120, fade: 300, glow: 0.5, sweep: 0, alpha: 0.85 }));
-    this.pop('burst_crit', at.x, y, 170, { life: 360, depth: TOP + 6, glow: 0.3 });
+    if (!this.in3d()) { // (PVP 3D: the cuts are the room's star of lines; the dragon and the sun breaking are the great cut — fx3d/samurai.ts)
+      this.cut('cut_line', 640, ang, { x: at.x - a.x * 40, y, depth: TOP + 5, h: 48, grow: 50, hold: 120, fade: 320, glow: 0.55, sweep: 0, flipY: a.x < -0.01 });
+      this.later(110, () => this.cut('cut_split', 480, ang, { x: at.x, y, depth: TOP + 5.5, grow: 50, hold: 120, fade: 300, glow: 0.5, sweep: 0, alpha: 0.85 }));
+      this.pop('burst_crit', at.x, y, 170, { life: 360, depth: TOP + 6, glow: 0.3 });
+    }
     this.spr({ name: 'ground_slash', x: at.x, y: at.y + 2, angle: ang, flipY: a.x < -0.01, w: 460, depth: GROUND + 2.2, life: 1600, glow: 0.55,
       sx: kf([0, 0.1], [0.1, 1, out3]), sy: kf([0, 1.5], [0.1, 1]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
     // the dragon swims out of the dark along the cut, through the foe and away (its whole body following its head along
@@ -1335,7 +1351,7 @@ export class SamuraiFx {
       return true;
     } });
     for (let i = 0; i < 24; i++) this.later(200 + i * 40, () => this.petals(at.x + rnd(-260, 260), y - rnd(80, 220), 1, 30, { life: 1600, depth: TOP + 3 }));
-    this.ctx.flash?.(0xffd2c8, 0.36, 170); // the corona bursts in light (soft: the colossal cut on the foe stays seen, PVP 3D review)
+    if (!this.in3d()) this.ctx.flash?.(0xffd2c8, 0.36, 170); // the corona bursts in light (soft: the colossal cut on the foe stays seen, PVP 3D review; PVP 3D: the room's own flash of the blow is enough — with this one the picture stood washed pale through the hit-stop)
     this.ctx.darken(MELT0 + MELT - 100, 0.55); // and the dark lifts only after the dragon has passed
     if (r.own) { cam.shake(320, 0.012); this.ctx.punch(0.06, 320); }
   }
@@ -1491,6 +1507,12 @@ export class SamuraiFx {
   private phantom(r: CastRun, i: number): void {
     const s = r.skill, sh = s.hits[0].shape as { radius: number; bias?: number }, o = r.origin, a = r.aim, R = sh.radius;
     const cx = o.x + a.x * (sh.bias ?? 150), cy = o.y + a.y * (sh.bias ?? 150) - o.z - 60, last = i >= s.hits.length - 1;
+    if (!last && this.in3d()) { // (PVP 3D: the flurry of lines is the room's — fx3d/samurai.ts; his phantoms still dash through)
+      const ang = rnd(-40, 40) + (i % 2 ? 180 : 0), c = Math.cos((ang * Math.PI) / 180), sn = Math.sin((ang * Math.PI) / 180), L = R * 1.15, ox = cx + rnd(-R * 0.3, R * 0.3), oy = cy + rnd(-R * 0.15, R * 0.15);
+      this.phantomDash(r, ox - c * L, oy - sn * L + 60, ox + c * L, oy + sn * L + 60, oy + 58);
+      return;
+    }
+    if (last && this.in3d()) { this.shock(cx, cy + 60, R * 2.4); if (r.own) { this.ctx.cam().shake(260, 0.009); this.ctx.punch(0.05, 260); } return; }
     if (!last) {
       const ang = rnd(-40, 40) + (i % 2 ? 180 : 0) + (i % 3 === 2 ? 90 : 0), fl = Math.cos(ang * Math.PI / 180) < 0;
       const ox = cx + rnd(-R * 0.3, R * 0.3), oy = cy + rnd(-R * 0.15, R * 0.15);
@@ -1999,6 +2021,7 @@ export class SamuraiFx {
     this.as(lh ? { attackerId: lh.attackerId, castId: lh.castId, skill: { id: lh.skill } } : null, () => this.finalCutOne(at, dir, big));
   }
   private finalCutOne(at: V3, dir: number, big: boolean): void {
+    if (this.in3d()) return; // (PVP 3D: the flat ghost blade and its crescent stay out — David's bar: nothing flat over the fight)
     const x = at.x, y = at.y - at.z - 40, k = big ? 1.2 : 1;
     this.spr({ name: 'katana_ghost', x, y, depth: TOP + 5, w: 17 * k, life: 150, oy: 0.5,
       mx: kf([0, -dir * 40], [1, dir * 40, inQ]), my: kf([0, -26], [1, 22, inQ]), angle: dir > 0 ? 125 : 55, rot: (u) => dir * 50 * u, a: kf([0, 0], [0.2, 0.85], [0.75, 0.85], [1, 0]) });
