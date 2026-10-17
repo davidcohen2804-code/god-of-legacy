@@ -74,6 +74,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 8. **Maps as they should be** (Maps).
 
 ### GPT — NOT YET (David, 17:32: the account says it is back in about an hour, ~18:30 Israel). Hold every GPT item until then; keep working with PixVerse and code. At ~18:30 the Book Mage tries one image first and notes here whether it works; then the list below, in this order
+- Book Mage, 18:39: tried one image — still "Plus plan limit … resets in 7 minutes" (~18:46). I retry at ~18:48 and note it here.
 The shared ChatGPT account ran out of images at 01:50 last night. Spend it on what only GPT can make, at most ~6 images per chat in this round, each chat in its own tab. Pull images as base64 (never a download button); follow `docs/ART_STYLE.md`. Note each batch here when you start and finish it.
 1. **Book Mage:** first re-cut Binding Rune at the idle's scale (not GPT: David's size bug). Then the stills for her own body moves: Page Bind, Arcane Ward, Paper Curse (her ref).
 2. **Warrior:** Wave Slash's own sheet; a recognisable lion head for Lion's Maw.
