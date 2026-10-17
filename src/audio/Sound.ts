@@ -36,7 +36,7 @@ export const SIG_SFX = {
   warrior: {
     wr_iron_1: [1, 0.44], wr_iron_2: [1, 0.44], wr_iron_3: [1, 0.47], wr_iron_4: [1, 0.62], wr_iron_hit: [2, 0.66], wr_iron_fin: [1, 0.65],
     wr_rise_c: [1, 0.29], wr_rise_h: [1, 0.29], wr_quake_c: [1, 0.61], wr_quake_h: [1, 0.58], wr_rush_c: [1, 0.5], wr_rush_h: [1, 0.47],
-    wr_storm_w: [1, 0.38], wr_storm_c: [1, 0.34], wr_storm_h: [1, 0.28], wr_titan_w: [1, 0.27], wr_titan_h: [1, 0.58], wr_titan_end: [1, 1.0],
+    wr_storm_w: [1, 0.38], wr_storm_c: [1, 0.33], wr_storm_h: [1, 0.28], wr_titan_w: [1, 0.27], wr_titan_h: [1, 0.58], wr_titan_end: [1, 1.0],
     wr_dash_c: [1, 0.37], wr_dash_h: [1, 0.97], wr_whirl_c: [1, 0.41], wr_whirl_h: [1, 0.5], wr_sanct_c: [1, 0.29], wr_sanct_h: [1, 0.52],
     wr_leap_c: [1, 0.44], wr_leap_h: [1, 0.97], wr_leap_end: [1, 0.68], wr_wave_c: [1, 0.28], wr_wave_h: [1, 0.48], wr_cry_c: [1, 0.36],
     wr_cry_h: [1, 0.57], wr_jblade_c: [1, 0.21], wr_jblade_h: [1, 0.49], wr_jblade_z: [1, 0.45], wr_grip_c: [1, 0.28], wr_grip_b: [1, 0.59],

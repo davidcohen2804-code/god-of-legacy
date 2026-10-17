@@ -421,8 +421,9 @@ def wr_storm_w():  # Blade Storm, the wind-up: the sword raised to the sky (a ri
     return finish(x, 0.82, 1.3)
 
 
-def wr_storm_c():  # the storm: lightning crackling round him and light swords erupting from the floor all around (2.6 s)
-    rng = R(141); dur = 3.3; t = T(dur); x = buf(dur)
+def wr_storm_c():  # the storm: lightning crackling round him and light swords erupting from the floor all around (2.6 s), and
+    # the vortex of crimson spectral swords whirling round it, closing in, flung up at the end
+    rng = R(141); dur = 3.6; t = T(dur); x = buf(dur)
     drone = (lp(brown(t.size, rng), 70) * 1.2 + np.sin(2 * np.pi * 49 * t) * 0.25) * env(t, 0.15, 0.9)
     x += drone
     for k in range(15):  # (each sword: a quick rising ring and its own small whoosh)
@@ -434,6 +435,16 @@ def wr_storm_c():  # the storm: lightning crackling round him and light swords e
     times = rng.uniform(0, 2.3, 60); x += grains(t.size, times, rng.uniform(0.1, 0.5, 60) * np.exp(-times / 1.4), crackle_kernels(rng), rng)
     for s in (0.25, 0.9, 1.6):  # (arcs of lightning)
         place(x, arc(0.09, rng, f=rng.uniform(80, 120)) * env(T(0.09), 0.002, 0.04), s, 0.3)
+    # the vortex of crimson spectral swords whirling round the storm (a sword past the front every 220 ms), closing in —
+    # quicker and nearer — then flung up at its end (2.6 s)
+    vr = R(143); tm = 0.08; k = 0
+    while tm < 2.55:
+        near = min(1.0, tm / 2.6)
+        sw = swoosh(0.16, 500, 2400 + 900 * near, 1200, vr, peak=0.5, q=2.4, tail=5, whistle=0.3, wq=16)
+        place(x, sw + flames(0.16, vr, 0.25, 4) * env(T(0.16), 0.03, 0.05), tm, 0.22 + 0.16 * near)
+        tm += 0.22 * (1 - 0.18 * near); k += 1
+    place(x, swoosh(0.45, 300, 3200, 4200, vr, peak=0.35, q=1.8, shape=1.6, tail=4) + air(0.45, 0.35, 4, vr, 300, 0.6), 2.6, 0.75)  # (flung up)
+    place(x, ring(0.6, 1650, [(1, 0.4, 0.16), (1.5, 0.3, 0.1), (2.0, 0.2, 0.07)], vr, att=0.01, glide_to=1.25, gtau=0.12), 2.62, 0.3)
     return finish(x, 0.84, 1.3)
 
 
