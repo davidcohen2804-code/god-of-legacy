@@ -111,7 +111,7 @@ export const GAMBLER: Record<string, Recipe> = {
       const key = r.castId;
       if (i === 0) { // the card under him: it follows him until the last turn (or the hold ends)
         HOLD.set(key, { at, end: false, seen: 0 });
-        f.cardSpin(() => { const h = HOLD.get(key); if (!h || h.end || ++h.seen > 30) { HOLD.delete(key); return null; } return { x: h.at.x, y: h.at.y, z: Math.max(8, h.at.z - 52) }; }, { size: 1.8, color: F.red, rps: 3 });
+        f.cardSpin(() => { const h = HOLD.get(key); if (!h || h.end || ++h.seen > 30) { HOLD.delete(key); return null; } return { x: h.at.x, y: h.at.y, z: Math.max(8, h.at.z - 52) }; }, { size: 1.6, color: 0x6a1020, rps: 2.2, tilt: 0.95, look: { face: 'gbk-card_back' } });
       }
       const h = HOLD.get(key); if (h) { h.at = at; h.seen = 0; if (last) h.end = true; }
       if (last) { f.dome(at.x, at.y, F.red, { r: 60, ms: 240, a: 0.35 }); f.host.kick(0.03); }
