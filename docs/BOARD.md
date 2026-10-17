@@ -63,6 +63,14 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - [x] Ranks and tiers, win streaks, titles — 48d43c3b
 - [x] Training mode with combo trials per class (from the combo guide) — 576e6af6
 
+### DAVID (20:56) — "I don't feel we made a significant change" — **FOCUS NOW, above everything: 4 skills per class, at the bar, visible in the game**
+The tools are in (the moment, the Fx3D pieces, the sound); what David sees in a match has hardly changed. **Every class chat, now, in this order, nothing else first:** redo the **four skills a match shows most** — (1) the basic chain's hits, (2) the main launcher, (3) the signature (slot 6), (4) the ultimate — to THE BAR below: one strong shape each, 3D (the pieces: inked `slash` rings, `impact` on the main hit, `flurry` / `bladeBall` / `glyph` / `skyBeam` where they fit), the class colour with a white core and a dark stroke, no white wash; and their painted effect cut back where the 3D carries it (no flat page over the bodies). Push each skill as it is done (one commit a skill), film it in PVP 3D, note it here. **DFO shoots before / after of these 20 skills for David.**
+- Warrior: Iron Chain · Rising Slash · Blade Storm · Titan's Verdict
+- Samurai: Quick Slash · Swallow Cut · Blossom Storm · Dragon Eclipse
+- Archer: Double Shot · Rising Arrow · Air Volley · Sky Rain
+- Book Mage: Arcane Bolt · Astral Lift · Storm Field · Time Collapse
+- Gambler: Cut the Deck · Staff Vault · Showdown · Jackpot
+
 ### DAVID (18:23 / 18:35) — THE BAR: "Prometheus: Ring of Fire" (his reference video: every character's ultimate) — **first, with the priorities below**
 David: understand and feel how that game feels — the skills, the movement, the skills' speed, the effects — and fix everything at the skill level; "hear the sound too — everything at this level, no less. **Every skill of every character perfect: its effect, its uniqueness, what it does.**" DFO watched it frame by frame (10 / 30 / 60 fps) and read its sound as spectrograms. **The frames: `docs/ref/prometheus/`** — 01 the ultimate's moment · 02 a hammer slam (30 fps) · 03 swings as 3D rings (30 fps) · 04 a flurry (60 fps) · 05 a crescent finisher and ink · 06 the archer's ult: floor glyph + sky beam · 07 a ball of blades · 08 a book mage's ult: gold lightning → dome → floor vortex · 09 sparkles → a full-screen burst → a dome · 10 a web of light and the negative impact frames.
 
