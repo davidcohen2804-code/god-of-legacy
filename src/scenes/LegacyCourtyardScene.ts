@@ -2667,7 +2667,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const label = id === 'chrono_haste' ? 'CHRONO HASTE' : id === 'arcane_ward' ? 'ARCANE WARD' : id === 'war_cry' ? 'WAR CRY' : id === 'iron_oath' ? 'IRON OATH' : id === 'hunters_spirit' ? "HUNTER'S SPIRIT" : id === 'rising_sun' ? 'RISING SUN' : id === 'god_of_blades' ? 'GOD OF BLADES' : id === 'coin_heads' ? 'HEADS' : id === 'coin_tails' ? 'TAILS' : id === 'lady_luck' ? 'LADY LUCK' : 'LEGACY BANNER';
     this.fx?.callout({ x: k.x, y: k.y, z: k.z + 50 }, `+${label}`, '#ffd27a', 0);
     this.fx?.shockwave(k.x, k.y, 90, 0xffd27a);
-    this.chat?.add({ kind: 'system', text: `${name} gave you ${label.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())}.` });
+    this.chat?.add({ kind: 'system', text: `${name} gave you ${label.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()).replace(/ Of /g, ' of ')}.` }); // (God of Blades, not God Of Blades)
   }
 
   /** Party frame / window / invite pop-up (refreshed a few times a second). */
