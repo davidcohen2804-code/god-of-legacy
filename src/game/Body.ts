@@ -564,7 +564,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     storm_field: { act: 'storm_field', st: [0, 1, 2], ac: [3, 4, 4, 4], rc: [5] }, // arm raised to the sky, then flung down and forward as the storm falls
     levity_field: { act: 'levity_field', st: [1, 2], ac: [3, 4], rc: [5] }, // the arm lifted high, palm up, the coat floating up round her: gravity turns over
     time_collapse: { act: 'time_collapse', st: [0, 1, 2, 3], ac: [4], rc: [4, 5] }, // the book lifted over the head, then slammed to the floor on one knee
-    elemental_ascension: { act: 'time_collapse', st: [0, 1, 2], ac: [2], rc: [1, 0] }, // (the book held aloft)
+    elemental_ascension: { act: 'elemental_ascension', st: [1], ac: [2, 3], rc: [4, 5] }, // the arms flung wide, the book raised high overhead, the coat billowing out
     lightning_chain: { act: 'lightning_chain', st: [0, 1], ac: [2, 3], rc: [4, 5] }, // the hand drawn up by the ear, then the arm thrown out
     paper_curse: { act: 'lightning_chain', st: [0, 1], ac: [2], rc: [5] },
     glacial_spikes: { act: 'glacial_spikes', st: [0, 1], ac: [2, 3], rc: [4, 5] }, // a low lunge, the palm sweeping the floor
