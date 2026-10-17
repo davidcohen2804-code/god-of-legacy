@@ -165,7 +165,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - PvP (Maps' Thief's Den request): play together in the open world — see each other in the maps, party up, run the Thief's Den as a party. A big new system: build it now, or keep the world single-player for now?
 
 ## Done
-- Samurai (quality pass): Sakura Bind — his own body move (PixVerse: the katana driven into the planks on one knee, held, pulled out as he rises; it was a palm pushed out) and the idea shown: the planks crack where the blade goes in and a line of blossom light runs through the floor to the ring (2D + 3D); checked in PVP 3D — 59bcdf0f
+- Samurai (quality pass, PVP 3D): nothing of his whites the foe out any more — the Iai's draw is its hair line of steel opening in crimson (no white burst at the draw) — 3ee71d67; Hundred Cuts' storm and last blow lighter, both fighters read through it — 58672f02
+- Samurai (quality pass): Sakura Bind — his own body move (PixVerse: the katana driven into the planks on one knee, held, pulled out as he rises; it was a palm pushed out) and the idea shown: the planks crack where the blade goes in and a line of blossom light runs through the floor to the ring (2D + 3D); checked in PVP 3D — 70123a0a
 - Gambler: reads the arena's re-timed hits (DFO's hitIndex) — a burst's heavy last blast now shows in the arena too (it compared hit times, which the arena copies)
 - Book Mage (quality pass, the rest of the kit in PVP 3D: Levity, Origami, Ward, Curse, Ascension, Page Bind): the PRISM burst whited out the foe and bent the name labels — now he reads through it — 255c07b7. Paper Curse's crane stays solid on purpose (the foe is turned into it).
 - Archer: own body moves for Wind Step, Backstep Shot, Vine Lash, Triple Arrow and Eagle Tide (PixVerse from her ref; no skill borrows another's frames any more) — 53523eda, efb442d2
