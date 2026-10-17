@@ -46,6 +46,8 @@ export interface WorldHooks {
   onArea: (area: AreaDef) => void;
   /** The Sun Gate starts open (the sun already crossed). */
   sunGateOpen?: boolean;
+  /** Which areas' monsters to spawn at the start (the world in 3D: the one map in play; the rest come with `spawnArea`). */
+  spawnIn?: (areaId: string) => boolean;
   /** The world in 3D (src/world3d): none of the painted pictures — the strip, the backdrop, the props' cut-outs, the
    *  maps above, the gate's painting — only what plays (the floor, the NPCs, the monsters, the portal). */
   no2d?: boolean;
@@ -431,8 +433,14 @@ export class OpenWorld {
 
   /** Every area's monsters live all the time (each one keeps to its own home spot). */
   private spawnMobs(): void {
-    for (const h of HEIGHTS) for (const [j, def] of [h.mobs, h.boss].entries()) { const kind = def && MOB_KINDS[def.kind]; if (kind) def.spawns.forEach((s, i) => this.mobs.push(new Monster(this.scene, `mob:${h.id}:${j ? 'boss:' : ''}${i}`, kind, { x: s[0], y: s[1] }, i))); }
-    for (const a of ROW) for (const [j, def] of [a.mobs, a.mobs2].entries()) {
+    const want = this.hooks.spawnIn ?? (() => true);
+    for (const h of HEIGHTS) if (want(h.id)) for (const [j, def] of [h.mobs, h.boss].entries()) { const kind = def && MOB_KINDS[def.kind]; if (kind) def.spawns.forEach((s, i) => this.mobs.push(new Monster(this.scene, `mob:${h.id}:${j ? 'boss:' : ''}${i}`, kind, { x: s[0], y: s[1] }, i))); }
+    for (const a of ROW) if (want(a.id)) this.spawnArea(a.id);
+  }
+  /** One map's monsters (the world in 3D spawns a map's as the hero crosses into it). */
+  spawnArea(id: string): void {
+    const a = ROW.find((r) => r.id === id); if (!a || this.mobs.some((m) => m.id.startsWith(`mob:${id}:`))) return;
+    for (const [j, def] of [a.mobs, a.mobs2].entries()) {
       const kind = def ? MOB_KINDS[def.kind] : undefined; if (!def || !kind) continue;
       def.spawns.forEach((s, i) => this.mobs.push(new Monster(this.scene, `mob:${a.id}:${j ? `b${i}` : i}`, kind, toWorld(a.id, s), i)));
     }

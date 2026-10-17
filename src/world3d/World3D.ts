@@ -4,7 +4,8 @@
 // (the hero, the monsters, the NPCs), what flies, the big moments' darkening, the landings' dust. One place at a time.
 import Phaser from 'phaser';
 import { Arena3D, type Cam3D, type Floor } from '../arena3d/Arena3D';
-import { AREAS } from '../world/Areas';
+import { AREAS, areaAt } from '../world/Areas';
+import { WORLD3D } from './flag';
 import { MAPS } from './maps';
 
 /** The world camera: a little higher and further than the arena's (one player walking far), a gentle turn. */
@@ -31,17 +32,21 @@ export class World3D {
   private focus3 = { x: 0, z: 0 };
   private lead = 0;
   private heroZ = 0; private fallV = 0;
+  /** The arrival (§1.8): from a wide view at the entry edge the camera glides to the hero while he can already walk. */
+  private arrive: { t: number; ms: number; fromX: number } | null = null;
 
   static has(areaId: string): boolean { return !!MAPS[areaId] && !!AREAS[areaId]; }
 
   constructor(scene: Phaser.Scene, readonly areaId: string) {
-    const a = AREAS[areaId];
-    // the floor: the walk polygon's span, its back line where the polygon meets the map's left edge, its front the deepest point
-    const ys = a.walk.map((p) => p[1]), xs = a.walk.map((p) => p[0]);
-    const left = Math.min(...xs), backPts = a.walk.filter((p) => p[0] <= left + 1).map((p) => p[1]);
-    this.floor = { x0: a.x + left, x1: a.x + Math.max(...xs), back: backPts.length ? Math.min(...backPts) : Math.min(...ys), front: Math.max(...ys) };
+    this.floor = World3D.floorOf(areaId);
     this.focus3 = { x: (this.floor.x0 + this.floor.x1) / 200, z: ((this.floor.back + this.floor.front) / 200) * 1.15 };
     this.a3d = new Arena3D(scene, this.floor, { build: MAPS[areaId](this.focus3), cam: WORLD_CAM });
+  }
+
+  /** The arrival beat: `fromX` where the camera starts (the edge the hero came in by), `ms` how long the glide takes. */
+  arrival(fromX: number, ms = 2400): void {
+    this.arrive = { t: 0, ms, fromX }; this.a3d.punch = 0.62;
+    (this.a3d as unknown as { dist: number }).dist = (WORLD_CAM.dist ?? 9) / 0.62; // (starts wide at once; a `snap` on the stage is asked of DFO)
   }
 
   /** Each frame, after the scene has moved everyone. */
@@ -49,7 +54,12 @@ export class World3D {
     const a = this.a3d, h = f.hero;
     this.lead += (h.facing * LEAD - this.lead) * Math.min(1, ms / 600);
     const x0 = this.floor.x0 + HALF_VIEW, x1 = this.floor.x1 - HALF_VIEW;
-    const fx = x1 > x0 ? Phaser.Math.Clamp(h.x + this.lead, x0, x1) : (this.floor.x0 + this.floor.x1) / 2;
+    let fx = x1 > x0 ? Phaser.Math.Clamp(h.x + this.lead, x0, x1) : (this.floor.x0 + this.floor.x1) / 2;
+    if (this.arrive) { // the glide in: wide and at the entry edge, easing onto the hero
+      const ar = this.arrive; ar.t += ms; const k = Phaser.Math.Clamp(ar.t / ar.ms, 0, 1), e = k * k * (3 - 2 * k);
+      fx = Phaser.Math.Linear(Phaser.Math.Clamp(ar.fromX, x0, x1), fx, e); a.punch = Phaser.Math.Linear(0.62, 1, e);
+      if (k >= 1) { this.arrive = null; a.punch = 1; }
+    }
     // a fight spreads the view a little (the nearest foe counts), as the arena's does
     let span = 0; for (const o of f.others) { const d = Math.hypot(o.x - h.x, (o.y - h.y) * 1.7); if (d < 700) span = Math.max(span, d * 0.5); }
     a.focus = { x: fx, y: h.y, z: h.z, span };
@@ -65,9 +75,31 @@ export class World3D {
     a.step(ms, f.hitStop ? 0 : ms);
   }
 
-  /** While only some maps exist in 3D: the hero stays on this map (its ends are soft walls). */
-  keepIn(k: { x: number; vx: number }): void {
-    if (k.x > this.floor.x1 - 24) { k.x = this.floor.x1 - 24; if (k.vx > 0) k.vx = 0; }
-    if (k.x < this.floor.x0 + 24) { k.x = this.floor.x0 + 24; if (k.vx < 0) k.vx = 0; }
+  /** The hero at the map's end: the next map in 3D (its id and the entry x there), or nothing — then the end is a soft
+   *  wall while that map is not built yet. */
+  crossing(k: { x: number; vx: number }): { area: string; x: number; fromX: number } | null {
+    for (const side of [1, -1] as const) {
+      const edge = side > 0 ? this.floor.x1 : this.floor.x0;
+      if (side > 0 ? k.x < edge - 14 : k.x > edge + 14) continue;
+      const next = areaAt(edge + side * 40);
+      if (next.id !== this.areaId && WORLD3D.has(next.id)) { const nf = World3D.floorOf(next.id); return { area: next.id, x: side > 0 ? nf.x0 + 30 : nf.x1 - 30, fromX: side > 0 ? nf.x0 : nf.x1 }; }
+      k.x = side > 0 ? edge - 14 : edge + 14; if (side > 0 ? k.vx > 0 : k.vx < 0) k.vx = 0;
+    }
+    return null;
+  }
+
+  /** A map's floor (world px): the walk polygon's span, its back line where the polygon meets the map's left edge. */
+  static floorOf(areaId: string): Floor {
+    const a = AREAS[areaId], ys = a.walk.map((p) => p[1]), xs = a.walk.map((p) => p[0]);
+    const left = Math.min(...xs), backPts = a.walk.filter((p) => p[0] <= left + 1).map((p) => p[1]);
+    return { x0: a.x + left, x1: a.x + Math.max(...xs), back: backPts.length ? Math.min(...backPts) : Math.min(...ys), front: Math.max(...ys) };
+  }
+
+  /** The place torn down (the hero crossed to the next map): the stage's own teardown, unhooked from the scene's end. */
+  dispose(scene: Phaser.Scene): void {
+    const a = this.a3d as unknown as { destroy(): void; bg: Phaser.GameObjects.Image; fg: Phaser.GameObjects.Image; fxImg: Phaser.GameObjects.Image };
+    scene.events.off(Phaser.Scenes.Events.SHUTDOWN, a.destroy, this.a3d);
+    a.destroy(); // (private on the stage: a public `dispose` that also drops its three layers is asked of DFO)
+    for (const img of [a.bg, a.fg, a.fxImg]) img?.destroy();
   }
 }

@@ -357,7 +357,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
   /** A 3D stage (the arena's room or a world map) takes the game's blows and skills: the skills' 3D pieces (Fx3D) follow
    *  the runtime's own events — the same casts every client sees — and the big hits bend the whole picture. */
+  private wired3D: [string, (...a: never[]) => void][] = [];
+  private unwire3D(): void { for (const [e, fn] of this.wired3D) this.rt?.events.off(e, fn); this.wired3D = []; }
   private wire3D(a3: Arena3D): void {
+    this.unwire3D();
     a3.casterPos = (id) => this.casterPos(id);
     a3.onImpact = (at, big) => {
       const fx = this.fx; if (!fx) return;
@@ -373,8 +376,31 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         [RT_EVENTS.chain, (r: CastRun, _i: number, o: V3, t: V3 | null) => a3.fx.chain(r, o, t)],
       ];
       for (const [e, fn] of on) rt.events.on(e, fn);
+      this.wired3D = on;
       this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { for (const [e, fn] of on) rt.events.off(e, fn); });
     }
+  }
+
+  /** The hero crossed a 3D map's end into the next 3D map (§1.1): a short fade, the place swapped, its monsters in, the
+   *  hero at the entry still walking, the arrival's glide. */
+  private crossing3D(to: { area: string; x: number; fromX: number }): void {
+    const w = this.w3d; if (!w || !this.world || this.warping) return;
+    this.warping = true;
+    const cam = this.cameras.main, from = w.areaId, gen = this.sceneGen;
+    cam.fadeOut(180, 20, 12, 10);
+    cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      if (gen !== this.sceneGen || !this.sys.isActive()) return;
+      void import('../world3d/World3D').then(({ World3D }) => {
+        if (gen !== this.sceneGen || !this.sys.isActive()) return;
+        w.dispose(this); this.world!.removeMobs(`mob:${from}:`);
+        this.kin.x = to.x; this.kin.vx = 0;
+        const nw = this.w3d = new World3D(this, to.area); this.a3d = nw.a3d; this.wire3D(nw.a3d);
+        this.world!.spawnArea(to.area);
+        nw.arrival(to.fromX, 2000);
+        this.warping = false;
+        cam.fadeIn(220, 20, 12, 10);
+      });
+    });
   }
 
   /** The open world on the 3D stage: the camera on the hero (leading where he walks), every body's shadow and light, the
@@ -382,7 +408,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private worldCamStep(ms: number): void {
     const w = this.w3d; if (!w || !this.world) return;
     const k = this.kin;
-    w.keepIn(k);
+    const cross = w.crossing(k); if (cross) { this.crossing3D(cross); return; }
     const ult = !!this.rt?.runs.some((r) => r.skill.slot === 7 && (r.phase === 'startup' || r.phase === 'active'));
     const sig = !!this.rt?.runs.some((r) => r.skill.slot === 6 && (r.phase === 'startup' || r.phase === 'active'));
     const bodies: { body: Phaser.GameObjects.Sprite; foot: Phaser.GameObjects.Image; z: number }[] = this.view ? [{ body: this.view.sprite, foot: this.view.shadow, z: k.z }] : [];
@@ -727,7 +753,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       // The open world: one long world left to right, the camera following you along it.
       const startAt = at ?? toWorld(START.area, [START.x, START.y]);
       const in3d = WORLD3D.has(areaAt(startAt.x).id); // (the world in 3D: only the maps rebuilt so far)
-      this.world = new OpenWorld(this, { no2d: in3d, sunGateOpen: this.quests[SUN_GATE_KEY]?.state === 'done' || !!this.quests.training_grounds /* (walked the old road east before the gate stood: it stays open) */, onArea: (a) => { if (a.name !== this.areaName) { this.areaName = a.name; this.areaTitle?.show(a.name); } if (a.id === 'afterglow') this.openSunGate(); } }, startAt);
+      this.world = new OpenWorld(this, { no2d: in3d, spawnIn: in3d ? (id) => id === areaAt(startAt.x).id : undefined, sunGateOpen: this.quests[SUN_GATE_KEY]?.state === 'done' || !!this.quests.training_grounds /* (walked the old road east before the gate stood: it stays open) */, onArea: (a) => { if (a.name !== this.areaName) { this.areaName = a.name; this.areaTitle?.show(a.name); } if (a.id === 'afterglow') this.openSunGate(); } }, startAt);
       if (in3d) { // the map as a 3D place: the stage, its camera on the hero, the skills' 3D pieces (three.js loads only here)
         const gen = this.sceneGen, areaId = areaAt(startAt.x).id;
         void import('../world3d/World3D').then(({ World3D }) => {
@@ -736,6 +762,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
           const w = this.w3d = new World3D(this, areaId); this.a3d = w.a3d;
           this.motes?.setVisible(false);
           this.wire3D(w.a3d);
+          w.arrival(this.kin.x < (w.floor.x0 + w.floor.x1) / 2 ? w.floor.x0 : w.floor.x1); // (the first map: from its near edge)
         });
       }
       this.world.onNpcClick = (n) => this.talkTo(n);

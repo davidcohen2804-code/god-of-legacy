@@ -100,8 +100,8 @@ export function farMountains(scene: THREE.Scene, cx: number, z: number, R: () =>
     const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(o.color ?? 0x7a5a6a).lerp(new THREE.Color(0xd8b8c8), r / ranges), roughness: 1, fog: true }); out.push(mat);
     const geos: THREE.BufferGeometry[] = [];
     for (let i = 0; i < 9 + r * 3; i++) {
-      const h = 9 + R() * 12 + r * 5, rad = 10 + R() * 12 + r * 4, g = new THREE.ConeGeometry(rad, h, 7, 1);
-      g.translate(cx - span / 2 + (span * i) / (8 + r * 3) + (R() - 0.5) * 8, h / 2 - 3, z - 22 - r * 30 - R() * 10); g.rotateY(0);
+      const h = 12 + R() * 14 + r * 7, rad = 11 + R() * 13 + r * 5, g = new THREE.ConeGeometry(rad, h, 7, 1);
+      g.translate(cx - span / 2 + (span * i) / (8 + r * 3) + (R() - 0.5) * 8, h / 2 - 4, z - 20 - r * 26 - R() * 10);
       geos.push(g);
     }
     for (const g of geos) { const m = new THREE.Mesh(g, mat); m.rotation.y = R() * 3; scene.add(m); out.push(g); }
