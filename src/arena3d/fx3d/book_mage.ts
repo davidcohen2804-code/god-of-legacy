@@ -47,9 +47,9 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // it outward with one beam onto its heart (her portrait with white eyes and lightning is the moment before it)
   time_collapse: { tone: C.storm, own: true,
     active: (f, r) => { const p = placeOf(f, r), ms = r.timings.active + 300, at = () => ({ x: p.x, y: p.y, z: 0 });
-      f.swirl(at, {}, { n: 110, r0: 60, r1: 260, h: 560, ms, rps: 1.5, rise: 0.8, size: 0.9, color: C.storm });
+      f.swirl(at, {}, { n: 140, r0: 50, r1: 280, h: 600, ms, rps: 1.6, rise: 0.8, size: 1.3, color: C.storm });
       f.swirl(at, { tex: 'mage-page', size: 1.1, aspect: 1.3, crumble: 'wind' }, { n: 22, r0: 90, r1: 230, h: 460, ms, rps: 1.1, rise: 0.6 });
-      f.pillar(p.x, p.y, C.storm, { h: 600, r: 70, ms, twist: true, i: 0.35, core: false });
+      f.pillar(p.x, p.y, C.storm, { h: 600, r: 60, ms, twist: true, i: 0.55, core: false }); f.later(ms * 0.3, () => f.pillar(p.x, p.y, C.arcane, { h: 640, r: 110, ms: ms * 0.7, twist: true, i: 0.3, core: false }));
       for (let t = 80; t < ms - 200; t += 150) f.later(t, () => { const a = Math.random() * Math.PI * 2, d = 60 + Math.random() * 300; f.bolt({ x: p.x + Math.cos(a) * d * 0.6, y: p.y, z: 760 }, { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d * 0.5, z: 0 }, Math.random() < 0.5 ? C.storm : C.arcane, { ms: 170, w: 5, forks: 2 }); }); },
     fired: (f, r, i) => { if (i !== 2) return; const p = placeOf(f, r); f.skyBeam({ x: p.x, y: p.y, z: 0 }, C.storm, { ms: 560, w: 22 }); f.host.ring(f.host.w3(p.x), f.host.d3(p.y), C.storm, 4.2, 600, 0.6); f.host.kick(0.08); } },
   // a slim flicker where she vanishes and where she steps out

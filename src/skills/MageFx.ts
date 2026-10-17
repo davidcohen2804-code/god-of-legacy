@@ -754,10 +754,7 @@ export class MageFx {
     if (this.ctx.scene.textures.exists('mfx-clock')) { // (David 18 Oct 01:26: cluttered — the clock, the pull and the dots went: the rift on the floor under the 3D tornado, the freeze, the blast)
       const fz = T.startup + (r.hits[1]?.at ?? 260), bl = T.startup + (r.hits[2]?.at ?? 1250); // (from the cast's own timings and hits)
       this.ctx.darken(total + 300, 0.5);
-      if (this.ctx.scene.textures.exists('mfx-rift')) { // the rift of time under the clock: opens, swirls until the blast (its eruption is drawn there)
-        this.sheet('mfx-rift', p.x, p.y, 640, 380, { floor: true, frames: [0, 4], oy: 0.72, depth: GROUND + 4, run: r });
-        this.sheet('mfx-rift', p.x, p.y, 640, bl - 380, { floor: true, frames: [4, 8], loop: 90, oy: 0.72, depth: GROUND + 4, delay: 380, run: r });
-      } else this.smoke(p.x, p.y - 40, 640, 0, total + 400, { squash: 0.5, depth: GROUND + 3 });
+      // (the painted rift went too: in PVP 3D its gold circle crowded the tornado — one idea)
       this.later(fz, () => { this.warp.ring(p.x, p.y - 60, { r1: 380, life: 520, s: 26, width: 30 }); this.ctx.flash?.(0xe9e2ff, 0.12, 160); this.shake(160, 0.007); }, r);
       return;
     }
@@ -771,8 +768,7 @@ export class MageFx {
       this.warp.ring(p.x, p.y, { r1: 520, life: 600, s: 46, width: 40, squash: SQUASH }); this.warp.ring(p.x, p.y - 80, { r1: 360, life: 460, s: 30, width: 30 });
       this.pool(p.x, p.y, 800, 0xd9b8ff, 1100, { alpha: 0.6 }); 
       this.gpu('nova', p.x, p.y, 900, 900 * SQUASH, 640, (u, _ms, q) => { MageFx.U(q, 'uP', out3(u)); MageFx.U(q, 'uE', u > 0.4 ? (u - 0.4) / 0.6 : 0); }, { depth: GROUND + 2 });
-      if (this.ctx.scene.textures.exists('mfx-rift')) this.sheet('mfx-rift', p.x, p.y, 640, 820, { frames: [12, 4], oy: 0.72, depth: p.y - 60, alpha: 0.6 }); // (the eruption behind the fighters: the 3D dome and vortex carry the blast)
-      else this.sheet('mfx-pillar', p.x, p.y + 8, 700, 640, { oy: 0.85, depth: TOP + 6, frames: [5, 11], tint: 0xffe2b0 });
+      // (no painted eruption: the 3D tornado flung outward and the beam are the blast)
       this.smoke(p.x, p.y - 20, 760, 0, 1100, { squash: 0.45, depth: GROUND + 3 });
       this.burst(p.x, p.y - 80, { n: 24, speed: [300, 900], life: [400, 900], scale: [0.04, 0.2], tint: [0xffd27a, 0xb9a2ff], gravity: 400 });
       this.ctx.hitStop?.(120); this.shake(360, 0.016); this.ctx.flash?.(0xe6dcff, 0.18, 200); this.ctx.punch(0.04, 380);
