@@ -20,7 +20,7 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // cold bursting out round her: crystals grow at the rim (the fighters inside stay clear), a pale shell, frost dust
   frost_nova: { own: true, active: (f, r) => { const c = me(f, r); f.crystals(c.x, c.y, { n: 12, r: 185, h: 120, ms: 1400, ring: true }); f.dome(c.x, c.y, C.frost, { r: 200, ms: 340, a: 0.5 }); f.host.dust(f.host.w3(c.x), f.host.d3(c.y), 8, 1.1); } },
   // lightning leaping link to link; the main link flashes a small shell on the foe
-  lightning_chain: { chainBolt: C.storm, trail: false, hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, C.storm, { r: 80, ms: 220, a: 0.55 }); } },
+  lightning_chain: { chainBolt: C.storm, trail: false, hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, C.storm, { r: 80, ms: 220, a: 0.35 }); } },
   // the signature: a faint storm shell over the field and bolts out of the sky; the last strike a heavy bolt that cracks the floor
   storm_field: {
     own: true,
