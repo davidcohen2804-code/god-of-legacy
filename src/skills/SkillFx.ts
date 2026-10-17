@@ -698,6 +698,7 @@ export class SkillFx {
   /** Titan's Verdict: the struck floor stays electrified — a wide oval across the floor's depth, golden lightning crawling
    *  over it and arcing up, fading at the end (the hits are the skill's linger). */
   private titanField(x: number, y: number, ms: number): void {
+    if (ARENA3D.on) return; // (PVP 3D: the ring of holy runes is the floor — DAVID 20:56)
     if (!this.scene.textures.exists('titan-field')) return;
     const W = 660, img = this.scene.add.image(x, y, 'titan-field', 0).setOrigin(0.5, 0.52).setBlendMode(Phaser.BlendModes.ADD).setDepth(GROUND + 1.6).setDisplaySize(W, W / 2).setAlpha(0);
     const mix = this.scene.add.image(x, y, 'titan-field', 1).setOrigin(0.5, 0.52).setBlendMode(Phaser.BlendModes.ADD).setDepth(GROUND + 1.61).setDisplaySize(W, W / 2).setAlpha(0);
@@ -1176,7 +1177,7 @@ export class SkillFx {
     };
     void mk;
     // The screen rips open like paper right after the cut-in, light pouring through the tear.
-    if (r.skill.id === 'titans_verdict' && this.scene.textures.exists('titan-tear')) this.scene.time.delayedCall(Math.round(r.timings.startup * 0.58), () => { // (cut-in → tear → dragon dive → impact, paced to the wind-up)
+    if (r.skill.id === 'titans_verdict' && !ARENA3D.on && this.scene.textures.exists('titan-tear')) this.scene.time.delayedCall(Math.round(r.timings.startup * 0.58), () => { // (cut-in → tear → dragon dive → impact, paced to the wind-up)
       const v = cam.worldView;
       // golden sparks burst out along the rip (top-left → bottom-right diagonal)
       for (let i = 0; i < 46; i++) {
