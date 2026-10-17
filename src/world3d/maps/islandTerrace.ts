@@ -6,7 +6,7 @@
 // own spec, built from the area's own data (the floor, the props, the NPCs).
 import * as THREE from 'three';
 import type { Room } from '../../arena3d/Room';
-import { Parts, box, cyl, lathe, canvasTex, glowCanvas, shadowCanvas } from '../../arena3d/RoomKit';
+import { Parts, box, cyl, lathe, canvasTex, glowCanvas, shadowCanvas, petalCanvas } from '../../arena3d/RoomKit';
 import { AREAS, HEIGHTS, TOWERS } from '../../world/Areas';
 import { SUN_GATE } from '../../world/SunGate';
 import { footBox, rng, ux, uz, uy, type Disposable } from '../kit/units';
@@ -15,6 +15,7 @@ import { Tiles, flagstoneCanvas, ashlarCanvas, terracottaCanvas, slateCanvas } f
 import { terraceSlab, balustrade, wallRun, stair, tower, block, urn, ivyRun, farMountains, sunRune, contactShade, ivyCanvas } from '../kit/terrain';
 import { pond } from '../life/pond';
 import type { Dressing } from './dressing';
+import { LOOKS, type LookName } from './looks';
 import { growTrees, leafFall, crownCanvas, mapleLeafCanvas } from '../kit/trees';
 import { type Life, type Wind, stillAir, tex as lifeTex, dotCanvas, Puffs, smokeCanvas } from '../life/kit';
 import { birds } from '../life/birds';
@@ -44,8 +45,10 @@ export interface TerraceSpec {
   crimson?: boolean;
   /** Openings in the front balustrade (x ranges, units): a stair down. */
   frontGaps?: [number, number][];
-  /** Kit B — the Twilight Gardens: the sun just set, a rose-violet sky and a cool moon, the stone grey-violet, wisteria
-   *  for ivy, paper lanterns on cords for banners (the warm light), fireflies for butterflies, violet petals falling. */
+  /** The kit's look (looks.ts): golden hour (the default), the crimson east, the Twilight Gardens' dusk (lanterns for
+   *  banners, fireflies, wisteria), Sakura's golden-pink afternoon with blossom, Ironhold's red crags. */
+  look?: LookName;
+  /** Kit B's dusk (= look: 'dusk'). */
   dusk?: boolean;
   /** No wall behind the terrace (nor the ground above it, its balustrade, planters and ivy): the dressing builds the
    *  back — a cliff and falls, a forest bank, the Elder Tree. */
@@ -67,41 +70,36 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
   const R = rng(spec.seed ?? 20261018);
   const disposables: Disposable[] = [];
   let shadowDirty = true;
-  const tiles = new Tiles(renderer, spec.dusk ? 'twilight' : 'island', () => { shadowDirty = true; }); disposables.push(tiles);
+  const look = LOOKS[spec.look ?? (spec.dusk ? 'dusk' : spec.crimson ? 'crimson' : 'golden')], T = look.tint;
+  const tiles = new Tiles(renderer, look.kit, () => { shadowDirty = true; }); disposables.push(tiles);
   const cx = (F.x0 + F.x1) / 2, zMid = (F.zB + F.zF) / 2;
   const zWall = levels.length ? uz(levels[0].front) + 0.02 : F.zB - (spec.wallBack ?? 4.2), zFront = F.zF + 0.42;          // the back wall's face (a deep band of paving behind the walk line: the wall stays low in the frame, the sky over it); the terrace's lip
   const xW0 = F.x0 - 9, xW1 = F.x1 + 9;                     // the terrace runs on past both ends of the map
   const ax = A.x;
 
   // ------------------------------------------------------------------ light, sky, air (golden hour: the sun low from the front-right)
-  const dusk = !!spec.dusk, bare = !!spec.bare;
-  const sky = skyAndLight(scene, front, renderer, dusk ? { // the sun just set: a rose-violet sky, the moon's cool light from the front-left, the lanterns' warmth the rest
-    cx, cz: zMid, soft, sunFrom: new THREE.Vector3(-0.45, 0.72, 0.55), sunColor: 0xa8bcff, sunIntensity: 1.25, hemiSky: 0x9a84b8, hemiGround: 0x3a2e40, hemiIntensity: 1.0,
-    top: 0x3e2c58, mid: 0x9a5a84, low: 0xe8a898, background: 0x6e4e74, fog: { color: 0x6a4c6e, near: 34, far: 100 }, exposure: 1.0,
-  } : {
-    cx, cz: zMid, soft, sunFrom: new THREE.Vector3(0.55, 0.42, 0.72), sunColor: spec.crimson ? 0xff9a6a : 0xffc27a, sunIntensity: spec.crimson ? 2.5 : 2.9, hemiSky: spec.crimson ? 0xd8a0a0 : 0xffe2c8, hemiGround: spec.crimson ? 0x4a2a30 : 0x6a4a3a, hemiIntensity: 0.72,
-    ...(spec.crimson ? { top: 0x3a2040, mid: 0xa8405a, low: 0xe8784a, background: 0xb86a64, fog: { color: 0xc26a5a, near: 34, far: 110 } } : { top: 0x46467e, mid: 0xcc7488, low: 0xffb862, background: 0xe0a888, fog: { color: 0xe6b494, near: 60, far: 150 } }), exposure: 1.0,
-  });
-  const sunDir = dusk ? new THREE.Vector3(-0.45, 0.72, 0.55) : new THREE.Vector3(0.55, 0.42, 0.72);
+  const dusk = !!look.night, bare = !!spec.bare;
+  const sky = skyAndLight(scene, front, renderer, { cx, cz: zMid, soft, ...look.sky });
+  const sunDir = look.sky.sunFrom.clone();
   disposables.push(...sky.disposables);
 
   // ------------------------------------------------------------------ materials
   const std = (o: THREE.MeshStandardMaterialParameters) => tiles.use(new THREE.MeshStandardMaterial(o));
-  const paving = dusk ? tiles.pair('stone_violet', () => flagstoneCanvas([168, 150, 178], 4), 1, 1.8) : tiles.pair('sandstone_paving', () => flagstoneCanvas(), 1, 1.8);
-  const ashlar = dusk ? tiles.pair('stone_violet_wall', () => ashlarCanvas([150, 132, 162], 6), 1, 2.0) : tiles.pair('sandstone_wall', () => ashlarCanvas(), 1, 2.0);
-  const moss = dusk ? tiles.pair('moss', () => flagstoneCanvas([70, 104, 58], 12), 1, 1.4) : null;
+  const paving = tiles.pair(look.pavingTile, () => flagstoneCanvas(look.pavingBase, 4), 1, 1.8);
+  const ashlar = tiles.pair(look.wallTile, () => ashlarCanvas(look.wallBase, 6), 1, 2.0);
+  const moss = look.moss ? tiles.pair('moss', () => flagstoneCanvas([70, 104, 58], 12), 1, 1.4) : null;
   const M: Record<string, THREE.Material> = {
-    paving: std({ map: paving.map, normalMap: paving.normalMap, normalScale: new THREE.Vector2(0.9, 0.9), roughness: 0.92, color: dusk ? 0xd8ccdc : 0xf8e0c8 }),
-    wall: std({ map: ashlar.map, normalMap: ashlar.normalMap, normalScale: new THREE.Vector2(1.1, 1.1), roughness: 0.94, color: dusk ? 0xa898b0 : spec.crimson ? 0xa88478 : 0xcfae86 }),
-    balustrade: std({ map: ashlar.map, normalMap: ashlar.normalMap, normalScale: new THREE.Vector2(0.5, 0.5), roughness: 0.9, color: dusk ? 0xcabed0 : 0xf6ead4 }),
-    moulding: std({ map: ashlar.map, roughness: 0.9, color: dusk ? 0xd2c8d8 : 0xfaf0dc }),
+    paving: std({ map: paving.map, normalMap: paving.normalMap, normalScale: new THREE.Vector2(0.9, 0.9), roughness: 0.92, color: T.paving }),
+    wall: std({ map: ashlar.map, normalMap: ashlar.normalMap, normalScale: new THREE.Vector2(1.1, 1.1), roughness: 0.94, color: T.wall }),
+    balustrade: std({ map: ashlar.map, normalMap: ashlar.normalMap, normalScale: new THREE.Vector2(0.5, 0.5), roughness: 0.9, color: T.balustrade }),
+    moulding: std({ map: ashlar.map, roughness: 0.9, color: T.moulding }),
     dark: std({ color: 0x2a2420, roughness: 0.9 }),
-    roof: std({ map: canvasTex(slateCanvas()), roughness: 0.6, metalness: 0.1, color: dusk ? 0x6a7490 : 0x9aa4c0 }),
+    roof: std({ map: canvasTex(slateCanvas()), roughness: 0.6, metalness: 0.1, color: T.roof }),
     gold: std({ color: 0xe0ab4c, metalness: 1, roughness: 0.3 }),
-    terracotta: std({ map: canvasTex(terracottaCanvas()), roughness: 0.85, color: dusk ? 0xa88898 : 0xe8b090 }),
-    wood: std({ color: dusk ? 0x3a2a26 : 0x4a3426, roughness: 0.7 }),
+    terracotta: std({ map: canvasTex(terracottaCanvas()), roughness: 0.85, color: T.terracotta }),
+    wood: std({ color: T.wood, roughness: 0.7 }),
     bronze: std({ color: 0x7a5a30, metalness: 0.85, roughness: 0.4 }),
-    bark: std({ map: canvasTex(ashlarCanvas(dusk ? [58, 46, 44] : [92, 66, 48], 3)), roughness: 0.95, color: dusk ? 0xb4a4ac : 0xb09078 }),
+    bark: std({ map: canvasTex(ashlarCanvas(T.barkBase, 3)), roughness: 0.95, color: T.bark }),
     ...(moss ? { moss: std({ map: moss.map, normalMap: moss.normalMap, normalScale: new THREE.Vector2(0.8, 0.8), roughness: 1, color: 0xa8c89a }) } : {}),
   };
   const P = new Parts(), PF = new Parts();
@@ -113,7 +111,7 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
   const groundTex = paving.map, groundN = paving.normalMap;
   const mkGround = (w: number, d: number, x: number, y: number, z: number, rep: number) => {
     const t = groundTex.clone(); t.needsUpdate = true; t.repeat.set(w / rep, d / rep); const n = groundN.clone(); n.needsUpdate = true; n.repeat.set(w / rep, d / rep); disposables.push(t, n);
-    const m = std({ map: t, normalMap: n, normalScale: new THREE.Vector2(1.0, 1.0), roughness: 0.92, color: 0xf8e0c8 });
+    const m = std({ map: t, normalMap: n, normalScale: new THREE.Vector2(1.0, 1.0), roughness: 0.92, color: T.paving });
     const g = new THREE.PlaneGeometry(w, d); g.rotateX(-Math.PI / 2); g.translate(x, y, z); disposables.push(g);
     const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; scene.add(mesh); return mesh;
   };
@@ -121,7 +119,7 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
   const zTopBack = levels.length ? uz(levels[levels.length - 1].back) : zWall; // (where the ground above begins: behind the top floor)
   if (!bare) mkGround(xW1 - xW0 + 30, 14, (xW0 + xW1) / 2, WALL_H, zTopBack - 7 - 0.4, 2.2);             // the ground above the wall (the Temple's, the mountain's)
   { // the valley: a dark floor far below, in the haze
-    const m = std({ color: dusk ? 0x2a2438 : 0x4a4458, roughness: 1 }); const g = new THREE.PlaneGeometry(400, 400); g.rotateX(-Math.PI / 2); g.translate(cx, -16, zMid); disposables.push(g); scene.add(new THREE.Mesh(g, m));
+    const m = std({ color: T.valley, roughness: 1 }); const g = new THREE.PlaneGeometry(400, 400); g.rotateX(-Math.PI / 2); g.translate(cx, -16, zMid); disposables.push(g); scene.add(new THREE.Mesh(g, m));
   }
   terraceSlab(P, xW0 - 4, xW1 + 4, zWall - 0.4, zFront, 0, 3.0);
   // the balustrade along the lip (in front of whoever stands at the edge), its urns on pedestals where the data puts them
@@ -230,37 +228,37 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
   if (spec.rune) disposables.push(sunRune(scene, cx, 0, zMid, 1.7));
 
   // ------------------------------------------------------------------ the trees (maples on the terrace above and at the terrace's far ends), the ivy
-  const crownTex = canvasTex(crownCanvas(dusk ? ['#4e6e4a', '#5f805a', '#3a5a3c'] : ['#d8552a', '#f0923a', '#8c2a1e'], 5)); disposables.push(crownTex);
+  const crownTex = canvasTex(crownCanvas(look.crown, 5)); disposables.push(crownTex);
   const treeSpots = bare ? [] : [
     { x: nx0 - 4.2, z: zTopBack - 3.2, h: 2.8, lean: 0.3 }, { x: nx1 + 7.5, z: zTopBack - 3.6, h: 3.1, lean: -0.3 }, { x: xW1 - 5.5, z: zTopBack - 3.0, h: 2.6, lean: -0.2 },
     ...(levels.length ? [] : [{ x: xW0 + 5.5, z: zWall - 0.9, h: 2.4, lean: 0.4 }, { x: xW1 - 0.5, z: zWall - 0.9, h: 2.5, lean: -0.4 }]),
   ];
   const upper = (t: { z: number }) => (t.z < zTopBack - 1.2 ? WALL_H : 0);
-  const crownLook = dusk ? { crownTex, crownColor: 0xb8c4d8, crownEmissive: 0x0c1428, crownEmissiveIntensity: 0.35 } : { crownTex, crownColor: 0xffd0b0, crownEmissive: 0x4a1a0a, crownEmissiveIntensity: 0.45 };
+  const crownLook = { crownTex, crownColor: look.crownColor, crownEmissive: look.crownEmissive, crownEmissiveIntensity: look.crownEmissiveIntensity };
   const treesUp = growTrees(scene, treeSpots.filter((t) => upper(t) > 0), WALL_H, crownLook, R, soft);
   const treesLow = growTrees(scene, treeSpots.filter((t) => upper(t) === 0), 0, crownLook, R, soft);
   disposables.push(treesUp, treesLow);
   { const PB = new Parts(); PB.add('bark', ...treesUp.bark, ...treesLow.bark); PB.build(M, scene); }
-  const ivyTex = canvasTex(ivyCanvas(dusk ? ['#8a6ab8', '#a98ad8', '#c4a8ee', '#6a4a98', '#5a7a4a', '#b89ae0'] : spec.crimson ? ['#8a1a14', '#b8241c', '#6a1010', '#c8402a', '#4a0a0a'] : ['#b8341c', '#d9552a', '#e9893c', '#5a7a2a', '#7a9a3a', '#8a2a1a'], 7)); disposables.push(ivyTex); // (at dusk: wisteria pouring over the parapets)
+  const ivyTex = canvasTex(ivyCanvas(look.ivy, 7)); disposables.push(ivyTex); // (ivy; at dusk wisteria pouring over the parapets; blossom at Sakura; dry scrub at Ironhold)
   const ivySpots: { x: number; y: number; z: number; drop: number; s: number }[] = [];
   if (!spec.noBalustrade) for (let x = xW0 - 3; x < xW1 + 3; x += 1.1) if (R() < 0.75) ivySpots.push({ x: x + (R() - 0.5) * 0.6, y: 0.84, z: zFront + 0.36, drop: 0.7 + R() * 0.9, s: 1.0 + R() * 0.6 });
   const faceH = levels.length ? levels[0].H / 100 : WALL_H;
   if (!bare) for (let x = xW0 - 3; x < xW1 + 3; x += 1.5) if (R() < 0.7 && (levels.length || x < nx0 - 1.4 || x > nx1 + 1.4)) ivySpots.push({ x: x + (R() - 0.5) * 0.6, y: faceH - 0.36, z: zWall + 0.14, drop: 1.0 + R() * 1.3, s: 1.0 + R() * 0.7 });
   if (!bare) for (let x = xW0 - 3; x < xW1 + 3; x += 1.9) if (R() < 0.5 && (x < nx0 - 1.4 || x > nx1 + 1.4)) ivySpots.push({ x: x + (R() - 0.5) * 0.6, y: WALL_H + 0.84, z: zTopBack - 0.1, drop: 0.6 + R() * 0.6, s: 0.9 + R() * 0.4 });
   const ivy = ivyRun(scene, ivyTex, ivySpots, R), ivyBack = ivy; disposables.push(ivy);
-  const flowerTex = canvasTex(crownCanvas(dusk ? ['#8a6ad0', '#b49af0', '#5a7a4a'] : ['#e23a4a', '#f27a8a', '#5a7a2a'], 9)); disposables.push(flowerTex);
+  const flowerTex = canvasTex(crownCanvas(look.flowers, 9)); disposables.push(flowerTex);
   const flowerSpots: { x: number; y: number; z: number; drop: number; s: number }[] = [];
   for (const px of planterX) for (let k = -1; k <= 1; k++) flowerSpots.push({ x: px + k * 0.45 + (R() - 0.5) * 0.2, y: 0.42 + 0.55, z: zWall + 0.42 + (R() - 0.5) * 0.2, drop: 0.55, s: 0.6 + R() * 0.25 });
   for (const b of bedSpots) for (let i = 0; i < Math.round(b.w * b.d * 6); i++) flowerSpots.push({ x: b.x + (R() - 0.5) * (b.w - 0.4), y: 0.9 + 0.5, z: b.z + (R() - 0.5) * (b.d - 0.3), drop: 0.5, s: 0.55 + R() * 0.25 });
   const flowers = ivyRun(scene, flowerTex, flowerSpots, R); disposables.push(flowers);
 
   // ------------------------------------------------------------------ the far world: mountains in the haze, mist below the lip and in the valley behind
-  disposables.push(farMountains(scene, cx, zWall - 4, R, { ranges: 3, color: dusk ? 0x2e2244 : spec.crimson ? 0x4a2a38 : 0x5a3e52, span: 190 }));
+  disposables.push(farMountains(scene, cx, zWall - 4, R, { ranges: 3, color: T.mountains, span: 190 }));
   const glowTex = canvasTex(glowCanvas()); disposables.push(glowTex);
   const mistTex = lifeTex(smokeCanvas(5)); disposables.push(mistTex);
   const mists: { s: THREE.Sprite; x0: number; ph: number }[] = [];
   for (let i = 0; i < (soft ? 10 : 22); i++) {
-    const m = new THREE.SpriteMaterial({ map: mistTex, color: dusk ? 0xb8a0c8 : 0xf6d8c8, transparent: true, opacity: 0.16 + R() * 0.12, depthWrite: false, fog: false }); disposables.push(m);
+    const m = new THREE.SpriteMaterial({ map: mistTex, color: T.mist, transparent: true, opacity: 0.16 + R() * 0.12, depthWrite: false, fog: false }); disposables.push(m);
     const s = new THREE.Sprite(m), w = 5 + R() * 7, frontSide = R() < 0.55;
     s.scale.set(w, w * 0.45, 1); s.position.set(xW0 - 6 + R() * (xW1 - xW0 + 12), frontSide ? -1.6 - R() * 2.2 : WALL_H - 0.5 - R() * 3, frontSide ? zFront + 1.5 + R() * 3 : zWall - 10 - R() * 8);
     scene.add(s); mists.push({ s, x0: s.position.x, ph: R() * 10 });
@@ -274,13 +272,12 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
   const embers = new Puffs(soft ? 30 : 70, lifeTex(dotCanvas(0.5)), true); scene.add(embers.pts); disposables.push(embers);
 
   // ------------------------------------------------------------------ the leaves falling from the maples, lying thick under them
-  const leafTex = canvasTex(mapleLeafCanvas()); disposables.push(leafTex);
+  const leafTex = canvasTex(look.fall.petal ? petalCanvas() : mapleLeafCanvas()); disposables.push(leafTex);
   const groundY = (x: number, z: number): number => { if (z > zFront + 0.05) return -16; if (bare) return 0; if (!levels.length) return z < zWall - 0.05 ? WALL_H : 0; let y = 0; for (const h of levels) if (z < uz(h.front) + 0.02) y = h.H / 100; return y; };
   const leaves = leafFall(scene, {
     from: [...treesUp.clumps, ...treesLow.clumps], groundY, falling: soft ? 90 : 260, lying: soft ? 500 : 1500,
     bounds: { x0: F.x0 - 4, x1: F.x1 + 4, z0: zWall + 0.1, z1: zFront - 0.1 }, under: treeSpots.filter((t) => upper(t) === 0).map((t) => ({ x: t.x, z: t.z + 0.8 })),
-    ...(dusk ? { tex: leafTex, size: [0.08, 0.08] as [number, number], hue: [0.72, 0.79] as [number, number], sat: [0.45, 0.65] as [number, number], light: [0.6, 0.76] as [number, number], emissive: 0x1a0c30 }
-      : { tex: leafTex, size: [0.11, 0.11] as [number, number], hue: [0.0, 0.09] as [number, number], sat: [0.65, 0.9] as [number, number], light: [0.42, 0.6] as [number, number], emissive: 0x301008 }),
+    tex: leafTex, size: look.fall.size, hue: look.fall.hue, sat: look.fall.sat, light: look.fall.light, emissive: look.fall.emissive,
   }, R);
   disposables.push(leaves);
 
@@ -296,7 +293,7 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
     if (spec.arch) life.push(pond(scene, { x: sx, z: zWall - 0.95, w: sw + 0.3, d: 0.9, y: 0 }, { wind: air, stone: M.balustrade, mirror: !soft, sunDir, sunColor: new THREE.Color(0xffc27a), skyLow: new THREE.Color(0xffb862), skyMid: new THREE.Color(0xcc7488), koi: 3, pads: 3 }));
     if (!dusk && !bare) for (const [i, x] of [xW0 + 6.4, cx - 5.6, cx + 5.6, xW1 - 6.4].entries()) if (!gap || Math.abs(x - sx) > 3) life.push(banner(scene, { x, y: faceH - 0.42, z: zWall + 0.14, yaw: 0, w: 0.56, h: Math.min(1.8, faceH - 0.5) }, { wind: air, seed: 21 + i }));
     if (!dusk) for (const x of towersX) life.push(banner(scene, { x, y: 6.6 + 0.95, z: zWall - 1.5 + 2.0, yaw: 0, w: 0.5, h: 1.6, pole: true }, { wind: air, seed: 31 }));
-    life.push(clouds(scene, { cx, z: zWall - 40, y: 18, spread: 90 }, { n: soft ? 4 : 9, seed: 3, tint: dusk ? 0x8a6a98 : undefined }));
+    life.push(clouds(scene, { cx, z: zWall - 40, y: 18, spread: 90 }, { n: soft ? 4 : 9, seed: 3, tint: T.clouds }));
   }
 
   // ------------------------------------------------------------------ the frame's work

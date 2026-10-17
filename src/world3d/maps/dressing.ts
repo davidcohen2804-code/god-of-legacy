@@ -249,28 +249,36 @@ export const wardensHold: Dressing = (c) => {
 
 // ------------------------------------------------------------------ the Temple Road (M19)
 
-/** M19 · Temple Road: the temple front across the back (a stone platform with its stair, red pillars, lit lattice doors, a
- *  curved roof), the Masters' stage before it with their four banners, stone lions at the west mouth, the Waystone at the
- *  east end under a little roof, cherry trees shedding petals, the stair down to the Sun Seal Plaza at the front. */
-export const templeRoad: Dressing = (c) => {
-  const { P, scene, zWall, cx, life, air, R, std } = c;
-  const lacquer = std({ color: 0xb8302a, roughness: 0.35, metalness: 0.05 }), gold = c.M.gold, plaster = std({ color: 0xf2e8da, roughness: 0.95 });
-  const door = std({ color: 0xe8c080, emissive: 0xff9a40, emissiveIntensity: 1.1, roughness: 0.6 });
-  void lacquer; void plaster; void door;
-  c.M.lacquer = lacquer; c.M.plaster = plaster; c.M.door = door;
-  // the temple: a platform 1.1 high and its stair, eight red pillars, the wall with three glowing doors and lattice windows, beams, the roof
-  const TW = 14, PH = 1.1, zP = zWall - 0.2, zC = zP - 0.5, zW = zP - 1.7, yT = PH;
+/** A temple / shrine front: a stone platform `PH` high with its stair, red pillars, the wall with glowing lattice doors
+ *  in the middle bays and lit windows in the others, the beams and the curved roof with lifted corners — the arena's
+ *  temple made a piece: `TW` wide at `x`, its platform's front at `zP`. */
+export function templeFront(c: DressCtx, x: number, TW: number, PH: number, zP: number, o: { bays?: number; doorBays?: number[]; roofRise?: number } = {}): { yT: number; zC: number; zW: number } {
+  const { P, std } = c;
+  c.M.lacquer ??= std({ color: 0xb8302a, roughness: 0.35, metalness: 0.05 }); c.M.plaster ??= std({ color: 0xf2e8da, roughness: 0.95 });
+  c.M.door ??= std({ color: 0xe8c080, emissive: 0xff9a40, emissiveIntensity: 1.1, roughness: 0.6 });
+  const bays = o.bays ?? 7, doorBays = o.doorBays ?? [2, 3, 4], zC = zP - 0.5, zW = zP - 1.7, yT = PH, cx = x;
   P.add('wall', box(TW, PH, 6.4, cx, 0, zP - 3.2, 1.3)); P.add('moulding', box(TW + 0.2, 0.1, 6.6, cx, yT - 0.1, zP - 3.2, 1.3, 0.03));
-  for (let k = 1; k <= 6; k++) P.add('moulding', box(4.2, k * (PH / 6), (7 - k) * 0.28, cx, 0, zP + (7 - k) * 0.14, 1.1, 0.02));
-  const px: number[] = []; for (let i = 0; i < 8; i++) px.push(cx - TW / 2 + 0.6 + (i * (TW - 1.2)) / 7);
-  for (const x of px) { P.add('moulding', lathe([[0, 0], [0.3, 0], [0.3, 0.06], [0.22, 0.14], [0, 0.14]], x, yT, zC, 14)); P.add('lacquer', cyl(0.17, 0.16, 2.9, x, yT + 0.14, zC, 16, 0.6)); P.add('gold', cyl(0.18, 0.18, 0.05, x, yT + 0.14, zC, 16), cyl(0.17, 0.17, 0.05, x, yT + 2.7, zC, 16)); }
-  for (let i = 0; i < 7; i++) { const x = (px[i] + px[i + 1]) / 2, w = (TW - 1.2) / 7 - 0.4; if (i >= 2 && i <= 4) { P.add('door', box(w, 2.4, 0.1, x, yT + 0.1, zW, 1)); P.add('wood', box(w + 0.1, 0.14, 0.16, x, yT + 2.5, zW + 0.02, 0.6)); P.add('plaster', box(w, 0.5, 0.12, x, yT + 2.64, zW, 1.6)); } else { P.add('plaster', box(w, 0.95, 0.14, x, yT + 0.08, zW, 1.6)); P.add('door', box(w - 0.3, 1.1, 0.08, x, yT + 1.15, zW + 0.02, 1)); P.add('plaster', box(w, 0.8, 0.12, x, yT + 2.3, zW, 1.6)); } }
+  const steps = Math.max(3, Math.round(PH / 0.18));
+  for (let k = 1; k <= steps; k++) P.add('moulding', box(TW * 0.3, k * (PH / steps), (steps + 1 - k) * 0.28, cx, 0, zP + (steps + 1 - k) * 0.14, 1.1, 0.02));
+  const px: number[] = []; for (let i = 0; i <= bays; i++) px.push(cx - TW / 2 + 0.6 + (i * (TW - 1.2)) / bays);
+  for (const q of px) { P.add('moulding', lathe([[0, 0], [0.3, 0], [0.3, 0.06], [0.22, 0.14], [0, 0.14]], q, yT, zC, 14)); P.add('lacquer', cyl(0.17, 0.16, 2.9, q, yT + 0.14, zC, 16, 0.6)); P.add('gold', cyl(0.18, 0.18, 0.05, q, yT + 0.14, zC, 16), cyl(0.17, 0.17, 0.05, q, yT + 2.7, zC, 16)); }
+  for (let i = 0; i < bays; i++) { const q = (px[i] + px[i + 1]) / 2, w = (TW - 1.2) / bays - 0.4; if (doorBays.includes(i)) { P.add('door', box(w, 2.4, 0.1, q, yT + 0.1, zW, 1)); P.add('wood', box(w + 0.1, 0.14, 0.16, q, yT + 2.5, zW + 0.02, 0.6)); P.add('plaster', box(w, 0.5, 0.12, q, yT + 2.64, zW, 1.6)); } else { P.add('plaster', box(w, 0.95, 0.14, q, yT + 0.08, zW, 1.6)); P.add('door', box(w - 0.3, 1.1, 0.08, q, yT + 1.15, zW + 0.02, 1)); P.add('plaster', box(w, 0.8, 0.12, q, yT + 2.3, zW, 1.6)); } }
   P.add('lacquer', box(TW - 0.5, 0.24, 0.26, cx, yT + 3.04, zC, 0.6, 0.02)); P.add('wood', box(TW - 0.2, 0.3, 0.26, cx, yT + 3.28, zC - 0.04, 0.6, 0.02));
-  { const yE = yT + 3.9, yR = yT + 6.4, g = new THREE.BufferGeometry(), pos: number[] = [], idx: number[] = [], nu = 24, nv = 10, eH = TW / 2 + 1.6, rH = TW / 2 - 1.4; // the roof: a curved slope with lifted corners
+  { const yE = yT + 3.9, yR = yT + 3.9 + (o.roofRise ?? 2.5), g = new THREE.BufferGeometry(), pos: number[] = [], idx: number[] = [], nu = 24, nv = 10, eH = TW / 2 + 1.6, rH = TW / 2 - 1.4; // the roof: a curved slope with lifted corners
     for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) { const v = j / nv, s2 = (2 * i) / nu - 1, half = eH + (rH - eH) * v, lift = 0.5 * Math.pow(Math.abs(s2), 3) * (1 - v) * (1 - v); pos.push(cx + s2 * half, yE + (yR - yE) * Math.pow(v, 1.7) + lift, zC + 1.1 + (zW - 2.6 - (zC + 1.1)) * v); }
     for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) { const a = j * (nu + 1) + i, b = a + nu + 1; idx.push(a, a + 1, b, b, a + 1, b + 1); }
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); const uv: number[] = []; for (let k = 0; k < pos.length / 3; k++) uv.push(pos[k * 3] / 1.2, pos[k * 3 + 2] / 1.2); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); P.add('roof', g);
     P.add('roof', box(2 * rH + 0.6, 0.34, 0.5, cx, yR - 0.1, zW - 2.6, 1, 0.05)); P.add('gold', box(2 * rH + 0.7, 0.06, 0.54, cx, yR + 0.22, zW - 2.6, 1, 0.02)); }
+  return { yT, zC, zW };
+}
+
+/** M19 · Temple Road: the temple front across the back (a stone platform with its stair, red pillars, lit lattice doors, a
+ *  curved roof), the Masters' stage before it with their four banners, stone lions at the west mouth, the Waystone at the
+ *  east end under a little roof, cherry trees shedding petals, the stair down to the Sun Seal Plaza at the front. */
+export const templeRoad: Dressing = (c) => {
+  const { P, scene, zWall, cx, life, air, R } = c;
+  const TW = 14, zP = zWall - 0.2;
+  templeFront(c, cx, TW, 1.1, zP);
   // the Masters' stage (the prop) with four banners behind it: red, blue, green, white
   for (const p of c.A.props.filter((q) => q.id === 'stage')) { const b = fb(p.foot, c.ax), h = uy(p.h || 66); P.add('balustrade', box(b.w, h, b.d, b.cx, 0, b.cz, 1.1, 0.03)); P.add('moulding', box(b.w + 0.2, 0.08, b.d + 0.2, b.cx, h - 0.08, b.cz, 1.1, 0.02)); P.add('moulding', box(1.4, h / 2, 0.5, b.cx, 0, b.z1 + 0.25, 1.1, 0.02));
     for (const [i, dx] of [-1.8, -0.6, 0.6, 1.8].entries()) { P.add('dark', cyl(0.04, 0.04, 2.6, b.cx + dx, h, b.z0 + 0.2, 6)); life.push(banner(scene, { x: b.cx + dx + 0.02, y: h + 2.5, z: b.z0 + 0.22, yaw: 0, w: 0.5, h: 1.6, emblem: i === 0 }, { wind: air, seed: 120 + i })); } }
