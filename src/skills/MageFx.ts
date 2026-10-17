@@ -754,19 +754,14 @@ export class MageFx {
   /** Time Collapse: a giant clock over the area through the wind-up; the hands stop; it cracks and collapses. */
   private timeCollapse(r: CastRun): void {
     const p = this.placeFloor(r), T = r.timings, total = T.startup + T.active;
-    if (this.ctx.scene.textures.exists('mfx-clock')) { // the painted clock, timed to the cast: drawn and sweeping through the pull, stopped at the freeze, cracking until the blast
+    if (this.ctx.scene.textures.exists('mfx-clock')) { // (David 18 Oct 01:26: cluttered — the clock, the pull and the dots went: the rift on the floor under the 3D tornado, the freeze, the blast)
       const fz = T.startup + (r.hits[1]?.at ?? 260), bl = T.startup + (r.hits[2]?.at ?? 1250); // (from the cast's own timings and hits)
       this.ctx.darken(total + 300, 0.5);
       if (this.ctx.scene.textures.exists('mfx-rift')) { // the rift of time under the clock: opens, swirls until the blast (its eruption is drawn there)
         this.sheet('mfx-rift', p.x, p.y, 640, 380, { floor: true, frames: [0, 4], oy: 0.72, depth: GROUND + 4, run: r });
         this.sheet('mfx-rift', p.x, p.y, 640, bl - 380, { floor: true, frames: [4, 8], loop: 90, oy: 0.72, depth: GROUND + 4, delay: 380, run: r });
       } else this.smoke(p.x, p.y - 40, 640, 0, total + 400, { squash: 0.5, depth: GROUND + 3 });
-      this.gpu('vortex', p.x, p.y - 60, 520, 520, fz + 200, (u, ms, q) => { MageFx.U(q, 'uP', Math.min(1, ms / fz)); MageFx.U(q, 'uE', ms < fz ? 0 : (ms - fz) / 200); }, { uA: -1, run: r, depth: p.y - 90 }); // (the pull and the clock stand behind the fighters caught in it: they read in front of it)
-      for (let t = 0; t < total; t += 120) this.later(t, () => this.img('mg-dot', { x: p.x + rnd(-260, 260), y: p.y + rnd(-60, 40), w: rnd(5, 12), tint: Math.random() < 0.5 ? 0xffd27a : 0xb9a2ff, life: 900, my: (u) => -160 * u, a: kf([0, 0], [0.2, 1], [1, 0]) }), r);
       this.later(fz, () => { this.warp.ring(p.x, p.y - 60, { r1: 380, life: 520, s: 26, width: 30 }); this.ctx.flash?.(0xe9e2ff, 0.12, 160); this.shake(160, 0.007); }, r);
-      this.sheet('mfx-clock', p.x, p.y - 60, 580, total + 520, { alpha: 0.75, oy: 0.55, depth: p.y - 80, run: r, sy: 0.9,
-        keys: [[0, 0], [3, 420], [6.9, fz - 40], [7, fz], [8.9, fz + 260], [9, fz + 300], [11.9, bl - 20], [12, bl], [13.9, bl + 200], [15.9, total + 520]] });
-      this.warp.well(p.x, p.y - 70, { r: 300, life: fz, s: 30, twist: 30 });
       return;
     }
     this.floor('sig_clock', p.x, p.y, 380, total + 200, { add: true, glow: 0.6, spin: 40, run: r, a: kf([0, 0], [0.15, 0.9], [0.92, 1], [1, 0]), s: kf([0, 0.4], [0.2, 1, out3]) });
