@@ -251,7 +251,7 @@ def arc(dur, rng, f=95.0, jit=0.3, cap=4000, hpf=350, flicker=True):
 
 def rustle(dur, rng, rate=400, lo=2500, hi=9000, amp=1.0):
     """Leaves / petals / paper: a dense crowd of tiny bright grains."""
-    n = int(SR * dur)
+    n = T(dur).size
     times = np.sort(rng.uniform(0, dur, int(rate * dur)))
     k = [bp(rng.standard_normal(int(SR * 0.012)), lo, hi) * np.exp(-np.arange(int(SR * 0.012)) / SR / tau) for tau in (0.0015, 0.003, 0.005)]
     return grains(n, times, rng.uniform(0.2, 1, times.size), k, rng) * amp
@@ -1867,6 +1867,758 @@ SOUNDS4 = {
 }
 
 
+# ---------------------------------------------------------------- WARRIOR, the rest of his kit — in DFO's five families:
+# STEEL the sword itself (thin, quick, ringing), STONE his weight (rock, planks, dust, embers in the cracks), IRON his
+# grappling hand (clamps, chain links, cold sparks), HOLY the Judge's verdicts (bells, a choir, runes), CRIMSON his fury
+# (a roar, red fire, smoke)
+
+def chain_rattle(dur, rng, rate=60.0, accel=0.0, amp=1.0, lo=1500, hi=3800):
+    """A chain's links running (thrown out, reeled in): quick small metal clinks, `accel` > 0 faster, < 0 slower."""
+    n = T(dur).size; times = []; tm = 0.0
+    while tm < dur:
+        times.append(tm); r = max(8.0, rate * (1 + accel * tm / dur)); tm += rng.uniform(0.6, 1.4) / r
+    times = np.asarray(times)
+    ks = []
+    for f in (lo, (lo + hi) / 2, hi):
+        t = T(0.05)
+        k = sum(a * np.sin(2 * np.pi * f * rr * t + rng.uniform(0, 6)) * np.exp(-t / tau) for rr, a, tau in ((1, 1, 0.012), (1.47, 0.6, 0.008), (2.31, 0.35, 0.005)))
+        k = k + hp(rng.standard_normal(t.size), 3000) * np.exp(-t / 0.0012) * 0.6
+        ks.append(k)
+    return grains(n, times, rng.uniform(0.35, 1, times.size), ks, rng) * amp
+
+
+def voice_roar(dur, rng, f0=120, f1=175, f2=130, vowel=((720, 1.0, 160), (1180, 0.6, 210), (2550, 0.32, 360), (3400, 0.15, 450)), rasp=0.35, amp=1.0):
+    """A man's battle cry: a rough chest voice (pitch up, held, falling), its vowel, the rasp of the throat, the breath."""
+    t = T(dur); u = t / dur
+    f = np.where(u < 0.25, f0 + (f1 - f0) * np.clip(u / 0.25, 0, 1) ** 0.6, f1 + (f2 - f1) * np.clip((u - 0.25) / 0.75, 0, 1) ** 1.6)
+    f = f * (1 + 0.012 * np.sin(2 * np.pi * 5.5 * t) + 0.02 * slow(rng, t.size, 18))
+    src = saw(f, cap=6000) * (1 + rasp * slow(rng, t.size, 70)) + saw(f * 0.5, cap=2000) * 0.25
+    breath = hp(rng.standard_normal(t.size), 900) * 0.3
+    v = formants(src + breath, vowel)
+    a = np.where(u < 0.08, (u / 0.08) ** 1.2, np.where(u < 0.62, 1.0, np.cos(np.pi / 2 * np.clip((u - 0.62) / 0.38, 0, 1)) ** 1.5))
+    return v * a * amp
+
+
+def choir(dur, freqs, rng, att, tau, vowel=((650, 1.0, 140), (1080, 0.55, 180), (2650, 0.3, 320)), amp=1.0):
+    """A choir's 'ah' (a few voices a chord, each a hair apart): the Judge's light."""
+    t = T(dur); x = np.zeros_like(t)
+    for i, f in enumerate(freqs):
+        for d in (-0.004, 0.0, 0.005):
+            fv = f * (1 + d) * (1 + 0.006 * np.sin(2 * np.pi * (4.8 + 0.37 * i) * t + i + d * 300))
+            x += saw(fv, cap=5000) / (1 + 0.3 * i)
+    return formants(x, vowel) * env(t, att, tau) * amp
+
+
+def wr_dash_c():  # Dash Slash: he becomes a blur (a sharp rush, three afterimages flicking after him) and one razor line (lead 100)
+    rng = R(1001); dur = 0.5; x = buf(dur)
+    place(x, swoosh(0.26, 500, 4200, 1500, rng, peak=0.4, q=2.6, shape=1.6, tail=6, whistle=0.25, wq=20), 0, 1.0)
+    for k in range(3):  # (the afterimages: thin fwips trailing)
+        place(x, swoosh(0.09, 2500, 7000, 5000, rng, peak=0.5, q=3, tail=4), 0.13 + k * 0.035, 0.32 - 0.07 * k)
+    t = T(0.3)  # (the razor line: a thin tsiing at the strike)
+    place(x, ring(0.3, 5200, [(1, 0.5, 0.06), (1.33, 0.3, 0.04)], rng, glide_to=1.06, gtau=0.05) * rise(t, 0.004), 0.1, 0.35)
+    return finish(x, 0.84, 1.3)
+
+
+def wr_dash_h():  # each blow of the line: a razor tsk, then a beat later the line bursts in sparks
+    rng = R(1002); dur = 0.42; t = T(dur); x = buf(dur)
+    place(x, click(0.1, rng, 4000, 0.0012, 1.0), 0)
+    place(x, ring(0.2, 3700, [(1, 0.45, 0.03), (1.41, 0.3, 0.02), (2.2, 0.2, 0.012)], rng), 0, 0.6)
+    place(x, thud(0.15, 200, 100, 0.025), 0, 0.45)
+    times = 0.07 + rng.exponential(0.025, 22)
+    x += grains(t.size, times, rng.uniform(0.25, 0.7, 22) * np.exp(-(times - 0.07) / 0.06), crackle_kernels(rng, 3500, (0.0004, 0.0008, 0.0012)), rng)
+    place(x, ring(0.25, 6100, [(1, 0.3, 0.04)], rng), 0.07, 0.25)
+    return finish(x, 0.85, 1.5)
+
+
+WHIRL = 0.13  # (Whirlwind's blows in the arena: 130 ms apart, one turn each)
+
+
+def wr_whirl_c():  # Whirlwind: a flat disc of steel round his waist — vwom on every turn, the blade ringing thin, sparks flung, dust
+    rng = R(1010); dur = 0.95; t = T(dur); x = buf(dur)
+    ph = (t / WHIRL) % 1.0
+    turn = np.exp(-((ph - 0.5) / 0.16) ** 2)  # (each turn the blade passes in front)
+    fc = 500 + 2600 * turn
+    body = svf(rng.standard_normal(t.size), fc, 2.2) * (0.25 + turn) * 0.9
+    shape = np.clip(t / 0.06, 0, 1) * np.clip((0.86 - t) / 0.08, 0, 1)
+    x += body * shape
+    x += lp(brown(t.size, rng), 260) * (0.4 + 0.6 * turn) * shape * 0.5  # (dust turning off the floor)
+    sing = np.sin(2 * np.pi * np.cumsum(2950 * (1 + 0.02 * turn)) / SR) + 0.5 * np.sin(2 * np.pi * np.cumsum(4420 * (1 + 0.02 * turn)) / SR)
+    x += sing * (0.3 + 0.7 * turn) * shape * 0.07  # (the edge singing, louder as it passes)
+    times = rng.uniform(0.05, 0.8, 40)
+    x += grains(t.size, times, rng.uniform(0.1, 0.4, 40), crackle_kernels(rng, 3000, (0.0005, 0.001)), rng)
+    return finish(x, 0.84, 1.3)
+
+
+def wr_whirl_h():  # the last turn's heavy blow flings him off: KLANG, a spray of sparks, thrown
+    rng = R(1011); dur = 0.85; t = T(dur); x = buf(dur)
+    x += ring(dur, 820, [(1, 0.55, 0.16), (1.58, 0.45, 0.11), (2.37, 0.3, 0.07), (3.61, 0.2, 0.04)], rng, beat=0.004) * 0.7
+    x += thud(dur, 160, 60, 0.08, 0.03) * 1.0
+    x += bp(rng.standard_normal(t.size), 400, 3000) * env(t, 0.0008, 0.025) * 0.8
+    times = rng.exponential(0.05, 35)
+    x += grains(t.size, times, rng.uniform(0.2, 0.6, 35) * np.exp(-times / 0.12), crackle_kernels(rng, 3000), rng)
+    place(x, swoosh(0.4, 2400, 700, 300, rng, peak=0.12, q=1.6, tail=4), 0.02, 0.55)
+    return finish(x, 0.86, 1.55)
+
+
+def wr_sanct_c():  # Sanctuary: runes light up round him one by one (glassy pings), a choir swelling; the dome of light at the strike (lead 300)
+    rng = R(1020); dur = 1.45; t = T(dur); x = buf(dur)
+    for k, f in enumerate((1318.5, 1480.0, 1661.2, 1760.0, 1975.5, 2217.5)):
+        place(x, bell(0.45, f, ratio=2.0, index=0.7, tau=0.14), 0.03 + k * 0.042, 0.16)
+    c = choir(1.3, (220.0, 277.2, 329.6, 440.0), rng, 0.28, 0.5, amp=0.55)
+    place(x, c, 0.02)
+    place(x, thud(0.5, 120, 60, 0.09) + lp(rng.standard_normal(T(0.5).size), 600) * env(T(0.5), 0.004, 0.06) * 0.5, 0.3, 0.8)  # (the dome: whomp)
+    dome = sum(np.sin(2 * np.pi * f * t + i) for i, f in enumerate((880.0, 1108.7, 1318.5, 1760.0)))
+    x += dome * (0.75 + 0.25 * np.sin(2 * np.pi * 7 * t)) * np.clip((t - 0.3) / 0.02, 0, 1) * np.exp(-np.maximum(0, t - 0.3) / 0.35) * 0.05
+    for k in range(7):  # (motes rising)
+        place(x, bell(0.25, 2637.0 * 2 ** (k / 7), ratio=2.0, index=0.5, tau=0.07), 0.38 + k * 0.08, 0.08)
+    return finish(x, 0.82, 1.25)
+
+
+def wr_sanct_h():  # the light pushes him off: a hallowed whomp, a short choir stab, one deep bell
+    rng = R(1021); dur = 0.9; t = T(dur); x = buf(dur)
+    x += thud(dur, 150, 64, 0.08) * 0.9 + lp(rng.standard_normal(t.size), 800) * env(t, 0.002, 0.04) * 0.6
+    place(x, choir(0.5, (293.7, 370.0, 440.0), rng, 0.01, 0.16, amp=0.6), 0.005)
+    x += bell(dur, 587.3, ratio=1.41, index=1.6, tau=0.3) * 0.22
+    return finish(x, 0.85, 1.45)
+
+
+def wr_leap_c():  # Leap Crash: the crouch, the push-off (lead 120), up and over and down onto him (the slam 140 ms later)
+    rng = R(1030); dur = 0.36; t = T(dur); x = buf(dur)
+    place(x, bp(rng.standard_normal(T(0.1).size), 1500, 6000) * env(T(0.1), 0.01, 0.03) * 0.3, 0.0)  # (cloth, the boots)
+    place(x, thud(0.15, 130, 70, 0.03) + click(0.15, rng, 1500, 0.004, 0.4), 0.115, 0.9)  # (the push-off)
+    up = svf(rng.standard_normal(t.size), 300 + 1500 * np.sin(np.pi * np.clip((t - 0.12) / 0.15, 0, 1)), 1.6)
+    x += up * np.clip((t - 0.11) / 0.03, 0, 1) * (0.6 + 0.4 * np.clip((t - 0.2) / 0.06, 0, 1)) * np.clip((0.3 - t) / 0.04, 0, 1) * 0.9
+    x += air(dur, 0.7, 6, rng, 230, 0.6)
+    return finish(x, 0.84, 1.3)
+
+
+def wr_leap_h():  # the sword smashes him down into the floor: a dull crunch, the planks cracking under him, the weight of it
+    rng = R(1031); dur = 0.75; t = T(dur); x = buf(dur)
+    x += thud(dur, 125, 45, 0.11, 0.03) * 1.2
+    x += ring(dur, 470, [(1, 0.4, 0.06), (1.62, 0.3, 0.04)], rng) * 0.3
+    x += lp(rng.standard_normal(t.size), 1400) * env(t, 0.0008, 0.04) * 1.1
+    for s, a in ((0.008, 1.0), (0.03, 0.7)):  # (the planks under him)
+        place(x, knock(0.07, rng.uniform(650, 900), 0.012, rng, 1.0) + hp(rng.standard_normal(T(0.07).size), 1800) * env(T(0.07), 0.0005, 0.006), s, a * 0.6)
+    return finish(x, 0.86, 1.6)
+
+
+def wr_leap_end():  # the crater: stone breaks, the planks splinter, the dust rolls out, embers hiss in the cracks
+    rng = R(1032); dur = 1.5; t = T(dur); x = buf(dur)
+    x += thud(dur, 105, 36, 0.22, 0.05) * 1.25
+    x += lp(rng.standard_normal(t.size), 2400) * env(t, 0.0008, 0.05) * 1.1
+    for s, a in ((0.0, 1.0), (0.018, 0.8), (0.04, 0.6), (0.07, 0.4)):  # (planks splintering: sharp wooden cracks)
+        place(x, knock(0.08, rng.uniform(600, 950), 0.01, rng, 1.2) + hp(rng.standard_normal(T(0.08).size), 1500) * env(T(0.08), 0.0005, 0.008), s, a * 0.7)
+    times = 0.04 + rng.exponential(0.1, 45); times = times[times < 0.7]
+    x += grains(t.size, times, 0.35 * np.exp(-times / 0.3), [knock(0.05, f, 0.012, rng, 0.6) for f in (300, 420, 560)], rng)
+    x += lp(brown(t.size, rng), 200) * np.clip(t / 0.05, 0, 1) * np.exp(-t / 0.5) * 0.9  # (the dust rolling out)
+    x += hp(rng.standard_normal(t.size), 4500) * np.clip((t - 0.12) / 0.1, 0, 1) * np.exp(-np.maximum(0, t - 0.2) / 0.4) * (0.5 + 0.5 * (slow(rng, t.size, 30) > 0)) * 0.12  # (embers)
+    return finish(x, 0.87, 1.55)
+
+
+def wr_wave_c():  # Wave Slash: a two-hand rising swing (lead 250) releases a crescent of air that runs off along the planks, tearing chips up
+    rng = R(1040); dur = 1.15; t = T(dur); x = buf(dur)
+    place(x, swoosh(0.32, 200, 2200, 900, rng, peak=0.75, q=1.8, shape=2.4, tail=6) + air(0.32, 0.75, 6, rng, 240, 0.8), 0)
+    run = np.clip((t - 0.25) / 0.6, 0, 1)
+    band = svf(rng.standard_normal(t.size), 1800 * (1 - 0.55 * run), 3.5) * np.clip((t - 0.24) / 0.02, 0, 1) * np.exp(-np.maximum(0, t - 0.26) / 0.2)
+    x += band * 1.1
+    x += svf(rng.standard_normal(t.size), 2900 * (1 - 0.5 * run), 30) * np.clip((t - 0.24) / 0.03, 0, 1) * np.exp(-np.maximum(0, t - 0.26) / 0.18) * 2.0  # (it sings as it runs)
+    times = 0.26 + rng.uniform(0, 0.55, 30)
+    x += grains(t.size, times, rng.uniform(0.1, 0.35, 30) * np.exp(-(times - 0.26) / 0.35), [knock(0.03, f, 0.006, rng, 0.5) for f in (480, 640, 820)], rng)  # (chips)
+    return finish(x, 0.84, 1.3)
+
+
+def wr_wave_h():  # the crescent bites him and throws him up: a tearing slice of air, a white steel shing, chips flying
+    rng = R(1041); dur = 0.75; t = T(dur); x = buf(dur)
+    place(x, svf(rng.standard_normal(T(0.14).size), np.linspace(900, 5200, int(SR * 0.14)), 1.8) * env(T(0.14), 0.002, 0.04), 0, 1.0)
+    place(x, ring(0.7, 2650, [(1, 0.5, 0.16), (1.5, 0.35, 0.1), (2.24, 0.2, 0.06)], rng, beat=0.004, glide_to=1.04, gtau=0.08), 0.005, 0.55)
+    x += thud(dur, 180, 70, 0.06) * 0.8
+    times = rng.exponential(0.06, 18)
+    x += grains(t.size, times, rng.uniform(0.2, 0.5, 18), [knock(0.03, f, 0.006, rng, 0.5) for f in (520, 700)], rng)
+    place(x, swoosh(0.35, 600, 2800, 3200, rng, peak=0.3, q=2, tail=4), 0.02, 0.45)
+    return finish(x, 0.86, 1.5)
+
+
+def wr_cry_c():  # War Cry: a breath drawn in, then his roar (lead 300) and the shock ring of red air blowing the dust off the planks, the fury flickering
+    rng = R(1050); dur = 1.35; t = T(dur); x = buf(dur)
+    place(x, reverse(bp(rng.standard_normal(T(0.26).size), 500, 3500) * env(T(0.26), 0.002, 0.09)) * 0.12, 0.02)  # (the breath in)
+    place(x, voice_roar(0.85, rng, 125, 178, 140, amp=0.9), 0.28)
+    place(x, thud(0.7, 90, 40, 0.14, 0.05) * 1.1 + lp(rng.standard_normal(T(0.7).size), 500) * env(T(0.7), 0.003, 0.08) * 0.8, 0.3)
+    place(x, swoosh(0.55, 300, 1500, 500, rng, peak=0.15, q=1.2, tail=4), 0.3, 0.6)  # (the ring of air out)
+    place(x, flames(0.9, rng, 0.5, 45) * env(T(0.9), 0.08, 0.35), 0.4)  # (the red aura)
+    return finish(x, 0.84, 1.25)
+
+
+def wr_cry_h():  # the shock ring knocks a foe: a whump of hot air (fwoomp), dust, a lick of fire crackling on him
+    rng = R(1051); dur = 0.7; t = T(dur); x = buf(dur)
+    x += thud(dur, 140, 60, 0.07) * 0.7
+    x += bp(rng.standard_normal(t.size), 220, 1400) * env(t, 0.003, 0.07) * 1.5
+    x += lp(rng.standard_normal(t.size), 2600) * env(t, 0.006, 0.1) * 0.7
+    x += flames(dur, rng, 1.0, 50) * env(t, 0.01, 0.16)
+    return finish(x, 0.85, 1.45)
+
+
+def wr_jblade_c():  # Judgment Blade: a giant sword of light falls point-down from the sky (a shriek coming down, a choir swelling: lead 120)
+    # and lands (at 260 ms: a soft thoom of its own — the blow's sound comes on top when it pins someone)
+    rng = R(1060); dur = 0.75; t = T(dur); u = t / 0.26
+    gone = np.where(t < 0.26, 1.0, np.exp(-(t - 0.26) / 0.035))
+    fall = svf(rng.standard_normal(t.size), 3600 * (900 / 3600) ** np.clip(u, 0, 1), 6) * np.clip(u, 0, 1) ** 1.5 * 1.8
+    fall += whistle(dur, 3400, 950 * (950 / 3400) ** 1.9, rng, 24) * 1.4
+    c = choir(dur, (196.0, 246.9, 293.7, 392.0), rng, 0.2, 0.3, amp=0.5)
+    x = (fall + c) * gone
+    place(x, thud(0.45, 120, 50, 0.09) * 0.7 + lp(rng.standard_normal(T(0.45).size), 900) * env(T(0.45), 0.002, 0.04) * 0.5, 0.26)
+    return finish(x, 0.83, 1.3)
+
+
+def wr_jblade_h():  # it drives in and pins him: KRANG — a great bell of judgment, the stone cracking, a ring of runes flaring round it
+    rng = R(1061); dur = 2.0; t = T(dur); x = buf(dur)
+    x += ring(dur, 196.0, [(r, a, min(tau, 0.42)) for r, a, tau in BELL], rng, att=0.001, beat=0.002) * 0.75
+    x += thud(dur, 130, 45, 0.16, 0.04) * 1.0
+    x += bp(rng.standard_normal(t.size), 300, 4000) * env(t, 0.0006, 0.03) * 1.1
+    times = 0.02 + rng.exponential(0.08, 20); x += grains(t.size, times, 0.3 * np.exp(-times / 0.2), [knock(0.04, f, 0.01, rng, 0.5) for f in (420, 560)], rng)
+    for k, f in enumerate((1568.0, 1760.0, 1975.5, 2349.3, 2637.0, 3136.0)):  # (the runes round it)
+        place(x, bell(0.4, f, ratio=2.0, index=0.8, tau=0.1), 0.04 + k * 0.03, 0.14)
+    return finish(x, 0.87, 1.45)
+
+
+def wr_jblade_z():  # the pinned foe, every half second: the blade's light pulsing on him (a low hum swelling, a rune's ping)
+    rng = R(1062); dur = 0.45; t = T(dur); x = buf(dur)
+    x += (np.sin(2 * np.pi * 196 * t) + 0.6 * np.sin(2 * np.pi * 293.7 * t) + 0.3 * np.sin(2 * np.pi * 392 * t)) * np.sin(np.pi * np.clip(t / 0.4, 0, 1)) ** 2 * 0.3
+    x += thud(dur, 140, 80, 0.05) * 0.5
+    place(x, bell(0.3, 2349.3, ratio=2.0, index=0.6, tau=0.08), 0.01, 0.25)
+    return finish(x, 0.8, 1.3)
+
+
+def wr_grip_c():  # Iron Grip: the hand thrust out (lead 80), the gauntlet of iron light rattling shut round its fingers, a cold hum
+    rng = R(1070); dur = 0.55; t = T(dur); x = buf(dur)
+    place(x, swoosh(0.18, 300, 1500, 700, rng, peak=0.45, q=1.8, tail=5) + air(0.18, 0.45, 5, rng, 260, 0.6), 0)
+    place(x, chain_rattle(0.12, rng, 90, 0.5, 0.6, 1100, 2600), 0.06)
+    x += (np.sin(2 * np.pi * 330 * t) + 0.7 * np.sin(2 * np.pi * 333.5 * t) + 0.4 * np.sin(2 * np.pi * 990 * t)) * env(t, 0.05, 0.12) * 0.12
+    return finish(x, 0.83, 1.3)
+
+
+def wr_grip_b():  # the iron hand closes on him: a heavy clamp, the iron creaking tight, cold sparks
+    rng = R(1071); dur = 0.6; t = T(dur); x = buf(dur)
+    x += ring(dur, 610, [(1, 0.5, 0.06), (1.73, 0.45, 0.045), (2.9, 0.3, 0.03)], rng) * 0.7
+    x += click(dur, rng, 2000, 0.003, 1.0) + thud(dur, 170, 90, 0.04) * 0.8
+    cr = svf(rng.standard_normal(t.size), 700 + 150 * np.sin(2 * np.pi * 9 * t), 14) * np.clip((t - 0.05) / 0.05, 0, 1) * np.exp(-np.maximum(0, t - 0.1) / 0.12)
+    x += cr * (0.5 + 0.5 * (slow(rng, t.size, 60) > 0)) * 0.6  # (the creak)
+    times = rng.exponential(0.04, 16); x += grains(t.size, times, rng.uniform(0.2, 0.5, 16), crackle_kernels(rng, 4500, (0.0004, 0.0008)), rng)
+    return finish(x, 0.85, 1.45)
+
+
+def wr_grip_h():  # hoisted and flung up: the gauntlet wrenches (iron grinding), a dark iron clang, the links jangling, a short heave of air
+    rng = R(1072); dur = 0.95; t = T(dur); x = buf(dur)
+    grind = svf(rng.standard_normal(T(0.16).size), 520 + 260 * np.sin(2 * np.pi * 14 * T(0.16)), 10) * env(T(0.16), 0.01, 0.06)
+    place(x, grind, 0, 0.9)
+    place(x, ring(0.85, 290, [(1, 0.6, 0.2), (1.83, 0.45, 0.12), (2.71, 0.3, 0.07), (4.2, 0.15, 0.04)], rng, beat=0.003) * 0.7, 0.05)
+    place(x, thud(0.8, 135, 48, 0.1, 0.03) * 1.15 + bp(rng.standard_normal(T(0.8).size), 200, 1500) * env(T(0.8), 0.001, 0.03) * 0.9, 0.05)
+    place(x, chain_rattle(0.35, rng, 60, -0.5, 0.6, 700, 1900), 0.07)
+    place(x, swoosh(0.3, 250, 1400, 1700, rng, peak=0.3, q=1.6, tail=4), 0.07, 0.5)
+    return finish(x, 0.86, 1.55)
+
+
+def wr_hook_c():  # Judgment Hook: the chain flung out (lead 60), its links running out after the hook, away (the bite: 150 ms in)
+    rng = R(1080); dur = 0.5; t = T(dur); x = buf(dur)
+    place(x, swoosh(0.2, 300, 1300, 700, rng, peak=0.3, q=2.0, tail=4), 0, 0.7)
+    x += chain_rattle(dur, rng, 150, 0.5, 1.0, 700, 1900) * np.where(t < 0.16, 1.0, np.exp(-(t - 0.16) / 0.06))  # (heavy iron links)
+    return finish(x, 0.83, 1.3)
+
+
+def wr_hook_h():  # the hook bites (a chunk of iron, sparks), the chain snaps taut, and it reels him in (links rattling back)
+    rng = R(1081); dur = 0.75; t = T(dur); x = buf(dur)
+    x += ring(dur, 760, [(1, 0.5, 0.05), (1.61, 0.4, 0.035), (2.47, 0.25, 0.02)], rng) * 0.6 + click(dur, rng, 2200, 0.003, 1.0) + thud(dur, 180, 90, 0.035) * 0.7
+    times = rng.exponential(0.03, 14); x += grains(t.size, times, rng.uniform(0.2, 0.5, 14), crackle_kernels(rng, 4000, (0.0004, 0.0008)), rng)
+    taut = ring(0.35, 110, [(1, 0.6, 0.1), (2.0, 0.4, 0.07), (3.0, 0.3, 0.05), (4.0, 0.2, 0.03)], rng, att=0.002)  # (the chain snapping taut: a low twang)
+    place(x, taut, 0.05, 0.45)
+    place(x, chain_rattle(0.45, rng, 70, -0.6, 0.75), 0.12)
+    place(x, reverse(swoosh(0.3, 800, 2200, 2600, rng, peak=0.4, q=2, tail=4)), 0.15, 0.4)
+    return finish(x, 0.85, 1.45)
+
+
+def wr_sky_c():  # Sky Breaker: two rising cuts and a third (at 60 / 170 / 280 ms), up into the air — then the dive, point-down, a white streak
+    # (lead 30: the first cut's swing starts just before the strike)
+    rng = R(1090); dur = 0.95; t = T(dur); x = buf(dur)
+    for k, (s, f) in enumerate(((0.09, 2600), (0.2, 3000), (0.31, 3400))):
+        sw = swoosh(0.12, 500, f, f * 1.15, rng, peak=0.7, q=2.6, shape=1.6, tail=5, whistle=0.35, wq=18)
+        place(x, sw, s - 0.084, 0.85 - 0.08 * k)
+    u = np.clip((t - 0.36) / 0.23, 0, 1); gone = np.where(t < 0.59, 1.0, np.exp(-(t - 0.59) / 0.03))  # (down at 590 ms: the landing's own sound takes over)
+    dive = svf(rng.standard_normal(t.size), 4200 * (1300 / 4200) ** u, 5) * u ** 1.4 * (t > 0.36) * gone
+    x += dive * 1.3 + whistle(dur, 4600, 1500 * (1500 / 4600) ** (0.36 / 0.59), rng, 26) * np.clip((t - 0.33) / 0.1, 0, 1) * gone * 1.6
+    place(x, thud(0.35, 130, 55, 0.07) * 0.6, 0.59)
+    return finish(x, 0.84, 1.3)
+
+
+def wr_sky_h():  # the first cut lifts him: a thin bright tching, sweeping up
+    rng = R(1091); dur = 0.55; x = buf(dur)
+    place(x, ring(dur, 3050, [(1, 0.55, 0.12), (1.36, 0.4, 0.08), (2.05, 0.25, 0.05)], rng, beat=0.003, glide_to=1.08, gtau=0.06), 0)
+    place(x, click(0.2, rng, 3000, 0.003, 0.9), 0)
+    place(x, thud(0.3, 200, 90, 0.035), 0, 0.6)
+    place(x, swoosh(0.3, 900, 3400, 4200, rng, peak=0.25, q=2.4, tail=4), 0.01, 0.4)
+    return finish(x, 0.85, 1.5)
+
+
+def wr_sky_end():  # the landing, point-down into the stone: the blade's tip chips it (KTANG), the floor cracks, rubble, dust
+    rng = R(1093); dur = 1.2; t = T(dur); x = buf(dur)
+    place(x, ring(0.5, 1850, [(1, 0.5, 0.08), (1.29, 0.4, 0.06), (2.11, 0.3, 0.04), (3.07, 0.2, 0.025)], rng), 0, 0.6)
+    x += thud(dur, 115, 40, 0.17, 0.04) * 1.2
+    x += lp(rng.standard_normal(t.size), 2600) * env(t, 0.0006, 0.04) * 1.0
+    place(x, hp(rng.standard_normal(T(0.12).size), 900) * env(T(0.12), 0.0006, 0.015), 0.012, 0.7)  # (the crack)
+    times = 0.03 + rng.exponential(0.08, 30); times = times[times < 0.5]
+    x += grains(t.size, times, 0.3 * np.exp(-times / 0.2), [knock(0.05, f, 0.012, rng, 0.6) for f in (340, 470, 610)], rng)
+    x += lp(brown(t.size, rng), 180) * np.clip(t / 0.04, 0, 1) * np.exp(-t / 0.35) * 0.7
+    return finish(x, 0.87, 1.55)
+
+
+def wr_split_w():  # Earthsplitter, the hold: the ground trembling under him, stones cracking open round his feet, the glow in them rising
+    rng = R(1100); dur = 1.35; t = T(dur); u = np.clip(t / 0.85, 0, 1)
+    trem = 0.6 + 0.4 * np.sin(2 * np.pi * (7 + 4 * u) * t)
+    x = lp(brown(t.size, rng), 120) * trem * u ** 1.2 * 1.3
+    times = np.sort(0.85 * rng.random(26) ** 0.6)
+    x += grains(t.size, times, rng.uniform(0.15, 0.45, 26) * (0.4 + times), [knock(0.04, f, 0.008, rng, 0.9) for f in (520, 700, 880)], rng)  # (cracks)
+    x += hp(saw(48 * (1 + 0.25 * u), cap=1500), 80) * u ** 2 * 0.25  # (the molten glow, rising)
+    return finish(x * np.where(t < 0.85, 1.0, np.exp(-(t - 0.85) / 0.1)), 0.82, 1.25)
+
+
+def wr_split_c():  # the release: the sword driven down, a fissure tearing away along the floor, rock spikes thrusting up behind it
+    rng = R(1101); dur = 1.3; t = T(dur); x = buf(dur)
+    place(x, thud(0.5, 140, 50, 0.08) + click(0.5, rng, 1800, 0.004, 0.7) + ring(0.5, 700, [(1, 0.4, 0.05), (1.7, 0.3, 0.03)], rng) * 0.4, 0, 1.0)
+    for k in range(7):  # (the fissure running away: each crack farther, duller)
+        s = 0.03 + k * 0.045; far = 1 - 0.1 * k
+        place(x, lp(hp(rng.standard_normal(T(0.09).size), 500) * env(T(0.09), 0.0006, 0.014), 6000 * far), s, 0.8 * far)
+        place(x, knock(0.07, rng.uniform(260, 380), 0.02, rng, 0.8), s + 0.02, 0.6 * far)  # (a spike thrusting up)
+    x += lp(brown(t.size, rng), 140) * np.clip(t / 0.05, 0, 1) * np.exp(-t / 0.4) * 0.9
+    return finish(x, 0.85, 1.3)
+
+
+def wr_split_h():  # a spike of rock erupts under him and knocks him flat: a crunch thrusting up, the deep thud
+    rng = R(1102); dur = 0.95; t = T(dur); x = buf(dur)
+    place(x, svf(rng.standard_normal(T(0.12).size), np.linspace(400, 2600, int(SR * 0.12)), 1.4) * env(T(0.12), 0.002, 0.04), 0, 1.0)
+    x += thud(dur, 120, 42, 0.14, 0.04) * 1.2
+    x += knock(dur, 230, 0.05, rng, 1.0) * 0.6
+    times = 0.02 + rng.exponential(0.07, 20); x += grains(t.size, times, 0.3 * np.exp(-times / 0.2), [knock(0.04, f, 0.01, rng, 0.6) for f in (360, 500)], rng)
+    return finish(x, 0.86, 1.55)
+
+
+def wr_lion_c():  # Lion's Maw: a lion's roar out of him (from the start: lead 150), the lion of crimson flame leaping from his hand
+    rng = R(1110); dur = 1.0; t = T(dur); x = buf(dur)
+    lion = growl(0.8, rng, 85, 150, 95, 0.9)
+    lion *= 1 + 0.35 * np.sin(2 * np.pi * 31 * T(0.8))  # (the snarl in it)
+    place(x, lion, 0.0)
+    place(x, lp(rng.standard_normal(T(0.5).size), 1400) * env(T(0.5), 0.02, 0.12) * 0.9, 0.14)  # (fwoom: it leaps)
+    place(x, flames(0.75, rng, 0.8, 40) * env(T(0.75), 0.03, 0.25), 0.15)
+    place(x, swoosh(0.4, 400, 1800, 900, rng, peak=0.3, q=1.4, tail=4), 0.1, 0.5)
+    return finish(x, 0.84, 1.25)
+
+
+def wr_lion_h():  # the jaws snap shut on him and drag him in: a fiery CHOMP, flame bursting, pulled back through the air
+    rng = R(1111); dur = 0.95; t = T(dur); x = buf(dur)
+    place(x, knock(0.2, 380, 0.025, rng, 1.2) + click(0.2, rng, 1500, 0.004, 1.0), 0, 1.0)  # (the snap of the jaws)
+    x += thud(dur, 130, 45, 0.12, 0.035) * 1.1
+    x += lp(rng.standard_normal(t.size), 1600) * env(t, 0.001, 0.06) * 0.9
+    x += flames(dur, rng, 0.7, 40) * env(t, 0.01, 0.25)
+    place(x, reverse(swoosh(0.35, 600, 2000, 2400, rng, peak=0.35, q=1.6, tail=4)), 0.05, 0.6)
+    return finish(x, 0.86, 1.55)
+
+
+def wr_charge_c():  # Shield Charge: the charge (lead 40) — heavy strides, a rush of air, the iron-blue barrier humming at his shoulder;
+    # the stop: a skid, sparks, the barrier's crackle like ice
+    rng = R(1120); dur = 0.62; t = T(dur); x = buf(dur)
+    for k, s in enumerate((0.0, 0.085, 0.17)):
+        place(x, thud(0.12, 120, 65, 0.03) + click(0.12, rng, 1200, 0.004, 0.35), s, 0.9)
+    place(x, swoosh(0.32, 250, 1300, 800, rng, peak=0.65, q=1.5, shape=1.4, tail=5) + air(0.32, 0.65, 5, rng, 220, 0.7), 0, 1.0)
+    hum = (np.sin(2 * np.pi * 660 * t) + np.sin(2 * np.pi * 664 * t) + 0.5 * np.sin(2 * np.pi * 990 * t) + 0.3 * np.sin(2 * np.pi * 1985 * t))
+    x += hum * np.clip(t / 0.05, 0, 1) * np.exp(-np.maximum(0, t - 0.26) / 0.08) * 0.08
+    place(x, svf(rng.standard_normal(T(0.14).size), 1600, 3) * env(T(0.14), 0.005, 0.05) * 0.5, 0.25)  # (the skid)
+    times = 0.26 + rng.exponential(0.03, 22); x += grains(t.size, times, rng.uniform(0.15, 0.45, 22), crackle_kernels(rng, 4000, (0.0004, 0.0008)), rng)
+    for k in range(3):
+        place(x, bell(0.2, rng.uniform(3500, 6000), ratio=2.76, index=0.6, tau=0.05), 0.27 + 0.02 * k, 0.12)  # (ice-like)
+    return finish(x, 0.84, 1.3)
+
+
+SOUNDS5 = {
+    'wr_dash_c': wr_dash_c, 'wr_dash_h': wr_dash_h, 'wr_whirl_c': wr_whirl_c, 'wr_whirl_h': wr_whirl_h, 'wr_sanct_c': wr_sanct_c, 'wr_sanct_h': wr_sanct_h,
+    'wr_leap_c': wr_leap_c, 'wr_leap_h': wr_leap_h, 'wr_leap_end': wr_leap_end, 'wr_wave_c': wr_wave_c, 'wr_wave_h': wr_wave_h,
+    'wr_cry_c': wr_cry_c, 'wr_cry_h': wr_cry_h, 'wr_jblade_c': wr_jblade_c, 'wr_jblade_h': wr_jblade_h, 'wr_jblade_z': wr_jblade_z,
+    'wr_grip_c': wr_grip_c, 'wr_grip_b': wr_grip_b, 'wr_grip_h': wr_grip_h, 'wr_hook_c': wr_hook_c, 'wr_hook_h': wr_hook_h,
+    'wr_sky_c': wr_sky_c, 'wr_sky_h': wr_sky_h, 'wr_sky_end': wr_sky_end,
+    'wr_split_w': wr_split_w, 'wr_split_c': wr_split_c, 'wr_split_h': wr_split_h, 'wr_lion_c': wr_lion_c, 'wr_lion_h': wr_lion_h,
+    'wr_charge_c': wr_charge_c,
+}
+
+
+# ---------------------------------------------------------------- ARCHER, the rest of her kit — in DFO's families: WIND
+# her shots and footwork (air, leaves, the bow), THORN traps and binds (vines, roots, creaking wood), STORM Thunder Rain
+# (lightning out of a dark cloud), SPIRIT the beasts of light (the hawk, the wolf, the eagle: a cry with a shimmer in it)
+
+def creak(dur, rng, f=420.0, rate=(40.0, 110.0), amp=1.0, q=9.0):
+    """Wood bending (a bow drawn, a root growing): stick-slip ticks at a wandering rate, through the wood's resonance."""
+    n = T(dur).size; times = []; tm = 0.0
+    r0, r1 = rate
+    while tm < dur:
+        times.append(tm); r = r0 + (r1 - r0) * (0.5 + 0.5 * np.sin(2 * np.pi * 1.7 * tm + 1.0)); tm += rng.uniform(0.7, 1.3) / r
+    times = np.asarray(times)
+    imp = grains(n, times, rng.uniform(0.4, 1, times.size), [np.exp(-np.arange(int(SR * 0.004)) / (SR * 0.0008))], rng)
+    y = svf(imp, f, q)
+    return y / (y.std() + 1e-12) * 0.22 * amp
+
+
+def whip(rng, amp=1.0):
+    """A whip's crack: the lash rushing up to the tip, then the crack itself (a hard tiny burst)."""
+    x = buf(0.25)
+    place(x, swoosh(0.12, 600, 5000, 6000, rng, peak=0.95, q=1.8, shape=2.6, tail=3), 0, 0.6)
+    place(x, hp(rng.standard_normal(T(0.02).size), 2000) * env(T(0.02), 0.0001, 0.0025) * 1.6 + click(0.02, rng, 1200, 0.0008, 1.0), 0.112)
+    return x * amp
+
+
+def howl(dur, rng, f0=330.0, f1=560.0, f2=420.0, amp=1.0):
+    """A spirit wolf's howl: a pure voice gliding up and holding, an 'oo' opening to 'ow', a ghostly double a hair apart."""
+    t = T(dur); u = t / dur
+    f = np.where(u < 0.3, f0 + (f1 - f0) * np.sin(np.pi / 2 * np.clip(u / 0.3, 0, 1)), f1 + (f2 - f1) * np.clip((u - 0.62) / 0.38, 0, 1) ** 1.5)
+    f = f * (1 + 0.012 * np.sin(2 * np.pi * 5.2 * t) * np.clip((t - 0.2) / 0.2, 0, 1))
+    src = saw(f, cap=4000) * 0.5 + np.sin(2 * np.pi * np.cumsum(f) / SR) * 0.8
+    vow = formants(src, ((380 + 300 * np.clip(u / 0.5, 0, 1).mean(), 1.0, 160), (900, 0.35, 220), (2600, 0.12, 400)))
+    ghost = np.sin(2 * np.pi * np.cumsum(f * 2.003) / SR) * 0.18 + np.sin(2 * np.pi * np.cumsum(f * 3.01) / SR) * 0.07  # (its spirit shimmer)
+    a = np.where(u < 0.12, (u / 0.12) ** 1.5, np.where(u < 0.7, 1.0, np.cos(np.pi / 2 * np.clip((u - 0.7) / 0.3, 0, 1)) ** 1.5))
+    return (vow * 0.9 + ghost + hp(rng.standard_normal(t.size), 1500) * 0.03) * a * amp
+
+
+def screech(dur, rng, f0=3100.0, f1=2300.0, amp=1.0):
+    """A raptor's cry ('kee-eeer'): a high rough tone falling at the end, nasal, a rasp in it."""
+    t = T(dur); u = t / dur
+    f = f0 * (1 + 0.06 * np.sin(np.pi * np.clip(u / 0.25, 0, 1))) * np.where(u < 0.55, 1.0, (f1 / f0) ** np.clip((u - 0.55) / 0.45, 0, 1))
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    tone = np.sin(ph + 0.9 * np.sin(ph * 0.5)) + 0.4 * np.sin(2 * ph)
+    rough = 1 + 0.45 * np.sin(2 * np.pi * 75 * t) * slow(rng, t.size, 40)
+    a = np.where(u < 0.08, u / 0.08, np.where(u < 0.7, 1.0, np.cos(np.pi / 2 * np.clip((u - 0.7) / 0.3, 0, 1))))
+    return bp(tone * rough, 1200, 7000, order=2) * a * amp
+
+
+def wings(times, rng, f=420.0, amp=1.0, size=1.0):
+    """Wing beats: a soft whomp of air on each downstroke."""
+    out = buf(max(times) + 0.3 * size)
+    for tm in times:
+        d = 0.16 * size; tt = T(d)
+        w = svf(rng.standard_normal(tt.size), f * (1.6 - 0.8 * tt / d), 1.2) * np.sin(np.pi * tt / d) ** 2
+        place(out, w + lp(rng.standard_normal(tt.size), 300) * np.sin(np.pi * tt / d) ** 3 * 0.6, tm, amp)
+    return out
+
+
+def thunder(dur, rng, amp=1.0, crack_amp=1.0):
+    """A thunderbolt: the crack of the strike (an arc, a hard burst), then the rolling rumble."""
+    t = T(dur); x = buf(dur)
+    place(x, (hp(rng.standard_normal(T(0.05).size), 1500) * env(T(0.05), 0.0002, 0.008) * 1.4 + arc(0.05, rng, f=140, jit=0.5) * env(T(0.05), 0.001, 0.02)) * crack_amp, 0)
+    roll = lp(brown(t.size, rng), 160) * (0.6 + 0.4 * np.clip(slow(rng, t.size, 6) + 0.5, 0, 1.6))
+    x += roll * np.clip(t / 0.02, 0, 1) * np.exp(-t / (dur * 0.27)) * 1.4
+    x += lp(rng.standard_normal(t.size), 900) * env(t, 0.001, 0.05) * 0.8
+    times = rng.exponential(0.06, 25); x += grains(t.size, times, rng.uniform(0.1, 0.4, 25) * np.exp(-times / 0.15), crackle_kernels(rng), rng)
+    return x * amp
+
+
+def ar_step_c():  # Wind Step: a gust ring bursts under her (lead 40), the back somersault (a whirl of air, the bow sweeping), the arrow loosed upside-down at the top
+    rng = R(1201); dur = 0.62; t = T(dur); x = buf(dur)
+    place(x, lp(rng.standard_normal(T(0.3).size), 1200) * env(T(0.3), 0.004, 0.06) * 0.8 + thud(0.3, 140, 70, 0.04) * 0.5, 0.03)  # (the gust ring)
+    roll = svf(rng.standard_normal(t.size), 700 + 900 * (0.5 + 0.5 * np.sin(2 * np.pi * 7 * t)), 1.8) * np.sin(np.pi * np.clip((t - 0.04) / 0.32, 0, 1)) * 0.8
+    x += roll
+    x += rustle(dur, rng, 300, 2500, 9000, 0.3) * env(t, 0.05, 0.15)
+    place(x, twang(R(1202), 158, 0.18, whistle_amp=0.18), 0.3, 0.8)
+    return finish(x, 0.84, 1.3)
+
+
+def ar_step_h():  # the arrow shot from the top of the flip lifts him: a bright thunk, and the air whirling up round him (the flip's gust)
+    rng = R(1203); dur = 0.6; t = T(dur); x = buf(dur)
+    x += click(dur, rng, 3200, 0.0008, 1.0) + np.sin(2 * np.pi * 900 * t) * env(t, 0.0004, 0.02) * 0.7
+    whirl = svf(rng.standard_normal(t.size), 2200 + 1300 * np.sin(2 * np.pi * 16 * t), 3.5) * (0.6 + 0.4 * np.sin(2 * np.pi * 16 * t + 1.2))
+    x += whirl * env(t, 0.015, 0.12) * 0.9  # (a twirl of air, not a gust)
+    place(x, whistle(0.3, 2600, 4200, rng, 24), 0.01, 0.6)
+    return finish(x, 0.85, 1.45)
+
+
+def ar_triple_c():  # Triple Arrow: a quick side-step, the bow turned flat (a creak), three arrows loosed as one (lead 180) — three trails fanning out
+    rng = R(1210); dur = 0.75; t = T(dur); x = buf(dur)
+    place(x, svf(rng.standard_normal(T(0.09).size), 1800, 2) * env(T(0.09), 0.005, 0.03) * 0.5, 0.0)  # (the step)
+    place(x, creak(0.09, rng, 460, (70, 120), 0.8), 0.07)
+    for k, f in enumerate((140, 151, 163)):
+        place(x, twang(R(1211 + k), f, 0.2, whistle_amp=0.0), 0.18 + 0.004 * k, 0.5)
+    for k, (f0, f1) in enumerate(((2800, 2400), (3300, 3300), (3900, 4300))):  # (three wind trails, each its own way)
+        place(x, whistle(0.32, f0, f1, rng, 26), 0.19, 0.55)
+        place(x, swoosh(0.22, 800, 3000 + 400 * k, 2200, rng, peak=0.15, q=2.2, tail=4), 0.185, 0.25)
+    return finish(x, 0.84, 1.3)
+
+
+def ar_triple_h():  # the three land as one: thk-thk-thk, a puff of leaves
+    rng = R(1215); dur = 0.45; t = T(dur); x = buf(dur)
+    for k, s in enumerate((0.0, 0.022, 0.041)):
+        place(x, ar_arrow_hit(1216 + k), s, 0.6)
+    x += rustle(dur, rng, 300, 3000, 9000, 0.2) * env(t, 0.01, 0.1)
+    return finish(x, 0.85, 1.5)
+
+
+def ar_back_c():  # Backstep Shot: the back flip out of reach (a tucked whirl of air), the shot from its top (at 120 ms)
+    rng = R(1220); dur = 0.5; t = T(dur); x = buf(dur)
+    place(x, svf(rng.standard_normal(T(0.28).size), 600 + 1400 * np.sin(np.pi * T(0.28) / 0.28), 1.6) * np.sin(np.pi * T(0.28) / 0.28) ** 1.5 * 0.7, 0)
+    place(x, twang(R(1221), 168, 0.18, whistle_amp=0.2), 0.12, 0.85)
+    x += rustle(dur, rng, 200, 3000, 9000, 0.15) * env(t, 0.02, 0.12)
+    return finish(x, 0.84, 1.3)
+
+
+def ar_back_h():  # it lands: a light thunk and a puff of wind
+    rng = R(1222); dur = 0.4; t = T(dur); x = buf(dur)
+    x += click(dur, rng, 2800, 0.0008, 0.8) + np.sin(2 * np.pi * 820 * t) * env(t, 0.0004, 0.014) * 0.6 + thud(dur, 200, 100, 0.025) * 0.5
+    place(x, swoosh(0.22, 1200, 3200, 2600, rng, peak=0.15, q=1.8, tail=4), 0.004, 0.5)
+    return finish(x, 0.84, 1.5)
+
+
+def ar_kick_c():  # Retreat Kick: the leg whips round (peaking on the kick: lead 90) in a boot of swirling wind, then she springs back
+    rng = R(1230); dur = 0.5; t = T(dur); x = buf(dur)
+    place(x, swoosh(0.13, 300, 2200, 900, rng, peak=0.7, q=2, shape=2.2, tail=5) + air(0.13, 0.7, 5, rng, 320, 0.5), 0, 1.0)
+    swirl = svf(rng.standard_normal(t.size), 1100 + 700 * np.sin(2 * np.pi * 12 * t), 3) * env(t, 0.06, 0.1) * 0.6
+    x += swirl
+    place(x, swoosh(0.18, 500, 1400, 800, rng, peak=0.4, q=1.5, tail=4), 0.18, 0.4)  # (the spring back)
+    return finish(x, 0.84, 1.3)
+
+
+def ar_kick_h():  # the boot lands square and throws him up: a meaty THWACK (the leather slapping), a short low gust under it
+    rng = R(1231); dur = 0.6; t = T(dur); x = buf(dur)
+    x += thud(dur, 150, 55, 0.08, 0.025) * 1.25
+    x += bp(rng.standard_normal(t.size), 250, 1600) * env(t, 0.0006, 0.025) * 1.3  # (the slap of it)
+    x += knock(dur, 210, 0.03, rng, 0.4) * 0.5
+    place(x, swoosh(0.25, 250, 1100, 900, rng, peak=0.25, q=1.4, tail=4), 0.01, 0.5)
+    return finish(x, 0.86, 1.5)
+
+
+def ar_mine_c():  # Vine Mine: a hop back, the seed driven into the floor (lead 150: a woody thock), roots spreading under it, creaking
+    rng = R(1240); dur = 1.0; t = T(dur); x = buf(dur)
+    place(x, swoosh(0.14, 400, 1500, 700, rng, peak=0.4, q=1.6, tail=4), 0.0, 0.5)
+    place(x, knock(0.15, 300, 0.03, rng, 1.0) + thud(0.15, 160, 80, 0.03) * 0.6, 0.15, 0.9)
+    place(x, creak(0.5, rng, 330, (30, 70), 1.0) * env(T(0.5), 0.05, 0.18), 0.17)
+    place(x, rustle(0.5, rng, 260, 2000, 7000, 0.35) * env(T(0.5), 0.05, 0.15), 0.17)
+    x += lp(brown(t.size, rng), 120) * np.clip((t - 0.15) / 0.1, 0, 1) * np.exp(-np.maximum(0, t - 0.2) / 0.16) * 0.5
+    return finish(x, 0.82, 1.25)
+
+
+def ar_mine_z():  # stepped on: the mine snaps shut on his foot like a trap's jaws (a woody CLACK), the vines tightening on it
+    rng = R(1241); dur = 0.55; t = T(dur); x = buf(dur)
+    place(x, knock(0.12, 620, 0.012, rng, 1.4) + knock(0.12, 940, 0.008, rng, 0.8) * 0.6 + click(0.12, rng, 1500, 0.002, 0.8), 0.0, 1.0)
+    place(x, thud(0.2, 170, 90, 0.03), 0.0, 0.5)
+    place(x, creak(0.32, rng, 330, (50, 120), 0.9) * env(T(0.32), 0.01, 0.14), 0.05)
+    x += rustle(dur, rng, 300, 2500, 8000, 0.2) * env(t, 0.05, 0.1)
+    return finish(x, 0.83, 1.35)
+
+
+def ar_mine_h():  # the mine erupts: roots tearing up out of the floor — a woody crunch, the planks and roots cracking, the roots groaning
+    rng = R(1243); dur = 1.1; t = T(dur); x = buf(dur)
+    x += thud(dur, 110, 40, 0.14, 0.04) * 1.2
+    x += bp(rng.standard_normal(t.size), 150, 900) * env(t, 0.002, 0.06) * 1.3  # (the crunch)
+    times = rng.exponential(0.07, 40); x += grains(t.size, times, rng.uniform(0.3, 0.8, 40) * np.exp(-times / 0.2), [knock(0.06, f, 0.015, rng, 1.2) for f in (250, 340, 460, 620)], rng)
+    place(x, creak(0.6, rng, 240, (20, 60), 1.2) * env(T(0.6), 0.02, 0.25), 0.05)
+    x += rustle(dur, rng, 400, 2000, 7000, 0.3) * env(t, 0.02, 0.2)
+    return finish(x, 0.87, 1.5)
+
+
+def ar_thunder_c():  # Thunder Rain: she leaps and looses arrows straight up into the sky (twangs, whistles rising), the dark cloud gathering,
+    # static crackling as it charges (the first bolt 600 ms in)
+    rng = R(1250); dur = 0.95; t = T(dur); x = buf(dur)
+    place(x, swoosh(0.3, 300, 1600, 900, rng, peak=0.35, q=1.5, tail=4) + air(0.3, 0.35, 4, rng, 280, 0.5), 0, 0.7)
+    for k in range(4):
+        place(x, twang(R(1251 + k), 150 + 12 * k, 0.16, whistle_amp=0.0), 0.04 + 0.035 * k, 0.45)
+        place(x, whistle(0.45, 2600 + 300 * k, 4200 + 300 * k, rng, 28), 0.05 + 0.035 * k, 0.4)
+    gather = lp(brown(t.size, rng), 90) * np.clip((t - 0.15) / 0.45, 0, 1) ** 1.6 * np.exp(-np.maximum(0, t - 0.62) / 0.05) * 1.6
+    x += gather
+    times = np.sort(0.25 + 0.38 * rng.random(30) ** 0.5)
+    x += grains(t.size, times, rng.uniform(0.05, 0.25, 30) * (times - 0.2) * 2, crackle_kernels(rng, 3000), rng)
+    return finish(x, 0.83, 1.3)
+
+
+def ar_thunder_b():  # a bolt strikes: KRAK, a short roll
+    rng = R(1255)
+    return finish(thunder(1.15, rng, 1.0, 1.0), 0.85, 1.5)
+
+
+def ar_thunder_h():  # the great bolt: KRA-KOOM, the thunder rolling on
+    rng = R(1256); dur = 1.6; x = thunder(dur, rng, 1.3, 1.4)
+    place(x, thud(0.9, 90, 32, 0.25, 0.05), 0, 1.0)
+    place(x, arc(0.12, rng, f=110, jit=0.5) * env(T(0.12), 0.001, 0.05), 0.02, 0.5)
+    return finish(x, 0.87, 1.5)
+
+
+def ar_thunder_z():  # the charged floor catches him: a zap out of the planks, crackling
+    rng = R(1257); dur = 0.45; t = T(dur); x = buf(dur)
+    place(x, zap(rng, 0.08, 0.9), 0)
+    x += grains(t.size, rng.exponential(0.06, 18), rng.uniform(0.2, 0.5, 18), crackle_kernels(rng, 2500), rng)
+    x += thud(dur, 150, 70, 0.04) * 0.5
+    return finish(x, 0.84, 1.4)
+
+
+def ar_spirit_c():  # Spirit Bow: the bow drawn slow and hard (creaking), a cyan spirit gathering on the arrow (a rising shimmer), the release
+    # (lead 400): a deep twang and the spirit arrow singing away — SHWEEEN
+    rng = R(1260); dur = 0.95; t = T(dur); x = buf(dur)
+    place(x, creak(0.38, rng, 300, (25, 60), 1.0) * np.clip(T(0.38) / 0.3, 0, 1), 0.0)
+    u = np.clip(t / 0.4, 0, 1)
+    sh = sum(np.sin(2 * np.pi * np.cumsum(f * (1 + 0.35 * u)) / SR + i) for i, f in enumerate((880.0, 1320.0, 1760.0, 2215.0)))
+    x += sh * u ** 2 * np.where(t < 0.4, 1.0, np.exp(-(t - 0.4) / 0.05)) * 0.06
+    place(x, twang(R(1261), 98, 0.3, 0.994, thwip=1.5, whistle_amp=0.0), 0.4, 0.9)
+    st = T(0.45); f = 3600 * (1 - 0.2 * st / 0.45)
+    streak = flange(svf(rng.standard_normal(st.size), f, 14), 0.0005, 0.004, 6, 0.8) * 1.4 + np.sin(2 * np.pi * np.cumsum(f * 0.5) / SR) * 0.12
+    place(x, streak * env(st, 0.004, 0.14), 0.405)
+    return finish(x, 0.84, 1.3)
+
+
+def ar_spirit_h():  # it pierces him and knocks him flat: TSHHK, a glassy ring of the spirit, the thump, the line going on through
+    rng = R(1262); dur = 0.95; t = T(dur); x = buf(dur)
+    x += click(dur, rng, 2600, 0.002, 1.0) + hp(rng.standard_normal(t.size), 3000) * env(t, 0.0005, 0.02) * 0.8
+    x += sum(bell(dur, f, ratio=2.01, index=1.2, tau=0.22) for f in (1760.0, 2215.0, 2637.0)) * 0.13
+    x += thud(dur, 150, 50, 0.1, 0.03) * 1.0
+    place(x, svf(rng.standard_normal(T(0.4).size), np.linspace(3200, 2200, T(0.4).size), 10) * env(T(0.4), 0.003, 0.12) * 1.2, 0.01)
+    return finish(x, 0.86, 1.5)
+
+
+def ar_roar_c():  # Hunter's Roar: the spirit wolf rising behind her and howling (lead 260: the howl from the start), the wave of wind at its height
+    rng = R(1270); dur = 1.25; t = T(dur); x = buf(dur)
+    place(x, howl(1.05, rng, 300, 560, 400, 0.6), 0.0)
+    place(x, swoosh(0.6, 300, 1600, 600, rng, peak=0.15, q=1.2, tail=4) + air(0.6, 0.15, 4, rng, 260, 0.9), 0.24, 1.2)
+    place(x, thud(0.4, 110, 55, 0.08) * 0.8, 0.26)  # (the wave goes out)
+    x += rustle(dur, rng, 300, 2500, 9000, 0.25) * np.clip((t - 0.26) / 0.05, 0, 1) * np.exp(-np.maximum(0, t - 0.3) / 0.2)
+    return finish(x, 0.84, 1.25)
+
+
+def ar_roar_h():  # the wave throws him back: a gust slamming in, the spirit's whoom and shimmer, leaves
+    rng = R(1271); dur = 0.75; t = T(dur); x = buf(dur)
+    x += thud(dur, 140, 58, 0.08) * 1.0 + lp(rng.standard_normal(t.size), 1000) * env(t, 0.002, 0.05) * 0.9
+    x += sum(np.sin(2 * np.pi * f * t + i) for i, f in enumerate((587.3, 880.0, 1174.7))) * env(t, 0.005, 0.18) * 0.1
+    x += rustle(dur, rng, 450, 2500, 9000, 0.3) * env(t, 0.01, 0.15)
+    place(x, swoosh(0.4, 1500, 600, 300, rng, peak=0.1, q=1.4, tail=4), 0.0, 0.5)
+    return finish(x, 0.86, 1.45)
+
+
+def ar_bind_c():  # Binding Leaves: the arrow loosed into the floor (lead 150), and roots tear up along the line toward him, creaking and cracking
+    rng = R(1280); dur = 1.15; t = T(dur); x = buf(dur)
+    place(x, twang(R(1281), 132, 0.2, whistle_amp=0.15), 0.15, 0.75)
+    place(x, knock(0.12, 280, 0.025, rng, 0.9), 0.2, 0.7)
+    for k in range(6):  # (the roots tearing up along the line, one after another)
+        place(x, knock(0.07, rng.uniform(380, 560), 0.015, rng, 1.0) + hp(rng.standard_normal(T(0.07).size), 1200) * env(T(0.07), 0.0006, 0.008) * 0.6, 0.21 + 0.035 * k, 0.5)
+    place(x, creak(0.5, rng, 360, (40, 100), 1.0) * env(T(0.5), 0.02, 0.2), 0.22)
+    x += rustle(dur, rng, 350, 2000, 8000, 0.3) * np.clip((t - 0.2) / 0.05, 0, 1) * np.exp(-np.maximum(0, t - 0.3) / 0.25)
+    return finish(x, 0.83, 1.3)
+
+
+def ar_bind_h():  # caught: the roots whip round him and bind him tight (lashes, wood creaking tight, leaves)
+    rng = R(1282); dur = 0.6; t = T(dur); x = buf(dur)
+    place(x, whip(rng, 0.55), 0.0); place(x, whip(R(1283), 0.45), 0.04); place(x, whip(R(1284), 0.35), 0.075)
+    place(x, creak(0.35, rng, 420, (80, 160), 1.0) * env(T(0.35), 0.01, 0.15), 0.12)
+    x += thud(dur, 170, 85, 0.035) * 0.5 + rustle(dur, rng, 350, 2500, 8000, 0.25) * env(t, 0.1, 0.12)
+    return finish(x, 0.84, 1.4)
+
+
+def ar_hawk_c():  # Spirit Hawk: the hawk of light called out (lead 250): its cry, its wings beating up, a shimmer
+    rng = R(1290); dur = 0.75; t = T(dur); x = buf(dur)
+    place(x, screech(0.42, rng, 3200, 2300, 0.55), 0.05)
+    place(x, wings([0.08, 0.2, 0.32], rng, 450, 0.8), 0.0)
+    x += sum(np.sin(2 * np.pi * f * t + i) for i, f in enumerate((1318.5, 1975.5, 2637.0))) * env(t, 0.1, 0.2) * 0.04
+    return finish(x, 0.83, 1.3)
+
+
+def ar_hawk_b():  # its first pass: wings fluttering past, a chirp, the talons' light rake
+    rng = R(1291); dur = 0.45; t = T(dur); x = buf(dur)
+    place(x, wings([0.0, 0.07], rng, 700, 0.6, 0.7), 0.0)
+    place(x, screech(0.08, rng, 3800, 3300, 0.3), 0.06)
+    place(x, svf(rng.standard_normal(T(0.06).size), 3600, 4) * env(T(0.06), 0.002, 0.015) * 0.8 + click(0.06, rng, 3000, 0.001, 0.5), 0.13)
+    return finish(x, 0.83, 1.45)
+
+
+def ar_hawk_h():  # the hawk dives on him and strikes him down: a short shriek coming down, the talons' thwack
+    rng = R(1292); dur = 0.7; t = T(dur); x = buf(dur)
+    place(x, screech(0.16, rng, 3600, 2600, 0.35), 0.0)
+    dv = T(0.16); place(x, svf(rng.standard_normal(dv.size), 2400 * (900 / 2400) ** (dv / 0.16), 3) * (dv / 0.16) ** 2 * 1.0, 0.0)
+    place(x, click(0.4, rng, 2000, 0.002, 1.0) + thud(0.4, 150, 55, 0.07) * 1.0 + bp(rng.standard_normal(T(0.4).size), 500, 3000) * env(T(0.4), 0.0006, 0.015) * 0.8, 0.16)
+    place(x, wings([0.0, 0.12], rng, 500, 0.4), 0.2)
+    return finish(x, 0.85, 1.5)
+
+
+def ar_tree_c():  # Tree of Life: a sapling of light grows up out of the floor (wood creaking upward, leaves unfurling) and blooms at the strike
+    # (lead 450): a warm chord of healing
+    rng = R(1300); dur = 1.45; t = T(dur); x = buf(dur)
+    g = creak(0.45, rng, 300, (25, 90), 1.0) * np.clip(T(0.45) / 0.4, 0, 1)
+    place(x, svf(g, np.linspace(280, 700, g.size), 6), 0.0, 1.0)
+    x += rustle(dur, rng, 320, 2500, 9000, 0.3) * np.clip(t / 0.45, 0, 1) * np.exp(-np.maximum(0, t - 0.55) / 0.25)
+    for k, f in enumerate((440.0, 554.4, 659.3, 880.0, 1108.7)):
+        place(x, pluck(0.9, f, R(1301 + k), 0.995, 0.6) * env(T(0.9), 0.002, 0.4), 0.45 + 0.03 * k, 0.32)
+        place(x, bell(0.8, f * 2, ratio=2.0, index=0.6, tau=0.3), 0.46 + 0.03 * k, 0.07)
+    place(x, lp(rng.standard_normal(T(0.6).size), 700) * env(T(0.6), 0.02, 0.12) * 0.5, 0.42)
+    return finish(x, 0.82, 1.25)
+
+
+def ar_tree_h():  # its bloom pushes a foe back: a soft woody whump, leaves, a chime
+    rng = R(1305); dur = 0.6; t = T(dur); x = buf(dur)
+    x += thud(dur, 150, 70, 0.06) * 0.9 + knock(dur, 260, 0.03, rng, 0.5) * 0.5
+    x += rustle(dur, rng, 400, 2500, 9000, 0.3) * env(t, 0.01, 0.15)
+    place(x, bell(0.5, 1318.5, ratio=2.0, index=0.8, tau=0.15), 0.01, 0.2)
+    return finish(x, 0.84, 1.4)
+
+
+def ar_lash_c():  # Vine Lash: the arm whips out and a thorny vine cracks out of her hand (the crack on the strike: lead 140)
+    rng = R(1310); dur = 0.6; t = T(dur); x = buf(dur)
+    place(x, swoosh(0.16, 300, 1400, 900, rng, peak=0.7, q=1.6, tail=5) + air(0.16, 0.7, 5, rng, 300, 0.4), 0.0, 0.7)
+    place(x, whip(rng, 1.0), 0.028)
+    x += rustle(dur, rng, 300, 2500, 8000, 0.3) * np.clip((t - 0.08) / 0.05, 0, 1) * np.exp(-np.maximum(0, t - 0.15) / 0.1)
+    return finish(x, 0.84, 1.3)
+
+
+def ar_lash_h():  # it coils round him (thorns rasping tight) and yanks him in (a snap, pulled back through the air)
+    rng = R(1311); dur = 0.6; t = T(dur); x = buf(dur)
+    place(x, svf(rng.standard_normal(T(0.15).size), 2600, 4) * (0.5 + 0.5 * (slow(rng, T(0.15).size, 120) > 0)) * env(T(0.15), 0.005, 0.06) * 0.6, 0.0)
+    place(x, creak(0.2, rng, 520, (90, 180), 0.8) * env(T(0.2), 0.005, 0.07), 0.02)
+    place(x, whip(R(1312), 0.5), 0.1)
+    place(x, reverse(swoosh(0.28, 500, 1900, 2300, rng, peak=0.3, q=1.8, tail=4)), 0.15, 0.6)
+    x += thud(dur, 170, 85, 0.035) * 0.45
+    return finish(x, 0.84, 1.4)
+
+
+def ar_eagle_w():  # Eagle Tide, the charge (1.2 s): the bow drawn to its limit and held (creaking), an eagle of light unfolding its wings round
+    # the arrow (two great sweeps), the spirit's chord swelling and a whine rising into the release
+    rng = R(1320); dur = 1.32; t = T(dur); u = np.clip(t / 1.2, 0, 1)
+    x = creak(dur, rng, 280, (20, 70), 0.9) * np.clip(t / 0.3, 0, 1) * (1 - 0.5 * u)
+    place(x, wings([0.45, 0.85], rng, 330, 0.7, 2.0), 0.0)
+    chord = sum(np.sin(2 * np.pi * f * t + i) for i, f in enumerate((440.0, 659.3, 880.0, 1318.5)))
+    x += chord * u ** 2 * 0.045
+    x += np.sin(2 * np.pi * np.cumsum(1500 * (2.2 ** u)) / SR) * u ** 3 * 0.06
+    x *= np.where(t < 1.2, 1.0, np.exp(-(t - 1.2) / 0.03))  # (the release's twang takes over)
+    return finish(x, 0.82, 1.25)
+
+
+def ar_eagle_c():  # the release: a deep twang, the great eagle's cry, and the eagle flying through (three great wing beats going away)
+    rng = R(1321); dur = 1.0; t = T(dur); x = buf(dur)
+    place(x, twang(R(1322), 92, 0.3, 0.994, thwip=1.6, whistle_amp=0.0), 0, 0.85)
+    place(x, screech(0.55, rng, 2700, 1900, 0.6), 0.02)
+    place(x, swoosh(0.75, 250, 1800, 500, rng, peak=0.2, q=1.2, shape=1.4, tail=3.5) + air(0.75, 0.2, 3.5, rng, 260, 0.8), 0.0, 0.9)
+    place(x, wings([0.05, 0.27, 0.49], rng, 300, 0.7, 1.6), 0.0)
+    return finish(x, 0.84, 1.3)
+
+
+def ar_eagle_b():  # the eagle passes through him: a wing's gust striking, a scrape of talons
+    rng = R(1323); dur = 0.45; t = T(dur); x = buf(dur)
+    x += lp(rng.standard_normal(t.size), 1100) * env(t, 0.003, 0.05) * 1.0 + thud(dur, 160, 75, 0.05) * 0.7
+    place(x, svf(rng.standard_normal(T(0.1).size), 3200, 5) * env(T(0.1), 0.002, 0.03) * 0.6, 0.01)
+    return finish(x, 0.84, 1.45)
+
+
+def ar_eagle_h():  # the last pass throws him up: the eagle's cry, a gust bursting upward, the blow
+    rng = R(1324); dur = 0.85; t = T(dur); x = buf(dur)
+    x += thud(dur, 150, 55, 0.09, 0.03) * 1.1 + lp(rng.standard_normal(t.size), 1400) * env(t, 0.002, 0.05) * 0.9
+    place(x, screech(0.3, rng, 3000, 2200, 0.45), 0.02)
+    place(x, swoosh(0.5, 400, 2600, 3300, rng, peak=0.2, q=1.5, tail=4), 0.01, 0.8)
+    return finish(x, 0.86, 1.5)
+
+
+SOUNDS6 = {
+    'ar_step_c': ar_step_c, 'ar_step_h': ar_step_h, 'ar_triple_c': ar_triple_c, 'ar_triple_h': ar_triple_h, 'ar_back_c': ar_back_c, 'ar_back_h': ar_back_h,
+    'ar_kick_c': ar_kick_c, 'ar_kick_h': ar_kick_h, 'ar_mine_c': ar_mine_c, 'ar_mine_z': ar_mine_z, 'ar_mine_h': ar_mine_h,
+    'ar_thunder_c': ar_thunder_c, 'ar_thunder_b': ar_thunder_b, 'ar_thunder_h': ar_thunder_h, 'ar_thunder_z': ar_thunder_z,
+    'ar_spirit_c': ar_spirit_c, 'ar_spirit_h': ar_spirit_h, 'ar_roar_c': ar_roar_c, 'ar_roar_h': ar_roar_h, 'ar_bind_c': ar_bind_c, 'ar_bind_h': ar_bind_h,
+    'ar_hawk_c': ar_hawk_c, 'ar_hawk_b': ar_hawk_b, 'ar_hawk_h': ar_hawk_h, 'ar_tree_c': ar_tree_c, 'ar_tree_h': ar_tree_h,
+    'ar_lash_c': ar_lash_c, 'ar_lash_h': ar_lash_h, 'ar_eagle_w': ar_eagle_w, 'ar_eagle_c': ar_eagle_c, 'ar_eagle_b': ar_eagle_b, 'ar_eagle_h': ar_eagle_h,
+}
+
+
 SOUNDS = {
     # warrior
     'wr_iron_1': wr_iron_1, 'wr_iron_2': wr_iron_2, 'wr_iron_3': wr_iron_3, 'wr_iron_4': wr_iron_4,
@@ -1901,6 +2653,8 @@ SOUNDS = {
 SOUNDS.update(SOUNDS2)
 SOUNDS.update(SOUNDS3)
 SOUNDS.update(SOUNDS4)
+SOUNDS.update(SOUNDS5)
+SOUNDS.update(SOUNDS6)
 
 
 def loudness(x):

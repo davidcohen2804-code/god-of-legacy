@@ -36,7 +36,13 @@ export const SIG_SFX = {
   warrior: {
     wr_iron_1: [1, 0.44], wr_iron_2: [1, 0.44], wr_iron_3: [1, 0.47], wr_iron_4: [1, 0.62], wr_iron_hit: [2, 0.66], wr_iron_fin: [1, 0.65],
     wr_rise_c: [1, 0.29], wr_rise_h: [1, 0.29], wr_quake_c: [1, 0.61], wr_quake_h: [1, 0.58], wr_rush_c: [1, 0.5], wr_rush_h: [1, 0.47],
-    wr_storm_w: [1, 0.38], wr_storm_c: [1, 0.34], wr_storm_h: [1, 0.28], wr_titan_w: [1, 0.27], wr_titan_h: [1, 0.58], wr_titan_end: [1, 1.0]
+    wr_storm_w: [1, 0.38], wr_storm_c: [1, 0.34], wr_storm_h: [1, 0.28], wr_titan_w: [1, 0.27], wr_titan_h: [1, 0.58], wr_titan_end: [1, 1.0],
+    wr_dash_c: [1, 0.37], wr_dash_h: [1, 0.97], wr_whirl_c: [1, 0.41], wr_whirl_h: [1, 0.5], wr_sanct_c: [1, 0.29], wr_sanct_h: [1, 0.52],
+    wr_leap_c: [1, 0.44], wr_leap_h: [1, 0.97], wr_leap_end: [1, 0.68], wr_wave_c: [1, 0.28], wr_wave_h: [1, 0.48], wr_cry_c: [1, 0.36],
+    wr_cry_h: [1, 0.57], wr_jblade_c: [1, 0.21], wr_jblade_h: [1, 0.49], wr_jblade_z: [1, 0.45], wr_grip_c: [1, 0.28], wr_grip_b: [1, 0.59],
+    wr_grip_h: [1, 0.49], wr_hook_c: [1, 0.19], wr_hook_h: [1, 0.4], wr_sky_c: [1, 0.16], wr_sky_h: [1, 0.33],
+    wr_sky_end: [1, 0.65], wr_split_w: [1, 0.56], wr_split_c: [1, 0.51], wr_split_h: [1, 1.0], wr_lion_c: [1, 0.35], wr_lion_h: [1, 0.82],
+    wr_charge_c: [1, 0.45]
   },
   samurai: {
     sm_quick_1: [1, 0.53], sm_quick_2: [1, 0.54], sm_quick_3: [1, 0.42], sm_quick_4: [1, 0.43], sm_quick_hit: [2, 0.53], sm_quick_fin: [1, 0.29],
@@ -51,7 +57,12 @@ export const SIG_SFX = {
   archer: {
     ar_double_c: [1, 0.4], ar_charged_c: [1, 0.36], ar_arrow_hit: [2, 0.77], ar_charged_h: [1, 0.89], ar_rise_c: [1, 0.42], ar_rise_h: [1, 0.44],
     ar_fire_c: [1, 0.42], ar_fire_h: [1, 0.42], ar_storm_c: [1, 0.37], ar_storm_h: [1, 0.67], ar_volley_c: [1, 0.41], ar_volley_h: [1, 0.62],
-    ar_skyrain_w: [1, 0.32], ar_skyrain_c: [1, 0.37], ar_skyrain_h: [1, 0.47]
+    ar_skyrain_w: [1, 0.32], ar_skyrain_c: [1, 0.37], ar_skyrain_h: [1, 0.47], ar_step_c: [1, 0.43], ar_step_h: [1, 0.48], ar_triple_c: [1, 0.24],
+    ar_triple_h: [1, 0.75], ar_back_c: [1, 0.33], ar_back_h: [1, 0.8], ar_kick_c: [1, 0.46], ar_kick_h: [1, 1.0], ar_mine_c: [1, 0.58],
+    ar_mine_z: [1, 0.52], ar_mine_h: [1, 0.5], ar_thunder_c: [1, 0.28], ar_thunder_b: [1, 0.66], ar_thunder_h: [1, 0.69], ar_thunder_z: [1, 0.73],
+    ar_spirit_c: [1, 0.31], ar_spirit_h: [1, 0.68], ar_roar_c: [1, 0.23], ar_roar_h: [1, 0.99], ar_bind_c: [1, 0.45], ar_bind_h: [1, 0.73],
+    ar_hawk_c: [1, 0.2], ar_hawk_b: [1, 0.33], ar_hawk_h: [1, 0.38], ar_tree_c: [1, 0.41], ar_tree_h: [1, 0.79], ar_lash_c: [1, 0.54],
+    ar_lash_h: [1, 0.95], ar_eagle_w: [1, 0.5], ar_eagle_c: [1, 0.18], ar_eagle_b: [1, 0.87], ar_eagle_h: [1, 0.3]
   },
   book_mage: {
     bm_bolt_c1: [1, 0.23], bm_bolt_c2: [1, 0.24], bm_lance_c: [1, 0.52], bm_bolt_h: [2, 0.26], bm_lance_h: [1, 0.6], bm_wave_c: [1, 0.22],

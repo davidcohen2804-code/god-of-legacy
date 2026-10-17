@@ -11,15 +11,15 @@
 // bolt crackles, a dome whumps, a wave rushes past, crystals grow and shatter — the repeating ones held back); the
 // fighters' feet on the planks (steps when running, a scuff when driven back, a thump on landing). The music ducks under
 // an ultimate (both arenas).
-// Each class's signature skills (its 6–7 most played: the basic chain, the launchers and finishers, the signature, the
-// ultimate) sound like themselves (SIG): their own swing / shot / spell, timed so it peaks on the strike, a wind-up for the
-// big ones, their own main hit under the boom.
+// Every skill of every class sounds like itself (SIG): its own swing / shot / spell, timed so it peaks on the strike, a
+// wind-up for the big ones, its own main hit under the boom — in its class's palette, the warrior's and the archer's in
+// the families of their skills' looks (steel, stone, iron, holy, crimson · wind, thorn, storm, spirit).
 import Phaser from 'phaser';
 import type { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import type { CastRun } from '../skills/SkillRuntime';
 import type { Match, MatchPhase } from '../pvp/Match';
 import type { FxPiece } from '../arena3d/Fx3D';
-import { arenaTimeScale } from '../skills/FinalKit';
+import { hitIndex } from '../skills/FinalKit';
 import { Heard, PlayOpts, Sound, setPanner, SfxName, VoiceLine } from './Sound';
 
 /** A fighter as the sound sees it: where (world x, y), how high above what it stands on, knocked about (launched / down),
@@ -55,13 +55,14 @@ const BUFFS: Record<string, SfxName> = {
   lightning_chain: 'mag_bolt', storm_field: 'mag_bolt', frost_nova: 'mag_ice', glacial_spikes: 'mag_ice', origami_flock: 'mag_page', paper_curse: 'mag_page', page_bind: 'mag_page',
   coin_flip: 'gam_coins', roulette_wheel: 'gam_roulette', dice_bomb: 'gam_dice', triple_down: 'gam_dice', jackpot: 'gam_chips', all_in: 'gam_chips',
 };
-/** Each class's signature skills, a sound of their own (tools/audio/signatures.py): `wind` as the cast starts (a big
- *  one's wind-up; `windLead` ms into it is the strike), `cast` its swing / shot / spell (a basic chain: one per stage;
- *  `lead` ms into it lands on the strike — started early, or partway in when the startup is short; none: at the strike),
- *  `hit` its first main hit (under the boom), `end` its last main hit, `blow` its other blows (a burst's small ones stay
- *  the class's soft ticks), `zero` a blow that does no damage but means something (a curse, a bind, a stun); `every`:
- *  every main hit gets `hit` (the last one `end`), not only the first (blows of one kind: a hammer three times). */
-interface Sig { wind?: SfxName; windLead?: number; cast?: SfxName | readonly SfxName[]; lead?: number | readonly number[]; hit?: SfxName; end?: SfxName; blow?: SfxName; blowVol?: number; zero?: SfxName; every?: boolean }
+/** Each skill's own sounds (tools/audio/signatures.py): `wind` as the cast starts (a big one's wind-up; `windLead` ms into
+ *  it is the strike), `cast` its swing / shot / spell (a basic chain: one per stage; `lead` ms into it lands on the strike
+ *  — started early, or partway in when the startup is short; none: at the strike), `hit` its first main hit (under the
+ *  boom), `end` its last main hit, `blow` its other blows (a burst's small ones stay the class's soft ticks), `zero` a blow
+ *  that does no damage but means something (a curse, a bind, a stun); `every`: every main hit gets `hit` (the last one
+ *  `end`), not only the first (blows of one kind: a hammer three times); `zone` a blow of what it leaves on the floor
+ *  (its lingering hits: the charged floor catching someone). */
+interface Sig { wind?: SfxName; windLead?: number; cast?: SfxName | readonly SfxName[]; lead?: number | readonly number[]; hit?: SfxName; end?: SfxName; blow?: SfxName; blowVol?: number; zero?: SfxName; every?: boolean; zone?: SfxName }
 const SIG: Record<string, Sig> = {
   // warrior: a greatsword's weight, holy gold light, the storm, the titan
   warrior_basic: { cast: ['wr_iron_1', 'wr_iron_2', 'wr_iron_3', 'wr_iron_4'], lead: [153, 150, 135, 275], blow: 'wr_iron_hit', hit: 'wr_iron_fin' },
@@ -70,6 +71,19 @@ const SIG: Record<string, Sig> = {
   lance_thrust: { cast: 'wr_rush_c', hit: 'wr_rush_h' },
   blade_storm: { wind: 'wr_storm_w', windLead: 320, cast: 'wr_storm_c', hit: 'wr_storm_h', blow: 'wr_storm_h', blowVol: 0.55 }, // (the storm's light swords keep striking)
   titans_verdict: { wind: 'wr_titan_w', windLead: 770, hit: 'wr_titan_h', end: 'wr_titan_end' },
+  dash_slash: { cast: 'wr_dash_c', lead: 100, blow: 'wr_dash_h', hit: 'wr_dash_h' }, // STEEL: a blur, one razor line bursting in sparks
+  whirlwind: { cast: 'wr_whirl_c', hit: 'wr_whirl_h' }, // STEEL: a disc of steel at his waist, a turn per blow
+  wave_slash: { cast: 'wr_wave_c', lead: 250, hit: 'wr_wave_h', blow: 'wr_wave_h' }, // STEEL: a crescent of air running along the planks
+  sky_breaker: { cast: 'wr_sky_c', lead: 30, hit: 'wr_sky_h', end: 'wr_sky_end' }, // STEEL cuts up (the two in the air: a burst's soft ticks), the dive, the landing in STONE
+  leap_crash: { cast: 'wr_leap_c', lead: 120, hit: 'wr_leap_h', end: 'wr_leap_end' }, // STONE: the crater
+  earthsplitter: { wind: 'wr_split_w', cast: 'wr_split_c', hit: 'wr_split_h' }, // STONE: the ground trembling under the hold, the fissure, the spikes
+  iron_grip: { cast: 'wr_grip_c', lead: 80, blow: 'wr_grip_b', hit: 'wr_grip_h' }, // IRON: the gauntlet closing, the heave
+  judgment_hook: { cast: 'wr_hook_c', lead: 60, blow: 'wr_hook_h', hit: 'wr_hook_h' }, // IRON: a real chain, the hook biting, reeled in
+  shield_charge: { cast: 'wr_charge_c', lead: 40 }, // IRON: the barrier of iron light at his shoulder
+  judgment_blade: { cast: 'wr_jblade_c', lead: 120, hit: 'wr_jblade_h', blow: 'wr_jblade_z', blowVol: 0.6 }, // HOLY: the sword of light from the sky, the pin pulsing
+  sanctuary: { cast: 'wr_sanct_c', lead: 300, hit: 'wr_sanct_h', blow: 'wr_sanct_h' }, // HOLY: the ring of runes, the dome
+  war_cry: { cast: 'wr_cry_c', lead: 300, hit: 'wr_cry_h', blow: 'wr_cry_h' }, // CRIMSON: the roar and its shock ring
+  lions_maw: { cast: 'wr_lion_c', lead: 150, hit: 'wr_lion_h' }, // CRIMSON: the lion of flame, its jaws
   // samurai: thin bright steel, sakura, ink, the dark and the crimson dragon
   quick_slash: { cast: ['sm_quick_1', 'sm_quick_2', 'sm_quick_3', 'sm_quick_4'], lead: [64, 64, 60, 109], blow: 'sm_quick_hit', hit: 'sm_quick_fin' },
   hundred_cuts: { cast: 'sm_hundred_c', lead: 36, hit: 'sm_hundred_h' },
@@ -96,6 +110,19 @@ const SIG: Record<string, Sig> = {
   arrow_storm: { cast: 'ar_storm_c', hit: 'ar_storm_h' },
   skyhunters_step: { cast: 'ar_volley_c', hit: 'ar_volley_h' },
   sky_rain: { wind: 'ar_skyrain_w', windLead: 800, cast: 'ar_skyrain_c', hit: 'ar_skyrain_h' },
+  bow_haste: { cast: 'ar_step_c', lead: 40, hit: 'ar_step_h', blow: 'ar_step_h' }, // WIND: the gust ring, the somersault, the shot from its top
+  multi_shot: { cast: 'ar_triple_c', lead: 180, blow: 'ar_triple_h', hit: 'ar_triple_h' }, // WIND: three trails fanned
+  backstep_shot: { cast: 'ar_back_c', blow: 'ar_back_h', hit: 'ar_back_h' }, // WIND: the back flip, the shot at its top
+  retreat_kick: { cast: 'ar_kick_c', lead: 90, hit: 'ar_kick_h', blow: 'ar_kick_h' }, // WIND: the boot of wind
+  vine_trap: { cast: 'ar_mine_c', lead: 150, zero: 'ar_mine_z', hit: 'ar_mine_h', blow: 'ar_mine_h' }, // THORN: planted, snapping shut, erupting
+  leaping_arrow: { cast: 'ar_bind_c', lead: 150, blow: 'ar_bind_h', hit: 'ar_bind_h' }, // THORN: roots tearing up along the line, binding
+  hunters_spirit: { cast: 'ar_lash_c', lead: 140, blow: 'ar_lash_h', hit: 'ar_lash_h' }, // THORN: Vine Lash — the whip of thorns, the yank
+  tree_of_life: { cast: 'ar_tree_c', lead: 450, blow: 'ar_tree_h', hit: 'ar_tree_h' }, // the tree of light growing, blooming
+  rain_of_arrows: { cast: 'ar_thunder_c', blow: 'ar_thunder_b', hit: 'ar_thunder_h', zone: 'ar_thunder_z' }, // STORM: arrows into a dark cloud, bolts down, the charged floor
+  piercing_arrow: { cast: 'ar_spirit_c', lead: 400, hit: 'ar_spirit_h' }, // SPIRIT: Spirit Bow's arrow of light
+  hunters_roar: { cast: 'ar_roar_c', lead: 260, hit: 'ar_roar_h' }, // SPIRIT: the wolf howling behind her, the wave
+  spirit_hawk: { cast: 'ar_hawk_c', lead: 250, blow: 'ar_hawk_b', hit: 'ar_hawk_h' }, // SPIRIT: the hawk's cry, its dives
+  eagle_arrow: { wind: 'ar_eagle_w', windLead: 1200, cast: 'ar_eagle_c', blow: 'ar_eagle_b', hit: 'ar_eagle_h' }, // SPIRIT: Eagle Tide — the draw, the eagle flying through
   // book mage: arcane chimes, starlight, lightning, frost, the clock of time
   arcane_bolt: { cast: ['bm_bolt_c1', 'bm_bolt_c2', 'bm_lance_c'], lead: [0, 0, 150], blow: 'bm_bolt_h', hit: 'bm_lance_h' },
   arcane_wave: { cast: 'bm_wave_c', lead: 60, hit: 'bm_wave_h', blow: 'bm_wave_h' },
@@ -251,11 +278,11 @@ export class ArenaSound {
     const tier = s.slot === 7 ? 3 : hit.heavy || s.slot === 6 ? 2 : s.slot === 0 ? 0 : 1;
     // the main hit (as SkillFx weighs it): heavy, one that sends the foe flying or down, the last blow of a burst
     const flies = !!(hit.reaction.launch || hit.reaction.knockdown || hit.reaction.slam) || reaction === 'launch' || reaction === 'knockdown' || reaction === 'slam';
-    const many = (s.chain ? 1 : s.hits.length) > 3, idx = s.chain ? -1 : this.indexOf(s, hit), main = !!hit.heavy || flies || (many && idx === s.hits.length - 1);
+    const many = (s.chain ? 1 : s.hits.length) > 3, idx = s.chain ? -1 : hitIndex(s, hit), main = !!hit.heavy || flies || (many && idx === s.hits.length - 1);
     const tick = many && !main; // (a burst's small blow: a soft tick, so the main one stands out)
     const o = { ...w, vol: tick ? 0.42 : [0.75, 0.9, 1, 1][tier], rate: tick ? 1.1 : 1, wet: tick ? WET.tick : WET.hit, at: tick ? 30 : 38 };
     const proj = hit.shape.kind === 'projectile';
-    const sig = tick ? undefined : this.sigOf(s), own = sig ? this.ownHit(s, sig, main, idx) : undefined;
+    const sig = tick ? undefined : this.sigOf(s), own = sig ? (sig.zone && hit === s.linger?.hit ? sig.zone : this.ownHit(s, sig, main, idx)) : undefined;
     if (own) Sound.sfx(own, !main && sig?.blowVol ? { ...o, vol: o.vol * sig.blowVol } : o);
     else switch (s.cls) {
       case 'warrior': Sound.sfx(tier === 0 || tick ? 'hit_light' : 'war_hit', o); break;
@@ -285,14 +312,6 @@ export class ArenaSound {
     const d = run.timings.startup - run.elapsed - lead;
     if (lead <= 0 || d <= 0) { Sound.sfx(name, { ...o, seek: lead > 0 ? Math.max(0, -d) / 1000 : 0 }); return; }
     this.scene.time.delayedCall(d, () => { if (run.phase !== 'done') Sound.sfx(name, o); });
-  }
-
-  /** A hit's place in its skill (-1: not found) — the arena re-times a skill's hits (as copies): matched by their time. */
-  private indexOf(s: FinalSkill, hit: HitEvent): number {
-    const i = s.hits.indexOf(hit);
-    if (i >= 0) return i;
-    const k = arenaTimeScale(s)?.at ?? 1;
-    return s.hits.findIndex((h) => Math.abs(Math.round(h.at * k) - hit.at) <= 1);
   }
 
   /** Each signature skill's first and last main hit (by its index). */
