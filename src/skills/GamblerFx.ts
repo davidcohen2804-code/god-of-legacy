@@ -2,6 +2,7 @@
 // stick and burst in electric fuchsia; a staff's thick motion bands; the casino's pieces (roulette wheel, dice, coin, slot
 // machine). Presentation only — gameplay never reads any of this. Every effect runs on this module's own clock, so it
 // stops with the hit-stop like the fight does.
+import { ARENA3D } from '../arena3d/flag';
 import Phaser from 'phaser';
 import type { CastRun } from './SkillRuntime';
 import type { FinalSkill, HitEvent } from './SkillTypes';
@@ -281,9 +282,9 @@ export class GamblerFx {
       this.ctx.flash(0xffffff, 0.08, 80);
     }
     if (r.skill.id === 'grand_slam') {
-      this.pop(o.x + side * 110, y0 - 60, 220, 0xffffff, 220); // the crack of the bat
-      const bl = this.kit('k_blast', o.x + side * 120, y0 - 60, 220, o.y + 3); if (bl) { const b0 = bl.scale; this.piece(bl, 360, (u, im) => im.setScale(b0 * lerp(0.4, 1.2, out3(u))).setAlpha(1 - u)); }
-      this.ctx.flash(0xffffff, 0.3, 120);
+      this.pop(o.x + side * 110, y0 - 60, 150, 0xffffff, 200); // the crack of the bat (bright, not a white-out)
+      const bl = this.kit('k_blast', o.x + side * 120, y0 - 60, 170, o.y + 3); if (bl) { const b0 = bl.scale; this.piece(bl, 360, (u, im) => im.setScale(b0 * lerp(0.4, 1.2, out3(u))).setAlpha(1 - u)); }
+      this.ctx.flash(0xffffff, 0.16, 110);
       if (!this.stroke('s_homerun', o.x + side * 70, y0 - 64, 300, side, 460, o.y + 2)) this.swing(o.x - side * 10, y0 - 60, 120, side > 0 ? Math.PI * 1.15 : -Math.PI * 0.15, side > 0 ? Math.PI * 2.05 : -Math.PI * 1.05, 360, 46, o.y + 2);
       this.ctx.cam().shake(220, 0.012); this.ctx.freeze(90);
     }
@@ -533,7 +534,7 @@ export class GamblerFx {
       const x = this.kit('x_cross', at.x, y, 170, TOP + 5); if (x) { x.setTint(0xffe7a0); const x0 = x.scale, a0 = rnd(-15, 15); this.piece(x, 300, (u, o) => o.setScale(x0 * lerp(1.4, 1, out3(clamp01(u * 3)))).setAngle(a0).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5)); }
       this.pop(at.x, y, 150, 0xffffff, 240); this.pop(at.x, y, 110, GOLD, 300); this.shards(at.x, y, 5, 120, 400);
     }
-    if (heavy && s.slot === 7) { const x = this.kit('x_cross', at.x, y, 200, TOP + 4); if (x) { const x0 = x.scale; this.piece(x, 300, (u, o) => o.setScale(x0 * lerp(1.4, 1, out3(clamp01(u * 3)))).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5)); } }
+    if (heavy && s.slot === 7 && kind !== 'crit') { const x = this.kit('x_cross', at.x, y, 130, TOP + 4); if (x) { const x0 = x.scale; this.piece(x, 260, (u, o) => o.setScale(x0 * lerp(1.25, 1, out3(clamp01(u * 3)))).setAlpha((u < 0.4 ? 0.6 : 0.6 * (1 - u) / 0.6))); } } // (the ultimate's cross: sized to the foe, never a white-out over both)
     if (s.id === 'grand_slam') this.ctx.cam().shake(260, 0.014);
     if (s.id === 'staff_vault' && hit.shape.kind === 'capsule') { // caught by the vault on its way: the staff's arc flashes right where it passed him
       const st = this.kit('s_swing', at.x, y, 150, TOP + 4); if (st) { const s0 = st.scale; st.setAngle(rnd(-20, 20)); this.piece(st, 200, (u, o) => o.setScale(s0 * lerp(0.8, 1.15, out3(u))).setAlpha(1 - u)); }
@@ -559,22 +560,22 @@ export class GamblerFx {
     const s = this.ctx.scene, H = tp0.h ?? 90;
     const at = () => { const t = this.ctx.targetPos(id); return t ? { x: t.x, y: t.y - t.z - H * 0.5, d: t.y } : null; };
     if (skill === 'kinetic_grab' && hit === 0) { // seized: the body charges up — arcs crawl over it, a card-shaped charge pulses, the glow swells
-      const glow = this.glow(0, 0, H * 1.1, FUCHSIA, 0), ring = this.kit('g_cocoon', 0, 0, H * 0.8, 0)?.setBlendMode(Phaser.BlendModes.ADD) ?? this.kit('k_charge', 0, 0, H * 0.9, 0);
-      const fuse = this.kit('g_fuse', 0, 0, 54, 0), orbit = this.kit('g_orbit', 0, 0, H * 1.3, 0), r0 = ring?.scale ?? 1, o0 = orbit?.scale ?? 1;
+      const glow = this.glow(0, 0, H * 0.9, FUCHSIA, 0), ring = this.kit('g_cocoon', 0, 0, H * 0.62, 0)?.setBlendMode(Phaser.BlendModes.ADD) ?? this.kit('k_charge', 0, 0, H * 0.9, 0);
+      const fuse = this.kit('g_fuse', 0, 0, 54, 0), orbit = this.kit('g_orbit', 0, 0, H * 1.0, 0), r0 = ring?.scale ?? 1, o0 = orbit?.scale ?? 1;
       this.add((t) => {
         const p = at(); if (!p || t > 540) { glow.destroy(); ring?.destroy(); fuse?.destroy(); orbit?.destroy(); return false; }
         const u = t / 540, beat = 0.5 + 0.5 * Math.sin(t * (0.03 + u * 0.05)); // the charge builds: it pulses faster and faster
         glow.setPosition(p.x, p.y).setDepth(p.d + 2).setAlpha(0.25 + 0.3 * u + 0.12 * beat).setScale((H * (0.9 + u * 0.5)) / 128); // (sized to the foe: the gambler beside him stays readable)
-        if (ring) ring.setPosition(p.x, p.y).setDepth(p.d + 3).setAlpha(0.3 + 0.25 * beat) // (light over him, not a ball hiding him).setFlipX(Math.floor(t / 90) % 2 === 1).setScale(r0 * lerp(1.15, 0.95, out3(clamp01(u * 4))) * (1 + 0.06 * beat));
+        if (ring) ring.setPosition(p.x, p.y).setDepth(p.d + 3).setAlpha(0.22 + 0.2 * beat) // (light over him, not a ball hiding him).setFlipX(Math.floor(t / 90) % 2 === 1).setScale(r0 * lerp(1.15, 0.95, out3(clamp01(u * 4))) * (1 + 0.06 * beat));
         if (orbit) orbit.setPosition(p.x, p.y + H * 0.5).setDepth(p.d + 3).setAlpha(0.85).setFlipX(Math.floor(t / 120) % 2 === 1).setScale(o0 * (1 + 0.05 * Math.sin(t * 0.02)), o0 * 0.8);
         if (fuse) fuse.setPosition(p.x, p.y - H * 0.75 - 16).setDepth(p.d + 5).setAlpha(Math.floor(t / Math.max(50, 160 - u * 120)) % 2 ? 1 : 0.45).setAngle(t * 0.25);
-        if (Math.random() < 0.4) { const a = this.kit('g_crackle', p.x + rnd(-18, 18), p.y + rnd(-H * 0.4, H * 0.4), rnd(45, 75), p.d + 4) ?? this.kit('k_arcs', p.x, p.y, 60, p.d + 4); if (a) { const a0 = a.scale; a.setAngle(rnd(0, 360)); this.piece(a, 110, (uu, o) => o.setAlpha(1 - uu).setScale(a0 * (1 + uu * 0.3))); } }
+        if (Math.random() < 0.4) { const a = this.kit('g_crackle', p.x + rnd(-18, 18), p.y + rnd(-H * 0.4, H * 0.4), rnd(30, 50), p.d + 4) ?? this.kit('k_arcs', p.x, p.y, 60, p.d + 4); if (a) { const a0 = a.scale; a.setAngle(rnd(0, 360)); this.piece(a, 110, (uu, o) => o.setAlpha(1 - uu).setScale(a0 * (1 + uu * 0.3))); } }
         return true;
       });
       this.ctx.callout({ x: tp0.x, y: tp0.y, z: tp0.z + 20 }, 'GRAB!', '#ff7ae6', 1);
       // the snap: the grip slams shut on him (big → tight), a white flash, a beat of hit-stop
       this.ctx.freeze(70); this.ctx.cam().shake(110, 0.006);
-      const snap = this.kit('g_fist', tp0.x, tp0.y - tp0.z - H * 0.5, H * 1.6, tp0.y + 5) ?? this.kit('x_grip', tp0.x, tp0.y - tp0.z - H * 0.5, H * 1.9, tp0.y + 5);
+      const snap = this.kit('g_fist', tp0.x, tp0.y - tp0.z - H * 0.5, H * 1.25, tp0.y + 5) ?? this.kit('x_grip', tp0.x, tp0.y - tp0.z - H * 0.5, H * 1.9, tp0.y + 5);
       if (snap) { const s0 = snap.scale; this.piece(snap, 220, (u, o) => o.setScale(s0 * lerp(1, 0.42, out3(u))).setAlpha(u < 0.7 ? 1 : (1 - u) / 0.3)); }
       this.pop(tp0.x, tp0.y - tp0.z - H * 0.5, H * 1.1, 0xffffff, 200);
       // the tether: a crackling bolt from his hand to the foe while he holds him
@@ -593,9 +594,9 @@ export class GamblerFx {
       }
     }
     if ((skill === 'kinetic_grab' && hit === 1) || skill === 'grand_slam') { // thrown: a comet of fuchsia light streams behind the flying body
-      const big = skill === 'grand_slam', g = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD), glow = this.glow(0, 0, H * (big ? 1.4 : 1.2), FUCHSIA, 0);
+      const big = skill === 'grand_slam', g = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD), glow = this.glow(0, 0, H * (big ? 1.05 : 1.0), FUCHSIA, 0);
       const pts: { x: number; y: number }[] = []; let lastBurst = 0;
-      const comet = this.kit('x_comet', tp0.x, tp0.y - tp0.z - H * 0.5, big ? 300 : 220, tp0.y + 1); comet?.setOrigin(0.92, 0.5);
+      const comet = this.kit('x_comet', tp0.x, tp0.y - tp0.z - H * 0.5, big ? 240 : 200, tp0.y + 1); comet?.setOrigin(0.92, 0.5);
       if (big) this.ctx.callout({ x: tp0.x, y: tp0.y, z: tp0.z + 40 }, 'HOME RUN!', '#ffc94a', 0);
       if (!big) { // the throw: the charge goes critical — a white burst on him, a shock ring, the tether snaps
         const y = tp0.y - tp0.z - H * 0.5; this.ctx.freeze(90); this.ctx.cam().shake(200, 0.011); this.ctx.flash(0xffffff, 0.18, 110);
@@ -657,7 +658,7 @@ export class GamblerFx {
   private vault(r: CastRun): void {
     const o0 = this.me(r), T = r.timings, side = sideOf(r);
     this.ctx.dust(o0.x, o0.y, 70);
-    this.add((t) => { if (t < T.startup) return true; this.stroke('s_vault', o0.x + r.aim.x * 110, o0.y + r.aim.y * 110 - o0.z - 80, 220, side, T.active + 240, o0.y + 2, 0, 0.5, 0.5); return false; });
+    this.add((t) => { if (t < T.startup) return true; this.stroke('s_vault', o0.x + r.aim.x * 110, o0.y + r.aim.y * 110 - o0.z - 72, 180, side, T.active + 240, o0.y + 2, 0, 0.5, 0.5); return false; });
     let last: { x: number; y: number } | null = null;
     const g = this.ctx.scene.add.graphics().setDepth(TOP + 1).setBlendMode(Phaser.BlendModes.ADD);
     const pts: { x: number; y: number }[] = [];
@@ -768,14 +769,14 @@ export class GamblerFx {
     const T = r.timings, cards: Phaser.GameObjects.Container[] = [], side = sideOf(r), s = this.ctx.scene;
     const h = this.ctx.hand(r.attackerId) ?? { x: r.origin.x, y: r.origin.y - 80 };
     if (s.textures.exists('gbk-w_fan')) { // he holds the hand up — a fan of five cards of light — then deals it out in a stream
-      const fan = this.kit('w_fan', h.x + side * 10, h.y - 50, 150, TOP + 5);
+      const fan = this.kit('w_fan', h.x + side * 30, h.y - 46, 112, TOP + 5); // (held clear of his face and body: he reads behind it)
       if (fan) { fan.setFlipX(side < 0); const f0 = fan.scale; this.piece(fan, T.startup + 40, (u, o) => o.setScale(f0 * lerp(0.4, 1, out3(clamp01(u * 2.5)))).setAngle(side * (1 - out3(clamp01(u * 2.5))) * -40).setAlpha(u > 0.85 ? (1 - u) / 0.15 : 1)); }
       const st = this.kit('w_stream', h.x, h.y, 300, TOP + 5);
       if (st) { st.setFlipX(side < 0).setOrigin(side > 0 ? 0.1 : 0.9, 0.5).setAlpha(0); const s0 = st.scale; this.piece(st, 280, (u, o) => o.setAlpha(u < 0.3 ? u / 0.3 : (1 - u) / 0.7).setScale(s0 * lerp(0.5, 1.15, out3(u)), s0 * 0.7).setPosition(h.x + side * 300 * 0.35 * out3(u), h.y), T.startup - 40); }
     }
     const spec = s.textures.exists('gbk-w_card'), stand = (x: number, y: number, d: number) => {
       if (!spec) return this.card(x, y, null, 0.9, d);
-      const im = s.add.image(0, 0, 'gbk-w_card').setBlendMode(Phaser.BlendModes.ADD); im.setScale(96 / im.height);
+      const im = s.add.image(0, 0, 'gbk-w_card').setBlendMode(Phaser.BlendModes.ADD); im.setScale(80 / im.height);
       return s.add.container(x, y, [im]).setDepth(d);
     };
     for (let i = 0; i < 5; i++) {
@@ -1293,7 +1294,9 @@ export class GamblerFx {
     this.add((t) => {
       if (t > T.startup + T.active + 300) { this.piece(box, 260, (u, o) => o.setAlpha(1 - u).setScale(1 + u * 0.3)); return false; }
       if (t < show) { box.setVisible(false); return true; }
-      box.setVisible(true).setAlpha(clamp01((t - show) / 160)).setScale(lerp(0.6, 1, out3(clamp01((t - show) / 220))));
+      // the machine above him; once it pays out it steps back (faint) so the blows on the foe read through it
+      const k3 = ARENA3D.on ? 0.55 : 1, back = done ? 1 - 0.75 * clamp01((t - stopAt[2] - 60) / 220) : 1;
+      box.setVisible(true).setAlpha(clamp01((t - show) / 160) * back).setScale(k3 * lerp(0.6, 1, out3(clamp01((t - show) / 220))));
       reels.forEach((tx, i) => {
         const sp = spinners[i];
         if (t < stopAt[i]) {
@@ -1306,7 +1309,7 @@ export class GamblerFx {
       if (!done && t >= stopAt[2] + 60) {
         done = true;
         this.ctx.callout({ x: c.x, y: c.y, z: c.z + 210 }, 'JACKPOT!!!', '#ffc94a', 0);
-        this.ctx.flash(0xffe0f8, 0.45, 260);
+        this.ctx.flash(0xffe0f8, 0.18, 220); // (a glare the fighters read through)
       }
       return true;
     });
@@ -1314,11 +1317,11 @@ export class GamblerFx {
   private jackpotBlast(r: CastRun, i: number): void {
     const c = this.me(r), s = this.ctx.scene, last = i === r.hits.length - 1;
     const a = rnd(0, Math.PI * 2), d = last ? 0 : rnd(80, 260), x = c.x + Math.cos(a) * d, y = c.y + Math.sin(a) * d * SQUASH;
-    const pic = this.kit(last ? 'j_jackpot' : 'j_fountain', x, last ? y - 120 : y, last ? 520 : 200, y + 3);
+    const pic = this.kit(last ? 'j_jackpot' : 'j_fountain', x, last ? y - 120 : y, last ? 400 : 170, y + 3);
     if (pic) {
       if (!last) pic.setOrigin(0.5, 0.95);
       const p0 = pic.scale; this.piece(pic, last ? 700 : 520, (u, o) => o.setScale(p0 * lerp(0.4, 1.1, out3(u))).setAlpha(u < 0.65 ? 1 : (1 - u) / 0.35));
-      if (last) this.pop(x, y - 120, 360, GOLD, 360);
+      if (last) this.pop(x, y - 120, 240, GOLD, 340);
     } else this.burst(x, y - 50, last ? 420 : 170, 0, y + 3);
     for (let k = 0; k < (last ? 30 : 10); k++) {
       const pics = s.textures.exists('gbk-c_chip'), coinK = Math.random() < 0.55, key = pics ? (coinK ? 'gbk-c_coin_h' : 'gbk-c_chip') : coinK ? 'gb-coin' : 'gb-chip';
