@@ -324,6 +324,7 @@ export class SkillFx {
     rt.events.on(RT_EVENTS.hit, (r: CastRun, i: number, o: V3) => this.onHitFired(r, i, o));
     rt.events.on(RT_EVENTS.projectile, (p: Projectile, r: CastRun) => this.onProjectile(p, r));
     rt.events.on(RT_EVENTS.projectileEnd, (p: Projectile) => this.onProjectileEnd(p));
+    rt.events.on(RT_EVENTS.storm, (p: Projectile, _r: CastRun, c: { x: number; y: number }) => { if (this.arch.ready) this.arch.stormTurn(p, c); }); // the archer's shot turned to lightning over Thunder Rain's charged floor
     rt.events.on(RT_EVENTS.trap, (t: Trap) => this.onTrap(t));
     rt.events.on(RT_EVENTS.trapTrigger, (t: Trap, fired: boolean) => this.onTrapEnd(t, fired));
     rt.events.on(RT_EVENTS.trapArm, (t: Trap) => this.onTrapArm(t));
