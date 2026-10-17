@@ -10,6 +10,7 @@ import { Projectile, V2, V3, circleCentre } from './HitGeometry';
 import { FINAL_SKILLS, hitIndex, lastOfBurst } from './FinalKit';
 import DIGITS from '../data/damage-digits.json';
 import { SamuraiFx, KIT, KIT_URL } from './SamuraiFx';
+import { ARENA3D } from '../arena3d/flag';
 import { MageFx, MAGE_KIT, MAGE_KIT_URL, MAGE_SHEETS } from './MageFx';
 import { ArcherFx, ARCHER_KIT, ARCHER_KIT_URL } from './ArcherFx';
 import { SKILL_BLOCKERS, WORLD_OBJECTS, clearLine } from '../world/WorldGeometry';
@@ -259,6 +260,8 @@ const WFAM_C: Record<string, number> = { warrior_basic: 0xe8f0ff, dash_slash: 0x
   ground_breaker: 0xb09474, leap_crash: 0xb09474, earthsplitter: 0xb09474, iron_grip: 0x9fc4ff, judgment_hook: 0x9fc4ff, shield_charge: 0x9fc4ff,
   judgment_blade: 0xfff0b8, sanctuary: 0xfff0b8, titans_verdict: 0xfff0b8, war_cry: 0xd8261c, lions_maw: 0xd8261c, blade_storm: 0xd8261c };
 const WFAM_N: Record<string, string> = Object.fromEntries(Object.entries(WFAM_C).map(([k, c]) => [k, c === 0xe8f0ff ? 'steel' : c === 0xb09474 ? 'stone' : c === 0x9fc4ff ? 'iron' : c === 0xfff0b8 ? 'holy' : c === 0xff5a40 ? 'steel' : 'crimson']));
+/** Warrior skills whose 3D recipe carries the look in PVP 3D: their painted sheet drawn faint there (DAVID 20:56). */
+const CARRIED_3D = new Set(['rising_slash']);
 const WARRIOR_FEEL: Record<string, [number, number]> = { warrior_basic: [1.2, 1], whirlwind: [0.72, 0.72], ground_breaker: [0.7, 0.7], blade_storm: [0.7, 0.7], iron_grip: [0.85, 0.95], titans_verdict: [0.9, 0.9], leap_crash: [0.9, 0.9], lance_thrust: [0.85, 0.55] }; // (lance_thrust: the drill thinner and see-through round the foe — DFO's review)
 /** Warrior skills that get a ground shockwave ring at their impact. */
 const SHOCK: Record<string, { r: number; c: number }> = {
@@ -1062,6 +1065,7 @@ export class SkillFx {
       loop: zone ? [preFrames + 1, frames - 2] : undefined, until: zone ? T.startup + (s.zoneMs ?? 0) : undefined });
     if (s.cls === 'warrior' && !basic) this.aura(r);
     if (feel && feel[1] < 1) { img.setAlpha(feel[1]); img.setData('a0', feel[1]); }
+    if (ARENA3D.on && CARRIED_3D.has(s.id)) { const a3 = (feel?.[1] ?? 1) * 0.35; img.setAlpha(a3); img.setData('a0', a3); } // (PVP 3D: its 3D shape carries it — the painted page cut back, no flat page over the bodies: DAVID 20:56)
     // Anticipation scale-in (never starts at full size).
     img.setScale(img.scaleX * 0.55, img.scaleY * 0.55);
     const sx = (size / img.width) * (img.flipX ? 1 : 1), sy = size / img.height;
