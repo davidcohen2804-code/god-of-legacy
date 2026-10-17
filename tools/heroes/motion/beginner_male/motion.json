@@ -7,8 +7,8 @@
   "hip_x": 384,
   "animations": {
     "walk": {
-      "frames": 48,
-      "source": "pixverse bm_walk.mp4"
+      "frames": 52,
+      "source": "pixverse bm_walk2.mp4"
     },
     "hurt": {
       "frames": 6,
@@ -159,5 +159,5 @@
       ]
     }
   },
-  "hit_source": "pixverse bm_hit.mp4"
+  "hit_source": "pixverse bm_hit2.mp4"
 }

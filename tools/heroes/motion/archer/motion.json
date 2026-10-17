@@ -35,10 +35,9 @@
       ]
     },
     "down_impact": {
-      "frames": 3,
+      "frames": 2,
       "loop": false,
       "frame_ms": [
-        60,
         80,
         120
       ]

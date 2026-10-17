@@ -69,6 +69,7 @@ Ask for one pose per message; a series of poses works best in one chat ("Now the
 - run (from the sprint ref): `sprints in place at full speed … one complete fast run cycle that loops back exactly to the starting pose … <both hands keep gripping the weapon exactly as in the image; hands and weapon stay locked in place>. The arms do not swing. Camera locked. Background: solid pure green #00FF00 only, no shadow, no effects, no dust, no motion blur.`
   Negative prompt: `gray background, studio floor, wall, shadow, arm swing, weapon raised, motion blur, dust`.
 - hit states (image-to-video, 8 s, wide shot from `<hero>_small_green.jpg`): stand 1 s → invisible impact from the right → stagger left → launched in a low arc → slam and slide → lie 1 s → roll / push up → stand; "completely alone, no effects".
+- Ask PixVerse for "camera completely static, the character stays exactly the same size, feet planted" in wins / intros (it zooms in otherwise), and "keeps a tight grip on the <weapon> for the entire clip" in hit clips ("arms free" drops it).
 - Skip any frame with dust / effects; pick cycles from touchdown to touchdown (`pipeline/runcheck.py`).
 
 ## 8. Effects and hit frames (for the class chats)
@@ -82,6 +83,7 @@ Ask for one pose per message; a series of poses works best in one chat ("Now the
 `px_toolkit.js` (drive PixVerse from its page: upload / generate / poll / pull) · `pxpull.py` (reassemble base64 chunks)
 · `integrate.py loop|hits` (key a clip, cut a cycle, place frames) · `runfit.py` (run cycle at the walk's scale) ·
 `stillpose.py` (GPT stills → frames) · `allcap.mjs` / `begcap.mjs` (in-game screenshots of idle / walk / run / jump).
+`loopfind.py <clip> <pmin> <pmax>` (the start / period whose last frame flows into the first — cut every walk / run with it; a seam under one normal frame-step) · `clipframes.py <clip> <hero> <act> i,j,…` (frames of a camera-locked clip with ONE transform from frame 0, so nothing grows or sinks — wins, intros) · `regwarp.py` (register frames onto frame 1: scale + shift, no rotation) · `drift.py <hero>` / `colorfix.py <hero> <acts> --L` (measure / shift each action's colour balance to the idle's — GPT stills come back red-shifted) · `vsheet.py` (indexed contact sheet of a keyed clip).
 Green keying: `gkey.py` (keeps the largest component; a 3-px despill rim is applied in `cut.py`).
 
 ## 10. Maps, towns and monsters (Maps chat)
