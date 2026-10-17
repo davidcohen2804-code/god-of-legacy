@@ -161,6 +161,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - PvP (Maps' Thief's Den request): play together in the open world — see each other in the maps, party up, run the Thief's Den as a party. A big new system: build it now, or keep the world single-player for now?
 
 ## Done
+- Samurai (overnight quality pass): his own body moves, PixVerse clips of his painted design — the basic chain one move per cut (the slash from over the head, the backhand from the shoulder, the cross cut lunging down and flicked back up, the rising cut from a low guard; they shared two frames each), Sheathe (slid home, the hand on the hilt at the click; it borrowed the Iai's), Sword Wave (6 frames, swung up over his head and flung out at full reach; it showed 3); checked in PVP 3D — b31a7bdf. For every class: `tools/heroes/pipeline/bladeframes.py` keeps the weapon in a strike's fast frames (the key lost it).
 - Book Mage: animated Time Collapse cut-in (eyes flare, runes gather into an orb in his hand, pages rush past; 18 frames at 24 fps in CUTIN_ANIM, checked in PVP 3D) — 9b3be84f
 - Gambler: Charged Deal's longer hold (BALANCE_LOG 2026-10-17) shown in his hand — the cards fan open, 3 then the full 5 at the max bet with a gold flash, gone at the throw — 37bc2659; checked in PVP 3D with a held key
 - Book Mage: VS entrance + win clips for PvP (vs_in.mp4, win_in.mp4)
