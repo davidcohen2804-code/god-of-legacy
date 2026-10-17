@@ -1911,12 +1911,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const streaks = (front: boolean) => this.add.particles(0, 0, 'flame-dot', {
         speedY: { min: -170, max: -90 }, speedX: { min: -6, max: 6 }, lifespan: { min: 520, max: 820 },
         scaleX: { start: 0.22, end: 0.05 }, scaleY: { start: front ? 1.1 : 1.5, end: 0.3 }, alpha: { start: front ? 0.35 : 0.5, end: 0 }, // (feel pass: softer — the buff's layers stacked burnt him to a white shape in PVP 3D)
-        tint: [0xffffff, 0xfff1b8, 0xffd36a], blendMode: 'ADD', frequency: front ? 70 : 45, quantity: 1,
+        tint: [0xffd0c0, 0xff7a5a, 0xd8261c], blendMode: 'ADD', frequency: front ? 70 : 45, quantity: 1,
         emitZone: zone(front ? 52 : 70, front ? 14 : 22), emitting: false,
       });
       const motes = this.add.particles(0, 0, 'flame-dot', {
         speedY: { min: -60, max: -25 }, speedX: { min: -14, max: 14 }, lifespan: { min: 700, max: 1100 },
-        scale: { start: 0.28, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: [0xffffff, 0xffe28a], blendMode: 'ADD',
+        scale: { start: 0.28, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: [0xffc0b0, 0xff5a3a], blendMode: 'ADD',
         frequency: 60, emitZone: zone(60, 110), emitting: false,
       });
       this.cryFire = [streaks(false), streaks(true), motes];
@@ -1929,7 +1929,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (cry && !this.cryBody) {
       this.cryBody = this.add.sprite(0, 0, '__DEFAULT').setBlendMode(Phaser.BlendModes.ADD);
-      this.cryAura = this.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd36a);
+      this.cryAura = this.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xd8261c);
     }
     if (this.cryBody && this.cryAura) {
       this.cryBody.setVisible(cry && v.visible); this.cryAura.setVisible(cry && v.visible);
@@ -1938,7 +1938,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const sp = v.sprite;
         if (this.cryBody.texture.key !== sp.texture.key || this.cryBody.frame.name !== sp.frame.name) this.cryBody.setTexture(sp.texture.key, sp.frame.name);
         this.cryBody.setOrigin(sp.originX, sp.originY).setScale(sp.scaleX * 1.03, sp.scaleY * 1.03).setPosition(sp.x, sp.y).setDepth(d + 0.04)
-          .setTint(0xffe9a8).setAlpha((0.11 + 0.05 * Math.sin(this.simMs / 260)) * fade);
+          .setTint(0xff7a5a).setAlpha((0.11 + 0.05 * Math.sin(this.simMs / 260)) * fade);
         this.cryAura.setPosition(k.x, k.y - k.z - 48).setDepth(d - 0.25).setDisplaySize(150, 200).setAlpha((0.18 + 0.05 * Math.sin(this.simMs / 300)) * fade);
       }
     }
@@ -1946,7 +1946,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** War Cry: three spectral shields of light orbit the warrior for the whole buff. */
   private renderCryShields(): void {
-    const on = this.simMs < this.warCryUntil && this.dead < 0 && this.view!.visible && this.textures.exists('cry-shield');
+    const on = false; // (David: the warrior carries no shield anywhere — the orbiting spectral shields are gone; War Cry reads by its crimson aura)
+    void this.warCryUntil;
     if (!on) { for (const s of this.cryShields) s.setVisible(false); return; }
     if (!this.cryShields.length) for (let i = 0; i < 3; i++) this.cryShields.push(this.add.image(0, 0, 'cry-shield', 0).setBlendMode(Phaser.BlendModes.ADD));
     const k = this.kin, d = actorDepth(k.x, k.y, k.z), left = this.warCryUntil - this.simMs, fade = Math.min(1, left / 500);
@@ -1963,7 +1964,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private renderHolyAura(): void {
     const on = this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && this.dead < 0 && this.view!.visible && this.textures.exists('holy-aura');
     if (!on) { this.holyAura?.setVisible(false); return; }
-    if (!this.holyAura) this.holyAura = this.add.image(0, 0, 'holy-aura', 0).setOrigin(0.5, 515 / 667).setBlendMode(Phaser.BlendModes.ADD);
+    if (!this.holyAura) this.holyAura = this.add.image(0, 0, 'holy-aura', 0).setOrigin(0.5, 515 / 667).setBlendMode(Phaser.BlendModes.ADD).setTint(0xff4a30); // (CRIMSON: War Cry's fury, not gold)
     const k = this.kin, left = this.radiantUntil - this.simMs, age = this.simMs - this.radiantFrom;
     const a = Math.min(1, age / 400, left / 600);
     this.holyAura.setVisible(true).setFrame(Math.floor(this.simMs / 90) % 8).setPosition(k.x, k.y - k.z + 4)
@@ -1974,7 +1975,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private renderEyes(pose: PoseFrame, dir: Dir): void {
     const on = (this.simMs < this.radiantUntil || this.simMs < this.warCryUntil) && this.dead < 0 && this.view!.visible && !!pose.anchor && dir !== 'up';
     if (!on) { this.eyes?.setVisible(false); return; }
-    if (!this.eyes) this.eyes = this.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff0a0);
+    if (!this.eyes) this.eyes = this.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xff6a4a);
     const sp = this.view!.sprite, a = pose.anchor!, ex = sp.x + a[2] + (dir === 'right' ? 4 : dir === 'left' ? -4 : 0), ey = sp.y + a[3] + 3;
     this.eyes.setVisible(true).setPosition(ex, ey).setDisplaySize(dir === 'down' ? 22 : 14, 7).setDepth(sp.depth + 0.05).setAlpha(0.8 + 0.2 * Math.sin(this.simMs / 160));
   }
@@ -1991,7 +1992,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!on) { this.sweep.last = NaN; this.sweep.sign = 0; return; }
     const skinC = skinColor(this.equipped.weapon), bkey = skinC !== null ? grayKey(this, 'radiant-blade', 1.7) ?? 'radiant-blade' : 'radiant-blade'; // light blade takes the sword skin's colour
     if (this.beam.texture.key !== bkey) this.beam.setTexture(bkey, 0);
-    if (skinC !== null) this.beam.setTint(skinC); else this.beam.clearTint();
+    if (skinC !== null) this.beam.setTint(skinC); else this.beam.setTint(0xff6a4a); // (no skin: the blade of light in War Cry's crimson)
     const b = pose.blade!, sp = this.view!.sprite, k = this.kin;
 
     if (!this.boltDone && b[3] < b[1] - 10) { // strike once the blade points up: the bolt lands on its tip
@@ -2021,7 +2022,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!this.textures.exists('radiant-slash')) return;
     if (!this.anims.exists('radiant-slash')) this.anims.create({ key: 'radiant-slash', frames: this.anims.generateFrameNumbers('radiant-slash', { start: 0, end: 5 }), frameRate: 28, repeat: 0 });
     const cw = to > from;                                   // clockwise on screen (y down): as drawn; else mirrored
-    const sp = this.add.sprite(hx, hy, 'radiant-slash', 0).setBlendMode(Phaser.BlendModes.ADD)
+    const sp = this.add.sprite(hx, hy, 'radiant-slash', 0).setBlendMode(Phaser.BlendModes.ADD).setTint(0xff5a3a) // (CRIMSON: the War Cry buff's blade — DFO's families)
       .setOrigin(SLASH.cx, cw ? SLASH.cy : 1 - SLASH.cy).setFlipY(!cw).setScale(len / SLASH.r)
       .setAngle(to - (cw ? SLASH.head : -SLASH.head)).setDepth(depth);
     sp.play('radiant-slash'); sp.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => sp.destroy());

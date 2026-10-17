@@ -591,7 +591,7 @@ export class SkillFx {
       const flash = this.scene.add.image(c.x, c.y - c.z - 50, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffffff).setDepth(TOP).setDisplaySize(120, 120);
       this.scene.tweens.add({ targets: flash, displayWidth: 260, displayHeight: 260, alpha: 0, duration: 260, ease: 'Cubic.easeOut', onComplete: () => flash.destroy() });
       { const step = Math.max(70, Math.round((T.active + 260) / 8)); // the roar: crimson-gold rings of force burst out from his chest
-        this.play('cry-roar', c.x, c.y - c.z - 62, 320, 320, [step * 0.5, step * 0.7, step, step * 1.5, step * 1.2, step, step, step * 1.3], { oy: 0.69, depth: TOP - 6, blend: Phaser.BlendModes.NORMAL, fadeLast: 180, follow: () => this.casterPos(r.attackerId) }); }
+        this.play('cry-roar', c.x, c.y - c.z - 62, 250, 250, [step * 0.5, step * 0.7, step, step * 1.5, step * 1.2, step, step, step * 1.3], { oy: 0.69, depth: TOP - 6, blend: Phaser.BlendModes.NORMAL, fadeLast: 180, follow: () => this.casterPos(r.attackerId) }); }
       const waves = Math.max(3, Math.round(T.active / 150)); // the roar keeps ringing out for the whole active window
       for (let i = 0; i < waves; i++) this.scene.time.delayedCall(i * 150, () => { const p = this.casterPos(r.attackerId) ?? c; this.shockwave(p.x, p.y, 200 + (i % 3) * 70, i % 3 === 1 ? 0xffd36a : 0xe0402a); });
       const hold = this.scene.add.image(c.x, c.y - c.z - 50, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xe0402a).setDepth(c.y - 1).setDisplaySize(190, 230).setAlpha(0.6);
