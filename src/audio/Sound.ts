@@ -20,7 +20,7 @@ export const SFX = {
   vs_slam: [1, 0.85], round_swoosh: [1, 0.55], fight_hit: [1, 0.7], ko_boom: [1, 0.95], perfect_shine: [1, 0.55], break: [1, 0.75], punish: [1, 0.6], rage: [1, 0.65], tick: [1, 0.35],
   boom: [3, 0.62], dim_whoosh: [1, 0.7],
   // PVP 3D: the skills' pieces in the room, and the fighters on its planks
-  crack: [2, 0.4], chunks: [2, 0.42], pillar: [1, 0.55], bolt: [2, 0.4], dome: [1, 0.5], wave: [1, 0.5], crystals: [1, 0.45], streak: [1, 0.32], slash: [1, 0.36], rain: [1, 0.45],
+  crack: [2, 0.4], chunks: [2, 0.42], pillar: [1, 0.55], bolt: [2, 0.4], dome: [1, 0.5], wave: [1, 0.5], crystals: [1, 0.45], spikes: [1, 0.98], thorns: [1, 0.87], streak: [1, 0.32], slash: [1, 0.36], rain: [1, 0.45],
   step: [4, 0.42], scuff: [2, 0.45], thump: [2, 0.62],
   war_swing: [3, 0.5], war_hit: [3, 0.7], war_shield: [1, 0.75], war_cry: [1, 0.6], slam: [2, 0.85],
   sam_swish: [3, 0.5], sam_cut: [3, 0.7], sam_draw: [1, 0.55], sam_sheathe: [1, 0.45],

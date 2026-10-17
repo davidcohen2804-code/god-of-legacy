@@ -29,19 +29,28 @@ export interface HeardFighter { id: string; x: number; /** depth on the floor */
 /** PVP 3D as the sound needs it (Arena3D): where its camera sees a world point (screen px, and px per world px there —
  *  smaller farther away), the fight it frames, and how dark the room wants to be (0 none .. 1). */
 export interface RoomView { project(x: number, y: number, z: number): { sx: number; sy: number; k: number }; focus: { x: number; y: number; z: number }; dimWant: number;
-  /** The skills' 3D pieces: each one announced as it appears (what, where, how big 0..2). */
-  fx?: { onPiece?: (kind: FxPiece, at: { x: number; y: number; z: number }, size: number) => void } }
+  /** The skills' 3D pieces: each one announced as it appears (what, where, how big 0..2, and its options when given). */
+  fx?: { onPiece?: (kind: FxPiece, at: { x: number; y: number; z: number }, size: number, o?: PieceLook) => void } }
+/** What a piece is made of, when the 3D layer says (its crystals: rock spikes — the Warrior's stone —, or green: thorns). */
+export interface PieceLook { stone?: boolean; color?: number }
 
 /** The room's share (reverb send) of each kind of sound: the fight's blows ring in the courtyard, the small ticks less. */
 const WET = { hit: 0.42, tick: 0.25, boom: 0.45, swing: 0.3, body: 0.38, call: 0.32, dark: 0.25, piece: 0.4 } as const;
 
 /** PVP 3D: each piece's sound (its volume, how soon it may come again — a rain's streaks, a whirl's slashes held back —
  *  and what follows it a beat later). */
-const PIECE: Record<FxPiece, { sfx: SfxName; vol: number; gap: number; then?: [SfxName, number, number] }> = {
+const PIECE: Record<FxPiece, { sfx: SfxName; vol: number; gap: number; then?: [SfxName, number, number] }> = { // (crystals: ice; stone spikes and green thorns their own — crystalSfx)
   crack: { sfx: 'crack', vol: 0.9, gap: 90, then: ['chunks', 170, 0.8] }, pillar: { sfx: 'pillar', vol: 0.9, gap: 250 }, bolt: { sfx: 'bolt', vol: 0.85, gap: 70 },
   dome: { sfx: 'dome', vol: 0.9, gap: 200 }, wave: { sfx: 'wave', vol: 0.85, gap: 200 }, crystals: { sfx: 'crystals', vol: 0.85, gap: 200 },
   streak: { sfx: 'streak', vol: 0.6, gap: 120 }, slash: { sfx: 'slash', vol: 0.65, gap: 90 }, rain: { sfx: 'rain', vol: 0.8, gap: 600 },
 };
+/** The crystals by what they are made of: rock spikes crumble (the Warrior's stone), green ones are thorny roots (the
+ *  Archer's), the rest ice (the Book Mage's) or arcane shards. */
+function crystalSfx(o?: PieceLook): SfxName {
+  if (o?.stone) return 'spikes';
+  const c = o?.color;
+  return c !== undefined && ((c >> 8) & 255) > ((c >> 16) & 255) * 1.15 && ((c >> 8) & 255) > (c & 255) * 1.15 ? 'thorns' : 'crystals';
+}
 /** The feet on the planks: running from (px / s), a step every (px) running / sprinting; a scuff at most every (ms). */
 const FEET = { run: 330, step: 80, sprint: 64, scuffGap: 260 };
 /** Off the screen: how much quieter per screen-half beyond the edge (and never below). */
@@ -187,15 +196,15 @@ export class ArenaSound {
   /** PVP 3D: the room's camera places the sounds, the fight rings in the courtyard, the skills' pieces sound in it. */
   use3D(view: RoomView): void {
     this.view = view; this.dimHeard = 0; Sound.room(true);
-    if (view.fx) view.fx.onPiece = (kind, at, size) => this.piece(kind, at, size);
+    if (view.fx) view.fx.onPiece = (kind, at, size, o) => this.piece(kind, at, size, o);
   }
 
   /** A piece of a skill in the room: its own short sound where it is (bigger: louder and deeper). */
-  private piece(kind: FxPiece, at: { x: number; y: number; z: number }, size: number): void {
+  private piece(kind: FxPiece, at: { x: number; y: number; z: number }, size: number, look?: PieceLook): void {
     const p = PIECE[kind]; if (!p) return;
     const s = Math.max(0, Math.min(2, Math.round(size))), k = [0.7, 0.85, 1][s];
     const o = { x: at.x, y: at.y, z: at.z, vol: p.vol * k, rate: [1.08, 1, 0.9][s], wet: WET.piece, at: p.gap };
-    Sound.sfx(p.sfx, o);
+    Sound.sfx(kind === 'crystals' ? crystalSfx(look) : p.sfx, o);
     if (p.then) { const [n, ms, v] = p.then; this.later(ms, () => Sound.sfx(n, { ...o, vol: v * k, at: 60 })); }
   }
 

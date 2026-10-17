@@ -19,6 +19,7 @@ like the other effects):
     python3 tools/audio/impacts.py            (needs numpy, scipy, ffmpeg with libvorbis and libmp3lame)
 """
 import os
+import sys
 import subprocess
 import tempfile
 
@@ -199,6 +200,39 @@ def crystals(seed):
     return finish(x + creak, peak=0.8, drive=1.3)
 
 
+def spikes(seed):
+    """Rock spikes thrusting up out of the floor (the Warrior's STONE crystals): each a grinding crunch heaving up and a
+    stone knock, staggered; then they crumble — gravel trickling down, a breath of dust."""
+    rng = np.random.default_rng(seed); t = np.arange(int(SR * 1.1)) / SR
+    x = np.zeros_like(t)
+    for i, at in enumerate((0.0, 0.05, 0.095, 0.15)):
+        u = np.maximum(0, t - at); g = (t >= at) * np.exp(-u / 0.07) * np.clip(u / 0.01, 0, 1)
+        x += bp(rng.standard_normal(t.size), 250 + 150 * i, 1600) * g * (1.0 - 0.15 * i)  # (the crunch)
+        x += knock(t, at + 0.012, rng.uniform(190, 320), rng.uniform(0.03, 0.05), 0.9 - 0.12 * i, rng, click=0.7)
+    x += np.sin(glide(t, 110, 48, 0.08)) * env(t, 0.003, 0.12) * 0.7  # (the floor heaving)
+    for i in range(40):  # (crumbling: gravel trickling down)
+        at = 0.35 + rng.exponential(0.16); x += knock(t, at, rng.uniform(500, 1300), rng.uniform(0.004, 0.01), 0.25 * np.exp(-(at - 0.35) / 0.3), rng, click=0.4)
+    x += bp(rng.standard_normal(t.size), 600, 3500) * np.clip((t - 0.3) / 0.1, 0, 1) * np.exp(-np.maximum(0, t - 0.4) / 0.25) * 0.12  # (dust)
+    return finish(x, peak=0.8, drive=1.3)
+
+
+def thorns(seed):
+    """Thorny roots thrusting up out of the floor (the Archer's THORN crystals): wood groaning as they grow, cracking,
+    the leaves rustling."""
+    rng = np.random.default_rng(seed); t = np.arange(int(SR * 0.95)) / SR
+    x = np.zeros_like(t)
+    tick = np.zeros_like(t); tm = 0.0
+    while tm < 0.42:  # (the groan: stick-slip ticks through the wood's resonance, quickening)
+        i = int(tm * SR); tick[i] += rng.uniform(0.5, 1.0); tm += rng.uniform(0.7, 1.3) / (35 + 120 * tm / 0.42)
+    x += bp(tick, 280, 900, order=2) * 4.0 * np.clip((0.5 - t) / 0.1, 0, 1)
+    for i in range(9):  # (each root cracking up)
+        at = 0.04 + i * 0.035 + rng.uniform(-0.01, 0.01); x += knock(t, at, rng.uniform(380, 820), rng.uniform(0.01, 0.025), 0.7 * (1 - 0.05 * i), rng, click=1.0)
+    lv = bp(rng.standard_normal(t.size), 2500, 9000) * (rng.random(t.size) < 0.12)
+    x += lv * np.clip(t / 0.1, 0, 1) * np.exp(-np.maximum(0, t - 0.25) / 0.2) * 0.8  # (leaves)
+    x += np.sin(glide(t, 130, 60, 0.06)) * env(t, 0.004, 0.08) * 0.4
+    return finish(x, peak=0.8, drive=1.3)
+
+
 def streak(seed):
     rng = np.random.default_rng(seed); t = np.arange(int(SR * 0.28)) / SR
     e = np.where(t < 0.06, np.sin(np.pi / 2 * t / 0.06) ** 2, np.exp(-(t - 0.06) / 0.05))
@@ -255,7 +289,12 @@ def write(name, x):
     print(name, f'{x.shape[0] / SR:.2f} s', 'stereo' if x.ndim == 2 else 'mono')
 
 
+PIECES2 = {'spikes': lambda: spikes(18), 'thorns': lambda: thorns(19)}  # (the crystals' other materials)
+
 if __name__ == '__main__':
+    if sys.argv[1:]:  # (only these: python3 impacts.py spikes thorns)
+        for n in sys.argv[1:]: write(n, PIECES2[n]())
+        raise SystemExit
     write('boom_1', boom(11, 150, 44, 0.22))
     write('boom_2', boom(23, 132, 40, 0.26))
     write('boom_3', boom(37, 168, 48, 0.19))
