@@ -71,13 +71,16 @@ export class Den {
   private entering = false;
   private now = 0;
 
-  constructor(private scene: Phaser.Scene, private h: DenHooks) {
+  /** `pictures`: the painted lights over the pedestals / ledges (off on the 3D stage, where the rooms light their own). */
+  constructor(private scene: Phaser.Scene, private pictures: boolean, private h: DenHooks) {
     this.walls(true);
     this.buildPedestals();
   }
 
   get active(): boolean { return !!this.run; }
   get stage(): Stage | 0 { return this.run?.stage ?? 0; }
+  /** The lanterns lit in the current room (their indices). */
+  get lit(): number[] { return this.run ? [...this.run.lit].sort() : []; }
   /** In one of the den's rooms (by x). */
   inside(x: number): boolean { const a = AREAS.den_1, b = AREAS.den_5; return !!a && !!b && x >= a.x && x < b.x + 1672; }
 
@@ -264,7 +267,7 @@ export class Den {
   private drawLights(): void {
     const r = this.run;
     for (const p of this.pedestals) {
-      const on = !!r && DEN_ROOMS[r.stage - 1] === p.room && r.lit.has(p.i);
+      const on = this.pictures && !!r && DEN_ROOMS[r.stage - 1] === p.room && r.lit.has(p.i);
       p.glow.setVisible(on); p.flame.setVisible(on);
     }
   }

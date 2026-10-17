@@ -81,3 +81,35 @@ export const slateCanvas = (): HTMLCanvasElement => {
   const n = noiseCanvas(256, [96, 104, 128], 0.3, 12, 6);
   return canvas(256, 256, (g) => { g.drawImage(n, 0, 0); g.strokeStyle = 'rgba(30,30,45,0.5)'; g.lineWidth = 2; for (let y = 0; y < 256; y += 32) { g.beginPath(); g.moveTo(0, y); g.lineTo(256, y); g.stroke(); for (let x = (y / 32) % 2 ? 24 : 0; x < 256; x += 48) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 32); g.stroke(); } } });
 };
+
+/** Packed earth: a dark mottled floor with pebbles and a few pale root threads. */
+export function earthCanvas(seed = 15): HTMLCanvasElement {
+  const n = noiseCanvas(512, [74, 56, 44], 0.32, seed, 9);
+  return canvas(512, 512, (g) => {
+    g.drawImage(n, 0, 0);
+    let s = seed; const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    for (let i = 0; i < 90; i++) { g.fillStyle = `rgba(${R() < 0.5 ? '120,100,84' : '40,30,24'},${0.25 + R() * 0.3})`; g.beginPath(); g.ellipse(R() * 512, R() * 512, 3 + R() * 7, 2 + R() * 5, R() * 3, 0, Math.PI * 2); g.fill(); }
+    g.strokeStyle = 'rgba(150,120,96,0.28)'; g.lineWidth = 3;
+    for (let i = 0; i < 9; i++) { g.beginPath(); let x = R() * 512, y = R() * 512; g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += (R() - 0.5) * 90; y += (R() - 0.5) * 90; g.lineTo(x, y); } g.stroke(); }
+  });
+}
+
+/** Woven roots: a dark bark field with long furrows and a few violet veins (the den's walls). */
+export function rootCanvas(seed = 21): HTMLCanvasElement {
+  const n = noiseCanvas(512, [66, 50, 46], 0.3, seed, 7);
+  return canvas(512, 512, (g) => {
+    g.drawImage(n, 0, 0);
+    let s = seed; const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    for (let i = 0; i < 26; i++) { g.strokeStyle = `rgba(${R() < 0.5 ? '30,20,20' : '100,80,74'},${0.3 + R() * 0.35})`; g.lineWidth = 6 + R() * 14; g.beginPath(); let x = R() * 512; g.moveTo(x, -10); for (let y = 0; y <= 520; y += 64) { x += (R() - 0.5) * 50; g.lineTo(x, y); } g.stroke(); }
+    for (let i = 0; i < 5; i++) { g.strokeStyle = 'rgba(150,110,220,0.35)'; g.lineWidth = 2; g.beginPath(); let x = R() * 512; g.moveTo(x, -10); for (let y = 0; y <= 520; y += 48) { x += (R() - 0.5) * 40; g.lineTo(x, y); } g.stroke(); }
+  });
+}
+
+/** A heap of gold coins seen from above: overlapping discs with rims and glints. */
+export function coinCanvas(seed = 33): HTMLCanvasElement {
+  return canvas(512, 512, (g) => {
+    let s = seed; const R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    g.fillStyle = '#6a4a14'; g.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 420; i++) { const x = R() * 512, y = R() * 512, r = 11 + R() * 9; g.fillStyle = `rgb(${200 + R() * 40},${150 + R() * 50},${40 + R() * 40})`; g.beginPath(); g.ellipse(x, y, r, r * (0.55 + R() * 0.45), R() * 3, 0, Math.PI * 2); g.fill(); g.strokeStyle = 'rgba(90,60,10,0.5)'; g.lineWidth = 1.5; g.stroke(); g.fillStyle = 'rgba(255,245,200,0.55)'; g.beginPath(); g.arc(x - r * 0.3, y - r * 0.25, r * 0.22, 0, Math.PI * 2); g.fill(); }
+  });
+}

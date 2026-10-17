@@ -16,6 +16,7 @@ import { gate_1 } from './gate_1';
 import { gate_2 } from './gate_2';
 import { temple } from './temple';
 import { sky } from './sky';
+import { denCave } from './denCave';
 import { dusk_1 } from './dusk_1';
 import { dusk_village } from './dusk_village';
 import { dusk_2 } from './dusk_2';
@@ -23,8 +24,9 @@ import { dusk_bridge } from './dusk_bridge';
 import { dusk_wood } from './dusk_wood';
 import { dusk_3 } from './dusk_3';
 
-export type MapFactory = (focus: { x: number; z: number; sunGateOpen?: boolean }) => BuildPlace;
+export type MapFactory = (focus: { x: number; z: number; sunGateOpen?: boolean; denStage?: number; denLit?: number[] }) => BuildPlace;
 export const MAPS: Record<string, MapFactory> = {
   courtyard, terraces_1, terraces_2, training, training_2, training_3, plaza, orchard_1, orchard_2, ruins, ruins_2, ruins_3, gate_1, gate_2, temple, sky,
   dusk_1, dusk_village, dusk_2, dusk_bridge, dusk_wood, dusk_3,
+  den_1: denCave('den_1', { stage: 1 }), den_2: denCave('den_2', { stage: 2 }), den_3: denCave('den_3', { stage: 3 }), den_4: denCave('den_4', { stage: 4 }), den_5: denCave('den_5', { stage: 5 }),
 };

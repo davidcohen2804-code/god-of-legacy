@@ -416,7 +416,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const others: { x: number; y: number; z: number }[] = [];
     for (const m of this.world.mobs) { if (!m.alive) continue; others.push({ x: m.x, y: m.y, z: m.z }); bodies.push({ body: m.sprite as unknown as Phaser.GameObjects.Sprite, foot: m.foot, z: m.z }); }
     bodies.push(...this.world.npcBodies());
-    w.step(ms, { hero: { x: k.x, y: k.y, z: k.z, facing: this.dir === 'left' ? -1 : 1, floorZ: k.supportZ }, others, bodies, flying: this.rt ? this.rt.projectiles.map((e) => e.p) : [], hitStop: (this.fx?.hitStopLeft ?? 0) > 0, ult, sig, sunGateOpen: this.world.sunGate.open });
+    w.step(ms, { hero: { x: k.x, y: k.y, z: k.z, facing: this.dir === 'left' ? -1 : 1, floorZ: k.supportZ }, others, bodies, flying: this.rt ? this.rt.projectiles.map((e) => e.p) : [], hitStop: (this.fx?.hitStopLeft ?? 0) > 0, ult, sig, sunGateOpen: this.world.sunGate.open, den: this.den?.active ? { stage: this.den.stage, lit: this.den.lit } : undefined });
   }
 
   /** The arena camera (DFO): frames both fighters — close in when they are close (the bodies big and readable, ~1.7×
@@ -767,7 +767,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         });
       }
       this.world.onNpcClick = (n) => this.talkTo(n);
-      this.den = new Den(this, {
+      this.den = new Den(this, !in3d, {
         kin: () => this.kin, level: () => this.character?.level ?? 1,
         hasItem: (id) => this.bag[id] ?? 0, takeItem: (id, n) => this.takeItem(id, n), giveItem: (id, n) => { this.giveItem(id, n, false); this.saveLoot(); },
         gold: (n) => { this.gold = Math.min(GOLD_MAX, this.gold + n); this.saveLoot(); this.hud?.lootFeed(GOLD_ICON.small, `+${fmtGold(n)} Gold`, '#f3d58c'); },

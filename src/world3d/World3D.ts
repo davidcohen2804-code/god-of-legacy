@@ -13,7 +13,9 @@ import { SKY_FLOOR } from './maps/sky';
 export const WORLD_CAM: Partial<Cam3D> = { pitch: 17, fov: 34, dist: 9.0, distPerSpan: 0.3, distMax: 13, yawMax: 5, follow: 0.1, aim: 1.0, liftK: 0.4, liftMax: 160 };
 /** The sky's camera: flatter, so the horizon — the sun, the far clouds — stays in the frame from a cloud's height. */
 export const SKY_CAM: Partial<Cam3D> = { ...WORLD_CAM, pitch: 11, aim: 1.1 };
-const camOf = (areaId: string): Partial<Cam3D> => (areaId === 'sky' ? SKY_CAM : WORLD_CAM);
+/** The den's camera: a cave — nearer and pitched down a little more (the vault stays over the frame). */
+export const DEN_CAM: Partial<Cam3D> = { ...WORLD_CAM, pitch: 21, dist: 8.0, distMax: 10, aim: 0.9 };
+const camOf = (areaId: string): Partial<Cam3D> => (areaId === 'sky' ? SKY_CAM : areaId.startsWith('den_') ? DEN_CAM : WORLD_CAM);
 /** How far ahead of the hero the camera looks (world px), eased when he turns. */
 const LEAD = 90;
 /** Half the view's width on the floor (world px) at the camera's distance: the focus keeps this far from the map's ends. */
@@ -30,12 +32,14 @@ export interface WorldFrame {
   ult: boolean; sig: boolean;
   /** The Sun Gate's state (its doors in the place swing with it). */
   sunGateOpen?: boolean;
+  /** The Thief's Den's run: its stage (a room's gate parts once the stage is past) and the lanterns lit in the room. */
+  den?: { stage: number; lit: number[] };
 }
 
 export class World3D {
   readonly a3d: Arena3D;
   readonly floor: Floor;
-  private focus3: { x: number; z: number; sunGateOpen?: boolean } = { x: 0, z: 0 };
+  private focus3: { x: number; z: number; sunGateOpen?: boolean; denStage?: number; denLit?: number[] } = { x: 0, z: 0 };
   private lead = 0;
   private heroZ = 0; private fallV = 0;
   /** The arrival (§1.8): from a wide view at the entry edge the camera glides to the hero while he can already walk. */
@@ -71,7 +75,7 @@ export class World3D {
     a.bodies = f.bodies;
     a.flying = f.flying;
     a.dimWant = f.ult ? 0.6 : f.sig ? 0.25 : 0;
-    this.focus3.x = h.x / 100; this.focus3.z = (h.y / 100) * 1.15; this.focus3.sunGateOpen = f.sunGateOpen;
+    this.focus3.x = h.x / 100; this.focus3.z = (h.y / 100) * 1.15; this.focus3.sunGateOpen = f.sunGateOpen; this.focus3.denStage = f.den?.stage; this.focus3.denLit = f.den?.lit;
     // the hero coming down (a jump's landing): the place's dust answers it
     const v = ms > 0 ? Math.max(0, ((this.heroZ - h.z) * 1000) / ms) : 0;
     if (this.heroZ > 6 && h.z <= 1) a.land(h.x, h.y, this.fallV);
