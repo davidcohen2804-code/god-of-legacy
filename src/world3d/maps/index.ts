@@ -32,7 +32,7 @@ import { dusk_bridge } from './dusk_bridge';
 import { dusk_wood } from './dusk_wood';
 import { dusk_3 } from './dusk_3';
 
-export type MapFactory = (focus: { x: number; z: number; sunGateOpen?: boolean; denStage?: number; denLit?: number[] }) => BuildPlace;
+export type MapFactory = (focus: { x: number; z: number; sunGateOpen?: boolean; denStage?: number; denLit?: number[]; done?: string[] }) => BuildPlace;
 export const MAPS: Record<string, MapFactory> = {
   courtyard, terraces_1, terraces_2, training, training_2, training_3, plaza, orchard_1, orchard_2, ruins, ruins_2, ruins_3, gate_1, gate_2, temple, sky,
   dusk_1, dusk_village, dusk_2, dusk_bridge, dusk_wood, dusk_3,

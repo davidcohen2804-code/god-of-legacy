@@ -141,8 +141,15 @@ export const blossomSteps: Dressing = (c) => {
  *  between them (dark until Fox Fire is done), the great fox on its plinth, the offering chest, a shrine gate at the east. */
 export const foxShrinePath: Dressing = (c) => {
   const { P, zWall, R } = c;
-  const lit = false; // (the lanterns light with the quest: a state to wire — PlaceState flag)
-  for (let i = 0; i < 12; i++) { const x = c.F.x0 + 0.8 + i * ((c.F.x1 - c.F.x0 - 1.6) / 11); torii(c, x, zWall + 0.9, 2.0, 2.7, Math.PI / 2); if (i % 2 === 1) foxStatue(c, x - 0.1, zWall + 0.2, 0.55, 0.35, 0); if (i % 2 === 0) stoneLantern(c, x, 0, zWall + 0.25, 0.7, lit); }
+  // the foxes' lanterns: dark until Fox Fire is done, then lit one by one along the path (their halos and three warm lights)
+  const halos: THREE.Sprite[] = [], lights: THREE.PointLight[] = [];
+  for (let i = 0; i < 12; i++) { const x = c.F.x0 + 0.8 + i * ((c.F.x1 - c.F.x0 - 1.6) / 11); torii(c, x, zWall + 0.9, 2.0, 2.7, Math.PI / 2); if (i % 2 === 1) foxStatue(c, x - 0.1, zWall + 0.2, 0.55, 0.35, 0); if (i % 2 === 0) { stoneLantern(c, x, 0, zWall + 0.25, 0.7, false); halos.push(halo(c, x, 0.66, zWall + 0.36, 0.7, 0xffb060, 0)); if (i % 4 === 0) { const L = new THREE.PointLight(0xffa050, 0, 6, 2); L.position.set(x, 0.9, zWall + 0.6); c.scene.add(L); lights.push(L); } } }
+  let litAt = NaN, first = true;
+  c.sway.push((t) => { const want = !!c.state.done?.includes('fox_fire'); // (the first frame takes the state as is; a quest done while standing here lights them one by one over three seconds)
+    if (first) { first = false; litAt = want ? -99 : NaN; } else if (want && Number.isNaN(litAt)) litAt = t; else if (!want) litAt = NaN;
+    const litT = Number.isNaN(litAt) ? 0 : t - litAt;
+    halos.forEach((h, i) => { const on = litT * 4 > i ? 1 : 0; (h.material as THREE.SpriteMaterial).opacity = on * 0.5 * (1 + Math.sin(t * 3 + i) * 0.08); });
+    lights.forEach((L, i) => { L.intensity = litT * 4 > i * 2 ? 1.6 : 0; }); });
   shide(c, c.F.x0 + 0.8, c.F.x1 - 0.8, 2.75, zWall - 0.15, 24);
   for (const p of c.A.props.filter((q) => q.id === 'fox-statue')) { const b = footBox(p.foot, c.ax); foxStatue(c, b.cx, b.cz, 1.5, uy(p.h || 74), 0.3); }
   for (const p of c.A.props.filter((q) => q.id === 'offering-chest')) { const b = footBox(p.foot, c.ax), h = uy(p.h || 56); P.add('wood', box(b.w, h, b.d, b.cx, 0, b.cz, 0.6, 0.02)); for (let k = 0; k < 3; k++) P.add('moulding', lathe([[0.001, 0], [0.1, 0.02], [0.12, 0.08], [0.08, 0.1]], b.x0 + 0.3 + k * 0.4, h, b.cz, 10)); P.add('terracotta', lathe([[0.001, 0], [0.08, 0.02], [0.1, 0.2], [0.05, 0.26], [0.03, 0.3]], b.x1 - 0.3, h, b.cz, 10)); }

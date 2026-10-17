@@ -59,7 +59,7 @@ export interface TerraceSpec {
 }
 
 /** What the scene tells a place each frame besides where the hero is. */
-export interface PlaceState { x: number; z: number; sunGateOpen?: boolean; /** the Thief's Den: the stage the run is at, the lanterns lit in this room */ denStage?: number; denLit?: number[] }
+export interface PlaceState { x: number; z: number; sunGateOpen?: boolean; /** the Thief's Den: the stage the run is at, the lanterns lit in this room */ denStage?: number; denLit?: number[]; /** the quests done (their ids): a place's states — the fox lanterns lit after Fox Fire, Wisteria Walk's lanterns brighter after Lights Out */ done?: string[] }
 
 /** A terrace's builder, bound to where the hero is (`focus`, units: the shadows follow him). */
 export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: PlaceState) => (scene: THREE.Scene, front: THREE.Scene, renderer: THREE.WebGLRenderer, F: { x0: number; x1: number; zB: number; zF: number }, soft: boolean): Room => {
@@ -214,7 +214,7 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
 
   const sway: ((t: number, wind: number) => void)[] = [];
   const warm: THREE.PointLight[] = [];
-  spec.dress?.({ P, scene, front, M, A, ax, F, zWall, zFront, zTopBack, topY: WALL_H, xW0, xW1, cx, R, life, air, soft, std, sway, disposables, crimson: !!spec.crimson, dusk, warm, sunDir });
+  spec.dress?.({ P, scene, front, M, A, ax, F, zWall, zFront, zTopBack, topY: WALL_H, xW0, xW1, cx, R, life, air, soft, std, sway, disposables, crimson: !!spec.crimson, dusk, warm, sunDir, state: focus });
 
   // ------------------------------------------------------------------ build the stone, the AO at the feet, the sun rune
   P.build(M, scene); PF.build(M, front, false);

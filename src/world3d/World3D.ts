@@ -38,6 +38,8 @@ export interface WorldFrame {
   talk?: { x: number; y: number };
   /** A boss alive and near (within its aggro): the first time, the boss entrance beat. */
   boss?: { x: number; y: number; id: string };
+  /** The quests done (ids): the places' states (lanterns lit after a quest). */
+  done?: string[];
 }
 
 /** The story's camera beats (docs/WORLD_3D_SPEC.md §1.8), on the stage's knobs: the focus (a pan turns the camera too),
@@ -50,7 +52,7 @@ const env = (t: number, ms: number, inMs: number, outMs: number) => Math.min(eas
 export class World3D {
   readonly a3d: Arena3D;
   readonly floor: Floor;
-  private focus3: { x: number; z: number; sunGateOpen?: boolean; denStage?: number; denLit?: number[] } = { x: 0, z: 0 };
+  private focus3: { x: number; z: number; sunGateOpen?: boolean; denStage?: number; denLit?: number[]; done?: string[] } = { x: 0, z: 0 };
   private lead = 0;
   private heroZ = 0; private fallV = 0;
   /** The arrival (§1.8): from a wide view at the entry edge the camera glides to the hero while he can already walk. */
@@ -117,7 +119,7 @@ export class World3D {
     a.bodies = f.bodies;
     a.flying = f.flying;
     a.dimWant = Math.max(dim, f.ult ? 0.6 : f.sig ? 0.25 : 0);
-    this.focus3.x = h.x / 100; this.focus3.z = (h.y / 100) * 1.15; this.focus3.sunGateOpen = f.sunGateOpen; this.focus3.denStage = f.den?.stage; this.focus3.denLit = f.den?.lit;
+    this.focus3.x = h.x / 100; this.focus3.z = (h.y / 100) * 1.15; this.focus3.sunGateOpen = f.sunGateOpen; this.focus3.denStage = f.den?.stage; this.focus3.denLit = f.den?.lit; this.focus3.done = f.done;
     // the hero coming down (a jump's landing): the place's dust answers it
     const v = ms > 0 ? Math.max(0, ((this.heroZ - h.z) * 1000) / ms) : 0;
     if (this.heroZ > 6 && h.z <= 1) a.land(h.x, h.y, this.fallV);

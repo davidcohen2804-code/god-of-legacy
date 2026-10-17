@@ -25,6 +25,8 @@ export interface DressCtx {
   R: () => number; life: Life[]; air: Wind; soft: boolean; crimson: boolean;
   /** Kit B's dusk; the place's warm point lights (the kit flickers them: add a lantern's, a window's); toward the sun / moon. */
   dusk: boolean; warm: THREE.PointLight[]; sunDir: THREE.Vector3;
+  /** What the scene tells the place each frame (the hero's spot, the gates' and quests' states): read in a sway hook, never at build. */
+  state: { x: number; z: number; sunGateOpen?: boolean; denStage?: number; denLit?: number[]; done?: string[] };
   std(o: THREE.MeshStandardMaterialParameters): THREE.MeshStandardMaterial;
   /** Things that move with the wind each frame (t, wind strength), what to free. */
   sway: ((t: number, wind: number) => void)[]; disposables: Disposable[];

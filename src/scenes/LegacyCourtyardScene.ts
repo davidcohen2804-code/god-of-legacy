@@ -449,7 +449,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     for (const m of this.world.mobs) if (m.alive && m.kind.boss && Math.hypot(m.x - k.x, (m.y - k.y) * 1.4) < (m.kind.aggro ?? 400) * 1.15) { boss = { x: m.x, y: m.y, id: m.id }; break; }
     const stage = this.den?.active ? this.den.stage : 0;
     if (stage !== this.denStageSeen) { if (stage > 1 && this.denStageSeen > 0 && this.denStageSeen < stage) w.show(w.floor.x1); this.denStageSeen = stage; } // (a den stage cleared: the camera leads toward the gate parting)
-    w.step(ms, { hero: { x: k.x, y: k.y, z: k.z, facing: this.dir === 'left' ? -1 : 1, floorZ: k.supportZ }, others, bodies, flying: this.rt ? this.rt.projectiles.map((e) => e.p) : [], hitStop: (this.fx?.hitStopLeft ?? 0) > 0, ult, sig, sunGateOpen: this.world.sunGate.open, den: this.den?.active ? { stage: this.den.stage, lit: this.den.lit } : undefined, talk: this.npcDialog?.isOpen && this.talkAt ? this.talkAt : undefined, boss });
+    w.step(ms, { hero: { x: k.x, y: k.y, z: k.z, facing: this.dir === 'left' ? -1 : 1, floorZ: k.supportZ }, others, bodies, flying: this.rt ? this.rt.projectiles.map((e) => e.p) : [], hitStop: (this.fx?.hitStopLeft ?? 0) > 0, ult, sig, sunGateOpen: this.world.sunGate.open, den: this.den?.active ? { stage: this.den.stage, lit: this.den.lit } : undefined, talk: this.npcDialog?.isOpen && this.talkAt ? this.talkAt : undefined, boss, done: this.questsDone() });
   }
 
   /** The arena camera (DFO): frames both fighters — close in when they are close (the bodies big and readable, ~1.7×
@@ -4582,6 +4582,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.chat?.add({ kind: 'system', text: `New quest: ${q.title}. Press ${keyLabel(this.bindings.quests) || 'J'} for the quest log.` });
     this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'NEW QUEST', '#ffe08a', 0);
     const way = this.questWay(q); if (way !== null) this.w3d?.show(way); // (the camera turns toward where the quest leads)
+  }
+  /** The quests done (ids), for the 3D places' states; recomputed only when the quest log changes. */
+  private doneCache: { n: string; list: string[] } = { n: '', list: [] };
+  private questsDone(): string[] {
+    const n = Object.keys(this.quests).map((k) => k + ':' + this.quests[k]?.state).join(',');
+    if (n !== this.doneCache.n) this.doneCache = { n, list: Object.keys(this.quests).filter((k) => this.quests[k]?.state === 'done') };
+    return this.doneCache.list;
   }
   /** Where a quest's first objective is (world x): the area whose monsters it names, the NPC it sends to. */
   private questWay(q: QuestDef): number | null {
