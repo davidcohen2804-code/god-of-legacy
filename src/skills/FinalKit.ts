@@ -251,10 +251,10 @@ function boltStages(el?: 'frost' | 'storm'): HitEvent[][] {
 const mage: FinalSkill[] = [
   S({
     id: 'arcane_bolt', cls: 'book_mage', slot: 0, name: 'Arcane Bolt', roles: ['basic', 'projectile'], targeting: 'mouseProjectile',
-    startup: 80, active: 0, recovery: 120, cooldown: 0, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: { startup: 0.8, active: 0.8, recovery: 0.8 },
+    startup: 115, active: 0, recovery: 170, cooldown: 0, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: { startup: 0.8, active: 0.8, recovery: 0.8 },
     hits: boltStages()[0],
     // a three-beat rhythm: two quick bolts, then a heavy arcane lance that pierces, throws the foe back (and shatters the frozen)
-    chain: { resetMs: 650, stages: boltStages(), timings: [{ startup: 80, active: 0, recovery: 120 }, { startup: 70, active: 0, recovery: 130 }, { startup: 170, active: 0, recovery: 230 }] },
+    chain: { resetMs: 800, stages: boltStages(), timings: [{ startup: 115, active: 0, recovery: 170 }, { startup: 100, active: 0, recovery: 185 }, { startup: 230, active: 0, recovery: 310 }] }, // (David 18 Oct 01:26: "shoots very fast" — ~1.4× slower)
     cancelOnHit: ['arcane_wave', 'astral_burst', 'blink', 'frost_nova', 'lightning_chain', 'glacial_spikes'],
     description: 'Tap or hold Space: two quick bolts, then a heavy arcane lance that flies through foes and throws them back. You keep walking while you cast (80% speed). From the 2nd job they take the element of your last spell (Attunement): frost bolts chill, storm bolts conduct.',
     relations: ['3-beat chain', 'Lance shatters the frozen'],
@@ -271,15 +271,15 @@ const mage: FinalSkill[] = [
     id: 'binding_rune', cls: 'book_mage', slot: 2, name: 'Binding Rune', roles: ['trap', 'setup', 'hardCC'], targeting: 'mouseGround',
     startup: 200, active: 100, recovery: 160, cooldown: 9000, ground: true, air: false, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
     placeRange: 300, charges: 2, chargeGap: 260, trap: { radius: 46, lifeMs: 10000 },
-    hits: [H(0, 12, { kind: 'placed', radius: 46 }, { hardCC: { kind: 'stun', ms: 500, long: true }, stun: 120 }, { reachUp: 40 })],
+    hits: [H(0, 12, { kind: 'placed', radius: 46 }, { hardCC: { kind: 'stun', ms: 3000, long: true }, stun: 120 }, { reachUp: 40 })], // (David 18 Oct 01:26: binds him at least 3 s)
     cancelOnHit: [], telegraph: 'ground',
-    description: 'Lay up to 2 runes on the floor (10s each). Stepping on one stuns the foe for 0.5s. Two runes close together join in a beam of light: whoever crosses it is bound and shocked, and the beam breaks.',
-    relations: ['Rune net', 'Stun 0.5s'],
+    description: 'Lay up to 2 runes on the floor (10s each). Stepping on one binds the foe for 3s. Two runes close together join in a beam of light: whoever crosses it is bound and shocked, and the beam breaks.',
+    relations: ['Rune net', 'Bind 3s'],
   }),
   S({
     id: 'astral_burst', cls: 'book_mage', slot: 3, name: 'Astral Lift', roles: ['launcher', 'pull'], targeting: 'selfAim',
     startup: 180, active: 140, recovery: 220, cooldown: 6000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 28, { kind: 'circle', radius: 120, at: 'aimBias', bias: 80 }, { stun: 420, pull: 44, launch: 130, juggleCost: 30 }, { reachUp: 130, heavy: true })],
+    hits: [H(0, 28, { kind: 'circle', radius: 120, at: 'aimBias', bias: 80 }, { stun: 420, pull: 44, launch: 130, juggleCost: 30, slowFall: 1800 }, { reachUp: 130, heavy: true })], // (David 18 Oct 01:26: the tube of light lowers him slowly)
     cancelOnHit: ['lightning_chain', 'arcane_wave', 'blink', 'arcane_bolt'], telegraph: 'circle',
     description: 'A hand of starlight seizes the foe, draws it to you and throws it into the air. A heavy blow: on a frozen foe it SHATTERS the ice.',
     relations: ['Launcher', 'Shatters the frozen'],

@@ -12,6 +12,10 @@ Values apply to the whole game (only damage may differ in PvP: arenaDmg / the ar
 - **Warrior — Earthsplitter's spikes** ("stay on screen 5 s"): 3 s → 5 s.
 - **Samurai — Tornado Blade** ("spammable while jumping, no cooldown"): cooldown 9 s → 0 (still in the air only).
 - All 12 Warrior trials replayed in the game: all clear.
+- **Book Mage — Arcane Bolt** (01:26: "shoots very fast"): the chain ~1.4× slower — 115 / 170, 100 / 185, the lance 230 / 310 (were 80 / 120, 70 / 130, 170 / 230); it resets after 800 ms (650).
+- **Book Mage — Binding Rune** ("bind him at least 3 s"): the rune's hold 0.5 s → 3 s (a binding hold: whole, once).
+- **Book Mage — Astral Lift** ("the tube of light lowers him slowly"): after his top he sinks at 0.2× gravity until 1.8 s from the hit (`slowFall`; Combat `SLOW_FALL_G`).
+- All 9 Book Mage trials replayed: all clear.
 
 ## 2026-10-17 — The main blow sends him away (David 21:45: "the foe flies back clearly; the small hits stay small") (engine)
 - One rule for every class, in and out of the arena (Combat `THROWN`); no skill's own numbers changed.

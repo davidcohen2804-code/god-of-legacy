@@ -47,6 +47,8 @@ export interface Reaction {
   float?: boolean;
   knockdown?: 'light' | 'heavy';
   /** Hard crowd control (shared DR policy). */
+  /** After a launch's top, the body sinks slowly for this long (ms from the hit): Astral Lift's tube of light lowers him. */
+  slowFall?: number;
   /** A pull's length (ms, default 110): Judgment Hook's chain draws him in so it reads. */
   pullMs?: number;
   hardCC?: { kind: 'root' | 'freeze' | 'stun'; ms: number; /** a binding skill: its full duration holds (not capped like a hit's root) */ long?: boolean };

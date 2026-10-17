@@ -37,6 +37,8 @@ function pointInPolyNear(x: number, y: number, poly: Parameters<typeof pointInPo
 
 /** Gravity multiplier of a juggled body at juggle 0 (long, readable hang time for air follow-ups). */
 const LAUNCH_G = 0.55; // floaty launches: long hang time so the attacker can follow up
+/** A body lowered slowly after its launch's top (a skill's `slowFall`: Astral Lift's tube of light): its gravity scale. */
+const SLOW_FALL_G = 0.2;
 /** Combo-protection thresholds (fractions of max HP) and their effects. */
 export const GAUGE = { stand: 0.3, air: 0.4, airRamp: 0.15, down: 0.15, resetMs: 3000, holdVz: 300, holdCeil: 120, gravityRamp: 1.6, wakeInvulnMs: 600 };
 
@@ -366,6 +368,8 @@ export class CombatBody {
   readonly hard = new HardCC();
   readonly combos = new ComboBook();
   /** Push motion (px/ms) applied over a short window. */
+  /** Sinking slowly after a launch's top until then (a skill's `slowFall`). */
+  slowFallUntil = -1;
   /** `skid`: ms it slides on after `left`, at THROWN.skidK of the speed (a thrown / kicked body). */
   push: { vx: number; vy: number; left: number; skid?: number } | null = null;
   armorUntil = -1;
@@ -422,7 +426,7 @@ export class CombatBody {
   moveScale(now: number): number { return now < this.slowUntil ? 1 - this.slowPct : 1; } // (Paper Curse is a silence: it does not slow or root)
   chilled(now: number): boolean { return now < this.chillUntil; }
   frozen(now: number): boolean { return this.hard.active(now) && this.hard.kind === 'freeze'; }
-  reset(): void { this.pinUntil = -1; this.gauge = { stand: 0, air: 0, down: 0 }; this.invulnUntil = -1; this.bounce = false; this.state = 'free'; this.stateEnd = 0; this.hard.reset(); this.combos.clear(); this.push = null; this.slowUntil = 0; this.armorUntil = -1; this.shotArmorUntil = -1; this.chillUntil = -1; this.curseUntil = -1; this.curseFrom = -1; this.levityUntil = -1; this.levityHoldUntil = -1;
+  reset(): void { this.slowFallUntil = -1; this.pinUntil = -1; this.gauge = { stand: 0, air: 0, down: 0 }; this.invulnUntil = -1; this.bounce = false; this.state = 'free'; this.stateEnd = 0; this.hard.reset(); this.combos.clear(); this.push = null; this.slowUntil = 0; this.armorUntil = -1; this.shotArmorUntil = -1; this.chillUntil = -1; this.curseUntil = -1; this.curseFrom = -1; this.levityUntil = -1; this.levityHoldUntil = -1;
     this.released = false; this.ghostUntil = -1; this.breakReadyAt = 0; this.quickReadyAt = 0; this.downAt = -Infinity; }
   /** Guarded right now (the arena: rising from the floor, the wake-up after it, BREAK). */
   ghost(now: number): boolean { return now < this.ghostUntil || (this.arena && this.state === 'getup'); }
@@ -540,6 +544,7 @@ export class CombatBody {
         if (this.arena) h = Math.max(30, Math.min(h, ARENA.launchCap - (k.z - k.supportZ))); // never out of the follow-ups' reach
         this.pinUntil = -1; // (a launch breaks a hold: the court's chains, a pin)
         k.grounded = false; k.vz = Math.sqrt(2 * PHYS.gravity * LAUNCH_G * h); out.launchVz = k.vz;
+        this.slowFallUntil = R.slowFall ? now + R.slowFall : -1;
         if (relaunch) c.relaunches++;
         c.juggle += relaunch ? COMBO.juggleCosts.relaunch : juggleCost;
         this.state = 'launched'; out.reaction = 'launch';
@@ -704,6 +709,7 @@ export class CombatBody {
       return 0;
     }
     if (this.state !== 'launched') return 1;
+    if (now < this.slowFallUntil && this.kin.vz <= 0) return SLOW_FALL_G; // (lowered slowly by the light that threw him)
     const c = this.combos.live(now);
     void c;
     return LAUNCH_G + GAUGE.gravityRamp * Math.min(1.5, this.airOver(now)); // free below the air limit, then heavier and heavier
