@@ -2632,11 +2632,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!p?.inParty || !this.pvp) return [];
     return p.members.filter((id) => { const r = this.pvp!.remotes.get(id); return !!r && r.alive && Math.hypot(r.x - k.x, r.y - k.y) <= 420; });
   }
-  private shareWithParty(skillId: string, ms: number): void {
-    const near = this.partyMembersNear();
-    this.party?.shareBuff(skillId, ms, near);
-    if (skillId === 'god_of_blades') for (const id of near) this.fx?.godMark(id, ms); // (the caster sees who shares his blades: their mark)
-  }
+  private shareWithParty(skillId: string, ms: number): void { this.party?.shareBuff(skillId, ms, this.partyMembersNear()); } // (the caster sees who shares it: Party marked → partyBuffLook)
 
   /** A party buff's look over a member who got it from another, drawn on every member's screen — his own (receivePartyBuff),
    *  the caster's and the others' (Party `marked`) — so the whole party sees who is buffed. One line per buff: a class's
@@ -2645,6 +2641,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private partyBuffLook(who: string, id: string, ms: number): void {
     if (id === 'arcane_ward') this.fx?.mageWard(who, ms); // (the ward's shell and its turning rune disk over the head)
     else if (id === 'tree_of_life') this.fx?.treeMark(who); // (the apple of light, refreshed by each pulse of the tree)
+    else if (id === 'god_of_blades') this.fx?.godMark(who, who === this.localId ? Math.max(ms, this.godUntil - this.simMs) : ms); // (the halo of blades in miniature: as long as the +15% lasts)
     else if (id === 'chrono_haste') this.fx?.mageAura(who, 'haste', ms);
     else if (id === 'lady_luck') this.fx?.gambleLuck(who, ms);
   }
@@ -2658,7 +2655,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     else if (id === 'legacy_banner') this.bannerUntil = Math.max(this.bannerUntil, now + ms);
     else if (id === 'hunters_spirit') this.spiritUntil = Math.max(this.spiritUntil, now + ms);
     else if (id === 'rising_sun') this.sunUntil = Math.max(this.sunUntil, now + ms);
-    else if (id === 'god_of_blades') { this.godUntil = Math.max(this.godUntil, now + ms); this.fx?.godMark(this.localId, this.godUntil - now); } // (the samurai's one buff, shared with the party; its mark over the head)
+    else if (id === 'god_of_blades') this.godUntil = Math.max(this.godUntil, now + ms); // (the samurai's one buff, shared with the party; its mark over the head: partyBuffLook)
     else if (id === 'coin_heads') this.gHeadsUntil = Math.max(this.gHeadsUntil, now + ms);
     else if (id === 'coin_tails') this.gTailsUntil = Math.max(this.gTailsUntil, now + ms);
     else if (id === 'lady_luck') this.gLuckUntil = Math.max(this.gLuckUntil, now + ms);
