@@ -367,7 +367,7 @@ export class GamblerFx {
         else if (st === 3) { if (!this.stroke('s_rise', o.x + side * 42, y0 - 70, 120, side, 300, d)) this.swing(o.x + side * 8, y0 - 40, 78, side > 0 ? 0.9 : Math.PI - 0.9, side > 0 ? -1.3 : Math.PI + 1.3, 260, 26, d); }
         break;
       }
-      case 'staff_vault': if (i === r.hits.length - 1) { this.floorRing(o.x, o.y, 90); this.pop(o.x + side * 30, y0 - 40, 90); } break; // (the landing blow: the last one)
+      case 'staff_vault': if (i === r.hits.length - 1 && !ARENA3D.on) { this.floorRing(o.x, o.y, 90); this.pop(o.x + side * 30, y0 - 40, 90); } break; // (the landing blow: the last one)
       case 'fuse_slam': this.scar(o.x + r.aim.x * 70, o.y + r.aim.y * 70, 90); this.ctx.shockwave(o.x + r.aim.x * 70, o.y + r.aim.y * 70, 140, this.fc(FUCHSIA)); this.ctx.cam().shake(140, 0.006); break;
       case 'riffle_shuffle': if (i === r.hits.length - 1) { const tor = this.kit('x_tornado', o.x, o.y, 260, o.y + 3); if (tor) { tor.setOrigin(0.5, 0.97); const t0 = tor.scale; this.piece(tor, 460, (u, im) => im.setScale(t0 * lerp(1, 1.3, u), t0 * lerp(0.8, 1.2, out3(u))).setFlipX(Math.floor(u * 10) % 2 === 1).setAlpha(1 - u * u)); } this.floorRing(o.x, o.y, 170, FUCHSIA_2, 380); this.shards(o.x, y0 - 50, 18, 200, 520); } break;
       case 'rotor_staff': if (i === r.hits.length - 1) { if (!this.stroke('s_thrust', o.x + side * 24, y0 - 56, 210, side, 300, d, 0, 0.05, 0.5)) this.band(o.x + side * 30, y0 - 56, 150, side > 0 ? 0 : 180, 260, 30, d); this.pop(o.x + side * 150, y0 - 56, 120); } break;
@@ -617,7 +617,7 @@ export class GamblerFx {
     }
     if (heavy && s.slot === 7 && kind !== 'crit') { const x = this.kit('x_cross', at.x, y, 78, TOP + 4); if (x) { const x0 = x.scale; this.piece(x, 220, (u, o) => o.setScale(x0 * lerp(1.2, 1, out3(clamp01(u * 3)))).setAlpha((u < 0.4 ? 0.45 : 0.45 * (1 - u) / 0.6))); } } // (the ultimate's cross: sized to the foe, never a white-out over both)
     if (s.id === 'grand_slam') this.ctx.cam().shake(260, 0.014);
-    if (s.id === 'staff_vault' && hit.shape.kind === 'capsule') { // caught by the vault on its way: the staff's arc flashes right where it passed him
+    if (s.id === 'staff_vault' && hit.shape.kind === 'capsule' && !ARENA3D.on) { // caught by the vault on its way: the staff's arc flashes right where it passed him
       const st = this.kit('s_swing', at.x, y, 150, TOP + 4); if (st) { const s0 = st.scale; st.setAngle(rnd(-20, 20)); this.piece(st, 200, (u, o) => o.setScale(s0 * lerp(0.8, 1.15, out3(u))).setAlpha(1 - u)); }
       this.pop(at.x, y, 110, 0xffffff, 160);
     }
@@ -740,6 +740,7 @@ export class GamblerFx {
   private vault(r: CastRun): void {
     const o0 = this.me(r), T = r.timings, side = sideOf(r);
     this.ctx.dust(o0.x, o0.y, 70);
+    if (ARENA3D.on) return; // (PVP 3D: the vault's crescent is the 3D ring riding his arc — its recipe; no flat painted trail over the bodies)
     this.add((t) => { if (t < T.startup) return true; this.stroke('s_vault', o0.x + r.aim.x * 110, o0.y + r.aim.y * 110 - o0.z - 72, 180, side, T.active + 240, o0.y + 2, 0, 0.5, 0.5); return false; });
     let last: { x: number; y: number } | null = null;
     const g = this.ctx.scene.add.graphics().setDepth(TOP + 1).setBlendMode(Phaser.BlendModes.ADD);

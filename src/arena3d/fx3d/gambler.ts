@@ -44,8 +44,14 @@ export const GAMBLER: Record<string, Recipe> = {
   },
   // the vault over the foe: an upright crescent of light along the staff's arc; the launch's column is the default main hit
   staff_vault: { tone: TONE.violet,
-    own: true, hit: (f, _s, _h, at, main, react) => { if (main) { if (react === 'launch') f.pillar(at.x, at.y, F.violet, { h: 340, r: 22, ms: 360, core: false }); else f.dome(at.x, at.y, F.steel, { r: 70, ms: 220, a: 0.5 }); } },
-    active: (f, r) => f.slash(me(f, r), side(r), F.violet, { r: 95, w: 18, tilt: 88, a0: 200, a1: -20, ms: 300, y0: 30, i: 1.2, follow: () => f.host.casterPos(r.attackerId) }),
+    // (DAVID 20:56: the vault over the foe one big upright inked crescent riding his arc — white-hot edge, violet, ink — and
+    // the landing blow a slanted ring cut down on him; the main hit's flash is the engine's)
+    own: true,
+    active: (f, r) => {
+      const id = r.attackerId;
+      f.slash(me(f, r), side(r), 0xb4a6ff, { r: 120, w: 44, tilt: 86, a0: 210, a1: -30, ms: Math.max(320, T(r).active), y0: 40, i: 2.6, ink: true, follow: () => f.host.casterPos(id) });
+      f.later(Math.max(0, T(r).active - 90), () => f.slash(me(f, r), side(r), 0xb4a6ff, { r: 130, w: 50, tilt: 58, a0: -150, a1: 40, ms: 220, y0: 80, i: 2.8, ink: true }));
+    },
   },
   // the staff slams a charged floor: cracks where it lands, then the fuse goes off — a burst of floor chunks and a short column
   fuse_slam: { tone: TONE.fuse,
