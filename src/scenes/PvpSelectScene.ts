@@ -16,9 +16,14 @@ import { addMotes, preloadLife } from '../ui/PresentationLife';
 import { FighterArt } from '../ui/FighterArt';
 import { stageById } from '../world/Stages';
 import { Sound, loadMenuSound } from '../audio/Sound';
+import { ARENA3D } from '../arena3d/flag';
 
-/** The select screen's backdrop: the arena's courtyard by night. */
-const SELECT_BG = 'pvp-select-bg';
+/** The select screen's backdrop: PVP 3D — the 3D temple courtyard the fight is in, the room itself rendered empty in a
+ *  wide shot before the temple (tools/pvp/backdrop3d.mjs); the painted arena — its courtyard by night (and the stage
+ *  chosen over it). */
+const selectBg = (): { key: string; file: string } => ARENA3D.on
+  ? { key: 'pvp-select-3d', file: 'assets/character_select/pvp_select_3d.webp' }
+  : { key: 'pvp-select-bg', file: 'assets/character_select/pvp_select_bg.webp' };
 
 export interface PvpSelectData { mode?: VsMode; p1?: string; p2?: string }
 
@@ -37,7 +42,7 @@ export class PvpSelectScene extends Phaser.Scene {
   preload(): void {
     const T = ATLAS.textures;
     if (!this.textures.exists(T.map.key)) this.load.image(T.map.key, T.map.file);
-    if (!this.textures.exists(SELECT_BG)) this.load.image(SELECT_BG, 'assets/character_select/pvp_select_bg.webp'); // the courtyard by night
+    const bg = selectBg(); if (!this.textures.exists(bg.key)) this.load.image(bg.key, bg.file); // the 3D courtyard (the painted arena: the courtyard by night)
     for (const c of ROSTER) { const hc = heroCard(c); if (hc && !this.textures.exists(`hero-card-${c}`)) this.load.image(`hero-card-${c}`, hc.file); } // the heroes' cards
     preloadLife(this); // (the embers)
     loadMenuSound(this); // (the menu's cues; the music streams in after)
@@ -49,8 +54,8 @@ export class PvpSelectScene extends Phaser.Scene {
     Sound.music(this, 'select', 700); // (on from the menu, or back from the arena: it crossfades from the stage's)
     Sound.choose();                   // CHOOSE YOUR FIGHTER
     this.bg = undefined; this.bgKey = ''; this.bgWant = '';
-    this.swapBg(this.textures.exists(SELECT_BG) ? SELECT_BG : ATLAS.textures.map.key, false);
-    this.add.image(0, 0, washTex(this)).setOrigin(0).setDisplaySize(DESIGN.width, DESIGN.height).setDepth(1);
+    this.swapBg(this.textures.exists(selectBg().key) ? selectBg().key : ATLAS.textures.map.key, false);
+    this.add.image(0, 0, washTex(this, ARENA3D.on)).setOrigin(0).setDisplaySize(DESIGN.width, DESIGN.height).setDepth(1);
     this.arts = { l: new FighterArt(this, 'l'), r: new FighterArt(this, 'r') };
     const sel = CharacterStore.getSelectedCharacter();
     this.hover = data?.p1 ?? (sel && (ROSTER as readonly string[]).includes(sel.classId) ? sel.classId : 'samurai');
@@ -77,9 +82,10 @@ export class PvpSelectScene extends Phaser.Scene {
 
   private layout(): void { this.ui?.layout(); }
 
-  /** The stage behind the whole screen (null: the courtyard by night): its painting, loaded the first time it is shown. */
+  /** The stage behind the whole screen (null: the courtyard by night): its painting, loaded the first time it is shown.
+   *  PVP 3D: always the 3D courtyard (its one stage). */
   private backdrop(id: string | null): void {
-    const st = id ? stageById(id) : undefined, key = st ? (st.poster ? `${st.key}-poster` : st.key) : SELECT_BG;
+    const st = id && !ARENA3D.on ? stageById(id) : undefined, key = st ? (st.poster ? `${st.key}-poster` : st.key) : selectBg().key;
     this.bgWant = key;
     if (this.textures.exists(key)) { this.swapBg(key); return; }
     if (!st) return;
@@ -93,7 +99,7 @@ export class PvpSelectScene extends Phaser.Scene {
     if (key === this.bgKey) return;
     const old = this.bg, img = this.add.image(DESIGN.width / 2, DESIGN.height / 2, key).setDepth(0);
     img.setScale(Math.max(DESIGN.width / img.width, DESIGN.height / img.height));
-    if (key !== SELECT_BG && key !== ATLAS.textures.map.key) img.setTint(0x9c9c9c);
+    if (key !== selectBg().key && key !== ATLAS.textures.map.key) img.setTint(0x9c9c9c);
     this.bg = img; this.bgKey = key;
     if (!old) return;
     if (!fade) { old.destroy(); return; }
@@ -137,13 +143,14 @@ export class PvpSelectScene extends Phaser.Scene {
 }
 
 /** The light over the arena behind the fighters: warm on your side, cold on theirs, darker at the top and the bottom
- *  (where the score and the roster sit). Drawn once at a quarter size (smooth gradients), stretched to the screen. */
-function washTex(scene: Phaser.Scene): string {
-  const key = 'ps-wash';
+ *  (where the score and the roster sit). Drawn once at a quarter size (smooth gradients), stretched to the screen.
+ *  `light` (PVP 3D): lighter through the middle, so the 3D courtyard reads behind the fighters. */
+function washTex(scene: Phaser.Scene, light = false): string {
+  const key = light ? 'ps-wash-3d' : 'ps-wash';
   if (scene.textures.exists(key)) return key;
   const W = 480, H = 270, q = W / DESIGN.width, c = scene.textures.createCanvas(key, W, H)!, ctx = c.getContext();
-  const lin = ctx.createLinearGradient(0, 0, 0, H);
-  lin.addColorStop(0, 'rgba(3,5,10,.66)'); lin.addColorStop(0.3, 'rgba(3,5,10,.28)'); lin.addColorStop(0.62, 'rgba(3,5,10,.38)'); lin.addColorStop(1, 'rgba(3,5,10,.9)');
+  const lin = ctx.createLinearGradient(0, 0, 0, H), a = light ? [0.56, 0.14, 0.26, 0.88] : [0.66, 0.28, 0.38, 0.9];
+  lin.addColorStop(0, `rgba(3,5,10,${a[0]})`); lin.addColorStop(0.3, `rgba(3,5,10,${a[1]})`); lin.addColorStop(0.62, `rgba(3,5,10,${a[2]})`); lin.addColorStop(1, `rgba(3,5,10,${a[3]})`);
   ctx.fillStyle = lin; ctx.fillRect(0, 0, W, H);
   const glow = (x: number, rgb: string, a: number) => { // an ellipse 760 x 900 at (x, 640), fading out by 70% of it
     ctx.save(); ctx.translate(x * q, 640 * q); ctx.scale(760 / 900, 1);

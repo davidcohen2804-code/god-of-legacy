@@ -1,5 +1,5 @@
 // The PvP arena's loading screen (Tekken-style): the two chosen fighters face to face, big — each on its side of a
-// burning diagonal in its colours, over the courtyard by night — their names, the VS emblem slammed between them, the
+// burning diagonal in its colours, over the arena (PVP 3D: the 3D courtyard itself) — their names, the VS emblem slammed between them, the
 // stage and a slanted loading bar. DOM over the canvas (1920x1080 design px, scaled by syncOverlay); it goes when the
 // arena's files are in.
 import Phaser from 'phaser';
@@ -14,6 +14,7 @@ import { playClip } from './HeroClip';
 import { CallFx } from './CallFx';
 import { rankLine } from './RankUI';
 import { myRank } from '../pvp/Rank';
+import { ARENA3D } from '../arena3d/flag';
 
 /** One side of the loading screen: a fighter's name and class (`you`: yours). */
 export interface LoadSide { name: string; cls: string; you?: boolean; /** an online foe's rank (yours is read here) */ rank?: { rp: number; title: string | null } }
@@ -42,6 +43,10 @@ const CSS = `
 @keyframes alInR{from{transform:translateX(100%)}}
 .gol-al .al-h.l{background:linear-gradient(100deg,rgba(3,5,10,.82) 0%,rgba(3,5,10,.35) 55%,var(--g) 120%)}
 .gol-al .al-h.r{background:linear-gradient(260deg,rgba(3,5,10,.82) 0%,rgba(3,5,10,.35) 55%,var(--g) 120%)}
+/* PVP 3D: the 3D courtyard the fight is in shows through, softly out of focus behind the two */
+.gol-al.a3d .al-bg{filter:blur(3px) brightness(.66) saturate(1.1)}
+.gol-al.a3d .al-h.l{background:linear-gradient(100deg,rgba(3,5,10,.62) 0%,rgba(3,5,10,.16) 55%,var(--g) 120%)}
+.gol-al.a3d .al-h.r{background:linear-gradient(260deg,rgba(3,5,10,.62) 0%,rgba(3,5,10,.16) 55%,var(--g) 120%)}
 .gol-al .al-rays{position:absolute;inset:-240px;background:repeating-linear-gradient(104deg,rgba(255,255,255,0) 0 52px,rgba(255,255,255,.06) 54px 57px,rgba(255,255,255,0) 59px 112px);animation:alRays .7s linear infinite}
 .gol-al .al-h.r .al-rays{animation-direction:reverse}
 @keyframes alRays{to{transform:translateX(115px)}}
@@ -114,7 +119,7 @@ export function showArenaLoading(scene: Phaser.Scene, l: LoadSide, r: LoadSide, 
   const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent: HTMLElement): HTMLElementTagNameMap[K] => {
     const e = document.createElement(tag); if (cls) e.className = cls; parent.appendChild(e); return e;
   };
-  const root = el('div', 'gol-al', host);
+  const root = el('div', ARENA3D.on ? 'gol-al a3d' : 'gol-al', host);
   const bg = el('div', 'al-bg', root);
   if (stage) bg.style.backgroundImage = `url("${stage.preview}")`; // (the stage the fight is on, blurred)
   const box = el('div', 'al-in', root); // (everything but the backdrop: shaken by the VS slam)

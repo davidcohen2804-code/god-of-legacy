@@ -57,6 +57,7 @@ const CSS = `
 .gol-bt.on .b-top{opacity:1;transform:none}
 .gol-bt.on.res .b-top{opacity:0;transform:translateY(-26px)}
 .gol-hud:has(> .gol-bt.res) > .fx{visibility:hidden} /* (your buffs, under your bar: gone with it) */
+.gol-hud:has(> .gol-bt.res) .dock,.gol-hud:has(> .gol-bt.res) .camc{opacity:0;visibility:hidden;transition:opacity .35s ease,visibility 0s .35s} /* (the result over the courtyard: the skill dock and the camera's buttons step aside too) */
 /* a fighter (Tekken-style: sharp, slanted, metal-edged): portrait, health bar, name, round wins; --c = the class colour */
 .gol-bt .b-sd{position:absolute;top:14px;width:900px;height:140px;--c:#f0cc80}
 .gol-bt .b-sd.l{left:22px}

@@ -14,7 +14,7 @@ import '@fontsource/exo-2/900-italic.css';
 import { CLASS_NAMES } from '../config/layout';
 import { ROSTER, fighterFor, heroArt } from '../pvp/Fighters';
 import { heroFxUrls } from './HeroFx';
-import { STAGES } from '../world/Stages';
+import { STAGES, STAGE_3D } from '../world/Stages';
 import { ARENA3D } from '../arena3d/flag';
 import { BOT_NAMES, type BotLevel } from '../pvp/SparringBot';
 import { syncOverlay } from './CharacterSelectUI';
@@ -400,7 +400,7 @@ export class PvpSelectUI {
     const p2 = this.local ? (this.p2.pick === null ? null : ROSTER[this.p2.pick]) : this.remote?.pick ?? null;
     if (!p1 || !p2) return;
     let stage: string | undefined;
-    if (this.local) { // the stage chosen, or RANDOM drawn now (the row shows which before the arena)
+    if (this.local && !ARENA3D.on) { // the stage chosen, or RANDOM drawn now (the row shows which before the arena; PVP 3D: its one stage)
       const k = this.stage === RANDOM ? Math.floor(Math.random() * STAGES.length) : this.stage;
       this.drawn = k; stage = STAGES[k].id;
       this.h.stage?.(stage);   // (RANDOM: the stage it drew comes up behind GET READY)
@@ -495,7 +495,7 @@ export class PvpSelectUI {
   private warmed = new Set<string>();
   private warmImgs: HTMLImageElement[] = [];
   private warmFx(cls: string): void {
-    if (!this.warmed.size) for (const st of STAGES) { const i = new Image(); i.src = st.preview; this.warmImgs.push(i); } // (the stages' backdrops for the loading screen)
+    if (!this.warmed.size) for (const st of ARENA3D.on ? [STAGE_3D] : STAGES) { const i = new Image(); i.src = st.preview; this.warmImgs.push(i); } // (the stages' backdrops for the loading screen; PVP 3D: the 3D courtyard's)
     if (this.warmed.has(cls)) return;
     this.warmed.add(cls);
     for (const u of heroFxUrls(cls)) { const i = new Image(); i.src = u; this.warmImgs.push(i); }
