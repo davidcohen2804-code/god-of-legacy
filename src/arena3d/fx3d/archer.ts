@@ -40,7 +40,7 @@ export const ARCHER: Record<string, Recipe> = {
   // Fireball Arrow: a burning trail, then a shell of fire (kept under the foe's height), the planks torn, embers
   explosive_arrow: { tone: C.fire, trail: { c: C.fire, w: 14, i: 2.4 }, own: true, hit: (f, _s, _h, at) => { f.dome(at.x, at.y, C.fire, { r: 110, ms: 240, a: 0.5 }); f.crack(at.x, at.y, C.fire, { r: 110, chunks: 12, up: 1.2 }); f.host.embers(f.host.w3(at.x), 0.6, f.host.d3(at.y), C.fire, 18, 3); } },
   // Backstep Shot: a leaf trail; a puff of wind where she pushes off
-  backstep_shot: { tone: WIND, trail: { c: WIND, w: 9, len: 10 }, cast: (f, r) => { const c = me(f, r); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), WIND, 1.2, 300, 0.5); f.host.dust(f.host.w3(c.x), f.host.d3(c.y), 6, 0.6); } },
+  backstep_shot: { tone: SPIRIT, trail: { c: SPIRIT, w: 13, len: 14, i: 2.2 }, fired: (f, _r, _i, o) => bowStar(f, o, SPIRIT, 1.7), cast: (f, r) => { const c = me(f, r); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), THORN, 1.2, 320, 0.5); } }, // (the flip's arrow a heavy spirit shot with a big star at the bow; the leaf decoy she leaves is painted)
   // Retreat Kick: an upright arc of wind sweeping up with the boot; chips kicked off the floor
   retreat_kick: { tone: WIND, active: (f, r) => { const c = me(f, r), sd = side(r); f.slash({ x: c.x + sd * 40, y: c.y, z: c.z }, sd, WIND, { r: 130, w: 30, tilt: 70, a0: 200, a1: 10, ms: 220, y0: 30, ink: true }); f.host.ring(f.host.w3(c.x + sd * 70), f.host.d3(c.y), WIND, 1.3, 280, 0.6); } }, // (the kick's arc: one inked rising ring out at the foe, the big painted boot level through it; no floor chips)
   // Vine Mine: the floor splits and a ring of green crystals (thorns) bursts up round the foe

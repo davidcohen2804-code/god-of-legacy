@@ -21,6 +21,8 @@ export interface ArcherCtx {
   punch(amount?: number, ms?: number): void;
   ultimateStage(r: CastRun): void;
   targetPos?(id: string): V3 | null;
+  /** Her body as drawn now (the Backstep decoy). */
+  body?(id: string): { key: string; frame: string | number; flipX: boolean; ox: number; oy: number; sx: number; sy: number } | null;
 }
 
 type Ease = (u: number) => number;
@@ -317,6 +319,7 @@ export class ArcherFx {
       case 'spirit_hawk': this.hawkCall(r); break;
       case 'tree_of_life': this.tree(r); break;
       case 'backstep_shot': { // a back flip out of reach, leaves trailing; at its top one arrow at the foe
+        this.decoy(r, me.x, me.y); // (David 01:33: "no character" — she leaves a decoy of herself made of leaves where she stood)
         this.floor('haste_ring', me.x, me.y, 120, 420, { add: true, glow: 0.3, run: r, s: kf([0, 0.4], [0.4, 1.2, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
         this.spr({ name: 'dust', x: me.x, y: me.y + 4, oy: 0.85, depth: me.y + 1, w: 120, life: 420, sx: kf([0, 0.6], [1, 1.3, out3]), a: kf([0, 0.7], [1, 0, inQ]) });
         for (let k = 0; k < 5; k++) this.later(T.startup + k * 45, () => { const q = this.me(r); this.leaves(q.x - side * 10, q.y - q.z - 40, 2, 16, { dir: -side, life: 600 }); }, r);
@@ -678,6 +681,26 @@ export class ArcherFx {
   }
 
   // ------------------------------------------------------------------ the vine mine
+
+  /** Backstep Shot: a decoy of her made of leaves stands where she was — her body as drawn at the cast, leaf-green with a bright rim,
+   *  leaves fluttering off it — then bursts into a spray of leaves (~1 s). */
+  private decoy(r: CastRun, x: number, y: number): void {
+    const b = this.ctx.body?.(r.attackerId); if (!b) return;
+    const s = this.ctx.scene, life = 1050;
+    const mk = (fill: number, k: number) => s.add.image(x, y, b.key, b.frame).setOrigin(b.ox, b.oy).setScale(b.sx * k, b.sy * k).setFlipX(b.flipX).setTintFill(fill);
+    const rim = mk(0xd4ffb0, 1.06).setBlendMode(Phaser.BlendModes.ADD).setPosition(x, y + 3).setDepth(y - 0.01).setAlpha(0), body = mk(0x1d5e22, 1).setDepth(y).setAlpha(0);
+    let next = 0;
+    this.add({ t: 0, step: (_dt, t) => {
+      const u = Math.min(1, t / life), a = kf([0, 0], [0.06, 1], [0.85, 0.9], [1, 0])(u), fl = 0.88 + 0.12 * Math.sin(t / 40);
+      rim.setAlpha(0.75 * a * fl); body.setAlpha(0.6 * a);
+      if (t >= next) { next = t + 70; this.leaves(x, y - 30 - Math.random() * 80, 2, 34, { up: 60, life: 700, depth: y + 1 }); }
+      if (u < 1) return true;
+      rim.destroy(); body.destroy();
+      this.pop('leaf_spray', x, y - 60, 150, { angle: -90, life: 420 }); this.leaves(x, y - 50, 16, 50, { up: 200, life: 900 });
+      this.floor('thorn_roots', x, y, 130, 700, { s: kf([0, 0.5], [0.2, 1.05, out3]), a: kf([0, 1], [0.7, 0.9], [1, 0, inQ]) });
+      return false;
+    } });
+  }
 
   trap(t: Trap): void {
     if (!this.ready) return;
