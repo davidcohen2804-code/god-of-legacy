@@ -574,6 +574,11 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     origami_flock: { act: 'origami_flock', st: [1, 2], ac: [3, 4], rc: [5] }, // the hand drawn to the shoulder, then flicked out: the cranes take flight
     page_bind: { act: 'arcane_wave', st: [1], ac: [3], rc: [4, 5] },
     astral_burst: { act: 'astral_burst', st: [0, 1], ac: [2, 3, 4], rc: [5] }, // the clawed hand reached out, then yanked up overhead
+    // the basic bolts: a palm snapped out, then the book flung out with the other hand (the lance keeps the attack frames until its clip lands)
+    arcane_bolt: { act: 'bolt1', st: [2, 3], ac: [4], rc: [5] }, 'arcane_bolt#1': { act: 'bolt2', st: [1], ac: [2, 3], rc: [4, 5] },
+    arcane_bolt_arcane: { act: 'bolt1', st: [2, 3], ac: [4], rc: [5] }, 'arcane_bolt_arcane#1': { act: 'bolt2', st: [1], ac: [2, 3], rc: [4, 5] },
+    arcane_bolt_frost: { act: 'bolt1', st: [2, 3], ac: [4], rc: [5] }, 'arcane_bolt_frost#1': { act: 'bolt2', st: [1], ac: [2, 3], rc: [4, 5] },
+    arcane_bolt_storm: { act: 'bolt1', st: [2, 3], ac: [4], rc: [5] }, 'arcane_bolt_storm#1': { act: 'bolt2', st: [1], ac: [2, 3], rc: [4, 5] },
     binding_rune: { act: 'binding_rune', st: [1, 2], ac: [3], rc: [4, 5] }, // she drops low and slaps her palm flat on the floor: the rune is laid
     blink: { act: 'blink', st: [1], ac: [2], rc: [3] }, // the coat whirls round her as she vanishes
   },
