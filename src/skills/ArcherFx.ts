@@ -49,7 +49,9 @@ interface Spr {
   alive?: () => boolean;
 }
 interface Live { t: number; step(dt: number, t: number): boolean }
-interface Arrow { im: Phaser.GameObjects.Image; tr: Phaser.GameObjects.Image | null; t: number; kind: string; z0: number; whip?: Phaser.GameObjects.Image }
+interface Arrow { im: Phaser.GameObjects.Image; tr: Phaser.GameObjects.Image | null; t: number; kind: string; z0: number; whip?: Phaser.GameObjects.Image; storm?: boolean }
+/** Continuity (DFO's idea, taken): Thunder Rain's strike points stay charged a while; her shots crossing one come out as lightning. CHARGE_MS / CHARGE_R are placeholders for DFO's numbers. */
+const CHARGE_MS = 2500, CHARGE_R = 60, STORM_SHOTS = new Set(['quick_shot', 'multi_shot', 'piercing_arrow', 'backstep_shot']);
 
 /** Hit sparks in the skill's family colour (DFO's families): FIRE — Fireball Arrow only; SUN — Sky Rain, Hunter's Rain. The rest keep the green WIND star. */
 /** Skills whose hit star hid the foe in PVP 3D (DFO's review): small sharp hits. */
@@ -60,6 +62,8 @@ export class ArcherFx {
   private live: Live[] = [];
   private incoming: Live[] = [];
   private arrows = new Map<Projectile, Arrow>();
+  /** Thunder Rain's charged floor points (world x / depth y) and when each runs out. */
+  private charged: { x: number; y: number; until: number }[] = [];
   private fanCount = new Map<string, number>();
   private bigSpark = new Map<string, number>(); // skill → when its last big hit spark was drawn
   private heavyShots = new Set<string>(); // casts of Double Shot's charged arrow (its projectile is drawn heavy)
@@ -335,7 +339,8 @@ export class ArcherFx {
       this.bolt('bolt_seg', { x: sx, y: sy }, { x: cx, y: cy - 20 }, { thick: 26 * K, life: 160, delay: 40 }); // its lightning trail
       this.pop('elec_burst', sx, sy, 88 * K, { life: 180 }); // (a size down at the bow: in PVP 3D the third shot's blast hid her)
       this.later(100, () => {
-        this.spr({ name: 'elec_rise_arrow', x: cx, y: cy + 8, oy: 0.97, depth: cy + 2, w: 120 * K, flipX: lv.x < 0, add: true, glow: 0.4, life: 1900, a: (u) => (u > 0.8 ? (1 - u) * 5 : 1) * (0.75 + 0.25 * Math.sin(u * 60)) }); // it stands in the floor, crackling
+        this.charged.push({ x: cx, y: cy, until: this.ctx.scene.time.now + CHARGE_MS }); // the floor stays charged: a shot of hers crossing it turns to lightning
+        this.spr({ name: 'elec_rise_arrow', x: cx, y: cy + 8, oy: 0.97, depth: cy + 2, w: 120 * K, flipX: lv.x < 0, add: true, glow: 0.4, life: CHARGE_MS, a: (u) => (u > 0.8 ? (1 - u) * 5 : 1) * (0.75 + 0.25 * Math.sin(u * 60)) }); // it stands in the floor, crackling
         this.spr({ name: 't_sparks', x: cx, y: cy - 40 * K, depth: cy + 5, w: 160 * K, add: true, life: 420, sx: kf([0, 0.4], [1, 1.4, out3]), sy: kf([0, 0.4], [1, 1.4, out3]), a: kf([0, 1], [1, 0, inQ]) });
         this.spr({ name: 'elec_burst', x: cx, y: cy - 30 * K, depth: cy + 4, w: 160 * K, add: true, life: 260, sx: kf([0, 0.4], [0.3, 1.1, out3]), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) });
         this.later(60, () => { // the sky answers onto it
@@ -729,6 +734,13 @@ export class ArcherFx {
         const k = Math.min(1, p.travelled / p.range), H = p.loft === 2 ? 340 : 210, lift = 4 * H * k * (1 - k), slope = 4 * H * (1 - 2 * k) / p.range; // screen px up per px along
         y -= lift; const raw = Math.atan2(-slope, 1) * (180 / Math.PI); ang = flip ? -raw : raw;
       }
+      if (!a.storm && this.charged.length && STORM_SHOTS.has(p.skill.id)) { // crossing a charged point: the arrow comes out as lightning (the point is spent)
+        const now = this.ctx.scene.time.now; this.charged = this.charged.filter((c) => c.until > now);
+        const k = this.charged.findIndex((c) => Math.abs(c.x - p.x) < CHARGE_R && Math.abs(c.y - p.y) < CHARGE_R * 0.6);
+        if (k >= 0) { const c = this.charged[k]; this.charged.splice(k, 1); a.storm = true;
+          a.im.setTexture(ARCHER_KIT, 'elec_arrow').setData('sx', (a.im.getData('sx') as number) * 1.15); a.tr?.setTint(0x9fe4ff);
+          this.pop('elec_burst', c.x, c.y - 30, 120, { life: 220 }); this.bolt('bolt_seg', { x: c.x, y: c.y - 60 }, { x: x, y: y }, { thick: 18, life: 140 }); }
+      }
       const grow = Math.min(1, 0.2 + a.t / 80), len = Math.min(120, 20 + a.t * 0.8);
       a.im.setPosition(x, y).setFlipX(flip).setAngle(ang).setDepth(p.y + 2).setAlpha(Math.min(1, a.t / 30)).setScale((a.im.getData('sx') as number) * grow, a.im.scaleY); // grows out of the bow's flash
       if (a.whip) { const c = this.ctx.casterPos(p.attackerId); if (c) { const bx = c.x + (flip ? -16 : 16), by = c.y - c.z - 54, L = Math.hypot(x - bx, y - by);
@@ -738,6 +750,7 @@ export class ArcherFx {
   }
   projectileEnd(p: Projectile): void {
     const a = this.arrows.get(p); if (!a) return;
+    if (a.storm) { const e = p.end ?? { x: p.x, y: p.y, reason: 'range' as const }; this.pop('elec_burst', e.x, e.y - p.z - 20, 150, { life: 240 }); this.spr({ name: 'strike', x: e.x, y: e.y + 8, oy: 0.97, depth: e.y + 3, w: 120, h: 320, life: 240, add: true, glow: 0.4, sy: kf([0, 0.2], [0.15, 1.05, out3]), a: kf([0, 1], [1, 0, inQ]) }); } // the lightning arrow lands as a strike (the chain to a second foe: DFO's runtime hook)
     this.arrows.delete(p); a.im.destroy(); a.tr?.destroy(); a.whip?.destroy();
     if (p.skill.id === 'hunters_spirit') { // Vine Lash: it snags the foe and the vine reels him in
       const end0 = p.end ?? { x: p.x, y: p.y, reason: 'range' as const };
