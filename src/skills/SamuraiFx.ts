@@ -1313,9 +1313,10 @@ export class SamuraiFx {
   /** The banner's light breaks over him: the sun's rays flare out, rings of golden light throw every foe back. */
   private sunBurst(r: CastRun): void {
     const q = this.me(r);
-    this.spr({ name: tn('sun_rays', 'gold'), x: q.x, y: q.y - q.z - 60, w: 420, life: 520, add: true, depth: q.y - 3, rot: (u) => 30 * u,
-      sx: kf([0, 0.6], [0.25, 1.1, out3], [1, 1.25]), sy: kf([0, 0.6], [0.25, 1.1, out3], [1, 1.25]), a: kf([0, 1], [0.4, 0.8], [1, 0, inQ]) });
-    this.pop('glint', q.x, q.y - q.z - 60, 260, { life: 260, angle: 0, depth: TOP + 3, glow: 0.8 });
+    // (the light breaks behind him and over the floor — lit softly enough that he and the foes thrown back read: PVP 3D)
+    this.spr({ name: tn('sun_rays', 'gold'), x: q.x, y: q.y - q.z - 60, w: 360, life: 520, add: true, depth: q.y - 3, rot: (u) => 30 * u,
+      sx: kf([0, 0.6], [0.25, 1.1, out3], [1, 1.25]), sy: kf([0, 0.6], [0.25, 1.1, out3], [1, 1.25]), a: kf([0, 0.6], [0.4, 0.5], [1, 0, inQ]) });
+    this.pop('glint', q.x, q.y - q.z - 60, 150, { life: 240, angle: 0, depth: TOP + 3, glow: 0.35 });
     this.shock(q.x, q.y, 340, { tone: 'gold' }); this.shock(q.x, q.y, 440, { tone: 'gold', delay: 90 });
     this.sparks(q.x, q.y - 80, 16, 160, { tone: 'gold', depth: q.y + 4 });
     if (r.own) this.ctx.cam().shake(160, 0.004);

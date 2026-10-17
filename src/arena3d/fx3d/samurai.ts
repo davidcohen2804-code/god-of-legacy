@@ -90,7 +90,7 @@ export const SAMURAI: Record<string, Recipe> = {
   // the sun's shield held round him through the wind-up; the sun bursts: a column of gold, the light thrown out
   rising_sun: { own: true,
     cast: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, C.sun, { r: 130, ms: T(r).startup + 120, a: 0.32, hold: 1, follow: () => f.host.casterPos(r.attackerId) }); },
-    active: (f, r) => { const c = me(f, r); f.pillar(c.x, c.y, C.sun, { h: 640, r: 44, ms: 620, core: false, i: 1 }); f.dome(c.x, c.y, C.sun, { r: 200, ms: 420, a: 0.35 }); f.host.impact({ x: c.x, y: c.y, z: 80 }, 1); } },
+    active: (f, r) => { const c = me(f, r); f.pillar(c.x, c.y, C.sun, { h: 600, r: 26, ms: 600, core: false, i: 0.6 }); f.dome(c.x, c.y, C.sun, { r: 170, ms: 420, a: 0.2 }); f.host.impact({ x: c.x, y: c.y, z: 80 }, 1); } }, // (soft: the burst whited both out)
   // the phantoms' cuts crimson and small; the last one a cross of crimson on the foe
   phantom_blades: { own: true,
     hit: (f, _s, _h, at, main) => {
