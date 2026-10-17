@@ -483,9 +483,9 @@ const archer: FinalSkill[] = [
   // ---- 3rd job (Ranger)
   S({
     id: 'skyhunters_step', cls: 'archer', arenaDmg: 0.85, slot: 6, name: 'Air Volley', roles: ['signature', 'mobility', 'chase'], targeting: 'mouseDir',
-    startup: 260, active: 1150, recovery: 300, cooldown: 16000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    startup: 320, active: 1500, recovery: 340, cooldown: 16000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 320, lift: 170 },
-    hits: [120, 340, 560, 780, 1000].map((t, i) => H(t, [8, 8, 9, 9, 10][i], { kind: 'projectile', speed: 760, range: 420, radius: 9, rows: 3, rowGap: 52, antiAir: true }, { stun: 300, float: true, juggleCost: 12 }, { mark: i === 4 ? 1 : 0 })),
+    hits: [160, 445, 730, 1015, 1300].map((t, i) => H(t, [8, 8, 9, 9, 10][i], { kind: 'projectile', speed: 760, range: 420, radius: 9, rows: 3, rowGap: 52, antiAir: true }, { stun: 300, float: true, juggleCost: 12 }, { mark: i === 4 ? 1 : 0 })),
     cancelOnHit: ['sky_rain'], tags: ['signature'], telegraph: 'trajectory',
     description: 'Acrobatic leap in the facing direction while firing five shots from the air — keeps a launched foe up.',
     relations: ['Signature', 'Air combo'],
@@ -563,12 +563,12 @@ const archer: FinalSkill[] = [
   }),
   S({
     id: 'arrow_storm', cls: 'archer', arenaDmg: 0.75, slot: 17, name: "Hunter's Rain", roles: ['zone', 'extender'], targeting: 'mouseGround',
-    startup: 550, active: 3000, recovery: 300, cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 550],
+    startup: 550, active: 5000, recovery: 300, cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 550],
     placeRange: 420, // a zone that holds a foe far from her
-    hits: Array.from({ length: 15 }, (_, i) => i === 14 ? H(i * 200, 12, { kind: 'placed', radius: 115 }, { stun: 360, launch: 120, juggleCost: 20, slow: { pct: 30, ms: 500 } }, { reachUp: 180, heavy: true, mark: 1 }) // the last volley throws him up
+    hits: Array.from({ length: 25 }, (_, i) => i === 24 ? H(i * 200, 12, { kind: 'placed', radius: 115 }, { stun: 360, launch: 120, juggleCost: 20, slow: { pct: 30, ms: 500 } }, { reachUp: 180, heavy: true, mark: 1 }) // the last volley throws him up
       : H(i * 200, i % 5 === 4 ? 10 : 7, { kind: 'placed', radius: 115 }, { stun: i % 5 === 4 ? 320 : 240, float: true, juggleCost: 4, slow: { pct: 30, ms: 500 } }, { reachUp: 180, ...(i % 5 === 4 ? { mark: 1 } : {}) })), // (every 5th volley hits harder and marks him: the rain has a beat — cut it short and the marks and the throw are lost)
     cancelOnHit: ['quick_shot', 'sky_rain'],
-    description: 'Fire dozens of arrows into the sky: for 3s they rain down on a marked spot on the floor, and the direction you hold steers the mark anywhere around you while you stand your ground. The rain has a beat — every 5th volley is a great arrow that marks the foe, and the last one throws him up (cut it short and the beat is lost).',
+    description: 'Fire dozens of arrows into the sky: for 5s they rain down on a marked spot on the floor (its key again ends the rain), and the direction you hold steers the mark anywhere around you while you stand your ground. The rain has a beat — every 5th volley is a great arrow that marks the foe, and the last one throws him up (cut it short and the beat is lost).',
     relations: ['Rooted', 'Steer the rain'],
   }),
   S({
@@ -801,7 +801,7 @@ const gambler: FinalSkill[] = [
   S({
     id: 'charged_deal', cls: 'gambler', slot: 1, name: 'Charged Deal', roles: ['opener', 'projectile'], targeting: 'mouseCone',
     startup: 520, active: 120, recovery: 200, cooldown: 2600, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK, // (startup = the longest hold: a tap still throws at 120 ms)
-    hits: [H(0, 12, { kind: 'projectile', speed: 720, range: 560, radius: 13, count: 3, spread: 7, rows: 3, rowGap: 22 }, { stun: 300, push: 6 }, { reachUp: 90, stick: 1 })],
+    hits: [H(0, 12, { kind: 'projectile', speed: 540, range: 560, radius: 13, count: 3, spread: 7, rows: 3, rowGap: 22 }, { stun: 300, push: 6 }, { reachUp: 90, stick: 1 })], // (David 18 Oct 01:42: "fast" — the cards fly 540 px/s, were 720)
     charge: { minMs: 120, levels: [
       { at: 0, hits: [H(0, 12, { kind: 'projectile', speed: 720, range: 560, radius: 13, count: 3, spread: 7, rows: 3, rowGap: 22 }, { stun: 300, push: 6 }, { reachUp: 90, stick: 1 })] },
       { at: 520, hits: [H(0, 12, { kind: 'projectile', speed: 760, range: 600, radius: 13, count: 5, spread: 6, rows: 3, rowGap: 22 }, { stun: 320, push: 8 }, { reachUp: 90, stick: 3 })] }, // (the max bet: a fan counts once on a foe — the full hold sticks three)
@@ -968,7 +968,7 @@ const gambler: FinalSkill[] = [
     // press and sets the hold's turns: 2 + one per card, at most 15 — they fuse into one big card thrown like a saw blade)
     hits: [H(0, 10, { kind: 'projectile', speed: 950, range: 640, radius: 18, antiAir: true, pierce: true }, { stun: 420, launch: 110, juggleCost: 14 }, { heavy: true })],
     // the big card dives under the first foe it cut and keeps spinning there, following him, holding him up; then back to the hand
-    linger: { at: 'target', startMs: 160, everyMs: 120, count: 2, radius: 60, maxZ: 400,
+    linger: { at: 'target', startMs: 160, everyMs: 300, count: 10, radius: 60, maxZ: 400, // (David 18 Oct 01:42: the card spins under him at least 3 s, juggling him on it)
       hit: H(0, 3, { kind: 'circle', radius: 60 }, { stun: 300, float: true, juggleCost: 3 }),
       last: H(0, 8, { kind: 'circle', radius: 60 }, { stun: 420, launch: 70, juggleCost: 10 }, { heavy: true }) },
     cancelOnHit: [], telegraph: 'line',

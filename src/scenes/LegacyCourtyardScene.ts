@@ -2780,6 +2780,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.dash && b.hard.active(now)) return false; // rooted: no dashes
     if (this.mode === 'takeoff' && this.modeT < PHYS.takeoffMs) return false;
     const run = this.rt.ownRun;
+    if (run && run.skill.id === 'arrow_storm' && s.id === 'arrow_storm' && run.phase === 'active' && run.elapsed >= run.timings.startup + 250) { // Hunter's Rain: its key again ends the rain (David 18 Oct 01:33)
+      this.rt.cancelForFollowUp(run); this.endRun(run, false); this.pvp?.sendRelease({ castId: run.castId, at: -4, ax: 0, ay: 0 }); return true;
+    }
     if (run && !this.cancelAllowed(run, s)) return false;
     if (this.rt.cooldownRemaining(s.id) > 0) return false;
     if (!MP_FREE && !this.arena && this.localId === 'local') { /* (the arena: no MP at all) */ const c = mpCost(s), chainNext = run && run.skill.id === s.id; // MP: a chain's later strikes are paid with its first
@@ -4127,6 +4130,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const r = this.rt?.runs.find((x) => x.castId === m.castId && x.attackerId === from);
         if (r && m.at === -3 && (r.skill.id === 'dice_bomb' || r.skill.id === 'roulette_wheel')) { this.doubleOrNothing(r, false); return; } // the gambler threw again
         if (r && r.skill.id === 'arrow_storm' && m.at === -2) { r.place = { x: m.ax, y: m.ay }; return; } // Hunter's Rain: the caster moved the mark
+        if (r && r.skill.id === 'arrow_storm' && m.at === -4) { r.phase = 'done'; return; } // Hunter's Rain: the caster ended it
         if (r && AIM_STEER.has(r.skill.id) && m.at === -1) { r.aim = sideAim(m.ax / 1000, m.ay / 1000, m.ax < 0 ? -1 : 1); return; } // Volley Stance / Spirit Bow / Eagle Tide: the caster turned the aim
         if (r && r.phase === 'startup') { r.aim = clampAim(unit(m.ax, m.ay)); r.timings.startup = Math.max(r.elapsed, m.at); }
         this.pvp?.remotes.get(from)?.setSkillStartup(r?.skill.id ?? '', r ? r.timings.startup : m.at);

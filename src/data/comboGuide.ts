@@ -135,7 +135,7 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
       tip: 'From afar a plain arrow is only a poke: lash him in, bind him in the leaves, burn the mark' },
     { name: 'PITFALL', tier: 'EXPERT', style: 'TRAPPER', range: 'CLOSE', hits: 5, steps: [{ id: 'rising_arrow' }, { id: 'vine_trap' }, { id: 'hunters_spirit' }, { id: 'explosive_arrow' }],
       tip: 'Throw him up and lay the mine where he falls — it holds him as he lands; then lash and burn' },
-    { name: 'DOWNPOUR', tier: 'BEGINNER', style: 'TRAPPER', range: 'CLOSE', hits: 14, steps: [{ id: 'rising_arrow' }, { id: 'arrow_storm' }, { id: 'explosive_arrow' }],
+    { name: 'DOWNPOUR', tier: 'BEGINNER', style: 'TRAPPER', range: 'CLOSE', hits: 21, steps: [{ id: 'rising_arrow' }, { id: 'arrow_storm' }, { id: 'explosive_arrow' }],
       tip: 'Open the rain where he hangs and let it pour out: every 5th volley marks him and the last throws him up — burn the marks with the Fireball' },
     { name: 'THUNDERHEAD', tier: 'MID', style: 'TRAPPER', range: 'CLOSE', hits: 9, steps: [{ id: 'rising_arrow' }, { id: 'rain_of_arrows' }, { id: 'eagle_arrow' }],
       tip: 'Hang in the storm: its three bolts strike him high, and as he lands the floor they charged throws him back up — the eagles take him there' },

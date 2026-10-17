@@ -16,6 +16,11 @@ Values apply to the whole game (only damage may differ in PvP: arenaDmg / the ar
 - **Book Mage — Binding Rune** ("bind him at least 3 s"): the rune's hold 0.5 s → 3 s (a binding hold: whole, once).
 - **Book Mage — Astral Lift** ("the tube of light lowers him slowly"): after his top he sinks at 0.2× gravity until 1.8 s from the hit (`slowFall`; Combat `SLOW_FALL_G`).
 - All 9 Book Mage trials replayed: all clear.
+- **Archer — Air Volley** (01:33: "she does it too fast"): ~1.3× slower — startup 320 (260), the leap 1.5 s (1.15), the shots at 160 / 445 / 730 / 1015 / 1300.
+- **Archer — Hunter's Rain** ("more time; pressing it again cancels it"): 3 s → 5 s (25 volleys, every 5th a great arrow, the last throws him up); its key again (from 250 ms into the rain) ends it on every screen (`sendRelease` at -4).
+- **Gambler — Charged Deal** (01:42: "fast"): the cards fly 540 px/s (720).
+- **Gambler — Call the Deck** ("the card spins under him at least 3 s"): its hold under the foe — a turn every 300 ms (120), ten turns (2; +1 a gathered card), holding him up; the last throws him.
+- All 12 Archer and all 11 Gambler trials replayed: all clear (DOWNPOUR's guide count 14 → 21 hits with the longer rain).
 
 ## 2026-10-17 — The main blow sends him away (David 21:45: "the foe flies back clearly; the small hits stay small") (engine)
 - One rule for every class, in and out of the arena (Combat `THROWN`); no skill's own numbers changed.
