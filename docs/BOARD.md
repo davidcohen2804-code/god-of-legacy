@@ -83,6 +83,16 @@ David's notes, key by key (his words in quotes). GPT / PixVerse are connected (n
 - **X Hunter's Rain** — "give it more time to work, and pressing it again cancels the skill." *DFO: 3 s → 5 s (25 volleys, every 5th a great arrow, the last throws him up), and its key again ends the rain, on every screen — landing with DFO's next push.*
 - **B Backstep Shot** — "no character, not interesting — update it significantly." → a stronger idea: post it in one line; DFO sets its numbers.
 
+### DAVID (18 Oct 01:42) — the Gambler, after playing every skill (**Gambler chat: all of this**; DFO does the numbers marked DFO)
+David's notes, key by key (his words in quotes). GPT / PixVerse are connected (never press a download button). One commit a skill, filmed in PVP 3D.
+- **1 Charged Deal** — "terrible: it doesn't look good, isn't felt, unprofessional, fast." → redo its look so the throw and the cards land with weight. *DFO: the cards fly 540 px/s (were 720) — landing with DFO's next push.*
+- **G Kinetic Grab** — David: "instead, light in the staff: as if his fighting staff grows — a thin purple light, significantly longer than his staff." → replace it with that: the staff lengthened by a thin violet blade of light (a buff for a while: longer reach). Post the shape; DFO sets the numbers (how long, how much reach).
+- **V All In** — "unclear what it does." David: "make it a defence: while the key is held he enters a long guard, and whoever attacks him is stunned." → a held guard that stuns the attacker. Post the shape; DFO sets the numbers and re-routes the trials that detonate with All In (SNAP, ACEHIGH, JACKPOT, COLLAR, HIGHROLLER, RECALL, LOADED) — the card detonation moves to whatever you keep for it (say where).
+- **T 52 Pickup** — "the final after-effect is weak and not felt on screen; it looks disconnected."
+- **H Grand Slam** — "now he only pulls out the staff." → the motion of a golfer's full swing that sends the foe flying (the foe already flies far: DFO's throw).
+- **Z Triple Down** — David: "replace it with a skill that works only after G: a flurry of staff blows for about 3 s, at a very cool level." → a 3 s staff flurry, usable only while G's light staff is on. Post the shape; DFO sets the numbers and the gate.
+- **B Call the Deck** — "the card stuck on the foe must keep spinning at least 3 s under him; he rides the card in the air, taking hits — one or several foes (monsters / PvP)." *DFO: the card spins under him 3 s — a turn every 300 ms, ten turns, holding him up (each card it gathered adds one); the last throws him — landing with DFO's next push.* Gambler: the card spinning under him, him riding it. (Several monsters at once: next, in the engine.)
+
 ### Everyone first
 - [x] Movements: `docs/ART_STYLE.md` written (look, per-hero refs, palette, lighting, camera, frame sizes, GPT / PixVerse recipes, effects rules, the pipeline in `tools/heroes/pipeline/`).
 
