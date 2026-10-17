@@ -311,7 +311,7 @@ const mage: FinalSkill[] = [
     startup: 320, active: 1500, recovery: 300, cooldown: 16000, ground: true, air: true, cover: 'ARCS_OVER_LOW_COVER', move: { startup: 0, active: 1, recovery: 0 },
     placeRange: 320,
     hits: [0, 480, 960, 1440].map((t, i) => H(t, 10, { kind: 'placed', radius: 130 },
-      i === 3 ? { stun: 280, launch: 105, slow: { pct: 0.2, ms: 600 }, juggleCost: 30 } : { stun: 540, pull: 10, slow: { pct: 0.2, ms: 600 }, juggleCost: 6 }, { reachUp: 160, heavy: i === 3, el: STORM })),
+      i === 3 ? { stun: 280, launch: 105, slow: { pct: 0.2, ms: 600 }, juggleCost: 30 } : { stun: 540, pull: 10, slow: { pct: 0.2, ms: 600 }, juggleCost: 6 }, { reachUp: 240, heavy: i === 3, el: STORM })), // (its bolts fall out of the sky: a foe held up in the field is struck too)
     zoneMs: 1500, cancelOnHit: ['time_collapse', 'astral_burst', 'lightning_chain'], tags: ['signature'], telegraph: 'ground',
     description: 'A storm field where you aim: four pulses slow and draw foes toward its centre, the last one throws them up. It conducts through the chilled. You are free to move while it rages.',
     relations: ['Signature', 'Zone'],
@@ -321,9 +321,9 @@ const mage: FinalSkill[] = [
     startup: 900, active: 1300, recovery: 480, cooldown: 36000, ground: true, air: true, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
     placeRange: 300,
     hits: [
-      H(0, 0, { kind: 'placed', radius: 175 }, { pull: 40 }),
-      H(260, 6, { kind: 'placed', radius: 165 }, { pull: 30, hardCC: { kind: 'freeze', ms: 1000, long: true } }),
-      H(1250, 60, { kind: 'placed', radius: 170 }, { stun: 420, knockdown: 'heavy' }, { reachUp: 200, heavy: true }),
+      H(0, 0, { kind: 'placed', radius: 175 }, { pull: 40 }, { reachUp: 360 }), // (the clock stands over the whole area: it takes a foe juggled high too)
+      H(260, 6, { kind: 'placed', radius: 165 }, { pull: 30, hardCC: { kind: 'freeze', ms: 1000, long: true } }, { reachUp: 360 }),
+      H(1250, 60, { kind: 'placed', radius: 170 }, { stun: 420, knockdown: 'heavy' }, { reachUp: 360, heavy: true }),
     ],
     endsCombo: true, tags: ['ultimate'], telegraph: 'ground',
     description: 'A giant clock opens over the area and draws foes in, its hands stop and every foe in it is frozen in time — then the clock cracks and collapses in a blast that SHATTERS them. Every rune of your Spell Weave adds 10%. Ends the combo.',
@@ -606,7 +606,7 @@ const samurai: FinalSkill[] = [
     id: 'shadow_step', cls: 'samurai', slot: 1, name: 'Shadow Step', roles: ['opener', 'chase', 'gapClose'], targeting: 'mouseDir',
     startup: 100, active: 150, recovery: 150, cooldown: 3500, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     dash: { distance: 200 }, through: true, charges: 2, chargeGap: 200, // (the opener: through a foe at the distance fights open at, ~177 px)
-    hits: [H(0, 22, { kind: 'capsule', radius: 28 }, { stun: 300, push: 8 }, { reachUp: 200 })], // (the cut as he passes through; then Quick Slash / Swallow Cut / Iai, turned back toward him)
+    hits: [H(0, 22, { kind: 'capsule', radius: 28 }, { stun: 300, push: 8 }, { reachUp: 120 })], // (a level cut at chest height: it takes a foe lifted a little, not one two heights up) (the cut as he passes through; then Quick Slash / Swallow Cut / Iai, turned back toward him)
     cancelOnHit: ['quick_slash', 'swallow_cut', 'iai_strike', 'sheathe', 'blossom_storm', 'dragon_eclipse'], telegraph: 'line',
     description: 'Step through the foe in a blink, cutting as you pass, and land behind it facing it — your opener from the distance fights start at. Two steps in a row, then the cooldown.',
     relations: ['Opener: through the foe', 'Cancel → Quick Slash · Swallow · Iai'],
@@ -625,11 +625,11 @@ const samurai: FinalSkill[] = [
     id: 'iai_strike', cls: 'samurai', slot: 3, name: 'Iai Strike', roles: ['precision', 'finisher'], targeting: 'mouseLine',
     startup: 900, active: 80, recovery: 260, cooldown: 5500, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     // hold the key: the drawing stance charges (startup = how long it was held, 130..900 ms); the level picks the cut
-    hits: [H(0, 30, { kind: 'line', length: 200, width: 36 }, { stun: 380, push: 12 }, { reachUp: 200, heavy: true })],
+    hits: [H(0, 30, { kind: 'line', length: 200, width: 36 }, { stun: 380, push: 12 }, { reachUp: 120, heavy: true })],
     charge: { minMs: 130, levels: [
-      { at: 0, hits: [H(0, 30, { kind: 'line', length: 200, width: 36 }, { stun: 380, push: 12 }, { reachUp: 200, heavy: true })] }, // (the draw from afar: his opener)
-      { at: 340, hits: [H(0, 44, { kind: 'line', length: 230, width: 40 }, { stun: 420, knockdown: 'light', push: 14 }, { reachUp: 210, heavy: true })] },
-      { at: 680, hits: [H(0, 64, { kind: 'line', length: 320, width: 48 }, { stun: 460, knockdown: 'heavy', push: 18 }, { reachUp: 220, heavy: true })] },
+      { at: 0, hits: [H(0, 30, { kind: 'line', length: 200, width: 36 }, { stun: 380, push: 12 }, { reachUp: 120, heavy: true })] }, // (the draw from afar: his opener)
+      { at: 340, hits: [H(0, 44, { kind: 'line', length: 230, width: 40 }, { stun: 420, knockdown: 'light', push: 14 }, { reachUp: 130, heavy: true })] },
+      { at: 680, hits: [H(0, 64, { kind: 'line', length: 320, width: 48 }, { stun: 460, knockdown: 'heavy', push: 18 }, { reachUp: 140, heavy: true })] },
     ] },
     cancelOnHit: ['shadow_step', 'sword_wave', 'blossom_storm', 'dragon_eclipse'], // (its reach is drawn by its own charge picture, SkillFx.iai; the draw from afar → Shadow Step through him)
     description: 'Hold the key: your hand on the sheath, a glint grows in three steps. Release: a lightning draw-cut along a line — the longer you held, the farther and harder it cuts; fully charged, every foe in the line crumples to the floor.',
@@ -734,8 +734,8 @@ const samurai: FinalSkill[] = [
   S({
     id: 'phantom_blades', cls: 'samurai', slot: 14, name: 'Phantom Blades', roles: ['zone'], targeting: 'mouseCone',
     startup: 420, active: 640, recovery: 340, cooldown: 18000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 420],
-    hits: [...[0, 80, 160, 240, 320, 400, 480].map((t) => H(t, 7, { kind: 'circle', radius: 140, at: 'aimBias', bias: 150 }, { stun: 400, float: true, juggleCost: 3 }, { reachUp: 280 })),
-      H(600, 22, { kind: 'circle', radius: 146, at: 'aimBias', bias: 150 }, { stun: 420, float: true, juggleCost: 4 }, { reachUp: 280, heavy: true })], // (a zone: no lift at the end — not a combo's finisher)
+    hits: [...[0, 80, 160, 240, 320, 400, 480].map((t) => H(t, 7, { kind: 'circle', radius: 140, at: 'aimBias', bias: 150 }, { stun: 400, float: true, juggleCost: 3 }, { reachUp: 160 })),
+      H(600, 22, { kind: 'circle', radius: 146, at: 'aimBias', bias: 150 }, { stun: 420, float: true, juggleCost: 4 }, { reachUp: 160, heavy: true })], // (a zone: no lift at the end — not a combo's finisher)
     cancelOnHit: ['blossom_storm', 'dragon_eclipse'], telegraph: 'circle',
     description: 'Draw once, and phantom blades fill the field in front of you: eight cuts on every foe who stands in it — ground to hold, not a finisher.',
     relations: ['Zone', 'Cancel → Blossom Storm'],

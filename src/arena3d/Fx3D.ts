@@ -607,7 +607,7 @@ export class Fx3D {
   /** A card thrown from `from` (world px; z = its height) to the floor point `to`, where it lies — flat, face down, or
    *  `stuck` at a slant in the planks — with a soft shadow under it, lit by the room; a faint glint now and then says it
    *  can be taken back. It lies `life` ms (default 12000), then crumbles. `key`: its name, to gather / drop it later. */
-  cardLay(key: string, from: V3, to: { x: number; y: number }, o: { ms?: number; stuck?: boolean; life?: number; delay?: number } = {}): void { this.cards.lay(key, from, to, o); }
+  cardLay(key: string, from: V3, to: { x: number; y: number }, o: { ms?: number; stuck?: boolean; life?: number; delay?: number; look?: CardLook } = {}): void { this.cards.lay(key, from, to, o); }
   /** The cards named rise off the floor and fly back to `to()` (his hand: world px), spinning, one after another
    *  (`gap` ms apart, nearest first), each in `ms`; gone into the hand with a glint. `done(n)`: called as each arrives. */
   cardGather(keys: string[], to: () => V3 | null, o: { ms?: number; gap?: number; done?: (n: number) => void } = {}): void { this.cards.gather(keys, to, o); }
@@ -620,7 +620,7 @@ export class Fx3D {
   /** A big card spinning flat like a saw blade, held at `at()` (world px, z = its height) until that returns null, then it
    *  flares out: the thrown card riding its shot, the card spinning under a held foe. `size`: × a card (default 2.4);
    *  `color`: its glow; `tilt` (rad, default 0.6): tipped toward the camera so its face reads; `rps` (default 5) its turns a second — faster blurs it into a disc. Half in front of the fighters, half behind. */
-  cardSpin(at: () => V3 | null, o: { size?: number; color?: number; tilt?: number; rps?: number } = {}): void { this.cards.spin(at, o); }
+  cardSpin(at: () => V3 | null, o: { size?: number; color?: number; tilt?: number; rps?: number; look?: CardLook } = {}): void { this.cards.spin(at, o); }
 
   /** A turn of a hold that follows its foe (`linger.at: 'target'`): the skill's recipe draws it (`tick`). */
   tick(r: CastRun, at: V3, i: number, last: boolean): void { this.recipe(r.skill).tick?.(this, r, at, i, last); }
@@ -853,13 +853,19 @@ class Crystals {
 
 // ------------------------------------------------------------------ cards in the room
 
+/** What a piece of the deck looks like: by default the Gambler's card (his painted back on top, a painted face below,
+ *  gilt edges). Any other picture lies, flies back and spins the same way: `tex` (the game's texture key, both sides
+ *  unless `face`), `size` (× a card, 24 px wide), `aspect` (length / width, card 1.37), `edge` (the rim's colour; the card's
+ *  gilt by default) — the samurai's fallen petals, the mage's torn pages. */
+export interface CardLook { tex?: string; face?: string; size?: number; aspect?: number; edge?: number }
+
 /** One card: its place (units: x across, y up, z depth), its turn, and what it is doing. */
 interface Card3 {
   key: string; mode: 'fly' | 'lie' | 'rise' | 'home' | 'crumble';
   x: number; y: number; z: number; yaw: number; roll: number; pitch: number;
   ax: number; ay: number; az: number; bx: number; bz: number;
   t: number; ms: number; delay: number; spin: number; stuck: number; life: number; hop: number; glint: number;
-  to?: () => V3 | null; done?: () => void; layer: 0 | 1;
+  to?: () => V3 | null; done?: () => void; layer: 0 | 1; sw: number; sl: number;
   mesh: THREE.Mesh; shadow: THREE.Mesh; mats: THREE.MeshStandardMaterial[];
 }
 /** The big spinning card. */
@@ -892,25 +898,26 @@ class Deck3 {
   }
   private tex(key: string): THREE.Texture | null { return this.h.texture?.(key) ?? null; }
   /** A card's three materials: the painted back (top), a painted face (bottom), the gilt edge. */
-  private materials(): THREE.MeshStandardMaterial[] {
-    const back = this.tex('gbk-card_back') ?? this.tex('gb-back'), face = this.tex(Math.random() < 0.5 ? 'gbk-card_S' : 'gbk-card_H') ?? this.tex('gb-face');
+  private materials(look?: CardLook): THREE.MeshStandardMaterial[] {
+    const back = look?.tex ? this.tex(look.tex) : this.tex('gbk-card_back') ?? this.tex('gb-back');
+    const face = look?.tex ? this.tex(look.face ?? look.tex) : this.tex(Math.random() < 0.5 ? 'gbk-card_S' : 'gbk-card_H') ?? this.tex('gb-face');
     const m = (map: THREE.Texture | null, color: number) => new THREE.MeshStandardMaterial({ map, color: map ? 0xffffff : color, roughness: 0.42, metalness: 0.12, emissive: 0x2a0d3c, emissiveIntensity: 0.22, transparent: true, alphaTest: 0.35 });
-    const edge = new THREE.MeshStandardMaterial({ color: 0xe0b860, roughness: 0.3, metalness: 0.7, emissive: 0x5a3a08, emissiveIntensity: 0.3, transparent: true });
+    const edge = new THREE.MeshStandardMaterial({ color: look?.edge ?? 0xe0b860, roughness: 0.3, metalness: look?.tex ? 0 : 0.7, emissive: look?.tex ? 0x000000 : 0x5a3a08, emissiveIntensity: 0.3, transparent: true, opacity: look?.tex && look.edge === undefined ? 0 : 1 });
     return [m(back, 0x5a2a7a), m(face, 0xf2ead8), edge];
   }
-  private makeCard(key: string): Card3 {
-    const mats = this.materials();
+  private makeCard(key: string, look?: CardLook): Card3 {
+    const mats = this.materials(look), sw = this.W * (look?.size ?? 1), sl = sw * (look?.aspect ?? 1.37);
     // box faces: +x, -x, +y (top: the back), -y (bottom: the face), +z, -z
     const mesh = new THREE.Mesh(this.geo, [mats[2], mats[2], mats[0], mats[1], mats[2], mats[2]]);
-    mesh.scale.set(this.W, this.T, this.L); mesh.frustumCulled = false;
+    mesh.scale.set(sw, this.T, sl); mesh.frustumCulled = false;
     const shadow = new THREE.Mesh(this.shadowGeo, new THREE.MeshBasicMaterial({ map: this.shadowTex, transparent: true, depthWrite: false, opacity: 0 }));
-    shadow.scale.set(this.W * 1.7, 1, this.L * 1.5); shadow.frustumCulled = false; shadow.renderOrder = -1;
+    shadow.scale.set(sw * 1.7, 1, sl * 1.5); shadow.frustumCulled = false; shadow.renderOrder = -1;
     this.h.back.add(mesh); this.h.back.add(shadow);
-    return { key, mode: 'fly', x: 0, y: 0, z: 0, yaw: 0, roll: 0, pitch: 0, ax: 0, ay: 0, az: 0, bx: 0, bz: 0, t: 0, ms: 1, delay: 0, spin: 0, stuck: 0, life: 12000, hop: 0, glint: Math.random() * 4000, layer: 0, mesh, shadow, mats };
+    return { key, mode: 'fly', x: 0, y: 0, z: 0, yaw: 0, roll: 0, pitch: 0, ax: 0, ay: 0, az: 0, bx: 0, bz: 0, t: 0, ms: 1, delay: 0, spin: 0, stuck: 0, life: 12000, hop: 0, glint: Math.random() * 4000, layer: 0, sw, sl, mesh, shadow, mats };
   }
-  lay(key: string, from: V3, to: { x: number; y: number }, o: { ms?: number; stuck?: boolean; life?: number; delay?: number }): void {
+  lay(key: string, from: V3, to: { x: number; y: number }, o: { ms?: number; stuck?: boolean; life?: number; delay?: number; look?: CardLook }): void {
     this.drop(key);
-    const c = this.makeCard(key), h = this.h;
+    const c = this.makeCard(key, o.look), h = this.h;
     Object.assign(c, { mode: 'fly', ax: h.w3(from.x), ay: h.h3(from.z), az: h.d3(from.y), bx: h.w3(to.x), bz: h.d3(to.y), t: 0, ms: o.ms ?? 420, delay: o.delay ?? 0,
       spin: (Math.random() < 0.5 ? -1 : 1) * (9 + Math.random() * 7), stuck: o.stuck ? (0.5 + Math.random() * 0.5) * (Math.random() < 0.5 ? -1 : 1) : 0, life: o.life ?? 12000, yaw: Math.random() * Math.PI * 2 });
     c.x = c.ax; c.y = c.ay; c.z = c.az; c.mesh.visible = c.delay <= 0;
@@ -934,8 +941,8 @@ class Deck3 {
   }
   drop(key: string): void { for (const c of this.all) if (c.key === key && c.mode !== 'crumble') { c.mode = 'crumble'; c.t = 0; c.ms = 420; c.delay = 0; } }
   keys(): string[] { return this.all.filter((c) => c.mode === 'lie').map((c) => c.key); }
-  spin(at: () => V3 | null, o: { size?: number; color?: number; tilt?: number; rps?: number }): void {
-    const size = o.size ?? 2.4, mats = this.materials(), color = o.color ?? 0xffd27a;
+  spin(at: () => V3 | null, o: { size?: number; color?: number; tilt?: number; rps?: number; look?: CardLook }): void {
+    const size = o.size ?? 2.4, mats = this.materials(o.look), color = o.color ?? 0xffd27a;
     for (const m of mats) { m.emissiveIntensity = 0.55; m.side = THREE.DoubleSide; }
     const planes: THREE.Plane[][] = [[new THREE.Plane()], [new THREE.Plane(), new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)]];
     const meshes = [0, 1].map((k) => {
@@ -953,7 +960,7 @@ class Deck3 {
     this.spins.push({ at, meshes, planes, mats: meshes.flatMap((m) => m.material as THREE.MeshStandardMaterial[]).filter((m, i, a) => a.indexOf(m) === i), glow, size, tilt: o.tilt ?? 0.6, rps: o.rps ?? 5, a: 0, out: -1, color, last: new THREE.Vector3(), t: 0 });
   }
   private place(c: Card3): void {
-    c.mesh.position.set(c.x, c.y + this.T / 2 + (c.stuck && c.mode === 'lie' ? Math.abs(Math.sin(c.stuck)) * this.L * 0.32 : 0), c.z);
+    c.mesh.position.set(c.x, c.y + this.T / 2 + (c.stuck && c.mode === 'lie' ? Math.abs(Math.sin(c.stuck)) * c.sl * 0.32 : 0), c.z);
     c.mesh.rotation.set(c.pitch, c.yaw, c.roll, 'YXZ');
     const up = Math.max(0, c.y), k = Math.max(0, 1 - up / 1.6);
     c.shadow.position.set(c.x, 0.004, c.z); c.shadow.rotation.y = c.yaw;
@@ -993,13 +1000,13 @@ class Deck3 {
         c.x = c.ax + (hx - c.ax) * q; c.y = c.ay + (hy - c.ay) * q + Math.sin(Math.PI * u) * 0.3; c.z = c.az + (hz - c.az) * q;
         c.yaw += c.spin * dt * (1 + u * 2); c.roll += c.spin * 0.4 * dt;
         this.layer(c, hz);
-        const k = 1 - u * 0.5; c.mesh.scale.set(this.W * k, this.T, this.L * k);
+        const k = 1 - u * 0.5; c.mesh.scale.set(c.sw * k, this.T, c.sl * k);
         for (const m of c.mats) m.emissiveIntensity = 0.3 + u * 1.4;
         if (u >= 1) { this.h.flare(hx, hy, hz + 0.1, 0xffd27a, 4, 2, 160); c.done?.(); c.mode = 'crumble'; c.t = c.ms = 1; c.mesh.visible = false; }
       } else if (c.mode === 'crumble') { // burns away from the edges: gold embers
         if (c.t <= ms && c.mesh.visible && c.ms > 1) this.h.embers(c.x, c.y + 0.03, c.z, 0xffb060, 4, 0.5);
         const k = 1 - u; for (const m of c.mats) { m.opacity = k; m.emissiveIntensity = 0.22 + (1 - k) * 1.5; }
-        c.mesh.scale.set(this.W * (0.6 + 0.4 * k), this.T, this.L * (0.6 + 0.4 * k));
+        c.mesh.scale.set(c.sw * (0.6 + 0.4 * k), this.T, c.sl * (0.6 + 0.4 * k));
       }
       this.place(c);
     }

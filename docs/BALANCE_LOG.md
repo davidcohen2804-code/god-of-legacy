@@ -4,6 +4,10 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-10-17 — Five reaches matched to their looks (the class chats' reviews of looks vs reach)
+- **Samurai** (level strokes at chest height reached a foe two heights up): Shadow Step 200 → 120; Iai Strike 200 / 210 / 220 → 120 / 130 / 140; Phantom Blades 280 → 160.
+- **Book Mage** (looks taller than their reach): Time Collapse 360 on all three hits (its pull and freeze had none: 80 — "every foe in it" — the clock stands over the whole area; the blast 200); Storm Field 160 → 240 (its bolts fall out of the sky onto a foe held up in it).
+
 ## 2026-10-17 — The lifting dashes land where their arc ends (feel)
 - A dash with a lift (the archer's Backstep Shot, Retreat Kick, Wind Step, Vine Mine's hop, Air Volley; the mage's Frost Nova) rose along its arc but was held at its top on the way down (~0.8 px a frame), so a back flip landed ~0.3 s late and floated after its move. Now it follows its arc down and lands as it ends (cast in the air: back to the height it left, then it falls on). Found by the archer combo pass; every archer and mage trial played again under it.
 
