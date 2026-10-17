@@ -213,10 +213,11 @@ export class SamuraiFx {
 
   /** A sword cut: grows along its arc with a short sweep, holds a moment, thins out. `w` = its drawn width. */
   private cut(name: string, w: number, angle: number, o: { x?: number; y?: number; depth?: number; follow?: () => Pt | null; dz?: number; flipX?: boolean; flipY?: boolean; h?: number;
-    grow?: number; hold?: number; fade?: number; glow?: number; delay?: number; sweep?: number; run?: CastRun } = {}): void {
+    grow?: number; hold?: number; fade?: number; glow?: number; delay?: number; sweep?: number; run?: CastRun; alpha?: number } = {}): void {
     const g = o.grow ?? 55, hd = o.hold ?? 35, f = o.fade ?? 150, life = g + hd + f, ug = g / life, uh = (g + hd) / life, sw = (o.sweep ?? 14) * (o.flipY ? -1 : 1) * (o.flipX ? -1 : 1);
+    const a0 = kf([0, 0.85], [ug, 1], [uh, 1], [1, 0, inQ]), al = o.alpha ?? 1;
     this.spr({ name, x: o.x, y: o.y, depth: o.depth ?? TOP + 3, follow: o.follow, dz: o.dz, w, h: o.h, angle, flipX: o.flipX, flipY: o.flipY, delay: o.delay, life, glow: o.glow ?? 0.55, run: o.run,
-      sx: kf([0, 0.3], [ug, 1, out3], [1, 1.06]), sy: kf([0, 0.7], [ug, 1, out], [uh, 1], [1, 0.2, inQ]), a: kf([0, 0.85], [ug, 1], [uh, 1], [1, 0, inQ]), rot: kf([0, -sw], [ug, 0, out]) });
+      sx: kf([0, 0.3], [ug, 1, out3], [1, 1.06]), sy: kf([0, 0.7], [ug, 1, out], [uh, 1], [1, 0.2, inQ]), a: al === 1 ? a0 : (u: number) => a0(u) * al, rot: kf([0, -sw], [ug, 0, out]) });
   }
 
   /** A burst / spark: pops out, spreads a little, fades. */
@@ -624,8 +625,10 @@ export class SamuraiFx {
         sx: kf([0, 0.2], [0.14, 1, out3]), sy: kf([0, 1.3], [1, 0.3, inQ]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
       this.pop('ink_spatter', x + side * 34, y, 110, { depth: TOP + 3.9, life: 420, glow: 0, angle: side > 0 ? rnd(-15, 15) : 180 + rnd(-15, 15) });
     } else if (line) {
-      const name = tn(crit || (heavy && !rapid) ? 'slash_hit_heavy' : line.double ? 'slash_hit_double' : 'slash_hit', tone);
-      const w = crit ? (rapid ? 170 : 230) : heavy && !rapid ? 196 : rapid ? 112 : line.double ? 160 : 150, life = crit ? 320 : heavy ? 280 : rapid ? 170 : 220;
+      const bs = s.id === 'quick_slash' ? 0.8 : 1; // (the basic's marks a size down: it plays all fight long)
+      // (the basic's rising cut, the one that lifts the foe: its mark opens in crimson — steel all chain long, then red)
+      const name = tn(crit || (heavy && !rapid) ? 'slash_hit_heavy' : line.double ? 'slash_hit_double' : 'slash_hit', bs < 1 && flies ? undefined : tone);
+      const w = bs * (crit ? (rapid ? 170 : 230) : heavy && !rapid ? 196 : rapid ? 112 : line.double ? 160 : 150), life = crit ? 320 : heavy ? 280 : rapid ? 170 : 220;
       this.spr({ name, x, y, depth: TOP + 4, w, life, angle: ang - SLASH_TILT, glow: crit ? 0.45 : heavy ? 0.35 : 0.2,
         sx: kf([0, 0.5], [0.16, 1.06, out3], [1, 1.14]), sy: kf([0, 0.5], [0.16, 1.06, out3], [1, 1.14]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
       if (crit) this.pop(tn('burst_crit', tone), x, y, rapid ? 100 : 130, { life: 260, depth: TOP + 3.6, glow: 0.3 });
@@ -639,9 +642,9 @@ export class SamuraiFx {
     if (crit) { if (tone === 'sakura') this.petals(x, y, 5, 56, { depth: TOP + 3 }); else this.sparks(x, y, 5, 56, { tone, depth: TOP + 3 }); }
     const up = reaction === 'launch' || reaction === 'float', thrown = up || reaction === 'knockdown' || heavy || (hit.reaction.push ?? 0) >= 14;
     if (thrown && (!rapid || hit.heavy) && reaction !== 'cc') // sparks sprayed the way the foe is thrown (up when it is lifted)
-      this.spr({ name: tn('spark_spray', tone), x: x - side * 8, y, ox: side > 0 ? 0.05 : 0.95, oy: 0.45, flipX: side < 0, depth: TOP + 3.8, w: heavy ? 168 : 126, life: 260,
+      this.spr({ name: tn('spark_spray', s.id === 'quick_slash' ? undefined : tone), x: x - side * 8, y, ox: side > 0 ? 0.05 : 0.95, oy: 0.45, flipX: side < 0, depth: TOP + 3.8, w: (heavy ? 168 : 126) * (s.id === 'quick_slash' ? 0.7 : 1), life: 260,
         angle: up ? -side * 50 : side * rnd(-6, 10), sx: kf([0, 0.4], [0.25, 1, out3], [1, 1.12]), sy: kf([0, 0.6], [0.25, 1, out3]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
-    if (reaction === 'launch') this.launchBeam(at.x, at.y, 110, tone === 'gold' || tone === 'fire' ? tone : undefined);
+    if (reaction === 'launch') this.launchBeam(at.x, at.y, s.id === 'quick_slash' ? 88 : 110, tone === 'gold' || tone === 'fire' ? tone : undefined);
     if (reaction === 'knockdown' || reaction === 'slam') { this.crack(at.x, at.y + 2, 120); this.dust(at.x, at.y, 120); }
     if (s.id === 'sakura_bind' && reaction === 'cc') { const hold = hit.reaction.hardCC?.ms ?? 2000; this.cage(at.x, at.y, hold); this.bindMark(at.x, at.y, hold); }
     if (DELAYED.has(s.id) && (s.id !== 'dragon_eclipse' || hit.heavy)) { // the cut arrives late: a thin line stays on the foe a beat — then splits open
@@ -743,13 +746,15 @@ export class SamuraiFx {
   /** Quick Slash: the bare blade — thin crescents of cold steel light, the fourth rising. */
   private quickSlash(r: CastRun, i: number): void {
     const st = r.stage ?? 0, side = sideOf(r), fl = side < 0, S = (n: string) => tn(n, 'steel');
-    if (st === 0) this.cut(S('cut_thin'), 128, side * 14, { follow: this.front(r, 46, 54), flipX: fl });
-    else if (st === 1) this.cut(S('cut_thin'), 128, -side * 12, { follow: this.front(r, 46, 50), flipX: fl, flipY: true });
+    // (the basic plays all fight long: its cuts a size under the skills' and only lightly lit, so his body move and the foe
+    // read through them — quality pass, PVP 3D)
+    if (st === 0) this.cut(S('cut_thin'), 98, side * 14, { follow: this.front(r, 44, 54), flipX: fl, glow: 0.2, alpha: 0.75 });
+    else if (st === 1) this.cut(S('cut_thin'), 98, -side * 12, { follow: this.front(r, 44, 50), flipX: fl, flipY: true, glow: 0.2, alpha: 0.75 });
     else if (st === 2) {
-      this.cut(S('cut_thin'), 138, side * (i === 0 ? 36 : -36), { follow: this.front(r, 50, 56), flipX: fl, flipY: i === 1 });
-      if (i === 1) { const p = this.front(r, 52, 56)(); if (p) this.pop(S('spark_s'), p.x, p.y, 74, { depth: p.d + 5 }); }
+      this.cut(S('cut_thin'), 106, side * (i === 0 ? 36 : -36), { follow: this.front(r, 48, 56), flipX: fl, flipY: i === 1, glow: 0.2, alpha: 0.75 });
+      if (i === 1) { const p = this.front(r, 52, 56)(); if (p) this.pop(S('spark_s'), p.x, p.y, 60, { depth: p.d + 5, glow: 0.3 }); }
     } else {
-      this.cut(S('cut_rise'), 152, 0, { follow: this.front(r, 42, 86), flipX: fl, grow: 70, hold: 50, fade: 190, glow: 0.7 });
+      this.cut(S('cut_rise'), 128, 0, { follow: this.front(r, 42, 84), flipX: fl, grow: 70, hold: 50, fade: 190, glow: 0.35, alpha: 0.9 });
       const p = this.front(r, 44, 96)(); if (p) this.sparks(p.x, p.y, 7, 60, { tone: 'steel', depth: p.d + 4, up: 30 });
     }
   }

@@ -19,10 +19,11 @@ export const SAMURAI: Record<string, Recipe> = {
   quick_slash: { own: true,
     active: (f, r) => {
       const st = r.stage % 4, big = st === 3;
-      f.slash(me(f, r), side(r), C.steel, { r: big ? 135 : 120, tilt: [24, 64, 14, 84][st], a0: [-70, 170, -130, 165][st], a1: [120, -10, 120, 10][st], ms: big ? 260 : 190, i: big ? 1.8 : 1.4 });
-      if (st === 2) f.later(60, () => f.slash(me(f, r), side(r), C.steel, { r: 115, tilt: 72, a0: 160, a1: -20, ms: 190, i: 1.3 }));
+      // (the basic plays all fight long: a thin steel arc a size under the skills', never white over the fighters)
+      f.slash(me(f, r), side(r), C.steel, { r: big ? 112 : 100, w: big ? 32 : 26, tilt: [24, 64, 14, 84][st], a0: [-70, 170, -130, 165][st], a1: [120, -10, 120, 10][st], ms: big ? 230 : 170, i: big ? 1.0 : 0.75 });
+      if (st === 2) f.later(60, () => f.slash(me(f, r), side(r), C.steel, { r: 96, w: 24, tilt: 72, a0: 160, a1: -20, ms: 170, i: 0.7 }));
     },
-    hit: (f, _s, _h, at, main, react) => { if (main && react === 'launch') f.pillar(at.x, at.y, C.steel, { h: 380, r: 22, ms: 360, core: false, i: 1.2 }); } },
+    hit: (f, _s, _h, at, main, react) => { if (main && react === 'launch') f.pillar(at.x, at.y, C.steel, { h: 300, r: 18, ms: 320, core: false, i: 0.9 }); } },
   // a smear of ink along the step with a blood-red edge; the cut on the foe flat, blood red
   shadow_step: { own: true,
     active: (f, r) => { const c = me(f, r); f.later(T(r).active * 0.8, () => { const e = me(f, r);
