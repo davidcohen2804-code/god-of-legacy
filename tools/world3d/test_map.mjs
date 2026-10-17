@@ -56,6 +56,7 @@ for (const id of ids) {
   // 5) a swing and a skill with its 3D pieces
   await step('the skill', async () => { await tele((x0 + x1) / 2, yMid); await W(p, 500); await p.keyboard.press('Space'); await W(p, 700); await p.keyboard.press('Digit1'); await W(p, 2500); if (SHOTS) await shot(`${OUT}/${id}_skill.jpg`); });
   // 6) both exits: to the neighbour when it is 3D, and back
+  await p.waitForFunction(() => window.__game.scene.getScene('LegacyCourtyardScene').mode === 'idle', null, { timeout: 30000 }).catch(() => undefined); // (the skill over: a dash would carry him out of the edge band)
   for (const side of [-1, 1]) {
     const edge = side < 0 ? F.floor.x0 : F.floor.x1, nb = areaIdAt(edge + side * 40); if (nb === id || !MAPS_3D.includes(nb)) continue;
     const sealed = (side < 0 ? A.props ?? [] : DATA.areas[nb]?.props ?? []).some((q) => q.id === 'entry-wall'); if (sealed) { console.log(`  —    ${side < 0 ? 'west' : 'east'}: sealed (an entry wall)`); continue; }

@@ -633,5 +633,6 @@ export class Arena3D {
     this.room?.dispose();
     this.composer?.dispose();
     this.renderer.dispose();
+    this.renderer.forceContextLoss(); // (the WebGL context goes with the stage: a browser keeps ~16 — a world of map crossings, or a night of fights, would lose the game's own)
   }
 }
