@@ -111,6 +111,8 @@ interface Spr {
   run?: CastRun;
   /** never cut short by his next skill (it shows a state: a zone, a hold) */
   keep?: boolean;
+  /** its state ended (true): it fades out at once, as a piece cut short */
+  stop?: () => boolean;
 }
 interface Live { t: number; step(dt: number, t: number): boolean }
 /** God of Blades' halo: the katanas (each with its glow), the halo (its glow), which katanas are out striking, when each came back. */
@@ -246,6 +248,7 @@ export class SamuraiFx {
       if (e < 0) return cutAt < 0 ? true : kill(); // (cut short before it showed: it never shows)
       if (!shown) { shown = true; if (this.broken(o.run)) return kill(); }
       if (this.gone(o.run)) return kill();
+      if (cutAt < 0 && o.stop?.()) cutAt = this.real;
       const cut = cutAt < 0 || this.real < cutAt ? 1 : 1 - (this.real - cutAt) / SamuraiFx.CUT.fade;
       if (cut <= 0) return kill();
       const u = Math.min(1, e / o.life);
@@ -358,11 +361,11 @@ export class SamuraiFx {
   }
   /** A power aura flaring up round him (aura_gold / aura_crimson): flames rising from a ring at his feet, flaring, fading —
    *  behind him, the ring's near rim over his feet. */
-  private auraFlare(r: CastRun, name: string, w: number, life: number, delay = 0): void {
+  private auraFlare(r: CastRun, name: string, w: number, life: number, delay = 0, stop?: () => boolean): void {
     const f = () => { const c = this.ctx.casterPos(r.attackerId); return c ? { x: c.x, y: c.y - c.z + 8, d: c.y } : null; };
     const m = { sx: kf([0, 0.6], [0.22, 1.04, out3], [1, 1.1]), sy: kf([0, 0.15], [0.22, 1.06, out3], [1, 1.18]), a: kf([0, 0], [0.06, 1], [0.55, 0.85], [1, 0, inQ]) };
-    this.spr({ name, w, life, delay, oy: 0.92, follow: f, dz: -2.3, glow: 0.55, run: r, ...m });
-    this.spr({ name, w, life, delay, oy: 0.92, follow: f, dz: 2.3, crop: 0.86, glow: 0.4, run: r, ...m });
+    this.spr({ name, w, life, delay, oy: 0.92, follow: f, dz: -2.3, glow: 0.55, run: r, stop, ...m });
+    this.spr({ name, w, life, delay, oy: 0.92, follow: f, dz: 2.3, crop: 0.86, glow: 0.4, run: r, stop, ...m });
   }
   /** A silhouette of the samurai standing (his body as drawn now, in ink with a crimson edge) at feet (x, y). */
   private silhouette(r: CastRun, x: number, y: number, depth: number, life: number, o: { delay?: number; face?: number; a?: (u: number) => number; scale?: number } = {}): void {
@@ -1154,7 +1157,7 @@ export class SamuraiFx {
     // its name over his head for as long as the window is open (so it reads what it is — on every screen: in a duel too)
     const label = s.add.text(0, 0, 'COUNTER STANCE', { fontFamily: 'Cinzel, Georgia, serif', fontStyle: 'bold italic', fontSize: '22px', color: '#ffc2e8', stroke: '#1a0210', strokeThickness: 5, resolution: 2 })
       .setOrigin(0.5).setDepth(TOP + 29).setVisible(false);
-    this.auraFlare(r, tn('aura_crimson', 'rose'), 150, end + 120);
+    this.auraFlare(r, tn('aura_crimson', 'rose'), 150, end + 120, 0, () => this.stances.get(r.castId)?.done ?? true); // (they end as the counter strikes: they burned on over it — MIRAGE, filmed)
     const kill = () => { for (const im of [...imgs, ring, rg, ...petals.map((p) => p.im)]) im.destroy(); label.destroy(); };
     let fold = -1; // (the window ran out with no blow: ms since)
     this.add({ t: 0, step: (dt, t) => {
