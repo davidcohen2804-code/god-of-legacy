@@ -1102,6 +1102,11 @@ export const MAGE_HIDDEN = {
 };
 
 export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...mage, ...archer, ...samurai, ...gambler];
+// the blow that ends each skill (the foe is sent back on it: Combat, THROWN)
+for (const s of [...FINAL_SKILLS, ...mageBolts]) {
+  const list = s.chain ? s.chain.stages[s.chain.stages.length - 1] : s.hits, last = list?.[list.length - 1];
+  if (last) last.lastBlow = true;
+}
 const BY_ID = new Map([...FINAL_SKILLS, ...mageBolts, ...Object.values(MAGE_HIDDEN)].map((s) => [s.id, s]));
 /** Old ids from earlier builds (save-data / QA migration only; never shown in the HUD/tree). */
 export const LEGACY_ALIASES: Record<string, string> = {

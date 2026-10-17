@@ -4,6 +4,13 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-10-17 — The main blow sends him away (David 21:45: "the foe flies back clearly; the small hits stay small") (engine)
+- One rule for every class, in and out of the arena (Combat `THROWN`); no skill's own numbers changed.
+- **Knockdown:** the body is thrown back in an arc — its own push or 120 px (light) / 160 px (heavy), whichever is more, popped up ~36 / ~50 px (vz 280 / 330, ~0.5 / 0.6 s in the air), then a short skid (110 ms at 35% of its speed). A combo finisher (`endsCombo`) flies 1.25× as far. Knocked down out of the air: 0.7× the distance, over its fall. Before: a 12 px hop at the attacker's feet (vz 160, its push × 0.4 in an arena combo).
+- **The heavy last blow of a skill** (or the last blow of a burst of 4+) with a push: no longer cut to the arena combo's 0.4 — shoved back at least 48 px over 120 ms, then the skid (Iron Chain's 4th swing: 4 px → ~65 px).
+- Unchanged: the small hits (still × 0.4 in an arena combo: he stays in reach), launches, slams (they still bounce), pulls and yanks, a stance's resist.
+- `HitEvent.lastBlow` marks the last hit of each skill (a chain: its last stage's last), set once at load (FinalKit).
+
 ## 2026-10-17 — Continuity: the Warrior's rock spikes are walls, Leap Crash bursts them (engine)
 - Earthsplitter's spikes (the Warrior chat's WarriorSpikes: 3 / 4 / 5 along the fissure by the hold) stand 3 s; as a wall each is 40 px round (`SPIKES`).
 - **Wall:** a foe thrown into a spike not his own — knocked back faster than 0.35 px/ms, or flying (launched / falling), under 100 px — bounces back off it at half his speed, takes 8 and a 300 ms stun, and the spike breaks. Each screen judges the bodies it owns (mine against the others' spikes; the knight and the monsters against mine).

@@ -632,6 +632,7 @@ export class Fx3D {
    *  px, z its height); `r`: the flash's radius (px, default 60); `cracks: false` in the air. */
   impact(at: V3, color: number, o: { r?: number; cracks?: boolean; embers?: number } = {}): void {
     const r = o.r ?? 60, hx = this.h.w3(at.x), hz = this.h.d3(at.y), hy = this.h.h3(at.z);
+    this.lastImpact = { x: at.x, y: at.y, t: this.clock };
     this.announce('impact', at, r > 100 ? 2 : r > 55 ? 1 : 0, { color });
     this.orb(at, 0xffffff, { r0: r * 0.6, r1: r, ms: 95, a: 0.85, i: 1.5 }); // (a flash, never a white-out: gone in ~6 frames)
     this.later(40, () => this.dome(at.x, at.y, color, { r: r * 1.7, ms: 280, a: 0.55, i: 1.5, hold: 1 })); // (its colour bursts out as a shell, its rim burning: the blow seen through it)
@@ -875,12 +876,16 @@ export class Fx3D {
   hit(s: FinalSkill, h: HitEvent, at: V3, main: boolean, react: string, big: 0 | 1 | 2): void {
     const rc = this.recipe(s), col = this.color(s);
     rc.hit?.(this, s, h, at, main, react);
+    // the reference's main hit on every skill (DAVID 21:45): a white flash bigger than the body, the blow's colour bursting
+    // out, the floor cracking under him (when he is on it), embers rising — unless its recipe just laid its own there
+    const L = this.lastImpact, laid = this.clock - L.t < 260 && Math.hypot(L.x - at.x, L.y - at.y) < 140;
+    if (main && !laid) this.impact(at, col, { r: [46, 62, 90][big], embers: [8, 12, 20][big], cracks: at.z < 70 && react !== 'launch' && react !== 'float' });
     if (rc.own || !main) return;
-    if (big === 2) { this.pillar(at.x, at.y, col, { h: 640, r: 48, ms: 640 }); this.dome(at.x, at.y, col, { r: 200, ms: 520, a: 0.5 }); this.crack(at.x, at.y, col, { r: 150, chunks: 16 }); return; }
+    if (big === 2) { this.pillar(at.x, at.y, col, { h: 640, r: 48, ms: 640 }); this.crack(at.x, at.y, col, { r: 150, chunks: 16 }); return; }
     if (react === 'launch') this.pillar(at.x, at.y, col, { h: 360, r: 24, ms: 380, core: false });
-    else if (react === 'slam' || react === 'knockdown') this.crack(at.x, at.y, col, { r: 85, chunks: 8, ms: 700 });
-    else this.dome(at.x, at.y, col, { r: 70, ms: 240, a: 0.6 });
   }
+  /** Where and when the last impact() went off (a recipe's own main hit: the shared one is not laid over it). */
+  private lastImpact = { x: 0, y: 0, t: -1e9 };
 
   // ------------------------------------------------------------------ cards: real cards in the room (the Gambler's deck)
 

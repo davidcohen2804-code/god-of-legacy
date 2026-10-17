@@ -82,6 +82,13 @@ export const ARENA = {
   /** knockback in the arena (× a hit's push): enough to read, never out of the next skill's reach */
   pushMul: 1,
 } as const;
+/** The main blow sends him away (DAVID 21:45, Prometheus: Ring of Fire — the small hits hold the foe where he is, the big
+ *  one throws him; everywhere, a skill reacts the same in and out of the arena): a knockdown throws the body back in an
+ *  arc, `dist` px (or its own push, if more), popped up at `vz`; a finisher (endsCombo) `ends`× farther; knocked down out
+ *  of the air: `air`× the distance, over its fall. The heavy last blow of a skill (or the last of a burst) is never cut to
+ *  the arena combo's 0.4: it shoves him back at least `kick` px over `kickMs`. Both then skid `skidMs` at `skidK` of their
+ *  speed. (Launches, slams, pulls and the small hits: unchanged.) */
+export const THROWN = { light: { dist: 120, vz: 280 }, heavy: { dist: 160, vz: 330 }, ends: 1.25, air: 0.7, kick: 48, kickMs: 120, skidMs: 110, skidK: 0.35 } as const;
 /** The gauge limits a body uses (the arena's own, or the world's). */
 export const gaugeOf = (arena: boolean) => (arena ? ARENA.gauge : GAUGE);
 const arenaScale = (hit: number, ult: boolean): number => {
@@ -359,7 +366,8 @@ export class CombatBody {
   readonly hard = new HardCC();
   readonly combos = new ComboBook();
   /** Push motion (px/ms) applied over a short window. */
-  push: { vx: number; vy: number; left: number } | null = null;
+  /** `skid`: ms it slides on after `left`, at THROWN.skidK of the speed (a thrown / kicked body). */
+  push: { vx: number; vy: number; left: number; skid?: number } | null = null;
   armorUntil = -1;
   /** armor against projectiles only (a shield raised): melee hits land as usual */
   shotArmorUntil = -1;
@@ -491,12 +499,14 @@ export class CombatBody {
     let dx = k.x - from.x, dy = k.y - from.y; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
     if (!armored) {
       let pushPx = (R.push ?? 0) * (this.arena ? ARENA.pushMul : this.pvp ? 1.4 : 2) - (R.pull ?? 0);
-      if (this.arena && pushPx > 0 && (airNow || downNow || c.hits > 1)) pushPx *= 0.4; // DFO: in a combo the foe hardly drifts sideways (stays in reach)
+      const kick = pushPx > 0 && !!hit.lastBlow && !R.launch && !R.slam && !R.knockdown && R.yank === undefined && (!!hit.heavy || (!skill.chain && skill.hits.length > 3)); // the main blow: sent back (THROWN)
+      if (kick) pushPx = Math.max(pushPx, THROWN.kick);
+      else if (this.arena && pushPx > 0 && (airNow || downNow || c.hits > 1)) pushPx *= 0.4; // DFO: in a combo the foe hardly drifts sideways (stays in reach)
       if (R.yank !== undefined) { this.yankedAt = now; pushPx = -Math.max(0, Math.hypot(k.x - from.x, k.y - from.y) - R.yank); if (airNow) k.vz = Math.max(k.vz, 140); } // a vine whip: back in front of the attacker
       else if (pushPx < 0) pushPx = Math.max(pushPx, -Math.max(0, d - 30)); // a pull draws him in, never through the puller to his back (the next blow in front would miss)
       if (this.arena && pushPx > 0) { dx = Math.sign(k.x - from.x) || (dx < 0 ? -1 : 1); dy = 0; } // the arena: knocked straight back along the line (a combo stays on one line)
       if (pushPx > 0 && this.kbResist > 0 && Math.random() < this.kbResist) this.stanceAt = now; // stance: not pushed back
-      else if (pushPx !== 0) { const pm = R.yank !== undefined ? 60 : 110; out.pushX = dx * pushPx; out.pushY = dy * pushPx; this.push = { vx: out.pushX / pm, vy: out.pushY / pm, left: pm }; } // (a yank snaps in fast)
+      else if (pushPx !== 0) { const pm = R.yank !== undefined ? 60 : kick ? THROWN.kickMs : 110; out.pushX = dx * pushPx; out.pushY = dy * pushPx; this.push = { vx: out.pushX / pm, vy: out.pushY / pm, left: pm, skid: kick ? THROWN.skidMs : 0 }; } // (a yank snaps in fast)
     }
     const cr = 1 - this.ccResist;
     if (R.slow) { this.slowPct = R.slow.pct; this.slowUntil = Math.max(this.slowUntil, now + R.slow.ms * cr); }
@@ -509,7 +519,13 @@ export class CombatBody {
       out.reaction = 'slam'; k.vz = -620; this.enterKnockdown(now, 'light', -620); out.launchVz = k.vz; this.bounce = this.airOver(now) < 1;
     } else if (R.knockdown) {
       out.reaction = 'knockdown';
-      this.enterKnockdown(now, R.knockdown, air ? -260 : 160);
+      const T = this.stanceAt !== now ? THROWN[R.knockdown] : null, ends = skill.endsCombo ? THROWN.ends : 1; // thrown back in an arc
+      this.enterKnockdown(now, R.knockdown, air ? -260 : T ? T.vz * Math.sqrt(ends) : 160);
+      if (T) {
+        const ax = k.x - from.x, ay = this.arena ? 0 : k.y - from.y, d0 = Math.hypot(ax, ay); // (the arena: along its line)
+        const dist = Math.max((R.push ?? 0) * (this.arena ? ARENA.pushMul : this.pvp ? 1.4 : 2), T.dist) * ends * (air ? THROWN.air : 1);
+        this.throwBack(d0 > 0.5 ? ax / d0 : 1, d0 > 0.5 ? ay / d0 : 0, dist, out);
+      }
       out.launchVz = k.vz;
       if (skill.endsCombo) {
         if (this.arena) { this.released = true; this.combos.endAll(); this.hard.reset(); this.pinUntil = -1; this.bounce = false; } // the arena: the finisher ends it — untouchable until up again (no new combo off the fall)
@@ -615,6 +631,14 @@ export class CombatBody {
     this.stateEnd = now + (kind === 'heavy' ? 520 : 400);
   }
 
+  /** Thrown back `dist` px along (ux, uy) over the flight it was just given, to its landing — then it skids. */
+  private throwBack(ux: number, uy: number, dist: number, out: HitOutcome): void {
+    const k = this.kin, g = PHYS.gravity, z = Math.max(0, k.z - k.supportZ);
+    const ms = Math.max(120, ((k.vz + Math.sqrt(k.vz * k.vz + 2 * g * z)) / g) * 1000); // (a knockdown falls at full gravity)
+    out.pushX = ux * dist; out.pushY = uy * dist;
+    this.push = { vx: out.pushX / ms, vy: out.pushY / ms, left: ms, skid: THROWN.skidMs };
+  }
+
   /** Air tech: Jump + direction while juggled late in a combo (moves 45px, starts falling, brief hard-CC immunity). */
   tryAirTech(now: number, dirX: number, dirY: number): boolean {
     if (this.state !== 'launched' || now < this.airTechCdUntil || this.arena) return false; // (the arena: no air tech)
@@ -635,7 +659,11 @@ export class CombatBody {
     if (this.push) {
       const t = Math.min(ms, this.push.left); this.push.left -= t;
       k.vx = this.push.vx * 1000; k.vy = this.push.vy * 1000;
-      if (this.push.left <= 0) { this.push = null; k.vx = 0; k.vy = 0; }
+      if (this.push.left <= 0) {
+        const sk = this.push.skid ?? 0, K = THROWN.skidK;
+        if (sk > 0) this.push = { vx: this.push.vx * K, vy: this.push.vy * K, left: sk }; // (it lands and skids on)
+        else { this.push = null; k.vx = 0; k.vy = 0; }
+      }
     }
     let ev: 'land' | 'kdImpact' | 'getupDone' | null = null;
     if (now - this.lastHitAt > GAUGE.resetMs && this.state === 'free') this.gauge = { stand: 0, air: 0, down: 0 };

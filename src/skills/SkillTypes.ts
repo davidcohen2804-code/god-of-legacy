@@ -90,6 +90,9 @@ export interface HitEvent {
   /** Archer: a shot that crossed Thunder Rain's charged floor and came out as lightning — on its hit a bolt chains to the
    *  nearest other foe (the scene). Set by the runtime on the shot's hit, never in the kit. */
   storm?: boolean;
+  /** The blow that ends its skill (its last hit; a chain's: its last stage's last) — the foe is sent back on it
+   *  (Combat: THROWN). Set once at load (FinalKit), never in the kit; the re-timed copies carry it. */
+  lastBlow?: boolean;
 }
 
 export interface FinalSkill {
