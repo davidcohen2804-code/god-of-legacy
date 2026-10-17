@@ -457,7 +457,7 @@ export class MageFx {
       case 'astral_burst': this.starHand(r); break;
       case 'frost_nova': this.novaCharge(r); break;
       case 'lightning_chain': this.stormCharge(r); break;
-      case 'storm_field': if (this.ctx.scene.textures.exists('mfx-tempest') && r.place) this.sheet('mfx-tempest', this.placeFloor(r).x, this.placeFloor(r).y, 600, T.startup, { floor: true, frames: [0, 4], oy: 0.72, depth: GROUND + 4, run: r }); else if (!this.ctx.scene.textures.exists('mfx-sfield')) this.floor('storm_disc', r.place?.x ?? me.x, r.place?.y ?? me.y, 280, T.startup + T.active + 300, { add: true, glow: 0.6, spin: 20, run: r, a: kf([0, 0], [0.15, 0.5], [0.85, 0.9], [1, 0]), s: kf([0, 0.6], [0.2, 1, out3]) }); break;
+      case 'storm_field': if (this.ctx.scene.textures.exists('mfx-tempest') && r.place) this.sheet('mfx-tempest', this.placeFloor(r).x, this.placeFloor(r).y, 600, T.startup, { floor: true, frames: [0, 4], oy: 0.72, depth: GROUND + 4, run: r, alpha: 0.35 }); /* (faint: the 3D spiral glyph opens the field) */ else if (!this.ctx.scene.textures.exists('mfx-sfield')) this.floor('storm_disc', r.place?.x ?? me.x, r.place?.y ?? me.y, 280, T.startup + T.active + 300, { add: true, glow: 0.6, spin: 20, run: r, a: kf([0, 0], [0.15, 0.5], [0.85, 0.9], [1, 0]), s: kf([0, 0.6], [0.2, 1, out3]) }); break;
       case 'time_collapse': this.timeCollapse(r); break;
       case 'blink': this.blinkOut(me, side); break;
       case 'glacial_spikes': this.drift(['snowflake'], me.x + side * 20, me.y - me.z - 30, 5, 24, { life: T.startup + 200, up: 40, size: [10, 18], add: true }); break;
