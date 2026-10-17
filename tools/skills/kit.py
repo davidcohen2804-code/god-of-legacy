@@ -44,6 +44,7 @@ SHEETS = {
     's11_hits.png': [  # slash hits (upper-left → lower-right), the sword wave, the ground slash, the blade trail
         ('slash_hit', (0, 80, 370, 500), 300), ('slash_hit_heavy', (370, 80, 770, 500), 320), ('slash_hit_double', (770, 80, 1136, 500), 300), ('spark_spray', (1136, 80, 1536, 500), 300),
         ('wave_crescent', (0, 540, 404, 1024), 320), ('wave_break', (404, 540, 745, 1024), 300), ('ground_slash', (745, 540, 1150, 1024), 400), ('blade_trail', (1150, 540, 1536, 1024), 400)],
+    's13_doll.png': [('doll', (0, 0, 1402, 1122), 420, 'opaque')],  # Sheathe's substitute (kawarimi): the straw-and-wood doll in his cloth (GPT, 18 Oct)
     's12_storm.png': [  # the blossom storm, spirit auras, status markers (the funnel and the crimson aura touch: SEAMS)
         ('petal_storm', (0, 0, 420, 503), 420), ('petal_ring', (340, 150, 800, 503), 400), ('blossom_burst', (800, 60, 1210, 540), 340), ('launch_streaks', (1210, 0, 1536, 540), 380),
         ('aura_crimson', (0, 503, 380, 1024), 420), ('aura_gold', (380, 503, 745, 1024), 420), ('stun_crown', (745, 600, 1110, 900), 220), ('timer_ring', (1110, 600, 1536, 900), 300)],
@@ -122,6 +123,20 @@ def solid_key(sheet):
     return np.dstack([col * a[..., None], a])
 
 
+def opaque_key(sheet):
+    """Premultiplied RGBA of a sheet keyed as an opaque painted object on green (Sheathe's doll): alpha from the green
+    excess over red / blue, its own colours unmixed from the key, the green spill taken out (nothing of his is green)."""
+    rgb = np.asarray(Image.open(sheet).convert('RGB')).astype(np.float32) / 255
+    b = np.concatenate([rgb[:4].reshape(-1, 3), rgb[-4:].reshape(-1, 3), rgb[:, :4].reshape(-1, 3), rgb[:, -4:].reshape(-1, 3)])
+    K = np.median(b, 0)
+    ex = rgb[..., 1] - np.maximum(rgb[..., 0], rgb[..., 2])
+    a = np.clip(1 - ex / max(1e-3, K[1] - max(K[0], K[2])), 0, 1)
+    a = np.where(a < 0.06, 0, a)
+    col = np.clip((rgb - (1 - a[..., None]) * K) / np.maximum(a[..., None], 1e-3), 0, 1)
+    col[..., 1] = np.minimum(col[..., 1], np.maximum(col[..., 0], col[..., 2]) * 1.02)
+    return np.dstack([col * a[..., None], a])
+
+
 def cut(pm, box, mode='', seams=()):
     a = pm[..., 3]
     if mode == 'box':
@@ -191,11 +206,12 @@ def main():
     names, pieces = [], []
     for sheet, specs in SHEETS.items():
         pm, K = keyed(SRC + sheet)
-        solid = None
+        solid = opq = None
         for name, box, size, *mode in specs:
             mode = mode[0] if mode else ''
             if mode == 'solid' and solid is None: solid = solid_key(SRC + sheet)
-            p = cut(solid if mode == 'solid' else pm, box, mode, SEAMS.get(sheet, ()))
+            if mode == 'opaque' and opq is None: opq = opaque_key(SRC + sheet)
+            p = cut(solid if mode == 'solid' else opq if mode == 'opaque' else pm, box, mode, SEAMS.get(sheet, ()))
             if p is None: raise SystemExit(f'{sheet}: nothing in {name} {box}')
             names.append(name); pieces.append(scaled(p, size))
     pos, n = pack(pieces)

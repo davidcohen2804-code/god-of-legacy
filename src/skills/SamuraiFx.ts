@@ -9,6 +9,7 @@ import type { FinalSkill, HitEvent } from './SkillTypes';
 import { hitIndex, lastOfBurst } from './FinalKit';
 import type { Projectile, V3 } from './HitGeometry';
 import type { Fx3D } from '../arena3d/Fx3D';
+import { ring as ring3, inkBurst as inkBurst3, SAM as SAM3 } from '../arena3d/fx3d/blade3d';
 
 export const KIT = 'sam-kit';
 export const KIT_URL = 'assets/final/skills/samurai/kit/';
@@ -630,7 +631,7 @@ export class SamuraiFx {
       case 'quick_slash': if ((r.stage ?? 0) === 3) this.glint(r, T.startup * 0.3, 30, 62, 'steel'); break;
       case 'shadow_step': this.glint(r, 0, 26, 50); break;
       case 'swallow_cut': this.glint(r, 0, 24); break;
-      case 'sheathe': this.sheathe(r); break;
+      case 'sheathe': this.sheatheGuard(r); break; // (the click is at the release: active)
       case 'sword_wave': this.glint(r, 0, 34, 80); break;
       case 'iai_strike': this.iai(r); if (r.petals && !ghost) { const sc = this.scabs.get(r.attackerId); if (sc) sc.drawing = true; } break; // (the blossom draw: the scabbard keeps its petals for the release)
       case 'mirage': this.mirageStance(r); break;
@@ -652,6 +653,7 @@ export class SamuraiFx {
     if (!this.ready) return;
     for (const g of [r, ...this.shadows(r)]) {
       if (g.skill.id === 'shadow_step') this.as(g, () => this.stepStreak(g));
+      if (g.skill.id === 'sheathe') this.as(g, () => this.sheathe(g, 0)); // (the guard released: the click)
     }
   }
 
@@ -1025,10 +1027,78 @@ export class SamuraiFx {
     this.later(r.timings.active + r.timings.recovery * 0.6, () => this.glint(r, 0, 22, 44));   // the blade clicks back into its sheath
   }
 
-  /** Sheathe: the blade snaps home in its sheath — at the click (the stance's release) a sharp glint at the sheath's mouth
+  /** Sheathe (David 18 Oct 01:15, "the substitute"): his guard while it is held — the blade raised over his shoulder (his
+   *  own body move, PixVerse), a thin ring of white-hot light at his feet, pulsing (PVP 3D: a ribbon ring lying on the
+   *  planks; the painted world: the crimson timer ring); it goes when the guard is released (the click) or broken. A blow
+   *  landing on it is taken by the doll (`substitute`, DFO's engine calls it). */
+  private sheatheGuard(r: CastRun): void {
+    const s = this.ctx.scene, id = r.attackerId, held = () => r.phase === 'startup' && !this.gone(r);
+    const feet = () => { const c = this.ctx.casterPos(id); return c ? { x: c.x, y: c.y, z: 0 } : null; };
+    const f3 = this.fx3d(), c0 = feet(); if (!c0) return;
+    if (f3) { ring3(f3, c0, sideOf(r), { r: 64, w: 9, y0: 3, tilt: 0, a0: -179, a1: 179, ms: 6000, sweep: 0.025, fill: 1, inkW: 0.2, lit: SAM3.rose, gain: 1.1, quiet: true, follow: feet, until: () => !held(), fade: 160 }); return; }
+    const im = s.add.image(c0.x, c0.y, KIT, this.fname('timer_ring')).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
+    im.setScale(130 / im.width, 130 / im.width * 0.42);
+    let gone = -1;
+    this.add({ t: 0, step: (_dt, t) => {
+      const c = feet();
+      if (gone < 0 && (!held() || !c)) gone = t;
+      const k = gone < 0 ? Math.min(1, t / 120) : Math.max(0, 1 - (t - gone) / 160);
+      if (c) im.setPosition(c.x, c.y - 2).setDepth(c.y - 2.5);
+      im.setAlpha(k * (0.55 + 0.25 * Math.sin(t / 140)));
+      if (gone >= 0 && t - gone >= 160) { im.destroy(); return false; }
+      return true;
+    } });
+  }
+  /** Sheathe's substitute (DFO's engine calls it as a blow lands on his guard): a straw-and-wood doll in his cloth stands
+   *  where he was and takes the blow — it jolts, a white-hot flash where it is struck, and breaks in two (its top thrown
+   *  off spinning, its post tipping over), straw and splinters flying; a burst of ink where he vanished (he is unseen now:
+   *  the engine's). */
+  substitute(id: string, at?: V3): void {
+    if (!this.ready) return;
+    const c = at ?? this.ctx.casterPos(id); if (!c) return;
+    const s = this.ctx.scene, b = this.ctx.body?.(id), fl = b?.flipX ?? false, dir = fl ? -1 : 1, x = c.x, y = c.y - c.z + 2, d = c.y;
+    const fr = s.textures.getFrame(KIT, 'doll'); if (!fr) return;
+    const H = 172, k = H / (fr.cutHeight || fr.height), W = (fr.cutWidth || fr.width) * k, CUT = 0.42; // (the break: 42% down, at the sash)
+    const half = (top: boolean) => { const im = s.add.image(x, y, KIT, 'doll').setOrigin(0.5, 1).setScale(k).setFlipX(fl).setDepth(d - 0.5);
+      const fh = fr.cutHeight || fr.height, fw = fr.cutWidth || fr.width;
+      if (top) im.setCrop(0, 0, fw, fh * CUT); else im.setCrop(0, fh * CUT, fw, fh * (1 - CUT));
+      return im; };
+    const top = half(true), bot = half(false);
+    this.pop('glint', x + dir * 6, y - H * 0.55, 120, { life: 200, angle: 0, depth: d + 1, glow: 0.6 }); // (where the blow lands on it)
+    this.sparks(x, y - H * 0.55, 8, 70, { depth: d + 1 });
+    const BREAK = 170, END = 900;
+    this.add({ t: 0, step: (_dt, t) => {
+      const jolt = t < BREAK ? Math.sin(t / 18) * 4 * (1 - t / BREAK) : 0, u = Math.max(0, (t - BREAK) / (END - BREAK)), a = t > END - 260 ? Math.max(0, (END - t) / 260) : 1;
+      top.setPosition(x - dir * (jolt + 90 * u), y - 150 * u + 260 * u * u).setAngle(-dir * 260 * u).setAlpha(a); // (thrown off, spinning, falling)
+      bot.setPosition(x - dir * jolt * 0.5, y).setAngle(-dir * 84 * Math.min(1, Math.pow(u * 1.6, 2))).setAlpha(a); // (the post tips over onto the planks)
+      if (t >= END) { top.destroy(); bot.destroy(); return false; }
+      return true;
+    } });
+    this.later(BREAK, () => { // it breaks: straw and splinters
+      for (let i = 0; i < 14; i++) this.spr({ name: 'spark_s', x: x + rnd(-14, 14), y: y - H * rnd(0.3, 0.6), w: rnd(10, 18), life: rnd(380, 620), tint: i % 2 ? 0xd8b070 : 0x8a5a34, depth: d + 0.5,
+        mx: ((dx) => (u: number) => dx * out(u))(rnd(-70, 70) - dir * 30), my: ((dy) => (u: number) => dy * out(u) + 90 * u * u)(rnd(-90, -20)), angle: rnd(0, 360), rot: (u) => 300 * u, a: kf([0, 1], [0.7, 1], [1, 0]) });
+      this.dust(x, c.y, 90);
+    });
+    // he vanishes: a burst of ink where he stood
+    const f3 = this.fx3d();
+    if (f3) { inkBurst3(f3, { x, y: c.y, z: c.z + 64 }, { r: 96, n: 12, ms: 440, foeY: c.y - 40 }); f3.debris(x, c.y, 8, { speed: 0.9, up: 1.2, dir: -dir }); }
+    else { this.pop('ink_burst', x, y - 70, 150, { depth: d + 2, life: 420, glow: 0, angle: rnd(-10, 10) }); this.spr({ name: 'ink_smoke', x, y: y - 64, depth: d + 1.5, w: 130, life: 560, sx: kf([0, 0.5], [0.3, 1.1, out3], [1, 1.5]), sy: kf([0, 0.5], [0.3, 1.1, out3], [1, 1.4]), a: kf([0, 0.75], [0.4, 0.6], [1, 0, inQ]), rot: (u) => 70 * u, my: (u) => -24 * u }); }
+    this.petals(x, y - 70, 10, 90, { depth: d + 2, life: 900 });
+  }
+  /** Sheathe's substitute, the end: he comes back out of a small burst of ink, his blade's glint (DFO's engine calls it). */
+  reappear(id: string, at?: V3): void {
+    if (!this.ready) return;
+    const c = at ?? this.ctx.casterPos(id); if (!c) return;
+    const f3 = this.fx3d(), x = c.x, y = c.y - c.z;
+    if (f3) inkBurst3(f3, { x, y: c.y, z: c.z + 58 }, { r: 70, n: 8, ms: 360, foeY: c.y - 40 });
+    else this.spr({ name: 'ink_smoke', x, y: y - 50, depth: c.y - 1, w: 110, life: 340, sx: kf([0, 1.2], [1, 0.5, out]), sy: kf([0, 1.2], [1, 0.5, out]), a: kf([0, 0.7], [1, 0, inQ]), rot: (u) => -80 * u });
+    this.pop('glint', x, y - 56, 90, { life: 220, angle: 0, depth: c.y + 2, glow: 0.4 });
+  }
+
+  /** Sheathe: the blade snaps home in its sheath — at the click (the guard's release) a sharp glint at the sheath's mouth
    *  under his hand, a flash running back along the scabbard, a few sparks, and a small crimson ring at his feet. */
-  private sheathe(r: CastRun): void {
-    const at = r.timings.startup, side = sideOf(r), f = this.front(r, 14, 52), G = (n: string) => tn(n, 'gold');
+  private sheathe(r: CastRun, at = r.timings.startup): void {
+    const side = sideOf(r), f = this.front(r, 14, 52), G = (n: string) => n; // (his crimson: David's bar, one colour family — it was gold)
     const mouth = () => { const h = this.ctx.hand(r.attackerId), p = f(); return h && p ? { x: h.x, y: h.y + 4, d: p.d } : p; };
     // the click, in gold — read from across the arena: a bright four-pointed flash at the sheath's mouth, a streak of light
     // running back along the scabbard, a spray of gold sparks, a ring of gold at his feet
@@ -1040,7 +1110,7 @@ export class SamuraiFx {
       const a = rnd(-160, -20) * (Math.PI / 180), d = rnd(22, 50), tx = Math.cos(a) * d * side, ty = Math.sin(a) * d;
       this.spr({ name: G('spark_s'), w: rnd(12, 20), delay: at, life: rnd(200, 300), run: r, glow: 0.9, dz: 7, follow: mouth, angle: rnd(0, 360), mx: (u) => tx * out(u), my: (u) => ty * out(u) + 14 * u * u, a: kf([0, 1], [1, 0, inQ]) });
     }
-    this.later(at, () => { const c = this.me(r); this.shock(c.x, c.y, 130, { tone: 'gold', life: 340 }); }, r);
+    this.later(at, () => { const c = this.me(r); this.shock(c.x, c.y, 130, { life: 340 }); }, r);
     // primed (the next Iai / Quick Slash comes out at once): a small gold star stays at the hilt, pulsing, through the window
     const win = r.skill.primes?.windowMs ?? 600, from = at + r.timings.active;
     this.spr({ name: 'glint', w: 34, delay: from, life: win, run: r, glow: 0.9, dz: 6, follow: mouth, flick: 90,

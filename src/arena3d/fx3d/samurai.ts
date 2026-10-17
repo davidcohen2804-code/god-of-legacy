@@ -69,9 +69,12 @@ export const SAMURAI: Record<string, Recipe> = {
         inkBurst(f, { x: e.x, y: e.y, z: e.z + 56 }, { r: 62, n: 7, ms: 340, foeY: e.y - 40 }); });
     },
     hit: (f, _s, _h, at) => { sparks(f, at, 1, 5, 52); } },
-  // the click of the blade home: a thin ring of gold round his waist, a glint of gold at his feet
-  sheathe: { own: true, tone: C.gold,
-    active: (f, r) => { const c = me(f, r); f.slash(c, side(r), C.gold, { r: 72, w: 18, tilt: 2, a0: -160, a1: 160, ms: 240, y0: 70, i: 1.6 }); f.dome(c.x, c.y, C.gold, { r: 60, ms: 240, a: 0.45 }); } },
+  // the click of the blade home (the guard released): a thin white-hot ring closing round his waist, a ring of light on the
+  // planks (the guard itself and its substitute are SamuraiFx's: the ring at his feet, the doll, the ink)
+  sheathe: { own: true, tone: SAM.rose,
+    active: (f, r) => { const c = me(f, r);
+      ring(f, c, side(r), { r: 66, w: 16, y0: 66, tilt: 6, a0: -170, a1: 170, ms: 260, sweep: 0.4, hold: 40, inkW: 0.3, lit: SAM.rose, gain: 1.2, quiet: true, follow: () => f.host.casterPos(r.attackerId) });
+      f.host.ring(f.host.w3(c.x), f.host.d3(c.y), SAM.light, 1.6, 300, 0.5); } },
   // (David's bar: the finisher — 05) the draw is one huge crescent swept across in front of him through the foe, white-hot
   // for a few frames, then it goes dark: an ink crescent that hangs a beat and dissolves (its size by the charge)
   iai_strike: { own: true, tone: SAM.light,

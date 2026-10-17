@@ -43,8 +43,8 @@ export function samuraiMotion(id: string, e: number, T: Timeline, face: number, 
       if (r < 0) return M({ sy: 1 - 0.08 * c, sx: 1 + 0.05 * c });
       if (e < A) return M({ ang: face * 12, sx: 1.08, sy: 0.94, after: true });
       return M({ ang: face * 8 * (1 - clamp01((e - A) / T.recovery)), sy: 1 - 0.06 * kick(e - A, 200) });
-    case 'sheathe': { // the blade slides home: he straightens, a small dip at the click, then settles low, hand on the hilt
-      if (r < 0) return M({ sy: 1 + 0.02 * c });
+    case 'sheathe': { // the guard held (low, breathing), then the blade slides home: a small dip at the click, settling low
+      if (r < 0) return M({ sy: 1 - 0.03 * c + 0.012 * Math.sin(e / 300), sx: 1 + 0.015 * c, dx: -face * 2 * c });
       const low = clamp01(r / Math.max(1, T.active));
       return M({ sy: 1 - 0.05 * kick(r, 120) - 0.05 * low, sx: 1 + 0.03 * low, dx: -face * 2 * kick(r, 120) });
     }

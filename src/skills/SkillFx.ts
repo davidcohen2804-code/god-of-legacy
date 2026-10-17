@@ -2352,6 +2352,10 @@ export class SkillFx {
   petalLook(k: number): { tex: string; size: number; aspect: number } | null { return this.sam.petalLook(k); }
   /** Rising Sun's planted banner springs him far back (call it as his jump lands on the pole; `dir` the way he flies). */
   samPoleSpring(id: string, dir?: number): void { this.sam.poleSpring(id, dir); }
+  /** Sheathe's substitute: a blow landed on his guard — the doll takes it and breaks, he vanishes in ink (call it then). */
+  samSubstitute(id: string, at?: V3): void { this.sam.substitute(id, at); }
+  /** Sheathe's substitute, the end: he comes back out of ink (call it as he shows again). */
+  samReappear(id: string, at?: V3): void { this.sam.reappear(id, at); }
   /** Rising Sun's light on him ends (he fell, his buffs end). */
   clearSun(attackerId: string): void { this.sam.clearSun(attackerId); }
   /** Stunned by a samurai's AMBUSH: a crown of petals over the head for the stun. */
