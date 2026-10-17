@@ -627,7 +627,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     coin_flip: { act: 'coin_flip', st: [0, 1, 2, 3], ac: [4], rc: [5] },
     roulette_wheel: { act: 'roulette_wheel', st: [1, 2], ac: [3, 3, 4, 5, 5, 5], rc: [5] }, // (his own: down low, the cane sweeps the floor round like a wheel, up, he calls it)
     dice_bomb: { act: 'dice_bomb', st: [0, 1, 2], ac: [3, 4], rc: [5] },
-    kinetic_grab: { act: 'kinetic_grab', st: [0], ac: [1, 2, 3, 4], rc: [5] },
+    kinetic_grab: { act: 'kinetic_grab', st: [0, 1], ac: [2, 3, 4, 5], rc: [5] }, // (his own: the hand shot out, the fist clenched, yanked back, wound up, the throw)
     ace_in_the_hole: { act: 'ace_in_the_hole', st: [0, 1, 2], ac: [3], rc: [4, 5] },
     lady_luck: { act: 'lady_luck', st: [0, 1, 2, 3], ac: [4], rc: [5] },
     all_in: { act: 'all_in', st: [0, 1], ac: [2, 3], rc: [4, 5] },
