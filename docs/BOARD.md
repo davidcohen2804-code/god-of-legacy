@@ -57,7 +57,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - [ ] Test mode (?qa=1 → F8) is in for everyone: god, peace, teleport to any map, level, class, items, gold, quests — use it to check your work in the world
 
 ### Match flow and replay value (PvP)
-- [ ] Animated VS screen, "ROUND 1 – FIGHT" with presence, animated victory screen. (PvP: in progress — left: the archer's and the gambler's living VS paintings, waiting for the PixVerse tab to be visible on David's computer)
+- [x] Animated VS screen, "ROUND 1 – FIGHT" with presence, animated victory screen. (PvP: every hero's VS painting alive now — the archer's and the gambler's last, a80a7936: her cloak and skirt strips in the wind, his coat tails and lining billowing; made through the PixVerse API in the page, the shared composer untouched)
 - [x] Ranks and tiers, win streaks, titles — 48d43c3b
 - [x] Training mode with combo trials per class (from the combo guide) — 576e6af6
 
