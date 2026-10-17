@@ -11,8 +11,11 @@ import type { V3 } from './HitGeometry';
 import type { Fx3D } from '../arena3d/Fx3D';
 import { ARENA3D } from '../arena3d/flag';
 
-/** Placeholders until DFO sets them: how long a spike stands, its radius as a wall, how far a Leap Crash landing reaches. */
-export const SPIKES = { lifeMs: 3000, r: 40, burstR: 170 } as const;
+/** DFO's numbers (BALANCE_LOG 17 Oct): a spike stands 3 s; as a wall it is 40 px round; a foe thrown into a spike not his
+ *  own (knocked back faster than `thrown` px/ms, or flying, under `top` px) bounces back off it at half his speed, takes
+ *  `wallDmg` and a `wallStun` ms stun, and the spike breaks; Leap Crash landing within 170 px of his spikes bursts them all:
+ *  once, `burstDmg` + `burstPer` a spike, thrown up (`burstLaunch`, stun, juggle cost), reaching `burstReach` px up. */
+export const SPIKES = { lifeMs: 3000, r: 40, burstR: 170, top: 100, thrown: 0.35, bounce: 0.5, wallDmg: 8, wallStun: 300, burstDmg: 6, burstPer: 4, burstLaunch: 90, burstStun: 380, burstJuggle: 12, burstReach: 200 } as const;
 
 export interface Spike { key: string; owner: string; x: number; y: number; until: number; img?: Phaser.GameObjects.Image }
 
@@ -66,6 +69,13 @@ export class WarriorSpikes {
     return hit.length;
   }
 
+  /** A thrown foe broke this spike (DFO's wall): it bursts at once. */
+  shatter(s: Spike): void {
+    if (!this.spikes.includes(s)) return;
+    this.remove(s, true);
+    this.h.fx3d()?.debris(s.x, s.y, 8, { up: 1.6, speed: 0.8, size: 1.3 });
+  }
+
   step(): void {
     const now = this.h.now();
     for (const s of [...this.spikes]) if (now >= s.until) this.remove(s, false);
@@ -76,7 +86,7 @@ export class WarriorSpikes {
   private draw(s: Spike): void {
     const left = s.until - this.h.now();
     const f3 = this.h.fx3d();
-    if (f3) f3.crystals(s.x, s.y, { n: 2, r: 18, h: 95, ms: Math.max(300, left), stone: true }); // (real rock spikes standing in the planks)
+    if (f3) f3.crystals(s.x, s.y, { n: 2, r: 18, h: 95, ms: Math.max(300, left), stone: true, key: s.key }); // (real rock spikes standing in the planks; named, to break early)
     if (ARENA3D.on) return;
     const sc = this.h.scene(), own = sc.textures.exists('w-spikes'), key = own ? 'w-spikes' : this.h.vfxKey('earthsplitter');
     if (!sc.textures.exists(key)) return;
@@ -87,6 +97,7 @@ export class WarriorSpikes {
 
   private remove(s: Spike, burst: boolean): void {
     this.spikes = this.spikes.filter((x) => x !== s);
+    if (burst) this.h.fx3d()?.crystalsDrop(s.key); // (the 3D rock spikes go with it)
     const im = s.img; if (!im) return;
     s.img = undefined;
     if (im.texture.key === 'w-spikes') im.setFrame(4 + (im.getData('v') ?? 0)); // (its crumbling frame)

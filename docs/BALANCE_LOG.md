@@ -4,6 +4,11 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-10-17 — Continuity: the Warrior's rock spikes are walls, Leap Crash bursts them (engine)
+- Earthsplitter's spikes (the Warrior chat's WarriorSpikes: 3 / 4 / 5 along the fissure by the hold) stand 3 s; as a wall each is 40 px round (`SPIKES`).
+- **Wall:** a foe thrown into a spike not his own — knocked back faster than 0.35 px/ms, or flying (launched / falling), under 100 px — bounces back off it at half his speed, takes 8 and a 300 ms stun, and the spike breaks. Each screen judges the bodies it owns (mine against the others' spikes; the knight and the monsters against mine).
+- **Burst:** Leap Crash landing within 170 px of his spikes bursts them all: once, 6 + 4 a spike (3 spikes 18, 5 spikes 26), launch 90, stun 380, juggle cost 12, reaching 200 px up — a foe near the landing is thrown up again.
+
 ## 2026-10-17 — Continuity (David 14:35): the samurai's blossom draw and the archer's lightning arrows (engine)
 - **Samurai — blossom draw** (runtime, from the count his Iai carries: `petals`, `pb` on the wire; the Samurai chat's drifts and Sheathe): from 6 petals every cut of the Iai is 40% wider; one more cut per 4 petals (at most 4), each along the same line 70 ms after the one before — 6 dmg, stun 260, float (keeps a lifted foe up), juggleCost 3; the active phase stretches to fit them. The same on both screens.
 - **Archer — lightning arrows** (`STORM` in SkillRuntime): each Thunder Rain strike point stays charged 2.5 s (r 90 across, 54 deep, under 120 up). Her Double Shot, Triple Arrow, Spirit Bow or Backstep Shot arrow crossing one spends it (one point, one arrow) and comes out as lightning: +20% damage, and its hit chains a bolt to the nearest other foe within 220 px for half the damage (stun 240, no lift) — the world's monsters and the sparring knight; in 1v1 there is no second foe. Event `RT_EVENTS.storm` (p, run, point) for its look; `SkillFx.stormChain(r, from, to)` → ArcherFx draws the bolt.

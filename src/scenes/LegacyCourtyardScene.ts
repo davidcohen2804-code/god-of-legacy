@@ -58,7 +58,7 @@ import { PvpController } from '../pvp/PvpController';
 import { ARENA3D } from '../arena3d/flag';
 import type { Arena3D, Floor } from '../arena3d/Arena3D';
 import { SamuraiPetals, PETALS } from '../skills/SamuraiPetals';
-import { WarriorSpikes } from '../skills/WarriorSpikes';
+import { SPIKES, WarriorSpikes } from '../skills/WarriorSpikes';
 import { WORLD3D } from '../world3d/flag';
 import type { World3D } from '../world3d/World3D';
 import { Match, MatchPhase } from '../pvp/Match';
@@ -272,6 +272,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** The samurai's fallen petals (continuity: Blossom Storm / Sakura Bind leave them, Sheathe gathers them, the Iai draws them). */
   /** The Warrior's rock spikes (continuity: Earthsplitter leaves them standing, a thrown foe bounces off one, Leap Crash bursts them). */
   private spikes = new WarriorSpikes({ now: () => this.simMs, scene: () => this, vfxKey: (id) => `vfx-${id}`, fx3d: () => this.a3d?.fx });
+  /** The Earthsplitter casts whose spikes stand (by cast id): a spike's wall hit and burst are struck from its cast. */
+  private spikeRuns = new Map<string, CastRun>();
   private petals = new SamuraiPetals({ now: () => this.simMs, localId: () => this.localId, casterPos: (id) => this.casterPos(id), fx: () => this.fx, fx3d: () => this.a3d?.fx });
   /** The Gambler's floor deck: the cards his skills leave lying (every caster's, laid from the cast alone — FloorDeck). */
   private gDeck = new FloorDeck();
@@ -906,7 +908,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       return sp ? { key: sp.texture.key, frame: sp.frame.name, flipX: sp.flipX, ox: sp.originX, oy: sp.originY, sx: Math.abs(sp.scaleX), sy: Math.abs(sp.scaleY), a: sp.visible ? sp.alpha : 0, face: dir === 'left' ? -1 : 1 } : null;
     };
     this.fx.aliveOf = (id) => (id === this.localId ? this.dead < 0 : id === BOT_ID ? !!this.bot && !this.bot.defeated : this.pvp?.remotes.get(id)?.alive !== false);
-    this.rt.events.on(RT_EVENTS.hit, (r: CastRun, i: number, o: V3) => { this.kageSwing(r, i, o); this.petals.cut(r, i, o); if (i === r.hits.length - 1) { const at = this.casterPos(r.attackerId) ?? o, nb = this.spikes.burst(r, at); if (nb) this.arenaSnd?.stoneBurst(at, nb); } }); // (Leap Crash's landing bursts his spikes) // (Blossom Storm's cuts leave their petals)
+    this.rt.events.on(RT_EVENTS.hit, (r: CastRun, i: number, o: V3) => { this.kageSwing(r, i, o); this.petals.cut(r, i, o); if (i === r.hits.length - 1) { const at = this.casterPos(r.attackerId) ?? o, nb = this.spikes.burst(r, at); if (nb) { this.arenaSnd?.stoneBurst(at, nb); this.time.delayedCall(110, () => this.spikeBurst(r, at, nb)); } } }); // (Leap Crash's landing bursts his spikes: a beat later the stone throws him up) // (Blossom Storm's cuts leave their petals)
     this.rt.events.on(RT_EVENTS.cast, (r: CastRun) => this.deckCast(r));
     this.rt.events.on(RT_EVENTS.storm, (_p: unknown, _r: CastRun, c: { x: number; y: number }) => this.arenaSnd?.storm(c)); // (an arrow turned to lightning: heard)
     this.rt.events.on(RT_EVENTS.active, (r: CastRun) => this.deckActive(r));
@@ -1088,7 +1090,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.rt.update(ms);
     this.stepLingers(now);
     this.petals.step();
-    this.spikes.step();
+    this.spikes.step(); this.spikeWalls();
     this.gDeck.step(now);
     this.stepClaims(now);
     this.stepStorm();
@@ -3103,7 +3105,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (run.confirmedAt >= 0) { this.mage.pageChill = 2; this.momentum = { x: -run.aim.x * 120, y: -run.aim.y * 60, left: 200 }; }
       else run.extraRecovery = Math.max(run.extraRecovery, 300);
     }
-    if (phase === 'active' && run.skill.id === 'earthsplitter') this.spikes.raise(run); // (the fissure's rock spikes stand a while)
+    if (phase === 'active' && run.skill.id === 'earthsplitter') { this.spikes.raise(run); this.spikeRuns.set(run.castId, run); } // (the fissure's rock spikes stand a while)
     if (phase === 'active' && run.skill.cls === 'samurai') { this.petals.bind(run); const pg = this.petals.sheathe(run); if (pg) this.arenaSnd?.petalGather(run, pg); } // (Sakura Bind's ring stays when the bind ends; Sheathe's click gathers his petals)
     const L = run.skill.linger;
     if (phase === 'active' && L && L.at !== 'target') { // every caster's lingering zone (yours, other players', the sparring knight's; a hold under a foe starts on its hit: startHold)
@@ -3257,6 +3259,51 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const zr = { ...run, origin: { x: other.x, y: other.y, z: Math.max(0, other.z - 20) }, zone: true } as CastRun; // (from the bolt itself, at his height)
     this.fx?.stormChain(run, { x: t.x, y: t.y, z: t.z + 50 }, at);
     if (other.kind === 'enemy') this.applyToPve(zr, chain, other, at); else this.applyToBot(zr, chain, other, at);
+  }
+
+  /** The Warrior's rock spikes as walls (David 14:35, continuity; DFO's numbers in SPIKES): a foe thrown into a spike not his
+   *  own bounces back off it at half his speed, takes a small hit and a short stun, and the spike breaks. Each screen judges
+   *  the bodies it owns: mine against the others' spikes; the knight and the monsters against my spikes. */
+  private spikeWalls(): void {
+    const meet = (id: string, k: Kin, b: CombatBody): { s: NonNullable<ReturnType<WarriorSpikes['near']>>; run: CastRun } | null => {
+      if (k.z > SPIKES.top) return null;
+      const slid = b.push ? Math.hypot(b.push.vx, b.push.vy) >= SPIKES.thrown : false, flying = (b.state === 'launched' || (b.state === 'knockdown' && b.kdPhase === 'fall')) && Math.hypot(k.vx, k.vy) > 120;
+      if (!slid && !flying) return null;
+      const s = this.spikes.near(k.x, k.y); if (!s || s.owner === id) return null;
+      const run = this.spikeRuns.get(s.key.slice(0, s.key.lastIndexOf(':'))); return run ? { s, run } : null;
+    };
+    const bounce = (k: Kin, b: CombatBody, m: { s: { x: number; y: number }; run: CastRun }, apply: (zr: CastRun, hit: HitEvent, at: V3) => void) => {
+      const vx = k.vx, vy = k.vy, push = b.push ? { ...b.push } : null;
+      const hit: HitEvent = { at: 0, damage: SPIKES.wallDmg, shape: { kind: 'circle', radius: SPIKES.r }, reaction: { stun: SPIKES.wallStun } };
+      apply({ ...m.run, origin: { x: m.s.x, y: m.s.y, z: 0 }, zone: true } as CastRun, hit, { x: k.x, y: k.y, z: k.z + 40 });
+      k.vx = -vx * SPIKES.bounce; k.vy = -vy * SPIKES.bounce; // (off the wall: back the way he came, at half his speed)
+      if (push) b.push = { vx: -push.vx * SPIKES.bounce, vy: -push.vy * SPIKES.bounce, left: Math.max(push.left, 90) };
+      k.x += (k.x >= m.s.x ? 1 : -1) * 6; // (out of the spike's foot)
+    };
+    if (this.dead < 0) { const m = meet(this.localId, this.kin, this.body); if (m) { this.spikes.shatter(m.s); bounce(this.kin, this.body, m, (zr, hit, at) => this.applyRemoteHitToSelf(zr, hit, 0, at)); } }
+    const mine = (id: string, k: Kin, b: CombatBody) => {
+      const m = meet(id, k, b); if (!m || !m.run.own) return;
+      const t = this.targetsFor(m.run).find((x) => x.id === id); if (!t || !t.alive || t.invulnerable) return;
+      this.spikes.shatter(m.s);
+      bounce(k, b, m, (zr, hit, at) => { if (id === BOT_ID) this.applyToBot(zr, hit, t, at); else this.applyToPve(zr, hit, t, at); });
+    };
+    if (this.bot && !this.bot.defeated) mine(BOT_ID, this.bot.kin, this.bot.body);
+    if (this.enemy?.alive) mine('enemy', this.enemy.kin, this.enemy.body);
+    for (const m of this.world?.mobs ?? []) if (m.alive) mine(m.target().id, m.kin, m.body);
+  }
+
+  /** Leap Crash landed on the warrior's spikes (`n` burst, WarriorSpikes): a beat after the crash floors him (110 ms), the
+   *  rain of stone throws the foes near the landing up again — once, `burstDmg` + `burstPer` a spike (DFO's numbers in SPIKES). */
+  private spikeBurst(r: CastRun, at: V3, n: number): void {
+    const hit: HitEvent = { at: 0, damage: SPIKES.burstDmg + SPIKES.burstPer * n, shape: { kind: 'circle', radius: SPIKES.burstR }, reaction: { launch: SPIKES.burstLaunch, stun: SPIKES.burstStun, juggleCost: SPIKES.burstJuggle }, heavy: true, reachUp: SPIKES.burstReach };
+    const zr = { ...r, origin: { x: at.x, y: at.y, z: 0 }, zone: true } as CastRun;
+    for (const t of this.targetsFor(r)) {
+      if (!t.alive || t.invulnerable || t.id === r.attackerId || t.z > SPIKES.burstReach) continue;
+      if (Math.hypot(t.x - at.x, (t.y - at.y) * 1.6) > SPIKES.burstR + t.radius) continue;
+      const p = { x: t.x, y: t.y, z: t.z + 40 };
+      if (r.own) { if (t.kind === 'enemy') this.applyToPve(zr, hit, t, p); else if (t.id === BOT_ID) this.applyToBot(zr, hit, t, p); }
+      else if (t.id === this.localId) this.applyRemoteHitToSelf(zr, hit, 0, p);
+    }
   }
 
   /** PvE authority: combat body reaction on the enemy/dummy, damage, confirmed-hit feedback. */
@@ -4340,7 +4387,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** A new round for you: on your mark, full HP, every buff gone, every skill ready, nothing still flying. */
   private roundReset(x: number, y: number, face: 1 | -1): void {
     this.rt?.cancelOwn('death');
-    this.lingers = []; this.shares = []; this.holdsStarted.clear(); this.petals.clear(); this.spikes.clear();
+    this.lingers = []; this.shares = []; this.holdsStarted.clear(); this.petals.clear(); this.spikes.clear(); this.spikeRuns.clear();
     this.endBuffs();
     this.warCryUntil = -1; this.radiantUntil = -1; this.radiantFrom = -1; this.domeAt = -1;
     if (this.dome) this.dome.until = this.simMs;

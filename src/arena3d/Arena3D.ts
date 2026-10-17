@@ -172,7 +172,7 @@ export class Arena3D {
   private nudge = 0;
   /** The fighters' feet last frame (world px) and the way run since the last puff: running and being driven back
    *  along the planks kick up dust (more, and wood grit, the faster). */
-  private feet: { x: number; y: number; run: number }[] = [];
+  private feet: { x: number; y: number; run: number; line?: number }[] = [];
   private t = 0;
   /** The fighters' midpoint and spread (world px), set by the scene each frame. */
   focus: { x: number; y: number; z: number; span: number; floorZ?: number } = { x: 0, y: 0, z: 0, span: 0 };
@@ -490,8 +490,12 @@ export class Arena3D {
     if (ms <= 0) return;
     this.anchors.forEach((a, i) => {
       const f = this.feet[i] ?? (this.feet[i] = { x: a.x, y: a.y, run: 0 });
-      const d = Math.hypot(a.x - f.x, a.y - f.y), v = (d * 1000) / ms; f.x = a.x; f.y = a.y;
+      const px = f.x, py = f.y, d = Math.hypot(a.x - f.x, a.y - f.y), v = (d * 1000) / ms; f.x = a.x; f.y = a.y;
       if (d > 140 || (a.z ?? 0) > 3 || v < 330) { f.run = 0; return; } // (a teleport, in the air, or walking)
+      if (v > 700 && d > 2) { // a dash: white speed lines on the floor behind him (David's reference, the hammer girl's dash)
+        const ux = (a.x - px) / d, uy = (a.y - py) / d, side = (Math.random() - 0.5) * 26;
+        if ((f.line = (f.line ?? 0) + d) > 26) { f.line = 0; const L = Math.min(150, 60 + v * 0.08); this.fx.floorStreak(a.x - ux * L - uy * side, a.y - uy * L * 0.6 + ux * side * 0.4, a.x - ux * 18 - uy * side, a.y - uy * 18 * 0.6 + ux * side * 0.4, 0xffffff, { w: 5 + Math.random() * 4, ms: 150 + Math.random() * 60 }); }
+      }
       f.run += d;
       const every = v > 700 ? 34 : 52;
       while (f.run >= every) {

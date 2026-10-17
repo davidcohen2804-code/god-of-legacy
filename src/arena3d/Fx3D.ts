@@ -117,6 +117,22 @@ void main() {
   float foot = 1.0 - smoothstep(0.0, 0.22, vUv.y);
   a = uA * sides * (top * (0.3 + 0.7 * n) + foot * 0.9);
   col = mix(uColor, vec3(1.0), foot * 0.6 + n * 0.15) * uI;
+#elif KIND == 7
+  // INK: the dark stroke of a cut (drawn with normal blending, under its light): a band just inside the hot edge; as the
+  // light goes (uI 0 -> 1) the band widens over the whole ribbon: the dark after-image (David's reference, 18:23)
+  float u = vUv.x, w = vUv.y;
+  if (u > uSweep) discard;
+  float along = smoothstep(uSweep - uTail, uSweep, u) * smoothstep(0.0, 0.06, u);
+  float band = smoothstep(0.26, 0.5, w) * (1.0 - smoothstep(0.64, 0.8, w));
+  float body = smoothstep(0.04, 0.36, w) * (1.0 - smoothstep(0.86, 0.98, w));
+  float n = texture2D(uNoise, vec2(u * 3.0 - uT * 2.5, w * 0.6)).r;
+  a = uA * along * mix(band, body, uI) * (0.62 + 0.38 * n);
+  col = uColor;
+#elif KIND == 8
+  // ORB: a ball of light, white-hot where it faces the eye, soft at its rim (a blow's flash)
+  float c = pow(1.0 - vF, 1.6);
+  a = uA * (0.12 + 0.88 * c);
+  col = mix(uColor, vec3(1.0), uTail * (0.3 + 0.7 * c)) * uI;
 #else
   // DECAL: a mask laid on the floor (cracks, a rune), in its colour
   vec4 t = texture2D(uMap, vUv);
@@ -129,7 +145,7 @@ void main() {
   #include <colorspace_fragment>
 }`;
 
-const KIND = { pillar: 1, dome: 2, slash: 3, strip: 4, wave: 5, decal: 6 } as const;
+const KIND = { pillar: 1, dome: 2, slash: 3, strip: 4, wave: 5, decal: 6, ink: 7, orb: 8 } as const;
 
 // ------------------------------------------------------------------ textures (drawn once)
 
@@ -227,10 +243,21 @@ export interface Recipe {
 
 /** A piece of a skill appearing in the room (for the arena's sound: each its own short sound under the blow). */
 export type FxPiece = 'pillar' | 'dome' | 'crack' | 'crystals' | 'bolt' | 'streak' | 'slash' | 'wave' | 'rain';
+/** The pieces built from David's reference (18:23): announced on `onPieceRef` with their own kind; until a sound hooks that,
+ *  each borrows the nearest older piece's sound through `onPiece` (flurry → streak, impact → dome, beam → pillar, glyph →
+ *  crack; a swirl is silent). */
+export type FxPieceRef = 'flurry' | 'impact' | 'beam' | 'glyph' | 'swirl';
+const REF_FALLBACK: Record<FxPieceRef, FxPiece | null> = { flurry: 'streak', impact: 'dome', beam: 'pillar', glyph: 'crack', swirl: null };
 
 export class Fx3D {
   /** Told of every piece as it appears: what, where (world px: x, floor depth y, height z) and how big (0 small … 2 huge). */
   onPiece?: (kind: FxPiece, at: V3, size: number, o?: { stone?: boolean; color?: number }) => void; // (o: the piece's look — the sound picks ice, stone or thorns by it)
+  /** Told of the reference pieces (flurry, impact, beam, glyph, swirl) by their own kind; `size` 0 a tick … 2 huge. */
+  onPieceRef?: (kind: FxPieceRef, at: V3, size: number, o?: { color?: number; accent?: boolean }) => void;
+  private announce(kind: FxPieceRef, at: V3, size: number, o?: { color?: number; accent?: boolean }): void {
+    if (this.onPieceRef) { this.onPieceRef(kind, at, size, o); return; }
+    const old = REF_FALLBACK[kind]; if (old) this.onPiece?.(old, at, size, o?.color !== undefined ? { color: o.color } : undefined);
+  }
   private items: Item[] = [];
   private timers: { at: number; fn: () => void }[] = [];
   private clock = 0;
@@ -240,6 +267,8 @@ export class Fx3D {
   private pillarGeo = new THREE.CylinderGeometry(1, 1, 1, 40, 1, true).translate(0, 0.5, 0);
   private domeGeo = new THREE.SphereGeometry(1, 48, 18, 0, Math.PI * 2, 0, Math.PI / 2);
   private planeGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  private orbGeo = new THREE.SphereGeometry(1, 28, 18);
+  private glyphTexs = new Map<string, THREE.Texture>();
   private chunks: Chunks[];
   private ice: Crystals[];
   private rock: Crystals[];
@@ -290,6 +319,17 @@ export class Fx3D {
     const front = new THREE.Mesh(geo, this.mat(kind, color, { ...o, clip: this.cut(hz, true) }));
     back.frustumCulled = front.frustumCulled = false;
     this.h.back.add(back); this.h.glow.add(front);
+    return [back, front];
+  }
+  /** The dark stroke of a piece (`KIND.ink`): normal blending (it darkens), its part behind the plane through depth hz in the
+   *  room, the part in front in the solid layer over the fighters; drawn under the piece's own light. */
+  private inkPair(geo: THREE.BufferGeometry, color: number, hz: number): THREE.Mesh[] {
+    const mk = (front: boolean) => {
+      const m = this.mat(KIND.ink, color, { i: 0, clip: this.cut(hz, front) }); m.blending = THREE.NormalBlending;
+      const me = new THREE.Mesh(geo, m); me.frustumCulled = false; me.renderOrder = -1; return me;
+    };
+    const back = mk(false), front = mk(true);
+    this.h.back.add(back); this.h.solid.add(front);
     return [back, front];
   }
   private drop(ms: THREE.Mesh[], ownGeo = false): void {
@@ -354,9 +394,9 @@ export class Fx3D {
   }
 
   /** Cracks torn in the floor round (x, y): glowing in its colour, then a dark scar that fades; chunks of the floor fly. */
-  crack(x: number, y: number, color: number, o: { r?: number; ms?: number; chunks?: number; up?: number } = {}): void {
+  crack(x: number, y: number, color: number, o: { r?: number; ms?: number; chunks?: number; up?: number; quiet?: boolean } = {}): void {
     const hx = this.h.w3(x), hz = this.h.d3(y), R = this.h.w3(o.r ?? 110), ms = o.ms ?? 900;
-    this.onPiece?.('crack', { x, y, z: 0 }, (o.r ?? 110) > 200 ? 2 : (o.r ?? 110) > 130 ? 1 : 0);
+    if (!o.quiet) this.onPiece?.('crack', { x, y, z: 0 }, (o.r ?? 110) > 200 ? 2 : (o.r ?? 110) > 130 ? 1 : 0);
     const [sharp, glow] = this.cracks[Math.floor(Math.random() * this.cracks.length)], rot = Math.random() * Math.PI * 2;
     const mk = (map: THREE.Texture, c: number, i: number, add: boolean, y0: number) => {
       const m = new THREE.Mesh(this.planeGeo, add ? this.mat(KIND.decal, c, { i, map })
@@ -396,7 +436,7 @@ export class Fx3D {
   /** Ice crystals breaking out of the floor: a cluster at (x, y) (r px round it), or a ring of them; they stand, then shatter. */
   /** Crystals thrust up from the floor (a cluster, or a ring round the point); `stone`: rock spikes instead of ice (the
    *  Warrior's STONE family), they crumble into dust instead of bursting into shards. */
-  crystals(x: number, y: number, o: { n?: number; r?: number; h?: number; ms?: number; ring?: boolean; delay?: number; color?: number; stone?: boolean } = {}): void {
+  crystals(x: number, y: number, o: { n?: number; r?: number; h?: number; ms?: number; ring?: boolean; delay?: number; color?: number; stone?: boolean; /** a name, to break them early (`crystalsDrop`) */ key?: string } = {}): void {
     const n = o.n ?? 7, R = this.h.w3(o.r ?? 60), H = this.h.h3(o.h ?? 120), cx = this.h.w3(x), cz = this.h.d3(y), ms = o.ms ?? 1500;
     this.later(o.delay ?? 0, () => this.onPiece?.('crystals', { x, y, z: 0 }, n > 10 ? 2 : n > 6 ? 1 : 0, { stone: o.stone, color: o.color }));
     const pz = this.h.d3(y);
@@ -405,7 +445,7 @@ export class Fx3D {
       const d = o.ring ? R : R * Math.sqrt(Math.random()), px = cx + Math.cos(a) * d, pzz = cz + Math.sin(a) * d * 0.85;
       const tilt = (o.ring ? 0.45 : 0.25 + Math.random() * 0.35), h = H * (0.55 + Math.random() * 0.6) * (o.ring ? 1 : i === 0 ? 1.35 : 1);
       const set = o.stone ? this.rock : this.ice, pool = pzz > pz + 0.02 ? set[1] : set[0];
-      pool.emit(px, pzz, a, tilt, H > 0 ? h : 0.5, h * 0.17 + 0.03, ms, (o.delay ?? 0) + (o.ring ? i * 12 : Math.random() * 70));
+      pool.emit(px, pzz, a, tilt, H > 0 ? h : 0.5, h * 0.17 + 0.03, ms, (o.delay ?? 0) + (o.ring ? i * 12 : Math.random() * 70), o.key);
     }
     if (o.stone) { // (dust as they burst up, dust as they crumble)
       this.later(o.delay ?? 0, () => this.h.dust(cx, cz, 10, 1)); this.later((o.delay ?? 0) + ms - 140, () => this.h.dust(cx, cz, 8, 0.8));
@@ -415,6 +455,9 @@ export class Fx3D {
     this.h.flare(cx, 0.4, cz + 0.2, o.color ?? C.frost, 14, 6, 520);
     this.later((o.delay ?? 0) + ms - 120, () => this.h.embers(cx, 0.4, cz, C.ice, 14, 2.2)); // (they burst into glittering shards)
   }
+
+  /** The crystals named `key` (`crystals({ key })`) break now: they sink away in 160 ms (the Warrior's spikes burst early). */
+  crystalsDrop(key: string): void { for (const p of [...this.ice, ...this.rock]) p.drop(key); }
 
   /** Lightning from a to b (world points): a jagged bolt, re-struck every few frames, with forks; it lights the room. */
   bolt(a: V3, b: V3, color: number, o: { ms?: number; w?: number; forks?: number; front?: boolean } = {}): void {
@@ -461,9 +504,9 @@ export class Fx3D {
   }
 
   /** A straight streak of light from a to b (world points) that flashes and fades (a dash, a thrust, a chain, a razor line). */
-  streak(a: V3, b: V3, color: number, o: { w?: number; ms?: number; draw?: number; front?: boolean } = {}): void {
+  streak(a: V3, b: V3, color: number, o: { w?: number; ms?: number; draw?: number; front?: boolean; quiet?: boolean } = {}): void {
     const A = this.P(a), B = this.P(b), ms = o.ms ?? 320, draw = o.draw ?? 70, n = 12;
-    this.onPiece?.('streak', b, (o.w ?? 16) > 24 ? 1 : 0);
+    if (!o.quiet) this.onPiece?.('streak', b, (o.w ?? 16) > 24 ? 1 : 0);
     const s = new Strip(n, this.mat(KIND.strip, color, { i: 2.4 }), (o.w ?? 16) / 100), g = new Strip(n, this.mat(KIND.strip, color, { i: 1.2 }), (o.w ?? 16) * 3.2 / 100);
     (o.front ? this.h.glow : this.h.back).add(s.mesh, g.mesh);
     let t = 0;
@@ -481,7 +524,7 @@ export class Fx3D {
 
   /** A slash arc round a fighter at `at` (feet): `dir` ±1 the side it cuts toward, radius `r` px at height `y0` px, the arc's
    *  plane tilted by `tilt` (deg: 0 flat round him, 90 upright), its sweep from `a0` to `a1` (deg, 0 = in front of him). */
-  slash(at: V3, dir: number, color: number, o: { r?: number; w?: number; tilt?: number; a0?: number; a1?: number; ms?: number; y0?: number; i?: number; roll?: number; follow?: () => V3 | null } = {}): void {
+  slash(at: V3, dir: number, color: number, o: { r?: number; w?: number; tilt?: number; a0?: number; a1?: number; ms?: number; y0?: number; i?: number; roll?: number; follow?: () => V3 | null; /** the dark stroke inside its hot edge and the dark after-image as it fades (true: its colour near black; or a colour) */ ink?: boolean | number; /** turned round the vertical (deg) off facing across the view: rings at many angles (a ball of blades) */ yaw?: number; /** no sound piece (one of many) */ quiet?: boolean } = {}): void {
     const R = this.h.w3(o.r ?? 120), W = this.h.w3(o.w ?? 46), ms = o.ms ?? 300, a0 = THREE.MathUtils.degToRad(o.a0 ?? -70), a1 = THREE.MathUtils.degToRad(o.a1 ?? 110);
     const n = 48, pos = new Float32Array((n + 1) * 2 * 3), uv = new Float32Array((n + 1) * 2 * 2), idx: number[] = [];
     for (let i = 0; i <= n; i++) {
@@ -493,14 +536,16 @@ export class Fx3D {
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
-    this.onPiece?.('slash', at, (o.r ?? 120) > 160 ? 1 : 0);
+    if (!o.quiet) this.onPiece?.('slash', at, (o.r ?? 120) > 160 ? 1 : 0);
     let p = this.P(at); p.y += this.h.h3(o.y0 ?? 95);
-    const ms2 = this.both(geo, KIND.slash, color, p.z, { i: o.i ?? 2.3 });
+    const ms2 = this.both(geo, KIND.slash, color, p.z, { i: o.i ?? (o.ink ? 1.6 : 2.3) }); // (inked: the colour reads over its dark, less white bloom)
+    const ink = o.ink === undefined || o.ink === false ? [] : this.inkPair(geo, typeof o.ink === 'number' ? o.ink : mix(color, 0x000000, 0.86), p.z);
+    const inkMs = ink.length ? ms * 1.45 : ms; // (the dark after-image outlasts the light)
     const place = () => {
-      for (const m of ms2) {
+      for (const m of [...ms2, ...ink]) {
         m.position.copy(p);
-        // the arc's plane: turned to face across the view (the camera's yaw), then tipped toward the floor by `tilt`
-        m.rotation.set(0, 0, 0); m.rotateY(this.camYaw()); m.rotateX(THREE.MathUtils.degToRad(90 - (o.tilt ?? 30))); m.rotateZ(THREE.MathUtils.degToRad(o.roll ?? 0));
+        // the arc's plane: turned to face across the view (the camera's yaw, + its own yaw), then tipped toward the floor by `tilt`
+        m.rotation.set(0, 0, 0); m.rotateY(this.camYaw() + THREE.MathUtils.degToRad(o.yaw ?? 0)); m.rotateX(THREE.MathUtils.degToRad(90 - (o.tilt ?? 30))); m.rotateZ(THREE.MathUtils.degToRad(o.roll ?? 0));
       }
     };
     place();
@@ -509,22 +554,26 @@ export class Fx3D {
       step: (dt) => {
         t += dt; const k = clamp01(t / ms);
         const f = o.follow?.(); if (f) { p = this.P(f); p.y += this.h.h3(o.y0 ?? 95); place(); }
-        this.setU(ms2, 'uSweep', Math.min(1.0001, outCubic(Math.min(1, k * 2.4)) * 1.0001));
-        this.setU(ms2, 'uTail', 0.25 + 0.75 * Math.min(1, k * 2.4));
-        this.setU(ms2, 'uA', k < 0.42 ? 1 : Math.max(0, 1 - (k - 0.42) / 0.58)); this.setU(ms2, 'uT', t / 1000);
-        if (t >= ms) { this.drop(ms2, true); return false; }
+        const sweep = Math.min(1.0001, outCubic(Math.min(1, k * 2.4)) * 1.0001), tail = 0.25 + 0.75 * Math.min(1, k * 2.4), fade = k < 0.42 ? 0 : Math.min(1, (k - 0.42) / 0.58);
+        this.setU(ms2, 'uSweep', sweep); this.setU(ms2, 'uTail', tail);
+        this.setU(ms2, 'uA', 1 - fade); this.setU(ms2, 'uT', t / 1000);
+        if (ink.length) {
+          this.setU(ink, 'uSweep', sweep); this.setU(ink, 'uTail', tail); this.setU(ink, 'uT', t / 1000);
+          this.setU(ink, 'uI', fade); this.setU(ink, 'uA', 0.85 * (t < ms ? 1 : Math.max(0, 1 - (t - ms) / (inkMs - ms))));
+        }
+        if (t >= inkMs) { this.drop([...ms2, ...ink], true); return false; }
         return true;
-      }, dispose: () => this.drop(ms2, true),
+      }, dispose: () => this.drop([...ms2, ...ink], true),
     });
   }
 
   /** A whirl of cuts flat round a fighter (several rings, turning), for `ms`, following him. */
-  whirl(id: string, color: number, o: { r?: number; ms?: number; rings?: number; y0?: number; every?: number; dir?: number } = {}): void {
+  whirl(id: string, color: number, o: { r?: number; ms?: number; rings?: number; y0?: number; every?: number; dir?: number; ink?: boolean | number } = {}): void {
     const ms = o.ms ?? 500, every = o.every ?? 110, rings = o.rings ?? 2;
     for (let t = 0; t < ms; t += every) for (let j = 0; j < rings; j++) {
       this.later(t + j * 30, () => {
         const c = this.h.casterPos(id); if (!c) return;
-        this.slash(c, o.dir ?? 1, color, { r: (o.r ?? 130) * (1 - j * 0.12), w: 40, tilt: 8 + j * 10, a0: -180 + Math.random() * 60, a1: 140 + Math.random() * 60, ms: 260, y0: (o.y0 ?? 70) + j * 45, follow: () => this.h.casterPos(id) });
+        this.slash(c, o.dir ?? 1, color, { r: (o.r ?? 130) * (1 - j * 0.12), w: 40, tilt: 8 + j * 10, a0: -180 + Math.random() * 60, a1: 140 + Math.random() * 60, ms: 260, y0: (o.y0 ?? 70) + j * 45, follow: () => this.h.casterPos(id), ink: o.ink, quiet: j > 0 });
       });
     }
   }
@@ -556,6 +605,237 @@ export class Fx3D {
       this.streak({ x: px - lean, y: py, z: H }, { x: px, y: py, z: 0 }, color, { w: 8, ms: 180, draw: 90 });
       this.later(90, () => { this.h.embers(this.h.w3(px), 0.08, this.h.d3(py), color, 3, 1.4); if (Math.random() < 0.35) this.debris(px, py, 1, { speed: 0.5, up: 0.6 }); });
     });
+  }
+
+  // ------------------------------------------------------------------ David's reference (18:23, Prometheus: Ring of Fire)
+
+  /** A ball of light centred at `at` (world px): radius r0 → r1 px over its life, white-hot where it faces the eye. */
+  private orb(at: V3, color: number, o: { r0: number; r1: number; ms: number; a?: number; i?: number; delay?: number; white?: number }): void {
+    this.later(o.delay ?? 0, () => {
+      const P = this.P(at), ms2 = this.both(this.orbGeo, KIND.orb, color, P.z, { i: o.i ?? 2.2 });
+      this.setU(ms2, 'uTail', o.white ?? 1);
+      let t = 0;
+      this.items.push({
+        step: (dt) => {
+          t += dt; const k = clamp01(t / o.ms), r = this.h.w3(o.r0 + (o.r1 - o.r0) * outCubic(Math.min(1, k * 1.8)));
+          for (const m of ms2) { m.position.copy(P); m.scale.set(r, r, r); }
+          this.setU(ms2, 'uA', (o.a ?? 1) * (k < 0.35 ? 1 : Math.max(0, 1 - (k - 0.35) / 0.65)));
+          if (t >= o.ms) { this.drop(ms2); return false; }
+          return true;
+        }, dispose: () => this.drop(ms2),
+      });
+    });
+  }
+
+  /** A blow's main hit in one piece (the reference's hammer slam, 02): a white flash sphere (~95 ms) → its colour bursting
+   *  out as a shell (~280 ms) → a ring of glowing cracks in the floor → embers rising and fading (~600 ms). `at`: the blow's point (world
+   *  px, z its height); `r`: the flash's radius (px, default 60); `cracks: false` in the air. */
+  impact(at: V3, color: number, o: { r?: number; cracks?: boolean; embers?: number } = {}): void {
+    const r = o.r ?? 60, hx = this.h.w3(at.x), hz = this.h.d3(at.y), hy = this.h.h3(at.z);
+    this.announce('impact', at, r > 100 ? 2 : r > 55 ? 1 : 0, { color });
+    this.orb(at, 0xffffff, { r0: r * 0.6, r1: r, ms: 95, a: 0.85, i: 1.5 }); // (a flash, never a white-out: gone in ~6 frames)
+    this.later(40, () => this.dome(at.x, at.y, color, { r: r * 1.7, ms: 280, a: 0.55, i: 1.5, hold: 1 })); // (its colour bursts out as a shell, its rim burning: the blow seen through it)
+    this.h.flare(hx, hy, hz + 0.2, color, (30 * r) / 80, 9, 380);
+    if (o.cracks !== false) this.later(30, () => this.crack(at.x, at.y, color, { r: r * 1.15, ms: 520, chunks: Math.round(r / 12), quiet: true }));
+    this.later(60, () => this.h.ring(hx, hz, color, this.h.w3(r * 2.2), 380, 0.6));
+    const n = o.embers ?? 14;
+    for (let k = 0; k < 3; k++) this.later(80 + k * 90, () => this.h.embers(hx, hy * 0.6, hz, color, Math.max(1, Math.round(n / 3)), 1.6 - k * 0.3));
+  }
+
+  /** A flurry of cuts through a foe (the reference's dark knight, 04): thin, very long lines crossing at `at` (his chest; a
+   *  function follows him), a new one every `every` ms for `ms`, each ~115 ms, every `accent`-th heavier (wider, longer, a
+   *  flare). Each line is announced as a tick (`flurry`, size 0; an accent 1) for its sound. */
+  flurry(at: V3 | (() => V3 | null), color: number, o: { ms?: number; every?: number; len?: number; w?: number; accent?: number; spread?: number } = {}): void {
+    const ms = o.ms ?? 600, every = o.every ?? 38, len = o.len ?? 320, accent = o.accent ?? 5, get = typeof at === 'function' ? at : () => at;
+    let k = 0, ang = Math.random() * Math.PI;
+    for (let t = 0; t < ms; t += every) this.later(t, () => {
+      const c = get(); if (!c) return;
+      const i = k++, heavy = accent > 0 && i % accent === accent - 1;
+      ang += Math.PI * (0.38 + Math.random() * 0.34); // (each crosses the one before)
+      const L = len * (heavy ? 1.3 : 0.75 + Math.random() * 0.4), sp = o.spread ?? 24;
+      const mx = c.x + (Math.random() - 0.5) * sp, mz = c.z + (Math.random() - 0.5) * sp * 0.8, my = c.y + (Math.random() - 0.5) * 10;
+      let dx = (Math.cos(ang) * L) / 2, dz = (Math.sin(ang) * L * 0.8) / 2;
+      if (dz < 0) { dx = -dx; dz = -dz; } // (from its low end up)
+      const low = mz - dz, lo = low >= 6 ? 0 : Math.min(1, (6 - low) / (2 * dz || 1)); // (the part under the floor cut off)
+      const a3 = { x: mx - dx + 2 * dx * lo, y: my, z: low + 2 * dz * lo };
+      this.streak(a3, { x: mx + dx, y: my, z: mz + dz }, color, { w: (o.w ?? 7) * (heavy ? 2 : 1), ms: heavy ? 150 : 115, draw: heavy ? 28 : 16, front: true, quiet: true });
+      this.announce('flurry', c, heavy ? 1 : 0, { color, accent: heavy });
+      if (heavy) { const hx = this.h.w3(c.x), hz = this.h.d3(c.y), hy = this.h.h3(c.z); this.h.flare(hx, hy, hz + 0.2, color, 14, 6, 160); this.h.embers(hx, hy, hz, color, 5, 1.8); }
+    });
+  }
+
+  /** A ball of blades round a fighter (the reference's scythe, 07): cut rings at many angles round him, one every `every`
+   *  ms for `ms`, following him; `ink` gives each its dark trailing ring. */
+  bladeBall(id: string, color: number, o: { r?: number; ms?: number; every?: number; y0?: number; ink?: boolean | number; w?: number } = {}): void {
+    const ms = o.ms ?? 900, every = o.every ?? 75, R = o.r ?? 110, tilts = [10, 70, 38, 85, 22, 55], yaws = [0, 60, -45, 30, -75, 15];
+    let k = 0;
+    for (let t = 0; t < ms; t += every) this.later(t, () => {
+      const c = this.h.casterPos(id); if (!c) return;
+      const i = k++;
+      this.slash(c, i % 2 ? 1 : -1, color, { r: R * (0.9 + Math.random() * 0.2), w: o.w ?? 36, tilt: tilts[i % 6] + (Math.random() - 0.5) * 14, yaw: yaws[i % 6] + (Math.random() - 0.5) * 20, roll: (Math.random() - 0.5) * 40, a0: -175 + Math.random() * 30, a1: 150 + Math.random() * 30, ms: 240, y0: o.y0 ?? 75, ink: o.ink, follow: () => this.h.casterPos(id), quiet: i % 3 !== 0 });
+    });
+  }
+
+  /** A beam of light from high above straight down onto `at` (the reference's archer, 06): struck from the top in `draw`
+   *  ms, flickering, faded by `ms`; a function `at` keeps it on a moving foe. A flare, embers and a ring at its foot. */
+  skyBeam(at: V3 | (() => V3 | null), color: number, o: { ms?: number; w?: number; h?: number; draw?: number } = {}): void {
+    const get = typeof at === 'function' ? at : () => at, c0 = get(); if (!c0) return;
+    const ms = o.ms ?? 420, draw = o.draw ?? 60, H = o.h ?? 1100, n = 10;
+    this.announce('beam', c0, (o.w ?? 10) > 14 ? 1 : 0, { color });
+    const core = new Strip(n, this.mat(KIND.strip, color, { i: 2.8 }), (o.w ?? 10) / 100), glow = new Strip(n, this.mat(KIND.strip, color, { i: 1.3 }), ((o.w ?? 10) * 4) / 100);
+    this.h.glow.add(core.mesh, glow.mesh);
+    const hx0 = this.h.w3(c0.x), hz0 = this.h.d3(c0.y), hy0 = this.h.h3(c0.z);
+    this.h.flare(hx0, hy0 + 0.2, hz0 + 0.2, color, 22, 8, 260); this.h.embers(hx0, hy0, hz0, color, 6, 1.6); this.h.ring(hx0, hz0, color, this.h.w3(90), 300, 0.5);
+    let t = 0, last = c0;
+    this.items.push({
+      step: (dt) => {
+        t += dt; const c = get() ?? last; last = c;
+        const top = this.P({ x: c.x - 40, y: c.y, z: H }), bot = this.P(c), d = clamp01(t / draw), pts: THREE.Vector3[] = [];
+        for (let i = 0; i <= n; i++) pts.push(top.clone().lerp(bot, (i / n) * d)); // (struck from the top down)
+        core.set(pts, this.h.camera, 0); glow.set(pts, this.h.camera, 0);
+        const e = (t < ms * 0.6 ? 1 : Math.max(0, 1 - (t - ms * 0.6) / (ms * 0.4))) * (0.82 + 0.18 * Math.random());
+        core.uA(e); glow.uA(e * 0.7); core.tail(0.2); glow.tail(0.5);
+        if (t >= ms) { core.dispose(); glow.dispose(); return false; }
+        return true;
+      }, dispose: () => { core.dispose(); glow.dispose(); },
+    });
+  }
+
+  /** A big glyph on the floor at (x, y) (the reference's archer, mage and gothic ults: 06, 08, 09): `shape` 'star' (a crystal
+   *  star of `points`), 'spiral' or 'runes' (a ring of marks); it opens, turns slowly and pulses for `ms`, then fades. `r`:
+   *  its radius (px). */
+  glyph(x: number, y: number, color: number, o: { shape?: 'star' | 'spiral' | 'runes'; r?: number; ms?: number; spin?: number; points?: number; pulse?: number; a?: number } = {}): void {
+    const shape = o.shape ?? 'star', R = this.h.w3(o.r ?? 180), ms = o.ms ?? 2200, hx = this.h.w3(x), hz = this.h.d3(y), A = o.a ?? 0.9;
+    this.announce('glyph', { x, y, z: 0 }, (o.r ?? 180) > 220 ? 2 : 1, { color });
+    const map = this.glyphTex(shape, o.points ?? 8);
+    const m = new THREE.Mesh(this.planeGeo, this.mat(KIND.decal, color, { i: 1.8, map })); m.position.set(hx, 0.022, hz); this.h.back.add(m);
+    const core = new THREE.Mesh(this.planeGeo, this.mat(KIND.decal, mix(color, 0xffffff, 0.6), { i: 1.6, map })); core.position.set(hx, 0.024, hz); this.h.back.add(core);
+    this.h.flare(hx, 0.3, hz + 0.2, color, 18, 8, Math.min(ms, 700));
+    const rot = Math.random() * Math.PI * 2;
+    let t = 0;
+    this.items.push({
+      step: (dt) => {
+        t += dt; const k = clamp01(t / ms), open = outBack(Math.min(1, t / 220)), sz = R * 2 * (0.55 + 0.45 * open);
+        const pulse = 0.78 + 0.22 * Math.sin((t / 1000) * Math.PI * 2 * (o.pulse ?? 2.2)), fade = k > 0.85 ? (1 - k) / 0.15 : 1;
+        m.scale.set(sz, 1, sz); core.scale.set(sz * 0.985, 1, sz * 0.985);
+        m.rotation.y = core.rotation.y = rot + (t / 1000) * THREE.MathUtils.degToRad(o.spin ?? 14);
+        (m.material as THREE.ShaderMaterial).uniforms.uA.value = A * pulse * fade * Math.min(1, t / 90);
+        (core.material as THREE.ShaderMaterial).uniforms.uA.value = A * 0.55 * Math.max(0, 1 - t / 260) * fade;
+        if (t >= ms) { this.drop([m, core]); return false; }
+        return true;
+      }, dispose: () => this.drop([m, core]),
+    });
+  }
+  /** The glyphs' pictures (white strokes on clear, a glow under them), drawn once each. */
+  private glyphTex(shape: 'star' | 'spiral' | 'runes', points: number): THREE.Texture {
+    const key = `${shape}:${points}`, had = this.glyphTexs.get(key); if (had) return had;
+    const S = 512, m = S / 2, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d')!;
+    g.strokeStyle = '#fff'; g.fillStyle = 'rgba(255,255,255,0.22)'; g.lineJoin = 'round'; g.lineCap = 'round';
+    if (shape === 'star') { // a crystal star: long facetted points, short ones between, a ring at the heart
+      for (let i = 0; i < points * 2; i++) {
+        const a = (i / (points * 2)) * Math.PI * 2, long = i % 2 === 0, L = S * (long ? 0.47 : 0.27), W = S * (long ? 0.055 : 0.04), mid = L * 0.38;
+        const px = (d: number, s2: number) => [m + Math.cos(a) * d - Math.sin(a) * s2, m + Math.sin(a) * d + Math.cos(a) * s2];
+        g.beginPath(); g.moveTo(...(px(S * 0.06, 0) as [number, number])); g.lineTo(...(px(mid, W) as [number, number])); g.lineTo(...(px(L, 0) as [number, number])); g.lineTo(...(px(mid, -W) as [number, number])); g.closePath();
+        g.lineWidth = long ? 5 : 3.5; g.fill(); g.stroke();
+        g.lineWidth = 2; g.beginPath(); g.moveTo(...(px(S * 0.06, 0) as [number, number])); g.lineTo(...(px(L, 0) as [number, number])); g.stroke(); // (the facet's ridge)
+      }
+      g.lineWidth = 5; g.beginPath(); g.arc(m, m, S * 0.085, 0, Math.PI * 2); g.stroke();
+    } else if (shape === 'spiral') { // arms winding out from the heart, a ring round them
+      const arms = 6;
+      for (let j = 0; j < arms; j++) {
+        g.beginPath();
+        for (let q = 0; q <= 60; q++) { const u = q / 60, r2 = S * (0.03 + 0.43 * u), a = (j / arms) * Math.PI * 2 + u * Math.PI * 1.35; const X = m + Math.cos(a) * r2, Y = m + Math.sin(a) * r2; if (q === 0) g.moveTo(X, Y); else g.lineTo(X, Y); }
+        g.lineWidth = 6; g.stroke();
+      }
+      g.lineWidth = 4; g.beginPath(); g.arc(m, m, S * 0.465, 0, Math.PI * 2); g.stroke();
+    } else { // runes: two rings, marks between them, a rune every 30 degrees
+      g.lineWidth = 5; g.beginPath(); g.arc(m, m, S * 0.46, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.arc(m, m, S * 0.37, 0, Math.PI * 2); g.stroke();
+      g.lineWidth = 3;
+      for (let i = 0; i < 48; i++) { const a = (i / 48) * Math.PI * 2, r1 = S * 0.375, r2 = S * (i % 4 === 0 ? 0.455 : 0.42); g.beginPath(); g.moveTo(m + Math.cos(a) * r1, m + Math.sin(a) * r1); g.lineTo(m + Math.cos(a) * r2, m + Math.sin(a) * r2); g.stroke(); }
+      for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2, r1 = S * 0.27, x0 = m + Math.cos(a) * r1, y0 = m + Math.sin(a) * r1; g.lineWidth = 4; g.beginPath(); g.moveTo(x0 - 10, y0 - 12); g.lineTo(x0 + 6, y0 - 2); g.lineTo(x0 - 6, y0 + 4); g.lineTo(x0 + 10, y0 + 12); g.stroke(); }
+    }
+    const c2 = document.createElement('canvas'); c2.width = c2.height = S; const g2 = c2.getContext('2d')!;
+    g2.filter = 'blur(9px)'; g2.drawImage(c, 0, 0); g2.filter = 'none'; g2.drawImage(c, 0, 0);
+    const t = new THREE.CanvasTexture(c2); t.colorSpace = THREE.NoColorSpace; t.anisotropy = 4;
+    this.glyphTexs.set(key, t);
+    return t;
+  }
+
+  /** A swirl of small pictures round a vertical axis at `at()` (the Samurai's request; the reference's sparkles and paper,
+   *  08 / 09): `n` of them (`look.tex`: a petal, a page, a leaf — a game texture; else a soft diamond of `color`) orbiting
+   *  from radius `r0` at the floor to `r1` at height `h`, turning `rps` times a second and rising, each tumbling; lit by the
+   *  room, in front of or behind the fighters by their real depth. At `ms` or when `at()` returns null they fly outward and
+   *  fade. */
+  swirl(at: () => V3 | null, look: CardLook, o: { n?: number; r0?: number; r1?: number; h?: number; ms?: number; rps?: number; rise?: number; size?: number; color?: number } = {}): void {
+    const c0 = at(); if (!c0) return;
+    this.announce('swirl', c0, (o.n ?? 40) > 50 ? 1 : 0, { color: o.color });
+    const n = o.n ?? 50, ms = o.ms ?? 1600, rps = o.rps ?? 0.9, rise = o.rise ?? 0.55, color = o.color ?? 0xffffff;
+    const tex = (look.tex ? this.h.texture?.(look.tex) : null) ?? this.diamondTex();
+    const mat = new THREE.MeshStandardMaterial({ map: tex, color: look.tex ? 0xffffff : color, emissive: color, emissiveIntensity: look.tex ? 0.25 : 0.6, roughness: 0.6, metalness: 0, transparent: true, alphaTest: 0.05, side: THREE.DoubleSide, depthWrite: false });
+    const geo = new THREE.PlaneGeometry(1, 1);
+    const back = new THREE.InstancedMesh(geo, mat, n), front = new THREE.InstancedMesh(geo, mat, n);
+    back.frustumCulled = front.frustumCulled = false; back.count = front.count = 0;
+    this.h.back.add(back); this.h.solid.add(front);
+    const W = this.h.w3(18 * (o.size ?? look.size ?? 1)), Hh = W * (look.aspect ?? 1);
+    const P = Array.from({ length: n }, () => ({ a: Math.random() * Math.PI * 2, f: Math.random(), j: 0.8 + Math.random() * 0.4, ax: new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize(), sp: 3 + Math.random() * 5, out: 0.6 + Math.random() * 0.8 }));
+    const r0 = this.h.w3(o.r0 ?? 50), r1 = this.h.w3(o.r1 ?? 110), H = this.h.h3(o.h ?? 180);
+    const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), X = new THREE.Vector3(), toCam = this.viewXZ().negate();
+    let t = 0, end = -1, center = this.P(c0);
+    this.items.push({
+      step: (dt) => {
+        t += dt;
+        const c = end < 0 ? at() : null;
+        if (c) center = this.P(c); else if (end < 0) end = t;
+        if (end < 0 && t >= ms) end = t;
+        const gone = end < 0 ? 0 : (t - end) / 380; // (flung outward and fading)
+        if (gone >= 1) { this.h.back.remove(back); this.h.solid.remove(front); back.dispose(); front.dispose(); geo.dispose(); mat.dispose(); return false; }
+        const grow = Math.min(1, t / 260) * (1 - gone);
+        let nb = 0, nf = 0;
+        for (const q of P) {
+          const f = (q.f + (rise * t) / 1000) % 1, a = q.a + Math.PI * 2 * rps * q.j * (t / 1000), r = (r0 + (r1 - r0) * f) * (1 + gone * q.out * 1.6);
+          X.set(center.x + Math.cos(a) * r, center.y + H * f + gone * 0.3, center.z + Math.sin(a) * r);
+          Q.setFromAxisAngle(q.ax, (q.sp * t) / 1000); S.set(W * grow, Hh * grow, 1);
+          M.compose(X, Q, S);
+          const inFront = (X.x - center.x) * toCam.x + (X.z - center.z) * toCam.z > 0;
+          if (inFront) front.setMatrixAt(nf++, M); else back.setMatrixAt(nb++, M);
+        }
+        back.count = nb; front.count = nf; back.instanceMatrix.needsUpdate = true; front.instanceMatrix.needsUpdate = true;
+        return true;
+      }, dispose: () => { this.h.back.remove(back); this.h.solid.remove(front); back.dispose(); front.dispose(); geo.dispose(); mat.dispose(); },
+    });
+  }
+  private streakTex?: THREE.Texture;
+  /** A white speed line lying on the floor from (x0, y0) to (x1, y1) (world px): behind a dash or a sprint (the reference's
+   *  hammer girl, 53.8 s), soft at its edges, fading toward its tail and gone in `ms`. */
+  floorStreak(x0: number, y0: number, x1: number, y1: number, color = 0xffffff, o: { w?: number; ms?: number; a?: number } = {}): void {
+    const ax = this.h.w3(x0), az = this.h.d3(y0), bx = this.h.w3(x1), bz = this.h.d3(y1), L = Math.hypot(bx - ax, bz - az);
+    if (L < 1e-4) return;
+    const ms = o.ms ?? 170, A = o.a ?? 0.55;
+    const m = new THREE.Mesh(this.planeGeo, this.mat(KIND.decal, color, { i: 1.25, map: this.lineTex() }));
+    m.position.set((ax + bx) / 2, 0.016, (az + bz) / 2); m.rotation.y = -Math.atan2(bz - az, bx - ax); m.scale.set(L, 1, this.h.w3(o.w ?? 7)); this.h.back.add(m);
+    let t = 0;
+    this.items.push({
+      step: (dt) => { t += dt; (m.material as THREE.ShaderMaterial).uniforms.uA.value = A * Math.max(0, 1 - t / ms); if (t >= ms) { this.drop([m]); return false; } return true; },
+      dispose: () => this.drop([m]),
+    });
+  }
+  /** A line's picture: bright along its middle, soft at its edges, its head (right) bright and its tail (left) faint. */
+  private lineTex(): THREE.Texture {
+    if (this.streakTex) return this.streakTex;
+    const W = 128, H = 16, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d')!;
+    for (let x = 0; x < W; x++) { const along = Math.pow(x / (W - 1), 1.6); for (let y = 0; y < H; y++) { const d = Math.abs(y - (H - 1) / 2) / ((H - 1) / 2); g.fillStyle = `rgba(255,255,255,${(along * Math.max(0, 1 - d * d)).toFixed(3)})`; g.fillRect(x, y, 1, 1); } }
+    this.streakTex = new THREE.CanvasTexture(c); this.streakTex.colorSpace = THREE.NoColorSpace;
+    return this.streakTex;
+  }
+  private diamond?: THREE.Texture;
+  /** A soft four-sided sparkle (white), the swirl's piece when it has no picture. */
+  private diamondTex(): THREE.Texture {
+    if (this.diamond) return this.diamond;
+    const S = 64, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d')!, m = S / 2;
+    const gr = g.createRadialGradient(m, m, 0, m, m, m); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.beginPath(); g.moveTo(m, 2); g.lineTo(S - 14, m); g.lineTo(m, S - 2); g.lineTo(14, m); g.closePath(); g.fill();
+    this.diamond = new THREE.CanvasTexture(c); this.diamond.colorSpace = THREE.SRGBColorSpace;
+    return this.diamond;
   }
 
   /** A trail behind what flies (by projectile), drawn until it ends. */
@@ -815,7 +1095,7 @@ class Chunks {
 /** Ice crystals (hexagonal spikes, glassy, reflecting the room): grow out of the floor, stand, then shrink away. */
 class Crystals {
   private mesh: THREE.InstancedMesh;
-  private d: { x: number; z: number; a: number; tilt: number; h: number; r: number; t: number; ms: number; delay: number }[] = [];
+  private d: { x: number; z: number; a: number; tilt: number; h: number; r: number; t: number; ms: number; delay: number; key?: string }[] = [];
   private next = 0;
   private m4 = new THREE.Matrix4(); private q = new THREE.Quaternion(); private eu = new THREE.Euler(); private s = new THREE.Vector3(); private t = new THREE.Vector3();
   constructor(scene: THREE.Scene, private n: number, stone = false) {
@@ -829,9 +1109,13 @@ class Crystals {
     for (let i = 0; i < n; i++) { this.mesh.setMatrixAt(i, zero); this.d.push({ x: 0, z: 0, a: 0, tilt: 0, h: 0, r: 0, t: 0, ms: 0, delay: 0 }); }
     scene.add(this.mesh);
   }
-  emit(x: number, z: number, a: number, tilt: number, h: number, r: number, ms: number, delay: number): void {
+  emit(x: number, z: number, a: number, tilt: number, h: number, r: number, ms: number, delay: number, key?: string): void {
     const i = this.next; this.next = (this.next + 1) % this.n;
-    Object.assign(this.d[i], { x, z, a, tilt, h, r, t: -delay, ms });
+    Object.assign(this.d[i], { x, z, a, tilt, h, r, t: -delay, ms, key });
+  }
+  /** The crystals of `key` go now: those standing sink away in 160 ms, those not yet up never rise. */
+  drop(key: string): void {
+    for (const c of this.d) if (c.key === key && c.ms > 0) { if (c.t <= 0) c.ms = 0.0001; else if (c.t < c.ms - 160) c.ms = c.t + 160; }
   }
   step(dt: number): void {
     let any = false;
