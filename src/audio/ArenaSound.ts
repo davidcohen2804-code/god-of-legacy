@@ -267,6 +267,8 @@ export class ArenaSound {
     if (phase === 'startup' && s.slot === 7) Sound.duck(T.startup + T.active + Math.min(T.recovery, 900) + 300, 0.3);
     if (phase === 'startup') this.riserFor(run);
     if (phase === 'startup' && s.slot === 7) this.moment(run);
+    if (phase === 'active' && s.id === 'iai_strike' && (run.petals ?? 0) > 0) Sound.sfx('petal_draw', { ...this.at(run), vol: Math.min(1, 0.6 + 0.04 * (run.petals ?? 0)) }); // (the blossom draw: the petals burst out along the cut)
+    if (phase === 'startup' && s.id === 'origami_flock' && (run.mf ?? 0) >> 4 > 0) Sound.sfx('page_fold', { ...this.at(run), vol: 0.7 + 0.1 * ((run.mf ?? 0) >> 4) }); // (her pages lying near fold into cranes)
     const x = { x: run.origin.x, y: run.origin.y, z: run.origin.z, wet: WET.swing };
     const sig = this.sigOf(s);
     if (sig) {
@@ -333,6 +335,19 @@ export class ArenaSound {
    *  arc along the shaft, the sizzle (crackle for lightning: THE BAR). */
   storm(at: { x: number; y: number }): void {
     if (Sound.classReady(this.scene, 'archer')) Sound.sfx('storm_turn', { x: at.x, y: at.y, z: 60, wet: WET.piece });
+  }
+
+  /** Where a cast is heard (its origin, a swing's share of the room). */
+  private at(run: CastRun): PlayOpts { return { x: run.origin.x, y: run.origin.y, z: run.origin.z, wet: WET.swing }; }
+
+  /** The samurai's Sheathe gathering his fallen petals into the scabbard (as many as came). */
+  petalGather(run: CastRun, n: number): void {
+    if (n > 0 && Sound.classReady(this.scene, 'samurai')) Sound.sfx('petal_gather', { ...this.at(run), vol: Math.min(1, 0.55 + 0.04 * n) });
+  }
+
+  /** Leap Crash landing on the warrior's standing rock spikes: they burst into a rain of stone (as many as broke). */
+  stoneBurst(at: { x: number; y: number; z?: number }, n: number): void {
+    if (n > 0 && Sound.classReady(this.scene, 'warrior')) Sound.sfx('stone_burst', { x: at.x, y: at.y, z: at.z ?? 0, wet: WET.piece, vol: Math.min(1, 0.7 + 0.1 * n) });
   }
 
   /** A flurry's count of small blows (a skill's ticks within 0.45 s of each other are one flurry). */

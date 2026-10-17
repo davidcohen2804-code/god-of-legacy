@@ -224,12 +224,60 @@ def storm_turn(seed):
     return finish(x, 0.85, 10, 1.5)
 
 
+# ---------------------------------------------------------------- continuity (David 14:35): what the fight leaves behind, gathered
+
+def petal_gather(seed):
+    """The samurai's Sheathe: his fallen petals whirl up off the planks into the scabbard — a swirling rise, a crowd of
+    petals converging, swallowed with a soft fwp."""
+    rng = R(seed); dur = 0.8; t = T(dur); x = buf(dur); u = np.clip(t / 0.55, 0, 1)
+    fc = 700 * (5200 / 700) ** u * (1 + 0.25 * np.sin(2 * np.pi * 9 * t))  # (whirling)
+    x += svf(rng.standard_normal(t.size), fc, 2.0) * np.sin(np.pi * np.clip(t / 0.6, 0, 1)) ** 1.5 * 0.5
+    x += rustle(dur, rng, rate=520, lo=3200, hi=9500, amp=1.0) * np.sin(np.pi * np.clip(t / 0.58, 0, 1)) * 0.5
+    sw = T(0.12); place(x, lp(rng.standard_normal(sw.size), 900) * env(sw, 0.004, 0.03), 0.52, 0.7)  # (into the scabbard)
+    return finish(x, 0.84, 20, 1.3)
+
+
+def petal_draw(seed):
+    """The blossom draw: the Iai drawn with the petals — they burst out along the cut in a bright swish, a sakura chime."""
+    rng = R(seed); dur = 0.9; t = T(dur); x = buf(dur)
+    place(x, swoosh(0.22, 2500, 9000, 6000, rng, peak=0.2, q=2.4, tail=5), 0, 0.8)
+    x += rustle(dur, rng, rate=700, lo=3500, hi=10000, amp=1.0) * env(t, 0.01, 0.18) * 0.5
+    for k, f in enumerate((1318.5, 1567.98, 1975.53, 2349.32, 2637.02)):  # (a pentatonic shimmer: the blossoms)
+        place(x, bell(0.6, f, ratio=2.0, index=0.9, tau=0.22), 0.02 + 0.03 * k, 0.11)
+    return finish(x, 0.84, 20, 1.3)
+
+
+def stone_burst(seed):
+    """Leap Crash bursts the warrior's standing rock spikes: a hard crack, the stone shattering, the debris thrown up and
+    raining back down as gravel."""
+    rng = R(seed); dur = 1.4; t = T(dur); x = buf(dur)
+    x += click(dur, rng, 1500, 0.0018, 1.0)
+    x += thud(dur, 120, 48, 0.12) * 0.8
+    times = np.sort(0.002 + rng.exponential(0.018, 22))
+    x += grains(t.size, times, rng.uniform(0.4, 1.0, times.size), [knock(0.08, f, 0.02, rng, 0.8) for f in (330, 520, 760, 1100)], rng) * 0.6  # (the shatter)
+    rain = np.sort(rng.uniform(0.28, 1.15, 70))
+    x += grains(t.size, rain, rng.uniform(0.1, 0.5, rain.size) * np.exp(-(rain - 0.28) / 0.5), [knock(0.04, f, 0.008, rng, 1.0) for f in (900, 1400, 2100, 2900)], rng) * 0.55  # (the gravel raining down)
+    x += lp(brown(t.size, rng), 300) * env(t, 0.005, 0.25) * 0.5
+    return finish(x, 0.86, 30, 1.4)
+
+
+def page_fold(seed):
+    """The book mage's torn pages lift off the floor and fold into cranes: a rustle of paper rising, crisp creases."""
+    rng = R(seed); dur = 0.7; t = T(dur); x = buf(dur)
+    x += rustle(dur, rng, rate=380, lo=2200, hi=8000, amp=1.0) * np.sin(np.pi * np.clip(t / 0.45, 0, 1)) * 0.6
+    for k in range(6):  # (the folds: crisp creases)
+        tt = T(0.03); place(x, bp(rng.standard_normal(tt.size), 1800, 7000) * env(tt, 0.0005, 0.005), 0.18 + k * 0.045 + rng.uniform(0, 0.015), 0.8)
+    place(x, bell(0.4, 1760, ratio=2.76, index=1.4, tau=0.12), 0.42, 0.16)  # (a little arcane spark: they come alive)
+    return finish(x, 0.84, 20, 1.3)
+
+
 if __name__ == '__main__':
     args = sys.argv[1:]
     if args[:1] == ['bar']:  # the risers and the flurries' ticks
         write('riser_s', riser(4101, 0.36)); write('riser_l', riser(4102, 0.52, ult=True))
         write('cutin_in', cutin_in(4103)); write('cutin_out', cutin_out(4104))
         write('storm_turn', storm_turn(4105))
+        write('petal_gather', petal_gather(4106)); write('petal_draw', petal_draw(4107)); write('stone_burst', stone_burst(4108)); write('page_fold', page_fold(4109))
         for c in MAT:
             for take in (1, 2):
                 write(f'tk_{c}_{take}', tick(c, take))

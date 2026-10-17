@@ -58,12 +58,12 @@ export class SamuraiPetals {
     this.pending.push({ at: this.h.now() + L.startMs + L.everyMs * L.count, d: { key: `${r.castId}:b`, owner: r.attackerId, x: p.x, y: p.y, n: PETALS.bind, until: 0, pts: [] } });
   }
 
-  /** Sheathe's click (its active phase): every drift of his within reach flies into the scabbard. */
-  sheathe(r: CastRun): void {
-    if (r.skill.id !== 'sheathe') return;
-    const c = this.h.casterPos(r.attackerId); if (!c) return;
+  /** Sheathe's click (its active phase): every drift of his within reach flies into the scabbard. How many petals came. */
+  sheathe(r: CastRun): number {
+    if (r.skill.id !== 'sheathe') return 0;
+    const c = this.h.casterPos(r.attackerId); if (!c) return 0;
     const got = this.drifts.filter((d) => d.owner === r.attackerId && Math.hypot(d.x - c.x, d.y - c.y) <= PETALS.reach);
-    if (!got.length) return;
+    if (!got.length) return 0;
     this.drifts = this.drifts.filter((d) => !got.includes(d));
     const n = got.reduce((a, d) => a + d.n, 0), id = r.attackerId;
     const hip = (): V3 | null => { const q = this.h.casterPos(id); return q ? { x: q.x, y: q.y, z: q.z + 52 } : null; };
@@ -72,6 +72,7 @@ export class SamuraiPetals {
     else for (const d of got) this.h.fx()?.samDriftGo(d.key, 'gather', id);
     this.h.fx()?.samScabbard(id, n, PETALS.holdMs);
     if (id === this.h.localId()) { const had = this.held && this.h.now() <= this.held.until ? this.held.n : 0; this.held = { n: Math.min(PETALS.cap, had + n), until: this.h.now() + PETALS.holdMs }; }
+    return n;
   }
 
   /** His own cast starting: an Iai Strike within the scabbard's hold takes every petal in it (the blossom draw's count). */

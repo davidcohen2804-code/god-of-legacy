@@ -39,6 +39,7 @@ export const SFX = {
 export const SIG_SFX = {
   warrior: {
     tk_wr: [2, 0.44], // (a flurry's small blows: its own 'shing')
+    stone_burst: [1, 0.42], // (Leap Crash bursting his standing rock spikes)
     wr_iron_1: [1, 0.44], wr_iron_2: [1, 0.44], wr_iron_3: [1, 0.47], wr_iron_4: [1, 0.62], wr_iron_hit: [2, 0.66], wr_iron_fin: [1, 0.65],
     wr_rise_c: [1, 0.29], wr_rise_h: [1, 0.29], wr_quake_c: [1, 0.61], wr_quake_h: [1, 0.58], wr_rush_c: [1, 0.5], wr_rush_h: [1, 0.47],
     wr_storm_w: [1, 0.38], wr_storm_c: [1, 0.33], wr_storm_h: [1, 0.28], wr_titan_w: [1, 0.27], wr_titan_h: [1, 0.58], wr_titan_end: [1, 1.0],
@@ -51,6 +52,7 @@ export const SIG_SFX = {
   },
   samurai: {
     tk_sm: [2, 0.61], // (a flurry's small blows: its own 'shing')
+    petal_gather: [1, 0.36], petal_draw: [1, 0.43], // (his fallen petals into the scabbard; the blossom draw)
     sm_quick_1: [1, 0.53], sm_quick_2: [1, 0.54], sm_quick_3: [1, 0.42], sm_quick_4: [1, 0.43], sm_quick_hit: [2, 0.53], sm_quick_fin: [1, 0.29],
     sm_hundred_c: [1, 0.53], sm_hundred_h: [1, 0.38], sm_swallow_c: [1, 0.46], sm_swallow_h: [1, 0.27], sm_shadow_c: [1, 0.47], sm_shadow_h: [1, 0.46],
     sm_iai_w: [1, 0.44], sm_iai_c: [1, 0.24], sm_iai_h: [1, 0.53], sm_blossom_c: [1, 0.36], sm_blossom_h: [1, 0.44], sm_eclipse_w: [1, 0.67],
@@ -75,6 +77,7 @@ export const SIG_SFX = {
   },
   book_mage: {
     tk_bm: [2, 0.26], // (a flurry's small blows: its own 'shing')
+    page_fold: [1, 0.4], // (her torn pages folding into cranes)
     bm_bolt_c1: [1, 0.23], bm_bolt_c2: [1, 0.24], bm_lance_c: [1, 0.52], bm_bolt_h: [2, 0.26], bm_lance_h: [1, 0.6], bm_wave_c: [1, 0.22],
     bm_wave_h: [1, 0.41], bm_astral_c: [1, 0.25], bm_astral_h: [1, 0.68], bm_chain_c: [1, 1.0], bm_chain_h: [1, 0.55], bm_spikes_c: [1, 0.51],
     bm_spikes_h: [1, 0.82], bm_field_c: [1, 0.89], bm_field_h: [1, 0.52], bm_time_w: [1, 0.41], bm_time_c: [1, 0.38], bm_time_h: [1, 0.55],

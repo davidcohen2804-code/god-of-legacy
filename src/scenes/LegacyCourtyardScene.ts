@@ -906,7 +906,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       return sp ? { key: sp.texture.key, frame: sp.frame.name, flipX: sp.flipX, ox: sp.originX, oy: sp.originY, sx: Math.abs(sp.scaleX), sy: Math.abs(sp.scaleY), a: sp.visible ? sp.alpha : 0, face: dir === 'left' ? -1 : 1 } : null;
     };
     this.fx.aliveOf = (id) => (id === this.localId ? this.dead < 0 : id === BOT_ID ? !!this.bot && !this.bot.defeated : this.pvp?.remotes.get(id)?.alive !== false);
-    this.rt.events.on(RT_EVENTS.hit, (r: CastRun, i: number, o: V3) => { this.kageSwing(r, i, o); this.petals.cut(r, i, o); if (i === r.hits.length - 1) this.spikes.burst(r, this.casterPos(r.attackerId) ?? o); }); // (Leap Crash's landing bursts his spikes) // (Blossom Storm's cuts leave their petals)
+    this.rt.events.on(RT_EVENTS.hit, (r: CastRun, i: number, o: V3) => { this.kageSwing(r, i, o); this.petals.cut(r, i, o); if (i === r.hits.length - 1) { const at = this.casterPos(r.attackerId) ?? o, nb = this.spikes.burst(r, at); if (nb) this.arenaSnd?.stoneBurst(at, nb); } }); // (Leap Crash's landing bursts his spikes) // (Blossom Storm's cuts leave their petals)
     this.rt.events.on(RT_EVENTS.cast, (r: CastRun) => this.deckCast(r));
     this.rt.events.on(RT_EVENTS.storm, (_p: unknown, _r: CastRun, c: { x: number; y: number }) => this.arenaSnd?.storm(c)); // (an arrow turned to lightning: heard)
     this.rt.events.on(RT_EVENTS.active, (r: CastRun) => this.deckActive(r));
@@ -3104,7 +3104,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       else run.extraRecovery = Math.max(run.extraRecovery, 300);
     }
     if (phase === 'active' && run.skill.id === 'earthsplitter') this.spikes.raise(run); // (the fissure's rock spikes stand a while)
-    if (phase === 'active' && run.skill.cls === 'samurai') { this.petals.bind(run); this.petals.sheathe(run); } // (Sakura Bind's ring stays when the bind ends; Sheathe's click gathers his petals)
+    if (phase === 'active' && run.skill.cls === 'samurai') { this.petals.bind(run); const pg = this.petals.sheathe(run); if (pg) this.arenaSnd?.petalGather(run, pg); } // (Sakura Bind's ring stays when the bind ends; Sheathe's click gathers his petals)
     const L = run.skill.linger;
     if (phase === 'active' && L && L.at !== 'target') { // every caster's lingering zone (yours, other players', the sparring knight's; a hold under a foe starts on its hit: startHold)
       const off = L.at === 'aim' ? (L.offset ?? 0) : 0, pl = L.at === 'place' ? run.place : null; // ('place': where the cast was opened on the floor)
