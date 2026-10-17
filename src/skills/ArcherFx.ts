@@ -329,9 +329,9 @@ export class ArcherFx {
       const sh = r.hits[i].shape as { bias?: number }, cx = r.origin.x + a.x * (sh.bias ?? 200), cy = r.origin.y + a.y * (sh.bias ?? 200), K = [0.7, 1, 1.25][i] ?? 1, big = i === 2; // (the third a size down: in PVP 3D it whited the fight out in blue)
       const q = this.me(r), sx = q.x + sideOf(r) * 30, sy = q.y - q.z - 58, lv = { x: cx - sx, y: cy - 20 - sy }, ang = Math.atan2(lv.y, lv.x) * (180 / Math.PI);
       this.spr({ name: big ? 't_arrow' : 'elec_arrow', x: sx, y: sy, ox: 0.9, depth: TOP + 3, w: (big ? 230 : 170) * K, angle: ang, add: true, glow: 0.45, life: 110, mx: (u) => lv.x * u, my: (u) => lv.y * u });
-      this.spr({ name: 't_blast', x: sx, y: sy, ox: 0.05, depth: TOP + 4, w: 150 * K, angle: ang, add: true, life: 200, sx: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) }); // the shot leaves the bow
+      this.spr({ name: 't_blast', x: sx, y: sy, ox: 0.05, depth: TOP + 4, w: 120 * K, angle: ang, add: true, life: 200, sx: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) }); // the shot leaves the bow
       this.bolt('bolt_seg', { x: sx, y: sy }, { x: cx, y: cy - 20 }, { thick: 26 * K, life: 160, delay: 40 }); // its lightning trail
-      this.pop('elec_burst', sx, sy, 110 * K, { life: 180 });
+      this.pop('elec_burst', sx, sy, 88 * K, { life: 180 }); // (a size down at the bow: in PVP 3D the third shot's blast hid her)
       this.later(100, () => {
         this.spr({ name: 'elec_rise_arrow', x: cx, y: cy + 8, oy: 0.97, depth: cy + 2, w: 120 * K, flipX: lv.x < 0, add: true, glow: 0.4, life: 1900, a: (u) => (u > 0.8 ? (1 - u) * 5 : 1) * (0.75 + 0.25 * Math.sin(u * 60)) }); // it stands in the floor, crackling
         this.spr({ name: 't_sparks', x: cx, y: cy - 40 * K, depth: cy + 5, w: 160 * K, add: true, life: 420, sx: kf([0, 0.4], [1, 1.4, out3]), sy: kf([0, 0.4], [1, 1.4, out3]), a: kf([0, 1], [1, 0, inQ]) });
@@ -339,7 +339,7 @@ export class ArcherFx {
         this.later(60, () => { // the sky answers onto it
           this.spr({ name: 'strike', x: cx, y: cy + 10, oy: 0.97, depth: cy + 3, w: 200 * K, h: 520 * Math.min(1.3, K + 0.15), life: 360, add: true, glow: 0.5, sy: kf([0, 0.2], [0.12, 1.05, out3], [1, 1]), a: kf([0, 1], [0.4, 1], [1, 0, inQ]) });
           if (big) { for (const dx of [-90, 90]) this.later(70, () => this.spr({ name: 'bolt_v', x: cx + dx, y: cy + 6, oy: 0.97, depth: cy + 2, w: 130, h: 460, life: 300, add: true, glow: 0.4, sy: kf([0, 0.2], [0.15, 1, out3]), a: kf([0, 1], [1, 0, inQ]) }));
-            this.spr({ name: 'elec_burst', x: cx, y: cy - 120, depth: TOP + 6, w: 260, add: true, life: 200, a: kf([0, 0.55], [1, 0, inQ]) }); }
+            this.spr({ name: 'elec_burst', x: cx, y: cy - 120, depth: TOP + 6, w: 200, add: true, life: 200, a: kf([0, 0.45], [1, 0, inQ]) }); }
           this.floor('elec_ring', cx, cy, 240 * K, 460, { add: true, s: kf([0, 0.3], [1, 1.3, out3]), a: kf([0, 1], [1, 0, inQ]) });
           if (r.own && big) this.ctx.punch(0.03, 200);
         }, r);
