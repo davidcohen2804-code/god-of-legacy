@@ -360,7 +360,7 @@ const mage: FinalSkill[] = [
   S({
     id: 'origami_flock', cls: 'book_mage', slot: 12, name: 'Origami Flock', roles: ['projectile', 'chase'], targeting: 'mouseCone',
     startup: 300, active: 120, recovery: 220, cooldown: 9000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    hits: [H(0, 8, { kind: 'projectile', speed: 460, range: 520, radius: 16, count: 5, spread: 70, homing: 240, antiAir: true }, { stun: 220, push: 6, float: true, juggleCost: 3 }, { reachUp: 160 })], // (homing cranes: they seek him in the air too, and from farther (240): fanned 70° from afar, only the middle one or two found a foe floating in the Levity Field — UPDRAFT landed 2 of 6)
+    hits: [H(0, 8, { kind: 'projectile', speed: 460, range: 600, radius: 16, count: 5, spread: 35, homing: 240, antiAir: true }, { stun: 220, push: 6, float: true, juggleCost: 3 }, { reachUp: 160 })], // (homing cranes: they seek him in the air too; a ±70° fan turning 240°/s, 600 px — fanned 70° a crane (±140°) two flew off behind her and ran out before they turned back: UPDRAFT landed 1 crane of 5)
     cancelOnHit: ['levity_field', 'paper_curse', 'blink', 'arcane_bolt'],
     description: 'Five pages tear out of the book and fold into paper cranes. Each crane picks a foe and bends a little toward it — a step aside still slips them. Every torn page of yours lying near folds into one more crane (up to 4 more).',
     relations: ['5 cranes', 'Gently homing'],
