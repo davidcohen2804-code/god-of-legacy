@@ -3,7 +3,7 @@
 // Files under assets/audio (.ogg; .mp3 where ogg does not play). Volumes: Settings' Master (Phaser's own volume),
 // Music and SFX (the announcer and the ambience with the effects).
 // Sources: the effects and ambiences are synthesised for the game (the main hit's boom and the darkening's whoosh by
-// tools/audio/impacts.py); the menu cues are uisfx's (CC0); the announcer is the owner's own voice with the game's
+// tools/audio/impacts.py, with PVP 3D's room sounds); the menu cues are uisfx's (CC0); the announcer is the owner's own voice with the game's
 // processing (a big hall); the music is the owner's Suno tracks.
 // Where a sound happens: each one with a place is panned to where it is on the screen and quieter far from the camera
 // (setPanner: the arena tells how its camera sees a point). PVP 3D: the effects of the fight sound in the temple
@@ -19,6 +19,9 @@ export const SFX = {
   hit_light: [3, 0.7], hit_heavy: [3, 0.8], hit_ult: [2, 0.85], block: [3, 0.6], whiff: [3, 0.4], whiff_heavy: [2, 0.45], crit: [1, 0.45], jump: [2, 0.25], land: [3, 0.35], fall: [2, 0.65],
   vs_slam: [1, 0.85], round_swoosh: [1, 0.55], fight_hit: [1, 0.7], ko_boom: [1, 0.95], perfect_shine: [1, 0.55], break: [1, 0.75], punish: [1, 0.6], rage: [1, 0.65], tick: [1, 0.35],
   boom: [3, 0.62], dim_whoosh: [1, 0.7],
+  // PVP 3D: the skills' pieces in the room, and the fighters on its planks
+  crack: [2, 0.4], chunks: [2, 0.42], pillar: [1, 0.55], bolt: [2, 0.4], dome: [1, 0.5], wave: [1, 0.5], crystals: [1, 0.45], streak: [1, 0.32], slash: [1, 0.36], rain: [1, 0.45],
+  step: [4, 0.42], scuff: [2, 0.45], thump: [2, 0.62],
   war_swing: [3, 0.5], war_hit: [3, 0.7], war_shield: [1, 0.75], war_cry: [1, 0.6], slam: [2, 0.85],
   sam_swish: [3, 0.5], sam_cut: [3, 0.7], sam_draw: [1, 0.55], sam_sheathe: [1, 0.45],
   arc_shot: [3, 0.55], arc_hit: [3, 0.65], arc_volley: [1, 0.55], arc_hawk: [1, 0.45],
@@ -107,6 +110,18 @@ function playKey(k: string, vol: number, o: PlayOpts = {}): Phaser.Sound.BaseSou
   return s;
 }
 
+/** The master's limiter: the big moments stack (a blow's impact, its boom, the room's pieces, a call) and would clip the
+ *  output — a fast, hard-kneed limiter just under full scale holds them (everything quieter passes as it is, a hair
+ *  louder: the compressor's own make-up). Kept on the manager (`limiter`) for the QA recordings. */
+function limiter(g: Phaser.Game): void {
+  const m = g.sound as unknown as { context?: AudioContext; masterVolumeNode?: GainNode; limiter?: DynamicsCompressorNode };
+  if (!m.context || !m.masterVolumeNode || m.limiter) return;
+  const c = m.context.createDynamicsCompressor();
+  c.threshold.value = -5; c.knee.value = 2; c.ratio.value = 20; c.attack.value = 0.001; c.release.value = 0.15;
+  m.masterVolumeNode.disconnect(); m.masterVolumeNode.connect(c); c.connect(m.context.destination);
+  m.limiter = c;
+}
+
 // ---------------------------------------------------------------- the room (PVP 3D: the temple courtyard)
 
 /** The courtyard's reverb level (the wet return) and its shape: a stone yard open to the sky — the walls and the temple
@@ -169,6 +184,7 @@ export const Sound = {
     if (game === g) return;
     game = g; lastPlay = new Map(); lastPick = new Map();
     g.events.on(Phaser.Core.Events.STEP, (_t: number, dt: number) => step(dt));
+    limiter(g);
   },
 
   /** An effect (a family's variation at random, never the same twice in a row, a hair of pitch to keep it alive). Too

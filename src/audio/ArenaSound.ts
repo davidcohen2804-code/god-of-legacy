@@ -6,22 +6,40 @@
 // foe flying or down, the last blow of a burst — lands with a heavy layered boom under the class's own impact; the small
 // blows of a burst are soft ticks, so the main one stands out. Every sound with a place is panned to where it is on the
 // screen and quieter far from the camera. PVP 3D: the fight sounds in the temple courtyard (its reverb), a deep whoosh
-// goes down as the room darkens (a signature, an ultimate, the K.O.); the music ducks under an ultimate (both arenas).
+// goes down as the room darkens (a signature, an ultimate, the K.O.); every piece of a skill in the room has a short sound
+// of its own under the blow (a crack splits the stone and drops wood chunks a beat later, a pillar of light roars up, a
+// bolt crackles, a dome whumps, a wave rushes past, crystals grow and shatter — the repeating ones held back); the
+// fighters' feet on the planks (steps when running, a scuff when driven back, a thump on landing). The music ducks under
+// an ultimate (both arenas).
 import Phaser from 'phaser';
 import type { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import type { CastRun } from '../skills/SkillRuntime';
 import type { Match, MatchPhase } from '../pvp/Match';
+import type { FxPiece } from '../arena3d/Fx3D';
 import { Heard, Sound, setPanner, SfxName, VoiceLine } from './Sound';
 
-/** A fighter as the sound sees it: where (world x, y), how high above what it stands on, knocked about (launched / down). */
-export interface HeardFighter { id: string; x: number; /** depth on the floor */ y: number; h: number; hurt: boolean }
+/** A fighter as the sound sees it: where (world x, y), how high above what it stands on, knocked about (launched / down),
+ *  driven back by a blow (sliding on its feet). */
+export interface HeardFighter { id: string; x: number; /** depth on the floor */ y: number; h: number; hurt: boolean; slide?: boolean }
 
 /** PVP 3D as the sound needs it (Arena3D): where its camera sees a world point (screen px, and px per world px there —
  *  smaller farther away), the fight it frames, and how dark the room wants to be (0 none .. 1). */
-export interface RoomView { project(x: number, y: number, z: number): { sx: number; sy: number; k: number }; focus: { x: number; y: number; z: number }; dimWant: number }
+export interface RoomView { project(x: number, y: number, z: number): { sx: number; sy: number; k: number }; focus: { x: number; y: number; z: number }; dimWant: number;
+  /** The skills' 3D pieces: each one announced as it appears (what, where, how big 0..2). */
+  fx?: { onPiece?: (kind: FxPiece, at: { x: number; y: number; z: number }, size: number) => void } }
 
 /** The room's share (reverb send) of each kind of sound: the fight's blows ring in the courtyard, the small ticks less. */
-const WET = { hit: 0.42, tick: 0.25, boom: 0.45, swing: 0.3, body: 0.38, call: 0.32, dark: 0.25 } as const;
+const WET = { hit: 0.42, tick: 0.25, boom: 0.45, swing: 0.3, body: 0.38, call: 0.32, dark: 0.25, piece: 0.4 } as const;
+
+/** PVP 3D: each piece's sound (its volume, how soon it may come again — a rain's streaks, a whirl's slashes held back —
+ *  and what follows it a beat later). */
+const PIECE: Record<FxPiece, { sfx: SfxName; vol: number; gap: number; then?: [SfxName, number, number] }> = {
+  crack: { sfx: 'crack', vol: 0.9, gap: 90, then: ['chunks', 170, 0.8] }, pillar: { sfx: 'pillar', vol: 0.9, gap: 250 }, bolt: { sfx: 'bolt', vol: 0.85, gap: 70 },
+  dome: { sfx: 'dome', vol: 0.9, gap: 200 }, wave: { sfx: 'wave', vol: 0.85, gap: 200 }, crystals: { sfx: 'crystals', vol: 0.85, gap: 200 },
+  streak: { sfx: 'streak', vol: 0.6, gap: 120 }, slash: { sfx: 'slash', vol: 0.65, gap: 90 }, rain: { sfx: 'rain', vol: 0.8, gap: 600 },
+};
+/** The feet on the planks: running from (px / s), a step every (px) running / sprinting; a scuff at most every (ms). */
+const FEET = { run: 330, step: 80, sprint: 64, scuffGap: 260 };
 /** Off the screen: how much quieter per screen-half beyond the edge (and never below). */
 const OFF = { k: 0.45, min: 0.35 };
 
@@ -53,8 +71,23 @@ export class ArenaSound {
     Sound.music(scene, stage ?? null, 1400);
   }
 
-  /** PVP 3D: the room's camera places the sounds, the fight rings in the courtyard. */
-  use3D(view: RoomView): void { this.view = view; this.dimHeard = 0; Sound.room(true); }
+  /** PVP 3D: the room's camera places the sounds, the fight rings in the courtyard, the skills' pieces sound in it. */
+  use3D(view: RoomView): void {
+    this.view = view; this.dimHeard = 0; Sound.room(true);
+    if (view.fx) view.fx.onPiece = (kind, at, size) => this.piece(kind, at, size);
+  }
+
+  /** A piece of a skill in the room: its own short sound where it is (bigger: louder and deeper). */
+  private piece(kind: FxPiece, at: { x: number; y: number; z: number }, size: number): void {
+    const p = PIECE[kind]; if (!p) return;
+    const s = Math.max(0, Math.min(2, Math.round(size))), k = [0.7, 0.85, 1][s];
+    const o = { x: at.x, y: at.y, z: at.z, vol: p.vol * k, rate: [1.08, 1, 0.9][s], wet: WET.piece, at: p.gap };
+    Sound.sfx(p.sfx, o);
+    if (p.then) { const [n, ms, v] = p.then; this.later(ms, () => Sound.sfx(n, { ...o, vol: v * k, at: 60 })); }
+  }
+
+  /** The feet last heard (PVP 3D): where, when, the way run since the last step, the last scuff. */
+  private feet = new Map<string, { x: number; y: number; t: number; run: number; scuff: number }>();
 
   /** Where a world point is heard: its side of the screen, and quieter the farther it is from the camera — farther back
    *  on the floor (PVP 3D: by the depth the camera sees it at, against the fight it frames) and off the screen. */
@@ -162,9 +195,13 @@ export class ArenaSound {
       if (!a.up && f.h > 6) { a.up = true; a.peak = f.h; a.hurt = f.hurt; if (!f.hurt) Sound.sfx('jump', p); }
       else if (a.up) {
         a.peak = Math.max(a.peak, f.h); a.hurt ||= f.hurt;
-        if (f.h <= 1.5) { a.up = false; Sound.sfx(a.hurt && a.peak > 30 ? 'fall' : 'land', { ...p, vol: Math.min(1, 0.5 + a.peak / 160) }); }
+        if (f.h <= 1.5) {
+          a.up = false; Sound.sfx(a.hurt && a.peak > 30 ? 'fall' : 'land', { ...p, vol: Math.min(1, 0.5 + a.peak / 160) });
+          if (this.view) Sound.sfx('thump', { ...p, vol: a.hurt ? Math.min(1, 0.6 + a.peak / 400) : Math.min(0.7, 0.3 + a.peak / 300), rate: a.hurt ? 0.9 : 1, at: 60 }); // (the planks take the weight)
+        }
       }
       this.air.set(f.id, a);
+      if (this.view) this.stepOn(f);
     }
     const v = this.view;
     if (v) { // the room goes dark (a signature, the K.O., an ultimate — darker each): a deep whoosh down with it
@@ -177,6 +214,20 @@ export class ArenaSound {
       const sec = Math.ceil(left / 1000);
       if (sec !== this.tickAt) { this.tickAt = sec; Sound.sfx('tick', { rate: sec <= 3 ? 1.12 : 1 }); }
     } else this.tickAt = -1;
+  }
+
+  /** PVP 3D: a fighter's feet on the planks — a step every so far while running (quicker sprinting), a scuff when a blow
+   *  drives it back along the floor (as the room kicks up its dust). */
+  private stepOn(f: HeardFighter): void {
+    const now = performance.now(), m = this.feet.get(f.id) ?? { x: f.x, y: f.y, t: now, run: 0, scuff: -1e9 };
+    const d = Math.hypot(f.x - m.x, f.y - m.y), v = (d * 1000) / Math.max(1, now - m.t);
+    m.x = f.x; m.y = f.y; m.t = now; this.feet.set(f.id, m);
+    if (d > 140 || f.h > 3 || v < FEET.run) { m.run = 0; return; } // (a teleport, in the air, or walking)
+    const o = { x: f.x, y: f.y, z: 0, wet: WET.body };
+    if (f.slide || f.hurt) { if (now - m.scuff > FEET.scuffGap) { m.scuff = now; Sound.sfx('scuff', { ...o, vol: Math.min(1, 0.5 + v / 1400), at: 60 }); } return; }
+    m.run += d;
+    const every = v > 700 ? FEET.sprint : FEET.step;
+    if (m.run >= every) { m.run %= every; Sound.sfx('step', { ...o, vol: Math.min(0.9, 0.45 + v / 2000), at: 40 }); }
   }
 
   destroy(): void { Sound.leaveArena(); }
