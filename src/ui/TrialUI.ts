@@ -217,6 +217,7 @@ export class TrialUI {
     const hb = this.el('span', '', this.meta); this.el('b', '', hb).textContent = String(r.hits); hb.append(' HITS');
     this.el('span', '', this.meta).textContent = '·';
     this.el('span', '', this.meta).textContent = RANGE[r.range];
+    if (r.style) { this.el('span', '', this.meta).textContent = '·'; this.el('b', '', this.meta).textContent = r.style; }
     this.setKeys(this.keys);
     this.counts();
     this.paint();
@@ -261,7 +262,7 @@ export class TrialUI {
     this.dots.forEach((d, k) => { d.classList.toggle('ok', this.done.has(this.routes[k].name)); d.classList.toggle('at', k === this.at); });
   }
 
-  private idleText(): string { return 'Each key right after the last hit of the one before'; }
+  private idleText(): string { return this.route.tip ?? 'Each key right after the last hit of the one before'; }
   private say(text: string, kind: '' | 'bad' | 'good' = ''): void { this.msg.textContent = text; this.msg.className = `tr-msg${kind ? ' ' + kind : ''}`; }
 
   private onNote(n: TrialNote, i: number): void {

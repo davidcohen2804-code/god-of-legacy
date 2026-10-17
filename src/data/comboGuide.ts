@@ -17,7 +17,13 @@ export interface GuideStep {
 }
 /** How far away the opener reaches the foe: CLOSE up to ~120 px, MID up to ~150–180, FAR up to ~250. */
 export type GuideRange = 'CLOSE' | 'MID' | 'FAR';
-export interface GuideRoute { name: string; range: GuideRange; hits: number; steps: GuideStep[] }
+export interface GuideRoute {
+  name: string; range: GuideRange; hits: number; steps: GuideStep[];
+  /** The class's way of fighting this route plays (e.g. GRAPPLE, AERIAL, FROST): shown beside the range. */
+  style?: string;
+  /** What it teaches, in one line (shown under the keys until the first press). */
+  tip?: string;
+}
 
 export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
   samurai: [
