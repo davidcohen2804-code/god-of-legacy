@@ -48,7 +48,7 @@ export const ARCHER: Record<string, Recipe> = {
   // Sky Rain (the ultimate): arrows of light rain on the place under a faint shell; the last blow a tall spirit column — kept see-through
   sky_rain: { own: true, active: (f, r) => { const p = placeOf(f, r, 300); f.rain(p.x, p.y, 260, C.leaf, { n: 46, ms: Math.max(700, T(r).active) }); f.later(200, () => f.dome(p.x, p.y, C.spirit, { r: 280, ms: 700, a: 0.28 })); }, hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, C.leaf, { r: 150, chunks: 14 }); f.pillar(at.x, at.y, C.spirit, { h: 680, r: 46, ms: 560, i: 1.2 }); } } },
   // Tree of Life: a slow twisting column of spirit light rises where the tree grows (no dome over her)
-  tree_of_life: { own: true, active: (f, r) => { const c = me(f, r); f.pillar(c.x, c.y, C.spirit, { h: 600, r: 44, ms: 900, i: 1.0, twist: true, core: false }); f.host.embers(f.host.w3(c.x), 0.4, f.host.d3(c.y), C.leaf, 16, 1.2); } },
+  tree_of_life: { own: true, active: (f, r) => { const c = me(f, r); f.pillar(c.x, c.y, C.spirit, { h: 600, r: 30, ms: 900, i: 0.8, twist: true, core: false }); f.host.embers(f.host.w3(c.x), 0.4, f.host.d3(c.y), C.leaf, 16, 1.2); } },
   // Vine Lash: a vine trail; the caught foe yanked in along a green streak from her bow
   hunters_spirit: { trail: { c: C.leaf, w: 11, len: 12 }, own: true, hit: (f, s, _h, at) => { void s; f.later(30, () => f.host.ring(f.host.w3(at.x), f.host.d3(at.y), C.leaf, 1.0, 260, 0.6)); } },
   // Hunter's Rain: one great gold arrow falls straight down onto the mark at each blow; the planks burst

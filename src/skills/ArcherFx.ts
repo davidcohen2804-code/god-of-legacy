@@ -465,7 +465,7 @@ export class ArcherFx {
 
   private tree(r: CastRun): void {
     const T = r.timings, o = r.origin, life = 20000, tx = o.x, ty = o.y - 46, grow = T.startup + 250;
-    this.later(T.startup * 0.2, () => this.spr({ name: 'pillar', x: tx, y: ty + 8, oy: 0.97, depth: ty, w: 160, h: 520, add: true, life: 700, sy: kf([0, 0.2], [0.3, 1, out3]), a: kf([0, 0.9], [1, 0, inQ]) }));
+    this.later(T.startup * 0.2, () => this.spr({ name: 'pillar', x: tx, y: ty + 8, oy: 0.97, depth: ty, w: 110, h: 520, add: true, life: 700, sy: kf([0, 0.2], [0.3, 1, out3]), a: kf([0, 0.6], [1, 0, inQ]) }));
     this.floor('root_tangle', tx, ty + 6, 260, T.startup + life, { s: kf([0, 0.2], [0.03, 1, out3]), a: kf([0, 0], [0.02, 0.9], [0.97, 0.9], [1, 0]) });
     this.floor('leaf_ring', tx, ty + 6, 300, T.startup + life, { add: true, s: kf([0, 0.3], [0.03, 1, out3]), a: (u) => kf([0, 0], [0.02, 0.7], [0.97, 0.7], [1, 0])(u) * (0.8 + 0.2 * Math.sin(u * 160)) });
     // it grows before your eyes: sprout, sapling, young tree, then the great tree
