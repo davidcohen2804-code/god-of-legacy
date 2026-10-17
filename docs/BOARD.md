@@ -78,7 +78,7 @@ The shared ChatGPT account ran out of images at 01:50 last night. Spend it on wh
 1. **Book Mage:** first re-cut Binding Rune at the idle's scale (not GPT: David's size bug). Then the stills for her own body moves: Page Bind, Arcane Ward, Paper Curse (her ref).
 2. **Warrior:** Wave Slash's own sheet; a recognisable lion head for Lion's Maw.
 3. **Gambler:** the new card skill's icon and its painted pieces: the gathered card, the deck lying on the floor in the painted arena. — Gambler: batch started (own tab) — the first image was refused at 17:35: 'Plus plan limit, try again at 18:43'. Retrying then.
-4. **Archer:** the THORN vines.
+4. **Archer:** the THORN vines. — Archer: waiting for the limit (the Gambler hit it at 17:35, back ~18:43); my batch then, own tab: thorned vines for Vine Mine's burst and Binding Leaves' hold (deep green vines and roots, no rings), ≤6 images.
 5. **Movements:** the samurai's launched 1–2 and get-up 6 polish.
 6. **Maps:** the tiles marked "wired first" in `TEXTURES.md` (`tools/world3d/tile.py`).
 7. **Samurai, PvP:** only if something of yours waits for GPT.
