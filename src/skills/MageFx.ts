@@ -450,7 +450,7 @@ export class MageFx {
     if (!this.ready) return;
     const s = r.skill, T = r.timings, me = this.me(r), side = sideOf(r), hand = this.at(r.attackerId, side, 22, 70);
     const own = !['page_bind', 'astral_burst', 'frost_nova', 'lightning_chain', 'blink', 'chrono_haste', 'chrono_sigil', 'arcane_ward', 'elemental_ascension', 'levity_field', 'arcane_gate', 'binding_rune', 'storm_field'].includes(s.id) && !(s.slot === 0 && r.stage !== 2); // (skills with ground art of their own: no circle under it)
-    if (own) this.circle(me.x, this.floorY(me.x, me.y, me.z), s.slot === 7 ? 420 : s.slot === 0 ? 200 : 260, MageFx.EL[s.id] ?? 0, T.startup + T.active + 260, { run: r, draw: Math.max(120, T.startup), ult: s.slot === 7 }); // every spell is written as a circle
+    if (own && s.slot === 7) this.circle(me.x, this.floorY(me.x, me.y, me.z), s.slot === 7 ? 420 : s.slot === 0 ? 200 : 260, MageFx.EL[s.id] ?? 0, T.startup + T.active + 260, { run: r, draw: Math.max(120, T.startup), ult: s.slot === 7 }); // only the ultimate writes its circle under her: the same circle under every spell made them all read alike (David: cluttered, nothing unique)
     switch (s.id) {
       case 'arcane_bolt': case 'arcane_bolt_arcane': case 'arcane_bolt_frost': case 'arcane_bolt_storm': this.boltCharge(r); break;
       case 'arcane_wave': this.spr({ name: 'spark_arc', w: 50, life: T.startup + 80, follow: hand, add: true, glow: 0.5, run: r, sx: kf([0, 0.3], [1, 1.2, out3]), a: kf([0, 1], [1, 0]) }); break;
