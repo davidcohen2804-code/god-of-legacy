@@ -634,7 +634,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const pvp = !!sd?.pvpRoom, training = sd?.vs === 'training';
     const me = sd?.fighter ?? CharacterStore.getSelectedCharacter(); // (the PvP select's fighter)
     const cls = me ? playedClass(me) : undefined; // the class actually played (Beginner = warrior base)
-    const classes = pvp || !cls ? undefined : [cls];
+    // the PvP arena loads only its two fighters' classes (all five heroes' atlases and effects came to ~340 MB before the
+    // fight could start — David: the PvP loading); another class loads when it shows up (the training partner's switch)
+    const foeCls = sd?.foe?.cls ?? sd?.botCls ?? (pvp ? this.botCls : undefined);
+    const classes = pvp ? (cls && foeCls ? [...new Set([cls, foeCls])] : undefined) : !cls ? undefined : [cls];
     // Weapon masks only when your own look already needs them (others load on first need).
     const masks = me && cls && wantsWeaponMasks(cls, CharacterStore.getCosmetics(me.id).equipped as Equipped) ? [cls] : [];
     this.stage = pvp ? (ARENA3D.on ? STAGE_3D : stageById(sd?.stage) ?? stageOf(sd?.pvpRoom)) : undefined; // (PVP 3D: its one stage, the 3D courtyard; the painted arena: the stage picked on the select screen)
@@ -645,7 +648,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     else preloadOpenWorld(this); // the open world: the start area and its neighbours (the rest streams in)
     if (!this.textures.exists(CT.dummy.key)) this.load.image(CT.dummy.key, CT.dummy.file);
-    preloadBodies(this, classes, masks);
+    preloadBodies(this, classes, masks, pvp && !!me?.hero && !!classes); // (the arena's fighters are ready heroes: their painted bodies only)
     if (me) loadBaseLook(this, genderOf(me), headLookOf(me)); // your hair, face and skin: layers on every base frame
     if (me) loadGear(this, genderOf(me), wornLook(me.gear)); // what you wear: the clothes and the sword on every base frame
     if (me) preloadLooks(this, [me]); // your full style for the portrait
@@ -3721,6 +3724,17 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   /** Sparring partner of the chosen class (keeps STOP when it is swapped). */
+  /** A class's art (its hero body, its skills' effects, its looks), loaded now if the arena has not got it yet — the arena
+   *  loads only its two fighters' classes; then `then`. */
+  private classLoading = false;
+  private ensureClass(cls: string, then: () => void): void {
+    preloadBodies(this, [cls], [], !!this.character?.hero); preloadSkillFx(this, [cls]); preloadCosmetics(this, [cls]);
+    if (!this.load.list.size) { then(); return; }
+    this.classLoading = true;
+    this.load.once(Phaser.Loader.Events.COMPLETE, () => { this.classLoading = false; registerBodies(this); if (this.sys.isActive()) then(); });
+    this.load.start();
+  }
+
   private spawnBot(x: number, y: number, now: number): void {
     const paused = this.bot?.paused ?? this.botPaused;
     if (this.match?.opponent === BOT_ID) this.match.abort(); // a new opponent: a new match
@@ -3785,7 +3799,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const classes: [string, string][] = [['warrior', 'WARRIOR'], ['samurai', 'SAMURAI'], ['book_mage', 'MAGE'], ['archer', 'ARCHER']];
     const clsBtns = classes.map(([id, label]) => {
       const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
-      b.addEventListener('click', () => { if (this.botCls === id) return; this.botCls = id; const bt = this.bot; if (bt) this.spawnBot(bt.x, bt.y, this.simMs); this.refreshSparUi(); });
+      b.addEventListener('click', () => { if (this.botCls === id || this.classLoading) return; this.ensureClass(id, () => { this.botCls = id; const bt = this.bot; if (bt) this.spawnBot(bt.x, bt.y, this.simMs); this.refreshSparUi(); }); });
       cl.appendChild(b); return { id, b };
     });
     const lv = document.createElement('div'); lv.className = 'lv'; root.appendChild(lv);

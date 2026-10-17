@@ -85,7 +85,9 @@ export function ensureWeaponMasks(scene: Phaser.Scene, cls: string): void {
 
 /** Body sheets of the given classes (all classes when omitted: the PvP arena can hold any class). Weapon masks only for
  *  `masks` (classes whose wearer already has a weapon skin); the rest load on first need (ensureWeaponMasks). */
-export function preloadBodies(scene: Phaser.Scene, classes?: readonly string[], masks: readonly string[] = []): void {
+/** `heroesOnly`: only the painted heroes' bodies of `classes` — the PvP arena, where every fighter is a ready hero (no
+ *  Beginner, no base body, none of the older per-skill sheets: they were most of what the arena loaded). */
+export function preloadBodies(scene: Phaser.Scene, classes?: readonly string[], masks: readonly string[] = [], heroesOnly = false): void {
   const want = (cls: string) => !classes || classes.includes(cls);
   const L = (k: string, p: string, sheet: boolean) => {
     if (scene.textures.exists(k)) return;
@@ -96,18 +98,18 @@ export function preloadBodies(scene: Phaser.Scene, classes?: readonly string[], 
     if (masks.includes(cls)) loadMask(scene, k);
   };
   for (const cls of SHEET_CLASSES) {
-    if (!want(cls)) continue;
+    if (!want(cls) || heroesOnly) continue;
     for (const st of Object.keys(MOVE_COLS).filter((x) => x !== 'react' || cls === 'warrior')) { L(sheetKey(cls, st), sheetPath(cls, st), true); M(`${sheetKey(cls, st)}-w`, sheetPath(cls, st), cls); if (cls === 'warrior') SHEET_PATH[sheetKey(cls, st)] = sheetPath(cls, st); }
     for (const s of FINAL_SKILLS.filter((x) => x.cls === cls && !BODY_ALIAS[x.id] && !(x.id in POSE_AS_BASIC))) { const cs = CELLS[s.id]; const LS = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: cs?.w ?? CELL, frameHeight: cs?.h ?? CELL }); };
       LS(skillKey(cls, s.id), skillPath(cls, s.id)); M(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id), cls, cs?.w ?? CELL, cs?.h ?? CELL); if (cls === 'warrior') SHEET_PATH[skillKey(cls, s.id)] = skillPath(cls, s.id); }
   }
-  for (const [cls, a] of Object.entries(ATLAS)) { if (!want(cls)) continue; L(atlasKey(cls), a.sheet, false); M(`${atlasKey(cls)}-w`, a.sheet, cls, 0, 0, true); }
-  for (const cls of Object.keys(HEROES)) if (want(cls) || cls.startsWith('beginner_')) L(heroKey(cls), `assets/final/heroes/${cls}/body.png`, false); // START HERO bodies; the painted Beginner always (every class plays it below the 1st job)
-  if (want('warrior')) for (const [g, anims] of Object.entries(NAKED)) for (const anim of Object.keys(anims)) {
+  for (const [cls, a] of Object.entries(ATLAS)) { if (!want(cls) || heroesOnly) continue; L(atlasKey(cls), a.sheet, false); M(`${atlasKey(cls)}-w`, a.sheet, cls, 0, 0, true); }
+  for (const cls of Object.keys(HEROES)) if (want(cls) || (!heroesOnly && cls.startsWith('beginner_'))) L(heroKey(cls), `assets/final/heroes/${cls}/body.png`, false); // START HERO bodies; the painted Beginner always (every class plays it below the 1st job) — not in the PvP arena, where both fighters are heroes
+  if (want('warrior') && !heroesOnly) for (const [g, anims] of Object.entries(NAKED)) for (const anim of Object.keys(anims)) {
     L(nakedKey(g, anim), `assets/final/body/naked/${g}/${anim}.png`, true);
     if (hasOver(g, anim)) L(overKey(g, anim), `assets/final/body/naked/${g}/${anim}_o.png`, true); // the sword arm in front of the head
   }
-  if (want('warrior')) for (const anim of BASE_ANIMS) {
+  if (want('warrior') && !heroesOnly) for (const anim of BASE_ANIMS) {
     const k = baseKey(anim); L(k, basePath(anim), true); M(`${k}-w`, basePath(anim), 'warrior'); SHEET_PATH[k] = basePath(anim);
     const cs = CELLS[anim], skill = !(anim in MOVE_COLS), W = cs?.w ?? CELL, H = cs?.h ?? CELL;
     BASE_GEOM[k] = { W, H, cols: skill ? (cs?.cols ?? 6) : moveCols('warrior', anim as MoveState), orig: skill ? skillPath('warrior', anim) : sheetPath('warrior', anim), ox: Math.floor(W / 2) - 176, oy: H - CELL };
