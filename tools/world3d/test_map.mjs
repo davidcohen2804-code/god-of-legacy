@@ -34,9 +34,9 @@ for (const id of ids) {
   let i = 0; for (let x = x0 + 120; x <= x1 - 120; x += STEP, i++) { await tele(x, yMid); await settleCam(); await W(p, 1200); if (SHOTS) await shot(`${OUT}/${id}_walk_${String(i).padStart(2, '0')}.jpg`); }
   const st = await state(); check(st.area === id || areaIdAt(st.x) === id, `still on the map after the walk (${st.area})`);
   // 2) the body on its floor point
-  await tele((x0 + x1) / 2, yMid); await settleCam(); await W(p, 1500);
-  const placed = await S(() => new Promise((res) => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const a = s.a3d, k = s.kin, v = s.view.shadow; s.events.once('prerender', () => { const P = a.project(k.x, k.y, 0); res({ dx: Math.abs(v.x - P.sx), dy: Math.abs(v.y - P.sy) }); }); }));
-  check(placed.dx < 3 && placed.dy < 3, `the hero's feet on his floor point (${placed.dx.toFixed(1)}, ${placed.dy.toFixed(1)} px off)`);
+  const placedAt = async (x) => { await tele(x, yMid); await settleCam(); await W(p, 1500); return S(() => new Promise((res) => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const a = s.a3d, k = s.kin, v = s.view.shadow; s.events.once('prerender', () => { const P = a.project(k.x, k.y, 0); res({ dx: Math.abs(v.x - P.sx), dy: Math.abs(v.y - P.sy), mode: s.mode }); }); })); };
+  let placed = await placedAt((x0 + x1) / 2); if (placed.dx >= 3 || placed.dy >= 3) placed = await placedAt(x0 + 220); // (a monster's blow jolts the body: once more away from the spawns)
+  check(placed.dx < 3 && placed.dy < 3, `the hero's feet on his floor point (${placed.dx.toFixed(1)}, ${placed.dy.toFixed(1)} px off, ${placed.mode})`);
   // 3) onto the first thing you can stand on (a block, a crate, a log…): teleport beside it, jump toward it
   const standable = (A.props ?? []).filter((q) => q.stand && q.h && q.h <= 110).sort((a, b2) => a.h - b2.h)[0]; // (what a jump reaches)
   if (standable) {
