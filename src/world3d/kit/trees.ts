@@ -3,7 +3,9 @@
 // maple, an orange tree or a pine by its crown's texture and colours — and the leaves that fall from the crowns,
 // drift down, lie a while and are swept up again by a gust.
 import * as THREE from 'three';
-import { taperTube } from '../../arena3d/RoomKit';
+import { taperTube as rawTube } from '../../arena3d/RoomKit';
+import { tube } from './units';
+const taperTube: typeof rawTube = (...a) => tube(rawTube(...a));
 import type { Disposable } from './units';
 
 export interface TreeSpot { x: number; z: number; h: number; lean: number }

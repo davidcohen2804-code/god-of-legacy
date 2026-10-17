@@ -22,6 +22,8 @@ export interface DressCtx {
   /** The ground above the wall (its height, where it begins behind the top floor). */
   zTopBack: number; topY: number;
   R: () => number; life: Life[]; air: Wind; soft: boolean; crimson: boolean;
+  /** Kit B's dusk; the place's warm point lights (the kit flickers them: add a lantern's, a window's); toward the sun / moon. */
+  dusk: boolean; warm: THREE.PointLight[]; sunDir: THREE.Vector3;
   std(o: THREE.MeshStandardMaterialParameters): THREE.MeshStandardMaterial;
   /** Things that move with the wind each frame (t, wind strength), what to free. */
   sway: ((t: number, wind: number) => void)[]; disposables: Disposable[];

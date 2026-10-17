@@ -23,6 +23,15 @@ export function rng(seed: number): () => number {
   return () => { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 
+/** A tapered tube (RoomKit.taperTube) wound the right way out: its triangles face inward today (the face normals
+ *  against the vertex normals), so a branch or a root is drawn by its far inner wall, lit from behind — black. Until
+ *  the shared kit is fixed (asked of DFO) the world's tubes pass through here. */
+export function tube(g: THREE.BufferGeometry): THREE.BufferGeometry {
+  const ix = g.index; if (!ix) return g;
+  for (let i = 0; i < ix.count; i += 3) { const b = ix.getX(i + 1); ix.setX(i + 1, ix.getX(i + 2)); ix.setX(i + 2, b); }
+  ix.needsUpdate = true; return g;
+}
+
 /** Things to free when the place goes. */
 export type Disposable = { dispose(): void };
 export const v3 = (x: number, y: number, z: number): THREE.Vector3 => new THREE.Vector3(x, y, z);
