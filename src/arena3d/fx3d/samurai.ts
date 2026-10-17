@@ -6,31 +6,38 @@
 // rebuilt yet keep their pieces (each its old family tone) until their turn. The room answers the rebuilt ones' blows in
 // SAM.light (a crimson flare washed the red courtyard redder). In PVP 3D the rebuilt skills' flat painted cuts and marks
 // stay out (SamuraiFx IN3D_OWN). Owned by the Samurai chat; the room's pieces are in ../Fx3D.ts (DFO's), ours in blade3d.ts.
-import type { Recipe } from '../Fx3D';
+import type { Recipe, Fx3D, V3 } from '../Fx3D';
 import { C, me, side, T } from './kit';
 import { ring, crescent, flurry, slit, bladeBall, inkBurst, sparks, SAM } from './blade3d';
 
 const flip = () => (Math.random() < 0.5 ? 1 : -1);
+/** A blow thrown up (the bar: the foe thrown high and fast): a white-hot line struck up through him from the planks (its
+ *  trace, not a main-hit piece: the room plays the main hit itself). */
+const rise = (f: Fx3D, at: V3) => {
+  slit(f, { x: at.x - 6, y: at.y, z: 4 }, { x: at.x + 8, y: at.y, z: 360 }, { w: 20, ms: 240, draw: 34, front: true });
+  f.host.embers(f.host.w3(at.x), f.host.h3(90), f.host.d3(at.y), SAM.light, 4, 2.2);
+};
 
 export const SAMURAI: Record<string, Recipe> = {
   // (David's bar: each cut a thick ribbon ring round him in perspective — the slash from over the head slanted, the
   // backhand flat round him at the shoulder, the cross cut down and back up, the rising cut upright — white-hot at its
-  // leading edge, crimson, an ink stroke inside, turning to ink as it goes; 150–220 ms)
+  // leading edge, its body a hot rose that reads on the red planks, an ink stroke inside, turning to ink as it goes;
+  // 150–220 ms; the rising cut that launches: a white-hot line up through the foe)
   quick_slash: { own: true, tone: SAM.light,
     active: (f, r) => {
       const st = r.stage % 4, big = st === 3, d = side(r), on = () => f.host.casterPos(r.attackerId), c = me(f, r);
       const P = [
-        { tilt: 62, yaw: 34, roll: 0, a0: -35, a1: 165, r: 112, w: 44, y0: 94, fwd: 20 },
-        { tilt: 34, yaw: 10, roll: 0, a0: 210, a1: -10, r: 116, w: 42, y0: 100, fwd: 12 },
-        { tilt: 58, yaw: -36, roll: 0, a0: -40, a1: 150, r: 108, w: 42, y0: 92, fwd: 22 },
-        { tilt: 82, yaw: 36, roll: 0, a0: 175, a1: -20, r: 124, w: 50, y0: 86, fwd: 18 },
+        { tilt: 62, yaw: 34, roll: 0, a0: -35, a1: 165, r: 120, w: 52, y0: 94, fwd: 20 },
+        { tilt: 34, yaw: 10, roll: 0, a0: 210, a1: -10, r: 124, w: 50, y0: 100, fwd: 12 },
+        { tilt: 58, yaw: -36, roll: 0, a0: -40, a1: 150, r: 116, w: 50, y0: 92, fwd: 22 },
+        { tilt: 82, yaw: 36, roll: 0, a0: 175, a1: -20, r: 132, w: 58, y0: 86, fwd: 18 },
       ][st];
-      ring(f, c, d, { ...P, ms: big ? 220 : 170, follow: on });
-      if (st === 2) f.later(60, () => ring(f, me(f, r), d, { tilt: 58, yaw: 36, roll: 0, a0: 165, a1: -30, r: 104, w: 40, y0: 92, fwd: 22, ms: 160, follow: on }));
+      ring(f, c, d, { ...P, ms: big ? 220 : 170, lit: SAM.rose, gain: 1.3, follow: on });
+      if (st === 2) f.later(60, () => ring(f, me(f, r), d, { tilt: 58, yaw: 36, roll: 0, a0: 165, a1: -30, r: 112, w: 46, y0: 92, fwd: 22, ms: 160, lit: SAM.rose, gain: 1.3, follow: on }));
     },
     hit: (f, _s, _h, at, main, react) => {
       sparks(f, at, Math.random() < 0.5 ? 1 : -1, main ? 7 : 4, main ? 60 : 44);
-      if (main && react === 'launch') f.pillar(at.x, at.y, SAM.crimson, { h: 300, r: 16, ms: 260, core: false, i: 0.8 }); } },
+      if (main && react === 'launch') rise(f, at); } },
   // (David's bar: an ink burst — 05) he vanishes in a burst of ink where he stood, a thin crimson line of the cut runs
   // through the foe along his path, and he lands out of a smaller one
   shadow_step: { own: true, tone: SAM.light,
