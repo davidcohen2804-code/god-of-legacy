@@ -35,8 +35,12 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // strikes round it, and every pulse a beam struck from the sky onto its heart (the last the big one; the room's impact is the main hit)
   storm_field: { tone: C.storm,
     own: true,
-    active: (f, r) => { const p = placeOf(f, r); const life = r.skill.zoneMs ?? 2400; f.glyph(p.x, p.y, C.storm, { shape: 'spiral', r: 200, ms: life, spin: 0.7, pulse: 2.2 }); for (let t = 200; t < life; t += 460) f.later(t, () => { const a = Math.random() * Math.PI * 2, d = 120 + Math.random() * 80; f.bolt({ x: p.x + Math.cos(a) * d * 0.5, y: p.y, z: 700 }, { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d * 0.5, z: 0 }, C.storm, { ms: 180, w: 5, forks: 2 }); }); },
-    fired: (f, r, i) => { const p = placeOf(f, r), last = i === r.hits.length - 1; f.skyBeam({ x: p.x, y: p.y, z: 0 }, C.storm, { ms: last ? 520 : 320, w: last ? 16 : 9 }); if (last) f.host.kick(0.05); },
+    // (David 18 Oct: "good direction, improve the whole process" — wind-up: the spiral glyph opens on the floor; the field: the storm's wind rises
+    // round it as a wide turning cylinder of sparks, lightning with legs strikes inside it; each pulse a beam from the sky onto its heart; the
+    // finale: the biggest beam, a star glyph flaring over the spiral and a ring thrown out over the floor)
+    cast: (f, r) => { const p = placeOf(f, r); f.glyph(p.x, p.y, C.storm, { shape: 'spiral', r: 200, ms: r.timings.startup + (r.skill.zoneMs ?? 1800), spin: 0.7, pulse: 2.2 }); },
+    active: (f, r) => { const p = placeOf(f, r), life = r.skill.zoneMs ?? 1800; f.swirl(() => ({ x: p.x, y: p.y, z: 0 }), {}, { n: 70, r0: 190, r1: 230, h: 560, ms: life, rps: 0.8, rise: 1, size: 0.7, color: C.storm }); for (let t = 150; t < life - 150; t += 300) f.later(t, () => { const a = Math.random() * Math.PI * 2, d = 60 + Math.random() * 140; f.bolt({ x: p.x + Math.cos(a) * d * 0.5, y: p.y, z: 640 }, { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d * 0.5, z: 0 }, C.storm, { ms: 170, w: 5, forks: 2 }); }); },
+    fired: (f, r, i) => { const p = placeOf(f, r), last = i === r.hits.length - 1; f.skyBeam({ x: p.x, y: p.y, z: 0 }, C.storm, { ms: last ? 560 : 320, w: last ? 18 : 9 }); if (last) { f.glyph(p.x, p.y, C.storm, { shape: 'star', r: 250, ms: 600, spin: 3, pulse: 3, points: 8 }); f.host.ring(f.host.w3(p.x), f.host.d3(p.y), C.storm, 3.2, 520, 0.6); f.host.kick(0.05); } },
   },
   // the ultimate (David 18 Oct 01:26: "a tornado and lightning bolts over the map" — one idea): a violet storm tornado rises over the field,
   // sparks and her torn pages spinning up its funnel, lightning striking out of the sky all over the field while it turns; the blast flings
