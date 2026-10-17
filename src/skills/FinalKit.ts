@@ -999,6 +999,19 @@ export const arenaWide = (s: FinalSkill): boolean => s.slot === 7 || !!s.trap ||
 export const arenaCommits = (s: FinalSkill): boolean => s.slot > 0 && !s.chain && !s.counter && !arenaWide(s) && !s.hits.some((h) => h.shape.kind === 'projectile')
   && !s.roles.some((r) => r === 'setup' || r === 'mobility' || r === 'escape') && s.hits.some((h) => h.damage > 0);
 const isArenaBuff = (s: FinalSkill): boolean => s.tags.includes('buff') || (s.slot !== 7 && s.cooldown >= 20000 && s.roles.every((r) => ['setup', 'zone', 'mobility', 'escape', 'pull'].includes(r)));
+/** A hit's place in its skill's list (-1: none). The arena runs re-timed copies of a skill's hits (SkillRuntime.start), so
+ *  a copy is matched to its original by its time — at the arena's pace or its own — and its damage. */
+export function hitIndex(s: FinalSkill, hit: HitEvent): number {
+  const i = s.hits.indexOf(hit);
+  if (i >= 0) return i;
+  const k = arenaTimeScale(s)?.at ?? 1;
+  let found = -1;
+  s.hits.forEach((h, j) => { if (h.damage === hit.damage && (Math.abs(Math.round(h.at * k) - hit.at) <= 1 || h.at === hit.at)) found = j; });
+  return found;
+}
+/** The last blow of a burst (a skill of more than three hits, not a chain): the main hit of the feel rules. */
+export const lastOfBurst = (s: FinalSkill, hit: HitEvent): boolean => !s.chain && s.hits.length > 3 && hitIndex(s, hit) === s.hits.length - 1;
+
 export function arenaTimeScale(s: FinalSkill, followUp = false): { startup: number; active: number; recovery: number; at: number; reach?: number; antiAir?: boolean; depth?: number } | null {
   const w = { startup: 1, active: 1, recovery: 1, at: 1 };
   const p = ARENA_PACE[s.id];

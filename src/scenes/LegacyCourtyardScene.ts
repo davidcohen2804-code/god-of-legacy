@@ -92,7 +92,7 @@ import { baseLoop, ClassKey, dirOf, HERO_HEIGHT, HERO_LIFT, heroPortrait, loadBa
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
 import { ARENA, CombatBody, counterStun, HitOutcome, gaugeOf, Kin, MAGE, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
-import { ARENA_FLOW, MAGE_HIDDEN, arenaCommits, arenaTimeScale, armorMul, finalSkill, iconUrl, kitFor } from '../skills/FinalKit';
+import { ARENA_FLOW, MAGE_HIDDEN, arenaCommits, arenaTimeScale, armorMul, finalSkill, iconUrl, kitFor, lastOfBurst } from '../skills/FinalKit';
 import { CastRun, RT_EVENTS, SkillRuntime, Trap } from '../skills/SkillRuntime';
 import type { Projectile } from '../skills/HitGeometry';
 import { Afterimages, applyMotion, archerMotion, heroMotion, leapMotion } from '../skills/ArcherMotion';
@@ -3245,7 +3245,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.a3d.hit(at.x, at.y, at.z, parseInt(classColor(s.cls).slice(1), 16), weight);
     // the skill's 3D pieces at the foe; the main hit (heavy, sending him flying or down, the last of a burst) carries the weight
     const flies = !!(hit.reaction.launch || hit.reaction.knockdown || hit.reaction.slam), many = (s.chain ? 1 : s.hits.length) > 3;
-    const main = !!hit.heavy || flies || (many && hit === s.hits[s.hits.length - 1]) || (!many && (s.slot === 6 || s.slot === 7));
+    const main = !!hit.heavy || flies || lastOfBurst(s, hit) || (!many && (s.slot === 6 || s.slot === 7));
     this.a3d.fx.hit(s, hit, at, main, reaction, s.slot === 7 && main ? 2 : s.slot === 6 || hit.heavy || flies ? 1 : 0);
   }
   private counterCall(at: V3): void { this.fx?.callout({ x: at.x, y: at.y, z: at.z + 70 }, 'COUNTER!', '#ff6a3a', 1); this.impactBeat('counter', at); }

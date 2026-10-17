@@ -7,7 +7,7 @@ import Phaser from 'phaser';
 import { FinalSkill, HitEvent, HitShape } from './SkillTypes';
 import { CastRun, RT_EVENTS, SkillRuntime, Trap } from './SkillRuntime';
 import { Projectile, V2, V3, circleCentre } from './HitGeometry';
-import { FINAL_SKILLS } from './FinalKit';
+import { FINAL_SKILLS, lastOfBurst } from './FinalKit';
 import DIGITS from '../data/damage-digits.json';
 import { SamuraiFx, KIT, KIT_URL } from './SamuraiFx';
 import { MageFx, MAGE_KIT, MAGE_KIT_URL, MAGE_SHEETS } from './MageFx';
@@ -1328,8 +1328,8 @@ export class SkillFx {
       // the blow's weight (feel only): a heavy blow, one that sends the foe flying or down, and the last blow of a burst are
       // the "main hit" — full freeze and a heavier shake; the small hits of a burst stay light so the main one stands out
       const flies = !!(hit.reaction.launch || hit.reaction.knockdown || hit.reaction.slam);
-      const many = (s.chain ? 1 : s.hits.length) > 3, lastOfBurst = many && hit === s.hits[s.hits.length - 1];
-      const weighty = !!hit.heavy || flies || lastOfBurst;
+      const many = (s.chain ? 1 : s.hits.length) > 3; // (the arena re-times the hits as copies: the last blow found by lastOfBurst — PvP's report)
+      const weighty = !!hit.heavy || flies || lastOfBurst(s, hit);
       this.hitStopLeft = Math.max(this.hitStopLeft, HITSTOP[tier] * (many && !weighty ? 0.45 : 1) + (weighty && tier !== 'ultimate' ? 25 : 0) + (flies ? 15 : 0));
       const [d, i] = SHAKE[weighty && tier === 'core' ? 'signature' : tier];
       if (tier !== 'basic' || weighty) this.scene.cameras.main.shake(d, i);
