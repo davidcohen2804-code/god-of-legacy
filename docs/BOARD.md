@@ -167,6 +167,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 ## Done
 - Samurai (quality pass): Sakura Bind — his own body move (PixVerse: the katana driven into the planks on one knee, held, pulled out as he rises; it was a palm pushed out) and the idea shown: the planks crack where the blade goes in and a line of blossom light runs through the floor to the ring (2D + 3D); checked in PVP 3D — 59bcdf0f
 - Gambler: reads the arena's re-timed hits (DFO's hitIndex) — a burst's heavy last blast now shows in the arena too (it compared hit times, which the arena copies)
+- Book Mage (quality pass, the rest of the kit in PVP 3D: Levity, Origami, Ward, Curse, Ascension, Page Bind): the PRISM burst whited out the foe and bent the name labels — now he reads through it — 255c07b7. Paper Curse's crane stays solid on purpose (the foe is turned into it).
 - Archer: own body moves for Wind Step, Backstep Shot, Vine Lash, Triple Arrow and Eagle Tide (PixVerse from her ref; no skill borrows another's frames any more) — 53523eda, efb442d2
 - Gambler: PVP 3D checks with real setups (a held Charged Deal; Charged Deal → All In with a card stuck; Charged Deal → Vault → Rotor in the air): All In's gold column thinned, no white core — 12057a9f
 - Book Mage (re-check after the heavier main hit): Astral Lift's throw whited out both fighters — pillar, warp and 3D column softened; Glacial Spikes' haze over the foe gone — both read in PVP 3D — cdc4f6d3
