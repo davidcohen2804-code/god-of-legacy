@@ -32,7 +32,7 @@ export const GAMBLER: Record<string, Recipe> = {
   // seven cards fanned out: a fan of thin streaks from his hand, each card trailing light
   charged_deal: { tone: TONE.card,
     own: true, hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, F.card, { r: 70, ms: 220, a: 0.55 }); },
-    trail: { c: F.card, w: 12, len: 9, i: 2.4 },
+    trail: { c: F.card, w: 6, len: 7, i: 1.3 },
     active: (f, r) => { const c = me(f, r), s = side(r); for (let k = -2; k <= 2; k++) f.streak(chest(c, 92), { x: c.x + s * 190, y: c.y + k * 34, z: 92 + k * 6 }, k % 2 ? F.red : F.card, { w: 4, ms: 130, draw: 40 }); },
   },
   // the vault over the foe: an upright crescent of light along the staff's arc; the launch's column is the default main hit
@@ -58,8 +58,8 @@ export const GAMBLER: Record<string, Recipe> = {
   },
   // the row of cards turned face up: a crest of light runs down the row along the floor, the last card the big burst
   showdown: { tone: TONE.card,
-    own: true, hit: (f, _s, _h, at, main) => { if (main) { f.dome(at.x, at.y, F.card, { r: 110, ms: 300, a: 0.55 }); f.pillar(at.x, at.y, F.red, { h: 360, r: 26, ms: 380, core: false }); } },
-    active: (f, r) => { const c = me(f, r); f.wave(c.x, c.y, r.aim.x, r.aim.y * 0.6, F.card, { len: 360, ms: 340, h: 90, w: 70 }); },
+    own: true, hit: (f, _s, _h, at, main) => { if (main) { f.dome(at.x, at.y, F.card, { r: 60, ms: 260, a: 0.3 }); f.pillar(at.x, at.y, F.red, { h: 360, r: 22, ms: 380, core: false }); } },
+    active: (f, r) => { const c = me(f, r); f.wave(c.x, c.y, r.aim.x, r.aim.y * 0.6, F.red, { len: 360, ms: 340, h: 50, w: 46 }); },
   },
   // the coin: a thin gold column rising where it lands
   coin_flip: { tone: TONE.coin, own: true, active: (f, r) => f.pillar(me(f, r).x, me(f, r).y, C.coin, { h: 420, r: 30, ms: 520, core: false }) },
@@ -80,7 +80,7 @@ export const GAMBLER: Record<string, Recipe> = {
   // Lady Luck: a short rain of gold over him
   lady_luck: { tone: TONE.coin, own: true, active: (f, r) => { const c = me(f, r); f.rain(c.x, c.y, 80, C.coin, { n: 10, ms: 420, h: 420 }); } },
   // Pick-up 52: the deck thrown up comes down — a rain of fuchsia over the area ahead
-  pickup_52: { tone: TONE.card, own: true, hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, F.card, { r: 100, ms: 280, a: 0.55 }); }, active: (f, r) => { const p = ahead(f, r, 160); f.rain(p.x, p.y, 150, F.card, { n: 22, ms: 700, h: 560 }); } },
+  pickup_52: { tone: TONE.card, own: true, hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, F.card, { r: 100, ms: 280, a: 0.55 }); }, active: (f, r) => { const p = ahead(f, r, 160); f.rain(p.x, p.y, 150, F.red, { n: 16, ms: 700, h: 560 }); } },
   // the home run: a crater where the bat of light lands, a shell, the camera pushed
   grand_slam: { tone: TONE.violet, own: true, hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, F.violet, { r: 160, chunks: 18, up: 1.3 }); f.host.kick(0.05); } } },
   // Overload: lightning crawls round his feet
@@ -91,7 +91,7 @@ export const GAMBLER: Record<string, Recipe> = {
   // Card Swap: he flashes to his card in a streak of light
   card_swap: { tone: TONE.card, own: true, active: (f, r) => { const c = me(f, r); f.later(T(r).active * 0.7, () => { const e = me(f, r); f.streak(chest(c), chest(e), F.card, { w: 18, ms: 300, draw: 40 }); }); } },
   // the jackpot: a gold tower of light, then the crater (kept under a white-out: the fighters read through it)
-  jackpot: { tone: TONE.neon, own: true, active: (f, r) => { const p = placeOf(f, r, 220); f.pillar(p.x, p.y, C.coin, { h: 900, r: 60, ms: 900, twist: true, i: 1.4 }); f.later(140, () => { f.dome(p.x, p.y, C.fuchsia, { r: 300, ms: 600, a: 0.35 }); f.crack(p.x, p.y, C.fuchsia, { r: 240, chunks: 26, up: 1.4 }); f.host.impact({ x: p.x, y: p.y, z: 60 }, 2); f.host.kick(0.08); }); } },
+  jackpot: { tone: TONE.coin, own: true, active: (f, r) => { const p = placeOf(f, r, 220); f.pillar(p.x, p.y, C.coin, { h: 700, r: 34, ms: 800, twist: true, i: 1 }); f.later(140, () => { f.crack(p.x, p.y, C.fuchsia, { r: 200, chunks: 20, up: 1.3 }); f.host.impact({ x: p.x, y: p.y, z: 60 }, 2); f.host.kick(0.08); }); } },
   // All In: every stuck card goes off — a crater and a gold column out of it
   all_in: { tone: TONE.neon, own: true, hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, F.neon, { r: 150, chunks: 18 }); f.pillar(at.x, at.y, F.neon, { h: 600, r: 32, ms: 480, i: 1.4, core: false }); } } },
   // Triple Down: three slams — the cracks grow with each, the third the widest

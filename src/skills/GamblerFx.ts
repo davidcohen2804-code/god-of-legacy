@@ -25,11 +25,11 @@ const FAM_OF: Record<string, Fam> = {
 };
 const FAM_TONE: Record<Exclude<Fam, 'chance'>, [number[], number[], number[]]> = { // dark, mid, hot (0..1 rgb)
   staff: [[0.22, 0.17, 0.42], [0.62, 0.58, 0.92], [0.96, 0.97, 1.0]],
-  cards: [[0.52, 0.02, 0.07], [0.84, 0.78, 0.76], [1.0, 0.98, 0.96]], // (additive: the faces a soft white, never a white-out)
+  cards: [[0.50, 0.02, 0.07], [0.92, 0.22, 0.30], [1.0, 0.90, 0.88]], // (additive: red light with a white-hot core — a white body read as one white cloud over the foe)
   coin: [[0.52, 0.30, 0.04], [1.0, 0.76, 0.26], [1.0, 0.98, 0.84]],
   fuse: [[0.40, 0.09, 0.02], [1.0, 0.46, 0.10], [1.0, 0.93, 0.66]],
 };
-const FAM_COL: Record<Fam, [number, number]> = { staff: [0x9a8cff, 0xd8d2ff], cards: [0xfff4f0, 0xff3a52], coin: [GOLD, 0xffe7a0], chance: [FUCHSIA, FUCHSIA_2], fuse: [0xff6a1a, 0xffb060] };
+const FAM_COL: Record<Fam, [number, number]> = { staff: [0x9a8cff, 0xd8d2ff], cards: [0xff4a5e, 0xfff4f0], coin: [GOLD, 0xffe7a0], chance: [FUCHSIA, FUCHSIA_2], fuse: [0xff6a1a, 0xffb060] };
 const CARD_W = 30, CARD_H = 42;
 
 export interface GambleCtx {
@@ -184,7 +184,7 @@ export class GamblerFx {
     const W = Math.max(1, Math.round(src.width * k)), H = Math.max(1, Math.round(src.height * k));
     const ct = s.textures.createCanvas(out, W, H); if (!ct) return key;
     const g = ct.getContext(); g.drawImage(src, 0, 0, W, H);
-    const d = g.getImageData(0, 0, W, H), px = d.data, [lo, mi, hi] = FAM_TONE[this.fam as Exclude<Fam, 'chance'>], knee = this.fam === 'cards' ? 0.3 : 0.62; // (the cards: white faces, the red only in the darkest)
+    const d = g.getImageData(0, 0, W, H), px = d.data, [lo, mi, hi] = FAM_TONE[this.fam as Exclude<Fam, 'chance'>], knee = 0.62; // (the cards: white faces, the red only in the darkest)
     for (let i = 0; i < px.length; i += 4) {
       if (px[i + 3] === 0) continue;
       const l = Math.pow((px[i] * 0.3 + px[i + 1] * 0.59 + px[i + 2] * 0.11) / 255, 0.85), a = l < knee ? lo : mi, b = l < knee ? mi : hi, u = l < knee ? l / knee : (l - knee) / (1 - knee);
@@ -400,7 +400,7 @@ export class GamblerFx {
     const img = s.add.image(p.x, p.y - p.z, big ? this.acePic : this.BK).setScale(this.u * (big ? 0.62 : 0.36)).setDepth(p.y + 3);
     const glow = this.glow(p.x, p.y - p.z, big ? 110 : 60, FUCHSIA, p.y + 2);
     const g = s.add.graphics().setDepth(p.y + 1).setBlendMode(Phaser.BlendModes.ADD);
-    const streak = this.kit('k_streak', p.x, p.y - p.z, big ? 300 : 150, p.y + 2);
+    const streak = this.kit('k_streak', p.x, p.y - p.z, big ? 300 : 95, p.y + 2); // (the fan's: short, so five never merge into one white sheet)
     if (streak) streak.setOrigin(0.97, 0.52).setAngle(screenAng(p.dx, p.dy)).setFlipY(p.dx < -0.01);
     if (big) { // the ace's lance: a ribbon of light from the throw to the ace, lingering a moment after it passes
       const x0 = p.x, y0 = p.y - p.z, lance = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD), lancePic = this.kit('x_lance', x0, y0, 100, p.y + 2);
@@ -438,7 +438,7 @@ export class GamblerFx {
       if (v.streak) { // the streak trails the card: it grows with the way flown (never a full streak back over the thrower's body at the throw)
         const st = v as { sx0?: number; sy0?: number; k0?: number }; st.sx0 ??= x; st.sy0 ??= y; st.k0 ??= Math.abs(v.streak.scaleX);
         const grow = clamp01(Math.hypot(x - st.sx0, y - st.sy0) / (v.big ? 300 : 150));
-        v.streak.setPosition(x, y).setDepth(p.y + 2).setScale(Math.max(0.02, st.k0 * grow), st.k0 * (0.85 + 0.25 * Math.sin(p.ageMs * 0.07))).setAlpha(0.35 + 0.65 * grow); v.g.clear(); continue; }
+        v.streak.setPosition(x, y).setDepth(p.y + 2).setScale(Math.max(0.02, st.k0 * grow), st.k0 * (0.85 + 0.25 * Math.sin(p.ageMs * 0.07))).setAlpha(v.big ? 0.35 + 0.65 * grow : 0.25 + 0.4 * grow); v.g.clear(); continue; }
       v.trail.push({ x, y }); if (v.trail.length > (v.big ? 14 : 7)) v.trail.shift();
       v.g.clear(); this.pin(v.g, x, y);
       for (let i = 1; i < v.trail.length; i++) { const k = i / v.trail.length; v.g.lineStyle((v.big ? 14 : 7) * k, k > 0.8 ? 0xffffff : this.fc(FUCHSIA), 0.7 * k); v.g.lineBetween(v.trail[i - 1].x, v.trail[i - 1].y, v.trail[i].x, v.trail[i].y); }
@@ -595,7 +595,7 @@ export class GamblerFx {
     const y = at.y - at.z, grip = s.id === 'kinetic_grab' && !!hit.reaction.grab; // (the grab's own snap is its spark)
     // in a burst the small hits stay small and the last one carries the weight (the main hit unmistakable)
     const hs = s.hits ?? [], burst = !s.chain && hs.length > 2, last = !burst || hitIndex(s, hit) === hs.length - 1; // (hitIndex: the arena re-times the hits as copies)
-    const weighty = burst ? (!!hit.heavy || last) : heavy;
+    const weighty = burst ? ((!!hit.heavy && s.id !== 'showdown') || last) : heavy; // (Showdown's cards burst on their own: only its last blow gets the blast)
     const kind = crit || counter ? 'crit' : hit.reaction.launch ? 'launch' : weighty && !grip ? 'heavy' : 'normal';
     if (kind === 'normal') {
       this.pop(at.x, y, 64, FUCHSIA, 200); this.shards(at.x, y, 2, 50, 260);
@@ -609,7 +609,7 @@ export class GamblerFx {
       const x = this.kit('x_cross', at.x, y, 170, TOP + 5); if (x) { x.setTint(0xffe7a0); const x0 = x.scale, a0 = rnd(-15, 15); this.piece(x, 300, (u, o) => o.setScale(x0 * lerp(1.4, 1, out3(clamp01(u * 3)))).setAngle(a0).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5)); }
       this.pop(at.x, y, 150, 0xffffff, 240); this.pop(at.x, y, 110, GOLD, 300); this.shards(at.x, y, 5, 120, 400);
     }
-    if (heavy && s.slot === 7 && kind !== 'crit') { const x = this.kit('x_cross', at.x, y, 130, TOP + 4); if (x) { const x0 = x.scale; this.piece(x, 260, (u, o) => o.setScale(x0 * lerp(1.25, 1, out3(clamp01(u * 3)))).setAlpha((u < 0.4 ? 0.6 : 0.6 * (1 - u) / 0.6))); } } // (the ultimate's cross: sized to the foe, never a white-out over both)
+    if (heavy && s.slot === 7 && kind !== 'crit') { const x = this.kit('x_cross', at.x, y, 78, TOP + 4); if (x) { const x0 = x.scale; this.piece(x, 220, (u, o) => o.setScale(x0 * lerp(1.2, 1, out3(clamp01(u * 3)))).setAlpha((u < 0.4 ? 0.45 : 0.45 * (1 - u) / 0.6))); } } // (the ultimate's cross: sized to the foe, never a white-out over both)
     if (s.id === 'grand_slam') this.ctx.cam().shake(260, 0.014);
     if (s.id === 'staff_vault' && hit.shape.kind === 'capsule') { // caught by the vault on its way: the staff's arc flashes right where it passed him
       const st = this.kit('s_swing', at.x, y, 150, TOP + 4); if (st) { const s0 = st.scale; st.setAngle(rnd(-20, 20)); this.piece(st, 200, (u, o) => o.setScale(s0 * lerp(0.8, 1.15, out3(u))).setAlpha(1 - u)); }
@@ -878,7 +878,7 @@ export class GamblerFx {
       if (roy) { roy.setOrigin(0.5, 0.9); const r0 = roy.scale; this.piece(roy, 760, (u, o) => o.setScale(r0 * lerp(0.4, 1.1, out3(clamp01(u * 2.2)))).setAlpha(u < 0.55 ? 1 : (1 - u) / 0.45), 100); }
       this.ctx.flash(0xffc94a, 0.16, 170); this.ctx.freeze(90);
     }
-    this.burst(face.x, face.y, i === 4 ? 170 : 110, 120, face.depth + 2);
+    this.burst(face.x, face.y, i === 4 ? 115 : 70, 120, face.depth + 2); // (each card's pop smaller than the foe: he reads through the row)
     if (i === 4) { this.sdCards.delete(r.castId); this.sdHand.delete(r.castId); this.sdVal.delete(r.castId); this.ctx.cam().shake(220, 0.01); }
   }
 
@@ -1343,11 +1343,11 @@ export class GamblerFx {
   /** Jackpot: the gambler's picture crosses the screen, the world darkens, a slot machine rolls 7 · 7 · 7. */
   private jackpot(r: CastRun): void {
     const T = r.timings, c = this.me(r), s = this.ctx.scene;
-    this.ctx.darken(T.startup + T.active + 300, 0.6);
+    this.ctx.darken(T.startup + T.active + 300, 0.4); // (the fighters stay readable in it)
     const cut = Math.min(520, Math.round(T.startup * 0.55));
     this.cutIn(cut);
     const mx = c.x, my = c.y - c.z - 230;
-    const box = s.add.container(mx, my).setDepth(TOP + 20).setAlpha(0);
+    const box = s.add.container(mx, my).setDepth(c.y - 60).setAlpha(0); // (behind the fighters: its glow never covers them)
     const painted = s.textures.exists('gbk-j_slot');
     // the painted machine: its three reel windows (measured on the drawing: centres -72 / -8 / +58 px, 44 x 84, of 333 x 360)
     const K = painted ? 380 / 360 : 1, winX = painted ? [-72, -8, 58].map((v) => v * K) : [-90, 0, 90], winW = painted ? 44 * K : 80, winH = painted ? 84 * K : 84, winY = painted ? 2 * K : 0;
