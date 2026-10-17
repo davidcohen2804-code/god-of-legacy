@@ -1224,6 +1224,225 @@ def gb_jack_h():  # the last blast smashes them down: an explosion of coins
     return finish(x, 0.87, 1.5)
 
 
+# ---------------------------------------------------------------- SAMURAI, the rest of his kit
+
+def sm_sheathe_c():  # Sheathe: the blade slid home (steel along the scabbard, falling), the guard's click, a hair of ring
+    rng = R(601); x = buf(0.62)
+    t = T(0.16)
+    place(x, svf(rng.standard_normal(t.size), np.linspace(5200, 2600, t.size), 6) * env(t, 0.02, 0.07), 0, 0.8)
+    place(x, ring(0.3, 4100, [(1, 0.5, 0.025), (1.52, 0.4, 0.018), (2.3, 0.25, 0.01)], rng) + click(0.3, rng, 3000, 0.0012, 1.0), 0.15)
+    place(x, ring(0.35, 2900, [(1, 0.3, 0.12)], rng, att=0.002), 0.152, 0.4)
+    return finish(x, 0.82, 1.3)
+
+
+def sm_wave_c():  # Sword Wave: a swish, and the crimson crescent flung away (a ring flying off, falling in pitch)
+    rng = R(605); x = buf(0.62)
+    place(x, sm_swish(606, 0.14, 1500, 7000, 3000), 0, 0.8)
+    t = T(0.5); f = 3400 * (0.7 ** (t / 0.5))
+    fly = np.sin(2 * np.pi * np.cumsum(f) / SR) * env(t, 0.01, 0.18) * 0.25 + svf(rng.standard_normal(t.size), f * 0.8, 5) * env(t, 0.01, 0.15) * 0.5
+    place(x, fly, 0.04)
+    return finish(x, 0.84, 1.25)
+
+
+def sm_wave_h():  # the crescent bites: a slice ringing, it pops him up
+    rng = R(607); x = buf(0.7)
+    place(x, click(0.2, rng, 2500, 0.006, 0.9), 0)
+    place(x, ring(0.7, 3300, [(1, 0.5, 0.14), (1.47, 0.35, 0.1), (2.13, 0.2, 0.06)], rng, beat=0.003, glide_to=1.05), 0)
+    place(x, thud(0.3, 200, 90, 0.04), 0, 0.6)
+    place(x, swoosh(0.3, 1000, 4500, 5000, rng, peak=0.3, q=2.5, tail=4), 0.01, 0.35)
+    return finish(x, 0.85, 1.45)
+
+
+def sm_mirage_c():  # Mirage Counter's stance: the air shimmering round him (a glassy hum), the edge turned, waiting
+    rng = R(610); dur = 0.75; t = T(dur); x = buf(dur)
+    x += sum(np.sin(2 * np.pi * f * t + i) * (1 + 0.5 * np.sin(2 * np.pi * (6 + i) * t)) for i, f in enumerate((1568.0, 2093.0, 2637.0))) * env(t, 0.08, 0.16) * 0.08
+    x += svf(rng.standard_normal(t.size), 2400 + 600 * np.sin(2 * np.pi * 3 * t), 8) * env(t, 0.1, 0.16) * 0.5
+    place(x, ring(0.45, 3600, [(1, 0.3, 0.2), (1.5, 0.2, 0.12)], rng, att=0.02), 0.0, 0.3)
+    return finish(x, 0.8, 1.2)
+
+
+def sm_mirage_h():  # the blow hits a mirage: it shatters (glass, ink), and a beat later he cuts from behind and throws him up
+    rng = R(611); dur = 0.9; t = T(dur); x = buf(dur)
+    for k in range(14):
+        place(x, bell(0.3, rng.uniform(2500, 7000), ratio=2.76, index=0.7, tau=0.05), rng.exponential(0.05), 0.12)
+    x += hp(rng.standard_normal(t.size), 2500) * env(t, 0.001, 0.04) * 0.6
+    place(x, click(0.2, rng, 2500, 0.008, 1.0), 0.09)
+    place(x, ring(0.7, 2700, [(1, 0.55, 0.22), (1.5, 0.35, 0.14), (2.2, 0.2, 0.08)], rng, beat=0.003, glide_to=1.05), 0.09, 0.8)
+    place(x, thud(0.35, 190, 80, 0.05), 0.09, 0.8)
+    place(x, swoosh(0.35, 800, 4000, 5000, rng, peak=0.3, q=2, tail=4), 0.1, 0.4)
+    return finish(x, 0.85, 1.45)
+
+
+def sm_kage_c():  # Kagemusha: he vanishes in a burst of ink and petals, the five doubles stepping out round him, the dark breathing
+    rng = R(615); dur = 0.8; t = T(dur); x = buf(dur)
+    x += lp(rng.standard_normal(t.size), 1200) * env(t, 0.004, 0.08) * 0.9
+    x += rustle(dur, rng, 300, 3000, 9000, 0.25) * env(t, 0.01, 0.2)
+    for k in range(5):
+        place(x, reverse(swoosh(0.1, 900, 4000, 5000, rng, peak=0.3, q=2.5, tail=4)), 0.08 + k * 0.07, 0.4)
+    x += svf(rng.standard_normal(t.size), 700, 4) * env(t, 0.15, 0.25) * 0.25
+    return finish(x, 0.82, 1.25)
+
+
+def sm_kage_h():  # the burst knocks a foe back: a soft whump, a splash of ink
+    rng = R(616); dur = 0.5; t = T(dur); x = buf(dur)
+    x += thud(dur, 150, 65, 0.06) * 0.9
+    x += bp(rng.standard_normal(t.size), 400, 2600) * env(t, 0.006, 0.09) * (0.7 + 0.3 * np.sin(2 * np.pi * 31 * t)) * 0.8
+    x += rustle(dur, rng, 300, 3000, 9000, 0.2) * env(t, 0.01, 0.12)
+    return finish(x, 0.84, 1.4)
+
+
+def sm_tornado_c():  # Tornado Blade: a whirlwind of blades round him (the air spinning, steel flashing on each turn)
+    rng = R(620); dur = 0.6; t = T(dur); x = buf(dur)
+    x += bp(rng.standard_normal(t.size), 900, 5000) * (0.55 + 0.45 * np.sin(2 * np.pi * 14 * t)) * env(t, 0.03, 0.14) * 0.8
+    for k in range(4):
+        place(x, ring(0.15, 3800 + 300 * k, [(1, 0.3, 0.04), (1.5, 0.2, 0.025)], rng), 0.03 + k * 0.07, 0.4)
+    return finish(x, 0.84, 1.25)
+
+
+def sm_tornado_h():  # the third blade smashes him down: a cut, down, the floor
+    rng = R(621); dur = 0.95; x = buf(dur)
+    place(x, click(0.2, rng, 2200, 0.008, 1.0), 0)
+    place(x, ring(0.7, 2500, [(1, 0.5, 0.2), (1.47, 0.3, 0.12)], rng, beat=0.003), 0, 0.6)
+    place(x, swoosh(0.18, 5000, 1500, 600, rng, peak=0.2, q=2, tail=4), 0, 0.5)
+    place(x, taiko(0.85, rng, 130, 60, 0.25, 0.8), 0.05, 1.0)
+    return finish(x, 0.86, 1.5)
+
+
+def sm_falcon_c():  # Falcon Dive: he leaps (up), a falcon's cry, the dive (the air rising to a scream onto the blow at 300 ms)
+    rng = R(625); dur = 0.55; x = buf(dur)
+    place(x, swoosh(0.18, 400, 2000, 1200, rng, peak=0.4, q=1.6, tail=4), 0, 0.6)
+    tc = T(0.22); f = 2900 * (1 - 0.15 * tc / 0.22) * (1 + 0.02 * np.sin(2 * np.pi * 28 * tc))
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    cry = (np.sin(ph) + 0.5 * np.sin(2 * ph) + 0.25 * np.sin(3 * ph)) * env(tc, 0.02, 0.08) * 0.18 + bp(rng.standard_normal(tc.size), 2500, 6000) * env(tc, 0.02, 0.06) * 0.15
+    place(x, cry, 0.03)
+    place(x, swoosh(0.25, 600, 5000, 6000, rng, peak=0.9, q=2, shape=2.5, tail=3), 0.075, 0.8)
+    return finish(x, 0.84, 1.25)
+
+
+def sm_falcon_h():  # the crimson impact: the drum, a blast, fire-red embers
+    rng = R(626); dur = 1.45; t = T(dur); x = buf(dur)
+    x += taiko(dur, rng, 120, 55, 0.35, 0.9)
+    x += svf(rng.standard_normal(t.size), 300 + 5000 * np.exp(-t / 0.06), 0.8, 'lp') * env(t, 0.001, 0.12) * 0.9
+    x += flames(dur, rng, 0.5, 30) * env(t, 0.02, 0.25)
+    place(x, ring(0.7, 2400, [(1, 0.4, 0.2), (1.5, 0.25, 0.12)], rng), 0, 0.4)
+    return finish(x, 0.86, 1.5)
+
+
+D_PENT = (1174.7, 1396.9, 1568.0, 1760.0, 2093.0, 2349.3, 2793.8, 3136.0)
+
+
+def sm_sun_w():  # Rising Sun, the wind-up (0.7 s): the banner raised — the court's mouth organ (a sho cluster) swelling, a gong rising
+    rng = R(630); dur = 0.72; t = T(dur); u = t / dur
+    cluster = sum(np.sin(2 * np.pi * f * t + i) * (1 + 0.003 * np.sin(2 * np.pi * 4 * t + i)) for i, f in enumerate((440.0, 493.9, 659.3, 740.0, 880.0)))
+    sho = lp(cluster + 0.3 * sum(np.sin(2 * np.pi * 2 * f * t) for f in (440.0, 659.3)), 3000) * u ** 1.8 * 0.15
+    g = reverse(ring(1.0, 110, GONG, rng, beat=0.003))[-t.size:] * 0.6
+    return finish((sho + g) * np.clip((dur - t) / 0.02, 0, 1), 0.82, 1.15)
+
+
+def sm_sun_c():  # the sun rises behind him: a radiant flare (the chord blazing out), light rushing outward
+    rng = R(631); dur = 1.6; t = T(dur); x = buf(dur)
+    x += sum(bell(dur, f, ratio=1.0, index=0.6, tau=0.45, itau=0.3, att=0.004) for f in (440.0, 659.3, 880.0, 1108.7, 1318.5)) * 0.14
+    place(x, swoosh(0.7, 400, 3500, 1200, rng, peak=0.15, q=1.2, tail=3.5), 0, 0.6)
+    x += thud(dur, 90, 45, 0.2) * 0.6
+    return finish(x, 0.84, 1.3)
+
+
+def sm_sun_h():  # its light throws a foe back: a warm whump and a shimmer
+    rng = R(632); dur = 0.65; t = T(dur); x = buf(dur)
+    x += thud(dur, 140, 60, 0.08) * 0.9 + lp(rng.standard_normal(t.size), 700) * env(t, 0.002, 0.04) * 0.6
+    for k in range(5):
+        place(x, bell(0.35, rng.choice([1760.0, 2217.0, 2637.0, 3520.0]), ratio=2.0, index=0.8, tau=0.1), 0.01 + 0.03 * k, 0.12)
+    return finish(x, 0.85, 1.4)
+
+
+def sm_phantom_c():  # Phantom Blades: one draw (lead 90 ms), then ghost cuts swelling in backwards on each blow (80 ms apart), a cold shimmer
+    rng = R(635); dur = 0.8; t = T(dur); x = buf(dur)
+    place(x, swoosh(0.07, 2000, 9000, 9000, rng, peak=0.6, q=3, tail=3), 0.05, 0.7)
+    for k in range(7):
+        place(x, reverse(swoosh(0.09, 1500, 6000, 7000, rng, peak=0.3, q=3, tail=4)), k * 0.08, 0.3 + 0.03 * k)
+        place(x, ring(0.25, 4200 + 150 * (k % 3), [(1, 0.25, 0.05), (1.5, 0.15, 0.03)], rng), k * 0.08 + 0.09, 0.4)
+    x += (np.sin(2 * np.pi * 1975.5 * t) + np.sin(2 * np.pi * 2637.0 * t + 1)) * env(t, 0.1, 0.3) * 0.04
+    return finish(x, 0.82, 1.25)
+
+
+def sm_phantom_h():  # the last phantom cut: a heavier ghostly slash, its ring dying away cold
+    rng = R(636); dur = 1.0; x = buf(dur)
+    place(x, click(0.2, rng, 2000, 0.01, 1.0), 0)
+    place(x, ring(0.95, 2300, [(1, 0.55, 0.3), (1.47, 0.4, 0.2), (2.13, 0.25, 0.12)], rng, beat=0.004), 0, 0.7)
+    place(x, thud(0.4, 170, 70, 0.06), 0, 0.8)
+    place(x, swoosh(0.3, 3000, 900, 600, rng, peak=0.1, q=2, tail=4), 0.0, 0.35)
+    return finish(x, 0.85, 1.45)
+
+
+def sm_gods_w():  # God of Blades, the wind-up (0.6 s): eight spectral katanas rising behind him one by one (a shing each, up a scale)
+    rng = R(640); dur = 0.68; x = buf(dur)
+    for k, f in enumerate(D_PENT):
+        place(x, ring(0.45, f, [(1, 0.5, 0.25), (1.5, 0.3, 0.15), (2.2, 0.2, 0.08)], rng, att=0.01, glide_to=1.03, gtau=0.05), k * 0.07, 0.35)
+        place(x, swoosh(0.08, 1200, 5000, 5500, rng, peak=0.8, q=2.5, tail=3), max(0, k * 0.07 - 0.06), 0.25)
+    return finish(x, 0.82, 1.25)
+
+
+def sm_gods_c():  # they hang behind him: the eight ringing together, a hum of steel
+    rng = R(641); dur = 1.6; t = T(dur)
+    x = sum(np.sin(2 * np.pi * f * t + i) * (1 + 0.2 * np.sin(2 * np.pi * (3 + i * 0.4) * t)) for i, f in enumerate(D_PENT)) * env(t, 0.05, 0.38) * 0.05
+    x += ring(dur, 587.3, [(1, 0.3, 0.45), (2.0, 0.2, 0.3)], rng, att=0.01) * 0.3
+    return finish(x, 0.8, 1.1)
+
+
+def sm_gods_h():  # a spectral katana flies in and strikes: tching
+    rng = R(642); x = buf(0.55)
+    place(x, ring(0.5, 3100, [(1, 0.5, 0.15), (1.5, 0.3, 0.1)], rng, beat=0.004), 0, 0.7)
+    place(x, click(0.2, rng, 2600, 0.006, 0.9), 0)
+    place(x, thud(0.3, 190, 80, 0.04), 0, 0.6)
+    return finish(x, 0.85, 1.4)
+
+
+def sm_bind_c():  # Sakura Bind: a ring of blossoms opens on the floor (a soft bloom of air), branches creaking as they grow, a koto chord
+    rng = R(645); dur = 0.85; t = T(dur); x = buf(dur)
+    x += bp(rng.standard_normal(t.size), 500, 3000) * env(t, 0.06, 0.16) * 0.6
+    times = np.sort(0.05 + 0.5 * rng.random(18) ** 1.3)
+    x += grains(t.size, times, rng.uniform(0.2, 0.5, 18), [knock(0.04, f, 0.012, rng, 0.2) for f in (260, 340, 420)], rng)
+    x += svf(rng.standard_normal(t.size), 420 + 200 * np.sin(2 * np.pi * 2.5 * t), 18) * env(t, 0.1, 0.25) * 1.2
+    for k, f in enumerate((587.3, 784.0, 880.0)):
+        place(x, pluck(0.6, f, R(646 + k), 0.992, 0.7) * env(T(0.6), 0.001, 0.3), 0.02 + k * 0.025, 0.35)
+    x += rustle(dur, rng, 250, 3000, 9000, 0.2) * env(t, 0.1, 0.25)
+    return finish(x, 0.82, 1.25)
+
+
+def sm_bind_h():  # caught: the branches snap round him (wood tightening), petals
+    rng = R(649); dur = 0.55; t = T(dur); x = buf(dur)
+    x += knock(dur, 300, 0.03, rng, 0.8) * 0.8
+    x += grains(t.size, rng.uniform(0, 0.12, 10), rng.uniform(0.3, 0.6, 10), [knock(0.04, f, 0.01, rng, 0.4) for f in (380, 520)], rng)
+    x += rustle(dur, rng, 400, 3000, 9000, 0.3) * env(t, 0.01, 0.15)
+    x += thud(dur, 150, 70, 0.04) * 0.5
+    return finish(x, 0.84, 1.4)
+
+
+def sm_ascend_c():  # Dragon Ascension: a crimson dragon spiralling up from his blade (a roar climbing, the air twisting upward)
+    rng = R(650); dur = 0.95; t = T(dur); x = buf(dur)
+    x += svf(rng.standard_normal(t.size), 300 * (8 ** np.clip(t / 0.6, 0, 1)), 2) * (0.6 + 0.4 * np.sin(2 * np.pi * 11 * t)) * env(t, 0.1, 0.22)
+    place(x, growl(0.6, rng, 80, 150, 130, 0.6), 0.05)
+    return finish(x, 0.84, 1.25)
+
+
+def sm_ascend_h():  # it strikes him out of the air: the dragon's bite, the crash on the floor
+    rng = R(651); dur = 1.35; x = buf(dur)
+    place(x, click(0.2, rng, 1800, 0.01, 1.0), 0)
+    place(x, ring(0.8, 2000, [(1, 0.5, 0.25), (1.47, 0.35, 0.15)], rng, beat=0.003), 0, 0.6)
+    place(x, taiko(1.25, rng, 120, 55, 0.35, 0.9), 0.06, 1.0)
+    place(x, swoosh(0.2, 5000, 1500, 500, rng, peak=0.2, q=2, tail=4), 0, 0.5)
+    return finish(x, 0.86, 1.5)
+
+
+SOUNDS2 = {
+    'sm_sheathe_c': sm_sheathe_c, 'sm_wave_c': sm_wave_c, 'sm_wave_h': sm_wave_h, 'sm_mirage_c': sm_mirage_c, 'sm_mirage_h': sm_mirage_h,
+    'sm_kage_c': sm_kage_c, 'sm_kage_h': sm_kage_h, 'sm_tornado_c': sm_tornado_c, 'sm_tornado_h': sm_tornado_h,
+    'sm_falcon_c': sm_falcon_c, 'sm_falcon_h': sm_falcon_h, 'sm_sun_w': sm_sun_w, 'sm_sun_c': sm_sun_c, 'sm_sun_h': sm_sun_h,
+    'sm_phantom_c': sm_phantom_c, 'sm_phantom_h': sm_phantom_h, 'sm_gods_w': sm_gods_w, 'sm_gods_c': sm_gods_c, 'sm_gods_h': sm_gods_h,
+    'sm_bind_c': sm_bind_c, 'sm_bind_h': sm_bind_h, 'sm_ascend_c': sm_ascend_c, 'sm_ascend_h': sm_ascend_h,
+}
+
+
 SOUNDS = {
     # warrior
     'wr_iron_1': wr_iron_1, 'wr_iron_2': wr_iron_2, 'wr_iron_3': wr_iron_3, 'wr_iron_4': wr_iron_4,
@@ -1254,6 +1473,8 @@ SOUNDS = {
     'gb_fuse_c': gb_fuse_c, 'gb_fuse_h': gb_fuse_h, 'gb_show_w': gb_show_w, 'gb_show_c': gb_show_c, 'gb_show_h': gb_show_h,
     'gb_jack_w': gb_jack_w, 'gb_jack_c': gb_jack_c, 'gb_jack_h': gb_jack_h,
 }
+
+SOUNDS.update(SOUNDS2)
 
 
 def loudness(x):

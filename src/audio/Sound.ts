@@ -42,7 +42,11 @@ export const SIG_SFX = {
     sm_quick_1: [1, 0.53], sm_quick_2: [1, 0.54], sm_quick_3: [1, 0.42], sm_quick_4: [1, 0.43], sm_quick_hit: [2, 0.53], sm_quick_fin: [1, 0.29],
     sm_hundred_c: [1, 0.53], sm_hundred_h: [1, 0.38], sm_swallow_c: [1, 0.46], sm_swallow_h: [1, 0.27], sm_shadow_c: [1, 0.47], sm_shadow_h: [1, 0.46],
     sm_iai_w: [1, 0.44], sm_iai_c: [1, 0.24], sm_iai_h: [1, 0.53], sm_blossom_c: [1, 0.36], sm_blossom_h: [1, 0.44], sm_eclipse_w: [1, 0.67],
-    sm_eclipse_c: [1, 0.5], sm_eclipse_h: [1, 0.53]
+    sm_eclipse_c: [1, 0.5], sm_eclipse_h: [1, 0.53], sm_sheathe_c: [1, 0.48], sm_wave_c: [1, 0.37], sm_wave_h: [1, 0.34], sm_mirage_c: [1, 0.37],
+    sm_mirage_h: [1, 0.35], sm_kage_c: [1, 0.53], sm_kage_h: [1, 0.94], sm_tornado_c: [1, 0.36], sm_tornado_h: [1, 0.53], sm_falcon_c: [1, 0.4],
+    sm_falcon_h: [1, 0.59], sm_sun_w: [1, 0.48], sm_sun_c: [1, 0.34], sm_sun_h: [1, 0.8], sm_phantom_c: [1, 0.61], sm_phantom_h: [1, 0.35],
+    sm_gods_w: [1, 0.27], sm_gods_c: [1, 0.36], sm_gods_h: [1, 0.45], sm_bind_c: [1, 0.35], sm_bind_h: [1, 0.67], sm_ascend_c: [1, 0.49],
+    sm_ascend_h: [1, 0.51]
   },
   archer: {
     ar_double_c: [1, 0.4], ar_charged_c: [1, 0.36], ar_arrow_hit: [2, 0.77], ar_charged_h: [1, 0.89], ar_rise_c: [1, 0.42], ar_rise_h: [1, 0.44],
