@@ -614,6 +614,11 @@ export class ArcherFx {
       this.spr({ name: 'elec_burst', x, y: y - 30, depth: y + 4, w: 150, add: true, life: 240, sx: kf([0, 0.4], [0.3, 1.1, out3]), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) });
     }
   }
+  /** Tree of Life's party mark: a sprout of light over the head of whoever its aura is healing (refreshed each pulse), so a party sees who the tree covers. */
+  treeMark(id: string): void {
+    if (!this.ready) return;
+    this.spr({ name: 'sprout', w: 70, oy: 0.9, follow: this.at(id, 1, 0, 212), dz: 6, life: 1150, glow: 0.35, a: kf([0, 0], [0.15, 0.9], [0.8, 0.9], [1, 0]), sy: kf([0, 0.6], [0.2, 1, out3]) });
+  }
   hawkDive(id: string, to: V3): void {
     const h = this.hawks.get(id); if (!h) return;
     h.dive = { x: to.x, y: to.y - to.z - 30, d: to.y, t: 0 };

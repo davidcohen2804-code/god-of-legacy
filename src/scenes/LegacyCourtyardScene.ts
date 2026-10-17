@@ -2592,6 +2592,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const max = this.maxHpNow(), before = this.playerHP;
     this.playerHP = Math.min(max, this.playerHP + Math.max(1, Math.round(max * 0.01))); // 1% a second (the same in the open game and in the arena)
     if (this.playerHP > before) this.fx!.healNumber({ x: this.kin.x, y: this.kin.y, z: this.kin.z }, this.playerHP - before);
+    this.fx!.treeMark(this.localId); // the tree's party mark over the head
     this.fx!.passiveFx('heal_sparkle', { x: this.kin.x, y: this.kin.y, z: this.kin.z }, 170, { originY: 0.8, normal: true, depth: 100000 - 1, ms: [70, 80, 100, 120, 130, 140, 150, 160], follow: () => (this.dead < 0 ? { x: this.kin.x, y: this.kin.y, z: this.kin.z } : null) });
   }
 

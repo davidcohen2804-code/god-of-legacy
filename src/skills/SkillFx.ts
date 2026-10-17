@@ -2259,6 +2259,8 @@ export class SkillFx {
   barrier(at: V3, from: { x: number; y: number }): void { this.mage.barrier(at, from); }
   wardHit(id: string, broken: boolean, expired = false): void { this.mage.wardHit(id, broken, expired); }
   mageWard(id: string, ms: number): void { this.mage.ward(id, ms); }
+  /** Tree of Life heals this fighter (a party member's tree or her own): the sprout over the head. */
+  treeMark(id: string): void { this.arch.treeMark(id); }
   mageAura(id: string, kind: 'haste' | 'ascension', ms: number): void { this.mage.aura(id, kind, ms); }
   clearMage(id: string): void { this.mage.clear(id); }
   conductArc(a: V3, b: V3): void { this.mage.conductArc(a, b); }
