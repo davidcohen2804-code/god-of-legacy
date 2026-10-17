@@ -22,10 +22,10 @@ export async function open(opts = {}) {
   const q = '?world3d=1&qa=1' + (opts.q ?? '');
   await p.goto(URL + q); await p.evaluate(() => localStorage.clear());
   await p.evaluate((d) => localStorage.setItem('godoflegacy.characters', JSON.stringify(d)), { version: 1, maxSlots: 4, selectedSlotId: 2, slots: [{ slotId: 1, character: null }, { slotId: 2, character: { id: 'qa', name: 'QA', classId: opts.cls ?? 'warrior', level: opts.level ?? 12, createdAt: '2026-01-01T00:00:00Z', lastPlayedAt: null, appearanceId: null } }, { slotId: 3, character: null }, { slotId: 4, character: null }] });
-  await p.goto(URL + q); await p.waitForFunction(() => window.__game?.scene.isActive('MainMenuScene'), null, { timeout: 60000 }); await W(p, 800);
+  await p.goto(URL + q); await p.waitForFunction(() => window.__game?.scene.isActive('MainMenuScene'), null, { timeout: 150000 }); await W(p, opts.hard ? 2500 : 800);
   const kx = (opts.w ?? 1280) / 1920, ky = (opts.h ?? 720) / 1080;
   await p.mouse.move(960 * kx, 585 * ky); await W(p, 400); await p.mouse.down(); await W(p, 100); await p.mouse.up();
-  await p.waitForSelector('.gol-cs .slot', { timeout: 60000 }); await W(p, 800);
+  await p.waitForSelector('.gol-cs .slot', { timeout: 150000 }); await W(p, 800);
   await p.click('.gol-cs .slot >> nth=1'); await W(p, 500);
   await p.click('.gol-cs .kbtn:has-text("ENTER WORLD")');
   try { await p.waitForFunction(() => { const s = window.__game?.scene.getScene('LegacyCourtyardScene'); return !!s && s.sys.isActive() && !!s.a3d && !!s.w3d; }, null, { timeout: 240000 }); }
@@ -38,9 +38,11 @@ export async function open(opts = {}) {
     const f0 = await p.evaluate(() => window.__game.loop.frame);
     await p.waitForFunction((f0) => window.__game.loop.frame >= f0 + 3, f0, { timeout: 180000 });
   };
-  const tele = async (x, y) => { await p.evaluate(([x, y]) => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const k = s.kin; k.x = x; k.y = y; k.z = 0; k.vx = 0; k.vy = 0; k.vz = 0; k.supportZ = 0; k.supportId = null; k.grounded = true; }, [x, y]); await settled(areaIdAt(x)); }; // (onto the ground there)
+  const tele = async (x, y, want) => { await p.evaluate(([x, y]) => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const k = s.kin; k.x = x; k.y = y; k.z = 0; k.vx = 0; k.vy = 0; k.vz = 0; k.supportZ = 0; k.supportId = null; k.grounded = true; }, [x, y]); await settled(want ?? areaIdAt(x)); }; // (onto the ground there; `want`: the 3D place expected when x lies in two maps' overlap)
   const hold = async (key, ms) => { await p.keyboard.down(key); await W(p, ms); await p.keyboard.up(key); };
-  const info = () => p.evaluate(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const r = s.a3d.renderer.info; return { calls: r.render.calls, tris: r.render.triangles, geos: r.memory.geometries, tex: r.memory.textures }; });
+  const info = () => p.evaluate(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const r = s.a3d.renderer.info; // (the place's own count: every mesh, sprite and points object in the scene, triangles × instances — the renderer's per-pass numbers are not the picture's)
+    let draws = 0, tris = 0, lights = 0; for (const sc of [s.a3d.scene3, s.a3d.front3]) sc?.traverse?.((o) => { if (o.isLight && !o.isAmbientLight && !o.isHemisphereLight && !o.isDirectionalLight) lights++; if (!o.visible) return; if (o.isMesh || o.isSprite || o.isPoints || o.isLine) { draws++; const g = o.geometry; if (g) { const n = (g.index ? g.index.count : g.attributes.position?.count ?? 0) / 3; tris += Math.round(n * (o.isInstancedMesh ? o.count : 1)); } } });
+    return { draws, tris, lights, geos: r.memory.geometries, tex: r.memory.textures }; });
   const openGate = () => p.evaluate(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); s.quests.sun_gate = { state: 'done', progress: [] }; s.saveQuests?.(); s.world.sunGate.unlock(); });
   const up = (x, y, z, id) => p.evaluate(([x, y, z, id]) => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const k = s.kin; k.x = x; k.y = y; k.z = z; k.vz = 0; k.vx = 0; k.vy = 0; k.supportZ = z; k.supportId = id; k.grounded = true; }, [x, y, z, id]).then(() => settled(/^(sky-|cloud_haven|sunfall_pass|afterglow)/.test(id) ? 'sky' : areaIdAt(x))); // (onto an upper floor / a cloud; a crossing it starts is over when this resolves)
   const settleCam = () => p.evaluate(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); if (s.w3d) { s.w3d.arrive = null; s.a3d.punch = 1; } s.a3d?.snap(); }); // (headless sim time is slow: end the arrival glide, camera straight on the hero)

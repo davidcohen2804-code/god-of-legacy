@@ -16,14 +16,20 @@ const { b, p, errors, state, shot, tele, settleCam, openGate, info, settled } = 
 await openGate();
 const fails = [], check = (ok, what) => { console.log((ok ? '  ok   ' : '  FAIL ') + what); if (!ok) fails.push(what); };
 const S = (fn, arg) => p.evaluate(fn, arg);
+const closeUi = () => S(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); s.npcDialog?.close?.(); s.shop?.close?.(); s.questLog?.close?.(); return !!s.npcDialog?.isOpen; });
+const grounded = () => p.waitForFunction(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const k = s.kin; return k.grounded && Math.abs(k.z - (k.supportZ || 0)) < 1; }, null, { timeout: 60000 }).catch(() => undefined);
+const step = async (what, fn) => { try { await fn(); } catch (e) { check(false, `${what}: ${String(e).split('\n')[0].slice(0, 120)}`); } };
 for (const id of ids) {
   const A = DATA.areas[id], L = LAY[id]; if (!A || !L) { console.log(id, 'unknown'); continue; }
   const ys = A.walk.map((q) => q[1]), yMid = (Math.min(...ys) + Math.max(...ys)) / 2, x0 = L.span[0], x1 = L.span[1], ax = L.x;
   console.log(`\n== ${id} (${A.name}) span ${x0}..${x1}`);
   const n0 = errors.length;
-  await tele(x0 + 120, yMid); await settleCam(); await W(p, 2500);
+  await closeUi();
+  if (id.startsWith('den_')) await S(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); s.den?.walls?.(false); }); // (the den's stage gates out of the way: the crossings can be tried)
+  await step('entering', () => tele(x0 + 120, yMid)); await settleCam(); await W(p, 2500);
   const F = await S(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); return { floor: s.w3d.floor, area: s.w3d.areaId }; });
   check(F.area === id, `the 3D place is ${F.area}`);
+  if (F.area !== id) continue;
   // 1) end to end
   let i = 0; for (let x = x0 + 120; x <= x1 - 120; x += STEP, i++) { await tele(x, yMid); await settleCam(); await W(p, 1200); if (SHOTS) await shot(`${OUT}/${id}_walk_${String(i).padStart(2, '0')}.jpg`); }
   const st = await state(); check(st.area === id || areaIdAt(st.x) === id, `still on the map after the walk (${st.area})`);
@@ -32,26 +38,31 @@ for (const id of ids) {
   const placed = await S(() => new Promise((res) => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const a = s.a3d, k = s.kin, v = s.view.shadow; s.events.once('prerender', () => { const P = a.project(k.x, k.y, 0); res({ dx: Math.abs(v.x - P.sx), dy: Math.abs(v.y - P.sy) }); }); }));
   check(placed.dx < 3 && placed.dy < 3, `the hero's feet on his floor point (${placed.dx.toFixed(1)}, ${placed.dy.toFixed(1)} px off)`);
   // 3) onto the first thing you can stand on (a block, a crate, a log…): teleport beside it, jump toward it
-  const standable = (A.props ?? []).find((q) => q.stand && q.h && q.h < 200);
+  const standable = (A.props ?? []).filter((q) => q.stand && q.h && q.h <= 110).sort((a, b2) => a.h - b2.h)[0]; // (what a jump reaches)
   if (standable) {
     const xs = standable.foot.map((q) => q[0]), px = (Math.min(...xs) + Math.max(...xs)) / 2 + ax, py = (standable.stand[0] + standable.stand[1]) / 2;
-    await tele(px - 60, py + 8); await W(p, 800); await p.keyboard.down('KeyD'); await p.keyboard.press('KeyE'); await W(p, 1500); await p.keyboard.up('KeyD'); await W(p, 6000);
-    const up = await state(); check(up.supportZ > 0, `standing on ${standable.id} after the jump (supportZ ${up.supportZ}, ${up.supportId})`); if (SHOTS) await shot(`${OUT}/${id}_jump.jpg`);
+    await tele(px - 55, py + 6); await W(p, 800); await p.keyboard.down('KeyD'); await W(p, 300); await p.keyboard.press('KeyE'); await W(p, 2500); await p.keyboard.up('KeyD'); await grounded();
+    const up = await state(); check(up.supportZ > 0, `standing on ${standable.id} after the jump (supportZ ${up.supportZ}, ${up.supportId}, x ${Math.round(up.x - ax)} vs ${Math.round(px - ax)})`); if (SHOTS) await shot(`${OUT}/${id}_jump.jpg`);
   }
   // 4) every NPC: the talk opens
   for (const n of A.npcs ?? []) {
-    await tele(n.x + ax + 40, n.y + 4); await settleCam(); await W(p, 2500); await p.keyboard.press('KeyY'); await W(p, 3000);
-    const talk = await S(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); return !!s.npcDialog?.isOpen || !!s.shop?.isOpen; });
-    check(talk, `${n.name}'s talk opens`); if (SHOTS) await shot(`${OUT}/${id}_${n.id}.jpg`); await p.keyboard.press('Escape'); await W(p, 800);
+    await step(`${n.name}'s talk`, async () => {
+      await tele(n.x + ax + 40, n.y + 4); await settleCam(); await W(p, 2500); await p.keyboard.press('KeyY'); await W(p, 3000);
+      const talk = await S(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); return !!s.npcDialog?.isOpen || !!s.shop?.isOpen; });
+      check(talk, `${n.name}'s talk opens`); if (SHOTS) await shot(`${OUT}/${id}_${n.id}.jpg`);
+      const still = await closeUi(); await W(p, 800); if (still) check(false, `${n.name}'s talk closes`);
+    });
   }
   // 5) a swing and a skill with its 3D pieces
-  await tele((x0 + x1) / 2, yMid); await W(p, 500); await p.keyboard.press('Space'); await W(p, 700); await p.keyboard.press('Digit1'); await W(p, 2500); if (SHOTS) await shot(`${OUT}/${id}_skill.jpg`);
+  await step('the skill', async () => { await tele((x0 + x1) / 2, yMid); await W(p, 500); await p.keyboard.press('Space'); await W(p, 700); await p.keyboard.press('Digit1'); await W(p, 2500); if (SHOTS) await shot(`${OUT}/${id}_skill.jpg`); });
   // 6) both exits: to the neighbour when it is 3D, and back
   for (const side of [-1, 1]) {
     const edge = side < 0 ? F.floor.x0 : F.floor.x1, nb = areaIdAt(edge + side * 40); if (nb === id || !MAPS_3D.includes(nb)) continue;
-    await tele(edge - side * 18, yMid); await W(p, 600); await p.keyboard.down(side < 0 ? 'KeyA' : 'KeyD'); await W(p, 4500); await p.keyboard.up(side < 0 ? 'KeyA' : 'KeyD');
-    try { await settled(nb); check(true, `crossed ${side < 0 ? 'west' : 'east'} into ${nb}`); } catch { check(false, `crossed ${side < 0 ? 'west' : 'east'} into ${nb}`); }
-    await tele((x0 + x1) / 2, yMid); await settleCam();
+    const sealed = (side < 0 ? A.props ?? [] : DATA.areas[nb]?.props ?? []).some((q) => q.id === 'entry-wall'); if (sealed) { console.log(`  —    ${side < 0 ? 'west' : 'east'}: sealed (an entry wall)`); continue; }
+    await step(`crossing ${side < 0 ? 'west' : 'east'}`, async () => {
+      await tele(edge - side * 18, yMid, id); await W(p, 600); await p.keyboard.down(side < 0 ? 'KeyA' : 'KeyD'); await W(p, 4500); await p.keyboard.up(side < 0 ? 'KeyA' : 'KeyD');
+      let ok = true; try { await settled(nb); } catch { ok = false; } const at = await state(); check(ok, `crossed ${side < 0 ? 'west' : 'east'} into ${nb} (x ${Math.round(at.x)}, place ${(await S(() => window.__game.scene.getScene('LegacyCourtyardScene').w3d?.areaId))})`);
+      await tele((x0 + x1) / 2, yMid); await settleCam(); });
   }
   // 7) the frame and the stage's work
   const perf = await S(() => new Promise((res) => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const t = []; let last = performance.now(); const f = () => { const n = performance.now(); t.push(n - last); last = n; if (t.length < 12) requestAnimationFrame(f); else res({ avg: Math.round(t.reduce((a, c) => a + c, 0) / t.length), worst: Math.round(Math.max(...t)), fps: +s.game.loop.actualFps.toFixed(2) }); }; requestAnimationFrame(f); }));
