@@ -362,7 +362,7 @@ const mage: FinalSkill[] = [
     startup: 300, active: 120, recovery: 220, cooldown: 9000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     hits: [H(0, 8, { kind: 'projectile', speed: 460, range: 520, radius: 16, count: 5, spread: 70, homing: 150, antiAir: true }, { stun: 220, push: 6, float: true, juggleCost: 3 }, { reachUp: 160 })], // (homing cranes: they seek him in the air too — level, they passed under a foe floating in the Levity Field: UPDRAFT landed 2 of 6)
     cancelOnHit: ['levity_field', 'paper_curse', 'blink', 'arcane_bolt'],
-    description: 'Five pages tear out of the book and fold into paper cranes. Each crane picks a foe and bends a little toward it — a step aside still slips them.',
+    description: 'Five pages tear out of the book and fold into paper cranes. Each crane picks a foe and bends a little toward it — a step aside still slips them. Every torn page of yours lying near folds into one more crane (up to 4 more).',
     relations: ['5 cranes', 'Gently homing'],
   }),
   S({
@@ -377,7 +377,7 @@ const mage: FinalSkill[] = [
     startup: 280, active: 100, recovery: 200, cooldown: 16000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(0, 10, { kind: 'chain', corridor: 360, width: 70, jump: 0 }, { curse: 2000 }, { reachUp: 160 })],
     cancelOnHit: ['binding_rune', 'storm_field', 'origami_flock', 'blink'],
-    description: 'A SILENCE: pages fold a foe into a paper crane for 1.2s — it walks and jumps freely but cannot attack or use skills. It holds nothing in place, so it does not extend a combo. A heavy blow unfolds it early. A monster turned into a crane takes 30% more damage.',
+    description: 'A SILENCE: pages fold a foe into a paper crane for 1.2s — it walks and jumps freely but cannot attack or use skills. It holds nothing in place, so it does not extend a combo. A heavy blow unfolds it early. A monster turned into a crane takes 30% more damage. Three torn pages fall where it struck and lie 8s.',
     relations: ['Silence 1.2s', 'No attacks or skills'],
   }),
   S({
@@ -393,7 +393,7 @@ const mage: FinalSkill[] = [
     startup: 140, active: 100, recovery: 180, cooldown: 7000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
     hits: [H(0, 16, { kind: 'sector', range: 120, angle: 100 }, { stun: 380, push: 4, juggleCost: 10 }, { reachUp: 100, el: FROST })],
     cancelOnHit: ['blink', 'arcane_bolt', 'lightning_chain', 'glacial_spikes'], telegraph: 'cone',
-    description: 'The book slams shut on a foe in front of you: frozen pages stick to it, and your next two spells CHILL it. Then you spring back out of reach. A miss leaves you open for a moment.',
+    description: 'The book slams shut on a foe in front of you: frozen pages stick to it, and your next two spells CHILL it. Then you spring back out of reach. A miss leaves you open for a moment. Two torn pages fall where it struck and lie 8s.',
     relations: ['Next 2 spells chill', 'Springs back'],
   }),
 ];

@@ -34,6 +34,9 @@ export interface CastRequest {
   /** The samurai's blossom draw (SamuraiPetals): the petals his Sheathe gathered, carried by his next Iai Strike (his screen
    *  counts them; a remote cast carries the count, `pb`). DFO's numbers: from 6 the line 40% wider, one more cut per 4. */
   petals?: number;
+  /** More shots from the cast's first projectile hit, set at the cast by the class's own logic (the Book Mage's folded pages:
+   *  Origami Flock's extra cranes); the same on both screens. */
+  extraShots?: number;
 }
 
 export interface CastRun extends CastRequest {
@@ -299,7 +302,8 @@ export class SkillRuntime {
       const aim = this.liveAim(r, origin);
       const rows = s.rows ?? 1, gap = s.rowGap ?? 40;
       let pick = 0;
-      for (const d of fanDirs(aim, s.count, s.spread)) for (let k = 0; k < rows; k++) {
+      const n0 = s.count ?? 1, n = n0 + (i === 0 ? r.extraShots ?? 0 : 0), spread = n > n0 && n0 > 1 && s.spread ? (s.spread * (n0 - 1)) / (n - 1) : s.spread; // (extra shots fill the same fan)
+      for (const d of fanDirs(aim, n, spread)) for (let k = 0; k < rows; k++) {
         const off = (k - (rows - 1) / 2) * gap, o2 = rows > 1 ? { x: origin.x - d.y * off, y: origin.y + d.x * off * 0.75, z: origin.z } : origin; // rows side by side across the floor
         const p = spawnProjectile(r.castId, i, r.skill, s, r.attackerId, o2, d, pick++);
         if (s.antiAir) { // a foe up in the air in front of the shot: it rises to his body as it flies

@@ -869,6 +869,39 @@ export class MageFx {
       return; }
     this.spr({ name: 'ward_dome', w: 120, oy: 0.96, life: ms, follow: at, dz: 4, add: true, glow: 0.25, alive: () => on, sx: kf([0, 0.4], [0.01, 1, out3]), sy: (u) => (u < 0.01 ? 0.4 + 60 * u : 1) * (1 + 0.02 * Math.sin(u * ms / 160)), a: kf([0, 0], [0.01, 0.55], [0.98, 0.5], [1, 0]) });
   }
+  // ------------------------------------------------------------------ continuity: the torn pages
+
+  /** The page as its own picture (PVP 3D lays it as real paper: Fx3D's card piece reads whole pictures). */
+  pageTex(): void {
+    const sc = this.ctx.scene;
+    if (sc.textures.exists('mage-page') || !sc.textures.exists(MAGE_KIT)) return;
+    const fr = sc.textures.getFrame(MAGE_KIT, 'page_1'); if (!fr) return;
+    const ct = sc.textures.createCanvas('mage-page', fr.cutWidth, fr.cutHeight); if (!ct) return;
+    ct.context.drawImage(fr.source.image as CanvasImageSource, fr.cutX, fr.cutY, fr.cutWidth, fr.cutHeight, 0, 0, fr.cutWidth, fr.cutHeight); ct.refresh();
+  }
+  private pageImgs = new Map<string, Phaser.GameObjects.Image>();
+  /** 2D: the torn pages flutter down from the blow and lie on the floor 8 s (they glint now and then). */
+  pagesLay(pages: { key: string; x: number; y: number }[], at: { x: number; y: number; z?: number }): void {
+    if (!this.ready) return;
+    const sc = this.ctx.scene; if (!sc.textures.exists(MAGE_KIT)) return;
+    pages.forEach((p, i) => {
+      const im = sc.add.image(at.x, at.y - (at.z ?? 0) - 50, MAGE_KIT, i % 2 ? 'page_2' : 'page_1').setDisplaySize(26, 32).setDepth(GROUND + 3).setAngle(Math.random() * 360).setAlpha(0.95);
+      this.pageImgs.get(p.key)?.destroy(); this.pageImgs.set(p.key, im);
+      sc.tweens.add({ targets: im, x: p.x, y: p.y, angle: im.angle + (Math.random() < 0.5 ? -1 : 1) * 300, displayHeight: 14, duration: 520, delay: i * 40, ease: 'Quad.easeOut' });
+      sc.tweens.add({ targets: im, alpha: 0, delay: 7600, duration: 400, onComplete: () => { if (this.pageImgs.get(p.key) === im) this.pageImgs.delete(p.key); im.destroy(); } });
+    });
+  }
+  pageGone(key: string): void { const im = this.pageImgs.get(key); if (!im) return; this.pageImgs.delete(key); this.ctx.scene.tweens.add({ targets: im, alpha: 0, duration: 200, onComplete: () => im.destroy() }); }
+  /** 2D: Origami Flock's cast — her pages lying near rise and fly to her hand, folding into its cranes. */
+  pagesFold(pages: { key: string; x: number; y: number }[], owner: string): void {
+    if (!this.ready) return;
+    const sc = this.ctx.scene, c = this.ctx.casterPos(owner);
+    pages.forEach((p, i) => {
+      const im = this.pageImgs.get(p.key); if (!im) return; this.pageImgs.delete(p.key); sc.tweens.killTweensOf(im);
+      sc.tweens.add({ targets: im, x: c ? c.x : im.x, y: c ? c.y - c.z - 70 : im.y - 80, displayHeight: 32, angle: im.angle + 360, duration: 260, delay: i * 40, ease: 'Quad.easeIn', onComplete: () => { im.destroy(); this.pop('paper_burst', im.x, im.y, 60, { life: 240 }); } });
+    });
+  }
+
   /** The ward took a blow (broken: it bursts; expired: it fades). */
   wardHit(id: string, broken: boolean, expired = false): void {
     if (!this.ready) return;

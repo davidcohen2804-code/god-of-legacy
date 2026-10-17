@@ -2251,12 +2251,44 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** A mage hit as its caster's state makes it: every damaging hit both elements under Elemental Ascension; his passives. */
   private mageHit(run: CastRun, hit: HitEvent, tid?: string, at?: V3): HitEvent {
     if (run.skill.cls !== 'book_mage') return hit;
+    if ((run.skill.id === 'page_bind' || run.skill.id === 'paper_curse') && at && hit.damage >= 0) this.dropPages(run, at); // (the torn pages fall where they struck)
     const f = run.own ? (this.mageFlags() & 7) | ((run.mf ?? 0) & 8) : (run.mf ?? 0);
     if (f) {
       const page = f & 8 && hit.damage > 0 ? { el: hit.el === 'storm' || hit.el === 'both' ? 'both' as const : 'frost' as const } : {}; // Page Bind: the frozen pages chill with the next spells
       hit = { ...hit, ...page, ...(f & 1 && hit.damage > 0 ? { el: 'both' as const } : {}), ...(f & 2 ? { conductor: true } : {}), ...(f & 4 ? { shatterMul: 2 } : {}) };
     }
     return tid ? this.prismHit(run, hit, tid, at) : hit;
+  }
+  /** Continuity — the Book Mage's torn pages: Page Bind leaves 2 and Paper Curse 3 where they struck; they lie 8 s (cap 8 a mage).
+   *  Origami Flock folds every page of hers within 400 px into one more crane (max +4) — counted at the cast, sent with it (mf bits 4-6). */
+  private magePages: { owner: string; key: string; x: number; y: number; until: number }[] = [];
+  private pageCasts = new Set<string>();
+  private dropPages(run: CastRun, at: V3): void {
+    if (this.pageCasts.has(run.castId)) return;
+    this.pageCasts.add(run.castId); if (this.pageCasts.size > 60) this.pageCasts.delete(this.pageCasts.values().next().value!);
+    const now = this.simMs, n = run.skill.id === 'paper_curse' ? 3 : 2, laid: { key: string; x: number; y: number }[] = [];
+    this.magePages = this.magePages.filter((p) => p.until > now);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + Math.random(), d = 26 + Math.random() * 34;
+      const p = { owner: run.attackerId, key: `pg-${run.castId}-${i}`, x: at.x + Math.cos(a) * d, y: at.y + Math.sin(a) * d * 0.6, until: now + 8000 };
+      this.magePages.push(p); laid.push(p);
+    }
+    const mine = this.magePages.filter((p) => p.owner === run.attackerId);
+    for (const old of mine.slice(0, Math.max(0, mine.length - 8))) { this.magePages.splice(this.magePages.indexOf(old), 1); this.a3d?.fx.cardDrop(old.key); if (!this.a3d) this.fx?.magePageGone(old.key); }
+    if (!this.a3d) this.fx?.magePagesLay(laid, at); // (2D: painted pages on the floor; PVP 3D: real paper on the planks)
+    else this.fx?.magePageTex();
+    for (const p of laid) this.a3d?.fx.cardLay(p.key, { x: at.x, y: at.y, z: (at.z ?? 0) + 50 }, p, { life: 8000, ms: 520, look: { tex: 'mage-page', size: 1.05, aspect: 1.3, edge: 0xe8e0f4 } });
+  }
+  /** Origami Flock's cast: her pages lying within 400 px rise and fold into cranes (how many: the extra cranes, max 4). */
+  private foldPages(owner: string, x: number, y: number): number {
+    const now = this.simMs;
+    this.magePages = this.magePages.filter((p) => p.until > now);
+    const near = this.magePages.filter((p) => p.owner === owner && Math.hypot(p.x - x, p.y - y) <= 400).sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y)).slice(0, 4);
+    if (!near.length) return 0;
+    this.magePages = this.magePages.filter((p) => !near.includes(p));
+    this.a3d?.fx.cardGather(near.map((p) => p.key), () => { const c = this.casterPos(owner); return c ? { x: c.x, y: c.y, z: c.z + 70 } : null; }, { ms: 260, gap: 40 });
+    if (!this.a3d) this.fx?.magePagesFold(near, owner);
+    return near.length;
   }
   /** PRISM — the mage's reward for weaving elements, not spamming: once a combo on a foe has carried frost, storm and arcane,
    *  the spell that completes the three strikes ×1.5 with a visible burst (once per combo; the combo ends after 1.5s without a mage hit). */
@@ -2836,9 +2868,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.slot === 7) this.body.invulnUntil = this.simMs + ct.startup + ct.active; // ultimate: untouchable while it plays
     else if (this.simMs < this.warCryUntil) this.body.armorUntil = this.simMs + ct.startup + ct.active; // War Cry: super armor while attacking
     this.kage?.arm(castId, s.id, { x: k.x, y: k.y, z: k.z }); // he strikes: out of hiding; a cast while the doubles stand: its first hit that lands is the AMBUSH
-    const mf = s.cls === 'book_mage' ? this.mageFlags() : 0;
+    const fold = s.id === 'origami_flock' ? this.foldPages(this.localId, from.x, from.y) : 0; // (her pages lying near fold into more cranes)
+    const mf = s.cls === 'book_mage' ? this.mageFlags() | (fold << 4) : 0;
     const pb = this.petals.draw(s); // (the blossom draw: his Iai takes the petals in the scabbard)
-    const run = this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: from, aim, place, lock, followUp, ...(mf ? { mf } : {}), ...(pb ? { petals: pb } : {}) });
+    const run = this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: from, aim, place, lock, followUp, ...(mf ? { mf } : {}), ...(pb ? { petals: pb } : {}), ...(fold ? { extraShots: fold } : {}) });
     this.trialUi?.cast(s.id.startsWith('arcane_bolt') ? 'arcane_bolt' : s.id, castId, !k.grounded, this.simMs); // (training: the trial's next key? — an Attunement bolt is the trial's Arcane Bolt)
     if (s.cls === 'book_mage') this.mageCast(s, run);
     if (s.cls === 'gambler') this.gamblerStarted(s);
@@ -4062,8 +4095,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (m.amb && s.cls === 'samurai' && r.kageGhosts().length) this.ambushIn.add(m.castId); // made while his doubles stand: an ambush
     const run = this.rt?.start({ castId: m.castId, skill: s, stage: Math.max(0, Math.min(2, m.stage ?? 0)), attackerId: from, own: false, origin: { x: m.x, y: m.y, z: m.z ?? 0 }, aim: unit(m.ax, m.ay), place, lock: m.lock ?? null, followUp: !!m.fu,
       dmgMul: Math.max(0.3, Math.min(1.4, (m.dm ?? 100) / 100)), reach: Math.max(1, Math.min(1.85, (m.rm ?? 100) / 100)),
-      range: Math.max(1, Math.min(1.2, (m.rg ?? 100) / 100)), speed: Math.max(1, Math.min(1.35, (m.sp ?? 100) / 100)), ...(m.mf ? { mf: m.mf } : {}), ...(m.pr && kitFor(s.cls).some((x) => x.primes?.ids.includes(s.id)) ? { primed: { chargeUp: Math.max(0, Math.min(2, m.pr - 1)) } } : {}), ...(m.pb && s.id === 'iai_strike' ? { petals: Math.max(0, Math.min(PETALS.cap, Math.round(m.pb))) } : {}) }, this.pvp?.oneWay(from) ?? 0); // (pr: primed by his Sheathe — his screen decides) // (it left their hand one network delay ago: its wind-up is caught up)
+      range: Math.max(1, Math.min(1.2, (m.rg ?? 100) / 100)), speed: Math.max(1, Math.min(1.35, (m.sp ?? 100) / 100)), ...(m.mf ? { mf: m.mf } : {}), ...(s.id === 'origami_flock' && ((m.mf ?? 0) >> 4) & 7 ? { extraShots: Math.min(4, ((m.mf ?? 0) >> 4) & 7) } : {}), ...(m.pr && kitFor(s.cls).some((x) => x.primes?.ids.includes(s.id)) ? { primed: { chargeUp: Math.max(0, Math.min(2, m.pr - 1)) } } : {}), ...(m.pb && s.id === 'iai_strike' ? { petals: Math.max(0, Math.min(PETALS.cap, Math.round(m.pb))) } : {}) }, this.pvp?.oneWay(from) ?? 0); // (pr: primed by his Sheathe — his screen decides) // (it left their hand one network delay ago: its wind-up is caught up)
     if (run) { this.remoteRuns.set(m.castId, { run, at: this.simMs }); for (const [k, v] of this.remoteRuns) if (this.simMs - v.at > 4000) this.remoteRuns.delete(k); }
+    if (run && s.id === 'origami_flock') this.foldPages(from, m.x, m.y); // (her pages fold into its cranes on this screen too)
     if (run && s.id === 'judgment_blade') { // the blade leaves the caster's hand when its release message arrives (fallback: a little after the full charge)
       run.timings.startup = s.startup + 600; r.setSkillStartup(s.id, run.timings.startup);
     }

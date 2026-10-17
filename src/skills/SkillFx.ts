@@ -2294,6 +2294,11 @@ export class SkillFx {
     } });
     this.cryMarks.set(id, rec);
   }
+  /** Continuity: the Book Mage's torn pages on the floor (laid, gone, folded into Origami Flock's cranes). */
+  magePageTex(): void { this.mage.pageTex(); }
+  magePagesLay(pages: { key: string; x: number; y: number }[], at: { x: number; y: number; z?: number }): void { this.mage.pagesLay(pages, at); }
+  magePageGone(key: string): void { this.mage.pageGone(key); }
+  magePagesFold(pages: { key: string; x: number; y: number }[], owner: string): void { this.mage.pagesFold(pages, owner); }
   /** Tree of Life heals this fighter (a party member's tree or her own): the sprout over the head. */
   treeMark(id: string): void { this.arch.treeMark(id); }
   mageAura(id: string, kind: 'haste' | 'ascension', ms: number): void { this.mage.aura(id, kind, ms); }
