@@ -38,9 +38,14 @@ export const GAMBLER: Record<string, Recipe> = {
   },
   // seven cards fanned out: a fan of thin streaks from his hand, each card trailing light
   charged_deal: { tone: TONE.card,
-    own: true, hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, F.card, { r: 70, ms: 220, a: 0.55 }); },
-    trail: { c: F.card, w: 6, len: 7, i: 1.3 },
-    active: (f, r) => { const c = me(f, r), s = side(r); for (let k = -2; k <= 2; k++) f.streak(chest(c, 92), { x: c.x + s * 190, y: c.y + k * 34, z: 92 + k * 6 }, k % 2 ? F.red : F.card, { w: 4, ms: 130, draw: 40 }); },
+    // (David 01:42: "unprofessional, fast" — now it lands with weight: the throw one inked red arc cut out of his hand, each card
+    // a real 3D card spinning on its flight with a red glow and a short trail, each card that strikes him a small red star of
+    // crossing card lines; the main hit's flash is the engine's)
+    own: true,
+    trail: { c: F.red, w: 7, len: 9, i: 1.4 },
+    shot: (f, p) => f.cardSpin(() => (p.done ? null : { x: p.x, y: p.y, z: p.z + 62 }), { size: 0.95, color: F.red, rps: 6, tilt: 0.8 }),
+    active: (f, r) => { const c = me(f, r), s = side(r); f.slash(c, s, F.red, { r: 95, w: 40, tilt: 55, a0: -10, a1: 130, ms: 200, y0: 80, i: 2.4, ink: true }); f.host.kick(0.02); },
+    hit: (f, _s, _h, at) => f.flurry({ x: at.x, y: at.y, z: at.z + 70 }, F.red, { ms: 80, every: 40, len: 150, w: 5, accent: 0, spread: 8 }),
   },
   // the vault over the foe: an upright crescent of light along the staff's arc; the launch's column is the default main hit
   staff_vault: { tone: TONE.violet,

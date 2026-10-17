@@ -400,10 +400,11 @@ export class GamblerFx {
     this.setFam(p.skill.id);
     const s = this.ctx.scene, big = p.skill.id === 'ace_in_the_hole', huge = p.skill.id === 'call_the_deck';
     const img = s.add.image(p.x, p.y - p.z, big ? this.acePic : this.BK).setScale(this.u * (big ? 0.62 : huge ? 0.95 : 0.36)).setDepth(p.y + 3);
+    if (p.skill.id === 'charged_deal' && ARENA3D.on) img.setAlpha(0); // (Charged Deal's cards: real 3D cards spin on their flight — its recipe's shot)
     if (huge) { img.setData('huge', 1); if (ARENA3D.on) img.setAlpha(0); } // (Call the Deck's saw: in PVP 3D a real spinning card rides it — its recipe's shot)
     const glow = this.glow(p.x, p.y - p.z, big ? 110 : 60, FUCHSIA, p.y + 2);
     const g = s.add.graphics().setDepth(p.y + 1).setBlendMode(Phaser.BlendModes.ADD);
-    const streak = huge ? null : this.kit('k_streak', p.x, p.y - p.z, big ? 300 : 95, p.y + 2); // (the fan's: short, so five never merge into one white sheet)
+    const streak = huge || (p.skill.id === 'charged_deal' && ARENA3D.on) ? null : this.kit('k_streak', p.x, p.y - p.z, big ? 300 : 95, p.y + 2); // (the fan's: short, so five never merge into one white sheet)
     if (streak) streak.setOrigin(0.97, 0.52).setAngle(screenAng(p.dx, p.dy)).setFlipY(p.dx < -0.01);
     if (big) { // the ace's lance: a ribbon of light from the throw to the ace, lingering a moment after it passes
       const x0 = p.x, y0 = p.y - p.z, lance = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD), lancePic = this.kit('x_lance', x0, y0, 100, p.y + 2);
