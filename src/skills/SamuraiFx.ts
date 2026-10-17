@@ -26,6 +26,9 @@ const along = (ang: number, left: boolean) => (left ? ang - 180 : ang);
 /** Hits whose cut "arrives late": a thin line stays on the foe and splits open a beat after (the Iai's signature, and the
  *  ultimate's great cut). */
 const DELAYED = new Set(['iai_strike', 'dragon_eclipse']);
+/** Skills whose pieces show a state that outlasts the next press (a zone on the floor, a stance, a shield, the halo, the
+ *  doubles): never cut short by his next skill. */
+const KEEP = new Set(['sakura_bind', 'mirage', 'rising_sun', 'god_of_blades', 'kagemusha']);
 /** The class's tones (tools/skills/kit_tones.py: `<piece>@<tone>`; no tone: the crimson originals). Every skill carries its
  *  own: steel (the bare blade), gold, sakura, rose, fire, blood (dark ink-red) — and crimson. */
 type Tone = 'steel' | 'gold' | 'sakura' | 'rose' | 'fire' | 'blood';
@@ -106,6 +109,8 @@ interface Spr {
   flick?: number;
   /** not drawn if this cast is broken off before the piece appears */
   run?: CastRun;
+  /** never cut short by his next skill (it shows a state: a zone, a hold) */
+  keep?: boolean;
 }
 interface Live { t: number; step(dt: number, t: number): boolean }
 /** God of Blades' halo: the katanas (each with its glow), the halo (its glow), which katanas are out striking, when each came back. */
@@ -131,8 +136,16 @@ export class SamuraiFx {
   private waves = new Map<Projectile, Wave>();
   /** Mirage stances by cast: where the samurai stood (the mirage the blow strikes). */
   private stances = new Map<string, { x: number; y: number; z: number; done: boolean }>();
-  /** What a samurai's next skill clears (by attacker): his ribbons still fading (`trail`). */
-  private nexts = new Map<string, { castId: string; fn: () => void }[]>();
+  /** What a samurai's next skill clears (by attacker): his last skills' pieces still on screen — the ribbons, the cuts,
+   *  the bursts and marks of their blows. The effects' clock stops with every hit-stop, so a fading leftover froze over
+   *  the next skill's blows and hid the foe (the trials, filmed: Swallow Cut's line over MIKAZUKI's crescent, Falcon
+   *  Dive's phoenix over SAKURA's blossoms, the basic's launch over SAYA's draw). */
+  private nexts = new Map<string, Set<{ castId: string; skill: string; fn: () => void }>>();
+  /** The cast the pieces being made now belong to (set by the entry points; null: not cut short — a zone, a stance). */
+  private cur: { attackerId: string; castId: string; skill: string } | null = null;
+  private clock = 0;
+  /** Each skill's latest blow (its hit marks come from the scene a moment later, without the cast). */
+  private lastHit = new Map<string, { own: { attackerId: string; castId: string; skill: string }; at: number }>();
 
   constructor(private ctx: SamCtx) {}
 
@@ -142,8 +155,24 @@ export class SamuraiFx {
 
   private add(l: Live): void { this.incoming.push(l); }
   private later(ms: number, fn: () => void, run?: CastRun): void {
-    this.add({ t: 0, step: (_dt, t) => { if (t < ms) return true; if (!run || !(run.phase === 'done' && !run.fired.size)) fn(); return false; } });
+    const own = this.cur; // (what it makes later belongs to the same cast)
+    this.add({ t: 0, step: (_dt, t) => { if (t < ms) return true; if (!run || !(run.phase === 'done' && !run.fired.size)) { const prev = this.cur; this.cur = own; try { fn(); } finally { this.cur = prev; } } return false; } });
   }
+  /** Register a piece of the current cast to be cut short by its caster's next skill (`fn`); returns its removal. */
+  private onNext(fn: () => void, own = this.cur): (() => void) | null {
+    if (!own) return null;
+    const e = { castId: own.castId, skill: own.skill, fn }, set = this.nexts.get(own.attackerId) ?? new Set();
+    set.add(e); this.nexts.set(own.attackerId, set);
+    return () => { const st = this.nexts.get(own.attackerId); if (st) { st.delete(e); if (!st.size) this.nexts.delete(own.attackerId); } };
+  }
+  /** Run `fn` with the pieces it makes belonging to `r` (none for the skills whose pieces show a state: a zone, a stance). */
+  private as<T>(r: { attackerId: string; castId: string; skill: { id: string } } | null, fn: () => T): T {
+    const prev = this.cur;
+    this.cur = r && !KEEP.has(r.skill.id) ? { attackerId: r.attackerId, castId: r.castId, skill: r.skill.id } : null;
+    try { return fn(); } finally { this.cur = prev; }
+  }
+  /** A piece cut short: it keeps at least 100 ms of its life, then fades out in 90 ms. */
+  private static readonly CUT = { min: 100, fade: 90 };
   private broken(r?: CastRun): boolean { return !!r && r.phase === 'done' && !r.fired.size; }
   /** A double's swing whose double has burst (Kagemusha): its picture goes with it. */
   private gone(r?: CastRun): boolean { return !!r && r.attackerId.includes('#') && !this.ctx.casterPos(r.attackerId); }
@@ -178,21 +207,26 @@ export class SamuraiFx {
       return im;
     };
     const im = mk(false), gl = o.glow ? mk(true) : null;
-    let shown = false;
+    let shown = false, cutAt = -1, tNow = 0;
+    const unreg = o.keep ? null : this.onNext(() => { if (cutAt < 0) cutAt = Math.max(tNow, (o.delay ?? 0) + SamuraiFx.CUT.min); });
+    const kill = () => { im.destroy(); gl?.destroy(); unreg?.(); return false; };
     this.add({ t: 0, step: (_dt, t) => {
+      tNow = t;
       const e = t - (o.delay ?? 0);
-      if (e < 0) return true;
-      if (!shown) { shown = true; if (this.broken(o.run)) { im.destroy(); gl?.destroy(); return false; } }
-      if (this.gone(o.run)) { im.destroy(); gl?.destroy(); return false; }
+      if (e < 0) return cutAt < 0 ? true : kill(); // (cut short before it showed: it never shows)
+      if (!shown) { shown = true; if (this.broken(o.run)) return kill(); }
+      if (this.gone(o.run)) return kill();
+      const cut = cutAt < 0 || t < cutAt ? 1 : 1 - (t - cutAt) / SamuraiFx.CUT.fade;
+      if (cut <= 0) return kill();
       const u = Math.min(1, e / o.life);
       let x = o.x ?? 0, y = o.y ?? 0, d = o.depth ?? TOP;
       if (o.follow) { const p = o.follow(); if (p) { x = p.x; y = p.y; d = p.d + (o.dz ?? 3); } }
       x += o.mx?.(u) ?? 0; y += o.my?.(u) ?? 0;
-      const sx = (o.sx?.(u) ?? 1) * bx, sy = (o.sy?.(u) ?? 1) * by, al = Math.max(0, Math.min(1, o.a?.(u) ?? 1)), ang = (o.angle ?? 0) + (o.rot?.(u) ?? 0);
+      const sx = (o.sx?.(u) ?? 1) * bx, sy = (o.sy?.(u) ?? 1) * by, al = Math.max(0, Math.min(1, o.a?.(u) ?? 1)) * cut, ang = (o.angle ?? 0) + (o.rot?.(u) ?? 0);
       const fl = o.flick ? (Math.floor(e / o.flick) % 2 === 1) !== !!o.flipX : !!o.flipX;
       im.setVisible(true).setPosition(x, y).setScale(sx, sy).setAngle(ang).setDepth(d).setAlpha(al).setFlipX(fl);
       gl?.setVisible(true).setPosition(x, y).setScale(sx * 1.04, sy * 1.04).setAngle(ang).setDepth(d + 0.01).setAlpha(al * o.glow!).setFlipX(fl);
-      if (u >= 1) { im.destroy(); gl?.destroy(); return false; }
+      if (u >= 1) return kill();
       return true;
     } });
     return im;
@@ -213,16 +247,21 @@ export class SamuraiFx {
     const im = mk(false), gl = o.glow ? mk(true) : null;
     const box = s.add.container(x, y, gl ? [im, gl] : [im]).setScale(1, o.squash ?? SQUASH).setDepth(o.depth ?? GROUND + 2).setVisible(false);
     const k0 = im.scaleX, k1 = im.scaleY;
-    let shown = false;
+    let shown = false, cutAt = -1, tNow = 0;
+    const unreg = this.onNext(() => { if (cutAt < 0) cutAt = Math.max(tNow, (o.delay ?? 0) + SamuraiFx.CUT.min); });
+    const kill = () => { box.destroy(); unreg?.(); return false; };
     this.add({ t: 0, step: (_dt, t) => {
+      tNow = t;
       const e = t - (o.delay ?? 0);
-      if (e < 0) return true;
-      if (!shown) { shown = true; if (this.broken(o.run)) { box.destroy(); return false; } box.setVisible(true); }
-      if (this.gone(o.run)) { box.destroy(); return false; }
+      if (e < 0) return cutAt < 0 ? true : kill();
+      if (!shown) { shown = true; if (this.broken(o.run)) return kill(); box.setVisible(true); }
+      if (this.gone(o.run)) return kill();
+      const cut = cutAt < 0 || t < cutAt ? 1 : 1 - (t - cutAt) / SamuraiFx.CUT.fade;
+      if (cut <= 0) return kill();
       const u = Math.min(1, e / life), k = o.s?.(u) ?? 1, ang = (o.angle ?? 0) + (o.spin ?? 0) * u;
       im.setScale(k0 * k, k1 * k).setAngle(ang); gl?.setScale(k0 * k * 1.03, k1 * k * 1.03).setAngle(ang).setAlpha(o.glow ?? 0);
-      box.setAlpha(Math.max(0, Math.min(1, o.a?.(u) ?? 1)));
-      if (u >= 1) { box.destroy(); return false; }
+      box.setAlpha(Math.max(0, Math.min(1, o.a?.(u) ?? 1)) * cut);
+      if (u >= 1) return kill();
       return true;
     } });
   }
@@ -433,9 +472,8 @@ export class SamuraiFx {
     // (his next skill clears it: a fading ribbon froze on screen through the next skill's hit-stops — the effects' clock
     // stops with them — and stood over the chase that followed: MIKAZUKI's jump and crescent after Swallow Cut)
     const short = () => { const kn = stop < 0 ? 1 : k0 * (1 - (tNow - stop) / fade); if (kn <= 0) return; k0 = kn; stop = tNow; fade = 90; };
-    const nx = o.run ? { castId: o.run.castId, fn: short } : null, id = o.run?.attackerId;
-    if (nx && id) { const l = this.nexts.get(id) ?? []; l.push(nx); this.nexts.set(id, l); }
-    const kill = () => { base.destroy(); light.destroy(); if (nx && id) { const l = this.nexts.get(id); if (l) { const m = l.filter((x) => x !== nx); if (m.length) this.nexts.set(id, m); else this.nexts.delete(id); } } };
+    const unreg = this.onNext(short, o.run ? { attackerId: o.run.attackerId, castId: o.run.castId, skill: o.run.skill.id } : this.cur);
+    const kill = () => { base.destroy(); light.destroy(); unreg?.(); };
     this.add({ t: 0, step: (_dt, t0) => {
       const t = t0 - (o.delay ?? 0);
       tNow = t;
@@ -531,9 +569,10 @@ export class SamuraiFx {
   /** The wind-up (and whatever runs through the whole cast). */
   cast(r: CastRun): void {
     if (!this.ready) return;
-    for (const [k, l] of [...this.nexts]) if (k === r.attackerId || k.startsWith(`${r.attackerId}#`)) for (const x of [...l]) if (!x.castId.startsWith(r.castId)) x.fn(); // (his last skill's ribbons — his doubles' too — give way to this one)
-    this.castOne(r, false);
-    for (const g of this.shadows(r)) this.castOne(g, true);
+    // (his last skills' leftovers — his doubles' too — give way to this one; the basic's next cut leaves the last one's)
+    for (const [k, set] of [...this.nexts]) if (k === r.attackerId || k.startsWith(`${r.attackerId}#`)) for (const x of [...set]) if (x.skill !== r.skill.id) x.fn();
+    this.as(r, () => this.castOne(r, false));
+    for (const g of this.shadows(r)) this.as(g, () => this.castOne(g, true));
   }
   private castOne(r: CastRun, ghost: boolean): void {
     const s = r.skill, T = r.timings;
@@ -545,7 +584,7 @@ export class SamuraiFx {
       case 'sword_wave': this.glint(r, 0, 34, 80); break;
       case 'iai_strike': this.iai(r); if (r.petals && !ghost) { const sc = this.scabs.get(r.attackerId); if (sc) sc.drawing = true; } break; // (the blossom draw: the scabbard keeps its petals for the release)
       case 'mirage': this.mirageStance(r); break;
-      case 'blossom_storm': this.blossomStorm(r); break;
+      case 'blossom_storm': if (!ghost) this.blossomStorm(r); break; // (a double's storm: only its cuts — six funnels hid the foe, KAGEMUSHA)
       case 'dragon_eclipse': this.eclipse(r); break;
       case 'kagemusha': this.glint(r, 0, 26, 52); this.petals(this.me(r).x, this.me(r).y - this.me(r).z - 50, 8, 80, { inward: true, life: T.startup + 60 }); break;
       case 'tornado_blade': this.airSpin(r); break;
@@ -562,7 +601,7 @@ export class SamuraiFx {
   active(r: CastRun): void {
     if (!this.ready) return;
     for (const g of [r, ...this.shadows(r)]) {
-      if (g.skill.id === 'shadow_step') this.stepStreak(g);
+      if (g.skill.id === 'shadow_step') this.as(g, () => this.stepStreak(g));
     }
   }
 
@@ -573,8 +612,9 @@ export class SamuraiFx {
   hit(r: CastRun, i: number, o: V3): void {
     this.stageOf.set(r.skill.id, r.stage ?? 0);
     if (!this.ready) return;
-    this.hitOne(r, i, o);
-    for (const g of this.shadows(r)) this.hitOne(g, i, { x: o.x + g.origin.x - r.origin.x, y: o.y + g.origin.y - r.origin.y, z: o.z });
+    this.lastHit.set(r.skill.id, { own: { attackerId: r.attackerId, castId: r.castId, skill: r.skill.id }, at: this.clock });
+    this.as(r, () => this.hitOne(r, i, o));
+    for (const g of this.shadows(r)) this.as(g, () => this.hitOne(g, i, { x: o.x + g.origin.x - r.origin.x, y: o.y + g.origin.y - r.origin.y, z: o.z }));
   }
   private hitOne(r: CastRun, i: number, o: V3): void {
     const s = r.skill, side = sideOf(r), q = this.ctx.casterPos(r.attackerId) ?? o, y0 = q.y - q.z, cam = this.ctx.cam();
@@ -638,6 +678,10 @@ export class SamuraiFx {
    *  brushed round him and a crimson cut through it. `from`: where the blow came from (the cut and the sparks face away from there). */
   confirmed(s: FinalSkill, hit: HitEvent, at: V3, reaction: string, heavy: boolean, crit: boolean, from?: { x: number; y: number }, local = false, counter = false): void {
     if (!this.ready) return;
+    const lh = this.lastHit.get(s.id), own = lh && this.clock - lh.at < 600 ? lh.own : null; // (its marks belong to the cast whose blow it is)
+    this.as(own ? { attackerId: own.attackerId, castId: own.castId, skill: s } : null, () => this.confirmedOne(s, hit, at, reaction, heavy, crit, from, local, counter));
+  }
+  private confirmedOne(s: FinalSkill, hit: HitEvent, at: V3, reaction: string, heavy: boolean, crit: boolean, from?: { x: number; y: number }, local = false, counter = false): void {
     // the main hit (the same rule as the blow's weight in SkillFx): a heavy one, one that sends the foe flying or down,
     // the last of a burst — its mark big; the small hits of a burst small, so the main one stands out
     const many = s.hits.length > 3, flies = !!(hit.reaction.launch || hit.reaction.knockdown || hit.reaction.slam);
@@ -685,7 +729,7 @@ export class SamuraiFx {
       this.spr({ name: tn('cut_line', iai ? 'steel' : undefined), x, y: y - 4, angle: la, w: lw, h: iai ? 9 : 12, depth: TOP + 5, life: 200, glow: 0.85, sx: kf([0, 0.25], [0.12, 1, out3]), a: kf([0, 1], [0.86, 1], [1, 0]) });
       this.later(190, () => {
         this.cut('cut_split', lw, la, { x, y: y - 4, depth: TOP + 5, grow: 35, hold: 70, fade: 230, glow: 0.8 });
-        if (iai) { this.pop('burst', x, y - 4, 150, { life: 300, depth: TOP + 4.5, glow: 0.4, angle: la }); this.sparks(x, y - 4, 8, 70, { depth: TOP + 3 }); }
+        if (iai) { this.pop('burst', x, y - 4, 112, { life: 260, depth: at.y - 1, glow: 0.25, angle: la }); this.sparks(x, y - 4, 6, 70, { depth: TOP + 3 }); } // (behind him, a size down: SAYA's draw hid the knight)
         else { this.pop('blossom_burst', x, y - 4, 130, { life: 320, depth: TOP + 4.5, glow: 0.3, angle: rnd(0, 360) }); this.petals(x, y, 8, 70, { depth: TOP + 3 }); }
         if (local) { this.ctx.cam().shake(90, 0.004); this.ctx.freeze?.(55); }
       });
@@ -1148,6 +1192,11 @@ export class SamuraiFx {
   }
   private stormCut(r: CastRun, i: number): void {
     const side = sideOf(r), f = this.stormFoe(r), last = i >= (r.skill.hits.length - 1), fy = f.y - f.z;
+    if (r.attackerId.includes('#')) { // a double's: its cut only, faint (KAGEMUSHA: six storms over the foe)
+      const deg = [0, 180, 32, 212][i % 4] + rnd(-20, 20);
+      this.cut(tn('cut_thin', 'sakura'), last ? 130 : 110, deg, { x: f.x + rnd(-24, 24), y: fy - 60, depth: TOP + 2.5, grow: 40, hold: 20, fade: 130, glow: 0.2, alpha: 0.55 });
+      return;
+    }
     if (!last) { // a silhouette of him strikes through the foe from another side each time, the cut behind it — all in blossom pink
       const deg = [0, 180, 32, 212][i % 4] + rnd(-8, 8), c = Math.cos((deg * Math.PI) / 180), sn = Math.sin((deg * Math.PI) / 180) * 0.5, L = 112;
       // (behind the foe, in a dark-red ink: in PVP 3D the black phantoms over him made the knight a black silhouette — DFO)
@@ -1261,8 +1310,8 @@ export class SamuraiFx {
     const T = r.timings, life = T.active + 140, fl = sideOf(r) < 0, f = this.front(r, 0, 56), S = (n: string) => tn(n, 'steel');
     // (in the cold white of bare steel: a whirlwind of blade light — read apart from the crimson launcher and the pink storm round it)
     for (const [crop, z] of [[undefined, -3], [0.5, 3]] as const)
-      this.spr({ name: S('cut_ring'), w: 204, life, delay: T.startup, run: r, follow: f, dz: z, crop, glow: 0.3, flipX: fl, flick: 48,
-        sx: kf([0, 0.45], [0.18, 1, out3], [1, 1.1]), sy: kf([0, 0.45], [0.18, 1, out3], [1, 1.1]), a: kf([0, 0.8], [0.7, 0.75], [1, 0, inQ]) });
+      this.spr({ name: S('cut_ring'), w: 190, life, delay: T.startup, run: r, follow: f, dz: z, crop, glow: crop ? 0.18 : 0.3, flipX: fl, flick: 48, // (its near half lighter: the foe it holds is right there beside him — the trials, filmed)
+        sx: kf([0, 0.45], [0.18, 1, out3], [1, 1.1]), sy: kf([0, 0.45], [0.18, 1, out3], [1, 1.1]), a: crop ? kf([0, 0.5], [0.7, 0.45], [1, 0, inQ]) : kf([0, 0.8], [0.7, 0.75], [1, 0, inQ]) });
     for (const [crop, z] of [[undefined, -2], [0.5, 2]] as const)
       this.spr({ name: S('wind_ring'), w: 160, life: life + 80, delay: T.startup, run: r, follow: f, dz: z, crop, add: true, flipX: !fl,
         sx: (u) => 0.8 + 0.7 * u, sy: (u) => 0.55 + 0.35 * u, a: kf([0, 0], [0.12, 0.55], [0.7, 0.35], [1, 0]) });
@@ -1828,6 +1877,9 @@ export class SamuraiFx {
    *  the fling at his blade; on impact (a foe, a wall, its end) it shatters into shards and petals. */
   projectile(p: Projectile): void {
     if (!this.ready) return;
+    this.as({ attackerId: p.attackerId, castId: p.castId, skill: p.skill }, () => this.projectileOne(p));
+  }
+  private projectileOne(p: Projectile): void {
     const s = this.ctx.scene, wc = this.fname(tn('wave_crescent', 'gold')); // (a golden crescent moon)
     const mk = (add: boolean) => s.add.image(p.x, p.y - p.z, KIT, wc).setOrigin(0.76, 0.5).setBlendMode(add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL).setDepth(p.y + 2);
     const im = mk(false), gl = mk(true).setAlpha(0.45);
@@ -1840,6 +1892,10 @@ export class SamuraiFx {
     }
   }
   projectileEnd(p: Projectile): void {
+    if (!this.waves.has(p)) return;
+    this.as({ attackerId: p.attackerId, castId: p.castId, skill: p.skill }, () => this.projectileEndOne(p));
+  }
+  private projectileEndOne(p: Projectile): void {
     const w = this.waves.get(p); if (!w) return;
     this.waves.delete(p);
     const end = p.end ?? { x: p.x, y: p.y, reason: 'range' as const }, fl = p.dx < -0.01, ang = screenAng(p.dx, p.dy), foe = end.reason === 'target', wall = end.reason === 'cover';
@@ -1907,6 +1963,7 @@ export class SamuraiFx {
   // ------------------------------------------------------------------ frame
 
   update(dt: number): void {
+    this.clock += dt;
     const cur = this.live.concat(this.incoming);
     this.incoming = [];
     this.live = cur.filter((l) => { l.t += dt; return l.step(dt, l.t); });
@@ -1924,6 +1981,6 @@ export class SamuraiFx {
     for (const id of [...this.scabs.keys()]) this.scabEnd(id, 'gone');
     for (const id of [...this.suns.keys()]) this.clearSun(id, true);
     for (const [p] of this.waves) this.projectileEnd(p);
-    this.live = []; this.incoming = []; this.nexts.clear();
+    this.live = []; this.incoming = []; this.nexts.clear(); this.lastHit.clear();
   }
 }
