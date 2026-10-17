@@ -168,6 +168,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - PvP (Maps' Thief's Den request): play together in the open world — see each other in the maps, party up, run the Thief's Den as a party. A big new system: build it now, or keep the world single-player for now?
 
 ## Done
+- Book Mage: own body moves for Origami Flock (hand flicked out from the shoulder) and Levity Field (arm lifted high, coat floating up) — PixVerse from her ref, checked in PVP 3D — 56566902. Still borrowing: Page Bind, Arcane Ward, Paper Curse, Elemental Ascension.
 - Archer: own bodies for Fireball Arrow, Hunter's Roar and Double Shot's charged arrow; effects in families (3D layer, hit sparks, own floor pieces); Sky Rain's cut-in checked in PVP 3D — 59fdd9f2, e5fee28b
 - Gambler: the lucky moments no longer white the screen out (royal hand flash 0.5 → 0.2, Showdown's crown smaller, the wheel's RED flash 0.16–0.18) — 5cc469f9
 - Samurai (quality pass, PVP 3D): nothing of his whites the foe out any more — the Iai's draw is its hair line of steel opening in crimson (no white burst at the draw) — 3ee71d67; Hundred Cuts' storm and last blow lighter, both fighters read through it — 58672f02
