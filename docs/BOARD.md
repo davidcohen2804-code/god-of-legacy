@@ -33,17 +33,17 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 ## Open items
 ### DAVID (18 Oct 01:07) — the Warrior, after playing every skill (**Warrior chat: all of this, in this order**; DFO does the numbers marked DFO)
 David's notes, key by key (his words in quotes). Use GPT / PixVerse where a look needs new art (they are connected — never press a download button). One commit a skill, filmed in PVP 3D.
-- **1 Dash Slash** — "looks like it drags him: if it drags, let it drag." → the dash really carries the foe along to its end. *DFO: it carries him, like Impaling Rush (landing with DFO's next push).* Warrior: the body and the look of a drag (the foe hooked on the blade, sparks / a furrow along the floor).
+- **1 Dash Slash** — "looks like it drags him: if it drags, let it drag." → the dash really carries the foe along to its end. *DFO: it carries him, like Impaling Rush (in: 6f0d0aef).* Warrior: the body and the look of a drag (the foe hooked on the blade, sparks / a furrow along the floor).
 - **2 Rising Slash** — "the hero's animation is not nice, and it lacks a 3D feel." → redo the body's motion (wind-up, the rise, the follow-through) and its 3D.
 - **3 Ground Breaker** — "improve the 3D and the feel."
 - **5 Sanctuary** — "it must feel that the shield is joined to the floor, not floating." → the wall of light planted in the planks: a base, cracks and glow where it meets the floor.
 - **7 Titan's Verdict** — "what stays on the floor must look more powerful."
 - **R Wave Slash** — "boring idea, it doesn't feel worth anything." → a stronger idea: post it here in one line; DFO sets its numbers.
 - **F Impaling Rush** — "maybe a skill you hold: it charges a blow and then runs forward with it." → hold to charge (in steps, like Earthsplitter), release to rush forward with it. Post the steps you want; *DFO sets the timings.*
-- **C Judgment Blade** — "throw 3 such swords when pressing 3 times while in the air." *DFO: 3 charges (landing with DFO's next push).* Warrior: three blades that read as one volley.
-- **V Iron Grip** — "hold the foe in stun at least 3 s." *DFO: the smash leaves him stunned 3 s, the bounce stays (landing with DFO's next push).*
-- **T Judgment Hook** — "very fast, unpleasant, not professional." *DFO: the chain reaches at 160 ms (was 90) and draws him in over 230 ms (was a 110 ms snap) — landing with DFO's next push.* Warrior: the chain's flight and the pull with weight.
-- **Z Earthsplitter** — "what comes out of the floor stays on screen 5 s, like boiling rocks, like lava; an improved effect." *DFO: the spikes stand 5 s (landing with DFO's next push).* Warrior: molten boiling rock (glowing cracks, magma dripping, heat, smoke).
+- **C Judgment Blade** — "throw 3 such swords when pressing 3 times while in the air." *DFO: 3 charges (in: 6f0d0aef).* Warrior: three blades that read as one volley.
+- **V Iron Grip** — "hold the foe in stun at least 3 s." *DFO: the smash leaves him stunned 3 s, the bounce stays (in: 6f0d0aef).*
+- **T Judgment Hook** — "very fast, unpleasant, not professional." *DFO: the chain reaches at 160 ms (was 90) and draws him in over 230 ms (was a 110 ms snap) (in: 6f0d0aef).* Warrior: the chain's flight and the pull with weight.
+- **Z Earthsplitter** — "what comes out of the floor stays on screen 5 s, like boiling rocks, like lava; an improved effect." *DFO: the spikes stand 5 s (in: 6f0d0aef).* Warrior: molten boiling rock (glowing cracks, magma dripping, heat, smoke).
 - **X Lion's Maw** — "unclear, no character; maybe the lion comes out and roars for at least 5 s, dealing damage." → the lion stays and roars ≥5 s, the roar hurting what it reaches. Post the shape; *DFO sets the roar's damage / ticks / reach.*
 - **B Shield Charge** — "meaningless, no character — change it, another idea." → a new idea: post it here in one line; DFO sets its numbers.
   - to: DFO — from: Warrior — the four ideas, one line each, yours to number: **R Wave Slash → "Steel Tide":** three steel crescents fanned along the floor; where two of them cross on a foe they burst up into a column of blades that launches him (crescent damage, the cross-burst's launch). **F Impaling Rush → held, 3 steps like Earthsplitter:** tap = today's rush · step 1 (~0.4 s) farther + one more thrust · step 2 (~0.8 s) farthest, the last thrust heavy and driving him back (a lance of steel light grows on the blade each step). **X Lion's Maw → the lion stays:** the crimson lion leaps out, lands on the foe's spot and stands roaring 5 s — a roar ring every ~0.6 s hurting what it reaches (~200 px), then it bursts into embers. **B Shield Charge → "Iron Bastion":** he plants the sword and turns to iron for ~1.5 s (super armor, less damage); when it ends every blow he took comes back as one iron counter-slash round him (no shield anywhere — David).
@@ -51,9 +51,26 @@ David's notes, key by key (his words in quotes). Use GPT / PixVerse where a look
 ### DAVID (18 Oct 01:15) — the Samurai, after playing every skill (**Samurai chat: all of this**; DFO does the numbers marked DFO)
 David's notes, key by key (his words in quotes). GPT / PixVerse are connected (never press a download button). One commit a skill, filmed in PVP 3D.
 - **4 Sword Wave** — "just a boring hit; it needs to be improved significantly." → a much stronger idea and look: post the idea here in one line; DFO sets its numbers.
-- **G Tornado Blade** — "excellent; make it spammable while jumping, no cooldown." *DFO: cooldown 0 (landing with DFO's next push)* — in the air only, as before: as often as a jump allows.
+- **G Tornado Blade** — "excellent; make it spammable while jumping, no cooldown." *DFO: cooldown 0 (in: 6f0d0aef)* — in the air only, as before: as often as a jump allows.
 - **V Rising Sun** — "leave it on the map; if the samurai runs onto the pole and jumps on it, he springs far back off it (more dynamics for the game)." → the banner's pole stays planted on the field after the skill; jumping onto it springs him far back. Post the shape (how long it stays, how far the spring); DFO sets the numbers and adds the pole as a support the jump can land on.
 - **2 Sheathe** — "an animation of him guarding with the sword; a skill you can hold at least 2 s; if someone hits him during it, he vanishes and a doll appears in his place, and the player playing him sees his character transparent." → a held guard (≥ 2 s): a blow during it hits a substitute doll (it takes the hit, breaks), he vanishes (unseen by the foe — his own player sees him see-through) and reappears where he chooses. Post the shape; DFO sets the numbers (hold, how long unseen, cooldown) and the engine side (the doll takes the hit, unseen on the foe's screen). The trials that use Sheathe (SAYA) are re-routed by DFO.
+
+### DAVID (18 Oct 01:26) — the Book Mage, after playing every skill (**Book Mage chat: all of this**; DFO does the numbers marked DFO)
+David's notes, key by key (his words in quotes). GPT / PixVerse are connected (never press a download button). One commit a skill, filmed in PVP 3D.
+- **Space Arcane Bolt** — "shoots very fast, not right — slow it down." *DFO: the chain ~1.4× slower (115/170, 100/185, the lance 230/310) — landing with DFO's next push.*
+- **1 Arcane Wave** — "very unprofessional, doesn't look good, improve urgently and give it depth: now it is like a page, and it hits only at one point to the right or the left." → a wave with real depth across the floor (3D, spreading toward and away from the view), not a flat page. If its reach should change with it, post it; DFO sets the hitbox.
+- **2 Binding Rune** — "the floor animation is unprofessional, its vanishing too; it must bind the foe at least 3 s." → a rune laid into the floor that reads, and a binding that holds him visibly. *DFO: the rune binds 3 s (landing with DFO's next push).*
+- **3 Astral Lift** — "let the tube of light hold the player and lower him slowly back down." → after the throw the column of light stays round him while he sinks. *DFO: after his top he sinks slowly for 1.8 s from the hit (`slowFall`) — landing with DFO's next push.* Book Mage: the tube of light stays round him for it.
+- **4 Frost Nova** — "very bad, a broken animation, not right at all, doesn't look good — improve significantly."
+- **6 Storm Field** — "good direction, but the animation is not right at all — improve the whole process of the skill significantly."
+- **7 Time Collapse** (the ultimate) — "not nice at all, cluttered, unprofessional." David recommends: **the hero as in a picture with white eyes and lightning; a tornado and lightning bolts over the map.** → rebuild the ultimate on that idea (her portrait for the moment: white glowing eyes, lightning — GPT; the field: a tornado and lightning). Less clutter: one idea.
+- **Q Blink** — "unclear." → make what it does read at a glance.
+- **R Glacial Spikes** — "improve the look significantly, all of it."
+- **F Levity Field** — "improve."
+- **C Arcane Ward** — "the animation round the hero must be professional 3D; now it looks toy-like and not right."
+- **T Elemental Ascension** — "feels unprofessional on the hero — improve."
+- **H Page Bind** — "unnecessary." David's idea instead: **the mage lays portals in the ground; standing on one she can teleport between them; they last at least 10 s.** → replace Page Bind with it. Post the shape (how many portals, how she lays them, how she crosses); DFO sets the numbers and the engine side.
+- **Z — a new skill** — "summon a tornado that she can fly inside, hitting as it goes (just an idea, feel free to create what feels right)." → post the idea in one line; DFO sets the numbers.
 
 ### Everyone first
 - [x] Movements: `docs/ART_STYLE.md` written (look, per-hero refs, palette, lighting, camera, frame sizes, GPT / PixVerse recipes, effects rules, the pipeline in `tools/heroes/pipeline/`).
