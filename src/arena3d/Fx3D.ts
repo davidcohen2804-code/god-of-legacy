@@ -216,7 +216,12 @@ export interface Recipe {
   own?: boolean;
 }
 
+/** A piece of a skill appearing in the room (for the arena's sound: each its own short sound under the blow). */
+export type FxPiece = 'pillar' | 'dome' | 'crack' | 'crystals' | 'bolt' | 'streak' | 'slash' | 'wave' | 'rain';
+
 export class Fx3D {
+  /** Told of every piece as it appears: what, where (world px: x, floor depth y, height z) and how big (0 small … 2 huge). */
+  onPiece?: (kind: FxPiece, at: V3, size: number) => void;
   private items: Item[] = [];
   private timers: { at: number; fn: () => void }[] = [];
   private clock = 0;
@@ -291,6 +296,7 @@ export class Fx3D {
   /** A column of light standing on the floor at (x, y) — `h` its height, `r` its radius (world px). */
   pillar(x: number, y: number, color: number, o: { h?: number; r?: number; ms?: number; i?: number; twist?: boolean; core?: boolean } = {}): void {
     const hx = this.h.w3(x), hz = this.h.d3(y), H = this.h.h3(o.h ?? 420), R = this.h.w3(o.r ?? 34), ms = o.ms ?? 520, i = o.i ?? 1.35;
+    this.onPiece?.('pillar', { x, y, z: 0 }, (o.h ?? 420) > 650 ? 2 : (o.h ?? 420) > 450 ? 1 : 0);
     const outer = this.both(this.pillarGeo, KIND.pillar, color, hz, { i });
     const inner = o.core === false ? [] : this.both(this.pillarGeo, KIND.pillar, mix(color, 0xffffff, 0.7), hz, { i: i * 1.1 });
     const foot = new THREE.Mesh(this.planeGeo, this.mat(KIND.decal, color, { i: 1.4, map: this.disc })); foot.position.set(hx, 0.03, hz); this.h.back.add(foot);
@@ -316,6 +322,7 @@ export class Fx3D {
   dome(x: number, y: number, color: number, o: { r?: number; ms?: number; i?: number; implode?: boolean; a?: number; hold?: number; follow?: () => V3 | null } = {}): void {
     const ms = o.ms ?? 420, R = this.h.w3(o.r ?? 150), base = o.a ?? 0.75;
     let hx = this.h.w3(x), hz = this.h.d3(y);
+    if (!o.hold) this.onPiece?.('dome', { x, y, z: 0 }, (o.r ?? 150) > 260 ? 2 : (o.r ?? 150) > 150 ? 1 : 0);
     const ms2 = this.both(this.domeGeo, KIND.dome, color, hz, { i: o.i ?? 1.3 });
     let t = 0;
     this.h.flare(hx, 0.6, hz + 0.3, color, 18, 7, Math.min(ms, 600));
@@ -335,6 +342,7 @@ export class Fx3D {
   /** Cracks torn in the floor round (x, y): glowing in its colour, then a dark scar that fades; chunks of the floor fly. */
   crack(x: number, y: number, color: number, o: { r?: number; ms?: number; chunks?: number; up?: number } = {}): void {
     const hx = this.h.w3(x), hz = this.h.d3(y), R = this.h.w3(o.r ?? 110), ms = o.ms ?? 900;
+    this.onPiece?.('crack', { x, y, z: 0 }, (o.r ?? 110) > 200 ? 2 : (o.r ?? 110) > 130 ? 1 : 0);
     const [sharp, glow] = this.cracks[Math.floor(Math.random() * this.cracks.length)], rot = Math.random() * Math.PI * 2;
     const mk = (map: THREE.Texture, c: number, i: number, add: boolean, y0: number) => {
       const m = new THREE.Mesh(this.planeGeo, add ? this.mat(KIND.decal, c, { i, map })
@@ -374,6 +382,7 @@ export class Fx3D {
   /** Ice crystals breaking out of the floor: a cluster at (x, y) (r px round it), or a ring of them; they stand, then shatter. */
   crystals(x: number, y: number, o: { n?: number; r?: number; h?: number; ms?: number; ring?: boolean; delay?: number; color?: number } = {}): void {
     const n = o.n ?? 7, R = this.h.w3(o.r ?? 60), H = this.h.h3(o.h ?? 120), cx = this.h.w3(x), cz = this.h.d3(y), ms = o.ms ?? 1500;
+    this.later(o.delay ?? 0, () => this.onPiece?.('crystals', { x, y, z: 0 }, n > 10 ? 2 : n > 6 ? 1 : 0));
     const pz = this.h.d3(y);
     for (let i = 0; i < n; i++) {
       const a = o.ring ? (i / n) * Math.PI * 2 + Math.random() * 0.3 : Math.random() * Math.PI * 2;
@@ -389,6 +398,7 @@ export class Fx3D {
   /** Lightning from a to b (world points): a jagged bolt, re-struck every few frames, with forks; it lights the room. */
   bolt(a: V3, b: V3, color: number, o: { ms?: number; w?: number; forks?: number; front?: boolean } = {}): void {
     const ms = o.ms ?? 260, A = this.P(a), B = this.P(b), w = (o.w ?? 10) / 100;
+    this.onPiece?.('bolt', b, (o.w ?? 10) > 12 ? 1 : 0);
     const n = 24, core = new Strip(n, this.mat(KIND.strip, color, { i: 2.6 }), w), glow = new Strip(n, this.mat(KIND.strip, color, { i: 1.4 }), w * 4.5);
     const scene = o.front === false ? this.h.back : this.h.glow;
     scene.add(core.mesh, glow.mesh);
@@ -432,6 +442,7 @@ export class Fx3D {
   /** A straight streak of light from a to b (world points) that flashes and fades (a dash, a thrust, a chain, a razor line). */
   streak(a: V3, b: V3, color: number, o: { w?: number; ms?: number; draw?: number; front?: boolean } = {}): void {
     const A = this.P(a), B = this.P(b), ms = o.ms ?? 320, draw = o.draw ?? 70, n = 12;
+    this.onPiece?.('streak', b, (o.w ?? 16) > 24 ? 1 : 0);
     const s = new Strip(n, this.mat(KIND.strip, color, { i: 2.4 }), (o.w ?? 16) / 100), g = new Strip(n, this.mat(KIND.strip, color, { i: 1.2 }), (o.w ?? 16) * 3.2 / 100);
     (o.front ? this.h.glow : this.h.back).add(s.mesh, g.mesh);
     let t = 0;
@@ -461,6 +472,7 @@ export class Fx3D {
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
+    this.onPiece?.('slash', at, (o.r ?? 120) > 160 ? 1 : 0);
     let p = this.P(at); p.y += this.h.h3(o.y0 ?? 95);
     const ms2 = this.both(geo, KIND.slash, color, p.z, { i: o.i ?? 2.3 });
     const place = () => {
@@ -499,6 +511,7 @@ export class Fx3D {
   /** A crest of light running along the floor from (x, y) toward (dx, dy) for `len` px over `ms` (or following a projectile). */
   wave(x: number, y: number, dx: number, dy: number, color: number, o: { len?: number; ms?: number; h?: number; w?: number; chunks?: boolean } = {}): void {
     const len = o.len ?? 420, ms = o.ms ?? 260, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    this.onPiece?.('wave', { x, y, z: 0 }, len > 600 ? 2 : 1);
     const c = new Crest(this, color, this.h.w3(o.w ?? 120), this.h.h3(o.h ?? 110));
     let t = 0, lastX = x, lastY = y;
     this.items.push({
@@ -516,6 +529,7 @@ export class Fx3D {
   /** Arrows / bolts of light raining down over a circle (x, y, r px) for `ms`: streaks falling from high above. */
   rain(x: number, y: number, r: number, color: number, o: { n?: number; ms?: number; h?: number } = {}): void {
     const n = o.n ?? 24, ms = o.ms ?? 900, H = o.h ?? 900;
+    this.onPiece?.('rain', { x, y, z: 0 }, n > 30 ? 2 : 1);
     for (let i = 0; i < n; i++) this.later((i / n) * ms + Math.random() * 60, () => {
       const a = Math.random() * Math.PI * 2, d = r * Math.sqrt(Math.random()), px = x + Math.cos(a) * d, py = y + Math.sin(a) * d * 0.6, lean = 60;
       this.streak({ x: px - lean, y: py, z: H }, { x: px, y: py, z: 0 }, color, { w: 8, ms: 180, draw: 90 });

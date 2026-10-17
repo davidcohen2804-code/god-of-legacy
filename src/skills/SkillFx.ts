@@ -333,6 +333,7 @@ export class SkillFx {
 
   private onCast(r: CastRun): void {
     const s = r.skill;
+    if (s.slot === 7) this.impact.quietUntil = Math.max(this.impact.quietUntil, this.scene.time.now + Math.min(1200, r.timings.startup)); // (an ultimate's wind-up and its cut-in stay clean of bent air)
     if (s.id === 'warrior_basic') return; // MapleStory: a regular attack has no effect of its own — the sword leaves its afterimage (ActorView)
     if (s.cls === 'archer' && this.arch.ready) { // the archer: every effect built from its pieces (ArcherFx)
       if (s.telegraph && s.slot !== 7 && s.id !== 'eagle_arrow' && s.id !== 'arrow_storm') this.telegraph(r);
@@ -1083,7 +1084,7 @@ export class SkillFx {
       }
       const band = this.scene.add.rectangle(v.centerX, cy, v.width, w / 3 + 16, 0x000000, 0.55).setDepth(TOP + 49).setScale(1, 0);
       this.scene.tweens.add({ targets: band, scaleY: 1, duration: 120, ease: 'Cubic.easeOut' });
-      const out = r.timings.startup < 700 ? Math.max(320, r.timings.startup - 80) : r.skill.cls === 'samurai' ? Math.max(600, r.timings.startup - 300) : r.skill.id === 'titans_verdict' ? Math.max(420, Math.round(r.timings.startup * 0.51)) : 1100; // (a fast arena ultimate: gone before its first hit) // (Titan: paced to its short wind-up) // (samurai: gone before the eight cuts out of the dark)
+      const out = r.timings.startup < 700 ? Math.max(320, r.timings.startup - 80) : r.skill.cls === 'samurai' ? Math.max(600, r.timings.startup - 300) : r.skill.id === 'titans_verdict' ? Math.max(420, Math.round(r.timings.startup * 0.51)) : Math.min(1100, r.timings.startup - 80); // (a fast arena ultimate: gone before its first hit; any other: gone before its first blow lands) // (Titan: paced to its short wind-up) // (samurai: gone before the eight cuts out of the dark)
       this.impact.quietUntil = this.scene.time.now + out + 240; // (the portrait stays clean: no bent air or colour split over the cut-in)
       this.scene.tweens.add({ targets: img, x: v.centerX - w * 0.04, duration: 300, ease: 'Cubic.easeOut' });
       this.scene.tweens.add({ targets: img, x: v.centerX + w * 0.03, delay: 300, duration: out - 300 }); // slow drift while holding (a real beat)
