@@ -185,6 +185,9 @@ const hash = (s: string, seed: number): number => {
 
 /** A stage by its id (the stage select's choice). */
 export function stageById(id: string | undefined | null): Stage | undefined { return STAGES.find((s) => s.id === id); }
+/** PVP 3D's one stage: the temple courtyard built in 3D on the courtyard's floor — no painted props on it (they would
+ *  stand there unseen: the 3D room has its own lanterns and trees round the floor, none on it). */
+export const STAGE_3D: Stage = { ...STAGES[0], name: 'TEMPLE COURTYARD', geo: { ...COURTYARD_GEO, props: [] } };
 
 /** The stage of a room (the same on every screen in it): a place, then one of its moods. */
 export function stageOf(room: string | undefined | null): Stage {

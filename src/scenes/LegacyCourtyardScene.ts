@@ -61,7 +61,7 @@ import { classColor, heroArt, heroVsPortrait } from '../pvp/Fighters';
 import { TAG_SCALE, fighterTag, tagFontsReady } from '../pvp/FighterTag';
 import { LoadSide, showArenaLoading, takeArenaLoading } from '../ui/ArenaLoading';
 import { StageFx } from '../world/StageFx';
-import { Stage, stageById, stageOf } from '../world/Stages';
+import { STAGE_3D, Stage, stageById, stageOf } from '../world/Stages';
 /** '#rrggbb' as a number. */
 const colorNum = (c: string): number => parseInt(c.slice(1), 16);
 import { ComboGuide } from '../ui/ComboGuide';
@@ -547,7 +547,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const classes = pvp || !cls ? undefined : [cls];
     // Weapon masks only when your own look already needs them (others load on first need).
     const masks = me && cls && wantsWeaponMasks(cls, CharacterStore.getCosmetics(me.id).equipped as Equipped) ? [cls] : [];
-    this.stage = pvp ? stageById(sd?.stage) ?? stageOf(sd?.pvpRoom) : undefined; // (VS CPU: the stage picked on the select screen)
+    this.stage = pvp ? (ARENA3D.on ? STAGE_3D : stageById(sd?.stage) ?? stageOf(sd?.pvpRoom)) : undefined; // (PVP 3D: its one stage, the 3D courtyard; the painted arena: the stage picked on the select screen)
     if (this.stage) { // the arena: its stage's painting (and what else it draws: its dragon)
       if (!this.textures.exists(this.stage.key)) this.load.image(this.stage.key, this.stage.file);
       for (const e of this.stage.extras ?? []) if (!this.textures.exists(e.key)) this.load.image(e.key, e.file);

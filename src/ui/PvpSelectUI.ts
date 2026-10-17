@@ -14,6 +14,7 @@ import { CLASS_NAMES } from '../config/layout';
 import { ROSTER, fighterFor, heroArt } from '../pvp/Fighters';
 import { heroFxUrls } from './HeroFx';
 import { STAGES } from '../world/Stages';
+import { ARENA3D } from '../arena3d/flag';
 import { BOT_NAMES } from '../pvp/SparringBot';
 import { syncOverlay } from './CharacterSelectUI';
 import type { ArtState } from './FighterArt';
@@ -158,6 +159,8 @@ const CSS = `
 .gol-ps .ps-sd i{width:7px;height:7px;transform:rotate(45deg);background:rgba(214,222,240,.35);box-shadow:0 0 0 1px rgba(0,0,0,.6)}
 .gol-ps .ps-sd i.on{background:#ffc94a;box-shadow:0 0 8px rgba(255,190,70,.8)}
 .gol-ps.vsp .ps-stp,.gol-ps.vsp .ps-sa,.gol-ps.vsp .ps-sd{display:none}
+/* PVP 3D: one stage (the 3D temple courtyard): no stage to pick */
+.gol-ps.a3d .ps-stp,.gol-ps.a3d .ps-sa,.gol-ps.a3d .ps-sd{display:none}
 /* TRAINING: no count on top (nothing is won there) */
 .gol-ps.trn .ps-score{display:none}`;
 
@@ -202,6 +205,7 @@ export class PvpSelectUI {
     this.p1 = { hover: at(init.p1, 1), pick: null };
     this.p2 = { hover: at(init.p2, 0), pick: null };
     const root = this.root = this.el('div', 'gol-ps', host);
+    if (ARENA3D.on) root.classList.add('a3d');
     const sc = this.el('div', 'ps-score', root);
     const box = (c: string, label: string) => { const d = this.el('div', c, sc); const n = this.el('b', '', d); n.textContent = '0'; this.el('small', '', d).textContent = label; return n; };
     this.score = { w: box('w1', 'WINS'), d: box('dr', 'DRAWS'), l: box('w2', 'WINS') };
