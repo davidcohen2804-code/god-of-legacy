@@ -2251,6 +2251,8 @@ export class SkillFx {
   bladeStrike(attackerId: string, to: V3, targetId?: string): void { this.sam.bladeStrike(attackerId, to, targetId); }
   /** God of Blades: its halo is gone (the buff ended, its samurai fell or left). */
   clearHalo(attackerId: string, now = false): void { this.sam.clearHalo(attackerId, now); }
+  /** God of Blades shared with a party member: the halo of blades in miniature over his head for `ms`. */
+  godMark(id: string, ms: number): void { this.sam.godMark(id, ms); }
   /** Rising Sun's light on him ends (he fell, his buffs end). */
   clearSun(attackerId: string): void { this.sam.clearSun(attackerId); }
   /** Stunned by a samurai's AMBUSH: a crown of petals over the head for the stun. */

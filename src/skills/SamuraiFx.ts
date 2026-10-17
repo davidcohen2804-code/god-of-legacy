@@ -44,6 +44,8 @@ const TONE_RGB: Record<Tone | 'crimson', [number, number, number]> = {
 const toneHex = (t: Tone | 'crimson') => { const [r, g, b] = TONE_RGB[t]; return (r << 16) | (g << 8) | b; };
 /** God of Blades: a katana of the halo (drawn length) and the halo itself (drawn width). */
 const KATANA = 150, HALO = 190;
+/** God of Blades' party mark over a member's head (drawn width). */
+const MARK_W = 46;
 /** Rising Sun's buff (its light stays on him this long). */
 const SUN_MS = 90000;
 
@@ -119,6 +121,8 @@ export class SamuraiFx {
   private live: Live[] = [];
   private incoming: Live[] = [];
   private halos = new Map<string, Halo>();
+  /** God of Blades shared with party members: the mark over each one's head. */
+  private marks = new Map<string, { t: number; until: number; ims: Phaser.GameObjects.Image[] }>();
   private suns = new Map<string, Sun>();
   private waves = new Map<Projectile, Wave>();
   /** Mirage stances by cast: where the samurai stood (the mirage the blow strikes). */
@@ -1557,7 +1561,7 @@ export class SamuraiFx {
    *  is drawn solid with its light added over it (they read on bright floors too). */
   private halo(r: CastRun): void {
     const L = r.skill.linger, s = this.ctx.scene; if (!L) return;
-    this.clearHalo(r.attackerId, true);
+    this.endHalo(r.attackerId, true);
     const c = this.me(r), side = sideOf(r), until = r.timings.startup + L.startMs + L.everyMs * L.count, ADD = Phaser.BlendModes.ADD;
     const ring = (add: boolean) => { const im = s.add.image(c.x, c.y - c.z - 74, KIT, 'halo_gold').setAlpha(0); if (add) im.setBlendMode(ADD); return im.setScale(HALO / im.width); };
     const kg = this.fname(tn('katana_ghost', 'gold')); // (golden katanas round the golden halo)
@@ -1566,7 +1570,41 @@ export class SamuraiFx {
       t: 0, until, lastX: c.x, face: side, next: 0, away: new Set(), spent: new Set() });
   }
 
-  clearHalo(attackerId: string, now = false): void {
+  /** His buffs end (he fell, a new round): the halo and the party mark go. */
+  clearHalo(attackerId: string, now = false): void { this.endHalo(attackerId, now); this.clearMark(attackerId, now); }
+
+  // ------------------------------------------------------------------ God of Blades: the party mark
+
+  /** God of Blades shared with a party member (David: a party sees who is buffed): the halo of blades in miniature turns over
+   *  his head for as long as he has the +15% — a new share renews it; it goes when he falls or his buffs end. The caster
+   *  carries the halo itself (the mark hides while a halo of his own stands behind him). */
+  godMark(id: string, ms: number): void {
+    if (!this.ready || ms <= 0) return;
+    const m = this.marks.get(id);
+    if (m) { m.until = Math.max(m.until, m.t + ms); return; }
+    const s = this.ctx.scene, mk = (add: boolean) => { const im = s.add.image(0, 0, KIT, 'halo_gold').setVisible(false); if (add) im.setBlendMode(Phaser.BlendModes.ADD); return im; };
+    this.marks.set(id, { t: 0, until: ms, ims: [mk(false), mk(true)] });
+  }
+  private clearMark(id: string, now = false): void {
+    const m = this.marks.get(id); if (!m) return;
+    this.marks.delete(id);
+    if (now) { for (const im of m.ims) im.destroy(); return; }
+    this.ctx.scene.tweens.add({ targets: m.ims, alpha: 0, duration: 300, onComplete: () => { for (const im of m.ims) im.destroy(); } });
+  }
+  private stepMarks(dt: number): void {
+    for (const [id, m] of this.marks) {
+      m.t += dt;
+      const p: (V3 & { h?: number }) | null = this.ctx.targetPos?.(id) ?? this.ctx.casterPos(id);
+      if (!p || m.t >= m.until || this.ctx.alive?.(id) === false) { this.clearMark(id); continue; }
+      const on = Math.min(1, m.t / 300) * Math.min(1, (m.until - m.t) / 500) * this.seen(id) * (this.halos.has(id) ? 0 : 1);
+      const k = (MARK_W / m.ims[0].width) * (0.5 + 0.5 * back(Math.min(1, m.t / 320))) * (1 + 0.04 * Math.sin(m.t / 320)), ang = m.t * 0.03;
+      const x = p.x, y = p.y - p.z - (p.h ?? 96) - MARK_W * 0.8 + 2 * Math.sin(m.t / 450); // (just over the head: clear of his hair's crest)
+      m.ims[0].setVisible(on > 0.01).setPosition(x, y).setScale(k).setAngle(ang).setDepth(TOP + 1).setAlpha(0.95 * on);
+      m.ims[1].setVisible(on > 0.01).setPosition(x, y).setScale(k * 1.05).setAngle(ang).setDepth(TOP + 1.01).setAlpha((0.3 + 0.12 * Math.sin(m.t / 200)) * on);
+    }
+  }
+
+  private endHalo(attackerId: string, now = false): void {
     const h = this.halos.get(attackerId); if (!h) return;
     this.halos.delete(attackerId);
     const all = [...h.imgs, ...h.gls, h.halo, h.hg];
@@ -1584,7 +1622,7 @@ export class SamuraiFx {
     for (const [id, h] of this.halos) {
       const c = this.ctx.casterPos(id);
       h.t += dt;
-      if (!c || h.t >= h.until || this.broken(h.run) || this.ctx.alive?.(id) === false) { this.clearHalo(id); continue; } // (cast broken off before the buff: no halo)
+      if (!c || h.t >= h.until || this.broken(h.run) || this.ctx.alive?.(id) === false) { this.endHalo(id); continue; } // (cast broken off before the buff: no halo)
       const f = this.ctx.body?.(id)?.face; // (the way he faces; a double: the way it moves)
       if (f) h.face = f; else if (Math.abs(c.x - h.lastX) > 0.5) h.face = c.x > h.lastX ? 1 : -1;
       h.lastX = c.x;
@@ -1728,12 +1766,14 @@ export class SamuraiFx {
     this.incoming = [];
     this.live = cur.filter((l) => { l.t += dt; return l.step(dt, l.t); });
     this.stepHalos(dt);
+    this.stepMarks(dt);
     this.stepSuns(dt);
     this.stepWaves(dt);
   }
 
   destroy(): void {
-    for (const id of [...this.halos.keys()]) this.clearHalo(id, true);
+    for (const id of [...this.halos.keys()]) this.endHalo(id, true);
+    for (const id of [...this.marks.keys()]) this.clearMark(id, true);
     for (const id of [...this.suns.keys()]) this.clearSun(id, true);
     for (const [p] of this.waves) this.projectileEnd(p);
     this.live = []; this.incoming = [];
