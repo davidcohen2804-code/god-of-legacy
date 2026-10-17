@@ -624,7 +624,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     dragon_ascension: { act: 'dragon_ascension', st: [0, 1], ac: [2, 3, 4, 3, 4], rc: [5] },
     dragon_eclipse: { act: 'dragon_eclipse', st: [0, 1], ac: [2, 3], rc: [3, 4, 5] },
     kagemusha: { act: 'kagemusha', st: [0, 1, 2], ac: [3, 4], rc: [5] },
-    sakura_bind: { act: 'sakura_bind', st: [0, 1], ac: [2], rc: [3, 4, 5] },
+    sakura_bind: { act: 'sakura_bind', st: [0, 1, 2], ac: [3, 4], rc: [4, 5] }, // his own (PixVerse): the blade lifted point down, driven into the planks on one knee — the blossoms answer from it — held, then pulled out as he rises
     rising_sun: { act: 'rising_sun', st: [0, 1, 2, 3], ac: [3], rc: [4, 5] },
     phantom_blades: { act: 'phantom_blades', st: [0], ac: [1, 2, 3, 2, 3], rc: [4, 5] },
     god_of_blades: { act: 'god_of_blades', st: [0, 1, 2, 3], ac: [3], rc: [4, 5] },

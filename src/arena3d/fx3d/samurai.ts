@@ -105,6 +105,10 @@ export const SAMURAI: Record<string, Recipe> = {
     hit: (f, _s, _h, at) => f.slash(at, flip(), C.gold, { r: 95, tilt: 20 + Math.random() * 40, a0: -100, a1: 100, ms: 200, i: 1.2 }) },
   // the bind: blossom light closing round the foe, a twisting column of it, petals
   sakura_bind: { own: true,
+    // his blade driven into the planks: they crack round its point and a line of blossom light runs through them to the ring
+    active: (f, r) => { const c = me(f, r), p0 = { x: c.x + side(r) * 36, y: c.y }, pl = r.place ?? c;
+      f.crack(p0.x, p0.y, C.sakura, { r: 46, ms: 1000, chunks: 4, up: 0.6 });
+      if (Math.hypot(pl.x - p0.x, pl.y - p0.y) > 40) f.streak({ x: p0.x, y: p0.y, z: 3 }, { x: pl.x, y: pl.y, z: 3 }, C.sakura, { w: 10, ms: 460, draw: 110 }); },
     hit: (f, _s, _h, at, main) => { if (main) { f.dome(at.x, at.y, C.sakura, { r: 120, ms: 420, a: 0.4 }); f.pillar(at.x, at.y, C.sakura, { h: 420, r: 32, ms: 520, twist: true, core: false, i: 1.1 }); f.host.blow(f.host.w3(at.x), 0.4, f.host.d3(at.y), 4, 5); } } },
   // the golden dragon bursts out of the floor and climbs: a tall twisting column of gold, the planks torn under the slam
   dragon_ascension: { own: true,

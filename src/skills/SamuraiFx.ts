@@ -1409,6 +1409,17 @@ export class SamuraiFx {
    *  of stone dust each (each bound foe gets its branches, `cage`). */
   private bloom(r: CastRun): void {
     const h0 = r.skill.hits[0], R = (h0.shape as { radius: number }).radius, c = r.place ?? r.origin;
+    // his blade driven into the planks in front of his knee: the floor cracks round its point and a line of blossom light
+    // runs through the planks from it to the ring — the bind comes out of his blade
+    const q = this.me(r), sd = sideOf(r), p0 = { x: q.x + sd * 36, y: q.y + 2 };
+    this.floor('crack', p0.x, p0.y + 2, 54, 1300, { angle: rnd(0, 360) + CRACK_TILT, squash: 0.5, depth: GROUND + 1.6, tint: 0x4a2418, a: kf([0, 0], [0.04, 0.85], [0.7, 0.6], [1, 0]) });
+    this.pop(tn('spark_s', 'sakura'), p0.x, p0.y - 6, 58, { depth: p0.y + 4, life: 220, glow: 0.3 });
+    const dx = c.x - p0.x, dy = c.y - p0.y, L = Math.hypot(dx, dy / SQUASH), n = Math.max(2, Math.round(L / 46)), ang = (Math.atan2(dy / SQUASH, dx) * 180) / Math.PI;
+    if (L > 40) for (let i = 0; i < n; i++) { // (in segments, one after another: it runs out from the blade)
+      const u = (i + 0.5) / n;
+      this.floor('cut_line@rose', p0.x + dx * u, p0.y + dy * u, (L / n) * 1.25, 380, { angle: ang, h: 16, delay: i * 26, depth: GROUND + 2.2, glow: 0.45,
+        s: kf([0, 0.6], [0.3, 1, out3]), a: kf([0, 1], [0.55, 0.85], [1, 0, inQ]) });
+    }
     this.floor(tn('vortex', 'sakura'), c.x, c.y, R * 1.9, 420, { spin: -240, depth: GROUND + 2.4, a: kf([0, 0.32], [0.5, 0.24], [1, 0, inQ]), s: kf([0, 1.1], [1, 0.35, inQ]) });
     for (let i = 0; i < 8; i++) {
       const th = (i / 8) * Math.PI * 2 + rnd(-0.15, 0.15), bx = c.x + Math.cos(th) * R * 1.0, by = c.y + Math.sin(th) * R * SQUASH, dl = 30 + i * 18;
