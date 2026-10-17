@@ -629,9 +629,9 @@ export class MageFx {
       MageFx.U(q, 'uP', Math.min(1, ms / T.startup)); MageFx.U(q, 'uE', ms < T.startup ? 0 : (ms - T.startup) / 260);
       q.setScale(ms < T.startup ? 0.55 + 0.45 * out3(ms / T.startup) : 1 - 0.6 * out((ms - T.startup) / 260));
     }, { uA: side, run: r, depth: cy + 4 });
-    this.warp.well(cx, hy, { r: 220, life: T.startup + 120, s: 34, twist: 36 * side });
+    this.warp.well(cx, hy, { r: 200, life: T.startup + 120, s: 18, twist: 20 * side });
     // the painted pillar: its ignition (frames 1-5) through the wind-up, the eruption on the throw; anchored at its foot
-    this.sheet('mfx-pillar', cx, cy + 6, 470, T.startup + 700, { oy: 0.85, depth: cy + 5, split: [5, T.startup], run: r, fade: [[0, 1], [(T.startup + 110) / (T.startup + 700), 1], [(T.startup + 260) / (T.startup + 700), 0.42], [1, 0]] }); // (it erupts full, then thins: the thrown foe reads through it)
+    this.sheet('mfx-pillar', cx, cy + 6, 400, T.startup + 700, { oy: 0.85, depth: cy + 5, split: [5, T.startup], run: r, fade: [[0, 0.8], [(T.startup + 110) / (T.startup + 700), 0.8], [(T.startup + 260) / (T.startup + 700), 0.35], [1, 0]] }); // (it erupts full, then thins: the thrown foe reads through it)
     this.smoke(cx, cy - 20, 300, 0, T.startup + 500, { squash: 0.5, depth: cy + 1 }); // dark void gathering at the foot
     for (let k = 0; k < 10; k++) this.img('mg-dot', { x: cx + rnd(-120, 120), y: cy + rnd(-30, 20), w: rnd(5, 11), tint: k % 2 ? 0xb9a2ff : 0x9fe6ff, life: T.startup + 300, delay: rnd(0, T.startup), run: r, my: (u) => -120 * u, a: kf([0, 0], [0.2, 1], [1, 0]) });
     const hand = this.ctx.hand(r.attackerId) ?? { x: c0.x + side * 30, y: c0.y - c0.z - 70 };
@@ -721,7 +721,7 @@ export class MageFx {
       for (const [da, , dl] of [[0, 1, 0], [-15, 1, 0], [15, 1, 0]] as const) { // the three shots of the fan, together
         const a = base + (da * Math.PI) / 180, dx = Math.cos(a), dy = Math.sin(a), x = o.x + dx * 40, y = o.y + dy * 40 * 0.75;
         const ang = screenAng(dx, dy), len = 250;
-        this.sheet('mfx-spikes', x, y, len / 0.8, 1650, { alpha: 0.85, fade: [[0, 1], [0.24, 1], [0.34, 0.32], [0.8, 0.28], [1, 0.12]], ox: side < 0 ? 0.9 : 0.1, oy: 0.75, flipX: side < 0, depth: y + 2 + (da === 0 ? 1 : 0), delay: dl, run: r,
+        this.sheet('mfx-spikes', x, y, len / 0.8, 1650, { alpha: da === 0 ? 0.8 : 0.5, fade: [[0, 1], [0.24, 1], [0.34, 0.32], [0.8, 0.28], [1, 0.12]], ox: side < 0 ? 0.9 : 0.1, oy: 0.75, flipX: side < 0, depth: y + 2 + (da === 0 ? 1 : 0), delay: dl, run: r,
           keys: [[0, 0], [6.9, 370], [7, 390], [11.9, 1250], [15.9, 1650]], angle: side < 0 ? ang - 180 : ang }); // (erupting as the shot flies: 260 px at 700 px/s)
       }
       this.floor('floor_frost', o.x + r.aim.x * 150, o.y + r.aim.y * 110, 330, 1650, { add: true, a: kf([0, 0], [0.04, 0.5], [0.9, 0.35], [1, 0]), angle: screenAng(r.aim.x, r.aim.y) });
