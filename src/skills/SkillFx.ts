@@ -2273,6 +2273,27 @@ export class SkillFx {
   barrier(at: V3, from: { x: number; y: number }): void { this.mage.barrier(at, from); }
   wardHit(id: string, broken: boolean, expired = false): void { this.mage.wardHit(id, broken, expired); }
   mageWard(id: string, ms: number): void { this.mage.ward(id, ms); }
+  private cryMarks = new Map<string, { t: number; until: number; ims: Phaser.GameObjects.Image[]; ev: Phaser.Time.TimerEvent }>();
+  /** War Cry shared with a party member (David: a party sees who is buffed): a small crimson ring of the roar turning over his
+   *  head, a red glow under it, for as long as he has its +damage — a new share renews it; gone when he falls. */
+  cryMark(id: string, ms: number): void {
+    if (ms <= 0) return;
+    const m = this.cryMarks.get(id);
+    if (m) { m.until = Math.max(m.until, m.t + ms); return; }
+    const sc = this.scene, roar = sc.textures.exists('cry-roar');
+    const glow = sc.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xd8261c).setDisplaySize(46, 30).setAlpha(0);
+    const ring = (roar ? sc.add.image(0, 0, 'cry-roar', 3) : sc.add.image(0, 0, 'magic-circle').setTint(0xd8261c)).setDisplaySize(40, 40).setAlpha(0);
+    const rec = { t: 0, until: ms, ims: [glow, ring], ev: null as unknown as Phaser.Time.TimerEvent };
+    rec.ev = sc.time.addEvent({ delay: 16, loop: true, callback: () => {
+      rec.t += 16;
+      const p: (V3 & { h?: number }) | null = this.targetPos?.(id) ?? this.casterPos(id);
+      if (!p || rec.t >= rec.until) { rec.ev.remove(); this.cryMarks.delete(id); sc.tweens.add({ targets: rec.ims, alpha: 0, duration: 250, onComplete: () => { for (const im of rec.ims) im.destroy(); } }); return; }
+      const on = Math.min(1, rec.t / 300) * Math.min(1, (rec.until - rec.t) / 500), x = p.x, y = p.y - p.z - (p.h ?? 96) - 30 + 2 * Math.sin(rec.t / 420);
+      glow.setPosition(x, y).setDepth(TOP + 1).setAlpha((0.45 + 0.15 * Math.sin(rec.t / 180)) * on);
+      ring.setPosition(x, y).setDepth(TOP + 1.01).setAngle(rec.t * 0.04).setAlpha(0.95 * on);
+    } });
+    this.cryMarks.set(id, rec);
+  }
   /** Tree of Life heals this fighter (a party member's tree or her own): the sprout over the head. */
   treeMark(id: string): void { this.arch.treeMark(id); }
   mageAura(id: string, kind: 'haste' | 'ascension', ms: number): void { this.mage.aura(id, kind, ms); }

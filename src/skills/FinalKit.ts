@@ -85,8 +85,8 @@ const warrior: FinalSkill[] = [
     startup: 350, active: 200, recovery: 260, cooldown: 30000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 350],
     hits: [H(0, 6, { kind: 'circle', radius: 120 }, { stun: 300, push: 10 }, { reachUp: 120 })],
     cancelOnHit: ['warrior_basic', 'rising_slash', 'dash_slash', 'blade_storm', 'iron_grip', 'sky_breaker', 'ground_breaker'], tags: ['buff'],
-    description: 'Trace a half-circle on the ground with your sword: a wall of light rises in front of you for 4s. While you stand behind it every hit deals half damage to you; the wall stays where it was cast.',
-    relations: ['Wall 4s', 'Half damage behind it'],
+    description: 'Trace a half-circle on the ground with your sword: a wall of light rises in front of you for 4s. You and your party behind it take half damage from every hit; the wall stays where it was cast.',
+    relations: ['Wall 4s', 'Half damage behind it — party too'],
   }),
   S({
     id: 'blade_storm', cls: 'warrior', slot: 6, name: 'Blade Storm', roles: ['signature', 'extender'], targeting: 'self',

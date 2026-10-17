@@ -304,6 +304,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Sanctuary wall (fixed in the world): half damage for 4 s while the player stands behind it. */
   private domeAt = -1;
   private dome: { x: number; y: number; rx: number; ry: number; until: number; t0: number; img: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image; wx: number; side: number; vis?: number } | null = null;
+  /** A party member's Sanctuary wall on my screen: I take half damage behind it too (DFO's numbers: the party behind the wall). */
+  private allyDome: { x: number; y: number; rx: number; ry: number; until: number; t0: number; img: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image; wx: number; side: number; vis?: number } | null = null;
   private beam?: Phaser.GameObjects.Image;
   private beamGlow?: Phaser.GameObjects.Image;
   private eyes?: Phaser.GameObjects.Image;
@@ -2098,8 +2100,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     sp.play('radiant-slash'); sp.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => sp.destroy());
   }
 
-  private inDome(): boolean {
-    const d = this.dome; if (!d || this.simMs >= d.until) return false;
+  private inDome(): boolean { return !!this.domeOver(); }
+  /** The Sanctuary wall I stand behind — mine or a party member's (null: none). */
+  private domeOver(): NonNullable<typeof this.dome> | null { return this.behindDome(this.dome) ? this.dome : this.behindDome(this.allyDome) ? this.allyDome : null; }
+  private behindDome(d: typeof this.dome): boolean {
+    if (!d || this.simMs >= d.until) return false;
     // behind the wall across its whole depth: up to 280px back, ±180 along the floor depth (the wall's full span)
     // follows the wall's curve: the shell bows out ~150px at its middle, so the protected side ends exactly at the glass
     const k = this.kin, dy = (k.y - d.y) / 185, bulge = 150 * Math.max(0, 1 - dy * dy);
@@ -2110,7 +2115,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private domeBlock(from: { x: number; y: number }): void {
     const k = this.kin;
     this.fx!.callout({ x: k.x, y: k.y, z: k.z + 40 }, 'HALF', '#ffe7a0', 0);
-    const d = this.dome!, ang = Math.atan2(from.y - d.y, from.x - d.x);
+    const d = this.domeOver() ?? this.dome!, ang = Math.atan2(from.y - d.y, from.x - d.x);
     const sx = d.x + Math.cos(ang) * d.rx, sy = d.y + Math.sin(ang) * d.ry - 40;
     const f = this.add.image(sx, sy, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff0b0).setDepth(sy + 400).setDisplaySize(70, 90);
     this.tweens.add({ targets: f, alpha: 0, scale: f.scale * 1.6, duration: 260, onComplete: () => f.destroy() });
@@ -2118,10 +2123,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** A tall curved wall of light rises in front of the caster (toward the facing side) and stays put for 15s.
    *  Everyone standing behind it — on the caster's side, across its whole depth — takes no damage. */
-  private raiseDome(): void {
-    if (this.dead >= 0) return;
-    this.dome?.img.destroy(); this.dome?.glow.destroy();
-    const k = this.kin, side = this.aim.x < -0.01 ? -1 : 1, S = 1.15;
+  private raiseDome(ally?: { x: number; y: number; side: number }): void {
+    if (this.dead >= 0 && !ally) return;
+    const old = ally ? this.allyDome : this.dome; old?.img.destroy(); old?.glow.destroy();
+    const k = ally ?? this.kin, side = ally ? ally.side : this.aim.x < -0.01 ? -1 : 1, S = 1.15;
     const wx = k.x + side * 80; // the wall stands clearly in front of the caster (he is never swallowed by it)
     // One steady frame (no flickering loop), anchored at the near end of its base and stretched UPWARD: a towering wall.
     const img = this.add.image(wx, k.y + 186, 'sanctuary-wall', 11).setOrigin(70 / 256, 414 / 512).setBlendMode(Phaser.BlendModes.ADD).setFlipX(side < 0);
@@ -2129,26 +2134,30 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const glow = this.add.image(wx, k.y + 186, 'sanctuary-wall', 11).setOrigin(70 / 256, 414 / 512).setBlendMode(Phaser.BlendModes.ADD).setFlipX(side < 0).setTint(0xffd27a);
     glow.setScale(S * 1.06, 0.05);
     // protected zone: an ellipse behind the wall covering its full depth
-    this.dome = { x: wx - side * 200, y: k.y, rx: 240, ry: 175, until: this.simMs + 4000, t0: this.simMs, img, glow, wx, side }; // 4 s of half damage behind the wall
+    const dome = { x: wx - side * 200, y: k.y, rx: 240, ry: 175, until: this.simMs + 4000, t0: this.simMs, img, glow, wx, side }; // 4 s of half damage behind the wall
+    if (ally) { this.allyDome = dome; return; }
+    this.dome = dome;
     this.cameras.main.shake(180, 0.006);
   }
 
   private renderDome(): void {
     if (this.domeAt >= 0 && this.simMs >= this.domeAt) { this.domeAt = -1; if (this.rt?.ownRun?.skill.id === 'sanctuary') this.raiseDome(); }
-    const d = this.dome; if (!d) return;
+    for (const ally of [false, true]) {
+    const d = ally ? this.allyDome : this.dome; if (!d) continue;
     const left = d.until - this.simMs, age = this.simMs - d.t0;
-    if (left <= 0) { d.img.destroy(); d.glow.destroy(); this.dome = null; return; }
+    if (left <= 0) { d.img.destroy(); d.glow.destroy(); if (ally) this.allyDome = null; else this.dome = null; continue; }
     // The wall wraps around the player: whoever stands on the protected side is always drawn cleanly ON TOP of it
     // (never washed out underneath); anyone on the far side is seen through the glass.
     // The wall is drawn OVER whoever stands behind it, as see-through glass: the player is hidden behind the light
     // but stays readable (lighter glass where it overlaps him instead of a washed-out white sheet).
-    const k = this.kin, over = Math.abs(k.x - d.wx) < 200 && Math.abs(k.y - d.y) < 200, prot = this.inDome();
+    const k = this.kin, over = Math.abs(k.x - d.wx) < 200 && Math.abs(k.y - d.y) < 200, prot = this.behindDome(d);
     d.vis = (d.vis ?? 1) + ((prot || !over ? 1 : 0.22) - (d.vis ?? 1)) * 0.15; // crossed to the open side: the wall fades (no protection)
     const fade = Math.min(1, left / 600) * (over && prot ? 0.62 : 0.9) * d.vis, dep = actorDepth(d.x, d.y + 200, 0) + 1; // in front of everything along its whole span (its near end reaches y+186)
     d.glow.setAlpha(fade * (0.18 + 0.1 * Math.sin(age / 700))).setDepth(dep - 0.01); // soft breathing glow, no frame flicker
     const g = 1 - Math.pow(1 - Math.min(1, age / 380), 3), sy = 1.02 * Math.max(0.05, g); // rises from the floor (sim clock) — about two and a half times his height, the shield wall readable (not a band across the screen)
     d.img.setScale(0.95, sy).setAlpha(fade).setDepth(dep);
     d.glow.setScale(0.95 * 1.06, sy * 1.04);
+    }
   }
 
   // ======================================================================= actions
@@ -2650,6 +2659,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     else if (id === 'god_of_blades') this.fx?.godMark(who, who === this.localId ? Math.max(ms, this.godUntil - this.simMs) : ms); // (the halo of blades in miniature: as long as the +15% lasts)
     else if (id === 'chrono_haste') this.fx?.mageAura(who, 'haste', ms);
     else if (id === 'lady_luck') this.fx?.gambleLuck(who, ms);
+    else if (id === 'war_cry') this.fx?.cryMark(who, who === this.localId ? Math.max(ms, this.allyCryUntil - this.simMs) : ms); // (the Warrior's: a crimson ring of the roar over the head)
   }
 
   /** A party member near me cast a party buff. */
@@ -3043,6 +3053,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (phase === 'active' && run.skill.id === 'kagemusha') this.kageStart(run);
       if (phase === 'done') this.endRun(run, false);
       return;
+    }
+    if (phase === 'active' && run.skill.id === 'sanctuary' && this.party?.inParty && this.party.members.includes(run.attackerId)) { // a party member's wall: it shields me too while I stand behind it (DFO)
+      const c = this.casterPos(run.attackerId) ?? run.origin;
+      this.raiseDome({ x: c.x, y: c.y, side: run.aim.x < -0.01 ? -1 : 1 });
     }
     if (phase === 'startup') (run.attackerId === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(run.attackerId))?.startSkill(run.skill.id, run.stage, dirOf(run.aim.x, run.aim.y, 'right'), run.aim, castSeed(run.castId));
   }
@@ -4245,6 +4259,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.endBuffs();
     this.warCryUntil = -1; this.radiantUntil = -1; this.radiantFrom = -1; this.domeAt = -1;
     if (this.dome) this.dome.until = this.simMs;
+    if (this.allyDome) this.allyDome.until = this.simMs;
     this.jb = null; this.jbWant = 0; this.carriedBy = null; this.lunge = null; this.momentum = null; this.gripHeld = false; this.leapUsed = false; this.leapUntil = -1;
     this.rt?.resetCooldowns(); this.rageCalled.clear();
     if (this.arena) for (const s of this.kit) if (s.slot === 7 || s.slot === 6) this.rt?.holdCooldown(s.id, this.simMs + PVP.battle.introMs + (s.slot === 7 ? ARENA.ultPreCdMs : ARENA.sigPreCdMs)); // the round opens with the big moves held back
