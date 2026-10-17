@@ -8,15 +8,6 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Parts, box, cyl, lathe, taperTube, worldUV, rng, canvasTex, noiseCanvas, petalCanvas, glowCanvas, shadowCanvas } from './RoomKit';
-import { type Life, type Wind, stillAir } from '../world3d/life/kit';
-import { birds } from '../world3d/life/birds';
-import { butterflies, fireflies } from '../world3d/life/butterflies';
-import { banner, streamer, streamerTexture } from '../world3d/life/cloth';
-import { paperLanterns } from '../world3d/life/lanterns';
-import { pond } from '../world3d/life/pond';
-import { incense } from '../world3d/life/smoke';
-import { clouds } from '../world3d/life/clouds';
-import { spectators } from '../world3d/life/spectators';
 
 /** The fighting floor in room units (x across, z toward the camera). */
 export interface RoomFloor { x0: number; x1: number; zB: number; zF: number }
@@ -238,12 +229,15 @@ export function buildRoom(scene: THREE.Scene, front: THREE.Scene, renderer: THRE
     P.add('gold', taperTube(new THREE.CatmullRomCurve3([b, b.clone().add(new THREE.Vector3(side * 0.12, 0.35, 0)), b.clone().add(new THREE.Vector3(side * 0.02, 0.7, 0)), b.clone().add(new THREE.Vector3(-side * 0.18, 0.85, 0))]), 0.13, 0.03, 12, 10));
   }
   // paper lanterns under the eaves, a rope with paper streamers across the middle bay
-  const lanternsUnder = [px[1] + bay / 2, px[2] + bay / 2, px[4] + bay / 2, px[5] + bay / 2]; // (the lanterns themselves swing: built by the life below)
-  const shideAt: THREE.Vector3[] = [];
+  const lanternsUnder = [px[1] + bay / 2, px[2] + bay / 2, px[4] + bay / 2, px[5] + bay / 2];
+  for (const x of lanternsUnder) {
+    P.add('paper', lathe([[0.0, 0], [0.12, 0.0], [0.2, 0.08], [0.22, 0.22], [0.2, 0.38], [0.12, 0.46], [0, 0.46]], x, yB - 0.92, zC + 0.15, 16));
+    P.add('wood', cyl(0.13, 0.13, 0.05, x, yB - 0.95, zC + 0.15, 12), cyl(0.13, 0.13, 0.05, x, yB - 0.47, zC + 0.15, 12), cyl(0.012, 0.012, 0.38, x, yB - 0.42, zC + 0.15, 6));
+  }
   {
     const a = px[3], b = px[4], y = yB - 0.45, pts = [0, 0.25, 0.5, 0.75, 1].map((t) => new THREE.Vector3(a + (b - a) * t, y - Math.sin(Math.PI * t) * 0.32, zC + 0.2));
     P.add('rope', taperTube(new THREE.CatmullRomCurve3(pts), 0.085, 0.085, 24, 10, 0.25));
-    for (const t of [0.22, 0.4, 0.6, 0.78]) { const p = new THREE.CatmullRomCurve3(pts).getPointAt(t); shideAt.push(new THREE.Vector3(p.x, p.y - 0.07, p.z + 0.03)); } // (the paper streamers: the life's, moving)
+    for (const t of [0.22, 0.4, 0.6, 0.78]) { const p = new THREE.CatmullRomCurve3(pts).getPointAt(t); const g = new THREE.PlaneGeometry(0.1, 0.36); g.translate(p.x, p.y - 0.24, p.z + 0.02); P.add('shide', g); }
   }
 
   // ------------------------------------------------------------------ the covered corridors either side of the temple
@@ -397,9 +391,6 @@ export function buildRoom(scene: THREE.Scene, front: THREE.Scene, renderer: THRE
   blossom.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: blossomTex, alphaTest: 0.42 });
   blossom.computeBoundingSphere(); scene.add(blossom); disposables.push(bGeo, blossom.customDepthMaterial);
 
-  /** What the pond's reflection leaves out (particles and petals: the cost without the picture). */
-  const mirrorHide: THREE.Object3D[] = [];
-
   // ------------------------------------------------------------------ petals: lying on the ground, and falling from the crowns
   const petalTex = canvasTex(petalCanvas()); disposables.push(petalTex);
   const pMat = new THREE.MeshStandardMaterial({ map: petalTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.8, emissive: 0x3a1420, emissiveIntensity: 0.6 }); disposables.push(pMat);
@@ -415,10 +406,10 @@ export function buildRoom(scene: THREE.Scene, front: THREE.Scene, renderer: THRE
       const s = 0.7 + R() * 0.6; m4.compose(new THREE.Vector3(x, groundY(x, z) + 0.004 + R() * 0.003, z), q, new THREE.Vector3(s, s, s)); lying.setMatrixAt(i, m4);
       col.setHSL(0.94 + R() * 0.04, 0.62 + R() * 0.3, 0.7 + R() * 0.14); lying.setColorAt(i, col);
     }
-    lying.receiveShadow = true; scene.add(lying); mirrorHide.push(lying);
+    lying.receiveShadow = true; scene.add(lying);
   }
   const NF = soft ? 160 : 420, falling = new THREE.InstancedMesh(pGeo, pMat, NF);
-  falling.instanceMatrix.setUsage(THREE.DynamicDrawUsage); falling.frustumCulled = false; scene.add(falling); mirrorHide.push(falling);
+  falling.instanceMatrix.setUsage(THREE.DynamicDrawUsage); falling.frustumCulled = false; scene.add(falling);
   const fp = new Float32Array(NF * 3), fv = new Float32Array(NF * 3), fr = new Float32Array(NF * 3), fs = new Float32Array(NF * 3), fl = new Float32Array(NF), fk = new Uint8Array(NF), fph = new Float32Array(NF);
   const spawn = (i: number, anywhere: boolean) => {
     const b = blossomAt[(R() * nB) | 0].p;
@@ -438,6 +429,7 @@ export function buildRoom(scene: THREE.Scene, front: THREE.Scene, renderer: THRE
     s.position.set(x, y, z); s.scale.set(size, size, 1); scene.add(s); disposables.push(s.material); return s;
   };
   for (const [x, y, z] of lanternAt) glow(x, y + 1.34, z, 1.1, 0xffa45a, 0.75);
+  for (const x of lanternsUnder) glow(x, yB - 0.7, zC + 0.15, 1.3, 0xff7a3a, 0.7);
   for (let i = 2; i <= 4; i++) glow((px[i] + px[i + 1]) / 2, yT + 1.3, zWall + 0.25, 2.6, 0xffb066, 0.32);
   const lightAt: [number, number, number][] = [[cx - SW / 2 - 1.15, G + 1.35, zP + 1.15 + 0.3], [cx + SW / 2 + 1.15, G + 1.35, zP + 1.15 + 0.3]];
   for (const [x, y, z] of lightAt) { const L = new THREE.PointLight(0xff9440, 3.2, 6, 2); L.position.set(x, y, z); scene.add(L); warm.push(L); }
@@ -448,7 +440,7 @@ export function buildRoom(scene: THREE.Scene, front: THREE.Scene, renderer: THRE
   for (let i = 0; i < NM; i++) { moteBase.set([deck.x0 - 2 + R() * (deck.x1 - deck.x0 + 4), 0.3 + R() * 3.2, deck.z0 - 2 + R() * (deck.z1 - deck.z0 + 3)], i * 3); }
   const moteGeo = new THREE.BufferGeometry(); moteGeo.setAttribute('position', new THREE.BufferAttribute(motePos, 3));
   const moteMat = new THREE.PointsMaterial({ map: glowTex, color: 0xffd6a0, size: 0.05, transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }); disposables.push(moteGeo, moteMat);
-  const motes = new THREE.Points(moteGeo, moteMat); motes.frustumCulled = false; scene.add(motes); mirrorHide.push(motes);
+  const motes = new THREE.Points(moteGeo, moteMat); motes.frustumCulled = false; scene.add(motes);
   const shaftTex = canvasTex((() => { const c = document.createElement('canvas'); c.width = 64; c.height = 256; const g = c.getContext('2d')!; const gx = g.createLinearGradient(0, 0, 64, 0); gx.addColorStop(0, 'rgba(255,255,255,0)'); gx.addColorStop(0.5, 'rgba(255,255,255,1)'); gx.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gx; g.fillRect(0, 0, 64, 256); g.globalCompositeOperation = 'destination-in'; const gy = g.createLinearGradient(0, 0, 0, 256); gy.addColorStop(0, 'rgba(0,0,0,0)'); gy.addColorStop(0.25, 'rgba(0,0,0,1)'); gy.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gy; g.fillRect(0, 0, 64, 256); return c; })()); disposables.push(shaftTex);
   const shafts: THREE.Mesh[] = [];
   const sunDir = sun.position.clone().sub(sun.target.position).normalize();
@@ -457,48 +449,11 @@ export function buildRoom(scene: THREE.Scene, front: THREE.Scene, renderer: THRE
     const x = deck.x0 + (i + 0.5) * (deck.x1 - deck.x0) / 6 + (R() - 0.5) * 1.5, z = deck.z0 - 0.6 + R() * 1.2;
     m.position.set(x, 3.6, z).addScaledVector(sunDir, 0.5); m.lookAt(m.position.clone().add(new THREE.Vector3(0, 0, 1)));
     m.quaternion.premultiply(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), sunDir)); m.userData.ph = R() * 10; m.userData.a = 0.05 + R() * 0.06;
-    scene.add(m); shafts.push(m); mirrorHide.push(m); disposables.push(m.geometry, m.material as THREE.Material);
-  }
-
-  // ------------------------------------------------------------------ the life (src/world3d/life — the Maps chat's modules, shared with the world's 3D maps)
-  // Everything here moves for its own sake and stays off the fighting floor: birds over the roof, butterflies at the
-  // crowns and fireflies at the lanterns, banners and the shimenawa's streamers in the wind, the paper lanterns swinging,
-  // a koi pond under the left trees mirroring the blossom and the sky, incense before the doors, clouds behind, the Masters and the
-  // guards watching from the platform and the corridors.
-  const wind = { x: 0.32, z: 0.06 };
-  const air: Wind = stillAir(); air.x = wind.x; air.z = wind.z;
-  const life: Life[] = [];
-  {
-    const sunDir = sun.position.clone().sub(sun.target.position).normalize();
-    const perches: THREE.Vector3[] = [];
-    for (const k of [-0.8, -0.45, -0.1, 0.25, 0.6]) perches.push(new THREE.Vector3(cx + k * rHalf, yR + 0.3, zR));
-    for (const side of [-1, 1]) { const xm = cx + side * (TW / 2 + 6); perches.push(new THREE.Vector3(xm - 2, G + 3.52, zP - 2.6), new THREE.Vector3(xm + 2.5, G + 3.52, zP - 2.6)); }
-    life.push(birds(scene, { cx, cz: zP - 3, rx: TW / 2 + 5, rz: 7.5, y: yR + 1.8, perches }, { n: soft ? 6 : 9, wind: air, seed: 20261017 }));
-    const crowns = trees.map((t) => ({ x: t.x + t.lean * 0.8, y: G + t.h + 0.9, z: t.z, r: 1.3 }));
-    life.push(butterflies(scene, crowns, { n: soft ? 4 : 8, wind: air }));
-    life.push(fireflies(scene, [...lanternAt.map(([x, y, z]) => ({ x, y: y + 1.2, z, r: 0.75 })), ...trees.map((t) => ({ x: t.x, y: G + 0.9, z: t.z, r: 1.3 }))], { n: soft ? 14 : 34, wind: air }));
-    // cloth: two banners hung from the colonnade's beam, nobori at the corridors' corners and by the railing's ends (those in front of the fighters)
-    for (const [i, bay0] of [[1, px[1]], [5, px[5]]] as [number, number][]) life.push(banner(scene, { x: bay0 + bay / 2, y: yB - 0.27, z: zC + 0.22, yaw: 0, w: 0.52, h: 1.75 }, { wind: air, seed: 100 + i }));
-    for (const side of [-1, 1]) {
-      life.push(banner(scene, { x: cx + side * (TW / 2 + 1.4), y: G, z: zP + 0.7, yaw: side < 0 ? 0 : Math.PI, w: 0.6, h: 2.3, pole: true }, { wind: air, seed: 200 + side }));
-      life.push(banner(front, { x: side < 0 ? deck.x0 - 3.5 : deck.x1 + 3.5, y: G, z: deck.z1 + 0.95, yaw: side < 0 ? 0 : Math.PI, w: 0.6, h: 2.3, pole: true }, { wind: air, seed: 300 + side }));
-    }
-    const shideTex = streamerTexture(); disposables.push(shideTex);
-    shideAt.forEach((p, i) => life.push(streamer(scene, { x: p.x, y: p.y, z: p.z, yaw: 0, w: 0.1, h: 0.36 }, { wind: air, seed: 400 + i, map: shideTex })));
-    life.push(paperLanterns(scene, lanternsUnder.map((x) => ({ x, y: yB - 0.04, z: zC + 0.15 })), { wind: air, drop: 0.38 }));
-    // the pond lies under the left cherry trees beside the deck, where its water shows the trees' blossom, the corridor's lit windows and the sky
-    life.push(pond(scene, { x: deck.x0 - 3.7, z: zMid - 0.2, w: 3.2, d: 1.8, y: G }, { wind: air, stone: M.stoneClean, mirror: !soft, hide: () => mirrorHide, sunDir, sunColor: new THREE.Color(0xffb784), skyLow: new THREE.Color(0xf4ae6c), skyMid: new THREE.Color(0xb05e78), koi: soft ? 3 : 5 }));
-    life.push(incense(scene, [{ x: cx - 1.15, y: yT, z: zWall + 0.75 }, { x: cx + 1.15, y: yT, z: zWall + 0.75 }], { wind: air, soft }));
-    life.push(clouds(scene, { cx, z: zP - 48, y: 17, spread: 75 }, { n: soft ? 4 : 8 }));
-    life.push(spectators(scene, [
-      { id: 'gate_guard', x: cx - 2.8, y: G, z: zP + 1.7, face: 1 }, { id: 'gate_guard', x: cx + 2.8, y: G, z: zP + 1.7, face: -1 },
-      { id: 'warrior_master_pose', x: cx - SW / 2 - 1.9, y: yT, z: zP - 0.22, face: 1 }, { id: 'samurai_master_pose', x: cx + SW / 2 + 1.8, y: yT, z: zP - 0.22, face: -1 },
-      { id: 'mage_master_pose', x: cx - SW / 2 - 3.7, y: yT, z: zP - 0.22, face: 1 }, { id: 'aldric', x: cx + SW / 2 + 3.6, y: yT, z: zP - 0.22, face: -1 },
-      { id: 'mira', x: cx - TW / 2 - 2.8, y: G + 0.3, z: zP - 1.45, face: 1 }, { id: 'bren', x: cx + TW / 2 + 2.8, y: G + 0.3, z: zP - 1.45, face: -1 },
-    ], { wind: air, onLoaded: () => { shadowDirty = true; }, anisotropy: aniso }));
+    scene.add(m); shafts.push(m); disposables.push(m.geometry, m.material as THREE.Material);
   }
 
   // ------------------------------------------------------------------ the frame's work
+  const wind = { x: 0.32, z: 0.06 };
   let boost = 0, boostDir = 1;
   const dummy = new THREE.Object3D();
   const update = (ms: number, t: number, dim: number) => {
@@ -532,8 +487,6 @@ export function buildRoom(scene: THREE.Scene, front: THREE.Scene, renderer: THRE
       dummy.updateMatrix(); falling.setMatrixAt(i, dummy.matrix);
     }
     falling.instanceMatrix.needsUpdate = true;
-    air.gust = boost; air.dir = boostDir;
-    for (const l of life) l.update(ms, t, dim);
   };
   const blow = (x: number, y: number, z: number, Rr: number, strength: number) => {
     for (let i = 0; i < NF; i++) {
@@ -558,6 +511,6 @@ export function buildRoom(scene: THREE.Scene, front: THREE.Scene, renderer: THRE
       if (shadowDirty) { renderer.shadowMap.needsUpdate = true; shadowDirty = false; }
     },
     shadowsDirty: () => { shadowDirty = true; },
-    dispose: () => { for (const l of life) l.dispose(); for (const d of disposables) d.dispose(); scene.traverse((o) => { if ((o as THREE.Mesh).isMesh && (o as THREE.Mesh).geometry) (o as THREE.Mesh).geometry.dispose(); }); },
+    dispose: () => { for (const d of disposables) d.dispose(); scene.traverse((o) => { if ((o as THREE.Mesh).isMesh && (o as THREE.Mesh).geometry) (o as THREE.Mesh).geometry.dispose(); }); },
   };
 }
