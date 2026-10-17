@@ -19,7 +19,12 @@ import type { Projectile } from '../skills/HitGeometry';
 /** World px → 3D units: 1 unit = 100 px; the floor's depth stretched (a deep room), heights as drawn. */
 const U = 100, HEIGHT_K = 1.0;
 /** The camera: pitch below the horizon, field of view, distance (units) — and how much it turns with the fight. */
-const CAM = { pitch: 24, fov: 32, dist: 8.4, distPerSpan: 0.3, distMax: 14, yawMax: 11, follow: 0.12, aim: 0.5 };
+const CAM_ARENA = { pitch: 24, fov: 32, dist: 8.4, distPerSpan: 0.3, distMax: 14, yawMax: 11, follow: 0.12, aim: 0.5 };
+export type Cam3D = typeof CAM_ARENA;
+/** A 3D place's content (the arena's courtyard, or a world map): built into the scene behind the fighters and the one in
+ *  front of them, on the walkable floor given in units. Returns the same handles as the courtyard (its sun, its sky
+ *  light, the lights that burn on in the dark, the floor's height, the petals' answers, its frame's work). */
+export type BuildPlace = (scene: THREE.Scene, front: THREE.Scene, renderer: THREE.WebGLRenderer, F: { x0: number; x1: number; zB: number; zF: number }, soft: boolean) => Room;
 /** The floor's depth stretch (world px of depth → units). Things drawn without a floor point of their own (effects in
  *  the top layers, numbers) are placed over the fighter nearest to them, so any depth reads right. */
 const DEPTH_K = 1.15;
@@ -135,7 +140,9 @@ export class Arena3D {
   private look = new THREE.Vector3();
   private pos = new THREE.Vector3();
   private yaw = 0;
-  private dist = CAM.dist;
+  /** The camera (the arena's by default; a world map passes its own: e.g. nearer, following one player). */
+  private CAM: Cam3D;
+  private dist: number;
   /** The modelled courtyard (its light, its petals, its wind). */
   private room!: Room;
   /** The room's picture with a soft bloom (the lanterns, the doors, the blows' light glow into the air). */
@@ -174,7 +181,11 @@ export class Arena3D {
    *  nearest of them. */
   anchors: { x: number; y: number; z?: number }[] = [];
 
-  constructor(private scene: Phaser.Scene, private floor: Floor) {
+  /** `opts.build`: the place to build (default: the arena's temple courtyard); `opts.cam`: camera settings over the arena's.
+   *  The rest — the picture (bloom, shadows, the glow layer), placing the 2D world where this camera sees it, the fighters'
+   *  sun shadows and light, the skills' 3D pieces, the blows' answers — is the same for any 3D place. */
+  constructor(private scene: Phaser.Scene, private floor: Floor, opts: { build?: BuildPlace; cam?: Partial<Cam3D> } = {}) {
+    this.CAM = { ...CAM_ARENA, ...opts.cam }; this.dist = this.CAM.dist; this.buildPlace = opts.build ?? buildRoom;
     const soft = !!(navigator as { webdriver?: boolean }).webdriver; // (test browsers render on the CPU: half size, no shadows)
     const res = soft ? 0.4 : RES, w = Math.round(scene.scale.width * res), h = Math.round(scene.scale.height * res);
     // one three.js canvas: the room is drawn into it, handed to Phaser (a GPU copy), then the railing, handed over too
@@ -184,7 +195,7 @@ export class Arena3D {
     this.renderer.setPixelRatio(1); this.renderer.setSize(w, h, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.localClippingEnabled = true; // (the skills' pieces split round the fighters: behind them in the room, in front over them)
-    this.camera = new THREE.PerspectiveCamera(CAM.fov, w / h, 0.5, 400);
+    this.camera = new THREE.PerspectiveCamera(this.CAM.fov, w / h, 0.5, 400);
     this.build(soft);
     this.soft = soft;
     this.makeComposer(w, h, soft ? 0 : 4); // (multisampled: the room's edges stay smooth)
@@ -215,10 +226,11 @@ export class Arena3D {
     this.composer.addPass(new RenderPass(this.scene3, this.camera));
     this.composer.addPass(new UnrealBloomPass(new THREE.Vector2(Math.round(w / 2), Math.round(h / 2)), 0.5, 0.55, 0.86));
     this.composer.addPass(new OutputPass());
-    const ps = h / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov / 2))); // (a particle's size in units → px at 1 unit away)
+    const ps = h / (2 * Math.tan(THREE.MathUtils.degToRad(this.CAM.fov / 2))); // (a particle's size in units → px at 1 unit away)
     for (const b of [this.dustB, this.dustF, this.chipB, this.chipF, this.glowB, this.glowF]) b.setScale(ps);
   }
 
+  private buildPlace: BuildPlace;
   /** Test browsers (CPU drawing): a smaller picture, no multisampling. */
   private soft = false;
   /** The frame time watched over the first fights: a slow computer gets a lighter room (smaller render, no
@@ -248,11 +260,11 @@ export class Arena3D {
 
   private build(soft: boolean): void {
     const F = this.floor;
-    this.room = buildRoom(this.scene3, this.front3, this.renderer, { x0: this.w3(F.x0), x1: this.w3(F.x1), zB: this.d3(F.back), zF: this.d3(F.front) }, soft);
+    this.room = this.buildPlace(this.scene3, this.front3, this.renderer, { x0: this.w3(F.x0), x1: this.w3(F.x1), zB: this.d3(F.back), zF: this.d3(F.front) }, soft);
     this.sunBase = this.room.sun.intensity; this.hemiBase = this.room.hemi.intensity;
     { // the sun's shadow: per unit of height, how far it lies on the floor (x, toward the camera) — and how that looks
       const d = this.room.sun.position.clone().sub(this.room.sun.target.position).normalize(), up = Math.max(0.2, d.y);
-      const fx = -d.x / up, fz = -d.z / up, p = Phaser.Math.DegToRad(CAM.pitch);
+      const fx = -d.x / up, fz = -d.z / up, p = Phaser.Math.DegToRad(this.CAM.pitch);
       this.sunShadow = { a: fx / Math.cos(p), b: fz * Math.tan(p) };
     }
     // what a blow throws up from the floor: dust, wood chips, embers — behind the fighters and in front of them
@@ -441,13 +453,13 @@ export class Arena3D {
     this.watchFrames(ms);
     this.stepFx(fxMs);
     this.fx.update(fxMs, this.flying);
-    const f = this.focus, F = this.floor, k = Math.min(1, (ms / 16) * CAM.follow);
-    const want = new THREE.Vector3(this.w3(f.x), this.h3(Math.min(160, f.z * 0.4)) + CAM.aim, this.d3(f.y));
+    const f = this.focus, F = this.floor, k = Math.min(1, (ms / 16) * this.CAM.follow);
+    const want = new THREE.Vector3(this.w3(f.x), this.h3(Math.min(160, f.z * 0.4)) + this.CAM.aim, this.d3(f.y));
     this.look.lerp(want, this.look.lengthSq() ? k : 1);
     const cx = (F.x0 + F.x1) / 2, half = Math.max(1, (F.x1 - F.x0) / 2);
-    this.yaw += ((-Phaser.Math.Clamp((f.x - cx) / half, -1, 1) * CAM.yawMax) - this.yaw) * k;
+    this.yaw += ((-Phaser.Math.Clamp((f.x - cx) / half, -1, 1) * this.CAM.yawMax) - this.yaw) * k;
     this.swingNow += (this.swing - this.swingNow) * Math.min(1, ms / (Math.abs(this.swing) > Math.abs(this.swingNow) ? 260 : 180)); // (swings in, snaps back on the release)
-    this.dist += (Math.min(CAM.distMax, CAM.dist + this.w3(f.span) * CAM.distPerSpan) / this.punch - this.dist) * k;
+    this.dist += (Math.min(this.CAM.distMax, this.CAM.dist + this.w3(f.span) * this.CAM.distPerSpan) / this.punch - this.dist) * k;
     this.place(false);
     this.footDust(ms);
     for (const [i, L] of this.room.warm.entries()) { const b = (L.userData.base ??= L.intensity) as number; L.intensity = b * (1 + Math.sin(this.t / 140 + i * 1.7) * 0.08 + Math.sin(this.t / 53 + i) * 0.04); } // flicker
@@ -473,8 +485,8 @@ export class Arena3D {
   }
 
   private place(snap: boolean): void {
-    if (snap) { const f = this.focus; this.look.set(this.w3(f.x), CAM.aim, this.d3(f.y)); }
-    const p = Phaser.Math.DegToRad(CAM.pitch - Math.abs(this.swingNow) * 0.25), y = Phaser.Math.DegToRad(this.yaw + this.swingNow), d = this.dist / (1 + this.kick);
+    if (snap) { const f = this.focus; this.look.set(this.w3(f.x), this.CAM.aim, this.d3(f.y)); }
+    const p = Phaser.Math.DegToRad(this.CAM.pitch - Math.abs(this.swingNow) * 0.25), y = Phaser.Math.DegToRad(this.yaw + this.swingNow), d = this.dist / (1 + this.kick);
     this.pos.set(this.look.x + Math.sin(y) * Math.cos(p) * d, this.look.y + Math.sin(p) * d, this.look.z + Math.cos(y) * Math.cos(p) * d);
     const nx = Math.cos(y) * this.nudge, nz = -Math.sin(y) * this.nudge; // (across the view)
     this.camera.position.set(this.pos.x + nx, this.pos.y, this.pos.z + nz);
