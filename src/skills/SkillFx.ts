@@ -7,7 +7,7 @@ import Phaser from 'phaser';
 import { FinalSkill, HitEvent, HitShape } from './SkillTypes';
 import { CastRun, RT_EVENTS, SkillRuntime, Trap } from './SkillRuntime';
 import { Projectile, V2, V3, circleCentre } from './HitGeometry';
-import { FINAL_SKILLS, lastOfBurst } from './FinalKit';
+import { FINAL_SKILLS, hitIndex, lastOfBurst } from './FinalKit';
 import DIGITS from '../data/damage-digits.json';
 import { SamuraiFx, KIT, KIT_URL } from './SamuraiFx';
 import { MageFx, MAGE_KIT, MAGE_KIT_URL, MAGE_SHEETS } from './MageFx';
@@ -1378,7 +1378,10 @@ export class SkillFx {
       // the main hit bends the air (a ring racing out from the blow) and splits the colour for a beat; an ultimate's
       // pulls the picture toward it (Prometheus: every big blow is felt on the whole screen)
       if (weighty || counter || tier === 'signature' || (tier === 'ultimate' && s.cls !== 'warrior')) { // (warrior: an ultimate's small blows don't each bend / blur the picture — Titan's Verdict's 16 hits stacked into a white smear)
-        const big = tier === 'ultimate' ? 2 : tier === 'signature' || flies || hit.heavy || counter ? 1 : 0, c = { x: at.x, y: at.y, z: at.z + 40 };
+        // (an ultimate bends and blurs the whole picture once — on its last blow; its other big blows weigh like a signature's:
+        //  Titan's Verdict's launches each blurred the screen, stacked into an unreadable smear)
+        const finale = tier === 'ultimate' && hitIndex(s, hit) === s.hits.reduce((m, h, i) => (h.damage > 0 ? i : m), -1);
+        const big = finale ? 2 : tier === 'ultimate' || tier === 'signature' || flies || hit.heavy || counter ? 1 : 0, c = { x: at.x, y: at.y, z: at.z + 40 };
         this.impact.ripple(c, { r1: [150, 240, 400][big], life: [240, 320, 480][big], s: [9, 15, 26][big], width: [16, 22, 32][big] });
         this.impact.aberration([0.0018, 0.003, 0.005][big], [120, 160, 220][big], c);
         if (big === 2) this.impact.blur(0.035, 220, c);
