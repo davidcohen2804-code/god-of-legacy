@@ -161,6 +161,9 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
       tip: 'Hold away from him and swap — the card bomb left behind pops him up; hold back toward him and vault in: it throws him high — let him fall, shuffle as he drops back into reach, then Showdown and the bat' },
     { name: 'HIGHROLLER', tier: 'EXPERT', style: 'HOUSE', range: 'CLOSE', hits: 6, steps: [{ id: 'charged_deal', hold: true }, { id: 'kinetic_grab' }, { id: 'all_in' }, { id: 'grand_slam' }],
       tip: 'The max bet: hold for the five-card fan (three stick), grab him, a three-card snap twice as high — then the bat' },
+    // DECK — the cards on the floor are his deck: spread it, call it home, the spinning card holds him, then the snap
+    { name: 'RECALL', tier: 'MID', style: 'DECK', range: 'CLOSE', hits: 16, steps: [{ id: 'riffle_shuffle' }, { id: 'call_the_deck' }, { id: 'all_in' }],
+      tip: 'The shuffle spreads four cards round you and sticks two in him; call the deck home — four cards, six turns of the spinning card holding him up — then snap the two in him' },
     // CHANCE — the dice and the wheel: luck sets the damage or the hold, never the route
     { name: 'LOADED', tier: 'MID', style: 'CHANCE', range: 'CLOSE', hits: 11, steps: [{ id: 'dice_bomb' }, { id: 'staff_vault' }, { id: 'riffle_shuffle' }, { id: 'all_in' }],
       tip: 'Roll the dice and let both burst (the roll only sets the damage) — the second throws him up: vault onto him, shuffle two cards into him, snap them' },

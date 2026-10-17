@@ -962,6 +962,20 @@ const gambler: FinalSkill[] = [
     relations: ['2 swaps in a row', 'Leaves a card bomb'],
   }),
   S({
+    id: 'call_the_deck', cls: 'gambler', slot: 18, name: 'Call the Deck', roles: ['launcher', 'projectile', 'extender'], targeting: 'mouseProjectile',
+    startup: 420, active: 200, recovery: 300, cooldown: 9000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    // (the gather is the startup: his cards on the floor within 700 px fly back into his hand — the scene counts them at the
+    // press and sets the hold's turns: 2 + one per card, at most 15 — they fuse into one big card thrown like a saw blade)
+    hits: [H(0, 10, { kind: 'projectile', speed: 950, range: 640, radius: 18, antiAir: true, pierce: true }, { stun: 420, launch: 110, juggleCost: 14 }, { heavy: true })],
+    // the big card dives under the first foe it cut and keeps spinning there, following him, holding him up; then back to the hand
+    linger: { at: 'target', startMs: 160, everyMs: 120, count: 2, radius: 60, maxZ: 400,
+      hit: H(0, 3, { kind: 'circle', radius: 60 }, { stun: 300, float: true, juggleCost: 3 }),
+      last: H(0, 8, { kind: 'circle', radius: 60 }, { stun: 420, launch: 70, juggleCost: 10 }, { heavy: true }) },
+    cancelOnHit: [], telegraph: 'line',
+    description: 'Call your deck home: every card of yours lying on the floor within 700 px flies back into your hand and they fuse into one big charged card. Throw it like a saw blade — it cuts through every foe in its line and pops them up — then it dives under the first one and spins there, holding him up: two turns, and one more for every card you gathered (15 at most). Charged Deal, Cut the Deck\'s flick, Rotor Staff, Riffle Shuffle and 52 Pickup leave cards on the floor.',
+    relations: ['Gathers the floor deck', '+1 turn per card'],
+  }),
+  S({
     id: 'jackpot', cls: 'gambler', slot: 7, name: 'Jackpot', roles: ['ultimate', 'finisher'], targeting: 'self',
     startup: 900, active: 1300, recovery: 400, cooldown: 60000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 2600],
     // a slot machine stops on 7 · 7 · 7: coins and chips burst in eight blasts round you, the last one smashes them down

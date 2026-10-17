@@ -15,7 +15,10 @@ const chest = (p: { x: number; y: number }, z = 90) => ({ x: p.x, y: p.y, z });
 const F = { violet: 0x9a8cff, steel: 0xe2e8ff, card: 0xfff2f2, red: 0xff3a52, coin: C.coin, neon: C.fuchsia, fuse: 0xff6a1a, ember: 0xffb060 };
 
 /** The colour the room answers each family's blows in (DFO, 7b12cb13): the cards' a warm off-white, not a white flash. */
-const TONE = { violet: F.violet, card: 0xffd6d0, coin: F.coin, neon: F.neon, fuse: F.fuse };
+const TONE = { violet: F.violet, card: 0xff4a5e, coin: F.coin, neon: F.neon, fuse: F.fuse };
+
+/** Call the Deck's holds under their foes (by cast): where he is now, ended, last seen (the room's clock). */
+const HOLD = new Map<string, { at: { x: number; y: number; z: number }; end: boolean; /** frames since its last turn */ seen: number }>();
 
 export const GAMBLER: Record<string, Recipe> = {
   // the basic: a thrust, a swing, a rising cut — each its own cut in 3D, the last one the big one
@@ -80,7 +83,16 @@ export const GAMBLER: Record<string, Recipe> = {
   // Lady Luck: a short rain of gold over him
   lady_luck: { tone: TONE.coin, own: true, active: (f, r) => { const c = me(f, r); f.rain(c.x, c.y, 80, C.coin, { n: 10, ms: 420, h: 420 }); } },
   // Pick-up 52: the deck thrown up comes down — a rain of fuchsia over the area ahead
-  pickup_52: { tone: TONE.card, own: true, hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, F.card, { r: 100, ms: 280, a: 0.55 }); }, active: (f, r) => { const p = ahead(f, r, 160); f.rain(p.x, p.y, 150, F.red, { n: 16, ms: 700, h: 560 }); } },
+  pickup_52: { tone: TONE.card, own: true, hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, F.card, { r: 100, ms: 280, a: 0.55 }); },
+    active: (f, r) => {
+      const p = ahead(f, r, 160); f.rain(p.x, p.y, 150, F.red, { n: 16, ms: 700, h: 560 });
+      // the deck sprayed out: real cards stuck in the planks, near to far; each wave rips its own up (they crumble on its beat)
+      const c = me(f, r), base = Math.atan2(r.aim.y, r.aim.x), N = 20;
+      for (let k = 0; k < N; k++) {
+        const q = k / N, d = 85 + q * 360, a = base + Math.sin(q * Math.PI * 3) * 0.55, wave = Math.min(3, Math.floor((d - 85) / 95));
+        f.cardLay(`p52-${r.castId}-${k}`, { x: c.x, y: c.y, z: 70 }, { x: c.x + Math.cos(a) * d, y: c.y + Math.sin(a) * d * 0.6 }, { stuck: true, ms: 110 + q * 120, delay: q * 240, life: 250 + wave * 150 - q * 240 });
+      }
+    } },
   // the home run: a crater where the bat of light lands, a shell, the camera pushed
   grand_slam: { tone: TONE.violet, own: true, hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, F.violet, { r: 160, chunks: 18, up: 1.3 }); f.host.kick(0.05); } } },
   // Overload: lightning crawls round his feet
@@ -90,6 +102,22 @@ export const GAMBLER: Record<string, Recipe> = {
   },
   // Card Swap: he flashes to his card in a streak of light
   card_swap: { tone: TONE.card, own: true, active: (f, r) => { const c = me(f, r); f.later(T(r).active * 0.7, () => { const e = me(f, r); f.streak(chest(c), chest(e), F.card, { w: 18, ms: 300, draw: 40 }); }); } },
+  // Call the Deck: his cards fly home (the scene's cardGather), the big card rides the throw spinning like a saw, then
+  // spins under the held foe turn after turn; the last turn throws him up and the card flares out
+  call_the_deck: {
+    tone: TONE.card, own: true,
+    shot: (f, p) => f.cardSpin(() => (p.done ? null : { x: p.x, y: p.y, z: p.z + 62 }), { size: 2.4, color: F.red }),
+    tick: (f, r, at, i, last) => {
+      const key = r.castId;
+      if (i === 0) { // the card under him: it follows him until the last turn (or the hold ends)
+        HOLD.set(key, { at, end: false, seen: 0 });
+        f.cardSpin(() => { const h = HOLD.get(key); if (!h || h.end || ++h.seen > 30) { HOLD.delete(key); return null; } return { x: h.at.x, y: h.at.y, z: Math.max(8, h.at.z - 52) }; }, { size: 1.8, color: F.red, rps: 3 });
+      }
+      const h = HOLD.get(key); if (h) { h.at = at; h.seen = 0; if (last) h.end = true; }
+      if (last) { f.dome(at.x, at.y, F.red, { r: 60, ms: 240, a: 0.35 }); f.host.kick(0.03); }
+    },
+    hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, F.card, { r: 55, ms: 220, a: 0.3 }); },
+  },
   // the jackpot: a gold tower of light, then the crater (kept under a white-out: the fighters read through it)
   jackpot: { tone: TONE.coin, own: true, active: (f, r) => { const p = placeOf(f, r, 220); f.pillar(p.x, p.y, C.coin, { h: 700, r: 34, ms: 800, twist: true, i: 1 }); f.later(140, () => { f.crack(p.x, p.y, C.fuchsia, { r: 200, chunks: 20, up: 1.3 }); f.host.impact({ x: p.x, y: p.y, z: 60 }, 2); f.host.kick(0.08); }); } },
   // All In: every stuck card goes off — a crater and a gold column out of it

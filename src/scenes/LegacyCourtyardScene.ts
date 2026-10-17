@@ -103,6 +103,7 @@ import type { Projectile } from '../skills/HitGeometry';
 import { Afterimages, applyMotion, archerMotion, heroMotion, leapMotion } from '../skills/ArcherMotion';
 import { SAMURAI_AFTER, TORNADO, samuraiMotion, samuraiSeen, shinsokuMotion, tornadoPath } from '../skills/SamuraiMotion';
 import { KAGE, KageLocal, kageTarget } from '../skills/Kagemusha';
+import { FloorDeck, HOLD_BASE, HOLD_MAX, deckLeaves } from '../skills/FloorDeck';
 import { FUSE_PER_CARD, HAND_KEEP_MS, HAND_KEEP_STACKED_MS, Hand, type HandValue, PVP_HAND_CAP, SUIT, Stuck, coinOf, diceOf, isRerolled, reroll, rouletteOf } from '../skills/Gamble';
 import { HitTarget, V2, V3, clampAim, clampPlace, shapeContains, unit } from '../skills/HitGeometry';
 import { SkillFx, preloadSkillFx } from '../skills/SkillFx';
@@ -269,6 +270,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private gStuck = new Stuck();
   /** The samurai's fallen petals (continuity: Blossom Storm / Sakura Bind leave them, Sheathe gathers them, the Iai draws them). */
   private petals = new SamuraiPetals({ now: () => this.simMs, localId: () => this.localId, casterPos: (id) => this.casterPos(id), fx: () => this.fx, fx3d: () => this.a3d?.fx });
+  /** The Gambler's floor deck: the cards his skills leave lying (every caster's, laid from the cast alone — FloorDeck). */
+  private gDeck = new FloorDeck();
   private gHandKey = '';
   private gShowMul = 1;
   private gShow = new Map<string, HandValue | null>();
@@ -701,7 +704,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
     this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
     this.hasteUntil = -1; this.spiritUntil = -1; this.tree = null; this.storm = null; this.resolveUntil = -1; this.hasteFx = undefined; this.spiritFx = undefined; this.afterimg = undefined;
-    this.gHeadsUntil = -1; this.gTailsFree = false; this.gTailsUntil = -1; this.gLuckUntil = -1; this.gOverUntil = -1; this.gStreak = 0; this.fx?.gambleClear(this.localId); this.gHand.clear(); this.gStuck.clear();
+    this.gHeadsUntil = -1; this.gTailsFree = false; this.gTailsUntil = -1; this.gLuckUntil = -1; this.gOverUntil = -1; this.gStreak = 0; this.fx?.gambleClear(this.localId); this.gDeck.clear(); this.gHand.clear(); this.gStuck.clear();
     this.sunUntil = -1; this.godUntil = -1; this.kage?.clear(); this.kage = undefined; this.ambushIn.clear();
     this.mageReset(); this.gates.clear(); this.levityZones = []; this.brokenLinks.clear(); this.linkGfx = undefined;
     this.hpMaxSeen = 0; this.seenStance = -Infinity; this.seenEndure = -Infinity; this.markAt.clear(); this.partyTick = 0; this.shares = []; this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1; this.camAir = 0; this.camPunch = 1; this.a3d = null; this.w3d = null; this.a3dFall.clear(); this.floor3d = null; this.sceneGen++;
@@ -901,6 +904,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     };
     this.fx.aliveOf = (id) => (id === this.localId ? this.dead < 0 : id === BOT_ID ? !!this.bot && !this.bot.defeated : this.pvp?.remotes.get(id)?.alive !== false);
     this.rt.events.on(RT_EVENTS.hit, (r: CastRun, i: number, o: V3) => { this.kageSwing(r, i, o); this.petals.cut(r, i, o); }); // (Blossom Storm's cuts leave their petals)
+    this.rt.events.on(RT_EVENTS.cast, (r: CastRun) => this.deckCast(r));
+    this.rt.events.on(RT_EVENTS.active, (r: CastRun) => this.deckActive(r));
+    this.gDeck.onLay = (c) => { this.fx?.deckLay(c); this.a3d?.fx.cardLay(c.key, { x: c.x, y: c.y, z: 70 }, { x: c.x, y: c.y }, { ms: 180, stuck: c.stuck, life: c.until - c.landAt + 400 }); };
+    this.gDeck.onDrop = (c) => { this.fx?.deckDrop(c.key); this.a3d?.fx.cardDrop(c.key); };
     this.rt.events.on(RT_EVENTS.projectileEnd, (p: { x: number; y: number }, r: CastRun) => { if (r.skill.id === 'ace_in_the_hole') { this.gAceEnd.set(r.castId, { x: p.x, y: p.y }); if (this.gAceEnd.size > 30) this.gAceEnd.delete(this.gAceEnd.keys().next().value as string); } }); // the ace blows where it stopped
     this.fx.unarmed = (id) => (id === this.localId ? !this.gearSt.armed : this.pvp?.remotes.get(id)?.armed === false);
     this.renderPlayer(0);
@@ -1077,6 +1084,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.rt.update(ms);
     this.stepLingers(now);
     this.petals.step();
+    this.gDeck.step(now);
     this.stepClaims(now);
     this.stepStorm();
     this.stepTree(now);
@@ -2897,6 +2905,22 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   /** Gambler casts (the gambler spec): Showdown plays the Hand; the coin, Lady Luck, the overload and the joker. */
+  /** Call the Deck pressed (every caster's, on every screen): his cards on the floor within reach fly home — their
+   *  number, fixed at the press, sets the spinning hold's turns (2 + one per card). */
+  private deckCast(r: CastRun): void {
+    if (r.skill.id !== 'call_the_deck') return;
+    const c = this.casterPos(r.attackerId) ?? r.origin, got = this.gDeck.gather(r.attackerId, c.x, c.y, this.simMs);
+    r.holdCount = Math.min(HOLD_MAX, HOLD_BASE + got.length);
+    const hand = () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x, y: p.y, z: p.z + 80 } : null; };
+    this.fx?.deckGather(r, got.map((g) => g.key));
+    if (got.length) this.a3d?.fx.cardGather(got.map((g) => g.key), hand, { ms: 260, gap: Math.min(40, Math.round(120 / got.length)) });
+  }
+  /** A gambler skill that leaves cards on the floor: its cards, from the cast alone (FloorDeck), as its active starts. */
+  private deckActive(r: CastRun): void {
+    if (r.skill.cls !== 'gambler') return;
+    const list = deckLeaves(r, this.simMs, (x, y) => footAllowed(x, y, 0, 12));
+    if (list.length) this.gDeck.add(list);
+  }
   private gamblerCast(s: FinalSkill, stage: number, castId: string): void {
     const T = s.chain?.timings?.[stage] ?? s, up = Math.round(T.startup / this.ownSpeedMul(s)), now = this.simMs, G = this.passives.gamble;
     const here = () => ({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 });
@@ -3449,6 +3473,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!this.a3d) return;
     const weight = s.slot === 7 && (hit.heavy || s.cls !== 'warrior') ? 'ultimate' : hit.heavy || s.slot === 6 || reaction === 'launch' || reaction === 'knockdown' || reaction === 'slam' ? 'heavy' : 'light';
     const wSmall = s.cls === 'warrior' && !hit.heavy && s.hits.length > 1 && !lastOfBurst(s, hit); // (any warrior skill of 2+ blows: only its heavy / last one throws the room's dust — Rising Slash, Leap Crash, Sky Breaker hazed too) // (warrior: a burst's small blows light the room lightly even when they launch — each heavy one's room dust and ring stacked into a white haze round both fighters: Ground Breaker, Titan's Verdict)
+    this.a3d.fx.cardFlutter(at.x, at.y, 120); // (his cards lying near a blow hop)
     this.a3d.hit(at.x, at.y, at.z, this.a3d.fx.tone(s) ?? parseInt(classColor(s.cls).slice(1), 16), wSmall ? 'light' : weight); // (in the skill's family colour when its recipe names one)
     // the skill's 3D pieces at the foe; the main hit (heavy, sending him flying or down, the last of a burst) carries the weight
     const flies = !!(hit.reaction.launch || hit.reaction.knockdown || hit.reaction.slam), many = (s.chain ? 1 : s.hits.length) > 3;

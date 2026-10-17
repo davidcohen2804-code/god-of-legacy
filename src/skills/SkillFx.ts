@@ -2184,6 +2184,10 @@ export class SkillFx {
   gambleOverload(id: string, ms: number): void { this.gamb.overload(id, ms); }
   gambleLuck(id: string, ms: number): void { this.gamb.luck(id, ms); }
   gambleClear(id: string): void { this.gamb.clearBuffs(id); }
+  /** The Gambler's floor deck (FloorDeck): a card lands / crumbles / his cards fly home for Call the Deck. */
+  deckLay(c: { key: string; x: number; y: number; stuck: boolean }): void { this.gamb.deckLay(c); }
+  deckDrop(key: string): void { this.gamb.deckDrop(key); }
+  deckGather(r: CastRun, keys: string[]): void { this.gamb.deckGather(r, keys); }
   cardStep(x: number, y: number, dir: number): void { this.gamb.cardStep(x, y, dir); }
   gambleZone(id: string, x: number, y: number, r: number): void { this.gamb.zone(id, x, y, r); }
   /** A turn of a hold that follows its foe (`linger.at: 'target'`), at him: the class draws it when it has a `holdTick`

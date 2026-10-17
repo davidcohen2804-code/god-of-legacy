@@ -18,7 +18,7 @@ export const FUCHSIA = 0xff2bd6, FUCHSIA_2 = 0xff7ae6, VIOLET = 0x3a0a4a, GOLD =
 type Fam = 'staff' | 'cards' | 'coin' | 'chance' | 'fuse';
 const FAM_OF: Record<string, Fam> = {
   cut_the_deck: 'staff', staff_vault: 'staff', rotor_staff: 'staff', grand_slam: 'staff', triple_down: 'staff',
-  charged_deal: 'cards', riffle_shuffle: 'cards', showdown: 'cards', ace_in_the_hole: 'cards', pickup_52: 'cards', card_swap: 'cards',
+  charged_deal: 'cards', riffle_shuffle: 'cards', showdown: 'cards', ace_in_the_hole: 'cards', pickup_52: 'cards', card_swap: 'cards', call_the_deck: 'cards',
   coin_flip: 'coin', lady_luck: 'coin',
   roulette_wheel: 'chance', dice_bomb: 'chance', jackpot: 'chance', all_in: 'chance', wild_card: 'chance',
   fuse_slam: 'fuse', kinetic_overload: 'fuse', kinetic_grab: 'fuse',
@@ -329,6 +329,7 @@ export class GamblerFx {
       case 'kinetic_overload': this.overloadCast(r); break;
       case 'wild_card': this.wildCard(r); break;
       case 'card_swap': this.cardSwap(r); break;
+      case 'call_the_deck': this.deckFuse(r); break;
       case 'jackpot': this.jackpot(r); break;
       case 'staff_vault': this.vault(r); break;
     }
@@ -396,11 +397,12 @@ export class GamblerFx {
 
   projectile(p: Projectile): void {
     this.setFam(p.skill.id);
-    const s = this.ctx.scene, big = p.skill.id === 'ace_in_the_hole';
-    const img = s.add.image(p.x, p.y - p.z, big ? this.acePic : this.BK).setScale(this.u * (big ? 0.62 : 0.36)).setDepth(p.y + 3);
+    const s = this.ctx.scene, big = p.skill.id === 'ace_in_the_hole', huge = p.skill.id === 'call_the_deck';
+    const img = s.add.image(p.x, p.y - p.z, big ? this.acePic : this.BK).setScale(this.u * (big ? 0.62 : huge ? 0.95 : 0.36)).setDepth(p.y + 3);
+    if (huge) { img.setData('huge', 1); if (ARENA3D.on) img.setAlpha(0); } // (Call the Deck's saw: in PVP 3D a real spinning card rides it — its recipe's shot)
     const glow = this.glow(p.x, p.y - p.z, big ? 110 : 60, FUCHSIA, p.y + 2);
     const g = s.add.graphics().setDepth(p.y + 1).setBlendMode(Phaser.BlendModes.ADD);
-    const streak = this.kit('k_streak', p.x, p.y - p.z, big ? 300 : 95, p.y + 2); // (the fan's: short, so five never merge into one white sheet)
+    const streak = huge ? null : this.kit('k_streak', p.x, p.y - p.z, big ? 300 : 95, p.y + 2); // (the fan's: short, so five never merge into one white sheet)
     if (streak) streak.setOrigin(0.97, 0.52).setAngle(screenAng(p.dx, p.dy)).setFlipY(p.dx < -0.01);
     if (big) { // the ace's lance: a ribbon of light from the throw to the ace, lingering a moment after it passes
       const x0 = p.x, y0 = p.y - p.z, lance = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD), lancePic = this.kit('x_lance', x0, y0, 100, p.y + 2);
@@ -433,6 +435,8 @@ export class GamblerFx {
           this.piece(gh, 160, (u, o) => o.setAlpha(0.5 * (1 - u)));
         }
         if (Math.random() < 0.5) this.shards(x - p.dx * 20, y, 1, 30, 240, 0, p.y + 2);
+      } else if (v.img.getData('huge')) { // the saw: spinning flat, a disc of light round it
+        v.img.setAngle(v.img.angle + dt * 1.8).setScale(this.u * 0.95, this.u * 0.95 * 0.55);
       } else v.img.setAngle(v.img.angle + dt * 1.4);
       v.glow.setPosition(x, y);
       if (v.streak) { // the streak trails the card: it grows with the way flown (never a full streak back over the thrower's body at the throw)
@@ -597,7 +601,8 @@ export class GamblerFx {
     const hs = s.hits ?? [], burst = !s.chain && hs.length > 2, last = !burst || hitIndex(s, hit) === hs.length - 1; // (hitIndex: the arena re-times the hits as copies)
     const weighty = burst ? ((!!hit.heavy && s.id !== 'showdown') || last) : heavy; // (Showdown's cards burst on their own: only its last blow gets the blast)
     const kind = crit || counter ? 'crit' : hit.reaction.launch ? 'launch' : weighty && !grip ? 'heavy' : 'normal';
-    if (kind === 'normal') {
+    if (kind === 'normal' && s.id === 'call_the_deck') { /* the hold's turns: the spinning card is the spark (holdTick) */ }
+    else if (kind === 'normal') {
       this.pop(at.x, y, 64, FUCHSIA, 200); this.shards(at.x, y, 2, 50, 260);
     } else if (kind === 'heavy') {
       const bl = this.kit('ai_blast', at.x, y, burst && last ? 165 : 130, TOP + 4); if (bl) { const b0 = bl.scale, a0 = rnd(0, 360); this.piece(bl, 280, (u, o) => o.setScale(b0 * lerp(0.45, 1.1, out3(u))).setAngle(a0).setAlpha(u < 0.4 ? 1 : (1 - u) / 0.6)); } else this.pop(at.x, y, 120, FUCHSIA, 300);
@@ -1193,6 +1198,77 @@ export class GamblerFx {
   /** 52 Pickup: the deck is drawn into his hand in a whirl, then sprayed as a sweeping stream (near to far, one side to the other);
    *  the cards stand in the floor turning and blinking, the waves tear through them, the last wave sucks the rest up and blows. */
   private pickCards = new Map<string, { im: Phaser.GameObjects.Image; wave: number; x: number; y: number }[]>();
+  // ------------------------------------------------------------------ the floor deck (FloorDeck) and Call the Deck
+
+  private deckImgs = new Map<string, Phaser.GameObjects.Image>();
+  /** A card of his deck lands on the floor (the painted arena: lying flat, squashed into the floor; PVP 3D draws real cards). */
+  deckLay(c: { key: string; x: number; y: number; stuck: boolean }): void {
+    if (ARENA3D.on) return;
+    const s = this.ctx.scene, im = s.add.image(c.x, c.y - (c.stuck ? 8 : 2), this.BK).setDepth(c.stuck ? c.y + 1 : GROUND + 4).setAlpha(0);
+    const a = (c.x * 7.3 + c.y * 3.1) % 360, k = this.u * 0.34;
+    if (c.stuck) im.setScale(k * 0.8, k).setAngle(((a % 40) - 20)); else im.setScale(k, k * SQUASH).setAngle(a);
+    this.piece(im, 160, (u, o) => o.setAlpha(u));
+    this.deckImgs.set(c.key, im);
+    // a faint glint now and then: it can be taken back
+    this.add((t) => { if (!im.active || this.deckImgs.get(c.key) !== im) return false; im.setTint(Math.sin(t * 0.004 + a) > 0.93 ? 0xffffff : 0xd8c8d0); return true; });
+  }
+  /** A card spent or its time up: it crumbles. */
+  deckDrop(key: string): void {
+    const im = this.deckImgs.get(key); if (!im) return;
+    this.deckImgs.delete(key);
+    this.shards(im.x, im.y, 2, 30, 300, 0, im.depth + 1);
+    this.piece(im, 260, (u, o) => o.setAlpha(1 - u).setScale(o.scaleX * (1 - u * 0.02), o.scaleY * (1 - u * 0.04)));
+  }
+  /** Call the Deck: the cards fly home, nearest first (the painted arena; PVP 3D: real cards, cardGather), and fuse in his hand. */
+  deckGather(r: CastRun, keys: string[]): void {
+    this.setFam('call_the_deck');
+    keys.forEach((key, i) => {
+      const im = this.deckImgs.get(key); if (!im) return;
+      this.deckImgs.delete(key);
+      const x0 = im.x, y0 = im.y, delay = Math.min(i * 40, 120);
+      im.setDepth(TOP + 3).setScale(this.u * 0.3);
+      this.piece(im, 260, (u, o) => {
+        const h = this.ctx.hand(r.attackerId) ?? { x: x0, y: y0 }, q = out3(u);
+        o.setPosition(lerp(x0, h.x, q), lerp(y0, h.y, q) - Math.sin(q * Math.PI) * 60).setAngle(u * 720).setAlpha(u > 0.85 ? (1 - u) / 0.15 : 1);
+      }, delay);
+    });
+  }
+  /** The gather's wind-up: the cards fuse into one big charged card in his hand — a glow that grows with the count. */
+  private deckFuse(r: CastRun): void {
+    const T = r.timings, s = this.ctx.scene, n = Math.max(0, (r.holdCount ?? 2) - 2);
+    const glow = this.glow(0, 0, 70 + n * 6, FUCHSIA, TOP + 4), card = s.add.image(0, 0, this.BK).setDepth(TOP + 5).setAlpha(0);
+    this.add((t) => {
+      const h = this.ctx.hand(r.attackerId);
+      if (t >= T.startup || !h) { glow.destroy(); card.destroy(); return false; }
+      const u = t / T.startup;
+      glow.setPosition(h.x, h.y).setAlpha(0.25 + 0.5 * u).setScale(glow.scaleX);
+      card.setPosition(h.x, h.y - 6).setAlpha(clamp01((u - 0.4) / 0.3)).setScale(this.u * lerp(0.3, 0.7, out3(clamp01((u - 0.4) / 0.6)))).setAngle(Math.sin(t * 0.02) * 8);
+      return true;
+    });
+  }
+  private holdCards = new Map<string, { im: Phaser.GameObjects.Image; idle: number; done: boolean }>();
+  /** A turn of Call the Deck's hold: the big card spins flat under the held foe (the painted arena; PVP 3D: its recipe's tick). */
+  holdTick(r: CastRun, at: V3, i: number, last: boolean): void {
+    if (r.skill.id !== 'call_the_deck') return;
+    this.setFam('call_the_deck');
+    const sx = at.x, sy = at.y - Math.max(0, at.z - 40) + 6;
+    if (!ARENA3D.on) {
+      let h = this.holdCards.get(r.castId);
+      if (!h) {
+        const im = this.ctx.scene.add.image(sx, sy, this.BK).setDepth(at.y + 2), hh = { im, idle: 0, done: false };
+        h = hh; this.holdCards.set(r.castId, hh);
+        this.add((_, dt) => { // it spins until the last turn (or no turn for a while: the foe gone), then flies off home
+          hh.idle += dt;
+          if (hh.done || hh.idle > 400) { this.holdCards.delete(r.castId); this.piece(im, 220, (u, o) => o.setAlpha(1 - u).setScale(this.u * 0.95 * (1 - u * 0.6), this.u * 0.4 * (1 - u * 0.6))); return false; }
+          im.setAngle(im.angle + dt * 2.2).setScale(this.u * 0.95, this.u * 0.95 * 0.42);
+          return true;
+        });
+      }
+      h.im.setPosition(sx, sy).setDepth(at.y + 2); h.idle = 0; if (last) h.done = true;
+    }
+    if (last) this.pop(sx, sy - 10, 110, FUCHSIA, 260);
+    if (last) { this.shards(sx, sy - 20, 6, 120, 380); this.ctx.cam().shake(160, 0.008); }
+  }
   private deckSpray(r: CastRun): void {
     const T = r.timings, s = this.ctx.scene, side = sideOf(r);
     // wind-up: cards whirl in toward his hand
@@ -1215,6 +1291,7 @@ export class GamblerFx {
         this.stroke('s_heavy', hx + side * 60, hy, 200, side, 280, c.y + 3, -10);
         this.ctx.punch(0.04, 220); this.ctx.cam().shake(260, 0.006);
       }
+      if (ARENA3D.on) return false; // (PVP 3D: the cards stuck in the floor are real 3D cards — its recipe; the deck it leaves, FloorDeck)
       for (; sent < want; sent++) {
         const k = sent / N, sweep = Math.sin(k * Math.PI * 3) * 0.55, dist = 85 + k * 360 + rnd(-20, 20);
         const ang = base + sweep, x1 = c.x + Math.cos(ang) * dist, y1 = c.y + Math.sin(ang) * dist * 0.8;
