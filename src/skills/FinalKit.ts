@@ -640,8 +640,8 @@ const samurai: FinalSkill[] = [
     startup: 150, active: 0, recovery: 180, cooldown: 6000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     hits: [H(0, 26, { kind: 'projectile', speed: 800, range: 380, radius: 18 }, { stun: 230, push: 12, float: true, juggleCost: 15 })],
     cancelOnHit: ['shadow_step', 'blossom_storm'],
-    description: 'Fling a crimson crescent of steel that flies fast and pops the foe up — one at a time (once in a combo). Walls stop it.',
-    relations: ['One at a time', 'Pop-up'],
+    description: 'Fling a golden crescent of steel that flies fast and level: it staggers a foe on the floor and holds one in the air where it meets him — from the floor it passes under a foe thrown high, so jump with him and throw it level. One at a time. Walls stop it.',
+    relations: ['One at a time', 'Holds in the air'],
   }),
   S({
     id: 'mirage', cls: 'samurai', slot: 5, name: 'Mirage Counter', roles: ['counter', 'escape'], targeting: 'mouseDir',
@@ -747,7 +747,7 @@ const samurai: FinalSkill[] = [
     // every second two of the halo's blades fly at the nearest foes, each one spent (eight in all; LegacyCourtyardScene: bladeStrikes)
     linger: { at: 'caster', startMs: 600, everyMs: 1000, count: 30, radius: 220, maxZ: 220, hit: H(0, 6, { kind: 'circle', radius: 220 }, { stun: 300, float: true }, { reachUp: 220 }) },
     cancelOnHit: ['quick_slash', 'blossom_storm', 'dragon_eclipse'], tags: ['buff', 'party'],
-    description: 'Eight spectral katanas rise behind you for 30s: +15% damage, and every second two of them fly at the nearest foes on their own — each one that flies is spent, eight strikes in all. In a party, every party member near you shares the +15%.',
+    description: 'Eight spectral katanas rise behind you for 30s: +15% damage, and every second two of them fly at the nearest foes on their own — each one that flies is spent, eight strikes in all. In a party, every party member near you shares the +15% — the mark of the halo turns over their heads while it lasts.',
     relations: ['Buff 30s · party', 'Blades strike on their own'],
   }),
   S({
@@ -770,7 +770,7 @@ const samurai: FinalSkill[] = [
     // down, a fall and a bounce to cut him on; a foe on the floor only reels (it lifts no one: Swallow Cut is the launcher)
     hits: [H(0, 26, { kind: 'circle', radius: 120 }, { stun: 460, slam: true }, { reachUp: 300, heavy: true })],
     cancelOnHit: ['quick_slash', 'swallow_cut', 'hundred_cuts', 'iai_strike', 'dragon_eclipse'], telegraph: 'circle',
-    description: 'The anti-air: a crimson dragon spirals up from your blade and strikes a foe jumping at you out of the air — he crashes to the floor and bounces, open to your cuts. A foe on the floor only reels.',
+    description: 'The anti-air: a golden dragon spirals up from your blade and strikes a foe jumping at you out of the air — he crashes to the floor and bounces, open to your cuts. A foe on the floor only reels.',
     relations: ['Anti-air', 'Smash down'],
   }),
 ];
