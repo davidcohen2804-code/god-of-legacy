@@ -4,14 +4,13 @@
 // door. The terrace builder (islandTerrace, `dusk`) gives the dusk light, the violet stone, the wisteria, the fireflies;
 // these add the places' own models and their warm lights.
 import * as THREE from 'three';
-import { box, cyl, lathe, taperTube as rawTube, canvasTex } from '../../arena3d/RoomKit';
+import { box, cyl, lathe, taperTube, canvasTex } from '../../arena3d/RoomKit';
 import { wallRun, balustrade, ivyRun, ivyCanvas } from '../kit/terrain';
-import { ux, uz, uy, footBox, tube } from '../kit/units';
+import { ux, uz, uy, footBox } from '../kit/units';
 import { post, lanternCord, warmLight, halo, boulder, log, stump, glowcaps, roots, chimneySmoke, waterfall, water, ferns } from '../kit/props';
 import { paperLanterns } from '../life/lanterns';
 import { pond } from '../life/pond';
 import type { Dressing } from './dressing';
-const taperTube: typeof rawTube = (...a) => tube(rawTube(...a));
 
 // ------------------------------------------------------------------ M20 · Wisteria Walk
 

@@ -23,10 +23,6 @@ export function rng(seed: number): () => number {
   return () => { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 
-/** A tapered tube (RoomKit.taperTube) — the kit winds it the right way out now (DFO fixed it at the Maps chat's report),
- *  so this passes it through as it is (the calls can go). */
-export function tube(g: THREE.BufferGeometry): THREE.BufferGeometry { return g; }
-
 /** Things to free when the place goes. */
 export type Disposable = { dispose(): void };
 export const v3 = (x: number, y: number, z: number): THREE.Vector3 => new THREE.Vector3(x, y, z);

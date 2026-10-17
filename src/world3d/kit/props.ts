@@ -3,13 +3,12 @@
 // builder's context (a dressing's `DressCtx` is one) and adds to its Parts, its scene and its life.
 import * as THREE from 'three';
 import type { Parts } from '../../arena3d/RoomKit';
-import { box, cyl, lathe, taperTube as rawTube, canvasTex, glowCanvas } from '../../arena3d/RoomKit';
+import { box, cyl, lathe, taperTube, canvasTex, glowCanvas } from '../../arena3d/RoomKit';
 import type { Life, Wind } from '../life/kit';
 import { Puffs, tex as lifeTex, smokeCanvas, canvas as mkCanvas } from '../life/kit';
 import { paperLanterns } from '../life/lanterns';
 import { pond } from '../life/pond';
-import { tube, type Disposable } from './units';
-const taperTube: typeof rawTube = (...a) => tube(rawTube(...a));
+import type { Disposable } from './units';
 
 /** What a prop needs of the place that builds it. */
 export interface PropCtx {

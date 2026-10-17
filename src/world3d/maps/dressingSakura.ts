@@ -3,9 +3,9 @@
 // torii and its fox statues; the Bamboo Grove with the Tengu's pine. The terrace builder (look 'sakura') gives the
 // golden-pink light, the grey stone, the cherry crowns and the petals; these add the places' own models.
 import * as THREE from 'three';
-import { box, cyl, lathe, taperTube as rawTube } from '../../arena3d/RoomKit';
+import { box, cyl, lathe, taperTube } from '../../arena3d/RoomKit';
 import { balustrade } from '../kit/terrain';
-import { ux, uz, uy, footBox, tube } from '../kit/units';
+import { ux, uz, uy, footBox } from '../kit/units';
 import { post, warmLight, halo, boulder, log, water, waterfall } from '../kit/props';
 import { growTrees, crownCanvas } from '../kit/trees';
 import { canvasTex } from '../../arena3d/RoomKit';
@@ -13,7 +13,6 @@ import { banner } from '../life/cloth';
 import { pond } from '../life/pond';
 import { incense } from '../life/smoke';
 import { templeFront, type DressCtx, type Dressing } from './dressing';
-const taperTube: typeof rawTube = (...a) => tube(rawTube(...a));
 
 // ------------------------------------------------------------------ the kit's pieces
 

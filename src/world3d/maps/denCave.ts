@@ -5,9 +5,9 @@
 // the five lantern ledges, the Magpie's nest with its chests and cauldron, the hoard's mounds of coins.
 import * as THREE from 'three';
 import type { Room } from '../../arena3d/Room';
-import { Parts, box, cyl, lathe, canvasTex, glowCanvas, shadowCanvas, taperTube as rawTube } from '../../arena3d/RoomKit';
+import { Parts, box, cyl, lathe, canvasTex, glowCanvas, shadowCanvas, taperTube } from '../../arena3d/RoomKit';
 import { AREAS } from '../../world/Areas';
-import { footBox, rng, ux, uz, uy, tube, type Disposable } from '../kit/units';
+import { footBox, rng, ux, uz, uy, type Disposable } from '../kit/units';
 import { skyAndLight } from '../kit/sky';
 import { Tiles, earthCanvas, rootCanvas, coinCanvas, ashlarCanvas } from '../kit/materials';
 import { contactShade } from '../kit/terrain';
@@ -16,7 +16,8 @@ import { type Life, type Wind, stillAir, tex as lifeTex, dotCanvas, Puffs } from
 import { paperLanterns } from '../life/lanterns';
 import { fireflies } from '../life/butterflies';
 import type { PlaceState } from './islandTerrace';
-const taperTube: typeof rawTube = (...a) => tube(rawTube(...a));
+/** The triangles of a strip turned the other way round (the vault's inside must face in). */
+const flipWinding = (g: THREE.BufferGeometry) => { const ix = g.index; if (ix) { for (let i = 0; i < ix.count; i += 3) { const b = ix.getX(i + 1); ix.setX(i + 1, ix.getX(i + 2)); ix.setX(i + 2, b); } ix.needsUpdate = true; } return g; };
 
 export interface DenSpec { stage: 1 | 2 | 3 | 4 | 5; seed?: number }
 
@@ -72,7 +73,7 @@ export const denCave = (areaId: string, spec: DenSpec) => (focus: PlaceState) =>
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
     // the faces must look into the room (toward the axis): check one and flip the winding if not
     const v = (k: number) => new THREE.Vector3(pos[k * 3], pos[k * 3 + 1], pos[k * 3 + 2]); const fn = new THREE.Vector3().subVectors(v(idx[1]), v(idx[0])).cross(new THREE.Vector3().subVectors(v(idx[2]), v(idx[0])));
-    if (fn.dot(new THREE.Vector3(cx, 1.5, zMid).sub(v(idx[0]))) < 0) tube(g); g.computeVertexNormals();
+    if (fn.dot(new THREE.Vector3(cx, 1.5, zMid).sub(v(idx[0]))) < 0) flipWinding(g); g.computeVertexNormals();
     const vault = new THREE.Mesh(g, M.root); vault.receiveShadow = true; scene.add(vault); disposables.push(g); }
   // roots woven over the vault: tubes meandering along the back wall, a few across the ceiling, knots
   for (let i = 0; i < (soft ? 9 : 16); i++) {
