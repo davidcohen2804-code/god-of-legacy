@@ -635,6 +635,11 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     grand_slam: { act: 'grand_slam', st: [0, 1, 2], ac: [3], rc: [4, 5] },
     kinetic_overload: { act: 'kinetic_overload', st: [0, 1, 2], ac: [3], rc: [4, 5] },
     triple_down: { act: 'triple_down', st: [0], ac: [1, 2, 3, 4, 5], rc: [5] },
+    // the basic chain, a strike of its own each (PixVerse): the jab, the back swing, the card flick, the rising swing
+    cut_the_deck: { act: 'cut_jab', st: [0], ac: [1, 2], rc: [3, 4] },
+    'cut_the_deck#1': { act: 'cut_swing', st: [0, 1], ac: [2, 3], rc: [4] },
+    'cut_the_deck#2': { act: 'cut_cards', st: [0], ac: [1, 2], rc: [3, 4] },
+    'cut_the_deck#3': { act: 'cut_rise', st: [0, 1], ac: [2, 3], rc: [4] },
     card_swap: { act: 'card_swap', st: [1, 2], ac: [3, 4], rc: [5] }, // (his own: the card flicked, the low dash to it, the stop)
     jackpot: { act: 'jackpot', st: [0, 0, 1, 1, 2, 3], ac: [4, 4], rc: [5] },
   },
