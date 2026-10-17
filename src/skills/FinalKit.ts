@@ -150,7 +150,7 @@ const warrior: FinalSkill[] = [
     id: 'judgment_blade', cls: 'warrior', slot: 12, name: 'Judgment Blade', roles: ['zone', 'setup'], targeting: 'mouseDir',
     startup: 150, active: 320, recovery: 240, cooldown: 9000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     charges: 1, chargeGap: 120,
-    hits: [H(140, 14, { kind: 'circle', radius: 80, at: 'aimBias', bias: 150 }, { stun: 420, pin: 400, slam: true }, { reachUp: 280, heavy: true })],
+    hits: [H(140, 14, { kind: 'circle', radius: 80, at: 'aimBias', bias: 150, floor: true }, { stun: 420, pin: 400, slam: true }, { reachUp: 280, heavy: true })], // (floor: the blade falls to the floor — thrown from the air it struck only the air above a standing foe)
     linger: { at: 'aim', offset: 150, startMs: 520, everyMs: 500, count: 10, radius: 130, maxZ: 40, hit: H(0, 3, { kind: 'circle', radius: 130 }, { stun: 150, bind: 1100 }, { reachUp: 40 }) }, // (the court holds once a combo: its bind; its other ticks only flinch)
     cancelOnHit: ['warrior_basic', 'rising_slash', 'leap_crash', 'lance_thrust', 'blade_storm'],
     description: 'Leap and hurl a judgment blade (it lands in under half a second; an airborne foe is slammed into a bounce). It stays planted for 5s inside a storm ring: a foe who comes down into it is chained upright once per combo — beat him, then launch him again.',
@@ -494,7 +494,7 @@ const archer: FinalSkill[] = [
     startup: 300, active: 1200, recovery: 300, cooldown: 12000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [300, 900],
     dash: { distance: 0, lift: 150, hang: true },
     linger: { at: 'aim', offset: 300, startMs: 1000, everyMs: 80, count: 26, radius: 210, maxZ: 50, once: true, hit: H(0, 6, { kind: 'circle', radius: 210 }, { stun: 320, launch: 110, juggleCost: 10, slow: { pct: 30, ms: 500 } }, { reachUp: 50 }) }, // the charged floor throws whoever lands on it back up (once each)
-    hits: [600, 750, 900].map((t, i) => H(t, i === 2 ? 16 : 12, { kind: 'circle', radius: 110, at: 'aimBias', bias: [60, 140, 220][i] }, { stun: 320, float: true, juggleCost: 10, slow: { pct: 30, ms: 800 } }, { reachUp: 320, heavy: i === 2, useMark: i === 2 ? 'stun' as const : undefined })),
+    hits: [600, 750, 900].map((t, i) => H(t, i === 2 ? 16 : 12, { kind: 'circle', radius: 110, at: 'aimBias', bias: [60, 140, 220][i], floor: true }, { stun: 320, float: true, juggleCost: 10, slow: { pct: 30, ms: 800 } }, { reachUp: 320, heavy: i === 2, useMark: i === 2 ? 'stun' as const : undefined })),
     cancelOnHit: ['quick_shot', 'skyhunters_step'], telegraph: 'line',
     description: 'Leap, hang in the air charging, then loose three lightning arrows close in front of and above you — her answer to a foe in the air over her; the floor they strike stays charged.',
     relations: ['Anti-air', 'Keeps foes up'],

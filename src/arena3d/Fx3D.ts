@@ -233,6 +233,7 @@ export class Fx3D {
   private planeGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   private chunks: Chunks[];
   private ice: Crystals[];
+  private rock: Crystals[];
   /** Trails and crests following what flies (by projectile). */
   private follows = new Map<Projectile, { trail?: Strip; crest?: Crest; last: V3 }>();
   private ttl = 0;
@@ -240,6 +241,7 @@ export class Fx3D {
   constructor(private h: FxHost) {
     this.chunks = [new Chunks(h.back, 70), new Chunks(h.solid, 40)];
     this.ice = [new Crystals(h.back, 48), new Crystals(h.solid, 28)];
+    this.rock = [new Crystals(h.back, 32, true), new Crystals(h.solid, 20, true)];
   }
 
   // ------------------------------------------------------------------ materials
@@ -380,7 +382,9 @@ export class Fx3D {
   }
 
   /** Ice crystals breaking out of the floor: a cluster at (x, y) (r px round it), or a ring of them; they stand, then shatter. */
-  crystals(x: number, y: number, o: { n?: number; r?: number; h?: number; ms?: number; ring?: boolean; delay?: number; color?: number } = {}): void {
+  /** Crystals thrust up from the floor (a cluster, or a ring round the point); `stone`: rock spikes instead of ice (the
+   *  Warrior's STONE family), they crumble into dust instead of bursting into shards. */
+  crystals(x: number, y: number, o: { n?: number; r?: number; h?: number; ms?: number; ring?: boolean; delay?: number; color?: number; stone?: boolean } = {}): void {
     const n = o.n ?? 7, R = this.h.w3(o.r ?? 60), H = this.h.h3(o.h ?? 120), cx = this.h.w3(x), cz = this.h.d3(y), ms = o.ms ?? 1500;
     this.later(o.delay ?? 0, () => this.onPiece?.('crystals', { x, y, z: 0 }, n > 10 ? 2 : n > 6 ? 1 : 0));
     const pz = this.h.d3(y);
@@ -388,8 +392,13 @@ export class Fx3D {
       const a = o.ring ? (i / n) * Math.PI * 2 + Math.random() * 0.3 : Math.random() * Math.PI * 2;
       const d = o.ring ? R : R * Math.sqrt(Math.random()), px = cx + Math.cos(a) * d, pzz = cz + Math.sin(a) * d * 0.85;
       const tilt = (o.ring ? 0.45 : 0.25 + Math.random() * 0.35), h = H * (0.55 + Math.random() * 0.6) * (o.ring ? 1 : i === 0 ? 1.35 : 1);
-      const pool = pzz > pz + 0.02 ? this.ice[1] : this.ice[0];
+      const set = o.stone ? this.rock : this.ice, pool = pzz > pz + 0.02 ? set[1] : set[0];
       pool.emit(px, pzz, a, tilt, H > 0 ? h : 0.5, h * 0.17 + 0.03, ms, (o.delay ?? 0) + (o.ring ? i * 12 : Math.random() * 70));
+    }
+    if (o.stone) { // (dust as they burst up, dust as they crumble)
+      this.later(o.delay ?? 0, () => this.h.dust(cx, cz, 10, 1)); this.later((o.delay ?? 0) + ms - 140, () => this.h.dust(cx, cz, 8, 0.8));
+      if (o.color !== undefined) this.h.flare(cx, 0.3, cz + 0.2, o.color, 8, 4, 420);
+      return;
     }
     this.h.flare(cx, 0.4, cz + 0.2, o.color ?? C.frost, 14, 6, 520);
     this.later((o.delay ?? 0) + ms - 120, () => this.h.embers(cx, 0.4, cz, C.ice, 14, 2.2)); // (they burst into glittering shards)
@@ -585,6 +594,7 @@ export class Fx3D {
     this.items = this.items.filter((it) => it.step(ms));
     for (const c of this.chunks) c.step(ms);
     for (const c of this.ice) c.step(ms);
+    for (const c of this.rock) c.step(ms);
     // what flies: each new one gets its trail / crest; each one gone lets its trail shrink away
     for (const p of flying) if (!this.follows.has(p) && !p.done) this.projectile(p);
     for (const [p, f] of this.follows) {
@@ -626,6 +636,7 @@ export class Fx3D {
     this.follows.clear();
     for (const c of this.chunks) c.dispose();
     for (const c of this.ice) c.dispose();
+    for (const c of this.rock) c.dispose();
     this.noise.dispose(); this.disc.dispose(); for (const [a, b] of this.cracks) { a.dispose(); b.dispose(); }
     this.pillarGeo.dispose(); this.domeGeo.dispose(); this.planeGeo.dispose();
   }
@@ -767,9 +778,12 @@ class Crystals {
   private d: { x: number; z: number; a: number; tilt: number; h: number; r: number; t: number; ms: number; delay: number }[] = [];
   private next = 0;
   private m4 = new THREE.Matrix4(); private q = new THREE.Quaternion(); private eu = new THREE.Euler(); private s = new THREE.Vector3(); private t = new THREE.Vector3();
-  constructor(scene: THREE.Scene, private n: number) {
-    const geo = new THREE.ConeGeometry(1, 1, 6, 1).translate(0, 0.5, 0);
-    const mat = new THREE.MeshStandardMaterial({ color: 0xd8f4ff, emissive: 0x2d8fe0, emissiveIntensity: 0.75, roughness: 0.06, metalness: 0.15, transparent: true, opacity: 0.86, envMapIntensity: 2.4, flatShading: true });
+  constructor(scene: THREE.Scene, private n: number, stone = false) {
+    // ice: clear blue crystals that glint; stone: faceted grey-brown rock spikes with a faint ember at heart (no shine)
+    const geo = new THREE.ConeGeometry(1, 1, stone ? 5 : 6, 1).translate(0, 0.5, 0);
+    const mat = stone
+      ? new THREE.MeshStandardMaterial({ color: 0x7a6a58, emissive: 0x3a1206, emissiveIntensity: 0.35, roughness: 0.95, metalness: 0, flatShading: true })
+      : new THREE.MeshStandardMaterial({ color: 0xd8f4ff, emissive: 0x2d8fe0, emissiveIntensity: 0.75, roughness: 0.06, metalness: 0.15, transparent: true, opacity: 0.86, envMapIntensity: 2.4, flatShading: true });
     this.mesh = new THREE.InstancedMesh(geo, mat, n); this.mesh.frustumCulled = false;
     const zero = new THREE.Matrix4().makeScale(0, 0, 0);
     for (let i = 0; i < n; i++) { this.mesh.setMatrixAt(i, zero); this.d.push({ x: 0, z: 0, a: 0, tilt: 0, h: 0, r: 0, t: 0, ms: 0, delay: 0 }); }

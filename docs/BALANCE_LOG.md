@@ -4,6 +4,9 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-10-17 — Blows thrown down from the air reach the floor (PvP's report)
+- **Warrior — Judgment Blade** and **Archer — Thunder Rain**: their circles strike the floor (`floor: true`, as Wind Step's arrow). A hit's height band starts at the caster's height, and both are thrown while hanging in the air (the warrior ~185 px up after a chase, the archer ~150 px up): the blade's pin + slam and the three bolts struck only the air above a standing foe (only the court's ticks / the charged floor's launch landed). Now they land on him there, up to their own reach (280 / 320 px). Thunder Rain's third bolt spends the marks (a hard stun) — that spend was dead before. Visuals: none (both already fall to the floor).
+
 ## 2026-10-17 — Archer: the combo trials rebuilt (MARKED / SKY / TRAPPER) — the mine holds, Spirit Bow's one link
 - **Vine Mine**: stepping on it holds 0.45 s (stun 120 → 450; the 2 s root stays) — a root alone still lets him swing, so the mine held 120 ms and the trap never caught (the description says "is held"). Played in the game: Rising Arrow › Vine Mine › Vine Lash › Fireball leaves him 0 ms free (217–250 ms only rooted before). Visuals: none (the catch is the mine's own).
 - **Spirit Bow** → Hunter's Roar only (its list was empty, which cancels into anything): the knockdown finisher's one follow-up is the roar that spends its marks (PREDATOR). Visuals: none.
