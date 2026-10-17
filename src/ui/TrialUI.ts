@@ -139,7 +139,7 @@ export class TrialUI {
     this.msg = this.el('div', 'tr-msg', root);
     const bt = this.el('div', 'tr-bt', root), rs = this.el('button', '', bt) as HTMLButtonElement;
     rs.type = 'button'; rs.textContent = 'RESET'; rs.title = 'Both fighters back on their marks, at this trial’s opening distance';
-    rs.addEventListener('click', () => { this.run.reset(); this.paint(); this.say(this.idleText()); this.h.reset(this.route.range, this.route); });
+    rs.addEventListener('click', () => { this.run.reset(); this.paint(); this.sayIdle(); this.h.reset(this.route.range, this.route); });
     const dots = this.el('div', 'tr-dots', root);
     this.routes.forEach((r, i) => { const d = this.el('i', '', dots); d.title = r.name; d.addEventListener('click', () => this.pick(i)); this.dots.push(d); });
     this.cf = new CallFx(parent, null);
@@ -171,6 +171,7 @@ export class TrialUI {
       k.el.classList.toggle('nk', !label);
       k.el.classList.toggle('lg', label.length > 2);
     }
+    if (this.run && !this.run.next && !this.run.presses && this.route) this.sayIdle(); // (keys changed: the tip, or which skill still has none)
   }
 
   show(on: boolean): void {
@@ -222,7 +223,6 @@ export class TrialUI {
     this.setKeys(this.keys);
     this.counts();
     this.paint();
-    this.say(this.idleText());
   }
 
   private chip(st: GuideStep): HTMLElement {
@@ -263,7 +263,14 @@ export class TrialUI {
     this.dots.forEach((d, k) => { d.classList.toggle('ok', this.done.has(this.routes[k].name)); d.classList.toggle('at', k === this.at); });
   }
 
-  private idleText(): string { return this.route.tip ?? 'Each key right after the last hit of the one before'; }
+  /** The trial's tip — unless one of its skills has no key (Key Settings: a key given to another action leaves the old
+   *  one keyless — David's Hunter's Rain showed a dash), then where to give it one. */
+  private idleText(): string {
+    const free = this.route.steps.find((st) => st.id && this.slotOf.has(st.id) && !this.keys.slots[this.slotOf.get(st.id)!]);
+    if (free?.id) return `${this.kit.find((s) => s.id === free.id)?.name ?? free.id} has no key — give it one in KEY SETTINGS (the ⚙ menu)`;
+    return this.route.tip ?? 'Each key right after the last hit of the one before';
+  }
+  private sayIdle(): void { const t = this.idleText(); this.say(t, t.includes('has no key') ? 'bad' : ''); }
   private say(text: string, kind: '' | 'bad' | 'good' = ''): void { this.msg.textContent = text; this.msg.className = `tr-msg${kind ? ' ' + kind : ''}`; }
 
   private onNote(n: TrialNote, i: number): void {
