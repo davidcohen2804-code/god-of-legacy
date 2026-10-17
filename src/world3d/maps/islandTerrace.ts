@@ -42,6 +42,8 @@ export interface TerraceSpec {
   dress?: Dressing;
   /** The Curse's cast over the east of the island: a crimson sky and fog, the stone darker, red creeper for ivy. */
   crimson?: boolean;
+  /** Openings in the front balustrade (x ranges, units): a stair down. */
+  frontGaps?: [number, number][];
   seed?: number;
 }
 
@@ -107,7 +109,7 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
   }
   terraceSlab(P, xW0 - 4, xW1 + 4, zWall - 0.4, zFront, 0, 3.0);
   // the balustrade along the lip (in front of whoever stands at the edge), its urns on pedestals where the data puts them
-  balustrade(P, xW0 - 4, xW1 + 4, 0, zFront + 0.12, { post: 1.6, h: 0.82 });
+  balustrade(P, xW0 - 4, xW1 + 4, 0, zFront + 0.12, { post: 1.6, h: 0.82, gaps: spec.frontGaps });
   for (const p of A.props.filter((q) => q.id.startsWith('urn'))) { const b = footBox(p.foot, ax); P.add('balustrade', box(0.56, 0.62, 0.56, b.cx, 0, zFront + 0.12, 1, 0.02)); urn(P, b.cx, 0.62, zFront + 0.12, 0.7); }
 
   // ------------------------------------------------------------------ the wall behind, the great stair, the terrace above, the towers
