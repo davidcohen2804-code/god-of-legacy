@@ -319,7 +319,7 @@ export class SkillFx {
     });
     this.arch = new ArcherFx({
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main,
-      punch: (a, ms) => this.punch(a, ms), ultimateStage: (r) => this.ultimateStage(r), targetPos: (id) => this.targetPos?.(id) ?? null,
+      punch: (a, ms) => this.punch(a, ms), ultimateStage: (r) => this.ultimateStage(r), targetPos: (id) => this.targetPos?.(id) ?? null, body: (id) => this.bodyOf?.(id) ?? null,
     });
     this.mage = new MageFx({
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, hand: (id) => this.handPos?.(id) ?? null,
