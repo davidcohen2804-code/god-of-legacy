@@ -24,7 +24,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from impacts import SR, bp, brown, env, finish, glide, hp, lp, write  # noqa: E402
-from signatures import T, arc, bell, buf, click, crackle_kernels, grains, knock, place, ring, rustle, svf, swoosh, thud  # noqa: E402
+from signatures import T, arc, bell, buf, click, crackle_kernels, grains, knock, place, ring, rustle, slow, svf, swoosh, thud  # noqa: E402
 
 R = np.random.default_rng
 
@@ -212,11 +212,24 @@ def cutin_out(seed):
     return finish(x, 0.82, 10, 1.3)
 
 
+def storm_turn(seed):
+    """The archer's arrow crossing a charged point and turning to lightning: the snap of the charge taking it (a sharp
+    crack), the arc buzzing along the shaft, a sizzle trailing off."""
+    rng = R(seed); dur = 0.55; t = T(dur); x = buf(dur)
+    x += hp(rng.standard_normal(t.size), 1800) * env(t, 0.0004, 0.006) * 1.0  # (the crack)
+    x += bp(rng.standard_normal(t.size), 600, 5000) * env(t, 0.001, 0.025) * 0.6
+    zd = 0.32; place(x, arc(zd, rng, f=rng.uniform(140, 190), jit=0.5) * env(T(zd), 0.002, 0.12), 0.004, 0.55)
+    sz = T(0.45); place(x, hp(rng.standard_normal(sz.size), 4500) * (slow(rng, sz.size, 140) > 0.2) * env(sz, 0.01, 0.12), 0.02, 0.35)  # (the sizzle)
+    x += thud(dur, 200, 90, 0.03) * 0.3
+    return finish(x, 0.85, 10, 1.5)
+
+
 if __name__ == '__main__':
     args = sys.argv[1:]
     if args[:1] == ['bar']:  # the risers and the flurries' ticks
         write('riser_s', riser(4101, 0.36)); write('riser_l', riser(4102, 0.52, ult=True))
         write('cutin_in', cutin_in(4103)); write('cutin_out', cutin_out(4104))
+        write('storm_turn', storm_turn(4105))
         for c in MAT:
             for take in (1, 2):
                 write(f'tk_{c}_{take}', tick(c, take))

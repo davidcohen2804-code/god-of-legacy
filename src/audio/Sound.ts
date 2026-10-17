@@ -62,6 +62,7 @@ export const SIG_SFX = {
   },
   archer: {
     tk_ar: [2, 0.45], // (a flurry's small blows: its own 'shing')
+    storm_turn: [1, 0.52], // (an arrow turned to lightning over Thunder Rain's charged floor)
     ar_double_c: [1, 0.4], ar_charged_c: [1, 0.36], ar_arrow_hit: [2, 0.77], ar_charged_h: [1, 0.89], ar_rise_c: [1, 0.42], ar_rise_h: [1, 0.44],
     ar_fire_c: [1, 0.42], ar_fire_h: [1, 0.42], ar_storm_c: [1, 0.37], ar_storm_h: [1, 0.67], ar_volley_c: [1, 0.41], ar_volley_h: [1, 0.62],
     ar_skyrain_w: [1, 0.32], ar_skyrain_c: [1, 0.37], ar_skyrain_h: [1, 0.47], ar_step_c: [1, 0.43], ar_step_h: [1, 0.48], ar_triple_c: [1, 0.24],

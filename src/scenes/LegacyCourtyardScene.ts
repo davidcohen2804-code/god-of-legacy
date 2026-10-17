@@ -908,6 +908,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.fx.aliveOf = (id) => (id === this.localId ? this.dead < 0 : id === BOT_ID ? !!this.bot && !this.bot.defeated : this.pvp?.remotes.get(id)?.alive !== false);
     this.rt.events.on(RT_EVENTS.hit, (r: CastRun, i: number, o: V3) => { this.kageSwing(r, i, o); this.petals.cut(r, i, o); if (i === r.hits.length - 1) this.spikes.burst(r, this.casterPos(r.attackerId) ?? o); }); // (Leap Crash's landing bursts his spikes) // (Blossom Storm's cuts leave their petals)
     this.rt.events.on(RT_EVENTS.cast, (r: CastRun) => this.deckCast(r));
+    this.rt.events.on(RT_EVENTS.storm, (_p: unknown, _r: CastRun, c: { x: number; y: number }) => this.arenaSnd?.storm(c)); // (an arrow turned to lightning: heard)
     this.rt.events.on(RT_EVENTS.active, (r: CastRun) => this.deckActive(r));
     this.gDeck.onLay = (c) => { this.fx?.deckLay(c); this.a3d?.fx.cardLay(c.key, { x: c.x, y: c.y, z: 70 }, { x: c.x, y: c.y }, { ms: 180, stuck: c.stuck, life: c.until - c.landAt + 400 }); };
     this.gDeck.onDrop = (c) => { this.fx?.deckDrop(c.key); this.a3d?.fx.cardDrop(c.key); };

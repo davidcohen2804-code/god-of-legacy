@@ -329,6 +329,12 @@ export class ArenaSound {
     this.later(out, () => { if (run.phase !== 'done') Sound.sfx('cutin_out', { wet: WET.call }); });
   }
 
+  /** The archer's arrow crossing a charged point of Thunder Rain and turning to lightning (RT_EVENTS.storm): its crack, the
+   *  arc along the shaft, the sizzle (crackle for lightning: THE BAR). */
+  storm(at: { x: number; y: number }): void {
+    if (Sound.classReady(this.scene, 'archer')) Sound.sfx('storm_turn', { x: at.x, y: at.y, z: 60, wet: WET.piece });
+  }
+
   /** A flurry's count of small blows (a skill's ticks within 0.45 s of each other are one flurry). */
   private flurry(id: string): number {
     const now = performance.now(), f = this.flurries.get(id);
