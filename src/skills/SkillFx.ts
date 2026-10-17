@@ -51,6 +51,7 @@ const CUTIN_ANIM: Record<string, { path: string; fw: number; fh: number; frames:
   titans_verdict: { path: 'warrior/titans_verdict/cutin_anim.jpg', fw: 600, fh: 200, frames: 18, fps: 24 },
   dragon_eclipse: { path: 'samurai/dragon_eclipse/cutin_anim.jpg', fw: 600, fh: 200, frames: 18, fps: 24 }, // (samurai: his eyes flare red, the gleam runs down the blade, the black sun cracks)
   sky_rain: { path: 'archer/sky_rain/cutin_anim.jpg', fw: 600, fh: 200, frames: 18, fps: 24 }, // (archer: at full draw, her eyes flare green as the spirit arrow charges, leaves and light rush past)
+  time_collapse: { path: 'book_mage/time_collapse/cutin_anim.jpg', fw: 600, fh: 200, frames: 18, fps: 24 }, // (book mage: his eyes flare, runes gather into an orb in the outstretched hand, pages rush past)
 };
 const cutAnimKey = (id: string): string => `cutin-anim-${id}`;
 /** Orientation of each final VFX sheet: 'dir' sheets are drawn pointing right and rotate with the aim. */
