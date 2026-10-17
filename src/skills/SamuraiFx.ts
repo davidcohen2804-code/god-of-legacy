@@ -8,6 +8,7 @@ import type { CastRun } from './SkillRuntime';
 import type { FinalSkill, HitEvent } from './SkillTypes';
 import { hitIndex, lastOfBurst } from './FinalKit';
 import type { Projectile, V3 } from './HitGeometry';
+import type { Fx3D } from '../arena3d/Fx3D';
 
 export const KIT = 'sam-kit';
 export const KIT_URL = 'assets/final/skills/samurai/kit/';
@@ -28,7 +29,7 @@ const along = (ang: number, left: boolean) => (left ? ang - 180 : ang);
 const DELAYED = new Set(['iai_strike', 'dragon_eclipse']);
 /** PVP 3D: the skills rebuilt to David's bar in the room's own 3D (fx3d/samurai.ts + blade3d.ts) — their flat painted cuts
  *  and marks stay out there (the painted ones stay for the painted world). */
-const IN3D_OWN = new Set(['quick_slash', 'iai_strike', 'phantom_blades', 'dragon_eclipse', 'tornado_blade', 'shadow_step', 'god_of_blades', 'swallow_cut']);
+const IN3D_OWN = new Set(['quick_slash', 'iai_strike', 'phantom_blades', 'dragon_eclipse', 'tornado_blade', 'shadow_step', 'god_of_blades', 'swallow_cut', 'blossom_storm']);
 /** Skills whose pieces show a state that outlasts the next press (a zone on the floor, a stance, a shield, the halo, the
  *  doubles): never cut short by his next skill. */
 const KEEP = new Set(['sakura_bind', 'mirage', 'rising_sun', 'god_of_blades', 'kagemusha']);
@@ -221,6 +222,8 @@ export class SamuraiFx {
 
   /** In PVP 3D (the arena's 3D room is up): the skills in IN3D_OWN are drawn by the room's own pieces only. */
   private in3d(): boolean { return !!(this.ctx.scene as unknown as { a3d?: unknown }).a3d; }
+  /** PVP 3D: the room's own pieces (DFO's Fx3D). */
+  private fx3d(): Fx3D | undefined { return (this.ctx.scene as unknown as { a3d?: { fx?: Fx3D } }).a3d?.fx; }
   /** A piece's frame name as the atlas has it (a toned piece the atlas lacks: its crimson original). */
   private fname(name: string): string {
     const t = this.ctx.scene.textures;
@@ -1209,6 +1212,14 @@ export class SamuraiFx {
   private blossomStorm(r: CastRun): void {
     const T = r.timings, q = this.me(r);
     this.petals(q.x, q.y - q.z - 56, 16, 140, { inward: true, life: T.startup + 80, depth: q.y + 4 });
+    const f3 = this.fx3d();
+    if (f3) { // PVP 3D (David's bar: what has volume is 3D): the storm is real petals whirling round him in the room, rising, in front of and behind him by depth (DFO's swirl) — no flat painted funnel or ring
+      this.later(T.startup, () => {
+        const on = () => { const c = this.ctx.casterPos(r.attackerId); return c && !this.broken(r) && !this.gone(r) ? { x: c.x, y: c.y, z: c.z } : null; };
+        for (let k = 0; k < 2; k++) { const look = this.petalLook(k * 2); if (look) f3.swirl(on, look, { n: 24, r0: 44, r1: 116, h: 210, ms: T.active + 160, rps: 1.15, rise: 0.6, size: 1.6 }); }
+      }, r);
+      return;
+    }
     for (const [crop, z] of [[undefined, -3], [0.5, 3]] as const) // a ring of petals whirling round his waist through the chase
       this.spr({ name: tn('petal_ring', 'sakura'), w: 190, delay: T.startup, life: T.active + 160, run: r, glow: 0.3, follow: this.front(r, 0, 44), dz: z, crop, flick: 70,
         sx: kf([0, 0.5], [0.2, 1, out3], [1, 1.12]), sy: kf([0, 0.5], [0.2, 1, out3], [1, 1.12]), a: kf([0, 0], [0.15, 0.95], [0.85, 0.95], [1, 0]) });
@@ -1252,11 +1263,18 @@ export class SamuraiFx {
       const deg = [0, 180, 32, 212][i % 4] + rnd(-8, 8), c = Math.cos((deg * Math.PI) / 180), sn = Math.sin((deg * Math.PI) / 180) * 0.5, L = 112;
       // (behind the foe, in a dark-red ink: in PVP 3D the black phantoms over him made the knight a black silhouette — DFO)
       this.phantomDash(r, f.x - c * L, fy - sn * L, f.x + c * L, fy + sn * L, f.y - 1.5, toneHex('sakura'), 0x5a1630, 0.8);
+      if (this.in3d()) return; // (PVP 3D: the cut is the room's ring through the foe, the petals the room's storm)
       this.cut(tn('cut_thin', 'sakura'), rnd(124, 144), (Math.atan2(sn, c) * 180) / Math.PI, { x: f.x, y: fy - 56, depth: TOP + 3, grow: 40, hold: 30, fade: 150, glow: 0.35, flipY: c < 0, alpha: 0.85 });
       this.petals(f.x, fy - 56, 4, 50, { depth: TOP + 2 });
       return;
     }
-    const x = f.x, y = f.y;
+    const x = f.x, y = f.y, f3 = this.fx3d();
+    if (f3) { // PVP 3D: the foe thrown up in a column of real petals rising round him from the planks (DFO's swirl); the line up through him is the room's
+      const look = this.petalLook(1), col = () => { const t = this.stormFoe(r); return { x: t.x, y: t.y, z: 0 }; };
+      if (look) f3.swirl(col, look, { n: 36, r0: 20, r1: 70, h: 340, ms: 560, rps: 1.8, rise: 1.5, size: 1.4 });
+      if (r.own) { this.ctx.cam().shake(200, 0.007); this.ctx.punch(0.04, 260); }
+      return;
+    }
     // (the finale: big enough to be the storm's end, lit softly enough that the foe thrown out of it reads — PVP 3D)
     this.spr({ name: 'blossom_burst', x, y: fy - 70, w: 180, life: 500, glow: 0.1, depth: TOP + 4, angle: rnd(0, 360),
       sx: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.25]), sy: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.25]), a: kf([0, 0.9], [0.45, 0.85], [1, 0, inQ]) });

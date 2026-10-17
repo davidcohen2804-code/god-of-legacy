@@ -74,12 +74,14 @@ export const SAMURAI: Record<string, Recipe> = {
     hit: (f, _s, _h, at) => {
       for (let i = 0; i < 2; i++) f.later(i * 70, () => f.slash(at, i % 2 ? -1 : 1, C.rose, { r: 104, w: 36, tilt: [25, 65][i], a0: -100, a1: 130, ms: 240, i: 0.9 }));
       f.dome(at.x, at.y, C.rose, { r: 90, ms: 300, a: 0.18 }); } }, // (two soft arcs: three bright ones hid the foe at the counter)
-  // the storm's cuts small and pink; the last one throws the foe up in a twisting column of blossom light
-  blossom_storm: { own: true, tone: C.sakura,
-    hit: (f, _s, _h, at, main) => {
-      if (!main) { f.slash(at, flip(), C.sakura, { r: 88, w: 28, tilt: 10 + Math.random() * 50, a0: -110, a1: 120, ms: 200, i: 0.7 }); return; }
-      f.pillar(at.x, at.y, C.sakura, { h: 460, r: 24, ms: 580, twist: true, core: false, i: 0.7 });
-      f.dome(at.x, at.y, C.sakura, { r: 120, ms: 400, a: 0.25 });
+  // (David's bar: his signature, one shape — a storm of real petals round him in the room, SamuraiFx on DFO's swirl) each
+  // of the four chasing cuts: a ribbon ring through the foe at a new tilt (a hot rose body, white-hot edge, ink inside);
+  // the fifth throws him up: a white-hot line up through him, the petals round him blown (the column of petals he rises in
+  // is SamuraiFx's); the room plays the main hit
+  blossom_storm: { own: true, tone: SAM.rose, // (the room answers its five blows in rose: in the pale light its floor rings and flares stacked into a white wash)
+    hit: (f, _s, h, at) => {
+      if (!h.heavy) { ring(f, at, flip(), { r: 98, w: 40, y0: 76, tilt: 14 + Math.random() * 56, yaw: (Math.random() - 0.5) * 70, a0: -110, a1: 125, ms: 170, lit: SAM.rose, gain: 1.3 }); sparks(f, at, flip(), 3, 40); return; }
+      rise(f, at);
       f.host.blow(f.host.w3(at.x), 0.6, f.host.d3(at.y), 5, 5); } },
   // the dark falls round him; (David's bar: the flurry — 04) the eight cuts out of the dark are long thin lines crossing the
   // foe, each there at once and held by its hit-stop — they cross into a star of cuts; the colossal cut is the painted
