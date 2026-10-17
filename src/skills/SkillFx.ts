@@ -2350,6 +2350,8 @@ export class SkillFx {
   samDriftGo(key: string, how: 'wind' | 'gather' | 'gone', to?: string): void { this.sam.driftGo(key, how, to); }
   samScabbard(id: string, n: number, ms: number): void { this.sam.scabbard(id, n, ms); }
   petalLook(k: number): { tex: string; size: number; aspect: number } | null { return this.sam.petalLook(k); }
+  /** Rising Sun's planted banner springs him far back (call it as his jump lands on the pole; `dir` the way he flies). */
+  samPoleSpring(id: string, dir?: number): void { this.sam.poleSpring(id, dir); }
   /** Rising Sun's light on him ends (he fell, his buffs end). */
   clearSun(attackerId: string): void { this.sam.clearSun(attackerId); }
   /** Stunned by a samurai's AMBUSH: a crown of petals over the head for the stun. */

@@ -53,6 +53,10 @@ const toneHex = (t: Tone | 'crimson') => { const [r, g, b] = TONE_RGB[t]; return
 const KATANA = 150, HALO = 190;
 /** God of Blades' party mark over a member's head (drawn width). */
 const MARK_W = 46;
+/** Rising Sun's banner (David 18 Oct 01:15: "leave it on the map"): it stays planted where it rose this long after the sun
+ *  bursts; his jump onto it springs him far back (DFO's engine: the pole a support, the spring — `poleSpring` draws it). Its
+ *  foot: 44 px behind where he stood at the cast. */
+const POLE_MS = 10000, POLE_BACK = 44;
 /** Rising Sun's buff (its light stays on him this long). */
 const SUN_MS = 90000;
 
@@ -139,6 +143,8 @@ export class SamuraiFx {
   /** A samurai's scabbard holding gathered petals (until his blossom draw, or they scatter). */
   private scabs = new Map<string, { n: number; t: number; until: number; drawing: boolean; glow: Phaser.GameObjects.Image; ims: Phaser.GameObjects.Image[] }>();
   private suns = new Map<string, Sun>();
+  /** Rising Sun's planted banners (one per samurai): where, and the spring it is giving (`spring`: when, `dir` the way). */
+  private poles = new Map<string, { t: number; spring: number; dir: number; x: number; y: number; h: number; kill: () => void }>();
   private waves = new Map<Projectile, Wave>();
   /** Mirage stances by cast: where the samurai stood (the mirage the blow strikes). */
   private stances = new Map<string, { x: number; y: number; z: number; done: boolean }>();
@@ -1443,7 +1449,7 @@ export class SamuraiFx {
 
   /** Rising Sun: the war banner rises behind him and flies in the wind (its cloth bends for real), gold rays behind the sun. */
   private risingSun(r: CastRun): void {
-    const s = this.ctx.scene, T = r.timings, side = sideOf(r), q = this.me(r), bx = q.x - side * 44, by = q.y - 4, life = T.startup + T.active + 1900;
+    const s = this.ctx.scene, T = r.timings, side = sideOf(r), q = this.me(r), bx = q.x - side * POLE_BACK, by = q.y - 4, life = T.startup + T.active + POLE_MS; // (planted after the burst: David 01:15)
     const poleH = 246, clothH = 214, clothW = 70, top = by - poleH + 14;
     const pole = s.add.image(bx, by, KIT, 'banner_pole').setOrigin(0.5, 0.98).setDepth(by - 3).setVisible(false);
     pole.setScale(poleH / pole.height);
@@ -1455,19 +1461,28 @@ export class SamuraiFx {
     // the sun on the banner shines: golden rays round it, turning slowly (long and short in turn), from just outside its disc
     const ray = this.rayTex(), NR = 12, SUN = 0.32, R0 = clothW * 0.26, ck = clothW / fr.width;
     const rays = Array.from({ length: NR * 2 }, (_, i) => { const im = s.add.image(0, 0, ray).setOrigin(0, 0.5).setVisible(false); if (i >= NR) im.setBlendMode(Phaser.BlendModes.ADD); return im; });
-    let fired = -1;
-    const kill = () => { pole.destroy(); cloth.destroy(); for (const im of rays) im.destroy(); };
+    let fired = -1, dead = false;
+    const kill = () => { if (dead) return; dead = true; pole.destroy(); cloth.destroy(); for (const im of rays) im.destroy(); if (this.poles.get(r.attackerId)?.kill === kill) this.poles.delete(r.attackerId); };
+    this.poles.get(r.attackerId)?.kill(); // (one banner of his at a time: a new one takes the old one's place)
+    const P = { t: 0, spring: -1, dir: -side, x: bx, y: by, h: poleH, kill };
+    this.poles.set(r.attackerId, P);
     this.add({ t: 0, step: (_dt, t) => {
+      if (dead) return false;
       if ((this.broken(r) && t < T.startup + 20) || this.gone(r)) { kill(); return false; }
-      const rise = Math.min(1, t / Math.max(1, T.startup)), up = back(rise), fade = t > life - 450 ? Math.max(0, (life - t) / 450) : 1;
-      pole.setVisible(true).setScale((poleH / pole.height) * 1, (poleH / pole.height) * up).setAlpha(Math.min(1, t / 120) * fade);
-      const ty = by - (by - top) * up;
-      cloth.setVisible(up > 0.6).setPosition(cx, ty).setAlpha(Math.min(1, (up - 0.6) / 0.3) * fade);
+      P.t = t;
+      const rise = Math.min(1, t / Math.max(1, T.startup)), up = back(rise), fade = t > life - 600 ? Math.max(0, (life - t) / 600) : 1;
+      // the spring: the pole bends under his weight the way he is thrown, whips back past straight and settles (~0.6 s)
+      const ks = P.spring < 0 ? -1 : (t - P.spring) / 620, bend = ks < 0 || ks > 1 ? 0 : P.dir * 16 * Math.sin(Math.PI * 2.2 * ks) * Math.pow(1 - ks, 1.6);
+      pole.setVisible(true).setScale((poleH / pole.height) * 1, (poleH / pole.height) * up).setAngle(bend).setAlpha(Math.min(1, t / 120) * fade);
+      const ty = by - (by - top) * up * Math.cos((bend * Math.PI) / 180), tipDx = poleH * Math.sin((bend * Math.PI) / 180);
+      cloth.setVisible(up > 0.6).setPosition(cx + tipDx, ty).setAngle(bend * 0.6).setAlpha(Math.min(1, (up - 0.6) / 0.3) * fade);
       for (let i = 0; i < N; i++) { const v = i / (N - 1); pts[i].set(-side * Math.sin(t / 230 + v * 3.1) * 9 * v + side * 4 * v * v, v * clothH * (0.92 + 0.08 * Math.sin(t / 310 + v))); }
       cloth.setPoints(pts);
       if (fired < 0 && r.fired.has(0)) { fired = t; } // (its light breaks: the rays flare up, longer and brighter, and settle)
-      const fl = fired < 0 ? 0 : Math.max(0, 1 - (t - fired) / 650), on = Math.max(0, Math.min(1, (t - T.startup * 0.5) / 300)) * fade * Math.min(1, (up - 0.6) / 0.3);
-      const sx = cx + (-side * Math.sin(t / 230 + SUN * 3.1) * 9 * SUN + side * 4 * SUN * SUN) * ck, sy = ty + SUN * clothH * (0.92 + 0.08 * Math.sin(t / 310 + SUN)); // (the sun on the cloth, as it waves)
+      // (planted, its sun glows on faintly: full through the burst, then down to a glow)
+      const fl = fired < 0 ? 0 : Math.max(0, 1 - (t - fired) / 650), low = fired < 0 ? 1 : 0.35 + 0.65 * Math.max(0, 1 - (t - fired - 900) / 900);
+      const on = Math.max(0, Math.min(1, (t - T.startup * 0.5) / 300)) * fade * Math.min(1, (up - 0.6) / 0.3) * Math.min(1, low + (P.spring >= 0 && t - P.spring < 400 ? 0.6 : 0));
+      const sx = cx + tipDx + (-side * Math.sin(t / 230 + SUN * 3.1) * 9 * SUN + side * 4 * SUN * SUN) * ck, sy = ty + SUN * clothH * (0.92 + 0.08 * Math.sin(t / 310 + SUN)); // (the sun on the cloth, as it waves)
       rays.forEach((im, i) => {
         const k = i % NR, th = (k / NR) * 360 + t * 0.02, rad = (th * Math.PI) / 180, L = (k % 2 ? 15 : 24) * (1 + 0.1 * Math.sin(t / 160 + k)) * (1 + 1.3 * out(fl)), glow = i >= NR;
         im.setVisible(on > 0.01).setPosition(sx + Math.cos(rad) * R0, sy + Math.sin(rad) * R0).setAngle(th).setDisplaySize(L, glow ? 6 : 4.5)
@@ -1499,7 +1514,25 @@ export class SamuraiFx {
 
   /** (Rising Sun was a buff once — its light stayed on him; it is his defensive ultimate now: nothing stays on him. Kept for
    *  the scene's round reset.) */
+  /** Rising Sun's planted banner springs him far back (DFO's engine calls it as his jump lands on the pole): the pole bends
+   *  under him the way he is thrown and whips back, a ring of light bursts at its tip, the cloth snaps, his flight leaves a
+   *  ribbon of light behind him and petals are shaken off the banner. `dir`: the way he flies (±1; default away from the
+   *  side the banner stood on). */
+  poleSpring(id: string, dir?: number): void {
+    if (!this.ready) return;
+    const P = this.poles.get(id); if (!P) return;
+    if (dir) P.dir = dir;
+    P.spring = P.t;
+    const tipY = P.y - P.h * 0.92;
+    this.spr({ name: 'shock_ring', x: P.x, y: tipY, depth: P.y + 4, w: 90, h: 46, life: 360, glow: 0.7, add: true, sx: kf([0, 0.3], [1, 1.4, out3]), sy: kf([0, 0.3], [1, 1.4, out3]), a: kf([0, 1], [1, 0, inQ]) });
+    this.pop('glint', P.x, tipY, 90, { life: 220, angle: 0, depth: P.y + 5, glow: 0.4 });
+    this.spr({ name: 'wind_lines', x: P.x + P.dir * 40, y: tipY + 30, depth: P.y + 3, w: 120, flipX: P.dir < 0, add: true, life: 260, mx: (u) => P.dir * 50 * u, a: kf([0, 0.8], [1, 0]) });
+    this.petals(P.x, tipY + 40, 10, 90, { depth: P.y + 4, life: 900 });
+    const body = (): Pt | null => { const c = this.ctx.casterPos(id); return c ? { x: c.x, y: c.y - c.z - 52, d: c.y + 1 } : null; };
+    this.trail(body, { span: 260, w: 30, until: 520, fade: 180, glow: 0.5 }); // (his flight off it)
+  }
   clearSun(id: string, now = false): void {
+    this.poles.get(id)?.kill(); // (the round's over: his banner goes with it)
     const u = this.suns.get(id); if (!u) return;
     this.suns.delete(id);
     if (now) { for (const im of u.ims) im.destroy(); return; }
