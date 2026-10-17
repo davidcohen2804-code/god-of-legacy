@@ -661,7 +661,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     rising_arrow: { act: 'rising_arrow', st: [0, 1, 2], ac: [3], rc: [4, 5] },
     bow_haste: { act: 'wind_step', st: [0], ac: [1, 2, 3], rc: [4, 5] }, // Wind Step, her own move (PixVerse): crouch, the somersault through the air, lands with the bow up
     backstep_shot: { act: 'backstep_shot', st: [1], ac: [3, 4], rc: [5] }, // her own move (PixVerse): she sways back off the ground, draws, looses it low and lands crouched
-    multi_shot: { act: 'multi_shot', st: [0, 1, 2, 3], ac: [4], rc: [4, 5] },
+    multi_shot: { act: 'triple_arrow', st: [0, 1, 2, 3, 4], ac: [5], rc: [6, 7] }, // Triple Arrow, her own move (PixVerse): a quick side-step down onto one knee, three arrows nocked, drawn low, the fan loosed, rises
     explosive_arrow: { act: 'explosive_arrow', st: [0, 1, 2, 3], ac: [4], rc: [4, 5] },
     retreat_kick: { act: 'retreat_kick', st: [0], ac: [1, 2, 3, 4], rc: [5] },
     vine_trap: { act: 'vine_trap', st: [0, 1], ac: [2, 3], rc: [4, 5] },
@@ -673,9 +673,9 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     spirit_hawk: { act: 'spirit_hawk', st: [0, 1, 2], ac: [3], rc: [4, 5] },
     sky_rain: { act: 'sky_rain', st: [0, 1, 2, 3], ac: [4, 4], rc: [4, 3] }, // (her last frame lets the bow fly: never shown)
     tree_of_life: { act: 'tree_of_life', st: [0, 1, 2, 3], ac: [4], rc: [4, 5] },
-    hunters_spirit: { act: 'vine_lash', st: [0, 1], ac: [2, 3], rc: [4, 5] }, // Vine Lash, her own move (PixVerse): raise, full draw, the release, the draw hand snapped back as the vine bites, the pull, recover
+    hunters_spirit: { act: 'vine_whip', st: [0, 1], ac: [2, 3], rc: [4, 5, 6] }, // Vine Lash, her own move (PixVerse): the bow lowered, the arm wound back, the whip-throw out at the foe, held as the vine coils, the yank back, the fist pulled up, recover
     arrow_storm: { act: 'arrow_storm', st: [0, 1], ac: [2], rc: [5], loop: [1, 2, 3, 4], fps: 5 },
-    eagle_arrow: { act: 'eagle_arrow', st: [0, 1, 2, 3, 4, 4, 4, 4], ac: [5], rc: [5] },
+    eagle_arrow: { act: 'eagle_tide', st: [0, 1, 2, 3, 4, 4, 4, 4], ac: [5], rc: [5, 6] }, // Eagle Tide, her own move (PixVerse): sinks into a very wide braced stance, raises, full draw held through the charge, the release, recover
   },
 };
 
