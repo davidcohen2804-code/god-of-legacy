@@ -16,8 +16,8 @@ const TOP = 100000, GROUND = 2, SQUASH = 0.42, CRIMSON = 0xff3a4c, DUST = 0xd2a5
 const CRACK_TILT = -57;
 /** Hit marks a size down for the skills whose blows come thick and fast (they hid the foe in PVP 3D); the blow that lifts
  *  the foe in the basic opens in crimson. Sprays: their size and the skills whose spray is crimson (the Iai's opening). */
-const MARK_SCALE: Record<string, number> = { quick_slash: 0.8, hundred_cuts: 0.8, tornado_blade: 0.8 };
-const SPRAY_SCALE: Record<string, number> = { quick_slash: 0.7, iai_strike: 0.75, tornado_blade: 0.75 };
+const MARK_SCALE: Record<string, number> = { quick_slash: 0.8, hundred_cuts: 0.8, tornado_blade: 0.8, mirage: 0.8 };
+const SPRAY_SCALE: Record<string, number> = { quick_slash: 0.7, iai_strike: 0.75, tornado_blade: 0.75, mirage: 0.7 };
 const SPRAY_CRIMSON = new Set(['quick_slash', 'iai_strike']);
 /** The slash-hit pieces run this many degrees down to the right on their sheet (s11). */
 const SLASH_TILT = 43;
@@ -680,19 +680,20 @@ export class SamuraiFx {
     const a0 = (side > 0 ? -2.3 : -0.84) + rnd(-0.15, 0.15), dir = side > 0 ? 1 : -1;
     const ink = this.strip('ink_long', N), rim = this.strip(this.fname(tn('cut_line', 'blood')), N, { add: true });
     const at = (i: number) => { const th = a0 + dir * SWEEP * (i / (N - 1)); return { x: x + Math.cos(th) * R, y: y + Math.sin(th) * R * 0.86 }; };
-    const thick = (i: number) => { const u = i / (N - 1); return 5 + 12 * Math.sin(Math.PI * Math.min(1, u * 1.15)) * (u < 0.08 ? u / 0.08 : 1); };
+    const thick = (i: number) => { const u = i / (N - 1); return 4 + 8 * Math.sin(Math.PI * Math.min(1, u * 1.15)) * (u < 0.08 ? u / 0.08 : 1); }; // (a brush stroke the foe reads through)
     ink.rope.setDepth(TOP + 5.4); rim.rope.setDepth(TOP + 5.3);
     this.add({ t: 0, step: (_dt, t) => {
       const d = out(Math.min(1, t / DRAW)), f = t < DRAW + HOLD ? 1 : Math.max(0, 1 - (t - DRAW - HOLD) / FADE);
       const shown = (i: number) => Math.max(0, Math.min(1, (d * (N + 3) - i) / 3)); // (the brush's head runs round; behind it the ink stays)
       ink.set(at, thick, (i) => shown(i) * f * 0.94);
-      rim.set(at, (i) => thick(i) * 1.7, (i) => shown(i) * f * 0.55);
+      rim.set(at, (i) => thick(i) * 1.5, (i) => shown(i) * f * 0.35);
       if (t >= life) { ink.destroy(); rim.destroy(); return false; }
       return true;
     } });
     // the crimson cut through it, the flash where it crosses, sparks
-    this.cut('cut_line', 168, -side * 32, { x, y, depth: TOP + 5.6, h: 18, grow: 40, hold: 120, fade: 200, glow: 0.9, sweep: 0, delay: 70 });
-    this.pop('glint', x, y, 150, { life: 260, angle: 0, depth: TOP + 5.8, glow: 0.9, delay: 70 });
+    // (lit enough to be the moment, not so much the foe vanishes in it — PVP 3D)
+    this.cut('cut_line', 168, -side * 32, { x, y, depth: TOP + 5.6, h: 18, grow: 40, hold: 120, fade: 200, glow: 0.55, sweep: 0, delay: 70 });
+    this.pop('glint', x, y, 110, { life: 240, angle: 0, depth: TOP + 5.8, glow: 0.45, delay: 70 });
     this.sparks(x, y, 10, 90, { depth: TOP + 5.2, delay: 70 });
     if (local) this.ctx.cam().shake(110, 0.004);
   }
@@ -712,13 +713,13 @@ export class SamuraiFx {
     if (L > 20) {
       this.spr({ name: 'ink_long', x: x0, y: y0, ox: 0.03, angle: ang, flipY: x1 < x0, w: L + 70, h: 30, depth: dd, life: 380,
         sx: kf([0, 0.25], [0.14, 1, out3]), sy: kf([0, 0.9], [0.14, 1], [1, 0.45, inQ]), a: kf([0, 0.6], [0.4, 0.45], [1, 0, inQ]) });
-      this.spr({ name: tn('cut_line', 'rose'), x: x0, y: y0, ox: 0.03, angle: ang, flipY: x1 < x0, w: L + 80, h: 16, depth: dd + 0.1, life: 280, glow: 0.85,
+      this.spr({ name: tn('cut_line', 'rose'), x: x0, y: y0, ox: 0.03, angle: ang, flipY: x1 < x0, w: L + 80, h: 14, depth: dd + 0.1, life: 280, glow: 0.45,
         sx: kf([0, 0.1], [0.18, 1, out3]), sy: kf([0, 1.3], [1, 0.3, inQ]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
       for (let k = 0; k < 6; k++) { const f = (k + 0.5) / 6; this.petals(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f, 1, 18, { depth: dd + 1, life: 800 }); }
     }
     // he steps out behind the attacker: out of a swirl of ink, a flash of the blade, a ring of light at his feet
     this.spr({ name: 'ink_smoke', x: q.x, y: q.y - q.z - 44, depth: q.y + 4, w: 92, life: 320, sx: kf([0, 1.25], [1, 0.5, out]), sy: kf([0, 1.25], [1, 0.5, out]), a: kf([0, 0.65], [1, 0, inQ]), rot: (u) => -80 * u });
-    this.pop(tn('glint', 'steel'), q.x + sideOf(r) * 20, q.y - q.z - 56, 170, { life: 240, angle: 0, depth: TOP + 6, glow: 0.8 });
+    this.pop(tn('glint', 'steel'), q.x + sideOf(r) * 20, q.y - q.z - 56, 130, { life: 240, angle: 0, depth: TOP + 6, glow: 0.45 });
     this.shock(q.x, q.y, 150, { life: 320, tone: 'rose' });
     this.ctx.callout({ x: q.x, y: q.y, z: q.z + 50 }, 'COUNTER!!', '#ff8a96', 0);
     this.ctx.punch(0.035, 220);

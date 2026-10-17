@@ -46,8 +46,8 @@ export const SAMURAI: Record<string, Recipe> = {
   mirage: { own: true,
     active: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, C.rose, { r: 120, ms: 480, a: 0.3, hold: 1, follow: () => f.host.casterPos(r.attackerId) }); },
     hit: (f, _s, _h, at) => {
-      for (let i = 0; i < 3; i++) f.later(i * 60, () => f.slash(at, i % 2 ? -1 : 1, C.rose, { r: 110, tilt: [20, 55, 75][i], a0: -100, a1: 130, ms: 240, i: 1.5 }));
-      f.dome(at.x, at.y, C.rose, { r: 90, ms: 300, a: 0.3 }); } },
+      for (let i = 0; i < 2; i++) f.later(i * 70, () => f.slash(at, i % 2 ? -1 : 1, C.rose, { r: 104, w: 36, tilt: [25, 65][i], a0: -100, a1: 130, ms: 240, i: 0.9 }));
+      f.dome(at.x, at.y, C.rose, { r: 90, ms: 300, a: 0.18 }); } }, // (two soft arcs: three bright ones hid the foe at the counter)
   // the storm's cuts small and pink; the last one throws the foe up in a twisting column of blossom light
   blossom_storm: { own: true,
     hit: (f, _s, _h, at, main) => {
