@@ -21,6 +21,8 @@ export interface Room {
   groundY(x: number, z: number): number;
   /** A blow at (x, y, z): petals (falling and lying) within R are thrown away from it. */
   blow(x: number, y: number, z: number, R: number, strength: number): void;
+  /** A big blow's gust through the courtyard (0..1+, `dir` ±1 along x): the crowns bend hard and shed a cloud of petals. */
+  gust(strength: number, dir: number): void;
   /** Each frame (ms since the last, the time in s); `dim` 0..1 darkens the sky. */
   update(ms: number, t: number, dim: number): void;
   /** Shadows to redraw (after the textures load). */
@@ -452,11 +454,13 @@ export function buildRoom(scene: THREE.Scene, front: THREE.Scene, renderer: THRE
 
   // ------------------------------------------------------------------ the frame's work
   const wind = { x: 0.32, z: 0.06 };
+  let boost = 0, boostDir = 1;
   const dummy = new THREE.Object3D();
   const update = (ms: number, t: number, dim: number) => {
     const dt = Math.min(0.05, ms / 1000);
     uTime.value = t; skyMat.uniforms.uTime.value = t; skyMat.uniforms.uDim.value = dim;
-    const gust = 1 + Math.sin(t * 0.37) * 0.35 + Math.sin(t * 1.3) * 0.12; uWind.value = gust;
+    boost = Math.max(0, boost - dt * 0.75);
+    const gust = 1 + Math.sin(t * 0.37) * 0.35 + Math.sin(t * 1.3) * 0.12; uWind.value = gust * (1 + boost * 2.4);
     for (let i = 0; i < NM; i++) { const j = i * 3; motePos[j] = moteBase[j] + Math.sin(t * 0.21 + i) * 0.5 + ((t * 0.06 * (0.5 + (i % 5) * 0.2)) % 3); motePos[j + 1] = moteBase[j + 1] + Math.sin(t * 0.33 + i * 1.7) * 0.25; motePos[j + 2] = moteBase[j + 2] + Math.cos(t * 0.17 + i * 0.7) * 0.4; }
     moteGeo.attributes.position.needsUpdate = true; moteMat.opacity = 0.75 * (1 - dim * 0.8);
     for (const m of shafts) (m.material as THREE.MeshBasicMaterial).opacity = m.userData.a * (0.75 + Math.sin(t * 0.5 + m.userData.ph) * 0.25) * (1 - dim);
@@ -465,7 +469,7 @@ export function buildRoom(scene: THREE.Scene, front: THREE.Scene, renderer: THRE
       if (fk[i] === 0) { // falling: drifting with the wind, fluttering, spinning
         fph[i] += dt;
         const flutter = Math.sin(fph[i] * 2.2 + i) * 0.28;
-        fv[j] += ((wind.x * gust + flutter) - fv[j]) * Math.min(1, dt * 1.6);
+        fv[j] += ((wind.x * gust + boostDir * boost * 1.6 + flutter) - fv[j]) * Math.min(1, dt * 1.6);
         fv[j + 1] += (-0.32 - fv[j + 1]) * Math.min(1, dt * 1.2);
         fv[j + 2] += ((wind.z + Math.cos(fph[i] * 1.7 + i) * 0.12) - fv[j + 2]) * Math.min(1, dt * 1.6);
         fp[j] += fv[j] * dt; fp[j + 1] += fv[j + 1] * dt; fp[j + 2] += fv[j + 2] * dt;
@@ -493,8 +497,14 @@ export function buildRoom(scene: THREE.Scene, front: THREE.Scene, renderer: THRE
     }
   };
 
+  const gustNow = (st: number, dir: number) => {
+    boost = Math.max(boost, st); boostDir = dir < 0 ? -1 : 1;
+    let n = Math.round(NF * 0.22 * Math.min(1, st)); // (shaken loose: petals lying on the planks go back up to the crowns and fall again)
+    for (let i = 0; i < NF && n > 0; i++) if (fk[i] === 1 || R() < 0.15) { spawn(i, false); n--; }
+  };
+
   return {
-    sun, hemi, warm, groundY, blow,
+    sun, hemi, warm, groundY, blow, gust: gustNow,
     update: (ms, t, dim) => {
       update(ms, t, dim);
       sunF.intensity = sun.intensity; hemiF.intensity = hemi.intensity;

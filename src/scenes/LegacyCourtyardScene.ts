@@ -361,6 +361,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const fx = foe ? foe.x : k.x, fy = foe ? foe.y : k.y;
     if (this.a3d) { // PVP 3D: the 3D camera frames the two (punching in on an ultimate and on the K.O.)
       const ult = !!this.rt?.runs.some((r) => r.skill.slot === 7 && (r.phase === 'startup' || r.phase === 'active'));
+      // an ultimate's wind-up: the camera swings round to face its caster (and snaps back on the release); the K.O.: a slow drift
+      const wind = this.rt?.runs.find((r) => r.skill.slot === 7 && r.phase === 'startup');
+      this.a3d.swing = wind ? (wind.aim.x < 0 ? -1 : 1) * 16 : this.koT >= 0 ? Math.min(1, this.koT / 1400) * 10 : 0;
       this.a3d.anchors = foe ? [{ x: k.x, y: k.y, z: k.z }, { x: fx, y: fy, z: (foe as { z?: number }).z ?? 0 }] : [{ x: k.x, y: k.y, z: k.z }];
       this.a3d.focus = { x: (k.x + fx) / 2, y: (k.y + fy) / 2, z: Math.max(k.z, foe ? (foe as { z?: number }).z ?? 0 : 0), span: Math.hypot(k.x - fx, (k.y - fy) * 1.7) };
       const want = this.koT >= 0 ? 1.25 : ult ? ARENA_CAM.ultPunch : 1;
@@ -4156,6 +4159,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     cam.shake(340, 0.011);
     if (at && this.fx) { // the whole picture takes the last blow: a big ring of bent air, the colour split, a zoom blur toward the fallen
       const c = { x: at.x, y: at.y, z: at.z + 50 };
+      this.a3d?.gust(1.4, at.x >= this.kin.x ? 1 : -1);
       this.fx.impact.ripple(c, { r1: 560, life: 700, s: 34, width: 40 }); this.fx.impact.aberration(0.008, 600, c); this.fx.impact.blur(0.065, 600, c);
     }
     cam.zoomTo(this.baseZoom * this.arenaZoom * 1.08, 220, 'Quad.easeOut', true);

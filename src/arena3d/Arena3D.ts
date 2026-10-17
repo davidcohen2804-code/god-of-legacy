@@ -166,6 +166,10 @@ export class Arena3D {
   focus = { x: 0, y: 0, z: 0, span: 0 };
   /** A punch-in (1 = none), set by the scene (an ultimate, the K.O.). */
   punch = 1;
+  /** A cinematic turn (deg round the fight, set by the scene): an ultimate's wind-up swings the camera round to face its
+   *  caster; the K.O. drifts it slowly round the fallen. 0 = none. */
+  swing = 0;
+  private swingNow = 0;
   /** The fighters' floor points (world px), set by the scene: what floats without a floor of its own is drawn over the
    *  nearest of them. */
   anchors: { x: number; y: number; z?: number }[] = [];
@@ -307,7 +311,11 @@ export class Arena3D {
     let foe: { x: number } | null = null, near = Infinity;
     for (const a of this.anchors) { const d = Math.hypot(a.x - x, a.y - y); if (d > 40 && d < near) { near = d; foe = a; } }
     if (foe) this.nudge = -Math.sign(x - foe.x || 1) * (big === 2 ? 0.09 : 0.05);
+    this.room.gust(big === 2 ? 1 : 0.3, foe ? Math.sign(x - foe.x || 1) : 1); // (the courtyard feels it: the crowns bend, petals stream)
   }
+
+  /** A gust through the courtyard (the K.O.'s last blow): the crowns bend and shed their petals. */
+  gust(strength: number, dir: number): void { this.room.gust(strength, dir); this.kick = Math.max(this.kick, 0.05); }
 
   /** A body comes down on the floor (world px; its falling speed px / s): a slam throws up dust and chips and runs a
    *  dusty ring over the planks; a landing from a jump only puffs a little dust. */
@@ -409,6 +417,7 @@ export class Arena3D {
     this.look.lerp(want, this.look.lengthSq() ? k : 1);
     const cx = (F.x0 + F.x1) / 2, half = Math.max(1, (F.x1 - F.x0) / 2);
     this.yaw += ((-Phaser.Math.Clamp((f.x - cx) / half, -1, 1) * CAM.yawMax) - this.yaw) * k;
+    this.swingNow += (this.swing - this.swingNow) * Math.min(1, ms / (Math.abs(this.swing) > Math.abs(this.swingNow) ? 260 : 180)); // (swings in, snaps back on the release)
     this.dist += (Math.min(CAM.distMax, CAM.dist + this.w3(f.span) * CAM.distPerSpan) / this.punch - this.dist) * k;
     this.place(false);
     this.footDust(ms);
@@ -436,7 +445,7 @@ export class Arena3D {
 
   private place(snap: boolean): void {
     if (snap) { const f = this.focus; this.look.set(this.w3(f.x), CAM.aim, this.d3(f.y)); }
-    const p = Phaser.Math.DegToRad(CAM.pitch), y = Phaser.Math.DegToRad(this.yaw), d = this.dist / (1 + this.kick);
+    const p = Phaser.Math.DegToRad(CAM.pitch - Math.abs(this.swingNow) * 0.25), y = Phaser.Math.DegToRad(this.yaw + this.swingNow), d = this.dist / (1 + this.kick);
     this.pos.set(this.look.x + Math.sin(y) * Math.cos(p) * d, this.look.y + Math.sin(p) * d, this.look.z + Math.cos(y) * Math.cos(p) * d);
     const nx = Math.cos(y) * this.nudge, nz = -Math.sin(y) * this.nudge; // (across the view)
     this.camera.position.set(this.pos.x + nx, this.pos.y, this.pos.z + nz);
