@@ -147,8 +147,9 @@ export const GAMBLER: Record<string, Recipe> = {
     active: (f, r) => { const c = me(f, r); f.glyph(c.x, c.y, C.coin, { shape: 'star', points: 8, r: 260, ms: T(r).active + 500, spin: 0.25, pulse: 0.6, a: 0.75 }); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), C.coin, 3.2, 600, 0.7); },
     hit: (f, _s, _h, at, main) => {
       if (!main) return;
-      f.impact({ x: at.x, y: at.y, z: 40 }, C.coin, { r: 120, cracks: true, embers: 24 });
+      // (the big burst's flash is the engine's main hit; here the gold dome closing over the area and a ring of coin cuts)
       f.dome(at.x, at.y, C.coin, { r: 300, ms: 700, a: 0.22 }); f.host.kick(0.07);
+      f.slash({ x: at.x, y: at.y, z: 0 }, 1, C.coin, { r: 220, w: 50, tilt: 10, a0: -180, a1: 180, ms: 320, y0: 30, i: 2.4, ink: true });
     } },
   // All In: every stuck card goes off — a crater and a gold column out of it
   all_in: { tone: TONE.neon, own: true, hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, F.neon, { r: 150, chunks: 18 }); f.pillar(at.x, at.y, F.neon, { h: 600, r: 32, ms: 480, i: 1.4, core: false }); } } },

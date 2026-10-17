@@ -615,7 +615,7 @@ export class GamblerFx {
       const x = this.kit('x_cross', at.x, y, 170, TOP + 5); if (x) { x.setTint(0xffe7a0); const x0 = x.scale, a0 = rnd(-15, 15); this.piece(x, 300, (u, o) => o.setScale(x0 * lerp(1.4, 1, out3(clamp01(u * 3)))).setAngle(a0).setAlpha(u < 0.5 ? 1 : (1 - u) / 0.5)); }
       this.pop(at.x, y, 150, 0xffffff, 240); this.pop(at.x, y, 110, GOLD, 300); this.shards(at.x, y, 5, 120, 400);
     }
-    if (heavy && s.slot === 7 && kind !== 'crit') { const x = this.kit('x_cross', at.x, y, 78, TOP + 4); if (x) { const x0 = x.scale; this.piece(x, 220, (u, o) => o.setScale(x0 * lerp(1.2, 1, out3(clamp01(u * 3)))).setAlpha((u < 0.4 ? 0.45 : 0.45 * (1 - u) / 0.6))); } } // (the ultimate's cross: sized to the foe, never a white-out over both)
+    if (heavy && s.slot === 7 && kind !== 'crit' && !ARENA3D.on) { const x = this.kit('x_cross', at.x, y, 78, TOP + 4); if (x) { const x0 = x.scale; this.piece(x, 220, (u, o) => o.setScale(x0 * lerp(1.2, 1, out3(clamp01(u * 3)))).setAlpha((u < 0.4 ? 0.45 : 0.45 * (1 - u) / 0.6))); } } // (the ultimate's cross: sized to the foe, never a white-out over both)
     if (s.id === 'grand_slam') this.ctx.cam().shake(260, 0.014);
     if (s.id === 'staff_vault' && hit.shape.kind === 'capsule' && !ARENA3D.on) { // caught by the vault on its way: the staff's arc flashes right where it passed him
       const st = this.kit('s_swing', at.x, y, 150, TOP + 4); if (st) { const s0 = st.scale; st.setAngle(rnd(-20, 20)); this.piece(st, 200, (u, o) => o.setScale(s0 * lerp(0.8, 1.15, out3(u))).setAlpha(1 - u)); }
@@ -1477,13 +1477,13 @@ export class GamblerFx {
   private jackpotBlast(r: CastRun, i: number): void {
     const c = this.me(r), s = this.ctx.scene, last = i === r.hits.length - 1;
     const a = rnd(0, Math.PI * 2), d = last ? 0 : rnd(80, 260), x = c.x + Math.cos(a) * d, y = c.y + Math.sin(a) * d * SQUASH;
-    const pic = this.kit(last ? 'j_jackpot' : 'j_fountain', x, last ? y - 120 : y, last ? 400 : 170, y + 3);
+    const pic = ARENA3D.on ? null : this.kit(last ? 'j_jackpot' : 'j_fountain', x, last ? y - 120 : y, last ? 400 : 170, y + 3); // (PVP 3D: the glyph, ring and dome carry it — no painted page over the bodies)
     if (pic) {
       if (!last) pic.setOrigin(0.5, 0.95);
       const p0 = pic.scale; this.piece(pic, last ? 700 : 520, (u, o) => o.setScale(p0 * lerp(0.4, 1.1, out3(u))).setAlpha(u < 0.65 ? 1 : (1 - u) / 0.35));
       if (last) this.pop(x, y - 120, 240, GOLD, 340);
-    } else this.burst(x, y - 50, last ? 420 : 170, 0, y + 3);
-    for (let k = 0; k < (last ? 30 : 10); k++) {
+    } else if (!ARENA3D.on) this.burst(x, y - 50, last ? 420 : 170, 0, y + 3);
+    for (let k = 0; k < (ARENA3D.on ? (last ? 14 : 4) : last ? 30 : 10); k++) {
       const pics = s.textures.exists('gbk-c_chip'), coinK = Math.random() < 0.55, key = pics ? (coinK ? 'gbk-c_coin_h' : 'gbk-c_chip') : coinK ? 'gb-coin' : 'gb-chip';
       const im = s.add.image(x, y - 40, key).setScale(pics ? rnd(18, 30) / 420 : rnd(0.35, 0.6)).setDepth(y + 4);
       const vx = rnd(-260, 260), vy = rnd(260, 480), spin = rnd(-900, 900);
