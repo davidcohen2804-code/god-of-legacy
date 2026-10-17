@@ -661,6 +661,7 @@ export class SkillFx {
 
   /** Blade Storm: the painted lightning storm crashes down onto the raised sword and rages for the whole hold. */
   private lightningStorm(r: CastRun): void {
+    if (ARENA3D.on) return; // (PVP 3D: the ball of blades carries it — no painted column or sword vortex over the bodies: DAVID 20:56)
     const T = r.timings, c = this.casterPos(r.attackerId) ?? r.origin;
     const img = this.scene.add.image(c.x, c.y + 6, 'bs-storm', 12).setOrigin(0.5, 342 / 440).setBlendMode(Phaser.BlendModes.NORMAL).setDisplaySize(310, 490).setDepth(c.y - 1).setAlpha(0.32); // (DFO's review: the column a third as bright — it washed the frame red-orange; the sword vortex is the picture) // (feel pass: in PVP 3D the storm at 0.72 hid both fighters for its whole life)
     const fr = [12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 11], up = T.startup;
@@ -902,6 +903,7 @@ export class SkillFx {
 
   /** Blade field: a painted sword of light erupts from the ground, stands, then shatters into shards. */
   risingBlade(x: number, y: number, delay = 0): void {
+    if (ARENA3D.on) return; // (PVP 3D: the ball of blades is Blade Storm's one shape — DAVID 20:56)
     this.scene.time.delayedCall(delay, () => {
       if (!this.scene.textures.exists('bs-erupt')) return;
       const s = 0.65 + Math.random() * 0.25;
