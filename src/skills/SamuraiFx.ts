@@ -144,8 +144,11 @@ export class SamuraiFx {
   /** The cast the pieces being made now belong to (set by the entry points; null: not cut short — a zone, a stance). */
   private cur: { attackerId: string; castId: string; skill: string } | null = null;
   private clock = 0;
+  /** Real time (it runs through the hit-stops): a leftover cut short fades on it, even while the fight's picture is held. */
+  private real = 0;
   /** Each skill's latest blow (its hit marks come from the scene a moment later, without the cast). */
   private lastHit = new Map<string, { own: { attackerId: string; castId: string; skill: string }; at: number }>();
+  private lastAny: { own: { attackerId: string; castId: string; skill: string }; at: number } | null = null;
 
   constructor(private ctx: SamCtx) {}
 
@@ -171,7 +174,8 @@ export class SamuraiFx {
     this.cur = r && !KEEP.has(r.skill.id) ? { attackerId: r.attackerId, castId: r.castId, skill: r.skill.id } : null;
     try { return fn(); } finally { this.cur = prev; }
   }
-  /** A piece cut short: it keeps at least 100 ms of its life, then fades out in 90 ms. */
+  /** A piece cut short: it keeps at least 100 ms of its life, then fades out in 90 ms (real time: a hit-stop holds the
+   *  new blow's picture, not the old one's). */
   private static readonly CUT = { min: 100, fade: 90 };
   private broken(r?: CastRun): boolean { return !!r && r.phase === 'done' && !r.fired.size; }
   /** A double's swing whose double has burst (Kagemusha): its picture goes with it. */
@@ -207,16 +211,16 @@ export class SamuraiFx {
       return im;
     };
     const im = mk(false), gl = o.glow ? mk(true) : null;
-    let shown = false, cutAt = -1, tNow = 0;
-    const unreg = o.keep ? null : this.onNext(() => { if (cutAt < 0) cutAt = Math.max(tNow, (o.delay ?? 0) + SamuraiFx.CUT.min); });
+    let shown = false, cutAt = -1;
+    const born = this.real;
+    const unreg = o.keep ? null : this.onNext(() => { if (cutAt < 0) cutAt = Math.max(this.real, born + (o.delay ?? 0) + SamuraiFx.CUT.min); });
     const kill = () => { im.destroy(); gl?.destroy(); unreg?.(); return false; };
     this.add({ t: 0, step: (_dt, t) => {
-      tNow = t;
       const e = t - (o.delay ?? 0);
       if (e < 0) return cutAt < 0 ? true : kill(); // (cut short before it showed: it never shows)
       if (!shown) { shown = true; if (this.broken(o.run)) return kill(); }
       if (this.gone(o.run)) return kill();
-      const cut = cutAt < 0 || t < cutAt ? 1 : 1 - (t - cutAt) / SamuraiFx.CUT.fade;
+      const cut = cutAt < 0 || this.real < cutAt ? 1 : 1 - (this.real - cutAt) / SamuraiFx.CUT.fade;
       if (cut <= 0) return kill();
       const u = Math.min(1, e / o.life);
       let x = o.x ?? 0, y = o.y ?? 0, d = o.depth ?? TOP;
@@ -247,16 +251,16 @@ export class SamuraiFx {
     const im = mk(false), gl = o.glow ? mk(true) : null;
     const box = s.add.container(x, y, gl ? [im, gl] : [im]).setScale(1, o.squash ?? SQUASH).setDepth(o.depth ?? GROUND + 2).setVisible(false);
     const k0 = im.scaleX, k1 = im.scaleY;
-    let shown = false, cutAt = -1, tNow = 0;
-    const unreg = this.onNext(() => { if (cutAt < 0) cutAt = Math.max(tNow, (o.delay ?? 0) + SamuraiFx.CUT.min); });
+    let shown = false, cutAt = -1;
+    const born = this.real;
+    const unreg = this.onNext(() => { if (cutAt < 0) cutAt = Math.max(this.real, born + (o.delay ?? 0) + SamuraiFx.CUT.min); });
     const kill = () => { box.destroy(); unreg?.(); return false; };
     this.add({ t: 0, step: (_dt, t) => {
-      tNow = t;
       const e = t - (o.delay ?? 0);
       if (e < 0) return cutAt < 0 ? true : kill();
       if (!shown) { shown = true; if (this.broken(o.run)) return kill(); box.setVisible(true); }
       if (this.gone(o.run)) return kill();
-      const cut = cutAt < 0 || t < cutAt ? 1 : 1 - (t - cutAt) / SamuraiFx.CUT.fade;
+      const cut = cutAt < 0 || this.real < cutAt ? 1 : 1 - (this.real - cutAt) / SamuraiFx.CUT.fade;
       if (cut <= 0) return kill();
       const u = Math.min(1, e / life), k = o.s?.(u) ?? 1, ang = (o.angle ?? 0) + (o.spin ?? 0) * u;
       im.setScale(k0 * k, k1 * k).setAngle(ang); gl?.setScale(k0 * k * 1.03, k1 * k * 1.03).setAngle(ang).setAlpha(o.glow ?? 0);
@@ -471,7 +475,8 @@ export class SamuraiFx {
     let stop = -1, fade = o.fade ?? 180, k0 = 1, tNow = 0;
     // (his next skill clears it: a fading ribbon froze on screen through the next skill's hit-stops — the effects' clock
     // stops with them — and stood over the chase that followed: MIKAZUKI's jump and crescent after Swallow Cut)
-    const short = () => { const kn = stop < 0 ? 1 : k0 * (1 - (tNow - stop) / fade); if (kn <= 0) return; k0 = kn; stop = tNow; fade = 90; };
+    let cutReal = -1; // (his next skill: the ribbon stops and fades out on real time, through any hit-stop)
+    const short = () => { if (cutReal < 0) { cutReal = this.real; if (stop < 0) stop = tNow; } };
     const unreg = this.onNext(short, o.run ? { attackerId: o.run.attackerId, castId: o.run.castId, skill: o.run.skill.id } : this.cur);
     const kill = () => { base.destroy(); light.destroy(); unreg?.(); };
     this.add({ t: 0, step: (_dt, t0) => {
@@ -482,7 +487,7 @@ export class SamuraiFx {
       if (stop < 0) { const p = o.until !== undefined && t > o.until ? null : at(t); if (p) hist.push({ x: p.x, y: p.y, d: p.d, t }); else stop = t; }
       const now = stop < 0 ? t : stop;
       while (hist.length > 2 && hist[1].t < now - o.span) hist.shift();
-      const k = stop < 0 ? 1 : k0 * (1 - (t - stop) / fade);
+      const k = (stop < 0 ? 1 : k0 * (1 - (t - stop) / fade)) * (cutReal < 0 ? 1 : 1 - (this.real - cutReal) / SamuraiFx.CUT.fade);
       if (k <= 0) { kill(); return false; }
       if (hist.length < 2) return true;
       const ta = Math.max(hist[0].t, now - o.span), tb = hist[hist.length - 1].t;
@@ -612,7 +617,7 @@ export class SamuraiFx {
   hit(r: CastRun, i: number, o: V3): void {
     this.stageOf.set(r.skill.id, r.stage ?? 0);
     if (!this.ready) return;
-    this.lastHit.set(r.skill.id, { own: { attackerId: r.attackerId, castId: r.castId, skill: r.skill.id }, at: this.clock });
+    this.lastHit.set(r.skill.id, { own: { attackerId: r.attackerId, castId: r.castId, skill: r.skill.id }, at: this.clock }); this.lastAny = this.lastHit.get(r.skill.id)!;
     this.as(r, () => this.hitOne(r, i, o));
     for (const g of this.shadows(r)) this.as(g, () => this.hitOne(g, i, { x: o.x + g.origin.x - r.origin.x, y: o.y + g.origin.y - r.origin.y, z: o.z }));
   }
@@ -708,7 +713,7 @@ export class SamuraiFx {
         sx: kf([0, 0.5], [0.16, 1.06, out3], [1, 1.14]), sy: kf([0, 0.5], [0.16, 1.06, out3], [1, 1.14]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
       if (crit) this.pop(tn('burst_crit', tone), x, y, rapid ? 100 : 130, { life: 260, depth: TOP + 3.6, glow: 0.3 });
     } else if (s.id === 'sakura_bind') { // the bind: blossoms burst open on the foe (natural, no spark of a blade)
-      this.spr({ name: 'blossom_burst', x, y: y - 4, w: crit ? 140 : 112, life: 440, depth: TOP + 3.5, angle: rnd(0, 360), glow: 0.12,
+      this.spr({ name: 'blossom_burst', x, y: y - 4, w: crit ? 120 : 96, life: 440, depth: at.y - 1, angle: rnd(0, 360), glow: 0.12, // (behind the bound foe: SAKURA's hold read through it)
         sx: kf([0, 0.3], [0.25, 1, back], [1, 1.12]), sy: kf([0, 0.3], [0.25, 1, back], [1, 1.12]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
       this.petals(x, y, 10, 64, { depth: TOP + 3 });
     } else if (crit) this.pop(tn('burst_crit', tone), x, y, rapid ? 120 : 165, { life: 300 });
@@ -951,7 +956,7 @@ export class SamuraiFx {
     const mx = x0 + Math.cos(ang * Math.PI / 180) * len * 0.56, my = y0 + Math.sin(ang * Math.PI / 180) * len * 0.56;
     this.spr({ name: 'cut_split', x: mx, y: my, angle: ang, flipY: fl, w: len * 0.95, delay: 110, life: 360, glow: 0.65, depth: TOP + 3.5,
       sx: kf([0, 0.7], [0.2, 1, out3]), sy: kf([0, 0.3], [0.2, 1.1, out3], [1, 0.5]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
-    this.pop(tn('burst', 'steel'), x0 + side * 18, y0, 90 + 30 * lv, { life: 200 });
+    this.pop(tn('burst', 'steel'), x0 + side * 18, y0, 70 + 20 * lv, { life: 200, glow: 0.35 }); // (a size down: white between them through the draw — SAYA)
     this.spr({ name: tn('blade_trail', 'steel'), x: x0 + a.x * 36, y: y0 + a.y * 18, w: 170 + 30 * lv, life: 230, flipX: fl, angle: along(ang, fl), glow: 0.4, // the trail of the draw
       sx: kf([0, 0.6], [0.2, 1, out3], [1, 1.08]), sy: kf([0, 0.8], [0.2, 1], [1, 0.6, inQ]), a: kf([0, 0.95], [0.4, 0.8], [1, 0, inQ]) });
     if (lv === 2) { // fully drawn: the floor is cut too, a shockwave runs down it, dust where the foes go down
@@ -1954,6 +1959,10 @@ export class SamuraiFx {
   /** Final Cut: a ghost katana sweeps through the foe right after the hit. */
   finalCut(at: V3, dir: number, big = false): void {
     if (!this.ready) return;
+    const lh = this.lastAny && this.clock - this.lastAny.at < 600 ? this.lastAny.own : null; // (it follows his latest blow: his next skill clears it)
+    this.as(lh ? { attackerId: lh.attackerId, castId: lh.castId, skill: { id: lh.skill } } : null, () => this.finalCutOne(at, dir, big));
+  }
+  private finalCutOne(at: V3, dir: number, big: boolean): void {
     const x = at.x, y = at.y - at.z - 40, k = big ? 1.2 : 1;
     this.spr({ name: 'katana_ghost', x, y, depth: TOP + 5, w: 17 * k, life: 150, oy: 0.5,
       mx: kf([0, -dir * 40], [1, dir * 40, inQ]), my: kf([0, -26], [1, 22, inQ]), angle: dir > 0 ? 125 : 55, rot: (u) => dir * 50 * u, a: kf([0, 0], [0.2, 0.85], [0.75, 0.85], [1, 0]) });
@@ -1962,8 +1971,8 @@ export class SamuraiFx {
 
   // ------------------------------------------------------------------ frame
 
-  update(dt: number): void {
-    this.clock += dt;
+  update(dt: number, real = dt): void {
+    this.clock += dt; this.real += real;
     const cur = this.live.concat(this.incoming);
     this.incoming = [];
     this.live = cur.filter((l) => { l.t += dt; return l.step(dt, l.t); });

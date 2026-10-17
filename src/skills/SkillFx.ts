@@ -1498,7 +1498,7 @@ export class SkillFx {
   update(ms: number, projectiles: Projectile[]): void {
     const step = this.hitStopLeft > 0 ? 0 : ms;
     this.stepHawks(ms);
-    this.sam.update(step);
+    this.sam.update(step, ms); // (the real time too: his last skill's leftovers fade through a hit-stop)
     this.mage.update(step, performance.now());
     this.arch.update(step);
     this.gamb.update(step);
