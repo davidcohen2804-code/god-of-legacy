@@ -66,6 +66,8 @@ export class ArcherFx {
   private bigSpark = new Map<string, number>(); // skill → when its last big hit spark was drawn
   private heavyShots = new Set<string>(); // casts of Double Shot's charged arrow (its projectile is drawn heavy)
   private trapArt = new Map<Trap, { stop(): void; arm(): void }>();
+  /** PVP 3D: the room carries the volume (its own pieces in fx3d/archer.ts) — the flat painted layer is cut back there. */
+  private in3d(): boolean { return !!(this.ctx.scene as unknown as { a3d?: unknown }).a3d; }
   private markArt = new Map<string, { n: number; until: number; im: Phaser.GameObjects.Image | null }>();
   private hawks = new Map<string, { until: number; t: number; px: number; py: number; vx: number; vy: number; wx: number; wy: number; next: number; face: number; dive: { x: number; y: number; d: number; t: number } | null; im: Phaser.GameObjects.Image }>();
   /** Trees of Life standing now (for the see-through when someone walks behind one). */
@@ -260,24 +262,26 @@ export class ArcherFx {
         break;
       }
       case 'retreat_kick': { // the floor cracks open in green light — then a great boot of wind bursts up out of it in an upward kick that throws the foe
-        const kx = r.origin.x + a.x * 70, ky = r.origin.y + a.y * 34;
-        this.floor('floor_cracks', kx, ky, 90, T.startup + T.active + 800, { add: true, glow: 0.3, run: r, s: kf([0, 0.3], [0.25, 1, out3], [0.4, 1.5, out3]), a: kf([0, 0], [0.1, 1], [0.8, 0.9], [1, 0]) }); // the ground splits, glowing green
-        this.floor('wind_ring', kx, ky, 110, T.startup + 120, { add: true, run: r, s: kf([0, 1.3], [1, 0.6, out]), a: kf([0, 0], [0.3, 0.9], [1, 0.9]) });
+        const kx = r.origin.x + a.x * 70, ky = r.origin.y + a.y * 34; const flat = !this.in3d(); // (PVP 3D: one shape — the boot; the arc of the kick is the room's inked ring, the floor its own)
+        if (flat) this.floor('floor_cracks', kx, ky, 90, T.startup + T.active + 800, { add: true, glow: 0.3, run: r, s: kf([0, 0.3], [0.25, 1, out3], [0.4, 1.5, out3]), a: kf([0, 0], [0.1, 1], [0.8, 0.9], [1, 0]) }); // the ground splits, glowing green
+        if (flat) this.floor('wind_ring', kx, ky, 110, T.startup + 120, { add: true, run: r, s: kf([0, 1.3], [1, 0.6, out]), a: kf([0, 0], [0.3, 0.9], [1, 0.9]) });
         this.later(T.startup * 0.5, () => this.leaves(kx, ky, 3, 30, { up: 20, life: 400 }), r);
         this.later(T.startup, () => {
-          this.floor('floor_cracks', kx, ky, 190, 900, { run: r, a: kf([0, 1], [0.7, 0.9], [1, 0]) }); // the floor breaks open
-          this.spr({ name: 'dust', x: kx, y: ky + 4, oy: 0.85, depth: ky + 1, w: 200, life: 640, sx: kf([0, 0.4], [1, 1.5, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
-          this.floor('crater', kx, ky, 210, 1300, { a: kf([0, 0], [0.04, 1], [0.6, 0.85], [1, 0]) });
-          this.spr({ name: 'debris', x: kx, y: ky + 6, oy: 0.95, depth: ky + 4, w: 210, life: 640, my: (u) => -30 * out(u), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
-          // the big boot rises out of the ground (grows up from the floor line), toe the way she faces, a whirl turning round it
-          this.spr({ name: 'wind_boot', x: kx, y: ky + 8, oy: 1, depth: ky + 3, w: 150, flipX: side < 0, life: T.active + 360, glow: 0.3,
-            sy: kf([0, 0], [0.18, 1.12, out3], [0.3, 1]), sx: kf([0, 0.7], [0.18, 1, out3]), my: kf([0, 0], [0.18, -20, out3], [1, -70]), a: kf([0, 1], [0.75, 1], [1, 0]) }); // always faces the way she faces
+          if (flat) this.floor('floor_cracks', kx, ky, 190, 900, { run: r, a: kf([0, 1], [0.7, 0.9], [1, 0]) }); // the floor breaks open
+          if (flat) this.spr({ name: 'dust', x: kx, y: ky + 4, oy: 0.85, depth: ky + 1, w: 200, life: 640, sx: kf([0, 0.4], [1, 1.5, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+          if (flat) this.floor('crater', kx, ky, 210, 1300, { a: kf([0, 0], [0.04, 1], [0.6, 0.85], [1, 0]) });
+          if (flat) this.spr({ name: 'debris', x: kx, y: ky + 6, oy: 0.95, depth: ky + 4, w: 210, life: 640, my: (u) => -30 * out(u), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
+          // the big boot kicks out to the side at the foe (David: toward the blow, never at her; bigger): laid level, its cuff toward her, the sole
+          // driving out at him — it thrusts out, holds, and lifts away with the kick
+          this.spr({ name: 'wind_boot', x: kx - side * 20, y: ky - 70, depth: ky + 3, w: 250, flipX: side < 0, angle: side < 0 ? 90 : -90, life: T.active + 320, glow: 0.3,
+            mx: kf([0, -side * 40], [0.16, side * 50, out3], [0.6, side * 60], [1, side * 70]), my: kf([0, 0], [0.5, 0], [1, -60, inQ]),
+            sx: kf([0, 0.55], [0.16, 1.12, out3], [0.3, 1]), sy: kf([0, 0.55], [0.16, 1.12, out3], [0.3, 1]), a: kf([0, 0], [0.06, 1], [0.75, 1], [1, 0]) });
           // a whirl of wind and leaves turns round the boot
-          this.spr({ name: 'leaf_whirl', x: kx, y: ky - 30, depth: ky + 2, w: 130, add: true, life: T.active + 300, delay: 40, my: (u) => -50 * out(u), sy: () => 0.75, rot: (u) => side * 900 * u, a: kf([0, 0], [0.15, 0.5], [0.7, 0.4], [1, 0]) });
+          this.spr({ name: 'leaf_whirl', x: kx + side * 30, y: ky - 70, depth: ky + 2, w: 150, add: true, life: T.active + 300, delay: 40, my: (u) => -50 * out(u), sy: () => 0.75, rot: (u) => side * 900 * u, a: kf([0, 0], [0.15, 0.5], [0.7, 0.4], [1, 0]) });
           // the upward kick: a crescent of wind sweeping up, streaks shooting skyward
-          this.spr({ name: 'wind_crescent', x: kx + side * 20, y: ky - 80, depth: ky + 4, w: 160, angle: side * -70, flipX: side < 0, add: true, glow: 0.3, life: 360, delay: 60, my: (u) => -50 * out(u), sx: kf([0, 0.6], [0.4, 1.1, out3]), a: kf([0, 0], [0.15, 1], [1, 0, inQ]) });
-          for (let k = 0; k < 3; k++) this.spr({ name: 'wind_streaks', x: kx + (k - 1) * 30, y: ky - 40, depth: ky + 4, w: 115, angle: -90, add: true, life: 320, delay: 40 + k * 40, my: (u) => -140 * out(u), a: kf([0, 0], [0.2, 0.9], [1, 0]) });
-          this.floor('shock_ring', kx, ky, 190, 420, { add: true, s: kf([0, 0.4], [1, 1.35, out3]), a: kf([0, 1], [1, 0, inQ]) });
+          if (flat) this.spr({ name: 'wind_crescent', x: kx + side * 20, y: ky - 80, depth: ky + 4, w: 160, angle: side * -70, flipX: side < 0, add: true, glow: 0.3, life: 360, delay: 60, my: (u) => -50 * out(u), sx: kf([0, 0.6], [0.4, 1.1, out3]), a: kf([0, 0], [0.15, 1], [1, 0, inQ]) });
+          if (flat) for (let k = 0; k < 3; k++) this.spr({ name: 'wind_streaks', x: kx + (k - 1) * 30, y: ky - 40, depth: ky + 4, w: 115, angle: -90, add: true, life: 320, delay: 40 + k * 40, my: (u) => -140 * out(u), a: kf([0, 0], [0.2, 0.9], [1, 0]) });
+          if (flat) this.floor('shock_ring', kx, ky, 190, 420, { add: true, s: kf([0, 0.4], [1, 1.35, out3]), a: kf([0, 1], [1, 0, inQ]) });
           this.leaves(kx, ky - 20, 14, 50, { up: 180, life: 900 });
           this.shake(r, 180, 0.006); if (r.own) this.ctx.punch(0.02, 180);
         }, r);

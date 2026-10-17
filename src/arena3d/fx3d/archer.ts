@@ -42,7 +42,7 @@ export const ARCHER: Record<string, Recipe> = {
   // Backstep Shot: a leaf trail; a puff of wind where she pushes off
   backstep_shot: { tone: WIND, trail: { c: WIND, w: 9, len: 10 }, cast: (f, r) => { const c = me(f, r); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), WIND, 1.2, 300, 0.5); f.host.dust(f.host.w3(c.x), f.host.d3(c.y), 6, 0.6); } },
   // Retreat Kick: an upright arc of wind sweeping up with the boot; chips kicked off the floor
-  retreat_kick: { tone: WIND, active: (f, r) => { const c = me(f, r); f.slash(c, side(r), WIND, { r: 100, tilt: 75, a0: 170, a1: 30, ms: 220, y0: 40 }); f.debris(c.x + side(r) * 60, c.y, 5, { speed: 0.8, up: 1.1, dir: side(r) }); } },
+  retreat_kick: { tone: WIND, active: (f, r) => { const c = me(f, r), sd = side(r); f.slash({ x: c.x + sd * 40, y: c.y, z: c.z }, sd, WIND, { r: 130, w: 30, tilt: 70, a0: 200, a1: 10, ms: 220, y0: 30, ink: true }); f.host.ring(f.host.w3(c.x + sd * 70), f.host.d3(c.y), WIND, 1.3, 280, 0.6); } }, // (the kick's arc: one inked rising ring out at the foe, the big painted boot level through it; no floor chips)
   // Vine Mine: the floor splits and a ring of green crystals (thorns) bursts up round the foe
   vine_trap: { tone: THORN, own: true, hit: (f, _s, _h, at, main) => { if (!main) return; f.crack(at.x, at.y, THORN, { r: 120, chunks: 8 }); f.crystals(at.x, at.y, { n: 9, r: 80, h: 90, ms: 900, ring: true, color: THORN }); } },
   // Air Volley: each arrow that strikes the floor kicks up chips and a small ring
