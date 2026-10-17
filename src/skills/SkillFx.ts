@@ -186,6 +186,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
       ['afx-fire', 'fire_burst', 320, 320], ['afx-rootband', 'roots_band', 640, 160], ['afx-tree2', 'tree_light', 360, 540], ['afx-heavy', 'heavy_arrow', 320, 480], ['afx-raura', 'rain_aura', 300, 450],
       ['afx-strike', 'floor_strike', 512, 256], ['afx-roar', 'roar_ring', 512, 256], ['afx-bcharge', 'bolt_charge', 320, 320], ['afx-rise', 'rise_thin', 240, 480]] as const) if (!scene.textures.exists(k)) scene.load.spritesheet(k, `${AF}/${f}.png`, { frameWidth: w, frameHeight: h }); // the painted round-3 set
     if (!scene.textures.exists('jb-bolt')) scene.load.spritesheet('jb-bolt', `${F}/skills/warrior/judgment_blade/bolt.png`, { frameWidth: 256, frameHeight: 512 }); // Thunder Rain: the warrior's blue lightning
+  if (!scene.textures.exists('jb-bolt-holy')) scene.load.spritesheet('jb-bolt-holy', `${F}/skills/warrior/judgment_blade/bolt_holy.png`, { frameWidth: 256, frameHeight: 512 }); // Thunder Rain: the warrior's blue lightning // (the Judge's own bolt in HOLY pale gold; the Archer keeps the blue one)
     I('afx-apple', `${AF}/apple.png`); for (let i = 1; i < 4; i++) I(`afx-apple-${i}`, `${AF}/apple_${i}.png`); I('afx-roots', `${AF}/roots.png`);
     L('afx-fan', `${AF}/release_fan.png`, 512, 256); L('afx-triple', `${AF}/triple_trail.png`, 512, 256); L('afx-storm', `${AF}/storm_top.png`, 512, 256); L('afx-eagle', `${AF}/eagle_top.png`, 512, 256); L('vfx-evasion', `${F}/skills/archer/evasion/vfx.png`, 256);
     I('archer-cutin', `${F}/skills/archer/sky_rain/cutin.webp`);
@@ -399,7 +400,14 @@ export class SkillFx {
       this.scene.time.delayedCall(Math.round(r.timings.startup * 0.7), () => this.bannerPlant(bx, by, 10000));
     }
     else if (s.id === 'radiant_blade') { /* lightning fired by the scene at the real sword tip */ }
-    else if (s.id === 'sanctuary') { /* the wall itself is the effect: no ring on the floor */ }
+    else if (s.id === 'sanctuary') { // the wall is the effect; a ring of holy runes turns slowly on the floor round him while it stands (DFO's review, HOLY)
+      const c = this.casterPos(r.attackerId) ?? r.origin;
+      const ring = this.scene.add.image(0, 0, 'magic-circle').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff0b8).setDisplaySize(300, 300);
+      const plane = this.scene.add.container(c.x, c.y, [ring]).setScale(1, 0.42).setDepth(GROUND + 2).setAlpha(0);
+      this.scene.tweens.add({ targets: plane, alpha: 0.42, duration: 300, delay: s.startup * 0.6 });
+      this.scene.tweens.add({ targets: ring, angle: -160, duration: 4400 });
+      this.scene.tweens.add({ targets: plane, alpha: 0, delay: 3600, duration: 800, onComplete: () => plane.destroy() });
+    }
     else if (s.id === 'blade_storm' && this.scene.textures.exists('bs-storm')) this.lightningStorm(r);
     else if (s.id === 'titans_verdict' && this.scene.textures.exists('titan-dragon')) this.dragon(r);
     else if (s.id === 'ground_breaker') this.quakeBurst(r);
@@ -644,6 +652,28 @@ export class SkillFx {
     this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: fr, frameMs: fms, fadeLast: 260, loop: [6, 11], until: T.startup + T.active,
       follow: () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x, y: p.y + 6, z: 0 } : null; } });
     this.scene.time.delayedCall(Math.round(up * 0.85), () => (this.cam ?? this.scene.cameras.main).shake(220, 0.007));
+    this.bladeVortex(r);
+  }
+
+  /** Blade Storm (DFO's review, CRIMSON): a vortex of spectral swords whirling round the storm in front of him, point-down,
+   *  closing in while it lasts, then flung up at its end. */
+  private bladeVortex(r: CastRun): void {
+    if (!this.scene.textures.exists('phantom-blade')) return;
+    const T = r.timings, a = r.aim, N = 6, life = T.active, swords: Phaser.GameObjects.Image[] = [];
+    for (let i = 0; i < N; i++) swords.push(this.scene.add.image(0, 0, 'phantom-blade', 2 + (i % 2)).setOrigin(0.5, 0.85).setBlendMode(Phaser.BlendModes.NORMAL).setDisplaySize(92, 92).setAlpha(0));
+    let t = -T.startup;
+    const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
+      t += 16;
+      const c = this.casterPos(r.attackerId) ?? r.origin, cx = c.x + a.x * 90, cy = c.y + a.y * 50;
+      if (t < 0) return;
+      const k = Math.min(1, t / life), fling = t > life ? (t - life) / 260 : 0;
+      if (fling >= 1) { ev.remove(); for (const sw of swords) sw.destroy(); return; }
+      const R = 130 - 50 * k, spin = t / 210;
+      swords.forEach((sw, i) => {
+        const th = spin + (i / N) * Math.PI * 2, sn = Math.sin(th), z = 70 + 14 * Math.sin(t / 120 + i) + fling * 320;
+        sw.setPosition(cx + Math.cos(th) * R, cy + sn * R * 0.38 - z).setDepth(cy + sn * 40).setAngle(Math.cos(th) * 18).setAlpha(Math.min(1, t / 140) * (1 - fling) * (sn > 0 ? 0.95 : 0.6));
+      });
+    } });
   }
 
   /** Titan's Verdict: a colossal lightning dragon dives from the sky onto the target zone (after the cut-in and screen split). */
@@ -692,11 +722,12 @@ export class SkillFx {
   /** Judgment Blade: the light-sword is hurled forward on an arc, plants itself, and a storm ring crackles around it for 5s. */
   private judgment(r: CastRun): void {
     const key = vfxKey('judgment_blade'), T = r.timings;
+    const jbKey = this.scene.textures.exists('jb-bolt-holy') ? 'jb-bolt-holy' : 'jb-bolt';
     let a = r.aim, land = { x: r.origin.x + a.x * 150, y: r.origin.y + a.y * 150 };
     const aimNow = () => { a = r.aim; const c = this.casterPos(r.attackerId) ?? r.origin; land = { x: c.x + a.x * 150, y: c.y + a.y * 150 }; };
     // Charge-up in the air: a cyan Zeus thunderbolt crackles in the raised fist, gripped through its middle.
     const BW = 125, BH = 250; // on-screen size of the bolt (256x512 art)
-    const charge = this.scene.add.image(0, 0, 'jb-bolt', 0).setOrigin(0.5, 0.475).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(BW * 0.6, BH * 0.6).setAlpha(0);
+    const charge = this.scene.add.image(0, 0, jbKey, 0).setOrigin(0.5, 0.475).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(BW * 0.6, BH * 0.6).setAlpha(0);
     const mark = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(GROUND + 3);
     const drawMark = (t: number) => {
       const p = 0.5 + 0.5 * Math.sin(t / 120); mark.clear();
@@ -748,11 +779,11 @@ export class SkillFx {
         cam.shake(90, 0.006);
         // 2) the throw: very fast dart with afterimages
         const from = { x: h.x - Math.cos(ang) * 22, y: h.y - Math.sin(ang) * 22 - 6 };
-        const fly = this.scene.add.image(from.x, from.y, 'jb-bolt', 6).setOrigin(0.5, 0.5).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(BW * 1.1, BH * 1.25).setDepth(TOP).setRotation(rot);
+        const fly = this.scene.add.image(from.x, from.y, jbKey, 6).setOrigin(0.5, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff0b8).setDisplaySize(BW * 1.1, BH * 1.25).setDepth(TOP).setRotation(rot);
         const st = { p: 0 };
         this.scene.tweens.add({ targets: st, p: 1, duration: 130, ease: 'Quad.easeIn', onUpdate: () => {
           const x = from.x + (to.x - from.x) * st.p, y = from.y + (to.y - from.y) * st.p; fly.setPosition(x, y);
-          const ghost = this.scene.add.image(x, y, 'jb-bolt', 6).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(BW, BH * 1.2).setRotation(rot).setDepth(TOP - 1).setAlpha(0.45).setTint(0x6fc8ff);
+          const ghost = this.scene.add.image(x, y, jbKey, 6).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(BW, BH * 1.2).setRotation(rot).setDepth(TOP - 1).setAlpha(0.45).setTint(0xfff0b8);
           this.scene.tweens.add({ targets: ghost, alpha: 0, duration: 150, onComplete: () => ghost.destroy() });
         }, onComplete: () => {
           fly.destroy();
@@ -760,14 +791,14 @@ export class SkillFx {
           const bolt = this.scene.add.graphics().setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP);
           zig(bolt, land.x + (Math.random() - 0.5) * 40, land.y - 520, land.x, land.y, 12, 16); zig(bolt, from.x, from.y, land.x, land.y - 10, 8, 10);
           this.scene.tweens.add({ targets: bolt, alpha: 0, duration: 220, onComplete: () => bolt.destroy() });
-          const burst = this.scene.add.image(land.x, land.y - 20, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xbff4ff).setDepth(TOP).setDisplaySize(120, 90);
+          const burst = this.scene.add.image(land.x, land.y - 20, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff0b8).setDepth(TOP).setDisplaySize(120, 90);
           this.scene.tweens.add({ targets: burst, displayWidth: 420, displayHeight: 260, alpha: 0, duration: 260, ease: 'Cubic.easeOut', onComplete: () => burst.destroy() });
-          const img = this.scene.add.image(land.x, land.y + 6, 'jb-bolt', 7).setOrigin(0.5, 0.95).setDepth(land.y + 1).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(BW * 1.25, BH * 1.25);
+          const img = this.scene.add.image(land.x, land.y + 6, jbKey, 7).setOrigin(0.5, 0.95).setDepth(land.y - 2).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(BW, BH * 1.15).setAlpha(0.6); img.setData('a0', 0.6); // (behind the pinned foe, softer: the pillar of light no longer hides him for its whole 5 s)
           const fms = [90, 110, 110, 110, 280];
           this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: [7, 8, 9, 10, 11], frameMs: fms, fadeLast: 280, loop: [1, 3], until: 5000 });
-          this.shockwave(land.x, land.y, 170, 0xffffff); this.scene.time.delayedCall(70, () => this.shockwave(land.x, land.y, 280, 0x6fe0ff));
+          this.shockwave(land.x, land.y, 170, 0xfff0b8); this.scene.time.delayedCall(70, () => this.shockwave(land.x, land.y, 280, 0xffd27a));
           this.spark(IMPACT.warrior.key, land.x, land.y - 30, IMPACT.warrior.frames, 200, 1);
-          this.screenFlash(0x96e1ff, 0.16, 160); cam.shake(240, 0.011); // (a soft flash: no full-screen white-out)
+          this.screenFlash(0xfff0b8, 0.12, 160); cam.shake(240, 0.011); // (a soft flash: no full-screen white-out)
           this.stormRing(land.x, land.y, 5000);
         } });
       });
@@ -778,7 +809,7 @@ export class SkillFx {
   stormRing(x: number, y: number, ms: number): void {
     if (this.scene.textures.exists('storm-ring')) {
       const img = this.scene.add.image(x, y, 'storm-ring', 0).setOrigin(0.5, 0.6).setDepth(GROUND + 1.5).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(310, 310).setAlpha(0);
-      this.scene.tweens.add({ targets: img, alpha: 1, duration: 150 });
+      this.scene.tweens.add({ targets: img, alpha: 0.75, duration: 150 });
       const ev = this.scene.time.addEvent({ delay: 80, loop: true, callback: () => img.setFrame((Number(img.frame.name) + 1) % 8) });
       this.scene.tweens.add({ targets: img, alpha: 0, delay: ms - 250, duration: 250, onComplete: () => { ev.remove(); img.destroy(); } });
       return;

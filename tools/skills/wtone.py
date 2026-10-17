@@ -23,6 +23,7 @@ SHEETS = {  # skill dir / file : family
     'warrior_basic/vfx': 'STEEL', 'dash_slash/vfx': 'STEEL', 'whirlwind/vfx': 'STEEL', 'lance_thrust/vfx': 'STEEL', 'sky_breaker/vfx': 'STEEL',
     'ground_breaker/vfx': 'STONE', 'leap_crash/vfx': 'STONE', 'earthsplitter/vfx': 'STONE',
     'iron_grip/vfx': 'IRON', 'judgment_hook/vfx': 'IRON', 'shield_charge/vfx': 'IRON',
+    'judgment_blade/ring': 'HOLY',  # (bolt.png stays blue for the Archer's lightning arrow; the Judge's copy: python3 -c tone(orig bolt,'HOLY') → bolt_holy.png)
     'war_cry/vfx': 'CRIMSON', 'sanctuary/vfx': 'HOLY',  # (sanctuary/vfx: War Cry's original sheet in HOLY — it used to borrow War Cry's) 'lions_maw/vfx': 'CRIMSON', 'blade_storm/storm': 'CRIMSON', 'blade_storm/erupt_a': 'CRIMSON', 'blade_storm/phantom': 'CRIMSON',
 }
 
