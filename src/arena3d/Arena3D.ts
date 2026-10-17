@@ -19,7 +19,10 @@ import type { Projectile } from '../skills/HitGeometry';
 /** World px → 3D units: 1 unit = 100 px; the floor's depth stretched (a deep room), heights as drawn. */
 const U = 100, HEIGHT_K = 1.0;
 /** The camera: pitch below the horizon, field of view, distance (units) — and how much it turns with the fight. */
-const CAM_ARENA = { pitch: 24, fov: 32, dist: 8.4, distPerSpan: 0.3, distMax: 14, yawMax: 11, follow: 0.12, aim: 0.5 };
+/** The camera: pitch / fov (deg), distance (3D units) and how it widens as the fighters part, the yaw it turns as the
+ *  fight slides, how fast it follows, the look point's height; `liftK` / `liftMax`: how much of a jump's height the look
+ *  point follows (px) — over the floor the focus stands on (`focus.floorZ`, followed fully: a world's upper floors). */
+const CAM_ARENA = { pitch: 24, fov: 32, dist: 8.4, distPerSpan: 0.3, distMax: 14, yawMax: 11, follow: 0.12, aim: 0.5, liftK: 0.4, liftMax: 160 };
 export type Cam3D = typeof CAM_ARENA;
 /** A 3D place's content (the arena's courtyard, or a world map): built into the scene behind the fighters and the one in
  *  front of them, on the walkable floor given in units. Returns the same handles as the courtyard (its sun, its sky
@@ -170,7 +173,7 @@ export class Arena3D {
   private feet: { x: number; y: number; run: number }[] = [];
   private t = 0;
   /** The fighters' midpoint and spread (world px), set by the scene each frame. */
-  focus = { x: 0, y: 0, z: 0, span: 0 };
+  focus: { x: number; y: number; z: number; span: number; floorZ?: number } = { x: 0, y: 0, z: 0, span: 0 };
   /** A punch-in (1 = none), set by the scene (an ultimate, the K.O.). */
   punch = 1;
   /** A cinematic turn (deg round the fight, set by the scene): an ultimate's wind-up swings the camera round to face its
@@ -454,7 +457,7 @@ export class Arena3D {
     this.stepFx(fxMs);
     this.fx.update(fxMs, this.flying);
     const f = this.focus, F = this.floor, k = Math.min(1, (ms / 16) * this.CAM.follow);
-    const want = new THREE.Vector3(this.w3(f.x), this.h3(Math.min(160, f.z * 0.4)) + this.CAM.aim, this.d3(f.y));
+    const fz = f.floorZ ?? 0, want = new THREE.Vector3(this.w3(f.x), this.h3(fz + Math.min(this.CAM.liftMax, Math.max(0, f.z - fz) * this.CAM.liftK)) + this.CAM.aim, this.d3(f.y));
     this.look.lerp(want, this.look.lengthSq() ? k : 1);
     const cx = (F.x0 + F.x1) / 2, half = Math.max(1, (F.x1 - F.x0) / 2);
     this.yaw += ((-Phaser.Math.Clamp((f.x - cx) / half, -1, 1) * this.CAM.yawMax) - this.yaw) * k;
@@ -482,6 +485,15 @@ export class Arena3D {
         if (v > 650) (r() < 0.5 ? this.chipF : this.chipB).emit(hx, 0.03, hz, (r() - 0.5) * 1.2, 0.8 + r() * 1.2, (r() - 0.5) * 0.8, [0x5a3422, 0x7a4b2a][i % 2], 0.025 + r() * 0.02, 500 + r() * 300, { grav: 11, drag: 0.8 });
       }
     });
+  }
+
+  /** Straight onto the focus (no glide): a world's arrival, a new map — `dist` (3D units) to start wider or closer than
+   *  the camera's own (it eases back to its own as it follows). */
+  snap(dist?: number): void {
+    const f = this.focus, fz = f.floorZ ?? 0;
+    this.dist = dist ?? Math.min(this.CAM.distMax, this.CAM.dist + this.w3(f.span) * this.CAM.distPerSpan);
+    this.look.set(this.w3(f.x), this.h3(fz + Math.min(this.CAM.liftMax, Math.max(0, f.z - fz) * this.CAM.liftK)) + this.CAM.aim, this.d3(f.y));
+    this.place(false);
   }
 
   private place(snap: boolean): void {
@@ -592,7 +604,18 @@ export class Arena3D {
     this.saved.length = 0;
   }
 
+  /** Tear the place down now (a world crossing builds the next one): its 3D, its three layers on the scene, its hooks. */
+  dispose(): void {
+    this.scene.events.off(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this);
+    this.destroy();
+    for (const img of [this.bg, this.fg, this.fxImg]) img?.destroy();
+    for (const k of ['arena3d-bg', 'arena3d-fg', 'arena3d-fx']) if (this.scene.textures.exists(k)) this.scene.textures.remove(k);
+  }
+
+  private disposed = false;
   private destroy(): void {
+    if (this.disposed) return;
+    this.disposed = true;
     this.restore();
     this.scene.events.off(Phaser.Scenes.Events.PRE_RENDER, this.apply, this);
     this.scene.events.off(Phaser.Scenes.Events.RENDER, this.restore, this);
