@@ -21,7 +21,7 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // cold bursting out round her: crystals grow at the rim (the fighters inside stay clear), a pale shell, frost dust
   frost_nova: { tone: C.frost, own: true, active: (f, r) => { const c = me(f, r); f.crystals(c.x, c.y, { n: 12, r: 185, h: 120, ms: 1400, ring: true }); f.dome(c.x, c.y, C.frost, { r: 200, ms: 340, a: 0.5 }); f.host.dust(f.host.w3(c.x), f.host.d3(c.y), 8, 1.1); } },
   // lightning leaping link to link; the main link flashes a small shell on the foe
-  lightning_chain: { tone: C.storm, chainBolt: C.storm, trail: false, hit: (f, s, h, at, main) => { if (!main) return; const z = at.z ?? 0; if (h.at === s.hits[s.hits.length - 1].at) { f.bolt({ x: at.x + 30, y: at.y, z: z + 640 }, { x: at.x, y: at.y, z: z + 40 }, C.storm, { ms: 280, w: 10, forks: 2 }); f.host.kick(0.03); } else f.dome(at.x, at.y, C.storm, { r: 70, ms: 200, a: 0.3 }); } }, // (the last link: a real bolt out of the sky through the room onto him)
+  lightning_chain: { tone: C.storm, chainBolt: C.storm, trail: false, hit: (f, s, h, at, main) => { if (!main) return; const z = at.z ?? 0; if (h.at === s.hits[s.hits.length - 1].at) { f.bolt({ x: at.x + 30, y: at.y, z: z + 640 }, { x: at.x, y: at.y, z: z + 40 }, C.storm, { ms: 280, w: 6, forks: 1 }); f.host.kick(0.03); } } /* (the links are the beam itself: no sphere on each foe) */ }, // (the last link: a real bolt out of the sky through the room onto him)
   // the signature: a faint storm shell over the field and bolts out of the sky; the last strike a heavy bolt that cracks the floor
   storm_field: { tone: C.storm,
     own: true,
