@@ -108,14 +108,14 @@ export const elderwoodVillage: Dressing = (c) => {
 export const lanternSteps: Dressing = (c) => {
   const { P, zWall, xW0, xW1 } = c;
   const thirds = [xW0 - 4, c.F.x0 + (c.F.x1 - c.F.x0) / 3, c.F.x0 + (2 * (c.F.x1 - c.F.x0)) / 3, xW1 + 4];
-  const tall: THREE.Vector3[] = [];
+  const tall: THREE.Vector3[] = [], postLanterns: { x: number; y: number; z: number }[] = [];
   for (let i = 0; i < 3; i++) { const h = 1.6 + i * 0.9, x0 = thirds[i], x1 = thirds[i + 1];
     wallRun(P, x0, x1, 0, h, zWall, { thick: 0.9, pilasterEvery: 3.6 });
     balustrade(P, x0, x1, h, zWall - 0.6, { post: 1.6, h: 0.8 });
-    for (let x = x0 + 1.2; x < x1 - 0.5; x += 2.6) { P.add('dark', cyl(0.05, 0.04, 1.3, x, h, zWall - 0.25, 8)); P.add('dark', cyl(0.14, 0.1, 0.08, x, h + 1.3, zWall - 0.25, 8)); }
-    for (let x = x0 + 1.2; x < x1 - 0.5; x += 2.6) c.life.push(paperLanterns(c.scene, [{ x, y: h + 1.24, z: zWall - 0.25 }], { wind: c.air, seed: 60 + Math.round(x), drop: 0.06, color: 0xf2d8a8, glow: 0xffb060 }));
+    for (let x = x0 + 1.2; x < x1 - 0.5; x += 2.6) { P.add('dark', cyl(0.05, 0.04, 1.3, x, h, zWall - 0.25, 8)); P.add('dark', cyl(0.14, 0.1, 0.08, x, h + 1.3, zWall - 0.25, 8)); postLanterns.push({ x, y: h + 1.24, z: zWall - 0.25 }); }
     if (i < 2) P.add('moulding', box(0.3, 0.9 + 0.2, 1.1, x1, h, zWall - 0.45, 1, 0.02)); // the riser between the steps
   }
+  c.life.push(paperLanterns(c.scene, postLanterns, { wind: c.air, seed: 60, drop: 0.06, color: 0xf2d8a8, glow: 0xffb060 })); // (the posts' lanterns as one set: five draws)
   // tall posts along the terrace's back and the cords zig-zagging between them, the moths' home
   for (let k = 0; k < 6; k++) { const x = c.F.x0 + 0.8 + k * ((c.F.x1 - c.F.x0 - 1.6) / 5), z = zWall + (k % 2 ? 0.7 : 2.2); post(c, x, 0, z, 3.4, 0.18); P.add('dark', cyl(0.12, 0.08, 0.1, x, 3.4, z, 8)); tall.push(new THREE.Vector3(x, 3.3, z)); }
   for (let k = 0; k + 1 < tall.length; k++) lanternCord(c, tall[k], tall[k + 1], [0.25, 0.5, 0.75], { sag: 0.5, lit: k === 1 || k === 3 ? 1 : 0, seed: 70 + k });

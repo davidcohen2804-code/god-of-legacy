@@ -108,7 +108,7 @@ export const denCave = (areaId: string, spec: DenSpec) => (focus: PlaceState) =>
 
   // ------------------------------------------------------------------ the den's light: glowcaps and lanterns on hooks
   const glowSpots: { x: number; z: number }[] = []; for (let x = F.x0 + 1.5; x < F.x1 - 1; x += 3.6) glowSpots.push({ x: x + (R() - 0.5) * 1.5, z: zWall + 0.35 + R() * 0.4 });
-  glowcaps(ctx, glowSpots); for (const [i, s] of glowSpots.entries()) if (i % 2 === 0) warmLight(ctx, s.x, 0.5, s.z + 0.4, 1.3, 5.5, 0x6a7aff);
+  glowcaps(ctx, glowSpots); for (const [i, s] of glowSpots.entries()) if (i % 3 === 1) warmLight(ctx, s.x, 0.5, s.z + 0.4, 1.4, 6, 0x6a7aff); // (one blue light per three clusters: the lanterns' lights come on top, and the stage keeps its own eight)
   for (const lx of [F.x0 + 3.5, F.x1 - 3.5]) { P.add('iron', cyl(0.03, 0.03, 0.5, lx, 2.3, zWall + 0.1, 6)); { const g = new THREE.TorusGeometry(0.14, 0.02, 6, 10, Math.PI); g.rotateZ(Math.PI); g.translate(lx + 0.14, 2.8, zWall + 0.35); P.add('iron', g); } life.push(paperLanterns(scene, [{ x: lx + 0.28, y: 2.8, z: zWall + 0.4 }], { wind: air, seed: 30 + Math.round(lx), drop: 0.1, color: 0xf0c890, glow: 0xffa050 })); warmLight(ctx, lx + 0.28, 2.3, zWall + 0.8, 2.0, 8); }
   // sigil spirals on the walls (the thieves' marks), dim violet
   { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d')!; g.strokeStyle = 'rgba(190,140,255,0.9)'; g.lineWidth = 5; g.beginPath(); for (let a = 0; a < Math.PI * 7; a += 0.1) { const r = 4 + a * 2.6; const x = 64 + Math.cos(a) * r, y = 64 + Math.sin(a) * r; if (a === 0) g.moveTo(x, y); else g.lineTo(x, y); } g.stroke();

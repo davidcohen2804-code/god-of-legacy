@@ -10,6 +10,7 @@ import { CLOUDS, HEIGHTS, SKY, AREAS } from '../../world/Areas';
 import { rng, ux, uz, uy, type Disposable } from '../kit/units';
 import { skyAndLight } from '../kit/sky';
 import { farMountains } from '../kit/terrain';
+import { PuffField } from '../kit/puffField';
 import { type Life, type Wind, stillAir, tex as lifeTex, cloudCanvas } from '../life/kit';
 import { birds } from '../life/birds';
 import { clouds as farClouds } from '../life/clouds';
@@ -19,8 +20,6 @@ import type { PlaceState } from './islandTerrace';
 /** The sky's reach along the world (px): from the first cloud to Afterglow Rest's end. */
 export const SKY_X0 = CLOUDS[0].x0, SKY_X1 = Math.max(...HEIGHTS.filter((h) => h.cloud).map((h) => h.x + h.w));
 export const SKY_FLOOR = { x0: SKY_X0 - 200, x1: SKY_X1 + 200, back: -108, front: 126 };
-
-interface Puff { s: THREE.Sprite; x0: number; ph: number; k: number }
 
 export const sky = (focus: PlaceState) => (scene: THREE.Scene, front: THREE.Scene, renderer: THREE.WebGLRenderer, F: { x0: number; x1: number; zB: number; zF: number }, soft: boolean): Room => {
   const R = rng(20261040);
@@ -46,7 +45,7 @@ export const sky = (focus: PlaceState) => (scene: THREE.Scene, front: THREE.Scen
   const P = new Parts();
   const puffTex = [1, 2, 3].map((k) => lifeTex(cloudCanvas(k * 11))); disposables.push(...puffTex);
   const glowTex = canvasTex(glowCanvas()); disposables.push(glowTex);
-  const puffs: Puff[] = [];
+  const puffs = new PuffField(scene, puffTex); disposables.push(puffs); // (every puff of the sky in three draws)
   /** A cloud: a flat lit top you stand on, puffs heaped round and under it (brighter on top, rose below). */
   const cloud = (x0: number, x1: number, zB: number, zF: number, yTop: number, dense = 1, tint = 1) => {
     const w = x1 - x0, d = zF - zB, mx = (x0 + x1) / 2, mz = (zB + zF) / 2;
@@ -56,8 +55,7 @@ export const sky = (focus: PlaceState) => (scene: THREE.Scene, front: THREE.Scen
     for (let i = 0; i < n; i++) {
       const a = R() * Math.PI * 2, r = 0.6 + R() * 0.5, px = mx + Math.cos(a) * (w / 2) * r, pz = mz + Math.sin(a) * (d / 2 + 0.4) * r;
       const under = R() < 0.55, py = yTop - (under ? 0.5 + R() * 1.2 : 0.1 + R() * 0.3), size = (under ? 1.6 : 1.1) + R() * 1.2;
-      const m = new THREE.SpriteMaterial({ map: puffTex[i % 3], color: new THREE.Color().setHSL(0.95, 0.5, under ? 0.78 : 0.95).multiplyScalar(tint), transparent: true, opacity: 0.75 + R() * 0.2, depthWrite: false, fog: true }); disposables.push(m);
-      const s = new THREE.Sprite(m); s.position.set(px, py, pz); s.scale.set(size * 1.3, size * 0.8, 1); scene.add(s); puffs.push({ s, x0: px, ph: R() * 10, k: 0.5 + R() });
+      puffs.add(px, py, pz, size * 1.15, new THREE.Color().setHSL(0.95, 0.5, under ? 0.78 : 0.95).multiplyScalar(tint), 0.75 + R() * 0.2, 0.5 + R(), R() * 10);
     }
   };
 
@@ -69,14 +67,11 @@ export const sky = (focus: PlaceState) => (scene: THREE.Scene, front: THREE.Scen
   }
   const haven = HEIGHTS.find((h) => h.id === 'cloud_haven')!, after = HEIGHTS.find((h) => h.id === 'afterglow')!;
   // Big Grumble's wall: a dark cloud cliff at Cloud Haven's east end
-  for (let i = 0; i < (soft ? 12 : 26); i++) {
-    const m = new THREE.SpriteMaterial({ map: puffTex[i % 3], color: 0x7a6a7c, transparent: true, opacity: 0.85, depthWrite: false, fog: true }); disposables.push(m);
-    const s = new THREE.Sprite(m); s.position.set(ux(haven.x + haven.w) + 0.4 + R() * 1.6, uy(haven.H) + R() * 3.4, zMid + (R() - 0.5) * 3); const k = 1.6 + R() * 1.4; s.scale.set(k * 1.3, k, 1); scene.add(s); puffs.push({ s, x0: s.position.x, ph: R() * 10, k: 0.3 });
-  }
+  for (let i = 0; i < (soft ? 12 : 26); i++) { const k = 1.6 + R() * 1.4; puffs.add(ux(haven.x + haven.w) + 0.4 + R() * 1.6, uy(haven.H) + R() * 3.4, zMid + (R() - 0.5) * 3, k * 1.2, 0x7a6a7c, 0.85, 0.3, R() * 10); }
   // Nimbus's hollow: a ring of puffs round his cushion
   { const nimbus = (AREAS.training_2.npcs ?? []).find((n) => n.id === 'nimbus'); const nx = nimbus ? ux(nimbus.x + AREAS.training_2.x) : ux(haven.x) + 8, nz = nimbus ? uz(nimbus.y) : zMid;
     P.add('white', lathe([[0.001, 0], [0.5, 0.02], [0.56, 0.18], [0.44, 0.28], [0.001, 0.3]], nx, uy(haven.H), nz, 14));
-    for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; const m = new THREE.SpriteMaterial({ map: puffTex[i % 3], color: 0xfff2ea, transparent: true, opacity: 0.8, depthWrite: false, fog: true }); disposables.push(m); const s = new THREE.Sprite(m); s.position.set(nx + Math.cos(a) * 1.4, uy(haven.H) + 0.25, nz + Math.sin(a) * 0.9); s.scale.set(1.0, 0.7, 1); scene.add(s); puffs.push({ s, x0: s.position.x, ph: R() * 10, k: 0.4 }); } }
+    for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; puffs.add(nx + Math.cos(a) * 1.4, uy(haven.H) + 0.25, nz + Math.sin(a) * 0.9, 0.9, 0xfff2ea, 0.8, 0.4, R() * 10); } }
   // the sun over Sunfall Pass: a huge disc low ahead, a halo, rays
   const pass = HEIGHTS.find((h) => h.id === 'sunfall_pass')!;
   const sunX = ux(pass.x + pass.w) + 6, sunY = uy(pass.H) + 4.5, sunZ = zMid - 34;
@@ -100,10 +95,8 @@ export const sky = (focus: PlaceState) => (scene: THREE.Scene, front: THREE.Scen
   { const m = std({ color: 0xc8a888, roughness: 1 }); const g = new THREE.BoxGeometry(F.x1 - F.x0 + 60, 2, 6); g.translate(cx, -8.5, zMid + 1); disposables.push(g); const terr = new THREE.Mesh(g, m); scene.add(terr);
     for (let x = F.x0 - 10; x < F.x1 + 10; x += 16.7) { const t = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.5, 5, 10), m); t.position.set(x, -5, zMid - 2); scene.add(t); disposables.push(t.geometry); } }
   disposables.push(farMountains(scene, cx, zMid - 90, R, { ranges: 3, color: 0x7a5a78, span: 320, yBase: -9, hScale: 0.55 })); // (seen from above: a low far range under the horizon, not a wall)
-  for (let i = 0; i < (soft ? 30 : 70); i++) { // a sea of cloud under the island's edge
-    const m = new THREE.SpriteMaterial({ map: puffTex[i % 3], color: 0xf4d0c8, transparent: true, opacity: 0.5 + R() * 0.3, depthWrite: false, fog: true }); disposables.push(m);
-    const s = new THREE.Sprite(m); s.position.set(F.x0 - 20 + R() * (F.x1 - F.x0 + 40), -3 - R() * 4, zMid + 3 + R() * 10); const k = 5 + R() * 7; s.scale.set(k * 1.4, k * 0.6, 1); scene.add(s); puffs.push({ s, x0: s.position.x, ph: R() * 10, k: 1.2 });
-  }
+  for (let i = 0; i < (soft ? 30 : 70); i++) { const k = 5 + R() * 7; puffs.add(F.x0 - 20 + R() * (F.x1 - F.x0 + 40), -3 - R() * 4, zMid + 3 + R() * 10, k, 0xf4d0c8, 0.5 + R() * 0.3, 1.2, R() * 10); } // a sea of cloud under the island's edge
+  puffs.build();
 
   // ------------------------------------------------------------------ the life
   const air: Wind = stillAir(); air.x = 0.4; air.z = 0.05;
@@ -118,7 +111,7 @@ export const sky = (focus: PlaceState) => (scene: THREE.Scene, front: THREE.Scen
   const update = (ms: number, t: number, dim: number) => {
     const dt = Math.min(0.05, ms / 1000);
     boost = Math.max(0, boost - dt * 0.75); air.gust = boost; air.dir = boostDir;
-    for (const p of puffs) { p.s.position.x = p.x0 + Math.sin(t * 0.11 * p.k + p.ph) * 0.12 + boost * boostDir * 0.6; p.s.position.y += Math.sin(t * 0.5 + p.ph) * 0.0006; }
+    puffs.update(t, boost * boostDir);
     for (const l of life) l.update(ms, t, dim);
     light.update(t, dim, focus.x, focus.z);
     if (shadowDirty) { renderer.shadowMap.needsUpdate = true; shadowDirty = false; }
