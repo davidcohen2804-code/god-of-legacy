@@ -540,6 +540,9 @@ export class Arena3D {
       if (o instanceof Phaser.GameObjects.Graphics && o.x === 0 && o.y === 0) return; // (drawn in world space: left as is)
       const wy = o.y;
       let floor = top && o.depth > wy - 2 && o.depth - wy < 450 && Math.abs(o.depth) > 1 && o.depth < 60000 ? o.depth : NaN;
+      // the ground layer (depth 2–10: the skills' floor marks, rings, craters, mines, roots): it lies on the floor where it
+      // is drawn — anchored over the nearest fighter, a mine lying behind him rose into the air (the Archer chat's report)
+      if (Number.isNaN(floor) && o.depth >= 2 && o.depth <= 10) floor = wy;
       if (Number.isNaN(floor)) { // no floor point of its own (an effect, a number): over the nearest fighter, else on the floor where drawn
         let best: { x: number; y: number } | null = null;
         for (const a of this.anchors) if (!best || Math.abs(a.x - o.x) < Math.abs(best.x - o.x)) best = a;
