@@ -86,7 +86,12 @@ export class WarriorSpikes {
   private draw(s: Spike): void {
     const left = s.until - this.h.now();
     const f3 = this.h.fx3d();
-    if (f3) f3.crystals(s.x, s.y, { n: 2, r: 18, h: 95, ms: Math.max(300, left), stone: true, key: s.key }); // (real rock spikes standing in the planks; named, to break early)
+    if (f3) {
+      f3.crystals(s.x, s.y, { n: 2, r: 18, h: 95, ms: Math.max(300, left), stone: true, key: s.key, color: 0xff6a1a }); // (real rock spikes standing in the planks, an ember glow at their heart; named, to break early)
+      // boiling rock (David 01:07: "like lava"): a molten pool cracked open at their foot, heat and sparks rising, magma spitting (no smoke puffs: the room's dust hazed the spikes cream)
+      for (const [dx, dy] of [[-34, -8], [30, -10], [-26, 9], [34, 7]]) f3.floorStreak(s.x, s.y, s.x + dx, s.y + dy, 0xff5a12, { w: 15, ms: Math.max(600, left), a: 1 }); // (glowing molten cracks at their foot — floor lines, not crack(): its dust hazed them cream)
+      for (let t = 200; t < left - 200; t += 260) f3.later(t, () => { if (!this.spikes.includes(s)) return; f3.host.embers(f3.host.w3(s.x + (Math.random() - 0.5) * 30), 0.15 + Math.random() * 0.5, f3.host.d3(s.y), t % 780 < 260 ? 0xffb040 : 0xff5a1a, 2, 0.9); });
+    }
     if (ARENA3D.on) return;
     const sc = this.h.scene(), own = sc.textures.exists('w-spikes'), key = own ? 'w-spikes' : this.h.vfxKey('earthsplitter');
     if (!sc.textures.exists(key)) return;
