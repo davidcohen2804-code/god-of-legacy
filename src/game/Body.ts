@@ -423,7 +423,7 @@ const atlasCount = (cls: string, dir: Dir, act: AtlasAction) => ATLAS[cls].direc
 
 export type PoseQuery =
   | { k: 'loop'; state: 'idle' | 'walk' | 'run' | 'alert'; t: number; speed: number } // alert: combat stance after an attack / a hit (MapleStory)
-  | { k: 'jump'; phase: 'takeoff' | 'rise' | 'apex' | 'fall' | 'land'; t: number; air2?: number }
+  | { k: 'jump'; phase: 'takeoff' | 'rise' | 'apex' | 'fall' | 'land'; t: number; air2?: number; vz?: number }
   | { k: 'airAttack'; p: number }
   | { k: 'hurt'; p: number }
   | { k: 'launched'; vz: number }
@@ -722,6 +722,15 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
         if (cls === 'gambler' && a2 < 440) return H('djump', a2 < 180 ? 0 : 1); // Card Step: the tuck and the flick, then the long stride
       }
       if (!HEROES[cls].actions.jump) return H('stance', 0);
+      { // the jump clip (7 frames: crouch, spring, rise, apex, fall, reach down, landing) — picked by the vertical speed
+        const J = HEROES[cls].actions.jump_clip;
+        if (J && J.length >= 7) {
+          if (q.phase === 'takeoff') return H('jump_clip', 0);
+          if (q.phase === 'land') return H('jump_clip', 6);
+          const v = q.vz ?? (q.phase === 'rise' ? 200 : q.phase === 'apex' ? 0 : -200);
+          return H('jump_clip', v > 300 ? 1 : v > 110 ? 2 : v > -110 ? 3 : v > -300 ? 4 : 5);
+        }
+      }
       if (HEROES[cls].actions.jump.length >= 4) return H('jump', { takeoff: 0, rise: 1, apex: 2, fall: 3, land: 0 }[q.phase]); // painted: crouch, rise, apex, reach down
       return H('jump', { takeoff: 0, rise: 1, apex: 1, fall: 2, land: 0 }[q.phase]);
     }
