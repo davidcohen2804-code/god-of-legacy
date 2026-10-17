@@ -11,6 +11,8 @@ import { C, me, side, T } from './kit';
 import { ring, crescent, flurry, slit, bladeBall, inkBurst, sparks, SAM } from './blade3d';
 
 const flip = () => (Math.random() < 0.5 ? 1 : -1);
+/** The side Swallow Cut's last cast faced (its hits come a beat after: the second cut sweeps down the way he faced). */
+let swallowDir = 1;
 /** A blow thrown up (the bar: the foe thrown high and fast): a white-hot line struck up through him from the planks (its
  *  trace, not a main-hit piece: the room plays the main hit itself). */
 const rise = (f: Fx3D, at: V3) => {
@@ -88,12 +90,16 @@ export const SAMURAI: Record<string, Recipe> = {
       if (!main) { flurry(f, () => at, { ms: 1, len: 540, w: 14, front: true, draw: 0 }); return; } // (one cut a hit, there at once: the hit-stops hold them — eight lines crossing into a star)
       f.crack(at.x, at.y, SAM.crimson, { r: 200, chunks: 16, up: 1.3 });
       f.host.kick(0.08); } },
-  // the swallow's rising cut upright in crimson; the launch: a thin crimson pillar under the foe; the second cut backhand
-  swallow_cut: { own: true, tone: C.crimson,
-    active: (f, r) => f.slash(me(f, r), side(r), C.crimson, { r: 120, w: 24, tilt: 80, a0: 170, a1: 0, ms: 280, i: 0.8 }), // (thin: at its widest it covered the foe — DFO)
+  // (David's bar: the main launcher, one shape — a swallow's tail, Λ) the rising cut: one upright ribbon ring swept up
+  // from the planks through the foe (a hot rose body, white-hot edge, ink inside); the launch: a white-hot line up through
+  // him; the second cut: a ring swept back down through him in the air. Its painted trail and marks stay out in PVP 3D.
+  swallow_cut: { own: true, tone: SAM.light,
+    active: (f, r) => { swallowDir = side(r);
+      ring(f, me(f, r), side(r), { r: 128, w: 52, y0: 92, fwd: 26, tilt: 84, yaw: 30, a0: 178, a1: -12, ms: 220, lit: SAM.rose, gain: 1.3, follow: () => f.host.casterPos(r.attackerId) }); },
     hit: (f, _s, _h, at, main, react) => {
-      if (main && react === 'launch') f.pillar(at.x, at.y, C.crimson, { h: 320, r: 18, ms: 240, core: false, i: 0.8 }); // (short: it stood through the chase after it — MIKAZUKI)
-      else if (!main) f.slash(at, -1, C.crimson, { r: 100, w: 24, tilt: 65, a0: 160, a1: -10, ms: 200, i: 0.75 }); } },
+      sparks(f, at, swallowDir, main ? 6 : 4, 56);
+      if (react === 'launch') rise(f, at);
+      else ring(f, at, swallowDir, { r: 112, w: 46, y0: 70, fwd: -20, tilt: 76, yaw: 20, a0: -24, a1: 168, ms: 200, lit: SAM.rose, gain: 1.3 }); } },
   // the cage's small cuts: now and then a thin steel arc; the slam: a cross of steel light, gold sparks thrown off
   hundred_cuts: { own: true, tone: C.steel,
     hit: (f, _s, _h, at, main) => {

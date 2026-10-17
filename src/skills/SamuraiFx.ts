@@ -28,7 +28,7 @@ const along = (ang: number, left: boolean) => (left ? ang - 180 : ang);
 const DELAYED = new Set(['iai_strike', 'dragon_eclipse']);
 /** PVP 3D: the skills rebuilt to David's bar in the room's own 3D (fx3d/samurai.ts + blade3d.ts) — their flat painted cuts
  *  and marks stay out there (the painted ones stay for the painted world). */
-const IN3D_OWN = new Set(['quick_slash', 'iai_strike', 'phantom_blades', 'dragon_eclipse', 'tornado_blade', 'shadow_step', 'god_of_blades']);
+const IN3D_OWN = new Set(['quick_slash', 'iai_strike', 'phantom_blades', 'dragon_eclipse', 'tornado_blade', 'shadow_step', 'god_of_blades', 'swallow_cut']);
 /** Skills whose pieces show a state that outlasts the next press (a zone on the floor, a stance, a shield, the halo, the
  *  doubles): never cut short by his next skill. */
 const KEEP = new Set(['sakura_bind', 'mirage', 'rising_sun', 'god_of_blades', 'kagemusha']);
@@ -917,6 +917,7 @@ export class SamuraiFx {
    *  crescent that throws the foe up, a flash where it turns at the top, straight back down through the foe in the air
    *  (a Λ: a swallow's tail). */
   private swallow(r: CastRun, i: number): void {
+    if (this.in3d()) return; // (PVP 3D: the swallow's tail is the room's two rings and the launch's line — fx3d/samurai.ts)
     const side = sideOf(r), fl = side < 0, ret = r.skill.hits[1]?.at ?? 130;
     if (i === 0) {
       // the point of the blade: up from his front foot to over the foe, a hook at the top, down to the floor beyond it
