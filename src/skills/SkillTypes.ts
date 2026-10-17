@@ -47,6 +47,8 @@ export interface Reaction {
   float?: boolean;
   knockdown?: 'light' | 'heavy';
   /** Hard crowd control (shared DR policy). */
+  /** A pull's length (ms, default 110): Judgment Hook's chain draws him in so it reads. */
+  pullMs?: number;
   hardCC?: { kind: 'root' | 'freeze' | 'stun'; ms: number; /** a binding skill: its full duration holds (not capped like a hit's root) */ long?: boolean };
   slow?: { pct: number; ms: number };
   juggleCost?: number;

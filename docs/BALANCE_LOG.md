@@ -4,6 +4,15 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-10-18 — David's notes after playing them (01:07 Warrior, 01:15 Samurai): the numbers
+- **Warrior — Dash Slash** ("if it drags, let it drag"): it carries the foe to the dash's end, in front of the blade (`carry`, as Impaling Rush).
+- **Warrior — Judgment Blade** ("3 swords, 3 presses in the air"): 3 charges (≥120 ms apart, within 7 s); the cooldown, after the third, 9 s → 12 s.
+- **Warrior — Iron Grip** ("hold him stunned at least 3 s"): the smash adds a 3 s stun (a binding hold: whole, once; the DR still guards PvP chains); the bounce stays.
+- **Warrior — Judgment Hook** ("very fast, unpleasant"): the chain reaches him at 160 ms (was 90; active 260 → 340) and draws him in over 230 ms (a 110 ms snap before; `pullMs`), held 640 (560).
+- **Warrior — Earthsplitter's spikes** ("stay on screen 5 s"): 3 s → 5 s.
+- **Samurai — Tornado Blade** ("spammable while jumping, no cooldown"): cooldown 9 s → 0 (still in the air only).
+- All 12 Warrior trials replayed in the game: all clear.
+
 ## 2026-10-17 — The main blow sends him away (David 21:45: "the foe flies back clearly; the small hits stay small") (engine)
 - One rule for every class, in and out of the arena (Combat `THROWN`); no skill's own numbers changed.
 - **Knockdown:** the body is thrown back in an arc — its own push or 120 px (light) / 160 px (heavy), whichever is more, popped up ~36 / ~50 px (vz 280 / 330, ~0.5 / 0.6 s in the air), then a short skid (110 ms at 35% of its speed). A combo finisher (`endsCombo`) flies 1.25× as far. Knocked down out of the air: 0.7× the distance, over its fall. Before: a 12 px hop at the attacker's feet (vz 160, its push × 0.4 in an arena combo).

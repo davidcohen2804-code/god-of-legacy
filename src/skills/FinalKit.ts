@@ -42,7 +42,7 @@ const warrior: FinalSkill[] = [
   S({
     id: 'dash_slash', cls: 'warrior', slot: 1, name: 'Dash Slash', roles: ['gapClose', 'opener'], targeting: 'mouseDir',
     startup: 110, active: 150, recovery: 230, cooldown: 1800, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    dash: { distance: 210 }, through: true,
+    dash: { distance: 210 }, through: true, carry: true, // (David 01:07: "if it drags, let it drag" — he rides the dash to its end, in front of the blade)
     hits: [0, 50, 100].map((t, i) => H(t, i === 2 ? 10 : 7, { kind: 'capsule', radius: 32 }, { stun: i === 2 ? 360 : 240, push: i === 2 ? 10 : 2, float: true, juggleCost: 4 }, { reachUp: 90 })), // (the last cut holds 360: Rising Slash, its one link, has 0.2 s to come)
     cancelOnHit: CORE(['rising_slash', 'whirlwind', 'sanctuary', 'warrior_basic', 'blade_storm', 'titans_verdict']),
     telegraph: 'line',
@@ -148,8 +148,8 @@ const warrior: FinalSkill[] = [
   }),
   S({
     id: 'judgment_blade', cls: 'warrior', slot: 12, name: 'Judgment Blade', roles: ['zone', 'setup'], targeting: 'mouseDir',
-    startup: 150, active: 320, recovery: 240, cooldown: 9000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    charges: 1, chargeGap: 120,
+    startup: 150, active: 320, recovery: 240, cooldown: 12000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    charges: 3, chargeGap: 120, // (David 01:07: three blades, one a press — the cooldown after the third)
     hits: [H(140, 14, { kind: 'circle', radius: 80, at: 'aimBias', bias: 150, floor: true }, { stun: 420, pin: 400, slam: true }, { reachUp: 280, heavy: true })], // (floor: the blade falls to the floor — thrown from the air it struck only the air above a standing foe)
     linger: { at: 'aim', offset: 150, startMs: 520, everyMs: 500, count: 10, radius: 130, maxZ: 40, hit: H(0, 3, { kind: 'circle', radius: 130 }, { stun: 150, bind: 1100 }, { reachUp: 40 }) }, // (the court holds once a combo: its bind; its other ticks only flinch)
     cancelOnHit: ['warrior_basic', 'rising_slash', 'leap_crash', 'lance_thrust', 'blade_storm'],
@@ -161,15 +161,15 @@ const warrior: FinalSkill[] = [
     id: 'iron_grip', cls: 'warrior', slot: 13, name: 'Iron Grip', roles: ['opener', 'extender'], targeting: 'mouseDir',
     startup: 120, active: 420, recovery: 300, cooldown: 4000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, armor: [0, 540],
     hits: [H(0, 6, { kind: 'sector', range: 110, angle: 90 }, { stun: 800, grab: true }, { reachUp: 140 }),
-      H(330, 16, { kind: 'circle', radius: 110, at: 'aimBias', bias: 60 }, { stun: 440, launch: 100, juggleCost: 20 }, { reachUp: 220, heavy: true })],
+      H(330, 16, { kind: 'circle', radius: 110, at: 'aimBias', bias: 60 }, { stun: 440, launch: 100, juggleCost: 20, hardCC: { kind: 'stun', ms: 3000, long: true } }, { reachUp: 220, heavy: true })], // (David 01:07: held stunned 3 s — the bounce stays)
     cancelOnHit: ['rising_slash', 'leap_crash', 'sky_breaker', 'wave_slash', 'whirlwind'],
     description: 'Seize the foe in front of you with a hand of golden light, hoist it high over your head and smash it into the floor before you; it bounces up, open for the next strike.',
     relations: ['Grab', 'Bounce → combo'],
   }),
   S({
     id: 'judgment_hook', cls: 'warrior', slot: 14, name: 'Judgment Hook', roles: ['pull', 'gapClose'], targeting: 'mouseDir',
-    startup: 140, active: 260, recovery: 240, cooldown: 7000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    hits: [H(90, 10, { kind: 'line', length: 300, width: 46 }, { stun: 560, grab: true }, { reachUp: 160 })],
+    startup: 140, active: 340, recovery: 240, cooldown: 7000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(160, 10, { kind: 'line', length: 300, width: 46 }, { stun: 640, grab: true, pullMs: 230 }, { reachUp: 160 })],
     cancelOnHit: ['warrior_basic', 'iron_grip', 'dash_slash', 'rising_slash', 'whirlwind', 'ground_breaker', 'lance_thrust'],
     description: 'Hurl a chain of golden light up to 380px: it hooks the first foe it reaches and yanks it right in front of you, stunned, ready for your next blow.',
     relations: ['Pull to you', 'Combo starter'],
@@ -701,7 +701,7 @@ const samurai: FinalSkill[] = [
   }),
   S({
     id: 'tornado_blade', cls: 'samurai', slot: 11, name: 'Tornado Blade', roles: ['antiAir', 'airExtender'], targeting: 'self',
-    startup: 80, active: 330, recovery: 200, cooldown: 9000, ground: false, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    startup: 80, active: 330, recovery: 200, cooldown: 0, ground: false, air: true, cover: 'IGNORES_COVER', move: LOCK, // (David 18 Oct 01:15: spam it while jumping, no cooldown)
     // in the air only: he spins into a whirlwind of blades round himself — it meets a foe jumping at him: two cuts hold him
     // there, the third smashes him down to the floor (no pull: it takes only who is there)
     hits: [H(0, 10, { kind: 'circle', radius: 100 }, { stun: 320, float: true, juggleCost: 6 }, { reachUp: 130 }),

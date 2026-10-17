@@ -506,7 +506,7 @@ export class CombatBody {
       else if (pushPx < 0) pushPx = Math.max(pushPx, -Math.max(0, d - 30)); // a pull draws him in, never through the puller to his back (the next blow in front would miss)
       if (this.arena && pushPx > 0) { dx = Math.sign(k.x - from.x) || (dx < 0 ? -1 : 1); dy = 0; } // the arena: knocked straight back along the line (a combo stays on one line)
       if (pushPx > 0 && this.kbResist > 0 && Math.random() < this.kbResist) this.stanceAt = now; // stance: not pushed back
-      else if (pushPx !== 0) { const pm = R.yank !== undefined ? 60 : kick ? THROWN.kickMs : 110; out.pushX = dx * pushPx; out.pushY = dy * pushPx; this.push = { vx: out.pushX / pm, vy: out.pushY / pm, left: pm, skid: kick ? THROWN.skidMs : 0 }; } // (a yank snaps in fast)
+      else if (pushPx !== 0) { const pm = R.yank !== undefined ? 60 : kick ? THROWN.kickMs : pushPx < 0 && R.pullMs ? R.pullMs : 110; out.pushX = dx * pushPx; out.pushY = dy * pushPx; this.push = { vx: out.pushX / pm, vy: out.pushY / pm, left: pm, skid: kick ? THROWN.skidMs : 0 }; } // (a yank snaps in fast)
     }
     const cr = 1 - this.ccResist;
     if (R.slow) { this.slowPct = R.slow.pct; this.slowUntil = Math.max(this.slowUntil, now + R.slow.ms * cr); }

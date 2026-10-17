@@ -15,7 +15,7 @@ import { ARENA3D } from '../arena3d/flag';
  *  own (knocked back faster than `thrown` px/ms, or flying, under `top` px) bounces back off it at half his speed, takes
  *  `wallDmg` and a `wallStun` ms stun, and the spike breaks; Leap Crash landing within 170 px of his spikes bursts them all:
  *  once, `burstDmg` + `burstPer` a spike, thrown up (`burstLaunch`, stun, juggle cost), reaching `burstReach` px up. */
-export const SPIKES = { lifeMs: 3000, r: 40, burstR: 170, top: 100, thrown: 0.35, bounce: 0.5, wallDmg: 8, wallStun: 300, burstDmg: 6, burstPer: 4, burstLaunch: 90, burstStun: 380, burstJuggle: 12, burstReach: 200 } as const;
+export const SPIKES = { lifeMs: 5000, r: 40, burstR: 170, top: 100, thrown: 0.35, bounce: 0.5, wallDmg: 8, wallStun: 300, burstDmg: 6, burstPer: 4, burstLaunch: 90, burstStun: 380, burstJuggle: 12, burstReach: 200 } as const;
 
 export interface Spike { key: string; owner: string; x: number; y: number; until: number; img?: Phaser.GameObjects.Image }
 
