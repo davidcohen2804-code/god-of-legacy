@@ -1084,6 +1084,7 @@ export class SkillFx {
       const band = this.scene.add.rectangle(v.centerX, cy, v.width, w / 3 + 16, 0x000000, 0.55).setDepth(TOP + 49).setScale(1, 0);
       this.scene.tweens.add({ targets: band, scaleY: 1, duration: 120, ease: 'Cubic.easeOut' });
       const out = r.timings.startup < 700 ? Math.max(320, r.timings.startup - 80) : r.skill.cls === 'samurai' ? Math.max(600, r.timings.startup - 300) : r.skill.id === 'titans_verdict' ? Math.max(420, Math.round(r.timings.startup * 0.51)) : 1100; // (a fast arena ultimate: gone before its first hit) // (Titan: paced to its short wind-up) // (samurai: gone before the eight cuts out of the dark)
+      this.impact.quietUntil = this.scene.time.now + out + 240; // (the portrait stays clean: no bent air or colour split over the cut-in)
       this.scene.tweens.add({ targets: img, x: v.centerX - w * 0.04, duration: 300, ease: 'Cubic.easeOut' });
       this.scene.tweens.add({ targets: img, x: v.centerX + w * 0.03, delay: 300, duration: out - 300 }); // slow drift while holding (a real beat)
       this.scene.tweens.add({ targets: img, x: v.right + w / 2, alpha: 0, delay: out, duration: 200, ease: 'Cubic.easeIn', onComplete: () => img.destroy() });
@@ -1335,8 +1336,8 @@ export class SkillFx {
       if (weighty || counter || tier === 'signature' || tier === 'ultimate') {
         const big = tier === 'ultimate' ? 2 : tier === 'signature' || flies || hit.heavy || counter ? 1 : 0, c = { x: at.x, y: at.y, z: at.z + 40 };
         this.impact.ripple(c, { r1: [150, 240, 400][big], life: [240, 320, 480][big], s: [9, 15, 26][big], width: [16, 22, 32][big] });
-        this.impact.aberration([0.0025, 0.0045, 0.0075][big], [130, 170, 240][big], c);
-        if (big === 2) this.impact.blur(0.045, 240, c);
+        this.impact.aberration([0.0018, 0.003, 0.005][big], [120, 160, 220][big], c);
+        if (big === 2) this.impact.blur(0.035, 220, c);
       }
     }
   }

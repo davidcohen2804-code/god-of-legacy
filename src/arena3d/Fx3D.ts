@@ -87,7 +87,7 @@ void main() {
   float edge = pow(vF, 3.2);
   float n = texture2D(uNoise, vUv * vec2(7.0, 3.0) + vec2(uT * 0.15, -uT * 0.4)).r;
   float bands = 0.5 + 0.5 * sin(vUv.y * 46.0 - uT * 7.0);
-  a = uA * (edge * 0.7 + 0.02 + 0.1 * n * bands * (0.3 + edge)) * smoothstep(0.0, 0.08, vUv.y);
+  a = uA * (edge * 0.6 + 0.012 + 0.08 * n * bands * edge) * smoothstep(0.0, 0.12, vUv.y);
   col = mix(uColor, vec3(1.0), edge * 0.4) * uI;
 #elif KIND == 3
   // SLASH: an arc of a cut — its head sweeps along, a hot white edge on the outside, the inside thin and torn

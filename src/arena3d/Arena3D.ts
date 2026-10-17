@@ -156,6 +156,11 @@ export class Arena3D {
   private ringTex?: THREE.Texture;
   /** A small push-in of the camera on a heavy blow (fades by itself). */
   private kick = 0;
+  /** A jolt of the camera across the view on a heavy blow (units; the picture jumps the way the blow goes), springing back. */
+  private nudge = 0;
+  /** The fighters' feet last frame (world px) and the way run since the last puff: running and being driven back
+   *  along the planks kick up dust (more, and wood grit, the faster). */
+  private feet: { x: number; y: number; run: number }[] = [];
   private t = 0;
   /** The fighters' midpoint and spread (world px), set by the scene each frame. */
   focus = { x: 0, y: 0, z: 0, span: 0 };
@@ -298,6 +303,10 @@ export class Arena3D {
     if (big === 2) this.ring(hx, hz, 0xffffff, 2.6, 300, 0.6);
     this.blowPetals(hx, hy, hz, big === 2 ? 5 : 3.2, big === 2 ? 5.5 : 3.2);
     this.kick = Math.max(this.kick, big === 2 ? 0.07 : 0.035);
+    // the picture jumps the way the blow goes (from the other fighter to the struck one)
+    let foe: { x: number } | null = null, near = Infinity;
+    for (const a of this.anchors) { const d = Math.hypot(a.x - x, a.y - y); if (d > 40 && d < near) { near = d; foe = a; } }
+    if (foe) this.nudge = -Math.sign(x - foe.x || 1) * (big === 2 ? 0.09 : 0.05);
   }
 
   /** A body comes down on the floor (world px; its falling speed px / s): a slam throws up dust and chips and runs a
@@ -377,6 +386,7 @@ export class Arena3D {
       if (g.left <= 0) { this.scene3.remove(g.m); g.m.geometry.dispose(); (g.m.material as THREE.Material).dispose(); this.rings.splice(i, 1); }
     }
     this.kick -= this.kick * Math.min(1, ms / 110);
+    this.nudge -= this.nudge * Math.min(1, ms / 70);
     this.dimNow += (this.dimWant - this.dimNow) * Math.min(1, ms / (this.dimWant > this.dimNow ? 120 : 380));
     const lit = 1 - 0.7 * this.dimNow; // (the sun and the sky go down; the lanterns and the temple's doors burn on)
     this.room.sun.intensity = this.sunBase * lit; this.room.hemi.intensity = this.hemiBase * (1 - 0.55 * this.dimNow);
@@ -401,15 +411,36 @@ export class Arena3D {
     this.yaw += ((-Phaser.Math.Clamp((f.x - cx) / half, -1, 1) * CAM.yawMax) - this.yaw) * k;
     this.dist += (Math.min(CAM.distMax, CAM.dist + this.w3(f.span) * CAM.distPerSpan) / this.punch - this.dist) * k;
     this.place(false);
+    this.footDust(ms);
     for (const [i, L] of this.room.warm.entries()) { const b = (L.userData.base ??= L.intensity) as number; L.intensity = b * (1 + Math.sin(this.t / 140 + i * 1.7) * 0.08 + Math.sin(this.t / 53 + i) * 0.04); } // flicker
     this.room.update(ms, this.t / 1000, this.dimNow);
+  }
+
+  /** Running, dashing and being driven back along the planks kick up dust at the feet (wood grit when fast). */
+  private footDust(ms: number): void {
+    if (ms <= 0) return;
+    this.anchors.forEach((a, i) => {
+      const f = this.feet[i] ?? (this.feet[i] = { x: a.x, y: a.y, run: 0 });
+      const d = Math.hypot(a.x - f.x, a.y - f.y), v = (d * 1000) / ms; f.x = a.x; f.y = a.y;
+      if (d > 140 || (a.z ?? 0) > 3 || v < 330) { f.run = 0; return; } // (a teleport, in the air, or walking)
+      f.run += d;
+      const every = v > 700 ? 34 : 52;
+      while (f.run >= every) {
+        f.run -= every;
+        const hx = this.w3(a.x), hz = this.d3(a.y), k = Math.min(1.3, v / 700), r = Math.random;
+        (r() < 0.5 ? this.dustF : this.dustB).emit(hx + (r() - 0.5) * 0.15, 0.06, hz + (r() - 0.5) * 0.1, (r() - 0.5) * 0.5, 0.15 + r() * 0.2, (r() - 0.5) * 0.3, [0xcdb39c, 0xbfa38c][i % 2], (0.28 + r() * 0.2) * k, 520 + r() * 380, { a: 0.14 + 0.1 * k, grow: 0.9 * k, drag: 0.35 });
+        if (v > 650) (r() < 0.5 ? this.chipF : this.chipB).emit(hx, 0.03, hz, (r() - 0.5) * 1.2, 0.8 + r() * 1.2, (r() - 0.5) * 0.8, [0x5a3422, 0x7a4b2a][i % 2], 0.025 + r() * 0.02, 500 + r() * 300, { grav: 11, drag: 0.8 });
+      }
+    });
   }
 
   private place(snap: boolean): void {
     if (snap) { const f = this.focus; this.look.set(this.w3(f.x), CAM.aim, this.d3(f.y)); }
     const p = Phaser.Math.DegToRad(CAM.pitch), y = Phaser.Math.DegToRad(this.yaw), d = this.dist / (1 + this.kick);
     this.pos.set(this.look.x + Math.sin(y) * Math.cos(p) * d, this.look.y + Math.sin(p) * d, this.look.z + Math.cos(y) * Math.cos(p) * d);
-    this.camera.position.copy(this.pos); this.camera.lookAt(this.look); this.camera.updateMatrixWorld(); this.camera.updateProjectionMatrix();
+    const nx = Math.cos(y) * this.nudge, nz = -Math.sin(y) * this.nudge; // (across the view)
+    this.camera.position.set(this.pos.x + nx, this.pos.y, this.pos.z + nz);
+    this.camera.lookAt(this.look.x + nx, this.look.y, this.look.z + nz); this.camera.updateMatrixWorld(); this.camera.updateProjectionMatrix();
   }
 
   /** Screen point (Phaser px) of a world point (x, depth y, height z px) and the px per world px there. */

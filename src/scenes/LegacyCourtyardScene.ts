@@ -716,7 +716,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         a3.onImpact = (at, big) => {
           const fx = this.fx; if (!fx) return;
           fx.impact.ripple(at, { r1: [150, 240, 400][big], life: [240, 320, 480][big], s: [9, 15, 26][big], width: [16, 22, 32][big], squash: 0.5 });
-          fx.impact.aberration([0.0025, 0.0045, 0.0075][big], [130, 170, 240][big], at); if (big === 2) fx.impact.blur(0.045, 240, at);
+          fx.impact.aberration([0.0018, 0.003, 0.005][big], [120, 160, 220][big], at); if (big === 2) fx.impact.blur(0.035, 220, at);
         };
         const rt = this.rt;
         if (rt) {
@@ -3253,7 +3253,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     fx.screenFlash(B.color, B.flash, B.flashMs);
     fx.shockwave(at.x, at.y, B.ring, B.color); if (kind !== 'punish') fx.shockwave(at.x, at.y, B.ring * 0.55, 0xffffff);
     this.cameras.main.shake(B.shake[0], B.shake[1]);
-    if (kind !== 'counter') { const c = { x: at.x, y: at.y, z: at.z + 40 }; fx.impact.ripple(c, { r1: 260, life: 340, s: 18, width: 24 }); fx.impact.aberration(0.007, 200, c); } // (a counter's comes with its hit)
+    if (kind !== 'counter') { const c = { x: at.x, y: at.y, z: at.z + 40 }; fx.impact.ripple(c, { r1: 260, life: 340, s: 18, width: 24 }); fx.impact.aberration(0.004, 180, c); } // (a counter's comes with its hit)
   }
 
   private callPunish(run: CastRun, whiff: boolean, at: V3): void {
@@ -4156,7 +4156,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     cam.shake(340, 0.011);
     if (at && this.fx) { // the whole picture takes the last blow: a big ring of bent air, the colour split, a zoom blur toward the fallen
       const c = { x: at.x, y: at.y, z: at.z + 50 };
-      this.fx.impact.ripple(c, { r1: 560, life: 700, s: 34, width: 40 }); this.fx.impact.aberration(0.014, 650, c); this.fx.impact.blur(0.085, 620, c);
+      this.fx.impact.ripple(c, { r1: 560, life: 700, s: 34, width: 40 }); this.fx.impact.aberration(0.008, 600, c); this.fx.impact.blur(0.065, 600, c);
     }
     cam.zoomTo(this.baseZoom * this.arenaZoom * 1.08, 220, 'Quad.easeOut', true);
   }

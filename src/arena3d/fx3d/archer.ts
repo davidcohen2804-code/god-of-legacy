@@ -7,7 +7,7 @@ import { C, me, side, placeOf, T } from './kit';
 export const ARCHER: Record<string, Recipe> = {
   rising_arrow: { own: true, hit: (f, _s, _h, at, main) => { if (main) f.pillar(at.x, at.y, C.leaf, { h: 520, r: 34, ms: 460 }); } },
   bow_haste: { active: (f, r) => { const c = me(f, r); f.later(T(r).active * 0.6, () => { const e = me(f, r); f.streak({ x: c.x, y: c.y, z: 40 }, { x: e.x, y: e.y, z: 40 }, C.leaf, { w: 18, ms: 300, draw: 40 }); }); } },
-  explosive_arrow: { trail: { c: C.fire, w: 14, i: 2.4 }, own: true, hit: (f, _s, _h, at) => { f.dome(at.x, at.y, C.fire, { r: 170, ms: 360 }); f.crack(at.x, at.y, C.fire, { r: 110, chunks: 12 }); f.host.embers(f.host.w3(at.x), 0.6, f.host.d3(at.y), C.fire, 18, 3); } },
+  explosive_arrow: { trail: { c: C.fire, w: 14, i: 2.4 }, own: true, hit: (f, _s, _h, at) => { f.dome(at.x, at.y, C.fire, { r: 110, ms: 240, a: 0.5 }); f.crack(at.x, at.y, C.fire, { r: 110, chunks: 12 }); f.host.embers(f.host.w3(at.x), 0.6, f.host.d3(at.y), C.fire, 18, 3); } },
   backstep_shot: { trail: { c: C.leaf, w: 10 } },
   retreat_kick: { active: (f, r) => f.slash(me(f, r), side(r), C.leaf, { r: 110, tilt: 70, a0: 170, a1: 30, ms: 220, y0: 50 }) },
   vine_trap: { own: true, hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, C.leaf, { r: 120, chunks: 8 }); f.pillar(at.x, at.y, C.spirit, { h: 460, r: 40, ms: 520 }); } } },

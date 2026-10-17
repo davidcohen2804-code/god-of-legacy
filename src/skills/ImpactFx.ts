@@ -69,6 +69,8 @@ export class ImpactFx {
    *  fighter, like every effect there) — used by the effects that only know the drawn point (SpaceWarp). */
   static drawnAt: ((x: number, wy: number) => { sx: number; sy: number; k: number }) | null = null;
 
+  /** Until then (scene time) nothing bends the picture: an ultimate's cut-in portrait is on the screen. */
+  quietUntil = 0;
   private rings: Ring[] = [];
   private ab: Pulse | null = null;
   private rb: Pulse | null = null;
@@ -133,7 +135,7 @@ export class ImpactFx {
       out[0] = q.u; out[1] = q.v; out[2] = p.amt * k * k; return true;
     };
     const a = pulse(this.ab, P.ab), b = pulse(this.rb, P.rb);
-    P.active = this.rings.length > 0 || a || b;
+    P.active = (this.rings.length > 0 || a || b) && this.scene.time.now >= this.quietUntil;
   }
 
   destroy(): void { this.rings = []; this.ab = this.rb = null; if (this.pipe) this.pipe.active = false; }
