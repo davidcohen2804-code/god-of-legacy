@@ -15,6 +15,7 @@ Three takes of each (a blow never repeats exactly). Written as imp_<class>_<l|m|
 public/assets/audio/sfx/; ArenaSound plays them under each skill's own hit (Sound.ts: SFX imp_*).
 
     python3 tools/audio/hits.py [wr sm ar bm gb]     (needs numpy, scipy, ffmpeg)
+    python3 tools/audio/hits.py bar                  (the risers into the big beats and the flurries' ticks)
 """
 import os
 import sys
@@ -23,7 +24,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from impacts import SR, bp, brown, env, finish, hp, lp, write  # noqa: E402
-from signatures import T, arc, bell, buf, click, crackle_kernels, grains, knock, place, ring, rustle, swoosh, thud  # noqa: E402
+from signatures import T, arc, bell, buf, click, crackle_kernels, grains, knock, place, ring, rustle, svf, swoosh, thud  # noqa: E402
 
 R = np.random.default_rng
 
@@ -144,8 +145,59 @@ def make(cls, w, take):
     return finish(x, 0.88, 3, 2.4)
 
 
+# ---------------------------------------------------------------- THE BAR (David 18:23, his reference: Prometheus)
+# "A riser (a 0.3-0.5 s rising sweep) leads into every big beat"; "a flurry is a stream of short 'shing' ticks with a
+# heavier accent every 4-6 (not a wall of one sound)".
+
+def riser(seed, dur, ult=False):
+    """The rise into a big beat: noise through a narrowing band sweeping up (250 Hz -> 7 kHz), a tone climbing under it,
+    a shimmer on top quivering faster and faster; it swells to the beat and stops there (the blow takes over).
+    `ult`: longer, with a deep swell under it."""
+    rng = R(seed); t = T(dur); u = t / dur
+    fc = 250 * (7000 / 250) ** (u ** 1.3); q = 1.4 + 4.5 * u
+    x = svf(rng.standard_normal(t.size), fc, q) * u ** 2.4 * 1.0
+    f = 180 * (1400 / 180) ** (u ** 1.6); ph = 2 * np.pi * np.cumsum(f) / SR
+    x += (np.sin(ph) + 0.35 * np.sin(2 * ph + 0.4)) * u ** 2.2 * 0.22
+    trem = 0.5 + 0.5 * np.sin(2 * np.pi * np.cumsum(30 + 50 * u) / SR)
+    x += hp(rng.standard_normal(t.size), 6000) * u ** 3 * trem * 0.35
+    if ult:
+        x += np.sin(2 * np.pi * np.cumsum(55 + 70 * u ** 2) / SR) * u ** 3 * 0.5
+    k = int(SR * 0.012); x[-k:] *= np.linspace(1, 0, k)  # (cut on the beat)
+    return finish(x, 0.85, 3, 1.4)
+
+
+def tick(cls, take):
+    """A flurry's small blow, the class's own 'shing' (short: ~60 ms), never twice the same."""
+    rng = R(3000 + 10 * list(MAT).index(cls) + take); dur = 0.16; t = T(dur); x = buf(dur)
+    if cls == 'wr':  # steel scraping steel: a hiss and a short bright ring
+        place(x, bp(rng.standard_normal(T(0.03).size), 1500, 6500) * env(T(0.03), 0.001, 0.008), 0, 0.9)
+        place(x, ring(0.12, 2900 * rng.uniform(0.95, 1.05), [(1, 0.5, 0.03), (1.47, 0.35, 0.02), (2.2, 0.2, 0.012)], rng), 0.002, 0.5)
+    elif cls == 'sm':  # the katana's shing: a thin slice of air and its ringing edge
+        place(x, swoosh(0.05, 4000, 9500, 8000, rng, peak=0.3, q=3.2, tail=5), 0, 0.9)
+        place(x, ring(0.12, 5200 * rng.uniform(0.96, 1.04), [(1, 0.45, 0.035), (1.38, 0.25, 0.02)], rng), 0.004, 0.45)
+    elif cls == 'ar':  # an arrow going in: a small wooden thwk and its click
+        place(x, knock(0.06, 820 * rng.uniform(0.94, 1.06), 0.012, rng, 0.9), 0, 0.9)
+        x += click(dur, rng, 3200, 0.0008, 0.5)
+    elif cls == 'bm':  # a spark of the spell: tsing, and a glint of sparkle
+        place(x, bell(0.14, 3600 * rng.uniform(0.95, 1.05), ratio=2.76, index=2.5, tau=0.035, itau=0.01), 0, 0.6)
+        place(x, bell(0.1, rng.uniform(6000, 8000), ratio=2.0, index=0.8, tau=0.02), 0.012, 0.25)
+        x += click(dur, rng, 4500, 0.0006, 0.35)
+    else:  # gb: a card's flick and a chip's ting
+        place(x, hp(rng.standard_normal(T(0.02).size), 3000) * env(T(0.02), 0.0002, 0.003), 0, 0.7)
+        place(x, bp(rng.standard_normal(T(0.04).size), 1500, 6500) * env(T(0.04), 0.002, 0.012), 0.002, 0.4)
+        place(x, ring(0.08, 4300 * rng.uniform(0.94, 1.06), [(1, 0.4, 0.02), (1.52, 0.25, 0.012)], rng), 0.006, 0.4)
+    return finish(x, 0.85, 3, 1.5)
+
+
 if __name__ == '__main__':
-    classes = sys.argv[1:] or list(MAT)
+    args = sys.argv[1:]
+    if args[:1] == ['bar']:  # the risers and the flurries' ticks
+        write('riser_s', riser(4101, 0.36)); write('riser_l', riser(4102, 0.52, ult=True))
+        for c in MAT:
+            for take in (1, 2):
+                write(f'tk_{c}_{take}', tick(c, take))
+        raise SystemExit
+    classes = args or list(MAT)
     for c in classes:
         for w in 'lmh':
             for take in (1, 2, 3):

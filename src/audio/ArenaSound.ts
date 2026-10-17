@@ -265,6 +265,7 @@ export class ArenaSound {
   cast(run: CastRun, phase: string): void {
     const s = run.skill, T = run.timings;
     if (phase === 'startup' && s.slot === 7) Sound.duck(T.startup + T.active + Math.min(T.recovery, 900) + 300, 0.3);
+    if (phase === 'startup') this.riserFor(run);
     const x = { x: run.origin.x, y: run.origin.y, z: run.origin.z, wet: WET.swing };
     const sig = this.sigOf(s);
     if (sig) {
@@ -295,6 +296,39 @@ export class ArenaSound {
     Sound.sfx(n >= 5 ? 'gb_wild_g2' : 'gb_wild_g1', { x: run.origin.x, y: run.origin.y, z: run.origin.z, wet: WET.swing, vol: n >= 5 ? 1 : 0.75 + 0.06 * n });
   }
 
+  /** THE BAR (David 18:23): a riser (a rising sweep, 0.35 s; an ultimate's 0.5 s, deeper) leads into a skill's big beat —
+   *  its first heavy blow (an ultimate: its last main one) — started from the cast so it ends on the beat, where the blow
+   *  and its boom take over; cut if the cast is broken off first. Not for a basic chain, nor a skill with a wind-up of its
+   *  own (it already leads in), nor a held one (its beat comes at the release), nor when the beat comes too soon. */
+  private riserFor(run: CastRun): void {
+    const s = run.skill, sig = SIG[s.id];
+    if (s.slot === 0 || s.chain || s.charge || sig?.wind) return; // (a held skill: its beat comes at the release, unknown here)
+    const ult = s.slot === 7, hs = run.hits;
+    const big = ult ? [...hs].reverse().find((h) => h.heavy || h.reaction.launch || h.reaction.knockdown || h.reaction.slam) ?? hs[hs.length - 1] : hs.find((h) => h.heavy);
+    if (!big) return;
+    const len = ult ? 500 : 350, toBeat = run.timings.startup + big.at - run.elapsed;
+    if (toBeat < 160) return;
+    const start = toBeat - len, at = run.origin;
+    const go = () => {
+      if (run.phase === 'done') return;
+      const snd = Sound.sfx(ult ? 'riser_l' : 'riser_s', { x: at.x, y: at.y, z: at.z, wet: WET.swing, at: 120, seek: start < 0 ? -start / 1000 : 0 });
+      if (snd) this.risers.push({ run, snd, until: performance.now() + Math.min(len, toBeat) + 30 });
+    };
+    if (start > 0) this.later(start, go); else go();
+  }
+  private risers: { run: CastRun; snd: Phaser.Sound.BaseSound; until: number }[] = [];
+
+  /** A flurry's count of small blows (a skill's ticks within 0.45 s of each other are one flurry). */
+  private flurry(id: string): number {
+    const now = performance.now(), f = this.flurries.get(id);
+    const n = f && now - f.at < 450 ? f.n + 1 : 1;
+    this.flurries.set(id, { n, at: now });
+    return n;
+  }
+  private flurries = new Map<string, { n: number; at: number }>();
+  /** The last beat of quiet (one at most every 1.2 s: a combo of finishers does not chop the music). */
+  private quietAt = -1e9;
+
   /** A hit landing (or held off): the class's impact (a signature skill's own); the main hit with the boom under it, a
    *  burst's small blows soft. */
   hit(s: FinalSkill, hit: HitEvent, at: { x: number; y?: number; z?: number }, damage: number, reaction: string, crit: boolean): void {
@@ -310,8 +344,11 @@ export class ArenaSound {
     const proj = hit.shape.kind === 'projectile';
     // the blow itself, by its weight (its class's sounds in: else the class's old impact below)
     const turn = !!this.sigOf(s)?.zoneVol && hit === s.linger?.hit; // (a hold's quick turns: light, so its last one stands out)
-    const ic = IMP[s.cls], blow = ic && Sound.classReady(this.scene, s.cls) ? (`imp_${ic}_${tick || turn || tier === 0 ? 'l' : main ? 'h' : 'm'}` as SfxName) : null;
-    if (blow) Sound.sfx(blow, { ...w, vol: tick || turn ? 0.55 : 1, wet: tick ? WET.tick : WET.hit, at: tick ? 30 : 38 });
+    const ic = IMP[s.cls], ready = !!ic && Sound.classReady(this.scene, s.cls);
+    const accent = tick && this.flurry(s.id) % 5 === 0; // (THE BAR: a flurry is a stream of small 'shing's, a heavier one every fifth — never a wall of one sound)
+    const blow = ready ? (`imp_${ic}_${accent ? 'm' : tick || turn || tier === 0 ? 'l' : main ? 'h' : 'm'}` as SfxName) : null;
+    if (blow) Sound.sfx(blow, { ...w, vol: accent ? 0.85 : tick || turn ? 0.55 : 1, wet: tick ? WET.tick : WET.hit, at: tick ? 30 : 38 });
+    if (tick && ready) Sound.sfx(`tk_${ic}` as SfxName, { ...w, vol: accent ? 1 : 0.7, rate: accent ? 0.92 : 1, wet: WET.tick, at: 25 });
     const sig = tick ? undefined : this.sigOf(s), own = sig ? (sig.zone && hit === s.linger?.hit ? sig.zone : sig.zoneEnd && hit === s.linger?.last ? sig.zoneEnd : this.ownHit(s, sig, main, idx)) : undefined;
     if (own) Sound.sfx(own, turn ? { ...o, vol: o.vol * sig!.zoneVol! } : !main && sig?.blowVol ? { ...o, vol: o.vol * sig.blowVol } : o);
     else if (!blow) switch (s.cls) {
@@ -322,6 +359,7 @@ export class ArenaSound {
       case 'gambler': Sound.sfx(hit.fuse ? (tier >= 2 ? 'hit_heavy' : 'hit_light') : 'gam_hit', o); break;
       default: Sound.sfx('hit_light', o);
     }
+    if (main && tier >= 2 && !s.chain && idx >= 0 && idx === this.mainsOf(s).last && !(s.linger && hit === s.linger.hit) && performance.now() - this.quietAt > 1200) { this.quietAt = performance.now(); this.later(90, () => Sound.quiet(300)); } // (THE BAR: a beat of quiet right after a finisher — the music and the room drop away, the blow's tail rings alone)
     if (main) { // the boom: deeper and bigger with the blow's weight (a regular attack's main hit: a small one)
       Sound.sfx('boom', { ...w, vol: [0.5, 0.78, 0.92, 1][tier], rate: [1.08, 1, 0.94, 0.86][tier], wet: WET.boom, at: 70 });
       if (tier >= 2 && !blow) Sound.sfx('hit_heavy', { ...w, vol: 0.45, at: 60, wet: WET.hit }); // (the crack of it: in the blow's own sound when it has one)
@@ -347,9 +385,8 @@ export class ArenaSound {
   /** Each signature skill's first and last main hit (by its index). */
   private mains = new Map<string, { first: number; last: number }>();
   /** A signature skill's own impact for this blow: its first main hit, its last one, its other blows. */
-  private ownHit(s: FinalSkill, sig: Sig, main: boolean, idx: number): SfxName | undefined {
-    if (!main) return sig.blow;
-    if (s.chain || s.charge || idx < 0) return sig.hit; // (a chain's finisher; a charged skill's level hits are its own)
+  /** A skill's main hits (the first and the last of them: heavy, a launch / knockdown / slam, a burst's last blow). */
+  private mainsOf(s: FinalSkill): { first: number; last: number } {
     let m = this.mains.get(s.id);
     if (!m) {
       const n = s.hits.length, many = n > 3;
@@ -357,6 +394,13 @@ export class ArenaSound {
       s.hits.forEach((h, i) => { if (h.heavy || h.reaction.launch || h.reaction.knockdown || h.reaction.slam || (many && i === n - 1)) { if (m!.first < 0) m!.first = i; m!.last = i; } });
       this.mains.set(s.id, m);
     }
+    return m;
+  }
+
+  private ownHit(s: FinalSkill, sig: Sig, main: boolean, idx: number): SfxName | undefined {
+    if (!main) return sig.blow;
+    if (s.chain || s.charge || idx < 0) return sig.hit; // (a chain's finisher; a charged skill's level hits are its own)
+    const m = this.mainsOf(s);
     if (sig.every) return idx === m.last && sig.end ? sig.end : sig.hit;
     return idx === m.first ? sig.hit : idx === m.last ? sig.end : undefined;
   }
@@ -375,6 +419,10 @@ export class ArenaSound {
 
   /** Every frame: jumps, landings and falls; the round clock's last five seconds; PVP 3D: the room darkening. */
   update(): void {
+    if (this.risers.length) { // a riser whose cast was broken off before its beat: cut short
+      const now = performance.now();
+      this.risers = this.risers.filter((r) => { if (now > r.until) return false; if (r.run.phase === 'done') { r.snd.stop(); return false; } return true; });
+    }
     for (const f of this.fighters()) {
       const a = this.air.get(f.id) ?? { up: false, peak: 0, hurt: false }, p = { x: f.x, y: f.y, z: 0, wet: WET.body };
       if (!a.up && f.h > 6) { a.up = true; a.peak = f.h; a.hurt = f.hurt; if (!f.hurt) Sound.sfx('jump', p); }

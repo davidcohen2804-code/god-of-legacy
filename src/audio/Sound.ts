@@ -20,6 +20,7 @@ export const SFX = {
   hit_light: [3, 0.7], hit_heavy: [3, 0.8], hit_ult: [2, 0.85], block: [3, 0.6], whiff: [3, 0.4], whiff_heavy: [2, 0.45], crit: [1, 0.45], jump: [2, 0.25], land: [3, 0.35], fall: [2, 0.65],
   vs_slam: [1, 0.85], round_swoosh: [1, 0.55], fight_hit: [1, 0.7], ko_boom: [1, 0.95], perfect_shine: [1, 0.55], break: [1, 0.75], punish: [1, 0.6], rage: [1, 0.65], tick: [1, 0.35],
   boom: [3, 0.62], dim_whoosh: [1, 0.7],
+  riser_s: [1, 0.23], riser_l: [1, 0.3], // (THE BAR: the rise into a big beat — a skill's / an ultimate's)
   // PVP 3D: the skills' pieces in the room, and the fighters on its planks
   crack: [2, 0.4], chunks: [2, 0.42], pillar: [1, 0.55], bolt: [2, 0.4], dome: [1, 0.5], wave: [1, 0.5], crystals: [1, 0.45], spikes: [1, 0.98], thorns: [1, 0.87], streak: [1, 0.32], slash: [1, 0.36], rain: [1, 0.45],
   step: [4, 0.42], scuff: [2, 0.45], thump: [2, 0.62],
@@ -36,6 +37,7 @@ export const SFX = {
  *  its impacts, a main hit a little over them. */
 export const SIG_SFX = {
   warrior: {
+    tk_wr: [2, 0.44], // (a flurry's small blows: its own 'shing')
     wr_iron_1: [1, 0.44], wr_iron_2: [1, 0.44], wr_iron_3: [1, 0.47], wr_iron_4: [1, 0.62], wr_iron_hit: [2, 0.66], wr_iron_fin: [1, 0.65],
     wr_rise_c: [1, 0.29], wr_rise_h: [1, 0.29], wr_quake_c: [1, 0.61], wr_quake_h: [1, 0.58], wr_rush_c: [1, 0.5], wr_rush_h: [1, 0.47],
     wr_storm_w: [1, 0.38], wr_storm_c: [1, 0.33], wr_storm_h: [1, 0.28], wr_titan_w: [1, 0.27], wr_titan_h: [1, 0.58], wr_titan_end: [1, 1.0],
@@ -47,6 +49,7 @@ export const SIG_SFX = {
     imp_wr_l: [3, 0.31], imp_wr_m: [3, 0.36], imp_wr_h: [3, 0.32]
   },
   samurai: {
+    tk_sm: [2, 0.61], // (a flurry's small blows: its own 'shing')
     sm_quick_1: [1, 0.53], sm_quick_2: [1, 0.54], sm_quick_3: [1, 0.42], sm_quick_4: [1, 0.43], sm_quick_hit: [2, 0.53], sm_quick_fin: [1, 0.29],
     sm_hundred_c: [1, 0.53], sm_hundred_h: [1, 0.38], sm_swallow_c: [1, 0.46], sm_swallow_h: [1, 0.27], sm_shadow_c: [1, 0.47], sm_shadow_h: [1, 0.46],
     sm_iai_w: [1, 0.44], sm_iai_c: [1, 0.24], sm_iai_h: [1, 0.53], sm_blossom_c: [1, 0.36], sm_blossom_h: [1, 0.44], sm_eclipse_w: [1, 0.67],
@@ -57,6 +60,7 @@ export const SIG_SFX = {
     sm_ascend_h: [1, 0.51], imp_sm_l: [3, 0.34], imp_sm_m: [3, 0.36], imp_sm_h: [3, 0.33]
   },
   archer: {
+    tk_ar: [2, 0.45], // (a flurry's small blows: its own 'shing')
     ar_double_c: [1, 0.4], ar_charged_c: [1, 0.36], ar_arrow_hit: [2, 0.77], ar_charged_h: [1, 0.89], ar_rise_c: [1, 0.42], ar_rise_h: [1, 0.44],
     ar_fire_c: [1, 0.42], ar_fire_h: [1, 0.42], ar_storm_c: [1, 0.37], ar_storm_h: [1, 0.67], ar_volley_c: [1, 0.41], ar_volley_h: [1, 0.62],
     ar_skyrain_w: [1, 0.32], ar_skyrain_c: [1, 0.37], ar_skyrain_h: [1, 0.47], ar_step_c: [1, 0.43], ar_step_h: [1, 0.48], ar_triple_c: [1, 0.24],
@@ -68,6 +72,7 @@ export const SIG_SFX = {
     imp_ar_m: [3, 0.33], imp_ar_h: [3, 0.29]
   },
   book_mage: {
+    tk_bm: [2, 0.26], // (a flurry's small blows: its own 'shing')
     bm_bolt_c1: [1, 0.23], bm_bolt_c2: [1, 0.24], bm_lance_c: [1, 0.52], bm_bolt_h: [2, 0.26], bm_lance_h: [1, 0.6], bm_wave_c: [1, 0.22],
     bm_wave_h: [1, 0.41], bm_astral_c: [1, 0.25], bm_astral_h: [1, 0.68], bm_chain_c: [1, 1.0], bm_chain_h: [1, 0.55], bm_spikes_c: [1, 0.51],
     bm_spikes_h: [1, 0.82], bm_field_c: [1, 0.89], bm_field_h: [1, 0.52], bm_time_w: [1, 0.41], bm_time_c: [1, 0.38], bm_time_h: [1, 0.55],
@@ -77,6 +82,7 @@ export const SIG_SFX = {
     imp_bm_l: [3, 0.3], imp_bm_m: [3, 0.31], imp_bm_h: [3, 0.29]
   },
   gambler: {
+    tk_gb: [2, 0.69], // (a flurry's small blows: its own 'shing')
     gb_deck_1: [1, 0.56], gb_deck_2: [1, 0.54], gb_deck_3: [1, 0.58], gb_deck_4: [1, 0.33], gb_staff_hit: [2, 0.58], gb_deck_fin: [1, 0.34],
     gb_deal_w: [1, 0.47], gb_deal_c: [1, 0.37], gb_deal_h: [1, 0.84], gb_vault_c: [1, 0.49], gb_vault_h: [1, 0.55], gb_fuse_c: [1, 0.43],
     gb_fuse_h: [1, 0.92], gb_show_w: [1, 0.45], gb_show_c: [1, 0.36], gb_show_h: [1, 0.3], gb_jack_w: [1, 0.64], gb_jack_c: [1, 0.24],
@@ -266,14 +272,14 @@ export const Sound = {
 
   /** An effect (a family's variation at random, never the same twice in a row, a hair of pitch to keep it alive). Too
    *  many of one family at once, or too soon after the last, and it is let go (a storm of hits stays clean). */
-  sfx(name: SfxName, o: PlayOpts = {}): void {
+  sfx(name: SfxName, o: PlayOpts = {}): Phaser.Sound.BaseSound | null {
     const [n, base] = FAMILY[name], now = performance.now();
-    if (now - (lastPlay.get(name) ?? -1e9) < (o.at ?? 38) || (live.get(name) ?? 0) >= 4 * n) return;
+    if (now - (lastPlay.get(name) ?? -1e9) < (o.at ?? 38) || (live.get(name) ?? 0) >= 4 * n) return null;
     lastPlay.set(name, now);
     let i = n > 1 ? 1 + Math.floor(Math.random() * n) : 0;
     if (n > 1 && i === lastPick.get(name)) i = 1 + (i % n);
     lastPick.set(name, i);
-    playKey(i ? `${name}_${i}` : name, base * (o.vol ?? 1) * sfxVol(), { ...o, rate: (o.rate ?? 1) * (1 + (Math.random() - 0.5) * 0.06) });
+    return playKey(i ? `${name}_${i}` : name, base * (o.vol ?? 1) * sfxVol(), { ...o, rate: (o.rate ?? 1) * (1 + (Math.random() - 0.5) * 0.06) });
   },
 
   /** A class's signature sounds are in (else they are fetched now through this scene, and heard from when they are). */
@@ -368,6 +374,9 @@ export const Sound = {
   /** The music dips for a while (a K.O., an ultimate): the longer and the deeper of two dips at once wins. */
   duck(ms: number, level = 0.3): void { const now = performance.now(); duckLevel = now < duckUntil ? Math.min(duckLevel, level) : level; duckUntil = Math.max(duckUntil, now + ms); },
 
+  /** A beat of quiet (THE BAR: right after a finisher): the music and the room's bed drop away at once for `ms`, then come back. */
+  quiet(ms: number): void { quietUntil = Math.max(quietUntil, performance.now() + ms); },
+
   /** PVP 3D: the fight's effects sound in the temple courtyard (its reverb fades in), or back to dry. */
   room(on: boolean): void {
     roomOn = on;
@@ -382,7 +391,7 @@ export const Sound = {
 let voiceSnd: Phaser.Sound.BaseSound | null = null;
 /** The classes whose signature sounds were sent for after the arena had loaded. */
 const asked = new Set<string>();
-let duckUntil = 0, duckLevel = 0.45, duck = 1;
+let duckUntil = 0, duckLevel = 0.45, duck = 1, quietUntil = 0, hush = 1;
 let wantMusic: string | null = null;
 
 /** A looping channel (music or ambience): the playing sounds, each fading toward its own target. */
@@ -407,8 +416,9 @@ function channel(c: Chan, k: string | null, fadeMs: number, base = 1): void {
 function step(dt: number): void {
   const now = performance.now(), want = now < duckUntil ? duckLevel : 1;
   duck += (want - duck) * Math.min(1, dt / (want < duck ? 90 : 450)); // (down fast, back up slowly)
+  const hw = now < quietUntil ? 0.12 : 1; hush += (hw - hush) * Math.min(1, dt / (hw < hush ? 35 : 260)); // (the quiet beat: gone at once, back over a moment)
   for (const c of [chMusic, chAmb]) {
-    const v = c.vol() * c.base * (c === chMusic ? duck : 1);
+    const v = c.vol() * c.base * (c === chMusic ? duck : 1) * hush;
     c.list = c.list.filter((e) => {
       e.g += Math.sign(e.to - e.g) * Math.min(Math.abs(e.to - e.g), (dt / 1000) * e.rate);
       (e.s as Phaser.Sound.WebAudioSound).setVolume?.(e.g * v);
