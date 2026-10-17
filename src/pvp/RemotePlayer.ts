@@ -231,6 +231,9 @@ export class RemotePlayer {
       const m = heroMotion(this.skill && this.alive ? archerMotion(this.skill.id, this.skill.elapsed, this.skill, this.dir === 'left' ? -1 : 1) : null, !!this.meta.hero);
       applyMotion(this.view.motionSprites, m);
       (this.afterimg ??= new Afterimages(this.scene)).step(this.scene.time.now, this.view.sprite, !!m?.after);
+    } else if (this.meta.classId === 'warrior') { // Dash Slash's steel afterimages, as the caster sees them
+      const sk = this.skill, on = !!sk && this.alive && sk.id === 'dash_slash' && sk.elapsed >= sk.startup && sk.elapsed < sk.startup + sk.active;
+      (this.afterimg ??= new Afterimages(this.scene, 0xe8f0ff)).step(this.scene.time.now, this.view.sprite, on, 35);
     } else if (this.meta.classId === 'samurai') {
       const m = heroMotion(this.skill && this.alive ? samuraiMotion(this.skill.id, this.skill.elapsed, this.skill, this.dir === 'left' ? -1 : 1, this.skill.stage) : null, !!this.meta.hero);
       applyMotion(this.view.motionSprites, m);

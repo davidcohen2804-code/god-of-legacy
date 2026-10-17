@@ -1818,6 +1818,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       (this.afterimg ??= new Afterimages(this, SAMURAI_AFTER)).step(this.simMs, v.sprite, !!m?.after);
       this.kage?.render(ms, { pose, dir, motion: m }, 1, this.simMs); // the doubles: each its own way (his pose and motion while he swings)
     }
+    if (this.cls === 'warrior' && v.sprite) { // Dash Slash: he becomes a blur — steel afterimages along the dash (DFO's review: STEEL)
+      const on = !!run && this.dead < 0 && run.skill.id === 'dash_slash' && run.elapsed >= run.timings.startup && run.elapsed < run.timings.startup + run.timings.active;
+      (this.afterimg ??= new Afterimages(this, 0xe8f0ff)).step(this.simMs, v.sprite, on, 35);
+    }
     this.renderGambler();
     this.fx?.treeFade(k.x, k.y); // a tree in front of the player turns see-through
     this.renderRadiant(pose, dir);

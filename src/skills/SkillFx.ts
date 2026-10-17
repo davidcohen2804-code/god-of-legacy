@@ -17,7 +17,7 @@ import { ImpactFx } from './ImpactFx';
 
 const F = 'assets/final';
 /** Skills that borrow another skill's VFX sheet (no art of their own). */
-const VFX_ALIAS: Record<string, string> = { wave_slash: 'warrior_basic', radiant_blade: 'war_cry', sanctuary: 'war_cry', iron_oath: 'war_cry', legacy_banner: 'war_cry' };
+const VFX_ALIAS: Record<string, string> = { wave_slash: 'warrior_basic', radiant_blade: 'war_cry', iron_oath: 'war_cry', legacy_banner: 'war_cry' };
 const vfxKey = (id: string) => `vfx-${VFX_ALIAS[id] ?? id}`;
 const isBig = (s: FinalSkill) => s.slot === 6 || s.slot === 7;
 const TOP = 100000;
@@ -241,7 +241,7 @@ const VFX_MULT: Record<string, number> = { warrior: 1.5, samurai: 1.25 };
  *  stay readable through them, the regular attack's arc a size up so its strike reads. [size ×, alpha] */
 /** The Warrior's sheets re-toned into DFO's five families (tools/skills/wtone.py: STEEL / STONE / IRON / CRIMSON): drawn with NORMAL
  *  blend so their colour holds on the red planks (additive, every one melted into the same orange), no gold halo. */
-const WTONED = new Set(['warrior_basic', 'dash_slash', 'whirlwind', 'lance_thrust', 'sky_breaker', 'ground_breaker', 'leap_crash', 'earthsplitter', 'iron_grip', 'judgment_hook', 'shield_charge', 'war_cry', 'lions_maw', 'blade_storm', 'wave_slash']);
+const WTONED = new Set(['warrior_basic', 'dash_slash', 'whirlwind', 'lance_thrust', 'sky_breaker', 'ground_breaker', 'leap_crash', 'earthsplitter', 'iron_grip', 'judgment_hook', 'shield_charge', 'war_cry', 'lions_maw', 'blade_storm', 'wave_slash', 'sanctuary']);
 /** Each Warrior skill's family colour (its cast aura and accents). */
 const WFAM_C: Record<string, number> = { warrior_basic: 0xe8f0ff, dash_slash: 0xe8f0ff, rising_slash: 0xff5a40, wave_slash: 0xe8f0ff, whirlwind: 0xe8f0ff, lance_thrust: 0xe8f0ff, sky_breaker: 0xe8f0ff,
   ground_breaker: 0xb09474, leap_crash: 0xb09474, earthsplitter: 0xb09474, iron_grip: 0x9fc4ff, judgment_hook: 0x9fc4ff, shield_charge: 0x9fc4ff,
@@ -448,20 +448,20 @@ export class SkillFx {
   private chargeAura(r: CastRun): void {
     if (!this.scene.textures.exists('holy-aura')) return;
     const L = r.skill.charge?.levels ?? [], marks = L.slice(1).map((l) => l.at * (r.chargeScale ?? 1));
-    const img = this.scene.add.image(0, 0, 'holy-aura', 0).setOrigin(0.5, 515 / 667).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
+    const img = this.scene.add.image(0, 0, 'holy-aura', 0).setOrigin(0.5, 515 / 667).setBlendMode(Phaser.BlendModes.ADD).setTint(0xff7a22).setAlpha(0); // (molten, not holy: the heat rising from the cracks)
     let reached = 0, fade = -1;
     const tick = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
       const c = this.casterPos(r.attackerId);
       if (!c) { tick.remove(); img.destroy(); return; }
       const held = r.phase === 'startup', e = r.elapsed;
       while (held && reached < marks.length && e >= marks[reached]) { // a level reached: a burst of light at his feet
-        reached++; this.shockwave(c.x, c.y, 90 + 50 * reached, 0xffd27a);
-        this.spark(IMPACT.warrior.key, c.x, c.y - c.z - 60, IMPACT.warrior.frames, 150 + 40 * reached, 0.9);
+        reached++; this.shockwave(c.x, c.y, 90 + 50 * reached, 0xb09474); // (STONE: the ground cracks round his feet, wider at each level — DFO's review)
+        this.crack(c.x, c.y, 50 + 32 * reached); this.dust(c.x, c.y, 70 + 20 * reached, 0.35);
       }
       if (!held && fade < 0) fade = 0;
       if (fade >= 0) fade += 16;
       const grow = 0.75 + 0.18 * reached, a = fade >= 0 ? Math.max(0, 1 - fade / 200) : Math.min(1, e / 200);
-      img.setFrame(Math.floor(e / 90) % 8).setPosition(c.x, c.y - c.z + 4).setDisplaySize(125 * grow, 333 * grow).setDepth(c.y - 0.2).setAlpha((0.55 + 0.15 * reached) * a);
+      img.setFrame(Math.floor(e / 90) % 8).setPosition(c.x, c.y - c.z + 4).setDisplaySize(125 * grow, 333 * grow).setDepth(c.y - 0.2).setAlpha((0.22 + 0.1 * reached) * a);
       if (fade >= 200) { tick.remove(); img.destroy(); }
     } });
   }
@@ -566,7 +566,7 @@ export class SkillFx {
     const d = Math.max(60, (T.active + T.recovery) / 8);
     this.play(key, x, y + 10, w, h, [d * 0.6, d * 0.7, d, d, d * 1.3, d * 1.2, d * 1.2, d * 1.4], { oy: 0.98, flip: a.x < 0, depth: y + 4, blend: Phaser.BlendModes.NORMAL, fadeLast: 200 });
     (this.cam ?? this.scene.cameras.main).shake(180 + lv * 120, 0.006 + lv * 0.004);
-    this.shockwave(x, y, range * 0.9, 0xffc060);
+    this.shockwave(x, y, range * 0.9, 0xb09474);
   }
 
   /** Lion's Maw: the lion of light gathers at his side and pounces through the foe (the sheet's own leap), frames timed to the bite,

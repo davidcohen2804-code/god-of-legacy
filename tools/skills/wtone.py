@@ -23,7 +23,7 @@ SHEETS = {  # skill dir / file : family
     'warrior_basic/vfx': 'STEEL', 'dash_slash/vfx': 'STEEL', 'whirlwind/vfx': 'STEEL', 'lance_thrust/vfx': 'STEEL', 'sky_breaker/vfx': 'STEEL',
     'ground_breaker/vfx': 'STONE', 'leap_crash/vfx': 'STONE', 'earthsplitter/vfx': 'STONE',
     'iron_grip/vfx': 'IRON', 'judgment_hook/vfx': 'IRON', 'shield_charge/vfx': 'IRON',
-    'war_cry/vfx': 'CRIMSON', 'lions_maw/vfx': 'CRIMSON', 'blade_storm/storm': 'CRIMSON', 'blade_storm/erupt_a': 'CRIMSON', 'blade_storm/phantom': 'CRIMSON',
+    'war_cry/vfx': 'CRIMSON', 'sanctuary/vfx': 'HOLY',  # (sanctuary/vfx: War Cry's original sheet in HOLY — it used to borrow War Cry's) 'lions_maw/vfx': 'CRIMSON', 'blade_storm/storm': 'CRIMSON', 'blade_storm/erupt_a': 'CRIMSON', 'blade_storm/phantom': 'CRIMSON',
 }
 
 
@@ -41,7 +41,7 @@ def tone(img, fam):
 
 if __name__ == '__main__':
     for key, fam in SHEETS.items():
-        sid, f = key.split('/'); src = OUT + key + '.png'; keep = ORIG + f'{sid}__{f}.png'
+        sid, f = key.split('/'); src = OUT + key + '.png'; keep = ORIG + ('war_cry__vfx.png' if key == 'sanctuary/vfx' else f'{sid}__{f}.png')
         if not os.path.exists(keep): shutil.copy(src, keep)
         tone(Image.open(keep), fam).save(src, optimize=True)
         print(key, fam)
