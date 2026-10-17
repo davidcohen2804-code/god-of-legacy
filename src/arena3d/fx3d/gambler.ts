@@ -56,18 +56,22 @@ export const GAMBLER: Record<string, Recipe> = {
   riffle_shuffle: { tone: TONE.card, own: true, hit: (f, _s, _h, at, main, react) => { if (main) { if (react === 'launch') f.pillar(at.x, at.y, F.red, { h: 340, r: 24, ms: 380, core: false }); else f.dome(at.x, at.y, F.card, { r: 80, ms: 240, a: 0.55 }); } }, trail: { c: F.card, w: 8, len: 10 }, active: (f, r) => f.whirl(r.attackerId, F.card, { r: 120, ms: Math.min(400, T(r).active), rings: 1, every: 130, dir: side(r) }) },
   // the staff spun like a wheel in front of him: upright cuts turning, one after the other
   rotor_staff: { tone: TONE.violet,
-    own: true, hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, F.violet, { r: 80, ms: 240, a: 0.55 }); },
-    active: (f, r) => { const n = Math.max(2, Math.min(5, Math.round(T(r).active / 110))); for (let k = 0; k < n; k++) f.later(k * 110, () => f.slash(me(f, r), side(r), k % 2 ? F.steel : F.violet, { r: 90, tilt: 90, a0: -90 + k * 40, a1: 90 + k * 40, ms: 180, y0: 30, i: 1.4 })); },
+    // (DAVID 18:23's bar, the scythe 07: a ball of cut rings at many angles round him, travelling with him, an ink ring behind each)
+    own: true, hit: (f, _s, _h, at, main) => { if (main) f.impact({ x: at.x, y: at.y, z: 60 }, F.violet, { r: 70, embers: 10 }); },
+    active: (f, r) => f.bladeBall(r.attackerId, F.violet, { r: 105, ms: Math.min(1500, T(r).active), every: 85, ink: true, y0: 40 }),
   },
   // the row of cards turned face up: a crest of light runs down the row along the floor, the last card the big burst
   showdown: { tone: TONE.card,
-    own: true, hit: (f, _s, _h, at, main) => { if (main) { f.dome(at.x, at.y, F.card, { r: 60, ms: 260, a: 0.3 }); f.pillar(at.x, at.y, F.red, { h: 360, r: 22, ms: 380, core: false }); } },
+    own: true, hit: (f, _s, _h, at, main) => { if (main) { f.impact({ x: at.x, y: at.y, z: 60 }, F.red, { r: 70, embers: 12 }); } },
     active: (f, r) => { const c = me(f, r); f.wave(c.x, c.y, r.aim.x, r.aim.y * 0.6, F.red, { len: 360, ms: 340, h: 50, w: 46 }); },
   },
   // the coin: a thin gold column rising where it lands
   coin_flip: { tone: TONE.coin, own: true, active: (f, r) => f.pillar(me(f, r).x, me(f, r).y, C.coin, { h: 420, r: 30, ms: 520, core: false }) },
   // the wheel: its result tears up a twisting column, the floor cracking gold round it
-  roulette_wheel: { tone: TONE.neon, own: true, hit: (f, _s, _h, at, main) => { if (main) { f.pillar(at.x, at.y, F.neon, { h: 520, r: 46, ms: 520, twist: true }); f.crack(at.x, at.y, F.neon, { r: 110, chunks: 10 }); } } },
+  roulette_wheel: { tone: TONE.neon, own: true,
+    // (DAVID 18:23's bar: the wheel a spiral glyph turning under the foe for its 2 s; the result a ball of rings and the main hit)
+    active: (f, r) => { const p = placeOf(f, r, 220); f.glyph(p.x, p.y, F.neon, { shape: 'spiral', r: 170, ms: Math.min(2300, T(r).active + 200), spin: 1.4, pulse: 0.4, a: 0.7 }); },
+    hit: (f, _s, _h, at, main) => { if (main) { f.impact({ x: at.x, y: at.y, z: 50 }, F.neon, { r: 90, cracks: true, embers: 14 }); for (let k = 0; k < 5; k++) f.later(k * 70, () => f.slash({ x: at.x, y: at.y, z: 0 }, k % 2 ? 1 : -1, F.neon, { r: 95, w: 30, tilt: [15, 70, 40, 85, 25][k], yaw: [0, 60, -45, 30, -70][k], a0: -170, a1: 170, ms: 240, y0: 50, i: 1.3 })); } } },
   // the dice: each die bursts in a shell of light; the second (the sum) the bigger, the floor torn under it
   dice_bomb: { tone: TONE.neon,
     own: true,
@@ -79,11 +83,11 @@ export const GAMBLER: Record<string, Recipe> = {
     own: true, hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, F.fuse, { r: 80, ms: 240, a: 0.5 }); },
   },
   // the ace: a gold lance in flight, a gold shell and a thin fuchsia column where it blows up
-  ace_in_the_hole: { tone: TONE.card, trail: { c: F.card, w: 14, i: 2.6 }, own: true, hit: (f, _s, _h, at, main) => { if (main) { f.dome(at.x, at.y, F.card, { r: 150, ms: 360, a: 0.6 }); f.pillar(at.x, at.y, F.red, { h: 480, r: 32, ms: 420, core: false }); } } },
+  ace_in_the_hole: { tone: TONE.card, trail: { c: F.red, w: 10, i: 1.8 }, own: true, hit: (f, _s, _h, at, main) => { if (main) { f.impact({ x: at.x, y: at.y, z: 60 }, F.red, { r: 90, cracks: true, embers: 16 }); f.pillar(at.x, at.y, F.red, { h: 420, r: 24, ms: 380, core: false }); } } },
   // Lady Luck: a short rain of gold over him
   lady_luck: { tone: TONE.coin, own: true, active: (f, r) => { const c = me(f, r); f.rain(c.x, c.y, 80, C.coin, { n: 10, ms: 420, h: 420 }); } },
   // Pick-up 52: the deck thrown up comes down — a rain of fuchsia over the area ahead
-  pickup_52: { tone: TONE.card, own: true, hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, F.card, { r: 100, ms: 280, a: 0.55 }); },
+  pickup_52: { tone: TONE.card, own: true, hit: (f, _s, _h, at, main) => { if (main) f.impact({ x: at.x, y: at.y, z: 40 }, F.red, { r: 90, cracks: true, embers: 14 }); },
     active: (f, r) => {
       const p = ahead(f, r, 160); f.rain(p.x, p.y, 150, F.red, { n: 16, ms: 700, h: 560 });
       // the deck sprayed out: real cards stuck in the planks, near to far; each wave rips its own up (they crumble on its beat)
@@ -118,8 +122,16 @@ export const GAMBLER: Record<string, Recipe> = {
     },
     hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, F.card, { r: 55, ms: 220, a: 0.3 }); },
   },
-  // the jackpot: a gold tower of light, then the crater (kept under a white-out: the fighters read through it)
-  jackpot: { tone: TONE.coin, own: true, active: (f, r) => { const p = placeOf(f, r, 220); f.pillar(p.x, p.y, C.coin, { h: 700, r: 34, ms: 800, twist: true, i: 1 }); f.later(140, () => { f.crack(p.x, p.y, C.fuchsia, { r: 200, chunks: 20, up: 1.3 }); f.host.impact({ x: p.x, y: p.y, z: 60 }, 2); f.host.kick(0.08); }); } },
+  // the jackpot (DAVID 18:23's bar, the gothic ult 09): coins and chips gather round him while the reels roll → a gold star
+  // glyph opens on the floor under him → a ring runs out → the last blast is the big burst → a dome of gold over the area
+  jackpot: { tone: TONE.coin, own: true,
+    cast: (f, r) => { const id = r.attackerId; f.swirl(() => { const c = f.host.casterPos(id); return c ? { x: c.x, y: c.y, z: 0 } : null; }, { tex: 'gbk-c_coin_h', size: 0.5, aspect: 1, crumble: C.coin }, { n: 16, r0: 70, r1: 150, h: 260, ms: T(r).startup, rps: 0.9, rise: 0.5, color: C.coin }); },
+    active: (f, r) => { const c = me(f, r); f.glyph(c.x, c.y, C.coin, { shape: 'star', points: 8, r: 260, ms: T(r).active + 500, spin: 0.25, pulse: 0.6, a: 0.75 }); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), C.coin, 3.2, 600, 0.7); },
+    hit: (f, _s, _h, at, main) => {
+      if (!main) return;
+      f.impact({ x: at.x, y: at.y, z: 40 }, C.coin, { r: 120, cracks: true, embers: 24 });
+      f.dome(at.x, at.y, C.coin, { r: 300, ms: 700, a: 0.22 }); f.host.kick(0.07);
+    } },
   // All In: every stuck card goes off — a crater and a gold column out of it
   all_in: { tone: TONE.neon, own: true, hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, F.neon, { r: 150, chunks: 18 }); f.pillar(at.x, at.y, F.neon, { h: 600, r: 32, ms: 480, i: 1.4, core: false }); } } },
   // Triple Down: three slams — the cracks grow with each, the third the widest
