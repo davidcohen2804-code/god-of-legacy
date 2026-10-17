@@ -976,7 +976,7 @@ class Deck3 {
         c.x = c.ax + (c.bx - c.ax) * q; c.z = c.az + (c.bz - c.az) * q; c.y = c.ay * (1 - u) + Math.sin(Math.PI * u) * 0.35;
         c.yaw += c.spin * dt * (1 - u * 0.7); c.roll = Math.sin(c.t * 0.02) * 0.6 * (1 - u); c.pitch = c.stuck * u;
         this.layer(c, c.az);
-        if (u >= 1) { c.mode = 'lie'; c.t = 0; c.y = 0; c.roll = 0; c.pitch = c.stuck; this.h.dust(c.x, c.z, 2, 0.35); this.layer(c, 99); }
+        if (u >= 1) { c.mode = 'lie'; c.t = 0; c.y = 0; c.roll = 0; c.pitch = c.stuck; this.layer(c, 99); } // (no dust: a card is light — the room's dust puffs read as white haze round the fighters)
       } else if (c.mode === 'lie') { // lying: a hop when a blow lands near, a glint now and then; its time runs out: it crumbles
         c.life -= ms;
         if (c.hop > 0) { c.hop -= ms; const k = 1 - Math.max(0, c.hop) / 320; c.y = Math.sin(Math.PI * k) * 0.12; c.roll = Math.sin(k * Math.PI * 2) * 0.35; } else { c.y = 0; c.roll = 0; }
