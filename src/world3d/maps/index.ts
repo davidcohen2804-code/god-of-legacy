@@ -2,8 +2,9 @@
 import type { BuildPlace } from '../../arena3d/Arena3D';
 import { courtyard } from './courtyard';
 import { terraces_1 } from './terraces_1';
+import { terraces_2 } from './terraces_2';
 
-export type MapFactory = (focus: { x: number; z: number }) => BuildPlace;
+export type MapFactory = (focus: { x: number; z: number; sunGateOpen?: boolean }) => BuildPlace;
 export const MAPS: Record<string, MapFactory> = {
-  courtyard, terraces_1,
+  courtyard, terraces_1, terraces_2,
 };

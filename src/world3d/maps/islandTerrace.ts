@@ -7,7 +7,8 @@
 import * as THREE from 'three';
 import type { Room } from '../../arena3d/Room';
 import { Parts, box, cyl, lathe, canvasTex, glowCanvas, shadowCanvas } from '../../arena3d/RoomKit';
-import { AREAS } from '../../world/Areas';
+import { AREAS, HEIGHTS, TOWERS } from '../../world/Areas';
+import { SUN_GATE } from '../../world/SunGate';
 import { footBox, rng, ux, uz, uy, type Disposable } from '../kit/units';
 import { skyAndLight } from '../kit/sky';
 import { Tiles, flagstoneCanvas, ashlarCanvas, terracottaCanvas, slateCanvas } from '../kit/materials';
@@ -31,19 +32,29 @@ export interface TerraceSpec {
   towers?: boolean; rune?: boolean; bench?: string;
   /** Props by id prefix: raised garden beds (walkable, 0.9 high). */
   beds?: string[];
+  /** The floors above this terrace (world-heights.json) climbed by the stacked blocks (world-towers.json): real upper
+   *  terraces behind the wall, one over the other. */
+  levels?: boolean;
+  /** The Sun Gate across the terrace's east end (its doors open when the sun has been crossed). */
+  sunGate?: boolean;
   seed?: number;
 }
 
+/** What the scene tells a place each frame besides where the hero is. */
+export interface PlaceState { x: number; z: number; sunGateOpen?: boolean }
+
 /** A terrace's builder, bound to where the hero is (`focus`, units: the shadows follow him). */
-export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: { x: number; z: number }) => (scene: THREE.Scene, front: THREE.Scene, renderer: THREE.WebGLRenderer, F: { x0: number; x1: number; zB: number; zF: number }, soft: boolean): Room => {
+export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: PlaceState) => (scene: THREE.Scene, front: THREE.Scene, renderer: THREE.WebGLRenderer, F: { x0: number; x1: number; zB: number; zF: number }, soft: boolean): Room => {
   const A = AREAS[areaId];
-  const WALL_H = spec.wallH ?? 2.0;
+  // the floors above (lowest first) and the stacked blocks that climb to them
+  const levels = spec.levels ? HEIGHTS.filter((h) => !h.cloud && h.x < A.x + 1672 && h.x + h.w > A.x).sort((a, b) => a.H - b.H) : [];
+  const WALL_H = levels.length ? levels[levels.length - 1].H / 100 : spec.wallH ?? 2.0;
   const R = rng(spec.seed ?? 20261018);
   const disposables: Disposable[] = [];
   let shadowDirty = true;
   const tiles = new Tiles(renderer, 'island', () => { shadowDirty = true; }); disposables.push(tiles);
   const cx = (F.x0 + F.x1) / 2, zMid = (F.zB + F.zF) / 2;
-  const zWall = F.zB - (spec.wallBack ?? 4.2), zFront = F.zF + 0.42;          // the back wall's face (a deep band of paving behind the walk line: the wall stays low in the frame, the sky over it); the terrace's lip
+  const zWall = levels.length ? uz(levels[0].front) + 0.02 : F.zB - (spec.wallBack ?? 4.2), zFront = F.zF + 0.42;          // the back wall's face (a deep band of paving behind the walk line: the wall stays low in the frame, the sky over it); the terrace's lip
   const xW0 = F.x0 - 9, xW1 = F.x1 + 9;                     // the terrace runs on past both ends of the map
   const ax = A.x;
 
@@ -71,6 +82,7 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: { x:
     bark: std({ map: canvasTex(ashlarCanvas([92, 66, 48], 3)), roughness: 0.95, color: 0xb09078 }),
   };
   const P = new Parts(), PF = new Parts();
+  let gateDoors: { doors: THREE.Group[]; open: number; yaw: number } | null = null;
 
   // ------------------------------------------------------------------ the ground: the terrace's paving, the upper terrace, the valley floor
   const groundTex = paving.map, groundN = paving.normalMap;
@@ -81,7 +93,8 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: { x:
     const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; scene.add(mesh); return mesh;
   };
   mkGround(xW1 - xW0 + 8, zFront - zWall + 0.6, (xW0 + xW1) / 2, 0, (zWall + zFront) / 2, 2.2);            // the terrace
-  mkGround(xW1 - xW0 + 30, 14, (xW0 + xW1) / 2, WALL_H, zWall - 7 - 0.4, 2.2);                           // the Temple's ground above the wall
+  const zTopBack = levels.length ? uz(levels[levels.length - 1].back) : zWall; // (where the ground above begins: behind the top floor)
+  mkGround(xW1 - xW0 + 30, 14, (xW0 + xW1) / 2, WALL_H, zTopBack - 7 - 0.4, 2.2);                        // the ground above the wall (the Temple's, the mountain's)
   { // the valley: a dark floor far below, in the haze
     const m = std({ color: 0x4a4458, roughness: 1 }); const g = new THREE.PlaneGeometry(400, 400); g.rotateX(-Math.PI / 2); g.translate(cx, -16, zMid); disposables.push(g); scene.add(new THREE.Mesh(g, m));
   }
@@ -95,7 +108,40 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: { x:
   const nx0 = notch.length ? ux(Math.min(...notch.map((p) => p[0])) + ax) : cx - 1.6, nx1 = notch.length ? ux(Math.max(...notch.map((p) => p[0])) + ax) : cx + 1.6, nz = notch.length ? uz(Math.min(...notch.map((p) => p[1]))) : F.zB;
   const sx = (nx0 + nx1) / 2, sw = nx1 - nx0 + 0.3;
   const gap = spec.stair || spec.arch; // (the wall opens for the stair or the arch)
-  if (gap) { wallRun(P, xW0 - 4, nx0 - 0.45, 0, WALL_H, zWall); wallRun(P, nx1 + 0.45, xW1 + 4, 0, WALL_H, zWall); } else wallRun(P, xW0 - 4, xW1 + 4, 0, WALL_H, zWall);
+  if (levels.length) { // the floors above: each a wall face rising from the floor below to its lip, its paving, its blocks; the stacked blocks climb them
+    let yLow = 0;
+    const climb = TOWERS.filter((t) => t.x0 >= A.x - 50 && t.x1 <= A.x + 1672 + 50);
+    for (const h of levels) {
+      const yTop = uy(h.H), zF2 = uz(h.front), zB2 = uz(h.back), hx0 = ux(h.x), hx1 = ux(h.x + h.w);
+      wallRun(P, Math.min(hx0, xW0 - 4), Math.max(hx1, xW1 + 4), yLow, yTop - yLow, zF2 + 0.02, { thick: 0.7, cornice: false, pilasterEvery: 4.2 });
+      P.add('moulding', box(Math.max(hx1, xW1 + 4) - Math.min(hx0, xW0 - 4), 0.16, 0.3, (xW0 + xW1) / 2, yTop - 0.16, zF2 + 0.1, 1, 0.03)); // the lip
+      mkGround(hx1 - hx0 + 18, zF2 - zB2 + 0.4, (hx0 + hx1) / 2, yTop, (zF2 + zB2) / 2 - 0.1, 2.2);
+      for (const b of h.blocks ?? []) block(P, ux(b.x0), ux(b.x1), uz(b.front - b.depth), uz(b.front), yTop, uy(b.h));
+      for (const t of climb.filter((c) => Math.abs(c.base - yLow * 100) < 2)) { // the stacked blocks on the floor below, against this wall
+        block(P, ux(t.x0), ux(t.x1), uz(t.front - t.depth) - 0.12, uz(t.front), yLow, uy(t.h));
+        for (const ry of [0.3, 0.6]) if (uy(t.h) > ry + 0.2) P.add('dark', box(ux(t.x1 - t.x0) + 0.04, 0.05, 0.05, ux((t.x0 + t.x1) / 2), yLow + uy(t.h) * ry, uz(t.front) + 0.02)); // iron bands
+      }
+      yLow = yTop;
+    }
+  } else if (gap) { wallRun(P, xW0 - 4, nx0 - 0.45, 0, WALL_H, zWall); wallRun(P, nx1 + 0.45, xW1 + 4, 0, WALL_H, zWall); } else wallRun(P, xW0 - 4, xW1 + 4, 0, WALL_H, zWall);
+  if (spec.sunGate) { // the Sun Gate across the terrace's east end: a stone frame on the gate's own line, the gilt doors (swung open once the sun is crossed)
+    const [bx, by] = SUN_GATE.back, [fx, fy] = SUN_GATE.front;
+    const gx0 = ux(bx), gz0 = uz(by), gx1 = ux(fx), gz1 = uz(fy), len = Math.hypot(gx1 - gx0, gz1 - gz0), yaw = Math.atan2(-(gz1 - gz0), gx1 - gx0);
+    const mid = { x: (gx0 + gx1) / 2, z: (gz0 + gz1) / 2 }, dw = 1.5; // (each door's width)
+    const along = (k: number) => ({ x: gx0 + (gx1 - gx0) * k, z: gz0 + (gz1 - gz0) * k });
+    for (const k of [0.2, 0.8]) { const p = along(k); P.add('wall', box(0.9, 3.4, 0.9, p.x, 0, p.z, 1.3, 0.03)); P.add('moulding', box(1.1, 0.2, 1.1, p.x, 3.4, p.z, 1, 0.03)); P.add('gold', lathe([[0, 0], [0.16, 0], [0.2, 0.08], [0.14, 0.22], [0.05, 0.4], [0, 0.48]], p.x, 3.6, p.z, 12)); }
+    for (const [a, b] of [[0, 0.2], [0.8, 1]] as [number, number][]) { const p = along(a), q = along(b); const g = box(Math.hypot(q.x - p.x, q.z - p.z), 2.4, 0.5, 0, 0, 0, 1.3, 0.02); g.rotateY(yaw); g.translate((p.x + q.x) / 2, 0, (p.z + q.z) / 2); P.add('wall', g); }
+    { const g = box(len * 0.6 + 0.4, 0.5, 0.7, 0, 0, 0, 1.3, 0.03); g.rotateY(yaw); g.translate(mid.x, 3.0, mid.z); P.add('moulding', g); } // the lintel over the doors
+    const doorMat = std({ color: 0xe8b85a, metalness: 0.9, roughness: 0.32, emissive: 0x6a4010, emissiveIntensity: 0.25 });
+    const doors: THREE.Group[] = [];
+    for (const side of [-1, 1]) { // each door a gilt panel hinged at the frame, swinging inward
+      const hinge = along(0.5 + side * (dw / len)); const g = new THREE.Group(); g.position.set(hinge.x, 0, hinge.z); g.rotation.y = yaw; scene.add(g);
+      const panel = new THREE.Mesh(box(dw, 3.0, 0.12, -side * dw / 2, 0, 0, 1, 0.02), doorMat); panel.castShadow = true; g.add(panel); disposables.push(panel.geometry);
+      const sun = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.06, 24), M.gold); sun.rotation.x = Math.PI / 2; sun.position.set(-side * dw / 2, 1.7, 0.1); g.add(sun); disposables.push(sun.geometry);
+      doors.push(g);
+    }
+    gateDoors = { doors, open: 0, yaw };
+  }
   if (spec.stair) {
     const steps = 12, rise = WALL_H / steps, tread = (nz - zWall) / steps;
     const st = stair(P, sx, nz, 0, sw, steps, rise, tread);
@@ -120,13 +166,13 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: { x:
     P.add('moulding', box(aw + 0.6, 0.3, 0.3, sx, WALL_H + 0.1, zWall - 1.35, 1, 0.02));
   }
   // the upper terrace's own balustrade along the wall's top, open over the stair
-  balustrade(P, xW0 - 4, xW1 + 4, WALL_H, zWall - 0.25, { post: 1.6, gaps: gap ? [[nx0 - 0.9, nx1 + 0.9]] : [] });
+  balustrade(P, xW0 - 4, xW1 + 4, WALL_H, zTopBack - 0.25, { post: 1.6, gaps: gap ? [[nx0 - 0.9, nx1 + 0.9]] : [] });
   const towersX = spec.towers ? [F.x0 + 0.6, F.x1 - 0.6] : [];
-  for (const x of towersX) tower(P, x, zWall - 1.7, 0, 1.9, 6.2);
+  for (const x of towersX) tower(P, x, zTopBack - 1.7, levels.length ? WALL_H : 0, 1.9, 6.2);
 
   // planters along the wall's foot: terracotta troughs with red flowers (the flowers as crown clumps)
   const planterX: number[] = [];
-  for (let x = xW0 - 2; x < xW1 + 2; x += 3.4) if (x < nx0 - 2 || x > nx1 + 2) { P.add('terracotta', box(1.6, 0.42, 0.5, x, 0, zWall + 0.42, 1, 0.03)); planterX.push(x); }
+  for (let x = xW0 - 2; x < xW1 + 2; x += 3.4) if (!levels.length && (x < nx0 - 2 || x > nx1 + 2)) { P.add('terracotta', box(1.6, 0.42, 0.5, x, 0, zWall + 0.42, 1, 0.03)); planterX.push(x); }
   // ------------------------------------------------------------------ the blocks you jump on, Aldric's bench and brazier
   for (const p of A.props.filter((q) => q.id.startsWith('block'))) { const b = footBox(p.foot, ax); block(P, b.x0, b.x1, b.z0, b.z1, 0, uy(p.h)); }
   const bedSpots: { x: number; z: number; w: number; d: number }[] = [];
@@ -147,7 +193,7 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: { x:
   const aoTex = canvasTex(shadowCanvas()); disposables.push(aoTex);
   const ao: { x: number; y: number; z: number; sx: number; sz: number }[] = [];
   for (const p of A.props.filter((q) => q.id.startsWith('block'))) { const b = footBox(p.foot, ax); ao.push({ x: b.cx, y: 0, z: b.cz, sx: b.w + 0.7, sz: b.d + 0.6 }); }
-  for (const x of towersX) ao.push({ x, y: 0, z: zWall - 1.5, sx: 5.4, sz: 5.4 });
+  for (const x of towersX) ao.push({ x, y: levels.length ? WALL_H : 0, z: zTopBack - 1.7, sx: 5.4, sz: 5.4 });
   if (benchNpc) ao.push({ x: brazier.x, y: 0, z: brazier.z, sx: 1.1, sz: 1.1 }); if (spec.stair) ao.push({ x: sx, y: 0, z: nz + 0.3, sx: sw + 1.2, sz: 0.9 });
   for (let x = xW0 - 2; x < xW1 + 2; x += 1.6) ao.push({ x, y: 0, z: zWall + 0.22, sx: 1.9, sz: 0.8 });
   disposables.push(contactShade(scene, aoTex, ao));
@@ -156,10 +202,10 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: { x:
   // ------------------------------------------------------------------ the trees (maples on the terrace above and at the terrace's far ends), the ivy
   const crownTex = canvasTex(crownCanvas(['#d8552a', '#f0923a', '#8c2a1e'], 5)); disposables.push(crownTex);
   const treeSpots = [
-    { x: nx0 - 4.2, z: zWall - 3.2, h: 2.8, lean: 0.3 }, { x: nx1 + 7.5, z: zWall - 3.6, h: 3.1, lean: -0.3 }, { x: xW1 - 5.5, z: zWall - 3.0, h: 2.6, lean: -0.2 },
-    { x: xW0 + 5.5, z: zWall - 0.9, h: 2.4, lean: 0.4 }, { x: xW1 - 0.5, z: zWall - 0.9, h: 2.5, lean: -0.4 },
+    { x: nx0 - 4.2, z: zTopBack - 3.2, h: 2.8, lean: 0.3 }, { x: nx1 + 7.5, z: zTopBack - 3.6, h: 3.1, lean: -0.3 }, { x: xW1 - 5.5, z: zTopBack - 3.0, h: 2.6, lean: -0.2 },
+    ...(levels.length ? [] : [{ x: xW0 + 5.5, z: zWall - 0.9, h: 2.4, lean: 0.4 }, { x: xW1 - 0.5, z: zWall - 0.9, h: 2.5, lean: -0.4 }]),
   ];
-  const upper = (t: { z: number }) => (t.z < zWall - 1.2 ? WALL_H : 0);
+  const upper = (t: { z: number }) => (t.z < zTopBack - 1.2 ? WALL_H : 0);
   const treesUp = growTrees(scene, treeSpots.filter((t) => upper(t) > 0), WALL_H, { crownTex, crownColor: 0xffd0b0, crownEmissive: 0x4a1a0a, crownEmissiveIntensity: 0.45 }, R, soft);
   const treesLow = growTrees(scene, treeSpots.filter((t) => upper(t) === 0), 0, { crownTex, crownColor: 0xffd0b0, crownEmissive: 0x4a1a0a, crownEmissiveIntensity: 0.45 }, R, soft);
   disposables.push(treesUp, treesLow);
@@ -167,8 +213,9 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: { x:
   const ivyTex = canvasTex(ivyCanvas(['#b8341c', '#d9552a', '#e9893c', '#5a7a2a', '#7a9a3a', '#8a2a1a'], 7)); disposables.push(ivyTex);
   const ivySpots: { x: number; y: number; z: number; drop: number; s: number }[] = [];
   for (let x = xW0 - 3; x < xW1 + 3; x += 1.1) if (R() < 0.75) ivySpots.push({ x: x + (R() - 0.5) * 0.6, y: 0.84, z: zFront + 0.36, drop: 0.7 + R() * 0.9, s: 1.0 + R() * 0.6 });
-  for (let x = xW0 - 3; x < xW1 + 3; x += 1.5) if (R() < 0.7 && (x < nx0 - 1.4 || x > nx1 + 1.4)) ivySpots.push({ x: x + (R() - 0.5) * 0.6, y: WALL_H - 0.36, z: zWall + 0.14, drop: 1.0 + R() * 1.3, s: 1.0 + R() * 0.7 });
-  for (let x = xW0 - 3; x < xW1 + 3; x += 1.9) if (R() < 0.5 && (x < nx0 - 1.4 || x > nx1 + 1.4)) ivySpots.push({ x: x + (R() - 0.5) * 0.6, y: WALL_H + 0.84, z: zWall - 0.1, drop: 0.6 + R() * 0.6, s: 0.9 + R() * 0.4 });
+  const faceH = levels.length ? levels[0].H / 100 : WALL_H;
+  for (let x = xW0 - 3; x < xW1 + 3; x += 1.5) if (R() < 0.7 && (levels.length || x < nx0 - 1.4 || x > nx1 + 1.4)) ivySpots.push({ x: x + (R() - 0.5) * 0.6, y: faceH - 0.36, z: zWall + 0.14, drop: 1.0 + R() * 1.3, s: 1.0 + R() * 0.7 });
+  for (let x = xW0 - 3; x < xW1 + 3; x += 1.9) if (R() < 0.5 && (x < nx0 - 1.4 || x > nx1 + 1.4)) ivySpots.push({ x: x + (R() - 0.5) * 0.6, y: WALL_H + 0.84, z: zTopBack - 0.1, drop: 0.6 + R() * 0.6, s: 0.9 + R() * 0.4 });
   const ivy = ivyRun(scene, ivyTex, ivySpots, R), ivyBack = ivy; disposables.push(ivy);
   const flowerTex = canvasTex(crownCanvas(['#e23a4a', '#f27a8a', '#5a7a2a'], 9)); disposables.push(flowerTex);
   const flowerSpots: { x: number; y: number; z: number; drop: number; s: number }[] = [];
@@ -198,7 +245,7 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: { x:
 
   // ------------------------------------------------------------------ the leaves falling from the maples, lying thick under them
   const leafTex = canvasTex(mapleLeafCanvas()); disposables.push(leafTex);
-  const groundY = (x: number, z: number): number => (z < zWall - 0.05 ? WALL_H : z > zFront + 0.05 ? -16 : 0);
+  const groundY = (x: number, z: number): number => { if (z > zFront + 0.05) return -16; if (!levels.length) return z < zWall - 0.05 ? WALL_H : 0; let y = 0; for (const h of levels) if (z < uz(h.front) + 0.02) y = h.H / 100; return y; };
   const leaves = leafFall(scene, {
     from: [...treesUp.clumps, ...treesLow.clumps], groundY, falling: soft ? 90 : 260, lying: soft ? 500 : 1500,
     bounds: { x0: F.x0 - 4, x1: F.x1 + 4, z0: zWall + 0.1, z1: zFront - 0.1 }, under: treeSpots.filter((t) => upper(t) === 0).map((t) => ({ x: t.x, z: t.z + 0.8 })),
@@ -217,7 +264,7 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: { x:
     life.push(butterflies(scene, [{ x: cx - 5, y: 1.2, z: zFront - 0.2, r: 1.4 }, { x: cx + 4, y: 1.2, z: zFront - 0.3, r: 1.4 }, { x: axp - 2, y: 1.0, z: F.zB + 0.4, r: 1.2 }], { n: soft ? 4 : 8, wind: air, seed: 5 }));
     if (spec.stair) for (const [i, x] of [nx0 - 0.95, nx1 + 0.95].entries()) life.push(banner(scene, { x, y: 0, z: nz + 0.35, yaw: i === 0 ? 0 : Math.PI, w: 0.56, h: 2.2, pole: true }, { wind: air, seed: 11 + i }));
     if (spec.arch) life.push(pond(scene, { x: sx, z: zWall - 0.95, w: sw + 0.3, d: 0.9, y: 0 }, { wind: air, stone: M.balustrade, mirror: !soft, sunDir: new THREE.Vector3(0.55, 0.42, 0.72), sunColor: new THREE.Color(0xffc27a), skyLow: new THREE.Color(0xffb862), skyMid: new THREE.Color(0xcc7488), koi: 3, pads: 3 }));
-    for (const [i, x] of [xW0 + 6.4, cx - 5.6, cx + 5.6, xW1 - 6.4].entries()) if (!gap || Math.abs(x - sx) > 3) life.push(banner(scene, { x, y: WALL_H - 0.42, z: zWall + 0.14, yaw: 0, w: 0.56, h: 1.8 }, { wind: air, seed: 21 + i }));
+    for (const [i, x] of [xW0 + 6.4, cx - 5.6, cx + 5.6, xW1 - 6.4].entries()) if (!gap || Math.abs(x - sx) > 3) life.push(banner(scene, { x, y: faceH - 0.42, z: zWall + 0.14, yaw: 0, w: 0.56, h: Math.min(1.8, faceH - 0.5) }, { wind: air, seed: 21 + i }));
     for (const x of towersX) life.push(banner(scene, { x, y: 6.6 + 0.95, z: zWall - 1.5 + 2.0, yaw: 0, w: 0.5, h: 1.6, pole: true }, { wind: air, seed: 31 }));
     life.push(clouds(scene, { cx, z: zWall - 40, y: 18, spread: 90 }, { n: soft ? 4 : 9, seed: 3 }));
   }
@@ -241,6 +288,7 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: { x:
       else smoke.emit(brazier.x + (R() - 0.5) * 0.2, 1.25, brazier.z + (R() - 0.5) * 0.2, (R() - 0.5) * 0.05, 0.25 + R() * 0.1, (R() - 0.5) * 0.05, 0x8a8078, 0.08 + R() * 0.05, 4000 + R() * 2000, { a: 0.12, grow: 0.11, drag: 0.6 });
     }
     smoke.push((air.x * 0.15 + boost * boostDir * 1.2) * dt, 0, 0); smoke.step(ms, 0.06, t); embers.step(ms, 0.4, t);
+    if (gateDoors) { const want = focus.sunGateOpen ? 1 : 0; gateDoors.open += (want - gateDoors.open) * Math.min(1, dt * 1.2); gateDoors.doors.forEach((g, i) => { g.rotation.y = gateDoors!.yaw + (i === 0 ? 1 : -1) * gateDoors!.open * 1.9; }); }
     for (const l of life) l.update(ms, t, dim);
     sky.update(t, dim, focus.x, focus.z);
     if (shadowDirty) { renderer.shadowMap.needsUpdate = true; shadowDirty = false; }

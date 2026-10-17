@@ -13,7 +13,7 @@ export const WORLD_CAM: Partial<Cam3D> = { pitch: 17, fov: 34, dist: 9.0, distPe
 /** How far ahead of the hero the camera looks (world px), eased when he turns. */
 const LEAD = 90;
 /** Half the view's width on the floor (world px) at the camera's distance: the focus keeps this far from the map's ends. */
-const HALF_VIEW = 470;
+const HALF_VIEW = 220;
 
 export interface Body { body: Phaser.GameObjects.Sprite; foot: Phaser.GameObjects.Image; z: number }
 export interface WorldFrame {
@@ -24,12 +24,14 @@ export interface WorldFrame {
   hitStop: boolean;
   /** An ultimate / a signature playing (the place darkens for them). */
   ult: boolean; sig: boolean;
+  /** The Sun Gate's state (its doors in the place swing with it). */
+  sunGateOpen?: boolean;
 }
 
 export class World3D {
   readonly a3d: Arena3D;
   readonly floor: Floor;
-  private focus3 = { x: 0, z: 0 };
+  private focus3: { x: number; z: number; sunGateOpen?: boolean } = { x: 0, z: 0 };
   private lead = 0;
   private heroZ = 0; private fallV = 0;
   /** The arrival (§1.8): from a wide view at the entry edge the camera glides to the hero while he can already walk. */
@@ -67,7 +69,7 @@ export class World3D {
     a.bodies = f.bodies;
     a.flying = f.flying;
     a.dimWant = f.ult ? 0.6 : f.sig ? 0.25 : 0;
-    this.focus3.x = h.x / 100; this.focus3.z = (h.y / 100) * 1.15;
+    this.focus3.x = h.x / 100; this.focus3.z = (h.y / 100) * 1.15; this.focus3.sunGateOpen = f.sunGateOpen;
     // the hero coming down (a jump's landing): the place's dust answers it
     const v = ms > 0 ? Math.max(0, ((this.heroZ - h.z) * 1000) / ms) : 0;
     if (this.heroZ > 6 && h.z <= 1) a.land(h.x, h.y, this.fallV);
@@ -77,10 +79,15 @@ export class World3D {
 
   /** The hero at the map's end: the next map in 3D (its id and the entry x there), or nothing — then the end is a soft
    *  wall while that map is not built yet. */
-  crossing(k: { x: number; vx: number }): { area: string; x: number; fromX: number } | null {
+  crossing(k: { x: number; vx: number }, gateOpen = true): { area: string; x: number; fromX: number } | null {
+    if (k.x > this.floor.x1 + 60 || k.x < this.floor.x0 - 60) { // put down far away (a portal, test mode): straight to that map, where he landed
+      const far = areaAt(k.x);
+      if (far.id !== this.areaId && WORLD3D.has(far.id)) { const nf = World3D.floorOf(far.id); return { area: far.id, x: Phaser.Math.Clamp(k.x, nf.x0 + 30, nf.x1 - 30), fromX: k.x < this.floor.x0 ? nf.x1 : nf.x0 }; }
+    }
     for (const side of [1, -1] as const) {
       const edge = side > 0 ? this.floor.x1 : this.floor.x0;
       if (side > 0 ? k.x < edge - 14 : k.x > edge + 14) continue;
+      if (side > 0 && this.areaId === 'terraces_2' && !gateOpen) return null; // (the Sun Gate's own solids hold him: no wall, no crossing)
       const next = areaAt(edge + side * 40);
       if (next.id !== this.areaId && WORLD3D.has(next.id)) { const nf = World3D.floorOf(next.id); return { area: next.id, x: side > 0 ? nf.x0 + 30 : nf.x1 - 30, fromX: side > 0 ? nf.x0 : nf.x1 }; }
       k.x = side > 0 ? edge - 14 : edge + 14; if (side > 0 ? k.vx > 0 : k.vx < 0) k.vx = 0;

@@ -408,14 +408,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private worldCamStep(ms: number): void {
     const w = this.w3d; if (!w || !this.world) return;
     const k = this.kin;
-    const cross = w.crossing(k); if (cross) { this.crossing3D(cross); return; }
+    const cross = w.crossing(k, this.world.sunGate.open); if (cross) { this.crossing3D(cross); return; }
     const ult = !!this.rt?.runs.some((r) => r.skill.slot === 7 && (r.phase === 'startup' || r.phase === 'active'));
     const sig = !!this.rt?.runs.some((r) => r.skill.slot === 6 && (r.phase === 'startup' || r.phase === 'active'));
     const bodies: { body: Phaser.GameObjects.Sprite; foot: Phaser.GameObjects.Image; z: number }[] = this.view ? [{ body: this.view.sprite, foot: this.view.shadow, z: k.z }] : [];
     const others: { x: number; y: number; z: number }[] = [];
     for (const m of this.world.mobs) { if (!m.alive) continue; others.push({ x: m.x, y: m.y, z: m.z }); bodies.push({ body: m.sprite as unknown as Phaser.GameObjects.Sprite, foot: m.foot, z: m.z }); }
     bodies.push(...this.world.npcBodies());
-    w.step(ms, { hero: { x: k.x, y: k.y, z: k.z, facing: this.dir === 'left' ? -1 : 1 }, others, bodies, flying: this.rt ? this.rt.projectiles.map((e) => e.p) : [], hitStop: (this.fx?.hitStopLeft ?? 0) > 0, ult, sig });
+    w.step(ms, { hero: { x: k.x, y: k.y, z: k.z, facing: this.dir === 'left' ? -1 : 1 }, others, bodies, flying: this.rt ? this.rt.projectiles.map((e) => e.p) : [], hitStop: (this.fx?.hitStopLeft ?? 0) > 0, ult, sig, sunGateOpen: this.world.sunGate.open });
   }
 
   /** The arena camera (DFO): frames both fighters — close in when they are close (the bodies big and readable, ~1.7×
