@@ -626,7 +626,7 @@ export class MageFx {
     }, { uA: side, run: r, depth: cy + 4 });
     this.warp.well(cx, hy, { r: 200, life: T.startup + 120, s: 18, twist: 20 * side });
     // the painted pillar: its ignition (frames 1-5) through the wind-up, the eruption on the throw; anchored at its foot
-    this.sheet('mfx-pillar', cx, cy + 6, 340, T.startup + 700, { oy: 0.85, depth: cy - 4, split: [5, T.startup], run: r, fade: [[0, 0.65], [(T.startup + 110) / (T.startup + 700), 0.65], [(T.startup + 260) / (T.startup + 700), 0.25], [1, 0]] }); /* (behind the foe it throws, thinner: the 3D twisting column and the inked rising ring carry it) */ // (it erupts full, then thins: the thrown foe reads through it)
+    this.sheet('mfx-pillar', cx, cy + 6, 340, T.startup + 2000, { oy: 0.85, depth: cy - 4, split: [5, T.startup], run: r, fade: [[0, 0.65], [(T.startup + 110) / (T.startup + 2000), 0.65], [(T.startup + 260) / (T.startup + 2000), 0.3], [0.85, 0.25], [1, 0]] }); /* (David 18 Oct: the tube stays round him through his slow fall) */ /* (behind the foe it throws, thinner: the 3D twisting column and the inked rising ring carry it) */ // (it erupts full, then thins: the thrown foe reads through it)
     this.smoke(cx, cy - 20, 300, 0, T.startup + 500, { squash: 0.5, depth: cy + 1 }); // dark void gathering at the foot
     for (let k = 0; k < 10; k++) this.img('mg-dot', { x: cx + rnd(-120, 120), y: cy + rnd(-30, 20), w: rnd(5, 11), tint: k % 2 ? 0xb9a2ff : 0x9fe6ff, life: T.startup + 300, delay: rnd(0, T.startup), run: r, my: (u) => -120 * u, a: kf([0, 0], [0.2, 1], [1, 0]) });
     const hand = this.ctx.hand(r.attackerId) ?? { x: c0.x + side * 30, y: c0.y - c0.z - 70 };

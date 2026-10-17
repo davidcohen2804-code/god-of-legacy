@@ -24,7 +24,9 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // (a rune glyph opens under the foe in the wind-up; the release: the twisting star column with a hot core and one inked ring sweeping up through him — the throw)
   astral_burst: { tone: C.storm, own: true,
     cast: (f, r) => { const p = placeOf(f, r, 120); f.glyph(p.x, p.y, C.arcane, { shape: 'runes', r: 80, ms: 620, spin: 2.2, pulse: 2 }); },
-    active: (f, r) => { const p = placeOf(f, r, 120); f.pillar(p.x, p.y, C.storm, { h: 520, r: 32, ms: 460, twist: true, i: 0.8 }); f.slash(p, side(r), C.arcane, { r: 85, w: 44, tilt: 90, a0: -110, a1: 70, ms: 230, y0: 95, ink: true }); } },
+    active: (f, r) => { const p = placeOf(f, r, 120); f.pillar(p.x, p.y, C.storm, { h: 520, r: 32, ms: 460, twist: true, i: 0.8 }); f.slash(p, side(r), C.arcane, { r: 85, w: 44, tilt: 90, a0: -110, a1: 70, ms: 230, y0: 95, ink: true }); },
+    // (David 18 Oct: the tube of light holds him and lowers him slowly — a soft twisting tube stays round the thrown foe for his slow fall, motes rising in it)
+    hit: (f, _s, _h, at, main) => { if (!main) return; f.pillar(at.x, at.y, C.storm, { h: 560, r: 48, ms: 2000, twist: true, i: 0.4, core: false }); f.swirl(() => ({ x: at.x, y: at.y, z: 0 }), {}, { n: 30, r0: 40, r1: 52, h: 520, ms: 1900, rps: 0.6, rise: 0.5, size: 0.6, color: C.storm }); } },
   // cold bursting out round her: crystals grow at the rim (the fighters inside stay clear), a pale shell, frost dust
   frost_nova: { tone: C.frost, own: true, active: (f, r) => { const c = me(f, r); f.crystals(c.x, c.y, { n: 12, r: 185, h: 120, ms: 1400, ring: true }); f.dome(c.x, c.y, C.frost, { r: 200, ms: 340, a: 0.5 }); f.host.dust(f.host.w3(c.x), f.host.d3(c.y), 8, 1.1); } },
   // lightning leaping link to link; the main link flashes a small shell on the foe
