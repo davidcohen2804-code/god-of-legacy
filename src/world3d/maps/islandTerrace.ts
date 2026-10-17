@@ -14,6 +14,7 @@ import { skyAndLight } from '../kit/sky';
 import { Tiles, flagstoneCanvas, ashlarCanvas, terracottaCanvas, slateCanvas } from '../kit/materials';
 import { terraceSlab, balustrade, wallRun, stair, tower, block, urn, ivyRun, farMountains, sunRune, contactShade, ivyCanvas } from '../kit/terrain';
 import { pond } from '../life/pond';
+import type { Dressing } from './dressing';
 import { growTrees, leafFall, crownCanvas, mapleLeafCanvas } from '../kit/trees';
 import { type Life, type Wind, stillAir, tex as lifeTex, dotCanvas, Puffs, smokeCanvas } from '../life/kit';
 import { birds } from '../life/birds';
@@ -37,6 +38,8 @@ export interface TerraceSpec {
   levels?: boolean;
   /** The Sun Gate across the terrace's east end (its doors open when the sun has been crossed). */
   sunGate?: boolean;
+  /** What else the terrace carries (dressing.ts). */
+  dress?: Dressing;
   seed?: number;
 }
 
@@ -82,6 +85,8 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
     bark: std({ map: canvasTex(ashlarCanvas([92, 66, 48], 3)), roughness: 0.95, color: 0xb09078 }),
   };
   const P = new Parts(), PF = new Parts();
+  const air: Wind = stillAir(); air.x = 0.28; air.z = 0.04;
+  const life: Life[] = [];
   let gateDoors: { doors: THREE.Group[]; open: number; yaw: number } | null = null;
 
   // ------------------------------------------------------------------ the ground: the terrace's paving, the upper terrace, the valley floor
@@ -175,6 +180,7 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
   for (let x = xW0 - 2; x < xW1 + 2; x += 3.4) if (!levels.length && (x < nx0 - 2 || x > nx1 + 2)) { P.add('terracotta', box(1.6, 0.42, 0.5, x, 0, zWall + 0.42, 1, 0.03)); planterX.push(x); }
   // ------------------------------------------------------------------ the blocks you jump on, Aldric's bench and brazier
   for (const p of A.props.filter((q) => q.id.startsWith('block'))) { const b = footBox(p.foot, ax); block(P, b.x0, b.x1, b.z0, b.z1, 0, uy(p.h)); }
+  if (!levels.length) for (const t of TOWERS.filter((t) => t.x0 >= A.x - 50 && t.x1 <= A.x + 1672 + 50 && t.base === 0)) block(P, ux(t.x0), ux(t.x1), uz(t.front - t.depth) - 0.12, uz(t.front), 0, uy(t.h)); // (perches: stacked blocks with nothing above)
   const bedSpots: { x: number; z: number; w: number; d: number }[] = [];
   for (const p of A.props.filter((q) => (spec.beds ?? []).some((id) => q.id.startsWith(id)))) { // a raised garden bed: a stone kerb, earth, flowers on top (walkable at its stand height)
     const b = footBox(p.foot, ax), h = uy(p.h || 90);
@@ -187,6 +193,8 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
   if (benchNpc) P.add('balustrade', box(1.6, 0.42, 0.5, axp - 1.9, 0, F.zB - 0.5, 1.1, 0.02), box(0.22, 0.6, 0.5, axp - 2.6, 0, F.zB - 0.5, 1, 0.02), box(0.22, 0.6, 0.5, axp - 1.2, 0, F.zB - 0.5, 1, 0.02)); // the bench
   if (benchNpc) P.add('bronze', lathe([[0.06, 0], [0.16, 0.02], [0.08, 0.1], [0.08, 0.62], [0.3, 0.7], [0.4, 0.82], [0.42, 0.9], [0.36, 0.92], [0.3, 0.8], [0.1, 0.72]], brazier.x, 0, brazier.z, 16));
   if (benchNpc) { for (let k = 0; k < 3; k++) { const a = (k / 3) * Math.PI * 2 + 0.5; P.add('bronze', cyl(0.025, 0.035, 0.5, brazier.x + Math.cos(a) * 0.22, 0.42, brazier.z + Math.sin(a) * 0.22, 8)); } P.add('dark', cyl(0.3, 0.3, 0.06, brazier.x, 0.86, brazier.z, 12)); }
+
+  spec.dress?.({ P, scene, front, M, A, ax, F, zWall, zFront, xW0, xW1, cx, R, life, air, soft, std });
 
   // ------------------------------------------------------------------ build the stone, the AO at the feet, the sun rune
   P.build(M, scene); PF.build(M, front, false);
@@ -254,8 +262,6 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
   disposables.push(leaves);
 
   // ------------------------------------------------------------------ the life
-  const air: Wind = stillAir(); air.x = 0.28; air.z = 0.04;
-  const life: Life[] = [];
   {
     const perches: THREE.Vector3[] = [];
     for (const x of towersX) for (let k = 0; k < 4; k++) { const a = (k / 4) * Math.PI * 2 + 0.4; perches.push(new THREE.Vector3(x + Math.cos(a) * 2.15, 6.6 + 0.95 + 0.5, zWall - 1.5 + Math.sin(a) * 2.15)); }

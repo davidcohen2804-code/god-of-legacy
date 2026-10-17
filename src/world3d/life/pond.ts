@@ -20,6 +20,8 @@ export interface PondOpts {
   /** The sun's direction (toward the sun) and colour, the sky's low and middle colours. */
   sunDir: THREE.Vector3; sunColor: THREE.Color; skyLow: THREE.Color; skyMid: THREE.Color;
   koi?: number; pads?: number;
+  /** The stone rim and the walls under the water (off when the place builds its own basin round the water). */
+  rim?: boolean;
 }
 
 const NR = 6; // ripple rings kept at once
@@ -87,9 +89,9 @@ export function pond(scene: THREE.Scene, at: PondAt, opts: PondOpts): Life {
   const dark = new THREE.MeshStandardMaterial({ color: 0x18231f, roughness: 1 }); disposables.push(dark);
   const rim = (w: number, h: number, d: number, x: number, y: number, z: number) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y + h / 2, z); disposables.push(g); const m = new THREE.Mesh(g, opts.stone); m.castShadow = true; m.receiveShadow = true; group.add(m); return m; };
   const rw = 0.26, rh = 0.13;
-  rim(at.w + rw * 2, rh, rw, at.x, at.y, at.z - hd - rw / 2); rim(at.w + rw * 2, rh, rw, at.x, at.y, at.z + hd + rw / 2);
-  rim(rw, rh, at.d, at.x - hw - rw / 2, at.y, at.z); rim(rw, rh, at.d, at.x + hw + rw / 2, at.y, at.z);
-  { // the basin under the water: a dark floor and the walls up to the rim (open above: the reflection looks through)
+  if (opts.rim !== false) { rim(at.w + rw * 2, rh, rw, at.x, at.y, at.z - hd - rw / 2); rim(at.w + rw * 2, rh, rw, at.x, at.y, at.z + hd + rw / 2);
+  rim(rw, rh, at.d, at.x - hw - rw / 2, at.y, at.z); rim(rw, rh, at.d, at.x + hw + rw / 2, at.y, at.z); }
+  if (opts.rim !== false) { // the basin under the water: a dark floor and the walls up to the rim (open above: the reflection looks through)
     const wall = (w: number, x: number, z: number, ry: number) => { const g = new THREE.PlaneGeometry(w, 0.3); g.rotateY(ry); g.translate(x, at.y - 0.15, z); disposables.push(g); group.add(new THREE.Mesh(g, dark)); };
     wall(at.w, at.x, at.z - hd, 0); wall(at.w, at.x, at.z + hd, Math.PI); wall(at.d, at.x - hw, at.z, Math.PI / 2); wall(at.d, at.x + hw, at.z, -Math.PI / 2);
     const g = new THREE.PlaneGeometry(at.w, at.d); g.rotateX(-Math.PI / 2); g.translate(at.x, at.y - 0.3, at.z); disposables.push(g); group.add(new THREE.Mesh(g, dark));

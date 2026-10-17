@@ -87,7 +87,7 @@ export class World3D {
     for (const side of [1, -1] as const) {
       const edge = side > 0 ? this.floor.x1 : this.floor.x0;
       if (side > 0 ? k.x < edge - 14 : k.x > edge + 14) continue;
-      if (side > 0 && this.areaId === 'terraces_2' && !gateOpen) return null; // (the Sun Gate's own solids hold him: no wall, no crossing)
+      if (!gateOpen && ((side > 0 && this.areaId === 'terraces_2') || (side < 0 && this.areaId === 'training'))) return null; // (the Sun Gate's own solids hold him: no wall, no crossing)
       const next = areaAt(edge + side * 40);
       if (next.id !== this.areaId && WORLD3D.has(next.id)) { const nf = World3D.floorOf(next.id); return { area: next.id, x: side > 0 ? nf.x0 + 30 : nf.x1 - 30, fromX: side > 0 ? nf.x0 : nf.x1 }; }
       k.x = side > 0 ? edge - 14 : edge + 14; if (side > 0 ? k.vx > 0 : k.vx < 0) k.vx = 0;

@@ -387,6 +387,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const w = this.w3d; if (!w || !this.world || this.warping) return;
     this.warping = true;
     const cam = this.cameras.main, from = w.areaId, gen = this.sceneGen;
+    cam.fadeEffect.reset(); // (a crossing on the heels of another: the last fade never lingers)
     cam.fadeOut(180, 20, 12, 10);
     cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       if (gen !== this.sceneGen || !this.sys.isActive()) return;
