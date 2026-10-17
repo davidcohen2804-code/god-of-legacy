@@ -119,9 +119,9 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 
 ## Decisions for David
 - PvP (Maps' Thief's Den request): play together in the open world — see each other in the maps, party up, run the Thief's Den as a party. A big new system: build it now, or keep the world single-player for now?
-- Try the 3D over-the-shoulder prototype (placeholder bodies, feel only): https://davidcohen2804-code.github.io/god-of-legacy/proto3d/ — keep going in that direction or not?
 
 ## Done
+- DFO PvP arena dynamics: decision resolved — David chose PVP 3D (the arena as a real 3D room with the painted fighters, a camera that follows the fight) over the over-the-shoulder prototype; /proto3d/ stays only as a test page
 - PvP: the archer's VS entrance (leaf vortex) and victory move wired on the VS / result screens — 102855da
 - Book Mage (feel review — one cast for every spell): her own body move per spell from PixVerse clips of her painted design (6 frames each): Storm Field, Time Collapse, Lightning Chain, Glacial Spikes, Frost Nova, Arcane Wave, Astral Lift; Levity / Ascension / Curse / Ward / Origami / Page Bind borrow the nearest one — checked in PVP 3D — ef062519
 - DFO PvP arena dynamics: Fx3D — the skills in the room's own 3D (pillars, cracks + flying chunks, floor crests, domes, ice crystals, 3D lightning, trails, streaks, slash arcs wrapping round the body, split behind / in front of the fighter), a first recipe for every skill (src/arena3d/fx3d/<class>.ts); ImpactFx in every mode (bent air, colour split, an ultimate's zoom blur, the K.O.); the fighters cast the sun's shadow, darken with the room and take the blows' light; the hit-stop freezes the room's sparks — e200d073
