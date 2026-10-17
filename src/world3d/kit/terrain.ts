@@ -94,14 +94,14 @@ export function ivyRun(scene: THREE.Scene, tex: THREE.Texture, spots: { x: numbe
 
 /** The far mountains in the haze: ranges of cones, nearer ones darker and bluer, with snow on the high ones; a far
  *  castle on a peak; falls as pale strips down the nearest range. */
-export function farMountains(scene: THREE.Scene, cx: number, z: number, R: () => number, o: { ranges?: number; color?: number; span?: number } = {}): Disposable {
-  const ranges = o.ranges ?? 3, span = o.span ?? 140, out: Disposable[] = [];
+export function farMountains(scene: THREE.Scene, cx: number, z: number, R: () => number, o: { ranges?: number; color?: number; span?: number; yBase?: number; hScale?: number } = {}): Disposable {
+  const ranges = o.ranges ?? 3, span = o.span ?? 140, yBase = o.yBase ?? -4, hs = o.hScale ?? 1, out: Disposable[] = []; // (`yBase`: where the peaks' feet are; `hScale`: lower ranges, seen from a height)
   for (let r = 0; r < ranges; r++) {
     const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(o.color ?? 0x7a5a6a).lerp(new THREE.Color(0xd8b8c8), r / ranges), roughness: 1, fog: true }); out.push(mat);
     const geos: THREE.BufferGeometry[] = [];
     for (let i = 0; i < 9 + r * 3; i++) {
-      const h = 12 + R() * 14 + r * 7, rad = 11 + R() * 13 + r * 5, g = new THREE.ConeGeometry(rad, h, 7, 1);
-      g.translate(cx - span / 2 + (span * i) / (8 + r * 3) + (R() - 0.5) * 8, h / 2 - 4, z - 20 - r * 26 - R() * 10);
+      const h = (12 + R() * 14 + r * 7) * hs, rad = 11 + R() * 13 + r * 5, g = new THREE.ConeGeometry(rad, h, 7, 1);
+      g.translate(cx - span / 2 + (span * i) / (8 + r * 3) + (R() - 0.5) * 8, h / 2 + yBase, z - 20 - r * 26 - R() * 10);
       geos.push(g);
     }
     for (const g of geos) { const m = new THREE.Mesh(g, mat); m.rotation.y = R() * 3; scene.add(m); out.push(g); }

@@ -12,7 +12,7 @@ import MINI from '../data/world-minimap.json';
 import SKY_ART from '../data/world-sky.json';
 /** The minimap's picture with the maps above in it (tools/world/minimap.py). */
 const MINIMAP_UP_URL = 'assets/world/minimap/world_up.jpg';
-import { ARENA, ARENA_AREA, GATE, ARENA_MINIMAP_URL, AREA_H, AREA_W, AreaDef, arenaTileKey, arenaTileUrl, belowTerrace, AreaNpc, BACKDROP, MOB_KINDS, ROW, START, TILES, TOWERS, HEIGHTS, CLOUDS, SKY, SKY_AREA, heightArea, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
+import { ARENA, ARENA_AREA, GATE, ARENA_MINIMAP_URL, AREA_H, AREA_W, AreaDef, arenaTileKey, arenaTileUrl, belowTerrace, AreaNpc, BACKDROP, MOB_KINDS, ROW, START, TILES, TOWERS, HEIGHTS, type Heights, CLOUDS, SKY, SKY_AREA, heightArea, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
 import { WorldObject, actorDepth, setWorldGeometry } from './WorldGeometry';
 import { Backdrop, preloadBackdrop } from './Backdrop';
 import { Monster, preloadMonsterFrames } from './Monster';
@@ -433,17 +433,33 @@ export class OpenWorld {
 
   /** Every area's monsters live all the time (each one keeps to its own home spot). */
   private spawnMobs(): void {
-    const want = this.hooks.spawnIn ?? (() => true);
-    for (const h of HEIGHTS) if (want(h.id)) for (const [j, def] of [h.mobs, h.boss].entries()) { const kind = def && MOB_KINDS[def.kind]; if (kind) def.spawns.forEach((s, i) => this.mobs.push(new Monster(this.scene, `mob:${h.id}:${j ? 'boss:' : ''}${i}`, kind, { x: s[0], y: s[1] }, i))); }
+    const want = this.hooks.spawnIn;
+    if (!want) { for (const h of HEIGHTS) this.spawnHeight(h); for (const a of ROW) this.spawnArea(a.id); return; }
     for (const a of ROW) if (want(a.id)) this.spawnArea(a.id);
+    if (want('sky')) this.spawnArea('sky');
   }
-  /** One map's monsters (the world in 3D spawns a map's as the hero crosses into it). */
+  private spawnHeight(h: Heights): void {
+    if (this.mobs.some((m) => m.id.startsWith(`mob:${h.id}:`))) return;
+    for (const [j, def] of [h.mobs, h.boss].entries()) { const kind = def && MOB_KINDS[def.kind]; if (kind) def.spawns.forEach((s, i) => this.mobs.push(new Monster(this.scene, `mob:${h.id}:${j ? 'boss:' : ''}${i}`, kind, { x: s[0], y: s[1] }, i))); }
+  }
+  /** The maps above that belong to a map's 3D place: the floors over its stretch (`sky`: the cloud floors). */
+  private heightsOf(id: string): Heights[] {
+    if (id === 'sky') return HEIGHTS.filter((h) => h.cloud);
+    const a = ROW.find((r) => r.id === id); return a ? HEIGHTS.filter((h) => !h.cloud && h.x < a.span[1] && h.x + h.w > a.span[0]) : [];
+  }
+  /** One map's monsters, the floors above it included (the world in 3D spawns a map's as the hero crosses into it). */
   spawnArea(id: string): void {
+    for (const h of this.heightsOf(id)) this.spawnHeight(h);
     const a = ROW.find((r) => r.id === id); if (!a || this.mobs.some((m) => m.id.startsWith(`mob:${id}:`))) return;
     for (const [j, def] of [a.mobs, a.mobs2].entries()) {
       const kind = def ? MOB_KINDS[def.kind] : undefined; if (!def || !kind) continue;
       def.spawns.forEach((s, i) => this.mobs.push(new Monster(this.scene, `mob:${a.id}:${j ? `b${i}` : i}`, kind, toWorld(a.id, s), i)));
     }
+  }
+  /** A map's monsters gone (the hero left its 3D place), the floors above it included. */
+  removeArea(id: string): void {
+    for (const h of this.heightsOf(id)) this.removeMobs(`mob:${h.id}:`);
+    this.removeMobs(`mob:${id}:`);
   }
 
   // ------------------------------------------------------------------ camera

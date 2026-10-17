@@ -393,7 +393,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (gen !== this.sceneGen || !this.sys.isActive()) return;
       void import('../world3d/World3D').then(({ World3D }) => {
         if (gen !== this.sceneGen || !this.sys.isActive()) return;
-        w.dispose(); this.world!.removeMobs(`mob:${from}:`);
+        w.dispose(); this.world!.removeArea(from);
         this.kin.x = to.x; this.kin.vx = 0;
         const nw = this.w3d = new World3D(this, to.area); this.a3d = nw.a3d; this.wire3D(nw.a3d);
         this.world!.spawnArea(to.area);
