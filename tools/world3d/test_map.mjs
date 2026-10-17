@@ -62,7 +62,13 @@ for (const id of ids) {
     const sealed = (side < 0 ? A.props ?? [] : DATA.areas[nb]?.props ?? []).some((q) => q.id === 'entry-wall'); if (sealed) { console.log(`  —    ${side < 0 ? 'west' : 'east'}: sealed (an entry wall)`); continue; }
     await step(`crossing ${side < 0 ? 'west' : 'east'}`, async () => {
       // (headless sim time is too slow to walk there: the hero is set down inside the edge's crossing band — 14 px — and the crossing itself is what is tested: the fade, the next place built, the hero on its floor)
-      let ok = true; try { await tele(edge - side * 10, yMid, nb); } catch { ok = false; } const at = await state(); check(ok && at.x > 0, `crossed ${side < 0 ? 'west' : 'east'} into ${nb} (x ${Math.round(at.x)}, place ${(await S(() => window.__game.scene.getScene('LegacyCourtyardScene').w3d?.areaId))})`);
+      let ok = false, tries = 0;
+      while (!ok && tries++ < 3) { // (set down in the band; a blow's or a skill's leftover drift can carry him out before the frame that crosses — once more then)
+        await S(([x, y]) => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const k = s.kin; k.x = x; k.y = y; k.z = 0; k.vx = 0; k.vy = 0; k.vz = 0; k.supportZ = 0; k.supportId = null; k.grounded = true; if (s.body) s.body.push = null; }, [edge - side * 10, yMid]);
+        ok = await p.waitForFunction((nb) => window.__game.scene.getScene('LegacyCourtyardScene').w3d?.areaId === nb, nb, { timeout: 25000 }).then(() => true).catch(() => false);
+      }
+      if (ok) { try { await settled(nb); } catch { ok = false; } }
+      const at = await state(); check(ok, `crossed ${side < 0 ? 'west' : 'east'} into ${nb} (x ${Math.round(at.x)}, place ${(await S(() => window.__game.scene.getScene('LegacyCourtyardScene').w3d?.areaId))}, ${tries} tr${tries === 1 ? 'y' : 'ies'})`);
       await tele((x0 + x1) / 2, yMid); await settleCam(); });
   }
   // 7) the frame and the stage's work
