@@ -235,6 +235,9 @@ export const tierOf = (s: FinalSkill, hit?: HitEvent): HitTier => (s.slot === 7 
 const HITSTOP: Record<HitTier, number> = { basic: 45, core: 70, signature: 95, ultimate: 140 };
 /** Presentation scale of the main skill VFX per class (DFO-style: effects dwarf the character). */
 const VFX_MULT: Record<string, number> = { warrior: 1.5, samurai: 1.25 };
+/** Warrior feel pass (PVP 3D): each skill's cast effect at its own size and strength — the big ones trimmed so both fighters
+ *  stay readable through them, the regular attack's arc a size up so its strike reads. [size ×, alpha] */
+const WARRIOR_FEEL: Record<string, [number, number]> = { warrior_basic: [1.2, 1], whirlwind: [0.72, 0.72], ground_breaker: [0.8, 0.85], blade_storm: [0.7, 0.7], titans_verdict: [0.9, 0.9], leap_crash: [0.9, 0.9] };
 /** Warrior skills that get a ground shockwave ring at their impact. */
 const SHOCK: Record<string, { r: number; c: number }> = {
   ground_breaker: { r: 200, c: 0xffb050 }, shield_slam: { r: 110, c: 0xfff0c0 }, titans_verdict: { r: 260, c: 0xffd27a },
@@ -529,13 +532,13 @@ export class SkillFx {
   /** Sky Breaker: three rising crescents ride up with him in the air, the light-blade strikes down, the ring bursts where he lands. */
   private skyBreaker(r: CastRun): void {
     const T = r.timings, key = vfxKey('sky_breaker'), flip = r.aim.x < 0, H = r.skill.hits;
-    const h3 = H[2]?.at ?? 280, slam = H[H.length - 1]?.at ?? 560, size = 300;
+    const h3 = H[2]?.at ?? 280, slam = H[H.length - 1]?.at ?? 560, size = 250;
     const air = () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x, y: p.y, z: p.z } : null; };
     this.scene.time.delayedCall(T.startup, () => {
       if (r.phase === 'done' && r.elapsed < T.startup) return;
       const c = this.casterPos(r.attackerId) ?? r.origin;
       const step = Math.max(50, h3 / 3), down = Math.max(60, slam - h3 - 40);
-      this.play(key, c.x, c.y - c.z, size, size, [50, step, step, step * 1.3, down], { oy: 0.9, flip, depth: TOP - 5, blend: Phaser.BlendModes.ADD, fadeLast: 60, follow: air });
+      this.play(key, c.x, c.y - c.z, size, size, [50, step, step, step * 1.3, down], { oy: 0.9, flip, depth: c.y - 1, dz: -1, alpha: 0.85, blend: Phaser.BlendModes.ADD, fadeLast: 60, follow: air }); // (his slashes behind him: he stays readable in the air)
     });
     this.scene.time.delayedCall(T.startup + slam - 30, () => { // the landing: the ring on the floor where he comes down
       const c = this.casterPos(r.attackerId) ?? r.origin;
@@ -560,7 +563,7 @@ export class SkillFx {
   private lionsMaw(r: CastRun): void {
     const T = r.timings, key = vfxKey('lions_maw'), a = r.aim, c = this.casterPos(r.attackerId) ?? r.origin, flip = a.x < 0;
     const x = c.x + a.x * 70, y = c.y + a.y * 70, s = Math.max(40, T.startup / 2);
-    this.play(key, x, y + 8, 520, 520, [s, s, 50, 70, 120, 90, 120, 160, 160, 230], { oy: 508 / 512, flip, depth: TOP - 6, blend: Phaser.BlendModes.ADD, fadeLast: 230 });
+    this.play(key, x, y + 8, 430, 430, [s, s, 50, 70, 120, 90, 120, 160, 160, 230], { oy: 508 / 512, flip, depth: y - 3, alpha: 0.85, blend: Phaser.BlendModes.ADD, fadeLast: 230 }); // (behind the two fighters and a size down: in PVP 3D the lion hid them both)
     this.scene.time.delayedCall(T.startup + 450, () => { this.shockwave(x + a.x * 60, y + a.y * 60, 220, 0xffc860); (this.cam ?? this.scene.cameras.main).shake(150, 0.006); });
   }
 
@@ -623,10 +626,10 @@ export class SkillFx {
   /** Blade Storm: the painted lightning storm crashes down onto the raised sword and rages for the whole hold. */
   private lightningStorm(r: CastRun): void {
     const T = r.timings, c = this.casterPos(r.attackerId) ?? r.origin;
-    const img = this.scene.add.image(c.x, c.y + 6, 'bs-storm', 12).setOrigin(0.5, 342 / 440).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(360, 570).setDepth(c.y - 1).setAlpha(0.72);
+    const img = this.scene.add.image(c.x, c.y + 6, 'bs-storm', 12).setOrigin(0.5, 342 / 440).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(310, 490).setDepth(c.y - 1).setAlpha(0.5); // (feel pass: in PVP 3D the storm at 0.72 hid both fighters for its whole life)
     const fr = [12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 11], up = T.startup;
     const fms = [up * 0.55, up * 0.15, up * 0.15, up * 0.15, 90, 90, 90, 70, 70, 70, 70, 70, 70, 260];
-    img.setData('a0', 0.72);
+    img.setData('a0', 0.5);
     this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: fr, frameMs: fms, fadeLast: 260, loop: [6, 11], until: T.startup + T.active,
       follow: () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x, y: p.y + 6, z: 0 } : null; } });
     this.scene.time.delayedCall(Math.round(up * 0.85), () => (this.cam ?? this.scene.cameras.main).shake(220, 0.007));
@@ -835,10 +838,10 @@ export class SkillFx {
   risingBlade(x: number, y: number, delay = 0): void {
     this.scene.time.delayedCall(delay, () => {
       if (!this.scene.textures.exists('bs-erupt')) return;
-      const s = 0.8 + Math.random() * 0.4;
+      const s = 0.65 + Math.random() * 0.25;
       const img = this.scene.add.image(x, y, 'bs-erupt', 0).setOrigin(0.5, 560 / 667).setDisplaySize(125 * s, 335 * s).setDepth(y + 1); // solid painted sword (readable on any floor)
-      const glow = this.scene.add.image(x, y, 'bs-erupt', 0).setOrigin(0.5, 560 / 667).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(125 * s, 335 * s).setDepth(y + 1.01).setAlpha(0.45);
-      glow.setData('a0', 0.45);
+      const glow = this.scene.add.image(x, y, 'bs-erupt', 0).setOrigin(0.5, 560 / 667).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(125 * s, 335 * s).setDepth(y + 1.01).setAlpha(0.3);
+      glow.setData('a0', 0.3);
       const fms = [50, 50, 60, 90, 110, 110, 120, 140];
       this.anims.push({ img, glow, t: 0, total: fms.reduce((p, q) => p + q, 0), frames: [0, 1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 140 });
     });
@@ -959,6 +962,7 @@ export class SkillFx {
     size *= s.slot === 0 ? 0.75 : VFX_MULT[s.cls] ?? 1; // the basic chain stays a compact, proportional slash
     const basic = !!s.chain, st = r.stage ?? 0;
     if (basic && st === 3) size *= 1.3; // finisher: a bigger, heavier arc
+    const feel = s.cls === 'warrior' ? WARRIOR_FEEL[s.id] : undefined; if (feel) size *= feel[0];
     if (GROUND_ANCHORED.has(s.id)) pos = { ...pos, z: o.z };
     const key = vfxKey(s.id);
     const img = this.scene.add.image(pos.x, pos.y - pos.z, key, 0).setOrigin(0.5, GROUND_ANCHORED.get(s.id) ?? (upright && shape.kind !== 'sector' ? 0.62 : 0.5));
@@ -994,6 +998,7 @@ export class SkillFx {
     this.anims.push({ img, glow, t: Math.min(r.elapsed, T.startup), total: fms.reduce((a, b) => a + b, 0), frames: fr, frameMs: fms, follow, z: pos.z, fadeLast: basic ? 110 : s.cls === 'warrior' ? 260 : 140,
       loop: zone ? [preFrames + 1, frames - 2] : undefined, until: zone ? T.startup + (s.zoneMs ?? 0) : undefined });
     if (s.cls === 'warrior' && !basic) this.aura(r);
+    if (feel && feel[1] < 1) { img.setAlpha(feel[1]); img.setData('a0', feel[1]); }
     // Anticipation scale-in (never starts at full size).
     img.setScale(img.scaleX * 0.55, img.scaleY * 0.55);
     const sx = (size / img.width) * (img.flipX ? 1 : 1), sy = size / img.height;
@@ -1301,7 +1306,10 @@ export class SkillFx {
     else if (s.cls === 'samurai') this.sam.confirmed(s, hit, at, reaction, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, from, local, counter); // (the cut of the blade on the foe and the marks of what happened to it; the ensō on a COUNTER)
     else if (s.cls === 'warrior' && this.scene.textures.exists('imp-wsparks')) { // the Judge's sparks: few hits, each one felt — normal / heavy / launch
       const row = counter ? 3 : reaction === 'launch' ? 2 : tier === 'ultimate' || tier === 'signature' || hit.heavy ? 1 : 0;
-      const size = row === 3 ? 200 : row === 1 ? (tier === 'ultimate' ? 220 : 170) : row === 2 ? 160 : s.id === 'warrior_basic' ? 84 : 112;
+      // (feel pass, PVP 3D: the small hits of a burst stay small so its last / heavy one stands out; the regular attack's
+      //  strikes read, its heavy 4th one bigger; the heavy bursts a size down — at 170+ they hid the foe)
+      const rapid = s.hits.length > 4 && !hit.heavy;
+      const size = row === 3 ? 190 : row === 1 ? (tier === 'ultimate' ? 200 : 150) : row === 2 ? 150 : s.id === 'warrior_basic' ? 100 : rapid ? 84 : 108; // (the chain's 4th strike is heavy: the 150 burst)
       this.spark('imp-wsparks', at.x, at.y - at.z - 38, row * 6 + 6, size, 0.95, row * 6);
     }
     else if (s.id !== 'warrior_basic') this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.4 : hit.heavy ? 1.15 : 1), 0.8); // (a regular attack: none, as in MapleStory)

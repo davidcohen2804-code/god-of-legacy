@@ -1730,7 +1730,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (l.run.skill.id === 'god_of_blades') { if (l.run.own && this.dead >= 0) { l.left = 0; break; } this.bladeStrikes(l, L); continue; }
         if (l.run.skill.id === 'tornado_blade') { const path = (l as { path?: { x: number; y: number }[] }).path ??= tornadoPath(l.run.origin, l.run.aim), q = path[Math.min(path.length - 1, TORNADO.count - 1 - l.left)]; l.x = q.x; l.y = q.y; } // rolls forward one step per strike (the picture takes the same path)
         if (l.run.skill.id === 'blade_storm') { // swords erupt all around the caster + lightning crackles
-          for (let n = 0; n < 2; n++) { const a = (l.left * 2.4 + n * Math.PI) + (Math.random() - 0.5) * 0.9, rr = 70 + Math.random() * (L.radius - 40); this.fx!.risingBlade(l.x + Math.cos(a) * rr, l.y + Math.sin(a) * rr * 0.6, n * 90); }
+          for (let n = 0; n < 1; n++) { const a = (l.left * 2.4 + n * Math.PI) + (Math.random() - 0.5) * 0.9, rr = 95 + Math.random() * Math.max(10, L.radius - 70); /* (feel pass: one sword a pulse, kept off the fighters — two a pulse filled the screen in PVP 3D) */ this.fx!.risingBlade(l.x + Math.cos(a) * rr, l.y + Math.sin(a) * rr * 0.6, n * 90); }
         }
         else if (l.run.skill.cls === 'gambler') { this.gamblerZoneAt(l); this.fx!.gambleZone(l.run.skill.id, l.x, l.y, L.radius); } // (the gambler's floor eruption / thrown-foe bomb: GamblerFx)
         else if (l.run.skill.id !== 'ground_breaker' && l.run.skill.id !== 'tornado_blade' && l.run.skill.id !== 'rain_of_arrows' && l.run.skill.id !== 'titans_verdict' && l.run.skill.id !== 'leaping_arrow') this.fx!.crack(l.x, l.y, L.radius); // (Thunder Rain: the charged floor is drawn by ArcherFx) // the quake has one steady rotating ring instead of per-tick sparks; the tornado is its own picture
@@ -1839,13 +1839,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const zone = (w: number, h: number) => ({ type: 'random' as const, source: new Phaser.Geom.Ellipse(0, 0, w, h), quantity: 1 });
       const streaks = (front: boolean) => this.add.particles(0, 0, 'flame-dot', {
         speedY: { min: -170, max: -90 }, speedX: { min: -6, max: 6 }, lifespan: { min: 520, max: 820 },
-        scaleX: { start: 0.22, end: 0.05 }, scaleY: { start: front ? 1.1 : 1.5, end: 0.3 }, alpha: { start: front ? 0.55 : 0.8, end: 0 },
+        scaleX: { start: 0.22, end: 0.05 }, scaleY: { start: front ? 1.1 : 1.5, end: 0.3 }, alpha: { start: front ? 0.35 : 0.5, end: 0 }, // (feel pass: softer — the buff's layers stacked burnt him to a white shape in PVP 3D)
         tint: [0xffffff, 0xfff1b8, 0xffd36a], blendMode: 'ADD', frequency: front ? 70 : 45, quantity: 1,
         emitZone: zone(front ? 52 : 70, front ? 14 : 22), emitting: false,
       });
       const motes = this.add.particles(0, 0, 'flame-dot', {
         speedY: { min: -60, max: -25 }, speedX: { min: -14, max: 14 }, lifespan: { min: 700, max: 1100 },
-        scale: { start: 0.28, end: 0 }, alpha: { start: 0.9, end: 0 }, tint: [0xffffff, 0xffe28a], blendMode: 'ADD',
+        scale: { start: 0.28, end: 0 }, alpha: { start: 0.6, end: 0 }, tint: [0xffffff, 0xffe28a], blendMode: 'ADD',
         frequency: 60, emitZone: zone(60, 110), emitting: false,
       });
       this.cryFire = [streaks(false), streaks(true), motes];
@@ -1867,8 +1867,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const sp = v.sprite;
         if (this.cryBody.texture.key !== sp.texture.key || this.cryBody.frame.name !== sp.frame.name) this.cryBody.setTexture(sp.texture.key, sp.frame.name);
         this.cryBody.setOrigin(sp.originX, sp.originY).setScale(sp.scaleX * 1.03, sp.scaleY * 1.03).setPosition(sp.x, sp.y).setDepth(d + 0.04)
-          .setTint(0xffe9a8).setAlpha((0.2 + 0.08 * Math.sin(this.simMs / 260)) * fade);
-        this.cryAura.setPosition(k.x, k.y - k.z - 48).setDepth(d - 0.25).setDisplaySize(150, 200).setAlpha((0.3 + 0.08 * Math.sin(this.simMs / 300)) * fade);
+          .setTint(0xffe9a8).setAlpha((0.11 + 0.05 * Math.sin(this.simMs / 260)) * fade);
+        this.cryAura.setPosition(k.x, k.y - k.z - 48).setDepth(d - 0.25).setDisplaySize(150, 200).setAlpha((0.18 + 0.05 * Math.sin(this.simMs / 300)) * fade);
       }
     }
   }
@@ -1896,7 +1896,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const k = this.kin, left = this.radiantUntil - this.simMs, age = this.simMs - this.radiantFrom;
     const a = Math.min(1, age / 400, left / 600);
     this.holyAura.setVisible(true).setFrame(Math.floor(this.simMs / 90) % 8).setPosition(k.x, k.y - k.z + 4)
-      .setDisplaySize(125, 333).setDepth(actorDepth(k.x, k.y, k.z) - 0.2).setAlpha(0.85 * a);
+      .setDisplaySize(125, 333).setDepth(actorDepth(k.x, k.y, k.z) - 0.2).setAlpha(0.55 * a);
   }
 
   /** Glowing eyes while Radiant Blade or War Cry is active. */
