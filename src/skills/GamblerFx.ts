@@ -773,7 +773,7 @@ export class GamblerFx {
     if (value) this.sdVal.set(castId, value.tier);
     if (value && this.ctx.scene.textures.exists('gbk-w_banner')) this.rankBanner(value, at);
     else if (value) this.ctx.callout(at, value.label, value.tier >= 5 ? '#ffc94a' : '#ff7ae6', 0);
-    if (value && value.tier >= 9) { this.ctx.flash(0xffffff, 0.5, 300); this.cutIn(1100); }
+    if (value && value.tier >= 9) { this.ctx.flash(0xffffff, 0.2, 260); this.cutIn(1100); } // (a royal hand: a glare, not a white-out)
     if (value && value.tier >= 5) { const st = this.kit('j_star', at.x, at.y - at.z - 40, 120, TOP + 8); if (st) { const s0 = st.scale; this.piece(st, 700, (u, o) => o.setScale(s0 * lerp(0.3, 1.2, out3(u))).setAngle(u * 90).setAlpha(1 - u * u)); } }
   }
   private sdVal = new Map<string, number>();
@@ -822,9 +822,9 @@ export class GamblerFx {
     this.piece(face, 420, (u, o) => o.setScale(u < 0.25 ? Math.abs(Math.cos(u * 4 * Math.PI / 2)) : 1, 1).setAlpha(u > 0.7 ? (1 - u) / 0.3 : 1));
     const tier = this.sdVal.get(r.castId) ?? 0;
     if (i === 4 && tier >= 6 && this.ctx.scene.textures.exists('gbk-w_royal')) { // a big hand: the last card goes off in a crown of light
-      const ry = box.y + 80, roy = this.kit('w_royal', face.x, ry + 10, 300, face.depth + 3);
+      const ry = box.y + 80, roy = this.kit('w_royal', face.x, ry + 10, 230, face.depth + 3);
       if (roy) { roy.setOrigin(0.5, 0.9); const r0 = roy.scale; this.piece(roy, 760, (u, o) => o.setScale(r0 * lerp(0.4, 1.1, out3(clamp01(u * 2.2)))).setAlpha(u < 0.55 ? 1 : (1 - u) / 0.45), 100); }
-      this.ctx.flash(0xffc94a, 0.25, 180); this.ctx.freeze(90);
+      this.ctx.flash(0xffc94a, 0.16, 170); this.ctx.freeze(90);
     }
     this.burst(face.x, face.y, i === 4 ? 170 : 110, 120, face.depth + 2);
     if (i === 4) { this.sdCards.delete(r.castId); this.sdHand.delete(r.castId); this.sdVal.delete(r.castId); this.ctx.cam().shake(220, 0.01); }
@@ -1000,14 +1000,14 @@ export class GamblerFx {
     const p = r.place ?? this.ahead(r, 200), res = rouletteOf(r.castId), c = this.me(r);
     this.ctx.callout({ x: p.x, y: p.y, z: 40 }, res.red ? 'RED!' : 'BLACK!', res.red ? '#ff2bd6' : '#e8e0f0', 0);
     if (res.red && this.ctx.scene.textures.exists('gbk-r_red')) { // RED: a column of fuchsia fire tears up out of the sigil
-      this.ctx.flash(0xff2bd6, 0.26, 180); this.ctx.cam().shake(360, 0.013); this.ctx.freeze(90);
+      this.ctx.flash(0xff2bd6, 0.16, 170); this.ctx.cam().shake(360, 0.013); this.ctx.freeze(90);
       const col = this.kit('r_red', p.x, p.y + 8, 300, p.y + 4);
       if (col) { col.setOrigin(0.5, 0.94); const c0 = col.scale; this.piece(col, 760, (u, o) => o.setScale(c0 * lerp(0.7, 1.05, out3(clamp01(u * 3))), c0 * lerp(0.15, 1.15, out3(clamp01(u * 2.4)))).setAlpha(u < 0.55 ? 1 : (1 - u) / 0.45)); }
       this.pop(p.x, p.y - 30, 260, 0xffffff, 260);
       this.shards(p.x, p.y - 60, 14, 220, 620);
       this.floorRing(p.x, p.y, 190, FUCHSIA, 520); this.scar(p.x, p.y, 130);
     } else if (res.red) { // RED (fallback art)
-      this.ctx.flash(0xff2bd6, 0.32, 200); this.burst(p.x, p.y - 40, 300, 0, p.y + 3); this.beam(p.x, p.y, 380, 480);
+      this.ctx.flash(0xff2bd6, 0.18, 180); this.burst(p.x, p.y - 40, 300, 0, p.y + 3); this.beam(p.x, p.y, 380, 480);
       this.floorRing(p.x, p.y, 200, FUCHSIA, 500); this.scar(p.x, p.y, 140); this.ctx.cam().shake(380, 0.014); this.ctx.freeze(90);
     } else { // BLACK: a ring of spectral cards rises out of the floor and stands round everyone in the wheel for 2s
       this.ctx.flash(0xd8d0e8, 0.2, 160); this.ctx.cam().shake(220, 0.01); this.ctx.freeze(70);
