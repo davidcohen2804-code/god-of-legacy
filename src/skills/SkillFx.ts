@@ -739,8 +739,12 @@ export class SkillFx {
   }
 
   /** Judgment Blade: the light-sword is hurled forward on an arc, plants itself, and a storm ring crackles around it for 5s. */
+  private jbVolley = new Map<string, { at: number; n: number }>();
   private judgment(r: CastRun): void {
     const key = vfxKey('judgment_blade'), T = r.timings;
+    // a volley (David 01:07: three blades, one a press): a blade thrown within 1.5 s of his last one is the volley's next —
+    // it lands beside it with its own sword, but the court (the rune ring) is laid once, by the first
+    const now = this.scene.time.now, pv = this.jbVolley.get(r.attackerId), vn = pv && now - pv.at < 1500 ? pv.n + 1 : 0; this.jbVolley.set(r.attackerId, { at: now, n: vn });
     const jbKey = this.scene.textures.exists('jb-bolt-holy') ? 'jb-bolt-holy' : 'jb-bolt';
     let a = r.aim, land = { x: r.origin.x + a.x * 150, y: r.origin.y + a.y * 150 };
     const aimNow = () => { a = r.aim; const c = this.casterPos(r.attackerId) ?? r.origin; land = { x: c.x + a.x * 150, y: c.y + a.y * 150 }; };
@@ -814,7 +818,7 @@ export class SkillFx {
           const burst = this.scene.add.image(land.x, land.y - 20, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff0b8).setDepth(TOP).setDisplaySize(120, 90);
           this.scene.tweens.add({ targets: burst, displayWidth: 420, displayHeight: 260, alpha: 0, duration: 260, ease: 'Cubic.easeOut', onComplete: () => burst.destroy() });
           if (sword) { // the Judge's sword of light falls point-down onto him and stands planted for the pin, its runes spread where it bit (DFO: a sword's shape)
-            const img = this.scene.add.image(land.x, land.y - 2, 'jb-sword', 1).setOrigin(0.5, 0.93).setDepth(land.y - 2).setDisplaySize(340, 340).setAlpha(0.95).setTint(0xf0d8a0); img.setData('a0', 0.95); // (its drawn point is its floor point: PVP 3D plants it there, just behind him) // (behind the pinned foe)
+            const img = this.scene.add.image(land.x + [0, -55, 55][vn % 3], land.y - 2 + [0, -6, 6][vn % 3], 'jb-sword', 1).setOrigin(0.5, 0.93).setDepth(land.y - 2).setDisplaySize(340, 340).setAlpha(0.95).setTint(0xf0d8a0); img.setData('a0', 0.95); // (its drawn point is its floor point: PVP 3D plants it there, just behind him) // (behind the pinned foe)
             const fms = [50, 50, 90, 140, 180, 180, 260];
             this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: [1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 260, loop: [4, 5], until: 5000 });
           } else {
@@ -825,7 +829,7 @@ export class SkillFx {
           this.shockwave(land.x, land.y, 170, 0xfff0b8); this.scene.time.delayedCall(70, () => this.shockwave(land.x, land.y, 280, 0xffd27a));
           this.spark(IMPACT.warrior.key, land.x, land.y - 30, IMPACT.warrior.frames, 200, 1);
           this.screenFlash(0xfff0b8, 0.12, 160); cam.shake(240, 0.011); // (a soft flash: no full-screen white-out)
-          this.stormRing(land.x, land.y, 5000);
+          if (vn === 0) this.stormRing(land.x, land.y, 5000); // (the volley's court: laid once)
         } });
       });
     };
