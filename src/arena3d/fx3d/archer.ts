@@ -21,8 +21,8 @@ export const ARCHER: Record<string, Recipe> = {
   },
   // Rising Arrow: a green geyser bursts up under the foe — the floor cracks and a twisting column of leaf light throws him up
   rising_arrow: { own: true, hit: (f, _s, _h, at, main) => { if (!main) return; f.crack(at.x, at.y, C.leaf, { r: 80, chunks: 6, up: 1.3 }); f.pillar(at.x, at.y, C.leaf, { h: 440, r: 28, ms: 420, twist: true }); } },
-  // Wind Step: a streak of wind along the leap
-  bow_haste: { active: (f, r) => { const c = me(f, r); f.later(T(r).active * 0.6, () => { const e = me(f, r); f.streak({ x: c.x, y: c.y, z: 40 }, { x: e.x, y: e.y, z: 40 }, C.leaf, { w: 16, ms: 300, draw: 40 }); }); } },
+  // Wind Step: a gust ring bursts under her as she somersaults back, a streak of wind along the leap
+  bow_haste: { cast: (f, r) => { const c = me(f, r); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), C.leaf, 1.3, 320, 0.55); }, active: (f, r) => { const c = me(f, r); f.later(T(r).active * 0.6, () => { const e = me(f, r); f.streak({ x: c.x, y: c.y, z: 40 }, { x: e.x, y: e.y, z: 40 }, C.leaf, { w: 16, ms: 300, draw: 40 }); }); } },
   // Triple Arrow: five fine trails fanning out; the first to land rings the floor
   multi_shot: { trail: { c: C.leaf, w: 7, len: 9, i: 1.6 }, own: true, hit: (f, _s, _h, at, main) => { if (main) f.host.ring(f.host.w3(at.x), f.host.d3(at.y), C.leaf, 1.4, 260, 0.6); } },
   // Fireball Arrow: a burning trail, then a shell of fire (kept under the foe's height), the planks torn, embers
