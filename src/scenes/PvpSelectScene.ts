@@ -71,7 +71,8 @@ export class PvpSelectScene extends Phaser.Scene {
     }, { mode, p1: this.hover, p2: data?.p2 });
     if (mode === 'player') this.openLobby(); else clearPvpFromUrl();
     if (mode !== 'training') this.ui.setScore(score(scoreKey(mode, this.lobby?.room)));
-    addMotes(this, { x: 0, y: 80, w: DESIGN.width, h: 900 }, 26, { depth: 3, size: [8, 20], speed: [10, 22], alpha: 0.55 }); // embers drifting over the arena (and the fighters)
+    if (ARENA3D.on) addPetals(this, 34); // PVP 3D: the courtyard's cherry petals drifting down, behind the fighters and a few in front
+    else addMotes(this, { x: 0, y: 80, w: DESIGN.width, h: 900 }, 26, { depth: 3, size: [8, 20], speed: [10, 22], alpha: 0.55 }); // embers drifting over the arena (and the fighters)
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, this.layout, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off(Phaser.Scenes.Events.POST_UPDATE, this.layout, this);
@@ -140,6 +141,45 @@ export class PvpSelectScene extends Phaser.Scene {
     cam.fadeOut(220, 0, 0, 0);
     cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, go);
   }
+}
+
+/** PVP 3D: cherry petals drifting down over the 3D courtyard on the wind (its trees shed them in the fight too) — most
+ *  behind the fighters, one in four in front of them, each turning and flipping as it falls. */
+function addPetals(scene: Phaser.Scene, count: number): void {
+  const key = petalTex(scene), W = DESIGN.width, H = DESIGN.height;
+  type Petal = { img: Phaser.GameObjects.Image; x: number; y: number; vx: number; vy: number; rot: number; spin: number; ph: number; s: number };
+  const spawn = (img: Phaser.GameObjects.Image | null, first: boolean, front: boolean): Petal => {
+    const im = img ?? scene.add.image(0, 0, key).setDepth(front ? 3 : 1.5).setAlpha(front ? 0.9 : 0.62);
+    return { img: im, x: -120 + Math.random() * (W + 160), y: first ? Math.random() * H : -30 - Math.random() * 260, vx: 22 + Math.random() * 34,
+      vy: (front ? 72 : 44) + Math.random() * 36, rot: Math.random() * 6.28, spin: (Math.random() - 0.5) * 3.2, ph: Math.random() * 6.28, s: (front ? 1 : 0.55) + Math.random() * 0.45 };
+  };
+  const all: Petal[] = [];
+  for (let i = 0; i < count; i++) all.push(spawn(null, true, i % 4 === 0));
+  const tick = (_t: number, dt: number) => {
+    const k = Math.min(dt, 50) / 1000;
+    all.forEach((p, i) => {
+      p.x += (p.vx + Math.sin(p.y / 95 + p.ph) * 28) * k; p.y += p.vy * k; p.rot += p.spin * k;
+      if (p.y > H + 30 || p.x > W + 60) { all[i] = spawn(p.img, false, p.img.depth === 3); return; }
+      p.img.setPosition(p.x, p.y).setRotation(p.rot).setScale(p.s, p.s * (0.3 + 0.7 * Math.abs(Math.cos(p.y / 70 + p.ph)))); // (flipping: edge-on, then flat)
+    });
+  };
+  scene.events.on(Phaser.Scenes.Events.UPDATE, tick);
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.events.off(Phaser.Scenes.Events.UPDATE, tick));
+}
+
+/** A cherry petal: a soft teardrop, notched at its tip, pale pink to white. */
+function petalTex(scene: Phaser.Scene): string {
+  const key = 'ps-petal';
+  if (scene.textures.exists(key)) return key;
+  const W = 30, H = 20, c = scene.textures.createCanvas(key, W, H)!, ctx = c.getContext();
+  const g = ctx.createLinearGradient(0, 0, W, 0);
+  g.addColorStop(0, '#f2a6bf'); g.addColorStop(0.65, '#ffdbe7'); g.addColorStop(1, '#fff5f8');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(1, H / 2);
+  ctx.bezierCurveTo(W * 0.35, -1, W * 0.86, 1, W - 1, H * 0.36);
+  ctx.lineTo(W * 0.84, H / 2); ctx.lineTo(W - 1, H * 0.64); // (the notch)
+  ctx.bezierCurveTo(W * 0.86, H - 1, W * 0.35, H + 1, 1, H / 2);
+  ctx.fill(); c.refresh();
+  return key;
 }
 
 /** The light over the arena behind the fighters: warm on your side, cold on theirs, darker at the top and the bottom
