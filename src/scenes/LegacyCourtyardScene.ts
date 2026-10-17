@@ -5,6 +5,8 @@
 // counter, hit-stop / shake hierarchy) → HUD, Skill Book (K), Inventory (I) and Cosmetic Shop (O).
 import { FloorLift } from '../world/FloorLift';
 import { sunGateX, SUN_GATE } from '../world/SunGate';
+/** The chapter openings (docs/WORLD_3D_SPEC.md §1.8): the first time into a chapter's first map, the slow dolly under the title. */
+const OPENINGS: Record<string, string> = { courtyard: 'Chapter 1 — The Legacy Courtyard', training: 'Chapter 2 — The Sealed Road', temple: 'The Temple Road', dusk_1: "Chapter 3 — The Thief's Trail", dusk_village: 'Elderwood Village', den_1: "The Thief's Den", sakura_village: 'Sakura Temple', ironhold_village: 'Ironhold' };
 /** The arena camera: a fixed view, maxZoom × the whole-arena view (the owner's framing; the player's zoom on top), centred
  *  between the two fighters; it widens only when they part further than the screen holds (their gap + `edge`). */
 const ARENA_CAM = { maxZoom: 1.48, edge: 420, easeMs: 260, /** the player's own zoom (wheel / camera buttons): down to the whole arena, up a little closer */ userMin: 0.55, userMax: 1.25,
@@ -80,7 +82,7 @@ import { RARITY, BAG_MAX, DEFAULT_QUICK, GOLD_BIG, GOLD_ICON, GOLD_MAX, ITEMS, I
 import { AP_PER_LEVEL, BASE_STAT, STAT_KEYS, Derived, StatKey, Stats, autoAssign, baseStats, cleanStats, derive, freeAp, mainStats } from '../game/Stats';
 import { ShopWindow } from '../ui/ShopWindow';
 import { StatsWindow } from '../ui/StatsWindow';
-import { ARENA as PLAZA, AREAS as WORLD_AREAS } from '../world/Areas';
+import { ARENA as PLAZA, AREAS as WORLD_AREAS, ROW } from '../world/Areas';
 import { ROW as WORLD_ROW } from '../world/Areas';
 import { isQAMode } from '../qa/QAPanel';
 import type { DevApi } from '../qa/TestMode';
@@ -397,12 +399,26 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         this.kin.x = to.x; this.kin.vx = 0;
         const nw = this.w3d = new World3D(this, to.area); this.a3d = nw.a3d; this.wire3D(nw.a3d);
         this.world!.spawnArea(to.area);
-        nw.arrival(to.fromX, 2000);
+        this.arrive3D(nw, to.fromX, 2000);
         this.warping = false;
         cam.fadeIn(220, 20, 12, 10);
       });
     });
   }
+
+  /** A map entered on the 3D stage: the arrival's glide — or, the first time into a chapter's first map (a town's court),
+   *  the chapter opening: the slow dolly from the far end under the title card (any key skips it). */
+  private arrive3D(w: World3D, fromX: number, ms: number): void {
+    w.onTitle = (title) => { this.areaTitle?.show(title); this.areaName = title; };
+    const first = !this.visited3d.has(w.areaId); this.visited3d.add(w.areaId);
+    const title = OPENINGS[w.areaId];
+    if (first && title) w.opening(title, fromX < (w.floor.x0 + w.floor.x1) / 2 ? w.floor.x1 : w.floor.x0);
+    else w.arrival(fromX, first ? ms : Math.min(ms, 900), this.warpKind === 'waystone' ? 0.5 : 0.62);
+    this.warpKind = null;
+  }
+  private warpKind: 'waystone' | null = null;
+  /** A boss down: a beat of slow motion and the camera's slow drift round him (the K.O.'s own beat). */
+  private bossFell(m: Monster): void { if (!m.kind.boss || !this.w3d) return; this.w3d.bossFall(); this.koT = 0; this.koZoomBack = true; }
 
   /** The open world on the 3D stage: the camera on the hero (leading where he walks), every body's shadow and light, the
    *  big moments' darkening — and, while only some maps exist in 3D, the hero kept on this one. */
@@ -416,7 +432,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const others: { x: number; y: number; z: number }[] = [];
     for (const m of this.world.mobs) { if (!m.alive) continue; others.push({ x: m.x, y: m.y, z: m.z }); bodies.push({ body: m.sprite as unknown as Phaser.GameObjects.Sprite, foot: m.foot, z: m.z }); }
     bodies.push(...this.world.npcBodies());
-    w.step(ms, { hero: { x: k.x, y: k.y, z: k.z, facing: this.dir === 'left' ? -1 : 1, floorZ: k.supportZ }, others, bodies, flying: this.rt ? this.rt.projectiles.map((e) => e.p) : [], hitStop: (this.fx?.hitStopLeft ?? 0) > 0, ult, sig, sunGateOpen: this.world.sunGate.open, den: this.den?.active ? { stage: this.den.stage, lit: this.den.lit } : undefined });
+    let boss: { x: number; y: number; id: string } | undefined;
+    for (const m of this.world.mobs) if (m.alive && m.kind.boss && Math.hypot(m.x - k.x, (m.y - k.y) * 1.4) < (m.kind.aggro ?? 400) * 1.15) { boss = { x: m.x, y: m.y, id: m.id }; break; }
+    const stage = this.den?.active ? this.den.stage : 0;
+    if (stage !== this.denStageSeen) { if (stage > 1 && this.denStageSeen > 0 && this.denStageSeen < stage) w.show(w.floor.x1); this.denStageSeen = stage; } // (a den stage cleared: the camera leads toward the gate parting)
+    w.step(ms, { hero: { x: k.x, y: k.y, z: k.z, facing: this.dir === 'left' ? -1 : 1, floorZ: k.supportZ }, others, bodies, flying: this.rt ? this.rt.projectiles.map((e) => e.p) : [], hitStop: (this.fx?.hitStopLeft ?? 0) > 0, ult, sig, sunGateOpen: this.world.sunGate.open, den: this.den?.active ? { stage: this.den.stage, lit: this.den.lit } : undefined, talk: this.npcDialog?.isOpen && this.talkAt ? this.talkAt : undefined, boss });
   }
 
   /** The arena camera (DFO): frames both fighters — close in when they are close (the bodies big and readable, ~1.7×
@@ -477,6 +497,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private floor3d: Floor | null = null;
   /** The open world on the 3D stage (?world3d=1, the maps that exist in 3D): drives `a3d` from the hero. */
   private w3d: World3D | null = null;
+  /** The world in 3D's story beats: whom the hero talks to, the maps entered this session (the chapter openings play once), the den stage last seen. */
+  private talkAt: { x: number; y: number } | null = null; private visited3d = new Set<string>(); private denStageSeen = 0;
   /** A pose the battle holds (the intro before ROUND n, the winner's pose), until sim time. */
   private poseLock: { mode: Mode; until: number } | null = null;
   private lockPose(mode: Mode, ms: number): void { this.poseLock = { mode, until: this.simMs + ms }; if (this.bot) this.bot.poseLock = { mode, until: this.simMs + ms }; }
@@ -764,10 +786,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
           const w = this.w3d = new World3D(this, areaId); this.a3d = w.a3d;
           this.motes?.setVisible(false);
           this.wire3D(w.a3d);
-          w.arrival(this.kin.x < (w.floor.x0 + w.floor.x1) / 2 ? w.floor.x0 : w.floor.x1); // (the first map: from its near edge)
+          this.arrive3D(w, this.kin.x < (w.floor.x0 + w.floor.x1) / 2 ? w.floor.x0 : w.floor.x1, 2400); // (the first map: from its near edge)
         });
       }
       this.world.onNpcClick = (n) => this.talkTo(n);
+      this.input.keyboard?.on('keydown', () => this.w3d?.skip()); // (a chapter opening on the 3D stage: any key skips it)
       this.den = new Den(this, !in3d, {
         kin: () => this.kin, level: () => this.character?.level ?? 1,
         hasItem: (id) => this.bag[id] ?? 0, takeItem: (id, n) => this.takeItem(id, n), giveItem: (id, n) => { this.giveItem(id, n, false); this.saveLoot(); },
@@ -1595,7 +1618,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       }
       else if (target.startsWith('mob:')) {
         const m = this.mobById(target); if (!m?.alive) return;
-        if (m.damage(extra, this.simMs)) { this.questKill(m); this.den?.killed(m); this.gainExp(m.kind.exp ?? Math.round(m.kind.hp / 5), { x: m.kin.x, y: m.kin.y, z: m.kin.z }); this.dropLoot(m); if (this.gripFoe === m) { this.gripFoe = null; this.gripHeld = false; } }
+        if (m.damage(extra, this.simMs)) { this.questKill(m); this.den?.killed(m); this.bossFell(m); this.gainExp(m.kind.exp ?? Math.round(m.kind.hp / 5), { x: m.kin.x, y: m.kin.y, z: m.kin.z }); this.dropLoot(m); if (this.gripFoe === m) { this.gripFoe = null; this.gripHeld = false; } }
       }
       else return;
       const big = fa.mul >= 0.5; // Advanced Final Attack: a bigger triple cut
@@ -3161,7 +3184,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (crit && own && this.critDmgNow() > 0) { this.fx!.shockwave(at.x, at.y, 110, this.cls === 'archer' ? 0x9be35a : this.cls === 'samurai' ? 0xff4a5a : this.cls === 'gambler' ? 0xff2bd6 : 0xff8a5a); this.fx!.hitStopLeft = Math.max(this.fx!.hitStopLeft, 40); } // Combat Mastery: heavier crits
       if (ch > 1 && out.damage > 0) this.chanceMark(t.id, at);
       if (killed) { // defeated: counts for the quests that ask for it
-        this.questKill(m); this.den?.killed(m);
+        this.questKill(m); this.den?.killed(m); this.bossFell(m);
         this.gainExp(m.kind.exp ?? Math.round(m.kind.hp / 5), { x: m.kin.x, y: m.kin.y, z: m.kin.z });
         this.dropLoot(m);
         if (this.gripFoe === m) { this.gripFoe = null; this.gripHeld = false; }
@@ -4328,6 +4351,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close();
     this.ci?.reset();
     if (Math.abs(np.x - this.kin.x) > 4) this.dir = np.x < this.kin.x ? 'left' : 'right'; // turns to face them
+    this.talkAt = { x: np.x, y: np.y };
     const say = (lines: string[], choices?: DialogChoice[]) => this.npcDialog!.open({ name: n.name, title: n.title, portrait: `assets/world/npc/${n.art}_face.png`, lines, choices });
     if (n.job) { this.masterTalk(n, say); return; }
     if (n.role === 'den_door') { this.den?.door(n); return; }
@@ -4364,6 +4388,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!this.world || this.warping) return;
     this.ci?.reset(); this.warping = true;
     this.fx?.shockwave(this.kin.x, this.kin.y, 120, 0xffd27a);
+    this.warpKind = 'waystone';
     this.world.jumpTo(area, x, y, this.kin, () => { this.warping = false; this.setMode('idle'); this.chat?.add({ kind: 'system', text: `The Waystone carries you to ${name}.` }); });
   }
 
@@ -4393,6 +4418,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.saveQuests();
     this.chat?.add({ kind: 'system', text: `New quest: ${q.title}. Press ${keyLabel(this.bindings.quests) || 'J'} for the quest log.` });
     this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'NEW QUEST', '#ffe08a', 0);
+    const way = this.questWay(q); if (way !== null) this.w3d?.show(way); // (the camera turns toward where the quest leads)
+  }
+  /** Where a quest's first objective is (world x): the area whose monsters it names, the NPC it sends to. */
+  private questWay(q: QuestDef): number | null {
+    const o = q.objectives[0]; if (!o) return null;
+    if (o.kind === 'kill') { for (const a of ROW) if (a.mobs?.kind === o.mob || a.mobs2?.kind === o.mob) return a.x + 836; return null; }
+    if (o.kind === 'talk') { for (const a of ROW) { const n = (a.npcs ?? []).find((p) => p.id === o.npc); if (n) return a.x + n.x; } }
+    return null;
   }
 
   private finishQuest(q: QuestDef): void {
@@ -4492,6 +4525,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!crossed) { this.quests[SUN_GATE_KEY] = { state: 'done', progress: [] }; this.saveQuests(); }   // (the sun crossed: Solenne's quest opens, whether or not the gate already stood open)
     if (this.world.sunGate.open) return;
     this.world.sunGate.unlock();
+    this.w3d?.show(SUN_GATE.front[0]);
     this.chat?.add({ kind: 'system', text: 'Far below, the golden Sun Gate swings open. The road east is free: Master Aldric has something to tell you.' });
   }
   private saveQuests(): void { if (this.character) CharacterStore.setQuests(this.character.id, this.quests); this.refreshQuests(); }
