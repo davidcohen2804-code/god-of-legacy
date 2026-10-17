@@ -43,7 +43,7 @@ const FS = `
 #include <common>
 #include <clipping_planes_pars_fragment>
 uniform vec3 uCore; uniform vec3 uInk; uniform vec3 uLit; uniform float uGain;
-uniform float uA; uniform float uSweep; uniform float uTail; uniform float uFill; uniform float uDark; uniform float uErode; uniform float uT; uniform float uPart; uniform float uInkW;
+uniform float uA; uniform float uSweep; uniform float uTail; uniform float uFill; uniform float uDark; uniform float uErode; uniform float uT; uniform float uPart; uniform float uInkW; uniform float uRim;
 uniform sampler2D uNoise;
 varying vec2 vUv;
 void main() {
@@ -65,8 +65,8 @@ void main() {
     a = uA * along * keep * max(ink * 0.96, body * uDark * 0.95) * (0.88 + 0.12 * n2);
   } else {
     float hot = max(edge, head * body);
-    col = mix(uLit * uGain, uCore * (uGain + 0.7), hot) * (0.85 + 0.3 * n2);   // (the band saturated; the core white-hot, blooming)
-    a = uA * along * keep * (band * 0.8 + hot * 0.95) * (1.0 - uDark);
+    col = mix(uLit * uGain, uCore * (uGain + 0.7), hot * (1.0 - uDark)) * (0.85 + 0.3 * n2);   // (the band saturated; the core white-hot, blooming; dark: its rim in his colour)
+    a = uA * along * keep * ((band * 0.8 + hot * 0.95) * (1.0 - uDark) + edge * 0.9 * uRim * uDark);
   }
   if (a < 0.004) discard;
   gl_FragColor = vec4(col, min(a, 1.0));
@@ -98,6 +98,10 @@ export interface Ring {
   over?: boolean;
   /** no sound of its own (one ring of many: a ball of blades) */
   quiet?: boolean;
+  /** it lives until this says so (then turns to ink over `fade` ms and goes; `ms` its longest life): a crescent riding a shot */
+  until?: () => boolean; fade?: number;
+  /** an ink ring from the start, only its outer rim lit in his colour (a crescent's black shadow) */
+  shadow?: boolean;
 }
 
 /** A cut of the blade: a thick ribbon ring round `at` (his feet) on the side `dir` (±1) — standing in the room, its part
@@ -121,7 +125,7 @@ export function ring(f: Fx3D, at: V3, dir: number, o: Ring = {}): void {
   const mat = (part: 0 | 1, front: boolean, hz: number) => {
     const m = new THREE.ShaderMaterial({
       vertexShader: VS, fragmentShader: FS,
-      uniforms: { uCore: { value: U.uCore }, uInk: { value: U.uInk }, uLit: { value: U.uLit }, uGain: { value: o.gain ?? 1.25 }, uA: { value: o.a ?? 1 }, uSweep: { value: 0 }, uTail: { value: 0.3 }, uFill: { value: o.fill ?? 0 },
+      uniforms: { uCore: { value: U.uCore }, uInk: { value: U.uInk }, uLit: { value: U.uLit }, uGain: { value: o.gain ?? 1.25 }, uA: { value: o.a ?? 1 }, uSweep: { value: 0 }, uTail: { value: 0.3 }, uFill: { value: o.fill ?? 0 }, uRim: { value: o.shadow ? 1 : 0 },
         uDark: { value: 0 }, uErode: { value: -0.4 }, uT: { value: Math.random() * 10 }, uPart: { value: part }, uInkW: { value: o.inkW ?? 0.38 }, uNoise: { value: f.noiseTex } },
       transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide, blending: part ? THREE.AdditiveBlending : THREE.NormalBlending, fog: false,
     });
@@ -143,15 +147,18 @@ export function ring(f: Fx3D, at: V3, dir: number, o: Ring = {}): void {
   place();
   const drop = () => { for (const m of meshes) { m.parent?.remove(m); (m.material as THREE.Material).dispose(); } geo.dispose(); };
   const set = (k: string, v: number) => { for (const m of meshes) (m.material as THREE.ShaderMaterial).uniforms[k].value = v; };
-  let t = 0;
+  let t = 0, endAt = -1;
+  const fadeMs = o.fade ?? 280;
   run(f, {
     step: (dt) => {
       t += dt;
       const fo = o.follow?.(); if (fo) { p = new THREE.Vector3(h.w3(fo.x + fwd), h.h3(fo.z + lift), h.d3(fo.y)); place(); }
-      const ks = Math.min(1, t / Math.max(1, sweepMs)), kd = Math.max(0, (t - sweepMs - holdMs) / Math.max(1, ms - sweepMs - holdMs));
+      if (o.until && endAt < 0 && (o.until() || t >= ms)) endAt = t;
+      const ks = Math.min(1, t / Math.max(1, sweepMs));
+      const kd = o.until ? (endAt < 0 ? 0 : Math.min(1, (t - endAt) / fadeMs)) : Math.max(0, (t - sweepMs - holdMs) / Math.max(1, ms - sweepMs - holdMs));
       set('uSweep', 1.0001 * outCubic(ks)); set('uTail', 0.25 + ((o.tail ?? 1) - 0.25) * outCubic(ks));
-      set('uDark', Math.min(1, kd * 1.6)); set('uErode', -0.4 + 1.55 * kd * kd); set('uT', t / 1000);
-      if (t >= ms) { drop(); return false; }
+      set('uDark', o.shadow ? 1 : Math.min(1, kd * 1.6)); set('uErode', -0.4 + 1.55 * kd * kd); set('uT', t / 1000);
+      if (o.until ? endAt >= 0 && t - endAt >= fadeMs : t >= ms) { drop(); return false; }
       return true;
     }, dispose: drop,
   });

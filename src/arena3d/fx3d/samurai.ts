@@ -9,8 +9,26 @@
 import type { Recipe, Fx3D, V3 } from '../Fx3D';
 import { C, me, side, T } from './kit';
 import { ring, crescent, flurry, slit, bladeBall, inkBurst, sparks, SAM } from './blade3d';
+import type { Projectile } from '../../skills/HitGeometry';
 
 const flip = () => (Math.random() < 0.5 ? 1 : -1);
+/** Sword Wave (David 01:15: "the crescent and its shadow"): a big upright crescent riding the shot along the planks — out
+ *  (its first hit) a crescent of light (white-hot edge, a rose body, ink inside) cutting a glowing furrow behind it, turning
+ *  to ink where the shot ends; back (its second hit, the return) its black shadow, only its rim lit crimson. */
+const waveCrescent = (f: Fx3D, p: Projectile) => {
+  const back = p.hitIndex > 0, dir = p.dx < 0 ? -1 : 1, on = () => (p.done ? null : { x: p.x, y: p.y, z: 0 });
+  ring(f, { x: p.x, y: p.y, z: 0 }, dir, { r: 118, w: 46, y0: 106, fwd: -96, tilt: 90, yaw: 0, a0: -34, a1: 164, ms: 3000, sweep: 0.03, fill: 1, inkW: 0.44,
+    lit: SAM.rose, gain: 0.9, follow: on, until: () => p.done, fade: back ? 200 : 300, shadow: back });
+  let lx = p.x, ly = p.y, n = 0; // the furrow it cuts in the planks as it skims them, glowing and fading
+  (f as unknown as { items: { step(ms: number): boolean; dispose(): void }[] }).items.push({
+    step: () => {
+      if (p.done) return false;
+      if (Math.hypot(p.x - lx, p.y - ly) > 26) { f.floorStreak(lx, ly, p.x, p.y, back ? SAM.crimson : SAM.rose, { w: back ? 7 : 10, ms: back ? 360 : 560, a: back ? 0.5 : 0.75 }); lx = p.x; ly = p.y;
+        if (++n % 3 === 0) f.host.embers(f.host.w3(p.x), 0.1, f.host.d3(p.y), back ? SAM.crimson : SAM.light, 2, 1.4); }
+      return true;
+    }, dispose: () => {},
+  });
+};
 /** The side Swallow Cut's last cast faced (its hits come a beat after: the second cut sweeps down the way he faced). */
 let swallowDir = 1;
 /** A blow thrown up (the bar: the foe thrown high and fast): a white-hot line struck up through him from the planks (its
@@ -62,12 +80,12 @@ export const SAMURAI: Record<string, Recipe> = {
       crescent(f, c, d, { r: 158 + 14 * lv, w: 70 + 10 * lv, ms: 700 + 60 * lv, hold: 300 + 30 * lv });
     },
     hit: (f, _s, _h, at, main) => { sparks(f, at, Math.random() < 0.5 ? 1 : -1, main ? 8 : 5, 70); } }, // (no impact piece: the crescent is its moment — with the flash and the rose shell the foe stood in a bubble)
-  // the crescent thrown in gold: its swing, and a crest of gold light running with it along the floor
-  // (its strike is the painted crescent's: no dome of the room's over the foe — thrown close at a foe in the air, MIKAZUKI,
-  // the gold pile hid both; a launch from the floor: a slim short beam)
-  sword_wave: { own: true, tone: C.gold, crest: { c: C.sun, h: 115, w: 110 }, trail: false,
-    active: (f, r) => f.slash(me(f, r), side(r), C.gold, { r: 105, tilt: 18, a0: -110, a1: 120, ms: 200, i: 0.9 }),
-    hit: (f, _s, _h, at, main, react) => { if (main && react === 'launch') f.pillar(at.x, at.y, C.gold, { h: 300, r: 16, ms: 260, core: false, i: 0.6 }); } },
+  // (David 01:15, "just a boring hit" → the crescent and its shadow) the fling: a ribbon ring at his blade; the crescent
+  // rides the shot (waveCrescent): light out, ink back; where it cuts: sparks (the room plays the main hit)
+  sword_wave: { own: true, tone: SAM.rose, trail: false,
+    active: (f, r) => ring(f, me(f, r), side(r), { r: 104, w: 40, y0: 88, fwd: 14, tilt: 70, yaw: 20, a0: -40, a1: 150, ms: 180, lit: SAM.rose, gain: 1.3, quiet: true }),
+    shot: (f, p) => waveCrescent(f, p),
+    hit: (f, _s, _h, at) => sparks(f, at, Math.random() < 0.5 ? 1 : -1, 5, 56) },
   // the stance: a rose haze round him for the window; the counter cut: three rose cuts crossing on the attacker
   mirage: { own: true, tone: C.rose,
     active: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, C.rose, { r: 120, ms: 480, a: 0.3, hold: 1, follow: () => f.host.casterPos(r.attackerId) }); },

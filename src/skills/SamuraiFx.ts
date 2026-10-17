@@ -29,7 +29,7 @@ const along = (ang: number, left: boolean) => (left ? ang - 180 : ang);
 const DELAYED = new Set(['iai_strike', 'dragon_eclipse']);
 /** PVP 3D: the skills rebuilt to David's bar in the room's own 3D (fx3d/samurai.ts + blade3d.ts) — their flat painted cuts
  *  and marks stay out there (the painted ones stay for the painted world). */
-const IN3D_OWN = new Set(['quick_slash', 'iai_strike', 'phantom_blades', 'dragon_eclipse', 'tornado_blade', 'shadow_step', 'god_of_blades', 'swallow_cut', 'blossom_storm']);
+const IN3D_OWN = new Set(['quick_slash', 'iai_strike', 'phantom_blades', 'dragon_eclipse', 'tornado_blade', 'shadow_step', 'god_of_blades', 'swallow_cut', 'blossom_storm', 'sword_wave']);
 /** Skills whose pieces show a state that outlasts the next press (a zone on the floor, a stance, a shield, the halo, the
  *  doubles): never cut short by his next skill. */
 const KEEP = new Set(['sakura_bind', 'mirage', 'rising_sun', 'god_of_blades', 'kagemusha']);
@@ -1958,7 +1958,7 @@ export class SamuraiFx {
   /** Sword Wave: a crescent of crimson sword energy flying along its path (its own tail of light behind it), the trail of
    *  the fling at his blade; on impact (a foe, a wall, its end) it shatters into shards and petals. */
   projectile(p: Projectile): void {
-    if (!this.ready) return;
+    if (!this.ready || (this.in3d() && p.skill.id === 'sword_wave')) return; // (PVP 3D: the crescent riding the shot is the room's — fx3d/samurai.ts)
     this.withOwn(null, () => this.projectileOne(p)); // (a crescent in flight is never cut short: it is the blow itself)
   }
   private projectileOne(p: Projectile): void {
