@@ -72,8 +72,9 @@ const BUFFS: Record<string, SfxName> = {
  *  boom), `end` its last main hit, `blow` its other blows (a burst's small ones stay the class's soft ticks), `zero` a blow
  *  that does no damage but means something (a curse, a bind, a stun); `every`: every main hit gets `hit` (the last one
  *  `end`), not only the first (blows of one kind: a hammer three times); `zone` a blow of what it leaves on the floor
- *  (its lingering hits: the charged floor catching someone). */
-interface Sig { wind?: SfxName; windLead?: number; cast?: SfxName | readonly SfxName[]; lead?: number | readonly number[]; hit?: SfxName; end?: SfxName; blow?: SfxName; blowVol?: number; zero?: SfxName; every?: boolean; zone?: SfxName }
+ *  (its lingering hits: the charged floor catching someone), `zoneEnd` the last of them (a hold's last turn); `zoneVol`:
+ *  the lingering hits lighter (a hold's quick turns: light blows at this volume, so its last turn stands out). */
+interface Sig { wind?: SfxName; windLead?: number; cast?: SfxName | readonly SfxName[]; lead?: number | readonly number[]; hit?: SfxName; end?: SfxName; blow?: SfxName; blowVol?: number; zero?: SfxName; every?: boolean; zone?: SfxName; zoneEnd?: SfxName; zoneVol?: number }
 const SIG: Record<string, Sig> = {
   // warrior: a greatsword's weight, holy gold light, the storm, the titan
   warrior_basic: { cast: ['wr_iron_1', 'wr_iron_2', 'wr_iron_3', 'wr_iron_4'], lead: [153, 150, 135, 275], blow: 'wr_iron_hit', hit: 'wr_iron_fin' },
@@ -170,6 +171,7 @@ const SIG: Record<string, Sig> = {
   grand_slam: { wind: 'gb_slam_w', windLead: 420, cast: 'gb_slam_c', lead: 157, hit: 'gb_slam_h' },
   triple_down: { cast: 'gb_triple_c', hit: 'gb_triple_h', end: 'gb_triple_end', every: true },
   card_swap: { cast: 'gb_swap_c' },
+  call_the_deck: { cast: 'gb_wild_c', lead: 150, hit: 'gb_wild_h', zone: 'gb_wild_z', zoneEnd: 'gb_wild_end', zoneVol: 0.7 }, // the big card fused and flung like a saw (its gather: deckGather), the cut, each turn of the hold under him, the last turn and its way home
 };
 /** A chain's stage's own (the last one for the stages after). */
 const perStage = <V>(v: V | readonly V[] | undefined, stage: number): V | undefined =>
@@ -283,6 +285,12 @@ export class ArenaSound {
     }
   }
 
+  /** Call the Deck's gather: his cards on the floor whip home into his hand — as many as came (none: nothing to hear). */
+  deckGather(run: CastRun, n: number): void {
+    if (n <= 0 || !Sound.classReady(this.scene, run.skill.cls)) return;
+    Sound.sfx(n >= 5 ? 'gb_wild_g2' : 'gb_wild_g1', { x: run.origin.x, y: run.origin.y, z: run.origin.z, wet: WET.swing, vol: n >= 5 ? 1 : 0.75 + 0.06 * n });
+  }
+
   /** A hit landing (or held off): the class's impact (a signature skill's own); the main hit with the boom under it, a
    *  burst's small blows soft. */
   hit(s: FinalSkill, hit: HitEvent, at: { x: number; y?: number; z?: number }, damage: number, reaction: string, crit: boolean): void {
@@ -297,10 +305,11 @@ export class ArenaSound {
     const o = { ...w, vol: tick ? 0.42 : [0.75, 0.9, 1, 1][tier], rate: tick ? 1.1 : 1, wet: tick ? WET.tick : WET.hit, at: tick ? 30 : 38 };
     const proj = hit.shape.kind === 'projectile';
     // the blow itself, by its weight (its class's sounds in: else the class's old impact below)
-    const ic = IMP[s.cls], blow = ic && Sound.classReady(this.scene, s.cls) ? (`imp_${ic}_${tick || tier === 0 ? 'l' : main ? 'h' : 'm'}` as SfxName) : null;
-    if (blow) Sound.sfx(blow, { ...w, vol: tick ? 0.55 : 1, wet: tick ? WET.tick : WET.hit, at: tick ? 30 : 38 });
-    const sig = tick ? undefined : this.sigOf(s), own = sig ? (sig.zone && hit === s.linger?.hit ? sig.zone : this.ownHit(s, sig, main, idx)) : undefined;
-    if (own) Sound.sfx(own, !main && sig?.blowVol ? { ...o, vol: o.vol * sig.blowVol } : o);
+    const turn = !!this.sigOf(s)?.zoneVol && hit === s.linger?.hit; // (a hold's quick turns: light, so its last one stands out)
+    const ic = IMP[s.cls], blow = ic && Sound.classReady(this.scene, s.cls) ? (`imp_${ic}_${tick || turn || tier === 0 ? 'l' : main ? 'h' : 'm'}` as SfxName) : null;
+    if (blow) Sound.sfx(blow, { ...w, vol: tick || turn ? 0.55 : 1, wet: tick ? WET.tick : WET.hit, at: tick ? 30 : 38 });
+    const sig = tick ? undefined : this.sigOf(s), own = sig ? (sig.zone && hit === s.linger?.hit ? sig.zone : sig.zoneEnd && hit === s.linger?.last ? sig.zoneEnd : this.ownHit(s, sig, main, idx)) : undefined;
+    if (own) Sound.sfx(own, turn ? { ...o, vol: o.vol * sig!.zoneVol! } : !main && sig?.blowVol ? { ...o, vol: o.vol * sig.blowVol } : o);
     else if (!blow) switch (s.cls) {
       case 'warrior': Sound.sfx(tier === 0 || tick ? 'hit_light' : 'war_hit', o); break;
       case 'samurai': Sound.sfx('sam_cut', o); break;

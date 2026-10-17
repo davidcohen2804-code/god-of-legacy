@@ -83,7 +83,8 @@ export const SIG_SFX = {
     gb_wheel_c: [1, 0.56], gb_wheel_h: [1, 0.45], gb_dice_c: [1, 0.44], gb_dice_h: [1, 0.66], gb_grab_c: [1, 0.82], gb_grab_h: [1, 1.0],
     gb_grab_end: [1, 0.73], gb_ace_c: [1, 0.42], gb_ace_h: [1, 0.76], gb_snap_c: [1, 1.0], gb_allin_h: [1, 0.51], gb_52_c: [1, 0.37],
     gb_52_h: [1, 0.62], gb_slam_w: [1, 0.37], gb_slam_c: [1, 0.39], gb_slam_h: [1, 0.64], gb_triple_c: [1, 0.51], gb_triple_h: [1, 1.0],
-    gb_triple_end: [1, 1.0], gb_swap_c: [1, 0.42], imp_gb_l: [3, 0.3], imp_gb_m: [3, 0.32], imp_gb_h: [3, 0.3]
+    gb_triple_end: [1, 1.0], gb_swap_c: [1, 0.42], imp_gb_l: [3, 0.3], imp_gb_m: [3, 0.32], imp_gb_h: [3, 0.3],
+    gb_wild_g1: [1, 1.0], gb_wild_g2: [1, 0.58], gb_wild_c: [1, 0.35], gb_wild_h: [1, 0.6], gb_wild_z: [1, 0.5], gb_wild_end: [1, 0.73]
   },
 } satisfies Record<string, Record<string, [number, number]>>;
 type SigName = { [C in keyof typeof SIG_SFX]: keyof (typeof SIG_SFX)[C] }[keyof typeof SIG_SFX];

@@ -2912,7 +2912,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const c = this.casterPos(r.attackerId) ?? r.origin, got = this.gDeck.gather(r.attackerId, c.x, c.y, this.simMs);
     r.holdCount = Math.min(HOLD_MAX, HOLD_BASE + got.length);
     const hand = () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x, y: p.y, z: p.z + 80 } : null; };
-    this.fx?.deckGather(r, got.map((g) => g.key));
+    this.fx?.deckGather(r, got.map((g) => g.key)); this.arenaSnd?.deckGather(r, got.length); // (the cards whipping home: heard as many as came)
     if (got.length) this.a3d?.fx.cardGather(got.map((g) => g.key), hand, { ms: 260, gap: Math.min(40, Math.round(120 / got.length)) });
   }
   /** A gambler skill that leaves cards on the floor: its cards, from the cast alone (FloorDeck), as its active starts. */

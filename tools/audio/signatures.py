@@ -2676,6 +2676,108 @@ SOUNDS.update(SOUNDS5)
 SOUNDS.update(SOUNDS6)
 
 
+# ---------------------------------------------------------------- GAMBLER: Call the Deck (call_the_deck; David 14:35, DFO's spec)
+# The gather (his cards on the floor whip home into his hand: played with the number gathered), the throw (the big charged
+# card spinning flat like a saw: DFO's 3D card turns about 5 times a second — a flutter), the cut, each turn of the hold
+# under the foe (every 120 ms) and the last turn (the card flips him up and flies back to the hand).
+
+def cd_card_up(rng, dur=0.12, amp=1.0):
+    """A card peeled off the planks and whipped up into the air: a soft scrape, then a short rising whoosh."""
+    x = buf(dur + 0.02); t = T(0.025)
+    place(x, bp(rng.standard_normal(t.size), 2500, 7000) * env(t, 0.002, 0.008), 0, 0.35 * amp)  # (the peel)
+    place(x, swoosh(dur, 1400, 5200, 6800, rng, peak=0.7, q=3.0, tail=6), 0.008, 0.55 * amp)
+    return x
+
+
+def cd_snap_in(rng, amp=1.0):
+    """A card landing in his hand: a crisp slap on the deck."""
+    t = T(0.05)
+    return (hp(rng.standard_normal(t.size), 2200) * env(t, 0.0002, 0.003) + bp(rng.standard_normal(t.size), 600, 2400) * env(t, 0.0005, 0.006) * 0.5) * amp
+
+
+def cd_flutter(dur, f0, f1, rng, amp=1.0, corners=4):
+    """The big card spinning flat (rad/s f0 -> f1): its four corners cutting the air — a fast flutter (frrrr) — and the
+    charge's faint whine riding it."""
+    t = T(dur); turns = glide(t, f0, f1, dur * 0.5) / (2 * np.pi)
+    edge = (0.5 + 0.5 * np.cos(2 * np.pi * turns * corners)) ** 3  # (a puff at each corner passing)
+    n = bp(rng.standard_normal(t.size), 700, 3800) * (0.25 + 0.75 * edge)
+    whine = np.sin(2 * np.pi * 1760 * t + 0.4 * np.sin(2 * np.pi * 6 * t)) * (0.6 + 0.4 * edge) * 0.07
+    return (n + whine) * amp
+
+
+def cd_grind(dur, rng, rate=55.0, amp=1.0):
+    """The spinning edge sawing at him: a rasp of fast bursts (zzzt)."""
+    t = T(dur)
+    return bp(rng.standard_normal(t.size), 1200, 6500) * (0.5 + 0.5 * np.sign(np.sin(2 * np.pi * rate * t))) * env(t, 0.001, dur * 0.45) * amp
+
+
+def cd_gather(seed, n):
+    """The cards whip home one after another (nearest first, all in by ~380 ms) and stack in his hand."""
+    rng = R(seed); dur = 0.68; x = buf(dur); u = np.linspace(0, 1, n) ** 0.8
+    for k in range(n):
+        s = 0.01 + u[k] * 0.24; fl = 0.07 + 0.05 * u[k]
+        place(x, cd_card_up(rng, fl, 0.85 - 0.25 * u[k]), s)
+        place(x, cd_snap_in(rng, 0.7 + 0.25 * rng.random()), min(0.37, s + fl))
+    place(x, flick(rng, 0.6, 0.25), 0.385, 0.7)  # (the deck squared in his hand)
+    return finish(x, 0.82, 1.25)
+
+
+def gb_wild_g1():  # Call the Deck's gather, a few cards (1-4) whipping home
+    return cd_gather(901, 3)
+
+
+def gb_wild_g2():  # the gather, many cards (5+): a cascade whipping home
+    return cd_gather(902, 9)
+
+
+def gb_wild_c():  # the throw (lead 150 ms): the cards fuse into the big charged card (a pink shimmer swelling, the charge rising), then it is flung spinning like a saw — the snap of the release and its flutter flying off
+    rng = R(903); dur = 1.35; x = buf(dur)
+    tf = T(0.16); place(x, sum(np.sin(2 * np.pi * f * tf + i) for i, f in enumerate((1318.5, 1661.2, 1975.5, 2637.0))) * (tf / 0.16) ** 2 * 0.12, 0.0)
+    for k in range(6):
+        place(x, bell(0.25, rng.uniform(3500, 7000), ratio=1.5, index=1.4, tau=0.05), 0.04 + k * 0.018, 0.12)
+    th = T(0.16); place(x, np.sin(2 * np.pi * np.cumsum(180 * 2 ** (th / 0.16 * 1.5)) / SR) * (th / 0.16) ** 2 * 0.3, 0.0)
+    place(x, hp(rng.standard_normal(th.size), 5000) * (th / 0.16) ** 3 * 0.12, 0.0)
+    place(x, flick(rng, 1.2, 0.6), 0.148, 1.0)
+    place(x, thud(0.12, 220, 120, 0.02) * 0.4, 0.148)
+    place(x, cd_flutter(1.15, 2 * np.pi * 5.4, 2 * np.pi * 4.6, rng, 1.0) * env(T(1.15), 0.02, 0.26), 0.15, 0.9)
+    place(x, swoosh(0.4, 900, 4200, 5200, rng, peak=0.15, q=2.5, tail=4), 0.15, 0.6)
+    return finish(x, 0.84, 1.35)
+
+
+def gb_wild_h():  # the big card cuts through (it pops him up): its spinning edge grinding (zzzt), the thunk of it, the charge crackling
+    rng = R(904); dur = 0.55; t = T(dur); x = buf(dur)
+    x += click(dur, rng, 2400, 0.0015, 0.9)
+    place(x, cd_grind(0.2, rng, 60, 1.0), 0, 0.8)
+    x += thud(dur, 180, 80, 0.05) * 0.8
+    x += bp(rng.standard_normal(t.size), 1000, 5000) * env(t, 0.001, 0.015) * 0.6
+    place(x, hp(rng.standard_normal(t.size), 4000) * (slow(rng, t.size, 90) > 0.3) * env(t, 0.01, 0.12), 0.02, 0.3)
+    return finish(x, 0.86, 1.45)
+
+
+def gb_wild_z():  # a turn of the hold: the card spinning under him, its edge catching him — a short grinding zip, every 120 ms
+    rng = R(905); dur = 0.2; t = T(dur); x = buf(dur)
+    place(x, cd_grind(0.1, rng, 50, 1.0) + cd_flutter(0.1, 2 * np.pi * 5, 2 * np.pi * 5, rng, 0.6) * env(T(0.1), 0.004, 0.05), 0, 0.85)
+    x += click(dur, rng, 3000, 0.001, 0.5)
+    x += bp(rng.standard_normal(t.size), 1500, 6000) * env(t, 0.001, 0.008) * 0.35
+    return finish(x, 0.8, 1.2)
+
+
+def gb_wild_end():  # the last turn: the card flips up hard under him (a slicing POW, he is thrown), then zips back to the gambler's hand (a whoosh, the slap of it caught)
+    rng = R(906); dur = 1.2; t = T(dur); x = buf(dur)
+    place(x, card_pop(rng, 1.0), 0.0)
+    place(x, cd_grind(0.16, rng, 70, 1.0), 0.0, 0.8)
+    x += thud(dur, 130, 52, 0.14) * 0.9
+    x += lp(brown(t.size, rng), 180) * env(t, 0.004, 0.12) * 0.6
+    place(x, swoosh(0.35, 5200, 1600, 3200, rng, peak=0.75, q=2.5, tail=8), 0.36, 0.55)
+    place(x, cd_snap_in(rng, 1.0), 0.69)
+    place(x, clink(0.25, rng, 5200, 0.25), 0.7)
+    return finish(x, 0.86, 1.5)
+
+
+SOUNDS7 = {'gb_wild_g1': gb_wild_g1, 'gb_wild_g2': gb_wild_g2, 'gb_wild_c': gb_wild_c, 'gb_wild_h': gb_wild_h, 'gb_wild_z': gb_wild_z, 'gb_wild_end': gb_wild_end}
+SOUNDS.update(SOUNDS7)
+
+
 def loudness(x):
     """The loudest 100 ms (RMS): how loud it is heard."""
     w = int(SR * 0.1)
