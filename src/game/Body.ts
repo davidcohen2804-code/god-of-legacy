@@ -591,7 +591,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     legacy_banner: { act: 'banner', st: [0, 1, 2], ac: [2], rc: [3, 3, 4, 5] },
     war_cry: { act: 'war_cry', st: [0], ac: [1, 2, 3, 2, 3], rc: [4, 5] },
     judgment_blade: { act: 'judgment_blade', st: [0, 1, 2], ac: [3], rc: [4, 4, 5] }, // (the wind-up readable: 3 poses over the short startup, not 2 flashes of 15 ms)
-    lions_maw: { act: 'war_cry', st: [0], ac: [1, 2, 3, 2], rc: [4, 5] }, // he roars: his lion pounces
+    lions_maw: { act: 'lions_maw', st: [0], ac: [1, 2, 3, 3], rc: [4, 5] }, // his own move (PixVerse): the roar, arms flung wide, the open hand thrust forward to send the lion, the sword back up, the stance
     iron_grip: { act: 'iron_grip', st: [0], ac: [1, 2, 3, 3, 3, 4], rc: [5, 5, 0] }, // the open hand seizes, the fist hoists it overhead, the slam
     judgment_hook: { act: 'judgment_hook', st: [0, 1], ac: [2, 3, 4], rc: [4, 5] }, // wind back, hurl the chain, yank it in
     sky_breaker: { act: 'sky_breaker', st: [0], ac: [1, 1, 2, 3, 3, 4], rc: [5, 5] }, // the rising slashes, sword overhead, the dive, landed
