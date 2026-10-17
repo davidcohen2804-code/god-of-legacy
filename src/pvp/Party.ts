@@ -17,6 +17,9 @@ export interface PartyHooks {
   invited(from: string): void;
   /** A party member shared a buff with me. */
   buff(from: string, skillId: string, ms: number): void;
+  /** A party buff went to these members (never me): its look over each of them on this screen too — the whole party sees
+   *  who is buffed (the caster's screen when it shares, every other member's when the share goes by). */
+  marked?(from: string, skillId: string, ms: number, to: string[]): void;
   changed(): void;
 }
 
@@ -70,7 +73,7 @@ export class Party {
   /** Share a party buff with the members near me (`near` = their ids). */
   shareBuff(skillId: string, ms: number, near: string[]): void {
     const to = near.filter((id) => this.has(id) && id !== this.me);
-    if (to.length) this.h.send({ t: 'pbuff', skillId, ms, to });
+    if (to.length) { this.h.send({ t: 'pbuff', skillId, ms, to }); this.h.marked?.(this.me, skillId, ms, to); }
   }
 
   /** A player left the room: same as leaving the party. */
@@ -106,9 +109,13 @@ export class Party {
       case 'pleave':
         if (this.has(m.from)) { this.h.notice(`${this.h.nameOf(m.from)} left the party.`); this.removeMember(m.from); }
         return;
-      case 'pbuff':
-        if (this.has(m.from) && m.to.includes(this.me)) this.h.buff(m.from, m.skillId, m.ms);
+      case 'pbuff': {
+        if (!this.has(m.from)) return;
+        if (m.to.includes(this.me)) this.h.buff(m.from, m.skillId, m.ms);
+        const others = m.to.filter((id) => id !== this.me && this.has(id));
+        if (others.length) this.h.marked?.(m.from, m.skillId, m.ms, others);
         return;
+      }
     }
   }
 

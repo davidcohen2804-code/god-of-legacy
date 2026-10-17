@@ -2638,6 +2638,17 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (skillId === 'god_of_blades') for (const id of near) this.fx?.godMark(id, ms); // (the caster sees who shares his blades: their mark)
   }
 
+  /** A party buff's look over a member who got it from another, drawn on every member's screen — his own (receivePartyBuff),
+   *  the caster's and the others' (Party `marked`) — so the whole party sees who is buffed. One line per buff: a class's
+   *  party buff with no look of its own over an ally yet shows nothing here (only the receiver's call and tray icon). The
+   *  Tree of Life's apple comes with each heal pulse on the receiver's own screen (treeHeal). */
+  private partyBuffLook(who: string, id: string, ms: number): void {
+    if (id === 'arcane_ward') this.fx?.mageWard(who, ms); // (the ward's shell and its turning rune disk over the head)
+    else if (id === 'tree_of_life') this.fx?.treeMark(who); // (the apple of light, refreshed by each pulse of the tree)
+    else if (id === 'chrono_haste') this.fx?.mageAura(who, 'haste', ms);
+    else if (id === 'lady_luck') this.fx?.gambleLuck(who, ms);
+  }
+
   /** A party member near me cast a party buff. */
   private receivePartyBuff(from: string, id: string, ms: number): void {
     if (this.dead >= 0) return;
@@ -2650,11 +2661,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     else if (id === 'god_of_blades') { this.godUntil = Math.max(this.godUntil, now + ms); this.fx?.godMark(this.localId, this.godUntil - now); } // (the samurai's one buff, shared with the party; its mark over the head)
     else if (id === 'coin_heads') this.gHeadsUntil = Math.max(this.gHeadsUntil, now + ms);
     else if (id === 'coin_tails') this.gTailsUntil = Math.max(this.gTailsUntil, now + ms);
-    else if (id === 'lady_luck') { this.gLuckUntil = Math.max(this.gLuckUntil, now + ms); this.fx?.gambleLuck(this.localId, ms); }
-    else if (id === 'chrono_haste') { this.mage.hasteUntil = Math.max(this.mage.hasteUntil, now + ms); this.fx?.mageAura(this.localId, 'haste', ms); }
-    else if (id === 'arcane_ward') { this.mage.wardHp = Math.max(this.mage.wardHp, Math.round(this.maxHpNow() * 0.1)); this.mage.wardUntil = Math.max(this.mage.wardUntil, now + ms); this.fx?.mageWard(this.localId, ms); }
-    else if (id === 'tree_of_life') { this.treeHeal(); return; } // one heal pulse from a party member's tree (sent every second while you stand near it)
+    else if (id === 'lady_luck') this.gLuckUntil = Math.max(this.gLuckUntil, now + ms);
+    else if (id === 'chrono_haste') this.mage.hasteUntil = Math.max(this.mage.hasteUntil, now + ms);
+    else if (id === 'arcane_ward') { this.mage.wardHp = Math.max(this.mage.wardHp, Math.round(this.maxHpNow() * 0.1)); this.mage.wardUntil = Math.max(this.mage.wardUntil, now + ms); }
+    else if (id === 'tree_of_life') { this.treeHeal(); return; } // one heal pulse from a party member's tree (sent every second while you stand near it; the apple over the head comes with it)
     else return;
+    this.partyBuffLook(this.localId, id, ms); // (its look on me: the same the party sees over me)
     const label = id === 'chrono_haste' ? 'CHRONO HASTE' : id === 'arcane_ward' ? 'ARCANE WARD' : id === 'war_cry' ? 'WAR CRY' : id === 'iron_oath' ? 'IRON OATH' : id === 'hunters_spirit' ? "HUNTER'S SPIRIT" : id === 'rising_sun' ? 'RISING SUN' : id === 'god_of_blades' ? 'GOD OF BLADES' : id === 'coin_heads' ? 'HEADS' : id === 'coin_tails' ? 'TAILS' : id === 'lady_luck' ? 'LADY LUCK' : 'LEGACY BANNER';
     this.fx?.callout({ x: k.x, y: k.y, z: k.z + 50 }, `+${label}`, '#ffd27a', 0);
     this.fx?.shockwave(k.x, k.y, 90, 0xffd27a);
@@ -4005,6 +4017,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       notice: (text) => this.chat?.add({ kind: 'system', text }),
       invited: (from) => this.chat?.add({ kind: 'system', text: `${pvp.nameOf(from)} invites you to a party.` }),
       buff: (from, id, ms) => this.receivePartyBuff(from, id, ms),
+      marked: (_from, id, ms, to) => { for (const who of to) if (this.pvp?.remotes.has(who)) this.partyBuffLook(who, id, ms); },
       changed: () => { this.partyTick = 1e9; },
     });
     void pvp.join();
