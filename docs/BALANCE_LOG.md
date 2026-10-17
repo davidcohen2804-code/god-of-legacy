@@ -4,6 +4,8 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-10-17 — Archer: Double Shot's finishing arrow (the Archer chat's 2-beat chain)
+- quick_shot, stage 2 (the charged arrow): numbers set as proposed — 14 dmg (the two fast arrows' 7 + 7 again), projectile 1250 px/s, range 470, radius 14, stun 320, push 90, heavy; startup 170, recovery 220. The chain deals 28 over ~655 ms (≈ 43 / s), beside the Book Mage's three-beat bolts (36 over ~800 ms, ≈ 45 / s); its push ends the chain at range, as an archer's should (the mage's lance pushes 30).
 ## 2026-10-11 — Gambler: openers that land (240-match audit: 27% wins, Staff Vault landing 58%, Ace 40%)
 - staff_vault: a new first hit along the whole vault (capsule r30, at 40 ms, stun 340): it catches whoever it vaults through, from the distance fights open at (lands from 100 to 210 px in the arena). Visuals: the staff's arc can flash where it passes the foe.
 - ace_in_the_hole: startup 420 → 300; the ace 22 px wide (was 18: the floor-depth band); its blow-up 870 → 750 ms (still at the end of its flight). Visuals: the charge-up is 120 ms shorter.
