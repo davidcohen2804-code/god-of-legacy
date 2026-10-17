@@ -47,8 +47,8 @@ export const ARCHER: Record<string, Recipe> = {
   hunters_roar: { tone: SPIRIT, own: true, active: (f, r) => { const c = me(f, r); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), SPIRIT, 3.0, 480, 0.7); f.later(90, () => f.host.ring(f.host.w3(c.x), f.host.d3(c.y), SUN, 2.2, 400, 0.5)); f.host.dust(f.host.w3(c.x), f.host.d3(c.y), 14, 1); f.host.impact({ x: c.x, y: c.y, z: 100 }, 1); } },
   // Binding Leaves: roots crystallise round the bound foe's feet for the hold
   leaping_arrow: { tone: THORN, own: true, hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, THORN, { r: 80, chunks: 0, ms: 1600 }); f.crystals(at.x, at.y, { n: 6, r: 50, h: 60, ms: 1400, ring: true, color: THORN }); } } },
-  // Spirit Hawk: the hawk dives out of the sky — a spirit streak slanting down onto the foe, the floor torn
-  spirit_hawk: { tone: SPIRIT, own: true, hit: (f, _s, _h, at, main, react) => { if (!(main || react === 'slam')) return; f.streak({ x: at.x - 220, y: at.y, z: 700 }, { x: at.x, y: at.y, z: 40 }, SPIRIT, { w: 26, ms: 260, draw: 80 }); f.later(80, () => { f.crack(at.x, at.y, SPIRIT, { r: 100, chunks: 8 }); f.host.kick(0.03); }); } },
+  // Spirit Hawk: the painted hawk dives (no 3D streak: it read as a green swath along the floor) — the floor torn where it strikes
+  spirit_hawk: { tone: SPIRIT, own: true, hit: (f, _s, _h, at, main, react) => { if (!(main || react === 'slam')) return; f.later(80, () => { f.crack(at.x, at.y, SPIRIT, { r: 100, chunks: 8 }); f.host.kick(0.03); }); } },
   // Sky Rain (the ultimate): arrows of light rain on the place under a faint shell; the last blow a tall spirit column — kept see-through
   sky_rain: { tone: SUN, own: true, active: (f, r) => { const p = placeOf(f, r, 300); f.rain(p.x, p.y, 260, C.leaf, { n: 46, ms: Math.max(700, T(r).active) }); f.later(200, () => f.dome(p.x, p.y, C.spirit, { r: 280, ms: 700, a: 0.18 })); }, hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, C.leaf, { r: 150, chunks: 14 }); f.pillar(at.x, at.y, SUN, { h: 680, r: 40, ms: 520, i: 0.75 }); } } },
   // Tree of Life: a slow twisting column of spirit light rises where the tree grows (no dome over her)

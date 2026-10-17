@@ -52,6 +52,8 @@ interface Live { t: number; step(dt: number, t: number): boolean }
 interface Arrow { im: Phaser.GameObjects.Image; tr: Phaser.GameObjects.Image | null; t: number; kind: string; z0: number; whip?: Phaser.GameObjects.Image }
 
 /** Hit sparks in the skill's family colour (DFO's families): FIRE — Fireball Arrow only; SUN — Sky Rain, Hunter's Rain. The rest keep the green WIND star. */
+/** Skills whose hit star hid the foe in PVP 3D (DFO's review): small sharp hits. */
+const SMALL_HIT = new Set(['skyhunters_step', 'multi_shot', 'rising_arrow', 'hunters_spirit']);
 const HIT_FAMILY: Record<string, number> = { explosive_arrow: 0xffa040, arrow_storm: 0xffe27a, sky_rain: 0xffe27a };
 
 export class ArcherFx {
@@ -235,7 +237,7 @@ export class ArcherFx {
         this.later(T.startup + T.active, () => { const q = this.me(r); this.floor('wind_ring', q.x, q.y, 100, 380, { add: true, s: kf([0, 0.5], [1, 1.2, out3]), a: kf([0, 0.9], [1, 0]) }); this.spr({ name: 'dust', x: q.x, y: q.y + 4, oy: 0.85, depth: q.y + 1, w: 110, life: 420, a: kf([0, 0.7], [1, 0]) }); }, r);
         break;
       }
-      case 'multi_shot': this.charge(r, 'leaf_whirl', 56, T.startup, { spin: 420, dx: 16 }); this.bowBurst(r, 'muzzle_fan', 220, T.startup, 240); this.bowBurst(r, 'sonic_boom', 120, T.startup + 20, 300); break;
+      case 'multi_shot': this.charge(r, 'leaf_whirl', 44, T.startup, { spin: 420, dx: 16 }); this.bowBurst(r, 'muzzle_fan', 150, T.startup, 240); this.bowBurst(r, 'sonic_boom', 90, T.startup + 20, 300); break; // (the fan a size down: it hid the foe)
       case 'explosive_arrow': this.charge(r, 'burst_crit', 60, T.startup, { tint: 0xffa040, spin: 260, dx: 16 }); this.muzzle(r, 130, T.startup, 0xffa040); this.bowBurst(r, 'sonic_boom', 150, T.startup, 320, 0xff9a40); break; // (fire-coloured at the bow: it is a fireball)
       case 'rising_arrow': { // the earth cracks and glows under the foe, gathering power; then a great arrow of light bursts up out of it and throws the foe high
         const sh = s.hits[0].shape as { bias?: number }, bx = r.origin.x + a.x * (sh.bias ?? 95), by = r.origin.y + a.y * (sh.bias ?? 95);
@@ -314,7 +316,7 @@ export class ArcherFx {
         this.muzzle(r, 100, T.startup + (r.hits[0]?.at ?? 0)); // (on the shot's own timing)
         break;
       }
-      case 'hunters_spirit': this.charge(r, 'leaf_whirl', 50, T.startup, { spin: 500, dx: 16 }); this.muzzle(r, 110, T.startup); break; // Vine Lash
+      case 'hunters_spirit': this.muzzle(r, 80, T.startup); break; // Vine Lash (no leaf whirl: the thorned vine itself is the picture)
       case 'eagle_arrow': this.eagleTide(r); break;
       case 'arrow_storm': this.huntersRain(r); break;
       case 'sky_rain': this.skyRain(r); break;
@@ -641,7 +643,7 @@ export class ArcherFx {
         if (h.dive.t >= 180 && h.dive.t - ms < 180) this.pop('feather_burst', h.dive.x, h.dive.y, 90, { life: 320 });
         if (back >= 1) h.dive = null;
       }
-      const fr = this.ctx.scene.textures.getFrame(ARCHER_KIT, frame), w = frame === 'hawk_strike' ? 110 : 72;
+      const fr = this.ctx.scene.textures.getFrame(ARCHER_KIT, frame), w = frame === 'hawk_strike' ? 170 : 110; // (bigger: in PVP 3D the hawk read as nothing — the hawk diving is the picture)
       h.im.setFrame(frame).setDisplaySize(w, (w * fr.height) / fr.width).setPosition(x, y).setFlipX(face < 0).setAngle(ang).setDepth(d);
     }
   }
@@ -721,7 +723,7 @@ export class ArcherFx {
       const grow = Math.min(1, 0.2 + a.t / 80), len = Math.min(120, 20 + a.t * 0.8);
       a.im.setPosition(x, y).setFlipX(flip).setAngle(ang).setDepth(p.y + 2).setAlpha(Math.min(1, a.t / 30)).setScale((a.im.getData('sx') as number) * grow, a.im.scaleY); // grows out of the bow's flash
       if (a.whip) { const c = this.ctx.casterPos(p.attackerId); if (c) { const bx = c.x + (flip ? -16 : 16), by = c.y - c.z - 54, L = Math.hypot(x - bx, y - by);
-        a.whip.setPosition(bx, by).setAngle(Math.atan2(y - by, x - bx) * (180 / Math.PI)).setDisplaySize(Math.max(8, L), 34).setDepth(p.y + 1.8).setAlpha(Math.min(1, a.t / 40)); } }
+        a.whip.setPosition(bx, by).setAngle(Math.atan2(y - by, x - bx) * (180 / Math.PI)).setDisplaySize(Math.max(8, L), 46).setDepth(p.y + 1.8).setAlpha(Math.min(1, a.t / 40)); } }
       a.tr?.setPosition(x - (flip ? -1 : 1) * a.im.displayWidth * 0.8, y).setFlipX(flip).setAngle(ang).setDepth(p.y + 1.9).setAlpha(0.7 * Math.min(1, a.t / 40)).setDisplaySize(len, 12);
     }
   }
@@ -732,10 +734,10 @@ export class ArcherFx {
       const end0 = p.end ?? { x: p.x, y: p.y, reason: 'range' as const };
       if (end0.reason === 'target') {
         const tx = end0.x, ty = end0.y - p.z - 10, c = this.ctx.casterPos(p.attackerId);
-        this.spr({ name: 'vine_grab', x: tx, y: ty, depth: end0.y + 4, w: 100, life: 520, glow: 0.2, sx: kf([0, 1.6], [0.15, 1, out3]), a: kf([0, 0], [0.08, 1], [0.8, 1], [1, 0]),
+        this.spr({ name: 'vine_grab', x: tx, y: ty, depth: end0.y + 4, w: 140, life: 520, glow: 0.2, sx: kf([0, 1.6], [0.15, 1, out3]), a: kf([0, 0], [0.08, 1], [0.8, 1], [1, 0]),
           mx: (u) => (c ? (c.x - tx) * 0.82 * out(Math.min(1, u * 2.2)) : 0) });
         if (c) { const bx = c.x, by = c.y - c.z - 54, L = Math.hypot(tx - bx, ty - by), ang = Math.atan2(ty - by, tx - bx) * (180 / Math.PI);
-          this.spr({ name: 'vine_whip', x: bx, y: by, ox: 0, depth: end0.y + 3, w: L, h: 34, angle: ang, life: 300, glow: 0.2, sx: (u) => Math.max(0.05, 1 - out(u)), a: kf([0, 1], [0.8, 1], [1, 0]) }); }
+          this.spr({ name: 'vine_whip', x: bx, y: by, ox: 0, depth: end0.y + 3, w: L, h: 46, angle: ang, life: 300, glow: 0.2, sx: (u) => Math.max(0.05, 1 - out(u)), a: kf([0, 1], [0.8, 1], [1, 0]) }); }
         this.leaves(tx, ty, 8, 30, { life: 500 });
       } else this.pop('leaf_spray', end0.x, end0.y - p.z, 70, { life: 300 });
       return;
@@ -759,7 +761,7 @@ export class ArcherFx {
   /** An arrow striking the floor: a burst of green light runs on along the ground, leaves fly, the arrow stays a moment. */
   private floorStrike(x: number, y: number, flip: boolean): void {
     this.spr({ name: 'arrow_stuck', x, y: y + 4, oy: 0.9, depth: y + 1, w: 54, flipX: flip, life: 900, a: kf([0, 1], [0.7, 1], [1, 0]) });
-    this.spr({ name: 'leaf_spray', x: x + (flip ? -30 : 30), y: y - 8, depth: y + 2, w: 90, flipX: flip, life: 320, add: true, sx: kf([0, 0.5], [0.3, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) });
+    this.spr({ name: 'leaf_spray', x: x + (flip ? -30 : 30), y: y - 8, depth: y + 2, w: 60, flipX: flip, life: 320, add: true, sx: kf([0, 0.5], [0.3, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) });
     this.floor('shock_ring', x, y, 80, 320, { add: true, s: kf([0, 0.4], [1, 1.2, out3]), a: kf([0, 1], [1, 0]) });
   }
 
@@ -773,7 +775,7 @@ export class ArcherFx {
       const now = this.ctx.scene.time.now, volleyLead = rapid && now - (this.bigSpark.get(s.id) ?? -1e9) > 160; // a burst: its first arrow in lands big, the rest small
       if (volleyLead || (heavy && !rapid)) this.bigSpark.set(s.id, now);
       const kind = counter ? 2 : launch ? 3 : (heavy && !rapid) || volleyLead ? 1 : 0;
-      const size = [rapid ? 84 : 112, volleyLead ? 170 : 196, 210, 190][kind];
+      const size = [rapid ? 84 : 112, volleyLead ? 170 : 196, 210, 190][kind] * (SMALL_HIT.has(s.id) ? 0.5 : 1); // (a third the area where the big star hid the foe)
       const fam = HIT_FAMILY[s.id];
       if (kind === 3) this.hitSpark(3, x, at.y - at.z + 6, size, 0.9, at.y + 3, fam); // the column climbs from the foe's feet
       else this.hitSpark(kind, x + rnd(-6, 6), y + rnd(-6, 6), size, 0.5, TOP + 4, kind === 2 ? undefined : fam);
