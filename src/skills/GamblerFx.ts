@@ -238,6 +238,25 @@ export class GamblerFx {
     const e = this.ctx.scene.add.ellipse(x, y, r * 2, r * 2 * SQUASH).setStrokeStyle(width, color, 0.95).setDepth(GROUND + 2).setBlendMode(Phaser.BlendModes.ADD);
     this.piece(e, life, (u, o) => o.setScale(lerp(0.2, 1, out3(u))).setAlpha(1 - u * u), delay);
   }
+  /** Charged Deal's hold: the cards fan open in his hand while the key is held — three, then the full five at the max
+   *  bet (a gold flash marks it) — and leave with the throw (the release ends the hold whenever it comes). */
+  private dealHold(r: CastRun): void {
+    const s = this.ctx.scene, L = r.skill.charge?.levels ?? [], full = (L[1]?.at ?? 520) * (r.chargeScale ?? 1);
+    const cards = Array.from({ length: 5 }, () => s.add.image(0, 0, this.BK).setScale(this.u * 0.27).setVisible(false));
+    const glow = this.glow(0, 0, 50); let maxed = false;
+    this.add(() => {
+      const h = this.ctx.hand(r.attackerId), c = this.ctx.casterPos(r.attackerId);
+      if (r.phase !== 'startup' || !h || !c) { for (const im of cards) im.destroy(); glow.destroy(); return false; }
+      const e = r.elapsed, k = clamp01(e / Math.max(1, full)), n = e >= full ? 5 : 3, side = sideOf(r);
+      if (e >= full && !maxed) { maxed = true; this.pop(h.x, h.y - 16, 90, GOLD, 260); this.ctx.cam().shake(60, 0.002); }
+      cards.forEach((im, i) => {
+        const on = i < n, a = (i - (n - 1) / 2) * (18 + 8 * k);
+        im.setVisible(on).setPosition(h.x + side * (4 + Math.abs(a) * 0.1), h.y - 14).setDepth(c.y + 3).setAngle(side * a - side * 10).setTint(maxed ? 0xffd9a0 : 0xffffff);
+      });
+      glow.setPosition(h.x, h.y - 14).setDepth(c.y + 2).setAlpha(0.4 + 0.4 * k + (maxed ? 0.15 * Math.sin(e * 0.03) : 0)).setScale((40 + 40 * k) / 128);
+      return true;
+    });
+  }
   /** A Graphics drawn in world coordinates, anchored at a world point (its position) with its drawing shifted back by it:
    *  it looks the same in the 2D arena, and PVP 3D (which places every object by its position) puts it where it belongs. */
   private pin(g: Phaser.GameObjects.Graphics, x: number, y: number): void { g.setPosition(x, y); g.translateCanvas(-x, -y); }
@@ -251,7 +270,7 @@ export class GamblerFx {
     const s = r.skill, T = r.timings, o = this.me(r), y0 = o.y - o.z, side = sideOf(r);
     const handGlow = (ms: number, size = 40) => { const h = this.ctx.hand(r.attackerId) ?? { x: o.x + side * 26, y: y0 - 70 }; const g = this.glow(h.x, h.y, size); this.piece(g, ms, (u, im) => im.setAlpha(0.5 + 0.5 * Math.sin(u * 20)).setScale((size / 128) * (1 + u * 0.4))); };
     switch (s.id) {
-      case 'charged_deal': handGlow(T.startup + 60, 46); break;
+      case 'charged_deal': this.dealHold(r); break;
       case 'fuse_slam': this.fuseFloor(r); break;
       case 'riffle_shuffle': this.shuffle(r); break;
       case 'rotor_staff': this.rotor(r); break;
