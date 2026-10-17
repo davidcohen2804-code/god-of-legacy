@@ -1017,7 +1017,7 @@ export class MageFx {
     if (!this.ready) return;
     const frost = t.run.skill.id === 'frost_rune', w = t.radius * (frost ? 2.6 : 2.4);
     if (!frost && this.ctx.scene.textures.exists('mfx-rune')) { let on = true;
-      this.sheet('mfx-rune', t.x, t.y, t.radius * 4.4, 60000, { floor: true, frames: [0, 4], loop: 120, oy: 0.72, depth: GROUND + 4, alive: () => on });
+      this.sheet('mfx-rune', t.x, t.y, t.radius * 4.4, 60000, { floor: true, frames: [0, 4], loop: 120, oy: 0.72, depth: GROUND + 4, alive: () => on, alpha: 0.8 });
       this.trapArt.set(t, { stop: () => { on = false; } }); return; }
     this.pop(frost ? 'snowflake' : 'rune_cyan', t.x, t.y - 20, 50, { life: 260 });
     let on = true;
@@ -1026,8 +1026,8 @@ export class MageFx {
   }
   trapEnd(t: Trap, fired: boolean): void {
     this.trapArt.get(t)?.stop(); this.trapArt.delete(t);
-    if (fired && t.run.skill.id !== 'frost_rune' && this.ctx.scene.textures.exists('mfx-rune')) { this.sheet('mfx-rune', t.x, t.y, t.radius * 4.4, 1000, { frames: [4, 12], oy: 0.72, depth: t.y + 3, fade: [[0, 0.55], [0.25, 0.8], [0.8, 0.7], [1, 0]] }); /* (the chains bind him lightly enough that he reads inside: the snap's first frames burst white) */ this.shake(100, 0.005); return; }
-    if (fired && this.ready) this.pop(t.run.skill.id === 'frost_rune' ? 'ice_shatter' : 'sig_disk', t.x, t.y - 16, 90, { life: 300 });
+    if (fired && t.run.skill.id !== 'frost_rune' && this.ctx.scene.textures.exists('mfx-rune')) { const o = { oy: 0.72, depth: t.y - 2 }; this.sheet('mfx-rune', t.x, t.y, t.radius * 4.2, 330, { ...o, frames: [4, 4], alpha: 0.6 }); this.sheet('mfx-rune', t.x, t.y, t.radius * 4.2, 2700, { ...o, frames: [8, 4], loop: 110, delay: 300, fade: [[0, 0.55], [0.85, 0.5], [1, 0]] }); } // (David 18 Oct: the bind holds 3 s, read inside it; it fades out cleanly — no burst at the end)
+    if (fired && this.ready && t.run.skill.id === 'frost_rune') this.pop('ice_shatter', t.x, t.y - 16, 90, { life: 300 });
   }
 
   // ------------------------------------------------------------------ projectiles
