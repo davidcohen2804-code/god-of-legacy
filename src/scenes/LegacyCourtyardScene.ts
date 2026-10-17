@@ -816,13 +816,19 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (AR && ARENA3D.on && this.floor3d) { // PVP 3D: the painted arena gives way to the 3D room and its camera
       const floor = this.floor3d, gen = this.sceneGen;
+      // the painted courtyard is never shown in PVP 3D (David: it showed, then the 3D room replaced it — a bad cut): until
+      // the room is built a still of the 3D courtyard covers the screen, then it fades into the live room
+      for (const o of [...this.arenaMap, ...this.occluders, ...(this.stageFx?.layerList() ?? [])]) (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false);
+      const W = this.scale.width, H = this.scale.height, still = this.stage?.key === 'stage-courtyard3d' && this.textures.exists(this.stage.key) ? this.stage.key : null; // (the 3D courtyard's still — never the old painting)
+      const veil = still ? this.add.image(W / 2, H / 2, still).setScrollFactor(0).setDepth(899000) : this.add.rectangle(0, 0, W, H, 0x0b0a10, 1).setOrigin(0, 0).setScrollFactor(0).setDepth(899000);
+      if (veil instanceof Phaser.GameObjects.Image) veil.setScale(Math.max(W / veil.width, H / veil.height));
       void import('../arena3d/Arena3D').then(({ Arena3D }) => { // (three.js loads only here)
-        if (gen !== this.sceneGen || !this.sys.isActive()) return;
-        for (const o of [...this.arenaMap, ...this.occluders, ...(this.stageFx?.layerList() ?? [])]) (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false);
+        if (gen !== this.sceneGen || !this.sys.isActive()) { veil.destroy(); return; }
         cam.stopFollow(); cam.removeBounds(); cam.setRoundPixels(false); // (the bodies glide with the 3D camera: no pixel snapping)
         const a3 = this.a3d = new Arena3D(this, floor);
         this.arenaSnd?.use3D(a3); // (its camera places the sounds; the fight rings in the courtyard)
         this.wire3D(a3);
+        this.time.delayedCall(80, () => this.tweens.add({ targets: veil, alpha: 0, duration: 420, ease: 'Sine.easeOut', onComplete: () => veil.destroy() })); // (a frame or two of the room drawn first)
       });
     } else if (AR) this.pitch = new CameraPitch(this, cam, () => ({ parts: [...this.arenaMap, ...this.occluders, ...(this.stageFx?.layerList() ?? [])], top: AR.y }), (d) => this.hud?.setPitch(d));
     this.input.keyboard?.on('keydown-INSERT', () => this.pitch?.step(1)); this.input.keyboard?.on('keydown-DELETE', () => this.pitch?.step(-1));
