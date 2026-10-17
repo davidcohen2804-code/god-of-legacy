@@ -16,8 +16,8 @@ const TOP = 100000, GROUND = 2, SQUASH = 0.42, CRIMSON = 0xff3a4c, DUST = 0xd2a5
 const CRACK_TILT = -57;
 /** Hit marks a size down for the skills whose blows come thick and fast (they hid the foe in PVP 3D); the blow that lifts
  *  the foe in the basic opens in crimson. Sprays: their size and the skills whose spray is crimson (the Iai's opening). */
-const MARK_SCALE: Record<string, number> = { quick_slash: 0.8, hundred_cuts: 0.8, tornado_blade: 0.8, mirage: 0.8 };
-const SPRAY_SCALE: Record<string, number> = { quick_slash: 0.7, iai_strike: 0.75, tornado_blade: 0.75, mirage: 0.7 };
+const MARK_SCALE: Record<string, number> = { quick_slash: 0.8, hundred_cuts: 0.8, tornado_blade: 0.8, mirage: 0.8, swallow_cut: 0.85 };
+const SPRAY_SCALE: Record<string, number> = { quick_slash: 0.7, iai_strike: 0.75, tornado_blade: 0.75, mirage: 0.7, swallow_cut: 0.75 };
 const SPRAY_CRIMSON = new Set(['quick_slash', 'iai_strike']);
 /** The slash-hit pieces run this many degrees down to the right on their sheet (s11). */
 const SLASH_TILT = 43;
@@ -656,7 +656,7 @@ export class SamuraiFx {
     if (thrown && (!rapid || hit.heavy) && reaction !== 'cc') // sparks sprayed the way the foe is thrown (up when it is lifted)
       this.spr({ name: tn('spark_spray', SPRAY_CRIMSON.has(s.id) ? undefined : tone), x: x - side * 8, y, ox: side > 0 ? 0.05 : 0.95, oy: 0.45, flipX: side < 0, depth: TOP + 3.8, w: (heavy ? 168 : 126) * (SPRAY_SCALE[s.id] ?? 1), life: 260, delay: s.id === 'iai_strike' ? 190 : 0,
         angle: up ? -side * 50 : side * rnd(-6, 10), sx: kf([0, 0.4], [0.25, 1, out3], [1, 1.12]), sy: kf([0, 0.6], [0.25, 1, out3]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
-    if (reaction === 'launch') this.launchBeam(at.x, at.y, s.id === 'quick_slash' ? 88 : 110, tone === 'gold' || tone === 'fire' ? tone : undefined);
+    if (reaction === 'launch') this.launchBeam(at.x, at.y, s.id === 'quick_slash' || s.id === 'swallow_cut' ? 88 : 110, tone === 'gold' || tone === 'fire' ? tone : undefined); // (the launchers he uses most: a size down)
     if (reaction === 'knockdown' || reaction === 'slam') { this.crack(at.x, at.y + 2, 120); this.dust(at.x, at.y, 120); }
     if (s.id === 'sakura_bind' && reaction === 'cc') { const hold = hit.reaction.hardCC?.ms ?? 2000; this.cage(at.x, at.y, hold); this.bindMark(at.x, at.y, hold); }
     if (DELAYED.has(s.id) && (s.id !== 'dragon_eclipse' || hit.heavy)) { // the cut arrives late: a thin line stays on the foe a beat — then splits open
@@ -815,12 +815,12 @@ export class SamuraiFx {
           : bz(Math.min(1, (t - ret) / 100), [98, -196], [136, -150], [152, -12]);
         return { x: c.x + side * dx, y: c.y - c.z + dy, d: c.y + 4 };
       };
-      this.trail(tip, { span: 240, w: 66, until: ret + 105, fade: 280, run: r, glow: 1 });
-      this.later(ret - 10, () => { const p = tip(ret - 10); if (p) this.pop('glint', p.x, p.y, 130, { life: 220, angle: 0, depth: p.d + 6, glow: 0.8 }); }, r); // (the turn)
-      this.cut('cut_rise', 156, 0, { follow: this.front(r, 52, 90), flipX: fl, grow: 70, hold: 40, fade: 190, glow: 0.5 });
+      this.trail(tip, { span: 240, w: 54, until: ret + 105, fade: 280, run: r, glow: 0.6 }); // (the swallow's flight, lit so the foe it lifts reads in it — PVP 3D)
+      this.later(ret - 10, () => { const p = tip(ret - 10); if (p) this.pop('glint', p.x, p.y, 100, { life: 220, angle: 0, depth: p.d + 6, glow: 0.45 }); }, r); // (the turn)
+      this.cut('cut_rise', 150, 0, { follow: this.front(r, 52, 90), flipX: fl, grow: 70, hold: 40, fade: 190, glow: 0.35 });
       const p = this.front(r, 54, 60)(); if (p) this.sparks(p.x, p.y, 7, 50, { depth: p.d + 4, up: 40 });
     } else {
-      this.cut('cut_heavy', 168, -side * 32, { follow: this.front(r, 96, 104), flipX: fl, flipY: true, grow: 45, hold: 40, fade: 190, glow: 0.5 }); // the return: back down through the foe in the air
+      this.cut('cut_heavy', 160, -side * 32, { follow: this.front(r, 96, 104), flipX: fl, flipY: true, grow: 45, hold: 40, fade: 190, glow: 0.35 }); // the return: back down through the foe in the air
       const p = this.front(r, 68, 112)(); if (p) this.pop('spark_s', p.x, p.y, 92, { depth: p.d + 5 });
     }
   }

@@ -67,10 +67,10 @@ export const SAMURAI: Record<string, Recipe> = {
       f.host.kick(0.08); } },
   // the swallow's rising cut upright in crimson; the launch: a thin crimson pillar under the foe; the second cut backhand
   swallow_cut: { own: true,
-    active: (f, r) => f.slash(me(f, r), side(r), C.crimson, { r: 130, tilt: 80, a0: 170, a1: 0, ms: 280, i: 1.6 }),
+    active: (f, r) => f.slash(me(f, r), side(r), C.crimson, { r: 124, w: 38, tilt: 80, a0: 170, a1: 0, ms: 280, i: 1.0 }), // (soft: the foe lifted reads through it)
     hit: (f, _s, _h, at, main, react) => {
-      if (main && react === 'launch') f.pillar(at.x, at.y, C.crimson, { h: 460, r: 26, ms: 420, core: false, i: 1.2 });
-      else if (!main) f.slash(at, -1, C.crimson, { r: 105, tilt: 65, a0: 160, a1: -10, ms: 200, i: 1.3 }); } },
+      if (main && react === 'launch') f.pillar(at.x, at.y, C.crimson, { h: 420, r: 18, ms: 400, core: false, i: 0.8 });
+      else if (!main) f.slash(at, -1, C.crimson, { r: 100, w: 32, tilt: 65, a0: 160, a1: -10, ms: 200, i: 0.85 }); } },
   // the cage's small cuts: now and then a thin steel arc; the slam: a cross of steel light, gold sparks thrown off
   hundred_cuts: { own: true,
     hit: (f, _s, _h, at, main) => {
