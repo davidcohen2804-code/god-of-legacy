@@ -206,7 +206,8 @@ export class GamblerFx {
   }
   /** A thick, soft band of motion light along an arc (a staff swing). */
   private swing(cx: number, cy: number, rad: number, from: number, to: number, life: number, thick = 26, depth = TOP + 2, delay = 0): void {
-    const g = this.ctx.scene.add.graphics().setDepth(depth).setBlendMode(Phaser.BlendModes.ADD);
+    // (drawn round its own position, not in world space: PVP 3D places every object by its position)
+    const g = this.ctx.scene.add.graphics().setDepth(depth).setBlendMode(Phaser.BlendModes.ADD).setPosition(cx, cy);
     this.piece(g, life, (u, o) => {
       o.clear();
       const head = lerp(from, to, out3(clamp01(u * 1.8))), tail = lerp(from, to, out3(clamp01(u * 1.8 - 0.55)));
@@ -214,7 +215,7 @@ export class GamblerFx {
       for (let i = 0; i < n; i++) {
         const k0 = i / n, k1 = (i + 1) / n, a0 = lerp(tail, head, k0), a1 = lerp(tail, head, k1);
         o.lineStyle(thick * (0.35 + 0.65 * k1), i > n - 3 ? 0xffffff : FUCHSIA, a * (0.25 + 0.75 * k1));
-        o.beginPath(); o.arc(cx, cy, rad, a0, a1, to < from); o.strokePath();
+        o.beginPath(); o.arc(0, 0, rad, a0, a1, to < from); o.strokePath();
       }
     }, delay);
   }
@@ -236,6 +237,9 @@ export class GamblerFx {
     const e = this.ctx.scene.add.ellipse(x, y, r * 2, r * 2 * SQUASH).setStrokeStyle(width, color, 0.95).setDepth(GROUND + 2).setBlendMode(Phaser.BlendModes.ADD);
     this.piece(e, life, (u, o) => o.setScale(lerp(0.2, 1, out3(u))).setAlpha(1 - u * u), delay);
   }
+  /** A Graphics drawn in world coordinates, anchored at a world point (its position) with its drawing shifted back by it:
+   *  it looks the same in the 2D arena, and PVP 3D (which places every object by its position) puts it where it belongs. */
+  private pin(g: Phaser.GameObjects.Graphics, x: number, y: number): void { g.setPosition(x, y); g.translateCanvas(-x, -y); }
   private me(r: CastRun): V3 { return this.ctx.casterPos(r.attackerId) ?? r.origin; }
   /** The point a cast aims at on the floor (bias px ahead). */
   private ahead(r: CastRun, bias: number): { x: number; y: number } { const o = this.me(r); return { x: o.x + r.aim.x * bias, y: o.y + r.aim.y * bias }; }
@@ -370,7 +374,7 @@ export class GamblerFx {
         const grow = clamp01(Math.hypot(x - st.sx0, y - st.sy0) / (v.big ? 300 : 150));
         v.streak.setPosition(x, y).setDepth(p.y + 2).setScale(Math.max(0.02, st.k0 * grow), st.k0 * (0.85 + 0.25 * Math.sin(p.ageMs * 0.07))).setAlpha(0.35 + 0.65 * grow); v.g.clear(); continue; }
       v.trail.push({ x, y }); if (v.trail.length > (v.big ? 14 : 7)) v.trail.shift();
-      v.g.clear();
+      v.g.clear(); this.pin(v.g, x, y);
       for (let i = 1; i < v.trail.length; i++) { const k = i / v.trail.length; v.g.lineStyle((v.big ? 14 : 7) * k, k > 0.8 ? 0xffffff : FUCHSIA, 0.7 * k); v.g.lineBetween(v.trail[i - 1].x, v.trail[i - 1].y, v.trail[i].x, v.trail[i].y); }
     }
   }
@@ -544,7 +548,7 @@ export class GamblerFx {
   }
   private comet(at: V3): void {
     const y = at.y - at.z, g = this.ctx.scene.add.graphics().setDepth(TOP + 2).setBlendMode(Phaser.BlendModes.ADD);
-    this.piece(g, 420, (u, o) => { o.clear(); const L = 220 * out3(u), a = 1 - u; o.fillStyle(FUCHSIA, 0.6 * a).fillTriangle(at.x, y - 18, at.x, y + 18, at.x - L, y); o.fillStyle(0xffffff, 0.8 * a).fillTriangle(at.x, y - 7, at.x, y + 7, at.x - L * 0.6, y); });
+    this.piece(g, 420, (u, o) => { o.clear(); this.pin(o, at.x, y); const L = 220 * out3(u), a = 1 - u; o.fillStyle(FUCHSIA, 0.6 * a).fillTriangle(at.x, y - 18, at.x, y + 18, at.x - L, y); o.fillStyle(0xffffff, 0.8 * a).fillTriangle(at.x, y - 7, at.x, y + 7, at.x - L * 0.6, y); });
     this.ctx.flash(0xffffff, 0.25, 120);
   }
   private thrownBomb(_at: V3): void { /* drawn by follow() from the scene (it knows the foe) */ }
@@ -579,7 +583,7 @@ export class GamblerFx {
         teth?.setOrigin(0.02, 0.5);
         this.add((t) => {
           const p = at(), h = this.ctx.hand(by); if (!p || !h || t > 500) { bolt.destroy(); teth?.destroy(); return false; }
-          bolt.clear().setDepth(Math.max(p.d, h.y) + 4);
+          bolt.clear().setDepth(Math.max(p.d, h.y) + 4); this.pin(bolt, p.x, p.y);
           if (teth) { const L = Math.hypot(p.x - h.x, p.y - h.y); teth.setPosition(h.x, h.y).setDepth(Math.max(p.d, h.y) + 3).setAngle(Math.atan2(p.y - h.y, p.x - h.x) * 57.3).setDisplaySize(Math.max(30, L * 1.04), 30 + 8 * Math.sin(t * 0.08)).setFlipY(Math.floor(t / 60) % 2 === 1); }
           const n = 9, jit = 10 + 6 * Math.sin(t * 0.05), pts: [number, number][] = [];
           for (let i = 0; i <= n; i++) { const k = i / n, e = i === 0 || i === n ? 0 : jit; pts.push([lerp(h.x, p.x, k) + rnd(-e, e) * 0.4, lerp(h.y, p.y, k) + rnd(-e, e) - Math.sin(k * Math.PI) * 12]); }
@@ -613,7 +617,7 @@ export class GamblerFx {
         }
         pts.push({ x: p.x, y: p.y }); if (pts.length > 16) pts.shift();
         if (comet) { const a = pts[0], b = pts[pts.length - 1], mv = Math.hypot(b.x - a.x, b.y - a.y); comet.setPosition(p.x, p.y).setDepth(p.d + 1).setAlpha(Math.min(1, mv / 30) * (1 - t / life * 0.5)); if (mv > 4) comet.setAngle(Math.atan2(b.y - a.y, b.x - a.x) * 57.3); }
-        g.clear().setDepth(p.d + 1);
+        g.clear().setDepth(p.d + 1); this.pin(g, p.x, p.y);
         for (let i = 1; i < pts.length; i++) { const k = i / pts.length; g.lineStyle((big ? 34 : 24) * k, k > 0.75 ? 0xffffff : FUCHSIA, 0.75 * k); g.lineBetween(pts[i - 1].x, pts[i - 1].y, pts[i].x, pts[i].y); }
         glow.setPosition(p.x, p.y).setDepth(p.d + 2).setAlpha(0.6 * (1 - t / life) + 0.2);
         if (t - lastBurst > 90) { lastBurst = t; this.shards(p.x, p.y, 2, 40, 300, 0, p.d + 3); }
@@ -660,7 +664,7 @@ export class GamblerFx {
     this.piece(g, T.startup + T.active + 260, (u, o) => {
       const c = this.ctx.casterPos(r.attackerId);
       if (c && u < (T.startup + T.active) / (T.startup + T.active + 260)) { const p = { x: c.x, y: c.y - c.z - 50 }; if (!last || Math.hypot(p.x - last.x, p.y - last.y) > 4) { pts.push(p); last = p; } }
-      o.clear();
+      o.clear(); const q = pts[pts.length - 1]; if (q) this.pin(o, q.x, q.y);
       for (let i = 1; i < pts.length; i++) { const k = i / pts.length; o.lineStyle(26 * k, FUCHSIA, (1 - u) * 0.55 * k); o.lineBetween(pts[i - 1].x, pts[i - 1].y, pts[i].x, pts[i].y); }
     });
   }
@@ -711,7 +715,7 @@ export class GamblerFx {
       if (t >= T.startup + T.active || !c) { this.piece(g, 160, (u, o) => o.setAlpha(1 - u)); if (disc) this.piece(disc, 160, (u, o) => o.setAlpha(1 - u)); return false; }
       if (t < T.startup) return true;
       const side = sideOf(r), cx = c.x + side * 44, cy = c.y - c.z - 58, R = 62, a0 = t * 0.045;
-      g.clear().setDepth(c.y + 4);
+      g.clear().setDepth(c.y + 4); this.pin(g, cx, cy);
       if (this.ctx.scene.textures.exists('gbk-s_disc')) {
         disc ??= this.kit('s_disc', cx, cy, 2.2 * R, c.y + 4);
         if (disc) { const w = 2.2 * R / disc.width; disc.setPosition(cx, cy).setDepth(c.y + 4).setAngle(90).setScale(w * (0.95 + 0.05 * Math.sin(t * 0.05)), w * 0.55).setFlipY(Math.floor(t / 45) % 2 === 1); }
@@ -940,7 +944,7 @@ export class GamblerFx {
       }
       // a few thin arcs of light sweep round the rim — the spin you read at a glance
       const rot = t * 0.011 * (0.12 + 0.88 * speed);
-      streak.clear().setAlpha(fade);
+      streak.clear().setAlpha(fade); this.pin(streak, p.x, p.y);
       if (!st.won) for (let k = 0; k < 2; k++) {
         const a0 = rot + k * Math.PI, len = 0.9 * (0.3 + speed);
         for (let j = 0; j < 10; j++) { const aa = a0 + (j / 10) * len, a1 = a0 + ((j + 1) / 10) * len, w = 1 + 4 * (j / 10);
@@ -1100,7 +1104,7 @@ export class GamblerFx {
       if (Math.random() < 0.5) { const a = rnd(0, Math.PI * 2), d = rnd(50, 90), m = this.glow(h.x + Math.cos(a) * d, h.y + Math.sin(a) * d, 16, FUCHSIA_2, TOP + 3); this.piece(m, 180, (uu, o) => o.setPosition(lerp(h.x + Math.cos(a) * d, h.x, out3(uu)), lerp(h.y + Math.sin(a) * d, h.y - 18, out3(uu))).setAlpha(1 - uu * 0.5)); }
       card.setPosition(h.x - side * 6, h.y - 18 - u * 6).setAngle(side * (-30 + u * 20) + Math.sin(t * 0.05) * 3);
       if (charge) charge.setPosition(card.x, card.y).setAngle(card.angle).setAlpha(0.4 + 0.6 * u).setScale((60 + 30 * u) / charge.width);
-      line.clear().setDepth(c.y + 1);
+      line.clear().setDepth(c.y + 1); this.pin(line, h.x, c.y - c.z - 60);
       const y = c.y - c.z - 60, a = 0.15 + 0.5 * u * (0.6 + 0.4 * Math.sin(t * 0.08));
       line.lineStyle(2, FUCHSIA_2, a).lineBetween(h.x, y, h.x + side * 700 * out3(u), y);
       line.lineStyle(8, FUCHSIA, a * 0.35).lineBetween(h.x, y, h.x + side * 700 * out3(u), y);
@@ -1191,7 +1195,7 @@ export class GamblerFx {
       // the staff GROWS: a bat of light stretches out of his hands over his back shoulder, to twice his height
       const u = t / T.startup, h = this.ctx.hand(r.attackerId) ?? { x: c.x + side * 10, y: c.y - c.z - 60 };
       const L = lerp(60, 200, out3(clamp01(u * 1.3))), ang = side > 0 ? -2.25 : -0.89, sx = h.x + Math.cos(ang) * L, sy = h.y + Math.sin(ang) * L;
-      bat.clear().setDepth(c.y + 3);
+      bat.clear().setDepth(c.y + 3); this.pin(bat, h.x, h.y);
       for (const [w, col, al] of [[22, FUCHSIA, 0.22], [11, FUCHSIA_2, 0.7], [4, 0xffffff, 1]] as [number, number, number][]) { bat.lineStyle(w * (0.7 + 0.3 * u), col, al); bat.lineBetween(h.x, h.y, sx, sy); }
       glow.setPosition(sx, sy).setDepth(c.y + 3).setAlpha(0.45 + 0.5 * u).setScale((70 + 110 * u) / 128);
       if (Math.random() < 0.5) { // motes drawn into the staff
@@ -1227,7 +1231,7 @@ export class GamblerFx {
       if (!c || this.clock > o.until) { this.clearOverload(id); continue; }
       const fx = c.x, fy = c.y - c.z + 2, RX = 72, RY = 72 * SQUASH, t = this.clock;
       o.glow.setPosition(fx, fy).setDepth(c.y - 2).setDisplaySize(RX * 2.5 * (1 + 0.05 * Math.sin(t * 0.02)), RY * 2.5).setAlpha(0.7 + 0.25 * Math.sin(t * 0.013));
-      o.g.clear().setDepth(c.y + 3); o.back.clear().setDepth(c.y - 1);
+      o.g.clear().setDepth(c.y + 3); o.back.clear().setDepth(c.y - 1); this.pin(o.g, fx, fy); this.pin(o.back, fx, fy);
       for (let k = 0; k < 4; k++) {
         const a0 = t * 0.011 + (k / 4) * Math.PI * 2, len = 1.0, n = 9;
         let px = 0, py = 0;
@@ -1374,7 +1378,7 @@ export class GamblerFx {
       this.piece(k, 900, (u, o) => o.setScale(wid, len * lerp(0.5, 1, out3(clamp01(u * 4)))).setAlpha(u < 0.6 ? 1 : (1 - u) / 0.4)); return; }
     const g = this.ctx.scene.add.graphics().setDepth(GROUND + 1.5).setBlendMode(Phaser.BlendModes.ADD);
     const arms = Array.from({ length: 7 }, () => ({ a: rnd(0, Math.PI * 2), l: rnd(0.5, 1) * r }));
-    this.piece(g, 900, (u, o) => { o.clear(); for (const k of arms) { o.lineStyle(5 * (1 - u) + 1, k.l > r * 0.8 ? 0xffffff : FUCHSIA, (1 - u) * 0.9); o.lineBetween(x, y, x + Math.cos(k.a) * k.l, y + Math.sin(k.a) * k.l * SQUASH); } });
+    this.piece(g, 900, (u, o) => { o.clear(); this.pin(o, x, y); for (const k of arms) { o.lineStyle(5 * (1 - u) + 1, k.l > r * 0.8 ? 0xffffff : FUCHSIA, (1 - u) * 0.9); o.lineBetween(x, y, x + Math.cos(k.a) * k.l, y + Math.sin(k.a) * k.l * SQUASH); } });
   }
   /** Card Swap: a card flicked ahead; he flashes to it in a streak of light; the card left where he stood stands in the floor, blinking. */
   private cardSwap(r: CastRun): void {
