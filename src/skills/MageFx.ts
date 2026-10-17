@@ -1120,7 +1120,7 @@ export class MageFx {
     // the class's hit weights: COUNTER — a rune shell bursts into shards round the foe; LAUNCH — a short column of arcane light throws it up
     if (this.ctx.scene.textures.exists('mfx-hit2')) { // the painted weights, over the element spark
       const row = counter ? 0 : s.slot === 7 && big ? 12 : crit ? 8 : hit.reaction.launch ? 4 : -1;
-      if (row === 4) this.sheet('mfx-hit2', at.x, at.y - at.z + 10, 220, 340, { frames: [4, 4], oy: 0.8, depth: TOP + 7 });
+      if (row === 4) this.sheet('mfx-hit2', at.x, at.y - at.z + 10, 190, 320, { frames: [4, 4], oy: 0.8, depth: TOP + 7, alpha: 0.8 });
       else if (row >= 0) this.sheet('mfx-hit2', x, y, row === 12 ? 340 : 250, row === 12 ? 420 : 320, { frames: [row, 4], angle: rnd(-12, 12), depth: TOP + 7 });
     } else if (counter && this.ctx.scene.textures.exists('mfx-wg')) this.sheet('mfx-wg', at.x, at.y - at.z + 8, 200, 300, { frames: [5, 3], oy: 0.86, tint: 0xf0c8ff, depth: TOP + 7 });
     else if (hit.reaction.launch && this.ctx.scene.textures.exists('mfx-pillar')) this.sheet('mfx-pillar', at.x, at.y - at.z + 6, 170, 320, { frames: [4, 4], oy: 0.86, depth: at.y + 5 });
