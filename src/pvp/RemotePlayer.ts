@@ -161,6 +161,10 @@ export class RemotePlayer {
   /** Paper Curse: hidden for `ms` (the crane is drawn in its place). */
   private paperUntil = 0;
   paper(ms: number): void { this.paperUntil = Math.max(this.paperUntil, performance.now() + ms); }
+  /** Vanished (the samurai's substitute): unseen this long, or until `show()`. */
+  private vanishUntil = 0;
+  vanish(ms: number): void { this.vanishUntil = Math.max(this.vanishUntil, performance.now() + ms); }
+  show(): void { this.vanishUntil = 0; }
 
   /** Where its speech bubble sits above the feet (world px): over its name and bar, which sit over its head. */
   get headHeight(): number { return Math.max(this.view.headHeight || 100, this.headTop() + PVP.remoteLabel.gap + PVP.hpBar.h + 3 + PVP.remoteLabel.size + 6); }
@@ -215,6 +219,7 @@ export class RemotePlayer {
     if (this.deadMs >= 0) { this.deadMs += ms; alpha = 1 - Math.min(1, this.deadMs / 450); this.deathFx.update(ms); }
     else if (this.ghost) alpha = Math.floor(performance.now() / 70) % 2 ? 0.4 : 0.75; // guarded: blinking see-through
     if (performance.now() < this.paperUntil) alpha = 0; // a book mage's Paper Curse: folded into a crane (the effect draws it)
+    if (performance.now() < this.vanishUntil) alpha = 0; // the samurai's substitute: gone in ink
     let jx = 0, jz = 0;
     if (this.shakeMs > 0) { this.shakeMs -= ms; const f = Math.min(1, this.shakeMs / 60); jx = (Math.random() - 0.5) * 7 * f; jz = Math.random() * 2.5 * f; }
     const hid = this.alive && (this.kageHidden || (!this.skill && performance.now() < this.kageHold)); // Kagemusha: hidden among his doubles

@@ -124,16 +124,23 @@ const warrior: FinalSkill[] = [
   S({
     id: 'wave_slash', cls: 'warrior', slot: 9, name: 'Wave Slash', roles: ['projectile', 'precision'], targeting: 'mouseProjectile',
     startup: 300, active: 0, recovery: 220, cooldown: 2500, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    hits: [H(0, 18, { kind: 'projectile', speed: 400, range: 520, radius: 22, pierce: true, count: 1, spread: 0 }, { stun: 320, launch: 80, juggleCost: 10 }, { reachUp: 120 })],
+    hits: [H(0, 18, { kind: 'projectile', speed: 420, range: 520, radius: 22, pierce: true, count: 3, spread: 12 }, { stun: 340, launch: 115, juggleCost: 12 }, { reachUp: 130, heavy: true })], // (David 18 Oct 01:07 + the Warrior chat's Steel Tide: three crescents fanned along the floor; the one that strikes bursts into a column of blades that throws him higher — one hit a foe)
     cancelOnHit: ['dash_slash', 'leap_crash', 'lance_thrust'],
-    description: 'Charge the blade for an instant, then release a crescent shockwave along your line; it pierces, and any target it catches is popped into the air.',
+    description: 'Steel Tide: charge the blade for an instant, then release three steel crescents fanned along the floor; they pierce, and where one strikes a foe it bursts into a column of blades that throws him into the air.',
     relations: ['Ranged check', 'Pierces'],
   }),
   S({
     id: 'lance_thrust', cls: 'warrior', slot: 10, name: 'Impaling Rush', roles: ['extender', 'peel'], targeting: 'mouseDir',
-    startup: 160, active: 420, recovery: 300, cooldown: 3500, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    startup: 900, active: 520, recovery: 300, cooldown: 3500, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, // (startup = the longest hold: a tap rushes at 120 ms)
     dash: { distance: 70 }, carry: true, // (he rides the blade: from close the rush walked through him and its thrusts hit nothing — the warrior trials' SKEWER)
     hits: [0, 70, 140, 210, 280, 380].map((t, i) => H(t, i === 5 ? 16 : 4, { kind: 'sector', range: 80, angle: 100 }, i === 5 ? { stun: 420, push: 45 } : { stun: 320 }, { reachUp: 140, heavy: i === 5 })),
+    // (David 18 Oct 01:07 + the Warrior chat: hold it in three steps, like Earthsplitter — a tap is the rush as it was; ~0.4 s:
+    //  farther (the scene: LANCE_RUSH) and one more thrust; ~0.8 s: the farthest, the last thrust heavy, driving him back)
+    charge: { minMs: 120, levels: [
+      { at: 0, hits: [0, 70, 140, 210, 280, 380].map((t, i) => H(t, i === 5 ? 16 : 4, { kind: 'sector', range: 80, angle: 100 }, i === 5 ? { stun: 420, push: 45 } : { stun: 320 }, { reachUp: 140, heavy: i === 5 })) },
+      { at: 400, hits: [0, 65, 130, 195, 260, 325, 420].map((t, i) => H(t, i === 6 ? 20 : 4, { kind: 'sector', range: 84, angle: 100 }, i === 6 ? { stun: 440, push: 70 } : { stun: 320 }, { reachUp: 140, heavy: i === 6 })) },
+      { at: 800, hits: [0, 60, 120, 180, 240, 300, 360, 470].map((t, i) => H(t, i === 7 ? 28 : 5, { kind: 'sector', range: 90, angle: 100 }, i === 7 ? { stun: 480, push: 150 } : { stun: 320 }, { reachUp: 150, heavy: i === 7 })) },
+    ] },
     cancelOnHit: ['rising_slash', 'leap_crash', 'blade_storm', 'titans_verdict', 'wave_slash'], // (a finisher that drives him to the wall, not a mid-air link)
     description: 'Skewer the target on your blade and rush it across the arena (into a wall if one is in the way), then rip it upward with a burst of light.',
     relations: ['Extender', 'Carry'],
@@ -204,26 +211,31 @@ const warrior: FinalSkill[] = [
     relations: ['Hold to charge (3 levels)', 'Wide launcher'],
   }),
   S({
-    // the answer to shots from afar: a barrier of light raised before him, he charges in behind it — shots break on it, a blade
-    // still lands (shotArmor); no damage, the grab or the regular attack right at the end of the run
-    id: 'shield_charge', cls: 'warrior', slot: 18, name: 'Shield Charge', roles: ['gapClose', 'mobility'], targeting: 'mouseDir',
-    startup: 60, active: 260, recovery: 200, cooldown: 6000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    dash: { distance: 160 }, shotArmor: [0, 180],
-    hits: [],
-    cancelOnHit: ['iron_grip', 'warrior_basic'],
-    description: 'Raise a barrier of light before you and charge 160px forward behind it: for a moment shots break on it (a blade still lands). No damage — the run ends right in grab range: Iron Grip or a regular attack follow at once.',
-    relations: ['Gap close', 'Breaks shots'],
+    id: 'shield_charge', cls: 'warrior', slot: 18, name: 'Iron Bastion', roles: ['counter', 'setup'], targeting: 'self',
+    startup: 120, active: 1500, recovery: 260, cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1620],
+    // (David 18 Oct 01:07 + the Warrior chat's Iron Bastion): he plants the sword and turns to iron for 1.5 s — super armor and
+    // half the damage (the scene: BASTION); when it ends every blow he took comes back as one iron counter-slash round him
+    // (its damage grows with each: the scene)
+    hits: [H(1440, 12, { kind: 'circle', radius: 150 }, { stun: 460, push: 60, launch: 60, juggleCost: 12 }, { reachUp: 160, heavy: true })],
+    cancelOnHit: ['iron_grip', 'warrior_basic', 'rising_slash'],
+    description: 'Plant the sword and turn to iron for 1.5s: nothing staggers you and every blow does half its damage. When it ends, every blow you took comes back as one iron counter-slash round you — the more you took, the harder it hits.',
+    relations: ['Super armor 1.5s', 'Half damage', 'Counter-slash'],
   }),
   S({
     id: 'lions_maw', cls: 'warrior', slot: 17, name: "Lion's Maw", roles: ['airExtender', 'extender'], targeting: 'mouseTarget',
-    startup: 150, active: 520, recovery: 220, cooldown: 9000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    startup: 150, active: 520, recovery: 220, cooldown: 12000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     // the warrior roars and his lion of light pounces through the foe: a bite, a raking claw, a dive — and slams it into a bounce
     hits: [H(120, 8, { kind: 'circle', radius: 120, at: 'aimBias', bias: 130 }, { stun: 460, float: true, pull: 40, juggleCost: 4 }, { reachUp: 320 }),
       H(240, 8, { kind: 'circle', radius: 120, at: 'aimBias', bias: 130 }, { stun: 460, float: true, juggleCost: 4 }, { reachUp: 320 }), // (holds him up: it no longer spends a re-launch the chase after it needs)
       H(330, 6, { kind: 'circle', radius: 120, at: 'aimBias', bias: 130 }, { stun: 440, float: true }, { reachUp: 320 }),
       H(450, 16, { kind: 'circle', radius: 140, at: 'aimBias', bias: 130 }, { stun: 520, float: true, pull: 30 }, { reachUp: 320, heavy: true })], // (the lion drags him back and holds him: no launch, no slam)
+    // (David 18 Oct 01:07 + the Warrior chat: the lion stays — it lands on the foe's spot and stands roaring 5 s, a roar ring
+    //  every 600 ms hurting what it reaches, ~200 px; then it bursts into embers)
+    linger: { at: 'aim', offset: 130, startMs: 600, everyMs: 600, count: 8, radius: 200, maxZ: 220,
+      hit: H(0, 4, { kind: 'circle', radius: 200 }, { stun: 260, push: 20 }, { reachUp: 220 }),
+      last: H(0, 12, { kind: 'circle', radius: 220 }, { stun: 420, launch: 90, juggleCost: 12 }, { reachUp: 240, heavy: true }) },
     cancelOnHit: ['rising_slash', 'sky_breaker', 'iron_grip', 'lance_thrust', 'ground_breaker', 'blade_storm', 'titans_verdict', 'leap_crash'],
-    description: 'Roar, and a lion of golden light pounces from your side through the foe in front of you — a bite, a raking claw, a dive — dragging it back toward you and holding it where it is. Usable in the air.',
+    description: 'Roar, and a lion of light pounces from your side onto the foe in front of you — a bite, a raking claw, a dive — then stands there roaring for 5s: every roar hurts everyone around it, and the last one bursts and throws them. Usable in the air.',
     relations: ['Pull', 'Hold'],
   }),
 ];
@@ -456,8 +468,11 @@ const archer: FinalSkill[] = [
     startup: 70, active: 260, recovery: 160, cooldown: 5000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, // her escape on the floor
     dash: { distance: -150, lift: 60 },
     hits: [H(120, 12, { kind: 'projectile', speed: 1000, range: 300, radius: 11, antiAir: true }, { stun: 220, push: 8, pin: 450 }, { mark: 1 })], // (the arrow pins a launched foe up there for her follow-up from range)
+    // (David 18 Oct 01:33 + the Archer chat's Leaf Decoy): a decoy of leaves stays where she stood for 1 s — a foe who strikes it or
+    // touches it bursts it into thorned leaves that root him 0.8 s (each foe once)
+    linger: { at: 'origin', startMs: 0, everyMs: 100, count: 10, radius: 60, maxZ: 130, once: true, hit: H(0, 4, { kind: 'circle', radius: 60 }, { stun: 200, hardCC: { kind: 'root', ms: 800 } }, { reachUp: 130 }) },
     cancelOnHit: ['quick_shot', 'hunters_spirit', 'rising_arrow', 'explosive_arrow'],
-    description: 'A back flip out of reach — at the top of it she looses one arrow at the foe, leaves trailing behind her; its arrow pins a foe in the air. Keep your distance.',
+    description: 'Leaf Decoy: a back flip out of reach, leaving a decoy of leaves where you stood — a foe who strikes or touches it within a second is snared by thorned leaves. At the top of the flip one spirit arrow pins a foe in the air.',
     relations: ['Keep distance', 'From the basic / Kick'],
   }),
   S({
@@ -613,10 +628,13 @@ const samurai: FinalSkill[] = [
   }),
   S({
     id: 'sheathe', cls: 'samurai', slot: 2, name: 'Sheathe', roles: ['setup'], targeting: 'self',
-    startup: 40, active: 90, recovery: 20, cooldown: 3000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    startup: 3000, active: 90, recovery: 20, cooldown: 3000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     // a 150 ms stance (its last 10 ms already open to the next cut: no frame of a bare blade between), cancelled into from any hit: the blade snaps home in its sheath with a click — and for 0.6 s after
     // it the next Iai Strike or Quick Slash leaves the sheath at once (SkillRuntime: primes), the Iai one charge level higher
     hits: [], primes: { ids: ['iai_strike', 'quick_slash'], windowMs: 600, chargeUp: 1 },
+    // (David 18 Oct 01:15 + the Samurai chat's "the substitute"): held up to 3 s it is his guard — a blow landing on him in it
+    // hits a doll in his place and he vanishes (the scene: SUBSTITUTE); a tap is the click as before (startup = the longest hold)
+    charge: { minMs: 40, levels: [{ at: 0, hits: [] }] },
     cancelOnHit: ['iai_strike', 'quick_slash'],
     description: 'Snap the blade home in its sheath with a click: a 150 ms stance you can cancel into from any hit. For 0.6s after it, your next Iai Strike or Quick Slash leaves the sheath at once — no wind-up — and the Iai Strike one charge level higher.',
     relations: ['Cancel from any hit', 'Next Iai / Quick Slash: instant'],
@@ -639,6 +657,11 @@ const samurai: FinalSkill[] = [
     id: 'sword_wave', cls: 'samurai', slot: 4, name: 'Sword Wave', roles: ['projectile'], targeting: 'mouseProjectile',
     startup: 150, active: 0, recovery: 180, cooldown: 6000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     hits: [H(0, 26, { kind: 'projectile', speed: 800, range: 380, radius: 18 }, { stun: 230, push: 12, float: true, juggleCost: 15 })],
+    // (David 18 Oct 01:15 + the Samurai chat's "the crescent and its shadow"): at its range it turns to ink and its shadow flies
+    // back along the line to where he threw it, cutting again and dragging whoever it meets back to him (the scene sets the
+    // pull) — a zone of its own 700 ms after the throw, so he is free to go on meanwhile
+    linger: { at: 'origin', startMs: 700, everyMs: 1000, count: 1, radius: 0, maxZ: 170, line: { length: 380, width: 56 },
+      hit: H(0, 14, { kind: 'line', length: 380, width: 56 }, { stun: 460, pullMs: 300, juggleCost: 8 }, { reachUp: 170 }) },
     cancelOnHit: ['shadow_step', 'blossom_storm'],
     description: 'Fling a golden crescent of steel that flies fast and level: it staggers a foe on the floor and holds one in the air where it meets him — from the floor it passes under a foe thrown high, so jump with him and throw it level. One at a time. Walls stop it.',
     relations: ['One at a time', 'Holds in the air'],
@@ -806,7 +829,7 @@ const gambler: FinalSkill[] = [
       { at: 0, hits: [H(0, 12, { kind: 'projectile', speed: 720, range: 560, radius: 13, count: 3, spread: 7, rows: 3, rowGap: 22 }, { stun: 300, push: 6 }, { reachUp: 90, stick: 1 })] },
       { at: 520, hits: [H(0, 12, { kind: 'projectile', speed: 760, range: 600, radius: 13, count: 5, spread: 6, rows: 3, rowGap: 22 }, { stun: 320, push: 8 }, { reachUp: 90, stick: 3 })] }, // (the max bet: a fan counts once on a foe — the full hold sticks three)
     ] },
-    cancelOnHit: ['staff_vault', 'kinetic_grab'], telegraph: 'cone',
+    cancelOnHit: ['staff_vault', 'grand_slam', 'staff_flurry'], telegraph: 'cone',
     description: 'A fan of three charged cards across the whole floor — one sticks in the foe; hold the key for five, and three stick. Stuck cards wait: your next staff blow sets them off, or All In throws him up by their number (alone they fizzle out).',
     relations: ['Cards stick', 'Hold: 5 cards, 3 stick'],
   }),
@@ -817,7 +840,7 @@ const gambler: FinalSkill[] = [
     hits: [H(40, 6, { kind: 'capsule', radius: 30 }, { stun: 340, push: 2 }, { reachUp: 150 }), // (balance: the staff catches whoever it vaults through — the opener lands from the distance fights open at)
       H(220, 8, { kind: 'circle', radius: 80 }, { stun: 300, push: 6 }, { reachUp: 150, fuse: true }),
       H(300, 14, { kind: 'circle', radius: 90 }, { stun: 420, launch: 95, juggleCost: 16 }, { reachUp: 160, heavy: true, fuse: true })],
-    cancelOnHit: ['rotor_staff', 'showdown', 'riffle_shuffle'], telegraph: 'line',
+    cancelOnHit: ['rotor_staff', 'showdown', 'riffle_shuffle', 'staff_flurry'], telegraph: 'line',
     description: 'Plant the staff and vault over in a long arc, landing in a double kick that lifts the foe. Aim backwards to vault away.',
     relations: ['Gap close / escape', 'Launcher'],
   }),
@@ -827,7 +850,7 @@ const gambler: FinalSkill[] = [
     hits: [H(0, 16, { kind: 'circle', radius: 100, at: 'aimBias', bias: 70 }, { stun: 420, slam: true, push: 6 }, { reachUp: 140, heavy: true, fuse: true })],
     // the charged floor erupts 0.8s later under whoever stands on it
     linger: { at: 'aim', offset: 70, startMs: 800, everyMs: 1000, count: 1, radius: 115, maxZ: 40, hit: H(0, 18, { kind: 'circle', radius: 115 }, { stun: 460, launch: 120, juggleCost: 20 }, { reachUp: 60, heavy: true }) },
-    cancelOnHit: ['triple_down', 'grand_slam'], telegraph: 'circle',
+    cancelOnHit: ['staff_flurry', 'grand_slam'], telegraph: 'circle',
     description: 'Slam the staff into the floor: a foe in the air is smashed down, and the floor stays charged — 0.8s later it erupts and throws up whoever stands on it.',
     relations: ['Smash down', 'Floor erupts 0.8s later'],
   }),
@@ -836,7 +859,7 @@ const gambler: FinalSkill[] = [
     startup: 160, active: 900, recovery: 220, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 900],
     hits: [...Array.from({ length: 7 }, (_, i) => H(i * 110, 4, { kind: 'circle', radius: 150 }, { stun: 320, pull: 26, float: true, juggleCost: 3 }, { reachUp: 160 })),
       H(820, 12, { kind: 'circle', radius: 170 }, { stun: 400, push: 10 }, { reachUp: 170, heavy: true, stick: 2 })],
-    cancelOnHit: ['all_in', 'showdown'],
+    cancelOnHit: ['showdown', 'grand_slam'],
     description: 'A ring of cards shuffles round you like a deck in a dealer\'s hands: it pulls nearby foes in and cuts them again and again, then the cards spread out and stick in everyone around.',
     relations: ['Pull', 'Sticks 2 cards'],
   }),
@@ -847,7 +870,7 @@ const gambler: FinalSkill[] = [
     // the last blow (a staff thrust) drives one more in — All In sets them off
     hits: [...Array.from({ length: 14 }, (_, i) => H(i * 100, 3, { kind: 'sector', range: 150, angle: 80 }, { stun: 300, float: true, juggleCost: 2 }, { reachUp: 190, stick: i % 2 ? 1 : undefined })),
       H(1440, 14, { kind: 'sector', range: 130, angle: 120 }, { stun: 420, push: 15, juggleCost: 10 }, { reachUp: 190, heavy: true, stick: 1 })],
-    cancelOnHit: ['all_in', 'grand_slam', 'riffle_shuffle'],
+    cancelOnHit: ['grand_slam', 'riffle_shuffle'],
     description: 'Spin the staff in front of you like a propeller for 1.5s while you walk on: its circle throws charged cards nonstop, holding the foe where it is (in the air too) and sticking card after card in it — then the last blow, a staff thrust, drives one more in and throws it away. All In sets them all off.',
     relations: ['Cards nonstop', 'Fills him with cards (5)'],
   }),
@@ -856,7 +879,7 @@ const gambler: FinalSkill[] = [
     startup: 360, active: 520, recovery: 300, cooldown: 9000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 880],
     // five cards turn over in a row and burst one by one (Gamble.ts: the Hand's rank sets the damage and the bonus)
     hits: [0, 100, 200, 300, 400].map((t, i) => H(t, i === 4 ? 16 : 8, { kind: 'line', length: 330, width: 80 }, { stun: 420, float: i < 4, launch: i === 4 ? 60 : undefined, juggleCost: i === 4 ? 14 : 4 }, { reachUp: 160, heavy: i === 4 })),
-    cancelOnHit: ['all_in', 'grand_slam'], telegraph: 'line', endsCombo: false,
+    cancelOnHit: ['grand_slam'], telegraph: 'line', endsCombo: false,
     description: 'Show your Hand: the cards fly from your shoulder, stand in a row before the foe and turn over one by one, each one bursting. The better the Hand, the harder it hits — a Pair, a Flush, a Full House... a Royal Flush. At least 2 cards.',
     relations: ['Plays the Hand', 'Royal Flush ×3.2'],
   }),
@@ -875,7 +898,7 @@ const gambler: FinalSkill[] = [
     // the ball spins 2s (foes in the wheel are slowed); then red: a blast that lifts, black: a 2s bind (Gamble.ts picks it)
     hits: [...[0, 500, 1000, 1500].map((t) => H(t, 3, { kind: 'placed', radius: 150 }, { stun: 200, slow: { pct: 40, ms: 600 } }, { reachUp: 60 })),
       H(2000, 30, { kind: 'placed', radius: 160 }, { stun: 460, launch: 130, juggleCost: 20 }, { reachUp: 80, heavy: true })],
-    cancelOnHit: ['kinetic_grab', 'staff_vault'], telegraph: 'ground',
+    cancelOnHit: ['staff_vault'], telegraph: 'ground',
     description: 'A BET ON THE REACTION — A giant roulette wheel opens on the floor where you aim; the ball spins for 2s and every foe in the wheel is slowed. Where it stops: RED — a great blast throws them all up; BLACK — everyone in it is bound for 2s. DOUBLE OR NOTHING: press again within 0.4 s to throw again — but if the new throw is worse, you are stunned 0.6 s.',
     relations: ['Slow 2s', 'Red: launch · Black: bind'],
   }),
@@ -885,20 +908,19 @@ const gambler: FinalSkill[] = [
     // two dice roll along the floor and burst; the sum sets the size (Gamble.ts), a double bursts twice and stuns
     hits: [H(560, 14, { kind: 'circle', radius: 120, at: 'aimBias', bias: 140 }, { stun: 400, push: 40 }, { reachUp: 90, heavy: true }),
       H(640, 14, { kind: 'circle', radius: 120, at: 'aimBias', bias: 195 }, { stun: 400, push: 40, launch: 50 }, { reachUp: 90, heavy: true })],
-    cancelOnHit: ['kinetic_grab', 'staff_vault'], telegraph: 'line',
+    cancelOnHit: ['staff_vault'], telegraph: 'line',
     description: 'A BET ON DAMAGE — Roll two glowing dice along the floor: they tumble forward and burst. The higher the roll (2 to 12), the harder the blast hits (×0.64 to ×1.36); the reaction never changes. DOUBLE OR NOTHING: press again within 0.4 s to throw again — but if the new throw is worse, you are stunned 0.6 s.',
     relations: ['Damage by the roll', 'Double or Nothing'],
   }),
   S({
-    id: 'kinetic_grab', cls: 'gambler', slot: 11, name: 'Kinetic Grab', roles: ['hardCC', 'confirm'], targeting: 'mouseCone',
-    startup: 160, active: 620, recovery: 260, cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 8, { kind: 'sector', range: 84, angle: 70 }, { stun: 700, pin: 520, grab: true }, { reachUp: 90 }),
-      H(480, 26, { kind: 'sector', range: 96, angle: 80 }, { stun: 480, push: 200, launch: 60, grab: true, juggleCost: 18 }, { reachUp: 100, heavy: true })], // (thrown up: he flies as the bomb, the burst catches him in the air)
-    // the thrown foe is a bomb: where it lands it bursts and hits everyone around it
-    linger: { at: 'aim', offset: 230, startMs: 820, everyMs: 1000, count: 1, radius: 130, maxZ: 120, hit: H(0, 18, { kind: 'circle', radius: 130 }, { stun: 420, push: 40, launch: 40 }, { reachUp: 120, heavy: true }) },
-    cancelOnHit: ['all_in', 'rotor_staff', 'pickup_52'],
-    description: 'Seize the foe by the collar, charge its whole body with kinetic power and throw it: it becomes a bomb, and where it lands it bursts on everyone around. A grab — combo protection does not stop it.',
-    relations: ['Grab', 'The foe becomes a bomb'],
+    id: 'light_staff', cls: 'gambler', slot: 11, name: 'Light Staff', roles: ['setup'], targeting: 'self',
+    startup: 250, active: 60, recovery: 150, cooldown: 20000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    // (David 18 Oct 01:42; the Gambler chat's shape): a thin violet blade of light slides out of the cane's tip — for 8 s every
+    // staff blow reaches ×1.7 (the scene's reachMul: LIGHT_STAFF) and Staff Flurry opens; no hit of its own
+    hits: [], tags: ['buff'],
+    cancelOnHit: [],
+    description: 'Run your palm along the cane: a thin violet blade of light slides out of its tip. For 8s every staff blow reaches 70% further — the staff strikes of Cut the Deck, Staff Vault, Rotor Staff, Grand Slam, Staff Flurry — and Staff Flurry opens.',
+    relations: ['Staff reach ×1.7 (8s)', 'Opens Staff Flurry'],
   }),
   S({
     id: 'ace_in_the_hole', cls: 'gambler', slot: 12, name: 'Ace in the Hole', roles: ['precision', 'projectile'], targeting: 'mouseProjectile',
@@ -911,14 +933,16 @@ const gambler: FinalSkill[] = [
     relations: ['Pierces', 'Always an Ace'],
   }),
   S({
-    id: 'all_in', cls: 'gambler', slot: 13, name: 'All In', roles: ['launcher', 'extender'], targeting: 'self',
-    startup: 240, active: 120, recovery: 240, cooldown: 10000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    // a snap of the fingers: every charged card stuck in a foe near him goes off at once and blows him up into the air —
-    // the more cards, the harder and higher (Gamble.ts / the scene: gambleHit); a foe with no card in him is not touched at all (a whiff to punish)
-    hits: [H(80, 8, { kind: 'circle', radius: 220 }, { stun: 420, launch: 70, juggleCost: 10 }, { reachUp: 240, heavy: true })],
-    cancelOnHit: ['fuse_slam', 'grand_slam'],
-    description: 'Snap your fingers: every charged card stuck in a foe near you detonates at once and blasts him up into the air. Each card adds damage and height — a foe full of cards flies; a foe with none is not even touched — a miss your foe can punish.',
-    relations: ['Detonates stuck cards', 'Re-launch'],
+    id: 'long_guard', cls: 'gambler', slot: 13, name: 'Long Guard', roles: ['counter', 'escape'], targeting: 'self',
+    startup: 120, active: 2600, recovery: 260, cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    // (David 18 Oct 01:42; the Gambler chat's shape): held — he stands in a guard while the key is held (up to 2.5 s); a blow
+    // that reaches him in it is caught: the cards snap out along the line to the striker and stun him 1.2 s (no damage to him);
+    // the guard ends on release, at its longest, or after the catch (the scene: LONG_GUARD)
+    counter: { window: 2500, sidestep: 0, behind: 0 },
+    hits: [H(0, 6, { kind: 'line', length: 420, width: 70 }, { hardCC: { kind: 'stun', ms: 1200, long: true }, stun: 300 }, { reachUp: 180, heavy: true })],
+    cancelOnHit: ['grand_slam', 'staff_vault', 'charged_deal'],
+    description: 'Hold the key: you stand in a long guard, cane across your body, cards fanned in your other hand. A blow that reaches you in it is caught — the cards snap out to the striker and stun him for 1.2s; the guard ends when you let go, after 2.5s, or after the catch.',
+    relations: ['Held guard (2.5s)', 'Stuns the striker 1.2s'],
   }),
   S({
     id: 'pickup_52', cls: 'gambler', slot: 14, name: '52 Pickup', roles: ['zone', 'finisher'], targeting: 'mouseCone',
@@ -934,21 +958,20 @@ const gambler: FinalSkill[] = [
     id: 'grand_slam', cls: 'gambler', slot: 15, name: 'Grand Slam', roles: ['finisher', 'knockdown'], targeting: 'mouseCone',
     startup: 420, active: 140, recovery: 320, cooldown: 11000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 560],
     hits: [H(0, 46, { kind: 'sector', range: 150, angle: 120 }, { stun: 520, push: 300, launch: 40, knockdown: 'heavy', juggleCost: 30 }, { reachUp: 200, heavy: true, fuse: true })],
-    cancelOnHit: ['triple_down'], telegraph: 'cone',
+    cancelOnHit: ['staff_flurry'], telegraph: 'cone',
     description: 'THE WALL FINISHER — The staff grows to twice its length and you swing it like a bat: the foe flies far away on a comet\'s tail and crashes into the floor or a wall. It sets off every card stuck in it at once.',
     relations: ['Sends far', 'Sets off all cards'],
   }),
   S({
-    id: 'triple_down', cls: 'gambler', slot: 16, name: 'Triple Down', roles: ['knockdown', 'finisher'], targeting: 'mouseCone',
-    startup: 200, active: 760, recovery: 300, cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 960],
-    // the staff grows into a pillar of light and hammers the floor ahead three times — each blow on a foe lying there keeps
-    // him down and sets off the cards in him; the third, the heaviest, bounces him off the floor (one more link)
-    hits: [H(0, 12, { kind: 'circle', radius: 95, at: 'aimBias', bias: 85, floor: true }, { stun: 420, juggleCost: 6, catch: true }, { reachUp: 60, heavy: true, fuse: true }), // (catches him off the bounce / the floor: all three hammers land)
-      H(300, 14, { kind: 'circle', radius: 100, at: 'aimBias', bias: 85, floor: true }, { stun: 420, juggleCost: 6 }, { reachUp: 60, heavy: true, fuse: true }),
-      H(700, 24, { kind: 'circle', radius: 125, at: 'aimBias', bias: 85, floor: true }, { stun: 520, launch: 70, juggleCost: 14 }, { reachUp: 70, heavy: true, fuse: true })],
-    cancelOnHit: ['grand_slam', 'jackpot'], telegraph: 'circle',
-    description: 'Your staff grows into a pillar of light and you hammer the floor ahead three times — on a standing foe, a foe lying there, or one bouncing off the floor. Every blow lands on him — keeping him down and setting off the cards stuck in him — and the third, the heaviest, bounces him off the floor.',
-    relations: ['Three hammers', 'Sets off all cards'],
+    id: 'staff_flurry', cls: 'gambler', slot: 16, name: 'Staff Flurry', roles: ['extender', 'finisher'], targeting: 'mouseCone',
+    startup: 160, active: 3000, recovery: 320, cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 600],
+    // (David 18 Oct 01:42; the Gambler chat's shape): only while Light Staff is on (the scene's gate) — 3 s of staff blows, one
+    // every 110 ms holding him where he is, every 5th heavier, the last a big rising swing that throws him
+    hits: [...Array.from({ length: 26 }, (_, i) => H(i * 110, i % 5 === 4 ? 5 : 2, { kind: 'sector', range: 110, angle: 100 }, { stun: 300, float: true, juggleCost: 2 }, { reachUp: 170, heavy: i % 5 === 4, fuse: i % 5 === 4 })),
+      H(2860, 12, { kind: 'sector', range: 120, angle: 120 }, { stun: 420, launch: 110, juggleCost: 14 }, { reachUp: 190, heavy: true, fuse: true })],
+    cancelOnHit: ['grand_slam', 'jackpot'], telegraph: 'cone',
+    description: 'Only while Light Staff is on: spin and jab the lengthened cane in front of you nonstop for 3s — a blow every tenth of a second holds the foe where he is, every fifth one lands heavier and sets off his cards — then a great rising swing throws him.',
+    relations: ['Needs Light Staff', '3s flurry'],
   }),
   S({
     id: 'card_swap', cls: 'gambler', slot: 17, name: 'Card Swap', roles: ['mobility', 'escape', 'trap'], targeting: 'mouseDir',
@@ -971,7 +994,7 @@ const gambler: FinalSkill[] = [
     linger: { at: 'target', startMs: 160, everyMs: 300, count: 10, radius: 60, maxZ: 400, // (David 18 Oct 01:42: the card spins under him at least 3 s, juggling him on it)
       hit: H(0, 3, { kind: 'circle', radius: 60 }, { stun: 300, float: true, juggleCost: 3 }),
       last: H(0, 8, { kind: 'circle', radius: 60 }, { stun: 420, launch: 70, juggleCost: 10 }, { heavy: true }) },
-    cancelOnHit: [], telegraph: 'line',
+    cancelOnHit: ['grand_slam'], telegraph: 'line',
     description: 'Call your deck home: every card of yours lying on the floor within 700 px flies back into your hand and they fuse into one big charged card. Throw it like a saw blade — it cuts through every foe in its line and pops them up — then it dives under the first one and spins there, holding him up: two turns, and one more for every card you gathered (15 at most). Charged Deal, Cut the Deck\'s flick, Rotor Staff, Riffle Shuffle and 52 Pickup leave cards on the floor.',
     relations: ['Gathers the floor deck', '+1 turn per card'],
   }),
@@ -981,7 +1004,7 @@ const gambler: FinalSkill[] = [
     // a slot machine stops on 7 · 7 · 7: coins and chips burst in eight blasts round you, the last one smashes them down
     hits: [...Array.from({ length: 7 }, (_, i) => H(i * 150, 12, { kind: 'circle', radius: 300 }, { stun: 460, float: true, juggleCost: 4 }, { reachUp: 320 })),
       H(1150, 60, { kind: 'circle', radius: 330 }, { stun: 600, knockdown: 'heavy', slam: true }, { reachUp: 320, heavy: true })],
-    cancelOnHit: ['grand_slam', 'triple_down'], endsCombo: true, telegraph: 'circle',
+    cancelOnHit: ['grand_slam', 'staff_flurry'], endsCombo: true, telegraph: 'circle',
     description: 'Call the JACKPOT: your picture crosses the screen, the world goes dark and a giant slot machine spins behind the foes — 7 · 7 · 7. Coins and chips burst in eight blasts all round you, the last one smashing everyone down.',
     relations: ['Ultimate', 'Always 7 · 7 · 7'],
   }),
@@ -1053,6 +1076,10 @@ export function armorMul(s: FinalSkill, _arena?: boolean): number { return arena
 const ARENA_PACE: Record<string, { startup?: number; squeeze?: number }> = {};
 // the Roulette keeps its whole 2 s spin (its colour lights 1 s in: the foe gets a second to react — PvP audit)
 ARENA_PACE.roulette_wheel = { squeeze: 1 };
+// David 18 Oct (01:33 / 01:42): Hunter's Rain rains its whole 5 s, the Staff Flurry its whole 3 s, in the arena too
+ARENA_PACE.arrow_storm = { squeeze: 1 };
+ARENA_PACE.staff_flurry = { squeeze: 1 };
+ARENA_PACE.quick_shot_stream = { squeeze: 1 };
 // Warrior links (PvP re-audit: a ~6-skill combo): each skill leads to 2–3 others only, one route per job —
 //   open (regular attack / Dash Slash / Iron Grip / the hook / Wave Slash) → launch (Rising Slash) → the air (Sky Breaker /
 //   Ground Breaker) → the court or the lion (Judgment Blade / Lion's Maw) → the finish (Impaling Rush → the Verdict). Buffs and Sanctuary lead nowhere (a list is never empty: an empty one would mean free cancel).
@@ -1101,15 +1128,29 @@ export const MAGE_HIDDEN = {
   shards: hidden('shatter_shards', 'Ice Shards', H(0, 4, { kind: 'circle', radius: 160 }, { stun: 120 }, { reachUp: 120, el: 'frost' })),
 };
 
+/** The Archer's held Double Shot (David 18 Oct 01:33 + the Archer chat's shape): held past the first shot, a turning spirit
+ *  circle before her bow streams arrows along the aim while Space is held (up to 4 s) — one every 110 ms, every 5th a heavier
+ *  gold one. Not a slot: the scene starts it from the held basic and ends it on release (ARCHER_STREAM there). */
+export const ARCHER_STREAM: FinalSkill = S({
+  id: 'quick_shot_stream', cls: 'archer', arenaDmg: 0.6, slot: 0, name: 'Double Shot', roles: ['basic', 'projectile'], targeting: 'mouseProjectile',
+  startup: 60, active: 4000, recovery: 160, cooldown: 0, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+  hits: Array.from({ length: 36 }, (_, i) => i % 5 === 4
+    ? H(i * 110, 9, { kind: 'projectile', speed: 1150, range: 460, radius: 12, antiAir: true }, { stun: 260, push: 6 }, { heavy: true, mark: 1 })
+    : H(i * 110, 4, { kind: 'projectile', speed: 950, range: 450, radius: 9, antiAir: true }, { stun: 200, push: 2 })),
+  cancelOnHit: ['rising_arrow', 'multi_shot', 'explosive_arrow', 'retreat_kick', 'piercing_arrow', 'vine_trap', 'rain_of_arrows'],
+  description: 'Hold Space past the first shot: a spirit circle turns before your bow and arrows stream out of it without a break while you hold — every fifth a heavier gold one.',
+  relations: ['Held stream', 'Every 5th: gold'],
+});
 export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...mage, ...archer, ...samurai, ...gambler];
 // the blow that ends each skill (the foe is sent back on it: Combat, THROWN)
-for (const s of [...FINAL_SKILLS, ...mageBolts]) {
+for (const s of [...FINAL_SKILLS, ...mageBolts, ARCHER_STREAM]) {
   const list = s.chain ? s.chain.stages[s.chain.stages.length - 1] : s.hits, last = list?.[list.length - 1];
   if (last) last.lastBlow = true;
 }
-const BY_ID = new Map([...FINAL_SKILLS, ...mageBolts, ...Object.values(MAGE_HIDDEN)].map((s) => [s.id, s]));
+const BY_ID = new Map([...FINAL_SKILLS, ...mageBolts, ...Object.values(MAGE_HIDDEN), ARCHER_STREAM].map((s) => [s.id, s]));
 /** Old ids from earlier builds (save-data / QA migration only; never shown in the HUD/tree). */
 export const LEGACY_ALIASES: Record<string, string> = {
+  kinetic_grab: 'light_staff', all_in: 'long_guard', triple_down: 'staff_flurry', // (David 18 Oct 01:42: replaced)
   final_strike: 'titans_verdict', meteor: 'storm_field', time_warp: 'time_collapse', wind_step: 'skyhunters_step',
   natures_wrath: 'sky_rain', verdant_judgment: 'sky_rain', dragon_slash: 'dragon_eclipse',
 };

@@ -98,7 +98,7 @@ import { baseLoop, ClassKey, dirOf, HERO_HEIGHT, HERO_LIFT, heroPortrait, loadBa
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
 import { ARENA, CombatBody, counterStun, HitOutcome, gaugeOf, Kin, MAGE, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
-import { ARENA_FLOW, MAGE_HIDDEN, arenaCommits, arenaTimeScale, armorMul, finalSkill, iconUrl, kitFor, lastOfBurst } from '../skills/FinalKit';
+import { ARCHER_STREAM, ARENA_FLOW, MAGE_HIDDEN, arenaCommits, arenaTimeScale, armorMul, finalSkill, iconUrl, kitFor, lastOfBurst } from '../skills/FinalKit';
 import { CastRun, RT_EVENTS, SkillRuntime, Trap, STORM } from '../skills/SkillRuntime';
 import type { Projectile } from '../skills/HitGeometry';
 import { Afterimages, applyMotion, archerMotion, heroMotion, leapMotion } from '../skills/ArcherMotion';
@@ -165,6 +165,19 @@ const BACKSTEP = { speed: 230, vz: 220 };
 /** Hit claims across lag (stepClaims): how long a claim may wait (ms), how long for its cast to arrive, how far we may have
  *  moved from where the attacker saw us (px). 300 ms ≈ the 250 ms rewind cap of Battlefield 4 / Overwatch plus a frame or two. */
 const CLAIM = { maxMs: 300, waitCastMs: 250, reach: 150 };
+/** The Gambler's Light Staff (David 18 Oct 01:42): this long after the cast every staff blow reaches ×reach, and Staff Flurry opens. */
+const LIGHT_STAFF = { ms: 8000, reach: 1.7, skills: new Set(['cut_the_deck', 'staff_vault', 'fuse_slam', 'rotor_staff', 'grand_slam', 'staff_flurry']) };
+/** The Warrior's Impaling Rush held (David 18 Oct 01:07): its dash, × by the charge level reached (a tap, ~0.4 s, ~0.8 s). */
+const LANCE_RUSH = [1, 1.8, 2.6];
+/** The Warrior's Iron Bastion (shield_charge): damage taken × taken while it stands; its counter-slash + perBlow a blow taken (at most maxBlows). */
+const BASTION = { taken: 0.5, perBlow: 6, maxBlows: 8 };
+/** The Samurai's Rising Sun banner (David 18 Oct 01:15): it stands `ms` after the burst, `behind` px behind where he cast; his own
+ *  jump coming down on it (within `near` px, under `top` px up) springs him `dist` px back on an arc `up` px high, once a landing. */
+const POLE = { ms: 10000, behind: 44, near: 34, top: 110, dist: 360, up: 170 };
+/** The Samurai's substitute (Sheathe held): a blow in the guard breaks a doll in his place; he is unseen (untouchable) this long. */
+const SUBSTITUTE = { unseenMs: 1500 };
+/** The Gambler's Long Guard: after a catch the guard lasts only this long (ms of active). */
+const LONG_GUARD = { afterCatchMs: 320 };
 /** Judgment Blade pacing: earliest throw after the leap starts, auto-throw of a follow-up blade, earliest follow-up throw. */
 const JB = { firstMin: 250, follow: 90, followMin: 40 } as const;
 const CAST_ORIGIN_TOLERANCE_PX = 140;
@@ -193,7 +206,7 @@ const ALERT_MS = 4000;
 const TREE_RADIUS = 260; // = the drawn circle around the tree
 
 /** Skills whose aim the held direction keeps turning while they run (sent to the other players). */
-const AIM_STEER = new Set(['piercing_arrow', 'eagle_arrow']);
+const AIM_STEER = new Set(['piercing_arrow', 'eagle_arrow', 'quick_shot_stream']);
 
 export class LegacyCourtyardScene extends Phaser.Scene {
   // ---- local actor (read by QA)
@@ -326,6 +339,18 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private jb: { z: number; idle: number } | null = null;
   /** Judgment Blade: extra presses of V waiting to become blades (each press = one more blade, thrown at once). */
   private jbWant = 0;
+  /** Rising Sun's banner still standing (its cast, place, from / until), and whether this landing's spring is spent. */
+  private pole: { castId: string; x: number; y: number; from: number; until: number } | null = null;
+  private poleSpent = false;
+  /** The substitute: unseen until then (the cast of the Sheathe that broke the doll). */
+  private unseen: { castId: string; until: number } | null = null;
+  /** Iron Bastion: the blows taken in it (by its cast). */
+  private bastion: { castId: string; n: number } | null = null;
+  /** Light Staff: the local gambler's lit cane until then; the other fighters' (by id), for their looks. */
+  lightStaffUntil = -1;
+  readonly lightStaffOf = new Map<string, number>();
+  /** Is this fighter's cane lit now (the local player: `localId`)? */
+  lightStaffOn(id: string): boolean { return id === this.localId ? this.simMs < this.lightStaffUntil : this.simMs < (this.lightStaffOf.get(id) ?? -1); }
   /** Impaling Rush that hit you: you ride its blade while it dashes. */
   private carriedBy: CastRun | null = null;
   /** Startup lunge toward the target / post-hit momentum following the push (px still to travel, ms left). */
@@ -707,7 +732,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.gold = character.gold ?? 0; this.bag = cleanBag(character.bag ?? STARTER_BAG); this.quick = cleanQuick(character.quick); this.seen = new Set(character.seen ?? Object.keys(this.bag)); this.potionAt = [-Infinity, -Infinity]; this.drops = []; this.treasures = undefined; this.itemDmgUntil = -1; this.itemSpeedUntil = -1; this.useAt = {};
     this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.hitBlinkUntil = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
-    this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
+    this.lightStaffUntil = -1; this.lightStaffOf.clear(); this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
     this.hasteUntil = -1; this.spiritUntil = -1; this.tree = null; this.storm = null; this.resolveUntil = -1; this.hasteFx = undefined; this.spiritFx = undefined; this.afterimg = undefined;
     this.gHeadsUntil = -1; this.gTailsFree = false; this.gTailsUntil = -1; this.gLuckUntil = -1; this.gOverUntil = -1; this.gStreak = 0; this.fx?.gambleClear(this.localId); this.gDeck.clear(); this.gHand.clear(); this.gStuck.clear();
     this.sunUntil = -1; this.godUntil = -1; this.kage?.clear(); this.kage = undefined; this.ambushIn.clear();
@@ -884,7 +909,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       cooldownMul: (req) => this.cdMul(req.skill),
       timeScale: (req) => (finalSkill(req.skill.id) === req.skill ? arenaTimeScale(req.skill, !!req.followUp) : null), // every class skill at its one pace, in the open game and in PvP alike
       onPhase: (r, ph) => this.onRunPhase(r, ph),
-      reachMul: (req) => (req.own ? (req.skill.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.4 : 1) : (req.reach ?? 1)), // Radiant Blade: +40% reach
+      reachMul: (req) => (req.own ? (req.skill.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.4 : req.skill.cls === 'gambler' && LIGHT_STAFF.skills.has(req.skill.id) && this.simMs < this.lightStaffUntil ? LIGHT_STAFF.reach : 1) : (req.reach ?? 1)), // Radiant Blade: +40% reach
       rangeMul: (req) => (req.own ? this.ownRangeMul(req.skill) : (req.range ?? 1)),
       speedMul: (req) => (req.own ? this.ownSpeedMul(req.skill) : (req.speed ?? 1)),
       projectileHook: (p, r) => this.mageProjectile(p, r),
@@ -1154,6 +1179,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.dead >= 0) { this.dead += ms; this.setMode('dead'); k.vx = 0; k.vy = 0; stepKin(k, ms); this.deathFx?.update(ms); this.updateDeath(); return; }
 
     this.tryBackstep(now);
+    this.stepPole(now); this.stepUnseen(now);
     const run = this.rt!.ownRun;
     const reacting = b.state !== 'free';
     const ccLocked = b.hard.active(now) && b.hard.kind !== 'root';
@@ -1225,9 +1251,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // Buffered action fires on the first legal frame (within the buffer window).
     const buf = this.ci!.takeBuffered();
     if (buf && this.tryStartSlot(buf.slot)) this.ci!.consumeBuffer();
-    else if (!buf && this.ci!.attackHeld && this.cls === 'archer' && this.kit[0]?.id === 'quick_shot') { // archer: hold to keep shooting at a steady rhythm
+    else if (!buf && this.ci!.attackHeld && this.cls === 'archer' && this.kit[0]?.id === 'quick_shot') { // archer: held past the first shot — the spirit circle's stream (David 18 Oct 01:33)
       const run = this.rt!.ownRun;
-      if (!run || (run.skill.id === 'quick_shot' && run.phase === 'recovery')) this.tryStartSlot(0);
+      if (run && run.skill.id === 'quick_shot' && run.elapsed >= run.timings.startup + run.timings.active && run.phase !== 'done' && (run.stage ?? 0) === 0) { this.rt!.cancelForFollowUp(run); this.endRun(run, false); this.startCast(ARCHER_STREAM, 0, this.aim, null, null, true); }
+      else if (!run || (run.skill.id === 'quick_shot' && run.phase === 'recovery')) this.tryStartSlot(0);
     }
     else if (!buf && this.ci!.attackHeld && this.kit[0]?.chain) { // hold Space: chain continues on its own
       const run = this.rt!.ownRun;
@@ -1283,6 +1310,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.setMode('skill');
     this.dir = dirOf(run.aim.x, run.aim.y, this.dir);
     const phase = run.phase === 'startup' ? 'startup' : run.phase === 'active' ? 'active' : 'recovery';
+    if (s.id === 'quick_shot_stream' && run.phase !== 'recovery' && !this.ci?.attackHeld) { // the stream: let go = the circle snaps shut
+      this.rt!.cancelForFollowUp(run); this.endRun(run, false); this.pvp?.sendRelease({ castId: run.castId, at: -9, ax: 0, ay: 0 }); return;
+    }
+    if (s.id === 'long_guard' && !run.counterTriggered && run.phase !== 'recovery' && run.elapsed >= T.startup && !this.ci?.slotHeld(this.kit.indexOf(s))) { // Long Guard: let go = the guard drops
+      this.rt!.cancelForFollowUp(run); this.endRun(run, false); this.pvp?.sendRelease({ castId: run.castId, at: -5, ax: 0, ay: 0 }); return;
+    }
     const scale = s.move[phase];
     if (s.dash && run.phase === 'active') { this.dashMotion(run); if (s.carry) this.carryTarget(run); return; }
     const held = this.gripFoe?.alive ? this.gripFoe : this.enemy?.alive ? this.enemy : null;
@@ -1711,10 +1744,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const k = this.kin, s = run.skill, d = s.dash!;
     const p = Math.min(1, (run.elapsed - run.timings.startup) / Math.max(1, run.timings.active));
     const ease = 1 - (1 - p) * (1 - p);
-    let dist = d.distance;
+    let dist = d.distance * (s.id === 'lance_thrust' ? LANCE_RUSH[run.chargeLevel ?? 0] ?? 1 : 1); // (Impaling Rush held: farther)
     if (run.lock) {
       const t = this.targetsFor(run).find((x) => x.id === run.lock);
-      if (t) dist = Math.min(d.distance, Math.max(0, Math.hypot(t.x - run.origin.x, t.y - run.origin.y) - 34));
+      if (t) dist = Math.min(dist, Math.max(0, Math.hypot(t.x - run.origin.x, t.y - run.origin.y) - 34));
     }
     const want = { x: run.origin.x + run.aim.x * dist * ease, y: run.origin.y + run.aim.y * dist * ease };
     const steps = Math.ceil(Math.hypot(want.x - k.x, want.y - k.y) / 2);
@@ -1904,8 +1937,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
           if (L.fresh && [...l.run.hitKeys].some((key) => key.endsWith(`|${t.id}`))) continue; // (already struck by the cast itself)
           if (L.once) { const st = (l.struck ??= new Set()); if (st.has(t.id)) continue; st.add(t.id); this.fx?.trapCatch(l.run.skill.id, { x: t.x, y: t.y, z: t.z }); }
           const at = { x: t.x, y: t.y, z: t.z + 40 };
-          if (l.run.own) { if (t.kind === 'enemy') this.applyToPve(zr, L.hit, t, at); else if (t.id === BOT_ID) this.applyToBot(zr, L.hit, t, at); } // remote players resolve your zone on their side
-          else if (t.id === this.localId) this.applyRemoteHitToSelf(zr, L.hit, 0, at); // another player's / the knight's zone on you
+          const zh = l.run.skill.id === 'sword_wave' ? { ...L.hit, reaction: { ...L.hit.reaction, pull: Math.max(0, Math.min(340, Math.hypot(t.x - l.x, t.y - l.y) - 58)) } } : L.hit; // (Sword Wave's ink shadow drags him back to where it was thrown)
+          if (l.run.own) { if (t.kind === 'enemy') this.applyToPve(zr, zh, t, at); else if (t.id === BOT_ID) this.applyToBot(zr, zh, t, at); } // remote players resolve your zone on their side
+          else if (t.id === this.localId) this.applyRemoteHitToSelf(zr, zh, 0, at); // another player's / the knight's zone on you
         }
       }
     }
@@ -1950,6 +1984,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     v.swordOff = !!this.jb; // Judgment Blade: no sword from the leap until he lands (the cast's own poses are bare too)
     if (this.cls === 'samurai' && run && this.dead < 0) alpha *= Math.max(0.25, samuraiSeen(run.skill.id, run.elapsed, run.timings)); // vanished (others see nothing; you, a shade)
     if (this.kage?.hidden && this.dead < 0 && !(run && run.skill.id === 'kagemusha')) alpha *= KAGE.shade;
+    if (this.unseen && this.dead < 0) alpha = 0.35; // the substitute: gone in ink (others see nothing; you, see-through)
     if (this.simMs < this.body.curseUntil && this.dead < 0) alpha = 0; // Paper Curse: folded into the crane (drawn by the effect) // Kagemusha: hidden among the doubles (you, a shade)
     v.render(ms, pose, k.x + jx, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
     this.renderCloudForm(ms);
@@ -2191,6 +2226,44 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   private onJumpKey(): void { if (this.pvpReady && this.dead < 0 && !this.inputLocked()) this.ci?.queueJump(); }
+  /** Rising Sun's banner: his jump coming down on it springs him far back (once a landing). */
+  private stepPole(now: number): void {
+    const p = this.pole, k = this.kin;
+    if (!p) return;
+    if (now >= p.until) { this.pole = null; return; }
+    if (k.grounded) { this.poleSpent = false; return; }
+    if (now < p.from || this.poleSpent || k.vz > 0 || this.dead >= 0 || this.body.state !== 'free') return;
+    if (Math.abs(k.x - p.x) > POLE.near || Math.abs(k.y - p.y) > POLE.near * 0.75 || k.z > POLE.top || k.z < 8) return;
+    this.poleSpent = true;
+    const back = -(FACE[this.dir].x || (this.faceSide < 0 ? -1 : 1)), vz = Math.sqrt(2 * PHYS.gravity * POLE.up);
+    const flight = (vz + Math.sqrt(vz * vz + 2 * PHYS.gravity * k.z)) / PHYS.gravity;
+    jump(k, vz); k.vx = back * POLE.dist / flight; k.vy = 0;
+    this.backstepUntil = now + flight * 1000; // (carried like the step back: no steering on the arc)
+    this.fx?.samPoleSpring(this.localId, back);
+    this.pvp?.sendRelease({ castId: p.castId || 'pole', at: -6, ax: back * 1000, ay: 0 });
+  }
+  /** Sheathe held: a blow landing in the guard hits a doll in his place, and he vanishes (unseen, untouchable) a while. */
+  private trySubstitute(at: V3): boolean {
+    const run = this.rt?.ownRun, k = this.kin;
+    if (!run || run.skill.id !== 'sheathe' || run.phase !== 'startup' || this.dead >= 0) return false;
+    this.rt!.cancelForFollowUp(run); this.endRun(run, false);
+    this.fx?.samSubstitute(this.localId, { x: k.x, y: k.y, z: k.z });
+    this.unseen = { castId: run.castId, until: this.simMs + SUBSTITUTE.unseenMs };
+    this.body.ghostUntil = Math.max(this.body.ghostUntil, this.unseen.until);
+    this.pvp?.sendRelease({ castId: run.castId, at: -7, ax: Math.round(k.x), ay: Math.round(k.y) });
+    void at; return true;
+  }
+  private stepUnseen(now: number): void {
+    if (!this.unseen) return;
+    if (now >= this.unseen.until) { this.reappear(); return; }
+  }
+  private reappear(): void {
+    const u = this.unseen, k = this.kin; if (!u) return;
+    this.unseen = null; this.body.ghostUntil = Math.min(this.body.ghostUntil, this.simMs);
+    this.fx?.samReappear(this.localId, { x: k.x, y: k.y, z: k.z });
+    this.pvp?.sendRelease({ castId: u.castId, at: -8, ax: Math.round(k.x), ay: Math.round(k.y) });
+  }
+
   /** The arena's step back (DFO backstep): pressed now, done on the first free frame (within the input buffer). */
   private onBackstepKey(): void { if (this.arena && this.pvpReady && this.dead < 0 && !this.inputLocked()) this.backstepWant = this.simMs; }
   /** Step back: a short hop away from where you face — no cooldown, no invulnerability (it is airborne: low hits miss it,
@@ -2779,6 +2852,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!(k.grounded ? s.ground : s.air)) return false;
     if (s.dash && b.hard.active(now)) return false; // rooted: no dashes
     if (this.mode === 'takeoff' && this.modeT < PHYS.takeoffMs) return false;
+    if (s.id === 'staff_flurry' && this.simMs >= this.lightStaffUntil) return false; // only while Light Staff is on (David 18 Oct 01:42)
     const run = this.rt.ownRun;
     if (run && run.skill.id === 'arrow_storm' && s.id === 'arrow_storm' && run.phase === 'active' && run.elapsed >= run.timings.startup + 250) { // Hunter's Rain: its key again ends the rain (David 18 Oct 01:33)
       this.rt.cancelForFollowUp(run); this.endRun(run, false); this.pvp?.sendRelease({ castId: run.castId, at: -4, ax: 0, ay: 0 }); return true;
@@ -2869,6 +2943,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const castId = `${this.localId}:${++this.castSeq}`;
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
     this.body.armorUntil = -1; this.body.shotArmorUntil = -1;
+    if (s.id === 'light_staff') this.lightStaffUntil = this.simMs + s.startup + LIGHT_STAFF.ms; // the cane lit (David 18 Oct 01:42)
+    if (s.id === 'rising_sun') { const f = FACE[this.dir].x || (this.faceSide < 0 ? -1 : 1), from = this.simMs + s.startup + s.active; this.pole = { castId: '', x: this.kin.x - f * POLE.behind, y: this.kin.y, from, until: from + POLE.ms }; } // the banner stays (David 18 Oct 01:15)
+    if (this.unseen && this.simMs < this.unseen.until && s.hits.length > 0) this.reappear(); // he strikes: out of the ink
     if (s.id === 'war_cry') { this.radiantFrom = this.simMs + Math.round(s.startup * 0.4); this.radiantUntil = Math.max(this.radiantUntil, this.simMs + s.startup + 8000); /* the roar lights the blade of light too (Radiant Blade folded into War Cry) */ this.warCryUntil = this.simMs + s.startup + 8000; this.shares.push({ at: this.simMs + s.startup, id: s.id, ms: 8000 }); /* shared at the release (sim clock), like the caster's own */ }
     if (s.id === 'iron_oath') { this.oathUntil = this.simMs + ct.startup + 60000; this.shares.push({ at: this.simMs + ct.startup, id: s.id, ms: 60000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(ct.startup, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'IRON OATH', '#ffd27a', 0)); }
     if (s.id === 'legacy_banner') { this.bannerUntil = this.simMs + ct.startup + 90000; this.shares.push({ at: this.simMs + ct.startup, id: s.id, ms: 90000 }); /* shared at the release (sim clock), like the caster's own */ this.time.delayedCall(Math.round(ct.startup * 0.7), () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'LEGACY BANNER', '#ffe7a0', 0)); this.time.delayedCall(Math.round(ct.startup * 0.7) + 760, () => this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, '+10% DMG  ·  -10% DMG TAKEN', '#fff3c4', 0)); }
@@ -2895,7 +2972,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.cls === 'gambler') this.gamblerStarted(s);
     if (s.chain) this.chain = { stage, lastEnd: Infinity, skill: s.id };
     this.setMode('skill');
-    const dm = this.ownDamageMul(s), rm = s.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.4 : 1; // buffs travel with the cast (victim-side damage / reach)
+    const dm = this.ownDamageMul(s), rm = s.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.4 : s.cls === 'gambler' && LIGHT_STAFF.skills.has(s.id) && this.simMs < this.lightStaffUntil ? LIGHT_STAFF.reach : 1; // buffs travel with the cast (victim-side damage / reach)
     this.pvp?.sendCast({ castId, skillId: s.id, stage, x: Math.round(from.x), y: Math.round(from.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000), ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}), lock, ...(followUp ? { fu: 1 } : {}), ...(s.id === 'call_the_deck' && run?.holdCount ? { hc: run.holdCount } : {}), ...(dm !== 1 ? { dm: Math.round(dm * 100) } : {}), ...(rm !== 1 ? { rm: Math.round(rm * 100) } : {}), ...(this.ownRangeMul(s) !== 1 ? { rg: Math.round(this.ownRangeMul(s) * 100) } : {}), ...(this.ownSpeedMul(s) !== 1 ? { sp: Math.round(this.ownSpeedMul(s) * 100) } : {}), ...(this.kage?.isAmbush(castId) ? { amb: 1 } : {}), ...(mf ? { mf } : {}), ...(run.primed ? { pr: 1 + run.primed.chargeUp } : {}), ...(run.petals ? { pb: run.petals } : {}) });
   }
 
@@ -3240,6 +3317,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private onSkillHit(run: CastRun, hit: HitEvent, hi: number, t: HitTarget, at: V3): void {
     if (t.id.startsWith('kage:')) { this.kageStruck(t.id); return; } // a Kagemusha double: the blow is wasted on it
+    if (run.own && run.skill.id === 'shield_charge' && this.bastion?.castId === run.castId) hit = { ...hit, damage: hit.damage + BASTION.perBlow * Math.min(BASTION.maxBlows, this.bastion.n) }; // Iron Bastion: every blow taken comes back
     if (run.skill.id === 'judgment_hook') { const f = this.hitFrom(run, hit), d = Math.hypot(at.x - f.x, at.y - f.y); hit = { ...hit, reaction: { ...hit.reaction, pull: Math.max(0, Math.min(340, d - 58)) } }; } // the chain yanks it to just in front of him
     if (!run.own) { if (t.id === this.localId) this.applyRemoteHitToSelf(run, hit, hi, at); return; }
     if (t.kind === 'enemy') { this.applyToPve(run, hit, t, at); this.stormChain(run, hit, t); return; }
@@ -3470,6 +3548,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const u = unit(from.x - k.x, from.y - k.y), aim = sideAim(u.x, u.y, this.dir === 'left' ? -1 : 1); // (side / corner)
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
     this.rt!.triggerCounter(run, aim, { x: k.x, y: k.y, z: k.z });
+    if (run.skill.id === 'long_guard') run.timings.active = Math.min(run.timings.active, LONG_GUARD.afterCatchMs); // (the catch ends the guard)
     this.pvp?.sendCounter({ castId: run.castId, x: Math.round(k.x), y: Math.round(k.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000) });
     return true;
   }
@@ -3603,8 +3682,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       return;
     }
     if (hit.damage > 0 && this.tryEvade(this.casterPos(run.attackerId) ?? run.origin)) { this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'armor' }); return; }
+    if (hit.damage > 0 && this.trySubstitute(at)) { this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'armor' }); return; } // Sheathe held: the doll takes it
     let h = run.dmgMul && run.dmgMul !== 1 ? { ...hit, damage: hit.damage * run.dmgMul } : hit; // caster's War Cry / Radiant Blade
     const rg = this.rageMul(run.attackerId, this.localId); if (rg !== 1 && h.damage > 0) h = { ...h, damage: h.damage * rg }; // the arena's comeback (rage)
+    const bst = this.rt?.ownRun; // Iron Bastion: iron — half the damage, and every blow counted for its counter-slash
+    if (bst && bst.skill.id === 'shield_charge' && (bst.phase === 'startup' || bst.phase === 'active') && h.damage > 0) { h = { ...h, damage: h.damage * BASTION.taken }; if (this.bastion?.castId !== bst.castId) this.bastion = { castId: bst.castId, n: 0 }; this.bastion.n++; }
     if (hit.damage > 0 && this.ambushIn.delete(run.castId)) { // a samurai's AMBUSH (Kagemusha): a sure critical and a stun; his doubles burst
       h = { ...h, damage: h.damage * KAGE.ambushMul, reaction: { ...h.reaction, stun: Math.max(h.reaction.stun ?? 0, KAGE.ambushStun) } };
       this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 50 }, 'AMBUSH!!', '#ff5a6a', 0);
@@ -4124,13 +4206,18 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       onCast: (from, m) => this.receiveCast(from, m),
       onCounter: (from, m) => {
         const r = this.rt?.runs.find((x) => x.castId === m.castId && x.attackerId === from);
-        if (r) { this.pvp?.remotes.get(from)?.teleport(m.x, m.y, m.z); this.rt!.triggerCounter(r, { x: m.ax / 1000, y: m.ay / 1000 }, { x: m.x, y: m.y, z: m.z }); } // (he reappears there at once)
+        if (r) { this.pvp?.remotes.get(from)?.teleport(m.x, m.y, m.z); this.rt!.triggerCounter(r, { x: m.ax / 1000, y: m.ay / 1000 }, { x: m.x, y: m.y, z: m.z }); if (r.skill.id === 'long_guard') r.timings.active = Math.min(r.timings.active, LONG_GUARD.afterCatchMs); } // (he reappears there at once)
       },
       onRelease: (from, m) => { // Judgment Blade thrown: final aim + the moment it left the hand
+        if (m.at === -6) { this.fx?.samPoleSpring(from, Math.sign(m.ax) || 1); return; } // the samurai sprang off his banner
+        if (m.at === -7) { this.fx?.samSubstitute(from, { x: m.ax, y: m.ay, z: 0 }); this.pvp?.remotes.get(from)?.vanish(SUBSTITUTE.unseenMs); return; } // his doll broke: he is gone
+        if (m.at === -8) { this.pvp?.remotes.get(from)?.show(); this.fx?.samReappear(from, { x: m.ax, y: m.ay, z: 0 }); return; } // out of the ink
         const r = this.rt?.runs.find((x) => x.castId === m.castId && x.attackerId === from);
         if (r && m.at === -3 && (r.skill.id === 'dice_bomb' || r.skill.id === 'roulette_wheel')) { this.doubleOrNothing(r, false); return; } // the gambler threw again
         if (r && r.skill.id === 'arrow_storm' && m.at === -2) { r.place = { x: m.ax, y: m.ay }; return; } // Hunter's Rain: the caster moved the mark
         if (r && r.skill.id === 'arrow_storm' && m.at === -4) { r.phase = 'done'; return; } // Hunter's Rain: the caster ended it
+        if (r && r.skill.id === 'long_guard' && m.at === -5) { r.phase = 'done'; return; } // Long Guard: he let go
+        if (r && r.skill.id === 'quick_shot_stream' && m.at === -9) { r.phase = 'done'; return; } // the archer's stream: she let go
         if (r && AIM_STEER.has(r.skill.id) && m.at === -1) { r.aim = sideAim(m.ax / 1000, m.ay / 1000, m.ax < 0 ? -1 : 1); return; } // Volley Stance / Spirit Bow / Eagle Tide: the caster turned the aim
         if (r && r.phase === 'startup') { r.aim = clampAim(unit(m.ax, m.ay)); r.timings.startup = Math.max(r.elapsed, m.at); }
         this.pvp?.remotes.get(from)?.setSkillStartup(r?.skill.id ?? '', r ? r.timings.startup : m.at);
@@ -4197,6 +4284,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const run = this.rt?.start({ castId: m.castId, skill: s, stage: Math.max(0, Math.min(2, m.stage ?? 0)), attackerId: from, own: false, origin: { x: m.x, y: m.y, z: m.z ?? 0 }, aim: unit(m.ax, m.ay), place, lock: m.lock ?? null, followUp: !!m.fu,
       dmgMul: Math.max(0.3, Math.min(1.4, (m.dm ?? 100) / 100)), reach: Math.max(1, Math.min(1.85, (m.rm ?? 100) / 100)),
       range: Math.max(1, Math.min(1.2, (m.rg ?? 100) / 100)), speed: Math.max(1, Math.min(1.35, (m.sp ?? 100) / 100)), ...(m.mf ? { mf: m.mf } : {}), ...(s.id === 'origami_flock' && ((m.mf ?? 0) >> 4) & 7 ? { extraShots: Math.min(4, ((m.mf ?? 0) >> 4) & 7) } : {}), ...(m.pr && kitFor(s.cls).some((x) => x.primes?.ids.includes(s.id)) ? { primed: { chargeUp: Math.max(0, Math.min(2, m.pr - 1)) } } : {}), ...(m.pb && s.id === 'iai_strike' ? { petals: Math.max(0, Math.min(PETALS.cap, Math.round(m.pb))) } : {}) }, this.pvp?.oneWay(from) ?? 0); // (pr: primed by his Sheathe — his screen decides) // (it left their hand one network delay ago: its wind-up is caught up)
+    if (run && s.id === 'light_staff') { this.lightStaffOf.set(from, this.simMs + s.startup + LIGHT_STAFF.ms); if (this.lightStaffOf.size > 16) this.lightStaffOf.clear(); } // (his cane lit, for its look)
     if (run) { this.remoteRuns.set(m.castId, { run, at: this.simMs }); for (const [k, v] of this.remoteRuns) if (this.simMs - v.at > 4000) this.remoteRuns.delete(k); }
     if (run && s.id === 'call_the_deck' && m.hc) run.holdCount = Math.max(2, Math.min(15, Math.round(m.hc))); // (the caster's gathered count is the truth: this screen's deck only draws the cards)
     if (run && s.id === 'origami_flock') this.foldPages(from, m.x, m.y); // (her pages fold into its cranes on this screen too)
@@ -4393,7 +4481,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.rt?.cancelOwn('death');
     this.lingers = []; this.shares = []; this.holdsStarted.clear(); this.petals.clear(); this.spikes.clear(); this.spikeRuns.clear();
     this.endBuffs();
-    this.warCryUntil = -1; this.radiantUntil = -1; this.radiantFrom = -1; this.domeAt = -1;
+    this.lightStaffUntil = -1; this.lightStaffOf.clear(); this.warCryUntil = -1; this.radiantUntil = -1; this.radiantFrom = -1; this.domeAt = -1;
     if (this.dome) this.dome.until = this.simMs;
     if (this.allyDome) this.allyDome.until = this.simMs;
     this.jb = null; this.jbWant = 0; this.carriedBy = null; this.lunge = null; this.momentum = null; this.gripHeld = false; this.leapUsed = false; this.leapUntil = -1;

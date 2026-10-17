@@ -186,6 +186,10 @@ const SIG: Record<string, Sig> = {
   pickup_52: { cast: 'gb_52_c', hit: 'gb_52_h' },
   grand_slam: { wind: 'gb_slam_w', windLead: 420, cast: 'gb_slam_c', lead: 157, hit: 'gb_slam_h' },
   triple_down: { cast: 'gb_triple_c', hit: 'gb_triple_h', end: 'gb_triple_end', every: true },
+  // (David 18 Oct 01:42: the replacements, on the old ones' sounds until their own)
+  light_staff: { cast: 'gb_grab_c' },
+  long_guard: { cast: 'gb_snap_c', hit: 'gb_allin_h' },
+  staff_flurry: { cast: 'gb_triple_c', hit: 'gb_triple_h', end: 'gb_triple_end', every: true },
   card_swap: { cast: 'gb_swap_c' },
   call_the_deck: { cast: 'gb_wild_c', lead: 150, hit: 'gb_wild_h', zone: 'gb_wild_z', zoneEnd: 'gb_wild_end', zoneVol: 0.7 }, // the big card fused and flung like a saw (its gather: deckGather), the cut, each turn of the hold under him, the last turn and its way home
 };

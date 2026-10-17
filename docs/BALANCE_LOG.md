@@ -4,6 +4,22 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-10-18 — The class chats' new shapes (David's 01:07–01:42 notes): numbers and engine
+- **Gambler — Light Staff** (replaces Kinetic Grab, slot 11): a self buff (250 ms cast, cooldown 20 s): for 8 s his staff blows reach ×1.7 (Cut the Deck's staff strikes, Staff Vault, Fuse Slam, Rotor Staff, Grand Slam, Staff Flurry — sector / line hits; the reach travels with the cast) and Staff Flurry opens. The scene: `LIGHT_STAFF`, `lightStaffOn(id)` (both screens).
+- **Gambler — Long Guard** (replaces All In, slot 13): held up to 2.5 s (cooldown 9 s); a blow reaching him in it is caught — the cards snap out along a 420 px line to the striker and stun him 1.2 s (a binding hold), no damage to him; release / its end / a catch (then 320 ms) ends it. A counter: whiffed it costs 200 ms more recovery.
+- **Gambler — Staff Flurry** (replaces Triple Down, slot 16): only while Light Staff is on (cooldown 12 s): 3 s of staff blows, one every 110 ms (2, every 5th 5 and setting off his cards), the last a rising swing (12, launch 110); super armor its first 600 ms; its whole 3 s in the arena too.
+- **Gambler — trials**: All In's snap moved to Grand Slam (every staff blow sets cards off; the bat all of them): SNAP, ACEHIGH, COLLAR, RECALL, LOADED end on Grand Slam; AFTERSHOCK, JACKPOT, HIGHROLLER open with Light Staff and run the flurry. All 11 clear.
+- **Warrior — Steel Tide** (Wave Slash): three crescents fanned 12° (one hit a foe, pierce), launch 80 → 115, heavy.
+- **Warrior — Impaling Rush** held (like Earthsplitter): a tap = the rush as it was; ~0.4 s: its dash ×1.8 and seven thrusts, the last 20 pushing 70; ~0.8 s: dash ×2.6, eight thrusts, the last 28 driving him back 150 (the scene: `LANCE_RUSH`).
+- **Warrior — Lion's Maw**: the lion stays where it pounced (130 px ahead) roaring 5 s — a roar every 600 ms (4, stun 260, push 20, 200 px round it), the last bursts (12, launch 90); cooldown 9 s → 12 s.
+- **Warrior — Iron Bastion** (Shield Charge, same id): 1.5 s of iron — super armor, damage taken ×0.5; at its end a counter-slash round him (150 px: 12 + 6 a blow taken, at most 8; launch 60). Cooldown 12 s. (In PvP the victim's screen counts the base 12 for now.)
+- **Samurai — Sword Wave**: the crescent as before; 700 ms after the throw its ink shadow cuts back along the 380 px line to where he threw it (14, stun 460), dragging whoever it meets back there over 300 ms — a zone, so he is free meanwhile.
+- **Samurai — Rising Sun's banner**: it stands 10 s after the burst, 44 px behind where he cast; his own jump coming down on it (within 34 px, under 110 px up) springs him 360 px back on a 170 px arc, once a landing (the scene: `POLE`; `fx.samPoleSpring` both screens).
+- **Samurai — Sheathe held** (the substitute): held up to 3 s it is his guard (a tap: the click as before); a blow landing in it breaks a doll in his place — no damage — and he vanishes 1.5 s (untouchable, unseen on the foe's screen, see-through on his own), back when the time runs out or he strikes (`fx.samSubstitute` / `fx.samReappear`).
+- **Archer — the held Double Shot** (`quick_shot_stream`): held past the first shot, arrows stream along the aim while Space is held (up to 4 s): one every 110 ms (4), every 5th gold (9, heavy, a mark); the held direction steers it; release ends it on every screen; its whole length in the arena.
+- **Archer — Leaf Decoy** (Backstep Shot): a decoy of leaves stays 1 s where she stood — a foe who strikes or touches it (60 px) is rooted 0.8 s (each foe once).
+- **Archer — Hunter's Rain** keeps its whole 5 s in the arena (it was squeezed to half there).
+
 ## 2026-10-18 — David's notes after playing them (01:07 Warrior, 01:15 Samurai): the numbers
 - **Warrior — Dash Slash** ("if it drags, let it drag"): it carries the foe to the dash's end, in front of the blade (`carry`, as Impaling Rush).
 - **Warrior — Judgment Blade** ("3 swords, 3 presses in the air"): 3 charges (≥120 ms apart, within 7 s); the cooldown, after the third, 9 s → 12 s.

@@ -9,9 +9,9 @@ export interface Card { suit: Suit; rank: number; joker?: boolean }
 /** The suit each skill deals: ♠ the staff up close, ♦ the thrown cards, ♣ the blasts, ♥ luck, moves and the grab. */
 export const SUIT: Record<string, Suit> = {
   charged_deal: 'D', riffle_shuffle: 'D', ace_in_the_hole: 'D', pickup_52: 'D',
-  staff_vault: 'S', rotor_staff: 'S', grand_slam: 'S', triple_down: 'S',
-  fuse_slam: 'C', roulette_wheel: 'C', dice_bomb: 'C', jackpot: 'C', all_in: 'C',
-  coin_flip: 'H', kinetic_grab: 'H', lady_luck: 'H', kinetic_overload: 'H', card_swap: 'H',
+  staff_vault: 'S', rotor_staff: 'S', grand_slam: 'S', triple_down: 'S', staff_flurry: 'S',
+  fuse_slam: 'C', roulette_wheel: 'C', dice_bomb: 'C', jackpot: 'C', all_in: 'C', long_guard: 'C',
+  coin_flip: 'H', kinetic_grab: 'H', light_staff: 'H', lady_luck: 'H', kinetic_overload: 'H', card_swap: 'H',
 };
 export const SUIT_GLYPH: Record<Suit, string> = { S: '♠', H: '♥', D: '♦', C: '♣' };
 export const RANK_NAME = (r: number) => (r === 14 ? 'A' : r === 13 ? 'K' : r === 12 ? 'Q' : r === 11 ? 'J' : String(r));

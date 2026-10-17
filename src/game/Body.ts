@@ -656,6 +656,10 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     grand_slam: { act: 'grand_slam', st: [0, 1, 2], ac: [3], rc: [4, 5] },
     kinetic_overload: { act: 'kinetic_overload', st: [0, 1, 2], ac: [3], rc: [4, 5] },
     triple_down: { act: 'triple_down', st: [0], ac: [1, 2, 3, 4, 5], rc: [5] },
+    // (David 18 Oct 01:42: the three that replace Kinetic Grab / All In / Triple Down — stand-ins from his own clips until the Gambler chat's)
+    light_staff: { act: 'coin_flip', st: [0, 1, 2, 3], ac: [4], rc: [5] },
+    long_guard: { act: 'all_in', st: [0, 1], ac: [1, 1], rc: [4, 5] },
+    staff_flurry: { act: 'rotor_staff', st: [0], ac: [0], rc: [5], loop: [1, 2, 3, 2], fps: 12 },
     // the basic chain, a strike of its own each (PixVerse): the jab, the back swing, the card flick, the rising swing
     cut_the_deck: { act: 'cut_jab', st: [0], ac: [1, 2], rc: [3, 4] },
     'cut_the_deck#1': { act: 'cut_swing', st: [0, 1], ac: [2, 3], rc: [4] },
@@ -666,6 +670,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
   },
   archer: {
     quick_shot: { act: 'double_shot', st: [0, 1], ac: [2, 3, 4, 5], rc: [5] },
+    quick_shot_stream: { act: 'double_shot', st: [0], ac: [2, 3, 4, 5], rc: [5], loop: [3, 4, 5, 4], fps: 12 }, // (the held stream: her loose kept going — a stand-in until the Archer chat's)
     'quick_shot#1': { act: 'charged_shot', st: [0, 1, 2, 3], ac: [4], rc: [5, 6] }, // Double Shot's charged arrow, its own move (PixVerse): the bow raised overhead as she draws, swung down into a deep lunge, the heavy release, recover
     rising_arrow: { act: 'rising_arrow', st: [0, 1, 2], ac: [3], rc: [4, 5] },
     bow_haste: { act: 'wind_step', st: [0], ac: [1, 2, 3], rc: [4, 5] }, // Wind Step, her own move (PixVerse): crouch, the somersault through the air, lands with the bow up
