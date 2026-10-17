@@ -592,7 +592,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     'warrior_basic#2': { act: 'basic_chain', st: [8], ac: [9, 10], rc: [11] }, // the rising cut: dropped low, swung up over his head
     'warrior_basic#3': { act: 'finisher', st: [0], ac: [1], rc: [2] },
     dash_slash: { act: 'dash_slash', st: [0], ac: [1, 2, 3], rc: [4, 5] },
-    rising_slash: { act: 'rising_slash', st: [0], ac: [1, 2, 3], rc: [4, 5] },
+    rising_slash: { act: 'rising_slash', st: [0], ac: [1, 2, 3], rc: [3, 4] }, // (David 01:07: its own motion, PixVerse — crouched low with the blade behind, the swing up from the floor, the sword high overhead, back to guard)
     lance_thrust: { act: 'lance_thrust', st: [0], ac: [0, 1, 2, 1, 2, 3, 4], rc: [4, 5] },
     ground_breaker: { act: 'ground_breaker', st: [0, 1], ac: [2, 3], rc: [3, 4, 5] },
     leap_crash: { act: 'leap_crash', st: [0], ac: [1, 2, 3, 4], rc: [4, 5] },
