@@ -1242,7 +1242,7 @@ export class GamblerFx {
       if (t >= T.startup || !h) { glow.destroy(); card.destroy(); return false; }
       const u = t / T.startup;
       glow.setPosition(h.x, h.y).setAlpha(0.25 + 0.5 * u).setScale(glow.scaleX);
-      card.setPosition(h.x, h.y - 6).setAlpha(clamp01((u - 0.4) / 0.3)).setScale(this.u * lerp(0.3, 0.7, out3(clamp01((u - 0.4) / 0.6)))).setAngle(Math.sin(t * 0.02) * 8);
+      card.setPosition(h.x, h.y - 6).setAlpha(clamp01((u - 0.4) / 0.3)).setScale(this.u * lerp(0.25, 0.5, out3(clamp01((u - 0.4) / 0.6)))).setAngle(Math.sin(t * 0.02) * 8);
       return true;
     });
   }
