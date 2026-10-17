@@ -14,8 +14,8 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   arcane_bolt: { tone: C.arcane, trail: { c: C.arcane, w: 10, len: 12 } },
   // a wide, low crest of arcane force running along the floor (it lifts the foe: the default launch layer under him)
   arcane_wave: { tone: C.arcane, active: (f, r) => { const c = me(f, r); f.wave(c.x, c.y, r.aim.x, r.aim.y, C.arcane, { len: 420, ms: 280, h: 110, w: 170 }); } },
-  // the trap snaps: a short column of rune light and a ring on the floor
-  binding_rune: { tone: C.arcane, own: true, hit: (f, _s, _h, at) => { f.pillar(at.x, at.y, C.arcane, { h: 260, r: 26, ms: 480, core: false }); f.host.ring(f.host.w3(at.x), f.host.d3(at.y), C.arcane, 1.6, 360, 0.7); } },
+  // the trap snaps: a net of rune chains closes over the foe (the SNARE trial: under a falling foe it catches him as he lands)
+  binding_rune: { tone: C.arcane, own: true, hit: (f, _s, _h, at) => { const z = at.z ?? 0; for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2; f.streak({ x: at.x + Math.cos(a) * 95, y: at.y + Math.sin(a) * 60, z: 0 }, { x: at.x + Math.cos(a) * 14, y: at.y + Math.sin(a) * 9, z: z + 70 + (k % 2) * 40 }, C.arcane, { w: 5, ms: 520, draw: 110 }); } f.host.ring(f.host.w3(at.x), f.host.d3(at.y), C.arcane, 1.6, 360, 0.7); } }, // (the net: six chains of rune light snap up from the floor and close over the foe — on a falling foe it catches him as he lands)
   // the launcher: the class's one tall twisting column, under the foe it throws up
   astral_burst: { tone: C.storm, own: true, active: (f, r) => { const p = placeOf(f, r, 120); f.pillar(p.x, p.y, C.storm, { h: 520, r: 36, ms: 520, twist: true, i: 0.75, core: false }); f.dome(p.x, p.y, C.arcane, { r: 110, ms: 300, a: 0.28 }); } },
   // cold bursting out round her: crystals grow at the rim (the fighters inside stay clear), a pale shell, frost dust

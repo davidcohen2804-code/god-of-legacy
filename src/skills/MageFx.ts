@@ -1042,7 +1042,7 @@ export class MageFx {
   }
   trapEnd(t: Trap, fired: boolean): void {
     this.trapArt.get(t)?.stop(); this.trapArt.delete(t);
-    if (fired && t.run.skill.id !== 'frost_rune' && this.ctx.scene.textures.exists('mfx-rune')) { this.sheet('mfx-rune', t.x, t.y, t.radius * 4.4, 1000, { frames: [4, 12], oy: 0.72, depth: t.y + 3 }); this.shake(100, 0.005); return; }
+    if (fired && t.run.skill.id !== 'frost_rune' && this.ctx.scene.textures.exists('mfx-rune')) { this.sheet('mfx-rune', t.x, t.y, t.radius * 4.4, 1000, { frames: [4, 12], oy: 0.72, depth: t.y + 3, fade: [[0, 0.55], [0.25, 0.8], [0.8, 0.7], [1, 0]] }); /* (the chains bind him lightly enough that he reads inside: the snap's first frames burst white) */ this.shake(100, 0.005); return; }
     if (fired && this.ready) this.pop(t.run.skill.id === 'frost_rune' ? 'ice_shatter' : 'sig_disk', t.x, t.y - 16, 90, { life: 300 });
   }
 
