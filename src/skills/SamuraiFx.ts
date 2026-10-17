@@ -149,6 +149,10 @@ export class SamuraiFx {
   /** Each skill's latest blow (its hit marks come from the scene a moment later, without the cast). */
   private lastHit = new Map<string, { own: { attackerId: string; castId: string; skill: string }; at: number }>();
   private lastAny: { own: { attackerId: string; castId: string; skill: string }; at: number } | null = null;
+  /** The other pieces a cast made (its own drawn ones: silhouettes, ink streaks, the dragons…) — cut short with it: faded
+   *  over what their own step draws. (The pieces that cut themselves short — `spr`, `floor`, the ribbons — are left out.) */
+  private tracked: { objs: Phaser.GameObjects.GameObject[]; born: number; cutAt: number; unreg: (() => void) | null; dead?: boolean }[] = [];
+  private selfCut = new WeakSet<Phaser.GameObjects.GameObject>();
 
   constructor(private ctx: SamCtx) {}
 
@@ -159,7 +163,7 @@ export class SamuraiFx {
   private add(l: Live): void { this.incoming.push(l); }
   private later(ms: number, fn: () => void, run?: CastRun): void {
     const own = this.cur; // (what it makes later belongs to the same cast)
-    this.add({ t: 0, step: (_dt, t) => { if (t < ms) return true; if (!run || !(run.phase === 'done' && !run.fired.size)) { const prev = this.cur; this.cur = own; try { fn(); } finally { this.cur = prev; } } return false; } });
+    this.add({ t: 0, step: (_dt, t) => { if (t < ms) return true; if (!run || !(run.phase === 'done' && !run.fired.size)) this.withOwn(own, fn); return false; } });
   }
   /** Register a piece of the current cast to be cut short by its caster's next skill (`fn`); returns its removal. */
   private onNext(fn: () => void, own = this.cur): (() => void) | null {
@@ -170,9 +174,30 @@ export class SamuraiFx {
   }
   /** Run `fn` with the pieces it makes belonging to `r` (none for the skills whose pieces show a state: a zone, a stance). */
   private as<T>(r: { attackerId: string; castId: string; skill: { id: string } } | null, fn: () => T): T {
-    const prev = this.cur;
-    this.cur = r && !KEEP.has(r.skill.id) ? { attackerId: r.attackerId, castId: r.castId, skill: r.skill.id } : null;
-    try { return fn(); } finally { this.cur = prev; }
+    return this.withOwn(r && !KEEP.has(r.skill.id) ? { attackerId: r.attackerId, castId: r.castId, skill: r.skill.id } : null, fn);
+  }
+  /** Run `fn` with its pieces belonging to `own`; what it drew on its own (not through `spr` / `floor`) is tracked too. */
+  private withOwn<T>(own: { attackerId: string; castId: string; skill: string } | null, fn: () => T): T {
+    const prev = this.cur, list = own ? this.ctx.scene.children.list : null, n0 = list?.length ?? 0;
+    this.cur = own;
+    try { return fn(); } finally {
+      if (own && list && list.length > n0) {
+        const objs = list.slice(n0).filter((o) => !this.selfCut.has(o));
+        if (objs.length) { const e = { objs, born: this.real, cutAt: -1, unreg: null as (() => void) | null }; e.unreg = this.onNext(() => { if (e.cutAt < 0) e.cutAt = Math.max(this.real, e.born + SamuraiFx.CUT.min); }, own); this.tracked.push(e); }
+      }
+      this.cur = prev;
+    }
+  }
+  /** After every piece has drawn itself: the tracked pieces cut short fade over what their step drew (real time). */
+  private stepTracked(): void {
+    for (const e of this.tracked) {
+      const alive = e.objs.filter((o) => o.active && o.scene);
+      if (!alive.length) { e.dead = true; e.unreg?.(); continue; }
+      if (e.cutAt < 0 || this.real < e.cutAt) continue;
+      const f = 1 - (this.real - e.cutAt) / SamuraiFx.CUT.fade;
+      for (const o of alive) { const g = o as unknown as { setVisible(v: boolean): unknown; setAlpha(a: number): unknown; alpha: number }; if (f <= 0) g.setVisible(false); else g.setAlpha(g.alpha * f); }
+    }
+    if (this.tracked.some((e) => e.dead)) this.tracked = this.tracked.filter((e) => !e.dead);
   }
   /** A piece cut short: it keeps at least 100 ms of its life, then fades out in 90 ms (real time: a hit-stop holds the
    *  new blow's picture, not the old one's). */
@@ -211,6 +236,7 @@ export class SamuraiFx {
       return im;
     };
     const im = mk(false), gl = o.glow ? mk(true) : null;
+    this.selfCut.add(im); if (gl) this.selfCut.add(gl);
     let shown = false, cutAt = -1;
     const born = this.real;
     const unreg = o.keep ? null : this.onNext(() => { if (cutAt < 0) cutAt = Math.max(this.real, born + (o.delay ?? 0) + SamuraiFx.CUT.min); });
@@ -250,6 +276,7 @@ export class SamuraiFx {
     };
     const im = mk(false), gl = o.glow ? mk(true) : null;
     const box = s.add.container(x, y, gl ? [im, gl] : [im]).setScale(1, o.squash ?? SQUASH).setDepth(o.depth ?? GROUND + 2).setVisible(false);
+    this.selfCut.add(box);
     const k0 = im.scaleX, k1 = im.scaleY;
     let shown = false, cutAt = -1;
     const born = this.real;
@@ -471,6 +498,7 @@ export class SamuraiFx {
    *  (or `until` ms pass) and fades out over `fade` ms. */
   private trail(at: (t: number) => Pt | null, o: { span: number; w: number; tint?: number; glow?: number; until?: number; fade?: number; delay?: number; run?: CastRun; tone?: Tone }): void {
     const key = this.ribbonTex(o.tone), N = 24, base = this.strip(undefined, N, { key, tint: o.tint }), light = this.strip(undefined, N, { key, add: true });
+    this.selfCut.add(base.rope); this.selfCut.add(light.rope);
     const hist: { x: number; y: number; d: number; t: number }[] = [];
     let stop = -1, fade = o.fade ?? 180, k0 = 1, tNow = 0;
     // (his next skill clears it: a fading ribbon froze on screen through the next skill's hit-stops — the effects' clock
@@ -1882,7 +1910,7 @@ export class SamuraiFx {
    *  the fling at his blade; on impact (a foe, a wall, its end) it shatters into shards and petals. */
   projectile(p: Projectile): void {
     if (!this.ready) return;
-    this.as({ attackerId: p.attackerId, castId: p.castId, skill: p.skill }, () => this.projectileOne(p));
+    this.withOwn(null, () => this.projectileOne(p)); // (a crescent in flight is never cut short: it is the blow itself)
   }
   private projectileOne(p: Projectile): void {
     const s = this.ctx.scene, wc = this.fname(tn('wave_crescent', 'gold')); // (a golden crescent moon)
@@ -1976,6 +2004,7 @@ export class SamuraiFx {
     const cur = this.live.concat(this.incoming);
     this.incoming = [];
     this.live = cur.filter((l) => { l.t += dt; return l.step(dt, l.t); });
+    this.stepTracked();
     this.stepHalos(dt);
     this.stepMarks(dt);
     this.stepPetals(dt);
@@ -1990,6 +2019,6 @@ export class SamuraiFx {
     for (const id of [...this.scabs.keys()]) this.scabEnd(id, 'gone');
     for (const id of [...this.suns.keys()]) this.clearSun(id, true);
     for (const [p] of this.waves) this.projectileEnd(p);
-    this.live = []; this.incoming = []; this.nexts.clear(); this.lastHit.clear();
+    this.live = []; this.incoming = []; this.nexts.clear(); this.lastHit.clear(); this.tracked = [];
   }
 }
