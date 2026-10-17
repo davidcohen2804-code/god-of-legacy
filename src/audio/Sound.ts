@@ -10,6 +10,7 @@
 // courtyard (room(): a short reverb with the walls' early reflections), each sound sending its share (PlayOpts.wet).
 import Phaser from 'phaser';
 import { SettingsStore } from '../core/SettingsStore';
+import { ARENA3D } from '../arena3d/flag';
 
 const A = 'assets/audio/';
 const urls = (path: string) => [`${A}${path}.ogg`, `${A}${path}.mp3`];
@@ -108,10 +109,14 @@ const MENU_VOICE_ON = true;
 const MUSIC = new Set(['select', 'courtyard', 'lava', 'shaolin', 'sakura', 'ship', 'ice']);
 /** Short pieces played once over the music (the music fades out under them and comes back after). */
 const JINGLES = new Set<string>(['victory']);
-/** Each stage's ambience and the one-shots its events play. */
-const AMB: Record<string, string[]> = { courtyard: [], lava: [], shaolin: ['dragon_roar'], sakura: [], ship: ['thunder_1', 'thunder_2', 'thunder_3'], ice: ['ice_flare'] };
-const AMB_VOL: Record<string, number> = { courtyard: 0.26, lava: 0.24, shaolin: 0.24, sakura: 0.26, ship: 0.3, ice: 0.24 }; // (under the music)
-const ONE_VOL: Record<string, number> = { thunder: 0.75, dragon_roar: 0.6, ice_flare: 0.45 };
+/** Each stage's ambience and the one-shots its events play. `temple`: PVP 3D's living temple courtyard
+ *  (tools/audio/ambience.py: the wind through the cherry crowns, the koi pond on the left, the banners and the paper
+ *  streamers in the gusts, the lanterns creaking, birds on the roofs; the birds startled into the air by a heavy blow). */
+const AMB: Record<string, string[]> = { courtyard: [], lava: [], shaolin: ['dragon_roar'], sakura: [], ship: ['thunder_1', 'thunder_2', 'thunder_3'], ice: ['ice_flare'], temple: ['birds_up_1', 'birds_up_2'] };
+const AMB_VOL: Record<string, number> = { courtyard: 0.26, lava: 0.24, shaolin: 0.24, sakura: 0.26, ship: 0.3, ice: 0.24, temple: 0.28 }; // (under the music)
+const ONE_VOL: Record<string, number> = { thunder: 0.75, dragon_roar: 0.6, ice_flare: 0.45, birds_up: 0.5 };
+/** The ambience a stage plays: PVP 3D stands the fight in the 3D temple courtyard (its own living sound), not the painting. */
+const ambOf = (stage: string | null | undefined): string | null => (stage === 'courtyard' && ARENA3D.on ? 'temple' : stage ?? null);
 const MUSIC_VOL = 0.55;
 const VOICE_VOL = 1;
 
@@ -140,7 +145,8 @@ export function loadArenaSound(scene: Phaser.Scene, stage: string | undefined, c
   loadFamilies(scene, SFX);
   for (const c of classes?.length ? classes : Object.keys(SIG_SFX)) { const set = c ? sigOf(c) : undefined; if (set) loadFamilies(scene, set); }
   for (const v of VOICE) load(scene, `v_${v}`, `voice/${v}`);
-  if (stage && AMB[stage]) { load(scene, `amb_${stage}`, `amb/amb_${stage}`); for (const o of AMB[stage]) load(scene, o, `amb/${o}`); }
+  const amb = ambOf(stage);
+  if (amb && AMB[amb]) { load(scene, `amb_${amb}`, `amb/amb_${amb}`); for (const o of AMB[amb]) load(scene, o, `amb/${o}`); }
 }
 
 // ---------------------------------------------------------------- playing
@@ -357,7 +363,7 @@ export const Sound = {
   },
 
   /** A stage's ambience (loaded with the arena) or none. */
-  ambience(stage: string | null, fadeMs = 1200): void { channel(chAmb, stage && AMB[stage] ? `amb_${stage}` : null, fadeMs, stage ? AMB_VOL[stage] : 1); },
+  ambience(stage: string | null, fadeMs = 1200): void { const a = ambOf(stage); channel(chAmb, a && AMB[a] ? `amb_${a}` : null, fadeMs, a ? AMB_VOL[a] : 1); },
 
   /** The music dips for a while (a K.O., an ultimate): the longer and the deeper of two dips at once wins. */
   duck(ms: number, level = 0.3): void { const now = performance.now(); duckLevel = now < duckUntil ? Math.min(duckLevel, level) : level; duckUntil = Math.max(duckUntil, now + ms); },

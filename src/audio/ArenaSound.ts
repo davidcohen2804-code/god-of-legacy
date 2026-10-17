@@ -32,7 +32,9 @@ export interface HeardFighter { id: string; x: number; /** depth on the floor */
  *  smaller farther away), the fight it frames, and how dark the room wants to be (0 none .. 1). */
 export interface RoomView { project(x: number, y: number, z: number): { sx: number; sy: number; k: number }; focus: { x: number; y: number; z: number }; dimWant: number;
   /** The skills' 3D pieces: each one announced as it appears (what, where, how big 0..2, and its options when given). */
-  fx?: { onPiece?: (kind: FxPiece, at: { x: number; y: number; z: number }, size: number, o?: PieceLook) => void } }
+  fx?: { onPiece?: (kind: FxPiece, at: { x: number; y: number; z: number }, size: number, o?: PieceLook) => void };
+  /** The room's life (Maps): the birds startled off the roofs into the air (where the flock rises, world px). */
+  onLife?: (what: 'birds', at: { x: number; y: number; z: number }) => void }
 /** What a piece is made of, when the 3D layer says (its crystals: rock spikes — the Warrior's stone —, or green: thorns). */
 export interface PieceLook { stone?: boolean; color?: number }
 
@@ -204,7 +206,9 @@ export class ArenaSound {
   use3D(view: RoomView): void {
     this.view = view; this.dimHeard = 0; Sound.room(true);
     if (view.fx) view.fx.onPiece = (kind, at, size, o) => this.piece(kind, at, size, o);
+    view.onLife = (what, at) => { if (what === 'birds') Sound.oneShot(`birds_up_${1 + (this.birdTake++ % 2)}`, { x: at.x, y: at.y, z: at.z, wet: WET.piece }); }; // (a flurry of wings, flying off where they rose)
   }
+  private birdTake = 0;
 
   /** A piece of a skill in the room: its own short sound where it is (bigger: louder and deeper). */
   private piece(kind: FxPiece, at: { x: number; y: number; z: number }, size: number, look?: PieceLook): void {
