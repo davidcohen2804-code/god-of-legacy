@@ -285,6 +285,40 @@ def blade_line(crop, ax, ay):
     return [round(float(hilt[0] - ax), 1), round(float(hilt[1] - ay), 1), round(float(tip[0] - ax), 1), round(float(tip[1] - ay), 1)]
 
 
+def thin_line(crop, ax, ay, r=4):
+    """The sword as the longest thin straight streak sticking out of the silhouette (alpha minus its opening by a disk):
+    PixVerse clips draw the blade dull and blurred, so blade_line's bright-steel test misses it. Hilt = the end at the body."""
+    a = crop[..., 3] > 100
+    yy, xx = np.mgrid[-r:r+1, -r:r+1]; disk = xx*xx+yy*yy <= r*r
+    core = ndimage.binary_opening(a, structure=disk)
+    thin = a & ~ndimage.binary_dilation(core, iterations=1)
+    lab, k = ndimage.label(thin, structure=np.ones((3,3)))
+    best, bl = None, 0.0
+    for i in range(1, k+1):
+        ys, xs = np.where(lab == i)
+        if len(xs) < 20: continue
+        pts = np.stack([xs, ys], 1).astype(np.float32); c = pts.mean(0)
+        u, sv, vt = np.linalg.svd(pts - c, full_matrices=False)
+        d = vt[0]; t = (pts - c) @ d; L = t.max() - t.min()
+        thick = sv[1] / np.sqrt(len(pts))
+        if L < 30 or thick > 0.05 * L + 1.5: continue
+        if L > bl: bl, best = L, (c + d * t.min(), c + d * t.max())
+    if best is None: return None
+    p0, p1 = best
+    dist = ndimage.distance_transform_edt(~core)
+    def dd(p):
+        x, y = int(np.clip(p[0], 0, crop.shape[1]-1)), int(np.clip(p[1], 0, crop.shape[0]-1)); return dist[y, x]
+    hilt, tip = (p0, p1) if dd(p0) < dd(p1) else (p1, p0)
+    return [round(float(hilt[0]-ax),1), round(float(hilt[1]-ay),1), round(float(tip[0]-ax),1), round(float(tip[1]-ay),1)]
+
+
+def sword_line(crop, ax, ay):
+    """blade_line, or thin_line when that is longer (a dull clip blade sticking out) or blade_line finds nothing."""
+    b, t = blade_line(crop, ax, ay), thin_line(crop, ax, ay)
+    if b is None or t is None: return b or t
+    L = lambda q: ((q[2] - q[0]) ** 2 + (q[3] - q[1]) ** 2) ** 0.5
+    return t if L(t) > L(b) else b
+
 def face_size(f):
     """Size of the face (sqrt of its skin area, in the top third of the figure): one measure of how big a sheet drew him."""
     import cv2
@@ -509,14 +543,14 @@ def main():
         for (act, ax, ay), (px, py), im in zip(acts, pos, ims):
             fr = [px, py, im.shape[1], im.shape[0], round(ax, 1), round(ay, 1)]
             if cls == 'warrior':  # the sword's line (Radiant Blade's light blade grows along it)
-                bl = blade_line(im, ax, ay)
+                bl = sword_line(im, ax, ay)
                 if bl: fr.append(bl)
             A.setdefault(act, []).append(fr)
         if cls == 'warrior':  # a frame whose blade could not be traced borrows the nearest traced frame's of its row
             for act, fs in A.items():
                 for i, fr in enumerate(fs):
                     if len(fr) == 6:
-                        near = sorted((abs(j - i), j) for j, g in enumerate(fs) if len(g) > 6)
+                        near = sorted((abs(j - i), j) for j, g in enumerate(fs) if len(g) > 6 and abs(j - i) <= 1)  # (only a neighbour's: a far frame's line hung the light blade off the body — the jump, David)
                         if near: fr.append(list(fs[near[0][1]][6]))
         A.pop('walk_old', None); A.pop('run_old', None); A.pop('jackpot_old', None)
         # the full cycle: the step, then the same step with the legs exchanged (the other leg in front) — the legs alternate
