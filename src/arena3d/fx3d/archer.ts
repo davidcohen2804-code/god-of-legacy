@@ -15,13 +15,21 @@ const SUN = 0xffe27a;
  *  SPIRIT cyan-green beasts of light (hawk, wolf, eagle, the spirit arrow). FIRE is Fireball Arrow only, STORM Thunder Rain, SUN the two rains. */
 /** Each recipe's `tone`: the colour the room answers its blows in (light, floor mark / ring, embers). */
 const WIND = 0xd4ffd0, THORN = 0x3fae3a, SPIRIT = 0x6cffe2;
+/** The small star at the bow on a release (David's bar, the deer archer 06): two short crossing streaks, white core + its colour, ~120 ms. */
+const bowStar = (f: Parameters<NonNullable<Recipe['fired']>>[0], o: { x: number; y: number; z: number }, color: number, s = 1): void => {
+  const L = 34 * s, z = Math.max(40, o.z);
+  f.streak({ x: o.x - L, y: o.y, z }, { x: o.x + L, y: o.y, z }, color, { w: 6 * s, ms: 120, draw: 20, front: true, quiet: true });
+  f.streak({ x: o.x, y: o.y, z: z - L * 0.8 }, { x: o.x, y: o.y, z: z + L * 0.8 }, color, { w: 6 * s, ms: 120, draw: 20, front: true, quiet: true });
+};
 
 export const ARCHER: Record<string, Recipe> = {
-  // Double Shot: two thin leaf trails; the charged third arrow (chain stage 2) a gold streak along the aim and a push of the camera
+  // Double Shot: a star at the bow on every release, two thin leaf trails; the charged third arrow (chain stage 2) a bigger gold star and a gold
+  // streak along the aim. Its main hit is the room's (DFO's impact on every main hit) — nothing of its own on the foe.
   quick_shot: { tone: WIND,
     trail: { c: C.leaf, w: 8, len: 10, i: 1.8 },
+    fired: (f, r, _i, o) => bowStar(f, o, r.stage === 1 ? SUN : WIND, r.stage === 1 ? 1.6 : 1),
     active: (f, r) => { if (r.stage !== 1) return; const c = me(f, r); f.streak({ x: c.x + side(r) * 30, y: c.y, z: 62 }, { x: c.x + r.aim.x * 470, y: c.y + r.aim.y * 280, z: 62 }, SUN, { w: 16, ms: 260, draw: 70 }); f.host.kick(0.02); },
-    own: true, hit: (f, _s, h, at) => { if (h.heavy) { f.dome(at.x, at.y, SUN, { r: 80, ms: 240, a: 0.55 }); f.debris(at.x, at.y, 4, { speed: 0.7, up: 0.6 }); } },
+    own: true,
   },
   // Rising Arrow: a green geyser bursts up under the foe — the floor cracks and a twisting column of leaf light throws him up
   rising_arrow: { tone: WIND, own: true, hit: (f, _s, _h, at, main) => { if (!main) return; f.crack(at.x, at.y, WIND, { r: 80, chunks: 6, up: 1.3 }); f.pillar(at.x, at.y, WIND, { h: 440, r: 28, ms: 420, twist: true }); } },
