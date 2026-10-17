@@ -654,13 +654,13 @@ export class SkillFx {
   private dragon(r: CastRun): void {
     const T = r.timings, a = r.aim, at = { x: r.origin.x + a.x * 110, y: r.origin.y + a.y * 110 };
     const pre = 480, dive = Math.max(0, T.startup - pre); // the titan of light rises after the cut-in and the tear: frames 0-5 rise and lift the sword, frame 6 = the sword driven into the floor on the active start
-    const img = this.scene.add.image(at.x, at.y + 10, 'titan-dragon', 0).setOrigin(0.5, 0.97).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(380, 597).setDepth(TOP + 2).setAlpha(0.92); // (sized so the titan towers over the fight without washing the whole screen out)
+    const img = this.scene.add.image(at.x, at.y + 10, 'titan-dragon', 0).setOrigin(0.5, 0.97).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(350, 550).setDepth(at.y - 3).setAlpha(0.5).setTint(0xffc070); img.setData('a0', 0.5); // (David: no white-out — a soft glow behind the two fighters, both read through it) // (sized so the titan towers over the fight without washing the whole screen out)
     const fr = [12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]; // 12 = empty frame while the cut-in plays (sim-timed)
     const fms = [dive, pre * 0.14, pre * 0.14, pre * 0.16, pre * 0.16, pre * 0.18, pre * 0.22, 150, 170, 180, 190, 210, 260];
     this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: fr, frameMs: fms, fadeLast: 240 });
     this.scene.time.delayedCall(T.startup + 160, () => this.titanField(at.x, at.y, (r.skill.linger?.startMs ?? 760) - 160 + (r.skill.linger?.everyMs ?? 350) * (r.skill.linger?.count ?? 9))); // the struck floor stays electrified
     this.scene.time.delayedCall(T.startup, () => { // impact flash rings
-      this.shockwave(at.x, at.y, 320, 0xfff0b0); this.scene.time.delayedCall(90, () => this.shockwave(at.x, at.y, 420, 0xffc860));
+      this.shockwave(at.x, at.y, 300, 0xffc860); this.scene.time.delayedCall(90, () => this.shockwave(at.x, at.y, 400, 0xe0402a));
       (this.cam ?? this.scene.cameras.main).shake(420, 0.014);
     });
   }
@@ -1114,15 +1114,15 @@ export class SkillFx {
         const side = Math.random() < 0.5 ? -1 : 1, d = 60 + Math.random() * 180;
         this.scene.tweens.add({ targets: sp, x: px + side * d * 0.55, y: py - side * d * 0.85 + 60, alpha: 0, scale: sp.scale * 0.3, duration: 380 + Math.random() * 420, ease: 'Quad.easeOut', delay: Math.random() * 120, onComplete: () => sp.destroy() });
       }
-      const tear = this.scene.add.image(v.centerX, v.centerY, 'titan-tear', 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 48).setDisplaySize(v.width * 1.05, v.height * 1.05).setAlpha(0.28);
+      const tear = this.scene.add.image(v.centerX, v.centerY, 'titan-tear', 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 48).setDisplaySize(v.width * 1.05, v.height * 1.05).setAlpha(0.16); tear.setData('a0', 0.16);
       const fms = [70, 110, 230, 200];
       this.anims.push({ img: tear, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: [0, 1, 2, 3], frameMs: fms, fadeLast: 200 });
       cam.shake(200, 0.006);
     });
     this.scene.time.delayedCall(r.timings.startup, () => {
       if (!arch && r.skill.cls !== 'samurai') { // (archer: no white-out — the arrows themselves are the payoff; samurai: the white comes with the great cut, after the eight in the dark)
-        const f = this.scene.add.rectangle(0, 0, W, H, 0xfff4d8, 0.3).setOrigin(0, 0).setScrollFactor(0).setDepth(TOP + 45).setBlendMode(Phaser.BlendModes.ADD); // (a flash, not a white-out: the fight stays readable)
-        this.scene.tweens.add({ targets: f, alpha: 0, duration: 380, ease: 'Quad.easeOut', onComplete: () => f.destroy() });
+        const wr = r.skill.cls === 'warrior', f = this.scene.add.rectangle(0, 0, W, H, wr ? 0xffc870 : 0xfff4d8, wr ? 0.12 : 0.3).setOrigin(0, 0).setScrollFactor(0).setDepth(TOP + 45).setBlendMode(Phaser.BlendModes.ADD); // (a flash, not a white-out: the fight stays readable)
+        this.scene.tweens.add({ targets: f, alpha: 0, duration: wr ? 260 : 380, ease: 'Quad.easeOut', onComplete: () => f.destroy() }); // (warrior: a soft warm glow — David: Titan's Verdict must never white the screen out)
       }
       cam.shake(420, 0.014);
     });
@@ -1137,10 +1137,10 @@ export class SkillFx {
     if (s.cls === 'book_mage') { this.mage.hit(r, i, o); return; }
     if (s.cls === 'archer' && this.arch.ready) { this.arch.hit(r, i, o); return; }
     // Multi-hit area skills: a short pulse per tick so every discrete hit reads (VFX timeline already running).
-    if (i > 0 && s.cls !== 'archer' && (h.shape.kind === 'circle' || h.shape.kind === 'placed')) { // (archer areas carry their own art: no area-sized flash)
+    if (i > 0 && s.cls !== 'archer' && s.id !== 'titans_verdict' && (h.shape.kind === 'circle' || h.shape.kind === 'placed')) { // (Titan's Verdict: its own art — the 240 px pulse per blow stacked into the white blob in PVP 3D) // (archer areas carry their own art: no area-sized flash)
       const c = h.shape.kind === 'placed' ? (r.place ?? o) : circleCentre(h.shape, o, r.aim, r.place);
       const k = IMPACT.warrior;
-      this.spark(k.key, c.x, c.y - (h.shape.kind === 'placed' ? 30 : o.z + 40), k.frames, (h.shape.kind === 'placed' ? h.shape.radius : (h.shape as { radius: number }).radius) * 1.2, 0.8);
+      this.spark(k.key, c.x, c.y - (h.shape.kind === 'placed' ? 30 : o.z + 40), k.frames, (h.shape.kind === 'placed' ? h.shape.radius : (h.shape as { radius: number }).radius) * 0.8, 0.45); // (soft and a size down: a pulse per tick, never a flash over the fighters)
     }
     if (s.id === 'leap_crash') { // crater at the landing point
       // lies flat on the floor under the actors (never painted over the warrior)
@@ -1307,12 +1307,13 @@ export class SkillFx {
     else if (s.cls === 'gambler') this.gamb.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, counter);
     else if (s.cls === 'samurai') this.sam.confirmed(s, hit, at, reaction, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, from, local, counter); // (the cut of the blade on the foe and the marks of what happened to it; the ensō on a COUNTER)
     else if (s.cls === 'warrior' && this.scene.textures.exists('imp-wsparks')) { // the Judge's sparks: few hits, each one felt — normal / heavy / launch
-      const row = counter ? 3 : reaction === 'launch' ? 2 : tier === 'ultimate' || tier === 'signature' || hit.heavy ? 1 : 0;
+      const row = counter ? 3 : reaction === 'launch' ? 2 : tier === 'signature' || hit.heavy ? 1 : 0; // (an ultimate's small blows stay small: only its heavy ones burst — Titan's Verdict's 7 + 9 small hits whited the screen)
       // (feel pass, PVP 3D: the small hits of a burst stay small so its last / heavy one stands out; the regular attack's
       //  strikes read, its heavy 4th one bigger; the heavy bursts a size down — at 170+ they hid the foe)
       const rapid = s.hits.length > 4 && !hit.heavy;
-      const size = row === 3 ? 190 : row === 1 ? (tier === 'ultimate' ? 200 : 150) : row === 2 ? 150 : s.id === 'warrior_basic' ? 100 : rapid ? 84 : 108; // (the chain's 4th strike is heavy: the 150 burst)
-      this.spark('imp-wsparks', at.x, at.y - at.z - 38, row * 6 + 6, size, 0.95, row * 6);
+      const size = row === 3 ? 190 : row === 1 ? (tier === 'ultimate' ? 180 : 150) : row === 2 ? 150 : s.id === 'warrior_basic' ? 100 : rapid ? 84 : 108; // (the chain's 4th strike is heavy: the 150 burst)
+      const soft = rapid && row === 0; // (a burst's small sparks soft: stacked at full strength under an ultimate's camera punch-in they burnt to a white blob)
+      this.spark('imp-wsparks', at.x, at.y - at.z - 38, row * 6 + 6, soft && tier === 'ultimate' ? 64 : size, soft ? (tier === 'ultimate' ? 0.45 : 0.65) : 0.95, row * 6);
     }
     else if (s.id !== 'warrior_basic') this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.4 : hit.heavy ? 1.15 : 1), 0.8); // (a regular attack: none, as in MapleStory)
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).
@@ -1334,7 +1335,7 @@ export class SkillFx {
       if (tier !== 'basic' || weighty) this.scene.cameras.main.shake(d, i);
       // the main hit bends the air (a ring racing out from the blow) and splits the colour for a beat; an ultimate's
       // pulls the picture toward it (Prometheus: every big blow is felt on the whole screen)
-      if (weighty || counter || tier === 'signature' || tier === 'ultimate') {
+      if (weighty || counter || tier === 'signature' || (tier === 'ultimate' && s.cls !== 'warrior')) { // (warrior: an ultimate's small blows don't each bend / blur the picture — Titan's Verdict's 16 hits stacked into a white smear)
         const big = tier === 'ultimate' ? 2 : tier === 'signature' || flies || hit.heavy || counter ? 1 : 0, c = { x: at.x, y: at.y, z: at.z + 40 };
         this.impact.ripple(c, { r1: [150, 240, 400][big], life: [240, 320, 480][big], s: [9, 15, 26][big], width: [16, 22, 32][big] });
         this.impact.aberration([0.0018, 0.003, 0.005][big], [120, 160, 220][big], c);
