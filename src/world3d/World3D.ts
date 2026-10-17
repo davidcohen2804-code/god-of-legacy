@@ -9,7 +9,7 @@ import { WORLD3D } from './flag';
 import { MAPS } from './maps';
 
 /** The world camera: a little higher and further than the arena's (one player walking far), a gentle turn. */
-export const WORLD_CAM: Partial<Cam3D> = { pitch: 17, fov: 34, dist: 9.0, distPerSpan: 0.3, distMax: 13, yawMax: 5, follow: 0.1, aim: 1.0 };
+export const WORLD_CAM: Partial<Cam3D> = { pitch: 17, fov: 34, dist: 9.0, distPerSpan: 0.3, distMax: 13, yawMax: 5, follow: 0.1, aim: 1.0, liftK: 0.4, liftMax: 160 };
 /** How far ahead of the hero the camera looks (world px), eased when he turns. */
 const LEAD = 90;
 /** Half the view's width on the floor (world px) at the camera's distance: the focus keeps this far from the map's ends. */
@@ -17,7 +17,7 @@ const HALF_VIEW = 220;
 
 export interface Body { body: Phaser.GameObjects.Sprite; foot: Phaser.GameObjects.Image; z: number }
 export interface WorldFrame {
-  hero: { x: number; y: number; z: number; facing: -1 | 1 };
+  hero: { x: number; y: number; z: number; facing: -1 | 1; /** the floor he stands on (a floor above: its height) */ floorZ: number };
   others: { x: number; y: number; z: number }[];
   bodies: Body[];
   flying: Arena3D['flying'];
@@ -48,7 +48,7 @@ export class World3D {
   /** The arrival beat: `fromX` where the camera starts (the edge the hero came in by), `ms` how long the glide takes. */
   arrival(fromX: number, ms = 2400): void {
     this.arrive = { t: 0, ms, fromX }; this.a3d.punch = 0.62;
-    (this.a3d as unknown as { dist: number }).dist = (WORLD_CAM.dist ?? 9) / 0.62; // (starts wide at once; a `snap` on the stage is asked of DFO)
+    this.a3d.snap((WORLD_CAM.dist ?? 9) / 0.62); // (starts wide at once)
   }
 
   /** Each frame, after the scene has moved everyone. */
@@ -64,7 +64,7 @@ export class World3D {
     }
     // a fight spreads the view a little (the nearest foe counts), as the arena's does
     let span = 0; for (const o of f.others) { const d = Math.hypot(o.x - h.x, (o.y - h.y) * 1.7); if (d < 700) span = Math.max(span, d * 0.5); }
-    a.focus = { x: fx, y: h.y, z: h.z, span };
+    a.focus = { x: fx, y: h.y, z: h.z, span, floorZ: h.floorZ };
     a.anchors = [{ x: h.x, y: h.y, z: h.z }, ...f.others.map((o) => ({ x: o.x, y: o.y, z: o.z }))];
     a.bodies = f.bodies;
     a.flying = f.flying;
@@ -103,10 +103,5 @@ export class World3D {
   }
 
   /** The place torn down (the hero crossed to the next map): the stage's own teardown, unhooked from the scene's end. */
-  dispose(scene: Phaser.Scene): void {
-    const a = this.a3d as unknown as { destroy(): void; bg: Phaser.GameObjects.Image; fg: Phaser.GameObjects.Image; fxImg: Phaser.GameObjects.Image };
-    scene.events.off(Phaser.Scenes.Events.SHUTDOWN, a.destroy, this.a3d);
-    a.destroy(); // (private on the stage: a public `dispose` that also drops its three layers is asked of DFO)
-    for (const img of [a.bg, a.fg, a.fxImg]) img?.destroy();
-  }
+  dispose(): void { this.a3d.dispose(); }
 }

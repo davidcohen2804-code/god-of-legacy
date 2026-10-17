@@ -393,7 +393,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (gen !== this.sceneGen || !this.sys.isActive()) return;
       void import('../world3d/World3D').then(({ World3D }) => {
         if (gen !== this.sceneGen || !this.sys.isActive()) return;
-        w.dispose(this); this.world!.removeMobs(`mob:${from}:`);
+        w.dispose(); this.world!.removeMobs(`mob:${from}:`);
         this.kin.x = to.x; this.kin.vx = 0;
         const nw = this.w3d = new World3D(this, to.area); this.a3d = nw.a3d; this.wire3D(nw.a3d);
         this.world!.spawnArea(to.area);
@@ -416,7 +416,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const others: { x: number; y: number; z: number }[] = [];
     for (const m of this.world.mobs) { if (!m.alive) continue; others.push({ x: m.x, y: m.y, z: m.z }); bodies.push({ body: m.sprite as unknown as Phaser.GameObjects.Sprite, foot: m.foot, z: m.z }); }
     bodies.push(...this.world.npcBodies());
-    w.step(ms, { hero: { x: k.x, y: k.y, z: k.z, facing: this.dir === 'left' ? -1 : 1 }, others, bodies, flying: this.rt ? this.rt.projectiles.map((e) => e.p) : [], hitStop: (this.fx?.hitStopLeft ?? 0) > 0, ult, sig, sunGateOpen: this.world.sunGate.open });
+    w.step(ms, { hero: { x: k.x, y: k.y, z: k.z, facing: this.dir === 'left' ? -1 : 1, floorZ: k.supportZ }, others, bodies, flying: this.rt ? this.rt.projectiles.map((e) => e.p) : [], hitStop: (this.fx?.hitStopLeft ?? 0) > 0, ult, sig, sunGateOpen: this.world.sunGate.open });
   }
 
   /** The arena camera (DFO): frames both fighters — close in when they are close (the bodies big and readable, ~1.7×
