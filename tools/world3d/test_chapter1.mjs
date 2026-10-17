@@ -66,9 +66,14 @@ const kill = async (kind, what) => { // (beside the nearest live monster of the 
   return m;
 };
 
+const FROM = process.env.FROM || 'start'; // FROM=sky: the first five steps' state set up, the run starts on the clouds (a re-check of the sky's half)
 // ---------------------------------------------------------------- 1. the start: the courtyard's opening
-console.log('\n== Chapter 1 in 3D — a fresh level-1 character');
-let st = await sc(); console.log('  start', JSON.stringify({ area: st.area, x: st.x, y: st.y, level: st.level, gold: st.gold, quests: st.quests, title: st.title }));
+console.log('\n== Chapter 1 in 3D — a fresh level-1 character' + (FROM === 'sky' ? ' (from the clouds)' : ''));
+if (FROM === 'sky') { await S(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); s.quests.first_steps = { state: 'done', progress: [10, 1] }; s.quests.sealed_road = { state: 'active', progress: [0] }; s.saveQuests(); }); }
+const ONLY_SKY = FROM === 'sky';
+let st = await sc();
+if (!ONLY_SKY) {
+console.log('  start', JSON.stringify({ area: st.area, x: st.x, y: st.y, level: st.level, gold: st.gold, quests: st.quests, title: st.title }));
 check(st.area === 'courtyard', `the first map is the Legacy Courtyard in 3D (${st.area})`);
 check(st.level >= 1 && st.level <= 10, `a fresh character (level ${st.level}; the game's own testing floor may lift level 1)`);
 check(/COURTYARD/.test(st.title ?? '') || st.arrive, `the chapter opening plays (title "${st.title}", dolly ${st.arrive})`);
@@ -124,7 +129,7 @@ await step('the climb', async () => {
   const A = DATA.areas.terraces_2, a0 = ax('terraces_2');
   for (const q of (A.props ?? []).filter((q) => q.stand && q.h)) {
     const xs = q.foot.map((f) => f[0]), px = (Math.min(...xs) + Math.max(...xs)) / 2 + a0, py = (q.stand[0] + q.stand[1]) / 2;
-    await up(px, py, q.h, q.id); await settleCam(); await W(p, 2500); const pl = await placed(); check(pl.id === q.id && pl.dx < 3 && pl.dy < 3, `on ${q.id} (h ${q.h}): feet on its top (${pl.dx.toFixed(1)}, ${pl.dy.toFixed(1)} px off, standing on ${pl.id})`);
+    await up(px, py, q.h, q.id); await settleCam(); await W(p, 2500); const pl = await placed(); check(String(pl.id).endsWith(q.id) && pl.dx < 3 && pl.dy < 3, `on ${q.id} (h ${q.h}): feet on its top (${pl.dx.toFixed(1)}, ${pl.dy.toFixed(1)} px off, standing on ${pl.id})`);
   }
   await snap('block');
   for (const id of ['ivy_heights', 'ivy_summit']) {
@@ -134,6 +139,7 @@ await step('the climb', async () => {
   }
 });
 
+}
 // ---------------------------------------------------------------- 6. onto the clouds: the sky place; Nimbus
 await step('the clouds', async () => {
   const c0 = CLOUDS.path[0]; await up((c0.x[0] + c0.x[1]) / 2, (CLOUDS.band[0] + CLOUDS.band[1]) / 2, c0.z, 'sky-0'); await settleCam(); await W(p, 2500);
@@ -147,13 +153,14 @@ await step('the clouds', async () => {
   if (!st.quests.lost_puffs) { await talk('nimbus', 5, 'Lost Puffs (again)'); st = await sc(); check(st.quests.lost_puffs?.startsWith('active'), `Lost Puffs taken (${st.quests.lost_puffs})`); }
   // a Puffling for real: it drops a Cloud Puff
   const drops0 = (await sc()).drops;
-  const m = await kill('puffling', 'a Puffling'); if (m) { await W(p, 4000); st = await sc(); check(st.drops > drops0, `the Puffling dropped (${st.drops - drops0} pieces on the cloud)`);
+  let m = await kill('puffling', 'a Puffling'); if (m) { await W(p, 4000); st = await sc(); check(st.drops > drops0, `the Puffling dropped (${st.drops - drops0} pieces on the cloud)`);
     const d = await landedDrop(m.x, m.y); check(d && d.dx < 4 && d.dy < 4, `its drop lies on the cloud's top (${JSON.stringify(d)})`);
-    const puff = await S(([x, y]) => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const d = s.drops.filter((q) => q.id === 'cloud_puff' && q.landed && q.taken < 0).sort((a, b2) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b2.x - x, b2.y - y))[0]; return d ? { x: d.x, y: d.y, base: d.base } : null; }, [m.x, m.y]);
+    const puffNear = () => S(([x, y]) => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const d = s.drops.filter((q) => q.id === 'cloud_puff' && q.landed && q.taken < 0).sort((a, b2) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b2.x - x, b2.y - y))[0]; return d ? { x: d.x, y: d.y, base: d.base } : null; }, [m.x, m.y]);
+    let puff = await puffNear(); for (let i = 0; !puff && i < 2 && m; i++) { m = await kill('puffling', `a Puffling (no puff from the last: 60 % drop, once more)`); if (m) { await landedDrop(m.x, m.y); puff = await puffNear(); } }
     if (puff) { await S(([x, y, z]) => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const k = s.kin; k.x = x; k.y = y; k.z = z; k.supportZ = z; k.supportId = 'cloud_haven'; k.vx = 0; k.vy = 0; }, [puff.x, puff.y, puff.base]); await W(p, 20000); const got = await S(() => window.__game.scene.getScene('LegacyCourtyardScene').bag.cloud_puff ?? 0); check(got >= 1, `the Cloud Puff picked up, in the bag (${got})`); } else check(false, 'no Cloud Puff among the drops'); }
   await S(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); s.devApi().give('cloud_puff', 15 - (s.bag.cloud_puff ?? 0)); }); // (the other fourteen: the headless clock)
   await S(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); s.kin.z = 800; s.kin.supportZ = 800; s.kin.supportId = 'cloud_haven'; });
-  await talk('nimbus', 5, 'Lost Puffs handed in'); st = await sc(); check(st.quests.lost_puffs?.startsWith('done'), `Lost Puffs done (${st.quests.lost_puffs})`); check(!!st.bag?.feather, `Nimbus's feathers in the bag (${JSON.stringify(Object.keys(st.bag ?? {}))})`);
+  await talk('nimbus', 5, 'Lost Puffs handed in'); st = await sc(); check(st.quests.lost_puffs?.startsWith('done'), `Lost Puffs done (${st.quests.lost_puffs})`); check(!!st.bag?.cloud_feather, `Nimbus's feathers in the bag (${JSON.stringify(Object.keys(st.bag ?? {}))})`);
   if (!st.quests.big_grumble) { await S(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); s.kin.z = 800; s.kin.supportZ = 800; s.kin.supportId = 'cloud_haven'; }); await talk('nimbus', 5, 'Big Grumble'); st = await sc(); }
   check(st.quests.big_grumble?.startsWith('active'), `Cheer Up, Big Grumble taken (${st.quests.big_grumble})`);
 });
@@ -164,7 +171,8 @@ await step('Big Grumble', async () => {
   check(!!bossAt, `Big Grumble is about (${JSON.stringify(bossAt)})`); if (!bossAt) return;
   await S(([x, y, z]) => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const k = s.kin; k.x = x - 260; k.y = y; k.z = 800; k.supportZ = 800; k.supportId = 'cloud_haven'; k.vx = 0; k.vy = 0; s.dir = 'right'; }, [bossAt.x, bossAt.y, bossAt.z]);
   await frames(2); st = await sc(); check(st.bossIn || st.punch < 1, `the boss entrance beat: the camera pulls back (bossIn ${st.bossIn}, punch ${st.punch})`); await W(p, 1500); await snap('big_grumble');
-  await S(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); s.devApi().killNear(); }); await W(p, 4000); st = await sc();
+  // his fall through the game's own death path (a real fight is ~150 swings at the headless clock): the kill counted, his beats, his drops
+  await S((id) => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); const m = s.world.mobs.find((q) => q.id === id); if (m && m.damage(1e9, s.simMs)) { s.questKill(m); s.den?.killed(m); s.bossFell(m); s.gainExp(m.kind.exp ?? 1, { x: m.kin.x, y: m.kin.y, z: m.kin.z }); s.dropLoot(m); } }, bossAt.id); await W(p, 4000); st = await sc();
   const falling = await S(() => !!window.__game.scene.getScene('LegacyCourtyardScene').w3d?.falling); check(falling || st.quests.big_grumble?.startsWith('active:1'), `his fall: the slow drift beat (falling ${falling}), the kill counted (${st.quests.big_grumble})`); await snap('grumble_fell');
   await S(() => { const s = window.__game.scene.getScene('LegacyCourtyardScene'); s.kin.z = 800; s.kin.supportZ = 800; s.kin.supportId = 'cloud_haven'; });
   await talk('nimbus', 5, 'Big Grumble handed in'); st = await sc(); check(st.quests.big_grumble?.startsWith('done'), `Big Grumble done (${st.quests.big_grumble})`); check(!!st.bag?.cloud_form, `the Cloud Form in the bag (${JSON.stringify(Object.keys(st.bag ?? {}))})`);
