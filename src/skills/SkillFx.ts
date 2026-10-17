@@ -687,7 +687,7 @@ export class SkillFx {
     const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { // the painted loop, each frame dissolving into the next
       t += 16; if (t >= ms) { ev.remove(); img.destroy(); mix.destroy(); return; }
       const k = Math.min(1, t / 220) * Math.min(1, (ms - t) / 600), q = t / 95, f = Math.floor(q) % 8, u = q - Math.floor(q);
-      img.setFrame(f).setAlpha(k * (1 - u * 0.85)); mix.setFrame((f + 1) % 8).setAlpha(k * u);
+      img.setFrame(f).setAlpha(0.42 * k * (1 - u * 0.85)); mix.setFrame((f + 1) % 8).setAlpha(0.42 * k * u); // (0.42: at full it milked the whole floor white under the room's bloom, PVP 3D)
     } });
   }
 
@@ -1155,7 +1155,7 @@ export class SkillFx {
         const side = Math.random() < 0.5 ? -1 : 1, d = 60 + Math.random() * 180;
         this.scene.tweens.add({ targets: sp, x: px + side * d * 0.55, y: py - side * d * 0.85 + 60, alpha: 0, scale: sp.scale * 0.3, duration: 380 + Math.random() * 420, ease: 'Quad.easeOut', delay: Math.random() * 120, onComplete: () => sp.destroy() });
       }
-      const tear = this.scene.add.image(v.centerX, v.centerY, 'titan-tear', 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 48).setDisplaySize(v.width * 1.05, v.height * 1.05).setAlpha(0.16); tear.setData('a0', 0.16);
+      const tear = this.scene.add.image(v.centerX, v.centerY, 'titan-tear', 0).setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 48).setDisplaySize(v.width * 1.05, v.height * 1.05).setAlpha(0.07); tear.setData('a0', 0.07); // (0.07: its bright 3rd frame, added over the whole screen, milked the fight for half a second in PVP 3D)
       const fms = [70, 110, 230, 200];
       this.anims.push({ img: tear, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: [0, 1, 2, 3], frameMs: fms, fadeLast: 200 });
       cam.shake(200, 0.006);
@@ -1185,11 +1185,11 @@ export class SkillFx {
     }
     if (s.id === 'leap_crash') { // crater at the landing point
       // lies flat on the floor under the actors (never painted over the warrior)
-      const img = this.scene.add.image(o.x, o.y, vfxKey(s.id), 0).setOrigin(0.5, 0.62).setDepth(GROUND + 1).setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(360, 150);
+      const img = this.scene.add.image(o.x, o.y, vfxKey(s.id), 0).setOrigin(0.5, 0.62).setDepth(GROUND + 1).setBlendMode(Phaser.BlendModes.NORMAL).setDisplaySize(360, 150).setAlpha(0.85); // (NORMAL: its STONE-toned sheet added up to a cream haze round both fighters in PVP 3D)
       const fr = [0, 1, 2, 3, 4, 5, 6, 7], fms = [40, 60, 80, 110, 120, 140, 170, 300];
       this.anims.push({ img, t: 0, total: fms.reduce((a, b) => a + b, 0), frames: fr, frameMs: fms, fadeLast: 320 });
       (this.cam ?? this.scene.cameras.main).shake(160, 0.005);
-      this.shockwave(o.x, o.y, 200, 0xffc070);
+      this.shockwave(o.x, o.y, 200, 0xb09474);
     }
   }
 
@@ -1352,10 +1352,11 @@ export class SkillFx {
       // (feel pass, PVP 3D: the small hits of a burst stay small so its last / heavy one stands out; the regular attack's
       //  strikes read, its heavy 4th one bigger; the heavy bursts a size down — at 170+ they hid the foe)
       const rapid = s.hits.length > 4 && !hit.heavy && row === 0;
-      const size = row === 3 ? 190 : row === 1 ? (tier === 'ultimate' ? 180 : 150) : row === 2 ? 150 : s.id === 'warrior_basic' ? 100 : rapid ? 84 : 108; // (the chain's 4th strike is heavy: the 150 burst)
-      const soft = rapid && row === 0; // (a burst's small sparks soft: stacked at full strength under an ultimate's camera punch-in they burnt to a white blob)
+      const size = row === 3 ? 190 : row === 1 ? (tier === 'ultimate' ? 130 : 150) : row === 2 ? (tier === 'ultimate' ? 120 : 150) : s.id === 'warrior_basic' ? 100 : rapid ? 84 : 108; // (the chain's 4th strike is heavy: the 150 burst)
+      const soft = rapid && row === 0; // (Titan's Verdict's heavy blows: 130 / 120 at 0.6 — at 180 the burst whited the foe after the cut-in, PVP 3D)
+      // (a burst's small sparks soft: stacked at full strength under an ultimate's camera punch-in they burnt to a white blob)
       const fam = WFAM_N[s.id], fk = fam && row !== 3 ? `imp-wsparks-${fam}` : 'imp-wsparks', toned = fk !== 'imp-wsparks' && this.scene.textures.exists(fk); // (the spark in the skill's family; the COUNTER cross keeps its crimson-gold)
-      this.spark(toned ? fk : 'imp-wsparks', at.x, at.y - at.z - 38, row * 6 + 6, soft && tier === 'ultimate' ? 64 : size, soft ? (tier === 'ultimate' ? 0.45 : 0.65) : 0.95, row * 6, TOP + 2, toned);
+      this.spark(toned ? fk : 'imp-wsparks', at.x, at.y - at.z - 38, row * 6 + 6, soft && tier === 'ultimate' ? 64 : size, soft ? (tier === 'ultimate' ? 0.45 : 0.65) : tier === 'ultimate' && row !== 3 ? 0.6 : 0.95, row * 6, TOP + 2, toned);
     }
     else if (s.id !== 'warrior_basic') this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.4 : hit.heavy ? 1.15 : 1), 0.8); // (a regular attack: none, as in MapleStory)
     // Ground dust only where the skill has no ground impact art of its own (kept subtle).

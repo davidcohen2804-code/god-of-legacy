@@ -3336,7 +3336,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private roomHit(s: FinalSkill, hit: HitEvent, at: V3, reaction: string): void {
     if (!this.a3d) return;
     const weight = s.slot === 7 && (hit.heavy || s.cls !== 'warrior') ? 'ultimate' : hit.heavy || s.slot === 6 || reaction === 'launch' || reaction === 'knockdown' || reaction === 'slam' ? 'heavy' : 'light';
-    this.a3d.hit(at.x, at.y, at.z, this.a3d.fx.tone(s) ?? parseInt(classColor(s.cls).slice(1), 16), weight); // (in the skill's family colour when its recipe names one)
+    const wSmall = s.cls === 'warrior' && !hit.heavy && s.hits.length > 3 && !lastOfBurst(s, hit); // (warrior: a burst's small blows light the room lightly even when they launch — each heavy one's room dust and ring stacked into a white haze round both fighters: Ground Breaker, Titan's Verdict)
+    this.a3d.hit(at.x, at.y, at.z, this.a3d.fx.tone(s) ?? parseInt(classColor(s.cls).slice(1), 16), wSmall ? 'light' : weight); // (in the skill's family colour when its recipe names one)
     // the skill's 3D pieces at the foe; the main hit (heavy, sending him flying or down, the last of a burst) carries the weight
     const flies = !!(hit.reaction.launch || hit.reaction.knockdown || hit.reaction.slam), many = (s.chain ? 1 : s.hits.length) > 3;
     const main = !!hit.heavy || flies || lastOfBurst(s, hit) || (!many && (s.slot === 6 || s.slot === 7));

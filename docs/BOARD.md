@@ -300,3 +300,5 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - Movements: PixVerse run cycles for all six heroes — 1a2e397, 433e3b0
 - DFO PvP arena dynamics: online P2P checked in two browsers (both connect, hits sync) — bbbe9097
 - DFO PvP arena dynamics: no MP in the arena — a4b1f4ac
+
+- Done (Warrior, 2026-10-17): PVP 3D white haze pass — Titan's Verdict (tear 0.07, electrified floor 0.42, heavy sparks 130/120 at 0.6, no 3D dome, pillar 0.3, room lit warm gold), Ground Breaker (no 3D dust), Leap Crash crater NORMAL; a warrior burst's small launching blows light the room 'light' (LegacyCourtyardScene.roomHit, warrior-only line). Filmed: bodies read through.
