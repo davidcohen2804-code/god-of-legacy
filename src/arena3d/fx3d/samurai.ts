@@ -83,15 +83,14 @@ export const SAMURAI: Record<string, Recipe> = {
       if (!h.heavy) { ring(f, at, flip(), { r: 98, w: 40, y0: 76, tilt: 14 + Math.random() * 56, yaw: (Math.random() - 0.5) * 70, a0: -110, a1: 125, ms: 170, lit: SAM.rose, gain: 1.3 }); sparks(f, at, flip(), 3, 40); return; }
       rise(f, at);
       f.host.blow(f.host.w3(at.x), 0.6, f.host.d3(at.y), 5, 5); } },
-  // the dark falls round him; (David's bar: the flurry — 04) the eight cuts out of the dark are long thin lines crossing the
-  // foe, each there at once and held by its hit-stop — they cross into a star of cuts; the colossal cut is the painted
-  // dragon's (the crescent is the Iai's alone): the planks torn under it
+  // (David's bar: the ultimate, one shape — the eclipse) the dark falls round him; (the flurry — 04) the eight cuts out of
+  // the dark are long thin lines crossing the foe, each there at once and held by its hit-stop — they cross into a star of
+  // cuts; the colossal cut is the painted dragon's and the sun's breaking (the crescent is the Iai's alone), its blow the
+  // room's main hit
   dragon_eclipse: { own: true, tone: SAM.light,
     active: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, 0x3a0a1a, { r: 420, ms: 900, a: 0.4 }); }, // (lighter: in the dark the fighters were not readable — DFO)
     hit: (f, _s, _h, at, main) => {
-      if (!main) { flurry(f, () => at, { ms: 1, len: 540, w: 14, front: true, draw: 0 }); return; } // (one cut a hit, there at once: the hit-stops hold them — eight lines crossing into a star)
-      f.crack(at.x, at.y, SAM.crimson, { r: 200, chunks: 16, up: 1.3 });
-      f.host.kick(0.08); } },
+      if (!main) flurry(f, () => at, { ms: 1, len: 540, w: 14, front: true, draw: 0 }); } }, // (one cut a hit, there at once: the hit-stops hold them — eight lines crossing into a star; the great cut's blow is the room's main hit — no cracks of its own on top)
   // (David's bar: the main launcher, one shape — a swallow's tail, Λ) the rising cut: one upright ribbon ring swept up
   // from the planks through the foe (a hot rose body, white-hot edge, ink inside); the launch: a white-hot line up through
   // him; the second cut: a ring swept back down through him in the air. Its painted trail and marks stay out in PVP 3D.
