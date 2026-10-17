@@ -1918,7 +1918,7 @@ export class SkillFx {
         if (this.scene.textures.exists('afx-band')) { // while charging: a painted band of flowing arrows on the floor shows the way; it turns with the aim and grows stronger
           const band = this.scene.add.image(0, 0, 'afx-band', 0).setOrigin(0.02, 0.5).setDisplaySize(960, 300).setAlpha(0);
           const plane = this.scene.add.container(o.x, o.y, [band]).setScale(1, FLOOR_SQUASH).setDepth(GROUND + 2);
-          this.scene.tweens.add({ targets: band, alpha: 0.9, duration: 250 });
+          this.scene.tweens.add({ targets: band, alpha: 0.55, duration: 250 }); // (Eagle Tide's charge band: softer, it washed the picture green)
           const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
             const c = me();
             if (!c || r.phase !== 'startup') { ev.remove(); this.scene.tweens.add({ targets: plane, alpha: 0, duration: 160, onComplete: () => plane.destroy() }); return; }

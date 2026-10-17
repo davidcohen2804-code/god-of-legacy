@@ -488,7 +488,7 @@ export class ArcherFx {
     this.charge(r, 'emblem', 70, T.startup, { spin: 0, dx: 36 });
     this.floor('aim_band', 0, 0, 1120, T.startup, { add: true, glow: 0.3, ox: 0.02, run: r, alive: () => on && r.phase === 'startup', rot: () => Math.atan2(r.aim.y * 0.5, r.aim.x) * (180 / Math.PI),
       follow: () => { const c = this.ctx.casterPos(r.attackerId); return c ? { x: c.x + r.aim.x * 30, y: c.y + r.aim.y * 30 } : null; },
-      a: kf([0, 0], [0.1, 0.5], [0.95, 1]), sx: kf([0, 0.7], [1, 1]) });
+      a: kf([0, 0], [0.1, 0.3], [0.95, 0.55]), sx: kf([0, 0.7], [1, 1]) }); // (softer: at full strength it washed half the picture green in PVP 3D)
     // keep the band turned to the live aim
     this.add({ t: 0, step: () => { if (r.phase !== 'startup') { on = false; return false; } return true; } });
     this.later(T.startup, () => {
