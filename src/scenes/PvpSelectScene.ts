@@ -10,6 +10,7 @@ import { ROSTER, fighterFor, heroCard } from '../pvp/Fighters';
 import { PvpLobby } from '../pvp/PvpLobby';
 import { clearPvpFromUrl, ensurePvpRoomInUrl, generateRoomId } from '../pvp/Room';
 import { PvpSelectUI, VsMode } from '../ui/PvpSelectUI';
+import type { BotLevel } from '../pvp/SparringBot';
 import { score, scoreKey } from '../pvp/Score';
 import { addMotes, preloadLife } from '../ui/PresentationLife';
 import { FighterArt } from '../ui/FighterArt';
@@ -57,7 +58,7 @@ export class PvpSelectScene extends Phaser.Scene {
       back: () => { Sound.music(this, null, 500); this.leave(() => { clearPvpFromUrl(); this.scene.start('MainMenuScene'); }); },
       mode: (m) => { if (m === 'player') this.openLobby(); else this.closeLobby(); if (m !== 'training') this.ui?.setScore(score(scoreKey(m, this.lobby?.room))); },
       local: (hover, pick) => { this.hover = hover; this.lobby?.set(hover, pick, fighterFor(hover).name); },
-      start: (p1, p2, m, stage) => this.start(p1, p2, m, stage),
+      start: (p1, p2, m, stage, level) => this.start(p1, p2, m, stage, level),
       copyLink: async () => { try { await navigator.clipboard.writeText(window.location.href); return true; } catch { return false; } },
       art: (s, cls, state) => this.arts?.[s].set(cls, state),
       lock: (s) => this.arts?.[s].lock(),
@@ -122,9 +123,9 @@ export class PvpSelectScene extends Phaser.Scene {
 
   /** Both locked in: into the arena — against the CPU (or with your training partner) in a room of your own on the stage
    *  you picked, or with the other player in the shared one (its stage comes from the room, the same on both screens). */
-  private start(p1: string, p2: string, mode: VsMode, stage?: string): void {
+  private start(p1: string, p2: string, mode: VsMode, stage?: string, level?: BotLevel): void {
     const fighter = fighterFor(p1);
-    if (mode !== 'player') this.scene.start('LegacyCourtyardScene', { pvpRoom: generateRoomId(6), fighter, botCls: p2, vs: mode, stage });
+    if (mode !== 'player') this.scene.start('LegacyCourtyardScene', { pvpRoom: generateRoomId(6), fighter, botCls: p2, botLevel: level, vs: mode, stage });
     else this.scene.start('LegacyCourtyardScene', { pvpRoom: this.lobby?.room ?? ensurePvpRoomInUrl(), fighter, vs: 'player', foe: { cls: p2, name: this.lobby?.other?.name || 'Player 2', rank: this.lobby?.other?.rank } }); // (foe: for the loading screen — with their rank)
   }
 

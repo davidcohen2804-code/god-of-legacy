@@ -1,6 +1,8 @@
 // Combo guide (the PvP arena, left side): the class's locked routes, the shortest first and longer down the list (it
 // scrolls; it never reaches the chat below) — each step as its key and icon, in order, and the hits the route lands.
-// The keys follow Key Settings. Folds to its title bar (remembered on this device).
+// The keys follow Key Settings. Folds to its title bar (remembered on this device) — in a match (VS CPU, VS PLAYER) it starts
+// folded, a small bar in the corner, so the fight's HUD is all there is (its own remembered state: the sparring room keeps
+// its own).
 // DOM inside the HUD overlay (1920x1080 design px, scaled with it).
 import { CLASS_NAMES, FONT_FAMILY } from '../config/layout';
 import { COMBO_GUIDE, GuideRoute, GuideStep } from '../data/comboGuide';
@@ -8,7 +10,7 @@ import { iconUrl } from '../skills/FinalKit';
 import type { ClassId, FinalSkill } from '../skills/SkillTypes';
 
 const STYLE_ID = 'gol-cg-style';
-const STORE = 'godoflegacy.comboGuide';
+const STORE = 'godoflegacy.comboGuide', STORE_MATCH = 'godoflegacy.comboGuide.match';
 
 const CSS = `
 .gol-cg{position:absolute;left:18px;top:184px;width:420px;box-sizing:border-box;display:none;flex-direction:column;gap:9px;padding:13px 14px 14px;pointer-events:auto;
@@ -25,6 +27,7 @@ const CSS = `
 .gol-cg .cg-rs::-webkit-scrollbar-thumb{border-radius:3px;background:rgba(201,154,69,.55)}
 .gol-cg .cg-rs::-webkit-scrollbar-track{background:transparent}
 .gol-cg.min .cg-sub,.gol-cg.min .cg-rs{display:none}
+.gol-cg.min{width:auto;padding:9px 12px 9px 14px}
 .gol-cg .cg-r{flex:none;display:grid;grid-template-columns:66px 1fr 38px;align-items:center;column-gap:8px;min-height:33px;padding:3px 8px;box-sizing:border-box;border-radius:8px;background:rgba(255,255,255,.045)}
 .gol-cg .cg-r.long{grid-template-columns:1fr auto;grid-template-areas:"n h" "s s";row-gap:7px;padding:8px 10px 9px}
 .gol-cg .cg-r.long .cg-n{grid-area:n}
@@ -65,7 +68,9 @@ export class ComboGuide {
   private readonly keyEls: { el: HTMLElement; slot: number; chip: HTMLElement; title: string }[] = [];
   private on = false;
 
-  constructor(parent: HTMLElement, cls: ClassId, kit: FinalSkill[], keys: GuideKeys) {
+  private readonly store: string;
+  constructor(parent: HTMLElement, cls: ClassId, kit: FinalSkill[], keys: GuideKeys, opts: { match?: boolean } = {}) {
+    this.store = opts.match ? STORE_MATCH : STORE;
     if (!document.getElementById(STYLE_ID)) { const st = document.createElement('style'); st.id = STYLE_ID; st.textContent = CSS; document.head.appendChild(st); }
     const root = this.root = document.createElement('div'); root.className = 'gol-cg';
     root.addEventListener('mousedown', (e) => { if (e.target !== rs) { e.stopPropagation(); e.preventDefault(); } }); // (the scroll bar still drags)
@@ -101,8 +106,8 @@ export class ComboGuide {
     }
     root.append(hd, sub, rs);
     parent.appendChild(root);
-    let folded = false;
-    try { folded = localStorage.getItem(STORE) === 'min'; } catch { /* storage unavailable */ }
+    let folded = !!opts.match; // (a match: folded until you open it)
+    try { const v = localStorage.getItem(this.store); if (v) folded = v === 'min'; } catch { /* storage unavailable */ }
     this.fold(folded, false);
     this.setKeys(keys);
   }
@@ -143,7 +148,7 @@ export class ComboGuide {
     this.root.classList.toggle('min', min);
     this.tog.textContent = min ? '+' : '–';
     this.tog.title = min ? 'Show the combos' : 'Hide the combos';
-    if (save) try { localStorage.setItem(STORE, min ? 'min' : 'open'); } catch { /* storage unavailable */ }
+    if (save) try { localStorage.setItem(this.store, min ? 'min' : 'open'); } catch { /* storage unavailable */ }
   }
 
   show(on: boolean): void { if (on !== this.on) { this.on = on; this.root.classList.toggle('on', on); } }

@@ -642,11 +642,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     else showLoading(this, training ? 'TRAINING' : pvp ? 'PVP ARENA' : 'GOD OF LEGACY'); // (training: no match, no VS)
   }
 
-  create(data?: { pvpRoom?: string; at?: { x: number; y: number }; fighter?: Character; botCls?: string; vs?: 'cpu' | 'player' | 'training' }): void {
+  create(data?: { pvpRoom?: string; at?: { x: number; y: number }; fighter?: Character; botCls?: string; botLevel?: BotLevel; vs?: 'cpu' | 'player' | 'training' }): void {
     const at = !data?.pvpRoom && data?.at ? data.at : null; // a restart in place (a new job): you stay where you were
     const character = (data?.pvpRoom && data.fighter) || CharacterStore.getSelectedCharacter(); // the PvP select's fighter (a copy, never saved)
     this.vs = data?.pvpRoom ? data.vs ?? null : null;
     if (data?.pvpRoom && data.botCls) this.botCls = data.botCls; // VS CPU: the opponent you picked
+    if (data?.pvpRoom && data.botLevel) this.botLevel = data.botLevel; // (and its level, set on the select screen)
     this.waitFoe = this.vs === 'player'; // VS PLAYER: the other player is on the way (no sparring partner meanwhile)
     this.botPaused = this.noCd = this.vs === 'training'; // TRAINING: the partner stands still, no cooldowns (both switchable on the panel)
     if (!character) { this.scene.start('CharacterSelectScene'); return; }
@@ -948,7 +949,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.battleHud = new BattleHUD(ov, { rematch: () => this.askRematch(), exit: exitArena });
       if (this.stage) this.battleHud.setStage(this.stage.name);
       if (this.vs === 'training') { if (TrialUI.has(this.cls)) this.trialUi = new TrialUI(ov, this.cls, this.kit, this.guideKeys(), { reset: (range, route) => { this.trainingReset(range); if (this.bot) this.bot.swingAt = route?.foeSwings ? this.simMs + route.foeSwings : 0; } }); }
-      else if (ComboGuide.has(this.cls)) this.comboGuide = new ComboGuide(ov, this.cls, this.kit, this.guideKeys());
+      else if (ComboGuide.has(this.cls)) this.comboGuide = new ComboGuide(ov, this.cls, this.kit, this.guideKeys(), { match: this.vs === 'cpu' || this.vs === 'player' }); // (a match: folded to its bar)
       this.match = new Match(this.localId, {
         onPhase: (m, prev) => this.onMatchPhase(m, prev),
         send: (msg) => { if (this.match?.opponent !== BOT_ID) this.pvp?.sendMatch(msg); },
@@ -3820,7 +3821,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   private refreshSparUi(): void {
     const u = this.sparUi; if (!u) return;
-    u.root.classList.toggle('on', !!this.bot);
+    u.root.classList.toggle('on', !!this.bot && this.vs !== 'cpu'); // (VS CPU is a match: the knight is the opponent, not a sparring partner to tune mid-round)
     for (const c of u.clsBtns) c.b.classList.toggle('on', c.id === this.botCls);
     for (const l of u.levelBtns) l.b.classList.toggle('on', l.v === this.botLevel);
     u.stop.textContent = this.botPaused ? 'RESUME' : 'STOP';

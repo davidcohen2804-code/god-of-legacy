@@ -1,7 +1,8 @@
 // PvP fighter select (Tekken style): the roster of fighters along the bottom, your fighter large on the left, the opponent
 // on the right, the stage under the mode tabs. VS CPU: pick yours, then pick the one you fight; the stage (or RANDOM) can
 // be changed at any time meanwhile (its arrows, ↑ / ↓). TRAINING: the same two picks (yours, then your training partner)
-// and a stage — no match, the combo trials. VS PLAYER: an invite link; the other player picks on their own screen and each sees
+// and a stage — no match, the combo trials. VS CPU also sets the CPU's level (EASY / MIDDLE / HARD) over its plate, before the
+// fight (the arena shows the fight's HUD only). VS PLAYER: an invite link; the other player picks on their own screen and each sees
 // the other's cursor and choice as it happens (the stage comes from the room, the same on both screens). Both locked in:
 // GET READY — then the arena.
 // DOM overlay (1920x1080 design px, scaled to the canvas by syncOverlay); the two big fighters are drawn by the scene
@@ -15,7 +16,7 @@ import { ROSTER, fighterFor, heroArt } from '../pvp/Fighters';
 import { heroFxUrls } from './HeroFx';
 import { STAGES } from '../world/Stages';
 import { ARENA3D } from '../arena3d/flag';
-import { BOT_NAMES } from '../pvp/SparringBot';
+import { BOT_NAMES, type BotLevel } from '../pvp/SparringBot';
 import { syncOverlay } from './CharacterSelectUI';
 import type { ArtState } from './FighterArt';
 import { ensureTheme } from './theme';
@@ -31,8 +32,8 @@ export interface PvpSelectHandlers {
   mode(m: VsMode): void;
   /** VS PLAYER: my cursor / lock-in changed (for the other screen). */
   local(hover: string, pick: string | null): void;
-  /** Both locked in (after GET READY); VS CPU: the stage picked (an id; RANDOM already drawn). */
-  start(p1: string, p2: string, mode: VsMode, stage?: string): void;
+  /** Both locked in (after GET READY); VS CPU: the stage picked (an id; RANDOM already drawn) and the CPU's level. */
+  start(p1: string, p2: string, mode: VsMode, stage?: string, level?: BotLevel): void;
   copyLink(): Promise<boolean>;
   /** A side's big fighter: which hero (null: none) and how it stands. */
   art(side: 'l' | 'r', cls: string | null, state: ArtState): void;
@@ -161,6 +162,16 @@ const CSS = `
 .gol-ps.vsp .ps-stp,.gol-ps.vsp .ps-sa,.gol-ps.vsp .ps-sd{display:none}
 /* PVP 3D: one stage (the 3D temple courtyard): no stage to pick */
 .gol-ps.a3d .ps-stp,.gol-ps.a3d .ps-sa,.gol-ps.a3d .ps-sd{display:none}
+/* VS CPU: the CPU's level over its plate (set before the fight — the arena shows the fight's HUD only) */
+.gol-ps .ps-lv{position:absolute;right:64px;top:556px;display:none;align-items:center;gap:6px}
+.gol-ps.cpu .ps-lv{display:flex}
+.gol-ps .ps-lv span{font:700 italic 13px/1 ${LABEL};letter-spacing:2px;color:#d9cdb2;margin-right:6px;text-shadow:0 1px 2px #000}
+.gol-ps .ps-lv button{height:34px;padding:0 16px;border:1px solid rgba(240,204,128,.4);border-radius:0;clip-path:polygon(9px 0,100% 0,calc(100% - 9px) 100%,0 100%);
+  background:rgba(6,10,18,.84);color:#cdbd96;font:800 italic 14px ${DISPLAY};letter-spacing:1.5px;cursor:pointer}
+.gol-ps .ps-lv button:hover{color:#f3dca2;background:rgba(24,30,44,.92)}
+.gol-ps .ps-lv button.on{color:#24180a;background:linear-gradient(180deg,#f2d493,#d2a65a);border-color:#f6dc9f}
+.gol-ps .ps-lv button.hard.on{color:#ffe2d8;background:linear-gradient(180deg,#b5361f,#5a120a);border-color:#e0503c}
+.gol-ps.go .ps-lv button:not(.on){opacity:.4}
 /* TRAINING: no count on top (nothing is won there) */
 .gol-ps.trn .ps-score{display:none}`;
 
@@ -168,6 +179,9 @@ interface Side { hover: number; pick: number | null }
 /** The stage row's choice: the stages, then RANDOM (index STAGES.length) — kept from one visit of this screen to the next. */
 const RANDOM = STAGES.length;
 let lastStage = RANDOM;
+/** VS CPU: the CPU's level — kept from one visit of this screen to the next. */
+const LEVELS: readonly [BotLevel, string, string][] = [['easy', 'EASY', 'Slow and gentle: single moves, room to answer'], ['middle', 'MIDDLE', 'A fair fight: short combos'], ['hard', 'HARD', 'Full speed: it combos you on every hit and closes with its ultimate']];
+let lastLevel: BotLevel = 'middle';
 
 export class PvpSelectUI {
   private readonly root: HTMLDivElement;
@@ -181,6 +195,9 @@ export class PvpSelectUI {
   private readonly hint: HTMLElement;
   private readonly inv: { box: HTMLDivElement; code: HTMLElement; lnk: HTMLElement; wait: HTMLElement; note: HTMLElement; copy: HTMLButtonElement };
   private readonly stp: { box: HTMLDivElement; q: HTMLElement; nm: HTMLElement; dots: HTMLElement[] };
+  private readonly lvBtns: { v: BotLevel; b: HTMLButtonElement }[] = [];
+  /** VS CPU: the CPU's level. */
+  private level: BotLevel = lastLevel;
   /** VS CPU: the stage (index into STAGES, RANDOM: drawn at GET READY), changed at any time before GET READY. */
   private stage = lastStage;
   private lastRect = '';
@@ -257,6 +274,14 @@ export class PvpSelectUI {
     }
     const sd = this.el('div', 'ps-sd', root);
     this.stp = { box: stp, q, nm, dots: Array.from({ length: CARDS }, () => this.el('i', '', sd)) };
+    // the CPU's level (VS CPU), over its plate
+    const lv = this.el('div', 'ps-lv', root);
+    this.el('span', '', lv).textContent = 'CPU LEVEL';
+    for (const [v, label, tip] of LEVELS) {
+      const b = this.el('button', v, lv) as HTMLButtonElement; b.type = 'button'; b.textContent = label; b.title = tip;
+      b.addEventListener('click', () => this.setLevel(v));
+      this.lvBtns.push({ v, b });
+    }
     this.hint = this.el('div', 'ps-hint', root);
     this.el('div', 'ps-flash', root);
     root.addEventListener('mousedown', (e) => { if (!(e.target as HTMLElement).closest('button')) e.preventDefault(); });
@@ -317,6 +342,14 @@ export class PvpSelectUI {
     this.h.stage?.(this.stageId());
   }
 
+  /** VS CPU: the CPU's level, set at any time before GET READY (its buttons, or L). */
+  private setLevel(v: BotLevel): void {
+    if (this.going || this.mode !== 'cpu' || v === this.level) return;
+    this.level = lastLevel = v;
+    Sound.ui('swipe');
+    this.render();
+  }
+
   private point(i: number): void { const s = this.side(); if (!s || s.hover === i) return; s.hover = i; Sound.ui('move'); this.sendLocal(); this.render(); }
   private move(d: number): void { const s = this.side(); if (!s) return; s.hover = (s.hover + d + ROSTER.length) % ROSTER.length; Sound.ui('move'); this.sendLocal(); this.render(); }
 
@@ -353,6 +386,7 @@ export class PvpSelectUI {
     else if (k === 'ArrowRight' || k === 'd' || k === 'D') { e.preventDefault(); this.move(1); }
     else if (k === 'ArrowUp' || k === 'w' || k === 'W') { e.preventDefault(); this.setStage(this.stage - 1); }
     else if (k === 'ArrowDown' || k === 's' || k === 'S') { e.preventDefault(); this.setStage(this.stage + 1); }
+    else if (k === 'l' || k === 'L') { e.preventDefault(); this.setLevel(LEVELS[(LEVELS.findIndex(([v]) => v === this.level) + 1) % LEVELS.length][0]); }
     else if (k === 'Enter' || k === ' ') { e.preventDefault(); this.confirm(); }
     else if (k === 'Escape' || k === 'Backspace') { e.preventDefault(); this.back(); }
   }
@@ -376,7 +410,7 @@ export class PvpSelectUI {
     this.render();
     this.timer = window.setTimeout(() => {
       this.root.querySelector('.ps-flash')?.classList.add('on');
-      this.timer = window.setTimeout(() => this.h.start(p1, p2, this.mode, stage), 420);
+      this.timer = window.setTimeout(() => this.h.start(p1, p2, this.mode, stage, this.mode === 'cpu' ? this.level : undefined), 420);
     }, 1200);
   }
 
@@ -386,6 +420,8 @@ export class PvpSelectUI {
     const m = this.mode, cpu = m !== 'player', trn = m === 'training', rem = this.remote, net = this.net; // (cpu: both picks here — VS CPU or TRAINING)
     for (const k of Object.keys(this.tabs) as VsMode[]) this.tabs[k].classList.toggle('on', k === m);
     this.root.classList.toggle('trn', trn);
+    this.root.classList.toggle('cpu', m === 'cpu'); this.root.classList.toggle('go', this.going);
+    for (const l of this.lvBtns) l.b.classList.toggle('on', l.v === this.level);
     // left: you
     const lc = ROSTER[this.p1.pick ?? this.p1.hover];
     this.showArt('l', lc, this.p1.pick !== null ? '' : 'live');
@@ -431,7 +467,7 @@ export class PvpSelectUI {
     const sl = rand ? 'RANDOM' : STAGES[on].name;
     if (this.stp.nm.dataset.t !== sl) { this.stp.nm.innerHTML = ''; this.metal(this.stp.nm, sl, 'gold'); this.stp.nm.dataset.t = sl; }
     this.stp.dots.forEach((d, k) => d.classList.toggle('on', k === on));
-    this.hint.innerHTML = `<b>← →</b> CHOOSE &nbsp;·&nbsp; ${cpu ? '<b>↑ ↓</b> STAGE &nbsp;·&nbsp; ' : ''}<b>ENTER</b> CONFIRM &nbsp;·&nbsp; <b>ESC</b> BACK`;
+    this.hint.innerHTML = `<b>← →</b> CHOOSE &nbsp;·&nbsp; ${cpu && !ARENA3D.on ? '<b>↑ ↓</b> STAGE &nbsp;·&nbsp; ' : ''}${m === 'cpu' ? '<b>L</b> CPU LEVEL &nbsp;·&nbsp; ' : ''}<b>ENTER</b> CONFIRM &nbsp;·&nbsp; <b>ESC</b> BACK`; // (PVP 3D: one stage — nothing to pick)
     // the middle
     const st = this.going ? 'GET READY!' : cpu ? (this.active === 'p1' ? 'CHOOSE YOUR FIGHTER' : trn ? 'CHOOSE YOUR PARTNER' : 'CHOOSE YOUR OPPONENT')
       : !rem ? (this.p1.pick === null ? 'CHOOSE YOUR FIGHTER' : 'READY — WAITING FOR A PLAYER')
