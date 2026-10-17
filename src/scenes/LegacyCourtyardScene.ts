@@ -551,7 +551,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.stage) { // the arena: its stage's painting (and what else it draws: its dragon)
       if (!this.textures.exists(this.stage.key)) this.load.image(this.stage.key, this.stage.file);
       for (const e of this.stage.extras ?? []) if (!this.textures.exists(e.key)) this.load.image(e.key, e.file);
-      loadArenaSound(this, this.stage.id);
+      loadArenaSound(this, this.stage.id, [cls, sd?.foe?.cls ?? sd?.botCls]); // (the two fighters' classes' own sounds; another class sends for its own when it shows up)
     }
     else preloadOpenWorld(this); // the open world: the start area and its neighbours (the rest streams in)
     if (!this.textures.exists(CT.dummy.key)) this.load.image(CT.dummy.key, CT.dummy.file);

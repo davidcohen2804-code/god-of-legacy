@@ -3,7 +3,7 @@
 // Files under assets/audio (.ogg; .mp3 where ogg does not play). Volumes: Settings' Master (Phaser's own volume),
 // Music and SFX (the announcer and the ambience with the effects).
 // Sources: the effects and ambiences are synthesised for the game (the main hit's boom and the darkening's whoosh by
-// tools/audio/impacts.py, with PVP 3D's room sounds); the menu cues are uisfx's (CC0); the announcer is the owner's own voice with the game's
+// tools/audio/impacts.py, with PVP 3D's room sounds; each class's signature skills by tools/audio/signatures.py); the menu cues are uisfx's (CC0); the announcer is the owner's own voice with the game's
 // processing (a big hall); the music is the owner's Suno tracks.
 // Where a sound happens: each one with a place is panned to where it is on the screen and quieter far from the camera
 // (setPanner: the arena tells how its camera sees a point). PVP 3D: the effects of the fight sound in the temple
@@ -28,7 +28,43 @@ export const SFX = {
   mag_cast: [3, 0.45], mag_hit: [3, 0.65], mag_bolt: [2, 0.6], mag_ice: [2, 0.6], mag_page: [2, 0.45],
   gam_throw: [3, 0.5], gam_hit: [3, 0.65], gam_chips: [2, 0.55], gam_dice: [1, 0.55], gam_coins: [1, 0.5], gam_roulette: [1, 0.5],
 } satisfies Record<string, [number, number]>;
-export type SfxName = keyof typeof SFX;
+/** Each class's signature skills (ArenaSound's SIG): their own casts, wind-ups and hits (tools/audio/signatures.py) —
+ *  loaded with the arena for the classes fighting in it (another class, when it shows up: then). Variations and base
+ *  volume, set from each one's measured loudness (A-weighted): a cast about as loud as the class swings were, a blow as
+ *  its impacts, a main hit a little over them. */
+export const SIG_SFX = {
+  warrior: {
+    wr_iron_1: [1, 0.44], wr_iron_2: [1, 0.44], wr_iron_3: [1, 0.47], wr_iron_4: [1, 0.62], wr_iron_hit: [2, 0.66], wr_iron_fin: [1, 0.65],
+    wr_rise_c: [1, 0.29], wr_rise_h: [1, 0.29], wr_quake_c: [1, 0.61], wr_quake_h: [1, 0.58], wr_rush_c: [1, 0.5], wr_rush_h: [1, 0.47],
+    wr_storm_w: [1, 0.38], wr_storm_c: [1, 0.34], wr_storm_h: [1, 0.28], wr_titan_w: [1, 0.27], wr_titan_h: [1, 0.58], wr_titan_end: [1, 1.0]
+  },
+  samurai: {
+    sm_quick_1: [1, 0.53], sm_quick_2: [1, 0.54], sm_quick_3: [1, 0.42], sm_quick_4: [1, 0.43], sm_quick_hit: [2, 0.53], sm_quick_fin: [1, 0.29],
+    sm_hundred_c: [1, 0.53], sm_hundred_h: [1, 0.38], sm_swallow_c: [1, 0.46], sm_swallow_h: [1, 0.27], sm_shadow_c: [1, 0.47], sm_shadow_h: [1, 0.46],
+    sm_iai_w: [1, 0.44], sm_iai_c: [1, 0.24], sm_iai_h: [1, 0.53], sm_blossom_c: [1, 0.36], sm_blossom_h: [1, 0.44], sm_eclipse_w: [1, 0.67],
+    sm_eclipse_c: [1, 0.5], sm_eclipse_h: [1, 0.53]
+  },
+  archer: {
+    ar_double_c: [1, 0.4], ar_charged_c: [1, 0.36], ar_arrow_hit: [2, 0.77], ar_charged_h: [1, 0.89], ar_rise_c: [1, 0.42], ar_rise_h: [1, 0.44],
+    ar_fire_c: [1, 0.42], ar_fire_h: [1, 0.42], ar_storm_c: [1, 0.37], ar_storm_h: [1, 0.67], ar_volley_c: [1, 0.41], ar_volley_h: [1, 0.62],
+    ar_skyrain_w: [1, 0.32], ar_skyrain_c: [1, 0.37], ar_skyrain_h: [1, 0.47]
+  },
+  book_mage: {
+    bm_bolt_c1: [1, 0.23], bm_bolt_c2: [1, 0.24], bm_lance_c: [1, 0.52], bm_bolt_h: [2, 0.26], bm_lance_h: [1, 0.6], bm_wave_c: [1, 0.22],
+    bm_wave_h: [1, 0.41], bm_astral_c: [1, 0.25], bm_astral_h: [1, 0.68], bm_chain_c: [1, 1.0], bm_chain_h: [1, 0.55], bm_spikes_c: [1, 0.51],
+    bm_spikes_h: [1, 0.82], bm_field_c: [1, 0.89], bm_field_h: [1, 0.52], bm_time_w: [1, 0.41], bm_time_c: [1, 0.38], bm_time_h: [1, 0.55]
+  },
+  gambler: {
+    gb_deck_1: [1, 0.56], gb_deck_2: [1, 0.54], gb_deck_3: [1, 0.58], gb_deck_4: [1, 0.33], gb_staff_hit: [2, 0.58], gb_deck_fin: [1, 0.34],
+    gb_deal_w: [1, 0.47], gb_deal_c: [1, 0.37], gb_deal_h: [1, 0.84], gb_vault_c: [1, 0.49], gb_vault_h: [1, 0.55], gb_fuse_c: [1, 0.43],
+    gb_fuse_h: [1, 0.92], gb_show_w: [1, 0.45], gb_show_c: [1, 0.36], gb_show_h: [1, 0.3], gb_jack_w: [1, 0.64], gb_jack_c: [1, 0.24],
+    gb_jack_h: [1, 0.37]
+  },
+} satisfies Record<string, Record<string, [number, number]>>;
+type SigName = { [C in keyof typeof SIG_SFX]: keyof (typeof SIG_SFX)[C] }[keyof typeof SIG_SFX];
+export type SfxName = keyof typeof SFX | SigName;
+/** Every effect family (the shared ones and every class's own). */
+const FAMILY: Record<string, [number, number]> = Object.assign({}, SFX, ...Object.values(SIG_SFX));
 /** The menus' cues. */
 const UI = { move: 0.55, select: 0.65, lock: 0.9, back: 0.6, swipe: 0.6 } as const;
 export type UiName = keyof typeof UI;
@@ -67,9 +103,16 @@ export function loadMenuSound(scene: Phaser.Scene): void {
   for (const c of CHAR_LINES) load(scene, `c_${c}`, `voice/c_${c}`);
   if (MENU_VOICE_ON) for (const v of MENU_VOICE) load(scene, `v_${v}`, `voice/${v}`);
 }
-/** The arena's: every effect, the announcer, the stage's ambience and its one-shots. */
-export function loadArenaSound(scene: Phaser.Scene, stage: string | undefined): void {
-  for (const [n, [count]] of Object.entries(SFX)) for (let i = 1; i <= count; i++) { const f = count > 1 ? `${n}_${i}` : n; load(scene, f, `sfx/${f}`); }
+function loadFamilies(scene: Phaser.Scene, set: Record<string, [number, number]>): void {
+  for (const [n, [count]] of Object.entries(set)) for (let i = 1; i <= count; i++) { const f = count > 1 ? `${n}_${i}` : n; load(scene, f, `sfx/${f}`); }
+}
+/** A class's signature sounds (none for a class that has none). */
+const sigOf = (cls: string): Record<string, [number, number]> | undefined => (SIG_SFX as Record<string, Record<string, [number, number]>>)[cls];
+/** The arena's: every effect, the announcer, the stage's ambience and its one-shots; the signature sounds of the classes
+ *  in the fight (all of them when it is not known who fights). */
+export function loadArenaSound(scene: Phaser.Scene, stage: string | undefined, classes?: (string | undefined)[]): void {
+  loadFamilies(scene, SFX);
+  for (const c of classes?.length ? classes : Object.keys(SIG_SFX)) { const set = c ? sigOf(c) : undefined; if (set) loadFamilies(scene, set); }
   for (const v of VOICE) load(scene, `v_${v}`, `voice/${v}`);
   if (stage && AMB[stage]) { load(scene, `amb_${stage}`, `amb/amb_${stage}`); for (const o of AMB[stage]) load(scene, o, `amb/${o}`); }
 }
@@ -96,13 +139,15 @@ const PAN_WIDTH = 0.8, PAN_CURVE = 0.65;
 const panOf = (p: number) => Math.sign(p) * Math.pow(Math.min(1, Math.abs(p)), PAN_CURVE) * PAN_WIDTH;
 
 /** x, y, z: where it happens (world px: across, depth, height); wet: its share in the room's reverb (PVP 3D). */
-export interface PlayOpts { vol?: number; rate?: number; x?: number; y?: number; z?: number; delay?: number; at?: number; wet?: number }
+export interface PlayOpts { vol?: number; rate?: number; x?: number; y?: number; z?: number; delay?: number; at?: number; wet?: number;
+  /** Start this far into it (s): a wind-up that has less time than it was made for still peaks on the strike. */
+  seek?: number }
 
 function playKey(k: string, vol: number, o: PlayOpts = {}): Phaser.Sound.BaseSound | null {
   const m = sm();
   if (!m || !game?.cache.audio.exists(key(k))) return null;
   const h = o.x !== undefined && panner ? panner(o.x, o.y, o.z) : null;
-  const s = m.add(key(k), { volume: vol * (h ? h.gain : 1), rate: o.rate ?? 1, delay: o.delay ?? 0, pan: h ? panOf(h.pan) : 0 });
+  const s = m.add(key(k), { volume: vol * (h ? h.gain : 1), rate: o.rate ?? 1, delay: o.delay ?? 0, pan: h ? panOf(h.pan) : 0, seek: o.seek ?? 0 });
   const send = roomSend(s, o.wet ?? 0);
   live.set(k, (live.get(k) ?? 0) + 1);
   s.once(Phaser.Sound.Events.COMPLETE, () => { live.set(k, (live.get(k) ?? 1) - 1); send?.disconnect(); s.destroy(); });
@@ -190,13 +235,23 @@ export const Sound = {
   /** An effect (a family's variation at random, never the same twice in a row, a hair of pitch to keep it alive). Too
    *  many of one family at once, or too soon after the last, and it is let go (a storm of hits stays clean). */
   sfx(name: SfxName, o: PlayOpts = {}): void {
-    const [n, base] = SFX[name], now = performance.now();
+    const [n, base] = FAMILY[name], now = performance.now();
     if (now - (lastPlay.get(name) ?? -1e9) < (o.at ?? 38) || (live.get(name) ?? 0) >= 4 * n) return;
     lastPlay.set(name, now);
     let i = n > 1 ? 1 + Math.floor(Math.random() * n) : 0;
     if (n > 1 && i === lastPick.get(name)) i = 1 + (i % n);
     lastPick.set(name, i);
     playKey(i ? `${name}_${i}` : name, base * (o.vol ?? 1) * sfxVol(), { ...o, rate: (o.rate ?? 1) * (1 + (Math.random() - 0.5) * 0.06) });
+  },
+
+  /** A class's signature sounds are in (else they are fetched now through this scene, and heard from when they are). */
+  classReady(scene: Phaser.Scene, cls: string): boolean {
+    const set = sigOf(cls);
+    if (!set || !game) return false;
+    const c = game.cache.audio;
+    if (Object.entries(set).every(([n, [count]]) => c.exists(key(count > 1 ? `${n}_1` : n)))) return true;
+    if (!asked.has(cls)) { asked.add(cls); loadFamilies(scene, set); scene.load.start(); }
+    return false;
   },
 
   /** A fighter locked in on the select screen: the cue with a punch under it, the announcer calling its name. */
@@ -293,6 +348,8 @@ export const Sound = {
 };
 
 let voiceSnd: Phaser.Sound.BaseSound | null = null;
+/** The classes whose signature sounds were sent for after the arena had loaded. */
+const asked = new Set<string>();
 let duckUntil = 0, duckLevel = 0.45, duck = 1;
 let wantMusic: string | null = null;
 

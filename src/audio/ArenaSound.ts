@@ -11,12 +11,16 @@
 // bolt crackles, a dome whumps, a wave rushes past, crystals grow and shatter — the repeating ones held back); the
 // fighters' feet on the planks (steps when running, a scuff when driven back, a thump on landing). The music ducks under
 // an ultimate (both arenas).
+// Each class's signature skills (its 6–7 most played: the basic chain, the launchers and finishers, the signature, the
+// ultimate) sound like themselves (SIG): their own swing / shot / spell, timed so it peaks on the strike, a wind-up for the
+// big ones, their own main hit under the boom.
 import Phaser from 'phaser';
 import type { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import type { CastRun } from '../skills/SkillRuntime';
 import type { Match, MatchPhase } from '../pvp/Match';
 import type { FxPiece } from '../arena3d/Fx3D';
-import { Heard, Sound, setPanner, SfxName, VoiceLine } from './Sound';
+import { arenaTimeScale } from '../skills/FinalKit';
+import { Heard, PlayOpts, Sound, setPanner, SfxName, VoiceLine } from './Sound';
 
 /** A fighter as the sound sees it: where (world x, y), how high above what it stands on, knocked about (launched / down),
  *  driven back by a blow (sliding on its feet). */
@@ -51,6 +55,55 @@ const BUFFS: Record<string, SfxName> = {
   lightning_chain: 'mag_bolt', storm_field: 'mag_bolt', frost_nova: 'mag_ice', glacial_spikes: 'mag_ice', origami_flock: 'mag_page', paper_curse: 'mag_page', page_bind: 'mag_page',
   coin_flip: 'gam_coins', roulette_wheel: 'gam_roulette', dice_bomb: 'gam_dice', triple_down: 'gam_dice', jackpot: 'gam_chips', all_in: 'gam_chips',
 };
+/** Each class's signature skills, a sound of their own (tools/audio/signatures.py): `wind` as the cast starts (a big
+ *  one's wind-up; `windLead` ms into it is the strike), `cast` its swing / shot / spell (a basic chain: one per stage;
+ *  `lead` ms into it lands on the strike — started early, or partway in when the startup is short; none: at the strike),
+ *  `hit` its first main hit (under the boom), `end` its last main hit, `blow` its other blows (a burst's small ones stay
+ *  the class's soft ticks). */
+interface Sig { wind?: SfxName; windLead?: number; cast?: SfxName | readonly SfxName[]; lead?: number | readonly number[]; hit?: SfxName; end?: SfxName; blow?: SfxName; blowVol?: number }
+const SIG: Record<string, Sig> = {
+  // warrior: a greatsword's weight, holy gold light, the storm, the titan
+  warrior_basic: { cast: ['wr_iron_1', 'wr_iron_2', 'wr_iron_3', 'wr_iron_4'], lead: [153, 150, 135, 275], blow: 'wr_iron_hit', hit: 'wr_iron_fin' },
+  rising_slash: { cast: 'wr_rise_c', lead: 252, hit: 'wr_rise_h' },
+  ground_breaker: { cast: 'wr_quake_c', lead: 315, hit: 'wr_quake_h' },
+  lance_thrust: { cast: 'wr_rush_c', hit: 'wr_rush_h' },
+  blade_storm: { wind: 'wr_storm_w', windLead: 320, cast: 'wr_storm_c', hit: 'wr_storm_h', blow: 'wr_storm_h', blowVol: 0.55 }, // (the storm's light swords keep striking)
+  titans_verdict: { wind: 'wr_titan_w', windLead: 770, hit: 'wr_titan_h', end: 'wr_titan_end' },
+  // samurai: thin bright steel, sakura, ink, the dark and the crimson dragon
+  quick_slash: { cast: ['sm_quick_1', 'sm_quick_2', 'sm_quick_3', 'sm_quick_4'], lead: [64, 64, 60, 109], blow: 'sm_quick_hit', hit: 'sm_quick_fin' },
+  hundred_cuts: { cast: 'sm_hundred_c', lead: 36, hit: 'sm_hundred_h' },
+  swallow_cut: { cast: 'sm_swallow_c', lead: 100, hit: 'sm_swallow_h' },
+  shadow_step: { cast: 'sm_shadow_c', lead: 100, blow: 'sm_shadow_h' },
+  iai_strike: { wind: 'sm_iai_w', cast: 'sm_iai_c', hit: 'sm_iai_h', blow: 'sm_iai_h' },
+  blossom_storm: { cast: 'sm_blossom_c', lead: 40, hit: 'sm_blossom_h' },
+  dragon_eclipse: { wind: 'sm_eclipse_w', windLead: 1350, cast: 'sm_eclipse_c', lead: 28, hit: 'sm_eclipse_h' },
+  // archer: the bow, wind and leaves, fire, the sky full of arrows
+  quick_shot: { cast: ['ar_double_c', 'ar_charged_c'], lead: [0, 160], blow: 'ar_arrow_hit', hit: 'ar_charged_h' },
+  rising_arrow: { cast: 'ar_rise_c', hit: 'ar_rise_h' },
+  explosive_arrow: { cast: 'ar_fire_c', hit: 'ar_fire_h', blow: 'ar_fire_h' },
+  arrow_storm: { cast: 'ar_storm_c', hit: 'ar_storm_h' },
+  skyhunters_step: { cast: 'ar_volley_c', hit: 'ar_volley_h' },
+  sky_rain: { wind: 'ar_skyrain_w', windLead: 800, cast: 'ar_skyrain_c', hit: 'ar_skyrain_h' },
+  // book mage: arcane chimes, starlight, lightning, frost, the clock of time
+  arcane_bolt: { cast: ['bm_bolt_c1', 'bm_bolt_c2', 'bm_lance_c'], lead: [0, 0, 150], blow: 'bm_bolt_h', hit: 'bm_lance_h' },
+  arcane_wave: { cast: 'bm_wave_c', lead: 60, hit: 'bm_wave_h', blow: 'bm_wave_h' },
+  astral_burst: { cast: 'bm_astral_c', lead: 250, hit: 'bm_astral_h', blow: 'bm_astral_h' },
+  lightning_chain: { cast: 'bm_chain_c', lead: 50, hit: 'bm_chain_h' },
+  glacial_spikes: { cast: 'bm_spikes_c', hit: 'bm_spikes_h', blow: 'bm_spikes_h' }, // (a single blow: its sound whatever the frost makes of it)
+  storm_field: { cast: 'bm_field_c', hit: 'bm_field_h' },
+  time_collapse: { wind: 'bm_time_w', windLead: 900, cast: 'bm_time_c', hit: 'bm_time_h' },
+  // gambler: the staff, the cards, the casino
+  cut_the_deck: { cast: ['gb_deck_1', 'gb_deck_2', 'gb_deck_3', 'gb_deck_4'], lead: [49, 88, 0, 112], blow: 'gb_staff_hit', hit: 'gb_deck_fin' },
+  charged_deal: { wind: 'gb_deal_w', cast: 'gb_deal_c', blow: 'gb_deal_h' },
+  staff_vault: { cast: 'gb_vault_c', hit: 'gb_vault_h' },
+  fuse_slam: { cast: 'gb_fuse_c', lead: 240, hit: 'gb_fuse_h', blow: 'gb_fuse_h' },
+  showdown: { wind: 'gb_show_w', windLead: 360, cast: 'gb_show_c', hit: 'gb_show_h' },
+  jackpot: { wind: 'gb_jack_w', windLead: 900, cast: 'gb_jack_c', hit: 'gb_jack_h' },
+};
+/** A chain's stage's own (the last one for the stages after). */
+const perStage = <V>(v: V | readonly V[] | undefined, stage: number): V | undefined =>
+  Array.isArray(v) ? (v as readonly V[])[Math.min(Math.max(0, stage), v.length - 1)] : (v as V | undefined);
+
 const CALLS: [RegExp, SfxName, number][] = [
   [/^BREAK/, 'break', 1], [/^PUNISH/, 'punish', 1], [/^COUNTER/, 'punish', 0.85], [/^BACK ATTACK/, 'hit_heavy', 0.5], [/^RAGE/, 'rage', 1], [/^SLAM/, 'slam', 1], [/^GRAB/, 'hit_heavy', 0.6], [/^AMBUSH/, 'sam_draw', 1],
   [/^ARMOR BREAK/, 'block', 1], [/^BLOCK/, 'block', 1], [/^(JOKER|WILD CARD)/, 'gam_coins', 1], [/^BUST/, 'gam_dice', 1], [/^KAGEMUSHA/, 'sam_draw', 0.8],
@@ -127,14 +180,21 @@ export class ArenaSound {
   /** Who "you" are (set by the scene). */
   myId: () => string = () => '';
 
-  /** A cast reaching its strike: the class's swing, shot, spell or throw (or a buff's own flourish). An ultimate's wind-up
-   *  ducks the music under it until it is over. */
+  /** A cast reaching its strike: the class's swing, shot, spell or throw (or a buff's own flourish); a signature skill its
+   *  own (its wind-up as it starts). An ultimate's wind-up ducks the music under it until it is over. */
   cast(run: CastRun, phase: string): void {
     const s = run.skill, T = run.timings;
     if (phase === 'startup' && s.slot === 7) Sound.duck(T.startup + T.active + Math.min(T.recovery, 900) + 300, 0.3);
+    const x = { x: run.origin.x, y: run.origin.y, z: run.origin.z, wet: WET.swing };
+    const sig = this.sigOf(s);
+    if (sig) {
+      const c = perStage(sig.cast, run.stage), lead = perStage(sig.lead, run.stage) ?? 0;
+      if (phase === 'startup') { if (sig.wind) this.onStrike(run, sig.wind, sig.windLead ?? 0, x); if (c && lead > 0) this.onStrike(run, c, lead, x); }
+      else if (phase === 'active' && c && lead <= 0) Sound.sfx(c, x);
+      return;
+    }
     if (phase !== 'active') return;
     const heavy = run.hits.some((h) => h.heavy) || s.slot === 7;
-    const x = { x: run.origin.x, y: run.origin.y, z: run.origin.z, wet: WET.swing };
     const own = BUFFS[s.id];
     if (own) { Sound.sfx(own, { ...x, vol: own === 'war_cry' || own === 'rage' ? 0.9 : 1 }); return; }
     const proj = run.hits.some((h) => h.shape.kind === 'projectile');
@@ -149,18 +209,22 @@ export class ArenaSound {
     }
   }
 
-  /** A hit landing (or held off): the class's impact; the main hit with the boom under it, a burst's small blows soft. */
+  /** A hit landing (or held off): the class's impact (a signature skill's own); the main hit with the boom under it, a
+   *  burst's small blows soft. */
   hit(s: FinalSkill, hit: HitEvent, at: { x: number; y?: number; z?: number }, damage: number, reaction: string, crit: boolean): void {
     const w = { x: at.x, y: at.y, z: at.z };
-    if (reaction === 'armor' || damage <= 0) { Sound.sfx('block', { ...w, vol: 0.85, wet: WET.hit }); return; }
+    if (reaction === 'armor') { Sound.sfx('block', { ...w, vol: 0.85, wet: WET.hit }); return; }
+    if (damage <= 0) return; // (a hold, a pull, a zone's grip: no blow to hear)
     const tier = s.slot === 7 ? 3 : hit.heavy || s.slot === 6 ? 2 : s.slot === 0 ? 0 : 1;
     // the main hit (as SkillFx weighs it): heavy, one that sends the foe flying or down, the last blow of a burst
     const flies = !!(hit.reaction.launch || hit.reaction.knockdown || hit.reaction.slam) || reaction === 'launch' || reaction === 'knockdown' || reaction === 'slam';
-    const many = (s.chain ? 1 : s.hits.length) > 3, main = !!hit.heavy || flies || (many && hit === s.hits[s.hits.length - 1]);
+    const many = (s.chain ? 1 : s.hits.length) > 3, idx = s.chain ? -1 : this.indexOf(s, hit), main = !!hit.heavy || flies || (many && idx === s.hits.length - 1);
     const tick = many && !main; // (a burst's small blow: a soft tick, so the main one stands out)
     const o = { ...w, vol: tick ? 0.42 : [0.75, 0.9, 1, 1][tier], rate: tick ? 1.1 : 1, wet: tick ? WET.tick : WET.hit, at: tick ? 30 : 38 };
     const proj = hit.shape.kind === 'projectile';
-    switch (s.cls) {
+    const sig = tick ? undefined : this.sigOf(s), own = sig ? this.ownHit(s, sig, main, idx) : undefined;
+    if (own) Sound.sfx(own, !main && sig?.blowVol ? { ...o, vol: o.vol * sig.blowVol } : o);
+    else switch (s.cls) {
       case 'warrior': Sound.sfx(tier === 0 || tick ? 'hit_light' : 'war_hit', o); break;
       case 'samurai': Sound.sfx('sam_cut', o); break;
       case 'archer': Sound.sfx(proj ? 'arc_hit' : 'hit_light', o); break;
@@ -174,6 +238,44 @@ export class ArenaSound {
     }
     if (tier === 3 && !tick) Sound.sfx('hit_ult', { ...w, vol: 0.7, at: 120, wet: WET.boom });
     if (crit) Sound.sfx('crit', { ...w, vol: 0.8 });
+  }
+
+  /** A signature skill's sounds, once its class's are in (they are sent for the first time a class is heard without them). */
+  private sigOf(s: FinalSkill): Sig | undefined {
+    const sig = SIG[s.id];
+    return sig && Sound.classReady(this.scene, s.cls) ? sig : undefined;
+  }
+
+  /** Play a sound so that `lead` ms into it lands on the strike (the end of the run's startup): later when there is time
+   *  to spare, from partway into it when there is less (a skill cancelled into from a hit starts up faster). */
+  private onStrike(run: CastRun, name: SfxName, lead: number, o: PlayOpts): void {
+    const d = run.timings.startup - run.elapsed - lead;
+    if (lead <= 0 || d <= 0) { Sound.sfx(name, { ...o, seek: lead > 0 ? Math.max(0, -d) / 1000 : 0 }); return; }
+    this.scene.time.delayedCall(d, () => { if (run.phase !== 'done') Sound.sfx(name, o); });
+  }
+
+  /** A hit's place in its skill (-1: not found) — the arena re-times a skill's hits (as copies): matched by their time. */
+  private indexOf(s: FinalSkill, hit: HitEvent): number {
+    const i = s.hits.indexOf(hit);
+    if (i >= 0) return i;
+    const k = arenaTimeScale(s)?.at ?? 1;
+    return s.hits.findIndex((h) => Math.abs(Math.round(h.at * k) - hit.at) <= 1);
+  }
+
+  /** Each signature skill's first and last main hit (by its index). */
+  private mains = new Map<string, { first: number; last: number }>();
+  /** A signature skill's own impact for this blow: its first main hit, its last one, its other blows. */
+  private ownHit(s: FinalSkill, sig: Sig, main: boolean, idx: number): SfxName | undefined {
+    if (!main) return sig.blow;
+    if (s.chain || s.charge || idx < 0) return sig.hit; // (a chain's finisher; a charged skill's level hits are its own)
+    let m = this.mains.get(s.id);
+    if (!m) {
+      const n = s.hits.length, many = n > 3;
+      m = { first: -1, last: -1 };
+      s.hits.forEach((h, i) => { if (h.heavy || h.reaction.launch || h.reaction.knockdown || h.reaction.slam || (many && i === n - 1)) { if (m!.first < 0) m!.first = i; m!.last = i; } });
+      this.mains.set(s.id, m);
+    }
+    return idx === m.first ? sig.hit : idx === m.last ? sig.end : undefined;
   }
 
   /** The fight's calls over the fighters (BREAK!, PUNISH!, RAGE!, SLAM!! ...). */
