@@ -47,9 +47,8 @@ export class MainMenuScene extends Phaser.Scene {
 
     this.cameras.main.fadeIn(220, 0, 0, 0);
     new MainMenuUI(this, {
-      onStart: () => { ARENA3D.on = false; this.leave(() => this.scene.start('CharacterSelectScene')); },
-      onPvp: () => { ARENA3D.on = false; this.leave(() => this.scene.start('PvpSelectScene', { mode: 'cpu' })); }, // the fighter select (Tekken style)
-      onPvp3d: () => { ARENA3D.on = true; this.leave(() => this.scene.start('PvpSelectScene', { mode: 'cpu' })); }, // PVP 3D: the test build (the arena as a 3D room)
+      onStart: () => this.leave(() => this.scene.start('CharacterSelectScene')),
+      onPvp: () => { ARENA3D.on = true; this.leave(() => this.scene.start('PvpSelectScene', { mode: 'cpu' })); }, // the fighter select (Tekken style) → the arena, a real 3D room (PVP 3D)
     });
   }
 
