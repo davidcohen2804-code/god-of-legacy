@@ -161,6 +161,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - PvP (Maps' Thief's Den request): play together in the open world — see each other in the maps, party up, run the Thief's Den as a party. A big new system: build it now, or keep the world single-player for now?
 
 ## Done
+- Gambler: Charged Deal's longer hold (BALANCE_LOG 2026-10-17) shown in his hand — the cards fan open, 3 then the full 5 at the max bet with a gold flash, gone at the throw — 37bc2659; checked in PVP 3D with a held key
 - Book Mage: VS entrance + win clips for PvP (vs_in.mp4, win_in.mp4)
 - Book Mage (quality pass, weakest first): Lightning Chain no longer whites out the foe (the cage behind him and thinner, beam and finisher toned down) — b4f65a1d; Binding Rune and Blink get her own body moves (PixVerse from her painted ref: drops low and slaps her palm on the floor / the coat whirls round her), Blink's vanish-appear art cut to her size (it flashed over both fighters) — 1d1be8f3. All checked in PVP 3D vs the knight.
 - Gambler: the basic chain's body — a strike of its own each (PixVerse, 5 frames: the jab with its smear and impact, the back swing, the card flick, the rising swing the heaviest), HERO_PLANS cut_the_deck/#1/#2/#3 — 61c913f2; checked in PVP 3D stage by stage
