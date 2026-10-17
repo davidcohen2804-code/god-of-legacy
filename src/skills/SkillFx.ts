@@ -2252,6 +2252,13 @@ export class SkillFx {
   clearHalo(attackerId: string, now = false): void { this.sam.clearHalo(attackerId, now); }
   /** God of Blades shared with a party member: the halo of blades in miniature over his head for `ms`. */
   godMark(id: string, ms: number): void { this.sam.godMark(id, ms); }
+  /** The samurai's fallen petals (SamuraiPetals): a drift laid on the floor (the painted arena, the world), a drift going
+   *  ('wind' its time is up, 'gather' into the scabbard of `to`, 'gone'), the scabbard holding gathered petals, a petal's
+   *  picture for the 3D card piece. */
+  samDrift(key: string, pts: { x: number; y: number; k: number }[], from: V3): void { this.sam.driftLay(key, pts, from); }
+  samDriftGo(key: string, how: 'wind' | 'gather' | 'gone', to?: string): void { this.sam.driftGo(key, how, to); }
+  samScabbard(id: string, n: number, ms: number): void { this.sam.scabbard(id, n, ms); }
+  petalLook(k: number): { tex: string; size: number; aspect: number } | null { return this.sam.petalLook(k); }
   /** Rising Sun's light on him ends (he fell, his buffs end). */
   clearSun(attackerId: string): void { this.sam.clearSun(attackerId); }
   /** Stunned by a samurai's AMBUSH: a crown of petals over the head for the stun. */

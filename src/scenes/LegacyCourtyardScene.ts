@@ -57,6 +57,7 @@ import { QuestState } from '../characters/CharacterTypes';
 import { PvpController } from '../pvp/PvpController';
 import { ARENA3D } from '../arena3d/flag';
 import type { Arena3D, Floor } from '../arena3d/Arena3D';
+import { SamuraiPetals, PETALS } from '../skills/SamuraiPetals';
 import { WORLD3D } from '../world3d/flag';
 import type { World3D } from '../world3d/World3D';
 import { Match, MatchPhase } from '../pvp/Match';
@@ -266,6 +267,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Gambler (the gambler spec): his Hand, the charged cards stuck in foes, and his luck. */
   private gHand = new Hand();
   private gStuck = new Stuck();
+  /** The samurai's fallen petals (continuity: Blossom Storm / Sakura Bind leave them, Sheathe gathers them, the Iai draws them). */
+  private petals = new SamuraiPetals({ now: () => this.simMs, localId: () => this.localId, casterPos: (id) => this.casterPos(id), fx: () => this.fx, fx3d: () => this.a3d?.fx });
   private gHandKey = '';
   private gShowMul = 1;
   private gShow = new Map<string, HandValue | null>();
@@ -895,7 +898,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       return sp ? { key: sp.texture.key, frame: sp.frame.name, flipX: sp.flipX, ox: sp.originX, oy: sp.originY, sx: Math.abs(sp.scaleX), sy: Math.abs(sp.scaleY), a: sp.visible ? sp.alpha : 0, face: dir === 'left' ? -1 : 1 } : null;
     };
     this.fx.aliveOf = (id) => (id === this.localId ? this.dead < 0 : id === BOT_ID ? !!this.bot && !this.bot.defeated : this.pvp?.remotes.get(id)?.alive !== false);
-    this.rt.events.on(RT_EVENTS.hit, (r: CastRun, i: number, o: V3) => this.kageSwing(r, i, o));
+    this.rt.events.on(RT_EVENTS.hit, (r: CastRun, i: number, o: V3) => { this.kageSwing(r, i, o); this.petals.cut(r, i, o); }); // (Blossom Storm's cuts leave their petals)
     this.rt.events.on(RT_EVENTS.projectileEnd, (p: { x: number; y: number }, r: CastRun) => { if (r.skill.id === 'ace_in_the_hole') { this.gAceEnd.set(r.castId, { x: p.x, y: p.y }); if (this.gAceEnd.size > 30) this.gAceEnd.delete(this.gAceEnd.keys().next().value as string); } }); // the ace blows where it stopped
     this.fx.unarmed = (id) => (id === this.localId ? !this.gearSt.armed : this.pvp?.remotes.get(id)?.armed === false);
     this.renderPlayer(0);
@@ -1071,6 +1074,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.world) { this.stepMonsters(ms, now); this.stepTreasures(); this.stepLoot(ms, now); this.stepSun(ms, now); }
     this.rt.update(ms);
     this.stepLingers(now);
+    this.petals.step();
     this.stepClaims(now);
     this.stepStorm();
     this.stepTree(now);
@@ -2823,14 +2827,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     else if (this.simMs < this.warCryUntil) this.body.armorUntil = this.simMs + ct.startup + ct.active; // War Cry: super armor while attacking
     this.kage?.arm(castId, s.id, { x: k.x, y: k.y, z: k.z }); // he strikes: out of hiding; a cast while the doubles stand: its first hit that lands is the AMBUSH
     const mf = s.cls === 'book_mage' ? this.mageFlags() : 0;
-    const run = this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: from, aim, place, lock, followUp, ...(mf ? { mf } : {}) });
+    const pb = this.petals.draw(s); // (the blossom draw: his Iai takes the petals in the scabbard)
+    const run = this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: from, aim, place, lock, followUp, ...(mf ? { mf } : {}), ...(pb ? { petals: pb } : {}) });
     this.trialUi?.cast(s.id.startsWith('arcane_bolt') ? 'arcane_bolt' : s.id, castId, !k.grounded, this.simMs); // (training: the trial's next key? — an Attunement bolt is the trial's Arcane Bolt)
     if (s.cls === 'book_mage') this.mageCast(s, run);
     if (s.cls === 'gambler') this.gamblerStarted(s);
     if (s.chain) this.chain = { stage, lastEnd: Infinity, skill: s.id };
     this.setMode('skill');
     const dm = this.ownDamageMul(s), rm = s.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.4 : 1; // buffs travel with the cast (victim-side damage / reach)
-    this.pvp?.sendCast({ castId, skillId: s.id, stage, x: Math.round(from.x), y: Math.round(from.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000), ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}), lock, ...(followUp ? { fu: 1 } : {}), ...(dm !== 1 ? { dm: Math.round(dm * 100) } : {}), ...(rm !== 1 ? { rm: Math.round(rm * 100) } : {}), ...(this.ownRangeMul(s) !== 1 ? { rg: Math.round(this.ownRangeMul(s) * 100) } : {}), ...(this.ownSpeedMul(s) !== 1 ? { sp: Math.round(this.ownSpeedMul(s) * 100) } : {}), ...(this.kage?.isAmbush(castId) ? { amb: 1 } : {}), ...(mf ? { mf } : {}), ...(run.primed ? { pr: 1 + run.primed.chargeUp } : {}) });
+    this.pvp?.sendCast({ castId, skillId: s.id, stage, x: Math.round(from.x), y: Math.round(from.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000), ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}), lock, ...(followUp ? { fu: 1 } : {}), ...(dm !== 1 ? { dm: Math.round(dm * 100) } : {}), ...(rm !== 1 ? { rm: Math.round(rm * 100) } : {}), ...(this.ownRangeMul(s) !== 1 ? { rg: Math.round(this.ownRangeMul(s) * 100) } : {}), ...(this.ownSpeedMul(s) !== 1 ? { sp: Math.round(this.ownSpeedMul(s) * 100) } : {}), ...(this.kage?.isAmbush(castId) ? { amb: 1 } : {}), ...(mf ? { mf } : {}), ...(run.primed ? { pr: 1 + run.primed.chargeUp } : {}), ...(run.petals ? { pb: run.petals } : {}) });
   }
 
   /** Archer casts: buffs, the tree, the channelled storm (timers on the sim clock, from the run's real startup). */
@@ -3026,6 +3031,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (run.confirmedAt >= 0) { this.mage.pageChill = 2; this.momentum = { x: -run.aim.x * 120, y: -run.aim.y * 60, left: 200 }; }
       else run.extraRecovery = Math.max(run.extraRecovery, 300);
     }
+    if (phase === 'active' && run.skill.cls === 'samurai') { this.petals.bind(run); this.petals.sheathe(run); } // (Sakura Bind's ring stays when the bind ends; Sheathe's click gathers his petals)
     const L = run.skill.linger;
     if (phase === 'active' && L && L.at !== 'target') { // every caster's lingering zone (yours, other players', the sparring knight's; a hold under a foe starts on its hit: startHold)
       const off = L.at === 'aim' ? (L.offset ?? 0) : 0, pl = L.at === 'place' ? run.place : null; // ('place': where the cast was opened on the floor)
@@ -4042,7 +4048,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (m.amb && s.cls === 'samurai' && r.kageGhosts().length) this.ambushIn.add(m.castId); // made while his doubles stand: an ambush
     const run = this.rt?.start({ castId: m.castId, skill: s, stage: Math.max(0, Math.min(2, m.stage ?? 0)), attackerId: from, own: false, origin: { x: m.x, y: m.y, z: m.z ?? 0 }, aim: unit(m.ax, m.ay), place, lock: m.lock ?? null, followUp: !!m.fu,
       dmgMul: Math.max(0.3, Math.min(1.4, (m.dm ?? 100) / 100)), reach: Math.max(1, Math.min(1.85, (m.rm ?? 100) / 100)),
-      range: Math.max(1, Math.min(1.2, (m.rg ?? 100) / 100)), speed: Math.max(1, Math.min(1.35, (m.sp ?? 100) / 100)), ...(m.mf ? { mf: m.mf } : {}), ...(m.pr && kitFor(s.cls).some((x) => x.primes?.ids.includes(s.id)) ? { primed: { chargeUp: Math.max(0, Math.min(2, m.pr - 1)) } } : {}) }, this.pvp?.oneWay(from) ?? 0); // (pr: primed by his Sheathe — his screen decides) // (it left their hand one network delay ago: its wind-up is caught up)
+      range: Math.max(1, Math.min(1.2, (m.rg ?? 100) / 100)), speed: Math.max(1, Math.min(1.35, (m.sp ?? 100) / 100)), ...(m.mf ? { mf: m.mf } : {}), ...(m.pr && kitFor(s.cls).some((x) => x.primes?.ids.includes(s.id)) ? { primed: { chargeUp: Math.max(0, Math.min(2, m.pr - 1)) } } : {}), ...(m.pb && s.id === 'iai_strike' ? { petals: Math.max(0, Math.min(PETALS.cap, Math.round(m.pb))) } : {}) }, this.pvp?.oneWay(from) ?? 0); // (pr: primed by his Sheathe — his screen decides) // (it left their hand one network delay ago: its wind-up is caught up)
     if (run) { this.remoteRuns.set(m.castId, { run, at: this.simMs }); for (const [k, v] of this.remoteRuns) if (this.simMs - v.at > 4000) this.remoteRuns.delete(k); }
     if (run && s.id === 'judgment_blade') { // the blade leaves the caster's hand when its release message arrives (fallback: a little after the full charge)
       run.timings.startup = s.startup + 600; r.setSkillStartup(s.id, run.timings.startup);
@@ -4235,7 +4241,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** A new round for you: on your mark, full HP, every buff gone, every skill ready, nothing still flying. */
   private roundReset(x: number, y: number, face: 1 | -1): void {
     this.rt?.cancelOwn('death');
-    this.lingers = []; this.shares = []; this.holdsStarted.clear();
+    this.lingers = []; this.shares = []; this.holdsStarted.clear(); this.petals.clear();
     this.endBuffs();
     this.warCryUntil = -1; this.radiantUntil = -1; this.radiantFrom = -1; this.domeAt = -1;
     if (this.dome) this.dome.until = this.simMs;

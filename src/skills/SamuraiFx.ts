@@ -123,6 +123,10 @@ export class SamuraiFx {
   private halos = new Map<string, Halo>();
   /** God of Blades shared with party members: the mark over each one's head. */
   private marks = new Map<string, { t: number; until: number; ims: Phaser.GameObjects.Image[] }>();
+  /** The fallen petals lying in the painted arena / the world (SamuraiPetals' drifts; PVP 3D lays real ones: the card piece). */
+  private drifts = new Map<string, { ims: Phaser.GameObjects.Image[]; pts: { x: number; y: number; k: number }[]; from: { x: number; y: number }; t: number; mode: 'fall' | 'lie' | 'wind' | 'gather'; t0: number; to?: string; ang: number[]; w: number[] }>();
+  /** A samurai's scabbard holding gathered petals (until his blossom draw, or they scatter). */
+  private scabs = new Map<string, { n: number; t: number; until: number; drawing: boolean; glow: Phaser.GameObjects.Image; ims: Phaser.GameObjects.Image[] }>();
   private suns = new Map<string, Sun>();
   private waves = new Map<Projectile, Wave>();
   /** Mirage stances by cast: where the samurai stood (the mirage the blow strikes). */
@@ -539,7 +543,7 @@ export class SamuraiFx {
       case 'swallow_cut': this.glint(r, 0, 24); break;
       case 'sheathe': this.sheathe(r); break;
       case 'sword_wave': this.glint(r, 0, 34, 80); break;
-      case 'iai_strike': this.iai(r); break;
+      case 'iai_strike': this.iai(r); if (r.petals && !ghost) { const sc = this.scabs.get(r.attackerId); if (sc) sc.drawing = true; } break; // (the blossom draw: the scabbard keeps its petals for the release)
       case 'mirage': this.mirageStance(r); break;
       case 'blossom_storm': this.blossomStorm(r); break;
       case 'dragon_eclipse': this.eclipse(r); break;
@@ -577,7 +581,7 @@ export class SamuraiFx {
     switch (s.id) {
       case 'quick_slash': this.quickSlash(r, i); break;
       case 'swallow_cut': this.swallow(r, i); break;
-      case 'iai_strike': this.iaiCut(r); break;
+      case 'iai_strike': if (i === 0) this.iaiCut(r); else this.blossomCut(r, i); break; // (its hits after the draw: the blossom draw's extra cuts)
       case 'hundred_cuts': this.flurry(r, i); break;
       case 'mirage': // the counter cut, from behind: a draw-cut across the attacker — drawn as far as it reaches (its 96 px, ~115 with his width) — in
         // the mirage's rose, a flash of bare steel along it and a white X on the attacker (the counter's mark)
@@ -638,7 +642,7 @@ export class SamuraiFx {
     // the last of a burst — its mark big; the small hits of a burst small, so the main one stands out
     const many = s.hits.length > 3, flies = !!(hit.reaction.launch || hit.reaction.knockdown || hit.reaction.slam);
     const main = !!hit.heavy || flies || lastOfBurst(s, hit); // (lastOfBurst: the arena's re-timed copies of the hits too)
-    const x = at.x, y = at.y - at.z - 38, rapid = many && !main, side = from && at.x < from.x - 2 ? -1 : 1, tone = SKILL_TONE[s.id];
+    const x = at.x, y = at.y - at.z - 38, rapid = many && !main, side = from && at.x < from.x - 2 ? -1 : 1, tone: Tone | undefined = s.id === 'iai_strike' && !hit.heavy ? 'sakura' : SKILL_TONE[s.id]; // (the blossom draw's extra cuts: sakura)
     if (main && !hit.heavy) heavy = true;
     const line = this.slashLine(s, hit), ang = line ? side * line.ang : 0;
     if (counter) this.counterMark(x, y, side, local);
@@ -675,7 +679,7 @@ export class SamuraiFx {
     if (reaction === 'launch') this.launchBeam(at.x, at.y, s.id === 'quick_slash' || s.id === 'swallow_cut' ? 88 : 110, tone === 'gold' || tone === 'fire' ? tone : undefined); // (the launchers he uses most: a size down)
     if (reaction === 'knockdown' || reaction === 'slam') { this.crack(at.x, at.y + 2, 120); this.dust(at.x, at.y, 120); }
     if (s.id === 'sakura_bind' && reaction === 'cc') { const hold = hit.reaction.hardCC?.ms ?? 2000; this.cage(at.x, at.y, hold); this.bindMark(at.x, at.y, hold); }
-    if (DELAYED.has(s.id) && (s.id !== 'dragon_eclipse' || hit.heavy)) { // the cut arrives late: a thin line stays on the foe a beat — then splits open
+    if (DELAYED.has(s.id) && hit.heavy) { // the cut arrives late: a thin line stays on the foe a beat — then splits open
       const la = line ? ang : rnd(-28, 28), lw = 196, iai = s.id === 'iai_strike';
       // (the Iai: a hair-thin line of bare steel — then it opens in crimson)
       this.spr({ name: tn('cut_line', iai ? 'steel' : undefined), x, y: y - 4, angle: la, w: lw, h: iai ? 9 : 12, depth: TOP + 5, life: 200, glow: 0.85, sx: kf([0, 0.25], [0.12, 1, out3]), a: kf([0, 1], [0.86, 1], [1, 0]) });
@@ -893,7 +897,12 @@ export class SamuraiFx {
   private iaiCut(r: CastRun): void {
     const lv = r.chargeLevel ?? 0, len = (r.hits[0].shape as { length: number }).length, a = r.aim, side = sideOf(r), q = this.me(r), cam = this.ctx.cam();
     const ang = screenAng(a.x, a.y), x0 = q.x + a.x * 8, y0 = q.y + a.y * 4 - q.z - 46, fl = a.x < -0.01;
-    this.spr({ name: tn('cut_line', 'steel'), x: x0, y: y0, ox: 0.03, angle: ang, flipY: fl, w: len * 1.12, h: 24 + 10 * lv, depth: TOP + 3, life: 380 + lv * 60, glow: 0.85,
+    // the blossom draw (petals gathered by Sheathe): its line opens pink, as wide as the runtime made it, the petals out of
+    // the scabbard along it
+    const pb = r.petals ?? 0, base = r.skill.charge?.levels[lv]?.hits[0]?.shape as { width?: number } | undefined;
+    const wk = Math.max(1, ((r.hits[0].shape as { width?: number }).width ?? 1) / (base?.width ?? (r.hits[0].shape as { width?: number }).width ?? 1));
+    if (pb) this.blossomDraw(r, x0, y0, ang, len);
+    this.spr({ name: tn('cut_line', 'steel'), x: x0, y: y0, ox: 0.03, angle: ang, flipY: fl, w: len * 1.12, h: (24 + 10 * lv) * wk, depth: TOP + 3, life: 380 + lv * 60, glow: 0.85, tint: pb ? 0xffb8dc : undefined,
       sx: kf([0, 0.05], [0.11, 1, out3], [1, 1.02]), sy: kf([0, 1.4], [0.11, 1], [0.35, 1], [1, 0.15, inQ]), a: kf([0, 1], [0.4, 1], [1, 0, inQ]) });
     const mx = x0 + Math.cos(ang * Math.PI / 180) * len * 0.56, my = y0 + Math.sin(ang * Math.PI / 180) * len * 0.56;
     this.spr({ name: 'cut_split', x: mx, y: my, angle: ang, flipY: fl, w: len * 0.95, delay: 110, life: 360, glow: 0.65, depth: TOP + 3.5,
@@ -1582,7 +1591,7 @@ export class SamuraiFx {
   }
 
   /** His buffs end (he fell, a new round): the halo and the party mark go. */
-  clearHalo(attackerId: string, now = false): void { this.endHalo(attackerId, now); this.clearMark(attackerId, now); }
+  clearHalo(attackerId: string, now = false): void { this.endHalo(attackerId, now); this.clearMark(attackerId, now); this.scabEnd(attackerId, now ? 'gone' : 'scatter'); }
 
   // ------------------------------------------------------------------ God of Blades: the party mark
 
@@ -1613,6 +1622,127 @@ export class SamuraiFx {
       m.ims[0].setVisible(on > 0.01).setPosition(x, y).setScale(k).setAngle(ang).setDepth(TOP + 1).setAlpha(0.95 * on);
       m.ims[1].setVisible(on > 0.01).setPosition(x, y).setScale(k * 1.05).setAngle(ang).setDepth(TOP + 1.01).setAlpha((0.3 + 0.12 * Math.sin(m.t / 200)) * on);
     }
+  }
+
+  // ------------------------------------------------------------------ the fallen petals (SamuraiPetals: continuity)
+
+  /** A petal's picture as a texture of its own (the 3D card piece lays it on the planks): cut from the kit once. */
+  petalLook(k: number): { tex: string; size: number; aspect: number } | null {
+    const s = this.ctx.scene, name = `petal_${1 + (((k % 4) + 4) % 4)}`, key = `sam-${name}`;
+    if (!this.ready) return null;
+    const fr = s.textures.getFrame(KIT, name); if (!fr) return null;
+    const w = fr.cutWidth || fr.width, h = fr.cutHeight || fr.height;
+    if (!s.textures.exists(key)) s.textures.createCanvas(key, w, h)?.drawFrame(KIT, name, 0, 0);
+    return { tex: key, size: 0.8, aspect: h / w };
+  }
+
+  /** A drift laid (the painted arena, the world): its petals flutter down from `from` (where the blossom cut / bloomed) onto
+   *  their spots on the floor and lie there, flat, in their own colours. */
+  driftLay(key: string, pts: { x: number; y: number; k: number }[], from: V3): void {
+    if (!this.ready) return;
+    this.driftGo(key, 'gone');
+    const s = this.ctx.scene, rnd = (a: number, b: number) => a + Math.random() * (b - a);
+    // (each petal in its own colours, a soft light over it: on the painted floors they sank into the gold)
+    const ims = pts.flatMap((p) => [0, 1].map((g) => { const im = s.add.image(from.x, from.y - from.z, KIT, `petal_${1 + p.k}`).setDepth(GROUND + 2.6).setVisible(false); if (g) im.setBlendMode(Phaser.BlendModes.ADD); return im; }));
+    this.drifts.set(key, { ims, pts, from: { x: from.x, y: from.y - from.z }, t: 0, mode: 'fall', t0: 0, ang: pts.map(() => rnd(0, 360)), w: pts.map(() => rnd(16, 21)) });
+  }
+
+  /** A drift goes: 'wind' (its time is up: lifted and carried off), 'gather' (into the scabbard of `to`), 'gone' (at once). */
+  driftGo(key: string, how: 'wind' | 'gather' | 'gone', to?: string): void {
+    const d = this.drifts.get(key); if (!d) return;
+    if (how === 'gone') { for (const im of d.ims) im.destroy(); this.drifts.delete(key); return; }
+    d.mode = how; d.t0 = d.t; d.to = to;
+  }
+
+  /** The scabbard of `id` holds `n` gathered petals: a soft pink glow at its mouth, petals circling it (more petals, more
+   *  of them) — until his blossom draw, or after `ms` they scatter (lost). */
+  scabbard(id: string, n: number, ms: number): void {
+    if (!this.ready) return;
+    const had = this.scabs.get(id);
+    if (had) { had.n += n; had.until = had.t + ms; return; }
+    const s = this.ctx.scene, ADD = Phaser.BlendModes.ADD;
+    const glow = s.add.image(0, 0, KIT, 'glint').setBlendMode(ADD).setTint(0xff9ec8).setVisible(false);
+    const ims = Array.from({ length: 8 }, (_, j) => s.add.image(0, 0, KIT, `petal_${1 + (j % 4)}`).setVisible(false));
+    this.scabs.set(id, { n, t: 0, until: ms, drawing: false, glow, ims });
+  }
+  /** The scabbard's petals go: 'draw' (the blossom draw took them: they burst along its line, drawn there), 'scatter'
+   *  (unused: blown off his hip), 'gone' (at once). */
+  private scabEnd(id: string, how: 'draw' | 'scatter' | 'gone'): void {
+    const sc = this.scabs.get(id); if (!sc) return;
+    this.scabs.delete(id);
+    if (how === 'scatter') { const c = this.ctx.casterPos(id); if (c) this.petals(c.x, c.y - c.z - 50, Math.min(8, 2 + Math.ceil(sc.n / 3)), 70, { depth: c.y + 3, life: 900 }); }
+    for (const im of [sc.glow, ...sc.ims]) im.destroy();
+  }
+
+  private stepPetals(dt: number): void {
+    for (const [key, d] of this.drifts) {
+      d.t += dt;
+      let alive = 0;
+      d.ims.forEach((im, ji) => {
+        const j = ji >> 1, lit = ji & 1, p = d.pts[j], fr = im.frame, k = d.w[j] / (fr.cutWidth || fr.width), al = lit ? 0.24 : 0.95;
+        if (d.mode === 'fall' || d.mode === 'lie') { // fluttering down onto its spot, then lying flat
+          const u = Math.min(1, Math.max(0, (d.t - j * 60) / (520 + (j % 3) * 90))), e = out(u), sway = Math.sin(u * 7 + j) * 9 * (1 - u);
+          const x = d.from.x + (p.x - d.from.x) * e + sway, y = d.from.y + (p.y - d.from.y) * (u * u * 0.4 + e * 0.6);
+          im.setVisible(d.t >= j * 60).setPosition(x, y).setScale(k, k * (1 - 0.45 * u)).setAngle(d.ang[j] + (1 - u) * 260).setAlpha(al).setDepth((u < 1 ? p.y + 1 : GROUND + 2.6) + lit * 0.01);
+          alive++;
+          return;
+        }
+        if (d.mode === 'wind') { // lifted and carried off, turning, fading
+          const u = Math.min(1, (d.t - d.t0 - j * 40) / 760); if (u < 0) { alive++; return; }
+          im.setPosition(p.x + 70 * u + Math.sin(u * 6 + j) * 8, p.y - 46 * u * u).setScale(k, k * (0.55 + 0.45 * u)).setAngle(d.ang[j] + 300 * u).setAlpha(al * (1 - u)).setDepth(p.y + 1 + lit * 0.01);
+          if (u < 1) alive++;
+          return;
+        }
+        // gather: rising off the floor and flying in an arc into the scabbard
+        const c = d.to ? this.ctx.casterPos(d.to) : null, u = Math.min(1, (d.t - d.t0 - j * 25) / 300);
+        if (!c) { im.setVisible(false); return; }
+        if (u < 0) { alive++; return; }
+        const hx = c.x, hy = c.y - c.z - 52, e = out3(u);
+        im.setPosition(p.x + (hx - p.x) * e, p.y + (hy - p.y) * e - Math.sin(Math.PI * u) * 40).setScale(k * (1 - 0.4 * u), k * (0.55 + 0.25 * u)).setAngle(d.ang[j] + 540 * u)
+          .setAlpha(al * (u < 0.85 ? 1 : (1 - u) / 0.15)).setDepth(c.y + 3 + lit * 0.01);
+        if (u < 1) alive++;
+      });
+      if (d.mode === 'fall' && d.t > d.pts.length * 60 + 720) d.mode = 'lie';
+      if (d.mode !== 'fall' && d.mode !== 'lie' && !alive) { for (const im of d.ims) im.destroy(); this.drifts.delete(key); }
+    }
+    for (const [id, sc] of this.scabs) {
+      sc.t += dt;
+      const c = this.ctx.casterPos(id);
+      if (!c || this.ctx.alive?.(id) === false) { this.scabEnd(id, 'gone'); continue; }
+      if (!sc.drawing && sc.t >= sc.until) { this.scabEnd(id, 'scatter'); continue; }
+      const vis = this.seen(id), on = Math.min(1, sc.t / 250) * vis, f = this.ctx.body?.(id)?.face ?? 1, mx = c.x + f * 12, my = c.y - c.z - 50;
+      sc.glow.setVisible(on > 0.01).setPosition(mx, my).setScale((26 / sc.glow.width) * (1 + 0.15 * Math.sin(sc.t / 140))).setAlpha(on * 0.75).setDepth(c.y + 2.5);
+      const shown = Math.min(sc.ims.length, Math.max(1, Math.ceil(sc.n / 2)));
+      sc.ims.forEach((im, j) => {
+        if (j >= shown) { im.setVisible(false); return; }
+        const th = sc.t / 420 + (j / shown) * Math.PI * 2, sn = Math.sin(th), fr = im.frame, k = 11 / (fr.cutWidth || fr.width);
+        im.setVisible(on > 0.01).setPosition(mx + Math.cos(th) * 20, my + sn * 9).setScale(k).setAngle(sc.t * 0.25 + j * 50).setAlpha(on * (sn > 0 ? 0.95 : 0.6)).setDepth(c.y + (sn > 0 ? 2.6 : -1));
+      });
+    }
+  }
+
+  /** The blossom draw's petals (the draw itself: `iaiCut`): out of the scabbard along the line, fluttering down. */
+  private blossomDraw(r: CastRun, x0: number, y0: number, ang: number, len: number): void {
+    const n = Math.min(16, r.petals ?? 0); if (!n) return;
+    const c = Math.cos(ang * Math.PI / 180), sn = Math.sin(ang * Math.PI / 180);
+    this.scabEnd(r.attackerId, 'draw');
+    this.pop(tn('burst', 'sakura'), x0, y0, 96, { life: 240, glow: 0.3 });
+    for (let j = 0; j < n; j++) {
+      const f = (j + 0.5 + Math.random() * 0.6) / (n + 0.6), d = len * f, off = (Math.random() - 0.5) * 34, tx = c * d - sn * off, ty = sn * d + c * off * 0.5, life = 700 + Math.random() * 400, fly = 0.22 + 0.2 * f;
+      this.spr({ name: `petal_${1 + (j % 4)}`, x: x0, y: y0, depth: TOP + 2, w: 13 + Math.random() * 6, life, angle: Math.random() * 360,
+        mx: (u) => tx * out3(Math.min(1, u / fly)), my: (u) => ty * out3(Math.min(1, u / fly)) + 40 * Math.max(0, u - fly) * Math.max(0, u - fly),
+        rot: (u) => 420 * u, a: kf([0, 1], [0.7, 1], [1, 0]), sx: (u) => 0.55 + 0.45 * Math.abs(Math.cos(u * 9 + j)) });
+    }
+  }
+  /** The blossom draw's extra cuts (the Iai's hits after the draw): a pink stroke along the line a beat apart, a few
+   *  petals where it bites. */
+  private blossomCut(r: CastRun, i: number): void {
+    const a = r.aim, q = this.me(r), len = (r.hits[i]?.shape as { length?: number }).length ?? 200, fl = a.x < -0.01;
+    const ang = screenAng(a.x, a.y) + (i % 2 ? 3 : -3), off = i % 2 ? 7 : -7, x0 = q.x + a.x * 8, y0 = q.y + a.y * 4 - q.z - 46 + off;
+    this.spr({ name: tn('cut_line', 'steel'), x: x0, y: y0, ox: 0.03, angle: ang, flipY: fl, w: len * (0.9 + 0.05 * i), h: 12, depth: TOP + 3, life: 240, glow: 0.7, tint: 0xffa8d2,
+      sx: kf([0, 0.05], [0.18, 1, out3]), sy: kf([0, 1.3], [0.18, 1], [1, 0.2, inQ]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
+    const f = 0.35 + Math.random() * 0.5, c = Math.cos(ang * Math.PI / 180), sn = Math.sin(ang * Math.PI / 180);
+    this.petals(x0 + c * len * f, y0 + sn * len * f, 4, 40, { depth: TOP + 2, life: 700 });
   }
 
   private endHalo(attackerId: string, now = false): void {
@@ -1782,6 +1912,7 @@ export class SamuraiFx {
     this.live = cur.filter((l) => { l.t += dt; return l.step(dt, l.t); });
     this.stepHalos(dt);
     this.stepMarks(dt);
+    this.stepPetals(dt);
     this.stepSuns(dt);
     this.stepWaves(dt);
   }
@@ -1789,6 +1920,8 @@ export class SamuraiFx {
   destroy(): void {
     for (const id of [...this.halos.keys()]) this.endHalo(id, true);
     for (const id of [...this.marks.keys()]) this.clearMark(id, true);
+    for (const k of [...this.drifts.keys()]) this.driftGo(k, 'gone');
+    for (const id of [...this.scabs.keys()]) this.scabEnd(id, 'gone');
     for (const id of [...this.suns.keys()]) this.clearSun(id, true);
     for (const [p] of this.waves) this.projectileEnd(p);
     this.live = []; this.incoming = []; this.nexts.clear();

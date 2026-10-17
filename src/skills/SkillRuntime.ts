@@ -31,6 +31,9 @@ export interface CastRequest {
   /** Primed by the caster's stance (Sheathe): no startup, a hold-to-charge skill `chargeUp` levels higher. An own cast is
    *  judged by the runtime; a remote one carries it from its caster's screen (the caster decides). */
   primed?: { chargeUp: number };
+  /** The samurai's blossom draw (SamuraiPetals): the petals his Sheathe gathered, carried by his next Iai Strike (his screen
+   *  counts them; a remote cast carries the count, `pb`). DFO's numbers: from 6 the line 40% wider, one more cut per 4. */
+  petals?: number;
 }
 
 export interface CastRun extends CastRequest {
