@@ -498,10 +498,8 @@ export class MageFx {
         this.shake(80, 0.004); break;
       }
       case 'storm_field': if (r.place && this.ctx.scene.textures.exists('mfx-sfield')) { const p = this.placeFloor(r);
-        this.circle(p.x, p.y, 380, 2, T.active + 300, { run: r, draw: 200 });
-        if (this.ctx.scene.textures.exists('mfx-tempest')) this.sheet('mfx-tempest', p.x, p.y, 600, T.active, { floor: true, frames: [4, 8], loop: 75, oy: 0.72, depth: GROUND + 4, run: r, alpha: 0.5 });
+        if (this.ctx.scene.textures.exists('mfx-tempest')) this.sheet('mfx-tempest', p.x, p.y, 600, T.active, { floor: true, frames: [4, 8], loop: 75, oy: 0.72, depth: GROUND + 4, run: r, alpha: 0.35 }); // (the 3D spiral glyph is the field's mark: the painted storm faint under it)
         else this.sheet('mfx-sfield', p.x, p.y, 520, T.active + 200, { frames: [0, 8], loop: 70, oy: 0.72, sy: 1.28, depth: GROUND + 4, run: r });
-        this.smoke(p.x, p.y - 30, 460, 0, T.active + 300, { squash: 0.45, depth: GROUND + 3 });
         this.ctx.darken(T.active + 200, 0.3);
         for (let t = 120; t < T.active; t += 260) this.later(t, () => { const x = p.x + rnd(-150, 150), y = p.y + rnd(-50, 50); this.arc({ x: x + rnd(-80, 80), y: y - 560 }, { x, y: y - 6 }, { life: 220, thick: 1.5, depth: y - 40 }); /* (the stray bolts behind the fighters) */ this.pool(x, y, 140, 0x9a8cff, 360, { alpha: 0.45 }); }, r); } else if (r.place) this.spr({ name: 'storm_orb', x: r.place.x, y: r.place.y - 60, depth: r.place.y + 2, w: 90, life: T.active, add: true, glow: 0.7, run: r, sx: (u) => 0.9 + 0.15 * Math.sin(u * 30), sy: (u) => 0.9 + 0.15 * Math.cos(u * 27), a: kf([0, 0], [0.05, 1], [0.92, 1], [1, 0]), rot: (u) => 900 * u }); break;
     }
@@ -515,7 +513,7 @@ export class MageFx {
       const p = this.placeFloor(r), last = i === r.hits.length - 1;
       if (last && this.ctx.scene.textures.exists('mfx-tempest')) this.sheet('mfx-tempest', p.x, p.y, 560, 560, { frames: [12, 4], oy: 0.72, depth: p.y - 60, fade: [[0, 0.75], [0.2, 0.6], [0.45, 0.3], [1, 0]] }); // (the last burst behind the fighters in it)
       else if (!this.ctx.scene.textures.exists('mfx-tempest')) this.sheet('mfx-sfield', p.x, p.y, last ? 560 : 420, last ? 600 : 340, { frames: last ? [12, 4] : [8, 4], oy: 0.72, sy: 1.28, depth: p.y + 4, alpha: this.ctx.scene.textures.exists('mfx-tempest') ? 0.45 : 1 }); // (the pulses: lighter, the last burst the big one)
-      this.arc({ x: p.x + rnd(-40, 40), y: p.y - 620 }, { x: p.x, y: p.y - 10 }, { life: last ? 360 : 260, thick: last ? 3 : 2 }); // the bolt out of the sky (the one idea of each pulse; a painted bolt's breadth follows thick — at 3.5 it stood ~300 px wide over both fighters)
+      this.arc({ x: p.x + rnd(-40, 40), y: p.y - 620 }, { x: p.x, y: p.y - 10 }, { life: last ? 360 : 260, thick: last ? 2.2 : 1.4, depth: p.y - 40 }); // the bolt out of the sky (the one idea of each pulse; a painted bolt's breadth follows thick — at 3.5 it stood ~300 px wide over both fighters)
       this.ctx.flash?.(0xc8d0ff, last ? 0.08 : 0.03, 90);
       this.warp.ring(p.x, p.y, { r1: last ? 340 : 220, life: last ? 460 : 300, s: last ? 34 : 18, width: 26, squash: SQUASH });
       this.pool(p.x, p.y, last ? 480 : 320, 0x8fb4ff, last ? 700 : 420, { alpha: last ? 0.55 : 0.35 }); if (last) this.scorch(p.x, p.y, 300, 0x8fb4ff);
