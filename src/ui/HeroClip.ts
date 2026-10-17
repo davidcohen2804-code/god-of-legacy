@@ -63,7 +63,14 @@ export function playClip(img: HTMLImageElement, cls: string | undefined, kind: C
     void v.play().catch(drop);
   });
   v.addEventListener('playing', () => { v.style.opacity = '1'; show(false); }, { once: true }); // (a crossfade: painting out, clip in)
-  v.addEventListener('ended', () => { if (!fit.hand) return; show(true); v.style.opacity = '0'; window.setTimeout(() => v.remove(), 400); }, { once: true });
+  v.addEventListener('ended', () => { // the hand-over: the painting fades in under the clip's last frame (the same pose), then the clip goes —
+    if (!fit.hand) return;               // (a crossfade of the two thinned the figure out for a beat)
+    show(true);
+    let gone = false;
+    const go = () => { if (gone) return; gone = true; v.style.opacity = '0'; window.setTimeout(() => v.remove(), 400); };
+    art()[0]?.addEventListener('transitionend', go, { once: true });
+    window.setTimeout(go, 700); // (no transition to wait for: the painting was already showing)
+  }, { once: true });
   v.addEventListener('error', () => { window.clearTimeout(late); drop(); }, { once: true });
   v.load();
   return true;
