@@ -3,6 +3,7 @@
 // machine). Presentation only — gameplay never reads any of this. Every effect runs on this module's own clock, so it
 // stops with the hit-stop like the fight does.
 import { ARENA3D } from '../arena3d/flag';
+import { hitIndex } from './FinalKit';
 import Phaser from 'phaser';
 import type { CastRun } from './SkillRuntime';
 import type { FinalSkill, HitEvent } from './SkillTypes';
@@ -542,7 +543,7 @@ export class GamblerFx {
     // blast, LAUNCH a spark geyser shooting up, CRIT / COUNTER a gold cross of light
     const y = at.y - at.z, grip = s.id === 'kinetic_grab' && !!hit.reaction.grab; // (the grab's own snap is its spark)
     // in a burst the small hits stay small and the last one carries the weight (the main hit unmistakable)
-    const hs = s.hits ?? [], burst = hs.length > 2, last = !burst || hit.at >= (hs[hs.length - 1]?.at ?? 0);
+    const hs = s.hits ?? [], burst = !s.chain && hs.length > 2, last = !burst || hitIndex(s, hit) === hs.length - 1; // (hitIndex: the arena re-times the hits as copies)
     const weighty = burst ? (!!hit.heavy || last) : heavy;
     const kind = crit || counter ? 'crit' : hit.reaction.launch ? 'launch' : weighty && !grip ? 'heavy' : 'normal';
     if (kind === 'normal') {
