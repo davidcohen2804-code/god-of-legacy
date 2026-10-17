@@ -165,6 +165,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - PvP (Maps' Thief's Den request): play together in the open world — see each other in the maps, party up, run the Thief's Den as a party. A big new system: build it now, or keep the world single-player for now?
 
 ## Done
+- Gambler: reads the arena's re-timed hits (DFO's hitIndex) — a burst's heavy last blast now shows in the arena too (it compared hit times, which the arena copies)
 - Archer: own body moves for Wind Step, Backstep Shot, Vine Lash, Triple Arrow and Eagle Tide (PixVerse from her ref; no skill borrows another's frames any more) — 53523eda, efb442d2
 - Gambler: PVP 3D checks with real setups (a held Charged Deal; Charged Deal → All In with a card stuck; Charged Deal → Vault → Rotor in the air): All In's gold column thinned, no white core — 12057a9f
 - Book Mage (re-check after the heavier main hit): Astral Lift's throw whited out both fighters — pillar, warp and 3D column softened; Glacial Spikes' haze over the foe gone — both read in PVP 3D — cdc4f6d3
