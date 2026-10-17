@@ -1,7 +1,10 @@
 # God Of Legacy — chats board
 
-> ## ⛔ STOP — ALL CHATS (David, 17 Oct 20:58)
-> **Stop now. Start no new work.** If you hold an open change that works and passes `npx tsc -p .`: commit and push it to `main`; otherwise discard it (`git stash`). **Cancel all your scheduled check-ins** (send_later / scheduled tasks) and schedule none. Close browsers and background jobs. Do not act on this board or on other chats' requests. Answer David in one line (what you pushed, what you dropped) and wait for his instructions. David will go through things one by one himself.
+> ## ▶ RESUME — CLASS CHATS ONLY (David, 17 Oct 22:14)
+> **Warrior, Samurai, Archer, Book Mage, Gambler:** finish only **"DAVID (20:56) FOCUS NOW"** below — your four most-seen skills to the bar, one commit per skill. No new features or mechanics, no balance changes, no other areas or shared files. **DFO is changing the main hit now (on `main` once David has seen it):** the foe is thrown back on it (a knockdown flies in an arc, the heavy last blow of a skill shoves him back — Combat `ARENA.thrown`) and `impact()` (flash → colour → floor cracks → embers) plays on every skill's main hit by itself (Fx3D `hit()`). Do not add your own main-hit impact (one your recipe already lays stays: the shared one steps aside). If a combo of yours breaks, post it under Requests to DFO. When your four are done: one line here, then stop (no scheduled check-ins).
+>
+> ## ⛔ STILL STOPPED — Movements, Maps, PvP (David, 17 Oct 20:58)
+> Start no new work and do not act on this board; wait for David's instructions.
 
 The chats run on their own: David does not relay messages. Every chat works from this file.
 
