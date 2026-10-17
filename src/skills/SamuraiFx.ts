@@ -6,6 +6,7 @@
 import Phaser from 'phaser';
 import type { CastRun } from './SkillRuntime';
 import type { FinalSkill, HitEvent } from './SkillTypes';
+import { hitIndex, lastOfBurst } from './FinalKit';
 import type { Projectile, V3 } from './HitGeometry';
 
 export const KIT = 'sam-kit';
@@ -543,7 +544,11 @@ export class SamuraiFx {
   }
 
   /** One hit of a cast as it fires (the swing that goes with it). */
+  /** The chain stage of each skill's latest blow (the arena re-times copies of the hits: the hit alone can't tell stage 0
+   *  from stage 1 — its confirmation comes right after this). */
+  private stageOf = new Map<string, number>();
   hit(r: CastRun, i: number, o: V3): void {
+    this.stageOf.set(r.skill.id, r.stage ?? 0);
     if (!this.ready) return;
     this.hitOne(r, i, o);
     for (const g of this.shadows(r)) this.hitOne(g, i, { x: o.x + g.origin.x - r.origin.x, y: o.y + g.origin.y - r.origin.y, z: o.z });
@@ -580,12 +585,12 @@ export class SamuraiFx {
 
   /** The line a hit's cut leaves on the foe (deg on screen, for a swing to the right; null: not a cut — a burst instead). */
   private slashLine(s: FinalSkill, hit: HitEvent): { ang: number; double?: boolean } | null {
-    const i = s.hits.indexOf(hit), R = () => rnd(-60, 60);
+    const i = hitIndex(s, hit), R = () => rnd(-60, 60); // (hitIndex: the arena's re-timed copies of the hits too)
     switch (s.id) {
       case 'quick_slash': {
-        const st = s.chain?.stages.findIndex((x) => x.includes(hit)) ?? 0;
+        const k = s.chain?.stages.findIndex((x) => x.includes(hit)) ?? -1, st = k >= 0 ? k : this.stageOf.get(s.id) ?? 0;
         if (st === 1) return { ang: -32 };
-        if (st === 2) return { ang: s.chain!.stages[2].indexOf(hit) === 0 ? 30 : -30, double: true };
+        if (st === 2) { const j = s.chain!.stages[2].indexOf(hit); return { ang: (j >= 0 ? j : hit.at > 0 ? 1 : 0) === 0 ? 30 : -30, double: true }; }
         return st === 3 ? { ang: -72 } : { ang: 38 };
       }
       case 'shadow_step': return { ang: 4 };
@@ -613,7 +618,7 @@ export class SamuraiFx {
     // the main hit (the same rule as the blow's weight in SkillFx): a heavy one, one that sends the foe flying or down,
     // the last of a burst — its mark big; the small hits of a burst small, so the main one stands out
     const many = s.hits.length > 3, flies = !!(hit.reaction.launch || hit.reaction.knockdown || hit.reaction.slam);
-    const main = !!hit.heavy || flies || (many && hit === s.hits[s.hits.length - 1]);
+    const main = !!hit.heavy || flies || lastOfBurst(s, hit); // (lastOfBurst: the arena's re-timed copies of the hits too)
     const x = at.x, y = at.y - at.z - 38, rapid = many && !main, side = from && at.x < from.x - 2 ? -1 : 1, tone = SKILL_TONE[s.id];
     if (main && !hit.heavy) heavy = true;
     const line = this.slashLine(s, hit), ang = line ? side * line.ang : 0;
