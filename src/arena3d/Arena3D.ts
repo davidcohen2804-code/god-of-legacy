@@ -186,12 +186,8 @@ export class Arena3D {
     this.renderer.localClippingEnabled = true; // (the skills' pieces split round the fighters: behind them in the room, in front over them)
     this.camera = new THREE.PerspectiveCamera(CAM.fov, w / h, 0.5, 400);
     this.build(soft);
-    this.composer = new EffectComposer(this.renderer, new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, samples: soft ? 0 : 4 })); // (multisampled: the room's edges stay smooth)
-    this.composer.addPass(new RenderPass(this.scene3, this.camera));
-    this.composer.addPass(new UnrealBloomPass(new THREE.Vector2(Math.round(w / 2), Math.round(h / 2)), 0.5, 0.55, 0.86));
-    this.composer.addPass(new OutputPass());
-    const ps = h / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov / 2))); // (a particle's size in units → px at 1 unit away)
-    for (const b of [this.dustB, this.dustF, this.chipB, this.chipF, this.glowB, this.glowF]) b.setScale(ps);
+    this.soft = soft;
+    this.makeComposer(w, h, soft ? 0 : 4); // (multisampled: the room's edges stay smooth)
     this.focus = { x: (floor.x0 + floor.x1) / 2, y: (floor.back + floor.front) / 2, z: 0, span: 0 };
     this.place(true);
     // the two layers: the room behind everything, the railing (front3) over the fighters
@@ -210,6 +206,38 @@ export class Arena3D {
     scene.events.on(Phaser.Scenes.Events.PRE_RENDER, this.apply, this);
     scene.events.on(Phaser.Scenes.Events.RENDER, this.restore, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this);
+  }
+
+  /** The room's picture with a soft bloom, at w × h (the render's size) with `samples` of multisampling. */
+  private makeComposer(w: number, h: number, samples: number): void {
+    this.composer?.dispose();
+    this.composer = new EffectComposer(this.renderer, new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, samples }));
+    this.composer.addPass(new RenderPass(this.scene3, this.camera));
+    this.composer.addPass(new UnrealBloomPass(new THREE.Vector2(Math.round(w / 2), Math.round(h / 2)), 0.5, 0.55, 0.86));
+    this.composer.addPass(new OutputPass());
+    const ps = h / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov / 2))); // (a particle's size in units → px at 1 unit away)
+    for (const b of [this.dustB, this.dustF, this.chipB, this.chipF, this.glowB, this.glowF]) b.setScale(ps);
+  }
+
+  /** Test browsers (CPU drawing): a smaller picture, no multisampling. */
+  private soft = false;
+  /** The frame time watched over the first fights: a slow computer gets a lighter room (smaller render, no
+   *  multisampling; then no shadows) so the fight stays smooth. */
+  private quality = { level: 0, ema: 16, t: 0 };
+  private watchFrames(ms: number): void {
+    const Q = this.quality;
+    if (this.soft || Q.level >= 2 || ms <= 0 || ms > 250) return;
+    Q.ema += (ms - Q.ema) * 0.04; Q.t += ms;
+    if (Q.t < 4000 || Q.ema <= 21.5) return;
+    Q.level++; Q.t = 0; Q.ema = 16;
+    const res = Q.level === 1 ? 0.7 : 0.58, W = this.scene.scale.width, H = this.scene.scale.height, w = Math.round(W * res), h = Math.round(H * res);
+    this.renderer.setSize(w, h, false);
+    this.makeComposer(w, h, 0);
+    if (Q.level === 2) this.renderer.shadowMap.enabled = false;
+    for (const [k, img] of [['arena3d-bg', this.bg], ['arena3d-fg', this.fg], ['arena3d-fx', this.fxImg]] as const) {
+      this.scene.textures.remove(k); this.scene.textures.addImage(k, this.bgCanvas as unknown as HTMLImageElement); img.setTexture(k).setDisplaySize(W, H);
+    }
+    console.info(`[PVP 3D] lighter room (level ${Q.level}): render ${w}×${h}`);
   }
 
   // ------------------------------------------------------------------ the room
@@ -410,6 +438,7 @@ export class Arena3D {
    *  with the fighters — the impact frame); the camera and the room's own life (wind, petals) run on `ms`. */
   step(ms: number, fxMs = ms): void {
     this.t += ms;
+    this.watchFrames(ms);
     this.stepFx(fxMs);
     this.fx.update(fxMs, this.flying);
     const f = this.focus, F = this.floor, k = Math.min(1, (ms / 16) * CAM.follow);

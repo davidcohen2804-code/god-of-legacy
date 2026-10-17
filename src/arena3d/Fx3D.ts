@@ -679,7 +679,7 @@ class Crest {
   constructor(private f: Fx3D, color: number, private w: number, h: number) {
     this.geo = new THREE.CylinderGeometry(w, w, h, 28, 1, true, -Math.PI * 0.32, Math.PI * 0.64).translate(0, h / 2, 0);
     this.cutB = f.cut(0, false); this.cutF = f.cut(0, true);
-    const m1 = new THREE.Mesh(this.geo, f.mat(KIND.wave, color, { i: 2.2, clip: this.cutB })), m2 = new THREE.Mesh(this.geo, f.mat(KIND.wave, color, { i: 2.2, clip: this.cutF }));
+    const m1 = new THREE.Mesh(this.geo, f.mat(KIND.wave, color, { i: 1.5, clip: this.cutB })), m2 = new THREE.Mesh(this.geo, f.mat(KIND.wave, color, { i: 1.5, clip: this.cutF }));
     m1.frustumCulled = m2.frustumCulled = false;
     f.host.back.add(m1); f.host.glow.add(m2);
     this.ms = [m1, m2];
