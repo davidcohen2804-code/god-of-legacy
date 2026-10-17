@@ -152,7 +152,7 @@ export class Arena3D {
   private composer?: EffectComposer;
   private sunBase = 0; private hemiBase = 0;
   /** The hits' light: a small pool of point lights, each placed on a hit and fading (the floor and the ground take it). */
-  private hitLights: { L: THREE.PointLight; F: THREE.PointLight; left: number; ms: number; power: number }[] = [];
+  private hitLights: { L: THREE.PointLight; F: THREE.PointLight; left: number; ms: number; power: number; wash: number }[] = [];
   /** The marks a heavy blow leaves on the floor (a soft dark scorch / dust ring, fading). */
   private marks: { m: THREE.Mesh; left: number; ms: number }[] = [];
   private markTex?: THREE.Texture;
@@ -279,7 +279,7 @@ export class Arena3D {
     // the blows' light: always in the scene (a light switched on or off recompiles every material: a hitch), dark when idle
     for (let i = 0; i < 4; i++) {
       const L = new THREE.PointLight(0xffffff, 0, 6, 1.6), F = new THREE.PointLight(0xffffff, 0, 6, 1.6); // (the same light on the railing and the chunks in front)
-      this.scene3.add(L); this.front3.add(F); this.hitLights.push({ L, F, left: 0, ms: 1, power: 0 });
+      this.scene3.add(L); this.front3.add(F); this.hitLights.push({ L, F, left: 0, ms: 1, power: 0, wash: 1 });
     }
     // the skills' 3D pieces
     this.fx = new Fx3D({
@@ -296,11 +296,13 @@ export class Arena3D {
     });
   }
 
-  /** A flare of light at a point (units) from the hit lights' pool. */
-  private flare(hx: number, hy: number, hz: number, color: number, power: number, dist: number, ms: number): void {
+  /** A flare of light at a point (units) from the hit lights' pool; `wash`: how much it washes the fighters' bodies in its
+   *  colour (1: a blow's flash on the struck one; a skill's own light much less — a buff's halo washed the samurai flat
+   *  gold, so in front of it he read as a hole: the Samurai chat). */
+  private flare(hx: number, hy: number, hz: number, color: number, power: number, dist: number, ms: number, wash = 0.35): void {
     const slot = this.hitLights.reduce((a, b) => (b.left < a.left ? b : a));
     for (const L of [slot.L, slot.F]) { L.color.set(color); L.distance = dist; L.position.set(hx, hy, hz); }
-    slot.left = ms; slot.ms = ms; slot.power = power;
+    slot.left = ms; slot.ms = ms; slot.power = power; slot.wash = wash;
   }
 
   /** Glowing sparks thrown from a point (units), falling and bouncing on the planks. */
@@ -327,7 +329,7 @@ export class Arena3D {
    *  colour and fades (heavier blows: brighter, wider, longer); a heavy one leaves a mark on the floor. */
   hit(x: number, y: number, z: number, color: number, weight: 'light' | 'heavy' | 'ultimate'): void {
     const P = weight === 'ultimate' ? { power: 34, dist: 11, ms: 520 } : weight === 'heavy' ? { power: 20, dist: 8, ms: 340 } : { power: 9, dist: 5, ms: 200 };
-    this.flare(this.w3(x), this.h3(Math.max(40, z)) + 0.35, this.d3(y) + 0.25, color, P.power, P.dist, P.ms);
+    this.flare(this.w3(x), this.h3(Math.max(40, z)) + 0.35, this.d3(y) + 0.25, color, P.power, P.dist, P.ms, 1);
     if (weight !== 'light') this.mark(x, y, weight === 'ultimate' ? 2.4 : 1.4, color);
     // the room answers the blow (Prometheus: the skills live in the room): embers fly from it and bounce on the planks;
     // a heavy one throws up wood chips and dust, runs a ring of its light over the floor, blows the petals away, and
@@ -582,10 +584,10 @@ export class Arena3D {
       let sum = 0, best = 0, col = 0xffffff;
       for (const h of this.hitLights) {
         if (h.L.intensity <= 0) continue;
-        const d = Math.hypot(h.L.position.x - bx, h.L.position.y - by, h.L.position.z - bz), f = Math.max(0, 1 - d / h.L.distance), v = h.L.intensity * f * f;
+        const d = Math.hypot(h.L.position.x - bx, h.L.position.y - by, h.L.position.z - bz), f = Math.max(0, 1 - d / h.L.distance), v = h.L.intensity * f * f * h.wash;
         sum += v; if (v > best) { best = v; col = h.L.color.getHex(); }
       }
-      const la = Math.min(0.32, sum / 80) * Math.min(1, body.alpha);
+      const la = Math.min(0.26, sum / 80) * Math.min(1, body.alpha);
       copy(e.lit, body.depth + 0.0006).setAlpha(la).setTintFill(col).setVisible(la > 0.01);
       e.im.setTexture(body.texture.key, body.frame.name).setOrigin(body.originX, body.originY).setFlipX(body.flipX).setScale(body.scaleX, body.scaleY);
       // M = [[1, -a], [0, -b]] (a body point h px up lies at (+a·h, +b·h) from the feet) = R(φ)·diag(sx, sy)·R(θ)
