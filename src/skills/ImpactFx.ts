@@ -97,7 +97,10 @@ export class ImpactFx {
   /** A ring of bent air from the blow (world point), racing out to r1 px over `life` ms; squash < 1 lays it on the floor. */
   ripple(at: V3, o: { r1: number; life: number; s: number; width?: number; squash?: number }): void {
     if (!this.ensure()) return;
-    this.rings.push({ x: at.x, y: at.y, z: at.z, t: 0, life: o.life, r0: 0, r1: o.r1, s: o.s, width: o.width ?? 22, squash: o.squash ?? 1 });
+    // PVP 3D: a ring round the blow read as a clear glass dome over both fighters (the Samurai chat) — there it runs out
+    // along the floor under the blow instead (the 3D camera's ellipse), a little smaller and softer
+    const floor = !!ImpactFx.screenOf && o.squash === undefined;
+    this.rings.push({ x: at.x, y: at.y, z: floor ? 0 : at.z, t: 0, life: o.life, r0: 0, r1: floor ? o.r1 * 0.75 : o.r1, s: floor ? o.s * 0.6 : o.s, width: o.width ?? 22, squash: o.squash ?? (floor ? 0.42 : 1) });
     if (this.rings.length > N) this.rings.shift();
   }
   /** The colour splits from the blow outward (amount: a share of the distance to it), snapping in and fading. */
