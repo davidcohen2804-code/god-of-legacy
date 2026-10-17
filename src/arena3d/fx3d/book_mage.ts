@@ -11,7 +11,10 @@ import { C, me, side, placeOf } from './kit';
 
 export const BOOK_MAGE: Record<string, Recipe> = {
   // the regular bolt: a thin violet trail; the default main-hit layer marks the blow
-  arcane_bolt: { tone: C.arcane, trail: { c: C.arcane, w: 10, len: 12 } },
+  arcane_bolt: { tone: C.arcane, trail: { c: C.arcane, w: 10, len: 14, i: 1.2 },
+    // each throw the flick of her hand as an inked ring at hand height; the lance (3rd beat) charges on a rune glyph and throws with an upright ring (the main hit's impact is the room's)
+    cast: (f, r) => { if (r.stage === 2) { const c = me(f, r); f.glyph(c.x, c.y, C.arcane, { shape: 'runes', r: 90, ms: 560, spin: 1.6, pulse: 2 }); } },
+    active: (f, r) => { const c = me(f, r), d = side(r); if (r.stage === 2) f.slash(c, d, C.arcane, { r: 92, w: 30, tilt: 90, a0: -70, a1: 70, ms: 210, y0: 72, ink: true }); else f.slash(c, d, C.arcane, { r: 70, w: 20, tilt: r.stage ? 25 : 70, a0: -40, a1: 55, ms: 160, y0: 76, ink: true, quiet: true }); } },
   // a wide, low crest of arcane force running along the floor (it lifts the foe: the default launch layer under him)
   arcane_wave: { tone: C.arcane, active: (f, r) => { const c = me(f, r); f.wave(c.x, c.y, r.aim.x, r.aim.y, C.arcane, { len: 420, ms: 280, h: 110, w: 170 }); } },
   // the trap snaps: a net of rune chains closes over the foe (the SNARE trial: under a falling foe it catches him as he lands)

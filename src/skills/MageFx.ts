@@ -583,8 +583,8 @@ export class MageFx {
     this.later(T.startup, () => { // the release: a flash at the hand, a spray of light forward
       const p = hand(); if (!p) return;
       if (!this.ctx.scene.textures.exists('mfx-bolt')) this.glow(p.x, p.y, lance ? 190 : 100, tint, lance ? 260 : 160);
-      this.sheet('mfx-bolt', p.x + side * (lance ? 40 : 28), p.y, lance ? 220 : 150, lance ? 300 : 220, { frames: [12, 4], flipX: side < 0, ox: side < 0 ? 0.7 : 0.3, depth: TOP + 6 });
-      this.flare(p.x, p.y, lance ? 170 : 90, 0xffffff, lance ? 280 : 180);
+      this.sheet('mfx-bolt', p.x + side * (lance ? 40 : 28), p.y, lance ? 170 : 130, lance ? 240 : 190, { frames: [12, 4], flipX: side < 0, ox: side < 0 ? 0.7 : 0.3, depth: TOP + 6, alpha: 0.85 });
+      this.flare(p.x, p.y, lance ? 110 : 70, tint, lance ? 200 : 140); // (a white core of a few frames, not a white flash: the inked ring carries the throw)
       this.burst(p.x, p.y, { n: lance ? 18 : 7, speed: [140, lance ? 520 : 340], life: [120, 300], scale: [0.03, 0.16], tint: [0xffffff, tint], angle: side > 0 ? [-30, 30] : [150, 210] });
       if (lance) { if (!this.ctx.scene.textures.exists('mfx-bolt')) this.ringOut(p.x + side * 20, p.y, 130, tint, 300); this.shake(90, 0.004); }
     }, r);
@@ -1108,7 +1108,7 @@ export class MageFx {
     const core = s.add.image(p.x, p.y - p.z, 'mg-dot').setBlendMode(Phaser.BlendModes.ADD);
     const trail = s.add.particles(0, 0, 'mg-dot', { speed: { min: 0, max: 30 }, lifespan: { min: 160, max: lance ? 380 : 260 }, scale: { start: lance ? 0.42 : 0.26, end: 0 }, alpha: { start: 0.8, end: 0 },
       tint: [0xffffff, tint, tint], blendMode: 'ADD', frequency: 14, quantity: lance ? 2 : 1 });
-    const fl = p.dx < -0.01, ang = screenAng(p.dx, p.dy), len = painted ? (lance ? 300 : 190) : lance ? 170 : 100, k = len / head.width;
+    const fl = p.dx < -0.01, ang = screenAng(p.dx, p.dy), len = painted ? (lance ? 220 : 170) : lance ? 150 : 100, k = len / head.width;
     let t = 0, last = 0;
     this.shots.set(p, { lance, tint, el });
     this.add({ t: 0, step: (dt) => {
@@ -1133,6 +1133,7 @@ export class MageFx {
     if (e.reason === 'range') { this.glow(x, y, lance ? 90 : 50, tint, 180); this.burst(x, y, { n: 5, speed: [40, 120], life: [120, 240], scale: [0.03, 0.1], tint: [tint] }); return; }
     const onFoe = e.reason === 'target'; // (the hit itself draws its spark on the foe: here the bolt's own burst, lighter)
     const painted = this.ctx.scene.textures.exists('mfx-bolt');
+    if (onFoe) { this.burst(x, y, { n: lance ? 10 : 5, speed: [140, 420], life: [160, 360], scale: [0.03, 0.12], tint: [tint], gravity: 300 }); if (lance) this.shake(110, 0.005); return; } // (on the foe the room's main-hit impact is the burst: no painted sheet or ring over him)
     if (!painted) this.glow(x, y, lance ? 220 : 120, tint, lance ? 300 : 220, { alpha: onFoe ? 0.45 : 0.8 });
     if (this.ctx.scene.textures.exists('mfx-bolt')) this.sheet('mfx-bolt', x, y - 22, lance ? 250 : 160, lance ? 320 : 240, { alpha: 0.85, frames: [8, 4], tint: el === 'frost' ? 0xbfefff : el === 'storm' ? 0xa8e8ff : undefined, depth: TOP + 6 });
     else this.pop(el === 'frost' ? 'ice_shatter' : el === 'storm' ? 'bolt_impact' : 'bolt_burst', x, y, lance ? 230 : 140, { life: lance ? 320 : 240, add: el !== 'frost' });
@@ -1164,8 +1165,8 @@ export class MageFx {
     if (s.id === 'page_bind') this.sheet('mfx-paper', at.x, at.y - at.z - 50, 160, 520, { frames: [8, 4], tint: 0xcfefff, alpha: 0.55 }); // frozen pages stuck to the foe (light: the foe reads under them)
     this.pool(at.x, this.floorY(at.x, at.y, at.z), big ? 190 : 130, tint, 300, { alpha: at.z > 30 ? 0.45 : 0.6 }); // the hit lights the floor under it
     if (this.ctx.scene.textures.exists('mfx-hit')) { // the painted spark: one per element, a heavier one for heavy blows and crits
-      const row = big ? 12 : el === 'frost' ? 4 : el === 'storm' ? 8 : 0;
-      this.sheet('mfx-hit', x + rnd(-6, 6), y + rnd(-6, 6), crit ? 230 : big ? 190 : 140, big ? 260 : 210, { frames: [row, 4], angle: rnd(-20, 20), depth: TOP + 6 });
+      const basic = s.slot === 0, row = big && !basic ? 12 : el === 'frost' ? 4 : el === 'storm' ? 8 : 0; // (the basic's lance: the room's main-hit impact is its big burst — the element spark stays small under it)
+      this.sheet('mfx-hit', x + rnd(-6, 6), y + rnd(-6, 6), basic ? 120 : crit ? 230 : big ? 190 : 140, basic ? 180 : big ? 260 : 210, { frames: [row, 4], angle: rnd(-20, 20), depth: TOP + 6 });
       return;
     }
     this.glow(x, y, crit ? 200 : big ? 150 : 100, tint, big ? 220 : 170, { alpha: el === 'storm' ? 0.35 : big ? 0.7 : 0.5 });
