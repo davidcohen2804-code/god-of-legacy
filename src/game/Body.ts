@@ -662,13 +662,13 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     bow_haste: { act: 'wind_step', st: [0], ac: [1, 2, 3], rc: [4, 5] }, // Wind Step, her own move (PixVerse): crouch, the somersault through the air, lands with the bow up
     backstep_shot: { act: 'backstep_shot', st: [0], ac: [1, 2, 3, 4, 5], rc: [6, 7] }, // her own move (PixVerse): crouch, the tight back flip out of reach (the arrow leaves at its top), lands crouched with the bow still up, rises
     multi_shot: { act: 'triple_arrow', st: [0, 1, 2, 3, 4], ac: [5], rc: [6, 7] }, // Triple Arrow, her own move (PixVerse): a quick side-step down onto one knee, three arrows nocked, drawn low, the fan loosed, rises
-    explosive_arrow: { act: 'explosive_arrow', st: [0, 1, 2, 3], ac: [4], rc: [4, 5] },
+    explosive_arrow: { act: 'fire_arrow', st: [0, 1, 2, 3, 4], ac: [5], rc: [5, 6] }, // Fireball Arrow, her own move (PixVerse): nocks, the arrowhead bursts into flame on the string, raised, drawn, held burning at full draw, loosed, recover
     retreat_kick: { act: 'retreat_kick', st: [0], ac: [1, 2, 3, 4], rc: [5] },
     vine_trap: { act: 'vine_trap', st: [0, 1], ac: [2, 3], rc: [4, 5] },
     skyhunters_step: { act: 'skyhunters_step', st: [0], ac: [1, 2, 3, 4], rc: [5] },
     rain_of_arrows: { act: 'rain_of_arrows', st: [0, 1], ac: [2, 3, 4, 3, 4, 3, 4, 5], rc: [5] },
     piercing_arrow: { act: 'piercing_arrow', st: [0, 1, 2, 4], ac: [5], rc: [5, 6] }, // low lunge: pull the arrow → draw / strain (the charge) → the snap → rise
-    hunters_roar: { act: 'hunters_roar', st: [0], ac: [1, 2, 3], rc: [4, 5] },
+    hunters_roar: { act: 'roar_kneel', st: [0, 1, 2], ac: [3, 4], rc: [5, 6] }, // Hunter's Roar, her own move (PixVerse): drops to one knee, gathers, the fist thrown up as she roars (the wolf rises behind her), sinks, rises
     leaping_arrow: { act: 'leaping_arrow', st: [0, 1, 2], ac: [3, 4], rc: [5] },
     spirit_hawk: { act: 'spirit_hawk', st: [0, 1, 2], ac: [3], rc: [4, 5] },
     sky_rain: { act: 'sky_rain', st: [0, 1, 2, 3], ac: [4, 4], rc: [4, 3] }, // (her last frame lets the bow fly: never shown)
