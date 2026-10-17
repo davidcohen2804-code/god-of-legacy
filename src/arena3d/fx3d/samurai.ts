@@ -74,9 +74,9 @@ export const SAMURAI: Record<string, Recipe> = {
   // the cage's small cuts: now and then a thin steel arc; the slam: a cross of steel light, gold sparks thrown off
   hundred_cuts: { own: true,
     hit: (f, _s, _h, at, main) => {
-      if (!main) { if (Math.random() < 0.5) f.slash(at, flip(), C.steel, { r: 90, w: 24, tilt: Math.random() * 70, a0: -90, a1: 90, ms: 140, i: 1 }); return; }
-      for (const d of [1, -1]) f.slash(at, d, C.steel, { r: 120, tilt: 45, a0: -120, a1: 120, ms: 280, i: 1.6 });
-      f.host.embers(f.host.w3(at.x), 0.9, f.host.d3(at.y), C.gold, 18, 3); } },
+      if (!main) { if (Math.random() < 0.4) f.slash(at, flip(), C.steel, { r: 86, w: 20, tilt: Math.random() * 70, a0: -90, a1: 90, ms: 140, i: 0.6 }); return; }
+      for (const d of [1, -1]) f.slash(at, d, C.steel, { r: 104, w: 32, tilt: 45, a0: -120, a1: 120, ms: 280, i: 0.9 });
+      f.host.embers(f.host.w3(at.x), 0.9, f.host.d3(at.y), C.gold, 12, 3); } },
   // he vanishes: the light drawn in round him (ink and rose), petals blown off
   kagemusha: { own: true,
     active: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, INK, { r: 160, ms: 520, a: 0.35, implode: true }); f.host.blow(f.host.w3(c.x), 0.6, f.host.d3(c.y), 4, 4); } },

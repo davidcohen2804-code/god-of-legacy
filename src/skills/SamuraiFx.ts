@@ -632,7 +632,7 @@ export class SamuraiFx {
     } else if (s.id === 'iai_strike' && !crit) { // the Iai's blow is its hair line (DELAYED below), opening in crimson a beat
       // later — no white burst over the foe at the draw itself (it hid him: PVP 3D quality pass)
     } else if (line) {
-      const bs = s.id === 'quick_slash' ? 0.8 : 1; // (the basic's marks a size down: it plays all fight long)
+      const bs = s.id === 'quick_slash' || s.id === 'hundred_cuts' ? 0.8 : 1; // (the basic's marks a size down: it plays all fight long; the storm's twelve too)
       // (the basic's rising cut, the one that lifts the foe: its mark opens in crimson — steel all chain long, then red)
       const name = tn(crit || (heavy && !rapid) ? 'slash_hit_heavy' : line.double ? 'slash_hit_double' : 'slash_hit', bs < 1 && flies ? undefined : tone);
       const w = bs * (crit ? (rapid ? 170 : 230) : heavy && !rapid ? 196 : rapid ? 112 : line.double ? 160 : 150), life = crit ? 320 : heavy ? 280 : rapid ? 170 : 220;
@@ -917,20 +917,20 @@ export class SamuraiFx {
     const side = sideOf(r), f = this.front(r, 84, 62), q = this.me(r), c = f() ?? { x: q.x + side * 84, y: q.y - q.z - 62, d: q.y }, last = i >= r.skill.hits.length - 1;
     if (i === 0) this.swordCage(r, f);
     if (!last) {
-      for (let n = 0; n < 2; n++) { // katanas of light through the foe, one after another (two a cut, their streaks short and
-        // faint: in a burst of twelve the bodies still read through the cage — PVP 3D review)
+      for (let n = 0; n < (i % 3 === 2 ? 2 : 1); n++) { // katanas of light through the foe, one after another (one a cut, two
+        // every third; their streaks short and faint: in a burst of twelve both fighters read through the cage — PVP 3D)
         const th = rnd(0, Math.PI * 2), R0 = rnd(118, 150), ox = rnd(-12, 12), oy = rnd(-16, 12), dx = Math.cos(th), dy = Math.sin(th) * 0.6;
-        this.flyBlade(c.x + ox - dx * R0, c.y + oy - dy * R0, c.x + ox + dx * R0, c.y + oy + dy * R0, { delay: n * 30, life: 120, depth: c.d + 5 + n * 0.02, run: r, streak: 0.5, faint: 0.6 });
+        this.flyBlade(c.x + ox - dx * R0, c.y + oy - dy * R0, c.x + ox + dx * R0, c.y + oy + dy * R0, { delay: n * 30, life: 120, depth: c.d + 5 + n * 0.02, run: r, streak: 0.4, faint: 0.5 });
       }
-      if (i % 2 === 0) this.cut(tn('cut_thin', 'steel'), rnd(96, 124), rnd(0, 360), { x: c.x + rnd(-26, 26), y: c.y + rnd(-22, 18), depth: c.d + 5.5, grow: 28, hold: 16, fade: 90, glow: 0.5, sweep: 20 });
+      if (i % 2 === 0) this.cut(tn('cut_thin', 'steel'), rnd(84, 104), rnd(0, 360), { x: c.x + rnd(-26, 26), y: c.y + rnd(-22, 18), depth: c.d + 5.5, grow: 28, hold: 16, fade: 90, glow: 0.2, sweep: 20, alpha: 0.7 });
       if (i % 3 === 1) this.pop(tn('spark_s', 'gold'), c.x + rnd(-18, 18), c.y + rnd(-18, 18), 64, { life: 150, depth: c.d + 6 }); // (steel on steel: gold sparks)
       return;
     }
     // the cage has slammed in: a cross of steel light bursts out of the foe, gold sparks thrown off
-    this.cut(tn('cut_x', 'steel'), 240, rnd(-10, 10), { x: c.x, y: c.y, depth: TOP + 4, grow: 50, hold: 80, fade: 240, glow: 0.8 });
-    this.pop(tn('burst_crit', 'gold'), c.x, c.y, 220, { life: 360, depth: TOP + 4.5 });
-    this.shock(c.x, q.y, 260, { tone: 'steel' });
-    this.sparks(c.x, c.y, 18, 130, { tone: 'gold', depth: TOP + 3 });
+    this.cut(tn('cut_x', 'steel'), 190, rnd(-10, 10), { x: c.x, y: c.y, depth: TOP + 4, grow: 50, hold: 80, fade: 240, glow: 0.35 });
+    this.pop(tn('burst_crit', 'gold'), c.x, c.y, 150, { life: 320, depth: TOP + 4.5, glow: 0.2 });
+    this.shock(c.x, q.y, 240, { tone: 'steel' });
+    this.sparks(c.x, c.y, 12, 120, { tone: 'gold', depth: TOP + 3 });
     for (let k = 0; k < 6; k++) { const th = (k / 6) * Math.PI * 2 + rnd(-0.2, 0.2); this.flyBlade(c.x, c.y, c.x + Math.cos(th) * 170, c.y + Math.sin(th) * 100, { life: 200, depth: TOP + 3.5, len: 96 }); } // (shards of the cage thrown out)
     if (r.own) { this.ctx.cam().shake(200, 0.007); this.ctx.punch(0.04, 240); }
   }
