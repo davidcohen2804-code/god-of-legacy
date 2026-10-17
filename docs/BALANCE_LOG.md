@@ -4,6 +4,11 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-10-17 — Archer: the combo trials rebuilt (MARKED / SKY / TRAPPER) — the mine holds, Spirit Bow's one link
+- **Vine Mine**: stepping on it holds 0.45 s (stun 120 → 450; the 2 s root stays) — a root alone still lets him swing, so the mine held 120 ms and the trap never caught (the description says "is held"). Played in the game: Rising Arrow › Vine Mine › Vine Lash › Fireball leaves him 0 ms free (217–250 ms only rooted before). Visuals: none (the catch is the mine's own).
+- **Spirit Bow** → Hunter's Roar only (its list was empty, which cancels into anything): the knockdown finisher's one follow-up is the roar that spends its marks (PREDATOR). Visuals: none.
+- The trials: EMBER, QUARRY, PREDATOR (MARKED: stack, then spend on the Fireball or the roar), KESTREL, STARFALL, HAWKEYE (SKY), BRAMBLE, PITFALL (TRAPPER) — each played in the game with real key presses: 0 ms free. Out of the trials: Backstep Shot (90–130 ms holes in a string), Hunter's Rain (15 identical ticks), Spirit Hawk (dives on its own clock), Tree of Life (a heal).
+
 ## 2026-10-17 — The combo trials rebuilt (every class: three styles, every step meaningful) — the engine fixes and links they need
 - **Everyone — a pull never drags a foe through the puller** (Combat.receive: pull ≤ distance − 30 px). Ground Breaker's quake, Lion's Maw, the fields pulled a close foe to the attacker's back, so the next blow in front whiffed.
 - **Everyone — long holds' diminishing returns wear off** after the DR window, as the short holds' do (they never did: within a round the 4th freeze / Levity / rune / vine hold held 0 ms).

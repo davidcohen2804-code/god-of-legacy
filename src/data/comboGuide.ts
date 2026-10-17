@@ -99,14 +99,25 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
   ],
   // the Archer: the rising arrow, the hawk or a fireball, then the storm, the sky, the rain or the hunter's leap
   archer: [
-    { name: 'INFERNO', range: 'FAR', hits: 13, steps: [{ id: 'explosive_arrow' }, { id: 'arrow_storm' }] },
-    { name: 'SKYFALL', range: 'CLOSE', hits: 9, steps: [{ id: 'rising_arrow' }, { id: 'sky_rain' }] },
-    { name: 'MONSOON', range: 'CLOSE', hits: 11, steps: [{ id: 'rising_arrow' }, { id: 'arrow_storm' }] },
-    { name: 'RAPTOR', range: 'CLOSE', hits: 12, steps: [{ id: 'rising_arrow' }, { id: 'spirit_hawk' }, { id: 'arrow_storm' }] },
-    { name: 'TALON', range: 'MID', hits: 14, steps: [{ id: 'spirit_hawk' }, { id: 'arrow_storm' }] },
-    { name: 'FIREFALL', range: 'MID', hits: 8, steps: [{ id: 'explosive_arrow' }, { id: 'sky_rain' }] },
-    { name: 'PHOENIX', range: 'MID', hits: 14, steps: [{ id: 'spirit_hawk' }, { id: 'explosive_arrow' }, { id: 'arrow_storm' }] },
-    { name: 'HUNTSMAN', range: 'MID', hits: 6, steps: [{ id: 'explosive_arrow' }, { id: 'vine_trap' }, { id: 'rain_of_arrows' }, { id: 'skyhunters_step' }] },
+    // MARKED — her arrows mark him (up to three); the Fireball and the wolf's roar spend them all for a bigger blow
+    { name: 'EMBER', tier: 'BEGINNER', style: 'MARKED', range: 'CLOSE', hits: 3, steps: [{ id: 'quick_shot' }, { id: 'explosive_arrow' }],
+      tip: "Double Shot's second arrow marks him — the Fireball burns the mark for a bigger blast that throws him up" },
+    { name: 'QUARRY', tier: 'MID', style: 'MARKED', range: 'CLOSE', hits: 6, steps: [{ id: 'quick_shot', n: 2 }, { id: 'multi_shot' }, { id: 'hunters_spirit' }, { id: 'explosive_arrow' }],
+      tip: 'Stack three marks — both Double Shot beats (the charged arrow bridges), Triple Arrow, Vine Lash — then the Fireball hits twice as hard' },
+    { name: 'PREDATOR', tier: 'EXPERT', style: 'MARKED', range: 'CLOSE', hits: 5, steps: [{ id: 'multi_shot' }, { id: 'quick_shot' }, { id: 'piercing_arrow' }, { id: 'hunters_roar' }],
+      tip: "The Spirit Bow floors him with the third mark — the wolf's roar spends all three on the fallen prey" },
+    // SKY — throw him up and hunt him in the air
+    { name: 'KESTREL', tier: 'BEGINNER', style: 'SKY', range: 'CLOSE', hits: 3, steps: [{ id: 'retreat_kick' }, {}, { id: 'quick_shot' }],
+      tip: 'The kick throws him up as you flip away — jump and shoot him out of the air' },
+    { name: 'STARFALL', tier: 'MID', style: 'SKY', range: 'FAR', hits: 14, steps: [{ id: 'eagle_arrow' }, { id: 'skyhunters_step' }, { id: 'sky_rain' }],
+      tip: 'The eagles sweep him from across the arena, the volley chases him up, then the sky falls on him' },
+    { name: 'HAWKEYE', tier: 'EXPERT', style: 'SKY', range: 'CLOSE', hits: 5, steps: [{ id: 'rising_arrow' }, {}, { id: 'hunters_spirit' }, { id: 'bow_haste' }, { id: 'explosive_arrow' }],
+      tip: 'Up, then in the air: lash him back, Wind Step off him (its burst throws him again and marks him), burn both marks' },
+    // TRAPPER — reel him in, bind him, let him fall into the vines
+    { name: 'BRAMBLE', tier: 'MID', style: 'TRAPPER', range: 'FAR', hits: 4, steps: [{ id: 'hunters_spirit' }, { id: 'leaping_arrow' }, { id: 'explosive_arrow' }],
+      tip: 'From afar a plain arrow is only a poke: lash him in, bind him in the leaves, burn the mark' },
+    { name: 'PITFALL', tier: 'EXPERT', style: 'TRAPPER', range: 'CLOSE', hits: 5, steps: [{ id: 'rising_arrow' }, { id: 'vine_trap' }, { id: 'hunters_spirit' }, { id: 'explosive_arrow' }],
+      tip: 'Throw him up and lay the mine where he falls — it holds him as he lands; then lash and burn' },
   ],
   // the Gambler (new 17 Oct): cards planted and snapped, the staff's hammer, the house's grab
   gambler: [
