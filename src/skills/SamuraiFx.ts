@@ -629,11 +629,12 @@ export class SamuraiFx {
     const line = this.slashLine(s, hit), ang = line ? side * line.ang : 0;
     if (counter) this.counterMark(x, y, side, local);
     if (s.id === 'shadow_step') { // the shadow's cut: a stroke of ink through the foe along the step, ink spattered past it, a blood-red edge
-      this.spr({ name: 'ink_short', x, y, depth: TOP + 4, w: 170, h: 54, angle: side * 4, flipX: side < 0, life: 380,
-        sx: kf([0, 0.3], [0.14, 1, out3], [1, 1.08]), sy: kf([0, 1.2], [0.14, 1], [1, 0.55, inQ]), a: kf([0, 0.95], [0.5, 0.85], [1, 0, inQ]) });
+      // (the ink behind him, the blood-red line across him: the foe reads through the cut — DFO, VS CPU)
+      this.spr({ name: 'ink_short', x, y, depth: at.y - 1, w: 160, h: 50, angle: side * 4, flipX: side < 0, life: 340,
+        sx: kf([0, 0.3], [0.14, 1, out3], [1, 1.08]), sy: kf([0, 1.2], [0.14, 1], [1, 0.55, inQ]), a: kf([0, 0.8], [0.5, 0.7], [1, 0, inQ]) });
       this.spr({ name: tn('cut_line', 'blood'), x, y: y - 2, angle: side * 4, w: 190, h: 12, depth: TOP + 4.2, life: 240, glow: 0.5,
         sx: kf([0, 0.2], [0.14, 1, out3]), sy: kf([0, 1.3], [1, 0.3, inQ]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
-      this.pop('ink_spatter', x + side * 34, y, 110, { depth: TOP + 3.9, life: 420, glow: 0, angle: side > 0 ? rnd(-15, 15) : 180 + rnd(-15, 15) });
+      this.pop('ink_spatter', x + side * 34, y, 90, { depth: at.y - 1.1, life: 360, glow: 0, angle: side > 0 ? rnd(-15, 15) : 180 + rnd(-15, 15) });
     } else if (s.id === 'iai_strike' && !crit) { // the Iai's blow is its hair line (DELAYED below), opening in crimson a beat
       // later — no white burst over the foe at the draw itself (it hid him: PVP 3D quality pass)
     } else if (line) {
@@ -711,14 +712,14 @@ export class SamuraiFx {
     // his path through the attacker: an ink stroke with a line of light along it, petals left hanging in it
     const x0 = m.x, y0 = m.y - m.z - 46, x1 = q.x, y1 = q.y - q.z - 46, L = Math.hypot(x1 - x0, y1 - y0), ang = (Math.atan2(y1 - y0, x1 - x0) * 180) / Math.PI, dd = Math.max(m.y, q.y) + 2;
     if (L > 20) {
-      this.spr({ name: 'ink_long', x: x0, y: y0, ox: 0.03, angle: ang, flipY: x1 < x0, w: L + 70, h: 30, depth: dd, life: 380,
-        sx: kf([0, 0.25], [0.14, 1, out3]), sy: kf([0, 0.9], [0.14, 1], [1, 0.45, inQ]), a: kf([0, 0.6], [0.4, 0.45], [1, 0, inQ]) });
+      this.spr({ name: 'ink_long', x: x0, y: y0, ox: 0.03, angle: ang, flipY: x1 < x0, w: L + 70, h: 30, depth: Math.min(m.y, q.y) - 2, life: 340, // (behind the attacker it runs through)
+        sx: kf([0, 0.25], [0.14, 1, out3]), sy: kf([0, 0.9], [0.14, 1], [1, 0.45, inQ]), a: kf([0, 0.5], [0.4, 0.35], [1, 0, inQ]) });
       this.spr({ name: tn('cut_line', 'rose'), x: x0, y: y0, ox: 0.03, angle: ang, flipY: x1 < x0, w: L + 80, h: 14, depth: dd + 0.1, life: 280, glow: 0.45,
         sx: kf([0, 0.1], [0.18, 1, out3]), sy: kf([0, 1.3], [1, 0.3, inQ]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
       for (let k = 0; k < 6; k++) { const f = (k + 0.5) / 6; this.petals(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f, 1, 18, { depth: dd + 1, life: 800 }); }
     }
     // he steps out behind the attacker: out of a swirl of ink, a flash of the blade, a ring of light at his feet
-    this.spr({ name: 'ink_smoke', x: q.x, y: q.y - q.z - 44, depth: q.y + 4, w: 92, life: 320, sx: kf([0, 1.25], [1, 0.5, out]), sy: kf([0, 1.25], [1, 0.5, out]), a: kf([0, 0.65], [1, 0, inQ]), rot: (u) => -80 * u });
+    this.spr({ name: 'ink_smoke', x: q.x, y: q.y - q.z - 44, depth: q.y - 1, w: 92, life: 320, sx: kf([0, 1.25], [1, 0.5, out]), sy: kf([0, 1.25], [1, 0.5, out]), a: kf([0, 0.5], [1, 0, inQ]), rot: (u) => -80 * u });
     this.pop(tn('glint', 'steel'), q.x + sideOf(r) * 20, q.y - q.z - 56, 130, { life: 240, angle: 0, depth: TOP + 6, glow: 0.45 });
     this.shock(q.x, q.y, 150, { life: 320, tone: 'rose' });
     this.ctx.callout({ x: q.x, y: q.y, z: q.z + 50 }, 'COUNTER!!', '#ff8a96', 0);
@@ -730,11 +731,11 @@ export class SamuraiFx {
   private mirageCut(r: CastRun, m: { x: number; y: number; z: number }, toward: number): void {
     const b = this.ctx.body?.(r.attackerId), x = m.x, y = m.y - m.z;
     // a puff of ink where he stood (he is gone from there: the halves are all that is left of him)
-    this.spr({ name: 'ink_smoke', x, y: y - 50, depth: m.y + 0.6, w: 104, life: 480, sx: kf([0, 0.85], [1, 1.35, out3]), sy: kf([0, 0.95], [1, 1.3, out3]), a: kf([0, 0.8], [0.35, 0.7], [1, 0, inQ]), rot: (u) => 50 * u });
+    this.spr({ name: 'ink_smoke', x, y: y - 50, depth: m.y - 1, w: 90, life: 400, sx: kf([0, 0.85], [1, 1.35, out3]), sy: kf([0, 0.95], [1, 1.3, out3]), a: kf([0, 0.6], [0.35, 0.45], [1, 0, inQ]), rot: (u) => 50 * u }); // (the attacker stands right at it: behind, lighter)
     if (b) {
       const s = this.ctx.scene, CUT = 0.5;
       const half = (top: boolean) => {
-        const im = s.add.image(x, y, b.key, b.frame).setOrigin(b.ox, b.oy).setScale(b.sx, b.sy).setFlipX(b.flipX).setTintFill(0xffc2e6).setDepth(m.y + 1.2); // (a ghost of rose light: not him)
+        const im = s.add.image(x, y, b.key, b.frame).setOrigin(b.ox, b.oy).setScale(b.sx, b.sy).setFlipX(b.flipX).setTintFill(0xffc2e6).setDepth(m.y - 0.8); // (a ghost of rose light: not him — behind the attacker standing at it)
         if (top) im.setCrop(0, 0, im.width, im.height * CUT); else im.setCrop(0, im.height * CUT, im.width, im.height * (1 - CUT));
         return im;
       };
@@ -776,7 +777,7 @@ export class SamuraiFx {
   private stepStreak(r: CastRun): void {
     const s = this.ctx.scene, T = r.timings, o = r.origin, a = r.aim, side = sideOf(r), D = r.skill.dash?.distance ?? 160;
     const ang = screenAng(a.x, a.y), x0 = o.x - a.x * 34, y0 = o.y - a.y * 34 - o.z - 48, flip = side < 0;
-    const ink = s.add.image(x0, y0, KIT, 'ink_long').setOrigin(0.03, 0.55).setAngle(ang).setFlipY(flip).setDepth(o.y + 2).setAlpha(0);
+    const ink = s.add.image(x0, y0, KIT, 'ink_long').setOrigin(0.03, 0.55).setAngle(ang).setFlipY(flip).setDepth(o.y - 2).setAlpha(0); // (behind the foe it passes through)
     const line = s.add.image(x0, y0, KIT, 'cut_line').setOrigin(0.03, 0.5).setAngle(ang).setFlipY(flip).setBlendMode(Phaser.BlendModes.ADD).setDepth(o.y + 2.1).setAlpha(0);
     const iw = ink.width, lw = line.width;
     let len = 30;
@@ -791,12 +792,12 @@ export class SamuraiFx {
     } });
     for (let k = 0; k < 3; k++) { // his silhouettes along the path, one after another, fading
       const f = 0.22 + k * 0.24;
-      this.silhouette(r, o.x + a.x * D * f, o.y + a.y * D * f - o.z, o.y + a.y * D * f + 1, 300, { delay: k * 34, face: side, a: kf([0, 0], [0.12, 0.8], [0.4, 0.6], [1, 0, inQ]) });
+      this.silhouette(r, o.x + a.x * D * f, o.y + a.y * D * f - o.z, o.y + a.y * D * f - 2, 300, { delay: k * 34, face: side, a: kf([0, 0], [0.12, 0.8], [0.4, 0.6], [1, 0, inQ]) }); // (behind a foe on the line: he reads through the step)
     }
     this.later(T.active, () => { // he lands: out of a swirl of ink (drops of it flung off), the blade's glint
       const c = this.ctx.casterPos(r.attackerId); if (!c) return;
-      this.pop('ink_spatter', c.x - side * 30, c.y - c.z - 40, 96, { depth: c.y + 2, life: 380, glow: 0, angle: side > 0 ? 180 : 0 });
-      this.spr({ name: 'ink_smoke', x: c.x, y: c.y - c.z - 46, depth: c.y + 3, w: 104, life: 300, sx: kf([0, 1.25], [1, 0.5, out]), sy: kf([0, 1.25], [1, 0.5, out]), a: kf([0, 0.75], [1, 0, inQ]), rot: (u) => -80 * u });
+      this.pop('ink_spatter', c.x - side * 30, c.y - c.z - 40, 80, { depth: c.y - 2, life: 340, glow: 0, angle: side > 0 ? 180 : 0 }); // (behind: the foe he passed stands right there)
+      this.spr({ name: 'ink_smoke', x: c.x, y: c.y - c.z - 46, depth: c.y - 1, w: 104, life: 300, sx: kf([0, 1.25], [1, 0.5, out]), sy: kf([0, 1.25], [1, 0.5, out]), a: kf([0, 0.6], [1, 0, inQ]), rot: (u) => -80 * u });
       this.glint(r, 0, 24, 56);
     }, r);
   }
@@ -992,9 +993,10 @@ export class SamuraiFx {
   kageVanish(at: V3): void {
     if (!this.ready) return;
     const x = at.x, y = at.y - at.z;
-    this.pop('ink_burst', x, y - 48, 220, { depth: at.y + 6, life: 560, glow: 0, angle: rnd(-10, 10) });
-    this.spr({ name: 'ink_smoke', x, y: y - 46, depth: at.y + 5, w: 150, life: 760, sx: kf([0, 0.5], [0.3, 1.1, out3], [1, 1.5]), sy: kf([0, 0.5], [0.3, 1.1, out3], [1, 1.4]),
-      a: kf([0, 0.95], [0.4, 0.8], [1, 0, inQ]), rot: (u) => 70 * u, my: (u) => -24 * u });
+    // (a size down and just behind his spot: a foe beside him reads in front of the ink — DFO, VS CPU)
+    this.pop('ink_burst', x, y - 48, 160, { depth: at.y - 1, life: 440, glow: 0, angle: rnd(-10, 10) });
+    this.spr({ name: 'ink_smoke', x, y: y - 46, depth: at.y - 1.5, w: 120, life: 600, sx: kf([0, 0.5], [0.3, 1.1, out3], [1, 1.5]), sy: kf([0, 0.5], [0.3, 1.1, out3], [1, 1.4]),
+      a: kf([0, 0.75], [0.4, 0.6], [1, 0, inQ]), rot: (u) => 70 * u, my: (u) => -24 * u });
     this.petals(x, y - 50, 22, 140, { depth: at.y + 6, life: 1100 });
     this.ctx.punch(0.02, 140);
   }
@@ -1002,8 +1004,8 @@ export class SamuraiFx {
   kageAppear(at: V3): void {
     if (!this.ready) return;
     const x = at.x, y = at.y - at.z;
-    this.spr({ name: 'ink_smoke', x, y: y - 44, depth: at.y + 4, w: 128, life: 460, sx: kf([0, 1.25], [1, 0.55, out]), sy: kf([0, 1.25], [1, 0.55, out]),
-      a: kf([0, 0.9], [0.5, 0.6], [1, 0, inQ]), rot: (u) => -90 * u });
+    this.spr({ name: 'ink_smoke', x, y: y - 44, depth: at.y - 1, w: 120, life: 420, sx: kf([0, 1.25], [1, 0.55, out]), sy: kf([0, 1.25], [1, 0.55, out]),
+      a: kf([0, 0.7], [0.5, 0.45], [1, 0, inQ]), rot: (u) => -90 * u });
     this.petals(x, y - 46, 7, 64, { depth: at.y + 5 });
   }
   /** A double bursts into petals (struck — the blow is wasted — or at the AMBUSH). */
@@ -1012,7 +1014,7 @@ export class SamuraiFx {
     const x = at.x, y = at.y - at.z;
     this.spr({ name: 'blossom_cluster', x, y: y - 48, depth: at.y + 6, w: 70, life: 380, angle: rnd(-20, 20), glow: 0.3,
       sx: kf([0, 0.4], [0.25, 1.15, out3], [1, 1.3]), sy: kf([0, 0.4], [0.25, 1.15, out3], [1, 1.3]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
-    this.pop('ink_spatter', x, y - 46, 120, { depth: at.y + 5, life: 360, glow: 0 });
+    this.pop('ink_spatter', x, y - 46, 90, { depth: at.y - 1, life: 300, glow: 0 }); // (struck next to the foe: behind, smaller)
     this.petals(x, y - 52, 28, 120, { depth: at.y + 6, life: 1150 });
   }
   /** A double's feint: a quick cut in the air in front of it, as it swings (stage: which of the four cuts). */
