@@ -25,6 +25,8 @@ export interface Body { body: Phaser.GameObjects.Sprite; foot: Phaser.GameObject
 export interface WorldFrame {
   hero: { x: number; y: number; z: number; facing: -1 | 1; /** the floor he stands on (a floor above: its height) */ floorZ: number };
   others: { x: number; y: number; z: number }[];
+  /** The NPCs standing in the place: anchors only (their name plates and markers placed at their own depth), no part of a fight's spread. */
+  npcs?: { x: number; y: number; z: number }[];
   bodies: Body[];
   flying: Arena3D['flying'];
   hitStop: boolean;
@@ -122,7 +124,7 @@ export class World3D {
     let span = 0; for (const o of f.others) { const d = Math.hypot(o.x - h.x, (o.y - h.y) * 1.7); if (d < 700) span = Math.max(span, d * 0.5); }
     a.focus = { x: fx, y: h.y, z: h.z, span, floorZ: h.floorZ };
     if (this.arrive?.snap) { this.arrive.snap = false; a.snap((camOf(this.areaId).dist ?? 9) / (this.arrive.wide * base)); } // (the glide starts wide, straight on the entry — once the focus is known)
-    a.anchors = [{ x: h.x, y: h.y, z: h.z }, ...f.others.map((o) => ({ x: o.x, y: o.y, z: o.z }))];
+    a.anchors = [{ x: h.x, y: h.y, z: h.z }, ...f.others.map((o) => ({ x: o.x, y: o.y, z: o.z })), ...(f.npcs ?? [])];
     a.bodies = f.bodies;
     a.flying = f.flying;
     a.dimWant = Math.max(dim, f.ult ? 0.6 : f.sig ? 0.25 : 0);

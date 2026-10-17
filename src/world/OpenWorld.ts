@@ -406,6 +406,8 @@ export class OpenWorld {
   npcArea(n: AreaNpc): string | undefined { return this.npcs.find((q) => q.def === n)?.area; }
   /** The NPCs' bodies and their contact shadows (the 3D stage casts their sun shadows and lights them). */
   npcBodies(): { body: Phaser.GameObjects.Sprite; foot: Phaser.GameObjects.Image; z: number }[] { return this.npcs.map((n) => ({ body: n.sprite, foot: n.shadow as unknown as Phaser.GameObjects.Image, z: 0 })); }
+  /** Where every NPC stands (world px): anchors for the 3D stage, so an NPC's name plate and quest marker are placed at his own depth (not over the nearest fighter). */
+  npcAnchors(): { x: number; y: number; z: number }[] { return this.npcs.map((n) => ({ x: n.x, y: n.y, z: 0 })); }
 
   /** Where an NPC stands (world px). */
   npcPos(n: AreaNpc): { x: number; y: number } { const v = this.npcs.find((q) => q.def === n); return v ? { x: v.x, y: v.y } : { x: n.x, y: n.y }; }

@@ -6,7 +6,7 @@ import type { Parts } from '../../arena3d/RoomKit';
 import { box, cyl, lathe, taperTube, canvasTex, glowCanvas } from '../../arena3d/RoomKit';
 import type { Life, Wind } from '../life/kit';
 import { Puffs, tex as lifeTex, smokeCanvas, canvas as mkCanvas } from '../life/kit';
-import { paperLanterns } from '../life/lanterns';
+import { paperLanterns, type Lanterns } from '../life/lanterns';
 import { pond } from '../life/pond';
 import type { Disposable } from './units';
 
@@ -24,13 +24,14 @@ export const post = (c: PropCtx, x: number, y: number, z: number, h: number, w =
 
 /** A cord slung between two points (a shallow catenary), paper lanterns hanging from it at `at` (fractions along it);
  *  the lanterns are the kit's (they swing); the first `lit` of them carry a real warm light. */
-export function lanternCord(c: PropCtx, a: THREE.Vector3, b: THREE.Vector3, at: number[], o: { sag?: number; lit?: number; color?: number; glow?: number; seed?: number } = {}): THREE.Vector3[] {
+export function lanternCord(c: PropCtx, a: THREE.Vector3, b: THREE.Vector3, at: number[], o: { sag?: number; /** how many of them get a real point light */ lit?: number; color?: number; glow?: number; seed?: number; /** their paper dark (0) … glowing (1), default glowing — `lanterns.setLit` changes it later */ glowK?: number } = {}): { pts: THREE.Vector3[]; lanterns: Lanterns; lights: THREE.PointLight[] } {
   const sag = o.sag ?? 0.35, curve = new THREE.CatmullRomCurve3([0, 0.25, 0.5, 0.75, 1].map((k) => new THREE.Vector3().lerpVectors(a, b, k).add(new THREE.Vector3(0, -Math.sin(Math.PI * k) * sag, 0))));
   c.P.add('dark', new THREE.TubeGeometry(curve, 14, 0.018, 5));
   const pts = at.map((k) => curve.getPointAt(k));
-  c.life.push(paperLanterns(c.scene, pts.map((p) => ({ x: p.x, y: p.y - 0.02, z: p.z })), { wind: c.air, seed: o.seed ?? 41, drop: 0.14, color: o.color ?? 0xf2d8a8, glow: o.glow ?? 0xffb060 }));
-  for (const p of pts.slice(0, o.lit ?? 0)) warmLight(c, p.x, p.y - 0.4, p.z, 2.2, 8);
-  return pts;
+  const lanterns = paperLanterns(c.scene, pts.map((p) => ({ x: p.x, y: p.y - 0.02, z: p.z })), { wind: c.air, seed: o.seed ?? 41, drop: 0.14, color: o.color ?? 0xf2d8a8, glow: o.glow ?? 0xffb060, lit: o.glowK });
+  c.life.push(lanterns);
+  const lights = pts.slice(0, o.lit ?? 0).map((p) => warmLight(c, p.x, p.y - 0.4, p.z, 2.2, 8));
+  return { pts, lanterns, lights };
 }
 
 /** A warm point light the kit flickers (the lanterns and windows are the dusk's main light: a few per map). */

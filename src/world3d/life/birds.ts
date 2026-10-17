@@ -20,7 +20,7 @@ interface Bird {
   flap: number; fold: number; wait: number;
 }
 
-export function birds(scene: THREE.Scene, at: BirdsAt, opts: { n?: number; wind: Wind; seed?: number; color?: number } ): Life {
+export function birds(scene: THREE.Scene, at: BirdsAt, opts: { n?: number; wind: Wind; seed?: number; color?: number; /** the flock startled (a gust, a heavy blow): the sitters take off — for a sound */ onStartle?: () => void } ): Life {
   const R = rng(opts.seed ?? 31), n = opts.n ?? 9;
   // ---- one bird: a slim body and two wings hinged beside it (local: +x ahead, +y up, +z to its right)
   const pos: number[] = [], wing: number[] = [], idx: number[] = [];
@@ -66,7 +66,7 @@ export function birds(scene: THREE.Scene, at: BirdsAt, opts: { n?: number; wind:
   const update = (ms: number, t: number) => {
     if (t0 < 0) { t0 = t; for (const b of birds) { ring(b, t, b.pos); b.prev.copy(b.pos); } }
     const dt = Math.min(0.05, ms / 1000); uTime.value = t;
-    if (opts.wind.gust > 0.75 && scare <= 0) scare = 3; // startled: the sitters fly, the flock hurries
+    if (opts.wind.gust > 0.75 && scare <= 0) { scare = 3; opts.onStartle?.(); } // startled: the sitters fly, the flock hurries
     scare = Math.max(0, scare - dt);
     for (let i = 0; i < birds.length; i++) {
       const b = birds[i]; b.since += dt;

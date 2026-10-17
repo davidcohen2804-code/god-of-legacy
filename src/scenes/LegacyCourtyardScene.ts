@@ -449,7 +449,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     for (const m of this.world.mobs) if (m.alive && m.kind.boss && Math.hypot(m.x - k.x, (m.y - k.y) * 1.4) < (m.kind.aggro ?? 400) * 1.15) { boss = { x: m.x, y: m.y, id: m.id }; break; }
     const stage = this.den?.active ? this.den.stage : 0;
     if (stage !== this.denStageSeen) { if (stage > 1 && this.denStageSeen > 0 && this.denStageSeen < stage) w.show(w.floor.x1); this.denStageSeen = stage; } // (a den stage cleared: the camera leads toward the gate parting)
-    w.step(ms, { hero: { x: k.x, y: k.y, z: k.z, facing: this.dir === 'left' ? -1 : 1, floorZ: k.supportZ }, others, bodies, flying: this.rt ? this.rt.projectiles.map((e) => e.p) : [], hitStop: (this.fx?.hitStopLeft ?? 0) > 0, ult, sig, sunGateOpen: this.world.sunGate.open, den: this.den?.active ? { stage: this.den.stage, lit: this.den.lit } : undefined, talk: this.npcDialog?.isOpen && this.talkAt ? this.talkAt : undefined, boss, done: this.questsDone() });
+    w.step(ms, { hero: { x: k.x, y: k.y, z: k.z, facing: this.dir === 'left' ? -1 : 1, floorZ: k.supportZ }, others, bodies, flying: this.rt ? this.rt.projectiles.map((e) => e.p) : [], hitStop: (this.fx?.hitStopLeft ?? 0) > 0, ult, sig, sunGateOpen: this.world.sunGate.open, den: this.den?.active ? { stage: this.den.stage, lit: this.den.lit } : undefined, talk: this.npcDialog?.isOpen && this.talkAt ? this.talkAt : undefined, boss, done: this.questsDone(), npcs: this.world.npcAnchors() });
   }
 
   /** The arena camera (DFO): frames both fighters — close in when they are close (the bodies big and readable, ~1.7×

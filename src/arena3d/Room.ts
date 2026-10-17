@@ -36,6 +36,9 @@ export interface Room {
   update(ms: number, t: number, dim: number): void;
   /** Shadows to redraw (after the textures load). */
   shadowsDirty(): void;
+  /** The life's moments, for their sound (PvP's hook): `what` the module, `at` where it happens (world px: x, depth y,
+   *  height z) — 'birds' when the flock is startled into the air (a gust, a heavy blow). */
+  onLife?: (what: 'birds', at: { x: number; y: number; z: number }) => void;
   dispose(): void;
 }
 
@@ -473,7 +476,7 @@ export function buildRoom(scene: THREE.Scene, front: THREE.Scene, renderer: THRE
     const perches: THREE.Vector3[] = [];
     for (const k of [-0.8, -0.45, -0.1, 0.25, 0.6]) perches.push(new THREE.Vector3(cx + k * rHalf, yR + 0.3, zR));
     for (const side of [-1, 1]) { const xm = cx + side * (TW / 2 + 6); perches.push(new THREE.Vector3(xm - 2, G + 3.52, zP - 2.6), new THREE.Vector3(xm + 2.5, G + 3.52, zP - 2.6)); }
-    life.push(birds(scene, { cx, cz: zP - 3, rx: TW / 2 + 5, rz: 7.5, y: yR + 1.8, perches }, { n: soft ? 6 : 9, wind: air, seed: 20261017 }));
+    life.push(birds(scene, { cx, cz: zP - 3, rx: TW / 2 + 5, rz: 7.5, y: yR + 1.8, perches }, { n: soft ? 6 : 9, wind: air, seed: 20261017, onStartle: () => room.onLife?.('birds', { x: cx * 100, y: ((zP - 3) / 1.15) * 100, z: (yR + 1.8) * 100 }) }));
     const crowns = trees.map((t) => ({ x: t.x + t.lean * 0.8, y: G + t.h + 0.9, z: t.z, r: 1.3 }));
     life.push(butterflies(scene, crowns, { n: soft ? 4 : 8, wind: air }));
     life.push(fireflies(scene, [...lanternAt.map(([x, y, z]) => ({ x, y: y + 1.2, z, r: 0.75 })), ...trees.map((t) => ({ x: t.x, y: G + 0.9, z: t.z, r: 1.3 }))], { n: soft ? 14 : 34, wind: air }));
@@ -550,7 +553,7 @@ export function buildRoom(scene: THREE.Scene, front: THREE.Scene, renderer: THRE
     for (let i = 0; i < NF && n > 0; i++) if (fk[i] === 1 || R() < 0.15) { spawn(i, false); n--; }
   };
 
-  return {
+  const room: Room = {
     sun, hemi, warm, groundY, blow, gust: gustNow,
     update: (ms, t, dim) => {
       update(ms, t, dim);
@@ -560,4 +563,5 @@ export function buildRoom(scene: THREE.Scene, front: THREE.Scene, renderer: THRE
     shadowsDirty: () => { shadowDirty = true; },
     dispose: () => { for (const l of life) l.dispose(); for (const d of disposables) d.dispose(); scene.traverse((o) => { if ((o as THREE.Mesh).isMesh && (o as THREE.Mesh).geometry) (o as THREE.Mesh).geometry.dispose(); }); },
   };
+  return room;
 }

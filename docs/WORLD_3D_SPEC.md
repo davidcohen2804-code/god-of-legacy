@@ -84,6 +84,7 @@ Reusable, already written (26cacc62): **birds** (a flock circling and perching),
 | **Waystone travel** | the stone's rune flares, the picture whites out 300 ms; in the new town the camera starts 4 units higher and lowers to the hero (an arrival from above) | 1.9 s |
 | **Level 10 / the Masters** | at the Temple Road's stage, talking to a Master: the push-in plus the Master's door light coming up behind him | as Talk |
 | **Den stage clear** | the room's gate opens: the Gate-opens beat; Pip flies ahead, the camera leads 2 units toward the gate | 2.5 s |
+| **The camera breathes** (always on, under the beats) | each map has a view of its own: the narrow ways — the torii tunnel, the Crag Path, the Lantern Steps, the Elderwood Path's roots, Hanging Roots, the Colonnade, the Blossom Steps, Moonfall Bridge — keep it 4–10 % nearer; the squares and the towns (Sunstone Plaza, Harvest Square, Elderwood, Sakura Temple, Ironhold, the Ember Quarry, the Hoard) let it 6–12 % out, the Sun Seal Plaza widest; and it follows his pace: standing it settles 4 % nearer, running it lets 5 % out (`maps/index.ts` VIEW, `World3D` BEAT.pace*) | eased 1.5 s |
 
 Names, lines and rewards stay exactly the quests' own (`world-areas.json` → `quests`); the camera adds, never replaces.
 

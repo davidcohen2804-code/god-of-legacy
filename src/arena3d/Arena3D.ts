@@ -129,6 +129,8 @@ export class Arena3D {
   fx!: Fx3D;
   /** The blow felt on the whole picture (set by the scene: its ImpactFx). */
   onImpact?: (at: { x: number; y: number; z: number }, big: 0 | 1 | 2) => void;
+  /** The place's life's moments, for their sound (PvP): 'birds' when the courtyard's flock is startled into the air, `at` in world px. */
+  onLife?: (what: 'birds', at: { x: number; y: number; z: number }) => void;
   /** The fighters' bodies as drawn (set by the scene each frame, with their contact shadow): each casts the sun's
    *  shadow on the floor — its own silhouette laid down away from the low sun (sheared like a real cast shadow). */
   bodies: { body: Phaser.GameObjects.Sprite; foot: Phaser.GameObjects.Image; z: number }[] = [];
@@ -264,6 +266,7 @@ export class Arena3D {
   private build(soft: boolean): void {
     const F = this.floor;
     this.room = this.buildPlace(this.scene3, this.front3, this.renderer, { x0: this.w3(F.x0), x1: this.w3(F.x1), zB: this.d3(F.back), zF: this.d3(F.front) }, soft);
+    this.room.onLife = (what, at) => this.onLife?.(what, at);
     this.sunBase = this.room.sun.intensity; this.hemiBase = this.room.hemi.intensity;
     { // the sun's shadow: per unit of height, how far it lies on the floor (x, toward the camera) — and how that looks
       const d = this.room.sun.position.clone().sub(this.room.sun.target.position).normalize(), up = Math.max(0.2, d.y);

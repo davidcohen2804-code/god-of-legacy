@@ -28,8 +28,16 @@ export const wisteriaWalk: Dressing = (c) => {
     const spots: { x: number; y: number; z: number; drop: number; s: number }[] = [];
     for (let x = xW0 + 0.3; x < xW1; x += 0.55) for (const z of [zA + 0.15, (zA + zB) / 2, zB - 0.15]) if (R() < 0.8) spots.push({ x: x + (R() - 0.5) * 0.4, y: H + 0.5, z: z + (R() - 0.5) * 0.3, drop: 0.7 + R() * 0.9, s: 0.7 + R() * 0.5 });
     const run = ivyRun(c.scene, wt, spots, R); c.disposables.push(run); c.sway.push((t, w) => run.update(t, w)); }
-  // lantern cords between the front posts, three lit
-  for (let i = 0; i + 1 < posts.length; i++) lanternCord(c, new THREE.Vector3(posts[i], H - 0.05, zA + 0.1), new THREE.Vector3(posts[i + 1], H - 0.05, zA + 0.1), [0.3, 0.7], { lit: i % 2 === 1 && i < 7 ? 1 : 0, seed: 41 + i });
+  // lantern cords between the front posts: the Glowcaps keep bumping them out — three cords burn until Lights Out is
+  // done, then Lumen's whole walk is lit, cord after cord (two more real lights come up with it; the rest glow)
+  const cords = posts.slice(0, -1).map((x, i) => lanternCord(c, new THREE.Vector3(x, H - 0.05, zA + 0.1), new THREE.Vector3(posts[i + 1], H - 0.05, zA + 0.1), [0.3, 0.7], { lit: i % 2 === 1 && i < 7 ? 1 : 0, glowK: i % 2 === 1 && i < 7 ? 1 : 0, seed: 41 + i }));
+  const more = [7, 9].filter((i) => i < cords.length).map((i) => { const p = cords[i].pts[0]; const L = warmLight(c, p.x, p.y - 0.4, p.z, 0, 8); L.userData.base = 0; return L; });
+  { let litAt = NaN, first = true;
+    c.sway.push((t) => { const want = !!c.state.done?.includes('lights_out');
+      if (first) { first = false; litAt = want ? -99 : NaN; } else if (want && Number.isNaN(litAt)) litAt = t; else if (!want) litAt = NaN;
+      const litT = Number.isNaN(litAt) ? 0 : t - litAt;
+      cords.forEach((cd, i) => { if (i % 2 === 1 && i < 7) return; cd.lanterns.setLit(Math.max(0, Math.min(1, (litT - i * 0.35) * 2))); });
+      more.forEach((L, j) => { L.userData.base = 2.2 * Math.max(0, Math.min(1, (litT - (7 + j * 2) * 0.35) * 2)); }); }); }
   // Lumen's lamp-pole with its hook and his ladder against the pergola
   const lumen = (c.A.npcs ?? []).find((n) => n.id === 'lumen'); const lx = lumen ? ux(lumen.x + c.ax) : c.F.x0 + 3, lz = lumen ? uz(lumen.y) : c.F.zB;
   P.add('dark', cyl(0.04, 0.04, 2.2, lx + 1.1, 0, lz - 0.5, 8)); { const g = new THREE.TorusGeometry(0.16, 0.025, 6, 12, Math.PI); g.rotateZ(Math.PI); g.translate(lx + 1.1, 2.3, lz - 0.5); P.add('dark', g); }
@@ -118,7 +126,7 @@ export const lanternSteps: Dressing = (c) => {
   c.life.push(paperLanterns(c.scene, postLanterns, { wind: c.air, seed: 60, drop: 0.06, color: 0xf2d8a8, glow: 0xffb060 })); // (the posts' lanterns as one set: five draws)
   // tall posts along the terrace's back and the cords zig-zagging between them, the moths' home
   for (let k = 0; k < 6; k++) { const x = c.F.x0 + 0.8 + k * ((c.F.x1 - c.F.x0 - 1.6) / 5), z = zWall + (k % 2 ? 0.7 : 2.2); post(c, x, 0, z, 3.4, 0.18); P.add('dark', cyl(0.12, 0.08, 0.1, x, 3.4, z, 8)); tall.push(new THREE.Vector3(x, 3.3, z)); }
-  for (let k = 0; k + 1 < tall.length; k++) lanternCord(c, tall[k], tall[k + 1], [0.25, 0.5, 0.75], { sag: 0.5, lit: k === 1 || k === 3 ? 1 : 0, seed: 70 + k });
+  for (let k = 0; k + 1 < tall.length; k++) void lanternCord(c, tall[k], tall[k + 1], [0.25, 0.5, 0.75], { sag: 0.5, lit: k === 1 || k === 3 ? 1 : 0, seed: 70 + k });
   // the stair at the back-left up to a closed garden gate (scenery)
   { const sx = c.F.x0 + 2.4, steps = 6, h0 = 1.6; for (let k = 0; k < steps; k++) P.add('balustrade', box(1.6, (h0 / steps) * (k + 1), 0.32, sx, 0, zWall + 0.16 + (steps - 1 - k) * 0.32, 1.1, 0.02));
     P.add('wall', box(0.4, 2.6, 0.4, sx - 1.0, h0, zWall - 0.9, 1.3, 0.02), box(0.4, 2.6, 0.4, sx + 1.0, h0, zWall - 0.9, 1.3, 0.02)); P.add('moulding', box(2.6, 0.3, 0.5, sx, h0 + 2.6, zWall - 0.9, 1, 0.03));
