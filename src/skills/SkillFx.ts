@@ -248,7 +248,7 @@ const WFAM_C: Record<string, number> = { warrior_basic: 0xe8f0ff, dash_slash: 0x
   ground_breaker: 0xb09474, leap_crash: 0xb09474, earthsplitter: 0xb09474, iron_grip: 0x9fc4ff, judgment_hook: 0x9fc4ff, shield_charge: 0x9fc4ff,
   judgment_blade: 0xfff0b8, sanctuary: 0xfff0b8, titans_verdict: 0xfff0b8, war_cry: 0xd8261c, lions_maw: 0xd8261c, blade_storm: 0xd8261c };
 const WFAM_N: Record<string, string> = Object.fromEntries(Object.entries(WFAM_C).map(([k, c]) => [k, c === 0xe8f0ff ? 'steel' : c === 0xb09474 ? 'stone' : c === 0x9fc4ff ? 'iron' : c === 0xfff0b8 ? 'holy' : c === 0xff5a40 ? 'steel' : 'crimson']));
-const WARRIOR_FEEL: Record<string, [number, number]> = { warrior_basic: [1.2, 1], whirlwind: [0.72, 0.72], ground_breaker: [0.7, 0.7], blade_storm: [0.7, 0.7], iron_grip: [0.6, 0.65], titans_verdict: [0.9, 0.9], leap_crash: [0.9, 0.9] };
+const WARRIOR_FEEL: Record<string, [number, number]> = { warrior_basic: [1.2, 1], whirlwind: [0.72, 0.72], ground_breaker: [0.7, 0.7], blade_storm: [0.7, 0.7], iron_grip: [0.6, 0.65], titans_verdict: [0.9, 0.9], leap_crash: [0.9, 0.9], lance_thrust: [0.85, 0.55] }; // (lance_thrust: the drill thinner and see-through round the foe — DFO's review)
 /** Warrior skills that get a ground shockwave ring at their impact. */
 const SHOCK: Record<string, { r: number; c: number }> = {
   ground_breaker: { r: 200, c: 0xb09474 }, shield_slam: { r: 110, c: 0xfff0c0 }, titans_verdict: { r: 260, c: 0xfff0b8 },
@@ -434,7 +434,7 @@ export class SkillFx {
       for (let i = 0; i < 4; i++) { const t = (i / 4) * Math.PI * 2 + 0.4; this.dust(r.origin.x + Math.cos(t) * 100, r.origin.y + Math.sin(t) * 40, 64, 0.28); } /* (feel pass: six puffs at 0.55 whited the floor round both fighters in PVP 3D) */ // the earth heaves: dust ring (the SHOCK ring is the one wave)
       this.spark(IMPACT.warrior.key, r.origin.x, r.origin.y - 24, IMPACT.warrior.frames, 120, 0.45);
       // the living quake: one golden rune ring that slowly turns on the floor around the warrior and fades away over 3s
-      const ring = this.scene.add.image(0, 0, 'magic-circle').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffc070).setDisplaySize(360, 360);
+      const ring = this.scene.add.image(0, 0, 'magic-circle').setBlendMode(Phaser.BlendModes.NORMAL).setTint(0x7a6650).setDisplaySize(360, 360); // (STONE: a carved ring, not gold light — DFO's review)
       const plane = this.scene.add.container(r.origin.x, r.origin.y, [ring]).setScale(1, 0.42).setDepth(GROUND + 2).setAlpha(0); // floor perspective
       this.scene.tweens.add({ targets: plane, alpha: 0.3, duration: 260 });
       this.scene.tweens.add({ targets: ring, angle: 140, duration: 3100 });
@@ -589,20 +589,19 @@ export class SkillFx {
   private roar(r: CastRun): void {
     const T = r.timings, c0 = this.casterPos(r.attackerId); if (!c0) return;
     const glow = this.scene.add.image(c0.x, c0.y - c0.z - 46, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xe0402a).setDepth(c0.y - 1).setDisplaySize(60, 80).setAlpha(0);
-    this.scene.tweens.add({ targets: glow, alpha: 0.8, displayWidth: 170, displayHeight: 210, duration: T.startup, ease: 'Quad.easeIn' });
+    this.scene.tweens.add({ targets: glow, alpha: 0.4, displayWidth: 170, displayHeight: 210, duration: T.startup, ease: 'Quad.easeIn' });
     this.scene.time.delayedCall(T.startup, () => {
       const c = this.casterPos(r.attackerId) ?? c0;
       glow.destroy();
-      const pillar = this.scene.add.image(c.x, c.y - c.z - 10, 'dmg-glow').setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setTint(0xe0402a).setDepth(c.y + 1).setDisplaySize(110, 60);
+      const pillar = this.scene.add.image(c.x, c.y - c.z - 10, 'dmg-glow').setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setTint(0xe0402a).setDepth(c.y - 1).setDisplaySize(110, 60).setAlpha(0.6);
       this.scene.tweens.add({ targets: pillar, displayHeight: 420, displayWidth: 70, duration: 160, ease: 'Cubic.easeOut' });
       this.scene.tweens.add({ targets: pillar, alpha: 0, delay: 160, duration: 420, onComplete: () => pillar.destroy() });
-      const flash = this.scene.add.image(c.x, c.y - c.z - 50, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffffff).setDepth(TOP).setDisplaySize(120, 120);
-      this.scene.tweens.add({ targets: flash, displayWidth: 260, displayHeight: 260, alpha: 0, duration: 260, ease: 'Cubic.easeOut', onComplete: () => flash.destroy() });
+      this.shockwave(c.x, c.y, 160, 0xd8261c); // (a shock ring out from his feet — the white flash over his chest hid him)
       { const step = Math.max(70, Math.round((T.active + 260) / 8)); // the roar: crimson-gold rings of force burst out from his chest
-        this.play('cry-roar', c.x, c.y - c.z - 62, 250, 250, [step * 0.5, step * 0.7, step, step * 1.5, step * 1.2, step, step, step * 1.3], { oy: 0.69, depth: TOP - 6, blend: Phaser.BlendModes.NORMAL, fadeLast: 180, follow: () => this.casterPos(r.attackerId) }); }
+        this.play('cry-roar', c.x, c.y - c.z - 62, 250, 250, [step * 0.5, step * 0.7, step, step * 1.5, step * 1.2, step, step, step * 1.3], { oy: 0.69, depth: c.y - 2, blend: Phaser.BlendModes.NORMAL, fadeLast: 180, follow: () => this.casterPos(r.attackerId) }); } // (behind him: over him it hid him — DFO's review; the shock rings below carry it out)
       const waves = Math.max(3, Math.round(T.active / 150)); // the roar keeps ringing out for the whole active window
       for (let i = 0; i < waves; i++) this.scene.time.delayedCall(i * 150, () => { const p = this.casterPos(r.attackerId) ?? c; this.shockwave(p.x, p.y, 200 + (i % 3) * 70, i % 3 === 1 ? 0xffd36a : 0xe0402a); });
-      const hold = this.scene.add.image(c.x, c.y - c.z - 50, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xe0402a).setDepth(c.y - 1).setDisplaySize(190, 230).setAlpha(0.6);
+      const hold = this.scene.add.image(c.x, c.y - c.z - 50, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xe0402a).setDepth(c.y - 1).setDisplaySize(190, 230).setAlpha(0.3);
       this.scene.tweens.add({ targets: hold, scaleX: hold.scaleX * 1.12, scaleY: hold.scaleY * 1.12, yoyo: true, repeat: -1, duration: 110 });
       this.scene.tweens.add({ targets: hold, alpha: 0, delay: T.active, duration: 300, onComplete: () => { this.scene.tweens.killTweensOf(hold); hold.destroy(); } });
       (this.cam ?? this.scene.cameras.main).shake(T.active, 0.006);
@@ -613,7 +612,7 @@ export class SkillFx {
   private quakeBurst(r: CastRun): void {
     const T = r.timings, c = r.origin;
     this.scene.time.delayedCall(T.startup, () => {
-      const col = this.scene.add.image(c.x, c.y + 4, 'dmg-glow').setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffb040).setDepth(c.y + 2).setDisplaySize(60, 24).setAlpha(0.55);
+      const col = this.scene.add.image(c.x, c.y + 4, 'dmg-glow').setOrigin(0.5, 1).setBlendMode(Phaser.BlendModes.ADD).setTint(0xff7a22).setDepth(c.y - 1).setDisplaySize(60, 24).setAlpha(0.3); // (STONE: molten heat, behind him — the gold column read as a white-gold disc)
       this.scene.tweens.add({ targets: col, displayHeight: 210, displayWidth: 70, duration: 140, ease: 'Cubic.easeOut' });
       this.scene.tweens.add({ targets: col, alpha: 0, delay: 120, duration: 320, onComplete: () => col.destroy() }); // (one slim column: stacked bright layers burned the hero and the foe to white)
     });
@@ -645,10 +644,10 @@ export class SkillFx {
   /** Blade Storm: the painted lightning storm crashes down onto the raised sword and rages for the whole hold. */
   private lightningStorm(r: CastRun): void {
     const T = r.timings, c = this.casterPos(r.attackerId) ?? r.origin;
-    const img = this.scene.add.image(c.x, c.y + 6, 'bs-storm', 12).setOrigin(0.5, 342 / 440).setBlendMode(Phaser.BlendModes.NORMAL).setDisplaySize(310, 490).setDepth(c.y - 1).setAlpha(0.75); // (feel pass: in PVP 3D the storm at 0.72 hid both fighters for its whole life)
+    const img = this.scene.add.image(c.x, c.y + 6, 'bs-storm', 12).setOrigin(0.5, 342 / 440).setBlendMode(Phaser.BlendModes.NORMAL).setDisplaySize(310, 490).setDepth(c.y - 1).setAlpha(0.32); // (DFO's review: the column a third as bright — it washed the frame red-orange; the sword vortex is the picture) // (feel pass: in PVP 3D the storm at 0.72 hid both fighters for its whole life)
     const fr = [12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 11], up = T.startup;
     const fms = [up * 0.55, up * 0.15, up * 0.15, up * 0.15, 90, 90, 90, 70, 70, 70, 70, 70, 70, 260];
-    img.setData('a0', 0.75);
+    img.setData('a0', 0.32);
     this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: fr, frameMs: fms, fadeLast: 260, loop: [6, 11], until: T.startup + T.active,
       follow: () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x, y: p.y + 6, z: 0 } : null; } });
     this.scene.time.delayedCall(Math.round(up * 0.85), () => (this.cam ?? this.scene.cameras.main).shake(220, 0.007));
@@ -1355,7 +1354,7 @@ export class SkillFx {
       const size = row === 3 ? 190 : row === 1 ? (tier === 'ultimate' ? 130 : 150) : row === 2 ? (tier === 'ultimate' ? 120 : 150) : s.id === 'warrior_basic' ? 100 : rapid ? 84 : 108; // (the chain's 4th strike is heavy: the 150 burst)
       const soft = rapid && row === 0; // (Titan's Verdict's heavy blows: 130 / 120 at 0.6 — at 180 the burst whited the foe after the cut-in, PVP 3D)
       // (a burst's small sparks soft: stacked at full strength under an ultimate's camera punch-in they burnt to a white blob)
-      const fam = WFAM_N[s.id], fk = fam && row !== 3 ? `imp-wsparks-${fam}` : 'imp-wsparks', toned = fk !== 'imp-wsparks' && this.scene.textures.exists(fk); // (the spark in the skill's family; the COUNTER cross keeps its crimson-gold)
+      const fam = WFAM_N[s.id], fk = fam ? `imp-wsparks-${fam}` : 'imp-wsparks', toned = fk !== 'imp-wsparks' && this.scene.textures.exists(fk); // (the spark in the skill's family — the COUNTER cross too: its crimson-gold read as a gold arc on the steel basic, DFO)
       this.spark(toned ? fk : 'imp-wsparks', at.x, at.y - at.z - 38, row * 6 + 6, soft && tier === 'ultimate' ? 64 : size, soft ? (tier === 'ultimate' ? 0.45 : 0.65) : tier === 'ultimate' && row !== 3 ? 0.6 : 0.95, row * 6, TOP + 2, toned);
     }
     else if (s.id !== 'warrior_basic') this.spark(k.key, at.x, at.y - at.z - 38, k.frames, k.size * im * (tier === 'ultimate' ? 1.4 : hit.heavy ? 1.15 : 1), 0.8); // (a regular attack: none, as in MapleStory)

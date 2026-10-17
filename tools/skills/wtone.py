@@ -27,6 +27,7 @@ SHEETS = {  # skill dir / file : family
     'war_cry/vfx': 'CRIMSON', 'sanctuary/vfx': 'HOLY',  # (sanctuary/vfx: War Cry's original sheet in HOLY — it used to borrow War Cry's) 'lions_maw/vfx': 'CRIMSON', 'blade_storm/storm': 'CRIMSON', 'blade_storm/erupt_a': 'CRIMSON', 'blade_storm/phantom': 'CRIMSON',
 }
 
+DEHAZE = {'ground_breaker/vfx'}  # the translucent fill of the painted floor disc dropped (the cracks and chunks kept): it read as a white-gold disc round both fighters (DFO's review)
 
 def tone(img, fam):
     d, m, h, gain, k = FAM[fam]; d, m, h = (np.array(x, np.float32) for x in (d, m, h))
@@ -44,5 +45,9 @@ if __name__ == '__main__':
     for key, fam in SHEETS.items():
         sid, f = key.split('/'); src = OUT + key + '.png'; keep = ORIG + ('war_cry__vfx.png' if key == 'sanctuary/vfx' else f'{sid}__{f}.png')
         if not os.path.exists(keep): shutil.copy(src, keep)
-        tone(Image.open(keep), fam).save(src, optimize=True)
+        im = tone(Image.open(keep), fam)
+        if key in DEHAZE:
+            q = np.asarray(im).astype(np.float32); al = q[..., 3] / 255
+            q[..., 3] = 255 * al * np.clip((al - 0.18) / 0.35, 0, 1); im = Image.fromarray(q.astype(np.uint8), 'RGBA')
+        im.save(src, optimize=True)
         print(key, fam)
