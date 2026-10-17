@@ -734,8 +734,8 @@ export class MageFx {
   /** Levity Field: a column of light where gravity turned over; stones and runes drift up. */
   private levity(p: V2, ms: number): void {
     if (this.ctx.scene.textures.exists('mfx-levity')) {
-      const o = { oy: 0.78, depth: p.y + 3 };
-      this.circle(p.x, p.y, 250, 0, ms, { draw: 260, alpha: 0.7 }); this.pool(p.x, p.y, 240, 0xa98cff, ms, { alpha: 0.4 }); // (its ring = the 110 px it holds)
+      const o = { oy: 0.78, depth: p.y - 4, alpha: 0.45 }; // (faint and behind: the 3D star glyph and the rising column carry it)
+      this.pool(p.x, p.y, 240, 0xa98cff, ms, { alpha: 0.4 }); // (its ring = the 110 px it holds)
       this.sheet('mfx-levity', p.x, p.y, 280, 300, { ...o, frames: [0, 4] });
       this.sheet('mfx-levity', p.x, p.y, 280, ms - 600, { ...o, frames: [4, 8], loop: 95, delay: 300 });
       this.sheet('mfx-levity', p.x, p.y, 280, 320, { ...o, frames: [12, 4], delay: ms - 300 });
