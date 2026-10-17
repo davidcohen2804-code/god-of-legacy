@@ -31,7 +31,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - [ ] Each skill one signature effect (its own shape and color), readable at a glance in PvP; no two skills of a class look alike.
 - [ ] A class hit-spark set (normal / heavy / counter / launch) in the class's look — request the hookup from DFO PvP arena dynamics.
 - [ ] Ultimate: a short animated cut-in (hero portrait, 0.6–0.8 s, PixVerse) — request the hookup from DFO PvP arena dynamics.
-- [ ] Victory pose (animated) and entrance move for the VS screen.
+- [x] Victory pose (animated) and entrance move for the VS screen. (all five heroes: their clips on the VS loading screen and the result screen — the warrior's, samurai's and gambler's 32bb4f7d…, the archer's 102855da, the book mage's 04e427aa)
 
 ### Combat feel (DFO PvP arena dynamics)
 - [x] Hit feel per weight: hit-stop, shake, flash and knockback tuned per hit size (light / heavy / counter / armor break / KO).
