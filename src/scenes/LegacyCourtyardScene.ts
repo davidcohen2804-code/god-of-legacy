@@ -3347,7 +3347,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (run?.own && s.cls === 'gambler') this.gambleConfirm(run, hit, target, at, damage, crit);
     if (run?.own && damage > 0 && s.linger?.at === 'target') this.startHold(run, target); // a hold under the foe it caught
     this.fx!.confirmed(s, hit, at, damage, reaction, true, idx, crit, run ? this.hitFrom(run, hit) : undefined, counter);
-    if (damage > 0) this.roomHit(s, hit, at, reaction);
+    if (damage > 0) this.roomHit(s, hit, at, reaction, this.holdTurn3d(run, hit));
     this.arenaSnd?.hit(s, hit, at, damage, reaction, crit);
     if (damage > 0) { // your hit on another fighter: it shudders through the hit-stop (fighting-game feel)
       const sh = Math.max(90, Math.min(220, this.fx!.hitStopLeft + 60));
@@ -3469,8 +3469,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     } else { this.fx?.callout({ x: at.x, y: at.y, z: at.z + 30 }, 'ARMOR BREAK', '#ff9a6a', 0); this.impactBeat('break', at); }
   }
   /** PVP 3D: a blow lights the room in its class's colour where it lands (heavier: brighter, and a mark on the floor). */
-  private roomHit(s: FinalSkill, hit: HitEvent, at: V3, reaction: string): void {
+  /** A turn of a hold under the foe (`linger.at: 'target'`) that is not its last, heavy one: it does not light the room
+   *  (a light, embers and dust every 120 ms read as a glare over the piece spinning under him — the Gambler's card). */
+  private holdTurn3d(run: CastRun | null | undefined, hit: HitEvent): boolean { return !!run?.zone && run.skill.linger?.at === 'target' && !hit.heavy; }
+  private roomHit(s: FinalSkill, hit: HitEvent, at: V3, reaction: string, quiet = false): void {
     if (!this.a3d) return;
+    if (quiet) { this.a3d.fx.hit(s, hit, at, false, reaction, 0); return; } // (a hold's turn: only its recipe's own small piece)
     const weight = s.slot === 7 && (hit.heavy || s.cls !== 'warrior') ? 'ultimate' : hit.heavy || s.slot === 6 || reaction === 'launch' || reaction === 'knockdown' || reaction === 'slam' ? 'heavy' : 'light';
     const wSmall = s.cls === 'warrior' && !hit.heavy && s.hits.length > 1 && !lastOfBurst(s, hit); // (any warrior skill of 2+ blows: only its heavy / last one throws the room's dust — Rising Slash, Leap Crash, Sky Breaker hazed too) // (warrior: a burst's small blows light the room lightly even when they launch — each heavy one's room dust and ring stacked into a white haze round both fighters: Ground Breaker, Titan's Verdict)
     this.a3d.fx.cardFlutter(at.x, at.y, 120); // (his cards lying near a blow hop)
@@ -3550,7 +3554,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (out.broke) { this.fx?.callout({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 60 }, 'ARMOR BREAK', '#ff9a6a', 0); this.impactBeat('break', { x: this.kin.x, y: this.kin.y, z: this.kin.z }); }
     if (out.rx) this.fx?.mageReaction(out.rx, { x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 }, this.localId, out.rxMs);
     this.fx!.confirmed(s, hit, at, out.damage, out.reaction, false, out.hitIndex, false, this.hitFrom(run, hit), countered);
-    if (out.damage > 0) this.roomHit(s, hit, at, out.reaction);
+    if (out.damage > 0) this.roomHit(s, hit, at, out.reaction, this.holdTurn3d(run, hit));
     this.arenaSnd?.hit(s, hit, at, out.damage, out.reaction, false);
     if (this.arena && out.damage > 0) { // the arena: a hit lands on you — a beat of hit-stop, your body shudders, heavy ones shake the screen
       const heavy = !!hit.heavy || out.reaction === 'launch' || out.reaction === 'knockdown' || s.slot === 7;
