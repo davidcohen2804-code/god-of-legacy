@@ -213,8 +213,13 @@ export class ArcherFx {
 
   // ------------------------------------------------------------------ cast timeline
 
+  /** PVP 3D (DFO, David 18 Oct 18:33): the room's 3D pieces carry her skills (src/arena3d/fx3d/archer.ts) — this painted
+   *  layer keeps there only what it paints best: the spirit beasts (wolf, hawk, eagle), the big boot of the kick, the leaf
+   *  decoy, the mine lying in the floor, the Hunter's Marks, the ultimate's portrait (the Tree of Life is the room's own tree). */
+  private static KEEP3D = new Set(['retreat_kick', 'hunters_roar', 'spirit_hawk', 'eagle_arrow', 'backstep_shot']); // (Tree of Life: the room's own tree — the painted one stood in front of the fight)
   cast(r: CastRun): void {
     if (!this.ready) return;
+    if (this.in3d() && !ArcherFx.KEEP3D.has(r.skill.id)) { if (r.skill.slot === 7) this.ctx.ultimateStage(r); return; }
     const s = r.skill, T = r.timings, me = this.me(r), side = sideOf(r), a = r.aim;
     switch (s.id) {
       case 'quick_shot':
@@ -317,9 +322,10 @@ export class ArcherFx {
         }, r);
         this.later(T.startup, () => {
           const q = this.me(r);
-          this.floor('wind_ring', q.x, q.y, 200, 520, { add: true, glow: 0.4, s: kf([0, 0.3], [1, 2.2, out3]), a: kf([0, 0.8], [0.6, 0.6], [1, 0, inQ]) });
-          this.floor('elec_floor', q.x, q.y, 180, 420, { add: true, s: kf([0, 0.4], [1, 2.4, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
-          for (let i = 0; i < 10; i++) { const an = (i / 10) * Math.PI * 2; this.bolt('bolt_seg', { x: q.x + Math.cos(an) * 40, y: q.y - 20 + Math.sin(an) * 18 }, { x: q.x + Math.cos(an) * 220, y: q.y - 10 + Math.sin(an) * 100 }, { thick: 26, delay: i * 12, life: 220 }); }
+          const flat = !this.in3d(); // (PVP 3D, DFO 18 Oct: the wolf is a spirit of her wood — no blue lightning on the floor; the room's rings of wind and gale of leaves carry the roar)
+          if (flat) this.floor('wind_ring', q.x, q.y, 200, 520, { add: true, glow: 0.4, s: kf([0, 0.3], [1, 2.2, out3]), a: kf([0, 0.8], [0.6, 0.6], [1, 0, inQ]) });
+          if (flat) this.floor('elec_floor', q.x, q.y, 180, 420, { add: true, s: kf([0, 0.4], [1, 2.4, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+          if (flat) for (let i = 0; i < 10; i++) { const an = (i / 10) * Math.PI * 2; this.bolt('bolt_seg', { x: q.x + Math.cos(an) * 40, y: q.y - 20 + Math.sin(an) * 18 }, { x: q.x + Math.cos(an) * 220, y: q.y - 10 + Math.sin(an) * 100 }, { thick: 26, delay: i * 12, life: 220 }); }
           this.leaves(q.x, q.y - 30, 14, 120);
           this.shake(r, 260, 0.007); if (r.own) this.ctx.punch(0.04, 260);
         }, r);
@@ -346,7 +352,7 @@ export class ArcherFx {
 
   /** Hit-timed effects of area skills (strikes land where and when the hit fires). */
   hit(r: CastRun, i: number, o: V3): void {
-    if (!this.ready) return;
+    if (!this.ready || this.in3d()) return; // (PVP 3D: the room strikes them — real arrows falling, its lightning)
     const s = r.skill, a = r.aim;
     if (s.id === 'rain_of_arrows') { // the charged lightning arrows strike the floor near, middle and far — each bigger than the last; the third is a storm
       const sh = r.hits[i].shape as { bias?: number }, cx = r.origin.x + a.x * (sh.bias ?? 200), cy = r.origin.y + a.y * (sh.bias ?? 200), K = [0.7, 1, 1.25][i] ?? 1, big = i === 2; // (the third a size down: in PVP 3D it whited the fight out in blue)
@@ -747,7 +753,7 @@ export class ArcherFx {
   trapArm(t: Trap): void { this.trapArt.get(t)?.arm(); }
   trapEnd(t: Trap, fired: boolean): void {
     const art = this.trapArt.get(t); art?.stop(); this.trapArt.delete(t);
-    if (!fired || !this.ready) return;
+    if (!fired || !this.ready || this.in3d()) return; // (PVP 3D: the room's vines and geyser burst it)
     // the mine bursts: a column of vines and green light throws everyone in it high (no stain left behind)
     this.spr({ name: 'thorn_column', x: t.x, y: t.y + 8, oy: 0.96, depth: t.y + 3, w: 170, h: 340, life: 720, add: false, glow: 0.3, sy: kf([0, 0.15], [0.22, 1.08, out3], [1, 1]), a: kf([0, 1], [0.7, 1], [1, 0, inQ]) }); // a tall column of vines
     this.spr({ name: 'vine_burst', x: t.x, y: t.y + 8, oy: 0.97, depth: t.y + 4, w: 150, life: 760, glow: 0.3, sy: kf([0, 0.1], [0.2, 1.1, out3], [1, 1.05]), sx: kf([0, 0.6], [0.2, 1, out3]), a: kf([0, 1], [0.7, 1], [1, 0, inQ]) });
@@ -763,7 +769,7 @@ export class ArcherFx {
   // ------------------------------------------------------------------ arrows in flight
 
   projectile(p: Projectile): void {
-    if (!this.ready) return;
+    if (!this.ready || this.in3d()) return; // (PVP 3D, DFO 18 Oct: her arrows are real arrows in the room — fx3d/archer.ts)
     const id = p.skill.id;
     let iron = false;
     if (id === 'multi_shot') { const n = (this.fanCount.get(p.castId) ?? 0) + 1; this.fanCount.set(p.castId, n); iron = n % 2 === 0; if (n === 1) this.later(2000, () => this.fanCount.delete(p.castId)); } // between the green arrows: iron ones
@@ -847,6 +853,10 @@ export class ArcherFx {
 
   confirmed(s: FinalSkill, hit: HitEvent, at: V3, heavy: boolean, crit: boolean, counter = false): void {
     if (!this.ready) return;
+    if (this.in3d()) { // (PVP 3D, DFO 18 Oct: the room's blow and its leaves carry the hit — only the states she leaves on him stay painted)
+      if (s.id === 'leaping_arrow' && hit.reaction.hardCC) { const ms = hit.reaction.hardCC.ms; this.spr({ name: 'vine_wrap', x: at.x, y: at.y - 6, depth: at.y + 2, w: 80, life: ms, sx: kf([0, 0.4], [0.06, 1, out3]), sy: kf([0, 0.4], [0.06, 1, out3]), a: kf([0, 0], [0.04, 1], [0.92, 1], [1, 0]) }); }
+      return;
+    }
     const x = at.x, y = at.y - at.z - 38, rapid = s.hits.length > 3 && !hit.heavy, launch = !!hit.reaction.launch && hit.reaction.launch >= 120;
     if (s.id === 'rain_of_arrows' && !counter) { this.pop('spark_cyan', x, y, 70, { life: 200 }); return; }
     if (this.ctx.scene.textures.exists('afx-hits')) { // the class hit sparks (GPT, 4 kinds × 5 frames): normal / heavy / counter / launch

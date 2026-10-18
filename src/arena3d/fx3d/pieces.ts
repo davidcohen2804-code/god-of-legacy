@@ -568,13 +568,14 @@ export function chains(f: Fx3D, from: { x: number; y: number }[], to: () => V3 |
 
 /** A thorned vine of light growing along a path (`path(k)`, world px, k 0..1) in `grow` ms, `w` px thick, its thorns
  *  repeating every `link` px; it holds `ms`, then withers from its root (fades). */
-export function vine(f: Fx3D, path: (k: number) => V3, color: number, o: { ms?: number; grow?: number; w?: number; link?: number; i?: number } = {}): void {
+export function vine(f: Fx3D, path: (k: number) => V3, color: number, o: { ms?: number; grow?: number; w?: number; link?: number; i?: number; /** under the fighters (roots on the floor that stay a while) */ back?: boolean } = {}): void {
   const n = 28, ms = o.ms ?? 1200, grow = o.grow ?? 200, W = f.host.w3(o.w ?? 16), linkU = f.host.w3(o.link ?? 34);
   const geo = new THREE.BufferGeometry(), pos = new Float32Array((n + 1) * 6), uv = new Float32Array((n + 1) * 4), idx: number[] = [];
   for (let i = 0; i <= n; i++) { uv.set([i / n, 0, i / n, 1], i * 4); if (i < n) { const b = i * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); } }
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array((n + 1) * 6), 3)); geo.setIndex(idx);
-  const m = new THREE.Mesh(geo, mat(f, 'ribbon', color, { map: thornTex(), i: o.i ?? 1.1 })); m.frustumCulled = false; f.host.glow.add(m);
-  const body = new THREE.Mesh(geo, mat(f, 'ribbon', deep(color, 0.35), { map: thornTex(), i: 1, normal: true })); body.frustumCulled = false; f.host.solid.add(body); // (the vine painted in its green)
+  const m = new THREE.Mesh(geo, mat(f, 'ribbon', color, { map: thornTex(), i: o.i ?? 1.1 })); m.frustumCulled = false;
+  const body = new THREE.Mesh(geo, mat(f, 'ribbon', deep(color, 0.35), { map: thornTex(), i: 1, normal: true })); body.frustumCulled = false; // (the vine painted in its green)
+  if (o.back) { body.renderOrder = 1; m.renderOrder = 2; f.host.back.add(body); f.host.back.add(m); } else { f.host.glow.add(m); f.host.solid.add(body); }
   const view = new THREE.Vector3(), side = new THREE.Vector3(), tan = new THREE.Vector3();
   let t = 0;
   f.spawn({
@@ -651,9 +652,9 @@ function arrowModel(f: Fx3D, len: number, color: number, o: { head?: number; glo
   const shaftM = new THREE.MeshStandardMaterial({ color: o.shaft ?? 0x3a2a1c, emissive: color, emissiveIntensity: 0.3, roughness: 0.55, metalness: 0.1, transparent: true });
   const headM = new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: color, emissiveIntensity: 0.85, roughness: 0.2, metalness: 0.85, transparent: true });
   const featherM = new THREE.MeshStandardMaterial({ color: o.fletch ?? 0xf4f1e6, emissive: color, emissiveIntensity: 0.25, roughness: 0.75, side: THREE.DoubleSide, transparent: true });
-  const shaftG = new THREE.CylinderGeometry(L * 0.014, L * 0.014, L, 6).rotateZ(Math.PI / 2);
-  const headG = new THREE.ConeGeometry(L * 0.05, L * (o.head ?? 0.2), 4).rotateZ(-Math.PI / 2).translate(L * 0.58, 0, 0);
-  const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-L * 0.5, 0, 0, -L * 0.26, 0, 0, -L * 0.47, L * 0.085, 0]), 3)); fg.computeVertexNormals();
+  const shaftG = new THREE.CylinderGeometry(L * 0.018, L * 0.018, L, 6).rotateZ(Math.PI / 2); // (a touch thicker than true: at the fight's distance a true shaft read as a hair)
+  const headG = new THREE.ConeGeometry(L * 0.06, L * (o.head ?? 0.2), 4).rotateZ(-Math.PI / 2).translate(L * 0.58, 0, 0);
+  const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-L * 0.5, 0, 0, -L * 0.25, 0, 0, -L * 0.47, L * 0.1, 0]), 3)); fg.computeVertexNormals();
   const shaft = new THREE.Mesh(shaftG, shaftM), head = new THREE.Mesh(headG, headM);
   const feathers = [0, 1, 2].map((k) => { const m = new THREE.Mesh(fg, featherM); m.rotation.x = (k / 3) * Math.PI * 2; return m; });
   const glowM = mat(f, 'map', color, { map: starTex(), i: 1.4, k: 0.6 }), glow = new THREE.Mesh(sq, glowM);
@@ -689,7 +690,7 @@ export function arrow(f: Fx3D, p: Projectile, color: number, o: { len?: number; 
 /** An arrow flying from `from` to `to` (world px; z its height) in `ms` — on a straight line, or arcing `arc` px over it —
  *  that drives into the floor there at the angle it flew (its head buried), stands `stick` ms and sinks away; dust and a
  *  ring where it lands. `trail`: a ribbon of its colour behind it. */
-export function arrowFall(f: Fx3D, from: V3, to: V3, color: number, o: { ms?: number; stick?: number; len?: number; delay?: number; arc?: number; trail?: number; land?: (at: V3) => void } = {}): void {
+export function arrowFall(f: Fx3D, from: V3, to: V3, color: number, o: { ms?: number; stick?: number; len?: number; delay?: number; arc?: number; trail?: number; land?: (at: V3) => void; /** it lands without lighting the floor (a rain of many: their lights summed whited the planks) */ quiet?: boolean } = {}): void {
   f.later(o.delay ?? 0, () => {
     const ms = o.ms ?? 260, stick = o.stick ?? 900, A = arrowModel(f, o.len ?? 90, color), L = A.L;
     const pos = (k: number): V3 => ({ x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, z: from.z + (to.z - from.z) * k + Math.sin(Math.PI * k) * (o.arc ?? 0) });
@@ -705,7 +706,7 @@ export function arrowFall(f: Fx3D, from: V3, to: V3, color: number, o: { ms?: nu
         A.glow.position.copy(A.group.position).addScaledVector(dir, L * 0.62); A.glow.quaternion.copy(f.host.camera.quaternion); const g = L * (landed ? 0.25 : 0.5); A.glow.scale.set(g, g, 1);
         if (!landed && k >= 1) {
           landed = true; const P0 = f.unit(to);
-          f.host.dust(P0.x, P0.z, 3, 0.6); f.host.ring(P0.x, P0.z, color, 0.55, 220, 0.6); f.host.flare(P0.x, 0.2, P0.z + 0.2, color, 6, 3, 200);
+          f.host.dust(P0.x, P0.z, o.quiet ? 1 : 3, 0.6); if (!o.quiet) { f.host.ring(P0.x, P0.z, color, 0.55, 220, 0.6); f.host.flare(P0.x, 0.2, P0.z + 0.2, color, 6, 3, 200); }
           o.land?.(to);
         }
         if (landed) { const u = (t - ms) / stick; A.fade(u > 0.7 ? Math.max(0, (1 - u) / 0.3) : 1); if (u >= 1) { A.dispose(); return false; } }
@@ -713,6 +714,36 @@ export function arrowFall(f: Fx3D, from: V3, to: V3, color: number, o: { ms?: nu
       }, dispose: () => A.dispose(),
     });
   });
+}
+
+/** A real arrow held in the air at `at()` (world px), pointing at `aim` (the floor point it will strike), the star at its
+ *  head pulsing: it grows in over `grow` ms after `delay`. `loose(to, o)` sends it down there from where it hangs (an
+ *  arrowFall), `drop()` lets it go, `pos()` says where it hangs. */
+export function hover(f: Fx3D, at: () => V3 | null, aim: V3, color: number, o: { len?: number; grow?: number; delay?: number } = {}): { loose(to: V3, o2?: Parameters<typeof arrowFall>[4]): void; drop(): void; pos(): V3 | null } {
+  let A: ReturnType<typeof arrowModel> | null = null, t = 0, gone = false, last: V3 | null = null;
+  const q = new THREE.Quaternion(), X = new THREE.Vector3(1, 0, 0), dir = new THREE.Vector3();
+  const free1 = () => { A?.dispose(); A = null; };
+  f.later(o.delay ?? 0, () => {
+    if (gone) return;
+    A = arrowModel(f, o.len ?? 100, color);
+    f.spawn({
+      step: (dt) => {
+        if (gone || !A) return false;
+        t += dt; const c = at(); if (c) last = c; if (!last) return true;
+        const P = f.unit(last); dir.copy(f.unit(aim)).sub(P); if (dir.lengthSq() < 1e-10) dir.set(1, 0, 0); dir.normalize(); q.setFromUnitVectors(X, dir);
+        const g = Math.min(1, t / (o.grow ?? 160)), s = 0.35 + 0.65 * outCubic(g);
+        A.group.position.copy(P); A.group.quaternion.copy(q); A.group.scale.setScalar(s);
+        A.glow.position.copy(P).addScaledVector(dir, A.L * 0.62 * s); A.glow.quaternion.copy(f.host.camera.quaternion);
+        const gl = A.L * (0.42 + 0.14 * Math.sin(t / 40)) * s; A.glow.scale.set(gl, gl, 1); A.fade(g);
+        return true;
+      }, dispose: free1,
+    });
+  });
+  return {
+    loose: (to, o2) => { if (gone) return; gone = true; const from = last; free1(); if (from) arrowFall(f, from, to, color, { len: o.len, ...o2 }); },
+    drop: () => { gone = true; free1(); },
+    pos: () => last,
+  };
 }
 
 /** A leaf (her cloak's): a pointed blade of forest green, a pale midrib and veins, its edge gold (sRGB, alpha). */
@@ -840,6 +871,139 @@ export function wreath(f: Fx3D, at: () => V3 | null, color: number, o: { r?: num
       leaves.instanceMatrix.needsUpdate = true; m.opacity = (o.a ?? 1) * (1 - gone);
       if (upright) { glow.position.copy(P); glow.quaternion.copy(Qc); glow.scale.set(rr * 2.4, rr * 2.4, 1); } else { glow.position.set(P.x, 0.02, P.z); glow.scale.set(rr * 2.4, 1, rr * 2.4); }
       U([glow], 'uA', 0.35 * open * (1 - gone));
+      return true;
+    }, dispose: done,
+  });
+}
+
+/** A tube along a curve whose radius changes along it (`r(u)`, units; u 0..1 from its foot): a trunk, a branch. Its uv's v
+ *  runs along it (0 → 1), u round it. Drawn ring by ring from its foot (a draw range of `ring * radial * 6` grows it). */
+function tube(curve: THREE.Curve<THREE.Vector3>, n: number, radial: number, r: (u: number) => number): THREE.BufferGeometry {
+  const fr = curve.computeFrenetFrames(n, false), pos: number[] = [], nor: number[] = [], uv: number[] = [], idx: number[] = [];
+  for (let i = 0; i <= n; i++) {
+    const u = i / n, P = curve.getPointAt(u), N = fr.normals[i], B = fr.binormals[i], R = r(u);
+    for (let j = 0; j <= radial; j++) {
+      const a = (j / radial) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a), nx = c * N.x + s * B.x, ny = c * N.y + s * B.y, nz = c * N.z + s * B.z;
+      pos.push(P.x + R * nx, P.y + R * ny, P.z + R * nz); nor.push(nx, ny, nz); uv.push(j / radial, u);
+    }
+  }
+  for (let i = 0; i < n; i++) for (let j = 0; j < radial; j++) { const a = i * (radial + 1) + j, b = a + radial + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+  return g;
+}
+
+/** Veins of light in bark (repeats up the trunk): a few wavy threads running up it (white on black: an emissive map). */
+function veinTex(): THREE.Texture {
+  return canvasTex('barkveins', 64, 256, (g, W, H) => {
+    g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.strokeStyle = '#fff'; g.lineCap = 'round';
+    for (let i = 0; i < 4; i++) {
+      const x0 = ((i + 0.5) * W) / 4; g.lineWidth = 2 + (i % 2) * 1.5; g.beginPath();
+      for (let y = 0; y <= H; y += 4) { const x = x0 + Math.sin((y / H) * Math.PI * 2 * (1 + (i % 2)) + i * 1.7) * 6; if (y) g.lineTo(x, y); else g.moveTo(x, y); }
+      g.stroke();
+    }
+  }, { blur: 3, repeat: true });
+}
+
+/** A tree of light growing out of the planks at (x, y) (world px) for `ms` — her Tree of Life: a trunk rises twisting out of
+ *  the floor (dark bark, gold veins of light running up it), six branches spread from it, a crown of her leaves opens over
+ *  them and sways, a soft gold light inside the crown; at its end the leaves fall and it sinks back into the floor. `h`:
+ *  the trunk's height to the crown (px). It stands behind the fighters (the room's own layer). */
+export function lifeTree(f: Fx3D, x: number, y: number, o: { ms?: number; h?: number; grow?: number } = {}): void {
+  const ms = o.ms ?? 20000, grow = o.grow ?? 900, s = f.host.w3(100), H = f.host.h3(o.h ?? 260), P0 = f.unit({ x, y, z: 0 });
+  const g = new THREE.Group(); g.position.copy(P0); f.host.back.add(g);
+  const veins = veinTex().clone(); veins.wrapS = veins.wrapT = THREE.RepeatWrapping; veins.repeat.set(1, 3); veins.needsUpdate = true;
+  const bark = new THREE.MeshStandardMaterial({ color: 0x3a2c1e, roughness: 0.85, metalness: 0, emissive: 0xffd27a, emissiveMap: veins, emissiveIntensity: 1.1 });
+  const V = (a: number, b: number, c: number) => new THREE.Vector3(a, b, c);
+  const trunkC = new THREE.CatmullRomCurve3([V(0, 0, 0), V(0.05 * s, H * 0.3, 0.03 * s), V(-0.06 * s, H * 0.6, -0.02 * s), V(0.03 * s, H * 0.85, 0.02 * s), V(0, H, 0)]);
+  const TN = 40, TR = 10, trunkG = tube(trunkC, TN, TR, (u) => s * (0.05 + 0.1 * Math.pow(1 - u, 1.4) + 0.1 * Math.pow(1 - u, 10))); // (its foot flares into the planks)
+  const trunk = new THREE.Mesh(trunkG, bark); trunk.frustumCulled = false; g.add(trunk);
+  const BN = 14, BR = 6, branches = Array.from({ length: 6 }, (_, k) => {
+    const u0 = 0.55 + 0.07 * k, a = (k / 6) * Math.PI * 2 + rnd(-0.3, 0.3), out = s * rnd(0.6, 0.95), up = H * rnd(0.12, 0.28), B0 = trunkC.getPointAt(u0);
+    const c = new THREE.CatmullRomCurve3([B0, B0.clone().add(V(Math.cos(a) * out * 0.45, up * 0.6, Math.sin(a) * out * 0.3)), B0.clone().add(V(Math.cos(a) * out, up, Math.sin(a) * out * 0.6))]);
+    const geo = tube(c, BN, BR, (u) => s * (0.045 * (1 - u) + 0.01)), m = new THREE.Mesh(geo, bark); m.frustumCulled = false; g.add(m);
+    return { m, geo, u0, tip: c.getPointAt(1) };
+  });
+  // the crown: her leaves round the branch tips and over the top
+  const N = 170, crown = V(0, H * 1.08, 0);
+  const leafM = new THREE.MeshStandardMaterial({ map: leafTex(), color: 0xffffff, emissive: 0x6fcf4f, emissiveIntensity: 0.4, roughness: 0.6, alphaTest: 0.5, side: THREE.DoubleSide });
+  const leaves = new THREE.InstancedMesh(sq, leafM, N); leaves.frustumCulled = false; g.add(leaves);
+  const L = Array.from({ length: N }, (_, i) => {
+    const tip = i < 66 ? branches[i % branches.length].tip : null;
+    let p: THREE.Vector3;
+    if (tip) p = tip.clone().add(V(rnd(-0.35, 0.35) * s, rnd(-0.2, 0.3) * s, rnd(-0.25, 0.25) * s));
+    else { const th = Math.random() * Math.PI * 2, ph = Math.acos(rnd(-0.6, 1)), rr = Math.pow(Math.random(), 0.35); p = crown.clone().add(V(Math.sin(ph) * Math.cos(th) * 1.35 * s * rr, Math.cos(ph) * 0.8 * s * rr, Math.sin(ph) * Math.sin(th) * 0.8 * s * rr)); }
+    return { p, q: new THREE.Quaternion().setFromEuler(new THREE.Euler(rnd(0, 6.3), rnd(0, 6.3), rnd(0, 6.3))), sz: s * rnd(0.17, 0.26), t0: grow * (0.55 + 0.45 * Math.random()), ph: rnd(0, 6.3), v: V(rnd(-0.3, 0.3), rnd(-0.1, 0.4), rnd(-0.2, 0.2)) };
+  });
+  const glow = new THREE.Mesh(sq, mat(f, 'map', 0xffd27a, { map: f.softDisc, i: 0.8, k: 0.2 })); glow.position.copy(crown); glow.frustumCulled = false; g.add(glow);
+  const M = new THREE.Matrix4(), S3 = new THREE.Vector3(), Pp = new THREE.Vector3(), Qw = new THREE.Quaternion();
+  let t = 0;
+  const done = () => { g.parent?.remove(g); trunkG.dispose(); for (const b of branches) b.geo.dispose(); bark.dispose(); veins.dispose(); leaves.dispose(); leafM.dispose(); free([glow]); };
+  f.host.flare(P0.x, H * 1.1, P0.z + 0.2, 0xffd27a, 10, 6, 700);
+  f.spawn({
+    step: (dt) => {
+      t += dt; const k = clamp01(t / grow), end = Math.max(0, t - ms), fall = clamp01(end / 900);
+      if (end > 1000) { done(); return false; }
+      // it grows ring by ring from its foot; each branch once the trunk has passed it
+      trunkG.setDrawRange(0, Math.ceil(TN * Math.min(1, k * 1.25)) * TR * 6);
+      for (const b of branches) b.geo.setDrawRange(0, Math.ceil(BN * clamp01((k * 1.25 - b.u0) / 0.35)) * BR * 6);
+      veins.offset.y -= (dt / 1000) * 0.35; bark.emissiveIntensity = (0.9 + 0.3 * Math.sin(t / 600)) * (1 - fall) + (k < 1 ? 0.6 * (1 - k) : 0); // (life runs up the bark)
+      g.scale.set(1, 1 - 0.85 * inQuad(fall), 1); // (it sinks back into the floor)
+      for (let i = 0; i < N; i++) {
+        const q = L[i], a = clamp01((t - q.t0) / 260), sz = q.sz * outBack(a) * (1 - fall * 0.6);
+        Pp.copy(q.p);
+        if (fall > 0) { Pp.addScaledVector(q.v, fall * s * 1.2); Pp.y -= inQuad(fall) * H * 0.9; } // (the leaves fall)
+        else { Pp.x += Math.sin(t / 700 + q.ph) * 0.02 * s; Pp.z += Math.cos(t / 900 + q.ph) * 0.015 * s; }
+        Qw.copy(q.q).multiply(new THREE.Quaternion().setFromAxisAngle(V(0, 0, 1), Math.sin(t / 500 + q.ph) * 0.25));
+        S3.set(sz, sz * 0.55, 1); M.compose(Pp, Qw, S3); leaves.setMatrixAt(i, M);
+      }
+      leaves.instanceMatrix.needsUpdate = true;
+      glow.quaternion.copy(f.host.camera.quaternion); const gs = s * 3.2 * clamp01((t - grow * 0.6) / 400); glow.scale.set(gs, gs * 0.75, 1);
+      U([glow], 'uA', 0.32 * (1 - fall) * (0.85 + 0.15 * Math.sin(t / 450)));
+      return true;
+    }, dispose: done,
+  });
+}
+
+/** A great bow of spirit light standing before an archer (her Spirit Bow): its grip at `at()` (world px, followed), shooting
+ *  along `dir` (room units; level, slanted up or straight up), `h` px tall. It opens round a nocked arrow of light, its
+ *  string drawn back from `t0` to `t1` ms; at `t1` the string snaps forward (the arrow gone: the shot takes it), a star at
+ *  the grip, and the bow fades by `life`. Its limbs painted (a deep green lit from within) under their glow. */
+export function spiritBow(f: Fx3D, at: () => V3 | null, dir: THREE.Vector3, color: number, o: { h?: number; t0?: number; t1: number; life?: number }): void {
+  const h = f.host.h3(o.h ?? 150), t0 = o.t0 ?? 0, t1 = o.t1, life = o.life ?? t1 + 380;
+  const X = dir.clone().normalize(), Y = new THREE.Vector3(0, 1, 0).addScaledVector(X, -X.y).normalize(), Z = new THREE.Vector3().crossVectors(X, Y);
+  if (Y.lengthSq() < 1e-6) Y.set(-1, 0, 0);
+  const basis = new THREE.Matrix4().makeBasis(X, Y, Z), g = new THREE.Group(); g.quaternion.setFromRotationMatrix(basis);
+  const V = (a: number, b: number) => new THREE.Vector3(a * h, b * h, 0);
+  const limbC = new THREE.CatmullRomCurve3([V(-0.06, -0.52), V(-0.1, -0.45), V(0.03, -0.27), V(0.08, 0), V(0.03, 0.27), V(-0.1, 0.45), V(-0.06, 0.52)]);
+  const r = (u: number) => h * (0.008 + 0.024 * Math.pow(Math.sin(Math.PI * u), 1.5));
+  const bodyG = tube(limbC, 40, 7, r), glowG = tube(limbC, 40, 7, (u) => r(u) * 2.4 + h * 0.01);
+  const bodyM = new THREE.MeshStandardMaterial({ color: deep(color, 0.55), emissive: color, emissiveIntensity: 0.75, roughness: 0.35, metalness: 0.25, transparent: true });
+  const glowM = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false });
+  const body = new THREE.Mesh(bodyG, bodyM), glowL = new THREE.Mesh(glowG, glowM);
+  const strM = new THREE.MeshBasicMaterial({ color: 0xeafff0, transparent: true }), strG = new THREE.CylinderGeometry(h * 0.005, h * 0.005, 1, 4);
+  const s1 = new THREE.Mesh(strG, strM), s2 = new THREE.Mesh(strG, strM);
+  const A = arrowModel(f, (o.h ?? 150) * 1.05, color, { head: 0.18 });
+  g.add(body, s1, s2); f.host.solid.add(g); const gg = new THREE.Group(); gg.quaternion.copy(g.quaternion); gg.add(glowL); f.host.glow.add(gg);
+  for (const m of [body, glowL, s1, s2]) m.frustumCulled = false;
+  const top = V(-0.06, 0.52), bot = V(-0.06, -0.52), nock = new THREE.Vector3(), mid = new THREE.Vector3(), d = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  const place = (m: THREE.Mesh, a: THREE.Vector3, b: THREE.Vector3) => { mid.copy(a).add(b).multiplyScalar(0.5); d.copy(b).sub(a); m.position.copy(mid); m.scale.set(1, d.length(), 1); m.quaternion.setFromUnitVectors(up, d.normalize()); };
+  let t = 0, last: V3 | null = null, shot = false;
+  const done = () => { g.parent?.remove(g); gg.parent?.remove(gg); bodyG.dispose(); glowG.dispose(); bodyM.dispose(); glowM.dispose(); strG.dispose(); strM.dispose(); A.dispose(); };
+  f.spawn({
+    step: (dt) => {
+      t += dt; if (t >= life) { done(); return false; }
+      const c = at(); if (c) last = c; if (!last) return true;
+      const P = f.unit(last); g.position.copy(P); gg.position.copy(P);
+      const open = outBack(clamp01((t - t0) / 220)), fade = t > t1 ? clamp01(1 - (t - t1 - 120) / (life - t1 - 120)) : 1;
+      g.scale.setScalar(Math.max(0.001, open)); gg.scale.setScalar(Math.max(0.001, open));
+      // the draw: pulled back from t0 to t1 (eased), then the snap forward, quivering
+      const pull = t < t1 ? Math.pow(clamp01((t - t0 - 120) / (t1 - t0 - 120)), 0.7) : Math.exp(-(t - t1) / 50) * Math.cos((t - t1) / 22) * 0.25;
+      nock.set((-0.08 - 0.42 * pull) * h, 0, 0); place(s1, top, nock); place(s2, nock, bot);
+      if (t < t1) { A.group.visible = A.glow.visible = true; const Pw = nock.clone().add(new THREE.Vector3(A.L * 0.5, 0, 0)).applyQuaternion(g.quaternion).multiplyScalar(open).add(P); A.group.position.copy(Pw); A.group.quaternion.copy(g.quaternion); A.group.scale.setScalar(open); A.glow.position.copy(Pw).addScaledVector(X, A.L * 0.62 * open); A.glow.quaternion.copy(f.host.camera.quaternion); const gl = A.L * (0.35 + 0.25 * pull) * open; A.glow.scale.set(gl, gl, 1); }
+      else if (!shot) { shot = true; A.group.visible = A.glow.visible = false; }
+      bodyM.opacity = fade; strM.opacity = fade; glowM.opacity = (0.26 + 0.12 * (t < t1 ? pull : 0)) * fade;
+      bodyM.emissiveIntensity = 0.6 + 0.6 * (t < t1 ? pull : Math.max(0, 1 - (t - t1) / 200));
       return true;
     }, dispose: done,
   });
