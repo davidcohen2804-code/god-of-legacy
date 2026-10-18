@@ -796,14 +796,16 @@ const samurai: FinalSkill[] = [
     id: 'sakura_bind', cls: 'samurai', slot: 16, name: 'Sakura Bind', roles: ['hardCC', 'pull', 'setup'], targeting: 'mouseGround',
     startup: 240, active: 160, recovery: 220, cooldown: 12000, ground: true, air: false, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
     placeRange: 90, snapPlace: true, // (opened just in front of him, on his line: the arena places it ahead, never under the foe — in a combo the foe is that close)
-    hits: [H(0, 8, { kind: 'circle', at: 'place', radius: 125, floor: true }, { stun: 400, pull: 70, catch: true, hardCC: { kind: 'root', ms: 900 } }, { reachUp: 60 })], // (on the floor only — the arena's reach no longer lifts it into the air: a foe up there falls into the blossoms instead and is caught as he lands)
-    // the combo's catch (DFO): the blossoms stay on the floor ~1.2s — a foe that comes down into them (from a slam, a fall)
-    // is caught on landing, stood up and held by the branches: the string goes on (a launch from the floor)
-    linger: { at: 'place', startMs: 60, everyMs: 60, count: 20, radius: 125, maxZ: 50, once: true, fresh: true,
-      hit: H(0, 6, { kind: 'circle', radius: 125 }, { stun: 420, pull: 70, catch: true, hardCC: { kind: 'root', ms: 900, long: true } }, { reachUp: 50 }) },
+    // (David 18 Oct 18:29: "the moment he touches it the pink leaves attack him and lock him inside for a few seconds") the
+    // ring locks whoever it catches 2.5 s — a full hold — when it opens, and as a trap after
+    hits: [H(0, 8, { kind: 'circle', at: 'place', radius: 125, floor: true }, { stun: 400, pull: 70, catch: true, hardCC: { kind: 'stun', ms: 2500, long: true } }, { reachUp: 60 })], // (on the floor only — the arena's reach no longer lifts it into the air: a foe up there falls into the blossoms instead and is caught as he lands)
+    // the trap (DFO): the blossoms stay on the floor 6 s — the first foe to touch them (walking in, or coming down into them
+    // from a slam, a fall) is pulled to the centre and locked 2.5 s; one catch a foe, and not one the opening already held
+    linger: { at: 'place', startMs: 60, everyMs: 60, count: 100, radius: 125, maxZ: 50, once: true, fresh: true,
+      hit: H(0, 6, { kind: 'circle', radius: 125 }, { stun: 420, pull: 70, catch: true, hardCC: { kind: 'stun', ms: 2500, long: true } }, { reachUp: 50 }) },
     cancelOnHit: ['quick_slash', 'shadow_step', 'hundred_cuts', 'tornado_blade', 'iai_strike', 'dragon_ascension', 'swallow_cut'], telegraph: 'ground',
-    description: 'A ring of cherry blossoms opens on the floor just in front of you: every foe in it is pulled to its centre and held by blossoming branches for 0.9s — and the blossoms stay on the floor a moment: a foe that comes down into them is caught on landing and held. Ready for your cuts.',
-    relations: ['Pull + bind 0.9s', 'Catches a falling foe'],
+    description: 'A ring of cherry blossoms opens on the floor just in front of you: every foe in it is pulled to its centre and locked in a whirl of pink leaves for 2.5s. The ring stays on the floor 6s as a trap: the first foe to touch it — walking in, or falling into it — is pulled in and locked too. Ready for your cuts.',
+    relations: ['Pull + lock 2.5s', 'A trap for 6s'],
   }),
   S({
     id: 'dragon_ascension', cls: 'samurai', slot: 17, name: 'Dragon Ascension', roles: ['antiAir'], targeting: 'self',
@@ -976,9 +978,11 @@ const gambler: FinalSkill[] = [
   S({
     id: 'grand_slam', cls: 'gambler', slot: 15, name: 'Grand Slam', roles: ['finisher', 'knockdown'], targeting: 'mouseCone',
     startup: 420, active: 140, recovery: 320, cooldown: 11000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 560],
-    hits: [H(0, 46, { kind: 'sector', range: 150, angle: 120 }, { stun: 520, push: 300, launch: 40, knockdown: 'heavy', juggleCost: 30 }, { reachUp: 200, heavy: true, fuse: true })],
+    // (David 18 Oct 18:40: "like a golfer's stroke — a blow that sends him into the air, backwards") a drive: he flies high
+    // (~185 px at the top) and far (440 px) before he crashes down
+    hits: [H(0, 46, { kind: 'sector', range: 150, angle: 120 }, { stun: 520, push: 300, launch: 40, knockdown: 'heavy', fly: { vz: 640, dist: 440 }, juggleCost: 30 }, { reachUp: 200, heavy: true, fuse: true })],
     cancelOnHit: ['staff_flurry'], telegraph: 'cone',
-    description: 'THE WALL FINISHER — The staff grows to twice its length and you swing it like a bat: the foe flies far away on a comet\'s tail and crashes into the floor or a wall. It sets off every card stuck in it at once.',
+    description: 'THE WALL FINISHER — The staff grows to twice its length and you swing it like a bat: you drive the foe like a golf ball: he flies high and far back on a comet\'s tail and crashes into the floor or a wall. It sets off every card stuck in it at once.',
     relations: ['Sends far', 'Sets off all cards'],
   }),
   S({
@@ -1011,7 +1015,7 @@ const gambler: FinalSkill[] = [
     hits: [H(0, 10, { kind: 'projectile', speed: 950, range: 640, radius: 18, antiAir: true, pierce: true }, { stun: 420, launch: 110, juggleCost: 14 }, { heavy: true })],
     // the big card dives under the first foe it cut and keeps spinning there, following him, holding him up; then back to the hand
     linger: { at: 'target', startMs: 160, everyMs: 300, count: 10, radius: 60, maxZ: 400, // (David 18 Oct 01:42: the card spins under him at least 3 s, juggling him on it)
-      hit: H(0, 3, { kind: 'circle', radius: 60 }, { stun: 300, float: true, juggleCost: 3 }),
+      hit: H(0, 3, { kind: 'circle', radius: 60 }, { stun: 300, float: true, holdZ: 140, juggleCost: 3 }), // (David 18:40: held well above the card, not on it)
       last: H(0, 8, { kind: 'circle', radius: 60 }, { stun: 420, launch: 70, juggleCost: 10 }, { heavy: true }) },
     cancelOnHit: ['grand_slam'], telegraph: 'line',
     description: 'Call your deck home: every card of yours lying on the floor within 700 px flies back into your hand and they fuse into one big charged card. Throw it like a saw blade — it cuts through every foe in its line and pops them up — then it dives under the first one and spins there, holding him up: two turns, and one more for every card you gathered (15 at most). Charged Deal, Cut the Deck\'s flick, Rotor Staff, Riffle Shuffle and 52 Pickup leave cards on the floor.',

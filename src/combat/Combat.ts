@@ -524,10 +524,12 @@ export class CombatBody {
     } else if (R.knockdown) {
       out.reaction = 'knockdown';
       const T = this.stanceAt !== now ? THROWN[R.knockdown] : null, ends = skill.endsCombo ? THROWN.ends : 1; // thrown back in an arc
-      this.enterKnockdown(now, R.knockdown, air ? -260 : T ? T.vz * Math.sqrt(ends) : 160);
+      const fly = T && R.fly; // (a drive: its own high, long arc — in the air too)
+      this.enterKnockdown(now, R.knockdown, fly ? fly.vz : air ? -260 : T ? T.vz * Math.sqrt(ends) : 160);
+      if (fly && air) k.vz = Math.max(k.vz, fly.vz * 0.7);
       if (T) {
         const ax = k.x - from.x, ay = this.arena ? 0 : k.y - from.y, d0 = Math.hypot(ax, ay); // (the arena: along its line)
-        const dist = Math.max((R.push ?? 0) * (this.arena ? ARENA.pushMul : this.pvp ? 1.4 : 2), T.dist) * ends * (air ? THROWN.air : 1);
+        const dist = fly ? fly.dist * (air ? THROWN.air : 1) : Math.max((R.push ?? 0) * (this.arena ? ARENA.pushMul : this.pvp ? 1.4 : 2), T.dist) * ends * (air ? THROWN.air : 1);
         this.throwBack(d0 > 0.5 ? ax / d0 : 1, d0 > 0.5 ? ay / d0 : 0, dist, out);
       }
       out.launchVz = k.vz;
@@ -557,8 +559,8 @@ export class CombatBody {
       c.juggle += juggleCost;
       const over = R.drop ? 1 : this.airOver(now);
       if (over < 1) { // hold: lift while low, only stall the fall when already high (keeps targets inside melee reach)
-        const lift = GAUGE.holdVz * (R.float ? 1 : 0.8) * (1 - over) * Math.max(0, Math.min(1, (GAUGE.holdCeil - k.z) / GAUGE.holdCeil));
-        k.vz = Math.max(k.vz, k.z > GAUGE.holdCeil ? -60 : lift); out.reaction = 'float'; out.launchVz = k.vz;
+        const ceil = R.holdZ ?? GAUGE.holdCeil, lift = GAUGE.holdVz * (R.float ? 1 : 0.8) * (1 - over) * Math.max(0, Math.min(1, (ceil - k.z) / ceil));
+        k.vz = Math.max(k.vz, k.z > ceil ? -60 : lift); out.reaction = 'float'; out.launchVz = k.vz;
       }
       else k.vz = Math.min(k.vz, -160);
     } else if (R.stun && (out.reaction !== 'cc' || this.hard.kind === 'root')) { // (a root holds only his feet: the hit that roots him still staggers him — the binders' hold)

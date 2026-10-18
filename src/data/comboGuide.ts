@@ -58,11 +58,11 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
   // the Warrior (rebuilt 17 Oct — David: every combo its own style, every step meaning something): the Judge's three ways
   warrior: [
     // IRON HAND — grabs: no armor stops them, no gauge counts them
-    { name: 'REEL', tier: 'BEGINNER', style: 'IRON HAND', range: 'FAR', hits: 3, steps: [{ id: 'judgment_hook' }, { id: 'thunder_circle' }],
+    { name: 'REEL', tier: 'BEGINNER', style: 'IRON HAND', range: 'FAR', hits: 6, steps: [{ id: 'judgment_hook' }, { id: 'thunder_circle' }],
       tip: 'Reel him in from far with the chain, then drive the sword into the floor at his feet: the thunder circle holds him' },
-    { name: 'SHACKLE', tier: 'MID', style: 'IRON HAND', range: 'MID', hits: 8, steps: [{ id: 'leap_crash' }, { id: 'judgment_hook' }, { id: 'thunder_circle' }, { id: 'rising_slash' }],
-      tip: 'Crash down on him from two steps away, chain him off the floor before he rises (a grab costs no down gauge), plant the thunder circle at his feet — it holds him flinching — and rip him up out of it' },
-    { name: 'STORMCHAIN', tier: 'EXPERT', style: 'IRON HAND', range: 'MID', hits: 19, steps: [{ id: 'blade_storm' }, { id: 'judgment_hook' }, { id: 'thunder_circle' }, { id: 'leap_crash' }],
+    { name: 'SHACKLE', tier: 'MID', style: 'IRON HAND', range: 'MID', hits: 15, steps: [{ id: 'judgment_hook' }, { id: 'thunder_circle' }, { id: 'leap_crash' }, { id: 'judgment_blade' }],
+      tip: 'Reel him in, plant the thunder circle at his feet, crash down on him in it — and as he falls the blades\' court chains him back up off the floor' },
+    { name: 'STORMCHAIN', tier: 'EXPERT', style: 'IRON HAND', range: 'MID', hits: 20, steps: [{ id: 'blade_storm' }, { id: 'judgment_hook' }, { id: 'thunder_circle' }, { id: 'leap_crash' }],
       tip: 'Raise the storm two steps away — armored, its swords hold him up: press nothing till they stop, then chain him out of the air, plant the circle under him, crash' },
     // SKYBREAKER — launch, chase, spike, crash on the bounce
     { name: 'SKYWARD', tier: 'BEGINNER', style: 'SKYBREAKER', range: 'CLOSE', hits: 8, steps: [{ id: 'warrior_basic' }, { id: 'rising_slash' }, { id: 'sky_breaker' }],
@@ -74,14 +74,14 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     // JUDGMENT — the quake, the court, the sentence
     { name: 'QUAKE', tier: 'BEGINNER', style: 'JUDGMENT', range: 'CLOSE', hits: 11, steps: [{ id: 'ground_breaker' }, { id: 'earthsplitter', hold: true }],
       tip: 'The quake holds him for free — charge the full fissure while it does' },
-    { name: 'COURT', tier: 'MID', style: 'JUDGMENT', range: 'CLOSE', hits: 8, steps: [{ id: 'wave_slash' }, { id: 'judgment_blade' }, { id: 'thunder_circle' }],
+    { name: 'COURT', tier: 'MID', style: 'JUDGMENT', range: 'CLOSE', hits: 13, steps: [{ id: 'wave_slash' }, { id: 'judgment_blade' }, { id: 'thunder_circle' }],
       tip: 'Pop him low; the blade pins him and the court chains him as he falls — land, then plant the thunder circle round him' },
-    { name: 'VERDICT', tier: 'EXPERT', style: 'JUDGMENT', range: 'FAR', hits: 22, steps: [{ id: 'judgment_hook' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'judgment_blade' }, { id: 'thunder_circle' }, { id: 'titans_verdict' }],
+    { name: 'VERDICT', tier: 'EXPERT', style: 'JUDGMENT', range: 'FAR', hits: 23, steps: [{ id: 'judgment_hook' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'judgment_blade' }, { id: 'thunder_circle' }, { id: 'titans_verdict' }],
       tip: 'Throw the blade on the spike and press nothing until you land; plant the thunder circle — it holds him for the Verdict' },
     // STEEL — the blade's own work: the charge through him, the cyclone, the skewer
     { name: 'GALE', tier: 'BEGINNER', style: 'STEEL', range: 'MID', hits: 6, steps: [{ id: 'dash_slash' }, { id: 'rising_slash' }],
       tip: 'Charge from two steps away and launch him right behind it — the charge holds him only an instant (late, you are past him: turn back)' },
-    { name: 'CYCLONE', tier: 'MID', style: 'STEEL', range: 'CLOSE', hits: 10, steps: [{ id: 'thunder_circle' }, { id: 'whirlwind' }, { id: 'leap_crash' }],
+    { name: 'CYCLONE', tier: 'MID', style: 'STEEL', range: 'CLOSE', hits: 11, steps: [{ id: 'thunder_circle' }, { id: 'whirlwind' }, { id: 'leap_crash' }],
       tip: 'Plant the thunder circle on him and spin through it — the cyclone drives him on, then crash down on him' },
     { name: 'SKEWER', tier: 'EXPERT', style: 'STEEL', range: 'MID', hits: 16, steps: [{ id: 'dash_slash' }, { id: 'rising_slash' }, { id: 'sky_breaker' }, { id: 'lance_thrust' }],
       tip: 'Charge in and launch at once, chase and spike him — then run him through on his low bounce: he rides your blade to the end' },
@@ -148,7 +148,7 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     { name: 'ACEHIGH', tier: 'MID', style: 'SHORT FUSE', range: 'CLOSE', hits: 7, steps: [{ id: 'ace_in_the_hole' }, { id: 'showdown' }, { id: 'grand_slam' }],
       tip: 'The Ace sticks two cards and joins your hand; Showdown plays it without touching the cards; the bat sets them off' },
     // STAFF — spike, hammer, bat
-    { name: 'HOMERUN', tier: 'BEGINNER', style: 'STAFF', range: 'CLOSE', hits: 7, steps: [{ id: 'cut_the_deck', n: 4 }, { id: 'fuse_slam' }, { id: 'grand_slam' }],
+    { name: 'HOMERUN', tier: 'BEGINNER', style: 'STAFF', range: 'CLOSE', hits: 6, steps: [{ id: 'cut_the_deck', n: 4 }, { id: 'fuse_slam' }, { id: 'grand_slam' }],
       tip: 'The rising swing lifts him, Fuse Slam spikes him into a bounce, then the home run' },
     { name: 'AFTERSHOCK', tier: 'MID', style: 'STAFF', range: 'CLOSE', hits: 29, steps: [{ id: 'light_staff' }, { id: 'fuse_slam' }, { id: 'staff_flurry' }],
       tip: 'Light the cane, spike him on the floor and flurry him there while it erupts under him — let the flurry run out: its last swing throws him' },

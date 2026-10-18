@@ -6,8 +6,11 @@ Values apply to the whole game (only damage may differ in PvP: arenaDmg / the ar
 
 ## 2026-10-18 — David's second pass (18:19 Warrior, 18:29 Samurai): numbers and engine
 - **Thunder Circle** (`thunder_circle`, warrior V, replaces Iron Grip — `iron_grip` aliases to it): startup 260, active 100, recovery 260, cooldown 12 s, ground only. Plant: 10 dmg, r 170, stun 360, heavy. Then a 170 px ring for 5 s (from 300 ms): a strike every 0.5 s (10 in all), 4 dmg, stun 240, no launch, up to 120 px up. Links (WARRIOR_LINKS): Rising Slash, Leap Crash, Whirlwind, the Verdict; into it from Judgment Hook, Iron Bastion, Judgment Blade.
-- Trials re-routed off the grip: REEL hook → circle; SHACKLE leap crash → hook → circle → rising slash (MID; the circle's ticks on a downed foe fill the down gauge, so the circle comes after the hook stands him up); STORMCHAIN, COURT, VERDICT, CYCLONE plant the circle where the grip was.
+- Trials re-routed off the grip: REEL hook → circle; SHACKLE hook → circle → leap crash → Judgment Blade (MID: the blades' court chains him back up off the floor — the hook on a downed foe leaves him down, so it opens the route); STORMCHAIN, COURT, VERDICT, CYCLONE plant the circle where the grip was.
 - **Earthsplitter**: every hit reaches ±100 px of depth (was the shape's own); its spikes stand in a zigzag band ±36 px along the fissure.
+- **Sakura Bind** (samurai Z): the opening ring and the trap lock a foe 2.5 s (a stun hold, `long`; was a 0.9 s root); the ring stays 6 s as a trap (100 checks every 60 ms; was ~1.2 s) — the first touch pulls him in and locks him, one catch a foe, never one the opening held.
+- **Grand Slam** (gambler H): its knockdown is a drive — `fly: { vz: 640, dist: 440 }` (new reaction field: a knockdown thrown on its own arc): up ~185 px, 440 px back (was THROWN.heavy's low arc, ~375 px). HOMERUN's count 7 → 6.
+- **Call the Deck** (gambler B): the card's hold lifts him toward 140 px (new reaction field `holdZ`, the air hold's height; default GAUGE.holdCeil 120) — well above the card.
 - **Rising Sun banner** (samurai V): stands 25 s (was 10); its catch zone ±60 px along × ±42 px in depth of its foot (was ±34 × ±25), 8–200 px up (was 8–110), while coming down. One set of numbers for the engine and the look: `src/skills/SamuraiPole.ts`.
 
 ## 2026-10-18 — The class chats' new shapes (David's 01:07–01:42 notes): numbers and engine

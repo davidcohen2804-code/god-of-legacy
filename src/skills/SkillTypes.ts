@@ -51,6 +51,10 @@ export interface Reaction {
   slowFall?: number;
   /** A pull's length (ms, default 110): Judgment Hook's chain draws him in so it reads. */
   pullMs?: number;
+  /** A knockdown driven high and far (a drive: Grand Slam): its throw's rise (px/s) and distance (px), in place of THROWN's. */
+  fly?: { vz: number; dist: number };
+  /** An air hold's height (px, default GAUGE.holdCeil): the body is held up toward it (Call the Deck: well above its card). */
+  holdZ?: number;
   hardCC?: { kind: 'root' | 'freeze' | 'stun'; ms: number; /** a binding skill: its full duration holds (not capped like a hit's root) */ long?: boolean };
   slow?: { pct: number; ms: number };
   juggleCost?: number;
