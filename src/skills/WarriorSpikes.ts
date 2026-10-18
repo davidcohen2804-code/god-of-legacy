@@ -10,6 +10,7 @@ import type { CastRun } from './SkillRuntime';
 import type { V3 } from './HitGeometry';
 import type { Fx3D } from '../arena3d/Fx3D';
 import { ARENA3D } from '../arena3d/flag';
+import { rockSpike } from '../arena3d/fx3d/warrior';
 
 /** DFO's numbers (BALANCE_LOG 17 Oct): a spike stands 3 s; as a wall it is 40 px round; a foe thrown into a spike not his
  *  own (knocked back faster than `thrown` px/ms, or flying, under `top` px) bounces back off it at half his speed, takes
@@ -17,7 +18,7 @@ import { ARENA3D } from '../arena3d/flag';
  *  once, `burstDmg` + `burstPer` a spike, thrown up (`burstLaunch`, stun, juggle cost), reaching `burstReach` px up. */
 export const SPIKES = { lifeMs: 5000, r: 40, burstR: 170, top: 100, thrown: 0.35, bounce: 0.5, wallDmg: 8, wallStun: 300, burstDmg: 6, burstPer: 4, burstLaunch: 90, burstStun: 380, burstJuggle: 12, burstReach: 200 } as const;
 
-export interface Spike { key: string; owner: string; x: number; y: number; until: number; img?: Phaser.GameObjects.Image }
+export interface Spike { key: string; owner: string; x: number; y: number; until: number; img?: Phaser.GameObjects.Image; rock?: { crumble(): void } }
 
 export interface SpikeHost {
   now(): number;
@@ -87,7 +88,7 @@ export class WarriorSpikes {
     const left = s.until - this.h.now();
     const f3 = this.h.fx3d();
     if (f3) {
-      f3.crystals(s.x, s.y, { n: 2, r: 18, h: 95, ms: Math.max(300, left), stone: true, key: s.key, color: 0xff6a1a }); // (real rock spikes standing in the planks, an ember glow at their heart; named, to break early)
+      s.rock = rockSpike(f3, s.x, s.y, { w: 150, hold: Math.max(200, left - 270 - 330) }); // (DFO's review ~21:50: painted rock spikes (GPT) breaking out of the planks, molten glow pulsing, crumbling at their end — broken early when burst)
       // boiling rock (David 01:07: "like lava"): a molten pool cracked open at their foot, heat and sparks rising, magma spitting (no smoke puffs: the room's dust hazed the spikes cream)
       for (const [dx, dy] of [[-34, -8], [30, -10], [-26, 9], [34, 7]]) f3.floorStreak(s.x, s.y, s.x + dx, s.y + dy, 0xff5a12, { w: 15, ms: Math.max(600, left), a: 1 }); // (glowing molten cracks at their foot — floor lines, not crack(): its dust hazed them cream)
       for (let t = 200; t < left - 200; t += 260) f3.later(t, () => { if (!this.spikes.includes(s)) return; f3.host.embers(f3.host.w3(s.x + (Math.random() - 0.5) * 30), 0.15 + Math.random() * 0.5, f3.host.d3(s.y), t % 780 < 260 ? 0xffb040 : 0xff5a1a, 2, 0.9); });
@@ -102,7 +103,7 @@ export class WarriorSpikes {
 
   private remove(s: Spike, burst: boolean): void {
     this.spikes = this.spikes.filter((x) => x !== s);
-    if (burst) this.h.fx3d()?.crystalsDrop(s.key); // (the 3D rock spikes go with it)
+    if (burst) s.rock?.crumble(); // (the painted rock spikes crumble with it)
     const im = s.img; if (!im) return;
     s.img = undefined;
     if (im.texture.key === 'w-spikes') im.setFrame(4 + (im.getData('v') ?? 0)); // (its crumbling frame)
