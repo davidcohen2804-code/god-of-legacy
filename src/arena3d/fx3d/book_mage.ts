@@ -179,30 +179,30 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // onto its heart, a star, the floor torn, the frozen storm bursting into motes
   time_collapse: { tone: VOLT, own: true,
     cast: (f, r) => {
-      const p = placeOf(f, r), t0 = T(r).startup, life = t0 + T(r).active + 400;
+      const p = placeOf(f, r), t0 = T(r).startup, life = t0 + T(r).active + 400; f.flipLoad(TORNADO); f.flipLoad(STRIKE);
       seal(f, p.x, p.y, VOLT, { r: 300, ms: life, spin: 0.35, star: GOLD, pulse: 1.2 });
       const flash = cloud(f, p.x, p.y, { r: 320, h: 400, ms: life + 300, color: VOLT, n: 12 }); keep(clouds, r.castId, flash);
-      for (let t = 360; t < t0; t += 140) f.later(t, () => { const a = rnd(0, Math.PI * 2), d = rnd(80, 320); f.bolt({ x: p.x + Math.cos(a) * d * 0.5, y: p.y, z: 620 }, { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d * 0.4, z: 0 }, Math.random() < 0.5 ? STORM : VOLT, { ms: 160, w: 5, forks: 2, hue: true }); flash(0.5); });
+      for (let t = 360; t < t0; t += 140) f.later(t, () => { const a = rnd(0, Math.PI * 2), d = rnd(80, 320); f.flip(STRIKE, { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d * 0.4, z: 0 }, { frame: STRIKE_F, from: 0, to: 11, fps: 40, w: 180, mode: 'up', foot: true, through: 0.55, glow: 0.3, flipX: Math.random() < 0.5 }); flash(0.5); });
     },
     active: (f, r) => {
       const p = placeOf(f, r), ms = T(r).active, flash = clouds.get(r.castId); let on = true; f.later(ms + 60, () => { on = false; });
       const at = () => (on ? { x: p.x, y: p.y, z: 0 } : null);
-      keep(tornados, r.castId, funnel(f, at, STORM, { ms: ms + 60, h: 560, r0: 40, r1: 230, rps: 1.7, sway: 34, color2: VOLT, layers: 2, dark: STORMDARK }));
-      f.swirl(at, { tex: 'mage-page', size: 1.1, aspect: 1.3, crumble: 'wind' }, { n: 18, r0: 90, r1: 240, h: 480, ms, rps: 1.2, rise: 0.6 });
-      f.swirl(at, {}, { n: 90, r0: 60, r1: 280, h: 600, ms, rps: 1.5, rise: 0.8, size: 1.1, color: STORM });
-      for (let t = 60; t < 260; t += 70) f.later(t, () => { const a = rnd(0, Math.PI * 2), d = rnd(80, 300); f.bolt({ x: p.x + Math.cos(a) * d * 0.5, y: p.y, z: 640 }, { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d * 0.4, z: 0 }, VOLT, { ms: 150, w: 5, forks: 2, hue: true }); flash?.(0.6); });
+      // (the painted tornado — PixVerse footage of GPT's art — turning on the field; the fighters inside read through it)
+      const tw = f.flip(TORNADO, at, { frame: TORN_F, fps: 14, loop: true, ms: ms + 60, w: 440, mode: 'up', foot: true, through: 0.55, glow: 0.25, grow: [0.6, 1], fadeIn: 160, fadeOut: 160 });
+      keep(tornados, r.castId, { hold: () => { tw.end(); const still = f.flip(TORNADO, at, { frame: TORN_F, from: 21, to: 21, fps: 1, loop: true, ms: 1100, w: 440, mode: 'up', foot: true, through: 0.55, glow: 0.35, fadeIn: 0 }); stillTorn.set(r.castId, still); }, end: () => { tw.end(); stillTorn.get(r.castId)?.end(); stillTorn.delete(r.castId); } });
+      for (let t = 60; t < 260; t += 70) f.later(t, () => { const a = rnd(0, Math.PI * 2), d = rnd(240, 330); f.flip(STRIKE, { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d * 0.4, z: 0 }, { frame: STRIKE_F, from: 0, to: 11, fps: 40, w: 160, mode: 'up', foot: true, through: 0.6, glow: 0.3, flipX: Math.random() < 0.5 }); flash?.(0.6); });
     },
     fired: (f, r, i, o) => {
       const p = placeOf(f, r), flash = clouds.get(r.castId);
       if (i === 1) { // time stops: the tornado stands still, lightning frozen where it struck, a ring of stillness
         tornados.get(r.castId)?.hold(true); flash?.(1);
-        for (let k = 0; k < 9; k++) { const a = (k / 9) * Math.PI * 2 + rnd(-0.2, 0.2), d = rnd(90, 320); stillBolt(f, { x: p.x + Math.cos(a) * d * 0.45, y: p.y, z: 600 }, { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d * 0.4, z: 0 }, k % 2 ? VOLT : STORM, { ms: 980, w: 8 }); }
+        for (let k = 0; k < 4; k++) { const a = ((k + 0.5) / 4) * Math.PI * 2 + rnd(-0.2, 0.2), d = rnd(290, 340); f.flip(STRIKE, { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d * 0.4, z: 0 }, { frame: STRIKE_F, from: 4, to: 4, fps: 1, loop: true, ms: 980, w: 170, mode: 'up', foot: true, through: 0.55, glow: 0.3, flipX: k % 2 === 1, fadeIn: 0, fadeOut: 240 }); }
         f.host.ring(f.host.w3(p.x), f.host.d3(p.y), GOLD, 4.0, 700, 0.5);
         star(f, { x: p.x, y: p.y, z: 300 }, GOLD, { size: 380, ms: 900, spin: 0.2, a: 0.7 });
       }
       if (i === 2) { // the collapse
         tornados.get(r.castId)?.end(); flash?.(1.6);
-        f.skyBeam({ x: p.x, y: p.y, z: 0 }, VOLT, { ms: 620, w: 28 });
+        f.flip(STRIKE, { x: p.x, y: p.y, z: 0 }, { frame: STRIKE_F, fps: 26, w: 480, mode: 'up', foot: true, through: 0.55, glow: 0.35 });
         star(f, { x: p.x, y: p.y, z: 120 }, GOLD, { size: 520, ms: 420 });
         f.crack(p.x, p.y, VOLT, { r: 220, chunks: 22 });
         f.host.ring(f.host.w3(p.x), f.host.d3(p.y), VOLT, 5.0, 640, 0.7); f.later(90, () => f.host.ring(f.host.w3(p.x), f.host.d3(p.y), GOLD, 3.4, 520, 0.6));
