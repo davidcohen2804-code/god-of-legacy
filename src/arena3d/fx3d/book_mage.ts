@@ -266,7 +266,7 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // ARCANE WARD — a sphere of hexagons closes round him (the ward, 8 s): it lights where a blow lands on it, and when it
   // breaks it shatters into light (the frost ring that chills is the game's: wardHit)
   arcane_ward: { tone: A, own: true,
-    cast: (f, r) => { const c = me(f, r); seal(f, c.x, c.y, A, { r: 80, ms: T(r).startup + 360, spin: 2.4 }); },
+    cast: (f, r) => { const c = me(f, r); f.flipLoad(WARD); seal(f, c.x, c.y, A, { r: 80, ms: T(r).startup + 360, spin: 2.4 }); },
     active: (f, r) => mageWard(f, r.attackerId, 8000),
   },
 
@@ -350,7 +350,13 @@ for (const rc of Object.values(BOOK_MAGE)) rc.paint = true; // (his blows land i
 /** Arcane Ward's sphere, by the mage (the game's wardHit lights it / shatters it). */
 const wards = new Map<string, { hit(from?: V3): void; stop(shatter?: boolean): void }>();
 /** A ward's sphere round `id` for `ms` (his own cast, or a party member sharing it). */
-export function mageWard(f: Fx3D, id: string, ms: number): void { wards.get(id)?.stop(); wards.set(id, shell(f, id, A, { r: 84, y0: 76, ms })); }
+export function mageWard(f: Fx3D, id: string, ms: number): void {
+  wards.get(id)?.stop(); let live = true;
+  const at = () => { const c = f.host.casterPos(id); return live && c ? { x: c.x, y: c.y, z: 0 } : null; };
+  // (the painted shell of hexagons round him, shimmering, its seal turning under him; he reads through it — a blow lights it, breaking it shatters it into stars)
+  const sh = f.flip(WARD, at, { frame: WARD_F, fps: 10, loop: true, ms, w: 250, mode: 'up', anchorY: 0.2, through: 0.6, glow: 0.2, grow: [0.6, 1], fadeIn: 180, fadeOut: 300 });
+  wards.set(id, { hit: () => { const c = at(); if (c) star(f, { x: c.x, y: c.y, z: 90 }, A, { size: 150, ms: 200 }); }, stop: (shatter?: boolean) => { const c = at(); live = false; sh.end(); if (shatter && c) { star(f, { x: c.x, y: c.y, z: 80 }, A, { size: 260, ms: 300 }); f.host.embers(f.host.w3(c.x), 0.8, f.host.d3(c.y), A, 24, 2.6); } } });
+}
 /** The ward took a blow (`broken`: it broke) or ran out (`expired`). */
 export function mageWardHit(f: Fx3D, id: string, broken: boolean, expired = false): void {
   const w = wards.get(id); if (!w) return;
