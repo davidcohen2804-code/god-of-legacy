@@ -51,6 +51,19 @@ const bolt = (col: number, el?: 'frost' | 'storm'): Recipe => ({
   },
 });
 
+const STRIKE = 'assets/final/skills/book_mage/fx3d/strike.webp', STRIKE_F: [number, number] = [258, 384]; // (PixVerse from GPT's painted sky strike: the strike, two flickers, the fade — 24 frames)
+const NOVA = 'assets/final/skills/book_mage/fx3d/frost_nova.webp', NOVA_F: [number, number] = [420, 282]; // (PixVerse: from black to GPT's painted frost nova — the flash, the crystals bursting up in a ring, the frost — 30 frames)
+const ASEAL = 'assets/final/skills/book_mage/fx3d/astral_seal.webp', ASEAL_F: [number, number] = [258, 384], ACOL = 'assets/final/skills/book_mage/fx3d/astral_column.webp', ACOL_F: [number, number] = [331, 512]; // (Astral Lift: PixVerse's rune circle drawing itself, GPT's painted starlight column)
+const SPIKES = 'assets/final/skills/book_mage/fx3d/glacial_spikes.webp', SPIKES_F: [number, number] = [420, 210]; // (PixVerse: from black to GPT's painted row of ice spikes — the frost vein racing, the spikes bursting up one after another, growing — 24 frames)
+const WAVE = 'assets/final/skills/book_mage/fx3d/arcane_wave.webp', WAVE_F: [number, number] = [420, 205]; // (PixVerse from GPT's painted wave of starlight: the crest curling over — 14 frames)
+const BIND = 'assets/final/skills/book_mage/fx3d/binding_rune.webp', BIND_F: [number, number] = [258, 384]; // (PixVerse from GPT's painted binding: the seal flaring open, gold chains closing round the foe — 28 frames)
+const WARD = 'assets/final/skills/book_mage/fx3d/arcane_ward.webp', WARD_F: [number, number] = [320, 320]; // (PixVerse from GPT's painted hexagon shell: its cells shimmering, the seal turning — 13 frames, a loop)
+const ASC = 'assets/final/skills/book_mage/fx3d/ascension.webp', ASC_F: [number, number] = [240, 357]; // (GPT's frost-and-storm double helix over a snowflake seal, turned by PixVerse)
+const BLINK = 'assets/final/skills/book_mage/fx3d/blink.webp', BLINK_F: [number, number] = [341, 512]; // (GPT's teleport flare: a four-point star over a seal, a column of light and shards)
+const GATE = 'assets/final/skills/book_mage/fx3d/rift_gate.webp', GATE_F: [number, number] = [420, 282]; // (GPT's floor portal — a violet well in a burning gold rune ring, pages over it — turned by PixVerse, played back and forth)
+const LEVITY = 'assets/final/skills/book_mage/fx3d/levity_field.webp', LEVITY_F: [number, number] = [330, 512]; // (GPT's painted zero-gravity column: a star seal, pale light, rocks and pages floating up)
+const stillTorn = new Map<string, { end(): void }>();
+const TORNADO = 'assets/final/skills/book_mage/fx3d/tornado.webp', TORN_F: [number, number] = [258, 384]; // (PixVerse from GPT's painted tornado, tools/fx/flipbook.py — 40 frames)
 export const BOOK_MAGE: Record<string, Recipe> = {
   arcane_bolt: bolt(A), arcane_bolt_arcane: bolt(A), arcane_bolt_frost: bolt(FROST, 'frost'), arcane_bolt_storm: bolt(STORM, 'storm'),
 
@@ -327,6 +340,14 @@ export const BOOK_MAGE: Record<string, Recipe> = {
     },
   },
 };
+
+// (the painted sheets are fetched the first time any of her spells is cast, so no spell plays its art late the first time)
+const SHEETS = [TORNADO, STRIKE, NOVA, ASEAL, ACOL, SPIKES, WAVE, BIND, WARD, LEVITY, ASC, BLINK, GATE];
+const sheetsAsked = new WeakSet<Fx3D>();
+for (const id of Object.keys(BOOK_MAGE)) {
+  const rec = BOOK_MAGE[id], cast = rec.cast;
+  rec.cast = (f, r) => { if (!sheetsAsked.has(f)) { sheetsAsked.add(f); for (const src of SHEETS) f.flipLoad(src); } cast?.(f, r); };
+}
 
 for (const rc of Object.values(BOOK_MAGE)) rc.paint = true; // (his blows land in his colours: the shell of the room's impact painted)
 
