@@ -629,6 +629,7 @@ export class ArcherFx {
   trapCatch(skillId: string, at: V3): void {
     if (!this.ready) return;
     const x = at.x, y = at.y;
+    if (skillId === 'backstep_shot') { this.decoySnare(at); return; }
     if (skillId === 'leaping_arrow') {
       this.spr({ name: 'thorn_snare', x, y: y + 8, oy: 0.97, depth: y + 3, w: 96, h: 150, life: 2200, glow: 0.15, sy: kf([0, 0.1], [0.08, 1.08, out3], [0.15, 1]), a: kf([0, 1], [0.12, 0.8], [0.85, 0.72], [1, 0]) }); // vines snap up round his legs (low and see-through: he reads inside the cage)
       // (THORN: the thorned snare itself holds him — no leafy coil over his body)
@@ -693,27 +694,38 @@ export class ArcherFx {
     }
   }
 
-  // ------------------------------------------------------------------ the vine mine
-
   /** Backstep Shot: a decoy of her made of leaves stands where she was — her body as drawn at the cast, leaf-green with a bright rim,
    *  leaves fluttering off it — then bursts into a spray of leaves (~1 s). */
+  private decoys: { x: number; y: number; burst: () => void }[] = [];
   private decoy(r: CastRun, x: number, y: number): void {
     const b = this.ctx.body?.(r.attackerId); if (!b) return;
-    const s = this.ctx.scene, life = 1050;
+    const s = this.ctx.scene, L = r.skill.linger, life = L ? L.startMs + L.everyMs * L.count + 50 : 1050; // (its life = the decoy's linger on the runtime: 1 s)
     const mk = (fill: number, k: number) => s.add.image(x, y, b.key, b.frame).setOrigin(b.ox, b.oy).setScale(b.sx * k, b.sy * k).setFlipX(b.flipX).setTintFill(fill);
     const rim = mk(0xd4ffb0, 1.06).setBlendMode(Phaser.BlendModes.ADD).setPosition(x, y + 3).setDepth(y - 0.01).setAlpha(0), body = mk(0x1d5e22, 1).setDepth(y).setAlpha(0);
-    let next = 0;
+    let next = 0, done = false, snapped = false;
+    const d = { x, y, burst: () => { snapped = true; } };
+    this.decoys.push(d);
     this.add({ t: 0, step: (_dt, t) => {
+      if (done) return false;
       const u = Math.min(1, t / life), a = kf([0, 0], [0.06, 1], [0.85, 0.9], [1, 0])(u), fl = 0.88 + 0.12 * Math.sin(t / 40);
       rim.setAlpha(0.75 * a * fl); body.setAlpha(0.6 * a);
       if (t >= next) { next = t + 70; this.leaves(x, y - 30 - Math.random() * 80, 2, 34, { up: 60, life: 700, depth: y + 1 }); }
-      if (u < 1) return true;
-      rim.destroy(); body.destroy();
-      this.pop('leaf_spray', x, y - 60, 150, { angle: -90, life: 420 }); this.leaves(x, y - 50, 16, 50, { up: 200, life: 900 });
+      if (u < 1 && !snapped) return true;
+      done = true; rim.destroy(); body.destroy(); this.decoys = this.decoys.filter((e) => e !== d);
+      this.pop('leaf_spray', x, y - 60, snapped ? 190 : 150, { angle: -90, life: 420 }); this.leaves(x, y - 50, snapped ? 24 : 16, 50, { up: 200, life: 900 });
       this.floor('thorn_roots', x, y, 130, 700, { s: kf([0, 0.5], [0.2, 1.05, out3]), a: kf([0, 1], [0.7, 0.9], [1, 0, inQ]) });
       return false;
     } });
   }
+  /** Backstep Shot's decoy caught a foe (the runtime's snare): it bursts at once and thorned vines snap round his legs. */
+  private decoySnare(at: V3): void {
+    const d = this.decoys.reduce<{ x: number; y: number; burst: () => void } | null>((m, e) => (!m || Math.hypot(e.x - at.x, e.y - at.y) < Math.hypot(m.x - at.x, m.y - at.y) ? e : m), null);
+    d?.burst();
+    this.spr({ name: 'thorn_snare', x: at.x, y: at.y + 8, oy: 0.97, depth: at.y + 3, w: 90, h: 130, life: 900, glow: 0.15, sy: kf([0, 0.1], [0.1, 1.08, out3], [0.2, 1]), a: kf([0, 1], [0.15, 0.8], [0.8, 0.7], [1, 0]) });
+    this.leaves(at.x, at.y - 40, 10, 40, { up: 120, life: 700 });
+  }
+
+  // ------------------------------------------------------------------ the vine mine
 
   trap(t: Trap): void {
     if (!this.ready) return;
