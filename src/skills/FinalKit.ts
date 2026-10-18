@@ -767,8 +767,8 @@ const samurai: FinalSkill[] = [
     // end of the burst), and its light throws every foe around him back and holds them a moment (room, a reset)
     hits: [H(0, 8, { kind: 'circle', radius: 170 }, { stun: 420, push: 150, drop: true }, { reachUp: 200 })],
     cancelOnHit: ['quick_slash', 'shadow_step', 'iai_strike', 'sheathe'],
-    description: 'Your defensive ultimate: raise the banner of the Rising Sun. While the sun rises behind you nothing can touch you, and its light throws every foe around you back and holds them a moment.',
-    relations: ['Untouchable while it rises', 'Throws foes back'],
+    description: 'Your defensive ultimate: raise the banner of the Rising Sun. While the sun rises behind you nothing can touch you, and its light throws every foe around you back and holds them a moment. Its banner then stays planted where it rose for 10 s: come down on its pole from a jump and it springs you far back.',
+    relations: ['Untouchable while it rises', 'Throws foes back', 'The banner springs you back'],
   }),
   S({
     id: 'phantom_blades', cls: 'samurai', slot: 14, name: 'Phantom Blades', roles: ['zone'], targeting: 'mouseCone',
