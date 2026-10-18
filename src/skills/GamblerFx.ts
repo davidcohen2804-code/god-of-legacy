@@ -4,6 +4,7 @@
 // stops with the hit-stop like the fight does.
 import { ARENA3D } from '../arena3d/flag';
 import { hitIndex } from './FinalKit';
+import CANE from '../data/gambler-cane.json';
 import Phaser from 'phaser';
 import type { CastRun } from './SkillRuntime';
 import type { FinalSkill, HitEvent } from './SkillTypes';
@@ -46,6 +47,8 @@ export interface GambleCtx {
   dust(x: number, y: number, size: number, alpha?: number): void;
   freeze(ms: number): void;
   flash(color: number, alpha: number, ms: number): void;
+  /** A fighter's body sprite now (its atlas frame, flip, scale): Light Staff draws along the cane in that frame. */
+  body?(id: string): { frame: string | number; flipX: boolean; sx: number; a?: number } | null;
 }
 
 type Step = (t: number, dt: number) => boolean;
@@ -693,8 +696,8 @@ export class GamblerFx {
         const ring = this.kit('k_ring', tp0.x, y, H * 2.4, tp0.y + 6); if (ring) { const r0 = ring.scale; this.piece(ring, 280, (u, o) => o.setScale(r0 * lerp(0.3, 1.25, out3(u))).setAlpha(1 - u)); }
       }
       this.add((t) => {
-        const p = at(), life = big ? 900 : 760;
-        if (!p || t > life) {
+        const p = at(), life = big ? 2600 : 760, tz = this.ctx.targetPos(id)?.z ?? 0;
+        if (!p || t > life || (big && t > 260 && tz < 6)) { // (the drive: he flies a high, long arc — the trail rides him until he lands)
           this.piece(g, 200, (u, o) => o.setAlpha(1 - u)); glow.destroy(); if (comet) this.piece(comet, 200, (u, o) => o.setAlpha(1 - u));
           if (big && p) { // the crash: where he comes down, the floor cracks and the cards in him go off
             const fy = p.d, cr = this.kit('g_crater', p.x, fy, 230, GROUND + 3);
@@ -1259,7 +1262,7 @@ export class GamblerFx {
   holdTick(r: CastRun, at: V3, i: number, last: boolean): void {
     if (r.skill.id !== 'call_the_deck') return;
     this.setFam('call_the_deck');
-    const sx = at.x, sy = at.y - Math.max(0, at.z - 40) + 6;
+    const sx = at.x, sy = at.y - 40; // (the card at a fixed height under the held foe, a gap up to him)
     if (!ARENA3D.on) {
       let h = this.holdCards.get(r.castId);
       if (!h) {
@@ -1299,17 +1302,42 @@ export class GamblerFx {
     const y = at.y - at.z - 60;
     this.pop(at.x, y, 110, this.fc(FUCHSIA), 260); this.shards(at.x, y, 6, 110, 380); this.ctx.cam().shake(140, 0.008); this.ctx.freeze(70);
   }
+  /** Light Staff (David 18 Oct 18:40: "a huge light on the fighting staff, matching all his movements"): for its 8 s a thick
+   *  violet glow lies along the cane itself in every frame of every move, and a blade of light runs on out of its tip — drawn
+   *  from the cane's line in the body's current atlas frame (src/data/gambler-cane.json, marked per frame). */
   private lightStaff(r: CastRun): void {
-    if (ARENA3D.on) return;
-    const glow = this.glow(0, 0, 70, 0x9a8cff, TOP + 3), id = r.attackerId, end = r.timings.startup + 8000;
+    const s = this.ctx.scene, id = r.attackerId, T = r.timings, end = T.startup + 8000, C = CANE as Record<string, number[] | null>;
+    if (!s.textures.exists('gb-beam')) { // a beam: full along its length (soft at both ends), a soft falloff across it
+      const cv = s.textures.createCanvas('gb-beam', 128, 32)!, g = cv.getContext();
+      for (let x = 0; x < 128; x++) { const ex = Math.min(1, x / 10, (127 - x) / 10); const gr = g.createLinearGradient(0, 0, 0, 32); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, `rgba(255,255,255,${ex})`); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(x, 0, 1, 32); }
+      cv.refresh();
+    }
+    const mk = (tint: number, a: number) => s.add.image(0, 0, 'gb-beam').setBlendMode(Phaser.BlendModes.ADD).setTint(tint).setAlpha(0).setOrigin(0, 0.5);
+    const halo = mk(0x7a5cff, 0.55), core = mk(0xe8e0ff, 0.95), blade = mk(0x9a8cff, 0.8), bladeCore = mk(0xffffff, 0.9);
+    const tipStar = s.add.image(0, 0, 'gb-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xd8d0ff).setAlpha(0);
+    const all = [halo, core, blade, bladeCore, tipStar];
+    let last: number[] | null = null;
     this.add((t) => {
-      const h = this.ctx.hand(id) ?? (() => { const c = this.ctx.casterPos(id); return c ? { x: c.x, y: c.y - c.z - 70 } : null; })();
-      if (t > end || !h) { glow.destroy(); return false; }
-      glow.setPosition(h.x, h.y).setAlpha(t < r.timings.startup ? t / r.timings.startup * 0.7 : 0.45 + 0.2 * Math.sin(t * 0.008));
-      if (Math.random() < 0.18) this.pop(h.x + rnd(-14, 14), h.y + rnd(-30, 10), 16, 0xb4a6ff, 260);
+      const c = this.ctx.casterPos(id), b = this.ctx.body?.(id);
+      if (t > end || !c || !b) { all.forEach((o) => this.piece(o, 180, (u, im) => im.setAlpha(im.alpha * (1 - u)))); return false; }
+      const grow = clamp01((t - T.startup * 0.4) / (T.startup * 0.8)), fade = clamp01((end - t) / 400);
+      const line = C[String(b.frame)] ?? last; if (C[String(b.frame)]) last = C[String(b.frame)]!;
+      if (!line || (b.a ?? 1) < 0.1) { all.forEach((o) => o.setVisible(false)); return true; }
+      const f = b.flipX ? -1 : 1, k = b.sx, fx = c.x, fy = c.y - c.z;
+      const hx = fx + line[0] * k * f, hy = fy + line[1] * k, tx = fx + line[2] * k * f, ty = fy + line[3] * k;
+      const L = Math.hypot(tx - hx, ty - hy), ang = Math.atan2(ty - hy, tx - hx) * 57.2958, d = c.y + 3, pulse = 0.85 + 0.15 * Math.sin(t * 0.012);
+      const gw = 128, gh = 32, A = grow * fade;
+      halo.setVisible(true).setPosition(hx, hy).setAngle(ang).setScale((L * 1.08) / gw, 30 / gh).setDepth(d).setAlpha(0.6 * A * pulse);
+      core.setVisible(true).setPosition(hx, hy).setAngle(ang).setScale(L / gw, 10 / gh).setDepth(d + 0.01).setAlpha(0.95 * A);
+      const BL = L * 1.15 * grow; // the blade of light out of its tip, longer than the cane
+      blade.setVisible(true).setPosition(tx, ty).setAngle(ang).setScale(BL / gw, 22 / gh).setDepth(d + 0.01).setAlpha(0.75 * A * pulse);
+      bladeCore.setVisible(true).setPosition(tx, ty).setAngle(ang).setScale((BL * 0.9) / gw, 7 / gh).setDepth(d + 0.02).setAlpha(0.95 * A);
+      tipStar.setVisible(true).setPosition(tx, ty).setDisplaySize(34 + 8 * Math.sin(t * 0.02), 34 + 8 * Math.sin(t * 0.02)).setDepth(d + 0.02).setAlpha(0.9 * A);
+      if (Math.random() < 0.25 * A) { const q = Math.random(); this.pop(hx + (tx - hx + (tx - hx) * 1.1 * Math.random()) * q, hy + (ty - hy) * q * 1.6, 14, 0xb4a6ff, 220, 0, d + 0.03); }
       return true;
     });
   }
+
   private deckSpray(r: CastRun): void {
     const T = r.timings, s = this.ctx.scene, side = sideOf(r);
     // wind-up: cards whirl in toward his hand

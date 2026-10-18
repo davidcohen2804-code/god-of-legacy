@@ -332,6 +332,7 @@ export class SkillFx {
       targetPos: (id) => this.targetPos?.(id) ?? null, callout: (at, text, color, row) => this.callout(at, text, color, row), punch: (a, ms) => this.punch(a, ms),
       darken: (ms, a) => this.darken(ms, a), shockwave: (x, y, r, c) => this.shockwave(x, y, r, c), crack: (x, y, r) => this.crack(x, y, r), dust: (x, y, sz, a) => this.dust(x, y, sz, a),
       freeze: (ms) => { this.hitStopLeft = Math.max(this.hitStopLeft, ms); }, flash: (c, a, ms) => this.screenFlash(c, a, ms),
+      body: (id) => this.bodyOf?.(id) ?? null, // (Light Staff: the cane's line in his current frame)
     });
     rt.events.on(RT_EVENTS.cast, (r: CastRun) => this.onCast(r));
     rt.events.on(RT_EVENTS.active, (r: CastRun) => this.onActive(r));
