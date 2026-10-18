@@ -314,6 +314,7 @@ export class Arena3D {
    *  colour (1: a blow's flash on the struck one; a skill's own light much less — a buff's halo washed the samurai flat
    *  gold, so in front of it he read as a hole: the Samurai chat). */
   private flare(hx: number, hy: number, hz: number, color: number, power: number, dist: number, ms: number, wash = 0.35): void {
+    if (!Number.isFinite(hx) || !Number.isFinite(hy) || !Number.isFinite(hz) || !Number.isFinite(power)) return; // (a light at NaN poisons every lit pixel, and the bloom spreads it: a black frame)
     const slot = this.hitLights.reduce((a, b) => (b.left < a.left ? b : a));
     for (const L of [slot.L, slot.F]) { L.color.set(color); L.distance = dist; L.position.set(hx, hy, hz); }
     slot.left = ms; slot.ms = ms; slot.power = power; slot.wash = wash;

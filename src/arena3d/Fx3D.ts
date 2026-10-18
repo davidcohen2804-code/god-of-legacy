@@ -13,6 +13,7 @@ import { BOOK_MAGE } from './fx3d/book_mage';
 import { ARCHER } from './fx3d/archer';
 import { SAMURAI } from './fx3d/samurai';
 import { GAMBLER } from './fx3d/gambler';
+import { warmPieces } from './fx3d/pieces';
 
 export type V3 = { x: number; y: number; z: number };
 
@@ -239,6 +240,8 @@ export interface Recipe {
   tone?: number;
   /** The default main-hit layer is left out (the recipe's own hit does it all). */
   own?: boolean;
+  /** The room's main-hit impact keeps its colour (its shell painted, not only added: on the red planks light alone turns white). */
+  paint?: boolean;
 }
 
 /** A piece of a skill appearing in the room (for the arena's sound: each its own short sound under the blow). */
@@ -340,7 +343,7 @@ export class Fx3D {
 
   // ------------------------------------------------------------------ units
 
-  private P(at: V3): THREE.Vector3 { return new THREE.Vector3(this.h.w3(at.x), this.h.h3(at.z), this.h.d3(at.y)); }
+  private P(at: V3): THREE.Vector3 { const z = Number.isFinite(at.z) ? at.z : 0; return new THREE.Vector3(this.h.w3(at.x), this.h.h3(z), this.h.d3(at.y)); } // (a point without its height: on the floor, never NaN)
 
   /** Later (ms, on the effects' own clock: it runs with the room). */
   later(ms: number, fn: () => void): void { if (ms <= 0) fn(); else this.timers.push({ at: this.clock + ms, fn }); }
@@ -373,11 +376,16 @@ export class Fx3D {
   }
 
   /** A shell of energy swelling from a point on the floor (radius `r` px); `implode` shrinks it into the point instead. */
-  dome(x: number, y: number, color: number, o: { r?: number; ms?: number; i?: number; implode?: boolean; a?: number; hold?: number; follow?: () => V3 | null } = {}): void {
+  dome(x: number, y: number, color: number, o: { r?: number; ms?: number; i?: number; implode?: boolean; a?: number; hold?: number; follow?: () => V3 | null; /** its rim also painted in its colour (normal blending): it keeps its hue over the bright planks */ paint?: boolean } = {}): void {
     const ms = o.ms ?? 420, R = this.h.w3(o.r ?? 150), base = o.a ?? 0.75;
     let hx = this.h.w3(x), hz = this.h.d3(y);
     if (!o.hold) this.onPiece?.('dome', { x, y, z: 0 }, (o.r ?? 150) > 260 ? 2 : (o.r ?? 150) > 150 ? 1 : 0);
-    const ms2 = this.both(this.domeGeo, KIND.dome, color, hz, { i: o.i ?? 1.3 });
+    const painted: THREE.Mesh[] = [];
+    if (o.paint) for (const front of [false, true]) { // (painted: its front half in the solid layer — the glow layer is added over the picture)
+      const pm = this.mat(KIND.dome, mix(color, 0x000000, 0.3), { i: 1, clip: this.cut(hz, front) }); pm.blending = THREE.NormalBlending;
+      const m = new THREE.Mesh(this.domeGeo, pm); m.frustumCulled = false; m.renderOrder = -1; (front ? this.h.solid : this.h.back).add(m); painted.push(m);
+    }
+    const ms2 = [...painted, ...this.both(this.domeGeo, KIND.dome, color, hz, { i: o.paint ? (o.i ?? 1.3) * 0.75 : o.i ?? 1.3 })];
     let t = 0;
     this.h.flare(hx, 0.6, hz + 0.3, color, 18, 7, Math.min(ms, 600));
     this.items.push({
@@ -462,11 +470,12 @@ export class Fx3D {
   crystalsDrop(key: string): void { for (const p of [...this.ice, ...this.rock]) p.drop(key); }
 
   /** Lightning from a to b (world points): a jagged bolt, re-struck every few frames, with forks; it lights the room. */
-  bolt(a: V3, b: V3, color: number, o: { ms?: number; w?: number; forks?: number; front?: boolean } = {}): void {
+  bolt(a: V3, b: V3, color: number, o: { ms?: number; w?: number; forks?: number; front?: boolean; /** its glow also painted in its colour (normal blending): it keeps its hue over the bright planks */ hue?: boolean } = {}): void {
     const ms = o.ms ?? 260, A = this.P(a), B = this.P(b), w = (o.w ?? 10) / 100;
     this.onPiece?.('bolt', b, (o.w ?? 10) > 12 ? 1 : 0);
-    const n = 24, core = new Strip(n, this.mat(KIND.strip, color, { i: 2.6 }), w), glow = new Strip(n, this.mat(KIND.strip, color, { i: 1.4 }), w * 4.5);
+    const n = 24, core = new Strip(n, this.mat(KIND.strip, color, { i: 2.6 }), w), glow = new Strip(n, this.mat(KIND.strip, color, { i: o.hue ? 1.0 : 1.4 }), w * 4.5);
     const scene = o.front === false ? this.h.back : this.h.glow;
+    if (o.hue) { const pm = this.mat(KIND.strip, mix(color, 0x000000, 0.25), { i: 1 }); pm.blending = THREE.NormalBlending; const paint = new Strip(n, pm, w * 3.2); paint.mesh.renderOrder = 1; core.mesh.renderOrder = 3; glow.mesh.renderOrder = 2; (o.front === false ? this.h.back : this.h.solid).add(paint.mesh); const set0 = glow.set.bind(glow), ua0 = glow.uA.bind(glow), dis0 = glow.dispose.bind(glow); glow.set = (p, c, tr) => { set0(p, c, tr); paint.set(p, c, tr); }; glow.uA = (v) => { ua0(v); paint.uA(v * 0.55); }; glow.dispose = () => { dis0(); paint.dispose(); }; } // (painted: in the solid layer in front — the glow layer is added over the picture)
     scene.add(core.mesh, glow.mesh);
     const forks: { s: Strip; from: number; to: THREE.Vector3 }[] = [];
     for (let i = 0; i < (o.forks ?? 2); i++) {
@@ -632,12 +641,12 @@ export class Fx3D {
   /** A blow's main hit in one piece (the reference's hammer slam, 02): a white flash sphere (~95 ms) → its colour bursting
    *  out as a shell (~280 ms) → a ring of glowing cracks in the floor → embers rising and fading (~600 ms). `at`: the blow's point (world
    *  px, z its height); `r`: the flash's radius (px, default 60); `cracks: false` in the air. */
-  impact(at: V3, color: number, o: { r?: number; cracks?: boolean; embers?: number } = {}): void {
+  impact(at: V3, color: number, o: { r?: number; cracks?: boolean; embers?: number; /** its shell painted in its colour (see dome) */ paint?: boolean } = {}): void {
     const r = o.r ?? 60, hx = this.h.w3(at.x), hz = this.h.d3(at.y), hy = this.h.h3(at.z);
     this.lastImpact = { x: at.x, y: at.y, t: this.clock };
     this.announce('impact', at, r > 100 ? 2 : r > 55 ? 1 : 0, { color });
     this.orb(at, 0xffffff, { r0: r * 0.6, r1: r, ms: 95, a: 0.85, i: 1.5 }); // (a flash, never a white-out: gone in ~6 frames)
-    this.later(40, () => this.dome(at.x, at.y, color, { r: r * 1.7, ms: 280, a: 0.55, i: 1.5, hold: 1 })); // (its colour bursts out as a shell, its rim burning: the blow seen through it)
+    this.later(40, () => this.dome(at.x, at.y, color, { r: r * 1.7, ms: 280, a: 0.55, i: 1.5, hold: 1, paint: o.paint })); // (its colour bursts out as a shell, its rim burning: the blow seen through it)
     this.h.flare(hx, hy, hz + 0.2, color, (30 * r) / 80, 9, 380);
     if (o.cracks !== false) this.later(30, () => this.crack(at.x, at.y, color, { r: r * 1.15, ms: 520, chunks: Math.round(r / 12), quiet: true }));
     this.later(60, () => this.h.ring(hx, hz, color, this.h.w3(r * 2.2), 380, 0.6));
@@ -865,7 +874,7 @@ export class Fx3D {
   fired(r: CastRun, i: number, o: V3): void { this.recipe(r.skill).fired?.(this, r, i, o); }
   chain(r: CastRun, o: V3, target: V3 | null): void {
     const c = this.recipe(r.skill).chainBolt; if (c === undefined || !target) return;
-    this.bolt({ x: o.x, y: o.y, z: o.z + 70 }, { x: target.x, y: target.y, z: target.z + 70 }, c, { ms: 240, w: 9, forks: 2 });
+    this.bolt({ x: o.x, y: o.y, z: o.z + 70 }, { x: target.x, y: target.y, z: target.z + 70 }, c, { ms: 240, w: 9, forks: 2, hue: true });
   }
   projectile(p: Projectile): void {
     const rc = this.recipe(p.skill);
@@ -881,7 +890,7 @@ export class Fx3D {
     // the reference's main hit on every skill (DAVID 21:45): a white flash bigger than the body, the blow's colour bursting
     // out, the floor cracking under him (when he is on it), embers rising — unless its recipe just laid its own there
     const L = this.lastImpact, laid = this.clock - L.t < 260 && Math.hypot(L.x - at.x, L.y - at.y) < 140;
-    if (main && !laid) this.impact(at, col, { r: [46, 62, 90][big], embers: [8, 12, 20][big], cracks: at.z < 70 && react !== 'launch' && react !== 'float' });
+    if (main && !laid) this.impact(at, col, { r: [46, 62, 90][big], embers: [8, 12, 20][big], cracks: at.z < 70 && react !== 'launch' && react !== 'float', paint: rc.paint });
     if (rc.own || !main) return;
     if (big === 2) { this.pillar(at.x, at.y, col, { h: 640, r: 48, ms: 640 }); this.crack(at.x, at.y, col, { r: 150, chunks: 16 }); return; }
     if (react === 'launch') this.pillar(at.x, at.y, col, { h: 360, r: 24, ms: 380, core: false });
@@ -916,7 +925,7 @@ export class Fx3D {
   update(ms: number, flying: Projectile[]): void {
     this.clock += ms;
     if (this.timers.length) { const due = this.timers.filter((x) => x.at <= this.clock); this.timers = this.timers.filter((x) => x.at > this.clock); for (const d of due) d.fn(); }
-    this.items = this.items.filter((it) => it.step(ms));
+    { const cur = this.items; this.items = []; const kept = cur.filter((it) => it.step(ms)); this.items = kept.concat(this.items); } // (a piece made inside another piece's step lands in the fresh list and is kept: it was dropped — the Samurai chat's report)
     for (const c of this.chunks) c.step(ms);
     for (const c of this.ice) c.step(ms);
     for (const c of this.rock) c.step(ms);
@@ -939,6 +948,28 @@ export class Fx3D {
     if ((this.ttl += ms) > 30000) { this.ttl = 0; } // (nothing to age: kept for a steady clock)
   }
 
+  // ------------------------------------------------------------------ for the pieces built outside this file (fx3d/pieces.ts)
+
+  /** A piece built outside this file: stepped every frame (ms) until its step returns false; disposed on a reset. */
+  spawn(it: { step(ms: number): boolean; dispose(): void }): void { this.items.push(it); }
+  /** Room units (THREE: x along, y up, z depth) of a world point (px: x along, y depth on the floor, z height). */
+  unit(at: V3): THREE.Vector3 { return this.P(at); }
+  /** A reference piece announced for its sound (see FxPieceRef). */
+  note(kind: FxPieceRef, at: V3, size: number, o?: { color?: number; accent?: boolean }): void { this.announce(kind, at, size, o); }
+  /** One of the shared shader kinds (KIND) as a material; see mat(). */
+  kind(k: keyof typeof KIND): number { return KIND[k]; }
+  /** One mesh split round the fighters (its part behind depth hz in the room, the part in front over them): see both(). */
+  split(geo: THREE.BufferGeometry, k: keyof typeof KIND, color: number, hz: number, o: { i?: number; a?: number; map?: THREE.Texture } = {}): THREE.Mesh[] { return this.both(geo, KIND[k], color, hz, o); }
+  /** Meshes taken out of the room and their materials freed (`ownGeo`: their geometry too). */
+  remove(ms: THREE.Mesh[], ownGeo = false): void { this.drop(ms, ownGeo); }
+  /** A uniform set on every mesh given. */
+  uniform(ms: THREE.Mesh[], k: string, v: number): void { this.setU(ms, k, v); }
+  /** The shared flat square (1 x 1, lying on the floor) and the soft white disc picture. */
+  get floorQuad(): THREE.BufferGeometry { return this.planeGeo; }
+  get softDisc(): THREE.Texture { return this.disc; }
+  /** The effects' own clock (ms): it runs with the room (hit-stop and slow motion keep in step). */
+  get now(): number { return this.clock; }
+
   /** The camera's turn round the vertical (rad): a slash plane faces across the view. */
   camYaw(): number { const f = new THREE.Vector3(); this.h.camera.getWorldDirection(f); return Math.atan2(-f.x, -f.z); }
   get host(): FxHost { return this.h; }
@@ -953,6 +984,7 @@ export class Fx3D {
     }
     try { renderer.compile(this.h.back, this.h.camera); renderer.compile(this.h.glow, this.h.camera); renderer.compile(this.h.solid, this.h.camera); } catch { /* (compiled on first use instead) */ }
     for (const m of tmp) { m.parent?.remove(m); ((m as THREE.Mesh).material as THREE.Material).dispose(); }
+    warmPieces(this, renderer); // (the second set's shaders too: fx3d/pieces.ts)
   }
 
   dispose(): void {
@@ -970,7 +1002,7 @@ export class Fx3D {
 }
 
 /** Two sRGB hex colours mixed (t: 0 = a, 1 = b). */
-function mix(a: number, b: number, t: number): number {
+export function mix(a: number, b: number, t: number): number {
   const c = (s: number) => Math.round(((a >> s) & 255) * (1 - t) + ((b >> s) & 255) * t);
   return (c(16) << 16) | (c(8) << 8) | c(0);
 }

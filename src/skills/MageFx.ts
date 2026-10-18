@@ -9,6 +9,8 @@ import type { Projectile, V2, V3 } from './HitGeometry';
 import { mageQuad, type MageShader } from './MageShaders';
 import { SpaceWarp } from './SpaceWarp';
 import { supportAt } from '../world/WorldGeometry';
+import type { Fx3D } from '../arena3d/Fx3D';
+import { mageRune, mageRuneGone, mageWard, mageWardHit } from '../arena3d/fx3d/book_mage';
 
 export const MAGE_KIT = 'mage-kit';
 export const MAGE_KIT_URL = 'assets/final/skills/book_mage/kit/';
@@ -127,6 +129,10 @@ export class MageFx {
   }
   /** The painted sheets are loaded (then they lead, and the procedural layers step back). */
   private get painted(): boolean { return this.ctx.scene.textures.exists('mfx-pillar'); }
+  /** PVP 3D (DFO, David 18 Oct 18:31): the room's 3D pieces carry the mage's skills (src/arena3d/fx3d/book_mage.ts) — this
+   *  painted layer steps aside there, except for the states it shows on the foe (chill, freeze, the curse, levity). */
+  private get room(): Fx3D | null { return (this.ctx.scene as unknown as { a3d?: { fx: Fx3D } }).a3d?.fx ?? null; }
+  private runeKeys = new Map<Trap, string>();
 
   get ready(): boolean { return this.ctx.scene.textures.exists(MAGE_KIT); }
 
@@ -448,6 +454,7 @@ export class MageFx {
 
   cast(r: CastRun): void {
     if (!this.ready) return;
+    if (this.room) { if (r.skill.slot === 7) this.ctx.ultimateStage(r); return; } // (PVP 3D: the room draws it — the ultimate's portrait still crosses the screen)
     const s = r.skill, T = r.timings, me = this.me(r), side = sideOf(r), hand = this.at(r.attackerId, side, 22, 70);
     const own = !['page_bind', 'astral_burst', 'frost_nova', 'lightning_chain', 'blink', 'chrono_haste', 'chrono_sigil', 'arcane_ward', 'elemental_ascension', 'levity_field', 'arcane_gate', 'binding_rune', 'storm_field', 'time_collapse'].includes(s.id) && !(s.slot === 0 && r.stage !== 2); // (skills with ground art of their own: no circle under it)
     if (own && s.slot === 7) this.circle(me.x, this.floorY(me.x, me.y, me.z), s.slot === 7 ? 420 : s.slot === 0 ? 200 : 260, MageFx.EL[s.id] ?? 0, T.startup + T.active + 260, { run: r, draw: Math.max(120, T.startup), ult: s.slot === 7 }); // only the ultimate writes its circle under her: the same circle under every spell made them all read alike (David: cluttered, nothing unique)
@@ -479,7 +486,7 @@ export class MageFx {
 
   /** The release (active start). */
   active(r: CastRun): void {
-    if (!this.ready) return;
+    if (!this.ready || this.room) return;
     const s = r.skill, me = this.me(r), side = sideOf(r), T = r.timings;
     switch (s.id) {
       case 'arcane_wave': this.wave(r); break;
@@ -507,7 +514,7 @@ export class MageFx {
 
   /** One hit of a cast as it fires. */
   hit(r: CastRun, i: number, o: V3): void {
-    if (!this.ready) return;
+    if (!this.ready || this.room) return;
     const s = r.skill, h = r.hits[i];
     if (s.id === 'storm_field' && r.place && this.ctx.scene.textures.exists('mfx-sfield')) { // the painted strike on every pulse, the burst on the last
       const p = this.placeFloor(r), last = i === r.hits.length - 1;
@@ -532,7 +539,7 @@ export class MageFx {
   /** Chain lightning from o to the foe it struck (each arc). */
   private chainLast = new Map<string, { x: number; y: number; z: number }>();
   chain(r: CastRun, o: V3, target: { x: number; y: number; z: number } | null, _from: { x: number; y: number; z: number } | null): void {
-    if (!this.ready) return;
+    if (!this.ready || this.room) return;
     if (r.skill.id === 'paper_curse') return; // the curse is drawn by its reaction (pages wrapping the foe), not as lightning
     const from = this.chainLast.get(r.castId) ?? null; // each arc leaps on from the foe the last one struck
     if (target) { this.chainLast.set(r.castId, { ...target }); if (this.chainLast.size > 40) this.chainLast.delete(this.chainLast.keys().next().value!); }
@@ -810,7 +817,7 @@ export class MageFx {
   /** A buff's look on its caster while it lasts: Chrono Haste = a clock ring turning under the feet; Elemental Ascension = frost at
    *  the feet and lightning crackling round the body. */
   aura(id: string, kind: 'haste' | 'ascension', ms: number): void {
-    if (!this.ready) return;
+    if (!this.ready || this.room) return; // (PVP 3D: the room's recipe keeps the two lights with him)
     const set = this.auras.get(id) ?? new Set(); this.auras.set(id, set);
     let on = true; const h = { stop: () => { on = false; } }; set.add(h);
     const feet = () => { const c = this.ctx.casterPos(id); return c ? { x: c.x, y: c.y } : null; };
@@ -834,6 +841,7 @@ export class MageFx {
   }
   /** Arcane Ward: the shell of rune hexagons round the caster while it holds. */
   ward(id: string, ms: number): void {
+    const room = this.room; if (room) { mageWard(room, id, ms); return; } // (PVP 3D: the sphere of hexagons)
     if (!this.ready) return;
     this.wards.get(id)?.stop();
     let on = true; const h = { stop: () => { on = false; } }; this.wards.set(id, h);
@@ -880,6 +888,7 @@ export class MageFx {
 
   /** The ward took a blow (broken: it bursts; expired: it fades). */
   wardHit(id: string, broken: boolean, expired = false): void {
+    const room = this.room; if (room) { mageWardHit(room, id, broken, expired); return; }
     if (!this.ready) return;
     const c = this.ctx.casterPos(id); if (!c) return;
     if (expired || broken) { this.wards.get(id)?.stop(); this.wards.delete(id); }
@@ -1006,6 +1015,8 @@ export class MageFx {
 
   /** Binding Rune / Frost Rune lying on the floor. */
   trap(t: Trap): void {
+    const room = this.room;
+    if (room) { const key = `${t.run.castId}:${Math.round(t.x)}:${Math.round(t.y)}`; this.runeKeys.set(t, key); mageRune(room, key, t.x, t.y, t.run.skill.trap?.lifeMs ?? 10000); return; } // (PVP 3D: its seal in the floor)
     if (!this.ready) return;
     const frost = t.run.skill.id === 'frost_rune', w = t.radius * (frost ? 2.6 : 2.4);
     if (!frost && this.ctx.scene.textures.exists('mfx-rune')) { let on = true;
@@ -1017,6 +1028,7 @@ export class MageFx {
     this.trapArt.set(t, { stop: () => { on = false; } });
   }
   trapEnd(t: Trap, fired: boolean): void {
+    const key = this.runeKeys.get(t); if (key) { this.runeKeys.delete(t); mageRuneGone(key); return; }
     this.trapArt.get(t)?.stop(); this.trapArt.delete(t);
     if (fired && t.run.skill.id !== 'frost_rune' && this.ctx.scene.textures.exists('mfx-rune')) { const o = { oy: 0.72, depth: t.y - 2 }; this.sheet('mfx-rune', t.x, t.y, t.radius * 4.2, 330, { ...o, frames: [4, 4], alpha: 0.6 }); this.sheet('mfx-rune', t.x, t.y, t.radius * 4.2, 2700, { ...o, frames: [8, 4], loop: 110, delay: 300, fade: [[0, 0.55], [0.85, 0.5], [1, 0]] }); } // (David 18 Oct: the bind holds 3 s, read inside it; it fades out cleanly — no burst at the end)
     if (fired && this.ready && t.run.skill.id === 'frost_rune') this.pop('ice_shatter', t.x, t.y - 16, 90, { life: 300 });
@@ -1025,7 +1037,7 @@ export class MageFx {
   // ------------------------------------------------------------------ projectiles
 
   projectile(p: Projectile, r?: CastRun): void {
-    if (!this.ready) return;
+    if (!this.ready || this.room) return;
     if (r && r.skill.id.startsWith('arcane_bolt')) { this.boltShot(p, r); return; }
     const id = p.skill.id, s = this.ctx.scene;
     const kind: Bolt['kind'] = id === 'origami_flock' ? 'crane' : id === 'arcane_bolt_frost' ? 'frost' : id === 'arcane_bolt_storm' ? 'storm' : id === 'glacial_spikes' ? 'spike' : 'arcane';
@@ -1126,7 +1138,7 @@ export class MageFx {
 
   /** The hit spark of a mage hit on a foe (by element and weight). */
   confirmed(s: FinalSkill, hit: HitEvent, at: V3, heavy: boolean, crit: boolean, counter = false): void {
-    if (!this.ready || (s.slot === 99 && !hit.damage)) return;
+    if (!this.ready || (s.slot === 99 && !hit.damage) || this.room) return;
     const x = at.x, y = at.y - at.z - 40, el = hit.el, tint = el === 'frost' ? 0xcff6ff : el === 'storm' ? 0x8fe3ff : 0x6fb8ff;
     const big = crit || heavy || counter;
     // the class's hit weights: COUNTER — a rune shell bursts into shards round the foe; LAUNCH — a short column of arcane light throws it up

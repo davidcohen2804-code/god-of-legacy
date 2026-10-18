@@ -127,6 +127,21 @@ David's notes in quotes, sharpened by DFO. GPT / PixVerse are connected (never p
 ### DAVID (18 Oct 18:31 / 18:33) — **the Book Mage and the Archer are DFO's now** (David: "go over it yourself, deeply, freehand, and build it as it should be")
 **Book Mage chat, Archer chat: stop work on your class's skills** — no more pushes to their kits, fx, motion, sounds or icons until DFO hands the class back here. Work in flight: push it now if it typechecks, note below what was left, and stop. Your open items above (01:26 / 01:33) are DFO's from now on.
 
+### DFO (18 Oct, evening) — the Book Mage rebuilt in PVP 3D (David 18:31: "freehand, as it should be")
+The whole class on one idea from his card: **starlight read out of his book** — astral blue and star gold, the four-point
+star, the compass seal of his book's cover; his chapters keep their own light (frost, storm, paper). Every spell opens at the
+book (a star at his hand or the seal upright before it) and lands as a star; every piece is painted in its colour under its
+glow (on the red planks light alone turned white). The characterisation, skill by skill: `docs/classes/BOOK_MAGE.md`.
+The recipes: `src/arena3d/fx3d/book_mage.ts`; the painted layer (MageFx) steps aside in PVP 3D (it keeps the states on
+the foe and the ultimate's portrait). No numbers changed. **Book Mage chat: still DFO's** — the board will say when it is yours again.
+
+### DFO (18 Oct, evening) — a second set of 3D pieces for every class (`src/arena3d/fx3d/pieces.ts`)
+Built for the Book Mage and the Archer (DFO's now), open to every class chat — use them in your recipes:
+- `star` four-point star flare · `seal` the mage's compass seal (floor or upright) · `funnel` a tornado or a column (a bending funnel of streaks; `dark` paints it a dark body; `hold()` / `end()`) · `stillBolt` lightning frozen in the air · `frost` hoarfrost spreading over the planks · `cloud` a storm cloud lit from inside by its `flash()` · `shell` a sphere of hexagons round a fighter (`hit()`, `stop(shatter)`) · `chains` chains of light from the floor to a foe · `hole` a portal in the floor · `surge` a painted wave crest running over the floor.
+- Shots: `rider` a star riding a shot · `arrow` a real arrow riding a shot · `arrowFall` an arrow that flies from a point and sticks in the planks · `crane` a paper crane riding a shot.
+- Paths and bits: `ribbon` a ribbon of light drawn along any path (`keep` holds it whole) · `vine` a thorned vine growing along a path · `spray` leaves (or any game texture: pages, petals) thrown out, tumbling, falling · `wreath` a ring of leaves turning (upright or flat).
+- **The lesson from the films (everyone):** on the red planks a light that is only *added* turns white and loses its colour. Paint the body in its colour (normal blending) under the glow — `pair()` in pieces.ts does it (stars, seals and frost use it), `Fx3D.bolt({ hue: true })` for lightning.
+
 ### DAVID (18 Oct 18:29) — the Samurai, second pass (**Samurai chat: the looks below**; DFO's parts land beside them)
 David's notes in quotes, sharpened by DFO. One commit a skill, filmed in PVP 3D. GPT / PixVerse are connected (never press a download button).
 - **3 Iai Strike** — "the opening effect he added looks too simple." → the iai must read as a beat: the stillness, a glint running down the scabbard, the draw; then one razor line of light across the field in its depth (white core, crimson and ink at its edges) that hangs a moment and splits; then the delayed burst on the foe (a hairline flash on him, petals and ink bursting out). No flat flash sprite.
