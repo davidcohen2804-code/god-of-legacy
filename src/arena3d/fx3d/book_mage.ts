@@ -227,16 +227,13 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // GLACIAL SPIKES — three lines of ice spikes break out of the floor one after another along the fan, growing as they go,
   // a vein of hoarfrost under each line; they stand as a wall, then shatter
   glacial_spikes: { tone: FROST, own: true, trail: false,
-    cast: (f, r) => { const h = book(f, r); star(f, h, ICE, { size: 70, ms: T(r).startup + 60, light: 0.4 }); },
+    cast: (f, r) => { const h = book(f, r); f.flipLoad(SPIKES); star(f, h, ICE, { size: 70, ms: T(r).startup + 60, light: 0.4 }); },
     active: (f, r) => {
       const c = me(f, r), b = Math.atan2(r.aim.y, r.aim.x || side(r));
-      for (const da of [-0.27, 0, 0.27]) {
+      f.flip(SPIKES, { x: c.x + Math.cos(b) * 175, y: c.y + Math.sin(b) * 105, z: 0 }, { frame: SPIKES_F, fps: 16, w: 380, mode: 'up', foot: true, through: 0.8, a: 0.75, glow: 0.15, tint: FROST, core: 0.85, coreMs: 200, flipX: Math.cos(b) < 0, fadeOut: 300 }); // (the painted row of ice spikes erupting along the aim, growing as it goes)
+      for (const da of [-0.27, 0.27]) { // (the fan's two side lines: smaller painted rows, a beat later, a little dimmer)
         const dx = Math.cos(b + da), dy = Math.sin(b + da);
-        for (let k = 0; k < 6; k++) {
-          const x = c.x + dx * (70 + k * 40), y = c.y + dy * (70 + k * 40) * 0.6, main = da === 0;
-          f.crystals(x, y, { n: main ? 3 : 2, r: 16, h: (main ? 78 : 58) + k * 12, ms: 1650 - k * 40, delay: 30 + k * 45 });
-          if (k % 2 === 0) f.later(30 + k * 45, () => frost(f, x, y, { r: 52, grow: 120, hold: 1300, melt: 400, a: 0.7 }));
-        }
+        f.later(70, () => f.flip(SPIKES, { x: c.x + dx * 150, y: c.y + dy * 90, z: 0 }, { frame: SPIKES_F, fps: 16, w: 290, mode: 'up', foot: true, through: 0.6, a: 0.75, glow: 0.1, tint: FROST, flipX: dx < 0, fadeOut: 300 }));
       }
       f.host.ring(f.host.w3(c.x + Math.cos(b) * 90), f.host.d3(c.y), FROST, 1.4, 300, 0.6);
     },
