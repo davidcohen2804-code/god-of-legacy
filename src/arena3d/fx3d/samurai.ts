@@ -270,13 +270,15 @@ export const SAMURAI: Record<string, Recipe> = {
   god_of_blades: { own: true, tone: SAM.light,
     active: (f, r) => { const c = me(f, r); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), SAM.light, 2.8, 460, 0.5); },
     hit: (f, _s, _h, at) => flurry(f, () => at, { ms: 110, every: 36, len: 440, w: 11 }) },
-  // the bind: blossom light closing round the foe, a twisting column of it, petals
-  sakura_bind: { own: true, tone: C.sakura,
+  // the bind (David 18 Oct 18:29): the ring, its trap, the cocoon of petals round the caught foe are SamuraiFx's (bind,
+  // bloom, bindCatch on blade3d's zoneRing / petalStream / cocoon); here the blade driven into the planks, and the catch's
+  // gust (the room plays the main hit, painted in his pink)
+  sakura_bind: { own: true, tone: C.sakura, paint: true,
     // his blade driven into the planks: they crack round its point and a line of blossom light runs through them to the ring
     active: (f, r) => { const c = me(f, r), p0 = { x: c.x + side(r) * 36, y: c.y }, pl = r.place ?? c;
       f.crack(p0.x, p0.y, C.sakura, { r: 46, ms: 1000, chunks: 4, up: 0.6 });
       if (Math.hypot(pl.x - p0.x, pl.y - p0.y) > 40) f.streak({ x: p0.x, y: p0.y, z: 3 }, { x: pl.x, y: pl.y, z: 3 }, C.sakura, { w: 10, ms: 460, draw: 110 }); },
-    hit: (f, _s, _h, at, main) => { if (main) { f.dome(at.x, at.y, C.sakura, { r: 120, ms: 420, a: 0.4 }); f.pillar(at.x, at.y, C.sakura, { h: 420, r: 32, ms: 520, twist: true, core: false, i: 1.1 }); f.host.blow(f.host.w3(at.x), 0.4, f.host.d3(at.y), 4, 5); } } },
+    hit: (f, _s, _h, at, main) => { if (main) f.host.blow(f.host.w3(at.x), 0.4, f.host.d3(at.y), 4, 5); } }, // (its column of light and dome washed the cocoon out)
   // the golden dragon bursts out of the floor and climbs: a tall twisting column of gold, the planks torn under the slam
   dragon_ascension: { own: true, tone: C.gold,
     active: (f, r) => { const c = me(f, r);

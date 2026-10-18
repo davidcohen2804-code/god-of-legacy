@@ -10,7 +10,7 @@ import { hitIndex, lastOfBurst } from './FinalKit';
 import type { Projectile, V3 } from './HitGeometry';
 import type { Fx3D } from '../arena3d/Fx3D';
 import { POLE } from './SamuraiPole';
-import { ring as ring3, inkBurst as inkBurst3, zoneRing, SAM as SAM3 } from '../arena3d/fx3d/blade3d';
+import { ring as ring3, inkBurst as inkBurst3, zoneRing, petalStream, petalBurst as petalBurst3, cocoon, SAM as SAM3 } from '../arena3d/fx3d/blade3d';
 import { waveBack } from '../arena3d/fx3d/samurai';
 
 export const KIT = 'sam-kit';
@@ -148,6 +148,9 @@ export class SamuraiFx {
   private suns = new Map<string, Sun>();
   /** Rising Sun's planted banners (one per samurai): where, and the spring it is giving (`spring`: when, `dir` the way). */
   private poles = new Map<string, { t: number; spring: number; dir: number; x: number; y: number; h: number; kill: () => void }>();
+  /** Sakura Bind's rings on the floor (by caster): where, how wide, until when (its trap) — a catch's cocoon is placed by it,
+   *  and the ring flares (`flare`: when). */
+  private binds = new Map<string, { x: number; y: number; R: number; until: number; flare: number }>();
   private waves = new Map<Projectile, Wave>();
   /** Mirage stances by cast: where the samurai stood (the mirage the blow strikes). */
   private stances = new Map<string, { x: number; y: number; z: number; done: boolean }>();
@@ -777,7 +780,7 @@ export class SamuraiFx {
         angle: up ? -side * 50 : side * rnd(-6, 10), sx: kf([0, 0.4], [0.25, 1, out3], [1, 1.12]), sy: kf([0, 0.6], [0.25, 1, out3]), a: kf([0, 1], [0.45, 1], [1, 0, inQ]) });
     if (reaction === 'launch') this.launchBeam(at.x, at.y, s.id === 'quick_slash' || s.id === 'swallow_cut' ? 88 : 110, tone === 'gold' || tone === 'fire' ? tone : undefined); // (the launchers he uses most: a size down)
     if (reaction === 'knockdown' || reaction === 'slam') { this.crack(at.x, at.y + 2, 120); this.dust(at.x, at.y, 120); }
-    if (s.id === 'sakura_bind' && reaction === 'cc') { const hold = hit.reaction.hardCC?.ms ?? 2000; this.cage(at.x, at.y, hold); this.bindMark(at.x, at.y, hold); }
+    if (s.id === 'sakura_bind' && reaction === 'cc') this.bindCatch(at, hit, from);
     if (DELAYED.has(s.id) && hit.heavy) { // the cut arrives late: a thin line stays on the foe a beat — then splits open
       const la = line ? ang : rnd(-28, 28), lw = 196, iai = s.id === 'iai_strike';
       // (the Iai: a hair-thin line of bare steel — then it opens in crimson)
@@ -1735,10 +1738,21 @@ export class SamuraiFx {
    *  (drawn into the floor, not glowing over it). */
   private bind(r: CastRun): void {
     const T = r.timings, h0 = r.skill.hits[0], R = (h0.shape as { radius: number }).radius, c = r.place ?? r.origin, hold = h0.reaction.hardCC?.ms ?? 2000;
-    const life = T.startup + hold + 260, k0 = Math.max(0.02, T.startup / life);
-    this.floor('sigil_sakura', c.x, c.y, R * 2.05, life, { spin: 40, run: r, depth: GROUND + 2, tint: 0xe8b4bf,
-      a: kf([0, 0], [k0, 0.55], [(life - 360) / life, 0.42], [1, 0]), s: kf([0, 0.85], [k0, 1, out3]) });
+    // (David 18 Oct 18:29: "leave it longer on the screen") the ring lives as long as its trap (DFO: 6 s), alive all along
+    const L = r.skill.linger, trap = L ? L.startMs + L.everyMs * L.count : 0, life = T.startup + Math.max(hold, trap) + 300, k0 = Math.max(0.02, T.startup / life);
+    this.floor('sigil_sakura', c.x, c.y, R * 2.05, life, { spin: 22, run: r, depth: GROUND + 2, tint: 0xe8b4bf,
+      a: kf([0, 0], [k0, 0.55], [(life - 700) / life, 0.4], [1, 0]), s: kf([0, 0.85], [k0, 1, out3]) });
     this.petals(c.x, c.y - 30, 14, R * 1.1, { inward: true, life: T.startup + 140, depth: c.y + 3 });
+    const B = { x: c.x, y: c.y, R, until: this.clock + life, flare: -1e9 }, id = r.attackerId; this.binds.set(id, B);
+    const f3 = this.fx3d(), live = () => this.binds.get(id) === B && this.clock < B.until && !this.broken(r);
+    if (f3) { // PVP 3D: a soft pink glow round the ring, flaring as it catches; petals drifting over it all its life
+      const t0 = this.clock + T.startup;
+      zoneRing(f3, { x: c.x, y: c.y, z: 0 }, R, R, () => { if (!live()) return null; const u = this.clock - t0, k = Math.max(0, Math.min(1, u / 260)) * Math.min(1, (B.until - this.clock) / 600), fl = Math.max(0, 1 - (this.clock - B.flare) / 500);
+        return { a: 0.5 * k, flare: fl, arrow: 0, dir: 1 }; }, 0xff8fbf);
+      const looks = [0, 1, 2, 3].map((k) => this.petalLook(k)).filter((x): x is { tex: string; size: number; aspect: number } => !!x).map((lk) => f3.host.texture?.(lk.tex) ?? null);
+      petalStream(f3, () => { if (!live()) return null; if (this.clock < t0) return undefined; const th = Math.random() * Math.PI * 2, rr = R * Math.sqrt(Math.random()) * 0.92;
+        return { x: c.x + Math.cos(th) * rr, y: c.y + Math.sin(th) * rr, z: 40 + Math.random() * 70 }; }, looks, { rate: 9, life: 1800, back: { x: 18, y: 0, z: -10 }, size: 1.05, max: 30, foeY: () => c.y });
+    }
   }
   /** The bind itself: the petals swirl in over the stones and blossoms push up through cracks round the rim, with a puff
    *  of stone dust each (each bound foe gets its branches, `cage`). */
@@ -1760,8 +1774,14 @@ export class SamuraiFx {
       const th = (i / 8) * Math.PI * 2 + rnd(-0.15, 0.15), bx = c.x + Math.cos(th) * R * 1.0, by = c.y + Math.sin(th) * R * SQUASH, dl = 30 + i * 18;
       this.floor('crack', bx, by + 3, 34, 1400, { angle: rnd(0, 360) + CRACK_TILT, squash: 0.5, delay: dl, depth: GROUND + 1.6, tint: 0x4a2418, a: kf([0, 0], [0.05, 0.7], [0.7, 0.6], [1, 0]) });
       this.spr({ name: 'dust', x: bx, y: by + 2, oy: 0.85, depth: by + 2, w: 46, delay: dl, life: 420, tint: DUST, sx: kf([0, 0.4], [1, 1.2, out3]), sy: kf([0, 0.4], [1, 1.05, out3]), a: kf([0, 0.7], [1, 0, inQ]), my: (u) => -8 * u });
-      this.spr({ name: 'blossom_cluster', x: bx, y: by, oy: 0.88, depth: by + 1, w: rnd(28, 36), life: 1000, delay: dl, angle: rnd(-18, 18), flipX: Math.random() < 0.5,
-        sx: kf([0, 0], [0.2, 1, back], [0.78, 1], [1, 0.6]), sy: kf([0, 0], [0.2, 1, back], [0.78, 1], [1, 0.6]), a: kf([0, 1], [0.78, 1], [1, 0, inQ]) });
+      // (David 18 Oct 18:29: the ring alive for its trap) the blossoms stay at its rim as long as it stands, swaying, and fall
+      // away at its end; between them branches coiled low along the rim, leaning out
+      const rl = Math.max(1000, (this.binds.get(r.attackerId)?.until ?? this.clock + 1000) - this.clock - dl), g0 = 200 / rl, g1 = (rl - 360) / rl, ph = rnd(0, 6), lean = rnd(-18, 18);
+      this.spr({ name: 'blossom_cluster', x: bx, y: by, oy: 0.88, depth: by + 1, w: rnd(28, 36), life: rl, delay: dl, flipX: Math.random() < 0.5, rot: (u) => lean + 4 * Math.sin((u * rl) / 420 + ph),
+        sx: kf([0, 0], [g0, 1, back], [g1, 1], [1, 0.6]), sy: kf([0, 0], [g0, 1, back], [g1, 1], [1, 0.6]), a: kf([0, 1], [g1, 1], [1, 0, inQ]) });
+      const th2 = th + Math.PI / 8, cx2 = c.x + Math.cos(th2) * R * 1.02, cy2 = c.y + Math.sin(th2) * R * SQUASH, out2 = Math.cos(th2) >= 0 ? 1 : -1;
+      this.spr({ name: i % 2 ? 'branch_2' : 'branch_1', x: cx2, y: cy2, oy: 0.97, depth: cy2 + (Math.sin(th2) > 0 ? 1 : -1), w: rnd(30, 38), life: rl, delay: dl + 40, flipX: out2 < 0,
+        sy: kf([0, 0], [g0 * 1.4, 0.62, back], [g1, 0.62], [1, 0, inQ]), sx: kf([0, 0.4], [g0 * 1.4, 1, out], [g1, 1], [1, 0.6]), rot: (u) => out2 * (38 + 5 * Math.sin((u * rl) / 380 + ph)), a: kf([0, 0.92], [g1, 0.92], [1, 0]) });
     }
     this.ctx.punch(0.02, 160);
   }
@@ -1774,6 +1794,25 @@ export class SamuraiFx {
     this.floor('sigil_sakura', x, y, 150, 520, { spin: 120, depth: GROUND + 2.2, tint: 0xffd2da, a: kf([0, 0.7], [0.4, 0.5], [1, 0, inQ]), s: kf([0, 1.2], [0.3, 1, out3]) });
     this.petals(x, y - 12, 14, 70, { depth: y + 4 });
     this.dust(x, y, 90);
+  }
+  /** Sakura Bind's catch (the opening or the trap: DFO's 2.5 s hold): where the pull leaves him — drawn in toward where the
+   *  blow came from — the branches break up round him, and (David 18 Oct 18:29: "the pink leaves attack him and lock him inside")
+   *  the petals whirl up and close round him into a cocoon of pink leaves for the hold, which bursts open on the release
+   *  (PVP 3D: blade3d cocoon; the painted world: the ring of petals round his shins). The ring flares as it catches. */
+  private bindCatch(at: V3, hit: HitEvent, from?: { x: number; y: number }): void {
+    const hold = hit.reaction.hardCC?.ms ?? 2000, pull = hit.reaction.pull ?? 0;
+    let B: { x: number; y: number; R: number; until: number; flare: number } | null = null, bd = 1e9;
+    for (const b of this.binds.values()) { const d = Math.hypot(b.x - at.x, b.y - at.y); if (this.clock < b.until && d < b.R + 90 && d < bd) { bd = d; B = b; } }
+    let x = at.x, y = at.y;
+    if (B) B.flare = this.clock;
+    const to = from ?? B; // (the pull draws him toward where the blow came from — Combat: never closer than 30 px)
+    if (to) { const dx = to.x - at.x, dy = to.y - at.y, d = Math.hypot(dx, dy), m = Math.min(pull, Math.max(0, d - 30)); if (d > 0.1) { x += (dx / d) * m; y += (dy / d) * m; } }
+    this.cage(x, y, hold);
+    const f3 = this.fx3d();
+    if (!f3) { this.bindMark(x, y, hold); return; }
+    const looks = [0, 1, 2, 3].map((k) => this.petalLook(k)).filter((lk): lk is { tex: string; size: number; aspect: number } => !!lk).map((lk) => f3.host.texture?.(lk.tex) ?? null);
+    cocoon(f3, { x, y, z: 0 }, looks, { ms: hold, rx: 50, h: 178, n: 90, size: 1.05 });
+    this.later(hold, () => { const h = f3.host; h.flare(h.w3(x), h.h3(90), h.d3(y) + 0.2, 0xff8fbf, 10, 5, 320); h.ring(h.w3(x), h.d3(y), 0xff8fbf, h.w3(96), 380, 0.5); petalBurst3(f3, { x, y, z: 90 }, looks, { n: 18, speed: 300, up: 0.6, ms: 900, foeY: y }); });
   }
   /** A bound foe: cherry branches break up through the stones round it (cracks and stone dust at their roots) and curl in
    *  over it (the near ones low, so the foe stays in sight); petals come off them and drift down all through the bind; at

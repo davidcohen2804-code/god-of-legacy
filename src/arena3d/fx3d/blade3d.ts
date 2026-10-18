@@ -535,9 +535,9 @@ export function petalBurst(f: Fx3D, at: V3, tex: (THREE.Texture | null | undefin
 
 /** Petals spilling from a moving point (`at()` — called for each petal, so it can hand out points along a shape): real petal
  *  pictures (`tex`, lit by the room), `rate` a second, each thrown along `back` (world px/s) with a little scatter, slowed by
- *  the air and drifting down, gone in about `life` ms; when `at()` returns null no more come and the piece ends with its
- *  last petal. */
-export function petalStream(f: Fx3D, at: () => V3 | null, tex: (THREE.Texture | null | undefined)[], o: { rate?: number; life?: number; back?: { x: number; y: number; z?: number }; size?: number; max?: number; foeY?: () => number } = {}): void {
+ *  the air and drifting down, gone in about `life` ms; `at()` undefined: none just now; null: no more come and the piece
+ *  ends with its last petal. */
+export function petalStream(f: Fx3D, at: () => V3 | null | undefined, tex: (THREE.Texture | null | undefined)[], o: { rate?: number; life?: number; back?: { x: number; y: number; z?: number }; size?: number; max?: number; foeY?: () => number } = {}): void {
   const h = f.host, maps = tex.filter((x): x is THREE.Texture => !!x), N = o.max ?? 60, rate = o.rate ?? 40, life = o.life ?? 700;
   const G = (maps.length ? maps : [null]).map((map) => {
     const mat = new THREE.MeshStandardMaterial({ map: map ?? undefined, color: map ? 0xffffff : 0xffb6d2, emissive: 0xff8ab4, emissiveIntensity: map ? 0.3 : 0.7, roughness: 0.6, metalness: 0, transparent: true, alphaTest: 0.05, side: THREE.DoubleSide, depthWrite: false });
@@ -556,13 +556,13 @@ export function petalStream(f: Fx3D, at: () => V3 | null, tex: (THREE.Texture | 
       if (on) {
         acc += rate * s;
         while (acc >= 1 && P.length < N) {
-          acc -= 1; const c = at(); if (!c) { on = false; break; }
+          acc -= 1; const c = at(); if (c === null) { on = false; break; } if (!c) { acc = 0; break; } // (undefined: none just now)
           const b = o.back ?? { x: 0, y: 0 }, j = 0.5 + Math.random() * 0.7;
           P.push({ g: k++ % G.length, x: c.x, y: c.y, z: c.z, vx: b.x * j + (Math.random() - 0.5) * 90, vy: b.y * j + (Math.random() - 0.5) * 50, vz: (b.z ?? 0) * j + (Math.random() - 0.2) * 120, t: 0,
             life: life * (0.7 + Math.random() * 0.6), sz: 0.7 + Math.random() * 0.6, ax: new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize(), rot: Math.random() * 6, spin: 6 + Math.random() * 10 });
         }
         if (acc >= 1 && P.length >= N) acc = 0;
-        if (!at()) on = false;
+        if (at() === null) on = false;
       }
       for (const g of G) { g.nb = 0; g.nf = 0; }
       const ref = o.foeY?.();
@@ -623,6 +623,64 @@ export function zoneRing(f: Fx3D, at: V3, rx: number, ry: number, get: () => { a
       if (g) { a0 = g.a; mat.uniforms.uA.value = g.a; mat.uniforms.uFlare.value = g.flare; mat.uniforms.uArrow.value = g.arrow; mat.uniforms.uDir.value = g.dir; }
       else if (end < 0) end = t;
       if (end >= 0) { const k = (t - end) / 300; mat.uniforms.uA.value = a0 * Math.max(0, 1 - k); if (k >= 1) { drop(); return false; } }
+      return true;
+    }, dispose: drop,
+  });
+}
+
+/** A cocoon of petals round a held foe (`at`: his feet, world px): real petal pictures (`tex`) whirl up off the planks in a
+ *  spiral and close round him into an egg-shaped shell (`rx` its widest radius, `h` its height) that turns slowly while
+ *  the hold lasts (`ms`), gaps between the petals so he still shows through; then it bursts open — every petal flung out
+ *  from him, tumbling, drifting down. Lit by the room; the petals in front of him over him, the rest behind. */
+export function cocoon(f: Fx3D, at: V3, tex: (THREE.Texture | null | undefined)[], o: { ms: number; rx?: number; h?: number; n?: number; size?: number }): void {
+  const h = f.host, maps = tex.filter((x): x is THREE.Texture => !!x), n = o.n ?? 84, RX = o.rx ?? 50, H = o.h ?? 176, ms = o.ms;
+  const G = (maps.length ? maps : [null]).map((map) => {
+    const mat = new THREE.MeshStandardMaterial({ map: map ?? undefined, color: map ? 0xffffff : 0xffb6d2, emissive: 0xff7aa8, emissiveIntensity: map ? 0.38 : 0.7, roughness: 0.6, metalness: 0, transparent: true, alphaTest: 0.05, side: THREE.DoubleSide, depthWrite: false });
+    const geo = new THREE.PlaneGeometry(1, 1), back = new THREE.InstancedMesh(geo, mat, n), front = new THREE.InstancedMesh(geo, mat, n);
+    back.frustumCulled = front.frustumCulled = false; back.count = front.count = 0; h.back.add(back); h.solid.add(front);
+    return { mat, geo, back, front, nb: 0, nf: 0 };
+  });
+  const img = maps[0]?.image as { width?: number; height?: number } | undefined, W = h.w3(17 * (o.size ?? 1)), asp = img?.width && img.height ? img.height / img.width : 1;
+  const GA = Math.PI * (3 - Math.sqrt(5));
+  const P = Array.from({ length: n }, (_, i) => {
+    const fz = (i + 0.5) / n, prof = 0.38 + 0.62 * Math.sin(Math.PI * (0.08 + 0.84 * fz)); // (narrow at his feet and head, widest round his middle)
+    return { g: i % G.length, fz, th: i * GA, r: RX * prof * (0.94 + Math.random() * 0.12), delay: fz * 160 + Math.random() * 60, sz: 0.8 + Math.random() * 0.45, ph: Math.random() * 6,
+      ax: new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize(), x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, spin: 6 + Math.random() * 10, rot: Math.random() * 6 };
+  });
+  const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), Qn = new THREE.Quaternion(), S = new THREE.Vector3(), X = new THREE.Vector3(), N = new THREE.Vector3(), Z = new THREE.Vector3(0, 0, 1);
+  const toCam = f.viewXZ().negate(), cx = h.w3(at.x), cz = h.d3(at.y);
+  const drop = () => { for (const g of G) { h.back.remove(g.back); h.solid.remove(g.front); g.back.dispose(); g.front.dispose(); g.geo.dispose(); g.mat.dispose(); } };
+  const RISE = 380, END = ms + 900;
+  let t = 0, burst = false;
+  run(f, {
+    step: (dt) => {
+      t += dt; const s = dt / 1000;
+      for (const g of G) { g.nb = 0; g.nf = 0; }
+      if (!burst && t >= ms) { // it bursts open: each petal flung out from him along where it sat, and up
+        burst = true;
+        for (const p of P) { const nx = Math.cos(p.th), ny = Math.sin(p.th), sp = 240 + Math.random() * 220; p.vx = nx * sp; p.vy = ny * sp * 0.7; p.vz = 120 + Math.random() * 220 + (p.fz - 0.5) * 160; }
+      }
+      for (const p of P) {
+        let sc = W * p.sz, wx: number, wy: number, wz: number;
+        if (!burst) {
+          const k = Math.min(1, Math.max(0, (t - p.delay) / RISE)), e = 1 - Math.pow(1 - k, 3); // (whirling up off the planks into its place)
+          const th = p.th + (1 - e) * 4.2 + (t / 1000) * 0.7, r = p.r * (1 + (1 - e) * 0.9) * (1 + 0.03 * Math.sin(t / 260 + p.ph));
+          wx = at.x + Math.cos(th) * r; wy = at.y + Math.sin(th) * r * 0.9; wz = H * p.fz * e + 4;
+          p.x = wx; p.y = wy; p.z = wz; sc *= Math.min(1, k * 3);
+          N.set(Math.cos(th), 0.25 * (p.fz - 0.5), Math.sin(th) * 0.9).normalize(); // (lying on its shell, facing out)
+          Qn.setFromUnitVectors(Z, N); Q.setFromAxisAngle(p.ax, 0.5 * Math.sin(t / 180 + p.ph)); Q.premultiply(Qn);
+        } else {
+          const drag = Math.pow(0.2, s); p.vx *= drag; p.vy *= drag; p.vz = Math.max(-100, p.vz * drag - 460 * s);
+          p.x += p.vx * s; p.y += p.vy * s; p.z = Math.max(2, p.z + p.vz * s);
+          wx = p.x; wy = p.y; wz = p.z; const u = (t - ms) / 900; sc *= Math.max(0, 1 - Math.max(0, u - 0.55) / 0.45);
+          Q.setFromAxisAngle(p.ax, p.rot + (p.spin * (t - ms)) / 1000);
+        }
+        X.set(h.w3(wx), h.h3(wz), h.d3(wy)); S.set(sc, sc * asp, 1); M.compose(X, Q, S);
+        const g = G[p.g], inFront = (X.x - cx) * toCam.x + (X.z - cz) * toCam.z > 0;
+        if (inFront) g.front.setMatrixAt(g.nf++, M); else g.back.setMatrixAt(g.nb++, M);
+      }
+      for (const g of G) { g.back.count = g.nb; g.front.count = g.nf; g.back.instanceMatrix.needsUpdate = true; g.front.instanceMatrix.needsUpdate = true; }
+      if (t >= END) { drop(); return false; }
       return true;
     }, dispose: drop,
   });
