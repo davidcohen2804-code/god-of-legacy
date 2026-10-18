@@ -5,6 +5,7 @@
 // glow, the bodies always readable (the room's bloom turns anything bright to white: intensities stay low):
 //   STEEL the sword (thin white arcs, streaks) · STONE his weight (cracks with molten light, chunks, dust) · IRON his
 //   grappling hand (cold blue-white) · HOLY the Judge's verdicts (pale gold, white core) · CRIMSON his fury (deep red).
+import * as THREE from 'three';
 import type { Recipe } from '../Fx3D';
 import { me, side, ahead, T } from './kit';
 
@@ -89,7 +90,33 @@ export const WARRIOR: Record<string, Recipe> = {
     });
   } },
   iron_grip: { tone: W.iron, own: true, hit: (f, _s, _h, at, main) => { if (main) { f.dome(at.x, at.y, W.iron, { r: 90, ms: 260, a: 0.45, implode: true }); f.host.embers(f.host.w3(at.x), 0.8, f.host.d3(at.y), W.iron, 12, 2.6); } } }, // the hand closes (an implosion), cold sparks
-  judgment_hook: { tone: W.iron, own: true, active: (f, r) => { const c = me(f, r), e = ahead(f, r, 300), hit = r.skill.hits[0]?.at ?? 160; f.streak({ x: c.x, y: c.y, z: 100 }, { x: e.x, y: e.y, z: 100 }, W.iron, { w: 7, ms: hit + 280, draw: hit }); /* the chain's flight: it unreels to its reach over the throw (no snap) */ f.later(hit, () => { const t = me(f, r), tip = { x: t.x + side(r) * 300, y: t.y }; f.host.embers(f.host.w3(tip.x), 0.45, f.host.d3(tip.y), W.iron, 12, 2.2); /* the hook bites: cold sparks */ f.host.kick(0.035); f.streak({ x: tip.x, y: tip.y, z: 100 }, { x: t.x + side(r) * 30, y: t.y, z: 100 }, W.iron, { w: 11, ms: 300, draw: 230 }); /* the pull: the chain hauled back taut, heavier, over its 230 ms */ }); } }, // Judgment Hook (David 01:07: "very fast, not professional"): the chain unreels on its throw, the hook bites with sparks and a jolt, then it is hauled back taut with weight
+  judgment_hook: { tone: W.iron, own: true, active: (f, r) => { // Judgment Hook (David 18 Oct 18:19: "it looks like a page"): a real chain — iron links with volume, in perspective, catching the light — thrown out through the field's depth along his aim, the hook biting with cold sparks and a jolt, then hauled back taut
+    const hit = r.skill.hits[0]?.at ?? 160, back = 200, reach = 300, h = f.host;
+    const N = 22, linkGeo = new THREE.TorusGeometry(h.w3(6.5), h.w3(1.9), 6, 12), mat = new THREE.MeshStandardMaterial({ color: 0xaab6cc, metalness: 0.85, roughness: 0.28, emissive: 0x1c2a44, emissiveIntensity: 0.35 });
+    const links = Array.from({ length: N }, (_, i) => { const m = new THREE.Mesh(linkGeo, mat); m.scale.set(1.5, 1, 1); m.userData.twist = i % 2 ? Math.PI / 2 : 0; h.solid.add(m); return m; });
+    const hookGeo = new THREE.ConeGeometry(h.w3(9), h.w3(26), 4), hook = new THREE.Mesh(hookGeo, mat); h.solid.add(hook);
+    const aim = { x: r.aim.x, y: r.aim.y }, A = new THREE.Vector3(), B = new THREE.Vector3(), P = new THREE.Vector3(), Q = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+    let t = 0, bit = false;
+    const frame = () => {
+      t += 16;
+      const c = me(f, r), hx = c.x + aim.x * 22, hy = c.y + aim.y * 10, hz = c.z + 100; // his hand
+      const out = t < hit ? 1 - Math.pow(1 - t / hit, 2) : t < hit + 30 ? 1 : Math.max(0, 1 - Math.sqrt(Math.min(1, (t - hit - 30) / back))); // flung out, a beat at the bite, hauled in hard (it reels in with the foe)
+      if (!bit && t >= hit) { bit = true; const tx = hx + aim.x * reach, ty = hy + aim.y * reach * 0.6; h.embers(h.w3(tx), h.h3(hz - 10), h.d3(ty), W.iron, 14, 2.4); h.kick(0.035); }
+      const d = reach * out, tx = hx + aim.x * d, ty = hy + aim.y * d * 0.6, tz = hz - 10 * out, sag = t < hit ? 24 * (1 - out) + 6 : 4; // (slack in flight, taut on the haul)
+      A.set(h.w3(hx), h.h3(hz), h.d3(hy)); B.set(h.w3(tx), h.h3(tz), h.d3(ty));
+      const shown = Math.max(1, Math.round(N * out));
+      for (let i = 0; i < N; i++) {
+        const m = links[i]; m.visible = i < shown && out > 0.02; if (!m.visible) continue;
+        const k = (i + 0.5) / shown, k2 = Math.min(1, (i + 1.5) / shown);
+        P.lerpVectors(A, B, k); P.y -= h.h3(sag) * Math.sin(Math.PI * k); Q.lerpVectors(A, B, k2); Q.y -= h.h3(sag) * Math.sin(Math.PI * k2);
+        m.position.copy(P); m.lookAt(Q); m.rotateY(Math.PI / 2); m.rotateX(m.userData.twist + t / 300); // each link along the chain, every other one turned a quarter
+      }
+      hook.visible = out > 0.02; hook.position.copy(B); Q.subVectors(B, A).normalize(); hook.quaternion.setFromUnitVectors(up, Q);
+      if (t < hit + 30 + back + 20) f.later(16, frame);
+      else { for (const m of links) m.parent?.remove(m); hook.parent?.remove(hook); linkGeo.dispose(); hookGeo.dispose(); mat.dispose(); }
+    };
+    frame();
+  } },
   shield_charge: { tone: W.iron, own: true, cast: (f, r) => { // Iron Bastion: the sword planted, an iron shell close round him while it holds (following him), runes of iron on the floor
     const c = me(f, r), hold = T(r).startup + T(r).active, fol = () => { const p = f.host.casterPos(r.attackerId); return p ? { x: p.x, y: p.y, z: 0 } : null; };
     f.dome(c.x, c.y, W.iron, { r: 85, ms: hold, a: 0.3, hold: 1, follow: fol });

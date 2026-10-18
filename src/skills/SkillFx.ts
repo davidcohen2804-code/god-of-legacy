@@ -584,6 +584,7 @@ export class SkillFx {
     this.scene.time.delayedCall(Math.max(0, T.startup - 50), () => {
       if (r.phase === 'done' && r.elapsed < T.startup) return; // (cancelled before the throw)
       const c = this.casterPos(r.attackerId) ?? r.origin;
+      if (ARENA3D.on) return; // (PVP 3D: the chain is real 3D links — fx3d/warrior.ts; the painted strip read as a page)
       this.play(key, c.x + a.x * 18, c.y + a.y * 18 - c.z - 44, len, len, [50, out, out, out, 110, back, back, back],
         { ox: 0, oy: 0.5, angle: ang, flipY: a.x < 0, depth: TOP - 5, blend: Phaser.BlendModes.NORMAL, fadeLast: 90, follow: () => { const p = this.casterPos(r.attackerId); return p ? { x: p.x + a.x * 18, y: p.y + a.y * 18, z: p.z + 44 } : null; } });
     });
