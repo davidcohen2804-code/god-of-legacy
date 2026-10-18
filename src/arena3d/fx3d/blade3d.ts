@@ -298,7 +298,7 @@ function cloudTex(): THREE.Texture {
 /** A burst of ink (05): dark clouds thrown out of `at` (world px, z its height), swelling and thinning — the ones nearer
  *  the camera than `foeY` (world px of depth) drawn over the fighters, the rest behind; a crimson rim of light round it and
  *  drops of ink flung, falling to the planks. `r` its reach (px). */
-export function inkBurst(f: Fx3D, at: V3, o: { r?: number; n?: number; ms?: number; foeY?: number; col?: number; up?: number } = {}): void {
+export function inkBurst(f: Fx3D, at: V3, o: { r?: number; n?: number; ms?: number; foeY?: number; col?: number; up?: number; /** the light it throws on the room (0: none) */ light?: number } = {}): void {
   const h = f.host, n = o.n ?? 14, R = o.r ?? 120, ms = o.ms ?? 520, col = o.col ?? SAM.crimson, tex = cloudTex();
   const P = (x: number, y: number, z: number) => new THREE.Vector3(h.w3(x), h.h3(z), h.d3(y));
   const ref = o.foeY ?? at.y;
@@ -319,7 +319,7 @@ export function inkBurst(f: Fx3D, at: V3, o: { r?: number; n?: number; ms?: numb
     if (i % 3 === 0) parts.push({ s: mk(true), v: new THREE.Vector3(h.w3(dx * sp * 1.1), h.h3(dz * sp * 0.75), h.d3(dy * sp * 1.1)), s0: s0 * 1.3, s1: s1 * 1.25, a0: 0.55, glow: true, d: Math.random() * 30 });
   }
   const o0 = P(at.x, at.y, at.z);
-  h.flare(o0.x, o0.y, o0.z + 0.1, col, 6, 3, ms * 0.5);
+  if ((o.light ?? 6) > 0) h.flare(o0.x, o0.y, o0.z + 0.1, col, o.light ?? 6, 3, ms * 0.5);
   // drops of ink flung out (small dark specks thrown far and fast)
   for (let i = 0; i < 7; i++) {
     const th = Math.random() * Math.PI * 2, el = (Math.random() - 0.2) * 1.2, sp = R * (1.1 + Math.random() * 0.7), dx = Math.cos(th) * Math.cos(el), dy = Math.sin(th) * Math.cos(el) * 0.6, dz = Math.sin(el);
@@ -359,78 +359,6 @@ export function sparks(f: Fx3D, at: V3, dir: number, n = 5, len = 50, col: numbe
 }
 
 // ------------------------------------------------------------------ the Iai (David 18 Oct 18:29: the iai as a beat)
-
-const RAZOR_FS = `
-#include <common>
-uniform vec3 uCol; uniform vec3 uCore; uniform vec3 uInk;
-uniform float uA; uniform float uDraw; uniform float uOpen; uniform float uDark; uniform float uPart; uniform float uLip; uniform float uT;
-uniform sampler2D uNoise;
-varying vec2 vUv;
-void main() {
-  float u = vUv.x;
-  if (u > uDraw) discard;
-  float wid = pow(max(sin(3.14159265 * u), 0.0), 0.4);           // its tips sharp, its long middle even
-  float d = abs(vUv.y - 0.5) * 2.0;                               // 0 its centre … 1 the plane's edge
-  float g = uOpen * wid, lip = uLip * wid, e = abs(d - g);        // split: each lip this far off the centre
-  float n = texture2D(uNoise, vec2(u * 5.0 + uT * 0.6, 0.37)).r;
-  float hot = 1.0 - smoothstep(0.0, lip * 0.5, e);
-  float body = 1.0 - smoothstep(lip * 0.45, lip * 1.2, e);
-  float gap = g > 0.001 ? 1.0 - smoothstep(g * 0.1, g * 0.95, d) : 0.0;  // the light inside the opened cut
-  float head = uDraw < 0.999 ? smoothstep(uDraw - 0.06, uDraw, u) : 0.0;  // its head white-hot as it shoots out
-  vec3 col; float a;
-  if (uPart < 0.5) {        // ink: a dark edge round the light; the lips as it goes dark
-    float edge = smoothstep(lip * 0.95, lip * 1.3, e) * (1.0 - smoothstep(lip * 1.7, lip * 2.5, e)) * (1.0 - gap);  // (only round the light: the room lays this layer over the glow)
-    col = uInk; a = uA * max(edge * 0.6, max(gap * 0.3, body) * uDark * 0.75) * (0.75 + 0.25 * n);
-  } else if (uPart < 1.5) { // the light: a white-hot core in his colour, the crimson glow in the gap
-    col = mix(uCol, uCore, max(hot, head) * (1.0 - uDark));
-    a = uA * (1.0 - uDark) * max(max(body * 0.9, hot), gap * 0.75 * (0.6 + 0.4 * n));
-  } else {                  // its halo
-    col = uCol; a = uA * (1.0 - uDark) * 0.28 * (1.0 - smoothstep(0.0, lip * 3.2 + g, d)) * wid;
-  }
-  if (a < 0.004) discard;
-  gl_FragColor = vec4(col, min(a, 1.0));
-  #include <tonemapping_fragment>
-  #include <colorspace_fragment>
-}`;
-
-/** A long thin plane from A to B (units) turned to the camera round its own length (a line of light standing in the room). */
-function faceAlong(h: Fx3D['host'], m: THREE.Object3D, A: THREE.Vector3, B: THREE.Vector3): void {
-  const X = B.clone().sub(A).normalize(), mid = A.clone().add(B).multiplyScalar(0.5), Z = h.camera.position.clone().sub(mid);
-  Z.sub(X.clone().multiplyScalar(Z.dot(X))); if (Z.lengthSq() < 1e-10) Z.set(0, 0, 1); Z.normalize();
-  m.position.copy(mid); m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(X, new THREE.Vector3().crossVectors(Z, X), Z));
-}
-
-/** The Iai's draw (David 18 Oct 18:29): one razor line of light across the field from `a` to `b` (world px) — shot out in
- *  `draw` ms, a white-hot core in his rose with an ink edge, hanging until `hang`; then it splits (`split` ms: its two lips
- *  part, crimson light between them — `onSplit` then) and goes dark, an ink scar that fades. Over the fighters. */
-export function razor(f: Fx3D, a: V3, b: V3, o: { w?: number; lip?: number; open?: number; draw?: number; hang?: number; split?: number; dark?: number; fade?: number; col?: number; onSplit?: () => void } = {}): void {
-  const h = f.host, A = new THREE.Vector3(h.w3(a.x), h.h3(a.z), h.d3(a.y)), B = new THREE.Vector3(h.w3(b.x), h.h3(b.z), h.d3(b.y));
-  const W = o.w ?? 26, draw = o.draw ?? 45, hang = o.hang ?? 260, split = o.split ?? 110, dark = o.dark ?? 160, fade = o.fade ?? 200;
-  const mk = (part: number) => new THREE.ShaderMaterial({ vertexShader: SLIT_VS, fragmentShader: RAZOR_FS,
-    uniforms: { uCol: { value: new THREE.Color(o.col ?? SAM.rose) }, uCore: { value: new THREE.Color(SAM.core) }, uInk: { value: new THREE.Color(SAM.ink) },
-      uA: { value: 1 }, uDraw: { value: 0 }, uOpen: { value: 0 }, uDark: { value: 0 }, uPart: { value: part }, uLip: { value: (o.lip ?? 1.8) / (W / 2) }, uT: { value: Math.random() * 10 }, uNoise: { value: f.noiseTex } },
-    transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide, blending: part ? THREE.AdditiveBlending : THREE.NormalBlending, fog: false });
-  const geo = new THREE.PlaneGeometry(1, 1), mats = [mk(0), mk(1), mk(2)], ms = mats.map((m) => new THREE.Mesh(geo, m));
-  for (const m of ms) { m.frustumCulled = false; m.scale.set(A.distanceTo(B), h.w3(W), 1); }
-  h.solid.add(ms[0]); h.glow.add(ms[2], ms[1]);
-  const set = (k: string, v: number) => { for (const m of mats) m.uniforms[k].value = v; };
-  const drop = () => { for (const m of ms) m.parent?.remove(m); for (const m of mats) m.dispose(); geo.dispose(); };
-  let t = 0, said = false;
-  run(f, {
-    step: (dt) => {
-      t += dt;
-      for (const m of ms) faceAlong(h, m, A, B);
-      set('uDraw', Math.min(1.0001, t / draw)); set('uT', t / 1000);
-      const ks = Math.min(1, Math.max(0, (t - hang) / split));
-      if (ks > 0 && !said) { said = true; o.onSplit?.(); }
-      set('uOpen', (o.open ?? 0.45) * outCubic(ks));
-      const kd = Math.min(1, Math.max(0, (t - hang - split * 0.6) / dark)); set('uDark', kd);
-      set('uA', t < hang + split + dark ? 1 : Math.max(0, 1 - (t - hang - split - dark) / fade));
-      if (t >= hang + split + dark + fade) { drop(); return false; }
-      return true;
-    }, dispose: drop,
-  });
-}
 
 /** A glint (a tiny star of light: two crossing slits) at `at`, gone in `ms`. */
 export function star(f: Fx3D, at: V3, size = 14, ms = 150, col: number = SAM.rose): void {
