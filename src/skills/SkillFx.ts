@@ -1374,6 +1374,7 @@ export class SkillFx {
     }
     if (p.skill.id === 'piercing_arrow' && this.scene.textures.exists('afx-muzzle')) { const lv = level(p.dx, p.dy); this.play('afx-muzzle', p.x, p.y - p.z, 120, 120, [30, 30, 35, 40, 45, 50, 55, 60], { ox: lv.flip ? 0.86 : 0.14, flip: lv.flip, depth: p.y + 1 })?.setAngle(lv.ang); }
     if (p.skill.cls === 'archer' && this.scene.textures.exists('arch-arrow')) { this.archerArrow(p); return; }
+    if (p.skill.id === 'wave_slash' && ARENA3D.on) return; // (PVP 3D: Steel Tide's painted steel crescents fly in the room — fx3d/warrior.ts)
     const id = PROJ_ALIAS[p.skill.id] ?? p.skill.id, sheet = PROJECTILE_SHEETS[id];
     if (!sheet) return;
     const img = this.scene.add.image(p.x, p.y - p.z, `proj-${id}`, 0).setDepth(p.y).setAngle(Math.atan2(p.dy, p.dx) * (180 / Math.PI));

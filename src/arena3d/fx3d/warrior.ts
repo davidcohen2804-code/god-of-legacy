@@ -56,6 +56,7 @@ const rockRing = (f: Parameters<NonNullable<Recipe['active']>>[0], x: number, y:
 // every recipe `own`: the room's default main-hit pieces (a white launch pillar, a hit dome) washed over the foe — Rising Slash's
 // column, Impaling Rush's ball (DFO's review); each skill's own pieces carry its hit
 /** The Warrior's painted floor seals (GPT, on black): laid on the planks with `flip` so they keep their colours. */
+const STEEL = 'assets/final/skills/warrior/fx3d/steel_crescent.webp';
 const BOLT = 'assets/final/skills/warrior/fx3d/lightning_bolt.webp';
 const SEAL = { verdict: 'assets/final/skills/warrior/fx3d/verdict_seal.webp', storm: 'assets/final/skills/warrior/fx3d/storm_seal.webp', lion: 'assets/final/skills/warrior/fx3d/lion_seal.webp' } as const;
 
@@ -70,20 +71,19 @@ export const WARRIOR: Record<string, Recipe> = {
   whirlwind: { tone: W.steel, own: true, active: (f, r) => { f.whirl(r.attackerId, W.steel, { r: 150, ms: T(r).active, rings: 3, every: 110, dir: side(r), ink: true });
     for (const k of [0, 0.5, 1]) f.later(T(r).active * k * 0.9, () => { const c = me(f, r); scar(f, c.x, c.y, { r: 120, life: 2200 - T(r).active * k * 0.5, hot: W.molten, rings: k === 0 ? 3 : 2, glow: 110, shape: 'spiral', embers: 3 }); }); // (David 18:19: the cyclone's scorched floor felt — it grows in under him as he drives, glows, cools to dark)
   } },
-  wave_slash: { tone: W.steel, own: true, crest: { c: W.steel, h: 70, w: 80 }, trail: false, // Steel Tide (David 18 Oct 18:19): three heavy blades of steel light skimming the floor — a white-hot edge on an inked body, sparks grinding off the planks behind each — and the one that strikes bursts into a column of blades round the foe
+  wave_slash: { tone: W.steel, own: true, trail: false, // Steel Tide (David 18 Oct 18:19): three heavy blades of steel light skimming the floor — a white-hot edge on an inked body, sparks grinding off the planks behind each — and the one that strikes bursts into a column of blades round the foe
     active: (f, r) => f.slash(me(f, r), side(r), W.steel, { r: 150, w: 44, tilt: 58, a0: 150, a1: -10, ms: 240, i: 1.3, ink: true }),
     shot: (f, p) => {
-      const d = p.dx < 0 ? -1 : 1, yaw = Math.atan2(p.dy, Math.abs(p.dx)) * (180 / Math.PI) * d;
-      const ride = () => { if (p.done) return; // the blade: an upright crescent riding the floor, redrawn as it flies
-        f.slash({ x: p.x, y: p.y, z: 0 }, d, 0xe8f0ff, { r: 70, w: 40, tilt: 84, yaw: 90 + yaw, a0: 200, a1: 340, ms: 80, y0: 36, i: 2.2, ink: true, quiet: true });
+      f.flip(STEEL, () => (p.done ? null : { x: p.x, y: p.y, z: 50 }), { grid: [4, 4], fps: 24, loop: true, ms: 3000, w: 170, mode: 'up', along: true, through: 0.55, glow: 0.15, fadeIn: 40, fadeOut: 90 }); // (DFO's review ~21:50: the blade painted (GPT) — a cold steel-blue body, a white-hot edge, a dark inked trailing edge, sparks streaming — turned along its flight; the code arcs read as white ice)
+      const ride = () => { if (p.done) return;
         f.host.embers(f.host.w3(p.x - p.dx * 30), 0.02, f.host.d3(p.y - p.dy * 30), Math.random() < 0.5 ? 0xffb050 : 0xffe0a0, 1, 1.6); // sparks grinding off the planks behind it
-        f.floorStreak(p.x - p.dx * 60, p.y - p.dy * 60, p.x, p.y, 0xbfd4ff, { w: 10, ms: 260, a: 0.7 }); // the scored furrow
+        f.floorStreak(p.x - p.dx * 60, p.y - p.dy * 60, p.x, p.y, 0x6f8fd8, { w: 8, ms: 240, a: 0.4 }); // the scored furrow
         f.later(40, ride);
       };
       ride();
     },
     hit: (f, _s, _h, at) => { // the column of blades round him: eight inked swords of light rising round him, turning, to over his head
-      f.crystals(at.x, at.y, { ring: true, n: 9, r: 48, h: 200, ms: 620, color: 0xcfe0ff }); // swords of steel light thrust up round him
+      for (let k = 0; k < 4; k++) f.flip(STEEL, { x: at.x + (k - 1.5) * 22, y: at.y, z: 0 }, { grid: [4, 4], fps: 30, w: 190, mode: 'up', anchorY: 0.15, rot: 90 + (k - 1.5) * 14, through: 0.6, glow: 0.12, delay: k * 45, flipX: k % 2 === 1, fadeOut: 160, to: 9 }); // a column of painted steel crescents rising up through him
       for (let k = 0; k < 3; k++) f.later(60 + k * 60, () => f.slash({ x: at.x, y: at.y, z: 0 }, k % 2 ? 1 : -1, W.steel, { r: 70, w: 30, tilt: 86, yaw: k * 60, a0: 200, a1: -20, ms: 220, y0: 60 + k * 70, i: 1.6, ink: true, quiet: true }));
       f.later(40, () => f.floorStreak(at.x - 70, at.y, at.x + 70, at.y, 0xe8f0ff, { w: 14, ms: 300, a: 0.8 }));
       f.later(60, () => f.host.embers(f.host.w3(at.x), 0.4, f.host.d3(at.y), W.steel, 18, 2.8));
