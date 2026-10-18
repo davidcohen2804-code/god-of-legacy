@@ -44,7 +44,24 @@ export const WARRIOR: Record<string, Recipe> = {
   whirlwind: { tone: W.steel, own: true, active: (f, r) => { f.whirl(r.attackerId, W.steel, { r: 150, ms: T(r).active, rings: 3, every: 110, dir: side(r), ink: true });
     for (const k of [0, 0.5, 1]) f.later(T(r).active * k * 0.9, () => { const c = me(f, r); scar(f, c.x, c.y, { r: 120, life: 2200 - T(r).active * k * 0.5, hot: W.molten, rings: k === 0 ? 3 : 2, glow: 110, shape: 'spiral', embers: 3 }); }); // (David 18:19: the cyclone's scorched floor felt — it grows in under him as he drives, glows, cools to dark)
   } },
-  wave_slash: { tone: W.steel, own: true, crest: { c: W.steel, h: 120, w: 100 }, trail: false, active: (f, r) => f.slash(me(f, r), side(r), W.steel, { r: 150, w: 44, tilt: 58, a0: 150, a1: -10, ms: 240, i: 1.3, ink: true }), hit: (f, _s, _h, at) => { for (let k = 0; k < 4; k++) f.later(k * 45, () => f.slash({ x: at.x + (k % 2 ? 12 : -12), y: at.y, z: 0 }, k % 2 ? 1 : -1, W.steel, { r: 70 + k * 10, w: 30, tilt: 88, yaw: k * 40 - 60, a0: 200, a1: -20, ms: 220, y0: 40 + k * 55, i: 1.6, ink: true, quiet: k > 0 })); f.later(60, () => f.host.embers(f.host.w3(at.x), 0.4, f.host.d3(at.y), W.steel, 14, 2.6)); } }, // Steel Tide (David 01:07): three inked steel crescents fanned along the floor (the runtime's count 3); the one that strikes bursts into a column of blades rising up through the foe
+  wave_slash: { tone: W.steel, own: true, crest: { c: W.steel, h: 70, w: 80 }, trail: false, // Steel Tide (David 18 Oct 18:19): three heavy blades of steel light skimming the floor — a white-hot edge on an inked body, sparks grinding off the planks behind each — and the one that strikes bursts into a column of blades round the foe
+    active: (f, r) => f.slash(me(f, r), side(r), W.steel, { r: 150, w: 44, tilt: 58, a0: 150, a1: -10, ms: 240, i: 1.3, ink: true }),
+    shot: (f, p) => {
+      const d = p.dx < 0 ? -1 : 1, yaw = Math.atan2(p.dy, Math.abs(p.dx)) * (180 / Math.PI) * d;
+      const ride = () => { if (p.done) return; // the blade: an upright crescent riding the floor, redrawn as it flies
+        f.slash({ x: p.x, y: p.y, z: 0 }, d, 0xe8f0ff, { r: 70, w: 40, tilt: 84, yaw: 90 + yaw, a0: 200, a1: 340, ms: 80, y0: 36, i: 2.2, ink: true, quiet: true });
+        f.host.embers(f.host.w3(p.x - p.dx * 30), 0.02, f.host.d3(p.y - p.dy * 30), Math.random() < 0.5 ? 0xffb050 : 0xffe0a0, 1, 1.6); // sparks grinding off the planks behind it
+        f.floorStreak(p.x - p.dx * 60, p.y - p.dy * 60, p.x, p.y, 0xbfd4ff, { w: 10, ms: 260, a: 0.7 }); // the scored furrow
+        f.later(40, ride);
+      };
+      ride();
+    },
+    hit: (f, _s, _h, at) => { // the column of blades round him: eight inked swords of light rising round him, turning, to over his head
+      f.crystals(at.x, at.y, { ring: true, n: 9, r: 48, h: 200, ms: 620, color: 0xcfe0ff }); // swords of steel light thrust up round him
+      for (let k = 0; k < 3; k++) f.later(60 + k * 60, () => f.slash({ x: at.x, y: at.y, z: 0 }, k % 2 ? 1 : -1, W.steel, { r: 70, w: 30, tilt: 86, yaw: k * 60, a0: 200, a1: -20, ms: 220, y0: 60 + k * 70, i: 1.6, ink: true, quiet: true }));
+      f.later(40, () => f.floorStreak(at.x - 70, at.y, at.x + 70, at.y, 0xe8f0ff, { w: 14, ms: 300, a: 0.8 }));
+      f.later(60, () => f.host.embers(f.host.w3(at.x), 0.4, f.host.d3(at.y), W.steel, 18, 2.8));
+    } },
   lance_thrust: { tone: W.steel, own: true, active: (f, r) => { const A = T(r).active, lv = r.chargeLevel ?? 0, n = 4 + lv; for (let i = 0; i < n; i++) f.later(A * (0.1 + i * (0.8 / n)), () => { const e = me(f, r), y = 90 + (i % 2 ? 14 : -10), big = i === n - 1; f.streak({ x: e.x + side(r) * 30, y: e.y, z: y }, { x: e.x + side(r) * (150 + i * 10 + lv * 30), y: e.y, z: y }, W.steel, { w: big ? 8 + lv * 3 : 4, ms: 160, draw: 25 }); }); if (lv > 0) f.slash(me(f, r), side(r), W.steel, { r: 90 + lv * 20, w: 30, tilt: 6, yaw: 80, a0: -40, a1: 40, ms: A, y0: 90, i: 1.2, ink: true, follow: () => f.host.casterPos(r.attackerId), quiet: true }); /* the charged lance's spearhead cone riding ahead of him */ } }, // Impaling Rush held (David 01:07): a hail of thin thrusts, one more and longer at each step, the charged lance's cone riding ahead
   sky_breaker: { tone: W.steel, own: true, fired: (f, r) => { const c = me(f, r); f.pillar(c.x, c.y, W.steel, { h: 560, r: 10, ms: 300, i: 0.45, core: false }); /* (a thin steel streak: the wide one washed the frame — DFO) */ slam(f, c.x, c.y, 0.9); f.host.impact({ x: c.x, y: c.y, z: 20 }, 1); } }, // the dive a white streak, the landing in stone
   // STONE
