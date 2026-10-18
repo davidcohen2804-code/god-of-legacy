@@ -958,6 +958,14 @@ export class SamuraiFx {
   private iai(r: CastRun): void {
     const L = r.skill.charge?.levels; if (!L) return;
     const s = this.ctx.scene, sc = r.chargeScale ?? 1, at = L.map((l) => l.at * sc), a = r.aim, ADD = Phaser.BlendModes.ADD;
+    if (this.in3d()) { // PVP 3D (David 18 Oct 18:29): the stillness is the room's (fx3d/samurai.ts: the glint down the scabbard, the
+      // reach a hairline on the planks) — no painted flames or flash here; its petals' pictures made ready for the late burst
+      for (let k = 0; k < 4; k++) this.petalLook(k);
+      let lv = 0;
+      this.add({ t: 0, step: () => { if (r.phase !== 'startup') return false; const e = r.elapsed, nl = e >= at[2] ? 2 : e >= at[1] ? 1 : 0;
+        if (nl > lv) { lv = nl; if (r.own) this.ctx.cam().shake(50 + lv * 30, 0.0012 * lv); } return true; } });
+      return;
+    }
     const lineOf = (lv: number) => L[lv].hits[0].shape as { length: number; width: number };
     const hip = this.front(r, 22, 46); // (the hand on the hilt, in front of his hip)
     const p0 = hip() ?? { x: r.origin.x, y: r.origin.y - 44, d: r.origin.y };
@@ -1017,7 +1025,8 @@ export class SamuraiFx {
     this.spr({ name: tn('blade_trail', 'steel'), x: x0 + a.x * 36, y: y0 + a.y * 18, w: 170 + 30 * lv, life: 230, flipX: fl, angle: along(ang, fl), glow: 0.4, // the trail of the draw
       sx: kf([0, 0.6], [0.2, 1, out3], [1, 1.08]), sy: kf([0, 0.8], [0.2, 1], [1, 0.6, inQ]), a: kf([0, 0.95], [0.4, 0.8], [1, 0, inQ]) });
     }
-    if (lv === 2) { // fully drawn: the floor is cut too, a shockwave runs down it, dust where the foes go down
+    if (lv === 2 && this.in3d()) { if (r.own) { cam.shake(200, 0.007); this.ctx.punch(0.035, 220); this.ctx.darken(220, 0.45); this.ctx.freeze?.(60); } } // (PVP 3D: the planks scored by the room's pieces)
+    else if (lv === 2) { // fully drawn: the floor is cut too, a shockwave runs down it, dust where the foes go down
       this.spr({ name: 'ground_slash', x: q.x + a.x * len * 0.52, y: q.y + a.y * len * 0.52 + 2, angle: ang, flipY: fl, w: len * 0.95, depth: GROUND + 2.2, life: 1500, delay: 60, glow: 0.5,
         sx: kf([0, 0.1], [0.1, 1, out3]), sy: kf([0, 1.4], [0.1, 1]), a: kf([0, 1], [0.55, 1], [1, 0, inQ]) });
       this.crack(q.x + a.x * len * 0.5, q.y + a.y * len * 0.5, len * 0.95, Math.atan2(a.y, a.x) * (180 / Math.PI));
@@ -1025,7 +1034,7 @@ export class SamuraiFx {
       for (let i = 0; i < 4; i++) this.dust(q.x + a.x * len * (0.25 + 0.22 * i), q.y + a.y * len * (0.25 + 0.22 * i), 90, 110 + i * 40);
       if (r.own) { cam.shake(200, 0.007); this.ctx.punch(0.035, 220); this.ctx.darken(220, 0.45); this.ctx.freeze?.(60); } // the world stops for the full draw (his screen)
     } else if (r.own) cam.shake(90 + lv * 40, 0.002 + lv * 0.0015);
-    this.later(r.timings.active + r.timings.recovery * 0.6, () => this.glint(r, 0, 22, 44));   // the blade clicks back into its sheath
+    if (!this.in3d()) this.later(r.timings.active + r.timings.recovery * 0.6, () => this.glint(r, 0, 22, 44));   // the blade clicks back into its sheath (PVP 3D: the room's glint)
   }
 
   /** Sheathe (David 18 Oct 01:15, "the substitute"): his guard while it is held — the blade raised over his shoulder (his

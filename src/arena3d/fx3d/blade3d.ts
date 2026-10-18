@@ -15,7 +15,10 @@ import type { Fx3D, V3 } from '../Fx3D';
 
 type Item = { step(ms: number): boolean; dispose(): void };
 /** Run a piece on the room's own clock (Fx3D steps its items every frame, hit-stops and all). */
-const run = (f: Fx3D, it: Item) => (f as unknown as { items: Item[] }).items.push(it);
+export const run = (f: Fx3D, it: Item) => (f as unknown as { items: Item[] }).items.push(it);
+/** Make pieces from inside another piece's step: the room walks its list of pieces then (one added to it there is lost), so
+ *  they are made on its next tick. */
+export const soon = (f: Fx3D, fn: () => void) => f.later(1, fn);
 
 /** The samurai's colour family: the white-hot core, his crimson, the ink. */
 export const SAM = { core: 0xfff4f2, crimson: 0xff0f2e, deep: 0xa00a22, ink: 0x120108,
@@ -341,3 +344,177 @@ export function sparks(f: Fx3D, at: V3, dir: number, n = 5, len = 50, col: numbe
   f.host.embers(f.host.w3(at.x + 6 * dir), f.host.h3(z0), f.host.d3(at.y), col, Math.max(2, Math.round(n / 2)), 1.6);
 }
 
+// ------------------------------------------------------------------ the Iai (David 18 Oct 18:29: the iai as a beat)
+
+const RAZOR_FS = `
+#include <common>
+uniform vec3 uCol; uniform vec3 uCore; uniform vec3 uInk;
+uniform float uA; uniform float uDraw; uniform float uOpen; uniform float uDark; uniform float uPart; uniform float uLip; uniform float uT;
+uniform sampler2D uNoise;
+varying vec2 vUv;
+void main() {
+  float u = vUv.x;
+  if (u > uDraw) discard;
+  float wid = pow(max(sin(3.14159265 * u), 0.0), 0.4);           // its tips sharp, its long middle even
+  float d = abs(vUv.y - 0.5) * 2.0;                               // 0 its centre … 1 the plane's edge
+  float g = uOpen * wid, lip = uLip * wid, e = abs(d - g);        // split: each lip this far off the centre
+  float n = texture2D(uNoise, vec2(u * 5.0 + uT * 0.6, 0.37)).r;
+  float hot = 1.0 - smoothstep(0.0, lip * 0.5, e);
+  float body = 1.0 - smoothstep(lip * 0.45, lip * 1.2, e);
+  float gap = g > 0.001 ? 1.0 - smoothstep(g * 0.1, g * 0.95, d) : 0.0;  // the light inside the opened cut
+  float head = uDraw < 0.999 ? smoothstep(uDraw - 0.06, uDraw, u) : 0.0;  // its head white-hot as it shoots out
+  vec3 col; float a;
+  if (uPart < 0.5) {        // ink: a dark edge round the light; the lips as it goes dark
+    float edge = smoothstep(lip * 0.95, lip * 1.3, e) * (1.0 - smoothstep(lip * 1.7, lip * 2.5, e)) * (1.0 - gap);  // (only round the light: the room lays this layer over the glow)
+    col = uInk; a = uA * max(edge * 0.6, max(gap * 0.3, body) * uDark * 0.75) * (0.75 + 0.25 * n);
+  } else if (uPart < 1.5) { // the light: a white-hot core in his colour, the crimson glow in the gap
+    col = mix(uCol, uCore, max(hot, head) * (1.0 - uDark));
+    a = uA * (1.0 - uDark) * max(max(body * 0.9, hot), gap * 0.75 * (0.6 + 0.4 * n));
+  } else {                  // its halo
+    col = uCol; a = uA * (1.0 - uDark) * 0.28 * (1.0 - smoothstep(0.0, lip * 3.2 + g, d)) * wid;
+  }
+  if (a < 0.004) discard;
+  gl_FragColor = vec4(col, min(a, 1.0));
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+
+/** A long thin plane from A to B (units) turned to the camera round its own length (a line of light standing in the room). */
+function faceAlong(h: Fx3D['host'], m: THREE.Object3D, A: THREE.Vector3, B: THREE.Vector3): void {
+  const X = B.clone().sub(A).normalize(), mid = A.clone().add(B).multiplyScalar(0.5), Z = h.camera.position.clone().sub(mid);
+  Z.sub(X.clone().multiplyScalar(Z.dot(X))); if (Z.lengthSq() < 1e-10) Z.set(0, 0, 1); Z.normalize();
+  m.position.copy(mid); m.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(X, new THREE.Vector3().crossVectors(Z, X), Z));
+}
+
+/** The Iai's draw (David 18 Oct 18:29): one razor line of light across the field from `a` to `b` (world px) — shot out in
+ *  `draw` ms, a white-hot core in his rose with an ink edge, hanging until `hang`; then it splits (`split` ms: its two lips
+ *  part, crimson light between them — `onSplit` then) and goes dark, an ink scar that fades. Over the fighters. */
+export function razor(f: Fx3D, a: V3, b: V3, o: { w?: number; lip?: number; open?: number; draw?: number; hang?: number; split?: number; dark?: number; fade?: number; col?: number; onSplit?: () => void } = {}): void {
+  const h = f.host, A = new THREE.Vector3(h.w3(a.x), h.h3(a.z), h.d3(a.y)), B = new THREE.Vector3(h.w3(b.x), h.h3(b.z), h.d3(b.y));
+  const W = o.w ?? 26, draw = o.draw ?? 45, hang = o.hang ?? 260, split = o.split ?? 110, dark = o.dark ?? 160, fade = o.fade ?? 200;
+  const mk = (part: number) => new THREE.ShaderMaterial({ vertexShader: SLIT_VS, fragmentShader: RAZOR_FS,
+    uniforms: { uCol: { value: new THREE.Color(o.col ?? SAM.rose) }, uCore: { value: new THREE.Color(SAM.core) }, uInk: { value: new THREE.Color(SAM.ink) },
+      uA: { value: 1 }, uDraw: { value: 0 }, uOpen: { value: 0 }, uDark: { value: 0 }, uPart: { value: part }, uLip: { value: (o.lip ?? 1.8) / (W / 2) }, uT: { value: Math.random() * 10 }, uNoise: { value: f.noiseTex } },
+    transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide, blending: part ? THREE.AdditiveBlending : THREE.NormalBlending, fog: false });
+  const geo = new THREE.PlaneGeometry(1, 1), mats = [mk(0), mk(1), mk(2)], ms = mats.map((m) => new THREE.Mesh(geo, m));
+  for (const m of ms) { m.frustumCulled = false; m.scale.set(A.distanceTo(B), h.w3(W), 1); }
+  h.solid.add(ms[0]); h.glow.add(ms[2], ms[1]);
+  const set = (k: string, v: number) => { for (const m of mats) m.uniforms[k].value = v; };
+  const drop = () => { for (const m of ms) m.parent?.remove(m); for (const m of mats) m.dispose(); geo.dispose(); };
+  let t = 0, said = false;
+  run(f, {
+    step: (dt) => {
+      t += dt;
+      for (const m of ms) faceAlong(h, m, A, B);
+      set('uDraw', Math.min(1.0001, t / draw)); set('uT', t / 1000);
+      const ks = Math.min(1, Math.max(0, (t - hang) / split));
+      if (ks > 0 && !said) { said = true; o.onSplit?.(); }
+      set('uOpen', (o.open ?? 0.45) * outCubic(ks));
+      const kd = Math.min(1, Math.max(0, (t - hang - split * 0.6) / dark)); set('uDark', kd);
+      set('uA', t < hang + split + dark ? 1 : Math.max(0, 1 - (t - hang - split - dark) / fade));
+      if (t >= hang + split + dark + fade) { drop(); return false; }
+      return true;
+    }, dispose: drop,
+  });
+}
+
+/** A glint (a tiny star of light: two crossing slits) at `at`, gone in `ms`. */
+export function star(f: Fx3D, at: V3, size = 14, ms = 150, col: number = SAM.rose): void {
+  slit(f, { x: at.x - size, y: at.y, z: at.z }, { x: at.x + size, y: at.y, z: at.z }, { w: 3.2, ms, draw: 0, col, front: true });
+  slit(f, { x: at.x, y: at.y, z: at.z - size * 1.35 }, { x: at.x, y: at.y, z: at.z + size * 1.35 }, { w: 3.2, ms, draw: 0, col, front: true });
+  f.host.flare(f.host.w3(at.x), f.host.h3(at.z), f.host.d3(at.y) + 0.1, SAM.light, 3 + size / 8, 2, ms * 1.6);
+}
+
+/** A glint running along a blade or a sheath from `a()` to `b()` (followed: on him) in `ms`: a bright head leaving a short
+ *  trail of light, a star where it ends. */
+export function glintRun(f: Fx3D, a: () => V3 | null, b: () => V3 | null, o: { ms?: number; w?: number; star?: number; col?: number } = {}): void {
+  const ms = o.ms ?? 200; let t = 0, last: V3 | null = null;
+  run(f, {
+    step: (dt) => {
+      t += dt; const A = a(), B = b(); if (!A || !B) return false;
+      const k = Math.min(1, t / ms), e = 1 - (1 - k) * (1 - k), p = { x: A.x + (B.x - A.x) * e, y: A.y + (B.y - A.y) * e, z: A.z + (B.z - A.z) * e };
+      if (last && Math.hypot(p.x - last.x, p.z - last.z) > 0.5) { const q = last; soon(f, () => slit(f, q, p, { w: o.w ?? 4, ms: 130, draw: 0, col: o.col ?? SAM.rose, front: true })); }
+      last = p;
+      if (k >= 1) { soon(f, () => star(f, p, o.star ?? 12, 170, o.col ?? SAM.rose)); return false; }
+      return true;
+    }, dispose: () => {},
+  });
+}
+
+const FLOOR_VS = `
+varying vec2 vUv;
+void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+const FLOOR_FS = `
+#include <common>
+uniform vec3 uCol; uniform float uA;
+varying vec2 vUv;
+void main() {
+  float d = abs(vUv.y - 0.5) * 2.0, u = vUv.x;
+  float a = uA * (1.0 - smoothstep(0.15, 1.0, d)) * smoothstep(0.0, 0.08, u) * (1.0 - smoothstep(0.82, 1.0, u)) * (0.55 + 0.45 * (1.0 - smoothstep(0.0, 0.35, d)));
+  if (a < 0.004) discard;
+  gl_FragColor = vec4(uCol, min(a, 1.0));
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+
+/** A hairline of light lying on the planks (a reach shown while it is charged): `get()` its ends, width, strength and colour
+ *  each frame; when it returns null the line fades out. */
+export function floorLine(f: Fx3D, get: () => { x0: number; y0: number; x1: number; y1: number; w: number; a: number; col?: number } | null): void {
+  const h = f.host, mat = new THREE.ShaderMaterial({ vertexShader: FLOOR_VS, fragmentShader: FLOOR_FS, uniforms: { uCol: { value: new THREE.Color(SAM.rose) }, uA: { value: 0 } },
+    transparent: true, depthWrite: false, depthTest: true, blending: THREE.AdditiveBlending, fog: false });
+  const geo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), m = new THREE.Mesh(geo, mat); m.frustumCulled = false; h.back.add(m);
+  const drop = () => { m.parent?.remove(m); mat.dispose(); geo.dispose(); };
+  let t = 0, end = -1, a0 = 0;
+  run(f, {
+    step: (dt) => {
+      t += dt;
+      const g = end < 0 ? get() : null;
+      if (g) {
+        const ax = h.w3(g.x0), az = h.d3(g.y0), bx = h.w3(g.x1), bz = h.d3(g.y1), L = Math.hypot(bx - ax, bz - az);
+        m.position.set((ax + bx) / 2, 0.018, (az + bz) / 2); m.rotation.y = -Math.atan2(bz - az, bx - ax); m.scale.set(Math.max(1e-4, L), 1, h.w3(g.w));
+        if (g.col !== undefined) mat.uniforms.uCol.value.set(g.col);
+        a0 = g.a * Math.min(1, t / 120); mat.uniforms.uA.value = a0;
+      } else if (end < 0) end = t;
+      if (end >= 0) { const k = (t - end) / 140; mat.uniforms.uA.value = a0 * Math.max(0, 1 - k); if (k >= 1) { drop(); return false; } }
+      return true;
+    }, dispose: drop,
+  });
+}
+
+/** Petals bursting out of `at` (world px; z its height): real petal pictures (`tex`, lit by the room) flung out — thrown
+ *  along `dir` (±1, 0 all round) and up — tumbling, slowed by the air, drifting down to the planks, gone in about `ms`. */
+export function petalBurst(f: Fx3D, at: V3, tex: (THREE.Texture | null | undefined)[], o: { n?: number; speed?: number; up?: number; dir?: number; ms?: number; size?: number; aspect?: number; foeY?: number } = {}): void {
+  const h = f.host, n = o.n ?? 24, ms = o.ms ?? 900, sp = o.speed ?? 320, maps = tex.filter((x): x is THREE.Texture => !!x), ref = o.foeY ?? at.y;
+  const G = (maps.length ? maps : [null]).map((map) => {
+    const mat = new THREE.MeshStandardMaterial({ map: map ?? undefined, color: map ? 0xffffff : 0xffb6d2, emissive: 0xff8ab4, emissiveIntensity: map ? 0.3 : 0.7, roughness: 0.6, metalness: 0, transparent: true, alphaTest: 0.05, side: THREE.DoubleSide, depthWrite: false });
+    const geo = new THREE.PlaneGeometry(1, 1), k = n, back = new THREE.InstancedMesh(geo, mat, k), front = new THREE.InstancedMesh(geo, mat, k);
+    back.frustumCulled = front.frustumCulled = false; back.count = front.count = 0; h.back.add(back); h.solid.add(front);
+    return { mat, geo, back, front, nb: 0, nf: 0 };
+  });
+  const P = Array.from({ length: n }, (_, i) => {
+    const th = Math.random() * Math.PI * 2, el = (Math.random() - 0.15) * 1.3, s = sp * (0.4 + Math.random() * 0.8);
+    const vx = Math.cos(th) * Math.cos(el) + (o.dir ?? 0) * 0.85, vy = Math.sin(th) * Math.cos(el) * 0.7, vz = Math.sin(el) * 0.8 + (o.up ?? 0.5);
+    return { g: i % G.length, x: at.x, y: at.y, z: at.z, vx: vx * s, vy: vy * s, vz: vz * s, life: ms * (0.65 + Math.random() * 0.55), sz: 0.75 + Math.random() * 0.55,
+      ax: new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize(), rot: Math.random() * 6, spin: 5 + Math.random() * 9, sway: Math.random() * 6 };
+  });
+  const img = maps[0]?.image as { width?: number; height?: number } | undefined, W = h.w3(18 * (o.size ?? 1)), asp = o.aspect ?? (img?.width && img.height ? img.height / img.width : 1), M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), X = new THREE.Vector3();
+  const drop = () => { for (const g of G) { h.back.remove(g.back); h.solid.remove(g.front); g.back.dispose(); g.front.dispose(); g.geo.dispose(); g.mat.dispose(); } };
+  let t = 0;
+  run(f, {
+    step: (dt) => {
+      t += dt; const s = dt / 1000, drag = Math.pow(0.18, s);
+      for (const g of G) { g.nb = 0; g.nf = 0; }
+      for (const p of P) {
+        if (t > p.life) continue;
+        p.vx *= drag; p.vy *= drag; p.vz = Math.max(-110, p.vz * drag - 520 * s); // (slowed by the air, then drifting down)
+        p.x += (p.vx + Math.sin(t / 160 + p.sway) * 30) * s; p.y += p.vy * s; p.z = Math.max(2, p.z + p.vz * s);
+        const k = t / p.life, sc = W * p.sz * (k < 0.05 ? k / 0.05 : 1) * (k > 0.72 ? Math.max(0, (1 - k) / 0.28) : 1);
+        X.set(h.w3(p.x), h.h3(p.z), h.d3(p.y)); Q.setFromAxisAngle(p.ax, p.rot + (p.spin * t) / 1000); S.set(sc, sc * asp, 1); M.compose(X, Q, S);
+        const g = G[p.g]; if (p.y > ref + 4) g.front.setMatrixAt(g.nf++, M); else g.back.setMatrixAt(g.nb++, M);
+      }
+      for (const g of G) { g.back.count = g.nb; g.front.count = g.nf; g.back.instanceMatrix.needsUpdate = true; g.front.instanceMatrix.needsUpdate = true; }
+      if (t >= ms * 1.25) { drop(); return false; }
+      return true;
+    }, dispose: drop,
+  });
+}

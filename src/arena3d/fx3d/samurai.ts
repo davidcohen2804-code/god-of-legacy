@@ -1,15 +1,16 @@
 // PVP 3D — the Samurai's skills in the room's 3D. Rebuilt to David's bar (17 Oct, his reference "Prometheus: Ring of
 // Fire", docs/ref/prometheus/; the board's 8 points), skill by skill: one colour family — a white-hot core → his crimson →
 // a dark ink stroke (blade3d.ts: SAM); every cut a thick ribbon ring in perspective round him (the basic chain); the Iai the
-// finisher — one huge crescent that goes dark; Phantom Blades, God of Blades' strikes and Dragon Eclipse's eight cuts the
+// beat — a razor line across the field that hangs and splits; Phantom Blades, God of Blades' strikes and Dragon Eclipse's eight cuts the
 // flurry of long crossing lines; Tornado Blade a ball of blades; Shadow Step and Kagemusha ink bursts. The skills not
 // rebuilt yet keep their pieces (each its old family tone) until their turn. The room answers the rebuilt ones' blows in
 // SAM.light (a crimson flare washed the red courtyard redder). In PVP 3D the rebuilt skills' flat painted cuts and marks
 // stay out (SamuraiFx IN3D_OWN). Owned by the Samurai chat; the room's pieces are in ../Fx3D.ts (DFO's), ours in blade3d.ts.
 import type { Recipe, Fx3D, V3 } from '../Fx3D';
 import { C, me, side, T } from './kit';
-import { ring, crescent, flurry, slit, bladeBall, inkBurst, sparks, SAM } from './blade3d';
+import { ring, flurry, slit, bladeBall, inkBurst, sparks, SAM, run, soon, razor, star, glintRun, floorLine, petalBurst } from './blade3d';
 import type { Projectile } from '../../skills/HitGeometry';
+import type { CastRun } from '../../skills/SkillRuntime';
 
 const flip = () => (Math.random() < 0.5 ? 1 : -1);
 /** Sword Wave (David 01:15: "the crescent and its shadow"): a big upright crescent riding the shot along the planks — out
@@ -27,6 +28,64 @@ const waveCrescent = (f: Fx3D, p: Projectile) => {
         if (++n % 3 === 0) f.host.embers(f.host.w3(p.x), 0.1, f.host.d3(p.y), back ? SAM.crimson : SAM.light, 2, 1.4); }
       return true;
     }, dispose: () => {},
+  });
+};
+/** The samurai's petals as the room's textures (SamuraiFx cuts them out of his kit: `petalLook`). */
+const petals = (f: Fx3D) => [1, 2, 3, 4].map((k) => f.host.texture?.(`sam-petal_${k}`) ?? null);
+/** The Iai's last draw: its line's way and how long it hangs before it splits (its burst on the foe comes then). */
+let iaiLast = { x: 1, y: 0, hang: 260 };
+/** The Iai's stillness (David 18 Oct 18:29: the iai as a beat): held in the drawing stance, a glint runs down his scabbard
+ *  at the start and at each charge level, brighter each time; a hairline of light on the planks shows how far the draw
+ *  will cut; at full charge a thin ring of light closes round his feet. No flash pictures. */
+const iaiStance = (f: Fx3D, r: CastRun) => {
+  const L = r.skill.charge?.levels; if (!L) return;
+  const sc = r.chargeScale ?? 1, at = L.map((l) => l.at * sc), d = side(r), pos = () => f.host.casterPos(r.attackerId);
+  const hilt = () => { const c = pos(); return c ? { x: c.x + d * 20, y: c.y + 8, z: c.z + 50 } : null; };
+  const tip = () => { const c = pos(); return c ? { x: c.x - d * 46, y: c.y + 8, z: c.z + 28 } : null; };
+  const lenOf = (k: number) => (L[k].hits[0]?.shape as { length?: number } | undefined)?.length ?? 200;
+  let lv = -1, len = 0;
+  run(f, { step: (dt) => {
+    if (r.phase !== 'startup') return false;
+    const e = r.elapsed, nl = e >= at[2] ? 2 : e >= at[1] ? 1 : 0;
+    if (nl > lv) {
+      lv = nl; const k = lv; soon(f, () => glintRun(f, hilt, tip, { ms: 230 - 40 * k, w: 4 + k, star: 9 + 6 * k }));
+      if (lv === 2) { const c = pos(); if (c) f.host.ring(f.host.w3(c.x), f.host.d3(c.y), SAM.light, f.host.w3(64), 380, 0.5); }
+    }
+    len += (lenOf(lv) - len) * Math.min(1, dt / 90);
+    return true;
+  }, dispose: () => {} });
+  floorLine(f, () => {
+    const c = pos(); if (r.phase !== 'startup' || !c || lv < 0) return null;
+    const n = Math.hypot(r.aim.x, r.aim.y) || 1, ux = r.aim.x / n, uy = r.aim.y / n;
+    return { x0: c.x + ux * 18, y0: c.y + uy * 18, x1: c.x + ux * len, y1: c.y + uy * len, w: 3 + 1.5 * lv, a: 0.3 + 0.15 * lv };
+  });
+};
+/** The draw: one razor line of light across the field along his cut (a white-hot core in his rose, an ink edge) — it hangs
+ *  a beat, then splits open in crimson and goes dark; the hilt glints as the blade leaves it; fully drawn, the planks are
+ *  scored along the cut. The blade's click home: a glint at the hilt. */
+const iaiDraw = (f: Fx3D, r: CastRun) => {
+  const c = me(f, r), n = Math.hypot(r.aim.x, r.aim.y) || 1, ux = r.aim.x / n, uy = r.aim.y / n, lv = r.chargeLevel ?? 0, d = side(r);
+  const len = (r.hits[0]?.shape as { length?: number } | undefined)?.length ?? 240, far = len * 1.5 + 160, z = c.z + 70, hang = 130 + 20 * lv; // (the blow's hit-stop holds it too: it hangs while he is still there)
+  iaiLast = { x: ux, y: uy, hang };
+  razor(f, { x: c.x + ux * 10, y: c.y + uy * 10, z: z + 4 }, { x: c.x + ux * far, y: c.y + uy * far, z: z - 6 }, { w: 24 + 4 * lv, lip: 1.6 + 0.3 * lv, hang,
+    onSplit: () => f.host.flare(f.host.w3(c.x + ux * len * 0.6), f.host.h3(z), f.host.d3(c.y + uy * len * 0.6) + 0.2, SAM.crimson, 10 + 4 * lv, 6, 260) });
+  star(f, { x: c.x + d * 22, y: c.y + 8, z: c.z + 50 }, 12 + 4 * lv, 140);
+  if (lv === 2) {
+    f.floorStreak(c.x + ux * 20, c.y + uy * 20, c.x + ux * len, c.y + uy * len, SAM.rose, { w: 6, ms: 1100, a: 0.6 });
+    for (let i = 0; i < 3; i++) f.later(60 + i * 50, () => f.host.dust(f.host.w3(c.x + ux * len * (0.35 + 0.25 * i)), f.host.d3(c.y + uy * len * (0.35 + 0.25 * i)), 2, 0.5));
+  }
+  f.later(T(r).active + T(r).recovery * 0.6, () => { const e = f.host.casterPos(r.attackerId); if (e) star(f, { x: e.x + d * 20, y: e.y + 8, z: e.z + 50 }, 9, 130); });
+};
+/** On the foe: at the draw a hairline flash across him along the cut; when the line splits, the cut arrives — petals and
+ *  ink burst out of him, thrown along it. (The blossom draw's extra cuts: a few petals.) */
+const iaiBurst = (f: Fx3D, at: V3, main: boolean) => {
+  const d = iaiLast.x < -0.01 ? -1 : 1, z0 = at.z + 30, o = { x: at.x, y: at.y, z: z0 }; // (on the razor's line: `at` is his body 40 px up)
+  if (!main) { petalBurst(f, o, petals(f), { n: 8, speed: 220, dir: d * 0.5, ms: 700, foeY: at.y }); sparks(f, at, d, 3, 40); return; }
+  slit(f, { x: at.x - iaiLast.x * 80, y: at.y - iaiLast.y * 80 + 2, z: z0 + 5 }, { x: at.x + iaiLast.x * 80, y: at.y + iaiLast.y * 80 + 2, z: z0 - 5 }, { w: 3.5, ms: 150, draw: 0, col: SAM.core, front: true });
+  f.later(iaiLast.hang, () => {
+    inkBurst(f, o, { r: 86, n: 10, ms: 480, foeY: at.y });
+    petalBurst(f, o, petals(f), { n: 30, speed: 360, dir: d * 0.55, up: 0.55, ms: 1100, foeY: at.y });
+    sparks(f, at, d, 7, 66);
   });
 };
 /** The side Swallow Cut's last cast faced (its hits come a beat after: the second cut sweeps down the way he faced). */
@@ -75,14 +134,13 @@ export const SAMURAI: Record<string, Recipe> = {
     active: (f, r) => { const c = me(f, r);
       ring(f, c, side(r), { r: 66, w: 16, y0: 66, tilt: 6, a0: -170, a1: 170, ms: 260, sweep: 0.4, hold: 40, inkW: 0.3, lit: SAM.rose, gain: 1.2, quiet: true, follow: () => f.host.casterPos(r.attackerId) });
       f.host.ring(f.host.w3(c.x), f.host.d3(c.y), SAM.light, 1.6, 300, 0.5); } },
-  // (David's bar: the finisher — 05) the draw is one huge crescent swept across in front of him through the foe, white-hot
-  // for a few frames, then it goes dark: an ink crescent that hangs a beat and dissolves (its size by the charge)
-  iai_strike: { own: true, tone: SAM.light,
-    active: (f, r) => {
-      const c = me(f, r), lv = r.chargeLevel ?? 0, d = side(r);
-      crescent(f, c, d, { r: 158 + 14 * lv, w: 70 + 10 * lv, ms: 700 + 60 * lv, hold: 300 + 30 * lv });
-    },
-    hit: (f, _s, _h, at, main) => { sparks(f, at, Math.random() < 0.5 ? 1 : -1, main ? 8 : 5, 70); } }, // (no impact piece: the crescent is its moment — with the flash and the rose shell the foe stood in a bubble)
+  // (David 18 Oct 18:29: the iai as a beat) the stillness — a glint down the scabbard, the reach a hairline on the planks;
+  // the draw — one razor line of light across the field that hangs and splits; the cut arriving late on the foe — a hairline
+  // flash on him, then petals and ink bursting out (the room plays the main hit in his rose)
+  iai_strike: { own: true, tone: SAM.rose,
+    cast: (f, r) => iaiStance(f, r),
+    active: (f, r) => iaiDraw(f, r),
+    hit: (f, _s, h, at, main) => iaiBurst(f, at, main && !!h.heavy) },
   // (David 01:15, "just a boring hit" → the crescent and its shadow) the fling: a ribbon ring at his blade; the crescent
   // rides the shot (waveCrescent): light out, ink back; where it cuts: sparks (the room plays the main hit)
   sword_wave: { own: true, tone: SAM.rose, trail: false,
@@ -106,7 +164,7 @@ export const SAMURAI: Record<string, Recipe> = {
       f.host.blow(f.host.w3(at.x), 0.6, f.host.d3(at.y), 5, 5); } },
   // (David's bar: the ultimate, one shape — the eclipse) the dark falls round him; (the flurry — 04) the eight cuts out of
   // the dark are long thin lines crossing the foe, each there at once and held by its hit-stop — they cross into a star of
-  // cuts; the colossal cut is the painted dragon's and the sun's breaking (the crescent is the Iai's alone), its blow the
+  // cuts; the colossal cut is the painted dragon's and the sun's breaking (no crescent: the Iai's is a razor line), its blow the
   // room's main hit
   dragon_eclipse: { own: true, tone: SAM.rose,
     active: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, 0x3a0a1a, { r: 420, ms: 900, a: 0.4 }); }, // (lighter: in the dark the fighters were not readable — DFO)
