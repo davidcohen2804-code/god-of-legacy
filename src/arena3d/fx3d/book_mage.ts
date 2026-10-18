@@ -70,11 +70,12 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // ARCANE WAVE — a tide of starlight rolls out over the floor from his feet: the seal flashes under him, three crests run
   // out across the lane's depth (the middle one tallest), stars glinting in their foam, a band of light left on the planks
   arcane_wave: { tone: A, own: true,
-    cast: (f, r) => star(f, book(f, r), A, { size: 64, ms: T(r).startup + 80, light: 0.4 }),
+    cast: (f, r) => { f.flipLoad(WAVE); star(f, book(f, r), A, { size: 64, ms: T(r).startup + 80, light: 0.4 }); },
     active: (f, r) => {
       const c = me(f, r), ax = r.aim.x || side(r);
       seal(f, c.x + ax * 26, c.y, A, { r: 74, ms: 420, spin: 2.6 });
-      for (const [dy, k] of [[0, 1], [-0.3, 0.74], [0.3, 0.74]] as const) surge(f, c.x + ax * 20, c.y, ax, dy, A, { len: 300 * k, ms: 320, h: 118 * k, w: 170, delay: k < 1 ? 40 : 0 });
+      const t0 = performance.now(); f.flip(WAVE, () => { const k = Math.min(1, (performance.now() - t0) / 420); return { x: c.x + ax * (60 + 250 * (1 - (1 - k) * (1 - k))), y: c.y, z: 0 }; }, { frame: WAVE_F, fps: 30, w: 330, mode: 'up', foot: true, through: 0.5, glow: 0.25, flipX: ax < 0, fadeOut: 160 }); // (the painted crest of starlight rolling out along the lane)
+      for (const [dy, k] of [[-0.3, 0.74], [0.3, 0.74]] as const) surge(f, c.x + ax * 20, c.y, ax, dy, A, { len: 300 * k, ms: 320, h: 118 * k, w: 170, delay: 40 }); // (the two side crests keep the wave's depth across the lane)
       for (let i = 0; i < 8; i++) star(f, { x: c.x + ax * (60 + i * 34), y: c.y + rnd(-80, 80), z: rnd(16, 96) }, i % 3 ? A : GOLD, { size: rnd(40, 70), ms: 260, delay: 30 + i * 30, light: 0 });
       f.floorStreak(c.x + ax * 10, c.y, c.x + ax * 320, c.y, A, { w: 150, ms: 560, a: 0.42 });
       f.host.dust(f.host.w3(c.x + ax * 120), f.host.d3(c.y), 5, 0.8);
