@@ -651,7 +651,7 @@ export class Fx3D {
     this.lastImpact = { x: at.x, y: at.y, t: this.clock };
     this.announce('impact', at, r > 100 ? 2 : r > 55 ? 1 : 0, { color });
     if (flipReady(this, IMPACT_SHEET)) { // (David 18 Oct 20:49, "not professional": the white ball and its shell were drawn in code — a painted burst now, tinted to the blow, its white-hot heart kept, the struck one seen through it)
-      this.flip(IMPACT_SHEET, at, { grid: [4, 4], fps: 38, w: r * 4.4, mode: 'up', tint: color, core: 0.85, gain: 1.1, through: 0.65, glow: 0.2, rot: (Math.random() - 0.5) * 16, flipX: Math.random() < 0.5 });
+      this.flip(IMPACT_SHEET, at, { grid: [4, 4], fps: 38, w: r * 4.4, mode: 'up', tint: color, core: 0.95, coreMs: 90, gain: 1.1, through: 0.65, glow: 0.2, rot: (Math.random() - 0.5) * 16, flipX: Math.random() < 0.5 });
     } else { // (the sheet not in yet: the code-drawn flash)
       this.orb(at, 0xffffff, { r0: r * 0.6, r1: r, ms: 95, a: 0.85, i: 1.5 }); // (a flash, never a white-out: gone in ~6 frames)
       this.later(40, () => this.dome(at.x, at.y, color, { r: r * 1.7, ms: 280, a: 0.55, i: 1.5, hold: 1, paint: o.paint })); // (its colour bursts out as a shell, its rim burning: the blow seen through it)

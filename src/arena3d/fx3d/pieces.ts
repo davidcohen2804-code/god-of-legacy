@@ -920,6 +920,8 @@ export type FlipOpts = {
   tint?: number; gain?: number; a?: number;
   /** How much of its white-hot core stays white under `tint` (0..1; a neutral sheet tinted to a class colour keeps its hot heart). */
   core?: number;
+  /** The core white only for its first `coreMs` ms (a blow's white flash), then its colour takes the rest (to a quarter of `core` in 120 ms). */
+  coreMs?: number;
   /** A little of its hottest light added over the picture as well (0..1; it blooms). */
   glow?: number;
   /** Scale over its life (s0 → s1), its fade-in / fade-out ms. */
@@ -972,7 +974,8 @@ export function flip(f: Fx3D, src: string, at: V3 | (() => V3 | null), o: FlipOp
         if (t >= len || (endAt >= 0 && out <= 0 && fo > 0) || (ended && fo <= 0)) { done(); return false; }
         const pos = (t / 1000) * fps, k0 = o.loop ? pos % n : Math.min(n - 1, pos), i0 = Math.floor(k0), i1 = o.loop ? (i0 + 1) % n : Math.min(n - 1, i0 + 1);
         const fin = clamp01(t / Math.max(1, o.fadeIn ?? 60)), k = clamp01(t / len), s = o.grow ? o.grow[0] + (o.grow[1] - o.grow[0]) * outCubic(k) : 1;
-        for (const mm of mats) { const u = mm.uniforms; u.uF0.value = from + i0; u.uF1.value = from + i1; u.uMix.value = k0 - i0; u.uA.value = (o.a ?? 1) * fin * out * (thru && mm === m.material ? o.through ?? 1 : 1); }
+        const coreNow = (o.core ?? 0) * (o.coreMs === undefined ? 1 : t <= o.coreMs ? 1 : Math.max(0.25, 1 - ((t - o.coreMs) / 120) * 0.75));
+        for (const mm of mats) { const u = mm.uniforms; u.uCore.value = coreNow; u.uF0.value = from + i0; u.uF1.value = from + i1; u.uMix.value = k0 - i0; u.uA.value = (o.a ?? 1) * fin * out * (thru && mm === m.material ? o.through ?? 1 : 1); }
         const P = f.unit(last), Wd = f.host.w3(o.w) * s, Hd = Wd * aspect;
         if (o.along && mode === 'up') { if (prev && P.distanceToSquared(prev) > 1e-8) { inv.copy(f.host.camera.quaternion).invert(); dv.copy(P).sub(prev).applyQuaternion(inv); ang = Math.atan2(dv.y, dv.x); } prev = P.clone(); } // (turned along its flight as the eye sees it)
         for (const mesh of meshes) {
