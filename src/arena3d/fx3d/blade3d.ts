@@ -581,3 +581,49 @@ export function petalStream(f: Fx3D, at: () => V3 | null, tex: (THREE.Texture | 
     }, dispose: drop,
   });
 }
+
+const ZONE_FS = `
+#include <common>
+uniform vec3 uCol; uniform float uA; uniform float uFlare; uniform float uArrow; uniform float uDir; uniform float uT; uniform float uK;
+varying vec2 vUv;
+float seg(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }
+void main() {
+  vec2 q = (vUv * 2.0 - 1.0) * uK;                                   // ellipse units: the ring at |q| = 1
+  float d = length(q), w = 0.045 + 0.035 * uFlare;
+  float band = exp(-pow((d - 1.0) / w, 2.0));
+  float halo = exp(-pow((d - 1.0) / (0.2 + 0.12 * uFlare), 2.0)) * 0.32;
+  float fill = (1.0 - smoothstep(0.8, 1.0, d)) * (0.05 + 0.16 * uFlare);
+  float ang = atan(q.y, q.x), tick = smoothstep(0.8, 1.0, cos(ang * 16.0 + uT * 0.5)) * exp(-pow((d - 1.0) / 0.1, 2.0)) * 0.45;
+  vec2 p = vec2(q.x * uDir, q.y + 1.0); float ch = 0.0;                // the arrow: two chevrons on the ring's near edge (the banner's cloth hides its far side), the way it springs him
+  for (int i = 0; i < 2; i++) { float x0 = -0.32 + 0.3 * float(i), s2 = min(seg(p, vec2(x0 + 0.24, 0.0), vec2(x0, 0.34)), seg(p, vec2(x0 + 0.24, 0.0), vec2(x0, -0.34))); ch += exp(-pow(s2 / 0.05, 2.0)) * (i == 1 ? 1.0 : 0.65); }
+  float a = uA * (band * (0.75 + 0.6 * uFlare) + halo * (0.6 + 0.9 * uFlare) + fill + tick * (1.0 + uFlare)) + uA * uArrow * ch * 1.2;
+  vec3 col = mix(uCol, vec3(1.0, 0.97, 0.86), clamp(band * (0.25 + 0.6 * uFlare) + ch * uArrow * 0.7, 0.0, 1.0));
+  if (a < 0.004) discard;
+  gl_FragColor = vec4(col, min(a, 1.0));
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+
+/** A zone shown on the planks round `at` (world px): a ring of light on the floor exactly `rx` × `ry` px (along the field ×
+ *  in depth), soft, with a faint fill and ticks turning slowly; `get()` each frame: its strength, its flare (the "now" cue:
+ *  brighter, thicker, filled) and an arrow of light past the ring (`arrow` 0..1, `dir` ±1 along the field); null: it fades. */
+export function zoneRing(f: Fx3D, at: V3, rx: number, ry: number, get: () => { a: number; flare: number; arrow: number; dir: number } | null, col = 0xffc65a): void {
+  const h = f.host, K = 1.75, W3 = Math.abs(h.w3(at.x + rx * K) - h.w3(at.x - rx * K)), D3 = Math.abs(h.d3(at.y + ry * K) - h.d3(at.y - ry * K));
+  const mat = new THREE.ShaderMaterial({ vertexShader: FLOOR_VS, fragmentShader: ZONE_FS,
+    uniforms: { uCol: { value: new THREE.Color(col) }, uA: { value: 0 }, uFlare: { value: 0 }, uArrow: { value: 0 }, uDir: { value: 1 }, uT: { value: 0 }, uK: { value: K } },
+    transparent: true, depthWrite: false, depthTest: true, blending: THREE.AdditiveBlending, fog: false });
+  const geo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), m = new THREE.Mesh(geo, mat);
+  m.frustumCulled = false; m.position.set(h.w3(at.x), 0.02, h.d3(at.y)); m.scale.set(W3, 1, D3); h.back.add(m);
+  const drop = () => { m.parent?.remove(m); mat.dispose(); geo.dispose(); };
+  let t = 0, end = -1, a0 = 0;
+  run(f, {
+    step: (dt) => {
+      t += dt; mat.uniforms.uT.value = t / 1000;
+      const g = end < 0 ? get() : null;
+      if (g) { a0 = g.a; mat.uniforms.uA.value = g.a; mat.uniforms.uFlare.value = g.flare; mat.uniforms.uArrow.value = g.arrow; mat.uniforms.uDir.value = g.dir; }
+      else if (end < 0) end = t;
+      if (end >= 0) { const k = (t - end) / 300; mat.uniforms.uA.value = a0 * Math.max(0, 1 - k); if (k >= 1) { drop(); return false; } }
+      return true;
+    }, dispose: drop,
+  });
+}

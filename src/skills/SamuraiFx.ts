@@ -10,7 +10,7 @@ import { hitIndex, lastOfBurst } from './FinalKit';
 import type { Projectile, V3 } from './HitGeometry';
 import type { Fx3D } from '../arena3d/Fx3D';
 import { POLE } from './SamuraiPole';
-import { ring as ring3, inkBurst as inkBurst3, SAM as SAM3 } from '../arena3d/fx3d/blade3d';
+import { ring as ring3, inkBurst as inkBurst3, zoneRing, SAM as SAM3 } from '../arena3d/fx3d/blade3d';
 import { waveBack } from '../arena3d/fx3d/samurai';
 
 export const KIT = 'sam-kit';
@@ -1528,47 +1528,77 @@ export class SamuraiFx {
     if (r.own) { cam.shake(220, 0.008); this.ctx.punch(0.04, 240); }
   }
 
-  /** Rising Sun: the war banner rises behind him and flies in the wind (its cloth bends for real), gold rays behind the sun. */
+  /** Rising Sun: the war banner rises behind him and flies in the wind (its cloth bends for real), gold rays behind the sun.
+   *  (David 18 Oct 18:29) A heavy war banner, not a stick: a thick pole, a crossbar the broad cloth hangs from, a gold knob at
+   *  its top. Where it can spring him reads on the planks: a ring of gold light exactly the engine's catch zone round its foot
+   *  (POLE: ±nearX along the field × ±nearY in depth), soft and always on while it stands; while he is in the air inside it
+   *  the ring and the banner flare — the "now" — with an arrow of light on the ring the way it springs him (away from where
+   *  he faces). Its last 3 s it flickers and fades. */
   private risingSun(r: CastRun): void {
-    const s = this.ctx.scene, T = r.timings, side = sideOf(r), q = this.me(r), bx = q.x - side * POLE_BACK, by = q.y - 4, life = T.startup + T.active + POLE_MS; // (planted after the burst: David 01:15)
-    const poleH = 246, clothH = 214, clothW = 70, top = by - poleH + 14;
+    const s = this.ctx.scene, T = r.timings, side = sideOf(r), q = this.me(r), bx = q.x - side * POLE_BACK, by = q.y - 4, planted = T.startup + T.active, life = planted + POLE_MS; // (planted after the burst: David 01:15)
+    const poleH = 262, clothH = 236, clothW = 118, top = by - poleH + 18, THICK = 2.6, GOLD = 0xffc65a;
     const pole = s.add.image(bx, by, KIT, 'banner_pole').setOrigin(0.5, 0.98).setDepth(by - 3).setVisible(false);
-    pole.setScale(poleH / pole.height);
+    const pk = poleH / pole.height;
+    const bar = s.add.image(bx, top, KIT, 'banner_pole').setOrigin(0.5, 0.5).setAngle(90).setDepth(by - 3.05).setVisible(false); // (the crossbar the cloth hangs from)
+    const knob = s.add.image(bx, top - 10, 'dmg-glow').setTint(GOLD).setBlendMode(Phaser.BlendModes.ADD).setDepth(by - 2.9).setVisible(false);
     const N = 12, pts = Array.from({ length: N }, (_, i) => new Phaser.Math.Vector2(0, (i / (N - 1)) * clothH));
-    const cx = bx - side * (clothW / 2 + 3);
+    const cx = bx - side * (clothW / 2 + 4);
+    const halo = s.add.image(cx, top + clothH / 2, 'dmg-glow').setTint(GOLD).setBlendMode(Phaser.BlendModes.ADD).setDepth(by - 3.3).setVisible(false); // (the cue: the banner lit from behind)
     const cloth = s.add.rope(cx, top, KIT, 'banner_cloth', pts, false).setDepth(by - 3.2).setVisible(false);
     const fr = s.textures.getFrame(KIT, 'banner_cloth');
     cloth.setScale(clothW / fr.width, 1);
     // the sun on the banner shines: golden rays round it, turning slowly (long and short in turn), from just outside its disc
     const ray = this.rayTex(), NR = 12, SUN = 0.32, R0 = clothW * 0.26, ck = clothW / fr.width;
     const rays = Array.from({ length: NR * 2 }, (_, i) => { const im = s.add.image(0, 0, ray).setOrigin(0, 0.5).setVisible(false); if (i >= NR) im.setBlendMode(Phaser.BlendModes.ADD); return im; });
-    let fired = -1, dead = false;
-    const kill = () => { if (dead) return; dead = true; pole.destroy(); cloth.destroy(); for (const im of rays) im.destroy(); if (this.poles.get(r.attackerId)?.kill === kill) this.poles.delete(r.attackerId); };
+    // the catch zone on the planks (the painted world: a ring drawn; PVP 3D: the room's own, blade3d zoneRing)
+    const f3 = this.fx3d(), zg = f3 ? null : s.add.graphics().setDepth(GROUND + 2.1);
+    let fired = -1, dead = false, now = 0, zoneA = 0, way = -side;
+    if (f3) zoneRing(f3, { x: bx, y: q.y, z: 0 }, POLE.nearX, POLE.nearY, () => (dead ? null : { a: zoneA, flare: now, arrow: now, dir: way }), GOLD);
+    const kill = () => { if (dead) return; dead = true; pole.destroy(); bar.destroy(); knob.destroy(); halo.destroy(); cloth.destroy(); zg?.destroy(); for (const im of rays) im.destroy(); if (this.poles.get(r.attackerId)?.kill === kill) this.poles.delete(r.attackerId); };
     this.poles.get(r.attackerId)?.kill(); // (one banner of his at a time: a new one takes the old one's place)
     const P = { t: 0, spring: -1, dir: -side, x: bx, y: by, h: poleH, kill };
     this.poles.set(r.attackerId, P);
-    this.add({ t: 0, step: (_dt, t) => {
+    this.add({ t: 0, step: (dt, t) => {
       if (dead) return false;
       if ((this.broken(r) && t < T.startup + 20) || this.gone(r)) { kill(); return false; }
       P.t = t;
-      const rise = Math.min(1, t / Math.max(1, T.startup)), up = back(rise), fade = t > life - 600 ? Math.max(0, (life - t) / 600) : 1;
+      const rise = Math.min(1, t / Math.max(1, T.startup)), up = back(rise), rem = life - t, k3 = Math.max(0, Math.min(1, rem / 3000));
+      const fade = rem < 3000 ? Math.pow(k3, 0.6) * (Math.sin(t / (32 + 95 * k3)) > -0.35 ? 1 : 0.22) : 1; // (its last 3 s: it flickers and fades)
+      // the "now": he is in the air inside its catch zone — the ring and the banner flare, an arrow shows the way it throws him
+      const c = this.ctx.casterPos(r.attackerId), inZone = !!c && t >= planted && Math.abs(c.x - bx) <= POLE.nearX && Math.abs(c.y - q.y) <= POLE.nearY && c.z >= POLE.low && c.z <= POLE.top;
+      now += ((inZone ? 1 : 0) - now) * Math.min(1, dt / (inZone ? 45 : 170));
+      way = -(this.ctx.body?.(r.attackerId)?.face ?? side);
+      zoneA = Math.max(0, Math.min(1, (t - planted + 200) / 400)) * fade * (0.55 + 0.45 * now);
       // the spring: the pole bends under his weight the way he is thrown, whips back past straight and settles (~0.6 s)
       const ks = P.spring < 0 ? -1 : (t - P.spring) / 620, bend = ks < 0 || ks > 1 ? 0 : P.dir * 16 * Math.sin(Math.PI * 2.2 * ks) * Math.pow(1 - ks, 1.6);
-      pole.setVisible(true).setScale((poleH / pole.height) * 1, (poleH / pole.height) * up).setAngle(bend).setAlpha(Math.min(1, t / 120) * fade);
-      const ty = by - (by - top) * up * Math.cos((bend * Math.PI) / 180), tipDx = poleH * Math.sin((bend * Math.PI) / 180);
-      cloth.setVisible(up > 0.6).setPosition(cx + tipDx, ty).setAngle(bend * 0.6).setAlpha(Math.min(1, (up - 0.6) / 0.3) * fade);
-      for (let i = 0; i < N; i++) { const v = i / (N - 1); pts[i].set(-side * Math.sin(t / 230 + v * 3.1) * 9 * v + side * 4 * v * v, v * clothH * (0.92 + 0.08 * Math.sin(t / 310 + v))); }
+      const al = Math.min(1, t / 120) * fade, brad = (bend * Math.PI) / 180;
+      pole.setVisible(true).setScale(pk * THICK, pk * up).setAngle(bend).setAlpha(al);
+      const ty = by - (by - top) * up * Math.cos(brad), tipDx = poleH * Math.sin(brad);
+      const cl = Math.min(1, Math.max(0, (up - 0.6) / 0.3)) * fade;
+      bar.setVisible(up > 0.6).setPosition(bx + tipDx - side * (clothW / 2 + 2), ty).setScale(pk * THICK * 0.8, (clothW + 16) / bar.height).setAngle(90 + bend * 0.6).setAlpha(cl);
+      knob.setVisible(up > 0.6).setPosition(bx + tipDx, ty - 12).setDisplaySize(26 + 14 * now, 26 + 14 * now).setAlpha(cl * (0.55 + 0.45 * now));
+      cloth.setVisible(up > 0.6).setPosition(cx + tipDx, ty).setAngle(bend * 0.6).setAlpha(cl);
+      halo.setVisible(now > 0.02 && up > 0.6).setPosition(cx + tipDx, ty + clothH * 0.45).setDisplaySize(clothW * 2.2, clothH * 1.5).setAlpha(0.55 * now * cl);
+      for (let i = 0; i < N; i++) { const v = i / (N - 1); pts[i].set(-side * Math.sin(t / 260 + v * 3.1) * 12 * v + side * 5 * v * v, v * clothH * (0.93 + 0.07 * Math.sin(t / 330 + v))); }
       cloth.setPoints(pts);
       if (fired < 0 && r.fired.has(0)) { fired = t; } // (its light breaks: the rays flare up, longer and brighter, and settle)
-      // (planted, its sun glows on faintly: full through the burst, then down to a glow)
-      const fl = fired < 0 ? 0 : Math.max(0, 1 - (t - fired) / 650), low = fired < 0 ? 1 : 0.35 + 0.65 * Math.max(0, 1 - (t - fired - 900) / 900);
-      const on = Math.max(0, Math.min(1, (t - T.startup * 0.5) / 300)) * fade * Math.min(1, (up - 0.6) / 0.3) * Math.min(1, low + (P.spring >= 0 && t - P.spring < 400 ? 0.6 : 0));
-      const sx = cx + tipDx + (-side * Math.sin(t / 230 + SUN * 3.1) * 9 * SUN + side * 4 * SUN * SUN) * ck, sy = ty + SUN * clothH * (0.92 + 0.08 * Math.sin(t / 310 + SUN)); // (the sun on the cloth, as it waves)
+      // (planted, its sun glows on faintly: full through the burst, then down to a glow; the "now" lights it again)
+      const fl = Math.max(fired < 0 ? 0 : Math.max(0, 1 - (t - fired) / 650), now * 0.8), low = fired < 0 ? 1 : 0.35 + 0.65 * Math.max(0, 1 - (t - fired - 900) / 900);
+      const on = Math.max(0, Math.min(1, (t - T.startup * 0.5) / 300)) * cl * Math.min(1, Math.max(low, now) + (P.spring >= 0 && t - P.spring < 400 ? 0.6 : 0));
+      const sx = cx + tipDx + (-side * Math.sin(t / 260 + SUN * 3.1) * 12 * SUN + side * 5 * SUN * SUN) * ck, sy = ty + SUN * clothH * (0.93 + 0.07 * Math.sin(t / 330 + SUN)); // (the sun on the cloth, as it waves)
       rays.forEach((im, i) => {
-        const k = i % NR, th = (k / NR) * 360 + t * 0.02, rad = (th * Math.PI) / 180, L = (k % 2 ? 15 : 24) * (1 + 0.1 * Math.sin(t / 160 + k)) * (1 + 1.3 * out(fl)), glow = i >= NR;
-        im.setVisible(on > 0.01).setPosition(sx + Math.cos(rad) * R0, sy + Math.sin(rad) * R0).setAngle(th).setDisplaySize(L, glow ? 6 : 4.5)
+        const k = i % NR, th = (k / NR) * 360 + t * 0.02, rad = (th * Math.PI) / 180, L = (k % 2 ? 22 : 34) * (1 + 0.1 * Math.sin(t / 160 + k)) * (1 + 1.3 * out(fl)), glow = i >= NR;
+        im.setVisible(on > 0.01).setPosition(sx + Math.cos(rad) * R0, sy + Math.sin(rad) * R0).setAngle(th).setDisplaySize(L, glow ? 8 : 6)
           .setDepth(by - 3.15 + (glow ? 0.01 : 0)).setAlpha(on * (glow ? 0.45 + 0.4 * fl : 0.9));
       });
+      if (zg) { // the painted world's zone: the ring, the arrow
+        zg.clear(); const za = zoneA, w = 3 + 3 * now;
+        if (za > 0.01) {
+          zg.lineStyle(w + 8, GOLD, 0.18 * za).strokeEllipse(bx, q.y, POLE.nearX * 2, POLE.nearY * 2);
+          zg.lineStyle(w, GOLD, 0.75 * za).strokeEllipse(bx, q.y, POLE.nearX * 2, POLE.nearY * 2);
+          if (now > 0.05) { zg.lineStyle(4, 0xfff4d6, now * za); for (const o of [0, 14]) { const x0 = bx + way * (POLE.nearX + 10 + o); zg.beginPath(); zg.moveTo(x0, q.y - 12); zg.lineTo(x0 + way * 12, q.y); zg.lineTo(x0, q.y + 12); zg.strokePath(); } }
+        }
+      }
       if (t >= life) { kill(); return false; }
       return true;
     } });
