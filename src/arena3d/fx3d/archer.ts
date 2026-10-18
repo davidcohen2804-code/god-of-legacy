@@ -46,7 +46,14 @@ export const ARCHER: Record<string, Recipe> = {
   // Vine Mine: the floor splits and a ring of green crystals (thorns) bursts up round the foe
   vine_trap: { tone: THORN, own: true, hit: (f, _s, _h, at, main) => { if (!main) return; f.debris(at.x, at.y, 7, { speed: 1.0, up: 1.3 }); f.host.ring(f.host.w3(at.x), f.host.d3(at.y), THORN, 1.8, 380, 0.6); } }, // (David 01:33: the blue from the floor was the ice crystals — gone; the burst is the painted thorn column, the room adds the floor thrown up and a ring of thorn green; its flash / cracks are DFO's main-hit impact)
   // Air Volley: each arrow that strikes the floor kicks up chips and a small ring
-  skyhunters_step: { tone: WIND, trail: { c: WIND, w: 7, len: 8 }, fired: (f, _r, i, o) => { bowStar(f, o, WIND, i % 2 ? 1 : 1.3); f.host.ring(f.host.w3(o.x), f.host.d3(o.y), WIND, 0.9, 220, 0.5); } }, // (Air Volley: a star at the bow on every arrow of the volley in the air, a pale ring on the floor under her; the floor chips dropped)
+  // Air Volley (David 01:33: "the idea is good — improve the feel"): her flight is one shape — a ribbon of wind drawn behind her along the whole
+  // arc of the leap (it shows the leap's height and its hang), a star at the bow on every arrow; the fifth, the one that marks, a gold star and a
+  // thin inked ring round her as she looses it. The take-off a ring of wind on the floor.
+  skyhunters_step: { tone: WIND, trail: { c: WIND, w: 8, len: 10, i: 1.8 },
+    cast: (f, r) => { const c = me(f, r); f.later(T(r).startup * 0.8, () => { f.host.ring(f.host.w3(c.x), f.host.d3(c.y), WIND, 1.5, 320, 0.6); f.host.dust(f.host.w3(c.x), f.host.d3(c.y), 8, 0.8); }); },
+    active: (f, r) => { let last = me(f, r); const n = Math.ceil(T(r).active / 50); for (let k = 1; k <= n; k++) f.later(k * 50, () => { if (r.phase === 'done') return; const c = me(f, r); if (Math.hypot(c.x - last.x, c.z - last.z) > 4) f.streak({ x: last.x - side(r) * 20, y: last.y, z: last.z + 70 }, { x: c.x - side(r) * 20, y: c.y, z: c.z + 70 }, WIND, { w: 12, ms: 420, draw: 30, quiet: true }); last = c; }); },
+    fired: (f, r, i, o) => { const fifth = i === r.hits.length - 1; bowStar(f, o, fifth ? SUN : WIND, fifth ? 1.8 : 1.2); if (fifth) { const c = me(f, r); f.slash({ x: c.x, y: c.y, z: c.z }, side(r), SUN, { r: 90, w: 16, tilt: 20, ms: 200, y0: 60, ink: true }); } },
+  },
   // Thunder Rain: lightning from the sky onto the foe at every arrow, the last one the brightest
   // Thunder Rain (David 01:33: "terrible — a significant 3D improvement"): one storm, built in the room. She hangs charging: lightning crackles round
   // her bow, faster and faster. Each of the three arrows is a real bolt from her bow down to its point (the third thick, forked, with two sky bolts
