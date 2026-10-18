@@ -144,7 +144,13 @@ export const WARRIOR: Record<string, Recipe> = {
   lions_maw: { tone: W.crimson, own: true, crest: { c: W.crimson, h: 150, w: 120 }, trail: false, active: (f, r) => { // the lion that stays (its linger at the aim): a ring of claw runes burns under it, every roar a crimson ring and sparks, the last a burst of embers
     const L = r.skill.linger; if (!L) return;
     const off = L.offset ?? 0, x = r.origin.x + r.aim.x * off, y = r.origin.y + r.aim.y * off, hx = f.host.w3(x), hz = f.host.d3(y);
-    f.later(L.startMs, () => f.glyph(x, y, W.crimson, { shape: 'runes', r: L.radius, ms: (L.count - 1) * L.everyMs + 500, spin: 0.2, pulse: 0.6, a: 0.55 }));
+    const life = L.startMs + L.count * L.everyMs + 300, d = r.aim.x < 0 ? -1 : 1;
+    // (David 18 Oct 18:19) the lion bursts up out of the floor: the planks break open, rubble thrown up, a roar ring
+    scar(f, x, y, { r: 120, life, hot: W.blood, rings: 2, embers: 0 }); f.debris(x, y, 14, { up: 2.2, speed: 0.9 }); f.host.ring(hx, hz, W.crimson, f.host.w3(260), 420, 0.7); f.host.kick(0.05);
+    // and its mark stays on the floor for its 5 s: four scorched claw rakes burnt across the spot, a ring of claw runes swelling in, embers rising
+    for (let k = 0; k < 4; k++) { const o = (k - 1.5) * 26; f.later(80 + k * 40, () => { f.floorStreak(x - d * 95 + o * 0.4, y + o - 30, x + d * 95 + o * 0.4, y + o + 30, W.crimson, { w: 16, ms: life, a: 0.95 }); f.floorStreak(x - d * 70 + o * 0.4, y + o - 22, x + d * 70 + o * 0.4, y + o + 22, 0xffb040, { w: 6, ms: life * 0.5, a: 0.9 }); }); }
+    for (let k = 0; k < 4; k++) f.later(L.startMs + k * 120, () => f.glyph(x, y, W.crimson, { shape: 'runes', r: L.radius, ms: life - L.startMs - k * 120, spin: 0.2, pulse: 0.6, a: 0.14 }));
+    for (let t = 300; t < life - 300; t += 260) f.later(t, () => f.host.embers(f.host.w3(x + (Math.random() - 0.5) * 160), 0.04, f.host.d3(y + (Math.random() - 0.5) * 60), t % 780 < 260 ? 0xffb040 : W.crimson, 3, 1));
     for (let i = 0; i < L.count; i++) f.later(L.startMs + i * L.everyMs, () => {
       const last = i === L.count - 1;
       f.host.ring(hx, hz, last ? 0xffc860 : W.crimson, f.host.w3(L.radius * (last ? 2.4 : 2)), last ? 520 : 420, last ? 0.8 : 0.6);

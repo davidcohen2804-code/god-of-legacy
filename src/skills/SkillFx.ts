@@ -622,12 +622,14 @@ export class SkillFx {
   /** Lion's Maw: the lion of light gathers at his side and pounces through the foe (the sheet's own leap), frames timed to the bite,
    *  the claw, the dive and the slam. */
   private lionsMaw(r: CastRun): void {
-    const T = r.timings, key = vfxKey('lions_maw'), a = r.aim, c = this.casterPos(r.attackerId) ?? r.origin, flip = a.x < 0;
-    const x = c.x + a.x * 70, y = c.y + a.y * 70, s = Math.max(40, T.startup / 2);
-    // the crimson lion's head (GPT): an ember at his side, the head forms, lunges at the foe with its jaw opening, the bite, embers
-    const fms = [s, s, 70, 80, 90, 120, 170, 230], img = this.play(key, x, y - c.z - 80, 300, 300, fms, { oy: 0.55, flip, depth: y - 3, alpha: 0.95, blend: Phaser.BlendModes.NORMAL, fadeLast: 230 }); // (behind the two fighters: in PVP 3D a bigger one hid them both)
-    if (img) this.scene.tweens.add({ targets: img, x: x + a.x * 110, delay: s * 2, duration: 240, ease: 'Cubic.easeOut' }); // the lunge
-    this.scene.time.delayedCall(T.startup + 450, () => { this.shockwave(x + a.x * 60, y + a.y * 60, 220, 0xffc860); (this.cam ?? this.scene.cameras.main).shake(150, 0.006); });
+    const T = r.timings, key = vfxKey('lions_maw'), a = r.aim, flip = a.x < 0, off = r.skill.linger?.offset ?? 130;
+    const x = r.origin.x + a.x * off, y = r.origin.y + a.y * off, s = Math.max(40, T.startup / 2);
+    // (David 18 Oct 18:19) the lion bursts up out of the floor at the foe's spot with a roar: an ember on the floor, the head
+    // forming as it rises from the planks, its jaw opening on the bite, then it settles where it stays
+    const fms = [s, s, 70, 80, 90, 120, 170, 230], img = this.play(key, x, y + 10, 300, 300, fms, { oy: 0.55, flip, depth: y - 3, alpha: 0.95, blend: Phaser.BlendModes.NORMAL, fadeLast: 230 });
+    if (img) this.scene.tweens.add({ targets: img, y: y - 95, delay: s, duration: 260, ease: 'Back.easeOut' }); // the rise out of the ground
+    this.scene.time.delayedCall(T.startup, () => { this.shockwave(x, y, 200, 0xd8261c); (this.cam ?? this.scene.cameras.main).shake(150, 0.007); });
+    this.scene.time.delayedCall(T.startup + 450, () => this.shockwave(x, y, 220, 0xffc860));
     this.lionStays(r);
   }
 
