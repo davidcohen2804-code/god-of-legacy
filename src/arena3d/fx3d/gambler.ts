@@ -37,7 +37,7 @@ const staffRing = (f: Parameters<NonNullable<Recipe['active']>>[0], r: { attacke
 
 /** His painted sheets (David 18 Oct 20:51: painted art, real colour, motion): 4×4 GPT sheets on black, played through flip. */
 const ART = 'assets/final/skills/gambler/fx3d/';
-const SHEET = { cardBurst: ART + 'card_burst.webp' };
+const SHEET = { cardBurst: ART + 'card_burst.webp', coinBurst: ART + 'coin_burst.webp' };
 type FX = Parameters<NonNullable<Recipe['active']>>[0];
 /** The cards' painted burst: a white-hot flash, crimson energy flinging glowing cards, red smoke thinning out. `big` the
  *  whole sheet (a main hit), else its first, hottest frames, small (a card that strikes). */
@@ -255,13 +255,17 @@ export const GAMBLER: Record<string, Recipe> = {
   },
   // the jackpot (DAVID 18:23's bar, the gothic ult 09): coins and chips gather round him while the reels roll → a gold star
   // glyph opens on the floor under him → a ring runs out → the last blast is the big burst → a dome of gold over the area
-  jackpot: { tone: TONE.coin, own: true,
-    cast: (f, r) => { const id = r.attackerId; f.swirl(() => { const c = f.host.casterPos(id); return c ? { x: c.x, y: c.y, z: 0 } : null; }, { tex: 'gbk-c_coin_h', size: 0.5, aspect: 1, crumble: C.coin }, { n: 16, r0: 70, r1: 150, h: 260, ms: T(r).startup, rps: 0.9, rise: 0.5, color: C.coin }); },
+  jackpot: { tone: TONE.coin, own: true, noImpact: true,
+    cast: (f, r) => { f.flipLoad(SHEET.coinBurst); const id = r.attackerId; f.swirl(() => { const c = f.host.casterPos(id); return c ? { x: c.x, y: c.y, z: 0 } : null; }, { tex: 'gbk-c_coin_h', size: 0.5, aspect: 1, crumble: C.coin }, { n: 16, r0: 70, r1: 150, h: 260, ms: T(r).startup, rps: 0.9, rise: 0.5, color: C.coin }); },
     active: (f, r) => { const c = me(f, r); f.glyph(c.x, c.y, C.coin, { shape: 'star', points: 8, r: 260, ms: T(r).active + 500, spin: 0.25, pulse: 0.6, a: 0.75 }); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), C.coin, 3.2, 600, 0.7); },
     hit: (f, _s, _h, at, main) => {
       if (!main) return;
-      // (the big burst's flash is the engine's main hit; here the gold dome closing over the area and a ring of coin cuts)
-      f.dome(at.x, at.y, C.coin, { r: 300, ms: 700, a: 0.22 }); f.host.kick(0.07);
+      // (David 20:51, painted pass: the main hit is a painted gold fountain — a white-hot flash, molten gold flinging spinning
+      // coins and chips up and out, cooling to amber and bronze smoke — rising off the planks over the inked ring of coin cuts;
+      // a second, smaller one a beat later off to the side. The added-light dome is gone)
+      f.flip(SHEET.coinBurst, { x: at.x, y: at.y, z: 0 }, { grid: [4, 4], w: 430, anchorY: 0.14, fps: 20, glow: 0.15, through: 0.5, flipX: Math.random() < 0.5 });
+      f.flip(SHEET.coinBurst, { x: at.x + 90, y: at.y + 30, z: 0 }, { grid: [4, 4], from: 1, w: 260, anchorY: 0.14, fps: 22, glow: 0.2, through: 0.5, delay: 140, flipX: true });
+      f.host.kick(0.07);
       f.slash({ x: at.x, y: at.y, z: 0 }, 1, C.coin, { r: 220, w: 50, tilt: 10, a0: -180, a1: 180, ms: 320, y0: 30, i: 2.4, ink: true });
     } },
   // All In: every stuck card goes off — a crater and a gold column out of it

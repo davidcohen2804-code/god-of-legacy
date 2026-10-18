@@ -608,7 +608,8 @@ export class GamblerFx {
     const hs = s.hits ?? [], burst = !s.chain && hs.length > 2, last = !burst || hitIndex(s, hit) === hs.length - 1; // (hitIndex: the arena re-times the hits as copies)
     const weighty = burst ? ((!!hit.heavy && s.id !== 'showdown') || last) : heavy; // (Showdown's cards burst on their own: only its last blow gets the blast)
     const kind = crit || counter ? 'crit' : hit.reaction.launch ? 'launch' : weighty && !grip ? 'heavy' : 'normal';
-    if (s.id === 'staff_flurry' && ARENA3D.on && !hit.reaction.launch) { /* the flurry's own crossing lines are its sparks (its recipe) — no pile of pops over him */ }
+    if (ARENA3D.on && (s.id === 'showdown' || (s.id === 'jackpot' && kind !== 'normal'))) { /* (PVP 3D: its painted sheet is the hit — the card burst / the gold fountain, its recipe's flip; no flat blast and white pop over it) */ }
+    else if (s.id === 'staff_flurry' && ARENA3D.on && !hit.reaction.launch) { /* the flurry's own crossing lines are its sparks (its recipe) — no pile of pops over him */ }
     else if (s.id === 'call_the_deck' && hit.damage < (s.hits[0]?.damage ?? 10) && !hit.reaction.launch) { /* the hold's turns: the spinning card under him is the spark (holdTick) — no burst over it */ }
     else if (kind === 'normal') {
       this.pop(at.x, y, 64, FUCHSIA, 200); this.shards(at.x, y, 2, 50, 260);
