@@ -13,7 +13,7 @@ import { BOOK_MAGE } from './fx3d/book_mage';
 import { ARCHER } from './fx3d/archer';
 import { SAMURAI } from './fx3d/samurai';
 import { GAMBLER } from './fx3d/gambler';
-import { warmPieces } from './fx3d/pieces';
+import { warmPieces, flip as flipPiece, flipPreload, type FlipOpts } from './fx3d/pieces';
 
 export type V3 = { x: number; y: number; z: number };
 
@@ -973,6 +973,12 @@ export class Fx3D {
   /** The camera's turn round the vertical (rad): a slash plane faces across the view. */
   camYaw(): number { const f = new THREE.Vector3(); this.h.camera.getWorldDirection(f); return Math.atan2(-f.x, -f.z); }
   get host(): FxHost { return this.h; }
+  /** Painted art in the room (David 18 Oct 20:51: a free hand in GPT and PixVerse): a frame sheet — a GPT sheet, a PixVerse
+   *  effect made into frames (tools/fx/flipbook.py) — played upright at a point or flat on the floor, its colours covering
+   *  the planks (see pieces.ts `flip`). `src`: a texture key the class preloads, or a url ('assets/…'). */
+  flip(src: string, at: V3 | (() => V3 | null), o: FlipOpts): { end(): void } { return flipPiece(this, src, at, o); }
+  /** A flip sheet by url loaded ahead of its first use. */
+  flipLoad(src: string): void { flipPreload(this, src); }
   get noiseTex(): THREE.Texture { return this.noise; }
 
   /** Everything compiled up front (no hitch at the first cast): one of each piece drawn once, out of sight. */

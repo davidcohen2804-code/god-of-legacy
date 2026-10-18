@@ -3642,14 +3642,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private roomHit(s: FinalSkill, hit: HitEvent, at: V3, reaction: string, quiet = false): void {
     if (!this.a3d) return;
     if (quiet) { this.a3d.fx.hit(s, hit, at, false, reaction, 0); return; } // (a hold's turn: only its recipe's own small piece)
-    const weight = s.slot === 7 && (hit.heavy || s.cls !== 'warrior') ? 'ultimate' : hit.heavy || s.slot === 6 || reaction === 'launch' || reaction === 'knockdown' || reaction === 'slam' ? 'heavy' : 'light';
+    // (a long burst — 13 blows or more — keeps its weight for its last blow: Staff Flurry's five heavier blows each laid the main hit's flash and shell and the room's dust over the foe, a white puff that stayed on him — the Gambler chat)
+    const long = !s.chain && s.hits.length > 12 && !lastOfBurst(s, hit), heavy = !!hit.heavy && !long;
+    const weight = s.slot === 7 && (heavy || s.cls !== 'warrior') ? 'ultimate' : heavy || s.slot === 6 || reaction === 'launch' || reaction === 'knockdown' || reaction === 'slam' ? 'heavy' : 'light';
     const wSmall = s.cls === 'warrior' && !hit.heavy && s.hits.length > 1 && !lastOfBurst(s, hit); // (any warrior skill of 2+ blows: only its heavy / last one throws the room's dust — Rising Slash, Leap Crash, Sky Breaker hazed too) // (warrior: a burst's small blows light the room lightly even when they launch — each heavy one's room dust and ring stacked into a white haze round both fighters: Ground Breaker, Titan's Verdict)
     this.a3d.fx.cardFlutter(at.x, at.y, 120); // (his cards lying near a blow hop)
     this.a3d.hit(at.x, at.y, at.z, this.a3d.fx.tone(s) ?? parseInt(classColor(s.cls).slice(1), 16), wSmall ? 'light' : weight); // (in the skill's family colour when its recipe names one)
     // the skill's 3D pieces at the foe; the main hit (heavy, sending him flying or down, the last of a burst) carries the weight
     const flies = !!(hit.reaction.launch || hit.reaction.knockdown || hit.reaction.slam), many = (s.chain ? 1 : s.hits.length) > 3;
-    const main = !!hit.heavy || flies || lastOfBurst(s, hit) || (!many && (s.slot === 6 || s.slot === 7));
-    this.a3d.fx.hit(s, hit, at, main, reaction, s.slot === 7 && main ? 2 : s.slot === 6 || hit.heavy || flies ? 1 : 0);
+    const main = heavy || flies || lastOfBurst(s, hit) || (!many && (s.slot === 6 || s.slot === 7));
+    this.a3d.fx.hit(s, hit, at, main, reaction, s.slot === 7 && main ? 2 : s.slot === 6 || heavy || flies ? 1 : 0);
   }
   private counterCall(at: V3): void { this.fx?.callout({ x: at.x, y: at.y, z: at.z + 70 }, 'COUNTER!', '#ff6a3a', 1); this.impactBeat('counter', at); }
   /** The big hits felt by their weight (the same in the arena and in the open game): a counter, a punish, an armor break

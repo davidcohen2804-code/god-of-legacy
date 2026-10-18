@@ -78,6 +78,23 @@ Ask for one pose per message; a series of poses works best in one chat ("Now the
   archer green-gold wind, mage blue-white runes, gambler magenta cards. Impact frame: a bright core (`#FFF6D6`) with the
   class color around it, 1–2 frames, then smoke in the class color at 40 % alpha.
 - Hit frame of a skill: the hero's body in the same style (§1–§5), a smear only on the weapon, never on the body.
+- **Effects in the 3D room (PVP 3D and the open world) — `f.flip(src, at, o)`** (Fx3D; `flip` in `src/arena3d/fx3d/pieces.ts`;
+  DFO, David 18 Oct 20:51 "a free hand in GPT and PixVerse"). A frame sheet painted **on black** plays in the room's depth:
+  `mode: 'up'` upright, turned to the eye (art drawn as the game sees it: a pillar, a burst, a slash; `anchorY` sets which
+  height of it sits on the point — 0 its foot (`foot: true`), 0.5 its middle by default, for a ring drawn round a body), or `mode: 'floor'` flat on the planks (art drawn top-down: a magic circle, a crater, roots; art already
+  drawn as an ellipse in perspective: `aspect: ~1.8`). Its brightness becomes its cover, so it keeps its colours on the
+  bright red planks (light only *added* there turns white-grey — the look of the code-drawn pieces David rejected).
+  `through: 0.5` ('up'): whole behind the fighters and half see-through over them (a foe inside a pillar still reads);
+  `glow` (0..1): a little of its hottest light added on top; `grow`, `rot`, `spin`, `fadeIn` / `fadeOut`, `loop` + `ms`,
+  `delay`, a function `at` follows a fighter. `src`: a texture key the class preloads (`frame: [w, h]` its frame size) or a
+  url (`'assets/final/skills/<class>/fx3d/<name>.webp'`). Every painted sheet already in the game (on black) works as it is.
+- **GPT** (a sheet): `<the effect>, a game VFX sprite sheet, 4x4 frames of one animation in reading order, evenly spaced,
+  each frame centred with margin, on a pure black background; glowing, a white-hot core, saturated <class colour>, a dark
+  edge where it fades; no ground, no characters, no text.` — or one still, animated with `grow` / `rot` / `fadeOut`.
+- **PixVerse** (an effect in motion): `<the effect>, on a pure black background, camera locked, no characters, no ground`
+  → `python3 tools/fx/flipbook.py clip.mp4 public/assets/final/skills/<class>/fx3d/<name>.webp --frames 16 --size 384`
+  (writes `<name>.webp.json`: the `frame` and `fps` to pass to `flip`). Green / magenta screens: `--key green|magenta`
+  (then `key: 'alpha'` in flip).
 
 ## 9. The pipeline (tools/heroes/pipeline/)
 `px_toolkit.js` (drive PixVerse from its page: upload / generate / poll / pull) · `pxpull.py` (reassemble base64 chunks)

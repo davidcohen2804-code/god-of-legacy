@@ -845,6 +845,138 @@ export function wreath(f: Fx3D, at: () => V3 | null, color: number, o: { r?: num
   });
 }
 
+// ------------------------------------------------------------------ painted art in the room (GPT sheets, PixVerse frames)
+
+const FLIP_VS = `
+#include <common>
+#include <clipping_planes_pars_vertex>
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+  gl_Position = projectionMatrix * mvPosition;
+  #include <clipping_planes_vertex>
+}`;
+const FLIP_FS = `
+#include <common>
+#include <clipping_planes_pars_fragment>
+uniform sampler2D uMap; uniform vec2 uGrid; uniform float uF0; uniform float uF1; uniform float uMix; uniform float uA;
+uniform vec3 uTint; uniform float uKey; uniform vec2 uLoHi; uniform float uGain; uniform float uGlow;
+varying vec2 vUv;
+vec4 frameAt(float f) { float c = mod(f, uGrid.x), r = floor(f / uGrid.x); return texture2D(uMap, (vec2(c, uGrid.y - 1.0 - r) + clamp(vUv, 0.002, 0.998)) / uGrid); }
+void main() {
+  #include <clipping_planes_fragment>
+  vec4 t = mix(frameAt(uF0), frameAt(uF1), uMix);
+  vec3 col; float a;
+  if (uKey > 0.5) { // painted on black: its brightness is its cover (so it covers the planks in its colour instead of adding light to them)
+    float m = max(t.r, max(t.g, t.b)); a = smoothstep(uLoHi.x, uLoHi.y, m); col = min(t.rgb / max(a, 0.001), vec3(1.0));
+  } else { a = t.a; col = t.rgb; }
+  col *= uTint * uGain;
+#ifdef GLOW
+  // its added light: only the hottest of it (on the bright planks added light turns white)
+  float m2 = max(col.r, max(col.g, col.b)); col = col * a * smoothstep(0.55, 1.0, m2) * uGlow; a = 1.0;
+#endif
+  a *= uA;
+  if (!(a >= 0.003)) discard;
+  gl_FragColor = vec4(max(col, vec3(0.0)), min(a, 1.0));
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+const flipTexs = new Map<string, THREE.Texture | null>();
+/** A texture by the game's key (loaded by Phaser) or by url (loaded here once; null until it has arrived). */
+function flipTex(f: Fx3D, src: string): THREE.Texture | null {
+  const own = f.host.texture?.(src); if (own) return own;
+  if (flipTexs.has(src)) return flipTexs.get(src) ?? null;
+  if (!/[./]/.test(src)) return null; // (a key not loaded: nothing to draw)
+  flipTexs.set(src, null);
+  new THREE.TextureLoader().load(src, (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; flipTexs.set(src, t); });
+  return null;
+}
+/** Loads a sheet by url ahead of its first use (a skill's first cast shows it at once). */
+export function flipPreload(f: Fx3D, src: string): void { flipTex(f, src); }
+
+export type FlipOpts = {
+  /** The sheet's frame size in px (else `grid`, else the whole picture is one frame). */
+  frame?: [number, number]; grid?: [number, number];
+  /** Frames to play (from, to inclusive; default all) at `fps` (default 24); `loop` replays them for `ms`. */
+  from?: number; to?: number; fps?: number; loop?: boolean; ms?: number; delay?: number;
+  /** Its width in px (its height by the frame's aspect × `aspect`). */
+  w: number; aspect?: number;
+  /** 'up': upright, turned to the eye (its foot at `at` when `foot`); 'floor': flat on the planks (`spin` deg/s, `rot` deg). */
+  mode?: 'up' | 'floor'; foot?: boolean; rot?: number; spin?: number;
+  /** ('up') Which height of the picture sits on `at`: 0 its foot (= `foot`), 0.5 its middle (default), 1 its top. */
+  anchorY?: number;
+  /** 'black' (default): painted on black — its brightness becomes its cover; 'alpha': the picture's own alpha. */
+  key?: 'black' | 'alpha'; lo?: number; hi?: number;
+  /** Over the fighters (default for 'up') or behind them in the room (default for 'floor'). */
+  front?: boolean;
+  /** ('up') Behind the fighters whole and over them at this alpha (0..1): a fighter inside it still reads (a pillar round a foe). */
+  through?: number;
+  tint?: number; gain?: number; a?: number;
+  /** A little of its hottest light added over the picture as well (0..1; it blooms). */
+  glow?: number;
+  /** Scale over its life (s0 → s1), its fade-in / fade-out ms. */
+  grow?: [number, number]; fadeIn?: number; fadeOut?: number;
+  /** Mirrored (it faces the other way). */
+  flipX?: boolean;
+};
+/** A frame sheet played in the room (DFO, 18 Oct 20:51 — David: "a free hand in GPT and PixVerse"): a GPT sheet or a
+ *  PixVerse effect turned into frames (tools/fx/flipbook.py), placed in the room's depth — upright at a point (turned to
+ *  the eye) or flat on the floor — at `at` (world px; a function follows a fighter: null ends it). Painted on black, its
+ *  brightness becomes its cover, so its colours hold on the bright planks (not added light that turns white). `src`: a
+ *  game texture key (loaded by the class's preload) or a url ('assets/…'). Returns `end()` (it fades out now). */
+export function flip(f: Fx3D, src: string, at: V3 | (() => V3 | null), o: FlipOpts): { end(): void } {
+  let ended = false, endAt = -1;
+  const handle = { end: () => { ended = true; } };
+  f.later(o.delay ?? 0, () => {
+    const get = getter(at), c0 = get(); if (!c0) return;
+    const mode = o.mode ?? 'up', front = o.front ?? mode === 'up';
+    const mk = (glow: boolean) => new THREE.ShaderMaterial({
+      vertexShader: FLIP_VS, fragmentShader: FLIP_FS, defines: glow ? { GLOW: 1 } : {},
+      uniforms: { uMap: { value: null }, uGrid: { value: new THREE.Vector2(1, 1) }, uF0: { value: 0 }, uF1: { value: 0 }, uMix: { value: 0 }, uA: { value: 1 },
+        uTint: { value: new THREE.Color(o.tint ?? 0xffffff) }, uKey: { value: (o.key ?? 'black') === 'black' ? 1 : 0 }, uLoHi: { value: new THREE.Vector2(o.lo ?? 0.04, o.hi ?? 0.6) }, uGain: { value: o.gain ?? 1 }, uGlow: { value: o.glow ?? 0 } },
+      transparent: true, depthWrite: false, depthTest: mode !== 'up', side: THREE.DoubleSide, blending: glow ? THREE.AdditiveBlending : THREE.NormalBlending, fog: false, // (upright art is a picture in the air: the floor does not cut its lower half)
+    });
+    const ay = o.anchorY ?? (o.foot ? 0 : 0.5), geo = new THREE.PlaneGeometry(1, 1); if (mode === 'up' && ay !== 0.5) geo.translate(0, 0.5 - ay, 0);
+    const thru = mode === 'up' && o.through !== undefined; // (behind the fighters whole, and over them see-through: a fighter reads inside it)
+    const m = new THREE.Mesh(geo, mk(false)); m.frustumCulled = false; (front || thru ? f.host.solid : f.host.back).add(m);
+    const mb = thru ? new THREE.Mesh(geo, mk(false)) : null; if (mb) { mb.frustumCulled = false; f.host.back.add(mb); }
+    const g = (o.glow ?? 0) > 0 ? new THREE.Mesh(geo, mk(true)) : null; if (g) { g.frustumCulled = false; (front ? f.host.glow : f.host.back).add(g); }
+    const mats = [m.material, ...(g ? [g.material] : []), ...(mb ? [mb.material] : [])] as THREE.ShaderMaterial[];
+    const meshes = [m, ...(g ? [g] : []), ...(mb ? [mb] : [])];
+    let t = 0, ready = false, n = 1, from = 0, cols = 1, rows = 1, aspect = 1, last: V3 = c0;
+    const done = () => { for (const x of meshes) x.parent?.remove(x); geo.dispose(); for (const mm of mats) mm.dispose(); };
+    f.spawn({
+      step: (dt) => {
+        if (!ready) { // (the sheet may still be on its way)
+          const tex = flipTex(f, src); if (!tex) { t += dt; if (t > 4000) { done(); return false; } return true; }
+          const img = tex.image as { width: number; height: number } | undefined, W = img?.width || 1, H = img?.height || 1;
+          if (o.frame) { cols = Math.max(1, Math.round(W / o.frame[0])); rows = Math.max(1, Math.round(H / o.frame[1])); } else if (o.grid) { cols = o.grid[0]; rows = o.grid[1]; }
+          from = o.from ?? 0; n = Math.max(1, (o.to ?? cols * rows - 1) - from + 1); aspect = ((H / rows) / (W / cols)) * (o.aspect ?? 1);
+          for (const mm of mats) { mm.uniforms.uMap.value = tex; (mm.uniforms.uGrid.value as THREE.Vector2).set(cols, rows); }
+          ready = true; t = 0;
+        }
+        t += dt;
+        const fps = o.fps ?? 24, len = o.loop ? (o.ms ?? (n / fps) * 1000) : (n / fps) * 1000, fo = o.fadeOut ?? (o.loop ? 200 : 0);
+        const c = get(); if (c) last = c; else ended = true;
+        if (endAt < 0 && (ended || t >= len - fo)) endAt = ended ? t : len - fo; // (it fades from here: ended, or its last `fadeOut` ms)
+        const out = endAt >= 0 ? clamp01(1 - (t - endAt) / Math.max(1, fo)) : 1;
+        if (t >= len || (endAt >= 0 && out <= 0 && fo > 0) || (ended && fo <= 0)) { done(); return false; }
+        const pos = (t / 1000) * fps, k0 = o.loop ? pos % n : Math.min(n - 1, pos), i0 = Math.floor(k0), i1 = o.loop ? (i0 + 1) % n : Math.min(n - 1, i0 + 1);
+        const fin = clamp01(t / Math.max(1, o.fadeIn ?? 60)), k = clamp01(t / len), s = o.grow ? o.grow[0] + (o.grow[1] - o.grow[0]) * outCubic(k) : 1;
+        for (const mm of mats) { const u = mm.uniforms; u.uF0.value = from + i0; u.uF1.value = from + i1; u.uMix.value = k0 - i0; u.uA.value = (o.a ?? 1) * fin * out * (thru && mm === m.material ? o.through ?? 1 : 1); }
+        const P = f.unit(last), Wd = f.host.w3(o.w) * s, Hd = Wd * aspect;
+        for (const mesh of meshes) {
+          if (mode === 'floor') { mesh.position.set(P.x, 0.02 + (front ? 0 : 0.004), P.z); mesh.rotation.set(-Math.PI / 2, 0, THREE.MathUtils.degToRad((o.rot ?? 0) + (o.spin ?? 0) * (t / 1000))); mesh.scale.set(Wd * (o.flipX ? -1 : 1), Hd, 1); }
+          else { mesh.position.copy(P); mesh.quaternion.copy(f.host.camera.quaternion); if (o.rot) mesh.rotateZ(THREE.MathUtils.degToRad(o.rot)); mesh.scale.set(Wd * (o.flipX ? -1 : 1), Hd, 1); }
+        }
+        return true;
+      }, dispose: done,
+    });
+  });
+  return handle;
+}
+
 /** Everything these pieces draw compiled up front (no hitch at a first cast). */
 export function warmPieces(f: Fx3D, renderer: THREE.WebGLRenderer): void {
   const tmp: THREE.Mesh[] = [];

@@ -398,7 +398,7 @@ export class Arena3D {
     const r = Math.random;
     for (let i = 0; i < n; i++) {
       const a = r() * Math.PI * 2, out = (0.4 + r() * 0.9) * k;
-      (Math.sin(a) > 0 ? this.dustF : this.dustB).emit(hx + Math.cos(a) * 0.2, 0.12 + r() * 0.12, hz + Math.sin(a) * 0.15, Math.cos(a) * out, 0.12 + r() * 0.25, Math.sin(a) * out * 0.75, [0xcdb39c, 0xbfa38c, 0xd9c2a8][i % 3], (0.45 + r() * 0.35) * k, 700 + r() * 600, { a: 0.18 + r() * 0.1, grow: (1 + r() * 1.1) * k, drag: 0.3 });
+      (Math.sin(a) > 0 ? this.dustF : this.dustB).emit(hx + Math.cos(a) * 0.2, 0.12 + r() * 0.12, hz + Math.sin(a) * 0.15, Math.cos(a) * out, 0.12 + r() * 0.25, Math.sin(a) * out * 0.75, [0x9a7c68, 0x8c705e, 0xa68a74][i % 3], (0.4 + r() * 0.3) * k, 600 + r() * 500, { a: 0.14 + r() * 0.08, grow: (1 + r() * 0.9) * k, drag: 0.3 }); // (the planks' own wood dust, darker than it was: the pale puffs bloomed into a white haze over the foe — the Gambler chat's report)
     }
   }
 
