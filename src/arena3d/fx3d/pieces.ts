@@ -861,7 +861,7 @@ const FLIP_FS = `
 #include <common>
 #include <clipping_planes_pars_fragment>
 uniform sampler2D uMap; uniform vec2 uGrid; uniform float uF0; uniform float uF1; uniform float uMix; uniform float uA;
-uniform vec3 uTint; uniform float uKey; uniform vec2 uLoHi; uniform float uGain; uniform float uGlow;
+uniform vec3 uTint; uniform float uKey; uniform vec2 uLoHi; uniform float uGain; uniform float uGlow; uniform float uCore;
 varying vec2 vUv;
 vec4 frameAt(float f) { float c = mod(f, uGrid.x), r = floor(f / uGrid.x); return texture2D(uMap, (vec2(c, uGrid.y - 1.0 - r) + clamp(vUv, 0.002, 0.998)) / uGrid); }
 void main() {
@@ -871,7 +871,8 @@ void main() {
   if (uKey > 0.5) { // painted on black: its brightness is its cover (so it covers the planks in its colour instead of adding light to them)
     float m = max(t.r, max(t.g, t.b)); a = smoothstep(uLoHi.x, uLoHi.y, m); col = min(t.rgb / max(a, 0.001), vec3(1.0));
   } else { a = t.a; col = t.rgb; }
-  col *= uTint * uGain;
+  float hot = max(t.r, max(t.g, t.b));
+  col = mix(col * uTint, col, uCore * smoothstep(0.72, 1.0, hot)) * uGain; // (tinted, its white-hot core kept white by uCore)
 #ifdef GLOW
   // its added light: only the hottest of it (on the bright planks added light turns white)
   float m2 = max(col.r, max(col.g, col.b)); col = col * a * smoothstep(0.55, 1.0, m2) * uGlow; a = 1.0;
@@ -894,6 +895,8 @@ function flipTex(f: Fx3D, src: string): THREE.Texture | null {
 }
 /** Loads a sheet by url ahead of its first use (a skill's first cast shows it at once). */
 export function flipPreload(f: Fx3D, src: string): void { flipTex(f, src); }
+/** Whether a sheet is in (a key loaded, or a url arrived): a blow that must land on its frame checks it first. */
+export function flipReady(f: Fx3D, src: string): boolean { return !!flipTex(f, src); }
 
 export type FlipOpts = {
   /** The sheet's frame size in px (else `grid`, else the whole picture is one frame). */
@@ -915,6 +918,8 @@ export type FlipOpts = {
   /** ('up') Behind the fighters whole and over them at this alpha (0..1): a fighter inside it still reads (a pillar round a foe). */
   through?: number;
   tint?: number; gain?: number; a?: number;
+  /** How much of its white-hot core stays white under `tint` (0..1; a neutral sheet tinted to a class colour keeps its hot heart). */
+  core?: number;
   /** A little of its hottest light added over the picture as well (0..1; it blooms). */
   glow?: number;
   /** Scale over its life (s0 → s1), its fade-in / fade-out ms. */
@@ -936,7 +941,7 @@ export function flip(f: Fx3D, src: string, at: V3 | (() => V3 | null), o: FlipOp
     const mk = (glow: boolean) => new THREE.ShaderMaterial({
       vertexShader: FLIP_VS, fragmentShader: FLIP_FS, defines: glow ? { GLOW: 1 } : {},
       uniforms: { uMap: { value: null }, uGrid: { value: new THREE.Vector2(1, 1) }, uF0: { value: 0 }, uF1: { value: 0 }, uMix: { value: 0 }, uA: { value: 1 },
-        uTint: { value: new THREE.Color(o.tint ?? 0xffffff) }, uKey: { value: (o.key ?? 'black') === 'black' ? 1 : 0 }, uLoHi: { value: new THREE.Vector2(o.lo ?? 0.04, o.hi ?? 0.6) }, uGain: { value: o.gain ?? 1 }, uGlow: { value: o.glow ?? 0 } },
+        uTint: { value: new THREE.Color(o.tint ?? 0xffffff) }, uKey: { value: (o.key ?? 'black') === 'black' ? 1 : 0 }, uLoHi: { value: new THREE.Vector2(o.lo ?? 0.04, o.hi ?? 0.6) }, uGain: { value: o.gain ?? 1 }, uGlow: { value: o.glow ?? 0 }, uCore: { value: o.core ?? 0 } },
       transparent: true, depthWrite: false, depthTest: mode !== 'up', side: THREE.DoubleSide, blending: glow ? THREE.AdditiveBlending : THREE.NormalBlending, fog: false, // (upright art is a picture in the air: the floor does not cut its lower half)
     });
     const ay = o.anchorY ?? (o.foot ? 0 : 0.5), geo = new THREE.PlaneGeometry(1, 1); if (mode === 'up' && ay !== 0.5) geo.translate(0, 0.5 - ay, 0);

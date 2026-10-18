@@ -13,7 +13,9 @@ import { BOOK_MAGE } from './fx3d/book_mage';
 import { ARCHER } from './fx3d/archer';
 import { SAMURAI } from './fx3d/samurai';
 import { GAMBLER } from './fx3d/gambler';
-import { warmPieces, flip as flipPiece, flipPreload, type FlipOpts } from './fx3d/pieces';
+import { warmPieces, flip as flipPiece, flipPreload, flipReady, type FlipOpts } from './fx3d/pieces';
+/** The main hit's painted burst (GPT, 4 x 4 frames on black: a white-hot star flash, a shockwave ring and shards, embers, wisps): every class's main hit, tinted to its blow. */
+const IMPACT_SHEET = 'assets/final/fx3d/impact_burst.webp';
 
 export type V3 = { x: number; y: number; z: number };
 
@@ -648,8 +650,12 @@ export class Fx3D {
     const r = o.r ?? 60, hx = this.h.w3(at.x), hz = this.h.d3(at.y), hy = this.h.h3(at.z);
     this.lastImpact = { x: at.x, y: at.y, t: this.clock };
     this.announce('impact', at, r > 100 ? 2 : r > 55 ? 1 : 0, { color });
-    this.orb(at, 0xffffff, { r0: r * 0.6, r1: r, ms: 95, a: 0.85, i: 1.5 }); // (a flash, never a white-out: gone in ~6 frames)
-    this.later(40, () => this.dome(at.x, at.y, color, { r: r * 1.7, ms: 280, a: 0.55, i: 1.5, hold: 1, paint: o.paint })); // (its colour bursts out as a shell, its rim burning: the blow seen through it)
+    if (flipReady(this, IMPACT_SHEET)) { // (David 18 Oct 20:49, "not professional": the white ball and its shell were drawn in code — a painted burst now, tinted to the blow, its white-hot heart kept, the struck one seen through it)
+      this.flip(IMPACT_SHEET, at, { grid: [4, 4], fps: 38, w: r * 4.4, mode: 'up', tint: color, core: 0.85, gain: 1.1, through: 0.65, glow: 0.2, rot: (Math.random() - 0.5) * 16, flipX: Math.random() < 0.5 });
+    } else { // (the sheet not in yet: the code-drawn flash)
+      this.orb(at, 0xffffff, { r0: r * 0.6, r1: r, ms: 95, a: 0.85, i: 1.5 }); // (a flash, never a white-out: gone in ~6 frames)
+      this.later(40, () => this.dome(at.x, at.y, color, { r: r * 1.7, ms: 280, a: 0.55, i: 1.5, hold: 1, paint: o.paint })); // (its colour bursts out as a shell, its rim burning: the blow seen through it)
+    }
     this.h.flare(hx, hy, hz + 0.2, color, (30 * r) / 80, 9, 380);
     if (o.cracks !== false) this.later(30, () => this.crack(at.x, at.y, color, { r: r * 1.15, ms: 520, chunks: Math.round(r / 12), quiet: true }));
     this.later(60, () => this.h.ring(hx, hz, color, this.h.w3(r * 2.2), 380, 0.6));
@@ -986,6 +992,7 @@ export class Fx3D {
 
   /** Everything compiled up front (no hitch at the first cast): one of each piece drawn once, out of sight. */
   warm(renderer: THREE.WebGLRenderer): void {
+    flipPreload(this, IMPACT_SHEET); // (the main hit's painted burst, in before the first blow)
     const tmp: THREE.Object3D[] = [];
     for (const k of Object.values(KIND)) for (const clip of [null, this.cut(0, false), this.cut(0, true)]) {
       const m = new THREE.Mesh(this.planeGeo, this.mat(k, 0xffffff, { clip: clip ?? undefined })); m.position.set(0, -50, 0); tmp.push(m); this.h.back.add(m);
