@@ -11,10 +11,9 @@ import { C, me, side, placeOf } from './kit';
 
 // Rift Gates: the gates she lays, mirrored from the casts (two at most, the oldest moved by a third, 10 s each — the scene's RIFT), so each gate's
 // look can end the moment it is moved (its `at()` returns null and its pieces fly off)
-type Gate = { x: number; y: number; until: number; dead: boolean };
+type Gate = { x: number; y: number; dead: boolean };
 const gates = new Map<string, Gate[]>();
-const liveGates = (id: string, now: number): Gate[] => (gates.get(id) ?? []).filter((g) => !g.dead && now < g.until);
-const now = () => performance.now();
+const liveGates = (id: string): Gate[] => (gates.get(id) ?? []).filter((g) => !g.dead); // (timed by the room's own clock: f.later, so hit-stop and slow motion keep it in step)
 
 export const BOOK_MAGE: Record<string, Recipe> = {
   // the regular bolt: a thin violet trail; the default main-hit layer marks the blow
@@ -79,13 +78,13 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // a ring of sparks turning flat on the planks and her torn pages circling slowly up out of it; crossing, the pages pour down into the gate
   // under her and she rises out of the other in a short beam with an inked ring at her feet
   rift_gates: { tone: C.arcane, own: true,
-    cast: (f, r) => { const id = r.attackerId, c = me(f, r), t = now();
-      if (r.stage === 0) { const list = liveGates(id, t); const g: Gate = { x: c.x, y: c.y, until: t + 200 + 10000, dead: false }; list.push(g); while (list.length > 2) list.shift()!.dead = true; gates.set(id, list);
-        const at = () => (g.dead || now() > g.until ? null : { x: g.x, y: g.y, z: 0 });
-        f.swirl(at, {}, { n: 26, r0: 46, r1: 50, h: 8, ms: 10200, rps: 0.35, rise: 0, size: 0.6, color: C.arcane });
+    cast: (f, r) => { const id = r.attackerId, c = me(f, r);
+      if (r.stage === 0) { const list = liveGates(id); const g: Gate = { x: c.x, y: c.y, dead: false }; list.push(g); while (list.length > 2) list.shift()!.dead = true; gates.set(id, list); f.later(10200, () => { g.dead = true; });
+        const at = () => (g.dead ? null : { x: g.x, y: g.y, z: 0 });
+        f.swirl(at, {}, { n: 32, r0: 46, r1: 50, h: 8, ms: 10200, rps: 0.35, rise: 0, size: 0.8, color: C.arcane });
         f.swirl(at, { tex: 'mage-page', size: 0.7, aspect: 1.3, crumble: 'wind' }, { n: 7, r0: 30, r1: 44, h: 90, ms: 10200, rps: 0.25, rise: 0.35 });
         f.slash(c, side(r), C.arcane, { r: 52, w: 18, tilt: 0, a0: -180, a1: 180, ms: 300, y0: 4, ink: true, quiet: true }); }
-      else { const to = liveGates(id, t).find((g) => Math.hypot(g.x - c.x, g.y - c.y) > 40);
+      else { const to = liveGates(id).find((g) => Math.hypot(g.x - c.x, g.y - c.y) > 40);
         f.swirl(() => ({ x: c.x, y: c.y, z: 0 }), { tex: 'mage-page', size: 0.8, aspect: 1.3, crumble: 'wind' }, { n: 14, r0: 70, r1: 20, h: 160, ms: 240, rps: -1.6, rise: -0.6 });
         if (to) f.later(200, () => { f.skyBeam({ x: to.x, y: to.y, z: 0 }, C.arcane, { ms: 260, w: 8, h: 260 }); f.slash({ x: to.x, y: to.y, z: 0 }, side(r), C.arcane, { r: 60, w: 22, tilt: 0, a0: -180, a1: 180, ms: 260, y0: 6, ink: true, quiet: true }); }); } } },
 
@@ -94,7 +93,7 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // at each cut; at the end it bursts outward (the funnel flung off, a ring thrown over the floor)
   tempest_ride: { tone: C.storm, own: true,
     cast: (f, r) => { const c = me(f, r); f.glyph(c.x, c.y, C.storm, { shape: 'spiral', r: 90, ms: 420, spin: 3, pulse: 2 }); },
-    active: (f, r) => { const id = r.attackerId, t0 = now(), ms = r.timings.active, at = () => { const c = f.host.casterPos(id); return c && now() - t0 < ms ? { x: c.x, y: c.y, z: 0 } : null; };
+    active: (f, r) => { const id = r.attackerId, ms = r.timings.active; let on = true; f.later(ms, () => { on = false; }); const at = () => { const c = f.host.casterPos(id); return c && on ? { x: c.x, y: c.y, z: 0 } : null; };
       f.swirl(at, {}, { n: 90, r0: 36, r1: 150, h: 320, ms, rps: 2.2, rise: 1.1, size: 0.9, color: C.storm });
       f.swirl(at, {}, { n: 40, r0: 24, r1: 70, h: 260, ms, rps: -2.8, rise: 1.4, size: 0.6, color: C.arcane });
       f.swirl(at, { tex: 'mage-page', size: 0.8, aspect: 1.3, crumble: 'wind' }, { n: 12, r0: 60, r1: 130, h: 280, ms, rps: 1.8, rise: 0.9 }); },
