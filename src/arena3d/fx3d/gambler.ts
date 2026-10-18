@@ -217,8 +217,8 @@ export const GAMBLER: Record<string, Recipe> = {
     cast: (f) => f.flipLoad(SHEET.staffHit),
     hit: (f, _s, h, at) => {
       const big = h.damage >= 5, p = { x: at.x + (Math.random() - 0.5) * 30, y: at.y, z: at.z + 70 + (Math.random() - 0.5) * 30 };
-      f.flip(SHEET.staffHit, p, big ? { grid: [4, 4], from: 1, to: 11, w: 210, fps: 30, glow: 0.25, through: 0.55, rot: Math.random() * 90 }
-        : { grid: [4, 4], from: 1, to: 7, w: 120, fps: 34, glow: 0.2, through: 0.55, rot: Math.random() * 90, fadeOut: 60 });
+      f.flip(SHEET.staffHit, p, big ? { grid: [4, 4], from: 1, to: 11, w: 175, fps: 30, glow: 0.2, through: 0.5, rot: Math.random() * 90 }
+        : { grid: [4, 4], from: 1, to: 7, w: 100, fps: 34, glow: 0.15, through: 0.5, rot: Math.random() * 90, fadeOut: 60 });
       if (big) f.host.embers(f.host.w3(at.x), f.host.h3(at.z + 70), f.host.d3(at.y), 0xb4a6ff, 6, 1.6);
     } },
   kinetic_grab: { tone: TONE.fuse,
