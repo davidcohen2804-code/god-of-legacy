@@ -22,6 +22,9 @@ export const ARCHER_FLIPS: [string, string, number, number, number][] = [
   ['afx-goldhit', 'fx_goldhit.webp', 320, 320, 12], // Sky Rain's last blow: one giant gold arrow driven into the foe, a dome of gold light bursting out
   ['afx-release', 'fx_release.webp', 300, 201, 8], // a heavy release: a cone of wind and leaves blasting forward from the bow
   ['afx-thorns', 'fx_thorns.webp', 201, 300, 21], // Vine Mine's burst: thorned vines erupting from the mine, spreading, then pulling back into the floor
+  ['afx-spirit', 'fx_spirit.webp', 400, 137, 10], // Spirit Bow's great arrow: an arrow of spirit light wrapped in a spiralling vortex of wind and leaves (loops, rides the shot)
+  ['afx-spiritbeam', 'fx_spiritbeam.webp', 400, 137, 8], // its wake: the line it tore flaring and fading
+  ['afx-firebloom', 'fx_fire.webp', 220, 220, 18], // Fireball Arrow's blast: a fire explosion blooming up and out, burning down to embers
   ['afx-rain', 'fx_rain.webp', 400, 268, 16], // Sky Rain: a rain of golden spirit arrows pouring down at a slant, bursting in gold where they land (loops)
 ];
 export interface ArcherCtx {
@@ -172,7 +175,7 @@ export class ArcherFx {
   }
   /** Plays one of the painted flipbooks (ARCHER_FLIPS) once: painted art with real alpha (normal blending — it covers the planks
    *  instead of adding light to them), its frames spread over `ms`, `oy` its foot. */
-  private flip(key: string, x: number, y: number, o: { w: number; ms: number; /** loop the frames every `loop` ms for the whole `ms` */ loop?: number; ox?: number; angle?: number; oy?: number; depth?: number; a?: (u: number) => number; sx?: (u: number) => number; sy?: (u: number) => number; delay?: number; flipX?: boolean; glow?: number; run?: CastRun }): void {
+  private flip(key: string, x: number, y: number, o: { w: number; ms: number; /** loop the frames every `loop` ms for the whole `ms` */ loop?: number; /** ride a moving point (its angle in degrees); ends when it returns null */ follow?: () => { x: number; y: number; d: number; ang: number } | null; ox?: number; angle?: number; oy?: number; depth?: number; a?: (u: number) => number; sx?: (u: number) => number; sy?: (u: number) => number; delay?: number; flipX?: boolean; glow?: number; run?: CastRun }): void {
     const sc = this.ctx.scene; if (!sc.textures.exists(key)) return;
     const def = ARCHER_FLIPS.find((f) => f[0] === key); if (!def) return;
     const n = def[4], ar = def[3] / def[2];
@@ -183,6 +186,7 @@ export class ArcherFx {
       t += dt; if (t < 0) return true;
       if (this.broken(o.run)) { im.destroy(); gl?.destroy(); return false; }
       const u = Math.min(1, t / o.ms); if (u >= 1) { im.destroy(); gl?.destroy(); return false; }
+      if (o.follow) { const p = o.follow(); if (!p) { im.destroy(); gl?.destroy(); return false; } for (const g of [im, gl]) g?.setPosition(p.x, p.y).setDepth(p.d).setAngle(p.ang); }
       const f = o.loop ? Math.floor((t % o.loop) / o.loop * n) % n : Math.min(n - 1, Math.floor(u * n)), a = o.a ? o.a(u) : 1, w = o.w * (o.sx ? o.sx(u) : 1), h = o.w * ar * (o.sy ? o.sy(u) : 1);
       im.setVisible(true).setFrame(f).setDisplaySize(w, h).setAlpha(a);
       gl?.setVisible(true).setFrame(f).setDisplaySize(w, h).setAlpha(a * (o.glow ?? 0));
@@ -832,6 +836,14 @@ export class ArcherFx {
     if (id === 'explosive_arrow') tr.setTint(0xffa040);
     im.setData('sx', im.scaleX);
     const whip = id === 'hunters_spirit' ? s.add.image(p.x, p.y - p.z, ARCHER_KIT, 'vine_whip').setOrigin(0, 0.5).setAlpha(0) : undefined; // the vine runs from her bow to the arrow
+    if (id === 'piercing_arrow' && s.textures.exists('afx-spirit')) { // (David 18 Oct 20:51: painted footage) the great arrow is a painted arrow of spirit light in its spiralling vortex, riding the shot; the line it tore flares behind it
+      im.setVisible(false); tr.setVisible(false);
+      const ang = Math.atan2(p.dy, p.dx) * (180 / Math.PI), x0 = p.x, y0 = p.y - p.z, d0 = p.y;
+      this.flip('afx-spirit', p.x, p.y - p.z, { w: 300, ms: 2000, loop: 300, ox: 0.92, oy: 0.5, glow: 0.3, follow: () => (p.done ? null : { x: p.x, y: p.y - p.z, d: p.y + 6, ang }) });
+      const end = () => { if (!p.done) { this.later(40, end); return; } const x1 = p.x, y1 = p.y - p.z, len = Math.hypot(x1 - x0, y1 - y0);
+        if (len > 40) this.flip('afx-spiritbeam', (x0 + x1) / 2, (y0 + y1) / 2, { w: len * 1.05, ms: 380, oy: 0.5, angle: ang, depth: d0 + 5, glow: 0.25, sy: () => 0.8, a: kf([0, 1], [1, 0, inQ]) }); };
+      this.later(40, end);
+    }
     this.arrows.set(p, { im, tr, t: 0, kind, z0: p.z, whip });
   }
   private stepArrows(dt: number): void {

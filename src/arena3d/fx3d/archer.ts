@@ -76,7 +76,8 @@ export const ARCHER: Record<string, Recipe> = {
     tick: (f, _r, at) => { const an = Math.random() * Math.PI * 2, rr = 60 + Math.random() * 120, x0 = at.x + Math.cos(an) * rr, y0 = at.y + Math.sin(an) * rr * 0.5; f.bolt({ x: x0, y: y0, z: 4 }, { x: x0 + (Math.random() - 0.5) * 160, y: y0 + (Math.random() - 0.5) * 50, z: 4 }, STORM, { ms: 140, w: 4, forks: 1 }); },
   },
   // Spirit Bow: a wide spirit trail; at the release a small shell at the bow; the foe thrown down tears the floor
-  piercing_arrow: { tone: SPIRIT, trail: { c: SPIRIT, w: 22, len: 18, i: 2.6 }, active: (f, r) => { const c = me(f, r); f.dome(c.x + side(r) * 60, c.y, SPIRIT, { r: 70, ms: 220, a: 0.55 }); f.host.kick(0.03); }, own: true, hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, SPIRIT, { r: 100, chunks: 10 }); f.debris(at.x, at.y, 6, { speed: 1.1, up: 0.8 }); } } },
+  piercing_arrow: { tone: SPIRIT, trail: false, // (the great arrow is painted footage riding the shot — ArcherFx)
+    active: (f, r) => { f.host.kick(0.03); void r; }, own: true, hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, SPIRIT, { r: 100, chunks: 10 }); f.debris(at.x, at.y, 6, { speed: 1.1, up: 0.8 }); } } },
   // Hunter's Roar: a crest of wind running out round her and the air bent — no dome over the fighters
   hunters_roar: { tone: SPIRIT, own: true, active: (f, r) => { const c = me(f, r); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), SPIRIT, 3.0, 480, 0.7); f.later(90, () => f.host.ring(f.host.w3(c.x), f.host.d3(c.y), SUN, 2.2, 400, 0.5)); f.host.dust(f.host.w3(c.x), f.host.d3(c.y), 14, 1); f.host.impact({ x: c.x, y: c.y, z: 100 }, 1); } },
   // Binding Leaves: roots crystallise round the bound foe's feet for the hold
