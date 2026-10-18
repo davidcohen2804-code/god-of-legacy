@@ -140,12 +140,12 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // LIGHTNING CHAIN — the book crackles; a forked bolt leaps from it to the first foe and on from foe to foe (the room's
   // chain bolt), each struck one crackling in a cage of small arcs; the last link a bolt out of the sky
   lightning_chain: { tone: STORM, own: true, chainBolt: STORM, trail: false,
-    cast: (f, r) => { const t0 = T(r).startup; for (let k = 0; k < 5; k++) f.later((k * t0) / 5, () => { const h = book(f, r), a = rnd(0, Math.PI * 2); f.bolt(h, { x: h.x + Math.cos(a) * 40, y: h.y, z: h.z + Math.sin(a) * 40 }, VOLT, { ms: 90, w: 3, forks: 0, hue: true }); }); },
+    cast: (f, r) => { const t0 = T(r).startup; f.flipLoad(STRIKE); for (let k = 0; k < 5; k++) f.later((k * t0) / 5, () => { const h = book(f, r), a = rnd(0, Math.PI * 2); f.bolt(h, { x: h.x + Math.cos(a) * 40, y: h.y, z: h.z + Math.sin(a) * 40 }, VOLT, { ms: 90, w: 3, forks: 0, hue: true }); }); },
     hit: (f, s, h, at, main) => {
       const z = (at.z ?? 0) + 62;
       for (let k = 0; k < (main ? 3 : 2); k++) { const a = rnd(0, Math.PI * 2); f.bolt({ x: at.x, y: at.y, z }, { x: at.x + Math.cos(a) * 55, y: at.y + Math.sin(a) * 18, z: z + Math.sin(a) * 55 }, VOLT, { ms: 150, w: 3.5, forks: 1, hue: true }); }
       star(f, { x: at.x, y: at.y, z }, STORM, { size: main ? 130 : 90, ms: 200 });
-      if (main && hitIndex(s, h) === s.hits.length - 1) { f.bolt({ x: at.x + 30, y: at.y, z: z + 640 }, { x: at.x, y: at.y, z: z - 20 }, STORM, { ms: 300, w: 8, forks: 2, hue: true }); f.host.kick(0.03); }
+      if (main && hitIndex(s, h) === s.hits.length - 1) { f.flip(STRIKE, { x: at.x, y: at.y, z: 0 }, { frame: STRIKE_F, fps: 30, w: 260, mode: 'up', foot: true, through: 0.55, glow: 0.3 }); f.host.kick(0.03); } // (the last link: the painted strike out of the sky onto him)
     },
   },
 
