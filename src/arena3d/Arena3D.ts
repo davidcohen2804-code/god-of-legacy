@@ -364,7 +364,7 @@ export class Arena3D {
     }
     this.dust(hx, hz, big === 2 ? 12 : 6, big === 2 ? 1.25 : 1);
     this.ring(hx, hz, color, big === 2 ? 4.2 : 2.4, big === 2 ? 420 : 260, 0.9);
-    if (big === 2) this.ring(hx, hz, 0xffffff, 2.6, 300, 0.6);
+    if (big === 2) this.ring(hx, hz, mix(color, 0xffffff, 0.35), 2.6, 260, 0.45); // (its inner ring in its own colour, lighter: a white one painted a white plate on the planks)
     this.blowPetals(hx, hy, hz, big === 2 ? 5 : 3.2, big === 2 ? 5.5 : 3.2);
     this.kick = Math.max(this.kick, big === 2 ? 0.07 : 0.035);
     // the picture jumps the way the blow goes (from the other fighter to the struck one)
