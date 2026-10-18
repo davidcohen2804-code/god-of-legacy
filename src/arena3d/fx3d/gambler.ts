@@ -23,7 +23,7 @@ const HOLD = new Map<string, { at: { x: number; y: number; z: number }; end: boo
 /** Light Staff (David 18 Oct 01:42): whose cane is lit, until when (the page's clock — a look only; the reach is the scene's). */
 const LIT = new Map<string, number>();
 /** The last guard raised (its catch's line runs from him). */
-let GUARD = '';
+let GUARD = '', GUARD_END = false;
 /** 52 Pickup's cards in the planks (by wave) and the waves gone off so far. */
 let P52: { keys: { key: string; w: number }[]; wave: number } | null = null;
 const lit = (r: { attackerId: string }) => (LIT.get(r.attackerId) ?? 0) > performance.now();
@@ -128,20 +128,50 @@ export const GAMBLER: Record<string, Recipe> = {
   // V — Long Guard: held, a ward of six cards turning upright round him and a ring of runes at his feet; a catch snaps a line of
   // cards out to the striker (its hit 0) and binds him in a red star
   long_guard: { tone: TONE.card, own: true,
+    // (David 18 Oct 18:40: "doesn't come across") — read from across the field: a red shell of light round him for as long as
+    // he holds it, eight big cards turning upright in a ring at his chest, a rune ring at his feet; the catch a big moment —
+    // a white flash along the guard, the cards snapping out in a line to the striker, the striker held in a ring of cards
     active: (f, r) => {
-      const id = r.attackerId, ms = Math.min(2600, T(r).active); GUARD = id;
-      f.swirl(() => { const run = f.host.casterPos(id); return run ? { x: run.x, y: run.y, z: 0 } : null; }, { tex: 'gbk-card_back', size: 0.9, aspect: 1.45, crumble: F.red }, { n: 6, r0: 70, r1: 70, h: 120, ms, rps: 0.7, rise: 0, color: F.red });
-      const c = me(f, r); f.glyph(c.x, c.y, F.red, { shape: 'runes', r: 90, ms, spin: 0.6, pulse: 0.5, a: 0.6 });
+      const id = r.attackerId, ms = Math.min(2600, T(r).active); GUARD = id; GUARD_END = false;
+      let gone = false;
+      const at = () => {
+        const over = (GUARD_END && GUARD === id) || r.phase !== 'active', run = f.host.casterPos(id);
+        if (over && !gone && run) { gone = true; if (!GUARD_END) f.host.ring(f.host.w3(run.x), f.host.d3(run.y), F.red, 1.8, 260, 0.7); } // (the release: the ward thrown off in a ring)
+        return over || !run ? null : { x: run.x, y: run.y, z: 0 };
+      };
+      f.swirl(at, { tex: 'gbk-card_back', size: 1.35, aspect: 1.45, crumble: F.red }, { n: 8, r0: 78, r1: 78, h: 150, ms, rps: 0.55, rise: 0, color: F.red });
+      f.dome(me(f, r).x, me(f, r).y, F.red, { r: 105, ms: ms + 200, a: 0.18, hold: ms, follow: () => { const p = at(); return p ? { ...p, z: 0 } : null; } });
+      const c = me(f, r); f.glyph(c.x, c.y, F.red, { shape: 'runes', r: 110, ms, spin: 0.6, pulse: 0.5, a: 0.75 });
     },
-    hit: (f, _s, _h, at) => { const c = (GUARD ? f.host.casterPos(GUARD) : null) ?? at; f.streak({ x: c.x, y: c.y, z: 80 }, { x: at.x, y: at.y, z: at.z + 70 }, F.red, { w: 10, ms: 220, draw: 40 }); f.flurry({ x: at.x, y: at.y, z: at.z + 70 }, F.red, { ms: 180, every: 36, len: 220, w: 6, accent: 0, spread: 10 }); } },
+    hit: (f, _s, _h, at) => {
+      const c = (GUARD ? f.host.casterPos(GUARD) : null) ?? at; GUARD_END = true;
+      f.slash({ x: c.x, y: c.y, z: 0 }, at.x >= c.x ? 1 : -1, 0xffffff, { r: 70, w: 30, tilt: 80, a0: -40, a1: 40, ms: 160, y0: 70, i: 3, ink: false }); // the flash along the guard
+      for (let k = 0; k < 4; k++) f.later(k * 35, () => f.streak({ x: c.x, y: c.y + (k - 1.5) * 10, z: 80 + (k % 2) * 16 }, { x: at.x, y: at.y + (k - 1.5) * 8, z: at.z + 60 + (k % 2) * 20 }, k % 2 ? F.card : F.red, { w: 7, ms: 220, draw: 40 }));
+      const held = { x: at.x, y: at.y, z: at.z }; let n = 0;
+      f.later(140, () => f.swirl(() => (++n > 72 ? null : { x: held.x, y: held.y, z: Math.max(0, held.z) }), { tex: 'gbk-card_back', size: 0.75, aspect: 1.45, crumble: F.red }, { n: 6, r0: 46, r1: 52, h: 120, ms: 1200, rps: 0.9, rise: 0, color: F.red }));
+      f.host.kick(0.04);
+    } },
   // Z — Staff Flurry (only with the light staff): 3 s of the lit cane's blows — long crossing violet lines through the space in
   // front of him, every 5th a heavy accent; the last blow one big upright ring that throws him
   staff_flurry: { tone: TONE.violet, own: true,
+    // (David 18 Oct 18:40: "make it beautiful and impressive — the light is already there") the lit staff at work: every jab a
+    // long violet thrust line, every spin a wheel of light round him (an upright inked ring turning), crossing arcs between,
+    // sparks on every hit, the fifth blows flaring; the closing rising swing one great violet arc
     active: (f, r) => {
-      const id = r.attackerId, s = side(r), ms = Math.min(3000, T(r).active);
-      f.flurry(() => { const c = f.host.casterPos(id); return c ? { x: c.x + s * 120, y: c.y, z: 75 } : null; }, 0xb4a6ff, { ms: ms - 150, every: 55, len: 300, w: 7, accent: 5, spread: 40 });
-      f.later(ms - 120, () => staffRing(f, r, me(f, r), s, 0xb4a6ff, { r: 150, w: 54, tilt: 82, a0: 175, a1: 5, ms: 260, y0: 40, i: 2.8, ink: true, follow: () => f.host.casterPos(id) }));
-    } },
+      const id = r.attackerId, s = side(r), ms = Math.min(3000, T(r).active), here = () => f.host.casterPos(id);
+      for (let t = 0, k = 0; t < ms - 200; t += 110, k++) f.later(t, () => {
+        const c = here(); if (!c) return;
+        if (k % 4 === 3) { // a spin: a wheel of light round him
+          f.slash(c, s, 0xb4a6ff, { r: 120, w: 40, tilt: 88, a0: -180, a1: 180, ms: 220, y0: 70, i: 2.4, ink: true, follow: here, quiet: true });
+        } else if (k % 2 === 0) { // a jab: a long thrust line out of his hands
+          f.streak({ x: c.x + s * 30, y: c.y, z: 80 + (k % 3) * 8 }, { x: c.x + s * 240, y: c.y + (k % 3 - 1) * 10, z: 80 + (k % 3) * 8 }, 0xe8e0ff, { w: k % 5 === 4 ? 14 : 8, ms: 120, draw: 20, front: true, quiet: true });
+        } else { // a short slanted arc in front
+          f.slash(c, s, 0xb4a6ff, { r: 150, w: 34, tilt: 30 + (k % 3) * 20, a0: -60, a1: 80, ms: 160, y0: 70, i: 2.2, ink: true, quiet: true });
+        }
+      });
+      f.later(ms - 160, () => staffRing(f, r, me(f, r), s, 0xb4a6ff, { r: 170, w: 60, tilt: 82, a0: 175, a1: 5, ms: 300, y0: 40, i: 3, ink: true, follow: here }));
+    },
+    hit: (f, _s, h, at) => { const big = h.damage >= 5; f.flurry({ x: at.x, y: at.y, z: at.z + 70 }, 0xb4a6ff, { ms: big ? 90 : 40, every: 30, len: big ? 200 : 120, w: big ? 7 : 4, accent: 0, spread: 8 }); if (big) f.host.embers(f.host.w3(at.x), f.host.h3(at.z + 70), f.host.d3(at.y), 0xb4a6ff, 6, 1.6); } },
   kinetic_grab: { tone: TONE.fuse,
     active: (f, r) => { const c = me(f, r), e = ahead(f, r, 120); f.bolt(chest(c, 92), { x: e.x, y: e.y, z: 85 }, F.fuse, { ms: 360, w: 8, forks: 2 }); },
     own: true, hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, F.fuse, { r: 80, ms: 240, a: 0.5 }); },
@@ -179,7 +209,11 @@ export const GAMBLER: Record<string, Recipe> = {
       P52 = { keys, wave: 0 };
     } },
   // the home run: a crater where the bat of light lands, a shell, the camera pushed
-  grand_slam: { tone: TONE.violet, own: true, hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, F.violet, { r: 160, chunks: 18, up: 1.3 }); f.host.kick(0.05); } } },
+  grand_slam: { tone: TONE.violet, own: true,
+    // (David 18 Oct 18:40: a golfer's stroke) the full swing one huge inked arc from low behind him up through the ball to high
+    // in front (the lit staff's reach), the crack where he struck it; the flight's trail and the crash are drawn on the foe (2D)
+    active: (f, r) => { const c = me(f, r), s = side(r); staffRing(f, r, c, s, 0xb4a6ff, { r: 170, w: 58, tilt: 74, a0: -150, a1: 160, ms: 300, y0: 60, i: 2.8, ink: true }); },
+    hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, F.violet, { r: 120, chunks: 12, up: 1.2 }); f.host.kick(0.05); } } },
   // Overload: lightning crawls round his feet
   kinetic_overload: { tone: TONE.fuse,
     own: true,
@@ -196,9 +230,11 @@ export const GAMBLER: Record<string, Recipe> = {
       const key = r.castId;
       if (i === 0) { // the card under him: it follows him until the last turn (or the hold ends)
         HOLD.set(key, { at, end: false, seen: 0 });
-        f.cardSpin(() => { const h = HOLD.get(key); if (!h || h.end || ++h.seen > 30) { HOLD.delete(key); return null; } return { x: h.at.x, y: h.at.y, z: Math.max(6, h.at.z - 46) }; }, { size: 1.9, color: 0x6a1020, rps: 2.2, tilt: 0.3, look: { face: 'gbk-card_back' } });
+        f.cardSpin(() => { const h = HOLD.get(key); if (!h || h.end || ++h.seen > 30) { HOLD.delete(key); return null; } return { x: h.at.x, y: h.at.y, z: 40 }; }, { size: 1.9, color: 0x6a1020, rps: 2.2, tilt: 0.3, look: { face: 'gbk-card_back' } });
       }
       const h = HOLD.get(key); if (h) { h.at = at; h.seen = 0; if (last) h.end = true; }
+      // (David 18:40: a clear gap between the card and him, its light reaching up to him) a thin red beam from the card to his feet each turn
+      if (at.z > 70) f.streak({ x: at.x, y: at.y, z: 44 }, { x: at.x, y: at.y, z: Math.max(60, at.z - 50) }, F.red, { w: 6, ms: 140, draw: 20, quiet: true });
       if (last) { f.flurry({ x: at.x, y: at.y, z: at.z + 30 }, F.red, { ms: 140, every: 35, len: 220, w: 6, accent: 0, spread: 10 }); f.host.kick(0.03); }
     },
   },
