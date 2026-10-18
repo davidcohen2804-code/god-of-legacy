@@ -242,6 +242,9 @@ export interface Recipe {
   own?: boolean;
   /** The room's main-hit impact keeps its colour (its shell painted, not only added: on the red planks light alone turns white). */
   paint?: boolean;
+  /** The room's main-hit impact (flash, shell, cracks, embers) is left out: the recipe draws its own main hit (its painted
+   *  hit sheet through `flip`, say — David 18 Oct 20:51). The room's light and dust still answer the blow. */
+  noImpact?: boolean;
 }
 
 /** A piece of a skill appearing in the room (for the arena's sound: each its own short sound under the blow). */
@@ -890,7 +893,7 @@ export class Fx3D {
     // the reference's main hit on every skill (DAVID 21:45): a white flash bigger than the body, the blow's colour bursting
     // out, the floor cracking under him (when he is on it), embers rising — unless its recipe just laid its own there
     const L = this.lastImpact, laid = this.clock - L.t < 260 && Math.hypot(L.x - at.x, L.y - at.y) < 140;
-    if (main && !laid) this.impact(at, col, { r: [46, 62, 90][big], embers: [8, 12, 20][big], cracks: at.z < 70 && react !== 'launch' && react !== 'float', paint: rc.paint });
+    if (main && !laid && !rc.noImpact) this.impact(at, col, { r: [46, 62, 90][big], embers: [8, 12, 20][big], cracks: at.z < 70 && react !== 'launch' && react !== 'float', paint: rc.paint });
     if (rc.own || !main) return;
     if (big === 2) { this.pillar(at.x, at.y, col, { h: 640, r: 48, ms: 640 }); this.crack(at.x, at.y, col, { r: 150, chunks: 16 }); return; }
     if (react === 'launch') this.pillar(at.x, at.y, col, { h: 360, r: 24, ms: 380, core: false });

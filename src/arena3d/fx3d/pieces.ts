@@ -906,6 +906,8 @@ export type FlipOpts = {
   mode?: 'up' | 'floor'; foot?: boolean; rot?: number; spin?: number;
   /** ('up') Which height of the picture sits on `at`: 0 its foot (= `foot`), 0.5 its middle (default), 1 its top. */
   anchorY?: number;
+  /** ('up', with a function `at`) Turned along its flight: the picture's +x points the way it moves (a fireball, a bolt, an arrow drawn flying right). */
+  along?: boolean;
   /** 'black' (default): painted on black — its brightness becomes its cover; 'alpha': the picture's own alpha. */
   key?: 'black' | 'alpha'; lo?: number; hi?: number;
   /** Over the fighters (default for 'up') or behind them in the room (default for 'floor'). */
@@ -944,7 +946,8 @@ export function flip(f: Fx3D, src: string, at: V3 | (() => V3 | null), o: FlipOp
     const g = (o.glow ?? 0) > 0 ? new THREE.Mesh(geo, mk(true)) : null; if (g) { g.frustumCulled = false; (front ? f.host.glow : f.host.back).add(g); }
     const mats = [m.material, ...(g ? [g.material] : []), ...(mb ? [mb.material] : [])] as THREE.ShaderMaterial[];
     const meshes = [m, ...(g ? [g] : []), ...(mb ? [mb] : [])];
-    let t = 0, ready = false, n = 1, from = 0, cols = 1, rows = 1, aspect = 1, last: V3 = c0;
+    let t = 0, ready = false, n = 1, from = 0, cols = 1, rows = 1, aspect = 1, last: V3 = c0, prev: THREE.Vector3 | null = null, ang = 0;
+    const dv = new THREE.Vector3(), inv = new THREE.Quaternion();
     const done = () => { for (const x of meshes) x.parent?.remove(x); geo.dispose(); for (const mm of mats) mm.dispose(); };
     f.spawn({
       step: (dt) => {
@@ -966,9 +969,10 @@ export function flip(f: Fx3D, src: string, at: V3 | (() => V3 | null), o: FlipOp
         const fin = clamp01(t / Math.max(1, o.fadeIn ?? 60)), k = clamp01(t / len), s = o.grow ? o.grow[0] + (o.grow[1] - o.grow[0]) * outCubic(k) : 1;
         for (const mm of mats) { const u = mm.uniforms; u.uF0.value = from + i0; u.uF1.value = from + i1; u.uMix.value = k0 - i0; u.uA.value = (o.a ?? 1) * fin * out * (thru && mm === m.material ? o.through ?? 1 : 1); }
         const P = f.unit(last), Wd = f.host.w3(o.w) * s, Hd = Wd * aspect;
+        if (o.along && mode === 'up') { if (prev && P.distanceToSquared(prev) > 1e-8) { inv.copy(f.host.camera.quaternion).invert(); dv.copy(P).sub(prev).applyQuaternion(inv); ang = Math.atan2(dv.y, dv.x); } prev = P.clone(); } // (turned along its flight as the eye sees it)
         for (const mesh of meshes) {
           if (mode === 'floor') { mesh.position.set(P.x, 0.02 + (front ? 0 : 0.004), P.z); mesh.rotation.set(-Math.PI / 2, 0, THREE.MathUtils.degToRad((o.rot ?? 0) + (o.spin ?? 0) * (t / 1000))); mesh.scale.set(Wd * (o.flipX ? -1 : 1), Hd, 1); }
-          else { mesh.position.copy(P); mesh.quaternion.copy(f.host.camera.quaternion); if (o.rot) mesh.rotateZ(THREE.MathUtils.degToRad(o.rot)); mesh.scale.set(Wd * (o.flipX ? -1 : 1), Hd, 1); }
+          else { mesh.position.copy(P); mesh.quaternion.copy(f.host.camera.quaternion); if (o.rot || ang) mesh.rotateZ(THREE.MathUtils.degToRad(o.rot ?? 0) + ang); mesh.scale.set(Wd * (o.flipX ? -1 : 1), Hd, 1); }
         }
         return true;
       }, dispose: done,
