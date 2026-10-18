@@ -20,6 +20,21 @@ const TONE = { violet: F.violet, card: 0xff4a5e, coin: F.coin, neon: F.neon, fus
 /** Call the Deck's holds under their foes (by cast): where he is now, ended, last seen (the room's clock). */
 const HOLD = new Map<string, { at: { x: number; y: number; z: number }; end: boolean; /** frames since its last turn */ seen: number }>();
 
+/** Light Staff (David 18 Oct 01:42): whose cane is lit, until when (the page's clock — a look only; the reach is the scene's). */
+const LIT = new Map<string, number>();
+/** The last guard raised (its catch's line runs from him). */
+let GUARD = '';
+/** 52 Pickup's cards in the planks (by wave) and the waves gone off so far. */
+let P52: { keys: { key: string; w: number }[]; wave: number } | null = null;
+const lit = (r: { attackerId: string }) => (LIT.get(r.attackerId) ?? 0) > performance.now();
+/** A staff blow's ring: ×1.6 and a thin outer edge of violet light while his cane is lit (its blade of light reaches that far). */
+const staffRing = (f: Parameters<NonNullable<Recipe['active']>>[0], r: { attackerId: string }, at: { x: number; y: number; z: number }, dir: number, color: number, o: Parameters<Parameters<NonNullable<Recipe['active']>>[0]['slash']>[3] & {}) => {
+  if (!lit(r)) { f.slash(at, dir, color, o); return; }
+  const k = 1.6, R = (o.r ?? 120) * k;
+  f.slash(at, dir, color, { ...o, r: R });
+  f.slash(at, dir, 0xe4dcff, { ...o, r: R + 14, w: 8, i: 3, ink: false, quiet: true });
+};
+
 export const GAMBLER: Record<string, Recipe> = {
   // the basic: a thrust, a swing, a rising cut — each its own cut in 3D, the last one the big one
   cut_the_deck: { tone: TONE.violet,
@@ -30,10 +45,10 @@ export const GAMBLER: Record<string, Recipe> = {
     trail: { c: F.red, w: 6, len: 8, i: 1.3 },
     active: (f, r) => {
       const c = me(f, r), s = side(r), st = r.stage ?? 0;
-      if (st === 0) { f.streak(chest(c, 95), { x: c.x + s * 170, y: c.y, z: 95 }, F.steel, { w: 14, ms: 140, draw: 25 }); f.slash(c, s, 0xb4a6ff, { r: 100, w: 30, tilt: 6, a0: -40, a1: 40, ms: 160, y0: 70, i: 2.2, ink: true }); }
-      else if (st === 1) f.slash(c, s, 0xb4a6ff, { r: 125, w: 50, tilt: 50, a0: -50, a1: 150, ms: 230, y0: 70, i: 2.8, ink: true, follow: () => f.host.casterPos(r.attackerId) });
+      if (st === 0) { f.streak(chest(c, 95), { x: c.x + s * 170, y: c.y, z: 95 }, F.steel, { w: 14, ms: 140, draw: 25 }); staffRing(f, r, c, s, 0xb4a6ff, { r: 100, w: 30, tilt: 6, a0: -40, a1: 40, ms: 160, y0: 70, i: 2.2, ink: true }); }
+      else if (st === 1) staffRing(f, r, c, s, 0xb4a6ff, { r: 125, w: 50, tilt: 50, a0: -50, a1: 150, ms: 230, y0: 70, i: 2.8, ink: true, follow: () => f.host.casterPos(r.attackerId) });
       else if (st === 2) { for (const k of [-1, 1]) f.streak(chest(c, 92), { x: c.x + s * 200, y: c.y + k * 22, z: 92 + k * 6 }, F.red, { w: 5, ms: 120, draw: 30 }); }
-      else f.slash(c, s, 0xb4a6ff, { r: 155, w: 52, tilt: 80, a0: 175, a1: 5, ms: 260, y0: 40, i: 2.8, ink: true, follow: () => f.host.casterPos(r.attackerId) });
+      else staffRing(f, r, c, s, 0xb4a6ff, { r: 155, w: 52, tilt: 80, a0: 175, a1: 5, ms: 260, y0: 40, i: 2.8, ink: true, follow: () => f.host.casterPos(r.attackerId) });
     },
   },
   // seven cards fanned out: a fan of thin streaks from his hand, each card trailing light
@@ -54,8 +69,8 @@ export const GAMBLER: Record<string, Recipe> = {
     own: true,
     active: (f, r) => {
       const id = r.attackerId;
-      f.slash(me(f, r), side(r), 0xb4a6ff, { r: 120, w: 44, tilt: 86, a0: 210, a1: -30, ms: Math.max(320, T(r).active), y0: 40, i: 2.6, ink: true, follow: () => f.host.casterPos(id) });
-      f.later(Math.max(0, T(r).active - 90), () => f.slash(me(f, r), side(r), 0xb4a6ff, { r: 130, w: 50, tilt: 58, a0: -150, a1: 40, ms: 220, y0: 80, i: 2.8, ink: true }));
+      staffRing(f, r, me(f, r), side(r), 0xb4a6ff, { r: 120, w: 44, tilt: 86, a0: 210, a1: -30, ms: Math.max(320, T(r).active), y0: 40, i: 2.6, ink: true, follow: () => f.host.casterPos(id) });
+      f.later(Math.max(0, T(r).active - 90), () => staffRing(f, r, me(f, r), side(r), 0xb4a6ff, { r: 130, w: 50, tilt: 58, a0: -150, a1: 40, ms: 220, y0: 80, i: 2.8, ink: true }));
     },
   },
   // the staff slams a charged floor: cracks where it lands, then the fuse goes off — a burst of floor chunks and a short column
@@ -101,6 +116,32 @@ export const GAMBLER: Record<string, Recipe> = {
     hit: (f, _s, _h, at, main) => { f.dome(at.x, at.y, C.dice, { r: main ? 170 : 90, ms: main ? 360 : 240, a: main ? 0.8 : 0.55 }); if (main) f.crack(at.x, at.y, C.fuchsia, { r: 110, chunks: 12 }); },
   },
   // the grab: a tether of lightning from his hand to the seized foe; the throw lands in a shell of light
+  // G — Light Staff (David 18 Oct 01:42): a thin violet blade of light slides up out of the cane in his hand; for 8 s his cane
+  // is lit — violet motes stream off his hand and every staff blow's ring is drawn as long as the blade reaches (staffRing)
+  light_staff: { tone: TONE.violet, own: true,
+    cast: (f, r) => { const c = me(f, r), s = side(r); f.streak({ x: c.x + s * 26, y: c.y, z: 70 }, { x: c.x + s * 70, y: c.y, z: 250 }, 0xe4dcff, { w: 8, ms: Math.max(380, T(r).startup + 200), draw: Math.max(120, T(r).startup) }); },
+    active: (f, r) => {
+      const id = r.attackerId, until = performance.now() + 8000; LIT.set(id, until);
+      const c0 = me(f, r); f.host.ring(f.host.w3(c0.x), f.host.d3(c0.y), F.violet, 1.6, 420, 0.6);
+      for (let t = 0; t < 8000; t += 260) f.later(t, () => { if ((LIT.get(id) ?? 0) !== until) return; const c = f.host.casterPos(id); if (c) f.host.embers(f.host.w3(c.x), f.host.h3(c.z + 80), f.host.d3(c.y), 0xb4a6ff, 2, 1.2); });
+    } },
+  // V — Long Guard: held, a ward of six cards turning upright round him and a ring of runes at his feet; a catch snaps a line of
+  // cards out to the striker (its hit 0) and binds him in a red star
+  long_guard: { tone: TONE.card, own: true,
+    active: (f, r) => {
+      const id = r.attackerId, ms = Math.min(2600, T(r).active); GUARD = id;
+      f.swirl(() => { const run = f.host.casterPos(id); return run ? { x: run.x, y: run.y, z: 0 } : null; }, { tex: 'gbk-card_back', size: 0.9, aspect: 1.45, crumble: F.red }, { n: 6, r0: 70, r1: 70, h: 120, ms, rps: 0.7, rise: 0, color: F.red });
+      const c = me(f, r); f.glyph(c.x, c.y, F.red, { shape: 'runes', r: 90, ms, spin: 0.6, pulse: 0.5, a: 0.6 });
+    },
+    hit: (f, _s, _h, at) => { const c = (GUARD ? f.host.casterPos(GUARD) : null) ?? at; f.streak({ x: c.x, y: c.y, z: 80 }, { x: at.x, y: at.y, z: at.z + 70 }, F.red, { w: 10, ms: 220, draw: 40 }); f.flurry({ x: at.x, y: at.y, z: at.z + 70 }, F.red, { ms: 180, every: 36, len: 220, w: 6, accent: 0, spread: 10 }); } },
+  // Z — Staff Flurry (only with the light staff): 3 s of the lit cane's blows — long crossing violet lines through the space in
+  // front of him, every 5th a heavy accent; the last blow one big upright ring that throws him
+  staff_flurry: { tone: TONE.violet, own: true,
+    active: (f, r) => {
+      const id = r.attackerId, s = side(r), ms = Math.min(3000, T(r).active);
+      f.flurry(() => { const c = f.host.casterPos(id); return c ? { x: c.x + s * 120, y: c.y, z: 75 } : null; }, 0xb4a6ff, { ms: ms - 150, every: 55, len: 300, w: 7, accent: 5, spread: 40 });
+      f.later(ms - 120, () => staffRing(f, r, me(f, r), s, 0xb4a6ff, { r: 150, w: 54, tilt: 82, a0: 175, a1: 5, ms: 260, y0: 40, i: 2.8, ink: true, follow: () => f.host.casterPos(id) }));
+    } },
   kinetic_grab: { tone: TONE.fuse,
     active: (f, r) => { const c = me(f, r), e = ahead(f, r, 120); f.bolt(chest(c, 92), { x: e.x, y: e.y, z: 85 }, F.fuse, { ms: 360, w: 8, forks: 2 }); },
     own: true, hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, F.fuse, { r: 80, ms: 240, a: 0.5 }); },
@@ -110,15 +151,32 @@ export const GAMBLER: Record<string, Recipe> = {
   // Lady Luck: a short rain of gold over him
   lady_luck: { tone: TONE.coin, own: true, active: (f, r) => { const c = me(f, r); f.rain(c.x, c.y, 80, C.coin, { n: 10, ms: 420, h: 420 }); } },
   // Pick-up 52: the deck thrown up comes down — a rain of fuchsia over the area ahead
-  pickup_52: { tone: TONE.card, own: true, hit: (f, _s, _h, at, main) => { if (main) f.impact({ x: at.x, y: at.y, z: 40 }, F.red, { r: 90, cracks: true, embers: 14 }); },
+  pickup_52: { tone: TONE.card, own: true,
+    // (David 01:42: "the final after-effect is weak, disconnected") — the deck lies stuck in the planks as real cards; each wave
+    // rips its own band up; the last wave calls every card left in one swoop to a point over the foe, where they go off together:
+    // a red star of crossing card lines, a flat inked ring and a star glyph on the floor (the main hit's flash is the engine's)
+    hit: (f, _s, _h, at, main) => {
+      const st = P52; if (!st) return;
+      if (!main) { st.wave++; for (const k of st.keys.filter((x) => x.w === st.wave - 1)) f.cardDrop(k.key); return; }
+      const left = st.keys.filter((x) => x.w >= st.wave).map((x) => x.key), p = { x: at.x, y: at.y, z: at.z + 90 };
+      if (left.length) f.cardGather(left, () => p, { ms: 160, gap: 8 });
+      f.later(170, () => {
+        f.flurry(p, F.red, { ms: 260, every: 34, len: 360, w: 8, accent: 3, spread: 16 });
+        f.slash({ x: at.x, y: at.y, z: 0 }, 1, F.red, { r: 190, w: 54, tilt: 8, a0: -180, a1: 180, ms: 320, y0: 20, i: 2.6, ink: true });
+        f.glyph(at.x, at.y, F.red, { shape: 'star', points: 6, r: 170, ms: 700, spin: 1.2, pulse: 0.3, a: 0.7 });
+        f.host.kick(0.05);
+      });
+      P52 = null;
+    },
     active: (f, r) => {
-      const p = ahead(f, r, 160); f.rain(p.x, p.y, 150, F.red, { n: 16, ms: 700, h: 560 });
-      // the deck sprayed out: real cards stuck in the planks, near to far; each wave rips its own up (they crumble on its beat)
-      const c = me(f, r), base = Math.atan2(r.aim.y, r.aim.x), N = 20;
+      const p = ahead(f, r, 160); f.rain(p.x, p.y, 150, F.red, { n: 12, ms: 600, h: 560 });
+      const c = me(f, r), base = Math.atan2(r.aim.y, r.aim.x), N = 20, keys: { key: string; w: number }[] = [];
       for (let k = 0; k < N; k++) {
-        const q = k / N, d = 85 + q * 360, a = base + Math.sin(q * Math.PI * 3) * 0.55, wave = Math.min(3, Math.floor((d - 85) / 95));
-        f.cardLay(`p52-${r.castId}-${k}`, { x: c.x, y: c.y, z: 70 }, { x: c.x + Math.cos(a) * d, y: c.y + Math.sin(a) * d * 0.6 }, { stuck: true, ms: 110 + q * 120, delay: q * 240, life: 250 + wave * 150 - q * 240 });
+        const q = k / N, d = 85 + q * 360, a = base + Math.sin(q * Math.PI * 3) * 0.55, w = Math.min(3, Math.floor((d - 85) / 95)), key = `p52-${r.castId}-${k}`;
+        keys.push({ key, w });
+        f.cardLay(key, { x: c.x, y: c.y, z: 70 }, { x: c.x + Math.cos(a) * d, y: c.y + Math.sin(a) * d * 0.6 }, { stuck: true, ms: 110 + q * 120, delay: q * 240, life: 2400 });
       }
+      P52 = { keys, wave: 0 };
     } },
   // the home run: a crater where the bat of light lands, a shell, the camera pushed
   grand_slam: { tone: TONE.violet, own: true, hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, F.violet, { r: 160, chunks: 18, up: 1.3 }); f.host.kick(0.05); } } },
@@ -138,12 +196,11 @@ export const GAMBLER: Record<string, Recipe> = {
       const key = r.castId;
       if (i === 0) { // the card under him: it follows him until the last turn (or the hold ends)
         HOLD.set(key, { at, end: false, seen: 0 });
-        f.cardSpin(() => { const h = HOLD.get(key); if (!h || h.end || ++h.seen > 30) { HOLD.delete(key); return null; } return { x: h.at.x, y: h.at.y, z: Math.max(8, h.at.z - 52) }; }, { size: 1.6, color: 0x6a1020, rps: 2.2, tilt: 0.95, look: { face: 'gbk-card_back' } });
+        f.cardSpin(() => { const h = HOLD.get(key); if (!h || h.end || ++h.seen > 30) { HOLD.delete(key); return null; } return { x: h.at.x, y: h.at.y, z: Math.max(6, h.at.z - 46) }; }, { size: 1.9, color: 0x6a1020, rps: 2.2, tilt: 0.3, look: { face: 'gbk-card_back' } });
       }
       const h = HOLD.get(key); if (h) { h.at = at; h.seen = 0; if (last) h.end = true; }
-      if (last) { f.dome(at.x, at.y, F.red, { r: 60, ms: 240, a: 0.35 }); f.host.kick(0.03); }
+      if (last) { f.flurry({ x: at.x, y: at.y, z: at.z + 30 }, F.red, { ms: 140, every: 35, len: 220, w: 6, accent: 0, spread: 10 }); f.host.kick(0.03); }
     },
-    hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, F.card, { r: 55, ms: 220, a: 0.3 }); },
   },
   // the jackpot (DAVID 18:23's bar, the gothic ult 09): coins and chips gather round him while the reels roll → a gold star
   // glyph opens on the floor under him → a ring runs out → the last blast is the big burst → a dome of gold over the area

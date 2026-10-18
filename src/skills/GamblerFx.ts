@@ -21,7 +21,7 @@ const FAM_OF: Record<string, Fam> = {
   charged_deal: 'cards', riffle_shuffle: 'cards', showdown: 'cards', ace_in_the_hole: 'cards', pickup_52: 'cards', card_swap: 'cards', call_the_deck: 'cards',
   coin_flip: 'coin', lady_luck: 'coin',
   roulette_wheel: 'chance', dice_bomb: 'chance', jackpot: 'chance', all_in: 'chance', wild_card: 'chance',
-  fuse_slam: 'fuse', kinetic_overload: 'fuse', kinetic_grab: 'fuse',
+  fuse_slam: 'fuse', kinetic_overload: 'fuse', kinetic_grab: 'fuse', light_staff: 'staff', staff_flurry: 'staff', long_guard: 'cards',
 };
 const FAM_TONE: Record<Exclude<Fam, 'chance'>, [number[], number[], number[]]> = { // dark, mid, hot (0..1 rgb)
   staff: [[0.22, 0.17, 0.42], [0.62, 0.58, 0.92], [0.96, 0.97, 1.0]],
@@ -330,6 +330,7 @@ export class GamblerFx {
       case 'wild_card': this.wildCard(r); break;
       case 'card_swap': this.cardSwap(r); break;
       case 'call_the_deck': this.deckFuse(r); break;
+      case 'light_staff': this.lightStaff(r); break;
       case 'jackpot': this.jackpot(r); break;
       case 'staff_vault': this.vault(r); break;
     }
@@ -1273,6 +1274,19 @@ export class GamblerFx {
     if (last) this.pop(sx, sy - 10, 110, FUCHSIA, 260);
     if (last) { this.shards(sx, sy - 20, 6, 120, 380); this.ctx.cam().shake(160, 0.008); }
   }
+  /** Light Staff (David 18 Oct 01:42): the painted arena — a violet glow on his cane hand and motes streaming off it for 8 s
+   *  (PVP 3D: its recipe — the blade sliding out, the motes, the longer rings). */
+  private lightStaff(r: CastRun): void {
+    if (ARENA3D.on) return;
+    const glow = this.glow(0, 0, 70, 0x9a8cff, TOP + 3), id = r.attackerId, end = r.timings.startup + 8000;
+    this.add((t) => {
+      const h = this.ctx.hand(id) ?? (() => { const c = this.ctx.casterPos(id); return c ? { x: c.x, y: c.y - c.z - 70 } : null; })();
+      if (t > end || !h) { glow.destroy(); return false; }
+      glow.setPosition(h.x, h.y).setAlpha(t < r.timings.startup ? t / r.timings.startup * 0.7 : 0.45 + 0.2 * Math.sin(t * 0.008));
+      if (Math.random() < 0.18) this.pop(h.x + rnd(-14, 14), h.y + rnd(-30, 10), 16, 0xb4a6ff, 260);
+      return true;
+    });
+  }
   private deckSpray(r: CastRun): void {
     const T = r.timings, s = this.ctx.scene, side = sideOf(r);
     // wind-up: cards whirl in toward his hand
@@ -1325,6 +1339,7 @@ export class GamblerFx {
     const mine = list.filter((c) => (last ? c.im.active : c.wave === w && c.im.active));
     const p = this.ahead(r, 90 + w * 95), perp = { x: -r.aim.y, y: r.aim.x }, span = 60 + w * 55;
     if (last) { // the vortex: every card left is pulled into one point, rises, and the whole deck goes off
+      if (ARENA3D.on) { this.ctx.cam().shake(320, 0.014); this.ctx.freeze(90); this.pickCards.delete(r.castId); return; } // (PVP 3D: the real cards swoop in and go off — its recipe)
       const vx = this.kit('k_vortex', p.x, p.y, 320, GROUND + 3);
       if (vx) { const kx = vx.scaleX, ky = (320 * SQUASH) / vx.height; this.piece(vx, 420, (u, o) => o.setScale(kx * (1 - u * 0.6), ky * (1 - u * 0.6)).setAngle(-u * 200).setAlpha(1 - u * u)); }
       for (const c of mine) { const x0 = c.im.x, y0 = c.im.y; this.piece(c.im, 240, (u, o) => o.setPosition(lerp(x0, p.x, out3(u)), lerp(y0, p.y - 40, out3(u)) - u * 60).setAngle(u * 720).setScale(this.u * 0.36 * (1 - u * 0.5))); }
@@ -1338,8 +1353,8 @@ export class GamblerFx {
       this.piece(c.im, 120 + d, (u, o) => o.setPosition(x0, y0 - out3(u) * 40).setAngle(u * 360).setTint(0xffffff));
       this.pop(x0, y0 - 40, 70, FUCHSIA, 240, 110 + d, y0 + 3);
     }
-    for (const k of [-1, 0, 1]) { const q = { x: p.x + perp.x * span * k, y: p.y + perp.y * span * k * 0.8 }; this.burst(q.x, q.y - 26, 130, 60 + Math.abs(k) * 40, q.y + 2); }
-    this.floorRing(p.x, p.y, span + 60, FUCHSIA, 360);
+    if (!ARENA3D.on) { for (const k of [-1, 0, 1]) { const q = { x: p.x + perp.x * span * k, y: p.y + perp.y * span * k * 0.8 }; this.burst(q.x, q.y - 26, 130, 60 + Math.abs(k) * 40, q.y + 2); }
+    this.floorRing(p.x, p.y, span + 60, FUCHSIA, 360); }
     this.ctx.cam().shake(110, 0.005); this.ctx.freeze(35);
   }
 
