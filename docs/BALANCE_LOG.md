@@ -4,6 +4,12 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-10-18 — David's second pass (18:19 Warrior, 18:29 Samurai): numbers and engine
+- **Thunder Circle** (`thunder_circle`, warrior V, replaces Iron Grip — `iron_grip` aliases to it): startup 260, active 100, recovery 260, cooldown 12 s, ground only. Plant: 10 dmg, r 170, stun 360, heavy. Then a 170 px ring for 5 s (from 300 ms): a strike every 0.5 s (10 in all), 4 dmg, stun 240, no launch, up to 120 px up. Links (WARRIOR_LINKS): Rising Slash, Leap Crash, Whirlwind, the Verdict; into it from Judgment Hook, Iron Bastion, Judgment Blade.
+- Trials re-routed off the grip: REEL hook → circle; SHACKLE leap crash → hook → circle → rising slash (MID; the circle's ticks on a downed foe fill the down gauge, so the circle comes after the hook stands him up); STORMCHAIN, COURT, VERDICT, CYCLONE plant the circle where the grip was.
+- **Earthsplitter**: every hit reaches ±100 px of depth (was the shape's own); its spikes stand in a zigzag band ±36 px along the fissure.
+- **Rising Sun banner** (samurai V): stands 25 s (was 10); its catch zone ±60 px along × ±42 px in depth of its foot (was ±34 × ±25), 8–200 px up (was 8–110), while coming down. One set of numbers for the engine and the look: `src/skills/SamuraiPole.ts`.
+
 ## 2026-10-18 — The class chats' new shapes (David's 01:07–01:42 notes): numbers and engine
 - **Gambler — Light Staff** (replaces Kinetic Grab, slot 11): a self buff (250 ms cast, cooldown 20 s): for 8 s his staff blows reach ×1.7 (Cut the Deck's staff strikes, Staff Vault, Fuse Slam, Rotor Staff, Grand Slam, Staff Flurry — sector / line hits; the reach travels with the cast) and Staff Flurry opens. The scene: `LIGHT_STAFF`, `lightStaffOn(id)` (both screens).
 - **Gambler — Long Guard** (replaces All In, slot 13): held up to 2.5 s (cooldown 9 s); a blow reaching him in it is caught — the cards snap out along a 420 px line to the striker and stun him 1.2 s (a binding hold), no damage to him; release / its end / a catch (then 320 ms) ends it. A counter: whiffed it costs 200 ms more recovery.

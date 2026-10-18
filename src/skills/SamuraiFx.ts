@@ -9,6 +9,7 @@ import type { FinalSkill, HitEvent } from './SkillTypes';
 import { hitIndex, lastOfBurst } from './FinalKit';
 import type { Projectile, V3 } from './HitGeometry';
 import type { Fx3D } from '../arena3d/Fx3D';
+import { POLE } from './SamuraiPole';
 import { ring as ring3, inkBurst as inkBurst3, SAM as SAM3 } from '../arena3d/fx3d/blade3d';
 
 export const KIT = 'sam-kit';
@@ -57,7 +58,7 @@ const MARK_W = 46;
 /** Rising Sun's banner (David 18 Oct 01:15: "leave it on the map"): it stays planted where it rose this long after the sun
  *  bursts; his jump onto it springs him far back (DFO's engine: the pole a support, the spring — `poleSpring` draws it). Its
  *  foot: 44 px behind where he stood at the cast. */
-const POLE_MS = 10000, POLE_BACK = 44;
+const POLE_MS = POLE.ms, POLE_BACK = POLE.behind; // (the engine's numbers: src/skills/SamuraiPole.ts)
 /** Rising Sun's buff (its light stays on him this long). */
 const SUN_MS = 90000;
 

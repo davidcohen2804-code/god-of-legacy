@@ -4,6 +4,7 @@
 // SkillRuntime with hit-confirm cancels, combo scaling and juggle budget → confirmed-hit feedback (damage numbers, combo
 // counter, hit-stop / shake hierarchy) → HUD, Skill Book (K), Inventory (I) and Cosmetic Shop (O).
 import { FloorLift } from '../world/FloorLift';
+import { POLE } from '../skills/SamuraiPole';
 import { sunGateX, SUN_GATE } from '../world/SunGate';
 /** The chapter openings (docs/WORLD_3D_SPEC.md §1.8): the first time into a chapter's first map, the slow dolly under the title. */
 const OPENINGS: Record<string, string> = { courtyard: 'Chapter 1 — The Legacy Courtyard', training: 'Chapter 2 — The Sealed Road', temple: 'The Temple Road', dusk_1: "Chapter 3 — The Thief's Trail", dusk_village: 'Elderwood Village', den_1: "The Thief's Den", sakura_village: 'Sakura Temple', ironhold_village: 'Ironhold' };
@@ -171,9 +172,6 @@ const LIGHT_STAFF = { ms: 8000, reach: 1.7, skills: new Set(['cut_the_deck', 'st
 const LANCE_RUSH = [1, 1.8, 2.6];
 /** The Warrior's Iron Bastion (shield_charge): damage taken × taken while it stands; its counter-slash + perBlow a blow taken (at most maxBlows). */
 const BASTION = { taken: 0.5, perBlow: 6, maxBlows: 8 };
-/** The Samurai's Rising Sun banner (David 18 Oct 01:15): it stands `ms` after the burst, `behind` px behind where he cast; his own
- *  jump coming down on it (within `near` px, under `top` px up) springs him `dist` px back on an arc `up` px high, once a landing. */
-const POLE = { ms: 10000, behind: 44, near: 34, top: 110, dist: 360, up: 170 };
 /** The Samurai's substitute (Sheathe held): a blow in the guard breaks a doll in his place; he is unseen (untouchable) this long. */
 const SUBSTITUTE = { unseenMs: 1500 };
 /** The Book Mage's Rift Gates (David 18 Oct 01:26): a gate lasts `ms`; two at most; standing within `near` px of one (with the
@@ -2247,7 +2245,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (now >= p.until) { this.pole = null; return; }
     if (k.grounded) { this.poleSpent = false; return; }
     if (now < p.from || this.poleSpent || k.vz > 0 || this.dead >= 0 || this.body.state !== 'free') return;
-    if (Math.abs(k.x - p.x) > POLE.near || Math.abs(k.y - p.y) > POLE.near * 0.75 || k.z > POLE.top || k.z < 8) return;
+    if (Math.abs(k.x - p.x) > POLE.nearX || Math.abs(k.y - p.y) > POLE.nearY || k.z > POLE.top || k.z < POLE.low) return; // (src/skills/SamuraiPole.ts)
     this.poleSpent = true;
     const back = -(FACE[this.dir].x || (this.faceSide < 0 ? -1 : 1)), vz = Math.sqrt(2 * PHYS.gravity * POLE.up);
     const flight = (vz + Math.sqrt(vz * vz + 2 * PHYS.gravity * k.z)) / PHYS.gravity;

@@ -448,7 +448,9 @@ export class Fx3D {
       pool.emit(px, pzz, a, tilt, H > 0 ? h : 0.5, h * 0.17 + 0.03, ms, (o.delay ?? 0) + (o.ring ? i * 12 : Math.random() * 70), o.key);
     }
     if (o.stone) { // (dust as they burst up, dust as they crumble)
-      this.later(o.delay ?? 0, () => this.h.dust(cx, cz, 10, 1)); this.later((o.delay ?? 0) + ms - 140, () => this.h.dust(cx, cz, 8, 0.8));
+      const d0 = o.delay ?? 0, out = Math.max(ms, 740);
+      this.later(d0, () => { this.h.dust(cx, cz, 10, 1); this.debris(x, y, Math.min(10, 3 + n), { speed: 0.9, up: 1.5, size: 0.8 }); }); // (rubble thrown up as they break out)
+      this.later(d0 + out - 380, () => { this.h.dust(cx, cz, 9, 0.9); this.debris(x, y, Math.min(8, 2 + n), { speed: 0.5, up: 0.7, size: 0.6 }); }); // (and as they crumble back in)
       if (o.color !== undefined) this.h.flare(cx, 0.3, cz + 0.2, o.color, 8, 4, 420);
       return;
     }
@@ -1100,39 +1102,56 @@ class Chunks {
 /** Ice crystals (hexagonal spikes, glassy, reflecting the room): grow out of the floor, stand, then shrink away. */
 class Crystals {
   private mesh: THREE.InstancedMesh;
-  private d: { x: number; z: number; a: number; tilt: number; h: number; r: number; t: number; ms: number; delay: number; key?: string }[] = [];
+  private d: { x: number; z: number; a: number; tilt: number; h: number; r: number; t: number; ms: number; delay: number; spin: number; key?: string }[] = [];
+  /** (David 18 Oct 18:19: the spikes popped in and out — "binary") they thrust up out of the planks over RISE ms, overshooting a
+   *  touch, and crumble back down into them over OUT ms with a shudder. */
+  private static RISE = 300; private static OUT = 380;
   private next = 0;
   private m4 = new THREE.Matrix4(); private q = new THREE.Quaternion(); private eu = new THREE.Euler(); private s = new THREE.Vector3(); private t = new THREE.Vector3();
   constructor(scene: THREE.Scene, private n: number, stone = false) {
     // ice: clear blue crystals that glint; stone: faceted grey-brown rock spikes with a faint ember at heart (no shine)
-    const geo = new THREE.ConeGeometry(1, 1, stone ? 5 : 6, 1).translate(0, 0.5, 0);
+    const geo = new THREE.ConeGeometry(1, 1, stone ? 7 : 6, stone ? 4 : 1).translate(0, 0.5, 0);
+    if (stone) { // a broken rock shard, not a cone: its rings knocked in and out, a wider rubble foot, a slight bend (the seams' twin vertices moved alike)
+      const P = geo.attributes.position, h3 = (x: number, y: number, z: number) => { const v = Math.sin(Math.round(x * 97) * 12.9898 + Math.round(y * 97) * 78.233 + Math.round(z * 97) * 37.719) * 43758.5453; return v - Math.floor(v); };
+      for (let i = 0; i < P.count; i++) {
+        const x = P.getX(i), y = P.getY(i), z = P.getZ(i); if (y > 0.999) continue;
+        const k = 0.72 + 0.56 * h3(x, y, z), foot = y < 0.01 ? 1.3 : 1;
+        P.setXYZ(i, x * k * foot + 0.14 * y * y, y * (0.93 + 0.14 * h3(z, x, y)), z * k * foot);
+      }
+      geo.computeVertexNormals();
+    }
     const mat = stone
       ? new THREE.MeshStandardMaterial({ color: 0x7a6a58, emissive: 0x3a1206, emissiveIntensity: 0.35, roughness: 0.95, metalness: 0, flatShading: true })
       : new THREE.MeshStandardMaterial({ color: 0xd8f4ff, emissive: 0x2d8fe0, emissiveIntensity: 0.75, roughness: 0.06, metalness: 0.15, transparent: true, opacity: 0.86, envMapIntensity: 2.4, flatShading: true });
     this.mesh = new THREE.InstancedMesh(geo, mat, n); this.mesh.frustumCulled = false;
     const zero = new THREE.Matrix4().makeScale(0, 0, 0);
-    for (let i = 0; i < n; i++) { this.mesh.setMatrixAt(i, zero); this.d.push({ x: 0, z: 0, a: 0, tilt: 0, h: 0, r: 0, t: 0, ms: 0, delay: 0 }); }
+    for (let i = 0; i < n; i++) { this.mesh.setMatrixAt(i, zero); this.d.push({ x: 0, z: 0, a: 0, tilt: 0, h: 0, r: 0, t: 0, ms: 0, delay: 0, spin: 0 }); }
     scene.add(this.mesh);
   }
   emit(x: number, z: number, a: number, tilt: number, h: number, r: number, ms: number, delay: number, key?: string): void {
     const i = this.next; this.next = (this.next + 1) % this.n;
-    Object.assign(this.d[i], { x, z, a, tilt, h, r, t: -delay, ms, key });
+    Object.assign(this.d[i], { x, z, a, tilt, h, r, t: -delay, ms: Math.max(ms, Crystals.RISE + Crystals.OUT + 60), key, spin: Math.random() * Math.PI * 2 });
   }
   /** The crystals of `key` go now: those standing sink away in 160 ms, those not yet up never rise. */
   drop(key: string): void {
-    for (const c of this.d) if (c.key === key && c.ms > 0) { if (c.t <= 0) c.ms = 0.0001; else if (c.t < c.ms - 160) c.ms = c.t + 160; }
+    for (const c of this.d) if (c.key === key && c.ms > 0) { if (c.t <= 0) c.ms = 0.0001; else if (c.t < c.ms - 180) c.ms = c.t + 180; } // (burst: the quick end of the crumble)
   }
   step(dt: number): void {
     let any = false;
     for (let i = 0; i < this.n; i++) {
       const c = this.d[i]; if (c.ms <= 0) continue;
       c.t += dt; any = true;
-      let k = 0;
-      if (c.t > 0) { const g = Math.min(1, c.t / 120); k = c.t > c.ms - 160 ? Math.max(0, (c.ms - c.t) / 160) : outBack(g); }
-      if (c.t >= c.ms) { c.ms = 0; k = 0; }
-      // tipped outward from the cluster's middle (round the floor's vertical)
-      this.eu.set(Math.sin(c.a) * c.tilt * 0.8, 0, -Math.cos(c.a) * c.tilt, 'XYZ'); this.q.setFromEuler(this.eu);
-      this.m4.compose(this.t.set(c.x, 0, c.z), this.q, this.s.set(c.r * Math.max(0.2, k), c.h * k, c.r * Math.max(0.2, k)));
+      let hk = 0, rk = 0, y = 0, wob = 0;
+      const R = Crystals.RISE, O = Crystals.OUT;
+      if (c.t > 0) {
+        if (c.t < R) { const g = c.t / R, e = outBack(g); hk = 0.55 + 0.45 * e; rk = 0.82 + 0.18 * Math.min(1, e); y = -c.h * (1 - Math.min(1, e)) * 0.75; } // thrust up out of the planks
+        else if (c.t > c.ms - O) { const u = Math.min(1, (c.t - (c.ms - O)) / O), e = u * u; hk = 1 - 0.3 * e; rk = 1 - 0.25 * e; y = -c.h * e * 1.05; wob = Math.sin(u * 19) * 0.07 * (1 - u); } // crumbles back down, shuddering
+        else { hk = 1; rk = 1; }
+      }
+      if (c.t >= c.ms) { c.ms = 0; hk = 0; }
+      // tipped outward from the cluster's middle (round the floor's vertical), each turned its own way
+      this.eu.set(Math.sin(c.a) * c.tilt * 0.8 + wob, c.spin, -Math.cos(c.a) * c.tilt - wob, 'XYZ'); this.q.setFromEuler(this.eu);
+      this.m4.compose(this.t.set(c.x, y, c.z), this.q, this.s.set(c.r * rk, c.h * hk, c.r * rk));
       this.mesh.setMatrixAt(i, this.m4);
     }
     if (any) this.mesh.instanceMatrix.needsUpdate = true;

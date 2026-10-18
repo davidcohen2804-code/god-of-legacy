@@ -35,7 +35,7 @@ export class WarriorSpikes {
     if (r.skill.id !== 'earthsplitter') return;
     const lv = Math.max(0, Math.min(2, r.chargeLevel ?? 0)), range = [200, 280, 360][lv], n = [3, 4, 5][lv], a = r.aim, now = this.h.now();
     for (let i = 1; i <= n; i++) {
-      const d = range * (0.2 + 0.85 * (i / n)), x = r.origin.x + a.x * d, y = r.origin.y + a.y * d * 0.6, delay = i * 55;
+      const d = range * (0.2 + 0.85 * (i / n)), x = r.origin.x + a.x * d, y = r.origin.y + a.y * d * 0.6 + (i % 2 ? 1 : -1) * 36, delay = i * 55; // (a zigzag band across the field, David 18 Oct 18:19)
       const s: Spike = { key: `${r.castId}:s${i}`, owner: r.attackerId, x, y, until: now + delay + SPIKES.lifeMs };
       this.spikes.push(s);
       this.h.scene().time.delayedCall(delay, () => { if (this.spikes.includes(s)) this.draw(s); });

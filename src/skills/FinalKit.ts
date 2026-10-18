@@ -84,7 +84,7 @@ const warrior: FinalSkill[] = [
     id: 'sanctuary', cls: 'warrior', slot: 5, name: 'Sanctuary', roles: ['setup', 'zone'], targeting: 'self',
     startup: 350, active: 200, recovery: 260, cooldown: 30000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 350],
     hits: [H(0, 6, { kind: 'circle', radius: 120 }, { stun: 300, push: 10 }, { reachUp: 120 })],
-    cancelOnHit: ['warrior_basic', 'rising_slash', 'dash_slash', 'blade_storm', 'iron_grip', 'sky_breaker', 'ground_breaker'], tags: ['buff'],
+    cancelOnHit: ['warrior_basic', 'rising_slash', 'dash_slash', 'blade_storm', 'thunder_circle', 'sky_breaker', 'ground_breaker'], tags: ['buff'],
     description: 'Trace a half-circle on the ground with your sword: a wall of light rises in front of you for 4s. You and your party behind it take half damage from every hit; the wall stays where it was cast.',
     relations: ['Wall 4s', 'Half damage behind it — party too'],
   }),
@@ -165,19 +165,21 @@ const warrior: FinalSkill[] = [
   }),
   // ---- new kit (Z X B N): the grab, the hook, the air chase, the charged fissure (own timings: not stretched)
   S({
-    id: 'iron_grip', cls: 'warrior', slot: 13, name: 'Iron Grip', roles: ['opener', 'extender'], targeting: 'mouseDir',
-    startup: 120, active: 420, recovery: 300, cooldown: 4000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, armor: [0, 540],
-    hits: [H(0, 6, { kind: 'sector', range: 110, angle: 90 }, { stun: 800, grab: true }, { reachUp: 140 }),
-      H(330, 16, { kind: 'circle', radius: 110, at: 'aimBias', bias: 60 }, { stun: 440, launch: 100, juggleCost: 20, hardCC: { kind: 'stun', ms: 3000, long: true } }, { reachUp: 220, heavy: true })], // (David 01:07: held stunned 3 s — the bounce stays)
-    cancelOnHit: ['rising_slash', 'leap_crash', 'sky_breaker', 'wave_slash', 'whirlwind'],
-    description: 'Seize the foe in front of you with a hand of golden light, hoist it high over your head and smash it into the floor before you; it bounces up, open for the next strike.',
-    relations: ['Grab', 'Bounce → combo'],
+    id: 'thunder_circle', cls: 'warrior', slot: 13, name: 'Thunder Circle', roles: ['zone', 'setup'], targeting: 'self',
+    startup: 260, active: 100, recovery: 260, cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    // (David 18 Oct 18:19: replaces Iron Grip) he drives his sword into the floor: a wide ring of lightning opens in the ground
+    // round it for 5 s and strikes everything in it every half second — it throws no one (a flinch each time)
+    hits: [H(0, 10, { kind: 'circle', radius: 170 }, { stun: 360 }, { reachUp: 120, heavy: true })],
+    linger: { at: 'origin', startMs: 300, everyMs: 500, count: 10, radius: 170, maxZ: 120, hit: H(0, 4, { kind: 'circle', radius: 170 }, { stun: 240 }, { reachUp: 120 }) },
+    cancelOnHit: ['rising_slash', 'leap_crash', 'whirlwind', 'titans_verdict'],
+    description: 'Drive your sword into the floor: a wide ring of lightning opens in the ground round it for 5s and strikes everyone in it every half second — it holds them flinching, it throws no one.',
+    relations: ['Zone 5s', 'No launch'],
   }),
   S({
     id: 'judgment_hook', cls: 'warrior', slot: 14, name: 'Judgment Hook', roles: ['pull', 'gapClose'], targeting: 'mouseDir',
     startup: 140, active: 340, recovery: 240, cooldown: 7000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
     hits: [H(160, 10, { kind: 'line', length: 300, width: 46 }, { stun: 640, grab: true, pullMs: 230 }, { reachUp: 160 })],
-    cancelOnHit: ['warrior_basic', 'iron_grip', 'dash_slash', 'rising_slash', 'whirlwind', 'ground_breaker', 'lance_thrust'],
+    cancelOnHit: ['warrior_basic', 'thunder_circle', 'dash_slash', 'rising_slash', 'whirlwind', 'ground_breaker', 'lance_thrust'],
     description: 'Hurl a chain of golden light up to 380px: it hooks the first foe it reaches and yanks it right in front of you, stunned, ready for your next blow.',
     relations: ['Pull to you', 'Combo starter'],
   }),
@@ -189,7 +191,7 @@ const warrior: FinalSkill[] = [
       H(170, 7, { kind: 'circle', radius: 90 }, { stun: 380, float: true, juggleCost: 4 }, { reachUp: 240 }),
       H(280, 8, { kind: 'circle', radius: 95 }, { stun: 380, float: true, juggleCost: 4 }, { reachUp: 240 }),
       H(560, 18, { kind: 'circle', radius: 120 }, { stun: 420, slam: true }, { reachUp: 260, heavy: true })],
-    cancelOnHit: ['leap_crash', 'iron_grip', 'judgment_hook', 'whirlwind', 'blade_storm'],
+    cancelOnHit: ['leap_crash', 'thunder_circle', 'judgment_hook', 'whirlwind', 'blade_storm'],
     description: 'Spring into the air after your foe: three rising slashes keep it floating, then a crushing downward strike smashes it into the floor so it bounces back up.',
     relations: ['Air chase', 'Slam → bounce'],
   }),
@@ -197,14 +199,15 @@ const warrior: FinalSkill[] = [
     id: 'earthsplitter', cls: 'warrior', slot: 16, name: 'Earthsplitter', roles: ['finisher', 'knockdown'], targeting: 'mouseCone',
     startup: 800, active: 320, recovery: 380, cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 1100],
     // hold the key: the sword raised overhead charges (160..800 ms); the level picks how far and wide the fissure tears
-    hits: [H(0, 16, { kind: 'sector', range: 200, angle: 70 }, { stun: 420, knockdown: 'heavy' }, { reachUp: 120, heavy: true })],
+    hits: [H(0, 16, { kind: 'sector', range: 200, angle: 70 }, { stun: 420, knockdown: 'heavy' }, { reachUp: 120, depth: 100, heavy: true })],
+    // (David 18 Oct 18:19: wider across the field — the fissure reaches ±100 px of depth, its spikes stand in a zigzag band)
     charge: { minMs: 160, levels: [
-      { at: 0, hits: [H(0, 16, { kind: 'sector', range: 200, angle: 70 }, { stun: 420, knockdown: 'heavy' }, { reachUp: 120, heavy: true })] },
-      { at: 350, hits: [H(0, 22, { kind: 'sector', range: 280, angle: 80 }, { stun: 460, knockdown: 'heavy' }, { reachUp: 140, heavy: true }),
-        H(150, 8, { kind: 'sector', range: 300, angle: 90 }, { stun: 380 }, { reachUp: 220 })] },
-      { at: 700, hits: [H(0, 28, { kind: 'sector', range: 360, angle: 90 }, { stun: 500, knockdown: 'heavy', grab: true }, { reachUp: 160, heavy: true }), // (full charge: breaks super armor)
-        H(150, 8, { kind: 'sector', range: 380, angle: 95 }, { stun: 400 }, { reachUp: 260 }),
-        H(300, 8, { kind: 'sector', range: 380, angle: 95 }, { stun: 400 }, { reachUp: 300 })] },
+      { at: 0, hits: [H(0, 16, { kind: 'sector', range: 200, angle: 70 }, { stun: 420, knockdown: 'heavy' }, { reachUp: 120, depth: 100, heavy: true })] },
+      { at: 350, hits: [H(0, 22, { kind: 'sector', range: 280, angle: 80 }, { stun: 460, knockdown: 'heavy' }, { reachUp: 140, depth: 100, heavy: true }),
+        H(150, 8, { kind: 'sector', range: 300, angle: 90 }, { stun: 380 }, { reachUp: 220, depth: 100 })] },
+      { at: 700, hits: [H(0, 28, { kind: 'sector', range: 360, angle: 90 }, { stun: 500, knockdown: 'heavy', grab: true }, { reachUp: 160, depth: 100, heavy: true }), // (full charge: breaks super armor)
+        H(150, 8, { kind: 'sector', range: 380, angle: 95 }, { stun: 400 }, { reachUp: 260, depth: 100 }),
+        H(300, 8, { kind: 'sector', range: 380, angle: 95 }, { stun: 400 }, { reachUp: 300, depth: 100 })] },
     ] },
     cancelOnHit: ['sky_breaker', 'blade_storm', 'titans_verdict'],
     description: 'Hold the key: you raise your sword overhead as the ground trembles, in three steps. Release: you split the earth — a wide fissure tears across the floor in front of you and pillars of light burst out of it, smashing every foe flat; the longer you held, the farther and wider — a full charge breaks super armor. A punish, not a combo link.',
@@ -217,7 +220,7 @@ const warrior: FinalSkill[] = [
     // half the damage (the scene: BASTION); when it ends every blow he took comes back as one iron counter-slash round him
     // (its damage grows with each: the scene)
     hits: [H(1440, 12, { kind: 'circle', radius: 150 }, { stun: 460, push: 60, launch: 60, juggleCost: 12 }, { reachUp: 160, heavy: true })],
-    cancelOnHit: ['iron_grip', 'warrior_basic', 'rising_slash'],
+    cancelOnHit: ['thunder_circle', 'warrior_basic', 'rising_slash'],
     description: 'Plant the sword and turn to iron for 1.5s: nothing staggers you and every blow does half its damage. When it ends, every blow you took comes back as one iron counter-slash round you — the more you took, the harder it hits.',
     relations: ['Super armor 1.5s', 'Half damage', 'Counter-slash'],
   }),
@@ -234,7 +237,7 @@ const warrior: FinalSkill[] = [
     linger: { at: 'aim', offset: 130, startMs: 600, everyMs: 600, count: 8, radius: 200, maxZ: 220,
       hit: H(0, 4, { kind: 'circle', radius: 200 }, { stun: 260, push: 20 }, { reachUp: 220 }),
       last: H(0, 12, { kind: 'circle', radius: 220 }, { stun: 420, launch: 90, juggleCost: 12 }, { reachUp: 240, heavy: true }) },
-    cancelOnHit: ['rising_slash', 'sky_breaker', 'iron_grip', 'lance_thrust', 'ground_breaker', 'blade_storm', 'titans_verdict', 'leap_crash'],
+    cancelOnHit: ['rising_slash', 'sky_breaker', 'thunder_circle', 'lance_thrust', 'ground_breaker', 'blade_storm', 'titans_verdict', 'leap_crash'],
     description: 'Roar, and a lion of light pounces from your side onto the foe in front of you — a bite, a raking claw, a dive — then stands there roaring for 5s: every roar hurts everyone around it, and the last one bursts and throws them. Usable in the air.',
     relations: ['Pull', 'Hold'],
   }),
@@ -767,7 +770,7 @@ const samurai: FinalSkill[] = [
     // end of the burst), and its light throws every foe around him back and holds them a moment (room, a reset)
     hits: [H(0, 8, { kind: 'circle', radius: 170 }, { stun: 420, push: 150, drop: true }, { reachUp: 200 })],
     cancelOnHit: ['quick_slash', 'shadow_step', 'iai_strike', 'sheathe'],
-    description: 'Your defensive ultimate: raise the banner of the Rising Sun. While the sun rises behind you nothing can touch you, and its light throws every foe around you back and holds them a moment. Its banner then stays planted where it rose for 10 s: come down on its pole from a jump and it springs you far back.',
+    description: 'Your defensive ultimate: raise the banner of the Rising Sun. While the sun rises behind you nothing can touch you, and its light throws every foe around you back and holds them a moment. Its banner then stays planted where it rose for 25 s: come down on its pole from a jump — anywhere in the ring of light round its foot — and it springs you far back.',
     relations: ['Untouchable while it rises', 'Throws foes back', 'The banner springs you back'],
   }),
   S({
@@ -1101,12 +1104,12 @@ ARENA_PACE.tempest_ride = { squeeze: 1 };
 //   open (regular attack / Dash Slash / Iron Grip / the hook / Wave Slash) → launch (Rising Slash) → the air (Sky Breaker /
 //   Ground Breaker) → the court or the lion (Judgment Blade / Lion's Maw) → the finish (Impaling Rush → the Verdict). Buffs and Sanctuary lead nowhere (a list is never empty: an empty one would mean free cancel).
 const WARRIOR_LINKS: Record<string, string[]> = { // three ways (the combo trials, 17 Oct): IRON HAND — hook ↔ grip, the crash, the chain on the floor; SKYBREAKER — launch, chase, spike, crash on the bounce; JUDGMENT — the quake, the court, the sentence
-  warrior_basic: ['rising_slash'], dash_slash: ['rising_slash'], iron_grip: ['rising_slash', 'leap_crash'],
-  judgment_hook: ['rising_slash', 'iron_grip'], wave_slash: ['rising_slash'], shield_charge: ['iron_grip', 'warrior_basic'],
+  warrior_basic: ['rising_slash'], dash_slash: ['rising_slash'], thunder_circle: ['rising_slash', 'leap_crash', 'whirlwind', 'titans_verdict'],
+  judgment_hook: ['rising_slash', 'thunder_circle'], wave_slash: ['rising_slash'], shield_charge: ['thunder_circle', 'warrior_basic'],
   earthsplitter: ['warrior_basic'], // (the charged punish: no combo link out of it)
   rising_slash: ['sky_breaker', 'ground_breaker'],
   sky_breaker: ['judgment_blade', 'lions_maw', 'leap_crash'], ground_breaker: ['judgment_blade', 'lions_maw'], leap_crash: ['judgment_blade', 'lions_maw', 'judgment_hook'],
-  judgment_blade: ['lance_thrust', 'titans_verdict'], lions_maw: ['lance_thrust', 'titans_verdict'],
+  judgment_blade: ['lance_thrust', 'titans_verdict', 'thunder_circle'], lions_maw: ['lance_thrust', 'titans_verdict'],
   lance_thrust: ['titans_verdict'], whirlwind: ['titans_verdict'], blade_storm: ['titans_verdict'],
   war_cry: ['warrior_basic'], sanctuary: ['warrior_basic'],
 };
@@ -1167,7 +1170,7 @@ for (const s of [...FINAL_SKILLS, ...mageBolts, ARCHER_STREAM]) {
 const BY_ID = new Map([...FINAL_SKILLS, ...mageBolts, ...Object.values(MAGE_HIDDEN), ARCHER_STREAM].map((s) => [s.id, s]));
 /** Old ids from earlier builds (save-data / QA migration only; never shown in the HUD/tree). */
 export const LEGACY_ALIASES: Record<string, string> = {
-  kinetic_grab: 'light_staff', all_in: 'long_guard', triple_down: 'staff_flurry', page_bind: 'rift_gates', // (David 18 Oct 01:42 / 01:26: replaced)
+  iron_grip: 'thunder_circle', kinetic_grab: 'light_staff', all_in: 'long_guard', triple_down: 'staff_flurry', page_bind: 'rift_gates', // (David 18 Oct 01:42 / 01:26: replaced)
   final_strike: 'titans_verdict', meteor: 'storm_field', time_warp: 'time_collapse', wind_step: 'skyhunters_step',
   natures_wrath: 'sky_rain', verdant_judgment: 'sky_rain', dragon_slash: 'dragon_eclipse',
 };

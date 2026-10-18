@@ -106,6 +106,7 @@ const SIG: Record<string, Sig> = {
   leap_crash: { cast: 'wr_leap_c', lead: 120, hit: 'wr_leap_h', end: 'wr_leap_end' }, // STONE: the crater
   earthsplitter: { wind: 'wr_split_w', cast: 'wr_split_c', hit: 'wr_split_h' }, // STONE: the ground trembling under the hold, the fissure, the spikes
   iron_grip: { cast: 'wr_grip_c', lead: 80, blow: 'wr_grip_b', hit: 'wr_grip_h' }, // IRON: the gauntlet closing, the heave
+  thunder_circle: { cast: 'wr_jblade_c', lead: 120, hit: 'wr_jblade_h' }, // (David 18 Oct 18:19: Judgment Blade's sounds until its own)
   judgment_hook: { cast: 'wr_hook_c', lead: 60, blow: 'wr_hook_h', hit: 'wr_hook_h' }, // IRON: a real chain, the hook biting, reeled in
   shield_charge: { cast: 'wr_charge_c', lead: 40 }, // IRON: the barrier of iron light at his shoulder
   judgment_blade: { cast: 'wr_jblade_c', lead: 120, hit: 'wr_jblade_h', blow: 'wr_jblade_z', blowVol: 0.6 }, // HOLY: the sword of light from the sky, the pin pulsing
