@@ -9,6 +9,13 @@
 import type { Recipe } from '../Fx3D';
 import { C, me, side, placeOf } from './kit';
 
+// Rift Gates: the gates she lays, mirrored from the casts (two at most, the oldest moved by a third, 10 s each — the scene's RIFT), so each gate's
+// look can end the moment it is moved (its `at()` returns null and its pieces fly off)
+type Gate = { x: number; y: number; until: number; dead: boolean };
+const gates = new Map<string, Gate[]>();
+const liveGates = (id: string, now: number): Gate[] => (gates.get(id) ?? []).filter((g) => !g.dead && now < g.until);
+const now = () => performance.now();
+
 export const BOOK_MAGE: Record<string, Recipe> = {
   // the regular bolt: a thin violet trail; the default main-hit layer marks the blow
   arcane_bolt: { tone: C.arcane, trail: { c: C.arcane, w: 10, len: 14, i: 1.2 },
@@ -68,4 +75,18 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   elemental_ascension: { tone: C.frost, own: true, active: (f, r) => { const id = r.attackerId, c = me(f, r), at = () => { const p = f.host.casterPos(id); return p ? { x: p.x, y: p.y, z: 0 } : null; }; f.swirl(at, {}, { n: 40, r0: 50, r1: 90, h: 300, ms: 1600, rps: 1.2, rise: 0.9, size: 0.7, color: C.frost }); f.swirl(at, {}, { n: 40, r0: 50, r1: 90, h: 300, ms: 1600, rps: -1.2, rise: 0.9, size: 0.7, color: C.storm }); f.bladeBall(id, C.storm, { r: 85, ms: 600, every: 70, ink: true }); f.skyBeam({ x: c.x, y: c.y, z: 0 }, C.frost, { ms: 420, w: 14 }); } }, // (David 18 Oct: unprofessional on the hero → frost and storm braided round her: two streams of sparks spiralling up her in opposite turns, inked storm rings closing round her, a beam of frost light down onto her)
   // the book slammed shut: a short arc of paper light, frost crystals where it lands
   page_bind: { tone: C.paper, active: (f, r) => f.slash(me(f, r), side(r), C.paper, { r: 130, tilt: 20, a0: -40, a1: 140, ms: 240, i: 1.0 }), hit: (f, _s, _h, at, main) => { if (main) f.crystals(at.x, at.y, { n: 4, r: 40, h: 70, ms: 800 }); } },
+  // Rift Gates (David 18 Oct 01:26: portals in the ground she crosses between): each gate a violet rune portal lying in the floor for its 10 s —
+  // a ring of sparks turning flat on the planks and her torn pages circling slowly up out of it; crossing, the pages pour down into the gate
+  // under her and she rises out of the other in a short beam with an inked ring at her feet
+  rift_gates: { tone: C.arcane, own: true,
+    cast: (f, r) => { const id = r.attackerId, c = me(f, r), t = now();
+      if (r.stage === 0) { const list = liveGates(id, t); const g: Gate = { x: c.x, y: c.y, until: t + 200 + 10000, dead: false }; list.push(g); while (list.length > 2) list.shift()!.dead = true; gates.set(id, list);
+        const at = () => (g.dead || now() > g.until ? null : { x: g.x, y: g.y, z: 0 });
+        f.swirl(at, {}, { n: 26, r0: 46, r1: 50, h: 8, ms: 10200, rps: 0.35, rise: 0, size: 0.6, color: C.arcane });
+        f.swirl(at, { tex: 'mage-page', size: 0.7, aspect: 1.3, crumble: 'wind' }, { n: 7, r0: 30, r1: 44, h: 90, ms: 10200, rps: 0.25, rise: 0.35 });
+        f.slash(c, side(r), C.arcane, { r: 52, w: 18, tilt: 0, a0: -180, a1: 180, ms: 300, y0: 4, ink: true, quiet: true }); }
+      else { const to = liveGates(id, t).find((g) => Math.hypot(g.x - c.x, g.y - c.y) > 40);
+        f.swirl(() => ({ x: c.x, y: c.y, z: 0 }), { tex: 'mage-page', size: 0.8, aspect: 1.3, crumble: 'wind' }, { n: 14, r0: 70, r1: 20, h: 160, ms: 240, rps: -1.6, rise: -0.6 });
+        if (to) f.later(200, () => { f.skyBeam({ x: to.x, y: to.y, z: 0 }, C.arcane, { ms: 260, w: 8, h: 260 }); f.slash({ x: to.x, y: to.y, z: 0 }, side(r), C.arcane, { r: 60, w: 22, tilt: 0, a0: -180, a1: 180, ms: 260, y0: 6, ink: true, quiet: true }); }); } } },
+
 };
