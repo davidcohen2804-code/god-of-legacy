@@ -652,8 +652,8 @@ const samurai: FinalSkill[] = [
     // hits a doll in his place and he vanishes (the scene: SUBSTITUTE); a tap is the click as before (startup = the longest hold)
     charge: { minMs: 40, levels: [{ at: 0, hits: [] }] },
     cancelOnHit: ['iai_strike', 'quick_slash'],
-    description: 'Snap the blade home in its sheath with a click: a 150 ms stance you can cancel into from any hit. For 0.6s after it, your next Iai Strike or Quick Slash leaves the sheath at once — no wind-up — and the Iai Strike one charge level higher.',
-    relations: ['Cancel from any hit', 'Next Iai / Quick Slash: instant'],
+    description: 'Tap it: snap the blade home in its sheath with a click — a 150 ms stance you can cancel into from any hit. For 0.6s after it, your next Iai Strike or Quick Slash leaves the sheath at once — no wind-up — and the Iai Strike one charge level higher. Hold it: your guard, up to 3 s — a blow that lands on you in it splits a straw doll in your place, and you vanish in ink for 1.5 s, back when the time runs out or you strike.',
+    relations: ['Cancel from any hit', 'Next Iai / Quick Slash: instant', 'Held: a doll takes the blow'],
   }),
   S({
     id: 'iai_strike', cls: 'samurai', slot: 3, name: 'Iai Strike', roles: ['precision', 'finisher'], targeting: 'mouseLine',

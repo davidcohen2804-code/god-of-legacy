@@ -622,7 +622,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     'quick_slash#3': { act: 'qs4', st: [0, 1], ac: [2, 3, 4], rc: [5] }, // the rising cut: from a low guard swept up over the head (the launch)
     shadow_step: { act: 'shadow_step', st: [0], ac: [1, 2], rc: [3, 4, 5] },
     swallow_cut: { act: 'swallow_cut', st: [0], ac: [1, 2, 3, 4], rc: [4, 5] },
-    sheathe: { act: 'sheathe_guard', st: [0, 1, 2, 3, 4, 5], ac: [6, 7, 7], rc: [8] }, // (David 18 Oct 01:15) his guard (PixVerse): the blade raised forward, up, over his shoulder, held — released: brought back across the waist, slid home (the click), the hand resting on the hilt
+    sheathe: { act: 'sheathe_guard', st: [0, 1, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 4, 4, 4, 4, 5, 5, 5, 5, 4, 4, 4, 4, 5, 5, 5, 5, 4, 4, 4, 4, 5, 5], ac: [6, 7, 7], rc: [8] }, // (David 18 Oct 01:15) his guard (PixVerse): the blade raised forward, up, over his shoulder (the first ~250 ms of its 3 s hold, DFO's charge), then held, breathing — released (or a tap): brought back across the waist, slid home (the click), the hand resting on the hilt
     iai_strike: { act: 'iai_strike', st: [0, 1], ac: [2], rc: [3, 4, 5] },
     sword_wave: { act: 'sword_wave', st: [0, 1, 2, 3], ac: [4], rc: [4, 5, 5] }, // his own (PixVerse): low in a wide stance, the blade swung up behind and over his head, flung out flat at full reach as the crescent flies
     mirage: { act: 'mirage', st: [0], ac: [0, 1, 0, 1], rc: [2, 3, 4, 5] },
