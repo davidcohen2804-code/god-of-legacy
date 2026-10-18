@@ -409,6 +409,7 @@ export class SkillFx {
     else if (s.id === 'sky_breaker') this.skyBreaker(r);
     else if (s.id === 'lions_maw') this.lionsMaw(r);
     else if (s.id === 'leap_crash') { this.aura(r); this.scene.time.delayedCall(r.timings.startup, () => { const c = this.casterPos(r.attackerId) ?? r.origin; this.leapBurst(c.x, c.y - c.z, r.aim.x < 0 ? -1 : 1); }); } // the take-off: a burst of light at his feet, the crater comes on the landing
+    else if (s.id === 'lance_thrust' && s.charge) { this.lanceCharge(r); this.castVfx(r); } // (Impaling Rush held: a lance of steel light grows on his blade at each step — David 01:07)
     else if (s.id === 'earthsplitter') this.chargeAura(r); // (the charge: flames of light rise round him while the key is held, stronger at each level; the split itself plays on the release, onActive)
     else if (s.id === 'iron_oath') this.oathSigil(r);
     else if (s.id === 'legacy_banner') { // planted in front of the caster where the sword comes down (every client sees it)
@@ -469,6 +470,28 @@ export class SkillFx {
   /** Class aura around the caster for the cast (stronger on signature / ultimate). */
   /** Earthsplitter's hold: the painted holy flames rise round him while the key is held, growing with each charge level
    *  (a burst of light marks the level reached); gone on the release. */
+  /** Impaling Rush held (David 01:07): a lance of steel light grows forward from his blade while the key is held — longer and
+   *  brighter at each step reached (a ring of steel flashes at his hand on each) — and is driven forward with the rush. */
+  private lanceCharge(r: CastRun): void {
+    const L = r.skill.charge?.levels ?? [], marks = L.slice(1).map((l) => l.at * (r.chargeScale ?? 1)), d = r.aim.x < 0 ? -1 : 1;
+    const lance = this.scene.add.image(0, 0, 'dmg-glow').setOrigin(0, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xcfe0ff).setAlpha(0);
+    const core = this.scene.add.image(0, 0, 'dmg-glow').setOrigin(0, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffffff).setAlpha(0);
+    let reached = 0, fade = -1, len = 40;
+    const tick = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
+      const c = this.casterPos(r.attackerId);
+      if (!c) { tick.remove(); lance.destroy(); core.destroy(); return; }
+      const held = r.phase === 'startup', e = r.elapsed;
+      while (held && reached < marks.length && e >= marks[reached]) { reached++; this.shockwave(c.x + d * 40, c.y, 60 + 30 * reached, 0xcfe0ff); }
+      if (!held && fade < 0) fade = 0;
+      if (fade >= 0) fade += 16;
+      const want = 50 + 70 * reached + (held ? 10 * Math.sin(e / 60) : 0); len += (want - len) * 0.25;
+      const a = fade >= 0 ? Math.max(0, 1 - fade / 160) : Math.min(1, e / 120), x = c.x + d * 30, y = c.y - c.z - 92;
+      lance.setPosition(x, y).setFlipX(d < 0).setOrigin(d < 0 ? 1 : 0, 0.5).setDisplaySize(len + (fade >= 0 ? fade * 1.5 : 0), 22 + 6 * reached).setDepth(c.y + 1).setAlpha((0.45 + 0.15 * reached) * a);
+      core.setPosition(x, y).setOrigin(d < 0 ? 1 : 0, 0.5).setDisplaySize(len * 0.9, 6 + 2 * reached).setDepth(c.y + 1.01).setAlpha(0.8 * a);
+      if (fade >= 160) { tick.remove(); lance.destroy(); core.destroy(); }
+    } });
+  }
+
   private chargeAura(r: CastRun): void {
     if (!this.scene.textures.exists('holy-aura')) return;
     const L = r.skill.charge?.levels ?? [], marks = L.slice(1).map((l) => l.at * (r.chargeScale ?? 1));
