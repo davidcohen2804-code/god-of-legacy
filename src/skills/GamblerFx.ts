@@ -1307,7 +1307,10 @@ export class GamblerFx {
    *  violet glow lies along the cane itself in every frame of every move, and a blade of light runs on out of its tip — drawn
    *  from the cane's line in the body's current atlas frame (src/data/gambler-cane.json, marked per frame). */
   private lightStaff(r: CastRun): void {
-    const s = this.ctx.scene, id = r.attackerId, T = r.timings, end = T.startup + 8000, C = CANE as Record<string, number[] | null>;
+    const s = this.ctx.scene, id = r.attackerId, T = r.timings, C = CANE as Record<string, number[] | null>;
+    // (David 18 Oct 23:01: it lasts as long as the lit cane does — the scene's lightStaffOn, whatever its length — else 8 s)
+    const on = (s as unknown as { lightStaffOn?: (id: string) => boolean }).lightStaffOn?.bind(s);
+    let end = on ? Infinity : T.startup + 8000;
     if (!s.textures.exists('gb-beam')) { // a beam: full along its length (soft at both ends), a soft falloff across it
       const cv = s.textures.createCanvas('gb-beam', 128, 32)!, g = cv.getContext();
       for (let x = 0; x < 128; x++) { const ex = Math.min(1, x / 10, (127 - x) / 10); const gr = g.createLinearGradient(0, 0, 0, 32); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, `rgba(255,255,255,${ex})`); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(x, 0, 1, 32); }
@@ -1315,10 +1318,13 @@ export class GamblerFx {
     }
     const mk = (tint: number, a: number) => s.add.image(0, 0, 'gb-beam').setBlendMode(Phaser.BlendModes.ADD).setTint(tint).setAlpha(0).setOrigin(0, 0.5);
     const halo = mk(0x7a5cff, 0.55), core = mk(0xe8e0ff, 0.95), blade = mk(0x9a8cff, 0.8), bladeCore = mk(0xffffff, 0.9);
+    // (David 18 Oct 23:01: thicker — it should hide the cane under it) a solid layer of pale violet light over the shaft (not added light: it covers the dark wood)
+    const cover = s.add.image(0, 0, 'gb-beam').setTint(0xc9bcff).setAlpha(0).setOrigin(0, 0.5);
     const tipStar = s.add.image(0, 0, 'gb-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xd8d0ff).setAlpha(0);
-    const all = [halo, core, blade, bladeCore, tipStar];
+    const all = [halo, cover, core, blade, bladeCore, tipStar];
     let last: number[] | null = null;
     this.add((t) => {
+      if (on && end === Infinity && t > T.startup + 200 && !on(id)) end = t + 400; // (the lit cane is over: fade out)
       const c = this.ctx.casterPos(id), b = this.ctx.body?.(id);
       if (t > end || !c || !b) { all.forEach((o) => this.piece(o, 180, (u, im) => im.setAlpha(im.alpha * (1 - u)))); return false; }
       const grow = clamp01((t - T.startup * 0.4) / (T.startup * 0.8)), fade = clamp01((end - t) / 400);
@@ -1328,13 +1334,15 @@ export class GamblerFx {
       const hx = fx + line[0] * k * f, hy = fy + line[1] * k, tx = fx + line[2] * k * f, ty = fy + line[3] * k;
       const L = Math.hypot(tx - hx, ty - hy), ang = Math.atan2(ty - hy, tx - hx) * 57.2958, d = c.y + 3, pulse = 0.85 + 0.15 * Math.sin(t * 0.012);
       const gw = 128, gh = 32, A = grow * fade;
-      halo.setVisible(true).setPosition(hx, hy).setAngle(ang).setScale((L * 1.08) / gw, 30 / gh).setDepth(d).setAlpha(0.6 * A * pulse);
-      core.setVisible(true).setPosition(hx, hy).setAngle(ang).setScale(L / gw, 10 / gh).setDepth(d + 0.01).setAlpha(0.95 * A);
+      const ex = L * 0.06; // (a little past both ends of the shaft)
+      halo.setVisible(true).setPosition(hx - (tx - hx) / (L || 1) * ex, hy - (ty - hy) / (L || 1) * ex).setAngle(ang).setScale((L + ex * 2) / gw, 58 / gh).setDepth(d).setAlpha(0.6 * A * pulse);
+      cover.setVisible(true).setPosition(hx - (tx - hx) / (L || 1) * ex, hy - (ty - hy) / (L || 1) * ex).setAngle(ang).setScale((L + ex * 2) / gw, 26 / gh).setDepth(d + 0.005).setAlpha(0.92 * A);
+      core.setVisible(true).setPosition(hx, hy).setAngle(ang).setScale(L / gw, 20 / gh).setDepth(d + 0.01).setAlpha(0.95 * A);
       const dy = (ty - hy) / (L || 1), room = dy > 0.05 ? Math.max(8, (fy + 4 - ty) / dy) : Infinity; // (pointing down: the blade stops at the floor, never through it)
       const BL = Math.min(L * 1.15, room) * grow; // the blade of light out of its tip, longer than the cane
-      blade.setVisible(true).setPosition(tx, ty).setAngle(ang).setScale(BL / gw, 22 / gh).setDepth(d + 0.01).setAlpha(0.75 * A * pulse);
-      bladeCore.setVisible(true).setPosition(tx, ty).setAngle(ang).setScale((BL * 0.9) / gw, 7 / gh).setDepth(d + 0.02).setAlpha(0.95 * A);
-      tipStar.setVisible(true).setPosition(tx, ty).setDisplaySize(34 + 8 * Math.sin(t * 0.02), 34 + 8 * Math.sin(t * 0.02)).setDepth(d + 0.02).setAlpha(0.9 * A);
+      blade.setVisible(true).setPosition(tx, ty).setAngle(ang).setScale(BL / gw, 36 / gh).setDepth(d + 0.01).setAlpha(0.8 * A * pulse);
+      bladeCore.setVisible(true).setPosition(tx, ty).setAngle(ang).setScale((BL * 0.9) / gw, 13 / gh).setDepth(d + 0.02).setAlpha(0.95 * A);
+      tipStar.setVisible(true).setPosition(tx, ty).setDisplaySize(48 + 10 * Math.sin(t * 0.02), 48 + 10 * Math.sin(t * 0.02)).setDepth(d + 0.02).setAlpha(0.9 * A);
       if (Math.random() < 0.25 * A) { const q = Math.random(); this.pop(hx + (tx - hx + (tx - hx) * 1.1 * Math.random()) * q, hy + (ty - hy) * q * 1.6, 14, 0xb4a6ff, 220, 0, d + 0.03); }
       return true;
     });

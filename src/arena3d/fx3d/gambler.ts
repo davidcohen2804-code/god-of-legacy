@@ -26,7 +26,9 @@ const LIT = new Map<string, number>();
 let GUARD = '', GUARD_END = false;
 /** 52 Pickup's cards in the planks (by wave) and the waves gone off so far. */
 let P52: { keys: { key: string; w: number }[]; wave: number } | null = null;
-const lit = (r: { attackerId: string }) => (LIT.get(r.attackerId) ?? 0) > performance.now();
+/** The scene's own word on the lit cane (its length is the scene's), else the recipe's 8 s. */
+const sceneLit = (id: string): boolean | null => { const sc = (window as unknown as { __game?: { scene: { getScene(k: string): unknown } } }).__game?.scene.getScene('LegacyCourtyardScene') as { lightStaffOn?: (id: string) => boolean } | undefined; return sc?.lightStaffOn ? sc.lightStaffOn(id) : null; };
+const lit = (r: { attackerId: string }) => sceneLit(r.attackerId) ?? (LIT.get(r.attackerId) ?? 0) > performance.now();
 /** A staff blow's ring: ×1.6 and a thin outer edge of violet light while his cane is lit (its blade of light reaches that far). */
 const staffRing = (f: Parameters<NonNullable<Recipe['active']>>[0], r: { attackerId: string }, at: { x: number; y: number; z: number }, dir: number, color: number, o: Parameters<Parameters<NonNullable<Recipe['active']>>[0]['slash']>[3] & {}) => {
   if (!lit(r)) { f.slash(at, dir, color, o); return; }
@@ -37,7 +39,7 @@ const staffRing = (f: Parameters<NonNullable<Recipe['active']>>[0], r: { attacke
 
 /** His painted sheets (David 18 Oct 20:51: painted art, real colour, motion): 4×4 GPT sheets on black, played through flip. */
 const ART = 'assets/final/skills/gambler/fx3d/';
-const SHEET = { cardBurst: ART + 'card_burst.webp', coinBurst: ART + 'coin_burst.webp', staffArc: ART + 'staff_arc.webp', fuseBlast: ART + 'fuse_blast.webp', roulette: ART + 'roulette_sigil.webp', staffHit: ART + 'staff_hit.webp', cardWard: ART + 'card_ward.webp', cardSigil: ART + 'card_sigil.webp' };
+const SHEET = { cardBurst: ART + 'card_burst.webp', coinBurst: ART + 'coin_burst.webp', staffArc: ART + 'staff_arc.webp', fuseBlast: ART + 'fuse_blast.webp', roulette: ART + 'roulette_sigil.webp', staffHit: ART + 'staff_hit.webp', cardWard: ART + 'card_ward.webp', cardSigil: ART + 'card_sigil.webp', golfClub: ART + 'golf_club.webp' };
 type FX = Parameters<NonNullable<Recipe['active']>>[0];
 /** The cards' painted burst: a white-hot flash, crimson energy flinging glowing cards, red smoke thinning out. `big` the
  *  whole sheet (a main hit), else its first, hottest frames, small (a card that strikes). */
@@ -157,7 +159,7 @@ export const GAMBLER: Record<string, Recipe> = {
     active: (f, r) => {
       const id = r.attackerId, until = performance.now() + 8000; LIT.set(id, until);
       const c0 = me(f, r); f.host.ring(f.host.w3(c0.x), f.host.d3(c0.y), F.violet, 1.6, 420, 0.6);
-      for (let t = 0; t < 8000; t += 260) f.later(t, () => { if ((LIT.get(id) ?? 0) !== until) return; const c = f.host.casterPos(id); if (c) f.host.embers(f.host.w3(c.x), f.host.h3(c.z + 80), f.host.d3(c.y), 0xb4a6ff, 2, 1.2); });
+      for (let t = 0; t < 60000; t += 260) f.later(t, () => { if ((LIT.get(id) ?? 0) !== until || (t > 300 && !lit(r))) return; const c = f.host.casterPos(id); if (c) f.host.embers(f.host.w3(c.x), f.host.h3(c.z + 80), f.host.d3(c.y), 0xb4a6ff, 2, 1.2); }); // (as long as the cane is lit)
     } },
   // V — Long Guard: held, a ward of six cards turning upright round him and a ring of runes at his feet; a catch snaps a line of
   // cards out to the striker (its hit 0) and binds him in a red star
@@ -202,8 +204,9 @@ export const GAMBLER: Record<string, Recipe> = {
       const id = r.attackerId, s = side(r), ms = Math.min(3000, T(r).active), here = () => f.host.casterPos(id);
       for (let t = 0, k = 0; t < ms - 200; t += 110, k++) f.later(t, () => {
         const c = here(); if (!c) return;
-        if (k % 4 === 3) { // a spin: a wheel of light round him
+        if (k % 4 === 3) { // a spin: a wheel of light round him — (David 18 Oct 23:01: the lit cane's blows in it) the painted crescent of the lit staff swept round
           f.slash(c, s, 0xb4a6ff, { r: 120, w: 40, tilt: 88, a0: -180, a1: 180, ms: 220, y0: 70, i: 2.4, ink: true, follow: here, quiet: true });
+          f.flip(SHEET.staffArc, { x: c.x + s * 40, y: c.y, z: 100 }, { grid: [4, 4], from: 2, to: 13, w: 240, fps: 44, rot: (k % 8 === 3 ? -1 : 1) * 25 * s, flipX: (k % 8 === 3) !== (s < 0), through: 0.5, glow: 0.15 });
         } else if (k % 2 === 0) { // a jab: a long thrust line out of his hands
           f.streak({ x: c.x + s * 30, y: c.y, z: 80 + (k % 3) * 8 }, { x: c.x + s * 240, y: c.y + (k % 3 - 1) * 10, z: 80 + (k % 3) * 8 }, 0xe8e0ff, { w: k % 5 === 4 ? 14 : 8, ms: 120, draw: 20, front: true, quiet: true });
         } else { // a short slanted arc in front
@@ -214,7 +217,7 @@ export const GAMBLER: Record<string, Recipe> = {
     },
     // (David 20:51, painted pass: every blow that lands a painted violet strike — a white-hot star, crossing blade-light,
     // shattered crystal shards and card glints, indigo wisps — small and quick on the jabs, the whole sheet on the big ones)
-    cast: (f) => f.flipLoad(SHEET.staffHit),
+    cast: (f) => { f.flipLoad(SHEET.staffHit); f.flipLoad(SHEET.staffArc); },
     hit: (f, _s, h, at) => {
       const big = h.damage >= 5, p = { x: at.x + (Math.random() - 0.5) * 30, y: at.y, z: at.z + 70 + (Math.random() - 0.5) * 30 };
       f.flip(SHEET.staffHit, p, big ? { grid: [4, 4], from: 1, to: 11, w: 175, fps: 30, glow: 0.2, through: 0.5, rot: Math.random() * 90 }
@@ -265,10 +268,13 @@ export const GAMBLER: Record<string, Recipe> = {
     // indigo trailing edge, card motes flung off it — sweeping from low behind him up through the ball to high in front, over
     // the code arc that keeps its line; ×1.4 while his cane is lit)
     cast: (f, r) => {
-      f.flipLoad(SHEET.staffArc); f.flipLoad(SHEET.staffHit);
-      // (the painted stroke sweeps up to the strike: its crescent at full sweep as the staff meets the ball)
-      f.later(Math.max(0, T(r).startup - 160), () => { const c = me(f, r), s = side(r), L = lit(r) ? 1.4 : 1;
-        f.flip(SHEET.staffArc, { x: c.x + s * 46, y: c.y, z: 120 }, { grid: [4, 4], from: 2, w: 300 * L, fps: 30, rot: -s * 18, flipX: s < 0, through: 0.5, glow: 0.15 }); });
+      f.flipLoad(SHEET.golfClub); f.flipLoad(SHEET.staffHit);
+      // (David 18 Oct 23:01: "really a light like a golf club") a painted golf driver of violet light: drawn back low behind
+      // him, the downswing's wide crescent, the strike's star and ring (its 8th frame) on the moment of contact, the follow-through
+      // curling over the top, dissolving into motes
+      const fps = 24, impact = 7, lead = (impact / fps) * 1000;
+      f.later(Math.max(0, T(r).startup - lead), () => { const c = me(f, r), s = side(r), L = lit(r) ? 1.25 : 1;
+        f.flip(SHEET.golfClub, () => { const p = f.host.casterPos(r.attackerId); return p ? { x: p.x + s * 34, y: p.y, z: 118 } : null; }, { grid: [4, 4], w: 340 * L, fps, flipX: s < 0, through: 0.5, glow: 0.25 }); });
     },
     active: (f, r) => { const c = me(f, r), s = side(r); staffRing(f, r, c, s, 0xb4a6ff, { r: 170, w: 40, tilt: 74, a0: -150, a1: 160, ms: 300, y0: 60, i: 1.8, ink: true }); }, // (the follow-through's inked line)
     // (DFO review 22:05: the strike was a white-out — the room's flash under a burst; now one: its own painted violet strike,
