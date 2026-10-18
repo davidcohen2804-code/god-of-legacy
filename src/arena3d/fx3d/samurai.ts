@@ -190,7 +190,7 @@ export const SAMURAI: Record<string, Recipe> = {
   // (David 18 Oct 18:29: the iai as a beat) the stillness — a glint down the scabbard, the reach a hairline on the planks;
   // the draw — one razor line of light across the field that hangs and splits; the cut arriving late on the foe — a hairline
   // flash on him, then petals and ink bursting out (the room plays the main hit in his rose)
-  iai_strike: { own: true, tone: SAM.rose,
+  iai_strike: { own: true, tone: SAM.rose, paint: true, // (the room's main hit keeps his rose: added alone, its shell stood as a white bubble round the hairline)
     cast: (f, r) => iaiStance(f, r),
     active: (f, r) => iaiDraw(f, r),
     hit: (f, _s, h, at, main) => iaiBurst(f, at, main && !!h.heavy) },
