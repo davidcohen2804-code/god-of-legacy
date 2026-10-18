@@ -96,8 +96,8 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
     { name: 'AVALANCHE', tier: 'EXPERT', style: 'FROST', range: 'CLOSE', hits: 14, steps: [{ id: 'glacial_spikes' }, { id: 'arcane_bolt', n: 2 }, { id: 'astral_burst' }, { id: 'frost_nova' }, { id: 'arcane_bolt', n: 3 }, { id: 'lightning_chain' }],
       tip: 'Two shatters: the first bolts freeze him, the starlight hand breaks the ice and draws him back to you — burst the frost ring as he comes down into it, freeze him again, the lance breaks it' },
     // STORM — one chill, then every storm hit conducts
-    { name: 'CONDUIT', tier: 'BEGINNER', style: 'STORM', range: 'CLOSE', hits: 6, steps: [{ id: 'page_bind' }, { id: 'lightning_chain' }],
-      tip: 'Page Bind chills him: every arc of the chain conducts through the cold and holds him longer' },
+    { name: 'CONDUIT', tier: 'BEGINNER', style: 'STORM', range: 'CLOSE', hits: 6, steps: [{ id: 'arcane_wave' }, { id: 'lightning_chain' }],
+      tip: 'The wave lifts him low and in reach; the lightning seizes him up there and holds him' },
     { name: 'SPARK', tier: 'MID', style: 'STORM', range: 'CLOSE', hits: 10, steps: [{ id: 'glacial_spikes' }, { id: 'lightning_chain' }, { id: 'arcane_bolt', n: 3 }],
       tip: 'The spikes chill him and throw him up, the chain conducts through the cold; your bolts are storm now — they seek him in the air and keep conducting' },
     { name: 'TEMPEST', tier: 'EXPERT', style: 'STORM', range: 'MID', hits: 15, steps: [{ id: 'arcane_wave' }, { id: 'glacial_spikes' }, { id: 'lightning_chain' }, { id: 'storm_field' }, { id: 'time_collapse' }],

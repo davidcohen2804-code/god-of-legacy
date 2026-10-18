@@ -274,7 +274,7 @@ const mage: FinalSkill[] = [
   S({
     id: 'arcane_wave', cls: 'book_mage', slot: 1, name: 'Arcane Wave', roles: ['confirm', 'peel'], targeting: 'mouseLine',
     startup: 150, active: 180, recovery: 180, cooldown: 4000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    hits: [H(0, 24, { kind: 'line', length: 230, width: 110 }, { stun: 260, launch: 90, float: true, juggleCost: 12 }, { reachUp: 170 })],
+    hits: [H(0, 24, { kind: 'line', length: 230, width: 110 }, { stun: 260, launch: 90, float: true, juggleCost: 12 }, { reachUp: 170, depth: 90 })], // (David 18 Oct 01:26: a wave with depth — it reaches ±90 px across the lane, as its three crests are drawn)
     cancelOnHit: ['astral_burst', 'lightning_chain', 'blink', 'glacial_spikes'], telegraph: 'line',
     description: 'A wide, short wave across the floor that lifts a foe on the ground into the air, low and in reach of your next spell; a foe already in the air is bounced up again.',
     relations: ['Lifts a grounded foe', 'Bounces one in the air'],
@@ -401,12 +401,28 @@ const mage: FinalSkill[] = [
     relations: ['Buff 20s', 'Every hit: frost + storm'],
   }),
   S({
-    id: 'page_bind', cls: 'book_mage', slot: 18, name: 'Page Bind', roles: ['confirm', 'setup'], targeting: 'mouseDir',
-    startup: 140, active: 100, recovery: 180, cooldown: 7000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    hits: [H(0, 16, { kind: 'sector', range: 120, angle: 100 }, { stun: 380, push: 4, juggleCost: 10 }, { reachUp: 100, el: FROST })],
-    cancelOnHit: ['blink', 'arcane_bolt', 'lightning_chain', 'glacial_spikes'], telegraph: 'cone',
-    description: 'The book slams shut on a foe in front of you: frozen pages stick to it, and your next two spells CHILL it. Then you spring back out of reach. A miss leaves you open for a moment. Two torn pages fall where it struck and lie 8s.',
-    relations: ['Next 2 spells chill', 'Springs back'],
+    id: 'rift_gates', cls: 'book_mage', slot: 18, name: 'Rift Gates', roles: ['mobility', 'setup'], targeting: 'self',
+    startup: 200, active: 80, recovery: 160, cooldown: 600, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    // (David 18 Oct 01:26 + the Book Mage chat's Rift Gates): a press lays a violet rune gate into the floor under her (two at
+    // most: a third moves the oldest; each 10 s); pressed while she stands on one, she sinks into it and rises out of the
+    // other — 260 ms under, untouchable, then the gates wait 4 s (the scene: RIFT); foes cannot use them
+    hits: [], tags: ['buff'],
+    cancelOnHit: [],
+    description: 'Lay a violet rift gate into the floor under you — two at most, each for 10s. Press it again while standing on one: you sink into it and rise out of the other, untouchable on the way; then the gates rest 4s. Foes cannot use them.',
+    relations: ['Two gates (10s)', 'Cross between them'],
+  }),
+  S({
+    id: 'tempest_ride', cls: 'book_mage', slot: 19, name: 'Tempest Ride', roles: ['chase', 'zone'], targeting: 'self',
+    startup: 220, active: 2500, recovery: 300, cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: { startup: 0, active: 0.85, recovery: 0 }, armor: [0, 2720], follow: true,
+    // (David 18 Oct 01:26: "a tornado she can fly inside, hitting as it goes" + the Book Mage chat's Tempest Ride): she calls a
+    // tornado round herself and rides it — lifted ~60 px, steered as she walks for 2.5 s (unstaggerable); a foe it touches is
+    // caught (a cut every 250 ms holds him up in it), then it bursts outward and throws them
+    hits: [H(0, 5, { kind: 'circle', radius: 95 }, { stun: 300, launch: 60, juggleCost: 6 }, { reachUp: 180 }),
+      ...Array.from({ length: 9 }, (_, i) => H(250 + i * 250, 4, { kind: 'circle', radius: 95 }, { stun: 280, float: true, juggleCost: 3 }, { reachUp: 220, el: i % 3 === 2 ? STORM : undefined })),
+      H(2460, 16, { kind: 'circle', radius: 150 }, { stun: 420, launch: 110, push: 90, juggleCost: 14 }, { reachUp: 240, heavy: true, el: STORM })],
+    cancelOnHit: ['time_collapse'],
+    description: 'Call a violet-blue tornado round you and ride it for 2.5s — lifted off the floor, steered as you walk, nothing staggers you. A foe it touches is caught and held up in its funnel, then it bursts outward and throws everyone in it.',
+    relations: ['Ride 2.5s', 'Catches and throws'],
   }),
 ];
 /** Arcane Bolt as Attunement turns it (the element of the last spell): cast in its place, never on the skill bar. */
@@ -1080,6 +1096,7 @@ ARENA_PACE.roulette_wheel = { squeeze: 1 };
 ARENA_PACE.arrow_storm = { squeeze: 1 };
 ARENA_PACE.staff_flurry = { squeeze: 1 };
 ARENA_PACE.quick_shot_stream = { squeeze: 1 };
+ARENA_PACE.tempest_ride = { squeeze: 1 };
 // Warrior links (PvP re-audit: a ~6-skill combo): each skill leads to 2–3 others only, one route per job —
 //   open (regular attack / Dash Slash / Iron Grip / the hook / Wave Slash) → launch (Rising Slash) → the air (Sky Breaker /
 //   Ground Breaker) → the court or the lion (Judgment Blade / Lion's Maw) → the finish (Impaling Rush → the Verdict). Buffs and Sanctuary lead nowhere (a list is never empty: an empty one would mean free cancel).
@@ -1150,7 +1167,7 @@ for (const s of [...FINAL_SKILLS, ...mageBolts, ARCHER_STREAM]) {
 const BY_ID = new Map([...FINAL_SKILLS, ...mageBolts, ...Object.values(MAGE_HIDDEN), ARCHER_STREAM].map((s) => [s.id, s]));
 /** Old ids from earlier builds (save-data / QA migration only; never shown in the HUD/tree). */
 export const LEGACY_ALIASES: Record<string, string> = {
-  kinetic_grab: 'light_staff', all_in: 'long_guard', triple_down: 'staff_flurry', // (David 18 Oct 01:42: replaced)
+  kinetic_grab: 'light_staff', all_in: 'long_guard', triple_down: 'staff_flurry', page_bind: 'rift_gates', // (David 18 Oct 01:42 / 01:26: replaced)
   final_strike: 'titans_verdict', meteor: 'storm_field', time_warp: 'time_collapse', wind_step: 'skyhunters_step',
   natures_wrath: 'sky_rain', verdant_judgment: 'sky_rain', dragon_slash: 'dragon_eclipse',
 };

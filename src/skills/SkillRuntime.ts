@@ -112,7 +112,7 @@ export interface RuntimeWorld {
 function arenaReach(hits: HitEvent[], ts: { reach?: number; antiAir?: boolean; depth?: number } | null | undefined): HitEvent[] {
   if (!ts || (!ts.reach && !ts.antiAir && ts.depth === undefined)) return hits;
   return hits.map((h) => h.shape.kind === 'projectile' ? (ts.antiAir ? { ...h, shape: { ...h.shape, antiAir: true } } : h)
-    : { ...h, ...(ts.reach && !(h.shape.kind === 'circle' && h.shape.floor) ? { reachUp: Math.max(h.reachUp ?? 80, ts.reach) } : {}), ...(ts.depth !== undefined && h.shape.kind !== 'capsule' ? { depth: ts.depth } : {}) });
+    : { ...h, ...(ts.reach && !(h.shape.kind === 'circle' && h.shape.floor) ? { reachUp: Math.max(h.reachUp ?? 80, ts.reach) } : {}), ...(ts.depth !== undefined && h.shape.kind !== 'capsule' ? { depth: Math.max(ts.depth, h.depth ?? 0) } : {}) }); // (a hit wider across the lane keeps its own depth)
 }
 
 /** Thunder Rain's charged floor (the Archer's continuity, DFO's numbers): each strike point stays charged 2.5 s; a shot of
@@ -320,7 +320,7 @@ export class SkillRuntime {
     r.fired.add(i);
     const h = r.hits[i], s = h.shape;
     const cur = this.world.casterPos(r.attackerId) ?? r.origin;
-    const origin: V3 = r.skill.dash || r.skill.counter ? cur : { x: r.origin.x, y: r.origin.y, z: cur.z };
+    const origin: V3 = r.skill.dash || r.skill.counter || r.skill.follow ? cur : { x: r.origin.x, y: r.origin.y, z: cur.z };
     this.events.emit(RT_EVENTS.hit, r, i, origin);
     if (r.skill.id === 'rain_of_arrows' && s.kind === 'circle' && s.floor) { // a strike point of Thunder Rain: the floor stays charged
       const bias = s.bias ?? 0, now = this.world.now();

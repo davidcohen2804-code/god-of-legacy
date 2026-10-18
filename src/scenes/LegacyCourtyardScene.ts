@@ -176,6 +176,11 @@ const BASTION = { taken: 0.5, perBlow: 6, maxBlows: 8 };
 const POLE = { ms: 10000, behind: 44, near: 34, top: 110, dist: 360, up: 170 };
 /** The Samurai's substitute (Sheathe held): a blow in the guard breaks a doll in his place; he is unseen (untouchable) this long. */
 const SUBSTITUTE = { unseenMs: 1500 };
+/** The Book Mage's Rift Gates (David 18 Oct 01:26): a gate lasts `ms`; two at most; standing within `near` px of one (with the
+ *  other alive) a press crosses — under `sinkMs` (untouchable), out of the other, then the gates rest `restMs`. */
+const RIFT = { ms: 10000, max: 2, near: 40, sinkMs: 200, riseMs: 200, restMs: 4000 };
+/** The Book Mage's Tempest Ride: she rides this high (px) while it lasts. */
+const TEMPEST = { ride: 60 };
 /** The Gambler's Long Guard: after a catch the guard lasts only this long (ms of active). */
 const LONG_GUARD = { afterCatchMs: 320 };
 /** Judgment Blade pacing: earliest throw after the leap starts, auto-throw of a follow-up blade, earliest follow-up throw. */
@@ -339,6 +344,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private jb: { z: number; idle: number } | null = null;
   /** Judgment Blade: extra presses of V waiting to become blades (each press = one more blade, thrown at once). */
   private jbWant = 0;
+  /** Rift Gates: her gates (own), the other fighters' (by id, for their looks), and a crossing under way. */
+  private rifts: { x: number; y: number; until: number }[] = [];
+  readonly riftsOf = new Map<string, { x: number; y: number; until: number }[]>();
+  private riftCross: { x: number; y: number; at: number; castId: string } | null = null;
+  /** This fighter's live rift gates (the local player: `localId`). */
+  riftGates(id: string): { x: number; y: number; until: number }[] { const g = id === this.localId ? this.rifts : this.riftsOf.get(id) ?? []; return g.filter((q) => this.simMs < q.until); }
   /** Rising Sun's banner still standing (its cast, place, from / until), and whether this landing's spring is spent. */
   private pole: { castId: string; x: number; y: number; from: number; until: number } | null = null;
   private poleSpent = false;
@@ -732,7 +743,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.gold = character.gold ?? 0; this.bag = cleanBag(character.bag ?? STARTER_BAG); this.quick = cleanQuick(character.quick); this.seen = new Set(character.seen ?? Object.keys(this.bag)); this.potionAt = [-Infinity, -Infinity]; this.drops = []; this.treasures = undefined; this.itemDmgUntil = -1; this.itemSpeedUntil = -1; this.useAt = {};
     this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.hitBlinkUntil = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
-    this.lightStaffUntil = -1; this.lightStaffOf.clear(); this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
+    this.rifts = []; this.riftsOf.clear(); this.riftCross = null; this.lightStaffUntil = -1; this.lightStaffOf.clear(); this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
     this.hasteUntil = -1; this.spiritUntil = -1; this.tree = null; this.storm = null; this.resolveUntil = -1; this.hasteFx = undefined; this.spiritFx = undefined; this.afterimg = undefined;
     this.gHeadsUntil = -1; this.gTailsFree = false; this.gTailsUntil = -1; this.gLuckUntil = -1; this.gOverUntil = -1; this.gStreak = 0; this.fx?.gambleClear(this.localId); this.gDeck.clear(); this.gHand.clear(); this.gStuck.clear();
     this.sunUntil = -1; this.godUntil = -1; this.kage?.clear(); this.kage = undefined; this.ambushIn.clear();
@@ -1180,6 +1191,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
     this.tryBackstep(now);
     this.stepPole(now); this.stepUnseen(now);
+    if (this.riftCross && now >= this.riftCross.at) { const c = this.riftCross, k = this.kin; this.riftCross = null; k.x = c.x; k.y = c.y; k.vx = 0; k.vy = 0; this.rt?.holdCooldown('rift_gates', now + RIFT.restMs); this.pvp?.sendRelease({ castId: c.castId || 'rift', at: -10, ax: Math.round(c.x), ay: Math.round(c.y) }); } // out of the other gate
     const run = this.rt!.ownRun;
     const reacting = b.state !== 'free';
     const ccLocked = b.hard.active(now) && b.hard.kind !== 'root';
@@ -1310,6 +1322,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.setMode('skill');
     this.dir = dirOf(run.aim.x, run.aim.y, this.dir);
     const phase = run.phase === 'startup' ? 'startup' : run.phase === 'active' ? 'active' : 'recovery';
+    if (s.id === 'tempest_ride' && run.phase === 'active') { const top = k.supportZ + TEMPEST.ride; k.grounded = false; k.vz = Math.max(-90, Math.min(280, (top - k.z) * 7)); } // she rides the tornado, lifted
     if (s.id === 'quick_shot_stream' && run.phase !== 'recovery' && !this.ci?.attackHeld) { // the stream: let go = the circle snaps shut
       this.rt!.cancelForFollowUp(run); this.endRun(run, false); this.pvp?.sendRelease({ castId: run.castId, at: -9, ax: 0, ay: 0 }); return;
     }
@@ -2929,6 +2942,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private startCast(s: FinalSkill, stage: number, aim: V2, place: V2 | null, lock: string | null, followUp = false): void {
     this.lastCastAt = this.simMs;
     const k = this.kin;
+    if (s.id === 'rift_gates') { // Rift Gates (David 18 Oct 01:26): on a gate with the other alive — cross (stage 1); else lay one (stage 0)
+      const live = this.rifts.filter((g) => this.simMs < g.until), on = live.find((g) => Math.hypot(g.x - k.x, g.y - k.y) <= RIFT.near), to = on && live.find((g) => g !== on);
+      if (to) { stage = 1; this.riftCross = { x: to.x, y: to.y, at: this.simMs + RIFT.sinkMs, castId: '' }; this.body.ghostUntil = Math.max(this.body.ghostUntil, this.simMs + RIFT.sinkMs + RIFT.riseMs); }
+      else { stage = 0; this.rifts = [...live, { x: k.x, y: k.y, until: this.simMs + s.startup + RIFT.ms }].slice(-RIFT.max); }
+    }
     const primeUp = this.rt!.primedFor(this.localId, s.id), ct0 = this.castTimes(s, stage, followUp); // (the arena's warrior: his base pace, as the runtime plays it)
     const ct = primeUp !== null ? { ...ct0, startup: 0 } : ct0; // (primed by Sheathe: it leaves the sheath at once)
     if (stage === 0 && !MP_FREE && !this.arena) this.mp = Math.max(0, this.mp - mpCost(s));
@@ -4210,6 +4228,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       },
       onRelease: (from, m) => { // Judgment Blade thrown: final aim + the moment it left the hand
         if (m.at === -6) { this.fx?.samPoleSpring(from, Math.sign(m.ax) || 1); return; } // the samurai sprang off his banner
+        if (m.at === -10) { this.pvp?.remotes.get(from)?.teleport(m.ax, m.ay, 0); return; } // the mage came out of her other gate
         if (m.at === -7) { this.fx?.samSubstitute(from, { x: m.ax, y: m.ay, z: 0 }); this.pvp?.remotes.get(from)?.vanish(SUBSTITUTE.unseenMs); return; } // his doll broke: he is gone
         if (m.at === -8) { this.pvp?.remotes.get(from)?.show(); this.fx?.samReappear(from, { x: m.ax, y: m.ay, z: 0 }); return; } // out of the ink
         const r = this.rt?.runs.find((x) => x.castId === m.castId && x.attackerId === from);
@@ -4284,6 +4303,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const run = this.rt?.start({ castId: m.castId, skill: s, stage: Math.max(0, Math.min(2, m.stage ?? 0)), attackerId: from, own: false, origin: { x: m.x, y: m.y, z: m.z ?? 0 }, aim: unit(m.ax, m.ay), place, lock: m.lock ?? null, followUp: !!m.fu,
       dmgMul: Math.max(0.3, Math.min(1.4, (m.dm ?? 100) / 100)), reach: Math.max(1, Math.min(1.85, (m.rm ?? 100) / 100)),
       range: Math.max(1, Math.min(1.2, (m.rg ?? 100) / 100)), speed: Math.max(1, Math.min(1.35, (m.sp ?? 100) / 100)), ...(m.mf ? { mf: m.mf } : {}), ...(s.id === 'origami_flock' && ((m.mf ?? 0) >> 4) & 7 ? { extraShots: Math.min(4, ((m.mf ?? 0) >> 4) & 7) } : {}), ...(m.pr && kitFor(s.cls).some((x) => x.primes?.ids.includes(s.id)) ? { primed: { chargeUp: Math.max(0, Math.min(2, m.pr - 1)) } } : {}), ...(m.pb && s.id === 'iai_strike' ? { petals: Math.max(0, Math.min(PETALS.cap, Math.round(m.pb))) } : {}) }, this.pvp?.oneWay(from) ?? 0); // (pr: primed by his Sheathe — his screen decides) // (it left their hand one network delay ago: its wind-up is caught up)
+    if (run && s.id === 'rift_gates' && (m.stage ?? 0) === 0) { const g = [...(this.riftsOf.get(from) ?? []).filter((q) => this.simMs < q.until), { x: m.x, y: m.y, until: this.simMs + s.startup + RIFT.ms }].slice(-RIFT.max); this.riftsOf.set(from, g); } // (her gates, for their looks)
     if (run && s.id === 'light_staff') { this.lightStaffOf.set(from, this.simMs + s.startup + LIGHT_STAFF.ms); if (this.lightStaffOf.size > 16) this.lightStaffOf.clear(); } // (his cane lit, for its look)
     if (run) { this.remoteRuns.set(m.castId, { run, at: this.simMs }); for (const [k, v] of this.remoteRuns) if (this.simMs - v.at > 4000) this.remoteRuns.delete(k); }
     if (run && s.id === 'call_the_deck' && m.hc) run.holdCount = Math.max(2, Math.min(15, Math.round(m.hc))); // (the caster's gathered count is the truth: this screen's deck only draws the cards)
@@ -4481,7 +4501,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.rt?.cancelOwn('death');
     this.lingers = []; this.shares = []; this.holdsStarted.clear(); this.petals.clear(); this.spikes.clear(); this.spikeRuns.clear();
     this.endBuffs();
-    this.lightStaffUntil = -1; this.lightStaffOf.clear(); this.warCryUntil = -1; this.radiantUntil = -1; this.radiantFrom = -1; this.domeAt = -1;
+    this.rifts = []; this.riftsOf.clear(); this.riftCross = null; this.lightStaffUntil = -1; this.lightStaffOf.clear(); this.warCryUntil = -1; this.radiantUntil = -1; this.radiantFrom = -1; this.domeAt = -1;
     if (this.dome) this.dome.until = this.simMs;
     if (this.allyDome) this.allyDome.until = this.simMs;
     this.jb = null; this.jbWant = 0; this.carriedBy = null; this.lunge = null; this.momentum = null; this.gripHeld = false; this.leapUsed = false; this.leapUntil = -1;

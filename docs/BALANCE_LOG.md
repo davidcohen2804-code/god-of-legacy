@@ -19,6 +19,10 @@ Values apply to the whole game (only damage may differ in PvP: arenaDmg / the ar
 - **Archer — the held Double Shot** (`quick_shot_stream`): held past the first shot, arrows stream along the aim while Space is held (up to 4 s): one every 110 ms (4), every 5th gold (9, heavy, a mark); the held direction steers it; release ends it on every screen; its whole length in the arena.
 - **Archer — Leaf Decoy** (Backstep Shot): a decoy of leaves stays 1 s where she stood — a foe who strikes or touches it (60 px) is rooted 0.8 s (each foe once).
 - **Archer — Hunter's Rain** keeps its whole 5 s in the arena (it was squeezed to half there).
+- **Book Mage — Rift Gates** (replaces Page Bind, slot 18): a press lays a gate under her (two at most, a third moves the oldest; each 10 s; 600 ms between presses); pressed within 40 px of one with the other alive she sinks 200 ms (untouchable 400 ms) and comes out of the other; then the gates rest 4 s. Foes cannot use them. CONDUIT now opens with Arcane Wave.
+- **Book Mage — Tempest Ride** (new, slot 19, Z): 2.5 s riding a tornado 60 px up, steered at 85% walk, super armor; its hits follow her (`follow`): a 5 lift (launch 60), then nine 4s every 250 ms holding him up (every 3rd storm), the burst 16 (launch 110, push 90). Cooldown 14 s; its whole length in the arena.
+- **Book Mage — Arcane Wave**: ±90 px across the lane (the arena's 34 px depth kept for every other hit; a hit's own wider depth now stands).
+- Smoke-tested in the game (each new mechanic of the five classes, 18 Oct ~03:30): all work, no errors; all trials clear.
 
 ## 2026-10-18 — David's notes after playing them (01:07 Warrior, 01:15 Samurai): the numbers
 - **Warrior — Dash Slash** ("if it drags, let it drag"): it carries the foe to the dash's end, in front of the blade (`carry`, as Impaling Rush).

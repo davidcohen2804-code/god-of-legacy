@@ -584,6 +584,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     arcane_bolt_storm: { act: 'bolt1', st: [2, 3], ac: [4], rc: [5] }, 'arcane_bolt_storm#1': { act: 'bolt2', st: [1], ac: [2, 3], rc: [4, 5] }, 'arcane_bolt_storm#2': { act: 'bolt3', st: [0, 1], ac: [2, 3], rc: [4, 5] },
     binding_rune: { act: 'binding_rune', st: [1, 2], ac: [3], rc: [4, 5] }, // she drops low and slaps her palm flat on the floor: the rune is laid
     blink: { act: 'blink', st: [1], ac: [2], rc: [3] }, // the coat whirls round her as she vanishes
+    rift_gates: { act: 'blink', st: [1], ac: [2], rc: [3] }, tempest_ride: { act: 'storm_field', st: [0, 1, 2], ac: [3, 4, 4, 4], rc: [5] }, // (David 18 Oct 01:26: stand-ins until the Book Mage chat's own)
   },
   warrior: {
     // the regular attack: each strike its own move (PixVerse, 9 frames): the flat cut, the backhand down, the rising cut, then the heavy chop (finisher)

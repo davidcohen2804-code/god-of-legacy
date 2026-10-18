@@ -146,6 +146,8 @@ export interface FinalSkill {
   /** A priming stance (the samurai's Sheathe): the caster's next cast, if it is one of `ids` and starts within `windowMs`
    *  of the stance's end, has no startup — a hold-to-charge skill `chargeUp` levels higher. Any other cast spends it. */
   primes?: { ids: string[]; windowMs: number; chargeUp?: number };
+  /** Its hits are centred where the caster is now, not where it was cast (Tempest Ride: she rides it). */
+  follow?: boolean;
   /** Dash carries the first confirmed target along on the blade. */
   carry?: boolean;
   /** fuseMs: stepping on it arms it (hits[0] at once), then it explodes after fuseMs (hits[1] on everyone in it). */

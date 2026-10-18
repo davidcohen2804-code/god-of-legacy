@@ -79,7 +79,7 @@ const BUFFS: Record<string, SfxName> = {
   sheathe: 'sam_sheathe', iai_strike: 'sam_draw', kagemusha: 'sam_draw', rising_sun: 'sam_draw', god_of_blades: 'sam_draw', dragon_ascension: 'sam_draw',
   rain_of_arrows: 'arc_volley', sky_rain: 'arc_volley', arrow_storm: 'arc_volley', piercing_arrow: 'arc_volley', spirit_hawk: 'arc_hawk', eagle_arrow: 'arc_hawk',
   retreat_kick: 'whiff', bow_haste: 'whiff', tree_of_life: 'mag_cast', hunters_roar: 'rage',
-  lightning_chain: 'mag_bolt', storm_field: 'mag_bolt', frost_nova: 'mag_ice', glacial_spikes: 'mag_ice', origami_flock: 'mag_page', paper_curse: 'mag_page', page_bind: 'mag_page',
+  lightning_chain: 'mag_bolt', storm_field: 'mag_bolt', frost_nova: 'mag_ice', glacial_spikes: 'mag_ice', origami_flock: 'mag_page', paper_curse: 'mag_page', page_bind: 'mag_page', rift_gates: 'mag_page', tempest_ride: 'mag_bolt',
   coin_flip: 'gam_coins', roulette_wheel: 'gam_roulette', dice_bomb: 'gam_dice', triple_down: 'gam_dice', jackpot: 'gam_chips', all_in: 'gam_chips',
 };
 /** Each skill's own sounds (tools/audio/signatures.py): `wind` as the cast starts (a big one's wind-up; `windLead` ms into
@@ -162,6 +162,7 @@ const SIG: Record<string, Sig> = {
   binding_rune: { cast: 'bm_rune_c', hit: 'bm_rune_h', blow: 'bm_rune_h', zero: 'bm_rune_h' },
   frost_nova: { cast: 'bm_nova_c', hit: 'bm_nova_h', blow: 'bm_nova_h', zero: 'bm_nova_h' },
   blink: { cast: 'bm_blink_c', blow: 'bm_blink_z', zero: 'bm_blink_z' },
+  rift_gates: { cast: 'bm_blink_c' }, tempest_ride: { cast: 'bm_field_c', hit: 'bm_field_h' }, // (David 18 Oct 01:26: the new two, on Blink's / Storm Field's sounds until their own)
   levity_field: { cast: 'bm_levity_c', hit: 'bm_levity_h', blow: 'bm_levity_h', zero: 'bm_levity_h' },
   origami_flock: { cast: 'bm_crane_c', hit: 'bm_crane_h', blow: 'bm_crane_h' },
   arcane_ward: { cast: 'bm_ward_c' },
