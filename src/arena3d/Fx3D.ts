@@ -890,6 +890,7 @@ export class Fx3D {
     rc.shot?.(this, p);
     if (rc.crest) this.crestFor(p, rc.crest.c, rc.crest.h, rc.crest.w);
     if (rc.trail !== false) { const t = rc.trail ?? { c: this.color(p.skill), w: 10 }; this.trail(p, t.c, t.w, t.len ?? 14, t.i ?? 2); }
+    if (!this.follows.has(p)) this.follows.set(p, { last: { x: p.x, y: p.y, z: p.z } }); // (a shot with no trail and no crest is known too: it was handed to `shot` again every frame — the Samurai chat's Sword Wave stacked ~11 crescents)
   }
 
   /** A confirmed hit at the foe: the recipe's own, and the room's default for the main hit by its weight. */
