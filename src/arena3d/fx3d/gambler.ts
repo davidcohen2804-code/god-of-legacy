@@ -35,6 +35,16 @@ const staffRing = (f: Parameters<NonNullable<Recipe['active']>>[0], r: { attacke
   f.slash(at, dir, 0xe4dcff, { ...o, r: R + 14, w: 8, i: 3, ink: false, quiet: true });
 };
 
+/** His painted sheets (David 18 Oct 20:51: painted art, real colour, motion): 4×4 GPT sheets on black, played through flip. */
+const ART = 'assets/final/skills/gambler/fx3d/';
+const SHEET = { cardBurst: ART + 'card_burst.webp' };
+type FX = Parameters<NonNullable<Recipe['active']>>[0];
+/** The cards' painted burst: a white-hot flash, crimson energy flinging glowing cards, red smoke thinning out. `big` the
+ *  whole sheet (a main hit), else its first, hottest frames, small (a card that strikes). */
+const cardBurst = (f: FX, at: { x: number; y: number; z: number }, big: boolean, w = big ? 300 : 130) =>
+  f.flip(SHEET.cardBurst, at, big ? { grid: [4, 4], w, fps: 22, glow: 0.35, through: 0.6, rot: Math.random() * 40 - 20, flipX: Math.random() < 0.5 }
+    : { grid: [4, 4], from: 1, to: 9, w, fps: 30, glow: 0.25, through: 0.55, rot: Math.random() * 60 - 30, flipX: Math.random() < 0.5, fadeOut: 90 });
+
 export const GAMBLER: Record<string, Recipe> = {
   // the basic: a thrust, a swing, a rising cut — each its own cut in 3D, the last one the big one
   cut_the_deck: { tone: TONE.violet,
@@ -94,12 +104,17 @@ export const GAMBLER: Record<string, Recipe> = {
   showdown: { tone: TONE.card,
     // (DAVID 20:56: the card family's star — each card turned over cuts a red-and-white star of crossing card lines through
     // him; the last card's star the big one, one inked ring cut across it; the main hit's flash is the engine's)
-    own: true,
+    // (David 20:51, painted pass: each card's strike its own small painted burst of crimson and flung cards; the last card's
+    // the whole painted explosion — white-hot core, cards flung out, red smoke thinning — over the inked ring; noImpact: the
+    // painted burst is the main hit)
+    own: true, noImpact: true,
+    cast: (f) => f.flipLoad(SHEET.cardBurst),
     hit: (f, _s, _h, at, main) => {
       const c = { x: at.x, y: at.y, z: at.z + 70 };
-      if (!main) { f.flurry(c, F.red, { ms: 110, every: 36, len: 170, w: 5, accent: 0, spread: 10 }); return; }
-      f.flurry(c, F.red, { ms: 220, every: 36, len: 300, w: 7, accent: 3, spread: 14 });
+      if (!main) { cardBurst(f, c, false); f.flurry(c, F.red, { ms: 80, every: 40, len: 130, w: 4, accent: 0, spread: 8 }); return; }
+      cardBurst(f, { x: at.x, y: at.y, z: at.z + 80 }, true);
       f.slash({ x: at.x, y: at.y, z: 0 }, 1, F.red, { r: 120, w: 40, tilt: 35, a0: -160, a1: 160, ms: 260, y0: 70, i: 2.4, ink: true });
+      f.host.kick(0.04);
     },
     active: (f, r) => { const c = me(f, r); f.wave(c.x, c.y, r.aim.x, r.aim.y * 0.6, F.red, { len: 360, ms: 340, h: 40, w: 36 }); },
   },
