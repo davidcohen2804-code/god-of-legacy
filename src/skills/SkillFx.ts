@@ -228,7 +228,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   if (!scene.textures.exists('banner-rally')) scene.load.spritesheet('banner-rally', `${F}/skills/warrior/legacy_banner/rally.png`, { frameWidth: 512, frameHeight: 512 }); // Legacy Banner: the lion of light that roars behind it
   if (!scene.textures.exists('titan-field')) scene.load.spritesheet('titan-field', `${F}/skills/warrior/titans_verdict/field.png`, { frameWidth: 512, frameHeight: 256 }); // the electrified floor it leaves
   if (!scene.textures.exists('titan-cutin')) scene.load.image('titan-cutin', `${F}/skills/warrior/titans_verdict/cutin.png`);
-  for (const [id, a] of Object.entries(CUTIN_ANIM)) if (!scene.textures.exists(cutAnimKey(id))) scene.load.spritesheet(cutAnimKey(id), `${F}/skills/${a.path}`, { frameWidth: a.fw, frameHeight: a.fh });
+  for (const [id, a] of Object.entries(CUTIN_ANIM)) if (want(a.path.split('/')[0]) && !scene.textures.exists(cutAnimKey(id))) scene.load.spritesheet(cutAnimKey(id), `${F}/skills/${a.path}`, { frameWidth: a.fw, frameHeight: a.fh }); // (only the classes in the fight: the training loaded every class's)
   if (!scene.textures.exists('holy-aura')) scene.load.spritesheet('holy-aura', `${F}/skills/warrior/radiant_blade/aura.png`, { frameWidth: 250, frameHeight: 667 });
   if (!scene.textures.exists('holy-bolt')) scene.load.spritesheet('holy-bolt', `${F}/skills/warrior/radiant_blade/bolt.png`, { frameWidth: 250, frameHeight: 500 });
   if (!scene.textures.exists('radiant-slash')) scene.load.spritesheet('radiant-slash', `${F}/skills/warrior/radiant_blade/slash_trail.jpg`, { frameWidth: 288, frameHeight: 288 }); // the blade of light's slash trail (GPT, on black: additive)

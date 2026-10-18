@@ -19,7 +19,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 6   # a stuck runner fails fast instead of blocking the queue
+    timeout-minutes: 10  # a stuck runner fails fast instead of blocking the queue (the first build after a cache loss converts every big PNG to WebP)
     concurrency:
       group: pages-deploy
       cancel-in-progress: false
@@ -44,6 +44,13 @@ jobs:
         if: steps.check.outputs.fresh == '1'
       - run: npx tsc -p .
         if: steps.check.outputs.fresh == '1'
+      # the big PNGs' WebP twins (vite.config.ts: webpTwins), kept between builds: only new / changed pictures convert
+      - uses: actions/cache@v4
+        if: steps.check.outputs.fresh == '1'
+        with:
+          path: .cache/webp-twins
+          key: webp-twins-${{ hashFiles('public/**/*.png') }}
+          restore-keys: webp-twins-
       - run: npm run build
         if: steps.check.outputs.fresh == '1'
       - run: touch dist/.nojekyll
@@ -79,7 +86,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run build
+      - run: NO_WEBP=1 npm run build   # (the screenshots need no WebP twins)
       - name: QA screenshots
         run: |
           npm i --no-save playwright@1.56.1

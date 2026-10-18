@@ -17,11 +17,13 @@ import { ErrorCapture } from './qa/ErrorCapture';
 import { isQAMode, startQAPanel } from './qa/QAPanel';
 import { startTestMode } from './qa/TestMode';
 import ASSET_HASH from 'virtual:asset-hashes';
+import WEBP_TWINS from 'virtual:webp-twins';
 
 ErrorCapture.installGlobal();
 
 // Cache-bust every game asset by its content hash (computed at build time): same file names (e.g. run.png) never stay
 // stale after an update, and a deploy only re-downloads the files that really changed. Unknown files: per build.
+const TWIN = new Set(WEBP_TWINS);
 {
   const LP = Phaser.Loader.LoaderPlugin.prototype as unknown as { addFile(f: unknown): void };
   const orig = LP.addFile;
@@ -29,8 +31,10 @@ ErrorCapture.installGlobal();
     const list = Array.isArray(file) ? file : [file];
     for (const f of list as { url?: unknown }[]) {
       if (typeof f.url !== 'string' || f.url.startsWith('data:') || f.url.startsWith('blob:') || f.url.includes('?v=')) continue;
-      const v = ASSET_HASH[f.url.replace(/^\.?\//, '').split('?')[0]] ?? __BUILD_COMMIT__;
-      f.url += (f.url.includes('?') ? '&' : '?') + 'v=' + v;
+      let url = f.url;
+      const path = url.replace(/^\.?\//, '').split('?')[0], v = ASSET_HASH[path] ?? __BUILD_COMMIT__;
+      if (TWIN.has(path)) url = url.replace(path, `${path}.webp`); // (its WebP twin: the same picture, a few times lighter)
+      f.url = url + (url.includes('?') ? '&' : '?') + 'v=' + v;
     }
     return orig.call(this, file);
   };
