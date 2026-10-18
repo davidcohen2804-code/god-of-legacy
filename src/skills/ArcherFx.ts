@@ -14,6 +14,12 @@ export const ARCHER_KIT = 'archer-kit';
 export const ARCHER_KIT_URL = 'assets/final/skills/archer/kit/';
 const TOP = 100000, GROUND = 2;
 
+/** Painted flipbooks (PixVerse footage on black → frames with real alpha, tools/skills/fxsheet.py): key, file in skills/archer/fx/, frame w, h, frames. */
+export const ARCHER_FLIPS: [string, string, number, number, number][] = [
+  ['afx-geyser', 'fx_geyser.webp', 200, 300, 14], // Rising Arrow: a twisting geyser of wind and leaves (GPT frame → PixVerse)
+  ['afx-bolt', 'fx_bolt.webp', 200, 300, 8], // Thunder Rain's first two strikes: a forked bolt striking, crackling, fading
+  ['afx-boltbig', 'fx_boltbig.webp', 214, 320, 10], // its third: the bolt striking and bursting in a ball of storm light
+];
 export interface ArcherCtx {
   scene: Phaser.Scene;
   casterPos(id: string): V3 | null;
@@ -159,6 +165,25 @@ export class ArcherFx {
       return true;
     } });
   }
+  /** Plays one of the painted flipbooks (ARCHER_FLIPS) once: painted art with real alpha (normal blending — it covers the planks
+   *  instead of adding light to them), its frames spread over `ms`, `oy` its foot. */
+  private flip(key: string, x: number, y: number, o: { w: number; ms: number; oy?: number; depth?: number; a?: (u: number) => number; sx?: (u: number) => number; sy?: (u: number) => number; delay?: number; flipX?: boolean; glow?: number; run?: CastRun }): void {
+    const sc = this.ctx.scene; if (!sc.textures.exists(key)) return;
+    const def = ARCHER_FLIPS.find((f) => f[0] === key); if (!def) return;
+    const n = def[4], ar = def[3] / def[2];
+    const im = sc.add.image(x, y, key, 0).setOrigin(0.5, o.oy ?? 0.95).setDepth(o.depth ?? y + 3).setFlipX(!!o.flipX).setVisible(false);
+    const gl = o.glow ? sc.add.image(x, y, key, 0).setOrigin(0.5, o.oy ?? 0.95).setDepth((o.depth ?? y + 3) + 0.01).setBlendMode(Phaser.BlendModes.ADD).setFlipX(!!o.flipX).setVisible(false) : null;
+    let t = -(o.delay ?? 0);
+    this.add({ t: 0, step: (dt) => {
+      t += dt; if (t < 0) return true;
+      if (this.broken(o.run)) { im.destroy(); gl?.destroy(); return false; }
+      const u = Math.min(1, t / o.ms); if (u >= 1) { im.destroy(); gl?.destroy(); return false; }
+      const f = Math.min(n - 1, Math.floor(u * n)), a = o.a ? o.a(u) : 1, w = o.w * (o.sx ? o.sx(u) : 1), h = o.w * ar * (o.sy ? o.sy(u) : 1);
+      im.setVisible(true).setFrame(f).setDisplaySize(w, h).setAlpha(a);
+      gl?.setVisible(true).setFrame(f).setDisplaySize(w, h).setAlpha(a * (o.glow ?? 0));
+      return true;
+    } });
+  }
   /** One of the class hit sparks (row of the 'afx-hits' sheet: 0 normal, 1 heavy, 2 counter, 3 launch), 5 frames, additive:
    *  a white-hot point → the sharp impact frame (held longest) → the burst → shards and leaves → sparkles. */
   private hitSpark(row: number, x: number, y: number, size: number, oy: number, depth: number, tint?: number): void {
@@ -263,8 +288,12 @@ export class ArcherFx {
         this.floor('floor_cracks', bx, by, 140, T.startup + T.active + 900, { run: r, s: kf([0, 0.2], [0.25, 1, out3]), a: kf([0, 0], [0.1, 1], [0.8, 0.9], [1, 0]) });
         for (let k = 0; k < 4; k++) this.later(k * T.startup / 4, () => this.leaves(bx, by, 2, 40, { up: 20, life: 500 }), r); // the ground stirs
         this.later(T.startup, () => {
-          this.spr({ name: 'launch_beam', x: bx, y: by + 6, oy: 0.97, depth: by + 3, w: 110, life: 520, add: true, glow: 0.3, sy: kf([0, 0.1], [0.2, 1.15, out3], [1, 1]), sx: kf([0, 1.2], [1, 0.5]), a: kf([0, 1], [0.55, 1], [1, 0, inQ]) });
-          this.spr({ name: 'rise_arrow', x: bx, y: by + 8, oy: 0.97, depth: by + 4, w: 150, glow: 0.3, life: 460, my: (u) => -120 * out3(Math.max(0, u - 0.3) / 0.7), sy: kf([0, 0.2], [0.25, 1.1, out3], [1, 1]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) }); // the arrow itself bursts up out of the earth
+          if (this.ctx.scene.textures.exists('afx-geyser')) { // (David 18 Oct 20:51: painted art, real footage) a twisting geyser of wind and leaves bursts up out of the cracks and throws him
+            this.flip('afx-geyser', bx, by + 10, { w: 190, ms: 620, oy: 0.97, depth: by + 4, glow: 0.25, run: r, sy: kf([0, 0.35], [0.18, 1.05, out3], [1, 1.1]), a: kf([0, 0.9], [0.1, 1], [0.7, 1], [1, 0, inQ]) });
+          } else {
+            this.spr({ name: 'launch_beam', x: bx, y: by + 6, oy: 0.97, depth: by + 3, w: 110, life: 520, add: true, glow: 0.3, sy: kf([0, 0.1], [0.2, 1.15, out3], [1, 1]), sx: kf([0, 1.2], [1, 0.5]), a: kf([0, 1], [0.55, 1], [1, 0, inQ]) });
+            this.spr({ name: 'rise_arrow', x: bx, y: by + 8, oy: 0.97, depth: by + 4, w: 150, glow: 0.3, life: 460, my: (u) => -120 * out3(Math.max(0, u - 0.3) / 0.7), sy: kf([0, 0.2], [0.25, 1.1, out3], [1, 1]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
+          }
           this.spr({ name: 'dust', x: bx, y: by + 4, oy: 0.85, depth: by + 1, w: 150, life: 600, sx: kf([0, 0.5], [1, 1.4, out3]), a: kf([0, 0.85], [1, 0, inQ]) });
           this.pop('leaf_spray', bx, by - 40, 120, { angle: -90, life: 380 });
           this.floor('floor_swirl', bx, by, 160, 420, { add: true, s: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 1], [1, 0, inQ]) });

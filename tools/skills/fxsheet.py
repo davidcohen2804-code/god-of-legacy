@@ -14,6 +14,8 @@ ap.add_argument('--from', dest='t0', type=float, default=0.0); ap.add_argument('
 ap.add_argument('--crop', default=None); ap.add_argument('--cols', type=int, default=0)
 ap.add_argument('--gamma', type=float, default=1.0, help='alpha curve: >1 thins the faint haze')
 ap.add_argument('--floor', type=float, default=0.04, help='alpha below this is cut (the clip\'s noise)')
+ap.add_argument('--edge', type=float, default=0.0, help='fade the alpha out over this fraction of the frame at its edges (a clip that fills its frame)')
+ap.add_argument('--sel', default=None, help='frames to keep, e.g. 0-11 or 0,2,4')
 a = ap.parse_args()
 
 tmp = tempfile.mkdtemp()
@@ -25,13 +27,24 @@ else:
     fps = a.frames / max(0.05, t1 - a.t0)
     subprocess.run(['ffmpeg', '-v', 'error', '-ss', str(a.t0), '-to', str(t1), '-i', a.src, '-vf', f'fps={fps}', tmp + '/f%03d.png'], check=True)
     files = sorted(glob.glob(tmp + '/f*.png'))
-files = files[:a.frames]
+if a.sel:
+    keep = []
+    for part in a.sel.split(','):
+        if '-' in part: lo, hi = map(int, part.split('-')); keep += list(range(lo, hi + 1))
+        else: keep.append(int(part))
+    files = [files[i] for i in keep if i < len(files)]
+else:
+    files = files[:a.frames]
 ims = []
 for f in files:
     im = np.asarray(Image.open(f).convert('RGB')).astype(np.float32) / 255
     if a.crop: x0, y0, x1, y1 = map(int, a.crop.split(',')); im = im[y0:y1, x0:x1]
     al = im.max(axis=2)
     al = np.clip((al - a.floor) / (1 - a.floor), 0, 1) ** a.gamma
+    if a.edge > 0:
+        hh, ww = al.shape; yy = np.linspace(0, 1, hh)[:, None]; xx = np.linspace(0, 1, ww)[None, :]
+        e = lambda t: np.clip(np.minimum(t, 1 - t) / a.edge, 0, 1)
+        al = al * (e(yy) * e(xx)) ** 1.5
     rgb = np.where(al[..., None] > 1e-3, np.clip(im / np.maximum(im.max(axis=2, keepdims=True), 1e-3), 0, 1), 0)
     ims.append(np.dstack([rgb, al]))
 # the box of the whole clip

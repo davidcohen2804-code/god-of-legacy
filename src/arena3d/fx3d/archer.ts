@@ -38,8 +38,8 @@ export const ARCHER: Record<string, Recipe> = {
     shot: (f, p) => { if (p.hitIndex % 5 === 4) f.trail(p, SUN, 13, 14, 2.4); else f.trail(p, C.leaf, 8, 10, 1.8); },
     own: true,
   },
-  // Rising Arrow: a star at the bow, then a twisting geyser of leaf light bursts up under the foe and throws him up
-  rising_arrow: { tone: WIND, own: true, fired: (f, _r, _i, o) => bowStar(f, o, WIND, 1.3), hit: (f, _s, _h, at, main) => { if (!main) return; f.pillar(at.x, at.y, WIND, { h: 520, r: 30, ms: 380, twist: true }); f.streak({ x: at.x, y: at.y, z: 0 }, { x: at.x, y: at.y, z: 600 }, C.leaf, { w: 10, ms: 260, draw: 60 }); } }, // (one shape: a twisting geyser of leaf light under him, a leaf streak shooting up through it; the floor's cracks and the flash are DFO's main-hit impact)
+  // Rising Arrow: a star at the bow, then a painted geyser of wind and leaves (PixVerse footage, ArcherFx) bursts up under the foe and throws him up
+  rising_arrow: { tone: WIND, own: true, fired: (f, _r, _i, o) => bowStar(f, o, WIND, 1.3), hit: (f, _s, _h, at, main) => { if (!main) return; f.host.ring(f.host.w3(at.x), f.host.d3(at.y), WIND, 1.6, 360, 0.55); f.host.dust(f.host.w3(at.x), f.host.d3(at.y), 8, 0.9); } }, // (David 18 Oct 20:51: the geyser is painted footage now — ArcherFx's flipbook; the room adds a ring and dust at its foot)
   // Wind Step: a gust ring bursts under her as she somersaults back, a streak of wind along the leap
   bow_haste: { tone: WIND, cast: (f, r) => { const c = me(f, r); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), WIND, 1.3, 320, 0.55); }, active: (f, r) => { const c = me(f, r); f.later(T(r).active * 0.6, () => { const e = me(f, r); f.streak({ x: c.x, y: c.y, z: 40 }, { x: e.x, y: e.y, z: 40 }, WIND, { w: 16, ms: 300, draw: 40 }); }); } },
   // Triple Arrow: five fine trails fanning out; the first to land rings the floor
