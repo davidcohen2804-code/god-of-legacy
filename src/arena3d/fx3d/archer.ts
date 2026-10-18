@@ -68,12 +68,11 @@ export const ARCHER: Record<string, Recipe> = {
   // running over it along the floor while it lasts. Its main hit is the room's (DFO's impact): nothing of its own on the foe.
   rain_of_arrows: { tone: STORM, own: true,
     cast: (f, r) => { const t1 = T(r).startup + (r.hits[0]?.at ?? 600); for (let k = 0; k < 9; k++) { const t0 = t1 * (1 - Math.pow(1 - k / 9, 1.5)); f.later(t0, () => { const c = me(f, r), bx = c.x + side(r) * 60, bz = c.z + 100, an = Math.random() * Math.PI * 2, rr = 40 + Math.random() * 40; f.bolt({ x: bx + Math.cos(an) * rr, y: c.y, z: bz + Math.sin(an) * rr }, { x: bx, y: c.y, z: bz }, STORM, { ms: 110, w: 3 + k * 0.4, forks: 1, front: true }); }); } },
-    active: (f, r) => { const L = r.skill.linger; if (!L) return; const p = placeOf(f, r, L.offset ?? 300); f.later(Math.max(0, L.startMs - T(r).startup - 100), () => f.glyph(p.x, p.y, STORM, { shape: 'runes', r: L.radius ?? 210, ms: L.everyMs * L.count + 500, spin: 14, pulse: 4, a: 0.75 })); },
     fired: (f, r, i) => { const sh = r.hits[i]?.shape as { bias?: number } | undefined, b = sh?.bias ?? 200, big = i === r.hits.length - 1, c = me(f, r);
       const at = { x: r.origin.x + r.aim.x * b, y: r.origin.y + r.aim.y * b, z: 0 };
-      f.bolt({ x: c.x + side(r) * 50, y: c.y, z: c.z + 100 }, { x: at.x, y: at.y, z: 6 }, STORM, { ms: big ? 320 : 220, w: big ? 10 : 6, forks: big ? 3 : 2, front: true });
+      void c; // (the strike itself is painted footage now — ArcherFx's flipbook; the room keeps the ring and the glowing crack at its foot)
       f.later(40, () => { f.host.ring(f.host.w3(at.x), f.host.d3(at.y), STORM, big ? 2.2 : 1.4, big ? 420 : 300, 0.75); f.crack(at.x, at.y, STORM, { r: big ? 110 : 70, chunks: 0, ms: 900, quiet: true }); });
-      if (big) for (const dx of [-110, 110]) f.later(70, () => f.bolt({ x: at.x + dx * 0.6, y: at.y, z: 950 }, { x: at.x + dx, y: at.y, z: 6 }, STORM, { ms: 260, w: 9, forks: 2 })); },
+    },
     tick: (f, _r, at) => { const an = Math.random() * Math.PI * 2, rr = 60 + Math.random() * 120, x0 = at.x + Math.cos(an) * rr, y0 = at.y + Math.sin(an) * rr * 0.5; f.bolt({ x: x0, y: y0, z: 4 }, { x: x0 + (Math.random() - 0.5) * 160, y: y0 + (Math.random() - 0.5) * 50, z: 4 }, STORM, { ms: 140, w: 4, forks: 1 }); },
   },
   // Spirit Bow: a wide spirit trail; at the release a small shell at the bow; the foe thrown down tears the floor
