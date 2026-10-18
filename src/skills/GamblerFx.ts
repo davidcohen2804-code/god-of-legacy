@@ -331,6 +331,7 @@ export class GamblerFx {
       case 'card_swap': this.cardSwap(r); break;
       case 'call_the_deck': this.deckFuse(r); break;
       case 'light_staff': this.lightStaff(r); break;
+      case 'long_guard': this.guardWard(r); break;
       case 'jackpot': this.jackpot(r); break;
       case 'staff_vault': this.vault(r); break;
     }
@@ -620,6 +621,7 @@ export class GamblerFx {
     }
     if (heavy && s.slot === 7 && kind !== 'crit' && !ARENA3D.on) { const x = this.kit('x_cross', at.x, y, 78, TOP + 4); if (x) { const x0 = x.scale; this.piece(x, 220, (u, o) => o.setScale(x0 * lerp(1.2, 1, out3(clamp01(u * 3)))).setAlpha((u < 0.4 ? 0.45 : 0.45 * (1 - u) / 0.6))); } } // (the ultimate's cross: sized to the foe, never a white-out over both)
     if (s.id === 'grand_slam') this.ctx.cam().shake(260, 0.014);
+    if (s.id === 'long_guard' && !ARENA3D.on) this.guardCatch(at);
     if (s.id === 'staff_vault' && hit.shape.kind === 'capsule' && !ARENA3D.on) { // caught by the vault on its way: the staff's arc flashes right where it passed him
       const st = this.kit('s_swing', at.x, y, 150, TOP + 4); if (st) { const s0 = st.scale; st.setAngle(rnd(-20, 20)); this.piece(st, 200, (u, o) => o.setScale(s0 * lerp(0.8, 1.15, out3(u))).setAlpha(1 - u)); }
       this.pop(at.x, y, 110, 0xffffff, 160);
@@ -1277,6 +1279,26 @@ export class GamblerFx {
   }
   /** Light Staff (David 18 Oct 01:42): the painted arena — a violet glow on his cane hand and motes streaming off it for 8 s
    *  (PVP 3D: its recipe — the blade sliding out, the motes, the longer rings). */
+  /** Long Guard (the painted arena): six cards turning upright round him while he holds the guard (PVP 3D: its recipe). */
+  private guardWard(r: CastRun): void {
+    if (ARENA3D.on) return;
+    const s = this.ctx.scene, id = r.attackerId, T = r.timings, cards = Array.from({ length: 6 }, () => s.add.image(0, 0, this.BK).setScale(this.u * 0.3).setAlpha(0));
+    const ring = s.add.ellipse(0, 0, 150, 150 * SQUASH).setStrokeStyle(3, this.fc(FUCHSIA), 0.8).setDepth(GROUND + 3).setBlendMode(Phaser.BlendModes.ADD);
+    this.add((t) => {
+      const c = this.ctx.casterPos(id), live = this.ctx.scene && t < T.startup + T.active && !!c && (this.guardEnd.get(id) ?? Infinity) > t;
+      if (!live) { cards.forEach((im) => this.piece(im, 160, (u, o) => o.setAlpha(1 - u))); this.piece(ring, 160, (u, o) => o.setAlpha(1 - u)); this.guardEnd.delete(id); return false; }
+      const a0 = t * 0.004;
+      cards.forEach((im, k) => { const a = a0 + (k / 6) * Math.PI * 2, x = c!.x + Math.cos(a) * 72, y = c!.y + Math.sin(a) * 72 * SQUASH; im.setPosition(x, y - 60).setDepth(y + 1).setScale(this.u * 0.3 * (0.35 + 0.65 * Math.abs(Math.sin(a))), this.u * 0.3).setAlpha(Math.min(1, t / 120)); });
+      ring.setPosition(c!.x, c!.y);
+      return true;
+    });
+  }
+  /** Long Guard's catch (its hit 0 = the cards' line to the striker): the line of cards snapping out and the red star on him. */
+  private guardEnd = new Map<string, number>();
+  private guardCatch(at: V3): void {
+    const y = at.y - at.z - 60;
+    this.pop(at.x, y, 110, this.fc(FUCHSIA), 260); this.shards(at.x, y, 6, 110, 380); this.ctx.cam().shake(140, 0.008); this.ctx.freeze(70);
+  }
   private lightStaff(r: CastRun): void {
     if (ARENA3D.on) return;
     const glow = this.glow(0, 0, 70, 0x9a8cff, TOP + 3), id = r.attackerId, end = r.timings.startup + 8000;
