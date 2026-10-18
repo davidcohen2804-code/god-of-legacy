@@ -38,6 +38,7 @@ const scar = (f: Parameters<NonNullable<Recipe['active']>>[0], x: number, y: num
 // every recipe `own`: the room's default main-hit pieces (a white launch pillar, a hit dome) washed over the foe — Rising Slash's
 // column, Impaling Rush's ball (DFO's review); each skill's own pieces carry its hit
 /** The Warrior's painted floor seals (GPT, on black): laid on the planks with `flip` so they keep their colours. */
+const BOLT = 'assets/final/skills/warrior/fx3d/lightning_bolt.webp';
 const SEAL = { verdict: 'assets/final/skills/warrior/fx3d/verdict_seal.webp', storm: 'assets/final/skills/warrior/fx3d/storm_seal.webp', lion: 'assets/final/skills/warrior/fx3d/lion_seal.webp' } as const;
 
 /** Judgment Blade's volley (as SkillFx counts it): a blade within 1.5 s of the last is the next, planted beside it. */
@@ -76,19 +77,16 @@ export const WARRIOR: Record<string, Recipe> = {
   leap_crash: { tone: W.molten, own: true, fired: (f, r) => { const c = me(f, r); slam(f, c.x, c.y, 1); f.debris(c.x, c.y, 8, { speed: 1.3, up: 1.6 }); } }, // a stone crater, chunks thrown high
   earthsplitter: { tone: W.molten, own: true, active: (f, r) => { const c = me(f, r); slam(f, c.x + r.aim.x * 60, c.y + r.aim.y * 30, 0.8); f.wave(c.x, c.y, r.aim.x, r.aim.y, W.stone, { len: 520, ms: 300, h: 110, w: 110, chunks: true }); for (let i = 1; i <= 4; i++) f.later(i * 55, () => { const p = { x: c.x + r.aim.x * i * 120, y: c.y + r.aim.y * i * 70 }; crk(f, p.x, p.y, W.molten, { r: 90, chunks: 6 }); }); } }, // the fissure runs (its rock spikes: WarriorSpikes — they stand a while, the continuity)
   // IRON
-  thunder_circle: { tone: W.iron, own: true, cast: (f, r) => { // Thunder Circle (David 18 Oct 18:19): the sword plunged with weight, a ring of lightning burnt into the floor round it for 5 s — arcs crawling round its rim, bolts cracking up from it on each strike
-    const E = 0x8fd8ff, L = r.skill.linger, R = L?.radius ?? 170, n = L?.count ?? 10, every = L?.everyMs ?? 500, t0 = L?.startMs ?? 300, life = t0 + n * every;
+  thunder_circle: { tone: W.iron, own: true, cast: (f, r) => { // Thunder Circle (David 18 Oct 18:19; DFO's review ~21:50): the sword plunged with weight, a painted ring of lightning burnt into the floor round it for 5 s (GPT, laid with flip in its own blue — the code glyph and lines went white-grey on the planks), painted bolts cracking up from its rim on each strike
+    const L = r.skill.linger, R = L?.radius ?? 170, n = L?.count ?? 10, every = L?.everyMs ?? 500, t0 = L?.startMs ?? 300, life = t0 + n * every;
     f.later(T(r).startup, () => {
-      const c = me(f, r), hx = f.host.w3(c.x), hz = f.host.d3(c.y), rim = (a: number, z = 0) => ({ x: c.x + Math.cos(a) * R, y: c.y + Math.sin(a) * R, z });
+      const c = me(f, r), hx = f.host.w3(c.x), hz = f.host.d3(c.y), rim = (a: number) => ({ x: c.x + Math.cos(a) * R * 0.92, y: c.y + Math.sin(a) * R * 0.92, z: 0 });
       f.host.kick(0.06); f.debris(c.x, c.y, 6, { up: 0.9, speed: 0.6 }); f.host.embers(hx, 0.05, hz, 0xe8f6ff, 16, 1.6); // the blade bites the planks: splinters, sparks
-      for (let k = 0; k < 7; k++) { const a = k * 0.9 + 0.3, l = R * (0.55 + (k % 3) * 0.15); f.floorStreak(c.x, c.y, c.x + Math.cos(a) * l, c.y + Math.sin(a) * l, E, { w: 7, ms: life, a: 0.8 }); } // burnt cracks racing out from the sword
-      f.host.ring(hx, hz, E, f.host.w3(R * 2.2), 360, 0.7);
-      f.glyph(c.x, c.y, 0x4fb0ff, { shape: 'runes', r: R, ms: life, spin: 0.3, pulse: 0.8, a: 0.5 }); // the ring burnt into the floor
-      for (let t = 80; t < life - 100; t += 110) f.later(t, () => { const a = Math.random() * Math.PI * 2; f.bolt(rim(a, 4), rim(a + 0.45 + Math.random() * 0.3, 4), E, { ms: 150, w: 3, forks: 0 }); }); // arcs crawling round its rim
-      for (let i = 0; i < n; i++) f.later(t0 + i * every, () => { // each strike: bolts cracking up from the rim, a flash ring
+      f.flip(SEAL.storm, { x: c.x, y: c.y, z: 0 }, { w: R * 2.3, mode: 'floor', loop: true, ms: life, fadeIn: 220, fadeOut: 500, spin: 12, grow: [0.7, 1], glow: 0.15 }); // the ring burnt into the floor
+      for (let i = 0; i < n; i++) f.later(t0 + i * every, () => { // each strike: two painted bolts cracking up from the rim
         const a0 = Math.random() * Math.PI * 2;
-        for (let k = 0; k < 3; k++) { const a = a0 + k * 2.1; f.bolt(rim(a), rim(a + 0.1, 170 + Math.random() * 50), E, { ms: 200, w: 5, forks: 2 }); }
-        f.host.ring(hx, hz, E, f.host.w3(R * 2), 300, 0.45); f.host.embers(hx, 0.1, hz, 0xe8f6ff, 6, 1.2);
+        for (let k = 0; k < 2; k++) f.flip(BOLT, rim(a0 + k * Math.PI + (Math.random() - 0.5) * 0.6), { grid: [4, 4], fps: 40, w: 170, mode: 'up', foot: true, through: 0.6, glow: 0.25, flipX: Math.random() < 0.5, delay: k * 60 });
+        f.host.embers(hx, 0.1, hz, 0xe8f6ff, 6, 1.2);
       });
     });
   } },
