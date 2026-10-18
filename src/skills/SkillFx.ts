@@ -894,7 +894,7 @@ export class SkillFx {
           this.shockwave(land.x, land.y, 170, 0xfff0b8); this.scene.time.delayedCall(70, () => this.shockwave(land.x, land.y, 280, 0xffd27a));
           this.spark(IMPACT.warrior.key, land.x, land.y - 30, IMPACT.warrior.frames, 200, 1);
           this.screenFlash(0xfff0b8, 0.12, 160); cam.shake(240, 0.011); // (a soft flash: no full-screen white-out)
-          if (vn === 0) this.stormRing(land.x, land.y, 5000); // (the volley's court: laid once)
+          if (vn === 0 && !ARENA3D.on) this.stormRing(land.x, land.y, 5000); // (the volley's court: laid once; PVP 3D lays it painted — fx3d/warrior.ts)
         } });
       });
     };
