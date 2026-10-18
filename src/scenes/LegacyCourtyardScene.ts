@@ -206,6 +206,8 @@ const ENEMY_SKILL: FinalSkill = {
 /** How long he keeps the combat stance after an attack / a hit while standing still (MapleStory: a few seconds). */
 const ALERT_MS = 4000;
 /** Tree of Life heal aura radius (px around the tree). */
+/** Floor zones that draw their own ground (the generic crack + dust of a zone's turn steps aside): the quake's one rotating ring, the tornado, the charged floor, the Verdict, the leaves; Thunder Circle and Lion's Maw (the Warrior chat, 18 Oct). */
+const NO_ZONE_CRACK = new Set(['ground_breaker', 'tornado_blade', 'rain_of_arrows', 'titans_verdict', 'leaping_arrow', 'thunder_circle', 'lions_maw']);
 const TREE_RADIUS = 260; // = the drawn circle around the tree
 
 /** Skills whose aim the held direction keeps turning while they run (sent to the other players). */
@@ -1932,7 +1934,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         }
         else if (l.run.skill.cls === 'gambler') { this.gamblerZoneAt(l); this.fx!.gambleZone(l.run.skill.id, l.x, l.y, L.radius); } // (the gambler's floor eruption / thrown-foe bomb: GamblerFx)
         else if (l.run.skill.id === 'sword_wave') this.fx!.samWaveReturn(l.run.attackerId, { x: l.x, y: l.y }, l.run.aim, L.line?.length ?? 380); // (its ink shadow flies back along the line: SamuraiFx)
-        else if (l.run.skill.id !== 'ground_breaker' && l.run.skill.id !== 'tornado_blade' && l.run.skill.id !== 'rain_of_arrows' && l.run.skill.id !== 'titans_verdict' && l.run.skill.id !== 'leaping_arrow') this.fx!.crack(l.x, l.y, L.radius); // (Thunder Rain: the charged floor is drawn by ArcherFx) // the quake has one steady rotating ring instead of per-tick sparks; the tornado is its own picture
+        else if (!NO_ZONE_CRACK.has(l.run.skill.id)) this.fx!.crack(l.x, l.y, L.radius); // (Thunder Rain: the charged floor is drawn by ArcherFx) // the quake has one steady rotating ring instead of per-tick sparks; the tornado is its own picture
         if (l.run.skill.id === 'ground_breaker' && l.run.own && this.dead < 0) { // the quake mends the warrior: +2 HP per pulse
           const max = this.maxHpNow(), before = this.playerHP;
           this.playerHP = Math.min(max, this.playerHP + 2);
