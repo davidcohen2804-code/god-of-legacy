@@ -86,10 +86,11 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // BINDING RUNE — sprung: the seal flares under the foe and four chains of starlight shoot up from its points and close
   // round him; they stay pulled tight for the bind (3 s), humming, and snap into motes when it lets go
   binding_rune: { tone: A, own: true,
+    cast: (f) => f.flipLoad(BIND),
     hit: (f, _s, _h, at) => { // (a bind is no 'main' blow — it throws no one — but it is the whole skill)
-      seal(f, at.x, at.y, A, { r: 92, ms: 3100, spin: 1.4, pulse: 2.2 });
-      const pts = [0, 1, 2, 3].map((k) => { const a = (k / 4) * Math.PI * 2 + Math.PI / 4; return { x: at.x + Math.cos(a) * 88, y: at.y + Math.sin(a) * 52 }; });
-      chains(f, pts, () => ({ x: at.x, y: at.y, z: (at.z ?? 0) + 66 }), GOLD, { ms: 3000, draw: 150, w: 13 });
+      const p = { x: at.x, y: at.y, z: 0 }; // (the painted binding: the seal flares open under him and gold chains close round him, then hold — humming — for the 3 s bind; he reads through it)
+      f.flip(BIND, p, { frame: BIND_F, fps: 24, w: 250, mode: 'up', anchorY: 0.14, through: 0.55, glow: 0.25 });
+      f.later(1150, () => f.flip(BIND, p, { frame: BIND_F, from: 27, to: 27, fps: 1, loop: true, ms: 1850, w: 250, mode: 'up', anchorY: 0.14, through: 0.55, glow: 0.3, fadeIn: 0, fadeOut: 380 }));
       star(f, { x: at.x, y: at.y, z: (at.z ?? 0) + 70 }, GOLD, { size: 170, ms: 280 });
       f.host.ring(f.host.w3(at.x), f.host.d3(at.y), A, 1.7, 380, 0.7);
     },
