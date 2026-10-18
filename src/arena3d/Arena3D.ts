@@ -164,7 +164,7 @@ export class Arena3D {
   /** The room's answer to a blow: dust and wood chips (behind / in front of the fighters), embers (glowing, the same). */
   private dustB!: Bits; private dustF!: Bits; private chipB!: Bits; private chipF!: Bits; private glowB!: Bits; private glowF!: Bits;
   /** Rings of light running over the planks from a heavy blow / a body slammed down. */
-  private rings: { m: THREE.Mesh; left: number; ms: number; r0: number; r1: number; a: number }[] = [];
+  private rings: { m: THREE.Mesh; m2: THREE.Mesh; left: number; ms: number; r0: number; r1: number; a: number }[] = [];
   private ringTex?: THREE.Texture;
   /** A small push-in of the camera on a heavy blow (fades by itself). */
   private kick = 0;
@@ -410,10 +410,14 @@ export class Arena3D {
       gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.72, 'rgba(255,255,255,0)'); gr.addColorStop(0.9, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
       g.fillStyle = gr; g.fillRect(0, 0, 128, 128); this.ringTex = new THREE.CanvasTexture(c);
     }
-    const mat = new THREE.MeshBasicMaterial({ map: this.ringTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: new THREE.Color(mix(color, 0xffffff, 0.25)), opacity: a, fog: false });
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), mat);
-    m.rotation.x = -Math.PI / 2; m.position.set(hx, 0.02, hz); this.scene3.add(m);
-    this.rings.push({ m, left: ms, ms, r0: 0.3, r1, a });
+    // (DFO 18 Oct, David 20:49 "not professional": an added ring went white on the red planks — painted in its colour now,
+    //  a thin added light along its crest)
+    const hsl = { h: 0, s: 0, l: 0 }, vivid = new THREE.Color(color); vivid.getHSL(hsl); vivid.setHSL(hsl.h, Math.min(1, hsl.s * 1.2 + 0.1), Math.min(0.62, Math.max(0.45, hsl.l)));
+    const mat = new THREE.MeshBasicMaterial({ map: this.ringTex, transparent: true, depthWrite: false, color: vivid, opacity: a, fog: false });
+    const mat2 = new THREE.MeshBasicMaterial({ map: this.ringTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, color: new THREE.Color(mix(color, 0xffffff, 0.4)), opacity: a * 0.35, fog: false });
+    const geo = new THREE.PlaneGeometry(1, 1), m = new THREE.Mesh(geo, mat), m2 = new THREE.Mesh(geo, mat2);
+    for (const x of [m, m2]) { x.rotation.x = -Math.PI / 2; x.position.set(hx, x === m ? 0.02 : 0.021, hz); this.scene3.add(x); }
+    this.rings.push({ m, m2, left: ms, ms, r0: 0.3, r1, a });
   }
 
   /** The petals near a blow (falling, and lying on the floor) are thrown away from it. */
@@ -450,8 +454,9 @@ export class Arena3D {
     for (let i = this.rings.length - 1; i >= 0; i--) {
       const g = this.rings[i]; g.left -= ms;
       const k = 1 - Math.max(0, g.left / g.ms), e = 1 - (1 - k) * (1 - k) * (1 - k), s = g.r0 + (g.r1 - g.r0) * e; // (fast out, slowing)
-      g.m.scale.set(s * 2, s * 2, 1); (g.m.material as THREE.MeshBasicMaterial).opacity = g.a * (1 - k) * (1 - k * 0.3);
-      if (g.left <= 0) { this.scene3.remove(g.m); g.m.geometry.dispose(); (g.m.material as THREE.Material).dispose(); this.rings.splice(i, 1); }
+      const op = g.a * (1 - k) * (1 - k * 0.3);
+      g.m.scale.set(s * 2, s * 2, 1); g.m2.scale.set(s * 2, s * 2, 1); (g.m.material as THREE.MeshBasicMaterial).opacity = op * 0.85; (g.m2.material as THREE.MeshBasicMaterial).opacity = op * 0.35;
+      if (g.left <= 0) { this.scene3.remove(g.m, g.m2); g.m.geometry.dispose(); (g.m.material as THREE.Material).dispose(); (g.m2.material as THREE.Material).dispose(); this.rings.splice(i, 1); }
     }
     this.kick -= this.kick * Math.min(1, ms / 110);
     this.nudge -= this.nudge * Math.min(1, ms / 70);
