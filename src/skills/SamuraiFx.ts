@@ -1532,18 +1532,16 @@ export class SamuraiFx {
   }
 
   /** Rising Sun: the war banner rises behind him and flies in the wind (its cloth bends for real), gold rays behind the sun.
-   *  (David 18 Oct 18:29) A heavy war banner, not a stick: a thick pole, a crossbar the broad cloth hangs from, a gold knob at
-   *  its top. Where it can spring him reads on the planks: a ring of gold light exactly the engine's catch zone round its foot
+   *  (David 18 Oct 18:29 / 22:56) A war banner, not a stick — and not a massive one: the painted pole and cloth a size up at
+   *  their own proportions. Where it can spring him reads on the planks: a ring of gold light exactly the engine's catch zone round its foot
    *  (POLE: ±nearX along the field × ±nearY in depth), soft and always on while it stands; while he is in the air inside it
    *  the ring and the banner flare — the "now" — with an arrow of light on the ring the way it springs him (away from where
    *  he faces). Its last 3 s it flickers and fades. */
   private risingSun(r: CastRun): void {
     const s = this.ctx.scene, T = r.timings, side = sideOf(r), q = this.me(r), bx = q.x - side * POLE_BACK, by = q.y - 4, planted = T.startup + T.active, life = planted + POLE_MS; // (planted after the burst: David 01:15)
-    const poleH = 262, clothH = 236, clothW = 118, top = by - poleH + 18, THICK = 2.6, GOLD = 0xffc65a;
+    const poleH = 300, clothH = 262, clothW = Math.round(clothH * 144 / 440), top = by - poleH + 36, THICK = 1.3, GOLD = 0xffc65a; // (David 22:56: the painted banner at its own proportions, a size up — stretched wide and on a pole 2.6× thick it read massive)
     const pole = s.add.image(bx, by, KIT, 'banner_pole').setOrigin(0.5, 0.98).setDepth(by - 3).setVisible(false);
     const pk = poleH / pole.height;
-    const bar = s.add.image(bx, top, KIT, 'banner_pole').setOrigin(0.5, 0.5).setAngle(90).setDepth(by - 3.05).setVisible(false); // (the crossbar the cloth hangs from)
-    const knob = s.add.image(bx, top - 10, 'dmg-glow').setTint(GOLD).setBlendMode(Phaser.BlendModes.ADD).setDepth(by - 2.9).setVisible(false);
     const N = 12, pts = Array.from({ length: N }, (_, i) => new Phaser.Math.Vector2(0, (i / (N - 1)) * clothH));
     const cx = bx - side * (clothW / 2 + 4);
     const halo = s.add.image(cx, top + clothH / 2, 'dmg-glow').setTint(GOLD).setBlendMode(Phaser.BlendModes.ADD).setDepth(by - 3.3).setVisible(false); // (the cue: the banner lit from behind)
@@ -1557,7 +1555,7 @@ export class SamuraiFx {
     const f3 = this.fx3d(), zg = f3 ? null : s.add.graphics().setDepth(GROUND + 2.1);
     let fired = -1, dead = false, now = 0, zoneA = 0, way = -side;
     if (f3) zoneRing(f3, { x: bx, y: q.y, z: 0 }, POLE.nearX, POLE.nearY, () => (dead ? null : { a: zoneA, flare: now, arrow: now, dir: way }), GOLD);
-    const kill = () => { if (dead) return; dead = true; pole.destroy(); bar.destroy(); knob.destroy(); halo.destroy(); cloth.destroy(); zg?.destroy(); for (const im of rays) im.destroy(); if (this.poles.get(r.attackerId)?.kill === kill) this.poles.delete(r.attackerId); };
+    const kill = () => { if (dead) return; dead = true; pole.destroy(); halo.destroy(); cloth.destroy(); zg?.destroy(); for (const im of rays) im.destroy(); if (this.poles.get(r.attackerId)?.kill === kill) this.poles.delete(r.attackerId); };
     this.poles.get(r.attackerId)?.kill(); // (one banner of his at a time: a new one takes the old one's place)
     const P = { t: 0, spring: -1, dir: -side, x: bx, y: by, h: poleH, kill };
     this.poles.set(r.attackerId, P);
@@ -1578,20 +1576,18 @@ export class SamuraiFx {
       pole.setVisible(true).setScale(pk * THICK, pk * up).setAngle(bend).setAlpha(al);
       const ty = by - (by - top) * up * Math.cos(brad), tipDx = poleH * Math.sin(brad);
       const cl = Math.min(1, Math.max(0, (up - 0.6) / 0.3)) * fade;
-      bar.setVisible(up > 0.6).setPosition(bx + tipDx - side * (clothW / 2 + 2), ty).setScale(pk * THICK * 0.8, (clothW + 16) / bar.height).setAngle(90 + bend * 0.6).setAlpha(cl);
-      knob.setVisible(up > 0.6).setPosition(bx + tipDx, ty - 12).setDisplaySize(26 + 14 * now, 26 + 14 * now).setAlpha(cl * (0.55 + 0.45 * now));
       cloth.setVisible(up > 0.6).setPosition(cx + tipDx, ty).setAngle(bend * 0.6).setAlpha(cl);
       halo.setVisible(now > 0.02 && up > 0.6).setPosition(cx + tipDx, ty + clothH * 0.45).setDisplaySize(clothW * 2.2, clothH * 1.5).setAlpha(0.55 * now * cl);
-      for (let i = 0; i < N; i++) { const v = i / (N - 1); pts[i].set(-side * Math.sin(t / 260 + v * 3.1) * 12 * v + side * 5 * v * v, v * clothH * (0.93 + 0.07 * Math.sin(t / 330 + v))); }
+      for (let i = 0; i < N; i++) { const v = i / (N - 1); pts[i].set(-side * Math.sin(t / 260 + v * 3.1) * 10 * v + side * 4 * v * v, v * clothH * (0.95 + 0.05 * Math.sin(t / 330 + v))); }
       cloth.setPoints(pts);
       if (fired < 0 && r.fired.has(0)) { fired = t; } // (its light breaks: the rays flare up, longer and brighter, and settle)
       // (planted, its sun glows on faintly: full through the burst, then down to a glow; the "now" lights it again)
       const fl = Math.max(fired < 0 ? 0 : Math.max(0, 1 - (t - fired) / 650), now * 0.8), low = fired < 0 ? 1 : 0.35 + 0.65 * Math.max(0, 1 - (t - fired - 900) / 900);
       const on = Math.max(0, Math.min(1, (t - T.startup * 0.5) / 300)) * cl * Math.min(1, Math.max(low, now) + (P.spring >= 0 && t - P.spring < 400 ? 0.6 : 0));
-      const sx = cx + tipDx + (-side * Math.sin(t / 260 + SUN * 3.1) * 12 * SUN + side * 5 * SUN * SUN) * ck, sy = ty + SUN * clothH * (0.93 + 0.07 * Math.sin(t / 330 + SUN)); // (the sun on the cloth, as it waves)
+      const sx = cx + tipDx + (-side * Math.sin(t / 260 + SUN * 3.1) * 10 * SUN + side * 4 * SUN * SUN) * ck, sy = ty + SUN * clothH * (0.95 + 0.05 * Math.sin(t / 330 + SUN)); // (the sun on the cloth, as it waves)
       rays.forEach((im, i) => {
-        const k = i % NR, th = (k / NR) * 360 + t * 0.02, rad = (th * Math.PI) / 180, L = (k % 2 ? 22 : 34) * (1 + 0.1 * Math.sin(t / 160 + k)) * (1 + 1.3 * out(fl)), glow = i >= NR;
-        im.setVisible(on > 0.01).setPosition(sx + Math.cos(rad) * R0, sy + Math.sin(rad) * R0).setAngle(th).setDisplaySize(L, glow ? 8 : 6)
+        const k = i % NR, th = (k / NR) * 360 + t * 0.02, rad = (th * Math.PI) / 180, L = (k % 2 ? 18 : 28) * (1 + 0.1 * Math.sin(t / 160 + k)) * (1 + 1.3 * out(fl)), glow = i >= NR;
+        im.setVisible(on > 0.01).setPosition(sx + Math.cos(rad) * R0, sy + Math.sin(rad) * R0).setAngle(th).setDisplaySize(L, glow ? 6.5 : 5)
           .setDepth(by - 3.15 + (glow ? 0.01 : 0)).setAlpha(on * (glow ? 0.45 + 0.4 * fl : 0.9));
       });
       if (zg) { // the painted world's zone: the ring, the arrow
