@@ -288,14 +288,15 @@ export const BOOK_MAGE: Record<string, Recipe> = {
       seal(f, c.x, c.y, FROST, { r: 125, ms: t0 + 500, spin: 1.2, star: VOLT, pulse: 3 });
       f.swirl(at, {}, { n: 40, r0: 50, r1: 90, h: 300, ms: t0 + 600, rps: 1.2, rise: 0.9, size: 0.7, color: FROST });
       f.swirl(at, {}, { n: 40, r0: 50, r1: 90, h: 300, ms: t0 + 600, rps: -1.2, rise: 0.9, size: 0.7, color: VOLT });
-      for (let k = 0; k < 4; k++) f.later((k * t0) / 4, () => { const p = f.host.casterPos(id); if (p) f.bolt({ x: p.x + rnd(-60, 60), y: p.y, z: 520 }, { x: p.x, y: p.y, z: 80 }, STORM, { ms: 150, w: 6, forks: 1, hue: true }); });
+      f.flipLoad(ASC);
     },
     active: (f, r) => {
       const id = r.attackerId, c = me(f, r);
-      f.skyBeam({ x: c.x, y: c.y, z: 0 }, FROST, { ms: 460, w: 16 }); star(f, { x: c.x, y: c.y, z: 90 }, ICE, { size: 260, ms: 320 });
+      star(f, { x: c.x, y: c.y, z: 90 }, ICE, { size: 260, ms: 320 });
       const until = f.now + 20000, at = () => (f.now < until ? (() => { const p = f.host.casterPos(id); return p ? { x: p.x, y: p.y, z: 0 } : null; })() : null);
-      f.swirl(at, {}, { n: 12, r0: 52, r1: 58, h: 170, ms: 20000, rps: 0.45, rise: 0.12, size: 0.55, color: ICE });
-      for (let t = 700; t < 20000; t += 900) f.later(t, () => { const p = f.host.casterPos(id); if (!p) return; const a = rnd(0, Math.PI * 2); f.bolt({ x: p.x + Math.cos(a) * 30, y: p.y, z: p.z + 60 + rnd(-20, 40) }, { x: p.x + Math.cos(a) * 60, y: p.y, z: p.z + 60 + rnd(-40, 40) }, VOLT, { ms: 110, w: 2.5, forks: 1, hue: true }); });
+      // (the painted helix of frost and storm — PixVerse footage of GPT's art — bursts up, then stays on as a faint aura)
+      f.flip(ASC, at, { frame: ASC_F, fps: 8, loop: true, ms: 1600, w: 300, mode: 'up', foot: true, through: 0.55, glow: 0.3, grow: [0.5, 1], fadeIn: 120, fadeOut: 400 });
+      f.later(1300, () => f.flip(ASC, at, { frame: ASC_F, fps: 6, loop: true, ms: 18700, w: 190, mode: 'up', foot: true, through: 0.5, a: 0.4, glow: 0.1, fadeIn: 400, fadeOut: 500 }));
     },
   },
 
