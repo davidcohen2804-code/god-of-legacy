@@ -8,7 +8,7 @@
 // stay out (SamuraiFx IN3D_OWN). Owned by the Samurai chat; the room's pieces are in ../Fx3D.ts (DFO's), ours in blade3d.ts.
 import type { Recipe, Fx3D, V3 } from '../Fx3D';
 import { C, me, side, T } from './kit';
-import { ring, flurry, slit, bladeBall, inkBurst, sparks, SAM, run, soon, star, glintRun, floorLine, petalBurst, petalStream } from './blade3d';
+import { ring, flurry, slit, bladeBall, inkBurst, sparks, SAM, run, soon, star, glintRun, floorLine, petalBurst, petalStream, paintTex, paintFly, paintTrail } from './blade3d';
 import type { Projectile } from '../../skills/HitGeometry';
 import type { CastRun } from '../../skills/SkillRuntime';
 
@@ -156,6 +156,54 @@ const iaiBurst = (f: Fx3D, at: V3, main: boolean) => {
 };
 /** The side Swallow Cut's last cast faced (its hits come a beat after: the second cut sweeps down the way he faced). */
 let swallowDir = 1;
+/** His painted cuts (David 18 Oct 22:56, Swallow Cut "not impressive enough"): a band of blade light torn into crimson smoke
+ *  (GPT on black: its head at the right, its white-hot edge along its top) worn by the cut's arc in the room's depth; the
+ *  swallow of light (GPT on black, flying right). */
+const SLASH = ART_DIR + 'slash_band.webp', SWALLOW = ART_DIR + 'swallow.webp';
+for (const a of [SLASH, SWALLOW]) paintTex(a); // (on their way with the room: a cut's 120 ms wind-up is too short to fetch them at a first cast)
+/** A smooth way through timed points (Catmull-Rom): world px at `t` ms; held at its ends. */
+const glide = (pts: [number, number, number, number][]) => (t: number): { x: number; y: number; z: number } => {
+  const n = pts.length; let i = 0;
+  if (t <= pts[0][0]) return { x: pts[0][1], y: pts[0][2], z: pts[0][3] };
+  if (t >= pts[n - 1][0]) return { x: pts[n - 1][1], y: pts[n - 1][2], z: pts[n - 1][3] };
+  while (i < n - 2 && t > pts[i + 1][0]) i++;
+  const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(n - 1, i + 2)], u = (t - p1[0]) / (p2[0] - p1[0]), u2 = u * u, u3 = u2 * u;
+  const cr = (k: number) => 0.5 * (2 * p1[k] + (-p0[k] + p2[k]) * u + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * u2 + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * u3);
+  return { x: cr(1), y: cr(2), z: cr(3) };
+};
+/** Where Swallow Cut's first blow found the foe (world px; its flight bends to him once he is struck). */
+let swallowFoe: V3 | null = null;
+/** Swallow Cut's flight (Tsubame-gaeshi, its Λ — David 18 Oct 22:56: "not impressive enough"): out of the planks at his front
+ *  foot, up through the foe with the rising cut (the first blow, held by its hit-stop), a hook over his head, then straight
+ *  down through him again as the blade turns back (the second blow), skimming the planks beyond and away up — t ms from the
+ *  last of his wind-up, from his feet `c`, on his side `d`; `D` px to the foe until the first blow says where he is. Its
+ *  rise passes behind the foe, its dive in front of him. */
+const swallowFlight = (c: V3, d: number, D: number) => {
+  const K: [number, number, number, number][] = [ // (the room's clock: the first blow's hit-stop holds t ≈ 55, the second's t ≈ 90)
+    [0, 20, -10, 6], [55, -32, -16, 112], [90, -10, -14, 192], [115, 6, -8, 214], [140, 24, 2, 192], [172, 40, 14, 110],
+    [200, 58, 22, 30], [245, 110, 30, 16], [325, 185, 40, 90], [410, 245, 46, 170],
+  ];
+  const rel = glide(K.map(([t, x, y, z], i) => [t, i === 0 ? x : x + D, y, z] as [number, number, number, number]));
+  return (t: number): V3 => {
+    const p = rel(t), k = Math.min(1, Math.max(0, (t - 55) / 80)), e = k * k * (3 - 2 * k), foe = swallowFoe; // (bent to the foe after the first blow)
+    const dx = foe ? (Math.abs(foe.x - c.x) - D) * e : 0, dy = foe ? (foe.y - c.y) * e : 0;
+    return { x: c.x + d * (p.x + dx), y: c.y + p.y + dy, z: c.z + p.z };
+  };
+};
+/** The swallow's flight (the last 70 ms of his wind-up — the first blow's hit-stop holds the rising stroke through the foe):
+ *  the blade's light a painted trail behind it (his crimson torn into smoke, its white-hot edge on the outside of the turn,
+ *  the whole Λ there when the second blow's hit-stop holds it), the swallow of light at its head; petals spill from its
+ *  dive and it goes into petals far beyond. */
+const swallowCut = (f: Fx3D, r: CastRun) => {
+  if (r.phase === 'done') return;
+  const d = side(r), c = me(f, r), way = swallowFlight(c, d, 90), FLY = 410;
+  swallowDir = d; swallowFoe = null;
+  paintTrail(f, SLASH, way, { ms: FLY, len: 200, w: 96, hz: c.y, edge: d, core: 12, fade: 180, glow: 0.5, hi: 0.42 });
+  paintFly(f, SWALLOW, way, { w: 150, ms: FLY + 40, fadeIn: 60, fadeOut: 140, ghosts: 2, lag: 16, glow: 0.45, grow: [0.8, 1.05], left: d < 0 }); // (over the fighters all its flight: behind the foe the room's bloom washed it pale)
+  let t = 0; run(f, { step: (dt) => { t += dt; return t < FLY; }, dispose: () => {} });
+  petalStream(f, () => (t >= FLY - 40 ? null : t < 150 ? undefined : way(t)), petals(f), { rate: 80, life: 650, back: { x: -d * 70, y: 0, z: 30 }, size: 1.1 });
+  f.later(FLY - 40, () => petalBurst(f, way(FLY - 40), petals(f), { n: 16, speed: 240, dir: d * 0.6, up: 0.3, ms: 800 }));
+};
 /** A blow thrown up (the bar: the foe thrown high and fast): a white-hot line struck up through him from the planks (its
  *  trace, not a main-hit piece: the room plays the main hit itself). */
 const rise = (f: Fx3D, at: V3) => {
@@ -237,16 +285,14 @@ export const SAMURAI: Record<string, Recipe> = {
     active: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, 0x3a0a1a, { r: 420, ms: 900, a: 0.4 }); }, // (lighter: in the dark the fighters were not readable — DFO)
     hit: (f, _s, _h, at, main) => {
       if (!main) flurry(f, () => at, { ms: 1, len: 540, w: 14, front: true, draw: 0 }); } }, // (one cut a hit, there at once: the hit-stops hold them — eight lines crossing into a star; the great cut's blow is the room's main hit — no cracks of its own on top)
-  // (David's bar: the main launcher, one shape — a swallow's tail, Λ) the rising cut: one upright ribbon ring swept up
-  // from the planks through the foe (a hot rose body, white-hot edge, ink inside); the launch: a white-hot line up through
-  // him; the second cut: a ring swept back down through him in the air. Its painted trail and marks stay out in PVP 3D.
-  swallow_cut: { own: true, tone: SAM.rose,
-    active: (f, r) => { swallowDir = side(r);
-      ring(f, me(f, r), side(r), { r: 128, w: 52, y0: 92, fwd: 26, tilt: 84, yaw: 30, a0: 178, a1: -12, ms: 220, lit: SAM.rose, gain: 1.3, follow: () => f.host.casterPos(r.attackerId) }); },
+  // (David's bar: the main launcher, one shape — a swallow's tail, Λ; David 18 Oct 22:56: "not impressive enough") the
+  // swallow of light flies the Λ through the foe — up with the rising cut, over, and back down through him with the second —
+  // the blade's light a painted trail behind it in the room's depth (swallowCut); where it cuts: sparks (the room's main hits)
+  swallow_cut: { own: true, tone: SAM.rose, paint: true,
+    cast: (f, r) => { const c = me(f, r); star(f, { x: c.x + side(r) * 22, y: c.y + 8, z: c.z + 58 }, 12, 140); f.later(Math.max(0, T(r).startup - 70), () => swallowCut(f, r)); },
     hit: (f, _s, _h, at, main, react) => {
-      sparks(f, at, swallowDir, main ? 6 : 4, 56);
-      if (react === 'launch') rise(f, at);
-      else ring(f, at, swallowDir, { r: 112, w: 46, y0: 70, fwd: -20, tilt: 76, yaw: 20, a0: -24, a1: 168, ms: 200, lit: SAM.rose, gain: 1.3 }); } },
+      if (react === 'launch') swallowFoe = { x: at.x, y: at.y, z: at.z };
+      sparks(f, at, swallowDir, main ? 6 : 4, 56); } },
   // the cage's small cuts: now and then a thin steel arc; the slam: a cross of steel light, gold sparks thrown off
   hundred_cuts: { own: true, tone: C.steel,
     hit: (f, _s, _h, at, main) => {

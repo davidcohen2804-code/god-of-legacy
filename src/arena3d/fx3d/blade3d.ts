@@ -613,3 +613,244 @@ export function cocoon(f: Fx3D, at: V3, tex: (THREE.Texture | null | undefined)[
     }, dispose: drop,
   });
 }
+
+// ------------------------------------------------------------------ painted cuts in depth (David 18 Oct 22:56: "in depth, not a page")
+
+const PAINT_FS = `
+#include <common>
+#include <clipping_planes_pars_fragment>
+uniform sampler2D uMap; uniform float uA; uniform float uSweep; uniform float uTail; uniform vec3 uTint; uniform float uLo; uniform float uHi; uniform float uGlow; uniform float uPart; uniform float uErode; uniform float uT;
+uniform sampler2D uNoise;
+varying vec2 vUv;
+void main() {
+  #include <clipping_planes_fragment>
+  float u = vUv.x, v = vUv.y;
+  if (u > uSweep) discard;
+  float L = max(min(uTail, uSweep), 0.001), tx = (u - (uSweep - L)) / L;   // the painted band laid from its tail to the cut's head
+  if (tx <= 0.0) discard;
+  vec4 t = texture2D(uMap, vec2(tx, v));
+  float m = max(t.r, max(t.g, t.b)), a = smoothstep(uLo, uHi, m);       // painted on black: its brightness is its cover
+  vec3 col = min(t.rgb / max(a, 0.001), vec3(1.0)) * uTint;
+  float n = texture2D(uNoise, vec2(u * 3.0 - uT * 0.8, v * 0.6 + 0.2)).r;
+  a *= smoothstep(uErode, uErode + 0.3, 0.6 * n + 0.5 * tx);              // it dissolves from its tail as it goes
+  if (uPart > 0.5) { float hot = smoothstep(0.5, 0.95, dot(t.rgb, vec3(0.3, 0.59, 0.11))); col = col * hot * uGlow; a *= hot; } // (its white-hot light only: his crimson added blooms into a pink haze)
+  a *= uA;
+  if (a < 0.003) discard;
+  gl_FragColor = vec4(col, min(a, 1.0));
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+const paintTexs = new Map<string, THREE.Texture | null>();
+/** A painted texture by url (loaded once; null until it has arrived). */
+export function paintTex(src: string): THREE.Texture | null {
+  if (paintTexs.has(src)) return paintTexs.get(src) ?? null;
+  paintTexs.set(src, null);
+  new THREE.TextureLoader().load(src, (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.wrapS = THREE.ClampToEdgeWrapping; paintTexs.set(src, t); });
+  return null;
+}
+
+/** A painted cut in depth: the ribbon arc of `ring` (its plane, sweep, follow, live turn — the same options) wearing a painted
+ *  band (`tex`: GPT on black — its head at the picture's right, its white-hot edge along its top), laid from the cut's tail
+ *  to its head as it sweeps, its part behind the fighters in the room and its part in front over them; a little of its
+ *  hottest light added (`glow`); it dissolves from its tail. Nothing drawn until the band has loaded. */
+export function paintArc(f: Fx3D, tex: string, at: V3, dir: number, o: Ring & { glow?: number; tint?: number; lo?: number; hi?: number } = {}): void {
+  let map = paintTex(tex); // (on its way at a first cast: the arc is there, drawn from the frame the band arrives)
+  if (!o.quiet) f.onPiece?.('slash', at, (o.r ?? 105) > 160 ? 1 : 0);
+  const h = f.host, R = h.w3(o.r ?? 105), W = h.w3(o.w ?? 40), ms = o.ms ?? 260, sweepMs = ms * (o.sweep ?? 0.4), holdMs = o.hold ?? ms * 0.15;
+  const a0 = THREE.MathUtils.degToRad(o.a0 ?? -40), a1 = THREE.MathUtils.degToRad(o.a1 ?? 160);
+  const n = 64, pos = new Float32Array((n + 1) * 2 * 3), uv = new Float32Array((n + 1) * 2 * 2), idx: number[] = [];
+  for (let i = 0; i <= n; i++) {
+    const k = i / n, a = a0 + (a1 - a0) * k, taper = Math.pow(Math.sin(Math.PI * (0.04 + 0.92 * k)), 0.35), rin = R - W * taper;
+    pos.set([Math.sin(a) * rin * dir, Math.cos(a) * rin, 0, Math.sin(a) * R * dir, Math.cos(a) * R, 0], i * 6);
+    uv.set([k, 0, k, 1], i * 4);
+    if (i < n) { const b = i * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx);
+  const mat = (glow: boolean, front: boolean, hz: number) => {
+    const m = new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: PAINT_FS,
+      uniforms: { uMap: { value: map }, uA: { value: o.a ?? 1 }, uSweep: { value: 0 }, uTail: { value: o.tail ?? 1 }, uTint: { value: new THREE.Color(o.tint ?? 0xffffff) }, uLo: { value: o.lo ?? 0.05 }, uHi: { value: o.hi ?? 0.55 },
+        uGlow: { value: o.glow ?? 0.35 }, uPart: { value: glow ? 1 : 0 }, uErode: { value: -0.4 }, uT: { value: Math.random() * 10 }, uNoise: { value: f.noiseTex } },
+      transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide, blending: glow ? THREE.AdditiveBlending : THREE.NormalBlending, fog: false });
+    if (!o.over) { m.clippingPlanes = f.cut(hz, front); m.clipping = true; }
+    return m;
+  };
+  const fwd = (o.fwd ?? 0) * dir, lift = o.y0 ?? 90;
+  let p = new THREE.Vector3(h.w3(at.x + fwd), h.h3(at.z + lift), h.d3(at.y));
+  const meshes = o.over ? [new THREE.Mesh(geo, mat(false, true, p.z)), new THREE.Mesh(geo, mat(true, true, p.z))]
+    : [new THREE.Mesh(geo, mat(false, false, p.z)), new THREE.Mesh(geo, mat(true, false, p.z)), new THREE.Mesh(geo, mat(false, true, p.z)), new THREE.Mesh(geo, mat(true, true, p.z))];
+  if (o.over) { h.solid.add(meshes[0]); h.glow.add(meshes[1]); }
+  else { h.back.add(meshes[0], meshes[1]); h.solid.add(meshes[2]); h.glow.add(meshes[3]); }
+  let lv = o.live?.();
+  const place = () => {
+    for (const m of meshes) {
+      m.frustumCulled = false; m.position.copy(p);
+      m.rotation.set(0, 0, 0); m.rotateY(f.camYaw() + THREE.MathUtils.degToRad(lv?.yaw ?? o.yaw ?? 0) * dir); m.rotateX(THREE.MathUtils.degToRad(90 - (o.tilt ?? 30))); m.rotateZ(THREE.MathUtils.degToRad(lv?.roll ?? o.roll ?? 0) * dir);
+    }
+  };
+  place();
+  const drop = () => { for (const m of meshes) { m.parent?.remove(m); (m.material as THREE.Material).dispose(); } geo.dispose(); };
+  const set = (k: string, v: number) => { for (const m of meshes) (m.material as THREE.ShaderMaterial).uniforms[k].value = v; };
+  let t = 0, endAt = -1;
+  const fadeMs = o.fade ?? 200;
+  run(f, {
+    step: (dt) => {
+      t += dt; lv = o.live?.();
+      if (!map) { map = paintTex(tex); if (map) for (const m of meshes) (m.material as THREE.ShaderMaterial).uniforms.uMap.value = map; }
+      const fo = o.follow?.(); if (fo) p = new THREE.Vector3(h.w3(fo.x + fwd), h.h3(fo.z + lift), h.d3(fo.y));
+      if (fo || lv) place();
+      if (o.until && endAt < 0 && (o.until() || t >= ms)) endAt = t;
+      const ks = Math.min(1, t / Math.max(1, sweepMs));
+      const kd = o.until ? (endAt < 0 ? 0 : Math.min(1, (t - endAt) / fadeMs)) : Math.max(0, (t - sweepMs - holdMs) / Math.max(1, ms - sweepMs - holdMs));
+      set('uSweep', 1.0001 * outCubic(ks)); set('uErode', -0.4 + 1.6 * kd * kd); set('uT', t / 1000);
+      set('uA', map ? (o.a ?? 1) * (lv?.a ?? 1) * (1 - Math.max(0, kd - 0.6) / 0.4) : 0);
+      if (o.until ? endAt >= 0 && t - endAt >= fadeMs : t >= ms) { drop(); return false; }
+      return true;
+    }, dispose: drop,
+  });
+}
+
+const FLY_FS = `
+uniform sampler2D uMap; uniform float uA; uniform vec3 uTint; uniform float uLo; uniform float uHi; uniform float uGlow; uniform float uPart;
+varying vec2 vUv;
+void main() {
+  vec4 t = texture2D(uMap, vUv);
+  float m = max(t.r, max(t.g, t.b)), a = smoothstep(uLo, uHi, m);       // painted on black: its brightness is its cover
+  vec3 col = min(t.rgb / max(a, 0.001), vec3(1.0)) * uTint;
+  if (uPart > 0.5) { float hot = smoothstep(0.5, 0.95, dot(t.rgb, vec3(0.3, 0.59, 0.11))); col = col * uGlow; a = hot; } // (its white-hot light only)
+  a *= uA;
+  if (a < 0.003) discard;
+  gl_FragColor = vec4(col, min(a, 1.0));
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+export interface Fly {
+  /** its width (px), its life (ms), fading in and out (ms), its scale over its life (s0 → s1) */
+  w: number; ms: number; fadeIn?: number; fadeOut?: number; grow?: [number, number];
+  /** copies of its light trailing it at earlier points of its flight (`lag` ms apart): its speed */
+  ghosts?: number; lag?: number;
+  /** strength, colour, its black key (lo..hi), the share of its hottest light added (it blooms) */
+  a?: number; tint?: number; lo?: number; hi?: number; glow?: number;
+  /** flying the other way: mirrored top to bottom, its back kept up (the picture flies right) */
+  left?: boolean;
+  /** deeper than this (world y) it flies behind the fighters, nearer it over them (else always over them) */
+  hz?: number;
+}
+/** A painted thing flying through the room (the swallow of light): upright, turned to the eye, its picture's head (+x) along
+ *  its flight as the eye sees it (turning with it through a hook), on `path(t)` (world px, t ms of its life) — behind the
+ *  fighters while it is deeper than `hz`, over them nearer; a few copies of its light trail it. */
+export function paintFly(f: Fx3D, tex: string, path: (t: number) => V3, o: Fly): void {
+  let map = paintTex(tex);
+  const h = f.host, geo = new THREE.PlaneGeometry(1, 1), n = 1 + (o.ghosts ?? 0), lag = o.lag ?? 22;
+  const mk = (glow: boolean) => new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: FLY_FS,
+    uniforms: { uMap: { value: map }, uA: { value: 0 }, uTint: { value: new THREE.Color(o.tint ?? 0xffffff) }, uLo: { value: o.lo ?? 0.05 }, uHi: { value: o.hi ?? 0.5 }, uGlow: { value: o.glow ?? 0.5 }, uPart: { value: glow ? 1 : 0 } },
+    transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide, blending: glow ? THREE.AdditiveBlending : THREE.NormalBlending, fog: false });
+  type M = THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+  const copies = Array.from({ length: n }, (_, i) => ({ body: i === 0 ? (new THREE.Mesh(geo, mk(false)) as M) : null, light: new THREE.Mesh(geo, mk(true)) as M }));
+  const all = copies.flatMap((c) => (c.body ? [c.body, c.light] : [c.light]));
+  for (const m of all) m.frustumCulled = false;
+  /** each copy in the room behind the fighters or over them (its picture and its light) */
+  const layer = (c: (typeof copies)[number], behind: boolean) => {
+    if (c.body && c.body.parent !== (behind ? h.back : h.solid)) { c.body.parent?.remove(c.body); (behind ? h.back : h.solid).add(c.body); }
+    if (c.light.parent !== (behind ? h.back : h.glow)) { c.light.parent?.remove(c.light); (behind ? h.back : h.glow).add(c.light); }
+  };
+  const drop = () => { for (const m of all) { m.parent?.remove(m); m.material.dispose(); } geo.dispose(); };
+  const inv = new THREE.Quaternion(), dv = new THREE.Vector3();
+  let t = 0, aspect = 1;
+  run(f, {
+    step: (dt) => {
+      t += dt;
+      if (t >= o.ms) { drop(); return false; }
+      if (!map) { map = paintTex(tex); if (map) for (const m of all) m.material.uniforms.uMap.value = map; }
+      if (!map) return true;
+      const img = map.image as { width?: number; height?: number } | undefined; if (img?.width && img.height) aspect = img.height / img.width;
+      const fin = Math.min(1, t / Math.max(1, o.fadeIn ?? 50)), fout = Math.min(1, (o.ms - t) / Math.max(1, o.fadeOut ?? 150));
+      const s = o.grow ? o.grow[0] + (o.grow[1] - o.grow[0]) * outCubic(t / o.ms) : 1, W = h.w3(o.w) * s;
+      inv.copy(h.camera.quaternion).invert();
+      copies.forEach((c, i) => {
+        const ti = t - i * lag, a = ti < 0 ? 0 : (o.a ?? 1) * fin * fout * (i === 0 ? 1 : 0.5 * (1 - i / n));
+        const ms = c.body ? [c.body, c.light] : [c.light];
+        for (const m of ms) m.material.uniforms.uA.value = a;
+        if (ti < 0) return;
+        const at = path(ti), P = f.unit(at), sc = 1 - 0.07 * i;
+        layer(c, o.hz !== undefined && at.y < o.hz - 2);
+        dv.copy(f.unit(path(ti + 6))).sub(f.unit(path(Math.max(0, ti - 6)))).applyQuaternion(inv);
+        const ang = dv.lengthSq() > 1e-12 ? Math.atan2(dv.y, dv.x) : 0;
+        for (const m of ms) { m.position.copy(P); m.quaternion.copy(h.camera.quaternion); m.rotateZ(ang); m.scale.set(W * sc, W * sc * aspect * (o.left ? -1 : 1), 1); }
+      });
+      return true;
+    }, dispose: drop,
+  });
+}
+
+// the blade's line along a trail (added light): white-hot along its middle, his rose at its soft edges, faint at its tail
+const CORE_FS = `
+#include <common>
+#include <clipping_planes_pars_fragment>
+uniform vec3 uCol; uniform float uA;
+varying vec2 vUv;
+void main() {
+  #include <clipping_planes_fragment>
+  float u = vUv.x, d = abs(vUv.y - 0.5) * 2.0;
+  float core = exp(-d * d * 14.0), halo = exp(-d * d * 2.6) * 0.45, along = pow(u, 1.3);
+  float a = uA * along * (core + halo);
+  if (a < 0.003) discard;
+  gl_FragColor = vec4(mix(uCol, vec3(1.0), core * 0.85), min(a, 1.0));
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+/** A painted trail behind a flight (the swallow's Λ): a ribbon through the last `len` ms of `path` (world px, t ms) turned to
+ *  face the eye, wearing a painted band (`tex`: GPT on black — its head at the right, its white-hot line `line` of the way
+ *  up it) laid from the trail's tail to its head, thin at its tail, its line on the flight and its smoke on the inside of
+ *  the turn (`edge` 1: it turns to its right as it flies, −1 to its left); along the flight the blade's own line of light
+ *  (`core` px wide, white-hot, in `col`); deeper than `hz` (world y) behind the fighters, nearer over them. Its head runs to
+ *  `ms`, then its tail catches up with it over `fade` ms as it dissolves. */
+export function paintTrail(f: Fx3D, tex: string, path: (t: number) => V3, o: { ms: number; len: number; w: number; hz: number; edge?: number; line?: number; core?: number; col?: number; fade?: number; glow?: number; tint?: number; lo?: number; hi?: number; a?: number }): void {
+  let map = paintTex(tex);
+  const h = f.host, N = 48, idx: number[] = [], uv = new Float32Array((N + 1) * 2 * 2);
+  for (let i = 0; i <= N; i++) { uv.set([i / N, 0, i / N, 1], i * 4); if (i < N) { const b = i * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); } }
+  const strip = () => { const pos = new Float32Array((N + 1) * 2 * 3), g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(idx); return { pos, g }; };
+  const band = strip(), line = strip(), hz = h.d3(o.hz);
+  const clip = (m: THREE.ShaderMaterial, front: boolean) => { m.clippingPlanes = f.cut(hz, front); m.clipping = true; return m; };
+  const mat = (glow: boolean, front: boolean) => clip(new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: PAINT_FS,
+    uniforms: { uMap: { value: map }, uA: { value: 0 }, uSweep: { value: 1.0001 }, uTail: { value: 1 }, uTint: { value: new THREE.Color(o.tint ?? 0xffffff) }, uLo: { value: o.lo ?? 0.05 }, uHi: { value: o.hi ?? 0.5 },
+      uGlow: { value: o.glow ?? 0.4 }, uPart: { value: glow ? 1 : 0 }, uErode: { value: -0.4 }, uT: { value: Math.random() * 10 }, uNoise: { value: f.noiseTex } },
+    transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide, blending: glow ? THREE.AdditiveBlending : THREE.NormalBlending, fog: false }), front);
+  const coreMat = (front: boolean) => clip(new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: CORE_FS, uniforms: { uCol: { value: new THREE.Color(o.col ?? SAM.rose) }, uA: { value: 0 } },
+    transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false }), front);
+  const meshes = [new THREE.Mesh(band.g, mat(false, false)), new THREE.Mesh(band.g, mat(true, false)), new THREE.Mesh(band.g, mat(false, true)), new THREE.Mesh(band.g, mat(true, true))];
+  (meshes[1].material as THREE.ShaderMaterial).uniforms.uGlow.value *= 0.35; // (behind the fighters the room blooms it: its added light there a third, or it washes pale)
+  const cores = o.core ? [new THREE.Mesh(line.g, coreMat(false)), new THREE.Mesh(line.g, coreMat(true))] : [];
+  h.back.add(meshes[0], meshes[1]); h.solid.add(meshes[2]); h.glow.add(meshes[3]);
+  if (cores.length) { h.back.add(cores[0]); h.glow.add(cores[1]); }
+  const all = [...meshes, ...cores];
+  for (const m of all) m.frustumCulled = false;
+  const drop = () => { for (const m of all) { m.parent?.remove(m); (m.material as THREE.Material).dispose(); } band.g.dispose(); line.g.dispose(); };
+  const set = (k: string, v: number) => { for (const m of meshes) (m.material as THREE.ShaderMaterial).uniforms[k].value = v; };
+  const P = Array.from({ length: N + 1 }, () => new THREE.Vector3()), tan = new THREE.Vector3(), view = new THREE.Vector3(), side = new THREE.Vector3();
+  const W = h.w3(o.w), CW = h.w3(o.core ?? 0), fade = o.fade ?? 160, edge = o.edge ?? 1, off = 2 * (o.line ?? 0.67) - 1; // (the band shifted so its line runs on the flight)
+  let t = 0;
+  run(f, {
+    step: (dt) => {
+      t += dt;
+      if (t >= o.ms + fade) { drop(); return false; }
+      if (!map) { map = paintTex(tex); if (map) for (const m of meshes) (m.material as THREE.ShaderMaterial).uniforms.uMap.value = map; }
+      const kf = Math.max(0, (t - o.ms) / fade), th = Math.min(t, o.ms), t0 = Math.max(0, th - o.len), tt = t0 + (th - t0) * kf * kf;
+      for (let i = 0; i <= N; i++) P[i].copy(f.unit(path(tt + ((th - tt) * i) / N)));
+      const cam = h.camera.position;
+      for (let i = 0; i <= N; i++) {
+        tan.copy(P[Math.min(N, i + 1)]).sub(P[Math.max(0, i - 1)]); if (tan.lengthSq() < 1e-12) tan.set(1, 0, 0);
+        view.copy(cam).sub(P[i]); side.crossVectors(view, tan).normalize().multiplyScalar(edge); // (toward the outside of the turn)
+        const k = i / N, taper = (0.18 + 0.82 * Math.pow(k, 0.55)) * (1 - 0.45 * Math.max(0, (k - 0.94) / 0.06)), wk = W * 0.5 * taper, ck = CW * 0.5 * (0.3 + 0.7 * taper);
+        const cx = P[i].x - side.x * off * wk, cy = P[i].y - side.y * off * wk, cz = P[i].z - side.z * off * wk; // (the band's middle: its line on the flight)
+        band.pos.set([cx - side.x * wk, cy - side.y * wk, cz - side.z * wk, cx + side.x * wk, cy + side.y * wk, cz + side.z * wk], i * 6);
+        if (CW) line.pos.set([P[i].x - side.x * ck, P[i].y - side.y * ck, P[i].z - side.z * ck, P[i].x + side.x * ck, P[i].y + side.y * ck, P[i].z + side.z * ck], i * 6);
+      }
+      (band.g.attributes.position as THREE.BufferAttribute).needsUpdate = true; (line.g.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+      const a = map && th - tt > 1 ? (o.a ?? 1) * (1 - kf) : 0;
+      set('uA', a); set('uErode', -0.4 + 1.2 * kf); set('uT', t / 1000);
+      for (const m of cores) (m.material as THREE.ShaderMaterial).uniforms.uA.value = th - tt > 1 ? (o.a ?? 1) * (1 - kf) * (1 - kf) : 0;
+      return true;
+    }, dispose: drop,
+  });
+}

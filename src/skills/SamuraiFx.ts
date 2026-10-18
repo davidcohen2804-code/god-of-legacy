@@ -635,7 +635,7 @@ export class SamuraiFx {
     switch (s.id) {
       case 'quick_slash': if ((r.stage ?? 0) === 3) this.glint(r, T.startup * 0.3, 30, 62, 'steel'); break;
       case 'shadow_step': this.glint(r, 0, 26, 50); break;
-      case 'swallow_cut': this.glint(r, 0, 24); break;
+      case 'swallow_cut': if (!this.in3d()) this.glint(r, 0, 24); break; // (PVP 3D: the room's glint at his hand)
       case 'sheathe': this.sheatheGuard(r); break; // (the click is at the release: active)
       case 'sword_wave': if (!this.in3d()) this.glint(r, 0, 34, 80); else for (let k = 0; k < 4; k++) this.petalLook(k); break; // (PVP 3D: the room's glint; its petals' pictures made ready)
       case 'iai_strike': this.iai(r); if (r.petals && !ghost) { const sc = this.scabs.get(r.attackerId); if (sc) sc.drawing = true; } break; // (the blossom draw: the scabbard keeps its petals for the release)
@@ -933,7 +933,7 @@ export class SamuraiFx {
    *  crescent that throws the foe up, a flash where it turns at the top, straight back down through the foe in the air
    *  (a Λ: a swallow's tail). */
   private swallow(r: CastRun, i: number): void {
-    if (this.in3d()) return; // (PVP 3D: the swallow's tail is the room's two rings and the launch's line — fx3d/samurai.ts)
+    if (this.in3d()) return; // (PVP 3D: the swallow's tail is the room's two painted crescents and its swallow of light — fx3d/samurai.ts)
     const side = sideOf(r), fl = side < 0, ret = r.skill.hits[1]?.at ?? 130;
     if (i === 0) {
       // the point of the blade: up from his front foot to over the foe, a hook at the top, down to the floor beyond it
