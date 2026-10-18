@@ -608,7 +608,7 @@ export class GamblerFx {
     const hs = s.hits ?? [], burst = !s.chain && hs.length > 2, last = !burst || hitIndex(s, hit) === hs.length - 1; // (hitIndex: the arena re-times the hits as copies)
     const weighty = burst ? ((!!hit.heavy && s.id !== 'showdown') || last) : heavy; // (Showdown's cards burst on their own: only its last blow gets the blast)
     const kind = crit || counter ? 'crit' : hit.reaction.launch ? 'launch' : weighty && !grip ? 'heavy' : 'normal';
-    if (ARENA3D.on && (s.id === 'showdown' || (s.id === 'jackpot' && kind !== 'normal'))) { /* (PVP 3D: its painted sheet is the hit — the card burst / the gold fountain, its recipe's flip; no flat blast and white pop over it) */ }
+    if (ARENA3D.on && (s.id === 'showdown' || s.id === 'charged_deal' || ((s.id === 'jackpot' || s.id === 'pickup_52' || s.id === 'grand_slam') && kind !== 'normal'))) { /* (PVP 3D: its painted sheet is the hit — the card burst / the gold fountain, its recipe's flip; no flat blast and white pop over it) */ }
     else if (s.id === 'staff_flurry' && ARENA3D.on && !hit.reaction.launch) { /* the flurry's own crossing lines are its sparks (its recipe) — no pile of pops over him */ }
     else if (s.id === 'call_the_deck' && hit.damage < (s.hits[0]?.damage ?? 10) && !hit.reaction.launch) { /* the hold's turns: the spinning card under him is the spark (holdTick) — no burst over it */ }
     else if (kind === 'normal') {
@@ -1493,8 +1493,9 @@ export class GamblerFx {
   private jackpot(r: CastRun): void {
     const T = r.timings, c = this.me(r), s = this.ctx.scene;
     this.ctx.darken(T.startup + T.active + 300, 0.4); // (the fighters stay readable in it)
+    // (DFO: the ultimate's shared portrait slides in for him now (SkillFx, after this cast) — his own band is dropped, not both;
+    // the slot machine still waits for the portrait's moment to pass)
     const cut = Math.min(520, Math.round(T.startup * 0.55));
-    this.cutIn(cut);
     const mx = c.x, my = c.y - c.z - 230;
     const box = s.add.container(mx, my).setDepth(c.y - 60).setAlpha(0); // (behind the fighters: its glow never covers them)
     const painted = s.textures.exists('gbk-j_slot');

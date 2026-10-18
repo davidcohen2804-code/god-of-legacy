@@ -37,7 +37,7 @@ const staffRing = (f: Parameters<NonNullable<Recipe['active']>>[0], r: { attacke
 
 /** His painted sheets (David 18 Oct 20:51: painted art, real colour, motion): 4×4 GPT sheets on black, played through flip. */
 const ART = 'assets/final/skills/gambler/fx3d/';
-const SHEET = { cardBurst: ART + 'card_burst.webp', coinBurst: ART + 'coin_burst.webp' };
+const SHEET = { cardBurst: ART + 'card_burst.webp', coinBurst: ART + 'coin_burst.webp', staffArc: ART + 'staff_arc.webp', fuseBlast: ART + 'fuse_blast.webp', roulette: ART + 'roulette_sigil.webp', staffHit: ART + 'staff_hit.webp', cardWard: ART + 'card_ward.webp', cardSigil: ART + 'card_sigil.webp' };
 type FX = Parameters<NonNullable<Recipe['active']>>[0];
 /** The cards' painted burst: a white-hot flash, crimson energy flinging glowing cards, red smoke thinning out. `big` the
  *  whole sheet (a main hit), else its first, hottest frames, small (a card that strikes). */
@@ -70,7 +70,9 @@ export const GAMBLER: Record<string, Recipe> = {
     trail: { c: F.red, w: 7, len: 9, i: 1.4 },
     shot: (f, p) => f.cardSpin(() => (p.done ? null : { x: p.x, y: p.y, z: p.z + 62 }), { size: 0.95, color: F.red, rps: 6, tilt: 0.8 }),
     active: (f, r) => { const c = me(f, r), s = side(r); f.slash(c, s, F.red, { r: 95, w: 40, tilt: 55, a0: -10, a1: 130, ms: 200, y0: 80, i: 2.4, ink: true }); f.host.kick(0.02); },
-    hit: (f, _s, _h, at) => f.flurry({ x: at.x, y: at.y, z: at.z + 70 }, F.red, { ms: 80, every: 40, len: 150, w: 5, accent: 0, spread: 8 }),
+    // (David 20:51, painted pass: each card that strikes him bursts in the painted crimson card burst's hottest frames)
+    cast: (f) => f.flipLoad(SHEET.cardBurst),
+    hit: (f, _s, _h, at) => { cardBurst(f, { x: at.x, y: at.y, z: at.z + 70 }, false, 150); },
   },
   // the vault over the foe: an upright crescent of light along the staff's arc; the launch's column is the default main hit
   staff_vault: { tone: TONE.violet,
@@ -85,11 +87,18 @@ export const GAMBLER: Record<string, Recipe> = {
   },
   // the staff slams a charged floor: cracks where it lands, then the fuse goes off — a burst of floor chunks and a short column
   fuse_slam: { tone: TONE.fuse,
+    // (David 20:51, painted pass: the fuse's eruption a painted explosion — a white-hot spark, orange fire mushrooming up off
+    // the planks with crackling arcs, burnt cards and dice flung out, a dust ring, collapsing into charcoal smoke — out of the
+    // crack he left; the added-light column and flash are gone; the crack, debris and embers stay as its frame)
     own: true,
+    cast: (f) => f.flipLoad(SHEET.fuseBlast),
     active: (f, r) => {
       const p = ahead(f, r, 70);
       f.later(T(r).active * 0.5, () => { f.crack(p.x, p.y, F.fuse, { r: 100, chunks: 6, ms: 900 }); f.host.kick(0.03); });
-      f.later(800, () => { f.pillar(p.x, p.y, F.fuse, { h: 300, r: 40, ms: 360 }); f.debris(p.x, p.y, 12, { speed: 1.2, up: 1.5 }); f.host.embers(f.host.w3(p.x), 0.3, f.host.d3(p.y), F.ember, 14, 2.2); f.host.impact({ x: p.x, y: p.y, z: 20 }, 1); });
+      f.later(800, () => {
+        f.flip(SHEET.fuseBlast, { x: p.x, y: p.y, z: 0 }, { grid: [4, 4], w: 360, anchorY: 0.16, fps: 24, through: 0.55, glow: 0.25, flipX: Math.random() < 0.5 });
+        f.debris(p.x, p.y, 12, { speed: 1.2, up: 1.5 }); f.host.embers(f.host.w3(p.x), 0.3, f.host.d3(p.y), F.ember, 14, 2.2); f.host.kick(0.05);
+      });
     },
   },
   // a whirl of cards round him (a tight one: it never hides the fight)
@@ -123,7 +132,17 @@ export const GAMBLER: Record<string, Recipe> = {
   // the wheel: its result tears up a twisting column, the floor cracking gold round it
   roulette_wheel: { tone: TONE.neon, own: true,
     // (DAVID 18:23's bar: the wheel a spiral glyph turning under the foe for its 2 s; the result a ball of rings and the main hit)
-    active: (f, r) => { const p = placeOf(f, r, 220); f.glyph(p.x, p.y, F.neon, { shape: 'spiral', r: 170, ms: Math.min(2300, T(r).active + 200), spin: 1.4, pulse: 0.4, a: 0.7 }); },
+    // (David 20:51, painted pass: the wheel a painted neon roulette sigil flat on the planks — a hot-pink ring drawing in, the
+    // full wheel of magenta pockets, gold spokes and suit runes turning under the foe for its 2 s, then flaring and breaking
+    // into magenta motes)
+    cast: (f) => f.flipLoad(SHEET.roulette),
+    active: (f, r) => {
+      const p = placeOf(f, r, 220), all = Math.min(2300, T(r).active + 200), inMs = 250, outMs = 350, hold = Math.max(300, all - inMs - outMs), spin = 70;
+      const o = { grid: [4, 4] as [number, number], w: 360, mode: 'floor' as const, spin, glow: 0.25 };
+      f.flip(SHEET.roulette, p, { ...o, from: 0, to: 3, fps: 16, fadeOut: 0 });
+      f.flip(SHEET.roulette, p, { ...o, from: 4, to: 8, fps: 10, loop: true, ms: hold + 60, delay: inMs, rot: spin * inMs / 1000, fadeIn: 1, fadeOut: 60 });
+      f.flip(SHEET.roulette, p, { ...o, from: 9, to: 15, fps: 20, delay: inMs + hold, rot: spin * (inMs + hold) / 1000, fadeIn: 1, fadeOut: 120 });
+    },
     hit: (f, _s, _h, at, main) => { if (main) { f.impact({ x: at.x, y: at.y, z: 50 }, F.neon, { r: 90, cracks: true, embers: 14 }); for (let k = 0; k < 5; k++) f.later(k * 70, () => f.slash({ x: at.x, y: at.y, z: 0 }, k % 2 ? 1 : -1, F.neon, { r: 95, w: 30, tilt: [15, 70, 40, 85, 25][k], yaw: [0, 60, -45, 30, -70][k], a0: -170, a1: 170, ms: 240, y0: 50, i: 1.3 })); } } },
   // the dice: each die bursts in a shell of light; the second (the sum) the bigger, the floor torn under it
   dice_bomb: { tone: TONE.neon,
@@ -146,16 +165,23 @@ export const GAMBLER: Record<string, Recipe> = {
     // (David 18 Oct 18:40: "doesn't come across") — read from across the field: a red shell of light round him for as long as
     // he holds it, eight big cards turning upright in a ring at his chest, a rune ring at his feet; the catch a big moment —
     // a white flash along the guard, the cards snapping out in a line to the striker, the striker held in a ring of cards
+    // (David 20:51, painted pass: the guard a painted card ward — glowing cards flying in and locking edge to edge into an
+    // upright crimson-and-violet oval with a rune lattice, shimmering for as long as he holds it, shattering outward into
+    // flung cards and shards when it ends or is struck; he reads through its middle. It replaces the added-light shell and the
+    // ring of cards; the runes at his feet stay as its frame)
+    cast: (f) => f.flipLoad(SHEET.cardWard),
     active: (f, r) => {
-      const id = r.attackerId, ms = Math.min(2600, T(r).active); GUARD = id; GUARD_END = false;
+      const id = r.attackerId, ms = Math.min(2600, T(r).active), s = side(r); GUARD = id; GUARD_END = false;
       let gone = false;
+      const front = (run: { x: number; y: number }) => ({ x: run.x + s * 26, y: run.y + 4, z: 84 });
       const at = () => {
         const over = (GUARD_END && GUARD === id) || r.phase !== 'active', run = f.host.casterPos(id);
-        if (over && !gone && run) { gone = true; if (!GUARD_END) f.host.ring(f.host.w3(run.x), f.host.d3(run.y), F.red, 1.8, 260, 0.7); } // (the release: the ward thrown off in a ring)
-        return over || !run ? null : { x: run.x, y: run.y, z: 0 };
+        if (over && !gone && run) { gone = true; f.flip(SHEET.cardWard, front(run), { grid: [4, 4], from: 11, to: 15, w: 230, fps: 18, glow: 0.25, through: 0.6, fadeIn: 1, fadeOut: 80 }); } // (the ward shatters: released, or struck)
+        return over || !run ? null : front(run);
       };
-      f.swirl(at, { tex: 'gbk-card_back', size: 1.35, aspect: 1.45, crumble: F.red }, { n: 8, r0: 78, r1: 78, h: 150, ms, rps: 0.55, rise: 0, color: F.red });
-      f.dome(me(f, r).x, me(f, r).y, F.red, { r: 105, ms: ms + 200, a: 0.18, hold: ms, follow: () => { const p = at(); return p ? { ...p, z: 0 } : null; } });
+      const o = { grid: [4, 4] as [number, number], w: 210, glow: 0.2, through: 0.6 };
+      f.flip(SHEET.cardWard, at, { ...o, from: 0, to: 2, fps: 14, fadeOut: 0 });
+      f.flip(SHEET.cardWard, at, { ...o, from: 3, to: 10, fps: 9, loop: true, ms: ms + 100, delay: 210, fadeIn: 1, fadeOut: 40 });
       const c = me(f, r); f.glyph(c.x, c.y, F.red, { shape: 'runes', r: 110, ms, spin: 0.6, pulse: 0.5, a: 0.75 });
     },
     hit: (f, _s, _h, at) => {
@@ -186,7 +212,15 @@ export const GAMBLER: Record<string, Recipe> = {
       });
       f.later(ms - 160, () => staffRing(f, r, me(f, r), s, 0xb4a6ff, { r: 170, w: 60, tilt: 82, a0: 175, a1: 5, ms: 300, y0: 40, i: 3, ink: true, follow: here }));
     },
-    hit: (f, _s, h, at) => { const big = h.damage >= 5; f.flurry({ x: at.x, y: at.y, z: at.z + 70 }, 0xb4a6ff, { ms: big ? 90 : 40, every: 30, len: big ? 200 : 120, w: big ? 7 : 4, accent: 0, spread: 8 }); if (big) f.host.embers(f.host.w3(at.x), f.host.h3(at.z + 70), f.host.d3(at.y), 0xb4a6ff, 6, 1.6); } },
+    // (David 20:51, painted pass: every blow that lands a painted violet strike — a white-hot star, crossing blade-light,
+    // shattered crystal shards and card glints, indigo wisps — small and quick on the jabs, the whole sheet on the big ones)
+    cast: (f) => f.flipLoad(SHEET.staffHit),
+    hit: (f, _s, h, at) => {
+      const big = h.damage >= 5, p = { x: at.x + (Math.random() - 0.5) * 30, y: at.y, z: at.z + 70 + (Math.random() - 0.5) * 30 };
+      f.flip(SHEET.staffHit, p, big ? { grid: [4, 4], from: 1, to: 11, w: 210, fps: 30, glow: 0.25, through: 0.55, rot: Math.random() * 90 }
+        : { grid: [4, 4], from: 1, to: 7, w: 120, fps: 34, glow: 0.2, through: 0.55, rot: Math.random() * 90, fadeOut: 60 });
+      if (big) f.host.embers(f.host.w3(at.x), f.host.h3(at.z + 70), f.host.d3(at.y), 0xb4a6ff, 6, 1.6);
+    } },
   kinetic_grab: { tone: TONE.fuse,
     active: (f, r) => { const c = me(f, r), e = ahead(f, r, 120); f.bolt(chest(c, 92), { x: e.x, y: e.y, z: 85 }, F.fuse, { ms: 360, w: 8, forks: 2 }); },
     own: true, hit: (f, _s, _h, at, main) => { if (main) f.dome(at.x, at.y, F.fuse, { r: 80, ms: 240, a: 0.5 }); },
@@ -196,7 +230,7 @@ export const GAMBLER: Record<string, Recipe> = {
   // Lady Luck: a short rain of gold over him
   lady_luck: { tone: TONE.coin, own: true, active: (f, r) => { const c = me(f, r); f.rain(c.x, c.y, 80, C.coin, { n: 10, ms: 420, h: 420 }); } },
   // Pick-up 52: the deck thrown up comes down — a rain of fuchsia over the area ahead
-  pickup_52: { tone: TONE.card, own: true,
+  pickup_52: { tone: TONE.card, own: true, cast: (f) => f.flipLoad(SHEET.cardBurst),
     // (David 01:42: "the final after-effect is weak, disconnected") — the deck lies stuck in the planks as real cards; each wave
     // rips its own band up; the last wave calls every card left in one swoop to a point over the foe, where they go off together:
     // a red star of crossing card lines, a flat inked ring and a star glyph on the floor (the main hit's flash is the engine's)
@@ -206,7 +240,7 @@ export const GAMBLER: Record<string, Recipe> = {
       const left = st.keys.filter((x) => x.w >= st.wave).map((x) => x.key), p = { x: at.x, y: at.y, z: at.z + 90 };
       if (left.length) f.cardGather(left, () => p, { ms: 160, gap: 8 });
       f.later(170, () => {
-        f.flurry(p, F.red, { ms: 260, every: 34, len: 360, w: 8, accent: 3, spread: 16 });
+        cardBurst(f, p, true, 360); // (David 20:51, painted pass: the gathered deck goes off as the painted card explosion)
         f.slash({ x: at.x, y: at.y, z: 0 }, 1, F.red, { r: 190, w: 54, tilt: 8, a0: -180, a1: 180, ms: 320, y0: 20, i: 2.6, ink: true });
         f.glyph(at.x, at.y, F.red, { shape: 'star', points: 6, r: 170, ms: 700, spin: 1.2, pulse: 0.3, a: 0.7 });
         f.host.kick(0.05);
@@ -224,11 +258,22 @@ export const GAMBLER: Record<string, Recipe> = {
       P52 = { keys, wave: 0 };
     } },
   // the home run: a crater where the bat of light lands, a shell, the camera pushed
-  grand_slam: { tone: TONE.violet, own: true,
+  grand_slam: { tone: TONE.violet, own: true, noImpact: true,
     // (David 18 Oct 18:40: a golfer's stroke) the full swing one huge inked arc from low behind him up through the ball to high
     // in front (the lit staff's reach), the crack where he struck it; the flight's trail and the crash are drawn on the foe (2D)
-    active: (f, r) => { const c = me(f, r), s = side(r); staffRing(f, r, c, s, 0xb4a6ff, { r: 170, w: 58, tilt: 74, a0: -150, a1: 160, ms: 300, y0: 60, i: 2.8, ink: true }); },
-    hit: (f, _s, _h, at, main) => { if (main) { f.crack(at.x, at.y, F.violet, { r: 120, chunks: 12, up: 1.2 }); f.host.kick(0.05); } } },
+    // (David 20:51, painted pass: the stroke itself a painted violet crescent — white-hot cutting edge, saturated violet body,
+    // indigo trailing edge, card motes flung off it — sweeping from low behind him up through the ball to high in front, over
+    // the code arc that keeps its line; ×1.4 while his cane is lit)
+    cast: (f, r) => {
+      f.flipLoad(SHEET.staffArc); f.flipLoad(SHEET.staffHit);
+      // (the painted stroke sweeps up to the strike: its crescent at full sweep as the staff meets the ball)
+      f.later(Math.max(0, T(r).startup - 160), () => { const c = me(f, r), s = side(r), L = lit(r) ? 1.4 : 1;
+        f.flip(SHEET.staffArc, { x: c.x + s * 46, y: c.y, z: 120 }, { grid: [4, 4], from: 2, w: 300 * L, fps: 30, rot: -s * 18, flipX: s < 0, through: 0.5, glow: 0.15 }); });
+    },
+    active: (f, r) => { const c = me(f, r), s = side(r); staffRing(f, r, c, s, 0xb4a6ff, { r: 170, w: 40, tilt: 74, a0: -150, a1: 160, ms: 300, y0: 60, i: 1.8, ink: true }); }, // (the follow-through's inked line)
+    // (DFO review 22:05: the strike was a white-out — the room's flash under a burst; now one: its own painted violet strike,
+    // noImpact — a white-hot star, crossing blade-light, crystal shards, indigo wisps — on the ball as it is struck)
+    hit: (f, _s, _h, at, main) => { if (main) { f.flip(SHEET.staffHit, { x: at.x, y: at.y, z: at.z + 75 }, { grid: [4, 4], w: 280, fps: 26, glow: 0.2, through: 0.55, rot: Math.random() * 60 }); f.crack(at.x, at.y, F.violet, { r: 120, chunks: 12, up: 1.2 }); f.host.kick(0.05); } } },
   // Overload: lightning crawls round his feet
   kinetic_overload: { tone: TONE.fuse,
     own: true,
@@ -240,16 +285,27 @@ export const GAMBLER: Record<string, Recipe> = {
   // spins under the held foe turn after turn; the last turn throws him up and the card flares out
   call_the_deck: {
     tone: TONE.card, own: true,
+    cast: (f) => f.flipLoad(SHEET.cardSigil),
     shot: (f, p) => f.cardSpin(() => (p.done ? null : { x: p.x, y: p.y, z: p.z + 62 }), { size: 2.4, color: F.red }),
     tick: (f, r, at, i, last) => {
       const key = r.castId;
       if (i === 0) { // the card under him: it follows him until the last turn (or the hold ends)
         HOLD.set(key, { at, end: false, seen: 0 });
         f.cardSpin(() => { const h = HOLD.get(key); if (!h || h.end || ++h.seen > 30) { HOLD.delete(key); return null; } return { x: h.at.x, y: h.at.y, z: 40 }; }, { size: 1.9, color: 0x6a1020, rps: 2.2, tilt: 0.3, look: { face: 'gbk-card_back' } });
+        // (DFO review 22:05: the red ring and beams were red on the red planks) a painted card sigil flat on the planks under him
+        // for the whole hold — a gold ring drawing in, the four-suit star, cards round its rim, violet runes, turning — flaring
+        // gold and breaking into motes and ink flakes when it lets him go
+        let out = false, lastAt = { x: at.x, y: at.y, z: 0 };
+        const floor = () => { const h = HOLD.get(key); if (h && !h.end) { lastAt = { x: h.at.x, y: h.at.y, z: 0 }; return lastAt; }
+          if (!out) { out = true; f.flip(SHEET.cardSigil, lastAt, { grid: [4, 4], from: 11, to: 15, w: 230, mode: 'floor', spin: 40, fps: 18, glow: 0.3, fadeIn: 1, fadeOut: 100 }); }
+          return null; };
+        const o = { grid: [4, 4] as [number, number], w: 210, mode: 'floor' as const, spin: 40, glow: 0.25 };
+        f.flip(SHEET.cardSigil, floor, { ...o, from: 0, to: 3, fps: 16, fadeOut: 0 });
+        f.flip(SHEET.cardSigil, floor, { ...o, from: 4, to: 10, fps: 9, loop: true, ms: 6000, delay: 250, rot: 10, fadeIn: 1, fadeOut: 40 });
       }
       const h = HOLD.get(key); if (h) { h.at = at; h.seen = 0; if (last) h.end = true; }
       // (David 18:40: a clear gap between the card and him, its light reaching up to him) a thin red beam from the card to his feet each turn
-      if (at.z > 70) f.streak({ x: at.x, y: at.y, z: 44 }, { x: at.x, y: at.y, z: Math.max(60, at.z - 50) }, F.red, { w: 6, ms: 140, draw: 20, quiet: true });
+      if (at.z > 70) f.streak({ x: at.x, y: at.y, z: 44 }, { x: at.x, y: at.y, z: Math.max(60, at.z - 50) }, 0xffd27a, { w: 6, ms: 140, draw: 20, quiet: true }); // (gold: it reads on the red planks)
       if (last) { f.flurry({ x: at.x, y: at.y, z: at.z + 30 }, F.red, { ms: 140, every: 35, len: 220, w: 6, accent: 0, spread: 10 }); f.host.kick(0.03); }
     },
   },
