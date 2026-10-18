@@ -1009,8 +1009,8 @@ export class SamuraiFx {
     } });
   }
 
-  /** The draw: a razor line of bare steel shoots out as far as the cut reaches, and a beat later splits open in crimson
-   *  along its length (the Iai's signature: the cut arrives late). */
+  /** The draw: his held charge flies down the line as crescents of steel light — two, three, four by the level held (David
+   *  18 Oct 22:56) — and the cut arrives on the foe late, splitting open in crimson (SamuraiFx's hit). */
   private iaiCut(r: CastRun): void {
     const lv = r.chargeLevel ?? 0, len = (r.hits[0].shape as { length: number }).length, a = r.aim, side = sideOf(r), q = this.me(r), cam = this.ctx.cam();
     const ang = screenAng(a.x, a.y), x0 = q.x + a.x * 8, y0 = q.y + a.y * 4 - q.z - 46, fl = a.x < -0.01;
@@ -1019,12 +1019,12 @@ export class SamuraiFx {
     const pb = r.petals ?? 0, base = r.skill.charge?.levels[lv]?.hits[0]?.shape as { width?: number } | undefined;
     const wk = Math.max(1, ((r.hits[0].shape as { width?: number }).width ?? 1) / (base?.width ?? (r.hits[0].shape as { width?: number }).width ?? 1));
     if (pb) this.blossomDraw(r, x0, y0, ang, len);
-    if (!this.in3d()) { // (PVP 3D: the draw is the room's crescent that goes dark — fx3d/samurai.ts, David's bar)
-    this.spr({ name: tn('cut_line', 'steel'), x: x0, y: y0, ox: 0.03, angle: ang, flipY: fl, w: len * 1.12, h: (24 + 10 * lv) * wk, depth: TOP + 3, life: 380 + lv * 60, glow: 0.85, tint: pb ? 0xffb8dc : undefined,
-      sx: kf([0, 0.05], [0.11, 1, out3], [1, 1.02]), sy: kf([0, 1.4], [0.11, 1], [0.35, 1], [1, 0.15, inQ]), a: kf([0, 1], [0.4, 1], [1, 0, inQ]) });
-    const mx = x0 + Math.cos(ang * Math.PI / 180) * len * 0.56, my = y0 + Math.sin(ang * Math.PI / 180) * len * 0.56;
-    this.spr({ name: 'cut_split', x: mx, y: my, angle: ang, flipY: fl, w: len * 0.95, delay: 110, life: 360, glow: 0.65, depth: TOP + 3.5,
-      sx: kf([0, 0.7], [0.2, 1, out3]), sy: kf([0, 0.3], [0.2, 1.1, out3], [1, 0.5]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
+    if (!this.in3d()) { // (PVP 3D: the draws are the room's painted crescents — fx3d/samurai.ts)
+    // (David 18 Oct 22:56: "a charge, then 4 such nice shots") his held charge flies down the line as crescents of steel
+    // light, two, three, four by the level held, one after another at their own heights
+    const rad = (ang * Math.PI) / 180, cs = Math.cos(rad), sn = Math.sin(rad), far = len * 1.05;
+    for (let k = 0; k < 2 + lv; k++) this.spr({ name: tn('wave_crescent', 'steel'), x: x0, y: y0 + [0, -12, 9, -5][k], ox: 0.76, angle: ang, flipY: fl, w: (84 + 14 * lv) * Math.min(1.4, wk), delay: k * 70, life: far / 1.5, glow: 0.6, depth: TOP + 3.2, tint: pb ? 0xffb8dc : undefined,
+      mx: (u) => cs * far * u, my: (u) => sn * far * u, sx: kf([0, 0.5], [0.12, 1, out3]), a: kf([0, 1], [0.8, 1], [1, 0, inQ]) });
     this.pop(tn('burst', 'steel'), x0 + side * 18, y0, 70 + 20 * lv, { life: 200, glow: 0.35 }); // (a size down: white between them through the draw — SAYA)
     this.spr({ name: tn('blade_trail', 'steel'), x: x0 + a.x * 36, y: y0 + a.y * 18, w: 170 + 30 * lv, life: 230, flipX: fl, angle: along(ang, fl), glow: 0.4, // the trail of the draw
       sx: kf([0, 0.6], [0.2, 1, out3], [1, 1.08]), sy: kf([0, 0.8], [0.2, 1], [1, 0.6, inQ]), a: kf([0, 0.95], [0.4, 0.8], [1, 0, inQ]) });

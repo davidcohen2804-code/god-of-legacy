@@ -669,7 +669,7 @@ const samurai: FinalSkill[] = [
       { at: 680, hits: [H(0, 64, { kind: 'line', length: 320, width: 48 }, { stun: 460, knockdown: 'heavy', push: 18 }, { reachUp: 140, heavy: true })] },
     ] },
     cancelOnHit: ['shadow_step', 'sword_wave', 'blossom_storm', 'dragon_eclipse'], // (its reach is drawn by its own charge picture, SkillFx.iai; the draw from afar → Shadow Step through him)
-    description: 'Hold the key: your hand on the sheath, a glint runs down it at each of three steps. Release: a lightning draw-cut — one razor line of light across the field that hangs a beat and splits, the cut arriving late in a burst of petals and ink. The longer you held, the farther and harder it cuts; fully charged, every foe in the line crumples to the floor.',
+    description: 'Hold the key: your hand on the sheath, your light drawn into it — a glint runs down it at each of three steps. Release: a lightning draw — crescents of blade light shot down the line, two, three or four by how long you held, the cut arriving on the foe in a burst of petals and ink. The longer you held, the farther and harder it cuts; fully charged, every foe in the line crumples to the floor.',
     relations: ['Hold to charge (3 levels)', 'Knockdown'],
   }),
   S({

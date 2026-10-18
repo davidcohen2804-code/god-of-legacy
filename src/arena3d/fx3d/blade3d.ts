@@ -653,7 +653,7 @@ export function paintTex(src: string): THREE.Texture | null {
  *  band (`tex`: GPT on black — its head at the picture's right, its white-hot edge along its top), laid from the cut's tail
  *  to its head as it sweeps, its part behind the fighters in the room and its part in front over them; a little of its
  *  hottest light added (`glow`); it dissolves from its tail. Nothing drawn until the band has loaded. */
-export function paintArc(f: Fx3D, tex: string, at: V3, dir: number, o: Ring & { glow?: number; tint?: number; lo?: number; hi?: number } = {}): void {
+export function paintArc(f: Fx3D, tex: string, at: V3, dir: number, o: Ring & { glow?: number; tint?: number; lo?: number; hi?: number; /** the blade's own line of light along its painted line (px wide; white-hot, in `col`) */ core?: number; /** where the band's line lies across it (0 inside … 1 its edge) */ line?: number } = {}): void {
   let map = paintTex(tex); // (on its way at a first cast: the arc is there, drawn from the frame the band arrives)
   if (!o.quiet) f.onPiece?.('slash', at, (o.r ?? 105) > 160 ? 1 : 0);
   const h = f.host, R = h.w3(o.r ?? 105), W = h.w3(o.w ?? 40), ms = o.ms ?? 260, sweepMs = ms * (o.sweep ?? 0.4), holdMs = o.hold ?? ms * 0.15;
@@ -667,6 +667,21 @@ export function paintArc(f: Fx3D, tex: string, at: V3, dir: number, o: Ring & { 
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx);
+  const CW = h.w3(o.core ?? 0), cgeo = CW ? new THREE.BufferGeometry() : null; // (the blade's line on the band's painted line)
+  if (cgeo) {
+    const cpos = new Float32Array((n + 1) * 2 * 3);
+    for (let i = 0; i <= n; i++) {
+      const k = i / n, a = a0 + (a1 - a0) * k, taper = Math.pow(Math.sin(Math.PI * (0.04 + 0.92 * k)), 0.35), rc = R - W * taper * (1 - (o.line ?? 0.67)), hw = CW * 0.5 * (0.35 + 0.65 * taper);
+      cpos.set([Math.sin(a) * (rc - hw) * dir, Math.cos(a) * (rc - hw), 0, Math.sin(a) * (rc + hw) * dir, Math.cos(a) * (rc + hw), 0], i * 6);
+    }
+    cgeo.setAttribute('position', new THREE.BufferAttribute(cpos, 3)); cgeo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); cgeo.setIndex(idx);
+  }
+  const coreMat = (front: boolean, hz: number) => {
+    const m = new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: ARC_CORE_FS, uniforms: { uCol: { value: new THREE.Color(o.col ?? SAM.rose) }, uA: { value: 0 }, uSweep: { value: 0 } },
+      transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false });
+    if (!o.over) { m.clippingPlanes = f.cut(hz, front); m.clipping = true; }
+    return m;
+  };
   const mat = (glow: boolean, front: boolean, hz: number) => {
     const m = new THREE.ShaderMaterial({ vertexShader: VS, fragmentShader: PAINT_FS,
       uniforms: { uMap: { value: map }, uA: { value: o.a ?? 1 }, uSweep: { value: 0 }, uTail: { value: o.tail ?? 1 }, uTint: { value: new THREE.Color(o.tint ?? 0xffffff) }, uLo: { value: o.lo ?? 0.05 }, uHi: { value: o.hi ?? 0.55 },
@@ -681,15 +696,17 @@ export function paintArc(f: Fx3D, tex: string, at: V3, dir: number, o: Ring & { 
     : [new THREE.Mesh(geo, mat(false, false, p.z)), new THREE.Mesh(geo, mat(true, false, p.z)), new THREE.Mesh(geo, mat(false, true, p.z)), new THREE.Mesh(geo, mat(true, true, p.z))];
   if (o.over) { h.solid.add(meshes[0]); h.glow.add(meshes[1]); }
   else { h.back.add(meshes[0], meshes[1]); h.solid.add(meshes[2]); h.glow.add(meshes[3]); }
+  const cores = cgeo ? (o.over ? [new THREE.Mesh(cgeo, coreMat(true, p.z))] : [new THREE.Mesh(cgeo, coreMat(false, p.z)), new THREE.Mesh(cgeo, coreMat(true, p.z))]) : [];
+  if (cores.length === 1) h.glow.add(cores[0]); else if (cores.length) { h.back.add(cores[0]); h.glow.add(cores[1]); }
   let lv = o.live?.();
   const place = () => {
-    for (const m of meshes) {
+    for (const m of [...meshes, ...cores]) {
       m.frustumCulled = false; m.position.copy(p);
       m.rotation.set(0, 0, 0); m.rotateY(f.camYaw() + THREE.MathUtils.degToRad(lv?.yaw ?? o.yaw ?? 0) * dir); m.rotateX(THREE.MathUtils.degToRad(90 - (o.tilt ?? 30))); m.rotateZ(THREE.MathUtils.degToRad(lv?.roll ?? o.roll ?? 0) * dir);
     }
   };
   place();
-  const drop = () => { for (const m of meshes) { m.parent?.remove(m); (m.material as THREE.Material).dispose(); } geo.dispose(); };
+  const drop = () => { for (const m of [...meshes, ...cores]) { m.parent?.remove(m); (m.material as THREE.Material).dispose(); } geo.dispose(); cgeo?.dispose(); };
   const set = (k: string, v: number) => { for (const m of meshes) (m.material as THREE.ShaderMaterial).uniforms[k].value = v; };
   let t = 0, endAt = -1;
   const fadeMs = o.fade ?? 200;
@@ -704,6 +721,7 @@ export function paintArc(f: Fx3D, tex: string, at: V3, dir: number, o: Ring & { 
       const kd = o.until ? (endAt < 0 ? 0 : Math.min(1, (t - endAt) / fadeMs)) : Math.max(0, (t - sweepMs - holdMs) / Math.max(1, ms - sweepMs - holdMs));
       set('uSweep', 1.0001 * outCubic(ks)); set('uErode', -0.4 + 1.6 * kd * kd); set('uT', t / 1000);
       set('uA', map ? (o.a ?? 1) * (lv?.a ?? 1) * (1 - Math.max(0, kd - 0.6) / 0.4) : 0);
+      for (const m of cores) { const u = (m.material as THREE.ShaderMaterial).uniforms; u.uSweep.value = 1.0001 * outCubic(ks); u.uA.value = (o.a ?? 1) * (lv?.a ?? 1) * Math.max(0, 1 - kd * 1.4); }
       if (o.until ? endAt >= 0 && t - endAt >= fadeMs : t >= ms) { drop(); return false; }
       return true;
     }, dispose: drop,
@@ -783,6 +801,24 @@ export function paintFly(f: Fx3D, tex: string, path: (t: number) => V3, o: Fly):
   });
 }
 
+// the blade's line along a painted arc (added light): white-hot along its middle, his rose at its soft edges, drawn with the
+// arc's sweep, brightest at its head
+const ARC_CORE_FS = `
+#include <common>
+#include <clipping_planes_pars_fragment>
+uniform vec3 uCol; uniform float uA; uniform float uSweep;
+varying vec2 vUv;
+void main() {
+  #include <clipping_planes_fragment>
+  float u = vUv.x, d = abs(vUv.y - 0.5) * 2.0;
+  if (u > uSweep) discard;
+  float core = exp(-d * d * 14.0), halo = exp(-d * d * 2.6) * 0.45, along = smoothstep(0.0, 0.2, u) * (0.6 + 0.4 * smoothstep(uSweep - 0.45, uSweep, u));
+  float a = uA * along * (core + halo);
+  if (a < 0.003) discard;
+  gl_FragColor = vec4(mix(uCol, vec3(1.0), core * 0.85), min(a, 1.0));
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
 // the blade's line along a trail (added light): white-hot along its middle, his rose at its soft edges, faint at its tail
 const CORE_FS = `
 #include <common>

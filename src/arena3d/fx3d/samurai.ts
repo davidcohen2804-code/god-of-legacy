@@ -8,7 +8,7 @@
 // stay out (SamuraiFx IN3D_OWN). Owned by the Samurai chat; the room's pieces are in ../Fx3D.ts (DFO's), ours in blade3d.ts.
 import type { Recipe, Fx3D, V3 } from '../Fx3D';
 import { C, me, side, T } from './kit';
-import { ring, flurry, slit, bladeBall, inkBurst, sparks, SAM, run, soon, star, glintRun, floorLine, petalBurst, petalStream, paintTex, paintFly, paintTrail } from './blade3d';
+import { ring, flurry, slit, bladeBall, inkBurst, sparks, SAM, run, soon, star, glintRun, floorLine, petalBurst, petalStream, paintTex, paintFly, paintTrail, paintArc } from './blade3d';
 import type { Projectile } from '../../skills/HitGeometry';
 import type { CastRun } from '../../skills/SkillRuntime';
 
@@ -88,31 +88,49 @@ export const waveBack = (f: Fx3D, id: string, from: { x: number; y: number }, ai
   return true;
 };
 /** The samurai's painted art in the room (David 18 Oct 20:51, a free hand in GPT: painted on black, played by DFO's `flip`
- *  so its colours hold on the red planks): the Iai's razor cut and the same cut split open (one shared frame: the cut on its
- *  middle row), Sword Wave's crescent of blade light (flying right), the glint of the blade at the hilt. */
-const IAI_LINE = ART_DIR + 'iai_line.webp', IAI_SPLIT = ART_DIR + 'iai_split.webp', IAI_GLINT = ART_DIR + 'iai_glint.webp';
+ *  so its colours hold on the red planks): Sword Wave's crescent of blade light (flying right), the glint of the blade at the
+ *  hilt; his painted cuts (David 18 Oct 22:56: "in depth, not a page"; "not impressive enough"): a band of blade light torn
+ *  into crimson smoke (its head at the right, its white-hot line a third of the way down) worn by a cut's arc or trail in
+ *  the room's depth, and the swallow of light (seen from below, wings spread, flying right). */
+const IAI_GLINT = ART_DIR + 'iai_glint.webp';
+const SLASH = ART_DIR + 'slash_band.webp', SWALLOW = ART_DIR + 'swallow.webp';
+for (const a of [SLASH, SWALLOW]) paintTex(a); // (on their way with the room: a cut's 120 ms wind-up is too short to fetch them at a first cast)
 /** The samurai's petals as the room's textures (SamuraiFx cuts them out of his kit: `petalLook`). */
 const petals = (f: Fx3D) => [1, 2, 3, 4].map((k) => f.host.texture?.(`sam-petal_${k}`) ?? null);
-/** The Iai's last draw: its line's way and how long it hangs before it splits (its burst on the foe comes then). */
-let iaiLast = { x: 1, y: 0, hang: 260 };
-/** The Iai's stillness (David 18 Oct 18:29: the iai as a beat): held in the drawing stance, a glint runs down his scabbard
- *  at the start and at each charge level, brighter each time; a hairline of light on the planks shows how far the draw
- *  will cut; at full charge a thin ring of light closes round his feet. No flash pictures. */
+/** The Iai's draws fly this fast (px / ms), this far apart (ms). */
+const IAI_SPEED = 1.5, IAI_GAP = 70;
+/** The Iai's last draw: where it left from, its line's way, how many draws flew. */
+let iaiLast = { x: 1, y: 0, from: { x: 0, y: 0 }, shots: 4 };
+/** The Iai's stillness (David 18 Oct 18:29: the iai as a beat; 22:56: "hold the button, there's a charge"): held in the
+ *  drawing stance, his light is drawn into the sheath — streaks from all round him run into the hilt, more at each charge
+ *  level — and a glint runs down his scabbard at the start and at each level, brighter each time; fully charged, the hilt
+ *  burns until the draw and a thin ring of light closes round his feet; a hairline of light on the planks shows how far
+ *  the draw will cut. */
 const iaiStance = (f: Fx3D, r: CastRun) => {
-  for (const a of [IAI_LINE, IAI_SPLIT, IAI_GLINT]) f.flipLoad(a);
+  f.flipLoad(IAI_GLINT);
   const L = r.skill.charge?.levels; if (!L) return;
   const sc = r.chargeScale ?? 1, at = L.map((l) => l.at * sc), d = side(r), pos = () => f.host.casterPos(r.attackerId);
   const hilt = () => { const c = pos(); return c ? { x: c.x + d * 20, y: c.y + 8, z: c.z + 50 } : null; };
   const tip = () => { const c = pos(); return c ? { x: c.x - d * 46, y: c.y + 8, z: c.z + 28 } : null; };
   const lenOf = (k: number) => (L[k].hits[0]?.shape as { length?: number } | undefined)?.length ?? 200;
-  let lv = -1, len = 0;
+  let lv = -1, len = 0, acc = 0;
   run(f, { step: (dt) => {
     if (r.phase !== 'startup') return false;
     const e = r.elapsed, nl = e >= at[2] ? 2 : e >= at[1] ? 1 : 0;
     if (nl > lv) {
       lv = nl; const k = lv; soon(f, () => glintRun(f, hilt, tip, { ms: 230 - 40 * k, w: 4 + k, star: 9 + 6 * k }));
       f.flip(IAI_GLINT, () => hilt(), { w: 64 + 34 * k, mode: 'up', loop: true, ms: 380, grow: [0.35, 1.15], rot: 12 * k, fadeIn: 30, fadeOut: 230, glow: 0.45 }); // (the "ting" at the hilt: painted, bigger at each level — DFO: the stillness read too faint)
-      if (lv === 2) { const c = pos(); if (c) f.host.ring(f.host.w3(c.x), f.host.d3(c.y), SAM.light, f.host.w3(64), 380, 0.5); }
+      if (lv === 2) {
+        const c = pos(); if (c) f.host.ring(f.host.w3(c.x), f.host.d3(c.y), SAM.light, f.host.w3(64), 380, 0.5);
+        f.flip(IAI_GLINT, () => (r.phase === 'startup' ? hilt() : null), { w: 58, mode: 'up', loop: true, ms: 6000, delay: 300, rot: 20, fadeIn: 120, fadeOut: 60, glow: 0.35 }); // (full: the hilt burns until the draw)
+      }
+    }
+    // his light drawn into the sheath: streaks from all round him into the hilt (14 a second, 26, then 40)
+    acc += (dt / 1000) * [14, 26, 40][Math.max(0, lv)];
+    while (acc >= 1) {
+      acc -= 1; const h = hilt(); if (!h) break;
+      const th = Math.random() * Math.PI * 2, R = 90 + Math.random() * 90, from = { x: h.x + Math.cos(th) * R, y: h.y + Math.sin(th) * R * 0.45, z: Math.max(8, h.z + (Math.random() - 0.35) * 130) }, k = Math.max(0, lv);
+      soon(f, () => f.streak(from, h, Math.random() < 0.4 ? SAM.light : SAM.rose, { w: 3.5 + 1.5 * k, ms: 250, draw: 160, front: true, quiet: true }));
     }
     len += (lenOf(lv) - len) * Math.min(1, dt / 90);
     return true;
@@ -123,44 +141,52 @@ const iaiStance = (f: Fx3D, r: CastRun) => {
     return { x0: c.x + ux * 18, y0: c.y + uy * 18, x1: c.x + ux * len, y1: c.y + uy * len, w: 4 + 2 * lv, a: 0.45 + 0.2 * lv };
   });
 };
-/** The draw: one razor line of light across the field along his cut (a white-hot core in his rose, an ink edge) — it hangs
- *  a beat, then splits open in crimson and goes dark; the hilt glints as the blade leaves it; fully drawn, the planks are
- *  scored along the cut. The blade's click home: a glint at the hilt. */
+/** The draw (David 18 Oct 22:56: "in depth, not a page … he releases 4 such nice shots"): the blade leaves the hilt in a
+ *  flash and his held charge flies out along the cut as painted crescents of blade light — two, three, four by the level
+ *  held — one after another, each upright in the room's depth (turned into it, its white-hot edge ahead, its crimson smoke
+ *  torn off behind), at its own height and slant, the cuts alternating up and down; they fly the line's length and tear
+ *  apart. Fully drawn, the planks are scored along it. The blade's click home: a glint at the hilt. */
 const iaiDraw = (f: Fx3D, r: CastRun) => {
-  const c = me(f, r), n = Math.hypot(r.aim.x, r.aim.y) || 1, ux = r.aim.x / n, uy = r.aim.y / n, lv = r.chargeLevel ?? 0, d = side(r);
-  const len = (r.hits[0]?.shape as { length?: number } | undefined)?.length ?? 240, far = len * 1.5 + 160, z = c.z + 70, hang = 130 + 20 * lv; // (the blow's hit-stop holds it too: it hangs while he is still there)
-  iaiLast = { x: ux, y: uy, hang };
-  // (DFO's review: painted, not drawn in code) the razor cut across the field, hanging; then the same cut split open in
-  // crimson, petals torn out of it, fading — its slant on screen the cut's (the depth seen at a slant)
-  const mid = { x: c.x + ux * (10 + far / 2), y: c.y + uy * (10 + far / 2), z }, rot = (-Math.atan((uy * 0.5) / (Math.abs(ux) > 1e-4 ? ux : 1e-4)) * 180) / Math.PI;
-  f.flip(IAI_LINE, mid, { w: far, mode: 'up', rot, loop: true, ms: hang + 70, fadeIn: 20, fadeOut: 70, glow: 0.3 });
-  f.flip(IAI_SPLIT, mid, { w: far, mode: 'up', rot, loop: true, ms: 520, delay: hang, fadeIn: 50, fadeOut: 320, grow: [1, 1.04], glow: 0.15 });
-  f.flip(IAI_GLINT, { x: c.x + d * 22, y: c.y + 8, z: c.z + 52 }, { w: 90 + 20 * lv, mode: 'up', loop: true, ms: 200, grow: [1, 0.6], fadeIn: 10, fadeOut: 150, glow: 0.4 }); // (the blade leaving the hilt)
-  if (lv === 2) {
-    f.floorStreak(c.x + ux * 20, c.y + uy * 20, c.x + ux * len, c.y + uy * len, SAM.rose, { w: 6, ms: 1100, a: 0.6 });
-    for (let i = 0; i < 3; i++) f.later(60 + i * 50, () => f.host.dust(f.host.w3(c.x + ux * len * (0.35 + 0.25 * i)), f.host.d3(c.y + uy * len * (0.35 + 0.25 * i)), 2, 0.5));
-  }
+  const c = me(f, r), n = Math.hypot(r.aim.x, r.aim.y) || 1, ux = r.aim.x / n, uy = r.aim.y / n, lv = r.chargeLevel ?? 0, d = ux < -0.01 ? -1 : 1;
+  const len = (r.hits[0]?.shape as { length?: number } | undefined)?.length ?? 240, far = len + 50, shots = 2 + lv;
+  iaiLast = { x: ux, y: uy, from: { x: c.x, y: c.y }, shots };
+  for (let k = 0; k < shots; k++) f.later(k * IAI_GAP, () => iaiShot(f, c, ux, uy, d, far, k, lv));
+  f.flip(IAI_GLINT, { x: c.x + d * 22, y: c.y + 8, z: c.z + 52 }, { w: 96 + 22 * lv, mode: 'up', loop: true, ms: 220, grow: [1, 0.6], fadeIn: 10, fadeOut: 160, glow: 0.45 }); // (the blade leaving the hilt)
+  f.floorStreak(c.x + ux * 20, c.y + uy * 20, c.x + ux * len, c.y + uy * len, SAM.rose, lv === 2 ? { w: 6, ms: 1100, a: 0.6 } : { w: 3, ms: 520, a: 0.35 });
+  if (lv === 2) for (let i = 0; i < 3; i++) f.later(60 + i * 50, () => f.host.dust(f.host.w3(c.x + ux * len * (0.35 + 0.25 * i)), f.host.d3(c.y + uy * len * (0.35 + 0.25 * i)), 2, 0.5));
   f.later(T(r).active + T(r).recovery * 0.6, () => { const e = f.host.casterPos(r.attackerId); if (e) star(f, { x: e.x + d * 20, y: e.y + 8, z: e.z + 50 }, 9, 130); });
 };
-/** On the foe: at the draw a hairline flash across him along the cut; when the line splits, the cut arrives — petals and
- *  ink burst out of him, thrown along it. (The blossom draw's extra cuts: a few petals.) */
+/** One of the Iai's draws: a painted crescent of blade light (its front `k`'s height and slant) flying from the hilt along the
+ *  line to `far`, then torn apart. */
+const iaiShot = (f: Fx3D, c: V3, ux: number, uy: number, d: number, far: number, k: number, lv: number) => {
+  const R = 66 + 8 * lv, life = (far - 20) / IAI_SPEED + 90, down = k % 2 === 0;
+  let t = 0; run(f, { step: (dt) => { t += dt; return t < life; }, dispose: () => {} });
+  const front = () => { const s = Math.min(far, 20 + t * IAI_SPEED); return { x: c.x + ux * s, y: c.y + uy * s, z: c.z }; };
+  const y0 = [62, 84, 46, 74][k % 4];
+  paintArc(f, SLASH, front(), d, { r: R, w: 50 + 6 * lv, y0, fwd: -R, tilt: 86, yaw: 24, roll: [-8, 14, -18, 6][k % 4], a0: down ? 16 : 164, a1: down ? 164 : 16,
+    ms: life, sweep: 30 / life, hold: life - 110, glow: 0.7, hi: 0.3, core: 15 + 3 * lv, quiet: k > 0, follow: front });
+  f.flip(WAVE, () => (t < life - 40 ? (({ x, y, z }) => ({ x: x - d * R * 0.35, y, z: z + y0 }))(front()) : null), { w: 104 + 16 * lv, mode: 'up', loop: true, ms: life, along: true, fadeIn: 30, fadeOut: 90, glow: 0.3, tint: 0xffd2dc, core: 0.7 });
+};
+/** On the foe (the room's light and dust answer the blow; its burst is left out — DFO's review: it washed the draws white):
+ *  each draw tears through him as it passes — a white-hot cut across him at its slant (they cross on him), sparks, a few
+ *  petals — and after the last a small burst of petals and ink thrown along the cut. (The blossom draw's extra cuts: a few
+ *  petals.) */
 const iaiBurst = (f: Fx3D, at: V3, main: boolean) => {
-  const d = iaiLast.x < -0.01 ? -1 : 1, z0 = at.z + 30, o = { x: at.x, y: at.y, z: z0 }; // (on the razor's line: `at` is his body 40 px up)
+  const L = iaiLast, d = L.x < -0.01 ? -1 : 1, z0 = at.z + 30, o = { x: at.x, y: at.y, z: z0 }; // (on the draws' line: `at` is his body 40 px up)
   if (!main) { petalBurst(f, o, petals(f), { n: 8, speed: 220, dir: d * 0.5, ms: 700, foeY: at.y }); sparks(f, at, d, 3, 40); return; }
-  slit(f, { x: at.x - iaiLast.x * 80, y: at.y - iaiLast.y * 80 + 2, z: z0 + 5 }, { x: at.x + iaiLast.x * 80, y: at.y + iaiLast.y * 80 + 2, z: z0 - 5 }, { w: 3.5, ms: 150, draw: 0, col: SAM.core, front: true });
-  f.later(iaiLast.hang, () => { // (small: the room's main hit already flashes white — DFO; a light thrown from here washed both fighters pink)
-    inkBurst(f, o, { r: 58, n: 6, ms: 380, foeY: at.y, light: 0 });
-    petalBurst(f, o, petals(f), { n: 14, speed: 300, dir: d * 0.55, up: 0.5, ms: 900, foeY: at.y });
-    sparks(f, at, d, 4, 56);
+  const D = Math.max(0, (at.x - L.from.x) * L.x + (at.y - L.from.y) * L.y), pass = (k: number) => k * IAI_GAP + Math.max(0, D - 20) / IAI_SPEED;
+  for (let k = 0; k < L.shots; k++) f.later(pass(k), () => { // (each draw's cut across him as it passes, at its own slant: they cross on him)
+    const a = ((k % 2 === 0 ? 64 : 116) + [-8, 14, -18, 6][k % 4]) * (Math.PI / 180), cx = Math.cos(a) * 46 * d, cz = Math.sin(a) * 46;
+    slit(f, { x: at.x - cx, y: at.y + 2, z: z0 - cz }, { x: at.x + cx, y: at.y + 2, z: z0 + cz }, { w: 4, ms: 190, draw: 26, col: SAM.core, front: true });
+    sparks(f, at, d, 3, 48); petalBurst(f, o, petals(f), { n: 3, speed: 240, dir: d * 0.7, up: 0.4, ms: 600, foeY: at.y });
+  });
+  f.later(pass(L.shots - 1) + 40, () => {
+    inkBurst(f, o, { r: 46, n: 5, ms: 340, foeY: at.y, light: 0 });
+    petalBurst(f, o, petals(f), { n: 10, speed: 280, dir: d * 0.55, up: 0.5, ms: 850, foeY: at.y });
   });
 };
 /** The side Swallow Cut's last cast faced (its hits come a beat after: the second cut sweeps down the way he faced). */
 let swallowDir = 1;
-/** His painted cuts (David 18 Oct 22:56, Swallow Cut "not impressive enough"): a band of blade light torn into crimson smoke
- *  (GPT on black: its head at the right, its white-hot edge along its top) worn by the cut's arc in the room's depth; the
- *  swallow of light (GPT on black, flying right). */
-const SLASH = ART_DIR + 'slash_band.webp', SWALLOW = ART_DIR + 'swallow.webp';
-for (const a of [SLASH, SWALLOW]) paintTex(a); // (on their way with the room: a cut's 120 ms wind-up is too short to fetch them at a first cast)
 /** A smooth way through timed points (Catmull-Rom): world px at `t` ms; held at its ends. */
 const glide = (pts: [number, number, number, number][]) => (t: number): { x: number; y: number; z: number } => {
   const n = pts.length; let i = 0;
@@ -248,10 +274,11 @@ export const SAMURAI: Record<string, Recipe> = {
     active: (f, r) => { const c = me(f, r);
       ring(f, c, side(r), { r: 66, w: 16, y0: 66, tilt: 6, a0: -170, a1: 170, ms: 260, sweep: 0.4, hold: 40, inkW: 0.3, lit: SAM.rose, gain: 1.2, quiet: true, follow: () => f.host.casterPos(r.attackerId) });
       f.host.ring(f.host.w3(c.x), f.host.d3(c.y), SAM.light, 1.6, 300, 0.5); } },
-  // (David 18 Oct 18:29: the iai as a beat) the stillness — a glint down the scabbard, the reach a hairline on the planks;
-  // the draw — one razor line of light across the field that hangs and splits; the cut arriving late on the foe — a hairline
-  // flash on him, then petals and ink bursting out (the room plays the main hit in his rose)
-  iai_strike: { own: true, tone: SAM.rose, paint: true, // (the room's main hit keeps his rose: added alone, its shell stood as a white bubble round the hairline)
+  // (David 18 Oct 18:29: the iai as a beat; 22:56: "a charge, then 4 such nice shots") the stillness — his light drawn into
+  // the sheath, a glint down the scabbard at each level, the reach a hairline on the planks; the draw — two to four painted
+  // crescents of blade light flying the line; on the foe each tears through him, then a small burst of petals and ink (the
+  // room plays the main hit in his rose)
+  iai_strike: { own: true, tone: SAM.rose, paint: true, noImpact: true, // (its blow is its draws' cuts on him: the room's main-hit burst held white through the hit-stop over the draws — DFO's review)
     cast: (f, r) => iaiStance(f, r),
     active: (f, r) => iaiDraw(f, r),
     hit: (f, _s, h, at, main) => iaiBurst(f, at, main && !!h.heavy) },
