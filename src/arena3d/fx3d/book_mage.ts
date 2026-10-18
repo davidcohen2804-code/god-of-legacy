@@ -245,10 +245,10 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // LEVITY FIELD — gravity turns over where he aims: an ice-white seal turns slowly on the floor, a soft column of pale
   // light over it, motes and torn pages drifting up it (the foes float in it)
   levity_field: { tone: ICE, own: true,
-    cast: (f, r) => { const p = placeOf(f, r); seal(f, p.x, p.y, ICE, { r: 128, ms: T(r).startup + (r.skill.zoneMs ?? 2500) + 200, spin: -0.4, pulse: 1.2, star: A }); },
+    cast: (f, r) => { const p = placeOf(f, r); f.flipLoad(LEVITY); seal(f, p.x, p.y, FROST, { r: 128, ms: T(r).startup + (r.skill.zoneMs ?? 2500) + 200, spin: -0.4, pulse: 1.2, star: A, a: 0.6 }); },
     active: (f, r) => {
       const p = placeOf(f, r), life = r.skill.zoneMs ?? 2500, at = () => ({ x: p.x, y: p.y, z: 0 });
-      funnel(f, at, ICE, { ms: life, h: 440, r0: 100, r1: 108, rps: 0.25, sway: 0, layers: 1, dark: ICEDARK, a: 0.45 });
+      f.flip(LEVITY, at, { frame: LEVITY_F, from: 0, to: 0, fps: 1, loop: true, ms: life, w: 300, mode: 'up', anchorY: 0.1, through: 0.55, glow: 0.4, grow: [0.5, 1], fadeIn: 220, fadeOut: 420 }); // (the painted column where gravity turned over; the code motes and pages drift up through it)
       f.swirl(at, {}, { n: 44, r0: 96, r1: 70, h: 400, ms: life, rps: 0.22, rise: 0.75, size: 0.6, color: ICE });
       f.swirl(at, { tex: 'mage-page', size: 0.8, aspect: 1.3, crumble: 'wind' }, { n: 7, r0: 70, r1: 60, h: 300, ms: life, rps: 0.18, rise: 0.4 });
       f.host.ring(f.host.w3(p.x), f.host.d3(p.y), ICE, 1.6, 400, 0.6);
