@@ -15,6 +15,7 @@ ap.add_argument('--crop', default=None); ap.add_argument('--cols', type=int, def
 ap.add_argument('--gamma', type=float, default=1.0, help='alpha curve: >1 thins the faint haze')
 ap.add_argument('--floor', type=float, default=0.04, help='alpha below this is cut (the clip\'s noise)')
 ap.add_argument('--edge', type=float, default=0.0, help='fade the alpha out over this fraction of the frame at its edges (a clip that fills its frame)')
+ap.add_argument('--solid', type=float, default=0.0, help='a solid (dark) object on black: alpha rises from 0 to 1 over this much brightness above the floor, its colour kept as it is (not un-premultiplied)')
 ap.add_argument('--sel', default=None, help='frames to keep, e.g. 0-11 or 0,2,4')
 a = ap.parse_args()
 
@@ -40,12 +41,12 @@ for f in files:
     im = np.asarray(Image.open(f).convert('RGB')).astype(np.float32) / 255
     if a.crop: x0, y0, x1, y1 = map(int, a.crop.split(',')); im = im[y0:y1, x0:x1]
     al = im.max(axis=2)
-    al = np.clip((al - a.floor) / (1 - a.floor), 0, 1) ** a.gamma
+    al = np.clip((al - a.floor) / ((a.solid or (1 - a.floor))), 0, 1) ** a.gamma
     if a.edge > 0:
         hh, ww = al.shape; yy = np.linspace(0, 1, hh)[:, None]; xx = np.linspace(0, 1, ww)[None, :]
         e = lambda t: np.clip(np.minimum(t, 1 - t) / a.edge, 0, 1)
         al = al * (e(yy) * e(xx)) ** 1.5
-    rgb = np.where(al[..., None] > 1e-3, np.clip(im / np.maximum(im.max(axis=2, keepdims=True), 1e-3), 0, 1), 0)
+    rgb = im if a.solid else np.where(al[..., None] > 1e-3, np.clip(im / np.maximum(im.max(axis=2, keepdims=True), 1e-3), 0, 1), 0)
     ims.append(np.dstack([rgb, al]))
 # the box of the whole clip
 mask = np.zeros(ims[0].shape[:2], bool)

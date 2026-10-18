@@ -21,6 +21,7 @@ export const ARCHER_FLIPS: [string, string, number, number, number][] = [
   ['afx-boltbig', 'fx_boltbig.webp', 214, 320, 10], // its third: the bolt striking and bursting in a ball of storm light
   ['afx-goldhit', 'fx_goldhit.webp', 320, 320, 12], // Sky Rain's last blow: one giant gold arrow driven into the foe, a dome of gold light bursting out
   ['afx-release', 'fx_release.webp', 300, 201, 8], // a heavy release: a cone of wind and leaves blasting forward from the bow
+  ['afx-thorns', 'fx_thorns.webp', 201, 300, 21], // Vine Mine's burst: thorned vines erupting from the mine, spreading, then pulling back into the floor
   ['afx-rain', 'fx_rain.webp', 400, 268, 16], // Sky Rain: a rain of golden spirit arrows pouring down at a slant, bursting in gold where they land (loops)
 ];
 export interface ArcherCtx {
@@ -75,8 +76,8 @@ export class ArcherFx {
   private arrows = new Map<Projectile, Arrow>();
   private fanCount = new Map<string, number>();
   private bigSpark = new Map<string, number>(); // skill → when its last big hit spark was drawn
-  private heavyShots = new Set<string>(); // casts of Double Shot's charged arrow (its projectile is drawn heavy)
   private released = new Set<string>(); // volleys whose release burst was drawn (Air Volley fires three rows a shot)
+  private heavyShots = new Set<string>(); // casts of Double Shot's charged arrow (its projectile is drawn heavy)
   private trapArt = new Map<Trap, { stop(): void; arm(): void }>();
   /** PVP 3D: the room carries the volume (its own pieces in fx3d/archer.ts) — the flat painted layer is cut back there. */
   private in3d(): boolean { return !!(this.ctx.scene as unknown as { a3d?: unknown }).a3d; }
@@ -175,8 +176,8 @@ export class ArcherFx {
     const sc = this.ctx.scene; if (!sc.textures.exists(key)) return;
     const def = ARCHER_FLIPS.find((f) => f[0] === key); if (!def) return;
     const n = def[4], ar = def[3] / def[2];
-    const im = sc.add.image(x, y, key, 0).setOrigin(0.5, o.oy ?? 0.95).setDepth(o.depth ?? y + 3).setFlipX(!!o.flipX).setVisible(false);
-    const gl = o.glow ? sc.add.image(x, y, key, 0).setOrigin(0.5, o.oy ?? 0.95).setDepth((o.depth ?? y + 3) + 0.01).setBlendMode(Phaser.BlendModes.ADD).setFlipX(!!o.flipX).setVisible(false) : null;
+    const im = sc.add.image(x, y, key, 0).setOrigin(o.ox ?? 0.5, o.oy ?? 0.95).setDepth(o.depth ?? y + 3).setFlipX(!!o.flipX).setAngle(o.angle ?? 0).setVisible(false);
+    const gl = o.glow ? sc.add.image(x, y, key, 0).setOrigin(o.ox ?? 0.5, o.oy ?? 0.95).setDepth((o.depth ?? y + 3) + 0.01).setBlendMode(Phaser.BlendModes.ADD).setFlipX(!!o.flipX).setAngle(o.angle ?? 0).setVisible(false) : null;
     let t = -(o.delay ?? 0);
     this.add({ t: 0, step: (dt) => {
       t += dt; if (t < 0) return true;
@@ -227,7 +228,6 @@ export class ArcherFx {
     // the release's star at the bow (David's bar: a white-hot core for 2–4 frames)
     this.spr({ name: 'spark_s', w: size * 0.42, life: 90, delay, follow: this.at(r.attackerId, side, 18, 54), dz: 5, add: true, glow: 0.3, run: r, rot: (u) => u * 40, sx: kf([0, 0.5], [0.3, 1.15, out3], [1, 0.8]), sy: kf([0, 0.5], [0.3, 1.15, out3], [1, 0.8]), a: kf([0, 1], [0.6, 1], [1, 0]) });
   }
-  /** A painted burst at the bow along the aim (fan of light, sonic boom). */
   /** A heavy release at the bow (painted footage, ARCHER_FLIPS 'afx-release'): a cone of wind and leaves blasting out along the aim. */
   private release(r: CastRun, w: number, delay = 0, ms = 280): void { this.releaseOf(r.attackerId, r.aim.x, r.aim.y, w, delay, ms, r); }
   private releaseOf(id: string, ax: number, ay: number, w: number, delay = 0, ms = 280, run?: CastRun): void {
@@ -235,6 +235,7 @@ export class ArcherFx {
     this.later(delay, () => { const q = this.ctx.casterPos(id); if (!q) return; const side = ax < 0 ? -1 : 1, lv = level(ax, ay);
       this.flip('afx-release', q.x + side * 16, q.y - q.z - 54, { w, ms, ox: lv.flip ? 0.94 : 0.06, oy: 0.5, angle: lv.ang, flipX: lv.flip, depth: q.y + 5, glow: 0.2, a: kf([0, 1], [0.6, 1], [1, 0, inQ]) }); }, run);
   }
+  /** A painted burst at the bow along the aim (fan of light, sonic boom). */
   private bowBurst(r: CastRun, name: string, size: number, delay = 0, life = 260, tint?: number): void {
     const side = sideOf(r), lv = level(r.aim.x, r.aim.y);
     this.spr({ name, w: size, life, delay, tint, follow: this.at(r.attackerId, side, 16, 54), dz: 4, ox: lv.flip ? 0.88 : 0.12, flipX: lv.flip, angle: lv.ang, add: true, glow: 0.3, run: r,
@@ -394,10 +395,10 @@ export class ArcherFx {
       this.spr({ name: big ? 't_arrow' : 'elec_arrow', x: sx, y: sy, ox: 0.9, depth: TOP + 3, w: (big ? 230 : 170) * K * (this.in3d() ? 0.6 : 1), angle: ang, add: true, glow: 0.45, life: 110, mx: (u) => lv.x * u, my: (u) => lv.y * u });
       if (!this.in3d()) this.spr({ name: 't_blast', x: sx, y: sy, ox: 0.05, depth: TOP + 4, w: 120 * K, angle: ang, add: true, life: 200, sx: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) }); // the shot leaves the bow
       const flat = !this.in3d(); // (PVP 3D: the bolt, the floor ring and the charged glyph are the room's)
-      if (flat) this.bolt('bolt_seg', { x: sx, y: sy }, { x: cx, y: cy - 20 }, { thick: 26 * K, life: 160, delay: 40 }); // its lightning trail
-      if (!this.in3d()) this.pop('elec_burst', sx, sy, 88 * K, { life: 180 }); // (a size down at the bow: in PVP 3D the third shot's blast hid her)
       if (this.ctx.scene.textures.exists('afx-bolt')) // (David 18 Oct 20:51: painted footage) the lightning strikes down onto its point — forked, crackling; the third bursts in a ball of storm light
         this.flip(big ? 'afx-boltbig' : 'afx-bolt', cx, cy + 12, { w: big ? 330 : 240, ms: big ? 640 : 440, oy: 0.93, depth: cy + 4, glow: 0.3, delay: 60, run: r, a: kf([0, 1], [0.8, 1], [1, 0, inQ]) });
+      if (flat) this.bolt('bolt_seg', { x: sx, y: sy }, { x: cx, y: cy - 20 }, { thick: 26 * K, life: 160, delay: 40 }); // its lightning trail
+      if (!this.in3d()) this.pop('elec_burst', sx, sy, 88 * K, { life: 180 }); // (a size down at the bow: in PVP 3D the third shot's blast hid her)
       this.later(100, () => {
         this.spr({ name: 'elec_rise_arrow', x: cx, y: cy + 8, oy: 0.97, depth: cy + 2, w: 120 * K, flipX: lv.x < 0, add: true, glow: 0.4, life: CHARGE_MS, a: (u) => (u > 0.8 ? (1 - u) * 5 : 1) * (0.75 + 0.25 * Math.sin(u * 60)) }); // it stands in the floor, crackling
         if (!flat) return;
@@ -617,6 +618,10 @@ export class ArcherFx {
         sx: (u) => kf([0, 0.2], [0.1, 1, out3])(u) * (1 + 0.03 * Math.sin(u * 30)), sy: kf([0, 0.2], [0.1, 1, out3]), a: kf([0, 0], [0.08, 0.85], [0.88, 0.8], [1, 0]) });
     }, r);
     // six waves of volleys pour down over the whole screen; the arrows stand in the ground where they land
+    if (!flat && this.ctx.scene.textures.exists('afx-rain')) this.later(T.startup - 200, () => { // (PVP 3D, David 18 Oct 20:51: painted footage) the rain itself — golden spirit arrows pouring down at a slant over the field, bursting in gold where they land
+      const v = this.ctx.cam().worldView;
+      for (const [dx, dl] of [[-0.22, 0], [0.24, 120]] as const) this.flip('afx-rain', v.centerX + dx * v.width, v.y + v.height * 0.9, { w: v.width * 0.62, ms: T.active + 500, loop: 640, oy: 0.95, depth: TOP + 1, delay: dl, glow: 0.2, run: r, a: kf([0, 0], [0.08, 0.85], [0.85, 0.85], [1, 0]) });
+    }, r);
     if (flat) for (let w = 0; w < 6; w++) this.later(T.startup + w * 200 - 180, () => {
       const v = this.ctx.cam().worldView;
       for (let k = 0; k < 5; k++) {
@@ -625,10 +630,6 @@ export class ArcherFx {
         this.later(dl + 180, () => {
           this.spr({ name: 'arrow_field', x: fx, y: fy + 6, oy: 0.95, depth: fy + 1, w: 210, glow: 0.2, life: 700 - w * 60, a: kf([0, 1], [0.6, 0.8], [1, 0, inQ]) });
           this.pop('spark_s', fx, fy - 10, 90, { life: 220 });
-    if (!flat && this.ctx.scene.textures.exists('afx-rain')) this.later(T.startup - 200, () => { // (PVP 3D, David 18 Oct 20:51: painted footage) the rain itself — golden spirit arrows pouring down at a slant over the field, bursting in gold where they land
-      const v = this.ctx.cam().worldView;
-      for (const [dx, dl] of [[-0.22, 0], [0.24, 120]] as const) this.flip('afx-rain', v.centerX + dx * v.width, v.y + v.height * 0.9, { w: v.width * 0.62, ms: T.active + 500, loop: 640, oy: 0.95, depth: TOP + 1, delay: dl, glow: 0.2, run: r, a: kf([0, 0], [0.08, 0.85], [0.85, 0.85], [1, 0]) });
-    }, r);
           this.spr({ name: 'dust_roll', x: fx, y: fy + 10, oy: 0.9, depth: fy, w: 200, life: 500, sx: kf([0, 0.5], [1, 1.3, out3]), a: kf([0, 0.7], [1, 0, inQ]) });
         });
       }
@@ -796,8 +797,12 @@ export class ArcherFx {
     const art = this.trapArt.get(t); art?.stop(); this.trapArt.delete(t);
     if (!fired || !this.ready) return;
     // the mine bursts: a column of vines and green light throws everyone in it high (no stain left behind)
-    this.spr({ name: 'thorn_column', x: t.x, y: t.y + 8, oy: 0.96, depth: t.y + 3, w: 170, h: 340, life: 720, add: false, glow: 0.3, sy: kf([0, 0.15], [0.22, 1.08, out3], [1, 1]), a: kf([0, 1], [0.7, 1], [1, 0, inQ]) }); // a tall column of vines
-    this.spr({ name: 'vine_burst', x: t.x, y: t.y + 8, oy: 0.97, depth: t.y + 4, w: 150, life: 760, glow: 0.3, sy: kf([0, 0.1], [0.2, 1.1, out3], [1, 1.05]), sx: kf([0, 0.6], [0.2, 1, out3]), a: kf([0, 1], [0.7, 1], [1, 0, inQ]) });
+    if (this.ctx.scene.textures.exists('afx-thorns')) // (David 18 Oct 20:51: painted footage) thorned vines erupt out of the mine and throw them high, spread, then pull back into the floor
+      this.flip('afx-thorns', t.x, t.y + 12, { w: 250, ms: 1400, oy: 0.96, depth: t.y + 4, glow: 0.12, a: kf([0, 1], [0.9, 1], [1, 0, inQ]) });
+    else {
+      this.spr({ name: 'thorn_column', x: t.x, y: t.y + 8, oy: 0.96, depth: t.y + 3, w: 170, h: 340, life: 720, add: false, glow: 0.3, sy: kf([0, 0.15], [0.22, 1.08, out3], [1, 1]), a: kf([0, 1], [0.7, 1], [1, 0, inQ]) }); // a tall column of vines
+      this.spr({ name: 'vine_burst', x: t.x, y: t.y + 8, oy: 0.97, depth: t.y + 4, w: 150, life: 760, glow: 0.3, sy: kf([0, 0.1], [0.2, 1.1, out3], [1, 1.05]), sx: kf([0, 0.6], [0.2, 1, out3]), a: kf([0, 1], [0.7, 1], [1, 0, inQ]) });
+    }
     // (THORN: the thorned column alone — the leafy spiral and green glow over it gone)
     this.spr({ name: 'debris', x: t.x, y: t.y + 6, oy: 0.95, depth: t.y + 5, w: 220, life: 640, my: (u) => -30 * out(u), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
     this.floor('crater', t.x, t.y, 230, 1400, { a: kf([0, 0], [0.04, 1], [0.6, 0.85], [1, 0]) });
@@ -816,12 +821,12 @@ export class ArcherFx {
     if (id === 'multi_shot') { const n = (this.fanCount.get(p.castId) ?? 0) + 1; this.fanCount.set(p.castId, n); iron = n % 2 === 0; if (n === 1) this.later(2000, () => this.fanCount.delete(p.castId)); } // between the green arrows: iron ones
     const mid = id === 'multi_shot' && (this.fanCount.get(p.castId) ?? 0) === 3;
     const heavyShot = (id === 'quick_shot' && this.heavyShots.has(p.castId)) || (id === 'quick_shot_stream' && p.hitIndex % 5 === 4); // Double Shot's charged third arrow; the held stream's every fifth (gold)
+    if (((id === 'quick_shot_stream' && p.hitIndex % 5 === 4) || (id === 'skyhunters_step' && p.hitIndex === p.skill.hits.length - 1)) && !this.released.has(p.castId + ':' + p.hitIndex)) { const k = p.castId + ':' + p.hitIndex; this.released.add(k); this.later(1500, () => this.released.delete(k)); this.releaseOf(p.attackerId, p.dx, p.dy, 180); } // (the stream's gold arrows and Air Volley's fifth tear out in wind — once a volley) // (the gold ones and Air Volley's fifth tear out in wind)
     const kind = id === 'piercing_arrow' || heavyShot ? 'spiral_arrow' : id === 'hunters_spirit' ? 'vine_arrow' : mid ? 'spiral_arrow' : id === 'explosive_arrow' || iron ? 'arrow_heavy' : 'arrow_wind';
     const w = heavyShot ? 150 : id === 'quick_shot' ? 112 : id === 'hunters_spirit' ? 120 : mid ? 130 : id === 'explosive_arrow' ? 110 : id === 'piercing_arrow' ? 230 : id === 'skyhunters_step' ? 80 : 86;
     const s = this.ctx.scene, fr = s.textures.getFrame(ARCHER_KIT, kind);
     const im = s.add.image(p.x, p.y - p.z, ARCHER_KIT, kind).setOrigin(0.92, 0.5).setDisplaySize(w, (w * fr.height) / fr.width).setAlpha(0);
     if (id === 'explosive_arrow') im.setTint(0xffc070, 0xffc070, 0xff8a30, 0xff8a30);
-    if (((id === 'quick_shot_stream' && p.hitIndex % 5 === 4) || (id === 'skyhunters_step' && p.hitIndex === p.skill.hits.length - 1)) && !this.released.has(p.castId + ':' + p.hitIndex)) { const k = p.castId + ':' + p.hitIndex; this.released.add(k); this.later(1500, () => this.released.delete(k)); this.releaseOf(p.attackerId, p.dx, p.dy, 180); } // (the stream's gold arrows and Air Volley's fifth tear out in wind — once a volley) // (the gold ones and Air Volley's fifth tear out in wind)
     if (iron) im.setTint(0xe8eef2, 0xe8eef2, 0x9aa8b2, 0x9aa8b2);
     const tr = s.add.image(p.x, p.y - p.z, ARCHER_KIT, 'arrow_streak').setOrigin(1, 0.5).setAlpha(0).setDisplaySize(10, 12);
     if (id === 'explosive_arrow') tr.setTint(0xffa040);
@@ -897,6 +902,9 @@ export class ArcherFx {
     if (!this.ready) return;
     const x = at.x, y = at.y - at.z - 38, rapid = s.hits.length > 3 && !hit.heavy, launch = !!hit.reaction.launch && hit.reaction.launch >= 120;
     if (s.id === 'rain_of_arrows' && !counter) { this.pop('spark_cyan', x, y, 70, { life: 200 }); return; }
+    if (s.id === 'sky_rain' && hit.lastBlow && this.ctx.scene.textures.exists('afx-goldhit')) { // (David 18 Oct 20:51: painted footage) the giant gold arrow driven into him, the dome of gold light bursting out
+      this.flip('afx-goldhit', at.x, at.y + 30, { w: 360, ms: 700, oy: 0.85, depth: at.y + 6, glow: 0.25, a: kf([0, 1], [0.8, 1], [1, 0, inQ]) }); return;
+    }
     if (this.ctx.scene.textures.exists('afx-hits')) { // the class hit sparks (GPT, 4 kinds × 5 frames): normal / heavy / counter / launch
       const now = this.ctx.scene.time.now, volleyLead = rapid && now - (this.bigSpark.get(s.id) ?? -1e9) > 160; // a burst: its first arrow in lands big, the rest small
       if (volleyLead || (heavy && !rapid)) this.bigSpark.set(s.id, now);
@@ -906,9 +914,6 @@ export class ArcherFx {
       if (kind === 3) this.hitSpark(3, x, at.y - at.z + 6, size, 0.9, at.y + 3, fam); // the column climbs from the foe's feet
       else this.hitSpark(kind, x + rnd(-6, 6), y + rnd(-6, 6), size, 0.5, TOP + 4, kind === 2 ? undefined : fam);
       if (kind === 3 && !rapid) this.hitSpark(0, x, y, 100, 0.5, TOP + 4, fam);
-    if (s.id === 'sky_rain' && hit.lastBlow && this.ctx.scene.textures.exists('afx-goldhit')) { // (David 18 Oct 20:51: painted footage) the giant gold arrow driven into him, the dome of gold light bursting out
-      this.flip('afx-goldhit', at.x, at.y + 30, { w: 360, ms: 700, oy: 0.85, depth: at.y + 6, glow: 0.25, a: kf([0, 1], [0.8, 1], [1, 0, inQ]) }); return;
-    }
       if (crit) this.pop('burst_crit', x, y, rapid ? 90 : 120, { life: 260 });
       if (!rapid && Math.random() < 0.6) this.leaves(x, y, kind ? 5 : 3, 14, { life: 420, up: 30 });
     } else {
