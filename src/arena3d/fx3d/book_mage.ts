@@ -214,14 +214,14 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // BLINK — he folds into a star where he stands; a ribbon of light runs to where he steps out (and a streak over the
   // floor), and he unfolds out of a star there, a small seal flashing at his feet
   blink: { tone: A, own: true,
-    cast: (f, r) => { const c = me(f, r); star(f, { x: c.x, y: c.y, z: 80 }, A, { size: 210, ms: 230 }); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), A, 1.2, 260, 0.6); },
+    cast: (f, r) => { const c = me(f, r); f.flipLoad(BLINK); f.flip(BLINK, { x: c.x, y: c.y, z: 0 }, { frame: BLINK_F, fps: 1, ms: 300, w: 190, mode: 'up', anchorY: 0.12, through: 0.55, glow: 0.35, grow: [1, 0.4], fadeIn: 40, fadeOut: 160 }); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), A, 1.2, 260, 0.6); },
     active: (f, r) => {
       const a0 = me(f, r);
       f.later(T(r).active + 10, () => {
         const b = me(f, r);
         ribbon(f, (k) => ({ x: a0.x + (b.x - a0.x) * k, y: a0.y + (b.y - a0.y) * k, z: a0.z + 80 + (b.z - a0.z) * k + Math.sin(Math.PI * k) * 26 }), A, { w: 24, ms: 380, draw: 50 });
         f.floorStreak(a0.x, a0.y, b.x, b.y, A, { w: 12, ms: 360 });
-        star(f, { x: b.x, y: b.y, z: b.z + 80 }, A, { size: 240, ms: 260 }); seal(f, b.x, b.y, A, { r: 58, ms: 380, spin: 4 });
+        f.flip(BLINK, { x: b.x, y: b.y, z: 0 }, { frame: BLINK_F, fps: 1, ms: 300, w: 160, mode: 'up', anchorY: 0.12, through: 0.75, a: 0.75, glow: 0.3, grow: [0.4, 1.05], fadeIn: 30, fadeOut: 220 });
       });
     },
   },
