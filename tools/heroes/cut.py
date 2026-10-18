@@ -24,7 +24,7 @@ DROP = {}
 REF_STAND = {'gambler': ('coin_flip', 0)}
 # Heroes whose faces cannot be measured (a hat shades them): every sheet at one scale; a sheet drawn bigger is matched by
 # the height of a standing frame {sheet: (its action, frame, the reference action, frame)}
-SAME_SCALE = {'gambler': {'S7': ('jackpot', 0, 'coin_flip', 0), 'S8': ('all_in', 0, 'coin_flip', 0), 'S9': ('triple_down', 2, 'coin_flip', 0), 'S10': ('card_swap', 0, 'coin_flip', 0), 'S14': ('call_deck', 0, 'coin_flip', 0), 'S15': ('grand_swing', 0, 'coin_flip', 0), 'S11': ('roulette_wheel', 0, 'coin_flip', 0), 'S12': ('kinetic_grab', 0, 'coin_flip', 0), 'S13': ('cut_jab', 0, 'coin_flip', 0)}}
+SAME_SCALE = {'gambler': {'S7': ('jackpot', 0, 'coin_flip', 0), 'S8': ('all_in', 0, 'coin_flip', 0), 'S9': ('triple_down', 2, 'coin_flip', 0), 'S10': ('card_swap', 0, 'coin_flip', 0), 'S14': ('call_deck', 0, 'coin_flip', 0), 'S15': ('grand_swing', 0, 'coin_flip', 0), 'S16': ('long_guard', 0, 'coin_flip', 0), 'S17': ('staff_flurry', 0, 'coin_flip', 0), 'S18': ('light_staff', 0, 'coin_flip', 0), 'S11': ('roulette_wheel', 0, 'coin_flip', 0), 'S12': ('kinetic_grab', 0, 'coin_flip', 0), 'S13': ('cut_jab', 0, 'coin_flip', 0)}}
 # Model sheets with fewer full figures than three (the third item is a prop close-up)
 MODEL_N = {'gambler': 2}
 # Frames where GPT dropped the gambler's staff: it is put back, slung across his back (behind the body)
@@ -100,7 +100,8 @@ SPEC = {
                 ('S12', [('kinetic_grab', 6)]),
                 ('S13', [('cut_jab', 5), ('cut_swing', 5), ('cut_cards', 5), ('cut_rise', 5)]),
                 ('S14', [('call_deck', 6)]),
-                ('S15', [('grand_swing', 6)])],  # (PixVerse: Grand Slam as a golfer's full swing — address, the top, the downswing, through, the high finish)  # (PixVerse: Call the Deck — the hand out calling the cards, one caught, by the face, the wind, the sidearm throw, the follow-through)  # (PixVerse: the basic chain, one strike per row)  # (PixVerse: the hand shot out, the fist clenched, yanked back, wound up, the throw)  # (PixVerse: down low, the cane sweeps the floor round like a wheel, up, he calls it)  # (PixVerse: the card flicked, the low dash to it, the stop)
+                ('S15', [('grand_swing', 6)]),
+                ('S16', [('long_guard', 6)]), ('S17', [('staff_flurry', 6)]), ('S18', [('light_staff', 6)])],  # (PixVerse: the guard across his body and its counter thrust; the cane flurry; the palm run up the cane, pointed)  # (PixVerse: Grand Slam as a golfer's full swing — address, the top, the downswing, through, the high finish)  # (PixVerse: Call the Deck — the hand out calling the cards, one caught, by the face, the wind, the sidearm throw, the follow-through)  # (PixVerse: the basic chain, one strike per row)  # (PixVerse: the hand shot out, the fist clenched, yanked back, wound up, the throw)  # (PixVerse: down low, the cane sweeps the floor round like a wheel, up, he calls it)  # (PixVerse: the card flicked, the low dash to it, the stop)
     'archer': [('A', [('idle', 6), ('walk_old', 6), ('attack', 6)]), ('W', [('walk', 4), ('run', 4)]), ('W2', [('walk2', 4), ('run2', 4)]), ('B', [('run_old', 6), ('jump', 3), ('stance', 4)]),
                ('S1', [('rising_arrow', 6), ('multi_shot', 6), ('explosive_arrow', 6)]),
                ('S2', [('retreat_kick', 6), ('vine_trap', 6), ('skyhunters_step', 6)]),

@@ -658,9 +658,9 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     kinetic_overload: { act: 'kinetic_overload', st: [0, 1, 2], ac: [3], rc: [4, 5] },
     triple_down: { act: 'triple_down', st: [0], ac: [1, 2, 3, 4, 5], rc: [5] },
     // (David 18 Oct 01:42: the three that replace Kinetic Grab / All In / Triple Down — stand-ins from his own clips until the Gambler chat's)
-    light_staff: { act: 'coin_flip', st: [0, 1, 2, 3], ac: [4], rc: [5] },
-    long_guard: { act: 'all_in', st: [0, 1], ac: [1, 1], rc: [4, 5] },
-    staff_flurry: { act: 'rotor_staff', st: [0], ac: [0], rc: [5], loop: [1, 2, 3, 2], fps: 12 },
+    light_staff: { act: 'light_staff', st: [0, 1, 2, 3], ac: [4], rc: [5] }, // (its own clip, S18: the palm run up the cane, then pointed forward)
+    long_guard: { act: 'long_guard', st: [0, 1], ac: [2, 3, 2, 3], rc: [4, 5] }, // (its own clip, S16: the guard across his body; the counter thrust)
+    staff_flurry: { act: 'staff_flurry', st: [0], ac: [0], rc: [5], loop: [1, 2, 3, 4], fps: 12 }, // (its own clip, S17: the cane flurry; the rising finish)
     // the basic chain, a strike of its own each (PixVerse): the jab, the back swing, the card flick, the rising swing
     cut_the_deck: { act: 'cut_jab', st: [0], ac: [1, 2], rc: [3, 4] },
     'cut_the_deck#1': { act: 'cut_swing', st: [0, 1], ac: [2, 3], rc: [4] },
