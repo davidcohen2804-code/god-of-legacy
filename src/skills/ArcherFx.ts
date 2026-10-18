@@ -19,6 +19,9 @@ export const ARCHER_FLIPS: [string, string, number, number, number][] = [
   ['afx-geyser', 'fx_geyser.webp', 200, 300, 14], // Rising Arrow: a twisting geyser of wind and leaves (GPT frame → PixVerse)
   ['afx-bolt', 'fx_bolt.webp', 200, 300, 8], // Thunder Rain's first two strikes: a forked bolt striking, crackling, fading
   ['afx-boltbig', 'fx_boltbig.webp', 214, 320, 10], // its third: the bolt striking and bursting in a ball of storm light
+  ['afx-goldhit', 'fx_goldhit.webp', 320, 320, 12], // Sky Rain's last blow: one giant gold arrow driven into the foe, a dome of gold light bursting out
+  ['afx-release', 'fx_release.webp', 300, 201, 8], // a heavy release: a cone of wind and leaves blasting forward from the bow
+  ['afx-rain', 'fx_rain.webp', 400, 268, 16], // Sky Rain: a rain of golden spirit arrows pouring down at a slant, bursting in gold where they land (loops)
 ];
 export interface ArcherCtx {
   scene: Phaser.Scene;
@@ -63,7 +66,7 @@ const CHARGE_MS = STORM.ms;
 
 /** Hit sparks in the skill's family colour (DFO's families): FIRE — Fireball Arrow only; SUN — Sky Rain, Hunter's Rain. The rest keep the green WIND star. */
 /** Skills whose hit star hid the foe in PVP 3D (DFO's review): small sharp hits. */
-const SMALL_HIT = new Set(['quick_shot_stream', 'skyhunters_step', 'multi_shot', 'rising_arrow', 'hunters_spirit']);
+const SMALL_HIT = new Set(['sky_rain', 'quick_shot_stream', 'skyhunters_step', 'multi_shot', 'rising_arrow', 'hunters_spirit']);
 const HIT_FAMILY: Record<string, number> = { explosive_arrow: 0xffa040, arrow_storm: 0xffe27a, sky_rain: 0xffe27a };
 
 export class ArcherFx {
@@ -167,7 +170,7 @@ export class ArcherFx {
   }
   /** Plays one of the painted flipbooks (ARCHER_FLIPS) once: painted art with real alpha (normal blending — it covers the planks
    *  instead of adding light to them), its frames spread over `ms`, `oy` its foot. */
-  private flip(key: string, x: number, y: number, o: { w: number; ms: number; oy?: number; depth?: number; a?: (u: number) => number; sx?: (u: number) => number; sy?: (u: number) => number; delay?: number; flipX?: boolean; glow?: number; run?: CastRun }): void {
+  private flip(key: string, x: number, y: number, o: { w: number; ms: number; /** loop the frames every `loop` ms for the whole `ms` */ loop?: number; ox?: number; angle?: number; oy?: number; depth?: number; a?: (u: number) => number; sx?: (u: number) => number; sy?: (u: number) => number; delay?: number; flipX?: boolean; glow?: number; run?: CastRun }): void {
     const sc = this.ctx.scene; if (!sc.textures.exists(key)) return;
     const def = ARCHER_FLIPS.find((f) => f[0] === key); if (!def) return;
     const n = def[4], ar = def[3] / def[2];
@@ -178,7 +181,7 @@ export class ArcherFx {
       t += dt; if (t < 0) return true;
       if (this.broken(o.run)) { im.destroy(); gl?.destroy(); return false; }
       const u = Math.min(1, t / o.ms); if (u >= 1) { im.destroy(); gl?.destroy(); return false; }
-      const f = Math.min(n - 1, Math.floor(u * n)), a = o.a ? o.a(u) : 1, w = o.w * (o.sx ? o.sx(u) : 1), h = o.w * ar * (o.sy ? o.sy(u) : 1);
+      const f = o.loop ? Math.floor((t % o.loop) / o.loop * n) % n : Math.min(n - 1, Math.floor(u * n)), a = o.a ? o.a(u) : 1, w = o.w * (o.sx ? o.sx(u) : 1), h = o.w * ar * (o.sy ? o.sy(u) : 1);
       im.setVisible(true).setFrame(f).setDisplaySize(w, h).setAlpha(a);
       gl?.setVisible(true).setFrame(f).setDisplaySize(w, h).setAlpha(a * (o.glow ?? 0));
       return true;
@@ -614,6 +617,10 @@ export class ArcherFx {
         this.later(dl + 180, () => {
           this.spr({ name: 'arrow_field', x: fx, y: fy + 6, oy: 0.95, depth: fy + 1, w: 210, glow: 0.2, life: 700 - w * 60, a: kf([0, 1], [0.6, 0.8], [1, 0, inQ]) });
           this.pop('spark_s', fx, fy - 10, 90, { life: 220 });
+    if (!flat && this.ctx.scene.textures.exists('afx-rain')) this.later(T.startup - 200, () => { // (PVP 3D, David 18 Oct 20:51: painted footage) the rain itself — golden spirit arrows pouring down at a slant over the field, bursting in gold where they land
+      const v = this.ctx.cam().worldView;
+      for (const [dx, dl] of [[-0.22, 0], [0.24, 120]] as const) this.flip('afx-rain', v.centerX + dx * v.width, v.y + v.height * 0.9, { w: v.width * 0.62, ms: T.active + 500, loop: 640, oy: 0.95, depth: TOP + 1, delay: dl, glow: 0.2, run: r, a: kf([0, 0], [0.08, 0.85], [0.85, 0.85], [1, 0]) });
+    }, r);
           this.spr({ name: 'dust_roll', x: fx, y: fy + 10, oy: 0.9, depth: fy, w: 200, life: 500, sx: kf([0, 0.5], [1, 1.3, out3]), a: kf([0, 0.7], [1, 0, inQ]) });
         });
       }
@@ -633,7 +640,7 @@ export class ArcherFx {
     this.later(T.startup + 1420 - 260, () => {
       const v = this.ctx.cam().worldView, gx = v.centerX, gy = v.y + v.height * 0.78;
       if (flat) this.spr({ name: 'sky_pillar', x: gx, y: gy + 10, oy: 0.97, depth: gy + 1, w: 260, h: v.height * 1.1, add: true, glow: 0.3, life: 900, sx: kf([0, 0.3], [0.2, 1, out3], [1, 1.3]), a: kf([0, 0], [0.15, 1], [0.6, 0.9], [1, 0, inQ]) });
-      this.spr({ name: 'gold_arrow', x: gx, y: gy - 900, oy: 0.98, depth: gy + 4, w: 200, glow: 0.5, life: 260, my: (u) => 900 * inQ(u) });
+      if (flat) this.spr({ name: 'gold_arrow', x: gx, y: gy - 900, oy: 0.98, depth: gy + 4, w: 200, glow: 0.5, life: 260, my: (u) => 900 * inQ(u) });
       this.later(260, () => {
         if (!flat) { this.shake(r, 360, 0.01); return; }
         this.spr({ name: 'gold_blast', x: gx, y: gy + 10, oy: 0.95, depth: gy + 5, w: 560, glow: 0.35, life: 700, sy: kf([0, 0.3], [0.2, 1.05, out3], [1, 1.1]), a: kf([0, 1], [0.55, 1], [1, 0, inQ]) });
@@ -890,6 +897,9 @@ export class ArcherFx {
       if (kind === 3) this.hitSpark(3, x, at.y - at.z + 6, size, 0.9, at.y + 3, fam); // the column climbs from the foe's feet
       else this.hitSpark(kind, x + rnd(-6, 6), y + rnd(-6, 6), size, 0.5, TOP + 4, kind === 2 ? undefined : fam);
       if (kind === 3 && !rapid) this.hitSpark(0, x, y, 100, 0.5, TOP + 4, fam);
+    if (s.id === 'sky_rain' && hit.lastBlow && this.ctx.scene.textures.exists('afx-goldhit')) { // (David 18 Oct 20:51: painted footage) the giant gold arrow driven into him, the dome of gold light bursting out
+      this.flip('afx-goldhit', at.x, at.y + 30, { w: 360, ms: 700, oy: 0.85, depth: at.y + 6, glow: 0.25, a: kf([0, 1], [0.8, 1], [1, 0, inQ]) }); return;
+    }
       if (crit) this.pop('burst_crit', x, y, rapid ? 90 : 120, { life: 260 });
       if (!rapid && Math.random() < 0.6) this.leaves(x, y, kind ? 5 : 3, 14, { life: 420, up: 30 });
     } else {
