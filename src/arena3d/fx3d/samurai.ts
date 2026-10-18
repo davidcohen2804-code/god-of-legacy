@@ -19,27 +19,29 @@ const ART_DIR = 'assets/final/skills/samurai/fx3d/';
  *  calls `waveBack`). */
 type Wave3 = { id: string; pos: V3; waiting: () => boolean; back: (to: () => V3) => void };
 const waves = new Set<Wave3>();
-/** Sword Wave (David 18 Oct 18:29: "a light wave that looks professional"): a crescent of blade light with volume riding the
- *  shot — a white-hot edge, its light tapering behind it (fainter copies trailing on its path), its plane along its way (in
- *  perspective as it crosses the depth), leaning into it; a wake of torn air and petals, a shallow line of light scored on
- *  the planks under it. At its end it slows, turns round, its light deepening to crimson, waits — and on the engine's
- *  return (the linger) flies back to his hand, the same crescent, scoring the planks again. */
+/** Sword Wave (David 18 Oct 18:29: "a light wave that looks professional"; DFO's review: painted, not a ring drawn in code):
+ *  a painted crescent of blade light (GPT on black: a white-hot leading edge, a rose-crimson body streaked with speed, its
+ *  trailing edge breaking into dark smoke and petals) riding the shot, turned along its flight; petals spilling from it,
+ *  torn air pulled off its edge, a shallow line of light scored on the planks under it. At its end it slows, turns round
+ *  to face him and waits — and on the engine's return (the linger) flies back to his hand, scoring the planks again. */
 const thrown = new WeakSet<Projectile>();
+const WAVE = ART_DIR + 'wave_crescent.webp';
 const waveCrescent = (f: Fx3D, p: Projectile) => {
-  if (p.hitIndex > 0 || thrown.has(p)) return; // (the room hands a shot with no trail of its own to `shot` every frame: one crescent a shot)
+  if (p.hitIndex > 0 || thrown.has(p)) return; // (one crescent a shot)
   thrown.add(p);
-  const h = f.host, n = Math.hypot(p.dx, p.dy) || 1, ux = p.dx / n, uy = p.dy / n, dir = ux < 0 ? -1 : 1;
-  const tx = h.w3(p.x + ux * 100) - h.w3(p.x), tz = h.d3(p.y + uy * 100) - h.d3(p.y), tl = Math.hypot(tx, tz) || 1;
-  const yaw0 = ((Math.atan2((-dir * tz) / tl, (dir * tx) / tl) - f.camYaw()) * dir * 180) / Math.PI;
-  const R = 112, BACK = 92, DARK = 0.22, base = () => Math.max(0, p.z - 45);
+  const n = Math.hypot(p.dx, p.dy) || 1, ux = p.dx / n, uy = p.dy / n, dir = ux < 0 ? -1 : 1;
+  const W = 230, RX = 92, RZ = 118, BACK = 70, base = () => Math.max(0, p.z - 45) + 122; // (its centre: the leading edge at the shot's point, its lower horn on the planks)
   const pos: V3 = { x: p.x - ux * BACK, y: p.y - uy * BACK, z: base() };
   type St = 'fly' | 'slow' | 'turn' | 'hang' | 'back' | 'gone';
-  let st: St = 'fly', t = 0, ts = 0, yaw = yaw0, dark = 0, a = 1, from = { ...pos }, goal: (() => V3) | null = null, lx = pos.x + ux * 30, ly = pos.y + uy * 30, wake = 0;
-  const shape = { r: R, w: 64, y0: 104, fwd: 0, tilt: 90, a0: -34, a1: 164, sweep: 0.03, fill: 1, lit: SAM.rose, ms: 6000, fade: 100, noInk: true, rim: true, inkW: 0.001, until: () => st === 'gone' }; // (no ink stroke: an inkW of 0 is an empty smoothstep — on some GPUs the whole ribbon turned to ink)
-  ring(f, pos, dir, { ...shape, grad: 1.5, gain: 1.15, edge: 0.86, follow: () => pos, live: () => ({ yaw, roll: -10, dark, a }) }); // (fainter copies trailing it stacked into a white slab: its own band tapers behind its edge instead) // (its light thin and white-hot at its edge, a rose glow tapering in from it: a wash of white on the red planks before)
-  const arc = () => { const th = ((-20 + Math.random() * 175) * Math.PI) / 180; return { x: pos.x + ux * Math.sin(th) * R * 0.92, y: pos.y + uy * Math.sin(th) * R * 0.92 + 3, z: pos.z + 104 + Math.cos(th) * R * 0.92 }; };
-  petalStream(f, () => (st === 'fly' || st === 'back' ? arc() : null), petals(f), { rate: 46, life: 760, back: { x: -ux * 160, y: -uy * 120, z: 30 }, size: 1.1, max: 70, foeY: () => pos.y });
-  const me: Wave3 = { id: p.attackerId, pos, waiting: () => st === 'slow' || st === 'turn' || st === 'hang', back: (to: () => V3) => { goal = to; from = { ...pos }; st = 'back'; ts = 0; dark = DARK; } };
+  let st: St = 'fly', t = 0, ts = 0, from = { ...pos }, goal: (() => V3) | null = null, lx = pos.x + ux * 60, ly = pos.y + uy * 60, wake = 0;
+  const art = { w: W, mode: 'up' as const, loop: true, ms: 8000, glow: 0.22 };
+  const flight = f.flip(WAVE, () => (st === 'fly' || st === 'slow' ? pos : null), { ...art, along: true, fadeIn: 40, fadeOut: 110 }); void flight;
+  let waiting: { end(): void } | null = null;
+  const arcPt = (sg: number) => { const th = ((-68 + Math.random() * 136) * Math.PI) / 180; return { x: pos.x + ux * sg * Math.cos(th) * RX * 0.8, y: pos.y + uy * sg * Math.cos(th) * RX * 0.8 + 3, z: pos.z + Math.sin(th) * RZ * 0.9 }; };
+  petalStream(f, () => (st === 'fly' ? arcPt(1) : st === 'back' ? arcPt(-1) : undefined), petals(f), { rate: 40, life: 800, back: { x: -ux * 150, y: -uy * 110, z: 20 }, size: 1.1, max: 70, foeY: () => pos.y });
+  const me: Wave3 = { id: p.attackerId, pos, waiting: () => st === 'slow' || st === 'turn' || st === 'hang',
+    back: (to: () => V3) => { goal = to; from = { ...pos }; st = 'back'; ts = 0; waiting?.end(); waiting = null;
+      f.flip(WAVE, () => (st === 'back' ? pos : null), { ...art, along: true, fadeIn: 60, fadeOut: 90, tint: 0xff8fa0, core: 0.9 }); } };
   waves.add(me);
   run(f, { step: (dt) => {
     t += dt;
@@ -48,27 +50,27 @@ const waveCrescent = (f: Fx3D, p: Projectile) => {
       else { st = 'slow'; ts = 0; from = { ...pos }; }
     } else if (st === 'slow') { // it slows past its end…
       ts += dt; const k = Math.min(1, ts / 170), e = 1 - (1 - k) * (1 - k);
-      pos.x = from.x + ux * 50 * e; pos.y = from.y + uy * 50 * e; if (k >= 1) { st = 'turn'; ts = 0; }
-    } else if (st === 'turn') { // …turns round, going dark…
-      ts += dt; const k = Math.min(1, ts / 220), e = k * k * (3 - 2 * k);
-      yaw = yaw0 + 180 * e; dark = DARK * e; if (k >= 1) { st = 'hang'; ts = 0; }
-    } else if (st === 'hang') { // …and waits, breathing, for its way back
-      ts += dt; a = 0.88 + 0.12 * Math.sin(ts / 70); if (ts > 1400) st = 'gone';
+      pos.x = from.x + ux * 46 * e; pos.y = from.y + uy * 46 * e; if (k >= 1) { st = 'turn'; ts = 0; }
+    } else if (st === 'turn') { // …turns round to face him (the flying crescent gives way to the one facing back)…
+      if (ts === 0) waiting = f.flip(WAVE, pos, { ...art, ms: 1600, flipX: ux > 0, fadeIn: 110, fadeOut: 120, tint: 0xffb0bc, core: 0.9 });
+      ts += dt; if (ts >= 120) { st = 'hang'; ts = 0; }
+    } else if (st === 'hang') { // …and waits for its way back
+      ts += dt; if (ts > 1400) { st = 'gone'; waiting?.end(); }
     } else if (st === 'back' && goal) { // back to his hand, faster and faster
-      ts += dt; const h0 = goal(), g = { x: h0.x + ux * R * 0.6, y: h0.y + uy * R * 0.6, z: h0.z }, k = Math.min(1, ts / 260), e = k * k; // (its centre stops ahead of him: its front goes into his hand)
-      pos.x = from.x + (g.x - from.x) * e; pos.y = from.y + (g.y - from.y) * e; pos.z = from.z + (g.z - from.z) * e; a = 1;
-      if (k >= 1) { st = 'gone'; waves.delete(me); soon(f, () => { star(f, { x: h0.x + dir * 22, y: h0.y + 8, z: h0.z + 60 }, 16, 180); f.host.flare(f.host.w3(h0.x), f.host.h3(h0.z + 60), f.host.d3(h0.y) + 0.2, SAM.light, 8, 4, 240); }); }
+      ts += dt; const h0 = goal(), g = { x: h0.x + ux * 40, y: h0.y + uy * 40, z: h0.z + 122 }, k = Math.min(1, ts / 260), e = k * k;
+      pos.x = from.x + (g.x - from.x) * e; pos.y = from.y + (g.y - from.y) * e; pos.z = from.z + (g.z - from.z) * e;
+      if (k >= 1) { st = 'gone'; soon(f, () => star(f, { x: h0.x + dir * 22, y: h0.y + 8, z: h0.z + 60 }, 16, 180)); }
     }
     if (st === 'gone') { waves.delete(me); return false; }
-        if (st === 'fly' || st === 'back') {
-      const fx = pos.x + ux * 32 * (st === 'back' ? -1 : 1), fy = pos.y + uy * 32 * (st === 'back' ? -1 : 1);
+    if (st === 'fly' || st === 'back') {
+      const sg = st === 'back' ? -1 : 1, fx = pos.x + ux * 60 * sg, fy = pos.y + uy * 60 * sg;
       if (Math.hypot(fx - lx, fy - ly) > 22) { // the planks scored under it: a line of light, white-hot along its middle
         const x0 = lx, y0 = ly, back = st === 'back';
-        soon(f, () => { f.floorStreak(x0, y0, fx, fy, back ? SAM.crimson : SAM.rose, { w: 12, ms: back ? 460 : 700, a: 0.65 }); f.floorStreak(x0, y0, fx, fy, SAM.core, { w: 3, ms: back ? 240 : 360, a: back ? 0.5 : 0.9 }); });
+        soon(f, () => { f.floorStreak(x0, y0, fx, fy, back ? SAM.crimson : SAM.rose, { w: 12, ms: back ? 460 : 700, a: 0.6 }); f.floorStreak(x0, y0, fx, fy, SAM.core, { w: 3, ms: back ? 240 : 360, a: back ? 0.5 : 0.85 }); });
         lx = fx; ly = fy;
       }
       if (t >= wake) { // torn air: thin lines of light pulled off its edge, left behind
-        wake = t + 32; const q = arc(), L = 40 + Math.random() * 60, sg = st === 'back' ? -1 : 1;
+        wake = t + 36; const q = arcPt(sg), L = 40 + Math.random() * 60;
         soon(f, () => slit(f, { x: q.x - ux * sg * (14 + L), y: q.y - uy * sg * (14 + L), z: q.z }, { x: q.x - ux * sg * 10, y: q.y - uy * sg * 10, z: q.z }, { w: 2.2, ms: 170, draw: 0, col: SAM.light, front: Math.random() < 0.6 }));
       }
     }
@@ -208,7 +210,7 @@ export const SAMURAI: Record<string, Recipe> = {
   // (David 18 Oct 18:29: "a light wave that looks professional") a glint at his hand, the fling a ribbon ring at his blade;
   // the crescent rides the shot and comes back (waveCrescent / waveBack); where it cuts: sparks (the room plays the main hit)
   sword_wave: { own: true, tone: SAM.rose, trail: false,
-    cast: (f, r) => { const c = me(f, r); star(f, { x: c.x + side(r) * 24, y: c.y + 8, z: c.z + 62 }, 13, 150); },
+    cast: (f, r) => { f.flipLoad(WAVE); const c = me(f, r); star(f, { x: c.x + side(r) * 24, y: c.y + 8, z: c.z + 62 }, 13, 150); },
     active: (f, r) => ring(f, me(f, r), side(r), { r: 104, w: 40, y0: 88, fwd: 14, tilt: 70, yaw: 20, a0: -40, a1: 150, ms: 180, lit: SAM.rose, gain: 1.3, quiet: true }),
     shot: (f, p) => waveCrescent(f, p),
     hit: (f, _s, _h, at) => sparks(f, at, Math.random() < 0.5 ? 1 : -1, 5, 56) },
