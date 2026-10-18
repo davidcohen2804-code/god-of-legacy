@@ -305,16 +305,15 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // rises out of the other in a beam, a star unfolding round him
   rift_gates: { tone: A, own: true,
     cast: (f, r) => {
-      const id = r.attackerId, c = me(f, r);
+      const id = r.attackerId, c = me(f, r); f.flipLoad(GATE); f.flipLoad(BLINK);
       if (r.stage === 0) {
         const list = liveGates(id), g: Gate = { x: c.x, y: c.y, dead: false }; list.push(g); while (list.length > 2) list.shift()!.dead = true; gates.set(id, list); f.later(10200, () => { g.dead = true; });
-        hole(f, c.x, c.y, A, { r: 52, ms: 10200, alive: () => !g.dead, rim: GOLD });
-        f.swirl(() => (g.dead ? null : { x: g.x, y: g.y, z: 0 }), { tex: 'mage-page', size: 0.6, aspect: 1.3, crumble: 'wind' }, { n: 5, r0: 40, r1: 52, h: 90, ms: 10200, rps: 0.25, rise: 0.3 });
+        f.flip(GATE, () => (g.dead ? null : { x: g.x, y: g.y - 6, z: 0 }), { frame: GATE_F, fps: 12, loop: true, ms: 10200, w: 210, mode: 'up', anchorY: 0.56, through: 0.4, glow: 0.2, grow: [0.3, 1], fadeIn: 220, fadeOut: 260 });
         star(f, { x: c.x, y: c.y, z: 20 }, A, { size: 150, ms: 260 });
       } else {
         const to = liveGates(id).find((g) => Math.hypot(g.x - c.x, g.y - c.y) > 40);
         f.swirl(() => ({ x: c.x, y: c.y, z: 0 }), {}, { n: 40, r0: 70, r1: 20, h: 180, ms: 260, rps: -1.8, rise: -0.9, size: 0.7, color: A });
-        if (to) f.later(200, () => { f.skyBeam({ x: to.x, y: to.y, z: 0 }, A, { ms: 280, w: 9, h: 300 }); star(f, { x: to.x, y: to.y, z: 80 }, A, { size: 230, ms: 280 }); });
+        if (to) f.later(200, () => { f.flip(BLINK, { x: to.x, y: to.y, z: 0 }, { frame: BLINK_F, fps: 1, ms: 320, w: 160, mode: 'up', anchorY: 0.12, through: 0.75, a: 0.75, glow: 0.3, grow: [0.4, 1.05], fadeIn: 30, fadeOut: 220 }); });
       }
     },
   },
