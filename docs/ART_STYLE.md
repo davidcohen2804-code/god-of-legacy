@@ -85,7 +85,7 @@ Ask for one pose per message; a series of poses works best in one chat ("Now the
   drawn as an ellipse in perspective: `aspect: ~1.8`). Its brightness becomes its cover, so it keeps its colours on the
   bright red planks (light only *added* there turns white-grey — the look of the code-drawn pieces David rejected).
   `through: 0.5` ('up'): whole behind the fighters and half see-through over them (a foe inside a pillar still reads);
-  `glow` (0..1): a little of its hottest light added on top; `grow`, `rot`, `spin`, `fadeIn` / `fadeOut`, `loop` + `ms`,
+  `glow` (0..1): a little of its hottest light added on top; `tint` + `core` (0..1): a neutral sheet in your colour, its white-hot heart kept white; `grow`, `rot`, `spin`, `fadeIn` / `fadeOut`, `loop` + `ms`,
   `delay`, a function `at` follows a fighter or a shot (`along: true` turns art drawn flying right along its flight: a
   fireball, a bolt). A recipe that draws its own main hit this way sets `noImpact: true` (the room's flash-and-shell steps aside). `src`: a texture key the class preloads (`frame: [w, h]` its frame size) or a
   url (`'assets/final/skills/<class>/fx3d/<name>.webp'`). Every painted sheet already in the game (on black) works as it is.
