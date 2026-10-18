@@ -888,8 +888,8 @@ export class ArcherFx {
     const end = p.end ?? { x: p.x, y: p.y, reason: 'range' };
     if (p.skill.id === 'explosive_arrow') { // a real fire blast: the painted fireball, a flash, a ring of fire on the floor, embers, smoke-dark scorch
       const y = end.y - p.z;
-      this.sheet('afx-fire', end.x, y - 40, 330, [40, 50, 60, 80, 100, 120, 150, 180], { depth: end.y + 4 });
-      this.pop('burst_crit', end.x, y - 16, 220, { life: 280, tint: 0xffa040 });
+      if (this.ctx.scene.textures.exists('afx-firebloom')) this.flip('afx-firebloom', end.x, end.y + 14, { w: 290, ms: 950, oy: 0.95, depth: end.y + 4, glow: 0.15, a: kf([0, 1], [0.85, 1], [1, 0, inQ]) }); // (David 18 Oct 20:51: painted footage) the fire blooms up and out from where it struck and burns down
+      else { this.sheet('afx-fire', end.x, y - 40, 330, [40, 50, 60, 80, 100, 120, 150, 180], { depth: end.y + 4 }); this.pop('burst_crit', end.x, y - 16, 220, { life: 280, tint: 0xffa040 }); }
       this.floor('shock_ring', end.x, end.y, 220, 420, { add: true, tint: 0xff9a40, s: kf([0, 0.3], [1, 1.35, out3]), a: kf([0, 1], [1, 0, inQ]) });
       this.floor('scorch_ring', end.x, end.y, 170, 1800, { a: kf([0, 0.9], [0.6, 0.6], [1, 0]) });
       for (let k = 0; k < 10; k++) { const an = rnd(0, Math.PI * 2), d = rnd(40, 120); this.spr({ name: 'spark_cyan', x: end.x, y: y - 20, depth: TOP + 5, w: 26, tint: 0xffa040, add: true, life: rnd(400, 650), mx: (u) => Math.cos(an) * d * out(u), my: (u) => Math.sin(an) * d * 0.6 * out(u) - 40 * u + 90 * u * u, a: kf([0, 1], [1, 0]) }); }

@@ -45,7 +45,7 @@ export const ARCHER: Record<string, Recipe> = {
   // Triple Arrow: five fine trails fanning out; the first to land rings the floor
   multi_shot: { tone: WIND, trail: { c: WIND, w: 7, len: 9, i: 1.6 }, own: true, hit: (f, _s, _h, at, main) => { if (main) f.host.ring(f.host.w3(at.x), f.host.d3(at.y), WIND, 1.4, 260, 0.6); } },
   // Fireball Arrow: a burning trail, then a shell of fire (kept under the foe's height), the planks torn, embers
-  explosive_arrow: { tone: C.fire, trail: { c: C.fire, w: 14, i: 2.4 }, own: true, hit: (f, _s, _h, at) => { f.dome(at.x, at.y, C.fire, { r: 110, ms: 240, a: 0.5 }); f.crack(at.x, at.y, C.fire, { r: 110, chunks: 12, up: 1.2 }); f.host.embers(f.host.w3(at.x), 0.6, f.host.d3(at.y), C.fire, 18, 3); } },
+  explosive_arrow: { tone: C.fire, trail: { c: C.fire, w: 14, i: 2.4 }, own: true, hit: (f, _s, _h, at) => { f.crack(at.x, at.y, C.fire, { r: 110, chunks: 12, up: 1.2 }); f.host.embers(f.host.w3(at.x), 0.6, f.host.d3(at.y), C.fire, 18, 3); } },
   // Backstep Shot: a leaf trail; a puff of wind where she pushes off
   backstep_shot: { tone: SPIRIT, trail: { c: SPIRIT, w: 13, len: 14, i: 2.2 }, fired: (f, _r, _i, o) => bowStar(f, o, SPIRIT, 1.7), cast: (f, r) => { const c = me(f, r); f.host.ring(f.host.w3(c.x), f.host.d3(c.y), THORN, 1.2, 320, 0.5); } }, // (the flip's arrow a heavy spirit shot with a big star at the bow; the leaf decoy she leaves is painted)
   // Retreat Kick: an upright arc of wind sweeping up with the boot; chips kicked off the floor
