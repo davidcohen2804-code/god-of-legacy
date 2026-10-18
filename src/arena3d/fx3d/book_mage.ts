@@ -106,17 +106,17 @@ export const BOOK_MAGE: Record<string, Recipe> = {
         star(f, { ...q, z: 10 }, i % 2 ? GOLD : A, { size: 64, ms: t0 + 200, delay: (i * t0) / N * 0.7, light: 0.2, back: true, spin: 0.3 });
         if (i) f.later((i * t0) / N * 0.7, () => f.floorStreak(pts[i - 1].x, pts[i - 1].y, q.x, q.y, A, { w: 9, ms: t0 + 260, a: 0.95 }));
       });
-      seal(f, p.x, p.y, A, { r: 110, ms: t0 + 320, spin: 1.8, pulse: 3 });
+      f.flipLoad(ACOL); f.flip(ASEAL, { x: p.x, y: p.y, z: 0 }, { frame: ASEAL_F, fps: (14 * 1000) / Math.max(200, t0), w: 300, mode: 'up', anchorY: 0.28, through: 0.5, glow: 0.25, fadeOut: 120, ms: t0 + 120 }); // (the painted rune circle draws itself under the foe through the wind-up)
     },
     active: (f, r) => {
       const p = placeOf(f, r, 80), at = () => ({ x: p.x, y: p.y, z: 0 });
-      funnel(f, at, A, { ms: 480, h: 620, r0: 34, r1: 46, rps: 2.6, sway: 6, layers: 2, dark: NIGHT, color2: GOLD });
+      f.flip(ACOL, at, { frame: ACOL_F, from: 0, to: 0, fps: 1, loop: true, ms: 620, w: 260, mode: 'up', foot: true, through: 0.5, glow: 0.4, grow: [0.35, 1.05], fadeIn: 60, fadeOut: 300 }); // (the painted column of starlight erupts under him — the throw)
       star(f, { x: p.x, y: p.y, z: 330 }, GOLD, { size: 240, ms: 380, delay: 60 });
       f.host.ring(f.host.w3(p.x), f.host.d3(p.y), A, 2.0, 420, 0.7);
     },
     hit: (f, _s, _h, at, main) => {
       if (!main) return; // the column of night sky he sinks back down in (the slow fall: 1.8 s), stars rising in it
-      funnel(f, () => ({ x: at.x, y: at.y, z: 0 }), A, { ms: 2000, h: 580, r0: 46, r1: 56, rps: 0.45, sway: 4, layers: 1, dark: NIGHT, a: 0.6 });
+      f.flip(ACOL, { x: at.x, y: at.y, z: 0 }, { frame: ACOL_F, from: 0, to: 0, fps: 1, loop: true, ms: 2000, w: 210, mode: 'up', foot: true, through: 0.35, a: 0.55, glow: 0.2, fadeIn: 300, fadeOut: 500 }); // (the column stays soft round him while he sinks)
       f.swirl(() => ({ x: at.x, y: at.y, z: 0 }), {}, { n: 30, r0: 34, r1: 48, h: 520, ms: 1900, rps: 0.5, rise: 0.45, size: 0.6, color: GOLD });
     },
   },
