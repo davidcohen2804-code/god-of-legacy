@@ -604,11 +604,12 @@ export class GamblerFx {
     const hs = s.hits ?? [], burst = !s.chain && hs.length > 2, last = !burst || hitIndex(s, hit) === hs.length - 1; // (hitIndex: the arena re-times the hits as copies)
     const weighty = burst ? ((!!hit.heavy && s.id !== 'showdown') || last) : heavy; // (Showdown's cards burst on their own: only its last blow gets the blast)
     const kind = crit || counter ? 'crit' : hit.reaction.launch ? 'launch' : weighty && !grip ? 'heavy' : 'normal';
-    if (s.id === 'call_the_deck' && hit.damage < (s.hits[0]?.damage ?? 10) && !hit.reaction.launch) { /* the hold's turns: the spinning card under him is the spark (holdTick) — no burst over it */ }
+    if (s.id === 'staff_flurry' && ARENA3D.on && !hit.reaction.launch) { /* the flurry's own crossing lines are its sparks (its recipe) — no pile of pops over him */ }
+    else if (s.id === 'call_the_deck' && hit.damage < (s.hits[0]?.damage ?? 10) && !hit.reaction.launch) { /* the hold's turns: the spinning card under him is the spark (holdTick) — no burst over it */ }
     else if (kind === 'normal') {
       this.pop(at.x, y, 64, FUCHSIA, 200); this.shards(at.x, y, 2, 50, 260);
     } else if (kind === 'heavy') {
-      const bl = this.kit('ai_blast', at.x, y, s.id === 'call_the_deck' ? 80 : burst && last ? 165 : 130, TOP + 4); // (Call the Deck: its card spinning under him carries the hold) if (bl) { const b0 = bl.scale, a0 = rnd(0, 360); this.piece(bl, 280, (u, o) => o.setScale(b0 * lerp(0.45, 1.1, out3(u))).setAngle(a0).setAlpha(u < 0.4 ? 1 : (1 - u) / 0.6)); } else this.pop(at.x, y, 120, FUCHSIA, 300);
+      const bl = this.kit('ai_blast', at.x, y, s.id === 'call_the_deck' || s.id === 'staff_flurry' ? 80 : burst && last ? 165 : 130, TOP + 4); // (Call the Deck: its card spinning under him carries the hold) if (bl) { const b0 = bl.scale, a0 = rnd(0, 360); this.piece(bl, 280, (u, o) => o.setScale(b0 * lerp(0.45, 1.1, out3(u))).setAngle(a0).setAlpha(u < 0.4 ? 1 : (1 - u) / 0.6)); } else this.pop(at.x, y, 120, FUCHSIA, 300);
       this.pop(at.x, y, 70, 0xffffff, 140); this.shards(at.x, y, 6, 110, 380);
     } else if (kind === 'launch') {
       const gy = this.kit('ai_geyser', at.x, y + 30, 90, TOP + 4); if (gy) { gy.setOrigin(0.5, 0.95); const g0 = gy.scale; this.piece(gy, 320, (u, o) => o.setScale(g0 * 0.8, g0 * lerp(0.3, 1.1, out3(u))).setAlpha(u < 0.4 ? 1 : (1 - u) / 0.6)); }
