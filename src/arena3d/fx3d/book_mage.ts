@@ -89,4 +89,17 @@ export const BOOK_MAGE: Record<string, Recipe> = {
         f.swirl(() => ({ x: c.x, y: c.y, z: 0 }), { tex: 'mage-page', size: 0.8, aspect: 1.3, crumble: 'wind' }, { n: 14, r0: 70, r1: 20, h: 160, ms: 240, rps: -1.6, rise: -0.6 });
         if (to) f.later(200, () => { f.skyBeam({ x: to.x, y: to.y, z: 0 }, C.arcane, { ms: 260, w: 8, h: 260 }); f.slash({ x: to.x, y: to.y, z: 0 }, side(r), C.arcane, { r: 60, w: 22, tilt: 0, a0: -180, a1: 180, ms: 260, y0: 6, ink: true, quiet: true }); }); } } },
 
+  // Tempest Ride (David 18 Oct 01:26: "a tornado she flies inside, hitting as it goes"): a violet-blue funnel of storm wind wraps her and travels
+  // with her for the ride — sparks and her pages spinning up round her, a twisting inner stream — lightning lashing from the funnel to the floor
+  // at each cut; at the end it bursts outward (the funnel flung off, a ring thrown over the floor)
+  tempest_ride: { tone: C.storm, own: true,
+    cast: (f, r) => { const c = me(f, r); f.glyph(c.x, c.y, C.storm, { shape: 'spiral', r: 90, ms: 420, spin: 3, pulse: 2 }); },
+    active: (f, r) => { const id = r.attackerId, t0 = now(), ms = r.timings.active, at = () => { const c = f.host.casterPos(id); return c && now() - t0 < ms ? { x: c.x, y: c.y, z: 0 } : null; };
+      f.swirl(at, {}, { n: 90, r0: 36, r1: 150, h: 320, ms, rps: 2.2, rise: 1.1, size: 0.9, color: C.storm });
+      f.swirl(at, {}, { n: 40, r0: 24, r1: 70, h: 260, ms, rps: -2.8, rise: 1.4, size: 0.6, color: C.arcane });
+      f.swirl(at, { tex: 'mage-page', size: 0.8, aspect: 1.3, crumble: 'wind' }, { n: 12, r0: 60, r1: 130, h: 280, ms, rps: 1.8, rise: 0.9 }); },
+    fired: (f, r, i) => { const c = f.host.casterPos(r.attackerId); if (!c) return; const last = i === r.hits.length - 1;
+      if (last) { f.host.ring(f.host.w3(c.x), f.host.d3(c.y), C.storm, 2.6, 480, 0.6); f.slash({ x: c.x, y: c.y, z: 0 }, side(r), C.storm, { r: 150, w: 50, tilt: 0, a0: -180, a1: 180, ms: 320, y0: 20, ink: true }); f.host.kick(0.04); return; }
+      const a = Math.random() * Math.PI * 2, d = 50 + Math.random() * 50; f.bolt({ x: c.x + Math.cos(a) * 30, y: c.y, z: 240 }, { x: c.x + Math.cos(a) * d, y: c.y + Math.sin(a) * d * 0.5, z: 0 }, C.storm, { ms: 150, w: 4, forks: 1 }); } },
+
 };
