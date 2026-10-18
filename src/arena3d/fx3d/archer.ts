@@ -31,6 +31,13 @@ export const ARCHER: Record<string, Recipe> = {
     active: (f, r) => { if (r.stage !== 1) return; const c = me(f, r); f.streak({ x: c.x + side(r) * 30, y: c.y, z: 62 }, { x: c.x + r.aim.x * 470, y: c.y + r.aim.y * 280, z: 62 }, SUN, { w: 16, ms: 260, draw: 70 }); f.host.kick(0.02); },
     own: true,
   },
+  // Double Shot held (David 01:33): the painted spirit circle turns before her bow; every arrow out of it a star at the bow and a thin leaf trail,
+  // every fifth gold — a bigger gold star and a gold trail.
+  quick_shot_stream: { tone: WIND, trail: false,
+    fired: (f, _r, i, o) => bowStar(f, o, i % 5 === 4 ? SUN : WIND, i % 5 === 4 ? 1.5 : 0.9),
+    shot: (f, p) => { if (p.hitIndex % 5 === 4) f.trail(p, SUN, 13, 14, 2.4); else f.trail(p, C.leaf, 8, 10, 1.8); },
+    own: true,
+  },
   // Rising Arrow: a star at the bow, then a twisting geyser of leaf light bursts up under the foe and throws him up
   rising_arrow: { tone: WIND, own: true, fired: (f, _r, _i, o) => bowStar(f, o, WIND, 1.3), hit: (f, _s, _h, at, main) => { if (!main) return; f.pillar(at.x, at.y, WIND, { h: 520, r: 30, ms: 380, twist: true }); f.streak({ x: at.x, y: at.y, z: 0 }, { x: at.x, y: at.y, z: 600 }, C.leaf, { w: 10, ms: 260, draw: 60 }); } }, // (one shape: a twisting geyser of leaf light under him, a leaf streak shooting up through it; the floor's cracks and the flash are DFO's main-hit impact)
   // Wind Step: a gust ring bursts under her as she somersaults back, a streak of wind along the leap

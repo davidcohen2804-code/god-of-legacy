@@ -57,7 +57,7 @@ const CHARGE_MS = STORM.ms;
 
 /** Hit sparks in the skill's family colour (DFO's families): FIRE — Fireball Arrow only; SUN — Sky Rain, Hunter's Rain. The rest keep the green WIND star. */
 /** Skills whose hit star hid the foe in PVP 3D (DFO's review): small sharp hits. */
-const SMALL_HIT = new Set(['skyhunters_step', 'multi_shot', 'rising_arrow', 'hunters_spirit']);
+const SMALL_HIT = new Set(['quick_shot_stream', 'skyhunters_step', 'multi_shot', 'rising_arrow', 'hunters_spirit']);
 const HIT_FAMILY: Record<string, number> = { explosive_arrow: 0xffa040, arrow_storm: 0xffe27a, sky_rain: 0xffe27a };
 
 export class ArcherFx {
@@ -224,6 +224,16 @@ export class ArcherFx {
           this.muzzle(r, 110, T.startup); this.bowBurst(r, 'sonic_boom', 120, T.startup, 300);
         } else this.muzzle(r, 70, T.startup);
         break;
+      case 'quick_shot_stream': { // held Space (David 01:33): a green spirit circle turns before her bow while she holds, arrows streaming out of it
+        const alive = () => r.phase !== 'done' && r.phase !== 'recovery';
+        const ring = this.spr({ name: 'emblem', w: 120, follow: this.at(r.attackerId, side, 74, 62), dz: 6, add: true, glow: 0.35, run: r, alive, life: 60000,
+          rot: (u) => side * 360 * 60 * u / 1.6, sx: (u) => kf([0, 0.2], [0.004, 1.05, out3], [0.008, 1])(u) * (1 + 0.04 * Math.sin(u * 600)), sy: (u) => kf([0, 0.2], [0.004, 1.05, out3], [0.008, 1])(u) * (1 + 0.04 * Math.sin(u * 600)), a: kf([0, 0], [0.003, 0.9], [1, 0.9]) });
+        void ring;
+        // let go: the circle snaps shut in a small burst of leaves
+        const shut = () => { if (alive()) { this.later(60, shut); return; } const q = this.me(r), x = q.x + side * 74, y = q.y - q.z - 62; this.pop('leaf_spray', x, y, 110, { life: 320 }); this.leaves(x, y, 8, 30, { up: 60, life: 600, depth: q.y + 6 }); };
+        this.later(T.startup + 120, shut, r);
+        break;
+      }
       case 'bow_haste': { // Wind Step: a whirlwind bursts where she stood and hurls her back; wind streams along the leap; she looses an arrow mid-air
         this.spr({ name: 'tornado', x: me.x, y: me.y + 6, oy: 0.96, depth: me.y + 2, w: 120, life: 560, glow: 0.3, run: r, sy: kf([0, 0.3], [0.25, 1.05, out3], [1, 1.1]), sx: kf([0, 0.6], [0.25, 1, out3], [1, 1.3]), a: kf([0, 0.9], [0.6, 0.8], [1, 0, inQ]) });
         this.floor('wind_puff', me.x, me.y, 150, 560, { add: true, glow: 0.4, run: r, s: kf([0, 0.5], [0.4, 1.3, out3]), a: kf([0, 0.95], [1, 0, inQ]) });
@@ -746,7 +756,7 @@ export class ArcherFx {
     let iron = false;
     if (id === 'multi_shot') { const n = (this.fanCount.get(p.castId) ?? 0) + 1; this.fanCount.set(p.castId, n); iron = n % 2 === 0; if (n === 1) this.later(2000, () => this.fanCount.delete(p.castId)); } // between the green arrows: iron ones
     const mid = id === 'multi_shot' && (this.fanCount.get(p.castId) ?? 0) === 3;
-    const heavyShot = id === 'quick_shot' && this.heavyShots.has(p.castId); // Double Shot's charged third arrow
+    const heavyShot = (id === 'quick_shot' && this.heavyShots.has(p.castId)) || (id === 'quick_shot_stream' && p.hitIndex % 5 === 4); // Double Shot's charged third arrow; the held stream's every fifth (gold)
     const kind = id === 'piercing_arrow' || heavyShot ? 'spiral_arrow' : id === 'hunters_spirit' ? 'vine_arrow' : mid ? 'spiral_arrow' : id === 'explosive_arrow' || iron ? 'arrow_heavy' : 'arrow_wind';
     const w = heavyShot ? 150 : id === 'quick_shot' ? 112 : id === 'hunters_spirit' ? 120 : mid ? 130 : id === 'explosive_arrow' ? 110 : id === 'piercing_arrow' ? 230 : id === 'skyhunters_step' ? 80 : 86;
     const s = this.ctx.scene, fr = s.textures.getFrame(ARCHER_KIT, kind);
