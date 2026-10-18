@@ -125,13 +125,10 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // over the planks, two rings of ice crystals break out of the floor one after the other, a white-cyan star at his heart;
   // the frost lies a moment and melts
   frost_nova: { tone: FROST, own: true,
-    cast: (f, r) => { const c = me(f, r); seal(f, c.x, c.y, FROST, { r: 96, ms: T(r).startup + 240, spin: 1.6, star: ICE }); f.swirl(() => ({ x: c.x, y: c.y, z: 0 }), {}, { n: 34, r0: 170, r1: 26, h: 150, ms: T(r).startup + 60, rps: 1.1, rise: 1.4, size: 0.5, color: ICE }); },
+    cast: (f, r) => { const c = me(f, r); f.flipLoad(NOVA); seal(f, c.x, c.y, FROST, { r: 96, ms: T(r).startup + 240, spin: 1.6, star: ICE }); f.swirl(() => ({ x: c.x, y: c.y, z: 0 }), {}, { n: 34, r0: 170, r1: 26, h: 150, ms: T(r).startup + 60, rps: 1.1, rise: 1.4, size: 0.5, color: ICE }); },
     active: (f, r) => {
       const c = me(f, r);
-      frost(f, c.x, c.y, { r: 215, grow: 230, hold: 900, melt: 800, color: FROST });
-      f.crystals(c.x, c.y, { n: 9, r: 112, h: 86, ms: 1300, ring: true });
-      f.crystals(c.x, c.y, { n: 14, r: 172, h: 112, ms: 1250, ring: true, delay: 150 });
-      star(f, { x: c.x, y: c.y, z: 58 }, ICE, { size: 230, ms: 280 });
+      f.flip(NOVA, { x: c.x, y: c.y, z: 0 }, { frame: NOVA_F, fps: 22, w: 420, mode: 'up', anchorY: 0.42, through: 0.7, a: 0.8, glow: 0.15, tint: FROST, core: 0.9, coreMs: 220, fadeOut: 420, ms: 1700, from: 0, to: 29 }); // (the painted nova: crystals burst up in a ring round her, frost rolling out; she reads through it)
       f.host.ring(f.host.w3(c.x), f.host.d3(c.y), FROST, 2.4, 420, 0.7); f.later(150, () => f.host.ring(f.host.w3(c.x), f.host.d3(c.y), ICE, 3.2, 460, 0.55));
       f.host.embers(f.host.w3(c.x), 0.4, f.host.d3(c.y), ICE, 16, 2.2);
     },
