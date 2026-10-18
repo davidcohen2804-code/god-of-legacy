@@ -46,7 +46,7 @@ const FS = `
 #include <common>
 #include <clipping_planes_pars_fragment>
 uniform vec3 uCore; uniform vec3 uInk; uniform vec3 uLit; uniform float uGain;
-uniform float uA; uniform float uSweep; uniform float uTail; uniform float uFill; uniform float uDark; uniform float uErode; uniform float uT; uniform float uPart; uniform float uInkW; uniform float uRim;
+uniform float uA; uniform float uSweep; uniform float uTail; uniform float uFill; uniform float uDark; uniform float uErode; uniform float uT; uniform float uPart; uniform float uInkW; uniform float uRim; uniform float uGrad; uniform float uEdge;
 uniform sampler2D uNoise;
 varying vec2 vUv;
 void main() {
@@ -59,8 +59,8 @@ void main() {
   float n2 = texture2D(uNoise, vec2(u * 7.0 - uT * 2.3, v * 1.7 + 0.71)).r;
   float body = smoothstep(0.0, 0.06, v) * (1.0 - smoothstep(0.93, 1.0, v));
   float ink = 1.0 - smoothstep(uInkW * 0.55, uInkW, v);
-  float band = smoothstep(uInkW * 0.7, uInkW + 0.12, v) * (1.0 - smoothstep(0.93, 1.0, v));
-  float edge = smoothstep(0.72, 0.9, v) * (1.0 - smoothstep(0.955, 1.0, v));
+  float band = smoothstep(uInkW * 0.7, uInkW + 0.12, v) * (1.0 - smoothstep(0.93, 1.0, v)) * pow(max(v, 0.0), uGrad);
+  float edge = smoothstep(uEdge, mix(uEdge, 1.0, 0.64), v) * (1.0 - smoothstep(0.955, 1.0, v));
   float keep = smoothstep(uErode, uErode + 0.25, 0.55 * n + 0.6 * along);
   vec3 col; float a;
   if (uPart < 0.5) {
@@ -105,6 +105,17 @@ export interface Ring {
   until?: () => boolean; fade?: number;
   /** an ink ring from the start, only its outer rim lit in his colour (a crescent's black shadow) */
   shadow?: boolean;
+  /** at its end it dissolves as light (no turning to ink): a crescent gone into his hand */
+  noInk?: boolean;
+  /** as it goes dark its outer rim stays lit in his colour */
+  rim?: boolean;
+  /** the luminous band fading toward its inside (0 even … 2: the light only near its edge) — a glow tapering behind the edge */
+  grad?: number;
+  /** where its white-hot outer edge begins across the ribbon (0.72; nearer 1: a thinner edge) */
+  edge?: number;
+  /** each frame: its turn round the vertical and in its plane (deg), how dark (0..1) and how strong (0..1) — a crescent that
+   *  turns, goes dark, fades with its speed */
+  live?: () => { yaw?: number; roll?: number; dark?: number; a?: number };
 }
 
 /** A cut of the blade: a thick ribbon ring round `at` (his feet) on the side `dir` (±1) — standing in the room, its part
@@ -128,7 +139,7 @@ export function ring(f: Fx3D, at: V3, dir: number, o: Ring = {}): void {
   const mat = (part: 0 | 1, front: boolean, hz: number) => {
     const m = new THREE.ShaderMaterial({
       vertexShader: VS, fragmentShader: FS,
-      uniforms: { uCore: { value: U.uCore }, uInk: { value: U.uInk }, uLit: { value: U.uLit }, uGain: { value: o.gain ?? 1.25 }, uA: { value: o.a ?? 1 }, uSweep: { value: 0 }, uTail: { value: 0.3 }, uFill: { value: o.fill ?? 0 }, uRim: { value: o.shadow ? 1 : 0 },
+      uniforms: { uCore: { value: U.uCore }, uInk: { value: U.uInk }, uLit: { value: U.uLit }, uGain: { value: o.gain ?? 1.25 }, uA: { value: o.a ?? 1 }, uSweep: { value: 0 }, uTail: { value: 0.3 }, uFill: { value: o.fill ?? 0 }, uRim: { value: o.shadow || o.rim ? 1 : 0 }, uGrad: { value: o.grad ?? 0 }, uEdge: { value: o.edge ?? 0.72 },
         uDark: { value: 0 }, uErode: { value: -0.4 }, uT: { value: Math.random() * 10 }, uPart: { value: part }, uInkW: { value: o.inkW ?? 0.38 }, uNoise: { value: f.noiseTex } },
       transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide, blending: part ? THREE.AdditiveBlending : THREE.NormalBlending, fog: false,
     });
@@ -141,10 +152,11 @@ export function ring(f: Fx3D, at: V3, dir: number, o: Ring = {}): void {
     : [new THREE.Mesh(geo, mat(0, false, p.z)), new THREE.Mesh(geo, mat(1, false, p.z)), new THREE.Mesh(geo, mat(0, true, p.z)), new THREE.Mesh(geo, mat(1, true, p.z))];
   if (o.over) { h.solid.add(meshes[0]); h.glow.add(meshes[1]); }
   else { h.back.add(meshes[0], meshes[1]); h.solid.add(meshes[2]); h.glow.add(meshes[3]); }
+  let lv = o.live?.();
   const place = () => {
     for (const m of meshes) {
       m.frustumCulled = false; m.position.copy(p);
-      m.rotation.set(0, 0, 0); m.rotateY(f.camYaw() + THREE.MathUtils.degToRad(o.yaw ?? 0) * dir); m.rotateX(THREE.MathUtils.degToRad(90 - (o.tilt ?? 30))); m.rotateZ(THREE.MathUtils.degToRad(o.roll ?? 0) * dir);
+      m.rotation.set(0, 0, 0); m.rotateY(f.camYaw() + THREE.MathUtils.degToRad(lv?.yaw ?? o.yaw ?? 0) * dir); m.rotateX(THREE.MathUtils.degToRad(90 - (o.tilt ?? 30))); m.rotateZ(THREE.MathUtils.degToRad(lv?.roll ?? o.roll ?? 0) * dir);
     }
   };
   place();
@@ -154,13 +166,15 @@ export function ring(f: Fx3D, at: V3, dir: number, o: Ring = {}): void {
   const fadeMs = o.fade ?? 280;
   run(f, {
     step: (dt) => {
-      t += dt;
-      const fo = o.follow?.(); if (fo) { p = new THREE.Vector3(h.w3(fo.x + fwd), h.h3(fo.z + lift), h.d3(fo.y)); place(); }
+      t += dt; lv = o.live?.();
+      const fo = o.follow?.(); if (fo) p = new THREE.Vector3(h.w3(fo.x + fwd), h.h3(fo.z + lift), h.d3(fo.y));
+      if (fo || lv) place();
       if (o.until && endAt < 0 && (o.until() || t >= ms)) endAt = t;
       const ks = Math.min(1, t / Math.max(1, sweepMs));
       const kd = o.until ? (endAt < 0 ? 0 : Math.min(1, (t - endAt) / fadeMs)) : Math.max(0, (t - sweepMs - holdMs) / Math.max(1, ms - sweepMs - holdMs));
       set('uSweep', 1.0001 * outCubic(ks)); set('uTail', 0.25 + ((o.tail ?? 1) - 0.25) * outCubic(ks));
-      set('uDark', o.shadow ? 1 : Math.min(1, kd * 1.6)); set('uErode', -0.4 + 1.55 * kd * kd); set('uT', t / 1000);
+      set('uDark', o.shadow ? 1 : Math.max(lv?.dark ?? 0, o.noInk ? 0 : Math.min(1, kd * 1.6))); set('uErode', -0.4 + 1.55 * kd * kd); set('uT', t / 1000);
+      if (lv?.a !== undefined) set('uA', (o.a ?? 1) * lv.a);
       if (o.until ? endAt >= 0 && t - endAt >= fadeMs : t >= ms) { drop(); return false; }
       return true;
     }, dispose: drop,
@@ -514,6 +528,55 @@ export function petalBurst(f: Fx3D, at: V3, tex: (THREE.Texture | null | undefin
       }
       for (const g of G) { g.back.count = g.nb; g.front.count = g.nf; g.back.instanceMatrix.needsUpdate = true; g.front.instanceMatrix.needsUpdate = true; }
       if (t >= ms * 1.25) { drop(); return false; }
+      return true;
+    }, dispose: drop,
+  });
+}
+
+/** Petals spilling from a moving point (`at()` — called for each petal, so it can hand out points along a shape): real petal
+ *  pictures (`tex`, lit by the room), `rate` a second, each thrown along `back` (world px/s) with a little scatter, slowed by
+ *  the air and drifting down, gone in about `life` ms; when `at()` returns null no more come and the piece ends with its
+ *  last petal. */
+export function petalStream(f: Fx3D, at: () => V3 | null, tex: (THREE.Texture | null | undefined)[], o: { rate?: number; life?: number; back?: { x: number; y: number; z?: number }; size?: number; max?: number; foeY?: () => number } = {}): void {
+  const h = f.host, maps = tex.filter((x): x is THREE.Texture => !!x), N = o.max ?? 60, rate = o.rate ?? 40, life = o.life ?? 700;
+  const G = (maps.length ? maps : [null]).map((map) => {
+    const mat = new THREE.MeshStandardMaterial({ map: map ?? undefined, color: map ? 0xffffff : 0xffb6d2, emissive: 0xff8ab4, emissiveIntensity: map ? 0.3 : 0.7, roughness: 0.6, metalness: 0, transparent: true, alphaTest: 0.05, side: THREE.DoubleSide, depthWrite: false });
+    const geo = new THREE.PlaneGeometry(1, 1), back = new THREE.InstancedMesh(geo, mat, N), front = new THREE.InstancedMesh(geo, mat, N);
+    back.frustumCulled = front.frustumCulled = false; back.count = front.count = 0; h.back.add(back); h.solid.add(front);
+    return { mat, geo, back, front, nb: 0, nf: 0 };
+  });
+  const img = maps[0]?.image as { width?: number; height?: number } | undefined, W = h.w3(16 * (o.size ?? 1)), asp = img?.width && img.height ? img.height / img.width : 1;
+  type Pt = { g: number; x: number; y: number; z: number; vx: number; vy: number; vz: number; t: number; life: number; sz: number; ax: THREE.Vector3; rot: number; spin: number };
+  const P: Pt[] = [], M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), X = new THREE.Vector3();
+  const drop = () => { for (const g of G) { h.back.remove(g.back); h.solid.remove(g.front); g.back.dispose(); g.front.dispose(); g.geo.dispose(); g.mat.dispose(); } };
+  let acc = 0, on = true, k = 0;
+  run(f, {
+    step: (dt) => {
+      const s = dt / 1000, drag = Math.pow(0.12, s);
+      if (on) {
+        acc += rate * s;
+        while (acc >= 1 && P.length < N) {
+          acc -= 1; const c = at(); if (!c) { on = false; break; }
+          const b = o.back ?? { x: 0, y: 0 }, j = 0.5 + Math.random() * 0.7;
+          P.push({ g: k++ % G.length, x: c.x, y: c.y, z: c.z, vx: b.x * j + (Math.random() - 0.5) * 90, vy: b.y * j + (Math.random() - 0.5) * 50, vz: (b.z ?? 0) * j + (Math.random() - 0.2) * 120, t: 0,
+            life: life * (0.7 + Math.random() * 0.6), sz: 0.7 + Math.random() * 0.6, ax: new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize(), rot: Math.random() * 6, spin: 6 + Math.random() * 10 });
+        }
+        if (acc >= 1 && P.length >= N) acc = 0;
+        if (!at()) on = false;
+      }
+      for (const g of G) { g.nb = 0; g.nf = 0; }
+      const ref = o.foeY?.();
+      for (let i = P.length - 1; i >= 0; i--) {
+        const p = P[i]; p.t += dt;
+        if (p.t >= p.life) { P.splice(i, 1); continue; }
+        p.vx *= drag; p.vy *= drag; p.vz = Math.max(-90, p.vz * drag - 380 * s);
+        p.x += p.vx * s; p.y += p.vy * s; p.z = Math.max(2, p.z + p.vz * s);
+        const u = p.t / p.life, sc = W * p.sz * (u < 0.08 ? u / 0.08 : 1) * (u > 0.7 ? Math.max(0, (1 - u) / 0.3) : 1);
+        X.set(h.w3(p.x), h.h3(p.z), h.d3(p.y)); Q.setFromAxisAngle(p.ax, p.rot + (p.spin * p.t) / 1000); S.set(sc, sc * asp, 1); M.compose(X, Q, S);
+        const g = G[p.g]; if (ref !== undefined && p.y > ref + 4) g.front.setMatrixAt(g.nf++, M); else g.back.setMatrixAt(g.nb++, M);
+      }
+      for (const g of G) { g.back.count = g.nb; g.front.count = g.nf; g.back.instanceMatrix.needsUpdate = true; g.front.instanceMatrix.needsUpdate = true; }
+      if (!on && !P.length) { drop(); return false; }
       return true;
     }, dispose: drop,
   });

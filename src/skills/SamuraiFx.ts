@@ -11,6 +11,7 @@ import type { Projectile, V3 } from './HitGeometry';
 import type { Fx3D } from '../arena3d/Fx3D';
 import { POLE } from './SamuraiPole';
 import { ring as ring3, inkBurst as inkBurst3, SAM as SAM3 } from '../arena3d/fx3d/blade3d';
+import { waveBack } from '../arena3d/fx3d/samurai';
 
 export const KIT = 'sam-kit';
 export const KIT_URL = 'assets/final/skills/samurai/kit/';
@@ -633,7 +634,7 @@ export class SamuraiFx {
       case 'shadow_step': this.glint(r, 0, 26, 50); break;
       case 'swallow_cut': this.glint(r, 0, 24); break;
       case 'sheathe': this.sheatheGuard(r); break; // (the click is at the release: active)
-      case 'sword_wave': this.glint(r, 0, 34, 80); break;
+      case 'sword_wave': if (!this.in3d()) this.glint(r, 0, 34, 80); else for (let k = 0; k < 4; k++) this.petalLook(k); break; // (PVP 3D: the room's glint; its petals' pictures made ready)
       case 'iai_strike': this.iai(r); if (r.petals && !ghost) { const sc = this.scabs.get(r.attackerId); if (sc) sc.drawing = true; } break; // (the blossom draw: the scabbard keeps its petals for the release)
       case 'mirage': this.mirageStance(r); break;
       case 'blossom_storm': if (!ghost) this.blossomStorm(r); break; // (a double's storm: only its cuts — six funnels hid the foe, KAGEMUSHA)
@@ -2094,6 +2095,7 @@ export class SamuraiFx {
     const ax = aim.x, ay = aim.y, n = Math.hypot(ax, ay) || 1, ux = ax / n, uy = ay / n, x0 = from.x + ux * len, y0 = from.y + uy * len, dir = ux < 0 ? 1 : -1; // (it flies back: toward the thrower)
     const MS = 280, pt = { x: x0, y: y0, z: 0, done: false };
     const f3 = this.fx3d();
+    if (f3 && waveBack(f3, id, from, aim, len)) return; // (PVP 3D: the crescent waiting at its end flies back itself — fx3d/samurai.ts)
     if (f3) {
       ring3(f3, { x: x0, y: y0, z: 0 }, dir, { r: 112, w: 46, y0: 104, fwd: -90, tilt: 90, yaw: 0, a0: -34, a1: 164, ms: 2000, sweep: 0.04, fill: 1, inkW: 0.44, lit: SAM3.rose, gain: 1.1, shadow: true,
         follow: () => (pt.done ? null : pt), until: () => pt.done, fade: 110 }); // (its rim in rose: crimson added to the red planks showed nothing; gone into his blade at once)
