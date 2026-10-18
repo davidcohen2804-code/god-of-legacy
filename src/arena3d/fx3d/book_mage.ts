@@ -155,20 +155,20 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   storm_field: { tone: STORM, own: true,
     cast: (f, r) => {
       const p = placeOf(f, r), life = T(r).startup + (r.skill.zoneMs ?? 1500);
-      seal(f, p.x, p.y, STORM, { r: 175, ms: life + 300, spin: 0.7, pulse: 2, star: VOLT });
+      f.flipLoad(STRIKE); seal(f, p.x, p.y, STORM, { r: 175, ms: life + 300, spin: 0.7, pulse: 2, star: VOLT });
       keep(clouds, r.castId, cloud(f, p.x, p.y, { r: 210, h: 340, ms: life + 500, color: VOLT, n: 8 }));
     },
     active: (f, r) => {
       const p = placeOf(f, r), life = r.skill.zoneMs ?? 1500, flash = clouds.get(r.castId);
       f.swirl(() => ({ x: p.x, y: p.y, z: 0 }), {}, { n: 60, r0: 150, r1: 205, h: 150, ms: life, rps: 0.9, rise: 0.8, size: 0.6, color: STORM });
-      for (let t = 120; t < life - 120; t += 260) f.later(t, () => { const a = rnd(0, Math.PI * 2), d = rnd(60, 190); f.bolt({ x: p.x + Math.cos(a) * d * 0.4, y: p.y, z: 330 }, { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d * 0.5, z: 0 }, STORM, { ms: 160, w: 5, forks: 2, hue: true }); flash?.(0.45); });
+      for (let t = 120; t < life - 120; t += 260) f.later(t, () => { const a = rnd(0, Math.PI * 2), d = rnd(60, 190); f.flip(STRIKE, { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d * 0.5, z: 0 }, { frame: STRIKE_F, from: 0, to: 11, fps: 40, w: 150, mode: 'up', foot: true, through: 0.55, glow: 0.3, flipX: Math.random() < 0.5 }); flash?.(0.45); });
     },
     fired: (f, r, i) => {
       const p = placeOf(f, r), last = i === r.hits.length - 1, flash = clouds.get(r.castId);
       flash?.(last ? 1.3 : 0.8);
-      f.bolt({ x: p.x + rnd(-30, 30), y: p.y, z: 340 }, { x: p.x, y: p.y, z: 0 }, last ? VOLT : STORM, { ms: last ? 420 : 260, w: last ? 16 : 9, forks: last ? 4 : 2 });
+      f.flip(STRIKE, { x: p.x + rnd(-14, 14), y: p.y, z: 0 }, { frame: STRIKE_F, fps: last ? 26 : 34, w: last ? 360 : 230, mode: 'up', foot: true, through: 0.55, glow: 0.3, flipX: Math.random() < 0.5 }); // (each pulse the painted strike out of the cloud onto its heart)
       f.host.ring(f.host.w3(p.x), f.host.d3(p.y), STORM, last ? 3.4 : 1.8, last ? 520 : 320, 0.65);
-      if (last) { f.skyBeam({ x: p.x, y: p.y, z: 0 }, VOLT, { ms: 560, w: 20 }); star(f, { x: p.x, y: p.y, z: 60 }, VOLT, { size: 320, ms: 360 }); f.crack(p.x, p.y, STORM, { r: 150, chunks: 12 }); f.host.kick(0.05); }
+      if (last) { star(f, { x: p.x, y: p.y, z: 60 }, VOLT, { size: 320, ms: 360 }); f.crack(p.x, p.y, STORM, { r: 150, chunks: 12 }); f.host.kick(0.05); }
     },
   },
 
