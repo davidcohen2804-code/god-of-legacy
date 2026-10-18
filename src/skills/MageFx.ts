@@ -8,6 +8,7 @@ import type { FinalSkill, HitEvent } from './SkillTypes';
 import type { Projectile, V2, V3 } from './HitGeometry';
 import { mageQuad, type MageShader } from './MageShaders';
 import { SpaceWarp } from './SpaceWarp';
+import { keyBlack } from '../fx/keyBlack';
 import { supportAt } from '../world/WorldGeometry';
 import type { Fx3D } from '../arena3d/Fx3D';
 import { mageRune, mageRuneGone, mageWard, mageWardHit } from '../arena3d/fx3d/book_mage';
@@ -157,7 +158,8 @@ export class MageFx {
     const bx = o.w / fw, by = (o.h ?? (o.w * fh) / fw) / fh;
     const mk = (glow: boolean) => {
       const im = s.add.image(o.x ?? 0, o.y ?? 0, MAGE_KIT, o.name).setOrigin(o.ox ?? 0.5, o.oy ?? 0.5).setFlip(!!o.flipX, !!o.flipY).setVisible(false)
-        .setBlendMode(glow || o.add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
+        .setBlendMode(glow ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
+      if (!glow && o.add) keyBlack(im); // (the painted art keeps its colours on the red planks; only the glow adds light)
       if (o.tint !== undefined) im.setTint(o.tint);
       return im;
     };
@@ -189,7 +191,8 @@ export class MageFx {
     if (!s.textures.exists(MAGE_KIT)) return stop;
     const fr = s.textures.getFrame(MAGE_KIT, name); if (!fr) return stop;
     const mk = (glow: boolean) => {
-      const im = s.add.image(0, 0, MAGE_KIT, name).setDisplaySize(w, (w * fr.height) / fr.width).setBlendMode(glow || o.add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
+      const im = s.add.image(0, 0, MAGE_KIT, name).setDisplaySize(w, (w * fr.height) / fr.width).setBlendMode(glow ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
+      if (!glow && o.add) keyBlack(im);
       if (o.tint !== undefined) im.setTint(o.tint);
       return im;
     };
@@ -372,7 +375,8 @@ export class MageFx {
     const sc = this.ctx.scene; if (!sc.textures.exists(key)) return;
     const f0 = o.frames?.[0] ?? 0, n = o.frames?.[1] ?? MAGE_SHEETS[key]?.[3] ?? 16;
     const start = () => {
-      const im = sc.add.image(x, y, key, f0).setOrigin(o.ox ?? 0.5, o.oy ?? 0.5).setBlendMode(Phaser.BlendModes.SCREEN).setDepth(o.depth ?? TOP + 6).setFlipX(!!o.flipX).setAlpha(o.alpha ?? 1);
+      const im = sc.add.image(x, y, key, f0).setOrigin(o.ox ?? 0.5, o.oy ?? 0.5).setDepth(o.depth ?? TOP + 6).setFlipX(!!o.flipX).setAlpha(o.alpha ?? 1);
+      keyBlack(im); // (painted on black: covers in its own colours instead of screening pale on bright floors)
       let sh: Phaser.GameObjects.Image | null = null;
       if (o.floor) { // lies on the floor: flattens with the camera's pitch; a soft dark imprint under it so it reads on a bright floor too
         (im as unknown as { floorFlat: boolean }).floorFlat = true; im.setAlpha((o.alpha ?? 1) * 0.9);
