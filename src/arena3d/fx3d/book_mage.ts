@@ -325,18 +325,16 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   // TEMPEST RIDE — a tornado wraps him and carries him for the ride: a funnel of storm wind turning round him (bending as
   // it travels), pages and sparks spinning up it, bolts lashing out of it at each cut; at its end it is flung wide
   tempest_ride: { tone: STORM, own: true,
-    cast: (f, r) => { const c = me(f, r); seal(f, c.x, c.y, STORM, { r: 90, ms: T(r).startup + 260, spin: 3, star: VOLT }); },
+    cast: (f, r) => { const c = me(f, r); f.flipLoad(TORNADO); f.flipLoad(STRIKE); seal(f, c.x, c.y, STORM, { r: 90, ms: T(r).startup + 260, spin: 3, star: VOLT }); },
     active: (f, r) => {
       const id = r.attackerId, ms = T(r).active; let on = true; f.later(ms, () => { on = false; });
       const at = () => { const c = f.host.casterPos(id); return c && on ? { x: c.x, y: c.y, z: 0 } : null; };
-      funnel(f, at, STORM, { ms, h: 300, r0: 26, r1: 120, rps: 1.9, sway: 22, color2: VOLT, layers: 2, dark: STORMDARK });
-      f.swirl(at, {}, { n: 60, r0: 30, r1: 120, h: 290, ms, rps: 2.0, rise: 1.1, size: 0.8, color: VOLT });
-      f.swirl(at, { tex: 'mage-page', size: 0.8, aspect: 1.3, crumble: 'wind' }, { n: 10, r0: 60, r1: 130, h: 280, ms, rps: 1.8, rise: 0.9 });
+      f.flip(TORNADO, at, { frame: TORN_F, fps: 18, loop: true, ms, w: 270, mode: 'up', foot: true, through: 0.5, glow: 0.25, grow: [0.5, 1], fadeIn: 140, fadeOut: 180 }); // (the painted tornado carrying him, turning faster)
     },
     fired: (f, r, i) => {
       const c = f.host.casterPos(r.attackerId); if (!c) return;
       if (i === r.hits.length - 1) { f.host.ring(f.host.w3(c.x), f.host.d3(c.y), STORM, 2.8, 480, 0.6); star(f, { x: c.x, y: c.y, z: 120 }, VOLT, { size: 280, ms: 320 }); f.host.kick(0.04); return; }
-      const a = rnd(0, Math.PI * 2), d = rnd(60, 130); f.bolt({ x: c.x + Math.cos(a) * 40, y: c.y, z: 220 }, { x: c.x + Math.cos(a) * d, y: c.y + Math.sin(a) * d * 0.5, z: 0 }, STORM, { ms: 150, w: 4, forks: 1, hue: true });
+      const a = rnd(0, Math.PI * 2), d = rnd(60, 130); f.flip(STRIKE, { x: c.x + Math.cos(a) * d, y: c.y + Math.sin(a) * d * 0.5, z: 0 }, { frame: STRIKE_F, from: 0, to: 11, fps: 40, w: 130, mode: 'up', foot: true, through: 0.55, glow: 0.3, flipX: Math.random() < 0.5 });
     },
   },
 };
