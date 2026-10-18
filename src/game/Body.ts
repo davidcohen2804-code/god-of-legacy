@@ -612,7 +612,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     judgment_hook: { act: 'judgment_hook', st: [0, 1], ac: [2, 3, 4], rc: [4, 5] }, // wind back, hurl the chain, yank it in
     sky_breaker: { act: 'sky_breaker', st: [0], ac: [1, 1, 2, 3, 3, 4], rc: [5, 5] }, // the rising slashes, sword overhead, the dive, landed
     earthsplitter: { act: 'earthsplitter', st: [0, 1, 2, 1, 2], ac: [3, 4], rc: [4, 5] }, // his own move (PixVerse): the sword raised two-handed, held high and straining while the ground trembles, the huge chop into the floor, the recovery
-    shield_charge: { act: 'shield_charge', st: [0], ac: [1, 2, 1, 2], rc: [3, 3] }, // braced behind the barrier, the shoulder-first charge (two strides), the skid to a stop with the hand out for the grab
+    shield_charge: { act: 'oath', st: [2, 3], ac: [4, 4, 4, 4, 4, 4, 4, 4, 4, 3], rc: [5] }, // Iron Bastion: the sword driven into the floor, down on one knee behind it while he is iron, risen into the counter-slash
   },
   samurai: {
     // the basic chain, his own four cuts (PixVerse clips of his painted design, 6 frames each)

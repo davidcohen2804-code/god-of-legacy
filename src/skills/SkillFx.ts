@@ -911,14 +911,18 @@ export class SkillFx {
     this.scene.tweens.add({ targets: g, alpha: 0, delay: ms - 250, duration: 250, onComplete: () => { ev.remove(); g.destroy(); } });
   }
 
-  /** Shield Charge: the hex barrier of light rises before him and rides with the run, then breaks into shards at its end. */
+  /** Iron Bastion: he plants the sword and turns to iron — a cold blue sheen on him while it holds (follows him), the
+   *  planted blade's spark at his feet, then the counter-slash bursts round him as an iron ring at its hit. */
   private shieldCharge(r: CastRun): void {
-    const a = r.aim, key = vfxKey('shield_charge'), ang = Math.atan2(a.y, a.x) * (180 / Math.PI), T = r.timings;
-    const img = this.scene.add.image(0, 0, key, 0).setBlendMode(Phaser.BlendModes.NORMAL).setAngle(ang).setFlipY(a.x < -0.01);
-    const hold = Math.max(60, T.startup + T.active - 120), fr = [0, 1, 1, 2, 3, 6, 7], fms = [Math.max(40, T.startup), hold * 0.5, hold * 0.5, 50, 60, 80, 160];
-    const follow = () => { const c = this.casterPos(r.attackerId); if (!c) return null; img.setDisplaySize(170, 170); return { x: c.x + a.x * 40, y: c.y + a.y * 40, z: c.z + 42 }; };
-    const p = follow(); if (p) img.setPosition(p.x, p.y - p.z).setDepth(p.y + 2);
-    this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: fr, frameMs: fms, follow, fadeLast: 160 });
+    const T = r.timings, c0 = this.casterPos(r.attackerId); if (!c0) return;
+    const glow = this.scene.add.image(c0.x, c0.y - c0.z - 50, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0x9fc4ff).setDepth(c0.y - 1).setDisplaySize(120, 170).setAlpha(0);
+    const end = T.startup + T.active, hitAt = r.skill.hits[0]?.at ?? end;
+    this.scene.tweens.add({ targets: glow, alpha: 0.32, duration: T.startup + 80 });
+    this.scene.tweens.add({ targets: glow, scaleX: glow.scaleX * 1.08, scaleY: glow.scaleY * 1.08, yoyo: true, repeat: -1, duration: 260, ease: 'Sine.easeInOut' });
+    const ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => { const c = this.casterPos(r.attackerId); if (c && glow.active) glow.setPosition(c.x, c.y - c.z - 50).setDepth(c.y - 1); } });
+    this.scene.time.delayedCall(T.startup, () => { const c = this.casterPos(r.attackerId) ?? c0; this.shockwave(c.x, c.y, 90, 0x9fc4ff); }); // the sword bites the floor
+    this.scene.time.delayedCall(hitAt, () => { const c = this.casterPos(r.attackerId) ?? c0; this.shockwave(c.x, c.y, 170, 0x9fc4ff); this.shockwave(c.x, c.y, 120, 0xe8f2ff); (this.cam ?? this.scene.cameras.main).shake(160, 0.006); });
+    this.scene.tweens.add({ targets: glow, alpha: 0, delay: end, duration: 240, onComplete: () => { ev.remove(); this.scene.tweens.killTweensOf(glow); glow.destroy(); } });
   }
 
   /** Aegis Burst: the hex barrier holds in front of the caster, then bursts into the crescent wave. */
