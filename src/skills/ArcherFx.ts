@@ -70,7 +70,7 @@ const CHARGE_MS = STORM.ms;
 
 /** Hit sparks in the skill's family colour (DFO's families): FIRE — Fireball Arrow only; SUN — Sky Rain, Hunter's Rain. The rest keep the green WIND star. */
 /** Skills whose hit star hid the foe in PVP 3D (DFO's review): small sharp hits. */
-const SMALL_HIT = new Set(['sky_rain', 'quick_shot_stream', 'skyhunters_step', 'multi_shot', 'rising_arrow', 'hunters_spirit']);
+const SMALL_HIT = new Set(['arrow_storm', 'sky_rain', 'quick_shot_stream', 'skyhunters_step', 'multi_shot', 'rising_arrow', 'hunters_spirit']);
 const HIT_FAMILY: Record<string, number> = { explosive_arrow: 0xffa040, arrow_storm: 0xffe27a, sky_rain: 0xffe27a };
 
 export class ArcherFx {
@@ -426,6 +426,7 @@ export class ArcherFx {
     }
     if (s.id === 'arrow_storm' && r.place) { // one big shining arrow at a time drops straight down from high above onto the mark and blows the ground up
       const c = r.place, last = i === r.hits.length - 1, big = i % 5 === 4 || last, fx = big ? c.x : c.x + rnd(-70, 70), fy = big ? c.y : c.y + rnd(-26, 26), H = 820, fall = 200, L = last ? 300 : big ? 250 : 170; // the rain's beat: every 5th volley a great arrow on the mark (it marks him), the last the greatest (it throws him up)
+      if (this.in3d() && !big) return; // (PVP 3D: the painted rain carries the volleys; only the beat's great arrows fall on their own)
       this.spr({ name: 'fall_arrow', x: fx, y: fy - H, oy: 0.98, depth: fy + 2, w: L * 0.62, glow: 0.4, life: fall, my: (u) => H * inQ(u), sy: kf([0, 1.2], [1, 1]), a: kf([0, 0.6], [0.2, 1], [1, 1]) });
       this.later(fall, () => {
         this.spr({ name: 'arrow_planted', x: fx, y: fy + 6, oy: 0.96, depth: fy + 1, w: big ? 150 : 120, glow: 0.2, life: 800, sy: kf([0, 0.6], [0.08, 1.05, out3], [0.2, 1]), a: kf([0, 1], [0.7, 1], [1, 0]) }); // it stands in the floor a moment
@@ -606,6 +607,9 @@ export class ArcherFx {
     // on her while the rain lasts: the rune circle with arrows streaming up
     this.spr({ name: 'rain_ring', w: 110, oy: 0.88, follow: this.at(r.attackerId, 0, 0, -6), dz: -1, life: T.startup + T.active, add: true, glow: 0.25, run: r,
       a: kf([0, 0], [0.12, 0.7], [0.92, 0.7], [1, 0]) });
+    // (David 18 Oct 20:51: painted footage) the rain itself pours onto the mark — golden spirit arrows at a slant bursting in gold where they land, following it as she steers
+    if (this.ctx.scene.textures.exists('afx-rain')) this.flip('afx-rain', 0, 0, { w: 400, ms: T.active + 200, loop: 640, oy: 0.95, delay: T.startup, glow: 0.3, run: r,
+      follow: () => (r.place && r.phase !== 'done' ? { x: r.place.x + 40, y: r.place.y + 16, d: r.place.y + 40, ang: 0 } : null), a: kf([0, 0], [0.05, 1], [0.9, 1], [1, 0]) });
     // the target mark on the floor, following r.place
     this.floor('target_circle', 0, 0, 190, T.startup + T.active, { add: true, glow: 0.3, run: r, follow: () => r.place ?? null, s: kf([0, 0.5], [0.08, 1, out3]), a: kf([0, 0], [0.08, 0.9], [0.95, 0.9], [1, 0]) });
   }
