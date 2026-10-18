@@ -879,7 +879,7 @@ export class SkillFx {
           const burst = this.scene.add.image(land.x, land.y - 20, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff0b8).setDepth(TOP).setDisplaySize(120, 90);
           this.scene.tweens.add({ targets: burst, displayWidth: 420, displayHeight: 260, alpha: 0, duration: 260, ease: 'Cubic.easeOut', onComplete: () => burst.destroy() });
           if (sword) { // the Judge's sword of light falls point-down onto him and stands planted for the pin, its runes spread where it bit (DFO: a sword's shape)
-            const img = this.scene.add.image(land.x + [0, -55, 55][vn % 3], land.y - 2 + [0, -6, 6][vn % 3], 'jb-sword', 1).setOrigin(0.5, 0.93).setDepth(land.y - 2).setDisplaySize(340, 340).setAlpha(0.95).setTint(0xf0d8a0); img.setData('a0', 0.95); // (its drawn point is its floor point: PVP 3D plants it there, just behind him) // (behind the pinned foe)
+            const img = this.scene.add.image(land.x + [0, -55, 55][vn % 3], land.y - 2 + [0, -6, 6][vn % 3], 'jb-sword', 1).setOrigin(0.5, 0.93).setDepth(land.y - 2).setDisplaySize(340, 340).setAlpha(0.95).setTint(0xf0d8a0).setRotation(-(a.x < 0 ? -1 : 1) * [0.42, 0.34, 0.5][vn % 3]); img.setData('a0', 0.95); // (David 18:19: stuck slanted the way it flew in — its hilt leaning back toward the thrower, pivoting on its point) // (its drawn point is its floor point: PVP 3D plants it there, just behind him) // (behind the pinned foe)
             const fms = [50, 50, 90, 140, 180, 180, 260];
             this.anims.push({ img, t: 0, total: fms.reduce((x, y) => x + y, 0), frames: [1, 2, 3, 4, 5, 6, 7], frameMs: fms, fadeLast: 260, loop: [4, 5], until: 5000 });
           } else {
