@@ -342,11 +342,13 @@ export class ArcherFx {
       const sh = r.hits[i].shape as { bias?: number }, cx = r.origin.x + a.x * (sh.bias ?? 200), cy = r.origin.y + a.y * (sh.bias ?? 200), K = [0.7, 1, 1.25][i] ?? 1, big = i === 2; // (the third a size down: in PVP 3D it whited the fight out in blue)
       const q = this.me(r), sx = q.x + sideOf(r) * 30, sy = q.y - q.z - 58, lv = { x: cx - sx, y: cy - 20 - sy }, ang = Math.atan2(lv.y, lv.x) * (180 / Math.PI);
       this.spr({ name: big ? 't_arrow' : 'elec_arrow', x: sx, y: sy, ox: 0.9, depth: TOP + 3, w: (big ? 230 : 170) * K, angle: ang, add: true, glow: 0.45, life: 110, mx: (u) => lv.x * u, my: (u) => lv.y * u });
-      this.spr({ name: 't_blast', x: sx, y: sy, ox: 0.05, depth: TOP + 4, w: 120 * K, angle: ang, add: true, life: 200, sx: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) }); // the shot leaves the bow
-      this.bolt('bolt_seg', { x: sx, y: sy }, { x: cx, y: cy - 20 }, { thick: 26 * K, life: 160, delay: 40 }); // its lightning trail
-      this.pop('elec_burst', sx, sy, 88 * K, { life: 180 }); // (a size down at the bow: in PVP 3D the third shot's blast hid her)
+      if (!this.in3d()) this.spr({ name: 't_blast', x: sx, y: sy, ox: 0.05, depth: TOP + 4, w: 120 * K, angle: ang, add: true, life: 200, sx: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) }); // the shot leaves the bow
+      const flat = !this.in3d(); // (PVP 3D: the bolt, the floor ring and the charged glyph are the room's)
+      if (flat) this.bolt('bolt_seg', { x: sx, y: sy }, { x: cx, y: cy - 20 }, { thick: 26 * K, life: 160, delay: 40 }); // its lightning trail
+      if (!this.in3d()) this.pop('elec_burst', sx, sy, 88 * K, { life: 180 }); // (a size down at the bow: in PVP 3D the third shot's blast hid her)
       this.later(100, () => {
         this.spr({ name: 'elec_rise_arrow', x: cx, y: cy + 8, oy: 0.97, depth: cy + 2, w: 120 * K, flipX: lv.x < 0, add: true, glow: 0.4, life: CHARGE_MS, a: (u) => (u > 0.8 ? (1 - u) * 5 : 1) * (0.75 + 0.25 * Math.sin(u * 60)) }); // it stands in the floor, crackling
+        if (!flat) return;
         this.spr({ name: 't_sparks', x: cx, y: cy - 40 * K, depth: cy + 5, w: 160 * K, add: true, life: 420, sx: kf([0, 0.4], [1, 1.4, out3]), sy: kf([0, 0.4], [1, 1.4, out3]), a: kf([0, 1], [1, 0, inQ]) });
         this.spr({ name: 'elec_burst', x: cx, y: cy - 30 * K, depth: cy + 4, w: 160 * K, add: true, life: 260, sx: kf([0, 0.4], [0.3, 1.1, out3]), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) });
         this.later(60, () => { // the sky answers onto it
@@ -401,18 +403,18 @@ export class ArcherFx {
     const above = (): Pt | null => { const c = this.ctx.casterPos(r.attackerId); return c ? { x: c.x - side * 10, y: c.y - c.z - 240, d: c.y } : null; };
     const grow = kf([0, 0.2], [0.25, 1.05, out3], [0.35, 1]);
     // a storm cloud gathers above her, lit from inside
-    this.spr({ name: 't_cloud', w: 260, follow: above, dz: -8, life: end + 300, add: true, run: r, sx: kf([0, 0.4], [0.4, 1, out3], [1, 1.1]), sy: kf([0, 0.3], [0.4, 0.8, out3]), a: (u) => kf([0, 0], [0.2, 0.8], [0.9, 0.8], [1, 0])(u) * (0.8 + 0.2 * Math.sin(u * 50)) });
+    if (!this.in3d()) this.spr({ name: 't_cloud', w: 260, follow: above, dz: -8, life: end + 300, add: true, run: r, sx: kf([0, 0.4], [0.4, 1, out3], [1, 1.1]), sy: kf([0, 0.3], [0.4, 0.8, out3]), a: (u) => kf([0, 0], [0.2, 0.8], [0.9, 0.8], [1, 0])(u) * (0.8 + 0.2 * Math.sin(u * 50)) });
     // lightning flames rise round her body
-    this.spr({ name: 't_aura', w: 130, oy: 0.95, follow: this.at(r.attackerId, 0, 0, -8), dz: 1, life: end + 200, add: true, glow: 0.2, run: r, sy: (u) => grow(u) * (1 + 0.05 * Math.sin(u * 60)), a: kf([0, 0], [0.15, 0.5], [0.85, 0.45], [1, 0]) });
+    if (!this.in3d()) this.spr({ name: 't_aura', w: 130, oy: 0.95, follow: this.at(r.attackerId, 0, 0, -8), dz: 1, life: end + 200, add: true, glow: 0.2, run: r, sy: (u) => grow(u) * (1 + 0.05 * Math.sin(u * 60)), a: kf([0, 0], [0.15, 0.5], [0.85, 0.45], [1, 0]) });
     // an upright magic circle of lightning stands behind her, turning
-    this.spr({ name: 't_circle', w: 110, follow: at(-30, 74), dz: -3, life: until + 120, add: true, run: r, sy: grow, sx: (u) => grow(u) * Math.abs(Math.cos(u * 6)) * 0.6 + 0.4, a: kf([0, 0], [0.15, 0.6], [0.9, 0.7], [1, 0]) });
+    if (!this.in3d()) this.spr({ name: 't_circle', w: 110, follow: at(-30, 74), dz: -3, life: until + 120, add: true, run: r, sy: grow, sx: (u) => grow(u) * Math.abs(Math.cos(u * 6)) * 0.6 + 0.4, a: kf([0, 0], [0.15, 0.6], [0.9, 0.7], [1, 0]) });
     // the bow turns into lightning, drawn full; a sphere of lightning gathers at the arrow's tip
     this.spr({ name: 't_bow', w: 130, follow: at(46, 62), dz: 6, flipX: side < 0, life: end + 80, add: true, glow: 0.3, run: r, sx: grow, sy: grow, a: (u) => kf([0, 0], [0.15, 1], [0.92, 1], [1, 0])(u) * (0.85 + 0.15 * Math.sin(u * 80)) });
     this.spr({ name: 't_orb', w: 70, follow: at(108, 62), dz: 7, life: until, add: true, glow: 0.4, run: r, rot: (u) => -side * 720 * u, sx: kf([0, 0.1], [1, 1.1, inQ]), sy: kf([0, 0.1], [1, 1.1, inQ]), a: kf([0, 0], [0.2, 0.9], [1, 1]) });
     // the cloud strikes down into the bow, faster and faster; sparks are sucked into the orb
-    for (let k = 0; k < 6; k++) { const t0 = T.startup * 0.3 + (until - T.startup * 0.3) * (1 - Math.pow(1 - k / 6, 1.6));
+    if (!this.in3d()) for (let k = 0; k < 6; k++) { const t0 = T.startup * 0.3 + (until - T.startup * 0.3) * (1 - Math.pow(1 - k / 6, 1.6));
       this.later(t0, () => { const t = above(), c = this.ctx.casterPos(r.attackerId); if (!t || !c) return; this.bolt('bolt_seg', { x: t.x + rnd(-40, 40), y: t.y + 50 }, { x: c.x + side * 100, y: c.y - c.z - 62 }, { thick: 20 + k * 4, life: 120 }); }, r); }
-    for (let k = 0; k < 12; k++) this.later(T.startup * 0.2 + k * (until - T.startup * 0.2) / 12, () => { const c = this.ctx.casterPos(r.attackerId); if (!c) return; const ox = c.x + side * 100, oy = c.y - c.z - 62, an = rnd(0, Math.PI * 2), rr = rnd(60, 110);
+    if (!this.in3d()) for (let k = 0; k < 12; k++) this.later(T.startup * 0.2 + k * (until - T.startup * 0.2) / 12, () => { const c = this.ctx.casterPos(r.attackerId); if (!c) return; const ox = c.x + side * 100, oy = c.y - c.z - 62, an = rnd(0, Math.PI * 2), rr = rnd(60, 110);
       this.spr({ name: 'spark_cyan', x: ox + Math.cos(an) * rr, y: oy + Math.sin(an) * rr * 0.7, depth: c.y + 8, w: 24, add: true, life: 200, mx: (u) => -Math.cos(an) * rr * inQ(u), my: (u) => -Math.sin(an) * rr * 0.7 * inQ(u), a: kf([0, 0], [0.3, 1], [1, 0.4]) }); }, r);
     // the three arrows wait in a fan above and behind her, each bigger than the last
     hits.forEach((t1, k) => {
