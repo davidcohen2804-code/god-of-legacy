@@ -821,6 +821,7 @@ export class ArcherFx {
     const s = this.ctx.scene, fr = s.textures.getFrame(ARCHER_KIT, kind);
     const im = s.add.image(p.x, p.y - p.z, ARCHER_KIT, kind).setOrigin(0.92, 0.5).setDisplaySize(w, (w * fr.height) / fr.width).setAlpha(0);
     if (id === 'explosive_arrow') im.setTint(0xffc070, 0xffc070, 0xff8a30, 0xff8a30);
+    if (((id === 'quick_shot_stream' && p.hitIndex % 5 === 4) || (id === 'skyhunters_step' && p.hitIndex === p.skill.hits.length - 1)) && !this.released.has(p.castId + ':' + p.hitIndex)) { const k = p.castId + ':' + p.hitIndex; this.released.add(k); this.later(1500, () => this.released.delete(k)); this.releaseOf(p.attackerId, p.dx, p.dy, 180); } // (the stream's gold arrows and Air Volley's fifth tear out in wind — once a volley) // (the gold ones and Air Volley's fifth tear out in wind)
     if (((id === 'quick_shot_stream' && p.hitIndex % 5 === 4)) && !this.released.has(p.castId + ':' + p.hitIndex)) { const k = p.castId + ':' + p.hitIndex; this.released.add(k); this.later(1500, () => this.released.delete(k)); this.releaseOf(p.attackerId, p.dx, p.dy, 180); } // (the stream's gold arrows and Air Volley's fifth tear out in wind — once a volley) // (the gold ones and Air Volley's fifth tear out in wind)
     if (iron) im.setTint(0xe8eef2, 0xe8eef2, 0x9aa8b2, 0x9aa8b2);
     const tr = s.add.image(p.x, p.y - p.z, ARCHER_KIT, 'arrow_streak').setOrigin(1, 0.5).setAlpha(0).setDisplaySize(10, 12);
