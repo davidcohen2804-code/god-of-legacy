@@ -625,6 +625,27 @@ export class SkillFx {
     const fms = [s, s, 70, 80, 90, 120, 170, 230], img = this.play(key, x, y - c.z - 80, 300, 300, fms, { oy: 0.55, flip, depth: y - 3, alpha: 0.95, blend: Phaser.BlendModes.NORMAL, fadeLast: 230 }); // (behind the two fighters: in PVP 3D a bigger one hid them both)
     if (img) this.scene.tweens.add({ targets: img, x: x + a.x * 110, delay: s * 2, duration: 240, ease: 'Cubic.easeOut' }); // the lunge
     this.scene.time.delayedCall(T.startup + 450, () => { this.shockwave(x + a.x * 60, y + a.y * 60, 220, 0xffc860); (this.cam ?? this.scene.cameras.main).shake(150, 0.006); });
+    this.lionStays(r);
+  }
+
+  /** The lion that stays (DFO's linger: at the aim, `offset` px ahead, a roar every `everyMs`): its head stands there
+   *  breathing fire, opens its jaws wide at every roar (a crimson ring), and the last roar bursts it into embers. */
+  private lionStays(r: CastRun): void {
+    const L = r.skill.linger; if (!L) return;
+    const key = vfxKey('lions_maw'), a = r.aim, off = L.offset ?? 0, lx = r.origin.x + a.x * off, ly = r.origin.y + a.y * off, flip = a.x < 0, t0 = r.timings.startup + L.startMs;
+    let head: Phaser.GameObjects.Image | null = null;
+    for (let i = 0; i < L.count; i++) this.scene.time.delayedCall(t0 + i * L.everyMs, () => {
+      const last = i === L.count - 1;
+      if (!head) { head = this.scene.add.image(lx, ly - 95, key, 5).setOrigin(0.5, 0.55).setDepth(ly - 3).setFlipX(flip).setDisplaySize(220, 220).setAlpha(0); this.scene.tweens.add({ targets: head, alpha: 0.85, duration: 140 }); }
+      const h = head, sx = h.scaleX, sy = h.scaleY;
+      h.setFrame(4); this.scene.time.delayedCall(170, () => { if (h.active) h.setFrame(3); }); this.scene.time.delayedCall(330, () => { if (h.active && !last) h.setFrame(5); }); // (the jaws open wide, then close to a growl)
+      this.scene.tweens.add({ targets: h, scaleX: sx * 1.14, scaleY: sy * 1.14, duration: 110, yoyo: true, ease: 'Quad.easeOut' });
+      this.shockwave(lx, ly, last ? 230 : 190, last ? 0xffc860 : 0xd8261c);
+      if (last) { // it bursts into embers
+        this.scene.time.delayedCall(300, () => { if (!h.active) return; h.setFrame(6); this.scene.time.delayedCall(110, () => h.active && h.setFrame(7)); this.scene.tweens.add({ targets: h, alpha: 0, scaleX: sx * 1.4, scaleY: sy * 1.4, duration: 320, onComplete: () => h.destroy() }); });
+        (this.cam ?? this.scene.cameras.main).shake(180, 0.007);
+      }
+    });
   }
 
   private roar(r: CastRun): void {

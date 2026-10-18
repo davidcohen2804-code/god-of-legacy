@@ -49,6 +49,16 @@ export const WARRIOR: Record<string, Recipe> = {
   titans_verdict: { tone: 0xffb84a, own: true, active: (f, r) => { const c = ahead(f, r, 110); f.glyph(c.x, c.y, W.holy, { shape: 'runes', r: 230, ms: 2600, spin: 0.25, pulse: 0.8, a: 0.7 }); f.later(60, () => f.skyBeam({ x: c.x, y: c.y, z: 0 }, 0xffd27a, { ms: 520, w: 16 })); f.host.kick(0.08); f.later(180, () => { crk(f, c.x, c.y, W.molten, { r: 290, chunks: 16, up: 1.8 }); /* the crater: the planks split wide, molten gold in the cracks */ f.crystals(c.x, c.y, { ring: true, n: 14, r: 200, h: 130, ms: 2600, stone: true }); /* a crown of broken rock thrust up round it */ f.glyph(c.x, c.y, 0xffb84a, { shape: 'star', r: 300, ms: 3200, spin: -0.15, pulse: 1.2, a: 0.55 }); /* a great gold star burnt into the floor under the runes */ for (let t = 0; t < 2600; t += 260) f.later(t, () => f.host.embers(f.host.w3(c.x + (Math.random() - 0.5) * 300), 0.05, f.host.d3(c.y + (Math.random() - 0.5) * 120), 0xffb84a, 6, 1.6)); }); } }, // (David 01:07: what stays on the floor more powerful — a crater with molten gold cracks, a crown of rock, a gold star under the runes, embers rising) Titan's Verdict (DAVID 20:56): the Judge's verdict — a great ring of holy runes opens under the foe and turns, the titan's blade comes down as one gold beam from the sky (with DFO's moment before it and his impact on the blow; the room lit warm gold)
   // CRIMSON
   war_cry: { tone: W.crimson, own: true, active: (f, r) => { const c = me(f, r); f.dome(c.x, c.y, W.crimson, { r: 230, ms: 520, a: 0.4 }); f.later(90, () => f.dome(c.x, c.y, W.blood, { r: 170, ms: 440, a: 0.3 })); f.host.dust(f.host.w3(c.x), f.host.d3(c.y), 6, 1.2); f.host.embers(f.host.w3(c.x), 0.9, f.host.d3(c.y), W.crimson, 22, 3.2); f.host.impact({ x: c.x, y: c.y, z: 100 }, 1); } }, // the roar: a shock ring of red air, the dust blown off the planks
-  lions_maw: { tone: W.crimson, own: true, crest: { c: W.crimson, h: 150, w: 120 }, trail: false },
+  lions_maw: { tone: W.crimson, own: true, crest: { c: W.crimson, h: 150, w: 120 }, trail: false, active: (f, r) => { // the lion that stays (its linger at the aim): a ring of claw runes burns under it, every roar a crimson ring and sparks, the last a burst of embers
+    const L = r.skill.linger; if (!L) return;
+    const off = L.offset ?? 0, x = r.origin.x + r.aim.x * off, y = r.origin.y + r.aim.y * off, hx = f.host.w3(x), hz = f.host.d3(y);
+    f.later(L.startMs, () => f.glyph(x, y, W.crimson, { shape: 'runes', r: L.radius, ms: (L.count - 1) * L.everyMs + 500, spin: 0.2, pulse: 0.6, a: 0.55 }));
+    for (let i = 0; i < L.count; i++) f.later(L.startMs + i * L.everyMs, () => {
+      const last = i === L.count - 1;
+      f.host.ring(hx, hz, last ? 0xffc860 : W.crimson, f.host.w3(L.radius * (last ? 2.4 : 2)), last ? 520 : 420, last ? 0.8 : 0.6);
+      f.host.embers(hx, 0.9, hz, i % 2 ? 0xffb040 : W.crimson, last ? 30 : 8, last ? 2.6 : 1.2);
+      if (last) f.impact({ x, y, z: 90 }, W.crimson, { r: 100, cracks: false, embers: 24 });
+    });
+  } },
   blade_storm: { tone: W.crimson, own: true, active: (f, r) => f.bladeBall(r.attackerId, W.crimson, { r: 150, ms: T(r).active, every: 70, ink: true, w: 40 }) }, // Blade Storm (DAVID 20:56): a ball of inked crimson blade rings at many angles whirling round him for the whole storm — the one shape; the main hit's impact is DFO's
 };
