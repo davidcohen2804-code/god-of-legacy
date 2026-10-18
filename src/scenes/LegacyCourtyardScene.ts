@@ -1933,6 +1933,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
           for (let n = 0; n < 1; n++) { const a = (l.left * 2.4 + n * Math.PI) + (Math.random() - 0.5) * 0.9, rr = 95 + Math.random() * Math.max(10, L.radius - 70); /* (feel pass: one sword a pulse, kept off the fighters — two a pulse filled the screen in PVP 3D) */ this.fx!.risingBlade(l.x + Math.cos(a) * rr, l.y + Math.sin(a) * rr * 0.6, n * 90); }
         }
         else if (l.run.skill.cls === 'gambler') { this.gamblerZoneAt(l); this.fx!.gambleZone(l.run.skill.id, l.x, l.y, L.radius); } // (the gambler's floor eruption / thrown-foe bomb: GamblerFx)
+        else if (l.run.skill.id === 'sword_wave') this.fx!.samWaveReturn(l.run.attackerId, { x: l.x, y: l.y }, l.run.aim, L.line?.length ?? 380); // (its ink shadow flies back along the line: SamuraiFx)
         else if (l.run.skill.id !== 'ground_breaker' && l.run.skill.id !== 'tornado_blade' && l.run.skill.id !== 'rain_of_arrows' && l.run.skill.id !== 'titans_verdict' && l.run.skill.id !== 'leaping_arrow') this.fx!.crack(l.x, l.y, L.radius); // (Thunder Rain: the charged floor is drawn by ArcherFx) // the quake has one steady rotating ring instead of per-tick sparks; the tornado is its own picture
         if (l.run.skill.id === 'ground_breaker' && l.run.own && this.dead < 0) { // the quake mends the warrior: +2 HP per pulse
           const max = this.maxHpNow(), before = this.playerHP;

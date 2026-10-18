@@ -2076,6 +2076,35 @@ export class SamuraiFx {
         sx: kf([0, 0.6], [0.25, 1, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
     }
   }
+  /** Sword Wave's ink shadow (David 18 Oct 01:15: "the crescent and its shadow"; its linger's tick, 700 ms after the
+   *  throw): where the line ends the crescent comes back as its black shadow — only its rim lit crimson — racing along the
+   *  planks back to where he threw it (it drags the foe it meets: the scene's pull), a crimson furrow torn behind it. */
+  waveReturn(id: string, from: { x: number; y: number }, aim: { x: number; y: number }, len: number): void {
+    if (!this.ready) return;
+    const ax = aim.x, ay = aim.y, n = Math.hypot(ax, ay) || 1, ux = ax / n, uy = ay / n, x0 = from.x + ux * len, y0 = from.y + uy * len, dir = ux < 0 ? 1 : -1; // (it flies back: toward the thrower)
+    const MS = 280, pt = { x: x0, y: y0, z: 0, done: false };
+    const f3 = this.fx3d();
+    if (f3) {
+      ring3(f3, { x: x0, y: y0, z: 0 }, dir, { r: 112, w: 46, y0: 104, fwd: -90, tilt: 90, yaw: 0, a0: -34, a1: 164, ms: 2000, sweep: 0.04, fill: 1, inkW: 0.44, lit: SAM3.rose, gain: 1.1, shadow: true,
+        follow: () => (pt.done ? null : pt), until: () => pt.done, fade: 110 }); // (its rim in rose: crimson added to the red planks showed nothing; gone into his blade at once)
+      inkBurst3(f3, { x: x0, y: y0, z: 90 }, { r: 70, n: 8, ms: 360, foeY: y0 - 40 }); // (it turns to ink where the line ends)
+    }
+    let t = 0, lx = x0, ly = y0;
+    const im = f3 ? null : this.spr({ name: 'wave_crescent', x: x0, y: y0 - 50, ox: 0.76, w: 170, life: MS + 160, flipY: dir < 0, angle: dir < 0 ? 180 : 0, tint: 0x14030a, depth: y0 + 2, a: kf([0, 0.95], [0.8, 0.95], [1, 0, inQ]) }); // (the painted world: the crescent in ink)
+    this.add({ t: 0, step: (dt) => {
+      t += dt; const u = Math.min(1, t / MS), e = u; // (flat out all the way home: eased, it hung by him at the end)
+      pt.x = x0 - ux * len * e; pt.y = y0 - uy * len * e;
+      if (im) im.setPosition(pt.x, pt.y - 50).setDepth(pt.y + 2);
+      if (Math.hypot(pt.x - lx, pt.y - ly) > 26) {
+        if (f3) f3.floorStreak(lx, ly, pt.x, pt.y, SAM3.crimson, { w: 8, ms: 380, a: 0.4 });
+        else this.spr({ name: 'ink_short', x: (lx + pt.x) / 2, y: (ly + pt.y) / 2 - 4, w: 70, h: 18, depth: pt.y - 1, life: 360, flipX: dir < 0, a: kf([0, 0.7], [1, 0, inQ]) });
+        lx = pt.x; ly = pt.y;
+      }
+      if (u >= 1) { pt.done = true; this.pop('glint', from.x, from.y - 56, 70, { life: 180, angle: 0, depth: from.y + 2, glow: 0.4 }); return false; } // (home: a glint where he threw it)
+      return true;
+    } });
+    void id;
+  }
   projectileEnd(p: Projectile): void {
     if (!this.waves.has(p)) return;
     this.as({ attackerId: p.attackerId, castId: p.castId, skill: p.skill }, () => this.projectileEndOne(p));

@@ -2354,6 +2354,8 @@ export class SkillFx {
   samDriftGo(key: string, how: 'wind' | 'gather' | 'gone', to?: string): void { this.sam.driftGo(key, how, to); }
   samScabbard(id: string, n: number, ms: number): void { this.sam.scabbard(id, n, ms); }
   petalLook(k: number): { tex: string; size: number; aspect: number } | null { return this.sam.petalLook(k); }
+  /** Sword Wave's ink shadow flies back along its line (its linger's tick): from `len` px along `aim` back to `from`. */
+  samWaveReturn(id: string, from: { x: number; y: number }, aim: { x: number; y: number }, len: number): void { this.sam.waveReturn(id, from, aim, len); }
   /** Rising Sun's planted banner springs him far back (call it as his jump lands on the pole; `dir` the way he flies). */
   samPoleSpring(id: string, dir?: number): void { this.sam.poleSpring(id, dir); }
   /** Sheathe's substitute: a blow landed on his guard — the doll takes it and breaks, he vanishes in ink (call it then). */

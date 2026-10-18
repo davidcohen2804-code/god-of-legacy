@@ -679,8 +679,8 @@ const samurai: FinalSkill[] = [
     linger: { at: 'origin', startMs: 700, everyMs: 1000, count: 1, radius: 0, maxZ: 170, line: { length: 380, width: 56 },
       hit: H(0, 14, { kind: 'line', length: 380, width: 56 }, { stun: 460, pullMs: 300, juggleCost: 8 }, { reachUp: 170 }) },
     cancelOnHit: ['shadow_step', 'blossom_storm'],
-    description: 'Fling a golden crescent of steel that flies fast and level: it staggers a foe on the floor and holds one in the air where it meets him — from the floor it passes under a foe thrown high, so jump with him and throw it level. One at a time. Walls stop it.',
-    relations: ['One at a time', 'Holds in the air'],
+    description: 'Fling a crescent of light that flies fast and level and cuts the foe it meets (a foe in the air is held where it meets him). Where it ends it turns to ink: a moment later its shadow flies back along the same line to where you threw it, cutting again and dragging whoever it meets back to your blade. Walls stop it.',
+    relations: ['Out in light, back in ink', 'Drags him back to you'],
   }),
   S({
     id: 'mirage', cls: 'samurai', slot: 5, name: 'Mirage Counter', roles: ['counter', 'escape'], targeting: 'mouseDir',
