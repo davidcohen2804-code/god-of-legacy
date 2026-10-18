@@ -18,6 +18,7 @@ import { isQAMode, startQAPanel } from './qa/QAPanel';
 import { startTestMode } from './qa/TestMode';
 import ASSET_HASH from 'virtual:asset-hashes';
 import WEBP_TWINS from 'virtual:webp-twins';
+import { KeyBlackPipeline } from './fx/keyBlack';
 
 ErrorCapture.installGlobal();
 
@@ -79,6 +80,7 @@ loadFonts().then(() => {
     backgroundColor: '#000000',
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     scene: [BootScene, MainMenuScene, CharacterSelectScene, CharacterCreateScene, PvpSelectScene, LegacyCourtyardScene],
+    pipeline: { KeyBlack: KeyBlackPipeline } as unknown as Phaser.Types.Core.PipelineConfig, // (painted-on-black effects that keep their colours: src/fx/keyBlack.ts)
   });
 
   // the letterbox around the game: a tiny copy of the frame (4 times a second), blurred and dimmed by its CSS (index.html)
