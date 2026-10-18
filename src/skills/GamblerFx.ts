@@ -1329,7 +1329,8 @@ export class GamblerFx {
       const gw = 128, gh = 32, A = grow * fade;
       halo.setVisible(true).setPosition(hx, hy).setAngle(ang).setScale((L * 1.08) / gw, 30 / gh).setDepth(d).setAlpha(0.6 * A * pulse);
       core.setVisible(true).setPosition(hx, hy).setAngle(ang).setScale(L / gw, 10 / gh).setDepth(d + 0.01).setAlpha(0.95 * A);
-      const BL = L * 1.15 * grow; // the blade of light out of its tip, longer than the cane
+      const dy = (ty - hy) / (L || 1), room = dy > 0.05 ? Math.max(8, (fy + 4 - ty) / dy) : Infinity; // (pointing down: the blade stops at the floor, never through it)
+      const BL = Math.min(L * 1.15, room) * grow; // the blade of light out of its tip, longer than the cane
       blade.setVisible(true).setPosition(tx, ty).setAngle(ang).setScale(BL / gw, 22 / gh).setDepth(d + 0.01).setAlpha(0.75 * A * pulse);
       bladeCore.setVisible(true).setPosition(tx, ty).setAngle(ang).setScale((BL * 0.9) / gw, 7 / gh).setDepth(d + 0.02).setAlpha(0.95 * A);
       tipStar.setVisible(true).setPosition(tx, ty).setDisplaySize(34 + 8 * Math.sin(t * 0.02), 34 + 8 * Math.sin(t * 0.02)).setDepth(d + 0.02).setAlpha(0.9 * A);
