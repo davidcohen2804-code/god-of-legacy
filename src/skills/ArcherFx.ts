@@ -76,6 +76,7 @@ export class ArcherFx {
   private fanCount = new Map<string, number>();
   private bigSpark = new Map<string, number>(); // skill → when its last big hit spark was drawn
   private heavyShots = new Set<string>(); // casts of Double Shot's charged arrow (its projectile is drawn heavy)
+  private released = new Set<string>(); // volleys whose release burst was drawn (Air Volley fires three rows a shot)
   private trapArt = new Map<Trap, { stop(): void; arm(): void }>();
   /** PVP 3D: the room carries the volume (its own pieces in fx3d/archer.ts) — the flat painted layer is cut back there. */
   private in3d(): boolean { return !!(this.ctx.scene as unknown as { a3d?: unknown }).a3d; }
@@ -227,6 +228,13 @@ export class ArcherFx {
     this.spr({ name: 'spark_s', w: size * 0.42, life: 90, delay, follow: this.at(r.attackerId, side, 18, 54), dz: 5, add: true, glow: 0.3, run: r, rot: (u) => u * 40, sx: kf([0, 0.5], [0.3, 1.15, out3], [1, 0.8]), sy: kf([0, 0.5], [0.3, 1.15, out3], [1, 0.8]), a: kf([0, 1], [0.6, 1], [1, 0]) });
   }
   /** A painted burst at the bow along the aim (fan of light, sonic boom). */
+  /** A heavy release at the bow (painted footage, ARCHER_FLIPS 'afx-release'): a cone of wind and leaves blasting out along the aim. */
+  private release(r: CastRun, w: number, delay = 0, ms = 280): void { this.releaseOf(r.attackerId, r.aim.x, r.aim.y, w, delay, ms, r); }
+  private releaseOf(id: string, ax: number, ay: number, w: number, delay = 0, ms = 280, run?: CastRun): void {
+    if (!this.ctx.scene.textures.exists('afx-release')) return;
+    this.later(delay, () => { const q = this.ctx.casterPos(id); if (!q) return; const side = ax < 0 ? -1 : 1, lv = level(ax, ay);
+      this.flip('afx-release', q.x + side * 16, q.y - q.z - 54, { w, ms, ox: lv.flip ? 0.94 : 0.06, oy: 0.5, angle: lv.ang, flipX: lv.flip, depth: q.y + 5, glow: 0.2, a: kf([0, 1], [0.6, 1], [1, 0, inQ]) }); }, run);
+  }
   private bowBurst(r: CastRun, name: string, size: number, delay = 0, life = 260, tint?: number): void {
     const side = sideOf(r), lv = level(r.aim.x, r.aim.y);
     this.spr({ name, w: size, life, delay, tint, follow: this.at(r.attackerId, side, 16, 54), dz: 4, ox: lv.flip ? 0.88 : 0.12, flipX: lv.flip, angle: lv.ang, add: true, glow: 0.3, run: r,
@@ -249,7 +257,7 @@ export class ArcherFx {
         if (r.stage === 1) { // the charged arrow: light gathers on the bow, then a heavy snap and a boom along the aim
           this.heavyShots.add(r.castId); this.later(2000, () => this.heavyShots.delete(r.castId));
           this.spr({ name: 'aura_green', w: 70, life: T.startup, follow: this.at(r.attackerId, side, 14, 54), dz: 4, add: true, glow: 0.5, run: r, sx: kf([0, 0.3], [1, 1.1, out3]), sy: kf([0, 0.3], [1, 1.1, out3]), a: kf([0, 0], [0.3, 0.9], [1, 1]) });
-          this.muzzle(r, 110, T.startup); this.bowBurst(r, 'sonic_boom', 120, T.startup, 300);
+          this.muzzle(r, 110, T.startup); if (this.ctx.scene.textures.exists('afx-release')) this.release(r, 230, T.startup); else this.bowBurst(r, 'sonic_boom', 120, T.startup, 300); // (painted footage: the charged arrow tears out in a cone of wind and leaves)
         } else this.muzzle(r, 70, T.startup);
         break;
       case 'quick_shot_stream': { // held Space (David 01:33): a green spirit circle turns before her bow while she holds, arrows streaming out of it
@@ -813,6 +821,7 @@ export class ArcherFx {
     const s = this.ctx.scene, fr = s.textures.getFrame(ARCHER_KIT, kind);
     const im = s.add.image(p.x, p.y - p.z, ARCHER_KIT, kind).setOrigin(0.92, 0.5).setDisplaySize(w, (w * fr.height) / fr.width).setAlpha(0);
     if (id === 'explosive_arrow') im.setTint(0xffc070, 0xffc070, 0xff8a30, 0xff8a30);
+    if (((id === 'quick_shot_stream' && p.hitIndex % 5 === 4)) && !this.released.has(p.castId + ':' + p.hitIndex)) { const k = p.castId + ':' + p.hitIndex; this.released.add(k); this.later(1500, () => this.released.delete(k)); this.releaseOf(p.attackerId, p.dx, p.dy, 180); } // (the stream's gold arrows and Air Volley's fifth tear out in wind — once a volley) // (the gold ones and Air Volley's fifth tear out in wind)
     if (iron) im.setTint(0xe8eef2, 0xe8eef2, 0x9aa8b2, 0x9aa8b2);
     const tr = s.add.image(p.x, p.y - p.z, ARCHER_KIT, 'arrow_streak').setOrigin(1, 0.5).setAlpha(0).setDisplaySize(10, 12);
     if (id === 'explosive_arrow') tr.setTint(0xffa040);
