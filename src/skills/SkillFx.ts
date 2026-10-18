@@ -166,7 +166,7 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
   if (ULT_PORTRAIT) for (const cls of Object.keys(ULT_GLINT)) if (want(cls) && !scene.textures.exists(ultPortraitKey(cls))) scene.load.image(ultPortraitKey(cls), `${F}/heroes/${cls}/${cls === 'book_mage' ? 'ult' : 'vs'}.webp`); // (the ultimate's portrait; the book mage's own: her VS pose with white glowing eyes and lightning — David 18 Oct 01:26)
   const L = (k: string, p: string, w: number, h = w) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: w, frameHeight: h }); };
   // (templates — wip skills — have no art loaded yet)
-  for (const s of FINAL_SKILLS) { if (VFX_ALIAS[s.id] || s.wip || s.cls === 'samurai' || s.cls === 'book_mage' || s.cls === 'gambler' || !want(s.cls)) continue; const big = isBig(s) ? 384 : 256, c = VFX_CELL[s.id]; L(vfxKey(s.id), `${F}/skills/${s.cls}/${s.id}/vfx.png`, c?.[0] ?? big, c?.[1] ?? big); } // (the samurai: pieces, SamuraiFx)
+  for (const s of FINAL_SKILLS) { if (VFX_ALIAS[s.id] || s.id === 'thunder_circle' || s.wip || s.cls === 'samurai' || s.cls === 'book_mage' || s.cls === 'gambler' || !want(s.cls)) continue; const big = isBig(s) ? 384 : 256, c = VFX_CELL[s.id]; L(vfxKey(s.id), `${F}/skills/${s.cls}/${s.id}/vfx.png`, c?.[0] ?? big, c?.[1] ?? big); } // (the samurai: pieces, SamuraiFx)
   for (const [id, p] of Object.entries(PROJECTILE_SHEETS)) { const cls = FINAL_SKILLS.find((s) => s.id === id)!.cls; if (want(cls)) L(`proj-${id}`, `${F}/projectiles/${cls}/${id}.${p.ext ?? 'png'}`, p.cell); }
   for (const v of Object.values(IMPACT)) L(v.key, v.path, v.cell);
   if (want('warrior')) L('imp-wsparks', `${F}/impact/warrior_sparks.png`, 256); // the warrior's hit sparks: rows normal / heavy / launch / counter (GPT)
@@ -408,6 +408,7 @@ export class SkillFx {
     else if (s.id === 'judgment_hook') this.hookChain(r);
     else if (s.id === 'sky_breaker') this.skyBreaker(r);
     else if (s.id === 'lions_maw') this.lionsMaw(r);
+    else if (s.id === 'thunder_circle') this.thunderCircle(r);
     else if (s.id === 'leap_crash') { this.aura(r); this.scene.time.delayedCall(r.timings.startup, () => { const c = this.casterPos(r.attackerId) ?? r.origin; this.leapBurst(c.x, c.y - c.z, r.aim.x < 0 ? -1 : 1); }); } // the take-off: a burst of light at his feet, the crater comes on the landing
     else if (s.id === 'lance_thrust' && s.charge) { this.lanceCharge(r); this.castVfx(r); } // (Impaling Rush held: a lance of steel light grows on his blade at each step — David 01:07)
     else if (s.id === 'earthsplitter') this.chargeAura(r); // (the charge: flames of light rise round him while the key is held, stronger at each level; the split itself plays on the release, onActive)
@@ -626,6 +627,21 @@ export class SkillFx {
     if (img) this.scene.tweens.add({ targets: img, x: x + a.x * 110, delay: s * 2, duration: 240, ease: 'Cubic.easeOut' }); // the lunge
     this.scene.time.delayedCall(T.startup + 450, () => { this.shockwave(x + a.x * 60, y + a.y * 60, 220, 0xffc860); (this.cam ?? this.scene.cameras.main).shake(150, 0.006); });
     this.lionStays(r);
+  }
+
+  /** Thunder Circle (painted arena; PVP 3D draws its own): the sword plunged, a ring of lightning glowing in the floor round
+   *  him for the linger's life, a flash ring on every strike. */
+  private thunderCircle(r: CastRun): void {
+    if (ARENA3D.on) return;
+    const L = r.skill.linger, R = L?.radius ?? 170, n = L?.count ?? 10, every = L?.everyMs ?? 500, t0 = r.timings.startup + (L?.startMs ?? 300), life = (L?.startMs ?? 300) + n * every;
+    this.scene.time.delayedCall(r.timings.startup, () => {
+      const c = this.casterPos(r.attackerId) ?? r.origin;
+      const disc = this.scene.add.image(c.x, c.y, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0x8fd8ff).setDepth(GROUND + 2).setDisplaySize(R * 2.2, R * 0.75).setAlpha(0);
+      this.scene.tweens.add({ targets: disc, alpha: 0.5, duration: 160 });
+      this.scene.tweens.add({ targets: disc, alpha: 0, delay: life, duration: 300, onComplete: () => disc.destroy() });
+      this.shockwave(c.x, c.y, R, 0x8fd8ff);
+      for (let i = 0; i < n; i++) this.scene.time.delayedCall(t0 - r.timings.startup + i * every, () => this.shockwave(c.x, c.y, R, i % 2 ? 0xe8f6ff : 0x8fd8ff));
+    });
   }
 
   /** The lion that stays (DFO's linger: at the aim, `offset` px ahead, a roar every `everyMs`): its head stands there
