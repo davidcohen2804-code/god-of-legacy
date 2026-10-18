@@ -94,8 +94,8 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   tempest_ride: { tone: C.storm, own: true,
     cast: (f, r) => { const c = me(f, r); f.glyph(c.x, c.y, C.storm, { shape: 'spiral', r: 90, ms: 420, spin: 3, pulse: 2 }); },
     active: (f, r) => { const id = r.attackerId, ms = r.timings.active; let on = true; f.later(ms, () => { on = false; }); const at = () => { const c = f.host.casterPos(id); return c && on ? { x: c.x, y: c.y, z: 0 } : null; };
-      f.swirl(at, {}, { n: 90, r0: 36, r1: 150, h: 320, ms, rps: 2.2, rise: 1.1, size: 0.9, color: C.storm });
-      f.swirl(at, {}, { n: 40, r0: 24, r1: 70, h: 260, ms, rps: -2.8, rise: 1.4, size: 0.6, color: C.arcane });
+      f.swirl(at, {}, { n: 150, r0: 34, r1: 160, h: 340, ms, rps: 2.2, rise: 1.1, size: 1.4, color: C.storm });
+      f.swirl(at, {}, { n: 60, r0: 24, r1: 80, h: 280, ms, rps: -2.8, rise: 1.4, size: 0.9, color: C.arcane }); for (let t = 0; t < ms - 200; t += 260) f.later(t, () => { const c = at(); if (c) f.pillar(c.x, c.y, C.storm, { h: 320, r: 58, ms: 460, twist: true, i: 0.45, core: false }); }); /* (the funnel's body: short twisting columns laid where she is, so it travels with her) */
       f.swirl(at, { tex: 'mage-page', size: 0.8, aspect: 1.3, crumble: 'wind' }, { n: 12, r0: 60, r1: 130, h: 280, ms, rps: 1.8, rise: 0.9 }); },
     fired: (f, r, i) => { const c = f.host.casterPos(r.attackerId); if (!c) return; const last = i === r.hits.length - 1;
       if (last) { f.host.ring(f.host.w3(c.x), f.host.d3(c.y), C.storm, 2.6, 480, 0.6); f.slash({ x: c.x, y: c.y, z: 0 }, side(r), C.storm, { r: 150, w: 50, tilt: 0, a0: -180, a1: 180, ms: 320, y0: 20, ink: true }); f.host.kick(0.04); return; }
