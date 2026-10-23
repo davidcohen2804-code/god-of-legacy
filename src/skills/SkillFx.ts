@@ -1660,7 +1660,7 @@ export class SkillFx {
     this.mage.update(step, performance.now());
     this.arch.update(step);
     this.gamb.update(step);
-    this.impact.update(step);
+    this.impact.update(step, ms); // (its colour split and zoom blur on the real time: they never hold through a hit-stop)
     if (this.hitStopLeft > 0) this.hitStopLeft = Math.max(0, this.hitStopLeft - ms);
     this.anims = this.anims.filter((a) => {
       a.t += step;

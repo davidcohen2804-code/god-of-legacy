@@ -361,7 +361,7 @@ export class Fx3D {
     this.onPiece?.('pillar', { x, y, z: 0 }, (o.h ?? 420) > 650 ? 2 : (o.h ?? 420) > 450 ? 1 : 0);
     const outer = this.both(this.pillarGeo, KIND.pillar, color, hz, { i });
     const inner = o.core === false ? [] : this.both(this.pillarGeo, KIND.pillar, mix(color, 0xffffff, 0.7), hz, { i: i * 1.1 });
-    const foot = new THREE.Mesh(this.planeGeo, this.mat(KIND.decal, color, { i: 1.4, map: this.disc })); foot.position.set(hx, 0.03, hz); this.h.back.add(foot);
+    const foot = new THREE.Mesh(this.planeGeo, this.mat(KIND.decal, vivid(color), { i: 1, map: this.disc })); foot.position.set(hx, 0.03, hz); this.h.back.add(foot); (foot.material as THREE.ShaderMaterial).blending = THREE.NormalBlending; // (painted in its colour: an added foot burnt a white disc into the red planks)
     for (const m of [...outer, ...inner]) m.position.set(hx, 0, hz);
     let t = 0;
     this.h.flare(hx, H * 0.35, hz + 0.2, color, 26 * (o.h ?? 420) / 420, 8, ms * 0.9);
@@ -373,7 +373,7 @@ export class Fx3D {
         for (const m of inner) m.scale.set(R * 0.38 * (1.2 - 0.6 * k), H * (0.45 + 0.6 * grow), R * 0.38 * (1.2 - 0.6 * k));
         this.setU(outer, 'uA', e * 0.85); this.setU(inner, 'uA', e * 0.7 * (1 - k * 0.6));
         this.setU(outer, 'uT', t / 1000); this.setU(inner, 'uT', t / 1000 + 3);
-        foot.scale.set(R * 6 * (0.6 + 0.6 * grow), 1, R * 6 * (0.6 + 0.6 * grow)); (foot.material as THREE.ShaderMaterial).uniforms.uA.value = e * 0.55;
+        foot.scale.set(R * 6 * (0.6 + 0.6 * grow), 1, R * 6 * (0.6 + 0.6 * grow)); (foot.material as THREE.ShaderMaterial).uniforms.uA.value = e * 0.42;
         if (t >= ms) { this.drop([...outer, ...inner]); this.drop([foot]); return false; }
         return true;
       }, dispose: () => { this.drop([...outer, ...inner]); this.drop([foot]); },
@@ -411,12 +411,17 @@ export class Fx3D {
     const hx = this.h.w3(x), hz = this.h.d3(y), R = this.h.w3(o.r ?? 110), ms = o.ms ?? 900;
     if (!o.quiet) this.onPiece?.('crack', { x, y, z: 0 }, (o.r ?? 110) > 200 ? 2 : (o.r ?? 110) > 130 ? 1 : 0);
     const [sharp, glow] = this.cracks[Math.floor(Math.random() * this.cracks.length)], rot = Math.random() * Math.PI * 2;
-    const mk = (map: THREE.Texture, c: number, i: number, add: boolean, y0: number) => {
-      const m = new THREE.Mesh(this.planeGeo, add ? this.mat(KIND.decal, c, { i, map })
-        : new THREE.MeshBasicMaterial({ color: 0x140a06, map, transparent: true, depthWrite: false, opacity: 0.85, polygonOffset: true, polygonOffsetFactor: -2 }));
+    const mk = (map: THREE.Texture, c: number, i: number, add: boolean | 'paint', y0: number) => {
+      const mat = add ? this.mat(KIND.decal, c, { i, map }) : new THREE.MeshBasicMaterial({ color: 0x140a06, map, transparent: true, depthWrite: false, opacity: 0.85, polygonOffset: true, polygonOffsetFactor: -2 });
+      if (add === 'paint') mat.blending = THREE.NormalBlending;
+      const m = new THREE.Mesh(this.planeGeo, mat);
       m.position.set(hx, y0, hz); m.rotation.y = rot; m.scale.set(R * 2, 1, R * 2 * 0.95); this.h.back.add(m); return m;
     };
-    const scar = mk(sharp, 0, 0, false, 0.014), hot = mk(glow, color, 2.6, true, 0.018), core = mk(sharp, mix(color, 0xffffff, 0.55), 2.4, true, 0.02);
+    // (DFO 19 Oct: its molten light was only added — ×2.6 its colour, a white-hot core over it: on the red planks every big
+    //  hit's cracks burnt a pale gold-white star into the floor. Painted now: the molten glow and its lines laid over the
+    //  planks in its own colour, only a thin added light along the lines)
+    const molten = vivid(color);
+    const scar = mk(sharp, 0, 0, false, 0.014), hot = mk(glow, molten, 1, 'paint', 0.018), core = mk(sharp, mix(molten, 0xffffff, 0.18), 1, 'paint', 0.02), edge = mk(sharp, color, 0.55, true, 0.022); // (its line hot in its own hue, not white)
     let t = 0;
     this.h.flare(hx, 0.25, hz + 0.2, color, 16, 6, 500);
     if ((o.chunks ?? 10) > 0) this.debris(x, y, o.chunks ?? 10, { speed: 1, up: o.up ?? 1 });
@@ -425,13 +430,15 @@ export class Fx3D {
       step: (dt) => {
         t += dt;
         const g = Math.max(0, 1 - t / ms), flick = 0.85 + 0.15 * Math.sin(t / 23);
-        (hot.material as THREE.ShaderMaterial).uniforms.uA.value = g * g * flick;
-        (core.material as THREE.ShaderMaterial).uniforms.uA.value = Math.max(0, 1 - t / (ms * 0.45));
-        const open = outCubic(Math.min(1, t / 120)); for (const m of [scar, hot, core]) m.scale.set(R * 2 * (0.7 + 0.3 * open), 1, R * 1.9 * (0.7 + 0.3 * open));
+        (hot.material as THREE.ShaderMaterial).uniforms.uA.value = 0.85 * g * g * flick;
+        const c0 = Math.max(0, 1 - t / (ms * 0.45));
+        (core.material as THREE.ShaderMaterial).uniforms.uA.value = Math.min(1, 0.35 + c0) * g;
+        (edge.material as THREE.ShaderMaterial).uniforms.uA.value = 0.6 * c0;
+        const open = outCubic(Math.min(1, t / 120)); for (const m of [scar, hot, core, edge]) m.scale.set(R * 2 * (0.7 + 0.3 * open), 1, R * 1.9 * (0.7 + 0.3 * open));
         (scar.material as THREE.MeshBasicMaterial).opacity = 0.85 * Math.min(1, Math.max(0, (ms * 4 - t) / 900));
-        if (t >= ms * 4) { this.drop([scar, hot, core]); return false; }
+        if (t >= ms * 4) { this.drop([scar, hot, core, edge]); return false; }
         return true;
-      }, dispose: () => this.drop([scar, hot, core]),
+      }, dispose: () => this.drop([scar, hot, core, edge]),
     });
   }
 
@@ -651,7 +658,9 @@ export class Fx3D {
     this.lastImpact = { x: at.x, y: at.y, t: this.clock };
     this.announce('impact', at, r > 100 ? 2 : r > 55 ? 1 : 0, { color });
     if (flipReady(this, IMPACT_SHEET)) { // (David 18 Oct 20:49, "not professional": the white ball and its shell were drawn in code — a painted burst now, tinted to the blow, its white-hot heart kept, the struck one seen through it)
-      this.flip(IMPACT_SHEET, at, { grid: [4, 4], fps: 38, w: r * 4.4, mode: 'up', tint: color, core: 0.95, coreMs: 90, gain: 1.1, through: 0.65, glow: 0.2, rot: (Math.random() - 0.5) * 16, flipX: Math.random() < 0.5 });
+      // (nothing of it under the planks: a burst bigger than the blow's height hung under the floor and lay over it toward the
+      //  eye as a white splash with rays; a blow at the floor — a slam — erupts out of the planks)
+      this.flip(IMPACT_SHEET, at.z < r ? { x: at.x, y: at.y, z: Math.max(at.z, r * 0.3) } : at, { grid: [4, 4], fps: 38, w: r * 4.4, mode: 'up', tint: color, core: 0.95, coreMs: 90, gain: 1.1, through: 0.65, glow: 0.2, rot: (Math.random() - 0.5) * 16, flipX: Math.random() < 0.5, ground: true });
     } else { // (the sheet not in yet: the code-drawn flash)
       this.orb(at, 0xffffff, { r0: r * 0.6, r1: r, ms: 95, a: 0.85, i: 1.5 }); // (a flash, never a white-out: gone in ~6 frames)
       this.later(40, () => this.dome(at.x, at.y, color, { r: r * 1.7, ms: 280, a: 0.55, i: 1.5, hold: 1, paint: o.paint })); // (its colour bursts out as a shell, its rim burning: the blow seen through it)
@@ -729,8 +738,11 @@ export class Fx3D {
     const shape = o.shape ?? 'star', R = this.h.w3(o.r ?? 180), ms = o.ms ?? 2200, hx = this.h.w3(x), hz = this.h.d3(y), A = o.a ?? 0.9;
     this.announce('glyph', { x, y, z: 0 }, (o.r ?? 180) > 220 ? 2 : 1, { color });
     const map = this.glyphTex(shape, o.points ?? 8);
-    const m = new THREE.Mesh(this.planeGeo, this.mat(KIND.decal, color, { i: 1.8, map })); m.position.set(hx, 0.022, hz); this.h.back.add(m);
-    const core = new THREE.Mesh(this.planeGeo, this.mat(KIND.decal, mix(color, 0xffffff, 0.6), { i: 1.6, map })); core.position.set(hx, 0.024, hz); this.h.back.add(core);
+    // (DFO 19 Oct: painted in its colour over the planks, a thin added light over it — added alone, ×1.8 and a white core,
+    //  a glyph went white-grey on the red floor: the Warrior chat's seals)
+    const m = new THREE.Mesh(this.planeGeo, this.mat(KIND.decal, vivid(color), { i: 1, map })); m.position.set(hx, 0.022, hz); this.h.back.add(m); (m.material as THREE.ShaderMaterial).blending = THREE.NormalBlending;
+    const lit = new THREE.Mesh(this.planeGeo, this.mat(KIND.decal, mix(color, 0xffffff, 0.3), { i: 0.75, map })); lit.position.set(hx, 0.023, hz); this.h.back.add(lit);
+    const core = new THREE.Mesh(this.planeGeo, this.mat(KIND.decal, mix(vivid(color), 0xffffff, 0.35), { i: 1, map })); core.position.set(hx, 0.024, hz); this.h.back.add(core); (core.material as THREE.ShaderMaterial).blending = THREE.NormalBlending;
     this.h.flare(hx, 0.3, hz + 0.2, color, 18, 8, Math.min(ms, 700));
     const rot = Math.random() * Math.PI * 2;
     let t = 0;
@@ -738,13 +750,14 @@ export class Fx3D {
       step: (dt) => {
         t += dt; const k = clamp01(t / ms), open = outBack(Math.min(1, t / 220)), sz = R * 2 * (0.55 + 0.45 * open);
         const pulse = 0.78 + 0.22 * Math.sin((t / 1000) * Math.PI * 2 * (o.pulse ?? 2.2)), fade = k > 0.85 ? (1 - k) / 0.15 : 1;
-        m.scale.set(sz, 1, sz); core.scale.set(sz * 0.985, 1, sz * 0.985);
-        m.rotation.y = core.rotation.y = rot + (t / 1000) * THREE.MathUtils.degToRad(o.spin ?? 14);
-        (m.material as THREE.ShaderMaterial).uniforms.uA.value = A * pulse * fade * Math.min(1, t / 90);
+        m.scale.set(sz, 1, sz); lit.scale.set(sz, 1, sz); core.scale.set(sz * 0.985, 1, sz * 0.985);
+        m.rotation.y = lit.rotation.y = core.rotation.y = rot + (t / 1000) * THREE.MathUtils.degToRad(o.spin ?? 14);
+        const a = A * pulse * fade * Math.min(1, t / 90);
+        (m.material as THREE.ShaderMaterial).uniforms.uA.value = a * 0.85; (lit.material as THREE.ShaderMaterial).uniforms.uA.value = a * 0.45;
         (core.material as THREE.ShaderMaterial).uniforms.uA.value = A * 0.55 * Math.max(0, 1 - t / 260) * fade;
-        if (t >= ms) { this.drop([m, core]); return false; }
+        if (t >= ms) { this.drop([m, lit, core]); return false; }
         return true;
-      }, dispose: () => this.drop([m, core]),
+      }, dispose: () => this.drop([m, lit, core]),
     });
   }
   /** The glyphs' pictures (white strokes on clear, a glow under them), drawn once each. */
@@ -1022,6 +1035,13 @@ export class Fx3D {
 export function mix(a: number, b: number, t: number): number {
   const c = (s: number) => Math.round(((a >> s) & 255) * (1 - t) + ((b >> s) & 255) * t);
   return (c(16) << 16) | (c(8) << 8) | c(0);
+}
+
+/** A colour as it is painted over the planks: its hue fuller, never paler than mid-light (a pale one reads white there). */
+export function vivid(color: number): number {
+  const c = new THREE.Color(color), hsl = { h: 0, s: 0, l: 0 };
+  c.getHSL(hsl, THREE.SRGBColorSpace); c.setHSL(hsl.h, Math.min(1, hsl.s * 1.2 + 0.1), Math.min(0.6, Math.max(0.42, hsl.l)), THREE.SRGBColorSpace);
+  return c.getHex();
 }
 
 // ------------------------------------------------------------------ building blocks

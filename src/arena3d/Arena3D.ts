@@ -154,7 +154,7 @@ export class Arena3D {
   private composer?: EffectComposer;
   private sunBase = 0; private hemiBase = 0;
   /** The hits' light: a small pool of point lights, each placed on a hit and fading (the floor and the ground take it). */
-  private hitLights: { L: THREE.PointLight; F: THREE.PointLight; left: number; ms: number; power: number; wash: number }[] = [];
+  private hitLights: { L: THREE.PointLight; F: THREE.PointLight; left: number; ms: number; power: number; wash: number; /** its share on the planks (see flare) */ cut: number; /** where the blow is (its light is lifted over it) */ at: THREE.Vector3; /** its strength now, before the cut (the bodies' wash reads it) */ now: number }[] = [];
   /** The marks a heavy blow leaves on the floor (a soft dark scorch / dust ring, fading). */
   private marks: { m: THREE.Mesh; left: number; ms: number }[] = [];
   private markTex?: THREE.Texture;
@@ -282,7 +282,7 @@ export class Arena3D {
     // the blows' light: always in the scene (a light switched on or off recompiles every material: a hitch), dark when idle
     for (let i = 0; i < 4; i++) {
       const L = new THREE.PointLight(0xffffff, 0, 6, 1.6), F = new THREE.PointLight(0xffffff, 0, 6, 1.6); // (the same light on the railing and the chunks in front)
-      this.scene3.add(L); this.front3.add(F); this.hitLights.push({ L, F, left: 0, ms: 1, power: 0, wash: 1 });
+      this.scene3.add(L); this.front3.add(F); this.hitLights.push({ L, F, left: 0, ms: 1, power: 0, wash: 1, cut: 1, at: new THREE.Vector3(), now: 0 });
     }
     // the skills' 3D pieces
     this.fx = new Fx3D({
@@ -315,9 +315,19 @@ export class Arena3D {
    *  gold, so in front of it he read as a hole: the Samurai chat). */
   private flare(hx: number, hy: number, hz: number, color: number, power: number, dist: number, ms: number, wash = 0.35): void {
     if (!Number.isFinite(hx) || !Number.isFinite(hy) || !Number.isFinite(hz) || !Number.isFinite(power)) return; // (a light at NaN poisons every lit pixel, and the bloom spreads it: a black frame)
-    const slot = this.hitLights.reduce((a, b) => (b.left < a.left ? b : a));
-    for (const L of [slot.L, slot.F]) { L.color.set(color); L.distance = dist; L.position.set(hx, hy, hz); }
-    slot.left = ms; slot.ms = ms; slot.power = power; slot.wash = wash;
+    // (DFO 19 Oct: one blow lit three lights at one spot — the room's, its impact's, its cracks' — low over the glossy planks:
+    //  together they burnt a white hot spot and a white sheen streak into the red floor, the blow's own colour clipped to
+    //  white under every big hit. One light a blow now: a flare inside a stronger one still burning adds nothing, a stronger
+    //  one takes its place. And it is lifted over the blow, its share on the planks capped: the floor takes its colour in a
+    //  pool that never clips, a heavier blow's pool wider, not whiter; the bodies' wash still reads its full strength.)
+    const near = this.hitLights.find((h) => h.left > 0 && Math.hypot(h.at.x - hx, h.at.z - hz) < 1.6);
+    if (near && near.now >= power) { near.wash = Math.max(near.wash, wash); return; }
+    const slot = near ?? this.hitLights.reduce((a, b) => (b.left < a.left ? b : a));
+    const up = Math.max(hy, 1.3), cap = 2.6 + power * 0.06, hsl = { h: 0, s: 0, l: 0 }, c = new THREE.Color(color);
+    c.getHSL(hsl, THREE.SRGBColorSpace); c.setHSL(hsl.h, Math.min(1, hsl.s * 1.15 + 0.05), Math.min(0.55, hsl.l), THREE.SRGBColorSpace); // (its colour, not its white: what the planks show)
+    for (const L of [slot.L, slot.F]) { L.color.copy(c); L.distance = dist * 1.15; L.position.set(hx, up, hz); }
+    slot.at.set(hx, hy, hz); slot.cut = Math.min(1, cap / (power / Math.pow(up, 1.6)));
+    slot.left = ms; slot.ms = ms; slot.power = power; slot.wash = near ? Math.max(near.wash, wash) : wash; slot.now = power;
   }
 
   /** Glowing sparks thrown from a point (units), falling and bouncing on the planks. */
@@ -407,7 +417,7 @@ export class Arena3D {
     if (!this.ringTex) {
       const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d')!;
       const gr = g.createRadialGradient(64, 64, 0, 64, 64, 63);
-      gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.72, 'rgba(255,255,255,0)'); gr.addColorStop(0.9, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.8, 'rgba(255,255,255,0)'); gr.addColorStop(0.93, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); // (a crisp band: a broad one read as a big translucent disc over the planks)
       g.fillStyle = gr; g.fillRect(0, 0, 128, 128); this.ringTex = new THREE.CanvasTexture(c);
     }
     // (DFO 18 Oct, David 20:49 "not professional": an added ring went white on the red planks — painted in its colour now,
@@ -441,9 +451,9 @@ export class Arena3D {
   /** Each frame: the hit lights fade, the marks fade, the room darkens / brightens toward what the moment wants. */
   private stepFx(ms: number): void {
     for (const h of this.hitLights) {
-      if (h.left <= 0) { h.L.intensity = h.F.intensity = 0; continue; }
+      if (h.left <= 0) { h.L.intensity = h.F.intensity = h.now = 0; continue; }
       h.left -= ms; const k = Math.max(0, h.left / h.ms);
-      h.L.intensity = h.F.intensity = h.power * (k * k * (3 - 2 * k)); // (a fast flare, a soft fade)
+      h.now = h.power * (k * k * (3 - 2 * k)); h.L.intensity = h.F.intensity = h.now * h.cut; // (a fast flare, a soft fade)
     }
     for (let i = this.marks.length - 1; i >= 0; i--) {
       const mk = this.marks[i]; mk.left -= ms;
@@ -607,8 +617,8 @@ export class Arena3D {
       const bx = this.w3(body.x), by = this.h3(body.depth - body.y + 90), bz = this.d3(body.depth);
       let sum = 0, best = 0, col = 0xffffff;
       for (const h of this.hitLights) {
-        if (h.L.intensity <= 0) continue;
-        const d = Math.hypot(h.L.position.x - bx, h.L.position.y - by, h.L.position.z - bz), f = Math.max(0, 1 - d / h.L.distance), v = h.L.intensity * f * f * h.wash;
+        if (h.now <= 0) continue;
+        const d = Math.hypot(h.at.x - bx, h.at.y - by, h.at.z - bz), f = Math.max(0, 1 - d / (h.L.distance / 1.15)), v = h.now * f * f * h.wash;
         sum += v; if (v > best) { best = v; col = h.L.color.getHex(); }
       }
       const la = Math.min(0.26, sum / 80) * Math.min(1, body.alpha);

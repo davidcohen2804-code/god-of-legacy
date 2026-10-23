@@ -850,9 +850,9 @@ export function wreath(f: Fx3D, at: () => V3 | null, color: number, o: { r?: num
 const FLIP_VS = `
 #include <common>
 #include <clipping_planes_pars_vertex>
-varying vec2 vUv;
+varying vec2 vUv; varying float vWy;
 void main() {
-  vUv = uv;
+  vUv = uv; vWy = (modelMatrix * vec4(position, 1.0)).y;
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mvPosition;
   #include <clipping_planes_vertex>
@@ -861,8 +861,8 @@ const FLIP_FS = `
 #include <common>
 #include <clipping_planes_pars_fragment>
 uniform sampler2D uMap; uniform vec2 uGrid; uniform float uF0; uniform float uF1; uniform float uMix; uniform float uA;
-uniform vec3 uTint; uniform float uKey; uniform vec2 uLoHi; uniform float uGain; uniform float uGlow; uniform float uCore;
-varying vec2 vUv;
+uniform vec3 uTint; uniform float uKey; uniform vec2 uLoHi; uniform float uGain; uniform float uGlow; uniform float uCore; uniform float uFloor;
+varying vec2 vUv; varying float vWy;
 vec4 frameAt(float f) { float c = mod(f, uGrid.x), r = floor(f / uGrid.x); return texture2D(uMap, (vec2(c, uGrid.y - 1.0 - r) + clamp(vUv, 0.002, 0.998)) / uGrid); }
 void main() {
   #include <clipping_planes_fragment>
@@ -878,6 +878,7 @@ void main() {
   float m2 = max(col.r, max(col.g, col.b)); col = col * a * smoothstep(0.55, 1.0, m2) * uGlow; a = 1.0;
 #endif
   a *= uA;
+  if (uFloor > 0.0) a *= smoothstep(0.0, uFloor, vWy); // (ground: nothing under the planks, its foot fading into them)
   if (!(a >= 0.003)) discard;
   gl_FragColor = vec4(max(col, vec3(0.0)), min(a, 1.0));
   #include <tonemapping_fragment>
@@ -928,6 +929,10 @@ export type FlipOpts = {
   grow?: [number, number]; fadeIn?: number; fadeOut?: number;
   /** Mirrored (it faces the other way). */
   flipX?: boolean;
+  /** ('up') Nothing of it under the planks, its foot fading into them over ~20 px: a burst near the floor erupts out of it
+   *  (upright art is otherwise drawn whole, and what hung under the floor lay over it toward the eye — a white splash with
+   *  rays on the planks). */
+  ground?: boolean;
 };
 /** A frame sheet played in the room (DFO, 18 Oct 20:51 — David: "a free hand in GPT and PixVerse"): a GPT sheet or a
  *  PixVerse effect turned into frames (tools/fx/flipbook.py), placed in the room's depth — upright at a point (turned to
@@ -943,7 +948,7 @@ export function flip(f: Fx3D, src: string, at: V3 | (() => V3 | null), o: FlipOp
     const mk = (glow: boolean) => new THREE.ShaderMaterial({
       vertexShader: FLIP_VS, fragmentShader: FLIP_FS, defines: glow ? { GLOW: 1 } : {},
       uniforms: { uMap: { value: null }, uGrid: { value: new THREE.Vector2(1, 1) }, uF0: { value: 0 }, uF1: { value: 0 }, uMix: { value: 0 }, uA: { value: 1 },
-        uTint: { value: new THREE.Color(o.tint ?? 0xffffff) }, uKey: { value: (o.key ?? 'black') === 'black' ? 1 : 0 }, uLoHi: { value: new THREE.Vector2(o.lo ?? 0.04, o.hi ?? 0.6) }, uGain: { value: o.gain ?? 1 }, uGlow: { value: o.glow ?? 0 }, uCore: { value: o.core ?? 0 } },
+        uTint: { value: new THREE.Color(o.tint ?? 0xffffff) }, uKey: { value: (o.key ?? 'black') === 'black' ? 1 : 0 }, uLoHi: { value: new THREE.Vector2(o.lo ?? 0.04, o.hi ?? 0.6) }, uGain: { value: o.gain ?? 1 }, uGlow: { value: o.glow ?? 0 }, uCore: { value: o.core ?? 0 }, uFloor: { value: o.ground && mode === 'up' ? 0.22 : 0 } },
       transparent: true, depthWrite: false, depthTest: mode !== 'up', side: THREE.DoubleSide, blending: glow ? THREE.AdditiveBlending : THREE.NormalBlending, fog: false, // (upright art is a picture in the air: the floor does not cut its lower half)
     });
     const ay = o.anchorY ?? (o.foot ? 0 : 0.5), geo = new THREE.PlaneGeometry(1, 1); if (mode === 'up' && ay !== 0.5) geo.translate(0, 0.5 - ay, 0);

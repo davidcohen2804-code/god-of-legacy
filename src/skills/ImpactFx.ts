@@ -123,7 +123,10 @@ export class ImpactFx {
     return { u: (x - wv.x) / wv.width, v: 1 - (y - z - wv.y) / wv.height, k: this.scene.game.renderer.width / Math.max(1, wv.width) };
   }
 
-  update(dt: number): void {
+  /** `dt`: the effects' time (0 through a hit-stop: the rings of bent air hang with the blow); `real`: the real time — the
+   *  colour split and the zoom blur snap in and fade on it (held through an ultimate's hit-stop they smeared the whole
+   *  picture into a grey-brown blur with streaks for half a second: DFO 19 Oct). */
+  update(dt: number, real = dt): void {
     const P = this.pipe; if (!P) return;
     this.rings = this.rings.filter((w) => (w.t += dt) < w.life);
     P.w.fill(0); P.k.fill(0);
@@ -134,7 +137,7 @@ export class ImpactFx {
     });
     const pulse = (p: Pulse | null, out: Float32Array): boolean => {
       if (!p || p.left <= 0) { out[2] = 0; return false; }
-      p.left -= dt; const k = Math.max(0, p.left / p.ms), q = this.uv(p.x, p.y, p.z);
+      p.left -= real; const k = Math.max(0, p.left / p.ms), q = this.uv(p.x, p.y, p.z);
       out[0] = q.u; out[1] = q.v; out[2] = p.amt * k * k; return true;
     };
     const a = pulse(this.ab, P.ab), b = pulse(this.rb, P.rb);
