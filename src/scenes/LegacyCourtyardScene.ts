@@ -415,6 +415,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private wire3D(a3: Arena3D): void {
     this.unwire3D();
     a3.casterPos = (id) => this.casterPos(id);
+    if (this.fx) this.fx.ring3d = (x, y, r, c) => { // (a 2D shockwave on the 3D stage: the room's painted ring over the planks — DFO 23 Oct)
+      if (this.a3d !== a3) return false;
+      const h = a3.fx.host; h.ring(h.w3(x), h.d3(y), c, h.w3(r), 380, 0.6); return true;
+    };
     a3.onImpact = (at, big) => {
       const fx = this.fx; if (!fx) return;
       fx.impact.ripple(at, { r1: [150, 240, 400][big], life: [240, 320, 480][big], s: [9, 15, 26][big], width: [16, 22, 32][big], squash: 0.5 });

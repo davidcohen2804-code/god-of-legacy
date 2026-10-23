@@ -462,8 +462,13 @@ export class SkillFx {
     }
   }
 
-  /** Ground shockwave: an expanding additive ellipse on the floor plane + a thin bright rim. */
+  /** On a 3D stage (the arena's room, a 3D map): the room's own ring over the planks (set by the scene). */
+  ring3d: ((x: number, y: number, radius: number, color: number) => boolean) | null = null;
+  /** Ground shockwave: an expanding additive ellipse on the floor plane + a thin bright rim. On a 3D stage the room runs its
+   *  painted ring instead (DFO 23 Oct: the thick added strokes, scaled ×5, laid a pale disc scored with radial seams over
+   *  the red planks under every slam — Earthsplitter, Ground Breaker, Lion's Maw, Fuse Slam…). */
   shockwave(x: number, y: number, radius: number, color: number, keep = false): void {
+    if (this.ring3d?.(x, y, radius, color)) return;
     for (const [w, a, d] of [[10, 0.85, 320], [26, 0.35, 420]] as const) {
       const g = this.scene.add.ellipse(x, y, radius * 0.4, radius * 0.4 * 0.42).setStrokeStyle(keep ? w * 0.7 : w, color, keep ? a * 0.8 : a).setDepth(GROUND + 2).setBlendMode(keep ? Phaser.BlendModes.NORMAL : Phaser.BlendModes.ADD); // keep: the colour stays (green / blue never wash to yellow on the floor)
       this.scene.tweens.add({ targets: g, scaleX: 5, scaleY: 5, alpha: 0, duration: d, ease: 'Cubic.easeOut', onComplete: () => g.destroy() });
