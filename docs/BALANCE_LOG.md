@@ -4,6 +4,12 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-10-23 — Iai Strike's draws are hits; Light Staff 25 s (the Samurai and Gambler chats' asks)
+- **Iai Strike** (samurai 3): each charge level shoots its crescents as hits — 2 / 3 / 4 projectiles 70 ms apart at 1.5 px/ms (1500 px/s) down the line, pierce, rising to a foe in the air in front (`antiAir`), each as long as the level's line (200 / 230 / 320) and as wide (radius 18 / 20 / 24 = half its width). The draws before the last: a flinch (stun 260, push 2); the last the level's blow as before (stun 380 push 12 · stun 420 knockdown light push 14 · stun 460 knockdown heavy push 18), heavy. Damage split: 15+15 = 30 · 15+15+14 = 44 · 16×4 = 64 (the same totals). Reach up as before (120 / 130 / 140). The lock is unchanged: the active stretches to the last draw (+20 ms) and the recovery gives the time back (min 120).
+- **Runtime (every charged skill):** a level's hits all land inside its active (a hit timed past the active never fired); the recovery gives the time back. The blossom draw widens projectile draws by 40% too (their radius).
+- **Trials:** SAYA 6 → 8 hits, DUELIST 17 → 18, SAKURA 6 → 9 (the guide's counts).
+- **Light Staff** (gambler G; David 18 Oct 23:01: "at least 25 s from the cast", the Gambler chat's ask): the cane lit 25 s (`LIGHT_STAFF.ms` 8000 → 25000 — the reach ×1.7 and Staff Flurry's gate with it); its cooldown 20 → 35 s, so it is lit about 70% of a fight, never always.
+
 ## 2026-10-18 — David's second pass (18:19 Warrior, 18:29 Samurai): numbers and engine
 - **Thunder Circle** (`thunder_circle`, warrior V, replaces Iron Grip — `iron_grip` aliases to it): startup 260, active 100, recovery 260, cooldown 12 s, ground only. Plant: 10 dmg, r 170, stun 360, heavy. Then a 170 px ring for 5 s (from 300 ms): a strike every 0.5 s (10 in all), 4 dmg, stun 240, no launch, up to 120 px up. Links (WARRIOR_LINKS): Rising Slash, Leap Crash, Whirlwind, the Verdict; into it from Judgment Hook, Iron Bastion, Judgment Blade.
 - Trials re-routed off the grip: REEL hook → circle; SHACKLE hook → circle → leap crash → Judgment Blade (MID: the blades' court chains him back up off the floor — the hook on a downed foe leaves him down, so it opens the route); STORMCHAIN, COURT, VERDICT, CYCLONE plant the circle where the grip was.

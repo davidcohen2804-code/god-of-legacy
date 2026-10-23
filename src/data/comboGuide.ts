@@ -34,11 +34,11 @@ export const COMBO_GUIDE: Partial<Record<ClassId, GuideRoute[]>> = {
   // the Samurai (rebuilt 17 Oct — David: every combo its own style, every step meaning something): three ways of the blade
   samurai: [
     // IAIDO — the quick-draw: the sheathe's click, the held draw, the step through him
-    { name: 'SAYA', tier: 'BEGINNER', style: 'IAIDO', range: 'CLOSE', hits: 6, steps: [{ id: 'quick_slash', n: 4 }, { id: 'sheathe' }, { id: 'iai_strike' }],
+    { name: 'SAYA', tier: 'BEGINNER', style: 'IAIDO', range: 'CLOSE', hits: 8, steps: [{ id: 'quick_slash', n: 4 }, { id: 'sheathe' }, { id: 'iai_strike' }],
       tip: 'The 4th cut lifts him — sheathe at once: the click makes the draw instant and a level higher' },
-    { name: 'DUELIST', tier: 'MID', style: 'IAIDO', range: 'MID', hits: 17, steps: [{ id: 'iai_strike' }, { id: 'shadow_step' }, { id: 'swallow_cut' }, { id: 'hundred_cuts' }],
+    { name: 'DUELIST', tier: 'MID', style: 'IAIDO', range: 'MID', hits: 18, steps: [{ id: 'iai_strike' }, { id: 'shadow_step' }, { id: 'swallow_cut' }, { id: 'hundred_cuts' }],
       tip: 'Let the Iai go early: it reaches him from two steps — step through him, turn back with the Swallow, hold him with the cuts' },
-    { name: 'SAKURA', tier: 'EXPERT', style: 'IAIDO', range: 'CLOSE', hits: 6, steps: [{ id: 'swallow_cut' }, { id: 'falcon_dive' }, { id: 'sakura_bind' }, { id: 'iai_strike', hold: true }],
+    { name: 'SAKURA', tier: 'EXPERT', style: 'IAIDO', range: 'CLOSE', hits: 9, steps: [{ id: 'swallow_cut' }, { id: 'falcon_dive' }, { id: 'sakura_bind' }, { id: 'iai_strike', hold: true }],
       tip: 'Open the blossoms while he is still up: he falls into them and is held — then the full draw on the bound foe' },
     // SKY — launch, spin, slam
     { name: 'TSUBAME', tier: 'BEGINNER', style: 'SKY', range: 'CLOSE', hits: 5, steps: [{ id: 'swallow_cut' }, {}, { id: 'tornado_blade' }],

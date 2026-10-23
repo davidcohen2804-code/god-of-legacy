@@ -272,7 +272,8 @@ export class SkillRuntime {
    *  rides on the cast. */
   private blossomDraw(r: CastRun): void {
     const n = r.petals ?? 0, wide = n >= 6, last = r.hits[r.hits.length - 1];
-    const widen = (h: HitEvent): HitEvent => (wide && h.shape.kind === 'line' ? { ...h, shape: { ...h.shape, width: Math.round(h.shape.width * 1.4) } } : h);
+    const widen = (h: HitEvent): HitEvent => (!wide ? h : h.shape.kind === 'line' ? { ...h, shape: { ...h.shape, width: Math.round(h.shape.width * 1.4) } }
+      : h.shape.kind === 'projectile' ? { ...h, shape: { ...h.shape, radius: Math.round(h.shape.radius * 1.4) } } : h); // (its draws: crescents, 40% wider too)
     r.hits = r.hits.map(widen);
     const extra = Math.min(4, Math.floor(n / 4)), base = widen(last);
     for (let k = 1; k <= extra; k++) {
@@ -291,6 +292,10 @@ export class SkillRuntime {
         let lv = 0; L.forEach((l, i) => { if (held >= l.at - 1) lv = i; });
         lv = Math.min(L.length - 1, lv + (r.chargeUp ?? 0)); // (primed by Sheathe: levels higher)
         r.chargeLevel = lv; r.hits = arenaReach(L[lv].hits, r.tune);
+        // (the level's hits all land inside its active — a hit timed past it never fired: Iai Strike's draws, 70 ms apart;
+        //  the recovery gives the time back, so the lock stays what it was — DFO 23 Oct)
+        const end = Math.max(0, ...r.hits.map((h) => h.at)) + 20;
+        if (end > T.active) { const more = end - T.active; T.active = end; T.recovery = Math.max(120, T.recovery - more); }
       }
       if ((r.petals ?? 0) > 0 && r.hits.length) this.blossomDraw(r); // (the samurai's Iai drawn with the petals in the scabbard)
       r.phase = 'active';

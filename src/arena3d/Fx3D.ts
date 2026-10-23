@@ -227,7 +227,8 @@ export interface Recipe {
   fired?: (f: Fx3D, r: CastRun, i: number, o: V3) => void;
   /** Each confirmed hit (at the foe): `main` for the hit that carries the skill's weight. */
   hit?: (f: Fx3D, s: FinalSkill, h: HitEvent, at: V3, main: boolean, react: string) => void;
-  /** Each turn of a hold that follows its foe (`linger.at: 'target'`), at him (his chest): turn `i` from 0, `last` the final one. */
+  /** Each turn of a linger: a hold that follows its foe (`linger.at: 'target'`) at him (his chest); a zone (aim / origin /
+   *  caster) at its point, 40 px up. Turn `i` from 0, `last` the final one. */
   tick?: (f: Fx3D, r: CastRun, at: V3, i: number, last: boolean) => void;
   /** Each projectile of it as it is thrown (follow it with `p.x / p.y / p.z` while `!p.done`: a card riding the shot). */
   shot?: (f: Fx3D, p: Projectile) => void;
@@ -941,7 +942,7 @@ export class Fx3D {
    *  `color`: its glow; `tilt` (rad, default 0.6): tipped toward the camera so its face reads; `rps` (default 5) its turns a second — faster blurs it into a disc. Half in front of the fighters, half behind. */
   cardSpin(at: () => V3 | null, o: { size?: number; color?: number; tilt?: number; rps?: number; look?: CardLook } = {}): void { this.cards.spin(at, o); }
 
-  /** A turn of a hold that follows its foe (`linger.at: 'target'`): the skill's recipe draws it (`tick`). */
+  /** A turn of a linger (a hold on its foe, or a zone at its point): the skill's recipe draws it (`tick`). */
   tick(r: CastRun, at: V3, i: number, last: boolean): void { this.recipe(r.skill).tick?.(this, r, at, i, last); }
 
   /** Each frame: the effects run; trails and crests follow what flies. */

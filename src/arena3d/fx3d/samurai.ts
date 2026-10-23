@@ -112,7 +112,7 @@ const iaiStance = (f: Fx3D, r: CastRun) => {
   const sc = r.chargeScale ?? 1, at = L.map((l) => l.at * sc), d = side(r), pos = () => f.host.casterPos(r.attackerId);
   const hilt = () => { const c = pos(); return c ? { x: c.x + d * 20, y: c.y + 8, z: c.z + 50 } : null; };
   const tip = () => { const c = pos(); return c ? { x: c.x - d * 46, y: c.y + 8, z: c.z + 28 } : null; };
-  const lenOf = (k: number) => (L[k].hits[0]?.shape as { length?: number } | undefined)?.length ?? 200;
+  const lenOf = (k: number) => { const sh = L[k].hits[0]?.shape as { length?: number; range?: number } | undefined; return sh?.length ?? sh?.range ?? 200; }; // (its draws are projectiles now: their range — DFO 23 Oct)
   let lv = -1, len = 0, acc = 0;
   run(f, { step: (dt) => {
     if (r.phase !== 'startup') return false;
@@ -148,7 +148,7 @@ const iaiStance = (f: Fx3D, r: CastRun) => {
  *  apart. Fully drawn, the planks are scored along it. The blade's click home: a glint at the hilt. */
 const iaiDraw = (f: Fx3D, r: CastRun) => {
   const c = me(f, r), n = Math.hypot(r.aim.x, r.aim.y) || 1, ux = r.aim.x / n, uy = r.aim.y / n, lv = r.chargeLevel ?? 0, d = ux < -0.01 ? -1 : 1;
-  const len = (r.hits[0]?.shape as { length?: number } | undefined)?.length ?? 240, far = len + 50, shots = 2 + lv;
+  const sh0 = r.hits[0]?.shape as { length?: number; range?: number } | undefined, len = sh0?.length ?? sh0?.range ?? 240, far = len + 50, shots = 2 + lv; // (its draws are projectiles now: their range — DFO 23 Oct)
   iaiLast = { x: ux, y: uy, from: { x: c.x, y: c.y }, shots };
   for (let k = 0; k < shots; k++) f.later(k * IAI_GAP, () => iaiShot(f, c, ux, uy, d, far, k, lv));
   f.flip(IAI_GLINT, { x: c.x + d * 22, y: c.y + 8, z: c.z + 52 }, { w: 96 + 22 * lv, mode: 'up', loop: true, ms: 220, grow: [1, 0.6], fadeIn: 10, fadeOut: 160, glow: 0.45 }); // (the blade leaving the hilt)
@@ -171,16 +171,15 @@ const iaiShot = (f: Fx3D, c: V3, ux: number, uy: number, d: number, far: number,
  *  each draw tears through him as it passes — a white-hot cut across him at its slant (they cross on him), sparks, a few
  *  petals — and after the last a small burst of petals and ink thrown along the cut. (The blossom draw's extra cuts: a few
  *  petals.) */
-const iaiBurst = (f: Fx3D, at: V3, main: boolean) => {
+const iaiBurst = (f: Fx3D, at: V3, k: number, last: boolean, petal: boolean) => {
   const L = iaiLast, d = L.x < -0.01 ? -1 : 1, z0 = at.z + 30, o = { x: at.x, y: at.y, z: z0 }; // (on the draws' line: `at` is his body 40 px up)
-  if (!main) { petalBurst(f, o, petals(f), { n: 8, speed: 220, dir: d * 0.5, ms: 700, foeY: at.y }); sparks(f, at, d, 3, 40); return; }
-  const D = Math.max(0, (at.x - L.from.x) * L.x + (at.y - L.from.y) * L.y), pass = (k: number) => k * IAI_GAP + Math.max(0, D - 20) / IAI_SPEED;
-  for (let k = 0; k < L.shots; k++) f.later(pass(k), () => { // (each draw's cut across him as it passes, at its own slant: they cross on him)
-    const a = ((k % 2 === 0 ? 64 : 116) + [-8, 14, -18, 6][k % 4]) * (Math.PI / 180), cx = Math.cos(a) * 46 * d, cz = Math.sin(a) * 46;
-    slit(f, { x: at.x - cx, y: at.y + 2, z: z0 - cz }, { x: at.x + cx, y: at.y + 2, z: z0 + cz }, { w: 4, ms: 190, draw: 26, col: SAM.core, front: true });
-    sparks(f, at, d, 3, 48); petalBurst(f, o, petals(f), { n: 3, speed: 240, dir: d * 0.7, up: 0.4, ms: 600, foeY: at.y });
-  });
-  f.later(pass(L.shots - 1) + 40, () => {
+  if (petal) { petalBurst(f, o, petals(f), { n: 8, speed: 220, dir: d * 0.5, ms: 700, foeY: at.y }); sparks(f, at, d, 3, 40); return; }
+  // each draw's cut across him as it passes — each draw is its own hit now (DFO 23 Oct, the Samurai chat's ask), so the cut
+  // lands on its hit — at its own slant: they cross on him
+  const a = ((k % 2 === 0 ? 64 : 116) + [-8, 14, -18, 6][k % 4]) * (Math.PI / 180), cx = Math.cos(a) * 46 * d, cz = Math.sin(a) * 46;
+  slit(f, { x: at.x - cx, y: at.y + 2, z: z0 - cz }, { x: at.x + cx, y: at.y + 2, z: z0 + cz }, { w: 4, ms: 190, draw: 26, col: SAM.core, front: true });
+  sparks(f, at, d, 3, 48); petalBurst(f, o, petals(f), { n: 3, speed: 240, dir: d * 0.7, up: 0.4, ms: 600, foeY: at.y });
+  if (last) f.later(40, () => { // (after the last: petals and ink thrown along the cut)
     inkBurst(f, o, { r: 46, n: 5, ms: 340, foeY: at.y, light: 0 });
     petalBurst(f, o, petals(f), { n: 10, speed: 280, dir: d * 0.55, up: 0.5, ms: 850, foeY: at.y });
   });
@@ -278,10 +277,10 @@ export const SAMURAI: Record<string, Recipe> = {
   // the sheath, a glint down the scabbard at each level, the reach a hairline on the planks; the draw — two to four painted
   // crescents of blade light flying the line; on the foe each tears through him, then a small burst of petals and ink (the
   // room plays the main hit in his rose)
-  iai_strike: { own: true, tone: SAM.rose, paint: true, noImpact: true, // (its blow is its draws' cuts on him: the room's main-hit burst held white through the hit-stop over the draws — DFO's review)
+  iai_strike: { own: true, tone: SAM.rose, paint: true, noImpact: true, trail: false, // (its blow is its draws' cuts on him: the room's main-hit burst held white through the hit-stop over the draws — DFO's review; its draws are hits now, drawn by the draw: no room trail on them)
     cast: (f, r) => iaiStance(f, r),
     active: (f, r) => iaiDraw(f, r),
-    hit: (f, _s, h, at, main) => iaiBurst(f, at, main && !!h.heavy) },
+    hit: (f, _s, h, at, main) => iaiBurst(f, at, Math.round(h.at / IAI_GAP), main && !!h.heavy, !!h.reaction.float) },
   // (David 18 Oct 18:29: "a light wave that looks professional") a glint at his hand, the fling a ribbon ring at his blade;
   // the crescent rides the shot and comes back (waveCrescent / waveBack); where it cuts: sparks (the room plays the main hit)
   sword_wave: { own: true, tone: SAM.rose, trail: false,

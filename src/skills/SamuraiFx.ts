@@ -1012,7 +1012,7 @@ export class SamuraiFx {
   /** The draw: his held charge flies down the line as crescents of steel light — two, three, four by the level held (David
    *  18 Oct 22:56) — and the cut arrives on the foe late, splitting open in crimson (SamuraiFx's hit). */
   private iaiCut(r: CastRun): void {
-    const lv = r.chargeLevel ?? 0, len = (r.hits[0].shape as { length: number }).length, a = r.aim, side = sideOf(r), q = this.me(r), cam = this.ctx.cam();
+    const sh0 = r.hits[0].shape as { length?: number; range?: number }, lv = r.chargeLevel ?? 0, len = sh0.length ?? sh0.range ?? 200, a = r.aim, side = sideOf(r), q = this.me(r), cam = this.ctx.cam(); // (its draws are projectiles now: their range — DFO 23 Oct)
     const ang = screenAng(a.x, a.y), x0 = q.x + a.x * 8, y0 = q.y + a.y * 4 - q.z - 46, fl = a.x < -0.01;
     // the blossom draw (petals gathered by Sheathe): its line opens pink, as wide as the runtime made it, the petals out of
     // the scabbard along it
@@ -2043,7 +2043,7 @@ export class SamuraiFx {
    *  petals where it bites. */
   private bloomAt = new Map<string, number>();
   private blossomCut(r: CastRun, i: number): void {
-    const a = r.aim, q = this.me(r), len = (r.hits[i]?.shape as { length?: number }).length ?? 200, fl = a.x < -0.01;
+    const sh = r.hits[i]?.shape as { length?: number; range?: number } | undefined, a = r.aim, q = this.me(r), len = sh?.length ?? sh?.range ?? 200, fl = a.x < -0.01; // (the Iai's draws are projectiles now: their range — DFO 23 Oct)
     const ang = screenAng(a.x, a.y) + (i % 2 ? 3 : -3), off = i % 2 ? 7 : -7, x0 = q.x + a.x * 8, y0 = q.y + a.y * 4 - q.z - 46 + off;
     // (70 ms apart on screen: under the draw's hit-stop the runtime fires them all while the picture is held — staggered
     // from the first one's moment, they still come one after another)
@@ -2138,6 +2138,7 @@ export class SamuraiFx {
    *  the fling at his blade; on impact (a foe, a wall, its end) it shatters into shards and petals. */
   projectile(p: Projectile): void {
     if (!this.ready || (this.in3d() && p.skill.id === 'sword_wave')) return; // (PVP 3D: the crescent riding the shot is the room's — fx3d/samurai.ts)
+    if (p.skill.id === 'iai_strike') return; // (the Iai's draws are hits now — DFO 23 Oct; their crescents are drawn by the draw itself, here and in the room)
     this.withOwn(null, () => this.projectileOne(p)); // (a crescent in flight is never cut short: it is the blow itself)
   }
   private projectileOne(p: Projectile): void {

@@ -6,6 +6,10 @@ import { jobOfSlot } from './Jobs';
 
 const H = (at: number, damage: number, shape: HitShape, reaction: Reaction, extra: Partial<HitEvent> = {}): HitEvent => ({ at, damage, shape, reaction, ...extra });
 const LOCK = { startup: 0, active: 0, recovery: 0 };
+/** Iai Strike's draws (DFO 23 Oct): `n` crescents of blade light flying down the line 70 ms apart at 1.5 px / ms (`len` long,
+ *  `w` wide), each a hit as it passes (a flinch holding the foe in the line), the last the level's blow (`last`, heavy). */
+const IAI = (n: number, dmg: number[], len: number, w: number, last: Reaction, up: number): HitEvent[] => Array.from({ length: n }, (_, k) =>
+  H(k * 70, dmg[k], { kind: 'projectile', speed: 1500, range: len, radius: w / 2, pierce: true, antiAir: true }, k === n - 1 ? last : { stun: 260, push: 2 }, k === n - 1 ? { reachUp: up, heavy: true } : { reachUp: up }));
 const base = { pvpMultiplier: PVP_MULT, pveMultiplier: 1, cancelOnHit: [] as string[], tags: [] as string[] };
 const CORE = (ids: string[]) => ids;
 
@@ -661,12 +665,16 @@ const samurai: FinalSkill[] = [
   S({
     id: 'iai_strike', cls: 'samurai', slot: 3, name: 'Iai Strike', roles: ['precision', 'finisher'], targeting: 'mouseLine',
     startup: 900, active: 80, recovery: 260, cooldown: 5500, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    // hold the key: the drawing stance charges (startup = how long it was held, 130..900 ms); the level picks the cut
-    hits: [H(0, 30, { kind: 'line', length: 200, width: 36 }, { stun: 380, push: 12 }, { reachUp: 120, heavy: true })],
+    // hold the key: the drawing stance charges (startup = how long it was held, 130..900 ms); the level picks the draw.
+    // (DFO 23 Oct, the Samurai chat's ask — David 18 Oct 22:56: "he releases 4 such nice shots": each level shoots 2 / 3 / 4
+    //  crescents of blade light 70 ms apart at 1.5 px / ms down the line, each a hit as it passes the foe (a flinch that holds
+    //  him in the line), the last the level's blow (its stun / knockdown and push); the level's damage split over them, its
+    //  reach the line's: as long, as wide (radius = half the width), up to a foe in the air in front (antiAir); the lock as it was)
+    hits: IAI(4, [16, 16, 16, 16], 320, 48, { stun: 460, knockdown: 'heavy', push: 18 }, 140),
     charge: { minMs: 130, levels: [
-      { at: 0, hits: [H(0, 30, { kind: 'line', length: 200, width: 36 }, { stun: 380, push: 12 }, { reachUp: 120, heavy: true })] }, // (the draw from afar: his opener)
-      { at: 340, hits: [H(0, 44, { kind: 'line', length: 230, width: 40 }, { stun: 420, knockdown: 'light', push: 14 }, { reachUp: 130, heavy: true })] },
-      { at: 680, hits: [H(0, 64, { kind: 'line', length: 320, width: 48 }, { stun: 460, knockdown: 'heavy', push: 18 }, { reachUp: 140, heavy: true })] },
+      { at: 0, hits: IAI(2, [15, 15], 200, 36, { stun: 380, push: 12 }, 120) }, // (the draw from afar: his opener)
+      { at: 340, hits: IAI(3, [15, 15, 14], 230, 40, { stun: 420, knockdown: 'light', push: 14 }, 130) },
+      { at: 680, hits: IAI(4, [16, 16, 16, 16], 320, 48, { stun: 460, knockdown: 'heavy', push: 18 }, 140) },
     ] },
     cancelOnHit: ['shadow_step', 'sword_wave', 'blossom_storm', 'dragon_eclipse'], // (its reach is drawn by its own charge picture, SkillFx.iai; the draw from afar → Shadow Step through him)
     description: 'Hold the key: your hand on the sheath, your light drawn into it — a glint runs down it at each of three steps. Release: a lightning draw — crescents of blade light shot down the line, two, three or four by how long you held, the cut arriving on the foe in a burst of petals and ink. The longer you held, the farther and harder it cuts; fully charged, every foe in the line crumples to the floor.',
@@ -935,13 +943,13 @@ const gambler: FinalSkill[] = [
   }),
   S({
     id: 'light_staff', cls: 'gambler', slot: 11, name: 'Light Staff', roles: ['setup'], targeting: 'self',
-    startup: 250, active: 60, recovery: 150, cooldown: 20000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    // (David 18 Oct 01:42; the Gambler chat's shape): a thin violet blade of light slides out of the cane's tip — for 8 s every
+    startup: 250, active: 60, recovery: 150, cooldown: 35000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK, // (DFO 23 Oct: lit 25 s — David 18 Oct 23:01 — so its cooldown 20 → 35 s: lit about 70% of the fight, never always)
+    // (David 18 Oct 01:42; the Gambler chat's shape): a thin violet blade of light slides out of the cane's tip — for 25 s every
     // staff blow reaches ×1.7 (the scene's reachMul: LIGHT_STAFF) and Staff Flurry opens; no hit of its own
     hits: [], tags: ['buff'],
     cancelOnHit: [],
-    description: 'Run your palm along the cane: a thin violet blade of light slides out of its tip. For 8s every staff blow reaches 70% further — the staff strikes of Cut the Deck, Staff Vault, Rotor Staff, Grand Slam, Staff Flurry — and Staff Flurry opens.',
-    relations: ['Staff reach ×1.7 (8s)', 'Opens Staff Flurry'],
+    description: 'Run your palm along the cane: a thin violet blade of light slides out of its tip. For 25s every staff blow reaches 70% further — the staff strikes of Cut the Deck, Staff Vault, Rotor Staff, Grand Slam, Staff Flurry — and Staff Flurry opens.',
+    relations: ['Staff reach ×1.7 (25s)', 'Opens Staff Flurry'],
   }),
   S({
     id: 'ace_in_the_hole', cls: 'gambler', slot: 12, name: 'Ace in the Hole', roles: ['precision', 'projectile'], targeting: 'mouseProjectile',

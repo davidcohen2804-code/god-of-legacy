@@ -167,7 +167,7 @@ const BACKSTEP = { speed: 230, vz: 220 };
  *  moved from where the attacker saw us (px). 300 ms ≈ the 250 ms rewind cap of Battlefield 4 / Overwatch plus a frame or two. */
 const CLAIM = { maxMs: 300, waitCastMs: 250, reach: 150 };
 /** The Gambler's Light Staff (David 18 Oct 01:42): this long after the cast every staff blow reaches ×reach, and Staff Flurry opens. */
-const LIGHT_STAFF = { ms: 8000, reach: 1.7, skills: new Set(['cut_the_deck', 'staff_vault', 'fuse_slam', 'rotor_staff', 'grand_slam', 'staff_flurry']) };
+const LIGHT_STAFF = { ms: 25000, reach: 1.7, skills: new Set(['cut_the_deck', 'staff_vault', 'fuse_slam', 'rotor_staff', 'grand_slam', 'staff_flurry']) };
 /** The Warrior's Impaling Rush held (David 18 Oct 01:07): its dash, × by the charge level reached (a tap, ~0.4 s, ~0.8 s). */
 const LANCE_RUSH = [1, 1.8, 2.6];
 /** The Warrior's Iron Bastion (shield_charge): damage taken × taken while it stands; its counter-slash + perBlow a blow taken (at most maxBlows). */
@@ -1929,6 +1929,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (l.run.skill.id === 'spirit_hawk') { this.hawkDive(l, L); continue; }
         if (l.run.skill.id === 'god_of_blades') { if (l.run.own && this.dead >= 0) { l.left = 0; break; } this.bladeStrikes(l, L); continue; }
         if (l.run.skill.id === 'tornado_blade') { const path = (l as { path?: { x: number; y: number }[] }).path ??= tornadoPath(l.run.origin, l.run.aim), q = path[Math.min(path.length - 1, TORNADO.count - 1 - l.left)]; l.x = q.x; l.y = q.y; } // rolls forward one step per strike (the picture takes the same path)
+        this.a3d?.fx.tick(l.run, { x: l.x, y: l.y, z: 40 }, Math.max(0, L.count - 1 - l.left), l.left === 0); // (a zone's turn in the room too, not only a hold's: Thunder Rain's charged floor crackles, the lion's roars — the Archer and Warrior chats' asks)
         if (l.run.skill.id === 'blade_storm') { // swords erupt all around the caster + lightning crackles
           for (let n = 0; n < 1; n++) { const a = (l.left * 2.4 + n * Math.PI) + (Math.random() - 0.5) * 0.9, rr = 95 + Math.random() * Math.max(10, L.radius - 70); /* (feel pass: one sword a pulse, kept off the fighters — two a pulse filled the screen in PVP 3D) */ this.fx!.risingBlade(l.x + Math.cos(a) * rr, l.y + Math.sin(a) * rr * 0.6, n * 90); }
         }
