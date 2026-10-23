@@ -3683,7 +3683,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** The arena: a shot landing from afar (not a combo follow-up) is a poke — the foe flinches, nothing more (no lift, no
    *  hold, no knockdown) and the shooter cannot cancel off it. Same rule on every client (attacker and victim). */
   private isPoke(run: CastRun, hit: HitEvent, victim: { x: number }): boolean {
-    if (!this.arena || run.followUp || hit.shape.kind !== 'projectile' || run.skill.tags.includes('farLaunch') || run.skill.tags.includes('farPull')) return false; // (a skill made to launch / pull from afar keeps it)
+    if (!this.arena || run.followUp || hit.shape.kind !== 'projectile' || run.skill.tags.includes('farLaunch') || run.skill.tags.includes('farPull') || run.skill.tags.includes('farDraw')) return false; // (a skill made to launch / pull / draw from afar keeps it — the Iai's draws are shots now, its reach from afar is its design)
     const c = this.casterPos(run.attackerId) ?? run.origin;
     return Math.abs(victim.x - c.x) > ARENA_FLOW.pokeRange;
   }

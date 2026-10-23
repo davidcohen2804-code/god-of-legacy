@@ -665,6 +665,7 @@ const samurai: FinalSkill[] = [
   S({
     id: 'iai_strike', cls: 'samurai', slot: 3, name: 'Iai Strike', roles: ['precision', 'finisher'], targeting: 'mouseLine',
     startup: 900, active: 80, recovery: 260, cooldown: 5500, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    tags: ['farDraw'], // (the draw from afar is its design: its shots are no arena poke — they keep their stun / knockdown, as its line did)
     // hold the key: the drawing stance charges (startup = how long it was held, 130..900 ms); the level picks the draw.
     // (DFO 23 Oct, the Samurai chat's ask — David 18 Oct 22:56: "he releases 4 such nice shots": each level shoots 2 / 3 / 4
     //  crescents of blade light 70 ms apart at 1.5 px / ms down the line, each a hit as it passes the foe (a flinch that holds
