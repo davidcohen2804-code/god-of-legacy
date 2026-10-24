@@ -4200,7 +4200,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private shots3d = new Map<string, { at: number; key: string }>();
   private shotsOld: { key: string; until: number }[] = [];
   private shotN = 0;
-  private bodyShot3D(id: string): { key: string; frame: string | number; flipX: boolean; ox: number; oy: number; sx: number; sy: number; a?: number; face?: number } | null {
+  private bodyShot3D(id: string): { key: string; frame: string | number; flipX: boolean; ox: number; oy: number; sx: number; sy: number; a?: number; face?: number; line?: number[] } | null {
     const H = this.hero3d; if (!H) return null;
     let h: Hero3D | null = null, img: Phaser.GameObjects.Image | null = null, face = 1;
     if (id === this.localId) { h = H.h; img = H.img; face = this.dir === 'left' ? -1 : 1; }
@@ -4209,15 +4209,18 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (o && rp) { h = o.h; img = o.img; face = rp.dir === 'left' ? -1 : 1; }
     }
     if (!h || !img) return null;
-    const now = this.simMs; let s = this.shots3d.get(id);
-    if (!s || now - s.at >= 50 || now < s.at) {
-      const key = `body3d-shot-${++this.shotN}`, cv = document.createElement('canvas'); cv.width = 260; cv.height = 240;
-      h.snapshot(H.a3, cv, 100, 0.5, 0.88);
-      this.textures.addCanvas(key, cv);
-      s = { at: now, key }; this.shots3d.set(id, s); this.shotsOld.push({ key, until: now + 2000 });
-      while (this.shotsOld.length && (this.shotsOld[0].until < now || this.shotsOld.length > 120)) { const k = this.shotsOld.shift()!.key; if (this.textures.exists(k)) this.textures.remove(k); }
-    }
-    return { key: s.key, frame: '__BASE', flipX: false, ox: 0.5, oy: 0.88, sx: 1, sy: 1, a: img.visible ? img.alpha : 0, face };
+    const body = h, now = this.simMs, shot = (): string => { // (taken only when an effect reads the picture: the lit cane needs only the line)
+      let s = this.shots3d.get(id);
+      if (!s || now - s.at >= 50 || now < s.at) {
+        const key = `body3d-shot-${++this.shotN}`, cv = document.createElement('canvas'); cv.width = 260; cv.height = 240;
+        body.snapshot(H.a3, cv, 100, 0.5, 0.88);
+        this.textures.addCanvas(key, cv);
+        s = { at: now, key }; this.shots3d.set(id, s); this.shotsOld.push({ key, until: now + 2000 });
+        while (this.shotsOld.length && (this.shotsOld[0].until < now || this.shotsOld.length > 120)) { const k = this.shotsOld.shift()!.key; if (this.textures.exists(k)) this.textures.remove(k); }
+      }
+      return s.key;
+    };
+    return { get key() { return shot(); }, frame: '__BASE', flipX: false, ox: 0.5, oy: 0.88, sx: 1, sy: 1, a: img.visible ? img.alpha : 0, face, line: h.weaponLine() ?? undefined };
   }
 
   /** The painted body's motion layer (a shot's recoil, a leap, a somersault, a spin, a vanishing step) on your 3D body. */

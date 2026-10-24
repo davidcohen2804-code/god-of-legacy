@@ -396,8 +396,8 @@ export class CharacterSelectUI {
       const pv = c ? previewFor(c) : undefined;
       const po = d.children[2] as HTMLElement;
       if (c && HERO3D.on) { // the 3D heroes: the 3D Beginner's head and shoulders (its class's weapon), from its splash
-        const a = art3d(playedClass(c), c.gender === 'female'), w = a.face.s * 1.75, k = K.card.art.w / w;
-        Object.assign(po.style, { backgroundImage: `url("${a.url}")`, backgroundSize: `${a.w * k}px ${a.h * k}px`, backgroundPosition: `${-(a.face.x + a.face.s / 2 - w / 2) * k}px ${-(a.face.y - a.face.s * 0.32) * k}px` });
+        const a = art3d(playedClass(c), c.gender === 'female'), w = a.face.s * 1.5, k = K.card.art.w / w;
+        Object.assign(po.style, { backgroundImage: `url("${a.url}")`, backgroundSize: `${a.w * k}px ${a.h * k}px`, backgroundPosition: `${-(a.face.x + a.face.s / 2 - w / 2) * k}px ${-(a.face.y - a.face.s * 0.22) * k}px` });
       } else if (pv?.portrait) {
         // Dedicated portrait file (face/shoulders), scaled to the frame.
         Object.assign(po.style, { backgroundImage: `url("${pv.portrait}")`, backgroundSize: 'cover', backgroundPosition: 'center top' });

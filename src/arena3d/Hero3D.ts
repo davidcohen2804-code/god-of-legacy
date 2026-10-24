@@ -91,6 +91,8 @@ export class Hero3D {
   private yaw = Math.PI / 2;
   /** The weapons, each in a holder on its hand's bone; one shown. */
   private weapons = new Map<WeaponId, THREE.Group>();
+  /** Each weapon's far end below its grip (its own units, -y: a cane's ferrule, a sword's pommel side). */
+  private armLow = new Map<WeaponId, number>();
   /** Each fist's grip (fitGrip): where a weapon's grip sits in the hand bone, turned as the closed fist holds it. */
   private grip: Record<'r' | 'l', { q: THREE.Quaternion; p: THREE.Vector3 }> = { r: { q: new THREE.Quaternion(), p: new THREE.Vector3() }, l: { q: new THREE.Quaternion(), p: new THREE.Vector3() } };
   /** How far the weapon is held loose (standing, walking) instead of gripped for a move. */
@@ -139,7 +141,7 @@ export class Hero3D {
       h.clips.set(c.name, c);
     }
     h.mixer = new THREE.AnimationMixer(h.model);
-    ids.forEach((w, i) => { const g = new THREE.Group(); g.name = 'weapon'; g.add(arms[i].scene); g.visible = false; h.bones.get(`hand_${WEAPONS[w].hand}`)?.add(g); h.weapons.set(w, g); });
+    ids.forEach((w, i) => { h.armLow.set(w, new THREE.Box3().setFromObject(arms[i].scene, true).min.y); const g = new THREE.Group(); g.name = 'weapon'; g.add(arms[i].scene); g.visible = false; h.bones.get(`hand_${WEAPONS[w].hand}`)?.add(g); h.weapons.set(w, g); });
     h.look();
     // the size: the painted heroes' standing height, measured on the body as it stands at rest (before any move)
     h.model.updateMatrixWorld(true);
@@ -173,6 +175,7 @@ export class Hero3D {
       const mt = (this.body.material as THREE.MeshStandardMaterial).clone(); mt.emissive.setRGB(0, 0, 0); h.body.material = mt; h.own.push(mt);
     }
     for (const [w, g] of this.weapons) h.weapons.set(w, twin(g));
+    h.armLow = this.armLow;
     if (this.bowString) {
       const s = twin(this.bowString); s.geometry = s.geometry.clone(); h.own.push(s.geometry);
       s.userData = { tips: (this.bowString.userData.tips as THREE.Vector3[]).map((v) => v.clone()) }; h.bowString = s;
@@ -362,6 +365,15 @@ export class Hero3D {
     this.root.updateMatrixWorld(true);
     a3.bodyShot(this.scene, this.root.position, out, ppu, ox, oy);
     for (const o of hide) o.visible = true;
+  }
+
+  /** The weapon in hand as a line, its grip → its far end below the grip (px from the feet: x along the picture, y down)
+   *  — the gambler's Light Staff lays its blade of light along the cane. */
+  weaponLine(): number[] | null {
+    const g = this.weapons.get(this.weapon), lo = this.armLow.get(this.weapon); if (!g || lo === undefined) return null;
+    g.updateWorldMatrix(true, false);
+    const a = new THREE.Vector3().applyMatrix4(g.matrixWorld), t = new THREE.Vector3(0, lo, 0).applyMatrix4(g.matrixWorld), r = this.root.position;
+    return [(a.x - r.x) * 100, -(a.y - r.y) * 100, (t.x - r.x) * 100, -(t.y - r.y) * 100];
   }
 
   /** No afterimages left (the body goes away for a while: the next time it shows, none of the last ones linger). */
