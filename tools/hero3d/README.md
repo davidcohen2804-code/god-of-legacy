@@ -2,7 +2,9 @@
 
 David, 24 Oct: heroes in 3D on a skeleton (clothes and items can change); first a **Beginner** whose items are the
 classes' weapons (the sword, the samurai's katana, the bow, the magic staff, the gambler's cane), the rest of the
-clothes simple and the same; clothing sets per class later. In the game behind `?hero3d=1` (`src/arena3d/Hero3D.ts`).
+clothes simple and the same; clothing sets per class later. In the game by default in every 3D place (the PVP 3D room,
+the world in 3D) and on the menus' pedestals (`src/arena3d/Hero3D.ts`, `HeroPreview3D.ts`); `?hero3d=0` shows the
+painted bodies again.
 
 ## The Beginner (`public/assets/hero3d/beginner_m.glb`, `beginner_f.glb`)
 

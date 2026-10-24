@@ -8,7 +8,7 @@
 // rematches in one scene; every ROUND is a sample. Results: tools/pvp/msimsum.py <out.json>.
 //   npx vite build && npx vite preview --port 4173 &   then   node tools/pvp/matchsim.mjs
 //   env: PAIRS ('all' or "samurai:warrior,…"), N (battles a pair, 6), MAXS (game s a battle, 300), OUT (json; resumes),
-//        URL (http://localhost:4173/), PASSIVES=1 (keep the player's passives), PROF=<file> (a CPU profile), FILM=<dir>
+//        URL (http://localhost:4173/?hero3d=0), PASSIVES=1 (keep the player's passives), PROF=<file> (a CPU profile), FILM=<dir>
 import { chromium } from 'playwright';
 import { writeFileSync, existsSync, readFileSync } from 'fs';
 const CLS = ['warrior', 'samurai', 'book_mage', 'archer', 'gambler'];
@@ -17,7 +17,7 @@ const pairs = (process.env.PAIRS ?? 'all') === 'all' ? CLS.flatMap((a) => CLS.ma
 const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const p = await b.newPage({ viewport: { width: 960, height: 540 }, reducedMotion: 'reduce' });
 const errs = []; p.on('pageerror', (e) => errs.push(String(e).slice(0, 300)));
-await p.goto(process.env.URL ?? 'http://localhost:4173/');
+await p.goto(process.env.URL ?? 'http://localhost:4173/?hero3d=0'); // (the painted bodies: the 3D heroes only slow the headless sim)
 await p.waitForFunction(() => window.__game?.scene.isActive('MainMenuScene'), null, { timeout: 300000 });
 const results = existsSync(OUT) ? JSON.parse(readFileSync(OUT, 'utf8')) : [];
 const t0 = Date.now();

@@ -59,6 +59,11 @@ import { PvpController } from '../pvp/PvpController';
 import { ARENA3D } from '../arena3d/flag';
 import { HERO3D } from '../arena3d/hero3dFlag';
 import type { Hero3D } from '../arena3d/Hero3D';
+import type { RemotePlayer } from '../pvp/RemotePlayer';
+/** A 3D body following another fighter (the sparring partner or another player). */
+type Other3D = { h: Hero3D; img: Phaser.GameObjects.Image; female: boolean; rp: RemotePlayer | null; cls: string; last: { x: number; y: number; z: number } | null };
+/** Each class's weapon in the 3D Beginner's hand (as Hero3D's CLASS_WEAPON, here without loading it). */
+const CLASS_WEAPON3D: Record<string, string> = { warrior: 'sword', samurai: 'katana', archer: 'bow', book_mage: 'staff', gambler: 'cane' };
 import type { Arena3D, Floor } from '../arena3d/Arena3D';
 import { SamuraiPetals, PETALS } from '../skills/SamuraiPetals';
 import { SPIKES, WarriorSpikes } from '../skills/WarriorSpikes';
@@ -454,7 +459,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (gen !== this.sceneGen || !this.sys.isActive()) return;
         w.dispose(); this.world!.removeArea(from);
         this.kin.x = to.x; this.kin.vx = 0;
-        const nw = this.w3d = new World3D(this, to.area); this.a3d = nw.a3d; this.wire3D(nw.a3d);
+        const nw = this.w3d = new World3D(this, to.area); this.a3d = nw.a3d; this.wire3D(nw.a3d); this.attachHero3D(nw.a3d);
         this.world!.spawnArea(to.area);
         this.arrive3D(nw, to.fromX, 2000);
         this.warping = false;
@@ -549,7 +554,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private a3d: Arena3D | null = null;
   /** The 3D hero test (?hero3d=1): the player's body (and the sparring partner's) as the 3D Beginner in the room, each
    *  its own picture sorted among the bodies. */
-  private hero3d?: { h: Hero3D; img: Phaser.GameObjects.Image; ui?: HTMLElement; a3: Arena3D; foe?: { h: Hero3D; img: Phaser.GameObjects.Image; bot: SparringBot }; foeLoading?: boolean };
+  private hero3d?: { h: Hero3D; img: Phaser.GameObjects.Image; ui?: HTMLElement; a3: Arena3D; others: Other3D[]; loading: number };
+  /** The 3D body is loading (a place just built): the painted one stays hidden meanwhile. */
+  private hero3dWait = false;
   /** PVP 3D: each fighter's height and falling speed last frame (a landing's dust). */
   private a3dFall = new Map<string, { z: number; v: number }>();
   /** Counts the scene's starts (a late async load must not land in a newer run). */
@@ -754,7 +761,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
     this.rifts = []; this.riftsOf.clear(); this.riftCross = null; this.lightStaffUntil = -1; this.lightStaffOf.clear(); this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
     this.hasteUntil = -1; this.spiritUntil = -1; this.tree = null; this.storm = null; this.resolveUntil = -1; this.hasteFx = undefined; this.spiritFx = undefined; this.afterimg = undefined;
-    this.hero3d = undefined; this.cryBody = undefined; this.cryAura = undefined; this.holyAura = undefined; this.eyes = undefined; this.beam = undefined; this.beamGlow = undefined; this.sunGlare = undefined; this.cloudSprite = undefined; // (made once, on first use: the last visit's were destroyed with its display list — War Cry's glow called setTexture on a dead sprite and the frame threw, every frame, after any return to the scene)
+    this.hero3d = undefined; this.hero3dWait = false; this.cryBody = undefined; this.cryAura = undefined; this.holyAura = undefined; this.eyes = undefined; this.beam = undefined; this.beamGlow = undefined; this.sunGlare = undefined; this.cloudSprite = undefined; // (made once, on first use: the last visit's were destroyed with its display list — War Cry's glow called setTexture on a dead sprite and the frame threw, every frame, after any return to the scene)
     this.gHeadsUntil = -1; this.gTailsFree = false; this.gTailsUntil = -1; this.gLuckUntil = -1; this.gOverUntil = -1; this.gStreak = 0; this.fx?.gambleClear(this.localId); this.gDeck.clear(); this.gHand.clear(); this.gStuck.clear();
     this.sunUntil = -1; this.godUntil = -1; this.kage?.clear(); this.kage = undefined; this.ambushIn.clear();
     this.mageReset(); this.gates.clear(); this.levityZones = []; this.brokenLinks.clear(); this.linkGfx = undefined;
@@ -849,7 +856,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
           cam.stopFollow(); cam.removeBounds(); cam.setRoundPixels(false);
           const w = this.w3d = new World3D(this, areaId); this.a3d = w.a3d;
           this.motes?.setVisible(false);
-          this.wire3D(w.a3d);
+          this.wire3D(w.a3d); this.attachHero3D(w.a3d);
           this.arrive3D(w, this.kin.x < (w.floor.x0 + w.floor.x1) / 2 ? w.floor.x0 : w.floor.x1, 2400); // (the first map: from its near edge)
         });
       }
@@ -889,7 +896,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const a3 = this.a3d = new Arena3D(this, floor);
         this.arenaSnd?.use3D(a3); // (its camera places the sounds; the fight rings in the courtyard)
         this.wire3D(a3);
-        if (HERO3D.on) void this.startHero3D(a3, gen);
+        this.attachHero3D(a3);
         this.time.delayedCall(80, () => this.tweens.add({ targets: veil, alpha: 0, duration: 420, ease: 'Sine.easeOut', onComplete: () => veil.destroy() })); // (a frame or two of the room drawn first)
       });
     } else if (AR) this.pitch = new CameraPitch(this, cam, () => ({ parts: [...this.arenaMap, ...this.occluders, ...(this.stageFx?.layerList() ?? [])], top: AR.y }), (d) => this.hud?.setPitch(d));
@@ -2013,7 +2020,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.unseen && this.dead < 0) alpha = 0.35; // the substitute: gone in ink (others see nothing; you, see-through)
     if (this.simMs < this.body.curseUntil && this.dead < 0) alpha = 0; // Paper Curse: folded into the crane (drawn by the effect) // Kagemusha: hidden among the doubles (you, a shade)
     v.render(ms, pose, k.x + jx, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
-    if (this.hero3d) this.driveHero3D(ms, alpha);
+    if (this.hero3d) this.driveHero3D(ms, alpha, tint); else if (this.hero3dWait) this.view?.hideBody(); // (the 3D body on its way: no painted one meanwhile)
     this.renderCloudForm(ms);
     if (this.kage?.hidden && this.dead < 0) v.ring.setAlpha(0.9); // hidden among the doubles: your ring still shows you where you are (your screen only)
     if (this.cls === 'archer') { // archer body motion: lean, recoil, flips, leaps + afterimages
@@ -2081,7 +2088,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.cryAura = this.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xd8261c);
     }
     if (this.cryBody && this.cryAura) {
-      this.cryBody.setVisible(cry && v.visible); this.cryAura.setVisible(cry && v.visible);
+      this.cryBody.setVisible(cry && v.visible && !this.hero3d); this.cryAura.setVisible(cry && v.visible); // (the glow is the painted body's own frame: not over a 3D body)
       if (cry) {
         const left = this.warCryUntil - this.simMs, fade = Math.min(1, left / 400), d = actorDepth(k.x, k.y, k.z);
         const sp = v.sprite;
@@ -2122,7 +2129,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Glowing eyes while Radiant Blade or War Cry is active. */
   private renderEyes(pose: PoseFrame, dir: Dir): void {
-    const on = (this.simMs < this.radiantUntil || this.simMs < this.warCryUntil) && this.dead < 0 && this.view!.visible && !!pose.anchor && dir !== 'up';
+    const on = (this.simMs < this.radiantUntil || this.simMs < this.warCryUntil) && this.dead < 0 && this.view!.visible && !!pose.anchor && dir !== 'up' && !this.hero3d; // (the painted head's eyes: not over a 3D body)
     if (!on) { this.eyes?.setVisible(false); return; }
     if (!this.eyes) this.eyes = this.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xff6a4a);
     const sp = this.view!.sprite, a = pose.anchor!, ex = sp.x + a[2] + (dir === 'right' ? 4 : dir === 'left' ? -4 : 0), ey = sp.y + a[3] + 3;
@@ -2131,7 +2138,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Radiant Blade: a long blade of pure light extends from the real hilt along the sword of the current frame. */
   private renderRadiant(pose: PoseFrame, dir: Dir): void {
-    const on = this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && this.dead < 0 && this.view!.visible && !!pose.blade && this.rt?.ownRun?.skill.id !== 'judgment_blade' && !this.jb; // V: no sword at all (until he lands)
+    const on = this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && this.dead < 0 && this.view!.visible && !!pose.blade && this.rt?.ownRun?.skill.id !== 'judgment_blade' && !this.jb && !this.hero3d; // V: no sword at all (until he lands) (the painted sword's beam: not over a 3D body)
     if (on && !this.beam) {
       this.beam = this.add.image(0, 0, 'radiant-blade', 0).setOrigin(17.6 / 256, 0.5).setBlendMode(Phaser.BlendModes.ADD);
       this.beamGlow = this.add.image(0, 0, 'radiant-blade', 0).setOrigin(17.6 / 256, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd27a);
@@ -4080,6 +4087,15 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   // ======================================================================= the 3D hero test (?hero3d=1)
 
+  /** Each 3D place (the PVP room, a map of the world in 3D) gets the 3D bodies: the last place's go with it. */
+  private attachHero3D(a3: Arena3D): void {
+    if (!HERO3D.on) return;
+    const old = this.hero3d;
+    if (old) { old.h.dispose(); for (const o of old.others) o.h.dispose(); old.ui?.remove(); this.hero3d = undefined; }
+    this.hero3dWait = true;
+    void this.startHero3D(a3, this.sceneGen);
+  }
+
   /** The player's body as the 3D Beginner on a skeleton (its items: the classes' weapons — its class's in hand), in the
    *  PVP 3D room. */
   private async startHero3D(a3: Arena3D, gen: number): Promise<void> {
@@ -4089,50 +4105,66 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const { img, sunDir } = a3.addLayer('arena3d-hero', h.scene);
     h.makeShadow(sunDir);
     h.setWeapon(mod.CLASS_WEAPON[this.cls] ?? 'sword');
-    this.hero3d = { h, img, a3 };
+    this.hero3d = { h, img, a3, others: [], loading: 0 }; this.hero3dWait = false;
     this.buildItemUi(mod.WEAPONS);
   }
 
-  /** The sparring partner as the 3D Beginner too (its class's weapon in hand): loaded once, then it follows whichever
-   *  partner is in the room. */
-  private async startFoe3D(bot: SparringBot, gen: number): Promise<void> {
+  /** Everyone else in the room as the 3D Beginner too — the sparring partner and the other players — each with its
+   *  class's weapon, a man or a woman as its character is: a pool of 3D bodies, each following whoever it is given. */
+  private async startOther3D(female: boolean, gen: number): Promise<void> {
     const H = this.hero3d; if (!H) return;
     const mod = await import('../arena3d/Hero3D');
-    const h = await mod.Hero3D.load({ female: bot.cls === 'archer' }); // (as the painted classes: the archer a woman)
+    const h = await mod.Hero3D.load({ female });
+    H.loading--;
     if (gen !== this.sceneGen || !this.sys.isActive() || this.hero3d !== H || this.a3d !== H.a3) { h.dispose(); return; }
-    const { img, sunDir } = H.a3.addLayer('arena3d-hero2', h.scene);
-    h.makeShadow(sunDir);
-    h.setWeapon(mod.CLASS_WEAPON[bot.cls] ?? 'sword');
-    H.foe = { h, img, bot };
+    const { img, sunDir } = H.a3.addLayer(`arena3d-hero${H.others.length + 2}`, h.scene);
+    h.makeShadow(sunDir); img.setVisible(false);
+    H.others.push({ h, img, female, rp: null, cls: '', last: null });
   }
 
-  /** Each frame: the partner's 3D body where its painted one would be, doing what it does; the painted one hidden. */
-  private driveFoe3D(ms: number): void {
-    const H = this.hero3d!, bot = this.bot;
-    if (!bot) { if (H.foe) H.foe.img.setVisible(false); return; }
-    if (!H.foe) { if (!H.foeLoading) { H.foeLoading = true; void this.startFoe3D(bot, this.sceneGen); } return; }
-    const F = H.foe, rp = bot.view, k = bot.kin;
-    if (F.bot !== bot) { F.bot = bot; void import('../arena3d/Hero3D').then((m) => F.h.setWeapon(m.CLASS_WEAPON[bot.cls] ?? 'sword')); }
-    rp.view.hideBody();
-    const sk = (rp as unknown as { skill: { id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number } | null }).skill;
-    const mode = rp.mode === 'recover' ? 'idle' : rp.mode;
-    F.h.drive({
-      x: rp.x, y: rp.y, z: rp.z, vx: k.vx, vy: k.vy, vz: k.vz, grounded: k.grounded, face: rp.dir === 'left' ? -1 : 1, mode: bot.defeated ? 'dead' : mode,
-      cast: sk && mode === 'skill' ? { id: sk.id, stage: sk.stage, elapsed: sk.elapsed, startup: sk.startup, active: sk.active, recovery: sk.recovery, dash: !!finalSkill(sk.id)?.dash, air: !k.grounded } : null,
-    }, ms);
-    F.img.setDepth(actorDepth(rp.x, rp.y, rp.z)).setAlpha(rp.ghost ? (Math.floor(this.simMs / 70) % 2 ? 0.4 : 0.75) : 1).setVisible(true);
+  /** Each frame: every other body's 3D one where its painted one would be, doing what it does; the painted one hidden. */
+  private driveOthers3D(ms: number): void {
+    const H = this.hero3d!;
+    const now: { rp: RemotePlayer; vel?: { vx: number; vy: number; vz: number; grounded: boolean }; dead: boolean; female: boolean; cls: string }[] = [];
+    if (this.bot) now.push({ rp: this.bot.view, vel: this.bot.kin, dead: this.bot.defeated, female: this.bot.cls === 'archer', cls: this.bot.cls }); // (as the painted classes: the archer a woman)
+    for (const r of this.pvp?.remotes.values() ?? []) now.push({ rp: r, dead: !r.alive, female: r.meta.gender === 'female', cls: r.meta.classId });
+    for (const o of H.others) if (o.rp && !now.some((e) => e.rp === o.rp)) { o.rp = null; o.img.setVisible(false); } // gone: free for the next
+    for (const e of now) {
+      let o = H.others.find((x) => x.rp === e.rp);
+      if (!o) {
+        o = H.others.find((x) => !x.rp && x.female === e.female);
+        if (!o) { if (H.loading === 0) { H.loading++; void this.startOther3D(e.female, this.sceneGen); } continue; }
+        o.rp = e.rp; o.cls = ''; o.last = null;
+      }
+      const rp = e.rp;
+      if (o.cls !== e.cls) { o.cls = e.cls; const w = CLASS_WEAPON3D[e.cls] ?? 'sword'; o.h.setWeapon(w as Hero3D['weapon']); }
+      rp.view.hideBody();
+      // its speed: the partner's own, a player's from where it was drawn last frame
+      let vel = e.vel;
+      if (!vel) { const L = o.last, k = Math.max(1, ms) / 1000; vel = L ? { vx: (rp.x - L.x) / k, vy: (rp.y - L.y) / k, vz: (rp.z - L.z) / k, grounded: rp.z - rp.sz < 2 } : { vx: 0, vy: 0, vz: 0, grounded: true }; }
+      o.last = { x: rp.x, y: rp.y, z: rp.z };
+      const sk = (rp as unknown as { skill: { id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number } | null }).skill;
+      const mode = rp.mode === 'recover' ? 'idle' : rp.mode;
+      o.h.drive({
+        x: rp.x, y: rp.y, z: rp.z, vx: vel.vx, vy: vel.vy, vz: vel.vz, grounded: vel.grounded, face: rp.dir === 'left' ? -1 : 1, mode: e.dead ? 'dead' : mode,
+        cast: sk && mode === 'skill' ? { id: sk.id, stage: sk.stage, elapsed: sk.elapsed, startup: sk.startup, active: sk.active, recovery: sk.recovery, dash: !!finalSkill(sk.id)?.dash, air: !vel.grounded } : null,
+      }, ms);
+      o.h.tintBody((rp as unknown as { flashMs: number }).flashMs >= 0 ? 0xff9a9a : null); // (struck: its soft tint, as its painted body's)
+      o.img.setDepth(actorDepth(rp.x, rp.y, rp.z)).setAlpha(rp.ghost ? (Math.floor(this.simMs / 70) % 2 ? 0.4 : 0.75) : 1).setVisible(true);
+    }
   }
 
-  /** Each frame: the 3D hero where the body is, doing what it does; the painted body hidden. */
-  private driveHero3D(ms: number, alpha: number): void {
+  /** Each frame: your 3D body where your body is, doing what it does (its colour wash too); the painted one hidden. */
+  private driveHero3D(ms: number, alpha: number, tint: number | null = null): void {
     const H = this.hero3d!, k = this.kin, run = this.rt?.ownRun;
     this.view?.hideBody();
     H.h.drive({
       x: k.x, y: k.y, z: k.z, vx: k.vx, vy: k.vy, vz: k.vz, grounded: k.grounded, face: this.dir === 'left' ? -1 : 1, mode: this.dead >= 0 ? 'dead' : this.mode === 'idle' && this.simMs < this.alertUntil ? 'alert' : this.mode,
       cast: run && this.mode === 'skill' ? { id: run.skill.id, stage: run.stage ?? 0, elapsed: run.elapsed, startup: run.timings.startup, active: run.timings.active, recovery: run.timings.recovery, dash: !!run.skill.dash, air: !k.grounded } : null,
     }, ms);
+    H.h.tintBody(tint);
     H.img.setDepth(actorDepth(k.x, k.y, k.z)).setAlpha(alpha).setVisible(true);
-    this.driveFoe3D(ms);
+    this.driveOthers3D(ms);
   }
 
   /** The test's item buttons: the weapon in hand (the arena's top left, under the bars). */
@@ -4151,6 +4183,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       document.head.appendChild(st);
     }
     const el = document.createElement('div'); el.className = 'gol-h3d';
+    if (this.w3d) Object.assign(el.style, { right: 'auto', left: '18px', top: '300px' }); // (the world's HUD: under the quests, clear of the minimap)
     el.innerHTML = '<div class="hd">3D BEGINNER · ITEMS</div><div class="row"></div>';
     const row = el.querySelector('.row')!;
     const refresh = () => row.querySelectorAll('button').forEach((b) => b.classList.toggle('on', (b as HTMLButtonElement).dataset.id === this.hero3d?.h.weapon));

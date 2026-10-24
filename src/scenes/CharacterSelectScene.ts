@@ -8,6 +8,11 @@ import { buildLook, preloadLooks } from '../characters/LookArt';
 import { clearPvpFromUrl } from '../pvp/Room';
 import { ClassPresence, preloadLife } from '../ui/PresentationLife';
 import { ThroneHero, preloadThrone } from '../ui/ThronePresence';
+import { HERO3D } from '../arena3d/hero3dFlag';
+import type { HeroPreview3D } from '../arena3d/HeroPreview3D';
+import { genderOf } from '../characters/Look';
+/** Each class's weapon in the 3D Beginner's hand (as Hero3D's CLASS_WEAPON, without loading it here). */
+const CLASS_WEAPON3D: Record<string, 'sword' | 'katana' | 'bow' | 'staff' | 'cane'> = { warrior: 'sword', samurai: 'katana', archer: 'bow', book_mage: 'staff', gambler: 'cane' };
 
 /** START HERO: the ready heroes play at this level (every job and skill open). */
 const HERO_LEVEL = 100;
@@ -79,6 +84,22 @@ export class CharacterSelectScene extends Phaser.Scene {
     const throne = this.textures.exists('throne.hero') ? new ThroneHero(this, { x: PV.centerX, y: 900 }, 700, 2) : null;
     throne?.setVisible(false);
     let lastKey: string | null = null, selectedCls: string | null = null;
+    // the 3D Beginner (David 24 Oct: the heroes in 3D; the painted ones and the throne go): the selected character's body,
+    // man or woman, its class's weapon in hand (each body loaded once, the other hidden)
+    const pv3: Record<string, HeroPreview3D> = {}, loading3 = new Set<string>();
+    let want3: { gender: string; cls: string } | null = null;
+    const show3D = (w: { gender: string; cls: string } | null) => {
+      want3 = w;
+      for (const [g2, p] of Object.entries(pv3)) { p.image.setVisible(!!w && g2 === w.gender); if (w && g2 === w.gender) p.setWeapon(CLASS_WEAPON3D[w.cls] ?? 'sword'); }
+      if (!w || pv3[w.gender] || loading3.has(w.gender)) return;
+      const gender = w.gender; loading3.add(gender);
+      void import('../arena3d/HeroPreview3D').then(async ({ HeroPreview3D }) => {
+        const p = await HeroPreview3D.create(this, { female: gender === 'female', weapon: CLASS_WEAPON3D[w.cls] ?? 'sword', key: `hero-preview-3d-${gender}`, w: 440, h: 680 });
+        if (!this.sys.isActive()) { p.destroy(); return; }
+        p.image.setPosition(PV.centerX, PV.feetY).setScale(PV.height / (680 / (1.08 * 1.02))).setDepth(2);
+        pv3[gender] = p; show3D(want3);
+      });
+    };
 
     this.ui = new CharacterSelectUI(this.game.canvas.parentElement!, this.game.canvas, {
       onBack: () => this.scene.start('MainMenuScene'),
@@ -90,6 +111,13 @@ export class CharacterSelectScene extends Phaser.Scene {
         if (pvp) this.scene.start('PvpSelectScene', { mode: 'cpu', p1: cls }); else { clearPvpFromUrl(); this.scene.start('LegacyCourtyardScene', { pvpRoom: null }); }
       },
       onPreview: (key) => {
+        if (HERO3D.on) { // the 3D Beginner stands on the pedestal: no painted hero, no throne
+          const c = key ? CharacterStore.getSelectedCharacter() : null, cls3 = c ? (key ? classOfKey(key) : null) ?? c.classId : null;
+          hero.setVisible(false); throne?.setVisible(false); g.setVisible(true); halo.setVisible(!!c); shadow.setVisible(!!c);
+          show3D(c ? { gender: genderOf(c), cls: cls3 ?? '' } : null);
+          if (key !== lastKey) { selectedCls = cls3; presence.setClass(selectedCls); lastKey = key; }
+          return;
+        }
         const cls = key ? classOfKey(key) : null, onThrone = !!throne && cls === 'warrior';
         if (key && !onThrone) { const base = key.startsWith('base.'); hero.setTexture(key).setData('calm', base); hero.setScale((PV.height * (base ? 0.84 : 1)) / (fitOfKey(key) ?? hero.height)); } // the base body: no cloth to sway, fills its image
         const stand = !!key && !onThrone;

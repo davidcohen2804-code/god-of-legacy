@@ -18,12 +18,14 @@ const MOVES = ['moves_1.glb', 'moves_2.glb'];
  *  drawing (tools/hero3d/weapons). `hand`: the hand that holds it; `loose`: how it is held standing or walking — 'hang'
  *  (a sword's point down and forward) or 'upright' (a staff, the cane, the bow: standing up at the side). */
 export const WEAPONS = {
-  sword: { name: 'SWORD', file: 'w_sword.glb', hand: 'r', loose: 'hang' },
-  katana: { name: 'KATANA', file: 'w_katana.glb', hand: 'r', loose: 'hang' },
-  bow: { name: 'BOW', file: 'w_bow.glb', hand: 'l', loose: 'upright' },
-  staff: { name: 'STAFF', file: 'w_staff.glb', hand: 'r', loose: 'upright' },
-  cane: { name: 'CANE', file: 'w_cane.glb', hand: 'r', loose: 'upright' },
+  sword: { name: 'SWORD', file: 'w_sword.glb', hand: 'r', loose: 'hang', girth: 1.25 },
+  katana: { name: 'KATANA', file: 'w_katana.glb', hand: 'r', loose: 'hang', girth: 1.25 },
+  bow: { name: 'BOW', file: 'w_bow.glb', hand: 'l', loose: 'upright', girth: 1.5 },
+  staff: { name: 'STAFF', file: 'w_staff.glb', hand: 'r', loose: 'upright', girth: 1.7 },
+  cane: { name: 'CANE', file: 'w_cane.glb', hand: 'r', loose: 'upright', girth: 2.1 },
 } as const;
+// (`girth`: the weapon drawn thicker than true across its length — at the fight's distance a true cane is a pixel and a
+// half wide and vanishes against the trousers; game weapons read by their bulk)
 export type WeaponId = keyof typeof WEAPONS;
 /** Each class's weapon. */
 export const CLASS_WEAPON: Record<string, WeaponId> = { warrior: 'sword', samurai: 'katana', archer: 'bow', book_mage: 'staff', gambler: 'cane' };
@@ -175,12 +177,22 @@ export class Hero3D {
   private makeBowString(): void {
     const g = this.weapons.get('bow'); if (!g) return;
     let tips: THREE.Vector3[] = [];
-    g.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && /String/.test((m.material as THREE.Material).name)) { m.visible = false; const p = m.geometry.attributes.position; let lo = 0, hi = 0; for (let i = 0; i < p.count; i++) { if (p.getY(i) > p.getY(hi)) hi = i; if (p.getY(i) < p.getY(lo)) lo = i; } tips = [new THREE.Vector3(p.getX(hi), p.getY(hi), 0), new THREE.Vector3(p.getX(lo), p.getY(lo), 0)]; } });
+    const root = g.children[0]; if (!root) return;
+    g.updateMatrixWorld(true);
+    g.traverse((o) => {
+      const m = o as THREE.Mesh; if (!m.isMesh || !/String/.test((m.material as THREE.Material).name)) return;
+      m.visible = false;
+      // its two ends, in the bow's own frame (the packed positions are quantized: the mesh's node carries their scale)
+      const p = m.geometry.attributes.position; let lo = 0, hi = 0;
+      for (let i = 0; i < p.count; i++) { if (p.getY(i) > p.getY(hi)) hi = i; if (p.getY(i) < p.getY(lo)) lo = i; }
+      const at = (i: number) => root.worldToLocal(new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i)).applyMatrix4(m.matrixWorld));
+      tips = [at(hi), at(lo)];
+    });
     if (tips.length < 2) return;
     const geo = new THREE.BufferGeometry().setFromPoints([tips[0], tips[0].clone().lerp(tips[1], 0.5), tips[1]]);
     this.bowString = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xd8cfb8 }));
     this.bowString.userData.tips = tips; this.bowString.frustumCulled = false;
-    g.children[0]?.add(this.bowString);
+    root.add(this.bowString);
     // the arrow: a shaft, a steel head, three feathers (made here; the archer's own arrows fly as the skills' effects)
     const a = new THREE.Group();
     const wood = new THREE.MeshStandardMaterial({ color: 0x8a6a44, roughness: 0.8 }), steel = new THREE.MeshStandardMaterial({ color: 0xc8ccd2, metalness: 0.6, roughness: 0.35 }), fl = new THREE.MeshStandardMaterial({ color: 0x2f6a3a, roughness: 0.9, side: THREE.DoubleSide });
@@ -234,12 +246,21 @@ export class Hero3D {
   }
   private shown(o: THREE.Object3D): boolean { for (let p: THREE.Object3D | null = o; p && p !== this.model; p = p.parent) if (!p.visible) return false; return true; }
 
+  /** The body's colour wash (a blow taken, a freeze, armour): its cloth and skin glow faintly in it; null: none. */
+  private tintNow: number | null = -1;
+  tintBody(tint: number | null): void {
+    if (tint === this.tintNow) return;
+    this.tintNow = tint;
+    const m = this.body?.material as THREE.MeshStandardMaterial | undefined; if (!m) return;
+    if (tint === null) m.emissive.setRGB(0, 0, 0); else m.emissive.setHex(tint).multiplyScalar(0.32);
+  }
+
   /** Take an item in hand (the Beginner's weapons): that one shown, gripped by its hand. */
   setWeapon(id: WeaponId): void {
     this.weapon = id;
     for (const [w, g] of this.weapons) {
       g.visible = w === id; if (w !== id) continue;
-      const gp = this.grip[WEAPONS[w].hand]; g.position.copy(gp.p); g.quaternion.copy(gp.q);
+      const gp = this.grip[WEAPONS[w].hand]; g.position.copy(gp.p); g.quaternion.copy(gp.q); g.scale.set(WEAPONS[w].girth, 1, WEAPONS[w].girth);
     }
     this.castKey = ''; this.clipNow = '';
   }

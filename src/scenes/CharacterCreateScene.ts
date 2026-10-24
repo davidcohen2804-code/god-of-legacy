@@ -4,6 +4,8 @@ import { CharacterCreateUI, CreateLook, FIRST_LOOK } from '../ui/CharacterCreate
 import { lookFiles, lookIconLayers, lookIcons, queueLayers } from '../characters/LookArt';
 import { toneTexture } from '../characters/Skin';
 import MENU_LOOK from '../data/menu-look.json';
+import { HERO3D } from '../arena3d/hero3dFlag';
+import type { HeroPreview3D } from '../arena3d/HeroPreview3D';
 
 /** The new character on the pedestal, dressed as chosen: back hair, the bare body in its skin tone, the face, the starter
  *  gear it will wear (pants, boots, shirt in their colours, the sword in hand), the forehead between the bangs, the hair
@@ -37,9 +39,24 @@ export class CharacterCreateScene extends Phaser.Scene {
     const layers: Phaser.GameObjects.Image[] = [];
     let want: CreateLook = FIRST_LOOK, ver = 0;
     const art = this.add.image(P.centerX, P.pedestalY + 8, '__DEFAULT').setOrigin(0.5, 1).setVisible(false);
+    // the 3D Beginner (David 24 Oct: the heroes in 3D; the painted ones go): the chosen body, man or woman, standing on
+    // the pedestal with the Beginner's sword (each loaded once, the other hidden)
+    const pv3: Record<string, HeroPreview3D> = {}, loading3 = new Set<string>();
+    const show3D = (gender: string) => {
+      for (const [g2, p] of Object.entries(pv3)) p.image.setVisible(g2 === gender);
+      if (pv3[gender] || loading3.has(gender)) return;
+      loading3.add(gender);
+      void import('../arena3d/HeroPreview3D').then(async ({ HeroPreview3D }) => {
+        const p = await HeroPreview3D.create(this, { female: gender === 'female', weapon: 'sword', key: `hero-preview-3d-${gender}`, w: 440, h: 680 });
+        if (!this.sys.isActive()) { p.destroy(); return; }
+        p.image.setPosition(P.centerX, P.pedestalY + 8).setScale((P.height * 0.86) / (680 / (1.08 * 1.02)));
+        pv3[gender] = p; p.image.setVisible(want.gender === gender);
+      });
+    };
     const apply = (v: number) => {
       if (v !== ver) return; // a newer choice is on its way
       const l = want;
+      if (HERO3D.on) { art.setVisible(false); layers.forEach((im) => im.setVisible(false)); show3D(l.gender); const icons = lookIcons(this, l); if (icons) this.ui?.setIcons(icons); return; }
       if (this.textures.exists(`beginner.${l.gender}`)) { // the painted Beginner on the pedestal
         art.setTexture(`beginner.${l.gender}`).setVisible(true);
         art.setScale((P.height * 0.86) / art.height);
