@@ -12,7 +12,7 @@ import { ClassKey, HERO_LIFT, cleanLook, loadBaseLook, resolvePose } from '../ga
 import { DEFAULT_SKIN, SKIN_TONES } from '../characters/Skin';
 import { WornLook, parseWornCode } from '../items/Gear';
 import { AnimSnap, Mode, poseQuery } from '../game/PoseState';
-import { Afterimages, applyMotion, archerMotion, heroMotion } from '../skills/ArcherMotion';
+import { Afterimages, applyMotion, archerMotion, heroMotion, type Motion } from '../skills/ArcherMotion';
 import { SAMURAI_AFTER, samuraiMotion, samuraiSeen } from '../skills/SamuraiMotion';
 import { finalSkill } from '../skills/FinalKit';
 import { KAGE, KageMode, KageSeen, decodeKage, kageFeintMotion, kageFlicker, kageSnap, kageTargets } from '../skills/Kagemusha';
@@ -70,6 +70,21 @@ export class RemotePlayer {
   /** A double comes / goes / feints (the scene draws it: ink, petals, a cut in the air). */
   onKage?: (at: V3, how: 'appear' | 'burst' | 'fade' | 'feint', face?: number, stage?: number) => void;
   private dress: { look: BaseLook | null; worn: WornLook | null; eq: Equipped } = { look: null, worn: null, eq: {} };
+
+  /** A 3D body follows this one (the 3D heroes, src/arena3d/Hero3D.ts): the painted body — his and his doubles' — is not
+   *  drawn (their names, bars and rings stay); what the painted body would show goes to the 3D one each frame: how seen
+   *  it is (alpha3d: hidden, in ink, a crane, blinking, fading out), its motion (a shot's recoil, a leap, a spin) and its
+   *  afterimages (trail3d). */
+  body3d = false;
+  alpha3d = 1;
+  motion3d: Motion | null = null;
+  trail3d: { on: boolean; tint: number; every: number } | null = null;
+  /** His cast now (its clock: a double swinging with him swings it too). */
+  castNow(): { id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number } | null { return this.skill; }
+  /** His doubles as they stand this frame (for 3D bodies): where, facing, doing what (and its clock), its motion. */
+  doubles3d(): { k: number; x: number; y: number; z: number; face: number; mode: KageMode; mt: number; feint: number; motion: Motion | null }[] {
+    return this.kage.flatMap((d, k) => (d ? [{ k, x: d.x, y: d.y, z: d.z, face: d.face, mode: d.mode, mt: d.mt, feint: d.feint, motion: d.m3 ?? null }] : []));
+  }
 
   /** Where the name and bar sit: just over the head (a ready hero is drawn taller than the other bodies). */
   private headTop(): number { return this.meta.hero ? 116 + HERO_LIFT : 116; }
@@ -232,16 +247,21 @@ export class RemotePlayer {
     this.view.swordOff = this.jbAir;
     this.view.tagAlpha = this.deadMs >= 0 ? alpha : seen; // (as his name: it stays while he blinks or is a crane)
     this.view.render(ms, pose, x + jx, y, z + jz, this.sz, this.dir, alpha, tint, fill);
+    if (this.body3d) this.view.hideBody();
+    this.alpha3d = alpha; this.motion3d = null; this.trail3d = null;
     if (this.meta.classId === 'archer') { // the same body motion the caster sees
       const m = heroMotion(this.skill && this.alive ? archerMotion(this.skill.id, this.skill.elapsed, this.skill, this.dir === 'left' ? -1 : 1) : null, !!this.meta.hero);
       applyMotion(this.view.motionSprites, m);
+      this.motion3d = m; this.trail3d = { on: !!m?.after, tint: 0x9be35a, every: 45 };
       (this.afterimg ??= new Afterimages(this.scene)).step(this.scene.time.now, this.view.sprite, !!m?.after);
     } else if (this.meta.classId === 'warrior') { // Dash Slash's steel afterimages, as the caster sees them
       const sk = this.skill, on = !!sk && this.alive && sk.id === 'dash_slash' && sk.elapsed >= sk.startup && sk.elapsed < sk.startup + sk.active;
       (this.afterimg ??= new Afterimages(this.scene, 0xe8f0ff)).step(this.scene.time.now, this.view.sprite, on, 35);
+      this.trail3d = { on, tint: 0xe8f0ff, every: 35 };
     } else if (this.meta.classId === 'samurai') {
       const m = heroMotion(this.skill && this.alive ? samuraiMotion(this.skill.id, this.skill.elapsed, this.skill, this.dir === 'left' ? -1 : 1, this.skill.stage) : null, !!this.meta.hero);
       applyMotion(this.view.motionSprites, m);
+      this.motion3d = m; this.trail3d = { on: !!m?.after, tint: SAMURAI_AFTER, every: 45 };
       (this.afterimg ??= new Afterimages(this.scene, SAMURAI_AFTER)).step(this.scene.time.now, this.view.sprite, !!m?.after);
       const g = this.meta.gender === 'female' ? 'female' : 'male';
       for (const d of this.kage) { // his doubles: each its own body (or his very pose and motion while he swings), name and bar
@@ -251,8 +271,9 @@ export class RemotePlayer {
         const mirror = d.mode === 'm' && !!this.skill, dir: Dir = mirror ? this.dir : d.face < 0 ? 'left' : 'right';
         const dp = mirror ? pose : resolvePose(this.meta.classId as ClassKey, dir, poseQuery(kageSnap(d.mode, d.mt, d.feint, d.seed)), d.view.wantsBase, g, !!this.meta.hero);
         d.view.render(ms, dp, p.x, p.y, p.z, p.z, dir, 1, null, false);
+        if (this.body3d) d.view.hideBody();
         const dm = mirror ? m : d.mode === 'f' ? kageFeintMotion(d.mt, d.feint, d.face) : null;
-        applyMotion(d.view.motionSprites, dm);
+        applyMotion(d.view.motionSprites, dm); d.m3 = dm;
         d.after.step(this.scene.time.now, d.view.sprite, !!dm?.after);
         const t2 = p.y - p.z - this.headTop() - PVP.remoteLabel.gap;
         d.label.setPosition(Math.round(p.x), Math.round(t2 - PVP.hpBar.h - 3));
@@ -341,6 +362,7 @@ export class RemotePlayer {
 interface KageView {
   view: ActorView; label: Phaser.GameObjects.Text; bar: Phaser.GameObjects.Graphics; after: Afterimages;
   snaps: Snap[]; x: number; y: number; z: number; face: 1 | -1; mode: KageMode; mt: number; feint: number; seed: number;
+  /** its motion this frame (for a 3D body) */ m3?: Motion | null;
 }
 /** Where a body is shown now: `delay` ms in the past, between the snapshots around it (the latest one with no delay). */
 function interp(s: Snap[], rt: number, delay: number): { x: number; y: number; z: number } {

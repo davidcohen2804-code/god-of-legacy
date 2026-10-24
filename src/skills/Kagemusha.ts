@@ -105,6 +105,7 @@ export interface KageHooks {
 interface Double {
   x: number; y: number; z: number; sz: number; alive: boolean; view: ActorView; after: Afterimages;
   face: 1 | -1; mode: KageMode; t: number; tx: number; ty: number; wait: number; feints: number; seed: number;
+  /** its motion this frame (for a 3D body) */ m3?: Motion | null;
 }
 
 /** The caster's own doubles (his screen is their authority). */
@@ -114,6 +115,9 @@ export class KageLocal {
   private revealed = false;
   /** He is out of sight (from the burst until he strikes, is struck, or the time is up). */
   hidden = false;
+  /** His body is a 3D one (the 3D heroes): the doubles' painted bodies are not drawn (their names and rings stay) — the
+   *  scene draws them as 3D twins of his (doubles3d). */
+  body3d = false;
   until = -1;
   private home: V2 = { x: 0, y: 0 };
   /** Casts started while the doubles stand: the first of their hits that lands is the AMBUSH. */
@@ -203,10 +207,16 @@ export class KageLocal {
       const pose = mirror ? his.pose : this.hooks.pose(kageSnap(d.mode, d.t, d.feints, d.seed), dir);
       const motion = mirror ? his.motion : d.mode === 'f' ? kageFeintMotion(d.t, d.feints, d.face) : null;
       d.view.render(ms, pose, d.x, d.y, d.z, d.sz, dir, alpha, null, false);
+      if (this.body3d) d.view.hideBody();
       d.view.ring.setVisible(false); // on his own screen only he has the ring under his feet (others see one under every one of them)
-      applyMotion(d.view.motionSprites, motion);
+      applyMotion(d.view.motionSprites, motion); d.m3 = motion;
       d.after.step(now, d.view.sprite, !!motion?.after);
     }
+  }
+
+  /** The standing doubles this frame (for 3D bodies): where, facing, doing what (and its clock), its motion. */
+  doubles3d(): { k: number; x: number; y: number; z: number; face: number; mode: KageMode; mt: number; feint: number; motion: Motion | null }[] {
+    return this.revealed ? this.doubles.flatMap((d, k) => (d.alive ? [{ k, x: d.x, y: d.y, z: d.z, face: d.face, mode: d.mode, mt: d.t, feint: d.feints, motion: d.m3 ?? null }] : [])) : [];
   }
 
   /** Where the standing doubles are (his swings are drawn there too). */

@@ -39,6 +39,7 @@ export class HeroPreview3D {
   /** A preview of the Beginner (man or woman) with a weapon in hand, `w`×`h` px. */
   static async create(scene: Phaser.Scene, o: { female: boolean; weapon?: WeaponId; w?: number; h?: number; key?: string }): Promise<HeroPreview3D> {
     const hero = await Hero3D.load({ female: o.female });
+    hero.flatToView = true; // (a sword's flat to the viewer, not its edge)
     if (o.weapon) hero.setWeapon(o.weapon);
     return new HeroPreview3D(scene, hero, o.key ?? 'hero-preview-3d', o.w ?? 420, o.h ?? 640);
   }
@@ -50,8 +51,7 @@ export class HeroPreview3D {
     if (this.dead) return;
     this.t += ms;
     // standing in its idle, facing the viewer, a slow sway of the turn (never its back)
-    this.hero.drive({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, grounded: true, face: 1, mode: 'idle', cast: null }, ms);
-    this.hero.root.rotation.y = 0.35 * Math.sin(this.t / 2600);
+    this.hero.drive({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, grounded: true, face: 1, yaw: 0.35 * Math.sin(this.t / 2600), mode: 'idle', cast: null }, ms);
     this.renderer.render(this.hero.scene, this.cam);
     const ctx = this.tex.getContext(); ctx.clearRect(0, 0, this.w, this.h); ctx.drawImage(this.renderer.domElement, 0, 0); this.tex.refresh();
   }

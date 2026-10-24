@@ -3,10 +3,12 @@ import { CharacterStore } from '../characters/CharacterStore';
 import type { Character } from '../characters/CharacterTypes';
 import HERO_ATLAS from '../data/hero-atlas.json';
 import type { PortraitRef } from '../ui/hud/HudState';
+import { HERO3D } from '../arena3d/hero3dFlag';
+import { art3d, heroFemale3d } from '../arena3d/heroArt3d';
 
 /** A hero's VS splash (the approved battle-stance art, facing right): file, size, the face square on it and the class colours;
  *  `win` = the victory pose (same canvas), when there is one; `card` = no splash yet, this is the hero's card instead. */
-export interface HeroVs { cls: string; url: string; w: number; h: number; face: { x: number; y: number; s: number }; color: string; glow: string; win?: string; card?: boolean }
+export interface HeroVs { cls: string; url: string; w: number; h: number; face: { x: number; y: number; s: number }; color: string; glow: string; win?: string; card?: boolean; /** a rendered picture (the 3D heroes) */ still?: boolean }
 const VS_W = 1024, VS_H = 1536;
 /** Each hero's colours (VS screen, battle HUD, select tiles). */
 const COLOR: Record<string, [string, string]> = {
@@ -31,6 +33,7 @@ const colorOf = (cls: string): [string, string] => COLOR[cls] ?? ['#c9d2e6', 'rg
 export const classColor = (cls: string): string => colorOf(cls)[0];
 export function heroVs(cls: string): HeroVs | undefined {
   const f = FACE[cls], [color, glow] = colorOf(cls);
+  if (HERO3D.on && f) return { cls, ...art3d(cls, heroFemale3d(cls)), color, glow, still: true }; // (the 3D heroes: the 3D Beginner with the class's weapon)
   return f ? { cls, url: `assets/final/heroes/${cls}/vs.webp`, w: VS_W, h: VS_H, face: { x: f[0], y: f[1], s: f[2] }, color, glow, win: WIN.has(cls) ? `assets/final/heroes/${cls}/win.webp` : undefined } : undefined;
 }
 /** A hero's art for the VS screen, the result and the select tiles: its splash — else (none yet) its card. */

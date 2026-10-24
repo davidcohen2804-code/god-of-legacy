@@ -1,0 +1,52 @@
+<!doctype html>
+<!-- The 3D Beginner's splash art and portraits (tools/hero3d/art/art.mjs drives this page under the Vite dev server). -->
+<html><head><meta charset="utf-8"><base href="/"><title>hero art</title>
+<style>html,body{margin:0;background:#202020}</style></head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { Hero3D } from '/src/arena3d/Hero3D.ts';
+
+const heroes = {};
+const hero = async (female) => (heroes[female ? 'f' : 'm'] ??= await Hero3D.load({ female }));
+
+/** One picture of the Beginner: `w`×`h`, transparent, the figure (and its weapon) framed whole with `pad`, seen from a
+ *  little below; returns the PNG and where the head is (px) for the portrait's square. */
+window.shot = async (o) => {
+  const { female = false, weapon = 'sword', clip = 'Sword_Idle', t = 0.3, yaw = 0.75, w = 1024, h = 1536, pad = 0.04, camY = 0.62, fov = 20, rim = 0x9fc4ff } = o;
+  const H = await hero(female);
+  H.setWeapon(weapon);
+  H.pose(clip, t, yaw);
+  H.root.updateMatrixWorld(true);
+  const sc = new THREE.Scene();
+  sc.add(H.root);
+  sc.add(new THREE.HemisphereLight(0xfff1e2, 0x2a2018, 1.15));
+  const key = new THREE.DirectionalLight(0xffe0bc, 2.4); key.position.set(-2.4, 3.4, 3.2); sc.add(key);
+  const rl = new THREE.DirectionalLight(rim, 2.2); rl.position.set(2.8, 2.2, -2.6); sc.add(rl);
+  const rl2 = new THREE.DirectionalLight(rim, 1.2); rl2.position.set(-3, 1.5, -2.5); sc.add(rl2);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.45); fill.position.set(2, 0.8, 3); sc.add(fill);
+  // the frame: the posed body and its weapon, whole
+  const box = new THREE.Box3();
+  H.root.traverse((m) => { if ((m.isMesh || m.isSkinnedMesh) && m.visible && m.renderOrder !== 5 && !m.isLine) { let v = true; for (let p = m; p; p = p.parent) if (!p.visible) v = false; if (v) box.expandByObject(m, true); } });
+  const c = box.getCenter(new THREE.Vector3()), sz = box.getSize(new THREE.Vector3());
+  const cam = new THREE.PerspectiveCamera(fov, w / h, 0.05, 100);
+  const fy = THREE.MathUtils.degToRad(fov) / 2, fx = Math.atan(Math.tan(fy) * (w / h));
+  const need = Math.max((sz.y / 2) / Math.tan(fy), (Math.max(sz.x, sz.z) / 2) / Math.tan(fx)) * (1 + pad * 2) + Math.max(sz.x, sz.z) / 2;
+  cam.position.set(c.x, c.y * camY + 0.05, c.z + need); cam.lookAt(c.x, c.y, c.z);
+  // re-centre exactly: the figure's projected box in the middle of the picture
+  cam.updateMatrixWorld(true);
+  const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+  r.setPixelRatio(1); r.setSize(w, h, false); r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.08;
+  r.setClearColor(0x000000, 0);
+  r.render(sc, cam);
+  const png = r.domElement.toDataURL('image/png');
+  const head = new THREE.Vector3(); H.root.traverse((b) => { if (b.isBone && b.name === 'Head') b.getWorldPosition(head); });
+  const top = head.clone().add(new THREE.Vector3(0, 0.12, 0));
+  const ph = head.clone().project(cam), pt = top.clone().project(cam);
+  const at = { x: (ph.x + 1) / 2 * w, y: (1 - ph.y) / 2 * h, r: Math.abs(pt.y - ph.y) / 2 * h };
+  r.dispose(); r.forceContextLoss();
+  return { png, head: at };
+};
+window.ready = true;
+</script>
+</body></html>

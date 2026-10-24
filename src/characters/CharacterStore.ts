@@ -108,7 +108,7 @@ class Store {
   heroOf(classId: string, name: string, level: number): Character {
     return {
       id: `hero-${classId}`, name, classId, job: classId, level, exp: 0, hero: true,
-      createdAt: new Date().toISOString(), lastPlayedAt: null, appearanceId: null, gender: 'male',
+      createdAt: new Date().toISOString(), lastPlayedAt: null, appearanceId: null, gender: classId === 'archer' ? 'female' : 'male', // (as the painted roster: the archer a woman — the 3D heroes' body follows it)
       gear: starterGear(undefined), gold: 0, bag: { ...STARTER_BAG }, quick: [...DEFAULT_QUICK], seen: Object.keys(STARTER_BAG),
     };
   }

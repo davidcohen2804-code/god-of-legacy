@@ -5,6 +5,7 @@
 // outline. It slides in when the fighter changes, flashes white when it is locked in (its light brighter after), and stands
 // as a dark silhouette while the opponent is still unknown.
 import Phaser from 'phaser';
+import { HERO3D } from '../arena3d/hero3dFlag';
 
 /** live: still choosing; locked: picked; shade: not chosen yet (VS CPU, before you pick yours). */
 export type ArtState = 'live' | 'locked' | 'shade';
@@ -183,7 +184,10 @@ export class FighterArt {
   }
 
   private load(cls: string): void {
-    const look = this.look = LOOKS[cls] ?? null;
+    const L = LOOKS[cls] ?? null;
+    // the 3D heroes: a rendered Beginner (its weapon the class's) — it breathes and glows in its colour; no painted cloth
+    // to blow, no painted blade for the light to run along
+    const look = this.look = HERO3D.on && L ? { color: L.color, cloth: () => 0, keep: [], still: [], stars: [] } : L;
     this.img.setTexture(`hero-card-${cls}`);
     const fw = this.img.frame.realWidth, fh = this.img.frame.realHeight, k = Math.min(BOX.w / fw, BOX.h / fh);
     this.img.setScale(k);

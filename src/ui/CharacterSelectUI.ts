@@ -3,7 +3,9 @@ import { ASSET_MANIFEST, CHARACTER_PREVIEWS, CHARACTER_SELECT as L, CLASS_NAMES,
 import { CharacterStore } from '../characters/CharacterStore';
 import { Character, SlotId } from '../characters/CharacterTypes';
 import { previewKeyOf } from '../characters/Look';
-import { jobsFor } from '../skills/Jobs';
+import { jobsFor, playedClass } from '../skills/Jobs';
+import { HERO3D } from '../arena3d/hero3dFlag';
+import { art3d } from '../arena3d/heroArt3d';
 import { expToNext } from '../game/Progression';
 import { ICONS, ensureTheme } from './theme';
 
@@ -393,7 +395,10 @@ export class CharacterSelectUI {
       // Face/upper-body crop of the same full-body preview (display-only; empty slots stay blank).
       const pv = c ? previewFor(c) : undefined;
       const po = d.children[2] as HTMLElement;
-      if (pv?.portrait) {
+      if (c && HERO3D.on) { // the 3D heroes: the 3D Beginner's head and shoulders (its class's weapon), from its splash
+        const a = art3d(playedClass(c), c.gender === 'female'), w = a.face.s * 1.75, k = K.card.art.w / w;
+        Object.assign(po.style, { backgroundImage: `url("${a.url}")`, backgroundSize: `${a.w * k}px ${a.h * k}px`, backgroundPosition: `${-(a.face.x + a.face.s / 2 - w / 2) * k}px ${-(a.face.y - a.face.s * 0.32) * k}px` });
+      } else if (pv?.portrait) {
         // Dedicated portrait file (face/shoulders), scaled to the frame.
         Object.assign(po.style, { backgroundImage: `url("${pv.portrait}")`, backgroundSize: 'cover', backgroundPosition: 'center top' });
       } else if (pv) {

@@ -597,7 +597,7 @@ export class Arena3D {
     const glow = this.glow3.children.some((o) => o.visible);
     if (glow) { this.renderer.render(this.glow3, this.camera); this.scene.textures.get('arena3d-fx').source[0].update(); }
     this.fxImg.setVisible(glow);
-    for (const l of this.extra) { l.before?.(); this.renderer.setClearColor(0x000000, 0); this.renderer.render(l.scene, this.camera); this.scene.textures.get(l.key).source[0].update(); }
+    for (const l of this.extra) { l.before?.(); if (!l.img.visible) continue; this.renderer.setClearColor(0x000000, 0); this.renderer.render(l.scene, this.camera); this.scene.textures.get(l.key).source[0].update(); } // (a layer not shown is not drawn: a body waiting in the pool, the doubles gone)
     // every world object: placed where the 3D camera sees its floor point, scaled by its depth
     const sw = this.scene.scale.width;
     const visit = (o: Placed, top: boolean) => {
