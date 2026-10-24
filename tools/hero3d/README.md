@@ -30,6 +30,25 @@ painted bodies again.
 The moves stay the library's (`moves_1.glb`, `moves_2.glb`): `Hero3D` keeps their bone turns only and lays their hip
 travel onto this body's hips; the moves no library has are built in code on the fitted skeleton (`makeBowShoot`, below).
 
+## The hands (`ai/hands.mjs`)
+
+The drawn hands were one open piece (the fingers folded into the hand: a weapon passed through the open palm). They are
+replaced by the hands of the Quaternius base body the skeleton comes from (CC0): `node hands.mjs BODY.glb BASE.gltf
+OUT.glb` drops the drawn hand's triangles, lays each base hand into the Beginner's (its wrist, its knuckles' line, its
+size), weights it to the fingers' own bones and colours it from the drawn hand (the glove, the bare fingertips).
+
+In the game (`Hero3D`) a hand holding a weapon is closed on it in every move: the library's grip (the sword stance's
+right fist, the shield stance's left) opened as far as the weapon's grip is thick (`fitHand`: the fingers' hollow, a
+circle through their joints, made the grip's thickness with the fingers' own around it — a hilt in a closed fist, the
+staff, the cane and the bow's riser in a hand half open round them), the grip laid through the hollow's middle.
+
+When the weapon is not swung the arm holds it (`HOLDS`, `makeHolds`): a blade hanging point down and forward (standing,
+walking) or forward and up at the foe in the guard, the staff upright planted on the floor (gripped high on its shaft),
+the cane and the bow upright at the side. Each hold is found at load on the body's own skeleton by a small search (the
+shoulder's turn, the elbow's bend, the forearm's twist; the hand then turned the least it must be) for the turns that
+leave the wrist as a wrist bends; the weapon is then turned about its own length (its grip is round in the fist) to
+show its face to the viewer — a blade's flat, the bow's curve with its string away from the body.
+
 ## The weapons (`public/assets/hero3d/w_*.glb`)
 
 Each drawn by GPT flat on grey (`src/weapons/`), cut out, then made solid by `weapons/inflate.py`: the silhouette
@@ -50,9 +69,13 @@ business end (the point, the head, the knob).
 
 The heroes' splash and faces with the 3D heroes on (`src/arena3d/heroArt3d.ts`): the VS screen, the loading VS, the
 result, the fighter select's tiles and fighters, the HUD's portraits. One picture per body and weapon
-(`m_sword.webp` … `f_cane.webp`, 1024 × 1536, transparent), the Beginner held still in a move facing right, framed
-whole, lit like a stage (`art/art.html`, `Hero3D.pose`); `art/art.mjs` renders them under the Vite dev server and
-writes each picture's head (`meta.json`: the portrait's square, copied into `heroArt3d.ts`).
+(`m_sword.webp` … `f_cane.webp`, 1024 × 1536, transparent): the Beginner painted by GPT (David 25 Oct: the 3D renders
+looked "horrible… it must look a million dollars") in the chats that drew its sheets — the same face, hair and basic
+outfit, the class's weapon, a battle pose of its own facing right, "polished hand-painted Korean MMO key art",
+transparent background. `art/splash.py IN OUT.webp [face_x face_y]` frames each alike (the body 88 % of the height, the
+feet at 97.5 %, the chest in the middle, a staff's or a bow's top inside) and finds the face (the topmost blob of warm
+skin, from the brow down) for the portraits' square — given by hand where a drawing hand hides the face (the archers).
+(`art/art.html` + `art/art.mjs` rendered the 3D Beginner for them before: still there for close looks at the 3D body.)
 
 ## Twins (`Hero3D.clone`)
 

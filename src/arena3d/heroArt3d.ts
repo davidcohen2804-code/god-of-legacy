@@ -1,15 +1,16 @@
-// The 3D heroes' pictures (David 24 Oct: the heroes in 3D — "throw out the characters we already made"): the 3D Beginner,
-// a man or a woman, with its class's weapon, rendered once (tools/hero3d/art) in a battle stance facing right — the VS
-// screen's splash, the result's, the fighter select's tiles and fighters — and its face for the HUD's portraits. No
-// three.js here: the pictures are files. The painted heroes' pictures stay for ?hero3d=0.
+// The 3D heroes' pictures (David 24 Oct: the heroes in 3D — "throw out the characters we already made"): the Beginner,
+// a man or a woman, with its class's weapon, in a battle stance facing right — the VS screen's splash, the result's, the
+// fighter select's tiles and fighters — and its face for the HUD's portraits. Painted by GPT from the Beginner's own
+// sheets (David 25 Oct: the 3D renders "look horrible… it must look a million dollars"), framed alike by
+// tools/hero3d/art/splash.py. No three.js here: the pictures are files. The painted heroes' pictures stay for ?hero3d=0.
 import type { PortraitRef } from '../ui/hud/HudState';
 
 export const ART3D = { w: 1024, h: 1536 };
 const WEAPON: Record<string, string> = { warrior: 'sword', samurai: 'katana', archer: 'bow', book_mage: 'staff', gambler: 'cane' };
-/** Each picture's face square (x, y, side; px) — tools/hero3d/art/meta.json. */
+/** Each picture's face square (x, y, side; px) — what tools/hero3d/art/splash.py found (or was told) on it. */
 const FACE: Record<string, [number, number, number]> = {
-  m_sword: [368, 624, 192], m_katana: [433, 527, 189], m_bow: [287, 471, 187], m_staff: [395, 487, 187], m_cane: [542, 527, 184],
-  f_sword: [344, 642, 192], f_katana: [436, 547, 188], f_bow: [282, 482, 189], f_staff: [402, 504, 188], f_cane: [549, 546, 186],
+  m_sword: [483, 178, 195], m_katana: [480, 178, 195], m_bow: [379, 318, 195], m_staff: [457, 241, 195], m_cane: [424, 174, 195],
+  f_sword: [524, 177, 195], f_katana: [456, 221, 195], f_bow: [367, 208, 195], f_staff: [553, 311, 195], f_cane: [480, 178, 195],
 };
 
 const key = (cls: string, female: boolean) => `${female ? 'f' : 'm'}_${WEAPON[cls] ?? 'sword'}`;

@@ -9,6 +9,7 @@ import { Hero3D } from '/src/arena3d/Hero3D.ts';
 
 const heroes = {};
 const hero = async (female) => (heroes[female ? 'f' : 'm'] ??= await Hero3D.load({ female }));
+window.__hero = hero; window.__THREE = THREE; // (close looks from a driver script: a hand, a head)
 
 /** One picture of the Beginner: `w`×`h`, transparent, the figure (and its weapon) framed whole with `pad`, seen from a
  *  little below; returns the PNG and where the head is (px) for the portrait's square. */

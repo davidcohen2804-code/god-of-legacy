@@ -49,7 +49,7 @@ export class CharacterCreateScene extends Phaser.Scene {
       void import('../arena3d/HeroPreview3D').then(async ({ HeroPreview3D }) => {
         const p = await HeroPreview3D.create(this, { female: gender === 'female', weapon: 'sword', key: `hero-preview-3d-${gender}`, w: 440, h: 680 });
         if (!this.sys.isActive()) { p.destroy(); return; }
-        p.image.setPosition(P.centerX, P.pedestalY + 8).setScale((P.height * 0.86) / (680 / (1.08 * 1.02)));
+        p.image.setPosition(P.centerX, P.pedestalY + 8).setScale((P.height * 0.86) / (680 / (1.08 * 1.02)) / HeroPreview3D.RES);
         pv3[gender] = p; p.image.setVisible(want.gender === gender);
       });
     };

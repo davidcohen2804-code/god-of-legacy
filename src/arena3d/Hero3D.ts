@@ -48,6 +48,29 @@ const BEAT: Record<string, [number, number]> = {
 /** Skills whose weapon is out of the hand a while (ms into the active part, from → to; the skill's effect stands for it):
  *  Rotor Staff's propeller (its spinning disc is the cane — back in the hand for the last blow, the thrust at 1440 ms). */
 const ARM_AWAY: Record<string, [number, number]> = { rotor_staff: [0, 1400] };
+/** The arm's holds when the weapon is not swung (makeHolds), each on the library stance it is found on: the way the
+ *  weapon points (out from the hand's side, up, forward), where the grip goes from the stance's own (out, up, forward, m)
+ *  and how far from there it may go. A blade hangs, its point down and forward and a little out (standing, walking), and
+ *  in the guard points forward and up at the foe; the staff stands upright held out before the hip, gripped high on its
+ *  shaft so that its foot is at the floor (`floor`); the cane upright at the side, its foot a little out; the bow upright
+ *  at the side. */
+const HOLDS: { name: string; side: 'r' | 'l'; at: [string, number]; way: [number, number, number]; shift: [number, number, number]; room: number; floor?: boolean }[] = [
+  { name: 'blade:idle', side: 'r', at: ['Idle_Loop', 0.5], way: [0.14, -0.72, 0.68], shift: [0.02, 0, -0.02], room: 0.1 },
+  { name: 'blade:guard', side: 'r', at: ['Sword_Idle', 0.3], way: [0, 0.6, 0.8], shift: [0, 0, 0], room: 0.08 },
+  { name: 'staff:idle', side: 'r', at: ['Idle_Loop', 0.5], way: [0.04, 1, 0.1], shift: [0.08, 0.22, 0.36], room: 0.05, floor: true },
+  { name: 'staff:spell', side: 'r', at: ['Spell_Simple_Idle_Loop', 0.5], way: [0, 1, 0.08], shift: [0, 0.1, 0.1], room: 0.08, floor: true },
+  { name: 'cane:idle', side: 'r', at: ['Idle_Loop', 0.5], way: [-0.12, 1, -0.12], shift: [0.03, 0.12, 0.08], room: 0.06 },
+  { name: 'cane:alert', side: 'r', at: ['Sword_Idle', 0.3], way: [0, 1, 0.1], shift: [0, 0.08, 0.06], room: 0.08 },
+  { name: 'bow:idle', side: 'l', at: ['Idle_Loop', 0.5], way: [0, 1, 0.12], shift: [0.03, 0.2, 0.16], room: 0.05 },
+  { name: 'bow:alert', side: 'l', at: ['Sword_Idle', 0.3], way: [0, 1, 0.12], shift: [0, 0.08, 0.06], room: 0.08 },
+];
+/** Which hold the weapon's arm takes in a move (none: the move's own). */
+function holdFor(w: WeaponId, clip: string): string {
+  const idle = /^(Idle_Loop|Walk_Loop)$/.test(clip), free = /^(Seize|Flip_Coin|Roll_Dice|Flick|Throw_L|Idle_Talking|Kick_Flip)/.test(clip);
+  if (w === 'sword' || w === 'katana') return idle ? 'blade:idle' : clip === 'Sword_Idle' ? 'blade:guard' : '';
+  if (w === 'staff') return idle || free ? 'staff:idle' : clip === 'Spell_Simple_Idle_Loop' || clip === 'Sword_Idle' ? 'staff:spell' : '';
+  return idle || free && clip !== 'Kick_Flip' ? `${w}:idle` : clip === 'Sword_Idle' || clip === 'Kick_Flip' ? `${w}:alert` : '';
+}
 
 /** A part of a move (from → to), every bone's turn sampled at both ends (a bone still between keys keeps its pose). */
 function cutClip(src: THREE.AnimationClip, name: string, a: number, b: number): THREE.AnimationClip {
@@ -144,10 +167,17 @@ export class Hero3D {
   private armEnds = new Map<WeaponId, [number, number]>();
   /** Each fist's grip (fitGrip): where a weapon's grip sits in the hand bone, turned as the closed fist holds it. */
   private grip: Record<'r' | 'l', { q: THREE.Quaternion; p: THREE.Vector3 }> = { r: { q: new THREE.Quaternion(), p: new THREE.Vector3() }, l: { q: new THREE.Quaternion(), p: new THREE.Vector3() } };
-  /** How far the weapon is held loose (standing, walking) instead of gripped for a move. */
-  private looseK = 0;
-  /** How far a blade is held up in the guard (the library's guard points it straight at the viewer: a disc of a guard). */
-  private guardK = 0;
+  /** The arm's holds at rest (HOLDS, makeHolds): the upper arm's, the forearm's and the hand's turns. */
+  private holds = new Map<string, { side: 'r' | 'l'; q: THREE.Quaternion[]; slide: number; info: string }>();
+  /** How far the arm is in its hold now (holdQ: the hold it is easing to, on holdSide's arm), and how far an upright
+   *  weapon is turned upright by the wrist alone (liftK: through a move of the weapon arm's own). */
+  private holdK = 0;
+  /** Each hand's fist (its fingers' turns, from the library's grips) and its fingers straight (the body at rest). */
+  private fist: Record<'r' | 'l', [THREE.Bone, THREE.Quaternion][]> = { r: [], l: [] };
+  private open: Record<'r' | 'l', THREE.Quaternion[]> = { r: [], l: [] };
+  /** Each weapon in its fist (fitHand): the fingers closed as far as its grip's thickness lets them, and where its grip
+   *  lies in the hand (through the fist's hollow) — a hand holding a weapon is closed on it in every move. */
+  private wgrip = new Map<WeaponId, { fist: [THREE.Bone, THREE.Quaternion][]; p: THREE.Vector3; q: THREE.Quaternion; k: number }>();
   /** The bow's string drawn back to the right hand while it aims, and the arrow on it. */
   private bowString: THREE.Line | null = null;
   private bowArrow: THREE.Group | null = null;
@@ -210,10 +240,16 @@ export class Hero3D {
     h.model.updateMatrixWorld(true);
     const box = new THREE.Box3(); if (h.body) box.expandByObject(h.body, true);
     const tall = Math.max(0.5, box.max.y - box.min.y);
-    // the fists' grips, from the hands as they close on a hilt (the sword stance)
-    h.play('Sword_Idle', { fade: 0 }); h.mixer.update(0.3); h.model.updateMatrixWorld(true);
+    // the fists: the right closed on the sword's grip (the sword stance), the left on the shield's handle (the shield's
+    // stance); each weapon held in a fist closed as far as its grip lets it
+    h.open.r = h.fingers('r').map(([, q]) => q); h.open.l = h.fingers('l').map(([, q]) => q); // (at rest, straight)
+    h.play('Idle_Shield_Loop', { fade: 0 }); h.mixer.update(0.3); h.fist.l = h.fingers('l');
+    h.play('Sword_Idle', { fade: 0, restart: true }); h.mixer.update(0.3); h.fist.r = h.fingers('r');
+    for (const [b, q] of h.fist.l) b.quaternion.copy(q);
+    h.model.updateMatrixWorld(true);
     h.fitGrip('r'); h.fitGrip('l');
-    h.makeBowShoot(); h.makeBowString();
+    for (const w of ids) h.fitHand(w);
+    h.makeBowShoot(); h.makeHolds(); h.makeBowString();
     h.model.scale.setScalar(Hero3D.HEIGHT / tall);
     h.setWeapon('sword');
     return h;
@@ -246,10 +282,36 @@ export class Hero3D {
     if (this.bowArrow) h.bowArrow = twin(this.bowArrow);
     h.clips = this.clips;
     h.grip = { r: { q: this.grip.r.q.clone(), p: this.grip.r.p.clone() }, l: { q: this.grip.l.q.clone(), p: this.grip.l.p.clone() } };
+    h.fist = { r: this.fist.r.map(([b, q]) => [twin(b), q]), l: this.fist.l.map(([b, q]) => [twin(b), q]) };
+    for (const [w, v] of this.wgrip) h.wgrip.set(w, { ...v, fist: v.fist.map(([b, q]) => [twin(b), q]) });
+    h.holds = this.holds;
     h.mixer = new THREE.AnimationMixer(h.model);
     h.flatToView = this.flatToView;
     h.setWeapon(this.weapon);
     return h;
+  }
+
+  /** A hand's fingers as they are posed now. */
+  private fingers(side: 'r' | 'l'): [THREE.Bone, THREE.Quaternion][] {
+    const out: [THREE.Bone, THREE.Quaternion][] = [];
+    for (const [n, b] of this.bones) if (new RegExp(`^(thumb|index|middle|ring|pinky)_0[123]_${side}$`).test(n)) out.push([b, b.quaternion.clone()]);
+    return out;
+  }
+  /** The weapon's hand closed on it (over the move's own fingers). */
+  private closeHand(): void { for (const [b, q] of this.wgrip.get(this.weapon)?.fist ?? this.fist[WEAPONS[this.weapon].hand]) b.quaternion.copy(q); }
+  /** The weapon's turn in its hand: along the fist's tunnel (the bow turned about it so its string faces the archer:
+   *  the hand round the riser has its knuckles toward the target). */
+  private armQ(w: WeaponId): THREE.Quaternion {
+    const q = (this.wgrip.get(w) ?? this.grip[WEAPONS[w].hand]).q;
+    return w === 'bow' ? q.clone().multiply(Hero3D.flipY) : q;
+  }
+  private static flipY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+  /** Turn a hand (at its wrist) so the weapon it holds lies as `want` (world) — the weapon stays in the fist. */
+  private turnHand(hand: THREE.Bone, want: THREE.Quaternion, k: number): void {
+    const parent = hand.parent!; parent.updateWorldMatrix(true, false);
+    const hw = want.clone().multiply(this.armQ(this.weapon).clone().invert());
+    const local = parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(hw);
+    hand.quaternion.slerp(local, k); hand.updateMatrixWorld(true);
   }
 
   /** A fist's grip, from the hand's own bones (the bone's own units): the grip through the fingers' second joints, a
@@ -264,6 +326,67 @@ export class Hero3D {
     const g = this.grip[side];
     g.q.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
     g.p.copy(i2.clone().add(p2).multiplyScalar(0.5).lerp(i1.clone().add(p1).multiplyScalar(0.5), 0.35));
+  }
+
+  /** A weapon in its fist: the fingers closed from straight toward the fist until their hollow is the weapon's grip
+   *  (its thickness round the grip, with its girth), the fingers on its surface — a thick staff or cane in a hand half
+   *  open round it, a hilt in a closed fist; the grip laid through the hollow's middle, along it. (The hollow: a circle
+   *  through each finger's joints, across the knuckles' line; the fingers' own thickness, the body's, inside it.) */
+  private fitHand(w: WeaponId): void {
+    const side = WEAPONS[w].hand, hand = this.bones.get(`hand_${side}`), g = this.weapons.get(w), root = g?.children[0];
+    if (!hand || !root || this.fist[side].length !== this.open[side].length) return;
+    // the grip's thickness: its surface's distance from its length near the grip
+    const ds: number[] = [], girth = WEAPONS[w].girth, v = new THREE.Vector3(); g!.updateMatrixWorld(true);
+    root.traverse((o) => {
+      const m = o as THREE.Mesh; if (!m.isMesh || /String/.test((m.material as THREE.Material).name)) return;
+      const p = m.geometry.attributes.position;
+      for (let i = 0; i < p.count; i++) { root.worldToLocal(m.localToWorld(v.fromBufferAttribute(p, i))); if (Math.abs(v.y) < 0.03) ds.push(Math.hypot(v.x * girth, v.z * girth)); }
+    });
+    ds.sort((a, b) => a - b);
+    const r = ds.length ? ds[Math.floor(ds.length * 0.75)] : 0.015, thick = this.fingerThick(side);
+    const at = (n: string) => hand.worldToLocal(this.bones.get(`${n}_${side}`)!.getWorldPosition(new THREE.Vector3()));
+    const tunnel = (k: number) => {
+      this.fist[side].forEach(([b, q], i) => b.quaternion.copy(this.open[side][i]).slerp(q, k)); hand.updateMatrixWorld(true);
+      const kz = at('index_01').sub(at('pinky_01')).normalize(), u = at('middle_01').addScaledVector(kz, 0).normalize(); u.addScaledVector(kz, -u.dot(kz)).normalize();
+      const vv = new THREE.Vector3().crossVectors(kz, u), cs: THREE.Vector3[] = []; let R = 0;
+      for (const f of ['index', 'middle', 'ring', 'pinky']) {
+        const pts = ['01', '02', '03', '04_leaf'].map((j) => at(`${f}_${j}`));
+        // a circle through the joints (least squares: x² + y² + Dx + Ey + F = 0)
+        const A = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], b = [0, 0, 0]; let along = 0;
+        for (const p of pts) { const x = p.dot(u), y = p.dot(vv), row = [x, y, 1], z = -(x * x + y * y); along += p.dot(kz) / pts.length; for (let i = 0; i < 3; i++) { b[i] += row[i] * z; for (let j = 0; j < 3; j++) A[i][j] += row[i] * row[j]; } }
+        const det = (M: number[][]) => M[0][0] * (M[1][1] * M[2][2] - M[1][2] * M[2][1]) - M[0][1] * (M[1][0] * M[2][2] - M[1][2] * M[2][0]) + M[0][2] * (M[1][0] * M[2][1] - M[1][1] * M[2][0]);
+        const d0 = det(A); if (Math.abs(d0) < 1e-14) continue;
+        const sol = [0, 1, 2].map((c) => det(A.map((row, i) => row.map((x, j) => (j === c ? b[i] : x)))) / d0);
+        const cx = -sol[0] / 2, cy = -sol[1] / 2; R += Math.sqrt(Math.max(0, cx * cx + cy * cy - sol[2])) / 4;
+        cs.push(u.clone().multiplyScalar(cx).addScaledVector(vv, cy).addScaledVector(kz, along));
+      }
+      return { R, cs };
+    };
+    let lo = 0.3, hi = 1, k = 1;
+    if (tunnel(1).R - thick < r + 0.0015) { for (let i = 0; i < 18; i++) { k = (lo + hi) / 2; if (tunnel(k).R - thick > r + 0.0015) lo = k; else hi = k; } k = lo; }
+    const t = tunnel(k); if (t.cs.length < 4) return;
+    const p = t.cs.reduce((a, c) => a.add(c), new THREE.Vector3()).multiplyScalar(1 / t.cs.length);
+    const y = t.cs[0].clone().sub(t.cs[3]).normalize(), x = at('middle_01').normalize(); x.addScaledVector(y, -x.dot(y)).normalize();
+    const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, new THREE.Vector3().crossVectors(x, y)));
+    this.wgrip.set(w, { fist: this.fist[side].map(([b], i) => [b, this.open[side][i].clone().slerp(this.fist[side][i][1], k)]), p, q, k });
+    for (const [b, q0] of this.fist[side]) b.quaternion.copy(q0); hand.updateMatrixWorld(true);
+  }
+  /** A finger's half thickness (this body's: its middle finger's skin round its bone, at rest). */
+  private fingerThick(side: 'r' | 'l'): number {
+    const sk = this.body?.skeleton, geo = this.body?.geometry; if (!sk || !geo) return 0.009;
+    const i2 = sk.bones.findIndex((b) => b.name === `middle_02_${side}`), i3 = sk.bones.findIndex((b) => b.name === `middle_03_${side}`); if (i2 < 0 || i3 < 0) return 0.009;
+    const bp = (i: number) => new THREE.Vector3().setFromMatrixPosition(sk.boneInverses[i].clone().invert());
+    const A = bp(i2), ab = bp(i3).sub(A), L = ab.length(); ab.normalize();
+    const pos = geo.attributes.position, si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight, ds: number[] = [], v = new THREE.Vector3();
+    const comp = (a: THREE.BufferAttribute | THREE.InterleavedBufferAttribute, i: number, c: number) => (c === 0 ? a.getX(i) : c === 1 ? a.getY(i) : c === 2 ? a.getZ(i) : a.getW(i));
+    for (let i = 0; i < pos.count; i++) {
+      let best = -1, bw = 0; for (let c = 0; c < 4; c++) { const wt = comp(sw, i, c); if (wt > bw) { bw = wt; best = comp(si, i, c); } }
+      if (best !== i2) continue;
+      v.fromBufferAttribute(pos, i).applyMatrix4(this.body!.bindMatrix).sub(A); const t = v.dot(ab); if (t < 0.2 * L || t > 0.8 * L) continue;
+      ds.push(v.addScaledVector(ab, -t).length());
+    }
+    ds.sort((a, b) => a - b);
+    return ds.length > 5 ? ds[Math.floor(ds.length / 2)] : 0.009;
   }
 
   /** The moves no library has, built on this body's own skeleton — each arm and leg reached where it goes through its own
@@ -407,6 +530,87 @@ export class Hero3D {
   }
 
   /** The bow's string as a line the right hand can draw (the drawing's straight string hidden), and an arrow. */
+  /** The holds (HOLDS), found on this body: from the library stance, the upper arm turned at the shoulder, the elbow bent,
+   *  the forearm twisted, and the hand turned the least it must be for the weapon to point the hold's way — searched for
+   *  the turns that leave the wrist as a wrist bends (up or down more than to the sides, least of all twisted), the grip
+   *  where the hold puts it, the elbow out from the body and the shoulder near the stance's. (David 25 Oct: the hand bent
+   *  round at the wrist to point the weapon looked broken.) */
+  private makeHolds(): void {
+    const Y = new THREE.Vector3(0, 1, 0);
+    // each elbow's hinge (in its upper arm), across the bend of the guard's arms
+    const hinge: Record<'r' | 'l', THREE.Vector3> = { r: new THREE.Vector3(1, 0, 0), l: new THREE.Vector3(1, 0, 0) };
+    if (this.clips.has('Sword_Idle')) {
+      this.play('Sword_Idle', { fade: 0, restart: true }); this.mixer.update(0.3);
+      for (const side of ['r', 'l'] as const) {
+        const F = this.bones.get(`lowerarm_${side}`); if (!F) continue;
+        const a = new THREE.Vector3().crossVectors(Y, Y.clone().applyQuaternion(F.quaternion));
+        if (a.length() > 0.2) hinge[side] = a.normalize();
+      }
+    }
+    // a small simplex search (Nelder-Mead)
+    const search = (f: (x: number[]) => number, x0: number[], step: number, iters: number) => {
+      const n = x0.length; let S = [x0.slice()]; for (let i = 0; i < n; i++) { const x = x0.slice(); x[i] += step; S.push(x); }
+      let V = S.map(f);
+      for (let it = 0; it < iters; it++) {
+        const o = V.map((_, i) => i).sort((a, b) => V[a] - V[b]); S = o.map((i) => S[i]); V = o.map((i) => V[i]);
+        const c = new Array(n).fill(0); for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) c[j] += S[i][j] / n;
+        const pt = (k: number) => c.map((v, j) => v + k * (S[n][j] - v));
+        const xr = pt(-1), fr = f(xr);
+        if (fr < V[0]) { const xe = pt(-2), fe = f(xe); if (fe < fr) { S[n] = xe; V[n] = fe; } else { S[n] = xr; V[n] = fr; } }
+        else if (fr < V[n - 1]) { S[n] = xr; V[n] = fr; }
+        else { const xc = pt(0.5), fc = f(xc); if (fc < V[n]) { S[n] = xc; V[n] = fc; } else for (let i = 1; i <= n; i++) { S[i] = S[i].map((v, j) => S[0][j] + 0.5 * (v - S[0][j])); V[i] = f(S[i]); } }
+      }
+      const b = V.indexOf(Math.min(...V)); return { x: S[b], f: V[b] };
+    };
+    for (const { name, side, at: [clip, at], way, shift, room, floor } of HOLDS) {
+      const U = this.bones.get(`upperarm_${side}`), F = this.bones.get(`lowerarm_${side}`), Hd = this.bones.get(`hand_${side}`);
+      if (!U || !F || !Hd || !this.clips.has(clip)) continue;
+      this.play(clip, { fade: 0, restart: true }); this.mixer.update(at); this.model.updateMatrixWorld(true);
+      const o = side === 'r' ? -1 : 1; // (the hand's side: out is -x for the right, +x for the left)
+      const want = new THREE.Vector3(way[0] * o, way[1], way[2]).normalize();
+      const Cw = U.parent!.getWorldQuaternion(new THREE.Quaternion()), Uw0 = U.getWorldQuaternion(new THREE.Quaternion()), Up = U.getWorldPosition(new THREE.Vector3());
+      const G = this.wgrip.get((name.startsWith('blade') ? 'sword' : name.split(':')[0]) as WeaponId) ?? this.grip[side]; // (the weapon's grip in its fist)
+      const f0 = F.quaternion.clone(), h0 = Hd.quaternion.clone(), gy = Y.clone().applyQuaternion(G.q), gp = G.p;
+      const P0 = Hd.localToWorld(gp.clone()).add(new THREE.Vector3(shift[0] * o, shift[1], shift[2]));
+      const hw = hinge[side];
+      const fk = (x: number[]) => {
+        const r = new THREE.Vector3(x[0], x[1], x[2]), a = r.length();
+        const Uw = (a > 1e-9 ? new THREE.Quaternion().setFromAxisAngle(r.divideScalar(a), a) : new THREE.Quaternion()).multiply(Uw0);
+        const Fl = new THREE.Quaternion().setFromAxisAngle(hw, x[3]).multiply(f0).multiply(new THREE.Quaternion().setFromAxisAngle(Y, x[4]));
+        const Fw = Uw.clone().multiply(Fl), Fp = Up.clone().add(F.position.clone().applyQuaternion(Uw));
+        const Hn = Fw.clone().multiply(h0), Hp = Fp.clone().add(Hd.position.clone().applyQuaternion(Fw));
+        const D = new THREE.Quaternion().setFromUnitVectors(gy.clone().applyQuaternion(Hn), want), Hw = D.clone().multiply(Hn);
+        return { Uw, Fl, Fw, Fp, Hw, P: Hp.add(gp.clone().applyQuaternion(Hw)), Dl: Hn.clone().invert().multiply(D).multiply(Hn) };
+      };
+      const parts = (x: number[]) => {
+        const k = fk(x), q = k.Dl, ang = 2 * Math.acos(Math.min(1, Math.abs(q.w))), sn = Math.sqrt(Math.max(1e-12, 1 - q.w * q.w)) * Math.sign(q.w || 1);
+        const dev = (ang * q.x) / sn, twist = (ang * q.y) / sn, flex = (ang * q.z * -o) / sn; // (in the hand's axes — y along it, z the knuckles' line: dev + toward the thumb, flex + toward the palm)
+        const uy = Y.clone().applyQuaternion(k.Uw), fy = Y.clone().applyQuaternion(k.Fw), bend = uy.angleTo(fy);
+        const sense = new THREE.Vector3().crossVectors(uy, fy).dot(hw.clone().applyQuaternion(k.Uw));
+        const out = k.Fp.x * o; // (the elbow out from the body's middle)
+        return {
+          wrist: (dev / (dev > 0 ? 0.3 : 0.55)) ** 2 + (twist / 0.5) ** 2 + (flex / (flex > 0 ? 0.95 : 0.8)) ** 2, // (a wrist bends toward the little finger more than the thumb)
+          grip: k.P.distanceToSquared(P0) / room ** 2,
+          rest: (x[0] ** 2 + x[1] ** 2 + x[2] ** 2) / 1.3 ** 2 + (x[3] / 1.4) ** 2 * 0.3 + (x[4] / 0.8) ** 2,
+          joint: (sense < 0 && bend > 0.05 ? (bend / 0.1) ** 2 : 0) + (bend > 2.4 ? ((bend - 2.4) / 0.1) ** 2 : 0) + (out < 0.16 ? ((0.16 - out) / 0.03) ** 2 : 0),
+          dev, twist, flex, bend,
+        };
+      };
+      const cost = (x: number[]) => { const p = parts(x); return p.wrist + p.grip + p.rest + p.joint; };
+      let best = { x: [0, 0, 0, 0, 0], f: cost([0, 0, 0, 0, 0]) };
+      for (const x0 of [[0, 0, 0, 0, 0], [0, 0, 0, 0.8, 0], [0, 0, 0, 0.8, 0.6], [0, 0, 0, 0.8, -0.6], [0, 0, 0, -0.3, 0]]) {
+        let r = search(cost, x0, 0.35, 260); r = search(cost, r.x, 0.1, 200);
+        if (r.f < best.f) best = r;
+      }
+      const k = fk(best.x), p = parts(best.x);
+      // the staff gripped high on its shaft: its foot just off the floor (the feet stand at 0), the hand still on the plain
+      // shaft under its head
+      const foot = this.armEnds.get('staff')?.[0] ?? 0, slide = floor ? Math.max(0, Math.min(0.27, (k.P.y + want.y * foot - 0.015) / want.y)) : 0;
+      this.holds.set(name, { side, q: [Cw.clone().invert().multiply(k.Uw), k.Fl.clone(), k.Fw.clone().invert().multiply(k.Hw)], slide, info: `cost ${best.f.toFixed(2)} wrist dev ${(p.dev * 57.3).toFixed(0)} twist ${(p.twist * 57.3).toFixed(0)} flex ${(p.flex * 57.3).toFixed(0)} elbow ${(p.bend * 57.3).toFixed(0)} grip ${(Math.sqrt(p.grip) * room * 100).toFixed(1)}cm slide ${slide.toFixed(2)} x ${best.x.map((v) => v.toFixed(2)).join(' ')}` });
+    }
+    this.mixer.stopAllAction(); this.action = null; this.clipNow = ''; this.model.updateMatrixWorld(true);
+  }
+
   private makeBowString(): void {
     const g = this.weapons.get('bow'); if (!g) return;
     let tips: THREE.Vector3[] = [];
@@ -562,7 +766,7 @@ export class Hero3D {
     if (this.bowArrow) this.bowArrow.visible = false; // (no arrow left nocked when the bow is put away)
     for (const [w, g] of this.weapons) {
       g.visible = w === id && this.armShown && !this.armAway; if (w !== id) continue;
-      const gp = this.grip[WEAPONS[w].hand]; g.position.copy(gp.p); g.quaternion.copy(gp.q); g.scale.set(WEAPONS[w].girth, 1, WEAPONS[w].girth);
+      g.position.copy((this.wgrip.get(w) ?? this.grip[WEAPONS[w].hand]).p); g.quaternion.copy(this.armQ(w)); g.scale.set(WEAPONS[w].girth, 1, WEAPONS[w].girth);
     }
     this.castKey = ''; this.clipNow = '';
   }
@@ -638,6 +842,7 @@ export class Hero3D {
     const walking = d.mode === 'skill' && !!c && !c.dash && d.grounded && sp > 25 && (sk?.move[phase] ?? 0) > 0;
     this.walkK += ((walking ? 1 : 0) - this.walkK) * Math.min(1, ms / 120);
     if (this.walkK > 0.002) this.walkLegs(ms, sp, Math.abs(d.vx) > Math.abs(d.vy) * 0.5 && d.vx * d.face < 0 ? -1 : 1);
+    if (this.armShown && !this.armAway) this.closeHand();
     this.hold(ms);
     this.fadeGhosts(ms);
     for (const [m, t] of this.shadows) t.visible = this.shown(m);
@@ -669,6 +874,7 @@ export class Hero3D {
     if (this.action) this.action.time = Math.min(t, this.clipLength(clip) * 0.99);
     this.yaw = yaw; this.root.position.set(0, 0, 0); this.root.rotation.set(0, yaw, 0); this.root.scale.set(1, 1, 1);
     this.mixer.update(0);
+    if (this.armShown && !this.armAway) this.closeHand();
     this.root.updateMatrixWorld(true); // (the hands where the move has them: the bowstring is drawn to them)
     this.hold(1000); // (the weapon settled at once)
     this.root.updateMatrixWorld(true);
@@ -687,35 +893,62 @@ export class Hero3D {
     if (m.sx !== 1 || m.sy !== 1) r.scale.set(1, m.sy, m.sx); // (the body faces along x: its length on screen is its local z)
   }
 
-  /** Standing or walking the weapon is held loose — a sword hangs, its point down and forward (the painted warrior's
-   *  idle); a staff, the cane and the bow stand upright at the side — and in a move it is gripped as the move holds it. */
+  /** When the weapon is not swung the arm holds it (HOLDS): standing or walking a blade hangs, its point down and forward
+   *  (the painted warrior's idle), and in the stance's guard points forward and up at the foe; a staff, the cane and the
+   *  bow stand upright in the hand before the hip — through a spell, a kneel, the free hand's throws too. The weapon never
+   *  leaves its fist: the arm takes it where it goes, the wrist bent no more than a wrist bends (David 25 Oct: the weapon
+   *  turned inside the hand, then the hand turned round at the wrist, looked broken). Held so, the weapon is turned about
+   *  its own length (its grip is round in the fist) to show its face to the viewer: a sword's flat, the bow's curve. */
   private hold(ms: number): void {
     const W = WEAPONS[this.weapon], g = this.weapons.get(this.weapon); if (!g) return;
-    const grip = this.grip[W.hand];
-    if (this.weapon === 'bow' && this.aimBow(ms, g)) return;
-    const loose = this.clipNow === 'Idle_Loop' || this.clipNow === 'Walk_Loop' || W.loose === 'upright' && /^(Sword_Idle|Spell_Simple|Idle_Shield_Break|Fixing_Kneeling|Idle_Talking|Dance|Bow_Shoot|Kick_Flip|Hold_Call|W_Trace|Seize|Flip_Coin|Roll_Dice|Flick|Throw_L)/.test(this.clipNow); // (a staff, the cane, the bow stand upright through a spell, a rallying cry, a kneel)
-    const guard = W.loose === 'hang' && this.clipNow === 'Sword_Idle' && !this.flatToView;
-    this.looseK += ((loose ? 1 : 0) - this.looseK) * Math.min(1, ms / 140);
-    this.guardK += ((guard ? 1 : 0) - this.guardK) * Math.min(1, ms / 140);
-    const hand = this.bones.get(`hand_${W.hand}`);
-    if (!hand || this.looseK < 0.002 && this.guardK < 0.002) { g.quaternion.copy(grip.q); return; }
-    hand.updateWorldMatrix(true, false);
-    const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
-    const inHand = hand.getWorldQuaternion(new THREE.Quaternion()).invert();
-    if (this.guardK >= 0.002) { // the guard: the blade's point forward and up toward the foe, its flat to the viewer
-      const gy = new THREE.Vector3(fx * 0.8, 0.6, fz * 0.8).normalize(), gx = new THREE.Vector3(0, 1, 0).addScaledVector(gy, -gy.y).normalize();
-      const want = Hero3D.tq.setFromRotationMatrix(Hero3D.tm.makeBasis(gx, gy, new THREE.Vector3().crossVectors(gx, gy)));
-      g.quaternion.slerpQuaternions(grip.q, inHand.clone().multiply(want), this.guardK);
-      if (this.looseK < 0.002) return;
+    g.quaternion.copy(this.armQ(this.weapon));
+    const shooting = this.weapon === 'bow' && this.clipNow.startsWith('Bow_Shoot') && !!this.action?.isRunning(); // (the draw holds the bow its own way)
+    const c = this.clipNow, side = W.hand, blade = W.loose === 'hang';
+    const H = !shooting && this.armShown && !this.armAway ? this.holds.get(holdFor(this.weapon, c)) : undefined;
+    const e = Math.min(1, ms / 140);
+    if (H) {
+      if (this.holdK < 0.01 || H.side !== this.holdSide) { this.holdQ.forEach((q, i) => q.copy(H.q[i])); this.holdSide = H.side; this.holdSlide = H.slide; }
+      else { this.holdQ.forEach((q, i) => q.slerp(H.q[i], e)); this.holdSlide += (H.slide - this.holdSlide) * e; }
     }
-    const side = W.hand === 'r' ? 1 : -1, rx = -fz * side, rz = fx * side; // (the holding hand's side, outward)
-    const y = W.loose === 'hang' ? (this.flatToView ? new THREE.Vector3(rx * 0.3 + fx * 0.12, -0.95, rz * 0.3 + fz * 0.12) : new THREE.Vector3(fx * 0.5, -0.86, fz * 0.5)).normalize() : new THREE.Vector3(fx * 0.12, 1, fz * 0.12).normalize();
-    const x = W.loose === 'hang' && this.flatToView ? new THREE.Vector3(rx, 0, rz) : W.loose === 'hang' || W.hand === 'r' ? new THREE.Vector3(fx, 0, fz) : new THREE.Vector3(-fx, 0, -fz); x.addScaledVector(y, -x.dot(y)).normalize();
-    const z = new THREE.Vector3().crossVectors(x, y);
-    const want = Hero3D.tq.setFromRotationMatrix(Hero3D.tm.makeBasis(x, y, z));
-    const held = inHand.multiply(want);
-    if (this.guardK >= 0.002) g.quaternion.slerp(held, this.looseK); else g.quaternion.slerpQuaternions(grip.q, held, this.looseK);
+    this.holdK += ((H ? 1 : 0) - this.holdK) * e;
+    // (the staff slid down through the fist as it is gripped higher)
+    g.position.copy((this.wgrip.get(this.weapon) ?? this.grip[side]).p).addScaledVector(Hero3D.lv.set(0, 1, 0).applyQuaternion(g.quaternion), -this.holdSlide * this.holdK);
+    // an upright weapon through a move of the weapon arm's own (a spell's cast, the call to the sky, a rune traced): the
+    // hand turns it toward upright as far as a wrist turns
+    const lift = !blade && !H && /^(Spell_Simple|Idle_Shield_Break|Fixing_Kneeling|Dance|Hold_Call|W_Trace)/.test(c);
+    this.liftK += ((lift ? 1 : 0) - this.liftK) * e;
+    const hand = this.bones.get(`hand_${side}`); if (!hand) return;
+    if (this.holdK > 0.002) for (const [i, n] of ['upperarm', 'lowerarm', 'hand'].entries()) this.bones.get(`${n}_${this.holdSide}`)?.quaternion.slerp(this.holdQ[i], this.holdK);
+    if (this.liftK > 0.002) {
+      hand.updateWorldMatrix(true, false);
+      const Hw = hand.getWorldQuaternion(new THREE.Quaternion()), t = new THREE.Vector3(0, 1, 0).applyQuaternion(Hw.clone().multiply(this.armQ(this.weapon)));
+      const D = new THREE.Quaternion().setFromUnitVectors(t, new THREE.Vector3(Math.sin(this.yaw) * 0.12, 1, Math.cos(this.yaw) * 0.12).normalize());
+      const a = 2 * Math.acos(Math.min(1, Math.abs(D.w))); if (a > 0.9) D.slerp(new THREE.Quaternion(), 1 - 0.9 / a); // (a wrist turns so far)
+      const want = D.multiply(Hw), local = hand.parent!.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(want);
+      hand.quaternion.slerp(local, this.liftK);
+    }
+    // its face to the viewer (+z), turned about its length
+    const k = Math.max(this.holdK, this.liftK) * (1 - this.aimK);
+    if (k > 0.002) {
+      hand.updateWorldMatrix(true, false);
+      const Wq = hand.getWorldQuaternion(new THREE.Quaternion()).multiply(g.quaternion);
+      const y = new THREE.Vector3(0, 1, 0).applyQuaternion(Wq), z = new THREE.Vector3(0, 0, 1).applyQuaternion(Wq), v = new THREE.Vector3(0, 0, 1).addScaledVector(y, -y.z);
+      if (v.lengthSq() > 1e-3) {
+        v.normalize(); let a = Math.atan2(new THREE.Vector3().crossVectors(z, v).dot(y), z.dot(v));
+        if (this.weapon === 'bow') { // (the face whose string is away from the body: the string never across the archer)
+          const x = new THREE.Vector3(1, 0, 0).applyQuaternion(Wq).applyAxisAngle(y, a), out = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw)).multiplyScalar(side === 'l' ? 1 : -1);
+          if (x.dot(out) < 0) a += Math.PI;
+          if (a > Math.PI) a -= 2 * Math.PI;
+        } else if (a > Math.PI / 2) a -= Math.PI; else if (a < -Math.PI / 2) a += Math.PI; // (either face)
+        g.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), a * k));
+      }
+    }
+    if (this.weapon === 'bow') this.aimBow(ms, g); // (the draw, over the hold: after a shot it fades back into it)
   }
+  private holdQ = [new THREE.Quaternion(), new THREE.Quaternion(), new THREE.Quaternion()];
+  private holdSide: 'r' | 'l' = 'r';
+  private holdSlide = 0;
+  private liftK = 0;
 
   /** The bow in the draw: upright, its string toward the archer, the string pulled to the right hand and the arrow on
    *  it until the loose. Returns false when the bow is not in a shot. */
@@ -731,8 +964,7 @@ export class Hero3D {
       const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
       const ca = Math.cos(this.aimPitch), sa = Math.sin(this.aimPitch); // (tilted back as far as the aim is raised: across the arrow)
       const y = new THREE.Vector3(-sa * fx, ca, -sa * fz), x = new THREE.Vector3(-ca * fx, -sa, -ca * fz), z = new THREE.Vector3().crossVectors(x, y);
-      const want = Hero3D.tq.setFromRotationMatrix(Hero3D.tm.makeBasis(x, y, z));
-      g.quaternion.copy(hand!.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(want));
+      this.turnHand(hand!, new THREE.Quaternion().setFromRotationMatrix(Hero3D.tm.makeBasis(x, y, z)), this.aimK);
       g.updateMatrixWorld(true); // (the string's hand point is taken in the bow as it is held now)
     }
     rh?.updateWorldMatrix(true, false);
@@ -745,7 +977,7 @@ export class Hero3D {
     if (A && rh && hand) {
       A.visible = drawn;
       if (drawn) {
-        const from = rh.localToWorld(this.grip.r.p.clone()), to = hand.localToWorld(this.grip.l.p.clone());
+        const from = rh.localToWorld(this.grip.r.p.clone()), to = hand.localToWorld((this.wgrip.get('bow') ?? this.grip.l).p.clone());
         this.model.worldToLocal(from); this.model.worldToLocal(to);
         A.position.copy(from); A.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.sub(from).normalize());
       }

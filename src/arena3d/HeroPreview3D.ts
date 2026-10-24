@@ -6,6 +6,9 @@ import * as THREE from 'three';
 import { Hero3D, type WeaponId } from './Hero3D';
 
 export class HeroPreview3D {
+  /** Drawn at twice its size (the pedestal shows the hero large: at 1:1 the face and the hair blurred) — the scenes scale
+   *  the image by 1 / RES. */
+  static readonly RES = 2;
   readonly image: Phaser.GameObjects.Image;
   private renderer: THREE.WebGLRenderer;
   private cam: THREE.PerspectiveCamera;
@@ -15,7 +18,7 @@ export class HeroPreview3D {
 
   private constructor(private scene: Phaser.Scene, private hero: Hero3D, private key: string, private w: number, private h: number) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: false, preserveDrawingBuffer: true });
-    this.renderer.setPixelRatio(1); this.renderer.setSize(w, h, false);
+    this.renderer.setPixelRatio(HeroPreview3D.RES); this.renderer.setSize(w, h, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace; this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.05;
     this.renderer.setClearColor(0x000000, 0);
     // the stage's light: a warm key from the front left, a cool rim behind, the sky above
@@ -30,7 +33,7 @@ export class HeroPreview3D {
     const dist = (H / 2) / Math.tan((24 / 2) * Math.PI / 180) * 1.02;
     this.cam.position.set(0, H * 0.52, dist); this.cam.lookAt(0, H * 0.5, 0);
     if (scene.textures.exists(key)) scene.textures.remove(key);
-    this.tex = scene.textures.createCanvas(key, w, h)!;
+    this.tex = scene.textures.createCanvas(key, w * HeroPreview3D.RES, h * HeroPreview3D.RES)!;
     this.image = scene.add.image(0, 0, key).setOrigin(0.5, 0.99); // (its feet: placed by the scene)
     scene.events.on(Phaser.Scenes.Events.UPDATE, this.step, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.destroy());
@@ -53,7 +56,7 @@ export class HeroPreview3D {
     // standing in its idle, facing the viewer, a slow sway of the turn (never its back)
     this.hero.drive({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, grounded: true, face: 1, yaw: 0.35 * Math.sin(this.t / 2600), mode: 'idle', cast: null }, ms);
     this.renderer.render(this.hero.scene, this.cam);
-    const ctx = this.tex.getContext(); ctx.clearRect(0, 0, this.w, this.h); ctx.drawImage(this.renderer.domElement, 0, 0); this.tex.refresh();
+    const ctx = this.tex.getContext(), R = HeroPreview3D.RES; ctx.clearRect(0, 0, this.w * R, this.h * R); ctx.drawImage(this.renderer.domElement, 0, 0); this.tex.refresh();
   }
 
   destroy(): void {

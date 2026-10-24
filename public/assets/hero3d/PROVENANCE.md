@@ -9,6 +9,7 @@
 | `moves_3.glb` | Quaternius, Universal Animation Library (its Godot build, CC0): the moves the standard import lacks — spells, punches, aim, crouch, kneel — renamed onto the 65 standard bones (`tools/hero3d/moves3.mjs`) |
 | `moves_4.glb` | Quaternius, Universal Animation Library 1 and 2 (CC0): the heavy combo, the thrusting dash, the farm and shield moves (`tools/hero3d/moves4.mjs`) |
 | `beginner_f.glb` | The Beginner as a woman, made the same way as `beginner_m.glb` |
+| (both bodies' hands) | The hands of Quaternius' Universal Base Characters (`Superhero_Male_FullBody`, `Superhero_Female_FullBody`, CC0) — fingers on their own bones, laid into the drawn hands' place and coloured from them (`tools/hero3d/ai/hands.mjs`) |
 | `art/*.webp` | The 3D Beginner's pictures (VS, loading, portraits), rendered here (`tools/hero3d/art`) |
 
 The Quaternius files were fetched from the CC0 copies in moritzbrantner/asset-tooling (`assets/canonical/quaternius.*`)
