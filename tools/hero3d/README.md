@@ -28,7 +28,7 @@ painted bodies again.
 7. **Pack** (`ai/pack1.mjs`): texture WebP 2048, meshopt.
 
 The moves stay the library's (`moves_1.glb`, `moves_2.glb`): `Hero3D` keeps their bone turns only and lays their hip
-travel onto this body's hips; the bow's draw-and-shoot is built in code on the fitted skeleton (`makeBowShoot`).
+travel onto this body's hips; the moves no library has are built in code on the fitted skeleton (`makeBowShoot`, below).
 
 ## The weapons (`public/assets/hero3d/w_*.glb`)
 
@@ -64,7 +64,19 @@ their own (`src/arena3d/Doubles3D.ts`, two layers of the room: behind and in fro
 `moves4.mjs` packs more of the libraries' moves for the skills' own moves (the heavy combo, the thrusting dash, the
 low lunging cut, the guard stance, the bend that drives the blade into the floor, a kneel, the blade held upright before
 the chest, a slide); `Hero3D`'s `SUBCLIPS` cuts a skill's own part out of a longer move (the heavy combo's overhead
-smash into the floor, its sword raised to the sky — held as long as the skill lasts — its low cut, its rising chain; the
-dash's thrust). The move files keep only the moves played and only the bones' turns and the hips' travel
-(`build.mjs`, `moves3.mjs`, `moves4.mjs`: a dropped move's keys no longer stay behind — the four files are 1.4 MB, the
-three were 5.8 MB).
+smash into the floor, its sword raised to the sky — held as long as the skill lasts — its rising chain; the first cut's
+rising end; the dash's crouch, thrust and pointing). The move files keep only the moves played and only the bones'
+turns and the hips' travel (`build.mjs`, `moves3.mjs`, `moves4.mjs`: a dropped move's keys no longer stay behind — the
+four files are 1.4 MB, the three were 5.8 MB).
+
+## Moves built on the skeleton (`Hero3D.makeBowShoot`)
+
+What no library has is built at load on each body's own skeleton, an arm or a leg reached where it goes through its own
+two bones from a library stance held at a moment: the bow's shots (`BOW_SHOTS`: level, down at the floor, up at the
+sky; in a leap with the legs drawn up — level, down, up; kneeling; the deep stance of a long charge — the bow tilted
+across the arrow), Retreat Kick's rising kick that turns into a tucked back flip (`Kick_Flip`), the call to the sky
+(`Hold_Call`: the hand raised high and held — Spirit Hawk, Time Collapse, Jackpot), and the free hand's moves (`lefty`:
+Astral Burst's seize, a flicked card, cards thrown backhand like a saw blade, the coin flip, an underhand roll), the
+vault's double kick (`Vault_Kick`). `SKILL_MOVE` gives every class skill its move; `BEAT` times a volley or a flurry
+(its first blow, then one every so often); `ARM_AWAY` takes the weapon out of the hand while the skill's effect stands
+for it (Rotor Staff's spinning disc). `art/art.html`'s `castStrip` films a skill's move as a strip of frames.
