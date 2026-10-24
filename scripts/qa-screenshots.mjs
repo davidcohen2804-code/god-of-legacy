@@ -22,6 +22,8 @@ for (const [w, h] of [[1920, 1080], [1280, 720]]) {
   const k = w / 1920;
   const click = async (x, y) => { await W(p, 300); await p.mouse.move(x * k, y * k); await W(p, 400); await p.mouse.down(); await W(p, 100); await p.mouse.up(); await W(p, 1000); };
   const boot = async () => { await p.goto(URL); await p.waitForFunction(() => window.__game?.scene.isActive('MainMenuScene'), null, { timeout: 30000 }); await W(p, 1200); };
+  // START → the character select (a click that lands while the menu is still settling is tried again)
+  const toSelect = async () => { for (let i = 0; ; i++) { await click(960, 585); try { await p.waitForSelector('.gol-cs .slot', { timeout: 20000 }); return; } catch (e) { if (i >= 2) throw e; } } };
   await p.goto(URL); await p.evaluate(() => localStorage.clear()); await boot();
   await shot(p, '01_main_menu', w);
   await p.mouse.move(960 * k, 585 * k); await W(p, 600); await shot(p, '02_start_hover', w);
@@ -34,13 +36,14 @@ for (const [w, h] of [[1920, 1080], [1280, 720]]) {
   await p.waitForFunction(() => { const s = window.__game?.scene.getScene('PvpSelectScene'); return !!s?.arts && s.arts.l.enter >= 1 && !s.cameras.main.fadeEffect.isRunning; }, null, { timeout: 60000 }).catch(() => {}); // (software GL draws the living fighters slowly: wait until yours has come in)
   await W(p, 800); await shot(p, '05b_pvp_select', w); // PvP ARENA: the fighter select
   await p.keyboard.press('Escape'); await p.waitForFunction(() => window.__game?.scene.isActive('MainMenuScene'), null, { timeout: 30000 }); await W(p, 1200);
-  await click(960, 585); await p.waitForSelector('.gol-cs .slot'); await W(p, 700); await shot(p, '06_character_select', w);
+  await toSelect(); await W(p, 700); await shot(p, '06_character_select', w);
   await p.click('.gol-cs .slot >> nth=1'); await p.mouse.move(1000 * k, 500 * k); await W(p, 500); await shot(p, '07_slot_selected', w);
   await p.evaluate((d) => localStorage.setItem('godoflegacy.characters', JSON.stringify(d)), QA_CHAR); await boot();
-  await click(960, 585); await p.waitForSelector('.gol-cs .slot'); await W(p, 700); await shot(p, '08_character_filled_QA_data', w);
+  await toSelect(); await W(p, 700); await shot(p, '08_character_filled_QA_data', w);
   await p.click('.gol-cs .ktrash'); await W(p, 400); await shot(p, '09_delete_confirm', w);
   await p.keyboard.press('Escape'); await W(p, 300);
-  await p.click('.gol-cs .slot >> nth=0'); await W(p, 300); await p.click('.gol-cs .kbtn:has-text("CREATE CHARACTER")'); // create opens from an empty slot await W(p, 1200); await shot(p, '10_create_placeholder', w);
+  await p.click('.gol-cs .slot >> nth=0'); await W(p, 300); await p.click('.gol-cs .kbtn:has-text("CREATE CHARACTER")'); // (create opens from an empty slot)
+  await W(p, 1200); await shot(p, '10_create_placeholder', w);
   await p.goto(URL + '?qa=1'); await p.waitForFunction(() => window.__game?.scene.isActive('MainMenuScene'), null, { timeout: 30000 }); await W(p, 1500);
   await p.keyboard.press('F9'); await W(p, 500);
   await shot(p, '11_qa_panel', w);

@@ -12,7 +12,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 const DIR = 'assets/hero3d/';
 /** The Beginner, man and woman (the player's choice in the character's creation). */
 const MODEL = { m: 'beginner_m.glb', f: 'beginner_f.glb' };
-const MOVES = ['moves_1.glb', 'moves_2.glb'];
+const MOVES = ['moves_1.glb', 'moves_2.glb', 'moves_3.glb'];
 
 /** The Beginner's items: the classes' weapons (one in hand at a time), each drawn by GPT and made solid from the
  *  drawing (tools/hero3d/weapons). `hand`: the hand that holds it; `loose`: how it is held standing or walking — 'hang'
@@ -29,6 +29,33 @@ export const WEAPONS = {
 export type WeaponId = keyof typeof WEAPONS;
 /** Each class's weapon. */
 export const CLASS_WEAPON: Record<string, WeaponId> = { warrior: 'sword', samurai: 'katana', archer: 'bow', book_mage: 'staff', gambler: 'cane' };
+
+/** Each class skill's move from the library (a chain: one per stage), until each skill gets its own: the sword's cuts,
+ *  the staff's spells, the bow's draw (built here: Bow_Shoot), the cane's swings and throws. Unlisted: by the weapon. */
+const SKILL_MOVE: Record<string, string | string[]> = {
+  // warrior
+  warrior_basic: ['Sword_Regular_A', 'Sword_Regular_B', 'Sword_Regular_C', 'Sword_Attack'], dash_slash: 'Sword_Dash_RM', rising_slash: 'Sword_Regular_C', ground_breaker: 'Sword_Attack',
+  whirlwind: 'Sword_Regular_Combo', sanctuary: 'Sword_Block', blade_storm: 'Sword_Regular_Combo', titans_verdict: 'Sword_Attack', leap_crash: 'Sword_Attack', wave_slash: 'Sword_Regular_B',
+  lance_thrust: 'Sword_Dash_RM', war_cry: 'Idle_Shield_Break', judgment_blade: 'Sword_Attack', thunder_circle: 'Idle_Shield_Break', judgment_hook: 'Melee_Hook', sky_breaker: 'Sword_Regular_C',
+  earthsplitter: 'Sword_Attack', shield_charge: 'Sword_Block', lions_maw: 'Sword_Regular_Combo',
+  // book mage
+  arcane_bolt: 'Spell_Simple_Shoot', arcane_wave: 'Spell_Simple_Shoot', binding_rune: 'Spell_Simple_Shoot', astral_burst: 'Spell_Simple_Shoot', frost_nova: 'Sword_Attack',
+  lightning_chain: 'Spell_Simple_Shoot', storm_field: 'Idle_Shield_Break', time_collapse: 'Spell_Simple_Shoot', blink: 'NinjaJump_Start', glacial_spikes: 'Sword_Attack', levity_field: 'Idle_Shield_Break',
+  origami_flock: 'OverhandThrow', arcane_ward: 'Sword_Block', paper_curse: 'Spell_Simple_Shoot', elemental_ascension: 'Idle_Shield_Break', rift_gates: 'Spell_Simple_Shoot', tempest_ride: 'Sword_Dash_RM',
+  // archer
+  quick_shot: 'Bow_Shoot', rising_arrow: 'Bow_Shoot', bow_haste: 'Roll', multi_shot: 'Bow_Shoot', explosive_arrow: 'Bow_Shoot', backstep_shot: 'Bow_Shoot', retreat_kick: 'Punch_Cross',
+  vine_trap: 'Fixing_Kneeling', skyhunters_step: 'Bow_Shoot', rain_of_arrows: 'Bow_Shoot', piercing_arrow: 'Bow_Shoot', hunters_roar: 'Idle_Shield_Break', leaping_arrow: 'Bow_Shoot',
+  spirit_hawk: 'Spell_Simple_Shoot', sky_rain: 'Bow_Shoot', tree_of_life: 'Fixing_Kneeling', hunters_spirit: 'Spell_Simple_Shoot', arrow_storm: 'Bow_Shoot', eagle_arrow: 'Bow_Shoot',
+  // samurai
+  quick_slash: ['Sword_Regular_A', 'Sword_Regular_B', 'Sword_Regular_C'], shadow_step: 'Sword_Dash_RM', sheathe: 'Sword_Block', iai_strike: 'Sword_Regular_A', sword_wave: 'Sword_Regular_B',
+  mirage: 'Sword_Block', blossom_storm: 'Sword_Regular_Combo', dragon_eclipse: 'Sword_Attack', swallow_cut: 'Sword_Regular_C', hundred_cuts: 'Sword_Regular_Combo', kagemusha: 'Idle_Shield_Break',
+  tornado_blade: 'Sword_Regular_Combo', falcon_dive: 'Sword_Attack', rising_sun: 'Sword_Regular_C', phantom_blades: 'OverhandThrow', god_of_blades: 'Sword_Attack', sakura_bind: 'Spell_Simple_Shoot',
+  dragon_ascension: 'Sword_Regular_C',
+  // gambler
+  cut_the_deck: ['Melee_Hook', 'Sword_Regular_A', 'Sword_Regular_B'], charged_deal: 'OverhandThrow', staff_vault: 'Sword_Dash_RM', fuse_slam: 'Sword_Attack', riffle_shuffle: 'OverhandThrow',
+  rotor_staff: 'Sword_Regular_Combo', showdown: 'OverhandThrow', coin_flip: 'OverhandThrow', roulette_wheel: 'Spell_Simple_Shoot', dice_bomb: 'OverhandThrow', light_staff: 'Idle_Shield_Break',
+  ace_in_the_hole: 'OverhandThrow', long_guard: 'Sword_Block', grand_slam: 'Sword_Regular_C', staff_flurry: 'Sword_Regular_Combo', card_swap: 'OverhandThrow', call_the_deck: 'Spell_Simple_Shoot',
+};
 
 /** What the body is doing (the scene's own state, read each frame). */
 export interface HeroDrive {
@@ -255,6 +282,36 @@ export class Hero3D {
     if (tint === null) m.emissive.setRGB(0, 0, 0); else m.emissive.setHex(tint).multiplyScalar(0.32);
   }
 
+  /** Afterimages (a dash's blur, a leap's trail): the body's pose a moment ago, flat in a colour, fading — a small pool of
+   *  meshes, each a copy of the body's skin computed once per image (no new buffers while it runs). */
+  private ghosts: { m: THREE.Mesh; t: number }[] = [];
+  private lastGhost = -Infinity;
+  ghost(now: number, on: boolean, tint: number, every = 45): void {
+    if (!on || !this.body || now - this.lastGhost < every) return;
+    this.lastGhost = now;
+    const src = this.body, P = src.geometry.attributes.position, n = P.count;
+    let g = this.ghosts.find((x) => x.t >= 1);
+    if (!g) {
+      if (this.ghosts.length >= 8) g = this.ghosts.reduce((a, b) => (a.t > b.t ? a : b));
+      else {
+        const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+        if (src.geometry.index) geo.setIndex(new THREE.BufferAttribute((src.geometry.index.array as Uint32Array).slice(), 1));
+        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+        m.frustumCulled = false; m.renderOrder = 4; this.scene.add(m); g = { m, t: 1 }; this.ghosts.push(g);
+      }
+    }
+    const out = (g.m.geometry.attributes.position as THREE.BufferAttribute), v = Hero3D.tv;
+    this.root.updateMatrixWorld(true); // (the bones where the move has them now)
+    for (let i = 0; i < n; i++) { v.fromBufferAttribute(P, i); src.applyBoneTransform(i, v); v.applyMatrix4(src.matrixWorld); out.setXYZ(i, v.x, v.y, v.z); }
+    out.needsUpdate = true;
+    (g.m.material as THREE.MeshBasicMaterial).color.setHex(tint);
+    g.t = 0; g.m.visible = true;
+  }
+  private fadeGhosts(ms: number): void {
+    for (const g of this.ghosts) { if (g.t >= 1) { g.m.visible = false; continue; } g.t = Math.min(1, g.t + ms / 260); const k = 1 - g.t; (g.m.material as THREE.MeshBasicMaterial).opacity = 0.42 * k * k; }
+  }
+  private static tv = new THREE.Vector3();
+
   /** Take an item in hand (the Beginner's weapons): that one shown, gripped by its hand. */
   setWeapon(id: WeaponId): void {
     this.weapon = id;
@@ -311,12 +368,13 @@ export class Hero3D {
         case 'down': case 'dead': this.play('Death01', { once: true, fade: 0.1, speed: 1.5 }); break;
         case 'getup': this.play('LayToIdle', { once: true, fade: 0.1, speed: 1.4 }); break;
         case 'quickrise': this.play('LayToIdle', { once: true, fade: 0.06, speed: 2.4 }); break;
-        case 'alert': this.play('Sword_Idle', { fade: 0.2 }); break; // (after a blow or a hit: the guard held a moment)
+        case 'alert': this.play(this.weapon === 'staff' ? 'Spell_Simple_Idle_Loop' : 'Sword_Idle', { fade: 0.2 }); break; // (after a blow or a hit: the guard held a moment — a staff's, its spell ready)
         default: this.play('Idle_Loop', { fade: 0.25 });
       }
     }
     this.mixer.update(ms / 1000);
     this.hold(ms);
+    this.fadeGhosts(ms);
     for (const [m, t] of this.shadows) t.visible = this.shown(m);
   }
 
@@ -326,7 +384,7 @@ export class Hero3D {
     const W = WEAPONS[this.weapon], g = this.weapons.get(this.weapon); if (!g) return;
     const grip = this.grip[W.hand];
     if (this.weapon === 'bow' && this.aimBow(ms, g)) return;
-    const loose = this.clipNow === 'Idle_Loop' || this.clipNow === 'Walk_Loop' || this.clipNow === 'Sword_Idle' && W.loose === 'upright';
+    const loose = this.clipNow === 'Idle_Loop' || this.clipNow === 'Walk_Loop' || W.loose === 'upright' && /^(Sword_Idle|Spell_Simple|Idle_Shield_Break|Fixing_Kneeling|Idle_Talking|Dance|Bow_Shoot)/.test(this.clipNow); // (a staff, the cane, the bow stand upright through a spell, a rallying cry, a kneel)
     this.looseK += ((loose ? 1 : 0) - this.looseK) * Math.min(1, ms / 140);
     const hand = this.bones.get(`hand_${W.hand}`);
     if (!hand || this.looseK < 0.002) { g.quaternion.copy(grip.q); return; }
@@ -368,13 +426,15 @@ export class Hero3D {
     const y = new THREE.Vector3(0, 1, 0), x = new THREE.Vector3(-fx, 0, -fz), z = new THREE.Vector3().crossVectors(x, y);
     const want = Hero3D.tq.setFromRotationMatrix(Hero3D.tm.makeBasis(x, y, z));
     const held = hand.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(want);
-    g.quaternion.slerpQuaternions(this.grip.l.q, held, this.aimK);
+    g.quaternion.copy(held); // (upright as it stood: the draw never passes through the fist's own turn)
     return true;
   }
 
   /** Each skill one of the library's moves for the weapon in hand (stand-ins: the skills get their own moves later). */
   private attackClip(c: NonNullable<HeroDrive['cast']>): string {
     const w = this.weapon, id = c.id;
+    const m = SKILL_MOVE[id], pick = Array.isArray(m) ? m[c.stage % m.length] : m;
+    if (pick && this.clips.has(pick)) return pick;
     const buff = /war_cry|oath|banner|sanctuary|radiant|aura|ward|barrier|haste|focus|sheathe|meditat|all_in|lucky/.test(id);
     if (w === 'sword' || w === 'katana') {
       if (/_basic$|quick_slash/.test(id)) return ['Sword_Regular_A', 'Sword_Regular_B', 'Sword_Regular_C', 'Sword_Attack'][c.stage % 4];
@@ -401,7 +461,7 @@ export class Hero3D {
   }
   /** Where in a sword clip its blow falls (share of its length): the clip is timed so the blow meets the skill's hit. */
   private hitShare(clip: string): number {
-    return ({ Sword_Regular_A: 0.45, Sword_Regular_B: 0.42, Sword_Regular_C: 0.3, Sword_Attack: 0.45, Sword_Dash_RM: 0.35, Sword_Regular_Combo: 0.25, Idle_Shield_Break: 0.4, OverhandThrow: 0.42, Melee_Hook: 0.4, Roll: 0.3, Bow_Shoot: 0.62 } as Record<string, number>)[clip] ?? 0.4;
+    return ({ Sword_Regular_A: 0.45, Sword_Regular_B: 0.42, Sword_Regular_C: 0.3, Sword_Attack: 0.45, Sword_Dash_RM: 0.35, Sword_Regular_Combo: 0.25, Idle_Shield_Break: 0.4, OverhandThrow: 0.42, Melee_Hook: 0.4, Roll: 0.3, Bow_Shoot: 0.62, Spell_Simple_Shoot: 0.3, Punch_Jab: 0.35, Punch_Cross: 0.35, Fixing_Kneeling: 0.25, Sword_Block: 0.25, NinjaJump_Start: 0.4 } as Record<string, number>)[clip] ?? 0.4;
   }
 
   dispose(): void {

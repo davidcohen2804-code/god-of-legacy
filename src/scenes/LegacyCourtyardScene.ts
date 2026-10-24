@@ -2030,17 +2030,20 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const m = (run && this.dead < 0 ? heroMotion(archerMotion(run.skill.id, run.elapsed, run.timings, face), hero) : null) ?? (lm && hero ? { ...lm, pivot: 62 } : lm);
       applyMotion(v.motionSprites, m);
       (this.afterimg ??= new Afterimages(this)).step(this.simMs, v.sprite, !!m?.after);
+      this.hero3d?.h.ghost(this.simMs, !!m?.after, 0x9be35a); // (the 3D body's own afterimages)
       this.renderArcherBuffs();
     } else if (this.cls === 'samurai') { // samurai body motion: the step into a cut, the spring, the spin, the dive + crimson afterimages
       const face = this.aim.x < -0.01 ? -1 : 1;
       const m = heroMotion((run && this.dead < 0 ? samuraiMotion(run.skill.id, run.elapsed, run.timings, face, run.stage) : null) ?? (this.dead < 0 ? shinsokuMotion(this.simMs - this.leapAt, this.dir === 'left' ? -1 : 1) : null), !!this.character?.hero);
       applyMotion(v.motionSprites, m);
       (this.afterimg ??= new Afterimages(this, SAMURAI_AFTER)).step(this.simMs, v.sprite, !!m?.after);
+      this.hero3d?.h.ghost(this.simMs, !!m?.after, SAMURAI_AFTER);
       this.kage?.render(ms, { pose, dir, motion: m }, 1, this.simMs); // the doubles: each its own way (his pose and motion while he swings)
     }
     if (this.cls === 'warrior' && v.sprite) { // Dash Slash: he becomes a blur — steel afterimages along the dash (DFO's review: STEEL)
       const on = !!run && this.dead < 0 && run.skill.id === 'dash_slash' && run.elapsed >= run.timings.startup && run.elapsed < run.timings.startup + run.timings.active;
       (this.afterimg ??= new Afterimages(this, 0xe8f0ff)).step(this.simMs, v.sprite, on, 35);
+      this.hero3d?.h.ghost(this.simMs, on, 0xe8f0ff, 35);
     }
     this.renderGambler();
     this.fx?.treeFade(k.x, k.y); // a tree in front of the player turns see-through
