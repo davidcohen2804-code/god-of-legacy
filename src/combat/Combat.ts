@@ -65,7 +65,7 @@ export const GAUGE = { stand: 0.3, air: 0.4, airRamp: 0.15, down: 0.15, resetMs:
  *  so a combo strings as many skills as before, it just hurts less.
  *  - pushMul: knockback in the arena. (No cooldown multiplier: a skill's cooldown is the same everywhere.) */
 export const ARENA = {
-  /** a class's own arena damage (PvP balance, damage only — skills stay the same everywhere) */ clsDmg: { warrior: 1.2, samurai: 0.95, book_mage: 1.1 } as Record<string, number>,
+  /** a class's own arena damage (PvP balance, damage only — skills stay the same everywhere) */ clsDmg: { warrior: 1.2, samurai: 1.05, book_mage: 1.1, gambler: 1.3 } as Record<string, number>,
   dmgMul: 1.7, ladder: [1, 1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.66, 0.62, 0.58, 0.55, 0.52, 0.5, 0.47, 0.44, 0.42, 0.4], ladderFloor: 0.3, ultFloor: 0.6,
   gauge: { stand: 0.142, air: 0.193, airRamp: 0.08, down: 0.04 },
   recovery: [[2500, 1], [5000, 0.8], [7500, 0.62], [Infinity, 0.5]] as [number, number][],
