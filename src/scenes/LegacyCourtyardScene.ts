@@ -4199,6 +4199,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       cast: run && this.mode === 'skill' ? { id: run.skill.id, stage: run.stage ?? 0, elapsed: run.elapsed, startup: run.timings.startup, active: run.timings.active, recovery: run.timings.recovery, dash: !!run.skill.dash, air: !k.grounded } : null,
     }, ms);
     H.h.tintBody(tint);
+    H.h.showWeapon(!this.jb); // (Judgment Blade: no sword from the leap until he lands, as the painted body)
     H.img.setDepth(actorDepth(k.x, k.y, k.z)).setAlpha(alpha).setVisible(true);
     this.driveOthers3D(ms);
   }

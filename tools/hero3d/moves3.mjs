@@ -10,7 +10,7 @@ const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies(
 const [src, out] = process.argv.slice(2);
 const KEEP = ['Spell_Simple_Enter', 'Spell_Simple_Idle_Loop', 'Spell_Simple_Shoot', 'Spell_Simple_Exit', 'Punch_Enter', 'Punch_Jab', 'Punch_Cross', 'Crouch_Idle_Loop', 'Crouch_Fwd_Loop', 'Pistol_Idle_Loop', 'Pistol_Aim_Neutral', 'Pistol_Shoot', 'Fixing_Kneeling', 'PickUp_Table', 'Dance_Loop', 'Idle_Talking_Loop', 'Sword_Attack_RM', 'Roll_RM', 'Push_Loop'];
 const doc = await io.read(src); const root = doc.getRoot();
-for (const a of root.listAnimations()) if (!KEEP.includes(a.getName())) a.dispose();
+for (const a of root.listAnimations()) if (!KEEP.includes(a.getName())) { for (const c of a.listChannels()) c.dispose(); for (const s of a.listSamplers()) s.dispose(); a.dispose(); } // (its samplers too: their keys would stay in the file)
 for (const n of root.listNodes()) { if (n.getMesh()) { n.getMesh().dispose(); n.setMesh(null); n.setSkin(null); } const s = defToStd(n.getName()); if (s) n.setName(s); }
 for (const s of root.listSkins()) s.dispose();
 for (const m of root.listMaterials()) m.dispose(); for (const t of root.listTextures()) t.dispose();

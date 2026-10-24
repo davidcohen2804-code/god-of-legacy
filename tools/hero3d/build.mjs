@@ -9,7 +9,7 @@ import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
 import sharp from 'sharp';
 await MeshoptDecoder.ready; await MeshoptEncoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder, 'meshopt.encoder': MeshoptEncoder });
-const Q = process.env.Q ?? 'hero3d-src', OUT = new URL('../../public/assets/hero3d', import.meta.url).pathname;
+const Q = process.env.Q ?? 'hero3d-src', OUT = process.env.OUT ?? new URL('../../public/assets/hero3d', import.meta.url).pathname;
 const tex = [
   textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [1024, 1024], slots: /^baseColor/, quality: 86 }),
   textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [512, 512], slots: /^(normal|occlusion|metallicRoughness)/, quality: 82 }),
@@ -60,7 +60,9 @@ const KEEP1 = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Jump_St
 const KEEP2 = ['Sword_Regular_A', 'Sword_Regular_B', 'Sword_Regular_C', 'Sword_Regular_Combo', 'Sword_Dash_RM', 'Sword_Block', 'Hit_Knockback', 'LayToIdle', 'NinjaJump_Start', 'NinjaJump_Idle_Loop', 'NinjaJump_Land', 'OverhandThrow', 'Melee_Hook', 'Idle_Shield_Break'];
 const anims = (keep) => async (doc) => {
   const root = doc.getRoot();
-  for (const a of root.listAnimations()) if (!keep.includes(a.getName())) a.dispose();
+  for (const a of root.listAnimations()) if (!keep.includes(a.getName())) { for (const c of a.listChannels()) c.dispose(); for (const s of a.listSamplers()) s.dispose(); a.dispose(); } // (its samplers too: their keys stayed in the file — 5 MB of moves nobody plays)
+  // only the turns and the hips' travel are used (Hero3D keeps those)
+  for (const a of root.listAnimations()) for (const c of a.listChannels()) { const p = c.getTargetPath(), n = c.getTargetNode()?.getName(); if (p === 'scale' || (p === 'translation' && n !== 'pelvis')) { c.getSampler()?.dispose(); c.dispose(); } }
   for (const n of root.listNodes()) if (n.getMesh()) { n.getMesh().dispose(); n.setMesh(null); n.setSkin(null); }
   for (const m of root.listMaterials()) m.dispose();
   for (const t of root.listTextures()) t.dispose();

@@ -16,7 +16,26 @@ export { Doubles3D } from './Doubles3D'; // (loaded with the hero: three.js stay
 const DIR = 'assets/hero3d/';
 /** The Beginner, man and woman (the player's choice in the character's creation). */
 const MODEL = { m: 'beginner_m.glb', f: 'beginner_f.glb' };
-const MOVES = ['moves_1.glb', 'moves_2.glb', 'moves_3.glb'];
+const MOVES = ['moves_1.glb', 'moves_2.glb', 'moves_3.glb', 'moves_4.glb'];
+/** Moves cut out of the library's longer ones (clip, from, to: seconds) — a skill's own part of them: the heavy combo's
+ *  overhead smash into the floor, its sword raised to the sky, its low lunging cut, its rising chain; the dash's thrust
+ *  and its pointing blade; the bend that drives the blade into the floor; the kneel that traces the ground. A name
+ *  starting with 'Hold_' keeps its last pose as long as the skill lasts (the sword held up to the sky). */
+const SUBCLIPS: Record<string, [string, number, number]> = {
+  W_Smash: ['Sword_Heavy_Combo', 2.26, 3.6], Hold_Raise: ['Sword_Heavy_Combo', 2.26, 2.46], W_LowCut: ['Sword_Heavy_Combo', 0.0, 0.75],
+  W_SkyChain: ['Sword_Heavy_Combo', 0.9, 3.1], W_Thrust: ['Sword_Dash', 0.1, 1.4], W_Point: ['Sword_Dash', 0.35, 0.95],
+  W_Plunge: ['Farm_Harvest', 0.2, 1.6], W_Trace: ['Farm_PlantSeed', 0.2, 2.2],
+};
+/** A part of a move (from → to), every bone's turn sampled at both ends (a bone still between keys keeps its pose). */
+function cutClip(src: THREE.AnimationClip, name: string, a: number, b: number): THREE.AnimationClip {
+  const tracks = src.tracks.map((t) => {
+    const it = t.createInterpolant(), n = t.getValueSize(), times: number[] = [], vals: number[] = [];
+    const at = (tm: number) => { const v = it.evaluate(tm); times.push(tm - a); for (let i = 0; i < n; i++) vals.push(v[i]); };
+    at(a); for (const tm of t.times) if (tm > a + 1e-4 && tm < b - 1e-4) at(tm); at(b);
+    return new (t.constructor as new (n: string, t: number[], v: number[]) => THREE.KeyframeTrack)(t.name, times, vals);
+  });
+  return new THREE.AnimationClip(name, b - a, tracks);
+}
 
 /** The Beginner's items: the classes' weapons (one in hand at a time), each drawn by GPT and made solid from the
  *  drawing (tools/hero3d/weapons). `hand`: the hand that holds it; `loose`: how it is held standing or walking — 'hang'
@@ -38,10 +57,10 @@ export const CLASS_WEAPON: Record<string, WeaponId> = { warrior: 'sword', samura
  *  the staff's spells, the bow's draw (built here: Bow_Shoot), the cane's swings and throws. Unlisted: by the weapon. */
 const SKILL_MOVE: Record<string, string | string[]> = {
   // warrior
-  warrior_basic: ['Sword_Regular_A', 'Sword_Regular_B', 'Sword_Regular_C', 'Sword_Attack'], dash_slash: 'Sword_Dash_RM', rising_slash: 'Sword_Regular_C', ground_breaker: 'Sword_Attack',
-  whirlwind: 'Sword_Regular_Combo', sanctuary: 'Sword_Block', blade_storm: 'Sword_Regular_Combo', titans_verdict: 'Sword_Attack', leap_crash: 'Sword_Attack', wave_slash: 'Sword_Regular_B',
-  lance_thrust: 'Sword_Dash_RM', war_cry: 'Idle_Shield_Break', judgment_blade: 'Sword_Attack', thunder_circle: 'Idle_Shield_Break', judgment_hook: 'Melee_Hook', sky_breaker: 'Sword_Regular_C',
-  earthsplitter: 'Sword_Attack', shield_charge: 'Sword_Block', lions_maw: 'Sword_Regular_Combo',
+  warrior_basic: ['Sword_Regular_A', 'Sword_Regular_B', 'Sword_Regular_C', 'Sword_Attack'], dash_slash: 'Sword_Dash_RM', rising_slash: 'Sword_Regular_C', ground_breaker: 'W_Smash',
+  whirlwind: 'Sword_Regular_Combo', sanctuary: 'W_Trace', blade_storm: 'Hold_Raise', titans_verdict: 'Hold_Raise', leap_crash: 'W_Smash', wave_slash: 'W_LowCut',
+  lance_thrust: 'W_Thrust', war_cry: 'Hold_Raise', judgment_blade: 'OverhandThrow', thunder_circle: 'W_Plunge', judgment_hook: 'Melee_Hook', sky_breaker: 'W_SkyChain',
+  earthsplitter: 'W_Smash', shield_charge: 'Idle_FoldArms_Loop', lions_maw: 'W_Point',
   // book mage
   arcane_bolt: 'Spell_Simple_Shoot', arcane_wave: 'Spell_Simple_Shoot', binding_rune: 'Spell_Simple_Shoot', astral_burst: 'Spell_Simple_Shoot', frost_nova: 'Sword_Attack',
   lightning_chain: 'Spell_Simple_Shoot', storm_field: 'Idle_Shield_Break', time_collapse: 'Spell_Simple_Shoot', blink: 'NinjaJump_Start', glacial_spikes: 'Sword_Attack', levity_field: 'Idle_Shield_Break',
@@ -147,6 +166,7 @@ export class Hero3D {
       }
       h.clips.set(c.name, c);
     }
+    for (const [name, [clip, a, b]] of Object.entries(SUBCLIPS)) { const src = h.clips.get(clip); if (src) h.clips.set(name, cutClip(src, name, a, Math.min(b, src.duration))); }
     h.mixer = new THREE.AnimationMixer(h.model);
     ids.forEach((w, i) => { const bx = new THREE.Box3().setFromObject(arms[i].scene, true); h.armEnds.set(w, [bx.min.y, bx.max.y]); const g = new THREE.Group(); g.name = 'weapon'; g.add(arms[i].scene); g.visible = false; h.bones.get(`hand_${WEAPONS[w].hand}`)?.add(g); h.weapons.set(w, g); });
     h.look();
@@ -399,6 +419,9 @@ export class Hero3D {
   }
   private static tv = new THREE.Vector3();
 
+  /** The weapon in hand shown or not (Judgment Blade: no sword from the leap until he lands). */
+  showWeapon(on: boolean): void { const g = this.weapons.get(this.weapon); if (g && g.visible !== on) g.visible = on; }
+
   /** Take an item in hand (the Beginner's weapons): that one shown, gripped by its hand. */
   setWeapon(id: WeaponId): void {
     this.weapon = id;
@@ -446,7 +469,7 @@ export class Hero3D {
         const clip = this.attackClip(c), len = this.clipLength(clip), speed = Math.min(3, Math.max(0.6, (len * 1000 * this.hitShare(clip)) / Math.max(60, c.startup + c.active * 0.5)));
         this.play(clip, { once: !/_Loop$/.test(clip), restart: true, fade: 0.06, speed }); // (a loop — riding a tornado — goes on as long as the skill)
         if (c.elapsed > 0 && this.action) this.action.time = Math.min(len * 0.98, (c.elapsed / 1000) * speed); // (a cast seen late — another player's, a double joining his swing — picks up where it is)
-      } else if (this.action && !this.action.isRunning() && c.elapsed < c.startup + c.active + c.recovery - 150) {
+      } else if (this.action && !this.action.isRunning() && !this.clipNow.startsWith('Hold_') && c.elapsed < c.startup + c.active + c.recovery - 150) {
         // the move is over and the skill goes on (a channel, a stance, a volley of arrows): never a statue — another draw
         // for a volley, else the ready stance it holds (a spell's, the guard's)
         const rest = c.startup + c.active + c.recovery - c.elapsed, again = this.clipNow === 'Bow_Shoot' && rest > 700;
@@ -588,7 +611,7 @@ export class Hero3D {
   }
   /** Where in a sword clip its blow falls (share of its length): the clip is timed so the blow meets the skill's hit. */
   private hitShare(clip: string): number {
-    return ({ Sword_Regular_A: 0.45, Sword_Regular_B: 0.42, Sword_Regular_C: 0.3, Sword_Attack: 0.45, Sword_Dash_RM: 0.35, Sword_Regular_Combo: 0.25, Idle_Shield_Break: 0.4, OverhandThrow: 0.42, Melee_Hook: 0.4, Roll: 0.3, Bow_Shoot: 0.62, Spell_Simple_Shoot: 0.3, Punch_Jab: 0.35, Punch_Cross: 0.35, Fixing_Kneeling: 0.25, Sword_Block: 0.25, NinjaJump_Start: 0.4 } as Record<string, number>)[clip] ?? 0.4;
+    return ({ W_Smash: 0.28, Hold_Raise: 0.95, W_LowCut: 0.35, W_SkyChain: 0.15, W_Thrust: 0.27, W_Point: 0.3, W_Plunge: 0.35, W_Trace: 0.3, Idle_FoldArms_Loop: 0.2, Sword_Regular_A: 0.45, Sword_Regular_B: 0.42, Sword_Regular_C: 0.3, Sword_Attack: 0.45, Sword_Dash_RM: 0.35, Sword_Regular_Combo: 0.25, Idle_Shield_Break: 0.4, OverhandThrow: 0.42, Melee_Hook: 0.4, Roll: 0.3, Bow_Shoot: 0.62, Spell_Simple_Shoot: 0.3, Punch_Jab: 0.35, Punch_Cross: 0.35, Fixing_Kneeling: 0.25, Sword_Block: 0.25, NinjaJump_Start: 0.4 } as Record<string, number>)[clip] ?? 0.4;
   }
 
   dispose(): void {

@@ -58,3 +58,13 @@ writes each picture's head (`meta.json`: the portrait's square, copied into `her
 
 Kagemusha's doubles are twins of the samurai's own 3D body: the same shape, textures, weapons and moves, a skeleton of
 their own (`src/arena3d/Doubles3D.ts`, two layers of the room: behind and in front of the fighter they stand round).
+
+## More moves (`moves_4.glb`) and moves cut from longer ones
+
+`moves4.mjs` packs more of the libraries' moves for the skills' own moves (the heavy combo, the thrusting dash, the
+low lunging cut, the guard stance, the bend that drives the blade into the floor, a kneel, the blade held upright before
+the chest, a slide); `Hero3D`'s `SUBCLIPS` cuts a skill's own part out of a longer move (the heavy combo's overhead
+smash into the floor, its sword raised to the sky — held as long as the skill lasts — its low cut, its rising chain; the
+dash's thrust). The move files keep only the moves played and only the bones' turns and the hips' travel
+(`build.mjs`, `moves3.mjs`, `moves4.mjs`: a dropped move's keys no longer stay behind — the four files are 1.4 MB, the
+three were 5.8 MB).
