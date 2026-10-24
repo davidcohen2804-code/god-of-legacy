@@ -91,8 +91,9 @@ export class Hero3D {
   private yaw = Math.PI / 2;
   /** The weapons, each in a holder on its hand's bone; one shown. */
   private weapons = new Map<WeaponId, THREE.Group>();
-  /** Each weapon's far end below its grip (its own units, -y: a cane's ferrule, a sword's pommel side). */
-  private armLow = new Map<WeaponId, number>();
+  /** Each weapon's two ends along its length (its own units): below the grip (-y: a cane's ferrule) and beyond it (+y: a
+   *  blade's point, a staff's head). */
+  private armEnds = new Map<WeaponId, [number, number]>();
   /** Each fist's grip (fitGrip): where a weapon's grip sits in the hand bone, turned as the closed fist holds it. */
   private grip: Record<'r' | 'l', { q: THREE.Quaternion; p: THREE.Vector3 }> = { r: { q: new THREE.Quaternion(), p: new THREE.Vector3() }, l: { q: new THREE.Quaternion(), p: new THREE.Vector3() } };
   /** How far the weapon is held loose (standing, walking) instead of gripped for a move. */
@@ -141,7 +142,7 @@ export class Hero3D {
       h.clips.set(c.name, c);
     }
     h.mixer = new THREE.AnimationMixer(h.model);
-    ids.forEach((w, i) => { h.armLow.set(w, new THREE.Box3().setFromObject(arms[i].scene, true).min.y); const g = new THREE.Group(); g.name = 'weapon'; g.add(arms[i].scene); g.visible = false; h.bones.get(`hand_${WEAPONS[w].hand}`)?.add(g); h.weapons.set(w, g); });
+    ids.forEach((w, i) => { const bx = new THREE.Box3().setFromObject(arms[i].scene, true); h.armEnds.set(w, [bx.min.y, bx.max.y]); const g = new THREE.Group(); g.name = 'weapon'; g.add(arms[i].scene); g.visible = false; h.bones.get(`hand_${WEAPONS[w].hand}`)?.add(g); h.weapons.set(w, g); });
     h.look();
     // the size: the painted heroes' standing height, measured on the body as it stands at rest (before any move)
     h.model.updateMatrixWorld(true);
@@ -175,7 +176,7 @@ export class Hero3D {
       const mt = (this.body.material as THREE.MeshStandardMaterial).clone(); mt.emissive.setRGB(0, 0, 0); h.body.material = mt; h.own.push(mt);
     }
     for (const [w, g] of this.weapons) h.weapons.set(w, twin(g));
-    h.armLow = this.armLow;
+    h.armEnds = this.armEnds;
     if (this.bowString) {
       const s = twin(this.bowString); s.geometry = s.geometry.clone(); h.own.push(s.geometry);
       s.userData = { tips: (this.bowString.userData.tips as THREE.Vector3[]).map((v) => v.clone()) }; h.bowString = s;
@@ -367,13 +368,22 @@ export class Hero3D {
     for (const o of hide) o.visible = true;
   }
 
-  /** The weapon in hand as a line, its grip → its far end below the grip (px from the feet: x along the picture, y down)
-   *  — the gambler's Light Staff lays its blade of light along the cane. */
-  weaponLine(): number[] | null {
-    const g = this.weapons.get(this.weapon), lo = this.armLow.get(this.weapon); if (!g || lo === undefined) return null;
+  /** The weapon in hand as a line, its grip → an end (px from the feet: x along the picture, y down): `beyond` the grip
+   *  (a sword's point: Radiant Blade's light) or below it (the cane's shaft: the gambler's Light Staff). */
+  weaponLine(beyond = false): number[] | null {
+    const g = this.weapons.get(this.weapon), e = this.armEnds.get(this.weapon); if (!g || !e) return null;
     g.updateWorldMatrix(true, false);
-    const a = new THREE.Vector3().applyMatrix4(g.matrixWorld), t = new THREE.Vector3(0, lo, 0).applyMatrix4(g.matrixWorld), r = this.root.position;
+    const a = new THREE.Vector3().applyMatrix4(g.matrixWorld), t = new THREE.Vector3(0, beyond ? e[1] : e[0], 0).applyMatrix4(g.matrixWorld), r = this.root.position;
     return [(a.x - r.x) * 100, -(a.y - r.y) * 100, (t.x - r.x) * 100, -(t.y - r.y) * 100];
+  }
+
+  /** Where its eyes are (px from the feet: x along the picture, y down) — War Cry's and Radiant Blade's glowing eyes. */
+  eyePoint(): [number, number] | null {
+    const hd = this.bones.get('Head'); if (!hd) return null;
+    hd.updateWorldMatrix(true, false);
+    const p = hd.getWorldPosition(new THREE.Vector3()), k = this.model.scale.x, r = this.root.position;
+    p.y += 0.095 * k; p.x += Math.sin(this.yaw) * 0.075 * k; p.z += Math.cos(this.yaw) * 0.075 * k; // (above the neck joint, at the face)
+    return [(p.x - r.x) * 100, -(p.y - r.y) * 100];
   }
 
   /** No afterimages left (the body goes away for a while: the next time it shows, none of the last ones linger). */

@@ -2098,13 +2098,19 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.cryAura = this.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xd8261c);
     }
     if (this.cryBody && this.cryAura) {
-      this.cryBody.setVisible(cry && v.visible && !this.hero3d); this.cryAura.setVisible(cry && v.visible); // (the glow is the painted body's own frame: not over a 3D body)
+      const sh3 = cry && this.hero3d ? this.bodyShot3D(this.localId) : null; // (a 3D body: its glow is a picture of it as it stands)
+      this.cryBody.setVisible(cry && v.visible && (!this.hero3d || !!sh3)); this.cryAura.setVisible(cry && v.visible);
       if (cry) {
         const left = this.warCryUntil - this.simMs, fade = Math.min(1, left / 400), d = actorDepth(k.x, k.y, k.z);
-        const sp = v.sprite;
-        if (this.cryBody.texture.key !== sp.texture.key || this.cryBody.frame.name !== sp.frame.name) this.cryBody.setTexture(sp.texture.key, sp.frame.name);
-        this.cryBody.setOrigin(sp.originX, sp.originY).setScale(sp.scaleX * 1.03, sp.scaleY * 1.03).setPosition(sp.x, sp.y).setDepth(d + 0.04)
-          .setTint(0xff7a5a).setAlpha((0.11 + 0.05 * Math.sin(this.simMs / 260)) * fade);
+        if (sh3) {
+          const key = sh3.key; if (this.cryBody.texture.key !== key) this.cryBody.setTexture(key);
+          this.cryBody.setOrigin(sh3.ox, sh3.oy).setScale(1.03, 1.03).setPosition(k.x, k.y - k.z).setDepth(d + 0.04);
+        } else {
+          const sp = v.sprite;
+          if (this.cryBody.texture.key !== sp.texture.key || this.cryBody.frame.name !== sp.frame.name) this.cryBody.setTexture(sp.texture.key, sp.frame.name);
+          this.cryBody.setOrigin(sp.originX, sp.originY).setScale(sp.scaleX * 1.03, sp.scaleY * 1.03).setPosition(sp.x, sp.y).setDepth(d + 0.04);
+        }
+        this.cryBody.setTint(0xff7a5a).setAlpha((0.11 + 0.05 * Math.sin(this.simMs / 260)) * fade);
         this.cryAura.setPosition(k.x, k.y - k.z - 48).setDepth(d - 0.25).setDisplaySize(150, 200).setAlpha((0.18 + 0.05 * Math.sin(this.simMs / 300)) * fade);
       }
     }
@@ -2139,16 +2145,19 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Glowing eyes while Radiant Blade or War Cry is active. */
   private renderEyes(pose: PoseFrame, dir: Dir): void {
-    const on = (this.simMs < this.radiantUntil || this.simMs < this.warCryUntil) && this.dead < 0 && this.view!.visible && !!pose.anchor && dir !== 'up' && !this.hero3d; // (the painted head's eyes: not over a 3D body)
+    const eye3 = this.hero3d?.h.eyePoint() ?? null; // (a 3D body: its own head's eyes)
+    const on = (this.simMs < this.radiantUntil || this.simMs < this.warCryUntil) && this.dead < 0 && (this.hero3d ? !!eye3 && this.hero3d.img.visible && this.hero3d.img.alpha > 0.5 : this.view!.visible && !!pose.anchor && dir !== 'up');
     if (!on) { this.eyes?.setVisible(false); return; }
     if (!this.eyes) this.eyes = this.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xff6a4a);
+    if (eye3) { const k = this.kin; this.eyes.setVisible(true).setPosition(k.x + eye3[0], k.y - k.z + eye3[1]).setDisplaySize(14, 7).setDepth(actorDepth(k.x, k.y, k.z) + 0.05).setAlpha(0.8 + 0.2 * Math.sin(this.simMs / 160)); return; }
     const sp = this.view!.sprite, a = pose.anchor!, ex = sp.x + a[2] + (dir === 'right' ? 4 : dir === 'left' ? -4 : 0), ey = sp.y + a[3] + 3;
     this.eyes.setVisible(true).setPosition(ex, ey).setDisplaySize(dir === 'down' ? 22 : 14, 7).setDepth(sp.depth + 0.05).setAlpha(0.8 + 0.2 * Math.sin(this.simMs / 160));
   }
 
   /** Radiant Blade: a long blade of pure light extends from the real hilt along the sword of the current frame. */
   private renderRadiant(pose: PoseFrame, dir: Dir): void {
-    const on = this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && this.dead < 0 && this.view!.visible && !!pose.blade && this.rt?.ownRun?.skill.id !== 'judgment_blade' && !this.jb && !this.hero3d; // V: no sword at all (until he lands) (the painted sword's beam: not over a 3D body)
+    const line3 = this.hero3d?.h.weaponLine(true) ?? null; // (a 3D body: its own sword, grip → point)
+    const on = this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && this.dead < 0 && (this.hero3d ? !!line3 && this.hero3d.img.visible : this.view!.visible && !!pose.blade) && this.rt?.ownRun?.skill.id !== 'judgment_blade' && !this.jb; // V: no sword at all (until he lands)
     if (on && !this.beam) {
       this.beam = this.add.image(0, 0, 'radiant-blade', 0).setOrigin(17.6 / 256, 0.5).setBlendMode(Phaser.BlendModes.ADD);
       this.beamGlow = this.add.image(0, 0, 'radiant-blade', 0).setOrigin(17.6 / 256, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd27a);
@@ -2159,7 +2168,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const skinC = skinColor(this.equipped.weapon), bkey = skinC !== null ? grayKey(this, 'radiant-blade', 1.7) ?? 'radiant-blade' : 'radiant-blade'; // light blade takes the sword skin's colour
     if (this.beam.texture.key !== bkey) this.beam.setTexture(bkey, 0);
     if (skinC !== null) this.beam.setTint(skinC); else this.beam.setTint(0xff6a4a); // (no skin: the blade of light in War Cry's crimson)
-    const b = pose.blade!, sp = this.view!.sprite, k = this.kin;
+    const k = this.kin, b = line3 ?? pose.blade!, sp = line3 ? { x: k.x, y: k.y - k.z } : this.view!.sprite; // (a 3D body's line runs from its feet)
 
     if (!this.boltDone && b[3] < b[1] - 10) { // strike once the blade points up: the bolt lands on its tip
       this.boltDone = true; this.fx!.lightningAt(sp.x + b[2], sp.y + b[3]); // onto the real sword tip; the light blade then grows from it
