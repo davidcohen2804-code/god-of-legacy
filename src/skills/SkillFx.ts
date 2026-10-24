@@ -293,7 +293,7 @@ export class SkillFx {
   /** Where a fighter or monster is now (a cast's locked-on target), set by the scene. */
   targetPos?: (id: string) => (V3 & { h?: number }) | null;
   /** A caster's body as drawn this moment (Phantom Blades' phantoms of him), set by the scene. */
-  bodyOf?: (id: string) => { key: string; frame: string | number; flipX: boolean; ox: number; oy: number; sx: number; sy: number; a?: number; face?: number } | null;
+  bodyOf?: (id: string) => { key: string; frame: string | number; flipX: boolean; ox: number; oy: number; sx: number; sy: number; a?: number; face?: number; line?: number[] } | null;
   /** Whether a fighter is alive (a buff's picture goes when he falls), set by the scene. */
   aliveOf?: (id: string) => boolean;
   /** Damage numbers and calls this much higher (the fighters are ready heroes, drawn taller), set by the scene. */

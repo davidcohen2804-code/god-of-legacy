@@ -45,3 +45,16 @@ business end (the point, the head, the knob).
 | bow | 1.25 m | 494, 712 (the riser) | string 2.5 mm, replaced in game by a drawn line |
 | staff | 1.6 m | 507, 740 | |
 | cane | 1.0 m | 510, 320 (under the knob) | |
+
+## The pictures (`public/assets/hero3d/art/`)
+
+The heroes' splash and faces with the 3D heroes on (`src/arena3d/heroArt3d.ts`): the VS screen, the loading VS, the
+result, the fighter select's tiles and fighters, the HUD's portraits. One picture per body and weapon
+(`m_sword.webp` … `f_cane.webp`, 1024 × 1536, transparent), the Beginner held still in a move facing right, framed
+whole, lit like a stage (`art/art.html`, `Hero3D.pose`); `art/art.mjs` renders them under the Vite dev server and
+writes each picture's head (`meta.json`: the portrait's square, copied into `heroArt3d.ts`).
+
+## Twins (`Hero3D.clone`)
+
+Kagemusha's doubles are twins of the samurai's own 3D body: the same shape, textures, weapons and moves, a skeleton of
+their own (`src/arena3d/Doubles3D.ts`, two layers of the room: behind and in front of the fighter they stand round).

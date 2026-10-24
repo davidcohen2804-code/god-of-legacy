@@ -58,7 +58,9 @@ import { QuestState } from '../characters/CharacterTypes';
 import { PvpController } from '../pvp/PvpController';
 import { ARENA3D } from '../arena3d/flag';
 import { HERO3D } from '../arena3d/hero3dFlag';
+import { portrait3d } from '../arena3d/heroArt3d';
 import type { Hero3D } from '../arena3d/Hero3D';
+import type { Doubles3D } from '../arena3d/Doubles3D';
 import type { RemotePlayer } from '../pvp/RemotePlayer';
 /** A 3D body following another fighter (the sparring partner or another player). */
 type Other3D = { h: Hero3D; img: Phaser.GameObjects.Image; female: boolean; rp: RemotePlayer | null; cls: string; last: { x: number; y: number; z: number } | null };
@@ -109,9 +111,9 @@ import { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import { ARCHER_STREAM, ARENA_FLOW, MAGE_HIDDEN, arenaCommits, arenaTimeScale, armorMul, finalSkill, iconUrl, kitFor, lastOfBurst } from '../skills/FinalKit';
 import { CastRun, RT_EVENTS, SkillRuntime, Trap, STORM } from '../skills/SkillRuntime';
 import type { Projectile } from '../skills/HitGeometry';
-import { Afterimages, applyMotion, archerMotion, heroMotion, leapMotion } from '../skills/ArcherMotion';
+import { Afterimages, applyMotion, archerMotion, heroMotion, leapMotion, type Motion } from '../skills/ArcherMotion';
 import { SAMURAI_AFTER, TORNADO, samuraiMotion, samuraiSeen, shinsokuMotion, tornadoPath } from '../skills/SamuraiMotion';
-import { KAGE, KageLocal, kageTarget } from '../skills/Kagemusha';
+import { FEINT, KAGE, KageLocal, kageTarget } from '../skills/Kagemusha';
 import { FloorDeck, HOLD_BASE, HOLD_MAX, deckLeaves } from '../skills/FloorDeck';
 import { FUSE_PER_CARD, HAND_KEEP_MS, HAND_KEEP_STACKED_MS, Hand, type HandValue, PVP_HAND_CAP, SUIT, Stuck, coinOf, diceOf, isRerolled, reroll, rouletteOf } from '../skills/Gamble';
 import { HitTarget, V2, V3, clampAim, clampPlace, shapeContains, unit } from '../skills/HitGeometry';
@@ -554,7 +556,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private a3d: Arena3D | null = null;
   /** The 3D hero test (?hero3d=1): the player's body (and the sparring partner's) as the 3D Beginner in the room, each
    *  its own picture sorted among the bodies. */
-  private hero3d?: { h: Hero3D; img: Phaser.GameObjects.Image; ui?: HTMLElement; a3: Arena3D; others: Other3D[]; loading: number };
+  private hero3d?: { h: Hero3D; img: Phaser.GameObjects.Image; ui?: HTMLElement; a3: Arena3D; others: Other3D[]; loading: number; Dbl: typeof Doubles3D; kage: Map<string, Doubles3D> };
   /** The 3D body is loading (a place just built): the painted one stays hidden meanwhile. */
   private hero3dWait = false;
   /** PVP 3D: each fighter's height and falling speed last frame (a landing's dust). */
@@ -761,7 +763,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
     this.rifts = []; this.riftsOf.clear(); this.riftCross = null; this.lightStaffUntil = -1; this.lightStaffOf.clear(); this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
     this.hasteUntil = -1; this.spiritUntil = -1; this.tree = null; this.storm = null; this.resolveUntil = -1; this.hasteFx = undefined; this.spiritFx = undefined; this.afterimg = undefined;
-    this.hero3d = undefined; this.hero3dWait = false; this.cryBody = undefined; this.cryAura = undefined; this.holyAura = undefined; this.eyes = undefined; this.beam = undefined; this.beamGlow = undefined; this.sunGlare = undefined; this.cloudSprite = undefined; // (made once, on first use: the last visit's were destroyed with its display list — War Cry's glow called setTexture on a dead sprite and the frame threw, every frame, after any return to the scene)
+    this.hero3d = undefined; this.hero3dWait = false; for (const o of this.shotsOld) if (this.textures.exists(o.key)) this.textures.remove(o.key); this.shotsOld = []; this.shots3d.clear(); this.cryBody = undefined; this.cryAura = undefined; this.holyAura = undefined; this.eyes = undefined; this.beam = undefined; this.beamGlow = undefined; this.sunGlare = undefined; this.cloudSprite = undefined; // (made once, on first use: the last visit's were destroyed with its display list — War Cry's glow called setTexture on a dead sprite and the frame threw, every frame, after any return to the scene)
     this.gHeadsUntil = -1; this.gTailsFree = false; this.gTailsUntil = -1; this.gLuckUntil = -1; this.gOverUntil = -1; this.gStreak = 0; this.fx?.gambleClear(this.localId); this.gDeck.clear(); this.gHand.clear(); this.gStuck.clear();
     this.sunUntil = -1; this.godUntil = -1; this.kage?.clear(); this.kage = undefined; this.ambushIn.clear();
     this.mageReset(); this.gates.clear(); this.levityZones = []; this.brokenLinks.clear(); this.linkGfx = undefined;
@@ -957,6 +959,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       return t ? { x: t.x, y: t.y, z: t.z, h: t.height } : null;
     };
     this.fx.bodyOf = (id) => {
+      const b3 = this.bodyShot3D(id); if (b3) return b3; // (a 3D body: its picture as it stands now)
       const sp = id === this.localId ? this.view?.sprite : id === BOT_ID ? this.bot?.view.sprite : this.pvp?.remotes.get(id)?.sprite;
       const dir = id === this.localId ? this.dir : id === BOT_ID ? this.bot?.view.dir : this.pvp?.remotes.get(id)?.dir;
       return sp ? { key: sp.texture.key, frame: sp.frame.name, flipX: sp.flipX, ox: sp.originX, oy: sp.originY, sx: Math.abs(sp.scaleX), sy: Math.abs(sp.scaleY), a: sp.visible ? sp.alpha : 0, face: dir === 'left' ? -1 : 1 } : null;
@@ -2029,6 +2032,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       // a START HERO keeps the Wind Leap's somersault: her tucked frame turns round its middle
       const m = (run && this.dead < 0 ? heroMotion(archerMotion(run.skill.id, run.elapsed, run.timings, face), hero) : null) ?? (lm && hero ? { ...lm, pivot: 62 } : lm);
       applyMotion(v.motionSprites, m);
+      this.motion3D(m);
       (this.afterimg ??= new Afterimages(this)).step(this.simMs, v.sprite, !!m?.after);
       this.hero3d?.h.ghost(this.simMs, !!m?.after, 0x9be35a); // (the 3D body's own afterimages)
       this.renderArcherBuffs();
@@ -2036,9 +2040,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const face = this.aim.x < -0.01 ? -1 : 1;
       const m = heroMotion((run && this.dead < 0 ? samuraiMotion(run.skill.id, run.elapsed, run.timings, face, run.stage) : null) ?? (this.dead < 0 ? shinsokuMotion(this.simMs - this.leapAt, this.dir === 'left' ? -1 : 1) : null), !!this.character?.hero);
       applyMotion(v.motionSprites, m);
+      this.motion3D(m);
       (this.afterimg ??= new Afterimages(this, SAMURAI_AFTER)).step(this.simMs, v.sprite, !!m?.after);
       this.hero3d?.h.ghost(this.simMs, !!m?.after, SAMURAI_AFTER);
+      if (this.kage) this.kage.body3d = !!this.hero3d;
       this.kage?.render(ms, { pose, dir, motion: m }, 1, this.simMs); // the doubles: each its own way (his pose and motion while he swings)
+      if (this.hero3d) { const f = this.kageFoe(); this.doubles3D(this.localId, this.hero3d.h, this.kage?.doubles3d() ?? [], run && this.dead < 0 ? { id: run.skill.id, stage: run.stage ?? 0, elapsed: run.elapsed, startup: run.timings.startup, active: run.timings.active, recovery: run.timings.recovery } : null, f ? actorDepth(f.x, f.y, 0) : null, ms); } // (as 3D twins of yours)
     }
     if (this.cls === 'warrior' && v.sprite) { // Dash Slash: he becomes a blur — steel afterimages along the dash (DFO's review: STEEL)
       const on = !!run && this.dead < 0 && run.skill.id === 'dash_slash' && run.elapsed >= run.timings.startup && run.elapsed < run.timings.startup + run.timings.active;
@@ -2091,13 +2098,19 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.cryAura = this.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xd8261c);
     }
     if (this.cryBody && this.cryAura) {
-      this.cryBody.setVisible(cry && v.visible && !this.hero3d); this.cryAura.setVisible(cry && v.visible); // (the glow is the painted body's own frame: not over a 3D body)
+      const sh3 = cry && this.hero3d ? this.bodyShot3D(this.localId) : null; // (a 3D body: its glow is a picture of it as it stands)
+      this.cryBody.setVisible(cry && v.visible && (!this.hero3d || !!sh3)); this.cryAura.setVisible(cry && v.visible);
       if (cry) {
         const left = this.warCryUntil - this.simMs, fade = Math.min(1, left / 400), d = actorDepth(k.x, k.y, k.z);
-        const sp = v.sprite;
-        if (this.cryBody.texture.key !== sp.texture.key || this.cryBody.frame.name !== sp.frame.name) this.cryBody.setTexture(sp.texture.key, sp.frame.name);
-        this.cryBody.setOrigin(sp.originX, sp.originY).setScale(sp.scaleX * 1.03, sp.scaleY * 1.03).setPosition(sp.x, sp.y).setDepth(d + 0.04)
-          .setTint(0xff7a5a).setAlpha((0.11 + 0.05 * Math.sin(this.simMs / 260)) * fade);
+        if (sh3) {
+          const key = sh3.key; if (this.cryBody.texture.key !== key) this.cryBody.setTexture(key);
+          this.cryBody.setOrigin(sh3.ox, sh3.oy).setScale(1.03, 1.03).setPosition(k.x, k.y - k.z).setDepth(d + 0.04);
+        } else {
+          const sp = v.sprite;
+          if (this.cryBody.texture.key !== sp.texture.key || this.cryBody.frame.name !== sp.frame.name) this.cryBody.setTexture(sp.texture.key, sp.frame.name);
+          this.cryBody.setOrigin(sp.originX, sp.originY).setScale(sp.scaleX * 1.03, sp.scaleY * 1.03).setPosition(sp.x, sp.y).setDepth(d + 0.04);
+        }
+        this.cryBody.setTint(0xff7a5a).setAlpha((0.11 + 0.05 * Math.sin(this.simMs / 260)) * fade);
         this.cryAura.setPosition(k.x, k.y - k.z - 48).setDepth(d - 0.25).setDisplaySize(150, 200).setAlpha((0.18 + 0.05 * Math.sin(this.simMs / 300)) * fade);
       }
     }
@@ -2132,16 +2145,19 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Glowing eyes while Radiant Blade or War Cry is active. */
   private renderEyes(pose: PoseFrame, dir: Dir): void {
-    const on = (this.simMs < this.radiantUntil || this.simMs < this.warCryUntil) && this.dead < 0 && this.view!.visible && !!pose.anchor && dir !== 'up' && !this.hero3d; // (the painted head's eyes: not over a 3D body)
+    const eye3 = this.hero3d?.h.eyePoint() ?? null; // (a 3D body: its own head's eyes)
+    const on = (this.simMs < this.radiantUntil || this.simMs < this.warCryUntil) && this.dead < 0 && (this.hero3d ? !!eye3 && this.hero3d.img.visible && this.hero3d.img.alpha > 0.5 : this.view!.visible && !!pose.anchor && dir !== 'up');
     if (!on) { this.eyes?.setVisible(false); return; }
     if (!this.eyes) this.eyes = this.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xff6a4a);
+    if (eye3) { const k = this.kin; this.eyes.setVisible(true).setPosition(k.x + eye3[0], k.y - k.z + eye3[1]).setDisplaySize(14, 7).setDepth(actorDepth(k.x, k.y, k.z) + 0.05).setAlpha(0.8 + 0.2 * Math.sin(this.simMs / 160)); return; }
     const sp = this.view!.sprite, a = pose.anchor!, ex = sp.x + a[2] + (dir === 'right' ? 4 : dir === 'left' ? -4 : 0), ey = sp.y + a[3] + 3;
     this.eyes.setVisible(true).setPosition(ex, ey).setDisplaySize(dir === 'down' ? 22 : 14, 7).setDepth(sp.depth + 0.05).setAlpha(0.8 + 0.2 * Math.sin(this.simMs / 160));
   }
 
   /** Radiant Blade: a long blade of pure light extends from the real hilt along the sword of the current frame. */
   private renderRadiant(pose: PoseFrame, dir: Dir): void {
-    const on = this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && this.dead < 0 && this.view!.visible && !!pose.blade && this.rt?.ownRun?.skill.id !== 'judgment_blade' && !this.jb && !this.hero3d; // V: no sword at all (until he lands) (the painted sword's beam: not over a 3D body)
+    const line3 = this.hero3d?.h.weaponLine(true) ?? null; // (a 3D body: its own sword, grip → point)
+    const on = this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && this.dead < 0 && (this.hero3d ? !!line3 && this.hero3d.img.visible : this.view!.visible && !!pose.blade) && this.rt?.ownRun?.skill.id !== 'judgment_blade' && !this.jb; // V: no sword at all (until he lands)
     if (on && !this.beam) {
       this.beam = this.add.image(0, 0, 'radiant-blade', 0).setOrigin(17.6 / 256, 0.5).setBlendMode(Phaser.BlendModes.ADD);
       this.beamGlow = this.add.image(0, 0, 'radiant-blade', 0).setOrigin(17.6 / 256, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd27a);
@@ -2152,7 +2168,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const skinC = skinColor(this.equipped.weapon), bkey = skinC !== null ? grayKey(this, 'radiant-blade', 1.7) ?? 'radiant-blade' : 'radiant-blade'; // light blade takes the sword skin's colour
     if (this.beam.texture.key !== bkey) this.beam.setTexture(bkey, 0);
     if (skinC !== null) this.beam.setTint(skinC); else this.beam.setTint(0xff6a4a); // (no skin: the blade of light in War Cry's crimson)
-    const b = pose.blade!, sp = this.view!.sprite, k = this.kin;
+    const k = this.kin, b = line3 ?? pose.blade!, sp = line3 ? { x: k.x, y: k.y - k.z } : this.view!.sprite; // (a 3D body's line runs from its feet)
 
     if (!this.boltDone && b[3] < b[1] - 10) { // strike once the blade points up: the bolt lands on its tip
       this.boltDone = true; this.fx!.lightningAt(sp.x + b[2], sp.y + b[3]); // onto the real sword tip; the light blade then grows from it
@@ -4094,7 +4110,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private attachHero3D(a3: Arena3D): void {
     if (!HERO3D.on) return;
     const old = this.hero3d;
-    if (old) { old.h.dispose(); for (const o of old.others) o.h.dispose(); old.ui?.remove(); this.hero3d = undefined; }
+    if (old) { for (const d of old.kage.values()) d.dispose(); old.h.dispose(); for (const o of old.others) o.h.dispose(); old.ui?.remove(); this.hero3d = undefined; }
     this.hero3dWait = true;
     void this.startHero3D(a3, this.sceneGen);
   }
@@ -4108,7 +4124,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const { img, sunDir } = a3.addLayer('arena3d-hero', h.scene);
     h.makeShadow(sunDir);
     h.setWeapon(mod.CLASS_WEAPON[this.cls] ?? 'sword');
-    this.hero3d = { h, img, a3, others: [], loading: 0 }; this.hero3dWait = false;
+    this.hero3d = { h, img, a3, others: [], loading: 0, Dbl: mod.Doubles3D, kage: new Map() }; this.hero3dWait = false;
     this.buildItemUi(mod.WEAPONS);
   }
 
@@ -4131,13 +4147,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const now: { rp: RemotePlayer; vel?: { vx: number; vy: number; vz: number; grounded: boolean }; dead: boolean; female: boolean; cls: string }[] = [];
     if (this.bot) now.push({ rp: this.bot.view, vel: this.bot.kin, dead: this.bot.defeated, female: this.bot.cls === 'archer', cls: this.bot.cls }); // (as the painted classes: the archer a woman)
     for (const r of this.pvp?.remotes.values() ?? []) now.push({ rp: r, dead: !r.alive, female: r.meta.gender === 'female', cls: r.meta.classId });
-    for (const o of H.others) if (o.rp && !now.some((e) => e.rp === o.rp)) { o.rp = null; o.img.setVisible(false); } // gone: free for the next
+    for (const o of H.others) if (o.rp && !now.some((e) => e.rp === o.rp)) { o.rp.body3d = false; o.rp = null; o.img.setVisible(false); o.h.clearGhosts(); } // gone: free for the next
     for (const e of now) {
       let o = H.others.find((x) => x.rp === e.rp);
       if (!o) {
         o = H.others.find((x) => !x.rp && x.female === e.female);
         if (!o) { if (H.loading === 0) { H.loading++; void this.startOther3D(e.female, this.sceneGen); } continue; }
-        o.rp = e.rp; o.cls = ''; o.last = null;
+        o.rp = e.rp; o.cls = ''; o.last = null; e.rp.body3d = true;
       }
       const rp = e.rp;
       if (o.cls !== e.cls) { o.cls = e.cls; const w = CLASS_WEAPON3D[e.cls] ?? 'sword'; o.h.setWeapon(w as Hero3D['weapon']); }
@@ -4152,9 +4168,26 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         x: rp.x, y: rp.y, z: rp.z, vx: vel.vx, vy: vel.vy, vz: vel.vz, grounded: vel.grounded, face: rp.dir === 'left' ? -1 : 1, mode: e.dead ? 'dead' : mode,
         cast: sk && mode === 'skill' ? { id: sk.id, stage: sk.stage, elapsed: sk.elapsed, startup: sk.startup, active: sk.active, recovery: sk.recovery, dash: !!finalSkill(sk.id)?.dash, air: !vel.grounded } : null,
       }, ms);
+      o.h.motion(rp.motion3d); // (its painted body's motion: a shot's recoil, a leap, a spin)
+      if (rp.trail3d) o.h.ghost(this.simMs, rp.trail3d.on, rp.trail3d.tint, rp.trail3d.every);
       o.h.tintBody((rp as unknown as { flashMs: number }).flashMs >= 0 ? 0xff9a9a : null); // (struck: its soft tint, as its painted body's)
-      o.img.setDepth(actorDepth(rp.x, rp.y, rp.z)).setAlpha(rp.ghost ? (Math.floor(this.simMs / 70) % 2 ? 0.4 : 0.75) : 1).setVisible(true);
+      o.img.setDepth(actorDepth(rp.x, rp.y, rp.z)).setAlpha(rp.alpha3d * (rp.motion3d?.alpha ?? 1)).setVisible(true); // (as seen as its painted body: guarded and blinking, hidden among doubles, gone in ink, a crane, fading out)
+      if (e.cls === 'samurai') this.doubles3D(rp.meta.playerId, o.h, rp.doubles3d(), rp.castNow(), actorDepth(this.kin.x, this.kin.y, this.kin.z), ms); // (another samurai's doubles: round you)
     }
+  }
+
+  /** Kagemusha's doubles as 3D twins of their samurai's 3D body (running, on guard, feinting, swinging with him; his own
+   *  screen's and another samurai's alike); `foe`: the draw depth of the fighter they stand round. */
+  private doubles3D(id: string, src: Hero3D, list: ReturnType<KageLocal['doubles3d']>, his: { id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number } | null, foe: number | null, ms: number): void {
+    const H = this.hero3d; if (!H) return;
+    let D = H.kage.get(id);
+    if (!list.length) { D?.hide(); return; }
+    if (!D) { D = new H.Dbl(H.a3, src, `arena3d-kage${H.kage.size}`); H.kage.set(id, D); }
+    D.drive(list.map((d) => {
+      const cast = d.mode === 'm' && his ? { ...his, dash: false, air: false } : d.mode === 'f' ? { id: FEINT.id, stage: d.feint % 3, elapsed: d.mt, startup: FEINT.startup, active: FEINT.active, recovery: FEINT.recovery, dash: false, air: false } : null;
+      return { x: d.x, y: d.y, z: d.z, motion: d.motion, trail: !!d.motion?.after,
+        drive: { x: d.x, y: d.y, z: d.z, vx: d.mode === 'r' ? KAGE.speed * d.face : 0, vy: 0, vz: 0, grounded: true, face: d.face, mode: cast ? 'skill' : d.mode === 'r' ? 'run' : 'alert', cast } };
+    }), ms, this.simMs, actorDepth, foe, 1, SAMURAI_AFTER);
   }
 
   /** Each frame: your 3D body where your body is, doing what it does (its colour wash too); the painted one hidden. */
@@ -4170,23 +4203,59 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.driveOthers3D(ms);
   }
 
-  /** The test's item buttons: the weapon in hand (the arena's top left, under the bars). */
+  /** A 3D body's frame for the effects that copy a body (a samurai's silhouettes, phantoms and mirage, an archer's decoy,
+   *  the eclipse's lit bodies): drawn flat at most every 50 ms per fighter, each picture its own texture (an effect that
+   *  took one keeps it as it was), dropped 2 s later. Null: not a 3D body (the painted frame then). */
+  private shots3d = new Map<string, { at: number; key: string }>();
+  private shotsOld: { key: string; until: number }[] = [];
+  private shotN = 0;
+  private bodyShot3D(id: string): { key: string; frame: string | number; flipX: boolean; ox: number; oy: number; sx: number; sy: number; a?: number; face?: number; line?: number[] } | null {
+    const H = this.hero3d; if (!H) return null;
+    let h: Hero3D | null = null, img: Phaser.GameObjects.Image | null = null, face = 1;
+    if (id === this.localId) { h = H.h; img = H.img; face = this.dir === 'left' ? -1 : 1; }
+    else {
+      const rp = id === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(id), o = rp ? H.others.find((x) => x.rp === rp) : undefined;
+      if (o && rp) { h = o.h; img = o.img; face = rp.dir === 'left' ? -1 : 1; }
+    }
+    if (!h || !img) return null;
+    const body = h, now = this.simMs, shot = (): string => { // (taken only when an effect reads the picture: the lit cane needs only the line)
+      let s = this.shots3d.get(id);
+      if (!s || now - s.at >= 50 || now < s.at) {
+        const key = `body3d-shot-${++this.shotN}`, cv = document.createElement('canvas'); cv.width = 260; cv.height = 240;
+        body.snapshot(H.a3, cv, 100, 0.5, 0.88);
+        this.textures.addCanvas(key, cv);
+        s = { at: now, key }; this.shots3d.set(id, s); this.shotsOld.push({ key, until: now + 2000 });
+        while (this.shotsOld.length && (this.shotsOld[0].until < now || this.shotsOld.length > 120)) { const k = this.shotsOld.shift()!.key; if (this.textures.exists(k)) this.textures.remove(k); }
+      }
+      return s.key;
+    };
+    return { get key() { return shot(); }, frame: '__BASE', flipX: false, ox: 0.5, oy: 0.88, sx: 1, sy: 1, a: img.visible ? img.alpha : 0, face, line: h.weaponLine() ?? undefined };
+  }
+
+  /** The painted body's motion layer (a shot's recoil, a leap, a somersault, a spin, a vanishing step) on your 3D body. */
+  private motion3D(m: Motion | null): void {
+    const H = this.hero3d; if (!H || !m) return;
+    H.h.motion(m);
+    if (m.alpha !== undefined) H.img.setAlpha(H.img.alpha * m.alpha);
+  }
+
+  /** The Beginner's item buttons: the weapon in hand (the arena's bottom left, beside the skill bar). */
   private buildItemUi(items: Record<string, { name: string }>): void {
     const host = this.hud?.overlay, H = this.hero3d; if (!host || !H) return;
     if (!document.getElementById('gol-h3d-style')) {
       const st = document.createElement('style'); st.id = 'gol-h3d-style';
       st.textContent = `
-.gol-h3d{position:absolute;right:24px;top:118px;display:flex;flex-direction:column;gap:10px;padding:14px 16px 16px;box-sizing:border-box;pointer-events:auto;
+.gol-h3d{position:absolute;left:24px;bottom:42px;display:flex;flex-direction:column;gap:10px;padding:14px 16px 16px;box-sizing:border-box;pointer-events:auto;
   background:linear-gradient(rgba(6,10,18,.84),rgba(6,10,18,.7));border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.45),inset 0 0 0 1px rgba(201,154,69,.5);font-family:${FONT_FAMILY}}
 .gol-h3d .hd{font:700 12px ${FONT_FAMILY};letter-spacing:2.5px;color:#f3d58a;text-shadow:0 1px 2px #000}
 .gol-h3d .row{display:flex;gap:8px}
-.gol-h3d button{height:34px;padding:0 14px;border-radius:7px;border:1px solid #6a5630;background:#0b121b;color:#c9b48a;font:700 12px ${FONT_FAMILY};letter-spacing:1.5px;cursor:pointer;text-shadow:0 1px 2px #000}
+.gol-h3d button{height:34px;padding:0 11px;border-radius:7px;border:1px solid #6a5630;background:#0b121b;color:#c9b48a;font:700 12px ${FONT_FAMILY};letter-spacing:1.5px;cursor:pointer;text-shadow:0 1px 2px #000}
 .gol-h3d button:hover{border-color:#c99a45;box-shadow:0 0 10px rgba(232,178,90,.35)}
 .gol-h3d button.on{border-color:#e8b25a;background:linear-gradient(#3a2a10,#22180a);color:#ffe7a8}`;
       document.head.appendChild(st);
     }
     const el = document.createElement('div'); el.className = 'gol-h3d';
-    if (this.w3d) Object.assign(el.style, { right: 'auto', left: '18px', top: '300px' }); // (the world's HUD: under the quests, clear of the minimap)
+    if (this.w3d) Object.assign(el.style, { left: '18px', top: '300px', bottom: 'auto' }); // (the world's HUD: under the quests, clear of the minimap; the arena's: the bottom left, clear of the bars, the combo guide and the sparring panel)
     el.innerHTML = '<div class="hd">3D BEGINNER · ITEMS</div><div class="row"></div>';
     const row = el.querySelector('.row')!;
     const refresh = () => row.querySelectorAll('button').forEach((b) => b.classList.toggle('on', (b as HTMLButtonElement).dataset.id === this.hero3d?.h.weapon));
@@ -4694,11 +4763,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private fighterOf(id: string): Fighter {
     // a hero: its battle-stance art for the VS and its face from that art on the health bar
     const hero = (c: string) => ({ portrait: heroVsPortrait(c) ?? heroPortrait(c), vs: heroArt(c) });
-    if (id === this.localId) { const ch = this.character!; return { name: ch.name, cls: CLASS_NAMES[this.cls] ?? this.cls, ...(ch.hero ? hero(this.cls) : { portrait: portraitOf(previewKeyOf(ch)) }), you: true }; }
-    if (id === BOT_ID) { const c = this.botCls; return { name: this.botName(), cls: CLASS_NAMES[c] ?? c, ...(this.botHero() ? hero(c) : { portrait: portraitOf(c === 'warrior' ? 'base/male' : `${c}/${c}_default`) }), you: false }; }
+    if (id === this.localId) { const ch = this.character!; return { name: ch.name, cls: CLASS_NAMES[this.cls] ?? this.cls, ...(ch.hero ? hero(this.cls) : { portrait: this.face3d(this.cls, genderOf(ch) === 'female') ?? portraitOf(previewKeyOf(ch)) }), you: true }; }
+    if (id === BOT_ID) { const c = this.botCls; return { name: this.botName(), cls: CLASS_NAMES[c] ?? c, ...(this.botHero() ? hero(c) : { portrait: this.face3d(c, c === 'archer') ?? portraitOf(c === 'warrior' ? 'base/male' : `${c}/${c}_default`) }), you: false }; }
     const r = this.pvp?.remotes.get(id), c = r?.meta.classId ?? 'warrior';
-    return { name: r?.meta.name ?? this.nameOf(id), cls: CLASS_NAMES[c] ?? c, ...(r?.meta.hero ? hero(c) : { portrait: portraitOf(c === 'warrior' ? `base/${r?.meta.gender ?? 'male'}` : `${c}/${c}_default`) }), you: false };
+    return { name: r?.meta.name ?? this.nameOf(id), cls: CLASS_NAMES[c] ?? c, ...(r?.meta.hero ? hero(c) : { portrait: this.face3d(c, r?.meta.gender === 'female') ?? portraitOf(c === 'warrior' ? `base/${r?.meta.gender ?? 'male'}` : `${c}/${c}_default`) }), you: false };
   }
+  /** The 3D heroes: a fighter's face is the 3D Beginner's (man / woman) with the class's weapon (none: the painted one). */
+  private face3d(cls: string, female: boolean): PortraitRef | undefined { return HERO3D.on ? portrait3d(cls, female) : undefined; }
 
   private showResult(m: Match): void {
     const me = this.localId, left = m.sideOf(me) === 'l';
@@ -5079,7 +5150,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     return {
       mode: pvp ? 'pvp' : 'pve',
       player: {
-        id: pvp?.meta.playerId ?? ch.id, name: ch.name, level: ch.level, portrait: ch.hero ? heroPortrait(this.cls) : portraitOf(previewKeyOf(ch)),
+        id: pvp?.meta.playerId ?? ch.id, name: ch.name, level: ch.level, portrait: this.face3d(this.cls, genderOf(ch) === 'female') ?? (ch.hero ? heroPortrait(this.cls) : portraitOf(previewKeyOf(ch))),
         hp: this.playerHP, maxHp: this.maxHpNow(), resource: this.arena ? null : { kind: 'mp', value: Math.round(this.mp), max: this.maxMpNow() }, effects: [...this.buffEffects(), ...this.statusEffects(this.body, now)],
         exp: Number.isFinite(expToNext(ch.level)) ? { value: ch.exp ?? 0, max: expToNext(ch.level) } : undefined,
         job: pvp ? undefined : this.jobTitle(), gold: pvp ? undefined : this.gold,
@@ -5131,7 +5202,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.dummy && this.dummyState?.alive) consider(Math.hypot(D.x - k.x, D.y - k.y), { id: 'dummy', name: 'Training Dummy', type: 'Training Target', hp: this.dummyState.hp, maxHp: D.maxHp, effects: [], ...combat(this.dummyState.body, this.dummyState.kin.z) });
     const bt = this.bot;
     if (bt) consider(Math.hypot(bt.x - k.x, bt.y - k.y), {
-      id: BOT_ID, name: this.botName(), type: bt.trial ? 'Master · Job Trial' : 'NPC · PvP sparring', portrait: !bt.trial && this.botHero() ? heroPortrait(this.botCls) : portraitOf((bt.trial ? bt.cls : this.botCls) === 'warrior' ? 'base/male' : `${bt.trial ? bt.cls : this.botCls}/${bt.trial ? bt.cls : this.botCls}_default`), hp: bt.hp, maxHp: bt.trial ? TRIAL_HP : PVP.maxHp,
+      id: BOT_ID, name: this.botName(), type: bt.trial ? 'Master · Job Trial' : 'NPC · PvP sparring', portrait: this.face3d(bt.cls, bt.cls === 'archer') ?? (!bt.trial && this.botHero() ? heroPortrait(this.botCls) : portraitOf((bt.trial ? bt.cls : this.botCls) === 'warrior' ? 'base/male' : `${bt.trial ? bt.cls : this.botCls}/${bt.trial ? bt.cls : this.botCls}_default`)), hp: bt.hp, maxHp: bt.trial ? TRIAL_HP : PVP.maxHp,
       effects: this.statusEffects(bt.body, now), ...combat(bt.body, bt.kin.z),
     });
     for (const r of this.pvp?.remotes.values() ?? []) {
@@ -5141,7 +5212,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (r.mode === 'down' || r.mode === 'getup') eff.push({ id: 'kd', label: 'Knocked down', iconUrl: 'assets/final/ui/hud/status_knockdown.png', harmful: true });
       consider(Math.hypot(r.x - k.x, r.y - k.y), {
         id: r.meta.playerId, name: r.meta.name, type: `Player · ${CLASS_NAMES[r.meta.classId] ?? r.meta.classId}`,
-        portrait: r.meta.hero ? heroPortrait(r.meta.classId) : portraitOf(r.meta.classId === 'warrior' ? `base/${r.meta.gender ?? 'male'}` : `${r.meta.classId}/${r.meta.classId}_default`), hp: r.hp, maxHp: r.maxHp, effects: eff,
+        portrait: this.face3d(r.meta.classId, r.meta.gender === 'female') ?? (r.meta.hero ? heroPortrait(r.meta.classId) : portraitOf(r.meta.classId === 'warrior' ? `base/${r.meta.gender ?? 'male'}` : `${r.meta.classId}/${r.meta.classId}_default`)), hp: r.hp, maxHp: r.maxHp, effects: eff,
       });
     }
     return best;

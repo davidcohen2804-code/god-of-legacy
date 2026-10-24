@@ -504,7 +504,7 @@ export class PvpSelectUI {
   private flashArt(s: 'l' | 'r'): void {
     const cls = s === 'l' ? (this.p1.pick === null ? null : ROSTER[this.p1.pick]) : this.local ? (this.p2.pick === null ? null : ROSTER[this.p2.pick]) : this.remote?.pick ?? null;
     Sound.lockIn(cls ?? undefined); this.h.lock(s);
-    warmClip(cls ?? undefined, 'vs'); warmClip(cls ?? undefined, 'win'); // (its entrance and victory clips on their way before the VS screen)
+    if (cls && !heroArt(cls)?.still) { warmClip(cls, 'vs'); warmClip(cls, 'win'); } // (its entrance and victory clips on their way before the VS screen; a rendered 3D hero has none)
   }
 
   private fillPlate(s: 'l' | 'r', side: string, tag: string, cls: string, name: string, locked: boolean): void {

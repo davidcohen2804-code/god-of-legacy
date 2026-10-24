@@ -48,7 +48,7 @@ export interface GambleCtx {
   freeze(ms: number): void;
   flash(color: number, alpha: number, ms: number): void;
   /** A fighter's body sprite now (its atlas frame, flip, scale): Light Staff draws along the cane in that frame. */
-  body?(id: string): { frame: string | number; flipX: boolean; sx: number; a?: number } | null;
+  body?(id: string): { frame: string | number; flipX: boolean; sx: number; a?: number; /** a 3D body: its cane as it is held (grip → end, px from the feet) */ line?: number[] } | null;
 }
 
 type Step = (t: number, dt: number) => boolean;
@@ -1328,7 +1328,7 @@ export class GamblerFx {
       const c = this.ctx.casterPos(id), b = this.ctx.body?.(id);
       if (t > end || !c || !b) { all.forEach((o) => this.piece(o, 180, (u, im) => im.setAlpha(im.alpha * (1 - u)))); return false; }
       const grow = clamp01((t - T.startup * 0.4) / (T.startup * 0.8)), fade = clamp01((end - t) / 400);
-      const line = C[String(b.frame)] ?? last; if (C[String(b.frame)]) last = C[String(b.frame)]!;
+      const line = b.line ?? C[String(b.frame)] ?? last; if (!b.line && C[String(b.frame)]) last = C[String(b.frame)]!; // (a 3D body: its own cane's line)
       if (!line || (b.a ?? 1) < 0.1) { all.forEach((o) => o.setVisible(false)); return true; }
       const f = b.flipX ? -1 : 1, k = b.sx, fx = c.x, fy = c.y - c.z;
       const hx = fx + line[0] * k * f, hy = fy + line[1] * k, tx = fx + line[2] * k * f, ty = fy + line[3] * k;

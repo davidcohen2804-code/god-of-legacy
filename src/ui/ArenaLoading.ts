@@ -132,8 +132,8 @@ export function showArenaLoading(scene: Phaser.Scene, l: LoadSide, r: LoadSide, 
     if (fx) h.appendChild(fx.back);
     const img = el('img', '', el('div', a.card ? 'al-art card' : 'al-art', h));
     img.src = a.url; img.alt = ''; img.draggable = false;
-    if (!a.card) liven(img, f.cls, 'vs'); // (the painting itself moves: cloth and hair in the wind, breathing)
-    if (!a.card) playClip(img, f.cls, 'vs', 1.25); // (the hero's own entrance, ending in this very stance)
+    if (!a.card && !a.still) liven(img, f.cls, 'vs'); // (the painting itself moves: cloth and hair in the wind, breathing)
+    if (!a.card && !a.still) playClip(img, f.cls, 'vs', 1.25); // (the hero's own entrance, ending in this very stance; a rendered 3D hero has neither)
     if (fx) h.appendChild(fx.front);
   }
   el('div', 'al-seam', box);

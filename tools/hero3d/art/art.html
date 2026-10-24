@@ -1,0 +1,70 @@
+<!doctype html>
+<!-- The 3D Beginner's splash art and portraits (tools/hero3d/art/art.mjs drives this page under the Vite dev server). -->
+<html><head><meta charset="utf-8"><base href="/"><title>hero art</title>
+<style>html,body{margin:0;background:#202020}</style></head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { Hero3D } from '/src/arena3d/Hero3D.ts';
+
+const heroes = {};
+const hero = async (female) => (heroes[female ? 'f' : 'm'] ??= await Hero3D.load({ female }));
+
+/** One picture of the Beginner: `w`×`h`, transparent, the figure (and its weapon) framed whole with `pad`, seen from a
+ *  little below; returns the PNG and where the head is (px) for the portrait's square. */
+window.shot = async (o) => {
+  const { female = false, weapon = 'sword', clip = 'Sword_Idle', t = 0.3, yaw = 0.75, w = 1024, h = 1536, pad = 0.04, camY = 0.62, fov = 20, rim = 0x9fc4ff } = o;
+  const H = await hero(female);
+  H.setWeapon(weapon);
+  H.pose(clip, t, yaw);
+  H.root.updateMatrixWorld(true);
+  const sc = new THREE.Scene();
+  sc.add(H.root);
+  sc.add(new THREE.HemisphereLight(0xfff1e2, 0x2a2018, 1.15));
+  const key = new THREE.DirectionalLight(0xffe0bc, 2.4); key.position.set(-2.4, 3.4, 3.2); sc.add(key);
+  const rl = new THREE.DirectionalLight(rim, 2.2); rl.position.set(2.8, 2.2, -2.6); sc.add(rl);
+  const rl2 = new THREE.DirectionalLight(rim, 1.2); rl2.position.set(-3, 1.5, -2.5); sc.add(rl2);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.45); fill.position.set(2, 0.8, 3); sc.add(fill);
+  // the frame: the same scale for every picture (the body standing tall = `tall` of the height, the feet at `foot`),
+  // centred on the body, drawn a little toward its weapon
+  const all = new THREE.Box3(), body = new THREE.Box3();
+  H.root.traverse((m) => { if ((m.isMesh || m.isSkinnedMesh) && m.visible && m.renderOrder !== 5 && !m.isLine) { let v = true; for (let p = m; p; p = p.parent) if (!p.visible) v = false; if (v) { all.expandByObject(m, true); if (m.isSkinnedMesh) body.expandByObject(m, true); } } });
+  const { tall = 0.62, foot = 0.95, stand = 1.3 } = o;
+  const cam = new THREE.PerspectiveCamera(fov, w / h, 0.05, 100);
+  const fy = THREE.MathUtils.degToRad(fov) / 2, D = stand / (2 * tall * Math.tan(fy)), vis = 2 * D * Math.tan(fy), visW = vis * (w / h);
+  const bc = body.getCenter(new THREE.Vector3()), ac = all.getCenter(new THREE.Vector3());
+  const cx = bc.x + Math.max(-0.14 * visW, Math.min(0.14 * visW, ac.x - bc.x));
+  const cy = body.min.y + (foot - 0.5) * vis;
+  cam.position.set(cx, cy, bc.z + D); cam.lookAt(cx, cy, bc.z);
+  cam.updateMatrixWorld(true);
+  const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+  r.setPixelRatio(1); r.setSize(w, h, false); r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.08;
+  r.setClearColor(0x000000, 0);
+  r.render(sc, cam);
+  const png = r.domElement.toDataURL('image/png');
+  const head = new THREE.Vector3(); H.root.traverse((b) => { if (b.isBone && b.name === 'Head') b.getWorldPosition(head); });
+  const top = head.clone().add(new THREE.Vector3(0, 0.12, 0));
+  const ph = head.clone().project(cam), pt = top.clone().project(cam);
+  const at = { x: (ph.x + 1) / 2 * w, y: (1 - ph.y) / 2 * h, r: Math.abs(pt.y - ph.y) / 2 * h };
+  r.dispose(); r.forceContextLoss();
+  return { png, head: at };
+};
+/** A close look at the head (checking the face): `yaw`, unlit (`flat`: the texture as baked), w × h. */
+window.head = async (o) => {
+  const { female = false, yaw = 0, w = 512, h = 512, flat = false, size = 0.5 } = o;
+  const H = await hero(female);
+  H.pose('Idle_Loop', 0, yaw); H.root.updateMatrixWorld(true);
+  const sc = new THREE.Scene(); sc.add(H.root);
+  if (flat) sc.add(new THREE.AmbientLight(0xffffff, 3.2)); else { sc.add(new THREE.HemisphereLight(0xfff1e2, 0x2a2018, 1.4)); const k = new THREE.DirectionalLight(0xffe0bc, 2.2); k.position.set(-1, 2, 3); sc.add(k); }
+  const head = new THREE.Vector3(); H.root.traverse((b) => { if (b.isBone && b.name === 'Head') b.getWorldPosition(head); });
+  const cam = new THREE.OrthographicCamera(-size / 2, size / 2, size / 2, -size / 2, 0.05, 50);
+  cam.position.set(head.x, head.y + 0.08, head.z + 5); cam.lookAt(head.x, head.y + 0.08, head.z);
+  const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+  r.setPixelRatio(1); r.setSize(w, h, false); r.outputColorSpace = THREE.SRGBColorSpace; r.setClearColor(0x303038, 1);
+  r.render(sc, cam);
+  const png = r.domElement.toDataURL('image/png'); r.dispose(); r.forceContextLoss();
+  return { png, head: { x: head.x, y: head.y, z: head.z } };
+};
+window.ready = true;
+</script>
+</body></html>

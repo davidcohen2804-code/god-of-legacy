@@ -254,6 +254,24 @@ export class Arena3D {
     return { img, sunDir };
   }
 
+  /** A 3D scene drawn flat from the front into a small picture `out` (orthographic, `ppu` px per unit, the point `feet`
+   *  at (ox·w, oy·h)) — a 3D body's frame for the effects that copy a body (a samurai's silhouettes and phantoms, a
+   *  mirage cut in two, an archer's decoy, the eclipse's lit bodies). Drawn in a corner of the room's canvas between
+   *  pictures (the room draws over it before the next one) and copied out. */
+  private snapCam?: THREE.OrthographicCamera;
+  bodyShot(sc: THREE.Scene, feet: THREE.Vector3, out: HTMLCanvasElement, ppu: number, ox: number, oy: number): void {
+    const w = out.width, h = out.height, r = this.renderer, H = this.bgCanvas.height;
+    const cam = this.snapCam ??= new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 60);
+    cam.left = -(ox * w) / ppu; cam.right = ((1 - ox) * w) / ppu; cam.top = (oy * h) / ppu; cam.bottom = -((1 - oy) * h) / ppu;
+    cam.position.set(feet.x, feet.y, feet.z + 20); cam.lookAt(feet.x, feet.y, feet.z); cam.updateProjectionMatrix();
+    r.setRenderTarget(null);
+    r.setScissorTest(true); r.setScissor(0, H - h, w, h); r.setViewport(0, H - h, w, h);
+    r.setClearColor(0x000000, 0); r.clear();
+    r.render(sc, cam);
+    r.setScissorTest(false); r.setViewport(0, 0, this.bgCanvas.width, H);
+    const g = out.getContext('2d')!; g.clearRect(0, 0, w, h); g.drawImage(this.bgCanvas, 0, 0, w, h, 0, 0, w, h);
+  }
+
   /** The room's picture with a soft bloom, at w × h (the render's size) with `samples` of multisampling. */
   private makeComposer(w: number, h: number, samples: number): void {
     this.composer?.dispose();
@@ -597,7 +615,7 @@ export class Arena3D {
     const glow = this.glow3.children.some((o) => o.visible);
     if (glow) { this.renderer.render(this.glow3, this.camera); this.scene.textures.get('arena3d-fx').source[0].update(); }
     this.fxImg.setVisible(glow);
-    for (const l of this.extra) { l.before?.(); this.renderer.setClearColor(0x000000, 0); this.renderer.render(l.scene, this.camera); this.scene.textures.get(l.key).source[0].update(); }
+    for (const l of this.extra) { l.before?.(); if (!l.img.visible) continue; this.renderer.setClearColor(0x000000, 0); this.renderer.render(l.scene, this.camera); this.scene.textures.get(l.key).source[0].update(); } // (a layer not shown is not drawn: a body waiting in the pool, the doubles gone)
     // every world object: placed where the 3D camera sees its floor point, scaled by its depth
     const sw = this.scene.scale.width;
     const visit = (o: Placed, top: boolean) => {

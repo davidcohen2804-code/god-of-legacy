@@ -8,6 +8,10 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import type { Motion } from '../skills/ArcherMotion';
+
+export { Doubles3D } from './Doubles3D'; // (loaded with the hero: three.js stays out of the game until a 3D place opens)
 
 const DIR = 'assets/hero3d/';
 /** The Beginner, man and woman (the player's choice in the character's creation). */
@@ -61,6 +65,8 @@ const SKILL_MOVE: Record<string, string | string[]> = {
 export interface HeroDrive {
   x: number; y: number; z: number; vx: number; vy: number; grounded: boolean; vz: number;
   /** -1 left, 1 right */ face: number;
+  /** A fixed turn (radians, 0: facing the viewer) instead of the fighter's side view (the menus' pedestal). */
+  yaw?: number;
   /** the scene's body mode: idle, alert (the guard held after a blow), walk, run, air, takeoff, land, hurt, stunned, launched, down, getup, quickrise, skill, backstep, dead */
   mode: string;
   /** the cast in hand: its skill, its stage (a chain), how far in (ms), its timings */
@@ -85,6 +91,9 @@ export class Hero3D {
   private yaw = Math.PI / 2;
   /** The weapons, each in a holder on its hand's bone; one shown. */
   private weapons = new Map<WeaponId, THREE.Group>();
+  /** Each weapon's two ends along its length (its own units): below the grip (-y: a cane's ferrule) and beyond it (+y: a
+   *  blade's point, a staff's head). */
+  private armEnds = new Map<WeaponId, [number, number]>();
   /** Each fist's grip (fitGrip): where a weapon's grip sits in the hand bone, turned as the closed fist holds it. */
   private grip: Record<'r' | 'l', { q: THREE.Quaternion; p: THREE.Vector3 }> = { r: { q: new THREE.Quaternion(), p: new THREE.Vector3() }, l: { q: new THREE.Quaternion(), p: new THREE.Vector3() } };
   /** How far the weapon is held loose (standing, walking) instead of gripped for a move. */
@@ -93,12 +102,20 @@ export class Hero3D {
   private bowString: THREE.Line | null = null;
   private bowArrow: THREE.Group | null = null;
   private aimK = 0;
+  /** A hanging blade turned flat to the viewer, its point down and a little out from the leg (the menus' pedestal faces
+   *  the hero: held as in a fight, edge-on to the viewer, a sword reads as a wire). */
+  flatToView = false;
   private static tq = new THREE.Quaternion(); private static tm = new THREE.Matrix4();
   weapon: WeaponId = 'sword';
   /** The standing height it is scaled to (units): the painted heroes' 124 world px and a little hair. */
   static HEIGHT = 1.3;
 
-  private constructor() { this.root.add(this.model); this.scene.add(this.root); }
+  /** A twin (clone()): its shape, textures, weapons and moves are its source's — never disposed with it. */
+  private shared = false;
+  /** What this one made for itself (a twin's own skin material, its shadows', its bowstring's): disposed with it. */
+  private own: { dispose(): void }[] = [];
+
+  private constructor() { this.root.rotation.order = 'ZYX'; this.root.add(this.model); this.scene.add(this.root); } // (ZYX: turned to face first, then tipped in the picture's plane — a somersault, a lean)
 
   static async load(o: { female?: boolean } = {}, onProgress?: (k: number) => void): Promise<Hero3D> {
     const h = new Hero3D();
@@ -125,7 +142,7 @@ export class Hero3D {
       h.clips.set(c.name, c);
     }
     h.mixer = new THREE.AnimationMixer(h.model);
-    ids.forEach((w, i) => { const g = new THREE.Group(); g.name = 'weapon'; g.add(arms[i].scene); g.visible = false; h.bones.get(`hand_${WEAPONS[w].hand}`)?.add(g); h.weapons.set(w, g); });
+    ids.forEach((w, i) => { const bx = new THREE.Box3().setFromObject(arms[i].scene, true); h.armEnds.set(w, [bx.min.y, bx.max.y]); const g = new THREE.Group(); g.name = 'weapon'; g.add(arms[i].scene); g.visible = false; h.bones.get(`hand_${WEAPONS[w].hand}`)?.add(g); h.weapons.set(w, g); });
     h.look();
     // the size: the painted heroes' standing height, measured on the body as it stands at rest (before any move)
     h.model.updateMatrixWorld(true);
@@ -137,6 +154,39 @@ export class Hero3D {
     h.makeBowShoot(); h.makeBowString();
     h.model.scale.setScalar(Hero3D.HEIGHT / tall);
     h.setWeapon('sword');
+    return h;
+  }
+
+  /** A twin of this body (Kagemusha's doubles): the same shape, textures, weapons and moves — nothing loaded or decoded
+   *  again — on a skeleton of its own, doing its own move with its own weapon in hand; its skin's colour wash its own.
+   *  Its root can be put into any scene (it is drawn where it is put). */
+  clone(): Hero3D {
+    const h = new Hero3D(); h.shared = true;
+    // the shadows stay out of the copy (it lays its own: makeShadow)
+    const tw = this.shadows.map(([, t]) => { const p = t.parent!; p.remove(t); return [p, t] as const; });
+    const m = cloneSkinned(this.model) as THREE.Group;
+    const A: THREE.Object3D[] = [], B: THREE.Object3D[] = [];
+    this.model.traverse((o) => A.push(o)); m.traverse((o) => B.push(o));
+    for (const [p, t] of tw) p.add(t);
+    const twin = <T extends THREE.Object3D>(o: T): T => B[A.indexOf(o)] as T;
+    h.root.remove(h.model); h.model = m; h.root.add(m);
+    for (const [n, b] of this.bones) h.bones.set(n, twin(b));
+    if (this.body) {
+      h.body = twin(this.body);
+      const mt = (this.body.material as THREE.MeshStandardMaterial).clone(); mt.emissive.setRGB(0, 0, 0); h.body.material = mt; h.own.push(mt);
+    }
+    for (const [w, g] of this.weapons) h.weapons.set(w, twin(g));
+    h.armEnds = this.armEnds;
+    if (this.bowString) {
+      const s = twin(this.bowString); s.geometry = s.geometry.clone(); h.own.push(s.geometry);
+      s.userData = { tips: (this.bowString.userData.tips as THREE.Vector3[]).map((v) => v.clone()) }; h.bowString = s;
+    }
+    if (this.bowArrow) h.bowArrow = twin(this.bowArrow);
+    h.clips = this.clips;
+    h.grip = { r: { q: this.grip.r.q.clone(), p: this.grip.r.p.clone() }, l: { q: this.grip.l.q.clone(), p: this.grip.l.p.clone() } };
+    h.mixer = new THREE.AnimationMixer(h.model);
+    h.flatToView = this.flatToView;
+    h.setWeapon(this.weapon);
     return h;
   }
 
@@ -248,6 +298,7 @@ export class Hero3D {
    *  drawn again flattened onto the floor along the light, dark and see-through, each floor pixel once (a stencil). */
   makeShadow(sunDir: THREE.Vector3): void {
     const mat = new THREE.MeshBasicMaterial({ color: 0x160a10, transparent: true, opacity: 0.24, depthWrite: false }); // (as faint as the painted bodies' sun shadows)
+    this.own.push(mat);
     mat.stencilWrite = true; mat.stencilRef = 0; mat.stencilFunc = THREE.EqualStencilFunc; mat.stencilZPass = THREE.IncrementStencilOp;
     const uSun = { value: sunDir };
     mat.onBeforeCompile = (sh) => {
@@ -297,7 +348,7 @@ export class Hero3D {
         const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
         if (src.geometry.index) geo.setIndex(new THREE.BufferAttribute((src.geometry.index.array as Uint32Array).slice(), 1));
         const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-        m.frustumCulled = false; m.renderOrder = 4; this.scene.add(m); g = { m, t: 1 }; this.ghosts.push(g);
+        m.frustumCulled = false; m.renderOrder = 4; (this.root.parent ?? this.scene).add(m); g = { m, t: 1 }; this.ghosts.push(g); this.own.push(geo, m.material as THREE.Material); // (in the scene the body is drawn in)
       }
     }
     const out = (g.m.geometry.attributes.position as THREE.BufferAttribute), v = Hero3D.tv;
@@ -307,6 +358,36 @@ export class Hero3D {
     (g.m.material as THREE.MeshBasicMaterial).color.setHex(tint);
     g.t = 0; g.m.visible = true;
   }
+  /** The body as it stands this moment, drawn flat into `out` (its shadow and afterimages left out) — a frame for the
+   *  effects that copy a body (Arena3D.bodyShot). */
+  snapshot(a3: { bodyShot(sc: THREE.Scene, feet: THREE.Vector3, out: HTMLCanvasElement, ppu: number, ox: number, oy: number): void }, out: HTMLCanvasElement, ppu: number, ox: number, oy: number): void {
+    const hide = [...this.shadows.map(([, t]) => t), ...this.ghosts.map((g) => g.m)].filter((o) => o.visible);
+    for (const o of hide) o.visible = false;
+    this.root.updateMatrixWorld(true);
+    a3.bodyShot(this.scene, this.root.position, out, ppu, ox, oy);
+    for (const o of hide) o.visible = true;
+  }
+
+  /** The weapon in hand as a line, its grip → an end (px from the feet: x along the picture, y down): `beyond` the grip
+   *  (a sword's point: Radiant Blade's light) or below it (the cane's shaft: the gambler's Light Staff). */
+  weaponLine(beyond = false): number[] | null {
+    const g = this.weapons.get(this.weapon), e = this.armEnds.get(this.weapon); if (!g || !e) return null;
+    g.updateWorldMatrix(true, false);
+    const a = new THREE.Vector3().applyMatrix4(g.matrixWorld), t = new THREE.Vector3(0, beyond ? e[1] : e[0], 0).applyMatrix4(g.matrixWorld), r = this.root.position;
+    return [(a.x - r.x) * 100, -(a.y - r.y) * 100, (t.x - r.x) * 100, -(t.y - r.y) * 100];
+  }
+
+  /** Where its eyes are (px from the feet: x along the picture, y down) — War Cry's and Radiant Blade's glowing eyes. */
+  eyePoint(): [number, number] | null {
+    const hd = this.bones.get('Head'); if (!hd) return null;
+    hd.updateWorldMatrix(true, false);
+    const p = hd.getWorldPosition(new THREE.Vector3()), k = this.model.scale.x, r = this.root.position;
+    p.y += 0.095 * k; p.x += Math.sin(this.yaw) * 0.075 * k; p.z += Math.cos(this.yaw) * 0.075 * k; // (above the neck joint, at the face)
+    return [(p.x - r.x) * 100, -(p.y - r.y) * 100];
+  }
+
+  /** No afterimages left (the body goes away for a while: the next time it shows, none of the last ones linger). */
+  clearGhosts(): void { for (const g of this.ghosts) { g.t = 1; g.m.visible = false; } }
   private fadeGhosts(ms: number): void {
     for (const g of this.ghosts) { if (g.t >= 1) { g.m.visible = false; continue; } g.t = Math.min(1, g.t + ms / 260); const k = 1 - g.t; (g.m.material as THREE.MeshBasicMaterial).opacity = 0.42 * k * k; }
   }
@@ -315,6 +396,7 @@ export class Hero3D {
   /** Take an item in hand (the Beginner's weapons): that one shown, gripped by its hand. */
   setWeapon(id: WeaponId): void {
     this.weapon = id;
+    if (this.bowArrow) this.bowArrow.visible = false; // (no arrow left nocked when the bow is put away)
     for (const [w, g] of this.weapons) {
       g.visible = w === id; if (w !== id) continue;
       const gp = this.grip[WEAPONS[w].hand]; g.position.copy(gp.p); g.quaternion.copy(gp.q); g.scale.set(WEAPONS[w].girth, 1, WEAPONS[w].girth);
@@ -341,18 +423,18 @@ export class Hero3D {
     const U = 100;
     this.root.position.set(d.x / U, d.z / U, (d.y / U) * 1.15);
     // side view, turned a little to the camera (a fighter's three-quarter); a turn eases round
-    const want = d.face >= 0 ? Math.PI / 2 - 0.42 : -Math.PI / 2 + 0.42;
-    this.yaw += (want - this.yaw) * Math.min(1, ms / 70);
-    this.root.rotation.y = this.yaw;
+    if (d.yaw !== undefined) this.yaw = d.yaw;
+    else { const want = d.face >= 0 ? Math.PI / 2 - 0.42 : -Math.PI / 2 + 0.42; this.yaw += (want - this.yaw) * Math.min(1, ms / 70); }
+    this.root.rotation.set(0, this.yaw, 0); this.root.scale.set(1, 1, 1); // (motion() tips and stretches it after)
     const sp = Math.hypot(d.vx, d.vy), k = this.model.scale.x;
     const c = d.cast;
     if (d.mode === 'skill' && c) {
       const key = `${c.id}:${c.stage}:${Math.round(c.startup)}`;
       if (key !== this.castKey) {
         this.castKey = key;
-        const clip = this.attackClip(c), len = this.clipLength(clip), lock = Math.max(150, c.startup + c.active + c.recovery);
-        this.play(clip, { once: true, restart: true, fade: 0.06, speed: Math.min(3, Math.max(0.6, (len * 1000 * this.hitShare(clip)) / Math.max(60, c.startup + c.active * 0.5))) * 1 });
-        void lock;
+        const clip = this.attackClip(c), len = this.clipLength(clip), speed = Math.min(3, Math.max(0.6, (len * 1000 * this.hitShare(clip)) / Math.max(60, c.startup + c.active * 0.5)));
+        this.play(clip, { once: true, restart: true, fade: 0.06, speed });
+        if (c.elapsed > 0 && this.action) this.action.time = Math.min(len * 0.98, (c.elapsed / 1000) * speed); // (a cast seen late — another player's, a double joining his swing — picks up where it is)
       }
     } else {
       this.castKey = '';
@@ -378,6 +460,31 @@ export class Hero3D {
     for (const [m, t] of this.shadows) t.visible = this.shown(m);
   }
 
+  /** Held still in a move, `t` seconds in, turned `yaw` (0: facing the viewer) — the splash art's and the portraits'
+   *  poses (tools/hero3d/art). */
+  pose(clip: string, t: number, yaw: number): void {
+    this.play(clip, { fade: 0, restart: true, once: true });
+    if (this.action) this.action.time = Math.min(t, this.clipLength(clip) * 0.99);
+    this.yaw = yaw; this.root.position.set(0, 0, 0); this.root.rotation.set(0, yaw, 0); this.root.scale.set(1, 1, 1);
+    this.mixer.update(0);
+    this.root.updateMatrixWorld(true); // (the hands where the move has them: the bowstring is drawn to them)
+    this.hold(1000); // (the weapon settled at once)
+    this.root.updateMatrixWorld(true);
+  }
+
+  /** The painted bodies' motion layer laid on this one (after drive): the recoil and the lean of a shot, a leap's arc,
+   *  a somersault turned round a point above the feet in the picture's plane, a spin (facing the other way), a squash —
+   *  the same numbers every client draws the painted body by (ArcherMotion, SamuraiMotion). */
+  motion(m: Motion | null): void {
+    if (!m) return;
+    const r = this.root, U = 100;
+    r.position.x += m.dx / U; r.position.y -= m.dy / U;
+    if (m.flip) r.rotation.y = -this.yaw; // (a spin seen from the side: the other way, still three-quarter to the viewer)
+    const th = -(m.ang * Math.PI) / 180; // (the picture's clockwise is the 3D's negative turn about the axis toward the viewer)
+    if (th) { const h = m.pivot / U; r.position.x += h * Math.sin(th); r.position.y += h - h * Math.cos(th); r.rotation.z = th; }
+    if (m.sx !== 1 || m.sy !== 1) r.scale.set(1, m.sy, m.sx); // (the body faces along x: its length on screen is its local z)
+  }
+
   /** Standing or walking the weapon is held loose — a sword hangs, its point down and forward (the painted warrior's
    *  idle); a staff, the cane and the bow stand upright at the side — and in a move it is gripped as the move holds it. */
   private hold(ms: number): void {
@@ -390,8 +497,9 @@ export class Hero3D {
     if (!hand || this.looseK < 0.002) { g.quaternion.copy(grip.q); return; }
     hand.updateWorldMatrix(true, false);
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
-    const y = W.loose === 'hang' ? new THREE.Vector3(fx * 0.5, -0.86, fz * 0.5).normalize() : new THREE.Vector3(fx * 0.12, 1, fz * 0.12).normalize();
-    const x = W.loose === 'hang' || W.hand === 'r' ? new THREE.Vector3(fx, 0, fz) : new THREE.Vector3(-fx, 0, -fz); x.addScaledVector(y, -x.dot(y)).normalize();
+    const side = W.hand === 'r' ? 1 : -1, rx = -fz * side, rz = fx * side; // (the holding hand's side, outward)
+    const y = W.loose === 'hang' ? (this.flatToView ? new THREE.Vector3(rx * 0.3 + fx * 0.12, -0.95, rz * 0.3 + fz * 0.12) : new THREE.Vector3(fx * 0.5, -0.86, fz * 0.5)).normalize() : new THREE.Vector3(fx * 0.12, 1, fz * 0.12).normalize();
+    const x = W.loose === 'hang' && this.flatToView ? new THREE.Vector3(rx, 0, rz) : W.loose === 'hang' || W.hand === 'r' ? new THREE.Vector3(fx, 0, fz) : new THREE.Vector3(-fx, 0, -fz); x.addScaledVector(y, -x.dot(y)).normalize();
     const z = new THREE.Vector3().crossVectors(x, y);
     const want = Hero3D.tq.setFromRotationMatrix(Hero3D.tm.makeBasis(x, y, z));
     const held = hand.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(want);
@@ -405,7 +513,16 @@ export class Hero3D {
     const t = shooting ? this.action!.time : 0;
     this.aimK += ((shooting ? 1 : 0) - this.aimK) * Math.min(1, ms / 90);
     const S = this.bowString, A = this.bowArrow, hand = this.bones.get('hand_l'), rh = this.bones.get('hand_r');
-    const drawn = shooting && t > 0.12 && t < 0.62;
+    const drawn = shooting && t > 0.12 && t < 0.62, aiming = this.aimK >= 0.002 && !!hand;
+    if (aiming) { // upright, its string toward the archer, held as it stood (the draw never passes through the fist's own turn)
+      hand!.updateWorldMatrix(true, false);
+      const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
+      const y = new THREE.Vector3(0, 1, 0), x = new THREE.Vector3(-fx, 0, -fz), z = new THREE.Vector3().crossVectors(x, y);
+      const want = Hero3D.tq.setFromRotationMatrix(Hero3D.tm.makeBasis(x, y, z));
+      g.quaternion.copy(hand!.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(want));
+      g.updateMatrixWorld(true); // (the string's hand point is taken in the bow as it is held now)
+    }
+    rh?.updateWorldMatrix(true, false);
     if (S) {
       const pos = S.geometry.attributes.position as THREE.BufferAttribute, tips = S.userData.tips as THREE.Vector3[];
       const mid = tips[0].clone().lerp(tips[1], 0.5);
@@ -420,14 +537,7 @@ export class Hero3D {
         A.position.copy(from); A.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.sub(from).normalize());
       }
     }
-    if (this.aimK < 0.002 || !hand) return false;
-    hand.updateWorldMatrix(true, false);
-    const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
-    const y = new THREE.Vector3(0, 1, 0), x = new THREE.Vector3(-fx, 0, -fz), z = new THREE.Vector3().crossVectors(x, y);
-    const want = Hero3D.tq.setFromRotationMatrix(Hero3D.tm.makeBasis(x, y, z));
-    const held = hand.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(want);
-    g.quaternion.copy(held); // (upright as it stood: the draw never passes through the fist's own turn)
-    return true;
+    return aiming;
   }
 
   /** Each skill one of the library's moves for the weapon in hand (stand-ins: the skills get their own moves later). */
@@ -466,6 +576,9 @@ export class Hero3D {
 
   dispose(): void {
     this.mixer?.stopAllAction();
+    for (const g of this.ghosts) g.m.removeFromParent();
+    for (const o of this.own) o.dispose();
+    if (this.shared) { this.root.removeFromParent(); return; } // (a twin: the shape, textures and weapons are its source's)
     this.root.traverse((o) => {
       const m = o as THREE.Mesh; if (!m.isMesh) return;
       m.geometry?.dispose();

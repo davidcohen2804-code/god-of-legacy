@@ -19,7 +19,7 @@ import { Sound } from '../audio/Sound';
 
 export type Side = 'l' | 'r';
 /** A hero's VS splash art (facing right) and its class colours. */
-export interface VsArt { cls?: string; url: string; w: number; h: number; color: string; glow: string; win?: string; card?: boolean }
+export interface VsArt { cls?: string; url: string; w: number; h: number; color: string; glow: string; win?: string; card?: boolean; /** a rendered picture (the 3D heroes): none of the painted art's life — its flowing cloth, its victory clip */ still?: boolean }
 export interface Fighter { name: string; cls: string; portrait?: PortraitRef; you: boolean; vs?: VsArt }
 export type RoundCall = 'ko' | 'double' | 'time' | 'draw';
 
@@ -384,7 +384,7 @@ export class BattleHUD {
   }
 
   setFighters(l: Fighter, r: Fighter): void {
-    for (const f of [l, r]) warmClip(f.vs?.cls, 'win'); // (the victory clips, ready for the result)
+    for (const f of [l, r]) if (!f.vs?.still) warmClip(f.vs?.cls, 'win'); // (the victory clips, ready for the result)
     this.prewarm([VS_EMBLEM, ...Object.keys(CALL_ART).map(callUrl), ...[l, r].flatMap((f) => (f.vs ? [f.vs.url, ...(f.vs.win ? [f.vs.win] : []), ...(f.vs.cls ? heroFxUrls(f.vs.cls) : [])] : []))]);
     for (const [s, f] of [['l', l], ['r', r]] as const) {
       const e = this.sides[s];
@@ -490,7 +490,7 @@ export class BattleHUD {
       if (fx) half.appendChild(fx.back);
       const img = this.el('img', '', this.el('div', a.card ? 'b-art card' : 'b-art', half));
       img.src = a.url; img.alt = ''; img.draggable = false;
-      if (!a.card) liven(img, a.cls, 'vs');
+      if (!a.card && !a.still) liven(img, a.cls, 'vs');
       if (fx) half.appendChild(fx.front);
       const plate = this.el('div', 'b-plate', half), nm = this.el('b', '', plate);
       nm.textContent = f.name;
@@ -573,8 +573,8 @@ export class BattleHUD {
       if (fx) art.appendChild(fx.front);
       art.style.setProperty('--c', winner.vs.color); art.style.setProperty('--g', winner.vs.glow);
       img.src = winner.vs.win ?? winner.vs.url; img.alt = ''; img.draggable = false;
-      if (!winner.vs.card) liven(img, winner.vs.cls, winner.vs.win ? 'win' : 'vs');
-      if (!winner.vs.card && winner.vs.win) playClip(img, winner.vs.cls, 'win'); // (the hero's own victory move, into this pose)
+      if (!winner.vs.card && !winner.vs.still) liven(img, winner.vs.cls, winner.vs.win ? 'win' : 'vs');
+      if (!winner.vs.card && !winner.vs.still && winner.vs.win) playClip(img, winner.vs.cls, 'win'); // (the hero's own victory move, into this pose)
     }
     const c = this.el('div', 'b-call slam', r);
     if (!this.art(c, o.title.toLowerCase(), o.title === 'DRAW' ? 211 : 230)) this.word(c, o.title, o.title === 'VICTORY' ? 'gold' : o.title === 'DEFEAT' ? 'blood' : 'steel', 168); // (DRAW at the round call's scale)

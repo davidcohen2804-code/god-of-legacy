@@ -6,7 +6,7 @@ import Phaser from 'phaser';
 import { DESIGN } from '../config/layout';
 import ATLAS from '../data/asset-manifest.json';
 import { CharacterStore } from '../characters/CharacterStore';
-import { ROSTER, fighterFor, heroCard } from '../pvp/Fighters';
+import { ROSTER, fighterFor, heroArt, heroCard } from '../pvp/Fighters';
 import { PvpLobby } from '../pvp/PvpLobby';
 import { clearPvpFromUrl, ensurePvpRoomInUrl, generateRoomId } from '../pvp/Room';
 import { PvpSelectUI, VsMode } from '../ui/PvpSelectUI';
@@ -43,7 +43,7 @@ export class PvpSelectScene extends Phaser.Scene {
     const T = ATLAS.textures;
     if (!this.textures.exists(T.map.key)) this.load.image(T.map.key, T.map.file);
     const bg = selectBg(); if (!this.textures.exists(bg.key)) this.load.image(bg.key, bg.file); // the 3D courtyard (the painted arena: the courtyard by night)
-    for (const c of ROSTER) { const hc = heroCard(c); if (hc && !this.textures.exists(`hero-card-${c}`)) this.load.image(`hero-card-${c}`, hc.file); } // the heroes' cards
+    for (const c of ROSTER) { const a = heroArt(c), file = a?.still ? a.url : heroCard(c)?.file; if (file && !this.textures.exists(`hero-card-${c}`)) this.load.image(`hero-card-${c}`, file); } // the heroes' cards (the 3D heroes: their rendered splash)
     preloadLife(this); // (the embers)
     loadMenuSound(this); // (the menu's cues; the music streams in after)
   }
