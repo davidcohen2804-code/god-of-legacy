@@ -57,6 +57,8 @@ import { AreaTitle, DialogChoice, NpcDialog } from '../ui/WorldUI';
 import { QuestState } from '../characters/CharacterTypes';
 import { PvpController } from '../pvp/PvpController';
 import { ARENA3D } from '../arena3d/flag';
+import { HERO3D } from '../arena3d/hero3dFlag';
+import type { Hero3D } from '../arena3d/Hero3D';
 import type { Arena3D, Floor } from '../arena3d/Arena3D';
 import { SamuraiPetals, PETALS } from '../skills/SamuraiPetals';
 import { SPIKES, WarriorSpikes } from '../skills/WarriorSpikes';
@@ -545,6 +547,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private camAir = 0;
   /** PVP 3D: the room and its camera (null: the painted arena). */
   private a3d: Arena3D | null = null;
+  /** The 3D hero test (?hero3d=1): the player's body as a 3D hero in the room, its picture sorted among the bodies. */
+  private hero3d?: { h: Hero3D; img: Phaser.GameObjects.Image; ui?: HTMLElement };
   /** PVP 3D: each fighter's height and falling speed last frame (a landing's dust). */
   private a3dFall = new Map<string, { z: number; v: number }>();
   /** Counts the scene's starts (a late async load must not land in a newer run). */
@@ -749,7 +753,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
     this.rifts = []; this.riftsOf.clear(); this.riftCross = null; this.lightStaffUntil = -1; this.lightStaffOf.clear(); this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
     this.hasteUntil = -1; this.spiritUntil = -1; this.tree = null; this.storm = null; this.resolveUntil = -1; this.hasteFx = undefined; this.spiritFx = undefined; this.afterimg = undefined;
-    this.cryBody = undefined; this.cryAura = undefined; this.holyAura = undefined; this.eyes = undefined; this.beam = undefined; this.beamGlow = undefined; this.sunGlare = undefined; this.cloudSprite = undefined; // (made once, on first use: the last visit's were destroyed with its display list — War Cry's glow called setTexture on a dead sprite and the frame threw, every frame, after any return to the scene)
+    this.hero3d = undefined; this.cryBody = undefined; this.cryAura = undefined; this.holyAura = undefined; this.eyes = undefined; this.beam = undefined; this.beamGlow = undefined; this.sunGlare = undefined; this.cloudSprite = undefined; // (made once, on first use: the last visit's were destroyed with its display list — War Cry's glow called setTexture on a dead sprite and the frame threw, every frame, after any return to the scene)
     this.gHeadsUntil = -1; this.gTailsFree = false; this.gTailsUntil = -1; this.gLuckUntil = -1; this.gOverUntil = -1; this.gStreak = 0; this.fx?.gambleClear(this.localId); this.gDeck.clear(); this.gHand.clear(); this.gStuck.clear();
     this.sunUntil = -1; this.godUntil = -1; this.kage?.clear(); this.kage = undefined; this.ambushIn.clear();
     this.mageReset(); this.gates.clear(); this.levityZones = []; this.brokenLinks.clear(); this.linkGfx = undefined;
@@ -884,6 +888,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const a3 = this.a3d = new Arena3D(this, floor);
         this.arenaSnd?.use3D(a3); // (its camera places the sounds; the fight rings in the courtyard)
         this.wire3D(a3);
+        if (HERO3D.on) void this.startHero3D(a3, gen);
         this.time.delayedCall(80, () => this.tweens.add({ targets: veil, alpha: 0, duration: 420, ease: 'Sine.easeOut', onComplete: () => veil.destroy() })); // (a frame or two of the room drawn first)
       });
     } else if (AR) this.pitch = new CameraPitch(this, cam, () => ({ parts: [...this.arenaMap, ...this.occluders, ...(this.stageFx?.layerList() ?? [])], top: AR.y }), (d) => this.hud?.setPitch(d));
@@ -2007,6 +2012,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.unseen && this.dead < 0) alpha = 0.35; // the substitute: gone in ink (others see nothing; you, see-through)
     if (this.simMs < this.body.curseUntil && this.dead < 0) alpha = 0; // Paper Curse: folded into the crane (drawn by the effect) // Kagemusha: hidden among the doubles (you, a shade)
     v.render(ms, pose, k.x + jx, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
+    if (this.hero3d) this.driveHero3D(ms, alpha);
     this.renderCloudForm(ms);
     if (this.kage?.hidden && this.dead < 0) v.ring.setAlpha(0.9); // hidden among the doubles: your ring still shows you where you are (your screen only)
     if (this.cls === 'archer') { // archer body motion: lean, recoil, flips, leaps + afterimages
@@ -4069,6 +4075,58 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.bot.duel = this.vs !== 'training'; // battle mode: the knight can be knocked out (its entrance is the battle's VS); training: its HP refills
     this.bot.body.arena = true; // the same duel rules as the players
     this.refreshSparUi();
+  }
+
+  // ======================================================================= the 3D hero test (?hero3d=1)
+
+  /** The player's body as a 3D hero on a skeleton (its clothes each a piece of their own on it), in the PVP 3D room. */
+  private async startHero3D(a3: Arena3D, gen: number): Promise<void> {
+    const mod = await import('../arena3d/Hero3D');
+    const h = await mod.Hero3D.load();
+    if (gen !== this.sceneGen || !this.sys.isActive() || this.a3d !== a3) { h.dispose(); return; }
+    const { img, sunDir } = a3.addLayer('arena3d-hero', h.scene);
+    h.makeShadow(sunDir);
+    this.hero3d = { h, img };
+    this.buildOutfitUi(mod.OUTFITS);
+  }
+
+  /** Each frame: the 3D hero where the body is, doing what it does; the painted body hidden. */
+  private driveHero3D(ms: number, alpha: number): void {
+    const H = this.hero3d!, k = this.kin, run = this.rt?.ownRun;
+    this.view?.hideBody();
+    H.h.drive({
+      x: k.x, y: k.y, z: k.z, vx: k.vx, vy: k.vy, vz: k.vz, grounded: k.grounded, face: this.dir === 'left' ? -1 : 1, mode: this.dead >= 0 ? 'dead' : this.mode === 'idle' && this.simMs < this.alertUntil ? 'alert' : this.mode,
+      cast: run && this.mode === 'skill' ? { id: run.skill.id, stage: run.stage ?? 0, elapsed: run.elapsed, startup: run.timings.startup, active: run.timings.active, recovery: run.timings.recovery, dash: !!run.skill.dash, air: !k.grounded } : null,
+    }, ms);
+    H.img.setDepth(actorDepth(k.x, k.y, k.z)).setAlpha(alpha).setVisible(true);
+  }
+
+  /** The test's outfit buttons (the arena's top left, under the bars). */
+  private buildOutfitUi(outfits: Record<string, { name: string }>): void {
+    const host = this.hud?.overlay, H = this.hero3d; if (!host || !H) return;
+    if (!document.getElementById('gol-h3d-style')) {
+      const st = document.createElement('style'); st.id = 'gol-h3d-style';
+      st.textContent = `
+.gol-h3d{position:absolute;left:24px;top:168px;display:flex;flex-direction:column;gap:10px;padding:14px 16px 16px;box-sizing:border-box;pointer-events:auto;
+  background:linear-gradient(rgba(6,10,18,.84),rgba(6,10,18,.7));border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.45),inset 0 0 0 1px rgba(201,154,69,.5);font-family:${FONT_FAMILY}}
+.gol-h3d .hd{font:700 12px ${FONT_FAMILY};letter-spacing:2.5px;color:#f3d58a;text-shadow:0 1px 2px #000}
+.gol-h3d .row{display:flex;gap:8px}
+.gol-h3d button{height:34px;padding:0 14px;border-radius:7px;border:1px solid #6a5630;background:#0b121b;color:#c9b48a;font:700 12px ${FONT_FAMILY};letter-spacing:1.5px;cursor:pointer;text-shadow:0 1px 2px #000}
+.gol-h3d button:hover{border-color:#c99a45;box-shadow:0 0 10px rgba(232,178,90,.35)}
+.gol-h3d button.on{border-color:#e8b25a;background:linear-gradient(#3a2a10,#22180a);color:#ffe7a8}`;
+      document.head.appendChild(st);
+    }
+    const el = document.createElement('div'); el.className = 'gol-h3d';
+    el.innerHTML = '<div class="hd">3D HERO · OUTFIT</div><div class="row"></div>';
+    const row = el.querySelector('.row')!;
+    const refresh = () => row.querySelectorAll('button').forEach((b) => b.classList.toggle('on', (b as HTMLButtonElement).dataset.id === this.hero3d?.h.outfit));
+    for (const [id, o] of Object.entries(outfits)) {
+      const b = document.createElement('button'); b.textContent = o.name; b.dataset.id = id;
+      b.onclick = () => { this.hero3d?.h.setOutfit(id as Hero3D['outfit']); refresh(); };
+      row.appendChild(b);
+    }
+    refresh(); host.appendChild(el); H.ui = el;
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => el.remove());
   }
 
   /** Arena sparring controls: opponent class, STOP / RESUME, COMBO (it performs its combo on you). */

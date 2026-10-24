@@ -604,6 +604,12 @@ export class ActorView {
     }
   }
 
+  /** Only the painted body hidden (after render), its ring, contact shadow and name tag kept: the 3D hero test
+   *  (?hero3d=1) draws the body in 3D in its place. */
+  hideBody(): void {
+    for (const o of [this.sprite, this.weapon, this.weaponGlow, this.blade, this.bladeTop, this.blendGhost, ...Object.values(this.layers), ...Object.values(this.lookParts ?? {}), ...Object.values(this.gearParts)]) o?.setVisible(false);
+  }
+
   setVisible(v: boolean): void {
     if (!v && this.lookParts) for (const im of [...Object.values(this.lookParts), ...Object.values(this.gearParts)]) im?.setVisible(false);
     this.visible = v;

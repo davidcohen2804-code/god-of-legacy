@@ -125,6 +125,9 @@ export class Arena3D {
   /** The skills' glow in front of the fighters (Fx3D), added over the picture. */
   private glow3 = new THREE.Scene();
   private fxImg: Phaser.GameObjects.Image;
+  /** 3D layers of their own (the 3D hero test, ?hero3d=1): each drawn alone into its own picture, which is sorted
+   *  among the 2D bodies at its depth (as a painted fighter is), under the railing. */
+  private extra: { scene: THREE.Scene; key: string; img: Phaser.GameObjects.Image; before?: () => void }[] = [];
   /** The skills in the room's 3D: pillars, cracks and chunks, waves, domes, crystals, lightning, trails, slash arcs. */
   fx!: Fx3D;
   /** The blow felt on the whole picture (set by the scene: its ImpactFx). */
@@ -224,6 +227,33 @@ export class Arena3D {
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this);
   }
 
+  /** A 3D layer of its own (the 3D hero test): `sc` drawn alone each frame with the room's camera into its own picture,
+   *  sorted among the 2D bodies by the returned image's depth (set it each frame), lit like the room (its sun, sky and
+   *  the hits' lights mirrored, a soft fill from the camera's side). Returns the image and the sun's direction (world,
+   *  towards the sun) for a cast shadow. */
+  addLayer(key: string, sc: THREE.Scene): { img: Phaser.GameObjects.Image; sunDir: THREE.Vector3 } {
+    const W = this.scene.scale.width, H = this.scene.scale.height;
+    if (this.scene.textures.exists(key)) this.scene.textures.remove(key);
+    this.scene.textures.addImage(key, this.bgCanvas as unknown as HTMLImageElement);
+    const img = this.scene.add.image(0, 0, key).setOrigin(0, 0).setScrollFactor(0).setDisplaySize(W, H);
+    const sun = new THREE.DirectionalLight(), sunT = new THREE.Object3D(); sun.target = sunT;
+    const hemi = new THREE.HemisphereLight();
+    const fill = new THREE.DirectionalLight(0xffeedd, 1.1), fillT = new THREE.Object3D(); fill.target = fillT; // (a painted fighter reads lit from the front: so does this one, the low sun being behind the courtyard)
+    const pts = this.hitLights.map(() => new THREE.PointLight(0xffffff, 0, 1, 1.6));
+    sc.add(sun, sunT, hemi, fill, fillT, ...pts);
+    sc.environment = this.scene3.environment; (sc as THREE.Scene & { environmentIntensity: number }).environmentIntensity = 0.32;
+    const sunDir = new THREE.Vector3(0, 1, 0);
+    this.extra.push({ scene: sc, key, img, before: () => {
+      const R = this.room;
+      sun.color.copy(R.sun.color); sun.intensity = R.sun.intensity; sun.position.copy(R.sun.position); sunT.position.copy(R.sun.target.position); sunT.updateMatrixWorld();
+      sunDir.copy(R.sun.position).sub(R.sun.target.position).normalize();
+      hemi.color.copy(R.hemi.color); hemi.groundColor.copy(R.hemi.groundColor); hemi.intensity = R.hemi.intensity;
+      fill.position.copy(this.camera.position).add(new THREE.Vector3(-3, 4, 0)); fillT.position.copy(this.look); fillT.updateMatrixWorld(); fill.intensity = 1.1 * (1 - 0.6 * this.dimNow);
+      this.hitLights.forEach((h, i) => { const p = pts[i]; p.color.copy(h.L.color); p.intensity = h.L.intensity; p.distance = h.L.distance; p.decay = h.L.decay; p.position.copy(h.L.position); });
+    } });
+    return { img, sunDir };
+  }
+
   /** The room's picture with a soft bloom, at w × h (the render's size) with `samples` of multisampling. */
   private makeComposer(w: number, h: number, samples: number): void {
     this.composer?.dispose();
@@ -251,7 +281,7 @@ export class Arena3D {
     this.renderer.setSize(w, h, false);
     this.makeComposer(w, h, 0);
     if (Q.level === 2) this.renderer.shadowMap.enabled = false;
-    for (const [k, img] of [['arena3d-bg', this.bg], ['arena3d-fg', this.fg], ['arena3d-fx', this.fxImg]] as const) {
+    for (const [k, img] of [['arena3d-bg', this.bg], ['arena3d-fg', this.fg], ['arena3d-fx', this.fxImg], ...this.extra.map((l) => [l.key, l.img] as const)] as const) {
       this.scene.textures.remove(k); this.scene.textures.addImage(k, this.bgCanvas as unknown as HTMLImageElement); img.setTexture(k).setDisplaySize(W, H);
     }
     console.info(`[PVP 3D] lighter room (level ${Q.level}): render ${w}×${h}`);
@@ -567,6 +597,7 @@ export class Arena3D {
     const glow = this.glow3.children.some((o) => o.visible);
     if (glow) { this.renderer.render(this.glow3, this.camera); this.scene.textures.get('arena3d-fx').source[0].update(); }
     this.fxImg.setVisible(glow);
+    for (const l of this.extra) { l.before?.(); this.renderer.setClearColor(0x000000, 0); this.renderer.render(l.scene, this.camera); this.scene.textures.get(l.key).source[0].update(); }
     // every world object: placed where the 3D camera sees its floor point, scaled by its depth
     const sw = this.scene.scale.width;
     const visit = (o: Placed, top: boolean) => {
@@ -648,7 +679,8 @@ export class Arena3D {
     this.scene.events.off(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this);
     this.destroy();
     for (const img of [this.bg, this.fg, this.fxImg]) img?.destroy();
-    for (const k of ['arena3d-bg', 'arena3d-fg', 'arena3d-fx']) if (this.scene.textures.exists(k)) this.scene.textures.remove(k);
+    for (const k of ['arena3d-bg', 'arena3d-fg', 'arena3d-fx', ...this.extra.map((l) => l.key)]) if (this.scene.textures.exists(k)) this.scene.textures.remove(k);
+    for (const l of this.extra) l.img.destroy();
   }
 
   private disposed = false;
