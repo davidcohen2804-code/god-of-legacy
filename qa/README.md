@@ -1,4 +1,4 @@
-# God Of Legacy — automatic screenshots of build 599b800 (2026-10-24 14:16 UTC)
+# God Of Legacy — automatic screenshots of build a2146f5 (2026-10-24 15:25 UTC)
 
 ### 1920_01_main_menu.jpg
 ![1920_01_main_menu.jpg](1920_01_main_menu.jpg)
@@ -29,6 +29,9 @@
 
 ### 1920_09_delete_confirm.jpg
 ![1920_09_delete_confirm.jpg](1920_09_delete_confirm.jpg)
+
+### 1920_10_create_placeholder.jpg
+![1920_10_create_placeholder.jpg](1920_10_create_placeholder.jpg)
 
 ### 1920_11_qa_panel.jpg
 ![1920_11_qa_panel.jpg](1920_11_qa_panel.jpg)
@@ -62,6 +65,9 @@
 
 ### 1280_09_delete_confirm.jpg
 ![1280_09_delete_confirm.jpg](1280_09_delete_confirm.jpg)
+
+### 1280_10_create_placeholder.jpg
+![1280_10_create_placeholder.jpg](1280_10_create_placeholder.jpg)
 
 ### 1280_11_qa_panel.jpg
 ![1280_11_qa_panel.jpg](1280_11_qa_panel.jpg)

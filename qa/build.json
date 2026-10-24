@@ -1,6 +1,6 @@
 {
-  "commit": "599b800",
-  "capturedAt": "2026-10-24 14:16 UTC",
+  "commit": "a2146f5",
+  "capturedAt": "2026-10-24 15:25 UTC",
   "files": [
     "1920_01_main_menu.jpg",
     "1920_02_start_hover.jpg",
@@ -12,6 +12,7 @@
     "1920_07_slot_selected.jpg",
     "1920_08_character_filled_QA_data.jpg",
     "1920_09_delete_confirm.jpg",
+    "1920_10_create_placeholder.jpg",
     "1920_11_qa_panel.jpg",
     "1280_01_main_menu.jpg",
     "1280_02_start_hover.jpg",
@@ -23,6 +24,7 @@
     "1280_07_slot_selected.jpg",
     "1280_08_character_filled_QA_data.jpg",
     "1280_09_delete_confirm.jpg",
+    "1280_10_create_placeholder.jpg",
     "1280_11_qa_panel.jpg"
   ]
 }
