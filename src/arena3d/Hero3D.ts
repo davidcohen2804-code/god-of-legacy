@@ -45,7 +45,7 @@ const SKILL_MOVE: Record<string, string | string[]> = {
   // book mage
   arcane_bolt: 'Spell_Simple_Shoot', arcane_wave: 'Spell_Simple_Shoot', binding_rune: 'Spell_Simple_Shoot', astral_burst: 'Spell_Simple_Shoot', frost_nova: 'Sword_Attack',
   lightning_chain: 'Spell_Simple_Shoot', storm_field: 'Idle_Shield_Break', time_collapse: 'Spell_Simple_Shoot', blink: 'NinjaJump_Start', glacial_spikes: 'Sword_Attack', levity_field: 'Idle_Shield_Break',
-  origami_flock: 'OverhandThrow', arcane_ward: 'Sword_Block', paper_curse: 'Spell_Simple_Shoot', elemental_ascension: 'Idle_Shield_Break', rift_gates: 'Spell_Simple_Shoot', tempest_ride: 'Sword_Dash_RM',
+  origami_flock: 'OverhandThrow', arcane_ward: 'Sword_Block', paper_curse: 'Spell_Simple_Shoot', elemental_ascension: 'Idle_Shield_Break', rift_gates: 'Spell_Simple_Shoot', tempest_ride: 'NinjaJump_Idle_Loop',
   // archer
   quick_shot: 'Bow_Shoot', rising_arrow: 'Bow_Shoot', bow_haste: 'Roll', multi_shot: 'Bow_Shoot', explosive_arrow: 'Bow_Shoot', backstep_shot: 'Bow_Shoot', retreat_kick: 'Punch_Cross',
   vine_trap: 'Fixing_Kneeling', skyhunters_step: 'Bow_Shoot', rain_of_arrows: 'Bow_Shoot', piercing_arrow: 'Bow_Shoot', hunters_roar: 'Idle_Shield_Break', leaping_arrow: 'Bow_Shoot',
@@ -60,6 +60,10 @@ const SKILL_MOVE: Record<string, string | string[]> = {
   rotor_staff: 'Sword_Regular_Combo', showdown: 'OverhandThrow', coin_flip: 'OverhandThrow', roulette_wheel: 'Spell_Simple_Shoot', dice_bomb: 'OverhandThrow', light_staff: 'Idle_Shield_Break',
   ace_in_the_hole: 'OverhandThrow', long_guard: 'Sword_Block', grand_slam: 'Sword_Regular_C', staff_flurry: 'Sword_Regular_Combo', card_swap: 'OverhandThrow', call_the_deck: 'Spell_Simple_Shoot',
 };
+
+/** The skills whose body turns round and round through its active part (turns a second): Whirlwind's six heavy turns,
+ *  Tornado Blade's whirl in the air, the mage riding his tornado. */
+const SPIN: Record<string, number> = { whirlwind: 1000 / 260, tornado_blade: 3 / 0.33, tempest_ride: 1.4 };
 
 /** What the body is doing (the scene's own state, read each frame). */
 export interface HeroDrive {
@@ -102,6 +106,8 @@ export class Hero3D {
   private bowString: THREE.Line | null = null;
   private bowArrow: THREE.Group | null = null;
   private aimK = 0;
+  /** Turning round in a spinning skill this frame (its painted spin, a flip, is then left out). */
+  private spinning = false;
   /** A hanging blade turned flat to the viewer, its point down and a little out from the leg (the menus' pedestal faces
    *  the hero: held as in a fight, edge-on to the viewer, a sword reads as a wire). */
   flatToView = false;
@@ -428,13 +434,24 @@ export class Hero3D {
     this.root.rotation.set(0, this.yaw, 0); this.root.scale.set(1, 1, 1); // (motion() tips and stretches it after)
     const sp = Math.hypot(d.vx, d.vy), k = this.model.scale.x;
     const c = d.cast;
+    this.spinning = false;
+    if (d.mode === 'skill' && c && SPIN[c.id]) { // (round and round through the active part, the way it faces)
+      const t = c.elapsed - c.startup;
+      if (t > 0 && t < c.active) { this.root.rotation.y = this.yaw + (d.face >= 0 ? 1 : -1) * Math.PI * 2 * SPIN[c.id] * (t / 1000); this.spinning = true; }
+    }
     if (d.mode === 'skill' && c) {
       const key = `${c.id}:${c.stage}:${Math.round(c.startup)}`;
       if (key !== this.castKey) {
         this.castKey = key;
         const clip = this.attackClip(c), len = this.clipLength(clip), speed = Math.min(3, Math.max(0.6, (len * 1000 * this.hitShare(clip)) / Math.max(60, c.startup + c.active * 0.5)));
-        this.play(clip, { once: true, restart: true, fade: 0.06, speed });
+        this.play(clip, { once: !/_Loop$/.test(clip), restart: true, fade: 0.06, speed }); // (a loop — riding a tornado — goes on as long as the skill)
         if (c.elapsed > 0 && this.action) this.action.time = Math.min(len * 0.98, (c.elapsed / 1000) * speed); // (a cast seen late — another player's, a double joining his swing — picks up where it is)
+      } else if (this.action && !this.action.isRunning() && c.elapsed < c.startup + c.active + c.recovery - 150) {
+        // the move is over and the skill goes on (a channel, a stance, a volley of arrows): never a statue — another draw
+        // for a volley, else the ready stance it holds (a spell's, the guard's)
+        const rest = c.startup + c.active + c.recovery - c.elapsed, again = this.clipNow === 'Bow_Shoot' && rest > 700;
+        const next = again ? 'Bow_Shoot' : this.weapon === 'staff' || this.clipNow.startsWith('Spell_') ? 'Spell_Simple_Idle_Loop' : this.weapon === 'bow' ? 'Idle_Loop' : 'Sword_Idle';
+        this.play(next, again ? { once: true, restart: true, fade: 0.1, speed: 1.2 } : { fade: 0.25 });
       }
     } else {
       this.castKey = '';
@@ -479,7 +496,7 @@ export class Hero3D {
     if (!m) return;
     const r = this.root, U = 100;
     r.position.x += m.dx / U; r.position.y -= m.dy / U;
-    if (m.flip) r.rotation.y = -this.yaw; // (a spin seen from the side: the other way, still three-quarter to the viewer)
+    if (m.flip && !this.spinning) r.rotation.y = -this.yaw; // (a spin seen from the side: the other way, still three-quarter to the viewer; a 3D spin turns round itself)
     const th = -(m.ang * Math.PI) / 180; // (the picture's clockwise is the 3D's negative turn about the axis toward the viewer)
     if (th) { const h = m.pivot / U; r.position.x += h * Math.sin(th); r.position.y += h - h * Math.cos(th); r.rotation.z = th; }
     if (m.sx !== 1 || m.sy !== 1) r.scale.set(1, m.sy, m.sx); // (the body faces along x: its length on screen is its local z)
