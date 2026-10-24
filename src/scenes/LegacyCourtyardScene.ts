@@ -763,7 +763,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // timers of the previous visit run on the old clock: clear every buff / passive bookkeeping value
     this.rifts = []; this.riftsOf.clear(); this.riftCross = null; this.lightStaffUntil = -1; this.lightStaffOf.clear(); this.warCryUntil = -1; this.radiantUntil = -1; this.oathUntil = -1; this.bannerUntil = -1; this.allyCryUntil = -1; this.leapUntil = -1;
     this.hasteUntil = -1; this.spiritUntil = -1; this.tree = null; this.storm = null; this.resolveUntil = -1; this.hasteFx = undefined; this.spiritFx = undefined; this.afterimg = undefined;
-    this.hero3d = undefined; this.hero3dWait = false; this.cryBody = undefined; this.cryAura = undefined; this.holyAura = undefined; this.eyes = undefined; this.beam = undefined; this.beamGlow = undefined; this.sunGlare = undefined; this.cloudSprite = undefined; // (made once, on first use: the last visit's were destroyed with its display list — War Cry's glow called setTexture on a dead sprite and the frame threw, every frame, after any return to the scene)
+    this.hero3d = undefined; this.hero3dWait = false; for (const o of this.shotsOld) if (this.textures.exists(o.key)) this.textures.remove(o.key); this.shotsOld = []; this.shots3d.clear(); this.cryBody = undefined; this.cryAura = undefined; this.holyAura = undefined; this.eyes = undefined; this.beam = undefined; this.beamGlow = undefined; this.sunGlare = undefined; this.cloudSprite = undefined; // (made once, on first use: the last visit's were destroyed with its display list — War Cry's glow called setTexture on a dead sprite and the frame threw, every frame, after any return to the scene)
     this.gHeadsUntil = -1; this.gTailsFree = false; this.gTailsUntil = -1; this.gLuckUntil = -1; this.gOverUntil = -1; this.gStreak = 0; this.fx?.gambleClear(this.localId); this.gDeck.clear(); this.gHand.clear(); this.gStuck.clear();
     this.sunUntil = -1; this.godUntil = -1; this.kage?.clear(); this.kage = undefined; this.ambushIn.clear();
     this.mageReset(); this.gates.clear(); this.levityZones = []; this.brokenLinks.clear(); this.linkGfx = undefined;
@@ -959,6 +959,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       return t ? { x: t.x, y: t.y, z: t.z, h: t.height } : null;
     };
     this.fx.bodyOf = (id) => {
+      const b3 = this.bodyShot3D(id); if (b3) return b3; // (a 3D body: its picture as it stands now)
       const sp = id === this.localId ? this.view?.sprite : id === BOT_ID ? this.bot?.view.sprite : this.pvp?.remotes.get(id)?.sprite;
       const dir = id === this.localId ? this.dir : id === BOT_ID ? this.bot?.view.dir : this.pvp?.remotes.get(id)?.dir;
       return sp ? { key: sp.texture.key, frame: sp.frame.name, flipX: sp.flipX, ox: sp.originX, oy: sp.originY, sx: Math.abs(sp.scaleX), sy: Math.abs(sp.scaleY), a: sp.visible ? sp.alpha : 0, face: dir === 'left' ? -1 : 1 } : null;
@@ -4191,6 +4192,32 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     H.h.tintBody(tint);
     H.img.setDepth(actorDepth(k.x, k.y, k.z)).setAlpha(alpha).setVisible(true);
     this.driveOthers3D(ms);
+  }
+
+  /** A 3D body's frame for the effects that copy a body (a samurai's silhouettes, phantoms and mirage, an archer's decoy,
+   *  the eclipse's lit bodies): drawn flat at most every 50 ms per fighter, each picture its own texture (an effect that
+   *  took one keeps it as it was), dropped 2 s later. Null: not a 3D body (the painted frame then). */
+  private shots3d = new Map<string, { at: number; key: string }>();
+  private shotsOld: { key: string; until: number }[] = [];
+  private shotN = 0;
+  private bodyShot3D(id: string): { key: string; frame: string | number; flipX: boolean; ox: number; oy: number; sx: number; sy: number; a?: number; face?: number } | null {
+    const H = this.hero3d; if (!H) return null;
+    let h: Hero3D | null = null, img: Phaser.GameObjects.Image | null = null, face = 1;
+    if (id === this.localId) { h = H.h; img = H.img; face = this.dir === 'left' ? -1 : 1; }
+    else {
+      const rp = id === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(id), o = rp ? H.others.find((x) => x.rp === rp) : undefined;
+      if (o && rp) { h = o.h; img = o.img; face = rp.dir === 'left' ? -1 : 1; }
+    }
+    if (!h || !img) return null;
+    const now = this.simMs; let s = this.shots3d.get(id);
+    if (!s || now - s.at >= 50 || now < s.at) {
+      const key = `body3d-shot-${++this.shotN}`, cv = document.createElement('canvas'); cv.width = 260; cv.height = 240;
+      h.snapshot(H.a3, cv, 100, 0.5, 0.88);
+      this.textures.addCanvas(key, cv);
+      s = { at: now, key }; this.shots3d.set(id, s); this.shotsOld.push({ key, until: now + 2000 });
+      while (this.shotsOld.length && (this.shotsOld[0].until < now || this.shotsOld.length > 120)) { const k = this.shotsOld.shift()!.key; if (this.textures.exists(k)) this.textures.remove(k); }
+    }
+    return { key: s.key, frame: '__BASE', flipX: false, ox: 0.5, oy: 0.88, sx: 1, sy: 1, a: img.visible ? img.alpha : 0, face };
   }
 
   /** The painted body's motion layer (a shot's recoil, a leap, a somersault, a spin, a vanishing step) on your 3D body. */

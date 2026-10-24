@@ -354,6 +354,16 @@ export class Hero3D {
     (g.m.material as THREE.MeshBasicMaterial).color.setHex(tint);
     g.t = 0; g.m.visible = true;
   }
+  /** The body as it stands this moment, drawn flat into `out` (its shadow and afterimages left out) — a frame for the
+   *  effects that copy a body (Arena3D.bodyShot). */
+  snapshot(a3: { bodyShot(sc: THREE.Scene, feet: THREE.Vector3, out: HTMLCanvasElement, ppu: number, ox: number, oy: number): void }, out: HTMLCanvasElement, ppu: number, ox: number, oy: number): void {
+    const hide = [...this.shadows.map(([, t]) => t), ...this.ghosts.map((g) => g.m)].filter((o) => o.visible);
+    for (const o of hide) o.visible = false;
+    this.root.updateMatrixWorld(true);
+    a3.bodyShot(this.scene, this.root.position, out, ppu, ox, oy);
+    for (const o of hide) o.visible = true;
+  }
+
   /** No afterimages left (the body goes away for a while: the next time it shows, none of the last ones linger). */
   clearGhosts(): void { for (const g of this.ghosts) { g.t = 1; g.m.visible = false; } }
   private fadeGhosts(ms: number): void {
@@ -364,6 +374,7 @@ export class Hero3D {
   /** Take an item in hand (the Beginner's weapons): that one shown, gripped by its hand. */
   setWeapon(id: WeaponId): void {
     this.weapon = id;
+    if (this.bowArrow) this.bowArrow.visible = false; // (no arrow left nocked when the bow is put away)
     for (const [w, g] of this.weapons) {
       g.visible = w === id; if (w !== id) continue;
       const gp = this.grip[WEAPONS[w].hand]; g.position.copy(gp.p); g.quaternion.copy(gp.q); g.scale.set(WEAPONS[w].girth, 1, WEAPONS[w].girth);
@@ -434,7 +445,9 @@ export class Hero3D {
     if (this.action) this.action.time = Math.min(t, this.clipLength(clip) * 0.99);
     this.yaw = yaw; this.root.position.set(0, 0, 0); this.root.rotation.set(0, yaw, 0); this.root.scale.set(1, 1, 1);
     this.mixer.update(0);
+    this.root.updateMatrixWorld(true); // (the hands where the move has them: the bowstring is drawn to them)
     this.hold(1000); // (the weapon settled at once)
+    this.root.updateMatrixWorld(true);
   }
 
   /** The painted bodies' motion layer laid on this one (after drive): the recoil and the lean of a shot, a leap's arc,
@@ -478,7 +491,16 @@ export class Hero3D {
     const t = shooting ? this.action!.time : 0;
     this.aimK += ((shooting ? 1 : 0) - this.aimK) * Math.min(1, ms / 90);
     const S = this.bowString, A = this.bowArrow, hand = this.bones.get('hand_l'), rh = this.bones.get('hand_r');
-    const drawn = shooting && t > 0.12 && t < 0.62;
+    const drawn = shooting && t > 0.12 && t < 0.62, aiming = this.aimK >= 0.002 && !!hand;
+    if (aiming) { // upright, its string toward the archer, held as it stood (the draw never passes through the fist's own turn)
+      hand!.updateWorldMatrix(true, false);
+      const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
+      const y = new THREE.Vector3(0, 1, 0), x = new THREE.Vector3(-fx, 0, -fz), z = new THREE.Vector3().crossVectors(x, y);
+      const want = Hero3D.tq.setFromRotationMatrix(Hero3D.tm.makeBasis(x, y, z));
+      g.quaternion.copy(hand!.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(want));
+      g.updateMatrixWorld(true); // (the string's hand point is taken in the bow as it is held now)
+    }
+    rh?.updateWorldMatrix(true, false);
     if (S) {
       const pos = S.geometry.attributes.position as THREE.BufferAttribute, tips = S.userData.tips as THREE.Vector3[];
       const mid = tips[0].clone().lerp(tips[1], 0.5);
@@ -493,14 +515,7 @@ export class Hero3D {
         A.position.copy(from); A.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.sub(from).normalize());
       }
     }
-    if (this.aimK < 0.002 || !hand) return false;
-    hand.updateWorldMatrix(true, false);
-    const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
-    const y = new THREE.Vector3(0, 1, 0), x = new THREE.Vector3(-fx, 0, -fz), z = new THREE.Vector3().crossVectors(x, y);
-    const want = Hero3D.tq.setFromRotationMatrix(Hero3D.tm.makeBasis(x, y, z));
-    const held = hand.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(want);
-    g.quaternion.copy(held); // (upright as it stood: the draw never passes through the fist's own turn)
-    return true;
+    return aiming;
   }
 
   /** Each skill one of the library's moves for the weapon in hand (stand-ins: the skills get their own moves later). */

@@ -254,6 +254,24 @@ export class Arena3D {
     return { img, sunDir };
   }
 
+  /** A 3D scene drawn flat from the front into a small picture `out` (orthographic, `ppu` px per unit, the point `feet`
+   *  at (ox·w, oy·h)) — a 3D body's frame for the effects that copy a body (a samurai's silhouettes and phantoms, a
+   *  mirage cut in two, an archer's decoy, the eclipse's lit bodies). Drawn in a corner of the room's canvas between
+   *  pictures (the room draws over it before the next one) and copied out. */
+  private snapCam?: THREE.OrthographicCamera;
+  bodyShot(sc: THREE.Scene, feet: THREE.Vector3, out: HTMLCanvasElement, ppu: number, ox: number, oy: number): void {
+    const w = out.width, h = out.height, r = this.renderer, H = this.bgCanvas.height;
+    const cam = this.snapCam ??= new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 60);
+    cam.left = -(ox * w) / ppu; cam.right = ((1 - ox) * w) / ppu; cam.top = (oy * h) / ppu; cam.bottom = -((1 - oy) * h) / ppu;
+    cam.position.set(feet.x, feet.y, feet.z + 20); cam.lookAt(feet.x, feet.y, feet.z); cam.updateProjectionMatrix();
+    r.setRenderTarget(null);
+    r.setScissorTest(true); r.setScissor(0, H - h, w, h); r.setViewport(0, H - h, w, h);
+    r.setClearColor(0x000000, 0); r.clear();
+    r.render(sc, cam);
+    r.setScissorTest(false); r.setViewport(0, 0, this.bgCanvas.width, H);
+    const g = out.getContext('2d')!; g.clearRect(0, 0, w, h); g.drawImage(this.bgCanvas, 0, 0, w, h, 0, 0, w, h);
+  }
+
   /** The room's picture with a soft bloom, at w × h (the render's size) with `samples` of multisampling. */
   private makeComposer(w: number, h: number, samples: number): void {
     this.composer?.dispose();

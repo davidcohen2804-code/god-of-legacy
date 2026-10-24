@@ -7,7 +7,10 @@ import type { PortraitRef } from '../ui/hud/HudState';
 export const ART3D = { w: 1024, h: 1536 };
 const WEAPON: Record<string, string> = { warrior: 'sword', samurai: 'katana', archer: 'bow', book_mage: 'staff', gambler: 'cane' };
 /** Each picture's face square (x, y, side; px) — tools/hero3d/art/meta.json. */
-const FACE: Record<string, [number, number, number]> = {};
+const FACE: Record<string, [number, number, number]> = {
+  m_sword: [368, 624, 192], m_katana: [433, 527, 189], m_bow: [287, 471, 187], m_staff: [395, 487, 187], m_cane: [542, 527, 184],
+  f_sword: [344, 642, 192], f_katana: [436, 547, 188], f_bow: [282, 482, 189], f_staff: [402, 504, 188], f_cane: [549, 546, 186],
+};
 
 const key = (cls: string, female: boolean) => `${female ? 'f' : 'm'}_${WEAPON[cls] ?? 'sword'}`;
 /** The ready heroes (the PvP roster, START HERO) as the painted ones were: the archer a woman, the rest men. */

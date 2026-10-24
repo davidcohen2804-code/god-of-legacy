@@ -25,15 +25,17 @@ window.shot = async (o) => {
   const rl = new THREE.DirectionalLight(rim, 2.2); rl.position.set(2.8, 2.2, -2.6); sc.add(rl);
   const rl2 = new THREE.DirectionalLight(rim, 1.2); rl2.position.set(-3, 1.5, -2.5); sc.add(rl2);
   const fill = new THREE.DirectionalLight(0xffffff, 0.45); fill.position.set(2, 0.8, 3); sc.add(fill);
-  // the frame: the posed body and its weapon, whole
-  const box = new THREE.Box3();
-  H.root.traverse((m) => { if ((m.isMesh || m.isSkinnedMesh) && m.visible && m.renderOrder !== 5 && !m.isLine) { let v = true; for (let p = m; p; p = p.parent) if (!p.visible) v = false; if (v) box.expandByObject(m, true); } });
-  const c = box.getCenter(new THREE.Vector3()), sz = box.getSize(new THREE.Vector3());
+  // the frame: the same scale for every picture (the body standing tall = `tall` of the height, the feet at `foot`),
+  // centred on the body, drawn a little toward its weapon
+  const all = new THREE.Box3(), body = new THREE.Box3();
+  H.root.traverse((m) => { if ((m.isMesh || m.isSkinnedMesh) && m.visible && m.renderOrder !== 5 && !m.isLine) { let v = true; for (let p = m; p; p = p.parent) if (!p.visible) v = false; if (v) { all.expandByObject(m, true); if (m.isSkinnedMesh) body.expandByObject(m, true); } } });
+  const { tall = 0.62, foot = 0.95, stand = 1.3 } = o;
   const cam = new THREE.PerspectiveCamera(fov, w / h, 0.05, 100);
-  const fy = THREE.MathUtils.degToRad(fov) / 2, fx = Math.atan(Math.tan(fy) * (w / h));
-  const need = Math.max((sz.y / 2) / Math.tan(fy), (Math.max(sz.x, sz.z) / 2) / Math.tan(fx)) * (1 + pad * 2) + Math.max(sz.x, sz.z) / 2;
-  cam.position.set(c.x, c.y * camY + 0.05, c.z + need); cam.lookAt(c.x, c.y, c.z);
-  // re-centre exactly: the figure's projected box in the middle of the picture
+  const fy = THREE.MathUtils.degToRad(fov) / 2, D = stand / (2 * tall * Math.tan(fy)), vis = 2 * D * Math.tan(fy), visW = vis * (w / h);
+  const bc = body.getCenter(new THREE.Vector3()), ac = all.getCenter(new THREE.Vector3());
+  const cx = bc.x + Math.max(-0.14 * visW, Math.min(0.14 * visW, ac.x - bc.x));
+  const cy = body.min.y + (foot - 0.5) * vis;
+  cam.position.set(cx, cy, bc.z + D); cam.lookAt(cx, cy, bc.z);
   cam.updateMatrixWorld(true);
   const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
   r.setPixelRatio(1); r.setSize(w, h, false); r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.08;
