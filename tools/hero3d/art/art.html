@@ -49,6 +49,22 @@ window.shot = async (o) => {
   r.dispose(); r.forceContextLoss();
   return { png, head: at };
 };
+/** A close look at the head (checking the face): `yaw`, unlit (`flat`: the texture as baked), w × h. */
+window.head = async (o) => {
+  const { female = false, yaw = 0, w = 512, h = 512, flat = false, size = 0.5 } = o;
+  const H = await hero(female);
+  H.pose('Idle_Loop', 0, yaw); H.root.updateMatrixWorld(true);
+  const sc = new THREE.Scene(); sc.add(H.root);
+  if (flat) sc.add(new THREE.AmbientLight(0xffffff, 3.2)); else { sc.add(new THREE.HemisphereLight(0xfff1e2, 0x2a2018, 1.4)); const k = new THREE.DirectionalLight(0xffe0bc, 2.2); k.position.set(-1, 2, 3); sc.add(k); }
+  const head = new THREE.Vector3(); H.root.traverse((b) => { if (b.isBone && b.name === 'Head') b.getWorldPosition(head); });
+  const cam = new THREE.OrthographicCamera(-size / 2, size / 2, size / 2, -size / 2, 0.05, 50);
+  cam.position.set(head.x, head.y + 0.08, head.z + 5); cam.lookAt(head.x, head.y + 0.08, head.z);
+  const r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+  r.setPixelRatio(1); r.setSize(w, h, false); r.outputColorSpace = THREE.SRGBColorSpace; r.setClearColor(0x303038, 1);
+  r.render(sc, cam);
+  const png = r.domElement.toDataURL('image/png'); r.dispose(); r.forceContextLoss();
+  return { png, head: { x: head.x, y: head.y, z: head.z } };
+};
 window.ready = true;
 </script>
 </body></html>
