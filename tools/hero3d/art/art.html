@@ -67,7 +67,7 @@ window.head = async (o) => {
 };
 /** A strip of frames of the hero through one cast (checking a skill's move): `n` frames every `every` ms. */
 window.castStrip = async (o) => {
-  const { female = false, weapon = 'sword', id, startup, active, recovery, stage = 0, n = 8, every = 0, w = 200, h = 260, air = false } = o;
+  const { female = false, weapon = 'sword', id, startup, active, recovery, stage = 0, n = 8, every = 0, w = 200, h = 260, air = false, vx = 0 } = o; // (vx: walking while it casts, px/s)
   const H = await hero(female); H.setWeapon(weapon);
   const sc = new THREE.Scene(); sc.add(H.root);
   sc.add(new THREE.HemisphereLight(0xfff1e2, 0x2a2018, 1.3)); const k = new THREE.DirectionalLight(0xffe0bc, 2.2); k.position.set(-2, 3, 3); sc.add(k);
@@ -75,7 +75,7 @@ window.castStrip = async (o) => {
   const cam = new THREE.PerspectiveCamera(30, w / h, 0.05, 50); cam.position.set(0, 0.75, 3.4); cam.lookAt(0, 0.7, 0);
   const r = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true }); r.setPixelRatio(1); r.setSize(w, h, false); r.outputColorSpace = THREE.SRGBColorSpace; r.setClearColor(0x34343c, 1);
   const out = []; let t = 0;
-  const drive = (ms, el) => H.drive({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, grounded: !air, face: 1, mode: 'skill', cast: { id, stage, elapsed: el, startup, active, recovery, dash: false, air } }, ms);
+  const drive = (ms, el) => H.drive({ x: 0, y: 0, z: 0, vx, vy: 0, vz: 0, grounded: !air, face: 1, mode: 'skill', cast: { id, stage, elapsed: el, startup, active, recovery, dash: false, air } }, ms);
   H.drive({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, grounded: true, face: 1, mode: 'idle', cast: null }, 300);
   for (let i = 0; i < n; i++) {
     const target = i * dt;

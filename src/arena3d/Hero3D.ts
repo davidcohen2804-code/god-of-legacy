@@ -10,6 +10,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { Motion } from '../skills/ArcherMotion';
+import { finalSkill } from '../skills/FinalKit';
 
 export { Doubles3D } from './Doubles3D'; // (loaded with the hero: three.js stays out of the game until a 3D place opens)
 
@@ -153,6 +154,13 @@ export class Hero3D {
   private aimK = 0;
   /** The aim of the shot the bow is in (radians above level): the bow tilted across the arrow. */
   private aimPitch = 0;
+  /** Walking while casting (the skills you may walk in — the bolts, the double shot, the storm field, the rotor, the
+   *  whirlwind): how far the legs walk instead of standing in the cast's stance, where in the walk they are, and the walk's
+   *  leg bones (sampled from the library's walk). */
+  private walkK = 0;
+  private walkT = 0;
+  private legs: { bone: THREE.Bone; it: THREE.Interpolant; pos: boolean }[] | null = null;
+  private static lq = new THREE.Quaternion(); private static lv = new THREE.Vector3();
   /** Turning round in a spinning skill this frame (its painted spin, a flip, is then left out). */
   private spinning = false;
   /** A hanging blade turned flat to the viewer, its point down and a little out from the leg (the menus' pedestal faces
@@ -624,9 +632,34 @@ export class Hero3D {
       }
     }
     this.mixer.update(ms / 1000);
+    // a skill you may walk in, walked: the legs walk (forward or back, as you go), the rest of the body casts
+    const sk = c ? finalSkill(c.id) ?? finalSkill(c.id.replace(/_[a-z]+$/, '')) : undefined;
+    const phase = !c ? 'startup' : c.elapsed < c.startup ? 'startup' : c.elapsed < c.startup + c.active ? 'active' : 'recovery';
+    const walking = d.mode === 'skill' && !!c && !c.dash && d.grounded && sp > 25 && (sk?.move[phase] ?? 0) > 0;
+    this.walkK += ((walking ? 1 : 0) - this.walkK) * Math.min(1, ms / 120);
+    if (this.walkK > 0.002) this.walkLegs(ms, sp, Math.abs(d.vx) > Math.abs(d.vy) * 0.5 && d.vx * d.face < 0 ? -1 : 1);
     this.hold(ms);
     this.fadeGhosts(ms);
     for (const [m, t] of this.shadows) t.visible = this.shown(m);
+  }
+
+  /** The legs walking under a cast (walkK of the way from its stance): the library's walk, its legs' turns and its hips'
+   *  height, at the walk's pace for the speed, backward when going against the way you face. */
+  private walkLegs(ms: number, sp: number, sign: number): void {
+    const walk = this.clips.get('Walk_Loop'); if (!walk) return;
+    if (!this.legs) {
+      this.legs = [];
+      for (const t of walk.tracks) {
+        const [name, prop] = t.name.split('.'), bone = this.bones.get(name);
+        if (bone && (prop === 'quaternion' && /^(thigh|calf|foot|ball)_/.test(name) || prop === 'position' && name === 'pelvis')) this.legs.push({ bone, it: t.createInterpolant(), pos: prop === 'position' });
+      }
+    }
+    const rate = Math.max(0.5, sp / ((1.25 * 100 * this.model.scale.x) / 0.72));
+    this.walkT = (((this.walkT + (sign * rate * ms) / 1000) % walk.duration) + walk.duration) % walk.duration;
+    for (const L of this.legs) {
+      const v = L.it.evaluate(this.walkT);
+      if (L.pos) L.bone.position.lerp(Hero3D.lv.fromArray(v), this.walkK); else L.bone.quaternion.slerp(Hero3D.lq.fromArray(v), this.walkK);
+    }
   }
 
   /** Held still in a move, `t` seconds in, turned `yaw` (0: facing the viewer) — the splash art's and the portraits'
