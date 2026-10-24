@@ -547,8 +547,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private camAir = 0;
   /** PVP 3D: the room and its camera (null: the painted arena). */
   private a3d: Arena3D | null = null;
-  /** The 3D hero test (?hero3d=1): the player's body as a 3D hero in the room, its picture sorted among the bodies. */
-  private hero3d?: { h: Hero3D; img: Phaser.GameObjects.Image; ui?: HTMLElement };
+  /** The 3D hero test (?hero3d=1): the player's body (and the sparring partner's) as the 3D Beginner in the room, each
+   *  its own picture sorted among the bodies. */
+  private hero3d?: { h: Hero3D; img: Phaser.GameObjects.Image; ui?: HTMLElement; a3: Arena3D; foe?: { h: Hero3D; img: Phaser.GameObjects.Image; bot: SparringBot }; foeLoading?: boolean };
   /** PVP 3D: each fighter's height and falling speed last frame (a landing's dust). */
   private a3dFall = new Map<string, { z: number; v: number }>();
   /** Counts the scene's starts (a late async load must not land in a newer run). */
@@ -4079,15 +4080,47 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   // ======================================================================= the 3D hero test (?hero3d=1)
 
-  /** The player's body as a 3D hero on a skeleton (its clothes each a piece of their own on it), in the PVP 3D room. */
+  /** The player's body as the 3D Beginner on a skeleton (its items: the classes' weapons — its class's in hand), in the
+   *  PVP 3D room. */
   private async startHero3D(a3: Arena3D, gen: number): Promise<void> {
     const mod = await import('../arena3d/Hero3D');
-    const h = await mod.Hero3D.load();
+    const h = await mod.Hero3D.load({ female: genderOf(this.character) === 'female' });
     if (gen !== this.sceneGen || !this.sys.isActive() || this.a3d !== a3) { h.dispose(); return; }
     const { img, sunDir } = a3.addLayer('arena3d-hero', h.scene);
     h.makeShadow(sunDir);
-    this.hero3d = { h, img };
-    this.buildOutfitUi(mod.OUTFITS);
+    h.setWeapon(mod.CLASS_WEAPON[this.cls] ?? 'sword');
+    this.hero3d = { h, img, a3 };
+    this.buildItemUi(mod.WEAPONS);
+  }
+
+  /** The sparring partner as the 3D Beginner too (its class's weapon in hand): loaded once, then it follows whichever
+   *  partner is in the room. */
+  private async startFoe3D(bot: SparringBot, gen: number): Promise<void> {
+    const H = this.hero3d; if (!H) return;
+    const mod = await import('../arena3d/Hero3D');
+    const h = await mod.Hero3D.load({ female: bot.cls === 'archer' }); // (as the painted classes: the archer a woman)
+    if (gen !== this.sceneGen || !this.sys.isActive() || this.hero3d !== H || this.a3d !== H.a3) { h.dispose(); return; }
+    const { img, sunDir } = H.a3.addLayer('arena3d-hero2', h.scene);
+    h.makeShadow(sunDir);
+    h.setWeapon(mod.CLASS_WEAPON[bot.cls] ?? 'sword');
+    H.foe = { h, img, bot };
+  }
+
+  /** Each frame: the partner's 3D body where its painted one would be, doing what it does; the painted one hidden. */
+  private driveFoe3D(ms: number): void {
+    const H = this.hero3d!, bot = this.bot;
+    if (!bot) { if (H.foe) H.foe.img.setVisible(false); return; }
+    if (!H.foe) { if (!H.foeLoading) { H.foeLoading = true; void this.startFoe3D(bot, this.sceneGen); } return; }
+    const F = H.foe, rp = bot.view, k = bot.kin;
+    if (F.bot !== bot) { F.bot = bot; void import('../arena3d/Hero3D').then((m) => F.h.setWeapon(m.CLASS_WEAPON[bot.cls] ?? 'sword')); }
+    rp.view.hideBody();
+    const sk = (rp as unknown as { skill: { id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number } | null }).skill;
+    const mode = rp.mode === 'recover' ? 'idle' : rp.mode;
+    F.h.drive({
+      x: rp.x, y: rp.y, z: rp.z, vx: k.vx, vy: k.vy, vz: k.vz, grounded: k.grounded, face: rp.dir === 'left' ? -1 : 1, mode: bot.defeated ? 'dead' : mode,
+      cast: sk && mode === 'skill' ? { id: sk.id, stage: sk.stage, elapsed: sk.elapsed, startup: sk.startup, active: sk.active, recovery: sk.recovery, dash: !!finalSkill(sk.id)?.dash, air: !k.grounded } : null,
+    }, ms);
+    F.img.setDepth(actorDepth(rp.x, rp.y, rp.z)).setAlpha(rp.ghost ? (Math.floor(this.simMs / 70) % 2 ? 0.4 : 0.75) : 1).setVisible(true);
   }
 
   /** Each frame: the 3D hero where the body is, doing what it does; the painted body hidden. */
@@ -4099,15 +4132,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       cast: run && this.mode === 'skill' ? { id: run.skill.id, stage: run.stage ?? 0, elapsed: run.elapsed, startup: run.timings.startup, active: run.timings.active, recovery: run.timings.recovery, dash: !!run.skill.dash, air: !k.grounded } : null,
     }, ms);
     H.img.setDepth(actorDepth(k.x, k.y, k.z)).setAlpha(alpha).setVisible(true);
+    this.driveFoe3D(ms);
   }
 
-  /** The test's outfit buttons (the arena's top left, under the bars). */
-  private buildOutfitUi(outfits: Record<string, { name: string }>): void {
+  /** The test's item buttons: the weapon in hand (the arena's top left, under the bars). */
+  private buildItemUi(items: Record<string, { name: string }>): void {
     const host = this.hud?.overlay, H = this.hero3d; if (!host || !H) return;
     if (!document.getElementById('gol-h3d-style')) {
       const st = document.createElement('style'); st.id = 'gol-h3d-style';
       st.textContent = `
-.gol-h3d{position:absolute;left:24px;top:168px;display:flex;flex-direction:column;gap:10px;padding:14px 16px 16px;box-sizing:border-box;pointer-events:auto;
+.gol-h3d{position:absolute;right:24px;top:118px;display:flex;flex-direction:column;gap:10px;padding:14px 16px 16px;box-sizing:border-box;pointer-events:auto;
   background:linear-gradient(rgba(6,10,18,.84),rgba(6,10,18,.7));border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.45),inset 0 0 0 1px rgba(201,154,69,.5);font-family:${FONT_FAMILY}}
 .gol-h3d .hd{font:700 12px ${FONT_FAMILY};letter-spacing:2.5px;color:#f3d58a;text-shadow:0 1px 2px #000}
 .gol-h3d .row{display:flex;gap:8px}
@@ -4117,12 +4151,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       document.head.appendChild(st);
     }
     const el = document.createElement('div'); el.className = 'gol-h3d';
-    el.innerHTML = '<div class="hd">3D HERO · OUTFIT</div><div class="row"></div>';
+    el.innerHTML = '<div class="hd">3D BEGINNER · ITEMS</div><div class="row"></div>';
     const row = el.querySelector('.row')!;
-    const refresh = () => row.querySelectorAll('button').forEach((b) => b.classList.toggle('on', (b as HTMLButtonElement).dataset.id === this.hero3d?.h.outfit));
-    for (const [id, o] of Object.entries(outfits)) {
+    const refresh = () => row.querySelectorAll('button').forEach((b) => b.classList.toggle('on', (b as HTMLButtonElement).dataset.id === this.hero3d?.h.weapon));
+    for (const [id, o] of Object.entries(items)) {
       const b = document.createElement('button'); b.textContent = o.name; b.dataset.id = id;
-      b.onclick = () => { this.hero3d?.h.setOutfit(id as Hero3D['outfit']); refresh(); };
+      b.onclick = () => { this.hero3d?.h.setWeapon(id as Hero3D['weapon']); refresh(); };
       row.appendChild(b);
     }
     refresh(); host.appendChild(el); H.ui = el;

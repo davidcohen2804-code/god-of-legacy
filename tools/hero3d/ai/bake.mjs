@@ -1,0 +1,12 @@
+import { chromium } from '/opt/node-tools/node_modules/playwright/index.mjs';
+import fs from 'fs';
+const [f, out, extra = ''] = process.argv.slice(2);
+const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const p = await b.newPage();
+const errs = []; p.on('pageerror', (e) => errs.push(String(e))); p.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errs.push(m.text().slice(0, 300)); });
+await p.goto(`http://localhost:4195/bake.html?f=${f}${extra}`);
+await p.waitForFunction(() => window.ready === true, null, { timeout: 600000 });
+console.log(JSON.stringify(await p.evaluate(() => window.info)));
+const png = await p.evaluate(() => window.png); fs.writeFileSync(out, Buffer.from(png.split(',')[1], 'base64'));
+if (errs.length) console.log('errors:', errs.slice(0, 5).join(' | '));
+await b.close();

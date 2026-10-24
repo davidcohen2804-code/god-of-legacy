@@ -1,0 +1,93 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body>
+<script type="importmap">{"imports":{"three":"./three/build/three.module.js","three/addons/":"./three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const q = new URLSearchParams(location.search);
+const D = q.get('dir') || ''; const SIZE = +(q.get('size') || 2048), K = +(q.get('k') || 3), TOL = +(q.get('tol') || 0.02);
+const r = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true }); r.setSize(512, 512); document.body.appendChild(r.domElement);
+const g = await new GLTFLoader().loadAsync(q.get('f'));
+let mesh; g.scene.traverse((o) => { if (o.isMesh) mesh = o; });
+const geo = mesh.geometry; geo.computeVertexNormals();
+const PA = geo.attributes.position; const P = new Float32Array(PA.count * 3); for (let i = 0; i < PA.count; i++) { P[3*i] = PA.getX(i); P[3*i+1] = PA.getY(i); P[3*i+2] = PA.getZ(i); }
+// views: camera direction d (from the camera into the scene), image horizontal axis h
+const VIEWS = [
+  { name: 'front', d: [0, 0, -1], h: [1, 0, 0], bias: 1.0 },
+  { name: 'back', d: [0, 0, 1], h: [-1, 0, 0], bias: 1.0 },
+  { name: 'left', d: [-1, 0, 0], h: [0, 0, -1], bias: +(q.get('side') || 0.8) },
+  { name: 'right', d: [1, 0, 0], h: [0, 0, 1], bias: +(q.get('side') || 0.8) },
+];
+const loadImg = (src) => new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.src = src; });
+const info = []; const BB = await (await fetch(`${D}bbox.json?` + Date.now())).json();
+for (const v of VIEWS) {
+  const im = await loadImg(`${D}v_${v.name}.png`); v.img = im;
+  // alpha bbox of the drawing
+  const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const cx = c.getContext('2d'); cx.drawImage(im, 0, 0);
+  const a = cx.getImageData(0, 0, im.width, im.height).data; let bx0 = 1e9, bx1 = -1, by0 = 1e9, by1 = -1;
+  for (let y = 0; y < im.height; y++) for (let x = 0; x < im.width; x++) if (a[(y * im.width + x) * 4 + 3] > 128) { if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y; }
+  if (BB[v.name]) [bx0, bx1, by0, by1] = BB[v.name];
+  // projected bbox of the mesh
+  let s0 = 1e9, s1 = -1e9, t0 = 1e9, t1 = -1e9;
+  for (let i = 0; i < P.length; i += 3) { const s = P[i] * v.h[0] + P[i+1] * v.h[1] + P[i+2] * v.h[2], t = P[i+1]; s0 = Math.min(s0, s); s1 = Math.max(s1, s); t0 = Math.min(t0, t); t1 = Math.max(t1, t); }
+  // image uv = A * (s, t) + B  (uv in 0..1, v down)
+  v.map = [(bx1 - bx0) / (s1 - s0) / im.width, (bx0 - s0 * (bx1 - bx0) / (s1 - s0)) / im.width, -(by1 - by0) / (t1 - t0) / im.height, (by0 + t1 * (by1 - by0) / (t1 - t0)) / im.height];
+  v.tex = new THREE.Texture(im); v.tex.flipY = false; v.tex.needsUpdate = true;
+  // depth map along d, over the mesh's projected box
+  const cam = new THREE.OrthographicCamera(s0 - 0.05, s1 + 0.05, t1 + 0.05, t0 - 0.05, 0.01, 20);
+  const dv = new THREE.Vector3(...v.d); cam.position.copy(dv.clone().multiplyScalar(-5)); cam.up.set(0, 1, 0); cam.lookAt(0, 0, 0);
+  // the camera's right axis must equal h
+  const right = new THREE.Vector3().crossVectors(dv, new THREE.Vector3(0, 1, 0));
+  info.push({ v: v.name, img: [bx0, bx1, by0, by1], mesh: [s0, s1, t0, t1].map((x) => +x.toFixed(3)), right: right.toArray().map((x) => Math.round(x)) });
+  cam.updateMatrixWorld(); cam.updateProjectionMatrix();
+  const rt = new THREE.WebGLRenderTarget(2048, 2048, { type: THREE.FloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+  const dm = new THREE.ShaderMaterial({ uniforms: { d: { value: dv } }, vertexShader: `varying vec3 wp; void main(){ wp = (modelMatrix*vec4(position,1.0)).xyz; gl_Position = projectionMatrix*viewMatrix*vec4(wp,1.0); }`, fragmentShader: `uniform vec3 d; varying vec3 wp; void main(){ gl_FragColor = vec4(dot(wp, d), 0.0, 0.0, 1.0); }`, side: THREE.DoubleSide });
+  const sc = new THREE.Scene(); const mm = new THREE.Mesh(geo, dm); sc.add(mm);
+  r.setRenderTarget(rt); r.setClearColor(0x000000, 0); r.setClearAlpha(0); r.clear(); r.setClearColor(new THREE.Color(1000, 0, 0), 1); r.clear(); r.render(sc, cam); r.setRenderTarget(null);
+  v.depth = rt.texture; v.vp = new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+}
+// the bake in uv space (colours stay in the images' own sRGB values)
+const U = { K: { value: K }, TOL: { value: TOL } };
+VIEWS.forEach((v, i) => { U['img' + i] = { value: v.tex }; U['dep' + i] = { value: v.depth }; U['vp' + i] = { value: v.vp }; U['d' + i] = { value: new THREE.Vector3(...v.d) }; U['h' + i] = { value: new THREE.Vector3(...v.h) }; U['map' + i] = { value: new THREE.Vector4(...v.map) }; U['bias' + i] = { value: v.bias }; });
+let fs = `uniform float K, TOL; varying vec3 wp; varying vec3 wn;`;
+for (let i = 0; i < 4; i++) fs += `uniform sampler2D img${i}, dep${i}; uniform mat4 vp${i}; uniform vec3 d${i}, h${i}; uniform vec4 map${i}; uniform float bias${i};`;
+fs += `
+void view(sampler2D img, sampler2D dep, mat4 vp, vec3 d, vec3 h, vec4 mp, float bias, vec3 n, inout vec4 acc, inout vec4 acc2) {
+  float f = max(dot(n, -d), 0.0);
+  vec2 uv = vec2(mp.x * dot(wp, h) + mp.y, mp.z * wp.y + mp.w);
+  vec4 c = texture2D(img, uv);
+  vec4 cl = vp * vec4(wp, 1.0); vec2 duv = cl.xy / cl.w * 0.5 + 0.5;
+  float dz = texture2D(dep, duv).r; float vis = (dot(wp, d) - dz) < TOL ? 1.0 : 0.0;
+  float w = pow(f, K) * bias * (0.08 + 0.92 * c.a);
+  acc += vec4(c.rgb * w * vis, w * vis);
+  float w2 = (pow(f, K) + 0.02) * bias; acc2 += vec4(c.rgb * w2, w2);
+}
+void main() {
+  vec3 n = normalize(wn); vec4 acc = vec4(0.0), acc2 = vec4(0.0);
+  view(img0, dep0, vp0, d0, h0, map0, bias0, n, acc, acc2);
+  view(img1, dep1, vp1, d1, h1, map1, bias1, n, acc, acc2);
+  view(img2, dep2, vp2, d2, h2, map2, bias2, n, acc, acc2);
+  view(img3, dep3, vp3, d3, h3, map3, bias3, n, acc, acc2);
+  vec3 col = acc.a > 0.02 ? acc.rgb / acc.a : (acc2.a > 0.0 ? acc2.rgb / acc2.a : vec3(1.0, 0.0, 1.0));
+  gl_FragColor = vec4(col, 1.0);
+}`;
+const bm = new THREE.ShaderMaterial({ uniforms: U, vertexShader: `varying vec3 wp; varying vec3 wn; void main(){ wp = position; wn = normal; gl_Position = vec4(uv * 2.0 - 1.0, 0.0, 1.0); }`, fragmentShader: fs, side: THREE.DoubleSide, depthTest: false, depthWrite: false });
+const out = new THREE.WebGLRenderTarget(SIZE, SIZE, { type: THREE.UnsignedByteType });
+const sc2 = new THREE.Scene(); sc2.add(new THREE.Mesh(geo, bm)); const oc = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+r.setRenderTarget(out); r.setClearColor(0x000000, 0); r.clear(); r.render(sc2, oc);
+const px = new Uint8Array(SIZE * SIZE * 4); r.readRenderTargetPixels(out, 0, 0, SIZE, SIZE, px); r.setRenderTarget(null);
+// dilate the charts' edges outwards (8 rings)
+const filled = new Uint8Array(SIZE * SIZE); for (let i = 0; i < SIZE * SIZE; i++) filled[i] = px[i * 4 + 3] > 0 ? 1 : 0;
+for (let ring = 0; ring < 8; ring++) {
+  const add = [];
+  for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) { const i = y * SIZE + x; if (filled[i]) continue; let rr = 0, gg = 0, bb = 0, nn = 0;
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= SIZE || yy >= SIZE) continue; const j = yy * SIZE + xx; if (filled[j]) { rr += px[j*4]; gg += px[j*4+1]; bb += px[j*4+2]; nn++; } }
+    if (nn) add.push([i, rr / nn, gg / nn, bb / nn]); }
+  for (const [i, a, b, c] of add) { px[i*4] = a; px[i*4+1] = b; px[i*4+2] = c; px[i*4+3] = 255; filled[i] = 1; }
+}
+for (let i = 0; i < SIZE * SIZE; i++) if (!filled[i]) { px[i*4+3] = 255; }
+// to a PNG (flip: the render target's rows go bottom-up; the glTF uv origin is top-left)
+const c = document.createElement('canvas'); c.width = SIZE; c.height = SIZE; const cx = c.getContext('2d'); const id = cx.createImageData(SIZE, SIZE);
+id.data.set(px);
+cx.putImageData(id, 0, 0);
+window.png = c.toDataURL('image/png'); window.info = info; window.ready = true;
+</script></body></html>

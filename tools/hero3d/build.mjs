@@ -1,5 +1,5 @@
-// The 3D hero test's pieces (Quaternius CC0: Universal Base Characters, Modular Character Outfits – Fantasy, Universal
-// Animation Library 1 + 2): each piece its own small GLB on the shared 65-bone skeleton, textures cut down to WebP.
+// The 3D heroes' moves (Quaternius CC0: Universal Animation Library 1 + 2) on the 65-bone skeleton, no mesh. (The
+// Beginner and its weapons are made by tools/hero3d/ai and tools/hero3d/weapons: tools/hero3d/README.md.)
 // Sources (public/assets/hero3d/PROVENANCE.md) unpacked into Q; needs @gltf-transform/{core,extensions,functions},
 // meshoptimizer and sharp:   node tools/hero3d/build.mjs   (Q=<sources dir>)
 import { NodeIO } from '@gltf-transform/core';
@@ -52,10 +52,9 @@ async function splitHead(doc) {
   // (no piece may share a bone's name: a move's track finds its bone by name)
   for (const n of root.listNodes()) { const m = n.getMesh(); if (!m) continue; if (m.getName() === 'Face') { m.setName('Eyebrows'); n.setName('Eyebrows'); } else if (m.getName() === 'Face.001') { m.setName('Eyes'); n.setName('Eyes'); } }
 }
-await pack('Superhero_Male_FullBody.gltf', 'base_m.glb', splitHead);
-await pack('Male_Ranger.gltf', 'outfit_ranger_m.glb');
-await pack('Male_Peasant.gltf', 'outfit_peasant_m.glb');
-for (const h of ['SimpleParted', 'Buzzed']) await pack(`Hair_${h}.gltf`, `hair_${h.toLowerCase()}.glb`);
+// (the test's stand-in body, outfits and hair are gone — the Beginner replaced them, tools/hero3d/README.md; splitHead
+// stays for the next base body)
+void splitHead;
 // the moves: the clips the test plays, no mesh (they drive the bones by name)
 const KEEP1 = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Jump_Start', 'Jump_Loop', 'Jump_Land', 'Roll', 'Hit_Chest', 'Hit_Head', 'Death01', 'Sword_Attack', 'Sword_Idle', 'Punch_Jab', 'Punch_Cross', 'Spell_Simple_Shoot', 'Dance_Loop'];
 const KEEP2 = ['Sword_Regular_A', 'Sword_Regular_B', 'Sword_Regular_C', 'Sword_Regular_Combo', 'Sword_Dash_RM', 'Sword_Block', 'Hit_Knockback', 'LayToIdle', 'NinjaJump_Start', 'NinjaJump_Idle_Loop', 'NinjaJump_Land', 'OverhandThrow', 'Melee_Hook', 'Idle_Shield_Break'];

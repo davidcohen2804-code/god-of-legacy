@@ -1,0 +1,12 @@
+import { NodeIO } from '@gltf-transform/core';
+import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
+import { prune, dedup, textureCompress, meshopt, weld } from '@gltf-transform/functions';
+import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
+import sharp from 'sharp';
+await MeshoptDecoder.ready; await MeshoptEncoder.ready;
+const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder, 'meshopt.encoder': MeshoptEncoder });
+const [src, out, res = '2048', qual = '86'] = process.argv.slice(2);
+const doc = await io.read(src);
+await doc.transform(prune(), dedup(), textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [+res, +res], quality: +qual }), meshopt({ encoder: MeshoptEncoder, level: 'medium' }));
+await io.write(out, doc);
+const fs = await import('fs'); console.log(out, (fs.statSync(out).size / 1024).toFixed(0), 'KB');

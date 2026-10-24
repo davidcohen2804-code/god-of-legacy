@@ -1,25 +1,32 @@
-// THE 3D HERO TEST (David 24 Oct 12:15: "start the test — mind the game's frame, the character's size and the map"):
-// a hero built as one body on a skeleton, every piece of clothing its own file on that same skeleton — so any piece
-// fits every move (walk, run, jump, a blow, a fall, getting up) with nothing drawn again. Behind ?hero3d=1 only; the
-// game is untouched without it.
-// Pieces: Quaternius (CC0) — Universal Base Characters (the body, head, eyes, brows, hair), Modular Character Outfits –
-// Fantasy (the Ranger and the Peasant), Universal Animation Library 1 + 2 (the moves); packed by tools/hero3d/build.mjs
-// into public/assets/hero3d (see its PROVENANCE.md).
+// THE 3D HERO (David 24 Oct: heroes in 3D on a skeleton, so clothes and items can be changed; then "a BEGINNER whose
+// ITEMS are the classes' weapons — the magic staff, the bow, the sword, the gambler's cane, the samurai sword — the
+// rest of the clothes simple and the same; clothing sets later"). Behind ?hero3d=1 only; the game is untouched without it.
+// The Beginner: drawn by GPT from the painted Beginner (front, back and both sides), its shape made from the front
+// view (Hunyuan3D 2.1), the four views baked onto it, the skeleton fitted into it and the weights carried over from a
+// base body (tools/hero3d/ai: prep, bake, rigfit; public/assets/hero3d/PROVENANCE.md).
+// The moves: Quaternius Universal Animation Library 1 + 2 (CC0), laid onto this body's own bones by name.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 
 const DIR = 'assets/hero3d/';
-
-/** The test's outfits: which pieces each wears, its hair, a colour turn per piece (the same shirt in another colour). */
-export const OUTFITS = {
-  ranger: { name: 'RANGER', hair: 'simpleparted', parts: ['Male_Ranger_Acc_Pauldron', 'Male_Ranger_Arms', 'Male_Ranger_Arms_Bracer', 'Male_Ranger_Body', 'Male_Ranger_Body_Belt_1', 'Male_Ranger_Body_Belt_2', 'Male_Ranger_Feet_Boots', 'Male_Ranger_Head_Hood', 'Male_Ranger_Legs'], hue: {} as Record<string, number>, hairTint: 0x3a2618 },
-  villager: { name: 'VILLAGER', hair: 'simpleparted', parts: ['Male_Peasant_Arms', 'Male_Peasant_Body', 'Male_Peasant_Feet', 'Male_Peasant_Legs'], hue: {} as Record<string, number>, hairTint: 0x5b3b24 },
-  wanderer: { name: 'WANDERER', hair: 'buzzed', parts: ['Male_Peasant_Arms', 'Male_Peasant_Body', 'Male_Ranger_Legs', 'Male_Ranger_Feet_Boots', 'Male_Ranger_Arms_Bracer', 'Male_Ranger_Body_Belt_1'], hue: { Male_Peasant_Body: 3.6, Male_Peasant_Arms: 3.6 } as Record<string, number>, hairTint: 0x1c1714 },
-} as const;
-export type OutfitId = keyof typeof OUTFITS;
-const HAIRS = ['simpleparted', 'buzzed'];
+/** The Beginner, man and woman (the player's choice in the character's creation). */
+const MODEL = { m: 'beginner_m.glb', f: 'beginner_f.glb' };
 const MOVES = ['moves_1.glb', 'moves_2.glb'];
+
+/** The Beginner's items: the classes' weapons (one in hand at a time), each drawn by GPT and made solid from the
+ *  drawing (tools/hero3d/weapons). `hand`: the hand that holds it; `loose`: how it is held standing or walking — 'hang'
+ *  (a sword's point down and forward) or 'upright' (a staff, the cane, the bow: standing up at the side). */
+export const WEAPONS = {
+  sword: { name: 'SWORD', file: 'w_sword.glb', hand: 'r', loose: 'hang' },
+  katana: { name: 'KATANA', file: 'w_katana.glb', hand: 'r', loose: 'hang' },
+  bow: { name: 'BOW', file: 'w_bow.glb', hand: 'l', loose: 'upright' },
+  staff: { name: 'STAFF', file: 'w_staff.glb', hand: 'r', loose: 'upright' },
+  cane: { name: 'CANE', file: 'w_cane.glb', hand: 'r', loose: 'upright' },
+} as const;
+export type WeaponId = keyof typeof WEAPONS;
+/** Each class's weapon. */
+export const CLASS_WEAPON: Record<string, WeaponId> = { warrior: 'sword', samurai: 'katana', archer: 'bow', book_mage: 'staff', gambler: 'cane' };
 
 /** What the body is doing (the scene's own state, read each frame). */
 export interface HeroDrive {
@@ -40,112 +47,147 @@ export class Hero3D {
   private shadows: [THREE.Object3D, THREE.Mesh][] = [];
   private model = new THREE.Group();
   private bones = new Map<string, THREE.Bone>();
-  private pieces = new Map<string, THREE.Object3D>();
-  private hairs = new Map<string, THREE.Object3D>();
+  private body: THREE.SkinnedMesh | null = null;
   private mixer!: THREE.AnimationMixer;
   private clips = new Map<string, THREE.AnimationClip>();
   private action: THREE.AnimationAction | null = null;
   private clipNow = '';
   private castKey = '';
   private yaw = Math.PI / 2;
-  private sword = new THREE.Group();
-  /** The sword as the fist grips it (fitSword), and how far it hangs loose instead (standing, walking). */
-  private gripQ = new THREE.Quaternion();
+  /** The weapons, each in a holder on its hand's bone; one shown. */
+  private weapons = new Map<WeaponId, THREE.Group>();
+  /** Each fist's grip (fitGrip): where a weapon's grip sits in the hand bone, turned as the closed fist holds it. */
+  private grip: Record<'r' | 'l', { q: THREE.Quaternion; p: THREE.Vector3 }> = { r: { q: new THREE.Quaternion(), p: new THREE.Vector3() }, l: { q: new THREE.Quaternion(), p: new THREE.Vector3() } };
+  /** How far the weapon is held loose (standing, walking) instead of gripped for a move. */
   private looseK = 0;
+  /** The bow's string drawn back to the right hand while it aims, and the arrow on it. */
+  private bowString: THREE.Line | null = null;
+  private bowArrow: THREE.Group | null = null;
+  private aimK = 0;
   private static tq = new THREE.Quaternion(); private static tm = new THREE.Matrix4();
-  outfit: OutfitId = 'ranger';
+  weapon: WeaponId = 'sword';
   /** The standing height it is scaled to (units): the painted heroes' 124 world px and a little hair. */
   static HEIGHT = 1.3;
 
   private constructor() { this.root.add(this.model); this.scene.add(this.root); }
 
-  static async load(onProgress?: (k: number) => void): Promise<Hero3D> {
+  static async load(o: { female?: boolean } = {}, onProgress?: (k: number) => void): Promise<Hero3D> {
     const h = new Hero3D();
     const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
-    const files = ['base_m.glb', 'outfit_ranger_m.glb', 'outfit_peasant_m.glb', ...HAIRS.map((n) => `hair_${n}.glb`), ...MOVES];
+    const ids = Object.keys(WEAPONS) as WeaponId[];
+    const files = [o.female ? MODEL.f : MODEL.m, ...MOVES, ...ids.map((w) => WEAPONS[w].file)];
     let done = 0;
     const got = await Promise.all(files.map((f) => loader.loadAsync(DIR + f).then((g) => { onProgress?.(++done / files.length); return g; })));
-    const [base, ranger, peasant] = got, hairs = got.slice(3, 3 + HAIRS.length), moves = got.slice(3 + HAIRS.length);
-    // the base: its armature is the one skeleton every piece is bound to
-    h.model.add(base.scene);
-    base.scene.traverse((o) => { if ((o as THREE.Bone).isBone) h.bones.set(o.name, o as THREE.Bone); });
-    base.scene.updateMatrixWorld(true);
-    base.scene.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) h.pieces.set(o.name, o); });
-    // every clothing piece: bound to the base's bones by name (its own bind matrices kept), under the hero
-    for (const g of [ranger, peasant]) {
-      g.scene.updateMatrixWorld(true);
-      const skinned: THREE.SkinnedMesh[] = [];
-      g.scene.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) skinned.push(o as THREE.SkinnedMesh); });
-      for (const m of skinned) {
-        const bones = m.skeleton.bones.map((b) => h.bones.get(b.name) ?? b);
-        m.bind(new THREE.Skeleton(bones, m.skeleton.boneInverses), m.bindMatrix);
-        const key = (m.parent && !(m.parent as THREE.Bone).isBone && m.parent.type === 'Group' ? m.parent.name : m.name) || m.name;
-        let holder = h.pieces.get(key);
-        if (!holder) { holder = new THREE.Group(); holder.name = key; h.pieces.set(key, holder); h.model.add(holder); }
-        holder.add(m);
-      }
-    }
-    // hair: a rigid piece on the head bone (laid on it where it sits over the base's head)
-    const head = h.bones.get('Head')!;
-    HAIRS.forEach((n, i) => {
-      const s = hairs[i].scene; s.updateMatrixWorld(true);
-      const grp = new THREE.Group(); grp.name = `hair_${n}`;
-      const meshes: THREE.Object3D[] = []; s.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes.push(o); });
-      for (const m of meshes) { h.model.add(m); m.matrixWorld.decompose(m.position, m.quaternion, m.scale); grp.add(m); }
-      h.model.add(grp); head.attach(grp); h.hairs.set(n, grp);
-    });
-    // the moves: in place (the game moves the body: the clip's own travel on its root bone is dropped)
+    const [model, ...rest2] = got, moves = rest2.slice(0, MOVES.length), arms = rest2.slice(MOVES.length);
+    // the body and its own skeleton (fitted into it)
+    h.model.add(model.scene);
+    model.scene.traverse((o) => { if ((o as THREE.Bone).isBone) h.bones.set(o.name, o as THREE.Bone); if ((o as THREE.SkinnedMesh).isSkinnedMesh) h.body = o as THREE.SkinnedMesh; });
+    model.scene.updateMatrixWorld(true);
+    // the moves: in place (the game moves the body), turning the bones only — the library's bone lengths are its own
+    // body's; its hips' travel is laid onto this body's hips, scaled to its height
+    const pel = h.bones.get('pelvis')!, rest = pel.position.clone();
+    let lib: THREE.Vector3 | null = null; moves[0]?.scene.traverse((o) => { if (o.name === 'pelvis' && !lib) lib = o.position.clone(); });
+    const L = (lib as THREE.Vector3 | null) ?? new THREE.Vector3(0, 0.0501, 0.9167), k = rest.z / Math.max(0.1, L.z);
     for (const g of moves) for (const c of g.animations) {
-      c.tracks = c.tracks.filter((t) => t.name !== 'root.position');
+      c.tracks = c.tracks.filter((t) => t.name.endsWith('.quaternion') || t.name === 'pelvis.position');
+      for (const t of c.tracks) if (t.name === 'pelvis.position') {
+        const v = t.values; for (let i = 0; i < v.length; i += 3) { v[i] = rest.x + (v[i] - L.x) * k; v[i + 1] = rest.y + (v[i + 1] - L.y) * k; v[i + 2] = rest.z + (v[i + 2] - L.z) * k; }
+      }
       h.clips.set(c.name, c);
     }
     h.mixer = new THREE.AnimationMixer(h.model);
-    h.makeSword();
+    ids.forEach((w, i) => { const g = new THREE.Group(); g.name = 'weapon'; g.add(arms[i].scene); g.visible = false; h.bones.get(`hand_${WEAPONS[w].hand}`)?.add(g); h.weapons.set(w, g); });
     h.look();
     // the size: the painted heroes' standing height, measured on the body as it stands at rest (before any move)
     h.model.updateMatrixWorld(true);
-    const box = new THREE.Box3();
-    for (const k of ['HeadSkin', 'BaseBody']) { const p = h.pieces.get(k); if (p) box.expandByObject(p, true); }
+    const box = new THREE.Box3(); if (h.body) box.expandByObject(h.body, true);
     const tall = Math.max(0.5, box.max.y - box.min.y);
-    // the sword laid in the fist as it grips (the sword stance)
+    // the fists' grips, from the hands as they close on a hilt (the sword stance)
     h.play('Sword_Idle', { fade: 0 }); h.mixer.update(0.3); h.model.updateMatrixWorld(true);
-    h.fitSword();
+    h.fitGrip('r'); h.fitGrip('l');
+    h.makeBowShoot(); h.makeBowString();
     h.model.scale.setScalar(Hero3D.HEIGHT / tall);
-    h.setOutfit('ranger');
+    h.setWeapon('sword');
     return h;
   }
 
-  /** A sword in the right hand: a long steel blade, a gold guard (the warrior's own is painted; the test carries this). */
-  private makeSword(): void {
-    const steel = new THREE.MeshStandardMaterial({ color: 0xd7dde6, metalness: 0.85, roughness: 0.28 });
-    const gold = new THREE.MeshStandardMaterial({ color: 0xc8963c, metalness: 0.8, roughness: 0.35 });
-    const leather = new THREE.MeshStandardMaterial({ color: 0x3a2418, metalness: 0, roughness: 0.8 });
-    const L = 0.95, blade = new THREE.Shape();
-    blade.moveTo(-0.028, 0); blade.lineTo(0.028, 0); blade.lineTo(0.024, L - 0.09); blade.lineTo(0, L); blade.lineTo(-0.024, L - 0.09); blade.closePath();
-    const bg = new THREE.ExtrudeGeometry(blade, { depth: 0.008, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 1 }); bg.translate(0, 0, -0.004);
-    const parts: THREE.Mesh[] = [
-      new THREE.Mesh(bg, steel),
-      new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.028, 0.04), gold),
-      new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.018, 0.17, 8), leather),
-      new THREE.Mesh(new THREE.SphereGeometry(0.026, 10, 8), gold),
-    ];
-    parts[1].position.y = 0; parts[2].position.y = -0.095; parts[3].position.y = -0.19;
-    for (const p of parts) { p.castShadow = true; this.sword.add(p); }
-    this.sword.name = 'sword';
-    this.bones.get('hand_r')?.add(this.sword);
-  }
-  /** The sword laid in the closed fist, from the hand's own bones in the sword stance (the bone's own units): the grip
-   *  through the fingers' second joints, the blade out past the index side, its edge toward the knuckles. */
-  private fitSword(): void {
-    const hand = this.bones.get('hand_r'); if (!hand) return;
-    const at = (n: string) => { const b = this.bones.get(n); return b ? hand.worldToLocal(b.getWorldPosition(new THREE.Vector3())) : new THREE.Vector3(); };
-    const i1 = at('index_01_r'), p1 = at('pinky_01_r'), i2 = at('index_02_r'), p2 = at('pinky_02_r'), m1 = at('middle_01_r');
+  /** A fist's grip, from the hand's own bones (the bone's own units): the grip through the fingers' second joints, a
+   *  weapon's long axis out past the index side, its edge (the drawing's width) toward the knuckles. */
+  private fitGrip(side: 'r' | 'l'): void {
+    const hand = this.bones.get(`hand_${side}`); if (!hand) return;
+    const at = (n: string) => { const b = this.bones.get(`${n}_${side}`); return b ? hand.worldToLocal(b.getWorldPosition(new THREE.Vector3())) : new THREE.Vector3(); };
+    const i1 = at('index_01'), p1 = at('pinky_01'), i2 = at('index_02'), p2 = at('pinky_02'), m1 = at('middle_01');
     const y = i1.clone().add(i2).sub(p1).sub(p2).normalize();
     const x = m1.clone().normalize(); x.sub(y.clone().multiplyScalar(x.dot(y))).normalize();
     const z = new THREE.Vector3().crossVectors(x, y).normalize();
-    this.sword.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z)); this.gripQ.copy(this.sword.quaternion);
-    const grip = i2.clone().add(p2).multiplyScalar(0.5).lerp(i1.clone().add(p1).multiplyScalar(0.5), 0.35);
-    this.sword.position.copy(grip).addScaledVector(y, 0.09);
+    const g = this.grip[side];
+    g.q.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+    g.p.copy(i2.clone().add(p2).multiplyScalar(0.5).lerp(i1.clone().add(p1).multiplyScalar(0.5), 0.35));
+  }
+
+  /** The bow's move (the library has none): from the sword stance, the chest turned side-on, the bow arm straight out
+   *  at the target and the string hand drawn back to the cheek — each arm reached there through its own two bones — then
+   *  the loose (the string hand flies back) and home again. Built on this body's own skeleton. */
+  private makeBowShoot(): void {
+    const B = (n: string) => this.bones.get(n)!;
+    if (!B('upperarm_l') || !B('spine_03')) return;
+    const all = [...this.bones.values()];
+    const snap = () => all.map((b) => b.quaternion.clone());
+    const put = (qs: THREE.Quaternion[]) => { all.forEach((b, i) => b.quaternion.copy(qs[i])); this.model.updateMatrixWorld(true); };
+    this.play('Sword_Idle', { fade: 0 }); this.mixer.update(0.05); this.mixer.stopAllAction(); this.action = null; this.clipNow = '';
+    this.model.updateMatrixWorld(true);
+    const base = snap();
+    const wq = (b: THREE.Object3D) => b.getWorldQuaternion(new THREE.Quaternion()), wp = (b: THREE.Object3D) => b.getWorldPosition(new THREE.Vector3());
+    // turn a bone by a world rotation
+    const turn = (b: THREE.Bone, q: THREE.Quaternion) => { const pq = wq(b.parent!); b.quaternion.copy(pq.clone().invert().multiply(q).multiply(wq(b))); b.updateMatrixWorld(true); };
+    // reach a two-bone arm's hand to a target, the elbow towards a pole
+    const reach = (side: string, T: THREE.Vector3, pole: THREE.Vector3) => {
+      const ua = B(`upperarm_${side}`), la = B(`lowerarm_${side}`), hd = B(`hand_${side}`);
+      const S = wp(ua), E = wp(la), H = wp(hd), a = S.distanceTo(E), b = E.distanceTo(H);
+      const d = Math.min(a + b - 1e-3, Math.max(0.05, S.distanceTo(T)));
+      const u = T.clone().sub(S).normalize(), v = pole.clone().sub(S); v.addScaledVector(u, -v.dot(u)).normalize();
+      const cA = (a * a + d * d - b * b) / (2 * a * d), sA = Math.sqrt(Math.max(0, 1 - cA * cA));
+      const E2 = S.clone().addScaledVector(u, a * cA).addScaledVector(v, a * sA);
+      turn(ua, new THREE.Quaternion().setFromUnitVectors(E.clone().sub(S).normalize(), E2.clone().sub(S).normalize()));
+      const E3 = wp(la), H3 = wp(hd);
+      turn(la, new THREE.Quaternion().setFromUnitVectors(H3.clone().sub(E3).normalize(), T.clone().sub(E3).normalize()));
+    };
+    const pose = (draw: number) => {
+      put(base);
+      const twist = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -0.32 * draw);
+      turn(B('spine_02'), twist); turn(B('spine_03'), twist);
+      const sl = wp(B('upperarm_l')), sr = wp(B('upperarm_r')), head = wp(B('Head'));
+      // the bow hand: out at the target (forward, +z), at the shoulder's height
+      reach('l', sl.clone().add(new THREE.Vector3(0.06, 0.02, 0.56).multiplyScalar(1)), sl.clone().add(new THREE.Vector3(0.5, -0.3, 0)));
+      // the string hand: by the cheek (drawn), from the bow forward when only nocking
+      const cheek = head.clone().add(new THREE.Vector3(-0.07, -0.08, 0.06));
+      const nock = sl.clone().add(new THREE.Vector3(-0.12, 0.0, 0.3));
+      reach('r', nock.lerp(cheek, Math.min(1, draw)).add(new THREE.Vector3(-0.05, 0, -0.05).multiplyScalar(Math.max(0, draw - 1) * 4)), sr.clone().add(new THREE.Vector3(-0.4, 0.1, -0.5)));
+      return snap();
+    };
+    const keys: [number, THREE.Quaternion[]][] = [[0, base], [0.22, pose(0.35)], [0.5, pose(1)], [0.6, pose(1)], [0.66, pose(1.25)], [0.95, base]];
+    put(base);
+    const tracks = all.map((b, i) => new THREE.QuaternionKeyframeTrack(`${b.name}.quaternion`, keys.map((k) => k[0]), keys.flatMap((k) => k[1][i].toArray())));
+    this.clips.set('Bow_Shoot', new THREE.AnimationClip('Bow_Shoot', 0.95, tracks));
+  }
+
+  /** The bow's string as a line the right hand can draw (the drawing's straight string hidden), and an arrow. */
+  private makeBowString(): void {
+    const g = this.weapons.get('bow'); if (!g) return;
+    let tips: THREE.Vector3[] = [];
+    g.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && /String/.test((m.material as THREE.Material).name)) { m.visible = false; const p = m.geometry.attributes.position; let lo = 0, hi = 0; for (let i = 0; i < p.count; i++) { if (p.getY(i) > p.getY(hi)) hi = i; if (p.getY(i) < p.getY(lo)) lo = i; } tips = [new THREE.Vector3(p.getX(hi), p.getY(hi), 0), new THREE.Vector3(p.getX(lo), p.getY(lo), 0)]; } });
+    if (tips.length < 2) return;
+    const geo = new THREE.BufferGeometry().setFromPoints([tips[0], tips[0].clone().lerp(tips[1], 0.5), tips[1]]);
+    this.bowString = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xd8cfb8 }));
+    this.bowString.userData.tips = tips; this.bowString.frustumCulled = false;
+    g.children[0]?.add(this.bowString);
+    // the arrow: a shaft, a steel head, three feathers (made here; the archer's own arrows fly as the skills' effects)
+    const a = new THREE.Group();
+    const wood = new THREE.MeshStandardMaterial({ color: 0x8a6a44, roughness: 0.8 }), steel = new THREE.MeshStandardMaterial({ color: 0xc8ccd2, metalness: 0.6, roughness: 0.35 }), fl = new THREE.MeshStandardMaterial({ color: 0x2f6a3a, roughness: 0.9, side: THREE.DoubleSide });
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, 0.72, 5), wood); shaft.position.y = 0.36; a.add(shaft);
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.013, 0.06, 6), steel); tip.position.y = 0.75; a.add(tip);
+    for (let i = 0; i < 3; i++) { const f = new THREE.Mesh(new THREE.PlaneGeometry(0.025, 0.09), fl); f.position.set(0, 0.07, 0); f.rotation.y = (i / 3) * Math.PI; f.translateX(0.013); a.add(f); }
+    a.visible = false; this.bowArrow = a; this.model.add(a);
   }
 
   /** The look: the pieces' painted textures, lit like the courtyard (soft, a little rough), never mirror-bright. */
@@ -158,7 +200,7 @@ export class Hero3D {
       for (const mt of mats) {
         if (!mt || !(mt as THREE.MeshStandardMaterial).isMeshStandardMaterial) continue;
         mt.envMapIntensity = 0.6;
-        if (o.parent?.name !== 'sword') { mt.metalness = Math.min(mt.metalness, 0.15); mt.roughness = Math.max(mt.roughness, 0.55); }
+        mt.metalness = Math.min(mt.metalness, 0.15); mt.roughness = Math.max(mt.roughness, 0.55);
       }
     });
   }
@@ -192,44 +234,14 @@ export class Hero3D {
   }
   private shown(o: THREE.Object3D): boolean { for (let p: THREE.Object3D | null = o; p && p !== this.model; p = p.parent) if (!p.visible) return false; return true; }
 
-  /** Wear an outfit: its pieces on, every other piece off (the bare body only where nothing covers it). */
-  setOutfit(id: OutfitId): void {
-    this.outfit = id;
-    const O = OUTFITS[id], on = new Set<string>(O.parts);
-    for (const [k, p] of this.pieces) {
-      if (k === 'HeadSkin' || k === 'Eyes' || k === 'Eyebrows') { p.visible = true; continue; }
-      if (k === 'BaseBody') { p.visible = false; continue; }
-      p.visible = on.has(k);
-      p.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) this.hue(m, (O.hue as Record<string, number>)[k] ?? 0); });
+  /** Take an item in hand (the Beginner's weapons): that one shown, gripped by its hand. */
+  setWeapon(id: WeaponId): void {
+    this.weapon = id;
+    for (const [w, g] of this.weapons) {
+      g.visible = w === id; if (w !== id) continue;
+      const gp = this.grip[WEAPONS[w].hand]; g.position.copy(gp.p); g.quaternion.copy(gp.q);
     }
-    for (const [n, g] of this.hairs) g.visible = n === O.hair;
-    const tint = new THREE.Color(O.hairTint);
-    for (const g of [...this.hairs.values(), this.pieces.get('Eyebrows')]) g?.traverse((o) => {
-      const m = o as THREE.Mesh; if (!m.isMesh) return;
-      const mt = m.material as THREE.MeshStandardMaterial;
-      if (!mt.userData.tinted) { m.material = mt.clone(); (m.material as THREE.MeshStandardMaterial).userData.tinted = true; }
-      (m.material as THREE.MeshStandardMaterial).color.copy(tint);
-    });
-  }
-
-  /** A piece's cloth turned round the colour wheel (its skin left as it is): the same shirt in another colour. */
-  private hue(m: THREE.Mesh, turn: number): void {
-    const mat = m.material as THREE.MeshStandardMaterial & { userData: { hue?: { value: number }; cloned?: boolean } };
-    if (!mat || /Regular_Male|Skin|Superhero/i.test(mat.name)) return;
-    if (!mat.userData.hue) {
-      if (!turn) return;
-      const c = mat.clone() as typeof mat; c.userData = { hue: { value: 0 }, cloned: true }; m.material = c;
-      c.onBeforeCompile = (sh) => {
-        sh.uniforms.uHue = c.userData.hue!;
-        sh.fragmentShader = 'uniform float uHue;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
-          { float cs = cos(uHue), sn = sin(uHue); vec3 k = vec3(0.57735);
-            vec3 c = diffuseColor.rgb * cs + cross(k, diffuseColor.rgb) * sn + k * dot(k, diffuseColor.rgb) * (1.0 - cs);
-            float l = dot(c, vec3(0.299, 0.587, 0.114)); diffuseColor.rgb = max(vec3(0.0), mix(vec3(l), c, 1.9)) * 0.72; }`);
-      };
-      c.customProgramCacheKey = () => 'hero-hue';
-      c.userData.hue!.value = turn; return;
-    }
-    mat.userData.hue.value = turn;
+    this.castKey = ''; this.clipNow = '';
   }
 
   /** Crossfade to a clip. */
@@ -283,41 +295,92 @@ export class Hero3D {
       }
     }
     this.mixer.update(ms / 1000);
-    this.swordHang(ms);
+    this.hold(ms);
     for (const [m, t] of this.shadows) t.visible = this.shown(m);
   }
 
-  /** Standing or walking the sword hangs loose in the hand, its point down and forward (the painted warrior's idle);
-   *  in the guard, a blow or a run it is gripped as the move holds it. */
-  private swordHang(ms: number): void {
-    const loose = this.clipNow === 'Idle_Loop' || this.clipNow === 'Walk_Loop';
+  /** Standing or walking the weapon is held loose — a sword hangs, its point down and forward (the painted warrior's
+   *  idle); a staff, the cane and the bow stand upright at the side — and in a move it is gripped as the move holds it. */
+  private hold(ms: number): void {
+    const W = WEAPONS[this.weapon], g = this.weapons.get(this.weapon); if (!g) return;
+    const grip = this.grip[W.hand];
+    if (this.weapon === 'bow' && this.aimBow(ms, g)) return;
+    const loose = this.clipNow === 'Idle_Loop' || this.clipNow === 'Walk_Loop' || this.clipNow === 'Sword_Idle' && W.loose === 'upright';
     this.looseK += ((loose ? 1 : 0) - this.looseK) * Math.min(1, ms / 140);
-    const hand = this.bones.get('hand_r');
-    if (!hand || this.looseK < 0.002) { this.sword.quaternion.copy(this.gripQ); return; }
+    const hand = this.bones.get(`hand_${W.hand}`);
+    if (!hand || this.looseK < 0.002) { g.quaternion.copy(grip.q); return; }
     hand.updateWorldMatrix(true, false);
     const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
-    const y = new THREE.Vector3(fx * 0.5, -0.86, fz * 0.5).normalize();
-    const x = new THREE.Vector3(fx, 0, fz); x.addScaledVector(y, -x.dot(y)).normalize();
+    const y = W.loose === 'hang' ? new THREE.Vector3(fx * 0.5, -0.86, fz * 0.5).normalize() : new THREE.Vector3(fx * 0.12, 1, fz * 0.12).normalize();
+    const x = W.loose === 'hang' || W.hand === 'r' ? new THREE.Vector3(fx, 0, fz) : new THREE.Vector3(-fx, 0, -fz); x.addScaledVector(y, -x.dot(y)).normalize();
     const z = new THREE.Vector3().crossVectors(x, y);
     const want = Hero3D.tq.setFromRotationMatrix(Hero3D.tm.makeBasis(x, y, z));
-    const hung = hand.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(want);
-    this.sword.quaternion.slerpQuaternions(this.gripQ, hung, this.looseK);
+    const held = hand.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(want);
+    g.quaternion.slerpQuaternions(grip.q, held, this.looseK);
   }
 
-  /** Each skill one of the sword's moves (the test's stand-in: every skill draws its own in the real build). */
+  /** The bow in the draw: upright, its string toward the archer, the string pulled to the right hand and the arrow on
+   *  it until the loose. Returns false when the bow is not in a shot. */
+  private aimBow(ms: number, g: THREE.Group): boolean {
+    const shooting = this.clipNow === 'Bow_Shoot' && !!this.action?.isRunning();
+    const t = shooting ? this.action!.time : 0;
+    this.aimK += ((shooting ? 1 : 0) - this.aimK) * Math.min(1, ms / 90);
+    const S = this.bowString, A = this.bowArrow, hand = this.bones.get('hand_l'), rh = this.bones.get('hand_r');
+    const drawn = shooting && t > 0.12 && t < 0.62;
+    if (S) {
+      const pos = S.geometry.attributes.position as THREE.BufferAttribute, tips = S.userData.tips as THREE.Vector3[];
+      const mid = tips[0].clone().lerp(tips[1], 0.5);
+      if (drawn && rh) { const p = this.grip.r.p.clone(); rh.localToWorld(p); S.parent!.worldToLocal(p); mid.copy(p); }
+      pos.setXYZ(1, mid.x, mid.y, mid.z); pos.needsUpdate = true;
+    }
+    if (A && rh && hand) {
+      A.visible = drawn;
+      if (drawn) {
+        const from = rh.localToWorld(this.grip.r.p.clone()), to = hand.localToWorld(this.grip.l.p.clone());
+        this.model.worldToLocal(from); this.model.worldToLocal(to);
+        A.position.copy(from); A.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.sub(from).normalize());
+      }
+    }
+    if (this.aimK < 0.002 || !hand) return false;
+    hand.updateWorldMatrix(true, false);
+    const fx = Math.sin(this.yaw), fz = Math.cos(this.yaw);
+    const y = new THREE.Vector3(0, 1, 0), x = new THREE.Vector3(-fx, 0, -fz), z = new THREE.Vector3().crossVectors(x, y);
+    const want = Hero3D.tq.setFromRotationMatrix(Hero3D.tm.makeBasis(x, y, z));
+    const held = hand.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(want);
+    g.quaternion.slerpQuaternions(this.grip.l.q, held, this.aimK);
+    return true;
+  }
+
+  /** Each skill one of the library's moves for the weapon in hand (stand-ins: the skills get their own moves later). */
   private attackClip(c: NonNullable<HeroDrive['cast']>): string {
-    if (c.id === 'warrior_basic') return ['Sword_Regular_A', 'Sword_Regular_B', 'Sword_Regular_C', 'Sword_Attack'][c.stage % 4];
-    if (c.dash) return 'Sword_Dash_RM';
-    if (c.air) return 'Sword_Attack';
-    if (/war_cry|oath|banner|sanctuary|radiant/.test(c.id)) return 'Idle_Shield_Break';
-    if (/whirl|storm|tide|circle/.test(c.id)) return 'Sword_Regular_Combo';
-    if (/rising|sky|lance|hook/.test(c.id)) return 'Sword_Regular_C';
-    if (/ground|earth|leap|crash|verdict|maw/.test(c.id)) return 'Sword_Attack';
-    return 'Sword_Regular_B';
+    const w = this.weapon, id = c.id;
+    const buff = /war_cry|oath|banner|sanctuary|radiant|aura|ward|barrier|haste|focus|sheathe|meditat|all_in|lucky/.test(id);
+    if (w === 'sword' || w === 'katana') {
+      if (/_basic$|quick_slash/.test(id)) return ['Sword_Regular_A', 'Sword_Regular_B', 'Sword_Regular_C', 'Sword_Attack'][c.stage % 4];
+      if (c.dash) return 'Sword_Dash_RM';
+      if (c.air) return 'Sword_Attack';
+      if (buff) return 'Idle_Shield_Break';
+      if (/whirl|storm|tide|circle|spin/.test(id)) return 'Sword_Regular_Combo';
+      if (/rising|sky|lance|hook|swallow/.test(id)) return 'Sword_Regular_C';
+      if (/ground|earth|leap|crash|verdict|maw|iai/.test(id)) return 'Sword_Attack';
+      return 'Sword_Regular_B';
+    }
+    if (buff) return 'Idle_Shield_Break';
+    if (c.dash) return w === 'bow' ? 'Roll' : 'Sword_Dash_RM';
+    if (w === 'cane') {
+      if (/deal|card|deck|ace|joker|throw|fuse/.test(id)) return 'OverhandThrow';
+      if (/_basic$/.test(id)) return ['Melee_Hook', 'Sword_Regular_A', 'Sword_Regular_B'][c.stage % 3];
+      return /rotor|vault|spin/.test(id) ? 'Sword_Regular_Combo' : 'Sword_Regular_C';
+    }
+    if (w === 'staff') {
+      if (/_basic$|flurry|strike/.test(id)) return ['Sword_Regular_A', 'Sword_Regular_B', 'Sword_Regular_C'][c.stage % 3];
+      return 'OverhandThrow';
+    }
+    return this.clips.has('Bow_Shoot') ? 'Bow_Shoot' : 'OverhandThrow'; // the bow
   }
   /** Where in a sword clip its blow falls (share of its length): the clip is timed so the blow meets the skill's hit. */
   private hitShare(clip: string): number {
-    return ({ Sword_Regular_A: 0.45, Sword_Regular_B: 0.42, Sword_Regular_C: 0.3, Sword_Attack: 0.45, Sword_Dash_RM: 0.35, Sword_Regular_Combo: 0.25, Idle_Shield_Break: 0.4 } as Record<string, number>)[clip] ?? 0.4;
+    return ({ Sword_Regular_A: 0.45, Sword_Regular_B: 0.42, Sword_Regular_C: 0.3, Sword_Attack: 0.45, Sword_Dash_RM: 0.35, Sword_Regular_Combo: 0.25, Idle_Shield_Break: 0.4, OverhandThrow: 0.42, Melee_Hook: 0.4, Roll: 0.3, Bow_Shoot: 0.62 } as Record<string, number>)[clip] ?? 0.4;
   }
 
   dispose(): void {
