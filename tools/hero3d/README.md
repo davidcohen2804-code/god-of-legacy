@@ -78,6 +78,10 @@ is a whole ring on every side) down and out into the shoulders, tucked under the
 edge is laid on the flare, eased round the neck; the old body's holes are closed. One skin colour (the new neck's lit
 tone) — the light shades it. `node neck.mjs IN.glb OUT.glb [RB]` (on the head's output: beginner_m / beginner_f).
 
+The shirt made clean (`items/clean.mjs IN.glb REGIONS.png OUT.glb`, after the neck): its texels (the shirt's region)
+laid in a clean warm linen, the broad light and folds kept, the drawing's brown smudges mostly gone; its mean brightness
+barely moves (×1.003: the dyes' REGIONS means stand).
+
 In the game the head is kept looking ahead (`Hero3D.levelHead`): the library's moves bend this body's chest further
 forward than their own (the face ~15–20° down in the idle, ~35° in the guard), so the neck and the head are turned up
 toward a face a little below level — not in a blow taken, thrown, lying down or getting up.
