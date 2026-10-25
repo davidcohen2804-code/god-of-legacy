@@ -4,6 +4,8 @@
 |---|---|
 | `beginner_m.glb` | The Beginner, made here (`tools/hero3d/README.md`): GPT drawings of the painted Beginner (front, back, sides), its shape by Hunyuan3D 2.1 (Tencent, the public Space), the drawings baked onto it, the skeleton and weights of Quaternius' Universal Base Characters (CC0) fitted into it |
 | `w_sword.glb`, `w_katana.glb`, `w_bow.glb`, `w_staff.glb`, `w_cane.glb` | Made here from GPT drawings (`tools/hero3d/weapons`) |
+| `w_sword_dragon.glb`, `w_katana_moon.glb`, `w_bow_sylvan.glb`, `w_staff_astral.glb`, `w_cane_royal.glb` | The classes' item weapons, made here the same way from GPT drawings (`tools/hero3d/src/weapons`) |
+| `beginner_m_reg.png`, `beginner_f_reg.png` | The outfit's regions on each body's atlas, made here (`tools/hero3d/items/regions.mjs`) |
 | `moves_1.glb` | Quaternius, Universal Animation Library (Standard), CC0, on the 65 standard bones (as imported by Kiikurage/game-test, CC0) |
 | `moves_2.glb` | Quaternius, Universal Animation Library 2 (Standard), CC0 |
 | `moves_3.glb` | Quaternius, Universal Animation Library (its Godot build, CC0): the moves the standard import lacks — spells, punches, aim, crouch, kneel — renamed onto the 65 standard bones (`tools/hero3d/moves3.mjs`) |
