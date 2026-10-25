@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""views.py SRC_DIR OUT_DIR -> v_<view>.png (colours bled past the drawing's edge; the right view's stray sash masked)
+"""views.py SRC_DIR OUT_DIR [nomask] -> v_<view>.png (colours bled past the drawing's edge; the Beginner's right view's
+stray sash masked — `nomask` for a body whose red is its own, a class set's tabard or sash)
 + bbox.json (each cut-out's own silhouette box) for bake.html."""
 import sys, json
 from PIL import Image
 import numpy as np
 from scipy import ndimage
-src, out = sys.argv[1], sys.argv[2]; bb = {}
+src, out = sys.argv[1], sys.argv[2]; bb = {}; nomask = 'nomask' in sys.argv[3:]
 for v in ['front', 'back', 'left', 'right']:
     im = np.asarray(Image.open(f'{src}/{v}_cut.png').convert('RGBA')).astype(np.float32)
     rgb, a = im[..., :3], im[..., 3]
     ys, xs = np.where(a > 128); bb[v] = [int(xs.min()), int(xs.max()), int(ys.min()), int(ys.max())]
-    if v == 'right':
+    if v == 'right' and not nomask:
         r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
         red = (r > g * 1.45) & (r > b * 1.45) & (r > 70)
         Y = np.arange(a.shape[0])[:, None]
