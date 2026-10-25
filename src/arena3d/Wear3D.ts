@@ -387,6 +387,8 @@ if (uDyeOn > 0.5 && vMapUv.y < uAtlasV) {
     } catch { return null; }
   }
 
+  /** The hat's top (world y; 0: none). */
+  hatTop(): number { if (!this.hat) return 0; this.hat.g.updateWorldMatrix(true, true); return new THREE.Box3().setFromObject(this.hat.g).max.y; }
   /** Their shadows laid again (the body's shadow made after they were put on). */
   reshadow(): void {
     this.hat?.g.traverse((o) => { if ((o as THREE.Mesh).isMesh) this.h.addShadow(o as THREE.Mesh, true); });

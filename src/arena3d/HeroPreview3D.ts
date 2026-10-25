@@ -28,11 +28,11 @@ export class HeroPreview3D {
     const key0 = new THREE.DirectionalLight(0xffe2c0, 2.1); key0.position.set(-2.2, 3.2, 3.5); sc.add(key0);
     const rim = new THREE.DirectionalLight(0x9fc4ff, 1.4); rim.position.set(2.5, 2.4, -3); sc.add(rim);
     const fill = new THREE.DirectionalLight(0xffffff, 0.5); fill.position.set(2, 1, 3); sc.add(fill);
-    // framed head to boots with a little room (the hero is Hero3D.HEIGHT tall, its feet at the origin)
-    const H = Hero3D.HEIGHT * 1.08;
+    // framed head to boots with a little room (the hero is Hero3D.HEIGHT tall, its feet at the origin) — higher when what
+    // it holds or wears stands over its head (a tall staff, a wizard's hat): the feet stay where they are, the hero a
+    // little smaller
     this.cam = new THREE.PerspectiveCamera(24, w / h, 0.1, 50);
-    const dist = (H / 2) / Math.tan((24 / 2) * Math.PI / 180) * 1.02;
-    this.cam.position.set(0, H * 0.52, dist); this.cam.lookAt(0, H * 0.5, 0);
+    this.frameTo(this.frame);
     if (scene.textures.exists(key)) scene.textures.remove(key);
     this.tex = scene.textures.createCanvas(key, w * HeroPreview3D.RES, h * HeroPreview3D.RES)!;
     this.image = scene.add.image(0, 0, key).setOrigin(0.5, 0.99); // (its feet: placed by the scene)
@@ -54,11 +54,19 @@ export class HeroPreview3D {
   private who = '';
   wearFor(who: string): void { if (who === this.who) return; this.who = who; void this.hero.equipAll(loadEquip3D(who)); }
 
+  private frame = Hero3D.HEIGHT * 1.08;
+  private frameTo(H: number): void {
+    const dist = (H / 2) / Math.tan((24 / 2) * Math.PI / 180) * 1.02;
+    this.cam.position.set(0, H * 0.52, dist); this.cam.lookAt(0, H * 0.5, 0);
+  }
+
   private step(_t: number, ms: number): void {
     if (this.dead) return;
     this.t += ms;
     // standing in its idle, facing the viewer, a slow sway of the turn (never its back)
     this.hero.drive({ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, grounded: true, face: 1, yaw: 0.35 * Math.sin(this.t / 2600), mode: 'idle', cast: null }, ms);
+    const want = Math.max(Hero3D.HEIGHT * 1.08, this.hero.topY() * 1.04);
+    if (Math.abs(want - this.frame) > 1e-3) { this.frame += (want - this.frame) * Math.min(1, ms / 250); this.frameTo(this.frame); }
     this.renderer.render(this.hero.scene, this.cam);
     const ctx = this.tex.getContext(), R = HeroPreview3D.RES; ctx.clearRect(0, 0, this.w * R, this.h * R); ctx.drawImage(this.renderer.domElement, 0, 0); this.tex.refresh();
   }

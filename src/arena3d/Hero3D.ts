@@ -59,9 +59,9 @@ const ARM_AWAY: Record<string, [number, number]> = { rotor_staff: [0, 1400] };
 const HOLDS: { name: string; side: 'r' | 'l'; at: [string, number]; way: [number, number, number]; shift: [number, number, number]; room: number; floor?: boolean }[] = [
   { name: 'blade:idle', side: 'r', at: ['Idle_Loop', 0.5], way: [0.14, -0.72, 0.68], shift: [0.02, 0, -0.02], room: 0.1 },
   { name: 'blade:guard', side: 'r', at: ['Sword_Idle', 0.3], way: [0, 0.6, 0.8], shift: [0, 0, 0], room: 0.08 },
-  { name: 'staff:idle', side: 'r', at: ['Idle_Loop', 0.5], way: [0.05, 1, 0.3], shift: [0.08, 0.22, 0.4], room: 0.05, floor: true },
+  { name: 'staff:idle', side: 'r', at: ['Idle_Loop', 0.5], way: [0.04, 1, 0.1], shift: [0.08, 0.22, 0.36], room: 0.05, floor: true },
   { name: 'staff:side', side: 'r', at: ['Idle_Loop', 0.5], way: [0.14, 1, 0.02], shift: [0.2, 0.2, 0.06], room: 0.06, floor: true }, // (the menus' pedestal, seen from the front: beside the hero, its head clear of the face)
-  { name: 'staff:spell', side: 'r', at: ['Spell_Simple_Idle_Loop', 0.5], way: [0.05, 1, 0.36], shift: [0.06, 0.1, 0.3], room: 0.08, floor: true },
+  { name: 'staff:spell', side: 'r', at: ['Spell_Simple_Idle_Loop', 0.5], way: [0, 1, 0.08], shift: [0, 0.1, 0.1], room: 0.08, floor: true },
   { name: 'cane:idle', side: 'r', at: ['Idle_Loop', 0.5], way: [-0.12, 1, -0.12], shift: [0.03, 0.12, 0.08], room: 0.06 },
   { name: 'cane:alert', side: 'r', at: ['Sword_Idle', 0.3], way: [0, 1, 0.1], shift: [0, 0.08, 0.06], room: 0.08 },
   { name: 'bow:idle', side: 'l', at: ['Idle_Loop', 0.5], way: [0, 1, 0.12], shift: [0.03, 0.2, 0.16], room: 0.05 },
@@ -828,6 +828,14 @@ export class Hero3D {
     g.updateWorldMatrix(true, false);
     const a = new THREE.Vector3().applyMatrix4(g.matrixWorld), t = new THREE.Vector3(0, beyond ? e[1] : e[0], 0).applyMatrix4(g.matrixWorld), r = this.root.position;
     return [(a.x - r.x) * 100, -(a.y - r.y) * 100, (t.x - r.x) * 100, -(t.y - r.y) * 100];
+  }
+
+  /** The highest point of what it holds and wears (world y over its feet): the weapon's far end, a hat's top. */
+  topY(): number {
+    let top = 0;
+    const g = this.weapons.get(this.weapon), e = this.armEnds.get(this.weapon);
+    if (g && e && g.visible) { g.updateWorldMatrix(true, false); for (const y of e) top = Math.max(top, Hero3D.tv.set(0, y, 0).applyMatrix4(g.matrixWorld).y); }
+    return Math.max(top, this.wear?.hatTop() ?? 0) - this.root.position.y;
   }
 
   /** Where its eyes are (px from the feet: x along the picture, y down) — War Cry's and Radiant Blade's glowing eyes. */

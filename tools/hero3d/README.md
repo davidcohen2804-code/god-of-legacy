@@ -99,7 +99,7 @@ again, the bow's string taken from its own, a staff of another length slid throu
 | sword_dragon | 1.05 m | 511, 1205 | blade above row 785, 2.8 mm |
 | katana_moon | 1.0 m | 511, 1180 | blade above row 1036; guard disc r 3.6 cm at +6.8 cm |
 | bow_sylvan | 1.25 m | 445, 748 | string 0.157, ±0.58 m |
-| staff_astral | 2.05 m | 516, 880 | RC 3.6 cm (a round shaft); its orb clears the head |
+| staff_astral | 2.4 m | 516, 880 | RC 4 cm (a round shaft); tall, so its orb stands over the head (at the face it hid it) |
 | cane_royal | 1.0 m | 511, 395 | RC 2 cm |
 
 ## The items (`src/arena3d/items3d.ts`, `Wear3D.ts`)
