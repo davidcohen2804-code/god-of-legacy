@@ -195,6 +195,9 @@ export class Hero3D {
   private walkT = 0;
   private legs: { bone: THREE.Bone; it: THREE.Interpolant; pos: boolean }[] | null = null;
   private static lq = new THREE.Quaternion(); private static lv = new THREE.Vector3();
+  private static hm = new THREE.Matrix4(); private static hf = new THREE.Vector3(); private static ha = new THREE.Vector3(); private static hq = new THREE.Quaternion(); private static hq2 = new THREE.Quaternion(); private static UP = new THREE.Vector3(0, 1, 0);
+  /** How much the head is kept looking ahead (levelHead), eased between the moves. */
+  private lookK = 1;
   /** Turning round in a spinning skill this frame (its painted spin, a flip, is then left out). */
   private spinning = false;
   /** A hanging blade turned flat to the viewer, its point down and a little out from the leg (the menus' pedestal faces
@@ -979,12 +982,40 @@ export class Hero3D {
     const walking = d.mode === 'skill' && !!c && !c.dash && d.grounded && sp > 25 && (sk?.move[phase] ?? 0) > 0;
     this.walkK += ((walking ? 1 : 0) - this.walkK) * Math.min(1, ms / 120);
     if (this.walkK > 0.002) this.walkLegs(ms, sp, Math.abs(d.vx) > Math.abs(d.vy) * 0.5 && d.vx * d.face < 0 ? -1 : 1);
+    this.levelHead(ms, d.mode);
     if (this.armShown && !this.armAway) this.closeHand();
     this.hold(ms);
     this.fadeGhosts(ms);
     this.wear?.update(ms);
     if (this.skins.size) Hero3D.breathe();
     for (const [m, t] of this.shadows) t.visible = this.shown(m);
+  }
+
+  /** The head kept looking ahead (David 25 Oct: "why does she look awful" — on the pedestal she looked at the floor): the
+   *  library's moves bend this body's chest further forward than their own (the idle ~15–20° down at the face, the guard
+   *  ~35°), so the neck and the head are turned up toward a face a little below level — not in a blow taken, thrown,
+   *  lying down or getting up (eased in and out), and not while the chest itself lies flat (a fall, a somersault). */
+  private levelHead(ms: number, mode: string): void {
+    const want = mode === 'hurt' || mode === 'stunned' ? 0.3 : mode === 'launched' || mode === 'down' || mode === 'dead' || mode === 'getup' || mode === 'quickrise' ? 0 : 1;
+    this.lookK += (want - this.lookK) * (ms > 0 ? Math.min(1, ms / 150) : 1);
+    const hd = this.bones.get('Head'), nk = this.bones.get('neck_01'), ch = this.bones.get('spine_03'), body = this.body;
+    if (this.lookK < 0.01 || !hd || !nk || !body) return;
+    const sk = body.skeleton, M = Hero3D.hm, f = Hero3D.hf;
+    hd.updateWorldMatrix(true, false);
+    // the face's way now: the bind's forward (+z) carried by the head's skinning; the chest's, to know it is upright
+    let up = 1;
+    if (ch) { const e = M.multiplyMatrices(ch.matrixWorld, sk.boneInverses[sk.bones.indexOf(ch)]).elements, cy = Math.abs(e[9]) / Math.hypot(e[8], e[9], e[10]); up = 1 - THREE.MathUtils.smoothstep(cy, 0.6, 0.8); }
+    const e = M.multiplyMatrices(hd.matrixWorld, sk.boneInverses[sk.bones.indexOf(hd)]).elements; f.set(e[8], e[9], e[10]).normalize();
+    const a = THREE.MathUtils.clamp(-0.07 - Math.asin(THREE.MathUtils.clamp(f.y, -1, 1)), -0.35, 0.62) * this.lookK * up; // (to a little below level)
+    if (Math.abs(a) < 0.004) return;
+    const axis = Hero3D.ha.crossVectors(f, Hero3D.UP); if (axis.lengthSq() < 1e-4) return; axis.normalize();
+    // a third of it in the neck, the rest in the head (each turned in the world about the same axis)
+    for (const [b, part] of [[nk, 0.35], [hd, 0.65]] as const) {
+      b.updateWorldMatrix(true, false);
+      const wq = b.getWorldQuaternion(Hero3D.hq), pq = b.parent ? b.parent.getWorldQuaternion(Hero3D.hq2) : Hero3D.hq2.identity();
+      wq.premultiply(Hero3D.lq.setFromAxisAngle(axis, a * part)); b.quaternion.copy(pq.invert().multiply(wq));
+    }
+    hd.updateWorldMatrix(true, true);
   }
 
   /** The legs walking under a cast (walkK of the way from its stance): the library's walk, its legs' turns and its hips'
@@ -1013,6 +1044,7 @@ export class Hero3D {
     if (this.action) this.action.time = Math.min(t, this.clipLength(clip) * 0.99);
     this.yaw = yaw; this.root.position.set(0, 0, 0); this.root.rotation.set(0, yaw, 0); this.root.scale.set(1, 1, 1);
     this.mixer.update(0);
+    this.lookK = 1; this.levelHead(0, 'idle');
     if (this.armShown && !this.armAway) this.closeHand();
     this.root.updateMatrixWorld(true); // (the hands where the move has them: the bowstring is drawn to them)
     this.hold(1000); // (the weapon settled at once)

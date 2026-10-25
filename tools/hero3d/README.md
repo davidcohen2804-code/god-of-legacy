@@ -69,6 +69,19 @@ PONYTAIL=1` with `Hair_Buns` (its buns dropped).
   sash's red), falling down her back in seven clumps that spread and come together at their tips, drawn from the hair
   texture's long locks; it hangs on the head at the top and on the upper spine down the back.
 
+## The neck (`ai/neck.mjs`)
+
+After the head (David 25 Oct: "why does she look awful?" — what was left of the drawn neck stood round the new one as a
+ragged ring, with holes at the shoulders): a smooth skin flare is made round the neck, from inside the new neck (where it
+is a whole ring on every side) down and out into the shoulders, tucked under the shirt (its foot `RB` round the neck,
+0.14); the old body above it and round the new neck goes, and the new neck's own part below the flare's top; the shirt's
+edge is laid on the flare, eased round the neck; the old body's holes are closed. One skin colour (the new neck's lit
+tone) — the light shades it. `node neck.mjs IN.glb OUT.glb [RB]` (on the head's output: beginner_m / beginner_f).
+
+In the game the head is kept looking ahead (`Hero3D.levelHead`): the library's moves bend this body's chest further
+forward than their own (the face ~15–20° down in the idle, ~35° in the guard), so the neck and the head are turned up
+toward a face a little below level — not in a blow taken, thrown, lying down or getting up.
+
 ## The weapons (`public/assets/hero3d/w_*.glb`)
 
 Each drawn by GPT flat on grey (`src/weapons/`), cut out, then made solid by `weapons/inflate.py`: the silhouette
