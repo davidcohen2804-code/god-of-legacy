@@ -112,10 +112,15 @@ character (this browser); the character select shows it on the pedestal.
 - **Hats** are made in code on the head's bone, sized to this body's head with its hair (`Wear3D.headFit`: the rim at
   the forehead, its half-widths, the crown's height): the warrior's helm (a steel dome, a nose guard, a crimson crest),
   the samurai's straw kasa (a red cord under the chin), the archer's feathered cap, the mage's bent wizard hat, the
-  gambler's slanted top hat with the ace of spades in its band.
+  gambler's slanted top hat with the ace of spades in its band. A hat shades the head under its rim (the body's shader,
+  `HAT_SHADE`: whole down to the chin under a wide brim, to the eyes under the cap and the helm): the room has no shadow
+  maps, and the face under a brim read bright and bare from the fight's high camera. A twin (`Hero3D.clone`: Kagemusha's
+  doubles) wears what its source wears at once and keeps up when it changes (`wearLike`; its own hat — the source's is
+  kept out of the copy); the region map is loaded once and shared by every body of that sex.
 - **Cloaks** are cloth: 9 × 14 particles pinned along the shoulders (through the collarbones' and the upper spine's
   skinning), falling under their weight at 60 steps a second, kept off the back, the legs and the upper arms
-  (capsules on the bones); each its own painted face (trim, an emblem, stars, suits, a dagged hem) and lining.
+  (capsules on the bones), a ripple running down them in a run's wind; each its own painted face (trim, an emblem,
+  stars, suits, a dagged hem) and lining.
 - **Shirt, trousers, boots** change the Beginner's own painted clothes by their regions: `items/regions.mjs BODY.glb
   OUT.png OUT.json` maps each texel of the atlas to the shirt, the vest, the sash, the trousers, the boots or the
   bracers (by the bone it hangs on and its colour, specks smoothed) — run it again whenever a body changes and copy its
@@ -127,8 +132,10 @@ character (this browser); the character select shows it on the pedestal.
   put on, driven through the moves (standing, walking, running, a jump, a skill of its weapon, a blow taken, thrown,
   down, up) and taken off — nothing throws or goes to NaN, a hat stays on the head, a cloak hangs behind the back, off
   the body and above the floor, a dye reaches the shader, an aura moves, an item weapon is in the fist and its kind's
-  own comes back; on and off three times over leaves no geometry or texture behind; the catalogue has one piece per
-  class and slot and the weapons' files.
+  own comes back; a twin wears the set once; on and off three times over leaves no geometry or texture behind; the
+  catalogue has one piece per class and slot and the weapons' files.
+- **The item weapons glow**: their drawing's bright, saturated colours (runes, gems, the orb) are their emissive map,
+  breathing slowly (`Hero3D.glow` / `breathe`).
 
 ## The pictures (`public/assets/hero3d/art/`)
 

@@ -30,18 +30,19 @@ export class Doubles3D {
     while (this.twins.length < ds.length) {
       const t = this.src.clone();
       t.makeShadow(this.layers[0].sun);
-      this.layers[0].sc.add(t.root);
+      this.layers[0].sc.add(t.scene); // (its whole scene: the body and what hangs in the room with it — a cloak, its afterimages)
       this.twins.push(t);
     }
     const shown = [false, false];
     let top = -Infinity;
     this.twins.forEach((t, i) => {
       const d = ds[i];
-      if (!d) { t.root.visible = false; return; }
+      if (!d) { t.scene.visible = false; return; }
       const dd = depth(d.x, d.y, d.z), L = foe !== null && dd < foe ? 0 : 1;
-      if (t.root.parent !== this.layers[L].sc) this.layers[L].sc.add(t.root);
-      t.root.visible = true; shown[L] = true; top = Math.max(top, dd);
+      if (t.scene.parent !== this.layers[L].sc) this.layers[L].sc.add(t.scene);
+      t.scene.visible = true; shown[L] = true; top = Math.max(top, dd);
       if (t.weapon !== this.src.weapon) t.setWeapon(this.src.weapon);
+      t.wearLike(this.src); // (what he wears now: changed since the last cast, they change too)
       t.drive(d.drive, ms);
       t.motion(d.motion);
       t.ghost(now, d.trail, trail);
@@ -51,7 +52,7 @@ export class Doubles3D {
   }
 
   /** Gone (the illusion ended, the scene closes): their layers hidden, the twins kept for the next time. */
-  hide(): void { for (const l of this.layers) l.img.setVisible(false); for (const t of this.twins) { t.root.visible = false; t.clearGhosts(); } }
+  hide(): void { for (const l of this.layers) l.img.setVisible(false); for (const t of this.twins) { t.scene.visible = false; t.clearGhosts(); } }
 
   dispose(): void { for (const t of this.twins) t.dispose(); this.twins.length = 0; this.hide(); }
 }

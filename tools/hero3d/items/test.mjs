@@ -75,6 +75,18 @@ const report = await p.evaluate(async () => {
       if ((it.slot === 'top' || it.slot === 'bottom' || it.slot === 'shoes') && w.uni.uDyeOn.value !== 0) fails.push('dye still on');
       out.items.push({ body: female ? 'f' : 'm', id: it.id, ok: fails.length === 0, fails });
     }
+    // a twin (Kagemusha's doubles: Hero3D.clone) wears the set once — its own hat, not a copy of the source's too
+    {
+      H.setWeapon('katana'); await H.equipAll(Object.fromEntries(M.ITEMS3D.filter((i) => i.cls === 'samurai').map((i) => [i.slot, i.id])));
+      const worn = (o) => { let n = 0; o.traverse((x) => { if (x.isMesh && x.userData.worn && !x.userData.shadow) n++; }); return n; };
+      const T = H.clone(); await new Promise((res) => setTimeout(res, 300));
+      const fails = [], a = worn(H.model), b = worn(T.model);
+      if (b !== a) fails.push(`twin wears ${b} hat pieces, the source ${a}`);
+      if (!T.wear?.cloak) fails.push('twin: no cloak');
+      T.dispose(); draw();
+      if (worn(H.model) !== a) fails.push('the source lost its hat with the twin');
+      out.items.push({ body: female ? 'f' : 'm', id: 'twin', ok: fails.length === 0, fails });
+    }
     // on and off three times over: nothing left behind
     for (let k = 0; k < 3; k++) for (const c of M.CLASSES3D) { H.setWeapon(kindOf[M.ITEMS3D.find((i) => i.cls === c && i.slot === 'weapon').id]); await H.equipAll(Object.fromEntries(M.ITEMS3D.filter((i) => i.cls === c).map((i) => [i.slot, i.id]))); H.pose('Idle_Loop', 0.3, 0.5); draw(); }
     await H.equipAll({}); H.setWeapon('sword'); H.pose('Idle_Loop', 0.3, 0.5); const after = draw();

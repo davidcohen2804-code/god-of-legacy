@@ -289,6 +289,16 @@ export class Hero3D {
   }
   /** A whole set at once (the slots it leaves out: the Beginner's own). */
   async equipAll(e: Equip3D): Promise<void> { for (const s of SLOTS3D) await this.equip(s, e[s] ?? null); }
+  /** What `src` wears, at once (not its weapon: a twin holds its source's own model): a twin made this frame shows it
+   *  this frame, and keeps up when its source changes (Kagemusha's doubles are kept from one cast to the next). */
+  wearLike(src: Hero3D): void {
+    if (!this.wear) return;
+    for (const s of SLOTS3D) {
+      if (s === 'weapon' || this.worn[s] === src.worn[s]) continue;
+      const id = src.worn[s]; if (id) this.worn[s] = id; else delete this.worn[s];
+      this.wear.wear(id ? ITEM3D[id] ?? null : null, s);
+    }
+  }
 
   /** The weapon item's model in its kind's holder (loaded now), the others' kinds back to their own. */
   private async setSkin(it: Item3D | null): Promise<void> {
@@ -337,9 +347,12 @@ export class Hero3D {
     const h = new Hero3D(); h.shared = true;
     // the shadows stay out of the copy (it lays its own: makeShadow)
     const tw = this.shadows.map(([, t]) => { const p = t.parent!; p.remove(t); return [p, t] as const; });
+    // and what it wears on its bones (the hat): the copy puts on its own (a second hat on the same head otherwise)
+    const ww = (this.wear?.onBones() ?? []).map((o) => { const p = o.parent!; p.remove(o); return [p, o] as const; });
     const m = cloneSkinned(this.model) as THREE.Group;
     const A: THREE.Object3D[] = [], B: THREE.Object3D[] = [];
     this.model.traverse((o) => A.push(o)); m.traverse((o) => B.push(o));
+    for (const [p, o] of ww) p.add(o);
     for (const [p, t] of tw) p.add(t);
     const twin = <T extends THREE.Object3D>(o: T): T => B[A.indexOf(o)] as T;
     h.root.remove(h.model); h.model = m; h.root.add(m);
@@ -364,7 +377,7 @@ export class Hero3D {
     h.flatToView = this.flatToView;
     h.setWeapon(this.weapon);
     h.female = this.female;
-    if (h.body) { h.wear = new Wear3D(h.host()); const w = { ...this.worn }; delete w.weapon; void h.equipAll(w); } // (its weapon's model: its source's, copied)
+    if (h.body) { h.wear = new Wear3D(h.host()); h.wearLike(this); } // (its weapon's model: its source's, copied)
     return h;
   }
 
@@ -1152,7 +1165,7 @@ export class Hero3D {
     for (const g of this.ghosts) g.m.removeFromParent();
     this.wear?.dispose(); this.wear = null;
     for (const o of this.own) o.dispose();
-    if (this.shared) { this.root.removeFromParent(); return; } // (a twin: the shape, textures and weapons are its source's)
+    if (this.shared) { this.root.removeFromParent(); this.scene.removeFromParent(); return; } // (a twin: the shape, textures and weapons are its source's)
     for (const [k, b] of this.baseArm) if (this.weapons.get(k)?.children[0] !== b.model) b.model.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); } }); // (a kind's own model put away for an item's)
     this.root.traverse((o) => {
       const m = o as THREE.Mesh; if (!m.isMesh) return;

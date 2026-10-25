@@ -100,7 +100,9 @@ const HATS: Record<string, HatBuild> = {
     const band = std(own, { color: 0x3a2412, roughness: 0.9, side: THREE.DoubleSide });
     g.add(mesh(own, surface(32, 2, (u, v, o) => { const th = u * Math.PI * 2; o.set(H.rx * 0.9 * Math.sin(th), H.ht * (0.55 + 0.35 * v), H.rz * 0.9 * Math.cos(th)); }, true), band));
     const cord = std(own, { color: 0xb3202c, roughness: 0.7 });
-    const path = new THREE.CatmullRomCurve3([new THREE.Vector3(H.rx * 0.95, H.ht * 0.55, 0), new THREE.Vector3(H.rx * 1.02, -H.ht * 0.25, H.rz * 0.2), new THREE.Vector3(H.rx * 0.55, H.chin - 0.01, H.rz * 0.55), new THREE.Vector3(0, H.chin - 0.018, H.rz * 0.62), new THREE.Vector3(-H.rx * 0.55, H.chin - 0.01, H.rz * 0.55), new THREE.Vector3(-H.rx * 1.02, -H.ht * 0.25, H.rz * 0.2), new THREE.Vector3(-H.rx * 0.95, H.ht * 0.55, 0)]);
+    // (close down the cheeks and just under the jaw: `chin` is the head's lowest front point, a little under the jaw)
+    const side = (k: number) => [new THREE.Vector3(k * H.rx * 0.95, H.ht * 0.55, 0), new THREE.Vector3(k * H.rx * 0.93, -H.ht * 0.3, H.rz * 0.12), new THREE.Vector3(k * H.rx * 0.74, H.chin * 0.7, H.rz * 0.36), new THREE.Vector3(k * H.rx * 0.36, H.chin * 0.92, H.rz * 0.6)];
+    const path = new THREE.CatmullRomCurve3([...side(1), new THREE.Vector3(0, H.chin * 0.95, H.rz * 0.66), ...side(-1).reverse()]);
     g.add(mesh(own, new THREE.TubeGeometry(path, 48, 0.0035, 5, false), cord));
     return g;
   },
@@ -377,8 +379,10 @@ if (uHat.w > 0.5) { // (a hat's shade: under its rim, on the head and the neck, 
     this.aura = new Aura(this.h, id, look);
   }
 
-  /** The dyes worn (top, bottom, shoes) laid into the shader's uniforms (the region map loaded the first time). */
-  private regTex: Promise<THREE.Texture | null> | null = null;
+  /** The dyes worn (top, bottom, shoes) laid into the shader's uniforms (the region map loaded the first time, then
+   *  shared by every body of that sex: a twin made this frame is dyed this frame). */
+  private static regs = new Map<string, Promise<THREE.Texture | null>>();
+  private static regNow = new Map<string, THREE.Texture>();
   private async applyDyes(): Promise<void> {
     const want: Partial<Record<keyof typeof REGION_ID, Dye3D>> = {};
     for (const it of Object.values(this.dyes)) Object.assign(want, it?.dye ?? {});
@@ -388,12 +392,17 @@ if (uHat.w > 0.5) { // (a hat's shade: under its rim, on the head and the neck, 
       const i = REGION_ID[reg]; u.uCol.value[i].set(d.color); u.uAmt.value[i] = 1;
       u.uPat.value[i].set(d.pattern ? PATTERN_ID[d.pattern] : 0, d.scale ?? 1, d.amount ?? 0.5, 0); u.uPatCol.value[i].set(d.with ?? '#ffffff');
     }
-    const on = Object.keys(want).length > 0;
+    const on = Object.keys(want).length > 0, file = REGIONS[this.h.female ? 'f' : 'm'].file;
     if (on && !u.uReg.value) {
-      this.regTex ??= Wear3D.loadRegions(REGIONS[this.h.female ? 'f' : 'm'].file);
-      const t = await this.regTex; if (!t) return; u.uReg.value = t; this.own.push(t);
+      const now = Wear3D.regNow.get(file);
+      if (now) u.uReg.value = now;
+      else {
+        let p = Wear3D.regs.get(file);
+        if (!p) { p = Wear3D.loadRegions(file).then((t) => { if (t) Wear3D.regNow.set(file, t); else Wear3D.regs.delete(file); return t; }); Wear3D.regs.set(file, p); }
+        const t = await p; if (!t) return; u.uReg.value = t;
+      }
     }
-    u.uDyeOn.value = on && u.uReg.value ? 1 : 0;
+    u.uDyeOn.value = Object.values(this.dyes).some((it) => it?.dye && Object.keys(it.dye).length) && u.uReg.value ? 1 : 0; // (as worn now: taken off while it loaded, it stays off)
   }
   /** The region map as a one-channel texture (nearest: a region is a region). */
   private static async loadRegions(file: string): Promise<THREE.Texture | null> {
@@ -407,6 +416,8 @@ if (uHat.w > 0.5) { // (a hat's shade: under its rim, on the head and the neck, 
     } catch { return null; }
   }
 
+  /** What it hangs on the body's bones (the hat): out of a copy of the body (Hero3D.clone puts its own on). */
+  onBones(): THREE.Object3D[] { return this.hat ? [this.hat.g] : []; }
   /** The hat's top (world y; 0: none). */
   hatTop(): number { if (!this.hat) return 0; this.hat.g.updateWorldMatrix(true, true); return new THREE.Box3().setFromObject(this.hat.g).max.y; }
   /** Their shadows laid again (the body's shadow made after they were put on). */
@@ -534,9 +545,14 @@ class Cloak {
   private sim(dt: number, damp = 0.985): void {
     const W = this.W, N = W * this.Hn, p = this.p, q = this.q, s = this.scaleNow(), g = -11.2 * s * dt * dt;
     // the pins: where the shoulders carry them (how fast they go: the wind of the run)
-    const mid = 3 * (W >> 1), ox = p[mid], oz = p[mid + 2];
+    const mid = 3 * (W >> 1), ox = p[mid], oy = p[mid + 1], oz = p[mid + 2];
     for (let j = 0; j < W; j++) { this.pinAt(j, Cloak.v); Cloak.v.toArray(p, 3 * j); Cloak.v.toArray(q, 3 * j); }
-    const sp = Math.min(1, Math.hypot(p[mid] - ox, p[mid + 2] - oz) / dt / (2.2 * s)); this.wind += (sp - this.wind) * 0.08; this.tw += dt;
+    const dx = p[mid] - ox, dy = p[mid + 1] - oy, dz = p[mid + 2] - oz;
+    const sp = Math.min(1, Math.hypot(dx, dz) / dt / (2.2 * s)); this.wind += (sp - this.wind) * 0.08; this.tw += dt;
+    // faster than a run (a dash, a leap, a double's darting): the cloth carried along with the shoulders, not left
+    // streaming behind like a flag
+    const carry = Math.min(0.9, Math.max(0, (Math.hypot(dx, dy, dz) / dt - 6 * s) / (8 * s)));
+    if (carry > 0) for (let i = W; i < N; i++) { const k = 3 * i; p[k] += dx * carry; p[k + 1] += dy * carry; p[k + 2] += dz * carry; q[k] += dx * carry; q[k + 1] += dy * carry; q[k + 2] += dz * carry; }
     // the rest: their momentum and their weight; in the wind a ripple runs down the cloth (up and down, stronger toward the hem)
     for (let i = W; i < N; i++) {
       const k = 3 * i, row = Math.floor(i / W), col = i % W, fl = this.wind * 0.0016 * s * (row / this.Hn) * Math.sin(this.tw * 11 - row * 0.9 + col * 0.55);
