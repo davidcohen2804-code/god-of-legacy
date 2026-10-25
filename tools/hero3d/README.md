@@ -123,6 +123,12 @@ character (this browser); the character select shows it on the pedestal.
   brightness / the region's mean) and lays a pattern on the body (stripes, checks, sparks, scales, dots, waves).
 - **Auras**: a magic circle turning at the feet, a soft glow up the body and rising (or falling) sprites — embers,
   sakura petals, leaves, sparks, coins.
+- **The test** (`items/test.mjs [dev server URL]`, the Vite dev server running): every item on the man and the woman,
+  put on, driven through the moves (standing, walking, running, a jump, a skill of its weapon, a blow taken, thrown,
+  down, up) and taken off — nothing throws or goes to NaN, a hat stays on the head, a cloak hangs behind the back, off
+  the body and above the floor, a dye reaches the shader, an aura moves, an item weapon is in the fist and its kind's
+  own comes back; on and off three times over leaves no geometry or texture behind; the catalogue has one piece per
+  class and slot and the weapons' files.
 
 ## The pictures (`public/assets/hero3d/art/`)
 

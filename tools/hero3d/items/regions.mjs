@@ -28,7 +28,7 @@ const raw = await img.ensureAlpha().raw().toBuffer();
 // the atlas proper: above the head's band (its height: the band is half the width tall — tools/hero3d/ai/head.mjs)
 const TH = NH - TW / 2;
 const group = (n) => (/^(thigh|calf)_/.test(n) ? 'leg' : /^(foot|ball)_/.test(n) ? 'foot' : /^upperarm/.test(n) ? 'arm' : /^lowerarm/.test(n) ? 'fore' : /^(hand|thumb|index|middle|ring|pinky)/.test(n) ? 'hand' : /^(Head|neck)/.test(n) ? 'head' : /^pelvis/.test(n) ? 'hips' : 'torso');
-const knee = Math.min(at('calf_l')[1], at('calf_r')[1]);
+const knee = Math.min(at('calf_l')[1], at('calf_r')[1]), waist = at('spine_02')[1]; // (the sash: round the waist and below it — a red fleck higher on the chest is the vest's)
 const j4 = [0, 0, 0, 0], w4 = [0, 0, 0, 0], p3 = [0, 0, 0], uv = [0, 0];
 const REG = { none: 0, shirt: 1, vest: 2, sash: 3, pants: 4, boots: 5, bracer: 6 };
 const S = 2, MW = TW / S, MH = TH / S, mask = new Uint8Array(MW * MH).fill(255), sum = new Float64Array(8), cnt = new Float64Array(8); // (255: no texel of the body there)
@@ -36,9 +36,9 @@ const lum = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b;
 const classify = (grp, y, r, g, b) => {
   const L = lum(r, g, b), mx = Math.max(r, g, b), mn = Math.min(r, g, b), sat = (mx - mn) / Math.max(1, mx);
   // (the skin before the white: the shirt is a warm white, the skin warmer still — the gap from red to blue tells them)
-  const skinish = r > 140 && r - b > 0.3 * r && r > g + 15 && L > 105 && !(r > 1.55 * g), white = !skinish && L > 135 && sat < 0.38, red = r > 85 && r > 1.55 * g && r > 1.45 * b, leather = r > b + 28 && L > 55;
+  const skinish = r > 140 && r - b > 0.3 * r && r > g + 15 && L > 105 && !(r > 1.8 * g), white = !skinish && L > 135 && sat < 0.38, red = r > 80 && r > 1.8 * g && r > 1.6 * b, leather = r > b + 28 && L > 55;
   switch (grp) {
-    case 'torso': return skinish ? REG.none : white ? REG.shirt : red ? REG.sash : L < 120 ? REG.vest : REG.none;
+    case 'torso': return skinish ? REG.none : white ? REG.shirt : red && y < waist ? REG.sash : L < 120 || red ? REG.vest : REG.none;
     case 'hips': return white ? REG.shirt : red ? REG.sash : sat < 0.42 && L < 95 ? REG.pants : REG.none;
     case 'arm': return skinish ? REG.none : white ? REG.shirt : REG.none;
     case 'fore': return skinish ? REG.none : white ? REG.shirt : leather || L < 90 ? REG.bracer : REG.none;

@@ -17,8 +17,8 @@ const DIR = 'assets/hero3d/';
 /** The outfit's regions (regions.mjs): the map's file, the atlas's share of the texture's height (the head's band
  *  below), each region's mean brightness (sRGB, 0..1; 1 shirt, 2 vest, 3 sash, 4 trousers, 5 boots, 6 bracers). */
 const REGIONS = {
-  m: { file: 'beginner_m_reg.png', atlasV: 0.666667, mean: [0, 0.781, 0.2173, 0.2829, 0.2014, 0.2204, 0.2492] },
-  f: { file: 'beginner_f_reg.png', atlasV: 0.666667, mean: [0, 0.7744, 0.2128, 0.2737, 0.2006, 0.2263, 0.2383] },
+  m: { file: 'beginner_m_reg.png', atlasV: 0.666667, mean: [0, 0.781, 0.229, 0.2719, 0.2022, 0.2204, 0.2397] },
+  f: { file: 'beginner_f_reg.png', atlasV: 0.666667, mean: [0, 0.7744, 0.2293, 0.2607, 0.203, 0.2263, 0.2308] },
 };
 const REGION_ID = { shirt: 1, vest: 2, sash: 3, pants: 4, boots: 5, bracer: 6 } as const;
 const PATTERN_ID = { stripes: 1, checks: 2, stars: 3, scales: 4, dots: 5, waves: 6 } as const;
@@ -422,7 +422,7 @@ class Cloak {
   private caps: { a: number; b: number; r: number; back?: boolean }[] = [];
   private geo: THREE.BufferGeometry;
   private boneM: THREE.Matrix4[]; private acc = 0; private fresh = true;
-  private static v = new THREE.Vector3(); private static v2 = new THREE.Vector3(); private static m = new THREE.Matrix4();
+  private static v = new THREE.Vector3(); private static v2 = new THREE.Vector3(); private static m = new THREE.Matrix4(); private static f = new THREE.Vector3(); private static ax = new THREE.Vector3();
 
   constructor(private h: WearHost, readonly id: string, look: CloakLook) {
     const body = h.body, sk = body.skeleton, idx = (n: string) => sk.bones.findIndex((b) => b.name === n);
@@ -517,6 +517,10 @@ class Cloak {
     for (let i = W; i < N; i++) { const k = 3 * i; for (let c = 0; c < 3; c++) { const x = p[k + c], v = (x - q[k + c]) * damp; q[k + c] = x; p[k + c] = x + v + (c === 1 ? g : 0); } }
     const sk = this.h.body.skeleton, A = new THREE.Vector3(), B = new THREE.Vector3(), X = new THREE.Vector3(), C = new THREE.Vector3();
     const capsW = this.caps.map((c) => ({ a: A.clone().setFromMatrixPosition(sk.bones[c.a].matrixWorld), b: B.clone().setFromMatrixPosition(sk.bones[c.b].matrixWorld), r: c.r * s }));
+    // the back's plane: through the spine (the pelvis to the neck, on down past the hips), facing the way the chest faces —
+    // the cloth stays behind it (never caught round the body in front after a fall or a roll)
+    const t0 = capsW[0], fwd = Cloak.f.set(0, 0, 1).transformDirection(this.skinM(this.pinB[0].b[0])), axis = Cloak.ax.subVectors(t0.b, t0.a).normalize(), off = t0.r * 0.85;
+    fwd.addScaledVector(axis, -fwd.dot(axis)).normalize();
     for (let it = 0; it < 6; it++) {
       for (const [a, b, l0] of this.links) {
         const ka = 3 * a, kb = 3 * b, dx = p[kb] - p[ka], dy = p[kb + 1] - p[ka + 1], dz = p[kb + 2] - p[ka + 2], d = Math.hypot(dx, dy, dz) || 1e-6, L = l0 * s;
@@ -533,6 +537,8 @@ class Cloak {
           const near = Cloak.v2.copy(c.a).addScaledVector(ab, t), d = X.distanceTo(near);
           if (d < c.r && d > 1e-6) X.sub(near).multiplyScalar(c.r / d).add(near);
         }
+        const along = Cloak.v.subVectors(X, t0.a).dot(axis), d = Cloak.v.subVectors(X, t0.a).addScaledVector(axis, -along).dot(fwd);
+        if (d > -off) X.addScaledVector(fwd, -(d + off));
         if (X.y < 0.006) X.y = 0.006;
         X.toArray(p, 3 * i);
       }
