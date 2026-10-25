@@ -107,13 +107,13 @@ const HATS: Record<string, HatBuild> = {
   /** The archer's feathered cap: green felt, its crown drawn back to a point, a narrow brim turned up behind and to a
    *  beak in front, a long red feather swept back from its side. */
   a_cap: (H, own) => {
-    const g = new THREE.Group(), rx = H.rx * 1.08 + 0.003, rz = H.rz * 1.08 + 0.003, ht = H.ht;
+    const g = new THREE.Group(), rx = H.rx * 1.13 + 0.004, rz = H.rz * 1.12 + 0.004, ht = H.ht; // (roomy: the hair's top stays inside)
     const felt = tex(256, 256, (c, w, h) => { c.fillStyle = '#2f5d2b'; c.fillRect(0, 0, w, h); grain(c, w, h, 0.16, 2200, 7); const gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(255,255,255,.08)'); gr.addColorStop(1, 'rgba(0,0,0,.25)'); c.fillStyle = gr; c.fillRect(0, 0, w, h); });
     const m = std(own, { map: felt, roughness: 0.95, side: THREE.DoubleSide });
-    const tip = new THREE.Vector3(0, ht * 1.15, -rz * 1.7);
+    const tip = new THREE.Vector3(0, ht * 1.25, -rz * 1.7);
     g.add(mesh(own, surface(48, 16, (u, v, o) => {
       const th = u * Math.PI * 2, rim = new THREE.Vector3(rx * Math.sin(th), 0, rz * Math.cos(th));
-      const dome = new THREE.Vector3(rx * 0.75 * Math.sin(th), ht * 0.95, rz * 0.75 * Math.cos(th) - rz * 0.2);
+      const dome = new THREE.Vector3(rx * 0.86 * Math.sin(th), ht * 1.14, rz * 0.86 * Math.cos(th) - rz * 0.15);
       const a = new THREE.Vector3().lerpVectors(rim, dome, Math.sin(v * Math.PI / 2)), t = Math.pow(v, 2.4);
       o.copy(a).lerp(tip, t * (0.5 + 0.5 * (1 - Math.cos(th)) / 2) * 0.9);
     }, true), m));
@@ -162,7 +162,7 @@ const HATS: Record<string, HatBuild> = {
     g.add(mesh(own, surface(48, 8, (u, v, o) => { const th = u * Math.PI * 2, k = 1 + 0.07 * v - 0.05 * Math.sin(v * Math.PI); o.set(rx * k * Math.sin(th), Hc * v, rz * k * Math.cos(th)); }, true), silk));
     g.add(mesh(own, surface(48, 2, (u, v, o) => { const th = u * Math.PI * 2, k = 1.07 * (1 - v); o.set(rx * k * Math.sin(th), Hc, rz * k * Math.cos(th)); }, true), silk));
     g.add(mesh(own, surface(64, 4, (u, v, o) => { const th = u * Math.PI * 2, k = 1.0 + 0.62 * v, s = Math.sin(th); o.set(rx * k * s, -0.01 + H.ht * 0.22 * s * s * v * v - H.ht * 0.04 * Math.cos(th) ** 2 * v, rz * (1 + 0.5 * v) * Math.cos(th)); }, true), silk));
-    const band = std(own, { color: 0x8f1426, roughness: 0.6, side: THREE.DoubleSide });
+    const band = std(own, { color: 0x5a2a8a, roughness: 0.6, side: THREE.DoubleSide });
     g.add(mesh(own, surface(48, 2, (u, v, o) => { const th = u * Math.PI * 2, t = 0.02 + 0.2 * v, k = 1.012 + 0.07 * t - 0.05 * Math.sin(t * Math.PI); o.set(rx * k * Math.sin(th), Hc * t, rz * k * Math.cos(th)); }, true), band));
     const card = tex(128, 180, (c, w, h) => {
       c.fillStyle = '#fbf7ee'; c.beginPath(); c.roundRect(2, 2, w - 4, h - 4, 10); c.fill(); c.strokeStyle = '#b89a52'; c.lineWidth = 3; c.stroke();
@@ -185,9 +185,9 @@ const CLOAKS: Record<string, CloakLook> = {
     c.fillStyle = '#8e1a1a'; c.fillRect(0, 0, w, h); grain(c, w, h, 0.08, 1500, 13); drape(c, w, h); trim(c, w, h, '#d6a648', 9);
     c.save(); c.translate(w / 2, h * 0.22); c.fillStyle = '#d6a648'; c.beginPath(); c.arc(0, 0, 34, 0, 7); c.lineWidth = 5; c.strokeStyle = '#d6a648'; c.stroke(); c.fillRect(-3, -26, 6, 52); c.fillRect(-14, 10, 28, 5); c.beginPath(); c.moveTo(0, -34); c.lineTo(5, -26); c.lineTo(-5, -26); c.fill(); c.restore();
   } },
-  s_mantle: { lining: 0x6b1424, length: 0.62, flare: 0.22, outer: (c, w, h) => {
-    c.fillStyle = '#20233a'; c.fillRect(0, 0, w, h); grain(c, w, h, 0.07, 1200, 17); drape(c, w, h); trim(c, w, h, '#d9dde8', 4);
-    c.save(); c.translate(w / 2, h * 0.2); c.fillStyle = '#e9ecf4'; c.beginPath(); c.arc(0, 0, 30, 0, 7); c.fill(); c.fillStyle = '#20233a';
+  s_mantle: { lining: 0x8e1c24, length: 0.62, flare: 0.22, outer: (c, w, h) => {
+    c.fillStyle = '#18171b'; c.fillRect(0, 0, w, h); grain(c, w, h, 0.07, 1200, 17); drape(c, w, h); trim(c, w, h, '#d9dde8', 4);
+    c.save(); c.translate(w / 2, h * 0.2); c.fillStyle = '#e9ecf4'; c.beginPath(); c.arc(0, 0, 30, 0, 7); c.fill(); c.fillStyle = '#18171b';
     for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2 - Math.PI / 2; c.beginPath(); c.ellipse(Math.cos(a) * 13, Math.sin(a) * 13, 9, 12, a + Math.PI / 2, 0, 7); c.fill(); } c.fillStyle = '#e9ecf4'; c.beginPath(); c.arc(0, 0, 5, 0, 7); c.fill(); c.restore();
   } },
   a_leafcloak: { lining: 0x4a3a26, length: 0.82, flare: 0.34, dagged: true, outer: (c, w, h) => {
@@ -204,7 +204,7 @@ const CLOAKS: Record<string, CloakLook> = {
     for (let i = 0; i < 120; i++) { const x = rnd() * w, y = rnd() * h, r = 1 + rnd() * 3.5; c.fillStyle = rnd() < 0.3 ? '#f3d27a' : '#e2e8ff'; star(c, x, y, r * 1.6, 4, 0.3); }
     trim(c, w, h, '#d9b44a', 7);
   } },
-  g_cape: { lining: 0x8f1426, length: 0.72, flare: 0.3, outer: (c, w, h) => {
+  g_cape: { lining: 0x6e1f78, length: 0.72, flare: 0.3, outer: (c, w, h) => {
     c.fillStyle = '#121216'; c.fillRect(0, 0, w, h); grain(c, w, h, 0.05, 1200, 23); drape(c, w, h);
     const suits = ['♠', '♥', '♦', '♣']; c.font = '22px Georgia'; c.fillStyle = 'rgba(120,120,135,.22)';
     for (let y = 30, r = 0; y < h; y += 46, r++) for (let x = (r % 2) * 26 + 14; x < w; x += 52) c.fillText(suits[(r + Math.floor(x / 52)) % 4], x, y);
