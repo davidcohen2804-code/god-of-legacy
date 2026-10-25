@@ -11,6 +11,8 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { Motion } from '../skills/ArcherMotion';
 import { finalSkill } from '../skills/FinalKit';
+import { Wear3D, type WearHost } from './Wear3D';
+import { ITEM3D, SLOTS3D, type Equip3D, type Item3D, type Slot3D } from './items3d';
 
 export { Doubles3D } from './Doubles3D'; // (loaded with the hero: three.js stays out of the game until a 3D place opens)
 
@@ -57,16 +59,18 @@ const ARM_AWAY: Record<string, [number, number]> = { rotor_staff: [0, 1400] };
 const HOLDS: { name: string; side: 'r' | 'l'; at: [string, number]; way: [number, number, number]; shift: [number, number, number]; room: number; floor?: boolean }[] = [
   { name: 'blade:idle', side: 'r', at: ['Idle_Loop', 0.5], way: [0.14, -0.72, 0.68], shift: [0.02, 0, -0.02], room: 0.1 },
   { name: 'blade:guard', side: 'r', at: ['Sword_Idle', 0.3], way: [0, 0.6, 0.8], shift: [0, 0, 0], room: 0.08 },
-  { name: 'staff:idle', side: 'r', at: ['Idle_Loop', 0.5], way: [0.04, 1, 0.1], shift: [0.08, 0.22, 0.36], room: 0.05, floor: true },
-  { name: 'staff:spell', side: 'r', at: ['Spell_Simple_Idle_Loop', 0.5], way: [0, 1, 0.08], shift: [0, 0.1, 0.1], room: 0.08, floor: true },
+  { name: 'staff:idle', side: 'r', at: ['Idle_Loop', 0.5], way: [0.05, 1, 0.3], shift: [0.08, 0.22, 0.4], room: 0.05, floor: true },
+  { name: 'staff:side', side: 'r', at: ['Idle_Loop', 0.5], way: [0.14, 1, 0.02], shift: [0.2, 0.2, 0.06], room: 0.06, floor: true }, // (the menus' pedestal, seen from the front: beside the hero, its head clear of the face)
+  { name: 'staff:spell', side: 'r', at: ['Spell_Simple_Idle_Loop', 0.5], way: [0.05, 1, 0.36], shift: [0.06, 0.1, 0.3], room: 0.08, floor: true },
   { name: 'cane:idle', side: 'r', at: ['Idle_Loop', 0.5], way: [-0.12, 1, -0.12], shift: [0.03, 0.12, 0.08], room: 0.06 },
   { name: 'cane:alert', side: 'r', at: ['Sword_Idle', 0.3], way: [0, 1, 0.1], shift: [0, 0.08, 0.06], room: 0.08 },
   { name: 'bow:idle', side: 'l', at: ['Idle_Loop', 0.5], way: [0, 1, 0.12], shift: [0.03, 0.2, 0.16], room: 0.05 },
   { name: 'bow:alert', side: 'l', at: ['Sword_Idle', 0.3], way: [0, 1, 0.12], shift: [0, 0.08, 0.06], room: 0.08 },
 ];
 /** Which hold the weapon's arm takes in a move (none: the move's own). */
-function holdFor(w: WeaponId, clip: string): string {
+function holdFor(w: WeaponId, clip: string, front = false): string {
   const idle = /^(Idle_Loop|Walk_Loop)$/.test(clip), free = /^(Seize|Flip_Coin|Roll_Dice|Flick|Throw_L|Idle_Talking|Kick_Flip)/.test(clip);
+  if (w === 'staff' && front && idle) return 'staff:side';
   if (w === 'sword' || w === 'katana') return idle ? 'blade:idle' : clip === 'Sword_Idle' ? 'blade:guard' : '';
   if (w === 'staff') return idle || free ? 'staff:idle' : clip === 'Spell_Simple_Idle_Loop' || clip === 'Sword_Idle' ? 'staff:spell' : '';
   return idle || free && clip !== 'Kick_Flip' ? `${w}:idle` : clip === 'Sword_Idle' || clip === 'Kick_Flip' ? `${w}:alert` : '';
@@ -168,7 +172,7 @@ export class Hero3D {
   /** Each fist's grip (fitGrip): where a weapon's grip sits in the hand bone, turned as the closed fist holds it. */
   private grip: Record<'r' | 'l', { q: THREE.Quaternion; p: THREE.Vector3 }> = { r: { q: new THREE.Quaternion(), p: new THREE.Vector3() }, l: { q: new THREE.Quaternion(), p: new THREE.Vector3() } };
   /** The arm's holds at rest (HOLDS, makeHolds): the upper arm's, the forearm's and the hand's turns. */
-  private holds = new Map<string, { side: 'r' | 'l'; q: THREE.Quaternion[]; slide: number; info: string }>();
+  private holds = new Map<string, { side: 'r' | 'l'; q: THREE.Quaternion[]; slide: number; info: string; floor?: { py: number; wy: number } }>();
   /** How far the arm is in its hold now (holdQ: the hold it is easing to, on holdSide's arm), and how far an upright
    *  weapon is turned upright by the wrist alone (liftK: through a move of the weapon arm's own). */
   private holdK = 0;
@@ -201,6 +205,18 @@ export class Hero3D {
   /** The standing height it is scaled to (units): the painted heroes' 124 world px and a little hair. */
   static HEIGHT = 1.3;
 
+  /** What it wears over the Beginner (items3d): a hat, a cloak, the outfit's dyes, an aura (Wear3D); the weapon item
+   *  in its hand (a weapon's own model in its kind's holder: `skins`, the kind's own kept in `baseArm`). */
+  wear: Wear3D | null = null;
+  worn: Equip3D = {};
+  private female = false;
+  private baseArm = new Map<WeaponId, { model: THREE.Object3D; ends: [number, number] }>();
+  private skins = new Map<WeaponId, string>();
+  /** A weapon item's own girth (items3d `girth`, default 1: the items are drawn as thick as they are). */
+  private girthOf = new Map<WeaponId, number>();
+  private girth(w: WeaponId): number { return this.girthOf.get(w) ?? WEAPONS[w].girth; }
+  private static loader: GLTFLoader | null = null;
+
   /** A twin (clone()): its shape, textures, weapons and moves are its source's — never disposed with it. */
   private shared = false;
   /** What this one made for itself (a twin's own skin material, its shadows', its bowstring's): disposed with it. */
@@ -209,7 +225,7 @@ export class Hero3D {
   private constructor() { this.root.rotation.order = 'ZYX'; this.root.add(this.model); this.scene.add(this.root); } // (ZYX: turned to face first, then tipped in the picture's plane — a somersault, a lean)
 
   static async load(o: { female?: boolean } = {}, onProgress?: (k: number) => void): Promise<Hero3D> {
-    const h = new Hero3D();
+    const h = new Hero3D(); h.female = !!o.female;
     const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
     const ids = Object.keys(WEAPONS) as WeaponId[];
     const files = [o.female ? MODEL.f : MODEL.m, ...MOVES, ...ids.map((w) => WEAPONS[w].file)];
@@ -252,7 +268,66 @@ export class Hero3D {
     h.makeBowShoot(); h.makeHolds(); h.makeBowString();
     h.model.scale.setScalar(Hero3D.HEIGHT / tall);
     h.setWeapon('sword');
+    if (h.body) h.wear = new Wear3D(h.host());
     return h;
+  }
+
+  /** What Wear3D sees of this body. */
+  private host(): WearHost {
+    const h = this; // eslint-disable-line @typescript-eslint/no-this-alias
+    return { scene: this.scene, root: this.root, get body() { return h.body!; }, bones: this.bones, female: this.female, addShadow: (m, both) => this.addShadow(m, both), dropShadow: (m) => this.dropShadow(m) };
+  }
+
+  /** Wear an item (items3d) on its slot, or the Beginner's own there (null). A weapon item is its kind's model in hand
+   *  whenever that kind is held (the sword's, the bow's…). */
+  async equip(slot: Slot3D, id: string | null): Promise<void> {
+    const it = id ? ITEM3D[id] ?? null : null;
+    if (it && it.slot !== slot) return;
+    if (it) this.worn[slot] = it.id; else delete this.worn[slot];
+    if (slot === 'weapon') await this.setSkin(it);
+    else this.wear?.wear(it, slot);
+  }
+  /** A whole set at once (the slots it leaves out: the Beginner's own). */
+  async equipAll(e: Equip3D): Promise<void> { for (const s of SLOTS3D) await this.equip(s, e[s] ?? null); }
+
+  /** The weapon item's model in its kind's holder (loaded now), the others' kinds back to their own. */
+  private async setSkin(it: Item3D | null): Promise<void> {
+    for (const k of [...this.skins.keys()]) if (!it || it.weapon !== k) this.swapArm(k, null);
+    if (!it?.weapon || !it.file || this.skins.get(it.weapon) === it.file) return;
+    const L = (Hero3D.loader ??= (() => { const l = new GLTFLoader(); l.setMeshoptDecoder(MeshoptDecoder); return l; })());
+    let g: Awaited<ReturnType<GLTFLoader['loadAsync']>>;
+    try { g = await L.loadAsync(DIR + it.file); } catch { return; } // (not there: the kind's own stays in hand)
+    if (this.worn.weapon !== it.id) { g.scene.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); } }); return; } // (another chosen meanwhile)
+    this.swapArm(it.weapon, g.scene, it.file, it.girth ?? 1);
+  }
+  private swapArm(kind: WeaponId, model: THREE.Object3D | null, file?: string, girth = 1): void {
+    const g = this.weapons.get(kind), cur = g?.children[0]; if (!g || !cur) return;
+    if (!this.baseArm.has(kind)) this.baseArm.set(kind, { model: cur, ends: this.armEnds.get(kind) ?? [0, 1] });
+    const base = this.baseArm.get(kind)!;
+    if (!model && cur === base.model) return;
+    let ends = base.ends;
+    if (model) {
+      const bx = new THREE.Box3().setFromObject(model, true); ends = [bx.min.y, bx.max.y];
+      model.traverse((o) => {
+        const m = o as THREE.Mesh; if (!m.isMesh) return; m.castShadow = true; m.frustumCulled = false;
+        for (const mt of (Array.isArray(m.material) ? m.material : [m.material]) as THREE.MeshStandardMaterial[]) if (mt?.isMeshStandardMaterial) { mt.envMapIntensity = 0.6; mt.metalness = Math.min(mt.metalness, 0.15); mt.roughness = Math.max(mt.roughness, 0.55); }
+      });
+    }
+    g.remove(cur);
+    if (cur !== base.model) { for (const [m, t] of [...this.shadows]) { let on = false; for (let p: THREE.Object3D | null = m; p; p = p.parent) if (p === cur) on = true; if (on) this.dropShadow(m as THREE.Mesh); } cur.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; m.geometry.dispose(); for (const mt of (Array.isArray(m.material) ? m.material : [m.material]) as THREE.Material[]) { for (const v of Object.values(mt)) if (v && (v as THREE.Texture).isTexture) (v as THREE.Texture).dispose(); mt.dispose(); } }); }
+    const now = model ?? base.model; g.add(now);
+    if (model && file) { this.skins.set(kind, file); this.girthOf.set(kind, girth); } else { this.skins.delete(kind); this.girthOf.delete(kind); }
+    this.armEnds.set(kind, ends);
+    g.updateMatrixWorld(true);
+    this.fitHand(kind);
+    if (kind === 'bow') { this.bowString?.removeFromParent(); this.bowString?.geometry.dispose(); this.bowString = null; this.makeBowString(); }
+    if (kind === 'staff') { // (a staff of another length: slid through the fist till its foot is at the floor again — down for a longer one's)
+      const foot = ends[0];
+      for (const H of this.holds.values()) if (H.floor) H.slide = model ? Math.max(-0.3, Math.min(0.7, (H.floor.py + H.floor.wy * foot - 0.015) / H.floor.wy)) : Math.max(0, Math.min(0.27, (H.floor.py + H.floor.wy * foot - 0.015) / H.floor.wy));
+      this.holdK = 0; // (taken at once)
+    }
+    if (model && this.shadowMat) model.traverse((o) => { if ((o as THREE.Mesh).isMesh && !(o as THREE.Line).isLine) this.addShadow(o as THREE.Mesh); });
+    this.setWeapon(this.weapon);
   }
 
   /** A twin of this body (Kagemusha's doubles): the same shape, textures, weapons and moves — nothing loaded or decoded
@@ -288,6 +363,8 @@ export class Hero3D {
     h.mixer = new THREE.AnimationMixer(h.model);
     h.flatToView = this.flatToView;
     h.setWeapon(this.weapon);
+    h.female = this.female;
+    if (h.body) { h.wear = new Wear3D(h.host()); const w = { ...this.worn }; delete w.weapon; void h.equipAll(w); } // (its weapon's model: its source's, copied)
     return h;
   }
 
@@ -336,7 +413,7 @@ export class Hero3D {
     const side = WEAPONS[w].hand, hand = this.bones.get(`hand_${side}`), g = this.weapons.get(w), root = g?.children[0];
     if (!hand || !root || this.fist[side].length !== this.open[side].length) return;
     // the grip's thickness: its surface's distance from its length near the grip
-    const ds: number[] = [], girth = WEAPONS[w].girth, v = new THREE.Vector3(); g!.updateMatrixWorld(true);
+    const ds: number[] = [], girth = this.girth(w), v = new THREE.Vector3(); g!.updateMatrixWorld(true);
     root.traverse((o) => {
       const m = o as THREE.Mesh; if (!m.isMesh || /String/.test((m.material as THREE.Material).name)) return;
       const p = m.geometry.attributes.position;
@@ -606,7 +683,7 @@ export class Hero3D {
       // the staff gripped high on its shaft: its foot just off the floor (the feet stand at 0), the hand still on the plain
       // shaft under its head
       const foot = this.armEnds.get('staff')?.[0] ?? 0, slide = floor ? Math.max(0, Math.min(0.27, (k.P.y + want.y * foot - 0.015) / want.y)) : 0;
-      this.holds.set(name, { side, q: [Cw.clone().invert().multiply(k.Uw), k.Fl.clone(), k.Fw.clone().invert().multiply(k.Hw)], slide, info: `cost ${best.f.toFixed(2)} wrist dev ${(p.dev * 57.3).toFixed(0)} twist ${(p.twist * 57.3).toFixed(0)} flex ${(p.flex * 57.3).toFixed(0)} elbow ${(p.bend * 57.3).toFixed(0)} grip ${(Math.sqrt(p.grip) * room * 100).toFixed(1)}cm slide ${slide.toFixed(2)} x ${best.x.map((v) => v.toFixed(2)).join(' ')}` });
+      this.holds.set(name, { side, q: [Cw.clone().invert().multiply(k.Uw), k.Fl.clone(), k.Fw.clone().invert().multiply(k.Hw)], slide, floor: floor ? { py: k.P.y, wy: want.y } : undefined, info: `cost ${best.f.toFixed(2)} wrist dev ${(p.dev * 57.3).toFixed(0)} twist ${(p.twist * 57.3).toFixed(0)} flex ${(p.flex * 57.3).toFixed(0)} elbow ${(p.bend * 57.3).toFixed(0)} grip ${(Math.sqrt(p.grip) * room * 100).toFixed(1)}cm slide ${slide.toFixed(2)} x ${best.x.map((v) => v.toFixed(2)).join(' ')}` });
     }
     this.mixer.stopAllAction(); this.action = null; this.clipNow = ''; this.model.updateMatrixWorld(true);
   }
@@ -630,7 +707,8 @@ export class Hero3D {
     this.bowString = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xd8cfb8 }));
     this.bowString.userData.tips = tips; this.bowString.frustumCulled = false;
     root.add(this.bowString);
-    // the arrow: a shaft, a steel head, three feathers (made here; the archer's own arrows fly as the skills' effects)
+    // the arrow: a shaft, a steel head, three feathers (made here, once; the archer's own arrows fly as the skills' effects)
+    if (this.bowArrow) return;
     const a = new THREE.Group();
     const wood = new THREE.MeshStandardMaterial({ color: 0x8a6a44, roughness: 0.8 }), steel = new THREE.MeshStandardMaterial({ color: 0xc8ccd2, metalness: 0.6, roughness: 0.35 }), fl = new THREE.MeshStandardMaterial({ color: 0x2f6a3a, roughness: 0.9, side: THREE.DoubleSide });
     const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, 0.72, 5), wood); shaft.position.y = 0.36; a.add(shaft);
@@ -656,6 +734,8 @@ export class Hero3D {
 
   /** The cast shadow, from the room's sun (`sunDir`: towards the sun, world; kept up to date by the arena): every piece
    *  drawn again flattened onto the floor along the light, dark and see-through, each floor pixel once (a stencil). */
+  private shadowMat: THREE.MeshBasicMaterial | null = null;
+  private shadowMat2: THREE.MeshBasicMaterial | null = null;
   makeShadow(sunDir: THREE.Vector3): void {
     const mat = new THREE.MeshBasicMaterial({ color: 0x160a10, transparent: true, opacity: 0.24, depthWrite: false }); // (as faint as the painted bodies' sun shadows)
     this.own.push(mat);
@@ -671,16 +751,26 @@ export class Hero3D {
         gl_Position = projectionMatrix * mvPosition;`);
     };
     mat.customProgramCacheKey = () => 'hero-shadow';
+    this.shadowMat = mat;
+    const m2 = mat.clone(); m2.side = THREE.DoubleSide; m2.onBeforeCompile = mat.onBeforeCompile; m2.customProgramCacheKey = () => 'hero-shadow-2'; this.shadowMat2 = m2; this.own.push(m2); // (a sheet's: a cloak, a brim)
     const src: THREE.Mesh[] = [];
-    this.model.traverse((o) => { if ((o as THREE.Mesh).isMesh) src.push(o as THREE.Mesh); });
-    for (const m of src) {
-      const sk = m as THREE.SkinnedMesh;
-      let t: THREE.Mesh;
-      if (sk.isSkinnedMesh) { const tw = new THREE.SkinnedMesh(sk.geometry, mat); tw.bind(sk.skeleton, sk.bindMatrix); t = tw; } else t = new THREE.Mesh(m.geometry, mat);
-      t.frustumCulled = false; t.renderOrder = 5;
-      t.position.copy(m.position); t.quaternion.copy(m.quaternion); t.scale.copy(m.scale);
-      m.parent!.add(t); this.shadows.push([m, t]);
-    }
+    this.model.traverse((o) => { if ((o as THREE.Mesh).isMesh && !o.userData.worn) src.push(o as THREE.Mesh); });
+    for (const m of src) this.addShadow(m);
+    this.wear?.reshadow();
+  }
+  /** A piece's shadow (its twin on the same bones or the same place, flattened by the shadow's shader). */
+  addShadow(m: THREE.Mesh, both = false): void {
+    const mat = both ? this.shadowMat2 : this.shadowMat; if (!mat || !m.parent || this.shadows.some(([x]) => x === m)) return;
+    const sk = m as THREE.SkinnedMesh;
+    let t: THREE.Mesh;
+    if (sk.isSkinnedMesh) { const tw = new THREE.SkinnedMesh(sk.geometry, mat); tw.bind(sk.skeleton, sk.bindMatrix); t = tw; } else t = new THREE.Mesh(m.geometry, mat);
+    t.frustumCulled = false; t.renderOrder = 5;
+    t.matrixAutoUpdate = m.matrixAutoUpdate; t.position.copy(m.position); t.quaternion.copy(m.quaternion); t.scale.copy(m.scale); if (!m.matrixAutoUpdate) t.matrix.copy(m.matrix);
+    m.parent.add(t); this.shadows.push([m, t]);
+  }
+  dropShadow(m: THREE.Mesh): void {
+    const i = this.shadows.findIndex(([x]) => x === m); if (i < 0) return;
+    this.shadows[i][1].removeFromParent(); this.shadows.splice(i, 1);
   }
   private shown(o: THREE.Object3D): boolean { for (let p: THREE.Object3D | null = o; p && p !== this.model; p = p.parent) if (!p.visible) return false; return true; }
 
@@ -691,6 +781,7 @@ export class Hero3D {
     this.tintNow = tint;
     const m = this.body?.material as THREE.MeshStandardMaterial | undefined; if (!m) return;
     if (tint === null) m.emissive.setRGB(0, 0, 0); else m.emissive.setHex(tint).multiplyScalar(0.32);
+    this.wear?.tint(tint);
   }
 
   /** Afterimages (a dash's blur, a leap's trail): the body's pose a moment ago, flat in a colour, fading — a small pool of
@@ -723,9 +814,11 @@ export class Hero3D {
   snapshot(a3: { bodyShot(sc: THREE.Scene, feet: THREE.Vector3, out: HTMLCanvasElement, ppu: number, ox: number, oy: number): void }, out: HTMLCanvasElement, ppu: number, ox: number, oy: number): void {
     const hide = [...this.shadows.map(([, t]) => t), ...this.ghosts.map((g) => g.m)].filter((o) => o.visible);
     for (const o of hide) o.visible = false;
+    this.wear?.showAura(false);
     this.root.updateMatrixWorld(true);
     a3.bodyShot(this.scene, this.root.position, out, ppu, ox, oy);
     for (const o of hide) o.visible = true;
+    this.wear?.showAura(true);
   }
 
   /** The weapon in hand as a line, its grip → an end (px from the feet: x along the picture, y down): `beyond` the grip
@@ -766,7 +859,7 @@ export class Hero3D {
     if (this.bowArrow) this.bowArrow.visible = false; // (no arrow left nocked when the bow is put away)
     for (const [w, g] of this.weapons) {
       g.visible = w === id && this.armShown && !this.armAway; if (w !== id) continue;
-      g.position.copy((this.wgrip.get(w) ?? this.grip[WEAPONS[w].hand]).p); g.quaternion.copy(this.armQ(w)); g.scale.set(WEAPONS[w].girth, 1, WEAPONS[w].girth);
+      g.position.copy((this.wgrip.get(w) ?? this.grip[WEAPONS[w].hand]).p); g.quaternion.copy(this.armQ(w)); g.scale.set(this.girth(w), 1, this.girth(w));
     }
     this.castKey = ''; this.clipNow = '';
   }
@@ -845,6 +938,7 @@ export class Hero3D {
     if (this.armShown && !this.armAway) this.closeHand();
     this.hold(ms);
     this.fadeGhosts(ms);
+    this.wear?.update(ms);
     for (const [m, t] of this.shadows) t.visible = this.shown(m);
   }
 
@@ -878,6 +972,7 @@ export class Hero3D {
     this.root.updateMatrixWorld(true); // (the hands where the move has them: the bowstring is drawn to them)
     this.hold(1000); // (the weapon settled at once)
     this.root.updateMatrixWorld(true);
+    this.wear?.settle(); // (a cloak hanging as it falls)
   }
 
   /** The painted bodies' motion layer laid on this one (after drive): the recoil and the lean of a shot, a leap's arc,
@@ -904,7 +999,7 @@ export class Hero3D {
     g.quaternion.copy(this.armQ(this.weapon));
     const shooting = this.weapon === 'bow' && this.clipNow.startsWith('Bow_Shoot') && !!this.action?.isRunning(); // (the draw holds the bow its own way)
     const c = this.clipNow, side = W.hand, blade = W.loose === 'hang';
-    const H = !shooting && this.armShown && !this.armAway ? this.holds.get(holdFor(this.weapon, c)) : undefined;
+    const H = !shooting && this.armShown && !this.armAway ? this.holds.get(holdFor(this.weapon, c, this.flatToView)) : undefined;
     const e = Math.min(1, ms / 140);
     if (H) {
       if (this.holdK < 0.01 || H.side !== this.holdSide) { this.holdQ.forEach((q, i) => q.copy(H.q[i])); this.holdSide = H.side; this.holdSlide = H.slide; }
@@ -1023,8 +1118,10 @@ export class Hero3D {
   dispose(): void {
     this.mixer?.stopAllAction();
     for (const g of this.ghosts) g.m.removeFromParent();
+    this.wear?.dispose(); this.wear = null;
     for (const o of this.own) o.dispose();
     if (this.shared) { this.root.removeFromParent(); return; } // (a twin: the shape, textures and weapons are its source's)
+    for (const [k, b] of this.baseArm) if (this.weapons.get(k)?.children[0] !== b.model) b.model.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); } }); // (a kind's own model put away for an item's)
     this.root.traverse((o) => {
       const m = o as THREE.Mesh; if (!m.isMesh) return;
       m.geometry?.dispose();

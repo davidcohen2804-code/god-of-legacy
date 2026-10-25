@@ -24,6 +24,8 @@ import ATLAS from '../data/asset-manifest.json';
 import COMBAT_ASSETS from '../data/stage5-assets.json';
 import S6 from '../data/stage6-combat.json';
 import TRAINING from '../data/training-combat.json';
+import { buildItems3DPanel } from '../arena3d/items3dPanel';
+import { loadEquip3D } from '../arena3d/items3d';
 import { CHARACTER_PREVIEWS, CLASS_NAMES, FONT_FAMILY, HUD, PVP, STAGE6 } from '../config/layout';
 import { CharacterStore } from '../characters/CharacterStore';
 import { GearState, GearStats, JOB_SET, attackMul, gearStats, giveItem, starterGear, takenMul, wornCode, wornLook } from '../items/Gear';
@@ -4125,6 +4127,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     h.makeShadow(sunDir);
     h.setWeapon(mod.CLASS_WEAPON[this.cls] ?? 'sword');
     this.hero3d = { h, img, a3, others: [], loading: 0, Dbl: mod.Doubles3D, kage: new Map() }; this.hero3dWait = false;
+    void h.equipAll(loadEquip3D(this.character?.id ?? 'guest')); // (what the character wore last)
     this.buildItemUi(mod.WEAPONS);
   }
 
@@ -4240,32 +4243,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (m.alpha !== undefined) H.img.setAlpha(H.img.alpha * m.alpha);
   }
 
-  /** The Beginner's item buttons: the weapon in hand (the arena's bottom left, beside the skill bar). */
+  /** The Beginner's items panel (the arena's bottom left, beside the skill bar; the world's under the quests): the weapon
+   *  in hand, and what it wears — each slot's pieces, each class's set (Items3D: saved for the character). */
   private buildItemUi(items: Record<string, { name: string }>): void {
     const host = this.hud?.overlay, H = this.hero3d; if (!host || !H) return;
-    if (!document.getElementById('gol-h3d-style')) {
-      const st = document.createElement('style'); st.id = 'gol-h3d-style';
-      st.textContent = `
-.gol-h3d{position:absolute;left:24px;bottom:42px;display:flex;flex-direction:column;gap:10px;padding:14px 16px 16px;box-sizing:border-box;pointer-events:auto;
-  background:linear-gradient(rgba(6,10,18,.84),rgba(6,10,18,.7));border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.45),inset 0 0 0 1px rgba(201,154,69,.5);font-family:${FONT_FAMILY}}
-.gol-h3d .hd{font:700 12px ${FONT_FAMILY};letter-spacing:2.5px;color:#f3d58a;text-shadow:0 1px 2px #000}
-.gol-h3d .row{display:flex;gap:8px}
-.gol-h3d button{height:34px;padding:0 11px;border-radius:7px;border:1px solid #6a5630;background:#0b121b;color:#c9b48a;font:700 12px ${FONT_FAMILY};letter-spacing:1.5px;cursor:pointer;text-shadow:0 1px 2px #000}
-.gol-h3d button:hover{border-color:#c99a45;box-shadow:0 0 10px rgba(232,178,90,.35)}
-.gol-h3d button.on{border-color:#e8b25a;background:linear-gradient(#3a2a10,#22180a);color:#ffe7a8}`;
-      document.head.appendChild(st);
-    }
-    const el = document.createElement('div'); el.className = 'gol-h3d';
-    if (this.w3d) Object.assign(el.style, { left: '18px', top: '300px', bottom: 'auto' }); // (the world's HUD: under the quests, clear of the minimap; the arena's: the bottom left, clear of the bars, the combo guide and the sparring panel)
-    el.innerHTML = '<div class="hd">3D BEGINNER · ITEMS</div><div class="row"></div>';
-    const row = el.querySelector('.row')!;
-    const refresh = () => row.querySelectorAll('button').forEach((b) => b.classList.toggle('on', (b as HTMLButtonElement).dataset.id === this.hero3d?.h.weapon));
-    for (const [id, o] of Object.entries(items)) {
-      const b = document.createElement('button'); b.textContent = o.name; b.dataset.id = id;
-      b.onclick = () => { this.hero3d?.h.setWeapon(id as Hero3D['weapon']); refresh(); };
-      row.appendChild(b);
-    }
-    refresh(); host.appendChild(el); H.ui = el;
+    const el = buildItems3DPanel({ host, hero: () => this.hero3d?.h, weapons: items, who: this.character?.id ?? 'guest', font: FONT_FAMILY, at: this.w3d ? { left: '18px', top: '300px', bottom: 'auto' } : undefined }); // (the world's HUD: under the quests, clear of the minimap; the arena's: the bottom left, clear of the bars, the combo guide and the sparring panel)
+    H.ui = el;
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => el.remove());
   }
 

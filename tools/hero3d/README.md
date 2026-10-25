@@ -85,6 +85,45 @@ business end (the point, the head, the knob).
 | staff | 1.6 m | 507, 740 | |
 | cane | 1.0 m | 510, 320 (under the knob) | |
 
+### The items' weapons (`w_sword_dragon.glb` … `w_cane_royal.glb`)
+
+Each class's special weapon (items3d: Dragonfang, Crimson Moon, Sylvan Wing, Astral Staff, Royal Flush) is made the
+same way from its GPT drawing (`src/weapons/*_dragon.jpg` …: cut with `ai/cut.py` — the bow's string painted out first,
+it closed the bow's inside off from the ground — inflated, `wpnglb.mjs`, then `weapons/packw.mjs` packs it as the game's:
+its drawing as WebP, meshopt). In game they are their kind's model in its holder (`Hero3D.swapArm`: its fist fitted
+again, the bow's string taken from its own, a staff of another length slid through the fist to the floor), at girth 1
+(drawn as thick as they are).
+
+| Weapon | Length | Grip (drawing px) | inflate extra |
+|---|---|---|---|
+| sword_dragon | 1.05 m | 511, 1205 | blade above row 785, 2.8 mm |
+| katana_moon | 1.0 m | 511, 1180 | blade above row 1036; guard disc r 3.6 cm at +6.8 cm |
+| bow_sylvan | 1.25 m | 445, 748 | string 0.157, ±0.58 m |
+| staff_astral | 2.05 m | 516, 880 | RC 3.6 cm (a round shaft); its orb clears the head |
+| cane_royal | 1.0 m | 511, 395 | RC 2 cm |
+
+## The items (`src/arena3d/items3d.ts`, `Wear3D.ts`)
+
+David 25 Oct: a few swappable items for every class — aura, shirt, trousers, boots, hat, cloak — and a special weapon
+each. One set per class on seven slots (weapon, hat, cloak, top, bottom, shoes, aura); the arena's and the world's
+items panel (`items3dPanel.ts`) tries them on (a slot's pieces, a class's whole set) and saves what is worn for the
+character (this browser); the character select shows it on the pedestal.
+
+- **Hats** are made in code on the head's bone, sized to this body's head with its hair (`Wear3D.headFit`: the rim at
+  the forehead, its half-widths, the crown's height): the warrior's helm (a steel dome, a nose guard, a crimson crest),
+  the samurai's straw kasa (a red cord under the chin), the archer's feathered cap, the mage's bent wizard hat, the
+  gambler's slanted top hat with the ace of spades in its band.
+- **Cloaks** are cloth: 9 × 14 particles pinned along the shoulders (through the collarbones' and the upper spine's
+  skinning), falling under their weight at 60 steps a second, kept off the back, the legs and the upper arms
+  (capsules on the bones); each its own painted face (trim, an emblem, stars, suits, a dagged hem) and lining.
+- **Shirt, trousers, boots** change the Beginner's own painted clothes by their regions: `items/regions.mjs BODY.glb
+  OUT.png OUT.json` maps each texel of the atlas to the shirt, the vest, the sash, the trousers, the boots or the
+  bracers (by the bone it hangs on and its colour, specks smoothed) — run it again whenever a body changes and copy its
+  means into `Wear3D`'s `REGIONS`. The body's shader recolours a region keeping the painting's shading (colour ×
+  brightness / the region's mean) and lays a pattern on the body (stripes, checks, sparks, scales, dots, waves).
+- **Auras**: a magic circle turning at the feet, a soft glow up the body and rising (or falling) sprites — embers,
+  sakura petals, leaves, sparks, coins.
+
 ## The pictures (`public/assets/hero3d/art/`)
 
 The heroes' splash and faces with the 3D heroes on (`src/arena3d/heroArt3d.ts`): the VS screen, the loading VS, the

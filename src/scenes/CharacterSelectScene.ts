@@ -87,10 +87,10 @@ export class CharacterSelectScene extends Phaser.Scene {
     // the 3D Beginner (David 24 Oct: the heroes in 3D; the painted ones and the throne go): the selected character's body,
     // man or woman, its class's weapon in hand (each body loaded once, the other hidden)
     const pv3: Record<string, HeroPreview3D> = {}, loading3 = new Set<string>();
-    let want3: { gender: string; cls: string } | null = null;
-    const show3D = (w: { gender: string; cls: string } | null) => {
+    let want3: { gender: string; cls: string; id: string } | null = null;
+    const show3D = (w: { gender: string; cls: string; id: string } | null) => {
       want3 = w;
-      for (const [g2, p] of Object.entries(pv3)) { p.image.setVisible(!!w && g2 === w.gender); if (w && g2 === w.gender) p.setWeapon(CLASS_WEAPON3D[w.cls] ?? 'sword'); }
+      for (const [g2, p] of Object.entries(pv3)) { p.image.setVisible(!!w && g2 === w.gender); if (w && g2 === w.gender) { p.setWeapon(CLASS_WEAPON3D[w.cls] ?? 'sword'); p.wearFor(w.id); } } // (with its items)
       if (!w || pv3[w.gender] || loading3.has(w.gender)) return;
       const gender = w.gender; loading3.add(gender);
       void import('../arena3d/HeroPreview3D').then(async ({ HeroPreview3D }) => {
@@ -114,7 +114,7 @@ export class CharacterSelectScene extends Phaser.Scene {
         if (HERO3D.on) { // the 3D Beginner stands on the pedestal: no painted hero, no throne
           const c = key ? CharacterStore.getSelectedCharacter() : null, cls3 = c ? (key ? classOfKey(key) : null) ?? c.classId : null;
           hero.setVisible(false); throne?.setVisible(false); g.setVisible(true); halo.setVisible(!!c); shadow.setVisible(!!c);
-          show3D(c ? { gender: genderOf(c), cls: cls3 ?? '' } : null);
+          show3D(c ? { gender: genderOf(c), cls: cls3 ?? '', id: c.id } : null);
           if (key !== lastKey) { selectedCls = cls3; presence.setClass(selectedCls); lastKey = key; }
           return;
         }

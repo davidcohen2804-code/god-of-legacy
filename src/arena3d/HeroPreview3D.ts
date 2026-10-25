@@ -3,6 +3,7 @@
 // lit like a stage. (In a 3D place the hero is drawn by the place itself: Arena3D's layers, Hero3D.)
 import Phaser from 'phaser';
 import * as THREE from 'three';
+import { loadEquip3D } from './items3d';
 import { Hero3D, type WeaponId } from './Hero3D';
 
 export class HeroPreview3D {
@@ -49,6 +50,9 @@ export class HeroPreview3D {
 
   /** Another weapon in hand. */
   setWeapon(w: WeaponId): void { this.hero.setWeapon(w); }
+  /** The character's items on the pedestal (what it wore last: items3d), put on when the character changes. */
+  private who = '';
+  wearFor(who: string): void { if (who === this.who) return; this.who = who; void this.hero.equipAll(loadEquip3D(who)); }
 
   private step(_t: number, ms: number): void {
     if (this.dead) return;
