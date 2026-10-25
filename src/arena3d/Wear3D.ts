@@ -18,8 +18,8 @@ const DIR = 'assets/hero3d/';
  *  the texture's height it covers (1: all of it), each region's mean brightness (sRGB, 0..1; 1 shirt, 2 vest, 3 sash,
  *  4 trousers, 5 boots, 6 bracers). */
 const REGIONS = {
-  m: { file: 'beginner_m_reg.png', atlasV: 1, mean: [0, 0.719, 0.229, 0.2719, 0.2022, 0.2204, 0.2397] },
-  f: { file: 'beginner_f_reg.png', atlasV: 1, mean: [0, 0.669, 0.2293, 0.2607, 0.203, 0.2263, 0.2308] },
+  m: { file: 'beginner_m_reg.png', atlasV: 1, mean: [0, 0.715, 0.229, 0.2719, 0.2022, 0.2204, 0.2397] },
+  f: { file: 'beginner_f_reg.png', atlasV: 1, mean: [0, 0.665, 0.2293, 0.2607, 0.203, 0.2263, 0.2308] },
 };
 const REGION_ID = { shirt: 1, vest: 2, sash: 3, pants: 4, boots: 5, bracer: 6 } as const;
 const PATTERN_ID = { stripes: 1, checks: 2, stars: 3, scales: 4, dots: 5, waves: 6 } as const;

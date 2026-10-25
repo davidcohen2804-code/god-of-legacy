@@ -83,8 +83,9 @@ the band's skin block, the base body's own weights; joined to the head at every 
   its own shape; folds eased away.
 - The old body's neck goes (what is inside the new neck; the drawn neck's skin round it — its ragged ring) and the skin
   of the shirt's opening (grown from it through faces of the Beginner's own skin tone); the clothes stay (the collar, the
-  lapels). The rims near the neck are eased along themselves and laid on the new part with its weights there (they move
-  together); skin texels left on the cloth's edges are painted the cloth.
+  lapels). The rims near the neck lose their teeth (a face with two edges on a rim: a shard), are eased along themselves
+  and laid on the new part with its weights there (they move together); skin texels left on the cloth's edges are
+  painted the cloth.
 - Its texels: the base texture's own non-skin (the base woman's underwear, the nipples) painted skin, the chest smoothed
   and coloured as the neck; round the sides and the back below the neck's root a linen collar band (the old body's neck
   there was the drawn hair). The band is the shirt's in the regions' map, which now covers the whole atlas
@@ -97,7 +98,8 @@ The shirt's holes in the regions' map filled (`items/regfill.mjs BODY.glb REGION
 regions.mjs took the shirt by its colour, so the drawing's brown smudges on it were no region — the clean linen and the
 items' dyes stopped at them (a dyed shirt kept brown patches). Each patch of no region on the body's faces is made the
 shirt when the shirt is most of its rim and it lies on the shirt's part of the body (not the forearms, the hands, the
-neck, the head); the texels round the faces' edges take the region round them.
+neck, the head); then across the atlas's pieces, a face of no region there, light or a smudge's brown, whose neighbours on
+the body are mostly the shirt; the texels round the faces' edges take the region round them.
 
 The shirt made clean (`items/clean.mjs IN.glb REGIONS.png OUT.glb`, after the fill): its texels (the shirt's region)
 laid in a clean warm linen, the broad light and folds kept, the drawing's brown smudges mostly gone. (Its blur read

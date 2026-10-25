@@ -12,9 +12,10 @@
 //     folds eased away;
 //  3. the old body's neck goes (what is inside the new one, the drawn neck's skin round it above the rim — its ragged
 //     ring) and the skin of the opening (grown from it through faces of the Beginner's own skin tone over the new part);
-//     the clothes stay (the collar, the lapels); loose bits near the neck go; the rims near the neck eased along
-//     themselves and laid on the new part (1.5 mm over it) with its weights there (they move together), the cloth round
-//     them following; the skin texels left on the cloth's edges painted the cloth; small holes closed;
+//     the clothes stay (the collar, the lapels); loose bits near the neck go; the rims near the neck lose their teeth
+//     (shards: a face with two edges on a rim), are eased along themselves and laid on the new part (1.5 mm over it)
+//     with its weights there (they move together), the cloth round them following; the skin texels left on the cloth's
+//     edges painted the cloth; small holes closed;
 //  4. the new part trimmed to what can show (the neck, where the old faces went, a margin under the cloth);
 //  5. the normals of the neck and the chest made again as one surface with the head's skin;
 //  6. its texels: the base texture's non-skin (the base woman's underwear, the nipples) painted its skin round it; the
@@ -365,6 +366,20 @@ let bits = 0;
   const keep = []; for (let t = 0; t < I.length; t += 3) { if (!isNew[I[t]]) { const c = find(wid[I[t]]); if (size.get(c) < 300 && high.get(c) > cl.y - 0.08 && close.get(c) < 0.22) { bits++; continue; } } keep.push(I[t], I[t + 1], I[t + 2]); }
   I = keep;
 }
+// the rims' teeth near the neck: a face of the old body with two of its edges on a rim (a shard sticking out of the
+// cloth's edge) goes, a few times over
+let teeth = 0;
+for (let pass = 0; pass < +(process.env.TEETH ?? 3); pass++) {
+  const { wid } = W0, cnt = new Map(), ek = (u, v) => (u < v ? u * W0.nW + v : v * W0.nW + u);
+  for (let t = 0; t < I.length; t += 3) { if (isNew[I[t]]) continue; for (let q = 0; q < 3; q++) { const e = ek(wid[I[t + q]], wid[I[t + (q + 1) % 3]]); cnt.set(e, (cnt.get(e) || 0) + 1); } }
+  const keep = []; let n = 0;
+  for (let t = 0; t < I.length; t += 3) {
+    if (!isNew[I[t]]) { let b = 0; for (let q = 0; q < 3; q++) if (cnt.get(ek(wid[I[t + q]], wid[I[t + (q + 1) % 3]])) === 1) b++; if (b >= 2) { const c = cen(t); if (c.y > s3.y - 0.06 && polar(c.x, c.z)[0] < 0.2) { n++; continue; } } }
+    keep.push(I[t], I[t + 1], I[t + 2]);
+  }
+  I = keep; teeth += n; if (!n) break;
+}
+console.log('teeth off the rims near the neck:', teeth, 'faces');
 // ---- the old body's rims near the neck (its opening, the cut round its neck) eased along themselves (Taubin; points
 // where a rim pinches stay), then laid on the new part (just over it) — the cloth round them eased after them
 let eased = 0, laid = 0; const edgeW = new Set();
