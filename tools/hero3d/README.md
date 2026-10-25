@@ -49,6 +49,26 @@ shoulder's turn, the elbow's bend, the forearm's twist; the hand then turned the
 leave the wrist as a wrist bends; the weapon is then turned about its own length (its grip is round in the fist) to
 show its face to the viewer — a blade's flat, the bow's curve with its string away from the body.
 
+## The head (`ai/head.mjs`)
+
+The drawn head came out of one full-body drawing with too few pixels for a face (the eyes smeared, the hair a lump with
+grey streaks of the drawing's ground). It is replaced by the head of the Quaternius base body (CC0: a modelled face, its
+eyes and brows) and a base hair piece, laid on the Beginner's neck at its size and coloured to its skin (the bare
+forearms') and its hair (the drawn head's dark); their textures go in a band added under the atlas.
+`node head.mjs BODY.glb BASE.gltf HAIR.gltf OUT.glb` (env below) — the man: `HEAD_K=1.2 SKIN_TEX=T_Superhero_Male_Ligh.png`
+with `Hair_SimpleParted`; the woman: `HEAD_K=1.2 SKIN_TEX=T_Superhero_Female_Light_BaseColor.png PONY=1 HAIR_DROP_X=0.05
+PONYTAIL=1` with `Hair_Buns` (its buns dropped).
+
+- The drawn neck stays (painted skin) and the base neck goes into it, made as thick as it at each height; the drawn
+  hair round the neck goes, the shirt's collar stays; the collar and the neck round the new neck smoothed (Taubin).
+- The face's skin: the base texture moved to the Beginner's skin, its broad tones evened out (the face was painted
+  lighter in the middle than round the jaw), from the texels of its own pieces only.
+- The woman (`PONY`): the drawing's ponytail flew 30 cm out behind her head — its strands out behind go, those lying on
+  the back are pressed into it (a smooth surface through the back round them) and painted the shirt; then (`PONYTAIL`)
+  a ponytail is made on the head as she is drawn: tied high at the back of the pulled-back hair with a red tie (the
+  sash's red), falling down her back in seven clumps that spread and come together at their tips, drawn from the hair
+  texture's long locks; it hangs on the head at the top and on the upper spine down the back.
+
 ## The weapons (`public/assets/hero3d/w_*.glb`)
 
 Each drawn by GPT flat on grey (`src/weapons/`), cut out, then made solid by `weapons/inflate.py`: the silhouette

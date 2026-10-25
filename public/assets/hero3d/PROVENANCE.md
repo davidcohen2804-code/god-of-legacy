@@ -10,7 +10,8 @@
 | `moves_4.glb` | Quaternius, Universal Animation Library 1 and 2 (CC0): the heavy combo, the thrusting dash, the farm and shield moves (`tools/hero3d/moves4.mjs`) |
 | `beginner_f.glb` | The Beginner as a woman, made the same way as `beginner_m.glb` |
 | (both bodies' hands) | The hands of Quaternius' Universal Base Characters (`Superhero_Male_FullBody`, `Superhero_Female_FullBody`, CC0) — fingers on their own bones, laid into the drawn hands' place and coloured from them (`tools/hero3d/ai/hands.mjs`) |
-| `art/*.webp` | The 3D Beginner's pictures (VS, loading, portraits), rendered here (`tools/hero3d/art`) |
+| (both bodies' heads) | The heads of Quaternius' Universal Base Characters (`Superhero_Male_FullBody`, `Superhero_Female_FullBody`, their light skin textures, eyes and brows) and its hair pieces (`Hair_SimpleParted` the man's; `Hair_Buns` without its buns the woman's, her ponytail and its tie made here), CC0 — laid on the drawn neck and coloured to the Beginner's skin and hair (`tools/hero3d/ai/head.mjs`) |
+| `art/*.webp` | The Beginner's pictures (VS, loading, portraits, the fighter select): painted by GPT from the Beginner's sheets, framed here (`tools/hero3d/art/splash.py`) |
 
 The Quaternius files were fetched from the CC0 copies in moritzbrantner/asset-tooling (`assets/canonical/quaternius.*`)
 and Kiikurage/game-test (`public/assets/animations.glb`); the moves are packed by `tools/hero3d/build.mjs`.
