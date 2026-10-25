@@ -93,10 +93,16 @@ the band's skin block, the base body's own weights; joined to the head at every 
 `REG_OUT=…_reg.png node bust.mjs IN.glb OUT.glb BASE.gltf 1.2 REGIONS.png` (on head.mjs's output; BASE the
 `Superhero_*_FullBody` the head came from; REGIONS regions.mjs's map).
 
-The shirt made clean (`items/clean.mjs IN.glb REGIONS.png OUT.glb`, after the bust): its texels (the shirt's region)
-laid in a clean warm linen, the broad light and folds kept, the drawing's brown smudges mostly gone; its mean brightness
-barely moves (the dyes' REGIONS means stand). (Its blur read sharp's three-channel output as one until 25 Oct — the
-shading was taken from the wrong places.)
+The shirt's holes in the regions' map filled (`items/regfill.mjs BODY.glb REGIONS.png OUT.png`, after the bust):
+regions.mjs took the shirt by its colour, so the drawing's brown smudges on it were no region — the clean linen and the
+items' dyes stopped at them (a dyed shirt kept brown patches). Each patch of no region on the body's faces is made the
+shirt when the shirt is most of its rim and it lies on the shirt's part of the body (not the forearms, the hands, the
+neck, the head); the texels round the faces' edges take the region round them.
+
+The shirt made clean (`items/clean.mjs IN.glb REGIONS.png OUT.glb`, after the fill): its texels (the shirt's region)
+laid in a clean warm linen, the broad light and folds kept, the drawing's brown smudges mostly gone. (Its blur read
+sharp's three-channel output as one until 25 Oct — the shading was taken from the wrong places.) The regions' means
+for `Wear3D`'s REGIONS: `items/regmean.mjs BODY.glb REGIONS.png` (over the faces' own texels, the drawn ones).
 
 ## The surfaces (`ai/maps.mjs`)
 
@@ -105,8 +111,8 @@ plastic"): the skin, the hair and the eyes take the base body's own (Quaternius'
 `T_Hair_*_Normal`, `T_Eye_Normal`, CC0 — the band copies their colour maps block for block); the clothes a relief from
 their own painting (the slopes of its brightness: the folds, the seams, the leather's grain) and their roughness by
 region (the linen and the trousers dull, the leather with a low sheen); the band's collar cloth its region's.
-`node maps.mjs IN.glb OUT.glb m|f REGIONS.png QDIR` — last in the chain: head.mjs → bust.mjs → items/clean.mjs →
-ai/maps.mjs (each body ~2.7 MB).
+`node maps.mjs IN.glb OUT.glb m|f REGIONS.png QDIR` — last in the chain: head.mjs → bust.mjs → items/regfill.mjs →
+items/clean.mjs → ai/maps.mjs (each body ~2.7 MB).
 
 In the game the head is kept looking ahead (`Hero3D.levelHead`): the library's moves bend this body's chest further
 forward than their own (the face ~15–20° down in the idle, ~35° in the guard), so the neck and the head are turned up
