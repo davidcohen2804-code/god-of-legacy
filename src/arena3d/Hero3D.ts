@@ -297,7 +297,7 @@ export class Hero3D {
     const L = (Hero3D.loader ??= (() => { const l = new GLTFLoader(); l.setMeshoptDecoder(MeshoptDecoder); return l; })());
     let g: Awaited<ReturnType<GLTFLoader['loadAsync']>>;
     try { g = await L.loadAsync(DIR + it.file); } catch { return; } // (not there: the kind's own stays in hand)
-    if (this.worn.weapon !== it.id) { g.scene.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); } }); return; } // (another chosen meanwhile)
+    if (this.worn.weapon !== it.id) { g.scene.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; m.geometry.dispose(); for (const mt of (Array.isArray(m.material) ? m.material : [m.material]) as THREE.Material[]) { for (const v of Object.values(mt)) if (v && (v as THREE.Texture).isTexture) (v as THREE.Texture).dispose(); mt.dispose(); } }); return; } // (another chosen meanwhile: nothing of it kept)
     this.swapArm(it.weapon, g.scene, it.file, it.girth ?? 1);
   }
   private swapArm(kind: WeaponId, model: THREE.Object3D | null, file?: string, girth = 1): void {
@@ -310,11 +310,11 @@ export class Hero3D {
       const bx = new THREE.Box3().setFromObject(model, true); ends = [bx.min.y, bx.max.y];
       model.traverse((o) => {
         const m = o as THREE.Mesh; if (!m.isMesh) return; m.castShadow = true; m.frustumCulled = false;
-        for (const mt of (Array.isArray(m.material) ? m.material : [m.material]) as THREE.MeshStandardMaterial[]) if (mt?.isMeshStandardMaterial) { mt.envMapIntensity = 0.6; mt.metalness = Math.min(mt.metalness, 0.15); mt.roughness = Math.max(mt.roughness, 0.55); }
+        for (const mt of (Array.isArray(m.material) ? m.material : [m.material]) as THREE.MeshStandardMaterial[]) if (mt?.isMeshStandardMaterial) { mt.envMapIntensity = 0.6; mt.metalness = Math.min(mt.metalness, 0.15); mt.roughness = Math.max(mt.roughness, 0.55); Hero3D.glow(mt); }
       });
     }
     g.remove(cur);
-    if (cur !== base.model) { for (const [m, t] of [...this.shadows]) { let on = false; for (let p: THREE.Object3D | null = m; p; p = p.parent) if (p === cur) on = true; if (on) this.dropShadow(m as THREE.Mesh); } cur.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; m.geometry.dispose(); for (const mt of (Array.isArray(m.material) ? m.material : [m.material]) as THREE.Material[]) { for (const v of Object.values(mt)) if (v && (v as THREE.Texture).isTexture) (v as THREE.Texture).dispose(); mt.dispose(); } }); }
+    if (cur !== base.model) { for (const [m] of [...this.shadows]) { let on = false; for (let p: THREE.Object3D | null = m; p; p = p.parent) if (p === cur) on = true; if (on) this.dropShadow(m as THREE.Mesh); } cur.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; m.geometry.dispose(); for (const mt of (Array.isArray(m.material) ? m.material : [m.material]) as THREE.Material[]) { Hero3D.glowMats.delete(mt as THREE.MeshStandardMaterial); for (const v of Object.values(mt)) if (v && (v as THREE.Texture).isTexture) (v as THREE.Texture).dispose(); mt.dispose(); } }); }
     const now = model ?? base.model; g.add(now);
     if (model && file) { this.skins.set(kind, file); this.girthOf.set(kind, girth); } else { this.skins.delete(kind); this.girthOf.delete(kind); }
     this.armEnds.set(kind, ends);
@@ -830,6 +830,29 @@ export class Hero3D {
     return [(a.x - r.x) * 100, -(a.y - r.y) * 100, (t.x - r.x) * 100, -(t.y - r.y) * 100];
   }
 
+  /** A legendary weapon's glow: its drawing's bright, saturated colours (the runes, the gems, the orb, the glowing edge)
+   *  shine a little of their own light, breathing slowly (breathe(), each frame in drive). */
+  private static glowMats = new Set<THREE.MeshStandardMaterial>();
+  private static glow(mt: THREE.MeshStandardMaterial): void {
+    const img = mt.map?.image as (CanvasImageSource & { width: number; height: number }) | undefined; if (!img?.width) return;
+    const w = Math.min(512, img.width), h = Math.round((img.height * w) / img.width), c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d', { willReadFrequently: true }); if (!g) return;
+    g.drawImage(img, 0, 0, w, h); const d = g.getImageData(0, 0, w, h), px = d.data;
+    for (let i = 0; i < px.length; i += 4) {
+      const r = px[i], gg = px[i + 1], b = px[i + 2], mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), sat = mx ? (mx - mn) / mx : 0;
+      const k = Math.max(0, Math.min(1, (sat - 0.45) / 0.35)) * Math.max(0, Math.min(1, (mx - 120) / 100));
+      px[i] = r * k; px[i + 1] = gg * k; px[i + 2] = b * k; px[i + 3] = 255;
+    }
+    g.putImageData(d, 0, 0);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.flipY = mt.map!.flipY;
+    mt.emissiveMap = t; mt.emissive.setRGB(1, 1, 1); mt.emissiveIntensity = 0.7; mt.userData.glow = t; mt.needsUpdate = true;
+    Hero3D.glowMats.add(mt);
+  }
+  private static breathe(): void {
+    const k = 0.55 + 0.3 * Math.sin(performance.now() / 520); // (one clock: every glowing weapon breathes alike)
+    for (const m of Hero3D.glowMats) m.emissiveIntensity = k;
+  }
+
   /** The highest point of what it holds and wears (world y over its feet): the weapon's far end, a hat's top. */
   topY(): number {
     let top = 0;
@@ -947,6 +970,7 @@ export class Hero3D {
     this.hold(ms);
     this.fadeGhosts(ms);
     this.wear?.update(ms);
+    if (this.skins.size) Hero3D.breathe();
     for (const [m, t] of this.shadows) t.visible = this.shown(m);
   }
 
@@ -1134,6 +1158,7 @@ export class Hero3D {
       const m = o as THREE.Mesh; if (!m.isMesh) return;
       m.geometry?.dispose();
       for (const mt of (Array.isArray(m.material) ? m.material : [m.material]) as THREE.Material[]) {
+        Hero3D.glowMats.delete(mt as THREE.MeshStandardMaterial);
         for (const v of Object.values(mt)) if (v && (v as THREE.Texture).isTexture) (v as THREE.Texture).dispose();
         mt.dispose();
       }

@@ -426,7 +426,7 @@ class Cloak {
   private links: [number, number, number][] = [];
   private caps: { a: number; b: number; r: number; back?: boolean }[] = [];
   private geo: THREE.BufferGeometry;
-  private boneM: THREE.Matrix4[]; private acc = 0; private fresh = true;
+  private boneM: THREE.Matrix4[]; private acc = 0; private fresh = true; private wind = 0; private tw = 0;
   private static v = new THREE.Vector3(); private static v2 = new THREE.Vector3(); private static m = new THREE.Matrix4(); private static f = new THREE.Vector3(); private static ax = new THREE.Vector3();
 
   constructor(private h: WearHost, readonly id: string, look: CloakLook) {
@@ -516,10 +516,15 @@ class Cloak {
 
   private sim(dt: number, damp = 0.985): void {
     const W = this.W, N = W * this.Hn, p = this.p, q = this.q, s = this.scaleNow(), g = -11.2 * s * dt * dt;
-    // the pins: where the shoulders carry them
+    // the pins: where the shoulders carry them (how fast they go: the wind of the run)
+    const mid = 3 * (W >> 1), ox = p[mid], oz = p[mid + 2];
     for (let j = 0; j < W; j++) { this.pinAt(j, Cloak.v); Cloak.v.toArray(p, 3 * j); Cloak.v.toArray(q, 3 * j); }
-    // the rest: their momentum and their weight
-    for (let i = W; i < N; i++) { const k = 3 * i; for (let c = 0; c < 3; c++) { const x = p[k + c], v = (x - q[k + c]) * damp; q[k + c] = x; p[k + c] = x + v + (c === 1 ? g : 0); } }
+    const sp = Math.min(1, Math.hypot(p[mid] - ox, p[mid + 2] - oz) / dt / (2.2 * s)); this.wind += (sp - this.wind) * 0.08; this.tw += dt;
+    // the rest: their momentum and their weight; in the wind a ripple runs down the cloth (up and down, stronger toward the hem)
+    for (let i = W; i < N; i++) {
+      const k = 3 * i, row = Math.floor(i / W), col = i % W, fl = this.wind * 0.0016 * s * (row / this.Hn) * Math.sin(this.tw * 11 - row * 0.9 + col * 0.55);
+      for (let c = 0; c < 3; c++) { const x = p[k + c], v = (x - q[k + c]) * damp; q[k + c] = x; p[k + c] = x + v + (c === 1 ? g + fl : 0); }
+    }
     const sk = this.h.body.skeleton, A = new THREE.Vector3(), B = new THREE.Vector3(), X = new THREE.Vector3(), C = new THREE.Vector3();
     const capsW = this.caps.map((c) => ({ a: A.clone().setFromMatrixPosition(sk.bones[c.a].matrixWorld), b: B.clone().setFromMatrixPosition(sk.bones[c.b].matrixWorld), r: c.r * s }));
     // the back's plane: through the spine (the pelvis to the neck, on down past the hips), facing the way the chest faces —
