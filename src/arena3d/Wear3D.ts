@@ -455,6 +455,7 @@ class Cloak {
   private caps: { a: number; b: number; r: number; back?: boolean }[] = [];
   private geo: THREE.BufferGeometry;
   private boneM: THREE.Matrix4[]; private acc = 0; private fresh = true; private wind = 0; private tw = 0;
+  private prevM = new THREE.Matrix4(); private hasPrev = false; private static D = new THREE.Matrix4();
   private static v = new THREE.Vector3(); private static v2 = new THREE.Vector3(); private static m = new THREE.Matrix4(); private static f = new THREE.Vector3(); private static ax = new THREE.Vector3();
 
   constructor(private h: WearHost, readonly id: string, look: CloakLook) {
@@ -529,7 +530,7 @@ class Cloak {
   private place(): void {
     const sk = this.h.body.skeleton, M = this.skinM(sk.bones.findIndex((b) => b.name === 'spine_03'));
     for (let i = 0; i < this.W * this.Hn; i++) { Cloak.v.fromArray(this.rest, 3 * i).applyMatrix4(M); Cloak.v.toArray(this.p, 3 * i); Cloak.v.toArray(this.q, 3 * i); }
-    this.fresh = false;
+    this.fresh = false; this.hasPrev = false;
   }
 
   step(ms: number): void {
@@ -549,10 +550,19 @@ class Cloak {
     for (let j = 0; j < W; j++) { this.pinAt(j, Cloak.v); Cloak.v.toArray(p, 3 * j); Cloak.v.toArray(q, 3 * j); }
     const dx = p[mid] - ox, dy = p[mid + 1] - oy, dz = p[mid + 2] - oz;
     const sp = Math.min(1, Math.hypot(dx, dz) / dt / (2.2 * s)); this.wind += (sp - this.wind) * 0.08; this.tw += dt;
-    // faster than a run (a dash, a leap, a double's darting): the cloth carried along with the shoulders, not left
-    // streaming behind like a flag
-    const carry = Math.min(0.9, Math.max(0, (Math.hypot(dx, dy, dz) / dt - 6 * s) / (8 * s)));
-    if (carry > 0) for (let i = W; i < N; i++) { const k = 3 * i; p[k] += dx * carry; p[k + 1] += dy * carry; p[k + 2] += dz * carry; q[k] += dx * carry; q[k + 1] += dy * carry; q[k + 2] += dz * carry; }
+    // faster than a run (a dash, a leap, a turn on the spot, a double's darting): the cloth carried along with the back
+    // (moved and turned as the upper spine moved and turned this step), not left streaming behind like a flag
+    const M = this.skinM(this.pinB[0].b[0]), e = M.elements, f = this.prevM.elements;
+    const turn = this.hasPrev ? Math.acos(Math.min(1, (e[8] * f[8] + e[10] * f[10]) / (Math.hypot(e[8], e[10]) * Math.hypot(f[8], f[10]) || 1))) / dt : 0; // (how fast the back turns round: rad/s)
+    const carry = Math.min(0.9, Math.max(0, (Math.hypot(dx, dy, dz) / dt - 9 * s) / (10 * s), (turn - 5) / 6)); // (a run's sway and bob stay under both)
+    if (carry > 0 && this.hasPrev) {
+      const D = Cloak.D.copy(this.prevM).invert().premultiply(M), v = Cloak.v, v2 = Cloak.v2;
+      for (let i = W; i < N; i++) {
+        v.fromArray(p, 3 * i); v2.copy(v).applyMatrix4(D); v.lerp(v2, carry).toArray(p, 3 * i);
+        v.fromArray(q, 3 * i); v2.copy(v).applyMatrix4(D); v.lerp(v2, carry).toArray(q, 3 * i);
+      }
+    }
+    this.prevM.copy(M); this.hasPrev = true;
     // the rest: their momentum and their weight; in the wind a ripple runs down the cloth (up and down, stronger toward the hem)
     for (let i = W; i < N; i++) {
       const k = 3 * i, row = Math.floor(i / W), col = i % W, fl = this.wind * 0.0016 * s * (row / this.Hn) * Math.sin(this.tw * 11 - row * 0.9 + col * 0.55);

@@ -119,8 +119,10 @@ character (this browser); the character select shows it on the pedestal.
   kept out of the copy); the region map is loaded once and shared by every body of that sex.
 - **Cloaks** are cloth: 9 × 14 particles pinned along the shoulders (through the collarbones' and the upper spine's
   skinning), falling under their weight at 60 steps a second, kept off the back, the legs and the upper arms
-  (capsules on the bones), a ripple running down them in a run's wind; each its own painted face (trim, an emblem,
-  stars, suits, a dagged hem) and lining.
+  (capsules on the bones), a ripple running down them in a run's wind, carried with the back (moved and turned as
+  the upper spine moves and turns) on anything faster than a run or a quick turn — a dash, a leap, a double darting
+  round the foe — instead of streaming like a flag; each its own painted face (trim, an emblem, stars, suits, a dagged
+  hem) and lining.
 - **Shirt, trousers, boots** change the Beginner's own painted clothes by their regions: `items/regions.mjs BODY.glb
   OUT.png OUT.json` maps each texel of the atlas to the shirt, the vest, the sash, the trousers, the boots or the
   bracers (by the bone it hangs on and its colour, specks smoothed) — run it again whenever a body changes and copy its
