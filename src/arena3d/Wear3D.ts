@@ -212,6 +212,13 @@ const CLOAKS: Record<string, CloakLook> = {
   } },
 };
 
+/** The shade a hat throws on the face and the hair under it (the room has no shadow maps: without it the lower face under
+ *  a wide brim reads bright and bare from the fight's high camera): how far down from the rim it is whole (`full`) and
+ *  where it has faded (`d`), in rim-to-chin lengths, and how dark (`s`). */
+const HAT_SHADE: Record<string, { full: number; d: number; s: number }> = {
+  w_helm: { full: 0.3, d: 0.6, s: 0.3 }, s_kasa: { full: 1, d: 1.35, s: 0.6 }, a_cap: { full: 0.35, d: 0.7, s: 0.3 }, m_hat: { full: 0.95, d: 1.3, s: 0.55 }, g_tophat: { full: 0.45, d: 0.9, s: 0.38 },
+};
+
 // =============================================================================================== the auras
 interface AuraLook { col: number; col2: number; rise: number; spin: number; n: number; size: number; fall?: boolean; sprite: (c: CanvasRenderingContext2D, w: number) => void; ring: (c: CanvasRenderingContext2D, w: number) => void }
 const glowDot = (c: CanvasRenderingContext2D, w: number, inner: string, outer: string): void => { const g = c.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); g.addColorStop(0, inner); g.addColorStop(0.35, outer); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(0, 0, w, w); };
@@ -246,6 +253,7 @@ export class Wear3D {
     uReg: { value: null as THREE.Texture | null }, uAtlasV: { value: 0.666667 }, uDyeOn: { value: 0 },
     uCol: { value: Array.from({ length: 7 }, () => new THREE.Color()) }, uAmt: { value: new Array(7).fill(0) }, uRef: { value: new Array(7).fill(0.5) },
     uPat: { value: Array.from({ length: 7 }, () => new THREE.Vector4()) }, uPatCol: { value: Array.from({ length: 7 }, () => new THREE.Color()) },
+    uHat: { value: new THREE.Vector4() }, uHatR: { value: new THREE.Vector4() },
   };
   private fit: HeadFit;
 
@@ -262,9 +270,9 @@ export class Wear3D {
     const u = this.uni;
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, u);
-      sh.vertexShader = 'varying vec3 vBindPos;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvBindPos = position;');
-      sh.fragmentShader = `varying vec3 vBindPos;
-uniform sampler2D uReg; uniform float uAtlasV; uniform float uDyeOn;
+      sh.vertexShader = 'varying vec3 vBindPos;\nvarying vec3 vHeadPos;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvBindPos = position;\n#ifdef USE_SKINNING\nvHeadPos = (bindMatrix * vec4(position, 1.0)).xyz;\n#else\nvHeadPos = position;\n#endif');
+      sh.fragmentShader = `varying vec3 vBindPos; varying vec3 vHeadPos;
+uniform sampler2D uReg; uniform float uAtlasV; uniform float uDyeOn; uniform vec4 uHat; uniform vec4 uHatR;
 uniform vec3 uCol[7]; uniform float uAmt[7]; uniform float uRef[7]; uniform vec4 uPat[7]; uniform vec3 uPatCol[7];
 float hash3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
 float pattern(int type, float sc, vec3 p) {
@@ -287,6 +295,11 @@ if (uDyeOn > 0.5 && vMapUv.y < uAtlasV) {
     if (pt.x > 0.5) { float m = pattern(int(pt.x + 0.5), pt.y, vBindPos) * pt.z; c = mix(c, uPatCol[rid] * max(k, 0.55), m); }
     diffuseColor.rgb = mix(diffuseColor.rgb, c, uAmt[rid]);
   }
+}
+if (uHat.w > 0.5) { // (a hat's shade: under its rim, on the head and the neck, fading down)
+  vec3 d = vHeadPos - uHat.xyz; float below = -d.y, rad = length(d.xz);
+  float under = 1.0 - smoothstep(uHatR.x * 0.75, uHatR.x, rad), fade = smoothstep(-0.006, 0.012, below) * (1.0 - smoothstep(uHatR.w, uHatR.y, below));
+  diffuseColor.rgb *= 1.0 - uHatR.z * under * fade;
 }`);
       this.shader = sh;
     };
@@ -333,7 +346,11 @@ if (uDyeOn > 0.5 && vMapUv.y < uAtlasV) {
   private setHat(id: string | null): void {
     if (this.hat?.id === id) return;
     if (this.hat) { for (const m of Wear3D.meshesOf(this.hat.g)) this.h.dropShadow(m); this.hat.g.removeFromParent(); for (const o of this.hat.own) o.dispose(); this.hat = null; } // (gathered first: a shadow is the mesh's sibling — taken out while walking the tree, it shifts the walk)
+    this.uni.uHat.value.w = 0;
     const build = id ? HATS[id] : undefined, head = this.h.bones.get('Head'); if (!build || !head || !id) return;
+    const sh = HAT_SHADE[id], F = this.fit;
+    const L = Math.max(0.02, -F.chin); // (the rim to the chin)
+    if (sh) { this.uni.uHat.value.set(F.c.x, F.c.y, F.c.z, 1); this.uni.uHatR.value.set(Math.max(F.rx, F.rz) * 1.75, sh.d * L, sh.s, sh.full * L); } // (as far out as the nose's tip and the ponytail)
     const own: { dispose(): void }[] = [], g = build(this.fit, own);
     // in the head bone: the hat made in the body's space at bind (its rim's middle as origin), carried by the bone
     const sk = this.h.body.skeleton, hi = sk.bones.indexOf(head), wrap = new THREE.Group();
