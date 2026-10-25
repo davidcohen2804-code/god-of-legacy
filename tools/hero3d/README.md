@@ -69,18 +69,44 @@ PONYTAIL=1` with `Hair_Buns` (its buns dropped).
   sash's red), falling down her back in seven clumps that spread and come together at their tips, drawn from the hair
   texture's long locks; it hangs on the head at the top and on the upper spine down the back.
 
-## The neck (`ai/neck.mjs`)
+## The neck and the chest (`ai/bust.mjs`)
 
-After the head (David 25 Oct: "why does she look awful?" — what was left of the drawn neck stood round the new one as a
-ragged ring, with holes at the shoulders): a smooth skin flare is made round the neck, from inside the new neck (where it
-is a whole ring on every side) down and out into the shoulders, tucked under the shirt (its foot `RB` round the neck,
-0.14); the old body above it and round the new neck goes, and the new neck's own part below the flare's top; the shirt's
-edge is laid on the flare, eased round the neck; the old body's holes are closed. One skin colour (the new neck's lit
-tone) — the light shades it. `node neck.mjs IN.glb OUT.glb [RB]` (on the head's output: beginner_m / beginner_f).
+After the head (David 25 Oct: "why does she look awful?", then "it looks like plastic, like margarine" — the drawn neck
+stood round the new one as a ragged ring; a smooth flare of one skin colour put in its place read as plastic, its join
+to the head a band): the base body's own next part — its neck's root, collarbones, chest and upper back, the same mesh
+the head came from — goes on below the head, so the skin runs on from the face with no seam (one surface, its uvs in
+the band's skin block, the base body's own weights; joined to the head at every point they share).
 
-The shirt made clean (`items/clean.mjs IN.glb REGIONS.png OUT.glb`, after the neck): its texels (the shirt's region)
+- Laid on the Beginner by its bones (each base bone's bind moved to the Beginner's), its rim where head.mjs laid the
+  head's neck; below the neck onto the Beginner's surface, 4 mm under the deepest of its layers along the part's own
+  normal (a lapel lies on the shirt, the shirt on the chest); behind the collar standing round the neck's foot it keeps
+  its own shape; folds eased away.
+- The old body's neck goes (what is inside the new neck; the drawn neck's skin round it — its ragged ring) and the skin
+  of the shirt's opening (grown from it through faces of the Beginner's own skin tone); the clothes stay (the collar, the
+  lapels). The rims near the neck are eased along themselves and laid on the new part with its weights there (they move
+  together); skin texels left on the cloth's edges are painted the cloth.
+- Its texels: the base texture's own non-skin (the base woman's underwear, the nipples) painted skin, the chest smoothed
+  and coloured as the neck; round the sides and the back below the neck's root a linen collar band (the old body's neck
+  there was the drawn hair). The band is the shirt's in the regions' map, which now covers the whole atlas
+  (`beginner_*_reg.png` 1024×1536, `Wear3D` REGIONS `atlasV` 1: a shirt's dye takes the collar band too).
+
+`REG_OUT=…_reg.png node bust.mjs IN.glb OUT.glb BASE.gltf 1.2 REGIONS.png` (on head.mjs's output; BASE the
+`Superhero_*_FullBody` the head came from; REGIONS regions.mjs's map).
+
+The shirt made clean (`items/clean.mjs IN.glb REGIONS.png OUT.glb`, after the bust): its texels (the shirt's region)
 laid in a clean warm linen, the broad light and folds kept, the drawing's brown smudges mostly gone; its mean brightness
-barely moves (×1.003: the dyes' REGIONS means stand).
+barely moves (the dyes' REGIONS means stand). (Its blur read sharp's three-channel output as one until 25 Oct — the
+shading was taken from the wrong places.)
+
+## The surfaces (`ai/maps.mjs`)
+
+A normal map and a roughness map on the body's material (it had a colour map only: one smooth gloss everywhere — "like
+plastic"): the skin, the hair and the eyes take the base body's own (Quaternius' `T_Superhero_*_Normal` / `_Roughness`,
+`T_Hair_*_Normal`, `T_Eye_Normal`, CC0 — the band copies their colour maps block for block); the clothes a relief from
+their own painting (the slopes of its brightness: the folds, the seams, the leather's grain) and their roughness by
+region (the linen and the trousers dull, the leather with a low sheen); the band's collar cloth its region's.
+`node maps.mjs IN.glb OUT.glb m|f REGIONS.png QDIR` — last in the chain: head.mjs → bust.mjs → items/clean.mjs →
+ai/maps.mjs (each body ~2.7 MB).
 
 In the game the head is kept looking ahead (`Hero3D.levelHead`): the library's moves bend this body's chest further
 forward than their own (the face ~15–20° down in the idle, ~35° in the guard), so the neck and the head are turned up

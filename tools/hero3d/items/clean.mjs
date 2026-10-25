@@ -23,7 +23,7 @@ const SHIRT = 1, LINEN = [240, 232, 216], Lc = lum(...LINEN) / 255;
 const L = Buffer.alloc(W * TH), M = Buffer.alloc(W * TH); let sum = 0, cnt = 0;
 for (let y = 0; y < TH; y++) for (let x = 0; x < W; x++) { const i = y * W + x; if (regionAt(x, y) !== SHIRT) continue; const q = 4 * i, l = lum(raw[q], raw[q + 1], raw[q + 2]); L[i] = Math.round(l); M[i] = 255; sum += l / 255; cnt++; }
 const mean = sum / cnt, sig = W / 340; // (~6 texels at 2048: the folds kept, the specks gone)
-const Lb = await sharp(L, { raw: { width: W, height: TH, channels: 1 } }).blur(sig).raw().toBuffer(), Mb = await sharp(M, { raw: { width: W, height: TH, channels: 1 } }).blur(sig).raw().toBuffer();
+const Lb = await sharp(L, { raw: { width: W, height: TH, channels: 1 } }).blur(sig).extractChannel(0).raw().toBuffer(), Mb = await sharp(M, { raw: { width: W, height: TH, channels: 1 } }).blur(sig).extractChannel(0).raw().toBuffer(); // (one channel: sharp blurs a grey image into three)
 let changed = 0;
 for (let y = 0; y < TH; y++) for (let x = 0; x < W; x++) {
   const i = y * W + x; if (!M[i]) continue;
