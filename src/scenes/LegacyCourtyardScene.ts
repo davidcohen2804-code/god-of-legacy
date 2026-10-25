@@ -1068,7 +1068,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       });
     }
     if (pvpRoom) { this.curtain = takeArenaLoading(); this.curtainAt = performance.now(); }
-    if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name, gender: genderOf(character), ...(character.hero ? { hero: true } : {}), ...(headLookOf(character) ? { look: headLookOf(character)! } : {}), rp: myRank().rp, title: myRank().title });
+    if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name, gender: genderOf(character), ...(character.hero ? { hero: true } : {}), ...(headLookOf(character) ? { look: headLookOf(character)! } : {}), rp: myRank().rp, title: myRank().title, ...(Object.keys(loadEquip3D(character.id)).length ? { items3d: loadEquip3D(character.id) as Record<string, string> } : {}) }); // (its 3D items: the others put them on its body)
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.events.off(Phaser.Scenes.Events.POST_UPDATE);
@@ -4147,16 +4147,17 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Each frame: every other body's 3D one where its painted one would be, doing what it does; the painted one hidden. */
   private driveOthers3D(ms: number): void {
     const H = this.hero3d!;
-    const now: { rp: RemotePlayer; vel?: { vx: number; vy: number; vz: number; grounded: boolean }; dead: boolean; female: boolean; cls: string }[] = [];
+    const now: { rp: RemotePlayer; vel?: { vx: number; vy: number; vz: number; grounded: boolean }; dead: boolean; female: boolean; cls: string; items?: Record<string, string> }[] = [];
     if (this.bot) now.push({ rp: this.bot.view, vel: this.bot.kin, dead: this.bot.defeated, female: this.bot.cls === 'archer', cls: this.bot.cls }); // (as the painted classes: the archer a woman)
-    for (const r of this.pvp?.remotes.values() ?? []) now.push({ rp: r, dead: !r.alive, female: r.meta.gender === 'female', cls: r.meta.classId });
-    for (const o of H.others) if (o.rp && !now.some((e) => e.rp === o.rp)) { o.rp.body3d = false; o.rp = null; o.img.setVisible(false); o.h.clearGhosts(); } // gone: free for the next
+    for (const r of this.pvp?.remotes.values() ?? []) now.push({ rp: r, dead: !r.alive, female: r.meta.gender === 'female', cls: r.meta.classId, items: r.meta.items3d });
+    for (const o of H.others) if (o.rp && !now.some((e) => e.rp === o.rp)) { o.rp.body3d = false; o.rp = null; o.img.setVisible(false); o.h.clearGhosts(); void o.h.equipAll({}); } // gone: free for the next (its items off)
     for (const e of now) {
       let o = H.others.find((x) => x.rp === e.rp);
       if (!o) {
         o = H.others.find((x) => !x.rp && x.female === e.female);
         if (!o) { if (H.loading === 0) { H.loading++; void this.startOther3D(e.female, this.sceneGen); } continue; }
         o.rp = e.rp; o.cls = ''; o.last = null; e.rp.body3d = true;
+        void o.h.equipAll(e.items ?? {}); // (a player's 3D items, as it wears them)
       }
       const rp = e.rp;
       if (o.cls !== e.cls) { o.cls = e.cls; const w = CLASS_WEAPON3D[e.cls] ?? 'sword'; o.h.setWeapon(w as Hero3D['weapon']); }
@@ -4247,7 +4248,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
    *  in hand, and what it wears — each slot's pieces, each class's set (Items3D: saved for the character). */
   private buildItemUi(items: Record<string, { name: string }>): void {
     const host = this.hud?.overlay, H = this.hero3d; if (!host || !H) return;
-    const el = buildItems3DPanel({ host, hero: () => this.hero3d?.h, weapons: items, who: this.character?.id ?? 'guest', font: FONT_FAMILY, at: this.w3d ? { left: '18px', top: '300px', bottom: 'auto' } : undefined }); // (the world's HUD: under the quests, clear of the minimap; the arena's: the bottom left, clear of the bars, the combo guide and the sparring panel)
+    const el = buildItems3DPanel({ host, hero: () => this.hero3d?.h, weapons: items, who: this.character?.id ?? 'guest', font: FONT_FAMILY, at: this.w3d ? { left: '18px', top: '300px', bottom: 'auto' } : undefined, folded: !!this.pvp && this.vs !== 'cpu' && this.vs !== 'training' }); // (folded over a room's chat) // (the world's HUD: under the quests, clear of the minimap; the arena's: the bottom left, clear of the bars, the combo guide and the sparring panel)
     H.ui = el;
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => el.remove());
   }

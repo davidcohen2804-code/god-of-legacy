@@ -326,7 +326,7 @@ export class Hero3D {
       for (const H of this.holds.values()) if (H.floor) H.slide = model ? Math.max(-0.3, Math.min(0.7, (H.floor.py + H.floor.wy * foot - 0.015) / H.floor.wy)) : Math.max(0, Math.min(0.27, (H.floor.py + H.floor.wy * foot - 0.015) / H.floor.wy));
       this.holdK = 0; // (taken at once)
     }
-    if (model && this.shadowMat) model.traverse((o) => { if ((o as THREE.Mesh).isMesh && !(o as THREE.Line).isLine) this.addShadow(o as THREE.Mesh); });
+    if (model && this.shadowMat) { const ms: THREE.Mesh[] = []; model.traverse((o) => { if ((o as THREE.Mesh).isMesh && !o.userData.shadow) ms.push(o as THREE.Mesh); }); for (const m of ms) this.addShadow(m); }
     this.setWeapon(this.weapon);
   }
 
@@ -764,7 +764,7 @@ export class Hero3D {
     const sk = m as THREE.SkinnedMesh;
     let t: THREE.Mesh;
     if (sk.isSkinnedMesh) { const tw = new THREE.SkinnedMesh(sk.geometry, mat); tw.bind(sk.skeleton, sk.bindMatrix); t = tw; } else t = new THREE.Mesh(m.geometry, mat);
-    t.frustumCulled = false; t.renderOrder = 5;
+    t.frustumCulled = false; t.renderOrder = 5; t.userData.shadow = true;
     t.matrixAutoUpdate = m.matrixAutoUpdate; t.position.copy(m.position); t.quaternion.copy(m.quaternion); t.scale.copy(m.scale); if (!m.matrixAutoUpdate) t.matrix.copy(m.matrix);
     m.parent.add(t); this.shadows.push([m, t]);
   }

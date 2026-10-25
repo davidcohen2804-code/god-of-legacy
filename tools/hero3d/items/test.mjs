@@ -1,6 +1,6 @@
 // The 3D heroes' items, tested (David 25 Oct: "…and test it"): every item on the man and on the woman, each put on,
 // driven through the moves (standing, walking, running, a jump, a skill of its weapon, a blow taken, thrown, down, up),
-// then taken off — checked that nothing throws, nothing goes to NaN, a hat stays on the head, a cloak hangs behind and
+// then taken off (their cast shadows on, as in the arena) — checked that nothing throws, nothing goes to NaN, a hat stays on the head, a cloak hangs behind and
 // off the body and above the floor, a dye reaches the shader, an aura moves, an item weapon is in the fist and its kind's
 // own comes back, and that putting on and taking off leaves no geometry or texture behind. The catalogue is checked too
 // (one piece per class and slot, the weapons' files there).
@@ -27,6 +27,7 @@ const report = await p.evaluate(async () => {
   const finite = (o) => { let ok = true; o.updateMatrixWorld(true); o.traverse((x) => { for (const v of x.matrixWorld.elements) if (!Number.isFinite(v)) ok = false; }); return ok; };
   for (const female of [false, true]) {
     const H = await window.__hero(female), sc = new THREE.Scene(); sc.add(H.scene); sc.add(new THREE.HemisphereLight(0xffffff, 0x404040, 2));
+    if (!H.shadowMat) H.makeShadow(new THREE.Vector3(0.4, 1, 0.3).normalize()); // (as the arena has it: every piece its shadow, laid and taken away with it)
     const head = (() => { let h = null; H.root.traverse((o) => { if (o.isBone && o.name === 'Head') h = o; }); return h; })();
     const draw = () => { r.render(sc, cam); return { geo: r.info.memory.geometries, tex: r.info.memory.textures }; };
     H.setWeapon('sword'); await H.equipAll({}); H.pose('Idle_Loop', 0.3, 0.5); const base = draw();

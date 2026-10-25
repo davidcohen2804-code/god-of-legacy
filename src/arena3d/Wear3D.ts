@@ -294,6 +294,9 @@ if (uDyeOn > 0.5 && vMapUv.y < uAtlasV) {
     mat.needsUpdate = true;
   }
 
+  /** A piece's own meshes (not their shadows). */
+  private static meshesOf(g: THREE.Object3D): THREE.Mesh[] { const out: THREE.Mesh[] = []; g.traverse((o) => { if ((o as THREE.Mesh).isMesh && !o.userData.shadow) out.push(o as THREE.Mesh); }); return out; }
+
   /** The head as the hats fit it (bind space): its vertices on the Head bone, its hair with it (not the ponytail). */
   private static headFit(body: THREE.SkinnedMesh): HeadFit {
     const sk = body.skeleton, hi = sk.bones.findIndex((b) => b.name === 'Head'), geo = body.geometry;
@@ -329,14 +332,14 @@ if (uDyeOn > 0.5 && vMapUv.y < uAtlasV) {
 
   private setHat(id: string | null): void {
     if (this.hat?.id === id) return;
-    if (this.hat) { this.hat.g.traverse((o) => { if ((o as THREE.Mesh).isMesh) this.h.dropShadow(o as THREE.Mesh); }); this.hat.g.removeFromParent(); for (const o of this.hat.own) o.dispose(); this.hat = null; }
+    if (this.hat) { for (const m of Wear3D.meshesOf(this.hat.g)) this.h.dropShadow(m); this.hat.g.removeFromParent(); for (const o of this.hat.own) o.dispose(); this.hat = null; } // (gathered first: a shadow is the mesh's sibling — taken out while walking the tree, it shifts the walk)
     const build = id ? HATS[id] : undefined, head = this.h.bones.get('Head'); if (!build || !head || !id) return;
     const own: { dispose(): void }[] = [], g = build(this.fit, own);
     // in the head bone: the hat made in the body's space at bind (its rim's middle as origin), carried by the bone
     const sk = this.h.body.skeleton, hi = sk.bones.indexOf(head), wrap = new THREE.Group();
     wrap.matrixAutoUpdate = false; wrap.matrix.copy(sk.boneInverses[hi]).multiply(new THREE.Matrix4().makeTranslation(this.fit.c.x, this.fit.c.y, this.fit.c.z));
     wrap.add(g); head.add(wrap); wrap.updateMatrixWorld(true);
-    g.traverse((o) => { if ((o as THREE.Mesh).isMesh) this.h.addShadow(o as THREE.Mesh, true); });
+    for (const m of Wear3D.meshesOf(g)) this.h.addShadow(m, true);
     this.hat = { id, g: wrap, own };
     this.tint(this.tintNow);
   }
@@ -391,7 +394,7 @@ if (uDyeOn > 0.5 && vMapUv.y < uAtlasV) {
   hatTop(): number { if (!this.hat) return 0; this.hat.g.updateWorldMatrix(true, true); return new THREE.Box3().setFromObject(this.hat.g).max.y; }
   /** Their shadows laid again (the body's shadow made after they were put on). */
   reshadow(): void {
-    this.hat?.g.traverse((o) => { if ((o as THREE.Mesh).isMesh) this.h.addShadow(o as THREE.Mesh, true); });
+    if (this.hat) for (const m of Wear3D.meshesOf(this.hat.g)) this.h.addShadow(m, true);
     if (this.cloak) this.h.addShadow(this.cloak.meshes[0], true);
   }
 
@@ -405,7 +408,7 @@ if (uDyeOn > 0.5 && vMapUv.y < uAtlasV) {
   tint(t: number | null): void {
     this.tintNow = t;
     const set = (m: THREE.Material) => { const s = m as THREE.MeshStandardMaterial; if (!s.isMeshStandardMaterial) return; s.userData.em0 ??= s.emissive.getHex(); if (t === null) s.emissive.setHex(s.userData.em0 as number); else s.emissive.setHex(t).multiplyScalar(0.32); };
-    this.hat?.g.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) set(m.material as THREE.Material); });
+    if (this.hat) for (const m of Wear3D.meshesOf(this.hat.g)) set(m.material as THREE.Material);
     for (const m of this.cloak?.meshes ?? []) set(m.material as THREE.Material);
   }
   dispose(): void { this.setHat(null); this.setCloak(null); this.setAura(null); for (const o of this.own) o.dispose(); this.own = []; }

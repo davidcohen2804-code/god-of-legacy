@@ -4,7 +4,7 @@
 import { CLASS_NAME3D, CLASS_TINT3D, CLASSES3D, ITEMS3D, SLOT_NAME, SLOTS3D, fits3D, saveEquip3D, type Slot3D } from './items3d';
 import type { Hero3D, WeaponId } from './Hero3D';
 
-export function buildItems3DPanel(o: { host: HTMLElement; hero: () => Hero3D | undefined; weapons: Record<string, { name: string }>; who: string; font: string; at?: Partial<CSSStyleDeclaration> }): HTMLElement {
+export function buildItems3DPanel(o: { host: HTMLElement; hero: () => Hero3D | undefined; weapons: Record<string, { name: string }>; who: string; font: string; at?: Partial<CSSStyleDeclaration>; folded?: boolean }): HTMLElement {
   const F = o.font;
   if (!document.getElementById('gol-h3d-style2')) {
     const st = document.createElement('style'); st.id = 'gol-h3d-style2';
@@ -26,7 +26,8 @@ export function buildItems3DPanel(o: { host: HTMLElement; hero: () => Hero3D | u
 .gol-h3d .sets{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
 .gol-h3d .sets span{font:700 10.5px ${F};letter-spacing:2px;color:#bfb08e;padding-right:2px}
 .gol-h3d .sets button{height:26px;padding:0 8px;font-size:10.5px;letter-spacing:.8px}
-.gol-h3d.min .tabs,.gol-h3d.min .list,.gol-h3d.min .sets{display:none}`;
+.gol-h3d.min .tabs,.gol-h3d.min .list,.gol-h3d.min .sets,.gol-h3d.min .arms{display:none}
+.gol-h3d.min{width:auto;padding:9px 12px}`;
     document.head.appendChild(st);
   }
   const el = document.createElement('div'); el.className = 'gol-h3d';
@@ -35,7 +36,11 @@ export function buildItems3DPanel(o: { host: HTMLElement; hero: () => Hero3D | u
   el.innerHTML = '<div class="hd"><span>3D BEGINNER · ITEMS</span><button class="fold" type="button">–</button></div><div class="row arms"></div><div class="tabs"></div><div class="list"></div><div class="sets"><span>SETS</span></div>';
   const arms = el.querySelector('.arms')!, tabs = el.querySelector('.tabs')!, list = el.querySelector('.list')!, sets = el.querySelector('.sets')!;
   const fold = el.querySelector('.fold') as HTMLButtonElement;
-  fold.onclick = () => { el.classList.toggle('min'); fold.textContent = el.classList.contains('min') ? '+' : '–'; };
+  // folded to its title (where the room's chat is below it: o.folded), or as the player left it last
+  let was: string | null = null; try { was = localStorage.getItem('gol.items3d.panel'); } catch { /* (no storage) */ }
+  const setMin = (m: boolean) => { el.classList.toggle('min', m); fold.textContent = m ? '+' : '–'; };
+  setMin(was ? was === 'min' : !!o.folded);
+  fold.onclick = () => { const m = !el.classList.contains('min'); setMin(m); try { localStorage.setItem('gol.items3d.panel', m ? 'min' : 'open'); } catch { /* (no storage) */ } };
   let tab: Slot3D = 'weapon';
   const save = () => { const h = o.hero(); if (h) saveEquip3D(o.who, h.worn); };
   const put = async (slot: Slot3D, id: string | null) => { const h = o.hero(); if (!h) return; await h.equip(slot, id); save(); refresh(); };

@@ -5,7 +5,7 @@
 // Presence = who is in the room (join/leave). Broadcast = all gameplay messages.
 import type { MatchMsg } from './Match';
 
-export interface PeerMeta { playerId: string; characterId: string; classId: string; name: string; gender?: 'male' | 'female'; hero?: boolean; look?: { hair: number; hairColor: number; skin: number; face: number; eyeColor?: number }; hair?: number; /** PvP rank points and the title worn */ rp?: number; title?: string | null }
+export interface PeerMeta { playerId: string; characterId: string; classId: string; name: string; gender?: 'male' | 'female'; hero?: boolean; look?: { hair: number; hairColor: number; skin: number; face: number; eyeColor?: number }; hair?: number; /** PvP rank points and the title worn */ rp?: number; title?: string | null; /** the 3D hero's items worn (items3d: slot → item id; DFO) */ items3d?: Record<string, string> }
 
 /** Network messages. Movement state carries ground x/y, height z, support z, aim, animation mode and cosmetics (and a
  *  samurai's Kagemusha doubles: `kg`, their offsets from him). A cast made while the doubles stand is an ambush (`amb`). */
