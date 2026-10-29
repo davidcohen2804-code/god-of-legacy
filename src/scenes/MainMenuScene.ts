@@ -8,7 +8,7 @@ import { addCapeWind, addGemLife, addGemPulse, addMotes, addPaintedWater, addSky
 /** Centre of the logo's red gem in logo image pixels (measured on the art). */
 const LOGO_GEM = { x: 595.7, y: 325.2, radius: 78 };
 /** Hero cape in the background painting (image px) and its colour key. */
-const CAPE = { x: 140, y: 500, w: 330, h: 230 }; // (the chibi warrior's cape on the cliff since 29 Oct)
+const CAPE = { x: 160, y: 450, w: 280, h: 260 };
 const isCape = (r: number, g: number, b: number) => r > 60 && r > g * 1.55 && r > b * 1.4;
 const TRANSITION_MS = 260;
 /** Sun in the painting (image px). */

@@ -43,9 +43,9 @@ const LOOKS: Record<string, Look> = {
   warrior: {
     color: 0xffb04a,
     cloth: red, // the red cape and tabard
-    keep: [{ a: [0.6, 0.57], b: [0.72, 0.47], r: 0.05 }, { a: [0.72, 0.47], b: [0.98, 0.075], r: 0.035 }], // (the chibi warrior's battle stance, 29 Oct: the grip, the blade raised)
-    still: [[0.54, 0.4, 0.8, 0.6], [0.0, 0.84, 1.0, 1.02]], // his gauntlets on the hilt, his boots
-    gleam: { a: [0.72, 0.47], b: [0.98, 0.075], r: 0, tint: 0xfff0c8 },
+    keep: [{ a: [0.11, 0.39], b: [0.285, 0.522], r: 0.05 }, { a: [0.285, 0.522], b: [0.858, 0.892], r: 0.04 }],
+    still: [[0.76, 0.38, 0.94, 0.54], [0.2, 0.9, 0.84, 1.02]], // his right gauntlet, his boots
+    gleam: { a: [0.285, 0.522], b: [0.858, 0.892], r: 0, tint: 0xfff0c8 },
     stars: [],
   },
   samurai: {

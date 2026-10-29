@@ -20,7 +20,7 @@ const COLOR: Record<string, [string, string]> = {
 };
 /** The heroes that have a battle-stance splash (assets/final/heroes/<cls>/vs.webp): the face square on it. */
 const FACE: Record<string, [number, number, number]> = {
-  warrior: [345, 250, 390],
+  warrior: [559, 200, 170],
   samurai: [470, 240, 190],
   book_mage: [440, 150, 170],
   archer: [452, 236, 210],

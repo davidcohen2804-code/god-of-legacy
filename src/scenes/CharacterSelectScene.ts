@@ -7,7 +7,7 @@ import { previewKeyOf } from '../characters/Look';
 import { buildLook, preloadLooks } from '../characters/LookArt';
 import { clearPvpFromUrl } from '../pvp/Room';
 import { ClassPresence, preloadLife } from '../ui/PresentationLife';
-import type { ThroneHero } from '../ui/ThronePresence';
+import { ThroneHero, preloadThrone } from '../ui/ThronePresence';
 import { HERO3D } from '../arena3d/hero3dFlag';
 import type { HeroPreview3D } from '../arena3d/HeroPreview3D';
 import { genderOf } from '../characters/Look';
@@ -31,7 +31,7 @@ export class CharacterSelectScene extends Phaser.Scene {
   constructor() { super('CharacterSelectScene'); }
 
   preload(): void {
-    preloadLife(this); // (the throne painting is no longer drawn: not loaded)
+    preloadLife(this); preloadThrone(this);
     const chars = CharacterStore.getSlots().map((s) => s.character);
     preloadLooks(this, chars); // each character's full style (hair, outfit, colours): its layers load here
     for (const c of chars) { // without a chosen look: the bare base picture
@@ -80,9 +80,8 @@ export class CharacterSelectScene extends Phaser.Scene {
     hero.setScale(PV.height / hero.height);
     addClothWind(this, hero);
     const presence = new ClassPresence(this, hero, halo, { x: HL.centerX, y: HL.centerY });
-    // (the warrior stands on the pedestal like the others since he is the chibi warrior, 29 Oct — his throne painting was
-    // the old warrior's)
-    const throne = null as ThroneHero | null;
+    // Warrior: seated on his throne with the sword of light (animated painting) instead of the standing preview.
+    const throne = this.textures.exists('throne.hero') ? new ThroneHero(this, { x: PV.centerX, y: 900 }, 700, 2) : null;
     throne?.setVisible(false);
     let lastKey: string | null = null, selectedCls: string | null = null;
     // the 3D Beginner (David 24 Oct: the heroes in 3D; the painted ones and the throne go): the selected character's body,
