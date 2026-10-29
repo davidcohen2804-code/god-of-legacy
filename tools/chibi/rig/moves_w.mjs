@@ -139,7 +139,7 @@ const getup = [P({ ...LYING, r: -70 }), P({ ...LYING, r: -45, t: 10, aF: [-10, 0
 const quickrise = [P({ ...TUCK, r: -200 }), P({ ...TUCK, r: -300 }), P({ ...CROUCH, t: 4, r: 0 })];
 const stunned = Array.from({ length: 4 }, (_, i) => { const s = Math.sin((i / 4) * 2 * Math.PI); return P({ t: 8 + 4 * s, h: 12 + 6 * s, aF: [18, -10], sw: 34, aB: [10, -10], handB: 'hand', st: ST(480 - 6 * s, -110 + 6 * s, 120 + 6 * s), r: 3 * s, capeAdd: 6 * s, x: 4 * s }); });
 const runstop = [P({ r: 6, t: 12, aF: [-30, -40], sw: 20, aB: [-40, -50], st: ST(420, -130, 230, 0, 0), capeAdd: 50, x: -6 }), P({ ...GUARD, t: 8 })];
-const WIN = { t: -4, aF: [-160, -6], sw: -96, aB: [-20, -60], st: ST(500, -110, 140), capeAdd: 30, h: -10 };
+const WIN = { t: -6, r: -2, aF: [-160, -6], sw: -96, aB: [-55, -75], handB: 'fist', st: ST(470, -170, 180), capeAdd: 34, h: -12 }; // the sword to the sky, the other fist pumped before his chest, braced wide
 const win = Array.from({ length: 8 }, (_, i) => i < 3 ? P({ ...GUARD, t: 4 - 2 * i }) : i < 5 ? P({ ...WIN, aF: [-150 - 10 * (i - 3), -10], sw: -110 + 8 * (i - 3) }) : P({ ...WIN, capeAdd: 30 + 6 * Math.sin(i), hs: i === 6 ? 1 : 0 }));
 const intro = Array.from({ length: 8 }, (_, i) => i < 3 ? P({ ...STAND, sw: 60 - 10 * i }) : i < 6 ? P({ ...SHOULDER, aF: [-200 + 30 * (i - 3), -30], sw: 200 - 40 * (i - 3) }) : P(GUARD));
 
