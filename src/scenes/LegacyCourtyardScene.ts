@@ -2148,10 +2148,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Glowing eyes while Radiant Blade or War Cry is active. */
   private renderEyes(pose: PoseFrame, dir: Dir): void {
     const eye3 = this.hero3d?.h.eyePoint() ?? null; // (a 3D body: its own head's eyes)
-    const on = (this.simMs < this.radiantUntil || this.simMs < this.warCryUntil) && this.dead < 0 && (this.hero3d ? !!eye3 && this.hero3d.img.visible && this.hero3d.img.alpha > 0.5 : this.view!.visible && !!pose.anchor && dir !== 'up');
+    const on = (this.simMs < this.radiantUntil || this.simMs < this.warCryUntil) && this.dead < 0 && (this.hero3d ? !!eye3 && this.hero3d.img.visible && this.hero3d.img.alpha > 0.5 : this.view!.visible && (!!pose.anchor || !!pose.eye) && dir !== 'up');
     if (!on) { this.eyes?.setVisible(false); return; }
     if (!this.eyes) this.eyes = this.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xff6a4a);
     if (eye3) { const k = this.kin; this.eyes.setVisible(true).setPosition(k.x + eye3[0], k.y - k.z + eye3[1]).setDisplaySize(14, 7).setDepth(actorDepth(k.x, k.y, k.z) + 0.05).setAlpha(0.8 + 0.2 * Math.sin(this.simMs / 160)); return; }
+    if (!pose.anchor && pose.eye) { const sp = this.view!.sprite; this.eyes.setVisible(true).setPosition(sp.x + pose.eye[0], sp.y + pose.eye[1]).setDisplaySize(16, 7).setDepth(sp.depth + 0.05).setAlpha(0.8 + 0.2 * Math.sin(this.simMs / 160)); return; } // (a hero posed on a skeleton: its frame's own eyes — the chibi warrior)
     const sp = this.view!.sprite, a = pose.anchor!, ex = sp.x + a[2] + (dir === 'right' ? 4 : dir === 'left' ? -4 : 0), ey = sp.y + a[3] + 3;
     this.eyes.setVisible(true).setPosition(ex, ey).setDisplaySize(dir === 'down' ? 22 : 14, 7).setDepth(sp.depth + 0.05).setAlpha(0.8 + 0.2 * Math.sin(this.simMs / 160));
   }

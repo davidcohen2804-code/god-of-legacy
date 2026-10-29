@@ -17,7 +17,7 @@ const b = await chromium.launch({ args: ['--allow-file-access-from-files'] });
 const p = await b.newPage();
 const errs = []; p.on('pageerror', (e) => errs.push(String(e)));
 await p.goto(pathToFileURL(path.join(here, 'blank.html')).href);
-const res = await p.evaluate(async ({ rig, frames, rigJs, base, S, plant, sword }) => {
+const res = await p.evaluate(async ({ rig, frames, rigJs, base, S, plant, sword, eye }) => {
   const R = await import(rigJs);
   const r = await R.loadRig(rig, base);
   const W = 2400, H = 2400, X = 1200, G = 1700; // (the canvas; the anchor's place on it)
@@ -25,14 +25,16 @@ const res = await p.evaluate(async ({ rig, frames, rigJs, base, S, plant, sword 
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   const lowest = (pose) => { let m = -1e9; for (const [bone, pts] of Object.entries(plant)) for (const pt of pts) m = Math.max(m, R.pointOf(r, pose, bone, pt)[1]); return m; };
   // (the standing height: the root's place over the ground in the first idle frame — the airborne frames keep it)
-  const st = frames.find((f) => f.name === 'idle-0')?.pose ?? frames[0].pose;
+  const st = { ...(frames.find((f) => f.name === 'idle-0')?.pose ?? frames[0].pose) }; if (st._H !== undefined) { st._y = -st._H; R.placeFeet(r, st, Object.values(plant)[0]); }
   const standY = -lowest({ ...st, _y: 0 });
   const out = [];
   for (const f of frames) {
     const pose = { ...f.pose };
+    if (pose._H !== undefined && !pose._air) { pose._y = -pose._H; R.placeFeet(r, pose, Object.values(plant)[0]); } // (a stance set by its feet: the legs solved to the ground)
+    if (pose._grip) R.gripB(r, pose, pose._grip, pose._sw ?? 0); // (both hands on the hilt)
     pose._y = (pose._air ? standY : -lowest({ ...pose, _y: 0 })) + (pose._air ? (pose._yAdd ?? 0) : 0);
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, H);
-    R.drawRig(ctx, r, pose, { x: X, y: G, scale: S });
+    R.drawRig(ctx, r, pose, { x: X, y: G, scale: S, left: !!pose._flip }); // (_flip: drawn facing the other way — a spin's turned frames)
     const d = ctx.getImageData(0, 0, W, H).data;
     let x0 = W, y0 = H, x1 = -1, y1 = -1;
     for (let y = 0; y < H; y += 1) { const row = y * W * 4; for (let x = 0; x < W; x += 1) if (d[row + x * 4 + 3] > 6) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } }
@@ -40,12 +42,14 @@ const res = await p.evaluate(async ({ rig, frames, rigJs, base, S, plant, sword 
     const w = x1 - x0 + 1, h = y1 - y0 + 1;
     const cc = document.createElement('canvas'); cc.width = w; cc.height = h; cc.getContext('2d').drawImage(c, x0, y0, w, h, 0, 0, w, h);
     let blade = null;
-    if (!pose._hide_sword) { const g = R.pointOf(r, pose, 'sword', sword.grip), t = R.pointOf(r, pose, 'sword', sword.tip); blade = [g[0] * S, g[1] * S, t[0] * S, t[1] * S]; }
-    const feet = Object.entries(plant).map(([bone, pts]) => pts.map((pt) => R.pointOf(r, pose, bone, pt)[0] * S));
-    out.push({ name: f.name, url: cc.toDataURL('image/png'), w, h, ax: X - x0, ay: G - y0, blade, feet });
+    const fl = pose._flip ? -1 : 1;
+    if (!pose._hide_sword) { const g = R.pointOf(r, pose, 'sword', sword.grip), t = R.pointOf(r, pose, 'sword', sword.tip); blade = [g[0] * S * fl, g[1] * S, t[0] * S * fl, t[1] * S]; }
+    const feet = Object.entries(plant).map(([bone, pts]) => pts.map((pt) => R.pointOf(r, pose, bone, pt)[0] * S * fl));
+    const ep = eye ? R.pointOf(r, pose, 'head', eye) : null; // (the eyes' middle: War Cry lights them)
+    out.push({ name: f.name, url: cc.toDataURL('image/png'), w, h, ax: X - x0, ay: G - y0, blade, feet, eye: ep && [ep[0] * S * fl, ep[1] * S] });
   }
   return out;
-}, { rig, frames, rigJs: pathToFileURL(path.join(here, 'rig.js')).href, base: pathToFileURL(path.dirname(path.resolve(rigPath))).href + '/', S: Number(sc), plant: mv.opts.plant, sword: mv.SWORD });
+}, { rig, frames, rigJs: pathToFileURL(path.join(here, 'rig.js')).href, base: pathToFileURL(path.dirname(path.resolve(rigPath))).href + '/', S: Number(sc), plant: mv.opts.plant, sword: mv.SWORD, eye: mv.EYE ?? null });
 const meta = [];
 for (const f of res) { fs.writeFileSync(path.join(out, `${f.name}.png`), Buffer.from(f.url.split(',')[1], 'base64')); const { url, ...m } = f; meta.push(m); }
 fs.writeFileSync(path.join(out, 'frames.json'), JSON.stringify(meta));

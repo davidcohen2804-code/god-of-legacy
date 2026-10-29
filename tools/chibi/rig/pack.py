@@ -28,7 +28,8 @@ for i, (m, im) in enumerate(ims):
     px, py = place[i]; atlas.paste(im, (px, py))
     act, idx = m['name'].rsplit('-', 1)
     b = [round(v * k, 1) for v in m['blade']] if m.get('blade') else None
-    fr = [px, py, im.width, im.height, round(m['ax'] * k, 1), round(m['ay'] * k, 1)] + ([b] if b else [])
+    e = [round(v * k, 1) for v in m['eye']] if m.get('eye') else None
+    fr = [px, py, im.width, im.height, round(m['ax'] * k, 1), round(m['ay'] * k, 1)] + ([b, e] if e else [b] if b else [])  # (7th: the sword line or null, 8th: the eyes)
     actions.setdefault(act, {})[int(idx)] = fr
 actions = {a: [v[i] for i in sorted(v)] for a, v in actions.items()}
 # the strides: the distance the planted foot slides back over a cycle (feet: per frame, per foot, heel/toe x at 2x)

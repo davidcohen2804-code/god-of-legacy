@@ -51,6 +51,9 @@ const HEAD_ITEM: Record<'hat' | 'faceacc' | 'earring', HeadFit[]> = {
   earring: [{ dx: -12, dy: 47, w: 7, ox: 0.5, oy: 0 }, { dx: -6, dy: 46, w: 7, ox: 0.5, oy: 0 }, { dx: 6, dy: 46, w: 7, ox: 0.5, oy: 0 }, { dx: 20, dy: 46, w: 7, ox: 0.5, oy: 0, behind: true }],
 }; // body sheet px → world px
 const SKIN_THICK = 1.05; // sword skins: a touch bigger than the base sword
+/** Heroes whose drawn moves snap from pose to pose (no cross-fade between actions): the chibi warrior's key poses are
+ *  distinct drawings of the whole body — dissolved into each other they read as a double exposure (two heads). */
+const SNAP_POSES = new Set(['hero-warrior']); // (atlas keys)
 const SIZE: Record<string, number> = { head: 40, face: 18, back: 56, aura: 92 };
 
 /** Cosmetics of the given classes (all classes when omitted: the PvP arena can hold any class). */
@@ -394,7 +397,7 @@ export class ActorView {
     // Weapon masks load on first need: a tint skin draws them, a sword skin cuts with them (classes without a packed mask).
     if ((WEAPON_TINT[this.equipped.weapon ?? ''] || (this.blade && !SHEET_PATH[pose.key])) && !this.scene.textures.exists(pose.wkey)) ensureWeaponMasks(this.scene, this.cls);
     const hero = pose.key.startsWith('hero-'), act = hero ? String(pose.frame).replace(/-\d+$/, '') : '';
-    if (hero && this.lastAct && act !== this.lastAct && p.frame && p.texture.key === pose.key && this.visible) {
+    if (hero && !SNAP_POSES.has(pose.key) && this.lastAct && act !== this.lastAct && p.frame && p.texture.key === pose.key && this.visible) {
       this.blendGhost ??= this.scene.add.sprite(p.x, p.y, p.texture.key);
       this.blendGhost.setTexture(p.texture.key, p.frame.name).setOrigin(p.originX, p.originY).setScale(p.scaleX, p.scaleY)
         .setFlipX(p.flipX).setAngle(p.angle).setPosition(p.x, p.y).setVisible(true);

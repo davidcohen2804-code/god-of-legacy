@@ -7,7 +7,7 @@ import { previewKeyOf } from '../characters/Look';
 import { buildLook, preloadLooks } from '../characters/LookArt';
 import { clearPvpFromUrl } from '../pvp/Room';
 import { ClassPresence, preloadLife } from '../ui/PresentationLife';
-import { ThroneHero, preloadThrone } from '../ui/ThronePresence';
+import type { ThroneHero } from '../ui/ThronePresence';
 import { HERO3D } from '../arena3d/hero3dFlag';
 import type { HeroPreview3D } from '../arena3d/HeroPreview3D';
 import { genderOf } from '../characters/Look';
@@ -31,7 +31,7 @@ export class CharacterSelectScene extends Phaser.Scene {
   constructor() { super('CharacterSelectScene'); }
 
   preload(): void {
-    preloadLife(this); preloadThrone(this);
+    preloadLife(this); // (the throne painting is no longer drawn: not loaded)
     const chars = CharacterStore.getSlots().map((s) => s.character);
     preloadLooks(this, chars); // each character's full style (hair, outfit, colours): its layers load here
     for (const c of chars) { // without a chosen look: the bare base picture

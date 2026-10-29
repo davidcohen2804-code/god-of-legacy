@@ -150,6 +150,8 @@ export interface PoseFrame {
   hair?: number[] | null;
   /** Sword line [hiltX, hiltY, tipX, tipY] rel. feet, world px (warrior). */
   blade?: number[] | null;
+  /** The eyes' middle rel. feet, world px (a ready hero posed on a skeleton: the chibi warrior) — War Cry lights them. */
+  eye?: number[] | null;
   /** Sword passes behind the head/body in this frame (skins drawn under the body only). */
   bladeBehind?: boolean;
   /** Head fit for hairstyles: [crownX, crownY (rel. feet, world px), tilt deg] (warrior). */
@@ -531,7 +533,7 @@ function sheetPose(cls: string, dir: Dir, q: BodyQuery): PoseFrame {
 // ------------------------------------------------------------------ START HERO bodies
 // The four ready heroes (GPT sheets cut by tools/heroes/cut.py): side view only, drawn facing right (left = mirrored),
 // one packed atlas per class with named frames `<action>-<i>` and a feet anchor per frame.
-type HeroFrame = [number, number, number, number, number, number, number[]?]; // x, y, w, h, feet x, feet y (frame px), warrior: the sword line [hilt x, y, tip x, y] rel. feet
+type HeroFrame = [number, number, number, number, number, number, (number[] | null)?, number[]?]; // x, y, w, h, feet x, feet y (frame px), warrior: the sword line [hilt x, y, tip x, y] rel. feet (or null), the eyes [x, y] rel. feet
 interface HeroData { h: number; actions: Record<string, HeroFrame[]>; card?: [number, number, number, number, number]; cycle?: { walk: number; run: number } }
 const HEROES = HERO_ATLAS as unknown as Record<string, HeroData>;
 const heroKey = (cls: string) => `hero-${cls}`;
@@ -598,8 +600,8 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     ground_breaker: { act: 'ground_breaker', st: [0, 1], ac: [2, 3], rc: [3, 4, 5] },
     leap_crash: { act: 'leap_crash', st: [0], ac: [1, 2, 3, 4], rc: [4, 5] },
     titans_verdict: { act: 'titans_verdict', st: [0, 1, 2, 2, 2, 2], ac: [3, 4], rc: [4, 4, 5] },
-    whirlwind: { act: 'whirlwind', st: [0], ac: [0], rc: [0], loop: [0, 1, 2, 3, 4], fps: 14 }, // (frame 5 was drawn with two swords: never shown)
-    blade_storm: { act: 'blade_storm', st: [0, 1], ac: [2], rc: [5], loop: [2, 3, 4, 3], fps: 5 },
+    whirlwind: { act: 'whirlwind', st: [0], ac: [0], rc: [4, 5], loop: [0, 1, 2, 3, 4], fps: 14 }, // (the chibi, 29 Oct: the blade out in front, over his head, his back turned with it, low behind, round; then the guard)
+    blade_storm: { act: 'blade_storm', st: [0, 1], ac: [2], rc: [0], loop: [2, 3, 4, 5], fps: 14 }, // (the chibi, 29 Oct: a spinning top inside its ball of blades — out in front, whipped round behind, his back turned, round again)
     wave_slash: { act: 'wave_slash', st: [0, 1, 2, 1, 2], ac: [3], rc: [3, 3, 4, 5] },
     sanctuary: { act: 'oath', st: [0, 1, 2, 3], ac: [4], rc: [4, 5] },
     iron_oath: { act: 'oath', st: [0, 1, 2, 3], ac: [4], rc: [4, 5] },
@@ -702,8 +704,8 @@ function heroFrame(cls: string, dir: Dir, act: string, i: number): PoseFrame {
   const idx = ((Math.floor(i) % list.length) + list.length) % list.length, f = list[idx];
   const k = heroScale(cls), flip = dir === 'left', b = f[6];
   // the sword line (Radiant Blade grows its light blade along it), mirrored when facing left
-  const blade = b ? [b[0] * k * (flip ? -1 : 1), b[1] * k, b[2] * k * (flip ? -1 : 1), b[3] * k] : null;
-  return { key: heroKey(cls), frame: `${name}-${idx}`, wkey: `${heroKey(cls)}-w`, ox: flip ? 1 - f[4] / f[2] : f[4] / f[2], oy: f[5] / f[3], scale: k, flip, anchor: null, top: HERO_HEIGHT, blade }; // Phaser mirrors a flipped frame about its middle, not its origin: the feet point is mirrored with it
+  const blade = b ? [b[0] * k * (flip ? -1 : 1), b[1] * k, b[2] * k * (flip ? -1 : 1), b[3] * k] : null, e = f[7];
+  return { key: heroKey(cls), frame: `${name}-${idx}`, wkey: `${heroKey(cls)}-w`, ox: flip ? 1 - f[4] / f[2] : f[4] / f[2], oy: f[5] / f[3], scale: k, flip, anchor: null, top: HERO_HEIGHT, blade, eye: e ? [e[0] * k * (flip ? -1 : 1), e[1] * k] : null }; // Phaser mirrors a flipped frame about its middle, not its origin: the feet point is mirrored with it
 }
 
 function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {

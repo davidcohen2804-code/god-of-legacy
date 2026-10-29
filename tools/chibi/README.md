@@ -27,3 +27,16 @@ frame and always fits.
    select preview).
 
 `rig/sheet.py DIR out.png act1,act2 [scale]` lays frames out in rows (each action a row, on its ground line) to check them.
+
+## Posing (`rig/moves_w.mjs`)
+- **Stances by the feet** (`st: ST(h, ankleNear, ankleFar, footNear°, footFar°)`): the hips' height over the floor (~500
+  stands straight, ~380 squats, ~290 kneels) and where each ankle stands; `rig.js placeFeet` solves both legs to the
+  ground (2-bone IK, knees forward), so a lunge or a crouch keeps both feet planted. A foot angle lifts its heel (the back
+  foot pushing off). Airborne frames (`air`) keep posing the legs by their angles.
+- **The whole body in every blow:** `r` leans the whole figure from the hips, `x` shifts the hips; the wind-up coils back
+  onto the back foot, the blow steps into a lunge, the follow-through overshoots lower.
+- **Two hands on the hilt** (`grip: true`): `rig.js gripB` reaches the far hand to the sword's grip behind the near one.
+- **The head over the arms** by default (a chibi's big head: an arm raised or brought down across it goes behind it);
+  `hb` puts it back under them. `_flip` draws a frame facing the other way (Whirlwind's and Blade Storm's turned frames).
+- Each frame also carries the sword's line (grip → point: Radiant Blade's light) and the eyes' middle (`EYE`, in the head
+  piece's px: War Cry lights them) — the atlas entry's 7th and 8th fields.
