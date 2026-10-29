@@ -407,8 +407,9 @@ export class Fx3D {
     });
   }
 
-  /** Cracks torn in the floor round (x, y): glowing in its colour, then a dark scar that fades; chunks of the floor fly. */
-  crack(x: number, y: number, color: number, o: { r?: number; ms?: number; chunks?: number; up?: number; quiet?: boolean } = {}): void {
+  /** Cracks torn in the floor round (x, y): glowing in its colour, then a dark scar that fades; chunks of the floor fly.
+   *  `dust`: its dust puffs (default: half its chunks, at least 4; 0: none — a recipe throwing its own debris). */
+  crack(x: number, y: number, color: number, o: { r?: number; ms?: number; chunks?: number; up?: number; quiet?: boolean; dust?: number } = {}): void {
     const hx = this.h.w3(x), hz = this.h.d3(y), R = this.h.w3(o.r ?? 110), ms = o.ms ?? 900;
     if (!o.quiet) this.onPiece?.('crack', { x, y, z: 0 }, (o.r ?? 110) > 200 ? 2 : (o.r ?? 110) > 130 ? 1 : 0);
     const [sharp, glow] = this.cracks[Math.floor(Math.random() * this.cracks.length)], rot = Math.random() * Math.PI * 2;
@@ -426,7 +427,8 @@ export class Fx3D {
     let t = 0;
     this.h.flare(hx, 0.25, hz + 0.2, color, 16, 6, 500);
     if ((o.chunks ?? 10) > 0) this.debris(x, y, o.chunks ?? 10, { speed: 1, up: o.up ?? 1 });
-    this.h.dust(hx, hz, Math.max(4, Math.round((o.chunks ?? 10) / 2)), Math.min(1.4, R));
+    const puffs = o.dust ?? Math.max(4, Math.round((o.chunks ?? 10) / 2));
+    if (puffs > 0) this.h.dust(hx, hz, puffs, Math.min(1.4, R));
     this.items.push({
       step: (dt) => {
         t += dt;
