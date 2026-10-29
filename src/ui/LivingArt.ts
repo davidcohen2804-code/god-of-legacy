@@ -5,7 +5,7 @@
 // which stays underneath as the fallback (no WebGL, no atlas yet, reduced motion).
 
 /** The heroes whose art has a motion atlas: assets/final/heroes/<cls>/<kind>_flow.webp. */
-const LIVE: Record<LiveKind, ReadonlySet<string>> = { vs: new Set(['warrior', 'samurai', 'book_mage', 'archer', 'gambler']), win: new Set() };
+const LIVE: Record<LiveKind, ReadonlySet<string>> = { vs: new Set(['samurai', 'book_mage', 'archer', 'gambler']), win: new Set() };
 export type LiveKind = 'vs' | 'win';
 /** The atlas: `frames` flows at `fps`, `cw` x `ch` each, `cols` to a row; R = x, G = y (128 = still, ±127 = ±range px of the art). */
 const ATLAS = { frames: 61, fps: 12, cols: 8, cw: 128, ch: 192, range: 80 };

@@ -155,7 +155,7 @@ export const CHARACTER_PREVIEWS: Record<string, { key: string; file: string; wid
   'beginner/female': { key: 'base.beginner.female', file: 'assets/final/heroes/beginner/female.png', width: 461, height: 974, crop: { x: 112, y: 0, w: 240 } },
   'warrior/warrior_default': {
     key: 'characterCreate.warriorPreview', file: 'assets/Warrior_Preview.png', width: 1024, height: 1536,
-    crop: { x: 400, y: 40, w: 420 },
+    crop: { x: 395, y: 420, w: 400 }, fit: 1380, // (the chibi warrior, 29 Oct: his figure 1121 px of the picture, a little under the pedestal's height)
   },
   'book_mage/book_mage_default': {
     key: 'bookMage.preview', file: 'assets/characters/book-mage/Book_Mage_Preview.png', width: 1086, height: 1448,

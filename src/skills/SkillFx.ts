@@ -61,7 +61,7 @@ const cutAnimKey = (id: string): string => `cutin-anim-${id}`;
 const ULT_PORTRAIT = true;
 /** Where the glint sits on each splash (fractions of its width / height), below the top of the screen (the HUD): the
  *  warrior's blade, the samurai's blade, the archer's arrowhead, the book's light, the gambler's cards. */
-const ULT_GLINT: Record<string, [number, number]> = { warrior: [0.79, 0.27], samurai: [0.8, 0.29], archer: [0.965, 0.265], book_mage: [0.19, 0.27], gambler: [0.83, 0.16] };
+const ULT_GLINT: Record<string, [number, number]> = { warrior: [0.85, 0.27], samurai: [0.8, 0.29], archer: [0.965, 0.265], book_mage: [0.19, 0.27], gambler: [0.83, 0.16] };
 const ultPortraitKey = (cls: string): string => `ult-portrait-${cls}`;
 /** Orientation of each final VFX sheet: 'dir' sheets are drawn pointing right and rotate with the aim. */
 /** Upright sheets whose bottom edge is the ground line (drawn standing on the impact point). */

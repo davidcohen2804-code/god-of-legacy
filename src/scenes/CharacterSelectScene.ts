@@ -80,8 +80,9 @@ export class CharacterSelectScene extends Phaser.Scene {
     hero.setScale(PV.height / hero.height);
     addClothWind(this, hero);
     const presence = new ClassPresence(this, hero, halo, { x: HL.centerX, y: HL.centerY });
-    // Warrior: seated on his throne with the sword of light (animated painting) instead of the standing preview.
-    const throne = this.textures.exists('throne.hero') ? new ThroneHero(this, { x: PV.centerX, y: 900 }, 700, 2) : null;
+    // (the warrior stands on the pedestal like the others since he is the chibi warrior, 29 Oct — his throne painting was
+    // the old warrior's)
+    const throne = null as ThroneHero | null;
     throne?.setVisible(false);
     let lastKey: string | null = null, selectedCls: string | null = null;
     // the 3D Beginner (David 24 Oct: the heroes in 3D; the painted ones and the throne go): the selected character's body,

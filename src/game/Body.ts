@@ -542,7 +542,7 @@ export const HERO_LIFT = HERO_HEIGHT - 124;
 /** Every hero's drawing fitted to one body: the eyes of each class 120 world px over the feet (measured on the idle
  *  frames — the drawings came out between 101 and 132), so the whole cast stands the same height. Re-measure after a
  *  class gets a new idle drawing. */
-const HERO_FIT: Record<string, number> = { warrior: 0.907, samurai: 1.049, archer: 1.075, book_mage: 1.182, gambler: 0.935 };
+const HERO_FIT: Record<string, number> = { warrior: 1, samurai: 1.049, archer: 1.075, book_mage: 1.182, gambler: 0.935 };
 /** A hero drawing's scale in the world (atlas px to world px). */
 const heroScale = (cls: string): number => (HERO_HEIGHT / HEROES[cls].h) * (HERO_FIT[cls] ?? 1);
 export const isHeroClass = (cls: string): boolean => !!HEROES[cls];
