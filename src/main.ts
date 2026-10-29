@@ -41,7 +41,11 @@ const TWIN = new Set(WEBP_TWINS);
   };
 }
 
-// Auto-update: when a newer build is deployed, reload onto a fresh URL (bypasses the CDN/browser cache).
+/** God of Legacy Studio (?studio=1): the visual development tool instead of the game (src/studio). */
+const STUDIO = new URLSearchParams(location.search).get('studio') === '1';
+
+// Auto-update: when a newer build is deployed, reload onto a fresh URL (bypasses the CDN/browser cache). In the Studio
+// a reload would cut into the work: it only says so (the Studio's own "new version" notice).
 function watchForUpdates(): void {
   const check = async () => {
     try {
@@ -49,7 +53,9 @@ function watchForUpdates(): void {
       if (!r.ok) return;
       const { commit } = await r.json() as { commit: string };
       if (commit && commit !== __BUILD_COMMIT__ && commit !== 'unknown') {
-        const u = new URL(location.href); u.searchParams.set('v', commit); location.replace(u.toString());
+        const u = new URL(location.href); u.searchParams.set('v', commit);
+        if (STUDIO) { window.dispatchEvent(new CustomEvent('gol-new-version', { detail: u.toString() })); return; }
+        location.replace(u.toString());
       }
     } catch { /* offline: try again later */ }
   };
@@ -72,6 +78,7 @@ async function loadFonts(): Promise<void> {
 }
 
 loadFonts().then(() => {
+  if (STUDIO) { void import('./studio/main').then((m) => m.startStudio()); return; } // (its own page: the game is not started)
   const game = new Phaser.Game({
     type: Phaser.WEBGL,
     parent: 'game',

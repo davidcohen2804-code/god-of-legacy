@@ -118,6 +118,15 @@ export function preloadBodies(scene: Phaser.Scene, classes?: readonly string[], 
   }
 }
 
+/** The clean base character of one gender (its look and gear are layers over it): only its bare body's strips — God of
+ *  Legacy Studio's Character Studio (the game loads them with the warrior's bodies). */
+export function preloadLayeredBase(scene: Phaser.Scene, g: 'male' | 'female'): void {
+  for (const anim of Object.keys(NAKED[g] ?? {})) {
+    if (!scene.textures.exists(nakedKey(g, anim))) scene.load.spritesheet(nakedKey(g, anim), `assets/final/body/naked/${g}/${anim}.png`, { frameWidth: CELL, frameHeight: CELL });
+    if (hasOver(g, anim) && !scene.textures.exists(overKey(g, anim))) scene.load.spritesheet(overKey(g, anim), `assets/final/body/naked/${g}/${anim}_o.png`, { frameWidth: CELL, frameHeight: CELL });
+  }
+}
+
 /** Explicit atlas rectangles registered once as named frames (body + weapon-mask textures share frame names). */
 export function registerBodies(scene: Phaser.Scene): void {
   for (const [cls, h] of Object.entries(HEROES)) {
@@ -455,9 +464,9 @@ const pick = <T,>(list: T[], p: number): T => list[Math.max(0, Math.min(list.len
 /** base = draw the beginner-clothes base body (fashion cosmetics) instead of the class armour, where baked. */
 /** Pose query once the combat stance is folded into standing (bodies without stance frames). */
 type BodyQuery = Exclude<PoseQuery, { k: 'loop' }> | { k: 'loop'; state: 'idle' | 'walk' | 'run'; t: number; speed: number };
-export function resolvePose(cls: ClassKey, dir: Dir, q: PoseQuery, base = false, gender?: 'male' | 'female', hero = false): PoseFrame {
+export function resolvePose(cls: ClassKey, dir: Dir, q: PoseQuery, base = false, gender?: 'male' | 'female', hero = false, layered = false): PoseFrame {
   if (hero && HEROES[cls]) return heroPose(cls, dir, q);
-  if (base && gender && HEROES[`beginner_${gender}`]) return heroPose(`beginner_${gender}`, dir, q); // the painted Beginner (male / female) when its body is cut
+  if (base && gender && !layered && HEROES[`beginner_${gender}`]) return heroPose(`beginner_${gender}`, dir, q); // the painted Beginner (male / female) when its body is cut (`layered`: the clean base under its look and gear layers instead — God of Legacy Studio)
   BASE_MODE = base && cls === 'warrior';
   try {
     if (BASE_MODE && gender) return nakedPose(cls, dir, gender, q); // the clean base character (its look: ActorView layers)

@@ -31,6 +31,11 @@ The DFO PvP arena dynamics chat is the PvP director: it sets the bar per class, 
 Take the whole PvP up a level in everything — dynamics, skills, effects, hit frames, movement, camera, feel: every hit felt, every class unique and amazing, big moments that look like a cinematic, and reasons to keep playing.
 
 ## Open items
+### DFO (29 Oct, David 18:20) — God of Legacy Studio: a visual editor on the game's own engine (`?studio=1`)
+- A separate page (its own chunk; the game never loads it): Camera Studio, Depth Editor (levels, platforms, ramps, heights by dragging), Character Studio (size, place, animations, clothing layers), Movement Editor, Live Preview, Save / Load (JSON). Code: `src/studio/`.
+- Engine hooks it added — additive, the game is unchanged until a map or scene uses them: ramps on world objects (`WorldObject.ramp`, `topAt`, `isRamp` in `src/world/WorldGeometry.ts`, the ramp's step in `src/combat/Combat.ts`'s ground / mantle checks; no map has a ramp yet); `ActorView.presentScale` (default 1); `resolvePose(…, layered)` and `preloadLayeredBase` in `src/game/Body.ts`; `src/main.ts`: `?studio=1` starts the Studio instead of the game. Owners (Movements, Maps, DFO): yours to review.
+- The Studio's settings are not applied to the game yet — David decides.
+
 ### DFO (29 Oct 12:57) — the chibi warrior REJECTED by David and taken out; the old warrior is back
 - David: "not good — the character looks awful, the movements are broken." DFO's chibi warrior (GPT parts on a code skeleton, 29 Oct 02:38–05:11) is reverted everywhere: the warrior's body, pictures, title screen, select, VS / win clips are the old painted warrior again. Kept: the 3D Beginner off by default (`?hero3d=1`), Thunder Circle's body alias (d1df92a2).
 - **Every chat: do not build heroes from GPT parts moved by code** — it cannot reach the level. How heroes are made from now on (clothable, moving properly) waits for David's decision (DFO advised him).

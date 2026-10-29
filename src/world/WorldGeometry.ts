@@ -28,7 +28,28 @@ export interface WorldObject {
   stand?: [number, number];
   /** Under the prop only: what projectiles and sight lines meet (a stone block's footprint is this too). */
   base?: Pt[];
+  /** A ramp (God of Legacy Studio's transitions between levels): its top rises along `axis` from `z0` (the footprint's
+   *  left / back side) to `z1` (its right / front side) and is walked up and down like a floor. `height` / `topZ` are its
+   *  highest point (what the rest of the game reads). */
+  ramp?: { axis: 'x' | 'y'; z0: number; z1: number };
 }
+/** A ramp: how far above the feet its top may rise in one step and still be walked onto (px), and how far below them a
+ *  ramp's top may fall away and still be stood on (walking down it never turns into a fall). */
+export const RAMP_STEP = 20;
+export const RAMP_SNAP = 28;
+/** The height of a prop's top at (x, y): its top, or along its slope (a ramp; clamped to its ends). */
+export function topAt(o: WorldObject, x: number, y: number): number {
+  const r = o.ramp;
+  if (!r) return o.topZ ?? o.height;
+  let lo = Infinity, hi = -Infinity;
+  for (const p of o.footprint) { const v = r.axis === 'x' ? p[0] : p[1]; if (v < lo) lo = v; if (v > hi) hi = v; }
+  const t = hi > lo ? Math.min(1, Math.max(0, ((r.axis === 'x' ? x : y) - lo) / (hi - lo))) : 0;
+  return r.z0 + (r.z1 - r.z0) * t;
+}
+/** The ramps among the props of the area you are in (set with them: none anywhere in the game's own maps). */
+const RAMP_IDS = new Set<string>();
+/** The prop with this id is a ramp. */
+export const isRamp = (id: string | null | undefined): boolean => !!id && RAMP_IDS.size > 0 && RAMP_IDS.has(id);
 
 /** The PvP arena (Legacy Courtyard map) props. */
 export const COURTYARD_OBJECTS: WorldObject[] = [
@@ -62,6 +83,7 @@ const POLY: Pt[] = (WORLD.walkablePolygon as Pt[]).map((p) => [p[0], p[1]] as Pt
 export function setWorldGeometry(walk: readonly Pt[], objects: readonly WorldObject[]): void {
   POLY.length = 0; for (const p of walk) POLY.push([p[0], p[1]]);
   WORLD_OBJECTS.length = 0; WORLD_OBJECTS.push(...objects);
+  RAMP_IDS.clear(); for (const o of objects) if (o.ramp) RAMP_IDS.add(o.id);
 }
 export const walkPolygon = (): readonly Pt[] => POLY;
 /** The PvP arena is the courtyard painting shown `scale` times bigger in the world — more room to move, the camera
@@ -127,8 +149,9 @@ const inBlocker = (b: { x: number; y: number; rx: number; ry: number }, x: numbe
  *  are now — a step out of a prop they already overlap (just stepped off its top) is free, only deeper into it is not. */
 export function footAllowed(x: number, y: number, z: number, r: number, from?: { x: number; y: number }): boolean {
   if (!insideArena(x, y, r)) return false;
+  const onRamp = RAMP_IDS.size > 0 && isRamp((from as { supportId?: string | null } | undefined)?.supportId);   // (off a ramp's top: a level's edge a step above is walked onto)
   for (const o of WORLD_OBJECTS) {
-    if (o.soft || z >= o.height - 1) continue;
+    if (o.soft || z >= (o.ramp ? topAt(o, x, y) - RAMP_STEP : o.height - 1 - (onRamp && o.topZ !== undefined ? RAMP_STEP : 0))) continue;
     const d = polyDist(x, y, o.footprint);
     if (d >= r) continue;
     const d0 = from ? polyDist(from.x, from.y, o.footprint) : Infinity;
@@ -151,8 +174,10 @@ export function pushOutOfBlockers(p: { x: number; y: number }, r: number): void 
 export function supportAt(x: number, y: number, z: number): { z: number; id: string | null } {
   let best = { z: 0, id: null as string | null };
   for (const o of WORLD_OBJECTS) {
-    if (o.topZ === undefined || z < o.topZ - 8) continue;
-    if (pointInPoly(x, y, o.footprint) && o.topZ > best.z) best = { z: o.topZ, id: o.id };
+    if (o.topZ === undefined) continue;
+    const top = o.ramp ? topAt(o, x, y) : o.topZ;
+    if (z < top - (o.ramp ? RAMP_SNAP : 8)) continue;
+    if (pointInPoly(x, y, o.footprint) && top > best.z) best = { z: top, id: o.id };
   }
   return best;
 }
@@ -212,7 +237,7 @@ export function actorDepth(x: number, y: number, z: number): number {
   // Drawn over a prop only when actually on / above its top (feet over the footprint); an airborne actor behind the
   // prop stays behind it. Up on a whole floor (a map above) with blocks of its own: that floor's band (its front edge),
   // ordered by y inside it — behind its block hidden by the block, on the block drawn on its top.
-  const on = WORLD_OBJECTS.filter((o) => z >= o.height - 4 && y <= o.frontY + 2 && polyDist(x, y, o.footprint) < 14);
+  const on = WORLD_OBJECTS.filter((o) => z >= (o.ramp ? topAt(o, x, y) : o.height) - 4 && y <= o.frontY + 2 && polyDist(x, y, o.footprint) < 14);
   if (on.length) {
     const base = on.reduce((a, o) => (o.frontY > a.frontY ? o : a));
     d = Math.max(d, base.frontY + 1 + y * 0.001);

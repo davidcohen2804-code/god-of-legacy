@@ -286,6 +286,10 @@ export class ActorView {
     this.plainPlate = false;
   }
   visible = true;
+  /** Drawn bigger or smaller than its body (God of Legacy Studio: the character's size, never too small on screen): every
+   *  part about the feet, the marks on the floor (shadow, ring) where they are; the name plate as it is. 1: as drawn (the
+   *  game). headHeight stays the drawing's own. */
+  presentScale = 1;
   /** Height of the top of the head above the feet (world px), smoothed over frames (speech bubbles sit above it). */
   headHeight = 0;
   /** The base character's look (hairstyle, hair colour, skin tone, face): layers on every frame, MapleStory-style —
@@ -564,6 +568,22 @@ export class ActorView {
       }
       img.setOrigin(cx, cy).setScale(s).setPosition(p.x + ax, p.y + ay).setDepth(d).setAlpha(alpha).setVisible(show);
     }
+    if (this.presentScale !== 1) this.scaleParts(this.presentScale, x, y - z);
+  }
+
+  /** presentScale: everything drawn this frame grown (or shrunk) by k about the feet (fx, fy); the floor marks keep their
+   *  place. Only parts set anew this frame (the visible ones), so nothing grows from frame to frame. */
+  private scaleParts(k: number, fx: number, fy: number): void {
+    type T = Phaser.GameObjects.Components.Transform & Phaser.GameObjects.Components.Visible;
+    const about = (o: T | null | undefined) => {
+      if (!o || !o.visible) return;
+      o.x = fx + (o.x - fx) * k; o.y = fy + (o.y - fy) * k; o.scaleX *= k; o.scaleY *= k;
+    };
+    const floor = new Set<unknown>([this.layers.aura]);
+    for (const o of [this.sprite, this.weapon, this.weaponGlow, this.blade, this.bladeTop, ...Object.values(this.layers), ...Object.values(this.lookParts ?? {}), ...Object.values(this.gearParts)] as (T | null | undefined)[])
+      if (!floor.has(o)) about(o);
+    for (const t of this.trails) t.g.setScale(k).setPosition(fx + (t.g.x - fx) * k, fy + (t.g.y - fy) * k);   // (drawn at scale 1: set, not grown)
+    for (const o of [this.shadow, this.ring, this.layers.aura] as (T | undefined)[]) if (o?.visible) { o.scaleX *= k; o.scaleY *= k; }
   }
 
   /** The look's layers on this frame: the idle cell's head moved to this frame's head (naked-heads.json), same origin,

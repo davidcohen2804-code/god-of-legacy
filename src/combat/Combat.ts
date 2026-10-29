@@ -3,7 +3,7 @@
 // (free / hitstun / launched / knockdown / getup / hardCC / dead), victim-side combo context (combo scaling,
 // juggle budget, one re-launch), and the hard-CC diminishing-returns policy kept separate from ordinary hit-stun.
 import COMBO from '../data/combo-policy.json';
-import { WORLD_OBJECTS, edgeClearance, footAllowed, pointInPoly, supportAt } from '../world/WorldGeometry';
+import { RAMP_SNAP, WORLD_OBJECTS, edgeClearance, footAllowed, isRamp, pointInPoly, supportAt, topAt } from '../world/WorldGeometry';
 import { FinalSkill, HitEvent, Reaction } from '../skills/SkillTypes';
 
 // ------------------------------------------------------------------ kinematics
@@ -112,9 +112,11 @@ export function stepKin(k: Kin, ms: number, gravityScale = 1, blocked?: (x: numb
     if (footAllowed(x, y, k.z, PHYS.footR, k) && !(blocked && blocked(x, y, k.z))) return true;
     if (k.grounded) return false;
     for (const o of WORLD_OBJECTS) {
-      if (gravityScale <= 0 || o.topZ === undefined || o.id === k.from || k.z < o.topZ - PHYS.mantle || k.z >= o.topZ) continue;
-      if (footAllowed(x, y, o.topZ, PHYS.footR) && !(blocked && blocked(x, y, o.topZ)) && pointInPolyNear(x, y, o.footprint)) {
-        k.vz = Math.max(k.vz, Math.sqrt(2 * PHYS.gravity * gravityScale * (o.topZ + 0.5 - k.z)));
+      if (gravityScale <= 0 || o.topZ === undefined || o.id === k.from) continue;
+      const top = o.ramp ? topAt(o, x, y) : o.topZ;   // (a ramp: its top where the feet would go)
+      if (k.z < top - PHYS.mantle || k.z >= top) continue;
+      if (footAllowed(x, y, top, PHYS.footR) && !(blocked && blocked(x, y, top)) && pointInPolyNear(x, y, o.footprint)) {
+        k.vz = Math.max(k.vz, Math.sqrt(2 * PHYS.gravity * gravityScale * (top + 0.5 - k.z)));
         lip = true; return false;
       }
     }
@@ -143,7 +145,8 @@ export function stepKin(k: Kin, ms: number, gravityScale = 1, blocked?: (x: numb
   if (k.y < py && supportAt(k.x, k.y, k.z).z < supportAt(k.x, py, k.z).z - 120) { k.y = py; if (k.vy < 0) k.vy = 0; }
   if (k.grounded) {
     const s = supportAt(k.x, k.y, k.z);
-    if (s.z < k.z - 6) { k.grounded = false; k.vz = 0; r.leftSupport = true; k.from = k.supportId; k.stepped = true; } // walked off the edge
+    const drop = isRamp(k.supportId) || isRamp(s.id) ? RAMP_SNAP : 6;   // (walking down a ramp keeps the feet on it)
+    if (s.z < k.z - drop) { k.grounded = false; k.vz = 0; r.leftSupport = true; k.from = k.supportId; k.stepped = true; } // walked off the edge
     else {
       k.z = s.z; k.supportZ = s.z; k.supportId = s.id;
       // on a ledge solid back to the wall (its ground reaches further back than its top face as drawn): the feet keep to
