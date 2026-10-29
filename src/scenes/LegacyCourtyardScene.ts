@@ -2160,7 +2160,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!on) { this.eyes?.setVisible(false); return; }
     if (!this.eyes) this.eyes = this.add.image(0, 0, 'dmg-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xff6a4a);
     if (eye3) { const k = this.kin; this.eyes.setVisible(true).setPosition(k.x + eye3[0], k.y - k.z + eye3[1]).setDisplaySize(14, 7).setDepth(actorDepth(k.x, k.y, k.z) + 0.05).setAlpha(0.8 + 0.2 * Math.sin(this.simMs / 160)); return; }
-    if (!pose.anchor && pose.eye) { const sp = this.view!.sprite; this.eyes.setVisible(true).setTint(0xffd2a0).setPosition(sp.x + pose.eye[0], sp.y + pose.eye[1]).setDisplaySize(22, 8).setDepth(sp.depth + 0.05).setAlpha(0.85 + 0.15 * Math.sin(this.simMs / 160)); return; } // (a hero posed on a skeleton: its frame's own eyes — the chibi warrior's big eyes, a white-hot gold over the roar's red)
+    if (!pose.anchor && pose.eye) { const sp = this.view!.sprite; this.eyes.setVisible(true).setTint(0xffd2a0).setPosition(sp.x + pose.eye[0], sp.y + pose.eye[1]).setDisplaySize(30, 11).setDepth(sp.depth + 0.05).setAlpha(0.92 + 0.08 * Math.sin(this.simMs / 160)); return; } // (a hero posed on a skeleton: its frame's own eyes — the chibi warrior's big eyes, a white-hot gold over the roar's red)
     const sp = this.view!.sprite, a = pose.anchor!, ex = sp.x + a[2] + (dir === 'right' ? 4 : dir === 'left' ? -4 : 0), ey = sp.y + a[3] + 3;
     this.eyes.setVisible(true).setPosition(ex, ey).setDisplaySize(dir === 'down' ? 22 : 14, 7).setDepth(sp.depth + 0.05).setAlpha(0.8 + 0.2 * Math.sin(this.simMs / 160));
   }
