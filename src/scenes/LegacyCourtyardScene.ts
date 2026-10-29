@@ -169,6 +169,11 @@ const SUN = { edge: 300, burn: 0.07, tickMs: 450, push: 320 };
 const mpCost = (s: FinalSkill): number => (s.slot === 0 ? 0 : Math.min(60, Math.round(6 + (s.cooldown / 1000) * 2.2)));
 /** The slash-trail art (radiant_blade/slash_trail.jpg, 288 cells): its arc's circle (centre as a fraction of the cell, radius px) and the angle of its bright head (deg, y down). */
 const SLASH = { cx: 189 / 288, cy: 81 / 288, r: 122, head: 190 };
+/** The chibi warrior's swing smears (renderSmear): skills that draw no smear (spins: their own rings; held poses), and each
+ *  skill's family colour (light added on the planks: kept pale — steel, molten, holy, crimson, iron). */
+const SMEAR_SKIP = new Set(['whirlwind', 'blade_storm', 'shield_charge', 'war_cry', 'lions_maw', 'judgment_hook', 'iron_grip', 'judgment_blade']);
+const SMEAR_C: Record<string, number> = { ground_breaker: 0xffc890, leap_crash: 0xffc890, earthsplitter: 0xffc890, sky_breaker: 0xe8eeff, titans_verdict: 0xffe8b0,
+  sanctuary: 0xffe8b0, thunder_circle: 0xcfe2ff, rising_slash: 0xffb0a0, radiant_blade: 0xffe8b0, legacy_banner: 0xffe8b0 };
 const FACE: Record<Dir, V2> = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
 /** PvP victim-side sanity checks for a remote cast intent (network jitter tolerances). */
 const CAST_COOLDOWN_TOLERANCE_MS = 250;
@@ -326,6 +331,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   radiantUntil = -1;
   /** The light blade's swing: its angle last frame, where this swing began, its turning sign, a trail drawn for it. */
   private sweep = { last: NaN, start: NaN, sign: 0, done: false };
+  /** The chibi warrior's sword between two drawn poses of a skill (renderSmear): the last frame and its blade's angle. */
+  private smear = { frame: '', ang: NaN };
   /** Archer buffs: Bow Haste (+20% attack speed), Hunter's Spirit (+15% critical rate, also shared by a party member). */
   hasteUntil = -1;
   /** Samurai buffs: Rising Sun (party: damage + critical damage), God of Blades (damage + the halo). */
@@ -2057,6 +2064,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.renderGambler();
     this.fx?.treeFade(k.x, k.y); // a tree in front of the player turns see-through
     this.renderRadiant(pose, dir);
+    this.renderSmear(pose);
     this.fx?.bannerMark(this.localId, this.simMs < this.bannerUntil && this.dead < 0 && !!this.view?.visible ? this.kin : null, actorDepth(this.kin.x, this.kin.y, this.kin.z) - 0.5); // Legacy Banner carried: the crest ring at his feet
     this.renderEyes(pose, dir);
     this.renderHolyAura();
@@ -2196,11 +2204,27 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Radiant Blade: the drawn arc of light (6 frames, additive) laid on the light blade's own sweep — pivot at the hilt,
    *  radius = the blade, its bright head where the blade is now, its tail where the swing began, turned the way it swung. */
-  private slashTrail(hx: number, hy: number, from: number, to: number, len: number, depth: number): void {
+  /** The chibi warrior's swings (his skills are drawn key poses: a big turn of the blade from one drawing to the next): a
+   *  crescent of light round his hand from where the blade was to where it is now, in the skill's family colour — the
+   *  swing's smear between the drawings, the reference's swing trails (docs/ref/prometheus/03) — the blows only (the active
+   *  phase: the wind-up's raise and the recovery draw none). Not for the regular attack
+   *  (its 3D ring is its trail), the spins (their balls of rings), or while the blade of light draws its own. */
+  private renderSmear(pose: PoseFrame): void {
+    const b = pose.blade, run = this.rt?.ownRun, fr = String(pose.frame), ang = b ? Math.atan2(b[3] - b[1], b[2] - b[0]) * (180 / Math.PI) : NaN;
+    const on = !!b && pose.key === 'hero-warrior' && !!run && run.phase === 'active' && !run.skill.chain && !SMEAR_SKIP.has(run.skill.id) && !this.beam?.visible && !!this.view?.visible && this.dead < 0;
+    if (on && fr !== this.smear.frame && !Number.isNaN(this.smear.ang)) {
+      let d = ang - this.smear.ang; if (d > 180) d -= 360; if (d < -180) d += 360;
+      if (Math.abs(d) > 150) { if (!pose.flip && d < 0) d += 360; else if (pose.flip && d > 0) d -= 360; } // (a blow brought over the top turns the way he faces, never back over his shoulder)
+      if (Math.abs(d) >= 40) { const sp = this.view!.sprite, k = this.kin; this.slashTrail(sp.x + b![0], sp.y + b![1], this.smear.ang, this.smear.ang + d, Math.hypot(b![2] - b![0], b![3] - b![1]), actorDepth(k.x, k.y, k.z) + 0.04, SMEAR_C[run!.skill.id] ?? 0xe8eeff); }
+    }
+    this.smear.frame = fr; this.smear.ang = ang;
+  }
+
+  private slashTrail(hx: number, hy: number, from: number, to: number, len: number, depth: number, tint = 0xff5a3a): void {
     if (!this.textures.exists('radiant-slash')) return;
     if (!this.anims.exists('radiant-slash')) this.anims.create({ key: 'radiant-slash', frames: this.anims.generateFrameNumbers('radiant-slash', { start: 0, end: 5 }), frameRate: 28, repeat: 0 });
     const cw = to > from;                                   // clockwise on screen (y down): as drawn; else mirrored
-    const sp = this.add.sprite(hx, hy, 'radiant-slash', 0).setBlendMode(Phaser.BlendModes.ADD).setTint(0xff5a3a) // (CRIMSON: the War Cry buff's blade — DFO's families)
+    const sp = this.add.sprite(hx, hy, 'radiant-slash', 0).setBlendMode(Phaser.BlendModes.ADD).setTint(tint) // (CRIMSON: the War Cry buff's blade — DFO's families; the chibi's swings: their skill's family)
       .setOrigin(SLASH.cx, cw ? SLASH.cy : 1 - SLASH.cy).setFlipY(!cw).setScale(len / SLASH.r)
       .setAngle(to - (cw ? SLASH.head : -SLASH.head)).setDepth(depth);
     sp.play('radiant-slash'); sp.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => sp.destroy());
