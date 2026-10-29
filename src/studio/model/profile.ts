@@ -137,15 +137,15 @@ const box = (id: string, name: string, kind: ObjKind, x: number, y: number, w: n
 /** The Studio's own first map: a floor with depth, a terrace up a ramp, blocks to jump on, a cloud. */
 export function defaultMap(): StudioMap {
   return {
-    name: 'Studio Plaza', w: 2800, h: 1200,
+    name: 'כיכר הסטודיו', w: 2800, h: 1200,
     floor: [[80, 640], [2720, 640], [2720, 1080], [80, 1080]],
     objects: [
-      box('o1', 'Terrace', 'level', 1700, 640, 940, 170, 150),
-      { ...box('o2', 'Ramp', 'ramp', 1420, 660, 280, 130, 150), axis: 'x', z0: 0, z1: 150 },
-      box('o3', 'Crate', 'platform', 520, 860, 130, 90, 70),
-      box('o4', 'Pillar', 'platform', 760, 800, 110, 80, 140),
-      box('o5', 'Cloud', 'oneway', 960, 760, 260, 70, 215),
-      box('o6', 'Low step', 'platform', 1100, 920, 300, 120, 40),
+      box('o1', 'מרפסת', 'level', 1700, 640, 940, 170, 150),
+      { ...box('o2', 'רמפה', 'ramp', 1420, 660, 280, 130, 150), axis: 'x', z0: 0, z1: 150 },
+      box('o3', 'ארגז', 'platform', 520, 860, 130, 90, 70),
+      box('o4', 'עמוד', 'platform', 760, 800, 110, 80, 140),
+      box('o5', 'ענן', 'oneway', 960, 760, 260, 70, 215),
+      box('o6', 'מדרגה נמוכה', 'platform', 1100, 920, 300, 120, 40),
     ],
     spawn: { x: 300, y: 860 },
     backdrop: { kind: 'sky', stage: 'courtyard', opacity: 1 },
@@ -155,7 +155,7 @@ export function defaultMap(): StudioMap {
 
 export function defaultProfile(): StudioProfile {
   return {
-    app: STUDIO_APP, version: STUDIO_VERSION, name: 'My Studio Setup', savedAt: '',
+    app: STUDIO_APP, version: STUDIO_VERSION, name: 'ההגדרות שלי', savedAt: '',
     camera: { ...DEFAULT_CAMERA }, movement: { ...DEFAULT_MOVEMENT },
     character: JSON.parse(JSON.stringify(DEFAULT_CHARACTER)) as CharacterSettings, map: defaultMap(),
   };

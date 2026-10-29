@@ -85,9 +85,9 @@ export function buildShell(store: StudioStore, getScene: () => StudioScene | nul
     h('div', { class: 'st-top-end' },
       update, dirty,
       h('button', { class: 'st-btn st-btn-primary', title: 'Ctrl+S', onclick: () => { if (store.saveNamed()) store.say(`נשמר: ${store.profile.name}`); } }, icon(ICONS.save, 16), h('span', {}, 'שמור')),
-      h('button', { class: 'st-btn', onclick: () => app.exportJSON() }, icon(ICONS.download, 16), h('span', {}, 'ייצוא')),
-      h('button', { class: 'st-btn', onclick: () => app.importJSON() }, icon(ICONS.upload, 16), h('span', {}, 'ייבוא')),
-      h('a', { class: 'st-btn st-btn-ghost', href: gameUrl, target: '_blank', rel: 'noopener' }, icon(ICONS.external, 16), h('span', {}, 'המשחק'))));
+      h('button', { class: 'st-btn', title: 'ייצוא לקובץ JSON', onclick: () => app.exportJSON() }, icon(ICONS.download, 16), h('span', { class: 'st-btn-label' }, 'ייצוא')),
+      h('button', { class: 'st-btn', title: 'ייבוא מקובץ JSON', onclick: () => app.importJSON() }, icon(ICONS.upload, 16), h('span', { class: 'st-btn-label' }, 'ייבוא')),
+      h('a', { class: 'st-btn st-btn-ghost', title: 'פתח את המשחק', href: gameUrl, target: '_blank', rel: 'noopener' }, icon(ICONS.external, 16), h('span', { class: 'st-btn-label' }, 'המשחק'))));
 
   // ---------------------------------------------------------------- the tools
   const toolBtns = TOOLS.map(({ t, ic, title, key }) => {
@@ -114,7 +114,7 @@ export function buildShell(store: StudioStore, getScene: () => StudioScene | nul
   const hint = h('div', { class: 'st-hint' });
   ctx.refreshers.push(() => {
     const play = store.mode === 'play';
-    hudMode.replaceChildren(h('span', { class: `st-dot ${play ? 'play' : 'edit'}` }), h('b', {}, play ? 'משחק' : 'עריכה'), h('span', {}, play ? 'חצים / WASD · E קפיצה · רווח התקפה' : 'גרירה עורכת · גלגלת זום · כפתור ימני מזיז תצוגה'));
+    hudMode.replaceChildren(h('span', { class: `st-dot ${play ? 'play' : 'edit'}` }), h('b', {}, play ? 'משחק' : 'עריכה'), h('span', { class: 'st-chip-hint' }, play ? 'חצים / WASD · E קפיצה · רווח התקפה' : 'גרירה עורכת · גלגלת זום · כפתור ימני מזיז תצוגה'));
     hint.textContent = play ? 'Tab — לעריכה' : 'Tab — למשחק';
   });
   ctx.live.push(() => {

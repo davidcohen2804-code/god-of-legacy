@@ -35,7 +35,7 @@ body.st-body { background: var(--st-bg); }
   background: linear-gradient(180deg, #151c2a, #10151f); border-bottom: 1px solid var(--st-line);
 }
 .st-brand { display: flex; align-items: baseline; gap: 10px; min-width: 250px; }
-.st-brand-gol { font: 700 17px/1 Cinzel, Georgia, serif; letter-spacing: 2.5px; color: var(--st-gold-2); text-shadow: 0 0 18px rgba(233, 199, 119, 0.25); }
+.st-brand-gol { font: 700 17px/1 Cinzel, Georgia, serif; letter-spacing: 2.5px; color: var(--st-gold-2); text-shadow: 0 0 18px rgba(233, 199, 119, 0.25); white-space: nowrap; }
 .st-brand-studio { font: 600 11px/1 Inter, sans-serif; letter-spacing: 4px; color: var(--st-dim); padding: 4px 8px; border: 1px solid var(--st-line-2); border-radius: 6px; }
 .st-top-mid { display: flex; align-items: center; gap: 8px; flex: 1; justify-content: center; }
 .st-top-sep { width: 1px; height: 24px; background: var(--st-line-2); margin: 0 6px; }
@@ -93,7 +93,8 @@ body.st-body { background: var(--st-bg); }
 .st-chip { pointer-events: auto; display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 10px; background: rgba(9, 13, 20, 0.8); border: 1px solid rgba(255, 255, 255, 0.08); color: var(--st-text); font-size: 12.5px; }
 .st-chip b { color: var(--st-gold-2); font-weight: 600; }
 .st-chip-mode { direction: rtl; }
-.st-chip-mode span:last-child { color: var(--st-dim); }
+.st-chip-mode .st-chip-hint { color: var(--st-dim); }
+.st-chip { white-space: nowrap; }
 .st-chip-info { color: var(--st-dim); font-variant-numeric: tabular-nums; }
 .st-chip-load { color: var(--st-blue); }
 .st-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
@@ -211,4 +212,37 @@ body.st-body { background: var(--st-bg); }
   .st-root { grid-template-columns: 56px minmax(0, 1fr) 340px; }
   .st-brand { min-width: 0; }
   .st-brand-studio { display: none; }
+}
+/* a narrower window: the top bar's buttons as icons (their names in the tooltip), the brand smaller, the HUD short */
+@media (max-width: 1040px) {
+  .st-top { gap: 12px; }
+  .st-brand-gol { font-size: 14px; letter-spacing: 1.5px; }
+  .st-btn-label { display: none; }
+  .st-top-end .st-btn { padding: 8px 10px; }
+  .st-chip-hint { display: none; }
+}
+/* a narrow window (the app's side pane, a tablet): one column — the top bar, the tools in a row, the preview, the panels
+   under it, the status bar */
+@media (max-width: 860px) {
+  .st-root {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 52px 50px minmax(0, 1.15fr) minmax(0, 1fr) 30px;
+    grid-template-areas: 'top' 'tools' 'stage' 'side' 'status';
+  }
+  .st-top { gap: 10px; padding: 0 12px; }
+  .st-brand { display: none; }
+  .st-top-mid { justify-content: flex-start; gap: 6px; }
+  .st-top-sep { margin: 0 2px; }
+  .st-tools { flex-direction: row; gap: 4px; padding: 0 12px; overflow-x: auto; overflow-y: hidden; border-right: 0; border-bottom: 1px solid var(--st-line); scrollbar-width: none; }
+  .st-tool { width: 38px; height: 38px; flex: none; }
+  .st-tools-sep { width: 1px; height: 24px; margin: 0 6px; flex: none; }
+  .st-side { border-left: 0; border-top: 1px solid var(--st-line); }
+  .st-tabs { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; padding: 8px 12px; direction: rtl; }
+  .st-tab { padding: 8px 4px; }
+  .st-tab-name { display: none; }
+  .st-tab-sub { font-size: 12.5px; font-weight: 600; opacity: 1; white-space: nowrap; }
+  .st-tab-body { padding: 12px 12px 32px; }
+  .st-hud { padding: 10px; }
+  .st-chip { padding: 6px 11px; font-size: 12px; }
+  .st-status { gap: 14px; padding: 0 12px; font-size: 11.5px; }
 }

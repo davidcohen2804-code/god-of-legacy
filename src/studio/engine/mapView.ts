@@ -155,7 +155,9 @@ export class MapView {
     let [x, y] = centroid(topFace(o));
     if (selected) { x = centroid(footprint(o))[0]; y = Math.max(...silhouette(o).map((p) => p[1])); }
     const z = o.kind === 'ramp' ? `${Math.round(o.z0)}→${Math.round(o.z1)}` : o.kind === 'prop' ? (o.top !== null && o.top !== undefined ? `${Math.round(o.top)}` : `h ${Math.round(o.h ?? 0)}`) : `${Math.round(o.z)}`;
-    const txt = this.scene.add.text(x, y, `${o.name}  ·  ${z}`, { fontFamily: 'Inter, Arial, sans-serif', fontSize: '12px', fontStyle: '600', color: '#ffffff', backgroundColor: 'rgba(12,16,24,0.62)', padding: { x: 6, y: 3 }, resolution: 2 })
+    // a Hebrew name reads from the right: the name on the right, its height on the left (kept in one piece)
+    const he = /[\u0590-\u05FF]/.test(o.name), line = he ? `\u2066${z}\u2069  ·  ${o.name}` : `${o.name}  ·  ${z}`;
+    const txt = this.scene.add.text(x, y, line, { fontFamily: 'Inter, Arial, sans-serif', fontSize: '12px', fontStyle: '600', color: '#ffffff', backgroundColor: 'rgba(12,16,24,0.62)', padding: { x: 6, y: 3 }, resolution: 2 })
       .setOrigin(0.5, selected ? -0.45 : 0.5).setDepth(950000);
     this.labels.push(txt); this.parts.push(txt);
   }
@@ -167,7 +169,7 @@ export class MapView {
     g.lineStyle(2, 0x6fe08a, 0.95).strokeEllipse(0, 0, 54, 20);
     g.lineStyle(2, 0x6fe08a, 0.95).lineBetween(0, 0, 0, -46);
     g.fillStyle(0x6fe08a, 1).fillTriangle(0, -46, 22, -38, 0, -30);
-    const t = sc.add.text(0, 14, 'START', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '11px', fontStyle: '700', color: '#6fe08a', resolution: 2 }).setOrigin(0.5, 0);
+    const t = sc.add.text(-34, 0, 'התחלה', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '12px', fontStyle: '700', color: '#6fe08a', resolution: 2 }).setOrigin(1, 0.5);
     this.spawnMark = sc.add.container(x, y, [g, t]).setDepth(940000).setVisible(edit);
     this.parts.push(this.spawnMark);
   }

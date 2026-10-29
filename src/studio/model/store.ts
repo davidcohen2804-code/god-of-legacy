@@ -159,7 +159,7 @@ export class StudioStore {
   }
   /** Saves the profile under its name (or a new name) on this device. */
   saveNamed(name = this.profile.name): boolean {
-    const n = name.trim().slice(0, 80) || 'My Studio Setup';
+    const n = name.trim().slice(0, 80) || 'ההגדרות שלי';
     this.profile.name = n;
     this.profile.savedAt = new Date().toISOString();
     const all = this.saves(); all[n] = JSON.parse(JSON.stringify(this.profile)) as StudioProfile;

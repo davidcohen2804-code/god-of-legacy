@@ -24,7 +24,7 @@ interface Drag {
   moved: boolean;
 }
 const CREATE_Z: Record<string, number> = { level: 120, platform: 60, oneway: 180, ramp: 100 };
-const NAMES: Record<string, string> = { level: 'Level', platform: 'Platform', oneway: 'One-way', ramp: 'Ramp' };
+const NAMES: Record<string, string> = { level: 'מפלס', platform: 'פלטפורמה', oneway: 'צפה', ramp: 'רמפה' };
 
 export class Editor {
   readonly g: Phaser.GameObjects.Graphics;
