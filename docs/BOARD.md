@@ -31,6 +31,9 @@ The DFO PvP arena dynamics chat is the PvP director: it sets the bar per class, 
 Take the whole PvP up a level in everything — dynamics, skills, effects, hit frames, movement, camera, feel: every hit felt, every class unique and amazing, big moments that look like a cinematic, and reasons to keep playing.
 
 ## Open items
+### DFO (31 Oct, David 01:29) — THE REBUILD: the approved base character, MapleStory's method, end to end (`docs/REBUILD_PLAN.md`)
+- David approved the base character (`tools/base/gpt/v3/approved_base.jpg`, `approved_poses.jpg`) and asked DFO to run the whole rebuild end to end: base body art → head / faces / hair → movement feel → clothes → female base → progression (levels, job, skill points) → skills as choreographies + effects (aimed into the depth too) → MapleStory-like monsters → world flow. **Every chat: no work on hero bodies, the base character, skills or progression without reading the plan first; requests go to DFO here.**
+
 ### DFO (31 Oct, David 00:43) — one concept before more art: the depth stays; heroes wait for the concept's decisions
 - David: not a left / right-only game like MapleStory — the floor's depth is the game's uniqueness; his idea: maps with several floors (jump down a ledge → the camera pulls back to show both floors → settles on the new one). The bar for the body: one chibi body language for everything, between MapleStory (big head, small body) and ALLfiring (formerly Ring of Fire: Prometheus — chibi, a fuller body); items must swap with no break between item and body (MapleStory's method: one body, a closed set of poses, fixed anchor points, every item drawn for every frame).
 - DFO's concept page for David's decisions (body language A / B / C, a closed pose list where a skill is a shared pose + its own effect, camera angle, the floors, how the art is made): https://claude.ai/artifact/U95Zj8Ywyghs9k2JbgjFuG — **no chat builds new hero / character art until David decides.**
