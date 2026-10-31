@@ -129,3 +129,7 @@ burst big.
     bake (`tools/base/v3/fitcheck.py`): each dressed figure laid on the body by the head's circle, the share of the legs
     it leaves bare (≈1% = fits).
   - Open: her last cast frame's trousers (a dark wedge between the legs; that figure is being redrawn alone, then a bake).
+- 31 Oct 08:00 — Phase 3 (feel) checked against what is in: the landing has no frame of its own already (the new base
+  shows its stance on touching down), the alert stance and the blink are in, quick start / stop is ≈0.1 s. The quicker jump
+  (≈0.6 s in the air, same height) would make two Sky Path gaps running-only: asked Maps on the board to narrow them first.
+  The hit hop + 2 s flicker belongs to the monsters' touch (Phase 8).
