@@ -68,7 +68,7 @@
    ],
    "align": true,
    "scale": 0.000644,
-   "far": 0.78
+   "far": 0.9
   },
   "forearm": {
    "seed": [
@@ -87,7 +87,7 @@
    ],
    "align": true,
    "scale": 0.000572,
-   "far": 0.78
+   "far": 0.9
   },
   "fist": {
    "seed": [
@@ -106,7 +106,7 @@
    ],
    "rotate": -90,
    "scale": 0.00061,
-   "far": 0.78
+   "far": 0.9
   },
   "thigh": {
    "seed": [
@@ -125,7 +125,7 @@
    ],
    "align": true,
    "scale": 0.000635,
-   "far": 0.78
+   "far": 0.9
   },
   "shin": {
    "seed": [
@@ -144,7 +144,7 @@
    ],
    "align": true,
    "scale": 0.00073,
-   "far": 0.78
+   "far": 0.9
   },
   "foot": {
    "seed": [
@@ -158,7 +158,7 @@
     ]
    ],
    "scale": 0.0007,
-   "far": 0.78
+   "far": 0.9
   },
   "cape": {
    "seed": [
@@ -173,6 +173,42 @@
    ],
    "scale": 0.00095,
    "rotate": -22
+  },
+  "cape_strip": {
+   "seed": [
+    1400,
+    720
+   ],
+   "pivots": [
+    [
+     1395,
+     585
+    ]
+   ],
+   "scale": 0.00133,
+   "center_pivot": true
+  }
+ },
+ "caps": {
+  "uparm_cap": {
+   "from": "uparm",
+   "band": [
+    0.0,
+    0.56
+   ],
+   "feather": 0.03,
+   "pivot": 0,
+   "drop_blue": true
+  },
+  "elbow_cap": {
+   "from": "uparm",
+   "band": [
+    0.66,
+    1.0
+   ],
+   "feather": 0.03,
+   "pivot": 1,
+   "drop_blue": true
   }
  }
 }

@@ -110,6 +110,6 @@ function realAssetsB(scene: Phaser.Scene): LabAssets {
     art: 'b', pose: new RigPose(RIG_B), anims: ANIMS_B, catalog, wardrobe: new Wardrobe(RIG_B, catalog.items, catalog.base),
     atlas256: { key: B_TEXTURES[256], unitsPerPx: MASTER_B / 256 }, atlas512: { key: B_TEXTURES[512], unitsPerPx: MASTER_B / 512 },
     atlasInfo: { frames: B_FRAMES[512].length, size256, size512, buildMs: performance.now() - t0 },
-    baseLook: { hair: '', face: 'b_face' }, gearLooks: gearLooksB,
+    baseLook: { hair: 'b_hair', face: 'b_face' }, gearLooks: gearLooksB,
   };
 }

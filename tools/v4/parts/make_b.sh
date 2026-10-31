@@ -7,4 +7,10 @@ D=$(dirname "$0")
 W=${1:-$(mktemp -d)}
 python3 "$D/build_parts.py" "$D/sheets/b_parts_basic.png" basic "$D/cfg_basic.json" "$W" > /dev/null
 python3 "$D/build_parts.py" "$D/sheets/b_parts_golden.png" gold "$D/cfg_gold.json" "$W" > /dev/null
+mkdir -p "$W/head"
+python3 "$D/build_head.py" "$D/sheets/b_head_expressions.png" "$D/sheets/b_head_layers.png" "$W/head" > /dev/null
+cp "$W/head/parts_head.json" "$W/parts_head.json"
+mkdir -p "$W/hands"
+python3 "$D/build_hands.py" "$D/sheets/b_hands.png" "$W/hands" > /dev/null
+cp "$W/hands/parts_hands.json" "$W/parts_hands.json"
 python3 "$D/pack.py" "$W" src/v4/real/assets

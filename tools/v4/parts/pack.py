@@ -6,21 +6,34 @@ from PIL import Image
 
 D, OUT = sys.argv[1], sys.argv[2]
 HIP = 0.37
-meta = {k: json.load(open(f'{D}/parts_{k}.json')) for k in ('basic', 'gold')}
+HAT = (0.01, -0.27)  # the helmet socket on the head bone, B (the rig's hat bone)
+meta = {k: json.load(open(f'{D}/parts_{k}.json')) for k in ('basic', 'gold', 'head', 'hands')}
 BPX = meta['basic']['bpx']
 
 frames = []  # (name, image, pivot)
-def add(look, part, far=False, name=None):
+def add(look, part, far=False, name=None, shift=(0.0, 0.0)):
     p = meta[look]['parts'][part]
-    im = Image.open(f'{D}/parts_{look}/{part}{"_far" if far else ""}.png').convert('RGBA')
-    frames.append((name or f'b/{look}/{part}{"_far" if far else ""}', im, p['pivots'][0], p['pivots']))
+    folder = {'head': f'{D}/head', 'hands': f'{D}/hands'}.get(look, f'{D}/parts_{look}')
+    im = Image.open(f'{folder}/{part}{"_far" if far else ""}.png').convert('RGBA')
+    piv = [p['pivots'][0][0] + shift[0], p['pivots'][0][1] + shift[1]]
+    frames.append((name or f'b/{look}/{part}{"_far" if far else ""}', im, piv, p['pivots']))
 
-add('basic', 'head', name='b/head'); add('basic', 'sword', name='b/sword')
+add('basic', 'sword', name='b/sword')
+# the head standard (build_head.py): face, hair, expression patches; the helmet pivots on the hat socket
+for part in ('head_face', 'hair', 'face_blink', 'face_angry', 'face_hurt'): add('head', part, name=f'b/{part}')
+add('head', 'helmet', name='b/helmet', shift=(HAT[0] * meta['head']['bpx'], HAT[1] * meta['head']['bpx']))
 for look in ('basic', 'gold'):
     for part in ('torso', 'hips'): add(look, part)
-    for part in ('uparm', 'forearm', 'fist', 'thigh', 'shin', 'foot'):
+    for part in ('uparm', 'forearm', 'thigh', 'shin', 'foot', 'uparm_cap', 'elbow_cap'):
         add(look, part); add(look, part, far=True)
+    # the hand standard (build_hands.py): five states, a back layer behind the handle where the grip shows one
+    for state in ('relaxed', 'fist', 'grip', 'grip2', 'open'):
+        for suffix in ('', '_back'):
+            if f'{look}_{state}{suffix}' in meta['hands']['parts']:
+                for far in (False, True):
+                    add('hands', f'{look}_{state}{suffix}', far=far, name=f'b/{look}/hand_{state}{suffix}{"_far" if far else ""}')
 add('gold', 'cape')
+add('gold', 'cape_strip')  # the cape upright, drawn as a strip bent along the cape chain
 
 
 def pack(scale, size):
@@ -55,7 +68,7 @@ pv = lambda n, i: P[n]['pivots'][i]
 u = lambda v: round(v / BPX, 4)
 h0 = pv('hips', 0)
 geo = {
-    'hip': [0, -HIP],
+    'hip': [0, -HIP], 'hat': list(HAT),
     'chest': [u(pv('hips', 1)[0] - h0[0]), u(pv('hips', 1)[1] - h0[1])],
     'thigh_F': [u(pv('hips', 2)[0] - h0[0]), u(pv('hips', 2)[1] - h0[1])],
     'thigh_B': [u(pv('hips', 3)[0] - h0[0]), u(pv('hips', 3)[1] - h0[1])],
@@ -66,7 +79,7 @@ for bone, k in (('head', 1), ('uparm_F', 2), ('uparm_B', 3)):
 lens = {
     'uparm': u(pv('uparm', 1)[1] - pv('uparm', 0)[1]),
     'forearm': u(pv('forearm', 1)[1] - pv('forearm', 0)[1]),
-    'hand': u(pv('fist', 1)[1] - pv('fist', 0)[1]),
+    'hand': meta['hands']['geometry']['hand_len'],
     'thigh': u(pv('thigh', 1)[1] - pv('thigh', 0)[1]),
     'shin': u(pv('shin', 1)[1] - pv('shin', 0)[1]),
 }

@@ -23,11 +23,11 @@ export const yieldFrame = () => new Promise((r) => setTimeout(r, 0));
 
 /** Slot index ↔ a flat colour whose three channels follow different rules, so an anti-aliased blend of two slot
  *  colours (at an edge) almost never decodes as a third slot. */
-const code = (i: number): [number, number, number] => [(i * 4) & 255, (i * 37 + 11) & 255, (i * 101 + 17) & 255];
+const code = (i: number): [number, number, number] => [(i * 2) & 255, (i * 37 + 11) & 255, (i * 101 + 17) & 255];
 export const idColor = (i: number) => { const [r, g, b] = code(i); return (r << 16) | (g << 8) | b; };
 export const idOf = (r: number, g: number, b: number) => {
-  const i = Math.round(r / 4);
-  if (i < 0 || i >= 64) return -1;
+  const i = Math.round(r / 2);
+  if (i < 0 || i >= 128) return -1;
   const [cr, cg, cb] = code(i);
   return Math.abs(r - cr) <= 1 && Math.abs(g - cg) <= 1 && Math.abs(b - cb) <= 1 ? i : -1;
 };
@@ -178,7 +178,7 @@ export async function runTests(scene: LabScene, opts: { full: boolean }, progres
           const av = ch.avatar!;
           for (let i = 0; i < GOLDEN_RIG.slots.length; i++) {
             const p = av.parts[i], want = p ? frameOf(p, GOLDEN_RIG.slots[i], ch.state.swaps, av.unarmed) : undefined;
-            const img = ch.images[i], got = img.visible ? img.frame.name : undefined;
+            const got = ch.shown(i);
             if ((want ?? null) !== (got ?? null)) mismatches++;
           }
           log.push(`${tt.toFixed(4)}|${ch.state.orderId}|${Object.values(ch.state.swaps).join(',')}|${Array.from(ch.state.world.subarray(0, 12)).map((v) => v.toFixed(6)).join(',')}`);

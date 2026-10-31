@@ -32,6 +32,7 @@ def component_at(x, y):
 
 
 parts = {}
+whole = {}  # each part before trims: caps are cut from these
 os.makedirs(f'{OUT}/parts_{look}', exist_ok=True)
 for name, p in cfg['parts'].items():
     if p.get('from'):  # cut out of another part's region (e.g. the shoulder cap from the torso)
@@ -89,10 +90,43 @@ for name, p in cfg['parts'].items():
     bb = im.getbbox()
     im = im.crop(bb)
     piv = [(q[0] - bb[0], q[1] - bb[1]) for q in piv]
+    if p.get('center_pivot'):  # pad left or right so the pivot is on the vertical centre line (a strip drawn along a chain)
+        half = math.ceil(max(piv[0][0], im.width - piv[0][0]))
+        pad = Image.new('RGBA', (2 * half, im.height), (0, 0, 0, 0)); pad.alpha_composite(im, (round(half - piv[0][0]), 0))
+        piv = [(q[0] + round(half - piv[0][0]), q[1]) for q in piv]; im = pad
+    whole[name] = (im.copy(), piv, p.get('far'))
+    trim = cfg.get('trims', {}).get(name)
+    if trim:  # cut a joint end away (a skin-coloured dome that would show over the neighbouring part)
+        a = np.array(im).astype(np.float32)
+        h = a.shape[0]; t0, fe = trim['top'] * h, max(1.0, trim.get('feather', 0.02) * h)
+        ramp = np.clip((np.arange(h) - t0) / fe, 0, 1)[:, None]
+        a[..., 3] *= ramp
+        im = Image.fromarray(a.clip(0, 255).astype(np.uint8))
     im.save(f'{OUT}/parts_{look}/{name}.png')
     parts[name] = {'w': im.width, 'h': im.height, 'pivots': [[round(q[0], 2), round(q[1], 2)] for q in piv], 'angle': round(ang, 2)}
     if p.get('far'):  # a darker copy for the far limb
         d = np.array(im).astype(np.float32); d[..., :3] *= p['far']
+        Image.fromarray(d.clip(0, 255).astype(np.uint8)).save(f'{OUT}/parts_{look}/{name}_far.png')
+
+# joint caps: a band of a part (rows as fractions of its height), turned half as far as the limb by the rig. The band's
+# cut edges are feathered; `drop_blue` keeps only the armour (drops the blue cloth around a pauldron or a couter).
+for name, c in cfg.get('caps', {}).items():
+    src, piv, far = whole[c['from']]
+    a = np.array(src).astype(np.float32)
+    h = a.shape[0]; y0, y1 = c['band'][0] * h, c['band'][1] * h; fe = max(1.0, c.get('feather', 0.04) * h)
+    rows = np.arange(h)[:, None]
+    ramp = np.clip((rows - y0) / fe + (1.0 if c['band'][0] <= 0 else 0.0), 0, 1) * np.clip((y1 - rows) / fe + (1.0 if c['band'][1] >= 1 else 0.0), 0, 1)
+    a[..., 3] *= ramp
+    if c.get('drop_blue'):
+        R_, G_, B_ = a[..., 0], a[..., 1], a[..., 2]
+        a[..., 3] = np.where((B_ > R_ + 12) & (B_ > G_), 0, a[..., 3])
+    im = Image.fromarray(a.clip(0, 255).astype(np.uint8))
+    bb = im.getbbox(); im = im.crop(bb)
+    q = piv[c.get('pivot', 0)]
+    im.save(f'{OUT}/parts_{look}/{name}.png')
+    parts[name] = {'w': im.width, 'h': im.height, 'pivots': [[round(q[0] - bb[0], 2), round(q[1] - bb[1], 2)]], 'angle': 0}
+    if far:
+        d = np.array(im).astype(np.float32); d[..., :3] *= far
         Image.fromarray(d.clip(0, 255).astype(np.uint8)).save(f'{OUT}/parts_{look}/{name}_far.png')
 
 json.dump({'look': look, 'bpx': BPX, 'parts': parts}, open(f'{OUT}/parts_{look}.json', 'w'), indent=1)

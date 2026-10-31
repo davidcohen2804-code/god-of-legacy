@@ -10,16 +10,16 @@ import { RigCharacter } from '../render/RigCharacter';
 import { frameOf } from '../wardrobe/resolve';
 import type { AppearanceInput, WardrobeSlot } from '../wardrobe/types';
 import type { LabScene } from './LabScene';
-import { Harness, idOf, yieldFrame, type TestResult } from './tests';
+import { Harness, idColor, idOf, yieldFrame, type TestResult } from './tests';
 import { CELL, MASTER_B } from './world';
 
 /** Per wardrobe slot, B's two choices (null = nothing: no gloves, no cape, the sword hidden). */
 const CHOICES: [WardrobeSlot, (string | null)[]][] = [
   ['top', ['b_basic_top', 'b_gold_top']], ['bottom', ['b_basic_bottom', 'b_gold_bottom']], ['shoes', ['b_basic_shoes', 'b_gold_shoes']],
-  ['gloves', [null, 'b_gold_gloves']], ['back', [null, 'b_gold_cape']], ['weapon', ['b_sun_sword', null]],
+  ['gloves', [null, 'b_gold_gloves']], ['back', [null, 'b_gold_cape']], ['weapon', ['b_sun_sword', null]], ['head', [null, 'b_gold_helm']],
 ];
 type Mix = Partial<Record<WardrobeSlot, string | null>>;
-/** All 2^6 = 64 mixes. */
+/** All 2^7 = 128 mixes. */
 const MIXES: Mix[] = Array.from({ length: 1 << CHOICES.length }, (_, m) => Object.fromEntries(CHOICES.map(([slot, opts], j) => [slot, opts[(m >> j) & 1]])));
 const mixName = (x: Mix) => CHOICES.map(([slot]) => `${slot}:${(x[slot] ?? 'none').replace(/^b_/, '')}`).join(' ');
 
@@ -82,7 +82,7 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
       parts += av.parts.filter(Boolean).length;
     }
     results.push({ id: 'B2', name: 'Every basic / Golden mix is shown as chosen', pass: refused === 0,
-      detail: `${MIXES.length} mixes (top, trousers, boots: basic or Golden; gauntlets, cape: off or on; sword: shown or hidden): ${refused} with a refusal or a wrong piece; ${(parts / MIXES.length).toFixed(1)} parts drawn on average${notes.length ? ` — ${notes.join(' | ')}` : ''}` });
+      detail: `${MIXES.length} mixes (top, trousers, boots: basic or Golden; gauntlets, cape, helmet: off or on; sword: shown or hidden): ${refused} with a refusal or a wrong piece; ${(parts / MIXES.length).toFixed(1)} parts drawn on average${notes.length ? ` — ${notes.join(' | ')}` : ''}` });
   }
 
   // ---- B3: motion never depends on the outfit; swaps mid-animation are atomic and leave the clock alone ----
@@ -121,7 +121,7 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
           const av = ch.avatar!;
           for (let i = 0; i < rig.slots.length; i++) {
             const p = av.parts[i], want = p ? frameOf(p, rig.slots[i], ch.state.swaps, av.unarmed) : undefined;
-            const img = ch.images[i], got = img.visible ? img.frame.name : undefined;
+            const got = ch.shown(i);
             if ((want ?? null) !== (got ?? null)) mismatches++;
           }
           log.push(`${tt.toFixed(4)}|${ch.state.orderId}|${Object.values(ch.state.swaps).join(',')}|${Array.from(ch.state.world.subarray(0, 12)).map((v) => v.toFixed(6)).join(',')}`);
@@ -136,8 +136,9 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
   }
 
   // ---- B4: joints covered, sword gripped, the composite cell holds every pose ----
-  // quick run: 16 mixes picked at random (seeded), always with all-basic (0) and the full Golden set with the sword (31)
-  const quick = (() => { const r = new Phaser.Math.RandomDataGenerator(['b4']), ids = r.shuffle([...MIXES.keys()].filter((i) => i !== 0 && i !== 31)).slice(0, 14); return [0, 31, ...ids].sort((p, q) => p - q); })();
+  // quick run: 16 mixes picked at random (seeded), always with all-basic (0) and the full Golden set with the sword,
+  // without (31) and with (95) the helmet
+  const quick = (() => { const r = new Phaser.Math.RandomDataGenerator(['b4']), ids = r.shuffle([...MIXES.keys()].filter((i) => i !== 0 && i !== 31 && i !== 95)).slice(0, 13); return [0, 31, 95, ...ids].sort((p, q) => p - q); })();
   const list = opts.full ? MIXES : quick.map((i) => MIXES[i]);
   progress(`B4 ${list.length} mixes × 32 poses`);
   {
@@ -148,9 +149,9 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
       ['shin_F', 0.018, 'knee'], ['shin_B', 0.018, 'knee'], ['foot_F', 0.018, 'ankle'], ['foot_B', 0.018, 'ankle'],
       ['chest', 0.04, 'waist'], ['head', 0.017, 'neck'],
     ];
-    const gripSlots = new Set(['hand_F.front.skin', 'hand_F.front.glove'].map((n) => pose.slotIndex.get(n)!));
-    // the attack's wind-up corrective draws the near arm behind the head: a grip hidden by the head is not a defect
-    const headSlots = new Set(pose.groupSlots.get('head') ?? []);
+    // the hand standard: the handle runs between the palm layer (behind) and the fingers (in front)
+    const frontSlots = ['hand_F.front.skin', 'hand_F.front.glove'].map((n) => pose.slotIndex.get(n)!);
+    const backSlots = ['hand_F.back.skin', 'hand_F.back.glove'].map((n) => pose.slotIndex.get(n)!);
     const weaponSlot = pose.slotIndex.get('weapon')!;
     let renders = 0, seamFails = 0, gripChecks = 0, gripFails = 0, gripHidden = 0, edgeHits = 0;
     const seamBy: Record<string, number> = {};
@@ -173,23 +174,47 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
         renders++;
         const at = (x: number, y: number) => { const xi = Math.round(x), yi = Math.round(y); if (xi < 0 || yi < 0 || xi >= RW || yi >= RH) return { a: 0, id: -1 }; const o = (yi * RW + xi) * 4; return { a: px[o + 3], id: px[o + 3] > 250 ? idOf(px[o], px[o + 1], px[o + 2]) : -1 }; };
         const P = (bone: string) => { const [wx, wy] = pose.point(ch.state, pose.index.get(bone)!); return [OX + wx * s, OY + wy * s]; };
+        // a joint gap is background enclosed by the parts near the joint (a hole or a crack up to ~4 px wide): opaque
+        // after a small closing (radius 2 px) but not drawn. The body's own outline is not a gap (the far shoulder
+        // sits on the torso's front outline while its upper arm hangs behind the torso).
+        const opaque = (x: number, y: number) => at(x, y).a >= 250;
+        const near = (x: number, y: number, fn: (u: number, v: number) => boolean) => { for (let v = -2; v <= 2; v++) for (let u = -2; u <= 2; u++) if (u * u + v * v <= 5 && fn(x + u, y + v)) return true; return false; };
+        const closed = (x: number, y: number) => !near(x, y, (u, v) => !near(u, v, opaque));
         for (const [bone, r, label] of joints) {
           const [cx, cy] = P(bone), rp = Math.max(1.5, r * B);
           let gap = false;
-          for (let dy = -rp; dy <= rp && !gap; dy += 1) for (let dx = -rp; dx <= rp; dx += 1) if (dx * dx + dy * dy <= rp * rp && at(cx + dx, cy + dy).a < 250) { gap = true; break; }
+          for (let dy = -rp; dy <= rp && !gap; dy += 1) for (let dx = -rp; dx <= rp; dx += 1) {
+            if (dx * dx + dy * dy > rp * rp) continue;
+            const x = Math.round(cx + dx), y = Math.round(cy + dy);
+            if (!opaque(x, y) && closed(x, y)) { gap = true; break; }
+          }
           if (gap) { seamFails++; const k = `${label} ${bone.slice(-1)}`; seamBy[k] = (seamBy[k] ?? 0) + 1; if (samples.length < 40) samples.push({ mix: mixName(list[c]), anim: a.name, t, what: `gap at the ${label} (${bone})` }); }
         }
-        if (!av.unarmed && ch.state.swaps.handF === 'grip') {
+        if (!av.unarmed && (ch.state.swaps.handF === 'grip' || ch.state.swaps.handF === 'grip2')) {
           gripChecks++;
-          // the grip point itself shows the fist (or the head hiding the whole hand), and the handle never shows over
-          // the fist within a pixel of it (a blended pixel between two knuckles is the handle seen through the fingers)
-          const [gx, gy] = P('weapon');
-          const centre = at(gx, gy).id, ring = new Set<number>();
-          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) ring.add(at(gx + dx, gy + dy).id);
-          const hidden = headSlots.has(centre);
-          const bad = !gripSlots.has(centre) && !hidden ? `the grip point shows ${centre < 0 ? 'background or a blend' : rig.slots[centre].name}` : ring.has(weaponSlot) ? 'the handle shows over the fist' : '';
-          if (bad) { gripFails++; if (samples.length < 40) samples.push({ mix: mixName(list[c]), anim: a.name, t, what: `handle not under the fist: ${bad}` }); }
-          else if (hidden) gripHidden++;
+          // the handle is held: drawn after the palm layer and before the fingers
+          const pos = (i: number) => ch.drawn.indexOf(i);
+          const front = frontSlots.find((i) => pos(i) >= 0), back = backSlots.find((i) => pos(i) >= 0);
+          const wi = pos(weaponSlot);
+          let bad = front === undefined ? 'no fingers drawn' : wi > pos(front) ? 'the handle is drawn over the fingers' : back !== undefined && wi < pos(back) ? 'the handle is drawn behind the palm layer' : '';
+          // the fist encloses the handle: the fingers, the palm layer and the handle on their own cover the grip
+          // (radius 0.012 B) with no hole, so nothing behind the hand can show through it
+          const [gx, gy] = P('weapon'), rg = Math.max(1.5, 0.012 * B);
+          if (!bad && front !== undefined) {
+            ch.layout(s); ch.isolate(new Set([front, weaponSlot, ...(back !== undefined ? [back] : [])])); ch.tintAll(0xffffff);
+            hz.rt.clear(); hz.rt.draw(ch.container, OX, OY); ch.clearTint();
+            const iso = hz.read(0, 0, RW, RH);
+            for (let dy = -rg; dy <= rg && !bad; dy += 1) for (let dx = -rg; dx <= rg; dx += 1) {
+              if (dx * dx + dy * dy > rg * rg) continue;
+              const x = Math.round(gx + dx), y = Math.round(gy + dy);
+              if (x >= 0 && y >= 0 && x < RW && y < RH && iso[(y * RW + x) * 4 + 3] < 250) { bad = 'a hole in the fist at the grip'; break; }
+            }
+          }
+          // the whole grip behind another part (the arm passing behind the head or the body)
+          const cid = at(gx, gy).id;
+          const hiddenAll = cid >= 0 && front !== undefined && pos(cid) > pos(front);
+          if (bad) { gripFails++; if (samples.length < 40) samples.push({ mix: mixName(list[c]), anim: a.name, t, what: `handle not held: ${bad}` }); }
+          else if (hiddenAll) gripHidden++;
         }
         reach(px, 3);
       }
@@ -197,7 +222,7 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
     }
     // the widest reach (the sword and the cape): every frame at 60 Hz, with and without the Golden set
     const dense: [AnimDef, number][] = ANIM_LIST.flatMap((a) => Array.from({ length: Math.round(a.dur * 60) + 1 }, (_, i) => [a, Math.min(a.dur, i / 60)] as [AnimDef, number]));
-    for (const mix of [MIXES[31], { top: 'b_basic_top', bottom: 'b_basic_bottom', shoes: 'b_basic_shoes', back: 'b_gold_cape', weapon: 'b_sun_sword' }] as Mix[]) {
+    for (const mix of [MIXES[95], { top: 'b_basic_top', bottom: 'b_basic_bottom', shoes: 'b_basic_shoes', back: 'b_gold_cape', weapon: 'b_sun_sword' }] as Mix[]) {
       ch.setAvatar(wardrobe.resolve(input(mix)));
       for (const [a, t] of dense) { poseAt(ch, a, t); reach(hz.render(ch, s, OX, OY, RW, RH, 'alpha'), 2); }
       await yieldFrame();
@@ -205,7 +230,7 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
     const tag = `${list.length} mixes × 32 poses = ${renders} renders at B = ${B} px`;
     results.push({ id: 'B4a', name: 'No gaps at any joint (every basic / Golden mix)', pass: seamFails === 0,
       detail: `${tag}; joint gaps: ${seamFails}${seamFails ? ` (${Object.entries(seamBy).map(([k, v]) => `${k} ${v}`).join(', ')})` : ''}`, data: samples.filter((x) => x.what.startsWith('gap')).slice(0, 16) });
-    results.push({ id: 'B4b', name: 'Sword gripped: the fist over the handle', pass: gripFails === 0, detail: `${gripChecks} armed frames checked, ${gripFails} with the handle not under the fist; ${gripHidden} with the grip hidden behind the head (the attack's wind-up corrective)`, data: samples.filter((x) => x.what.startsWith('handle')).slice(0, 8) });
+    results.push({ id: 'B4b', name: 'Sword held: the handle between the palm and the fingers', pass: gripFails === 0, detail: `${gripChecks} armed frames checked, ${gripFails} with the handle not held (drawn over the fingers or behind the palm layer, or a hole in the fist at the grip); ${gripHidden} with the grip behind the head or body (the attack's wind-up)`, data: samples.filter((x) => x.what.startsWith('handle')).slice(0, 8) });
     const fits = maxUp <= CELL.rootY - 0.02 && maxDown <= CELL.h - CELL.rootY - 0.02 && maxL <= CELL.rootX - 0.02 && maxR <= CELL.w - CELL.rootX - 0.02;
     results.push({ id: 'B4c', name: 'Composite cell holds every pose', pass: edgeHits === 0 && fits,
       detail: `reach from the feet, in B (every mix in its 32 poses, plus the sword and cape on every frame at 60 Hz): up ${maxUp.toFixed(2)}, down ${maxDown.toFixed(2)}, back ${maxL.toFixed(2)}, forward ${maxR.toFixed(2)}; the cell is ${CELL.w} × ${CELL.h} B with the feet at (${CELL.rootX}, ${CELL.rootY}) → ${fits ? 'fits' : 'does NOT fit'}; test-region edge hits ${edgeHits}` });
