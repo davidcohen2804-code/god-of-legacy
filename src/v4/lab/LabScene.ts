@@ -19,7 +19,11 @@ export interface Control { move: number; lane: number; walk: boolean; jump: bool
 const GRAVITY = 1800, RUN = 270, WALK = 150, LANE = 140;
 const ATTACK_MS = 650; // warrior_basic: 200 + 250 + 200
 const OUTLINE = 0x2a1b1e;
-const PREVIEW_X = 1452; // the wardrobe preview panel: canvas x from here to the right edge
+const PREVIEW_X = 1300; // the wardrobe preview panel: canvas x from here to the right edge (620 px wide)
+/** Preview size: B = 370 canvas px. Half the panel is 310 px = 0.84 B, more than the widest reach measured on every
+ *  frame (test M5e: forward 0.79 B with the greatsword in the attack, back 0.75 B with the wings), so no item is cut
+ *  at the panel edge. */
+const PREVIEW_B = 370;
 const STAGE_X = 12000, STAGE_Y = 1000; // where the preview character stands (off the playfield)
 
 /** Gameplay gear → its looks by wardrobe slot (stats stay in Gear.ts). */
@@ -111,7 +115,7 @@ export class LabScene extends Phaser.Scene {
   player!: Actor;
   readonly npcs: Actor[] = [];
   preview!: RigCharacter;
-  renderMode: RenderMode = 'composite-outline';
+  renderMode: RenderMode = 'direct';
   zoomPreset: ZoomPreset = 'grinding';
   sizeKey = '1.12';
   forced: Forced = null;
@@ -217,7 +221,7 @@ export class LabScene extends Phaser.Scene {
     cam.setViewport(0, 0, this.previewOn ? PREVIEW_X : CANVAS.w, CANVAS.h).setZoom(this.camZoom);
     cam.setBackgroundColor('#0d1118');
     this.previewCam.setVisible(this.previewOn);
-    this.previewCam.setZoom(430 / this.bWorld).centerOn(STAGE_X, STAGE_Y - this.bWorld * 0.62);
+    this.previewCam.setZoom(PREVIEW_B / this.bWorld).centerOn(STAGE_X, STAGE_Y - this.bWorld * 0.62);
     this.buildRenderers();
     this.follow(true);
   }
@@ -245,7 +249,7 @@ export class LabScene extends Phaser.Scene {
     }
     const spec = (b: number) => ({ w: Math.ceil(b * CELL.w), h: Math.ceil(b * CELL.h), rootX: Math.round(b * CELL.rootX), rootY: Math.round(b * CELL.rootY) });
     const specs = all.map(() => spec(this.bCanvas));
-    if (this.previewOn) specs.push(spec(430)); // the wardrobe preview shares the one texture
+    if (this.previewOn) specs.push(spec(PREVIEW_B)); // the wardrobe preview shares the one texture
     this.comp = new Composite(this, 'v4comp', specs, maxTex);
     all.forEach((a, i) => {
       a.ch.cell = i; a.ch.outlinePx = this.outlinePx();
@@ -253,8 +257,8 @@ export class LabScene extends Phaser.Scene {
       this.previewCam.ignore(a.display);
     });
     if (this.previewOn) {
-      this.preview.cell = all.length; this.preview.outlinePx = this.outlinePx(430);
-      this.previewImg = this.add.image(STAGE_X, STAGE_Y, 'v4comp', `c${all.length}`).setScale(this.bWorld / 430);
+      this.preview.cell = all.length; this.preview.outlinePx = this.outlinePx(PREVIEW_B);
+      this.previewImg = this.add.image(STAGE_X, STAGE_Y, 'v4comp', `c${all.length}`).setScale(this.bWorld / PREVIEW_B);
       this.cameras.main.ignore(this.previewImg);
     }
   }
@@ -386,7 +390,7 @@ export class LabScene extends Phaser.Scene {
       this.preview.setAvatar(this.player.avatar);
       this.preview.chain.step(dt, Math.min(1, this.player.speed / 300), this.player.mode === 'air' ? this.player.vz / JUMP_VZ : 0);
       this.preview.evaluate(this.player.last.anim, this.player.last.t);
-      const ps = composite ? (430 / this.bWorld) * this.sWorld : this.sWorld;
+      const ps = composite ? (PREVIEW_B / this.bWorld) * this.sWorld : this.sWorld;
       this.preview.layout(ps);
       if (composite) this.previewImg?.setFlipX(this.player.facing < 0);
       else this.preview.container.setScale(this.player.facing, 1);

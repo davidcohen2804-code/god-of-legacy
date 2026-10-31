@@ -275,10 +275,12 @@ export async function runTests(scene: LabScene, opts: { full: boolean }, progres
       }
       if (c % 8 === 7) { progress(`M5 ${c + 1}/${list.length}`); await yieldFrame(); }
     }
-    // the oversized items reach further: measure them too (reach only)
+    // the oversized items and the longest weapon reach furthest: measure them on EVERY frame at 60 Hz (reach only),
+    // since a sword tip's extreme can fall between the 8 sampled moments of an animation
+    const dense: [AnimDef, number][] = ANIM_LIST.flatMap((a) => Array.from({ length: Math.round(a.dur * 60) + 1 }, (_, i) => [a, Math.min(a.dur, i / 60)] as [AnimDef, number]));
     for (const eq of [{ head: 'tall_hat_x', back: 'wings_x', top: 'heavy_plate_x', hair: 'hair_long' }, { overall: 'robe_x', head: 'great_helm_x', back: 'cape_b' }, { back: 'cape_b', weapon: 'sword_b', hair: 'hair_long' }] as Partial<Record<WardrobeSlot, string>>[]) {
       ch.setAvatar(wardrobe.resolve(base(eq)));
-      for (const [a, t] of poses) {
+      for (const [a, t] of dense) {
         poseAt(ch, a, t);
         const px = hz.render(ch, s, OX, OY, RW, RH, 'alpha');
         for (let y = 0; y < RH; y += 2) for (let x = 0; x < RW; x += 2) if (px[(y * RW + x) * 4 + 3] > 8) {
@@ -292,7 +294,7 @@ export async function runTests(scene: LabScene, opts: { full: boolean }, progres
     results.push({ id: 'M5c', name: 'Sword gripped: front fingers over the handle', pass: gripFails === 0, detail: `${gripChecks} armed frames checked, ${gripFails} without the fingers on top` });
     results.push({ id: 'M5d', name: 'No hair through helmets', pass: hairFails === 0, detail: `${hairFails} frames with hair showing on the helmet's skull area (105 head-space samples above the brow per frame)`, data: samples.filter((x) => x.what.includes('helmet')).slice(0, 12) });
     const fits = maxUp <= CELL.rootY - 0.02 && maxDown <= CELL.h - CELL.rootY - 0.02 && maxL <= CELL.rootX - 0.02 && maxR <= CELL.w - CELL.rootX - 0.02;
-    results.push({ id: 'M5e', name: 'Composite cell holds every pose', pass: edgeHits === 0 && fits, detail: `reach from the feet, in B (all mixes plus the oversized items): up ${maxUp.toFixed(2)}, down ${maxDown.toFixed(2)}, back ${maxL.toFixed(2)}, forward ${maxR.toFixed(2)}; the lab's cell is ${CELL.w} × ${CELL.h} B with the feet at (${CELL.rootX}, ${CELL.rootY}) → ${fits ? 'fits' : 'does NOT fit'}; test-region edge hits ${edgeHits}` });
+    results.push({ id: 'M5e', name: 'Composite cell holds every pose', pass: edgeHits === 0 && fits, detail: `reach from the feet, in B (every mix in its 32 poses, plus the oversized items and the greatsword on every frame at 60 Hz): up ${maxUp.toFixed(2)}, down ${maxDown.toFixed(2)}, back ${maxL.toFixed(2)}, forward ${maxR.toFixed(2)}; the lab's cell is ${CELL.w} × ${CELL.h} B with the feet at (${CELL.rootX}, ${CELL.rootY}) → ${fits ? 'fits' : 'does NOT fit'}; test-region edge hits ${edgeHits}` });
   }
 
   // ---- collisions: every item pair from different slots, alone-vs-together, in every pose ----

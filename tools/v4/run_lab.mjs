@@ -18,12 +18,20 @@ await page.goto('http://localhost:4199/index.html');
 await page.waitForFunction(() => window.__v4lab && window.__v4lab.ready, null, { timeout: 60000 });
 const lab = (fn, arg) => page.evaluate(fn, arg);
 
-/** Size the stage so the 1920×1080 canvas shows at exactly 1280×720 (the 720p reference). */
+/** Size the stage so the 1920×1080 canvas shows at exactly 1280×720 (the 720p reference). Phaser fits the canvas to
+ *  the stage's border box, so the border goes: a stage screenshot is exactly the canvas. */
 async function stage720() {
-  await page.addStyleTag({ content: '.layout{grid-template-columns:1282px 1fr!important} .stage{width:1282px!important;height:722px!important;aspect-ratio:auto!important}' });
+  await page.addStyleTag({ content: '.layout{grid-template-columns:1282px 1fr!important} .stage{border:0!important;border-radius:0!important;width:1280px!important;height:720px!important;aspect-ratio:auto!important}' });
   await page.setViewportSize({ width: 1700, height: 1100 });
   await page.waitForTimeout(400);
+  const r = await page.evaluate(() => { const b = document.querySelector('#stage canvas').getBoundingClientRect(); return [b.width, b.height]; });
+  if (Math.abs(r[0] - 1280) > 0.5 || Math.abs(r[1] - 720) > 0.5) throw new Error(`canvas shows at ${r[0]}×${r[1]}, not 1280×720`);
 }
+/** Where the player stands in a stage screenshot (px): root x, ground y, and B on screen. */
+const where = () => page.evaluate(() => {
+  const s = window.__v4lab.scene, cam = s.cameras.main, p = s.player, k = 1280 / 1920;
+  return { x: (cam.x + (p.x - cam.worldView.x) * cam.zoom) * k, ground: (cam.y + (p.y - cam.worldView.y) * cam.zoom) * k, b: s.bCanvas * k };
+});
 
 try {
   if (cmd === 'smoke') {
@@ -63,32 +71,51 @@ try {
         wings: [{ hair: 'hair_long', head: 'tall_hat_x', back: 'wings_x', top: 'heavy_plate_x' }, 'starter'],
         robe: [{ overall: 'robe_x', head: 'great_helm_x', back: 'cape_b', gloves: 'gauntlets_b' }, 'starter'],
       };
+      const pos = {};
+      const view = (o) => set((o) => { const s = window.__v4lab.scene; Object.assign(s, o); s.applyView(); }, o);
+      // every look in every animation, direct renderer (the recommended gameplay renderer), preview on
+      await view({ renderMode: 'direct', previewOn: true, zoomPreset: 'grinding', sizeKey: '1.12' });
       for (const [name, [eq, gear]] of Object.entries(looks)) {
         await outfit(eq, gear);
         for (const [anim, frames] of [['idle', 30], ['run', 14], ['jump', 22], ['attack', 17]]) {
-          await reset(anim); await step(frames); await shot(`shot_${name}_${anim}`);
+          await reset(anim); await step(frames); await shot(`shot_${name}_${anim}`); pos[`shot_${name}_${anim}`] = await where();
         }
       }
+      // the same 50-character crowd, two frames apart, in both renderers (preview off, as in the benchmark)
       await outfit({}, 'starter');
-      await set(() => { const s = window.__v4lab.scene; s.setStress(49); s.forced = null; s.applyView(); }); await step(90); await shot('shot_crowd_composite');
-      await set(() => { const s = window.__v4lab.scene; s.renderMode = 'direct'; s.applyView(); }); await step(30); await shot('shot_crowd_direct');
-      await set(() => { const s = window.__v4lab.scene; s.setStress(0); s.renderMode = 'composite-outline'; s.debug.bones = true; s.applyView(); }); await reset('attack'); await step(17); await shot('shot_debug_bones');
-      await set(() => { const s = window.__v4lab.scene; s.debug.bones = false; s.debug.slots = true; }); await step(1); await shot('shot_debug_slots');
-      await set(() => { const s = window.__v4lab.scene; s.debug.slots = false; });
-      for (const z of ['social', 'boss']) { await set((z) => { const s = window.__v4lab.scene; s.zoomPreset = z; s.applyView(); }, z); await reset('idle'); await step(10); await shot(`shot_zoom_${z}`); }
+      await set(() => { const s = window.__v4lab.scene; s.previewOn = false; s.setStress(49); s.forced = null; s.renderMode = 'direct'; s.applyView(); }); await step(90); await shot('shot_crowd_direct');
+      await view({ renderMode: 'composite-outline' }); await step(2); await shot('shot_crowd_composite');
+      await set(() => { const s = window.__v4lab.scene; s.setStress(0); });
+      // the rig under the art: bones, then every slot in its own colour (mixed look, attack)
+      await outfit(looks.mixB[0], 'starter');
+      await view({ renderMode: 'direct', previewOn: true }); await set(() => { window.__v4lab.scene.debug.bones = true; });
+      await reset('attack'); await step(17); await shot('shot_debug_bones'); pos.shot_debug_bones = await where();
+      await set(() => { const s = window.__v4lab.scene; s.debug.bones = false; s.debug.slots = true; }); await step(1); await shot('shot_debug_slots'); pos.shot_debug_slots = await where();
+      await set(() => { window.__v4lab.scene.debug.slots = false; });
+      // identity size: the three size options at the three zoom presets (look with small details: glasses, bandana)
+      await outfit(looks.mixA[0], 'starter');
+      for (const size of ['1', '1.12', '1.25']) for (const z of ['social', 'grinding', 'boss']) {
+        await view({ sizeKey: size, zoomPreset: z }); await reset('idle'); await step(10);
+        await shot(`shot_size_${size}_${z}`); pos[`shot_size_${size}_${z}`] = await where();
+      }
+      await view({ sizeKey: '1.12', zoomPreset: 'grinding' });
+      writeFileSync(`${out}/shots.json`, JSON.stringify(pos, null, 1));
     }
     if (cmd === 'record') {
       const clip = process.argv[4] ?? 'all';
-      await set(() => { const s = window.__v4lab.scene; s.zoomPreset = 'grinding'; s.renderMode = 'composite-outline'; s.applyView(); });
+      await set(() => { const s = window.__v4lab.scene; s.zoomPreset = 'grinding'; s.sizeKey = '1.12'; s.renderMode = 'direct'; s.previewOn = true; s.applyView(); });
       for (const anim of ['idle', 'run', 'jump', 'attack']) {
         if (clip !== 'all' && clip !== anim) continue;
         await outfit({}, 'starter'); await reset(anim);
         await set(() => { window.__v4lab.scene.autoSwapMs = 400; });
         const dir = `${out}/rec_${anim}`; rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
-        for (let f = 0; f < 120; f++) { await step(1, 1000 / 30); await page.locator('#stage').screenshot({ path: `${dir}/f${String(f).padStart(3, '0')}.png` }); }
-        execSync(`ffmpeg -loglevel error -y -framerate 30 -i ${dir}/f%03d.png -vf "scale=1280:-2" -c:v libx264 -pix_fmt yuv420p -crf 20 ${out}/swap_${anim}.mp4`);
-        // GIF for documents: the right two thirds of the stage (the character at gameplay size and the enlarged preview)
-        execSync(`ffmpeg -loglevel error -y -framerate 30 -i ${dir}/f%03d.png -vf "fps=15,crop=952:540:330:150,split[a][b];[a]palettegen=max_colors=96[p];[b][p]paletteuse=dither=bayer:bayer_scale=4" ${out}/swap_${anim}.gif`);
+        let at = null;
+        for (let f = 0; f < 120; f++) { await step(1, 1000 / 30); if (!at) at = await where(); await page.locator('#stage').screenshot({ path: `${dir}/f${String(f).padStart(3, '0')}.png` }); }
+        // MP4: the whole 1280×720 canvas, unscaled
+        execSync(`ffmpeg -loglevel error -y -framerate 30 -i ${dir}/f%03d.png -c:v libx264 -pix_fmt yuv420p -crf 18 ${out}/swap_${anim}.mp4`);
+        // GIF for documents, unscaled: a 220 px strip around the character at gameplay size, then the wardrobe preview panel
+        const gx = Math.round(at.x - 110), px = Math.ceil(1300 * (1280 / 1920));
+        execSync(`ffmpeg -loglevel error -y -framerate 30 -i ${dir}/f%03d.png -filter_complex "[0:v]split[a][b];[a]crop=220:460:${gx}:140,pad=224:460:0:0:color=0x0c1017[g];[b]crop=${1280 - px}:460:${px}:140[p];[g][p]hstack=inputs=2,fps=15,split[s1][s2];[s1]palettegen=max_colors=128[pal];[s2][pal]paletteuse=dither=bayer:bayer_scale=4" ${out}/swap_${anim}.gif`);
       }
     }
   }
