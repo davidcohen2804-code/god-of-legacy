@@ -20,11 +20,16 @@
   ],
   "gear": {
    "sword": [
+    "idle",
+    "walk",
+    "alert",
+    "jump",
     "swing1",
     "swing2",
     "swing3",
     "stab1",
-    "stab2"
+    "stab2",
+    "run"
    ]
   },
   "swordCell": 448,
