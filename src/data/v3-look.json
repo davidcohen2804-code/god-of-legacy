@@ -1,11 +1,32 @@
 {
  "male": {
-  "styles": 0,
-  "colors": 0,
-  "gaps": [],
+  "styles": 6,
+  "colors": 9,
+  "gaps": [
+   true,
+   true,
+   true,
+   true,
+   true,
+   true
+  ],
   "faces": 1,
-  "over": [],
-  "gear": {},
+  "over": [
+   "swing1",
+   "swing2",
+   "swing3",
+   "stab1",
+   "stab2"
+  ],
+  "gear": {
+   "sword": [
+    "swing1",
+    "swing2",
+    "swing3",
+    "stab1",
+    "stab2"
+   ]
+  },
   "swordCell": 448,
   "neck": [
    170.0,

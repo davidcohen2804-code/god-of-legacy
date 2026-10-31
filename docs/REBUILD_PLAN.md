@@ -99,3 +99,7 @@ burst big.
   - Tilted poses (thrown back, lying, bowed): `tiltD` — the same standing head turned with the body; `v3-heads.json` has the
     turn and the game turns the hair / face layers with it about the neck (`v3-look.json`: neck). `trim` takes GPT's own
     head edge off where GPT drew its head bigger than ours.
+- 31 Oct 03:30 — Phase 2 (hair) and the base in the game: 6 hairstyles × 9 colours on the new head (GPT drew them on the
+  standing figure: `tools/base/gpt/v3/hair_male.png` → `hair_extract.py --spec=sheets/v3_male.json`); the swords GPT drew
+  in the attack frames are found and become the sword layer (any weapon can take their place); with `?base=v3` the
+  game's Beginner is the new base (layered: its hair and clothes as layers), not the painted Beginner.

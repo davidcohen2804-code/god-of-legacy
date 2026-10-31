@@ -11,11 +11,14 @@ import json, os, sys, numpy as np
 from PIL import Image
 from scipy import ndimage as nd
 H = os.path.dirname(os.path.abspath(__file__))
-sys.argv = [sys.argv[0], H + '/sheets/naked_male.json']
+ARGS = sys.argv[1:]                                                  # --spec=sheets/v3_male.json: the rebuild's base (its sheet's
+SPECF = next((x.split('=', 1)[1] for x in ARGS if x.startswith('--spec=')), 'sheets/naked_male.json')   # hair_src, hairdir)
+sys.argv = [sys.argv[0], H + '/' + SPECF]
 src = open(H + '/naked_frames.py').read()
 __file__ = H + '/naked_frames.py'
 exec(src[:src.index("idle_path, idle_idx = spec")])                 # figures(), keyed(), neck_of() of the baker
-OUTD = H + '/hair/'; os.makedirs(OUTD, exist_ok=True)
+SPEC_ = json.load(open(H + '/' + SPECF)); V3_ = SPEC_.get('labels') == 'v3'
+OUTD = H + '/' + SPEC_.get('hairdir', 'hair') + '/'; os.makedirs(OUTD, exist_ok=True)
 # hair colours: brown as GPT drew it; the others = the hair's own light / dark through the colour's ramp (ink, shadow, base,
 # highlight), so every strand and shine stays where GPT put it
 HAIR_COLORS = [('brown', None, (118, 80, 50)),
@@ -34,6 +37,9 @@ def recolor(ce, mask, lum, stops):
   return out
 STD = {'male': ('naked_male_set1.png', 0), 'female': ('naked_female_idle.png', 0)}
 SRC = 'base_hair.png'
+if V3_:                                                              # one gender per spec: its standing figure, its hair sheet
+  STD = {SPEC_['gender']: tuple(SPEC_['anims']['idle'][0][:2])}; SRC = SPEC_['hair_src']
+  HAIR_COLORS = HAIR_COLORS + [(n_, st_, sw_) for n_, st_, sw_ in SPEC_.get('hair_colors_more', [])]
 
 
 def jaw_split_any(sil, nrow):
@@ -51,6 +57,7 @@ def shorts_top_x(f):
   m = f['m']; e, _ = keyed(f['gi'])
   R, Gc, B = e[..., 0], e[..., 1], e[..., 2]; mx = np.maximum(np.maximum(R, Gc), B); mn = np.minimum(np.minimum(R, Gc), B)
   grey = m & ((mx - mn) / np.maximum(mx, 1) < 0.13) & (mx > 105)
+  if V3_: grey = m & (B > R + 12) & ((mx - mn) / np.maximum(mx, 1) > 0.12) & (mx > 90)   # the light-blue shorts
   L, n = nd.label(grey); sz = nd.sum(grey, L, range(1, n + 1)); comps = [L == 1 + k for k in range(n) if sz[k] > 400]
   low = max(comps, key=lambda c: np.nonzero(c)[0].mean()); ys, xs = np.nonzero(low)
   return ys.min(), float(np.median(xs))
@@ -83,7 +90,7 @@ for g, (sp, si) in STD.items():
   st_top, st_mx = shorts_top_x(fs); st_sole = fs['box'][3]
   fy, fx = np.nonzero(face); ry0, ry1, rx0, rx1 = fy.min(), fy.max(), fx.min(), fx.max()
   A = es[ry0:ry1 + 1, rx0:rx1 + 1]; M = face[ry0:ry1 + 1, rx0:rx1 + 1]
-  hairs = figures(SRC)[:4] if g == 'male' else figures(SRC)[4:]
+  hairs = figures(SRC) if V3_ else figures(SRC)[:4] if g == 'male' else figures(SRC)[4:]
   skin0 = skin_est(es, nd.binary_erosion(head, iterations=4))      # our head's own skin, without eyes / brows
   info = {}
   CACHE = json.load(open(OUTD + f'{g}_reg.json')) if os.path.exists(OUTD + f'{g}_reg.json') else {}
@@ -92,7 +99,7 @@ for g, (sp, si) in STD.items():
     s0 = (st_sole - st_top) / (h_sole - h_top)
     best = None
     e_, a_ = keyed(fh['gi'])
-    if str(k) in CACHE and '--reg' not in sys.argv:                 # registration done before (python3 hair_extract.py --reg)
+    if str(k) in CACHE and '--reg' not in ARGS:                 # registration done before (python3 hair_extract.py --reg)
       c_ = CACHE[str(k)]; best = (c_['err'], c_['scale'], c_['ox'], c_['oy'])
     for s in ([] if best else np.arange(s0 * 0.90, s0 * 1.04, 0.004)):                 # the face below the eyes: scale, then shift
       ox0, oy0 = st_mx - s * h_mx, st_sole - s * h_sole
@@ -108,7 +115,7 @@ for g, (sp, si) in STD.items():
           if best is None or err < best[0]: best = (err, s, ox0 + tx, oy0 + ty)
     # 1 px refinement around the best
     err, s, ox, oy = best
-    for dy in ((-1, 0, 1) if str(k) not in CACHE or '--reg' in sys.argv else ()):
+    for dy in ((-1, 0, 1) if str(k) not in CACHE or '--reg' in ARGS else ()):
       for dx in (-1, 0, 1):
         w, al = warp(fh, s, ox + dx, oy + dy, shape)
         e2 = float(np.abs(es - w).sum(-1)[face].mean())
@@ -122,11 +129,18 @@ for g, (sp, si) in STD.items():
     hairish = ((mx < 165) & (G_ < 0.78 * np.maximum(R_, 1)) & ((mx - mn) > 18)) | (lum < 70)   # hair: darker than any skin shade
     D = np.abs(Fe - es).sum(-1)
     cand = (Fa > 0.25) & hairish & ((Ba < 0.5) | (D > 110))
+    if V3_:                                                      # above the shoulders, where our bald head has nothing, all GPT
+      sat_ = (mx - mn) / np.maximum(mx, 1)                       #   drew is hair (its light shine too), never skin
+      cand = cand | ((Fa > 0.5) & (Ba < 0.3) & (np.arange(shape[0])[:, None] <= nrow) & ((mx < 220) | (sat_ > 0.42)))
     cand = nd.binary_opening(cand, iterations=2)
     L, n = nd.label(cand); sz = nd.sum(cand, L, range(1, n + 1))
     keep = [1 + i for i in range(n) if sz[i] >= 0.04 * sz.max()]
     hair = np.isin(L, keep)
     hair = nd.binary_fill_holes(nd.binary_closing(hair, iterations=2)) & (Fa > 0.05) & (hairish | (Ba < 0.5))
+    if V3_:                                                      # the hair's own light (its shine, light tips) shut in by hair
+      inside_ = nd.binary_fill_holes(hair) & ~hair & (Fa > 0.5) & (np.arange(shape[0])[:, None] < hy.min() + 0.55 * hh)   #   all
+      Li_, ni_ = nd.label(inside_)                                 #   round, above the eyes: hair (GPT drew it light), never skin
+      hair = hair | np.isin(Li_, [i + 1 for i in range(ni_) if not ((Li_ == i + 1) & nd.binary_dilation(face, iterations=2)).any()])
     # its soft edge: the antialiased rim next to the hair (GPT's alpha), never into our head's skin
     rim = nd.binary_dilation(hair, iterations=2) & ~hair & (Fa > 0.02) & (hairish | ((Ba < 0.5) & (Fa < 0.9) & (mx < 190)))   # never GPT's skin edge
     hm = hair | rim
@@ -213,4 +227,4 @@ for g, (sp, si) in STD.items():
     info[k] = dict(scale=round(float(s), 4), ox=round(float(ox), 1), oy=round(float(oy), 1), err=round(err, 1), front=int(front.sum()), back=int(back.sum()))
     print(g, k, info[k])
   json.dump(info, open(OUTD + f'{g}_reg.json', 'w'), indent=1)
-json.dump([{'name': n, 'swatch': '#%02x%02x%02x' % sw} for n, _, sw in HAIR_COLORS], open(H + '/../../src/data/hair-colors.json', 'w'), indent=1)
+json.dump([{'name': n, 'swatch': '#%02x%02x%02x' % tuple(sw)} for n, _, sw in HAIR_COLORS], open(H + '/../../' + (SPEC_['data'] + 'hair-colors.json' if V3_ else 'src/data/hair-colors.json'), 'w'), indent=1)

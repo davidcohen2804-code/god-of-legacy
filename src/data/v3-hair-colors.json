@@ -1,0 +1,38 @@
+[
+ {
+  "name": "brown",
+  "swatch": "#765032"
+ },
+ {
+  "name": "black",
+  "swatch": "#2e2c34"
+ },
+ {
+  "name": "blonde",
+  "swatch": "#e6ba60"
+ },
+ {
+  "name": "red",
+  "swatch": "#c83c32"
+ },
+ {
+  "name": "orange",
+  "swatch": "#e88c32"
+ },
+ {
+  "name": "blue",
+  "swatch": "#4c7ed2"
+ },
+ {
+  "name": "green",
+  "swatch": "#4ea658"
+ },
+ {
+  "name": "purple",
+  "swatch": "#925cc4"
+ },
+ {
+  "name": "silver",
+  "swatch": "#c4c8d4"
+ }
+]

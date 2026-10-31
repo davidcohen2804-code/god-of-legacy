@@ -155,7 +155,7 @@ export class CharacterRig {
     this.ensure(s);
     const v = this.view; if (!v) return;
     this.dress(s);
-    const q = poseQuery(this.snap(s, mv, m, ms));
+    const q = (globalThis as { __studioPose?: ReturnType<typeof poseQuery> }).__studioPose ?? poseQuery(this.snap(s, mv, m, ms)); // (a test can hold any pose)
     const pose = s.kind === 'layered' ? resolvePose('warrior', mv.dir, q, true, s.gender, false, true)
       : s.kind === 'beginner' ? resolvePose('warrior', mv.dir, q, true, s.gender, false)
       : resolvePose(s.cls, mv.dir, q, false, undefined, true);

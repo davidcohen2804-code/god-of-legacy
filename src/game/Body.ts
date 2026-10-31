@@ -486,7 +486,7 @@ const pick = <T,>(list: T[], p: number): T => list[Math.max(0, Math.min(list.len
 type BodyQuery = Exclude<PoseQuery, { k: 'loop' }> | { k: 'loop'; state: 'idle' | 'walk' | 'run'; t: number; speed: number };
 export function resolvePose(cls: ClassKey, dir: Dir, q: PoseQuery, base = false, gender?: 'male' | 'female', hero = false, layered = false): PoseFrame {
   if (hero && HEROES[cls]) return heroPose(cls, dir, q);
-  if (base && gender && !layered && HEROES[`beginner_${gender}`]) return heroPose(`beginner_${gender}`, dir, q); // the painted Beginner (male / female) when its body is cut (`layered`: the clean base under its look and gear layers instead — God of Legacy Studio)
+  if (base && gender && !layered && !(BASE_V3 && gender in (V3_LIST as object)) && HEROES[`beginner_${gender}`]) return heroPose(`beginner_${gender}`, dir, q); // the painted Beginner (male / female) when its body is cut (`layered`: the clean base under its look and gear layers instead — God of Legacy Studio; ?base=v3: the rebuild's base, layered, in the game too)
   BASE_MODE = base && cls === 'warrior';
   try {
     if (BASE_MODE && gender) return nakedPose(cls, dir, gender, q); // the clean base character (its look: ActorView layers)

@@ -155,6 +155,7 @@ def gpt_legs(f):
 
 def gpt_sword(f):
   """The sword a GPT figure holds: the long thin light-steel blade, and the guard / grip / pommel at its hilt end."""
+  if V3: return gpt_sword_v3(f)
   m = f['m']; e, _ = keyed(f['gi'])
   R, Gc, B = e[..., 0], e[..., 1], e[..., 2]; mx = np.maximum(np.maximum(R, Gc), B); mn = np.minimum(np.minimum(R, Gc), B)
   sat = (mx - mn) / np.maximum(mx, 1)
@@ -187,6 +188,55 @@ def gpt_sword(f):
     grip = (along >= 0) & (along < 0.48 * ln) & (perp < 0.06 * ln + 0.12 * np.clip(along, 0, None))   # grip, pommel
     gold = (sat > 0.45) & (R > 120) & (R > B + 60)                                 # a brass guard
     hiltm |= (guard | grip) & m & ((~skin & (dark | brown | steel)) | (guard & gold))
+  return nd.binary_closing(blade | hiltm, iterations=1) & m
+
+
+def gpt_sword_v3(f):
+  """The 31 Oct base's sword (GPT drew it warm white steel, a wooden grip and guard — the white undershirt is as light):
+  the blade = the long thin light shape the shirt is not (the shirt is wide), followed along its line over the body;
+  the guard / grip / pommel = the brown or dark bits around its hilt end."""
+  m = f['m']; e, _ = keyed(f['gi'])
+  R, Gc, B = e[..., 0], e[..., 1], e[..., 2]; mx = np.maximum(np.maximum(R, Gc), B); mn = np.minimum(np.minimum(R, Gc), B)
+  sat = (mx - mn) / np.maximum(mx, 1)
+  skin = (R > 150) & (Gc > 95) & (B > 60) & (R > Gc + 10) & (Gc > B + 8)
+  light = m & (mx > 140) & (sat < 0.3) & ~skin
+  yy, xx = np.mgrid[-12:13, -12:13]; disk = xx ** 2 + yy ** 2 <= 144
+  wide = nd.binary_dilation(nd.binary_opening(light, structure=disk), iterations=3)     # the shirt (and other wide light areas)
+  thin = nd.binary_opening(light & ~wide, iterations=1)
+  L, n = nd.label(thin); blade = np.zeros_like(m); ends = []
+  YY, XX = np.mgrid[0:m.shape[0], 0:m.shape[1]]
+  ds = nd.distance_transform_edt(~(skin & m))
+  for k in range(1, n + 1):
+    ys, xs = np.nonzero(L == k)
+    if len(ys) < 300: continue
+    ev, vec = np.linalg.eigh(np.cov(np.vstack([xs, ys])))
+    if ev[1] < 8 * max(ev[0], 1e-3) or np.sqrt(ev[1]) < 25: continue
+    u = vec[:, 1]; t = (xs - xs.mean()) * u[0] + (ys - ys.mean()) * u[1]
+    p0, p1 = np.array([xs[t.argmin()], ys[t.argmin()]], float), np.array([xs[t.argmax()], ys[t.argmax()]], float)
+    hilt, tip = (p0, p1) if ds[int(p0[1]), int(p0[0])] < ds[int(p1[1]), int(p1[0])] else (p1, p0)
+    ax_ = (hilt - tip) / np.linalg.norm(hilt - tip); w = 2.2 * np.sqrt(max(ev[0], 1.0)) + 3
+    wood_ = (R > Gc + 12) & (Gc > B + 6) & (sat > 0.25) & (mx < 210) & ~skin & m   # a sword: its wooden guard / grip at the
+    near_ = (XX - hilt[0]) ** 2 + (YY - hilt[1]) ** 2 <= (0.3 * np.sqrt(ev[1]) * 3.46) ** 2   #   blade's base (a light hem has none)
+    if (wood_ & near_).sum() < 100: continue
+    ring_ = nd.binary_dilation(L == k, iterations=3) & ~(L == k) & m       # the shorts' white band: along the light-blue shorts
+    if (ring_ & (B > R + 12) & (sat > 0.12)).sum() > 0.12 * max(1, ring_.sum()): continue
+    along = (XX - tip[0]) * ax_[0] + (YY - tip[1]) * ax_[1]; perp = np.abs((XX - tip[0]) * ax_[1] - (YY - tip[1]) * ax_[0])
+    ln = float(np.linalg.norm(hilt - tip))
+    # the blade on to the guard, over the body too (its light steel and its dark edge, within its width)
+    hand = nd.binary_dilation(skin & m, iterations=2)
+    band = m & (perp <= w) & (along >= -0.15 * ln) & (along <= ln + 0.25 * ln) & ((mx > 140) & (sat < 0.3) | (mx < 120)) & ~hand
+    Lb, nb = nd.label(band); keep = np.unique(Lb[L == k]); keep = keep[keep > 0]
+    blade |= np.isin(Lb, keep) | (L == k)
+    ends.append(((int(hilt[0]), int(hilt[1])), ax_, ln))
+  if not ends: return blade
+  hiltm = np.zeros_like(m)
+  dark = mx < 150
+  brown = (R > Gc + 12) & (Gc > B + 6) & (sat > 0.25) & (mx < 210) & ~skin           # the wooden grip / guard
+  for (hx_, hy_), (ux, uy), ln in ends:                                           # past the blade's base, along its line
+    along = (XX - hx_) * ux + (YY - hy_) * uy; perp = np.abs((XX - hx_) * uy - (YY - hy_) * ux)
+    guard = (along > -0.08 * ln) & (along < 0.08 * ln) & (perp < 0.16 * ln)
+    grip = (along >= 0) & (along < 0.42 * ln) & (perp < 0.06 * ln + 0.12 * np.clip(along, 0, None))
+    hiltm |= (guard | grip) & m & ~skin & (dark | brown)
   return nd.binary_closing(blade | hiltm, iterations=1) & m
 
 
@@ -1134,13 +1184,14 @@ if D_:
       menu_win(np.dstack([Lc[..., :3], Lc[..., 3] * 255]).clip(0, 255).astype(np.uint8)).save(GB + f'gear/{G2}_{piece}_c{ci}.png', optimize=True)
     MENU_GEAR.append(piece)
 # the sword in the menu figure's hand: the standing frame's grip, back in the standing GPT image's space (its own size there)
-g_ = IDLE_GEOM; kx_ = g_['size'][0] / (g_['x1'] + g_['pad'] - g_['X0']); ky_ = g_['size'][1] / (g_['y1'] + g_['pad'] - g_['Y0'])
-(cx_, cy_), ang_, rch_ = IDLE_GRIP
-mat_ = ((cx_ - g_['dx'] - g_['at'][0]) / kx_ + g_['X0'] - WX0, (cy_ - g_['dy'] - g_['at'][1]) / ky_ + g_['Y0'] - WY0)
-mfig_ = np.asarray(bare)[..., 3] > 128
-L_ = SWORD.place(PIC, mat_, ang_, rch_ / kx_, mfig_.shape, hide=SWORD.fist_mask(mfig_, mat_, 7.5 / kx_))
-Image.fromarray(np.dstack([L_[..., :3], L_[..., 3] * 255]).clip(0, 255).astype(np.uint8)).save(GB + f'gear/{G2}_sword.png', optimize=True)
-MENU_GEAR.append('sword')
+if 'IDLE_GRIP' in globals():                                   # (a base whose standing frame has no sword in hand yet: none)
+  g_ = IDLE_GEOM; kx_ = g_['size'][0] / (g_['x1'] + g_['pad'] - g_['X0']); ky_ = g_['size'][1] / (g_['y1'] + g_['pad'] - g_['Y0'])
+  (cx_, cy_), ang_, rch_ = IDLE_GRIP
+  mat_ = ((cx_ - g_['dx'] - g_['at'][0]) / kx_ + g_['X0'] - WX0, (cy_ - g_['dy'] - g_['at'][1]) / ky_ + g_['Y0'] - WY0)
+  mfig_ = np.asarray(bare)[..., 3] > 128
+  L_ = SWORD.place(PIC, mat_, ang_, rch_ / kx_, mfig_.shape, hide=SWORD.fist_mask(mfig_, mat_, 7.5 / kx_))
+  Image.fromarray(np.dstack([L_[..., :3], L_[..., 3] * 255]).clip(0, 255).astype(np.uint8)).save(GB + f'gear/{G2}_sword.png', optimize=True)
+  MENU_GEAR.append('sword')
 fb_ = []                                                       # where the faces are (the face buttons show that part)
 for k in range(1, NFACE):
   L_ = menu_win(np.asarray(Image.open(FACED + f'/{gender}_{k}.png').convert('RGBA'))); L_.save(GB + f'face/{G2}_{k}.png', optimize=True)
@@ -1162,4 +1213,4 @@ for anim, px in strips.items():
   rows.append(row)
 qc = Image.new('RGB', (max(r.width for r in rows), sum(r.height for r in rows)), (30, 30, 30)); y = 0
 for r in rows: qc.paste(r, (0, y)); y += r.height
-qc.resize((qc.width * 2, qc.height * 2), Image.LANCZOS).save(G + f'tools/base/qc/naked_{gender}.png')
+qc.resize((qc.width * 2, qc.height * 2), Image.LANCZOS).save(G + f'tools/base/qc/{"v3_" if V3 else "naked_"}{gender}.png')
