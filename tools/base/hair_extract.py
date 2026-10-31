@@ -211,6 +211,28 @@ for g, (sp, si) in STD.items():
         tone = nd.gaussian_filter1d(tone, 4, axis=0) * 0.88
         ys_, xs_ = np.nonzero(fill)
         Fe_b[ys_, xs_] = tone[ys_]; al_b[fill] = 1.0
+        # the strands themselves go on into the band (a lunge or a crouch shows it: hair, not a flat slab) — the visible
+        # hair beside it laid over again, moved across by its own width (its strands and waves run on unbroken), a little
+        # darker (it hangs behind); its outline is not copied (no ink lines inside the band). A narrow strip (wavy locks)
+        # would repeat as a pattern: soft straight strands in the row's own tone instead.
+        inner_ = nd.binary_erosion(bk, iterations=2)
+        runs_ = []
+        for y in np.unique(ys_):
+          xs = np.nonzero(bk[y] & (np.arange(shape[1]) < cx))[0]
+          if len(xs) < 4: continue
+          br_ = np.nonzero(np.diff(xs) > 1)[0]; runs_.append(xs.max() - (xs[br_[-1] + 1] if len(br_) else xs.min()) + 1)
+        D_ = int(np.median(runs_)) if runs_ else 0; bw_ = float(np.median(fill.sum(1)[fill.any(1)]))
+        if D_ >= max(6, 0.35 * bw_):
+          done_ = np.zeros(len(ys_), bool)
+          for m_ in range(1, 6):
+            sx_ = xs_ - m_ * D_; ok_ = ~done_ & (sx_ >= 0)
+            ok_[ok_] = inner_[ys_[ok_], sx_[ok_]]
+            Fe_b[ys_[ok_], xs_[ok_]] = Fe[ys_[ok_], sx_[ok_]] * 0.88; done_ |= ok_
+        else:
+          rng_ = np.random.default_rng(k); pw_ = shape[1]
+          prof_ = nd.gaussian_filter1d(rng_.normal(0, 1, pw_), 1.5); prof_ /= max(np.abs(prof_).max(), 1e-6)
+          ln_ = np.zeros(pw_); ln_[rng_.choice(pw_, pw_ // 7, replace=False)] = 1; ln_ = nd.gaussian_filter1d(ln_, 0.6); ln_ /= max(ln_.max(), 1e-6)
+          Fe_b[ys_, xs_] = tone[ys_] * (1 + 0.10 * prof_ - 0.28 * ln_)[xs_][:, None]
         fy_ = np.nonzero(fill.any(1))[0]; fade = np.clip((fy_.max() - yy_) / 14.0, 0, 1)[:, None]   # the band's lower end fades
         al_b = np.where(fill, fade, al_b)
       out['back'] = (Fe_b, al_b)
@@ -218,6 +240,7 @@ for g, (sp, si) in STD.items():
     # the hair's outline: one ink line along its edge (GPT's own outline is broken in places: light dots in it once recoloured)
     solid = hm & (Fa > 0.5)
     edge = hm & ((Fa <= 0.5) | (nd.distance_transform_edt(solid) <= 1.5))
+    edge_b = edge | (fill & (nd.distance_transform_edt(fill | solid) <= 1.5))   # the band's own edge inked too (shown when the body moves)
     lmh = 0.3 * Fe[..., 0] + 0.59 * Fe[..., 1] + 0.11 * Fe[..., 2]
     for ci, (cname, stops, _) in enumerate(HAIR_COLORS):
       ink = np.array(stops[0] if stops else np.percentile(Fe[hair & (lmh > 15)], 2, axis=0), np.float32)   # brown: GPT's own darkest
@@ -225,7 +248,7 @@ for g, (sp, si) in STD.items():
         msk = hm if name == 'front' else (hm | fill) if name == 'back' else hm
         lm_ = 0.3 * ce[..., 0] + 0.59 * ce[..., 1] + 0.11 * ce[..., 2]
         cc = ce if stops is None else recolor(ce, msk, lm_, stops)
-        cc = np.where(edge[..., None], ink * 0.8 + np.minimum(cc, ink + 60) * 0.2, cc)
+        cc = np.where((edge_b if name == 'back' else edge)[..., None], ink * 0.8 + np.minimum(cc, ink + 60) * 0.2, cc)
         Image.fromarray(np.dstack([cc, al * 255]).clip(0, 255).astype(np.uint8), 'RGBA').save(OUTD + f'{g}_{k}_c{ci}_{name}.png', optimize=True)
     info[k] = dict(scale=round(float(s), 4), ox=round(float(ox), 1), oy=round(float(oy), 1), err=round(err, 1), front=int(front.sum()), back=int(back.sum()))
     print(g, k, info[k])
