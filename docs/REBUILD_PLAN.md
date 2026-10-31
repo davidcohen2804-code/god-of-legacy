@@ -109,3 +109,5 @@ burst big.
 - 31 Oct 04:30 — the sword in hand in every move; **the new base is the game's male base** (`src/characters/baseSet.ts`;
   `?base=old` shows the older one): the male Beginner in the world, character select (stage + slot portrait), creation
   (the pedestal) and the HUD portrait are the new character with his hair. The female stays the older one until Phase 5.
+- 31 Oct 04:45 — character creation: "Your Look" for the new base — 6 hairstyles (each button a picture of the head with
+  it), 9 hair colours, 4 skin tones; the pedestal shows the choice at once.

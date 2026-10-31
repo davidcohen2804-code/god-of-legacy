@@ -5,8 +5,11 @@ import { BEGINNER_TO, TEST_MIN_LEVEL, playedClass } from '../skills/Jobs';
 import { CharacterStore } from '../characters/CharacterStore';
 import { KIT_LAYOUT, ensureCharacterUIStyles, ensureSelectKitStyles, syncOverlay } from './CharacterSelectUI';
 import FAN from '../data/class-fan.json';
-import { LookData } from '../characters/LookArt';
+import { LookData, lookCounts } from '../characters/LookArt';
 import { DEFAULT_SKIN, SKIN_TONES } from '../characters/Skin';
+import { isV3 } from '../characters/baseSet';
+import V3_HAIR from '../data/v3-hair-colors.json';
+import V3_LOOK from '../data/v3-look.json';
 
 /** What the new character looks like: body, face, hairstyle and its colour, skin tone, eye colour, the colour of each
  *  starter piece. */
@@ -81,6 +84,16 @@ const CSS = `
 .gol-cc .hbtn{border-radius:12px}
 .gol-cc .hbtn:hover,.gol-cc .swb:hover{transform:scale(1.07);box-shadow:0 0 0 1px rgba(231,196,124,.6)}
 .gol-cc .hbtn.on,.gol-cc .swb.on{box-shadow:0 0 0 2px var(--gl-gold),0 0 0 5px rgba(231,196,124,.18)}
+.gol-cc .lk-row{position:absolute;left:28px;right:28px;display:flex;gap:8px;pointer-events:none}
+.gol-cc .lk-hair{flex:0 0 62px;height:62px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:#0a101c center/cover no-repeat;
+  cursor:pointer;pointer-events:auto;padding:0;transition:border-color 120ms,box-shadow 120ms,transform 120ms}
+.gol-cc .lk-hair:hover{transform:translateY(-1px);border-color:rgba(231,196,124,.55)}
+.gol-cc .lk-hair.on{border-color:rgba(231,196,124,.95);box-shadow:0 0 0 2px rgba(231,196,124,.35)}
+.gol-cc .lk-sw{flex:0 0 34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.2);cursor:pointer;pointer-events:auto;padding:0;
+  transition:border-color 120ms,box-shadow 120ms,transform 120ms}
+.gol-cc .lk-sw:hover{transform:scale(1.08)}
+.gol-cc .lk-sw.on{border-color:#e7c47c;box-shadow:0 0 0 3px rgba(231,196,124,.32)}
+.gol-cc .lk-hint{position:absolute;left:28px;right:28px;font:500 13px var(--gl-body);line-height:1.5;color:var(--gl-text2);opacity:.85}
 `;
 
 export class CharacterCreateUI {
@@ -92,6 +105,12 @@ export class CharacterCreateUI {
   private genderBtns: HTMLButtonElement[] = [];
   private gender: 'male' | 'female' = 'male';
   private look: CreateLook = { ...FIRST_LOOK };
+  /** The look panel (the rebuild's base: hairstyle, hair colour, skin), shown in the journey's place for that body. */
+  private lookPanel!: HTMLDivElement;
+  private journeyPanel!: HTMLDivElement;
+  private hairBtns: HTMLButtonElement[] = [];
+  private hairColBtns: HTMLButtonElement[] = [];
+  private skinBtns: HTMLButtonElement[] = [];
   private lastRect = '';
   private readonly onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape') { e.preventDefault(); this.h.onBack(); }
@@ -138,7 +157,7 @@ export class CharacterCreateUI {
 
     // Your journey: how a new character grows — the Beginner first, his class at level 10.
     const Pt = C.path;
-    const jp = this.el('div', 'abs panel info p-path', this.root);
+    const jp = this.el('div', 'abs panel info p-path', this.root); this.journeyPanel = jp;
     this.box(jp, Pt.x, Pt.y, Pt.w, Pt.h);
     const h4 = this.el('h2', '', jp); h4.textContent = 'Your Journey';
     const jr = this.el('div', 'jr', jp);
@@ -151,6 +170,38 @@ export class CharacterCreateUI {
       this.el('div', 't', tx).textContent = t;
       this.el('div', 'd', tx).textContent = d;
     });
+
+    // Your look (the rebuild's base — David 31 Oct: the character is the emotional centre): hairstyle, hair colour, skin.
+    // Each hairstyle button is a picture of the head with it (the scene draws them: setIcons).
+    const lp = this.el('div', 'abs panel info p-look', this.root); this.lookPanel = lp;
+    this.box(lp, Pt.x, Pt.y, Pt.w, Pt.h);
+    const h5 = this.el('h2', '', lp); h5.textContent = 'Your Look';
+    const row = (label: string, top: number) => { const l_ = this.el('div', 'cc-label', lp); l_.textContent = label; l_.style.top = `${top}px`; const r_ = this.el('div', 'lk-row', lp); r_.style.top = `${top + 24}px`; return r_; };
+    const pick = (btns: HTMLButtonElement[], i: number) => btns.forEach((b, k) => b.classList.toggle('on', k === i));
+    const hr = row('Hairstyle', 62);
+    for (let i = 0; i < ((V3_LOOK as Record<string, { styles: number }>).male?.styles ?? 0); i++) {
+      const b = this.el('button', 'lk-hair', hr) as HTMLButtonElement; b.title = `Hairstyle ${i + 1}`;
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('click', () => { this.look = { ...this.look, hair: i }; pick(this.hairBtns, i); this.h.onLookChange?.(this.look); });
+      this.hairBtns.push(b);
+    }
+    const cr = row('Hair colour', 170);
+    (V3_HAIR as { name: string; swatch: string }[]).forEach((c, i) => {
+      const b = this.el('button', 'lk-sw', cr) as HTMLButtonElement; b.title = c.name; b.style.background = c.swatch;
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('click', () => { this.look = { ...this.look, hairColor: i }; pick(this.hairColBtns, i); this.h.onLookChange?.(this.look); });
+      this.hairColBtns.push(b);
+    });
+    const sr = row('Skin', 250);
+    SKIN_TONES.forEach((t, i) => {
+      const b = this.el('button', 'lk-sw', sr) as HTMLButtonElement; b.title = t.name; b.style.background = t.swatch;
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('click', () => { this.look = { ...this.look, skin: i }; pick(this.skinBtns, i); this.h.onLookChange?.(this.look); });
+      this.skinBtns.push(b);
+    });
+    pick(this.hairBtns, this.look.hair); pick(this.hairColBtns, this.look.hairColor); pick(this.skinBtns, this.look.skin);
+    const hint = this.el('div', 'lk-hint', lp); hint.style.top = '332px';
+    hint.textContent = 'You begin as an adventurer with a sword. At level 10 a Master opens your path: Warrior, Book Mage, Archer, Samurai or Gambler.';
 
     // The class fan: every class in the game side by side (nothing to pick: a new character starts as the Beginner).
     // The pointer on a card lights up that card's background; its hero and the frame stay as they are.
@@ -214,13 +265,17 @@ export class CharacterCreateUI {
   private selectGender(g: 'male' | 'female'): void {
     this.gender = g;
     this.genderBtns.forEach((b, k) => b.classList.toggle('on', (k === 0 ? 'male' : 'female') === g));
-    this.look = { ...this.look, gender: g };
+    const n = lookCounts(g);                                   // (the other body may have fewer styles / colours)
+    this.look = { ...this.look, gender: g, hair: Math.min(this.look.hair, Math.max(0, n.styles - 1)), hairColor: Math.min(this.look.hairColor, Math.max(0, n.colors - 1)) };
+    const v3 = isV3(g); this.lookPanel.style.display = v3 ? '' : 'none'; this.journeyPanel.style.display = v3 ? 'none' : '';
     this.h.onGenderChange?.(g);
     this.h.onLookChange?.(this.look);
   }
 
-  /** Kept for the scene (no style buttons any more). */
-  setIcons(_icons: { face: string[]; hair: string[] }): void {}
+  /** The hairstyle buttons' pictures (the head with each hairstyle, in the chosen colour and skin). */
+  setIcons(icons: { face: string[]; hair: string[] }): void {
+    this.hairBtns.forEach((b, i) => { if (icons.hair[i]) b.style.backgroundImage = `url(${icons.hair[i]})`; });
+  }
 
   private render(): void {
     this.btnCreate.disabled = !this.canCreate();
