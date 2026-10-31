@@ -174,19 +174,37 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
         renders++;
         const at = (x: number, y: number) => { const xi = Math.round(x), yi = Math.round(y); if (xi < 0 || yi < 0 || xi >= RW || yi >= RH) return { a: 0, id: -1 }; const o = (yi * RW + xi) * 4; return { a: px[o + 3], id: px[o + 3] > 250 ? idOf(px[o], px[o + 1], px[o + 2]) : -1 }; };
         const P = (bone: string) => { const [wx, wy] = pose.point(ch.state, pose.index.get(bone)!); return [OX + wx * s, OY + wy * s]; };
-        // a joint gap is background enclosed by the parts near the joint (a hole or a crack up to ~4 px wide): opaque
-        // after a small closing (radius 2 px) but not drawn. The body's own outline is not a gap (the far shoulder
-        // sits on the torso's front outline while its upper arm hangs behind the torso).
+        // a joint gap is background between the parts at a joint: a hole enclosed by them (not reachable from the open
+        // background around the joint), or a crack or split up to 4 px wide (filled by a 2 px closing) reaching more
+        // than 2 px into the silhouette. The body's own outline, and a shallow dent in it (the crook of a bent elbow),
+        // are not gaps; the far shoulder sits on the torso's front outline while its upper arm hangs behind the torso.
         const opaque = (x: number, y: number) => at(x, y).a >= 250;
-        const near = (x: number, y: number, fn: (u: number, v: number) => boolean) => { for (let v = -2; v <= 2; v++) for (let u = -2; u <= 2; u++) if (u * u + v * v <= 5 && fn(x + u, y + v)) return true; return false; };
-        const closed = (x: number, y: number) => !near(x, y, (u, v) => !near(u, v, opaque));
+        const near2 = (x: number, y: number, fn: (u: number, v: number) => boolean) => { for (let v = -2; v <= 2; v++) for (let u = -2; u <= 2; u++) if (u * u + v * v <= 5 && fn(x + u, y + v)) return true; return false; };
+        const closed2 = (x: number, y: number) => !near2(x, y, (u, v) => !near2(u, v, opaque));
+        const farOpen = (x: number, y: number) => !opaque(x, y) && !closed2(x, y);
+        const shallow = (x: number, y: number) => { for (let v = -2; v <= 2; v++) for (let u = -2; u <= 2; u++) if (farOpen(x + u, y + v)) return true; return false; };
         for (const [bone, r, label] of joints) {
           const [cx, cy] = P(bone), rp = Math.max(1.5, r * B);
+          const R = Math.ceil(rp) + 6, x0 = Math.round(cx) - R, y0 = Math.round(cy) - R, n = 2 * R + 1;
+          // open background: transparent pixels connected to the window's border through transparent pixels
+          const open = new Uint8Array(n * n), queue: number[] = [];
+          for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+            if ((i === 0 || j === 0 || i === n - 1 || j === n - 1) && !opaque(x0 + i, y0 + j)) { open[j * n + i] = 1; queue.push(j * n + i); }
+          }
+          while (queue.length) {
+            const q = queue.pop()!, i = q % n, j = (q - i) / n;
+            for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+              const ii = i + di, jj = j + dj;
+              if (ii < 0 || jj < 0 || ii >= n || jj >= n || open[jj * n + ii] || opaque(x0 + ii, y0 + jj)) continue;
+              open[jj * n + ii] = 1; queue.push(jj * n + ii);
+            }
+          }
           let gap = false;
           for (let dy = -rp; dy <= rp && !gap; dy += 1) for (let dx = -rp; dx <= rp; dx += 1) {
             if (dx * dx + dy * dy > rp * rp) continue;
             const x = Math.round(cx + dx), y = Math.round(cy + dy);
-            if (!opaque(x, y) && closed(x, y)) { gap = true; break; }
+            if (opaque(x, y)) continue;
+            if (!open[(y - y0) * n + (x - x0)] || (closed2(x, y) && !shallow(x, y))) { gap = true; break; }
           }
           if (gap) { seamFails++; const k = `${label} ${bone.slice(-1)}`; seamBy[k] = (seamBy[k] ?? 0) + 1; if (samples.length < 40) samples.push({ mix: mixName(list[c]), anim: a.name, t, what: `gap at the ${label} (${bone})` }); }
         }

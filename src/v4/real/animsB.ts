@@ -4,7 +4,8 @@
 //   idle   — the illustration's stance, breathing;
 //   run    — the near arm swings, the sword arm stays raised forward (B's long blade trailing behind poked out behind
 //            the head), the legs as in Phase 1;
-//   jump   — Phase 1's jump, re-centred on B's stance;
+//   jump   — Phase 1's jump, re-centred on B's stance; the sword arm re-posed so the blade stays upright in front of
+//            the face and never tips back over the head;
 //   attack — a new overhead chop on the same timings (see ATTACK_B).
 import { ATTACK, IDLE, JUMP, RD, RUN, STANCE, hold, k, loop } from '../rig/anims';
 import type { AnimDef, BoneTimeline, Ease, Key } from '../rig/types';
@@ -33,6 +34,7 @@ function recentre(a: AnimDef): AnimDef {
 }
 
 const breathe = (v: number, amp: number, dur = 1.6) => loop(dur, [v, v + amp, v]);
+const at = (pairs: [number, number, Ease?][]) => pairs.map(([t, v, e]) => k(t, v, e ?? 'inout'));
 
 export const IDLE_B: AnimDef = {
   ...IDLE,
@@ -58,7 +60,19 @@ export const RUN_B: AnimDef = {
   order: [],
 };
 
-export const JUMP_B: AnimDef = recentre(JUMP);
+const JUMP_R = recentre(JUMP);
+export const JUMP_B: AnimDef = {
+  ...JUMP_R,
+  bones: {
+    ...JUMP_R.bones,
+    // posed in world terms (the arm forward and up, the sword square to the fist): the fist stays out in front of the
+    // face while it is high, so the blade stands upright clear of the head; it drops with the landing
+    uparm_F: { r: at([[0, S.uparm_F], [0.08, 28], [0.22, -63], [0.36, -75], [0.5, -91], [0.6, -76], [0.65, -30], [0.7, S.uparm_F]]) },
+    forearm_F: { r: at([[0, S.forearm_F], [0.08, -115], [0.22, -70], [0.36, -63], [0.5, -50], [0.6, -58], [0.65, -110], [0.7, S.forearm_F]]) },
+    hand_F: { r: at([[0, S.hand_F], [0.08, 35], [0.22, 35], [0.36, 37], [0.5, 38], [0.6, 38], [0.65, 36], [0.7, S.hand_F]]) },
+    weapon: { r: at([[0, S.weapon], [0.08, 0], [0.65, 0], [0.7, S.weapon]]) },
+  },
+};
 
 // The Warrior's basic attack for B, on the same gameplay timings (wind-up 0–0.20, active 0.20–0.45, recovery
 // 0.45–0.65; the hit event at 0.20): an overhead chop. The far arm was posed in world terms (the upper arm, the forearm,
@@ -71,7 +85,6 @@ export const JUMP_B: AnimDef = recentre(JUMP);
 //   impact (0.26–0.33) — lunge: arm and blade forward-down, the near arm thrown back; held so the hit reads.
 //   follow-through and recovery — the blade carries on down (0.42), then rises back into the combat stance.
 // The arm only changes drawing depth while it is clear of the head and the torso, so nothing pops or passes through.
-const at = (pairs: [number, number, Ease?][]) => pairs.map(([t, v, e]) => k(t, v, e ?? 'inout'));
 export const ATTACK_B: AnimDef = {
   ...ATTACK,
   bones: {

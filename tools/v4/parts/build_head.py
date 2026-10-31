@@ -154,7 +154,16 @@ for k in ('blink', 'angry', 'hurt'):
 change = ndimage.binary_opening(change, iterations=1)
 lab, n = ndimage.label(skin & inside)
 sizes = ndimage.sum(skin, lab, range(1, n + 1))
-core = np.isin(lab, [i + 1 for i, v in enumerate(sizes) if v > 60])
+# the face's skin: the skin-coloured regions that reach down to the eyes (light hair highlights on the crown are skin-
+# coloured too, but sit wholly above the eyes)
+cl, cn = ndimage.label(change & inside)
+csz = ndimage.sum(change & inside, cl, range(1, cn + 1))
+big = sorted(range(cn), key=lambda i: -csz[i])[:3]  # the three largest changes: the two eyes with their brows, the mouth
+brow = min(np.where(cl == i + 1)[0].min() for i in big)  # the top of the eyes and brows
+low = ndimage.maximum(np.arange(a.shape[0])[:, None] * np.ones_like(skin, dtype=int), lab, range(1, n + 1))
+# (the forehead is at most a tenth of the head's height above the brows; the crown's highlights can touch it through gaps
+# in the fringe, so the band is cut there)
+core = np.isin(lab, [i + 1 for i, v in enumerate(sizes) if v > 60 and low[i] > brow]) & (np.arange(a.shape[0])[:, None] >= brow - 0.1 * a.shape[0])
 ys = np.where(core)[0]
 top = np.percentile(ys, 8)  # the forehead line: features never sit above it
 feat = change & inside & (np.arange(a.shape[0])[:, None] > top)
@@ -181,7 +190,12 @@ def emit(name, rgba):
 
 # the face layer: the neutral face, and the bald base's skin under the hair (seen only when a helmet hides the hair)
 ba = BASE[..., 3] / 255.0
-face_rgb = np.where(face[..., None], rgb, BASE[..., :3])
+# above the brows only the skin itself is kept: the fringe's strands and their outlines become the bald base's forehead,
+# so a helmet that leaves the forehead bare shows clean skin
+brow_f = brow - 1
+rows_ = np.arange(a.shape[0])[:, None]
+keep = face & (skin | ndimage.binary_dilation(feat, iterations=2) | (rows_ >= brow_f + 12))
+face_rgb = np.where(keep[..., None], rgb, BASE[..., :3])
 face_a = np.where(face, a, ba * (1 - face))
 emit('head_face', np.dstack([face_rgb, face_a * 255]))
 emit('hair', np.dstack([rgb, hair * a * 255]))

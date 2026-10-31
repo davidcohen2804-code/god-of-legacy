@@ -1,5 +1,5 @@
 // Drives the built lab in headless Chromium (software WebGL): smoke check, tests, benchmark, screenshots, recordings.
-// Usage: [V4_ART=placeholder|b] node tools/v4/run_lab.mjs <smoke|tests|tests-full|bench|shots|record> [outDir] [part]
+// Usage: [V4_ART=placeholder|b] node tools/v4/run_lab.mjs <smoke|tests|tests-full|bench|shots|record|reel> [outDir] [part]
 //   V4_ART picks the art the lab opens with (default: candidate B's real art; the Phase 1 tests need the placeholder)
 //   shots parts: looks, crowd, debug, sizes, swap (comma-separated) or all (default); record parts: idle | run | jump | attack | all
 // Expects the lab served at http://localhost:4199/ (python3 -m http.server 4199 --directory dist-v4lab).
@@ -55,7 +55,7 @@ try {
     writeFileSync(`${out}/bench.json`, JSON.stringify(res, null, 2));
     console.log(JSON.stringify(res, null, 1));
   }
-  if (cmd === 'shots' || cmd === 'record') {
+  if (cmd === 'shots' || cmd === 'record' || cmd === 'reel') {
     await stage720();
     await lab(() => { const L = window.__v4lab; L.freeze(); });
     const set = (fn, arg) => lab(fn, arg);
@@ -127,6 +127,25 @@ try {
           await step(1); await shot(`shot_swap_${name}`); pos[`shot_swap_${name}`] = await where();
         }
         save();
+      }
+    }
+    if (cmd === 'reel' && ART === 'b') {
+      // one continuous clip per look: idle, run, a jump, two attacks (the game's own clock, 60 Hz steps, 30 fps frames)
+      const GOLDR = { top: 'b_gold_top', bottom: 'b_gold_bottom', gloves: 'b_gold_gloves', shoes: 'b_gold_shoes', back: 'b_gold_cape' };
+      await set(() => { const s = window.__v4lab.scene; s.zoomPreset = 'grinding'; s.sizeKey = '1.12'; s.renderMode = 'direct'; s.previewOn = true; s.applyView(); });
+      for (const [name, eq] of [['basic', {}], ['gold', GOLDR]]) {
+        await outfit(eq, 'starter'); await reset('idle');
+        const dir = `${out}/reel_${name}`; rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
+        let f = 0, at = null;
+        const play = async (anim, seconds) => {
+          await set((a) => { const s = window.__v4lab.scene; s.forced = a; }, anim);
+          for (let i = 0; i < Math.round(seconds * 30); i++) { await step(2); if (!at) at = await where(); await shot(`${dir}/f${String(f++).padStart(4, '0')}.png`); }
+        };
+        await play('idle', 1.6); await play('run', 1.4); await play(null, 0.2); await play('jump', 1.0); await play(null, 0.3);
+        await play('attack', 0.65); await play(null, 0.25); await play('attack', 0.65); await play(null, 0.6);
+        execSync(`ffmpeg -loglevel error -y -framerate 30 -i ${dir}/f%04d.png -c:v libx264 -pix_fmt yuv420p -crf 18 ${out}/reel_${name}.mp4`);
+        const gx = Math.round(at.x - 120), px = Math.ceil(1300 * (1280 / 1920));
+        execSync(`ffmpeg -loglevel error -y -framerate 30 -i ${dir}/f%04d.png -filter_complex "[0:v]split[a][b];[a]crop=240:440:${gx}:150,pad=244:440:0:0:color=0x0c1017[g];[b]crop=${1280 - px}:440:${px}:150[p];[g][p]hstack=inputs=2,fps=15,split[s1][s2];[s1]palettegen=max_colors=160[pal];[s2][pal]paletteuse=dither=bayer:bayer_scale=4" ${out}/reel_${name}.gif`);
       }
     }
     if (cmd === 'record') {
