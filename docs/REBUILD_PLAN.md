@@ -88,3 +88,14 @@ burst big.
 
 ## Progress
 - 31 Oct 01:29 — base approved; plan written.
+- 31 Oct 02:45 — Phase 1 (male body) baked: `tools/base/sheets/v3_male.json` → `public/assets/final/body/v3/male/` +
+  `src/data/v3-*.json` (stand 3 breathing, walk 4, run 4, alert 3, jump 1, swing 1/2/3, stab 1/2, shoot 3, cast 3, hit 1
+  (the heavy stagger), launched 2, down 1, get-up 1, dead 1). The game plays it with `?base=v3` (and the Studio:
+  `?studio=1&base=v3`); it becomes the base when Phase 2 gives the new head its hair and faces.
+  - Learned: GPT draws the same arm phase in every frame of a walk / run (it ignores "the other arm forward", even with a
+    pose guide). The other phase = ONE lone figure asked by the picture's sides ("the arm whose shoulder is on the LEFT of the
+    picture swings forward, the other hides behind the back"), put into the move's sheet at the move's scale by
+    `tools/base/v3/compose.py` (`--body`, `*K` until its head sits level with the other frames).
+  - Tilted poses (thrown back, lying, bowed): `tiltD` — the same standing head turned with the body; `v3-heads.json` has the
+    turn and the game turns the hair / face layers with it about the neck (`v3-look.json`: neck). `trim` takes GPT's own
+    head edge off where GPT drew its head bigger than ours.

@@ -108,8 +108,8 @@ export function preloadBodies(scene: Phaser.Scene, classes?: readonly string[], 
   for (const [cls, a] of Object.entries(ATLAS)) { if (!want(cls) || heroesOnly) continue; L(atlasKey(cls), a.sheet, false); M(`${atlasKey(cls)}-w`, a.sheet, cls, 0, 0, true); }
   for (const cls of Object.keys(HEROES)) if (want(cls) || (!heroesOnly && cls.startsWith('beginner_'))) L(heroKey(cls), `assets/final/heroes/${cls}/body.png`, false); // START HERO bodies; the painted Beginner always (every class plays it below the 1st job) — not in the PvP arena, where both fighters are heroes
   if (want('warrior') && !heroesOnly) for (const [g, anims] of Object.entries(NAKED)) for (const anim of Object.keys(anims)) {
-    L(nakedKey(g, anim), `assets/final/body/naked/${g}/${anim}.png`, true);
-    if (hasOver(g, anim)) L(overKey(g, anim), `assets/final/body/naked/${g}/${anim}_o.png`, true); // the sword arm in front of the head
+    L(nakedKey(g, anim), `${nakedDir(g)}/${anim}.png`, true);
+    if (hasOver(g, anim)) L(overKey(g, anim), `${nakedDir(g)}/${anim}_o.png`, true); // the sword arm in front of the head
   }
   if (want('warrior') && !heroesOnly) for (const anim of BASE_ANIMS) {
     const k = baseKey(anim); L(k, basePath(anim), true); M(`${k}-w`, basePath(anim), 'warrior'); SHEET_PATH[k] = basePath(anim);
@@ -122,8 +122,8 @@ export function preloadBodies(scene: Phaser.Scene, classes?: readonly string[], 
  *  Legacy Studio's Character Studio (the game loads them with the warrior's bodies). */
 export function preloadLayeredBase(scene: Phaser.Scene, g: 'male' | 'female'): void {
   for (const anim of Object.keys(NAKED[g] ?? {})) {
-    if (!scene.textures.exists(nakedKey(g, anim))) scene.load.spritesheet(nakedKey(g, anim), `assets/final/body/naked/${g}/${anim}.png`, { frameWidth: CELL, frameHeight: CELL });
-    if (hasOver(g, anim) && !scene.textures.exists(overKey(g, anim))) scene.load.spritesheet(overKey(g, anim), `assets/final/body/naked/${g}/${anim}_o.png`, { frameWidth: CELL, frameHeight: CELL });
+    if (!scene.textures.exists(nakedKey(g, anim))) scene.load.spritesheet(nakedKey(g, anim), `${nakedDir(g)}/${anim}.png`, { frameWidth: CELL, frameHeight: CELL });
+    if (hasOver(g, anim) && !scene.textures.exists(overKey(g, anim))) scene.load.spritesheet(overKey(g, anim), `${nakedDir(g)}/${anim}_o.png`, { frameWidth: CELL, frameHeight: CELL });
   }
 }
 
@@ -166,7 +166,7 @@ export interface PoseFrame {
   head?: number[] | null;
   /** The clean base character's frame: its move, and where the head sits (cell px from the standing head) for the look layers;
    *  bare = no sword in hand (a skill played with the hand free); swing = a regular attack's swing (the sword leaves its afterimage). */
-  naked?: { g: string; anim: string; frame: number; hx: number; hy: number; bare?: boolean; swing?: boolean };
+  naked?: { g: string; anim: string; frame: number; hx: number; hy: number; /** the head turned (deg, counter-clockwise as seen) */ ha?: number; bare?: boolean; swing?: boolean };
   /** A ready hero standing still: its cape / robe sways in the wind (ActorView), the body stays put. */
   cloth?: boolean;
 }
@@ -201,13 +201,25 @@ import NAKED_LIST from '../data/naked-anims.json';
 import NAKED_HEADS_LIST from '../data/naked-heads.json';
 import NAKED_LOOK_LIST from '../data/naked-look.json';
 import NAKED_BLADES_LIST from '../data/naked-blades.json';
+import V3_LIST from '../data/v3-anims.json';
+import V3_HEADS_LIST from '../data/v3-heads.json';
+import V3_LOOK_LIST from '../data/v3-look.json';
+import V3_BLADES_LIST from '../data/v3-blades.json';
 import EYE_COLORS_LIST from '../data/eye-colors.json';
-const NAKED = NAKED_LIST as Record<string, Record<string, number>>;
-const NAKED_HEADS = NAKED_HEADS_LIST as Record<string, Record<string, number[][]>>;
+/** The rebuild's base character (David 31 Oct 2026, docs/REBUILD_PLAN.md; tools/base/sheets/v3_male.json → body/v3/):
+ *  ?base=v3 plays it in place of the clean base while its hair, faces and clothes are made (then it becomes the base). */
+export const BASE_V3 = typeof location !== 'undefined' && new URLSearchParams(location.search).get('base') === 'v3';
+const withV3 = <T>(a: unknown, b: unknown): T => (BASE_V3 ? { ...(a as object), ...(b as object) } : a) as T;
+const NAKED = withV3<Record<string, Record<string, number>>>(NAKED_LIST, V3_LIST);
+/** Per frame: where the standing head sits [x, y] (cell px from the standing head), and its turn (degrees counter-clockwise
+ *  as seen, about its neck) in a tilted frame — thrown back, lying, bowed. */
+const NAKED_HEADS = withV3<Record<string, Record<string, number[][]>>>(NAKED_HEADS_LIST, V3_HEADS_LIST);
 /** The sword in hand per frame: its line [guardX, guardY, tipX, tipY], cell px from the feet (Radiant Blade's lightning
  *  lands on its tip and the blade of light grows along it). */
-const NAKED_BLADES = NAKED_BLADES_LIST as Record<string, Record<string, (number[] | null)[]>>;
+const NAKED_BLADES = withV3<Record<string, Record<string, (number[] | null)[]>>>(NAKED_BLADES_LIST, V3_BLADES_LIST);
 const nakedKey = (g: string, anim = 'idle') => `naked-${g}-${anim}`;
+/** Where a gender's base art is: body/naked, or body/v3 (the rebuild's, with ?base=v3). */
+const nakedDir = (g: string) => `assets/final/body/${BASE_V3 && g in (V3_LIST as object) ? 'v3' : 'naked'}/${g}`;
 /** The base character's look, drawn as layers on the frame (MapleStory): back hair behind the body, the face, the forehead
  *  between the bangs and the front hair on the head (they move with it: naked-heads.json), the sword arm again where it
  *  passes in front of the head (<move>_o.png); the skin tone re-shades the skin of every layer (characters/Skin.ts). */
@@ -216,7 +228,7 @@ export interface BaseLook { hair: number; hairColor: number; skin: number; face:
 const EYE_N = EYE_COLORS_LIST.length;
 /** Per gender: hairstyles (and which have a forehead layer), hair colours, faces (0 = the head's own), moves with a
  *  sword-arm strip (tools/base/naked_frames.py). */
-export const NAKED_LOOK = NAKED_LOOK_LIST as Record<string, { styles: number; colors: number; gaps: boolean[]; faces: number; over: string[]; gear?: Partial<Record<GearPiece, string[]>>; swordCell?: number }>;
+export const NAKED_LOOK = withV3<Record<string, { styles: number; colors: number; gaps: boolean[]; faces: number; over: string[]; gear?: Partial<Record<GearPiece, string[]>>; swordCell?: number; /** the standing head's neck point (cell px): a tilted frame's head layers turn about it */ neck?: number[] }>>(NAKED_LOOK_LIST, V3_LOOK_LIST);
 /** Worn gear drawn on the base character, per move (tools/base/naked_frames.py: naked/<g>/gear/<move>_<piece>[_c<colour>].png,
  *  same frames as the body strip): the clothes in their colour, the sword in hand; 'topo' = the shirt again over the sword
  *  arm where that arm is drawn over the hair (<move>_o.png). naked-look.json lists the moves each has. */
@@ -224,12 +236,12 @@ export type GearPiece = 'top' | 'topo' | 'pants' | 'shoes' | 'sword';
 export interface GearLook { weapon: boolean; top: number; pants: number; shoes: number; /** a weapon with its own strips */ sword?: string; /** a head piece */ helm?: string; /** an overall's armour (top, topo, pants) / armoured boots */ suit?: string; boots?: string }
 /** A head piece's layer: one picture on the standing head, placed like the hair (tools/world: naked/<g>/helm/<id>.png). */
 export const helmKey = (g: string, id: string) => `nhelm-${g}-${id}`;
-export const helmPath = (g: string, id: string) => `assets/final/body/naked/${g}/helm/${id}.png`;
+export const helmPath = (g: string, id: string) => `${nakedDir(g)}/helm/${id}.png`;
 const gearColor = (w: GearLook, p: GearPiece) => (p === 'sword' ? (w.weapon ? 0 : -1) : p === 'topo' ? w.top : w[p]);
 /** The strip's variant: the sword's / the armour's own, or the colour. */
 const gearVar = (w: GearLook, p: GearPiece) => (p === 'sword' ? w.sword : p === 'shoes' ? w.boots : w.suit);
 export const gearKey = (g: string, anim: string, p: GearPiece, c: number, v?: string) => `ng-${g}-${anim}-${p}${p === 'sword' ? (v ? `-${v}` : '') : v ? `-${v}` : `-c${c}`}`;
-const gearPath = (g: string, anim: string, p: GearPiece, c: number, v?: string) => `assets/final/body/naked/${g}/gear/${anim}_${p}${p === 'sword' ? (v ? `_${v}` : '') : v ? `_${v}` : `_c${c}`}.png`;
+const gearPath = (g: string, anim: string, p: GearPiece, c: number, v?: string) => `${nakedDir(g)}/gear/${anim}_${p}${p === 'sword' ? (v ? `_${v}` : '') : v ? `_${v}` : `_c${c}`}.png`;
 /** The worn pieces' strips for this move: [piece, texture key] (drawn when loaded). */
 export function gearLayers(g: string, anim: string, w: GearLook | null): [GearPiece, string][] {
   const have = NAKED_LOOK[g]?.gear; if (!w || !have) return [];
@@ -268,7 +280,7 @@ export function cleanLook(g: string, raw: unknown, defaultSkin: number, skins: n
 }
 /** The look's layers that exist for this gender: [texture key, file, re-shaded with the skin]. */
 export function baseLookLayers(g: string, l: BaseLook): { b?: [string, string]; face?: [string, string]; eyes?: [string, string]; gap?: [string, string]; f?: [string, string] } {
-  const D = `assets/final/body/naked/${g}`, out: ReturnType<typeof baseLookLayers> = {};
+  const D = nakedDir(g), out: ReturnType<typeof baseLookLayers> = {};
   if (hasHair(g, l)) {
     out.b = [hairLayerKey(g, l, 'b'), `${D}/hair/h${l.hair}c${l.hairColor}_back.png`];
     out.f = [hairLayerKey(g, l, 'f'), `${D}/hair/h${l.hair}c${l.hairColor}_front.png`];
@@ -341,7 +353,15 @@ function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): P
     anim = q.state === 'run' && has.run ? 'run' : 'walk';
     const c = baseLoop(q.state, q.speed); frame = Math.floor((q.t * c.fps) / 1000) % has[anim];
   } else if (q.k === 'loop' && q.state === 'alert' && has.alert) { anim = 'alert'; frame = Math.floor(q.t / 500) % has.alert; } // 0.5 s a frame (Maple)
+  else if (q.k === 'loop' && q.state === 'idle' && (has.idle ?? 0) > 1) { // Maple's stand: breathing, 0.5 s a frame, there and back
+    const n = has.idle, i = Math.floor(q.t / 500) % (2 * n - 2); anim = 'idle'; frame = i < n ? i : 2 * n - 2 - i;
+  }
   else if (q.k === 'jump' && q.phase !== 'land' && has.jump) anim = 'jump'; // Maple: one frame the whole time off the ground
+  else if (q.k === 'launched' && has.launched) { anim = 'launched'; frame = q.vz > 0 ? 0 : has.launched - 1; } // thrown back and up, then falling on the back
+  else if (q.k === 'down' && has.down) anim = 'down'; // lying on the back
+  else if ((q.k === 'getup' || q.k === 'quickrise') && has.getup) anim = 'getup'; // up on a knee, then standing
+  else if (q.k === 'stunned' && has.hit) anim = 'hit'; // staggered, thrown back on his heels
+  else if (q.k === 'death' && has.dead) anim = 'dead'; // down on his knees (then the ghost)
   else if ((q.k === 'recovery' || q.k === 'hurt' || q.k === 'down' || q.k === 'getup') && has.alert) anim = 'alert'; // Maple: after a swing / when hit, the combat stance
   else if (q.k === 'launched' && has.jump) anim = 'jump'; // thrown up into the air: the jump's one frame
   else if (q.k === 'skill' && q.id === 'warrior_basic' && has.swing1) { // a sword swing (Maple: one of the drawn ones at random)
@@ -359,11 +379,11 @@ function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): P
       }
     }
   }
-  const key = nakedKey(g, anim), [hx, hy] = NAKED_HEADS[g]?.[anim]?.[frame] ?? [0, 0], fx = f.flip ? -1 : 1;
+  const key = nakedKey(g, anim), [hx, hy, ha = 0] = NAKED_HEADS[g]?.[anim]?.[frame] ?? [0, 0], fx = f.flip ? -1 : 1;
   const bare = q.k === 'skill' && NB_BARE.has(q.id); // no sword in hand
   const bl = bare ? null : NAKED_BLADES[g]?.[anim]?.[frame], blade = bl ? bl.map((v, i) => v * SHEET_SCALE * (i % 2 === 0 ? fx : 1)) : null; // (mirrored with the frame)
   const swing = q.k === 'skill' && q.id === 'warrior_basic';
-  return { ...f, key, frame, wkey: `${key}-w`, blade, bladeBehind: false, hair: null, head: null, naked: { g, anim, frame, hx, hy, bare, swing },
+  return { ...f, key, frame, wkey: `${key}-w`, blade, bladeBehind: false, hair: null, head: null, naked: { g, anim, frame, hx, hy, ha, bare, swing },
     anchor: f.anchor ? f.anchor.map((v, i) => (i % 2 === 0 ? v + hx * fx * SHEET_SCALE : v + (hy + (i === 1 ? NAKED_HEAD_DROP : 0)) * SHEET_SCALE)) : null };
 }
 /** The sword's afterimage between two frames of a regular attack's swing (MapleStory: a thin trail of light behind the

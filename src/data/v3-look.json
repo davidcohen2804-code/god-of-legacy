@@ -1,0 +1,15 @@
+{
+ "male": {
+  "styles": 0,
+  "colors": 0,
+  "gaps": [],
+  "faces": 1,
+  "over": [],
+  "gear": {},
+  "swordCell": 448,
+  "neck": [
+   170.0,
+   201
+  ]
+ }
+}

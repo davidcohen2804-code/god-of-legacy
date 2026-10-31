@@ -594,21 +594,27 @@ export class ActorView {
     if (!nk || (!l && !this.gearW) || !this.visible) { for (const im of [...Object.values(P), ...Object.values(this.gearParts)]) im?.setVisible(false); return; }
     const L = l ? baseLookLayers(nk.g, l) : {}, fx = pose.flip ? -1 : 1, skin = l?.skin ?? DEFAULT_SKIN;
     const hx = p.x + nk.hx * p.scaleX * fx, hy = p.y + nk.hy * p.scaleY;
-    const put = (im: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite, key: string | null, x: number, y: number, d: number, frame?: number) => {
+    // a tilted frame (thrown back, lying, bowed): the head's layers turn with the head about its neck (the layer's cell: the
+    // idle one; a mirrored frame flips the layer inside its cell, so the neck's x and the turn mirror too)
+    const neck = nk.ha ? NAKED_LOOK[nk.g]?.neck : undefined, W = p.frame.realWidth, Hh = p.frame.realHeight;
+    const turn = neck ? { ox: pose.flip ? 1 - neck[0] / W : neck[0] / W, oy: neck[1] / Hh, r: (pose.flip ? 1 : -1) * (nk.ha! * Math.PI) / 180,
+      x: hx + (pose.flip ? W - neck[0] - pose.ox * W : neck[0] - pose.ox * W) * p.scaleX, y: hy + (neck[1] - pose.oy * Hh) * p.scaleY } : null;
+    const put = (im: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite, key: string | null, x: number, y: number, d: number, frame?: number, head = false) => {
       if (!key) { im.setVisible(false); return; }
       if (im.texture.key !== key || (frame !== undefined && im.frame.name !== String(frame))) im.setTexture(key, frame);
-      im.setOrigin(pose.ox, pose.oy).setScale(p.scaleX, p.scaleY).setFlipX(!!pose.flip).setPosition(x, y).setDepth(depth + d).setAlpha(alpha).setVisible(true);
+      const t = head ? turn : null;
+      im.setOrigin(t ? t.ox : pose.ox, t ? t.oy : pose.oy).setScale(p.scaleX, p.scaleY).setFlipX(!!pose.flip).setPosition(t ? t.x : x, t ? t.y : y).setRotation(t ? t.r : 0).setDepth(depth + d).setAlpha(alpha).setVisible(true);
       if (tint === null) im.clearTint(); else if (tintFill) im.setTintFill(tint); else im.setTint(tint);
     };
     const has = (kf?: [string, string]) => (kf && this.scene.textures.exists(kf[0]) ? kf[0] : null);
     const tone = (k: string | null) => (k ? toneTexture(this.scene, k, skin) : null);
-    put(P.b, has(L.b), hx, hy, -0.005);
-    put(P.face, tone(has(L.face)), hx, hy, 0.003);
-    put(P.eyes, has(L.eyes), hx, hy, 0.0035); // the eye colour: the irises over the face (not skin: not re-shaded)
-    put(P.gap, tone(has(L.gap)), hx, hy, 0.004);
-    put(P.f, has(L.f), hx, hy, 0.006);
+    put(P.b, has(L.b), hx, hy, -0.005, undefined, true);
+    put(P.face, tone(has(L.face)), hx, hy, 0.003, undefined, true);
+    put(P.eyes, has(L.eyes), hx, hy, 0.0035, undefined, true); // the eye colour: the irises over the face (not skin: not re-shaded)
+    put(P.gap, tone(has(L.gap)), hx, hy, 0.004, undefined, true);
+    put(P.f, has(L.f), hx, hy, 0.006, undefined, true);
     const hk = this.gearW?.helm ? helmKey(nk.g, this.gearW.helm) : null; // a head piece over the hair (it moves with the head)
-    put(P.helm, hk && this.scene.textures.exists(hk) ? hk : null, hx, hy, 0.0065);
+    put(P.helm, hk && this.scene.textures.exists(hk) ? hk : null, hx, hy, 0.0065, undefined, true);
     const ok = hasOver(nk.g, nk.anim) && this.scene.textures.exists(overKey(nk.g, nk.anim));
     put(P.over, ok ? tone(overKey(nk.g, nk.anim)) : null, p.x, p.y, 0.008, nk.frame);
     // worn gear on this very frame: pants, boots, shirt over the body (under the face and hair); the shirt's sleeve again over
