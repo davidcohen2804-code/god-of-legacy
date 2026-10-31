@@ -4,6 +4,17 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-10-31 — Skill points (the rebuild's Phase 6): a skill's level sets its damage in the regular game only
+- **Skill points** (`src/game/SkillPoints.ts`, David 31 Oct 01:18): from the 1st job on, 3 a level (the advancement's level
+  included: a new Swordsman at 10 has 3). Each job skill is learned with them — an active up to level 20, a passive once
+  (on / off). A skill not learned cannot be used, a passive not learned gives nothing; the basic attack is always there.
+- **Damage by level (regular game only):** `skillPower(lv)` = 55 % at level 1 → 100 % at level 20, straight between
+  (`ownDamageMul` × `spMul`). Timings, cooldowns, reach, reactions and effects do not change with the level.
+- **The arena / PvP: unchanged** — every skill open at its full blow (the arena, QA, the all-skills-open test switch and a
+  START HERO ignore skill points).
+- New characters start at level 1 again (`TEST_MIN_LEVEL` 10 → 1): the Beginner has the basic attack only, the Masters
+  give the 1st job at 10 (as before).
+
 ## 2026-10-24 (second step) — Arena damage: Warrior 1.15, Samurai 1.12, Book Mage 1, Archer 0.92, Gambler 1.45
 - `ARENA.clsDmg` (PvP only), fitted on the first step's 150 battles (each class's strength from its matchups): **warrior 1.2 → 1.15, samurai 1.05 → 1.12, book mage 1.1 → 1, archer 1 → 0.92, gambler 1.3 → 1.45**.
 - **Checked** (150 battles, ~370 rounds, both sides, mirrors out): **Warrior 58 %, Book Mage 54 %, Archer 53 %, Samurai 45 %, Gambler 38 %** (±5 each). Matchups (rounds): the Book Mage 19/29 over the Warrior, 10/31 against the Archer; the Archer 21/31 over the Book Mage; the Gambler 4/26 against the Warrior, 15/27 over the Archer. Every class inside 40–60 % but the Gambler, at its edge — and played below its best by the AI (no card play, no Long Guard read).

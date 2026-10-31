@@ -1,4 +1,5 @@
-// Job advancement path (MapleStory-style): a Beginner stage then 4 advancements. Skills unlock with the job — no points.
+// Job advancement path (MapleStory-style): a Beginner stage then 4 advancements. A job opens its skills; each is then
+// learned with skill points (src/game/SkillPoints.ts — the rebuild's Phase 6).
 export interface Job { name: string; level: number; to: number; slots: number[] }
 
 /** Per class: Beginner (1–19, basic attack only) → 1st (19–29) → 2nd (29–40) → 3rd (40–80) → 4th (80–150). `slots` = skill slots it unlocks. */
@@ -55,8 +56,9 @@ export const jobOfSlot = (cls: string, slot: number): Job => jobsFor(cls).find((
 export const ADV_LABEL = ['Beginner', '1st Job', '2nd Job', '3rd Job', '4th Job'];
 /** Level of the 1st job advancement: below it every character is the shared sword-only Beginner. */
 export const BEGINNER_TO = 10;
-/** TESTING (the Masters' job advancement): every character plays from at least this level. Set to 1 to turn it off. */
-export const TEST_MIN_LEVEL = 10;
+/** Every character plays from at least this level (the Masters' testing had it at 10). The rebuild (David 31 Oct 01:18):
+ *  MapleStory's progression — a new character starts at level 1 with the basic attack. */
+export const TEST_MIN_LEVEL = 1;
 /** The old 1st-job level: characters made before the Masters, past it, keep the class they were made with. */
 const LEGACY_JOB_LEVEL = 19;
 /** Classes played in their own art from level 1 (their Beginner uses their own basic attack). Others start as the sword Beginner. */

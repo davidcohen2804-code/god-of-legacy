@@ -32,6 +32,13 @@ function defaults(): CharacterSelectData {
 }
 
 /** Malformed data never throws: bad slots become empty, bad structure becomes defaults. */
+/** Learned skills as stored: ids → whole levels 1..99 (anything else dropped); null = none. */
+function cleanSkills(v: unknown): Record<string, number> | null {
+  if (!v || typeof v !== 'object') return null;
+  const out = Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([k, n]) => k.length > 0 && k.length < 64 && typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 99)) as Record<string, number>;
+  return Object.keys(out).length ? out : null;
+}
+
 function sanitize(raw: unknown): CharacterSelectData {
   const d = defaults();
   if (!raw || typeof raw !== 'object') return d;
@@ -55,6 +62,8 @@ function sanitize(raw: unknown): CharacterSelectData {
       if (isNonEmpty(jb.trial)) target.character.trial = jb.trial;
       const sts = (c as unknown as { stats?: unknown }).stats;
       if (sts && typeof sts === 'object') target.character.stats = cleanStats(sts, c.level);
+      const sk = cleanSkills((c as unknown as { skills?: unknown }).skills);
+      if (sk) target.character.skills = sk;
       const lt = c as unknown as { gold?: unknown; bag?: unknown; quick?: unknown };
       target.character.gold = cleanGold(lt.gold);
       target.character.bag = lt.bag && typeof lt.bag === 'object' ? cleanBag(lt.bag) : { ...STARTER_BAG };
@@ -168,6 +177,15 @@ class Store {
     const c = this.data.slots.find((x) => x.character?.id === charId)?.character;
     if (!c) return;
     c.stats = cleanStats(s, c.level);
+    this.save();
+  }
+
+  /** The skills learned with skill points (id → level). */
+  setSkills(charId: string, skills: Record<string, number>): void {
+    const c = this.data.slots.find((x) => x.character?.id === charId)?.character;
+    if (!c) return;
+    const sk = cleanSkills(skills);
+    if (sk) c.skills = sk; else delete c.skills;
     this.save();
   }
 

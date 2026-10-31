@@ -93,6 +93,7 @@ import { genderOf, headLookOf, previewKeyOf } from '../characters/Look';
 import { buildLook, preloadLooks } from '../characters/LookArt';
 import { BotLevel, BOT_ID, BOT_NAME, BOT_NAMES, SparringBot, setBotCentre } from '../pvp/SparringBot';
 import { RARITY, BAG_MAX, DEFAULT_QUICK, GOLD_BIG, GOLD_ICON, GOLD_MAX, ITEMS, ITEM_IDS, POTION_DELAY, STARTER_BAG, cleanBag, cleanQuick, fmtGold, rollDrops, usable, type Drop } from '../game/Loot';
+import { SP_PER_LEVEL, cannotRaise, freeSp, levelOf, skillPower } from '../game/SkillPoints';
 import { AP_PER_LEVEL, BASE_STAT, STAT_KEYS, Derived, StatKey, Stats, autoAssign, baseStats, cleanStats, derive, freeAp, mainStats } from '../game/Stats';
 import { ShopWindow } from '../ui/ShopWindow';
 import { StatsWindow } from '../ui/StatsWindow';
@@ -1010,6 +1011,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.refreshPassiveStrip();
     const host = this.game.canvas.parentElement!;
     this.skillBook = new SkillBook(this, host, this.game.canvas, this.cls, skillLevel(character), this.allOpen(), pvpRoom || isQAMode() ? undefined : (on) => this.setAllOpen(on)); // arena / QA: all skills open
+    if (!pvpRoom && !isQAMode() && !character.hero) this.skillBook.setPoints(character, (e) => this.learnSkill(e)); // skill points (the arena, QA and a test hero: everything open)
     this.cosPanel = new CosmeticPanel(this, host, this.game.canvas, character, () => this.equipped, (e) => this.setEquipped(e), (g) => this.onGearChange(g));
     this.skillBook.setEquipped(this.equipped);
     this.cosPanel.itemActions = { use: (id) => this.useItem(id), setQuick: (i, id) => this.setQuick(i, id), quick: () => this.quick, keys: () => [keyLabel(this.bindings.hpPot), keyLabel(this.bindings.mpPot)] };
@@ -1445,7 +1447,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Passives owned now (level / all-open) → stats + body resistances; keeps the HP fraction when max HP changes. */
   private applyPassives(): void {
     const lvl = this.character ? skillLevel(this.character) : 1, all = this.allOpen(), before = this.body.maxHp || 1, frac = this.playerHP / before;
-    this.passives = passivesFor(this.cls).length && (all || lvl >= BEGINNER_TO) ? passiveStats(ownedPassives(this.cls, lvl, all)) : NO_PASSIVES;
+    this.passives = passivesFor(this.cls).length && (all || lvl >= BEGINNER_TO) ? passiveStats(this.learnedPassives(ownedPassives(this.cls, lvl, all))) : NO_PASSIVES;
     this.body.ccResist = this.passives.ccResist; this.body.kbResist = this.passives.kbResist;
     this.body.maxHp = this.maxHpNow();
     this.hpMaxSeen = this.body.maxHp; // already rescaled here (stepPassives must not scale again)
@@ -1453,10 +1455,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.dead < 0 && Number.isFinite(frac)) this.playerHP = Math.max(1, Math.round(frac * this.body.maxHp));
   }
 
+  /** The passives his job tier opened, those learned with skill points only (no points to spend: all of them). */
+  private learnedPassives(open: Set<string>): Set<string> { return this.pointsFree() ? open : new Set([...open].filter((id) => levelOf(this.character, id) > 0)); }
+
   /** Passive icons above the skill tray (owned bright, locked dimmed). */
   private refreshPassiveStrip(): void {
     if (!this.hud || !passivesFor(this.cls).length) { this.hud?.setPassives([]); return; }
-    const all = this.allOpen(), lvl = this.character ? skillLevel(this.character) : 1, own = ownedPassives(this.cls, lvl, all);
+    const all = this.allOpen(), lvl = this.character ? skillLevel(this.character) : 1, own = this.learnedPassives(ownedPassives(this.cls, lvl, all));
     const open = all || lvl >= BEGINNER_TO;
     this.hud.setPassives(passivesFor(this.cls).map((p) => ({ id: p.id, name: p.name, iconUrl: passiveIconUrl(p), owned: open && own.has(p.id), info: p.effects.join(' · ') })));
   }
@@ -1676,6 +1681,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.skillBook?.setLevel(skillLevel(ch));
     this.statD = derive(this.stats, this.cls, ch.level); this.applyPassives(); this.playerHP = this.maxHpNow(); this.mp = this.maxMpNow();
     this.chat?.add({ kind: 'system', text: `+${r.ups * AP_PER_LEVEL} AP — press ${keyLabel(this.bindings.stats) || 'U'} to place them.` }); this.refreshStats();
+    if (hasJob(ch) && !this.pointsFree()) { this.skillBook?.setPoints(ch); this.chat?.add({ kind: 'system', text: `+${r.ups * SP_PER_LEVEL} skill points (${freeSp(ch)} to spend) — press ${keyLabel(this.bindings.book) || 'K'} to learn skills.` }); }
     if (playedClass({ ...ch, level: was }) !== playedClass(ch)) this.time.delayedCall(1700, () => this.scene.restart({ pvpRoom: null, at: { x: this.kin.x, y: this.kin.y } })); // an older character past the old 1st-job level: becomes his own class
     if (was < BEGINNER_TO && r.level >= BEGINNER_TO && !hasJob(ch)) this.chat?.add({ kind: 'system', text: 'Level 10! The Masters of the four paths await you on the Temple Road.' });
   }
@@ -2339,7 +2345,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   /** Own damage buffs right now: War Cry +20%, Radiant Blade +15% (same as against monsters). */
-  private ownDamageMul(s?: FinalSkill): number { return this.weaveMul() * this.skillMul(s) * (this.simMs < this.warCryUntil ? 1.1 : this.simMs < this.allyCryUntil ? 1.1 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * (this.simMs < this.bannerUntil ? 1.1 : 1) * (this.simMs < this.sunUntil ? 1.1 : 1) * (this.simMs < this.godUntil ? 1.15 : 1) * (this.simMs < this.itemDmgUntil ? 1.1 : 1) * this.passiveDmgMul() * (s?.cls === 'gambler' ? (s.id === 'showdown' ? this.gShowMul : 1) * (this.simMs < this.gOverUntil ? 1.15 : 1) : 1); }
+  private ownDamageMul(s?: FinalSkill): number { return this.weaveMul() * this.skillMul(s) * this.spMul(s) * (this.simMs < this.warCryUntil ? 1.1 : this.simMs < this.allyCryUntil ? 1.1 : 1) * (this.simMs < this.radiantUntil ? 1.15 : 1) * (this.simMs < this.bannerUntil ? 1.1 : 1) * (this.simMs < this.sunUntil ? 1.1 : 1) * (this.simMs < this.godUntil ? 1.15 : 1) * (this.simMs < this.itemDmgUntil ? 1.1 : 1) * this.passiveDmgMul() * (s?.cls === 'gambler' ? (s.id === 'showdown' ? this.gShowMul : 1) * (this.simMs < this.gOverUntil ? 1.15 : 1) : 1); }
 
   private hasteFx?: Phaser.GameObjects.Particles.ParticleEmitter;
   private spiritFx?: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -2881,7 +2887,23 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Skills open with the job advancements; in the PvP arena every skill is open (testing the combat). */
   private skillOpen(s: FinalSkill): boolean {
-    return this.allOpen() || this.localId !== 'local' || jobOfSlot(this.cls, s.slot).level <= (this.character ? skillLevel(this.character) : 1);
+    if (this.allOpen() || this.localId !== 'local') return true;
+    const ch = this.character;
+    if (jobOfSlot(this.cls, s.slot).level > (ch ? skillLevel(ch) : 1)) return false;
+    return !ch || this.pointsFree() || s.slot === 0 || levelOf(ch, s.id) > 0; // learned with skill points (the basic attack: always)
+  }
+  /** Skill points do not apply: the arena, QA, the all-open test switch, a test hero — every skill open at its full blow. */
+  private pointsFree(): boolean { return this.allOpen() || !this.character || !!this.character.hero; }
+  /** A skill's damage at the level its points gave it (the regular game only; the arena keeps the full blow). */
+  private spMul(s?: FinalSkill): number { return !s || s.slot === 0 || this.pointsFree() ? 1 : skillPower(levelOf(this.character, s.id)); }
+  /** A point into a skill (the Skill Book): saved, then the bar / passives / book follow. */
+  private learnSkill(e: { id: string } & ({ slot: number } | { kind: string })): void {
+    const ch = this.character; if (!ch || this.pointsFree()) return;
+    const entry = 'slot' in e ? this.kit.find((s) => s.id === e.id) : passivesFor(this.cls).find((p) => p.id === e.id);
+    if (!entry || cannotRaise(this.cls, ch, entry)) return;
+    ch.skills = { ...(ch.skills ?? {}), [e.id]: levelOf(ch, e.id) + 1 };
+    CharacterStore.setSkills(ch.id, ch.skills);
+    this.applyPassives(); this.skillBook?.setPoints(ch);
   }
 
   /** Start a slot now if legal (incl. hit-confirm cancel / chain continuation from the current action). */
@@ -4076,7 +4098,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const k = this.kin;
     this.fx?.callout({ x: k.x, y: k.y, z: k.z + 60 }, `1ST JOB: ${jobName.toUpperCase()}`, '#ffd34a', 0);
     this.fx?.shockwave(k.x, k.y, 200, 0xffd27a);
-    this.chat?.add({ kind: 'system', text: `You are now a ${jobName}. Your 1st job skills are open.` });
+    this.chat?.add({ kind: 'system', text: `You are now a ${jobName}. Your 1st job skills are open — learn them with your skill points (${keyLabel(this.bindings.book) || 'K'}).` });
     this.time.delayedCall(1600, () => this.scene.restart({ pvpRoom: null, at: { x: this.kin.x, y: this.kin.y } })); // plays as his new class, right where he stands
   }
 

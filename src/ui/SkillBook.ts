@@ -8,8 +8,9 @@ import { ICONS, ensureTheme } from './theme';
 import type { ClassKey } from '../game/Body';
 import { FinalSkill, Role, Targeting } from '../skills/SkillTypes';
 import { iconUrl, kitFor } from '../skills/FinalKit';
-import { ADV_LABEL, Job, jobsFor } from '../skills/Jobs';
+import { ADV_LABEL, Job, hasJob, jobsFor } from '../skills/Jobs';
 import { PassiveSkill, passiveIconUrl, passivesFor } from '../skills/Passives';
+import { cannotRaise, freeSp, levelOf, maxLevelOf } from '../game/SkillPoints';
 
 /** A card in the book: an active skill (key) or a passive / movement skill (always on). */
 type Entry = FinalSkill | PassiveSkill;
@@ -111,6 +112,18 @@ const CSS = `
 .gol-sb .desc .rel{display:flex;flex-direction:column;gap:6px;font:500 14px/1.45 var(--gl-body);color:#e9d6a7}
 .gol-sb .desc .rel div{display:flex;gap:9px}
 .gol-sb .desc .rel div::before{content:'\\2192';color:var(--gl-gold3)}
+/* skill points (the rebuild: learned with points) */
+.gol-sb .gl-head .gl-sp{display:flex;justify-content:flex-end;padding-right:6px}
+.gol-sb .gl-head .pts{display:inline-flex;align-items:center;gap:10px;height:36px;padding:0 16px;border-radius:10px;background:rgba(231,196,124,.08);border:1px solid rgba(231,196,124,.35);font:600 13px var(--gl-body);color:var(--gl-text2)}
+.gol-sb .gl-head .pts b{font:700 18px var(--gl-body);color:var(--gl-gold2)}
+.gol-sb .gl-head .pts.none b{color:var(--gl-text2);font-size:13px}
+.gol-sb .card .lv{position:absolute;left:8px;top:8px;z-index:1;height:22px;padding:0 8px;border-radius:999px;background:rgba(10,16,26,.88);border:1px solid rgba(255,255,255,.14);font:700 11.5px/20px var(--gl-body);color:var(--gl-text)}
+.gol-sb .card .lv.max{border-color:rgba(231,196,124,.6);color:var(--gl-gold2)}
+.gol-sb .card.unl img{filter:grayscale(.6) brightness(.62)}
+.gol-sb .card.unl .nm{color:var(--gl-text2)}
+.gol-sb .desc .right{display:flex;align-items:center;gap:10px}
+.gol-sb .desc .learn{height:34px;padding:0 16px;font-size:13px}
+.gol-sb .desc .why{font:500 12.5px/1.4 var(--gl-body);color:var(--gl-text2);text-align:right}
 `;
 
 function ensureStyles(): void {
@@ -146,6 +159,10 @@ export class SkillBook {
   private sub!: HTMLDivElement;
   private closeBtn!: HTMLButtonElement;
   private allBtn?: HTMLButtonElement;
+  /** Skill points: the character (its level, job, learned skills) and what a point into a skill does; absent = no points (all open). */
+  private who?: { level: number; job?: string; skills?: Record<string, number> };
+  private onLearn?: (e: Entry) => void;
+  private sp!: HTMLDivElement;
 
   constructor(_scene: Phaser.Scene, private host: HTMLElement, private canvas: HTMLCanvasElement, private cls: ClassKey, private level: number, private qaUnlockAll: boolean, private onAllOpen?: (on: boolean) => void) {
     ensureStyles();
@@ -158,7 +175,7 @@ export class SkillBook {
     const hd = this.div('gl-head', this.win);
     this.div('gl-title', hd).textContent = `SKILL BOOK — ${(CLASS_NAMES[cls] ?? cls).toUpperCase()}`;
     this.sub = this.div('gl-sub', hd);
-    this.div('gl-sp', hd);
+    this.sp = this.div('gl-sp', hd);
     if (onAllOpen) { // test switch: every skill usable at any level
       const b = document.createElement('button'); b.type = 'button'; b.className = 'gl-btn all';
       b.addEventListener('click', () => onAllOpen(!this.qaUnlockAll));
@@ -198,7 +215,8 @@ export class SkillBook {
 
   private setSubtitle(): void {
     const cur = this.jobs.filter((j) => this.level >= j.level).pop() ?? this.jobs[0];
-    this.sub.textContent = this.qaUnlockAll ? `Level ${this.level} · ${cur.name} — every skill open (test)` : `Level ${this.level} · ${cur.name} — new skills open with each job advancement`;
+    this.sub.textContent = this.qaUnlockAll ? `Level ${this.level} · ${cur.name} — every skill open (test)` : this.who ? `Level ${this.level} · ${cur.name} — each job opens its skills; learn them with skill points` : `Level ${this.level} · ${cur.name} — new skills open with each job advancement`;
+    if (this.sp) { this.sp.innerHTML = ''; if (this.points) { const n = freeSp(this.who!), job = hasJob(this.who!); const d = this.div(n ? 'pts' : 'pts none', this.sp); d.innerHTML = 'Skill points <b></b>'; d.querySelector('b')!.textContent = job ? String(n) : 'from the 1st job'; d.title = !job ? 'A Master gives the 1st job at level 10: then 3 skill points with every level' : n ? 'Choose a skill and press LEARN / +1' : 'Three more with every level'; } }
     if (this.allBtn) { this.allBtn.classList.toggle('on', this.qaUnlockAll); this.allBtn.innerHTML = '<i></i>All skills open'; this.allBtn.title = this.qaUnlockAll ? 'Back to level-based unlocks' : 'Open every skill for testing'; }
   }
 
@@ -206,6 +224,10 @@ export class SkillBook {
   setUnlockAll(on: boolean): void { this.qaUnlockAll = on; this.setSubtitle(); this.refresh(); }
   /** Level up: jobs / skills / passives that open now. */
   setLevel(level: number): void { this.level = level; this.setSubtitle(); this.refresh(); }
+  /** Skill points: the character's learned skills and points (the scene saves a point and calls this again). */
+  setPoints(who: { level: number; job?: string; skills?: Record<string, number> }, onLearn?: (e: Entry) => void): void { this.who = who; if (onLearn) this.onLearn = onLearn; this.setSubtitle(); this.buildRow(); this.refresh(); }
+  /** Points in play (the regular game, not all open). */
+  private get points(): boolean { return !!this.who && !this.qaUnlockAll; }
 
   private div(cls: string, parent: HTMLElement): HTMLDivElement { const d = document.createElement('div'); d.className = cls; parent.appendChild(d); return d; }
 
@@ -232,6 +254,7 @@ export class SkillBook {
       if (isPassive(e)) { const t = this.div('pt gl-chip', c); t.textContent = e.kind === 'movement' ? 'Move' : 'Passive'; t.title = e.kind === 'movement' ? 'Movement skill' : 'Passive skill'; }
       else { const k = HOTKEY[e.slot]; if (k) this.div('hk gl-key', c).textContent = k; else if (this.unlocked(e)) { const n = this.div('hk gl-key nokey', c); n.textContent = 'NO KEY'; n.title = 'No key — give it one in KEY SETTINGS'; } }
       this.div('nm', c).textContent = e.name;
+      if (this.points && maxLevelOf(e) > 0 && this.unlocked(e) && !e.wip) { const lv = levelOf(this.who, e.id), mx = maxLevelOf(e); const t = this.div(lv >= mx ? 'lv max' : 'lv', c); t.textContent = mx === 1 ? (lv ? 'Learned' : 'Not learned') : `${lv}/${mx}`; t.title = lv ? `Level ${lv} of ${mx}` : 'Not learned yet — a skill point learns it'; }
       c.addEventListener('mouseenter', () => { this.hover = e; this.refresh(); });
       c.addEventListener('mouseleave', () => { if (this.hover === e) { this.hover = null; this.refresh(); } });
       c.addEventListener('click', () => { this.selected = e; this.refresh(); });
@@ -247,7 +270,7 @@ export class SkillBook {
   private refresh(): void {
     const show = this.hover ?? this.selected;
     this.tabs.forEach((t, k) => { t.classList.toggle('lk', !this.jobOpen(k)); t.classList.toggle('on', k === this.job); (t.firstChild as HTMLElement).style.backgroundImage = `url("${K(`job${k}_icon`)}")`; });
-    for (const c of this.cards) { c.el.classList.toggle('sel', c.e === this.selected); c.el.classList.toggle('lk', !this.unlocked(c.e)); c.el.classList.toggle('wip', !!c.e.wip && this.unlocked(c.e)); } // a template: its icon, dimmed (no lock)
+    for (const c of this.cards) { c.el.classList.toggle('sel', c.e === this.selected); c.el.classList.toggle('lk', !this.unlocked(c.e)); c.el.classList.toggle('wip', !!c.e.wip && this.unlocked(c.e)); c.el.classList.toggle('unl', this.points && this.unlocked(c.e) && !c.e.wip && maxLevelOf(c.e) > 0 && levelOf(this.who, c.e.id) === 0); } // a template: its icon, dimmed (no lock); open but not learned: dimmed
     if (isPassive(show)) { this.refreshPassive(show); return; }
     const s = show, jk = this.jobIndexOf(s), job = this.jobs[jk];
     const key = HOTKEY[s.slot] ?? '';
@@ -259,7 +282,7 @@ export class SkillBook {
     fact('Cooldown').textContent = s.cooldown > 0 ? `${(s.cooldown / 1000).toFixed(s.cooldown % 1000 ? 1 : 0)} s` : 'None (chain)';
     fact('Use').textContent = s.ground && s.air ? 'Ground and air' : s.air ? 'Air only' : 'Ground only';
     fact('Reach').textContent = TARGETING[s.targeting];
-    this.details(keyed(s.description, s.slot), s.relations.slice(0, 2).map((r) => keyed(r, s.slot)), jk, !!s.wip);
+    this.details(keyed(s.description, s.slot), s.relations.slice(0, 2).map((r) => keyed(r, s.slot)), jk, !!s.wip, s);
   }
 
   /** Passive / movement card: what it gives (always on). */
@@ -270,7 +293,7 @@ export class SkillBook {
     const c = document.createElement('span'); c.className = 'gl-cap'; c.textContent = 'Effects'; ef.appendChild(c);
     const ul = document.createElement('ul'); ef.appendChild(ul);
     for (const e of p.effects) { const li = document.createElement('li'); li.textContent = e; ul.appendChild(li); }
-    this.details(p.description, [], p.job, !!p.wip);
+    this.details(p.description, [], p.job, !!p.wip, p);
   }
 
   /** The left panel: what kind of skill, the big icon, name, role chips, a thin rule; returns the text column for what goes under it. */
@@ -287,14 +310,28 @@ export class SkillBook {
   }
 
   /** The right panel: what it does and a couple of tips; whether it is open shows in its header. */
-  private details(text: string, tips: string[], jk: number, wip = false): void {
+  private details(text: string, tips: string[], jk: number, wip = false, e?: Entry): void {
     const open = this.jobOpen(jk) && !wip, job = this.jobs[jk];
     this.desc.innerHTML = '';
     const top = this.div('top', this.desc);
     this.div('gl-cap', top).textContent = 'Description';
-    const st = document.createElement('span'); st.className = `gl-chip ${wip ? 'gold' : open ? 'ok' : 'no'}`; top.appendChild(st);
+    const right = this.div('right', top);
+    const st = document.createElement('span'); st.className = `gl-chip ${wip ? 'gold' : open ? 'ok' : 'no'}`; right.appendChild(st);
     st.textContent = wip ? 'Coming soon' : open ? 'Unlocked' : `Unlocks at Lv ${job.level}`; // a template: not built yet
     st.title = wip ? 'This skill is still being made' : open ? '' : `Unlocks with ${ADV_LABEL[jk]} (${job.name}) · Lv ${job.level}`;
+    if (e && open && this.points && maxLevelOf(e) > 0) { // skill points: its level, and a point into it
+      const lv = levelOf(this.who, e.id), mx = maxLevelOf(e), why = cannotRaise(this.cls, this.who!, e);
+      st.className = `gl-chip ${lv >= mx ? 'gold' : lv ? 'ok' : 'no'}`;
+      st.textContent = mx === 1 ? (lv ? 'Learned' : 'Not learned') : lv ? `Level ${lv} / ${mx}` : `Not learned · top level ${mx}`;
+      st.title = '';
+      if (lv < mx) {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'gl-btn pri learn'; b.textContent = lv ? '+1' : 'LEARN';
+        b.disabled = !!why; b.title = why ?? (lv ? `Raise it to level ${lv + 1} (1 skill point)` : 'Learn it (1 skill point)');
+        b.addEventListener('click', () => { if (!cannotRaise(this.cls, this.who!, e)) this.onLearn?.(e); });
+        right.appendChild(b);
+        if (why) this.div('why', this.desc).textContent = why; // (why the point cannot go in: no points left, the job…)
+      }
+    }
     const ds = this.div(text.length > 190 ? 'ds long' : 'ds', this.desc); ds.textContent = text;
     if (tips.length) { const rel = this.div('rel', this.desc); for (const t of tips) this.div('', rel).textContent = t; }
   }
