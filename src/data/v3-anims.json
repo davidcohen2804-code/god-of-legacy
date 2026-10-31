@@ -17,5 +17,24 @@
   "getup": 1,
   "dead": 1,
   "run": 4
+ },
+ "female": {
+  "idle": 3,
+  "walk": 4,
+  "alert": 3,
+  "jump": 1,
+  "swing1": 3,
+  "swing2": 3,
+  "swing3": 3,
+  "stab1": 2,
+  "stab2": 2,
+  "shoot": 3,
+  "cast": 3,
+  "hit": 1,
+  "launched": 2,
+  "down": 1,
+  "getup": 1,
+  "dead": 1,
+  "run": 4
  }
 }

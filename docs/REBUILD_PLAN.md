@@ -119,3 +119,13 @@ burst big.
 - 31 Oct 05:40 — Phase 5 (female) started: her standing figure in the same language (`tools/base/gpt/v3f/approved_female.png`,
   shown to David), then every pose sheet redrawn from the boy's (`tools/base/gpt/v3f/`, same poses and sizes, bald), her 6
   hairstyles and 5 faces; `tools/base/sheets/v3_female.json`.
+- 31 Oct 07:35 — the attack frames are clean: GPT redrew each attack sheet exactly without the sword
+  (`tools/base/gpt/bare_nosword/`); the baker takes the body from that twin and only the sword's place, grip and angle from
+  the drawing that has one (no blade tips, torn shirt edges or grip bits left; the arm raised in front of the head stays over
+  the hair). **Phase 5 (female) baked**: her 17 moves, hair, faces and the Beginner's outfit
+  (`public/assets/final/body/v3/female/`) — she is now the game's female Beginner (world, select, creation).
+  - Learned: a dressed copy must be drawn from the very drawing the body comes from (the attack sheets: from the sword-free
+    twin) — GPT's copies of the sword sheet spread the stance and left up to a third of the legs bare. Measure before a
+    bake (`tools/base/v3/fitcheck.py`): each dressed figure laid on the body by the head's circle, the share of the legs
+    it leaves bare (≈1% = fits).
+  - Open: her last cast frame's trousers (a dark wedge between the legs; that figure is being redrawn alone, then a bake).

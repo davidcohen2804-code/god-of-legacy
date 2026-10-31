@@ -108,5 +108,114 @@
    "angry",
    "surprised"
   ]
+ },
+ "female": {
+  "styles": 6,
+  "colors": 9,
+  "gaps": [
+   true,
+   true,
+   true,
+   true,
+   true,
+   true
+  ],
+  "faces": 1,
+  "over": [
+   "swing1",
+   "swing2",
+   "swing3",
+   "stab1",
+   "stab2"
+  ],
+  "gear": {
+   "pants": [
+    "idle",
+    "walk",
+    "alert",
+    "jump",
+    "swing1",
+    "swing2",
+    "swing3",
+    "stab1",
+    "stab2",
+    "shoot",
+    "cast",
+    "hit",
+    "launched",
+    "down",
+    "getup",
+    "dead",
+    "run"
+   ],
+   "shoes": [
+    "idle",
+    "walk",
+    "alert",
+    "jump",
+    "swing1",
+    "swing2",
+    "swing3",
+    "stab1",
+    "stab2",
+    "shoot",
+    "cast",
+    "hit",
+    "launched",
+    "down",
+    "getup",
+    "dead",
+    "run"
+   ],
+   "top": [
+    "idle",
+    "walk",
+    "alert",
+    "jump",
+    "swing1",
+    "swing2",
+    "swing3",
+    "stab1",
+    "stab2",
+    "shoot",
+    "cast",
+    "hit",
+    "launched",
+    "down",
+    "getup",
+    "dead",
+    "run"
+   ],
+   "topo": [
+    "swing2",
+    "swing3",
+    "stab1",
+    "stab2"
+   ],
+   "sword": [
+    "idle",
+    "walk",
+    "alert",
+    "jump",
+    "swing1",
+    "swing2",
+    "swing3",
+    "stab1",
+    "stab2",
+    "run"
+   ]
+  },
+  "swordCell": 448,
+  "neck": [
+   170.5,
+   199
+  ],
+  "expr": [
+   "blink",
+   "hurt",
+   "happy",
+   "angry",
+   "surprised"
+  ]
  }
 }
