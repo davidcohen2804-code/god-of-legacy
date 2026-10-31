@@ -2,13 +2,13 @@
  "items": [
   "v3/sheet_run_b.png:0",
   "v3/sheet_run_b.png:1",
-  "v3/run_d.png:0",
-  "v3/run_d.png:1"
+  "v3/run_d.png:0*0.971",
+  "v3/run_d.png:1*1.034"
  ],
  "k": [
   1.0,
   1.0,
-  0.798077,
-  0.796981
+  0.774933,
+  0.824078
  ]
 }
