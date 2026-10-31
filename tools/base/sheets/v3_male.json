@@ -277,7 +277,8 @@
     "feet",
     "clean:2",
     "track",
-    "sword"
+    "sword",
+    "tiltauto"
    ],
    [
     "v3/sheet_swing12.png",
@@ -286,7 +287,8 @@
     "feet",
     "clean:2",
     "track",
-    "sword"
+    "sword",
+    "tiltauto"
    ],
    [
     "v3/sheet_swing12.png",
@@ -295,7 +297,8 @@
     "feet",
     "clean:2",
     "track",
-    "sword"
+    "sword",
+    "tiltauto"
    ]
   ],
   "swing2": [
@@ -305,7 +308,8 @@
     "asd:walk",
     "feet",
     "clean:0",
-    "sword"
+    "sword",
+    "tiltauto"
    ],
    [
     "v3/sheet_swing12.png",
@@ -313,7 +317,8 @@
     "asd:walk",
     "feet",
     "clean:0",
-    "sword"
+    "sword",
+    "tiltauto"
    ],
    [
     "v3/sheet_swing12.png",
@@ -321,7 +326,8 @@
     "asd:walk",
     "feet",
     "clean:0",
-    "sword"
+    "sword",
+    "tiltauto"
    ]
   ],
   "swing3": [
@@ -332,7 +338,8 @@
     "feet",
     "clean:0",
     "track",
-    "sword"
+    "sword",
+    "tiltauto"
    ],
    [
     "v3/sheet_swing3_stab.png",
@@ -341,7 +348,8 @@
     "feet",
     "clean:0",
     "track",
-    "sword"
+    "sword",
+    "tiltauto"
    ],
    [
     "v3/sheet_swing3_stab.png",
@@ -350,7 +358,8 @@
     "feet",
     "clean:0",
     "track",
-    "sword"
+    "sword",
+    "tiltauto"
    ]
   ],
   "stab1": [
@@ -361,7 +370,8 @@
     "feet",
     "clean:0",
     "sword",
-    "trim"
+    "trim",
+    "tiltauto"
    ],
    [
     "v3/sheet_swing3_stab.png",
@@ -370,7 +380,8 @@
     "feet",
     "clean:0",
     "sword",
-    "trim"
+    "trim",
+    "tiltauto"
    ]
   ],
   "stab2": [
@@ -381,7 +392,8 @@
     "feet",
     "clean:0",
     "sword",
-    "trim"
+    "trim",
+    "tiltauto"
    ],
    [
     "v3/sheet_swing3_stab.png",
@@ -390,7 +402,8 @@
     "feet",
     "clean:0",
     "sword",
-    "trim"
+    "trim",
+    "tiltauto"
    ]
   ],
   "shoot": [
@@ -597,10 +610,44 @@
   ]
  },
  "sword_angle": {
-  "idle": 31,
-  "walk": 31,
-  "run": 31,
-  "jump": 31,
+  "idle": [
+   115
+  ],
+  "walk": [
+   120,
+   120,
+   70,
+   120
+  ],
+  "run": [
+   150,
+   150,
+   35,
+   35
+  ],
+  "jump": [
+   125
+  ],
   "alert": -30
+ },
+ "sword_behind": {
+  "idle": [
+   true
+  ],
+  "walk": [
+   true,
+   true,
+   false,
+   true
+  ],
+  "run": [
+   true,
+   true,
+   false,
+   false
+  ],
+  "jump": [
+   true
+  ]
  }
 }

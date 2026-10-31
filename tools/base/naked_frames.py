@@ -477,7 +477,7 @@ def turned_head(e, a, fig, hd, r, ang0, search, span=24, step=2):
   return ang, hd['cx'] + dx, hd['row'] + dy, np.roll(np.roll(hm, dy, 0), dx, 1)
 
 
-def put_head(e, a, fig, lab, hd, r, follow=False, ref=None, search=False, sway=0.0, bob=0, hold=None, track=False, ang=0.0, trim=False, swx=None):
+def put_head(e, a, fig, lab, hd, r, follow=False, ref=None, search=False, sway=0.0, bob=0, hold=None, track=False, ang=0.0, trim=False, swx=None, span=24):
   """GPT's head off, the standing head on (the same drawing), on GPT's neck point; its neck goes behind the body (the
   frame keeps its own neck). follow=False: the head stays near the standing x and the frame moves under it (walk):
   sway = how much of GPT's own head shift is kept (MapleStory: the same head, a little forward / back each step);
@@ -487,7 +487,7 @@ def put_head(e, a, fig, lab, hd, r, follow=False, ref=None, search=False, sway=0
   set on its neck turned the same way (degrees counter-clockwise as seen; the game turns the hair and face with it).
   trim (always with ang): GPT's own head's edge left beside ours (GPT drew it a little bigger / turned) taken off."""
   if ang:
-    C_ = (S / 2, S / 2); ang, axr, ayr, gmr = turned_head(e, a, fig, hd, r, ang, search)
+    C_ = (S / 2, S / 2); ang, axr, ayr, gmr = turned_head(e, a, fig, hd, r, ang, search, span=span)
     if os.environ.get('NF_DEBUG'):
       fr_ = _turn(fig, -ang, C_); dbg_ = np.dstack([fr_ * 120, gmr * 255, np.zeros_like(fr_)]).astype(np.uint8); dbg_[int(ayr), :, 2] = 255; dbg_[:, int(axr), 2] = 255
       Image.fromarray(dbg_).save(os.environ['NF_DEBUG'] + f'/turn_{ang:+.0f}.png'); print('   turned head at', axr, ayr, 'r', r, 'angle', ang)
@@ -973,14 +973,15 @@ for anim, cells in spec['anims'].items():
       e, a, fig, lab, info = put_head(e, a, fig, lab, HEAD, r, follow='feet' in opts or 'follow' in opts,
                                       ref=refs.get(anim), search=bool(samed), sway=sway[0] if sway else 0.0, bob=bob[0] if bob else 0,
                                       hold=(holds[anim], hold[0]) if hold else None, track='track' in opts and c != order[0],
-                                      ang=next((float(o[4:]) for o in opts if str(o).startswith('tilt')), 0.0), trim='trim' in opts, swx=tw_)
+                                      ang=0.01 if 'tiltauto' in opts else next((float(o[4:]) for o in opts if str(o).startswith('tilt')), 0.0), trim='trim' in opts, swx=tw_,
+                                      span=12 if 'tiltauto' in opts else 24)
       hfront = info.pop('front'); headm = info.pop('head'); shift[1] += info['dx']
       if tw_ is not None: tw_ = np.roll(tw_, info['dx'], 1)    # (the frame moved under the standing head: its sword too)
       print(' ', anim, c, 'scale', round(sc, 4), 'head', info, 'sword arm over hair', int(hfront.sum())); hxy = [int(info['hx']), int(info['dy'])]
       if info['ang']: hxy.append(info['ang'])                    # (a tilted head: its turn, about the neck point)
     heads[anim].append((c, hxy)); headms_[c] = headm
     # the sword is worn gear: off the bare frame (where it crossed the body, the body around it fills in), its own layer
-    sw = fig & (lab == 255)
+    sw = fig & (lab == 255); bh_ = False
     if tw_ is not None and tw_.any():                          # the body is GPT's sword-free twin (nothing to take off or fill
       sw = tw_; grip = swing_grip(sw, fig, lab, e)[:2] + (REACH,); sw0_ = sw.copy()   #  in): only where the sword is, from the
       front_ = nd.binary_dilation(sw, iterations=3)             #  drawing that has one — our sword goes there, in front only
@@ -1004,9 +1005,12 @@ for anim, cells in spec['anims'].items():
     elif anim not in spec.get('hands', {}):                    # v3: no sword in hand for this move (yet)
       grip = None; front_ = None
     else:                                                      # the other moves: the sword in the near fist, at the move's angle,
-      at_ = SWORD.fist_at(fig, lab, e, spec['hands'][anim][c]); grip = (at_, spec['sword_angle'][anim], REACH); front_ = None   # in front
+      hd_ = spec['hands'][anim]; ag_ = spec['sword_angle'][anim]; bh_ = spec.get('sword_behind', {}).get(anim, False)
+      ag_ = ag_[c % len(ag_)] if isinstance(ag_, list) else ag_; bh_ = bh_[c % len(bh_)] if isinstance(bh_, list) else bh_   # (per frame: the arm back or forward)
+      at_ = SWORD.fist_at(fig, lab, e, hd_[c % len(hd_)]); grip = (at_, ag_, REACH); front_ = None   # in front (or, held at his side, behind him)
     if grip is not None:
       beh_ = None if front_ is None else (fig & ~front_).astype(np.float32)   # behind the head / an arm, as GPT drew it
+      if front_ is None and tw_ is None and anim in spec.get('hands', {}) and bh_: beh_ = fig.astype(np.float32)   # hanging at his side: behind the body (MapleStory's stand / walk)
       padx = lambda m_: np.pad(m_, ((0, 0), (SW_PAD, SW_PAD)))     # the sword's cells are wider (a blade thrust far forward)
       L_ = SWORD.place(PIC, (grip[0][0] + SW_PAD, grip[0][1]), grip[1], grip[2], (S, SWORD_W), hide=padx(SWORD.fist_mask(fig, grip[0])),
                        behind=None if beh_ is None else padx(beh_))
