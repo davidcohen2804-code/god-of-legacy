@@ -35,11 +35,11 @@ function segmented(host: HTMLElement | null, options: [string, string][], curren
 }
 
 const INTRO: Record<Art, string> = {
-  b: 'Phase 3: candidate B (Refined Chibi) in real art, cut into parts on the Phase 1 rig. Basic clothing and the Golden Warrior set swap per slot. Nothing on this page changes the game.',
+  b: 'Phase 3B: candidate B (Refined Chibi) in real art: the idle fitted to the illustration, bending shoulders and elbows, five hand states, a face that blinks, frowns and winces, a helmet that hides the hair, a new Warrior attack and a cape that bends. Nothing on this page changes the game.',
   placeholder: 'Phase 1 technical prototype with placeholder art: one rig, swappable outfits, two renderers. Nothing on this page changes the game.',
 };
 const HINT: Record<Art, string> = {
-  b: 'A = basic clothing, B = Golden Warrior set. Cosmetics beat gear looks; gear keeps its stats. Job gear shows the Golden top, trousers and boots (the job helmet has no B art yet).',
+  b: 'A = basic clothing, B = Golden Warrior set and the test helmet. Cosmetics beat gear looks; gear keeps its stats. Job gear shows the Golden top, trousers and boots, and the job helmet shows the test helmet.',
   placeholder: 'A = cloth set, B = plate set, X = oversized and rule tests. Cosmetics beat gear looks; gear keeps its stats.',
 };
 
