@@ -141,3 +141,9 @@ burst big.
   everything open at full power. `src/game/SkillPoints.ts`, `Character.skills`; numbers in `docs/BALANCE_LOG.md`.
   Prerequisites: the mechanism is in (`requires: { id, level }` on a skill / passive; the book shows "Needs X Lv N") —
   each class chat chooses its own. A level-1 Beginner starts on the world's level-1–8 monsters (sprout, puffling…).
+- 31 Oct 11:15 — Phase 8 (monsters), checked against what was in (death + fade, respawn, EXP, drops, touch damage with the
+  2 s untouchable blink, hit frames were already MapleStory's) and the rest made so: **the patrol** — every ≈1.6 s a
+  monster stands on or walks left / right a stretch about its home, turning at an edge; **an ordinary monster pays you
+  no mind until you hit it** (then it follows you; a boss, and the den's monsters, still see you and come); a plain hit
+  pushes it back ≥22 px; **the HP bar shows 2 s** after a hit, with its **level and name over it, coloured by its level
+  against yours** (≥5 above red, 2–4 orange, ≥5 below grey, else white). `src/world/Monster.ts`.

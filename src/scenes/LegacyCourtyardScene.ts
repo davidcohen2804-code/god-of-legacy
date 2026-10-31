@@ -4866,7 +4866,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     for (const m of mobs) {
       const dc = m.alive ? this.kage?.decoyFor(m) : null; // Kagemusha: monsters go after the doubles (a blow bursts one)
       m.update(ms, {
-        player: dc ? { x: dc.x, y: dc.y, z: k.z - k.supportZ, alive: true, level: dc.sz } : { x: k.x, y: k.y, z: k.z - k.supportZ, alive: this.dead < 0 && !this.dev.peace, level: k.supportZ },   // (test mode's peace: the monsters pay no mind)
+        player: dc ? { x: dc.x, y: dc.y, z: k.z - k.supportZ, alive: true, level: dc.sz, charLevel: this.character?.level } : { x: k.x, y: k.y, z: k.z - k.supportZ, alive: this.dead < 0 && !this.dev.peace, level: k.supportZ, charLevel: this.character?.level },   // (test mode's peace: the monsters pay no mind)
         now,
         blocked: (self, x, y) => mobs.some((o) => { if (o === self || !o.alive) return false; const d = Math.hypot(x - o.x, y - o.y); return d < 26 * Math.max(o.kind.scale, self.kind.scale) && d < Math.hypot(self.x - o.x, self.y - o.y); }),   // moving apart: always
         onStrikePlayer: (m, dmg) => { if (dc) this.kage?.pop(dc.k); else this.enemyStrike(dmg, { x: m.x, y: m.y }); },

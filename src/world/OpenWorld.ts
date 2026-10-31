@@ -396,7 +396,7 @@ export class OpenWorld {
   /** A monster born now (the den's stages): of `kind`, at home (x, y), with its own id. */
   spawnMob(kind: string, x: number, y: number, id: string): Monster | null {
     const k = MOB_KINDS[kind]; if (!k) return null;
-    const m = new Monster(this.scene, id, k, { x, y }, this.mobs.length); this.mobs.push(m); return m;
+    const m = new Monster(this.scene, id, k, { x, y }, this.mobs.length); m.aggressive = true; this.mobs.push(m); return m; // (spawned to fight — the den: it sees you and comes)
   }
   /** The monsters whose id starts with `prefix`, gone. */
   removeMobs(prefix: string): void {

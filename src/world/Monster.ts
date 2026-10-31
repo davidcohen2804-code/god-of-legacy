@@ -1,6 +1,8 @@
 // Open-world monster on the shared combat foundation (same reactions as every fighter: launch, juggle, knockdown,
-// getup). Side view: faces left or right. Life: wanders around its home spot → sees you (or is hit) → chases →
-// strikes (windup / active / recovery) → gives up when you run far away and walks home. Dies at 0 HP (drops gold,
+// getup). Side view: faces left or right. Life (MapleStory's — the rebuild's Phase 8): every ≈1.6 s it stands or walks
+// left / right a stretch about its home spot, turning at an edge; it pays you no mind until you hit it (a boss, or a
+// monster spawned to fight — the den — sees you and comes) → follows you → strikes (windup / active / recovery) →
+// gives up when you run far away and walks home. Dies at 0 HP (drops gold,
 // handled by the scene) and comes back at its home spot after a while. Damage and reactions are applied by the scene.
 import Phaser from 'phaser';
 import { STAGE6 } from '../config/layout';
@@ -16,6 +18,12 @@ type Action = keyof typeof C.actions;
 const PROVOKED_MS = 15000;
 /** A monster this strong is a boss: hits don't stop its swing. */
 const BOSS_HP = 1000;
+/** MapleStory's patrol: a choice (stand / walk left / walk right) every ≈1.6 s, walks of this length, this far from home. */
+const PATROL = { everyMs: 1600, jitterMs: 600, walk: [50, 140], roam: 170, drift: 18 };
+/** A plain hit pushes an ordinary monster back at least this far (px; MapleStory: it gives ground). */
+const MIN_KNOCK = 22;
+/** The HP bar (and the name tag) after a hit (MapleStory: about two seconds). */
+const BAR_MS = 2000;
 /** The player up on a block this much higher (px) is still within its blade's reach (beside the block). */
 const REACH_UP = 100;
 type AIState = 'idle' | 'wander' | 'chase' | 'attack' | 'home' | 'dead';
@@ -36,7 +44,7 @@ export function preloadMonsterFrames(scene: Phaser.Scene, set: string): void {
 }
 
 export interface MonsterWorld {
-  player: { x: number; y: number; z: number; alive: boolean; /** the floor he stands on (0: the lower floor) */ level?: number };
+  player: { x: number; y: number; z: number; alive: boolean; /** the floor he stands on (0: the lower floor) */ level?: number; /** his character level (the name tag's colour) */ charLevel?: number };
   now: number;
   /** Feet circle at (x, y) blocked by another actor (the player, another monster). */
   blocked: (self: Monster, x: number, y: number) => boolean;
@@ -83,12 +91,19 @@ export class Monster {
   private deathFade = 1;
   frozen = false;
 
+  /** Sees the player and comes at him (a boss; a monster spawned to fight, the den's); the others wait to be hit. */
+  aggressive = false;
+  private tag?: Phaser.GameObjects.Text;
+  private charLevel = 1;
+  private idleFor = PATROL.everyMs;
+
   constructor(private scene: Phaser.Scene, readonly id: string, readonly kind: MobKind, readonly home: { x: number; y: number }, seed: number) {
     this.kin = newKin(home.x, home.y);
     this.homeZ = supportAt(home.x, home.y, 1e4).z; this.kin.z = this.kin.supportZ = this.homeZ; // an upper floor: it lives up there
     this.body = new CombatBody(this.kin, false);
     this.body.maxHp = kind.hp; this.hp = kind.hp;
     this.dir = seed % 2 ? 'left' : 'right';
+    this.idleFor = PATROL.everyMs + ((seed * 7) % 9 - 4) * 140; // (not all in step)
     this.shadow = scene.add.ellipse(home.x, home.y - 2, 36 * kind.scale, 12 * kind.scale, 0x000000, 0.33);
     this.sprite = scene.add.image(home.x, home.y, mobFrameKey(kind.frames, this.dir, 'idle', 0)).setOrigin(C.origin.x, C.origin.y);
     if (kind.tint !== undefined) this.sprite.setTint(kind.tint);
@@ -116,7 +131,9 @@ export class Monster {
     if (!this.alive) return false;
     if (dmg <= 0) return false;   // blocked / no damage: it carries on (its attack is not cancelled)
     this.hp = Math.max(0, this.hp - dmg);
-    this.flashLeft = C.hitFlashMs; this.barShowUntil = now + 5000;
+    this.flashLeft = C.hitFlashMs; this.barShowUntil = now + BAR_MS;
+    const b = this.body, away = this.hitFromX <= this.kin.x ? 1 : -1;
+    if (this.kind.hp < BOSS_HP && !this.kind.boss && b.state === 'hitstun' && now >= b.pinUntil && this.kin.grounded && (!b.push || Math.abs(b.push.vx * b.push.left) < MIN_KNOCK)) b.push = { vx: (away * MIN_KNOCK) / 110, vy: 0, left: 110 }; // it gives ground (MapleStory)
     if (this.kind.hp < BOSS_HP && !this.kind.boss) this.struck = true; // a hit interrupts the pending strike (a boss swings through it)
     if (this.hp <= 0) { this.enter('dead'); this.respawnLeft = this.kind.respawnMs; this.body.push = null; this.deathFade = 1; return true; }
     this.provokedLeft = PROVOKED_MS;
@@ -129,7 +146,7 @@ export class Monster {
     k.x = this.home.x; k.y = this.home.y; k.z = this.homeZ; k.supportZ = this.homeZ; k.vx = 0; k.vy = 0; k.vz = 0; k.grounded = true;
     this.body.reset(); this.body.maxHp = this.kind.hp;
     this.detourLeft = 0; this.wanderTo = null;
-    this.hp = this.kind.hp; this.sinceAttack = Infinity; this.provokedLeft = 0; this.flashLeft = 0; this.barShowUntil = -1;
+    this.hp = this.kind.hp; this.sinceAttack = Infinity; this.provokedLeft = 0; this.flashLeft = 0; this.barShowUntil = -1; this.tag?.setVisible(false);
     this.restoreTint(); this.sprite.setVisible(true).setAlpha(0);
     this.scene.tweens.add({ targets: this.sprite, alpha: 1, duration: 420 }); // fades back in
     this.enter('idle');
@@ -141,7 +158,7 @@ export class Monster {
     this.stateMs += ms; this.animMs += ms; this.sinceAttack += ms; this.provokedLeft = Math.max(0, this.provokedLeft - ms);
     if (this.flashLeft > 0) { this.flashLeft -= ms; if (this.flashLeft <= 0) this.restoreTint(); }
     const now = w.now, b = this.body;
-    this.lastNow = now;
+    this.lastNow = now; this.charLevel = w.player.charLevel ?? this.charLevel;
     const dx = w.player.x - this.x, dy = w.player.y - this.y, dist = Math.hypot(dx, dy);
     this.moving = false;
     if (this.ai === 'dead') {
@@ -163,7 +180,8 @@ export class Monster {
       this.detourLeft = 800;
     }
     else if (this.detourLeft > 0 && r.blockedY) this.detourDir = -this.detourDir; // that way is blocked too: the other way round
-    if (this.moving && (r.blockedX || r.blockedY) && (this.ai === 'wander' || this.ai === 'home')) this.wanderTo = null; // bumped into something: pick another spot
+    if (this.moving && (r.blockedX || r.blockedY) && this.ai === 'home') this.wanderTo = null; // bumped into something: pick another spot
+    if (this.moving && r.blockedX && this.ai === 'wander' && this.wanderTo) { const t = this.wanderTo, back = this.kin.x - (t.x - this.kin.x); this.wanderTo = this.patrolOk(back, this.kin.y) ? { x: back, y: this.kin.y } : null; if (!this.wanderTo) this.enter('idle'); } // an edge / a wall: it turns round (MapleStory)
     const ev = b.update(now, ms, r.landed, r.impactVz);
     if (ev === 'kdImpact') this.kdMs = 0;
     this.lastEv = ev;
@@ -178,24 +196,27 @@ export class Monster {
     const fromHome = Math.hypot(k.x - this.home.x, k.y - this.home.y);
     const up = (w.player.level ?? 0) - this.homeZ;
     const level = Math.abs(up) < 40 || (up >= 40 && up <= REACH_UP);   // on its floor, or up on a block it can swing at
-    const sees = w.player.alive && level && (w.player.x < MOB_WALL_X + 40 || !this.west) && dist <= K.aggro && (up >= 40 || clearLine(k.x, k.y, w.player.x, w.player.y, 30));
+    const sees = w.player.alive && level && (this.aggressive || this.kind.boss || K.hp >= BOSS_HP || this.provokedLeft > 0) && (w.player.x < MOB_WALL_X + 40 || !this.west) && dist <= K.aggro && (up >= 40 || clearLine(k.x, k.y, w.player.x, w.player.y, 30)); // an ordinary monster pays him no mind until he hits it
     switch (this.ai) {
       case 'idle': case 'wander': {
         if (sees) { this.enter('chase'); break; }
         if (this.ai === 'idle') {
           k.vx = 0; k.vy = 0;
-          if (this.stateMs > 1600 + (this.id.length * 331) % 1800) { // look around a little, then stroll
-            for (let i = 0; i < 6; i++) {
-              const a = Math.random() * Math.PI * 2, r = 30 + Math.random() * 110;
-              const x = this.home.x + Math.cos(a) * r, y = this.home.y + Math.sin(a) * r * 0.6;
-              if (footAllowed(x, y, this.homeZ, 14) && supportAt(x, y, this.homeZ + 1).z === this.homeZ) { this.wanderTo = { x, y }; break; }
-            }
+          if (this.stateMs > this.idleFor) { // MapleStory: every ≈1.6 s it stands on, or walks left / right a stretch
+            this.idleFor = PATROL.everyMs + (Math.random() - 0.5) * 2 * PATROL.jitterMs;
+            const pick = Math.random();
+            if (pick < 0.3) { this.stateMs = 0; break; } // stands a while longer
+            const toHome = this.home.x - k.x, side = Math.abs(toHome) > PATROL.roam * 0.6 ? Math.sign(toHome) : pick < 0.65 ? -1 : 1; // far out: back toward home
+            const len = PATROL.walk[0] + Math.random() * (PATROL.walk[1] - PATROL.walk[0]);
+            const y = Math.max(this.home.y - PATROL.drift * 2, Math.min(this.home.y + PATROL.drift * 2, k.y + (Math.random() - 0.5) * 2 * PATROL.drift));
+            for (const dir of [side, -side]) { const x = k.x + dir * len; if (this.patrolOk(x, y)) { this.wanderTo = { x, y }; break; } } // that way an edge: the other way
             this.enter(this.wanderTo ? 'wander' : 'idle');
           }
           break;
         }
         const t = this.wanderTo;
         if (!t || Math.hypot(t.x - k.x, t.y - k.y) < 6 || this.stateMs > 4000) { this.wanderTo = null; this.enter('idle'); k.vx = 0; k.vy = 0; break; }
+        if (sees) { this.enter('chase'); break; }
         this.walkToward(t.x, t.y, sp * 0.45);
         break;
       }
@@ -233,6 +254,11 @@ export class Monster {
     }
   }
 
+  /** A spot it can walk to on patrol: on its own floor, within its roam of home. */
+  private patrolOk(x: number, y: number): boolean {
+    return Math.abs(x - this.home.x) <= PATROL.roam && footAllowed(x, y, this.homeZ, 14) && supportAt(x, y, this.homeZ + 1).z === this.homeZ;
+  }
+
   private walkToward(x: number, y: number, speed: number): void {
     const k = this.kin, dx = x - k.x, dy = y - k.y, d = Math.hypot(dx, dy);
     if (d < 3) { k.vx = 0; k.vy = 0; return; }
@@ -241,7 +267,7 @@ export class Monster {
     this.moving = true;
   }
 
-  destroy(): void { this.sprite.destroy(); this.shadow.destroy(); this.bar.destroy(); }
+  destroy(): void { this.sprite.destroy(); this.shadow.destroy(); this.bar.destroy(); this.tag?.destroy(); }
 
   private enter(s: AIState): void { this.ai = s; this.stateMs = 0; this.animMs = 0; }
   private startAttack(): void { this.enter('attack'); this.struck = false; this.gusted = false; this.sinceAttack = 0; }
@@ -314,6 +340,11 @@ export class Monster {
     // HP bar over the head for a few seconds after a hit (MapleStory style)
     const show = this.alive && this.lastNow < this.barShowUntil;
     this.bar.setVisible(show);
+    if (show && this.kind.level !== undefined) { // its level and name over the bar, coloured by how it compares to him (MapleStory)
+      this.tag ??= this.scene.add.text(0, 0, '', { fontFamily: 'Inter, Arial, sans-serif', fontSize: '11px', fontStyle: '700', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 1).setResolution(2);
+      const d = this.kind.level - this.charLevel, col = d >= 5 ? '#ff6a5a' : d >= 2 ? '#ffb35a' : d <= -5 ? '#9aa3b2' : '#ffffff';
+      this.tag.setText(`Lv.${this.kind.level} ${this.kind.name}`).setColor(col).setPosition(k.x, k.y - k.z - 104 * S - 5).setDepth(NAME_DEPTH + k.y * 0.001).setVisible(true);
+    } else this.tag?.setVisible(false);
     if (show) {
       const w = 54, y = k.y - k.z - 104 * S, x = k.x - w / 2, f = Math.max(0, this.hp / this.maxHp);
       this.bar.clear().setDepth(NAME_DEPTH + k.y * 0.001); // over blocks and urns in front
