@@ -214,8 +214,9 @@ const ENEMY_SKILL: FinalSkill = {
   pvpMultiplier: 1, pveMultiplier: 1, description: '', unlockLevel: 1, relations: [],
 };
 
-/** How long he keeps the combat stance after an attack / a hit while standing still (MapleStory: a few seconds). */
-const ALERT_MS = 4000;
+/** How long he keeps the combat stance after an attack / a hit while standing still (MapleStory: 5 s — the rebuild's
+ *  feel numbers, docs/REBUILD_PLAN.md). Only the pose: nothing else waits on it. */
+const ALERT_MS = 5000;
 /** Tree of Life heal aura radius (px around the tree). */
 /** Floor zones that draw their own ground (the generic crack + dust of a zone's turn steps aside): the quake's one rotating ring, the tornado, the charged floor, the Verdict, the leaves; Thunder Circle and Lion's Maw (the Warrior chat, 18 Oct); Sakura Bind's trap (the Samurai chat, 18 Oct: its 100 turns laid the Warrior's gold crack under the ring every 60 ms — David's "something green on the floor"). */
 const NO_ZONE_CRACK = new Set(['ground_breaker', 'tornado_blade', 'rain_of_arrows', 'titans_verdict', 'leaping_arrow', 'thunder_circle', 'lions_maw', 'sakura_bind']);
