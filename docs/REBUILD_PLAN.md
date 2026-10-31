@@ -128,7 +128,7 @@ burst big.
     twin) — GPT's copies of the sword sheet spread the stance and left up to a third of the legs bare. Measure before a
     bake (`tools/base/v3/fitcheck.py`): each dressed figure laid on the body by the head's circle, the share of the legs
     it leaves bare (≈1% = fits).
-  - Open: her last cast frame's trousers (a dark wedge between the legs; that figure is being redrawn alone, then a bake).
+  - Her last cast frame: re-dressed on that figure alone (31 Oct 14:00 bake) — fixed.
 - 31 Oct 08:00 — Phase 3 (feel) checked against what is in: the landing has no frame of its own already (the new base
   shows its stance on touching down), the alert stance and the blink are in, quick start / stop is ≈0.1 s. The quicker jump
   (≈0.6 s in the air, same height) would make two Sky Path gaps running-only: asked Maps on the board to narrow them first.
@@ -152,3 +152,18 @@ burst big.
   dresses at once and the character starts in them. Phase 7 (the skills) waits for David: the plan's Warrior 1st job
   (fire-sword buff, sweep, dash, iron body) vs the Warrior chat's approved one (Dash Slash, Rising Slash, Leap Crash,
   Thunder Circle).
+- 31 Oct 14:30 — David's review (11:55: "the sword's hold, the run, the head stuck in the regular attack, the blink —
+  barely seen, the size"), both bases re-baked:
+  - **The sword at his side**: standing, walking (the arm back), jumping it hangs down and back behind the body
+    (MapleStory's stand); in front only on the walk's forward swing — per frame in the specs (`sword_angle`,
+    `sword_behind`). Before, it crossed his legs.
+  - **The run alternates**: all four of its frames led with the same leg and arm (a gallop) — GPT drew the cycle's other
+    half (`tools/base/gpt/v3*/run_d.png`, the sheets `sheet_run3`); the sword arm stays back the whole run, the sword
+    trailing behind him (it no longer jumps from hand to hand); a brisker stride (≈110 ms a frame at full run) and the
+    dust as each foot lands.
+  - **The head goes with the blow**: GPT's head angle in each attack frame (within ±12°) turns our head, hair and face
+    the same way (`tiltauto`), and a set, fierce face while he swings or thrusts.
+  - **The blink**: it was skipped whenever a frame lasted longer than the blink (a slow moment or machine) — now timed
+    from the first frame it shows on (≈0.16 s every 2–4 s, now and then twice); the expressions cleaned (GPT's stray
+    cheek / socket lines showed as faint ghost lines on the face).
+  - The size: a picture at ×1 / ×1.12 / ×1.25 sent to David (`?size=` previews it); his pick sets `BASE_SIZE`.
