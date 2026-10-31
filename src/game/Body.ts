@@ -390,9 +390,13 @@ function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): P
   const swing = q.k === 'skill' && q.id === 'warrior_basic';
   // MapleStory's faces: a wince when hit (thrown, lying, getting up — its first half), the eyes shut when defeated
   const expr = q.k === 'hurt' || q.k === 'stunned' || q.k === 'launched' || q.k === 'down' || ((q.k === 'getup' || q.k === 'quickrise') && q.p < 0.5) ? 'hurt' : q.k === 'death' ? 'blink' : undefined;
-  return { ...f, key, frame, wkey: `${key}-w`, blade, bladeBehind: false, hair: null, head: null, naked: { g, anim, frame, hx, hy, ha, bare, swing, expr },
-    anchor: f.anchor ? f.anchor.map((v, i) => (i % 2 === 0 ? v + hx * fx * SHEET_SCALE : v + (hy + (i === 1 ? NAKED_HEAD_DROP : 0)) * SHEET_SCALE)) : null };
+  const Z = BASE_SIZE; // (the new base's size in the world: every length of the frame grows with it)
+  return { ...f, key, frame, wkey: `${key}-w`, blade: blade ? blade.map((v) => v * Z) : null, bladeBehind: false, hair: null, head: null, naked: { g, anim, frame, hx, hy, ha, bare, swing, expr },
+    scale: f.scale * Z, anchor: f.anchor ? f.anchor.map((v, i) => Z * (i % 2 === 0 ? v + hx * fx * SHEET_SCALE : v + (hy + (i === 1 ? NAKED_HEAD_DROP : 0)) * SHEET_SCALE)) : null };
 }
+/** The new base's size in the world (1 = as drawn for the old Beginner's cell). Previewed with ?size=1.12 (David 31 Oct
+ *  11:55: "maybe a little bigger, pleasant on a screen with depth" — his pick decides it). */
+export const BASE_SIZE = ((): number => { const v = typeof location !== 'undefined' ? Number(new URLSearchParams(location.search).get('size')) : NaN; return Number.isFinite(v) && v >= 0.8 && v <= 1.5 ? v : 1; })();
 /** The sword's afterimage between two frames of a regular attack's swing (MapleStory: a thin trail of light behind the
  *  blade, nothing else): the outer part of the band the blade sweeps, as its outer edge (the tip's path) and inner edge,
  *  cell px from the feet, facing right. Overhead (swing1): over and down; rising (swing3): under and up; the level cut

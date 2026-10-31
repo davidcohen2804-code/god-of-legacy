@@ -216,6 +216,8 @@ const HEAD_FIT = [{ w: 1.3, b: 0.12, dx: 0 }, { w: 1.32, b: 0.12, dx: 0.04 }, { 
 
 /** The worn pieces over the body frame: pants, boots, shirt under the face and hair; the shirt again over the sword arm
  *  drawn over the hair; the sword in hand on top. */
+/** How long the eyes stay shut in a blink (ms). */
+const BLINK_MS = 160;
 const GEAR_DEPTH: Record<GearPiece, number> = { pants: 0.001, shoes: 0.0013, top: 0.0016, topo: 0.0085, sword: 0.009 };
 
 export class ActorView {
@@ -299,6 +301,7 @@ export class ActorView {
   private lookParts: { b: Phaser.GameObjects.Image; face: Phaser.GameObjects.Image; expr: Phaser.GameObjects.Image; eyes: Phaser.GameObjects.Image; gap: Phaser.GameObjects.Image; f: Phaser.GameObjects.Image; helm: Phaser.GameObjects.Image; over: Phaser.GameObjects.Sprite } | null = null;
   /** The next blink (scene ms): MapleStory's face blinks every few seconds. */
   private blinkAt = 0;
+  private blinkTwice = false;
   /** Worn gear (equipment): the clothes and the sword drawn on every frame of the base character. */
   private gearW: GearLook | null = null;
   private gearParts: Partial<Record<GearPiece, Phaser.GameObjects.Sprite>> = {};
@@ -617,8 +620,9 @@ export class ActorView {
     const xs = NAKED_LOOK[nk.g]?.expr ?? [], now = this.scene.time.now;
     let ex = nk.expr && xs.includes(nk.expr) ? nk.expr : null;
     if (!ex && xs.includes('blink')) {
-      if (!this.blinkAt) this.blinkAt = now + 2500 + Math.random() * 2500;
-      if (now >= this.blinkAt + 130) this.blinkAt = now + 2500 + Math.random() * 2500;
+      // (MapleStory: every 2–4 s, about a sixth of a second; now and then twice in a row — easy to catch, never busy)
+      if (!this.blinkAt) this.blinkAt = now + 1200 + Math.random() * 1800;
+      if (now >= this.blinkAt + BLINK_MS) this.blinkAt = Math.random() < 0.3 && !this.blinkTwice ? (this.blinkTwice = true, now + 110) : (this.blinkTwice = false, now + 2000 + Math.random() * 2000);
       else if (now >= this.blinkAt) ex = 'blink';
     }
     const exk = ex && this.scene.textures.exists(exprKey(nk.g, ex)) ? exprKey(nk.g, ex) : null;
