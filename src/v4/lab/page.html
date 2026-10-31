@@ -1,0 +1,157 @@
+<title>V4 Rig Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: the game's own 1920×1080 canvas as the stage, a control rail beside it (stacked below it on narrow screens),
+     readouts and test tables underneath. One dark look on purpose, matching the game's windows: night navy and gold. */
+  :root {
+    --ink: #0c1017;
+    --panel: #131a25;
+    --raise: #1a2331;
+    --rule: #2a3548;
+    --fg: #ece5d6;
+    --muted: #9ea7b8;
+    --gold: #e2b45c;
+    --gold-ink: #2a1c05;
+    --good: #74c793;
+    --bad: #ea7f66;
+    --focus: #8fc2ff;
+    --display: 'Cinzel', 'Trajan Pro', Georgia, serif;
+    --body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    color-scheme: dark;
+  }
+  html, body { background: var(--ink); color: var(--fg); }
+  body {
+    font: 14px/1.45 var(--body);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 14px 28px;
+  }
+  .top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin-bottom: 12px; }
+  .top h1 { font: 700 22px/1.1 var(--display); letter-spacing: .06em; margin: 0; color: var(--gold); text-wrap: balance; }
+  .top p { margin: 2px 0 0; color: var(--muted); max-width: 70ch; }
+  .chip { font: 500 12px/1 var(--mono); padding: 6px 9px; border: 1px solid var(--rule); border-radius: 999px; color: var(--fg); background: var(--panel); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; align-items: start; }
+  @media (max-width: 1150px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+  .stage { position: relative; width: 100%; max-width: 100%; aspect-ratio: 16 / 9; background: #05070b; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+  .stage canvas { display: block; outline: none; }
+  .stage canvas:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .keys { margin-top: 8px; color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  kbd { font: 500 11px/1 var(--mono); padding: 3px 5px; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; background: var(--raise); color: var(--fg); }
+  .rail { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .card { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 12px; display: grid; gap: 10px; min-width: 0; }
+  .card h2 { font: 600 11px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0; }
+  .seg { display: flex; flex-wrap: wrap; gap: 4px; }
+  button { font: 500 13px/1 var(--body); color: var(--fg); background: var(--raise); border: 1px solid var(--rule); border-radius: 5px; padding: 7px 10px; cursor: pointer; }
+  button:hover { border-color: var(--gold); }
+  button[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); font-weight: 600; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+  label.check { display: inline-flex; align-items: center; gap: 6px; color: var(--fg); cursor: pointer; }
+  .slots { display: grid; grid-template-columns: 82px minmax(0, 1fr) 22px; gap: 6px 8px; align-items: center; }
+  .slots label { color: var(--muted); font-size: 13px; }
+  .slots .hdr { font-size: 11px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+  select { width: 100%; min-width: 0; font: 13px/1.2 var(--body); color: var(--fg); background: var(--raise); border: 1px solid var(--rule); border-radius: 5px; padding: 6px 7px; }
+  input[type="checkbox"] { accent-color: var(--gold); width: 16px; height: 16px; margin: 0; }
+  .hint { color: var(--muted); font-size: 12.5px; margin: 0; }
+  .below { margin-top: 14px; display: grid; gap: 12px; }
+  .readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .ro { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 9px 11px; display: grid; gap: 4px; min-width: 0; }
+  .ro .k { color: var(--muted); font-size: 11.5px; }
+  .ro .v { font: 500 14px/1.2 var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  #ro-notes { color: var(--muted); font-size: 12.5px; margin: 0; }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; }
+  td.id { font-family: var(--mono); color: var(--muted); white-space: nowrap; }
+  td.pass { color: var(--good); font-weight: 600; }
+  td.fail { color: var(--bad); font-weight: 600; }
+  td.detail { color: var(--muted); min-width: 260px; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #test-status { color: var(--gold); font-size: 13px; }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<header class="top">
+  <div>
+    <h1>V4 Rig Lab</h1>
+    <p>Phase 1 technical prototype with placeholder art: one rig, swappable outfits, two renderers. Nothing on this page changes the game.</p>
+  </div>
+  <span class="chip" id="chip-live">starting…</span>
+</header>
+
+<div class="layout">
+  <div>
+    <section class="stage" id="stage" aria-label="Lab stage at gameplay scale"></section>
+    <div class="keys">
+      <span><kbd>A</kbd> <kbd>D</kbd> or arrows: move</span>
+      <span><kbd>W</kbd> <kbd>S</kbd>: lanes</span>
+      <span><kbd>Shift</kbd>: walk</span>
+      <span><kbd>E</kbd>: jump</span>
+      <span><kbd>Space</kbd>: attack</span>
+      <span>Right panel: the same avatar enlarged, as in a wardrobe</span>
+    </div>
+  </div>
+
+  <aside class="rail">
+    <section class="card" aria-labelledby="h-motion">
+      <h2 id="h-motion">Motion</h2>
+      <div class="seg" id="seg-motion"></div>
+      <label class="check"><input type="checkbox" id="auto-swap"> Swap a random item every 0.4 s</label>
+    </section>
+
+    <section class="card" aria-labelledby="h-wardrobe">
+      <h2 id="h-wardrobe">Wardrobe</h2>
+      <div class="seg" id="seg-gear"></div>
+      <div class="slots" id="slots"><span class="hdr">Slot</span><span class="hdr">Cosmetic</span><span class="hdr" title="Hide">Hide</span></div>
+      <div class="row"><button type="button" id="btn-random">Random outfit</button><button type="button" id="btn-clear">Clear cosmetics</button></div>
+      <p class="hint">A = cloth set, B = plate set, X = oversized and rule tests. Cosmetics beat gear looks; gear keeps its stats.</p>
+    </section>
+
+    <section class="card" aria-labelledby="h-view">
+      <h2 id="h-view">View</h2>
+      <div class="seg" id="seg-render" aria-label="Renderer"></div>
+      <div class="seg" id="seg-zoom" aria-label="Camera zoom"></div>
+      <div class="seg" id="seg-size" aria-label="Character size"></div>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="opt-preview" checked> Wardrobe preview</label>
+        <label class="check"><input type="checkbox" id="opt-crowd"> 50 characters</label>
+        <label class="check"><input type="checkbox" id="opt-bones"> Bones</label>
+        <label class="check"><input type="checkbox" id="opt-slots"> Slot colours</label>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="h-tests">
+      <h2 id="h-tests">Tests</h2>
+      <div class="row">
+        <button type="button" id="btn-tests">Quick tests</button>
+        <button type="button" id="btn-tests-full">Full tests (minutes)</button>
+        <button type="button" id="btn-bench">Benchmark 50</button>
+      </div>
+      <span id="test-status">Not run yet.</span>
+    </section>
+  </aside>
+</div>
+
+<section class="below" aria-label="Readouts and results">
+  <div class="readouts" id="readouts"></div>
+  <p id="ro-notes"></p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Test</th><th>Result</th><th>What</th><th>Measured</th></tr></thead>
+      <tbody id="test-results"></tbody>
+    </table>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Renderer (50 characters)</th><th>Frames / s</th><th>Frame ms mean / p95</th><th>Lab CPU ms mean / p95</th><th>Draw calls</th><th>Texture MiB</th></tr></thead>
+      <tbody id="bench-results"></tbody>
+    </table>
+  </div>
+</section>
+
+<script type="module" src="assets/lab.js"></script>
