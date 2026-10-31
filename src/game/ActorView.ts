@@ -301,6 +301,7 @@ export class ActorView {
   private lookParts: { b: Phaser.GameObjects.Image; face: Phaser.GameObjects.Image; expr: Phaser.GameObjects.Image; eyes: Phaser.GameObjects.Image; gap: Phaser.GameObjects.Image; f: Phaser.GameObjects.Image; helm: Phaser.GameObjects.Image; over: Phaser.GameObjects.Sprite } | null = null;
   /** The next blink (scene ms): MapleStory's face blinks every few seconds. */
   private blinkAt = 0;
+  private blinkFrom = 0; // (the frame the current blink first showed on)
   private blinkTwice = false;
   /** Worn gear (equipment): the clothes and the sword drawn on every frame of the base character. */
   private gearW: GearLook | null = null;
@@ -622,8 +623,11 @@ export class ActorView {
     if (!ex && xs.includes('blink')) {
       // (MapleStory: every 2–4 s, about a sixth of a second; now and then twice in a row — easy to catch, never busy)
       if (!this.blinkAt) this.blinkAt = now + 1200 + Math.random() * 1800;
-      if (now >= this.blinkAt + BLINK_MS) this.blinkAt = Math.random() < 0.3 && !this.blinkTwice ? (this.blinkTwice = true, now + 110) : (this.blinkTwice = false, now + 2000 + Math.random() * 2000);
-      else if (now >= this.blinkAt) ex = 'blink';
+      if (now >= this.blinkAt) {
+        if (this.blinkFrom < this.blinkAt) this.blinkFrom = now; // timed from its first frame: a slow frame never skips a blink
+        if (now < this.blinkFrom + BLINK_MS) ex = 'blink';
+        else this.blinkAt = Math.random() < 0.3 && !this.blinkTwice ? (this.blinkTwice = true, now + 110) : (this.blinkTwice = false, now + 2000 + Math.random() * 2000);
+      }
     }
     const exk = ex && this.scene.textures.exists(exprKey(nk.g, ex)) ? exprKey(nk.g, ex) : null;
     put(P.expr, exk ? tone(exk) : null, hx, hy, 0.0032, undefined, true);

@@ -21,7 +21,7 @@ exec(hx_[hx_.index('def jaw_split_any('):hx_.index('for g, (sp, si) in STD.items
 fx_ = open(H + '/face_extract.py').read()
 exec(fx_[fx_.index('def feats('):fx_.index('def register(')])               # feats
 SPEC = json.load(open(H + '/' + SPECF)); g = SPEC['gender']; sp, si = SPEC['anims']['idle'][0][:2]
-NAMES, SRC = SPEC['expressions'], SPEC['expr_src']; OUTD = H + '/' + SPEC['facedir'] + '/'; os.makedirs(OUTD, exist_ok=True)
+NAMES, SRC = SPEC['expressions'], SPEC['expr_src']; OUTD = os.environ.get('EXPR_OUT') or H + '/' + SPEC['facedir'] + '/'; os.makedirs(OUTD, exist_ok=True)
 fs = figures(sp)[si]; es, as_ = keyed(fs['gi']); m = fs['m']; shape = m.shape
 nrow = neck_of(m)[0]; sil = m & (np.arange(shape[0])[:, None] <= nrow); head, _ = jaw_split_any(sil, nrow)
 hy, hx = np.nonzero(head); hh = hy.max() - hy.min(); hx0, hx1 = hx.min(), hx.max()
@@ -76,14 +76,28 @@ for k, fh in enumerate(figures(SRC)[:len(NAMES)]):
   r_ = fit(fh, s, ox, oy, 0.5); err, ox, oy = r_
   Fe, Fa = warp(fh, s, ox, oy, shape)
   fk = feats(Fe, nd.binary_erosion((Fa > 0.5) & head, iterations=4) & area, dist_in, eye_bot)
+  # the layer: GPT's face where either face has eyes, brows or mouth, with room around them (its own skin there, brought
+  # to ours) — but none of GPT's other lines: its cheek / jaw / socket lines lie a little off ours and showed as faint ghost
+  # lines on our face, so a line of GPT's that is no eye, brow or mouth becomes GPT's own skin around it; and our head's
+  # outline is always ours
   zone = nd.binary_fill_holes(nd.binary_dilation(f0 | fk, iterations=7)) & nd.binary_dilation(area, iterations=10)
   skin = inside & ~nd.binary_dilation(f0 | fk, iterations=9) & (Fa > 0.95) & nd.binary_dilation(zone, iterations=14)   # (clear of both faces' eyes)
   w = nd.gaussian_filter(skin.astype(np.float32), 10)
   gain = np.stack([nd.gaussian_filter(np.where(skin, es[..., c], 0), 10) / np.maximum(nd.gaussian_filter(np.where(skin, Fe[..., c], 0), 10), 1e-3) for c in range(3)], -1)
   gain = np.where(w[..., None] > 0.02, gain, 1).clip(0.95, 1.05)            # (GPT kept the skin: only a nudge)
   col = (Fe * gain).clip(0, 255)
+  lum_ = col @ np.array([0.3, 0.59, 0.11]); feat_ = nd.binary_dilation(fk, iterations=2)
+  gsk = (Fa > 0.95) & inside & ~feat_; med = np.median(col[gsk & zone], 0) if (gsk & zone).any() else np.median(col[gsk], 0)
+  gsk &= np.abs(col - med).sum(-1) < 45                                         # GPT's skin round about (skin-coloured only)
+  wg = nd.gaussian_filter(gsk.astype(np.float32), 5)
+  skg = np.stack([nd.gaussian_filter(np.where(gsk, col[..., c], 0), 5) for c in range(3)], -1) / np.maximum(wg, 1e-3)[..., None]
+  skg = np.where((wg > 0.05)[..., None], skg, med)
+  stray = zone & ~feat_ & (lum_ < skg @ np.array([0.3, 0.59, 0.11]) - 14)      # a darker line that is none of its features
+  stray = nd.binary_dilation(stray, iterations=1) & zone & ~feat_
+  col = np.where(stray[..., None], skg, col)
   al = nd.gaussian_filter(zone.astype(np.float32), 2.0) * Fa
   al = np.where(nd.binary_dilation(f0, iterations=2), np.maximum(al, (Fa > 0.02).astype(np.float32)), al)   # ours fully covered
+  al = np.where((dist_in <= 3) & ~nd.binary_dilation(f0, iterations=2), 0.0, al)   # (our head's own outline; an eye by it covered)
   al = al * head                                                               # on the head only (never past its outline)
   Image.fromarray(np.dstack([col, al * 255]).clip(0, 255).astype(np.uint8), 'RGBA').save(OUTD + f'{g}_x_{NAMES[k]}.png', optimize=True)
   info[NAMES[k]] = dict(scale=round(float(s), 4), ox=round(float(ox), 1), oy=round(float(oy), 1), err=round(err, 1), zone=int(zone.sum()))
