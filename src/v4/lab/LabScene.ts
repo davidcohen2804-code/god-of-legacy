@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import { poseQuery, type AnimSnap, type Mode } from '../../game/PoseState';
 import { GEAR_SLOTS, JOB_SET, giveItem, starterGear, wornItem, type GearState } from '../../items/Gear';
+import type { PoseState } from '../rig/pose';
 import { JUMP_VZ, LAND_MS, TAKEOFF_MS, rigTime, type RigTime } from '../rig/posemap';
 import { Composite } from '../render/Composite';
 import { RigCharacter } from '../render/RigCharacter';
@@ -134,6 +135,8 @@ export class LabScene extends Phaser.Scene {
   private drawCounter = 0;
   private lastFrameAt = 0;
   private autoSwapAcc = 0;
+  /** The slot-colour view left tints on the parts: clear them once when it is turned off. */
+  private slotTinted = false;
   private gfx!: Phaser.GameObjects.Graphics;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
   private previewCam!: Phaser.Cameras.Scene2D.Camera;
@@ -384,7 +387,8 @@ export class LabScene extends Phaser.Scene {
       }
       a.shadow.setPosition(a.x, a.y).setDepth(a.y - 0.5).setScale((this.bWorld / 131) * (1 - Math.min(0.4, a.z / 400)) * 0.9, (this.bWorld / 131) * 0.9);
     }
-    if (this.debug.slots) for (const a of this.actors) a.ch.tintBySlot(slotColor);
+    if (this.debug.slots) { for (const a of this.actors) a.ch.tintBySlot(slotColor); this.slotTinted = true; }
+    else if (this.slotTinted) { for (const a of this.actors) a.ch.clearAllTints(); this.preview.clearAllTints(); this.slotTinted = false; }
     // the wardrobe preview: the same avatar, the same clock, enlarged with the sharper atlas
     if (this.previewOn && this.player.last) {
       this.preview.setAvatar(this.player.avatar);
@@ -411,13 +415,19 @@ export class LabScene extends Phaser.Scene {
     const g = this.gfx;
     g.clear();
     if (!this.debug.bones) return;
-    const a = this.player, pose = this.assets.pose, s = this.sWorld;
-    const P = (bone: number): [number, number] => { const [x, y] = pose.point(a.ch.state, bone); return [a.x + a.facing * x * s, a.y - a.z + y * s]; };
-    g.lineStyle(2, 0x00e5ff, 1);
-    pose.rig.bones.forEach((b, i) => { const p = pose.parent[i]; if (p >= 0) { const [x0, y0] = P(p), [x1, y1] = P(i); g.lineBetween(x0, y0, x1, y1); } });
-    const w = pose.index.get('weapon')!;
-    const [gx, gy] = P(w);
-    g.lineStyle(2, 0xff3d7f, 1).strokeCircle(gx, gy, 5);
+    const pose = this.assets.pose, s = this.sWorld;
+    /** One skeleton in world space; `lw` = line width in world px. */
+    const skeleton = (st: PoseState, ox: number, oy: number, facing: number, lw: number) => {
+      const P = (bone: number): [number, number] => { const [x, y] = pose.point(st, bone); return [ox + facing * x * s, oy + y * s]; };
+      g.lineStyle(lw, 0x00e5ff, 1);
+      pose.rig.bones.forEach((_b, i) => { const p = pose.parent[i]; if (p >= 0) { const [x0, y0] = P(p), [x1, y1] = P(i); g.lineBetween(x0, y0, x1, y1); } });
+      const [gx, gy] = P(pose.index.get('weapon')!);
+      g.lineStyle(lw, 0xff3d7f, 1).strokeCircle(gx, gy, 2.5 * lw);
+    };
+    const a = this.player;
+    skeleton(a.ch.state, a.x, a.y - a.z, a.facing, 2);
+    // the enlarged preview gets its own skeleton, 3 canvas px wide at the preview's zoom
+    if (this.previewOn) skeleton(this.preview.state, STAGE_X, STAGE_Y, a.facing, (3 * this.bWorld) / PREVIEW_B);
   }
 
   // ---------- readouts ----------

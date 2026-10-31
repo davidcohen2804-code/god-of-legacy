@@ -80,6 +80,8 @@ export class RigCharacter {
 
   tintAll(color: number): void { for (const i of this.drawn) this.images[i].setTintFill(color); }
   clearTint(): void { for (const i of this.drawn) this.images[i].clearTint(); }
+  /** Every part image, drawn or hidden (leaving the slot-colour view: a hidden part must not come back coloured). */
+  clearAllTints(): void { for (const img of this.images) img.clearTint(); }
 
   /** Each drawn slot in its own flat colour (slot-identity renders for the tests). */
   tintBySlot(colorOf: (slot: number) => number): void { for (const i of this.drawn) this.images[i].setTintFill(colorOf(i)); }

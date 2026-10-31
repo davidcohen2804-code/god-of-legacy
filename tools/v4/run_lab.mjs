@@ -1,6 +1,6 @@
 // Drives the built lab in headless Chromium (software WebGL): smoke check, tests, benchmark, screenshots, recordings.
 // Usage: node tools/v4/run_lab.mjs <smoke|tests|tests-full|bench|shots|record> [outDir] [part]
-//   shots parts: looks | crowd | debug | sizes | all (default); record parts: idle | run | jump | attack | all
+//   shots parts: looks, crowd, debug, sizes (comma-separated) or all (default); record parts: idle | run | jump | attack | all
 // Expects the lab served at http://localhost:4199/ (python3 -m http.server 4199 --directory dist-v4lab).
 import { createRequire } from 'node:module';
 const { chromium } = createRequire(import.meta.url)('playwright');
@@ -74,7 +74,7 @@ try {
         wings: [{ hair: 'hair_long', head: 'tall_hat_x', back: 'wings_x', top: 'heavy_plate_x' }, 'starter'],
         robe: [{ overall: 'robe_x', head: 'great_helm_x', back: 'cape_b', gloves: 'gauntlets_b' }, 'starter'],
       };
-      const part = process.argv[4] ?? 'all', want = (p) => part === 'all' || part === p;
+      const part = process.argv[4] ?? 'all', want = (p) => part === 'all' || part.split(',').includes(p);
       let pos = {}; try { pos = JSON.parse(readFileSync(`${out}/shots.json`, 'utf8')); } catch { /* first run */ }
       const save = () => writeFileSync(`${out}/shots.json`, JSON.stringify(pos, null, 1));
       const view = (o) => set((o) => { const s = window.__v4lab.scene; Object.assign(s, o); s.applyView(); }, o);
