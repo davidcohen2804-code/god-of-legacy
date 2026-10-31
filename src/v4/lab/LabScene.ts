@@ -10,7 +10,7 @@ import { RigCharacter } from '../render/RigCharacter';
 import { GEAR_LOOKS } from '../wardrobe/catalog';
 import { WEARABLE } from '../wardrobe/resolve';
 import type { AppearanceInput, Avatar, Item, WardrobeSlot } from '../wardrobe/types';
-import { CANVAS, MASTER_B, SCREEN_720, SIZE_B, WORLD, ZOOM0, ZOOM_PRESETS, labAssets, type LabAssets, type ZoomPreset } from './world';
+import { CANVAS, CELL, MASTER_B, SCREEN_720, SIZE_B, WORLD, ZOOM0, ZOOM_PRESETS, labAssets, type LabAssets, type ZoomPreset } from './world';
 
 export type RenderMode = 'direct' | 'composite' | 'composite-outline';
 export type Forced = 'idle' | 'run' | 'jump' | 'attack' | null;
@@ -120,11 +120,12 @@ export class LabScene extends Phaser.Scene {
   debug = { bones: false, slots: false };
   gear: GearState = starterGear();
   comp: Composite | null = null;
-  previewComp: Composite | null = null;
   previewImg: Phaser.GameObjects.Image | null = null;
   readonly frameTimes: number[] = [];
   readonly updateTimes: number[] = [];
   readonly drawSamples: number[] = [];
+  /** CPU time of the composite pass alone (drawing every cell, with or without the outline stamps). */
+  readonly compTimes: number[] = [];
   drawCalls = 0;
   private drawCounter = 0;
   private lastFrameAt = 0;
@@ -191,7 +192,7 @@ export class LabScene extends Phaser.Scene {
     gl.drawElements = (...a: Parameters<typeof de>) => { this.drawCounter++; return de(...a); };
     gl.drawArrays = (...a: Parameters<typeof da>) => { this.drawCounter++; return da(...a); };
     gl.__v4wrapped = true;
-    this.game.events.on(Phaser.Core.Events.PRE_RENDER, () => { this.drawCounter = 0; });
+    this.game.events.on(Phaser.Core.Events.PRE_STEP, () => { this.drawCounter = 0; }); // (the composite is drawn during update)
     this.game.events.on(Phaser.Core.Events.POST_RENDER, () => {
       this.drawCalls = this.drawCounter;
       this.drawSamples.push(this.drawCounter); if (this.drawSamples.length > 4000) this.drawSamples.shift();
@@ -232,7 +233,6 @@ export class LabScene extends Phaser.Scene {
   /** (Re)build the display objects for the current renderer, zoom and size. */
   buildRenderers(): void {
     this.comp?.destroy(this); this.comp = null;
-    this.previewComp?.destroy(this); this.previewComp = null;
     const all = this.actors;
     for (const a of all) { a.display?.destroy(); a.display = null; a.ch.cell = -1; a.ch.container.removeFromDisplayList(); }
     this.previewImg?.destroy(); this.previewImg = null; this.preview.container.removeFromDisplayList(); this.preview.cell = -1;
@@ -243,18 +243,20 @@ export class LabScene extends Phaser.Scene {
       this.preview.container.setPosition(STAGE_X, STAGE_Y);
       return;
     }
-    const b = this.bCanvas, cw = Math.ceil(b * 2.6), chh = Math.ceil(b * 2.3);
-    this.comp = new Composite(this, 'v4comp', all.length, cw, chh, maxTex);
-    for (const a of all) {
-      a.ch.cell = this.comp.alloc();
-      a.display = this.add.image(a.x, a.y, 'v4comp', `c${a.ch.cell}`).setScale(1 / this.camZoom);
+    const spec = (b: number) => ({ w: Math.ceil(b * CELL.w), h: Math.ceil(b * CELL.h), rootX: Math.round(b * CELL.rootX), rootY: Math.round(b * CELL.rootY) });
+    const specs = all.map(() => spec(this.bCanvas));
+    if (this.previewOn) specs.push(spec(430)); // the wardrobe preview shares the one texture
+    this.comp = new Composite(this, 'v4comp', specs, maxTex);
+    all.forEach((a, i) => {
+      a.ch.cell = i; a.ch.outlinePx = this.outlinePx();
+      a.display = this.add.image(a.x, a.y, 'v4comp', `c${i}`).setScale(1 / this.camZoom);
       this.previewCam.ignore(a.display);
+    });
+    if (this.previewOn) {
+      this.preview.cell = all.length; this.preview.outlinePx = this.outlinePx(430);
+      this.previewImg = this.add.image(STAGE_X, STAGE_Y, 'v4comp', `c${all.length}`).setScale(this.bWorld / 430);
+      this.cameras.main.ignore(this.previewImg);
     }
-    const pb = 430 / this.bWorld * this.bWorld; // preview B in canvas px
-    this.previewComp = new Composite(this, 'v4prev', 1, Math.ceil(pb * 2.6), Math.ceil(pb * 2.3), maxTex);
-    this.preview.cell = this.previewComp.alloc();
-    this.previewImg = this.add.image(STAGE_X, STAGE_Y, 'v4prev', `c${this.preview.cell}`).setScale(this.bWorld / 430);
-    this.cameras.main.ignore(this.previewImg);
   }
 
   // ---------- wardrobe API ----------
@@ -390,8 +392,11 @@ export class LabScene extends Phaser.Scene {
       else this.preview.container.setScale(this.player.facing, 1);
       if (this.debug.slots) this.preview.tintBySlot(slotColor);
     }
-    if (this.comp) this.comp.draw(this.actors.map((a) => a.ch), this.renderMode === 'composite-outline' && !this.debug.slots ? { color: OUTLINE, px: this.outlinePx() } : null);
-    if (this.previewComp && this.previewOn) this.previewComp.draw([this.preview], this.renderMode === 'composite-outline' && !this.debug.slots ? { color: OUTLINE, px: this.outlinePx(430) } : null);
+    if (this.comp) {
+      const c0 = performance.now();
+      this.comp.draw([...this.actors.map((a) => a.ch), ...(this.previewOn ? [this.preview] : [])], this.renderMode === 'composite-outline' && !this.debug.slots ? OUTLINE : null);
+      this.compTimes.push(performance.now() - c0); if (this.compTimes.length > 2000) this.compTimes.shift();
+    }
     this.drawDebug();
     this.follow();
     this.updateTimes.push(performance.now() - t0);
@@ -419,6 +424,7 @@ export class LabScene extends Phaser.Scene {
     const shownW = this.game.canvas.getBoundingClientRect().width || CANVAS.w;
     return {
       fps: ft.length ? 1000 / mean(ft) : 0, frameMs: mean(ft), frameP95: p95(ft), updateMs: mean(ut), updateP95: p95(ut), drawCalls: this.drawCalls,
+      compMs: this.comp ? mean(this.compTimes.slice(-120)) : 0,
       characters: this.actors.length, mode: this.renderMode, zoom: this.zoomPreset, size: this.sizeKey,
       bScreen: this.bCanvas * (shownW / CANVAS.w), b720: this.bCanvas * SCREEN_720, bCanvas: this.bCanvas,
       anim: this.player.last ? `${this.player.last.anim.name}${this.player.last.stand ? ` (${this.player.last.stand})` : ''}` : '',

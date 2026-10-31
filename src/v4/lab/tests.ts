@@ -12,7 +12,7 @@ import { RigCharacter, type Atlas } from '../render/RigCharacter';
 import { WEARABLE, Wardrobe, frameOf } from '../wardrobe/resolve';
 import type { AppearanceInput, Avatar, Item, WardrobeSlot } from '../wardrobe/types';
 import { gearLooks, type LabScene } from './LabScene';
-import { MASTER_B, SCREEN_720, SIZE_B, ZOOM0, ZOOM_PRESETS } from './world';
+import { CELL, MASTER_B, SCREEN_720, SIZE_B, ZOOM0, ZOOM_PRESETS } from './world';
 
 export interface TestResult { id: string; name: string; pass: boolean; detail: string; data?: unknown }
 type Progress = (msg: string) => void;
@@ -275,12 +275,24 @@ export async function runTests(scene: LabScene, opts: { full: boolean }, progres
       }
       if (c % 8 === 7) { progress(`M5 ${c + 1}/${list.length}`); await yieldFrame(); }
     }
+    // the oversized items reach further: measure them too (reach only)
+    for (const eq of [{ head: 'tall_hat_x', back: 'wings_x', top: 'heavy_plate_x', hair: 'hair_long' }, { overall: 'robe_x', head: 'great_helm_x', back: 'cape_b' }, { back: 'cape_b', weapon: 'sword_b', hair: 'hair_long' }] as Partial<Record<WardrobeSlot, string>>[]) {
+      ch.setAvatar(wardrobe.resolve(base(eq)));
+      for (const [a, t] of poses) {
+        poseAt(ch, a, t);
+        const px = hz.render(ch, s, OX, OY, RW, RH, 'alpha');
+        for (let y = 0; y < RH; y += 2) for (let x = 0; x < RW; x += 2) if (px[(y * RW + x) * 4 + 3] > 8) {
+          maxUp = Math.max(maxUp, (OY - y) / B); maxDown = Math.max(maxDown, (y - OY) / B); maxL = Math.max(maxL, (OX - x) / B); maxR = Math.max(maxR, (x - OX) / B);
+        }
+      }
+    }
     const tag = `${list.length} outfits × 32 poses = ${renders} renders`;
     results.push({ id: 'M5a', name: 'No seams at any joint (every A/B mix)', pass: seamFails === 0, detail: `${tag}; joint gaps: ${seamFails}${seamFails ? ` (${Object.entries(seamBy).map(([k, v]) => `${k} ${v}`).join(', ')})` : ''}`, data: samples.filter((x) => x.what.startsWith('seam')).slice(0, 12) });
     results.push({ id: 'M5b', name: 'Eyes never hidden by back items, hair or armour', pass: faceFails === 0, detail: `${tag}; eye samples covered: ${faceFails}${faceFails ? ` (${Object.entries(faceBy).map(([k, v]) => `${k} ${v}`).join(', ')})` : ''}`, data: samples.filter((x) => x.what.startsWith('eye')).slice(0, 12) });
     results.push({ id: 'M5c', name: 'Sword gripped: front fingers over the handle', pass: gripFails === 0, detail: `${gripChecks} armed frames checked, ${gripFails} without the fingers on top` });
     results.push({ id: 'M5d', name: 'No hair through helmets', pass: hairFails === 0, detail: `${hairFails} frames with hair showing on the helmet's skull area (105 head-space samples above the brow per frame)`, data: samples.filter((x) => x.what.includes('helmet')).slice(0, 12) });
-    results.push({ id: 'M5e', name: 'Composite cell holds every pose', pass: edgeHits === 0, detail: `reach from the feet, in B: up ${maxUp.toFixed(2)}, down ${maxDown.toFixed(2)}, back ${maxL.toFixed(2)}, forward ${maxR.toFixed(2)} (cell 2.6 B × 2.3 B, feet at 86% height); pixels touching the cell edge: ${edgeHits}` });
+    const fits = maxUp <= CELL.rootY - 0.02 && maxDown <= CELL.h - CELL.rootY - 0.02 && maxL <= CELL.rootX - 0.02 && maxR <= CELL.w - CELL.rootX - 0.02;
+    results.push({ id: 'M5e', name: 'Composite cell holds every pose', pass: edgeHits === 0 && fits, detail: `reach from the feet, in B (all mixes plus the oversized items): up ${maxUp.toFixed(2)}, down ${maxDown.toFixed(2)}, back ${maxL.toFixed(2)}, forward ${maxR.toFixed(2)}; the lab's cell is ${CELL.w} × ${CELL.h} B with the feet at (${CELL.rootX}, ${CELL.rootY}) → ${fits ? 'fits' : 'does NOT fit'}; test-region edge hits ${edgeHits}` });
   }
 
   // ---- collisions: every item pair from different slots, alone-vs-together, in every pose ----

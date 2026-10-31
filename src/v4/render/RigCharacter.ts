@@ -19,8 +19,9 @@ export class RigCharacter {
   avatar: Avatar | null = null;
   /** Visible slot indices in draw order, as of the last layout. */
   readonly drawn: number[] = [];
-  /** Composite cell (−1 = none). */
+  /** Composite cell (−1 = none) and this character's outline width there (texture px). */
   cell = -1;
+  outlinePx = 1.5;
   private readonly slotBone: Int16Array;
   private readonly frames: (string | null)[];
   private orderId = '\u0000';

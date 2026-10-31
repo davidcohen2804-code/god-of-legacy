@@ -85,8 +85,10 @@ try {
         await outfit({}, 'starter'); await reset(anim);
         await set(() => { window.__v4lab.scene.autoSwapMs = 400; });
         const dir = `${out}/rec_${anim}`; rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
-        for (let f = 0; f < 150; f++) { await step(1, 1000 / 30); await page.locator('#stage').screenshot({ path: `${dir}/f${String(f).padStart(3, '0')}.png` }); }
+        for (let f = 0; f < 120; f++) { await step(1, 1000 / 30); await page.locator('#stage').screenshot({ path: `${dir}/f${String(f).padStart(3, '0')}.png` }); }
         execSync(`ffmpeg -loglevel error -y -framerate 30 -i ${dir}/f%03d.png -vf "scale=1280:-2" -c:v libx264 -pix_fmt yuv420p -crf 20 ${out}/swap_${anim}.mp4`);
+        // GIF for documents: the right two thirds of the stage (the character at gameplay size and the enlarged preview)
+        execSync(`ffmpeg -loglevel error -y -framerate 30 -i ${dir}/f%03d.png -vf "fps=15,crop=952:540:330:150,split[a][b];[a]palettegen=max_colors=96[p];[b][p]paletteuse=dither=bayer:bayer_scale=4" ${out}/swap_${anim}.gif`);
       }
     }
   }

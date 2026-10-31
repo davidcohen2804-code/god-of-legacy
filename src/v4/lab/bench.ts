@@ -7,6 +7,8 @@ export interface BenchResult {
   mode: RenderMode; frames: number; seconds: number;
   frameMean: number; frameP95: number; fps: number;
   updateMean: number; updateP95: number;
+  /** CPU time of the composite pass alone (0 for direct). */
+  compMean: number; compP95: number;
   drawCallsMean: number; drawCallsMax: number;
   textureMiB: number; textureNote: string;
 }
@@ -27,20 +29,20 @@ export async function bench(scene: LabScene, seconds = 4, progress: (m: string) 
     scene.renderMode = mode;
     scene.applyView();
     await wait(1000);
-    scene.frameTimes.length = 0; scene.updateTimes.length = 0; scene.drawSamples.length = 0;
+    scene.frameTimes.length = 0; scene.updateTimes.length = 0; scene.drawSamples.length = 0; scene.compTimes.length = 0;
     const t0 = performance.now();
     await wait(seconds * 1000);
     const dt = (performance.now() - t0) / 1000;
-    const f = stats(scene.frameTimes), u = stats(scene.updateTimes), d = stats(scene.drawSamples);
+    const f = stats(scene.frameTimes), u = stats(scene.updateTimes), d = stats(scene.drawSamples), c = stats(scene.compTimes);
     const a256 = scene.textures.get('v4atlas256').source[0];
     let mib = (a256.width * a256.height * 4) / 2 ** 20, note = `part atlas ${a256.width}×${a256.height}`;
     if (scene.comp) {
       const w = scene.comp.width, h = scene.comp.height;
       mib += (2 * w * h * 4) / 2 ** 20;
-      note += ` + composite ${w}×${h} (and Phaser's capture copy of the same size)`;
+      note += ` + composite ${w}×${h} ×2 (Phaser draws it through a capture target of the same size, then copies it)`;
     }
     out.push({ mode, frames: scene.frameTimes.length, seconds: dt, frameMean: f.mean, frameP95: f.p95, fps: f.mean ? 1000 / f.mean : 0,
-      updateMean: u.mean, updateP95: u.p95, drawCallsMean: d.mean, drawCallsMax: d.max, textureMiB: mib, textureNote: note });
+      updateMean: u.mean, updateP95: u.p95, compMean: mode === 'direct' ? 0 : c.mean, compP95: mode === 'direct' ? 0 : c.p95, drawCallsMean: d.mean, drawCallsMax: d.max, textureMiB: mib, textureNote: note });
   }
   scene.renderMode = prev.mode; scene.previewOn = prev.preview;
   scene.setStress(prev.npcs);

@@ -51,7 +51,7 @@
   button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
   .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
   label.check { display: inline-flex; align-items: center; gap: 6px; color: var(--fg); cursor: pointer; }
-  .slots { display: grid; grid-template-columns: 82px minmax(0, 1fr) 22px; gap: 6px 8px; align-items: center; }
+  .slots { display: grid; grid-template-columns: 82px minmax(0, 1fr) 34px; gap: 6px 8px; align-items: center; }
   .slots label { color: var(--muted); font-size: 13px; }
   .slots .hdr { font-size: 11px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
   select { width: 100%; min-width: 0; font: 13px/1.2 var(--body); color: var(--fg); background: var(--raise); border: 1px solid var(--rule); border-radius: 5px; padding: 6px 7px; }
@@ -148,7 +148,7 @@
   </div>
   <div class="tablewrap">
     <table>
-      <thead><tr><th>Renderer (50 characters)</th><th>Frames / s</th><th>Frame ms mean / p95</th><th>Lab CPU ms mean / p95</th><th>Draw calls</th><th>Texture MiB</th></tr></thead>
+      <thead><tr><th>Renderer (50 characters)</th><th>Frames / s</th><th>Frame ms mean / p95</th><th>Lab CPU ms mean / p95</th><th>Composite pass ms</th><th>Draw calls</th><th>Texture MiB</th></tr></thead>
       <tbody id="bench-results"></tbody>
     </table>
   </div>

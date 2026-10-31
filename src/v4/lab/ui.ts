@@ -88,7 +88,7 @@ export function buildUI(scene: LabScene, api: { runTests: (full: boolean) => Pro
   const fmt = (v: unknown, d = 1) => (typeof v === 'number' ? v.toFixed(d) : String(v));
   const cells: [string, string, (x: Record<string, number | string>) => string][] = [
     ['ro-fps', 'Frames / s', (x) => fmt(x.fps, 0)], ['ro-frame', 'Frame ms (p95)', (x) => `${fmt(x.frameMs)} (${fmt(x.frameP95)})`],
-    ['ro-update', 'Lab CPU ms', (x) => fmt(x.updateMs, 2)], ['ro-draws', 'Draw calls', (x) => fmt(x.drawCalls, 0)],
+    ['ro-update', 'Lab CPU ms (composite pass)', (x) => `${fmt(x.updateMs, 2)} (${fmt(x.compMs, 2)})`], ['ro-draws', 'Draw calls', (x) => fmt(x.drawCalls, 0)],
     ['ro-chars', 'Characters', (x) => fmt(x.characters, 0)], ['ro-b', 'Body height on screen', (x) => `${fmt(x.bScreen, 0)} px (720p: ${fmt(x.b720, 0)})`],
     ['ro-anim', 'Animation', (x) => String(x.anim)], ['ro-swaps', 'Swaps', (x) => fmt(x.swaps, 0)],
   ];
@@ -127,7 +127,8 @@ export function buildUI(scene: LabScene, api: { runTests: (full: boolean) => Pro
       for (const r of res) {
         const tr = h('tr');
         tr.append(h('td', {}, r.mode), h('td', { class: 'num' }, r.fps.toFixed(1)), h('td', { class: 'num' }, `${r.frameMean.toFixed(1)} / ${r.frameP95.toFixed(1)}`),
-          h('td', { class: 'num' }, `${r.updateMean.toFixed(2)} / ${r.updateP95.toFixed(2)}`), h('td', { class: 'num' }, `${r.drawCallsMean.toFixed(0)} (max ${r.drawCallsMax})`), h('td', { class: 'num' }, r.textureMiB.toFixed(1)));
+          h('td', { class: 'num' }, `${r.updateMean.toFixed(2)} / ${r.updateP95.toFixed(2)}`), h('td', { class: 'num' }, r.compMean ? `${r.compMean.toFixed(2)} / ${r.compP95.toFixed(2)}` : '—'),
+          h('td', { class: 'num' }, `${r.drawCallsMean.toFixed(0)} (max ${r.drawCallsMax})`), h('td', { class: 'num' }, r.textureMiB.toFixed(1)));
         btable.append(tr);
       }
     }

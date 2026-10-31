@@ -17,6 +17,8 @@ export type ZoomPreset = keyof typeof ZOOM_PRESETS;
 /** Body standard B (sole to skull top) in world px for David's three size options (×1.12 = the proposal's 100 px at 720p). */
 export const SIZE_B: Record<string, number> = { '1': 117, '1.12': 131, '1.25': 146.25 };
 export const MASTER_B = 768;
+/** Composite cell, in B: big enough for every measured pose (test M5e) and the oversized-item envelopes. */
+export const CELL = { w: 1.65, h: 1.85, rootX: 0.8, rootY: 1.5 };
 /** A 1280 × 720 window shows the 1920 × 1080 canvas at 2/3. */
 export const SCREEN_720 = 1280 / CANVAS.w;
 
