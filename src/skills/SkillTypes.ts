@@ -175,6 +175,8 @@ export interface FinalSkill {
   pveMultiplier: number;
   description: string;
   unlockLevel: number;
+  /** Skill points: another skill (active or passive, by id) it needs at a level before it can be learned. */
+  requires?: { id: string; level: number };
   relations: string[];
   /** A template only (not built yet): listed in the skill book and on the skill bar as "coming soon", cannot be used. */
   wip?: boolean;

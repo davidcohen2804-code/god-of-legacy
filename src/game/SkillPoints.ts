@@ -6,7 +6,8 @@
 // the arena (and every test switch) plays every skill open at its full blow — skills stay the same in PvP.
 import { BEGINNER_TO, hasJob, jobOfSlot, jobsFor, skillLevel } from '../skills/Jobs';
 import type { FinalSkill } from '../skills/SkillTypes';
-import type { PassiveSkill } from '../skills/Passives';
+import { passivesFor, type PassiveSkill } from '../skills/Passives';
+import { kitFor } from '../skills/FinalKit';
 
 export const SP_PER_LEVEL = 3;
 /** The top level of a job's active skills (MapleStory: 20). */
@@ -35,9 +36,13 @@ export function cannotRaise(cls: string, c: Who, e: Entry): string | null {
   if (e.wip) return 'Coming soon';
   if (opensAt(cls, e) > skillLevel(c)) return !hasJob(c) && c.level >= opensAt(cls, e) ? 'Needs the 1st job (a Master)' : `Opens at Lv ${opensAt(cls, e)}`;
   if (lv >= max) return 'Top level';
+  if (e.requires && levelOf(c, e.requires.id) < e.requires.level) return `Needs ${nameOf(cls, e.requires.id)} Lv ${e.requires.level}`;
   if (freeSp(c) <= 0) return 'No skill points left';
   return null;
 }
+
+/** A skill's name by id (its class's actives, then passives). */
+const nameOf = (cls: string, id: string): string => kitFor(cls as never).find((s) => s.id === id)?.name ?? passivesFor(cls).find((p) => p.id === id)?.name ?? id;
 
 /** The damage a skill does at its level in the regular game: 55 % at level 1, the full blow at its top level. */
 export const skillPower = (lv: number, max = ACTIVE_MAX): number => (max <= 1 ? 1 : 0.55 + 0.45 * (Math.max(1, Math.min(lv, max)) - 1) / (max - 1));

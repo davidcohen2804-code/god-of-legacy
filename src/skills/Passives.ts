@@ -14,6 +14,8 @@ export interface PassiveSkill {
   effects: string[];
   /** A template only (not built yet): shown in the skill book as "coming soon", gives nothing. */
   wip?: boolean;
+  /** Skill points: a skill (active or passive, by id) it needs at a level before it can be learned. */
+  requires?: { id: string; level: number };
 }
 
 export const PASSIVES: PassiveSkill[] = [
