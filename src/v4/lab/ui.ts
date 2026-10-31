@@ -1,10 +1,11 @@
-// The lab's control rail (plain DOM beside the game canvas): motion, wardrobe, view, crowd, tests and benchmark.
+// The lab's control rail (plain DOM beside the game canvas): art, motion, wardrobe, view, crowd, tests and benchmark.
+import { GOLD_SET_B } from '../real/catalogB';
 import type { BenchResult } from './bench';
 import type { Forced, LabScene, RenderMode } from './LabScene';
 import type { TestResult } from './tests';
 import { WEARABLE } from '../wardrobe/resolve';
 import type { WardrobeSlot } from '../wardrobe/types';
-import type { ZoomPreset } from './world';
+import type { Art, ZoomPreset } from './world';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T | null;
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, string> = {}, text = ''): HTMLElementTagNameMap[K] => {
@@ -33,7 +34,35 @@ function segmented(host: HTMLElement | null, options: [string, string][], curren
   return set;
 }
 
+const INTRO: Record<Art, string> = {
+  b: 'Phase 3: candidate B (Refined Chibi) in real art, cut into parts on the Phase 1 rig. Basic clothing and the Golden Warrior set swap per slot. Nothing on this page changes the game.',
+  placeholder: 'Phase 1 technical prototype with placeholder art: one rig, swappable outfits, two renderers. Nothing on this page changes the game.',
+};
+const HINT: Record<Art, string> = {
+  b: 'A = basic clothing, B = Golden Warrior set. Cosmetics beat gear looks; gear keeps its stats. Job gear shows the Golden top, trousers and boots (the job helmet has no B art yet).',
+  placeholder: 'A = cloth set, B = plate set, X = oversized and rule tests. Cosmetics beat gear looks; gear keeps its stats.',
+};
+
 export function buildUI(scene: LabScene, api: { runTests: (full: boolean) => Promise<TestResult[]>; bench: () => Promise<BenchResult[]> }): void {
+  // ---- art ----
+  const status = $('test-status'), table = $('test-results'), btable = $('bench-results');
+  const syncArt = () => {
+    const intro = $('lab-intro'), hint = $('wardrobe-hint'), gold = $('btn-gold');
+    if (intro) intro.textContent = INTRO[scene.art];
+    if (hint) hint.textContent = HINT[scene.art];
+    if (gold) gold.hidden = scene.art !== 'b';
+    const tests = $('tests-note');
+    if (tests) tests.textContent = scene.art === 'b' ? 'Real-art tests of candidate B (switch to the placeholder for the Phase 1 tests).' : 'Phase 1 tests on the placeholder art.';
+  };
+  segmented($('seg-art'), [['b', 'Candidate B · real art'], ['placeholder', 'Placeholder · Phase 1']], scene.art, (v) => {
+    scene.setArt(v as Art);
+    buildSlots(); syncArt(); setGearSeg('starter'); scene.setGear('starter');
+    if (crowd) crowd.checked = scene.npcs.length > 0;
+    table?.replaceChildren();
+    if (status) status.textContent = 'Not run yet.';
+    scene.game.canvas.focus();
+  });
+
   // ---- motion ----
   segmented($('seg-motion'), [['play', 'Play (keys)'], ['idle', 'Idle'], ['run', 'Run'], ['jump', 'Jump'], ['attack', 'Attack']], 'play', (v) => {
     scene.forced = v === 'play' ? null : (v as Forced);
@@ -45,30 +74,45 @@ export function buildUI(scene: LabScene, api: { runTests: (full: boolean) => Pro
   // ---- wardrobe ----
   const rows = $('slots');
   const selects = new Map<WardrobeSlot, HTMLSelectElement>();
-  for (const slot of ['hair', ...WEARABLE] as WardrobeSlot[]) {
-    if (!rows) break;
-    const id = `slot-${slot}`;
-    const label = h('label', { for: id }, SLOT_LABEL[slot] ?? slot);
-    const sel = h('select', { id });
-    sel.append(h('option', { value: '' }, slot === 'hair' ? 'Base look (short)' : GEAR_SLOTS.has(slot) ? 'Gear look / none' : 'None'));
-    for (const it of scene.itemsFor(slot)) sel.append(h('option', { value: it.id }, `${it.set} · ${it.name}`));
-    sel.addEventListener('change', () => { scene.equip(slot, sel.value || null); scene.game.canvas.focus(); });
-    selects.set(slot, sel);
-    const hideCell = h('span');
-    if (GEAR_SLOTS.has(slot) || slot === 'back') {
-      const cb = h('input', { type: 'checkbox', id: `hide-${slot}`, 'aria-label': `Hide ${SLOT_LABEL[slot]}` });
-      cb.addEventListener('change', () => scene.hide(slot, (cb as HTMLInputElement).checked));
-      hideCell.append(cb);
+  /** One row per wardrobe slot the art has items for (B: no hair or accessories); B's clothing has no body under it,
+   *  so only its sword and cape can be hidden. */
+  const buildSlots = () => {
+    if (!rows) return;
+    rows.querySelectorAll(':scope > :not(.hdr)').forEach((el) => el.remove());
+    selects.clear();
+    const real = scene.art === 'b';
+    for (const slot of ['hair', ...WEARABLE] as WardrobeSlot[]) {
+      if (real && scene.itemsFor(slot).length === 0) continue;
+      const id = `slot-${slot}`;
+      const label = h('label', { for: id }, SLOT_LABEL[slot] ?? slot);
+      const sel = h('select', { id });
+      sel.append(h('option', { value: '' }, slot === 'hair' ? 'Base look (short)' : GEAR_SLOTS.has(slot) ? (real ? 'Gear look' : 'Gear look / none') : 'None'));
+      for (const it of scene.itemsFor(slot)) sel.append(h('option', { value: it.id }, `${it.set} · ${it.name}`));
+      sel.addEventListener('change', () => { scene.equip(slot, sel.value || null); scene.game.canvas.focus(); });
+      selects.set(slot, sel);
+      const hideCell = h('span');
+      if (real ? slot === 'weapon' || slot === 'back' : GEAR_SLOTS.has(slot) || slot === 'back') {
+        const cb = h('input', { type: 'checkbox', id: `hide-${slot}`, 'aria-label': `Hide ${SLOT_LABEL[slot]}` });
+        cb.addEventListener('change', () => scene.hide(slot, (cb as HTMLInputElement).checked));
+        hideCell.append(cb);
+      }
+      rows.append(label, sel, hideCell);
     }
-    rows.append(label, sel, hideCell);
-  }
-  scene.onSwap = (slot, id) => { const sel = selects.get(slot); if (sel) sel.value = id ?? ''; if (slot === 'overall' && id) { selects.get('top')!.value = ''; selects.get('bottom')!.value = ''; } if ((slot === 'top' || slot === 'bottom') && id) selects.get('overall')!.value = ''; };
+  };
+  buildSlots(); syncArt();
+  scene.onSwap = (slot, id) => {
+    const sel = selects.get(slot); if (sel) sel.value = id ?? '';
+    const clear = (s: WardrobeSlot) => { const x = selects.get(s); if (x) x.value = ''; };
+    if (slot === 'overall' && id) { clear('top'); clear('bottom'); }
+    if ((slot === 'top' || slot === 'bottom') && id) clear('overall');
+  };
   $('btn-random')?.addEventListener('click', () => {
     const eq = scene.randomLook(true);
     for (const slot of ['hair', ...WEARABLE] as WardrobeSlot[]) scene.equip(slot, eq[slot] ?? null);
   });
   $('btn-clear')?.addEventListener('click', () => { for (const slot of ['hair', ...WEARABLE] as WardrobeSlot[]) scene.equip(slot, null); });
-  segmented($('seg-gear'), [['starter', 'Starter gear'], ['job', 'Warrior job gear']], 'starter', (v) => scene.setGear(v as 'starter' | 'job'));
+  $('btn-gold')?.addEventListener('click', () => { for (const [slot, id] of Object.entries(GOLD_SET_B)) scene.equip(slot as WardrobeSlot, id); });
+  const setGearSeg = segmented($('seg-gear'), [['starter', 'Starter gear'], ['job', 'Warrior job gear']], 'starter', (v) => scene.setGear(v as 'starter' | 'job'));
 
   // ---- view ----
   segmented($('seg-render'), [['direct', 'Direct'], ['composite', 'Composite'], ['composite-outline', 'Composite + outline']], scene.renderMode, (v) => { scene.renderMode = v as RenderMode; scene.applyView(); });
@@ -102,7 +146,6 @@ export function buildUI(scene: LabScene, api: { runTests: (full: boolean) => Pro
   }, 250);
 
   // ---- tests and benchmark ----
-  const status = $('test-status'), table = $('test-results'), btable = $('bench-results');
   const runT = async (full: boolean) => {
     if (status) status.textContent = 'Running…';
     const res = await api.runTests(full);

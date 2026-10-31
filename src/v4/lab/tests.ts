@@ -19,20 +19,20 @@ type Progress = (msg: string) => void;
 
 const ANIM_LIST: AnimDef[] = [ANIMS.idle, ANIMS.run, ANIMS.jump, ANIMS.attack];
 const COMBO_SLOTS: WardrobeSlot[] = ['head', 'eyeacc', 'faceacc', 'earring', 'top', 'bottom', 'gloves', 'shoes', 'back', 'weapon'];
-const yieldFrame = () => new Promise((r) => setTimeout(r, 0));
+export const yieldFrame = () => new Promise((r) => setTimeout(r, 0));
 
 /** Slot index ↔ a flat colour whose three channels follow different rules, so an anti-aliased blend of two slot
  *  colours (at an edge) almost never decodes as a third slot. */
 const code = (i: number): [number, number, number] => [(i * 4) & 255, (i * 37 + 11) & 255, (i * 101 + 17) & 255];
-const idColor = (i: number) => { const [r, g, b] = code(i); return (r << 16) | (g << 8) | b; };
-const idOf = (r: number, g: number, b: number) => {
+export const idColor = (i: number) => { const [r, g, b] = code(i); return (r << 16) | (g << 8) | b; };
+export const idOf = (r: number, g: number, b: number) => {
   const i = Math.round(r / 4);
   if (i < 0 || i >= 64) return -1;
   const [cr, cg, cb] = code(i);
   return Math.abs(r - cr) <= 1 && Math.abs(g - cg) <= 1 && Math.abs(b - cb) <= 1 ? i : -1;
 };
 
-class Harness {
+export class Harness {
   readonly gl: WebGLRenderingContext;
   readonly rt: Phaser.Textures.DynamicTexture;
   flipRows = true;

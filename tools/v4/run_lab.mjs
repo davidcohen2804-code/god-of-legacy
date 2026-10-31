@@ -1,6 +1,7 @@
 // Drives the built lab in headless Chromium (software WebGL): smoke check, tests, benchmark, screenshots, recordings.
-// Usage: node tools/v4/run_lab.mjs <smoke|tests|tests-full|bench|shots|record> [outDir] [part]
-//   shots parts: looks, crowd, debug, sizes (comma-separated) or all (default); record parts: idle | run | jump | attack | all
+// Usage: [V4_ART=placeholder|b] node tools/v4/run_lab.mjs <smoke|tests|tests-full|bench|shots|record> [outDir] [part]
+//   V4_ART picks the art the lab opens with (default: candidate B's real art; the Phase 1 tests need the placeholder)
+//   shots parts: looks, crowd, debug, sizes, swap (comma-separated) or all (default); record parts: idle | run | jump | attack | all
 // Expects the lab served at http://localhost:4199/ (python3 -m http.server 4199 --directory dist-v4lab).
 import { createRequire } from 'node:module';
 const { chromium } = createRequire(import.meta.url)('playwright');
@@ -15,7 +16,8 @@ const page = await browser.newPage({ viewport: { width: 1600, height: 1000 }, de
 const logs = [];
 page.on('console', (m) => logs.push(`[${m.type()}] ${m.text()}`));
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));
-await page.goto('http://localhost:4199/index.html');
+const ART = process.env.V4_ART ?? 'b';
+await page.goto(`http://localhost:4199/index.html?art=${ART}`);
 await page.waitForFunction(() => window.__v4lab && window.__v4lab.ready, null, { timeout: 60000 });
 const lab = (fn, arg) => page.evaluate(fn, arg);
 
@@ -67,7 +69,12 @@ try {
     }, [eq, gear]);
     const reset = (anim) => set((a) => { const s = window.__v4lab.scene; s.forced = a; s.autoSwapMs = 0; const p = s.player; p.mode = 'idle'; p.t = 0; p.loopT = 0; p.skillT = 0; p.z = 0; p.vz = 0; p.x = 700; p.y = 760; p.facing = 1; p.ch.chain.reset(); }, anim);
     if (cmd === 'shots') {
-      const looks = {
+      const GOLD = { top: 'b_gold_top', bottom: 'b_gold_bottom', gloves: 'b_gold_gloves', shoes: 'b_gold_shoes', back: 'b_gold_cape' };
+      const looks = ART === 'b' ? {
+        basic: [{}, 'starter'], gold: [GOLD, 'starter'], job: [{}, 'job'],
+        mixA: [{ top: 'b_gold_top', gloves: 'b_gold_gloves' }, 'starter'],
+        mixB: [{ bottom: 'b_gold_bottom', shoes: 'b_gold_shoes', back: 'b_gold_cape' }, 'starter'],
+      } : {
         starter: [{}, 'starter'], job: [{}, 'job'],
         mixA: [{ hair: 'hair_long', head: 'bandana_a', top: 'plate_top_b', bottom: 'trousers_a', gloves: 'gauntlets_b', shoes: 'shoes_a', back: 'scarf_a', eyeacc: 'glasses_a' }, 'starter'],
         mixB: [{ hair: 'hair_short', head: 'helmet_b', top: 'tunic_a', bottom: 'plate_legs_b', gloves: 'wraps_a', shoes: 'boots_b', back: 'cape_b', weapon: 'sword_b', faceacc: 'mask_b', earring: 'cuff_b' }, 'starter'],
@@ -103,12 +110,23 @@ try {
       }
       // identity size: the three size options at the three zoom presets (look with small details: glasses, bandana)
       if (want('sizes')) {
-        await outfit(looks.mixA[0], 'starter');
+        await outfit(ART === 'b' ? GOLD : looks.mixA[0], 'starter');
         for (const size of ['1', '1.12', '1.25']) for (const z of ['social', 'grinding', 'boss']) {
           await view({ sizeKey: size, zoomPreset: z }); await reset('idle'); await step(10);
           await shot(`shot_size_${size}_${z}`); pos[`shot_size_${size}_${z}`] = await where();
         }
         await view({ sizeKey: '1.12', zoomPreset: 'grinding' }); save();
+      }
+      // per-slot swaps, one slot at a time, from the basic clothing to the full Golden Warrior set (idle)
+      if (want('swap') && ART === 'b') {
+        await outfit({}, 'starter'); await view({ renderMode: 'direct', previewOn: true, zoomPreset: 'grinding', sizeKey: '1.12' });
+        await reset('idle'); await step(20);
+        const seq = [['basic', null, null], ['top', 'top', 'b_gold_top'], ['bottom', 'bottom', 'b_gold_bottom'], ['shoes', 'shoes', 'b_gold_shoes'], ['gloves', 'gloves', 'b_gold_gloves'], ['back', 'back', 'b_gold_cape']];
+        for (const [name, slot, id] of seq) {
+          if (slot) await set(([slot, id]) => window.__v4lab.scene.equip(slot, id), [slot, id]);
+          await step(1); await shot(`shot_swap_${name}`); pos[`shot_swap_${name}`] = await where();
+        }
+        save();
       }
     }
     if (cmd === 'record') {

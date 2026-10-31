@@ -2,13 +2,13 @@
 // No animation knows anything about clothing: outfits only change which images sit on the bones.
 import type { AnimDef, Ease, Key } from './types';
 
-const k = (t: number, v: number, e: Ease = 'inout'): Key => ({ t, v, e });
+export const k = (t: number, v: number, e: Ease = 'inout'): Key => ({ t, v, e });
 /** A looping curve through evenly listed values (the last value repeats the first). */
-const loop = (dur: number, vals: number[], e: Ease = 'inout'): Key[] => vals.map((v, i) => k((dur * i) / (vals.length - 1), v, e));
-const hold = (v: number): Key[] => [k(0, v, 'linear')];
+export const loop = (dur: number, vals: number[], e: Ease = 'inout'): Key[] => vals.map((v, i) => k((dur * i) / (vals.length - 1), v, e));
+export const hold = (v: number): Key[] => [k(0, v, 'linear')];
 
 // The resting stance with the sword in hand: upper arm a little forward, forearm forward, sword pointing up-forward.
-const STANCE = { uparm_F: -14, forearm_F: -62, hand_F: -8, weapon: 24, uparm_B: 8, forearm_B: -15, thigh_F: -3, shin_F: 3, thigh_B: 5, shin_B: 2 };
+export const STANCE = { uparm_F: -14, forearm_F: -62, hand_F: -8, weapon: 24, uparm_B: 8, forearm_B: -15, thigh_F: -3, shin_F: 3, thigh_B: 5, shin_B: 2 };
 
 export const IDLE: AnimDef = {
   name: 'idle', dur: 1.6, loop: true,
@@ -32,7 +32,7 @@ export const IDLE: AnimDef = {
   },
 };
 
-const RD = 0.444; // 4 key poses at 9 per second (today's base run)
+export const RD = 0.444; // 4 key poses at 9 per second (today's base run)
 export const RUN: AnimDef = {
   name: 'run', dur: RD, loop: true,
   bones: {

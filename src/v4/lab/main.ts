@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 import { bench } from './bench';
 import { LabScene } from './LabScene';
 import { runTests } from './tests';
+import { runTestsB } from './testsB';
 import { buildUI } from './ui';
 import { CANVAS } from './world';
 
@@ -25,7 +26,8 @@ window.addEventListener('v4lab-ready', (e) => {
   const setStatus = (m: string) => { const el = document.getElementById('test-status'); if (el) el.textContent = m; };
   const api = {
     game, scene, ready: true,
-    runTests: (full = false) => runTests(scene, { full }, setStatus),
+    /** The tests of the art on screen: Phase 1's on the placeholder, the real-art tests on candidate B. */
+    runTests: (full = false) => (scene.art === 'b' ? runTestsB(scene, { full }, setStatus) : runTests(scene, { full }, setStatus)),
     bench: (seconds = 4) => bench(scene, seconds, setStatus),
     /** Recording helpers: stop the clock, then advance it by hand one frame at a time. */
     freeze: () => game.loop.sleep(),

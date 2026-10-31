@@ -1,17 +1,19 @@
 // The V4 rig lab scene: one playable character at the courtyard's gameplay scale, live wardrobe switching, an enlarged
-// wardrobe preview of the same avatar, and a 50-character stress mode with the direct and composite renderers.
+// wardrobe preview of the same avatar, and a 50-character stress mode with the direct and composite renderers. Two
+// arts on the same runtime: the Phase 1 placeholder and candidate B's real art (Phase 3), switchable live.
 // Isolated: it reads the game's PoseState / Gear modules and changes nothing in the game.
 import Phaser from 'phaser';
 import { poseQuery, type AnimSnap, type Mode } from '../../game/PoseState';
-import { GEAR_SLOTS, JOB_SET, giveItem, starterGear, wornItem, type GearState } from '../../items/Gear';
+import { JOB_SET, giveItem, starterGear, type GearState } from '../../items/Gear';
+import b256Url from '../real/assets/b256.png?inline';
+import b512Url from '../real/assets/b512.png?inline';
 import type { PoseState } from '../rig/pose';
 import { JUMP_VZ, LAND_MS, TAKEOFF_MS, rigTime, type RigTime } from '../rig/posemap';
 import { Composite } from '../render/Composite';
 import { RigCharacter } from '../render/RigCharacter';
-import { GEAR_LOOKS } from '../wardrobe/catalog';
 import { WEARABLE } from '../wardrobe/resolve';
 import type { AppearanceInput, Avatar, Item, WardrobeSlot } from '../wardrobe/types';
-import { CANVAS, CELL, MASTER_B, SCREEN_720, SIZE_B, WORLD, ZOOM0, ZOOM_PRESETS, labAssets, type LabAssets, type ZoomPreset } from './world';
+import { B_TEXTURES, CANVAS, CELL, MASTER_B, SCREEN_720, SIZE_B, WORLD, ZOOM0, ZOOM_PRESETS, labAssets, placeholderGearLooks, type Art, type LabAssets, type ZoomPreset } from './world';
 
 export type RenderMode = 'direct' | 'composite' | 'composite-outline';
 export type Forced = 'idle' | 'run' | 'jump' | 'attack' | null;
@@ -27,11 +29,14 @@ const PREVIEW_X = 1300; // the wardrobe preview panel: canvas x from here to the
 const PREVIEW_B = 370;
 const STAGE_X = 12000, STAGE_Y = 1000; // where the preview character stands (off the playfield)
 
-/** Gameplay gear → its looks by wardrobe slot (stats stay in Gear.ts). */
-export function gearLooks(g: GearState): Partial<Record<WardrobeSlot, string>> {
-  const out: Partial<Record<WardrobeSlot, string>> = {};
-  for (const s of GEAR_SLOTS) { const it = wornItem(g, s); const look = it ? GEAR_LOOKS[it.id] : undefined; if (look) out[s] = look; }
-  return out;
+/** Placeholder art: gameplay gear → its looks by wardrobe slot (the Phase 1 tests use it). */
+export const gearLooks = placeholderGearLooks;
+
+/** The art the lab opens with: candidate B, unless the address asks for the placeholder (?art=placeholder or
+ *  #placeholder; the published lab only passes a plain #name). */
+export function initialArt(): Art {
+  const q = new URLSearchParams(location.search).get('art'), h = location.hash.slice(1);
+  return q === 'placeholder' || h === 'placeholder' ? 'placeholder' : 'b';
 }
 
 export function jobGear(): GearState {
@@ -65,6 +70,8 @@ export class Actor {
     this.avatar = this.lab.assets.wardrobe.resolve(input);
     this.ch.setAvatar(this.avatar);
   }
+
+  destroy(): void { this.display?.destroy(); this.display = null; this.shadow.destroy(); this.ch.destroy(); }
 
   /** One step of the movement state machine (the mode names are PoseState's). */
   control(c: Control, dt: number): void {
@@ -103,7 +110,7 @@ export class Actor {
   /** Gameplay state → PoseQuery (the game's own poseQuery) → rig time → bone pose. */
   pose(dt: number): void {
     const q = poseQuery(this.snap());
-    this.last = rigTime(q);
+    this.last = rigTime(q, this.lab.assets.anims);
     const vxN = this.mode === 'air' ? Math.min(1, Math.abs(this.vx) / 300) : Math.min(1, this.speed / 300);
     const vzN = this.mode === 'air' ? Math.max(-1, Math.min(1, this.vz / JUMP_VZ)) : 0;
     this.ch.chain.step(dt, vxN, vzN);
@@ -113,6 +120,7 @@ export class Actor {
 
 export class LabScene extends Phaser.Scene {
   assets!: LabAssets;
+  art: Art = initialArt();
   player!: Actor;
   readonly npcs: Actor[] = [];
   preview!: RigCharacter;
@@ -145,8 +153,14 @@ export class LabScene extends Phaser.Scene {
 
   constructor() { super('V4Lab'); }
 
+  /** B's atlases (inlined in the bundle as data URLs); the placeholder atlases are painted in create(). */
+  preload(): void {
+    if (!this.textures.exists(B_TEXTURES[256])) this.load.image(B_TEXTURES[256], b256Url);
+    if (!this.textures.exists(B_TEXTURES[512])) this.load.image(B_TEXTURES[512], b512Url);
+  }
+
   create(): void {
-    this.assets = labAssets(this);
+    this.assets = labAssets(this, this.art);
     this.makeTextures();
     this.makeBackdrop();
     this.gfx = this.add.graphics().setDepth(1e6);
@@ -165,7 +179,26 @@ export class LabScene extends Phaser.Scene {
 
   // ---------- setup ----------
   baseInput(): AppearanceInput {
-    return { body: 'male_std', look: { hair: 'hair_short', face: 'face_a' }, gearLooks: gearLooks(this.gear), cosmetics: { equipped: {}, hidden: [] }, family: 'sword' };
+    return { body: 'male_std', look: { ...this.assets.baseLook }, gearLooks: this.assets.gearLooks(this.gear), cosmetics: { equipped: {}, hidden: [] }, family: 'sword' };
+  }
+
+  /** Switch the art live: the same rig runtime, renderers and controls, the other art's rig, wardrobe and atlases.
+   *  The player and the crowd start over in their base look with the current gear. */
+  setArt(art: Art): void {
+    if (art === this.art) return;
+    const crowd = this.npcs.length;
+    for (const a of this.npcs) a.destroy();
+    this.npcs.length = 0;
+    this.comp?.destroy(this); this.comp = null;
+    this.previewImg?.destroy(); this.previewImg = null;
+    this.player.destroy(); this.preview.destroy();
+    this.art = art;
+    this.assets = labAssets(this, art);
+    this.player = new Actor(this, WORLD.w * 0.42, 760, this.baseInput(), true);
+    this.preview = new RigCharacter(this, this.assets.pose, this.assets.atlas512, false);
+    this.slotTinted = false;
+    if (crowd) this.setStress(crowd);
+    this.applyView();
   }
 
   private makeTextures(): void {
@@ -285,10 +318,13 @@ export class LabScene extends Phaser.Scene {
 
   setGear(kind: 'starter' | 'job'): void {
     this.gear = kind === 'job' ? jobGear() : starterGear();
-    this.player.setLook({ ...this.player.input, gearLooks: gearLooks(this.gear) });
+    this.player.setLook({ ...this.player.input, gearLooks: this.assets.gearLooks(this.gear) });
   }
 
   itemsFor(slot: WardrobeSlot): Item[] { return [...this.assets.catalog.items.values()].filter((i) => i.wslot === slot); }
+
+  /** The wardrobe slots this art has items for (in the order of the wardrobe panel). */
+  swapSlots(): WardrobeSlot[] { return (['hair', ...WEARABLE] as WardrobeSlot[]).filter((s) => s !== 'overall' && this.itemsFor(s).length > 0); }
 
   /** A random cosmetic outfit (each wearable slot: none or one of its items). */
   randomLook(includeX = true): Partial<Record<WardrobeSlot, string>> {
@@ -299,12 +335,12 @@ export class LabScene extends Phaser.Scene {
       const pick = this.rng.between(0, opts.length);
       if (pick < opts.length) eq[s] = opts[pick].id;
     }
-    if (includeX && this.rng.frac() < 0.12) { eq.overall = 'robe_x'; delete eq.top; delete eq.bottom; }
+    if (includeX && this.assets.catalog.items.has('robe_x') && this.rng.frac() < 0.12) { eq.overall = 'robe_x'; delete eq.top; delete eq.bottom; }
     return eq;
   }
 
   randomSwap(who: Actor = this.player): WardrobeSlot {
-    const slots = [...WEARABLE.filter((s) => s !== 'overall'), 'hair'] as WardrobeSlot[];
+    const slots = this.swapSlots();
     const slot = slots[this.rng.between(0, slots.length - 1)];
     const opts = this.itemsFor(slot).filter((i) => i.set !== 'X' || slot === 'head' || slot === 'back');
     const cur = who.input.cosmetics.equipped[slot];
@@ -315,13 +351,14 @@ export class LabScene extends Phaser.Scene {
 
   // ---------- stress ----------
   setStress(n: number): void {
-    for (const a of this.npcs) { a.display?.destroy(); a.shadow.destroy(); a.ch.destroy(); }
+    for (const a of this.npcs) a.destroy();
     this.npcs.length = 0;
     for (let i = 0; i < n; i++) {
       const col = i % 10, row = Math.floor(i / 10);
       const a = new Actor(this, 120 + col * 150 + (row % 2) * 60, WORLD.laneMin + row * ((WORLD.laneMax - WORLD.laneMin) / 4), {
-        ...this.baseInput(), gearLooks: gearLooks(this.rng.frac() < 0.5 ? starterGear() : jobGear()),
-        look: { hair: this.rng.frac() < 0.5 ? 'hair_short' : 'hair_long', face: 'face_a' }, cosmetics: { equipped: this.randomLook(false), hidden: [] },
+        ...this.baseInput(), gearLooks: this.assets.gearLooks(this.rng.frac() < 0.5 ? starterGear() : jobGear()),
+        look: this.art === 'b' ? { ...this.assets.baseLook } : { hair: this.rng.frac() < 0.5 ? 'hair_short' : 'hair_long', face: 'face_a' },
+        cosmetics: { equipped: this.randomLook(false), hidden: [] },
       });
       a.facing = this.rng.frac() < 0.5 ? 1 : -1;
       a.brainT = this.rng.between(0, 1500);
@@ -439,7 +476,7 @@ export class LabScene extends Phaser.Scene {
     return {
       fps: ft.length ? 1000 / mean(ft) : 0, frameMs: mean(ft), frameP95: p95(ft), updateMs: mean(ut), updateP95: p95(ut), drawCalls: this.drawCalls,
       compMs: this.comp ? mean(this.compTimes.slice(-120)) : 0,
-      characters: this.actors.length, mode: this.renderMode, zoom: this.zoomPreset, size: this.sizeKey,
+      characters: this.actors.length, mode: this.renderMode, zoom: this.zoomPreset, size: this.sizeKey, art: this.art,
       bScreen: this.bCanvas * (shownW / CANVAS.w), b720: this.bCanvas * SCREEN_720, bCanvas: this.bCanvas,
       anim: this.player.last ? `${this.player.last.anim.name}${this.player.last.stand ? ` (${this.player.last.stand})` : ''}` : '',
       swaps: this.player.swaps, notes: this.player.avatar.notes.join(' · '),
