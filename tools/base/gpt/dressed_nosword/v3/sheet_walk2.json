@@ -1,0 +1,14 @@
+{
+ "items": [
+  "dressed_nosword/v3/sheet_idle_walk.png:1",
+  "dressed_nosword/v3/sheet_idle_walk.png:2",
+  "dressed_nosword/v3/walk_b_contact.png:0",
+  "dressed_nosword/v3/sheet_idle_walk.png:4"
+ ],
+ "k": [
+  1.0,
+  1.0,
+  0.784497,
+  1.0
+ ]
+}

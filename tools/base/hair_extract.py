@@ -132,6 +132,9 @@ for g, (sp, si) in STD.items():
     if V3_:                                                      # above the shoulders, where our bald head has nothing, all GPT
       sat_ = (mx - mn) / np.maximum(mx, 1)                       #   drew is hair (its light shine too), never skin
       cand = cand | ((Fa > 0.5) & (Ba < 0.3) & (np.arange(shape[0])[:, None] <= nrow) & ((mx < 220) | (sat_ > 0.42)))
+      # over the forehead, above the eyes: the bangs' light shine (orange-tan, more saturated and less pink than any skin,
+      # unlike our bald head there) is hair too — not forehead showing between the strands
+      cand = cand | ((Fa > 0.5) & (D > 80) & (sat_ > 0.45) & (G_ < 0.8 * R_) & (B_ < 0.7 * G_) & (np.arange(shape[0])[:, None] < hy.min() + 0.55 * hh))
     cand = nd.binary_opening(cand, iterations=2)
     L, n = nd.label(cand); sz = nd.sum(cand, L, range(1, n + 1))
     keep = [1 + i for i in range(n) if sz[i] >= 0.04 * sz.max()]

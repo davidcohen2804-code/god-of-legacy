@@ -1,0 +1,14 @@
+{
+ "items": [
+  "v3f/sheet_run_b.png:0",
+  "v3f/sheet_run_b.png:1",
+  "v3f/run_b_contact.png:0",
+  "v3f/run_b_flight.png:0"
+ ],
+ "k": [
+  1.0,
+  1.0,
+  0.636322,
+  0.591174
+ ]
+}

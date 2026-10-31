@@ -1,0 +1,14 @@
+{
+ "items": [
+  "v3f/sheet_idle_walk.png:1",
+  "v3f/sheet_idle_walk.png:2",
+  "v3f/walk_b_contact.png:0",
+  "v3f/sheet_idle_walk.png:4"
+ ],
+ "k": [
+  1.0,
+  1.0,
+  0.784497,
+  1.0
+ ]
+}
