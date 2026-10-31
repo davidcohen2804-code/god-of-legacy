@@ -268,8 +268,14 @@ def label(e, a, excl=None):
 
 
 def frame(path, idx, sc, opts=()):
+  global LAST_TWIN
   f = figures(path)[idx]; x0, y0, x1, y1 = f['box']
   gi = np.where(nd.binary_dilation(f['m'], iterations=3)[..., None], f['gi'], np.array([255, 0, 255], np.float32))   # this figure only
+  twin = 'sword' in opts and os.path.exists(H + '/gpt/bare_nosword/' + path)
+  if twin:                                                      # GPT redrew the figure without its sword (tools/base/gpt/
+    Te, Ta, _, _ = _laid('bare_nosword/' + path, f, body=True)  #   bare_nosword/<image>): the body from that drawing, whole
+    Ta = Ta[..., None]                                          #   where the sword crossed it; the sword (where it is, its
+    gi = np.where(Ta > 0.01, Te * Ta + np.array([255, 0, 255], np.float32) * (1 - Ta), np.array([255, 0, 255], np.float32))   # angle) from this one
   pad = 24
   X0, Y0 = max(0, x0 - pad), max(0, y0 - pad)
   sub = gi[Y0:y1 + pad, X0:x1 + pad]
@@ -282,7 +288,7 @@ def frame(path, idx, sc, opts=()):
     cm = Image.new('L', (S, S), 0); cm.paste(lm, (int(S / 2 - im.width / 2), int(GROUND - im.height + pad * sc)))
     return np.array(cm).astype(np.float32) / 255
   sw = to_cell(gpt_sword(f)) > 0.5 if 'sword' in opts else None
-  fig, lab = label(e, a, sw)
+  fig, lab = label(e, a, None if twin else sw)
   if 'swap' in opts:
     back, front = split_legs(e, fig, lab)
     deep = np.arange(S)[:, None] > np.percentile(np.nonzero(lab == 200)[0], 97) + 3
@@ -313,6 +319,7 @@ def frame(path, idx, sc, opts=()):
   r = lambda v: np.roll(np.roll(v, dy, 0), dx, 1)
   global LAST_GEOM
   LAST_GEOM = dict(X0=X0, Y0=Y0, x1=x1, y1=y1, pad=pad, size=im.size, at=(int(S / 2 - im.width / 2), int(GROUND - im.height + pad * sc)), dy=dy, dx=dx)
+  LAST_TWIN = r(sw) if twin else None                           # (the sword of the drawing that has one, in this cell)
   return r(e), r(a), r(fig), r(lab)
 
 
@@ -561,6 +568,7 @@ def lean(px, mk, kb, kt, lift):
 GEAR_PIECES = ('pants', 'shoes', 'top')
 GEAR_COLORS = {k: [tuple(int(c['swatch'][i:i + 2], 16) for i in (1, 3, 5)) for c in v] for k, v in json.load(open(G + 'src/data/outfit-colors.json')).items()}
 _dcache = {}
+LAST_TWIN = None                                                # (frame(): the sword of a figure baked from its sword-free twin)
 
 
 def warp_fig(f, s, ox, oy, shape):
@@ -590,9 +598,10 @@ def _body(fn):
   """The bare GPT figure without the sword it holds (an attack image): the body's own mask and box."""
   if id(fn) in _bcache: return _bcache[id(fn)]
   sw_ = gpt_sword(fn); out = fn
-  if sw_.any():
-    m_ = fn['m'] & ~nd.binary_dilation(sw_, iterations=2); L_, n_ = nd.label(m_)
-    m_ = L_ == 1 + int(np.argmax(nd.sum(m_, L_, range(1, n_ + 1)))); ys_, xs_ = np.nonzero(m_)
+  if sw_.any():                                                # (a sword held across the hips parts the legs from the body:
+    m_ = fn['m'] & ~nd.binary_dilation(sw_, iterations=2); L_, n_ = nd.label(m_)   #  every big piece is body, only crumbs go)
+    sz_ = nd.sum(m_, L_, range(1, n_ + 1))
+    m_ = np.isin(L_, [1 + i for i in range(n_) if sz_[i] >= 0.06 * sz_.max()]); ys_, xs_ = np.nonzero(m_)
     out = dict(fn, m=m_, box=(xs_.min(), ys_.min(), xs_.max(), ys_.max()))
   _bcache[id(fn)] = out
   return out
@@ -606,34 +615,52 @@ def _laid(dp, fn, body=False):
   cxy = lambda f: ((f['box'][0] + f['box'][2]) / 2, (f['box'][1] + f['box'][3]) / 2)
   fd = min(figures(dp), key=lambda f: (cxy(f)[0] - cxy(fn)[0]) ** 2 + (cxy(f)[1] - cxy(fn)[1]) ** 2)   # the same figure, dressed
   x0, y0, x1, y1 = fn['box']; yy = np.arange(shape[0])[:, None]
-  R = nd.binary_dilation(fn['m'], iterations=2) & (yy < y0 + 0.30 * (y1 - y0))      # the bald head: GPT left it as it was
-  ry, rx = np.nonzero(R); ry0, rx0 = ry.min(), rx.min()
-  A = en[ry0:ry.max() + 1, rx0:rx.max() + 1]; Aa = (an * fn['m'])[ry0:ry.max() + 1, rx0:rx.max() + 1] * 255; M = R[ry0:ry.max() + 1, rx0:rx.max() + 1]
   ed, ad = keyed(fd['gi']); ad = np.where(nd.binary_dilation(fd['m'], iterations=3), ad, 0)
   X0, Y0, X1, Y1 = fd['box']; X0 -= 16; Y0 -= 16; X1 += 16; Y1 += 16
   crop = np.dstack([ed[Y0:Y1 + 1, X0:X1 + 1], ad[Y0:Y1 + 1, X0:X1 + 1] * 255])
   def head_cx(f):                                                  # the head's middle (a raised sword widens the box, not this)
     m_ = f['m']; t_ = f['box'][1]; rows_ = m_[t_:t_ + int(0.18 * (f['box'][3] - t_))]; xs_ = np.nonzero(rows_.any(0))[0]
     return (xs_.min() + xs_.max()) / 2
-  hn_, hd_ = head_cx(fn), head_cx(fd)
-  s0 = (y1 - y0) / (fd['box'][3] - fd['box'][1]); best = None
-  for s_ in np.arange(s0 * 0.96, s0 * 1.04, 0.004):                 # scale, then shift (1 px), then half a pixel
-    big = np.array(Image.fromarray(crop.clip(0, 255).astype(np.uint8), 'RGBA').resize((round(crop.shape[1] * s_), round(crop.shape[0] * s_)), Image.BICUBIC)).astype(np.float32)
-    ox0, oy0 = hn_ - s_ * hd_, y0 - s_ * fd['box'][1]
-    for ty in range(-12, 13):
-      for tx in range(-12, 13):
-        oy_, ox_ = int(round(ry0 - (s_ * Y0 + oy0 + ty))), int(round(rx0 - (s_ * X0 + ox0 + tx)))
-        if oy_ < 0 or ox_ < 0 or oy_ + A.shape[0] > big.shape[0] or ox_ + A.shape[1] > big.shape[1]: continue
-        sub = big[oy_:oy_ + A.shape[0], ox_:ox_ + A.shape[1]]
-        err = float((np.abs(A - sub[..., :3]).sum(-1) + 2 * np.abs(Aa - sub[..., 3]))[M].mean())
-        if best is None or err < best[0]: best = (err, s_, ox0 + tx, oy0 + ty)
-  err, s_, ox, oy = best; fine = (1e9, 0, 0)
-  for dy_ in (-0.5, 0, 0.5):
-    for dx_ in (-0.5, 0, 0.5):
-      Fe, Fa = warp_fig(fd, s_, ox + dx_, oy + dy_, shape)
-      e2 = float((np.abs(en - Fe).sum(-1) + 2 * np.abs(an * fn['m'] - Fa) * 255)[R].mean())
-      if e2 < fine[0]: fine = (e2, dx_, dy_)
-  ox, oy = ox + fine[1], oy + fine[2]
+  def head_ball(f):                                                # the head's inscribed circle: centre (y, x), radius — what a
+    bx0, by0, bx1, by1 = f['box']                                  #   bow over the head or an arm up beside it does not move
+    dt_ = nd.distance_transform_edt(f['m'][by0:by1 + 1, bx0:bx1 + 1]); dt_[int((by1 - by0) * 0.6):] = 0
+    iy_, ix_ = np.unravel_index(np.argmax(dt_), dt_.shape)
+    return by0 + iy_, bx0 + ix_, float(dt_[iy_, ix_])
+  def fit(by_ball):                                                # scale, then shift (1 px), then half a pixel
+    if by_ball:                                                    # (the bald head as its circle: a box that a bow or a weapon
+      cyn, cxn, rn = head_ball(fn); cyd, cxd, rd = head_ball(fd)   #   stretches puts the head elsewhere)
+      R = nd.binary_dilation(fn['m'], iterations=2) & ((yy - cyn) ** 2 + (np.arange(shape[1])[None, :] - cxn) ** 2 < (1.15 * rn) ** 2)
+      s0 = rn / rd; anchor = lambda s_: (cxn - s_ * cxd, cyn - s_ * cyd)
+    else:
+      R = nd.binary_dilation(fn['m'], iterations=2) & (yy < y0 + 0.30 * (y1 - y0))   # the bald head: GPT left it as it was
+      hn_, hd_ = head_cx(fn), head_cx(fd)
+      s0 = (y1 - y0) / (fd['box'][3] - fd['box'][1]); anchor = lambda s_: (hn_ - s_ * hd_, y0 - s_ * fd['box'][1])
+    ry, rx = np.nonzero(R); ry0, rx0 = ry.min(), rx.min()
+    A = en[ry0:ry.max() + 1, rx0:rx.max() + 1]; Aa = (an * fn['m'])[ry0:ry.max() + 1, rx0:rx.max() + 1] * 255; M = R[ry0:ry.max() + 1, rx0:rx.max() + 1]
+    best = None
+    for s_ in np.arange(s0 * 0.96, s0 * 1.04, 0.004):
+      big = np.array(Image.fromarray(crop.clip(0, 255).astype(np.uint8), 'RGBA').resize((round(crop.shape[1] * s_), round(crop.shape[0] * s_)), Image.BICUBIC)).astype(np.float32)
+      ox0, oy0 = anchor(s_)
+      for ty in range(-12, 13):
+        for tx in range(-12, 13):
+          oy_, ox_ = int(round(ry0 - (s_ * Y0 + oy0 + ty))), int(round(rx0 - (s_ * X0 + ox0 + tx)))
+          if oy_ < 0 or ox_ < 0 or oy_ + A.shape[0] > big.shape[0] or ox_ + A.shape[1] > big.shape[1]: continue
+          sub = big[oy_:oy_ + A.shape[0], ox_:ox_ + A.shape[1]]
+          err = float((np.abs(A - sub[..., :3]).sum(-1) + 2 * np.abs(Aa - sub[..., 3]))[M].mean())
+          if best is None or err < best[0]: best = (err, s_, ox0 + tx, oy0 + ty)
+    if best is None: return None
+    err, s_, ox, oy = best; fine = (1e9, 0, 0)
+    for dy_ in (-0.5, 0, 0.5):
+      for dx_ in (-0.5, 0, 0.5):
+        Fe, Fa = warp_fig(fd, s_, ox + dx_, oy + dy_, shape)
+        e2 = float((np.abs(en - Fe).sum(-1) + 2 * np.abs(an * fn['m'] - Fa) * 255)[R].mean())
+        if e2 < fine[0]: fine = (e2, dx_, dy_)
+    return fine[0], s_, ox + fine[1], oy + fine[2], s0
+  res = fit(False)
+  if res is None or res[0] > 80:                                   # a poor match: try the head's circle instead
+    alt = fit(True)
+    if alt is not None and (res is None or alt[0] < res[0]): res = alt
+  e_head, s_, ox, oy, s0 = res; fine = (e_head,)
   if body:                                                     # then the whole body: GPT's redraw may be a little bigger or
     B = fn['m']; dt = np.minimum(nd.distance_transform_edt(~(B & ~nd.binary_erosion(B))), 15)   # smaller than its head says —
     Md = fd['m']; ys_, xs_ = np.nonzero(Md & ~nd.binary_erosion(Md)); sh_ = np.arange(-10, 11)   # its outline laid on ours
@@ -674,13 +701,25 @@ def _clothes(Fe, Fa, sword, fn):
   lum = 0.3 * Rc + 0.59 * Gc + 0.11 * Bc; sat = (mx - mn) / np.maximum(mx, 1); fig = Fa > 0.05
   top = nd.binary_opening(fig & (Gc > Rc + 25) & (Gc > Bc + 15) & ~sword, iterations=1)
   pants = nd.binary_opening(fig & (Bc > Rc + 25) & (Bc > Gc + 8) & ~sword, iterations=1)
-  # the boots: brown (darker and redder than skin: green / red < 0.66, blue / red < 0.34), solid blobs at the pants' leg ends
-  # — wherever the foot is (a foot kicked up behind too), never a thin outline stroke
-  shoes = fig & (Gc < 0.66 * Rc) & (Bc < 0.34 * Rc) & (lum > 30) & (lum < 160) & (sat > 0.3) & ~nd.binary_dilation(pants, iterations=1) & ~sword
+  # the body's own axis, head → legs (standing: down; lying: sideways): how far along the body a point is (axis(y, x))
+  dh = nd.distance_transform_edt(Fa > 0.5); hy, hx = np.unravel_index(np.argmax(dh), dh.shape)   # the head: the widest round part
+  if pants.any(): py, px = np.nonzero(pants); u = np.array([py.mean() - hy, px.mean() - hx])
+  else: u = np.array([1.0, 0.0])
+  u = u / max(np.hypot(*u), 1e-6); axis = lambda y, x: (y - hy) * u[0] + (x - hx) * u[1]
+  # the boots: brown leather (an orange-brown hue, saturated, darker than skin — GPT's boots run from red-brown to a dull
+  # tan), solid blobs at the pants' leg ends — wherever the foot is (a foot kicked up behind too, a body lying down),
+  # never a thin outline stroke, and farther along the body than the pants' middle (a fist's shadow at the hip is no boot)
+  hue = 60 * (Gc - Bc) / np.maximum(Rc - Bc, 1)
+  shoes = fig & (Rc > Gc) & (Gc > Bc - 6) & ((Rc - Bc) > 28) & (hue > 4) & (hue < 46) & (lum > 30) & (lum < 165) & (sat > 0.28) & ~nd.binary_dilation(pants, iterations=1) & ~sword
   shoes = nd.binary_opening(shoes, iterations=2); L_, n_ = nd.label(shoes)
-  if n_:
+  if n_ and pants.any():
     sz = nd.sum(shoes, L_, range(1, n_ + 1)); touch = nd.maximum(nd.binary_dilation(pants, iterations=8), L_, range(1, n_ + 1))
-    shoes = np.isin(L_, [1 + i for i in range(n_) if touch[i] and sz[i] > 0.05 * sz.max()])
+    tp = axis(py.mean(), px.mean())
+    far = [axis(*c) > tp for c in nd.center_of_mass(shoes, L_, range(1, n_ + 1))]
+    keep = [i for i in range(n_) if touch[i] and far[i]]
+    big = max([sz[i] for i in keep], default=0)
+    shoes = np.isin(L_, [1 + i for i in keep if sz[i] > 0.05 * big])
+  else: shoes = np.zeros_like(shoes)
   ink = fig & (lum < 75) & ~sword & ~((sat < 0.12) & (lum > 40)); out = {}; taken = sword.copy()   # cloth outlines, not grey steel
   blade = sword & (lum > 120) & (sat < 0.3)                    # the steel (not the guard / grip at the fist)
   hand = nd.binary_dilation(fig & ((Rc - Bc) > 40) & (lum > 140) & nd.binary_dilation(sword, iterations=40), iterations=10)   # the fist on it
@@ -721,7 +760,8 @@ def _clothes(Fe, Fa, sword, fn):
         sk_ = bare & (lab_b == 60) & (lum_b >= 100)            #   leg: joined to the shorts, no outline between) gets the boot
         LL_, nl_ = nd.label(sk_); th_ = np.unique(LL_[sk_ & nd.binary_dilation(lab_b == 200, iterations=3)]); th_ = th_[th_ > 0]
         left_ = np.isin(LL_, th_) & ~taken & ~m_
-        left_ &= np.arange(shape[0])[:, None] > np.nonzero((lab_b == 200).any(1))[0].max() - 4   # below the shorts
+        sy_, sx_ = np.nonzero(lab_b == 200); yy_, xx_ = np.mgrid[0:shape[0], 0:shape[1]]
+        left_ &= axis(yy_, xx_) > axis(sy_, sx_).max() - 4     # past the shorts' end along the body (a hand by the hip is not)
         if left_.any(): cov |= left_ | (nd.binary_dilation(left_, iterations=2) & bare & (lum_b < 100) & ~taken)
       cov &= ~taken
     if cov.any():                                              # its colour there: our body's outer outline → the piece's outline,
@@ -894,16 +934,20 @@ for anim, cells in spec['anims'].items():
       sc = cell_sc[int(scn[0][3:])] if scn[0][3:].isdigit() else move_sc[scn[0][3:]]
     cell_sc[c] = sc
     e, a, fig, lab = frame(path, idx, sc, opts)
+    tw_ = LAST_TWIN                                             # (a sword-free twin: the original drawing's sword, this cell)
     geom = dict(LAST_GEOM); shift = [0, 0]                      # the GPT → cell placement, and the shifts after it
     air = [float(o[3:]) for o in opts if str(o).startswith('air')]
     if air:                                                    # off the ground as GPT drew it (same head height, feet up)
       hs = {k: figures(cc[0])[cc[1]]['box'][3] - figures(cc[0])[cc[1]]['box'][1] for k, cc in enumerate(cells) if cc[0] == path}
       up = int(round((max(hs.values()) - hs[c]) * sc * air[0])) + sum(int(o[4:]) for o in opts if str(o).startswith('lift'))
-      if up: e, a, fig, lab = [np.roll(v, -up, 0) for v in (e, a, fig, lab)]; shift[0] -= up
+      if up:
+        e, a, fig, lab = [np.roll(v, -up, 0) for v in (e, a, fig, lab)]; shift[0] -= up
+        if tw_ is not None: tw_ = np.roll(tw_, -up, 0)
     if 'feet' in opts:                                         # planted: the feet of the move's first frame done
       if c == order[0]: feet0 = feet_x(fig)
       else:
         k = int(round(feet0 - feet_x(fig))); e, a, fig, lab = [np.roll(v, k, 1) for v in (e, a, fig, lab)]; shift[1] += k
+        if tw_ is not None: tw_ = np.roll(tw_, k, 1)
     if cl and c == order[0] and anim not in refs:              # the clean GPT head every frame of the move is compared to
       rr = sc * figures(path)[idx]['headd'] / HEADD
       rax, ray, rgm, _ = find_head(fig, HEAD, rr, True)
@@ -925,12 +969,17 @@ for anim, cells in spec['anims'].items():
                                       hold=(holds[anim], hold[0]) if hold else None, track='track' in opts and c != order[0],
                                       ang=next((float(o[4:]) for o in opts if str(o).startswith('tilt')), 0.0), trim='trim' in opts)
       hfront = info.pop('front'); headm = info.pop('head'); shift[1] += info['dx']
+      if tw_ is not None: tw_ = np.roll(tw_, info['dx'], 1)    # (the frame moved under the standing head: its sword too)
       print(' ', anim, c, 'scale', round(sc, 4), 'head', info, 'sword arm over hair', int(hfront.sum())); hxy = [int(info['hx']), int(info['dy'])]
       if info['ang']: hxy.append(info['ang'])                    # (a tilted head: its turn, about the neck point)
     heads[anim].append((c, hxy)); headms_[c] = headm
     # the sword is worn gear: off the bare frame (where it crossed the body, the body around it fills in), its own layer
     sw = fig & (lab == 255)
-    if sw.any():
+    if tw_ is not None and tw_.any():                          # the body is GPT's sword-free twin (nothing to take off or fill
+      sw = tw_; grip = swing_grip(sw, fig, lab, e)[:2] + (REACH,); sw0_ = sw.copy()   #  in): only where the sword is, from the
+      front_ = nd.binary_dilation(sw, iterations=3)             #  drawing that has one — our sword goes there, in front only
+      if hfront is not None: hfront = hfront & ~sw              #  where GPT's was
+    elif sw.any():
       mx_, mn_ = e.max(-1), e.min(-1); sat_ = (mx_ - mn_) / np.maximum(mx_, 1)   # guard / pommel bits beside the hand: grey steel
       sw = sw | (nd.binary_dilation(sw, iterations=6) & fig & (lab == 60) & (sat_ < 0.28) & (mx_ < 215) & ~((e[..., 0] - e[..., 2]) > 30))
       gold_ = (e[..., 2] < 0.4 * e[..., 0]) & (sat_ > 0.55) & (e[..., 0] > 110)   # a brass guard / pommel beside the hand

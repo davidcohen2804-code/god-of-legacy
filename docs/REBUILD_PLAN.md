@@ -111,3 +111,11 @@ burst big.
   (the pedestal) and the HUD portrait are the new character with his hair. The female stays the older one until Phase 5.
 - 31 Oct 04:45 — character creation: "Your Look" for the new base — 6 hairstyles (each button a picture of the head with
   it), 9 hair colours, 4 skin tones; the pedestal shows the choice at once.
+- 31 Oct 05:40 — Phase 4 (clothes): the Beginner's outfit (T-shirt, trousers, boots — every outfit colour) is drawn on all
+  17 moves of the new base. GPT redrew each bare sheet exactly, dressed and without the weapon
+  (`tools/base/gpt/dressed_nosword/v3/`); the baker lays each figure on ours by the bald head (by the head's circle when a
+  bow or a raised weapon stretches the figure) and lifts every piece off. Boots are found by the leather's hue along the
+  body's own axis, so lying, kicking and jumping frames keep them. Worn / taken off in the bag as before (`src/items/Gear.ts`).
+- 31 Oct 05:40 — Phase 5 (female) started: her standing figure in the same language (`tools/base/gpt/v3f/approved_female.png`,
+  shown to David), then every pose sheet redrawn from the boy's (`tools/base/gpt/v3f/`, same poses and sizes, bald), her 6
+  hairstyles and 5 faces; `tools/base/sheets/v3_female.json`.
